@@ -1,6 +1,6 @@
 Package: duckdb
 Title: DBI Package for the DuckDB Database Management System
-Version: 0.2.1
+Version: 0.2.1-2
 Authors@R: 
     c(person(given = "Hannes",
              family = "Mühleisen",
@@ -42,9 +42,9 @@ Suggests: callr, DBItest, dbplyr, nycflights13, testthat
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.1.1
-SystemRequirements: C++11
+SystemRequirements: C++11, GCC on Solaris
 NeedsCompilation: yes
-Packaged: 2020-09-03 07:57:12 UTC; hannes
+Packaged: 2020-09-24 12:09:58 UTC; hannes
 Author: Hannes Mühleisen [aut, cre] (<https://orcid.org/0000-0001-8552-0029>),
   Mark Raasveldt [aut] (<https://orcid.org/0000-0001-5005-6844>),
   DuckDB Contributors [aut],
@@ -66,4 +66,4 @@ Author: Hannes Mühleisen [aut, cre] (<https://orcid.org/0000-0001-8552-0029>),
   Lukas Fittl [cph]
 Maintainer: Hannes Mühleisen <hannes@cwi.nl>
 Repository: CRAN
-Date/Publication: 2020-09-10 14:10:12 UTC
+Date/Publication: 2020-09-30 08:00:07 UTC

@@ -9,12 +9,14 @@
 #include "duckdb/catalog/catalog_entry/table_catalog_entry.hpp"
 #include "duckdb/catalog/catalog_entry/table_function_catalog_entry.hpp"
 #include "duckdb/catalog/catalog_entry/copy_function_catalog_entry.hpp"
+#include "duckdb/catalog/catalog_entry/pragma_function_catalog_entry.hpp"
 #include "duckdb/catalog/catalog_entry/view_catalog_entry.hpp"
 #include "duckdb/common/exception.hpp"
 #include "duckdb/parser/parsed_data/alter_table_info.hpp"
 #include "duckdb/parser/parsed_data/create_index_info.hpp"
 #include "duckdb/parser/parsed_data/create_scalar_function_info.hpp"
 #include "duckdb/parser/parsed_data/create_copy_function_info.hpp"
+#include "duckdb/parser/parsed_data/create_pragma_function_info.hpp"
 #include "duckdb/parser/parsed_data/create_collation_info.hpp"
 #include "duckdb/parser/parsed_data/create_schema_info.hpp"
 #include "duckdb/parser/parsed_data/create_sequence_info.hpp"
@@ -31,8 +33,9 @@ namespace duckdb {
 using namespace std;
 
 SchemaCatalogEntry::SchemaCatalogEntry(Catalog *catalog, string name)
-    : CatalogEntry(CatalogType::SCHEMA_ENTRY, catalog, name), tables(*catalog), indexes(*catalog), table_functions(*catalog),
-      copy_functions(*catalog), functions(*catalog), sequences(*catalog), collations(*catalog) {
+    : CatalogEntry(CatalogType::SCHEMA_ENTRY, catalog, name), tables(*catalog), indexes(*catalog),
+      table_functions(*catalog), copy_functions(*catalog), pragma_functions(*catalog), functions(*catalog),
+      sequences(*catalog), collations(*catalog) {
 }
 
 CatalogEntry *SchemaCatalogEntry::AddEntry(ClientContext &context, unique_ptr<StandardEntry> entry,
@@ -50,7 +53,7 @@ CatalogEntry *SchemaCatalogEntry::AddEntry(ClientContext &context, unique_ptr<St
 	} else {
 		entry->temporary = true;
 	}
-	if (on_conflict == OnCreateConflict::REPLACE) {
+	if (on_conflict == OnCreateConflict::REPLACE_ON_CONFLICT) {
 		// CREATE OR REPLACE: first try to drop the entry
 		auto old_entry = set.GetEntry(transaction, entry_name);
 		if (old_entry) {
@@ -64,7 +67,7 @@ CatalogEntry *SchemaCatalogEntry::AddEntry(ClientContext &context, unique_ptr<St
 	// now try to add the entry
 	if (!set.CreateEntry(transaction, entry_name, move(entry), dependencies)) {
 		// entry already exists!
-		if (on_conflict == OnCreateConflict::ERROR) {
+		if (on_conflict == OnCreateConflict::ERROR_ON_CONFLICT) {
 			throw CatalogException("%s with name \"%s\" already exists!", CatalogTypeToString(entry_type), entry_name);
 		} else {
 			return nullptr;
@@ -114,6 +117,11 @@ CatalogEntry *SchemaCatalogEntry::CreateCopyFunction(ClientContext &context, Cre
 	return AddEntry(context, move(copy_function), info->on_conflict);
 }
 
+CatalogEntry *SchemaCatalogEntry::CreatePragmaFunction(ClientContext &context, CreatePragmaFunctionInfo *info) {
+	auto pragma_function = make_unique<PragmaFunctionCatalogEntry>(catalog, this, info);
+	return AddEntry(context, move(pragma_function), info->on_conflict);
+}
+
 CatalogEntry *SchemaCatalogEntry::CreateFunction(ClientContext &context, CreateFunctionInfo *info) {
 	unique_ptr<StandardEntry> function;
 	if (info->type == CatalogType::SCALAR_FUNCTION_ENTRY) {
@@ -152,13 +160,16 @@ void SchemaCatalogEntry::DropEntry(ClientContext &context, DropInfo *info) {
 
 void SchemaCatalogEntry::AlterTable(ClientContext &context, AlterTableInfo *info) {
 	switch (info->alter_table_type) {
-	case AlterTableType::RENAME_TABLE: {
+	case AlterTableType::RENAME_TABLE:
+	case AlterTableType::RENAME_VIEW: {
 		auto &transaction = Transaction::GetTransaction(context);
 		auto entry = tables.GetEntry(transaction, info->table);
 		if (entry == nullptr) {
-			throw CatalogException("Table \"%s\" doesn't exist!", info->table);
+			throw CatalogException("Relation \"%s\" doesn't exist!", info->table);
 		}
-		assert(entry->type == CatalogType::TABLE_ENTRY);
+		CatalogType expected_type =
+		    info->alter_table_type == AlterTableType::RENAME_VIEW ? CatalogType::VIEW_ENTRY : CatalogType::TABLE_ENTRY;
+		assert(entry->type == expected_type);
 
 		auto copied_entry = entry->Copy(context);
 
@@ -223,8 +234,10 @@ CatalogSet &SchemaCatalogEntry::GetCatalogSet(CatalogType type) {
 		return indexes;
 	case CatalogType::TABLE_FUNCTION_ENTRY:
 		return table_functions;
-	case CatalogType::COPY_FUNCTION:
+	case CatalogType::COPY_FUNCTION_ENTRY:
 		return copy_functions;
+	case CatalogType::PRAGMA_FUNCTION_ENTRY:
+		return pragma_functions;
 	case CatalogType::AGGREGATE_FUNCTION_ENTRY:
 	case CatalogType::SCALAR_FUNCTION_ENTRY:
 		return functions;

@@ -20,6 +20,7 @@ struct ArrowScanFunctionData : public TableFunctionData {
 	ArrowArray current_chunk_root;
 	idx_t chunk_idx = 0;
 	idx_t chunk_offset = 0;
+	bool is_consumed = false;
 
 	void ReleaseArray() {
 		if (current_chunk_root.release) {
@@ -85,7 +86,9 @@ static unique_ptr<FunctionData> arrow_scan_bind(ClientContext &context, vector<V
 			throw NotImplementedException("arrow_scan: dictionary vectors not supported yet");
 		}
 		auto format = string(schema.format);
-		if (format == "b") {
+		if (format == "n") {
+			return_types.push_back(LogicalType::SQLNULL);
+		} else if (format == "b") {
 			return_types.push_back(LogicalType::BOOLEAN);
 		} else if (format == "c") {
 			return_types.push_back(LogicalType::TINYINT);
@@ -105,6 +108,10 @@ static unique_ptr<FunctionData> arrow_scan_bind(ClientContext &context, vector<V
 			return_types.push_back(LogicalType::VARCHAR);
 		} else if (format == "tsn:") {
 			return_types.push_back(LogicalType::TIMESTAMP);
+		} else if (format == "tdD") {
+			return_types.push_back(LogicalType::DATE);
+		} else if (format == "ttm") {
+			return_types.push_back(LogicalType::TIME);
 		} else {
 			throw NotImplementedException("Unsupported Arrow type %s", format);
 		}
@@ -118,11 +125,22 @@ static unique_ptr<FunctionData> arrow_scan_bind(ClientContext &context, vector<V
 	return move(res);
 }
 
-static void arrow_scan_function(ClientContext &context, vector<Value> &input, DataChunk &output,
-                                FunctionData *dataptr) {
-	auto &data = *((ArrowScanFunctionData *)dataptr);
+static unique_ptr<FunctionOperatorData> arrow_scan_init(ClientContext &context, const FunctionData *bind_data,
+                                                        vector<column_t> &column_ids,
+                                                        unordered_map<idx_t, vector<TableFilter>> &table_filters) {
+	auto &data = (ArrowScanFunctionData &)*bind_data;
+	if (data.is_consumed) {
+		throw NotImplementedException("FIXME: Arrow streams can only be read once");
+	}
+	data.is_consumed = true;
+	return make_unique<FunctionOperatorData>();
+}
 
-	if (!data.stream->release) { // no more chunks
+static void arrow_scan_function(ClientContext &context, const FunctionData *bind_data,
+                                FunctionOperatorData *operator_state, DataChunk &output) {
+	auto &data = (ArrowScanFunctionData &)*bind_data;
+	if (!data.stream->release) {
+		// no more chunks
 		return;
 	}
 
@@ -181,6 +199,9 @@ static void arrow_scan_function(ClientContext &context, vector<Value> &input, Da
 		}
 
 		switch (output.data[col_idx].type.id()) {
+		case LogicalTypeId::SQLNULL:
+			output.data[col_idx].Reference(Value());
+			break;
 		case LogicalTypeId::BOOLEAN:
 		case LogicalTypeId::TINYINT:
 		case LogicalTypeId::SMALLINT:
@@ -189,6 +210,7 @@ static void arrow_scan_function(ClientContext &context, vector<Value> &input, Da
 		case LogicalTypeId::DOUBLE:
 		case LogicalTypeId::BIGINT:
 		case LogicalTypeId::HUGEINT:
+		case LogicalTypeId::TIME:
 			FlatVector::SetData(output.data[col_idx],
 			                    (data_ptr_t)array.buffers[1] + GetTypeIdSize(output.data[col_idx].type.InternalType()) *
 			                                                       (data.chunk_offset + array.offset));
@@ -206,20 +228,11 @@ static void arrow_scan_function(ClientContext &context, vector<Value> &input, Da
 				auto str_len = offsets[row_idx + 1] - offsets[row_idx];
 
 				auto utf_type = Utf8Proc::Analyze(cptr, str_len);
-				switch (utf_type) {
-				case UnicodeType::ASCII:
-					FlatVector::GetData<string_t>(output.data[col_idx])[row_idx] =
-					    StringVector::AddString(output.data[col_idx], cptr, str_len);
-					break;
-				case UnicodeType::UNICODE:
-					// this regrettably copies to normalize
-					FlatVector::GetData<string_t>(output.data[col_idx])[row_idx] =
-					    StringVector::AddString(output.data[col_idx], Utf8Proc::Normalize(string(cptr, str_len)));
-
-					break;
-				case UnicodeType::INVALID:
+				if (utf_type == UnicodeType::INVALID) {
 					throw runtime_error("Invalid UTF8 string encoding");
 				}
+				FlatVector::GetData<string_t>(output.data[col_idx])[row_idx] =
+				    StringVector::AddString(output.data[col_idx], cptr, str_len);
 			}
 
 			break;
@@ -239,6 +252,16 @@ static void arrow_scan_function(ClientContext &context, vector<Value> &input, Da
 			}
 			break;
 		}
+		case LogicalTypeId::DATE: {
+			auto src_ptr = (int32_t *)array.buffers[1] + data.chunk_offset;
+			auto tgt_ptr = (date_t *)FlatVector::GetData(output.data[col_idx]);
+
+			for (idx_t row = 0; row < output.size(); row++) {
+				auto source_idx = data.chunk_offset + row;
+				tgt_ptr[row] = Date::EpochDaysToDate(src_ptr[source_idx]);
+			}
+			break;
+		}
 		default:
 			throw runtime_error("Unsupported type " + output.data[col_idx].type.ToString());
 		}
@@ -250,7 +273,7 @@ static void arrow_scan_function(ClientContext &context, vector<Value> &input, Da
 void ArrowTableFunction::RegisterFunction(BuiltinFunctions &set) {
 	TableFunctionSet arrow("arrow_scan");
 
-	arrow.AddFunction(TableFunction({LogicalType::POINTER}, arrow_scan_bind, arrow_scan_function));
+	arrow.AddFunction(TableFunction({LogicalType::POINTER}, arrow_scan_function, arrow_scan_bind, arrow_scan_init));
 	set.AddFunction(arrow);
 }
 

@@ -14,6 +14,7 @@
 #include "duckdb/parser/parsed_data/create_sequence_info.hpp"
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 #include "duckdb/parser/parsed_data/create_copy_function_info.hpp"
+#include "duckdb/parser/parsed_data/create_pragma_function_info.hpp"
 #include "duckdb/parser/parsed_data/create_view_info.hpp"
 #include "duckdb/parser/parsed_data/drop_info.hpp"
 #include "duckdb/planner/parsed_data/bound_create_table_info.hpp"
@@ -60,6 +61,11 @@ CatalogEntry *Catalog::CreateCopyFunction(ClientContext &context, CreateCopyFunc
 	return schema->CreateCopyFunction(context, info);
 }
 
+CatalogEntry *Catalog::CreatePragmaFunction(ClientContext &context, CreatePragmaFunctionInfo *info) {
+	auto schema = GetSchema(context, info->schema);
+	return schema->CreatePragmaFunction(context, info);
+}
+
 CatalogEntry *Catalog::CreateFunction(ClientContext &context, CreateFunctionInfo *info) {
 	auto schema = GetSchema(context, info->schema);
 	return schema->CreateFunction(context, info);
@@ -82,10 +88,10 @@ CatalogEntry *Catalog::CreateSchema(ClientContext &context, CreateSchemaInfo *in
 	auto entry = make_unique<SchemaCatalogEntry>(this, info->schema);
 	auto result = entry.get();
 	if (!schemas->CreateEntry(context.ActiveTransaction(), info->schema, move(entry), dependencies)) {
-		if (info->on_conflict == OnCreateConflict::ERROR) {
+		if (info->on_conflict == OnCreateConflict::ERROR_ON_CONFLICT) {
 			throw CatalogException("Schema with name %s already exists!", info->schema);
 		} else {
-			assert(info->on_conflict == OnCreateConflict::IGNORE);
+			assert(info->on_conflict == OnCreateConflict::IGNORE_ON_CONFLICT);
 		}
 		return nullptr;
 	}
@@ -152,6 +158,18 @@ CatalogEntry *Catalog::GetEntry(ClientContext &context, CatalogType type, string
 }
 
 template <>
+ViewCatalogEntry *Catalog::GetEntry(ClientContext &context, string schema_name, const string &name, bool if_exists) {
+	auto entry = GetEntry(context, CatalogType::VIEW_ENTRY, move(schema_name), name, if_exists);
+	if (!entry) {
+		return nullptr;
+	}
+	if (entry->type != CatalogType::VIEW_ENTRY) {
+		throw CatalogException("%s is not a view", name);
+	}
+	return (ViewCatalogEntry *)entry;
+}
+
+template <>
 TableCatalogEntry *Catalog::GetEntry(ClientContext &context, string schema_name, const string &name, bool if_exists) {
 	auto entry = GetEntry(context, CatalogType::TABLE_ENTRY, move(schema_name), name, if_exists);
 	if (!entry) {
@@ -179,8 +197,15 @@ TableFunctionCatalogEntry *Catalog::GetEntry(ClientContext &context, string sche
 template <>
 CopyFunctionCatalogEntry *Catalog::GetEntry(ClientContext &context, string schema_name, const string &name,
                                             bool if_exists) {
-	return (CopyFunctionCatalogEntry *)GetEntry(context, CatalogType::COPY_FUNCTION, move(schema_name), name,
+	return (CopyFunctionCatalogEntry *)GetEntry(context, CatalogType::COPY_FUNCTION_ENTRY, move(schema_name), name,
 	                                            if_exists);
+}
+
+template <>
+PragmaFunctionCatalogEntry *Catalog::GetEntry(ClientContext &context, string schema_name, const string &name,
+                                              bool if_exists) {
+	return (PragmaFunctionCatalogEntry *)GetEntry(context, CatalogType::PRAGMA_FUNCTION_ENTRY, move(schema_name), name,
+	                                              if_exists);
 }
 
 template <>
