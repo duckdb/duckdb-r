@@ -1,9 +1,3 @@
-#include "src/storage/meta_block_writer.cpp"
-
-#include "src/storage/numeric_segment.cpp"
-
-#include "src/storage/single_file_block_manager.cpp"
-
 #include "src/storage/storage_info.cpp"
 
 #include "src/storage/storage_lock.cpp"
@@ -16,13 +10,13 @@
 
 #include "src/storage/table/column_segment.cpp"
 
+#include "src/storage/table/morsel_info.cpp"
+
 #include "src/storage/table/persistent_segment.cpp"
 
 #include "src/storage/table/segment_tree.cpp"
 
 #include "src/storage/table/transient_segment.cpp"
-
-#include "src/storage/table/version_manager.cpp"
 
 #include "src/storage/uncompressed_segment.cpp"
 

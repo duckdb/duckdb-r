@@ -1,5 +1,5 @@
 #ifndef DUCKDB_SOURCE_ID
-#define DUCKDB_SOURCE_ID "9c9eb1361ecd027d53c6cecd07819f2b40278107"
+#define DUCKDB_SOURCE_ID "3222accbaf4b2648e5f2b4d3ff99ba26cbf2aba5"
 #endif
 #include "duckdb/function/table/sqlite_functions.hpp"
 #include "duckdb/main/database.hpp"

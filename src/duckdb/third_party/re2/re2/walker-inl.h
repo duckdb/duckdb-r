@@ -27,7 +27,7 @@ template<typename T> class Regexp::Walker {
   Walker();
   virtual ~Walker() {
     Reset();
-    delete stack_;
+	delete stack_;
   }
 
   // Virtual method called before visiting re's children.
@@ -140,7 +140,6 @@ template<typename T> Regexp::Walker<T>::Walker() {
   stack_ = new std::stack<WalkState<T> >;
   stopped_early_ = false;
 }
-
 
 // Clears the stack.  Should never be necessary, since
 // Walk always enters and exits with an empty stack.

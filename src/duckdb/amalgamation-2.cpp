@@ -1,3 +1,9 @@
+#include "src/execution/expression_executor/execute_comparison.cpp"
+
+#include "src/execution/expression_executor/execute_conjunction.cpp"
+
+#include "src/execution/expression_executor/execute_constant.cpp"
+
 #include "src/execution/expression_executor/execute_function.cpp"
 
 #include "src/execution/expression_executor/execute_operator.cpp"
@@ -66,6 +72,8 @@
 
 #include "src/execution/operator/join/physical_hash_join.cpp"
 
+#include "src/execution/operator/join/physical_index_join.cpp"
+
 #include "src/execution/operator/join/physical_join.cpp"
 
 #include "src/execution/operator/join/physical_nested_loop_join.cpp"
@@ -120,6 +128,8 @@
 
 #include "src/execution/operator/set/physical_union.cpp"
 
+#include "src/execution/partitionable_hashtable.cpp"
+
 #include "src/execution/physical_operator.cpp"
 
 #include "src/execution/physical_plan/plan_aggregate.cpp"
@@ -145,10 +155,4 @@
 #include "src/execution/physical_plan/plan_delim_get.cpp"
 
 #include "src/execution/physical_plan/plan_delim_join.cpp"
-
-#include "src/execution/physical_plan/plan_distinct.cpp"
-
-#include "src/execution/physical_plan/plan_dummy_scan.cpp"
-
-#include "src/execution/physical_plan/plan_empty_result.cpp"
 

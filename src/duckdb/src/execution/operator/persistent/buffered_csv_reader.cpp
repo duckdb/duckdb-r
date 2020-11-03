@@ -172,10 +172,10 @@ void BufferedCSVReader::PrepareComplexParser() {
 
 void BufferedCSVReader::ConfigureSampling() {
 	if (options.sample_size > STANDARD_VECTOR_SIZE) {
-		throw ParserException("Chunk size (%d) cannot be bigger than STANDARD_VECTOR_SIZE (%d)", options.sample_size,
-		                      STANDARD_VECTOR_SIZE);
+		throw InvalidInputException("Chunk size (%d) cannot be bigger than STANDARD_VECTOR_SIZE (%d)",
+		                            options.sample_size, STANDARD_VECTOR_SIZE);
 	} else if (options.sample_size < 1) {
-		throw ParserException("Chunk size cannot be smaller than 1.");
+		throw InvalidInputException("Chunk size cannot be smaller than 1.");
 	}
 	SAMPLE_CHUNK_SIZE = options.sample_size;
 	MAX_SAMPLE_CHUNKS = options.num_samples;
@@ -439,7 +439,7 @@ vector<LogicalType> BufferedCSVReader::SniffCSV(vector<LogicalType> requested_ty
 					sniffed_column_counts.clear();
 					try {
 						ParseCSV(ParserMode::SNIFFING_DIALECT);
-					} catch (const ParserException &e) {
+					} catch (const InvalidInputException &e) {
 						continue;
 					}
 
@@ -512,7 +512,7 @@ vector<LogicalType> BufferedCSVReader::SniffCSV(vector<LogicalType> requested_ty
 	    LogicalType::VARCHAR, LogicalType::TIMESTAMP,
 	    LogicalType::DATE,    LogicalType::TIME,
 	    LogicalType::DOUBLE,  /* LogicalType::FLOAT,*/ LogicalType::BIGINT,
-	    LogicalType::INTEGER, /*LogicalType::SMALLINT, LogicalType::TINYINT,*/ LogicalType::BOOLEAN};
+	    LogicalType::INTEGER, /*LogicalType::SMALLINT, LogicalType::TINYINT,*/ LogicalType::BOOLEAN, LogicalType::SQLNULL};
 
 	// format template candidates, ordered by descending specificity (~ from high to low)
 	std::map<LogicalTypeId, vector<const char *>> format_template_candidates = {
@@ -522,7 +522,7 @@ vector<LogicalType> BufferedCSVReader::SniffCSV(vector<LogicalType> requested_ty
 	      "%y-%m-%d %H:%M:%S"}},
 	};
 
-	// check which info candiate leads to minimum amount of non-varchar columns...
+	// check which info candidate leads to minimum amount of non-varchar columns...
 	BufferedCSVReaderOptions best_options;
 	idx_t min_varchar_cols = best_num_cols + 1;
 	vector<vector<LogicalType>> best_sql_types_candidates;
@@ -550,7 +550,7 @@ vector<LogicalType> BufferedCSVReader::SniffCSV(vector<LogicalType> requested_ty
 		ParseCSV(ParserMode::SNIFFING_DATATYPES);
 		for (idx_t row = 0; row < parse_chunk.size(); row++) {
 			for (idx_t col = 0; col < parse_chunk.column_count(); col++) {
-				vector<LogicalType> &col_type_candidates = info_sql_types_candidates[col];
+				auto &col_type_candidates = info_sql_types_candidates[col];
 				while (col_type_candidates.size() > 1) {
 					const auto &sql_type = col_type_candidates.back();
 					// try cast from string to sql_type
@@ -628,10 +628,11 @@ vector<LogicalType> BufferedCSVReader::SniffCSV(vector<LogicalType> requested_ty
 			}
 		}
 
-		// check number of varchar columns
 		idx_t varchar_cols = 0;
 		for (idx_t col = 0; col < parse_chunk.column_count(); col++) {
-			const auto &col_type = info_sql_types_candidates[col].back();
+			auto &col_type_candidates = info_sql_types_candidates[col];
+			// check number of varchar columns
+			const auto &col_type = col_type_candidates.back();
 			if (col_type == LogicalType::VARCHAR) {
 				varchar_cols++;
 			}
@@ -664,8 +665,9 @@ vector<LogicalType> BufferedCSVReader::SniffCSV(vector<LogicalType> requested_ty
 	// if data types were provided, exit here if number of columns does not match
 	if (requested_types.size() > 0) {
 		if (requested_types.size() != options.num_cols) {
-			throw ParserException("Error while determining column types: found %lld columns but expected %d",
-			                      options.num_cols, requested_types.size());
+			throw InvalidInputException(
+			    "Error while determining column types: found %lld columns but expected %d. (%s)", options.num_cols,
+			    requested_types.size(), options.toString());
 		} else {
 			detected_types = requested_types;
 		}
@@ -675,7 +677,7 @@ vector<LogicalType> BufferedCSVReader::SniffCSV(vector<LogicalType> requested_ty
 			// if jump ends up a bad line, we just skip this chunk
 			try {
 				ParseCSV(ParserMode::SNIFFING_DATATYPES);
-			} catch (const ParserException &e) {
+			} catch (const InvalidInputException &e) {
 				continue;
 			}
 			for (idx_t col = 0; col < parse_chunk.column_count(); col++) {
@@ -717,8 +719,11 @@ vector<LogicalType> BufferedCSVReader::SniffCSV(vector<LogicalType> requested_ty
 		}
 
 		// set sql types
-		for (idx_t col = 0; col < best_sql_types_candidates.size(); col++) {
-			LogicalType d_type = best_sql_types_candidates[col].back();
+		for (auto & best_sql_types_candidate : best_sql_types_candidates) {
+			LogicalType d_type = best_sql_types_candidate.back();
+			if (best_sql_types_candidate.size() == type_candidates.size()) {
+				d_type = LogicalType::VARCHAR;
+			}
 			detected_types.push_back(d_type);
 		}
 	}
@@ -914,8 +919,8 @@ in_quotes:
 		}
 	} while (ReadBuffer(start));
 	// still in quoted state at the end of the file, error:
-	throw ParserException("Error in file \"%s\" on line %s: unterminated quotes", options.file_path,
-	                      GetLineNumberStr(linenr, linenr_estimated).c_str());
+	throw InvalidInputException("Error in file \"%s\" on line %s: unterminated quotes. (%s)", options.file_path,
+	                            GetLineNumberStr(linenr, linenr_estimated).c_str(), options.toString());
 unquote:
 	/* state: unquote */
 	// this state handles the state directly after we unquote
@@ -941,9 +946,10 @@ unquote:
 			delimiter_search.Match(delimiter_pos, buffer[position]);
 			count++;
 			if (count > delimiter_pos && count > quote_pos) {
-				throw ParserException("Error in file \"%s\" on line %s: quote should be followed by end of value, end "
-				                      "of row or another quote",
-				                      options.file_path, GetLineNumberStr(linenr, linenr_estimated).c_str());
+				throw InvalidInputException(
+				    "Error in file \"%s\" on line %s: quote should be followed by end of value, end "
+				    "of row or another quote. (%s)",
+				    options.file_path, GetLineNumberStr(linenr, linenr_estimated).c_str(), options.toString());
 			}
 			if (delimiter_pos == options.delimiter.size()) {
 				// quote followed by delimiter, add value
@@ -957,9 +963,9 @@ unquote:
 			}
 		}
 	} while (ReadBuffer(start));
-	throw ParserException(
-	    "Error in file \"%s\" on line %s: quote should be followed by end of value, end of row or another quote",
-	    options.file_path, GetLineNumberStr(linenr, linenr_estimated).c_str());
+	throw InvalidInputException(
+	    "Error in file \"%s\" on line %s: quote should be followed by end of value, end of row or another quote. (%s)",
+	    options.file_path, GetLineNumberStr(linenr, linenr_estimated).c_str(), options.toString());
 handle_escape:
 	escape_pos = 0;
 	quote_pos = 0;
@@ -971,9 +977,9 @@ handle_escape:
 			escape_search.Match(escape_pos, buffer[position]);
 			count++;
 			if (count > escape_pos && count > quote_pos) {
-				throw ParserException(
-				    "Error in file \"%s\" on line %s: neither QUOTE nor ESCAPE is proceeded by ESCAPE",
-				    options.file_path, GetLineNumberStr(linenr, linenr_estimated).c_str());
+				throw InvalidInputException(
+				    "Error in file \"%s\" on line %s: neither QUOTE nor ESCAPE is proceeded by ESCAPE. (%s)",
+				    options.file_path, GetLineNumberStr(linenr, linenr_estimated).c_str(), options.toString());
 			}
 			if (quote_pos == options.quote.size() || escape_pos == options.escape.size()) {
 				// found quote or escape: move back to quoted state
@@ -981,8 +987,9 @@ handle_escape:
 			}
 		}
 	} while (ReadBuffer(start));
-	throw ParserException("Error in file \"%s\" on line %s: neither QUOTE nor ESCAPE is proceeded by ESCAPE",
-	                      options.file_path, GetLineNumberStr(linenr, linenr_estimated).c_str());
+	throw InvalidInputException(
+	    "Error in file \"%s\" on line %s: neither QUOTE nor ESCAPE is proceeded by ESCAPE. (%s)", options.file_path,
+	    GetLineNumberStr(linenr, linenr_estimated).c_str(), options.toString());
 carriage_return:
 	/* state: carriage_return */
 	// this stage optionally skips a newline (\n) character, which allows \r\n to be interpreted as a single line
@@ -1111,8 +1118,8 @@ in_quotes:
 		}
 	} while (ReadBuffer(start));
 	// still in quoted state at the end of the file, error:
-	throw ParserException("Error in file \"%s\" on line %s: unterminated quotes", options.file_path,
-	                      GetLineNumberStr(linenr, linenr_estimated).c_str());
+	throw InvalidInputException("Error in file \"%s\" on line %s: unterminated quotes. (%s)", options.file_path,
+	                            GetLineNumberStr(linenr, linenr_estimated).c_str(), options.toString());
 unquote:
 	/* state: unquote */
 	// this state handles the state directly after we unquote
@@ -1136,21 +1143,24 @@ unquote:
 		offset = 1;
 		goto add_row;
 	} else {
-		throw ParserException(
-		    "Error in file \"%s\" on line %s: quote should be followed by end of value, end of row or another quote",
-		    options.file_path, GetLineNumberStr(linenr, linenr_estimated).c_str());
+		throw InvalidInputException("Error in file \"%s\" on line %s: quote should be followed by end of value, end of "
+		                            "row or another quote. (%s)",
+		                            options.file_path, GetLineNumberStr(linenr, linenr_estimated).c_str(),
+		                            options.toString());
 	}
 handle_escape:
 	/* state: handle_escape */
 	// escape should be followed by a quote or another escape character
 	position++;
 	if (position >= buffer_size && !ReadBuffer(start)) {
-		throw ParserException("Error in file \"%s\" on line %s: neither QUOTE nor ESCAPE is proceeded by ESCAPE",
-		                      options.file_path, GetLineNumberStr(linenr, linenr_estimated).c_str());
+		throw InvalidInputException(
+		    "Error in file \"%s\" on line %s: neither QUOTE nor ESCAPE is proceeded by ESCAPE. (%s)", options.file_path,
+		    GetLineNumberStr(linenr, linenr_estimated).c_str(), options.toString());
 	}
 	if (buffer[position] != options.quote[0] && buffer[position] != options.escape[0]) {
-		throw ParserException("Error in file \"%s\" on line %s: neither QUOTE nor ESCAPE is proceeded by ESCAPE",
-		                      options.file_path, GetLineNumberStr(linenr, linenr_estimated).c_str());
+		throw InvalidInputException(
+		    "Error in file \"%s\" on line %s: neither QUOTE nor ESCAPE is proceeded by ESCAPE. (%s)", options.file_path,
+		    GetLineNumberStr(linenr, linenr_estimated).c_str(), options.toString());
 	}
 	// escape was followed by quote or escape, go back to quoted state
 	goto in_quotes;
@@ -1200,7 +1210,7 @@ bool BufferedCSVReader::ReadBuffer(idx_t &start) {
 		buffer_read_size *= 2;
 	}
 	if (remaining + buffer_read_size > MAXIMUM_CSV_LINE_SIZE) {
-		throw ParserException("Maximum line size of %llu bytes exceeded!", MAXIMUM_CSV_LINE_SIZE);
+		throw InvalidInputException("Maximum line size of %llu bytes exceeded!", MAXIMUM_CSV_LINE_SIZE);
 	}
 	buffer = unique_ptr<char[]>(new char[buffer_read_size + remaining + 1]);
 	buffer_size = remaining + buffer_read_size;
@@ -1249,8 +1259,9 @@ void BufferedCSVReader::AddValue(char *str_val, idx_t length, idx_t &column, vec
 		return;
 	}
 	if (column >= sql_types.size()) {
-		throw ParserException("Error on line %s: expected %lld values but got %d",
-		                      GetLineNumberStr(linenr, linenr_estimated).c_str(), sql_types.size(), column + 1);
+		throw InvalidInputException("Error on line %s: expected %lld values per row, but got more. (%s)",
+		                            GetLineNumberStr(linenr, linenr_estimated).c_str(), sql_types.size(),
+		                            options.toString());
 	}
 
 	// insert the line number into the chunk
@@ -1295,8 +1306,9 @@ bool BufferedCSVReader::AddRow(DataChunk &insert_chunk, idx_t &column) {
 	linenr++;
 
 	if (column < sql_types.size() && mode != ParserMode::SNIFFING_DIALECT) {
-		throw ParserException("Error on line %s: expected %lld values but got %d",
-		                      GetLineNumberStr(linenr, linenr_estimated).c_str(), sql_types.size(), column);
+		throw InvalidInputException("Error on line %s: expected %lld values per row, but got %d. (%s)",
+		                            GetLineNumberStr(linenr, linenr_estimated).c_str(), sql_types.size(), column,
+		                            options.toString());
 	}
 
 	if (mode == ParserMode::SNIFFING_DIALECT) {
@@ -1338,8 +1350,9 @@ void BufferedCSVReader::Flush(DataChunk &insert_chunk) {
 					auto s = parse_data[i];
 					auto utf_type = Utf8Proc::Analyze(s.GetData(), s.GetSize());
 					if (utf_type == UnicodeType::INVALID) {
-						throw ParserException("Error in file \"%s\" between line %d and %d: file is not valid UTF8",
-						                      options.file_path, linenr - parse_chunk.size(), linenr);
+						throw InvalidInputException(
+						    "Error in file \"%s\" between line %d and %d: file is not valid UTF8. (%s)",
+						    options.file_path, linenr - parse_chunk.size(), linenr, options.toString());
 					}
 				}
 			}
@@ -1351,8 +1364,9 @@ void BufferedCSVReader::Flush(DataChunk &insert_chunk) {
 				    parse_chunk.data[col_idx], insert_chunk.data[col_idx], parse_chunk.size(),
 				    [&](string_t input) { return options.date_format[LogicalTypeId::DATE].ParseDate(input); });
 			} catch (const Exception &e) {
-				throw ParserException("Error in file \"%s\" between line %llu and %llu: %s", options.file_path,
-				                      linenr - parse_chunk.size(), linenr, e.what());
+				throw InvalidInputException("Error in file \"%s\" between line %llu and %llu: %s. (%s)",
+				                            options.file_path, linenr - parse_chunk.size(), linenr, e.what(),
+				                            options.toString());
 			}
 		} else if (options.has_format[LogicalTypeId::TIMESTAMP] &&
 		           sql_types[col_idx].id() == LogicalTypeId::TIMESTAMP) {
@@ -1363,16 +1377,18 @@ void BufferedCSVReader::Flush(DataChunk &insert_chunk) {
 					    return options.date_format[LogicalTypeId::TIMESTAMP].ParseTimestamp(input);
 				    });
 			} catch (const Exception &e) {
-				throw ParserException("Error in file \"%s\" between line %llu and %llu: %s", options.file_path,
-				                      linenr - parse_chunk.size(), linenr, e.what());
+				throw InvalidInputException("Error in file \"%s\" between line %llu and %llu: %s. (%s)",
+				                            options.file_path, linenr - parse_chunk.size(), linenr, e.what(),
+				                            options.toString());
 			}
 		} else {
 			try {
 				// target type is not varchar: perform a cast
 				VectorOperations::Cast(parse_chunk.data[col_idx], insert_chunk.data[col_idx], parse_chunk.size());
 			} catch (const Exception &e) {
-				throw ParserException("Error in file \"%s\" between line %llu and %llu: %s", options.file_path,
-				                      linenr - parse_chunk.size(), linenr, e.what());
+				throw InvalidInputException("Error in file \"%s\" between line %llu and %llu: %s. (%s)",
+				                            options.file_path, linenr - parse_chunk.size(), linenr, e.what(),
+				                            options.toString());
 			}
 		}
 	}

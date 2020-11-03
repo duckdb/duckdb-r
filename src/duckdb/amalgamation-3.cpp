@@ -1,3 +1,9 @@
+#include "src/execution/physical_plan/plan_distinct.cpp"
+
+#include "src/execution/physical_plan/plan_dummy_scan.cpp"
+
+#include "src/execution/physical_plan/plan_empty_result.cpp"
+
 #include "src/execution/physical_plan/plan_execute.cpp"
 
 #include "src/execution/physical_plan/plan_explain.cpp"
@@ -136,6 +142,8 @@
 
 #include "src/function/scalar/string/like.cpp"
 
+#include "src/function/scalar/string/md5.cpp"
+
 #include "src/function/scalar/string/nfc_normalize.cpp"
 
 #include "src/function/scalar/string/pad.cpp"
@@ -147,8 +155,4 @@
 #include "src/function/scalar/string/regexp.cpp"
 
 #include "src/function/scalar/string/repeat.cpp"
-
-#include "src/function/scalar/string/replace.cpp"
-
-#include "src/function/scalar/string/reverse.cpp"
 

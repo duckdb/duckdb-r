@@ -1,5 +1,3 @@
-#include "src/planner/binder/tableref/bind_joinref.cpp"
-
 #include "src/planner/binder/tableref/bind_subqueryref.cpp"
 
 #include "src/planner/binder/tableref/bind_table_function.cpp"
@@ -151,4 +149,10 @@
 #include "src/storage/local_storage.cpp"
 
 #include "src/storage/meta_block_reader.cpp"
+
+#include "src/storage/meta_block_writer.cpp"
+
+#include "src/storage/numeric_segment.cpp"
+
+#include "src/storage/single_file_block_manager.cpp"
 

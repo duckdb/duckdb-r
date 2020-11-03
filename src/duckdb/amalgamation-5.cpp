@@ -1,3 +1,5 @@
+#include "src/optimizer/pushdown/pushdown_mark_join.cpp"
+
 #include "src/optimizer/pushdown/pushdown_projection.cpp"
 
 #include "src/optimizer/pushdown/pushdown_set_operation.cpp"
@@ -82,6 +84,8 @@
 
 #include "src/parser/expression_util.cpp"
 
+#include "src/parser/keyword_helper.cpp"
+
 #include "src/parser/parsed_data/alter_table_info.cpp"
 
 #include "src/parser/parsed_expression.cpp"
@@ -89,6 +93,8 @@
 #include "src/parser/parsed_expression_iterator.cpp"
 
 #include "src/parser/parser.cpp"
+
+#include "src/parser/query_error_context.cpp"
 
 #include "src/parser/query_node.cpp"
 
@@ -149,6 +155,4 @@
 #include "src/parser/transform/helpers/transform_alias.cpp"
 
 #include "src/parser/transform/helpers/transform_cte.cpp"
-
-#include "src/parser/transform/helpers/transform_groupby.cpp"
 

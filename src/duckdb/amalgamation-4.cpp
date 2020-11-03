@@ -1,3 +1,9 @@
+#include "src/function/scalar/string/replace.cpp"
+
+#include "src/function/scalar/string/reverse.cpp"
+
+#include "src/function/scalar/string/string_split.cpp"
+
 #include "src/function/scalar/string/strip_accents.cpp"
 
 #include "src/function/scalar/string/substring.cpp"
@@ -149,6 +155,4 @@
 #include "src/optimizer/pushdown/pushdown_inner_join.cpp"
 
 #include "src/optimizer/pushdown/pushdown_left_join.cpp"
-
-#include "src/optimizer/pushdown/pushdown_mark_join.cpp"
 

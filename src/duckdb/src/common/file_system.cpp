@@ -8,10 +8,36 @@
 #include "duckdb/main/database.hpp"
 #include "duckdb/function/scalar/string_functions.hpp"
 
+#include <cstdio>
+#include <cstdint>
+
+#ifndef _WIN32
+#include <dirent.h>
+#include <fcntl.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+#else
+#include <string>
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+
+#ifdef __MINGW32__
+// need to manually define this for mingw
+extern "C" WINBASEAPI BOOL WINAPI GetPhysicallyInstalledSystemMemory(PULONGLONG);
+#endif
+
+#undef CreateDirectory
+#undef MoveFile
+#undef RemoveDirectory
+#undef FILE_CREATE // woo mingw
+#endif
+
 namespace duckdb {
 using namespace std;
-
-#include <cstdio>
 
 FileSystem &FileSystem::GetFileSystem(ClientContext &context) {
 	return *context.db.config.file_system;
@@ -29,13 +55,6 @@ static void AssertValidFileFlags(uint8_t flags) {
 }
 
 #ifndef _WIN32
-#include <dirent.h>
-#include <fcntl.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
-
 // somehow sometimes this is missing
 #ifndef O_CLOEXEC
 #define O_CLOEXEC 0
@@ -315,18 +334,24 @@ void FileSystem::SetWorkingDirectory(string path) {
 	}
 }
 
+idx_t FileSystem::GetAvailableMemory() {
+	errno = 0;
+	idx_t max_memory = MinValue<idx_t>(sysconf(_SC_PHYS_PAGES) * sysconf(_SC_PAGESIZE), UINTPTR_MAX);
+	if (errno != 0) {
+		throw IOException("Could not fetch available system memory!");
+	}
+	return max_memory;
+}
+
+string FileSystem::GetWorkingDirectory() {
+	auto buffer = unique_ptr<char[]>(new char[PATH_MAX]);
+	char *ret = getcwd(buffer.get(), PATH_MAX);
+	if (!ret) {
+		throw IOException("Could not get working directory!");
+	}
+	return string(buffer.get());
+}
 #else
-
-#include <string>
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-
-#undef CreateDirectory
-#undef MoveFile
-#undef RemoveDirectory
-#undef FILE_CREATE // woo mingw
 
 // Returns the last Win32 error, in string format. Returns an empty string if there is no error.
 std::string GetLastErrorAsString() {
@@ -579,6 +604,27 @@ void FileSystem::SetWorkingDirectory(string path) {
 		throw IOException("Could not change working directory!");
 	}
 }
+
+idx_t FileSystem::GetAvailableMemory() {
+	ULONGLONG available_memory_kb;
+	if (!GetPhysicallyInstalledSystemMemory(&available_memory_kb)) {
+		throw IOException("Could not fetch available system memory!");
+	}
+	return MinValue<idx_t>(available_memory_kb * 1024, UINTPTR_MAX);
+}
+
+string FileSystem::GetWorkingDirectory() {
+	idx_t count = GetCurrentDirectory(0, nullptr);
+	if (count == 0) {
+		throw IOException("Could not get working directory!");
+	}
+	auto buffer = unique_ptr<char[]>(new char[count]);
+	idx_t ret = GetCurrentDirectory(count, buffer.get());
+	if (count != ret + 1) {
+		throw IOException("Could not get working directory!");
+	}
+	return string(buffer.get(), ret);
+}
 #endif
 
 void FileSystem::Read(FileHandle &handle, void *buffer, int64_t nr_bytes, idx_t location) {
@@ -648,6 +694,9 @@ static void GlobFiles(FileSystem &fs, const string &path, const string &glob, bo
 }
 
 vector<string> FileSystem::Glob(string path) {
+	if (path.size() == 0) {
+		return vector<string>();
+	}
 	// first check if the path has a glob at all
 	if (!HasGlob(path)) {
 		// no glob: return only the file (if it exists)
@@ -662,14 +711,30 @@ vector<string> FileSystem::Glob(string path) {
 	idx_t last_pos = 0;
 	for (idx_t i = 0; i < path.size(); i++) {
 		if (path[i] == '\\' || path[i] == '/') {
+			if (i == last_pos) {
+				// empty: skip this position
+				continue;
+			}
 			splits.push_back(path.substr(last_pos, i - last_pos));
 			last_pos = i + 1;
 		}
 	}
 	splits.push_back(path.substr(last_pos, path.size() - last_pos));
-	// now iterate over the chunks
+	// handle absolute paths
+	bool absolute_path = false;
+	if (path[0] == '/') {
+		// first character is a slash -  unix absolute path
+		absolute_path = true;
+	} else if (StringUtil::Contains(splits[0], ":")) {
+		// first split has a colon -  windows absolute path
+		absolute_path = true;
+	}
 	vector<string> previous_directories;
-	for (idx_t i = 0; i < splits.size(); i++) {
+	if (absolute_path) {
+		// for absolute paths, we don't start by scanning the current directory
+		previous_directories.push_back(splits[0]);
+	}
+	for (idx_t i = absolute_path ? 1 : 0; i < splits.size(); i++) {
 		bool is_last_chunk = i + 1 == splits.size();
 		// if it's the last chunk we need to find files, otherwise we find directories
 		// not the last chunk: gather a list of all directories that match the glob pattern

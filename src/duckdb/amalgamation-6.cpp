@@ -1,3 +1,5 @@
+#include "src/parser/transform/helpers/transform_groupby.cpp"
+
 #include "src/parser/transform/helpers/transform_orderby.cpp"
 
 #include "src/parser/transform/helpers/transform_typename.cpp"
@@ -151,4 +153,6 @@
 #include "src/planner/binder/tableref/bind_emptytableref.cpp"
 
 #include "src/planner/binder/tableref/bind_expressionlistref.cpp"
+
+#include "src/planner/binder/tableref/bind_joinref.cpp"
 

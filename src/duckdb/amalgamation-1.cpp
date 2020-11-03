@@ -20,11 +20,17 @@
 
 #include "src/catalog/catalog_set.cpp"
 
+#include "src/catalog/default/default_schemas.cpp"
+
+#include "src/catalog/default/default_views.cpp"
+
 #include "src/catalog/dependency_manager.cpp"
 
 #include "src/common/checksum.cpp"
 
 #include "src/common/constants.cpp"
+
+#include "src/common/crypto/md5.cpp"
 
 #include "src/common/enums/catalog_type.cpp"
 
@@ -41,6 +47,8 @@
 #include "src/common/enums/statement_type.cpp"
 
 #include "src/common/exception.cpp"
+
+#include "src/common/exception_format_value.cpp"
 
 #include "src/common/file_buffer.cpp"
 
@@ -67,6 +75,8 @@
 #include "src/common/serializer/buffered_serializer.cpp"
 
 #include "src/common/string_util.cpp"
+
+#include "src/common/tree_renderer.cpp"
 
 #include "src/common/types.cpp"
 
@@ -145,10 +155,4 @@
 #include "src/execution/expression_executor/execute_case.cpp"
 
 #include "src/execution/expression_executor/execute_cast.cpp"
-
-#include "src/execution/expression_executor/execute_comparison.cpp"
-
-#include "src/execution/expression_executor/execute_conjunction.cpp"
-
-#include "src/execution/expression_executor/execute_constant.cpp"
 

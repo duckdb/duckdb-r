@@ -63,9 +63,9 @@ void Transformer::TransformWindowDef(PGWindowDef *window_spec, WindowExpression 
 		expr->start = WindowBoundary::EXPR_PRECEDING;
 	} else if (window_spec->frameOptions & FRAMEOPTION_START_VALUE_FOLLOWING) {
 		expr->start = WindowBoundary::EXPR_FOLLOWING;
-	} else if (window_spec->frameOptions & (FRAMEOPTION_START_CURRENT_ROW | FRAMEOPTION_RANGE)) {
+	} else if ((window_spec->frameOptions & FRAMEOPTION_START_CURRENT_ROW) && (window_spec->frameOptions & FRAMEOPTION_RANGE)) {
 		expr->start = WindowBoundary::CURRENT_ROW_RANGE;
-	} else if (window_spec->frameOptions & (FRAMEOPTION_START_CURRENT_ROW | FRAMEOPTION_ROWS)) {
+	} else if ((window_spec->frameOptions & FRAMEOPTION_START_CURRENT_ROW) && (window_spec->frameOptions & FRAMEOPTION_ROWS)) {
 		expr->start = WindowBoundary::CURRENT_ROW_ROWS;
 	}
 
@@ -77,9 +77,9 @@ void Transformer::TransformWindowDef(PGWindowDef *window_spec, WindowExpression 
 		expr->end = WindowBoundary::EXPR_PRECEDING;
 	} else if (window_spec->frameOptions & FRAMEOPTION_END_VALUE_FOLLOWING) {
 		expr->end = WindowBoundary::EXPR_FOLLOWING;
-	} else if (window_spec->frameOptions & (FRAMEOPTION_END_CURRENT_ROW | FRAMEOPTION_RANGE)) {
+	} else if ((window_spec->frameOptions & FRAMEOPTION_END_CURRENT_ROW) && (window_spec->frameOptions & FRAMEOPTION_RANGE)) {
 		expr->end = WindowBoundary::CURRENT_ROW_RANGE;
-	} else if (window_spec->frameOptions & (FRAMEOPTION_END_CURRENT_ROW | FRAMEOPTION_ROWS)) {
+	} else if ((window_spec->frameOptions & FRAMEOPTION_END_CURRENT_ROW) && (window_spec->frameOptions & FRAMEOPTION_ROWS)) {
 		expr->end = WindowBoundary::CURRENT_ROW_ROWS;
 	}
 
@@ -199,7 +199,9 @@ unique_ptr<ParsedExpression> Transformer::TransformFuncCall(PGFuncCall *root) {
 		return move(expr);
 	}
 
-	return make_unique<FunctionExpression>(schema, lowercase_name.c_str(), children, root->agg_distinct);
+	auto function = make_unique<FunctionExpression>(schema, lowercase_name.c_str(), children, root->agg_distinct);
+	function->query_location = root->location;
+	return move(function);
 }
 
 static string SQLValueOpToString(PGSQLValueFunctionOp op) {

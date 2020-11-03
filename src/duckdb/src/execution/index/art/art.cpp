@@ -439,6 +439,16 @@ bool ART::SearchEqual(ARTIndexScanState *state, idx_t max_count, vector<row_t> &
 	return true;
 }
 
+void ART::SearchEqualJoinNoFetch(Value &equal_value, idx_t &result_size) {
+	//! We need to look for a leaf
+	auto key = CreateKey(*this, types[0], equal_value);
+	auto leaf = static_cast<Leaf *>(Lookup(tree, *key, 0));
+	if (!leaf) {
+		return;
+	}
+	result_size = leaf->num_elements;
+}
+
 Node *ART::Lookup(unique_ptr<Node> &node, Key &key, unsigned depth) {
 	auto node_val = node.get();
 
@@ -507,6 +517,13 @@ bool ART::IteratorScan(ARTIndexScanState *state, Iterator *it, Key *bound, idx_t
 	return true;
 }
 
+void Iterator::SetEntry(idx_t entry_depth, IteratorEntry entry) {
+	if (stack.size() < entry_depth + 1) {
+		stack.resize(MaxValue<idx_t>(8, MaxValue<idx_t>(entry_depth + 1, stack.size() * 2)));
+	}
+	stack[entry_depth] = entry;
+}
+
 bool ART::IteratorNext(Iterator &it) {
 	// Skip leaf
 	if ((it.depth) && ((it.stack[it.depth - 1].node)->type == NodeType::NLeaf)) {
@@ -528,8 +545,7 @@ bool ART::IteratorNext(Iterator &it) {
 		top.pos = node->GetNextPos(top.pos);
 		if (top.pos != INVALID_INDEX) {
 			// next node found: go there
-			it.stack[it.depth].node = node->GetChild(top.pos)->get();
-			it.stack[it.depth].pos = INVALID_INDEX;
+			it.SetEntry(it.depth, IteratorEntry(node->GetChild(top.pos)->get(), INVALID_INDEX));
 			it.depth++;
 		} else {
 			// no node found: move up the tree
@@ -554,8 +570,8 @@ bool ART::Bound(unique_ptr<Node> &n, Key &key, Iterator &it, bool inclusive) {
 
 	idx_t depth = 0;
 	while (true) {
+		it.SetEntry(it.depth, IteratorEntry(node, 0));
 		auto &top = it.stack[it.depth];
-		top.node = node;
 		it.depth++;
 		if (!equal) {
 			while (node->type != NodeType::NLeaf) {
@@ -678,8 +694,7 @@ static Leaf &FindMinimum(Iterator &it, Node &node) {
 		break;
 	}
 	}
-	it.stack[it.depth].node = &node;
-	it.stack[it.depth].pos = pos;
+	it.SetEntry(it.depth, IteratorEntry(&node, pos));
 	it.depth++;
 	return FindMinimum(it, *next);
 }
@@ -774,7 +789,7 @@ bool ART::Scan(Transaction &transaction, DataTable &table, IndexScanState &table
 	if (!success) {
 		return false;
 	}
-	if (row_ids.size() == 0) {
+	if (row_ids.empty()) {
 		return true;
 	}
 	// sort the row ids
