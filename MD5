@@ -1,4 +1,4 @@
-710760ff5e65acd79be600b7ec9e814b *DESCRIPTION
+59b51a6544cb4b50bc90d8799b3e7f51 *DESCRIPTION
 833e0c019eb7628add9b9b4349d11fbd *NAMESPACE
 e35dbe384392feeb8d345dd12594ee55 *R/Connection.R
 df924872002b35115a63bbd58e957bdf *R/Driver.R
@@ -294,7 +294,7 @@ ecdf6164fa5b1c9b8c9a5f6b1844ca17 *src/duckdb/src/function/table/sqlite/pragma_ta
 bf9cbdd796d259a19033ed2a985c4e2d *src/duckdb/src/function/table/sqlite/sqlite_master.cpp
 adc68a42fb7087f2ac66022d4c8b57d4 *src/duckdb/src/function/table/sqlite_functions.cpp
 77614ae1084ac25d85368cb9c6b918be *src/duckdb/src/function/table/table_scan.cpp
-32af1757d9a6f6d13ea64ccfd2b64742 *src/duckdb/src/function/table/version/pragma_version.cpp
+a82966fd3b8c2317bd395c16faa14bfb *src/duckdb/src/function/table/version/pragma_version.cpp
 e11579aef82364df7c9837874995d63d *src/duckdb/src/function/udf_function.cpp
 233b9b3e2c5d655cdb181b97a3b044a5 *src/duckdb/src/include/duckdb.h
 a42bc2f47b409f167cb628d7f215929b *src/duckdb/src/include/duckdb.hpp
@@ -1267,8 +1267,8 @@ a64808daf7165263a9c972634140a151 *src/duckdb/third_party/zstd/common/error_priva
 4b9df185549b218ac723658791f6b3f0 *src/duckdb/third_party/zstd/common/fse_decompress.cpp
 257c58b54e2cd30f07ea7b32d1bea08a *src/duckdb/third_party/zstd/common/huf.h
 6ef2d63e3298a55edc4f189467598a42 *src/duckdb/third_party/zstd/common/mem.h
-a82a1746214cf64d2e4666180e7daf95 *src/duckdb/third_party/zstd/common/xxhash.cpp
-131bcfd004e8a78b314b5b15b0d3215e *src/duckdb/third_party/zstd/common/xxhash.h
+a483c68f1827af360be6dc6bf09577f8 *src/duckdb/third_party/zstd/common/xxhash.cpp
+b13b575dc5af98d7a34d4ecc5472b9c5 *src/duckdb/third_party/zstd/common/xxhash.h
 cc5e33fe68b052be38552f8673811962 *src/duckdb/third_party/zstd/common/zstd_common.cpp
 d64ca25426259d790b1016c484ad40b8 *src/duckdb/third_party/zstd/common/zstd_errors.h
 6d7844b0a3d83f48d2e5dc9a5425f1dd *src/duckdb/third_party/zstd/common/zstd_internal.h
