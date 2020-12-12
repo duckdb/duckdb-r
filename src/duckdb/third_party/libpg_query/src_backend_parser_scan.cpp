@@ -1356,7 +1356,6 @@ YY_DECL
 		if ( ! yyg->yy_start )
 			yyg->yy_start = 1;	/* first start state */
 
-
 		if ( ! YY_CURRENT_BUFFER ) {
 			core_yyensure_buffer_stack (yyscanner);
 			YY_CURRENT_BUFFER_LVALUE =
@@ -3176,7 +3175,7 @@ YY_BUFFER_STATE core_yy_scan_bytes  (yyconst char * yybytes, yy_size_t  _yybytes
 
 static void yy_fatal_error (yyconst char* msg , yyscan_t yyscanner)
 {
-  throw std::runtime_error(msg);
+    throw std::runtime_error(msg);
 }
 
 /* Redefine yyless() so it works in section 3 code. */

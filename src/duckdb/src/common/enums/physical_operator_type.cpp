@@ -32,12 +32,12 @@ string PhysicalOperatorToString(PhysicalOperatorType type) {
 		return "WINDOW";
 	case PhysicalOperatorType::UNNEST:
 		return "UNNEST";
-	case PhysicalOperatorType::DISTINCT:
-		return "DISTINCT";
 	case PhysicalOperatorType::SIMPLE_AGGREGATE:
 		return "SIMPLE_AGGREGATE";
 	case PhysicalOperatorType::HASH_GROUP_BY:
 		return "HASH_GROUP_BY";
+	case PhysicalOperatorType::PERFECT_HASH_GROUP_BY:
+		return "PERFECT_HASH_GROUP_BY";
 	case PhysicalOperatorType::SORT_GROUP_BY:
 		return "SORT_GROUP_BY";
 	case PhysicalOperatorType::FILTER:
@@ -100,6 +100,8 @@ string PhysicalOperatorToString(PhysicalOperatorType type) {
 		return "CREATE_VIEW";
 	case PhysicalOperatorType::CREATE_SCHEMA:
 		return "CREATE_SCHEMA";
+	case PhysicalOperatorType::CREATE_MACRO:
+		return "CREATE_MACRO";
 	case PhysicalOperatorType::DROP:
 		return "DROP";
 	case PhysicalOperatorType::PRAGMA:

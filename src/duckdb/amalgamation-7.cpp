@@ -1,7 +1,3 @@
-#include "src/planner/binder/tableref/bind_subqueryref.cpp"
-
-#include "src/planner/binder/tableref/bind_table_function.cpp"
-
 #include "src/planner/binder/tableref/plan_basetableref.cpp"
 
 #include "src/planner/binder/tableref/plan_crossproductref.cpp"
@@ -49,8 +45,6 @@
 #include "src/planner/expression/bound_unnest_expression.cpp"
 
 #include "src/planner/expression/bound_window_expression.cpp"
-
-#include "src/planner/expression/common_subexpression.cpp"
 
 #include "src/planner/expression_binder.cpp"
 
@@ -155,4 +149,26 @@
 #include "src/storage/numeric_segment.cpp"
 
 #include "src/storage/single_file_block_manager.cpp"
+
+#include "src/storage/statistics/base_statistics.cpp"
+
+#include "src/storage/statistics/numeric_statistics.cpp"
+
+#include "src/storage/statistics/segment_statistics.cpp"
+
+#include "src/storage/statistics/string_statistics.cpp"
+
+#include "src/storage/storage_info.cpp"
+
+#include "src/storage/storage_lock.cpp"
+
+#include "src/storage/storage_manager.cpp"
+
+#include "src/storage/string_segment.cpp"
+
+#include "src/storage/table/chunk_info.cpp"
+
+#include "src/storage/table/column_segment.cpp"
+
+#include "src/storage/table/morsel_info.cpp"
 

@@ -6,6 +6,8 @@
 
 #include "src/catalog/catalog_entry/index_catalog_entry.cpp"
 
+#include "src/catalog/catalog_entry/macro_catalog_entry.cpp"
+
 #include "src/catalog/catalog_entry/pragma_function_catalog_entry.cpp"
 
 #include "src/catalog/catalog_entry/schema_catalog_entry.cpp"
@@ -25,6 +27,8 @@
 #include "src/catalog/default/default_views.cpp"
 
 #include "src/catalog/dependency_manager.cpp"
+
+#include "src/common/assert.cpp"
 
 #include "src/common/checksum.cpp"
 
@@ -79,6 +83,8 @@
 #include "src/common/tree_renderer.cpp"
 
 #include "src/common/types.cpp"
+
+#include "src/common/types/blob.cpp"
 
 #include "src/common/types/chunk_collection.cpp"
 
@@ -146,6 +152,8 @@
 
 #include "src/execution/aggregate_hashtable.cpp"
 
+#include "src/execution/base_aggregate_hashtable.cpp"
+
 #include "src/execution/column_binding_resolver.cpp"
 
 #include "src/execution/expression_executor.cpp"
@@ -155,4 +163,12 @@
 #include "src/execution/expression_executor/execute_case.cpp"
 
 #include "src/execution/expression_executor/execute_cast.cpp"
+
+#include "src/execution/expression_executor/execute_comparison.cpp"
+
+#include "src/execution/expression_executor/execute_conjunction.cpp"
+
+#include "src/execution/expression_executor/execute_constant.cpp"
+
+#include "src/execution/expression_executor/execute_function.cpp"
 

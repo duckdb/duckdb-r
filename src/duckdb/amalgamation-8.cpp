@@ -1,18 +1,6 @@
-#include "src/storage/storage_info.cpp"
-
-#include "src/storage/storage_lock.cpp"
-
-#include "src/storage/storage_manager.cpp"
-
-#include "src/storage/string_segment.cpp"
-
-#include "src/storage/table/chunk_info.cpp"
-
-#include "src/storage/table/column_segment.cpp"
-
-#include "src/storage/table/morsel_info.cpp"
-
 #include "src/storage/table/persistent_segment.cpp"
+
+#include "src/storage/table/persistent_table_data.cpp"
 
 #include "src/storage/table/segment_tree.cpp"
 

@@ -1,11 +1,3 @@
-#include "src/function/scalar/string/replace.cpp"
-
-#include "src/function/scalar/string/reverse.cpp"
-
-#include "src/function/scalar/string/string_split.cpp"
-
-#include "src/function/scalar/string/strip_accents.cpp"
-
 #include "src/function/scalar/string/substring.cpp"
 
 #include "src/function/scalar/string/suffix.cpp"
@@ -122,6 +114,8 @@
 
 #include "src/optimizer/column_lifetime_analyzer.cpp"
 
+#include "src/optimizer/common_aggregate_optimizer.cpp"
+
 #include "src/optimizer/cse_optimizer.cpp"
 
 #include "src/optimizer/expression_heuristics.cpp"
@@ -155,4 +149,26 @@
 #include "src/optimizer/pushdown/pushdown_inner_join.cpp"
 
 #include "src/optimizer/pushdown/pushdown_left_join.cpp"
+
+#include "src/optimizer/pushdown/pushdown_mark_join.cpp"
+
+#include "src/optimizer/pushdown/pushdown_projection.cpp"
+
+#include "src/optimizer/pushdown/pushdown_set_operation.cpp"
+
+#include "src/optimizer/pushdown/pushdown_single_join.cpp"
+
+#include "src/optimizer/regex_range_filter.cpp"
+
+#include "src/optimizer/remove_unused_columns.cpp"
+
+#include "src/optimizer/rule/arithmetic_simplification.cpp"
+
+#include "src/optimizer/rule/case_simplification.cpp"
+
+#include "src/optimizer/rule/comparison_simplification.cpp"
+
+#include "src/optimizer/rule/conjunction_simplification.cpp"
+
+#include "src/optimizer/rule/constant_folding.cpp"
 

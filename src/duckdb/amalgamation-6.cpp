@@ -1,3 +1,9 @@
+#include "src/parser/transform/helpers/nodetype_to_string.cpp"
+
+#include "src/parser/transform/helpers/transform_alias.cpp"
+
+#include "src/parser/transform/helpers/transform_cte.cpp"
+
 #include "src/parser/transform/helpers/transform_groupby.cpp"
 
 #include "src/parser/transform/helpers/transform_orderby.cpp"
@@ -9,6 +15,8 @@
 #include "src/parser/transform/statement/transform_call.cpp"
 
 #include "src/parser/transform/statement/transform_copy.cpp"
+
+#include "src/parser/transform/statement/transform_create_function.cpp"
 
 #include "src/parser/transform/statement/transform_create_index.cpp"
 
@@ -88,6 +96,8 @@
 
 #include "src/planner/binder/expression/bind_function_expression.cpp"
 
+#include "src/planner/binder/expression/bind_macro_expression.cpp"
+
 #include "src/planner/binder/expression/bind_operator_expression.cpp"
 
 #include "src/planner/binder/expression/bind_parameter_expression.cpp"
@@ -155,4 +165,10 @@
 #include "src/planner/binder/tableref/bind_expressionlistref.cpp"
 
 #include "src/planner/binder/tableref/bind_joinref.cpp"
+
+#include "src/planner/binder/tableref/bind_named_parameters.cpp"
+
+#include "src/planner/binder/tableref/bind_subqueryref.cpp"
+
+#include "src/planner/binder/tableref/bind_table_function.cpp"
 

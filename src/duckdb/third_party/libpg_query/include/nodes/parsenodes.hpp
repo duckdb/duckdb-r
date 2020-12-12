@@ -1658,6 +1658,18 @@ typedef struct PGAlterSeqStmt {
 } PGAlterSeqStmt;
 
 /* ----------------------
+ *		CREATE FUNCTION Statement
+ * ----------------------
+ */
+
+typedef struct PGCreateFunctionStmt {
+	PGNodeTag type;
+	PGRangeVar *name;
+	PGList *params;
+	PGNode *function;
+} PGCreateFunctionStmt;
+
+/* ----------------------
  *		Drop Table|Sequence|View|Index|Type|Domain|Conversion|Schema Statement
  * ----------------------
  */
@@ -1928,5 +1940,19 @@ typedef struct PGImportStmt {
 	PGNodeTag type;
 	char *filename;       /* filename */
 } PGImportStmt;
+
+/* ----------------------
+ *		Interval Constant
+ * ----------------------
+ */
+typedef struct PGIntervalConstant {
+	PGNodeTag type;
+	int val_type;         /* interval constant type, either T_PGString, T_PGInteger or T_PGAExpr */
+	char *sval;           /* T_PGString */
+	int ival;             /* T_PGString */
+	PGNode *eval;         /* T_PGAExpr */
+	PGList *typmods;      /* how to interpret the interval constant (year, month, day, etc)  */
+	int location;         /* token location, or -1 if unknown */
+} PGIntervalConstant;
 
 }

@@ -28,6 +28,7 @@ class ViewCatalogEntry;
 
 struct CreateInfo;
 struct BoundCreateTableInfo;
+struct BoundCreateFunctionInfo;
 struct CommonTableExpressionInfo;
 
 struct CorrelatedColumnInfo {
@@ -75,6 +76,8 @@ public:
 	bool requires_valid_transaction = true;
 	//! The alias for the currently processing subquery, if it exists
 	string alias;
+	//! Macro parameter bindings (if any)
+	MacroBinding *macro_binding = nullptr;
 
 public:
 	BoundStatement Bind(SQLStatement &statement);
@@ -83,6 +86,7 @@ public:
 	unique_ptr<BoundCreateTableInfo> BindCreateTableInfo(unique_ptr<CreateInfo> info);
 	void BindCreateViewInfo(CreateViewInfo &base);
 	SchemaCatalogEntry *BindSchema(CreateInfo &info);
+	SchemaCatalogEntry *BindCreateFunctionInfo(CreateInfo &info);
 
 	unique_ptr<BoundTableRef> Bind(TableRef &ref);
 	unique_ptr<LogicalOperator> CreatePlan(BoundTableRef &ref);
@@ -188,6 +192,8 @@ private:
 
 	void BindModifiers(OrderBinder &order_binder, QueryNode &statement, BoundQueryNode &result);
 	void BindModifierTypes(BoundQueryNode &result, const vector<LogicalType> &sql_types, idx_t projection_index);
+	void BindNamedParameters(unordered_map<string, LogicalType> &types, unordered_map<string, Value> &values,
+	                         QueryErrorContext &error_context, string &func_name);
 	unique_ptr<BoundResultModifier> BindLimit(LimitModifier &limit_mod);
 	unique_ptr<Expression> BindFilter(unique_ptr<ParsedExpression> condition);
 	unique_ptr<Expression> BindOrderExpression(OrderBinder &order_binder, unique_ptr<ParsedExpression> expr);

@@ -1,6 +1,6 @@
 Package: duckdb
 Title: DBI Package for the DuckDB Database Management System
-Version: 0.2.2-1
+Version: 0.2.3
 Authors@R: 
     c(person(given = "Hannes",
              family = "Mühleisen",
@@ -29,7 +29,6 @@ Authors@R:
       person("Steven G. Johnson", role = "cph"),
       person("Jiahao Chen", role = "cph"),
       person("Tony Kelman", role = "cph"),
-      person("Yann Collet", role = "cph"),
       person("Jonas Fonseca", role = "cph"),
       person("Lukas Fittl", role = "cph"))
 Description: The DuckDB project is an embedded analytical data
@@ -46,7 +45,7 @@ LazyData: true
 RoxygenNote: 7.1.1
 SystemRequirements: C++11, GCC on Solaris
 NeedsCompilation: yes
-Packaged: 2020-11-09 06:35:03 UTC; hannes
+Packaged: 2020-12-04 09:44:01 UTC; hannes
 Author: Hannes Mühleisen [aut, cre] (<https://orcid.org/0000-0001-8552-0029>),
   Mark Raasveldt [aut] (<https://orcid.org/0000-0001-5005-6844>),
   DuckDB Contributors [aut],
@@ -65,9 +64,8 @@ Author: Hannes Mühleisen [aut, cre] (<https://orcid.org/0000-0001-8552-0029>),
   Steven G. Johnson [cph],
   Jiahao Chen [cph],
   Tony Kelman [cph],
-  Yann Collet [cph],
   Jonas Fonseca [cph],
   Lukas Fittl [cph]
 Maintainer: Hannes Mühleisen <hannes@cwi.nl>
 Repository: CRAN
-Date/Publication: 2020-11-09 16:30:05 UTC
+Date/Publication: 2020-12-12 15:50:03 UTC

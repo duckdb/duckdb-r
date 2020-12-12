@@ -1,21 +1,3 @@
-#include "src/execution/physical_plan/plan_distinct.cpp"
-
-#include "src/execution/physical_plan/plan_dummy_scan.cpp"
-
-#include "src/execution/physical_plan/plan_empty_result.cpp"
-
-#include "src/execution/physical_plan/plan_execute.cpp"
-
-#include "src/execution/physical_plan/plan_explain.cpp"
-
-#include "src/execution/physical_plan/plan_export.cpp"
-
-#include "src/execution/physical_plan/plan_expression_get.cpp"
-
-#include "src/execution/physical_plan/plan_filter.cpp"
-
-#include "src/execution/physical_plan/plan_get.cpp"
-
 #include "src/execution/physical_plan/plan_insert.cpp"
 
 #include "src/execution/physical_plan/plan_limit.cpp"
@@ -68,6 +50,10 @@
 
 #include "src/function/aggregate/distributive_functions.cpp"
 
+#include "src/function/aggregate/holistic/quantile.cpp"
+
+#include "src/function/aggregate/holistic_functions.cpp"
+
 #include "src/function/aggregate/nested/list.cpp"
 
 #include "src/function/aggregate/nested_functions.cpp"
@@ -76,11 +62,17 @@
 
 #include "src/function/function.cpp"
 
+#include "src/function/macro_function.cpp"
+
 #include "src/function/pragma/pragma_functions.cpp"
 
 #include "src/function/pragma/pragma_queries.cpp"
 
 #include "src/function/pragma_function.cpp"
+
+#include "src/function/scalar/blob/base64.cpp"
+
+#include "src/function/scalar/blob/encode.cpp"
 
 #include "src/function/scalar/date/age.cpp"
 
@@ -94,9 +86,19 @@
 
 #include "src/function/scalar/date/strftime.cpp"
 
+#include "src/function/scalar/date/to_interval.cpp"
+
 #include "src/function/scalar/date_functions.cpp"
 
+#include "src/function/scalar/generic/alias.cpp"
+
+#include "src/function/scalar/generic/constant_or_null.cpp"
+
 #include "src/function/scalar/generic/least.cpp"
+
+#include "src/function/scalar/generic/stats.cpp"
+
+#include "src/function/scalar/generic/typeof.cpp"
 
 #include "src/function/scalar/generic_functions.cpp"
 
@@ -118,9 +120,15 @@
 
 #include "src/function/scalar/operators.cpp"
 
+#include "src/function/scalar/operators/add.cpp"
+
 #include "src/function/scalar/operators/arithmetic.cpp"
 
 #include "src/function/scalar/operators/bitwise.cpp"
+
+#include "src/function/scalar/operators/multiply.cpp"
+
+#include "src/function/scalar/operators/subtract.cpp"
 
 #include "src/function/scalar/pragma_functions.cpp"
 
@@ -155,4 +163,12 @@
 #include "src/function/scalar/string/regexp.cpp"
 
 #include "src/function/scalar/string/repeat.cpp"
+
+#include "src/function/scalar/string/replace.cpp"
+
+#include "src/function/scalar/string/reverse.cpp"
+
+#include "src/function/scalar/string/string_split.cpp"
+
+#include "src/function/scalar/string/strip_accents.cpp"
 
