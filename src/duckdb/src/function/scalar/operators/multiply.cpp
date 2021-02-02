@@ -1,13 +1,11 @@
 #include "duckdb/common/operator/multiply.hpp"
 
 #include "duckdb/common/limits.hpp"
+#include "duckdb/common/types/hugeint.hpp"
 #include "duckdb/common/types/value.hpp"
 
-#include "duckdb/common/types/hugeint.hpp"
-
 #include <limits>
-
-using namespace std;
+#include <algorithm>
 
 namespace duckdb {
 
@@ -33,7 +31,7 @@ template <> double MultiplyOperator::Operation(double left, double right) {
 template <> interval_t MultiplyOperator::Operation(interval_t left, int64_t right) {
 	left.months = MultiplyOperatorOverflowCheck::Operation<int32_t, int32_t, int32_t>(left.months, right);
 	left.days = MultiplyOperatorOverflowCheck::Operation<int32_t, int32_t, int32_t>(left.days, right);
-	left.msecs = MultiplyOperatorOverflowCheck::Operation<int64_t, int64_t, int64_t>(left.msecs, right);
+	left.micros = MultiplyOperatorOverflowCheck::Operation<int64_t, int64_t, int64_t>(left.micros, right);
 	return left;
 }
 
@@ -55,6 +53,36 @@ struct OverflowCheckedMultiply {
 	}
 };
 
+template <> bool TryMultiplyOperator::Operation(uint8_t left, uint8_t right, uint8_t &result) {
+	return OverflowCheckedMultiply::Operation<uint8_t, uint16_t>(left, right, result);
+}
+template <> bool TryMultiplyOperator::Operation(uint16_t left, uint16_t right, uint16_t &result) {
+	return OverflowCheckedMultiply::Operation<uint16_t, uint32_t>(left, right, result);
+}
+template <> bool TryMultiplyOperator::Operation(uint32_t left, uint32_t right, uint32_t &result) {
+	return OverflowCheckedMultiply::Operation<uint32_t, uint64_t>(left, right, result);
+}
+template <> bool TryMultiplyOperator::Operation(uint64_t left, uint64_t right, uint64_t &result) {
+	if (left > right){
+		std::swap(left,right);
+	}
+	if (left > NumericLimits<uint32_t>::Maximum()){
+		return false;
+	}
+	uint32_t c = right >> 32;
+	uint32_t d = NumericLimits<uint32_t>::Maximum() & right;
+	uint64_t r = left * c;
+	uint64_t s = left * d;
+	if (r > NumericLimits<uint32_t>::Maximum()){
+		return false;
+	}
+	r <<= 32;
+	if (NumericLimits<uint64_t>::Maximum() - s < r){
+		return false;
+	}
+	return OverflowCheckedMultiply::Operation<uint64_t, uint64_t>(left, right, result);
+}
+
 template <> bool TryMultiplyOperator::Operation(int8_t left, int8_t right, int8_t &result) {
 	return OverflowCheckedMultiply::Operation<int8_t, int16_t>(left, right, result);
 }
@@ -73,8 +101,8 @@ template <> bool TryMultiplyOperator::Operation(int64_t left, int64_t right, int
 		return false;
 	}
 #else
-	uint64_t left_non_negative = uint64_t(abs(left));
-	uint64_t right_non_negative = uint64_t(abs(right));
+	uint64_t left_non_negative = uint64_t(std::abs(left));
+	uint64_t right_non_negative = uint64_t(std::abs(right));
 	// split values into 2 32-bit parts
 	uint64_t left_high_bits = left_non_negative >> 32;
 	uint64_t left_low_bits = left_non_negative & 0xffffffff;
@@ -127,8 +155,7 @@ template <> bool TryMultiplyOperator::Operation(int64_t left, int64_t right, int
 //===--------------------------------------------------------------------===//
 // multiply  decimal with overflow check
 //===--------------------------------------------------------------------===//
-template<class T, T min, T max>
-bool TryDecimalMultiplyTemplated(T left, T right, T &result) {
+template <class T, T min, T max> bool TryDecimalMultiplyTemplated(T left, T right, T &result) {
 	if (!TryMultiplyOperator::Operation(left, right, result) || result < min || result > max) {
 		return false;
 	}

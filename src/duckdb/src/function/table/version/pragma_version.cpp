@@ -1,8 +1,8 @@
 #ifndef DUCKDB_VERSION
-#define DUCKDB_VERSION "0.2.3-dev530"
+#define DUCKDB_VERSION "0.2.4"
 #endif
 #ifndef DUCKDB_SOURCE_ID
-#define DUCKDB_SOURCE_ID "436f6455f"
+#define DUCKDB_SOURCE_ID "d1b02c270"
 #endif
 #include "duckdb/function/table/sqlite_functions.hpp"
 #include "duckdb/main/database.hpp"
@@ -27,7 +27,7 @@ static unique_ptr<FunctionData> pragma_version_bind(ClientContext &context, vect
 
 static unique_ptr<FunctionOperatorData> pragma_version_init(ClientContext &context, const FunctionData *bind_data,
                                                             vector<column_t> &column_ids,
-                                                            TableFilterSet *table_filters) {
+                                                            TableFilterCollection* filters) {
 	return make_unique<PragmaVersionData>();
 }
 

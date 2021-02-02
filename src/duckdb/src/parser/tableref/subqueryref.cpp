@@ -3,8 +3,6 @@
 #include "duckdb/common/limits.hpp"
 #include "duckdb/common/serializer.hpp"
 
-using namespace std;
-
 namespace duckdb {
 
 SubqueryRef::SubqueryRef(unique_ptr<SelectStatement> subquery_p, string alias_p)
@@ -21,8 +19,9 @@ bool SubqueryRef::Equals(const TableRef *other_) const {
 }
 
 unique_ptr<TableRef> SubqueryRef::Copy() {
-	auto copy = make_unique<SubqueryRef>(subquery->Copy(), alias);
+	auto copy = make_unique<SubqueryRef>(unique_ptr_cast<SQLStatement, SelectStatement>(subquery->Copy()), alias);
 	copy->column_name_alias = column_name_alias;
+	CopyProperties(*copy);
 	return move(copy);
 }
 

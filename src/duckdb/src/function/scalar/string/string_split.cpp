@@ -1,15 +1,15 @@
 #include "duckdb/function/scalar/string_functions.hpp"
+#include "duckdb/function/scalar/regexp.hpp"
+
 #include "duckdb/common/exception.hpp"
 #include "duckdb/common/types/chunk_collection.hpp"
 #include "duckdb/common/types/data_chunk.hpp"
 #include "duckdb/common/types/vector.hpp"
 #include "duckdb/common/vector_size.hpp"
+#include "duckdb/common/pair.hpp"
+
 #include "utf8proc_wrapper.hpp"
 #include "utf8proc.hpp"
-
-#include "duckdb/function/scalar/regexp.hpp"
-
-using namespace std;
 
 namespace duckdb {
 
@@ -215,7 +215,7 @@ static void string_split_executor(DataChunk &args, ExpressionState &state, Vecto
 	args.data[1].Orrify(args.size(), delim_data);
 	auto delims = (string_t *)delim_data.data;
 
-	result.Initialize(LogicalType::LIST);
+	D_ASSERT(result.type.id() == LogicalTypeId::LIST);
 	auto list_struct_data = FlatVector::GetData<list_entry_t>(result);
 
 	auto list_child = make_unique<ChunkCollection>();
@@ -267,14 +267,14 @@ static void string_split_regex_function(DataChunk &args, ExpressionState &state,
 
 void StringSplitFun::RegisterFunction(BuiltinFunctions &set) {
 	child_list_t<LogicalType> child_types;
-	child_types.push_back(std::make_pair("string", LogicalType::VARCHAR));
+	child_types.push_back(make_pair("string", LogicalType::VARCHAR));
 	auto varchar_list_type = LogicalType(LogicalTypeId::LIST, child_types);
 
 	set.AddFunction(
 	    {"string_split", "str_split", "string_to_array"},
 	    ScalarFunction({LogicalType::VARCHAR, LogicalType::VARCHAR}, varchar_list_type, string_split_function));
 	set.AddFunction(
-	    {"string_split_regex", "str_split_regex"},
+	    {"string_split_regex", "str_split_regex", "regexp_split_to_array"},
 	    ScalarFunction({LogicalType::VARCHAR, LogicalType::VARCHAR}, varchar_list_type, string_split_regex_function));
 }
 

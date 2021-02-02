@@ -10,8 +10,6 @@
 #include <cstring>
 #include <queue>
 
-using namespace std;
-
 namespace duckdb {
 
 void ChunkCollection::Verify() {
@@ -169,6 +167,14 @@ static int32_t compare_value(Vector &left_vec, Vector &right_vec, idx_t vector_i
 		return templated_compare_value<int32_t>(left_vec, right_vec, vector_idx_left, vector_idx_right);
 	case PhysicalType::INT64:
 		return templated_compare_value<int64_t>(left_vec, right_vec, vector_idx_left, vector_idx_right);
+	case PhysicalType::UINT8:
+		return templated_compare_value<uint8_t>(left_vec, right_vec, vector_idx_left, vector_idx_right);
+	case PhysicalType::UINT16:
+		return templated_compare_value<uint16_t>(left_vec, right_vec, vector_idx_left, vector_idx_right);
+	case PhysicalType::UINT32:
+		return templated_compare_value<uint32_t>(left_vec, right_vec, vector_idx_left, vector_idx_right);
+	case PhysicalType::UINT64:
+		return templated_compare_value<uint64_t>(left_vec, right_vec, vector_idx_left, vector_idx_right);
 	case PhysicalType::INT128:
 		return templated_compare_value<hugeint_t>(left_vec, right_vec, vector_idx_left, vector_idx_right);
 	case PhysicalType::FLOAT:
@@ -245,7 +251,7 @@ struct QuicksortInfo {
 };
 
 struct QuicksortStack {
-	queue<QuicksortInfo> info_queue;
+	std::queue<QuicksortInfo> info_queue;
 
 	QuicksortInfo Pop() {
 		auto element = info_queue.front();
@@ -389,7 +395,7 @@ static void templated_set_values(ChunkCollection *src_coll, Vector &tgt_vec, idx
 
 // TODO: reorder functionality is similar, perhaps merge
 void ChunkCollection::MaterializeSortedChunk(DataChunk &target, idx_t order[], idx_t start_offset) {
-	idx_t remaining_data = min((idx_t)STANDARD_VECTOR_SIZE, count - start_offset);
+	idx_t remaining_data = MinValue<idx_t>(STANDARD_VECTOR_SIZE, count - start_offset);
 	D_ASSERT(target.GetTypes() == types);
 
 	target.SetCardinality(remaining_data);
@@ -407,6 +413,18 @@ void ChunkCollection::MaterializeSortedChunk(DataChunk &target, idx_t order[], i
 			break;
 		case PhysicalType::INT64:
 			templated_set_values<int64_t>(this, target.data[col_idx], order, col_idx, start_offset, remaining_data);
+			break;
+		case PhysicalType::UINT8:
+			templated_set_values<uint8_t>(this, target.data[col_idx], order, col_idx, start_offset, remaining_data);
+			break;
+		case PhysicalType::UINT16:
+			templated_set_values<uint16_t>(this, target.data[col_idx], order, col_idx, start_offset, remaining_data);
+			break;
+		case PhysicalType::UINT32:
+			templated_set_values<uint32_t>(this, target.data[col_idx], order, col_idx, start_offset, remaining_data);
+			break;
+		case PhysicalType::UINT64:
+			templated_set_values<uint64_t>(this, target.data[col_idx], order, col_idx, start_offset, remaining_data);
 			break;
 		case PhysicalType::INT128:
 			templated_set_values<hugeint_t>(this, target.data[col_idx], order, col_idx, start_offset, remaining_data);
@@ -554,7 +572,7 @@ void ChunkCollection::Heap(vector<OrderType> &desc, vector<OrderByNullType> &nul
 }
 
 idx_t ChunkCollection::MaterializeHeapChunk(DataChunk &target, idx_t order[], idx_t start_offset, idx_t heap_size) {
-	idx_t remaining_data = min((idx_t)STANDARD_VECTOR_SIZE, heap_size - start_offset);
+	idx_t remaining_data = MinValue<idx_t>(STANDARD_VECTOR_SIZE, heap_size - start_offset);
 	D_ASSERT(target.GetTypes() == types);
 
 	target.SetCardinality(remaining_data);

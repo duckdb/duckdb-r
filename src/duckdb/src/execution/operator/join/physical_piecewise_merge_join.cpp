@@ -5,8 +5,6 @@
 #include "duckdb/execution/merge_join.hpp"
 #include "duckdb/common/operator/comparison_operators.hpp"
 
-using namespace std;
-
 namespace duckdb {
 
 PhysicalPiecewiseMergeJoin::PhysicalPiecewiseMergeJoin(LogicalOperator &op, unique_ptr<PhysicalOperator> left,
@@ -435,6 +433,18 @@ void OrderVector(Vector &vector, idx_t count, MergeOrder &order) {
 		break;
 	case PhysicalType::INT64:
 		templated_quicksort<int64_t>(vdata, not_null, not_null_count, order.order);
+		break;
+	case PhysicalType::UINT8:
+		templated_quicksort<uint8_t>(vdata, not_null, not_null_count, order.order);
+		break;
+	case PhysicalType::UINT16:
+		templated_quicksort<uint16_t>(vdata, not_null, not_null_count, order.order);
+		break;
+	case PhysicalType::UINT32:
+		templated_quicksort<uint32_t>(vdata, not_null, not_null_count, order.order);
+		break;
+	case PhysicalType::UINT64:
+		templated_quicksort<uint64_t>(vdata, not_null, not_null_count, order.order);
 		break;
 	case PhysicalType::INT128:
 		templated_quicksort<hugeint_t>(vdata, not_null, not_null_count, order.order);

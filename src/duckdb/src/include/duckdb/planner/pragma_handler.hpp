@@ -10,9 +10,11 @@
 
 #include "duckdb/common/common.hpp"
 #include "duckdb/common/vector.hpp"
+#include "duckdb/parser/statement/pragma_statement.hpp"
 
 namespace duckdb {
 class ClientContext;
+class ClientContextLock;
 class SQLStatement;
 struct PragmaInfo;
 
@@ -21,14 +23,14 @@ class PragmaHandler {
 public:
 	PragmaHandler(ClientContext &context);
 
-	void HandlePragmaStatements(vector<unique_ptr<SQLStatement>> &statements);
+	void HandlePragmaStatements(ClientContextLock &lock, vector<unique_ptr<SQLStatement>> &statements);
 
 private:
 	ClientContext &context;
 
 private:
 	//! Handles a pragma statement, (potentially) returning a new statement to replace the current one
-	string HandlePragma(PragmaInfo &pragma);
+	string HandlePragma(SQLStatement *statement);
 
 	void HandlePragmaStatementsInternal(vector<unique_ptr<SQLStatement>> &statements);
 };

@@ -1,6 +1,7 @@
 #include "duckdb/common/types/value.hpp"
 
 #include "duckdb/common/exception.hpp"
+#include "duckdb/common/to_string.hpp"
 #include "duckdb/common/limits.hpp"
 #include "duckdb/common/operator/aggregate_operators.hpp"
 #include "duckdb/common/operator/cast_operators.hpp"
@@ -24,7 +25,6 @@
 #include "duckdb/common/string_util.hpp"
 
 namespace duckdb {
-using namespace std;
 
 Value::Value(string_t val) : Value(string(val.GetDataUnsafe(), val.GetSize())) {
 }
@@ -50,9 +50,17 @@ Value Value::MinimumValue(LogicalType type) {
 	case LogicalTypeId::DATE:
 		return Value::DATE(NumericLimits<int32_t>::Minimum());
 	case LogicalTypeId::TIME:
-		return Value::TIME(NumericLimits<int32_t>::Minimum());
+		return Value::TIME(NumericLimits<int64_t>::Minimum());
 	case LogicalTypeId::BIGINT:
 		return Value::BIGINT(NumericLimits<int64_t>::Minimum());
+	case LogicalTypeId::UTINYINT:
+		return Value::UTINYINT(NumericLimits<uint8_t>::Minimum());
+	case LogicalTypeId::USMALLINT:
+		return Value::USMALLINT(NumericLimits<uint16_t>::Minimum());
+	case LogicalTypeId::UINTEGER:
+		return Value::UINTEGER(NumericLimits<uint32_t>::Minimum());
+	case LogicalTypeId::UBIGINT:
+		return Value::UBIGINT(NumericLimits<uint64_t>::Minimum());
 	case LogicalTypeId::TIMESTAMP:
 		return Value::TIMESTAMP(NumericLimits<int64_t>::Minimum());
 	case LogicalTypeId::HUGEINT:
@@ -100,9 +108,17 @@ Value Value::MaximumValue(LogicalType type) {
 	case LogicalTypeId::DATE:
 		return Value::DATE(NumericLimits<int32_t>::Maximum());
 	case LogicalTypeId::TIME:
-		return Value::TIME(NumericLimits<int32_t>::Maximum());
+		return Value::TIME(NumericLimits<int64_t>::Maximum());
 	case LogicalTypeId::BIGINT:
 		return Value::BIGINT(NumericLimits<int64_t>::Maximum());
+	case LogicalTypeId::UTINYINT:
+		return Value::UTINYINT(NumericLimits<uint8_t>::Maximum());
+	case LogicalTypeId::USMALLINT:
+		return Value::USMALLINT(NumericLimits<uint16_t>::Maximum());
+	case LogicalTypeId::UINTEGER:
+		return Value::UINTEGER(NumericLimits<uint32_t>::Maximum());
+	case LogicalTypeId::UBIGINT:
+		return Value::UBIGINT(NumericLimits<uint64_t>::Maximum());
 	case LogicalTypeId::TIMESTAMP:
 		return Value::TIMESTAMP(NumericLimits<int64_t>::Maximum());
 	case LogicalTypeId::HUGEINT:
@@ -178,6 +194,36 @@ Value Value::HUGEINT(hugeint_t value) {
 	result.is_null = false;
 	return result;
 }
+
+Value Value::UTINYINT(uint8_t value) {
+	Value result(LogicalType::UTINYINT);
+	result.value_.utinyint = value;
+	result.is_null = false;
+	return result;
+}
+
+Value Value::USMALLINT(uint16_t value) {
+	Value result(LogicalType::USMALLINT);
+	result.value_.usmallint = value;
+	result.is_null = false;
+	return result;
+}
+
+Value Value::UINTEGER(uint32_t value) {
+	Value result(LogicalType::UINTEGER);
+	result.value_.uinteger = value;
+	result.is_null = false;
+	return result;
+}
+
+Value Value::UBIGINT(uint64_t value) {
+	Value result(LogicalType::UBIGINT);
+	result.value_.ubigint = value;
+	result.is_null = false;
+	return result;
+}
+
+
 
 bool Value::FloatIsValid(float value) {
 	return !(std::isnan(value) || std::isinf(value));
@@ -278,13 +324,13 @@ Value Value::DATE(int32_t year, int32_t month, int32_t day) {
 }
 
 Value Value::TIME(dtime_t time) {
-	auto val = Value::INTEGER(time);
+	auto val = Value::BIGINT(time);
 	val.type_ = LogicalType::TIME;
 	return val;
 }
 
-Value Value::TIME(int32_t hour, int32_t min, int32_t sec, int32_t msec) {
-	return Value::TIME(Time::FromTime(hour, min, sec, msec));
+Value Value::TIME(int32_t hour, int32_t min, int32_t sec, int32_t micros) {
+	return Value::TIME(Time::FromTime(hour, min, sec, micros));
 }
 
 Value Value::TIMESTAMP(timestamp_t timestamp) {
@@ -299,15 +345,21 @@ Value Value::TIMESTAMP(date_t date, dtime_t time) {
 	return val;
 }
 
-Value Value::TIMESTAMP(int32_t year, int32_t month, int32_t day, int32_t hour, int32_t min, int32_t sec, int32_t msec) {
-	auto val = Value::TIMESTAMP(Date::FromDate(year, month, day), Time::FromTime(hour, min, sec, msec));
+Value Value::TIMESTAMP(int32_t year, int32_t month, int32_t day, int32_t hour, int32_t min, int32_t sec,
+                       int32_t micros) {
+	auto val = Value::TIMESTAMP(Date::FromDate(year, month, day), Time::FromTime(hour, min, sec, micros));
 	val.type_ = LogicalType::TIMESTAMP;
 	return val;
 }
 
 Value Value::STRUCT(child_list_t<Value> values) {
 	Value result;
-	result.type_ = LogicalType(LogicalTypeId::STRUCT);
+	child_list_t<LogicalType> child_types;
+	for (auto &child : values) {
+		child_types.push_back(make_pair(child.first, child.second.type()));
+	}
+	result.type_ = LogicalType(LogicalTypeId::STRUCT, child_types);
+
 	result.struct_value = move(values);
 	result.is_null = false;
 	return result;
@@ -335,17 +387,17 @@ Value Value::BLOB(string data) {
 	return result;
 }
 
-Value Value::INTERVAL(int32_t months, int32_t days, int64_t msecs) {
+Value Value::INTERVAL(int32_t months, int32_t days, int64_t micros) {
 	Value result(LogicalType::INTERVAL);
 	result.is_null = false;
 	result.value_.interval.months = months;
 	result.value_.interval.days = days;
-	result.value_.interval.msecs = msecs;
+	result.value_.interval.micros = micros;
 	return result;
 }
 
 Value Value::INTERVAL(interval_t interval) {
-	return Value::INTERVAL(interval.months, interval.days, interval.msecs);
+	return Value::INTERVAL(interval.months, interval.days, interval.micros);
 }
 
 //===--------------------------------------------------------------------===//
@@ -442,13 +494,13 @@ template <> int16_t Value::GetValue() const {
 	return GetValueInternal<int16_t>();
 }
 template <> int32_t Value::GetValue() const {
-	if (type_.id() == LogicalTypeId::DATE || type_.id() == LogicalTypeId::TIME) {
+	if (type_.id() == LogicalTypeId::DATE) {
 		return value_.integer;
 	}
 	return GetValueInternal<int32_t>();
 }
 template <> int64_t Value::GetValue() const {
-	if (type_.id() == LogicalTypeId::TIMESTAMP) {
+	if (type_.id() == LogicalTypeId::TIMESTAMP || type_.id() == LogicalTypeId::TIME) {
 		return value_.bigint;
 	}
 	return GetValueInternal<int64_t>();
@@ -498,7 +550,7 @@ Value Value::Numeric(LogicalType type, int64_t value) {
 		D_ASSERT(value <= NumericLimits<int32_t>::Maximum());
 		return Value::DATE(value);
 	case LogicalTypeId::TIME:
-		D_ASSERT(value <= NumericLimits<int32_t>::Maximum());
+		D_ASSERT(value <= NumericLimits<int64_t>::Maximum());
 		return Value::TIME(value);
 	case LogicalTypeId::TIMESTAMP:
 		return Value::TIMESTAMP(value);
@@ -574,6 +626,14 @@ string Value::ToString() const {
 		return to_string(value_.integer);
 	case LogicalTypeId::BIGINT:
 		return to_string(value_.bigint);
+	case LogicalTypeId::UTINYINT:
+		return to_string(value_.utinyint);
+	case LogicalTypeId::USMALLINT:
+		return to_string(value_.usmallint);
+	case LogicalTypeId::UINTEGER:
+		return to_string(value_.uinteger);
+	case LogicalTypeId::UBIGINT:
+		return to_string(value_.ubigint);
 	case LogicalTypeId::HUGEINT:
 		return Hugeint::ToString(value_.hugeint);
 	case LogicalTypeId::FLOAT:
@@ -596,7 +656,7 @@ string Value::ToString() const {
 	case LogicalTypeId::DATE:
 		return Date::ToString(value_.integer);
 	case LogicalTypeId::TIME:
-		return Time::ToString(value_.integer);
+		return Time::ToString(value_.bigint);
 	case LogicalTypeId::TIMESTAMP:
 		return Timestamp::ToString(value_.bigint);
 	case LogicalTypeId::INTERVAL:
@@ -759,6 +819,18 @@ void Value::Serialize(Serializer &serializer) {
 		case PhysicalType::INT64:
 			serializer.Write<int64_t>(value_.bigint);
 			break;
+		case PhysicalType::UINT8:
+			serializer.Write<uint8_t>(value_.utinyint);
+			break;
+		case PhysicalType::UINT16:
+			serializer.Write<uint16_t>(value_.usmallint);
+			break;
+		case PhysicalType::UINT32:
+			serializer.Write<uint32_t>(value_.uinteger);
+			break;
+		case PhysicalType::UINT64:
+			serializer.Write<uint64_t>(value_.ubigint);
+			break;
 		case PhysicalType::INT128:
 			serializer.Write<hugeint_t>(value_.hugeint);
 			break;
@@ -806,6 +878,18 @@ Value Value::Deserialize(Deserializer &source) {
 		break;
 	case PhysicalType::INT64:
 		new_value.value_.bigint = source.Read<int64_t>();
+		break;
+	case PhysicalType::UINT8:
+		new_value.value_.utinyint = source.Read<uint8_t>();
+		break;
+	case PhysicalType::UINT16:
+		new_value.value_.usmallint = source.Read<uint16_t>();
+		break;
+	case PhysicalType::UINT32:
+		new_value.value_.uinteger = source.Read<uint32_t>();
+		break;
+	case PhysicalType::UINT64:
+		new_value.value_.ubigint = source.Read<uint64_t>();
 		break;
 	case PhysicalType::INT128:
 		new_value.value_.hugeint = source.Read<hugeint_t>();
@@ -869,6 +953,14 @@ bool Value::ValuesAreEqual(Value result_value, Value value) {
 	default:
 		return value == result_value;
 	}
+}
+
+template <> bool Value::IsValid(float value) {
+	return Value::FloatIsValid(value);
+}
+
+template <> bool Value::IsValid(double value) {
+	return Value::DoubleIsValid(value);
 }
 
 } // namespace duckdb

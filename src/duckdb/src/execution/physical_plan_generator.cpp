@@ -6,7 +6,6 @@
 #include "duckdb/planner/expression/bound_function_expression.hpp"
 
 namespace duckdb {
-using namespace std;
 
 class DependencyExtractor : public LogicalOperatorVisitor {
 public:
@@ -67,6 +66,8 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalOperator &
 		return CreatePlan((LogicalUnnest &)op);
 	case LogicalOperatorType::LOGICAL_LIMIT:
 		return CreatePlan((LogicalLimit &)op);
+	case LogicalOperatorType::LOGICAL_SAMPLE:
+		return CreatePlan((LogicalSample &)op);
 	case LogicalOperatorType::LOGICAL_ORDER_BY:
 		return CreatePlan((LogicalOrder &)op);
 	case LogicalOperatorType::LOGICAL_TOP_N:
@@ -105,6 +106,8 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalOperator &
 		return CreatePlan((LogicalCreateIndex &)op);
 	case LogicalOperatorType::LOGICAL_EXPLAIN:
 		return CreatePlan((LogicalExplain &)op);
+	case LogicalOperatorType::LOGICAL_SHOW:
+		return CreatePlan((LogicalShow &)op);
 	case LogicalOperatorType::LOGICAL_DISTINCT:
 		return CreatePlan((LogicalDistinct &)op);
 	case LogicalOperatorType::LOGICAL_PREPARE:

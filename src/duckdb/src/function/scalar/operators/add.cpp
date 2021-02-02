@@ -10,8 +10,6 @@
 
 #include <limits>
 
-using namespace std;
-
 namespace duckdb {
 
 //===--------------------------------------------------------------------===//
@@ -36,7 +34,7 @@ template <> double AddOperator::Operation(double left, double right) {
 template <> interval_t AddOperator::Operation(interval_t left, interval_t right) {
 	left.months = AddOperatorOverflowCheck::Operation<int32_t, int32_t, int32_t>(left.months, right.months);
 	left.days = AddOperatorOverflowCheck::Operation<int32_t, int32_t, int32_t>(left.days, right.days);
-	left.msecs = AddOperatorOverflowCheck::Operation<int64_t, int64_t, int64_t>(left.msecs, right.msecs);
+	left.micros = AddOperatorOverflowCheck::Operation<int64_t, int64_t, int64_t>(left.micros, right.micros);
 	return left;
 }
 
@@ -62,8 +60,8 @@ template <> date_t AddOperator::Operation(date_t left, interval_t right) {
 	if (right.days != 0) {
 		result += right.days;
 	}
-	if (right.msecs != 0) {
-		result += right.msecs / Interval::MSECS_PER_DAY;
+	if (right.micros != 0) {
+		result += right.micros / Interval::MICROS_PER_DAY;
 	}
 	return result;
 }
@@ -73,8 +71,9 @@ template <> date_t AddOperator::Operation(interval_t left, date_t right) {
 }
 
 template <> timestamp_t AddOperator::Operation(timestamp_t left, interval_t right) {
-	auto date = Timestamp::GetDate(left);
-	auto time = Timestamp::GetTime(left);
+	date_t date;
+	dtime_t time;
+	Timestamp::Convert(left, date, time);
 	auto new_date = AddOperator::Operation<date_t, interval_t, date_t>(date, right);
 	auto new_time = AddTimeOperator::Operation<dtime_t, interval_t, dtime_t>(time, right);
 	return Timestamp::FromDatetime(new_date, new_time);
@@ -97,6 +96,25 @@ struct OverflowCheckedAddition {
 		return true;
 	}
 };
+
+
+template <> bool TryAddOperator::Operation(uint8_t left, uint8_t right, uint8_t &result){
+	return OverflowCheckedAddition::Operation<uint8_t, uint16_t>(left, right, result);
+}
+template <> bool TryAddOperator::Operation(uint16_t left, uint16_t right, uint16_t &result){
+	return OverflowCheckedAddition::Operation<uint16_t, uint32_t>(left, right, result);
+}
+template <> bool TryAddOperator::Operation(uint32_t left, uint32_t right, uint32_t &result){
+	return OverflowCheckedAddition::Operation<uint32_t, uint64_t>(left, right, result);
+}
+
+template <> bool TryAddOperator::Operation(uint64_t left, uint64_t right, uint64_t &result){
+	if (NumericLimits<uint64_t>::Maximum() - left < right){
+		return false;
+	}
+	return OverflowCheckedAddition::Operation<uint64_t, uint64_t>(left, right, result);
+}
+
 
 template <> bool TryAddOperator::Operation(int8_t left, int8_t right, int8_t &result) {
 	return OverflowCheckedAddition::Operation<int8_t, int16_t>(left, right, result);
@@ -132,8 +150,7 @@ template <> bool TryAddOperator::Operation(int64_t left, int64_t right, int64_t 
 //===--------------------------------------------------------------------===//
 // add decimal with overflow check
 //===--------------------------------------------------------------------===//
-template<class T, T min, T max>
-bool TryDecimalAddTemplated(T left, T right, T &result) {
+template <class T, T min, T max> bool TryDecimalAddTemplated(T left, T right, T &result) {
 	if (right < 0) {
 		if (min - right > left) {
 			return false;
@@ -179,12 +196,12 @@ template <> hugeint_t DecimalAddOverflowCheck::Operation(hugeint_t left, hugeint
 // add time operator
 //===--------------------------------------------------------------------===//
 template <> dtime_t AddTimeOperator::Operation(dtime_t left, interval_t right) {
-	int64_t diff = right.msecs - ((right.msecs / Interval::MSECS_PER_DAY) * Interval::MSECS_PER_DAY);
+	int64_t diff = right.micros - ((right.micros / Interval::MICROS_PER_DAY) * Interval::MICROS_PER_DAY);
 	left += diff;
-	if (left >= Interval::MSECS_PER_DAY) {
-		left -= Interval::MSECS_PER_DAY;
+	if (left >= Interval::MICROS_PER_DAY) {
+		left -= Interval::MICROS_PER_DAY;
 	} else if (left < 0) {
-		left += Interval::MSECS_PER_DAY;
+		left += Interval::MICROS_PER_DAY;
 	}
 	return left;
 }

@@ -5,8 +5,6 @@
 #include "duckdb/catalog/catalog_entry/schema_catalog_entry.hpp"
 #include "duckdb/common/exception.hpp"
 
-using namespace std;
-
 namespace duckdb {
 
 struct PragmaCollateData : public FunctionOperatorData {
@@ -27,12 +25,13 @@ static unique_ptr<FunctionData> pragma_collate_bind(ClientContext &context, vect
 }
 
 unique_ptr<FunctionOperatorData> pragma_collate_init(ClientContext &context, const FunctionData *bind_data,
-                                                     vector<column_t> &column_ids, TableFilterSet *table_filters) {
+                                                     vector<column_t> &column_ids, TableFilterCollection* filters) {
 	auto result = make_unique<PragmaCollateData>();
 
 	Catalog::GetCatalog(context).schemas->Scan(context, [&](CatalogEntry *entry) {
 		auto schema = (SchemaCatalogEntry *)entry;
-		schema->collations.Scan(context, [&](CatalogEntry *entry) { result->entries.push_back(entry->name); });
+		schema->Scan(context, CatalogType::COLLATION_ENTRY,
+		             [&](CatalogEntry *entry) { result->entries.push_back(entry->name); });
 	});
 
 	return move(result);

@@ -3,7 +3,6 @@
 #include "duckdb/planner/expression/list.hpp"
 
 namespace duckdb {
-using namespace std;
 
 bool ExpressionMatcher::Match(Expression *expr, vector<Expression *> &bindings) {
 	if (type && !type->Match(expr->return_type.InternalType())) {
@@ -62,6 +61,14 @@ bool ComparisonExpressionMatcher::Match(Expression *expr_, vector<Expression *> 
 	auto expr = (BoundComparisonExpression *)expr_;
 	vector<Expression *> expressions = {expr->left.get(), expr->right.get()};
 	return SetMatcher::Match(matchers, expressions, bindings, policy);
+}
+
+bool InClauseExpressionMatcher::Match(Expression *expr_, vector<Expression *> &bindings) {
+	if (!ExpressionMatcher::Match(expr_, bindings)) {
+		return false;
+	}
+	auto expr = (BoundOperatorExpression *)expr_;
+	return SetMatcher::Match(matchers, expr->children, bindings, policy);
 }
 
 bool ConjunctionExpressionMatcher::Match(Expression *expr_, vector<Expression *> &bindings) {

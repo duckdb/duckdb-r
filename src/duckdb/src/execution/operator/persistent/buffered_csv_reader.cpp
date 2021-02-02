@@ -4,21 +4,20 @@
 #include "duckdb/common/file_system.hpp"
 #include "duckdb/common/gzip_stream.hpp"
 #include "duckdb/common/string_util.hpp"
+#include "duckdb/common/to_string.hpp"
+#include "duckdb/common/types/cast_helpers.hpp"
 #include "duckdb/common/vector_operations/unary_executor.hpp"
 #include "duckdb/common/vector_operations/vector_operations.hpp"
 #include "duckdb/function/scalar/strftime.hpp"
 #include "duckdb/main/database.hpp"
 #include "duckdb/parser/column_definition.hpp"
 #include "duckdb/storage/data_table.hpp"
-#include "duckdb/common/types/numeric_helper.hpp"
 #include "utf8proc_wrapper.hpp"
 
 #include <algorithm>
 #include <cctype>
 #include <cstring>
 #include <fstream>
-
-using namespace std;
 
 namespace duckdb {
 
@@ -28,7 +27,7 @@ static char is_newline(char c) {
 
 static string GetLineNumberStr(idx_t linenr, bool linenr_estimated) {
 	string estimated = (linenr_estimated ? string(" (estimated)") : string(""));
-	return std::to_string(linenr + 1) + estimated;
+	return to_string(linenr + 1) + estimated;
 }
 
 static bool StartsWithNumericDate(string &separator, const string_t &value) {
@@ -135,7 +134,7 @@ BufferedCSVReader::BufferedCSVReader(ClientContext &context, BufferedCSVReaderOp
 }
 
 BufferedCSVReader::BufferedCSVReader(BufferedCSVReaderOptions options, vector<LogicalType> requested_types,
-                                     unique_ptr<istream> ssource)
+                                     unique_ptr<std::istream> ssource)
     : options(options), source(move(ssource)), buffer_size(0), position(0), start(0) {
 	Initialize(requested_types);
 }
@@ -161,17 +160,26 @@ void BufferedCSVReader::PrepareComplexParser() {
 	quote_search = TextSearchShiftArray(options.quote);
 }
 
-unique_ptr<istream> BufferedCSVReader::OpenCSV(ClientContext &context, BufferedCSVReaderOptions options) {
+unique_ptr<std::istream> BufferedCSVReader::OpenCSV(ClientContext &context, BufferedCSVReaderOptions options) {
 	if (!FileSystem::GetFileSystem(context).FileExists(options.file_path)) {
 		throw IOException("File \"%s\" not found", options.file_path.c_str());
 	}
-	unique_ptr<istream> result;
-	// decide based on the extension which stream to use
-	if (StringUtil::EndsWith(StringUtil::Lower(options.file_path), ".gz")) {
+	unique_ptr<std::istream> result;
+
+	gzip_compressed = false;
+	if (options.compression == "infer") {
+		if (StringUtil::EndsWith(StringUtil::Lower(options.file_path), ".gz")) {
+			gzip_compressed = true;
+		}
+	} else if (options.compression == "gzip") {
+		gzip_compressed = true;
+	}
+
+	if (gzip_compressed) {
 		result = make_unique<GzipStream>(options.file_path);
 		plain_file_source = false;
 	} else {
-		auto csv_local = make_unique<ifstream>();
+		auto csv_local = make_unique<std::ifstream>();
 		csv_local->open(options.file_path);
 		result = move(csv_local);
 
@@ -205,7 +213,7 @@ static string GenerateColumnName(const idx_t total_cols, const idx_t col_number,
 	int max_digits = NumericHelper::UnsignedLength(total_cols - 1);
 	int digits = NumericHelper::UnsignedLength(col_number);
 	string leading_zeros = string("0", max_digits - digits);
-	string value = std::to_string(col_number);
+	string value = to_string(col_number);
 	return string(prefix + leading_zeros + value);
 }
 
@@ -218,7 +226,7 @@ void BufferedCSVReader::ResetBuffer() {
 }
 
 void BufferedCSVReader::ResetStream() {
-	if (!plain_file_source && StringUtil::EndsWith(StringUtil::Lower(options.file_path), ".gz")) {
+	if (!plain_file_source && gzip_compressed) {
 		// seeking to the beginning appears to not be supported in all compiler/os-scenarios,
 		// so we have to create a new stream source here for now
 		source = make_unique<GzipStream>(options.file_path);
@@ -309,7 +317,7 @@ bool BufferedCSVReader::JumpToNextSample() {
 		// seek backwards from the end in last chunk and hope to catch the end of the file
 		// TODO: actually it would be good to make sure that the end of file is being reached, because
 		// messy end-lines are quite common. For this case, however, we first need a skip_end detection anyways.
-		source->seekg(-streamoff(bytes_in_chunk), source->end);
+		source->seekg(-std::streamoff(bytes_in_chunk), source->end);
 
 		// estimate linenr
 		linenr = (idx_t)round((file_size - bytes_in_chunk) / bytes_per_line_avg);
@@ -796,6 +804,9 @@ vector<LogicalType> BufferedCSVReader::SniffCSV(vector<LogicalType> requested_ty
 					chunk->Initialize(parse_chunk_types);
 					chunk->Reference(parse_chunk);
 					cached_chunks.push(move(chunk));
+				} else {
+					while (!cached_chunks.empty())
+						cached_chunks.pop();
 				}
 			}
 		}
@@ -1271,6 +1282,12 @@ void BufferedCSVReader::ParseCSV(ParserMode parser_mode, DataChunk &insert_chunk
 }
 
 void BufferedCSVReader::AddValue(char *str_val, idx_t length, idx_t &column, vector<idx_t> &escape_positions) {
+	if (length == 0 && column == 0) {
+		row_empty = true;
+	} else {
+		row_empty = false;
+	}
+
 	if (sql_types.size() > 0 && column == sql_types.size() && length == 0) {
 		// skip a single trailing delimiter in last column
 		return;
@@ -1326,6 +1343,14 @@ void BufferedCSVReader::AddValue(char *str_val, idx_t length, idx_t &column, vec
 bool BufferedCSVReader::AddRow(DataChunk &insert_chunk, idx_t &column) {
 	linenr++;
 
+	if (row_empty) {
+		row_empty = false;
+		if (sql_types.size() != 1) {
+			column = 0;
+			return false;
+		}
+	}
+
 	if (column < sql_types.size() && mode != ParserMode::SNIFFING_DIALECT) {
 		throw InvalidInputException("Error on line %s: expected %lld values per row, but got %d. (%s)",
 		                            GetLineNumberStr(linenr, linenr_estimated).c_str(), sql_types.size(), column,
@@ -1375,7 +1400,7 @@ void BufferedCSVReader::Flush(DataChunk &insert_chunk) {
 					auto s = parse_data[i];
 					auto utf_type = Utf8Proc::Analyze(s.GetDataUnsafe(), s.GetSize());
 					if (utf_type == UnicodeType::INVALID) {
-						string col_name = std::to_string(col_idx);
+						string col_name = to_string(col_idx);
 						if (col_idx < col_names.size()) {
 							col_name = "\"" + col_names[col_idx] + "\"";
 						}
@@ -1406,17 +1431,18 @@ void BufferedCSVReader::Flush(DataChunk &insert_chunk) {
 					VectorOperations::Cast(parse_chunk.data[col_idx], insert_chunk.data[col_idx], parse_chunk.size());
 				}
 			} catch (const Exception &e) {
-				string col_name = std::to_string(col_idx);
+				string col_name = to_string(col_idx);
 				if (col_idx < col_names.size()) {
 					col_name = "\"" + col_names[col_idx] + "\"";
 				}
 
 				if (options.auto_detect) {
-					throw InvalidInputException(
-					    "%s in column %s, between line %llu and %llu. Parser "
-					    "options: %s. Consider either increasing the sample size (using SAMPLE_SIZE=X) "
-					    "or skipping column conversion (ALL_VARCHAR=1)",
-					    e.what(), col_name, linenr - parse_chunk.size() + 1, linenr, options.toString());
+					throw InvalidInputException("%s in column %s, between line %llu and %llu. Parser "
+					                            "options: %s. Consider either increasing the sample size "
+					                            "(SAMPLE_SIZE=X [X rows] or SAMPLE_SIZE=-1 [all rows]), "
+					                            "or skipping column conversion (ALL_VARCHAR=1)",
+					                            e.what(), col_name, linenr - parse_chunk.size() + 1, linenr,
+					                            options.toString());
 				} else {
 					throw InvalidInputException("%s between line %llu and %llu in column %s. Parser options: %s ",
 					                            e.what(), linenr - parse_chunk.size(), linenr, col_name,

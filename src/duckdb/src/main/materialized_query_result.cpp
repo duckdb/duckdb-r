@@ -1,7 +1,7 @@
 #include "duckdb/main/materialized_query_result.hpp"
+#include "duckdb/common/to_string.hpp"
 
 namespace duckdb {
-using namespace std;
 
 MaterializedQueryResult::MaterializedQueryResult(StatementType statement_type)
     : QueryResult(QueryResultType::MATERIALIZED_RESULT, statement_type) {
@@ -43,10 +43,13 @@ string MaterializedQueryResult::ToString() {
 }
 
 unique_ptr<DataChunk> MaterializedQueryResult::Fetch() {
-	if (!success) {
-		return nullptr;
-	}
+	return FetchRaw();
+}
 
+unique_ptr<DataChunk> MaterializedQueryResult::FetchRaw() {
+	if (!success) {
+		throw InvalidInputException("Attempting to fetch from an unsuccessful query result");
+	}
 	return collection.Fetch();
 }
 

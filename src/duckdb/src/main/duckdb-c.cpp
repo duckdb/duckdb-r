@@ -196,12 +196,12 @@ static duckdb_state duckdb_translate_result(MaterializedQueryResult *result, duc
 				auto source = FlatVector::GetData<dtime_t>(chunk->data[col]);
 				for (idx_t k = 0; k < chunk->size(); k++) {
 					if (!FlatVector::IsNull(chunk->data[col], k)) {
-						int32_t hour, min, sec, msec;
-						Time::Convert(source[k], hour, min, sec, msec);
+						int32_t hour, min, sec, micros;
+						Time::Convert(source[k], hour, min, sec, micros);
 						target[row].hour = hour;
 						target[row].min = min;
 						target[row].sec = sec;
-						target[row].msec = msec;
+						target[row].micros = micros;
 					}
 					row++;
 				}
@@ -222,8 +222,8 @@ static duckdb_state duckdb_translate_result(MaterializedQueryResult *result, duc
 						int32_t year, month, day;
 						Date::Convert(date, year, month, day);
 
-						int32_t hour, min, sec, msec;
-						Time::Convert(time, hour, min, sec, msec);
+						int32_t hour, min, sec, micros;
+						Time::Convert(time, hour, min, sec, micros);
 
 						target[row].date.year = year;
 						target[row].date.month = month;
@@ -231,7 +231,7 @@ static duckdb_state duckdb_translate_result(MaterializedQueryResult *result, duc
 						target[row].time.hour = hour;
 						target[row].time.min = min;
 						target[row].time.sec = sec;
-						target[row].time.msec = msec;
+						target[row].time.micros = micros;
 					}
 					row++;
 				}
@@ -262,7 +262,7 @@ static duckdb_state duckdb_translate_result(MaterializedQueryResult *result, duc
 					if (!FlatVector::IsNull(chunk->data[col], k)) {
 						target[row].days = source[k].days;
 						target[row].months = source[k].months;
-						target[row].msecs = source[k].msecs;
+						target[row].micros = source[k].micros;
 					}
 					row++;
 				}
@@ -341,7 +341,7 @@ duckdb_state duckdb_prepare(duckdb_connection connection, const char *query,
 
 duckdb_state duckdb_nparams(duckdb_prepared_statement prepared_statement, idx_t *nparams_out) {
 	auto wrapper = (PreparedStatementWrapper *)prepared_statement;
-	if (!wrapper || !wrapper->statement || !wrapper->statement->success || wrapper->statement->is_invalidated) {
+	if (!wrapper || !wrapper->statement || !wrapper->statement->success) {
 		return DuckDBError;
 	}
 	*nparams_out = wrapper->statement->n_param;
@@ -350,7 +350,7 @@ duckdb_state duckdb_nparams(duckdb_prepared_statement prepared_statement, idx_t 
 
 static duckdb_state duckdb_bind_value(duckdb_prepared_statement prepared_statement, idx_t param_idx, Value val) {
 	auto wrapper = (PreparedStatementWrapper *)prepared_statement;
-	if (!wrapper || !wrapper->statement || !wrapper->statement->success || wrapper->statement->is_invalidated) {
+	if (!wrapper || !wrapper->statement || !wrapper->statement->success) {
 		return DuckDBError;
 	}
 	if (param_idx > wrapper->statement->n_param) {
@@ -401,7 +401,7 @@ duckdb_state duckdb_bind_null(duckdb_prepared_statement prepared_statement, idx_
 
 duckdb_state duckdb_execute_prepared(duckdb_prepared_statement prepared_statement, duckdb_result *out_result) {
 	auto wrapper = (PreparedStatementWrapper *)prepared_statement;
-	if (!wrapper || !wrapper->statement || !wrapper->statement->success || wrapper->statement->is_invalidated) {
+	if (!wrapper || !wrapper->statement || !wrapper->statement->success) {
 		return DuckDBError;
 	}
 	auto result = wrapper->statement->Execute(wrapper->values, false);
@@ -525,12 +525,12 @@ static Value GetCValue(duckdb_result *result, idx_t col, idx_t row) {
 	}
 	case DUCKDB_TYPE_TIME: {
 		auto time = UnsafeFetch<duckdb_time>(result, col, row);
-		return Value::TIME(time.hour, time.min, time.sec, time.msec);
+		return Value::TIME(time.hour, time.min, time.sec, time.micros);
 	}
 	case DUCKDB_TYPE_TIMESTAMP: {
 		auto timestamp = UnsafeFetch<duckdb_timestamp>(result, col, row);
 		return Value::TIMESTAMP(timestamp.date.year, timestamp.date.month, timestamp.date.day, timestamp.time.hour,
-		                        timestamp.time.min, timestamp.time.sec, timestamp.time.msec);
+		                        timestamp.time.min, timestamp.time.sec, timestamp.time.micros);
 	}
 	case DUCKDB_TYPE_HUGEINT: {
 		hugeint_t val;
@@ -544,7 +544,7 @@ static Value GetCValue(duckdb_result *result, idx_t col, idx_t row) {
 		auto interval = UnsafeFetch<duckdb_interval>(result, col, row);
 		val.days = interval.days;
 		val.months = interval.months;
-		val.msecs = interval.msecs;
+		val.micros = interval.micros;
 		return Value::INTERVAL(val);
 	}
 	case DUCKDB_TYPE_VARCHAR:

@@ -17,7 +17,7 @@ string MacroFunction::ValidateArguments(MacroCatalogEntry &macro_func, FunctionE
 	// separate positional and default arguments
 	auto &macro_def = *macro_func.function;
 	for (auto &arg : function_expr.children) {
-		if (arg->GetExpressionClass() == ExpressionClass::COMPARISON) {
+		if (arg->type == ExpressionType::COMPARE_EQUAL) {
 			// default argument
 			auto &comp_expr = (ComparisonExpression &)*arg;
 			if (macro_def.default_parameters.find(comp_expr.left->ToString()) == macro_def.default_parameters.end()) {
@@ -42,10 +42,11 @@ string MacroFunction::ValidateArguments(MacroCatalogEntry &macro_func, FunctionE
 		    StringUtil::Join(parameters, parameters.size(), ", ", [](const unique_ptr<ParsedExpression> &p) {
 			    return ((ColumnRefExpression &)*p).column_name;
 		    }));
-		error += parameters.size() == 1 ? "a single argument" : StringUtil::Format("%i arguments", parameters.size());
+		error += parameters.size() == 1 ? "a single positional argument"
+		                                : StringUtil::Format("%i positional arguments", parameters.size());
 		error += ", but ";
-		error += positionals.size() == 1 ? "a single argument was"
-		                                 : StringUtil::Format("%i arguments were", positionals.size());
+		error += positionals.size() == 1 ? "a single positional argument was"
+		                                 : StringUtil::Format("%i positional arguments were", positionals.size());
 		error += " provided.";
 		return error;
 	}
@@ -58,6 +59,17 @@ string MacroFunction::ValidateArguments(MacroCatalogEntry &macro_func, FunctionE
 	}
 
 	return error;
+}
+
+unique_ptr<MacroFunction> MacroFunction::Copy() {
+	auto result = make_unique<MacroFunction>(expression->Copy());
+	for (auto &param : parameters) {
+		result->parameters.push_back(param->Copy());
+	}
+	for (auto &kv : default_parameters) {
+		result->default_parameters[kv.first] = kv.second->Copy();
+	}
+	return result;
 }
 
 } // namespace duckdb

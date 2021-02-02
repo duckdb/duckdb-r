@@ -3,20 +3,19 @@
 #include "duckdb/parser/expression/list.hpp"
 
 namespace duckdb {
-using namespace std;
 
 void ParsedExpressionIterator::EnumerateChildren(const ParsedExpression &expression,
-                                                 function<void(const ParsedExpression &child)> callback) {
+                                                 std::function<void(const ParsedExpression &child)> callback) {
 	EnumerateChildren((ParsedExpression &)expression, [&](unique_ptr<ParsedExpression> &child) { callback(*child); });
 }
 
 void ParsedExpressionIterator::EnumerateChildren(ParsedExpression &expr,
-                                                 function<void(ParsedExpression &child)> callback) {
+                                                 std::function<void(ParsedExpression &child)> callback) {
 	EnumerateChildren(expr, [&](unique_ptr<ParsedExpression> &child) { callback(*child); });
 }
 
 void ParsedExpressionIterator::EnumerateChildren(ParsedExpression &expr,
-                                                 function<void(unique_ptr<ParsedExpression> &child)> callback) {
+                                                 std::function<void(unique_ptr<ParsedExpression> &child)> callback) {
 	switch (expr.expression_class) {
 	case ExpressionClass::CASE: {
 		auto &case_expr = (CaseExpression &)expr;
@@ -48,11 +47,20 @@ void ParsedExpressionIterator::EnumerateChildren(ParsedExpression &expr,
 		}
 		break;
 	}
+
 	case ExpressionClass::FUNCTION: {
 		auto &func_expr = (FunctionExpression &)expr;
 		for (auto &child : func_expr.children) {
 			callback(child);
 		}
+		if (func_expr.filter){
+			callback(func_expr.filter);
+		}
+		break;
+	}
+	case ExpressionClass::LAMBDA: {
+		auto &lambda_expr = (LambdaExpression &)expr;
+		callback(lambda_expr.expression);
 		break;
 	}
 	case ExpressionClass::OPERATOR: {

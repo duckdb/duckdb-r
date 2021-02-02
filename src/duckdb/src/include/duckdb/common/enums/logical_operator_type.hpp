@@ -27,6 +27,7 @@ enum class LogicalOperatorType : uint8_t {
 	LOGICAL_TOP_N = 8,
 	LOGICAL_COPY_TO_FILE = 10,
 	LOGICAL_DISTINCT = 11,
+	LOGICAL_SAMPLE = 12,
 
 	// -----------------------------
 	// Data sources
@@ -79,6 +80,11 @@ enum class LogicalOperatorType : uint8_t {
 	// Explain
 	// -----------------------------
 	LOGICAL_EXPLAIN = 150,
+
+	// -----------------------------
+	// Show
+	// -----------------------------
+	LOGICAL_SHOW = 160,
 
 	// -----------------------------
 	// Helpers

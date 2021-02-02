@@ -31,6 +31,8 @@ enum class PhysicalOperatorType : uint8_t {
 	FILTER,
 	PROJECTION,
 	COPY_TO_FILE,
+	RESERVOIR_SAMPLE,
+	STREAMING_SAMPLE,
 	// -----------------------------
 	// Scans
 	// -----------------------------
@@ -70,7 +72,8 @@ enum class PhysicalOperatorType : uint8_t {
 	// -----------------------------
 	// Schema
 	// -----------------------------
-	CREATE,
+	CREATE_TABLE,
+	CREATE_TABLE_AS,
 	CREATE_INDEX,
 	ALTER,
 	CREATE_SEQUENCE,

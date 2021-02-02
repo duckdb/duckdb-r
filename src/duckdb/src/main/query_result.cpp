@@ -3,7 +3,6 @@
 #include "duckdb/common/arrow.hpp"
 
 namespace duckdb {
-using namespace std;
 
 QueryResult::QueryResult(QueryResultType type, StatementType statement_type)
     : type(type), statement_type(statement_type), success(true) {
@@ -16,6 +15,15 @@ QueryResult::QueryResult(QueryResultType type, StatementType statement_type, vec
 }
 
 QueryResult::QueryResult(QueryResultType type, string error) : type(type), success(false), error(error) {
+}
+
+unique_ptr<DataChunk> QueryResult::Fetch() {
+	auto chunk = FetchRaw();
+	if (!chunk) {
+		return nullptr;
+	}
+	chunk->Normalify();
+	return chunk;
 }
 
 bool QueryResult::Equals(QueryResult &other) {
@@ -39,6 +47,12 @@ bool QueryResult::Equals(QueryResult &other) {
 	while (true) {
 		auto lchunk = Fetch();
 		auto rchunk = other.Fetch();
+		if (!lchunk && !rchunk) {
+			return true;
+		}
+		if (!lchunk || !rchunk) {
+			return false;
+		}
 		if (lchunk->size() == 0 && rchunk->size() == 0) {
 			return true;
 		}
@@ -138,6 +152,18 @@ void QueryResult::ToArrowSchema(ArrowSchema *out_schema) {
 			break;
 		case LogicalTypeId::BIGINT:
 			child.format = "l";
+			break;
+		case LogicalTypeId::UTINYINT:
+			child.format = "C";
+			break;
+		case LogicalTypeId::USMALLINT:
+			child.format = "S";
+			break;
+		case LogicalTypeId::UINTEGER:
+			child.format = "I";
+			break;
+		case LogicalTypeId::UBIGINT:
+			child.format = "L";
 			break;
 		case LogicalTypeId::FLOAT:
 			child.format = "f";

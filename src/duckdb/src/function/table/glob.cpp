@@ -3,8 +3,6 @@
 #include "duckdb/function/function_set.hpp"
 #include "duckdb/common/file_system.hpp"
 
-using namespace std;
-
 namespace duckdb {
 
 struct GlobFunctionBindData : public TableFunctionData {
@@ -31,7 +29,7 @@ struct GlobFunctionState : public FunctionOperatorData {
 
 static unique_ptr<FunctionOperatorData> glob_function_init(ClientContext &context, const FunctionData *bind_data,
                                                            vector<column_t> &column_ids,
-                                                           TableFilterSet *table_filters) {
+                                                           TableFilterCollection* filters) {
 	return make_unique<GlobFunctionState>();
 }
 

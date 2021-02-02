@@ -1,3 +1,21 @@
+#include "src/planner/binder/statement/bind_vacuum.cpp"
+
+#include "src/planner/binder/tableref/bind_basetableref.cpp"
+
+#include "src/planner/binder/tableref/bind_crossproductref.cpp"
+
+#include "src/planner/binder/tableref/bind_emptytableref.cpp"
+
+#include "src/planner/binder/tableref/bind_expressionlistref.cpp"
+
+#include "src/planner/binder/tableref/bind_joinref.cpp"
+
+#include "src/planner/binder/tableref/bind_named_parameters.cpp"
+
+#include "src/planner/binder/tableref/bind_subqueryref.cpp"
+
+#include "src/planner/binder/tableref/bind_table_function.cpp"
+
 #include "src/planner/binder/tableref/plan_basetableref.cpp"
 
 #include "src/planner/binder/tableref/plan_crossproductref.cpp"
@@ -163,12 +181,4 @@
 #include "src/storage/storage_lock.cpp"
 
 #include "src/storage/storage_manager.cpp"
-
-#include "src/storage/string_segment.cpp"
-
-#include "src/storage/table/chunk_info.cpp"
-
-#include "src/storage/table/column_segment.cpp"
-
-#include "src/storage/table/morsel_info.cpp"
 

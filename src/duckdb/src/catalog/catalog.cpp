@@ -25,11 +25,11 @@
 #include "duckdb/catalog/default/default_schemas.hpp"
 
 namespace duckdb {
-using namespace std;
 
 Catalog::Catalog(StorageManager &storage)
     : storage(storage), schemas(make_unique<CatalogSet>(*this, make_unique<DefaultSchemaGenerator>(*this))),
       dependency_manager(make_unique<DependencyManager>(*this)) {
+	catalog_version = 0;
 }
 Catalog::~Catalog() {
 }
@@ -40,41 +40,84 @@ Catalog &Catalog::GetCatalog(ClientContext &context) {
 
 CatalogEntry *Catalog::CreateTable(ClientContext &context, BoundCreateTableInfo *info) {
 	auto schema = GetSchema(context, info->base->schema);
+	return CreateTable(context, schema, info);
+}
+
+CatalogEntry *Catalog::CreateTable(ClientContext &context, SchemaCatalogEntry *schema, BoundCreateTableInfo *info) {
+	ModifyCatalog();
 	return schema->CreateTable(context, info);
 }
 
 CatalogEntry *Catalog::CreateView(ClientContext &context, CreateViewInfo *info) {
 	auto schema = GetSchema(context, info->schema);
+	return CreateView(context, schema, info);
+}
+
+CatalogEntry *Catalog::CreateView(ClientContext &context, SchemaCatalogEntry *schema, CreateViewInfo *info) {
+	ModifyCatalog();
 	return schema->CreateView(context, info);
 }
 
 CatalogEntry *Catalog::CreateSequence(ClientContext &context, CreateSequenceInfo *info) {
 	auto schema = GetSchema(context, info->schema);
+	return CreateSequence(context, schema, info);
+}
+
+CatalogEntry *Catalog::CreateSequence(ClientContext &context, SchemaCatalogEntry *schema, CreateSequenceInfo *info) {
+	ModifyCatalog();
 	return schema->CreateSequence(context, info);
 }
 
 CatalogEntry *Catalog::CreateTableFunction(ClientContext &context, CreateTableFunctionInfo *info) {
 	auto schema = GetSchema(context, info->schema);
+	return CreateTableFunction(context, schema, info);
+}
+
+CatalogEntry *Catalog::CreateTableFunction(ClientContext &context, SchemaCatalogEntry *schema,
+                                           CreateTableFunctionInfo *info) {
+	ModifyCatalog();
 	return schema->CreateTableFunction(context, info);
 }
 
 CatalogEntry *Catalog::CreateCopyFunction(ClientContext &context, CreateCopyFunctionInfo *info) {
 	auto schema = GetSchema(context, info->schema);
+	return CreateCopyFunction(context, schema, info);
+}
+
+CatalogEntry *Catalog::CreateCopyFunction(ClientContext &context, SchemaCatalogEntry *schema,
+                                          CreateCopyFunctionInfo *info) {
+	ModifyCatalog();
 	return schema->CreateCopyFunction(context, info);
 }
 
 CatalogEntry *Catalog::CreatePragmaFunction(ClientContext &context, CreatePragmaFunctionInfo *info) {
 	auto schema = GetSchema(context, info->schema);
+	return CreatePragmaFunction(context, schema, info);
+}
+
+CatalogEntry *Catalog::CreatePragmaFunction(ClientContext &context, SchemaCatalogEntry *schema,
+                                            CreatePragmaFunctionInfo *info) {
+	ModifyCatalog();
 	return schema->CreatePragmaFunction(context, info);
 }
 
 CatalogEntry *Catalog::CreateFunction(ClientContext &context, CreateFunctionInfo *info) {
 	auto schema = GetSchema(context, info->schema);
+	return CreateFunction(context, schema, info);
+}
+
+CatalogEntry *Catalog::CreateFunction(ClientContext &context, SchemaCatalogEntry *schema, CreateFunctionInfo *info) {
+	ModifyCatalog();
 	return schema->CreateFunction(context, info);
 }
 
 CatalogEntry *Catalog::CreateCollation(ClientContext &context, CreateCollationInfo *info) {
 	auto schema = GetSchema(context, info->schema);
+	return CreateCollation(context, schema, info);
+}
+
+CatalogEntry *Catalog::CreateCollation(ClientContext &context, SchemaCatalogEntry *schema, CreateCollationInfo *info) {
+	ModifyCatalog();
 	return schema->CreateCollation(context, info);
 }
 
@@ -85,6 +128,7 @@ CatalogEntry *Catalog::CreateSchema(ClientContext &context, CreateSchemaInfo *in
 	if (info->schema == TEMP_SCHEMA) {
 		throw CatalogException("Cannot create built-in schema \"%s\"", info->schema);
 	}
+	ModifyCatalog();
 
 	unordered_set<CatalogEntry *> dependencies;
 	auto entry = make_unique<SchemaCatalogEntry>(this, info->schema, info->internal);
@@ -104,6 +148,7 @@ void Catalog::DropSchema(ClientContext &context, DropInfo *info) {
 	if (info->name == INVALID_SCHEMA) {
 		throw CatalogException("Schema not specified");
 	}
+	ModifyCatalog();
 	if (!schemas->DropEntry(context, info->name, info->cascade)) {
 		if (!info->if_exists) {
 			throw CatalogException("Schema with name \"%s\" does not exist!", info->name);
@@ -112,6 +157,7 @@ void Catalog::DropSchema(ClientContext &context, DropInfo *info) {
 }
 
 void Catalog::DropEntry(ClientContext &context, DropInfo *info) {
+	ModifyCatalog();
 	if (info->type == CatalogType::SCHEMA_ENTRY) {
 		// DROP SCHEMA
 		DropSchema(context, info);
@@ -234,6 +280,7 @@ CollateCatalogEntry *Catalog::GetEntry(ClientContext &context, string schema_nam
 }
 
 void Catalog::Alter(ClientContext &context, AlterInfo *info) {
+	ModifyCatalog();
 	if (info->schema == INVALID_SCHEMA) {
 		auto catalog_type = info->GetCatalogType();
 		// invalid schema: first search the temporary schema
@@ -250,48 +297,12 @@ void Catalog::Alter(ClientContext &context, AlterInfo *info) {
 	return schema->Alter(context, info);
 }
 
-void Catalog::ParseRangeVar(string input, string &schema, string &name) {
-	idx_t idx = 0;
-	vector<string> entries;
-	string entry;
-normal:
-	// quote
-	for (; idx < input.size(); idx++) {
-		if (input[idx] == '"') {
-			idx++;
-			goto quoted;
-		} else if (input[idx] == '.') {
-			goto separator;
-		}
-		entry += input[idx];
-	}
-	goto end;
-separator:
-	entries.push_back(entry);
-	entry = "";
-	idx++;
-	goto normal;
-quoted:
-	// look for another quote
-	for (; idx < input.size(); idx++) {
-		if (input[idx] == '"') {
-			// unquote
-			idx++;
-			goto normal;
-		}
-		entry += input[idx];
-	}
-	throw ParserException("Unterminated quote in range var!");
-end:
-	if (entries.size() == 0) {
-		schema = INVALID_SCHEMA;
-		name = entry;
-	} else if (entries.size() == 1) {
-		schema = entries[0];
-		name = entry;
-	} else {
-		throw ParserException("Expected schema.entry or entry: too many entries found");
-	}
+idx_t Catalog::GetCatalogVersion() {
+	return catalog_version;
+}
+
+void Catalog::ModifyCatalog() {
+	catalog_version++;
 }
 
 } // namespace duckdb

@@ -86,6 +86,8 @@
 
 #include "src/common/types/blob.cpp"
 
+#include "src/common/types/cast_helpers.cpp"
+
 #include "src/common/types/chunk_collection.cpp"
 
 #include "src/common/types/data_chunk.cpp"
@@ -101,8 +103,6 @@
 #include "src/common/types/interval.cpp"
 
 #include "src/common/types/null_value.cpp"
-
-#include "src/common/types/numeric_helper.cpp"
 
 #include "src/common/types/selection_vector.cpp"
 
@@ -171,4 +171,14 @@
 #include "src/execution/expression_executor/execute_constant.cpp"
 
 #include "src/execution/expression_executor/execute_function.cpp"
+
+#include "src/execution/expression_executor/execute_operator.cpp"
+
+#include "src/execution/expression_executor/execute_parameter.cpp"
+
+#include "src/execution/expression_executor/execute_reference.cpp"
+
+#include "src/execution/expression_executor_state.cpp"
+
+#include "src/execution/index/art/art.cpp"
 

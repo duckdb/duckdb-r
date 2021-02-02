@@ -8,8 +8,6 @@
 #include "duckdb/common/vector_operations/unary_executor.hpp"
 #include "duckdb/common/operator/comparison_operators.hpp"
 
-using namespace std;
-
 namespace duckdb {
 
 using ScanStructure = JoinHashTable::ScanStructure;
@@ -59,15 +57,6 @@ JoinHashTable::JoinHashTable(BufferManager &buffer_manager, vector<JoinCondition
 }
 
 JoinHashTable::~JoinHashTable() {
-	if (hash_map) {
-		auto hash_id = hash_map->block_id;
-		hash_map.reset();
-		buffer_manager.DestroyBuffer(hash_id);
-	}
-	pinned_handles.clear();
-	for (auto &block : blocks) {
-		buffer_manager.DestroyBuffer(block.block_id);
-	}
 }
 
 void JoinHashTable::ApplyBitmask(Vector &hashes, idx_t count) {
@@ -163,6 +152,18 @@ void JoinHashTable::SerializeVectorData(VectorData &vdata, PhysicalType type, co
 		break;
 	case PhysicalType::INT64:
 		templated_serialize_vdata<int64_t>(vdata, sel, count, key_locations);
+		break;
+	case PhysicalType::UINT8:
+		templated_serialize_vdata<uint8_t>(vdata, sel, count, key_locations);
+		break;
+	case PhysicalType::UINT16:
+		templated_serialize_vdata<uint16_t>(vdata, sel, count, key_locations);
+		break;
+	case PhysicalType::UINT32:
+		templated_serialize_vdata<uint32_t>(vdata, sel, count, key_locations);
+		break;
+	case PhysicalType::UINT64:
+		templated_serialize_vdata<uint64_t>(vdata, sel, count, key_locations);
 		break;
 	case PhysicalType::INT128:
 		templated_serialize_vdata<hugeint_t>(vdata, sel, count, key_locations);
@@ -308,7 +309,7 @@ void JoinHashTable::Build(DataChunk &keys, DataChunk &payload) {
 			auto &last_block = blocks.back();
 			if (last_block.count < last_block.capacity) {
 				// last block has space: pin the buffer of this block
-				auto handle = buffer_manager.Pin(last_block.block_id);
+				auto handle = buffer_manager.Pin(last_block.block);
 				// now append to the block
 				idx_t append_count = AppendToBlock(last_block, *handle, append_entries, remaining);
 				remaining -= append_count;
@@ -317,17 +318,18 @@ void JoinHashTable::Build(DataChunk &keys, DataChunk &payload) {
 		}
 		while (remaining > 0) {
 			// now for the remaining data, allocate new buffers to store the data and append there
-			auto handle = buffer_manager.Allocate(block_capacity * entry_size);
+			auto block = buffer_manager.RegisterMemory(block_capacity * entry_size, false);
+			auto handle = buffer_manager.Pin(block);
 
 			HTDataBlock new_block;
 			new_block.count = 0;
 			new_block.capacity = block_capacity;
-			new_block.block_id = handle->block_id;
+			new_block.block = move(block);
 
 			idx_t append_count = AppendToBlock(new_block, *handle, append_entries, remaining);
 			remaining -= append_count;
 			handles.push_back(move(handle));
-			blocks.push_back(new_block);
+			blocks.push_back(move(new_block));
 		}
 	}
 	// now set up the key_locations based on the append entries
@@ -405,7 +407,7 @@ void JoinHashTable::Finalize() {
 	// this is so that we can keep pointers around to the blocks
 	// FIXME: if we cannot keep everything pinned in memory, we could switch to an out-of-memory merge join or so
 	for (auto &block : blocks) {
-		auto handle = buffer_manager.Pin(block.block_id);
+		auto handle = buffer_manager.Pin(block.block);
 		data_ptr_t dataptr = handle->node->buffer;
 		idx_t entry = 0;
 		while (entry < block.count) {
@@ -541,6 +543,18 @@ static idx_t GatherSwitch(VectorData &data, PhysicalType type, Vector &pointers,
                           idx_t count, idx_t offset, SelectionVector *match_sel, SelectionVector *no_match_sel,
                           idx_t &no_match_count) {
 	switch (type) {
+	case PhysicalType::UINT8:
+		return TemplatedGather<NO_MATCH_SEL, uint8_t, OP>(data, pointers, current_sel, count, offset, match_sel,
+		                                                 no_match_sel, no_match_count);
+	case PhysicalType::UINT16:
+		return TemplatedGather<NO_MATCH_SEL, uint16_t, OP>(data, pointers, current_sel, count, offset, match_sel,
+		                                                  no_match_sel, no_match_count);
+	case PhysicalType::UINT32:
+		return TemplatedGather<NO_MATCH_SEL, uint32_t, OP>(data, pointers, current_sel, count, offset, match_sel,
+		                                                  no_match_sel, no_match_count);
+	case PhysicalType::UINT64:
+		return TemplatedGather<NO_MATCH_SEL, uint64_t, OP>(data, pointers, current_sel, count, offset, match_sel,
+		                                                  no_match_sel, no_match_count);
 	case PhysicalType::BOOL:
 	case PhysicalType::INT8:
 		return TemplatedGather<NO_MATCH_SEL, int8_t, OP>(data, pointers, current_sel, count, offset, match_sel,
@@ -708,6 +722,18 @@ static void GatherResultVector(Vector &result, const SelectionVector &result_vec
 		break;
 	case PhysicalType::INT64:
 		TemplatedGatherResult<int64_t>(result, ptrs, result_vector, sel_vector, count, offset);
+		break;
+	case PhysicalType::UINT8:
+		TemplatedGatherResult<uint8_t>(result, ptrs, result_vector, sel_vector, count, offset);
+		break;
+	case PhysicalType::UINT16:
+		TemplatedGatherResult<uint16_t>(result, ptrs, result_vector, sel_vector, count, offset);
+		break;
+	case PhysicalType::UINT32:
+		TemplatedGatherResult<uint32_t>(result, ptrs, result_vector, sel_vector, count, offset);
+		break;
+	case PhysicalType::UINT64:
+		TemplatedGatherResult<uint64_t>(result, ptrs, result_vector, sel_vector, count, offset);
 		break;
 	case PhysicalType::INT128:
 		TemplatedGatherResult<hugeint_t>(result, ptrs, result_vector, sel_vector, count, offset);

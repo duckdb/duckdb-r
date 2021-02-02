@@ -1,8 +1,7 @@
 #include "duckdb/storage/storage_info.hpp"
 
 namespace duckdb {
-using namespace std;
 
-const uint64_t VERSION_NUMBER = 6;
+const uint64_t VERSION_NUMBER = 11;
 
 } // namespace duckdb

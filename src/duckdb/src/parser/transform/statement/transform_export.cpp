@@ -2,7 +2,7 @@
 #include "duckdb/parser/transformer.hpp"
 
 namespace duckdb {
-using namespace std;
+
 using namespace duckdb_libpgquery;
 
 unique_ptr<ExportStatement> Transformer::TransformExport(PGNode *node) {
@@ -10,6 +10,7 @@ unique_ptr<ExportStatement> Transformer::TransformExport(PGNode *node) {
 	auto info = make_unique<CopyInfo>();
 	info->file_path = stmt->filename;
 	info->format = "csv";
+	info->is_from = false;
 	// handle export options
 	TransformCopyOptions(*info, stmt->options);
 

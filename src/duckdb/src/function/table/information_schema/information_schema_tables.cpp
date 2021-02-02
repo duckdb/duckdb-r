@@ -6,8 +6,6 @@
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/transaction/transaction.hpp"
 
-using namespace std;
-
 namespace duckdb {
 
 struct InformationSchemaTablesData : public FunctionOperatorData {
@@ -63,17 +61,18 @@ static unique_ptr<FunctionData> information_schema_tables_bind(ClientContext &co
 
 unique_ptr<FunctionOperatorData> information_schema_tables_init(ClientContext &context, const FunctionData *bind_data,
                                                                 vector<column_t> &column_ids,
-                                                                TableFilterSet *table_filters) {
+                                                                TableFilterCollection* filters) {
 	auto result = make_unique<InformationSchemaTablesData>();
 
 	// scan all the schemas for tables and views and collect them
 	Catalog::GetCatalog(context).schemas->Scan(context, [&](CatalogEntry *entry) {
 		auto schema = (SchemaCatalogEntry *)entry;
-		schema->tables.Scan(context, [&](CatalogEntry *entry) { result->entries.push_back(entry); });
+		schema->Scan(context, CatalogType::TABLE_ENTRY, [&](CatalogEntry *entry) { result->entries.push_back(entry); });
 	});
 
 	// check the temp schema as well
-	context.temporary_objects->tables.Scan(context, [&](CatalogEntry *entry) { result->entries.push_back(entry); });
+	context.temporary_objects->Scan(context, CatalogType::TABLE_ENTRY,
+	                                [&](CatalogEntry *entry) { result->entries.push_back(entry); });
 	return move(result);
 }
 
@@ -84,7 +83,7 @@ void information_schema_tables(ClientContext &context, const FunctionData *bind_
 		// finished returning values
 		return;
 	}
-	idx_t next = min(data.offset + STANDARD_VECTOR_SIZE, (idx_t)data.entries.size());
+	idx_t next = MinValue<idx_t>(data.offset + STANDARD_VECTOR_SIZE, data.entries.size());
 	output.SetCardinality(next - data.offset);
 
 	// start returning values

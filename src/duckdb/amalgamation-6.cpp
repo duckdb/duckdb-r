@@ -1,3 +1,25 @@
+#include "src/parser/transform/expression/transform_coalesce.cpp"
+
+#include "src/parser/transform/expression/transform_columnref.cpp"
+
+#include "src/parser/transform/expression/transform_constant.cpp"
+
+#include "src/parser/transform/expression/transform_expression.cpp"
+
+#include "src/parser/transform/expression/transform_function.cpp"
+
+#include "src/parser/transform/expression/transform_interval.cpp"
+
+#include "src/parser/transform/expression/transform_is_null.cpp"
+
+#include "src/parser/transform/expression/transform_lambda.cpp"
+
+#include "src/parser/transform/expression/transform_operator.cpp"
+
+#include "src/parser/transform/expression/transform_param_ref.cpp"
+
+#include "src/parser/transform/expression/transform_subquery.cpp"
+
 #include "src/parser/transform/helpers/nodetype_to_string.cpp"
 
 #include "src/parser/transform/helpers/transform_alias.cpp"
@@ -7,6 +29,8 @@
 #include "src/parser/transform/helpers/transform_groupby.cpp"
 
 #include "src/parser/transform/helpers/transform_orderby.cpp"
+
+#include "src/parser/transform/helpers/transform_sample.cpp"
 
 #include "src/parser/transform/helpers/transform_typename.cpp"
 
@@ -54,6 +78,8 @@
 
 #include "src/parser/transform/statement/transform_show.cpp"
 
+#include "src/parser/transform/statement/transform_show_select.cpp"
+
 #include "src/parser/transform/statement/transform_transaction.cpp"
 
 #include "src/parser/transform/statement/transform_update.cpp"
@@ -96,6 +122,8 @@
 
 #include "src/planner/binder/expression/bind_function_expression.cpp"
 
+#include "src/planner/binder/expression/bind_lambda.cpp"
+
 #include "src/planner/binder/expression/bind_macro_expression.cpp"
 
 #include "src/planner/binder/expression/bind_operator_expression.cpp"
@@ -136,8 +164,6 @@
 
 #include "src/planner/binder/statement/bind_drop.cpp"
 
-#include "src/planner/binder/statement/bind_execute.cpp"
-
 #include "src/planner/binder/statement/bind_explain.cpp"
 
 #include "src/planner/binder/statement/bind_export.cpp"
@@ -150,25 +176,9 @@
 
 #include "src/planner/binder/statement/bind_select.cpp"
 
+#include "src/planner/binder/statement/bind_show.cpp"
+
 #include "src/planner/binder/statement/bind_simple.cpp"
 
 #include "src/planner/binder/statement/bind_update.cpp"
-
-#include "src/planner/binder/statement/bind_vacuum.cpp"
-
-#include "src/planner/binder/tableref/bind_basetableref.cpp"
-
-#include "src/planner/binder/tableref/bind_crossproductref.cpp"
-
-#include "src/planner/binder/tableref/bind_emptytableref.cpp"
-
-#include "src/planner/binder/tableref/bind_expressionlistref.cpp"
-
-#include "src/planner/binder/tableref/bind_joinref.cpp"
-
-#include "src/planner/binder/tableref/bind_named_parameters.cpp"
-
-#include "src/planner/binder/tableref/bind_subqueryref.cpp"
-
-#include "src/planner/binder/tableref/bind_table_function.cpp"
 

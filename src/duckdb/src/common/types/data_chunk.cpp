@@ -12,9 +12,9 @@
 #include "duckdb/common/types/sel_cache.hpp"
 #include "duckdb/common/arrow.hpp"
 #include "duckdb/common/vector.hpp"
+#include "duckdb/common/to_string.hpp"
 
 namespace duckdb {
-using namespace std;
 
 DataChunk::DataChunk() : count(0) {
 }
@@ -214,6 +214,7 @@ static void release_duckdb_arrow_array(ArrowArray *array) {
 }
 
 void DataChunk::ToArrowArray(ArrowArray *out_array) {
+	Normalify();
 	D_ASSERT(out_array);
 
 	auto root_holder = new DuckDBArrowArrayHolder();
@@ -249,8 +250,7 @@ void DataChunk::ToArrowArray(ArrowArray *out_array) {
 
 		switch (vector.vector_type) {
 			// TODO support other vector types
-		case VectorType::FLAT_VECTOR:
-
+		case VectorType::FLAT_VECTOR: {
 			switch (GetTypes()[col_idx].id()) {
 				// TODO support other data types
 			case LogicalTypeId::BOOLEAN:
@@ -258,30 +258,36 @@ void DataChunk::ToArrowArray(ArrowArray *out_array) {
 			case LogicalTypeId::SMALLINT:
 			case LogicalTypeId::INTEGER:
 			case LogicalTypeId::BIGINT:
+			case LogicalTypeId::UTINYINT:
+			case LogicalTypeId::USMALLINT:
+			case LogicalTypeId::UINTEGER:
+			case LogicalTypeId::UBIGINT:
 			case LogicalTypeId::FLOAT:
 			case LogicalTypeId::DOUBLE:
 			case LogicalTypeId::HUGEINT:
-			case LogicalTypeId::TIME:
+			case LogicalTypeId::DATE:
 				child.n_buffers = 2;
 				child.buffers[1] = (void *)FlatVector::GetData(vector);
 				break;
-
-			case LogicalTypeId::DATE: {
+			case LogicalTypeId::TIME: {
+				// convert time from microseconds to miliseconds
 				child.n_buffers = 2;
-				child.buffers[1] = (void *)FlatVector::GetData(vector);
+				holder->string_data = unique_ptr<data_t[]>(new data_t[sizeof(uint32_t) * (size() + 1)]);
+				child.buffers[1] = (void *)holder->string_data.get();
+				auto source_ptr = FlatVector::GetData<dtime_t>(vector);
 				auto target_ptr = (uint32_t *)child.buffers[1];
 				for (idx_t row_idx = 0; row_idx < size(); row_idx++) {
-					target_ptr[row_idx] = Date::EpochDays(target_ptr[row_idx]);
+					target_ptr[row_idx] = uint32_t(source_ptr[row_idx] / 1000);
 				}
 				break;
 			}
-
 			case LogicalTypeId::TIMESTAMP: {
+				// convert timestamp from microseconds to nanoseconds
 				child.n_buffers = 2;
 				child.buffers[1] = (void *)FlatVector::GetData(vector);
-				auto target_ptr = (uint64_t *)child.buffers[1];
+				auto target_ptr = (timestamp_t *)child.buffers[1];
 				for (idx_t row_idx = 0; row_idx < size(); row_idx++) {
-					target_ptr[row_idx] = Timestamp::GetEpoch(target_ptr[row_idx]) * 1e9;
+					target_ptr[row_idx] = Timestamp::GetEpochNanoSeconds(target_ptr[row_idx]);
 				}
 				break;
 			}
@@ -323,13 +329,26 @@ void DataChunk::ToArrowArray(ArrowArray *out_array) {
 				break;
 			}
 			default:
-				throw runtime_error("Unsupported type " + GetTypes()[col_idx].ToString());
+				throw std::runtime_error("Unsupported type " + GetTypes()[col_idx].ToString());
 			}
 
-			child.null_count = FlatVector::Nullmask(vector).count();
-			child.buffers[0] = (void *)&FlatVector::Nullmask(vector).flip();
-
+			auto &nullmask = FlatVector::Nullmask(vector);
+			if (child.length == STANDARD_VECTOR_SIZE) {
+				// vector is completely full; null count is equal to the number of bits set in the mask
+				child.null_count = nullmask.count();
+			} else {
+				// vector is not completely full; we cannot easily figure out the exact null count
+				if (nullmask.any()) {
+					// any bits are set: might have nulls
+					child.null_count = -1;
+				} else {
+					// no bits are set; we know there are no nulls
+					child.null_count = 0;
+				}
+			}
+			child.buffers[0] = (void *)&nullmask.flip();
 			break;
+		}
 		default:
 			throw NotImplementedException(VectorTypeToString(vector.vector_type));
 		}

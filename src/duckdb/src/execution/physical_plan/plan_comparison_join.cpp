@@ -10,8 +10,6 @@
 #include "duckdb/planner/operator/logical_comparison_join.hpp"
 #include "duckdb/transaction/transaction.hpp"
 
-using namespace std;
-
 namespace duckdb {
 
 static bool can_plan_index_join(Transaction &transaction, TableScanBindData *bind_data, PhysicalTableScan &scan) {
@@ -115,7 +113,7 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalComparison
 		}
 		// equality join: use hash join
 		plan = make_unique<PhysicalHashJoin>(op, move(left), move(right), move(op.conditions), op.join_type,
-		                                     op.left_projection_map, op.right_projection_map);
+		                                     op.left_projection_map, op.right_projection_map, move(op.delim_types));
 	} else {
 		D_ASSERT(!has_null_equal_conditions); // don't support this for anything but hash joins for now
 		if (op.conditions.size() == 1 && !has_inequality) {

@@ -5,7 +5,6 @@
 #include "duckdb/planner/operator/logical_projection.hpp"
 
 namespace duckdb {
-using namespace std;
 
 static unique_ptr<Expression> ReplaceProjectionBindings(LogicalProjection &proj, unique_ptr<Expression> expr) {
 	if (expr->type == ExpressionType::BOUND_COLUMN_REF) {
@@ -28,8 +27,8 @@ unique_ptr<LogicalOperator> FilterPushdown::PushdownProjection(unique_ptr<Logica
 	// all the BoundColumnRefExpressions in the filter should refer to the LogicalProjection
 	// we can rewrite them by replacing those references with the expression of the LogicalProjection node
 	FilterPushdown child_pushdown(optimizer);
-	for (idx_t i = 0; i < filters.size(); i++) {
-		auto &f = *filters[i];
+	for (auto & filter : filters) {
+		auto &f = *filter;
 		D_ASSERT(f.bindings.size() <= 1);
 		// rewrite the bindings within this subquery
 		f.filter = ReplaceProjectionBindings(proj, move(f.filter));

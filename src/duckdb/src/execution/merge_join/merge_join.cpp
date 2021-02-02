@@ -2,8 +2,6 @@
 
 #include "duckdb/parser/expression/comparison_expression.hpp"
 
-using namespace std;
-
 namespace duckdb {
 
 template <class MJ, class L_ARG, class R_ARG> static idx_t merge_join(L_ARG &l, R_ARG &r) {
@@ -17,6 +15,14 @@ template <class MJ, class L_ARG, class R_ARG> static idx_t merge_join(L_ARG &l, 
 		return MJ::template Operation<int32_t>(l, r);
 	case PhysicalType::INT64:
 		return MJ::template Operation<int64_t>(l, r);
+	case PhysicalType::UINT8:
+		return MJ::template Operation<uint8_t>(l, r);
+	case PhysicalType::UINT16:
+		return MJ::template Operation<uint16_t>(l, r);
+	case PhysicalType::UINT32:
+		return MJ::template Operation<uint32_t>(l, r);
+	case PhysicalType::UINT64:
+		return MJ::template Operation<uint64_t>(l, r);
 	case PhysicalType::INT128:
 		return MJ::template Operation<hugeint_t>(l, r);
 	case PhysicalType::FLOAT:

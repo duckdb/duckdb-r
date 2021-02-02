@@ -1,11 +1,11 @@
-#include "duckdb/parser/statement/alter_table_statement.hpp"
+#include "duckdb/parser/statement/alter_statement.hpp"
 #include "duckdb/parser/transformer.hpp"
 #include "duckdb/parser/expression/cast_expression.hpp"
 #include "duckdb/parser/expression/columnref_expression.hpp"
 #include "duckdb/parser/constraint.hpp"
 
 namespace duckdb {
-using namespace std;
+
 using namespace duckdb_libpgquery;
 
 unique_ptr<AlterStatement> Transformer::TransformAlter(PGNode *node) {

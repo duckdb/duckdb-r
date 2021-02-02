@@ -1,15 +1,12 @@
 #include "duckdb/common/operator/subtract.hpp"
-#include "duckdb/common/operator/add.hpp"
 
 #include "duckdb/common/limits.hpp"
+#include "duckdb/common/operator/add.hpp"
+#include "duckdb/common/types/hugeint.hpp"
+#include "duckdb/common/types/interval.hpp"
 #include "duckdb/common/types/value.hpp"
 
-#include "duckdb/common/types/interval.hpp"
-#include "duckdb/common/types/hugeint.hpp"
-
 #include <limits>
-
-using namespace std;
 
 namespace duckdb {
 
@@ -36,21 +33,21 @@ template <> interval_t SubtractOperator::Operation(interval_t left, interval_t r
 	interval_t result;
 	result.months = left.months - right.months;
 	result.days = left.days - right.days;
-	result.msecs = left.msecs - right.msecs;
+	result.micros = left.micros - right.micros;
 	return result;
 }
 
 template <> date_t SubtractOperator::Operation(date_t left, interval_t right) {
 	right.months = -right.months;
 	right.days = -right.days;
-	right.msecs = -right.msecs;
+	right.micros = -right.micros;
 	return AddOperator::Operation<date_t, interval_t, date_t>(left, right);
 }
 
 template <> timestamp_t SubtractOperator::Operation(timestamp_t left, interval_t right) {
 	right.months = -right.months;
 	right.days = -right.days;
-	right.msecs = -right.msecs;
+	right.micros = -right.micros;
 	return AddOperator::Operation<timestamp_t, interval_t, timestamp_t>(left, right);
 }
 
@@ -71,6 +68,34 @@ struct OverflowCheckedSubtract {
 		return true;
 	}
 };
+
+template <> bool TrySubtractOperator::Operation(uint8_t left, uint8_t right, uint8_t &result) {
+	if (right > left) {
+		return false;
+	}
+	return OverflowCheckedSubtract::Operation<uint8_t, uint16_t>(left, right, result);
+}
+
+template <> bool TrySubtractOperator::Operation(uint16_t left, uint16_t right, uint16_t &result) {
+	if (right > left) {
+		return false;
+	}
+	return OverflowCheckedSubtract::Operation<uint16_t, uint32_t>(left, right, result);
+}
+
+template <> bool TrySubtractOperator::Operation(uint32_t left, uint32_t right, uint32_t &result) {
+	if (right > left) {
+		return false;
+	}
+	return OverflowCheckedSubtract::Operation<uint32_t, uint64_t>(left, right, result);
+}
+
+template <> bool TrySubtractOperator::Operation(uint64_t left, uint64_t right, uint64_t &result) {
+	if (right > left) {
+		return false;
+	}
+	return OverflowCheckedSubtract::Operation<uint64_t, uint64_t>(left, right, result);
+}
 
 template <> bool TrySubtractOperator::Operation(int8_t left, int8_t right, int8_t &result) {
 	return OverflowCheckedSubtract::Operation<int8_t, int16_t>(left, right, result);
@@ -111,8 +136,7 @@ template <> bool TrySubtractOperator::Operation(int64_t left, int64_t right, int
 //===--------------------------------------------------------------------===//
 // subtract decimal with overflow check
 //===--------------------------------------------------------------------===//
-template<class T, T min, T max>
-bool TryDecimalSubtractTemplated(T left, T right, T &result) {
+template <class T, T min, T max> bool TryDecimalSubtractTemplated(T left, T right, T &result) {
 	if (right < 0) {
 		if (max + right < left) {
 			return false;
@@ -158,7 +182,7 @@ template <> hugeint_t DecimalSubtractOverflowCheck::Operation(hugeint_t left, hu
 // subtract time operator
 //===--------------------------------------------------------------------===//
 template <> dtime_t SubtractTimeOperator::Operation(dtime_t left, interval_t right) {
-	right.msecs = -right.msecs;
+	right.micros = -right.micros;
 	return AddTimeOperator::Operation<dtime_t, interval_t, dtime_t>(left, right);
 }
 

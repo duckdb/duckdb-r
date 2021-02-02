@@ -26,8 +26,6 @@
 #include <algorithm>
 #include <sstream>
 
-using namespace std;
-
 namespace duckdb {
 
 void TableCatalogEntry::AddLowerCaseAliases(unordered_map<string, column_t> &name_map) {
@@ -140,7 +138,7 @@ unique_ptr<CatalogEntry> TableCatalogEntry::AlterEntry(ClientContext &context, A
 static void RenameExpression(ParsedExpression &expr, RenameColumnInfo &info) {
 	if (expr.type == ExpressionType::COLUMN_REF) {
 		auto &colref = (ColumnRefExpression &)expr;
-		if (colref.column_name == info.name) {
+		if (colref.column_name == info.old_name) {
 			colref.column_name = info.new_name;
 		}
 	}
@@ -156,7 +154,7 @@ unique_ptr<CatalogEntry> TableCatalogEntry::RenameColumn(ClientContext &context,
 		ColumnDefinition copy = columns[i].Copy();
 
 		create_info->columns.push_back(move(copy));
-		if (info.name == columns[i].name) {
+		if (info.old_name == columns[i].name) {
 			D_ASSERT(!found);
 			create_info->columns[i].name = info.new_name;
 			found = true;
@@ -181,7 +179,7 @@ unique_ptr<CatalogEntry> TableCatalogEntry::RenameColumn(ClientContext &context,
 			// UNIQUE constraint: possibly need to rename columns
 			auto &unique = (UniqueConstraint &)*copy;
 			for (idx_t i = 0; i < unique.columns.size(); i++) {
-				if (unique.columns[i] == info.name) {
+				if (unique.columns[i] == info.old_name) {
 					unique.columns[i] = info.new_name;
 				}
 			}
@@ -429,7 +427,7 @@ void TableCatalogEntry::Serialize(Serializer &serializer) {
 }
 
 string TableCatalogEntry::ToSQL() {
-	stringstream ss;
+	std::stringstream ss;
 	ss << "CREATE TABLE " << KeywordHelper::WriteOptionallyQuoted(name) << "(";
 
 	// find all columns that have NOT NULL specified, but are NOT primary key columns

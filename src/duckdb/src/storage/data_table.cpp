@@ -5,20 +5,19 @@
 #include "duckdb/common/helper.hpp"
 #include "duckdb/common/vector_operations/vector_operations.hpp"
 #include "duckdb/execution/expression_executor.hpp"
+#include "duckdb/main/client_context.hpp"
 #include "duckdb/planner/constraints/list.hpp"
+#include "duckdb/planner/table_filter.hpp"
+#include "duckdb/storage/storage_manager.hpp"
+#include "duckdb/storage/table/morsel_info.hpp"
+#include "duckdb/storage/table/persistent_table_data.hpp"
+#include "duckdb/storage/table/transient_segment.hpp"
 #include "duckdb/transaction/transaction.hpp"
 #include "duckdb/transaction/transaction_manager.hpp"
-#include "duckdb/storage/table/transient_segment.hpp"
-#include "duckdb/storage/storage_manager.hpp"
-#include "duckdb/main/client_context.hpp"
-#include "duckdb/planner/table_filter.hpp"
-#include "duckdb/storage/table/persistent_table_data.hpp"
-
-#include "duckdb/storage/table/morsel_info.hpp"
 
 namespace duckdb {
-using namespace std;
-using namespace chrono;
+
+using namespace std::chrono;
 
 DataTable::DataTable(StorageManager &storage, string schema, string table, vector<LogicalType> types_,
                      unique_ptr<PersistentTableData> data)
@@ -349,7 +348,7 @@ bool DataTable::ScanBaseTable(Transaction &transaction, DataChunk &result, Table
 		// exceeded the amount of rows to scan
 		return false;
 	}
-	idx_t max_count = MinValue<idx_t>(STANDARD_VECTOR_SIZE, max_row - current_row);
+	auto max_count = MinValue<idx_t>(STANDARD_VECTOR_SIZE, max_row - current_row);
 	idx_t vector_offset = (current_row - state.base_row) / STANDARD_VECTOR_SIZE;
 	//! first check the zonemap if we have to scan this partition
 	if (!CheckZonemap(state, state.table_filters, current_row)) {
@@ -568,7 +567,7 @@ void DataTable::Append(TableCatalogEntry &table, ClientContext &context, DataChu
 
 void DataTable::InitializeAppend(Transaction &transaction, TableAppendState &state, idx_t append_count) {
 	// obtain the append lock for this table
-	state.append_lock = unique_lock<mutex>(append_lock);
+	state.append_lock = std::unique_lock<mutex>(append_lock);
 	if (!is_root) {
 		throw TransactionException("Transaction conflict: adding entries to a table that has been altered!");
 	}
@@ -920,8 +919,8 @@ void DataTable::VerifyUpdateConstraints(TableCatalogEntry &table, DataChunk &chu
 	// update should not be called for indexed columns!
 	// instead update should have been rewritten to delete + update on higher layer
 #ifdef DEBUG
-	for (idx_t i = 0; i < info->indexes.size(); i++) {
-		D_ASSERT(!info->indexes[i]->IndexIsUpdated(column_ids));
+	for (auto &index : info->indexes) {
+		D_ASSERT(!index->IndexIsUpdated(column_ids));
 	}
 #endif
 }
@@ -963,8 +962,8 @@ void DataTable::Update(TableCatalogEntry &table, ClientContext &context, Vector 
 //===--------------------------------------------------------------------===//
 void DataTable::InitializeCreateIndexScan(CreateIndexScanState &state, const vector<column_t> &column_ids) {
 	// we grab the append lock to make sure nothing is appended until AFTER we finish the index scan
-	state.append_lock = unique_lock<mutex>(append_lock);
-	state.delete_lock = unique_lock<mutex>(versions->node_lock);
+	state.append_lock = std::unique_lock<mutex>(append_lock);
+	state.delete_lock = std::unique_lock<mutex>(versions->node_lock);
 
 	InitializeScan(state, column_ids);
 }

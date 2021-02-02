@@ -1,18 +1,8 @@
-#include "src/execution/physical_plan/plan_insert.cpp"
-
-#include "src/execution/physical_plan/plan_limit.cpp"
-
-#include "src/execution/physical_plan/plan_order.cpp"
-
-#include "src/execution/physical_plan/plan_pragma.cpp"
-
-#include "src/execution/physical_plan/plan_prepare.cpp"
-
-#include "src/execution/physical_plan/plan_projection.cpp"
-
-#include "src/execution/physical_plan/plan_recursive_cte.cpp"
+#include "src/execution/physical_plan/plan_sample.cpp"
 
 #include "src/execution/physical_plan/plan_set_operation.cpp"
+
+#include "src/execution/physical_plan/plan_show_select.cpp"
 
 #include "src/execution/physical_plan/plan_simple.cpp"
 
@@ -25,6 +15,8 @@
 #include "src/execution/physical_plan/plan_window.cpp"
 
 #include "src/execution/physical_plan_generator.cpp"
+
+#include "src/execution/reservoir_sample.cpp"
 
 #include "src/execution/window_segment_tree.cpp"
 
@@ -136,7 +128,11 @@
 
 #include "src/function/scalar/sequence_functions.cpp"
 
+#include "src/function/scalar/string/ascii.cpp"
+
 #include "src/function/scalar/string/caseconvert.cpp"
+
+#include "src/function/scalar/string/chr.cpp"
 
 #include "src/function/scalar/string/concat.cpp"
 
@@ -171,4 +167,18 @@
 #include "src/function/scalar/string/string_split.cpp"
 
 #include "src/function/scalar/string/strip_accents.cpp"
+
+#include "src/function/scalar/string/substring.cpp"
+
+#include "src/function/scalar/string/suffix.cpp"
+
+#include "src/function/scalar/string/trim.cpp"
+
+#include "src/function/scalar/string_functions.cpp"
+
+#include "src/function/scalar/trigonometrics_functions.cpp"
+
+#include "src/function/table/arrow.cpp"
+
+#include "src/function/table/copy_csv.cpp"
 

@@ -6,7 +6,6 @@
 #include "duckdb/common/string_util.hpp"
 
 namespace duckdb {
-using namespace std;
 
 LogicalGet::LogicalGet(idx_t table_index, TableFunction function, unique_ptr<FunctionData> bind_data,
                        vector<LogicalType> returned_types, vector<string> returned_names)
@@ -20,7 +19,7 @@ string LogicalGet::GetName() const {
 
 string LogicalGet::ParamsToString() const {
 	string result;
-	for (auto &filter : tableFilters) {
+	for (auto &filter : table_filters) {
 		result +=
 		    names[filter.column_index] + ExpressionTypeToOperator(filter.comparison_type) + filter.constant.ToString();
 		result += "\n";

@@ -14,6 +14,7 @@
 #include "duckdb/storage/table/scan_state.hpp"
 
 namespace duckdb {
+class BlockHandle;
 class BufferManager;
 class ColumnData;
 class Transaction;
@@ -31,8 +32,8 @@ public:
 	BufferManager &manager;
 	//! Type of the uncompressed segment
 	PhysicalType type;
-	//! The block id that this segment relates to
-	block_id_t block_id;
+	//! The block that this segment relates to
+	shared_ptr<BlockHandle> block;
 	//! The size of a vector of this type
 	idx_t vector_size;
 	//! The maximum amount of vectors that can be stored in this segment
@@ -58,7 +59,7 @@ public:
 	//! Fetch the vector at index "vector_index" from the uncompressed segment, throwing an exception if there are any
 	//! outstanding updates
 	void IndexScan(ColumnScanState &state, idx_t vector_index, Vector &result);
-	static void filterSelection(SelectionVector &sel, Vector &result, TableFilter filter, idx_t &approved_tuple_count,
+	static void filterSelection(SelectionVector &sel, Vector &result, const TableFilter& filter, idx_t &approved_tuple_count,
 	                            nullmask_t &nullmask);
 	//! Executes the filters directly in the table's data
 	void Select(Transaction &transaction, Vector &result, vector<TableFilter> &tableFilters, SelectionVector &sel,

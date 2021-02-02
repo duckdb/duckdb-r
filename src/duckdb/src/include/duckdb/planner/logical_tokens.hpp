@@ -44,6 +44,8 @@ class LogicalPrepare;
 class LogicalProjection;
 class LogicalRecursiveCTE;
 class LogicalSetOperation;
+class LogicalSample;
+class LogicalShow;
 class LogicalSimple;
 class LogicalTopN;
 class LogicalUnnest;

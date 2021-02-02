@@ -14,8 +14,6 @@
 #include "duckdb/common/types/time.hpp"
 #include "duckdb/common/types/timestamp.hpp"
 
-using namespace std;
-
 namespace duckdb {
 
 template <class OP> static scalar_function_t GetScalarIntegerFunction(PhysicalType type) {
@@ -32,6 +30,18 @@ template <class OP> static scalar_function_t GetScalarIntegerFunction(PhysicalTy
 		break;
 	case PhysicalType::INT64:
 		function = &ScalarFunction::BinaryFunction<int64_t, int64_t, int64_t, OP>;
+		break;
+	case PhysicalType::UINT8:
+		function = &ScalarFunction::BinaryFunction<uint8_t, uint8_t, uint8_t, OP>;
+		break;
+	case PhysicalType::UINT16:
+		function = &ScalarFunction::BinaryFunction<uint16_t, uint16_t, uint16_t, OP>;
+		break;
+	case PhysicalType::UINT32:
+		function = &ScalarFunction::BinaryFunction<uint32_t, uint32_t, uint32_t, OP>;
+		break;
+	case PhysicalType::UINT64:
+		function = &ScalarFunction::BinaryFunction<uint64_t, uint64_t, uint64_t, OP>;
 		break;
 	default:
 		throw NotImplementedException("Unimplemented type for GetScalarBinaryFunction");
@@ -153,7 +163,7 @@ unique_ptr<FunctionData> bind_decimal_add_subtract(ClientContext &context, Scala
 		uint8_t width, scale;
 		auto can_convert = arguments[i]->return_type.GetDecimalProperties(width, scale);
 		if (!can_convert) {
-			throw InternalException("Could not convert type %s to a decimal?", arguments[i]->return_type.ToString());
+			throw InternalException("Could not convert type %s to a decimal.", arguments[i]->return_type.ToString());
 		}
 		max_width = MaxValue<uint8_t>(width, max_width);
 		max_scale = MaxValue<uint8_t>(scale, max_scale);
@@ -196,10 +206,10 @@ unique_ptr<FunctionData> bind_decimal_add_subtract(ClientContext &context, Scala
 	if (result_type.InternalType() != PhysicalType::INT128) {
 		if (IS_SUBTRACT) {
 			bound_function.statistics =
-				propagate_numeric_statistics<TryDecimalSubtract, SubtractPropagateStatistics, SubtractOperator>;
+			    propagate_numeric_statistics<TryDecimalSubtract, SubtractPropagateStatistics, SubtractOperator>;
 		} else {
 			bound_function.statistics =
-				propagate_numeric_statistics<TryDecimalAdd, AddPropagateStatistics, AddOperator>;
+			    propagate_numeric_statistics<TryDecimalAdd, AddPropagateStatistics, AddOperator>;
 		}
 	}
 	return nullptr;
@@ -478,7 +488,7 @@ unique_ptr<FunctionData> bind_decimal_multiply(ClientContext &context, ScalarFun
 	}
 	if (result_type.InternalType() != PhysicalType::INT128) {
 		bound_function.statistics =
-			propagate_numeric_statistics<TryDecimalMultiply, MultiplyPropagateStatistics, MultiplyOperator>;
+		    propagate_numeric_statistics<TryDecimalMultiply, MultiplyPropagateStatistics, MultiplyOperator>;
 	}
 	return nullptr;
 }
@@ -536,7 +546,7 @@ template <> hugeint_t DivideOperator::Operation(hugeint_t left, hugeint_t right)
 template <> interval_t DivideOperator::Operation(interval_t left, int64_t right) {
 	left.days /= right;
 	left.months /= right;
-	left.msecs /= right;
+	left.micros /= right;
 	return left;
 }
 
@@ -578,6 +588,14 @@ template <class OP> static scalar_function_t GetBinaryFunctionIgnoreZero(Logical
 		return BinaryScalarFunctionIgnoreZero<int32_t, int32_t, int32_t, OP>;
 	case LogicalTypeId::BIGINT:
 		return BinaryScalarFunctionIgnoreZero<int64_t, int64_t, int64_t, OP>;
+	case LogicalTypeId::UTINYINT:
+		return BinaryScalarFunctionIgnoreZero<uint8_t, uint8_t, uint8_t, OP>;
+	case LogicalTypeId::USMALLINT:
+		return BinaryScalarFunctionIgnoreZero<uint16_t, uint16_t, uint16_t, OP>;
+	case LogicalTypeId::UINTEGER:
+		return BinaryScalarFunctionIgnoreZero<uint32_t, uint32_t, uint32_t, OP>;
+	case LogicalTypeId::UBIGINT:
+		return BinaryScalarFunctionIgnoreZero<uint64_t, uint64_t, uint64_t, OP>;
 	case LogicalTypeId::HUGEINT:
 		return BinaryScalarFunctionIgnoreZero<hugeint_t, hugeint_t, hugeint_t, OP, BinaryZeroIsNullHugeintWrapper>;
 	case LogicalTypeId::FLOAT:

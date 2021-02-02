@@ -11,7 +11,6 @@
 #include "duckdb/common/vector_operations/vector_operations.hpp"
 
 namespace duckdb {
-using namespace std;
 
 template <class T>
 static void TemplatedCopy(Vector &source, const SelectionVector &sel, Vector &target, idx_t source_offset,
@@ -92,6 +91,18 @@ void VectorOperations::Copy(Vector &source, Vector &target, const SelectionVecto
 	case PhysicalType::HASH:
 	case PhysicalType::INT64:
 		TemplatedCopy<int64_t>(source, sel, target, source_offset, target_offset, copy_count);
+		break;
+	case PhysicalType::UINT8:
+		TemplatedCopy<uint8_t>(source, sel, target, source_offset, target_offset, copy_count);
+		break;
+	case PhysicalType::UINT16:
+		TemplatedCopy<uint16_t>(source, sel, target, source_offset, target_offset, copy_count);
+		break;
+	case PhysicalType::UINT32:
+		TemplatedCopy<uint32_t>(source, sel, target, source_offset, target_offset, copy_count);
+		break;
+	case PhysicalType::UINT64:
+		TemplatedCopy<uint64_t>(source, sel, target, source_offset, target_offset, copy_count);
 		break;
 	case PhysicalType::INT128:
 		TemplatedCopy<hugeint_t>(source, sel, target, source_offset, target_offset, copy_count);

@@ -9,8 +9,6 @@
 #include "duckdb/planner/expression/bound_reference_expression.hpp"
 #include "duckdb/execution/operator/aggregate/physical_hash_aggregate.hpp"
 
-using namespace std;
-
 namespace duckdb {
 
 static void GatherDelimScans(PhysicalOperator *op, vector<PhysicalOperator *> &delim_scans) {
@@ -45,11 +43,6 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalDelimJoin 
 		auto &bound_ref = (BoundReferenceExpression &)*delim_expr;
 		delim_types.push_back(bound_ref.return_type);
 		distinct_groups.push_back(make_unique<BoundReferenceExpression>(bound_ref.return_type, bound_ref.index));
-	}
-	if (op.join_type == JoinType::MARK) {
-		D_ASSERT(plan->type == PhysicalOperatorType::HASH_JOIN);
-		auto &hash_join = (PhysicalHashJoin &)*plan;
-		hash_join.delim_types = delim_types;
 	}
 	// now create the duplicate eliminated join
 	auto delim_join = make_unique<PhysicalDelimJoin>(op.types, move(plan), delim_scans);

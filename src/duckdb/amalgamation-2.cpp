@@ -1,13 +1,3 @@
-#include "src/execution/expression_executor/execute_operator.cpp"
-
-#include "src/execution/expression_executor/execute_parameter.cpp"
-
-#include "src/execution/expression_executor/execute_reference.cpp"
-
-#include "src/execution/expression_executor_state.cpp"
-
-#include "src/execution/index/art/art.cpp"
-
 #include "src/execution/index/art/art_key.cpp"
 
 #include "src/execution/index/art/leaf.cpp"
@@ -51,6 +41,10 @@
 #include "src/execution/operator/helper/physical_pragma.cpp"
 
 #include "src/execution/operator/helper/physical_prepare.cpp"
+
+#include "src/execution/operator/helper/physical_reservoir_sample.cpp"
+
+#include "src/execution/operator/helper/physical_streaming_sample.cpp"
 
 #include "src/execution/operator/helper/physical_transaction.cpp"
 
@@ -116,6 +110,8 @@
 
 #include "src/execution/operator/schema/physical_create_table.cpp"
 
+#include "src/execution/operator/schema/physical_create_table_as.cpp"
+
 #include "src/execution/operator/schema/physical_create_view.cpp"
 
 #include "src/execution/operator/schema/physical_drop.cpp"
@@ -171,4 +167,18 @@
 #include "src/execution/physical_plan/plan_filter.cpp"
 
 #include "src/execution/physical_plan/plan_get.cpp"
+
+#include "src/execution/physical_plan/plan_insert.cpp"
+
+#include "src/execution/physical_plan/plan_limit.cpp"
+
+#include "src/execution/physical_plan/plan_order.cpp"
+
+#include "src/execution/physical_plan/plan_pragma.cpp"
+
+#include "src/execution/physical_plan/plan_prepare.cpp"
+
+#include "src/execution/physical_plan/plan_projection.cpp"
+
+#include "src/execution/physical_plan/plan_recursive_cte.cpp"
 

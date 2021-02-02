@@ -4,8 +4,7 @@
 #include "duckdb/function/scalar/nested_functions.hpp"
 #include "duckdb/common/types/chunk_collection.hpp"
 #include "duckdb/common/types/data_chunk.hpp"
-
-using namespace std;
+#include "duckdb/common/pair.hpp"
 
 namespace duckdb {
 
@@ -14,6 +13,8 @@ static void list_value_fun(DataChunk &args, ExpressionState &state, Vector &resu
 	//	auto &info = (VariableReturnBindData &)*func_expr.bind_info;
 
 	D_ASSERT(result.type.id() == LogicalTypeId::LIST);
+	D_ASSERT(result.type.child_types().size() == 1);
+
 	auto list_child = make_unique<ChunkCollection>();
 	ListVector::SetEntry(result, move(list_child));
 
@@ -50,6 +51,8 @@ static unique_ptr<FunctionData> list_value_bind(ClientContext &context, ScalarFu
 	child_list_t<LogicalType> child_types;
 	if (arguments.size() > 0) {
 		child_types.push_back(make_pair("", arguments[0]->return_type));
+	} else {
+		child_types.push_back(make_pair("", LogicalType::SQLNULL));
 	}
 
 	// this is more for completeness reasons

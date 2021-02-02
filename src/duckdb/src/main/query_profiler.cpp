@@ -10,16 +10,14 @@
 #include "duckdb/parser/sql_statement.hpp"
 #include "duckdb/common/printer.hpp"
 #include "duckdb/common/limits.hpp"
+#include "duckdb/common/to_string.hpp"
 
-#include <iostream>
 #include <utility>
 #include <algorithm>
 
-using namespace std;
-
 namespace duckdb {
 
-void QueryProfiler::StartQuery(string query, SQLStatement &statement) {
+void QueryProfiler::StartQuery(string query) {
 	if (!enabled) {
 		return;
 	}
@@ -36,6 +34,8 @@ void QueryProfiler::StartQuery(string query, SQLStatement &statement) {
 bool QueryProfiler::OperatorRequiresProfiling(PhysicalOperatorType op_type) {
 	switch (op_type) {
 	case PhysicalOperatorType::ORDER_BY:
+	case PhysicalOperatorType::RESERVOIR_SAMPLE:
+	case PhysicalOperatorType::STREAMING_SAMPLE:
 	case PhysicalOperatorType::LIMIT:
 	case PhysicalOperatorType::TOP_N:
 	case PhysicalOperatorType::AGGREGATE:
@@ -157,7 +157,7 @@ void QueryProfiler::Initialize(PhysicalOperator *root_op) {
 }
 
 OperatorProfiler::OperatorProfiler(bool enabled_) : enabled(enabled_) {
-	execution_stack = stack<PhysicalOperator *>();
+	execution_stack = std::stack<PhysicalOperator *>();
 }
 
 void OperatorProfiler::StartOperator(PhysicalOperator *phys_op) {

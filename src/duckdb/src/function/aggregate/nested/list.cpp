@@ -1,8 +1,7 @@
 #include "duckdb/function/aggregate/nested_functions.hpp"
 #include "duckdb/planner/expression/bound_aggregate_expression.hpp"
 #include "duckdb/common/types/chunk_collection.hpp"
-
-using namespace std;
+#include "duckdb/common/pair.hpp"
 
 namespace duckdb {
 
@@ -74,7 +73,8 @@ static void list_finalize(Vector &state_vector, FunctionData *, Vector &result, 
 	state_vector.Orrify(count, sdata);
 	auto states = (list_agg_state_t **)sdata.data;
 
-	result.Initialize(LogicalType::LIST);
+	D_ASSERT(result.type.id() == LogicalTypeId::LIST);
+	result.Initialize(result.type); // deals with constants
 	auto list_struct_data = FlatVector::GetData<list_entry_t>(result);
 	auto &nullmask = FlatVector::Nullmask(result);
 

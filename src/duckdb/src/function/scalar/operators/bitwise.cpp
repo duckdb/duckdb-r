@@ -2,7 +2,6 @@
 #include "duckdb/common/vector_operations/vector_operations.hpp"
 
 namespace duckdb {
-using namespace std;
 
 template <class OP> static scalar_function_t GetScalarIntegerUnaryFunction(LogicalType type) {
 	scalar_function_t function;
@@ -18,6 +17,18 @@ template <class OP> static scalar_function_t GetScalarIntegerUnaryFunction(Logic
 		break;
 	case LogicalTypeId::BIGINT:
 		function = &ScalarFunction::UnaryFunction<int64_t, int64_t, OP>;
+		break;
+	case LogicalTypeId::UTINYINT:
+		function = &ScalarFunction::UnaryFunction<uint8_t, uint8_t, OP>;
+		break;
+	case LogicalTypeId::USMALLINT:
+		function = &ScalarFunction::UnaryFunction<uint16_t, uint16_t, OP>;
+		break;
+	case LogicalTypeId::UINTEGER:
+		function = &ScalarFunction::UnaryFunction<uint32_t, uint32_t, OP>;
+		break;
+	case LogicalTypeId::UBIGINT:
+		function = &ScalarFunction::UnaryFunction<uint64_t, uint64_t, OP>;
 		break;
 	case LogicalTypeId::HUGEINT:
 		function = &ScalarFunction::UnaryFunction<hugeint_t, hugeint_t, OP>;
@@ -42,6 +53,18 @@ template <class OP> static scalar_function_t GetScalarIntegerBinaryFunction(Logi
 		break;
 	case LogicalTypeId::BIGINT:
 		function = &ScalarFunction::BinaryFunction<int64_t, int64_t, int64_t, OP>;
+		break;
+	case LogicalTypeId::UTINYINT:
+		function = &ScalarFunction::BinaryFunction<uint8_t, uint8_t, uint8_t, OP>;
+		break;
+	case LogicalTypeId::USMALLINT:
+		function = &ScalarFunction::BinaryFunction<uint16_t, uint16_t, uint16_t, OP>;
+		break;
+	case LogicalTypeId::UINTEGER:
+		function = &ScalarFunction::BinaryFunction<uint32_t, uint32_t, uint32_t, OP>;
+		break;
+	case LogicalTypeId::UBIGINT:
+		function = &ScalarFunction::BinaryFunction<uint64_t, uint64_t, uint64_t, OP>;
 		break;
 	case LogicalTypeId::HUGEINT:
 		function = &ScalarFunction::BinaryFunction<hugeint_t, hugeint_t, hugeint_t, OP>;

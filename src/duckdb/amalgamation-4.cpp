@@ -1,17 +1,3 @@
-#include "src/function/scalar/string/substring.cpp"
-
-#include "src/function/scalar/string/suffix.cpp"
-
-#include "src/function/scalar/string/trim.cpp"
-
-#include "src/function/scalar/string_functions.cpp"
-
-#include "src/function/scalar/trigonometrics_functions.cpp"
-
-#include "src/function/table/arrow.cpp"
-
-#include "src/function/table/copy_csv.cpp"
-
 #include "src/function/table/glob.cpp"
 
 #include "src/function/table/information_schema/information_schema_columns.cpp"
@@ -32,6 +18,8 @@
 
 #include "src/function/table/sqlite/pragma_database_list.cpp"
 
+#include "src/function/table/sqlite/pragma_functions.cpp"
+
 #include "src/function/table/sqlite/pragma_table_info.cpp"
 
 #include "src/function/table/sqlite/sqlite_master.cpp"
@@ -49,8 +37,6 @@
 #include "src/main/client_context.cpp"
 
 #include "src/main/connection.cpp"
-
-#include "src/main/connection_manager.cpp"
 
 #include "src/main/database.cpp"
 
@@ -118,11 +104,15 @@
 
 #include "src/optimizer/cse_optimizer.cpp"
 
+#include "src/optimizer/deliminator.cpp"
+
 #include "src/optimizer/expression_heuristics.cpp"
 
 #include "src/optimizer/expression_rewriter.cpp"
 
 #include "src/optimizer/filter_combiner.cpp"
+
+#include "src/optimizer/filter_pullup.cpp"
 
 #include "src/optimizer/filter_pushdown.cpp"
 
@@ -137,6 +127,16 @@
 #include "src/optimizer/matcher/expression_matcher.cpp"
 
 #include "src/optimizer/optimizer.cpp"
+
+#include "src/optimizer/pullup/pullup_both_side.cpp"
+
+#include "src/optimizer/pullup/pullup_filter.cpp"
+
+#include "src/optimizer/pullup/pullup_from_left.cpp"
+
+#include "src/optimizer/pullup/pullup_projection.cpp"
+
+#include "src/optimizer/pullup/pullup_set_operation.cpp"
 
 #include "src/optimizer/pushdown/pushdown_aggregate.cpp"
 
@@ -171,4 +171,14 @@
 #include "src/optimizer/rule/conjunction_simplification.cpp"
 
 #include "src/optimizer/rule/constant_folding.cpp"
+
+#include "src/optimizer/rule/date_part_simplification.cpp"
+
+#include "src/optimizer/rule/distributivity.cpp"
+
+#include "src/optimizer/rule/empty_needle_removal.cpp"
+
+#include "src/optimizer/rule/in_clause_simplification_rule.cpp"
+
+#include "src/optimizer/rule/like_optimizations.cpp"
 

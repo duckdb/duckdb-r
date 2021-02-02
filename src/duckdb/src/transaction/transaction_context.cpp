@@ -5,12 +5,8 @@
 #include "duckdb/transaction/transaction_manager.hpp"
 
 namespace duckdb {
-using namespace std;
 
 TransactionContext::~TransactionContext() {
-	if (is_invalidated) {
-		return;
-	}
 	if (current_transaction) {
 		try {
 			Rollback();
@@ -32,6 +28,13 @@ void TransactionContext::Commit() {
 	string error = transaction_manager.CommitTransaction(transaction);
 	if (!error.empty()) {
 		throw TransactionException("Failed to commit: %s", error);
+	}
+}
+
+void TransactionContext::SetAutoCommit(bool value) {
+	auto_commit = value;
+	if (!auto_commit && !current_transaction) {
+		BeginTransaction();
 	}
 }
 
