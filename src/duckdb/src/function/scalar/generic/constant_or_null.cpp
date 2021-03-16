@@ -6,7 +6,7 @@
 namespace duckdb {
 
 struct ConstantOrNullBindData : public FunctionData {
-	ConstantOrNullBindData(Value val) : value(val) {
+	explicit ConstantOrNullBindData(Value val) : value(move(val)) {
 	}
 
 	Value value;
@@ -17,19 +17,19 @@ public:
 	}
 };
 
-static void constant_or_null(DataChunk &args, ExpressionState &state, Vector &result) {
+static void ConstantOrNullFunction(DataChunk &args, ExpressionState &state, Vector &result) {
 	auto &func_expr = (BoundFunctionExpression &)state.expr;
 	auto &info = (ConstantOrNullBindData &)*func_expr.bind_info;
 	result.Reference(info.value);
 	for (idx_t idx = 0; idx < args.ColumnCount(); idx++) {
-		switch (args.data[idx].vector_type) {
+		switch (args.data[idx].GetVectorType()) {
 		case VectorType::FLAT_VECTOR: {
-			auto &input_mask = FlatVector::Nullmask(args.data[idx]);
-			if (input_mask.any()) {
+			auto &input_mask = FlatVector::Validity(args.data[idx]);
+			if (!input_mask.AllValid()) {
 				// there are null values: need to merge them into the result
 				result.Normalify(args.size());
-				auto &result_mask = FlatVector::Nullmask(result);
-				result_mask |= input_mask;
+				auto &result_mask = FlatVector::Validity(result);
+				result_mask.Combine(input_mask, args.size());
 			}
 			break;
 		}
@@ -45,12 +45,12 @@ static void constant_or_null(DataChunk &args, ExpressionState &state, Vector &re
 		default: {
 			VectorData vdata;
 			args.data[idx].Orrify(args.size(), vdata);
-			if (vdata.nullmask->any()) {
+			if (!vdata.validity.AllValid()) {
 				result.Normalify(args.size());
-				auto &result_mask = FlatVector::Nullmask(result);
+				auto &result_mask = FlatVector::Validity(result);
 				for (idx_t i = 0; i < args.size(); i++) {
-					if ((*vdata.nullmask)[vdata.sel->get_index(i)]) {
-						result_mask[i] = true;
+					if (!vdata.validity.RowIsValid(vdata.sel->get_index(i))) {
+						result_mask.SetInvalid(i);
 					}
 				}
 			}
@@ -61,14 +61,14 @@ static void constant_or_null(DataChunk &args, ExpressionState &state, Vector &re
 }
 
 ScalarFunction ConstantOrNull::GetFunction(LogicalType return_type) {
-	return ScalarFunction("constant_or_null", {}, return_type, constant_or_null);
+	return ScalarFunction("constant_or_null", {}, move(return_type), ConstantOrNullFunction);
 }
 
 unique_ptr<FunctionData> ConstantOrNull::Bind(Value value) {
 	return make_unique<ConstantOrNullBindData>(move(value));
 }
 
-bool ConstantOrNull::IsConstantOrNull(BoundFunctionExpression &expr, Value val) {
+bool ConstantOrNull::IsConstantOrNull(BoundFunctionExpression &expr, const Value &val) {
 	if (expr.function.name != "constant_or_null") {
 		return false;
 	}

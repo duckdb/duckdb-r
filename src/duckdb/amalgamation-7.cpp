@@ -1,3 +1,19 @@
+#include "src/planner/binder/statement/bind_insert.cpp"
+
+#include "src/planner/binder/statement/bind_pragma.cpp"
+
+#include "src/planner/binder/statement/bind_relation.cpp"
+
+#include "src/planner/binder/statement/bind_select.cpp"
+
+#include "src/planner/binder/statement/bind_set.cpp"
+
+#include "src/planner/binder/statement/bind_show.cpp"
+
+#include "src/planner/binder/statement/bind_simple.cpp"
+
+#include "src/planner/binder/statement/bind_update.cpp"
+
 #include "src/planner/binder/statement/bind_vacuum.cpp"
 
 #include "src/planner/binder/tableref/bind_basetableref.cpp"
@@ -175,10 +191,4 @@
 #include "src/storage/statistics/segment_statistics.cpp"
 
 #include "src/storage/statistics/string_statistics.cpp"
-
-#include "src/storage/storage_info.cpp"
-
-#include "src/storage/storage_lock.cpp"
-
-#include "src/storage/storage_manager.cpp"
 

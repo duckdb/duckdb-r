@@ -51,8 +51,8 @@ Value DataChunk::GetValue(idx_t col_idx, idx_t index) const {
 	return data[col_idx].GetValue(index);
 }
 
-void DataChunk::SetValue(idx_t col_idx, idx_t index, Value val) {
-	data[col_idx].SetValue(index, move(val));
+void DataChunk::SetValue(idx_t col_idx, idx_t index, const Value &val) {
+	data[col_idx].SetValue(index, val);
 }
 
 void DataChunk::Reference(DataChunk &chunk) {
@@ -68,7 +68,7 @@ void DataChunk::Copy(DataChunk &other, idx_t offset) {
 	D_ASSERT(other.size() == 0);
 
 	for (idx_t i = 0; i < ColumnCount(); i++) {
-		D_ASSERT(other.data[i].vector_type == VectorType::FLAT_VECTOR);
+		D_ASSERT(other.data[i].GetVectorType() == VectorType::FLAT_VECTOR);
 		VectorOperations::Copy(data[i], other.data[i], size(), offset, 0);
 	}
 	other.SetCardinality(size() - offset);
@@ -82,7 +82,7 @@ void DataChunk::Append(DataChunk &other) {
 		throw OutOfRangeException("Column counts of appending chunk doesn't match!");
 	}
 	for (idx_t i = 0; i < ColumnCount(); i++) {
-		D_ASSERT(data[i].vector_type == VectorType::FLAT_VECTOR);
+		D_ASSERT(data[i].GetVectorType() == VectorType::FLAT_VECTOR);
 		VectorOperations::Copy(other.data[i], data[i], other.size(), 0, size());
 	}
 	SetCardinality(size() + other.size());
@@ -97,7 +97,7 @@ void DataChunk::Normalify() {
 vector<LogicalType> DataChunk::GetTypes() {
 	vector<LogicalType> types;
 	for (idx_t i = 0; i < ColumnCount(); i++) {
-		types.push_back(data[i].type);
+		types.push_back(data[i].GetType());
 	}
 	return types;
 }
@@ -116,7 +116,7 @@ void DataChunk::Serialize(Serializer &serializer) {
 	serializer.Write<idx_t>(ColumnCount());
 	for (idx_t col_idx = 0; col_idx < ColumnCount(); col_idx++) {
 		// write the types
-		data[col_idx].type.Serialize(serializer);
+		data[col_idx].GetType().Serialize(serializer);
 	}
 	// write the data
 	for (idx_t col_idx = 0; col_idx < ColumnCount(); col_idx++) {
@@ -154,7 +154,7 @@ void DataChunk::Slice(DataChunk &other, const SelectionVector &sel, idx_t count,
 	this->count = count;
 	SelCache merge_cache;
 	for (idx_t c = 0; c < other.ColumnCount(); c++) {
-		if (other.data[c].vector_type == VectorType::DICTIONARY_VECTOR) {
+		if (other.data[c].GetVectorType() == VectorType::DICTIONARY_VECTOR) {
 			// already a dictionary! merge the dictionaries
 			data[col_offset + c].Reference(other.data[c]);
 			data[col_offset + c].Slice(sel, count, merge_cache);
@@ -173,7 +173,7 @@ unique_ptr<VectorData[]> DataChunk::Orrify() {
 }
 
 void DataChunk::Hash(Vector &result) {
-	D_ASSERT(result.type.id() == LogicalTypeId::HASH);
+	D_ASSERT(result.GetType().id() == LogicalTypeId::HASH);
 	VectorOperations::Hash(data[0], result, size());
 	for (idx_t i = 1; i < ColumnCount(); i++) {
 		VectorOperations::CombineHash(result, data[i], size());
@@ -204,7 +204,7 @@ struct DuckDBArrowArrayHolder {
 	unique_ptr<data_t[]> string_data;
 };
 
-static void release_duckdb_arrow_array(ArrowArray *array) {
+static void ReleaseDuckDBArrowArray(ArrowArray *array) {
 	if (!array || !array->release) {
 		return;
 	}
@@ -220,7 +220,7 @@ void DataChunk::ToArrowArray(ArrowArray *out_array) {
 	auto root_holder = new DuckDBArrowArrayHolder();
 	root_holder->children = unique_ptr<ArrowArray *[]>(new ArrowArray *[ColumnCount()]);
 	out_array->private_data = root_holder;
-	out_array->release = release_duckdb_arrow_array;
+	out_array->release = ReleaseDuckDBArrowArray;
 
 	out_array->children = root_holder->children.get();
 	out_array->length = size();
@@ -238,7 +238,7 @@ void DataChunk::ToArrowArray(ArrowArray *out_array) {
 		auto &child = holder->array;
 		auto &vector = holder->vector;
 		child.private_data = holder;
-		child.release = release_duckdb_arrow_array;
+		child.release = ReleaseDuckDBArrowArray;
 
 		child.n_children = 0;
 		child.null_count = -1; // unknown
@@ -248,7 +248,7 @@ void DataChunk::ToArrowArray(ArrowArray *out_array) {
 
 		child.length = size();
 
-		switch (vector.vector_type) {
+		switch (vector.GetVectorType()) {
 			// TODO support other vector types
 		case VectorType::FLAT_VECTOR: {
 			switch (GetTypes()[col_idx].id()) {
@@ -300,9 +300,9 @@ void DataChunk::ToArrowArray(ArrowArray *out_array) {
 				// step 1: figure out total string length:
 				idx_t total_string_length = 0;
 				auto string_t_ptr = FlatVector::GetData<string_t>(vector);
-				auto is_null = FlatVector::Nullmask(vector);
+				auto &mask = FlatVector::Validity(vector);
 				for (idx_t row_idx = 0; row_idx < size(); row_idx++) {
-					if (is_null[row_idx]) {
+					if (!mask.RowIsValid(row_idx)) {
 						continue;
 					}
 					total_string_length += string_t_ptr[row_idx].GetSize();
@@ -317,7 +317,7 @@ void DataChunk::ToArrowArray(ArrowArray *out_array) {
 
 				for (idx_t row_idx = 0; row_idx < size(); row_idx++) {
 					target_ptr[row_idx] = current_heap_offset;
-					if (is_null[row_idx]) {
+					if (!mask.RowIsValid(row_idx)) {
 						continue;
 					}
 					auto &str = string_t_ptr[row_idx];
@@ -332,25 +332,19 @@ void DataChunk::ToArrowArray(ArrowArray *out_array) {
 				throw std::runtime_error("Unsupported type " + GetTypes()[col_idx].ToString());
 			}
 
-			auto &nullmask = FlatVector::Nullmask(vector);
-			if (child.length == STANDARD_VECTOR_SIZE) {
-				// vector is completely full; null count is equal to the number of bits set in the mask
-				child.null_count = nullmask.count();
+			auto &mask = FlatVector::Validity(vector);
+			if (!mask.AllValid()) {
+				// any bits are set: might have nulls
+				child.null_count = -1;
 			} else {
-				// vector is not completely full; we cannot easily figure out the exact null count
-				if (nullmask.any()) {
-					// any bits are set: might have nulls
-					child.null_count = -1;
-				} else {
-					// no bits are set; we know there are no nulls
-					child.null_count = 0;
-				}
+				// no bits are set; we know there are no nulls
+				child.null_count = 0;
 			}
-			child.buffers[0] = (void *)&nullmask.flip();
+			child.buffers[0] = (void *)mask.GetData();
 			break;
 		}
 		default:
-			throw NotImplementedException(VectorTypeToString(vector.vector_type));
+			throw NotImplementedException(VectorTypeToString(vector.GetVectorType()));
 		}
 		out_array->children[col_idx] = &child;
 	}

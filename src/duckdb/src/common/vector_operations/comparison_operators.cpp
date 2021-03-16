@@ -13,16 +13,17 @@ namespace duckdb {
 
 struct ComparisonExecutor {
 private:
-	template <class T, class OP, bool IGNORE_NULL = false>
+	template <class T, class OP>
 	static inline void TemplatedExecute(Vector &left, Vector &right, Vector &result, idx_t count) {
-		BinaryExecutor::Execute<T, T, bool, OP, IGNORE_NULL>(left, right, result, count);
+		BinaryExecutor::Execute<T, T, bool, OP>(left, right, result, count);
 	}
 
 public:
-	template <class OP> static inline void Execute(Vector &left, Vector &right, Vector &result, idx_t count) {
-		D_ASSERT(left.type == right.type && result.type == LogicalType::BOOLEAN);
+	template <class OP>
+	static inline void Execute(Vector &left, Vector &right, Vector &result, idx_t count) {
+		D_ASSERT(left.GetType() == right.GetType() && result.GetType() == LogicalType::BOOLEAN);
 		// the inplace loops take the result as the last parameter
-		switch (left.type.InternalType()) {
+		switch (left.GetType().InternalType()) {
 		case PhysicalType::BOOL:
 		case PhysicalType::INT8:
 			TemplatedExecute<int8_t, OP>(left, right, result, count);
@@ -64,10 +65,10 @@ public:
 			TemplatedExecute<interval_t, OP>(left, right, result, count);
 			break;
 		case PhysicalType::VARCHAR:
-			TemplatedExecute<string_t, OP, true>(left, right, result, count);
+			TemplatedExecute<string_t, OP>(left, right, result, count);
 			break;
 		default:
-			throw InvalidTypeException(left.type, "Invalid type for comparison");
+			throw InvalidTypeException(left.GetType(), "Invalid type for comparison");
 		}
 	}
 };

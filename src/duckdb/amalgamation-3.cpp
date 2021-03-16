@@ -1,9 +1,3 @@
-#include "src/execution/physical_plan/plan_sample.cpp"
-
-#include "src/execution/physical_plan/plan_set_operation.cpp"
-
-#include "src/execution/physical_plan/plan_show_select.cpp"
-
 #include "src/execution/physical_plan/plan_simple.cpp"
 
 #include "src/execution/physical_plan/plan_top_n.cpp"
@@ -22,19 +16,37 @@
 
 #include "src/function/aggregate/algebraic/avg.cpp"
 
+#include "src/function/aggregate/algebraic/corr.cpp"
+
 #include "src/function/aggregate/algebraic/covar.cpp"
 
 #include "src/function/aggregate/algebraic/stddev.cpp"
 
 #include "src/function/aggregate/algebraic_functions.cpp"
 
+#include "src/function/aggregate/distributive/approx_count.cpp"
+
+#include "src/function/aggregate/distributive/arg_min_max.cpp"
+
 #include "src/function/aggregate/distributive/bitagg.cpp"
+
+#include "src/function/aggregate/distributive/bool.cpp"
 
 #include "src/function/aggregate/distributive/count.cpp"
 
+#include "src/function/aggregate/distributive/entropy.cpp"
+
 #include "src/function/aggregate/distributive/first.cpp"
 
+#include "src/function/aggregate/distributive/kurtosis.cpp"
+
 #include "src/function/aggregate/distributive/minmax.cpp"
+
+#include "src/function/aggregate/distributive/mode.cpp"
+
+#include "src/function/aggregate/distributive/product.cpp"
+
+#include "src/function/aggregate/distributive/skew.cpp"
 
 #include "src/function/aggregate/distributive/string_agg.cpp"
 
@@ -42,13 +54,35 @@
 
 #include "src/function/aggregate/distributive_functions.cpp"
 
+#include "src/function/aggregate/holistic/approximate_quantile.cpp"
+
 #include "src/function/aggregate/holistic/quantile.cpp"
 
+#include "src/function/aggregate/holistic/reservoir_quantile.cpp"
+
 #include "src/function/aggregate/holistic_functions.cpp"
+
+#include "src/function/aggregate/nested/histogram.cpp"
 
 #include "src/function/aggregate/nested/list.cpp"
 
 #include "src/function/aggregate/nested_functions.cpp"
+
+#include "src/function/aggregate/regression/regr_avg.cpp"
+
+#include "src/function/aggregate/regression/regr_count.cpp"
+
+#include "src/function/aggregate/regression/regr_intercept.cpp"
+
+#include "src/function/aggregate/regression/regr_r2.cpp"
+
+#include "src/function/aggregate/regression/regr_slope.cpp"
+
+#include "src/function/aggregate/regression/regr_sxx_syy.cpp"
+
+#include "src/function/aggregate/regression/regr_sxy.cpp"
+
+#include "src/function/aggregate/regression_functions.cpp"
 
 #include "src/function/cast_rules.cpp"
 
@@ -86,6 +120,8 @@
 
 #include "src/function/scalar/generic/constant_or_null.cpp"
 
+#include "src/function/scalar/generic/current_setting.cpp"
+
 #include "src/function/scalar/generic/least.cpp"
 
 #include "src/function/scalar/generic/stats.cpp"
@@ -101,6 +137,8 @@
 #include "src/function/scalar/math/setseed.cpp"
 
 #include "src/function/scalar/math_functions.cpp"
+
+#include "src/function/scalar/nested/list_extract.cpp"
 
 #include "src/function/scalar/nested/list_value.cpp"
 
@@ -140,45 +178,17 @@
 
 #include "src/function/scalar/string/instr.cpp"
 
+#include "src/function/scalar/string/jaccard.cpp"
+
 #include "src/function/scalar/string/left_right.cpp"
 
 #include "src/function/scalar/string/length.cpp"
+
+#include "src/function/scalar/string/levenshtein.cpp"
 
 #include "src/function/scalar/string/like.cpp"
 
 #include "src/function/scalar/string/md5.cpp"
 
-#include "src/function/scalar/string/nfc_normalize.cpp"
-
-#include "src/function/scalar/string/pad.cpp"
-
-#include "src/function/scalar/string/prefix.cpp"
-
-#include "src/function/scalar/string/printf.cpp"
-
-#include "src/function/scalar/string/regexp.cpp"
-
-#include "src/function/scalar/string/repeat.cpp"
-
-#include "src/function/scalar/string/replace.cpp"
-
-#include "src/function/scalar/string/reverse.cpp"
-
-#include "src/function/scalar/string/string_split.cpp"
-
-#include "src/function/scalar/string/strip_accents.cpp"
-
-#include "src/function/scalar/string/substring.cpp"
-
-#include "src/function/scalar/string/suffix.cpp"
-
-#include "src/function/scalar/string/trim.cpp"
-
-#include "src/function/scalar/string_functions.cpp"
-
-#include "src/function/scalar/trigonometrics_functions.cpp"
-
-#include "src/function/table/arrow.cpp"
-
-#include "src/function/table/copy_csv.cpp"
+#include "src/function/scalar/string/mismatches.cpp"
 

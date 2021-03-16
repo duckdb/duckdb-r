@@ -24,7 +24,7 @@ static DefaultView internal_views[] = {
     {"information_schema", "tables", "SELECT * FROM information_schema_tables()"},
     {nullptr, nullptr, nullptr}};
 
-static unique_ptr<CreateViewInfo> GetDefaultView(string schema, string name) {
+static unique_ptr<CreateViewInfo> GetDefaultView(const string &schema, const string &name) {
 	for (idx_t index = 0; internal_views[index].name != nullptr; index++) {
 		if (internal_views[index].schema == schema && internal_views[index].name == name) {
 			auto result = make_unique<CreateViewInfo>();
@@ -51,8 +51,8 @@ DefaultViewGenerator::DefaultViewGenerator(Catalog &catalog, SchemaCatalogEntry 
 unique_ptr<CatalogEntry> DefaultViewGenerator::CreateDefaultEntry(ClientContext &context, const string &entry_name) {
 	auto info = GetDefaultView(schema->name, entry_name);
 	if (info) {
-		Binder binder(context);
-		binder.BindCreateViewInfo(*info);
+		auto binder = Binder::CreateBinder(context);
+		binder->BindCreateViewInfo(*info);
 
 		return make_unique_base<CatalogEntry, ViewCatalogEntry>(&catalog, schema, info.get());
 	}

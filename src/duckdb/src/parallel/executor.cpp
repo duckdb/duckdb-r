@@ -52,7 +52,7 @@ void Executor::Initialize(PhysicalOperator *plan) {
 	}
 
 	pipelines.clear();
-	if (exceptions.size() > 0) {
+	if (!exceptions.empty()) {
 		// an exception has occurred executing one of the pipelines
 		throw Exception(exceptions[0]);
 	}
@@ -220,7 +220,7 @@ vector<LogicalType> Executor::GetTypes() {
 	return physical_plan->GetTypes();
 }
 
-void Executor::PushError(std::string exception) {
+void Executor::PushError(const string &exception) {
 	lock_guard<mutex> elock(executor_lock);
 	// interrupt execution of any other pipelines that belong to this executor
 	context.interrupted = true;
@@ -231,6 +231,15 @@ void Executor::PushError(std::string exception) {
 void Executor::Flush(ThreadContext &tcontext) {
 	lock_guard<mutex> elock(executor_lock);
 	context.profiler.Flush(tcontext.profiler);
+}
+
+bool Executor::GetPipelinesProgress(int &current_progress) {
+	if (!pipelines.empty()) {
+		return pipelines.back()->GetProgress(current_progress);
+	} else {
+		current_progress = -1;
+		return true;
+	}
 }
 
 unique_ptr<DataChunk> Executor::FetchChunk() {
@@ -244,6 +253,7 @@ unique_ptr<DataChunk> Executor::FetchChunk() {
 	// run the plan to get the next chunks
 	physical_plan->InitializeChunkEmpty(*chunk);
 	physical_plan->GetChunk(econtext, *chunk, physical_state.get());
+	physical_plan->FinalizeOperatorState(*physical_state, econtext);
 	context.profiler.Flush(thread.profiler);
 	return chunk;
 }

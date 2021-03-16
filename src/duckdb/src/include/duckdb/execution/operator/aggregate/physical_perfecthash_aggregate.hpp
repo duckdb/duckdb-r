@@ -20,7 +20,8 @@ class PhysicalPerfectHashAggregate : public PhysicalSink {
 public:
 	PhysicalPerfectHashAggregate(ClientContext &context, vector<LogicalType> types,
 	                             vector<unique_ptr<Expression>> aggregates, vector<unique_ptr<Expression>> groups,
-	                             vector<unique_ptr<BaseStatistics>> group_stats, vector<idx_t> required_bits);
+	                             vector<unique_ptr<BaseStatistics>> group_stats, vector<idx_t> required_bits,
+	                             idx_t estimated_cardinality);
 
 	//! The groups
 	vector<unique_ptr<Expression>> groups;
@@ -54,7 +55,7 @@ public:
 	//! The number of bits we need to completely cover each of the groups
 	vector<idx_t> required_bits;
 
-	unordered_map<Expression*,size_t> ht;
+	unordered_map<Expression *, size_t> ht;
 };
 
 } // namespace duckdb

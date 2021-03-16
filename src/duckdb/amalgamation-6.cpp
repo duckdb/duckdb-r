@@ -1,3 +1,23 @@
+#include "src/parser/tableref/crossproductref.cpp"
+
+#include "src/parser/tableref/emptytableref.cpp"
+
+#include "src/parser/tableref/expressionlistref.cpp"
+
+#include "src/parser/tableref/joinref.cpp"
+
+#include "src/parser/tableref/subqueryref.cpp"
+
+#include "src/parser/tableref/table_function.cpp"
+
+#include "src/parser/transform/constraint/transform_constraint.cpp"
+
+#include "src/parser/transform/expression/transform_bool_expr.cpp"
+
+#include "src/parser/transform/expression/transform_case.cpp"
+
+#include "src/parser/transform/expression/transform_cast.cpp"
+
 #include "src/parser/transform/expression/transform_coalesce.cpp"
 
 #include "src/parser/transform/expression/transform_columnref.cpp"
@@ -38,6 +58,8 @@
 
 #include "src/parser/transform/statement/transform_call.cpp"
 
+#include "src/parser/transform/statement/transform_checkpoint.cpp"
+
 #include "src/parser/transform/statement/transform_copy.cpp"
 
 #include "src/parser/transform/statement/transform_create_function.cpp"
@@ -75,6 +97,8 @@
 #include "src/parser/transform/statement/transform_select.cpp"
 
 #include "src/parser/transform/statement/transform_select_node.cpp"
+
+#include "src/parser/transform/statement/transform_set.cpp"
 
 #include "src/parser/transform/statement/transform_show.cpp"
 
@@ -167,18 +191,4 @@
 #include "src/planner/binder/statement/bind_explain.cpp"
 
 #include "src/planner/binder/statement/bind_export.cpp"
-
-#include "src/planner/binder/statement/bind_insert.cpp"
-
-#include "src/planner/binder/statement/bind_pragma.cpp"
-
-#include "src/planner/binder/statement/bind_relation.cpp"
-
-#include "src/planner/binder/statement/bind_select.cpp"
-
-#include "src/planner/binder/statement/bind_show.cpp"
-
-#include "src/planner/binder/statement/bind_simple.cpp"
-
-#include "src/planner/binder/statement/bind_update.cpp"
 

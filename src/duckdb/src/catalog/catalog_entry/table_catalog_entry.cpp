@@ -51,7 +51,7 @@ void TableCatalogEntry::AddLowerCaseAliases(unordered_map<string, column_t> &nam
 
 TableCatalogEntry::TableCatalogEntry(Catalog *catalog, SchemaCatalogEntry *schema, BoundCreateTableInfo *info,
                                      std::shared_ptr<DataTable> inherited_storage)
-    : StandardEntry(CatalogType::TABLE_ENTRY, schema, catalog, info->Base().table), storage(inherited_storage),
+    : StandardEntry(CatalogType::TABLE_ENTRY, schema, catalog, info->Base().table), storage(move(inherited_storage)),
       columns(move(info->Base().columns)), constraints(move(info->Base().constraints)),
       bound_constraints(move(info->bound_constraints)), name_map(info->name_map) {
 	this->temporary = info->Base().temporary;
@@ -63,7 +63,7 @@ TableCatalogEntry::TableCatalogEntry(Catalog *catalog, SchemaCatalogEntry *schem
 	}
 	if (!storage) {
 		// create the physical storage
-		storage = make_shared<DataTable>(catalog->storage, schema->name, name, GetTypes(), move(info->data));
+		storage = make_shared<DataTable>(catalog->db, schema->name, name, GetTypes(), move(info->data));
 
 		// create the unique indexes for the UNIQUE and PRIMARY KEY constraints
 		for (idx_t i = 0; i < bound_constraints.size(); i++) {
@@ -190,8 +190,8 @@ unique_ptr<CatalogEntry> TableCatalogEntry::RenameColumn(ClientContext &context,
 		}
 		create_info->constraints.push_back(move(copy));
 	}
-	Binder binder(context);
-	auto bound_create_info = binder.BindCreateTableInfo(move(create_info));
+	auto binder = Binder::CreateBinder(context);
+	auto bound_create_info = binder->BindCreateTableInfo(move(create_info));
 	return make_unique<TableCatalogEntry>(catalog, schema, (BoundCreateTableInfo *)bound_create_info.get(), storage);
 }
 
@@ -204,8 +204,8 @@ unique_ptr<CatalogEntry> TableCatalogEntry::AddColumn(ClientContext &context, Ad
 	info.new_column.oid = columns.size();
 	create_info->columns.push_back(info.new_column.Copy());
 
-	Binder binder(context);
-	auto bound_create_info = binder.BindCreateTableInfo(move(create_info));
+	auto binder = Binder::CreateBinder(context);
+	auto bound_create_info = binder->BindCreateTableInfo(move(create_info));
 	auto new_storage =
 	    make_shared<DataTable>(context, *storage, info.new_column, bound_create_info->bound_defaults.back().get());
 	return make_unique<TableCatalogEntry>(catalog, schema, (BoundCreateTableInfo *)bound_create_info.get(),
@@ -230,7 +230,7 @@ unique_ptr<CatalogEntry> TableCatalogEntry::RemoveColumn(ClientContext &context,
 		}
 		return nullptr;
 	}
-	if (create_info->columns.size() == 0) {
+	if (create_info->columns.empty()) {
 		throw CatalogException("Cannot drop column: table only has one column remaining!");
 	}
 	// handle constraints for the new table
@@ -291,8 +291,8 @@ unique_ptr<CatalogEntry> TableCatalogEntry::RemoveColumn(ClientContext &context,
 		}
 	}
 
-	Binder binder(context);
-	auto bound_create_info = binder.BindCreateTableInfo(move(create_info));
+	auto binder = Binder::CreateBinder(context);
+	auto bound_create_info = binder->BindCreateTableInfo(move(create_info));
 	auto new_storage = make_shared<DataTable>(context, *storage, removed_index);
 	return make_unique<TableCatalogEntry>(catalog, schema, (BoundCreateTableInfo *)bound_create_info.get(),
 	                                      new_storage);
@@ -319,8 +319,8 @@ unique_ptr<CatalogEntry> TableCatalogEntry::SetDefault(ClientContext &context, S
 		create_info->constraints.push_back(move(constraint));
 	}
 
-	Binder binder(context);
-	auto bound_create_info = binder.BindCreateTableInfo(move(create_info));
+	auto binder = Binder::CreateBinder(context);
+	auto bound_create_info = binder->BindCreateTableInfo(move(create_info));
 	return make_unique<TableCatalogEntry>(catalog, schema, (BoundCreateTableInfo *)bound_create_info.get(), storage);
 }
 
@@ -366,14 +366,14 @@ unique_ptr<CatalogEntry> TableCatalogEntry::ChangeColumnType(ClientContext &cont
 		create_info->constraints.push_back(move(constraint));
 	}
 
-	Binder binder(context);
+	auto binder = Binder::CreateBinder(context);
 	// bind the specified expression
 	vector<column_t> bound_columns;
-	AlterBinder expr_binder(binder, context, name, columns, bound_columns, info.target_type);
+	AlterBinder expr_binder(*binder, context, name, columns, bound_columns, info.target_type);
 	auto expression = info.expression->Copy();
 	auto bound_expression = expr_binder.Bind(expression);
-	auto bound_create_info = binder.BindCreateTableInfo(move(create_info));
-	if (bound_columns.size() == 0) {
+	auto bound_create_info = binder->BindCreateTableInfo(move(create_info));
+	if (bound_columns.empty()) {
 		bound_columns.push_back(COLUMN_IDENTIFIER_ROW_ID);
 	}
 
@@ -532,13 +532,50 @@ unique_ptr<CatalogEntry> TableCatalogEntry::Copy(ClientContext &context) {
 		create_info->constraints.push_back(move(constraint));
 	}
 
-	Binder binder(context);
-	auto bound_create_info = binder.BindCreateTableInfo(move(create_info));
+	auto binder = Binder::CreateBinder(context);
+	auto bound_create_info = binder->BindCreateTableInfo(move(create_info));
 	return make_unique<TableCatalogEntry>(catalog, schema, (BoundCreateTableInfo *)bound_create_info.get(), storage);
 }
 
 void TableCatalogEntry::SetAsRoot() {
 	storage->SetAsRoot();
+}
+
+void TableCatalogEntry::CommitAlter(AlterInfo &info) {
+	D_ASSERT(info.type == AlterType::ALTER_TABLE);
+	auto &alter_table = (AlterTableInfo &)info;
+	string column_name;
+	switch (alter_table.alter_table_type) {
+	case AlterTableType::REMOVE_COLUMN: {
+		auto &remove_info = (RemoveColumnInfo &)alter_table;
+		column_name = remove_info.removed_column;
+		break;
+	}
+	case AlterTableType::ALTER_COLUMN_TYPE: {
+		auto &change_info = (ChangeColumnTypeInfo &)alter_table;
+		column_name = change_info.column_name;
+		break;
+	}
+	default:
+		break;
+	}
+	if (column_name.empty()) {
+		return;
+	}
+	idx_t removed_index = INVALID_INDEX;
+	for (idx_t i = 0; i < columns.size(); i++) {
+		if (columns[i].name == column_name) {
+			D_ASSERT(removed_index == INVALID_INDEX);
+			removed_index = i;
+			continue;
+		}
+	}
+	D_ASSERT(removed_index != INVALID_INDEX);
+	storage->CommitDropColumn(removed_index);
+}
+
+void TableCatalogEntry::CommitDrop() {
+	storage->CommitDropTable();
 }
 
 } // namespace duckdb

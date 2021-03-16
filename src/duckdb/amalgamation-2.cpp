@@ -44,6 +44,8 @@
 
 #include "src/execution/operator/helper/physical_reservoir_sample.cpp"
 
+#include "src/execution/operator/helper/physical_set.cpp"
+
 #include "src/execution/operator/helper/physical_streaming_sample.cpp"
 
 #include "src/execution/operator/helper/physical_transaction.cpp"
@@ -181,4 +183,12 @@
 #include "src/execution/physical_plan/plan_projection.cpp"
 
 #include "src/execution/physical_plan/plan_recursive_cte.cpp"
+
+#include "src/execution/physical_plan/plan_sample.cpp"
+
+#include "src/execution/physical_plan/plan_set.cpp"
+
+#include "src/execution/physical_plan/plan_set_operation.cpp"
+
+#include "src/execution/physical_plan/plan_show_select.cpp"
 

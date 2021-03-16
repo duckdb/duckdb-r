@@ -30,7 +30,7 @@ class Executor {
 	friend class PipelineTask;
 
 public:
-	Executor(ClientContext &context);
+	explicit Executor(ClientContext &context);
 	~Executor();
 
 	ClientContext &context;
@@ -46,10 +46,13 @@ public:
 	unique_ptr<DataChunk> FetchChunk();
 
 	//! Push a new error
-	void PushError(std::string exception);
+	void PushError(const string &exception);
 
 	//! Flush a thread context into the client context
 	void Flush(ThreadContext &context);
+
+	//! Returns the progress of the pipelines
+	bool GetPipelinesProgress(int &current_progress);
 
 private:
 	PhysicalOperator *physical_plan;

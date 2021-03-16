@@ -15,19 +15,14 @@
 #include "duckdb/common/enums/vector_type.hpp"
 #include "duckdb/common/types/vector_buffer.hpp"
 #include "duckdb/common/vector_size.hpp"
+#include "duckdb/common/types/validity_mask.hpp"
 
 namespace duckdb {
-
-//! Type used for nullmasks
-typedef bitset<STANDARD_VECTOR_SIZE> nullmask_t;
-
-//! Zero NULL mask: filled with the value 0 [READ ONLY]
-extern nullmask_t ZERO_MASK;
 
 struct VectorData {
 	const SelectionVector *sel;
 	data_ptr_t data;
-	nullmask_t *nullmask;
+	ValidityMask validity;
 };
 
 class VectorStructBuffer;
@@ -51,28 +46,22 @@ class Vector {
 public:
 	Vector();
 	//! Create a vector of size one holding the passed on value
-	Vector(Value value);
+	explicit Vector(const Value &value);
 	//! Create an empty standard vector with a type, equivalent to calling Vector(type, true, false)
-	Vector(LogicalType type);
+	explicit Vector(const LogicalType &type);
 	//! Create a non-owning vector that references the specified data
-	Vector(LogicalType type, data_ptr_t dataptr);
+	Vector(const LogicalType &type, data_ptr_t dataptr);
 	//! Create an owning vector that holds at most STANDARD_VECTOR_SIZE entries.
 	/*!
 	    Create a new vector
 	    If create_data is true, the vector will be an owning empty vector.
 	    If zero_data is true, the allocated data will be zero-initialized.
 	*/
-	Vector(LogicalType type, bool create_data, bool zero_data);
+	Vector(const LogicalType &type, bool create_data, bool zero_data);
 	// implicit copying of Vectors is not allowed
 	Vector(const Vector &) = delete;
 	// but moving of vectors is allowed
 	Vector(Vector &&other) noexcept;
-
-	//! The vector type specifies how the data of the vector is physically stored (i.e. if it is a single repeated
-	//! constant, if it is compressed)
-	VectorType vector_type;
-	//! The type of the elements stored in the vector (e.g. integer, float)
-	LogicalType type;
 
 public:
 	//! Create a vector that references the specified value.
@@ -91,7 +80,7 @@ public:
 
 	//! Creates the data of this vector with the specified type. Any data that
 	//! is currently in the vector is destroyed.
-	void Initialize(LogicalType new_type = LogicalType::INVALID, bool zero_data = false);
+	void Initialize(const LogicalType &new_type = LogicalType::INVALID, bool zero_data = false);
 
 	//! Converts this Vector to a printable string representation
 	string ToString(idx_t count) const;
@@ -119,22 +108,42 @@ public:
 	//! Returns the [index] element of the Vector as a Value.
 	Value GetValue(idx_t index) const;
 	//! Sets the [index] element of the Vector to the specified Value.
-	void SetValue(idx_t index, Value val);
+	void SetValue(idx_t index, const Value &val);
 
 	//! Serializes a Vector to a stand-alone binary blob
 	void Serialize(idx_t count, Serializer &serializer);
 	//! Deserializes a blob back into a Vector
 	void Deserialize(idx_t count, Deserializer &source);
 
-	bool nullmask_all_set() {
-		return nullmask.all();
+	// Getters
+	inline VectorType GetVectorType() const {
+		return buffer->GetVectorType();
+	}
+	inline const LogicalType &GetType() const {
+		return buffer->GetType();
+	}
+	inline VectorBufferType GetBufferType() const {
+		return buffer->GetBufferType();
+	}
+	inline data_ptr_t GetData() {
+		return data;
+	}
+	// Setters
+	inline void SetVectorType(VectorType vector_type) {
+		buffer->SetVectorType(vector_type);
+	}
+	inline void SetType(const LogicalType &type) {
+		buffer->SetType(type);
+	}
+	inline void SetBufferType(VectorBufferType buffer_type) {
+		buffer->SetBufferType(buffer_type);
 	}
 
 protected:
 	//! A pointer to the data.
 	data_ptr_t data;
-	//! The nullmask of the vector
-	nullmask_t nullmask;
+	//! The validity mask of the vector
+	ValidityMask validity;
 	//! The main buffer holding the data of the vector
 	buffer_ptr<VectorBuffer> buffer;
 	//! The buffer holding auxiliary data of the vector
@@ -154,36 +163,38 @@ public:
 
 struct ConstantVector {
 	static inline data_ptr_t GetData(Vector &vector) {
-		D_ASSERT(vector.vector_type == VectorType::CONSTANT_VECTOR || vector.vector_type == VectorType::FLAT_VECTOR);
+		D_ASSERT(vector.GetVectorType() == VectorType::CONSTANT_VECTOR ||
+		         vector.GetVectorType() == VectorType::FLAT_VECTOR);
 		return vector.data;
 	}
-	template <class T> static inline T *GetData(Vector &vector) {
+	template <class T>
+	static inline T *GetData(Vector &vector) {
 		return (T *)ConstantVector::GetData(vector);
 	}
 	static inline bool IsNull(const Vector &vector) {
-		D_ASSERT(vector.vector_type == VectorType::CONSTANT_VECTOR);
-		return vector.nullmask[0];
+		D_ASSERT(vector.GetVectorType() == VectorType::CONSTANT_VECTOR);
+		return !vector.validity.RowIsValid(0);
 	}
 	static inline void SetNull(Vector &vector, bool is_null) {
-		D_ASSERT(vector.vector_type == VectorType::CONSTANT_VECTOR);
-		vector.nullmask[0] = is_null;
+		D_ASSERT(vector.GetVectorType() == VectorType::CONSTANT_VECTOR);
+		vector.validity.Set(0, !is_null);
 	}
-	static inline nullmask_t &Nullmask(Vector &vector) {
-		D_ASSERT(vector.vector_type == VectorType::CONSTANT_VECTOR);
-		return vector.nullmask;
+	static inline ValidityMask &Validity(Vector &vector) {
+		D_ASSERT(vector.GetVectorType() == VectorType::CONSTANT_VECTOR);
+		return vector.validity;
 	}
 
-	static const sel_t zero_vector[STANDARD_VECTOR_SIZE];
-	static const SelectionVector ZeroSelectionVector;
+	static const sel_t ZERO_VECTOR[STANDARD_VECTOR_SIZE];
+	static const SelectionVector ZERO_SELECTION_VECTOR;
 };
 
 struct DictionaryVector {
 	static inline SelectionVector &SelVector(const Vector &vector) {
-		D_ASSERT(vector.vector_type == VectorType::DICTIONARY_VECTOR);
+		D_ASSERT(vector.GetVectorType() == VectorType::DICTIONARY_VECTOR);
 		return ((DictionaryBuffer &)*vector.buffer).GetSelVector();
 	}
 	static inline Vector &Child(const Vector &vector) {
-		D_ASSERT(vector.vector_type == VectorType::DICTIONARY_VECTOR);
+		D_ASSERT(vector.GetVectorType() == VectorType::DICTIONARY_VECTOR);
 		return ((VectorChildBuffer &)*vector.auxiliary).data;
 	}
 };
@@ -192,36 +203,38 @@ struct FlatVector {
 	static inline data_ptr_t GetData(Vector &vector) {
 		return ConstantVector::GetData(vector);
 	}
-	template <class T> static inline T *GetData(Vector &vector) {
+	template <class T>
+	static inline T *GetData(Vector &vector) {
 		return ConstantVector::GetData<T>(vector);
 	}
 	static inline void SetData(Vector &vector, data_ptr_t data) {
-		D_ASSERT(vector.vector_type == VectorType::FLAT_VECTOR);
+		D_ASSERT(vector.GetVectorType() == VectorType::FLAT_VECTOR);
 		vector.data = data;
 	}
-	template <class T> static inline T GetValue(Vector &vector, idx_t idx) {
-		D_ASSERT(vector.vector_type == VectorType::FLAT_VECTOR);
+	template <class T>
+	static inline T GetValue(Vector &vector, idx_t idx) {
+		D_ASSERT(vector.GetVectorType() == VectorType::FLAT_VECTOR);
 		return FlatVector::GetData<T>(vector)[idx];
 	}
-	static inline nullmask_t &Nullmask(Vector &vector) {
-		D_ASSERT(vector.vector_type == VectorType::FLAT_VECTOR);
-		return vector.nullmask;
+	static inline ValidityMask &Validity(Vector &vector) {
+		D_ASSERT(vector.GetVectorType() == VectorType::FLAT_VECTOR);
+		return vector.validity;
 	}
-	static inline void SetNullmask(Vector &vector, nullmask_t new_mask) {
-		D_ASSERT(vector.vector_type == VectorType::FLAT_VECTOR);
-		vector.nullmask = move(new_mask);
+	static inline void SetValidity(Vector &vector, ValidityMask &new_validity) {
+		D_ASSERT(vector.GetVectorType() == VectorType::FLAT_VECTOR);
+		vector.validity.Initialize(new_validity);
 	}
-	static inline void SetNull(Vector &vector, idx_t idx, bool value) {
-		D_ASSERT(vector.vector_type == VectorType::FLAT_VECTOR);
-		vector.nullmask[idx] = value;
+	static inline void SetNull(Vector &vector, idx_t idx, bool is_null) {
+		D_ASSERT(vector.GetVectorType() == VectorType::FLAT_VECTOR);
+		vector.validity.Set(idx, !is_null);
 	}
 	static inline bool IsNull(const Vector &vector, idx_t idx) {
-		D_ASSERT(vector.vector_type == VectorType::FLAT_VECTOR);
-		return vector.nullmask[idx];
+		D_ASSERT(vector.GetVectorType() == VectorType::FLAT_VECTOR);
+		return !vector.validity.RowIsValid(idx);
 	}
 
-	static const sel_t incremental_vector[STANDARD_VECTOR_SIZE];
-	static const SelectionVector IncrementalSelectionVector;
+	static const sel_t INCREMENTAL_VECTOR[STANDARD_VECTOR_SIZE];
+	static const SelectionVector INCREMENTAL_SELECTION_VECTOR;
 };
 
 struct ListVector {
@@ -248,7 +261,7 @@ struct StringVector {
 	//! Adds a reference to a handle that stores strings of this vector
 	static void AddHandle(Vector &vector, unique_ptr<BufferHandle> handle);
 	//! Adds a reference to an unspecified vector buffer that stores strings of this vector
-	static void AddBuffer(Vector &vector, unique_ptr<VectorBuffer> buffer);
+	static void AddBuffer(Vector &vector, buffer_ptr<VectorBuffer> buffer);
 	//! Add a reference from this vector to the string heap of the provided vector
 	static void AddHeapReference(Vector &vector, Vector &other);
 };
@@ -256,12 +269,12 @@ struct StringVector {
 struct StructVector {
 	static bool HasEntries(const Vector &vector);
 	static child_list_t<unique_ptr<Vector>> &GetEntries(const Vector &vector);
-	static void AddEntry(Vector &vector, string name, unique_ptr<Vector> entry);
+	static void AddEntry(Vector &vector, const string &name, unique_ptr<Vector> entry);
 };
 
 struct SequenceVector {
 	static void GetSequence(const Vector &vector, int64_t &start, int64_t &increment) {
-		D_ASSERT(vector.vector_type == VectorType::SEQUENCE_VECTOR);
+		D_ASSERT(vector.GetVectorType() == VectorType::SEQUENCE_VECTOR);
 		auto data = (int64_t *)vector.buffer->GetData();
 		start = data[0];
 		increment = data[1];

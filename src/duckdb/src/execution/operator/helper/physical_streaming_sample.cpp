@@ -5,8 +5,8 @@
 namespace duckdb {
 
 PhysicalStreamingSample::PhysicalStreamingSample(vector<LogicalType> types, SampleMethod method, double percentage,
-                                                 int64_t seed)
-    : PhysicalOperator(PhysicalOperatorType::STREAMING_SAMPLE, move(types)), method(method),
+                                                 int64_t seed, idx_t estimated_cardinality)
+    : PhysicalOperator(PhysicalOperatorType::STREAMING_SAMPLE, move(types), estimated_cardinality), method(method),
       percentage(percentage / 100), seed(seed) {
 }
 
@@ -27,7 +27,7 @@ void PhysicalStreamingSample::SystemSample(DataChunk &input, DataChunk &result, 
 	auto &state = (StreamingSampleOperatorState &)*state_p;
 	double rand = state.random.NextRandom();
 	if (rand <= percentage) {
-		// rand is smaller than percentage: output chunk
+		// rand is smaller than sample_size: output chunk
 		result.Reference(input);
 	}
 }

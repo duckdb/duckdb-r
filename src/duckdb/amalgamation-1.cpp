@@ -22,6 +22,8 @@
 
 #include "src/catalog/catalog_set.cpp"
 
+#include "src/catalog/default/default_functions.cpp"
+
 #include "src/catalog/default/default_schemas.cpp"
 
 #include "src/catalog/default/default_views.cpp"
@@ -68,6 +70,8 @@
 
 #include "src/common/printer.cpp"
 
+#include "src/common/progress_bar.cpp"
+
 #include "src/common/serializer.cpp"
 
 #include "src/common/serializer/buffered_deserializer.cpp"
@@ -100,6 +104,8 @@
 
 #include "src/common/types/hugeint.cpp"
 
+#include "src/common/types/hyperloglog.cpp"
+
 #include "src/common/types/interval.cpp"
 
 #include "src/common/types/null_value.cpp"
@@ -113,6 +119,8 @@
 #include "src/common/types/time.cpp"
 
 #include "src/common/types/timestamp.cpp"
+
+#include "src/common/types/validity_mask.cpp"
 
 #include "src/common/types/value.cpp"
 
@@ -135,6 +143,8 @@
 #include "src/common/vector_operations/gather.cpp"
 
 #include "src/common/vector_operations/generators.cpp"
+
+#include "src/common/vector_operations/is_distinct_from.cpp"
 
 #include "src/common/vector_operations/null_operations.cpp"
 

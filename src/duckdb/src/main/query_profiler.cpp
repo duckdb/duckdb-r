@@ -1,5 +1,5 @@
 #include "duckdb/main/query_profiler.hpp"
-
+#include "duckdb/common/to_string.hpp"
 #include "duckdb/common/fstream.hpp"
 #include "duckdb/common/printer.hpp"
 #include "duckdb/common/string_util.hpp"
@@ -8,9 +8,8 @@
 #include "duckdb/execution/operator/helper/physical_execute.hpp"
 #include "duckdb/common/tree_renderer.hpp"
 #include "duckdb/parser/sql_statement.hpp"
-#include "duckdb/common/printer.hpp"
 #include "duckdb/common/limits.hpp"
-#include "duckdb/common/to_string.hpp"
+#include "duckdb/execution/expression_executor.hpp"
 
 #include <utility>
 #include <algorithm>
@@ -22,7 +21,7 @@ void QueryProfiler::StartQuery(string query) {
 		return;
 	}
 	this->running = true;
-	this->query = query;
+	this->query = move(query);
 	tree_map.clear();
 	root = nullptr;
 	phase_timings.clear();
@@ -135,7 +134,7 @@ void QueryProfiler::EndPhase() {
 	// now remove the last added phase
 	phase_stack.pop_back();
 
-	if (phase_stack.size() > 0) {
+	if (!phase_stack.empty()) {
 		phase_profiler.Start();
 	}
 }
@@ -156,7 +155,7 @@ void QueryProfiler::Initialize(PhysicalOperator *root_op) {
 	}
 }
 
-OperatorProfiler::OperatorProfiler(bool enabled_) : enabled(enabled_) {
+OperatorProfiler::OperatorProfiler(bool enabled_p) : enabled(enabled_p) {
 	execution_stack = std::stack<PhysicalOperator *>();
 }
 
@@ -212,6 +211,14 @@ void OperatorProfiler::AddTiming(PhysicalOperator *op, double time, idx_t elemen
 		entry->second.elements += elements;
 	}
 }
+void OperatorProfiler::Flush(PhysicalOperator *phys_op, ExpressionExecutor *expression_executor) {
+	auto entry = timings.find(phys_op);
+	if (entry != timings.end()) {
+		auto &operator_timing = timings.find(phys_op)->second;
+		operator_timing.executors_info = make_unique<ExpressionExecutorInformation>(*expression_executor);
+		operator_timing.has_executor = true;
+	}
+}
 
 void QueryProfiler::Flush(OperatorProfiler &profiler) {
 	if (!enabled || !running) {
@@ -224,10 +231,12 @@ void QueryProfiler::Flush(OperatorProfiler &profiler) {
 
 		entry->second->info.time += node.second.time;
 		entry->second->info.elements += node.second.elements;
+		entry->second->info.executors_info = move(node.second.executors_info);
+		entry->second->info.has_executor = node.second.has_executor;
 	}
 }
 
-static string DrawPadded(string str, idx_t width) {
+static string DrawPadded(const string &str, idx_t width) {
 	if (str.size() > width) {
 		return str.substr(0, width);
 	} else {
@@ -286,7 +295,7 @@ void QueryProfiler::ToStream(std::ostream &ss, bool print_optimizer_output) cons
 		return;
 	}
 
-	idx_t TOTAL_BOX_WIDTH = 39;
+	constexpr idx_t TOTAL_BOX_WIDTH = 39;
 	ss << "┌─────────────────────────────────────┐\n";
 	ss << "│┌───────────────────────────────────┐│\n";
 	string total_time = "Total Time: " + RenderTiming(main_query.Elapsed());
@@ -336,7 +345,7 @@ static void ToJSONRecursive(QueryProfiler::TreeNode &node, std::ostream &ss, int
 	ss << string(depth * 3, ' ') << "\"cardinality\":" + to_string(node.info.elements) + ",\n";
 	ss << string(depth * 3, ' ') << "\"extra_info\": \"" + StringUtil::Replace(node.extra_info, "\n", "\\n") + "\",\n";
 	ss << string(depth * 3, ' ') << "\"children\": [";
-	if (node.children.size() == 0) {
+	if (node.children.empty()) {
 		ss << "]\n";
 	} else {
 		for (idx_t i = 0; i < node.children.size(); i++) {
@@ -425,8 +434,13 @@ unique_ptr<QueryProfiler::TreeNode> QueryProfiler::CreateTree(PhysicalOperator *
 	return node;
 }
 
-void QueryProfiler::Render(QueryProfiler::TreeNode &node, std::ostream &ss) {
+void QueryProfiler::Render(const QueryProfiler::TreeNode &node, std::ostream &ss) const {
 	TreeRenderer renderer;
+	if (IsDetailedEnabled()) {
+		renderer.EnableDetailed();
+	} else {
+		renderer.EnableStandard();
+	}
 	renderer.Render(node, ss);
 }
 
@@ -450,4 +464,27 @@ vector<QueryProfiler::PhaseTimingItem> QueryProfiler::GetOrderedPhaseTimings() c
 	return result;
 }
 
+void ExpressionInformation::ExtractExpressionsRecursive(unique_ptr<ExpressionState> &state) {
+	if (state->child_states.empty()) {
+		return;
+	}
+	// extract the children of this node
+	for (auto &child : state->child_states) {
+		auto expression_info_p = make_unique<ExpressionInformation>(child.get()->name, child.get()->time);
+		expression_info_p->ExtractExpressionsRecursive(child);
+		children.push_back(move(expression_info_p));
+	}
+	return;
+}
+
+ExpressionExecutorInformation::ExpressionExecutorInformation(ExpressionExecutor &executor)
+    : total_count(executor.total_count), current_count(executor.current_count), sample_count(executor.sample_count),
+      sample_tuples_count(executor.sample_tuples_count), tuples_count(executor.tuples_count) {
+	for (auto &state : executor.GetStates()) {
+		auto expression_info_p =
+		    make_unique<ExpressionInformation>(state.get()->root_state->name, state.get()->root_state.get()->time);
+		expression_info_p->ExtractExpressionsRecursive(state.get()->root_state);
+		roots.push_back(move(expression_info_p));
+	}
+}
 } // namespace duckdb

@@ -12,7 +12,7 @@
 
 namespace duckdb {
 
-static bool can_plan_index_join(Transaction &transaction, TableScanBindData *bind_data, PhysicalTableScan &scan) {
+static bool CanPlanIndexJoin(Transaction &transaction, TableScanBindData *bind_data, PhysicalTableScan &scan) {
 	if (!bind_data) {
 		// not a table scan
 		return false;
@@ -22,7 +22,7 @@ static bool can_plan_index_join(Transaction &transaction, TableScanBindData *bin
 		// transaction local appends: skip index join
 		return false;
 	}
-	if (scan.table_filters && scan.table_filters->filters.size() > 0) {
+	if (scan.table_filters && !scan.table_filters->filters.empty()) {
 		// table scan filters
 		return false;
 	}
@@ -39,7 +39,7 @@ void TransformIndexJoin(ClientContext &context, LogicalComparisonJoin &op, Index
 		if (left->type == PhysicalOperatorType::TABLE_SCAN) {
 			auto &tbl_scan = (PhysicalTableScan &)*left;
 			auto tbl = dynamic_cast<TableScanBindData *>(tbl_scan.bind_data.get());
-			if (can_plan_index_join(transaction, tbl, tbl_scan)) {
+			if (CanPlanIndexJoin(transaction, tbl, tbl_scan)) {
 				for (auto &index : tbl->table->storage->info->indexes) {
 					if (index->unbound_expressions[0]->alias == op.conditions[0].left->alias) {
 						*left_index = index.get();
@@ -51,7 +51,7 @@ void TransformIndexJoin(ClientContext &context, LogicalComparisonJoin &op, Index
 		if (right->type == PhysicalOperatorType::TABLE_SCAN) {
 			auto &tbl_scan = (PhysicalTableScan &)*right;
 			auto tbl = dynamic_cast<TableScanBindData *>(tbl_scan.bind_data.get());
-			if (can_plan_index_join(transaction, tbl, tbl_scan)) {
+			if (CanPlanIndexJoin(transaction, tbl, tbl_scan)) {
 				for (auto &index : tbl->table->storage->info->indexes) {
 					if (index->unbound_expressions[0]->alias == op.conditions[0].right->alias) {
 						*right_index = index.get();
@@ -72,9 +72,9 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalComparison
 	auto right = CreatePlan(*op.children[1]);
 	D_ASSERT(left && right);
 
-	if (op.conditions.size() == 0) {
+	if (op.conditions.empty()) {
 		// no conditions: insert a cross product
-		return make_unique<PhysicalCrossProduct>(op.types, move(left), move(right));
+		return make_unique<PhysicalCrossProduct>(op.types, move(left), move(right), op.estimated_cardinality);
 	}
 
 	bool has_equality = false;
@@ -84,7 +84,8 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalComparison
 		if (cond.comparison == ExpressionType::COMPARE_EQUAL) {
 			has_equality = true;
 		}
-		if (cond.comparison == ExpressionType::COMPARE_NOTEQUAL) {
+		if (cond.comparison == ExpressionType::COMPARE_NOTEQUAL ||
+		    cond.comparison == ExpressionType::COMPARE_DISTINCT_FROM) {
 			has_inequality = true;
 		}
 		if (cond.null_values_are_equal) {
@@ -96,33 +97,35 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalComparison
 
 	unique_ptr<PhysicalOperator> plan;
 	if (has_equality) {
-		Index *left_index{}, *right_index{};
+		Index *left_index {}, *right_index {};
 		TransformIndexJoin(context, op, &left_index, &right_index, left.get(), right.get());
 		if (left_index && (context.force_index_join || rhs_cardinality < 0.01 * lhs_cardinality)) {
 			auto &tbl_scan = (PhysicalTableScan &)*left;
 			swap(op.conditions[0].left, op.conditions[0].right);
 			return make_unique<PhysicalIndexJoin>(op, move(right), move(left), move(op.conditions), op.join_type,
 			                                      op.right_projection_map, op.left_projection_map, tbl_scan.column_ids,
-			                                      left_index, false);
+			                                      left_index, false, op.estimated_cardinality);
 		}
 		if (right_index && (context.force_index_join || lhs_cardinality < 0.01 * rhs_cardinality)) {
 			auto &tbl_scan = (PhysicalTableScan &)*right;
 			return make_unique<PhysicalIndexJoin>(op, move(left), move(right), move(op.conditions), op.join_type,
 			                                      op.left_projection_map, op.right_projection_map, tbl_scan.column_ids,
-			                                      right_index, true);
+			                                      right_index, true, op.estimated_cardinality);
 		}
 		// equality join: use hash join
 		plan = make_unique<PhysicalHashJoin>(op, move(left), move(right), move(op.conditions), op.join_type,
-		                                     op.left_projection_map, op.right_projection_map, move(op.delim_types));
+		                                     op.left_projection_map, op.right_projection_map, move(op.delim_types),
+		                                     op.estimated_cardinality);
 	} else {
 		D_ASSERT(!has_null_equal_conditions); // don't support this for anything but hash joins for now
 		if (op.conditions.size() == 1 && !has_inequality) {
 			// range join: use piecewise merge join
-			plan =
-			    make_unique<PhysicalPiecewiseMergeJoin>(op, move(left), move(right), move(op.conditions), op.join_type);
+			plan = make_unique<PhysicalPiecewiseMergeJoin>(op, move(left), move(right), move(op.conditions),
+			                                               op.join_type, op.estimated_cardinality);
 		} else {
 			// inequality join: use nested loop
-			plan = make_unique<PhysicalNestedLoopJoin>(op, move(left), move(right), move(op.conditions), op.join_type);
+			plan = make_unique<PhysicalNestedLoopJoin>(op, move(left), move(right), move(op.conditions), op.join_type,
+			                                           op.estimated_cardinality);
 		}
 	}
 	return plan;

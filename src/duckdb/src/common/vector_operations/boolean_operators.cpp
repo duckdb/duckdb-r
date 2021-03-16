@@ -13,13 +13,14 @@ namespace duckdb {
 //===--------------------------------------------------------------------===//
 // AND/OR
 //===--------------------------------------------------------------------===//
-template <class OP> static void templated_boolean_nullmask(Vector &left, Vector &right, Vector &result, idx_t count) {
-	D_ASSERT(left.type.id() == LogicalTypeId::BOOLEAN && right.type.id() == LogicalTypeId::BOOLEAN &&
-	         result.type.id() == LogicalTypeId::BOOLEAN);
+template <class OP>
+static void TemplatedBooleanNullmask(Vector &left, Vector &right, Vector &result, idx_t count) {
+	D_ASSERT(left.GetType().id() == LogicalTypeId::BOOLEAN && right.GetType().id() == LogicalTypeId::BOOLEAN &&
+	         result.GetType().id() == LogicalTypeId::BOOLEAN);
 
-	if (left.vector_type == VectorType::CONSTANT_VECTOR && right.vector_type == VectorType::CONSTANT_VECTOR) {
+	if (left.GetVectorType() == VectorType::CONSTANT_VECTOR && right.GetVectorType() == VectorType::CONSTANT_VECTOR) {
 		// operation on two constants, result is constant vector
-		result.vector_type = VectorType::CONSTANT_VECTOR;
+		result.SetVectorType(VectorType::CONSTANT_VECTOR);
 		auto ldata = ConstantVector::GetData<uint8_t>(left);
 		auto rdata = ConstantVector::GetData<uint8_t>(right);
 		auto result_data = ConstantVector::GetData<bool>(result);
@@ -33,18 +34,19 @@ template <class OP> static void templated_boolean_nullmask(Vector &left, Vector 
 		left.Orrify(count, ldata);
 		right.Orrify(count, rdata);
 
-		result.vector_type = VectorType::FLAT_VECTOR;
+		result.SetVectorType(VectorType::FLAT_VECTOR);
 		auto left_data = (uint8_t *)ldata.data; // we use uint8 to avoid load of gunk bools
 		auto right_data = (uint8_t *)rdata.data;
 		auto result_data = FlatVector::GetData<bool>(result);
-		auto &result_mask = FlatVector::Nullmask(result);
-		if (ldata.nullmask->any() || rdata.nullmask->any()) {
+		auto &result_mask = FlatVector::Validity(result);
+		if (!ldata.validity.AllValid() || !rdata.validity.AllValid()) {
 			for (idx_t i = 0; i < count; i++) {
 				auto lidx = ldata.sel->get_index(i);
 				auto ridx = rdata.sel->get_index(i);
-				bool is_null = OP::Operation(left_data[lidx] > 0, right_data[ridx] > 0, (*ldata.nullmask)[lidx],
-				                             (*rdata.nullmask)[ridx], result_data[i]);
-				result_mask[i] = is_null;
+				bool is_null =
+				    OP::Operation(left_data[lidx] > 0, right_data[ridx] > 0, !ldata.validity.RowIsValid(lidx),
+				                  !rdata.validity.RowIsValid(ridx), result_data[i]);
+				result_mask.Set(i, !is_null);
 			}
 		} else {
 			for (idx_t i = 0; i < count; i++) {
@@ -104,7 +106,7 @@ struct TernaryAnd {
 };
 
 void VectorOperations::And(Vector &left, Vector &right, Vector &result, idx_t count) {
-	templated_boolean_nullmask<TernaryAnd>(left, right, result, count);
+	TemplatedBooleanNullmask<TernaryAnd>(left, right, result, count);
 }
 
 /*
@@ -157,17 +159,18 @@ struct TernaryOr {
 };
 
 void VectorOperations::Or(Vector &left, Vector &right, Vector &result, idx_t count) {
-	templated_boolean_nullmask<TernaryOr>(left, right, result, count);
+	TemplatedBooleanNullmask<TernaryOr>(left, right, result, count);
 }
 
 struct NotOperator {
-	template <class TA, class TR> static inline TR Operation(TA left) {
+	template <class TA, class TR>
+	static inline TR Operation(TA left) {
 		return !left;
 	}
 };
 
 void VectorOperations::Not(Vector &input, Vector &result, idx_t count) {
-	D_ASSERT(input.type == LogicalType::BOOLEAN && result.type == LogicalType::BOOLEAN);
+	D_ASSERT(input.GetType() == LogicalType::BOOLEAN && result.GetType() == LogicalType::BOOLEAN);
 	UnaryExecutor::Execute<bool, bool, NotOperator>(input, result, count);
 }
 

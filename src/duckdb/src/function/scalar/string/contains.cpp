@@ -145,7 +145,8 @@ idx_t ContainsFun::Find(const string_t &haystack_s, const string_t &needle_s) {
 }
 
 struct ContainsOperator {
-	template <class TA, class TB, class TR> static inline TR Operation(TA left, TB right) {
+	template <class TA, class TB, class TR>
+	static inline TR Operation(TA left, TB right) {
 		return ContainsFun::Find(left, right) != INVALID_INDEX;
 	}
 };
@@ -154,7 +155,7 @@ ScalarFunction ContainsFun::GetFunction() {
 	return ScalarFunction("contains",                                   // name of the function
 	                      {LogicalType::VARCHAR, LogicalType::VARCHAR}, // argument list
 	                      LogicalType::BOOLEAN,                         // return type
-	                      ScalarFunction::BinaryFunction<string_t, string_t, bool, ContainsOperator, true>);
+	                      ScalarFunction::BinaryFunction<string_t, string_t, bool, ContainsOperator>);
 }
 
 void ContainsFun::RegisterFunction(BuiltinFunctions &set) {

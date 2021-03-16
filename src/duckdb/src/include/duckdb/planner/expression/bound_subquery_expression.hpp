@@ -17,14 +17,14 @@ namespace duckdb {
 
 class BoundSubqueryExpression : public Expression {
 public:
-	BoundSubqueryExpression(LogicalType return_type);
+	explicit BoundSubqueryExpression(LogicalType return_type);
 
 	bool IsCorrelated() {
 		return binder->correlated_columns.size() > 0;
 	}
 
 	//! The binder used to bind the subquery node
-	unique_ptr<Binder> binder;
+	shared_ptr<Binder> binder;
 	//! The bound subquery node
 	unique_ptr<BoundQueryNode> subquery;
 	//! The subquery type

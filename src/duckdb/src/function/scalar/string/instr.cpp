@@ -9,7 +9,8 @@
 namespace duckdb {
 
 struct InstrOperator {
-	template <class TA, class TB, class TR> static inline TR Operation(TA haystack, TB needle) {
+	template <class TA, class TB, class TR>
+	static inline TR Operation(TA haystack, TB needle) {
 		int64_t string_position = 0;
 
 		auto location = ContainsFun::Find(haystack, needle);
@@ -19,7 +20,7 @@ struct InstrOperator {
 			D_ASSERT(len <= (utf8proc_ssize_t)haystack.GetSize());
 			for (++string_position; len > 0; ++string_position) {
 				utf8proc_int32_t codepoint;
-				const auto bytes = utf8proc_iterate(str, len, &codepoint);
+				auto bytes = utf8proc_iterate(str, len, &codepoint);
 				str += bytes;
 				len -= bytes;
 			}
@@ -29,15 +30,16 @@ struct InstrOperator {
 };
 
 struct InstrAsciiOperator {
-	template <class TA, class TB, class TR> static inline TR Operation(TA haystack, TB needle) {
+	template <class TA, class TB, class TR>
+	static inline TR Operation(TA haystack, TB needle) {
 		auto location = ContainsFun::Find(haystack, needle);
 		return location == INVALID_INDEX ? 0 : location + 1;
 	}
 };
 
-static unique_ptr<BaseStatistics> instr_propagate_stats(ClientContext &context, BoundFunctionExpression &expr,
-                                                        FunctionData *bind_data,
-                                                        vector<unique_ptr<BaseStatistics>> &child_stats) {
+static unique_ptr<BaseStatistics> InStrPropagateStats(ClientContext &context, BoundFunctionExpression &expr,
+                                                      FunctionData *bind_data,
+                                                      vector<unique_ptr<BaseStatistics>> &child_stats) {
 	D_ASSERT(child_stats.size() == 2);
 	// can only propagate stats if the children have stats
 	if (!child_stats[0]) {
@@ -46,7 +48,7 @@ static unique_ptr<BaseStatistics> instr_propagate_stats(ClientContext &context, 
 	// for strpos, we only care if the FIRST string has unicode or not
 	auto &sstats = (StringStatistics &)*child_stats[0];
 	if (!sstats.has_unicode) {
-		expr.function.function = ScalarFunction::BinaryFunction<string_t, string_t, int64_t, InstrAsciiOperator, true>;
+		expr.function.function = ScalarFunction::BinaryFunction<string_t, string_t, int64_t, InstrAsciiOperator>;
 	}
 	return nullptr;
 }
@@ -55,8 +57,8 @@ void InstrFun::RegisterFunction(BuiltinFunctions &set) {
 	ScalarFunction instr("instr",                                      // name of the function
 	                     {LogicalType::VARCHAR, LogicalType::VARCHAR}, // argument list
 	                     LogicalType::BIGINT,                          // return type
-	                     ScalarFunction::BinaryFunction<string_t, string_t, int64_t, InstrOperator, true>, false,
-	                     nullptr, nullptr, instr_propagate_stats);
+	                     ScalarFunction::BinaryFunction<string_t, string_t, int64_t, InstrOperator>, false, nullptr,
+	                     nullptr, InStrPropagateStats);
 	set.AddFunction(instr);
 	instr.name = "strpos";
 	set.AddFunction(instr);

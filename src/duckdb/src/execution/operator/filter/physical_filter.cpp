@@ -1,7 +1,7 @@
 #include "duckdb/execution/operator/filter/physical_filter.hpp"
 #include "duckdb/execution/expression_executor.hpp"
 #include "duckdb/planner/expression/bound_conjunction_expression.hpp"
-
+#include "duckdb/parallel/thread_context.hpp"
 namespace duckdb {
 
 class PhysicalFilterState : public PhysicalOperatorState {
@@ -13,8 +13,9 @@ public:
 	ExpressionExecutor executor;
 };
 
-PhysicalFilter::PhysicalFilter(vector<LogicalType> types, vector<unique_ptr<Expression>> select_list)
-    : PhysicalOperator(PhysicalOperatorType::FILTER, move(types)) {
+PhysicalFilter::PhysicalFilter(vector<LogicalType> types, vector<unique_ptr<Expression>> select_list,
+                               idx_t estimated_cardinality)
+    : PhysicalOperator(PhysicalOperatorType::FILTER, move(types), estimated_cardinality) {
 	D_ASSERT(select_list.size() > 0);
 	if (select_list.size() > 1) {
 		// create a big AND out of the expressions
@@ -28,8 +29,8 @@ PhysicalFilter::PhysicalFilter(vector<LogicalType> types, vector<unique_ptr<Expr
 	}
 }
 
-void PhysicalFilter::GetChunkInternal(ExecutionContext &context, DataChunk &chunk, PhysicalOperatorState *state_) {
-	auto state = reinterpret_cast<PhysicalFilterState *>(state_);
+void PhysicalFilter::GetChunkInternal(ExecutionContext &context, DataChunk &chunk, PhysicalOperatorState *state_p) {
+	auto state = reinterpret_cast<PhysicalFilterState *>(state_p);
 	SelectionVector sel(STANDARD_VECTOR_SIZE);
 	idx_t initial_count;
 	idx_t result_count;
@@ -57,6 +58,14 @@ unique_ptr<PhysicalOperatorState> PhysicalFilter::GetOperatorState() {
 
 string PhysicalFilter::ParamsToString() const {
 	return expression->GetName();
+}
+
+void PhysicalFilter::FinalizeOperatorState(PhysicalOperatorState &state_p, ExecutionContext &context) {
+	auto &state = reinterpret_cast<PhysicalFilterState &>(state_p);
+	context.thread.profiler.Flush(this, &state.executor);
+	if (!children.empty() && state.child_state) {
+		children[0]->FinalizeOperatorState(*state.child_state, context);
+	}
 }
 
 } // namespace duckdb

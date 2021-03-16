@@ -12,9 +12,9 @@ PhysicalPerfectHashAggregate::PhysicalPerfectHashAggregate(ClientContext &contex
                                                            vector<unique_ptr<Expression>> aggregates_p,
                                                            vector<unique_ptr<Expression>> groups_p,
                                                            vector<unique_ptr<BaseStatistics>> group_stats,
-                                                           vector<idx_t> required_bits_p)
-    : PhysicalSink(PhysicalOperatorType::PERFECT_HASH_GROUP_BY, move(types_p)), groups(move(groups_p)),
-      aggregates(move(aggregates_p)), required_bits(move(required_bits_p)) {
+                                                           vector<idx_t> required_bits_p, idx_t estimated_cardinality)
+    : PhysicalSink(PhysicalOperatorType::PERFECT_HASH_GROUP_BY, move(types_p), estimated_cardinality),
+      groups(move(groups_p)), aggregates(move(aggregates_p)), required_bits(move(required_bits_p)) {
 	D_ASSERT(groups.size() == group_stats.size());
 	group_minima.reserve(group_stats.size());
 	for (auto &stats : group_stats) {
@@ -44,10 +44,10 @@ PhysicalPerfectHashAggregate::PhysicalPerfectHashAggregate(ClientContext &contex
 			payload_types_filters.push_back(aggr.filter->return_type);
 		}
 	}
-		for (const auto &pay_filters : payload_types_filters) {
+	for (const auto &pay_filters : payload_types_filters) {
 		payload_types.push_back(pay_filters);
 	}
-	aggregate_objects = AggregateObject::CreateAggregateObjects(move(bindings));
+	aggregate_objects = AggregateObject::CreateAggregateObjects(bindings);
 }
 
 unique_ptr<PerfectAggregateHashTable> PhysicalPerfectHashAggregate::CreateHT(ClientContext &context) {

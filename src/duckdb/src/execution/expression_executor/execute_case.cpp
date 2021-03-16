@@ -50,14 +50,15 @@ void ExpressionExecutor::Execute(BoundCaseExpression &expr, ExpressionState *sta
 	}
 }
 
-template <class T> void fill_loop(Vector &vector, Vector &result, SelectionVector &sel, sel_t count) {
+template <class T>
+void TemplatedFillLoop(Vector &vector, Vector &result, SelectionVector &sel, sel_t count) {
 	auto res = FlatVector::GetData<T>(result);
-	auto &result_nullmask = FlatVector::Nullmask(result);
-	if (vector.vector_type == VectorType::CONSTANT_VECTOR) {
+	auto &result_mask = FlatVector::Validity(result);
+	if (vector.GetVectorType() == VectorType::CONSTANT_VECTOR) {
 		auto data = ConstantVector::GetData<T>(vector);
 		if (ConstantVector::IsNull(vector)) {
 			for (idx_t i = 0; i < count; i++) {
-				result_nullmask[sel.get_index(i)] = true;
+				result_mask.SetInvalid(sel.get_index(i));
 			}
 		} else {
 			for (idx_t i = 0; i < count; i++) {
@@ -73,59 +74,59 @@ template <class T> void fill_loop(Vector &vector, Vector &result, SelectionVecto
 			auto res_idx = sel.get_index(i);
 
 			res[res_idx] = data[source_idx];
-			result_nullmask[res_idx] = (*vdata.nullmask)[source_idx];
+			result_mask.Set(res_idx, vdata.validity.RowIsValid(source_idx));
 		}
 	}
 }
 
 template <class T>
-void case_loop(Vector &res_true, Vector &res_false, Vector &result, SelectionVector &tside, idx_t tcount,
-               SelectionVector &fside, idx_t fcount) {
-	fill_loop<T>(res_true, result, tside, tcount);
-	fill_loop<T>(res_false, result, fside, fcount);
+void TemplatedCaseLoop(Vector &res_true, Vector &res_false, Vector &result, SelectionVector &tside, idx_t tcount,
+                       SelectionVector &fside, idx_t fcount) {
+	TemplatedFillLoop<T>(res_true, result, tside, tcount);
+	TemplatedFillLoop<T>(res_false, result, fside, fcount);
 }
 
 void Case(Vector &res_true, Vector &res_false, Vector &result, SelectionVector &tside, idx_t tcount,
           SelectionVector &fside, idx_t fcount) {
-	D_ASSERT(res_true.type == res_false.type && res_true.type == result.type);
+	D_ASSERT(res_true.GetType() == res_false.GetType() && res_true.GetType() == result.GetType());
 
-	switch (result.type.InternalType()) {
+	switch (result.GetType().InternalType()) {
 	case PhysicalType::BOOL:
 	case PhysicalType::INT8:
-		case_loop<int8_t>(res_true, res_false, result, tside, tcount, fside, fcount);
+		TemplatedCaseLoop<int8_t>(res_true, res_false, result, tside, tcount, fside, fcount);
 		break;
 	case PhysicalType::INT16:
-		case_loop<int16_t>(res_true, res_false, result, tside, tcount, fside, fcount);
+		TemplatedCaseLoop<int16_t>(res_true, res_false, result, tside, tcount, fside, fcount);
 		break;
 	case PhysicalType::INT32:
-		case_loop<int32_t>(res_true, res_false, result, tside, tcount, fside, fcount);
+		TemplatedCaseLoop<int32_t>(res_true, res_false, result, tside, tcount, fside, fcount);
 		break;
 	case PhysicalType::INT64:
-		case_loop<int64_t>(res_true, res_false, result, tside, tcount, fside, fcount);
+		TemplatedCaseLoop<int64_t>(res_true, res_false, result, tside, tcount, fside, fcount);
 		break;
 	case PhysicalType::UINT8:
-		case_loop<uint8_t>(res_true, res_false, result, tside, tcount, fside, fcount);
+		TemplatedCaseLoop<uint8_t>(res_true, res_false, result, tside, tcount, fside, fcount);
 		break;
 	case PhysicalType::UINT16:
-		case_loop<uint16_t>(res_true, res_false, result, tside, tcount, fside, fcount);
+		TemplatedCaseLoop<uint16_t>(res_true, res_false, result, tside, tcount, fside, fcount);
 		break;
 	case PhysicalType::UINT32:
-		case_loop<uint32_t>(res_true, res_false, result, tside, tcount, fside, fcount);
+		TemplatedCaseLoop<uint32_t>(res_true, res_false, result, tside, tcount, fside, fcount);
 		break;
 	case PhysicalType::UINT64:
-		case_loop<uint64_t>(res_true, res_false, result, tside, tcount, fside, fcount);
+		TemplatedCaseLoop<uint64_t>(res_true, res_false, result, tside, tcount, fside, fcount);
 		break;
 	case PhysicalType::INT128:
-		case_loop<hugeint_t>(res_true, res_false, result, tside, tcount, fside, fcount);
+		TemplatedCaseLoop<hugeint_t>(res_true, res_false, result, tside, tcount, fside, fcount);
 		break;
 	case PhysicalType::FLOAT:
-		case_loop<float>(res_true, res_false, result, tside, tcount, fside, fcount);
+		TemplatedCaseLoop<float>(res_true, res_false, result, tside, tcount, fside, fcount);
 		break;
 	case PhysicalType::DOUBLE:
-		case_loop<double>(res_true, res_false, result, tside, tcount, fside, fcount);
+		TemplatedCaseLoop<double>(res_true, res_false, result, tside, tcount, fside, fcount);
 		break;
 	case PhysicalType::VARCHAR:
-		case_loop<string_t>(res_true, res_false, result, tside, tcount, fside, fcount);
+		TemplatedCaseLoop<string_t>(res_true, res_false, result, tside, tcount, fside, fcount);
 		StringVector::AddHeapReference(result, res_true);
 		StringVector::AddHeapReference(result, res_false);
 		break;
@@ -148,7 +149,7 @@ void Case(Vector &res_true, Vector &res_false, Vector &result, SelectionVector &
 		}
 
 		// all the false offsets need to be incremented by true_child.count
-		fill_loop<list_entry_t>(res_true, result, tside, tcount);
+		TemplatedFillLoop<list_entry_t>(res_true, result, tside, tcount);
 
 		// FIXME the nullmask here is likely borked
 		// TODO uuugly
@@ -157,7 +158,7 @@ void Case(Vector &res_true, Vector &res_false, Vector &result, SelectionVector &
 
 		auto data = (list_entry_t *)fdata.data;
 		auto res = FlatVector::GetData<list_entry_t>(result);
-		auto &mask = FlatVector::Nullmask(result);
+		auto &mask = FlatVector::Validity(result);
 
 		for (idx_t i = 0; i < fcount; i++) {
 			auto fidx = fdata.sel->get_index(i);
@@ -165,14 +166,14 @@ void Case(Vector &res_true, Vector &res_false, Vector &result, SelectionVector &
 			auto list_entry = data[fidx];
 			list_entry.offset += offset;
 			res[res_idx] = list_entry;
-			mask[res_idx] = (*fdata.nullmask)[fidx];
+			mask.Set(res_idx, fdata.validity.RowIsValid(fidx));
 		}
 
 		result.Verify(tcount + fcount);
 		break;
 	}
 	default:
-		throw NotImplementedException("Unimplemented type for case expression: %s", result.type.ToString());
+		throw NotImplementedException("Unimplemented type for case expression: %s", result.GetType().ToString());
 	}
 }
 

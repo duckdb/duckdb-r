@@ -8,8 +8,9 @@ namespace duckdb {
 
 PhysicalBlockwiseNLJoin::PhysicalBlockwiseNLJoin(LogicalOperator &op, unique_ptr<PhysicalOperator> left,
                                                  unique_ptr<PhysicalOperator> right, unique_ptr<Expression> condition,
-                                                 JoinType join_type)
-    : PhysicalJoin(op, PhysicalOperatorType::BLOCKWISE_NL_JOIN, join_type), condition(move(condition)) {
+                                                 JoinType join_type, idx_t estimated_cardinality)
+    : PhysicalJoin(op, PhysicalOperatorType::BLOCKWISE_NL_JOIN, join_type, estimated_cardinality),
+      condition(move(condition)) {
 	children.push_back(move(left));
 	children.push_back(move(right));
 	// MARK, SINGLE and RIGHT OUTER joins not handled
@@ -89,8 +90,8 @@ public:
 };
 
 void PhysicalBlockwiseNLJoin::GetChunkInternal(ExecutionContext &context, DataChunk &chunk,
-                                               PhysicalOperatorState *state_) {
-	auto state = reinterpret_cast<PhysicalBlockwiseNLJoinState *>(state_);
+                                               PhysicalOperatorState *state_p) {
+	auto state = reinterpret_cast<PhysicalBlockwiseNLJoinState *>(state_p);
 	auto &gstate = (BlockwiseNLJoinGlobalState &)*sink_state;
 
 	if (gstate.right_chunks.Count() == 0) {
@@ -139,7 +140,7 @@ void PhysicalBlockwiseNLJoin::GetChunkInternal(ExecutionContext &context, DataCh
 					chunk.Slice(state->child_chunk, sel, result_count);
 					// for the RHS, set the mask to NULL and set the sel_vector and count
 					for (idx_t i = state->child_chunk.ColumnCount(); i < chunk.ColumnCount(); i++) {
-						chunk.data[i].vector_type = VectorType::CONSTANT_VECTOR;
+						chunk.data[i].SetVectorType(VectorType::CONSTANT_VECTOR);
 						ConstantVector::SetNull(chunk.data[i], true);
 					}
 					state->checked_found_match = true;

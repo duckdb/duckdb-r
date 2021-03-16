@@ -47,15 +47,15 @@ struct ArrowScanFunctionData : public TableFunctionData {
 		}
 	}
 
-	~ArrowScanFunctionData() {
+	~ArrowScanFunctionData() override {
 		ReleaseSchema();
 		ReleaseArray();
 	}
 };
 
-static unique_ptr<FunctionData> arrow_scan_bind(ClientContext &context, vector<Value> &inputs,
-                                                unordered_map<string, Value> &named_parameters,
-                                                vector<LogicalType> &return_types, vector<string> &names) {
+static unique_ptr<FunctionData> ArrowScanBind(ClientContext &context, vector<Value> &inputs,
+                                              unordered_map<string, Value> &named_parameters,
+                                              vector<LogicalType> &return_types, vector<string> &names) {
 
 	auto res = make_unique<ArrowScanFunctionData>();
 	auto &data = *res;
@@ -134,8 +134,8 @@ static unique_ptr<FunctionData> arrow_scan_bind(ClientContext &context, vector<V
 	return move(res);
 }
 
-static unique_ptr<FunctionOperatorData> arrow_scan_init(ClientContext &context, const FunctionData *bind_data,
-                                                        vector<column_t> &column_ids, TableFilterCollection* filters) {
+static unique_ptr<FunctionOperatorData> ArrowScanInit(ClientContext &context, const FunctionData *bind_data,
+                                                      vector<column_t> &column_ids, TableFilterCollection *filters) {
 	auto &data = (ArrowScanFunctionData &)*bind_data;
 	if (data.is_consumed) {
 		throw NotImplementedException("FIXME: Arrow streams can only be read once");
@@ -144,8 +144,8 @@ static unique_ptr<FunctionOperatorData> arrow_scan_init(ClientContext &context, 
 	return make_unique<FunctionOperatorData>();
 }
 
-static void arrow_scan_function(ClientContext &context, const FunctionData *bind_data,
-                                FunctionOperatorData *operator_state, DataChunk &output) {
+static void ArrowScanFunction(ClientContext &context, const FunctionData *bind_data,
+                              FunctionOperatorData *operator_state, DataChunk &output) {
 	auto &data = (ArrowScanFunctionData &)*bind_data;
 	if (!data.stream->release) {
 		// no more chunks
@@ -187,26 +187,26 @@ static void arrow_scan_function(ClientContext &context, const FunctionData *bind
 			throw NotImplementedException("arrow_scan: dictionary vectors not supported yet");
 		}
 		if (array.null_count != 0 && array.buffers[0]) {
-			auto &nullmask = FlatVector::Nullmask(output.data[col_idx]);
+			auto &mask = FlatVector::Validity(output.data[col_idx]);
 
 			auto bit_offset = data.chunk_offset + array.offset;
 			auto n_bitmask_bytes = (output.size() + 8 - 1) / 8;
 
+			mask.EnsureWritable();
 			if (bit_offset % 8 == 0) {
 				// just memcpy nullmask
-				memcpy(&nullmask, (uint8_t *)array.buffers[0] + bit_offset / 8, n_bitmask_bytes);
+				memcpy((void *)mask.GetData(), (uint8_t *)array.buffers[0] + bit_offset / 8, n_bitmask_bytes);
 			} else {
 				// need to re-align nullmask :/
 				bitset<STANDARD_VECTOR_SIZE + 8> temp_nullmask;
 				memcpy(&temp_nullmask, (uint8_t *)array.buffers[0] + bit_offset / 8, n_bitmask_bytes + 1);
 
 				temp_nullmask >>= (bit_offset % 8); // why this has to be a right shift is a mystery to me
-				memcpy(&nullmask, (data_ptr_t)&temp_nullmask, n_bitmask_bytes);
+				memcpy((void *)mask.GetData(), (data_ptr_t)&temp_nullmask, n_bitmask_bytes);
 			}
-			nullmask.flip(); // arrow uses inverse nullmask logic
 		}
 
-		switch (output.data[col_idx].type.id()) {
+		switch (output.data[col_idx].GetType().id()) {
 		case LogicalTypeId::SQLNULL:
 			output.data[col_idx].Reference(Value());
 			break;
@@ -223,9 +223,9 @@ static void arrow_scan_function(ClientContext &context, const FunctionData *bind
 		case LogicalTypeId::BIGINT:
 		case LogicalTypeId::HUGEINT:
 		case LogicalTypeId::DATE:
-			FlatVector::SetData(output.data[col_idx],
-			                    (data_ptr_t)array.buffers[1] + GetTypeIdSize(output.data[col_idx].type.InternalType()) *
-			                                                       (data.chunk_offset + array.offset));
+			FlatVector::SetData(output.data[col_idx], (data_ptr_t)array.buffers[1] +
+			                                              GetTypeIdSize(output.data[col_idx].GetType().InternalType()) *
+			                                                  (data.chunk_offset + array.offset));
 			break;
 
 		case LogicalTypeId::VARCHAR: {
@@ -233,7 +233,7 @@ static void arrow_scan_function(ClientContext &context, const FunctionData *bind
 			auto cdata = (char *)array.buffers[2];
 
 			for (idx_t row_idx = 0; row_idx < output.size(); row_idx++) {
-				if (FlatVector::Nullmask(output.data[col_idx])[row_idx]) {
+				if (FlatVector::IsNull(output.data[col_idx], row_idx)) {
 					continue;
 				}
 				auto cptr = cdata + offsets[row_idx];
@@ -271,7 +271,7 @@ static void arrow_scan_function(ClientContext &context, const FunctionData *bind
 			break;
 		}
 		default:
-			throw std::runtime_error("Unsupported type " + output.data[col_idx].type.ToString());
+			throw std::runtime_error("Unsupported type " + output.data[col_idx].GetType().ToString());
 		}
 	}
 	output.Verify();
@@ -281,7 +281,7 @@ static void arrow_scan_function(ClientContext &context, const FunctionData *bind
 void ArrowTableFunction::RegisterFunction(BuiltinFunctions &set) {
 	TableFunctionSet arrow("arrow_scan");
 
-	arrow.AddFunction(TableFunction({LogicalType::POINTER}, arrow_scan_function, arrow_scan_bind, arrow_scan_init));
+	arrow.AddFunction(TableFunction({LogicalType::POINTER}, ArrowScanFunction, ArrowScanBind, ArrowScanInit));
 	set.AddFunction(arrow);
 }
 

@@ -20,11 +20,11 @@
 
 namespace duckdb {
 
-using namespace parquet;
-using namespace apache::thrift;
-using namespace apache::thrift::protocol;
-using namespace apache::thrift::transport;
-using namespace duckdb_miniz;
+using namespace parquet;                   // NOLINT
+using namespace apache::thrift;            // NOLINT
+using namespace apache::thrift::protocol;  // NOLINT
+using namespace apache::thrift::transport; // NOLINT
+using namespace duckdb_miniz;              // NOLINT
 
 using parquet::format::CompressionCodec;
 using parquet::format::ConvertedType;
@@ -38,7 +38,7 @@ using parquet::format::Type;
 
 class MyTransport : public TTransport {
 public:
-	MyTransport(Serializer &serializer) : serializer(serializer) {
+	explicit MyTransport(Serializer &serializer) : serializer(serializer) {
 	}
 
 	bool isOpen() const override {
@@ -59,7 +59,7 @@ private:
 	Serializer &serializer;
 };
 
-static Type::type duckdb_type_to_parquet_type(LogicalType duckdb_type) {
+static Type::type DuckDBTypeToParquetType(const LogicalType &duckdb_type) {
 	switch (duckdb_type.id()) {
 	case LogicalTypeId::BOOLEAN:
 		return Type::BOOLEAN;
@@ -85,7 +85,7 @@ static Type::type duckdb_type_to_parquet_type(LogicalType duckdb_type) {
 	}
 }
 
-static bool duckdb_type_to_converted_type(LogicalType duckdb_type, ConvertedType::type &result) {
+static bool DuckDBTypeToConvertedType(const LogicalType &duckdb_type, ConvertedType::type &result) {
 	switch (duckdb_type.id()) {
 	case LogicalTypeId::VARCHAR:
 		result = ConvertedType::UTF8;
@@ -120,17 +120,18 @@ static uint8_t GetVarintSize(uint32_t val) {
 }
 
 template <class SRC, class TGT>
-static void _write_plain(Vector &col, idx_t length, nullmask_t &nullmask, Serializer &ser) {
+static void TemplatedWritePlain(Vector &col, idx_t length, ValidityMask &mask, Serializer &ser) {
 	auto *ptr = FlatVector::GetData<SRC>(col);
 	for (idx_t r = 0; r < length; r++) {
-		if (!nullmask[r]) {
+		if (mask.RowIsValid(r)) {
 			ser.Write<TGT>((TGT)ptr[r]);
 		}
 	}
 }
 
-ParquetWriter::ParquetWriter(FileSystem &fs, string file_name_, vector<LogicalType> types_, vector<string> names_, CompressionCodec::type codec)
-    : file_name(file_name_), sql_types(move(types_)), column_names(move(names_)), codec(codec) {
+ParquetWriter::ParquetWriter(FileSystem &fs, string file_name_p, vector<LogicalType> types_p, vector<string> names_p,
+                             CompressionCodec::type codec)
+    : file_name(move(file_name_p)), sql_types(move(types_p)), column_names(move(names_p)), codec(codec) {
 	// initialize the file writer
 	writer = make_unique<BufferedFileWriter>(fs, file_name.c_str(),
 	                                         FileFlags::FILE_FLAGS_WRITE | FileFlags::FILE_FLAGS_FILE_CREATE_NEW);
@@ -148,15 +149,14 @@ ParquetWriter::ParquetWriter(FileSystem &fs, string file_name_, vector<LogicalTy
 	for (idx_t i = 0; i < sql_types.size(); i++) {
 		auto &schema_element = file_meta_data.schema[i + 1];
 
-		schema_element.type = duckdb_type_to_parquet_type(sql_types[i]);
+		schema_element.type = DuckDBTypeToParquetType(sql_types[i]);
 		schema_element.repetition_type = FieldRepetitionType::OPTIONAL;
 		schema_element.num_children = 0;
 		schema_element.__isset.num_children = true;
 		schema_element.__isset.type = true;
 		schema_element.__isset.repetition_type = true;
 		schema_element.name = column_names[i];
-		schema_element.__isset.converted_type =
-		    duckdb_type_to_converted_type(sql_types[i], schema_element.converted_type);
+		schema_element.__isset.converted_type = DuckDBTypeToConvertedType(sql_types[i], schema_element.converted_type);
 	}
 }
 
@@ -210,19 +210,23 @@ void ParquetWriter::Flush(ChunkCollection &buffer) {
 		VarintEncode(define_header, temp_writer);
 
 		for (auto &chunk : buffer.Chunks()) {
-			auto defined = FlatVector::Nullmask(chunk->data[i]);
-			// flip the nullmask to go from nulls -> defines
-			defined.flip();
-			// write the bits of the nullmask
+			auto &validity = FlatVector::Validity(chunk->data[i]);
+			auto validity_data = validity.GetData();
 			auto chunk_define_byte_count = (chunk->size() + 7) / 8;
-			temp_writer.WriteData((const_data_ptr_t)&defined, chunk_define_byte_count);
+			if (!validity_data) {
+				ValidityMask nop_mask(chunk->size());
+				temp_writer.WriteData((const_data_ptr_t)nop_mask.GetData(), chunk_define_byte_count);
+			} else {
+				// write the bits of the nullmask
+				temp_writer.WriteData((const_data_ptr_t)validity_data, chunk_define_byte_count);
+			}
 		}
 
 		// now write the actual payload: we write this as PLAIN values (for now? possibly for ever?)
 		for (auto &chunk : buffer.Chunks()) {
 			auto &input = *chunk;
 			auto &input_column = input.data[i];
-			auto &nullmask = FlatVector::Nullmask(input_column);
+			auto &mask = FlatVector::Validity(input_column);
 
 			// write actual payload data
 			switch (sql_types[i].id()) {
@@ -231,7 +235,7 @@ void ParquetWriter::Flush(ChunkCollection &buffer) {
 				uint8_t byte = 0;
 				uint8_t byte_pos = 0;
 				for (idx_t r = 0; r < input.size(); r++) {
-					if (!nullmask[r]) { // only encode if non-null
+					if (mask.RowIsValid(r)) { // only encode if non-null
 						byte |= (ptr[r] & 1) << byte_pos;
 						byte_pos++;
 
@@ -250,36 +254,36 @@ void ParquetWriter::Flush(ChunkCollection &buffer) {
 				break;
 			}
 			case LogicalTypeId::TINYINT:
-				_write_plain<int8_t, int32_t>(input_column, input.size(), nullmask, temp_writer);
+				TemplatedWritePlain<int8_t, int32_t>(input_column, input.size(), mask, temp_writer);
 				break;
 			case LogicalTypeId::SMALLINT:
-				_write_plain<int16_t, int32_t>(input_column, input.size(), nullmask, temp_writer);
+				TemplatedWritePlain<int16_t, int32_t>(input_column, input.size(), mask, temp_writer);
 				break;
 			case LogicalTypeId::INTEGER:
-				_write_plain<int32_t, int32_t>(input_column, input.size(), nullmask, temp_writer);
+				TemplatedWritePlain<int32_t, int32_t>(input_column, input.size(), mask, temp_writer);
 				break;
 			case LogicalTypeId::BIGINT:
-				_write_plain<int64_t, int64_t>(input_column, input.size(), nullmask, temp_writer);
+				TemplatedWritePlain<int64_t, int64_t>(input_column, input.size(), mask, temp_writer);
 				break;
 			case LogicalTypeId::FLOAT:
-				_write_plain<float, float>(input_column, input.size(), nullmask, temp_writer);
+				TemplatedWritePlain<float, float>(input_column, input.size(), mask, temp_writer);
 				break;
 			case LogicalTypeId::DECIMAL: {
 				// FIXME: fixed length byte array...
 				Vector double_vec(LogicalType::DOUBLE);
 				VectorOperations::Cast(input_column, double_vec, input.size());
-				_write_plain<double, double>(double_vec, input.size(), nullmask, temp_writer);
+				TemplatedWritePlain<double, double>(double_vec, input.size(), mask, temp_writer);
 				break;
 			}
 			case LogicalTypeId::DOUBLE:
-				_write_plain<double, double>(input_column, input.size(), nullmask, temp_writer);
+				TemplatedWritePlain<double, double>(input_column, input.size(), mask, temp_writer);
 				break;
 			case LogicalTypeId::DATE: {
 				auto *ptr = FlatVector::GetData<date_t>(input_column);
 				for (idx_t r = 0; r < input.size(); r++) {
-					if (!nullmask[r]) {
+					if (mask.RowIsValid(r)) {
 						auto ts = Timestamp::FromDatetime(ptr[r], 0);
-						temp_writer.Write<Int96>(timestamp_t_to_impala_timestamp(ts));
+						temp_writer.Write<Int96>(TimestampToImpalaTimestamp(ts));
 					}
 				}
 				break;
@@ -287,8 +291,8 @@ void ParquetWriter::Flush(ChunkCollection &buffer) {
 			case LogicalTypeId::TIMESTAMP: {
 				auto *ptr = FlatVector::GetData<timestamp_t>(input_column);
 				for (idx_t r = 0; r < input.size(); r++) {
-					if (!nullmask[r]) {
-						temp_writer.Write<Int96>(timestamp_t_to_impala_timestamp(ptr[r]));
+					if (mask.RowIsValid(r)) {
+						temp_writer.Write<Int96>(TimestampToImpalaTimestamp(ptr[r]));
 					}
 				}
 				break;
@@ -297,7 +301,7 @@ void ParquetWriter::Flush(ChunkCollection &buffer) {
 			case LogicalTypeId::VARCHAR: {
 				auto *ptr = FlatVector::GetData<string_t>(input_column);
 				for (idx_t r = 0; r < input.size(); r++) {
-					if (!nullmask[r]) {
+					if (mask.RowIsValid(r)) {
 						temp_writer.Write<uint32_t>(ptr[r].GetSize());
 						temp_writer.WriteData((const_data_ptr_t)ptr[r].GetDataUnsafe(), ptr[r].GetSize());
 					}
@@ -316,7 +320,7 @@ void ParquetWriter::Flush(ChunkCollection &buffer) {
 		size_t compressed_size;
 		data_ptr_t compressed_data;
 		unique_ptr<data_t[]> compressed_buf;
-		switch(codec) {
+		switch (codec) {
 		case CompressionCodec::UNCOMPRESSED:
 			compressed_size = temp_writer.blob.size;
 			compressed_data = temp_writer.blob.data.get();
@@ -325,7 +329,7 @@ void ParquetWriter::Flush(ChunkCollection &buffer) {
 			compressed_size = snappy::MaxCompressedLength(temp_writer.blob.size);
 			compressed_buf = unique_ptr<data_t[]>(new data_t[compressed_size]);
 			snappy::RawCompress((const char *)temp_writer.blob.data.get(), temp_writer.blob.size,
-								(char *)compressed_buf.get(), &compressed_size);
+			                    (char *)compressed_buf.get(), &compressed_size);
 			compressed_data = compressed_buf.get();
 			break;
 		}
@@ -333,8 +337,8 @@ void ParquetWriter::Flush(ChunkCollection &buffer) {
 			MiniZStream s;
 			compressed_size = s.MaxCompressedLength(temp_writer.blob.size);
 			compressed_buf = unique_ptr<data_t[]>(new data_t[compressed_size]);
-			s.Compress((const char *)temp_writer.blob.data.get(), temp_writer.blob.size,
-								(char *)compressed_buf.get(), &compressed_size);
+			s.Compress((const char *)temp_writer.blob.data.get(), temp_writer.blob.size, (char *)compressed_buf.get(),
+			           &compressed_size);
 			compressed_data = compressed_buf.get();
 			break;
 		}
@@ -342,7 +346,8 @@ void ParquetWriter::Flush(ChunkCollection &buffer) {
 			compressed_size = duckdb_zstd::ZSTD_compressBound(temp_writer.blob.size);
 			compressed_buf = unique_ptr<data_t[]>(new data_t[compressed_size]);
 			compressed_size = duckdb_zstd::ZSTD_compress((void *)compressed_buf.get(), compressed_size,
-			               (const void *)temp_writer.blob.data.get(), temp_writer.blob.size, ZSTD_CLEVEL_DEFAULT);
+			                                             (const void *)temp_writer.blob.data.get(),
+			                                             temp_writer.blob.size, ZSTD_CLEVEL_DEFAULT);
 			compressed_data = compressed_buf.get();
 			break;
 		}

@@ -79,7 +79,7 @@ unique_ptr<BoundTableRef> Binder::Bind(BaseTableRef &ref) {
 
 		auto logical_get =
 		    make_unique<LogicalGet>(table_index, scan_function, move(bind_data), table_types, table_names);
-		bind_context.AddBaseTable(table_index, alias, move(table_names), move(table_types), *logical_get);
+		bind_context.AddBaseTable(table_index, alias, table_names, table_types, *logical_get);
 		return make_unique_base<BoundTableRef, BoundBaseTableRef>(table, move(logical_get));
 	}
 	case CatalogType::VIEW_ENTRY: {
@@ -89,13 +89,13 @@ unique_ptr<BoundTableRef> Binder::Bind(BaseTableRef &ref) {
 		// defined for this binder so there are no collisions between the CTEs defined
 		// for the view and for the current query
 		bool inherit_ctes = false;
-		Binder view_binder(context, this, inherit_ctes);
+		auto view_binder = Binder::CreateBinder(context, this, inherit_ctes);
 		SubqueryRef subquery(unique_ptr_cast<SQLStatement, SelectStatement>(view_catalog_entry->query->Copy()));
 		subquery.alias = ref.alias.empty() ? ref.table_name : ref.alias;
 		subquery.column_name_alias =
 		    BindContext::AliasColumnNames(subquery.alias, view_catalog_entry->aliases, ref.column_name_alias);
 		// bind the child subquery
-		auto bound_child = view_binder.Bind(subquery);
+		auto bound_child = view_binder->Bind(subquery);
 		D_ASSERT(bound_child->type == TableReferenceType::SUBQUERY);
 		// verify that the types and names match up with the expected types and names
 		auto &bound_subquery = (BoundSubqueryRef &)*bound_child;

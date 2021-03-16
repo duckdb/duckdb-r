@@ -5,23 +5,25 @@
 namespace duckdb {
 
 void ParsedExpressionIterator::EnumerateChildren(const ParsedExpression &expression,
-                                                 std::function<void(const ParsedExpression &child)> callback) {
+                                                 const std::function<void(const ParsedExpression &child)> &callback) {
 	EnumerateChildren((ParsedExpression &)expression, [&](unique_ptr<ParsedExpression> &child) { callback(*child); });
 }
 
 void ParsedExpressionIterator::EnumerateChildren(ParsedExpression &expr,
-                                                 std::function<void(ParsedExpression &child)> callback) {
+                                                 const std::function<void(ParsedExpression &child)> &callback) {
 	EnumerateChildren(expr, [&](unique_ptr<ParsedExpression> &child) { callback(*child); });
 }
 
-void ParsedExpressionIterator::EnumerateChildren(ParsedExpression &expr,
-                                                 std::function<void(unique_ptr<ParsedExpression> &child)> callback) {
+void ParsedExpressionIterator::EnumerateChildren(
+    ParsedExpression &expr, const std::function<void(unique_ptr<ParsedExpression> &child)> &callback) {
 	switch (expr.expression_class) {
 	case ExpressionClass::CASE: {
 		auto &case_expr = (CaseExpression &)expr;
-		callback(case_expr.check);
-		callback(case_expr.result_if_true);
-		callback(case_expr.result_if_false);
+		for (auto &check : case_expr.case_checks) {
+			callback(check.when_expr);
+			callback(check.then_expr);
+		}
+		callback(case_expr.else_expr);
 		break;
 	}
 	case ExpressionClass::CAST: {
@@ -53,7 +55,7 @@ void ParsedExpressionIterator::EnumerateChildren(ParsedExpression &expr,
 		for (auto &child : func_expr.children) {
 			callback(child);
 		}
-		if (func_expr.filter){
+		if (func_expr.filter) {
 			callback(func_expr.filter);
 		}
 		break;

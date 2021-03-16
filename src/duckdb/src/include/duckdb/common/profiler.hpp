@@ -9,12 +9,12 @@
 #pragma once
 
 #include "duckdb/common/helper.hpp"
-
-#include <chrono>
+#include "duckdb/common/chrono.hpp"
 
 namespace duckdb {
 
 //! The profiler can be used to measure elapsed time
+template <typename T>
 class Profiler {
 public:
 	//! Starts the timer
@@ -37,11 +37,11 @@ public:
 	}
 
 private:
-	std::chrono::time_point<std::chrono::system_clock> Tick() const {
-		return std::chrono::system_clock::now();
+	time_point<T> Tick() const {
+		return T::now();
 	}
-	std::chrono::time_point<std::chrono::system_clock> start;
-	std::chrono::time_point<std::chrono::system_clock> end;
+	time_point<T> start;
+	time_point<T> end;
 	bool finished = false;
 };
 } // namespace duckdb

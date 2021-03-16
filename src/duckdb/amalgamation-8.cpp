@@ -1,3 +1,9 @@
+#include "src/storage/storage_info.cpp"
+
+#include "src/storage/storage_lock.cpp"
+
+#include "src/storage/storage_manager.cpp"
+
 #include "src/storage/string_segment.cpp"
 
 #include "src/storage/table/chunk_info.cpp"

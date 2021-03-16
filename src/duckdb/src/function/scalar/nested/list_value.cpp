@@ -8,12 +8,12 @@
 
 namespace duckdb {
 
-static void list_value_fun(DataChunk &args, ExpressionState &state, Vector &result) {
+static void ListValueFunction(DataChunk &args, ExpressionState &state, Vector &result) {
 	//	auto &func_expr = (BoundFunctionExpression &)state.expr;
 	//	auto &info = (VariableReturnBindData &)*func_expr.bind_info;
 
-	D_ASSERT(result.type.id() == LogicalTypeId::LIST);
-	D_ASSERT(result.type.child_types().size() == 1);
+	D_ASSERT(result.GetType().id() == LogicalTypeId::LIST);
+	D_ASSERT(result.GetType().child_types().size() == 1);
 
 	auto list_child = make_unique<ChunkCollection>();
 	ListVector::SetEntry(result, move(list_child));
@@ -26,10 +26,10 @@ static void list_value_fun(DataChunk &args, ExpressionState &state, Vector &resu
 		append_vals.Initialize(types);
 		append_vals.SetCardinality(1);
 	}
-	result.vector_type = VectorType::CONSTANT_VECTOR;
+	result.SetVectorType(VectorType::CONSTANT_VECTOR);
 	for (idx_t i = 0; i < args.ColumnCount(); i++) {
-		if (args.data[i].vector_type != VectorType::CONSTANT_VECTOR) {
-			result.vector_type = VectorType::FLAT_VECTOR;
+		if (args.data[i].GetVectorType() != VectorType::CONSTANT_VECTOR) {
+			result.SetVectorType(VectorType::FLAT_VECTOR);
 		}
 	}
 
@@ -45,11 +45,11 @@ static void list_value_fun(DataChunk &args, ExpressionState &state, Vector &resu
 	result.Verify(args.size());
 }
 
-static unique_ptr<FunctionData> list_value_bind(ClientContext &context, ScalarFunction &bound_function,
-                                                vector<unique_ptr<Expression>> &arguments) {
+static unique_ptr<FunctionData> ListValueBind(ClientContext &context, ScalarFunction &bound_function,
+                                              vector<unique_ptr<Expression>> &arguments) {
 	// collect names and deconflict, construct return type
 	child_list_t<LogicalType> child_types;
-	if (arguments.size() > 0) {
+	if (!arguments.empty()) {
 		child_types.push_back(make_pair("", arguments[0]->return_type));
 	} else {
 		child_types.push_back(make_pair("", LogicalType::SQLNULL));
@@ -62,8 +62,10 @@ static unique_ptr<FunctionData> list_value_bind(ClientContext &context, ScalarFu
 
 void ListValueFun::RegisterFunction(BuiltinFunctions &set) {
 	// the arguments and return types are actually set in the binder function
-	ScalarFunction fun("list_value", {}, LogicalType::LIST, list_value_fun, false, list_value_bind);
+	ScalarFunction fun("list_value", {}, LogicalType::LIST, ListValueFunction, false, ListValueBind);
 	fun.varargs = LogicalType::ANY;
+	set.AddFunction(fun);
+	fun.name = "list_pack";
 	set.AddFunction(fun);
 }
 

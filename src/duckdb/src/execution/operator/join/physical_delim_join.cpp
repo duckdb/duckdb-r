@@ -17,8 +17,8 @@ public:
 };
 
 PhysicalDelimJoin::PhysicalDelimJoin(vector<LogicalType> types, unique_ptr<PhysicalOperator> original_join,
-                                     vector<PhysicalOperator *> delim_scans)
-    : PhysicalSink(PhysicalOperatorType::DELIM_JOIN, move(types)), join(move(original_join)),
+                                     vector<PhysicalOperator *> delim_scans, idx_t estimated_cardinality)
+    : PhysicalSink(PhysicalOperatorType::DELIM_JOIN, move(types), estimated_cardinality), join(move(original_join)),
       delim_scans(move(delim_scans)) {
 	D_ASSERT(join->children.size() == 2);
 	// now for the original join
@@ -27,13 +27,14 @@ PhysicalDelimJoin::PhysicalDelimJoin(vector<LogicalType> types, unique_ptr<Physi
 
 	// we replace it with a PhysicalChunkCollectionScan, that scans the ChunkCollection that we keep cached
 	// the actual chunk collection to scan will be created in the DelimJoinGlobalState
-	auto cached_chunk_scan = make_unique<PhysicalChunkScan>(children[0]->GetTypes(), PhysicalOperatorType::CHUNK_SCAN);
+	auto cached_chunk_scan = make_unique<PhysicalChunkScan>(children[0]->GetTypes(), PhysicalOperatorType::CHUNK_SCAN,
+	                                                        estimated_cardinality);
 	join->children[0] = move(cached_chunk_scan);
 }
 
 class DelimJoinGlobalState : public GlobalOperatorState {
 public:
-	DelimJoinGlobalState(PhysicalDelimJoin *delim_join) {
+	explicit DelimJoinGlobalState(PhysicalDelimJoin *delim_join) {
 		D_ASSERT(delim_join->delim_scans.size() > 0);
 		// for any duplicate eliminated scans in the RHS, point them to the duplicate eliminated chunk that we create
 		// here
@@ -62,9 +63,9 @@ unique_ptr<LocalSinkState> PhysicalDelimJoin::GetLocalSinkState(ExecutionContext
 	return distinct->GetLocalSinkState(context);
 }
 
-void PhysicalDelimJoin::Sink(ExecutionContext &context, GlobalOperatorState &state_, LocalSinkState &lstate,
+void PhysicalDelimJoin::Sink(ExecutionContext &context, GlobalOperatorState &state_p, LocalSinkState &lstate,
                              DataChunk &input) {
-	auto &state = (DelimJoinGlobalState &)state_;
+	auto &state = (DelimJoinGlobalState &)state_p;
 	state.lhs_data.Append(input);
 	distinct->Sink(context, *state.distinct_state, lstate, input);
 }
@@ -95,8 +96,8 @@ void PhysicalDelimJoin::Combine(ExecutionContext &context, GlobalOperatorState &
 	distinct->Combine(context, *dstate.distinct_state, lstate);
 }
 
-void PhysicalDelimJoin::GetChunkInternal(ExecutionContext &context, DataChunk &chunk, PhysicalOperatorState *state_) {
-	auto state = reinterpret_cast<PhysicalDelimJoinState *>(state_);
+void PhysicalDelimJoin::GetChunkInternal(ExecutionContext &context, DataChunk &chunk, PhysicalOperatorState *state_p) {
+	auto state = reinterpret_cast<PhysicalDelimJoinState *>(state_p);
 	if (!state->join_state) {
 		// create the state of the underlying join
 		state->join_state = join->GetOperatorState();

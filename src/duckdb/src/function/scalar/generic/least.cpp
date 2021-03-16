@@ -3,14 +3,16 @@
 
 namespace duckdb {
 
-template <class OP> struct LeastOperator {
-	template <class T> static T Operation(T left, T right) {
+template <class OP>
+struct LeastOperator {
+	template <class T>
+	static T Operation(T left, T right) {
 		return OP::Operation(left, right) ? left : right;
 	}
 };
 
 template <class T, class OP, bool IS_STRING = false>
-static void least_greatest_impl(DataChunk &args, ExpressionState &state, Vector &result) {
+static void LeastGreatestFunction(DataChunk &args, ExpressionState &state, Vector &result) {
 	if (args.ColumnCount() == 1) {
 		// single input: nop
 		result.Reference(args.data[0]);
@@ -18,10 +20,10 @@ static void least_greatest_impl(DataChunk &args, ExpressionState &state, Vector 
 	}
 	auto result_type = VectorType::CONSTANT_VECTOR;
 	for (idx_t col_idx = 0; col_idx < args.ColumnCount(); col_idx++) {
-		if (args.data[col_idx].vector_type == VectorType::CONSTANT_VECTOR) {
+		if (args.data[col_idx].GetVectorType() == VectorType::CONSTANT_VECTOR) {
 			if (ConstantVector::IsNull(args.data[col_idx])) {
 				// constant NULL: result is constant NULL
-				result.vector_type = VectorType::CONSTANT_VECTOR;
+				result.SetVectorType(VectorType::CONSTANT_VECTOR);
 				ConstantVector::SetNull(result, true);
 				return;
 			}
@@ -37,18 +39,18 @@ static void least_greatest_impl(DataChunk &args, ExpressionState &state, Vector 
 
 	// we start off performing a binary operation between the first two inputs, where we store the lowest (or highest)
 	// directly in the result
-	BinaryExecutor::ExecuteGeneric<T, T, T, BinarySingleArgumentOperatorWrapper, LeastOperator<OP>, bool, IS_STRING>(
+	BinaryExecutor::ExecuteGeneric<T, T, T, BinarySingleArgumentOperatorWrapper, LeastOperator<OP>, bool>(
 	    args.data[0], args.data[1], result, args.size(), false);
 
 	// now we loop over the other columns and compare it to the stored result
 	auto result_data = FlatVector::GetData<T>(result);
-	auto &result_nullmask = FlatVector::Nullmask(result);
+	auto &result_mask = FlatVector::Validity(result);
 	SelectionVector rsel;
 	idx_t rcount = 0;
-	// create a selection vector from the nullmask
+	// create a selection vector from the mask
 	rsel.Initialize();
 	for (idx_t i = 0; i < args.size(); i++) {
-		if (!result_nullmask[i]) {
+		if (result_mask.RowIsValid(i)) {
 			rsel.set_index(rcount++, i);
 		}
 	}
@@ -57,15 +59,15 @@ static void least_greatest_impl(DataChunk &args, ExpressionState &state, Vector 
 		args.data[col_idx].Orrify(args.size(), vdata);
 
 		auto input_data = (T *)vdata.data;
-		if (vdata.nullmask->any()) {
+		if (!vdata.validity.AllValid()) {
 			// potential new null entries: have to check the null mask
 			idx_t new_count = 0;
 			for (idx_t i = 0; i < rcount; i++) {
 				auto rindex = rsel.get_index(i);
 				auto vindex = vdata.sel->get_index(rindex);
-				if ((*vdata.nullmask)[vindex]) {
+				if (!vdata.validity.RowIsValid(vindex)) {
 					// new null entry: set nullmask
-					result_nullmask[rindex] = true;
+					result_mask.SetInvalid(rindex);
 				} else {
 					// not a null entry: perform the operation and add to new set
 					auto ivalue = input_data[vindex];
@@ -89,34 +91,36 @@ static void least_greatest_impl(DataChunk &args, ExpressionState &state, Vector 
 			}
 		}
 	}
-	result.vector_type = result_type;
+	result.SetVectorType(result_type);
 }
 
-template <class OP> static void register_least_greatest(BuiltinFunctions &set, string fun_name) {
+template <class OP>
+static void RegisterLeastGreatest(BuiltinFunctions &set, const string &fun_name) {
 	ScalarFunctionSet fun_set(fun_name);
-	fun_set.AddFunction(ScalarFunction({LogicalType::DATE}, LogicalType::DATE, least_greatest_impl<date_t, OP>, false,
+	fun_set.AddFunction(ScalarFunction({LogicalType::DATE}, LogicalType::DATE, LeastGreatestFunction<date_t, OP>, false,
 	                                   nullptr, nullptr, nullptr, LogicalType::DATE));
 	fun_set.AddFunction(ScalarFunction({LogicalType::TIMESTAMP}, LogicalType::TIMESTAMP,
-	                                   least_greatest_impl<timestamp_t, OP>, false, nullptr, nullptr, nullptr,
+	                                   LeastGreatestFunction<timestamp_t, OP>, false, nullptr, nullptr, nullptr,
 	                                   LogicalType::TIMESTAMP));
-	fun_set.AddFunction(ScalarFunction({LogicalType::BIGINT}, LogicalType::BIGINT, least_greatest_impl<int64_t, OP>,
+	fun_set.AddFunction(ScalarFunction({LogicalType::BIGINT}, LogicalType::BIGINT, LeastGreatestFunction<int64_t, OP>,
 	                                   false, nullptr, nullptr, nullptr, LogicalType::BIGINT));
-	fun_set.AddFunction(ScalarFunction({LogicalType::HUGEINT}, LogicalType::HUGEINT, least_greatest_impl<hugeint_t, OP>,
-	                                   false, nullptr, nullptr, nullptr, LogicalType::HUGEINT));
-	fun_set.AddFunction(ScalarFunction({LogicalType::DOUBLE}, LogicalType::DOUBLE, least_greatest_impl<double, OP>,
+	fun_set.AddFunction(ScalarFunction({LogicalType::HUGEINT}, LogicalType::HUGEINT,
+	                                   LeastGreatestFunction<hugeint_t, OP>, false, nullptr, nullptr, nullptr,
+	                                   LogicalType::HUGEINT));
+	fun_set.AddFunction(ScalarFunction({LogicalType::DOUBLE}, LogicalType::DOUBLE, LeastGreatestFunction<double, OP>,
 	                                   false, nullptr, nullptr, nullptr, LogicalType::DOUBLE));
 	fun_set.AddFunction(ScalarFunction({LogicalType::VARCHAR}, LogicalType::VARCHAR,
-	                                   least_greatest_impl<string_t, OP, true>, false, nullptr, nullptr, nullptr,
+	                                   LeastGreatestFunction<string_t, OP, true>, false, nullptr, nullptr, nullptr,
 	                                   LogicalType::VARCHAR));
 	set.AddFunction(fun_set);
 }
 
 void LeastFun::RegisterFunction(BuiltinFunctions &set) {
-	register_least_greatest<duckdb::LessThan>(set, "least");
+	RegisterLeastGreatest<duckdb::LessThan>(set, "least");
 }
 
 void GreatestFun::RegisterFunction(BuiltinFunctions &set) {
-	register_least_greatest<duckdb::GreaterThan>(set, "greatest");
+	RegisterLeastGreatest<duckdb::GreaterThan>(set, "greatest");
 }
 
 } // namespace duckdb

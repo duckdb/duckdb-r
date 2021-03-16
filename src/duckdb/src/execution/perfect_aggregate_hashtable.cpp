@@ -44,14 +44,14 @@ static void ComputeGroupLocationTemplated(VectorData &group_data, Value &min, ui
                                           idx_t current_shift, idx_t count) {
 	auto data = (T *)group_data.data;
 	auto min_val = min.GetValueUnsafe<T>();
-	if (group_data.nullmask->any()) {
+	if (!group_data.validity.AllValid()) {
 		for (idx_t i = 0; i < count; i++) {
 			auto index = group_data.sel->get_index(i);
 			// check if the value is NULL
 			// NULL groups are considered as "0" in the hash table
 			// that is to say, they have no effect on the position of the element (because 0 << shift is 0)
 			// we only need to handle non-null values here
-			if (!(*group_data.nullmask)[index]) {
+			if (group_data.validity.RowIsValid(index)) {
 				D_ASSERT(data[index] >= min_val);
 				uintptr_t adjusted_value = (data[index] - min_val) + 1;
 				address_data[i] += adjusted_value << current_shift;
@@ -71,7 +71,7 @@ static void ComputeGroupLocation(Vector &group, Value &min, uintptr_t *address_d
 	VectorData vdata;
 	group.Orrify(count, vdata);
 
-	switch (group.type.InternalType()) {
+	switch (group.GetType().InternalType()) {
 	case PhysicalType::INT8:
 		ComputeGroupLocationTemplated<int8_t>(vdata, min, address_data, current_shift, count);
 		break;
@@ -115,10 +115,10 @@ void PerfectAggregateHashTable::AddChunk(DataChunk &groups, DataChunk &payload) 
 	for (auto &aggregate : aggregates) {
 		auto input_count = (idx_t)aggregate.child_count;
 		if (aggregate.filter) {
-            GroupedAggregateHashTable::UpdateAggregate(aggregate,payload,addresses,input_count,payload_idx);
+			GroupedAggregateHashTable::UpdateAggregate(aggregate, payload, addresses, input_count, payload_idx);
 		} else {
-			aggregate.function.update(input_count == 0 ? nullptr : &payload.data[payload_idx], input_count, addresses,
-			                          payload.size());
+			aggregate.function.update(input_count == 0 ? nullptr : &payload.data[payload_idx], nullptr, input_count,
+			                          addresses, payload.size());
 		}
 		// move to the next aggregate
 		payload_idx += input_count;
@@ -184,14 +184,14 @@ template <class T>
 static void ReconstructGroupVectorTemplated(uint32_t group_values[], Value &min, idx_t mask, idx_t shift,
                                             idx_t entry_count, Vector &result) {
 	auto data = FlatVector::GetData<T>(result);
-	auto &nullmask = FlatVector::Nullmask(result);
+	auto &validity_mask = FlatVector::Validity(result);
 	auto min_data = min.GetValueUnsafe<T>();
 	for (idx_t i = 0; i < entry_count; i++) {
 		// extract the value of this group from the total group index
 		auto group_index = (group_values[i] >> shift) & mask;
 		if (group_index == 0) {
 			// if it is 0, the value is NULL
-			nullmask[i] = true;
+			validity_mask.SetInvalid(i);
 		} else {
 			// otherwise we add the value (minus 1) to the min value
 			data[i] = min_data + group_index - 1;
@@ -203,7 +203,7 @@ static void ReconstructGroupVector(uint32_t group_values[], Value &min, idx_t re
                                    idx_t entry_count, Vector &result) {
 	// construct the mask for this entry
 	idx_t mask = (1 << required_bits) - 1;
-	switch (result.type.InternalType()) {
+	switch (result.GetType().InternalType()) {
 	case PhysicalType::INT8:
 		ReconstructGroupVectorTemplated<int8_t>(group_values, min, mask, shift, entry_count, result);
 		break;

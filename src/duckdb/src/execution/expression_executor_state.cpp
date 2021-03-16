@@ -10,9 +10,12 @@ void ExpressionState::AddChild(Expression *expr) {
 }
 
 void ExpressionState::Finalize() {
-	if (types.size() > 0) {
+	if (!types.empty()) {
 		intermediate_chunk.Initialize(types);
 	}
+}
+ExpressionState::ExpressionState(Expression &expr, ExpressionExecutorState &root)
+    : expr(expr), root(root), name(expr.ToString()) {
 }
 
 } // namespace duckdb

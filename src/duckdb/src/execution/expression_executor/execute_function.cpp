@@ -16,7 +16,7 @@ unique_ptr<ExpressionState> ExpressionExecutor::InitializeState(BoundFunctionExp
 		result->AddChild(child.get());
 	}
 	result->Finalize();
-    if (result->types.size() > 0) {
+	if (!result->types.empty()) {
 		result->arguments.InitializeEmpty(result->types);
 	}
 	return move(result);
@@ -24,9 +24,9 @@ unique_ptr<ExpressionState> ExpressionExecutor::InitializeState(BoundFunctionExp
 
 void ExpressionExecutor::Execute(BoundFunctionExpression &expr, ExpressionState *state, const SelectionVector *sel,
                                  idx_t count, Vector &result) {
-	auto &fstate = (FunctionExpressionState &) *state;
+	auto &fstate = (FunctionExpressionState &)*state;
 	auto &arguments = fstate.arguments;
-	if (state->types.size() > 0) {
+	if (!state->types.empty()) {
 		arguments.Reference(state->intermediate_chunk);
 		for (idx_t i = 0; i < expr.children.size(); i++) {
 			D_ASSERT(state->types[i] == expr.children[i]->return_type);
@@ -42,8 +42,8 @@ void ExpressionExecutor::Execute(BoundFunctionExpression &expr, ExpressionState 
 	arguments.SetCardinality(count);
 	expr.function.function(arguments, *state, result);
 
-	if (result.type != expr.return_type) {
-		throw TypeMismatchException(expr.return_type, result.type,
+	if (result.GetType() != expr.return_type) {
+		throw TypeMismatchException(expr.return_type, result.GetType(),
 		                            "expected function to return the former "
 		                            "but the function returned the latter");
 	}

@@ -11,7 +11,8 @@
 
 namespace duckdb {
 
-Appender::Appender(Connection &con, string schema_name, string table_name) : context(con.context), column(0) {
+Appender::Appender(Connection &con, const string &schema_name, const string &table_name)
+    : context(con.context), column(0) {
 	description = con.TableInfo(schema_name, table_name);
 	if (!description) {
 		// table could not be found
@@ -25,7 +26,7 @@ Appender::Appender(Connection &con, string schema_name, string table_name) : con
 	}
 }
 
-Appender::Appender(Connection &con, string table_name) : Appender(con, DEFAULT_SCHEMA, table_name) {
+Appender::Appender(Connection &con, const string &table_name) : Appender(con, DEFAULT_SCHEMA, table_name) {
 }
 
 Appender::~Appender() {
@@ -52,27 +53,41 @@ void Appender::EndRow() {
 	}
 }
 
-template <class SRC, class DST> void Appender::AppendValueInternal(Vector &col, SRC input) {
+template <class SRC, class DST>
+void Appender::AppendValueInternal(Vector &col, SRC input) {
 	FlatVector::GetData<DST>(col)[chunk.size()] = Cast::Operation<SRC, DST>(input);
 }
 
-template <class T> void Appender::AppendValueInternal(T input) {
+template <class T>
+void Appender::AppendValueInternal(T input) {
 	if (column >= chunk.ColumnCount()) {
 		throw InvalidInputException("Too many appends for chunk!");
 	}
 	auto &col = chunk.data[column];
-	switch (col.type.InternalType()) {
+	switch (col.GetType().InternalType()) {
 	case PhysicalType::BOOL:
 		AppendValueInternal<T, bool>(col, input);
+		break;
+	case PhysicalType::UINT8:
+		AppendValueInternal<T, uint8_t>(col, input);
 		break;
 	case PhysicalType::INT8:
 		AppendValueInternal<T, int8_t>(col, input);
 		break;
+	case PhysicalType::UINT16:
+		AppendValueInternal<T, uint16_t>(col, input);
+		break;
 	case PhysicalType::INT16:
 		AppendValueInternal<T, int16_t>(col, input);
 		break;
+	case PhysicalType::UINT32:
+		AppendValueInternal<T, uint32_t>(col, input);
+		break;
 	case PhysicalType::INT32:
 		AppendValueInternal<T, int32_t>(col, input);
+		break;
+	case PhysicalType::UINT64:
+		AppendValueInternal<T, uint64_t>(col, input);
 		break;
 	case PhysicalType::INT64:
 		AppendValueInternal<T, int64_t>(col, input);
@@ -90,27 +105,53 @@ template <class T> void Appender::AppendValueInternal(T input) {
 	column++;
 }
 
-template <> void Appender::Append(bool value) {
+template <>
+void Appender::Append(bool value) {
 	AppendValueInternal<bool>(value);
 }
 
-template <> void Appender::Append(int8_t value) {
+template <>
+void Appender::Append(int8_t value) {
 	AppendValueInternal<int8_t>(value);
 }
 
-template <> void Appender::Append(int16_t value) {
+template <>
+void Appender::Append(int16_t value) {
 	AppendValueInternal<int16_t>(value);
 }
 
-template <> void Appender::Append(int32_t value) {
+template <>
+void Appender::Append(int32_t value) {
 	AppendValueInternal<int32_t>(value);
 }
 
-template <> void Appender::Append(int64_t value) {
+template <>
+void Appender::Append(int64_t value) {
 	AppendValueInternal<int64_t>(value);
 }
 
-template <> void Appender::Append(const char *value) {
+template <>
+void Appender::Append(uint8_t value) {
+	AppendValueInternal<uint8_t>(value);
+}
+
+template <>
+void Appender::Append(uint16_t value) {
+	AppendValueInternal<uint16_t>(value);
+}
+
+template <>
+void Appender::Append(uint32_t value) {
+	AppendValueInternal<uint32_t>(value);
+}
+
+template <>
+void Appender::Append(uint64_t value) {
+	AppendValueInternal<uint64_t>(value);
+}
+
+template <>
+void Appender::Append(const char *value) {
 	AppendValueInternal<string_t>(string_t(value));
 }
 
@@ -118,28 +159,32 @@ void Appender::Append(const char *value, uint32_t length) {
 	AppendValueInternal<string_t>(string_t(value, length));
 }
 
-template <> void Appender::Append(float value) {
+template <>
+void Appender::Append(float value) {
 	if (!Value::FloatIsValid(value)) {
 		throw InvalidInputException("Float value is out of range!");
 	}
 	AppendValueInternal<float>(value);
 }
 
-template <> void Appender::Append(double value) {
+template <>
+void Appender::Append(double value) {
 	if (!Value::DoubleIsValid(value)) {
 		throw InvalidInputException("Double value is out of range!");
 	}
 	AppendValueInternal<double>(value);
 }
 
-template <> void Appender::Append(Value value) {
+template <>
+void Appender::Append(Value value) { // NOLINT: template shtuff
 	if (column >= chunk.ColumnCount()) {
 		throw InvalidInputException("Too many appends for chunk!");
 	}
-	AppendValue(move(value));
+	AppendValue(value);
 }
 
-template <> void Appender::Append(std::nullptr_t value) {
+template <>
+void Appender::Append(std::nullptr_t value) {
 	if (column >= chunk.ColumnCount()) {
 		throw InvalidInputException("Too many appends for chunk!");
 	}
@@ -147,7 +192,7 @@ template <> void Appender::Append(std::nullptr_t value) {
 	FlatVector::SetNull(col, chunk.size(), true);
 }
 
-void Appender::AppendValue(Value value) {
+void Appender::AppendValue(const Value &value) {
 	chunk.SetValue(column, chunk.size(), value);
 	column++;
 }

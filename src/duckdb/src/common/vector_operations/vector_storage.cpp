@@ -4,12 +4,13 @@
 
 namespace duckdb {
 
-template <class T> static void CopyToStorageLoop(VectorData &vdata, idx_t count, data_ptr_t target) {
+template <class T>
+static void CopyToStorageLoop(VectorData &vdata, idx_t count, data_ptr_t target) {
 	auto ldata = (T *)vdata.data;
 	auto result_data = (T *)target;
 	for (idx_t i = 0; i < count; i++) {
 		auto idx = vdata.sel->get_index(i);
-		if ((*vdata.nullmask)[idx]) {
+		if (!vdata.validity.RowIsValid(idx)) {
 			result_data[i] = NullValue<T>();
 		} else {
 			result_data[i] = ldata[idx];
@@ -24,7 +25,7 @@ void VectorOperations::WriteToStorage(Vector &source, idx_t count, data_ptr_t ta
 	VectorData vdata;
 	source.Orrify(count, vdata);
 
-	switch (source.type.InternalType()) {
+	switch (source.GetType().InternalType()) {
 	case PhysicalType::BOOL:
 	case PhysicalType::INT8:
 		CopyToStorageLoop<int8_t>(vdata, count, target);
@@ -73,13 +74,14 @@ void VectorOperations::WriteToStorage(Vector &source, idx_t count, data_ptr_t ta
 	}
 }
 
-template <class T> static void ReadFromStorageLoop(data_ptr_t source, idx_t count, Vector &result) {
+template <class T>
+static void ReadFromStorageLoop(data_ptr_t source, idx_t count, Vector &result) {
 	auto ldata = (T *)source;
 	auto result_data = FlatVector::GetData<T>(result);
-	auto &nullmask = FlatVector::Nullmask(result);
+	auto &mask = FlatVector::Validity(result);
 	for (idx_t i = 0; i < count; i++) {
 		if (IsNullValue<T>(ldata[i])) {
-			nullmask[i] = true;
+			mask.SetInvalid(i);
 		} else {
 			result_data[i] = ldata[i];
 		}
@@ -87,8 +89,8 @@ template <class T> static void ReadFromStorageLoop(data_ptr_t source, idx_t coun
 }
 
 void VectorOperations::ReadFromStorage(data_ptr_t source, idx_t count, Vector &result) {
-	result.vector_type = VectorType::FLAT_VECTOR;
-	switch (result.type.InternalType()) {
+	result.SetVectorType(VectorType::FLAT_VECTOR);
+	switch (result.GetType().InternalType()) {
 	case PhysicalType::BOOL:
 	case PhysicalType::INT8:
 		ReadFromStorageLoop<int8_t>(source, count, result);

@@ -11,6 +11,7 @@
 #include "duckdb/storage/uncompressed_segment.hpp"
 
 namespace duckdb {
+class StorageManager;
 
 class OverflowStringWriter {
 public:
@@ -50,7 +51,7 @@ typedef unique_ptr<StringUpdateInfo> string_update_info_t;
 
 class StringSegment : public UncompressedSegment {
 public:
-	StringSegment(BufferManager &manager, idx_t row_start, block_id_t block_id = INVALID_BLOCK);
+	StringSegment(DatabaseInstance &db, idx_t row_start, block_id_t block_id = INVALID_BLOCK);
 	~StringSegment() override;
 
 	//! The string block holding strings that do not fit in the main block
@@ -85,11 +86,11 @@ protected:
 	            idx_t count, idx_t vector_index, idx_t vector_offset, UpdateInfo *node) override;
 
 	void Select(ColumnScanState &state, Vector &result, SelectionVector &sel, idx_t &approved_tuple_count,
-	            vector<TableFilter> &tableFilter) override;
+	            vector<TableFilter> &table_filter) override;
 
 	void FetchBaseData(ColumnScanState &state, idx_t vector_index, Vector &result) override;
-	void FetchUpdateData(ColumnScanState &state, Transaction &transaction, UpdateInfo *versions,
-	                     Vector &result) override;
+	void FetchUpdateData(ColumnScanState &state, transaction_t start_time, transaction_t transaction_id,
+	                     UpdateInfo *versions, Vector &result) override;
 
 	void FilterFetchBaseData(ColumnScanState &state, Vector &result, SelectionVector &sel,
 	                         idx_t &approved_tuple_count) override;
@@ -129,34 +130,33 @@ private:
 	                                       idx_t vector_offset, StringUpdateInfo &update_info);
 
 	void MergeUpdateInfo(UpdateInfo *node, row_t *ids, idx_t update_count, idx_t vector_offset,
-	                     string_location_t string_locations[], nullmask_t original_nullmask);
+	                     string_location_t string_locations[], ValidityMask &base_mask);
 
 	//! The amount of bytes remaining to store in the block
 	idx_t RemainingSpace(BufferHandle &handle);
 
-	void read_string(string_t *result_data, Vector &result, data_ptr_t baseptr, int32_t *dict_offset, idx_t src_idx,
-	                 idx_t res_idx, idx_t &update_idx, size_t vector_index);
+	void ReadString(string_t *result_data, Vector &result, data_ptr_t baseptr, int32_t *dict_offset, idx_t src_idx,
+	                idx_t res_idx, idx_t &update_idx, size_t vector_index);
 	template <class OP>
 	void Select_String(Vector &result, data_ptr_t baseptr, int32_t *dict_offset, SelectionVector &sel,
-	                   const string &constant, idx_t &approved_tuple_count, nullmask_t *source_nullmask,
-	                   size_t vector_index) {
-		result.vector_type = VectorType::FLAT_VECTOR;
+	                   const string &constant, idx_t &approved_tuple_count, ValidityMask &source, size_t vector_index) {
+		result.SetVectorType(VectorType::FLAT_VECTOR);
 		auto result_data = FlatVector::GetData<string_t>(result);
 		SelectionVector new_sel(approved_tuple_count);
 		idx_t result_count = 0;
 		idx_t update_idx = 0;
-		if (source_nullmask->any()) {
+		if (!source.AllValid()) {
 			for (idx_t i = 0; i < approved_tuple_count; i++) {
 				idx_t src_idx = sel.get_index(i);
-				read_string(result_data, result, baseptr, dict_offset, src_idx, src_idx, update_idx, vector_index);
-				if (!(*source_nullmask)[src_idx] && OP::Operation(result_data[src_idx].GetString(), constant)) {
+				ReadString(result_data, result, baseptr, dict_offset, src_idx, src_idx, update_idx, vector_index);
+				if (source.RowIsValid(src_idx) && OP::Operation(result_data[src_idx].GetString(), constant)) {
 					new_sel.set_index(result_count++, src_idx);
 				}
 			}
 		} else {
 			for (idx_t i = 0; i < approved_tuple_count; i++) {
 				idx_t src_idx = sel.get_index(i);
-				read_string(result_data, result, baseptr, dict_offset, src_idx, src_idx, update_idx, vector_index);
+				ReadString(result_data, result, baseptr, dict_offset, src_idx, src_idx, update_idx, vector_index);
 				if (OP::Operation(result_data[src_idx].GetString(), constant)) {
 					new_sel.set_index(result_count++, src_idx);
 				}
@@ -168,28 +168,29 @@ private:
 
 	template <class OPL, class OPR>
 	void Select_String_Between(Vector &result, data_ptr_t baseptr, int32_t *dict_offset, SelectionVector &sel,
-	                           string constantLeft, string constantRight, idx_t &approved_tuple_count,
-	                           nullmask_t *source_nullmask, size_t vector_index) {
-		result.vector_type = VectorType::FLAT_VECTOR;
+	                           string constant_left, string constant_right, idx_t &approved_tuple_count,
+	                           ValidityMask &source_mask, size_t vector_index) {
+		result.SetVectorType(VectorType::FLAT_VECTOR);
 		auto result_data = FlatVector::GetData<string_t>(result);
 		SelectionVector new_sel(approved_tuple_count);
 		idx_t result_count = 0;
 		idx_t update_idx = 0;
-		if (source_nullmask->any()) {
+		if (!source_mask.AllValid()) {
 			for (idx_t i = 0; i < approved_tuple_count; i++) {
 				idx_t src_idx = sel.get_index(i);
-				read_string(result_data, result, baseptr, dict_offset, src_idx, src_idx, update_idx, vector_index);
-				if (!(*source_nullmask)[src_idx] && OPL::Operation(result_data[src_idx].GetString(), constantLeft) &&
-				    OPR::Operation(result_data[src_idx].GetString(), constantRight)) {
+				ReadString(result_data, result, baseptr, dict_offset, src_idx, src_idx, update_idx, vector_index);
+				if (source_mask.RowIsValid(src_idx) &&
+				    OPL::Operation(result_data[src_idx].GetString(), constant_left) &&
+				    OPR::Operation(result_data[src_idx].GetString(), constant_right)) {
 					new_sel.set_index(result_count++, src_idx);
 				}
 			}
 		} else {
 			for (idx_t i = 0; i < approved_tuple_count; i++) {
 				idx_t src_idx = sel.get_index(i);
-				read_string(result_data, result, baseptr, dict_offset, src_idx, src_idx, update_idx, vector_index);
-				if (OPL::Operation(result_data[src_idx].GetString(), constantLeft) &&
-				    OPR::Operation(result_data[src_idx].GetString(), constantRight)) {
+				ReadString(result_data, result, baseptr, dict_offset, src_idx, src_idx, update_idx, vector_index);
+				if (OPL::Operation(result_data[src_idx].GetString(), constant_left) &&
+				    OPR::Operation(result_data[src_idx].GetString(), constant_right)) {
 					new_sel.set_index(result_count++, src_idx);
 				}
 			}

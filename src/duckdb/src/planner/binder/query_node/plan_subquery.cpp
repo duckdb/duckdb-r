@@ -22,7 +22,7 @@ static unique_ptr<Expression> PlanUncorrelatedSubquery(Binder &binder, BoundSubq
 	case SubqueryType::EXISTS: {
 		// uncorrelated EXISTS
 		// we only care about existence, hence we push a LIMIT 1 operator
-		auto limit = make_unique<LogicalLimit>(1, 0);
+		auto limit = make_unique<LogicalLimit>(1, 0, nullptr, nullptr);
 		limit->AddChild(move(plan));
 		plan = move(limit);
 
@@ -72,7 +72,7 @@ static unique_ptr<Expression> PlanUncorrelatedSubquery(Binder &binder, BoundSubq
 
 		// in the uncorrelated case we are only interested in the first result of the query
 		// hence we simply push a LIMIT 1 to get the first row of the subquery
-		auto limit = make_unique<LogicalLimit>(1, 0);
+		auto limit = make_unique<LogicalLimit>(1, 0, nullptr, nullptr);
 		limit->AddChild(move(plan));
 		plan = move(limit);
 
@@ -270,10 +270,10 @@ static unique_ptr<Expression> PlanCorrelatedSubquery(Binder &binder, BoundSubque
 
 class RecursiveSubqueryPlanner : public LogicalOperatorVisitor {
 public:
-	RecursiveSubqueryPlanner(Binder &binder) : binder(binder) {
+	explicit RecursiveSubqueryPlanner(Binder &binder) : binder(binder) {
 	}
 	void VisitOperator(LogicalOperator &op) override {
-		if (op.children.size() > 0) {
+		if (!op.children.empty()) {
 			root = move(op.children[0]);
 			VisitOperatorExpressions(op);
 			op.children[0] = move(root);
@@ -296,9 +296,9 @@ unique_ptr<Expression> Binder::PlanSubquery(BoundSubqueryExpression &expr, uniqu
 	D_ASSERT(root);
 	// first we translate the QueryNode of the subquery into a logical plan
 	// note that we do not plan nested subqueries yet
-	Binder sub_binder(context);
-	sub_binder.plan_subquery = false;
-	auto subquery_root = sub_binder.CreatePlan(*expr.subquery);
+	auto sub_binder = Binder::CreateBinder(context);
+	sub_binder->plan_subquery = false;
+	auto subquery_root = sub_binder->CreatePlan(*expr.subquery);
 	D_ASSERT(subquery_root);
 
 	// now we actually flatten the subquery
@@ -310,7 +310,7 @@ unique_ptr<Expression> Binder::PlanSubquery(BoundSubqueryExpression &expr, uniqu
 		result_expression = PlanCorrelatedSubquery(*this, expr, root, move(plan));
 	}
 	// finally, we recursively plan the nested subqueries (if there are any)
-	if (sub_binder.has_unplanned_subqueries) {
+	if (sub_binder->has_unplanned_subqueries) {
 		RecursiveSubqueryPlanner plan(*this);
 		plan.VisitOperator(*root);
 	}
@@ -318,6 +318,9 @@ unique_ptr<Expression> Binder::PlanSubquery(BoundSubqueryExpression &expr, uniqu
 }
 
 void Binder::PlanSubqueries(unique_ptr<Expression> *expr_ptr, unique_ptr<LogicalOperator> *root) {
+	if (!*expr_ptr) {
+		return;
+	}
 	auto &expr = **expr_ptr;
 
 	// first visit the children of the node, if any

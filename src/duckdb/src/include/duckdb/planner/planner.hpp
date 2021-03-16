@@ -20,7 +20,7 @@ class PreparedStatementData;
 //! using the Binder and LogicalPlanGenerator.
 class Planner {
 public:
-	Planner(ClientContext &context);
+	explicit Planner(ClientContext &context);
 
 	void CreatePlan(unique_ptr<SQLStatement> statement);
 
@@ -29,7 +29,7 @@ public:
 	vector<LogicalType> types;
 	unordered_map<idx_t, vector<unique_ptr<Value>>> value_map;
 
-	Binder binder;
+	shared_ptr<Binder> binder;
 	ClientContext &context;
 
 	bool read_only;

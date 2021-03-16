@@ -25,14 +25,14 @@ public:
 
 // this implements a sorted window functions variant
 PhysicalUnnest::PhysicalUnnest(vector<LogicalType> types, vector<unique_ptr<Expression>> select_list,
-                               PhysicalOperatorType type)
-    : PhysicalOperator(type, move(types)), select_list(std::move(select_list)) {
+                               idx_t estimated_cardinality, PhysicalOperatorType type)
+    : PhysicalOperator(type, move(types), estimated_cardinality), select_list(std::move(select_list)) {
 
 	D_ASSERT(this->select_list.size() > 0);
 }
 
-void PhysicalUnnest::GetChunkInternal(ExecutionContext &context, DataChunk &chunk, PhysicalOperatorState *state_) {
-	auto state = reinterpret_cast<PhysicalUnnestOperatorState *>(state_);
+void PhysicalUnnest::GetChunkInternal(ExecutionContext &context, DataChunk &chunk, PhysicalOperatorState *state_p) {
+	auto state = reinterpret_cast<PhysicalUnnestOperatorState *>(state_p);
 	while (true) { // repeat until we actually have produced some rows
 		if (state->child_chunk.size() == 0 || state->parent_position >= state->child_chunk.size()) {
 			// get the child data
@@ -68,15 +68,15 @@ void PhysicalUnnest::GetChunkInternal(ExecutionContext &context, DataChunk &chun
 		}
 
 		// whether we have UNNEST(*expression returning list that evaluated to NULL*)
-		bool unnest_null =
-		    (*state->list_vector_data.nullmask)[state->list_vector_data.sel->get_index(state->parent_position)];
+		bool unnest_null = !state->list_vector_data.validity.RowIsValid(
+		    state->list_vector_data.sel->get_index(state->parent_position));
 
 		// need to figure out how many times we need to repeat for current row
 		if (state->list_length < 0) {
 			for (idx_t col_idx = 0; col_idx < state->list_data.ColumnCount(); col_idx++) {
 				auto &v = state->list_data.data[col_idx];
 
-				D_ASSERT(v.type.id() == LogicalTypeId::LIST);
+				D_ASSERT(v.GetType().id() == LogicalTypeId::LIST);
 
 				// deal with NULL values
 				if (unnest_null) {

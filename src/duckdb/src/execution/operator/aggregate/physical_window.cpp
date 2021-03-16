@@ -13,7 +13,7 @@ namespace duckdb {
 
 class WindowGlobalState : public GlobalOperatorState {
 public:
-	WindowGlobalState(PhysicalWindow &_op, ClientContext &context) : op(_op) {
+	WindowGlobalState(PhysicalWindow &op_p, ClientContext &context) : op(op_p) {
 	}
 
 	PhysicalWindow &op;
@@ -24,7 +24,7 @@ public:
 
 class WindowLocalState : public LocalSinkState {
 public:
-	WindowLocalState(PhysicalWindow &_op) : op(_op) {
+	explicit WindowLocalState(PhysicalWindow &op_p) : op(op_p) {
 	}
 
 	PhysicalWindow &op;
@@ -43,8 +43,8 @@ public:
 
 // this implements a sorted window functions variant
 PhysicalWindow::PhysicalWindow(vector<LogicalType> types, vector<unique_ptr<Expression>> select_list,
-                               PhysicalOperatorType type)
-    : PhysicalSink(type, move(types)), select_list(move(select_list)) {
+                               idx_t estimated_cardinality, PhysicalOperatorType type)
+    : PhysicalSink(type, move(types), estimated_cardinality), select_list(move(select_list)) {
 }
 
 static bool EqualsSubset(vector<Value> &a, vector<Value> &b, idx_t start, idx_t end) {
@@ -208,7 +208,7 @@ static void UpdateWindowBoundaries(BoundWindowExpression *wexpr, ChunkCollection
 			bounds.peer_end = BinarySearchRightmost(input, row_cur, row_idx, bounds.partition_end, sort_col_count) + 1;
 		}
 	} else {
-		bounds.is_same_partition = 0;
+		bounds.is_same_partition = false;
 		bounds.is_peer = true;
 		bounds.partition_end = input_size;
 		bounds.peer_end = bounds.partition_end;
@@ -487,8 +487,8 @@ static void ComputeWindowExpression(BoundWindowExpression *wexpr, ChunkCollectio
 	}
 }
 
-void PhysicalWindow::GetChunkInternal(ExecutionContext &context, DataChunk &chunk, PhysicalOperatorState *state_) {
-	auto state = reinterpret_cast<PhysicalWindowOperatorState *>(state_);
+void PhysicalWindow::GetChunkInternal(ExecutionContext &context, DataChunk &chunk, PhysicalOperatorState *state_p) {
+	auto state = reinterpret_cast<PhysicalWindowOperatorState *>(state_p);
 
 	auto &gstate = (WindowGlobalState &)*sink_state;
 
@@ -523,21 +523,21 @@ unique_ptr<PhysicalOperatorState> PhysicalWindow::GetOperatorState() {
 	return make_unique<PhysicalWindowOperatorState>(*this, children[0].get());
 }
 
-void PhysicalWindow::Sink(ExecutionContext &context, GlobalOperatorState &state, LocalSinkState &lstate_,
+void PhysicalWindow::Sink(ExecutionContext &context, GlobalOperatorState &state, LocalSinkState &lstate_p,
                           DataChunk &input) {
-	auto &lstate = (WindowLocalState &)lstate_;
+	auto &lstate = (WindowLocalState &)lstate_p;
 	lstate.chunks.Append(input);
 }
 
-void PhysicalWindow::Combine(ExecutionContext &context, GlobalOperatorState &gstate_, LocalSinkState &lstate_) {
-	auto &gstate = (WindowGlobalState &)gstate_;
-	auto &lstate = (WindowLocalState &)lstate_;
+void PhysicalWindow::Combine(ExecutionContext &context, GlobalOperatorState &gstate_p, LocalSinkState &lstate_p) {
+	auto &gstate = (WindowGlobalState &)gstate_p;
+	auto &lstate = (WindowLocalState &)lstate_p;
 	lock_guard<mutex> glock(gstate.lock);
 	gstate.chunks.Merge(lstate.chunks);
 }
 
-void PhysicalWindow::Finalize(Pipeline &pipeline, ClientContext &context, unique_ptr<GlobalOperatorState> gstate_) {
-	this->sink_state = move(gstate_);
+void PhysicalWindow::Finalize(Pipeline &pipeline, ClientContext &context, unique_ptr<GlobalOperatorState> gstate_p) {
+	this->sink_state = move(gstate_p);
 	auto &gstate = (WindowGlobalState &)*this->sink_state;
 
 	ChunkCollection &big_data = gstate.chunks;
@@ -557,7 +557,7 @@ void PhysicalWindow::Finalize(Pipeline &pipeline, ClientContext &context, unique
 		window_chunk.Initialize(window_types);
 		window_chunk.SetCardinality(big_data.GetChunk(i).size());
 		for (idx_t col_idx = 0; col_idx < window_chunk.ColumnCount(); col_idx++) {
-			window_chunk.data[col_idx].vector_type = VectorType::CONSTANT_VECTOR;
+			window_chunk.data[col_idx].SetVectorType(VectorType::CONSTANT_VECTOR);
 			ConstantVector::SetNull(window_chunk.data[col_idx], true);
 		}
 

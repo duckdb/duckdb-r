@@ -21,6 +21,7 @@
 #include "duckdb/transaction/transaction_context.hpp"
 
 #include <random>
+#include "duckdb/common/progress_bar.hpp"
 
 namespace duckdb {
 class Appender;
@@ -35,8 +36,10 @@ class ClientContextLock;
 //! The ClientContext holds information relevant to the current client session
 //! during execution
 class ClientContext : public std::enable_shared_from_this<ClientContext> {
+	friend class TransactionManager;
+
 public:
-	DUCKDB_API ClientContext(shared_ptr<DatabaseInstance> db);
+	DUCKDB_API explicit ClientContext(shared_ptr<DatabaseInstance> db);
 	DUCKDB_API ~ClientContext();
 
 	//! Query profiler
@@ -53,7 +56,15 @@ public:
 	//! The query executor
 	Executor executor;
 
-	Catalog &catalog;
+	//! The Progress Bar
+	unique_ptr<ProgressBar> progress_bar;
+	//! If the progress bar is enabled or not.
+	bool enable_progress_bar = false;
+	//! If the print of the progress bar is enabled
+	bool print_progress_bar = true;
+	//! The wait time before showing the progress bar
+	int wait_time = 2000;
+
 	unique_ptr<SchemaCatalogEntry> temporary_objects;
 	unordered_map<string, shared_ptr<PreparedStatementData>> prepared_statements;
 
@@ -108,7 +119,7 @@ public:
 	DUCKDB_API void TryBindRelation(Relation &relation, vector<ColumnDefinition> &result_columns);
 
 	//! Execute a relation
-	DUCKDB_API unique_ptr<QueryResult> Execute(shared_ptr<Relation> relation);
+	DUCKDB_API unique_ptr<QueryResult> Execute(const shared_ptr<Relation> &relation);
 
 	//! Prepare a query
 	DUCKDB_API unique_ptr<PreparedStatement> Prepare(const string &query);
@@ -121,6 +132,9 @@ public:
 	DUCKDB_API unique_ptr<QueryResult> Execute(const string &query, shared_ptr<PreparedStatementData> &prepared,
 	                                           vector<Value> &values, bool allow_stream_result = true);
 
+	//! Gets current percentage of the query's progress, returns 0 in case the progress bar is disabled.
+	int GetProgress();
+
 	//! Register function in the temporary schema
 	DUCKDB_API void RegisterFunction(CreateFunctionInfo *info);
 
@@ -130,9 +144,10 @@ public:
 
 	//! Runs a function with a valid transaction context, potentially starting a transaction if the context is in auto
 	//! commit mode.
-	DUCKDB_API void RunFunctionInTransaction(std::function<void(void)> fun, bool requires_valid_transaction = true);
+	DUCKDB_API void RunFunctionInTransaction(const std::function<void(void)> &fun,
+	                                         bool requires_valid_transaction = true);
 	//! Same as RunFunctionInTransaction, but does not obtain a lock on the client context or check for validation
-	DUCKDB_API void RunFunctionInTransactionInternal(ClientContextLock &lock, std::function<void(void)> fun,
+	DUCKDB_API void RunFunctionInTransactionInternal(ClientContextLock &lock, const std::function<void(void)> &fun,
 	                                                 bool requires_valid_transaction = true);
 
 private:
@@ -140,7 +155,7 @@ private:
 	vector<unique_ptr<SQLStatement>> ParseStatementsInternal(ClientContextLock &lock, const string &query);
 	//! Perform aggressive query verification of a SELECT statement. Only called when query_verification_enabled is
 	//! true.
-	string VerifyQuery(ClientContextLock &lock, string query, unique_ptr<SQLStatement> statement);
+	string VerifyQuery(ClientContextLock &lock, const string &query, unique_ptr<SQLStatement> statement);
 
 	void InitialCleanup(ClientContextLock &lock);
 	//! Internal clean up, does not lock. Caller must hold the context_lock.
@@ -170,7 +185,7 @@ private:
 	unique_ptr<QueryResult> RunStatementInternal(ClientContextLock &lock, const string &query,
 	                                             unique_ptr<SQLStatement> statement, bool allow_stream_result);
 	unique_ptr<PreparedStatement> PrepareInternal(ClientContextLock &lock, unique_ptr<SQLStatement> statement);
-	void LogQueryInternal(ClientContextLock &lock, string query);
+	void LogQueryInternal(ClientContextLock &lock, const string &query);
 
 	unique_ptr<ClientContextLock> LockContext();
 

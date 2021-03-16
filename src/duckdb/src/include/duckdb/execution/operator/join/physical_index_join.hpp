@@ -21,7 +21,8 @@ class PhysicalIndexJoin : public PhysicalOperator {
 public:
 	PhysicalIndexJoin(LogicalOperator &op, unique_ptr<PhysicalOperator> left, unique_ptr<PhysicalOperator> right,
 	                  vector<JoinCondition> cond, JoinType join_type, const vector<idx_t> &left_projection_map,
-	                  vector<idx_t> right_projection_map, vector<column_t> column_ids, Index *index, bool lhs_first);
+	                  vector<idx_t> right_projection_map, vector<column_t> column_ids, Index *index, bool lhs_first,
+	                  idx_t estimated_cardinality);
 	//! Columns from RHS used in the query
 	vector<column_t> column_ids;
 	//! Columns to be fetched
@@ -39,7 +40,7 @@ public:
 	//! The types of all conditions
 	vector<LogicalType> build_types;
 	//! Index used for join
-	Index *index{};
+	Index *index {};
 
 	vector<JoinCondition> conditions;
 
@@ -50,9 +51,9 @@ public:
 	unique_ptr<PhysicalOperatorState> GetOperatorState() override;
 
 private:
-	void GetRHSMatches(ExecutionContext &context, PhysicalOperatorState *state_) const;
+	void GetRHSMatches(ExecutionContext &context, PhysicalOperatorState *state_p) const;
 	//! Fills result chunk
-	void Output(ExecutionContext &context, DataChunk &chunk, PhysicalOperatorState *state_);
+	void Output(ExecutionContext &context, DataChunk &chunk, PhysicalOperatorState *state_p);
 };
 
 } // namespace duckdb

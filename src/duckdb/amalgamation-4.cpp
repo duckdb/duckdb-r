@@ -1,3 +1,39 @@
+#include "src/function/scalar/string/nfc_normalize.cpp"
+
+#include "src/function/scalar/string/pad.cpp"
+
+#include "src/function/scalar/string/prefix.cpp"
+
+#include "src/function/scalar/string/printf.cpp"
+
+#include "src/function/scalar/string/regexp.cpp"
+
+#include "src/function/scalar/string/repeat.cpp"
+
+#include "src/function/scalar/string/replace.cpp"
+
+#include "src/function/scalar/string/reverse.cpp"
+
+#include "src/function/scalar/string/string_split.cpp"
+
+#include "src/function/scalar/string/strip_accents.cpp"
+
+#include "src/function/scalar/string/substring.cpp"
+
+#include "src/function/scalar/string/suffix.cpp"
+
+#include "src/function/scalar/string/trim.cpp"
+
+#include "src/function/scalar/string_functions.cpp"
+
+#include "src/function/scalar/trigonometrics_functions.cpp"
+
+#include "src/function/table/arrow.cpp"
+
+#include "src/function/table/checkpoint.cpp"
+
+#include "src/function/table/copy_csv.cpp"
+
 #include "src/function/table/glob.cpp"
 
 #include "src/function/table/information_schema/information_schema_columns.cpp"
@@ -17,6 +53,8 @@
 #include "src/function/table/sqlite/pragma_collations.cpp"
 
 #include "src/function/table/sqlite/pragma_database_list.cpp"
+
+#include "src/function/table/sqlite/pragma_database_size.cpp"
 
 #include "src/function/table/sqlite/pragma_functions.cpp"
 
@@ -153,32 +191,4 @@
 #include "src/optimizer/pushdown/pushdown_mark_join.cpp"
 
 #include "src/optimizer/pushdown/pushdown_projection.cpp"
-
-#include "src/optimizer/pushdown/pushdown_set_operation.cpp"
-
-#include "src/optimizer/pushdown/pushdown_single_join.cpp"
-
-#include "src/optimizer/regex_range_filter.cpp"
-
-#include "src/optimizer/remove_unused_columns.cpp"
-
-#include "src/optimizer/rule/arithmetic_simplification.cpp"
-
-#include "src/optimizer/rule/case_simplification.cpp"
-
-#include "src/optimizer/rule/comparison_simplification.cpp"
-
-#include "src/optimizer/rule/conjunction_simplification.cpp"
-
-#include "src/optimizer/rule/constant_folding.cpp"
-
-#include "src/optimizer/rule/date_part_simplification.cpp"
-
-#include "src/optimizer/rule/distributivity.cpp"
-
-#include "src/optimizer/rule/empty_needle_removal.cpp"
-
-#include "src/optimizer/rule/in_clause_simplification_rule.cpp"
-
-#include "src/optimizer/rule/like_optimizations.cpp"
 

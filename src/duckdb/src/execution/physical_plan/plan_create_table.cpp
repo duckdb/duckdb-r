@@ -25,14 +25,14 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalCreateTabl
 			ExtractDependencies(*default_value, op.info->dependencies);
 		}
 	}
-	if (op.children.size() > 0) {
+	if (!op.children.empty()) {
 		D_ASSERT(op.children.size() == 1);
-		auto create = make_unique<PhysicalCreateTableAs>(op, op.schema, move(op.info));
+		auto create = make_unique<PhysicalCreateTableAs>(op, op.schema, move(op.info), op.estimated_cardinality);
 		auto plan = CreatePlan(*op.children[0]);
 		create->children.push_back(move(plan));
 		return move(create);
 	} else {
-		return make_unique<PhysicalCreateTable>(op, op.schema, move(op.info));
+		return make_unique<PhysicalCreateTable>(op, op.schema, move(op.info), op.estimated_cardinality);
 	}
 }
 

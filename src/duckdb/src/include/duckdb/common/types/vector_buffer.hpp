@@ -34,13 +34,39 @@ enum class VectorBufferType : uint8_t {
 //! The VectorBuffer is a class used by the vector to hold its data
 class VectorBuffer {
 public:
-	VectorBuffer(VectorBufferType type) : type(type) {
+	explicit VectorBuffer(VectorBufferType type) : buffer_type(type) {
 	}
-	VectorBuffer(idx_t data_size);
+	explicit VectorBuffer(idx_t data_size) : buffer_type(VectorBufferType::STANDARD_BUFFER) {
+		if (data_size > 0) {
+			data = unique_ptr<data_t[]>(new data_t[data_size]);
+		}
+	}
+	explicit VectorBuffer(VectorBufferType vectorBufferType, const LogicalType &type, VectorType vector_type)
+	    : vector_type(vector_type), type(type), buffer_type(vectorBufferType) {
+	}
 	virtual ~VectorBuffer() {
 	}
+	VectorBuffer() {
+	}
 
-	VectorBufferType type;
+	VectorBuffer(VectorType vectorType, const LogicalType &type, idx_t data_size)
+	    : vector_type(vectorType), type(type), buffer_type(VectorBufferType::STANDARD_BUFFER) {
+		if (data_size > 0) {
+			data = unique_ptr<data_t[]>(new data_t[data_size]);
+		}
+	}
+	VectorBuffer(VectorType vectorType, const LogicalType &type) : vector_type(vectorType), type(type) {
+	}
+
+	VectorBuffer(VectorType vectorType, idx_t data_size)
+	    : vector_type(vectorType), buffer_type(VectorBufferType::STANDARD_BUFFER) {
+		if (data_size > 0) {
+			data = unique_ptr<data_t[]>(new data_t[data_size]);
+		}
+	}
+
+	VectorBuffer(VectorType vectorType) : vector_type(vectorType) {
+	}
 
 public:
 	data_ptr_t GetData() {
@@ -49,26 +75,67 @@ public:
 
 	static buffer_ptr<VectorBuffer> CreateStandardVector(PhysicalType type);
 	static buffer_ptr<VectorBuffer> CreateConstantVector(PhysicalType type);
+	static buffer_ptr<VectorBuffer> CreateConstantVector(VectorType vectorType, const LogicalType &logicalType);
+	static buffer_ptr<VectorBuffer> CreateStandardVector(VectorType vectorType, const LogicalType &logicalType);
+	static buffer_ptr<VectorBuffer> CreateStandardVector(VectorType vectorType, PhysicalType type);
+
+	// Getters
+	inline VectorType GetVectorType() const {
+		return vector_type;
+	}
+	inline const LogicalType &GetType() const {
+		return type;
+	}
+	inline VectorBufferType GetBufferType() const {
+		return buffer_type;
+	}
+
+	// Setters
+	inline void SetVectorType(VectorType vector_type) {
+		this->vector_type = vector_type;
+	}
+	inline void SetType(const LogicalType &type) {
+		this->type = type;
+	}
+	inline void SetBufferType(VectorBufferType buffer_type) {
+		this->buffer_type = buffer_type;
+	}
 
 protected:
 	unique_ptr<data_t[]> data;
+	//! The vector type specifies how the data of the vector is physically stored (i.e. if it is a single repeated
+	//! constant, if it is compressed)
+	VectorType vector_type;
+	//! The type of the elements stored in the vector (e.g. integer, float)
+	LogicalType type;
+	VectorBufferType buffer_type;
 };
 
 //! The DictionaryBuffer holds a selection vector
 class DictionaryBuffer : public VectorBuffer {
 public:
-	DictionaryBuffer(const SelectionVector &sel) : VectorBuffer(VectorBufferType::DICTIONARY_BUFFER), sel_vector(sel) {
+	explicit DictionaryBuffer(const SelectionVector &sel)
+	    : VectorBuffer(VectorBufferType::DICTIONARY_BUFFER), sel_vector(sel) {
 	}
-	DictionaryBuffer(buffer_ptr<SelectionData> data)
+	DictionaryBuffer(const SelectionVector &sel, const LogicalType &type, VectorType vector_type)
+	    : VectorBuffer(VectorBufferType::DICTIONARY_BUFFER, type, vector_type), sel_vector(sel) {
+	}
+	explicit DictionaryBuffer(buffer_ptr<SelectionData> data)
 	    : VectorBuffer(VectorBufferType::DICTIONARY_BUFFER), sel_vector(move(data)) {
 	}
-	DictionaryBuffer(idx_t count = STANDARD_VECTOR_SIZE)
+	explicit DictionaryBuffer(idx_t count = STANDARD_VECTOR_SIZE)
 	    : VectorBuffer(VectorBufferType::DICTIONARY_BUFFER), sel_vector(count) {
 	}
 
 public:
+	DictionaryBuffer(buffer_ptr<SelectionData> data, LogicalType type, VectorType vector_type)
+	    : VectorBuffer(VectorBufferType::DICTIONARY_BUFFER, type, vector_type), sel_vector(move(data)) {
+	}
 	SelectionVector &GetSelVector() {
 		return sel_vector;
+	}
+	void SetSelVector(const SelectionVector &vector) {
+		this->sel_vector.Initialize(vector);
 	}
 
 private:
@@ -107,7 +174,7 @@ private:
 class VectorStructBuffer : public VectorBuffer {
 public:
 	VectorStructBuffer();
-	~VectorStructBuffer();
+	~VectorStructBuffer() override;
 
 public:
 	child_list_t<unique_ptr<Vector>> &GetChildren() {
@@ -126,7 +193,7 @@ class VectorListBuffer : public VectorBuffer {
 public:
 	VectorListBuffer();
 
-	~VectorListBuffer();
+	~VectorListBuffer() override;
 
 public:
 	ChunkCollection &GetChild() {
@@ -142,8 +209,8 @@ private:
 //! The ManagedVectorBuffer holds a buffer handle
 class ManagedVectorBuffer : public VectorBuffer {
 public:
-	ManagedVectorBuffer(unique_ptr<BufferHandle> handle);
-	~ManagedVectorBuffer();
+	explicit ManagedVectorBuffer(unique_ptr<BufferHandle> handle);
+	~ManagedVectorBuffer() override;
 
 private:
 	unique_ptr<BufferHandle> handle;

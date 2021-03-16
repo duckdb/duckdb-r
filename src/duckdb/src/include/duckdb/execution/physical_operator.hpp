@@ -16,6 +16,7 @@
 #include "duckdb/execution/execution_context.hpp"
 
 #include <functional>
+#include <utility>
 
 namespace duckdb {
 class ExpressionExecutor;
@@ -52,7 +53,8 @@ public:
 */
 class PhysicalOperator {
 public:
-	PhysicalOperator(PhysicalOperatorType type, vector<LogicalType> types) : type(type), types(types) {
+	PhysicalOperator(PhysicalOperatorType type, vector<LogicalType> types, idx_t estimated_cardinality)
+	    : type(type), types(std::move(types)), estimated_cardinality(estimated_cardinality) {
 	}
 	virtual ~PhysicalOperator() {
 	}
@@ -63,6 +65,8 @@ public:
 	vector<unique_ptr<PhysicalOperator>> children;
 	//! The types returned by this physical operator
 	vector<LogicalType> types;
+	//! The extimated cardinality of this physical operator
+	idx_t estimated_cardinality;
 
 public:
 	virtual string GetName() const;
@@ -96,6 +100,12 @@ public:
 	//! Create a new empty instance of the operator state
 	virtual unique_ptr<PhysicalOperatorState> GetOperatorState() {
 		return make_unique<PhysicalOperatorState>(*this, children.size() == 0 ? nullptr : children[0].get());
+	}
+
+	virtual void FinalizeOperatorState(PhysicalOperatorState &state, ExecutionContext &context) {
+		if (!children.empty() && state.child_state) {
+			children[0]->FinalizeOperatorState(*state.child_state, context);
+		}
 	}
 
 	virtual bool IsSink() const {

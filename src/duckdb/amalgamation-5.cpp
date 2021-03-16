@@ -1,3 +1,31 @@
+#include "src/optimizer/pushdown/pushdown_set_operation.cpp"
+
+#include "src/optimizer/pushdown/pushdown_single_join.cpp"
+
+#include "src/optimizer/regex_range_filter.cpp"
+
+#include "src/optimizer/remove_unused_columns.cpp"
+
+#include "src/optimizer/rule/arithmetic_simplification.cpp"
+
+#include "src/optimizer/rule/case_simplification.cpp"
+
+#include "src/optimizer/rule/comparison_simplification.cpp"
+
+#include "src/optimizer/rule/conjunction_simplification.cpp"
+
+#include "src/optimizer/rule/constant_folding.cpp"
+
+#include "src/optimizer/rule/date_part_simplification.cpp"
+
+#include "src/optimizer/rule/distributivity.cpp"
+
+#include "src/optimizer/rule/empty_needle_removal.cpp"
+
+#include "src/optimizer/rule/in_clause_simplification_rule.cpp"
+
+#include "src/optimizer/rule/like_optimizations.cpp"
+
 #include "src/optimizer/rule/move_constants.cpp"
 
 #include "src/optimizer/statistics/expression/propagate_aggregate.cpp"
@@ -150,6 +178,8 @@
 
 #include "src/parser/statement/select_statement.cpp"
 
+#include "src/parser/statement/set_statement.cpp"
+
 #include "src/parser/statement/show_statement.cpp"
 
 #include "src/parser/statement/transaction_statement.cpp"
@@ -161,24 +191,4 @@
 #include "src/parser/tableref.cpp"
 
 #include "src/parser/tableref/basetableref.cpp"
-
-#include "src/parser/tableref/crossproductref.cpp"
-
-#include "src/parser/tableref/emptytableref.cpp"
-
-#include "src/parser/tableref/expressionlistref.cpp"
-
-#include "src/parser/tableref/joinref.cpp"
-
-#include "src/parser/tableref/subqueryref.cpp"
-
-#include "src/parser/tableref/table_function.cpp"
-
-#include "src/parser/transform/constraint/transform_constraint.cpp"
-
-#include "src/parser/transform/expression/transform_bool_expr.cpp"
-
-#include "src/parser/transform/expression/transform_case.cpp"
-
-#include "src/parser/transform/expression/transform_cast.cpp"
 

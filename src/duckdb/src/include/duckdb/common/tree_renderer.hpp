@@ -37,10 +37,22 @@ public:
 };
 
 struct TreeRendererConfig {
+
+	void enable_detailed() {
+		MAX_EXTRA_LINES = 1000;
+		detailed = true;
+	}
+
+	void enable_standard() {
+		MAX_EXTRA_LINES = 30;
+		detailed = false;
+	}
+
 	idx_t MAXIMUM_RENDER_WIDTH = 240;
 	idx_t NODE_RENDER_WIDTH = 29;
 	idx_t MINIMUM_RENDER_WIDTH = 15;
 	idx_t MAX_EXTRA_LINES = 30;
+	bool detailed = false;
 
 	const char *LTCORNER = "┌";
 	const char *RTCORNER = "┐";
@@ -74,7 +86,7 @@ struct TreeRendererConfig {
 
 class TreeRenderer {
 public:
-	TreeRenderer(TreeRendererConfig config_p = TreeRendererConfig()) : config(move(config_p)) {
+	explicit TreeRenderer(TreeRendererConfig config_p = TreeRendererConfig()) : config(move(config_p)) {
 	}
 
 	string ToString(const LogicalOperator &op);
@@ -86,6 +98,13 @@ public:
 	void Render(const QueryProfiler::TreeNode &op, std::ostream &ss);
 
 	void ToStream(RenderTree &root, std::ostream &ss);
+
+	void EnableDetailed() {
+		config.enable_detailed();
+	}
+	void EnableStandard() {
+		config.enable_standard();
+	}
 
 private:
 	unique_ptr<RenderTree> CreateTree(const LogicalOperator &op);
@@ -110,12 +129,15 @@ private:
 	bool CanSplitOnThisChar(char l);
 	bool IsPadding(char l);
 	string RemovePadding(string l);
-	void SplitUpExtraInfo(string extra_info, vector<string> &result);
+	void SplitUpExtraInfo(const string &extra_info, vector<string> &result);
 	void SplitStringBuffer(const string &source, vector<string> &result);
 
-	template <class T> idx_t CreateRenderTreeRecursive(RenderTree &result, const T &op, idx_t x, idx_t y);
+	template <class T>
+	idx_t CreateRenderTreeRecursive(RenderTree &result, const T &op, idx_t x, idx_t y);
 
-	template <class T> unique_ptr<RenderTree> CreateRenderTree(const T &op);
+	template <class T>
+	unique_ptr<RenderTree> CreateRenderTree(const T &op);
+	string ExtractExpressionsRecursive(ExpressionInformation &states);
 };
 
 } // namespace duckdb

@@ -9,8 +9,8 @@ namespace duckdb {
 
 PhysicalNestedLoopJoin::PhysicalNestedLoopJoin(LogicalOperator &op, unique_ptr<PhysicalOperator> left,
                                                unique_ptr<PhysicalOperator> right, vector<JoinCondition> cond,
-                                               JoinType join_type)
-    : PhysicalComparisonJoin(op, PhysicalOperatorType::NESTED_LOOP_JOIN, move(cond), join_type) {
+                                               JoinType join_type, idx_t estimated_cardinality)
+    : PhysicalComparisonJoin(op, PhysicalOperatorType::NESTED_LOOP_JOIN, move(cond), join_type, estimated_cardinality) {
 	children.push_back(move(left));
 	children.push_back(move(right));
 }
@@ -20,12 +20,12 @@ static bool HasNullValues(DataChunk &chunk) {
 		VectorData vdata;
 		chunk.data[col_idx].Orrify(chunk.size(), vdata);
 
-		if (vdata.nullmask->none()) {
+		if (vdata.validity.AllValid()) {
 			continue;
 		}
 		for (idx_t i = 0; i < chunk.size(); i++) {
 			auto idx = vdata.sel->get_index(i);
-			if ((*vdata.nullmask)[idx]) {
+			if (!vdata.validity.RowIsValid(idx)) {
 				return true;
 			}
 		}
@@ -71,18 +71,18 @@ void PhysicalJoin::ConstructMarkJoinResult(DataChunk &join_keys, DataChunk &left
 		result.data[i].Reference(left.data[i]);
 	}
 	auto &mark_vector = result.data.back();
-	mark_vector.vector_type = VectorType::FLAT_VECTOR;
+	mark_vector.SetVectorType(VectorType::FLAT_VECTOR);
 	// first we set the NULL values from the join keys
 	// if there is any NULL in the keys, the result is NULL
 	auto bool_result = FlatVector::GetData<bool>(mark_vector);
-	auto &nullmask = FlatVector::Nullmask(mark_vector);
+	auto &mask = FlatVector::Validity(mark_vector);
 	for (idx_t col_idx = 0; col_idx < join_keys.ColumnCount(); col_idx++) {
 		VectorData jdata;
 		join_keys.data[col_idx].Orrify(join_keys.size(), jdata);
-		if (jdata.nullmask->any()) {
+		if (!jdata.validity.AllValid()) {
 			for (idx_t i = 0; i < join_keys.size(); i++) {
 				auto jidx = jdata.sel->get_index(i);
-				nullmask[i] = (*jdata.nullmask)[jidx];
+				mask.Set(i, jdata.validity.RowIsValid(jidx));
 			}
 		}
 	}
@@ -98,7 +98,7 @@ void PhysicalJoin::ConstructMarkJoinResult(DataChunk &join_keys, DataChunk &left
 	if (has_null) {
 		for (idx_t i = 0; i < left.size(); i++) {
 			if (!bool_result[i]) {
-				nullmask[i] = true;
+				mask.SetInvalid(i);
 			}
 		}
 	}
@@ -109,7 +109,7 @@ void PhysicalJoin::ConstructMarkJoinResult(DataChunk &join_keys, DataChunk &left
 //===--------------------------------------------------------------------===//
 class NestedLoopJoinLocalState : public LocalSinkState {
 public:
-	NestedLoopJoinLocalState(vector<JoinCondition> &conditions) {
+	explicit NestedLoopJoinLocalState(vector<JoinCondition> &conditions) {
 		vector<LogicalType> condition_types;
 		for (auto &cond : conditions) {
 			rhs_executor.AddExpression(*cond.right);
@@ -211,8 +211,8 @@ public:
 };
 
 void PhysicalNestedLoopJoin::ResolveSimpleJoin(ExecutionContext &context, DataChunk &chunk,
-                                               PhysicalOperatorState *state_) {
-	auto state = reinterpret_cast<PhysicalNestedLoopJoinState *>(state_);
+                                               PhysicalOperatorState *state_p) {
+	auto state = reinterpret_cast<PhysicalNestedLoopJoinState *>(state_p);
 	auto &gstate = (NestedLoopJoinGlobalState &)*sink_state;
 	do {
 		// fetch the chunk to resolve
@@ -256,15 +256,15 @@ void PhysicalJoin::ConstructLeftJoinResult(DataChunk &left, DataChunk &result, b
 	if (remaining_count > 0) {
 		result.Slice(left, remaining_sel, remaining_count);
 		for (idx_t idx = left.ColumnCount(); idx < result.ColumnCount(); idx++) {
-			result.data[idx].vector_type = VectorType::CONSTANT_VECTOR;
+			result.data[idx].SetVectorType(VectorType::CONSTANT_VECTOR);
 			ConstantVector::SetNull(result.data[idx], true);
 		}
 	}
 }
 
 void PhysicalNestedLoopJoin::ResolveComplexJoin(ExecutionContext &context, DataChunk &chunk,
-                                                PhysicalOperatorState *state_) {
-	auto state = reinterpret_cast<PhysicalNestedLoopJoinState *>(state_);
+                                                PhysicalOperatorState *state_p) {
+	auto state = reinterpret_cast<PhysicalNestedLoopJoinState *>(state_p);
 	auto &gstate = (NestedLoopJoinGlobalState &)*sink_state;
 
 	do {
@@ -351,8 +351,8 @@ void PhysicalNestedLoopJoin::ResolveComplexJoin(ExecutionContext &context, DataC
 }
 
 void PhysicalNestedLoopJoin::GetChunkInternal(ExecutionContext &context, DataChunk &chunk,
-                                              PhysicalOperatorState *state_) {
-	auto state = reinterpret_cast<PhysicalNestedLoopJoinState *>(state_);
+                                              PhysicalOperatorState *state_p) {
+	auto state = reinterpret_cast<PhysicalNestedLoopJoinState *>(state_p);
 	auto &gstate = (NestedLoopJoinGlobalState &)*sink_state;
 
 	if (gstate.right_chunks.Count() == 0) {
@@ -375,13 +375,13 @@ void PhysicalNestedLoopJoin::GetChunkInternal(ExecutionContext &context, DataChu
 	case JoinType::ANTI:
 	case JoinType::MARK:
 		// simple joins can have max STANDARD_VECTOR_SIZE matches per chunk
-		ResolveSimpleJoin(context, chunk, state_);
+		ResolveSimpleJoin(context, chunk, state_p);
 		break;
 	case JoinType::LEFT:
 	case JoinType::INNER:
 	case JoinType::OUTER:
 	case JoinType::RIGHT:
-		ResolveComplexJoin(context, chunk, state_);
+		ResolveComplexJoin(context, chunk, state_p);
 		break;
 	default:
 		throw NotImplementedException("Unimplemented type for nested loop join!");

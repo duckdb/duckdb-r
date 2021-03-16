@@ -5,14 +5,16 @@
 
 namespace duckdb {
 
-template <class T> struct FirstState {
+template <class T>
+struct FirstState {
 	T value;
 	bool is_set;
 	bool is_null;
 };
 
 struct FirstFunctionBase {
-	template <class STATE> static void Initialize(STATE *state) {
+	template <class STATE>
+	static void Initialize(STATE *state) {
 		state->is_set = false;
 		state->is_null = false;
 	}
@@ -24,10 +26,10 @@ struct FirstFunctionBase {
 
 struct FirstFunction : public FirstFunctionBase {
 	template <class INPUT_TYPE, class STATE, class OP>
-	static void Operation(STATE *state, INPUT_TYPE *input, nullmask_t &nullmask, idx_t idx) {
+	static void Operation(STATE *state, FunctionData *bind_data, INPUT_TYPE *input, ValidityMask &mask, idx_t idx) {
 		if (!state->is_set) {
 			state->is_set = true;
-			if (nullmask[idx]) {
+			if (!mask.RowIsValid(idx)) {
 				state->is_null = true;
 			} else {
 				state->is_null = false;
@@ -37,20 +39,22 @@ struct FirstFunction : public FirstFunctionBase {
 	}
 
 	template <class INPUT_TYPE, class STATE, class OP>
-	static void ConstantOperation(STATE *state, INPUT_TYPE *input, nullmask_t &nullmask, idx_t count) {
-		Operation<INPUT_TYPE, STATE, OP>(state, input, nullmask, 0);
+	static void ConstantOperation(STATE *state, FunctionData *bind_data, INPUT_TYPE *input, ValidityMask &mask,
+	                              idx_t count) {
+		Operation<INPUT_TYPE, STATE, OP>(state, bind_data, input, mask, 0);
 	}
 
-	template <class STATE, class OP> static void Combine(STATE source, STATE *target) {
+	template <class STATE, class OP>
+	static void Combine(STATE source, STATE *target) {
 		if (!target->is_set) {
 			*target = source;
 		}
 	}
 
 	template <class T, class STATE>
-	static void Finalize(Vector &result, FunctionData *, STATE *state, T *target, nullmask_t &nullmask, idx_t idx) {
+	static void Finalize(Vector &result, FunctionData *, STATE *state, T *target, ValidityMask &mask, idx_t idx) {
 		if (!state->is_set || state->is_null) {
-			nullmask[idx] = true;
+			mask.SetInvalid(idx);
 		} else {
 			target[idx] = state->value;
 		}
@@ -58,7 +62,8 @@ struct FirstFunction : public FirstFunctionBase {
 };
 
 struct FirstFunctionString : public FirstFunctionBase {
-	template <class STATE> static void SetValue(STATE *state, string_t value, bool is_null) {
+	template <class STATE>
+	static void SetValue(STATE *state, string_t value, bool is_null) {
 		state->is_set = true;
 		if (is_null) {
 			state->is_null = true;
@@ -77,44 +82,48 @@ struct FirstFunctionString : public FirstFunctionBase {
 	}
 
 	template <class INPUT_TYPE, class STATE, class OP>
-	static void Operation(STATE *state, INPUT_TYPE *input, nullmask_t &nullmask, idx_t idx) {
+	static void Operation(STATE *state, FunctionData *bind_data, INPUT_TYPE *input, ValidityMask &mask, idx_t idx) {
 		if (!state->is_set) {
-			SetValue(state, input[idx], nullmask[idx]);
+			SetValue(state, input[idx], !mask.RowIsValid(idx));
 		}
 	}
 
 	template <class INPUT_TYPE, class STATE, class OP>
-	static void ConstantOperation(STATE *state, INPUT_TYPE *input, nullmask_t &nullmask, idx_t count) {
-		Operation<INPUT_TYPE, STATE, OP>(state, input, nullmask, 0);
+	static void ConstantOperation(STATE *state, FunctionData *bind_data, INPUT_TYPE *input, ValidityMask &mask,
+	                              idx_t count) {
+		Operation<INPUT_TYPE, STATE, OP>(state, bind_data, input, mask, 0);
 	}
 
-	template <class STATE, class OP> static void Combine(STATE source, STATE *target) {
+	template <class STATE, class OP>
+	static void Combine(STATE source, STATE *target) {
 		if (source.is_set && !target->is_set) {
 			SetValue(target, source.value, source.is_null);
 		}
 	}
 
 	template <class T, class STATE>
-	static void Finalize(Vector &result, FunctionData *, STATE *state, T *target, nullmask_t &nullmask, idx_t idx) {
+	static void Finalize(Vector &result, FunctionData *, STATE *state, T *target, ValidityMask &mask, idx_t idx) {
 		if (!state->is_set || state->is_null) {
-			nullmask[idx] = true;
+			mask.SetInvalid(idx);
 		} else {
 			target[idx] = StringVector::AddString(result, state->value);
 		}
 	}
 
-	template <class STATE> static void Destroy(STATE *state) {
+	template <class STATE>
+	static void Destroy(STATE *state) {
 		if (state->is_set && !state->is_null && !state->value.IsInlined()) {
 			delete[] state->value.GetDataUnsafe();
 		}
 	}
 };
 
-template <class T> static AggregateFunction GetFirstAggregateTemplated(LogicalType type) {
+template <class T>
+static AggregateFunction GetFirstAggregateTemplated(LogicalType type) {
 	return AggregateFunction::UnaryAggregate<FirstState<T>, T, T, FirstFunction>(type, type);
 }
 
-AggregateFunction GetDecimalFirstFunction(LogicalType type) {
+AggregateFunction GetDecimalFirstFunction(const LogicalType &type) {
 	D_ASSERT(type.id() == LogicalTypeId::DECIMAL);
 	switch (type.InternalType()) {
 	case PhysicalType::INT16:
@@ -128,7 +137,7 @@ AggregateFunction GetDecimalFirstFunction(LogicalType type) {
 	}
 }
 
-AggregateFunction FirstFun::GetFunction(LogicalType type) {
+AggregateFunction FirstFun::GetFunction(const LogicalType &type) {
 	switch (type.id()) {
 	case LogicalTypeId::BOOLEAN:
 		return GetFirstAggregateTemplated<int8_t>(type);
@@ -175,8 +184,8 @@ AggregateFunction FirstFun::GetFunction(LogicalType type) {
 	}
 }
 
-unique_ptr<FunctionData> bind_decimal_first(ClientContext &context, AggregateFunction &function,
-                                            vector<unique_ptr<Expression>> &arguments) {
+unique_ptr<FunctionData> BindDecimalFirst(ClientContext &context, AggregateFunction &function,
+                                          vector<unique_ptr<Expression>> &arguments) {
 	auto decimal_type = arguments[0]->return_type;
 	function = FirstFun::GetFunction(decimal_type);
 	return nullptr;
@@ -184,10 +193,10 @@ unique_ptr<FunctionData> bind_decimal_first(ClientContext &context, AggregateFun
 
 void FirstFun::RegisterFunction(BuiltinFunctions &set) {
 	AggregateFunctionSet first("first");
-	for (auto type : LogicalType::ALL_TYPES) {
+	for (auto &type : LogicalType::ALL_TYPES) {
 		if (type.id() == LogicalTypeId::DECIMAL) {
 			first.AddFunction(AggregateFunction({type}, type, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-			                                    bind_decimal_first));
+			                                    BindDecimalFirst));
 		} else {
 			first.AddFunction(FirstFun::GetFunction(type));
 		}
@@ -195,4 +204,16 @@ void FirstFun::RegisterFunction(BuiltinFunctions &set) {
 	set.AddFunction(first);
 }
 
+void ArbitraryFun::RegisterFunction(BuiltinFunctions &set) {
+	AggregateFunctionSet first("arbitrary");
+	for (const auto &type : LogicalType::ALL_TYPES) {
+		if (type.id() == LogicalTypeId::DECIMAL) {
+			first.AddFunction(AggregateFunction({type}, type, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+			                                    BindDecimalFirst));
+		} else {
+			first.AddFunction(FirstFun::GetFunction(type));
+		}
+	}
+	set.AddFunction(first);
+}
 } // namespace duckdb

@@ -21,9 +21,9 @@ class BufferManager;
 class PhysicalHashAggregate : public PhysicalSink {
 public:
 	PhysicalHashAggregate(ClientContext &context, vector<LogicalType> types, vector<unique_ptr<Expression>> expressions,
-	                      PhysicalOperatorType type = PhysicalOperatorType::HASH_GROUP_BY);
+	                      idx_t estimated_cardinality, PhysicalOperatorType type = PhysicalOperatorType::HASH_GROUP_BY);
 	PhysicalHashAggregate(ClientContext &context, vector<LogicalType> types, vector<unique_ptr<Expression>> expressions,
-	                      vector<unique_ptr<Expression>> groups,
+	                      vector<unique_ptr<Expression>> groups, idx_t estimated_cardinality,
 	                      PhysicalOperatorType type = PhysicalOperatorType::HASH_GROUP_BY);
 
 	//! The groups
@@ -48,7 +48,7 @@ public:
 	//! Pointers to the aggregates
 	vector<BoundAggregateExpression *> bindings;
 
-	unordered_map<Expression*,size_t> ht;
+	unordered_map<Expression *, size_t> ht;
 
 public:
 	void Sink(ExecutionContext &context, GlobalOperatorState &state, LocalSinkState &lstate, DataChunk &input) override;

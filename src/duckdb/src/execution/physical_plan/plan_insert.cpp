@@ -7,13 +7,14 @@ namespace duckdb {
 
 unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalInsert &op) {
 	unique_ptr<PhysicalOperator> plan;
-	if (op.children.size() > 0) {
+	if (!op.children.empty()) {
 		D_ASSERT(op.children.size() == 1);
 		plan = CreatePlan(*op.children[0]);
 	}
 
 	dependencies.insert(op.table);
-	auto insert = make_unique<PhysicalInsert>(op.types, op.table, op.column_index_map, move(op.bound_defaults));
+	auto insert = make_unique<PhysicalInsert>(op.types, op.table, op.column_index_map, move(op.bound_defaults),
+	                                          op.estimated_cardinality);
 	if (plan) {
 		insert->children.push_back(move(plan));
 	}

@@ -12,16 +12,17 @@
 #include "duckdb/execution/expression_executor_state.hpp"
 #include "duckdb/planner/bound_tokens.hpp"
 #include "duckdb/planner/expression.hpp"
+#include "duckdb/common/random_engine.hpp"
 
 namespace duckdb {
-
+class ExecutionContext;
 //! ExpressionExecutor is responsible for executing a set of expressions and storing the result in a data chunk
 class ExpressionExecutor {
 public:
 	ExpressionExecutor();
-	ExpressionExecutor(Expression *expression);
-	ExpressionExecutor(Expression &expression);
-	ExpressionExecutor(vector<unique_ptr<Expression>> &expressions);
+	explicit ExpressionExecutor(Expression *expression);
+	explicit ExpressionExecutor(Expression &expression);
+	explicit ExpressionExecutor(vector<unique_ptr<Expression>> &expressions);
 
 	//! Add an expression to the set of to-be-executed expressions of the executor
 	void AddExpression(Expression &expr);
@@ -59,6 +60,21 @@ public:
 	void SetChunk(DataChunk &chunk) {
 		SetChunk(&chunk);
 	}
+
+	vector<unique_ptr<ExpressionExecutorState>> &GetStates();
+
+	//! Count the number of time the executor called
+	uint64_t total_count = 0;
+	//! Count the number of time the executor called since last sampling
+	uint64_t current_count = 0;
+	//! Show the next sample
+	uint64_t next_sample = 0;
+	//! Count the number of samples
+	uint64_t sample_count = 0;
+	//! Count the number of tuples in all samples
+	uint64_t sample_tuples_count = 0;
+	//! Count the number of tuples processed by this executor
+	uint64_t tuples_count = 0;
 
 	//! The expressions of the executor
 	vector<Expression *> expressions;
@@ -125,5 +141,7 @@ protected:
 private:
 	//! The states of the expression executor; this holds any intermediates and temporary states of expressions
 	vector<unique_ptr<ExpressionExecutorState>> states;
+
+	RandomEngine random;
 };
 } // namespace duckdb

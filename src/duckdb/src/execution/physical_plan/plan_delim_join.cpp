@@ -30,7 +30,7 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalDelimJoin 
 	// first gather the scans on the duplicate eliminated data set from the RHS
 	vector<PhysicalOperator *> delim_scans;
 	GatherDelimScans(plan->children[1].get(), delim_scans);
-	if (delim_scans.size() == 0) {
+	if (delim_scans.empty()) {
 		// no duplicate eliminated scans in the RHS!
 		// in this case we don't need to create a delim join
 		// just push the normal join
@@ -45,10 +45,10 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalDelimJoin 
 		distinct_groups.push_back(make_unique<BoundReferenceExpression>(bound_ref.return_type, bound_ref.index));
 	}
 	// now create the duplicate eliminated join
-	auto delim_join = make_unique<PhysicalDelimJoin>(op.types, move(plan), delim_scans);
+	auto delim_join = make_unique<PhysicalDelimJoin>(op.types, move(plan), delim_scans, op.estimated_cardinality);
 	// we still have to create the DISTINCT clause that is used to generate the duplicate eliminated chunk
-	delim_join->distinct =
-	    make_unique<PhysicalHashAggregate>(context, delim_types, move(distinct_expressions), move(distinct_groups));
+	delim_join->distinct = make_unique<PhysicalHashAggregate>(context, delim_types, move(distinct_expressions),
+	                                                          move(distinct_groups), op.estimated_cardinality);
 	return move(delim_join);
 }
 

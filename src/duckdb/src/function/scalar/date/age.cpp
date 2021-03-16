@@ -8,28 +8,28 @@
 
 namespace duckdb {
 
-static void age_function_standard(DataChunk &input, ExpressionState &state, Vector &result) {
+static void AgeFunctionStandard(DataChunk &input, ExpressionState &state, Vector &result) {
 	D_ASSERT(input.ColumnCount() == 1);
 	auto current_timestamp = Timestamp::GetCurrentTimestamp();
 
-	UnaryExecutor::Execute<timestamp_t, interval_t, true>(input.data[0], result, input.size(), [&](timestamp_t input) {
+	UnaryExecutor::Execute<timestamp_t, interval_t>(input.data[0], result, input.size(), [&](timestamp_t input) {
 		return Interval::GetDifference(current_timestamp, input);
 	});
 }
 
-static void age_function(DataChunk &input, ExpressionState &state, Vector &result) {
+static void AgeFunction(DataChunk &input, ExpressionState &state, Vector &result) {
 	D_ASSERT(input.ColumnCount() == 2);
 
-	BinaryExecutor::Execute<timestamp_t, timestamp_t, interval_t, true>(
+	BinaryExecutor::Execute<timestamp_t, timestamp_t, interval_t>(
 	    input.data[0], input.data[1], result, input.size(),
 	    [&](timestamp_t input1, timestamp_t input2) { return Interval::GetDifference(input1, input2); });
 }
 
 void AgeFun::RegisterFunction(BuiltinFunctions &set) {
 	ScalarFunctionSet age("age");
-	age.AddFunction(ScalarFunction({LogicalType::TIMESTAMP}, LogicalType::INTERVAL, age_function_standard));
+	age.AddFunction(ScalarFunction({LogicalType::TIMESTAMP}, LogicalType::INTERVAL, AgeFunctionStandard));
 	age.AddFunction(
-	    ScalarFunction({LogicalType::TIMESTAMP, LogicalType::TIMESTAMP}, LogicalType::INTERVAL, age_function));
+	    ScalarFunction({LogicalType::TIMESTAMP, LogicalType::TIMESTAMP}, LogicalType::INTERVAL, AgeFunction));
 	set.AddFunction(age);
 }
 
