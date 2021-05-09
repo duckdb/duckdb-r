@@ -331,7 +331,7 @@ static void NumericCastSwitch(Vector &source, Vector &result, idx_t count) {
 		break;
 	}
 	case LogicalTypeId::LIST: {
-		auto list_child = make_unique<ChunkCollection>();
+		auto list_child = make_unique<Vector>();
 		ListVector::SetEntry(result, move(list_child));
 		VectorNullCast(source, result, count);
 		break;
@@ -414,6 +414,15 @@ static void StringCastSwitch(Vector &source, Vector &result, idx_t count, bool s
 	case LogicalTypeId::TIMESTAMP:
 		UnaryExecutor::Execute<string_t, timestamp_t, duckdb::CastToTimestamp>(source, result, count);
 		break;
+	case LogicalTypeId::TIMESTAMP_NS:
+		UnaryExecutor::Execute<string_t, timestamp_t, duckdb::CastToTimestampNS>(source, result, count);
+		break;
+	case LogicalTypeId::TIMESTAMP_SEC:
+		UnaryExecutor::Execute<string_t, timestamp_t, duckdb::CastToTimestampSec>(source, result, count);
+		break;
+	case LogicalTypeId::TIMESTAMP_MS:
+		UnaryExecutor::Execute<string_t, timestamp_t, duckdb::CastToTimestampMS>(source, result, count);
+		break;
 	case LogicalTypeId::BLOB:
 		VectorStringCast<string_t, duckdb::CastToBlob>(source, result, count);
 		break;
@@ -471,6 +480,57 @@ static void TimestampCastSwitch(Vector &source, Vector &result, idx_t count) {
 	case LogicalTypeId::TIME:
 		// timestamp to time
 		UnaryExecutor::Execute<timestamp_t, dtime_t, duckdb::CastTimestampToTime>(source, result, count);
+		break;
+	case LogicalTypeId::TIMESTAMP_NS:
+		// timestamp (us) to timestamp (ns)
+		UnaryExecutor::Execute<timestamp_t, timestamp_t, duckdb::CastTimestampUsToNs>(source, result, count);
+		break;
+	case LogicalTypeId::TIMESTAMP_MS:
+		// timestamp (us) to timestamp (ms)
+		UnaryExecutor::Execute<timestamp_t, timestamp_t, duckdb::CastTimestampUsToMs>(source, result, count);
+		break;
+	case LogicalTypeId::TIMESTAMP_SEC:
+		// timestamp (us) to timestamp (s)
+		UnaryExecutor::Execute<timestamp_t, timestamp_t, duckdb::CastTimestampUsToSec>(source, result, count);
+		break;
+	default:
+		VectorNullCast(source, result, count);
+		break;
+	}
+}
+
+static void TimestampNsCastSwitch(Vector &source, Vector &result, idx_t count) {
+	// now switch on the result type
+	switch (result.GetType().id()) {
+	case LogicalTypeId::TIMESTAMP:
+		// timestamp (ns) to timestamp (us)
+		UnaryExecutor::Execute<timestamp_t, timestamp_t, duckdb::CastTimestampNsToUs>(source, result, count);
+		break;
+	default:
+		VectorNullCast(source, result, count);
+		break;
+	}
+}
+
+static void TimestampMsCastSwitch(Vector &source, Vector &result, idx_t count) {
+	// now switch on the result type
+	switch (result.GetType().id()) {
+	case LogicalTypeId::TIMESTAMP:
+		// timestamp (ms) to timestamp (us)
+		UnaryExecutor::Execute<timestamp_t, timestamp_t, duckdb::CastTimestampMsToUs>(source, result, count);
+		break;
+	default:
+		VectorNullCast(source, result, count);
+		break;
+	}
+}
+
+static void TimestampSecCastSwitch(Vector &source, Vector &result, idx_t count) {
+	// now switch on the result type
+	switch (result.GetType().id()) {
+	case LogicalTypeId::TIMESTAMP:
+		// timestamp (s) to timestamp (us)
+		UnaryExecutor::Execute<timestamp_t, timestamp_t, duckdb::CastTimestampSecToUs>(source, result, count);
 		break;
 	default:
 		VectorNullCast(source, result, count);
@@ -536,22 +596,21 @@ static void ListCastSwitch(Vector &source, Vector &result, idx_t count) {
 			result.SetVectorType(VectorType::FLAT_VECTOR);
 			FlatVector::SetValidity(result, FlatVector::Validity(source));
 		}
-		auto list_child = make_unique<ChunkCollection>();
+		auto list_child = make_unique<Vector>(result.GetType().child_types()[0].second);
+		ListVector::SetEntry(result, move(list_child));
 		if (ListVector::HasEntry(source)) {
 			auto &source_cc = ListVector::GetEntry(source);
-			auto &target_cc = *list_child;
-			// convert the entire chunk collection
-			vector<LogicalType> result_types;
-			result_types.push_back(result.GetType().child_types()[0].second);
-			DataChunk append_chunk;
-			append_chunk.Initialize(result_types);
-			for (auto &chunk : source_cc.Chunks()) {
-				VectorOperations::Cast(chunk->data[0], append_chunk.data[0], chunk->size());
-				append_chunk.SetCardinality(chunk->size());
-				target_cc.Append(append_chunk);
+			auto source_size = ListVector::GetListSize(source);
+			Vector append_vector(result.GetType().child_types()[0].second);
+			if (source_size > STANDARD_VECTOR_SIZE) {
+				append_vector.Resize(STANDARD_VECTOR_SIZE, source_size);
+			}
+			if (source_cc.GetData()) {
+				VectorOperations::Cast(source_cc, append_vector, source_size);
+				ListVector::Append(result, append_vector, source_size);
 			}
 		}
-		ListVector::SetEntry(result, move(list_child));
+
 		auto ldata = FlatVector::GetData<list_entry_t>(source);
 		auto tdata = FlatVector::GetData<list_entry_t>(result);
 		for (idx_t i = 0; i < count; i++) {
@@ -665,6 +724,15 @@ void VectorOperations::Cast(Vector &source, Vector &result, idx_t count, bool st
 		break;
 	case LogicalTypeId::TIMESTAMP:
 		TimestampCastSwitch(source, result, count);
+		break;
+	case LogicalTypeId::TIMESTAMP_NS:
+		TimestampNsCastSwitch(source, result, count);
+		break;
+	case LogicalTypeId::TIMESTAMP_MS:
+		TimestampMsCastSwitch(source, result, count);
+		break;
+	case LogicalTypeId::TIMESTAMP_SEC:
+		TimestampSecCastSwitch(source, result, count);
 		break;
 	case LogicalTypeId::INTERVAL:
 		IntervalCastSwitch(source, result, count);

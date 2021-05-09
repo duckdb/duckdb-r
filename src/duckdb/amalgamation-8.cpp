@@ -18,7 +18,15 @@
 
 #include "src/storage/table/segment_tree.cpp"
 
+#include "src/storage/table/standard_column_data.cpp"
+
 #include "src/storage/table/transient_segment.cpp"
+
+#include "src/storage/table/update_segment.cpp"
+
+#include "src/storage/table/validity_column_data.cpp"
+
+#include "src/storage/table/validity_segment.cpp"
 
 #include "src/storage/uncompressed_segment.cpp"
 

@@ -44,6 +44,11 @@ void Transformer::TransformWindowDef(duckdb_libpgquery::PGWindowDef *window_spec
 	// next: partitioning/ordering expressions
 	TransformExpressionList(window_spec->partitionClause, expr->partitions);
 	TransformOrderBy(window_spec->orderClause, expr->orders);
+}
+
+void Transformer::TransformWindowFrame(duckdb_libpgquery::PGWindowDef *window_spec, WindowExpression *expr) {
+	D_ASSERT(window_spec);
+	D_ASSERT(expr);
 
 	// finally: specifics of bounds
 	expr->start_expr = TransformExpression(window_spec->startOffset);
@@ -162,7 +167,17 @@ unique_ptr<ParsedExpression> Transformer::TransformFuncCall(duckdb_libpgquery::P
 			window_spec = it->second;
 			D_ASSERT(window_spec);
 		}
-		TransformWindowDef(window_spec, expr.get());
+		auto window_ref = window_spec;
+		if (window_ref->refname) {
+			auto it = window_clauses.find(StringUtil::Lower(string(window_spec->refname)));
+			if (it == window_clauses.end()) {
+				throw ParserException("window \"%s\" does not exist", window_spec->refname);
+			}
+			window_ref = it->second;
+			D_ASSERT(window_ref);
+		}
+		TransformWindowDef(window_ref, expr.get());
+		TransformWindowFrame(window_spec, expr.get());
 
 		return move(expr);
 	}
@@ -196,9 +211,11 @@ unique_ptr<ParsedExpression> Transformer::TransformFuncCall(duckdb_libpgquery::P
 		expr->case_checks.push_back(move(check));
 		expr->else_expr = move(children[2]);
 		return move(expr);
-	}
-
-	else if (lowercase_name == "ifnull") {
+	} else if (lowercase_name == "construct_array") {
+		auto construct_array = make_unique<OperatorExpression>(ExpressionType::ARRAY_CONSTRUCTOR);
+		construct_array->children = move(children);
+		return move(construct_array);
+	} else if (lowercase_name == "ifnull") {
 		if (children.size() != 2) {
 			throw ParserException("Wrong number of arguments to IFNULL.");
 		}

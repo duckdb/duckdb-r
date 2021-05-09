@@ -1,5 +1,3 @@
-#include "src/parser/tableref/crossproductref.cpp"
-
 #include "src/parser/tableref/emptytableref.cpp"
 
 #include "src/parser/tableref/expressionlistref.cpp"
@@ -11,6 +9,8 @@
 #include "src/parser/tableref/table_function.cpp"
 
 #include "src/parser/transform/constraint/transform_constraint.cpp"
+
+#include "src/parser/transform/expression/transform_array_access.cpp"
 
 #include "src/parser/transform/expression/transform_bool_expr.cpp"
 
@@ -37,6 +37,8 @@
 #include "src/parser/transform/expression/transform_operator.cpp"
 
 #include "src/parser/transform/expression/transform_param_ref.cpp"
+
+#include "src/parser/transform/expression/transform_positional_reference.cpp"
 
 #include "src/parser/transform/expression/transform_subquery.cpp"
 
@@ -87,6 +89,8 @@
 #include "src/parser/transform/statement/transform_import.cpp"
 
 #include "src/parser/transform/statement/transform_insert.cpp"
+
+#include "src/parser/transform/statement/transform_load.cpp"
 
 #include "src/parser/transform/statement/transform_pragma.cpp"
 
@@ -153,6 +157,8 @@
 #include "src/planner/binder/expression/bind_operator_expression.cpp"
 
 #include "src/planner/binder/expression/bind_parameter_expression.cpp"
+
+#include "src/planner/binder/expression/bind_positional_reference_expression.cpp"
 
 #include "src/planner/binder/expression/bind_subquery_expression.cpp"
 

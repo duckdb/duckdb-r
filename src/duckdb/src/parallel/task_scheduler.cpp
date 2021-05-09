@@ -24,8 +24,8 @@ struct SchedulerThread {
 };
 
 #ifndef DUCKDB_NO_THREADS
-typedef moodycamel::ConcurrentQueue<unique_ptr<Task>> concurrent_queue_t;
-typedef moodycamel::LightweightSemaphore lightweight_semaphore_t;
+typedef duckdb_moodycamel::ConcurrentQueue<unique_ptr<Task>> concurrent_queue_t;
+typedef duckdb_moodycamel::LightweightSemaphore lightweight_semaphore_t;
 
 struct ConcurrentQueue {
 	concurrent_queue_t q;
@@ -39,7 +39,7 @@ struct QueueProducerToken {
 	explicit QueueProducerToken(ConcurrentQueue &queue) : queue_token(queue.q) {
 	}
 
-	moodycamel::ProducerToken queue_token;
+	duckdb_moodycamel::ProducerToken queue_token;
 };
 
 void ConcurrentQueue::Enqueue(ProducerToken &token, unique_ptr<Task> task) {
@@ -120,7 +120,7 @@ bool TaskScheduler::GetTaskFromProducer(ProducerToken &token, unique_ptr<Task> &
 	return queue->DequeueFromProducer(token, task);
 }
 
-void TaskScheduler::ExecuteForever(bool *marker) {
+void TaskScheduler::ExecuteForever(atomic<bool> *marker) {
 #ifndef DUCKDB_NO_THREADS
 	unique_ptr<Task> task;
 	// loop until the marker is set to false
@@ -138,7 +138,7 @@ void TaskScheduler::ExecuteForever(bool *marker) {
 }
 
 #ifndef DUCKDB_NO_THREADS
-static void ThreadExecuteTasks(TaskScheduler *scheduler, bool *marker) {
+static void ThreadExecuteTasks(TaskScheduler *scheduler, atomic<bool> *marker) {
 	scheduler->ExecuteForever(marker);
 }
 #endif
@@ -154,7 +154,9 @@ void TaskScheduler::SetThreads(int32_t n) {
 	}
 	SetThreadsInternal(n);
 #else
-	throw NotImplementedException("DuckDB was compiled without threads! Setting threads is not allowed.");
+	if (n != 1) {
+		throw NotImplementedException("DuckDB was compiled without threads! Setting threads > 1 is not allowed.");
+	}
 #endif
 }
 
@@ -169,7 +171,7 @@ void TaskScheduler::SetThreadsInternal(int32_t n) {
 		idx_t create_new_threads = new_thread_count - threads.size();
 		for (idx_t i = 0; i < create_new_threads; i++) {
 			// launch a thread and assign it a cancellation marker
-			auto marker = unique_ptr<bool>(new bool(true));
+			auto marker = unique_ptr<atomic<bool>>(new atomic<bool>(true));
 			auto worker_thread = make_unique<thread>(ThreadExecuteTasks, this, marker.get());
 			auto thread_wrapper = make_unique<SchedulerThread>(move(worker_thread));
 

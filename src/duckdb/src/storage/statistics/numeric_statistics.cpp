@@ -4,6 +4,76 @@
 
 namespace duckdb {
 
+template <>
+void NumericStatistics::Update<int8_t>(SegmentStatistics &stats, int8_t new_value) {
+	auto &nstats = (NumericStatistics &)*stats.statistics;
+	UpdateValue<int8_t>(new_value, nstats.min.value_.tinyint, nstats.max.value_.tinyint);
+}
+
+template <>
+void NumericStatistics::Update<int16_t>(SegmentStatistics &stats, int16_t new_value) {
+	auto &nstats = (NumericStatistics &)*stats.statistics;
+	UpdateValue<int16_t>(new_value, nstats.min.value_.smallint, nstats.max.value_.smallint);
+}
+
+template <>
+void NumericStatistics::Update<int32_t>(SegmentStatistics &stats, int32_t new_value) {
+	auto &nstats = (NumericStatistics &)*stats.statistics;
+	UpdateValue<int32_t>(new_value, nstats.min.value_.integer, nstats.max.value_.integer);
+}
+
+template <>
+void NumericStatistics::Update<int64_t>(SegmentStatistics &stats, int64_t new_value) {
+	auto &nstats = (NumericStatistics &)*stats.statistics;
+	UpdateValue<int64_t>(new_value, nstats.min.value_.bigint, nstats.max.value_.bigint);
+}
+
+template <>
+void NumericStatistics::Update<uint8_t>(SegmentStatistics &stats, uint8_t new_value) {
+	auto &nstats = (NumericStatistics &)*stats.statistics;
+	UpdateValue<uint8_t>(new_value, nstats.min.value_.utinyint, nstats.max.value_.utinyint);
+}
+
+template <>
+void NumericStatistics::Update<uint16_t>(SegmentStatistics &stats, uint16_t new_value) {
+	auto &nstats = (NumericStatistics &)*stats.statistics;
+	UpdateValue<uint16_t>(new_value, nstats.min.value_.usmallint, nstats.max.value_.usmallint);
+}
+
+template <>
+void NumericStatistics::Update<uint32_t>(SegmentStatistics &stats, uint32_t new_value) {
+	auto &nstats = (NumericStatistics &)*stats.statistics;
+	UpdateValue<uint32_t>(new_value, nstats.min.value_.uinteger, nstats.max.value_.uinteger);
+}
+
+template <>
+void NumericStatistics::Update<uint64_t>(SegmentStatistics &stats, uint64_t new_value) {
+	auto &nstats = (NumericStatistics &)*stats.statistics;
+	UpdateValue<uint64_t>(new_value, nstats.min.value_.ubigint, nstats.max.value_.ubigint);
+}
+
+template <>
+void NumericStatistics::Update<hugeint_t>(SegmentStatistics &stats, hugeint_t new_value) {
+	auto &nstats = (NumericStatistics &)*stats.statistics;
+	UpdateValue<hugeint_t>(new_value, nstats.min.value_.hugeint, nstats.max.value_.hugeint);
+}
+
+template <>
+void NumericStatistics::Update<float>(SegmentStatistics &stats, float new_value) {
+	auto &nstats = (NumericStatistics &)*stats.statistics;
+	UpdateValue<float>(new_value, nstats.min.value_.float_, nstats.max.value_.float_);
+}
+
+template <>
+void NumericStatistics::Update<double>(SegmentStatistics &stats, double new_value) {
+	auto &nstats = (NumericStatistics &)*stats.statistics;
+	UpdateValue<double>(new_value, nstats.min.value_.double_, nstats.max.value_.double_);
+}
+
+template <>
+void NumericStatistics::Update<interval_t>(SegmentStatistics &stats, interval_t new_value) {
+}
+
 NumericStatistics::NumericStatistics(LogicalType type_p) : BaseStatistics(move(type_p)) {
 	min = Value::MaximumValue(type);
 	max = Value::MinimumValue(type);
@@ -14,8 +84,8 @@ NumericStatistics::NumericStatistics(LogicalType type_p, Value min_p, Value max_
 }
 
 void NumericStatistics::Merge(const BaseStatistics &other_p) {
+	BaseStatistics::Merge(other_p);
 	auto &other = (const NumericStatistics &)other_p;
-	has_null = has_null || other.has_null;
 	if (other.min < min) {
 		min = other.min;
 	}
@@ -43,7 +113,9 @@ bool NumericStatistics::CheckZonemap(ExpressionType comparison_type, const Value
 
 unique_ptr<BaseStatistics> NumericStatistics::Copy() {
 	auto stats = make_unique<NumericStatistics>(type, min, max);
-	stats->has_null = has_null;
+	if (validity_stats) {
+		stats->validity_stats = validity_stats->Copy();
+	}
 	return move(stats);
 }
 
@@ -60,8 +132,8 @@ unique_ptr<BaseStatistics> NumericStatistics::Deserialize(Deserializer &source, 
 }
 
 string NumericStatistics::ToString() {
-	return StringUtil::Format("Numeric Statistics<%s> [Has Null: %s, Min: %s, Max: %s]", type.ToString(),
-	                          has_null ? "true" : "false", min.ToString(), max.ToString());
+	return StringUtil::Format("Numeric Statistics<%s> %s[Min: %s, Max: %s]", type.ToString(),
+	                          validity_stats ? validity_stats->ToString() : "", min.ToString(), max.ToString());
 }
 
 template <class T>

@@ -9,6 +9,7 @@
 
 #include "duckdb/storage/numeric_segment.hpp"
 #include "duckdb/storage/string_segment.hpp"
+#include "duckdb/storage/table/validity_segment.hpp"
 
 namespace duckdb {
 
@@ -20,6 +21,8 @@ PersistentSegment::PersistentSegment(DatabaseInstance &db, block_id_t id, idx_t 
 	if (type.InternalType() == PhysicalType::VARCHAR) {
 		data = make_unique<StringSegment>(db, start, id);
 		data->max_vector_count = count / STANDARD_VECTOR_SIZE + (count % STANDARD_VECTOR_SIZE == 0 ? 0 : 1);
+	} else if (type.InternalType() == PhysicalType::BIT) {
+		data = make_unique<ValiditySegment>(db, start, id);
 	} else {
 		data = make_unique<NumericSegment>(db, type.InternalType(), start, id);
 	}
@@ -30,50 +33,16 @@ void PersistentSegment::InitializeScan(ColumnScanState &state) {
 	data->InitializeScan(state);
 }
 
-void PersistentSegment::Scan(Transaction &transaction, ColumnScanState &state, idx_t vector_index, Vector &result) {
-	data->Scan(transaction, state, vector_index, result);
-}
-
-void PersistentSegment::ScanCommitted(ColumnScanState &state, idx_t vector_index, Vector &result) {
-	data->ScanCommitted(state, vector_index, result);
-}
-
-void PersistentSegment::FilterScan(Transaction &transaction, ColumnScanState &state, Vector &result,
-                                   SelectionVector &sel, idx_t &approved_tuple_count) {
-	data->FilterScan(transaction, state, result, sel, approved_tuple_count);
-}
-
-void PersistentSegment::IndexScan(ColumnScanState &state, Vector &result) {
-	data->IndexScan(state, state.vector_index, result);
-}
-
-void PersistentSegment::Select(Transaction &transaction, ColumnScanState &state, Vector &result, SelectionVector &sel,
-                               idx_t &approved_tuple_count, vector<TableFilter> &table_filter) {
-	data->Select(transaction, result, table_filter, sel, approved_tuple_count, state);
+void PersistentSegment::Scan(ColumnScanState &state, idx_t vector_index, Vector &result) {
+	data->Scan(state, vector_index, result);
 }
 
 void PersistentSegment::Fetch(ColumnScanState &state, idx_t vector_index, Vector &result) {
 	data->Fetch(state, vector_index, result);
 }
 
-void PersistentSegment::FetchRow(ColumnFetchState &state, Transaction &transaction, row_t row_id, Vector &result,
-                                 idx_t result_idx) {
-	data->FetchRow(state, transaction, row_id - this->start, result, result_idx);
-}
-
-void PersistentSegment::Update(ColumnData &column_data, Transaction &transaction, Vector &updates, row_t *ids,
-                               idx_t count) {
-	// update of persistent segment: check if the table has been updated before
-	if (block_id == data->block->BlockId()) {
-		// data has not been updated before! convert the segment from one that refers to an on-disk block to one that
-		// refers to a in-memory buffer
-		data->ToTemporary();
-	}
-	data->Update(column_data, stats, transaction, updates, ids, count, this->start);
-}
-
-bool PersistentSegment::HasChanges() {
-	return block_id != data->block->BlockId();
+void PersistentSegment::FetchRow(ColumnFetchState &state, row_t row_id, Vector &result, idx_t result_idx) {
+	data->FetchRow(state, row_id - this->start, result, result_idx);
 }
 
 } // namespace duckdb

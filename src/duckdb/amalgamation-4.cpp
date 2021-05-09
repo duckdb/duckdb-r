@@ -1,5 +1,3 @@
-#include "src/function/scalar/string/nfc_normalize.cpp"
-
 #include "src/function/scalar/string/pad.cpp"
 
 #include "src/function/scalar/string/prefix.cpp"
@@ -44,6 +42,10 @@
 
 #include "src/function/table/information_schema_functions.cpp"
 
+#include "src/function/table/pragma_detailed_profiling_output.cpp"
+
+#include "src/function/table/pragma_last_profiling_output.cpp"
+
 #include "src/function/table/range.cpp"
 
 #include "src/function/table/read_csv.cpp"
@@ -63,6 +65,8 @@
 #include "src/function/table/sqlite/sqlite_master.cpp"
 
 #include "src/function/table/sqlite_functions.cpp"
+
+#include "src/function/table/summary.cpp"
 
 #include "src/function/table/table_scan.cpp"
 
@@ -115,6 +119,8 @@
 #include "src/main/relation/order_relation.cpp"
 
 #include "src/main/relation/projection_relation.cpp"
+
+#include "src/main/relation/query_relation.cpp"
 
 #include "src/main/relation/read_csv_relation.cpp"
 

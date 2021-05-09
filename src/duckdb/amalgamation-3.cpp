@@ -42,8 +42,6 @@
 
 #include "src/function/aggregate/distributive/minmax.cpp"
 
-#include "src/function/aggregate/distributive/mode.cpp"
-
 #include "src/function/aggregate/distributive/product.cpp"
 
 #include "src/function/aggregate/distributive/skew.cpp"
@@ -55,6 +53,8 @@
 #include "src/function/aggregate/distributive_functions.cpp"
 
 #include "src/function/aggregate/holistic/approximate_quantile.cpp"
+
+#include "src/function/aggregate/holistic/mode.cpp"
 
 #include "src/function/aggregate/holistic/quantile.cpp"
 
@@ -138,6 +138,8 @@
 
 #include "src/function/scalar/math_functions.cpp"
 
+#include "src/function/scalar/nested/array_slice.cpp"
+
 #include "src/function/scalar/nested/list_extract.cpp"
 
 #include "src/function/scalar/nested/list_value.cpp"
@@ -161,6 +163,8 @@
 #include "src/function/scalar/operators/subtract.cpp"
 
 #include "src/function/scalar/pragma_functions.cpp"
+
+#include "src/function/scalar/sequence/currval.cpp"
 
 #include "src/function/scalar/sequence/nextval.cpp"
 
@@ -191,4 +195,6 @@
 #include "src/function/scalar/string/md5.cpp"
 
 #include "src/function/scalar/string/mismatches.cpp"
+
+#include "src/function/scalar/string/nfc_normalize.cpp"
 

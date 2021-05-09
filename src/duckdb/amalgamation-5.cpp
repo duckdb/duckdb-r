@@ -116,6 +116,8 @@
 
 #include "src/parser/expression/parameter_expression.cpp"
 
+#include "src/parser/expression/positional_reference_expression.cpp"
+
 #include "src/parser/expression/star_expression.cpp"
 
 #include "src/parser/expression/subquery_expression.cpp"
@@ -170,6 +172,8 @@
 
 #include "src/parser/statement/insert_statement.cpp"
 
+#include "src/parser/statement/load_statement.cpp"
+
 #include "src/parser/statement/pragma_statement.cpp"
 
 #include "src/parser/statement/prepare_statement.cpp"
@@ -191,4 +195,6 @@
 #include "src/parser/tableref.cpp"
 
 #include "src/parser/tableref/basetableref.cpp"
+
+#include "src/parser/tableref/crossproductref.cpp"
 

@@ -96,6 +96,12 @@ setMethod(
     conn@tz_out_convert <- tz_out_convert
 
     on.exit(NULL)
+
+    if (!isTRUE(debug)){
+      # only has effect in RStudio
+      on_connection_opened(conn)
+    }
+
     conn
   }
 )
@@ -118,7 +124,7 @@ setMethod(
     if (shutdown) {
       duckdb_shutdown(conn@driver)
     }
-
+    on_connection_closed(conn)
     invisible(TRUE)
   }
 )
@@ -200,7 +206,10 @@ setMethod(
 setMethod(
   "dbGetInfo", "duckdb_driver",
   function(dbObj, ...) {
-    list(driver.version = NA, client.version = NA)
+    con <- dbConnect(dbObj)
+    version <- dbGetQuery(con, "select library_version from pragma_version()")[[1]][[1]]
+    dbDisconnect(con)
+    list(driver.version = version, client.version = version, dbname=dbObj@dbdir)
   }
 )
 

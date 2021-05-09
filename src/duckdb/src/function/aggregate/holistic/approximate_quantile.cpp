@@ -1,6 +1,6 @@
 #include "duckdb/execution/expression_executor.hpp"
 #include "duckdb/function/aggregate/holistic_functions.hpp"
-#include "duckdb/function/aggregate/t_digest.hpp"
+#include "t_digest.hpp"
 #include "duckdb/planner/expression.hpp"
 
 #include <algorithm>
@@ -10,7 +10,7 @@
 namespace duckdb {
 
 struct ApproxQuantileState {
-	tdigest::TDigest *h;
+	duckdb_tdigest::TDigest *h;
 	idx_t pos;
 };
 
@@ -36,7 +36,7 @@ struct ApproxQuantileOperation {
 	template <class STATE>
 	static void Initialize(STATE *state) {
 		state->pos = 0;
-		state->h = new tdigest::TDigest(100);
+		state->h = nullptr;
 	}
 
 	template <class INPUT_TYPE, class STATE, class OP>
@@ -49,7 +49,9 @@ struct ApproxQuantileOperation {
 
 	template <class INPUT_TYPE, class STATE, class OP>
 	static void Operation(STATE *state, FunctionData *bind_data, INPUT_TYPE *data, ValidityMask &mask, idx_t idx) {
-		D_ASSERT(state->h);
+		if (!state->h) {
+			state->h = new duckdb_tdigest::TDigest(100);
+		}
 		state->h->add(data[idx]);
 		state->pos++;
 	}
@@ -58,6 +60,10 @@ struct ApproxQuantileOperation {
 	static void Combine(STATE source, STATE *target) {
 		if (source.pos == 0) {
 			return;
+		}
+		D_ASSERT(source.h);
+		if (!target->h) {
+			target->h = new duckdb_tdigest::TDigest(100);
 		}
 		target->h->merge(source.h);
 		target->pos += source.pos;

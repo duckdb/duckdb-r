@@ -16,8 +16,7 @@ setClass("duckdb_driver", contains = "DBIDriver", slots = list(database_ref = "e
 #' @export
 setClass("duckdb_connection",
   contains = "DBIConnection",
-  slots = list(dbdir = "character",
-               conn_ref = "externalptr",
+  slots = list(conn_ref = "externalptr",
                driver = "duckdb_driver",
                debug = "logical",
                timezone_out = "character",
@@ -208,6 +207,8 @@ setMethod(
     duckdb_register(conn, view_name, value)
     dbExecute(conn, sprintf("INSERT INTO %s SELECT * FROM %s", table_name, view_name))
 
+    on_connection_updated(conn, hint=paste0("Updated table'", table_name,"'"))
+
     invisible(TRUE)
   }
 )
@@ -296,9 +297,10 @@ setMethod(
 setMethod(
   "dbGetInfo", "duckdb_connection",
   function(dbObj, ...) {
+    info <- dbGetInfo(dbObj@driver)
     list(
-      dbname = dbObj@dbdir,
-      db.version = NA,
+      dbname = info$dbname,
+      db.version = info$driver.version,
       username = NA,
       host = NA,
       port = NA
@@ -324,6 +326,7 @@ setMethod(
   "dbCommit", "duckdb_connection",
   function(conn, ...) {
     dbExecute(conn, SQL("COMMIT"))
+    on_connection_updated(conn, "Committing changes")
     invisible(TRUE)
   }
 )

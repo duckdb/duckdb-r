@@ -2,14 +2,10 @@
 #include "duckdb/execution/reservoir_sample.hpp"
 #include "duckdb/function/aggregate/holistic_functions.hpp"
 #include "duckdb/planner/expression.hpp"
-#include "pcg_random.hpp"
 
 #include <algorithm>
-#include <cmath>
 #include <queue>
-#include <random>
 #include <stdlib.h>
-#include <utility>
 
 namespace duckdb {
 
@@ -64,7 +60,7 @@ struct ReservoirQuantileOperation {
 		state->v = nullptr;
 		state->len = 0;
 		state->pos = 0;
-		state->r_samp = new BaseReservoirSampling();
+		state->r_samp = nullptr;
 	}
 
 	static void ResizeState(ReservoirQuantileState *state, idx_t new_len) {
@@ -93,6 +89,9 @@ struct ReservoirQuantileOperation {
 		if (state->pos == 0) {
 			ResizeState(state, bind_data->sample_size);
 		}
+		if (!state->r_samp) {
+			state->r_samp = new BaseReservoirSampling();
+		}
 		D_ASSERT(state->v);
 		FillReservoir<STATE, T>(state, bind_data->sample_size, data[idx]);
 	}
@@ -104,6 +103,9 @@ struct ReservoirQuantileOperation {
 		}
 		if (target->pos == 0) {
 			ResizeState(target, source.len);
+		}
+		if (!target->r_samp) {
+			target->r_samp = new BaseReservoirSampling();
 		}
 		for (idx_t src_idx = 0; src_idx < source.pos; src_idx++) {
 			FillReservoir<STATE, T>(target, target->len, ((T *)source.v)[src_idx]);

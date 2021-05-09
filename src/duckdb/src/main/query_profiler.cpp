@@ -10,7 +10,7 @@
 #include "duckdb/parser/sql_statement.hpp"
 #include "duckdb/common/limits.hpp"
 #include "duckdb/execution/expression_executor.hpp"
-
+#include "duckdb/planner/expression/bound_function_expression.hpp"
 #include <utility>
 #include <algorithm>
 
@@ -200,7 +200,9 @@ void OperatorProfiler::AddTiming(PhysicalOperator *op, double time, idx_t elemen
 	if (!enabled) {
 		return;
 	}
-
+	if (!Value::DoubleIsValid(time)) {
+		return;
+	}
 	auto entry = timings.find(op);
 	if (entry == timings.end()) {
 		// add new entry
@@ -471,6 +473,10 @@ void ExpressionInformation::ExtractExpressionsRecursive(unique_ptr<ExpressionSta
 	// extract the children of this node
 	for (auto &child : state->child_states) {
 		auto expression_info_p = make_unique<ExpressionInformation>(child.get()->name, child.get()->time);
+		if (child->expr.expression_class == ExpressionClass::BOUND_FUNCTION) {
+			expression_info_p->hasfunction = true;
+			expression_info_p->function_name = ((BoundFunctionExpression &)child->expr).function.name;
+		}
 		expression_info_p->ExtractExpressionsRecursive(child);
 		children.push_back(move(expression_info_p));
 	}
@@ -483,6 +489,10 @@ ExpressionExecutorInformation::ExpressionExecutorInformation(ExpressionExecutor 
 	for (auto &state : executor.GetStates()) {
 		auto expression_info_p =
 		    make_unique<ExpressionInformation>(state.get()->root_state->name, state.get()->root_state.get()->time);
+		if (state->root_state->expr.expression_class == ExpressionClass::BOUND_FUNCTION) {
+			expression_info_p->hasfunction = true;
+			expression_info_p->function_name = ((BoundFunctionExpression &)state->root_state->expr).function.name;
+		}
 		expression_info_p->ExtractExpressionsRecursive(state.get()->root_state);
 		roots.push_back(move(expression_info_p));
 	}

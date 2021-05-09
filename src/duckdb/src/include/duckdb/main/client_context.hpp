@@ -10,7 +10,10 @@
 
 #include "duckdb/catalog/catalog_entry/schema_catalog_entry.hpp"
 #include "duckdb/catalog/catalog_set.hpp"
+#include "duckdb/common/deque.hpp"
 #include "duckdb/common/enums/output_type.hpp"
+#include "duckdb/common/pair.hpp"
+#include "duckdb/common/progress_bar.hpp"
 #include "duckdb/common/unordered_set.hpp"
 #include "duckdb/common/winapi.hpp"
 #include "duckdb/execution/executor.hpp"
@@ -21,7 +24,7 @@
 #include "duckdb/transaction/transaction_context.hpp"
 
 #include <random>
-#include "duckdb/common/progress_bar.hpp"
+#include "duckdb/common/atomic.hpp"
 
 namespace duckdb {
 class Appender;
@@ -41,15 +44,16 @@ class ClientContext : public std::enable_shared_from_this<ClientContext> {
 public:
 	DUCKDB_API explicit ClientContext(shared_ptr<DatabaseInstance> db);
 	DUCKDB_API ~ClientContext();
-
 	//! Query profiler
 	QueryProfiler profiler;
+	//! QueryProfiler History
+	QueryProfilerHistory query_profiler_history;
 	//! The database that this client is connected to
 	shared_ptr<DatabaseInstance> db;
 	//! Data for the currently running transaction
 	TransactionContext transaction;
 	//! Whether or not the query is interrupted
-	bool interrupted;
+	atomic<bool> interrupted;
 	//! The current query being executed by the client context
 	string query;
 
@@ -57,7 +61,7 @@ public:
 	Executor executor;
 
 	//! The Progress Bar
-	unique_ptr<ProgressBar> progress_bar;
+	shared_ptr<ProgressBar> progress_bar;
 	//! If the progress bar is enabled or not.
 	bool enable_progress_bar = false;
 	//! If the print of the progress bar is enabled
@@ -193,7 +197,7 @@ private:
 	//! The currently opened StreamQueryResult (if any)
 	StreamQueryResult *open_result = nullptr;
 	//! Lock on using the ClientContext in parallel
-	std::mutex context_lock;
+	mutex context_lock;
 };
 
 } // namespace duckdb

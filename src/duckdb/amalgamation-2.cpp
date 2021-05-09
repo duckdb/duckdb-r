@@ -1,3 +1,5 @@
+#include "src/execution/index/art/art.cpp"
+
 #include "src/execution/index/art/art_key.cpp"
 
 #include "src/execution/index/art/leaf.cpp"
@@ -37,6 +39,8 @@
 #include "src/execution/operator/helper/physical_execute.cpp"
 
 #include "src/execution/operator/helper/physical_limit.cpp"
+
+#include "src/execution/operator/helper/physical_load.cpp"
 
 #include "src/execution/operator/helper/physical_pragma.cpp"
 
@@ -87,6 +91,8 @@
 #include "src/execution/operator/persistent/physical_update.cpp"
 
 #include "src/execution/operator/projection/physical_projection.cpp"
+
+#include "src/execution/operator/projection/physical_tableinout_function.cpp"
 
 #include "src/execution/operator/projection/physical_unnest.cpp"
 

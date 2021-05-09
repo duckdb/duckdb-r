@@ -1,5 +1,7 @@
 #include "src/planner/binder/statement/bind_insert.cpp"
 
+#include "src/planner/binder/statement/bind_load.cpp"
+
 #include "src/planner/binder/statement/bind_pragma.cpp"
 
 #include "src/planner/binder/statement/bind_relation.cpp"
@@ -166,6 +168,8 @@
 
 #include "src/storage/checkpoint/table_data_writer.cpp"
 
+#include "src/storage/checkpoint/write_overflow_strings_to_disk.cpp"
+
 #include "src/storage/checkpoint_manager.cpp"
 
 #include "src/storage/column_data.cpp"
@@ -191,4 +195,6 @@
 #include "src/storage/statistics/segment_statistics.cpp"
 
 #include "src/storage/statistics/string_statistics.cpp"
+
+#include "src/storage/statistics/validity_statistics.cpp"
 

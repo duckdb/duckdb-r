@@ -111,6 +111,10 @@ enum class ExpressionType : uint8_t {
 	CASE_EXPR = 150,
 	OPERATOR_NULLIF = 151,
 	OPERATOR_COALESCE = 152,
+	ARRAY_EXTRACT = 153,
+	ARRAY_SLICE = 154,
+	STRUCT_EXTRACT = 155,
+	ARRAY_CONSTRUCTOR = 156,
 
 	// -----------------------------
 	// Subquery IN/EXISTS
@@ -135,7 +139,8 @@ enum class ExpressionType : uint8_t {
 	BOUND_COLUMN_REF = 228,
 	BOUND_UNNEST = 229,
 	COLLATE = 230,
-	LAMBDA = 231
+	LAMBDA = 231,
+	POSITIONAL_REFERENCE = 232
 };
 
 //===--------------------------------------------------------------------===//
@@ -163,6 +168,7 @@ enum class ExpressionClass : uint8_t {
 	PARAMETER = 15,
 	COLLATE = 16,
 	LAMBDA = 17,
+	POSITIONAL_REFERENCE = 18,
 	//===--------------------------------------------------------------------===//
 	// Bound Expressions
 	//===--------------------------------------------------------------------===//

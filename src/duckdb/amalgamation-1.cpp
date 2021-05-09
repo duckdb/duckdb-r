@@ -30,13 +30,19 @@
 
 #include "src/catalog/dependency_manager.cpp"
 
+#include "src/common/allocator.cpp"
+
 #include "src/common/assert.cpp"
+
+#include "src/common/bit_operations.cpp"
 
 #include "src/common/checksum.cpp"
 
 #include "src/common/constants.cpp"
 
 #include "src/common/crypto/md5.cpp"
+
+#include "src/common/cycle_counter.cpp"
 
 #include "src/common/enums/catalog_type.cpp"
 
@@ -109,6 +115,8 @@
 #include "src/common/types/interval.cpp"
 
 #include "src/common/types/null_value.cpp"
+
+#include "src/common/types/row_data_collection.cpp"
 
 #include "src/common/types/selection_vector.cpp"
 
@@ -189,6 +197,4 @@
 #include "src/execution/expression_executor/execute_reference.cpp"
 
 #include "src/execution/expression_executor_state.cpp"
-
-#include "src/execution/index/art/art.cpp"
 

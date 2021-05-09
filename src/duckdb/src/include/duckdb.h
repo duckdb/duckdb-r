@@ -46,8 +46,14 @@ typedef enum DUCKDB_TYPE {
 	DUCKDB_TYPE_FLOAT,
 	// double
 	DUCKDB_TYPE_DOUBLE,
-	// duckdb_timestamp
+	// duckdb_timestamp (us)
 	DUCKDB_TYPE_TIMESTAMP,
+	// duckdb_timestamp (s)
+	DUCKDB_TYPE_TIMESTAMP_S,
+	// duckdb_timestamp (ns)
+	DUCKDB_TYPE_TIMESTAMP_NS,
+	// duckdb_timestamp (ms)
+	DUCKDB_TYPE_TIMESTAMP_MS,
 	// duckdb_date
 	DUCKDB_TYPE_DATE,
 	// duckdb_time
@@ -196,8 +202,8 @@ DUCKDB_API duckdb_state duckdb_bind_int32(duckdb_prepared_statement prepared_sta
 DUCKDB_API duckdb_state duckdb_bind_int64(duckdb_prepared_statement prepared_statement, idx_t param_idx, int64_t val);
 DUCKDB_API duckdb_state duckdb_bind_uint8(duckdb_prepared_statement prepared_statement, idx_t param_idx, int8_t val);
 DUCKDB_API duckdb_state duckdb_bind_uint16(duckdb_prepared_statement prepared_statement, idx_t param_idx, int16_t val);
-DUCKDB_API duckdb_state duckdb_bind_uint32(duckdb_prepared_statement prepared_statement, idx_t param_idx, int32_t val);
-DUCKDB_API duckdb_state duckdb_bind_uint64(duckdb_prepared_statement prepared_statement, idx_t param_idx, int64_t val);
+DUCKDB_API duckdb_state duckdb_bind_uint32(duckdb_prepared_statement prepared_statement, idx_t param_idx, uint32_t val);
+DUCKDB_API duckdb_state duckdb_bind_uint64(duckdb_prepared_statement prepared_statement, idx_t param_idx, uint64_t val);
 DUCKDB_API duckdb_state duckdb_bind_float(duckdb_prepared_statement prepared_statement, idx_t param_idx, float val);
 DUCKDB_API duckdb_state duckdb_bind_double(duckdb_prepared_statement prepared_statement, idx_t param_idx, double val);
 DUCKDB_API duckdb_state duckdb_bind_varchar(duckdb_prepared_statement prepared_statement, idx_t param_idx,
