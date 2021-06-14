@@ -74,10 +74,6 @@ struct FirstFun {
 	static void RegisterFunction(BuiltinFunctions &set);
 };
 
-struct ArbitraryFun {
-	static void RegisterFunction(BuiltinFunctions &set);
-};
-
 struct MaxFun {
 	static void RegisterFunction(BuiltinFunctions &set);
 };
@@ -95,6 +91,7 @@ struct MinByFun {
 };
 
 struct SumFun {
+	static AggregateFunction GetSumAggregate(PhysicalType type);
 	static void RegisterFunction(BuiltinFunctions &set);
 };
 

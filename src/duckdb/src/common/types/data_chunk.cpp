@@ -209,11 +209,14 @@ void DataChunk::Print() {
 
 struct DuckDBArrowArrayChildHolder {
 	ArrowArray array;
-	// need max three pointers for strings
+	//! need max three pointers for strings
 	duckdb::array<const void *, 3> buffers = {{nullptr, nullptr, nullptr}};
-	Vector vector = {};
-	unique_ptr<data_t[]> string_offsets = nullptr;
-	unique_ptr<data_t[]> string_data = nullptr;
+	Vector vector;
+	unique_ptr<data_t[]> offsets;
+	unique_ptr<data_t[]> data;
+	//! Children of nested structures
+	::duckdb::vector<DuckDBArrowArrayChildHolder> children;
+	::duckdb::vector<ArrowArray *> children_ptrs;
 };
 
 struct DuckDBArrowArrayHolder {
@@ -231,6 +234,307 @@ static void ReleaseDuckDBArrowArray(ArrowArray *array) {
 	delete holder;
 }
 
+void InitializeChild(DuckDBArrowArrayChildHolder &child_holder, idx_t size) {
+	auto &child = child_holder.array;
+	child.private_data = nullptr;
+	child.release = ReleaseDuckDBArrowArray;
+	child.n_children = 0;
+	child.null_count = 0;
+	child.offset = 0;
+	child.dictionary = nullptr;
+	child.buffers = child_holder.buffers.data();
+
+	child.length = size;
+}
+
+void SetChildValidityMask(Vector &vector, ArrowArray &child) {
+	auto &mask = FlatVector::Validity(vector);
+	if (!mask.AllValid()) {
+		//! any bits are set: might have nulls
+		child.null_count = -1;
+	} else {
+		//! no bits are set; we know there are no nulls
+		child.null_count = 0;
+	}
+	child.buffers[0] = (void *)mask.GetData();
+}
+
+void SetArrowChild(DuckDBArrowArrayChildHolder &child_holder, const LogicalType &type, Vector &data, idx_t size,
+                   ValidityMask *parent_mask = nullptr);
+
+void SetList(DuckDBArrowArrayChildHolder &child_holder, const LogicalType &type, Vector &data, idx_t size,
+             ValidityMask *parent_mask = nullptr) {
+	auto &child = child_holder.array;
+	auto &vector = child_holder.vector;
+	vector.Reference(data);
+	D_ASSERT(ListVector::HasEntry(data));
+
+	//! Lists have two buffers
+	child.n_buffers = 2;
+	//! Second Buffer is the list offsets
+	child_holder.offsets = unique_ptr<data_t[]>(new data_t[sizeof(uint32_t) * (size + 1)]);
+	child.buffers[1] = child_holder.offsets.get();
+	auto offset_ptr = (uint32_t *)child.buffers[1];
+	auto list_data = FlatVector::GetData<list_entry_t>(data);
+	idx_t offset = 0;
+	offset_ptr[0] = 0;
+	for (idx_t i = 0; i < size; i++) {
+		auto &le = list_data[i];
+		if (parent_mask) {
+			if (parent_mask->RowIsValid(i)) {
+				offset += le.length;
+			}
+		} else {
+			offset += le.length;
+		}
+
+		offset_ptr[i + 1] = offset;
+	}
+	auto list_size = ListVector::GetListSize(data);
+	child_holder.children.resize(1);
+	InitializeChild(child_holder.children[0], list_size);
+	child.n_children = 1;
+	child_holder.children_ptrs.push_back(&child_holder.children[0].array);
+	child.children = &child_holder.children_ptrs[0];
+	auto &child_vector = ListVector::GetEntry(data);
+	auto &list_mask = FlatVector::Validity(data);
+	auto &child_type = ListType::GetChildType(type);
+	SetArrowChild(child_holder.children[0], child_type, child_vector, list_size, &list_mask);
+	SetChildValidityMask(child_vector, child_holder.children[0].array);
+}
+
+void SetStruct(DuckDBArrowArrayChildHolder &child_holder, const LogicalType &type, Vector &data, idx_t size,
+               ValidityMask *parent_mask = nullptr, bool is_map = false) {
+	auto &child = child_holder.array;
+	auto &vector = child_holder.vector;
+	vector.Reference(data);
+	//! Structs only have validity buffers
+	child.n_buffers = 1;
+	auto &children = StructVector::GetEntries(vector);
+	child.n_children = children.size();
+	child_holder.children.resize(child.n_children);
+	for (auto &struct_child : child_holder.children) {
+		InitializeChild(struct_child, size);
+		child_holder.children_ptrs.push_back(&struct_child.array);
+	}
+	child.children = &child_holder.children_ptrs[0];
+	for (idx_t child_idx = 0; child_idx < child_holder.children.size(); child_idx++) {
+		auto &struct_mask = FlatVector::Validity(data);
+		SetArrowChild(child_holder.children[child_idx], StructType::GetChildType(type, child_idx), *children[child_idx],
+		              size, &struct_mask);
+		SetChildValidityMask(*children[child_idx], child_holder.children[child_idx].array);
+	}
+}
+
+void SetStructMap(DuckDBArrowArrayChildHolder &child_holder, const LogicalType &type, Vector &data, idx_t size,
+                  ValidityMask *map_mask) {
+	auto &child = child_holder.array;
+	auto &vector = child_holder.vector;
+	vector.Reference(data);
+	//! Structs only have validity buffers
+	child.n_buffers = 1;
+	auto &children = StructVector::GetEntries(vector);
+	child.n_children = children.size();
+	child_holder.children.resize(child.n_children);
+	auto list_size = ListVector::GetListSize(*children[0]);
+	for (auto &struct_child : child_holder.children) {
+		InitializeChild(struct_child, list_size);
+		child_holder.children_ptrs.push_back(&struct_child.array);
+	}
+	child.children = &child_holder.children_ptrs[0];
+	auto &child_types = StructType::GetChildTypes(type);
+	for (idx_t child_idx = 0; child_idx < child_holder.children.size(); child_idx++) {
+		auto &list_vector_child = ListVector::GetEntry(*children[child_idx]);
+		if (child_idx == 0) {
+			VectorData list_data;
+			children[child_idx]->Orrify(size, list_data);
+			auto list_child_validity = FlatVector::Validity(list_vector_child);
+			if (!list_child_validity.AllValid()) {
+				//! Get the offsets to check from the selection vector
+				auto list_offsets = FlatVector::GetData<list_entry_t>(*children[child_idx]);
+				for (idx_t list_idx = 0; list_idx < size; list_idx++) {
+					auto offset = list_offsets[list_data.sel->get_index(list_idx)];
+					if (!list_child_validity.CheckAllValid(offset.length + offset.offset, offset.offset)) {
+						throw std::runtime_error("Arrow doesnt accept NULL keys on Maps");
+					}
+				}
+			}
+		} else {
+			SetChildValidityMask(list_vector_child, child_holder.children[child_idx].array);
+		}
+		SetArrowChild(child_holder.children[child_idx], ListType::GetChildType(child_types[child_idx].second),
+		              list_vector_child, list_size, map_mask);
+	}
+}
+
+void SetArrowChild(DuckDBArrowArrayChildHolder &child_holder, const LogicalType &type, Vector &data, idx_t size,
+                   ValidityMask *parent_mask) {
+	auto &child = child_holder.array;
+	auto &vector = child_holder.vector;
+	switch (type.id()) {
+	case LogicalTypeId::BOOLEAN:
+	case LogicalTypeId::TINYINT:
+	case LogicalTypeId::SMALLINT:
+	case LogicalTypeId::INTEGER:
+	case LogicalTypeId::BIGINT:
+	case LogicalTypeId::UTINYINT:
+	case LogicalTypeId::USMALLINT:
+	case LogicalTypeId::UINTEGER:
+	case LogicalTypeId::UBIGINT:
+	case LogicalTypeId::FLOAT:
+	case LogicalTypeId::DOUBLE:
+	case LogicalTypeId::HUGEINT:
+	case LogicalTypeId::DATE:
+	case LogicalTypeId::TIMESTAMP:
+	case LogicalTypeId::TIMESTAMP_MS:
+	case LogicalTypeId::TIMESTAMP_NS:
+	case LogicalTypeId::TIMESTAMP_SEC:
+		vector.Reference(data);
+		child.n_buffers = 2;
+		child.buffers[1] = (void *)FlatVector::GetData(vector);
+		break;
+	case LogicalTypeId::SQLNULL:
+		child.n_buffers = 1;
+		break;
+	case LogicalTypeId::TIME: {
+		//! convert time from microseconds to milliseconds
+		vector.Reference(data);
+		child.n_buffers = 2;
+		child_holder.data = unique_ptr<data_t[]>(new data_t[sizeof(uint32_t) * (size + 1)]);
+		child.buffers[1] = child_holder.data.get();
+		auto source_ptr = FlatVector::GetData<dtime_t>(vector);
+		auto target_ptr = (uint32_t *)child.buffers[1];
+		for (idx_t row_idx = 0; row_idx < size; row_idx++) {
+			target_ptr[row_idx] = uint32_t(source_ptr[row_idx].micros / 1000);
+		}
+		break;
+	}
+	case LogicalTypeId::DECIMAL: {
+		child.n_buffers = 2;
+		vector.Reference(data);
+		//! We have to convert to INT128
+		switch (type.InternalType()) {
+
+		case PhysicalType::INT16: {
+			child_holder.data = unique_ptr<data_t[]>(new data_t[sizeof(hugeint_t) * (size)]);
+			child.buffers[1] = child_holder.data.get();
+			auto source_ptr = FlatVector::GetData<int16_t>(vector);
+			auto target_ptr = (hugeint_t *)child.buffers[1];
+			for (idx_t row_idx = 0; row_idx < size; row_idx++) {
+				target_ptr[row_idx] = source_ptr[row_idx];
+			}
+			break;
+		}
+		case PhysicalType::INT32: {
+			child_holder.data = unique_ptr<data_t[]>(new data_t[sizeof(hugeint_t) * (size)]);
+			child.buffers[1] = child_holder.data.get();
+			auto source_ptr = FlatVector::GetData<int32_t>(vector);
+			auto target_ptr = (hugeint_t *)child.buffers[1];
+			for (idx_t row_idx = 0; row_idx < size; row_idx++) {
+				target_ptr[row_idx] = source_ptr[row_idx];
+			}
+			break;
+		}
+		case PhysicalType::INT64: {
+			child_holder.data = unique_ptr<data_t[]>(new data_t[sizeof(hugeint_t) * (size)]);
+			child.buffers[1] = child_holder.data.get();
+			auto source_ptr = FlatVector::GetData<int64_t>(vector);
+			auto target_ptr = (hugeint_t *)child.buffers[1];
+			for (idx_t row_idx = 0; row_idx < size; row_idx++) {
+				target_ptr[row_idx] = source_ptr[row_idx];
+			}
+			break;
+		}
+		case PhysicalType::INT128: {
+			child.buffers[1] = (void *)FlatVector::GetData(vector);
+			break;
+		}
+		default:
+			throw std::runtime_error("Unsupported physical type for Decimal" + TypeIdToString(type.InternalType()));
+		}
+		break;
+	}
+
+	case LogicalTypeId::VARCHAR: {
+		vector.Reference(data);
+		child.n_buffers = 3;
+		child_holder.offsets = unique_ptr<data_t[]>(new data_t[sizeof(uint32_t) * (size + 1)]);
+		child.buffers[1] = child_holder.offsets.get();
+		D_ASSERT(child.buffers[1]);
+		//! step 1: figure out total string length:
+		idx_t total_string_length = 0;
+		auto string_t_ptr = FlatVector::GetData<string_t>(vector);
+		auto &mask = FlatVector::Validity(vector);
+		for (idx_t row_idx = 0; row_idx < size; row_idx++) {
+			if (!mask.RowIsValid(row_idx)) {
+				continue;
+			}
+			total_string_length += string_t_ptr[row_idx].GetSize();
+		}
+		//! step 2: allocate this much
+		child_holder.data = unique_ptr<data_t[]>(new data_t[total_string_length]);
+		child.buffers[2] = child_holder.data.get();
+		D_ASSERT(child.buffers[2]);
+		//! step 3: assign buffers
+		idx_t current_heap_offset = 0;
+		auto target_ptr = (uint32_t *)child.buffers[1];
+
+		for (idx_t row_idx = 0; row_idx < size; row_idx++) {
+			target_ptr[row_idx] = current_heap_offset;
+			if (!mask.RowIsValid(row_idx)) {
+				continue;
+			}
+			auto &str = string_t_ptr[row_idx];
+			memcpy((void *)((uint8_t *)child.buffers[2] + current_heap_offset), str.GetDataUnsafe(), str.GetSize());
+			current_heap_offset += str.GetSize();
+		}
+		target_ptr[size] = current_heap_offset; //! need to terminate last string!
+		break;
+	}
+	case LogicalTypeId::LIST: {
+		D_ASSERT(ListVector::HasEntry(data));
+		SetList(child_holder, type, data, size, parent_mask);
+		break;
+	}
+	case LogicalTypeId::STRUCT: {
+		SetStruct(child_holder, type, data, size, parent_mask);
+		break;
+	}
+	case LogicalTypeId::MAP: {
+		vector.Reference(data);
+		auto &map_mask = FlatVector::Validity(vector);
+		child.n_buffers = 2;
+		//! Maps have one child
+		child.n_children = 1;
+		child_holder.children.resize(1);
+		InitializeChild(child_holder.children[0], size);
+		child_holder.children_ptrs.push_back(&child_holder.children[0].array);
+		//! Second Buffer is the offsets
+		child_holder.offsets = unique_ptr<data_t[]>(new data_t[sizeof(uint32_t) * (size + 1)]);
+		child.buffers[1] = child_holder.offsets.get();
+		auto &struct_children = StructVector::GetEntries(data);
+		auto offset_ptr = (uint32_t *)child.buffers[1];
+		auto list_data = FlatVector::GetData<list_entry_t>(*struct_children[0]);
+		idx_t offset = 0;
+		offset_ptr[0] = 0;
+		for (idx_t i = 0; i < size; i++) {
+			auto &le = list_data[i];
+			if (map_mask.RowIsValid(i)) {
+				offset += le.length;
+			}
+			offset_ptr[i + 1] = offset;
+		}
+		child.children = &child_holder.children_ptrs[0];
+		//! We need to set up a struct
+		auto struct_type = LogicalType::STRUCT(StructType::GetChildTypes(type));
+
+		SetStructMap(child_holder.children[0], struct_type, vector, size, &map_mask);
+		break;
+	}
+	default:
+		throw std::runtime_error("Unsupported type " + type.ToString());
+	}
+} // namespace duckdb
 void DataChunk::ToArrowArray(ArrowArray *out_array) {
 	Normalify();
 	D_ASSERT(out_array);
@@ -256,111 +560,17 @@ void DataChunk::ToArrowArray(ArrowArray *out_array) {
 	out_array->null_count = 0; // needs to be 0
 	out_array->dictionary = nullptr;
 
-	// Configure child arrays
+	//! Configure child arrays
 	for (idx_t col_idx = 0; col_idx < ColumnCount(); col_idx++) {
 		auto &child_holder = root_holder->children[col_idx];
-		auto &child = child_holder.array;
-
+		InitializeChild(child_holder, size());
 		auto &vector = child_holder.vector;
-		vector.Reference(data[col_idx]);
-
-		child.private_data = nullptr;
-		child.release = ReleaseDuckDBArrowArray;
-		child.n_children = 0;
-		child.null_count = -1; // unknown
-		child.offset = 0;
-		child.dictionary = nullptr;
-		child.buffers = child_holder.buffers.data();
-
-		child.length = size();
-
+		auto &child = child_holder.array;
 		switch (vector.GetVectorType()) {
 			// TODO support other vector types
 		case VectorType::FLAT_VECTOR: {
-			switch (GetTypes()[col_idx].id()) {
-				// TODO support other data types
-			case LogicalTypeId::BOOLEAN:
-			case LogicalTypeId::TINYINT:
-			case LogicalTypeId::SMALLINT:
-			case LogicalTypeId::INTEGER:
-			case LogicalTypeId::BIGINT:
-			case LogicalTypeId::UTINYINT:
-			case LogicalTypeId::USMALLINT:
-			case LogicalTypeId::UINTEGER:
-			case LogicalTypeId::UBIGINT:
-			case LogicalTypeId::FLOAT:
-			case LogicalTypeId::DOUBLE:
-			case LogicalTypeId::HUGEINT:
-			case LogicalTypeId::DATE:
-			case LogicalTypeId::TIMESTAMP:
-			case LogicalTypeId::TIMESTAMP_MS:
-			case LogicalTypeId::TIMESTAMP_NS:
-			case LogicalTypeId::TIMESTAMP_SEC:
-				child.n_buffers = 2;
-				child.buffers[1] = (void *)FlatVector::GetData(vector);
-				break;
-			case LogicalTypeId::TIME: {
-				// convert time from microseconds to milliseconds
-				child.n_buffers = 2;
-				child_holder.string_data = unique_ptr<data_t[]>(new data_t[sizeof(uint32_t) * (size() + 1)]);
-				child.buffers[1] = child_holder.string_data.get();
-				auto source_ptr = FlatVector::GetData<dtime_t>(vector);
-				auto target_ptr = (uint32_t *)child.buffers[1];
-				for (idx_t row_idx = 0; row_idx < size(); row_idx++) {
-					target_ptr[row_idx] = uint32_t(source_ptr[row_idx].micros / 1000);
-				}
-				break;
-			}
-
-			case LogicalTypeId::VARCHAR: {
-				child.n_buffers = 3;
-				child_holder.string_offsets = unique_ptr<data_t[]>(new data_t[sizeof(uint32_t) * (size() + 1)]);
-				child.buffers[1] = child_holder.string_offsets.get();
-				D_ASSERT(child.buffers[1]);
-				// step 1: figure out total string length:
-				idx_t total_string_length = 0;
-				auto string_t_ptr = FlatVector::GetData<string_t>(vector);
-				auto &mask = FlatVector::Validity(vector);
-				for (idx_t row_idx = 0; row_idx < size(); row_idx++) {
-					if (!mask.RowIsValid(row_idx)) {
-						continue;
-					}
-					total_string_length += string_t_ptr[row_idx].GetSize();
-				}
-				// step 2: allocate this much
-				child_holder.string_data = unique_ptr<data_t[]>(new data_t[total_string_length]);
-				child.buffers[2] = child_holder.string_data.get();
-				D_ASSERT(child.buffers[2]);
-				// step 3: assign buffers
-				idx_t current_heap_offset = 0;
-				auto target_ptr = (uint32_t *)child.buffers[1];
-
-				for (idx_t row_idx = 0; row_idx < size(); row_idx++) {
-					target_ptr[row_idx] = current_heap_offset;
-					if (!mask.RowIsValid(row_idx)) {
-						continue;
-					}
-					auto &str = string_t_ptr[row_idx];
-					memcpy((void *)((uint8_t *)child.buffers[2] + current_heap_offset), str.GetDataUnsafe(),
-					       str.GetSize());
-					current_heap_offset += str.GetSize();
-				}
-				target_ptr[size()] = current_heap_offset; // need to terminate last string!
-				break;
-			}
-			default:
-				throw std::runtime_error("Unsupported type " + GetTypes()[col_idx].ToString());
-			}
-
-			auto &mask = FlatVector::Validity(vector);
-			if (!mask.AllValid()) {
-				// any bits are set: might have nulls
-				child.null_count = -1;
-			} else {
-				// no bits are set; we know there are no nulls
-				child.null_count = 0;
-			}
-			child.buffers[0] = (void *)mask.GetData();
+			SetArrowChild(child_holder, GetTypes()[col_idx], data[col_idx], size());
+			SetChildValidityMask(vector, child);
 			break;
 		}
 		default:

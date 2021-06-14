@@ -28,6 +28,7 @@ static AggregateFunction GetUnaryAggregate(LogicalType type) {
 	case LogicalTypeId::INTEGER:
 		return AggregateFunction::UnaryAggregate<MinMaxState<int32_t>, int32_t, int32_t, OP>(type, type);
 	case LogicalTypeId::TIMESTAMP:
+	case LogicalTypeId::TIME:
 	case LogicalTypeId::BIGINT:
 		return AggregateFunction::UnaryAggregate<MinMaxState<int64_t>, int64_t, int64_t, OP>(type, type);
 	case LogicalTypeId::UTINYINT:
@@ -106,7 +107,7 @@ struct MinOperation : public NumericMinMaxBase {
 	}
 
 	template <class STATE, class OP>
-	static void Combine(STATE source, STATE *target) {
+	static void Combine(const STATE &source, STATE *target) {
 		if (!source.isset) {
 			// source is NULL, nothing to do
 			return;
@@ -129,7 +130,7 @@ struct MaxOperation : public NumericMinMaxBase {
 	}
 
 	template <class STATE, class OP>
-	static void Combine(STATE source, STATE *target) {
+	static void Combine(const STATE &source, STATE *target) {
 		if (!source.isset) {
 			// source is NULL, nothing to do
 			return;
@@ -176,7 +177,7 @@ struct StringMinMaxBase : public MinMaxBase {
 	}
 
 	template <class STATE, class OP>
-	static void Combine(STATE source, STATE *target) {
+	static void Combine(const STATE &source, STATE *target) {
 		if (!source.isset) {
 			// source is NULL, nothing to do
 			return;

@@ -1,3 +1,9 @@
+#include "src/optimizer/pushdown/pushdown_left_join.cpp"
+
+#include "src/optimizer/pushdown/pushdown_mark_join.cpp"
+
+#include "src/optimizer/pushdown/pushdown_projection.cpp"
+
 #include "src/optimizer/pushdown/pushdown_set_operation.cpp"
 
 #include "src/optimizer/pushdown/pushdown_single_join.cpp"

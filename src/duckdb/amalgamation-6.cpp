@@ -198,3 +198,9 @@
 
 #include "src/planner/binder/statement/bind_export.cpp"
 
+#include "src/planner/binder/statement/bind_insert.cpp"
+
+#include "src/planner/binder/statement/bind_load.cpp"
+
+#include "src/planner/binder/statement/bind_pragma.cpp"
+

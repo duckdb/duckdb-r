@@ -1,10 +1,10 @@
 #ifndef DUCKDB_VERSION
-#define DUCKDB_VERSION "0.2.6"
+#define DUCKDB_VERSION "0.2.7-dev904"
 #endif
 #ifndef DUCKDB_SOURCE_ID
-#define DUCKDB_SOURCE_ID "8295e245d"
+#define DUCKDB_SOURCE_ID "8bc050d05"
 #endif
-#include "duckdb/function/table/sqlite_functions.hpp"
+#include "duckdb/function/table/system_functions.hpp"
 #include "duckdb/main/database.hpp"
 
 namespace duckdb {
@@ -28,7 +28,7 @@ static unique_ptr<FunctionData> PragmaVersionBind(ClientContext &context, vector
 }
 
 static unique_ptr<FunctionOperatorData> PragmaVersionInit(ClientContext &context, const FunctionData *bind_data,
-                                                          vector<column_t> &column_ids,
+                                                          const vector<column_t> &column_ids,
                                                           TableFilterCollection *filters) {
 	return make_unique<PragmaVersionData>();
 }

@@ -27,6 +27,11 @@ struct RowDataBlock {
 	const idx_t entry_size;
 	idx_t count;
 	idx_t byte_offset;
+
+	RowDataBlock(const RowDataBlock &other)
+	    : block(other.block), capacity(other.capacity), entry_size(other.entry_size), count(other.count),
+	      byte_offset(other.byte_offset) {
+	}
 };
 
 struct BlockAppendEntry {
@@ -69,8 +74,10 @@ public:
 	                    idx_t remaining, idx_t entry_sizes[]);
 	void Build(idx_t added_count, data_ptr_t key_locations[], idx_t entry_sizes[]);
 
-	static void DeserializeIntoVector(Vector &v, const idx_t &vcount, const idx_t &col_idx, data_ptr_t key_locations[],
-	                                  data_ptr_t validitymask_locations[]);
+	void Merge(RowDataCollection &other);
+
+	static void DeserializeIntoVector(Vector &v, const idx_t &vcount, const SelectionVector &sel, const idx_t &col_idx,
+	                                  data_ptr_t key_locations[], data_ptr_t validitymask_locations[]);
 
 private:
 	template <class T>
@@ -92,13 +99,6 @@ private:
 	                                  idx_t offset);
 	static void SerializeListVector(Vector &v, idx_t vcount, const SelectionVector &sel, idx_t ser_count, idx_t col_idx,
 	                                data_ptr_t key_locations[], data_ptr_t validitymask_locations[], idx_t offset);
-
-	static void DeserializeIntoStringVector(Vector &v, const idx_t &vcount, const idx_t &col_idx,
-	                                        data_ptr_t *key_locations, data_ptr_t *validitymask_locations);
-	static void DeserializeIntoStructVector(Vector &v, const idx_t &vcount, const idx_t &col_idx,
-	                                        data_ptr_t *key_locations, data_ptr_t *validitymask_locations);
-	static void DeserializeIntoListVector(Vector &v, const idx_t &vcount, const idx_t &col_idx,
-	                                      data_ptr_t *key_locations, data_ptr_t *validitymask_locations);
 
 	//! Whether the system is little endian
 	const bool is_little_endian;

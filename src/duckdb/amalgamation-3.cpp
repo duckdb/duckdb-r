@@ -1,7 +1,3 @@
-#include "src/execution/physical_plan/plan_simple.cpp"
-
-#include "src/execution/physical_plan/plan_top_n.cpp"
-
 #include "src/execution/physical_plan/plan_unnest.cpp"
 
 #include "src/execution/physical_plan/plan_update.cpp"
@@ -144,6 +140,12 @@
 
 #include "src/function/scalar/nested/list_value.cpp"
 
+#include "src/function/scalar/nested/map/cardinality.cpp"
+
+#include "src/function/scalar/nested/map/map.cpp"
+
+#include "src/function/scalar/nested/map_extract.cpp"
+
 #include "src/function/scalar/nested/struct_extract.cpp"
 
 #include "src/function/scalar/nested/struct_pack.cpp"
@@ -197,4 +199,8 @@
 #include "src/function/scalar/string/mismatches.cpp"
 
 #include "src/function/scalar/string/nfc_normalize.cpp"
+
+#include "src/function/scalar/string/pad.cpp"
+
+#include "src/function/scalar/string/prefix.cpp"
 

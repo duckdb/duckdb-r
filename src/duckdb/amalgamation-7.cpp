@@ -1,9 +1,3 @@
-#include "src/planner/binder/statement/bind_insert.cpp"
-
-#include "src/planner/binder/statement/bind_load.cpp"
-
-#include "src/planner/binder/statement/bind_pragma.cpp"
-
 #include "src/planner/binder/statement/bind_relation.cpp"
 
 #include "src/planner/binder/statement/bind_select.cpp"
@@ -112,6 +106,12 @@
 
 #include "src/planner/expression_iterator.cpp"
 
+#include "src/planner/filter/conjunction_filter.cpp"
+
+#include "src/planner/filter/constant_filter.cpp"
+
+#include "src/planner/filter/null_filter.cpp"
+
 #include "src/planner/joinside.cpp"
 
 #include "src/planner/logical_operator.cpp"
@@ -154,6 +154,8 @@
 
 #include "src/planner/table_binding.cpp"
 
+#include "src/planner/table_filter.cpp"
+
 #include "src/storage/block.cpp"
 
 #include "src/storage/buffer/buffer_handle.cpp"
@@ -171,8 +173,6 @@
 #include "src/storage/checkpoint/write_overflow_strings_to_disk.cpp"
 
 #include "src/storage/checkpoint_manager.cpp"
-
-#include "src/storage/column_data.cpp"
 
 #include "src/storage/data_table.cpp"
 
@@ -196,5 +196,11 @@
 
 #include "src/storage/statistics/string_statistics.cpp"
 
+#include "src/storage/statistics/struct_statistics.cpp"
+
 #include "src/storage/statistics/validity_statistics.cpp"
+
+#include "src/storage/storage_info.cpp"
+
+#include "src/storage/storage_lock.cpp"
 

@@ -32,6 +32,8 @@
 
 #include "src/common/allocator.cpp"
 
+#include "src/common/arrow_wrapper.cpp"
+
 #include "src/common/assert.cpp"
 
 #include "src/common/bit_operations.cpp"
@@ -68,7 +70,7 @@
 
 #include "src/common/fstream_util.cpp"
 
-#include "src/common/gzip_stream.cpp"
+#include "src/common/gzip_file_system.cpp"
 
 #include "src/common/limits.cpp"
 
@@ -77,6 +79,14 @@
 #include "src/common/printer.cpp"
 
 #include "src/common/progress_bar.cpp"
+
+#include "src/common/row_operations/row_aggregate.cpp"
+
+#include "src/common/row_operations/row_gather.cpp"
+
+#include "src/common/row_operations/row_match.cpp"
+
+#include "src/common/row_operations/row_scatter.cpp"
 
 #include "src/common/serializer.cpp"
 
@@ -114,9 +124,9 @@
 
 #include "src/common/types/interval.cpp"
 
-#include "src/common/types/null_value.cpp"
-
 #include "src/common/types/row_data_collection.cpp"
+
+#include "src/common/types/row_layout.cpp"
 
 #include "src/common/types/selection_vector.cpp"
 
@@ -147,8 +157,6 @@
 #include "src/common/vector_operations/boolean_operators.cpp"
 
 #include "src/common/vector_operations/comparison_operators.cpp"
-
-#include "src/common/vector_operations/gather.cpp"
 
 #include "src/common/vector_operations/generators.cpp"
 
@@ -195,6 +203,4 @@
 #include "src/execution/expression_executor/execute_parameter.cpp"
 
 #include "src/execution/expression_executor/execute_reference.cpp"
-
-#include "src/execution/expression_executor_state.cpp"
 

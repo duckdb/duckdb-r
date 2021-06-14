@@ -1,3 +1,5 @@
+#include "src/execution/expression_executor_state.cpp"
+
 #include "src/execution/index/art/art.cpp"
 
 #include "src/execution/index/art/art_key.cpp"
@@ -197,4 +199,8 @@
 #include "src/execution/physical_plan/plan_set_operation.cpp"
 
 #include "src/execution/physical_plan/plan_show_select.cpp"
+
+#include "src/execution/physical_plan/plan_simple.cpp"
+
+#include "src/execution/physical_plan/plan_top_n.cpp"
 
