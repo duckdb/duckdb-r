@@ -1,3 +1,17 @@
+#include "src/execution/expression_executor/execute_comparison.cpp"
+
+#include "src/execution/expression_executor/execute_conjunction.cpp"
+
+#include "src/execution/expression_executor/execute_constant.cpp"
+
+#include "src/execution/expression_executor/execute_function.cpp"
+
+#include "src/execution/expression_executor/execute_operator.cpp"
+
+#include "src/execution/expression_executor/execute_parameter.cpp"
+
+#include "src/execution/expression_executor/execute_reference.cpp"
+
 #include "src/execution/expression_executor_state.cpp"
 
 #include "src/execution/index/art/art.cpp"
@@ -191,16 +205,4 @@
 #include "src/execution/physical_plan/plan_projection.cpp"
 
 #include "src/execution/physical_plan/plan_recursive_cte.cpp"
-
-#include "src/execution/physical_plan/plan_sample.cpp"
-
-#include "src/execution/physical_plan/plan_set.cpp"
-
-#include "src/execution/physical_plan/plan_set_operation.cpp"
-
-#include "src/execution/physical_plan/plan_show_select.cpp"
-
-#include "src/execution/physical_plan/plan_simple.cpp"
-
-#include "src/execution/physical_plan/plan_top_n.cpp"
 

@@ -122,7 +122,6 @@ void InitializeChild(ArrowSchema &child, const string &name = "") {
 	child.name = name.c_str();
 	child.n_children = 0;
 	child.children = nullptr;
-	child.flags = 0;
 	child.metadata = nullptr;
 	child.dictionary = nullptr;
 }
@@ -191,7 +190,7 @@ void SetArrowFormat(DuckDBArrowSchemaHolder &root_holder, ArrowSchema &child, co
 		child.format = "tdD";
 		break;
 	case LogicalTypeId::TIME:
-		child.format = "ttm";
+		child.format = "ttu";
 		break;
 	case LogicalTypeId::TIMESTAMP:
 		child.format = "tsu:";
@@ -204,6 +203,9 @@ void SetArrowFormat(DuckDBArrowSchemaHolder &root_holder, ArrowSchema &child, co
 		break;
 	case LogicalTypeId::TIMESTAMP_MS:
 		child.format = "tsm:";
+		break;
+	case LogicalTypeId::INTERVAL:
+		child.format = "tDm";
 		break;
 	case LogicalTypeId::DECIMAL: {
 		uint8_t width, scale;
@@ -220,6 +222,10 @@ void SetArrowFormat(DuckDBArrowSchemaHolder &root_holder, ArrowSchema &child, co
 	}
 	case LogicalTypeId::SQLNULL: {
 		child.format = "n";
+		break;
+	}
+	case LogicalTypeId::BLOB: {
+		child.format = "z";
 		break;
 	}
 	case LogicalTypeId::LIST: {
@@ -248,6 +254,7 @@ void SetArrowFormat(DuckDBArrowSchemaHolder &root_holder, ArrowSchema &child, co
 		}
 		child.children = &root_holder.nested_children_ptr.back()[0];
 		for (size_t type_idx = 0; type_idx < child_types.size(); type_idx++) {
+
 			InitializeChild(*child.children[type_idx]);
 
 			auto &struct_col_name = child_types[type_idx].first;
@@ -267,9 +274,8 @@ void SetArrowFormat(DuckDBArrowSchemaHolder &root_holder, ArrowSchema &child, co
 		SetArrowMapFormat(root_holder, child, type);
 		break;
 	}
-
 	default:
-		throw NotImplementedException("Unsupported Arrow type " + type.ToString());
+		throw InternalException("Unsupported Arrow type " + type.ToString());
 	}
 }
 
@@ -297,6 +303,7 @@ void QueryResult::ToArrowSchema(ArrowSchema *out_schema) {
 
 	// Configure all child schemas
 	for (idx_t col_idx = 0; col_idx < ColumnCount(); col_idx++) {
+
 		auto &child = root_holder->children[col_idx];
 		InitializeChild(child, names[col_idx]);
 		SetArrowFormat(*root_holder, child, types[col_idx]);

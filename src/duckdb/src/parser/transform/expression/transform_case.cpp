@@ -6,12 +6,8 @@
 namespace duckdb {
 
 unique_ptr<ParsedExpression> Transformer::TransformCase(duckdb_libpgquery::PGCaseExpr *root, idx_t depth) {
-	if (!root) {
-		return nullptr;
-	}
-	// CASE expression WHEN value THEN result [WHEN ...] ELSE result uses this,
-	// but we rewrite to CASE WHEN expression = value THEN result ... to only
-	// have to handle one case downstream.
+	D_ASSERT(root);
+
 	auto case_node = make_unique<CaseExpression>();
 	for (auto cell = root->args->head; cell != nullptr; cell = cell->next) {
 		CaseCheck case_check;

@@ -1,3 +1,11 @@
+#include "src/function/scalar/string/mismatches.cpp"
+
+#include "src/function/scalar/string/nfc_normalize.cpp"
+
+#include "src/function/scalar/string/pad.cpp"
+
+#include "src/function/scalar/string/prefix.cpp"
+
 #include "src/function/scalar/string/printf.cpp"
 
 #include "src/function/scalar/string/regexp.cpp"
@@ -174,9 +182,9 @@
 
 #include "src/optimizer/in_clause_rewriter.cpp"
 
-#include "src/optimizer/join_order/query_graph.cpp"
+#include "src/optimizer/join_order/join_relation_set.cpp"
 
-#include "src/optimizer/join_order/relation.cpp"
+#include "src/optimizer/join_order/query_graph.cpp"
 
 #include "src/optimizer/join_order_optimizer.cpp"
 
@@ -197,10 +205,4 @@
 #include "src/optimizer/pushdown/pushdown_aggregate.cpp"
 
 #include "src/optimizer/pushdown/pushdown_cross_product.cpp"
-
-#include "src/optimizer/pushdown/pushdown_filter.cpp"
-
-#include "src/optimizer/pushdown/pushdown_get.cpp"
-
-#include "src/optimizer/pushdown/pushdown_inner_join.cpp"
 

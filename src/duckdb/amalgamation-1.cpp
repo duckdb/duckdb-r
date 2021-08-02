@@ -36,8 +36,6 @@
 
 #include "src/common/assert.cpp"
 
-#include "src/common/bit_operations.cpp"
-
 #include "src/common/checksum.cpp"
 
 #include "src/common/constants.cpp"
@@ -54,6 +52,8 @@
 
 #include "src/common/enums/logical_operator_type.cpp"
 
+#include "src/common/enums/optimizer_type.cpp"
+
 #include "src/common/enums/physical_operator_type.cpp"
 
 #include "src/common/enums/relation_type.cpp"
@@ -68,23 +68,37 @@
 
 #include "src/common/file_system.cpp"
 
-#include "src/common/fstream_util.cpp"
-
 #include "src/common/gzip_file_system.cpp"
 
 #include "src/common/limits.cpp"
 
 #include "src/common/operator/cast_operators.cpp"
 
+#include "src/common/operator/convert_to_string.cpp"
+
+#include "src/common/operator/string_cast.cpp"
+
+#include "src/common/pipe_file_system.cpp"
+
 #include "src/common/printer.cpp"
 
 #include "src/common/progress_bar.cpp"
 
+#include "src/common/radix.cpp"
+
 #include "src/common/row_operations/row_aggregate.cpp"
+
+#include "src/common/row_operations/row_external.cpp"
 
 #include "src/common/row_operations/row_gather.cpp"
 
+#include "src/common/row_operations/row_heap_gather.cpp"
+
+#include "src/common/row_operations/row_heap_scatter.cpp"
+
 #include "src/common/row_operations/row_match.cpp"
+
+#include "src/common/row_operations/row_radix_scatter.cpp"
 
 #include "src/common/row_operations/row_scatter.cpp"
 
@@ -146,6 +160,8 @@
 
 #include "src/common/types/vector_buffer.cpp"
 
+#include "src/common/types/vector_cache.cpp"
+
 #include "src/common/types/vector_constants.cpp"
 
 #include "src/common/value_operations/comparison_operations.cpp"
@@ -189,18 +205,4 @@
 #include "src/execution/expression_executor/execute_case.cpp"
 
 #include "src/execution/expression_executor/execute_cast.cpp"
-
-#include "src/execution/expression_executor/execute_comparison.cpp"
-
-#include "src/execution/expression_executor/execute_conjunction.cpp"
-
-#include "src/execution/expression_executor/execute_constant.cpp"
-
-#include "src/execution/expression_executor/execute_function.cpp"
-
-#include "src/execution/expression_executor/execute_operator.cpp"
-
-#include "src/execution/expression_executor/execute_parameter.cpp"
-
-#include "src/execution/expression_executor/execute_reference.cpp"
 

@@ -1,3 +1,9 @@
+#include "src/optimizer/pushdown/pushdown_filter.cpp"
+
+#include "src/optimizer/pushdown/pushdown_get.cpp"
+
+#include "src/optimizer/pushdown/pushdown_inner_join.cpp"
+
 #include "src/optimizer/pushdown/pushdown_left_join.cpp"
 
 #include "src/optimizer/pushdown/pushdown_mark_join.cpp"
@@ -98,6 +104,8 @@
 
 #include "src/parser/constraints/unique_constraint.cpp"
 
+#include "src/parser/expression/between_expression.cpp"
+
 #include "src/parser/expression/case_expression.cpp"
 
 #include "src/parser/expression/cast_expression.cpp"
@@ -197,10 +205,4 @@
 #include "src/parser/statement/update_statement.cpp"
 
 #include "src/parser/statement/vacuum_statement.cpp"
-
-#include "src/parser/tableref.cpp"
-
-#include "src/parser/tableref/basetableref.cpp"
-
-#include "src/parser/tableref/crossproductref.cpp"
 

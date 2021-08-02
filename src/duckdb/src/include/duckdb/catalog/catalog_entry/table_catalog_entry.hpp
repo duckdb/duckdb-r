@@ -55,8 +55,6 @@ public:
 	ColumnDefinition &GetColumn(const string &name);
 	//! Returns a list of types of the table
 	vector<LogicalType> GetTypes();
-	//! Returns a list of types of the specified columns of the table
-	vector<LogicalType> GetTypes(const vector<column_t> &column_ids);
 	string ToSQL() override;
 
 	//! Add lower case aliases to a name map (e.g. "Hello" -> "hello" is also acceptable)
@@ -73,6 +71,12 @@ public:
 
 	void CommitAlter(AlterInfo &info);
 	void CommitDrop();
+
+	//! Returns the column index of the specified column name.
+	//! If the column does not exist:
+	//! If if_exists is true, returns INVALID_INDEX
+	//! If if_exists is false, throws an exception
+	idx_t GetColumnIndex(string &name, bool if_exists = false);
 
 private:
 	unique_ptr<CatalogEntry> RenameColumn(ClientContext &context, RenameColumnInfo &info);

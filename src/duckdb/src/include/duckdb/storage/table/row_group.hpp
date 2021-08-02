@@ -14,6 +14,7 @@
 #include "duckdb/storage/table/append_state.hpp"
 #include "duckdb/storage/table/scan_state.hpp"
 #include "duckdb/storage/statistics/segment_statistics.hpp"
+#include "duckdb/common/enums/scan_options.hpp"
 #include "duckdb/common/mutex.hpp"
 
 namespace duckdb {
@@ -92,9 +93,11 @@ public:
 	//! skipped.
 	bool CheckZonemapSegments(RowGroupScanState &state);
 	void Scan(Transaction &transaction, RowGroupScanState &state, DataChunk &result);
-	void IndexScan(RowGroupScanState &state, DataChunk &result, bool allow_pending_updates);
+	void ScanCommitted(RowGroupScanState &state, DataChunk &result, TableScanType type);
 
 	idx_t GetSelVector(Transaction &transaction, idx_t vector_idx, SelectionVector &sel_vector, idx_t max_count);
+	idx_t GetCommittedSelVector(transaction_t start_time, transaction_t transaction_id, idx_t vector_idx,
+	                            SelectionVector &sel_vector, idx_t max_count);
 
 	//! For a specific row, returns true if it should be used for the transaction and false otherwise.
 	bool Fetch(Transaction &transaction, idx_t row);
@@ -119,7 +122,8 @@ public:
 	void InitializeAppend(Transaction &transaction, RowGroupAppendState &append_state, idx_t remaining_append_count);
 	void Append(RowGroupAppendState &append_state, DataChunk &chunk, idx_t append_count);
 
-	void Update(Transaction &transaction, DataChunk &updates, Vector &row_ids, const vector<column_t> &column_ids);
+	void Update(Transaction &transaction, DataChunk &updates, row_t *ids, idx_t offset, idx_t count,
+	            const vector<column_t> &column_ids);
 	//! Update a single column; corresponds to DataTable::UpdateColumn
 	//! This method should only be called from the WAL
 	void UpdateColumn(Transaction &transaction, DataChunk &updates, Vector &row_ids,
@@ -132,10 +136,12 @@ public:
 
 	void Verify();
 
+	void NextVector(RowGroupScanState &state);
+
 private:
 	ChunkInfo *GetChunkInfo(idx_t vector_idx);
 
-	template <bool SCAN_DELETES, bool SCAN_COMMITTED, bool ALLOW_UPDATES>
+	template <TableScanType TYPE>
 	void TemplatedScan(Transaction *transaction, RowGroupScanState &state, DataChunk &result);
 
 	static void CheckpointDeletes(VersionNode *versions, Serializer &serializer);

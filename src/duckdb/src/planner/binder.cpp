@@ -18,6 +18,7 @@ shared_ptr<Binder> Binder::CreateBinder(ClientContext &context, Binder *parent, 
 Binder::Binder(bool, ClientContext &context, shared_ptr<Binder> parent_p, bool inherit_ctes_p)
     : context(context), read_only(true), requires_valid_transaction(true), allow_stream_result(false),
       parent(move(parent_p)), bound_tables(0), inherit_ctes(inherit_ctes_p) {
+	parameters = nullptr;
 	if (parent) {
 		// We have to inherit macro parameter bindings from the parent binder, if there is a parent.
 		macro_binding = parent->macro_binding;
@@ -285,9 +286,9 @@ string Binder::FormatError(TableRef &ref_context, const string &message) {
 	return FormatError(ref_context.query_location, message);
 }
 
-string Binder::FormatError(idx_t query_location, const string &message) {
+string Binder::FormatErrorRecursive(idx_t query_location, const string &message, vector<ExceptionFormatValue> &values) {
 	QueryErrorContext context(root_statement, query_location);
-	return context.FormatError(message);
+	return context.FormatErrorRecursive(message, values);
 }
 
 } // namespace duckdb

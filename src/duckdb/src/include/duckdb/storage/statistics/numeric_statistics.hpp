@@ -33,18 +33,21 @@ public:
 
 public:
 	void Merge(const BaseStatistics &other) override;
+
+	bool IsConstant() override;
+
 	FilterPropagateResult CheckZonemap(ExpressionType comparison_type, const Value &constant);
 
 	unique_ptr<BaseStatistics> Copy() override;
 	void Serialize(Serializer &serializer) override;
 	static unique_ptr<BaseStatistics> Deserialize(Deserializer &source, LogicalType type);
-	void Verify(Vector &vector, idx_t count) override;
+	void Verify(Vector &vector, const SelectionVector &sel, idx_t count) override;
 
 	string ToString() override;
 
 private:
 	template <class T>
-	void TemplatedVerify(Vector &vector, idx_t count);
+	void TemplatedVerify(Vector &vector, const SelectionVector &sel, idx_t count);
 
 public:
 	template <class T>
@@ -85,5 +88,7 @@ template <>
 void NumericStatistics::Update<double>(SegmentStatistics &stats, double new_value);
 template <>
 void NumericStatistics::Update<interval_t>(SegmentStatistics &stats, interval_t new_value);
+template <>
+void NumericStatistics::Update<list_entry_t>(SegmentStatistics &stats, list_entry_t new_value);
 
 } // namespace duckdb

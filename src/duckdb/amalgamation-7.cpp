@@ -1,3 +1,9 @@
+#include "src/planner/binder/statement/bind_insert.cpp"
+
+#include "src/planner/binder/statement/bind_load.cpp"
+
+#include "src/planner/binder/statement/bind_pragma.cpp"
+
 #include "src/planner/binder/statement/bind_relation.cpp"
 
 #include "src/planner/binder/statement/bind_select.cpp"
@@ -160,8 +166,6 @@
 
 #include "src/storage/buffer/buffer_handle.cpp"
 
-#include "src/storage/buffer/buffer_list.cpp"
-
 #include "src/storage/buffer/managed_buffer.cpp"
 
 #include "src/storage/buffer_manager.cpp"
@@ -173,6 +177,8 @@
 #include "src/storage/checkpoint/write_overflow_strings_to_disk.cpp"
 
 #include "src/storage/checkpoint_manager.cpp"
+
+#include "src/storage/constant_segment.cpp"
 
 #include "src/storage/data_table.cpp"
 
@@ -190,6 +196,8 @@
 
 #include "src/storage/statistics/base_statistics.cpp"
 
+#include "src/storage/statistics/list_statistics.cpp"
+
 #include "src/storage/statistics/numeric_statistics.cpp"
 
 #include "src/storage/statistics/segment_statistics.cpp"
@@ -197,10 +205,4 @@
 #include "src/storage/statistics/string_statistics.cpp"
 
 #include "src/storage/statistics/struct_statistics.cpp"
-
-#include "src/storage/statistics/validity_statistics.cpp"
-
-#include "src/storage/storage_info.cpp"
-
-#include "src/storage/storage_lock.cpp"
 

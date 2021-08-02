@@ -63,9 +63,6 @@ public:
 		sel_vector = other.sel_vector;
 	}
 
-	bool empty() const {
-		return !sel_vector;
-	}
 	void set_index(idx_t idx, idx_t loc) {
 		sel_vector[idx] = loc;
 	}
@@ -75,7 +72,7 @@ public:
 		sel_vector[j] = tmp;
 	}
 	idx_t get_index(idx_t idx) const {
-		return sel_vector[idx];
+		return sel_vector ? sel_vector[idx] : idx;
 	}
 	sel_t *data() {
 		return sel_vector;
@@ -95,6 +92,38 @@ public:
 private:
 	sel_t *sel_vector;
 	buffer_ptr<SelectionData> selection_data;
+};
+
+class OptionalSelection {
+public:
+	explicit inline OptionalSelection(SelectionVector *sel_p) : sel(sel_p) {
+
+		if (sel) {
+			vec.Initialize(sel->data());
+			sel = &vec;
+		}
+	}
+
+	inline operator SelectionVector *() {
+		return sel;
+	}
+
+	inline void Append(idx_t &count, const idx_t idx) {
+		if (sel) {
+			sel->set_index(count, idx);
+		}
+		++count;
+	}
+
+	inline void Advance(idx_t completed) {
+		if (sel) {
+			sel->Initialize(sel->data() + completed);
+		}
+	}
+
+private:
+	SelectionVector *sel;
+	SelectionVector vec;
 };
 
 } // namespace duckdb

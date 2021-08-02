@@ -15,14 +15,15 @@ unique_ptr<ExpressionState> ExpressionExecutor::InitializeState(const BoundCastE
 void ExpressionExecutor::Execute(const BoundCastExpression &expr, ExpressionState *state, const SelectionVector *sel,
                                  idx_t count, Vector &result) {
 	// resolve the child
-	Vector child;
-	child.Reference(state->intermediate_chunk.data[0]);
+	state->intermediate_chunk.Reset();
+
+	auto &child = state->intermediate_chunk.data[0];
 	auto child_state = state->child_states[0].get();
 
 	Execute(*expr.child, child_state, sel, count, child);
-	if (expr.child->return_type == expr.return_type) {
-		// NOP cast
-		result.Reference(child);
+	if (expr.try_cast) {
+		string error_message;
+		VectorOperations::TryCast(child, result, count, &error_message);
 	} else {
 		// cast it to the type specified by the cast expression
 		D_ASSERT(result.GetType() == expr.return_type);

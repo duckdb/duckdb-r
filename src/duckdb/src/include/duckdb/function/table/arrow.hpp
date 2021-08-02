@@ -12,51 +12,80 @@
 #include "duckdb/parallel/parallel_state.hpp"
 #include "duckdb/common/arrow_wrapper.hpp"
 #include "duckdb/common/atomic.hpp"
+#include "duckdb/common/mutex.hpp"
+#include <map>
 
 namespace duckdb {
 //===--------------------------------------------------------------------===//
-// Arrow List Types
+// Arrow Variable Size Types
 //===--------------------------------------------------------------------===//
-enum class ArrowListType : uint8_t { FIXED_SIZE = 0, NORMAL = 1, SUPER_SIZE = 2 };
-struct ArrowConvertData {};
+enum class ArrowVariableSizeType : uint8_t { FIXED_SIZE = 0, NORMAL = 1, SUPER_SIZE = 2 };
 
-struct DictionaryArrowConvertData : public ArrowConvertData {
-	DictionaryArrowConvertData(LogicalType type) : dictionary_type(type) {};
-	LogicalType dictionary_type;
+//===--------------------------------------------------------------------===//
+// Arrow Time/Date Types
+//===--------------------------------------------------------------------===//
+enum class ArrowDateTimeType : uint8_t {
+	MILLISECONDS = 0,
+	MICROSECONDS = 1,
+	NANOSECONDS = 2,
+	SECONDS = 3,
+	DAYS = 4,
+	MONTHS = 5
 };
-
-struct ListArrowConvertData : public ArrowConvertData {
-	ListArrowConvertData() {
-	}
-	vector<std::pair<ArrowListType, idx_t>> list_type;
+struct ArrowConvertData {
+	ArrowConvertData(LogicalType type) : dictionary_type(type) {};
+	ArrowConvertData() {};
+	//! Hold type of dictionary
+	LogicalType dictionary_type;
+	//! If its a variable size type (e.g., strings, blobs, lists) holds which type it is
+	vector<std::pair<ArrowVariableSizeType, idx_t>> variable_sz_type;
+	//! If this is a date/time holds its precision
+	vector<ArrowDateTimeType> date_time_precision;
 };
 
 struct ArrowScanFunctionData : public TableFunctionData {
-	ArrowScanFunctionData(idx_t rows_per_thread_p) : lines_read(0), rows_per_thread(rows_per_thread_p) {
+	ArrowScanFunctionData(idx_t rows_per_thread_p,
+	                      unique_ptr<ArrowArrayStreamWrapper> (*scanner_producer_p)(
+	                          uintptr_t stream_factory_ptr,
+	                          std::pair<std::unordered_map<idx_t, string>, std::vector<string>> &project_columns,
+	                          TableFilterCollection *filters),
+	                      uintptr_t stream_factory_ptr_p)
+	    : lines_read(0), rows_per_thread(rows_per_thread_p), stream_factory_ptr(stream_factory_ptr_p),
+	      scanner_producer(scanner_producer_p), number_of_rows(0) {
 	}
-	unique_ptr<ArrowArrayStreamWrapper> stream;
 	//! This holds the original list type (col_idx, [ArrowListType,size])
 	std::unordered_map<idx_t, unique_ptr<ArrowConvertData>> arrow_convert_data;
 	std::atomic<idx_t> lines_read;
 	ArrowSchemaWrapper schema_root;
 	idx_t rows_per_thread;
+	//! Pointer to the scanner factory
+	uintptr_t stream_factory_ptr;
+	//! Pointer to the scanner factory produce
+	unique_ptr<ArrowArrayStreamWrapper> (*scanner_producer)(
+	    uintptr_t stream_factory_ptr,
+	    std::pair<std::unordered_map<idx_t, string>, std::vector<string>> &project_columns,
+	    TableFilterCollection *filters);
+	//! Number of rows (Used in cardinality and progress bar)
+	int64_t number_of_rows;
 };
 
 struct ArrowScanState : public FunctionOperatorData {
 	explicit ArrowScanState(unique_ptr<ArrowArrayWrapper> current_chunk) : chunk(move(current_chunk)) {
 	}
+	unique_ptr<ArrowArrayStreamWrapper> stream;
 	unique_ptr<ArrowArrayWrapper> chunk;
 	idx_t chunk_offset = 0;
-	idx_t chunk_idx = 0;
 	vector<column_t> column_ids;
 	//! Store child vectors for Arrow Dictionary Vectors (col-idx,vector)
 	unordered_map<idx_t, unique_ptr<Vector>> arrow_dictionary_vectors;
+	TableFilterCollection *filters = nullptr;
 };
 
 struct ParallelArrowScanState : public ParallelState {
 	ParallelArrowScanState() {
 	}
-	bool finished = false;
+	unique_ptr<ArrowArrayStreamWrapper> stream;
+	std::mutex lock;
 };
 
 struct ArrowTableFunction {
@@ -73,7 +102,7 @@ private:
 	//! Actual conversion from Arrow to DuckDB
 	static void ArrowToDuckDB(ArrowScanState &scan_state,
 	                          std::unordered_map<idx_t, unique_ptr<ArrowConvertData>> &arrow_convert_data,
-	                          DataChunk &output);
+	                          DataChunk &output, idx_t start);
 
 	//! -----Single Thread Functions:-----
 	//! Initialize Single Thread Scan

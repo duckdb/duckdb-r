@@ -1,3 +1,9 @@
+#include "src/parser/tableref.cpp"
+
+#include "src/parser/tableref/basetableref.cpp"
+
+#include "src/parser/tableref/crossproductref.cpp"
+
 #include "src/parser/tableref/emptytableref.cpp"
 
 #include "src/parser/tableref/expressionlistref.cpp"
@@ -134,6 +140,8 @@
 
 #include "src/planner/binder/expression/bind_aggregate_expression.cpp"
 
+#include "src/planner/binder/expression/bind_between_expression.cpp"
+
 #include "src/planner/binder/expression/bind_case_expression.cpp"
 
 #include "src/planner/binder/expression/bind_cast_expression.cpp"
@@ -197,10 +205,4 @@
 #include "src/planner/binder/statement/bind_explain.cpp"
 
 #include "src/planner/binder/statement/bind_export.cpp"
-
-#include "src/planner/binder/statement/bind_insert.cpp"
-
-#include "src/planner/binder/statement/bind_load.cpp"
-
-#include "src/planner/binder/statement/bind_pragma.cpp"
 

@@ -4,9 +4,9 @@
 
 namespace duckdb {
 
-BoundCastExpression::BoundCastExpression(unique_ptr<Expression> child_p, LogicalType target_type_p)
-    : Expression(ExpressionType::OPERATOR_CAST, ExpressionClass::BOUND_CAST, move(target_type_p)),
-      child(move(child_p)) {
+BoundCastExpression::BoundCastExpression(unique_ptr<Expression> child_p, LogicalType target_type_p, bool try_cast_p)
+    : Expression(ExpressionType::OPERATOR_CAST, ExpressionClass::BOUND_CAST, move(target_type_p)), child(move(child_p)),
+      try_cast(try_cast_p) {
 }
 
 unique_ptr<Expression> BoundCastExpression::AddCastToType(unique_ptr<Expression> expr, const LogicalType &target_type) {
@@ -41,6 +41,22 @@ bool BoundCastExpression::CastIsInvertible(const LogicalType &source_type, const
 	if (source_type.id() == LogicalTypeId::DOUBLE || target_type.id() == LogicalTypeId::DOUBLE) {
 		return false;
 	}
+	if (source_type.id() == LogicalTypeId::DECIMAL || target_type.id() == LogicalTypeId::DECIMAL) {
+		uint8_t source_width, target_width;
+		uint8_t source_scale, target_scale;
+		// cast to or from decimal
+		// cast is only invertible if the cast is strictly widening
+		if (!source_type.GetDecimalProperties(source_width, source_scale)) {
+			return false;
+		}
+		if (!target_type.GetDecimalProperties(target_width, target_scale)) {
+			return false;
+		}
+		if (target_scale < source_scale) {
+			return false;
+		}
+		return true;
+	}
 	if (source_type.id() == LogicalTypeId::VARCHAR) {
 		return target_type.id() == LogicalTypeId::DATE || target_type.id() == LogicalTypeId::TIMESTAMP ||
 		       target_type.id() == LogicalTypeId::TIMESTAMP_NS || target_type.id() == LogicalTypeId::TIMESTAMP_MS ||
@@ -55,7 +71,7 @@ bool BoundCastExpression::CastIsInvertible(const LogicalType &source_type, const
 }
 
 string BoundCastExpression::ToString() const {
-	return "CAST(" + child->GetName() + " AS " + return_type.ToString() + ")";
+	return (try_cast ? "TRY_CAST(" : "CAST(") + child->GetName() + " AS " + return_type.ToString() + ")";
 }
 
 bool BoundCastExpression::Equals(const BaseExpression *other_p) const {
@@ -66,11 +82,14 @@ bool BoundCastExpression::Equals(const BaseExpression *other_p) const {
 	if (!Expression::Equals(child.get(), other->child.get())) {
 		return false;
 	}
+	if (try_cast != other->try_cast) {
+		return false;
+	}
 	return true;
 }
 
 unique_ptr<Expression> BoundCastExpression::Copy() {
-	auto copy = make_unique<BoundCastExpression>(child->Copy(), return_type);
+	auto copy = make_unique<BoundCastExpression>(child->Copy(), return_type, try_cast);
 	copy->CopyProperties(*this);
 	return move(copy);
 }
