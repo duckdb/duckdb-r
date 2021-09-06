@@ -1,3 +1,19 @@
+#include "src/optimizer/optimizer.cpp"
+
+#include "src/optimizer/pullup/pullup_both_side.cpp"
+
+#include "src/optimizer/pullup/pullup_filter.cpp"
+
+#include "src/optimizer/pullup/pullup_from_left.cpp"
+
+#include "src/optimizer/pullup/pullup_projection.cpp"
+
+#include "src/optimizer/pullup/pullup_set_operation.cpp"
+
+#include "src/optimizer/pushdown/pushdown_aggregate.cpp"
+
+#include "src/optimizer/pushdown/pushdown_cross_product.cpp"
+
 #include "src/optimizer/pushdown/pushdown_filter.cpp"
 
 #include "src/optimizer/pushdown/pushdown_get.cpp"
@@ -195,14 +211,4 @@
 #include "src/parser/statement/relation_statement.cpp"
 
 #include "src/parser/statement/select_statement.cpp"
-
-#include "src/parser/statement/set_statement.cpp"
-
-#include "src/parser/statement/show_statement.cpp"
-
-#include "src/parser/statement/transaction_statement.cpp"
-
-#include "src/parser/statement/update_statement.cpp"
-
-#include "src/parser/statement/vacuum_statement.cpp"
 

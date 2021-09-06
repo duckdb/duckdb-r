@@ -40,6 +40,10 @@ public:
 	//! it can be reloaded. The resulting buffer will already be allocated, but needs to be pinned in order to be used.
 	shared_ptr<BlockHandle> RegisterMemory(idx_t block_size, bool can_destroy);
 
+	//! Convert an existing in-memory buffer into a persistent disk-backed block
+	shared_ptr<BlockHandle> ConvertToPersistent(BlockManager &block_manager, block_id_t block_id,
+	                                            shared_ptr<BlockHandle> old_block);
+
 	//! Allocate an in-memory buffer with a single pin.
 	//! The allocated memory is released when the buffer handle is destroyed.
 	unique_ptr<BufferHandle> Allocate(idx_t block_size);
@@ -77,6 +81,9 @@ private:
 	//! (i.e. not enough blocks could be evicted)
 	bool EvictBlocks(idx_t extra_memory, idx_t memory_limit);
 
+	//! Garbage collect eviction queue
+	void PurgeQueue();
+
 	//! Write a temporary buffer to disk
 	void WriteTemporaryBuffer(ManagedBuffer &buffer);
 	//! Read a temporary buffer from disk
@@ -88,9 +95,16 @@ private:
 
 	void RequireTemporaryDirectory();
 
+	void AddToEvictionQueue(shared_ptr<BlockHandle> &handle);
+
+	//! Asserts that current_memory is equal to the sum of loaded blocks (used for verification)
+	void VerifyCurrentMemory();
+
 private:
 	//! The database instance
 	DatabaseInstance &db;
+	//! The lock for changing the memory limit
+	mutex limit_lock;
 	//! The current amount of memory that is occupied by the buffer manager (in bytes)
 	atomic<idx_t> current_memory;
 	//! The maximum amount of memory that the buffer manager can keep (in bytes)
@@ -102,12 +116,19 @@ private:
 	//! Handle for the temporary directory
 	unique_ptr<TemporaryDirectoryHandle> temp_directory_handle;
 	//! The lock for the set of blocks
-	mutex manager_lock;
+	mutex blocks_lock;
 	//! A mapping of block id -> BlockHandle
 	unordered_map<block_id_t, weak_ptr<BlockHandle>> blocks;
 	//! Eviction queue
 	unique_ptr<EvictionQueue> queue;
 	//! The temporary id used for managed buffers
 	atomic<block_id_t> temporary_id;
+
+	//! Lock for current_memory (used for verification)
+	mutex current_memory_lock;
+	//! Lock for the set of the temp_blocks (used for verification)
+	mutex temp_blocks_lock;
+	//! A mapping of temp block id -> BlockHandle (used for verification)
+	unordered_map<block_id_t, BlockHandle *> temp_blocks;
 };
 } // namespace duckdb

@@ -92,7 +92,11 @@
 
 #include "src/function/aggregate/regression_functions.cpp"
 
+#include "src/function/aggregate/sorted_aggregate_function.cpp"
+
 #include "src/function/cast_rules.cpp"
+
+#include "src/function/compression_config.cpp"
 
 #include "src/function/function.cpp"
 
@@ -112,7 +116,11 @@
 
 #include "src/function/scalar/date/current.cpp"
 
+#include "src/function/scalar/date/date_diff.cpp"
+
 #include "src/function/scalar/date/date_part.cpp"
+
+#include "src/function/scalar/date/date_sub.cpp"
 
 #include "src/function/scalar/date/date_trunc.cpp"
 
@@ -138,6 +146,20 @@
 
 #include "src/function/scalar/generic_functions.cpp"
 
+#include "src/function/scalar/list/array_slice.cpp"
+
+#include "src/function/scalar/list/list_extract.cpp"
+
+#include "src/function/scalar/list/list_value.cpp"
+
+#include "src/function/scalar/list/range.cpp"
+
+#include "src/function/scalar/map/cardinality.cpp"
+
+#include "src/function/scalar/map/map.cpp"
+
+#include "src/function/scalar/map/map_extract.cpp"
+
 #include "src/function/scalar/math/numeric.cpp"
 
 #include "src/function/scalar/math/random.cpp"
@@ -145,22 +167,6 @@
 #include "src/function/scalar/math/setseed.cpp"
 
 #include "src/function/scalar/math_functions.cpp"
-
-#include "src/function/scalar/nested/array_slice.cpp"
-
-#include "src/function/scalar/nested/list_extract.cpp"
-
-#include "src/function/scalar/nested/list_value.cpp"
-
-#include "src/function/scalar/nested/map/cardinality.cpp"
-
-#include "src/function/scalar/nested/map/map.cpp"
-
-#include "src/function/scalar/nested/map_extract.cpp"
-
-#include "src/function/scalar/nested/struct_extract.cpp"
-
-#include "src/function/scalar/nested/struct_pack.cpp"
 
 #include "src/function/scalar/nested_functions.cpp"
 

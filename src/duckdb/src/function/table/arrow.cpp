@@ -177,7 +177,13 @@ unique_ptr<FunctionData> ArrowTableFunction::ArrowScanBind(ClientContext &contex
 	        .GetPointer();
 	auto rows_per_thread = inputs[2].GetValue<uint64_t>();
 	std::pair<std::unordered_map<idx_t, string>, std::vector<string>> project_columns;
+#ifndef DUCKDB_NO_THREADS
+
+	auto res = make_unique<ArrowScanFunctionData>(rows_per_thread, stream_factory_produce, stream_factory_ptr,
+	                                              std::this_thread::get_id());
+#else
 	auto res = make_unique<ArrowScanFunctionData>(rows_per_thread, stream_factory_produce, stream_factory_ptr);
+#endif
 	auto &data = *res;
 	auto stream = stream_factory_produce(stream_factory_ptr, project_columns, nullptr);
 
@@ -214,15 +220,7 @@ unique_ptr<ArrowArrayStreamWrapper> ProduceArrowScan(const ArrowScanFunctionData
                                                      TableFilterCollection *filters) {
 	//! Generate Projection Pushdown Vector
 	pair<unordered_map<idx_t, string>, vector<string>> project_columns;
-	if (scan_state.column_ids.empty()) {
-		//! We have to push all columns, to generate proper scanners.
-		auto &schema = function.schema_root.arrow_schema;
-		for (idx_t col_idx = 0; col_idx < (idx_t)schema.n_children; col_idx++) {
-			auto &column_schema = *schema.children[col_idx];
-			project_columns.first[col_idx] = column_schema.name;
-			project_columns.second.emplace_back(column_schema.name);
-		}
-	}
+	D_ASSERT(!scan_state.column_ids.empty());
 	for (idx_t idx = 0; idx < scan_state.column_ids.size(); idx++) {
 		auto col_idx = scan_state.column_ids[idx];
 		if (col_idx != COLUMN_IDENTIFIER_ROW_ID) {
@@ -513,11 +511,15 @@ template <class T>
 void TimeConversion(Vector &vector, ArrowArray &array, ArrowScanState &scan_state, int64_t nested_offset, idx_t size,
                     int64_t conversion) {
 	auto tgt_ptr = (dtime_t *)FlatVector::GetData(vector);
+	auto &validity_mask = FlatVector::Validity(vector);
 	auto src_ptr = (T *)array.buffers[1] + scan_state.chunk_offset + array.offset;
 	if (nested_offset != -1) {
 		src_ptr = (T *)array.buffers[1] + nested_offset + array.offset;
 	}
 	for (idx_t row = 0; row < size; row++) {
+		if (!validity_mask.RowIsValid(row)) {
+			continue;
+		}
 		if (!TryMultiplyOperator::Operation((int64_t)src_ptr[row], conversion, tgt_ptr[row].micros)) {
 			throw ConversionException("Could not convert Interval to Microsecond");
 		}
@@ -1009,15 +1011,14 @@ void ArrowTableFunction::ArrowScanFunction(ClientContext &context, const Functio
 	auto &state = (ArrowScanState &)*operator_state;
 
 	//! have we run out of data on the current chunk? move to next one
-	if (state.chunk_offset >= (idx_t)state.chunk->arrow_array.length) {
+	while (state.chunk_offset >= (idx_t)state.chunk->arrow_array.length) {
 		state.chunk_offset = 0;
 		state.arrow_dictionary_vectors.clear();
 		state.chunk = state.stream->GetNextChunk();
-	}
-
-	//! have we run out of chunks? we are done
-	if (!state.chunk->arrow_array.release) {
-		return;
+		//! have we run out of chunks? we are done
+		if (!state.chunk->arrow_array.release) {
+			return;
+		}
 	}
 
 	int64_t output_size = MinValue<int64_t>(STANDARD_VECTOR_SIZE, state.chunk->arrow_array.length - state.chunk_offset);
@@ -1064,12 +1065,29 @@ bool ArrowTableFunction::ArrowScanParallelStateNext(ClientContext &context, cons
 	auto &bind_data = (const ArrowScanFunctionData &)*bind_data_p;
 	auto &state = (ArrowScanState &)*operator_state;
 	auto &parallel_state = (ParallelArrowScanState &)*parallel_state_p;
+#ifndef DUCKDB_NO_THREADS
+	if (!parallel_state.stream) {
+		std::unique_lock<mutex> sync_lock(parallel_state.sync_mutex);
 
-	lock_guard<mutex> parallel_lock(parallel_state.lock);
+		if (std::this_thread::get_id() == bind_data.thread_id) {
+			//! Generate a Stream
+			parallel_state.stream = ProduceArrowScan(bind_data, state, state.filters);
+			parallel_state.ready = true;
+			parallel_state.cv.notify_all();
+		} else {
+			parallel_state.cv.wait(sync_lock, [&parallel_state] { return parallel_state.ready; });
+		}
+	}
+	lock_guard<mutex> parallel_lock(parallel_state.main_mutex);
+
+#else
+	lock_guard<mutex> parallel_lock(parallel_state.main_mutex);
 	if (!parallel_state.stream) {
 		//! Generate a Stream
 		parallel_state.stream = ProduceArrowScan(bind_data, state, state.filters);
 	}
+#endif
+
 	state.chunk_offset = 0;
 
 	auto current_chunk = parallel_state.stream->GetNextChunk();

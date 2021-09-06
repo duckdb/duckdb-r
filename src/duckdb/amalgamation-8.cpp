@@ -1,3 +1,11 @@
+#include "src/storage/statistics/numeric_statistics.cpp"
+
+#include "src/storage/statistics/segment_statistics.cpp"
+
+#include "src/storage/statistics/string_statistics.cpp"
+
+#include "src/storage/statistics/struct_statistics.cpp"
+
 #include "src/storage/statistics/validity_statistics.cpp"
 
 #include "src/storage/storage_info.cpp"
@@ -6,17 +14,17 @@
 
 #include "src/storage/storage_manager.cpp"
 
-#include "src/storage/string_segment.cpp"
-
 #include "src/storage/table/chunk_info.cpp"
 
+#include "src/storage/table/column_checkpoint_state.cpp"
+
 #include "src/storage/table/column_data.cpp"
+
+#include "src/storage/table/column_data_checkpointer.cpp"
 
 #include "src/storage/table/column_segment.cpp"
 
 #include "src/storage/table/list_column_data.cpp"
-
-#include "src/storage/table/persistent_segment.cpp"
 
 #include "src/storage/table/persistent_table_data.cpp"
 
@@ -28,15 +36,9 @@
 
 #include "src/storage/table/struct_column_data.cpp"
 
-#include "src/storage/table/transient_segment.cpp"
-
 #include "src/storage/table/update_segment.cpp"
 
 #include "src/storage/table/validity_column_data.cpp"
-
-#include "src/storage/table/validity_segment.cpp"
-
-#include "src/storage/uncompressed_segment.cpp"
 
 #include "src/storage/wal_replay.cpp"
 

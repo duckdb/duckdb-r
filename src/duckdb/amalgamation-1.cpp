@@ -46,6 +46,8 @@
 
 #include "src/common/enums/catalog_type.cpp"
 
+#include "src/common/enums/compression_type.cpp"
+
 #include "src/common/enums/expression_type.cpp"
 
 #include "src/common/enums/join_type.cpp"
@@ -111,6 +113,16 @@
 #include "src/common/serializer/buffered_file_writer.cpp"
 
 #include "src/common/serializer/buffered_serializer.cpp"
+
+#include "src/common/sort/comparators.cpp"
+
+#include "src/common/sort/merge_sorter.cpp"
+
+#include "src/common/sort/radix_sort.cpp"
+
+#include "src/common/sort/sort_state.cpp"
+
+#include "src/common/sort/sorted_block.cpp"
 
 #include "src/common/string_util.cpp"
 
@@ -199,10 +211,4 @@
 #include "src/execution/column_binding_resolver.cpp"
 
 #include "src/execution/expression_executor.cpp"
-
-#include "src/execution/expression_executor/execute_between.cpp"
-
-#include "src/execution/expression_executor/execute_case.cpp"
-
-#include "src/execution/expression_executor/execute_cast.cpp"
 

@@ -1,3 +1,7 @@
+#include "src/planner/binder/statement/bind_explain.cpp"
+
+#include "src/planner/binder/statement/bind_export.cpp"
+
 #include "src/planner/binder/statement/bind_insert.cpp"
 
 #include "src/planner/binder/statement/bind_load.cpp"
@@ -13,6 +17,8 @@
 #include "src/planner/binder/statement/bind_show.cpp"
 
 #include "src/planner/binder/statement/bind_simple.cpp"
+
+#include "src/planner/binder/statement/bind_summarize.cpp"
 
 #include "src/planner/binder/statement/bind_update.cpp"
 
@@ -178,7 +184,17 @@
 
 #include "src/storage/checkpoint_manager.cpp"
 
-#include "src/storage/constant_segment.cpp"
+#include "src/storage/compression/fixed_size_uncompressed.cpp"
+
+#include "src/storage/compression/numeric_constant.cpp"
+
+#include "src/storage/compression/rle.cpp"
+
+#include "src/storage/compression/string_uncompressed.cpp"
+
+#include "src/storage/compression/uncompressed.cpp"
+
+#include "src/storage/compression/validity_uncompressed.cpp"
 
 #include "src/storage/data_table.cpp"
 
@@ -190,19 +206,9 @@
 
 #include "src/storage/meta_block_writer.cpp"
 
-#include "src/storage/numeric_segment.cpp"
-
 #include "src/storage/single_file_block_manager.cpp"
 
 #include "src/storage/statistics/base_statistics.cpp"
 
 #include "src/storage/statistics/list_statistics.cpp"
-
-#include "src/storage/statistics/numeric_statistics.cpp"
-
-#include "src/storage/statistics/segment_statistics.cpp"
-
-#include "src/storage/statistics/string_statistics.cpp"
-
-#include "src/storage/statistics/struct_statistics.cpp"
 

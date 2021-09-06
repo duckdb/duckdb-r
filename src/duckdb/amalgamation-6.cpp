@@ -1,3 +1,13 @@
+#include "src/parser/statement/set_statement.cpp"
+
+#include "src/parser/statement/show_statement.cpp"
+
+#include "src/parser/statement/transaction_statement.cpp"
+
+#include "src/parser/statement/update_statement.cpp"
+
+#include "src/parser/statement/vacuum_statement.cpp"
+
 #include "src/parser/tableref.cpp"
 
 #include "src/parser/tableref/basetableref.cpp"
@@ -201,8 +211,4 @@
 #include "src/planner/binder/statement/bind_delete.cpp"
 
 #include "src/planner/binder/statement/bind_drop.cpp"
-
-#include "src/planner/binder/statement/bind_explain.cpp"
-
-#include "src/planner/binder/statement/bind_export.cpp"
 
