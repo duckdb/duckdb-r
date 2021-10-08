@@ -1,3 +1,9 @@
+#include "src/execution/base_aggregate_hashtable.cpp"
+
+#include "src/execution/column_binding_resolver.cpp"
+
+#include "src/execution/expression_executor.cpp"
+
 #include "src/execution/expression_executor/execute_between.cpp"
 
 #include "src/execution/expression_executor/execute_case.cpp"
@@ -77,6 +83,8 @@
 #include "src/execution/operator/helper/physical_transaction.cpp"
 
 #include "src/execution/operator/helper/physical_vacuum.cpp"
+
+#include "src/execution/operator/join/perfect_hash_join_executor.cpp"
 
 #include "src/execution/operator/join/physical_blockwise_nl_join.cpp"
 
@@ -205,10 +213,4 @@
 #include "src/execution/physical_plan/plan_order.cpp"
 
 #include "src/execution/physical_plan/plan_pragma.cpp"
-
-#include "src/execution/physical_plan/plan_prepare.cpp"
-
-#include "src/execution/physical_plan/plan_projection.cpp"
-
-#include "src/execution/physical_plan/plan_recursive_cte.cpp"
 

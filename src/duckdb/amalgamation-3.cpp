@@ -1,3 +1,9 @@
+#include "src/execution/physical_plan/plan_prepare.cpp"
+
+#include "src/execution/physical_plan/plan_projection.cpp"
+
+#include "src/execution/physical_plan/plan_recursive_cte.cpp"
+
 #include "src/execution/physical_plan/plan_sample.cpp"
 
 #include "src/execution/physical_plan/plan_set.cpp"
@@ -207,8 +213,4 @@
 #include "src/function/scalar/string/length.cpp"
 
 #include "src/function/scalar/string/levenshtein.cpp"
-
-#include "src/function/scalar/string/like.cpp"
-
-#include "src/function/scalar/string/md5.cpp"
 

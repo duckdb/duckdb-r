@@ -1,5 +1,3 @@
-#include "src/storage/statistics/numeric_statistics.cpp"
-
 #include "src/storage/statistics/segment_statistics.cpp"
 
 #include "src/storage/statistics/string_statistics.cpp"

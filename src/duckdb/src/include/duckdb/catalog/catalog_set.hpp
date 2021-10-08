@@ -11,7 +11,8 @@
 #include "duckdb/catalog/catalog_entry.hpp"
 #include "duckdb/catalog/default/default_generator.hpp"
 #include "duckdb/common/common.hpp"
-#include "duckdb/common/unordered_map.hpp"
+#include "duckdb/common/case_insensitive_map.hpp"
+#include "duckdb/common/pair.hpp"
 #include "duckdb/common/unordered_set.hpp"
 #include "duckdb/common/mutex.hpp"
 
@@ -58,8 +59,8 @@ public:
 	CatalogEntry *GetEntry(ClientContext &context, const string &name);
 
 	//! Gets the entry that is most similar to the given name (i.e. smallest levenshtein distance), or empty string if
-	//! none is found
-	string SimilarEntry(ClientContext &context, const string &name);
+	//! none is found. The returned pair consists of the entry name and the distance (smaller means closer).
+	pair<string, idx_t> SimilarEntry(ClientContext &context, const string &name);
 
 	//! Rollback <entry> to be the currently valid entry for a certain catalog
 	//! entry
@@ -93,8 +94,7 @@ private:
 	void DropEntryInternal(ClientContext &context, idx_t entry_index, CatalogEntry &entry, bool cascade,
 	                       set_lock_map_t &lock_set);
 	CatalogEntry *CreateEntryInternal(ClientContext &context, unique_ptr<CatalogEntry> entry);
-	MappingValue *GetMapping(ClientContext &context, const string &name, bool allow_lowercase_alias,
-	                         bool get_latest = false);
+	MappingValue *GetMapping(ClientContext &context, const string &name, bool get_latest = false);
 	void PutMapping(ClientContext &context, const string &name, idx_t entry_index);
 	void DeleteMapping(ClientContext &context, const string &name);
 
@@ -103,7 +103,7 @@ private:
 	//! The catalog lock is used to make changes to the data
 	mutex catalog_lock;
 	//! Mapping of string to catalog entry
-	unordered_map<string, unique_ptr<MappingValue>> mapping;
+	case_insensitive_map_t<unique_ptr<MappingValue>> mapping;
 	//! The set of catalog entries
 	unordered_map<idx_t, unique_ptr<CatalogEntry>> entries;
 	//! The current catalog entry index

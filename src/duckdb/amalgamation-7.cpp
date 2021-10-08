@@ -212,3 +212,5 @@
 
 #include "src/storage/statistics/list_statistics.cpp"
 
+#include "src/storage/statistics/numeric_statistics.cpp"
+

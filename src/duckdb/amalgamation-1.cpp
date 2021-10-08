@@ -20,6 +20,8 @@
 
 #include "src/catalog/catalog_entry/view_catalog_entry.cpp"
 
+#include "src/catalog/catalog_search_path.cpp"
+
 #include "src/catalog/catalog_set.cpp"
 
 #include "src/catalog/default/default_functions.cpp"
@@ -73,6 +75,8 @@
 #include "src/common/gzip_file_system.cpp"
 
 #include "src/common/limits.cpp"
+
+#include "src/common/local_file_system.cpp"
 
 #include "src/common/operator/cast_operators.cpp"
 
@@ -164,6 +168,8 @@
 
 #include "src/common/types/timestamp.cpp"
 
+#include "src/common/types/uuid.cpp"
+
 #include "src/common/types/validity_mask.cpp"
 
 #include "src/common/types/value.cpp"
@@ -202,13 +208,9 @@
 
 #include "src/common/vector_operations/vector_storage.cpp"
 
+#include "src/common/virtual_file_system.cpp"
+
 #include "src/execution/adaptive_filter.cpp"
 
 #include "src/execution/aggregate_hashtable.cpp"
-
-#include "src/execution/base_aggregate_hashtable.cpp"
-
-#include "src/execution/column_binding_resolver.cpp"
-
-#include "src/execution/expression_executor.cpp"
 

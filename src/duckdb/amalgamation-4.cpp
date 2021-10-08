@@ -1,3 +1,7 @@
+#include "src/function/scalar/string/like.cpp"
+
+#include "src/function/scalar/string/md5.cpp"
+
 #include "src/function/scalar/string/mismatches.cpp"
 
 #include "src/function/scalar/string/nfc_normalize.cpp"
@@ -120,6 +124,8 @@
 
 #include "src/main/client_context.cpp"
 
+#include "src/main/client_context_file_opener.cpp"
+
 #include "src/main/config.cpp"
 
 #include "src/main/connection.cpp"
@@ -207,8 +213,4 @@
 #include "src/optimizer/join_order/join_relation_set.cpp"
 
 #include "src/optimizer/join_order/query_graph.cpp"
-
-#include "src/optimizer/join_order_optimizer.cpp"
-
-#include "src/optimizer/matcher/expression_matcher.cpp"
 

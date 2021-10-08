@@ -1,3 +1,7 @@
+#include "src/optimizer/join_order_optimizer.cpp"
+
+#include "src/optimizer/matcher/expression_matcher.cpp"
+
 #include "src/optimizer/optimizer.cpp"
 
 #include "src/optimizer/pullup/pullup_both_side.cpp"
@@ -57,6 +61,8 @@
 #include "src/optimizer/rule/move_constants.cpp"
 
 #include "src/optimizer/statistics/expression/propagate_aggregate.cpp"
+
+#include "src/optimizer/statistics/expression/propagate_and_compress.cpp"
 
 #include "src/optimizer/statistics/expression/propagate_between.cpp"
 
@@ -152,8 +158,6 @@
 
 #include "src/parser/expression/subquery_expression.cpp"
 
-#include "src/parser/expression/table_star_expression.cpp"
-
 #include "src/parser/expression/window_expression.cpp"
 
 #include "src/parser/expression_util.cpp"
@@ -209,6 +213,4 @@
 #include "src/parser/statement/prepare_statement.cpp"
 
 #include "src/parser/statement/relation_statement.cpp"
-
-#include "src/parser/statement/select_statement.cpp"
 
