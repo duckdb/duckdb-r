@@ -18,6 +18,8 @@
 
 #include "src/catalog/catalog_entry/table_function_catalog_entry.cpp"
 
+#include "src/catalog/catalog_entry/type_catalog_entry.cpp"
+
 #include "src/catalog/catalog_entry/view_catalog_entry.cpp"
 
 #include "src/catalog/catalog_search_path.cpp"
@@ -213,4 +215,6 @@
 #include "src/execution/adaptive_filter.cpp"
 
 #include "src/execution/aggregate_hashtable.cpp"
+
+#include "src/execution/base_aggregate_hashtable.cpp"
 

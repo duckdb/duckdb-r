@@ -1,3 +1,9 @@
+#include "src/parser/statement/pragma_statement.cpp"
+
+#include "src/parser/statement/prepare_statement.cpp"
+
+#include "src/parser/statement/relation_statement.cpp"
+
 #include "src/parser/statement/select_statement.cpp"
 
 #include "src/parser/statement/set_statement.cpp"
@@ -46,6 +52,8 @@
 
 #include "src/parser/transform/expression/transform_function.cpp"
 
+#include "src/parser/transform/expression/transform_grouping_function.cpp"
+
 #include "src/parser/transform/expression/transform_interval.cpp"
 
 #include "src/parser/transform/expression/transform_is_null.cpp"
@@ -81,6 +89,8 @@
 #include "src/parser/transform/statement/transform_checkpoint.cpp"
 
 #include "src/parser/transform/statement/transform_copy.cpp"
+
+#include "src/parser/transform/statement/transform_create_enum.cpp"
 
 #include "src/parser/transform/statement/transform_create_function.cpp"
 
@@ -207,10 +217,4 @@
 #include "src/planner/binder/statement/bind_copy.cpp"
 
 #include "src/planner/binder/statement/bind_create.cpp"
-
-#include "src/planner/binder/statement/bind_create_table.cpp"
-
-#include "src/planner/binder/statement/bind_delete.cpp"
-
-#include "src/planner/binder/statement/bind_drop.cpp"
 

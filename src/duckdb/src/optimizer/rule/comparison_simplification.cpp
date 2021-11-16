@@ -15,7 +15,7 @@ ComparisonSimplificationRule::ComparisonSimplificationRule(ExpressionRewriter &r
 }
 
 unique_ptr<Expression> ComparisonSimplificationRule::Apply(LogicalOperator &op, vector<Expression *> &bindings,
-                                                           bool &changes_made) {
+                                                           bool &changes_made, bool is_root) {
 	D_ASSERT(bindings[0]->expression_class == ExpressionClass::BOUND_COMPARISON);
 	auto expr = (BoundComparisonExpression *)bindings[0];
 	auto constant_expr = bindings[1];
@@ -24,7 +24,10 @@ unique_ptr<Expression> ComparisonSimplificationRule::Apply(LogicalOperator &op, 
 	// the constant_expr is a scalar expression that we have to fold
 	// use an ExpressionExecutor to execute the expression
 	D_ASSERT(constant_expr->IsFoldable());
-	auto constant_value = ExpressionExecutor::EvaluateScalar(*constant_expr);
+	Value constant_value;
+	if (!ExpressionExecutor::TryEvaluateScalar(*constant_expr, constant_value)) {
+		return nullptr;
+	}
 	if (constant_value.is_null && !(expr->type == ExpressionType::COMPARE_NOT_DISTINCT_FROM ||
 	                                expr->type == ExpressionType::COMPARE_DISTINCT_FROM)) {
 		// comparison with constant NULL, return NULL

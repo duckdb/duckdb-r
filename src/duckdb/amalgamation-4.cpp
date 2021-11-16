@@ -1,7 +1,3 @@
-#include "src/function/scalar/string/like.cpp"
-
-#include "src/function/scalar/string/md5.cpp"
-
 #include "src/function/scalar/string/mismatches.cpp"
 
 #include "src/function/scalar/string/nfc_normalize.cpp"
@@ -39,6 +35,8 @@
 #include "src/function/scalar/system/system_functions.cpp"
 
 #include "src/function/scalar/trigonometrics_functions.cpp"
+
+#include "src/function/scalar/uuid/gen_random.cpp"
 
 #include "src/function/table/arrow.cpp"
 
@@ -132,6 +130,8 @@
 
 #include "src/main/database.cpp"
 
+#include "src/main/extension_helper.cpp"
+
 #include "src/main/materialized_query_result.cpp"
 
 #include "src/main/prepared_statement.cpp"
@@ -213,4 +213,8 @@
 #include "src/optimizer/join_order/join_relation_set.cpp"
 
 #include "src/optimizer/join_order/query_graph.cpp"
+
+#include "src/optimizer/join_order_optimizer.cpp"
+
+#include "src/optimizer/matcher/expression_matcher.cpp"
 

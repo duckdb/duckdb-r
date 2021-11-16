@@ -1,5 +1,3 @@
-#include "src/execution/base_aggregate_hashtable.cpp"
-
 #include "src/execution/column_binding_resolver.cpp"
 
 #include "src/execution/expression_executor.cpp"
@@ -150,6 +148,8 @@
 
 #include "src/execution/operator/schema/physical_create_table_as.cpp"
 
+#include "src/execution/operator/schema/physical_create_type.cpp"
+
 #include "src/execution/operator/schema/physical_create_view.cpp"
 
 #include "src/execution/operator/schema/physical_drop.cpp"
@@ -213,4 +213,8 @@
 #include "src/execution/physical_plan/plan_order.cpp"
 
 #include "src/execution/physical_plan/plan_pragma.cpp"
+
+#include "src/execution/physical_plan/plan_prepare.cpp"
+
+#include "src/execution/physical_plan/plan_projection.cpp"
 

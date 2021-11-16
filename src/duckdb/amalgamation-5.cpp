@@ -1,7 +1,3 @@
-#include "src/optimizer/join_order_optimizer.cpp"
-
-#include "src/optimizer/matcher/expression_matcher.cpp"
-
 #include "src/optimizer/optimizer.cpp"
 
 #include "src/optimizer/pullup/pullup_both_side.cpp"
@@ -53,6 +49,8 @@
 #include "src/optimizer/rule/distributivity.cpp"
 
 #include "src/optimizer/rule/empty_needle_removal.cpp"
+
+#include "src/optimizer/rule/enum_comparison.cpp"
 
 #include "src/optimizer/rule/in_clause_simplification_rule.cpp"
 
@@ -106,9 +104,21 @@
 
 #include "src/optimizer/topn_optimizer.cpp"
 
+#include "src/parallel/event.cpp"
+
 #include "src/parallel/executor.cpp"
 
+#include "src/parallel/executor_task.cpp"
+
 #include "src/parallel/pipeline.cpp"
+
+#include "src/parallel/pipeline_complete_event.cpp"
+
+#include "src/parallel/pipeline_event.cpp"
+
+#include "src/parallel/pipeline_executor.cpp"
+
+#include "src/parallel/pipeline_finish_event.cpp"
 
 #include "src/parallel/task_scheduler.cpp"
 
@@ -207,10 +217,4 @@
 #include "src/parser/statement/insert_statement.cpp"
 
 #include "src/parser/statement/load_statement.cpp"
-
-#include "src/parser/statement/pragma_statement.cpp"
-
-#include "src/parser/statement/prepare_statement.cpp"
-
-#include "src/parser/statement/relation_statement.cpp"
 

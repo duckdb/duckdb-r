@@ -4,52 +4,81 @@
 
 namespace duckdb {
 
-class PhysicalExpressionScanState : public PhysicalOperatorState {
+class ExpressionScanState : public GlobalSourceState {
 public:
-	PhysicalExpressionScanState(PhysicalOperator &op, PhysicalOperator *child)
-	    : PhysicalOperatorState(op, child), expression_index(0) {
+	explicit ExpressionScanState(const PhysicalExpressionScan &op) : expression_index(0) {
+		temp_chunk.Initialize(op.GetTypes());
 	}
 
 	//! The current position in the scan
 	idx_t expression_index;
-
-	unique_ptr<ExpressionExecutor> executor;
+	//! Temporary chunk for evaluating expressions
+	DataChunk temp_chunk;
 };
 
-void PhysicalExpressionScan::GetChunkInternal(ExecutionContext &context, DataChunk &chunk,
-                                              PhysicalOperatorState *state_p) const {
-	auto state = (PhysicalExpressionScanState *)state_p;
-	if (state->expression_index >= expressions.size()) {
-		// finished executing all expression lists
-		return;
+class ExpressionSinkState : public GlobalSinkState {
+public:
+	ExpressionSinkState() {
 	}
 
-	if (state->expression_index == 0) {
-		// first run, fetch the chunk from the child
-		// the child chunk is either (1) a dummy scan, or (2) (uncorrelated) scalar subquery results
-		// as a result, the child operator should ALWAYS return exactly one row
-		D_ASSERT(children.size() == 1);
-		children[0]->GetChunk(context, state->child_chunk, state->child_state.get());
-		if (state->child_chunk.size() != 1) {
-			throw InternalException("Expected expression scan child to have exactly one element");
+	DataChunk child_chunk;
+};
+
+unique_ptr<GlobalSourceState> PhysicalExpressionScan::GetGlobalSourceState(ClientContext &context) const {
+	return make_unique<ExpressionScanState>(*this);
+}
+
+void PhysicalExpressionScan::EvaluateExpression(idx_t expression_idx, DataChunk *child_chunk, DataChunk &result) const {
+	ExpressionExecutor executor(expressions[expression_idx]);
+	if (child_chunk) {
+		child_chunk->Verify();
+		executor.Execute(*child_chunk, result);
+	} else {
+		executor.Execute(result);
+	}
+}
+
+void PhysicalExpressionScan::GetData(ExecutionContext &context, DataChunk &chunk, GlobalSourceState &gstate_p,
+                                     LocalSourceState &lstate) const {
+	D_ASSERT(sink_state);
+	auto &state = (ExpressionScanState &)gstate_p;
+	auto &gstate = (ExpressionSinkState &)*sink_state;
+
+	for (; chunk.size() < STANDARD_VECTOR_SIZE && state.expression_index < expressions.size();
+	     state.expression_index++) {
+		state.temp_chunk.Reset();
+		EvaluateExpression(state.expression_index, &gstate.child_chunk, state.temp_chunk);
+		chunk.Append(state.temp_chunk);
+	}
+}
+
+bool PhysicalExpressionScan::IsFoldable() const {
+	for (auto &expr_list : expressions) {
+		for (auto &expr : expr_list) {
+			if (!expr->IsFoldable()) {
+				return false;
+			}
 		}
 	}
-	// now execute the expressions of the nth expression list for the child chunk list
-	state->executor = make_unique<ExpressionExecutor>(expressions[state->expression_index]);
-	state->executor->Execute(state->child_chunk, chunk);
-
-	state->expression_index++;
+	return true;
 }
 
-unique_ptr<PhysicalOperatorState> PhysicalExpressionScan::GetOperatorState() {
-	return make_unique<PhysicalExpressionScanState>(*this, children[0].get());
-}
-void PhysicalExpressionScan::FinalizeOperatorState(PhysicalOperatorState &state, ExecutionContext &context) {
-	auto &state_p = reinterpret_cast<PhysicalExpressionScanState &>(state);
-	context.thread.profiler.Flush(this, state_p.executor.get(), "executor", 0);
-	if (!children.empty() && state.child_state) {
-		children[0]->FinalizeOperatorState(*state.child_state, context);
+SinkResultType PhysicalExpressionScan::Sink(ExecutionContext &context, GlobalSinkState &gstate_p,
+                                            LocalSinkState &lstate, DataChunk &input) const {
+	auto &gstate = (ExpressionSinkState &)gstate_p;
+
+	D_ASSERT(children.size() == 1);
+	D_ASSERT(gstate.child_chunk.size() == 0);
+	if (input.size() != 1) {
+		throw InternalException("Expected expression scan child to have exactly one element");
 	}
+	gstate.child_chunk.Move(input);
+	gstate.child_chunk.Verify();
+	return SinkResultType::FINISHED;
+}
+
+unique_ptr<GlobalSinkState> PhysicalExpressionScan::GetGlobalSinkState(ClientContext &context) const {
+	return make_unique<ExpressionSinkState>();
 }
 
 } // namespace duckdb

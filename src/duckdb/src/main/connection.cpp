@@ -138,7 +138,13 @@ shared_ptr<Relation> Connection::View(const string &schema_name, const string &t
 
 shared_ptr<Relation> Connection::TableFunction(const string &fname) {
 	vector<Value> values;
-	return TableFunction(fname, values);
+	unordered_map<string, Value> named_parameters;
+	return TableFunction(fname, values, named_parameters);
+}
+
+shared_ptr<Relation> Connection::TableFunction(const string &fname, const vector<Value> &values,
+                                               const unordered_map<string, Value> &named_parameters) {
+	return make_shared<TableFunctionRelation>(*context, fname, values, named_parameters);
 }
 
 shared_ptr<Relation> Connection::TableFunction(const string &fname, const vector<Value> &values) {
@@ -189,8 +195,8 @@ shared_ptr<Relation> Connection::ReadCSV(const string &csv_file, const vector<st
 	return make_shared<ReadCSVRelation>(*context, csv_file, move(column_list));
 }
 
-shared_ptr<Relation> Connection::RelationFromQuery(string query, string alias) {
-	return make_shared<QueryRelation>(*context, move(query), move(alias));
+shared_ptr<Relation> Connection::RelationFromQuery(const string &query, const string &alias) {
+	return make_shared<QueryRelation>(*context, query, alias);
 }
 
 void Connection::BeginTransaction() {

@@ -22,6 +22,9 @@ static uint32_t RequiredBitsForValue(uint32_t n) {
 }
 
 static bool CanUsePerfectHashAggregate(ClientContext &context, LogicalAggregate &op, vector<idx_t> &bits_per_group) {
+	if (op.grouping_sets.size() > 1 || !op.grouping_functions.empty()) {
+		return false;
+	}
 	idx_t perfect_hash_bits = 0;
 	if (op.group_stats.empty()) {
 		op.group_stats.resize(op.groups.size());
@@ -144,9 +147,9 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalAggregate 
 				break;
 			}
 		}
-		if (use_simple_aggregation) {
-			groupby = make_unique_base<PhysicalOperator, PhysicalSimpleAggregate>(
-			    op.types, move(op.expressions), all_combinable, op.estimated_cardinality);
+		if (use_simple_aggregation && all_combinable) {
+			groupby = make_unique_base<PhysicalOperator, PhysicalSimpleAggregate>(op.types, move(op.expressions),
+			                                                                      op.estimated_cardinality);
 		} else {
 			groupby = make_unique_base<PhysicalOperator, PhysicalHashAggregate>(context, op.types, move(op.expressions),
 			                                                                    op.estimated_cardinality);
@@ -161,7 +164,8 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalAggregate 
 			    op.estimated_cardinality);
 		} else {
 			groupby = make_unique_base<PhysicalOperator, PhysicalHashAggregate>(
-			    context, op.types, move(op.expressions), move(op.groups), op.estimated_cardinality);
+			    context, op.types, move(op.expressions), move(op.groups), move(op.grouping_sets),
+			    move(op.grouping_functions), op.estimated_cardinality);
 		}
 	}
 	groupby->children.push_back(move(plan));

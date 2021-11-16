@@ -54,12 +54,12 @@ SEXP RApi::Prepare(SEXP connsexp, SEXP querysexp) {
 		Rf_error("duckdb_prepare_R: No query");
 	}
 
-	Connection *conn = (Connection *)R_ExternalPtrAddr(connsexp);
-	if (!conn) {
+	auto conn_wrapper = (ConnWrapper *)R_ExternalPtrAddr(connsexp);
+	if (!conn_wrapper || !conn_wrapper->conn) {
 		Rf_error("duckdb_prepare_R: Invalid connection");
 	}
 
-	auto stmt = conn->Prepare(query);
+	auto stmt = conn_wrapper->conn->Prepare(query);
 	if (!stmt->success) {
 		Rf_error("duckdb_prepare_R: Failed to prepare query %s\nError: %s", query, stmt->error.c_str());
 	}
@@ -124,6 +124,9 @@ SEXP RApi::Prepare(SEXP connsexp, SEXP querysexp) {
 			break;
 		case LogicalTypeId::LIST:
 			rtype = "list";
+			break;
+		case LogicalTypeId::ENUM:
+			rtype = "factor";
 			break;
 		default:
 			Rf_error("duckdb_prepare_R: Unknown column type for prepare: %s", stype.ToString().c_str());
@@ -238,6 +241,9 @@ static SEXP allocate(const LogicalType &type, RProtector &r_varvalue, idx_t nrow
 
 	case LogicalTypeId::BLOB:
 		varvalue = r_varvalue.Protect(NEW_LIST(nrows));
+		break;
+	case LogicalTypeId::ENUM:
+		varvalue = r_varvalue.Protect(NEW_INTEGER(nrows));
 		break;
 	default:
 		Rf_error("duckdb_execute_R: Unknown column type for execute: %s", type.ToString().c_str());
@@ -412,6 +418,31 @@ static void transform(Vector &src_vec, SEXP &dest, idx_t dest_offset, idx_t n) {
 		}
 		break;
 	}
+	case LogicalTypeId::ENUM: {
+		auto physical_type = src_vec.GetType().InternalType();
+
+		switch (physical_type) {
+		case PhysicalType::UINT8:
+			VectorToR<uint8_t, uint32_t>(src_vec, n, INTEGER_POINTER(dest), dest_offset, NA_INTEGER);
+			break;
+
+		case PhysicalType::UINT16:
+			VectorToR<uint16_t, uint32_t>(src_vec, n, INTEGER_POINTER(dest), dest_offset, NA_INTEGER);
+			break;
+
+		case PhysicalType::UINT32:
+			VectorToR<uint8_t, uint32_t>(src_vec, n, INTEGER_POINTER(dest), dest_offset, NA_INTEGER);
+			break;
+
+		default:
+			Rf_error("duckdb_execute_R: Unknown enum type for convert: %s", TypeIdToString(physical_type).c_str());
+		}
+		RProtector r;
+		auto levels_sexp = r.Protect(RApi::StringsToSexp(EnumType::GetValuesInsertOrder(src_vec.GetType())));
+		SET_LEVELS(dest, levels_sexp);
+		SET_CLASS(dest, RStrings::get().factor_str);
+		break;
+	}
 	default:
 		Rf_error("duckdb_execute_R: Unknown column type for convert: %s", src_vec.GetType().ToString().c_str());
 		break;
@@ -572,14 +603,19 @@ SEXP RApi::DuckDBExecuteArrow(SEXP query_resultsexp, SEXP streamsexp, SEXP vecto
 }
 
 // Turn a DuckDB result set into an RecordBatchReader
-SEXP RApi::DuckDBRecordBatchR(SEXP query_resultsexp) {
+SEXP RApi::DuckDBRecordBatchR(SEXP query_resultsexp, SEXP approx_batch_sizeexp) {
 	RProtector r;
 	RQueryResult *query_result_holder = (RQueryResult *)R_ExternalPtrAddr(query_resultsexp);
+	int approx_batch_size = NUMERIC_POINTER(approx_batch_sizeexp)[0];
+	if (TYPEOF(approx_batch_sizeexp) != REALSXP || LENGTH(approx_batch_sizeexp) != 1) {
+		Rf_error("vector_per_chunks parameter needs to be single-value numeric");
+	}
 	// somewhat dark magic below
 	SEXP arrow_namespace_call = r.Protect(Rf_lang2(RStrings::get().getNamespace_sym, RStrings::get().arrow_str));
 	SEXP arrow_namespace = r.Protect(RApi::REvalRerror(arrow_namespace_call, R_GlobalEnv));
 
-	ResultArrowArrayStreamWrapper *result_stream = new ResultArrowArrayStreamWrapper(move(query_result_holder->result));
+	ResultArrowArrayStreamWrapper *result_stream =
+	    new ResultArrowArrayStreamWrapper(move(query_result_holder->result), approx_batch_size);
 	auto stream_ptr_sexp =
 	    r.Protect(Rf_ScalarReal(static_cast<double>(reinterpret_cast<uintptr_t>(&result_stream->stream))));
 	auto record_batch_reader = r.Protect(Rf_lang2(RStrings::get().ImportRecordBatchReader_sym, stream_ptr_sexp));

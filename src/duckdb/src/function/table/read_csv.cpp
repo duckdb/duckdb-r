@@ -134,7 +134,11 @@ static unique_ptr<FunctionData> ReadCSVBind(ClientContext &context, vector<Value
 		auto initial_reader = make_unique<BufferedCSVReader>(context, options);
 
 		return_types.assign(initial_reader->sql_types.begin(), initial_reader->sql_types.end());
-		names.assign(initial_reader->col_names.begin(), initial_reader->col_names.end());
+		if (names.empty()) {
+			names.assign(initial_reader->col_names.begin(), initial_reader->col_names.end());
+		} else {
+			D_ASSERT(return_types.size() == names.size());
+		}
 		result->initial_reader = move(initial_reader);
 	} else {
 		result->sql_types = return_types;
@@ -251,8 +255,9 @@ void ReadCSVTableFunction::RegisterFunction(BuiltinFunctions &set) {
 }
 
 unique_ptr<TableFunctionRef> ReadCSVReplacement(const string &table_name, void *data) {
-	if (!StringUtil::EndsWith(table_name, ".csv") && !StringUtil::EndsWith(table_name, ".tsv") &&
-	    !StringUtil::EndsWith(table_name, ".csv.gz")) {
+	auto lower_name = StringUtil::Lower(table_name);
+	if (!StringUtil::EndsWith(lower_name, ".csv") && !StringUtil::EndsWith(lower_name, ".tsv") &&
+	    !StringUtil::EndsWith(lower_name, ".csv.gz")) {
 		return nullptr;
 	}
 	auto table_function = make_unique<TableFunctionRef>();

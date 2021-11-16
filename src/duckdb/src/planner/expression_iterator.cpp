@@ -39,9 +39,11 @@ void ExpressionIterator::EnumerateChildren(Expression &expr,
 	}
 	case ExpressionClass::BOUND_CASE: {
 		auto &case_expr = (BoundCaseExpression &)expr;
-		callback(case_expr.check);
-		callback(case_expr.result_if_true);
-		callback(case_expr.result_if_false);
+		for (auto &case_check : case_expr.case_checks) {
+			callback(case_check.when_expr);
+			callback(case_check.then_expr);
+		}
+		callback(case_expr.else_expr);
 		break;
 	}
 	case ExpressionClass::BOUND_CAST: {
@@ -179,8 +181,8 @@ void ExpressionIterator::EnumerateQueryNodeChildren(BoundQueryNode &node,
 			EnumerateExpression(bound_select.select_list[i], callback);
 		}
 		EnumerateExpression(bound_select.where_clause, callback);
-		for (idx_t i = 0; i < bound_select.groups.size(); i++) {
-			EnumerateExpression(bound_select.groups[i], callback);
+		for (idx_t i = 0; i < bound_select.groups.group_expressions.size(); i++) {
+			EnumerateExpression(bound_select.groups.group_expressions[i], callback);
 		}
 		EnumerateExpression(bound_select.having, callback);
 		for (idx_t i = 0; i < bound_select.aggregates.size(); i++) {

@@ -1,7 +1,3 @@
-#include "src/execution/physical_plan/plan_prepare.cpp"
-
-#include "src/execution/physical_plan/plan_projection.cpp"
-
 #include "src/execution/physical_plan/plan_recursive_cte.cpp"
 
 #include "src/execution/physical_plan/plan_sample.cpp"
@@ -23,6 +19,8 @@
 #include "src/execution/physical_plan/plan_window.cpp"
 
 #include "src/execution/physical_plan_generator.cpp"
+
+#include "src/execution/radix_partitioned_hashtable.cpp"
 
 #include "src/execution/reservoir_sample.cpp"
 
@@ -154,6 +152,8 @@
 
 #include "src/function/scalar/list/array_slice.cpp"
 
+#include "src/function/scalar/list/list_concat.cpp"
+
 #include "src/function/scalar/list/list_extract.cpp"
 
 #include "src/function/scalar/list/list_value.cpp"
@@ -213,4 +213,8 @@
 #include "src/function/scalar/string/length.cpp"
 
 #include "src/function/scalar/string/levenshtein.cpp"
+
+#include "src/function/scalar/string/like.cpp"
+
+#include "src/function/scalar/string/md5.cpp"
 

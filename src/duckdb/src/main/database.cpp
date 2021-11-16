@@ -9,6 +9,7 @@
 #include "duckdb/transaction/transaction_manager.hpp"
 #include "duckdb/main/connection_manager.hpp"
 #include "duckdb/function/compression_function.hpp"
+#include "duckdb/main/extension_helper.hpp"
 
 #ifndef DUCKDB_NO_THREADS
 #include "duckdb/common/thread.hpp"
@@ -134,6 +135,9 @@ void DatabaseInstance::Initialize(const char *path, DBConfig *new_config) {
 
 DuckDB::DuckDB(const char *path, DBConfig *new_config) : instance(make_shared<DatabaseInstance>()) {
 	instance->Initialize(path, new_config);
+	if (instance->config.load_extensions) {
+		ExtensionHelper::LoadAllExtensions(*this);
+	}
 }
 
 DuckDB::DuckDB(const string &path, DBConfig *config) : DuckDB(path.c_str(), config) {
@@ -198,15 +202,14 @@ void DatabaseInstance::Configure(DBConfig &new_config) {
 	}
 	if (new_config.maximum_threads == (idx_t)-1) {
 #ifndef DUCKDB_NO_THREADS
-		config.maximum_threads = 1;
-		// FIXME: next release
-		// config.maximum_threads = std::thread::hardware_concurrency();
+		config.maximum_threads = std::thread::hardware_concurrency();
 #else
 		config.maximum_threads = 1;
 #endif
 	} else {
 		config.maximum_threads = new_config.maximum_threads;
 	}
+	config.load_extensions = new_config.load_extensions;
 	config.force_compression = new_config.force_compression;
 	config.allocator = move(new_config.allocator);
 	config.checkpoint_wal_size = new_config.checkpoint_wal_size;
