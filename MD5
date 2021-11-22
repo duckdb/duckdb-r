@@ -1,6 +1,6 @@
-c3d90f24b6afce201db6d219cf48e58b *DESCRIPTION
+bf1a6add830bd0d42de84a14a06fc020 *DESCRIPTION
 eca9ed493e726da8525fe866e829f5c5 *NAMESPACE
-ebeebcb6ce6bd3bd6a0df2248d3891bb *R/Connection.R
+eda5bb971f9ea7d7264c21ec97ea3ddb *R/Connection.R
 1608533cbe0a40ff9b42dd6f353dddcb *R/Driver.R
 f85eee49cfa03cdda4b67c08078b624b *R/Result.R
 e850578fa7d82e7359b978ecefde704f *R/Viewer.R
@@ -136,7 +136,7 @@ c722485b5ca86cc505f3bb42ef6ec30a *src/duckdb/src/common/types/blob.cpp
 ff8f2b2e48c1f7583795a66853c96b25 *src/duckdb/src/common/types/hash.cpp
 2ee245c7b97a31b524e4b83015b51513 *src/duckdb/src/common/types/hugeint.cpp
 9f5d4ce9a033d95019957c2c1a490e76 *src/duckdb/src/common/types/hyperloglog.cpp
-81fdd69b081e41aa396ea215a4f7ea80 *src/duckdb/src/common/types/interval.cpp
+51954a84a0c616e35225c80ba1db31a8 *src/duckdb/src/common/types/interval.cpp
 4fddebe735d3877e0b1054d9ec480fa8 *src/duckdb/src/common/types/row_data_collection.cpp
 03e8fd8042866ea55d038d3e7edd572e *src/duckdb/src/common/types/row_layout.cpp
 5a91dde6f85ed4944e5d8db20a101527 *src/duckdb/src/common/types/selection_vector.cpp
@@ -160,7 +160,7 @@ a01f3ea15d3df4a3f0b78467ace137c3 *src/duckdb/src/common/vector_operations/genera
 6ee2be3c583d03882837f291aea4e1ed *src/duckdb/src/common/vector_operations/is_distinct_from.cpp
 02656ce1a54cca2a256a135945c2a9bc *src/duckdb/src/common/vector_operations/null_operations.cpp
 5337e5c602bff79a12ce81629c3e0488 *src/duckdb/src/common/vector_operations/numeric_inplace_operators.cpp
-947f8b417945fd77929da7d1c72688c5 *src/duckdb/src/common/vector_operations/vector_cast.cpp
+04f95daafdfe892750909e11754c4fdd *src/duckdb/src/common/vector_operations/vector_cast.cpp
 6ddbec8a31507cef8af01df3edb7f89e *src/duckdb/src/common/vector_operations/vector_copy.cpp
 ea4e7f7bb886252c0a01709415d638fd *src/duckdb/src/common/vector_operations/vector_hash.cpp
 47771ea90b161e764d12f850e65ab93a *src/duckdb/src/common/vector_operations/vector_storage.cpp
@@ -222,7 +222,7 @@ a5c2bd817117d2939f2662c35c3122c3 *src/duckdb/src/execution/operator/join/physica
 965b165cba93b1a00abd04d3dabe8239 *src/duckdb/src/execution/operator/join/physical_piecewise_merge_join.cpp
 9d219860b4bb6ff2abdccc558653fe55 *src/duckdb/src/execution/operator/order/physical_order.cpp
 2d1630a2edf46423ca71445c31ed1b6d *src/duckdb/src/execution/operator/order/physical_top_n.cpp
-6b873d3c122e6c5b6a4d4cb6ee0cc885 *src/duckdb/src/execution/operator/persistent/buffered_csv_reader.cpp
+a33ec5a343ea3e62e0e8dced0564372a *src/duckdb/src/execution/operator/persistent/buffered_csv_reader.cpp
 4df8fd16dbfedb0e5d546b6a40dea042 *src/duckdb/src/execution/operator/persistent/physical_copy_to_file.cpp
 93d9d834300fec039545fa4c7edb0d72 *src/duckdb/src/execution/operator/persistent/physical_delete.cpp
 54cee5c44ac155a6398165887e4e212c *src/duckdb/src/execution/operator/persistent/physical_export.cpp
@@ -340,7 +340,7 @@ c03c099a3af36885d9bd9532383fc514 *src/duckdb/src/function/scalar/blob/encode.cpp
 1badc0bad7929d974c77e489f06c50ea *src/duckdb/src/function/scalar/date/age.cpp
 fde4c460e7d06c64b988517fb6d261fd *src/duckdb/src/function/scalar/date/current.cpp
 2ac7adb45b6c4b1519c0d0c853afd8cf *src/duckdb/src/function/scalar/date/date_diff.cpp
-539c6a27b6825063d349474fbc75513e *src/duckdb/src/function/scalar/date/date_part.cpp
+79ac677d74b29bcb904f9fcd1415a070 *src/duckdb/src/function/scalar/date/date_part.cpp
 6aa87628d4d82987a14d924d1b5c260d *src/duckdb/src/function/scalar/date/date_sub.cpp
 47cee72a9e5ba965c64202688d2ae562 *src/duckdb/src/function/scalar/date/date_trunc.cpp
 1cc0e01020964e3331357f1bf51161f6 *src/duckdb/src/function/scalar/date/epoch.cpp
@@ -368,7 +368,7 @@ ff798545eff555aea18899e64283f421 *src/duckdb/src/function/scalar/math/setseed.cp
 af757c676d4582c63a773298227dd00d *src/duckdb/src/function/scalar/math_functions.cpp
 2ef1551dd60ccdd04d1ecb6ba8f5170b *src/duckdb/src/function/scalar/nested_functions.cpp
 3039b82d9e6b2f26bf338927da31ab39 *src/duckdb/src/function/scalar/operators.cpp
-592a9fcf06de1cd95297bea69621c540 *src/duckdb/src/function/scalar/operators/add.cpp
+3ef2cfbc9eb47ce122d9bfcdf6ff5b29 *src/duckdb/src/function/scalar/operators/add.cpp
 7991098a226ce3fbfcfcfd2853cc140d *src/duckdb/src/function/scalar/operators/arithmetic.cpp
 c42a9f471cc94280a1f45f6eac8defa2 *src/duckdb/src/function/scalar/operators/bitwise.cpp
 f3ae105313d9e355fef44a59c94afe1e *src/duckdb/src/function/scalar/operators/multiply.cpp
@@ -399,7 +399,7 @@ e6c467e3f375026fa4a8a56531e247d0 *src/duckdb/src/function/scalar/string/nfc_norm
 9f6578175c04a25368efe69d01211445 *src/duckdb/src/function/scalar/string/reverse.cpp
 cf7988c5e699ddf3dde03f8286914bb7 *src/duckdb/src/function/scalar/string/string_split.cpp
 2e73995b5583fceeefb9ce5b2d4c77ab *src/duckdb/src/function/scalar/string/strip_accents.cpp
-56b08a7dfcbeaa6fef45a288a8bb8d46 *src/duckdb/src/function/scalar/string/substring.cpp
+6e44617757610c414e2eb51b4b701cc4 *src/duckdb/src/function/scalar/string/substring.cpp
 c010552fd99c001ad083166289032410 *src/duckdb/src/function/scalar/string/suffix.cpp
 a59a49f8f9a75108134eaa5750cf33b2 *src/duckdb/src/function/scalar/string/trim.cpp
 22e03c77333756a13d8f65dcb9964841 *src/duckdb/src/function/scalar/string_functions.cpp
@@ -410,12 +410,12 @@ c627885916ce9d011360cc0e3a2bd826 *src/duckdb/src/function/scalar/system/system_f
 1a2b41681a82ab1dfe98161e5f8f77d3 *src/duckdb/src/function/scalar/uuid/gen_random.cpp
 cf0f15fd25c5b93807cda793134721f6 *src/duckdb/src/function/table/arrow.cpp
 e404f197464761c2761d8d266324e4e5 *src/duckdb/src/function/table/checkpoint.cpp
-22b986e697a91117716d49f3e6bbae96 *src/duckdb/src/function/table/copy_csv.cpp
+6fba0a6c69e0dbcb8090bb7735180731 *src/duckdb/src/function/table/copy_csv.cpp
 a6762b35e605c8c3e38df32cbd0b8ea4 *src/duckdb/src/function/table/glob.cpp
 5b26303218132a9461afd12a577f78c6 *src/duckdb/src/function/table/pragma_detailed_profiling_output.cpp
 d316c2d58637640c9cd7bcb6817ad0e9 *src/duckdb/src/function/table/pragma_last_profiling_output.cpp
 994fa1d51f6174e2504b5bba1b7c0d78 *src/duckdb/src/function/table/range.cpp
-deacdf09234ae475d83f9f3375b4f3f3 *src/duckdb/src/function/table/read_csv.cpp
+98cdf0e75c6dfe85f9daad13d4e30321 *src/duckdb/src/function/table/read_csv.cpp
 a861d3c412d272c37fc06aa0cfddd3a0 *src/duckdb/src/function/table/repeat.cpp
 7f2efa5d21a32a66410b7c29fe9a28ec *src/duckdb/src/function/table/summary.cpp
 e00f8399b8f1f1ced4f6c8b91a146815 *src/duckdb/src/function/table/system/duckdb_columns.cpp
@@ -436,7 +436,7 @@ d6dbcf7f79a4ad72835fa05b9a3949a3 *src/duckdb/src/function/table/system/pragma_fu
 7816ec5d10587ae0649b584c2748f22b *src/duckdb/src/function/table/system_functions.cpp
 b899568d3d4dc5004740064000611aaa *src/duckdb/src/function/table/table_scan.cpp
 b12a9629aa47b4ae3bd2c54f403ecdd0 *src/duckdb/src/function/table/unnest.cpp
-76f908d1325eea3972fce1fdf0db9a05 *src/duckdb/src/function/table/version/pragma_version.cpp
+d25901e2dc336f01d11db80c64630c3f *src/duckdb/src/function/table/version/pragma_version.cpp
 6b5131cd99b88d3fc883294f8e873298 *src/duckdb/src/function/udf_function.cpp
 748df7d6c734a1ee9856724641fc1257 *src/duckdb/src/include/duckdb.h
 ab71683844df06daa327712349a5af45 *src/duckdb/src/include/duckdb.hpp
@@ -569,7 +569,7 @@ c49c736d39a945069804bea218955925 *src/duckdb/src/include/duckdb/common/types/chu
 6287d94154e8db72640d68626920119d *src/duckdb/src/include/duckdb/common/types/hash.hpp
 487fd48ba60117b9a2b622f9243c4708 *src/duckdb/src/include/duckdb/common/types/hugeint.hpp
 af7cca39967d4ede194f03cc5c5c08c2 *src/duckdb/src/include/duckdb/common/types/hyperloglog.hpp
-92857b4c588581b86ec43f95de98715e *src/duckdb/src/include/duckdb/common/types/interval.hpp
+32e98aed936a33cf42088a376015be0e *src/duckdb/src/include/duckdb/common/types/interval.hpp
 77a0cd57ae74c9b2a5505bfb1d0afb22 *src/duckdb/src/include/duckdb/common/types/null_value.hpp
 c49b2cdc31234f83fbe414df99d091d5 *src/duckdb/src/include/duckdb/common/types/row_data_collection.hpp
 303b3bd9bf939f34ba5349ddc2991cb1 *src/duckdb/src/include/duckdb/common/types/row_layout.hpp
@@ -648,7 +648,7 @@ fac9430247ec864c3f188c473532de5a *src/duckdb/src/include/duckdb/execution/operat
 afd79518425a0b0d43540ed574a56100 *src/duckdb/src/include/duckdb/execution/operator/list.hpp
 f6943560d76dd4d49689c252dc753966 *src/duckdb/src/include/duckdb/execution/operator/order/physical_order.hpp
 0bdfd194a6a3bdae84a21814389563fb *src/duckdb/src/include/duckdb/execution/operator/order/physical_top_n.hpp
-74e216f2d0aff66a3488714552cf997d *src/duckdb/src/include/duckdb/execution/operator/persistent/buffered_csv_reader.hpp
+89c473d5dcc31c55fdac9572b2b1a223 *src/duckdb/src/include/duckdb/execution/operator/persistent/buffered_csv_reader.hpp
 23a7b33e9efd0899159fb73151cff7f1 *src/duckdb/src/include/duckdb/execution/operator/persistent/physical_copy_to_file.hpp
 d3327fb383d03ed5a28079bae7c765e9 *src/duckdb/src/include/duckdb/execution/operator/persistent/physical_delete.hpp
 21cacb1bc7962c7d3146f5bd05bc154e *src/duckdb/src/include/duckdb/execution/operator/persistent/physical_export.hpp
@@ -712,7 +712,7 @@ ebf256c6039eb6ffce3c60ded9ae54e7 *src/duckdb/src/include/duckdb/function/scalar/
 daca394c1be6b659a7192fb7a64b01dd *src/duckdb/src/include/duckdb/function/scalar/regexp.hpp
 1c78e33d1aab4142ae64ef65f7368730 *src/duckdb/src/include/duckdb/function/scalar/sequence_functions.hpp
 7255dacb8cc6283345d86794f0bedf49 *src/duckdb/src/include/duckdb/function/scalar/strftime.hpp
-ef35878d2b4ad1174b156b23d46659b7 *src/duckdb/src/include/duckdb/function/scalar/string_functions.hpp
+dc8c4c91bb3256d609fb7e766ff610c7 *src/duckdb/src/include/duckdb/function/scalar/string_functions.hpp
 e7239f761c709ebd9802850fe55f869a *src/duckdb/src/include/duckdb/function/scalar/trigonometric_functions.hpp
 c1873585ebe6d265943b49ce89f27e54 *src/duckdb/src/include/duckdb/function/scalar/uuid_functions.hpp
 a7c3ba81da0f01d80aa0ecb85f31d24c *src/duckdb/src/include/duckdb/function/scalar_function.hpp
@@ -1243,7 +1243,7 @@ f03e8a566e134cc468aa57aa2bf82fcb *src/duckdb/src/parser/expression/subquery_expr
 78d6f8a54889b66c9ea89cedd4897f55 *src/duckdb/src/parser/expression/window_expression.cpp
 a84fe448ed8a2b5e7098a20973da07b1 *src/duckdb/src/parser/expression_util.cpp
 dc0c804063d0e262855e5203c20a7d49 *src/duckdb/src/parser/keyword_helper.cpp
-4def5c7071256cc9ad0de6df71d52e93 *src/duckdb/src/parser/parsed_data/alter_table_info.cpp
+ad09071490530940fc26608d9fcd8a5e *src/duckdb/src/parser/parsed_data/alter_table_info.cpp
 b93f7937e13ae9967c3749f351e210f7 *src/duckdb/src/parser/parsed_data/sample_options.cpp
 8896f7ccf37abed43b553901239f1746 *src/duckdb/src/parser/parsed_expression.cpp
 deb073512e3704704c30916599edf6c0 *src/duckdb/src/parser/parsed_expression_iterator.cpp
@@ -1557,7 +1557,7 @@ ae010a5c95681189ea8b965d934d95e9 *src/duckdb/third_party/libpg_query/include/pg_
 9a9b8219ce75b55eeb40968718256fdc *src/duckdb/third_party/libpg_query/include/postgres_parser.hpp
 62eed0a734d9b871cd76e87bf3e8ebb6 *src/duckdb/third_party/libpg_query/include/utils/datetime.hpp
 01436bfc9812972175a50260a0d16138 *src/duckdb/third_party/libpg_query/include/utils/timestamp.hpp
-f2560618205fcf617e0e9469ddee95f9 *src/duckdb/third_party/libpg_query/pg_functions.cpp
+a12aa25732730c6525c6f00246f2bf72 *src/duckdb/third_party/libpg_query/pg_functions.cpp
 0699c1896be10bfe0da45aca96d29dee *src/duckdb/third_party/libpg_query/postgres_parser.cpp
 fa3804a2543dfe8b0be033eb8c3709dd *src/duckdb/third_party/libpg_query/src_backend_nodes_list.cpp
 a767b9b5db2ede6e273bb81a7561e7f0 *src/duckdb/third_party/libpg_query/src_backend_nodes_makefuncs.cpp
@@ -1710,12 +1710,12 @@ b6dbf01e86404548221165e68479d5ac *src/duckdb/third_party/zstd/include/zstd/decom
 b2a2bb77cf45405d0f1dd9c41a46ede4 *src/duckdb/third_party/zstd/include/zstd_static.h
 dad4af58b6d0b1d3ef130a90359de8ab *src/include/altrepstring.hpp
 91b5075ffb5f1c7023c34bed263848a5 *src/include/rapi.hpp
-ba7bf48cbd74d2e5005f20334d1b3cb9 *src/include/typesr.hpp
+eaa1cbbb2e01e7bf257972661cf08180 *src/include/typesr.hpp
 653592ce20e370dbca17d6fc2cba3f7f *src/rapi.cpp
 0583d7045d6e9828c590bd6eb07d0ca5 *src/register.cpp
-7eb37dae6f105c613137e6e0e646ccdf *src/scan.cpp
-a9a6db9011132652dde4dee01e391b02 *src/statement.cpp
-aa8553267a955bcc3bd6afc821834b88 *src/types.cpp
+cebf161e13377d0d84ce8e00afe37f3e *src/scan.cpp
+255cc7a70f8898798539a82cd6bda9a8 *src/statement.cpp
+6cd03fb7c1f95322db09d45bbaeedf82 *src/types.cpp
 3b95123715d22d17718cdfe022b470f6 *src/utils.cpp
 78ca03523e01aa272eeb2f0bd5a53011 *tests/testthat.R
 dabf0e452e677b9c7afaca658ac8371b *tests/testthat/data/binary_string.parquet
@@ -1725,7 +1725,8 @@ dabf0e452e677b9c7afaca658ac8371b *tests/testthat/data/binary_string.parquet
 7f5082a0d97273c42cbc37b687c358ec *tests/testthat/test_bind.R
 85c5a4bf70743b56c97bcd1cbc90cfb6 *tests/testthat/test_config_keyvalue.R
 a44d4283e2da6dfadb589b361dee8482 *tests/testthat/test_dbinfo.R
-97440cd62e9f260a8bdec790df3fcba4 *tests/testthat/test_factor.R
+590e8fdf20a2609b20209aa1d259a9a6 *tests/testthat/test_dbwritetable.R
+7628bdd0e98f92f4813bf1617f7bf1b5 *tests/testthat/test_factor.R
 9a502fa93ebb0891f2e87d20cddc9aa3 *tests/testthat/test_fetch_arrow.R
 63f87921ceb7559ae32fed468f6cb572 *tests/testthat/test_list.R
 c06af8d7dfd17540047b66633e3ab8ec *tests/testthat/test_parquet.R
