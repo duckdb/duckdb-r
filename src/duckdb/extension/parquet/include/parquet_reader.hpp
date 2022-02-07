@@ -54,6 +54,10 @@ struct ParquetReaderScanState {
 };
 
 struct ParquetOptions {
+	explicit ParquetOptions() {
+	}
+	explicit ParquetOptions(ClientContext &context);
+
 	bool binary_as_string = false;
 };
 
@@ -92,6 +96,7 @@ public:
 
 	static unique_ptr<BaseStatistics> ReadStatistics(ParquetReader &reader, LogicalType &type, column_t column_index,
 	                                                 const duckdb_parquet::format::FileMetaData *file_meta_data);
+	static LogicalType DeriveLogicalType(const SchemaElement &s_ele, bool binary_as_string);
 
 private:
 	void InitializeSchema(const vector<LogicalType> &expected_types_p, const string &initial_filename_p);

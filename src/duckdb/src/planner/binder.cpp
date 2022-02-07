@@ -6,6 +6,9 @@
 #include "duckdb/planner/bound_tableref.hpp"
 #include "duckdb/planner/expression.hpp"
 #include "duckdb/planner/operator/logical_sample.hpp"
+#include "duckdb/catalog/catalog_entry/schema_catalog_entry.hpp"
+#include "duckdb/catalog/catalog_entry/table_catalog_entry.hpp"
+#include "duckdb/catalog/catalog_entry/view_catalog_entry.hpp"
 
 #include <algorithm>
 
@@ -224,6 +227,19 @@ bool Binder::CTEIsAlreadyBound(CommonTableExpressionInfo *cte) {
 	return false;
 }
 
+void Binder::AddBoundView(ViewCatalogEntry *view) {
+	// check if the view is already bound
+	auto current = this;
+	while (current) {
+		if (current->bound_views.find(view) != current->bound_views.end()) {
+			throw BinderException("infinite recursion detected: attempting to recursively bind view \"%s\"",
+			                      view->name);
+		}
+		current = current->parent.get();
+	}
+	bound_views.insert(view);
+}
+
 idx_t Binder::GenerateTableIndex() {
 	if (parent) {
 		return parent->GenerateTableIndex();
@@ -284,6 +300,67 @@ void Binder::AddCorrelatedColumn(const CorrelatedColumnInfo &info) {
 	if (std::find(correlated_columns.begin(), correlated_columns.end(), info) == correlated_columns.end()) {
 		correlated_columns.push_back(info);
 	}
+}
+
+bool Binder::HasMatchingBinding(const string &table_name, const string &column_name, string &error_message) {
+	string empty_schema;
+	return HasMatchingBinding(empty_schema, table_name, column_name, error_message);
+}
+
+bool Binder::HasMatchingBinding(const string &schema_name, const string &table_name, const string &column_name,
+                                string &error_message) {
+	Binding *binding;
+	if (macro_binding && table_name == macro_binding->alias) {
+		binding = macro_binding;
+	} else {
+		binding = bind_context.GetBinding(table_name, error_message);
+	}
+	if (!binding) {
+		return false;
+	}
+	if (!schema_name.empty()) {
+		auto table_entry = binding->GetTableEntry();
+		if (!table_entry) {
+			return false;
+		}
+		if (table_entry->schema->name != schema_name || table_entry->name != table_name) {
+			return false;
+		}
+	}
+	if (!binding->HasMatchingBinding(column_name)) {
+		error_message = binding->ColumnNotFoundError(column_name);
+		return false;
+	}
+	return true;
+}
+
+void Binder::SetBindingMode(BindingMode mode) {
+	if (parent) {
+		parent->SetBindingMode(mode);
+	}
+	this->mode = mode;
+}
+
+BindingMode Binder::GetBindingMode() {
+	if (parent) {
+		return parent->GetBindingMode();
+	}
+	return mode;
+}
+
+void Binder::AddTableName(string table_name) {
+	if (parent) {
+		parent->AddTableName(move(table_name));
+		return;
+	}
+	table_names.insert(move(table_name));
+}
+
+const unordered_set<string> &Binder::GetTableNames() {
+	if (parent) {
+		return parent->GetTableNames();
+	}
+	return table_names;
 }
 
 string Binder::FormatError(ParsedExpression &expr_context, const string &message) {

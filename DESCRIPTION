@@ -1,6 +1,6 @@
 Package: duckdb
 Title: DBI Package for the DuckDB Database Management System
-Version: 0.3.1-1
+Version: 0.3.2
 Authors@R: 
     c(person(given = "Hannes",
              family = "Mühleisen",
@@ -12,8 +12,7 @@ Authors@R:
              role = "aut",
              email = "mark.raasveldt@cwi.nl",
              comment = c(ORCID = "0000-0001-5005-6844")),
-      person(given = "DuckDB Contributors",
-             role = "aut"),
+      person("Stichting DuckDB Foundation", role = "cph"),
       person("Apache Software Foundation", role = "cph"),
       person("PostgreSQL Global Development Group", role = "cph"),
       person("The Regents of the University of California", role = "cph"),
@@ -48,13 +47,13 @@ Imports: methods, utils
 Suggests: arrow, callr, DBItest, dplyr, dbplyr, nycflights13, testthat,
         withr
 Encoding: UTF-8
-RoxygenNote: 7.1.1
+RoxygenNote: 7.1.2
 SystemRequirements: C++11, GCC on Solaris
 NeedsCompilation: yes
-Packaged: 2021-11-22 08:44:45 UTC; hannes
+Packaged: 2022-02-07 13:38:27 UTC; hannes
 Author: Hannes Mühleisen [aut, cre] (<https://orcid.org/0000-0001-8552-0029>),
   Mark Raasveldt [aut] (<https://orcid.org/0000-0001-5005-6844>),
-  DuckDB Contributors [aut],
+  Stichting DuckDB Foundation [cph],
   Apache Software Foundation [cph],
   PostgreSQL Global Development Group [cph],
   The Regents of the University of California [cph],
@@ -80,4 +79,4 @@ Author: Hannes Mühleisen [aut, cre] (<https://orcid.org/0000-0001-8552-0029>),
   PCG Project contributors [cph]
 Maintainer: Hannes Mühleisen <hannes@cwi.nl>
 Repository: CRAN
-Date/Publication: 2021-11-22 12:10:02 UTC
+Date/Publication: 2022-02-07 15:30:02 UTC

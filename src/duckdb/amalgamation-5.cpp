@@ -1,220 +1,92 @@
-#include "src/optimizer/optimizer.cpp"
+#include "src/execution/operator/schema/physical_create_sequence.cpp"
 
-#include "src/optimizer/pullup/pullup_both_side.cpp"
+#include "src/execution/operator/schema/physical_create_table.cpp"
 
-#include "src/optimizer/pullup/pullup_filter.cpp"
+#include "src/execution/operator/schema/physical_create_table_as.cpp"
 
-#include "src/optimizer/pullup/pullup_from_left.cpp"
+#include "src/execution/operator/schema/physical_create_type.cpp"
 
-#include "src/optimizer/pullup/pullup_projection.cpp"
+#include "src/execution/operator/schema/physical_create_view.cpp"
 
-#include "src/optimizer/pullup/pullup_set_operation.cpp"
+#include "src/execution/operator/schema/physical_drop.cpp"
 
-#include "src/optimizer/pushdown/pushdown_aggregate.cpp"
+#include "src/execution/operator/set/physical_recursive_cte.cpp"
 
-#include "src/optimizer/pushdown/pushdown_cross_product.cpp"
+#include "src/execution/operator/set/physical_union.cpp"
 
-#include "src/optimizer/pushdown/pushdown_filter.cpp"
+#include "src/execution/partitionable_hashtable.cpp"
 
-#include "src/optimizer/pushdown/pushdown_get.cpp"
+#include "src/execution/perfect_aggregate_hashtable.cpp"
 
-#include "src/optimizer/pushdown/pushdown_inner_join.cpp"
+#include "src/execution/physical_operator.cpp"
 
-#include "src/optimizer/pushdown/pushdown_left_join.cpp"
+#include "src/execution/physical_plan/plan_aggregate.cpp"
 
-#include "src/optimizer/pushdown/pushdown_mark_join.cpp"
+#include "src/execution/physical_plan/plan_any_join.cpp"
 
-#include "src/optimizer/pushdown/pushdown_projection.cpp"
+#include "src/execution/physical_plan/plan_chunk_get.cpp"
 
-#include "src/optimizer/pushdown/pushdown_set_operation.cpp"
+#include "src/execution/physical_plan/plan_comparison_join.cpp"
 
-#include "src/optimizer/pushdown/pushdown_single_join.cpp"
+#include "src/execution/physical_plan/plan_copy_to_file.cpp"
 
-#include "src/optimizer/regex_range_filter.cpp"
+#include "src/execution/physical_plan/plan_create.cpp"
 
-#include "src/optimizer/remove_unused_columns.cpp"
+#include "src/execution/physical_plan/plan_create_index.cpp"
 
-#include "src/optimizer/rule/arithmetic_simplification.cpp"
+#include "src/execution/physical_plan/plan_create_table.cpp"
 
-#include "src/optimizer/rule/case_simplification.cpp"
+#include "src/execution/physical_plan/plan_cross_product.cpp"
 
-#include "src/optimizer/rule/comparison_simplification.cpp"
+#include "src/execution/physical_plan/plan_delete.cpp"
 
-#include "src/optimizer/rule/conjunction_simplification.cpp"
+#include "src/execution/physical_plan/plan_delim_get.cpp"
 
-#include "src/optimizer/rule/constant_folding.cpp"
+#include "src/execution/physical_plan/plan_delim_join.cpp"
 
-#include "src/optimizer/rule/date_part_simplification.cpp"
+#include "src/execution/physical_plan/plan_distinct.cpp"
 
-#include "src/optimizer/rule/distributivity.cpp"
+#include "src/execution/physical_plan/plan_dummy_scan.cpp"
 
-#include "src/optimizer/rule/empty_needle_removal.cpp"
+#include "src/execution/physical_plan/plan_empty_result.cpp"
 
-#include "src/optimizer/rule/enum_comparison.cpp"
+#include "src/execution/physical_plan/plan_execute.cpp"
 
-#include "src/optimizer/rule/in_clause_simplification_rule.cpp"
+#include "src/execution/physical_plan/plan_explain.cpp"
 
-#include "src/optimizer/rule/like_optimizations.cpp"
+#include "src/execution/physical_plan/plan_export.cpp"
 
-#include "src/optimizer/rule/move_constants.cpp"
+#include "src/execution/physical_plan/plan_expression_get.cpp"
 
-#include "src/optimizer/statistics/expression/propagate_aggregate.cpp"
+#include "src/execution/physical_plan/plan_filter.cpp"
 
-#include "src/optimizer/statistics/expression/propagate_and_compress.cpp"
+#include "src/execution/physical_plan/plan_get.cpp"
 
-#include "src/optimizer/statistics/expression/propagate_between.cpp"
+#include "src/execution/physical_plan/plan_insert.cpp"
 
-#include "src/optimizer/statistics/expression/propagate_case.cpp"
+#include "src/execution/physical_plan/plan_limit.cpp"
 
-#include "src/optimizer/statistics/expression/propagate_cast.cpp"
+#include "src/execution/physical_plan/plan_limit_percent.cpp"
 
-#include "src/optimizer/statistics/expression/propagate_columnref.cpp"
+#include "src/execution/physical_plan/plan_order.cpp"
 
-#include "src/optimizer/statistics/expression/propagate_comparison.cpp"
+#include "src/execution/physical_plan/plan_pragma.cpp"
 
-#include "src/optimizer/statistics/expression/propagate_conjunction.cpp"
+#include "src/execution/physical_plan/plan_prepare.cpp"
 
-#include "src/optimizer/statistics/expression/propagate_constant.cpp"
+#include "src/execution/physical_plan/plan_projection.cpp"
 
-#include "src/optimizer/statistics/expression/propagate_function.cpp"
+#include "src/execution/physical_plan/plan_recursive_cte.cpp"
 
-#include "src/optimizer/statistics/expression/propagate_operator.cpp"
+#include "src/execution/physical_plan/plan_sample.cpp"
 
-#include "src/optimizer/statistics/operator/propagate_aggregate.cpp"
+#include "src/execution/physical_plan/plan_set.cpp"
 
-#include "src/optimizer/statistics/operator/propagate_cross_product.cpp"
+#include "src/execution/physical_plan/plan_set_operation.cpp"
 
-#include "src/optimizer/statistics/operator/propagate_filter.cpp"
+#include "src/execution/physical_plan/plan_show_select.cpp"
 
-#include "src/optimizer/statistics/operator/propagate_get.cpp"
+#include "src/execution/physical_plan/plan_simple.cpp"
 
-#include "src/optimizer/statistics/operator/propagate_join.cpp"
-
-#include "src/optimizer/statistics/operator/propagate_limit.cpp"
-
-#include "src/optimizer/statistics/operator/propagate_order.cpp"
-
-#include "src/optimizer/statistics/operator/propagate_projection.cpp"
-
-#include "src/optimizer/statistics/operator/propagate_set_operation.cpp"
-
-#include "src/optimizer/statistics/operator/propagate_window.cpp"
-
-#include "src/optimizer/statistics_propagator.cpp"
-
-#include "src/optimizer/topn_optimizer.cpp"
-
-#include "src/parallel/event.cpp"
-
-#include "src/parallel/executor.cpp"
-
-#include "src/parallel/executor_task.cpp"
-
-#include "src/parallel/pipeline.cpp"
-
-#include "src/parallel/pipeline_complete_event.cpp"
-
-#include "src/parallel/pipeline_event.cpp"
-
-#include "src/parallel/pipeline_executor.cpp"
-
-#include "src/parallel/pipeline_finish_event.cpp"
-
-#include "src/parallel/task_scheduler.cpp"
-
-#include "src/parallel/thread_context.cpp"
-
-#include "src/parser/base_expression.cpp"
-
-#include "src/parser/column_definition.cpp"
-
-#include "src/parser/constraint.cpp"
-
-#include "src/parser/constraints/check_constraint.cpp"
-
-#include "src/parser/constraints/not_null_constraint.cpp"
-
-#include "src/parser/constraints/unique_constraint.cpp"
-
-#include "src/parser/expression/between_expression.cpp"
-
-#include "src/parser/expression/case_expression.cpp"
-
-#include "src/parser/expression/cast_expression.cpp"
-
-#include "src/parser/expression/collate_expression.cpp"
-
-#include "src/parser/expression/columnref_expression.cpp"
-
-#include "src/parser/expression/comparison_expression.cpp"
-
-#include "src/parser/expression/conjunction_expression.cpp"
-
-#include "src/parser/expression/constant_expression.cpp"
-
-#include "src/parser/expression/default_expression.cpp"
-
-#include "src/parser/expression/function_expression.cpp"
-
-#include "src/parser/expression/lambda_expression.cpp"
-
-#include "src/parser/expression/operator_expression.cpp"
-
-#include "src/parser/expression/parameter_expression.cpp"
-
-#include "src/parser/expression/positional_reference_expression.cpp"
-
-#include "src/parser/expression/star_expression.cpp"
-
-#include "src/parser/expression/subquery_expression.cpp"
-
-#include "src/parser/expression/window_expression.cpp"
-
-#include "src/parser/expression_util.cpp"
-
-#include "src/parser/keyword_helper.cpp"
-
-#include "src/parser/parsed_data/alter_table_info.cpp"
-
-#include "src/parser/parsed_data/sample_options.cpp"
-
-#include "src/parser/parsed_expression.cpp"
-
-#include "src/parser/parsed_expression_iterator.cpp"
-
-#include "src/parser/parser.cpp"
-
-#include "src/parser/query_error_context.cpp"
-
-#include "src/parser/query_node.cpp"
-
-#include "src/parser/query_node/recursive_cte_node.cpp"
-
-#include "src/parser/query_node/select_node.cpp"
-
-#include "src/parser/query_node/set_operation_node.cpp"
-
-#include "src/parser/result_modifier.cpp"
-
-#include "src/parser/statement/alter_statement.cpp"
-
-#include "src/parser/statement/call_statement.cpp"
-
-#include "src/parser/statement/copy_statement.cpp"
-
-#include "src/parser/statement/create_statement.cpp"
-
-#include "src/parser/statement/delete_statement.cpp"
-
-#include "src/parser/statement/drop_statement.cpp"
-
-#include "src/parser/statement/execute_statement.cpp"
-
-#include "src/parser/statement/explain_statement.cpp"
-
-#include "src/parser/statement/export_statement.cpp"
-
-#include "src/parser/statement/insert_statement.cpp"
-
-#include "src/parser/statement/load_statement.cpp"
+#include "src/execution/physical_plan/plan_top_n.cpp"
 

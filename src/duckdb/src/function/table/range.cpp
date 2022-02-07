@@ -18,7 +18,7 @@ struct RangeFunctionBindData : public TableFunctionData {
 
 template <bool GENERATE_SERIES>
 static unique_ptr<FunctionData>
-RangeFunctionBind(ClientContext &context, vector<Value> &inputs, unordered_map<string, Value> &named_parameters,
+RangeFunctionBind(ClientContext &context, vector<Value> &inputs, named_parameter_map_t &named_parameters,
                   vector<LogicalType> &input_table_types, vector<string> &input_table_names,
                   vector<LogicalType> &return_types, vector<string> &names) {
 	auto result = make_unique<RangeFunctionBindData>();
@@ -44,7 +44,7 @@ RangeFunctionBind(ClientContext &context, vector<Value> &inputs, unordered_map<s
 	} else if (result->start < result->end && result->increment < 0) {
 		throw BinderException("start is smaller than end, but increment is negative: cannot generate infinite series");
 	}
-	return_types.push_back(LogicalType::BIGINT);
+	return_types.emplace_back(LogicalType::BIGINT);
 	if (GENERATE_SERIES) {
 		// generate_series has inclusive bounds on the RHS
 		if (result->increment < 0) {
@@ -129,7 +129,7 @@ struct RangeDateTimeBindData : public TableFunctionData {
 
 template <bool GENERATE_SERIES>
 static unique_ptr<FunctionData>
-RangeDateTimeBind(ClientContext &context, vector<Value> &inputs, unordered_map<string, Value> &named_parameters,
+RangeDateTimeBind(ClientContext &context, vector<Value> &inputs, named_parameter_map_t &named_parameters,
                   vector<LogicalType> &input_table_types, vector<string> &input_table_names,
                   vector<LogicalType> &return_types, vector<string> &names) {
 	auto result = make_unique<RangeDateTimeBindData>();

@@ -25,12 +25,12 @@ static void InvertPercentileFractions(unique_ptr<ParsedExpression> &fractions) {
 	Value value = ExpressionExecutor::EvaluateScalar(*bound.expr);
 	if (value.type().id() == LogicalTypeId::LIST) {
 		vector<Value> values;
-		for (const auto &element_val : value.list_value) {
-			values.emplace_back(Value(1) - element_val);
+		for (const auto &element_val : ListValue::GetChildren(value)) {
+			values.push_back(Value::DOUBLE(1 - element_val.GetValue<double>()));
 		}
 		bound.expr = make_unique<BoundConstantExpression>(Value::LIST(values));
 	} else {
-		bound.expr = make_unique<BoundConstantExpression>(Value(1) - value);
+		bound.expr = make_unique<BoundConstantExpression>(Value::DOUBLE(1 - value.GetValue<double>()));
 	}
 }
 
@@ -149,7 +149,7 @@ BindResult SelectBinder::BindAggregate(FunctionExpression &aggr, AggregateFuncti
 
 	// bind the aggregate
 	idx_t best_function = Function::BindFunction(func->name, func->functions, types, error);
-	if (best_function == INVALID_INDEX) {
+	if (best_function == DConstants::INVALID_INDEX) {
 		throw BinderException(binder.FormatError(aggr, error));
 	}
 	// found a matching function!

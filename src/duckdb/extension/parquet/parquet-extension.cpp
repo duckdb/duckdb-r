@@ -1,3 +1,5 @@
+#define DUCKDB_EXTENSION_MAIN
+
 #include <string>
 #include <vector>
 #include <fstream>
@@ -7,10 +9,11 @@
 #include "parquet_reader.hpp"
 #include "parquet_writer.hpp"
 #include "parquet_metadata.hpp"
+#include "zstd_file_system.hpp"
 
 #include "duckdb.hpp"
 #ifndef DUCKDB_AMALGAMATION
-#include "duckdb.hpp"
+#include "duckdb/common/file_system.hpp"
 #include "duckdb/common/types/chunk_collection.hpp"
 #include "duckdb/function/copy_function.hpp"
 #include "duckdb/function/table_function.hpp"
@@ -19,6 +22,7 @@
 #include "duckdb/parser/parsed_data/create_copy_function_info.hpp"
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 
+#include "duckdb/common/enums/file_compression_type.hpp"
 #include "duckdb/main/config.hpp"
 #include "duckdb/parser/expression/constant_expression.hpp"
 #include "duckdb/parser/expression/function_expression.hpp"
@@ -100,7 +104,7 @@ public:
 		if (result->files.empty()) {
 			throw IOException("No files found that match the pattern \"%s\"", info.file_path);
 		}
-		ParquetOptions parquet_options;
+		ParquetOptions parquet_options(context);
 		result->initial_reader = make_shared<ParquetReader>(context, result->files[0], expected_types, parquet_options);
 		return move(result);
 	}
@@ -135,11 +139,15 @@ public:
 			FileSystem &fs = FileSystem::GetFileSystem(context);
 			for (idx_t file_idx = 1; file_idx < bind_data.files.size(); file_idx++) {
 				auto &file_name = bind_data.files[file_idx];
-				auto metadata = std::dynamic_pointer_cast<ParquetFileMetadataCache>(cache.Get(file_name));
+				auto metadata = cache.Get<ParquetFileMetadataCache>(file_name);
+				if (!metadata) {
+					// missing metadata entry in cache, no usable stats
+					return nullptr;
+				}
 				auto handle = fs.OpenFile(file_name, FileFlags::FILE_FLAGS_READ, FileSystem::DEFAULT_LOCK,
 				                          FileSystem::DEFAULT_COMPRESSION, FileSystem::GetFileOpener(context));
-				// but we need to check if the metadata cache entries are current
-				if (!metadata || (fs.GetLastModifiedTime(*handle) >= metadata->read_time)) {
+				// we need to check if the metadata cache entries are current
+				if (fs.GetLastModifiedTime(*handle) >= metadata->read_time) {
 					// missing or invalid metadata entry in cache, no usable stats overall
 					return nullptr;
 				}
@@ -188,15 +196,19 @@ public:
 	}
 
 	static unique_ptr<FunctionData> ParquetScanBind(ClientContext &context, vector<Value> &inputs,
-	                                                unordered_map<string, Value> &named_parameters,
+	                                                named_parameter_map_t &named_parameters,
 	                                                vector<LogicalType> &input_table_types,
 	                                                vector<string> &input_table_names,
 	                                                vector<LogicalType> &return_types, vector<string> &names) {
+		auto &config = DBConfig::GetConfig(context);
+		if (!config.enable_external_access) {
+			throw PermissionException("Scanning Parquet files is disabled through configuration");
+		}
 		auto file_name = inputs[0].GetValue<string>();
-		ParquetOptions parquet_options;
+		ParquetOptions parquet_options(context);
 		for (auto &kv : named_parameters) {
 			if (kv.first == "binary_as_string") {
-				parquet_options.binary_as_string = kv.second.value_.boolean;
+				parquet_options.binary_as_string = BooleanValue::Get(kv.second);
 			}
 		}
 		FileSystem &fs = FileSystem::GetFileSystem(context);
@@ -205,23 +217,27 @@ public:
 	}
 
 	static unique_ptr<FunctionData> ParquetScanBindList(ClientContext &context, vector<Value> &inputs,
-	                                                    unordered_map<string, Value> &named_parameters,
+	                                                    named_parameter_map_t &named_parameters,
 	                                                    vector<LogicalType> &input_table_types,
 	                                                    vector<string> &input_table_names,
 	                                                    vector<LogicalType> &return_types, vector<string> &names) {
+		auto &config = DBConfig::GetConfig(context);
+		if (!config.enable_external_access) {
+			throw PermissionException("Scanning Parquet files is disabled through configuration");
+		}
 		FileSystem &fs = FileSystem::GetFileSystem(context);
 		vector<string> files;
-		for (auto &val : inputs[0].list_value) {
+		for (auto &val : ListValue::GetChildren(inputs[0])) {
 			auto glob_files = ParquetGlob(fs, val.ToString());
 			files.insert(files.end(), glob_files.begin(), glob_files.end());
 		}
 		if (files.empty()) {
 			throw IOException("Parquet reader needs at least one file to read");
 		}
-		ParquetOptions parquet_options;
+		ParquetOptions parquet_options(context);
 		for (auto &kv : named_parameters) {
 			if (kv.first == "binary_as_string") {
-				parquet_options.binary_as_string = kv.second.value_.boolean;
+				parquet_options.binary_as_string = BooleanValue::Get(kv.second);
 			}
 		}
 		return ParquetScanBindInternal(context, move(files), return_types, names, parquet_options);
@@ -249,14 +265,14 @@ public:
 		return move(result);
 	}
 
-	static int ParquetProgress(ClientContext &context, const FunctionData *bind_data_p) {
+	static double ParquetProgress(ClientContext &context, const FunctionData *bind_data_p) {
 		auto &bind_data = (ParquetReadBindData &)*bind_data_p;
 		if (bind_data.initial_reader->NumRows() == 0) {
-			return (100 * (bind_data.cur_file + 1)) / bind_data.files.size();
+			return (100.0 * (bind_data.cur_file + 1)) / bind_data.files.size();
 		}
-		auto percentage = (bind_data.chunk_count * STANDARD_VECTOR_SIZE * 100 / bind_data.initial_reader->NumRows()) /
+		auto percentage = (bind_data.chunk_count * STANDARD_VECTOR_SIZE * 100.0 / bind_data.initial_reader->NumRows()) /
 		                  bind_data.files.size();
-		percentage += 100 * bind_data.cur_file / bind_data.files.size();
+		percentage += 100.0 * bind_data.cur_file / bind_data.files.size();
 		return percentage;
 	}
 
@@ -379,6 +395,7 @@ struct ParquetWriteBindData : public FunctionData {
 	string file_name;
 	vector<string> column_names;
 	duckdb_parquet::format::CompressionCodec::type codec = duckdb_parquet::format::CompressionCodec::SNAPPY;
+	idx_t row_group_size = 100000;
 };
 
 struct ParquetWriteGlobalState : public GlobalFunctionData {
@@ -398,7 +415,9 @@ unique_ptr<FunctionData> ParquetWriteBind(ClientContext &context, CopyInfo &info
 	auto bind_data = make_unique<ParquetWriteBindData>();
 	for (auto &option : info.options) {
 		auto loption = StringUtil::Lower(option.first);
-		if (loption == "compression" || loption == "codec") {
+		if (loption == "row_group_size" || loption == "chunk_size") {
+			bind_data->row_group_size = option.second[0].GetValue<uint64_t>();
+		} else if (loption == "compression" || loption == "codec") {
 			if (!option.second.empty()) {
 				auto roption = StringUtil::Lower(option.second[0].ToString());
 				if (roption == "uncompressed") {
@@ -437,14 +456,15 @@ unique_ptr<GlobalFunctionData> ParquetWriteInitializeGlobal(ClientContext &conte
 	return move(global_state);
 }
 
-void ParquetWriteSink(ClientContext &context, FunctionData &bind_data, GlobalFunctionData &gstate,
+void ParquetWriteSink(ClientContext &context, FunctionData &bind_data_p, GlobalFunctionData &gstate,
                       LocalFunctionData &lstate, DataChunk &input) {
+	auto &bind_data = (ParquetWriteBindData &)bind_data_p;
 	auto &global_state = (ParquetWriteGlobalState &)gstate;
 	auto &local_state = (ParquetWriteLocalState &)lstate;
 
 	// append data to the local (buffered) chunk collection
 	local_state.buffer->Append(input);
-	if (local_state.buffer->Count() > 100000) {
+	if (local_state.buffer->Count() > bind_data.row_group_size) {
 		// if the chunk collection exceeds a certain size we flush it to the parquet file
 		global_state.writer->Flush(*local_state.buffer);
 		// and reset the buffer
@@ -482,6 +502,9 @@ unique_ptr<TableFunctionRef> ParquetScanReplacement(const string &table_name, vo
 }
 
 void ParquetExtension::Load(DuckDB &db) {
+	auto &fs = db.GetFileSystem();
+	fs.RegisterSubSystem(FileCompressionType::ZSTD, make_unique<ZStdFileSystem>());
+
 	auto scan_fun = ParquetScanFunction::GetFunctionSet();
 	CreateTableFunctionInfo cinfo(scan_fun);
 	cinfo.name = "read_parquet";
@@ -520,6 +543,12 @@ void ParquetExtension::Load(DuckDB &db) {
 
 	auto &config = DBConfig::GetConfig(*db.instance);
 	config.replacement_scans.emplace_back(ParquetScanReplacement);
+	config.AddExtensionOption("binary_as_string", "In Parquet files, interpret binary data as a string.",
+	                          LogicalType::BOOLEAN);
+}
+
+std::string ParquetExtension::Name() {
+	return "parquet";
 }
 
 } // namespace duckdb

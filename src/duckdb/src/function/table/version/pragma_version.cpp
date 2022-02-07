@@ -1,8 +1,8 @@
 #ifndef DUCKDB_VERSION
-#define DUCKDB_VERSION "0.3.2-dev31"
+#define DUCKDB_VERSION "0.2.4-dev7165"
 #endif
 #ifndef DUCKDB_SOURCE_ID
-#define DUCKDB_SOURCE_ID "275e368e7"
+#define DUCKDB_SOURCE_ID "82788760f"
 #endif
 #include "duckdb/function/table/system_functions.hpp"
 #include "duckdb/main/database.hpp"
@@ -16,14 +16,14 @@ struct PragmaVersionData : public FunctionOperatorData {
 };
 
 static unique_ptr<FunctionData> PragmaVersionBind(ClientContext &context, vector<Value> &inputs,
-                                                  unordered_map<string, Value> &named_parameters,
+                                                  named_parameter_map_t &named_parameters,
                                                   vector<LogicalType> &input_table_types,
                                                   vector<string> &input_table_names, vector<LogicalType> &return_types,
                                                   vector<string> &names) {
 	names.emplace_back("library_version");
-	return_types.push_back(LogicalType::VARCHAR);
+	return_types.emplace_back(LogicalType::VARCHAR);
 	names.emplace_back("source_id");
-	return_types.push_back(LogicalType::VARCHAR);
+	return_types.emplace_back(LogicalType::VARCHAR);
 	return nullptr;
 }
 
@@ -56,6 +56,20 @@ const char *DuckDB::SourceID() {
 
 const char *DuckDB::LibraryVersion() {
 	return DUCKDB_VERSION;
+}
+
+string DuckDB::Platform() {
+	string os = "linux";
+	string arch = "amd64";
+#ifdef _WIN32
+	os = "windows";
+#elif defined(__APPLE__)
+	os = "osx";
+#endif
+#if defined(__aarch64__) || defined(__ARM_ARCH_ISA_A64)
+	arch = "arm64";
+#endif
+	return os + "_" + arch;
 }
 
 } // namespace duckdb

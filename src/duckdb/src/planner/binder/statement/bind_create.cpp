@@ -82,11 +82,11 @@ SchemaCatalogEntry *Binder::BindCreateFunctionInfo(CreateInfo &info) {
 	// positional parameters
 	for (idx_t i = 0; i < base.function->parameters.size(); i++) {
 		auto param = (ColumnRefExpression &)*base.function->parameters[i];
-		if (!param.table_name.empty()) {
-			throw BinderException("Invalid parameter name '%s'", param.ToString());
+		if (param.IsQualified()) {
+			throw BinderException("Invalid parameter name '%s': must be unqualified", param.ToString());
 		}
-		dummy_types.push_back(LogicalType::SQLNULL);
-		dummy_names.push_back(param.column_name);
+		dummy_types.emplace_back(LogicalType::SQLNULL);
+		dummy_names.push_back(param.GetColumnName());
 	}
 	// default parameters
 	for (auto it = base.function->default_parameters.begin(); it != base.function->default_parameters.end(); it++) {
@@ -96,6 +96,7 @@ SchemaCatalogEntry *Binder::BindCreateFunctionInfo(CreateInfo &info) {
 	}
 	auto this_macro_binding = make_unique<MacroBinding>(dummy_types, dummy_names, base.name);
 	macro_binding = this_macro_binding.get();
+	ExpressionBinder::QualifyColumnNames(*this, base.function->expression);
 
 	// create a copy of the expression because we do not want to alter the original
 	auto expression = base.function->expression->Copy();
@@ -137,7 +138,7 @@ void Binder::BindLogicalType(ClientContext &context, LogicalType &type, const st
 		if (!user_type_catalog) {
 			throw NotImplementedException("DataType %s not supported yet...\n", user_type_name);
 		}
-		type = *user_type_catalog->user_type;
+		type = user_type_catalog->user_type;
 		EnumType::SetCatalog(type, user_type_catalog);
 	} else if (type.id() == LogicalTypeId::ENUM) {
 		auto &enum_type_name = EnumType::GetTypeName(type);

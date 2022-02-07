@@ -1,220 +1,92 @@
-#include "src/planner/binder/statement/bind_create_table.cpp"
+#include "src/function/macro_function.cpp"
 
-#include "src/planner/binder/statement/bind_delete.cpp"
+#include "src/function/pragma/pragma_functions.cpp"
 
-#include "src/planner/binder/statement/bind_drop.cpp"
+#include "src/function/pragma/pragma_queries.cpp"
 
-#include "src/planner/binder/statement/bind_explain.cpp"
+#include "src/function/pragma_function.cpp"
 
-#include "src/planner/binder/statement/bind_export.cpp"
+#include "src/function/scalar/blob/base64.cpp"
 
-#include "src/planner/binder/statement/bind_insert.cpp"
+#include "src/function/scalar/blob/encode.cpp"
 
-#include "src/planner/binder/statement/bind_load.cpp"
+#include "src/function/scalar/date/age.cpp"
 
-#include "src/planner/binder/statement/bind_pragma.cpp"
+#include "src/function/scalar/date/current.cpp"
 
-#include "src/planner/binder/statement/bind_relation.cpp"
+#include "src/function/scalar/date/date_diff.cpp"
 
-#include "src/planner/binder/statement/bind_select.cpp"
+#include "src/function/scalar/date/date_part.cpp"
 
-#include "src/planner/binder/statement/bind_set.cpp"
+#include "src/function/scalar/date/date_sub.cpp"
 
-#include "src/planner/binder/statement/bind_show.cpp"
+#include "src/function/scalar/date/date_trunc.cpp"
 
-#include "src/planner/binder/statement/bind_simple.cpp"
+#include "src/function/scalar/date/epoch.cpp"
 
-#include "src/planner/binder/statement/bind_summarize.cpp"
+#include "src/function/scalar/date/make_date.cpp"
 
-#include "src/planner/binder/statement/bind_update.cpp"
+#include "src/function/scalar/date/strftime.cpp"
 
-#include "src/planner/binder/statement/bind_vacuum.cpp"
+#include "src/function/scalar/date/to_interval.cpp"
 
-#include "src/planner/binder/tableref/bind_basetableref.cpp"
+#include "src/function/scalar/date_functions.cpp"
 
-#include "src/planner/binder/tableref/bind_crossproductref.cpp"
+#include "src/function/scalar/enum/enum_functions_implementation.cpp"
 
-#include "src/planner/binder/tableref/bind_emptytableref.cpp"
+#include "src/function/scalar/enum_functions.cpp"
 
-#include "src/planner/binder/tableref/bind_expressionlistref.cpp"
+#include "src/function/scalar/generic/alias.cpp"
 
-#include "src/planner/binder/tableref/bind_joinref.cpp"
+#include "src/function/scalar/generic/constant_or_null.cpp"
 
-#include "src/planner/binder/tableref/bind_named_parameters.cpp"
+#include "src/function/scalar/generic/current_setting.cpp"
 
-#include "src/planner/binder/tableref/bind_subqueryref.cpp"
+#include "src/function/scalar/generic/least.cpp"
 
-#include "src/planner/binder/tableref/bind_table_function.cpp"
+#include "src/function/scalar/generic/stats.cpp"
 
-#include "src/planner/binder/tableref/plan_basetableref.cpp"
+#include "src/function/scalar/generic/typeof.cpp"
 
-#include "src/planner/binder/tableref/plan_crossproductref.cpp"
+#include "src/function/scalar/generic_functions.cpp"
 
-#include "src/planner/binder/tableref/plan_cteref.cpp"
+#include "src/function/scalar/list/array_slice.cpp"
 
-#include "src/planner/binder/tableref/plan_dummytableref.cpp"
+#include "src/function/scalar/list/list_concat.cpp"
 
-#include "src/planner/binder/tableref/plan_expressionlistref.cpp"
+#include "src/function/scalar/list/list_extract.cpp"
 
-#include "src/planner/binder/tableref/plan_joinref.cpp"
+#include "src/function/scalar/list/list_value.cpp"
 
-#include "src/planner/binder/tableref/plan_subqueryref.cpp"
+#include "src/function/scalar/list/range.cpp"
 
-#include "src/planner/binder/tableref/plan_table_function.cpp"
+#include "src/function/scalar/map/cardinality.cpp"
 
-#include "src/planner/expression.cpp"
+#include "src/function/scalar/map/map.cpp"
 
-#include "src/planner/expression/bound_aggregate_expression.cpp"
+#include "src/function/scalar/map/map_extract.cpp"
 
-#include "src/planner/expression/bound_between_expression.cpp"
+#include "src/function/scalar/math/numeric.cpp"
 
-#include "src/planner/expression/bound_case_expression.cpp"
+#include "src/function/scalar/math/random.cpp"
 
-#include "src/planner/expression/bound_cast_expression.cpp"
+#include "src/function/scalar/math/setseed.cpp"
 
-#include "src/planner/expression/bound_columnref_expression.cpp"
+#include "src/function/scalar/math_functions.cpp"
 
-#include "src/planner/expression/bound_comparison_expression.cpp"
+#include "src/function/scalar/nested_functions.cpp"
 
-#include "src/planner/expression/bound_conjunction_expression.cpp"
+#include "src/function/scalar/operators.cpp"
 
-#include "src/planner/expression/bound_constant_expression.cpp"
+#include "src/function/scalar/operators/add.cpp"
 
-#include "src/planner/expression/bound_function_expression.cpp"
+#include "src/function/scalar/operators/arithmetic.cpp"
 
-#include "src/planner/expression/bound_operator_expression.cpp"
+#include "src/function/scalar/operators/bitwise.cpp"
 
-#include "src/planner/expression/bound_parameter_expression.cpp"
+#include "src/function/scalar/operators/multiply.cpp"
 
-#include "src/planner/expression/bound_reference_expression.cpp"
+#include "src/function/scalar/operators/subtract.cpp"
 
-#include "src/planner/expression/bound_subquery_expression.cpp"
-
-#include "src/planner/expression/bound_unnest_expression.cpp"
-
-#include "src/planner/expression/bound_window_expression.cpp"
-
-#include "src/planner/expression_binder.cpp"
-
-#include "src/planner/expression_binder/aggregate_binder.cpp"
-
-#include "src/planner/expression_binder/alter_binder.cpp"
-
-#include "src/planner/expression_binder/check_binder.cpp"
-
-#include "src/planner/expression_binder/column_alias_binder.cpp"
-
-#include "src/planner/expression_binder/constant_binder.cpp"
-
-#include "src/planner/expression_binder/group_binder.cpp"
-
-#include "src/planner/expression_binder/having_binder.cpp"
-
-#include "src/planner/expression_binder/index_binder.cpp"
-
-#include "src/planner/expression_binder/insert_binder.cpp"
-
-#include "src/planner/expression_binder/order_binder.cpp"
-
-#include "src/planner/expression_binder/relation_binder.cpp"
-
-#include "src/planner/expression_binder/select_binder.cpp"
-
-#include "src/planner/expression_binder/update_binder.cpp"
-
-#include "src/planner/expression_binder/where_binder.cpp"
-
-#include "src/planner/expression_iterator.cpp"
-
-#include "src/planner/filter/conjunction_filter.cpp"
-
-#include "src/planner/filter/constant_filter.cpp"
-
-#include "src/planner/filter/null_filter.cpp"
-
-#include "src/planner/joinside.cpp"
-
-#include "src/planner/logical_operator.cpp"
-
-#include "src/planner/logical_operator_visitor.cpp"
-
-#include "src/planner/operator/logical_aggregate.cpp"
-
-#include "src/planner/operator/logical_any_join.cpp"
-
-#include "src/planner/operator/logical_comparison_join.cpp"
-
-#include "src/planner/operator/logical_cross_product.cpp"
-
-#include "src/planner/operator/logical_distinct.cpp"
-
-#include "src/planner/operator/logical_empty_result.cpp"
-
-#include "src/planner/operator/logical_filter.cpp"
-
-#include "src/planner/operator/logical_get.cpp"
-
-#include "src/planner/operator/logical_join.cpp"
-
-#include "src/planner/operator/logical_projection.cpp"
-
-#include "src/planner/operator/logical_unnest.cpp"
-
-#include "src/planner/operator/logical_window.cpp"
-
-#include "src/planner/planner.cpp"
-
-#include "src/planner/pragma_handler.cpp"
-
-#include "src/planner/subquery/flatten_dependent_join.cpp"
-
-#include "src/planner/subquery/has_correlated_expressions.cpp"
-
-#include "src/planner/subquery/rewrite_correlated_expressions.cpp"
-
-#include "src/planner/table_binding.cpp"
-
-#include "src/planner/table_filter.cpp"
-
-#include "src/storage/block.cpp"
-
-#include "src/storage/buffer/buffer_handle.cpp"
-
-#include "src/storage/buffer/managed_buffer.cpp"
-
-#include "src/storage/buffer_manager.cpp"
-
-#include "src/storage/checkpoint/table_data_reader.cpp"
-
-#include "src/storage/checkpoint/table_data_writer.cpp"
-
-#include "src/storage/checkpoint/write_overflow_strings_to_disk.cpp"
-
-#include "src/storage/checkpoint_manager.cpp"
-
-#include "src/storage/compression/fixed_size_uncompressed.cpp"
-
-#include "src/storage/compression/numeric_constant.cpp"
-
-#include "src/storage/compression/rle.cpp"
-
-#include "src/storage/compression/string_uncompressed.cpp"
-
-#include "src/storage/compression/uncompressed.cpp"
-
-#include "src/storage/compression/validity_uncompressed.cpp"
-
-#include "src/storage/data_table.cpp"
-
-#include "src/storage/index.cpp"
-
-#include "src/storage/local_storage.cpp"
-
-#include "src/storage/meta_block_reader.cpp"
-
-#include "src/storage/meta_block_writer.cpp"
-
-#include "src/storage/single_file_block_manager.cpp"
-
-#include "src/storage/statistics/base_statistics.cpp"
+#include "src/function/scalar/pragma_functions.cpp"
 

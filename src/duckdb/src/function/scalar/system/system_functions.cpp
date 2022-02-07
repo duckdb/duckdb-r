@@ -31,8 +31,7 @@ unique_ptr<FunctionData> BindSystemFunction(ClientContext &context, ScalarFuncti
 
 static void CurrentQueryFunction(DataChunk &input, ExpressionState &state, Vector &result) {
 	auto &info = SystemBindData::GetFrom(state);
-
-	Value val(info.context.query);
+	Value val(info.context.GetCurrentQuery());
 	result.Reference(val);
 }
 
@@ -72,7 +71,7 @@ void SystemFun::RegisterFunction(BuiltinFunctions &set) {
 	auto varchar_list_type = LogicalType::LIST(LogicalType::VARCHAR);
 
 	set.AddFunction(
-	    ScalarFunction("current_query", {}, LogicalType::VARCHAR, CurrentQueryFunction, false, BindSystemFunction));
+	    ScalarFunction("current_query", {}, LogicalType::VARCHAR, CurrentQueryFunction, true, BindSystemFunction));
 	set.AddFunction(
 	    ScalarFunction("current_schema", {}, LogicalType::VARCHAR, CurrentSchemaFunction, false, BindSystemFunction));
 	set.AddFunction(ScalarFunction("current_schemas", {LogicalType::BOOLEAN}, varchar_list_type, CurrentSchemasFunction,

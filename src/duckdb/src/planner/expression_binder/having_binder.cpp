@@ -9,7 +9,7 @@
 namespace duckdb {
 
 HavingBinder::HavingBinder(Binder &binder, ClientContext &context, BoundSelectNode &node, BoundGroupInformation &info,
-                           unordered_map<string, idx_t> &alias_map)
+                           case_insensitive_map_t<idx_t> &alias_map)
     : SelectBinder(binder, context, node, info), column_alias_binder(node, alias_map) {
 	target_type = LogicalType(LogicalTypeId::BOOLEAN);
 }
@@ -29,7 +29,7 @@ BindResult HavingBinder::BindExpression(unique_ptr<ParsedExpression> *expr_ptr, 
 	auto &expr = **expr_ptr;
 	// check if the expression binds to one of the groups
 	auto group_index = TryBindGroup(expr, depth);
-	if (group_index != INVALID_INDEX) {
+	if (group_index != DConstants::INVALID_INDEX) {
 		return BindGroup(expr, depth, group_index);
 	}
 	switch (expr.expression_class) {

@@ -78,6 +78,7 @@ void ExpressionExecutor::ExecuteExpression(idx_t expr_idx, Vector &result) {
 
 Value ExpressionExecutor::EvaluateScalar(const Expression &expr) {
 	D_ASSERT(expr.IsFoldable());
+	D_ASSERT(expr.IsScalar());
 	// use an ExpressionExecutor to execute the expression
 	ExpressionExecutor executor(expr);
 
@@ -254,8 +255,10 @@ idx_t ExpressionExecutor::DefaultSelect(const Expression &expr, ExpressionState 
 
 	VectorData idata;
 	intermediate.Orrify(count, idata);
+
+	SelectionVector owned_sel;
 	if (!sel) {
-		sel = &FlatVector::INCREMENTAL_SELECTION_VECTOR;
+		sel = FlatVector::IncrementalSelectionVector(count, owned_sel);
 	}
 	if (!idata.validity.AllValid()) {
 		return DefaultSelectSwitch<false>(idata, sel, count, true_sel, false_sel);

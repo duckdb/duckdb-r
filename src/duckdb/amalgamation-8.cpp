@@ -1,62 +1,92 @@
-#include "src/storage/statistics/list_statistics.cpp"
+#include "src/function/scalar/sequence/nextval.cpp"
 
-#include "src/storage/statistics/numeric_statistics.cpp"
+#include "src/function/scalar/sequence_functions.cpp"
 
-#include "src/storage/statistics/segment_statistics.cpp"
+#include "src/function/scalar/string/ascii.cpp"
 
-#include "src/storage/statistics/string_statistics.cpp"
+#include "src/function/scalar/string/caseconvert.cpp"
 
-#include "src/storage/statistics/struct_statistics.cpp"
+#include "src/function/scalar/string/chr.cpp"
 
-#include "src/storage/statistics/validity_statistics.cpp"
+#include "src/function/scalar/string/concat.cpp"
 
-#include "src/storage/storage_info.cpp"
+#include "src/function/scalar/string/contains.cpp"
 
-#include "src/storage/storage_lock.cpp"
+#include "src/function/scalar/string/instr.cpp"
 
-#include "src/storage/storage_manager.cpp"
+#include "src/function/scalar/string/jaccard.cpp"
 
-#include "src/storage/table/chunk_info.cpp"
+#include "src/function/scalar/string/left_right.cpp"
 
-#include "src/storage/table/column_checkpoint_state.cpp"
+#include "src/function/scalar/string/length.cpp"
 
-#include "src/storage/table/column_data.cpp"
+#include "src/function/scalar/string/levenshtein.cpp"
 
-#include "src/storage/table/column_data_checkpointer.cpp"
+#include "src/function/scalar/string/like.cpp"
 
-#include "src/storage/table/column_segment.cpp"
+#include "src/function/scalar/string/md5.cpp"
 
-#include "src/storage/table/list_column_data.cpp"
+#include "src/function/scalar/string/mismatches.cpp"
 
-#include "src/storage/table/persistent_table_data.cpp"
+#include "src/function/scalar/string/nfc_normalize.cpp"
 
-#include "src/storage/table/row_group.cpp"
+#include "src/function/scalar/string/pad.cpp"
 
-#include "src/storage/table/segment_tree.cpp"
+#include "src/function/scalar/string/prefix.cpp"
 
-#include "src/storage/table/standard_column_data.cpp"
+#include "src/function/scalar/string/printf.cpp"
 
-#include "src/storage/table/struct_column_data.cpp"
+#include "src/function/scalar/string/regexp.cpp"
 
-#include "src/storage/table/update_segment.cpp"
+#include "src/function/scalar/string/repeat.cpp"
 
-#include "src/storage/table/validity_column_data.cpp"
+#include "src/function/scalar/string/replace.cpp"
 
-#include "src/storage/wal_replay.cpp"
+#include "src/function/scalar/string/reverse.cpp"
 
-#include "src/storage/write_ahead_log.cpp"
+#include "src/function/scalar/string/string_split.cpp"
 
-#include "src/transaction/cleanup_state.cpp"
+#include "src/function/scalar/string/strip_accents.cpp"
 
-#include "src/transaction/commit_state.cpp"
+#include "src/function/scalar/string/substring.cpp"
 
-#include "src/transaction/rollback_state.cpp"
+#include "src/function/scalar/string/suffix.cpp"
 
-#include "src/transaction/transaction.cpp"
+#include "src/function/scalar/string/trim.cpp"
 
-#include "src/transaction/transaction_context.cpp"
+#include "src/function/scalar/string_functions.cpp"
 
-#include "src/transaction/transaction_manager.cpp"
+#include "src/function/scalar/struct/struct_extract.cpp"
 
-#include "src/transaction/undo_buffer.cpp"
+#include "src/function/scalar/struct/struct_pack.cpp"
+
+#include "src/function/scalar/system/system_functions.cpp"
+
+#include "src/function/scalar/trigonometrics_functions.cpp"
+
+#include "src/function/scalar/uuid/gen_random.cpp"
+
+#include "src/function/scalar_function.cpp"
+
+#include "src/function/table/arrow.cpp"
+
+#include "src/function/table/checkpoint.cpp"
+
+#include "src/function/table/copy_csv.cpp"
+
+#include "src/function/table/glob.cpp"
+
+#include "src/function/table/pragma_detailed_profiling_output.cpp"
+
+#include "src/function/table/pragma_last_profiling_output.cpp"
+
+#include "src/function/table/range.cpp"
+
+#include "src/function/table/read_csv.cpp"
+
+#include "src/function/table/repeat.cpp"
+
+#include "src/function/table/summary.cpp"
+
+#include "src/function/table/system/duckdb_columns.cpp"
 

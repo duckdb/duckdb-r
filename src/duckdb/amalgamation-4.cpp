@@ -1,220 +1,92 @@
-#include "src/function/scalar/string/mismatches.cpp"
+#include "src/execution/operator/aggregate/physical_simple_aggregate.cpp"
 
-#include "src/function/scalar/string/nfc_normalize.cpp"
+#include "src/execution/operator/aggregate/physical_streaming_window.cpp"
 
-#include "src/function/scalar/string/pad.cpp"
+#include "src/execution/operator/aggregate/physical_window.cpp"
 
-#include "src/function/scalar/string/prefix.cpp"
+#include "src/execution/operator/filter/physical_filter.cpp"
 
-#include "src/function/scalar/string/printf.cpp"
+#include "src/execution/operator/helper/physical_execute.cpp"
 
-#include "src/function/scalar/string/regexp.cpp"
+#include "src/execution/operator/helper/physical_explain_analyze.cpp"
 
-#include "src/function/scalar/string/repeat.cpp"
+#include "src/execution/operator/helper/physical_limit.cpp"
 
-#include "src/function/scalar/string/replace.cpp"
+#include "src/execution/operator/helper/physical_limit_percent.cpp"
 
-#include "src/function/scalar/string/reverse.cpp"
+#include "src/execution/operator/helper/physical_load.cpp"
 
-#include "src/function/scalar/string/string_split.cpp"
+#include "src/execution/operator/helper/physical_pragma.cpp"
 
-#include "src/function/scalar/string/strip_accents.cpp"
+#include "src/execution/operator/helper/physical_prepare.cpp"
 
-#include "src/function/scalar/string/substring.cpp"
+#include "src/execution/operator/helper/physical_reservoir_sample.cpp"
 
-#include "src/function/scalar/string/suffix.cpp"
+#include "src/execution/operator/helper/physical_set.cpp"
 
-#include "src/function/scalar/string/trim.cpp"
+#include "src/execution/operator/helper/physical_streaming_sample.cpp"
 
-#include "src/function/scalar/string_functions.cpp"
+#include "src/execution/operator/helper/physical_transaction.cpp"
 
-#include "src/function/scalar/struct/struct_extract.cpp"
+#include "src/execution/operator/helper/physical_vacuum.cpp"
 
-#include "src/function/scalar/struct/struct_pack.cpp"
+#include "src/execution/operator/join/perfect_hash_join_executor.cpp"
 
-#include "src/function/scalar/system/system_functions.cpp"
+#include "src/execution/operator/join/physical_blockwise_nl_join.cpp"
 
-#include "src/function/scalar/trigonometrics_functions.cpp"
+#include "src/execution/operator/join/physical_comparison_join.cpp"
 
-#include "src/function/scalar/uuid/gen_random.cpp"
+#include "src/execution/operator/join/physical_cross_product.cpp"
 
-#include "src/function/table/arrow.cpp"
+#include "src/execution/operator/join/physical_delim_join.cpp"
 
-#include "src/function/table/checkpoint.cpp"
+#include "src/execution/operator/join/physical_hash_join.cpp"
 
-#include "src/function/table/copy_csv.cpp"
+#include "src/execution/operator/join/physical_index_join.cpp"
 
-#include "src/function/table/glob.cpp"
+#include "src/execution/operator/join/physical_join.cpp"
 
-#include "src/function/table/pragma_detailed_profiling_output.cpp"
+#include "src/execution/operator/join/physical_nested_loop_join.cpp"
 
-#include "src/function/table/pragma_last_profiling_output.cpp"
+#include "src/execution/operator/join/physical_piecewise_merge_join.cpp"
 
-#include "src/function/table/range.cpp"
+#include "src/execution/operator/order/physical_order.cpp"
 
-#include "src/function/table/read_csv.cpp"
+#include "src/execution/operator/order/physical_top_n.cpp"
 
-#include "src/function/table/repeat.cpp"
+#include "src/execution/operator/persistent/buffered_csv_reader.cpp"
 
-#include "src/function/table/summary.cpp"
+#include "src/execution/operator/persistent/physical_copy_to_file.cpp"
 
-#include "src/function/table/system/duckdb_columns.cpp"
+#include "src/execution/operator/persistent/physical_delete.cpp"
 
-#include "src/function/table/system/duckdb_constraints.cpp"
+#include "src/execution/operator/persistent/physical_export.cpp"
 
-#include "src/function/table/system/duckdb_dependencies.cpp"
+#include "src/execution/operator/persistent/physical_insert.cpp"
 
-#include "src/function/table/system/duckdb_indexes.cpp"
+#include "src/execution/operator/persistent/physical_update.cpp"
 
-#include "src/function/table/system/duckdb_schemas.cpp"
+#include "src/execution/operator/projection/physical_projection.cpp"
 
-#include "src/function/table/system/duckdb_sequences.cpp"
+#include "src/execution/operator/projection/physical_tableinout_function.cpp"
 
-#include "src/function/table/system/duckdb_tables.cpp"
+#include "src/execution/operator/projection/physical_unnest.cpp"
 
-#include "src/function/table/system/duckdb_types.cpp"
+#include "src/execution/operator/scan/physical_chunk_scan.cpp"
 
-#include "src/function/table/system/duckdb_views.cpp"
+#include "src/execution/operator/scan/physical_dummy_scan.cpp"
 
-#include "src/function/table/system/pragma_collations.cpp"
+#include "src/execution/operator/scan/physical_empty_result.cpp"
 
-#include "src/function/table/system/pragma_database_list.cpp"
+#include "src/execution/operator/scan/physical_expression_scan.cpp"
 
-#include "src/function/table/system/pragma_database_size.cpp"
+#include "src/execution/operator/scan/physical_table_scan.cpp"
 
-#include "src/function/table/system/pragma_functions.cpp"
+#include "src/execution/operator/schema/physical_alter.cpp"
 
-#include "src/function/table/system/pragma_storage_info.cpp"
+#include "src/execution/operator/schema/physical_create_function.cpp"
 
-#include "src/function/table/system/pragma_table_info.cpp"
+#include "src/execution/operator/schema/physical_create_index.cpp"
 
-#include "src/function/table/system_functions.cpp"
-
-#include "src/function/table/table_scan.cpp"
-
-#include "src/function/table/unnest.cpp"
-
-#include "src/function/table/version/pragma_version.cpp"
-
-#include "src/function/udf_function.cpp"
-
-#include "src/main/appender.cpp"
-
-#include "src/main/capi/appender-c.cpp"
-
-#include "src/main/capi/arrow-c.cpp"
-
-#include "src/main/capi/config-c.cpp"
-
-#include "src/main/capi/datetime-c.cpp"
-
-#include "src/main/capi/duckdb-c.cpp"
-
-#include "src/main/capi/helper-c.cpp"
-
-#include "src/main/capi/hugeint-c.cpp"
-
-#include "src/main/capi/prepared-c.cpp"
-
-#include "src/main/capi/result-c.cpp"
-
-#include "src/main/capi/value-c.cpp"
-
-#include "src/main/client_context.cpp"
-
-#include "src/main/client_context_file_opener.cpp"
-
-#include "src/main/config.cpp"
-
-#include "src/main/connection.cpp"
-
-#include "src/main/database.cpp"
-
-#include "src/main/extension_helper.cpp"
-
-#include "src/main/materialized_query_result.cpp"
-
-#include "src/main/prepared_statement.cpp"
-
-#include "src/main/prepared_statement_data.cpp"
-
-#include "src/main/query_profiler.cpp"
-
-#include "src/main/query_result.cpp"
-
-#include "src/main/relation.cpp"
-
-#include "src/main/relation/aggregate_relation.cpp"
-
-#include "src/main/relation/create_table_relation.cpp"
-
-#include "src/main/relation/create_view_relation.cpp"
-
-#include "src/main/relation/delete_relation.cpp"
-
-#include "src/main/relation/distinct_relation.cpp"
-
-#include "src/main/relation/explain_relation.cpp"
-
-#include "src/main/relation/filter_relation.cpp"
-
-#include "src/main/relation/insert_relation.cpp"
-
-#include "src/main/relation/join_relation.cpp"
-
-#include "src/main/relation/limit_relation.cpp"
-
-#include "src/main/relation/order_relation.cpp"
-
-#include "src/main/relation/projection_relation.cpp"
-
-#include "src/main/relation/query_relation.cpp"
-
-#include "src/main/relation/read_csv_relation.cpp"
-
-#include "src/main/relation/setop_relation.cpp"
-
-#include "src/main/relation/subquery_relation.cpp"
-
-#include "src/main/relation/table_function_relation.cpp"
-
-#include "src/main/relation/table_relation.cpp"
-
-#include "src/main/relation/update_relation.cpp"
-
-#include "src/main/relation/value_relation.cpp"
-
-#include "src/main/relation/view_relation.cpp"
-
-#include "src/main/relation/write_csv_relation.cpp"
-
-#include "src/main/stream_query_result.cpp"
-
-#include "src/optimizer/column_lifetime_analyzer.cpp"
-
-#include "src/optimizer/common_aggregate_optimizer.cpp"
-
-#include "src/optimizer/cse_optimizer.cpp"
-
-#include "src/optimizer/deliminator.cpp"
-
-#include "src/optimizer/expression_heuristics.cpp"
-
-#include "src/optimizer/expression_rewriter.cpp"
-
-#include "src/optimizer/filter_combiner.cpp"
-
-#include "src/optimizer/filter_pullup.cpp"
-
-#include "src/optimizer/filter_pushdown.cpp"
-
-#include "src/optimizer/in_clause_rewriter.cpp"
-
-#include "src/optimizer/join_order/join_relation_set.cpp"
-
-#include "src/optimizer/join_order/query_graph.cpp"
-
-#include "src/optimizer/join_order_optimizer.cpp"
-
-#include "src/optimizer/matcher/expression_matcher.cpp"
+#include "src/execution/operator/schema/physical_create_schema.cpp"
 
