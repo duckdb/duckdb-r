@@ -150,7 +150,7 @@ using ssize_t = int;
 #define WSA_FLAG_NO_HANDLE_INHERIT 0x80
 #endif
 
-#if defined(_MSC_VER) || defined(__MINGW32__)
+#ifdef _MSC_VER
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "crypt32.lib")
 #pragma comment(lib, "cryptui.lib")
