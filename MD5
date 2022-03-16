@@ -1,4 +1,4 @@
-164a17094d454853378d16482ff38f08 *DESCRIPTION
+941e1fba70f4f04da575b84a5e45270f *DESCRIPTION
 eca9ed493e726da8525fe866e829f5c5 *NAMESPACE
 463d9287bf31bb4fb7601fbbdd607b53 *R/Connection.R
 22bcded8b32bc947756b683278c9c730 *R/Driver.R
@@ -275,7 +275,7 @@ a3e46822f273b1218c9efafc58a04d86 *src/duckdb/src/execution/index/art/node.cpp
 75fad31aa324898e6bbf13fe452a3bde *src/duckdb/src/execution/operator/aggregate/physical_perfecthash_aggregate.cpp
 a1ba30ca6e29ccf5f0c3f2ba2988b76c *src/duckdb/src/execution/operator/aggregate/physical_simple_aggregate.cpp
 fc982cdd6d9bc054c3416e3331709cca *src/duckdb/src/execution/operator/aggregate/physical_streaming_window.cpp
-68b6c9318fbb7a831278910f2945a93f *src/duckdb/src/execution/operator/aggregate/physical_window.cpp
+a4d6a782e9e1740326182701730419e9 *src/duckdb/src/execution/operator/aggregate/physical_window.cpp
 23fb228dfc52cd727c44f552ccd9fa4f *src/duckdb/src/execution/operator/filter/physical_filter.cpp
 fd4ed240570af1654b76bf6aafef5699 *src/duckdb/src/execution/operator/helper/physical_execute.cpp
 2abdcab01b674aa53ee4c8673608677b *src/duckdb/src/execution/operator/helper/physical_explain_analyze.cpp
@@ -524,7 +524,7 @@ d8b665da4889854cf1977630dfd5d793 *src/duckdb/src/function/table/system/pragma_ta
 e6c3e0fe3e7981733b6657b21f518902 *src/duckdb/src/function/table/system_functions.cpp
 cc71ea34fedafa23ed0e6b562d3d7ec8 *src/duckdb/src/function/table/table_scan.cpp
 df671a01ef7717449dca0d768329875f *src/duckdb/src/function/table/unnest.cpp
-8d8bfbe04391da647d4620d12365257b *src/duckdb/src/function/table/version/pragma_version.cpp
+f0568eaeab5bbce853fb2690a3a5f364 *src/duckdb/src/function/table/version/pragma_version.cpp
 7ee9dc9df8afe4f446e97354e7c457c4 *src/duckdb/src/function/table_function.cpp
 6b5131cd99b88d3fc883294f8e873298 *src/duckdb/src/function/udf_function.cpp
 c4049332ec3d7862bf856df7298d8bec *src/duckdb/src/include/duckdb.h
@@ -1860,4 +1860,3 @@ f03b562c0e120ccdf1e013540460f54f *tests/testthat/test_register.R
 454c4e3dd13e55d01a18a7c3f23f9e63 *tests/testthat/test_register_readonly.R
 236da3a1dd0bbfdc1508f88b0976f129 *tests/testthat/test_timezone.R
 31583575ce673f211f0a9b10aafd92da *tests/testthat/test_viewer.R
-7fcb54d24fb85aebf11406d20ea98cb4 *tests/testthat/testthat-problems.rds
