@@ -1,7 +1,3 @@
-#include "src/execution/operator/aggregate/physical_simple_aggregate.cpp"
-
-#include "src/execution/operator/aggregate/physical_streaming_window.cpp"
-
 #include "src/execution/operator/aggregate/physical_window.cpp"
 
 #include "src/execution/operator/filter/physical_filter.cpp"
@@ -41,6 +37,8 @@
 #include "src/execution/operator/join/physical_delim_join.cpp"
 
 #include "src/execution/operator/join/physical_hash_join.cpp"
+
+#include "src/execution/operator/join/physical_iejoin.cpp"
 
 #include "src/execution/operator/join/physical_index_join.cpp"
 
@@ -89,4 +87,8 @@
 #include "src/execution/operator/schema/physical_create_index.cpp"
 
 #include "src/execution/operator/schema/physical_create_schema.cpp"
+
+#include "src/execution/operator/schema/physical_create_sequence.cpp"
+
+#include "src/execution/operator/schema/physical_create_table.cpp"
 

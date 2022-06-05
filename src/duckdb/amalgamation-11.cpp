@@ -1,3 +1,11 @@
+#include "src/optimizer/join_order_optimizer.cpp"
+
+#include "src/optimizer/matcher/expression_matcher.cpp"
+
+#include "src/optimizer/optimizer.cpp"
+
+#include "src/optimizer/pullup/pullup_both_side.cpp"
+
 #include "src/optimizer/pullup/pullup_filter.cpp"
 
 #include "src/optimizer/pullup/pullup_from_left.cpp"
@@ -17,6 +25,8 @@
 #include "src/optimizer/pushdown/pushdown_inner_join.cpp"
 
 #include "src/optimizer/pushdown/pushdown_left_join.cpp"
+
+#include "src/optimizer/pushdown/pushdown_limit.cpp"
 
 #include "src/optimizer/pushdown/pushdown_mark_join.cpp"
 
@@ -81,12 +91,4 @@
 #include "src/optimizer/statistics/operator/propagate_cross_product.cpp"
 
 #include "src/optimizer/statistics/operator/propagate_filter.cpp"
-
-#include "src/optimizer/statistics/operator/propagate_get.cpp"
-
-#include "src/optimizer/statistics/operator/propagate_join.cpp"
-
-#include "src/optimizer/statistics/operator/propagate_limit.cpp"
-
-#include "src/optimizer/statistics/operator/propagate_order.cpp"
 

@@ -6,9 +6,9 @@
 
 #include "src/catalog/catalog_entry/index_catalog_entry.cpp"
 
-#include "src/catalog/catalog_entry/macro_catalog_entry.cpp"
-
 #include "src/catalog/catalog_entry/pragma_function_catalog_entry.cpp"
+
+#include "src/catalog/catalog_entry/scalar_macro_catalog_entry.cpp"
 
 #include "src/catalog/catalog_entry/schema_catalog_entry.cpp"
 
@@ -89,4 +89,6 @@
 #include "src/common/operator/cast_operators.cpp"
 
 #include "src/common/operator/convert_to_string.cpp"
+
+#include "src/common/operator/string_cast.cpp"
 

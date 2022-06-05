@@ -1,3 +1,7 @@
+#include "src/planner/expression_binder/having_binder.cpp"
+
+#include "src/planner/expression_binder/index_binder.cpp"
+
 #include "src/planner/expression_binder/insert_binder.cpp"
 
 #include "src/planner/expression_binder/order_binder.cpp"
@@ -5,6 +9,8 @@
 #include "src/planner/expression_binder/qualify_binder.cpp"
 
 #include "src/planner/expression_binder/relation_binder.cpp"
+
+#include "src/planner/expression_binder/returning_binder.cpp"
 
 #include "src/planner/expression_binder/select_binder.cpp"
 
@@ -85,8 +91,4 @@
 #include "src/storage/checkpoint_manager.cpp"
 
 #include "src/storage/compression/bitpacking.cpp"
-
-#include "src/storage/compression/fixed_size_uncompressed.cpp"
-
-#include "src/storage/compression/numeric_constant.cpp"
 

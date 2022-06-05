@@ -1,3 +1,7 @@
+#include "src/parser/transform/tableref/transform_from.cpp"
+
+#include "src/parser/transform/tableref/transform_join.cpp"
+
 #include "src/parser/transform/tableref/transform_subquery.cpp"
 
 #include "src/parser/transform/tableref/transform_table_function.cpp"
@@ -52,6 +56,8 @@
 
 #include "src/planner/binder/query_node/bind_setop_node.cpp"
 
+#include "src/planner/binder/query_node/bind_table_macro_node.cpp"
+
 #include "src/planner/binder/query_node/plan_query_node.cpp"
 
 #include "src/planner/binder/query_node/plan_recursive_cte_node.cpp"
@@ -85,8 +91,4 @@
 #include "src/planner/binder/statement/bind_pragma.cpp"
 
 #include "src/planner/binder/statement/bind_relation.cpp"
-
-#include "src/planner/binder/statement/bind_select.cpp"
-
-#include "src/planner/binder/statement/bind_set.cpp"
 

@@ -1,7 +1,3 @@
-#include "src/execution/operator/schema/physical_create_sequence.cpp"
-
-#include "src/execution/operator/schema/physical_create_table.cpp"
-
 #include "src/execution/operator/schema/physical_create_table_as.cpp"
 
 #include "src/execution/operator/schema/physical_create_type.cpp"
@@ -89,4 +85,10 @@
 #include "src/execution/physical_plan/plan_simple.cpp"
 
 #include "src/execution/physical_plan/plan_top_n.cpp"
+
+#include "src/execution/physical_plan/plan_unnest.cpp"
+
+#include "src/execution/physical_plan/plan_update.cpp"
+
+#include "src/execution/physical_plan/plan_window.cpp"
 

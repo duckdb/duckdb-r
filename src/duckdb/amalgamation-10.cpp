@@ -1,3 +1,13 @@
+#include "src/main/extension/extension_helper.cpp"
+
+#include "src/main/extension/extension_install.cpp"
+
+#include "src/main/extension/extension_load.cpp"
+
+#include "src/main/materialized_query_result.cpp"
+
+#include "src/main/pending_query_result.cpp"
+
 #include "src/main/prepared_statement.cpp"
 
 #include "src/main/prepared_statement_data.cpp"
@@ -81,12 +91,4 @@
 #include "src/optimizer/join_order/join_relation_set.cpp"
 
 #include "src/optimizer/join_order/query_graph.cpp"
-
-#include "src/optimizer/join_order_optimizer.cpp"
-
-#include "src/optimizer/matcher/expression_matcher.cpp"
-
-#include "src/optimizer/optimizer.cpp"
-
-#include "src/optimizer/pullup/pullup_both_side.cpp"
 

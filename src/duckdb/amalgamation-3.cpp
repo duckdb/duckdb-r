@@ -1,5 +1,3 @@
-#include "src/common/types/vector.cpp"
-
 #include "src/common/types/vector_buffer.cpp"
 
 #include "src/common/types/vector_cache.cpp"
@@ -89,4 +87,8 @@
 #include "src/execution/operator/aggregate/physical_hash_aggregate.cpp"
 
 #include "src/execution/operator/aggregate/physical_perfecthash_aggregate.cpp"
+
+#include "src/execution/operator/aggregate/physical_simple_aggregate.cpp"
+
+#include "src/execution/operator/aggregate/physical_streaming_window.cpp"
 

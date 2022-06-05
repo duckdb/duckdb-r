@@ -1,3 +1,9 @@
+#include "src/parser/transform/expression/transform_grouping_function.cpp"
+
+#include "src/parser/transform/expression/transform_interval.cpp"
+
+#include "src/parser/transform/expression/transform_is_null.cpp"
+
 #include "src/parser/transform/expression/transform_lambda.cpp"
 
 #include "src/parser/transform/expression/transform_operator.cpp"
@@ -85,8 +91,4 @@
 #include "src/parser/transform/statement/transform_vacuum.cpp"
 
 #include "src/parser/transform/tableref/transform_base_tableref.cpp"
-
-#include "src/parser/transform/tableref/transform_from.cpp"
-
-#include "src/parser/transform/tableref/transform_join.cpp"
 

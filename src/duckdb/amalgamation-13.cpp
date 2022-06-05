@@ -1,3 +1,11 @@
+#include "src/parser/parsed_expression.cpp"
+
+#include "src/parser/parsed_expression_iterator.cpp"
+
+#include "src/parser/parser.cpp"
+
+#include "src/parser/query_error_context.cpp"
+
 #include "src/parser/query_node.cpp"
 
 #include "src/parser/query_node/recursive_cte_node.cpp"
@@ -83,10 +91,4 @@
 #include "src/parser/transform/expression/transform_expression.cpp"
 
 #include "src/parser/transform/expression/transform_function.cpp"
-
-#include "src/parser/transform/expression/transform_grouping_function.cpp"
-
-#include "src/parser/transform/expression/transform_interval.cpp"
-
-#include "src/parser/transform/expression/transform_is_null.cpp"
 

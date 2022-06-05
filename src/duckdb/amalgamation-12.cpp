@@ -1,3 +1,11 @@
+#include "src/optimizer/statistics/operator/propagate_get.cpp"
+
+#include "src/optimizer/statistics/operator/propagate_join.cpp"
+
+#include "src/optimizer/statistics/operator/propagate_limit.cpp"
+
+#include "src/optimizer/statistics/operator/propagate_order.cpp"
+
 #include "src/optimizer/statistics/operator/propagate_projection.cpp"
 
 #include "src/optimizer/statistics/operator/propagate_set_operation.cpp"
@@ -35,6 +43,8 @@
 #include "src/parser/constraint.cpp"
 
 #include "src/parser/constraints/check_constraint.cpp"
+
+#include "src/parser/constraints/foreign_key_constraint.cpp"
 
 #include "src/parser/constraints/not_null_constraint.cpp"
 
@@ -81,12 +91,4 @@
 #include "src/parser/parsed_data/alter_table_info.cpp"
 
 #include "src/parser/parsed_data/sample_options.cpp"
-
-#include "src/parser/parsed_expression.cpp"
-
-#include "src/parser/parsed_expression_iterator.cpp"
-
-#include "src/parser/parser.cpp"
-
-#include "src/parser/query_error_context.cpp"
 

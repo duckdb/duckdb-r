@@ -1,9 +1,3 @@
-#include "src/execution/physical_plan/plan_unnest.cpp"
-
-#include "src/execution/physical_plan/plan_update.cpp"
-
-#include "src/execution/physical_plan/plan_window.cpp"
-
 #include "src/execution/physical_plan_generator.cpp"
 
 #include "src/execution/radix_partitioned_hashtable.cpp"
@@ -89,4 +83,12 @@
 #include "src/function/compression_config.cpp"
 
 #include "src/function/function.cpp"
+
+#include "src/function/macro_function.cpp"
+
+#include "src/function/pragma/pragma_functions.cpp"
+
+#include "src/function/pragma/pragma_queries.cpp"
+
+#include "src/function/pragma_function.cpp"
 

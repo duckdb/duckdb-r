@@ -1,11 +1,3 @@
-#include "src/function/macro_function.cpp"
-
-#include "src/function/pragma/pragma_functions.cpp"
-
-#include "src/function/pragma/pragma_queries.cpp"
-
-#include "src/function/pragma_function.cpp"
-
 #include "src/function/scalar/blob/base64.cpp"
 
 #include "src/function/scalar/blob/encode.cpp"
@@ -42,6 +34,8 @@
 
 #include "src/function/scalar/generic/current_setting.cpp"
 
+#include "src/function/scalar/generic/hash.cpp"
+
 #include "src/function/scalar/generic/least.cpp"
 
 #include "src/function/scalar/generic/stats.cpp"
@@ -51,6 +45,12 @@
 #include "src/function/scalar/generic_functions.cpp"
 
 #include "src/function/scalar/list/array_slice.cpp"
+
+#include "src/function/scalar/list/contains_or_position.cpp"
+
+#include "src/function/scalar/list/flatten.cpp"
+
+#include "src/function/scalar/list/list_aggregates.cpp"
 
 #include "src/function/scalar/list/list_concat.cpp"
 
@@ -89,4 +89,6 @@
 #include "src/function/scalar/operators/subtract.cpp"
 
 #include "src/function/scalar/pragma_functions.cpp"
+
+#include "src/function/scalar/sequence/nextval.cpp"
 

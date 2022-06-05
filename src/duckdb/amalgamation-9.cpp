@@ -44,6 +44,8 @@
 
 #include "src/function/table_function.cpp"
 
+#include "src/function/table_macro_function.cpp"
+
 #include "src/function/udf_function.cpp"
 
 #include "src/main/appender.cpp"
@@ -54,17 +56,27 @@
 
 #include "src/main/capi/config-c.cpp"
 
+#include "src/main/capi/data_chunk-c.cpp"
+
 #include "src/main/capi/datetime-c.cpp"
 
 #include "src/main/capi/duckdb-c.cpp"
+
+#include "src/main/capi/duckdb_value-c.cpp"
 
 #include "src/main/capi/helper-c.cpp"
 
 #include "src/main/capi/hugeint-c.cpp"
 
+#include "src/main/capi/logical_types-c.cpp"
+
 #include "src/main/capi/prepared-c.cpp"
 
+#include "src/main/capi/replacement_scan-c.cpp"
+
 #include "src/main/capi/result-c.cpp"
+
+#include "src/main/capi/table_function-c.cpp"
 
 #include "src/main/capi/value-c.cpp"
 
@@ -79,14 +91,4 @@
 #include "src/main/database.cpp"
 
 #include "src/main/extension.cpp"
-
-#include "src/main/extension/extension_helper.cpp"
-
-#include "src/main/extension/extension_install.cpp"
-
-#include "src/main/extension/extension_load.cpp"
-
-#include "src/main/materialized_query_result.cpp"
-
-#include "src/main/pending_query_result.cpp"
 

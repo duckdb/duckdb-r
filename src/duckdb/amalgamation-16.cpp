@@ -1,3 +1,7 @@
+#include "src/planner/binder/statement/bind_select.cpp"
+
+#include "src/planner/binder/statement/bind_set.cpp"
+
 #include "src/planner/binder/statement/bind_show.cpp"
 
 #include "src/planner/binder/statement/bind_simple.cpp"
@@ -39,6 +43,8 @@
 #include "src/planner/binder/tableref/plan_subqueryref.cpp"
 
 #include "src/planner/binder/tableref/plan_table_function.cpp"
+
+#include "src/planner/bound_result_modifier.cpp"
 
 #include "src/planner/expression.cpp"
 
@@ -85,8 +91,4 @@
 #include "src/planner/expression_binder/constant_binder.cpp"
 
 #include "src/planner/expression_binder/group_binder.cpp"
-
-#include "src/planner/expression_binder/having_binder.cpp"
-
-#include "src/planner/expression_binder/index_binder.cpp"
 

@@ -1,5 +1,3 @@
-#include "src/function/scalar/sequence/nextval.cpp"
-
 #include "src/function/scalar/sequence_functions.cpp"
 
 #include "src/function/scalar/string/ascii.cpp"
@@ -60,6 +58,8 @@
 
 #include "src/function/scalar/struct/struct_pack.cpp"
 
+#include "src/function/scalar/system/aggregate_export.cpp"
+
 #include "src/function/scalar/system/system_functions.cpp"
 
 #include "src/function/scalar/trigonometrics_functions.cpp"
@@ -67,6 +67,8 @@
 #include "src/function/scalar/uuid/gen_random.cpp"
 
 #include "src/function/scalar_function.cpp"
+
+#include "src/function/scalar_macro_function.cpp"
 
 #include "src/function/table/arrow.cpp"
 
