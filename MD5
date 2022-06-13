@@ -1,11 +1,11 @@
-d8896dfb19fd00ac5fb1e188e708a2d4 *DESCRIPTION
+0bbeb8610b76436da488878a1360ab35 *DESCRIPTION
 6793c89d1af721728c4d58c99d5b9d30 *LICENSE
 8a60aa121ae9bde19f09f9cb1d0e0503 *NAMESPACE
 3597590f1b962342abe3618b0370dc5d *R/Connection.R
 739ae7946ac025c7024ab491306fc67e *R/Driver.R
 3189f056130e277ba23497a86ee78d2a *R/Result.R
 dd09ac63d6858b0f888c8d5e00b15c3c *R/Viewer.R
-2b68f3cc388672bff53935b1900a232f *R/backend-dbplyr__duckdb_connection.R
+f696bf7f46faff1ee51a35c04180198e *R/backend-dbplyr__duckdb_connection.R
 3efedf542b4f21c223de6dd9da444f33 *R/cpp11.R
 d49f39f1e48e4dedb7534852ff82d37c *R/csv.R
 dd4470c96c18d554032e42de78a4a49f *R/dbAppendTable__duckdb_connection.R
@@ -74,7 +74,7 @@ f65d0ebad2e1213daaea32717d6ddb59 *inst/include/cpp11/raws.hpp
 2e70384c833a2424bee3b4559d12961c *inst/include/duckdb_types.hpp
 c589a20096c1c292631651ba751988ac *inst/rstudio/connections.dcf
 4486ee285c77bd31ae955d4aa653d889 *inst/rstudio/connections/DuckDB.R
-facc6d97d9a1165e86322f29af6cc2b0 *man/backend-duckdb.Rd
+c341fe8c95ee04a3bd51d57e29685e67 *man/backend-duckdb.Rd
 b3ae7b2b588df1391ab8a9e8d2d7d233 *man/deprecated.Rd
 32a7f874f271d6bf435f052744fbfda7 *man/duckdb-package.Rd
 609bb931c1d168e3133791a9a37c1c16 *man/duckdb.Rd
@@ -622,7 +622,7 @@ d7b61515970faae79f9dd25e386bc3d4 *src/duckdb/src/include/duckdb/common/enums/tab
 057c405ac80bf5c8041e412d97e9c118 *src/duckdb/src/include/duckdb/common/enums/wal_type.hpp
 dc1a8f1c5939926082e602a79b85da2a *src/duckdb/src/include/duckdb/common/enums/window_aggregation_mode.hpp
 fdd398fe8156ecbd098cae1eb4ab15cf *src/duckdb/src/include/duckdb/common/exception.hpp
-0198a40c831686d5effadfb1647bc6f1 *src/duckdb/src/include/duckdb/common/exception_format_value.hpp
+92863ffdde8fa0f7e8c1ce7911389c98 *src/duckdb/src/include/duckdb/common/exception_format_value.hpp
 3f6976f799747bee22494c0ba6c70d5d *src/duckdb/src/include/duckdb/common/fast_mem.hpp
 e9e7fb579f978ec101c83e607db7737f *src/duckdb/src/include/duckdb/common/field_writer.hpp
 057c1e7baaee1838dc533afc036de313 *src/duckdb/src/include/duckdb/common/file_buffer.hpp
@@ -1358,7 +1358,7 @@ ace6c57705238583b4fa0f8f563db8f0 *src/duckdb/src/optimizer/statistics/operator/p
 f047d0e8a132369d44afbdad0f9b6344 *src/duckdb/src/optimizer/statistics_propagator.cpp
 a19355aea5d7ec6838d852821816f26b *src/duckdb/src/optimizer/topn_optimizer.cpp
 12ecc98e10cc3328ca3a8f79dce84115 *src/duckdb/src/parallel/event.cpp
-863c42d6f956326217a0e66ce507a9b0 *src/duckdb/src/parallel/executor.cpp
+7ed39747d9c8cd7a426ca346e7c776f4 *src/duckdb/src/parallel/executor.cpp
 b78d7dd3b06dfb1043783d0ed7ddf05f *src/duckdb/src/parallel/executor_task.cpp
 9d2b40dff5960189e3ca0dca4a27b8d1 *src/duckdb/src/parallel/pipeline.cpp
 42f9e2fd65358ec5f6fab1c358f934fa *src/duckdb/src/parallel/pipeline_complete_event.cpp
@@ -1887,7 +1887,7 @@ dabf0e452e677b9c7afaca658ac8371b *tests/testthat/data/binary_string.parquet
 2f67292983870c49f4ee50330c4f7b7f *tests/testthat/data/userdata1.parquet
 2653c12d0ef532b41dc6b6e3caa787a2 *tests/testthat/helper-DBItest.R
 8f5720747b067f2267d5a6a34f96d242 *tests/testthat/test-DBItest.R
-fba26ab0f42a053b1624fb5750f623a3 *tests/testthat/test_arrow.R
+3255e2717355618559539617cf7425fe *tests/testthat/test_arrow.R
 5ad34cfb89166055e124f96647314361 *tests/testthat/test_arrow_recordbatchreader.py
 294557647d87636aedf4de515d4f4862 *tests/testthat/test_arrow_stream.R
 4bb9fbf57d7b81f1bc5f09f8b2395e30 *tests/testthat/test_backend-dbplyr__duckdb_connection.R
