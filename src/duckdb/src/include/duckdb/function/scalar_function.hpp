@@ -17,18 +17,34 @@
 #include "duckdb/storage/statistics/base_statistics.hpp"
 
 namespace duckdb {
+
+struct FunctionLocalState {
+	DUCKDB_API virtual ~FunctionLocalState();
+};
+
 class BoundFunctionExpression;
 class ScalarFunctionCatalogEntry;
+
+struct FunctionStatisticsInput {
+	FunctionStatisticsInput(BoundFunctionExpression &expr_p, FunctionData *bind_data_p,
+	                        vector<unique_ptr<BaseStatistics>> &child_stats_p, unique_ptr<Expression> *expr_ptr_p)
+	    : expr(expr_p), bind_data(bind_data_p), child_stats(child_stats_p), expr_ptr(expr_ptr_p) {
+	}
+
+	BoundFunctionExpression &expr;
+	FunctionData *bind_data;
+	vector<unique_ptr<BaseStatistics>> &child_stats;
+	unique_ptr<Expression> *expr_ptr;
+};
 
 //! The type used for scalar functions
 typedef std::function<void(DataChunk &, ExpressionState &, Vector &)> scalar_function_t;
 //! Binds the scalar function and creates the function data
 typedef unique_ptr<FunctionData> (*bind_scalar_function_t)(ClientContext &context, ScalarFunction &bound_function,
                                                            vector<unique_ptr<Expression>> &arguments);
-typedef unique_ptr<FunctionData> (*init_local_state_t)(const BoundFunctionExpression &expr, FunctionData *bind_data);
-typedef unique_ptr<BaseStatistics> (*function_statistics_t)(ClientContext &context, BoundFunctionExpression &expr,
-                                                            FunctionData *bind_data,
-                                                            vector<unique_ptr<BaseStatistics>> &child_stats);
+typedef unique_ptr<FunctionLocalState> (*init_local_state_t)(const BoundFunctionExpression &expr,
+                                                             FunctionData *bind_data);
+typedef unique_ptr<BaseStatistics> (*function_statistics_t)(ClientContext &context, FunctionStatisticsInput &input);
 //! Adds the dependencies of this BoundFunctionExpression to the set of dependencies
 typedef void (*dependency_function_t)(BoundFunctionExpression &expr, unordered_set<CatalogEntry *> &dependencies);
 
@@ -67,10 +83,9 @@ public:
 	                                                                         vector<unique_ptr<Expression>> children,
 	                                                                         string &error, bool is_operator = false);
 
-	DUCKDB_API static unique_ptr<BoundFunctionExpression> BindScalarFunction(ClientContext &context,
-	                                                                         ScalarFunction bound_function,
-	                                                                         vector<unique_ptr<Expression>> children,
-	                                                                         bool is_operator = false);
+	DUCKDB_API static unique_ptr<BoundFunctionExpression>
+	BindScalarFunction(ClientContext &context, ScalarFunction bound_function, vector<unique_ptr<Expression>> children,
+	                   bool is_operator = false, bool cast_parameters = true);
 
 	DUCKDB_API bool operator==(const ScalarFunction &rhs) const;
 	DUCKDB_API bool operator!=(const ScalarFunction &rhs) const;

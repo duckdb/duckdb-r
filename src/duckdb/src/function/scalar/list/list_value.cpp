@@ -39,7 +39,6 @@ static unique_ptr<FunctionData> ListValueBind(ClientContext &context, ScalarFunc
 	for (idx_t i = 0; i < arguments.size(); i++) {
 		child_type = LogicalType::MaxLogicalType(child_type, arguments[i]->return_type);
 	}
-	ExpressionBinder::ResolveParameterType(child_type);
 
 	// this is more for completeness reasons
 	bound_function.varargs = child_type;
@@ -47,8 +46,9 @@ static unique_ptr<FunctionData> ListValueBind(ClientContext &context, ScalarFunc
 	return make_unique<VariableReturnBindData>(bound_function.return_type);
 }
 
-unique_ptr<BaseStatistics> ListValueStats(ClientContext &context, BoundFunctionExpression &expr,
-                                          FunctionData *bind_data, vector<unique_ptr<BaseStatistics>> &child_stats) {
+unique_ptr<BaseStatistics> ListValueStats(ClientContext &context, FunctionStatisticsInput &input) {
+	auto &child_stats = input.child_stats;
+	auto &expr = input.expr;
 	auto list_stats = make_unique<ListStatistics>(expr.return_type);
 	for (idx_t i = 0; i < child_stats.size(); i++) {
 		if (child_stats[i]) {

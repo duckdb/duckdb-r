@@ -273,7 +273,6 @@ inline const unsigned char *ASN1_STRING_get0_data(const ASN1_STRING *asn1) {
 #include <brotli/encode.h>
 #endif
 
-
 /*
  * Declaration
  */
@@ -8184,6 +8183,5 @@ inline SSL_CTX *Client::ssl_context() const {
 // ----------------------------------------------------------------------------
 
 } // namespace CPPHTTPLIB_NAMESPACE
-
 
 #endif // CPPHTTPLIB_HTTPLIB_H

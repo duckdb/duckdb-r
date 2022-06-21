@@ -95,7 +95,6 @@ static unique_ptr<FunctionData> ListConcatBind(ClientContext &context, ScalarFun
 		for (const auto &argument : arguments) {
 			child_type = LogicalType::MaxLogicalType(child_type, ListType::GetChildType(argument->return_type));
 		}
-		ExpressionBinder::ResolveParameterType(child_type);
 		auto list_type = LogicalType::LIST(move(child_type));
 
 		bound_function.arguments[0] = list_type;
@@ -105,9 +104,8 @@ static unique_ptr<FunctionData> ListConcatBind(ClientContext &context, ScalarFun
 	return make_unique<VariableReturnBindData>(bound_function.return_type);
 }
 
-static unique_ptr<BaseStatistics> ListConcatStats(ClientContext &context, BoundFunctionExpression &expr,
-                                                  FunctionData *bind_data,
-                                                  vector<unique_ptr<BaseStatistics>> &child_stats) {
+static unique_ptr<BaseStatistics> ListConcatStats(ClientContext &context, FunctionStatisticsInput &input) {
+	auto &child_stats = input.child_stats;
 	D_ASSERT(child_stats.size() == 2);
 	if (!child_stats[0] || !child_stats[1]) {
 		return nullptr;

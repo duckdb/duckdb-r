@@ -72,8 +72,9 @@ struct LikeSegment {
 };
 
 struct LikeMatcher : public FunctionData {
-	LikeMatcher(vector<LikeSegment> segments, bool has_start_percentage, bool has_end_percentage)
-	    : segments(move(segments)), has_start_percentage(has_start_percentage), has_end_percentage(has_end_percentage) {
+	LikeMatcher(string like_pattern_p, vector<LikeSegment> segments, bool has_start_percentage, bool has_end_percentage)
+	    : like_pattern(move(like_pattern_p)), segments(move(segments)), has_start_percentage(has_start_percentage),
+	      has_end_percentage(has_end_percentage) {
 	}
 
 	bool Match(string_t &str) {
@@ -169,14 +170,20 @@ struct LikeMatcher : public FunctionData {
 		if (segments.empty()) {
 			return nullptr;
 		}
-		return make_unique<LikeMatcher>(move(segments), has_start_percentage, has_end_percentage);
+		return make_unique<LikeMatcher>(move(like_pattern), move(segments), has_start_percentage, has_end_percentage);
 	}
 
-	unique_ptr<FunctionData> Copy() override {
-		return make_unique<LikeMatcher>(segments, has_start_percentage, has_end_percentage);
+	unique_ptr<FunctionData> Copy() const override {
+		return make_unique<LikeMatcher>(like_pattern, segments, has_start_percentage, has_end_percentage);
+	}
+
+	bool Equals(const FunctionData &other_p) const override {
+		auto &other = (const LikeMatcher &)other_p;
+		return like_pattern == other.like_pattern;
 	}
 
 private:
+	string like_pattern;
 	vector<LikeSegment> segments;
 	bool has_start_percentage;
 	bool has_end_percentage;
@@ -455,9 +462,9 @@ static void LikeEscapeFunction(DataChunk &args, ExpressionState &state, Vector &
 }
 
 template <class ASCII_OP>
-static unique_ptr<BaseStatistics> ILikePropagateStats(ClientContext &context, BoundFunctionExpression &expr,
-                                                      FunctionData *bind_data,
-                                                      vector<unique_ptr<BaseStatistics>> &child_stats) {
+static unique_ptr<BaseStatistics> ILikePropagateStats(ClientContext &context, FunctionStatisticsInput &input) {
+	auto &child_stats = input.child_stats;
+	auto &expr = input.expr;
 	D_ASSERT(child_stats.size() >= 1);
 	// can only propagate stats if the children have stats
 	if (!child_stats[0]) {

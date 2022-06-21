@@ -21,9 +21,12 @@ contains more mapped functions.
 library(dplyr, warn.conflicts = FALSE)
 con <- DBI::dbConnect(duckdb::duckdb(), path = ":memory:")
 
-dbiris <- copy_to(con, iris, overwrite = TRUE)
+x <- tibble(txt = c("why", "video", "cross", "extra", "deal", "authority"))
+dbx <- copy_to(con, x, overwrite = TRUE)
 
-dbiris \%>\% select(Petal.Length, Petal.Width) \%>\% filter(Petal.Length > 1.5) \%>\% head(5)
+# x \%>\% mutate(a = stringr::str_pad(txt, 10, side = "both", pad = ">"))
+dbx \%>\% mutate(a = str_pad(txt, 10, side = "both", pad = ">"))
 
 DBI::dbDisconnect(con, shutdown = TRUE)
+duckdb::duckdb_shutdown(duckdb::duckdb())
 }
