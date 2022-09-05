@@ -1,10 +1,16 @@
-#include "src/common/types/batched_chunk_collection.cpp"
+#include "src/common/types/batched_data_collection.cpp"
 
 #include "src/common/types/blob.cpp"
 
 #include "src/common/types/cast_helpers.cpp"
 
 #include "src/common/types/chunk_collection.cpp"
+
+#include "src/common/types/column_data_allocator.cpp"
+
+#include "src/common/types/column_data_collection.cpp"
+
+#include "src/common/types/column_data_collection_segment.cpp"
 
 #include "src/common/types/data_chunk.cpp"
 
@@ -23,6 +29,8 @@
 #include "src/common/types/interval.cpp"
 
 #include "src/common/types/row_data_collection.cpp"
+
+#include "src/common/types/row_data_collection_scanner.cpp"
 
 #include "src/common/types/row_layout.cpp"
 

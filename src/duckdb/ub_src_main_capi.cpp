@@ -18,6 +18,8 @@
 
 #include "src/main/capi/logical_types-c.cpp"
 
+#include "src/main/capi/pending-c.cpp"
+
 #include "src/main/capi/prepared-c.cpp"
 
 #include "src/main/capi/replacement_scan-c.cpp"

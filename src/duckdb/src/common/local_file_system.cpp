@@ -12,12 +12,12 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <sys/stat.h>
 
 #ifndef _WIN32
 #include <dirent.h>
 #include <fcntl.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 #else
@@ -27,7 +27,6 @@
 #include <string>
 
 #ifdef __MINGW32__
-#include <sys/stat.h>
 // need to manually define this for mingw
 extern "C" WINBASEAPI BOOL WINAPI GetPhysicallyInstalledSystemMemory(PULONGLONG);
 #endif
@@ -52,33 +51,6 @@ static void AssertValidFileFlags(uint8_t flags) {
 #endif
 }
 
-#ifdef __MINGW32__
-bool LocalFileSystem::FileExists(const string &filename) {
-	auto unicode_path = WindowsUtil::UTF8ToUnicode(filename.c_str());
-	const wchar_t *wpath = unicode_path.c_str();
-	if (_waccess(wpath, 0) == 0) {
-		struct _stat64i32 status;
-		_wstat64i32(wpath, &status);
-		if (status.st_size > 0) {
-			return true;
-		}
-	}
-	return false;
-}
-bool LocalFileSystem::IsPipe(const string &filename) {
-	auto unicode_path = WindowsUtil::UTF8ToUnicode(filename.c_str());
-	const wchar_t *wpath = unicode_path.c_str();
-	if (_waccess(wpath, 0) == 0) {
-		struct _stat64i32 status;
-		_wstat64i32(wpath, &status);
-		if (status.st_size == 0) {
-			return true;
-		}
-	}
-	return false;
-}
-
-#else
 #ifndef _WIN32
 bool LocalFileSystem::FileExists(const string &filename) {
 	if (!filename.empty()) {
@@ -113,8 +85,8 @@ bool LocalFileSystem::FileExists(const string &filename) {
 	auto unicode_path = WindowsUtil::UTF8ToUnicode(filename.c_str());
 	const wchar_t *wpath = unicode_path.c_str();
 	if (_waccess(wpath, 0) == 0) {
-		struct _stat64i32 status;
-		_wstat(wpath, &status);
+		struct _stati64 status;
+		_wstati64(wpath, &status);
 		if (status.st_mode & S_IFREG) {
 			return true;
 		}
@@ -125,15 +97,14 @@ bool LocalFileSystem::IsPipe(const string &filename) {
 	auto unicode_path = WindowsUtil::UTF8ToUnicode(filename.c_str());
 	const wchar_t *wpath = unicode_path.c_str();
 	if (_waccess(wpath, 0) == 0) {
-		struct _stat64i32 status;
-		_wstat(wpath, &status);
+		struct _stati64 status;
+		_wstati64(wpath, &status);
 		if (status.st_mode & _S_IFCHR) {
 			return true;
 		}
 	}
 	return false;
 }
-#endif
 #endif
 
 #ifndef _WIN32
@@ -161,6 +132,7 @@ public:
 	void Close() override {
 		if (fd != -1) {
 			close(fd);
+			fd = -1;
 		}
 	};
 };
@@ -525,7 +497,11 @@ public:
 
 public:
 	void Close() override {
+		if (!fd) {
+			return;
+		}
 		CloseHandle(fd);
+		fd = nullptr;
 	};
 };
 
@@ -580,7 +556,11 @@ unique_ptr<FileHandle> LocalFileSystem::OpenFile(const string &path, uint8_t fla
 }
 
 void LocalFileSystem::SetFilePointer(FileHandle &handle, idx_t location) {
-	((WindowsFileHandle &)handle).position = location;
+	auto &whandle = (WindowsFileHandle &)handle;
+	whandle.position = location;
+	LARGE_INTEGER wlocation;
+	wlocation.QuadPart = location;
+	SetFilePointerEx(whandle.fd, wlocation, NULL, FILE_BEGIN);
 }
 
 idx_t LocalFileSystem::GetFilePointer(FileHandle &handle) {
@@ -598,7 +578,8 @@ static DWORD FSInternalRead(FileHandle &handle, HANDLE hFile, void *buffer, int6
 	auto rc = ReadFile(hFile, buffer, (DWORD)nr_bytes, &bytes_read, &ov);
 	if (!rc) {
 		auto error = LocalFileSystem::GetLastErrorAsString();
-		throw IOException("Could not read file \"%s\" (error in ReadFile): %s", handle.path, error);
+		throw IOException("Could not read file \"%s\" (error in ReadFile(location: %llu, nr_bytes: %lld)): %s",
+		                  handle.path, location, nr_bytes, error);
 	}
 	return bytes_read;
 }
@@ -730,7 +711,8 @@ static void DeleteDirectoryRecursive(FileSystem &fs, string directory) {
 	});
 	auto unicode_path = WindowsUtil::UTF8ToUnicode(directory.c_str());
 	if (!RemoveDirectoryW(unicode_path.c_str())) {
-		throw IOException("Failed to delete directory");
+		auto error = LocalFileSystem::GetLastErrorAsString();
+		throw IOException("Failed to delete directory \"%s\": %s", directory, error);
 	}
 }
 
@@ -746,7 +728,10 @@ void LocalFileSystem::RemoveDirectory(const string &directory) {
 
 void LocalFileSystem::RemoveFile(const string &filename) {
 	auto unicode_path = WindowsUtil::UTF8ToUnicode(filename.c_str());
-	DeleteFileW(unicode_path.c_str());
+	if (!DeleteFileW(unicode_path.c_str())) {
+		auto error = LocalFileSystem::GetLastErrorAsString();
+		throw IOException("Failed to delete file \"%s\": %s", filename, error);
+	}
 }
 
 bool LocalFileSystem::ListFiles(const string &directory, const std::function<void(const string &, bool)> &callback) {
@@ -895,10 +880,14 @@ vector<string> LocalFileSystem::Glob(const string &path, FileOpener *opener) {
 		absolute_path = true;
 	} else if (splits[0] == "~") {
 		// starts with home directory
-		auto home_directory = GetHomeDirectory();
+		auto home_directory = GetHomeDirectory(opener);
 		if (!home_directory.empty()) {
 			absolute_path = true;
 			splits[0] = home_directory;
+			D_ASSERT(path[0] == '~');
+			if (!HasGlob(path)) {
+				return Glob(home_directory + path.substr(1));
+			}
 		}
 	}
 	// Check if the path has a glob at all

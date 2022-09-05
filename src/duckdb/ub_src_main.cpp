@@ -6,6 +6,8 @@
 
 #include "src/main/client_data.cpp"
 
+#include "src/main/client_verify.cpp"
+
 #include "src/main/config.cpp"
 
 #include "src/main/connection.cpp"

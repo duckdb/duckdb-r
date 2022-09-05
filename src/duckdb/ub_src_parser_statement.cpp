@@ -16,6 +16,8 @@
 
 #include "src/parser/statement/export_statement.cpp"
 
+#include "src/parser/statement/extension_statement.cpp"
+
 #include "src/parser/statement/insert_statement.cpp"
 
 #include "src/parser/statement/load_statement.cpp"

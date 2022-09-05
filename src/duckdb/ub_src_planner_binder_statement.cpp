@@ -10,15 +10,23 @@
 
 #include "src/planner/binder/statement/bind_drop.cpp"
 
+#include "src/planner/binder/statement/bind_execute.cpp"
+
 #include "src/planner/binder/statement/bind_explain.cpp"
 
 #include "src/planner/binder/statement/bind_export.cpp"
+
+#include "src/planner/binder/statement/bind_extension.cpp"
 
 #include "src/planner/binder/statement/bind_insert.cpp"
 
 #include "src/planner/binder/statement/bind_load.cpp"
 
+#include "src/planner/binder/statement/bind_logical_plan.cpp"
+
 #include "src/planner/binder/statement/bind_pragma.cpp"
+
+#include "src/planner/binder/statement/bind_prepare.cpp"
 
 #include "src/planner/binder/statement/bind_relation.cpp"
 

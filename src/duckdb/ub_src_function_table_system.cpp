@@ -4,6 +4,8 @@
 
 #include "src/function/table/system/duckdb_dependencies.cpp"
 
+#include "src/function/table/system/duckdb_extensions.cpp"
+
 #include "src/function/table/system/duckdb_functions.cpp"
 
 #include "src/function/table/system/duckdb_keywords.cpp"

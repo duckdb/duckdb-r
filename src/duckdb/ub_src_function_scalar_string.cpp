@@ -50,3 +50,5 @@
 
 #include "src/function/scalar/string/jaccard.cpp"
 
+#include "src/function/scalar/string/jaro_winkler.cpp"
+

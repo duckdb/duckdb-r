@@ -18,6 +18,8 @@
 
 #include "src/planner/planner.cpp"
 
+#include "src/planner/plan_serialization.cpp"
+
 #include "src/planner/pragma_handler.cpp"
 
 #include "src/planner/logical_operator_visitor.cpp"

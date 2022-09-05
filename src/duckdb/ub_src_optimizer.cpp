@@ -16,7 +16,13 @@
 
 #include "src/optimizer/in_clause_rewriter.cpp"
 
+#include "src/optimizer/join_node.cpp"
+
 #include "src/optimizer/join_order_optimizer.cpp"
+
+#include "src/optimizer/cardinality_estimator.cpp"
+
+#include "src/optimizer/estimated_properties.cpp"
 
 #include "src/optimizer/optimizer.cpp"
 

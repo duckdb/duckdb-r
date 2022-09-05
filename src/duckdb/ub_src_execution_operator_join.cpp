@@ -1,3 +1,5 @@
+#include "src/execution/operator/join/outer_join_marker.cpp"
+
 #include "src/execution/operator/join/physical_blockwise_nl_join.cpp"
 
 #include "src/execution/operator/join/physical_comparison_join.cpp"

@@ -1,3 +1,5 @@
+#include "src/planner/expression/bound_expression.cpp"
+
 #include "src/planner/expression/bound_aggregate_expression.cpp"
 
 #include "src/planner/expression/bound_between_expression.cpp"
@@ -14,7 +16,11 @@
 
 #include "src/planner/expression/bound_constant_expression.cpp"
 
+#include "src/planner/expression/bound_default_expression.cpp"
+
 #include "src/planner/expression/bound_function_expression.cpp"
+
+#include "src/planner/expression/bound_lambda_expression.cpp"
 
 #include "src/planner/expression/bound_operator_expression.cpp"
 

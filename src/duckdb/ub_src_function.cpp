@@ -4,6 +4,8 @@
 
 #include "src/function/function.cpp"
 
+#include "src/function/function_set.cpp"
+
 #include "src/function/pragma_function.cpp"
 
 #include "src/function/macro_function.cpp"

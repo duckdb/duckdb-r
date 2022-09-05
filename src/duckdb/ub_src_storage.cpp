@@ -1,3 +1,5 @@
+#include "src/storage/arena_allocator.cpp"
+
 #include "src/storage/buffer_manager.cpp"
 
 #include "src/storage/checkpoint_manager.cpp"
@@ -15,6 +17,8 @@
 #include "src/storage/meta_block_writer.cpp"
 
 #include "src/storage/storage_manager.cpp"
+
+#include "src/storage/table_index.cpp"
 
 #include "src/storage/write_ahead_log.cpp"
 
