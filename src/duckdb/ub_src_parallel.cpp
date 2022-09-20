@@ -1,3 +1,5 @@
+#include "src/parallel/base_pipeline_event.cpp"
+
 #include "src/parallel/executor_task.cpp"
 
 #include "src/parallel/executor.cpp"
