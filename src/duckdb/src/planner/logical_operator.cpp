@@ -43,10 +43,7 @@ string LogicalOperator::ParamsToString() const {
 }
 
 void LogicalOperator::ResolveOperatorTypes() {
-	// if (types.size() > 0) {
-	// 	// types already resolved for this node
-	// 	return;
-	// }
+
 	types.clear();
 	// first resolve child types
 	for (auto &child : children) {
@@ -341,6 +338,8 @@ unique_ptr<LogicalOperator> LogicalOperator::Deserialize(Deserializer &deseriali
 	case LogicalOperatorType::LOGICAL_LOAD:
 		result = LogicalSimple::Deserialize(state, reader);
 		break;
+	case LogicalOperatorType::LOGICAL_EXTENSION_OPERATOR:
+		throw SerializationException("Invalid type for operator deserialization");
 	case LogicalOperatorType::LOGICAL_INVALID:
 		/* no default here to trigger a warning if we forget to implement deserialize for a new operator */
 		throw SerializationException("Invalid type for operator deserialization");
@@ -350,6 +349,22 @@ unique_ptr<LogicalOperator> LogicalOperator::Deserialize(Deserializer &deseriali
 	result->children = move(children);
 
 	return result;
+}
+
+unique_ptr<LogicalOperator> LogicalOperator::Copy(ClientContext &context) const {
+	BufferedSerializer logical_op_serializer;
+	try {
+		this->Serialize(logical_op_serializer);
+	} catch (NotImplementedException &ex) {
+		throw NotImplementedException("Logical Operator Copy requires the logical operator and all of its children to "
+		                              "be serializable: " +
+		                              std::string(ex.what()));
+	}
+	auto data = logical_op_serializer.GetData();
+	auto logical_op_deserializer = BufferedDeserializer(data.data.get(), data.size);
+	PlanDeserializationState state(context);
+	auto op_copy = LogicalOperator::Deserialize(logical_op_deserializer, state);
+	return op_copy;
 }
 
 } // namespace duckdb

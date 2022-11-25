@@ -2,6 +2,7 @@
 #include "duckdb/common/pair.hpp"
 #include "duckdb/parser/expression/function_expression.hpp"
 #include "duckdb/planner/expression/bound_aggregate_expression.hpp"
+#include "duckdb/planner/expression/bound_cast_expression.hpp"
 #include "duckdb/planner/expression/bound_columnref_expression.hpp"
 #include "duckdb/planner/expression/bound_constant_expression.hpp"
 #include "duckdb/planner/expression_binder/aggregate_binder.hpp"
@@ -10,10 +11,12 @@
 #include "duckdb/execution/expression_executor.hpp"
 #include "duckdb/function/scalar/generic_functions.hpp"
 #include "duckdb/main/config.hpp"
+#include "duckdb/function/function_binder.hpp"
+#include "duckdb/planner/binder.hpp"
 
 namespace duckdb {
 
-static void InvertPercentileFractions(unique_ptr<ParsedExpression> &fractions) {
+static void InvertPercentileFractions(ClientContext &context, unique_ptr<ParsedExpression> &fractions) {
 	D_ASSERT(fractions.get());
 	D_ASSERT(fractions->expression_class == ExpressionClass::BOUND_EXPRESSION);
 	auto &bound = (BoundExpression &)*fractions;
@@ -22,13 +25,19 @@ static void InvertPercentileFractions(unique_ptr<ParsedExpression> &fractions) {
 		return;
 	}
 
-	Value value = ExpressionExecutor::EvaluateScalar(*bound.expr);
+	Value value = ExpressionExecutor::EvaluateScalar(context, *bound.expr);
 	if (value.type().id() == LogicalTypeId::LIST) {
 		vector<Value> values;
 		for (const auto &element_val : ListValue::GetChildren(value)) {
-			values.push_back(Value::DOUBLE(1 - element_val.GetValue<double>()));
+			if (element_val.IsNull()) {
+				values.push_back(element_val);
+			} else {
+				values.push_back(Value::DOUBLE(1 - element_val.GetValue<double>()));
+			}
 		}
 		bound.expr = make_unique<BoundConstantExpression>(Value::LIST(values));
+	} else if (value.IsNull()) {
+		bound.expr = make_unique<BoundConstantExpression>(value);
 	} else {
 		bound.expr = make_unique<BoundConstantExpression>(Value::DOUBLE(1 - value.GetValue<double>()));
 	}
@@ -66,8 +75,8 @@ BindResult SelectBinder::BindAggregate(FunctionExpression &aggr, AggregateFuncti
 	for (auto &child : aggr.children) {
 		aggregate_binder.BindChild(child, 0, error);
 		// We have to invert the fractions for PERCENTILE_XXXX DESC
-		if (invert_fractions) {
-			InvertPercentileFractions(child);
+		if (error.empty() && invert_fractions) {
+			InvertPercentileFractions(context, child);
 		}
 	}
 
@@ -125,7 +134,7 @@ BindResult SelectBinder::BindAggregate(FunctionExpression &aggr, AggregateFuncti
 
 	if (aggr.filter) {
 		auto &child = (BoundExpression &)*aggr.filter;
-		bound_filter = BoundCastExpression::AddCastToType(move(child.expr), LogicalType::BOOLEAN);
+		bound_filter = BoundCastExpression::AddCastToType(context, move(child.expr), LogicalType::BOOLEAN);
 	}
 
 	// all children bound successfully
@@ -152,7 +161,8 @@ BindResult SelectBinder::BindAggregate(FunctionExpression &aggr, AggregateFuncti
 	}
 
 	// bind the aggregate
-	idx_t best_function = Function::BindFunction(func->name, func->functions, types, error);
+	FunctionBinder function_binder(context);
+	idx_t best_function = function_binder.BindFunction(func->name, func->functions, types, error);
 	if (best_function == DConstants::INVALID_INDEX) {
 		throw BinderException(binder.FormatError(aggr, error));
 	}
@@ -174,8 +184,9 @@ BindResult SelectBinder::BindAggregate(FunctionExpression &aggr, AggregateFuncti
 		}
 	}
 
-	auto aggregate = AggregateFunction::BindAggregateFunction(context, bound_function, move(children),
-	                                                          move(bound_filter), aggr.distinct, move(order_bys));
+	auto aggregate = function_binder.BindAggregateFunction(
+	    bound_function, move(children), move(bound_filter),
+	    aggr.distinct ? AggregateType::DISTINCT : AggregateType::NON_DISTINCT, move(order_bys));
 	if (aggr.export_state) {
 		aggregate = ExportAggregateFunction::Bind(move(aggregate));
 	}

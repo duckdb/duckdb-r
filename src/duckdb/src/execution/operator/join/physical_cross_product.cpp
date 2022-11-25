@@ -1,4 +1,5 @@
 #include "duckdb/execution/operator/join/physical_cross_product.hpp"
+
 #include "duckdb/common/types/column_data_collection.hpp"
 #include "duckdb/common/vector_operations/vector_operations.hpp"
 #include "duckdb/execution/operator/join/physical_join.hpp"
@@ -7,7 +8,7 @@ namespace duckdb {
 
 PhysicalCrossProduct::PhysicalCrossProduct(vector<LogicalType> types, unique_ptr<PhysicalOperator> left,
                                            unique_ptr<PhysicalOperator> right, idx_t estimated_cardinality)
-    : PhysicalOperator(PhysicalOperatorType::CROSS_PRODUCT, move(types), estimated_cardinality) {
+    : CachingPhysicalOperator(PhysicalOperatorType::CROSS_PRODUCT, move(types), estimated_cardinality) {
 	children.push_back(move(left));
 	children.push_back(move(right));
 }
@@ -113,7 +114,7 @@ OperatorResultType CrossProductExecutor::Execute(DataChunk &input, DataChunk &ou
 	return OperatorResultType::HAVE_MORE_OUTPUT;
 }
 
-class CrossProductOperatorState : public OperatorState {
+class CrossProductOperatorState : public CachingOperatorState {
 public:
 	explicit CrossProductOperatorState(ColumnDataCollection &rhs) : executor(rhs) {
 	}
@@ -126,8 +127,8 @@ unique_ptr<OperatorState> PhysicalCrossProduct::GetOperatorState(ExecutionContex
 	return make_unique<CrossProductOperatorState>(sink.rhs_materialized);
 }
 
-OperatorResultType PhysicalCrossProduct::Execute(ExecutionContext &context, DataChunk &input, DataChunk &chunk,
-                                                 GlobalOperatorState &gstate, OperatorState &state_p) const {
+OperatorResultType PhysicalCrossProduct::ExecuteInternal(ExecutionContext &context, DataChunk &input, DataChunk &chunk,
+                                                         GlobalOperatorState &gstate, OperatorState &state_p) const {
 	auto &state = (CrossProductOperatorState &)state_p;
 	return state.executor.Execute(input, chunk);
 }
@@ -135,8 +136,8 @@ OperatorResultType PhysicalCrossProduct::Execute(ExecutionContext &context, Data
 //===--------------------------------------------------------------------===//
 // Pipeline Construction
 //===--------------------------------------------------------------------===//
-void PhysicalCrossProduct::BuildPipelines(Executor &executor, Pipeline &current, PipelineBuildState &state) {
-	PhysicalJoin::BuildJoinPipelines(executor, current, state, *this);
+void PhysicalCrossProduct::BuildPipelines(Pipeline &current, MetaPipeline &meta_pipeline) {
+	PhysicalJoin::BuildJoinPipelines(current, meta_pipeline, *this);
 }
 
 vector<const PhysicalOperator *> PhysicalCrossProduct::GetSources() const {

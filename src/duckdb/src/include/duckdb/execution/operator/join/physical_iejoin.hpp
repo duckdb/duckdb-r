@@ -25,9 +25,9 @@ public:
 	vector<vector<BoundOrderByNode>> rhs_orders;
 
 public:
-	// Operator Interface
-	OperatorResultType Execute(ExecutionContext &context, DataChunk &input, DataChunk &chunk,
-	                           GlobalOperatorState &gstate, OperatorState &state) const override;
+	// CachingOperator Interface
+	OperatorResultType ExecuteInternal(ExecutionContext &context, DataChunk &input, DataChunk &chunk,
+	                                   GlobalOperatorState &gstate, OperatorState &state) const override;
 
 public:
 	// Source interface
@@ -62,7 +62,7 @@ public:
 	}
 
 public:
-	void BuildPipelines(Executor &executor, Pipeline &current, PipelineBuildState &state) override;
+	void BuildPipelines(Pipeline &current, MetaPipeline &meta_pipeline) override;
 
 private:
 	// resolve joins that can potentially output N*M elements (INNER, LEFT, FULL)

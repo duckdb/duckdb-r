@@ -9,9 +9,9 @@
 #pragma once
 
 #include "duckdb/common/common.hpp"
+#include "duckdb/common/to_string.hpp"
 #include "duckdb/common/types.hpp"
 #include "duckdb/common/vector_size.hpp"
-#include "duckdb/common/to_string.hpp"
 
 namespace duckdb {
 struct ValidityMask;
@@ -115,8 +115,8 @@ public:
 		const auto entry_count = EntryCount(count);
 		for (idx_t entry_idx = 0; entry_idx < entry_count;) {
 			auto entry = GetValidityEntry(entry_idx++);
-			// Handle ragged end
-			if (entry_idx == entry_count) {
+			// Handle ragged end (if not exactly multiple of BITS_PER_VALUE)
+			if (entry_idx == entry_count && count % BITS_PER_VALUE != 0) {
 				idx_t idx_in_entry;
 				GetEntryIndex(count, entry_idx, idx_in_entry);
 				for (idx_t i = 0; i < idx_in_entry; ++i) {
@@ -331,7 +331,7 @@ public:
 public:
 	DUCKDB_API void Resize(idx_t old_size, idx_t new_size);
 
-	DUCKDB_API void Slice(const ValidityMask &other, idx_t offset);
+	DUCKDB_API void Slice(const ValidityMask &other, idx_t offset, idx_t end);
 	DUCKDB_API void Combine(const ValidityMask &other, idx_t count);
 	DUCKDB_API string ToString(idx_t count) const;
 };

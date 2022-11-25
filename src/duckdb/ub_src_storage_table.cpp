@@ -18,9 +18,15 @@
 
 #include "src/storage/table/row_group.cpp"
 
+#include "src/storage/table/row_group_collection.cpp"
+
+#include "src/storage/table/scan_state.cpp"
+
 #include "src/storage/table/standard_column_data.cpp"
 
 #include "src/storage/table/struct_column_data.cpp"
+
+#include "src/storage/table/table_statistics.cpp"
 
 #include "src/storage/table/validity_column_data.cpp"
 

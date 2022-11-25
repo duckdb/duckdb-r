@@ -15,7 +15,7 @@ namespace duckdb {
 class TableCatalogEntry;
 
 struct TableScanBindData : public TableFunctionData {
-	explicit TableScanBindData(TableCatalogEntry *table) : table(table), is_index_scan(false), chunk_count(0) {
+	explicit TableScanBindData(TableCatalogEntry *table) : table(table), is_index_scan(false), is_create_index(false) {
 	}
 
 	//! The table to scan
@@ -23,11 +23,10 @@ struct TableScanBindData : public TableFunctionData {
 
 	//! Whether or not the table scan is an index scan
 	bool is_index_scan;
+	//! Whether or not the table scan is for index creation
+	bool is_create_index;
 	//! The row ids to fetch (in case of an index scan)
 	vector<row_t> result_ids;
-
-	//! How many chunks we already scanned
-	atomic<idx_t> chunk_count;
 
 public:
 	bool Equals(const FunctionData &other_p) const override {

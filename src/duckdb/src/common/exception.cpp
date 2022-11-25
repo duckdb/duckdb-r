@@ -9,6 +9,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #endif
+#ifdef DUCKDB_DEBUG_STACKTRACE
+#include <execinfo.h>
+#endif
 
 namespace duckdb {
 
@@ -34,6 +37,24 @@ bool Exception::UncaughtException() {
 	return std::uncaught_exceptions() > 0;
 #else
 	return std::uncaught_exception();
+#endif
+}
+
+string Exception::GetStackTrace(int max_depth) {
+#ifdef DUCKDB_DEBUG_STACKTRACE
+	string result;
+	auto callstack = unique_ptr<void *[]>(new void *[max_depth]);
+	int frames = backtrace(callstack.get(), max_depth);
+	char **strs = backtrace_symbols(callstack.get(), frames);
+	for (int i = 0; i < frames; i++) {
+		result += strs[i];
+		result += "\n";
+	}
+	free(strs);
+	return "\n" + result;
+#else
+	// Stack trace not available. Toggle DUCKDB_DEBUG_STACKTRACE in exception.cpp to enable stack traces.
+	return "";
 #endif
 }
 
@@ -115,6 +136,8 @@ string Exception::ExceptionTypeToString(ExceptionType type) {
 		return "Parameter Not Resolved";
 	case ExceptionType::PARAMETER_NOT_ALLOWED:
 		return "Parameter Not Allowed";
+	case ExceptionType::DEPENDENCY:
+		return "Dependency";
 	default:
 		return "Unknown";
 	}
@@ -166,6 +189,8 @@ void Exception::ThrowAsTypeWithMessage(ExceptionType type, const string &message
 		throw ParameterNotResolvedException();
 	case ExceptionType::FATAL:
 		throw FatalException(message);
+	case ExceptionType::DEPENDENCY:
+		throw DependencyException(message);
 	default:
 		throw Exception(type, message);
 	}
@@ -273,6 +298,9 @@ SyntaxException::SyntaxException(const string &msg) : Exception(ExceptionType::S
 }
 
 ConstraintException::ConstraintException(const string &msg) : Exception(ExceptionType::CONSTRAINT, msg) {
+}
+
+DependencyException::DependencyException(const string &msg) : Exception(ExceptionType::DEPENDENCY, msg) {
 }
 
 BinderException::BinderException(const string &msg) : StandardException(ExceptionType::BINDER, msg) {

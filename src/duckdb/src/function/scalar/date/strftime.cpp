@@ -77,7 +77,12 @@ idx_t StrfTimeFormat::GetSpecifierLength(StrTimeSpecifier specifier, date_t date
 		return Date::MONTH_NAMES[Date::ExtractMonth(date) - 1].GetSize();
 	case StrTimeSpecifier::YEAR_DECIMAL: {
 		auto year = Date::ExtractYear(date);
-		return NumericHelper::SignedLength<int32_t, uint32_t>(year);
+		// Be consistent with WriteStandardSpecifier
+		if (0 <= year && year <= 9999) {
+			return 4;
+		} else {
+			return NumericHelper::SignedLength<int32_t, uint32_t>(year);
+		}
 	}
 	case StrTimeSpecifier::MONTH_DECIMAL: {
 		idx_t len = 1;
@@ -129,7 +134,7 @@ idx_t StrfTimeFormat::GetSpecifierLength(StrTimeSpecifier specifier, date_t date
 	case StrTimeSpecifier::DAY_OF_YEAR_DECIMAL:
 		return NumericHelper::UnsignedLength<uint32_t>(Date::ExtractDayOfTheYear(date));
 	case StrTimeSpecifier::YEAR_WITHOUT_CENTURY:
-		return NumericHelper::UnsignedLength<uint32_t>(Date::ExtractYear(date) % 100);
+		return NumericHelper::UnsignedLength<uint32_t>(AbsValue(Date::ExtractYear(date)) % 100);
 	default:
 		throw InternalException("Unimplemented specifier for GetSpecifierLength");
 	}
@@ -346,7 +351,7 @@ char *StrfTimeFormat::WriteStandardSpecifier(StrTimeSpecifier specifier, int32_t
 		break;
 	}
 	case StrTimeSpecifier::YEAR_WITHOUT_CENTURY: {
-		target = Write2(target, data[0] % 100);
+		target = Write2(target, AbsValue(data[0]) % 100);
 		break;
 	}
 	case StrTimeSpecifier::HOUR_24_DECIMAL: {
@@ -616,7 +621,7 @@ static unique_ptr<FunctionData> StrfTimeBindFunction(ClientContext &context, Sca
 	if (!format_arg->IsFoldable()) {
 		throw InvalidInputException("strftime format must be a constant");
 	}
-	Value options_str = ExpressionExecutor::EvaluateScalar(*format_arg);
+	Value options_str = ExpressionExecutor::EvaluateScalar(context, *format_arg);
 	auto format_string = options_str.GetValue<string>();
 	StrfTimeFormat format;
 	if (!options_str.IsNull()) {
@@ -1204,7 +1209,7 @@ static unique_ptr<FunctionData> StrpTimeBindFunction(ClientContext &context, Sca
 	if (!arguments[1]->IsFoldable()) {
 		throw InvalidInputException("strptime format must be a constant");
 	}
-	Value options_str = ExpressionExecutor::EvaluateScalar(*arguments[1]);
+	Value options_str = ExpressionExecutor::EvaluateScalar(context, *arguments[1]);
 	string format_string = options_str.ToString();
 	StrpTimeFormat format;
 	if (!options_str.IsNull()) {

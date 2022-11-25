@@ -8,9 +8,9 @@
 
 #pragma once
 
-#include "duckdb/common/mutex.hpp"
-#include "duckdb/common/winapi.hpp"
 #include "duckdb/main/config.hpp"
+#include "duckdb/main/valid_checker.hpp"
+#include "duckdb/common/winapi.hpp"
 #include "duckdb/main/extension.hpp"
 
 namespace duckdb {
@@ -39,8 +39,8 @@ public:
 	DUCKDB_API TaskScheduler &GetScheduler();
 	DUCKDB_API ObjectCache &GetObjectCache();
 	DUCKDB_API ConnectionManager &GetConnectionManager();
-	DUCKDB_API void Invalidate();
-	DUCKDB_API bool IsInvalidated();
+	DUCKDB_API ValidChecker &GetValidChecker();
+	DUCKDB_API void SetExtensionLoaded(const std::string &extension_name);
 
 	idx_t NumberOfThreads();
 
@@ -63,8 +63,7 @@ private:
 	unique_ptr<ObjectCache> object_cache;
 	unique_ptr<ConnectionManager> connection_manager;
 	unordered_set<std::string> loaded_extensions;
-	//! Set to true if a fatal exception has occurred
-	bool is_invalidated = false;
+	ValidChecker db_validity;
 };
 
 //! The database object. This object holds the catalog and all the
@@ -88,7 +87,7 @@ public:
 			return;
 		}
 		extension.Load(*this);
-		SetExtensionLoaded(extension.Name());
+		instance->SetExtensionLoaded(extension.Name());
 	}
 
 	DUCKDB_API FileSystem &GetFileSystem();
@@ -98,7 +97,6 @@ public:
 	DUCKDB_API static const char *LibraryVersion();
 	DUCKDB_API static string Platform();
 	DUCKDB_API bool ExtensionIsLoaded(const std::string &name);
-	DUCKDB_API void SetExtensionLoaded(const std::string &name);
 };
 
 } // namespace duckdb

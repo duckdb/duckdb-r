@@ -4,6 +4,7 @@
 #include "duckdb/common/types/string_type.hpp"
 
 #include <functional>
+#include <cmath>
 
 namespace duckdb {
 
@@ -22,14 +23,32 @@ hash_t Hash(hugeint_t val) {
 	return murmurhash64(val.lower) ^ murmurhash64(val.upper);
 }
 
+template <class T>
+struct FloatingPointEqualityTransform {
+	static void OP(T &val) {
+		if (val == (T)0.0) {
+			// Turn negative zero into positive zero
+			val = (T)0.0;
+		} else if (std::isnan(val)) {
+			val = std::numeric_limits<T>::quiet_NaN();
+		}
+	}
+};
+
 template <>
 hash_t Hash(float val) {
-	return std::hash<float> {}(val);
+	static_assert(sizeof(float) == sizeof(uint32_t), "");
+	FloatingPointEqualityTransform<float>::OP(val);
+	uint32_t uval = *((uint32_t *)&val);
+	return murmurhash64(uval);
 }
 
 template <>
 hash_t Hash(double val) {
-	return std::hash<double> {}(val);
+	static_assert(sizeof(double) == sizeof(uint64_t), "");
+	FloatingPointEqualityTransform<double>::OP(val);
+	uint64_t uval = *((uint64_t *)&val);
+	return murmurhash64(uval);
 }
 
 template <>

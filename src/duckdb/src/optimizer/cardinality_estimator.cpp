@@ -25,24 +25,37 @@ static TableCatalogEntry *GetCatalogTableEntry(LogicalOperator *op) {
 	return nullptr;
 }
 
-bool CardinalityEstimator::SingleColumnFilter(FilterInfo *filter_info) {
-	if (filter_info->left_set && filter_info->right_set) {
-		// Both set
-		return false;
+// The filter was made on top of a logical sample or other projection,
+// but no specific columns are referenced. See issue 4978 number 4.
+bool CardinalityEstimator::EmptyFilter(FilterInfo *filter_info) {
+	if (!filter_info->left_set && !filter_info->right_set) {
+		return true;
 	}
-	// Filter on one relation, (i.e string or range filter on a column).
-	// Grab the first relation and add it to the the equivalence_relations
+	return false;
+}
+
+void CardinalityEstimator::AddRelationTdom(FilterInfo *filter_info) {
 	D_ASSERT(filter_info->set->count >= 1);
 	for (const RelationsToTDom &r2tdom : relations_to_tdoms) {
 		auto &i_set = r2tdom.equivalent_relations;
 		if (i_set.find(filter_info->left_binding) != i_set.end()) {
 			// found an equivalent filter
-			return true;
+			return;
 		}
 	}
 	auto key = ColumnBinding(filter_info->left_binding.table_index, filter_info->left_binding.column_index);
 	column_binding_set_t tmp({key});
 	relations_to_tdoms.emplace_back(RelationsToTDom(tmp));
+}
+
+bool CardinalityEstimator::SingleColumnFilter(FilterInfo *filter_info) {
+	if (filter_info->left_set && filter_info->right_set) {
+		// Both set
+		return false;
+	}
+	if (EmptyFilter(filter_info)) {
+		return false;
+	}
 	return true;
 }
 
@@ -109,6 +122,11 @@ void CardinalityEstimator::InitEquivalentRelations(vector<unique_ptr<FilterInfo>
 	// the left and right relation needs to be added to.
 	for (auto &filter : *filter_infos) {
 		if (SingleColumnFilter(filter.get())) {
+			// Filter on one relation, (i.e string or range filter on a column).
+			// Grab the first relation and add it to  the equivalence_relations
+			AddRelationTdom(filter.get());
+			continue;
+		} else if (EmptyFilter(filter.get())) {
 			continue;
 		}
 		D_ASSERT(filter->left_set->count >= 1);
@@ -120,13 +138,13 @@ void CardinalityEstimator::InitEquivalentRelations(vector<unique_ptr<FilterInfo>
 }
 
 void CardinalityEstimator::VerifySymmetry(JoinNode *result, JoinNode *entry) {
-	if (result->GetCardinality() != entry->GetCardinality()) {
+	if (result->GetCardinality<double>() != entry->GetCardinality<double>()) {
 		// Currently it's possible that some entries are cartesian joins.
 		// When this is the case, you don't always have symmetry, but
 		// if the cost of the result is less, then just assure the cardinality
 		// is also less, then you have the same effect of symmetry.
-		D_ASSERT(ceil(result->GetCardinality()) <= ceil(entry->GetCardinality()) ||
-		         floor(result->GetCardinality()) <= floor(entry->GetCardinality()));
+		D_ASSERT(ceil(result->GetCardinality<double>()) <= ceil(entry->GetCardinality<double>()) ||
+		         floor(result->GetCardinality<double>()) <= floor(entry->GetCardinality<double>()));
 	}
 }
 
@@ -143,9 +161,9 @@ double CardinalityEstimator::ComputeCost(JoinNode *left, JoinNode *right, double
 double CardinalityEstimator::EstimateCrossProduct(const JoinNode *left, const JoinNode *right) {
 	// need to explicity use double here, otherwise auto converts it to an int, then
 	// there is an autocast in the return.
-	return left->GetCardinality() >= (NumericLimits<double>::Maximum() / right->GetCardinality())
+	return left->GetCardinality<double>() >= (NumericLimits<double>::Maximum() / right->GetCardinality<double>())
 	           ? NumericLimits<double>::Maximum()
-	           : left->GetCardinality() * right->GetCardinality();
+	           : left->GetCardinality<double>() * right->GetCardinality<double>();
 }
 
 void CardinalityEstimator::AddRelationColumnMapping(LogicalGet *get, idx_t relation_id) {
@@ -192,7 +210,7 @@ double CardinalityEstimator::EstimateCardinalityWithSet(JoinRelationSet *new_set
 	// left and right relations are in the new set, if so you can use that filter.
 	// You must also make sure that the filters all relations in the given set, so we use subgraphs
 	// that should eventually merge into one connected graph that joins all the relations
-	// TODO: Don't implement a method to cache subgraphs so you don't have to build them up every
+	// TODO: Implement a method to cache subgraphs so you don't have to build them up every
 	// time the cardinality of a new set is requested
 
 	// relations_to_tdoms has already been sorted.
@@ -370,7 +388,7 @@ void CardinalityEstimator::InitCardinalityEstimatorProps(vector<struct NodeOp> *
 
 void CardinalityEstimator::UpdateTotalDomains(JoinNode *node, LogicalOperator *op) {
 	auto relation_id = node->set->relations[0];
-	relation_attributes[relation_id].cardinality = node->GetCardinality();
+	relation_attributes[relation_id].cardinality = node->GetCardinality<double>();
 	TableCatalogEntry *catalog_table = nullptr;
 	auto get = GetLogicalGet(op);
 	if (get) {
@@ -402,7 +420,7 @@ void CardinalityEstimator::UpdateTotalDomains(JoinNode *node, LogicalOperator *o
 			// We decrease the total domain for all columns in the equivalence set because filter pushdown
 			// will mean all columns are affected.
 			if (direct_filter) {
-				count = node->GetCardinality();
+				count = node->GetCardinality<idx_t>();
 			}
 
 			// HLL has estimation error, count can't be greater than cardinality of the table before filters
@@ -413,7 +431,7 @@ void CardinalityEstimator::UpdateTotalDomains(JoinNode *node, LogicalOperator *o
 			// No HLL. So if we know there is a direct filter, reduce count to cardinality with filter
 			// otherwise assume the total domain is still the cardinality
 			if (direct_filter) {
-				count = node->GetCardinality();
+				count = node->GetCardinality<idx_t>();
 			} else {
 				count = node->GetBaseTableCardinality();
 			}

@@ -1,12 +1,21 @@
 #include "duckdb/common/allocator.hpp"
+
 #include "duckdb/common/assert.hpp"
-#include "duckdb/common/exception.hpp"
 #include "duckdb/common/atomic.hpp"
+#include "duckdb/common/exception.hpp"
+
+#include <cstdint>
+
 #ifdef DUCKDB_DEBUG_ALLOCATION
 #include "duckdb/common/mutex.hpp"
 #include "duckdb/common/pair.hpp"
 #include "duckdb/common/unordered_map.hpp"
+
 #include <execinfo.h>
+#endif
+
+#if defined(BUILD_JEMALLOC_EXTENSION) && !defined(WIN32)
+#include "jemalloc-extension.hpp"
 #endif
 
 namespace duckdb {
@@ -40,6 +49,7 @@ void AllocatedData::Reset() {
 	}
 	D_ASSERT(allocator);
 	allocator->FreeData(pointer, allocated_size);
+	allocated_size = 0;
 	pointer = nullptr;
 }
 
@@ -50,8 +60,6 @@ struct AllocatorDebugInfo {
 #ifdef DEBUG
 	AllocatorDebugInfo();
 	~AllocatorDebugInfo();
-
-	static string GetStackTrace(int max_depth = 128);
 
 	void AllocateData(data_ptr_t pointer, idx_t size);
 	void FreeData(data_ptr_t pointer, idx_t size);
@@ -78,9 +86,15 @@ PrivateAllocatorData::~PrivateAllocatorData() {
 //===--------------------------------------------------------------------===//
 // Allocator
 //===--------------------------------------------------------------------===//
+#if defined(BUILD_JEMALLOC_EXTENSION) && !defined(WIN32)
+Allocator::Allocator()
+    : Allocator(JEMallocExtension::Allocate, JEMallocExtension::Free, JEMallocExtension::Reallocate, nullptr) {
+}
+#else
 Allocator::Allocator()
     : Allocator(Allocator::DefaultAllocate, Allocator::DefaultFree, Allocator::DefaultReallocate, nullptr) {
 }
+#endif
 
 Allocator::Allocator(allocate_function_ptr_t allocate_function_p, free_function_ptr_t free_function_p,
                      reallocate_function_ptr_t reallocate_function_p, unique_ptr<PrivateAllocatorData> private_data_p)
@@ -101,6 +115,7 @@ Allocator::~Allocator() {
 }
 
 data_ptr_t Allocator::AllocateData(idx_t size) {
+	D_ASSERT(size > 0);
 	auto result = allocate_function(private_data.get(), size);
 #ifdef DEBUG
 	D_ASSERT(private_data);
@@ -113,6 +128,7 @@ void Allocator::FreeData(data_ptr_t pointer, idx_t size) {
 	if (!pointer) {
 		return;
 	}
+	D_ASSERT(size > 0);
 #ifdef DEBUG
 	D_ASSERT(private_data);
 	private_data->debug_info->FreeData(pointer, size);
@@ -132,9 +148,13 @@ data_ptr_t Allocator::ReallocateData(data_ptr_t pointer, idx_t old_size, idx_t s
 	return new_pointer;
 }
 
-Allocator &Allocator::DefaultAllocator() {
-	static Allocator DEFAULT_ALLOCATOR;
+shared_ptr<Allocator> &Allocator::DefaultAllocatorReference() {
+	static shared_ptr<Allocator> DEFAULT_ALLOCATOR = make_shared<Allocator>();
 	return DEFAULT_ALLOCATOR;
+}
+
+Allocator &Allocator::DefaultAllocator() {
+	return *DefaultAllocatorReference();
 }
 
 //===--------------------------------------------------------------------===//
@@ -149,7 +169,7 @@ AllocatorDebugInfo::~AllocatorDebugInfo() {
 	if (allocation_count != 0) {
 		printf("Outstanding allocations found for Allocator\n");
 		for (auto &entry : pointers) {
-			printf("Allocation of size %ld at address %p\n", entry.second.first, (void *)entry.first);
+			printf("Allocation of size %llu at address %p\n", entry.second.first, (void *)entry.first);
 			printf("Stack trace:\n%s\n", entry.second.second.c_str());
 			printf("\n");
 		}
@@ -161,28 +181,11 @@ AllocatorDebugInfo::~AllocatorDebugInfo() {
 	D_ASSERT(allocation_count == 0);
 }
 
-string AllocatorDebugInfo::GetStackTrace(int max_depth) {
-#ifdef DUCKDB_DEBUG_ALLOCATION
-	string result;
-	auto callstack = unique_ptr<void *[]>(new void *[max_depth]);
-	int frames = backtrace(callstack.get(), max_depth);
-	char **strs = backtrace_symbols(callstack.get(), frames);
-	for (int i = 0; i < frames; i++) {
-		result += strs[i];
-		result += "\n";
-	}
-	free(strs);
-	return result;
-#else
-	throw InternalException("GetStackTrace not supported without DUCKDB_DEBUG_ALLOCATION");
-#endif
-}
-
 void AllocatorDebugInfo::AllocateData(data_ptr_t pointer, idx_t size) {
 	allocation_count += size;
 #ifdef DUCKDB_DEBUG_ALLOCATION
 	lock_guard<mutex> l(pointer_lock);
-	pointers[pointer] = make_pair(size, GetStackTrace());
+	pointers[pointer] = make_pair(size, Exception::GetStackTrace());
 #endif
 }
 

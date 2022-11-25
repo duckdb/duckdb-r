@@ -4,13 +4,13 @@
 #include "duckdb/planner/expression/bound_columnref_expression.hpp"
 #include "duckdb/planner/expression/bound_reference_expression.hpp"
 #include "duckdb/storage/table/append_state.hpp"
+#include "duckdb/execution/index/art/art.hpp"
 
 namespace duckdb {
 
-Index::Index(IndexType type, const vector<column_t> &column_ids_p,
+Index::Index(IndexType type, TableIOManager &table_io_manager, const vector<column_t> &column_ids_p,
              const vector<unique_ptr<Expression>> &unbound_expressions, IndexConstraintType constraint_type_p)
-    : type(type), column_ids(column_ids_p), constraint_type(constraint_type_p),
-      executor(Allocator::DefaultAllocator()) {
+    : type(type), table_io_manager(table_io_manager), column_ids(column_ids_p), constraint_type(constraint_type_p) {
 	for (auto &expr : unbound_expressions) {
 		types.push_back(expr->return_type.InternalType());
 		logical_types.push_back(expr->return_type);
@@ -42,6 +42,21 @@ void Index::Delete(DataChunk &entries, Vector &row_identifiers) {
 	Delete(state, entries, row_identifiers);
 }
 
+bool Index::MergeIndexes(Index *other_index) {
+
+	IndexLock state;
+	InitializeLock(state);
+
+	switch (this->type) {
+	case IndexType::ART: {
+		auto art = (ART *)this;
+		return art->MergeIndexes(state, other_index);
+	}
+	default:
+		throw InternalException("Unimplemented index type for merge");
+	}
+}
+
 void Index::ExecuteExpressions(DataChunk &input, DataChunk &result) {
 	executor.Execute(input, result);
 }
@@ -56,9 +71,9 @@ unique_ptr<Expression> Index::BindExpression(unique_ptr<Expression> expr) {
 	return expr;
 }
 
-bool Index::IndexIsUpdated(const vector<column_t> &column_ids) const {
+bool Index::IndexIsUpdated(const vector<PhysicalIndex> &column_ids) const {
 	for (auto &column : column_ids) {
-		if (column_id_set.find(column) != column_id_set.end()) {
+		if (column_id_set.find(column.index) != column_id_set.end()) {
 			return true;
 		}
 	}

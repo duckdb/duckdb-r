@@ -2,6 +2,7 @@
 
 #include "duckdb/catalog/catalog_entry/table_catalog_entry.hpp"
 #include "duckdb/catalog/catalog_entry/view_catalog_entry.hpp"
+#include "duckdb/main/config.hpp"
 #include "duckdb/parser/query_node/select_node.hpp"
 #include "duckdb/parser/statement/list.hpp"
 #include "duckdb/parser/tableref/table_function_ref.hpp"
@@ -409,12 +410,18 @@ BoundStatement Binder::BindReturning(vector<unique_ptr<ParsedExpression>> return
 
 	auto binder = Binder::CreateBinder(context);
 
-	for (auto &col : table->columns) {
+	vector<column_t> bound_columns;
+	idx_t column_count = 0;
+	for (auto &col : table->columns.Logical()) {
 		names.push_back(col.Name());
 		types.push_back(col.Type());
+		if (!col.Generated()) {
+			bound_columns.push_back(column_count);
+		}
+		column_count++;
 	}
 
-	binder->bind_context.AddGenericBinding(update_table_index, table->name, names, types);
+	binder->bind_context.AddBaseTable(update_table_index, table->name, names, types, bound_columns, table);
 	ReturningBinder returning_binder(*binder, context);
 
 	vector<unique_ptr<Expression>> projection_expressions;

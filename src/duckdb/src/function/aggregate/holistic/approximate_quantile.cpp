@@ -136,6 +136,10 @@ AggregateFunction GetApproximateQuantileAggregateFunction(PhysicalType type) {
 		return AggregateFunction::UnaryAggregateDestructor<ApproxQuantileState, int64_t, int64_t,
 		                                                   ApproxQuantileScalarOperation>(LogicalType::BIGINT,
 		                                                                                  LogicalType::BIGINT);
+	case PhysicalType::INT128:
+		return AggregateFunction::UnaryAggregateDestructor<ApproxQuantileState, hugeint_t, hugeint_t,
+		                                                   ApproxQuantileScalarOperation>(LogicalType::HUGEINT,
+		                                                                                  LogicalType::HUGEINT);
 	case PhysicalType::DOUBLE:
 		return AggregateFunction::UnaryAggregateDestructor<ApproxQuantileState, double, double,
 		                                                   ApproxQuantileScalarOperation>(LogicalType::DOUBLE,
@@ -165,7 +169,7 @@ unique_ptr<FunctionData> BindApproxQuantile(ClientContext &context, AggregateFun
 	if (!arguments[1]->IsFoldable()) {
 		throw BinderException("APPROXIMATE QUANTILE can only take constant quantile parameters");
 	}
-	Value quantile_val = ExpressionExecutor::EvaluateScalar(*arguments[1]);
+	Value quantile_val = ExpressionExecutor::EvaluateScalar(context, *arguments[1]);
 
 	vector<float> quantiles;
 	if (quantile_val.type().id() != LogicalTypeId::LIST) {
@@ -352,6 +356,7 @@ void ApproximateQuantileFun::RegisterFunction(BuiltinFunctions &set) {
 	approx_quantile.AddFunction(GetApproximateQuantileAggregate(PhysicalType::INT16));
 	approx_quantile.AddFunction(GetApproximateQuantileAggregate(PhysicalType::INT32));
 	approx_quantile.AddFunction(GetApproximateQuantileAggregate(PhysicalType::INT64));
+	approx_quantile.AddFunction(GetApproximateQuantileAggregate(PhysicalType::INT128));
 	approx_quantile.AddFunction(GetApproximateQuantileAggregate(PhysicalType::DOUBLE));
 
 	// List variants

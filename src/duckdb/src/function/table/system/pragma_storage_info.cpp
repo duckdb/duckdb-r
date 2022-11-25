@@ -97,6 +97,7 @@ static void PragmaStorageInfoFunction(ClientContext &context, TableFunctionInput
 	auto &bind_data = (PragmaStorageFunctionData &)*data_p.bind_data;
 	auto &data = (PragmaStorageOperatorData &)*data_p.global_state;
 	idx_t count = 0;
+	auto &columns = bind_data.table_entry->columns;
 	while (data.offset < bind_data.storage_info.size() && count < STANDARD_VECTOR_SIZE) {
 		auto &entry = bind_data.storage_info[data.offset++];
 		D_ASSERT(entry.size() + 1 == output.ColumnCount());
@@ -104,8 +105,10 @@ static void PragmaStorageInfoFunction(ClientContext &context, TableFunctionInput
 		for (idx_t col_idx = 0; col_idx < entry.size(); col_idx++, result_idx++) {
 			if (col_idx == 1) {
 				// write the column name
-				auto column_index = entry[col_idx].GetValue<int64_t>();
-				output.SetValue(result_idx, count, Value(bind_data.table_entry->columns[column_index].Name()));
+				auto storage_column_index = entry[col_idx].GetValue<int64_t>();
+				auto &col = columns.GetColumn(PhysicalIndex(storage_column_index));
+
+				output.SetValue(result_idx, count, Value(col.Name()));
 				result_idx++;
 			}
 			output.SetValue(result_idx, count, entry[col_idx]);

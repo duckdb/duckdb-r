@@ -14,6 +14,10 @@
 
 #include "src/main/database.cpp"
 
+#include "src/main/db_instance_cache.cpp"
+
+#include "src/main/error_manager.cpp"
+
 #include "src/main/extension.cpp"
 
 #include "src/main/materialized_query_result.cpp"
@@ -26,9 +30,13 @@
 
 #include "src/main/relation.cpp"
 
+#include "src/main/extension_prefix_opener.cpp"
+
 #include "src/main/query_profiler.cpp"
 
 #include "src/main/query_result.cpp"
 
 #include "src/main/stream_query_result.cpp"
+
+#include "src/main/valid_checker.cpp"
 

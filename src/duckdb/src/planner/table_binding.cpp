@@ -8,7 +8,6 @@
 #include "duckdb/planner/bind_context.hpp"
 #include "duckdb/planner/bound_query_node.hpp"
 #include "duckdb/planner/expression/bound_columnref_expression.hpp"
-#include "duckdb/planner/operator/logical_get.hpp"
 #include "duckdb/parser/parsed_expression_iterator.hpp"
 
 namespace duckdb {
@@ -84,14 +83,30 @@ StandardEntry *EntryBinding::GetStandardEntry() {
 	return &this->entry;
 }
 
-TableBinding::TableBinding(const string &alias, vector<LogicalType> types_p, vector<string> names_p, LogicalGet &get,
-                           idx_t index, bool add_row_id)
-    : Binding(BindingType::TABLE, alias, move(types_p), move(names_p), index), get(get) {
+TableBinding::TableBinding(const string &alias, vector<LogicalType> types_p, vector<string> names_p,
+                           vector<column_t> &bound_column_ids, StandardEntry *entry, idx_t index, bool add_row_id)
+    : Binding(BindingType::TABLE, alias, move(types_p), move(names_p), index), bound_column_ids(bound_column_ids),
+      entry(entry) {
 	if (add_row_id) {
 		if (name_map.find("rowid") == name_map.end()) {
 			name_map["rowid"] = COLUMN_IDENTIFIER_ROW_ID;
 		}
 	}
+}
+
+static void ReplaceAliases(ParsedExpression &expr, const ColumnList &list,
+                           const unordered_map<idx_t, string> &alias_map) {
+	if (expr.type == ExpressionType::COLUMN_REF) {
+		auto &colref = (ColumnRefExpression &)expr;
+		D_ASSERT(!colref.IsQualified());
+		auto &col_names = colref.column_names;
+		D_ASSERT(col_names.size() == 1);
+		auto idx_entry = list.GetColumnIndex(col_names[0]);
+		auto &alias = alias_map.at(idx_entry.index);
+		col_names = {alias};
+	}
+	ParsedExpressionIterator::EnumerateChildren(
+	    expr, [&](const ParsedExpression &child) { ReplaceAliases((ParsedExpression &)child, list, alias_map); });
 }
 
 static void BakeTableName(ParsedExpression &expr, const string &table_name) {
@@ -114,9 +129,14 @@ unique_ptr<ParsedExpression> TableBinding::ExpandGeneratedColumn(const string &c
 
 	// Get the index of the generated column
 	auto column_index = GetBindingIndex(column_name);
-	D_ASSERT(table_entry->columns[column_index].Generated());
+	D_ASSERT(table_entry->columns.GetColumn(LogicalIndex(column_index)).Generated());
 	// Get a copy of the generated column
-	auto expression = table_entry->columns[column_index].GeneratedExpression().Copy();
+	auto expression = table_entry->columns.GetColumn(LogicalIndex(column_index)).GeneratedExpression().Copy();
+	unordered_map<idx_t, string> alias_map;
+	for (auto &entry : name_map) {
+		alias_map[entry.second] = entry.first;
+	}
+	ReplaceAliases(*expression, table_entry->columns, alias_map);
 	BakeTableName(*expression, alias);
 	return (expression);
 }
@@ -129,17 +149,16 @@ BindResult TableBinding::Bind(ColumnRefExpression &colref, idx_t depth) {
 	if (!success) {
 		return BindResult(ColumnNotFoundError(column_name));
 	}
-#ifdef DEBUG
 	auto entry = GetStandardEntry();
-	if (entry) {
+	if (entry && column_index != COLUMN_IDENTIFIER_ROW_ID) {
 		D_ASSERT(entry->type == CatalogType::TABLE_ENTRY);
+		// Either there is no table, or the columns category has to be standard
 		auto table_entry = (TableCatalogEntry *)entry;
-		//! Either there is no table, or the columns category has to be standard
-		if (column_index != COLUMN_IDENTIFIER_ROW_ID) {
-			D_ASSERT(table_entry->columns[column_index].Category() == TableColumnType::STANDARD);
-		}
+		auto &column_entry = table_entry->columns.GetColumn(LogicalIndex(column_index));
+		(void)table_entry;
+		(void)column_entry;
+		D_ASSERT(column_entry.Category() == TableColumnType::STANDARD);
 	}
-#endif /* DEBUG */
 	// fetch the type of the column
 	LogicalType col_type;
 	if (column_index == COLUMN_IDENTIFIER_ROW_ID) {
@@ -153,7 +172,7 @@ BindResult TableBinding::Bind(ColumnRefExpression &colref, idx_t depth) {
 		}
 	}
 
-	auto &column_ids = get.column_ids;
+	auto &column_ids = bound_column_ids;
 	// check if the entry already exists in the column list for the table
 	ColumnBinding binding;
 
@@ -173,7 +192,7 @@ BindResult TableBinding::Bind(ColumnRefExpression &colref, idx_t depth) {
 }
 
 StandardEntry *TableBinding::GetStandardEntry() {
-	return get.GetTable();
+	return entry;
 }
 
 string TableBinding::ColumnNotFoundError(const string &column_name) const {

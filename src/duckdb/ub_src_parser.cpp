@@ -2,6 +2,8 @@
 
 #include "src/parser/column_definition.cpp"
 
+#include "src/parser/column_list.cpp"
+
 #include "src/parser/constraint.cpp"
 
 #include "src/parser/expression_util.cpp"

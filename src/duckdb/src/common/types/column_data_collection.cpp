@@ -120,13 +120,20 @@ ColumnDataRowCollection::ColumnDataRowCollection(const ColumnDataCollection &col
 		return;
 	}
 	// read all the chunks
-	ColumnDataScanState scan_state;
-	collection.InitializeScan(scan_state);
+	ColumnDataScanState temp_scan_state;
+	collection.InitializeScan(temp_scan_state);
 	while (true) {
 		auto chunk = make_unique<DataChunk>();
 		collection.InitializeScanChunk(*chunk);
-		if (!collection.Scan(scan_state, *chunk)) {
+		if (!collection.Scan(temp_scan_state, *chunk)) {
 			break;
+		}
+		// we keep the BufferHandles that are needed for the materialized collection pinned in the supplied scan_state
+		auto &temp_handles = temp_scan_state.current_chunk_state.handles;
+		auto &scan_handles = scan_state.current_chunk_state.handles;
+		for (auto &temp_handle_pair : temp_handles) {
+			auto handle_copy = make_pair<uint32_t, BufferHandle>(scan_handles.size(), move(temp_handle_pair.second));
+			scan_state.current_chunk_state.handles.insert(move(handle_copy));
 		}
 		chunks.push_back(move(chunk));
 	}
@@ -802,7 +809,7 @@ bool ColumnDataCollection::ResultEquals(const ColumnDataCollection &left, const 
 		for (idx_t c = 0; c < left.ColumnCount(); c++) {
 			auto lvalue = left_rows.GetValue(c, r);
 			auto rvalue = left_rows.GetValue(c, r);
-			if (!Value::ValuesAreEqual(lvalue, rvalue)) {
+			if (!Value::DefaultValuesAreEqual(lvalue, rvalue)) {
 				error_message =
 				    StringUtil::Format("%s <> %s (row: %lld, col: %lld)\n", lvalue.ToString(), rvalue.ToString(), r, c);
 				return false;
@@ -810,6 +817,10 @@ bool ColumnDataCollection::ResultEquals(const ColumnDataCollection &left, const 
 		}
 	}
 	return true;
+}
+
+const vector<unique_ptr<ColumnDataCollectionSegment>> &ColumnDataCollection::GetSegments() const {
+	return segments;
 }
 
 } // namespace duckdb

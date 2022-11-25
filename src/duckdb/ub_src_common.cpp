@@ -2,6 +2,8 @@
 
 #include "src/common/assert.cpp"
 
+#include "src/common/box_renderer.cpp"
+
 #include "src/common/compressed_file_system.cpp"
 
 #include "src/common/constants.cpp"
@@ -19,6 +21,8 @@
 #include "src/common/file_buffer.cpp"
 
 #include "src/common/file_system.cpp"
+
+#include "src/common/fsst.cpp"
 
 #include "src/common/gzip_file_system.cpp"
 

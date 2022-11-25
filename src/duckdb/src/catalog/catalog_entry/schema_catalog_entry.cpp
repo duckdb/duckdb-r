@@ -184,6 +184,17 @@ CatalogEntry *SchemaCatalogEntry::CreatePragmaFunction(ClientContext &context, C
 }
 
 CatalogEntry *SchemaCatalogEntry::CreateFunction(ClientContext &context, CreateFunctionInfo *info) {
+	if (info->on_conflict == OnCreateConflict::ALTER_ON_CONFLICT) {
+		// check if the original entry exists
+		auto &catalog_set = GetCatalogSet(info->type);
+		auto current_entry = catalog_set.GetEntry(context, info->name);
+		if (current_entry) {
+			// the current entry exists - alter it instead
+			auto alter_info = info->GetAlterInfo();
+			Alter(context, alter_info.get());
+			return nullptr;
+		}
+	}
 	unique_ptr<StandardEntry> function;
 	switch (info->type) {
 	case CatalogType::SCALAR_FUNCTION_ENTRY:
@@ -196,7 +207,7 @@ CatalogEntry *SchemaCatalogEntry::CreateFunction(ClientContext &context, CreateF
 		break;
 
 	case CatalogType::TABLE_MACRO_ENTRY:
-		// create a macro function
+		// create a macro table function
 		function = make_unique_base<StandardEntry, TableMacroCatalogEntry>(catalog, this, (CreateMacroInfo *)info);
 		break;
 	case CatalogType::AGGREGATE_FUNCTION_ENTRY:

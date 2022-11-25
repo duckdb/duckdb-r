@@ -14,7 +14,7 @@
 namespace duckdb {
 
 //! PhysicalCrossProduct represents a cross product between two tables
-class PhysicalCrossProduct : public PhysicalOperator {
+class PhysicalCrossProduct : public CachingPhysicalOperator {
 public:
 	PhysicalCrossProduct(vector<LogicalType> types, unique_ptr<PhysicalOperator> left,
 	                     unique_ptr<PhysicalOperator> right, idx_t estimated_cardinality);
@@ -22,15 +22,18 @@ public:
 public:
 	// Operator Interface
 	unique_ptr<OperatorState> GetOperatorState(ExecutionContext &context) const override;
-	OperatorResultType Execute(ExecutionContext &context, DataChunk &input, DataChunk &chunk,
-	                           GlobalOperatorState &gstate, OperatorState &state) const override;
 
 	bool ParallelOperator() const override {
 		return true;
 	}
 
-	bool RequiresCache() const override {
-		return true;
+protected:
+	// CachingOperator Interface
+	OperatorResultType ExecuteInternal(ExecutionContext &context, DataChunk &input, DataChunk &chunk,
+	                                   GlobalOperatorState &gstate, OperatorState &state) const override;
+
+	bool IsOrderPreserving() const override {
+		return false;
 	}
 
 public:
@@ -47,7 +50,7 @@ public:
 	}
 
 public:
-	void BuildPipelines(Executor &executor, Pipeline &current, PipelineBuildState &state) override;
+	void BuildPipelines(Pipeline &current, MetaPipeline &meta_pipeline) override;
 	vector<const PhysicalOperator *> GetSources() const override;
 };
 

@@ -20,16 +20,22 @@ class OrderGlobalState;
 //! Physically re-orders the input data
 class PhysicalOrder : public PhysicalOperator {
 public:
-	PhysicalOrder(vector<LogicalType> types, vector<BoundOrderByNode> orders, idx_t estimated_cardinality);
+	PhysicalOrder(vector<LogicalType> types, vector<BoundOrderByNode> orders, vector<idx_t> projections,
+	              idx_t estimated_cardinality);
 
 	//! Input data
 	vector<BoundOrderByNode> orders;
+	vector<idx_t> projections;
 
 public:
 	// Source interface
 	unique_ptr<GlobalSourceState> GetGlobalSourceState(ClientContext &context) const override;
 	void GetData(ExecutionContext &context, DataChunk &chunk, GlobalSourceState &gstate,
 	             LocalSourceState &lstate) const override;
+
+	bool IsOrderPreserving() const override {
+		return false;
+	}
 
 public:
 	unique_ptr<LocalSinkState> GetLocalSinkState(ExecutionContext &context) const override;

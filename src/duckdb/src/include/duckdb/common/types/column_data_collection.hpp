@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "duckdb/common/pair.hpp"
 #include "duckdb/common/types/column_data_collection_iterators.hpp"
 
 namespace duckdb {
@@ -42,6 +43,7 @@ public:
 	DUCKDB_API ~ColumnDataCollection();
 
 public:
+	//! The types of columns in the ColumnDataCollection
 	DUCKDB_API vector<LogicalType> &Types() {
 		return types;
 	}
@@ -135,10 +137,13 @@ public:
 	void ScanAtIndex(ColumnDataParallelScanState &state, ColumnDataLocalScanState &lstate, DataChunk &result,
 	                 idx_t chunk_index, idx_t segment_index, idx_t row_index) const;
 
-private:
 	//! Initialize the column data collection
 	void Initialize(vector<LogicalType> types);
 
+	//! Get a vector of references to every chunk (segment, index in segment), and optionally sort by block id
+	const vector<unique_ptr<ColumnDataCollectionSegment>> &GetSegments() const;
+
+private:
 	//! Creates a new segment within the ColumnDataCollection
 	void CreateSegment();
 
@@ -201,6 +206,7 @@ public:
 private:
 	vector<ColumnDataRow> rows;
 	vector<unique_ptr<DataChunk>> chunks;
+	ColumnDataScanState scan_state;
 };
 
 } // namespace duckdb

@@ -12,6 +12,8 @@
 
 #include "src/common/types/column_data_collection_segment.cpp"
 
+#include "src/common/types/column_data_consumer.cpp"
+
 #include "src/common/types/data_chunk.cpp"
 
 #include "src/common/types/date.cpp"
@@ -27,6 +29,8 @@
 #include "src/common/types/hyperloglog.cpp"
 
 #include "src/common/types/interval.cpp"
+
+#include "src/common/types/partitioned_column_data.cpp"
 
 #include "src/common/types/row_data_collection.cpp"
 

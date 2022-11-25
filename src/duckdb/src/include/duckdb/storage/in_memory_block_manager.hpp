@@ -17,17 +17,19 @@ namespace duckdb {
 //! InMemoryBlockManager is an implementation for a BlockManager
 class InMemoryBlockManager : public BlockManager {
 public:
+	using BlockManager::BlockManager;
+
 	// LCOV_EXCL_START
-	void StartCheckpoint() override {
-		throw InternalException("Cannot perform IO in in-memory database!");
-	}
-	unique_ptr<Block> CreateBlock(block_id_t block_id) override {
+	unique_ptr<Block> CreateBlock(block_id_t block_id, FileBuffer *source_buffer) override {
 		throw InternalException("Cannot perform IO in in-memory database!");
 	}
 	block_id_t GetFreeBlockId() override {
 		throw InternalException("Cannot perform IO in in-memory database!");
 	}
 	bool IsRootBlock(block_id_t root) override {
+		throw InternalException("Cannot perform IO in in-memory database!");
+	}
+	void MarkBlockAsFree(block_id_t block_id) override {
 		throw InternalException("Cannot perform IO in in-memory database!");
 	}
 	void MarkBlockAsModified(block_id_t block_id) override {

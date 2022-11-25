@@ -1,6 +1,7 @@
 #include "duckdb/function/scalar/date_functions.hpp"
 #include "duckdb/common/enums/date_part_specifier.hpp"
 #include "duckdb/common/exception.hpp"
+#include "duckdb/common/operator/subtract.hpp"
 #include "duckdb/common/types/date.hpp"
 #include "duckdb/common/types/interval.hpp"
 #include "duckdb/common/types/time.hpp"
@@ -50,7 +51,7 @@ struct DateDiff {
 	struct DayOperator {
 		template <class TA, class TB, class TR>
 		static inline TR Operation(TA startdate, TB enddate) {
-			return Date::EpochDays(enddate) - Date::EpochDays(startdate);
+			return TR(Date::EpochDays(enddate)) - TR(Date::EpochDays(startdate));
 		}
 	};
 
@@ -106,16 +107,15 @@ struct DateDiff {
 	struct MicrosecondsOperator {
 		template <class TA, class TB, class TR>
 		static inline TR Operation(TA startdate, TB enddate) {
-			return Date::EpochNanoseconds(enddate) / Interval::NANOS_PER_MICRO -
-			       Date::EpochNanoseconds(startdate) / Interval::NANOS_PER_MICRO;
+			return Date::EpochMicroseconds(enddate) - Date::EpochMicroseconds(startdate);
 		}
 	};
 
 	struct MillisecondsOperator {
 		template <class TA, class TB, class TR>
 		static inline TR Operation(TA startdate, TB enddate) {
-			return Date::EpochNanoseconds(enddate) / Interval::NANOS_PER_MSEC -
-			       Date::EpochNanoseconds(startdate) / Interval::NANOS_PER_MSEC;
+			return Date::EpochMicroseconds(enddate) / Interval::MICROS_PER_MSEC -
+			       Date::EpochMicroseconds(startdate) / Interval::MICROS_PER_MSEC;
 		}
 	};
 
@@ -196,7 +196,9 @@ int64_t DateDiff::ISOYearOperator::Operation(timestamp_t startdate, timestamp_t 
 
 template <>
 int64_t DateDiff::MicrosecondsOperator::Operation(timestamp_t startdate, timestamp_t enddate) {
-	return Timestamp::GetEpochMicroSeconds(enddate) - Timestamp::GetEpochMicroSeconds(startdate);
+	const auto start = Timestamp::GetEpochMicroSeconds(startdate);
+	const auto end = Timestamp::GetEpochMicroSeconds(enddate);
+	return SubtractOperatorOverflowCheck::Operation<int64_t, int64_t, int64_t>(end, start);
 }
 
 template <>

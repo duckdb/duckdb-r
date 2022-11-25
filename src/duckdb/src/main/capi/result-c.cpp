@@ -1,4 +1,4 @@
-#include "duckdb/main/capi_internal.hpp"
+#include "duckdb/main/capi/capi_internal.hpp"
 #include "duckdb/common/types/timestamp.hpp"
 #include "duckdb/common/allocator.hpp"
 
@@ -320,7 +320,7 @@ bool deprecated_materialize_result(duckdb_result *result) {
 	    materialized.properties.return_type == StatementReturnType::CHANGED_ROWS) {
 		// update total changes
 		auto row_changes = materialized.GetValue(0, 0);
-		if (!row_changes.IsNull() && row_changes.TryCastAs(LogicalType::BIGINT)) {
+		if (!row_changes.IsNull() && row_changes.DefaultTryCastAs(LogicalType::BIGINT)) {
 			result->__deprecated_rows_changed = row_changes.GetValue<int64_t>();
 		}
 	}

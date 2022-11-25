@@ -1,5 +1,6 @@
 #include "duckdb/function/aggregate_function.hpp"
 #include "duckdb/common/types/chunk_collection.hpp"
+#include "duckdb/function/function_binder.hpp"
 
 namespace duckdb {
 
@@ -249,10 +250,10 @@ struct SortedAggregateFunction {
 	}
 };
 
-unique_ptr<FunctionData> AggregateFunction::BindSortedAggregate(AggregateFunction &bound_function,
-                                                                vector<unique_ptr<Expression>> &children,
-                                                                unique_ptr<FunctionData> bind_info,
-                                                                unique_ptr<BoundOrderModifier> order_bys) {
+unique_ptr<FunctionData> FunctionBinder::BindSortedAggregate(AggregateFunction &bound_function,
+                                                             vector<unique_ptr<Expression>> &children,
+                                                             unique_ptr<FunctionData> bind_info,
+                                                             unique_ptr<BoundOrderModifier> order_bys) {
 
 	auto sorted_bind = make_unique<SortedAggregateBindData>(bound_function, children, move(bind_info), *order_bys);
 
@@ -268,15 +269,18 @@ unique_ptr<FunctionData> AggregateFunction::BindSortedAggregate(AggregateFunctio
 	}
 
 	// Replace the aggregate with the wrapper
-	bound_function = AggregateFunction(
+	AggregateFunction ordered_aggregate(
 	    bound_function.name, arguments, bound_function.return_type, AggregateFunction::StateSize<SortedAggregateState>,
 	    AggregateFunction::StateInitialize<SortedAggregateState, SortedAggregateFunction>,
 	    SortedAggregateFunction::ScatterUpdate,
 	    AggregateFunction::StateCombine<SortedAggregateState, SortedAggregateFunction>,
 	    SortedAggregateFunction::Finalize, SortedAggregateFunction::SimpleUpdate, nullptr,
 	    AggregateFunction::StateDestroy<SortedAggregateState, SortedAggregateFunction>);
-	bound_function.serialize = SortedAggregateFunction::Serialize;
-	bound_function.deserialize = SortedAggregateFunction::Deserialize;
+	ordered_aggregate.serialize = SortedAggregateFunction::Serialize;
+	ordered_aggregate.deserialize = SortedAggregateFunction::Deserialize;
+	ordered_aggregate.null_handling = bound_function.null_handling;
+
+	bound_function = move(ordered_aggregate);
 
 	return move(sorted_bind);
 }

@@ -5,6 +5,7 @@
 #include "duckdb/common/exception.hpp"
 #include "duckdb/common/string_util.hpp"
 #include "duckdb/common/assert.hpp"
+#include "duckdb/common/operator/multiply.hpp"
 #include "duckdb/common/limits.hpp"
 
 #include <cstring>
@@ -197,11 +198,15 @@ static bool TryConvertDateSpecial(const char *buf, idx_t len, idx_t &pos, const 
 			return false;
 		}
 	}
+	if (*special) {
+		return false;
+	}
 	pos = p;
 	return true;
 }
 
-bool Date::TryConvertDate(const char *buf, idx_t len, idx_t &pos, date_t &result, bool strict) {
+bool Date::TryConvertDate(const char *buf, idx_t len, idx_t &pos, date_t &result, bool &special, bool strict) {
+	special = false;
 	pos = 0;
 	if (len == 0) {
 		return false;
@@ -241,6 +246,7 @@ bool Date::TryConvertDate(const char *buf, idx_t len, idx_t &pos, date_t &result
 		while (pos < len && StringUtil::CharacterIsSpace(buf[pos])) {
 			pos++;
 		}
+		special = true;
 		return pos == len;
 	}
 	// first parse the year
@@ -331,7 +337,8 @@ string Date::ConversionError(string_t str) {
 date_t Date::FromCString(const char *buf, idx_t len, bool strict) {
 	date_t result;
 	idx_t pos;
-	if (!TryConvertDate(buf, len, pos, result, strict)) {
+	bool special = false;
+	if (!TryConvertDate(buf, len, pos, result, special, strict)) {
 		throw ConversionException(ConversionError(string(buf, len)));
 	}
 	return result;
@@ -419,6 +426,14 @@ int64_t Date::Epoch(date_t date) {
 
 int64_t Date::EpochNanoseconds(date_t date) {
 	return ((int64_t)date.days) * (Interval::MICROS_PER_DAY * 1000);
+}
+
+int64_t Date::EpochMicroseconds(date_t date) {
+	int64_t result;
+	if (!TryMultiplyOperator::Operation<int64_t, int64_t, int64_t>(date.days, Interval::MICROS_PER_DAY, result)) {
+		throw ConversionException("Could not convert DATE to microseconds");
+	}
+	return result;
 }
 
 int32_t Date::ExtractYear(date_t d, int32_t *last_year) {

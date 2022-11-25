@@ -25,18 +25,19 @@ public:
 	idx_t table_index;
 	//! if returning option is used, return the update chunk
 	bool return_chunk;
-	vector<column_t> columns;
+	vector<PhysicalIndex> columns;
 	vector<unique_ptr<Expression>> bound_defaults;
 	bool update_is_del_and_insert;
 
 public:
 	void Serialize(FieldWriter &writer) const override;
 	static unique_ptr<LogicalOperator> Deserialize(LogicalDeserializationState &state, FieldReader &reader);
+	idx_t EstimateCardinality(ClientContext &context) override;
 
 protected:
 	vector<ColumnBinding> GetColumnBindings() override {
 		if (return_chunk) {
-			return GenerateColumnBindings(table_index, table->columns.size());
+			return GenerateColumnBindings(table_index, table->GetTypes().size());
 		}
 		return {ColumnBinding(0, 0)};
 	}
