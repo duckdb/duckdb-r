@@ -26,6 +26,8 @@
 
 #include "src/planner/expression_binder/select_binder.cpp"
 
+#include "src/planner/expression_binder/table_function_binder.cpp"
+
 #include "src/planner/expression_binder/update_binder.cpp"
 
 #include "src/planner/expression_binder/where_binder.cpp"

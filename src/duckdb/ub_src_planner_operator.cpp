@@ -38,6 +38,8 @@
 
 #include "src/planner/operator/logical_expression_get.cpp"
 
+#include "src/planner/operator/logical_extension_operator.cpp"
+
 #include "src/planner/operator/logical_filter.cpp"
 
 #include "src/planner/operator/logical_get.cpp"
