@@ -36,11 +36,15 @@
 
 #include "src/function/scalar/string/suffix.cpp"
 
+#include "src/function/scalar/string/translate.cpp"
+
 #include "src/function/scalar/string/trim.cpp"
 
 #include "src/function/scalar/string/left_right.cpp"
 
 #include "src/function/scalar/string/contains.cpp"
+
+#include "src/function/scalar/string/starts_with.cpp"
 
 #include "src/function/scalar/string/string_split.cpp"
 

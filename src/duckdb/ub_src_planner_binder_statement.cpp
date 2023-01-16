@@ -1,3 +1,5 @@
+#include "src/planner/binder/statement/bind_attach.cpp"
+
 #include "src/planner/binder/statement/bind_call.cpp"
 
 #include "src/planner/binder/statement/bind_copy.cpp"

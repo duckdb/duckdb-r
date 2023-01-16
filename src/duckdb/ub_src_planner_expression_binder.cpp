@@ -12,6 +12,8 @@
 
 #include "src/planner/expression_binder/having_binder.cpp"
 
+#include "src/planner/expression_binder/lateral_binder.cpp"
+
 #include "src/planner/expression_binder/qualify_binder.cpp"
 
 #include "src/planner/expression_binder/index_binder.cpp"

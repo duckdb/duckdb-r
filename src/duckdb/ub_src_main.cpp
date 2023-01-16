@@ -1,5 +1,7 @@
 #include "src/main/appender.cpp"
 
+#include "src/main/attached_database.cpp"
+
 #include "src/main/client_context_file_opener.cpp"
 
 #include "src/main/client_context.cpp"
@@ -13,6 +15,8 @@
 #include "src/main/connection.cpp"
 
 #include "src/main/database.cpp"
+
+#include "src/main/database_manager.cpp"
 
 #include "src/main/db_instance_cache.cpp"
 

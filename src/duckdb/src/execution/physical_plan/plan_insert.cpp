@@ -27,6 +27,7 @@ bool PhysicalPlanGenerator::PreserveInsertionOrder(PhysicalOperator &plan) {
 }
 
 bool PhysicalPlanGenerator::UseBatchIndex(ClientContext &context, PhysicalOperator &plan) {
+	// TODO: always preserve order if query contains ORDER BY
 	auto &scheduler = TaskScheduler::GetScheduler(context);
 	if (scheduler.NumberOfThreads() == 1) {
 		// batch index usage only makes sense if we are using multiple threads
@@ -49,7 +50,7 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalInsert &op
 		D_ASSERT(op.children.size() == 1);
 		plan = CreatePlan(*op.children[0]);
 	}
-	dependencies.insert(op.table);
+	dependencies.AddDependency(op.table);
 
 	bool parallel_streaming_insert = !PreserveInsertionOrder(*plan);
 	bool use_batch_index = UseBatchIndex(*plan);
@@ -61,15 +62,15 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalInsert &op
 	}
 	unique_ptr<PhysicalOperator> insert;
 	if (use_batch_index && !parallel_streaming_insert) {
-		insert = make_unique<PhysicalBatchInsert>(op.types, op.table, op.column_index_map, move(op.bound_defaults),
+		insert = make_unique<PhysicalBatchInsert>(op.types, op.table, op.column_index_map, std::move(op.bound_defaults),
 		                                          op.estimated_cardinality);
 	} else {
-		insert = make_unique<PhysicalInsert>(op.types, op.table, op.column_index_map, move(op.bound_defaults),
+		insert = make_unique<PhysicalInsert>(op.types, op.table, op.column_index_map, std::move(op.bound_defaults),
 		                                     op.estimated_cardinality, op.return_chunk,
 		                                     parallel_streaming_insert && num_threads > 1);
 	}
 	if (plan) {
-		insert->children.push_back(move(plan));
+		insert->children.push_back(std::move(plan));
 	}
 	return insert;
 }

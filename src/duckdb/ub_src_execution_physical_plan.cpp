@@ -56,6 +56,8 @@
 
 #include "src/execution/physical_plan/plan_set.cpp"
 
+#include "src/execution/physical_plan/plan_reset.cpp"
+
 #include "src/execution/physical_plan/plan_sample.cpp"
 
 #include "src/execution/physical_plan/plan_show_select.cpp"

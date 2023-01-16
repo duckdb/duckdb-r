@@ -22,6 +22,8 @@
 
 #include "src/execution/operator/helper/physical_set.cpp"
 
+#include "src/execution/operator/helper/physical_reset.cpp"
+
 #include "src/execution/operator/helper/physical_streaming_limit.cpp"
 
 #include "src/execution/operator/helper/physical_streaming_sample.cpp"

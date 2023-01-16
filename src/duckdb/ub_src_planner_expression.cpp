@@ -22,6 +22,8 @@
 
 #include "src/planner/expression/bound_lambda_expression.cpp"
 
+#include "src/planner/expression/bound_lambdaref_expression.cpp"
+
 #include "src/planner/expression/bound_operator_expression.cpp"
 
 #include "src/planner/expression/bound_parameter_expression.cpp"

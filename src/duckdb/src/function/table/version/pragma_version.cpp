@@ -1,8 +1,8 @@
 #ifndef DUCKDB_VERSION
-#define DUCKDB_VERSION "0.6.1"
+#define DUCKDB_VERSION "0.6.2-dev1166"
 #endif
 #ifndef DUCKDB_SOURCE_ID
-#define DUCKDB_SOURCE_ID "919cad22e8"
+#define DUCKDB_SOURCE_ID "67ceaf6e2c"
 #endif
 #include "duckdb/function/table/system_functions.hpp"
 #include "duckdb/main/database.hpp"
@@ -48,6 +48,10 @@ void PragmaVersion::RegisterFunction(BuiltinFunctions &set) {
 	pragma_version.bind = PragmaVersionBind;
 	pragma_version.init_global = PragmaVersionInit;
 	set.AddFunction(pragma_version);
+}
+
+idx_t DuckDB::StandardVectorSize() {
+	return STANDARD_VECTOR_SIZE;
 }
 
 const char *DuckDB::SourceID() {

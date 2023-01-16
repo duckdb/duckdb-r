@@ -6,5 +6,9 @@
 
 #include "src/catalog/catalog_set.cpp"
 
+#include "src/catalog/catalog_transaction.cpp"
+
+#include "src/catalog/dependency_list.cpp"
+
 #include "src/catalog/dependency_manager.cpp"
 

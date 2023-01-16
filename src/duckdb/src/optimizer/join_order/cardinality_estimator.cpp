@@ -1,12 +1,12 @@
+#include "duckdb/function/table/table_scan.hpp"
+#include "duckdb/optimizer/join_order/join_node.hpp"
+#include "duckdb/optimizer/join_order/join_order_optimizer.hpp"
 #include "duckdb/planner/filter/conjunction_filter.hpp"
 #include "duckdb/planner/filter/constant_filter.hpp"
-#include "duckdb/optimizer/join_order_optimizer.hpp"
-#include "duckdb/optimizer/join_node.hpp"
-#include "duckdb/planner/operator/logical_get.hpp"
 #include "duckdb/planner/operator/logical_comparison_join.hpp"
+#include "duckdb/planner/operator/logical_get.hpp"
 #include "duckdb/storage/data_table.hpp"
 #include "duckdb/storage/statistics/numeric_statistics.hpp"
-#include "duckdb/function/table/table_scan.hpp"
 
 namespace duckdb {
 
@@ -541,12 +541,12 @@ idx_t CardinalityEstimator::InspectTableFilters(idx_t cardinality, LogicalOperat
 		if (it.second->filter_type == TableFilterType::CONJUNCTION_AND) {
 			auto &filter = (ConjunctionAndFilter &)*it.second;
 			idx_t cardinality_with_and_filter =
-			    InspectConjunctionAND(cardinality, it.first, &filter, move(column_statistics));
+			    InspectConjunctionAND(cardinality, it.first, &filter, std::move(column_statistics));
 			cardinality_after_filters = MinValue(cardinality_after_filters, cardinality_with_and_filter);
 		} else if (it.second->filter_type == TableFilterType::CONJUNCTION_OR) {
 			auto &filter = (ConjunctionOrFilter &)*it.second;
 			idx_t cardinality_with_or_filter =
-			    InspectConjunctionOR(cardinality, it.first, &filter, move(column_statistics));
+			    InspectConjunctionOR(cardinality, it.first, &filter, std::move(column_statistics));
 			cardinality_after_filters = MinValue(cardinality_after_filters, cardinality_with_or_filter);
 		}
 	}

@@ -1,7 +1,7 @@
 //===----------------------------------------------------------------------===//
 //                         DuckDB
 //
-// duckdb/common/progress_bar.hpp
+// duckdb/common/progress_bar/progress_bar.hpp
 //
 //
 //===----------------------------------------------------------------------===//
@@ -12,12 +12,19 @@
 #include "duckdb/execution/executor.hpp"
 #include "duckdb/common/mutex.hpp"
 #include "duckdb/common/profiler.hpp"
+#include "duckdb/common/progress_bar/progress_bar_display.hpp"
 
 namespace duckdb {
 
+typedef unique_ptr<ProgressBarDisplay> (*progress_bar_display_create_func_t)();
+
 class ProgressBar {
 public:
-	explicit ProgressBar(Executor &executor, idx_t show_progress_after, bool print_progress);
+	static unique_ptr<ProgressBarDisplay> DefaultProgressBarDisplay();
+
+	explicit ProgressBar(
+	    Executor &executor, idx_t show_progress_after,
+	    progress_bar_display_create_func_t create_display_func = ProgressBar::DefaultProgressBarDisplay);
 
 	//! Starts the thread
 	void Start();
@@ -26,28 +33,11 @@ public:
 	//! Gets current percentage
 	double GetCurrentPercentage();
 
-private:
-	static constexpr const idx_t PARTIAL_BLOCK_COUNT = 8;
-#ifndef DUCKDB_ASCII_TREE_RENDERER
-	const char *PROGRESS_EMPTY = " ";
-	const char *PROGRESS_PARTIAL[PARTIAL_BLOCK_COUNT] {
-	    " ",           "\xE2\x96\x8F", "\xE2\x96\x8E", "\xE2\x96\x8D", "\xE2\x96\x8C", "\xE2\x96\x8B", "\xE2\x96\x8A",
-	    "\xE2\x96\x89"};
-	const char *PROGRESS_BLOCK = "\xE2\x96\x88";
-	const char *PROGRESS_START = "\xE2\x96\x95";
-	const char *PROGRESS_END = "\xE2\x96\x8F";
-#else
-	const char *PROGRESS_EMPTY = " ";
-	const char *PROGRESS_PARTIAL[PARTIAL_BLOCK_COUNT] {" ", " ", " ", " ", " ", " ", " ", " "};
-	const char *PROGRESS_BLOCK = "=";
-	const char *PROGRESS_START = "[";
-	const char *PROGRESS_END = "]";
-#endif
-	static constexpr const idx_t PROGRESS_BAR_WIDTH = 60;
-
 	void PrintProgressInternal(int percentage);
 	void PrintProgress(int percentage);
 	void FinishProgressBarPrint();
+	bool ShouldPrint(bool final) const;
+	bool PrintEnabled() const;
 
 private:
 	//! The executor
@@ -58,9 +48,11 @@ private:
 	idx_t show_progress_after;
 	//! The current progress percentage
 	double current_percentage;
-	//! Whether or not we print the progress bar
-	bool print_progress;
+	//! The display used to print the progress
+	unique_ptr<ProgressBarDisplay> display;
 	//! Whether or not profiling is supported for the current query
 	bool supported = true;
+	//! Whether the bar has already finished
+	bool finished = false;
 };
 } // namespace duckdb

@@ -38,7 +38,7 @@ struct RStatement {
 };
 
 struct RelationWrapper {
-	RelationWrapper(std::shared_ptr<Relation> rel_p) : rel(move(rel_p)) {
+	RelationWrapper(std::shared_ptr<Relation> rel_p) : rel(std::move(rel_p)) {
 	}
 	shared_ptr<Relation> rel;
 };
@@ -65,6 +65,12 @@ struct ArrowScanReplacementData : public ReplacementScanData {
 SEXP StringsToSexp(vector<std::string> s);
 
 SEXP ToUtf8(SEXP string_sexp);
+
+static constexpr char R_STRING_TYPE_NAME[] = "r_string";
+
+struct RStringsType {
+	static LogicalType Get();
+};
 
 struct RProtector {
 	RProtector() : protect_count(0) {

@@ -66,6 +66,8 @@
 
 #include "src/planner/operator/logical_set.cpp"
 
+#include "src/planner/operator/logical_reset.cpp"
+
 #include "src/planner/operator/logical_set_operation.cpp"
 
 #include "src/planner/operator/logical_show.cpp"

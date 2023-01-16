@@ -1,5 +1,7 @@
 #include "src/execution/operator/schema/physical_alter.cpp"
 
+#include "src/execution/operator/schema/physical_attach.cpp"
+
 #include "src/execution/operator/schema/physical_create_index.cpp"
 
 #include "src/execution/operator/schema/physical_create_schema.cpp"

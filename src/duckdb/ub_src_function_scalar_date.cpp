@@ -16,5 +16,7 @@
 
 #include "src/function/scalar/date/strftime.cpp"
 
+#include "src/function/scalar/date/time_bucket.cpp"
+
 #include "src/function/scalar/date/to_interval.cpp"
 

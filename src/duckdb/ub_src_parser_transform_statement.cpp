@@ -1,5 +1,7 @@
 #include "src/parser/transform/statement/transform_alter_table.cpp"
 
+#include "src/parser/transform/statement/transform_attach.cpp"
+
 #include "src/parser/transform/statement/transform_call.cpp"
 
 #include "src/parser/transform/statement/transform_checkpoint.cpp"
@@ -53,6 +55,8 @@
 #include "src/parser/transform/statement/transform_transaction.cpp"
 
 #include "src/parser/transform/statement/transform_update.cpp"
+
+#include "src/parser/transform/statement/transform_use.cpp"
 
 #include "src/parser/transform/statement/transform_create_sequence.cpp"
 

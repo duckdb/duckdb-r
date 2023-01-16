@@ -1,5 +1,7 @@
 #include "src/parser/statement/alter_statement.cpp"
 
+#include "src/parser/statement/attach_statement.cpp"
+
 #include "src/parser/statement/call_statement.cpp"
 
 #include "src/parser/statement/copy_statement.cpp"
