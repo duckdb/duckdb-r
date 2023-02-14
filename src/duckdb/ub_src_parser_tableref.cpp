@@ -1,7 +1,5 @@
 #include "src/parser/tableref/basetableref.cpp"
 
-#include "src/parser/tableref/crossproductref.cpp"
-
 #include "src/parser/tableref/emptytableref.cpp"
 
 #include "src/parser/tableref/expressionlistref.cpp"

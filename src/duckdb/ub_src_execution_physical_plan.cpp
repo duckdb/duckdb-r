@@ -46,6 +46,8 @@
 
 #include "src/execution/physical_plan/plan_order.cpp"
 
+#include "src/execution/physical_plan/plan_positional_join.cpp"
+
 #include "src/execution/physical_plan/plan_pragma.cpp"
 
 #include "src/execution/physical_plan/plan_prepare.cpp"

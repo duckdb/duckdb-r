@@ -2,6 +2,8 @@
 
 #include "src/common/assert.cpp"
 
+#include "src/common/bind_helpers.cpp"
+
 #include "src/common/box_renderer.cpp"
 
 #include "src/common/compressed_file_system.cpp"

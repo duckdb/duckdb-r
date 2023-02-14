@@ -8,7 +8,11 @@
 
 #include "src/catalog/catalog_transaction.cpp"
 
+#include "src/catalog/duck_catalog.cpp"
+
 #include "src/catalog/dependency_list.cpp"
 
 #include "src/catalog/dependency_manager.cpp"
+
+#include "src/catalog/similar_catalog_entry.cpp"
 

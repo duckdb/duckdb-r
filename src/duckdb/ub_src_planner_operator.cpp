@@ -54,6 +54,8 @@
 
 #include "src/planner/operator/logical_order.cpp"
 
+#include "src/planner/operator/logical_positional_join.cpp"
+
 #include "src/planner/operator/logical_pragma.cpp"
 
 #include "src/planner/operator/logical_prepare.cpp"
@@ -75,6 +77,8 @@
 #include "src/planner/operator/logical_simple.cpp"
 
 #include "src/planner/operator/logical_top_n.cpp"
+
+#include "src/planner/operator/logical_unconditional_join.cpp"
 
 #include "src/planner/operator/logical_unnest.cpp"
 

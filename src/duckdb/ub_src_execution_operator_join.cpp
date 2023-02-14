@@ -22,5 +22,7 @@
 
 #include "src/execution/operator/join/physical_piecewise_merge_join.cpp"
 
+#include "src/execution/operator/join/physical_positional_join.cpp"
+
 #include "src/execution/operator/join/physical_range_join.cpp"
 

@@ -12,6 +12,8 @@
 
 #include "src/storage/local_storage.cpp"
 
+#include "src/storage/magic_bytes.cpp"
+
 #include "src/storage/meta_block_reader.cpp"
 
 #include "src/storage/meta_block_writer.cpp"

@@ -4,6 +4,8 @@
 
 #include "src/optimizer/deliminator.cpp"
 
+#include "src/optimizer/unnest_rewriter.cpp"
+
 #include "src/optimizer/column_lifetime_analyzer.cpp"
 
 #include "src/optimizer/expression_heuristics.cpp"

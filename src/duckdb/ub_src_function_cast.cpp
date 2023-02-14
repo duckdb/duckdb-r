@@ -1,5 +1,7 @@
 #include "src/function/cast/blob_cast.cpp"
 
+#include "src/function/cast/bit_cast.cpp"
+
 #include "src/function/cast/cast_function_set.cpp"
 
 #include "src/function/cast/decimal_cast.cpp"

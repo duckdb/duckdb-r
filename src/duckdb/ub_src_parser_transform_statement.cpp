@@ -22,6 +22,8 @@
 
 #include "src/parser/transform/statement/transform_create_type.cpp"
 
+#include "src/parser/transform/statement/transform_create_database.cpp"
+
 #include "src/parser/transform/statement/transform_delete.cpp"
 
 #include "src/parser/transform/statement/transform_explain.cpp"
@@ -55,6 +57,8 @@
 #include "src/parser/transform/statement/transform_transaction.cpp"
 
 #include "src/parser/transform/statement/transform_update.cpp"
+
+#include "src/parser/transform/statement/transform_upsert.cpp"
 
 #include "src/parser/transform/statement/transform_use.cpp"
 

@@ -2,6 +2,8 @@
 
 #include "src/function/table/system/duckdb_constraints.cpp"
 
+#include "src/function/table/system/duckdb_databases.cpp"
+
 #include "src/function/table/system/duckdb_dependencies.cpp"
 
 #include "src/function/table/system/duckdb_extensions.cpp"
@@ -25,8 +27,6 @@
 #include "src/function/table/system/duckdb_views.cpp"
 
 #include "src/function/table/system/pragma_collations.cpp"
-
-#include "src/function/table/system/pragma_database_list.cpp"
 
 #include "src/function/table/system/pragma_database_size.cpp"
 

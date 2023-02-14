@@ -1,3 +1,7 @@
+#include "src/transaction/duck_transaction_manager.cpp"
+
+#include "src/transaction/duck_transaction.cpp"
+
 #include "src/transaction/meta_transaction.cpp"
 
 #include "src/transaction/undo_buffer.cpp"

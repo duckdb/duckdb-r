@@ -1,5 +1,7 @@
 #include "src/common/types/batched_data_collection.cpp"
 
+#include "src/common/types/bit.cpp"
+
 #include "src/common/types/blob.cpp"
 
 #include "src/common/types/cast_helpers.cpp"
@@ -13,6 +15,10 @@
 #include "src/common/types/column_data_collection_segment.cpp"
 
 #include "src/common/types/column_data_consumer.cpp"
+
+#include "src/common/types/conflict_manager.cpp"
+
+#include "src/common/types/conflict_info.cpp"
 
 #include "src/common/types/data_chunk.cpp"
 

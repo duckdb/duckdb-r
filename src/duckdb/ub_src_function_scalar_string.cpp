@@ -1,5 +1,7 @@
 #include "src/function/scalar/string/ascii.cpp"
 
+#include "src/function/scalar/string/bar.cpp"
+
 #include "src/function/scalar/string/chr.cpp"
 
 #include "src/function/scalar/string/reverse.cpp"
