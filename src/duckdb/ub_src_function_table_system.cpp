@@ -22,6 +22,8 @@
 
 #include "src/function/table/system/duckdb_tables.cpp"
 
+#include "src/function/table/system/duckdb_temporary_files.cpp"
+
 #include "src/function/table/system/duckdb_types.cpp"
 
 #include "src/function/table/system/duckdb_views.cpp"

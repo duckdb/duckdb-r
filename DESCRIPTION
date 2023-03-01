@@ -1,6 +1,6 @@
 Package: duckdb
 Title: DBI Package for the DuckDB Database Management System
-Version: 0.7.0
+Version: 0.7.1-1
 Authors@R: 
     c(person(given = "Hannes",
              family = "Mühleisen",
@@ -49,7 +49,7 @@ Suggests: arrow, bit64, callr, DBItest, dplyr, dbplyr, rlang, testthat,
 Encoding: UTF-8
 RoxygenNote: 7.2.3
 NeedsCompilation: yes
-Packaged: 2023-02-13 19:23:23 UTC; hannes
+Packaged: 2023-03-01 09:31:23 UTC; hannes
 Author: Hannes Mühleisen [aut, cre] (<https://orcid.org/0000-0001-8552-0029>),
   Mark Raasveldt [aut] (<https://orcid.org/0000-0001-5005-6844>),
   Stichting DuckDB Foundation [cph],
@@ -78,4 +78,4 @@ Author: Hannes Mühleisen [aut, cre] (<https://orcid.org/0000-0001-8552-0029>),
   PCG Project contributors [cph]
 Maintainer: Hannes Mühleisen <hannes@cwi.nl>
 Repository: CRAN
-Date/Publication: 2023-02-14 10:00:10 UTC
+Date/Publication: 2023-03-01 12:50:02 UTC

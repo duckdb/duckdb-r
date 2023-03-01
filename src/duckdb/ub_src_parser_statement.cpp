@@ -8,6 +8,8 @@
 
 #include "src/parser/statement/create_statement.cpp"
 
+#include "src/parser/statement/detach_statement.cpp"
+
 #include "src/parser/statement/delete_statement.cpp"
 
 #include "src/parser/statement/drop_statement.cpp"

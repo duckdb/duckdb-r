@@ -2,6 +2,8 @@
 
 #include "src/parser/transform/statement/transform_attach.cpp"
 
+#include "src/parser/transform/statement/transform_detach.cpp"
+
 #include "src/parser/transform/statement/transform_call.cpp"
 
 #include "src/parser/transform/statement/transform_checkpoint.cpp"

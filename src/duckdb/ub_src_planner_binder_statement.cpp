@@ -10,6 +10,8 @@
 
 #include "src/planner/binder/statement/bind_delete.cpp"
 
+#include "src/planner/binder/statement/bind_detach.cpp"
+
 #include "src/planner/binder/statement/bind_drop.cpp"
 
 #include "src/planner/binder/statement/bind_execute.cpp"
