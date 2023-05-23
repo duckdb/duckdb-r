@@ -3,6 +3,7 @@
 #include "fmt/format.h"
 #include "fmt/printf.h"
 #include "duckdb/common/types/hugeint.hpp"
+#include "duckdb/parser/keyword_helper.hpp"
 
 namespace duckdb {
 
@@ -40,6 +41,19 @@ template <>
 ExceptionFormatValue ExceptionFormatValue::CreateFormatValue(string value) {
 	return ExceptionFormatValue(std::move(value));
 }
+
+template <>
+ExceptionFormatValue
+ExceptionFormatValue::CreateFormatValue(SQLString value) { // NOLINT: templating requires us to copy value here
+	return KeywordHelper::WriteQuoted(value.raw_string, '\'');
+}
+
+template <>
+ExceptionFormatValue
+ExceptionFormatValue::CreateFormatValue(SQLIdentifier value) { // NOLINT: templating requires us to copy value here
+	return KeywordHelper::WriteOptionallyQuoted(value.raw_string, '"');
+}
+
 template <>
 ExceptionFormatValue ExceptionFormatValue::CreateFormatValue(const char *value) {
 	return ExceptionFormatValue(string(value));
@@ -53,7 +67,7 @@ ExceptionFormatValue ExceptionFormatValue::CreateFormatValue(hugeint_t value) {
 	return ExceptionFormatValue(value);
 }
 
-string ExceptionFormatValue::Format(const string &msg, vector<ExceptionFormatValue> &values) {
+string ExceptionFormatValue::Format(const string &msg, std::vector<ExceptionFormatValue> &values) {
 	std::vector<duckdb_fmt::basic_format_arg<duckdb_fmt::printf_context>> format_args;
 	for (auto &val : values) {
 		switch (val.type) {

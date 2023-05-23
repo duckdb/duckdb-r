@@ -26,6 +26,8 @@
 
 #include "src/parser/statement/load_statement.cpp"
 
+#include "src/parser/statement/multi_statement.cpp"
+
 #include "src/parser/statement/pragma_statement.cpp"
 
 #include "src/parser/statement/prepare_statement.cpp"

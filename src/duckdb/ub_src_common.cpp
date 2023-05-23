@@ -24,6 +24,8 @@
 
 #include "src/common/file_system.cpp"
 
+#include "src/common/filename_pattern.cpp"
+
 #include "src/common/fsst.cpp"
 
 #include "src/common/gzip_file_system.cpp"
@@ -33,6 +35,8 @@
 #include "src/common/pipe_file_system.cpp"
 
 #include "src/common/local_file_system.cpp"
+
+#include "src/common/multi_file_reader.cpp"
 
 #include "src/common/preserved_error.cpp"
 
@@ -47,6 +51,8 @@
 #include "src/common/serializer.cpp"
 
 #include "src/common/string_util.cpp"
+
+#include "src/common/enum_util.cpp"
 
 #include "src/common/tree_renderer.cpp"
 

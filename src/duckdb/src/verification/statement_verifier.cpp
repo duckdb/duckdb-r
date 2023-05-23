@@ -1,14 +1,16 @@
 #include "duckdb/verification/statement_verifier.hpp"
 
 #include "duckdb/common/preserved_error.hpp"
-#include "duckdb/common/types/column_data_collection.hpp"
+#include "duckdb/common/types/column/column_data_collection.hpp"
 #include "duckdb/parser/parser.hpp"
 #include "duckdb/verification/copied_statement_verifier.hpp"
 #include "duckdb/verification/deserialized_statement_verifier.hpp"
+#include "duckdb/verification/deserialized_statement_verifier_v2.hpp"
 #include "duckdb/verification/external_statement_verifier.hpp"
 #include "duckdb/verification/parsed_statement_verifier.hpp"
 #include "duckdb/verification/prepared_statement_verifier.hpp"
 #include "duckdb/verification/unoptimized_statement_verifier.hpp"
+#include "duckdb/verification/no_operator_caching_verifier.hpp"
 
 namespace duckdb {
 
@@ -31,10 +33,14 @@ unique_ptr<StatementVerifier> StatementVerifier::Create(VerificationType type, c
 		return CopiedStatementVerifier::Create(statement_p);
 	case VerificationType::DESERIALIZED:
 		return DeserializedStatementVerifier::Create(statement_p);
+	case VerificationType::DESERIALIZED_V2:
+		return DeserializedStatementVerifierV2::Create(statement_p);
 	case VerificationType::PARSED:
 		return ParsedStatementVerifier::Create(statement_p);
 	case VerificationType::UNOPTIMIZED:
 		return UnoptimizedStatementVerifier::Create(statement_p);
+	case VerificationType::NO_OPERATOR_CACHING:
+		return NoOperatorCachingVerifier::Create(statement_p);
 	case VerificationType::PREPARED:
 		return PreparedStatementVerifier::Create(statement_p);
 	case VerificationType::EXTERNAL:
@@ -104,6 +110,7 @@ bool StatementVerifier::Run(
 
 	context.interrupted = false;
 	context.config.enable_optimizer = !DisableOptimizer();
+	context.config.enable_caching_operators = !DisableOperatorCaching();
 	context.config.force_external = ForceExternal();
 	try {
 		auto result = run(query, std::move(statement));
@@ -113,10 +120,10 @@ bool StatementVerifier::Run(
 		materialized_result = unique_ptr_cast<QueryResult, MaterializedQueryResult>(std::move(result));
 	} catch (const Exception &ex) {
 		failed = true;
-		materialized_result = make_unique<MaterializedQueryResult>(PreservedError(ex));
+		materialized_result = make_uniq<MaterializedQueryResult>(PreservedError(ex));
 	} catch (std::exception &ex) {
 		failed = true;
-		materialized_result = make_unique<MaterializedQueryResult>(PreservedError(ex));
+		materialized_result = make_uniq<MaterializedQueryResult>(PreservedError(ex));
 	}
 	context.interrupted = false;
 

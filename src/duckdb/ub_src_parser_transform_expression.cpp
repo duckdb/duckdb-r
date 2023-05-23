@@ -2,6 +2,8 @@
 
 #include "src/parser/transform/expression/transform_bool_expr.cpp"
 
+#include "src/parser/transform/expression/transform_boolean_test.cpp"
+
 #include "src/parser/transform/expression/transform_case.cpp"
 
 #include "src/parser/transform/expression/transform_cast.cpp"

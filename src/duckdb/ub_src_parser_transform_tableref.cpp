@@ -4,6 +4,8 @@
 
 #include "src/parser/transform/tableref/transform_from.cpp"
 
+#include "src/parser/transform/tableref/transform_pivot.cpp"
+
 #include "src/parser/transform/tableref/transform_subquery.cpp"
 
 #include "src/parser/transform/tableref/transform_table_function.cpp"

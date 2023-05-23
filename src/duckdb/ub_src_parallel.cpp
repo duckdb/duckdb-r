@@ -8,6 +8,8 @@
 
 #include "src/parallel/event.cpp"
 
+#include "src/parallel/interrupt.cpp"
+
 #include "src/parallel/pipeline.cpp"
 
 #include "src/parallel/pipeline_complete_event.cpp"

@@ -8,14 +8,6 @@
 
 #include "src/common/types/chunk_collection.cpp"
 
-#include "src/common/types/column_data_allocator.cpp"
-
-#include "src/common/types/column_data_collection.cpp"
-
-#include "src/common/types/column_data_collection_segment.cpp"
-
-#include "src/common/types/column_data_consumer.cpp"
-
 #include "src/common/types/conflict_manager.cpp"
 
 #include "src/common/types/conflict_info.cpp"
@@ -36,13 +28,7 @@
 
 #include "src/common/types/interval.cpp"
 
-#include "src/common/types/partitioned_column_data.cpp"
-
-#include "src/common/types/row_data_collection.cpp"
-
-#include "src/common/types/row_data_collection_scanner.cpp"
-
-#include "src/common/types/row_layout.cpp"
+#include "src/common/types/list_segment.cpp"
 
 #include "src/common/types/selection_vector.cpp"
 

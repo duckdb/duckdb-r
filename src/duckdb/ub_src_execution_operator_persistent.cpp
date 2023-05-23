@@ -6,7 +6,13 @@
 
 #include "src/execution/operator/persistent/csv_buffer.cpp"
 
+#include "src/execution/operator/persistent/csv_file_handle.cpp"
+
 #include "src/execution/operator/persistent/csv_reader_options.cpp"
+
+#include "src/execution/operator/persistent/physical_fixed_batch_copy.cpp"
+
+#include "src/execution/operator/persistent/physical_batch_copy_to_file.cpp"
 
 #include "src/execution/operator/persistent/physical_batch_insert.cpp"
 

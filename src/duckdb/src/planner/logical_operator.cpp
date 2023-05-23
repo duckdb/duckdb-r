@@ -128,6 +128,8 @@ void LogicalOperator::Verify(ClientContext &context) {
 			continue;
 		}
 		BufferedSerializer serializer;
+		// We are serializing a query plan
+		serializer.is_query_plan = true;
 		try {
 			expressions[expr_idx]->Serialize(serializer);
 		} catch (NotImplementedException &ex) {
@@ -136,7 +138,7 @@ void LogicalOperator::Verify(ClientContext &context) {
 		}
 
 		auto data = serializer.GetData();
-		auto deserializer = BufferedDeserializer(data.data.get(), data.size);
+		auto deserializer = BufferedContextDeserializer(context, data.data.get(), data.size);
 
 		PlanDeserializationState state(context);
 		auto deserialized_expression = Expression::Deserialize(deserializer, state);
@@ -255,6 +257,9 @@ unique_ptr<LogicalOperator> LogicalOperator::Deserialize(Deserializer &deseriali
 	case LogicalOperatorType::LOGICAL_DELIM_JOIN:
 		result = LogicalDelimJoin::Deserialize(state, reader);
 		break;
+	case LogicalOperatorType::LOGICAL_ASOF_JOIN:
+		result = LogicalAsOfJoin::Deserialize(state, reader);
+		break;
 	case LogicalOperatorType::LOGICAL_COMPARISON_JOIN:
 		result = LogicalComparisonJoin::Deserialize(state, reader);
 		break;
@@ -339,12 +344,14 @@ unique_ptr<LogicalOperator> LogicalOperator::Deserialize(Deserializer &deseriali
 	case LogicalOperatorType::LOGICAL_ATTACH:
 	case LogicalOperatorType::LOGICAL_TRANSACTION:
 	case LogicalOperatorType::LOGICAL_DROP:
+	case LogicalOperatorType::LOGICAL_DETACH:
 		result = LogicalSimple::Deserialize(state, reader);
 		break;
-	case LogicalOperatorType::LOGICAL_DETACH:
-		throw SerializationException("Logical Detach does not support serialization");
 	case LogicalOperatorType::LOGICAL_EXTENSION_OPERATOR:
 		result = LogicalExtensionOperator::Deserialize(state, reader);
+		break;
+	case LogicalOperatorType::LOGICAL_PIVOT:
+		result = LogicalPivot::Deserialize(state, reader);
 		break;
 	case LogicalOperatorType::LOGICAL_INVALID:
 		/* no default here to trigger a warning if we forget to implement deserialize for a new operator */
@@ -371,7 +378,7 @@ unique_ptr<LogicalOperator> LogicalOperator::Copy(ClientContext &context) const 
 		                              std::string(ex.what()));
 	}
 	auto data = logical_op_serializer.GetData();
-	auto logical_op_deserializer = BufferedDeserializer(data.data.get(), data.size);
+	auto logical_op_deserializer = BufferedContextDeserializer(context, data.data.get(), data.size);
 	PlanDeserializationState state(context);
 	auto op_copy = LogicalOperator::Deserialize(logical_op_deserializer, state);
 	return op_copy;

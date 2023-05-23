@@ -50,6 +50,8 @@
 
 #include "src/parser/transform/statement/transform_set.cpp"
 
+#include "src/parser/transform/statement/transform_pivot_stmt.cpp"
+
 #include "src/parser/transform/statement/transform_prepare.cpp"
 
 #include "src/parser/transform/statement/transform_show.cpp"

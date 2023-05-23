@@ -24,5 +24,7 @@
 
 #include "src/optimizer/rule/in_clause_simplification_rule.cpp"
 
+#include "src/optimizer/rule/ordered_aggregate_optimizer.cpp"
+
 #include "src/optimizer/rule/regex_optimizations.cpp"
 

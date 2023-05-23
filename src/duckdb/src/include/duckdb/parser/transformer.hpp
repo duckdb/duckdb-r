@@ -21,6 +21,7 @@
 
 #include "pg_definitions.hpp"
 #include "nodes/parsenodes.hpp"
+#include "nodes/primnodes.hpp"
 
 namespace duckdb {
 
@@ -32,64 +33,67 @@ struct CommonTableExpressionInfo;
 struct GroupingExpressionMap;
 class OnConflictInfo;
 class UpdateSetInfo;
+struct ParserOptions;
+struct PivotColumn;
 
 //! The transformer class is responsible for transforming the internal Postgres
 //! parser representation into the DuckDB representation
 class Transformer {
 	friend class StackChecker;
 
+	struct CreatePivotEntry {
+		string enum_name;
+		unique_ptr<SelectNode> base;
+		unique_ptr<ParsedExpression> column;
+		unique_ptr<QueryNode> subquery;
+	};
+
 public:
-	explicit Transformer(idx_t max_expression_depth_p);
-	explicit Transformer(Transformer *parent);
+	explicit Transformer(ParserOptions &options);
+	explicit Transformer(Transformer &parent);
+	~Transformer();
 
 	//! Transforms a Postgres parse tree into a set of SQL Statements
 	bool TransformParseTree(duckdb_libpgquery::PGList *tree, vector<unique_ptr<SQLStatement>> &statements);
 	string NodetypeToString(duckdb_libpgquery::PGNodeTag type);
 
-	idx_t ParamCount() {
-		return parent ? parent->ParamCount() : prepared_statement_parameter_index;
-	}
+	idx_t ParamCount() const;
 
 private:
-	Transformer *parent;
-	idx_t max_expression_depth;
+	optional_ptr<Transformer> parent;
+	//! Parser options
+	ParserOptions &options;
 	//! The current prepared statement parameter index
 	idx_t prepared_statement_parameter_index = 0;
 	//! Map from named parameter to parameter index;
 	case_insensitive_map_t<idx_t> named_param_map;
 	//! Holds window expressions defined by name. We need those when transforming the expressions referring to them.
 	unordered_map<string, duckdb_libpgquery::PGWindowDef *> window_clauses;
+	//! The set of pivot entries to create
+	vector<unique_ptr<CreatePivotEntry>> pivot_entries;
+	//! Sets of stored CTEs, if any
+	vector<CommonTableExpressionMap *> stored_cte_map;
+	//! Whether or not we are currently binding a window definition
+	bool in_window_definition = false;
 
-	void SetParamCount(idx_t new_count) {
-		if (parent) {
-			parent->SetParamCount(new_count);
-		} else {
-			this->prepared_statement_parameter_index = new_count;
-		}
-	}
-	void SetNamedParam(const string &name, int32_t index) {
-		if (parent) {
-			parent->SetNamedParam(name, index);
-		} else {
-			D_ASSERT(!named_param_map.count(name));
-			this->named_param_map[name] = index;
-		}
-	}
-	bool GetNamedParam(const string &name, int32_t &index) {
-		if (parent) {
-			return parent->GetNamedParam(name, index);
-		} else {
-			auto entry = named_param_map.find(name);
-			if (entry == named_param_map.end()) {
-				return false;
-			}
-			index = entry->second;
-			return true;
-		}
-	}
-	bool HasNamedParameters() const {
-		return parent ? parent->HasNamedParameters() : !named_param_map.empty();
-	}
+	void Clear();
+	bool InWindowDefinition();
+
+	Transformer &RootTransformer();
+	const Transformer &RootTransformer() const;
+	void SetParamCount(idx_t new_count);
+	void SetNamedParam(const string &name, int32_t index);
+	bool GetNamedParam(const string &name, int32_t &index);
+	bool HasNamedParameters() const;
+
+	void AddPivotEntry(string enum_name, unique_ptr<SelectNode> source, unique_ptr<ParsedExpression> column,
+	                   unique_ptr<QueryNode> subquery);
+	unique_ptr<SQLStatement> GenerateCreateEnumStmt(unique_ptr<CreatePivotEntry> entry);
+	bool HasPivotEntries();
+	idx_t PivotEntryCount();
+	vector<unique_ptr<CreatePivotEntry>> &GetPivotEntries();
+	void PivotEntryCheck(const string &type);
+	void ExtractCTEsRecursive(CommonTableExpressionMap &cte_map);
 
 private:
 	//! Transforms a Postgres statement into a single SQL statement
@@ -163,6 +167,10 @@ private:
 	unique_ptr<ExecuteStatement> TransformExecute(duckdb_libpgquery::PGNode *node);
 	unique_ptr<CallStatement> TransformCall(duckdb_libpgquery::PGNode *node);
 	unique_ptr<DropStatement> TransformDeallocate(duckdb_libpgquery::PGNode *node);
+	unique_ptr<QueryNode> TransformPivotStatement(duckdb_libpgquery::PGSelectStmt *stmt);
+	unique_ptr<SQLStatement> CreatePivotStatement(unique_ptr<SQLStatement> statement);
+	PivotColumn TransformPivotColumn(duckdb_libpgquery::PGPivot *pivot);
+	vector<PivotColumn> TransformPivotList(duckdb_libpgquery::PGList *list);
 
 	//===--------------------------------------------------------------------===//
 	// SetStatement Transform
@@ -179,6 +187,8 @@ private:
 	//===--------------------------------------------------------------------===//
 	//! Transform a Postgres duckdb_libpgquery::T_PGSelectStmt node into a QueryNode
 	unique_ptr<QueryNode> TransformSelectNode(duckdb_libpgquery::PGSelectStmt *node);
+	unique_ptr<QueryNode> TransformSelectInternal(duckdb_libpgquery::PGSelectStmt *node);
+	void TransformModifiers(duckdb_libpgquery::PGSelectStmt &stmt, QueryNode &node);
 
 	//===--------------------------------------------------------------------===//
 	// Expression Transform
@@ -211,6 +221,7 @@ private:
 	//! Transform a positional reference (e.g. #1)
 	unique_ptr<ParsedExpression> TransformPositionalReference(duckdb_libpgquery::PGPositionalReference *node);
 	unique_ptr<ParsedExpression> TransformStarExpression(duckdb_libpgquery::PGNode *node);
+	unique_ptr<ParsedExpression> TransformBooleanTest(duckdb_libpgquery::PGBooleanTest *node);
 
 	//! Transform a Postgres constant value into an Expression
 	unique_ptr<ParsedExpression> TransformConstant(duckdb_libpgquery::PGAConst *c);
@@ -256,12 +267,13 @@ private:
 	//===--------------------------------------------------------------------===//
 	OnCreateConflict TransformOnConflict(duckdb_libpgquery::PGOnCreateConflict conflict);
 	string TransformAlias(duckdb_libpgquery::PGAlias *root, vector<string> &column_name_alias);
+	vector<string> TransformStringList(duckdb_libpgquery::PGList *list);
 	void TransformCTE(duckdb_libpgquery::PGWithClause *de_with_clause, CommonTableExpressionMap &cte_map);
 	unique_ptr<SelectStatement> TransformRecursiveCTE(duckdb_libpgquery::PGCommonTableExpr *node,
 	                                                  CommonTableExpressionInfo &info);
 
 	unique_ptr<ParsedExpression> TransformUnaryOperator(const string &op, unique_ptr<ParsedExpression> child);
-	unique_ptr<ParsedExpression> TransformBinaryOperator(const string &op, unique_ptr<ParsedExpression> left,
+	unique_ptr<ParsedExpression> TransformBinaryOperator(string op, unique_ptr<ParsedExpression> left,
 	                                                     unique_ptr<ParsedExpression> right);
 	//===--------------------------------------------------------------------===//
 	// TableRef transform
@@ -276,6 +288,8 @@ private:
 	unique_ptr<TableRef> TransformRangeFunction(duckdb_libpgquery::PGRangeFunction *root);
 	//! Transform a Postgres join node into a TableRef
 	unique_ptr<TableRef> TransformJoin(duckdb_libpgquery::PGJoinExpr *root);
+	//! Transform a Postgres pivot node into a TableRef
+	unique_ptr<TableRef> TransformPivot(duckdb_libpgquery::PGPivotExpr *root);
 	//! Transform a table producing subquery into a TableRef
 	unique_ptr<TableRef> TransformRangeSubselect(duckdb_libpgquery::PGRangeSubselect *root);
 	//! Transform a VALUES list into a set of expressions
@@ -302,11 +316,16 @@ private:
 	void TransformExpressionList(duckdb_libpgquery::PGList &list, vector<unique_ptr<ParsedExpression>> &result);
 
 	//! Transform a Postgres PARTITION BY/ORDER BY specification into lists of expressions
-	void TransformWindowDef(duckdb_libpgquery::PGWindowDef *window_spec, WindowExpression *expr);
+	void TransformWindowDef(duckdb_libpgquery::PGWindowDef *window_spec, WindowExpression *expr,
+	                        const char *window_name = nullptr);
 	//! Transform a Postgres window frame specification into frame expressions
 	void TransformWindowFrame(duckdb_libpgquery::PGWindowDef *window_spec, WindowExpression *expr);
 
 	unique_ptr<SampleOptions> TransformSampleOptions(duckdb_libpgquery::PGNode *options);
+	//! Returns true if an expression is only a star (i.e. "*", without any other decorators)
+	bool ExpressionIsEmptyStar(ParsedExpression &expr);
+
+	OnEntryNotFound TransformOnEntryNotFound(bool missing_ok);
 
 private:
 	//! Current stack depth

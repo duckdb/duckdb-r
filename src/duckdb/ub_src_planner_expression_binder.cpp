@@ -2,6 +2,8 @@
 
 #include "src/planner/expression_binder/alter_binder.cpp"
 
+#include "src/planner/expression_binder/base_select_binder.cpp"
+
 #include "src/planner/expression_binder/check_binder.cpp"
 
 #include "src/planner/expression_binder/column_alias_binder.cpp"

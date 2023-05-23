@@ -10,6 +10,8 @@
 
 #include "src/function/table/repeat.cpp"
 
+#include "src/function/table/repeat_row.cpp"
+
 #include "src/function/table/copy_csv.cpp"
 
 #include "src/function/table/read_csv.cpp"

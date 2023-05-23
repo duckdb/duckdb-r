@@ -6,3 +6,5 @@
 
 #include "src/main/extension/extension_load.cpp"
 
+#include "src/main/extension/extension_util.cpp"
+

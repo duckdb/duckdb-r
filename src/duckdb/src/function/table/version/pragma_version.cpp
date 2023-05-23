@@ -1,8 +1,8 @@
 #ifndef DUCKDB_VERSION
-#define DUCKDB_VERSION "0.7.1"
+#define DUCKDB_VERSION "0.8.0"
 #endif
 #ifndef DUCKDB_SOURCE_ID
-#define DUCKDB_SOURCE_ID "b00b93f0b1"
+#define DUCKDB_SOURCE_ID "e8e4cea5ec"
 #endif
 #include "duckdb/function/table/system_functions.hpp"
 #include "duckdb/main/database.hpp"
@@ -28,7 +28,7 @@ static unique_ptr<FunctionData> PragmaVersionBind(ClientContext &context, TableF
 }
 
 static unique_ptr<GlobalTableFunctionState> PragmaVersionInit(ClientContext &context, TableFunctionInitInput &input) {
-	return make_unique<PragmaVersionData>();
+	return make_uniq<PragmaVersionData>();
 }
 
 static void PragmaVersionFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
@@ -87,7 +87,13 @@ string DuckDB::Platform() {
 		postfix = "_gcc4";
 	}
 #endif
-
+#ifdef __MINGW32__
+	postfix = "_mingw";
+#endif
+// this is used for the windows R builds which use a separate build environment
+#ifdef DUCKDB_PLATFORM_RTOOLS
+	postfix = "_rtools";
+#endif
 	return os + "_" + arch + postfix;
 }
 

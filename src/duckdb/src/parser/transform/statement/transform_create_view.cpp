@@ -12,8 +12,8 @@ unique_ptr<CreateStatement> Transformer::TransformCreateView(duckdb_libpgquery::
 	D_ASSERT(stmt);
 	D_ASSERT(stmt->view);
 
-	auto result = make_unique<CreateStatement>();
-	auto info = make_unique<CreateViewInfo>();
+	auto result = make_uniq<CreateStatement>();
+	auto info = make_uniq<CreateViewInfo>();
 
 	auto qname = TransformQualifiedName(stmt->view);
 	info->catalog = qname.catalog;
@@ -26,6 +26,8 @@ unique_ptr<CreateStatement> Transformer::TransformCreateView(duckdb_libpgquery::
 	info->on_conflict = TransformOnConflict(stmt->onconflict);
 
 	info->query = TransformSelect(stmt->query, false);
+
+	PivotEntryCheck("view");
 
 	if (stmt->aliases && stmt->aliases->length > 0) {
 		for (auto c = stmt->aliases->head; c != nullptr; c = lnext(c)) {

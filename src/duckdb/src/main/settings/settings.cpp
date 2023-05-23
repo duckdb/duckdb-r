@@ -142,6 +142,26 @@ Value DebugForceNoCrossProduct::GetSetting(ClientContext &context) {
 }
 
 //===--------------------------------------------------------------------===//
+// Ordered Aggregate Threshold
+//===--------------------------------------------------------------------===//
+
+void OrderedAggregateThreshold::ResetLocal(ClientContext &context) {
+	ClientConfig::GetConfig(context).ordered_aggregate_threshold = ClientConfig().ordered_aggregate_threshold;
+}
+
+void OrderedAggregateThreshold::SetLocal(ClientContext &context, const Value &input) {
+	const auto param = input.GetValue<uint64_t>();
+	if (!param) {
+		throw ParserException("Invalid option for PRAGMA ordered_aggregate_threshold, value must be positive");
+	}
+	ClientConfig::GetConfig(context).ordered_aggregate_threshold = param;
+}
+
+Value OrderedAggregateThreshold::GetSetting(ClientContext &context) {
+	return Value::UBIGINT(ClientConfig::GetConfig(context).ordered_aggregate_threshold);
+}
+
+//===--------------------------------------------------------------------===//
 // Debug Window Mode
 //===--------------------------------------------------------------------===//
 void DebugWindowMode::SetGlobal(DatabaseInstance *db, DBConfig &config, const Value &input) {
@@ -163,6 +183,21 @@ void DebugWindowMode::ResetGlobal(DatabaseInstance *db, DBConfig &config) {
 
 Value DebugWindowMode::GetSetting(ClientContext &context) {
 	return Value();
+}
+
+//===--------------------------------------------------------------------===//
+// Debug AsOf Join
+//===--------------------------------------------------------------------===//
+void DebugAsOfIEJoin::ResetLocal(ClientContext &context) {
+	ClientConfig::GetConfig(context).force_no_cross_product = ClientConfig().force_asof_iejoin;
+}
+
+void DebugAsOfIEJoin::SetLocal(ClientContext &context, const Value &input) {
+	ClientConfig::GetConfig(context).force_asof_iejoin = input.GetValue<bool>();
+}
+
+Value DebugAsOfIEJoin::GetSetting(ClientContext &context) {
+	return Value::BOOLEAN(ClientConfig::GetConfig(context).force_asof_iejoin);
 }
 
 //===--------------------------------------------------------------------===//
@@ -233,14 +268,18 @@ void DefaultNullOrderSetting::SetGlobal(DatabaseInstance *db, DBConfig &config, 
 	auto parameter = StringUtil::Lower(input.ToString());
 
 	if (parameter == "nulls_first" || parameter == "nulls first" || parameter == "null first" || parameter == "first") {
-		config.options.default_null_order = OrderByNullType::NULLS_FIRST;
+		config.options.default_null_order = DefaultOrderByNullType::NULLS_FIRST;
 	} else if (parameter == "nulls_last" || parameter == "nulls last" || parameter == "null last" ||
 	           parameter == "last") {
-		config.options.default_null_order = OrderByNullType::NULLS_LAST;
+		config.options.default_null_order = DefaultOrderByNullType::NULLS_LAST;
+	} else if (parameter == "nulls_first_on_asc_last_on_desc" || parameter == "sqlite" || parameter == "mysql") {
+		config.options.default_null_order = DefaultOrderByNullType::NULLS_FIRST_ON_ASC_LAST_ON_DESC;
+	} else if (parameter == "nulls_last_on_asc_first_on_desc" || parameter == "postgres") {
+		config.options.default_null_order = DefaultOrderByNullType::NULLS_LAST_ON_ASC_FIRST_ON_DESC;
 	} else {
-		throw ParserException(
-		    "Unrecognized parameter for option NULL_ORDER \"%s\", expected either NULLS FIRST or NULLS LAST",
-		    parameter);
+		throw ParserException("Unrecognized parameter for option NULL_ORDER \"%s\", expected either NULLS FIRST, NULLS "
+		                      "LAST, SQLite, MySQL or Postgres",
+		                      parameter);
 	}
 }
 
@@ -251,10 +290,14 @@ void DefaultNullOrderSetting::ResetGlobal(DatabaseInstance *db, DBConfig &config
 Value DefaultNullOrderSetting::GetSetting(ClientContext &context) {
 	auto &config = DBConfig::GetConfig(context);
 	switch (config.options.default_null_order) {
-	case OrderByNullType::NULLS_FIRST:
+	case DefaultOrderByNullType::NULLS_FIRST:
 		return "nulls_first";
-	case OrderByNullType::NULLS_LAST:
+	case DefaultOrderByNullType::NULLS_LAST:
 		return "nulls_last";
+	case DefaultOrderByNullType::NULLS_FIRST_ON_ASC_LAST_ON_DESC:
+		return "nulls_first_on_asc_last_on_desc";
+	case DefaultOrderByNullType::NULLS_LAST_ON_ASC_FIRST_ON_DESC:
+		return "nulls_last_on_asc_first_on_desc";
 	default:
 		throw InternalException("Unknown null order setting");
 	}
@@ -454,11 +497,15 @@ Value CustomExtensionRepository::GetSetting(ClientContext &context) {
 //===--------------------------------------------------------------------===//
 
 void EnableProgressBarSetting::ResetLocal(ClientContext &context) {
-	ClientConfig::GetConfig(context).enable_progress_bar = ClientConfig().enable_progress_bar;
+	auto &config = ClientConfig::GetConfig(context);
+	ProgressBar::SystemOverrideCheck(config);
+	config.enable_progress_bar = ClientConfig().enable_progress_bar;
 }
 
 void EnableProgressBarSetting::SetLocal(ClientContext &context, const Value &input) {
-	ClientConfig::GetConfig(context).enable_progress_bar = input.GetValue<bool>();
+	auto &config = ClientConfig::GetConfig(context);
+	ProgressBar::SystemOverrideCheck(config);
+	config.enable_progress_bar = input.GetValue<bool>();
 }
 
 Value EnableProgressBarSetting::GetSetting(ClientContext &context) {
@@ -469,11 +516,15 @@ Value EnableProgressBarSetting::GetSetting(ClientContext &context) {
 // Enable Progress Bar Print
 //===--------------------------------------------------------------------===//
 void EnableProgressBarPrintSetting::SetLocal(ClientContext &context, const Value &input) {
-	ClientConfig::GetConfig(context).print_progress_bar = input.GetValue<bool>();
+	auto &config = ClientConfig::GetConfig(context);
+	ProgressBar::SystemOverrideCheck(config);
+	config.print_progress_bar = input.GetValue<bool>();
 }
 
 void EnableProgressBarPrintSetting::ResetLocal(ClientContext &context) {
-	ClientConfig::GetConfig(context).print_progress_bar = ClientConfig().print_progress_bar;
+	auto &config = ClientConfig::GetConfig(context);
+	ProgressBar::SystemOverrideCheck(config);
+	config.print_progress_bar = ClientConfig().print_progress_bar;
 }
 
 Value EnableProgressBarPrintSetting::GetSetting(ClientContext &context) {
@@ -484,16 +535,15 @@ Value EnableProgressBarPrintSetting::GetSetting(ClientContext &context) {
 // Experimental Parallel CSV
 //===--------------------------------------------------------------------===//
 void ExperimentalParallelCSVSetting::SetGlobal(DatabaseInstance *db, DBConfig &config, const Value &input) {
-	config.options.experimental_parallel_csv_reader = input.GetValue<bool>();
+	Printer::Print("experimental_parallel_csv is deprecated and will be removed with the next release - the parallel "
+	               "CSV reader is now standard and does not need to be manually enabled anymore 1");
 }
 
 void ExperimentalParallelCSVSetting::ResetGlobal(DatabaseInstance *db, DBConfig &config) {
-	config.options.experimental_parallel_csv_reader = DBConfig().options.experimental_parallel_csv_reader;
 }
 
 Value ExperimentalParallelCSVSetting::GetSetting(ClientContext &context) {
-	auto &config = DBConfig::GetConfig(context);
-	return Value::BIGINT(config.options.experimental_parallel_csv_reader);
+	return Value();
 }
 
 //===--------------------------------------------------------------------===//
@@ -653,6 +703,22 @@ Value HomeDirectorySetting::GetSetting(ClientContext &context) {
 }
 
 //===--------------------------------------------------------------------===//
+// Integer Division
+//===--------------------------------------------------------------------===//
+void IntegerDivisionSetting::ResetLocal(ClientContext &context) {
+	ClientConfig::GetConfig(context).integer_division = ClientConfig().integer_division;
+}
+
+void IntegerDivisionSetting::SetLocal(ClientContext &context, const Value &input) {
+	auto &config = ClientConfig::GetConfig(context);
+	config.integer_division = input.GetValue<bool>();
+}
+
+Value IntegerDivisionSetting::GetSetting(ClientContext &context) {
+	auto &config = ClientConfig::GetConfig(context);
+	return Value(config.integer_division);
+}
+//===--------------------------------------------------------------------===//
 // Log Query Path
 //===--------------------------------------------------------------------===//
 
@@ -669,9 +735,8 @@ void LogQueryPathSetting::SetLocal(ClientContext &context, const Value &input) {
 		// empty path: clean up query writer
 		client_data.log_query_writer = nullptr;
 	} else {
-		client_data.log_query_writer =
-		    make_unique<BufferedFileWriter>(FileSystem::GetFileSystem(context), path,
-		                                    BufferedFileWriter::DEFAULT_OPEN_FLAGS, client_data.file_opener.get());
+		client_data.log_query_writer = make_uniq<BufferedFileWriter>(FileSystem::GetFileSystem(context), path,
+		                                                             BufferedFileWriter::DEFAULT_OPEN_FLAGS);
 	}
 }
 
@@ -755,7 +820,7 @@ void PerfectHashThresholdSetting::ResetLocal(ClientContext &context) {
 }
 
 void PerfectHashThresholdSetting::SetLocal(ClientContext &context, const Value &input) {
-	auto bits = input.GetValue<int32_t>();
+	auto bits = input.GetValue<int64_t>();
 	if (bits < 0 || bits > 32) {
 		throw ParserException("Perfect HT threshold out of range: should be within range 0 - 32");
 	}
@@ -764,6 +829,22 @@ void PerfectHashThresholdSetting::SetLocal(ClientContext &context, const Value &
 
 Value PerfectHashThresholdSetting::GetSetting(ClientContext &context) {
 	return Value::BIGINT(ClientConfig::GetConfig(context).perfect_ht_threshold);
+}
+
+//===--------------------------------------------------------------------===//
+// Pivot Limit
+//===--------------------------------------------------------------------===//
+
+void PivotLimitSetting::ResetLocal(ClientContext &context) {
+	ClientConfig::GetConfig(context).pivot_limit = ClientConfig().pivot_limit;
+}
+
+void PivotLimitSetting::SetLocal(ClientContext &context, const Value &input) {
+	ClientConfig::GetConfig(context).pivot_limit = input.GetValue<uint64_t>();
+}
+
+Value PivotLimitSetting::GetSetting(ClientContext &context) {
+	return Value::BIGINT(ClientConfig::GetConfig(context).pivot_limit);
 }
 
 //===--------------------------------------------------------------------===//
@@ -878,13 +959,17 @@ Value ProfilingModeSetting::GetSetting(ClientContext &context) {
 //===--------------------------------------------------------------------===//
 
 void ProgressBarTimeSetting::ResetLocal(ClientContext &context) {
-	ClientConfig::GetConfig(context).wait_time = ClientConfig().wait_time;
-	ClientConfig::GetConfig(context).enable_progress_bar = ClientConfig().enable_progress_bar;
+	auto &config = ClientConfig::GetConfig(context);
+	ProgressBar::SystemOverrideCheck(config);
+	config.wait_time = ClientConfig().wait_time;
+	config.enable_progress_bar = ClientConfig().enable_progress_bar;
 }
 
 void ProgressBarTimeSetting::SetLocal(ClientContext &context, const Value &input) {
-	ClientConfig::GetConfig(context).wait_time = input.GetValue<int32_t>();
-	ClientConfig::GetConfig(context).enable_progress_bar = true;
+	auto &config = ClientConfig::GetConfig(context);
+	ProgressBar::SystemOverrideCheck(config);
+	config.wait_time = input.GetValue<int32_t>();
+	config.enable_progress_bar = true;
 }
 
 Value ProgressBarTimeSetting::GetSetting(ClientContext &context) {
