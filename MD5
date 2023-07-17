@@ -1,4 +1,4 @@
-a05b1ed987947e8d4bddb6ccfb2d2092 *DESCRIPTION
+4a621f9382e8f478266d9c67bb5b8bb5 *DESCRIPTION
 6793c89d1af721728c4d58c99d5b9d30 *LICENSE
 e975be1b49bcc0e567737d712d3e3cc8 *NAMESPACE
 ced14ada4cfff8a89e7feb2203f589fb *R/Connection.R
@@ -2619,7 +2619,7 @@ a3ce818c4cb2c7c4dd435207fb19c747 *tests/testthat/test_register.R
 60434301f7c5e98861b7620cd7035091 *tests/testthat/test_register_arrow.R
 891908e0804e2315fa13285f1005a689 *tests/testthat/test_register_readonly.R
 1628b8687408ce019baec5acae74918b *tests/testthat/test_relational.R
-7b973862adf641e0d5b9f8a81c0a4a42 *tests/testthat/test_struct.R
+1439bba03df63e03d87acfe916b5e62f *tests/testthat/test_struct.R
 ff31415409c10783fc36512cc6ef7920 *tests/testthat/test_tbl__duckdb_connection.R
 6f39a7ff5f8d75716824165d951473e4 *tests/testthat/test_timezone.R
 0d70b43b41ce312eb3cb0c418ca2840f *tests/testthat/test_types.R
