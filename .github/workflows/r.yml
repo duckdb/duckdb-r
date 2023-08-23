@@ -43,6 +43,7 @@ jobs:
     - name: Prepare
       shell: bash
       run: |
+        rm -rf duckdb/test/sql/copy/csv/data/glob/crawl/.symbolic_link
         mkdir -p /tmp/duckdb_extensions
         ./configure
         R CMD build .
@@ -148,6 +149,7 @@ jobs:
     - name: Build
       shell: bash
       run: |
+        rm -rf duckdb/test/sql/copy/csv/data/glob/crawl/.symbolic_link
         ./configure
         R CMD INSTALL .
 
@@ -187,6 +189,7 @@ jobs:
     - name: Build
       shell: bash
       run: |
+        rm -rf duckdb/test/sql/copy/csv/data/glob/crawl/.symbolic_link
         ./configure
         R CMD build .
         R CMD INSTALL duckdb_*.tar.gz
@@ -242,6 +245,7 @@ jobs:
       - name: Install R package
         shell: bash
         run: |
+          rm -rf duckdb/test/sql/copy/csv/data/glob/crawl/.symbolic_link
           R -e 'install.packages("DBI", repos = "https://cloud.r-project.org")'
           ./configure
           R CMD build .
