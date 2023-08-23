@@ -12,3 +12,4 @@ src/Makevars.in
 NEWS.md
 tests/regression
 RELEASE.md
+\.github
