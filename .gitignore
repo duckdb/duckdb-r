@@ -1,9 +1,6 @@
-src/duckdb/
 *.tar.gz
 *.tgz
-src/Makevars
-src/Makevars.win
-src/*.o
+src/**/*.o
 src/*.so
 # Created by https://www.toptal.com/developers/gitignore/api/r
 # Edit at https://www.toptal.com/developers/gitignore?templates=r

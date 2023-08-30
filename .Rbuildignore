@@ -3,7 +3,6 @@
 .*\.tar.gz
 .*\.tgz
 .*\.zip
-configure
 dependencies.R
 src/Makevars.in
 ^.*\.Rproj$
@@ -13,3 +12,5 @@ NEWS.md
 tests/regression
 RELEASE.md
 \.github
+^\.gitattributes$
+^vendor\.sh$

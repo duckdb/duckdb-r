@@ -21,7 +21,9 @@ debug_move_flag = ''
 if 'DUCKDB_DEBUG_MOVE' in os.environ:
     debug_move_flag = '-DDUCKDB_DEBUG_MOVE'
 
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'duckdb', 'scripts'))
+# This requires the mother duckdb repo to be checked out in a parallel directory
+# Submodules can't be used because they break R CMD build
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'duckdb', 'scripts'))
 import package_build
 
 
@@ -81,7 +83,7 @@ if 'DUCKDB_R_BINDIR' in os.environ and 'DUCKDB_R_CFLAGS' in os.environ and 'DUCK
         f.write(text)
     exit(0)
 
-if not os.path.isfile(os.path.join('duckdb', 'scripts', 'amalgamation.py')):
+if not os.path.isfile(os.path.join('..', 'duckdb', 'scripts', 'amalgamation.py')):
     print("Could not find amalgamation script! This script needs to be launched from the subdirectory tools/rpkg")
     exit(1)
 
