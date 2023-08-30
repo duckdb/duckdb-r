@@ -13,23 +13,24 @@
 namespace duckdb {
 
 class LogicalRecursiveCTE : public LogicalOperator {
-	LogicalRecursiveCTE() : LogicalOperator(LogicalOperatorType::LOGICAL_RECURSIVE_CTE) {
+	LogicalRecursiveCTE(idx_t table_index, idx_t column_count, bool union_all)
+	    : LogicalOperator(LogicalOperatorType::LOGICAL_RECURSIVE_CTE), union_all(union_all), table_index(table_index),
+	      column_count(column_count) {
 	}
 
 public:
 	static constexpr const LogicalOperatorType TYPE = LogicalOperatorType::LOGICAL_RECURSIVE_CTE;
 
 public:
-	LogicalRecursiveCTE(string ctename, idx_t table_index, idx_t column_count, bool union_all,
-	                    unique_ptr<LogicalOperator> top, unique_ptr<LogicalOperator> bottom)
-	    : LogicalOperator(LogicalOperatorType::LOGICAL_RECURSIVE_CTE), union_all(union_all), ctename(ctename),
-	      table_index(table_index), column_count(column_count) {
+	LogicalRecursiveCTE(idx_t table_index, idx_t column_count, bool union_all, unique_ptr<LogicalOperator> top,
+	                    unique_ptr<LogicalOperator> bottom)
+	    : LogicalOperator(LogicalOperatorType::LOGICAL_RECURSIVE_CTE), union_all(union_all), table_index(table_index),
+	      column_count(column_count) {
 		children.push_back(std::move(top));
 		children.push_back(std::move(bottom));
 	}
 
 	bool union_all;
-	string ctename;
 	idx_t table_index;
 	idx_t column_count;
 
@@ -39,10 +40,6 @@ public:
 	}
 	void Serialize(FieldWriter &writer) const override;
 	static unique_ptr<LogicalOperator> Deserialize(LogicalDeserializationState &state, FieldReader &reader);
-
-	void FormatSerialize(FormatSerializer &serializer) const override;
-	static unique_ptr<LogicalOperator> FormatDeserialize(FormatDeserializer &deserializer);
-
 	vector<idx_t> GetTableIndex() const override;
 	string GetName() const override;
 

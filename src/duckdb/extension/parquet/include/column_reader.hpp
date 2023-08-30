@@ -8,19 +8,21 @@
 
 #pragma once
 
-#include "duckdb.hpp"
-#include "parquet_dbp_decoder.hpp"
-#include "parquet_rle_bp_decoder.hpp"
-#include "parquet_statistics.hpp"
 #include "parquet_types.h"
-#include "resizable_buffer.hpp"
 #include "thrift_tools.hpp"
+#include "resizable_buffer.hpp"
+
+#include "parquet_rle_bp_decoder.hpp"
+#include "parquet_dbp_decoder.hpp"
+#include "parquet_statistics.hpp"
+
+#include "duckdb.hpp"
 #ifndef DUCKDB_AMALGAMATION
 
-#include "duckdb/common/operator/cast_operators.hpp"
-#include "duckdb/common/types/chunk_collection.hpp"
-#include "duckdb/common/types/string_type.hpp"
 #include "duckdb/common/types/vector.hpp"
+#include "duckdb/common/types/string_type.hpp"
+#include "duckdb/common/types/chunk_collection.hpp"
+#include "duckdb/common/operator/cast_operators.hpp"
 #include "duckdb/common/types/vector_cache.hpp"
 #endif
 
@@ -127,7 +129,7 @@ protected:
 
 	ParquetReader &reader;
 	LogicalType type;
-	unique_ptr<Vector> byte_array_data;
+	duckdb::unique_ptr<Vector> byte_array_data;
 	idx_t byte_array_count = 0;
 
 	idx_t pending_skips = 0;
@@ -156,11 +158,11 @@ private:
 	ResizeableBuffer compressed_buffer;
 	ResizeableBuffer offset_buffer;
 
-	unique_ptr<RleBpDecoder> dict_decoder;
-	unique_ptr<RleBpDecoder> defined_decoder;
-	unique_ptr<RleBpDecoder> repeated_decoder;
-	unique_ptr<DbpDecoder> dbp_decoder;
-	unique_ptr<RleBpDecoder> rle_decoder;
+	duckdb::unique_ptr<RleBpDecoder> dict_decoder;
+	duckdb::unique_ptr<RleBpDecoder> defined_decoder;
+	duckdb::unique_ptr<RleBpDecoder> repeated_decoder;
+	duckdb::unique_ptr<DbpDecoder> dbp_decoder;
+	duckdb::unique_ptr<RleBpDecoder> rle_decoder;
 
 	// dummies for Skip()
 	parquet_filter_t none_filter;

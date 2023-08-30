@@ -20,13 +20,9 @@ public:
 	static constexpr const PhysicalOperatorType TYPE = PhysicalOperatorType::RECURSIVE_CTE;
 
 public:
-	PhysicalRecursiveCTE(string ctename, idx_t table_index, vector<LogicalType> types, bool union_all,
-	                     unique_ptr<PhysicalOperator> top, unique_ptr<PhysicalOperator> bottom,
-	                     idx_t estimated_cardinality);
+	PhysicalRecursiveCTE(vector<LogicalType> types, bool union_all, unique_ptr<PhysicalOperator> top,
+	                     unique_ptr<PhysicalOperator> bottom, idx_t estimated_cardinality);
 	~PhysicalRecursiveCTE() override;
-
-	string ctename;
-	idx_t table_index;
 
 	bool union_all;
 	std::shared_ptr<ColumnDataCollection> working_table;
@@ -49,8 +45,6 @@ public:
 	bool IsSink() const override {
 		return true;
 	}
-
-	string ParamsToString() const override;
 
 public:
 	void BuildPipelines(Pipeline &current, MetaPipeline &meta_pipeline) override;

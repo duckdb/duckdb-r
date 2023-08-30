@@ -87,11 +87,11 @@ bool AttachedDatabase::IsReadOnly() const {
 	return type == AttachedDatabaseType::READ_ONLY_DATABASE;
 }
 
-string AttachedDatabase::ExtractDatabaseName(const string &dbpath, FileSystem &fs) {
+string AttachedDatabase::ExtractDatabaseName(const string &dbpath) {
 	if (dbpath.empty() || dbpath == ":memory:") {
 		return "memory";
 	}
-	return fs.ExtractBaseName(dbpath);
+	return FileSystem::ExtractBaseName(dbpath);
 }
 
 void AttachedDatabase::Initialize() {

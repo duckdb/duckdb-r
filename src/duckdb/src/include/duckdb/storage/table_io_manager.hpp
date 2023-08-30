@@ -13,7 +13,6 @@
 namespace duckdb {
 class BlockManager;
 class DataTable;
-class MetadataManager;
 
 class TableIOManager {
 public:
@@ -28,8 +27,6 @@ public:
 
 	//! The block manager used for storing row group data
 	virtual BlockManager &GetBlockManagerForRowData() = 0;
-
-	virtual MetadataManager &GetMetadataManager() = 0;
 };
 
 } // namespace duckdb

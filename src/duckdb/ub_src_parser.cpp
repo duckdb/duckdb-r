@@ -6,6 +6,8 @@
 
 #include "src/parser/constraint.cpp"
 
+#include "src/parser/common_table_expression_info.cpp"
+
 #include "src/parser/expression_util.cpp"
 
 #include "src/parser/keyword_helper.cpp"

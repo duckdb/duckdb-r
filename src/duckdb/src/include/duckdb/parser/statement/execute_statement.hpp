@@ -22,7 +22,7 @@ public:
 	ExecuteStatement();
 
 	string name;
-	case_insensitive_map_t<unique_ptr<ParsedExpression>> named_values;
+	vector<unique_ptr<ParsedExpression>> values;
 
 protected:
 	ExecuteStatement(const ExecuteStatement &other);

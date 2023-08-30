@@ -12,7 +12,6 @@
 #include "duckdb/common/unordered_set.hpp"
 #include "duckdb/common/string.hpp"
 #include "duckdb/common/string_util.hpp"
-#include "duckdb/common/helper.hpp"
 
 namespace duckdb {
 

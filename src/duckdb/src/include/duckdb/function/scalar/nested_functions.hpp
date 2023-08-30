@@ -99,11 +99,6 @@ struct ListPositionFun {
 	static void RegisterFunction(BuiltinFunctions &set);
 };
 
-struct ListResizeFun {
-	static ScalarFunction GetFunction();
-	static void RegisterFunction(BuiltinFunctions &set);
-};
-
 struct StructExtractFun {
 	static ScalarFunction GetFunction();
 	static void RegisterFunction(BuiltinFunctions &set);

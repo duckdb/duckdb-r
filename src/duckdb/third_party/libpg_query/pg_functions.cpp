@@ -8,9 +8,6 @@
 #include <mutex>
 #include <cstring>
 
-#ifdef __MVS__
-#include <zos-tls.h>
-#endif
 
 // max parse tree size approx 100 MB, should be enough
 #define PG_MALLOC_SIZE 10240
@@ -29,17 +26,7 @@ struct pg_parser_state_str {
 	size_t malloc_ptr_size;
 };
 
-#ifdef __MVS__
-// --------------------------------------------------------
-// Permanent - WIP
-// static __tlssim<parser_state> pg_parser_state_impl();
-// #define pg_parser_state (*pg_parser_state_impl.access())
-// --------------------------------------------------------
-// Temporary
-static parser_state pg_parser_state;
-#else
 static __thread parser_state pg_parser_state;
-#endif
 
 #ifndef __GNUC__
 __thread PGNode *duckdb_newNodeMacroHolder;

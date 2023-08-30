@@ -36,7 +36,7 @@ void SingleFileRowGroupWriter::WriteColumnDataPointers(ColumnCheckpointState &co
 	}
 }
 
-MetadataWriter &SingleFileRowGroupWriter::GetPayloadWriter() {
+MetaBlockWriter &SingleFileRowGroupWriter::GetPayloadWriter() {
 	return table_data_writer;
 }
 

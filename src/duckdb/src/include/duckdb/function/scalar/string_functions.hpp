@@ -83,14 +83,12 @@ struct LengthFun {
 };
 
 struct LikeFun {
-	static ScalarFunction GetLikeFunction();
 	static void RegisterFunction(BuiltinFunctions &set);
 	DUCKDB_API static bool Glob(const char *s, idx_t slen, const char *pattern, idx_t plen,
 	                            bool allow_question_mark = true);
 };
 
 struct LikeEscapeFun {
-	static ScalarFunction GetLikeEscapeFun();
 	static void RegisterFunction(BuiltinFunctions &set);
 };
 

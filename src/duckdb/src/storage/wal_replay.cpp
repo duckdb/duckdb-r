@@ -36,6 +36,7 @@ bool WriteAheadLog::Replay(AttachedDatabase &database, string &path) {
 	// first deserialize the WAL to look for a checkpoint flag
 	// if there is a checkpoint flag, we might have already flushed the contents of the WAL to disk
 	ReplayState checkpoint_state(database, *con.context, *initial_reader);
+	initial_reader->SetCatalog(checkpoint_state.catalog);
 	checkpoint_state.deserialize_only = true;
 	try {
 		while (true) {
@@ -60,7 +61,7 @@ bool WriteAheadLog::Replay(AttachedDatabase &database, string &path) {
 		return false;
 	} // LCOV_EXCL_STOP
 	initial_reader.reset();
-	if (checkpoint_state.checkpoint_id.IsValid()) {
+	if (checkpoint_state.checkpoint_id != INVALID_BLOCK) {
 		// there is a checkpoint flag: check if we need to deserialize the WAL
 		auto &manager = database.GetStorageManager();
 		if (manager.IsCheckpointClean(checkpoint_state.checkpoint_id)) {
@@ -72,6 +73,7 @@ bool WriteAheadLog::Replay(AttachedDatabase &database, string &path) {
 
 	// we need to recover from the WAL: actually set up the replay state
 	BufferedFileReader reader(FileSystem::Get(database), path.c_str(), con.context.get());
+	reader.SetCatalog(checkpoint_state.catalog);
 	ReplayState state(database, *con.context, reader);
 
 	// replay the WAL
@@ -193,7 +195,7 @@ void ReplayState::ReplayEntry(WALType entry_type) {
 // Replay Table
 //===--------------------------------------------------------------------===//
 void ReplayState::ReplayCreateTable() {
-	auto info = TableCatalogEntry::Deserialize(source);
+	auto info = TableCatalogEntry::Deserialize(source, context);
 	if (deserialize_only) {
 		return;
 	}
@@ -232,12 +234,12 @@ void ReplayState::ReplayAlter() {
 // Replay View
 //===--------------------------------------------------------------------===//
 void ReplayState::ReplayCreateView() {
-	auto entry = CatalogEntry::Deserialize(source);
+	auto entry = ViewCatalogEntry::Deserialize(source, context);
 	if (deserialize_only) {
 		return;
 	}
 
-	catalog.CreateView(context, entry->Cast<CreateViewInfo>());
+	catalog.CreateView(context, *entry);
 }
 
 void ReplayState::ReplayDropView() {
@@ -282,7 +284,7 @@ void ReplayState::ReplayDropSchema() {
 void ReplayState::ReplayCreateType() {
 	auto info = TypeCatalogEntry::Deserialize(source);
 	info->on_conflict = OnCreateConflict::IGNORE_ON_CONFLICT;
-	catalog.CreateType(context, info->Cast<CreateTypeInfo>());
+	catalog.CreateType(context, *info);
 }
 
 void ReplayState::ReplayDropType() {
@@ -307,7 +309,7 @@ void ReplayState::ReplayCreateSequence() {
 		return;
 	}
 
-	catalog.CreateSequence(context, entry->Cast<CreateSequenceInfo>());
+	catalog.CreateSequence(context, *entry);
 }
 
 void ReplayState::ReplayDropSequence() {
@@ -343,12 +345,12 @@ void ReplayState::ReplaySequenceValue() {
 // Replay Macro
 //===--------------------------------------------------------------------===//
 void ReplayState::ReplayCreateMacro() {
-	auto entry = ScalarMacroCatalogEntry::Deserialize(source);
+	auto entry = ScalarMacroCatalogEntry::Deserialize(source, context);
 	if (deserialize_only) {
 		return;
 	}
 
-	catalog.CreateFunction(context, entry->Cast<CreateMacroInfo>());
+	catalog.CreateFunction(context, *entry);
 }
 
 void ReplayState::ReplayDropMacro() {
@@ -367,12 +369,12 @@ void ReplayState::ReplayDropMacro() {
 // Replay Table Macro
 //===--------------------------------------------------------------------===//
 void ReplayState::ReplayCreateTableMacro() {
-	auto entry = TableMacroCatalogEntry::Deserialize(source);
+	auto entry = TableMacroCatalogEntry::Deserialize(source, context);
 	if (deserialize_only) {
 		return;
 	}
 
-	catalog.CreateFunction(context, entry->Cast<CreateMacroInfo>());
+	catalog.CreateFunction(context, *entry);
 }
 
 void ReplayState::ReplayDropTableMacro() {
@@ -391,31 +393,30 @@ void ReplayState::ReplayDropTableMacro() {
 // Replay Index
 //===--------------------------------------------------------------------===//
 void ReplayState::ReplayCreateIndex() {
-	auto info = IndexCatalogEntry::Deserialize(source);
+	auto info = IndexCatalogEntry::Deserialize(source, context);
 	if (deserialize_only) {
 		return;
 	}
-	auto &index_info = info->Cast<CreateIndexInfo>();
 
 	// get the physical table to which we'll add the index
-	auto &table = catalog.GetEntry<TableCatalogEntry>(context, info->schema, index_info.table);
+	auto &table = catalog.GetEntry<TableCatalogEntry>(context, info->schema, info->table->table_name);
 	auto &data_table = table.GetStorage();
 
 	// bind the parsed expressions
-	if (index_info.expressions.empty()) {
-		for (auto &parsed_expr : index_info.parsed_expressions) {
-			index_info.expressions.push_back(parsed_expr->Copy());
+	if (info->expressions.empty()) {
+		for (auto &parsed_expr : info->parsed_expressions) {
+			info->expressions.push_back(parsed_expr->Copy());
 		}
 	}
 	auto binder = Binder::CreateBinder(context);
-	auto expressions = binder->BindCreateIndexExpressions(table, index_info);
+	auto expressions = binder->BindCreateIndexExpressions(table, *info);
 
 	// create the empty index
 	unique_ptr<Index> index;
-	switch (index_info.index_type) {
+	switch (info->index_type) {
 	case IndexType::ART: {
-		index = make_uniq<ART>(index_info.column_ids, TableIOManager::Get(data_table), expressions,
-		                       index_info.constraint_type, data_table.db);
+		index = make_uniq<ART>(info->column_ids, TableIOManager::Get(data_table), expressions, info->constraint_type,
+		                       data_table.db);
 		break;
 	}
 	default:
@@ -423,10 +424,10 @@ void ReplayState::ReplayCreateIndex() {
 	}
 
 	// add the index to the catalog
-	auto &index_entry = catalog.CreateIndex(context, index_info)->Cast<DuckIndexEntry>();
+	auto &index_entry = catalog.CreateIndex(context, *info)->Cast<DuckIndexEntry>();
 	index_entry.index = index.get();
 	index_entry.info = data_table.info;
-	for (auto &parsed_expr : index_info.parsed_expressions) {
+	for (auto &parsed_expr : info->parsed_expressions) {
 		index_entry.parsed_expressions.push_back(parsed_expr->Copy());
 	}
 
@@ -523,8 +524,7 @@ void ReplayState::ReplayUpdate() {
 }
 
 void ReplayState::ReplayCheckpoint() {
-	checkpoint_id.block_pointer = source.Read<idx_t>();
-	checkpoint_id.offset = source.Read<uint32_t>();
+	checkpoint_id = source.Read<block_id_t>();
 }
 
 } // namespace duckdb

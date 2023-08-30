@@ -36,7 +36,6 @@ public:
 	virtual std::string GetName() = 0;
 	virtual unique_ptr<LogicalExtensionOperator> Deserialize(LogicalDeserializationState &state,
 	                                                         FieldReader &reader) = 0;
-	virtual unique_ptr<LogicalExtensionOperator> FormatDeserialize(FormatDeserializer &deserializer) = 0;
 
 	virtual ~OperatorExtension() {
 	}

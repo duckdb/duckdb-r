@@ -59,6 +59,7 @@ public:
 		return data[i];
 	}
 	bool operator>(const ARTKey &k) const;
+	bool operator<(const ARTKey &k) const;
 	bool operator>=(const ARTKey &k) const;
 	bool operator==(const ARTKey &k) const;
 

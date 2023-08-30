@@ -3,10 +3,7 @@
 
 namespace duckdb {
 
-TransactionInfo::TransactionInfo() : ParseInfo(TYPE) {
-}
-
-TransactionInfo::TransactionInfo(TransactionType type) : ParseInfo(TYPE), type(type) {
+TransactionInfo::TransactionInfo(TransactionType type) : type(type) {
 }
 
 void TransactionInfo::Serialize(Serializer &serializer) const {

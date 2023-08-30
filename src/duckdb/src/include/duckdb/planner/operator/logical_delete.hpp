@@ -27,10 +27,6 @@ public:
 public:
 	void Serialize(FieldWriter &writer) const override;
 	static unique_ptr<LogicalOperator> Deserialize(LogicalDeserializationState &state, FieldReader &reader);
-
-	void FormatSerialize(FormatSerializer &serializer) const override;
-	static unique_ptr<LogicalOperator> FormatDeserialize(FormatDeserializer &deserializer);
-
 	idx_t EstimateCardinality(ClientContext &context) override;
 	vector<idx_t> GetTableIndex() const override;
 	string GetName() const override;
@@ -38,8 +34,5 @@ public:
 protected:
 	vector<ColumnBinding> GetColumnBindings() override;
 	void ResolveTypes() override;
-
-private:
-	LogicalDelete(ClientContext &context, const string &catalog, const string &schema, const string &table);
 };
 } // namespace duckdb

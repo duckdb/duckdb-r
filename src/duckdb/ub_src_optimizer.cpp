@@ -1,8 +1,4 @@
-#include "src/optimizer/column_binding_replacer.cpp"
-
 #include "src/optimizer/common_aggregate_optimizer.cpp"
-
-#include "src/optimizer/compressed_materialization.cpp"
 
 #include "src/optimizer/cse_optimizer.cpp"
 
@@ -27,8 +23,6 @@
 #include "src/optimizer/expression_rewriter.cpp"
 
 #include "src/optimizer/regex_range_filter.cpp"
-
-#include "src/optimizer/remove_duplicate_groups.cpp"
 
 #include "src/optimizer/remove_unused_columns.cpp"
 

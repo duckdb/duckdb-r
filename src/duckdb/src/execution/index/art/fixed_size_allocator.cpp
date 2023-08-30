@@ -1,5 +1,9 @@
 #include "duckdb/execution/index/art/fixed_size_allocator.hpp"
 
+#include "duckdb/common/allocator.hpp"
+#include "duckdb/common/exception.hpp"
+#include "duckdb/common/helper.hpp"
+
 namespace duckdb {
 
 constexpr idx_t FixedSizeAllocator::BASE[];
@@ -42,7 +46,7 @@ FixedSizeAllocator::~FixedSizeAllocator() {
 	}
 }
 
-Node FixedSizeAllocator::New() {
+SwizzleablePointer FixedSizeAllocator::New() {
 
 	// no more free pointers
 	if (buffers_with_free_space.empty()) {
@@ -73,19 +77,19 @@ Node FixedSizeAllocator::New() {
 		buffers_with_free_space.erase(buffer_id);
 	}
 
-	return Node(buffer_id, offset);
+	return SwizzleablePointer(offset, buffer_id);
 }
 
-void FixedSizeAllocator::Free(const Node ptr) {
-	auto bitmask_ptr = reinterpret_cast<validity_t *>(buffers[ptr.GetBufferId()].ptr);
+void FixedSizeAllocator::Free(const SwizzleablePointer ptr) {
+	auto bitmask_ptr = reinterpret_cast<validity_t *>(buffers[ptr.buffer_id].ptr);
 	ValidityMask mask(bitmask_ptr);
-	D_ASSERT(!mask.RowIsValid(ptr.GetOffset()));
-	mask.SetValid(ptr.GetOffset());
-	buffers_with_free_space.insert(ptr.GetBufferId());
+	D_ASSERT(!mask.RowIsValid(ptr.offset));
+	mask.SetValid(ptr.offset);
+	buffers_with_free_space.insert(ptr.buffer_id);
 
 	D_ASSERT(total_allocations > 0);
-	D_ASSERT(buffers[ptr.GetBufferId()].allocation_count > 0);
-	buffers[ptr.GetBufferId()].allocation_count--;
+	D_ASSERT(buffers[ptr.buffer_id].allocation_count > 0);
+	buffers[ptr.buffer_id].allocation_count--;
 	total_allocations--;
 }
 
@@ -110,7 +114,7 @@ void FixedSizeAllocator::Merge(FixedSizeAllocator &other) {
 	}
 	other.buffers.clear();
 
-	// merge the buffers with free spaces
+	// merge the vectors containing all buffers with free space
 	for (auto &buffer_id : other.buffers_with_free_space) {
 		buffers_with_free_space.insert(buffer_id + buffer_count);
 	}
@@ -168,7 +172,7 @@ void FixedSizeAllocator::FinalizeVacuum() {
 	}
 }
 
-Node FixedSizeAllocator::VacuumPointer(const Node ptr) {
+SwizzleablePointer FixedSizeAllocator::VacuumPointer(const SwizzleablePointer ptr) {
 
 	// we do not need to adjust the bitmask of the old buffer, because we will free the entire
 	// buffer after the vacuum operation

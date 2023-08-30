@@ -17,8 +17,6 @@
 namespace duckdb {
 class Serializer;
 class Deserializer;
-class FormatSerializer;
-class FormatDeserializer;
 
 //! inline std directives that we use frequently
 #ifndef DUCKDB_DEBUG_MOVE
@@ -41,8 +39,6 @@ DUCKDB_API bool IsRowIdColumnId(column_t column_id);
 
 //! The maximum row identifier used in tables
 extern const row_t MAX_ROW_ID;
-//! Transaction-local row IDs start at MAX_ROW_ID
-extern const row_t MAX_ROW_ID_LOCAL;
 
 extern const transaction_t TRANSACTION_ID_START;
 extern const transaction_t MAX_TRANSACTION_ID;

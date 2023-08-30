@@ -38,9 +38,6 @@ public:
 	//! Gets a bound CreateViewInfo object from a CREATE VIEW statement
 	DUCKDB_API static unique_ptr<CreateViewInfo> FromCreateView(ClientContext &context, const string &sql);
 
-	DUCKDB_API void FormatSerialize(FormatSerializer &serializer) const override;
-	DUCKDB_API static unique_ptr<CreateInfo> FormatDeserialize(FormatDeserializer &deserializer);
-
 protected:
 	void SerializeInternal(Serializer &serializer) const override;
 };

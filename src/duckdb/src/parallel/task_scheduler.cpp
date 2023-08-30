@@ -1,15 +1,13 @@
 #include "duckdb/parallel/task_scheduler.hpp"
 
-#include "duckdb/common/chrono.hpp"
 #include "duckdb/common/exception.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/main/database.hpp"
 
 #ifndef DUCKDB_NO_THREADS
 #include "concurrentqueue.h"
-#include "duckdb/common/thread.hpp"
 #include "lightweightsemaphore.h"
-#include <thread>
+#include "duckdb/common/thread.hpp"
 #else
 #include <queue>
 #endif
@@ -95,9 +93,7 @@ ProducerToken::ProducerToken(TaskScheduler &scheduler, unique_ptr<QueueProducerT
 ProducerToken::~ProducerToken() {
 }
 
-TaskScheduler::TaskScheduler(DatabaseInstance &db)
-    : db(db), queue(make_uniq<ConcurrentQueue>()),
-      allocator_flush_threshold(db.config.options.allocator_flush_threshold) {
+TaskScheduler::TaskScheduler(DatabaseInstance &db) : db(db), queue(make_uniq<ConcurrentQueue>()) {
 }
 
 TaskScheduler::~TaskScheduler() {
@@ -150,9 +146,6 @@ void TaskScheduler::ExecuteForever(atomic<bool> *marker) {
 				task.reset();
 				break;
 			}
-
-			// Flushes the outstanding allocator's outstanding allocations
-			Allocator::ThreadFlush(allocator_flush_threshold);
 		}
 	}
 #else
@@ -248,18 +241,9 @@ void TaskScheduler::SetThreads(int32_t n) {
 #endif
 }
 
-void TaskScheduler::SetAllocatorFlushTreshold(idx_t threshold) {
-}
-
 void TaskScheduler::Signal(idx_t n) {
 #ifndef DUCKDB_NO_THREADS
 	queue->semaphore.signal(n);
-#endif
-}
-
-void TaskScheduler::YieldThread() {
-#ifndef DUCKDB_NO_THREADS
-	std::this_thread::yield();
 #endif
 }
 

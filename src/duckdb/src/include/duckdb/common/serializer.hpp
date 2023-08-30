@@ -22,6 +22,8 @@ private:
 	uint64_t version = 0L;
 
 public:
+	bool is_query_plan = false;
+
 	virtual ~Serializer() {
 	}
 
@@ -115,6 +117,11 @@ public:
 	//! Gets the context for the deserializer
 	virtual ClientContext &GetContext() {
 		throw InternalException("This deserializer does not have a client-context");
+	};
+
+	//! Gets the catalog for the deserializer
+	virtual optional_ptr<Catalog> GetCatalog() {
+		return nullptr;
 	};
 
 	template <class T>

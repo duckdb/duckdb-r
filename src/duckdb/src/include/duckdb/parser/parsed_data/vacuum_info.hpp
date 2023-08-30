@@ -15,8 +15,6 @@
 #include "duckdb/common/optional_ptr.hpp"
 
 namespace duckdb {
-class FormatSerializer;
-class FormatDeserializer;
 
 struct VacuumOptions {
 	VacuumOptions() : vacuum(false), analyze(false) {
@@ -24,15 +22,9 @@ struct VacuumOptions {
 
 	bool vacuum;
 	bool analyze;
-
-	void FormatSerialize(FormatSerializer &serializer) const;
-	static VacuumOptions FormatDeserialize(FormatDeserializer &deserializer);
 };
 
 struct VacuumInfo : public ParseInfo {
-public:
-	static constexpr const ParseInfoType TYPE = ParseInfoType::VACUUM_INFO;
-
 public:
 	explicit VacuumInfo(VacuumOptions options);
 
@@ -50,8 +42,6 @@ public:
 
 	void Serialize(Serializer &serializer) const;
 	static unique_ptr<ParseInfo> Deserialize(Deserializer &deserializer);
-	void FormatSerialize(FormatSerializer &serializer) const override;
-	static unique_ptr<ParseInfo> FormatDeserialize(FormatDeserializer &deserializer);
 };
 
 } // namespace duckdb

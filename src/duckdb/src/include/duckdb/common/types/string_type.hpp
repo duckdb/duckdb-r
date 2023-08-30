@@ -83,10 +83,6 @@ public:
 		return value.pointer.prefix;
 	}
 
-	char *GetPrefixWriteable() const {
-		return (char *)value.pointer.prefix;
-	}
-
 	idx_t GetSize() const {
 		return value.inlined.length;
 	}
@@ -97,11 +93,6 @@ public:
 
 	explicit operator string() const {
 		return GetString();
-	}
-
-	char *GetPointer() const {
-		D_ASSERT(!IsInlined());
-		return value.pointer.ptr;
 	}
 
 	void SetPointer(char *new_ptr) {

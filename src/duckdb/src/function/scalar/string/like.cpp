@@ -504,7 +504,8 @@ static void RegularLikeFunction(DataChunk &input, ExpressionState &state, Vector
 }
 void LikeFun::RegisterFunction(BuiltinFunctions &set) {
 	// like
-	set.AddFunction(GetLikeFunction());
+	set.AddFunction(ScalarFunction("~~", {LogicalType::VARCHAR, LogicalType::VARCHAR}, LogicalType::BOOLEAN,
+	                               RegularLikeFunction<LikeOperator, false>, LikeBindFunction));
 	// not like
 	set.AddFunction(ScalarFunction("!~~", {LogicalType::VARCHAR, LogicalType::VARCHAR}, LogicalType::BOOLEAN,
 	                               RegularLikeFunction<NotLikeOperator, true>, LikeBindFunction));
@@ -521,13 +522,9 @@ void LikeFun::RegisterFunction(BuiltinFunctions &set) {
 	                               nullptr, ILikePropagateStats<NotILikeOperatorASCII>));
 }
 
-ScalarFunction LikeFun::GetLikeFunction() {
-	return ScalarFunction("~~", {LogicalType::VARCHAR, LogicalType::VARCHAR}, LogicalType::BOOLEAN,
-	                      RegularLikeFunction<LikeOperator, false>, LikeBindFunction);
-}
-
 void LikeEscapeFun::RegisterFunction(BuiltinFunctions &set) {
-	set.AddFunction(GetLikeEscapeFun());
+	set.AddFunction({"like_escape"}, ScalarFunction({LogicalType::VARCHAR, LogicalType::VARCHAR, LogicalType::VARCHAR},
+	                                                LogicalType::BOOLEAN, LikeEscapeFunction<LikeEscapeOperator>));
 	set.AddFunction({"not_like_escape"},
 	                ScalarFunction({LogicalType::VARCHAR, LogicalType::VARCHAR, LogicalType::VARCHAR},
 	                               LogicalType::BOOLEAN, LikeEscapeFunction<NotLikeEscapeOperator>));
@@ -537,10 +534,5 @@ void LikeEscapeFun::RegisterFunction(BuiltinFunctions &set) {
 	set.AddFunction({"not_ilike_escape"},
 	                ScalarFunction({LogicalType::VARCHAR, LogicalType::VARCHAR, LogicalType::VARCHAR},
 	                               LogicalType::BOOLEAN, LikeEscapeFunction<NotILikeEscapeOperator>));
-}
-
-ScalarFunction LikeEscapeFun::GetLikeEscapeFun() {
-	return ScalarFunction("like_escape", {LogicalType::VARCHAR, LogicalType::VARCHAR, LogicalType::VARCHAR},
-	                      LogicalType::BOOLEAN, LikeEscapeFunction<LikeEscapeOperator>);
 }
 } // namespace duckdb

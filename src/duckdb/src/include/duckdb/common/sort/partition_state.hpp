@@ -42,8 +42,8 @@ public:
 	using Orders = vector<BoundOrderByNode>;
 	using Types = vector<LogicalType>;
 
-	using GroupingPartition = unique_ptr<PartitionedTupleData>;
-	using GroupingAppend = unique_ptr<PartitionedTupleDataAppendState>;
+	using GroupingPartition = unique_ptr<PartitionedColumnData>;
+	using GroupingAppend = unique_ptr<PartitionedColumnDataAppendState>;
 
 	static void GenerateOrderings(Orders &partitions, Orders &orders,
 	                              const vector<unique_ptr<Expression>> &partition_bys, const Orders &order_bys,
@@ -53,14 +53,10 @@ public:
 	                         const vector<BoundOrderByNode> &order_bys, const Types &payload_types,
 	                         const vector<unique_ptr<BaseStatistics>> &partitions_stats, idx_t estimated_cardinality);
 
-	unique_ptr<RadixPartitionedTupleData> CreatePartition(idx_t new_bits) const;
-	void SyncPartitioning(const PartitionGlobalSinkState &other);
-
 	void UpdateLocalPartition(GroupingPartition &local_partition, GroupingAppend &local_append);
 	void CombineLocalPartition(GroupingPartition &local_partition, GroupingAppend &local_append);
 
-	void BuildSortState(TupleDataCollection &group_data, GlobalSortState &global_sort) const;
-	void BuildSortState(TupleDataCollection &group_data, PartitionGlobalHashGroup &global_sort);
+	void BuildSortState(ColumnDataCollection &group_data, PartitionGlobalHashGroup &global_sort);
 
 	ClientContext &context;
 	BufferManager &buffer_manager;
@@ -68,11 +64,9 @@ public:
 	mutex lock;
 
 	// OVER(PARTITION BY...) (hash grouping)
-	unique_ptr<RadixPartitionedTupleData> grouping_data;
+	unique_ptr<RadixPartitionedColumnData> grouping_data;
 	//! Payload plus hash column
-	TupleDataLayout grouping_types;
-	//! The number of radix bits if this partition is being synced with another
-	idx_t fixed_bits;
+	Types grouping_types;
 
 	// OVER(...) (sorting)
 	Orders partitions;
@@ -89,7 +83,6 @@ public:
 
 	// Threading
 	idx_t memory_per_thread;
-	idx_t max_bits;
 	atomic<idx_t> count;
 
 private:
@@ -109,8 +102,8 @@ public:
 	ExpressionExecutor executor;
 	DataChunk group_chunk;
 	DataChunk payload_chunk;
-	unique_ptr<PartitionedTupleData> local_partition;
-	unique_ptr<PartitionedTupleDataAppendState> local_append;
+	unique_ptr<PartitionedColumnData> local_partition;
+	unique_ptr<PartitionedColumnDataAppendState> local_append;
 
 	// OVER(...) (sorting)
 	size_t sort_cols;
@@ -134,7 +127,7 @@ class PartitionLocalMergeState;
 
 class PartitionGlobalMergeState {
 public:
-	using GroupDataPtr = unique_ptr<TupleDataCollection>;
+	using GroupDataPtr = unique_ptr<ColumnDataCollection>;
 
 	PartitionGlobalMergeState(PartitionGlobalSinkState &sink, GroupDataPtr group_data, hash_t hash_bin);
 
@@ -182,17 +175,9 @@ public:
 
 class PartitionGlobalMergeStates {
 public:
-	struct Callback {
-		virtual bool HasError() const {
-			return false;
-		}
-	};
-
 	using PartitionGlobalMergeStatePtr = unique_ptr<PartitionGlobalMergeState>;
 
 	explicit PartitionGlobalMergeStates(PartitionGlobalSinkState &sink);
-
-	bool ExecuteTask(PartitionLocalMergeState &local_state, Callback &callback);
 
 	vector<PartitionGlobalMergeStatePtr> states;
 };

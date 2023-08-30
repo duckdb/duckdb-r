@@ -58,6 +58,9 @@ GroupedAggregateHashTable::GroupedAggregateHashTable(ClientContext &context, All
 	data_collection = make_uniq<TupleDataCollection>(buffer_manager, layout);
 	data_collection->InitializeAppend(td_pin_state, TupleDataPinProperties::KEEP_EVERYTHING_PINNED);
 
+	hashes_hdl = buffer_manager.Allocate(Storage::BLOCK_SIZE);
+	hashes_hdl_ptr = hashes_hdl.Ptr();
+
 	switch (entry_type) {
 	case HtEntryType::HT_WIDTH_64: {
 		hash_prefix_shift = (HASH_WIDTH - sizeof(aggr_ht_entry_64::salt)) * 8;
@@ -97,7 +100,7 @@ void GroupedAggregateHashTable::Destroy() {
 	}
 
 	// There are aggregates with destructors: Call the destructor for each of the aggregates
-	RowOperationsState state(*aggregate_allocator);
+	RowOperationsState state(aggregate_allocator->GetAllocator());
 	TupleDataChunkIterator iterator(*data_collection, TupleDataPinProperties::DESTROY_AFTER_DONE, false);
 	auto &row_locations = iterator.GetChunkState().row_locations;
 	do {
@@ -179,8 +182,10 @@ void GroupedAggregateHashTable::Resize(idx_t size) {
 
 	bitmask = capacity - 1;
 	const auto byte_size = capacity * sizeof(ENTRY);
-	hashes_hdl = buffer_manager.GetBufferAllocator().Allocate(byte_size);
-	hashes_hdl_ptr = hashes_hdl.get();
+	if (byte_size > (idx_t)Storage::BLOCK_SIZE) {
+		hashes_hdl = buffer_manager.Allocate(byte_size);
+		hashes_hdl_ptr = hashes_hdl.Ptr();
+	}
 	memset(hashes_hdl_ptr, 0, byte_size);
 
 	if (Count() != 0) {
@@ -272,7 +277,7 @@ idx_t GroupedAggregateHashTable::AddChunk(AggregateHTAppendState &state, DataChu
 	auto &aggregates = layout.GetAggregates();
 	idx_t filter_idx = 0;
 	idx_t payload_idx = 0;
-	RowOperationsState row_state(*aggregate_allocator);
+	RowOperationsState row_state(aggregate_allocator->GetAllocator());
 	for (idx_t i = 0; i < aggregates.size(); i++) {
 		auto &aggr = aggregates[i];
 		if (filter_idx >= filter.size() || i < filter[filter_idx]) {
@@ -317,7 +322,7 @@ void GroupedAggregateHashTable::FetchAggregates(DataChunk &groups, DataChunk &re
 	Vector addresses(LogicalType::POINTER);
 	FindOrCreateGroups(append_state, groups, addresses);
 	// now fetch the aggregates
-	RowOperationsState row_state(*aggregate_allocator);
+	RowOperationsState row_state(aggregate_allocator->GetAllocator());
 	RowOperations::FinalizeStates(row_state, layout, addresses, result, 0);
 }
 
@@ -576,7 +581,7 @@ void GroupedAggregateHashTable::Combine(GroupedAggregateHashTable &other) {
 	}
 
 	FlushMoveState state(*other.data_collection);
-	RowOperationsState row_state(*aggregate_allocator);
+	RowOperationsState row_state(aggregate_allocator->GetAllocator());
 	while (state.Scan()) {
 		FindOrCreateGroups(state.append_state, state.groups, state.hashes, state.group_addresses, state.new_groups_sel);
 		RowOperations::CombineStates(row_state, layout, state.scan_state.chunk_state.row_locations,
@@ -584,35 +589,16 @@ void GroupedAggregateHashTable::Combine(GroupedAggregateHashTable &other) {
 	}
 
 	Verify();
-
-	// if we combine states, then we also need to combine the arena allocators
-	for (auto &stored_allocator : other.stored_allocators) {
-		stored_allocators.push_back(stored_allocator);
-	}
-	stored_allocators.push_back(other.aggregate_allocator);
 }
 
-void GroupedAggregateHashTable::Append(GroupedAggregateHashTable &other) {
-	data_collection->Combine(other.GetDataCollection());
-
-	// Inherit ownership to all stored aggregate allocators
-	stored_allocators.emplace_back(other.aggregate_allocator);
-	for (const auto &stored_allocator : other.stored_allocators) {
-		stored_allocators.emplace_back(stored_allocator);
-	}
-}
-
-void GroupedAggregateHashTable::Partition(vector<GroupedAggregateHashTable *> &partition_hts, idx_t radix_bits,
-                                          bool sink_done) {
+void GroupedAggregateHashTable::Partition(vector<GroupedAggregateHashTable *> &partition_hts, idx_t radix_bits) {
 	const auto num_partitions = RadixPartitioning::NumberOfPartitions(radix_bits);
 	D_ASSERT(partition_hts.size() == num_partitions);
 
 	// Partition the data
-	auto pin_properties =
-	    sink_done ? TupleDataPinProperties::UNPIN_AFTER_DONE : TupleDataPinProperties::KEEP_EVERYTHING_PINNED;
 	auto partitioned_data =
 	    make_uniq<RadixPartitionedTupleData>(buffer_manager, layout, radix_bits, layout.ColumnCount() - 1);
-	partitioned_data->Partition(*data_collection, pin_properties);
+	partitioned_data->Partition(*data_collection, TupleDataPinProperties::KEEP_EVERYTHING_PINNED);
 	D_ASSERT(partitioned_data->GetPartitions().size() == num_partitions);
 
 	// Move the partitioned data collections to the partitioned hash tables and initialize the 1st part of the HT
@@ -620,17 +606,9 @@ void GroupedAggregateHashTable::Partition(vector<GroupedAggregateHashTable *> &p
 	for (idx_t partition_idx = 0; partition_idx < num_partitions; partition_idx++) {
 		auto &partition_ht = *partition_hts[partition_idx];
 		partition_ht.data_collection = std::move(partitions[partition_idx]);
-
-		// Inherit ownership to all stored aggregate allocators
-		partition_ht.stored_allocators.emplace_back(aggregate_allocator);
-		for (const auto &stored_allocator : stored_allocators) {
-			partition_ht.stored_allocators.emplace_back(stored_allocator);
-		}
-
-		if (!sink_done) {
-			partition_ht.InitializeFirstPart();
-			partition_ht.Verify();
-		}
+		partition_ht.aggregate_allocator = aggregate_allocator;
+		partition_ht.InitializeFirstPart();
+		partition_ht.Verify();
 	}
 }
 
@@ -653,7 +631,7 @@ idx_t GroupedAggregateHashTable::Scan(TupleDataParallelScanState &gstate, TupleD
                                       DataChunk &result) {
 	data_collection->Scan(gstate, lstate, result);
 
-	RowOperationsState row_state(*aggregate_allocator);
+	RowOperationsState row_state(aggregate_allocator->GetAllocator());
 	const auto group_cols = layout.ColumnCount() - 1;
 	RowOperations::FinalizeStates(row_state, layout, lstate.chunk_state.row_locations, result, group_cols);
 
@@ -666,7 +644,7 @@ void GroupedAggregateHashTable::Finalize() {
 	}
 
 	// Early release hashes (not needed for partition/scan) and data collection (will be pinned again when scanning)
-	hashes_hdl.Reset();
+	hashes_hdl.Destroy();
 	data_collection->FinalizePinState(td_pin_state);
 	data_collection->Unpin();
 

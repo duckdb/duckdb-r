@@ -55,8 +55,4 @@ string_t StringHeap::EmptyString(idx_t len) {
 	return string_t(insert_pos, len);
 }
 
-idx_t StringHeap::SizeInBytes() const {
-	return allocator.SizeInBytes();
-}
-
 } // namespace duckdb

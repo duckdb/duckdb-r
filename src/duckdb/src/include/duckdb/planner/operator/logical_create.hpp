@@ -20,7 +20,9 @@ public:
 
 public:
 	LogicalCreate(LogicalOperatorType type, unique_ptr<CreateInfo> info,
-	              optional_ptr<SchemaCatalogEntry> schema = nullptr);
+	              optional_ptr<SchemaCatalogEntry> schema = nullptr)
+	    : LogicalOperator(type), schema(schema), info(std::move(info)) {
+	}
 
 	optional_ptr<SchemaCatalogEntry> schema;
 	unique_ptr<CreateInfo> info;
@@ -28,16 +30,11 @@ public:
 public:
 	void Serialize(FieldWriter &writer) const override;
 	static unique_ptr<LogicalOperator> Deserialize(LogicalDeserializationState &state, FieldReader &reader);
-
-	void FormatSerialize(FormatSerializer &serializer) const override;
-	static unique_ptr<LogicalOperator> FormatDeserialize(FormatDeserializer &deserializer);
-
 	idx_t EstimateCardinality(ClientContext &context) override;
 
 protected:
-	void ResolveTypes() override;
-
-private:
-	LogicalCreate(LogicalOperatorType type, ClientContext &context, unique_ptr<CreateInfo> info);
+	void ResolveTypes() override {
+		types.emplace_back(LogicalType::BIGINT);
+	}
 };
 } // namespace duckdb

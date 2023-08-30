@@ -8,9 +8,6 @@
 #include "duckdb/parser/parser.hpp"
 #include "duckdb/planner/operator/list.hpp"
 #include "duckdb/planner/operator/logical_extension_operator.hpp"
-#include "duckdb/planner/operator/logical_dependent_join.hpp"
-#include "duckdb/common/serializer/binary_serializer.hpp"
-#include "duckdb/common/serializer/binary_deserializer.hpp"
 
 namespace duckdb {
 
@@ -131,11 +128,12 @@ void LogicalOperator::Verify(ClientContext &context) {
 		}
 		BufferedSerializer serializer;
 		// We are serializing a query plan
+		serializer.is_query_plan = true;
 		try {
 			expressions[expr_idx]->Serialize(serializer);
 		} catch (NotImplementedException &ex) {
 			// ignore for now (FIXME)
-			continue;
+			return;
 		}
 
 		auto data = serializer.GetData();
@@ -143,16 +141,6 @@ void LogicalOperator::Verify(ClientContext &context) {
 
 		PlanDeserializationState state(context);
 		auto deserialized_expression = Expression::Deserialize(deserializer, state);
-
-		// format (de)serialization of expressions
-		try {
-			auto blob = BinarySerializer::Serialize(*expressions[expr_idx]);
-			bound_parameter_map_t parameters;
-			auto result = BinaryDeserializer::Deserialize<Expression>(context, parameters, blob.data(), blob.size());
-			result->Hash();
-		} catch (SerializationException &ex) {
-			// pass
-		}
 		// FIXME: expressions might not be equal yet because of statistics propagation
 		continue;
 		D_ASSERT(Expression::Equals(expressions[expr_idx], deserialized_expression));
@@ -265,8 +253,12 @@ unique_ptr<LogicalOperator> LogicalOperator::Deserialize(Deserializer &deseriali
 		break;
 	case LogicalOperatorType::LOGICAL_JOIN:
 		throw InternalException("LogicalJoin deserialize not supported");
-	case LogicalOperatorType::LOGICAL_ASOF_JOIN:
 	case LogicalOperatorType::LOGICAL_DELIM_JOIN:
+		result = LogicalDelimJoin::Deserialize(state, reader);
+		break;
+	case LogicalOperatorType::LOGICAL_ASOF_JOIN:
+		result = LogicalAsOfJoin::Deserialize(state, reader);
+		break;
 	case LogicalOperatorType::LOGICAL_COMPARISON_JOIN:
 		result = LogicalComparisonJoin::Deserialize(state, reader);
 		break;
@@ -290,9 +282,6 @@ unique_ptr<LogicalOperator> LogicalOperator::Deserialize(Deserializer &deseriali
 		break;
 	case LogicalOperatorType::LOGICAL_RECURSIVE_CTE:
 		result = LogicalRecursiveCTE::Deserialize(state, reader);
-		break;
-	case LogicalOperatorType::LOGICAL_MATERIALIZED_CTE:
-		result = LogicalMaterializedCTE::Deserialize(state, reader);
 		break;
 	case LogicalOperatorType::LOGICAL_INSERT:
 		result = LogicalInsert::Deserialize(state, reader);
@@ -363,7 +352,6 @@ unique_ptr<LogicalOperator> LogicalOperator::Deserialize(Deserializer &deseriali
 	case LogicalOperatorType::LOGICAL_PIVOT:
 		result = LogicalPivot::Deserialize(state, reader);
 		break;
-	case LogicalOperatorType::LOGICAL_DEPENDENT_JOIN:
 	case LogicalOperatorType::LOGICAL_INVALID:
 		/* no default here to trigger a warning if we forget to implement deserialize for a new operator */
 		throw SerializationException("Invalid type for operator deserialization");

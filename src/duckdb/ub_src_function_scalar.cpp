@@ -1,5 +1,3 @@
-#include "src/function/scalar/compressed_materialization_functions.cpp"
-
 #include "src/function/scalar/generic_functions.cpp"
 
 #include "src/function/scalar/string_functions.cpp"

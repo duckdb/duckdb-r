@@ -37,10 +37,6 @@ struct PragmaVersion {
 	static void RegisterFunction(BuiltinFunctions &set);
 };
 
-struct PragmaPlatform {
-	static void RegisterFunction(BuiltinFunctions &set);
-};
-
 struct PragmaDatabaseSize {
 	static void RegisterFunction(BuiltinFunctions &set);
 };
@@ -122,7 +118,7 @@ struct TestType {
 
 struct TestAllTypesFun {
 	static void RegisterFunction(BuiltinFunctions &set);
-	static vector<TestType> GetTestTypes(bool large_enum = false);
+	static vector<TestType> GetTestTypes();
 };
 
 struct TestVectorTypesFun {

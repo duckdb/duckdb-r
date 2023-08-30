@@ -4,5 +4,3 @@
 
 #include "src/function/scalar/list/list_extract.cpp"
 
-#include "src/function/scalar/list/list_resize.cpp"
-

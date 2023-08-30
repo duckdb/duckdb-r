@@ -34,5 +34,3 @@
 
 #include "src/parser/transform/expression/transform_subquery.cpp"
 
-#include "src/parser/transform/expression/transform_multi_assign_reference.cpp"
-

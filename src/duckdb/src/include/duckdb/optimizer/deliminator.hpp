@@ -8,33 +8,36 @@
 
 #pragma once
 
-#include "duckdb/optimizer/column_binding_replacer.hpp"
+#include "duckdb/parser/expression_map.hpp"
+#include "duckdb/planner/column_binding_map.hpp"
+#include "duckdb/planner/logical_operator.hpp"
+#include "duckdb/planner/logical_operator_visitor.hpp"
 
 namespace duckdb {
 
-struct DelimCandidate;
+class Optimizer;
+class DeliminatorPlanUpdater;
 
 //! The Deliminator optimizer traverses the logical operator tree and removes any redundant DelimGets/DelimJoins
 class Deliminator {
 public:
-	Deliminator() {
+	explicit Deliminator(ClientContext &context) : context(context) {
 	}
 	//! Perform DelimJoin elimination
 	unique_ptr<LogicalOperator> Optimize(unique_ptr<LogicalOperator> op);
 
 private:
-	//! Finds DelimJoins and their corresponding DelimGets
-	void FindCandidates(unique_ptr<LogicalOperator> &op, vector<DelimCandidate> &candidates);
-	void FindJoinWithDelimGet(unique_ptr<LogicalOperator> &op, DelimCandidate &candidate);
-	//! Remove joins with a DelimGet
-	bool RemoveJoinWithDelimGet(LogicalComparisonJoin &delim_join, const idx_t delim_get_count,
-	                            unique_ptr<LogicalOperator> &join, bool &all_equality_conditions);
-	bool RemoveInequalityJoinWithDelimGet(LogicalComparisonJoin &delim_join, const idx_t delim_get_count,
-	                                      unique_ptr<LogicalOperator> &join,
-	                                      const vector<ReplacementBinding> &replacement_bindings);
+	//! Find Joins with a DelimGet that can be removed
+	void FindCandidates(unique_ptr<LogicalOperator> *op_ptr, vector<unique_ptr<LogicalOperator> *> &candidates);
+	//! Try to remove a Join with a DelimGet, returns true if it was successful
+	bool RemoveCandidate(unique_ptr<LogicalOperator> *plan, unique_ptr<LogicalOperator> *candidate,
+	                     DeliminatorPlanUpdater &updater);
+	//! Try to remove an inequality Join with a DelimGet, returns true if it was successful
+	bool RemoveInequalityCandidate(unique_ptr<LogicalOperator> *plan, unique_ptr<LogicalOperator> *candidate,
+	                               DeliminatorPlanUpdater &updater);
 
 private:
-	optional_ptr<LogicalOperator> root;
+	ClientContext &context;
 };
 
 } // namespace duckdb

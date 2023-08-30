@@ -130,6 +130,13 @@ void PivotColumn::Serialize(Serializer &serializer) const {
 	writer.Finalize();
 }
 
+void PivotColumn::FormatSerialize(FormatSerializer &serializer) const {
+	serializer.WriteProperty("pivot_expressions", pivot_expressions);
+	serializer.WriteProperty("unpivot_names", unpivot_names);
+	serializer.WriteProperty("entries", entries);
+	serializer.WriteProperty("pivot_enum", pivot_enum);
+}
+
 PivotColumn PivotColumn::Deserialize(Deserializer &source) {
 	PivotColumn result;
 	FieldReader reader(source);
@@ -138,6 +145,15 @@ PivotColumn PivotColumn::Deserialize(Deserializer &source) {
 	result.entries = reader.ReadRequiredSerializableList<PivotColumnEntry, PivotColumnEntry>();
 	result.pivot_enum = reader.ReadRequired<string>();
 	reader.Finalize();
+	return result;
+}
+
+PivotColumn PivotColumn::FormatDeserialize(FormatDeserializer &source) {
+	PivotColumn result;
+	source.ReadProperty("pivot_expressions", result.pivot_expressions);
+	source.ReadProperty("unpivot_names", result.unpivot_names);
+	source.ReadProperty("entries", result.entries);
+	source.ReadProperty("pivot_enum", result.pivot_enum);
 	return result;
 }
 
@@ -161,9 +177,9 @@ void PivotColumnEntry::Serialize(Serializer &serializer) const {
 }
 
 void PivotColumnEntry::FormatSerialize(FormatSerializer &serializer) const {
-	serializer.WriteProperty(100, "values", values);
-	serializer.WriteOptionalProperty(101, "star_expr", star_expr);
-	serializer.WriteProperty(102, "alias", alias);
+	serializer.WriteProperty("values", values);
+	serializer.WriteOptionalProperty("star_expr", star_expr);
+	serializer.WriteProperty("alias", alias);
 }
 
 PivotColumnEntry PivotColumnEntry::Deserialize(Deserializer &source) {
@@ -178,9 +194,9 @@ PivotColumnEntry PivotColumnEntry::Deserialize(Deserializer &source) {
 
 PivotColumnEntry PivotColumnEntry::FormatDeserialize(FormatDeserializer &source) {
 	PivotColumnEntry result;
-	source.ReadProperty(100, "values", result.values);
-	source.ReadOptionalProperty(101, "star_expr", result.star_expr);
-	source.ReadProperty(102, "alias", result.alias);
+	source.ReadProperty("values", result.values);
+	source.ReadOptionalProperty("star_expr", result.star_expr);
+	source.ReadProperty("alias", result.alias);
 	return result;
 }
 
@@ -314,6 +330,17 @@ void PivotRef::Serialize(FieldWriter &writer) const {
 	writer.WriteField<bool>(include_nulls);
 }
 
+void PivotRef::FormatSerialize(FormatSerializer &serializer) const {
+	TableRef::FormatSerialize(serializer);
+	serializer.WriteProperty("source", source);
+	serializer.WriteProperty("aggregates", aggregates);
+	serializer.WriteProperty("unpivot_names", unpivot_names);
+	serializer.WriteProperty("pivots", pivots);
+	serializer.WriteProperty("groups", groups);
+	serializer.WriteProperty("column_name_alias", column_name_alias);
+	serializer.WriteProperty("include_nulls", include_nulls);
+}
+
 unique_ptr<TableRef> PivotRef::Deserialize(FieldReader &reader) {
 	auto result = make_uniq<PivotRef>();
 	result->source = reader.ReadRequiredSerializable<TableRef>();
@@ -323,6 +350,18 @@ unique_ptr<TableRef> PivotRef::Deserialize(FieldReader &reader) {
 	result->groups = reader.ReadRequiredList<string>();
 	result->column_name_alias = reader.ReadRequiredList<string>();
 	result->include_nulls = reader.ReadRequired<bool>();
+	return std::move(result);
+}
+
+unique_ptr<TableRef> PivotRef::FormatDeserialize(FormatDeserializer &source) {
+	auto result = make_uniq<PivotRef>();
+	source.ReadProperty("source", result->source);
+	source.ReadProperty("aggregates", result->aggregates);
+	source.ReadProperty("unpivot_names", result->unpivot_names);
+	source.ReadProperty("pivots", result->pivots);
+	source.ReadProperty("groups", result->groups);
+	source.ReadProperty("column_name_alias", result->column_name_alias);
+	source.ReadProperty("include_nulls", result->include_nulls);
 	return std::move(result);
 }
 

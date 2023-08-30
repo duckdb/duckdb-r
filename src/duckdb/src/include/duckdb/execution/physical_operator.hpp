@@ -36,6 +36,7 @@ public:
 public:
 	PhysicalOperator(PhysicalOperatorType type, vector<LogicalType> types, idx_t estimated_cardinality)
 	    : type(type), types(std::move(types)), estimated_cardinality(estimated_cardinality) {
+		estimated_props = make_uniq<EstimatedProperties>(estimated_cardinality, 0);
 	}
 
 	virtual ~PhysicalOperator() {
@@ -49,6 +50,7 @@ public:
 	vector<LogicalType> types;
 	//! The estimated cardinality of this physical operator
 	idx_t estimated_cardinality;
+	unique_ptr<EstimatedProperties> estimated_props;
 
 	//! The global sink state of this operator
 	unique_ptr<GlobalSinkState> sink_state;
@@ -138,14 +140,14 @@ public:
 	// The combine is called when a single thread has completed execution of its part of the pipeline, it is the final
 	// time that a specific LocalSinkState is accessible. This method can be called in parallel while other Sink() or
 	// Combine() calls are active on the same GlobalSinkState.
-	virtual SinkCombineResultType Combine(ExecutionContext &context, OperatorSinkCombineInput &input) const;
+	virtual void Combine(ExecutionContext &context, GlobalSinkState &gstate, LocalSinkState &lstate) const;
 	//! The finalize is called when ALL threads are finished execution. It is called only once per pipeline, and is
 	//! entirely single threaded.
 	//! If Finalize returns SinkResultType::FINISHED, the sink is marked as finished
 	virtual SinkFinalizeType Finalize(Pipeline &pipeline, Event &event, ClientContext &context,
-	                                  OperatorSinkFinalizeInput &input) const;
+	                                  GlobalSinkState &gstate) const;
 	//! For sinks with RequiresBatchIndex set to true, when a new batch starts being processed this method is called
-	//! This allows flushing of the current batch (e.g. to disk) TODO: should this be able to block too?
+	//! This allows flushing of the current batch (e.g. to disk)
 	virtual void NextBatch(ExecutionContext &context, GlobalSinkState &state, LocalSinkState &lstate_p) const;
 
 	virtual unique_ptr<LocalSinkState> GetLocalSinkState(ExecutionContext &context) const;
@@ -153,9 +155,6 @@ public:
 
 	//! The maximum amount of memory the operator should use per thread.
 	static idx_t GetMaxThreadMemory(ClientContext &context);
-
-	//! Whether operator caching is allowed in the current execution context
-	static bool OperatorCachingAllowed(ExecutionContext &context);
 
 	virtual bool IsSink() const {
 		return false;

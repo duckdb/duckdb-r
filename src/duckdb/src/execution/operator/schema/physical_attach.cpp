@@ -66,8 +66,7 @@ SourceResultType PhysicalAttach::GetData(ExecutionContext &context, DataChunk &c
 	const auto &path = info->path;
 
 	if (name.empty()) {
-		auto &fs = FileSystem::GetFileSystem(context.client);
-		name = AttachedDatabase::ExtractDatabaseName(path, fs);
+		name = AttachedDatabase::ExtractDatabaseName(path);
 	}
 	auto &db_manager = DatabaseManager::Get(context.client);
 	auto existing_db = db_manager.GetDatabaseFromPath(context.client, path);

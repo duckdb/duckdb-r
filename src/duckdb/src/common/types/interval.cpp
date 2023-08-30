@@ -116,9 +116,6 @@ interval_parse_time : {
 	}
 	result.micros += time.micros;
 	found_any = true;
-	if (negative) {
-		result.micros = -result.micros;
-	}
 	goto end_of_string;
 }
 interval_parse_identifier:

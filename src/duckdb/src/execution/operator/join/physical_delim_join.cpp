@@ -98,25 +98,18 @@ SinkResultType PhysicalDelimJoin::Sink(ExecutionContext &context, DataChunk &chu
 	return SinkResultType::NEED_MORE_INPUT;
 }
 
-SinkCombineResultType PhysicalDelimJoin::Combine(ExecutionContext &context, OperatorSinkCombineInput &input) const {
-	auto &lstate = input.local_state.Cast<DelimJoinLocalState>();
-	auto &gstate = input.global_state.Cast<DelimJoinGlobalState>();
+void PhysicalDelimJoin::Combine(ExecutionContext &context, GlobalSinkState &state, LocalSinkState &lstate_p) const {
+	auto &lstate = lstate_p.Cast<DelimJoinLocalState>();
+	auto &gstate = state.Cast<DelimJoinGlobalState>();
 	gstate.Merge(lstate.lhs_data);
-
-	OperatorSinkCombineInput distinct_combine_input {*distinct->sink_state, *lstate.distinct_state,
-	                                                 input.interrupt_state};
-	distinct->Combine(context, distinct_combine_input);
-
-	return SinkCombineResultType::FINISHED;
+	distinct->Combine(context, *distinct->sink_state, *lstate.distinct_state);
 }
 
 SinkFinalizeType PhysicalDelimJoin::Finalize(Pipeline &pipeline, Event &event, ClientContext &client,
-                                             OperatorSinkFinalizeInput &input) const {
+                                             GlobalSinkState &gstate) const {
 	// finalize the distinct HT
 	D_ASSERT(distinct);
-
-	OperatorSinkFinalizeInput finalize_input {*distinct->sink_state, input.interrupt_state};
-	distinct->Finalize(pipeline, event, client, finalize_input);
+	distinct->Finalize(pipeline, event, client, *distinct->sink_state);
 	return SinkFinalizeType::READY;
 }
 

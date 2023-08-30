@@ -16,11 +16,7 @@
 namespace duckdb {
 
 struct AttachInfo : public ParseInfo {
-public:
-	static constexpr const ParseInfoType TYPE = ParseInfoType::ATTACH_INFO;
-
-public:
-	AttachInfo() : ParseInfo(TYPE) {
+	AttachInfo() {
 	}
 
 	//! The alias of the attached database
@@ -35,9 +31,6 @@ public:
 
 	void Serialize(Serializer &serializer) const;
 	static unique_ptr<ParseInfo> Deserialize(Deserializer &deserializer);
-
-	void FormatSerialize(FormatSerializer &serializer) const override;
-	static unique_ptr<ParseInfo> FormatDeserialize(FormatDeserializer &deserializer);
 };
 
 } // namespace duckdb

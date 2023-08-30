@@ -1,8 +1,6 @@
 #include "duckdb/catalog/catalog_entry.hpp"
-#include "duckdb/parser/parsed_data/create_info.hpp"
+
 #include "duckdb/catalog/catalog.hpp"
-#include "duckdb/common/serializer/binary_serializer.hpp"
-#include "duckdb/common/serializer/binary_deserializer.hpp"
 
 namespace duckdb {
 
@@ -33,10 +31,6 @@ unique_ptr<CatalogEntry> CatalogEntry::Copy(ClientContext &context) const {
 	throw InternalException("Unsupported copy type for catalog entry!");
 }
 
-unique_ptr<CreateInfo> CatalogEntry::GetInfo() const {
-	throw InternalException("Unsupported type for CatalogEntry::GetInfo!");
-}
-
 string CatalogEntry::ToSQL() const {
 	throw InternalException("Unsupported catalog type for ToSQL()");
 }
@@ -49,24 +43,6 @@ SchemaCatalogEntry &CatalogEntry::ParentSchema() {
 	throw InternalException("CatalogEntry::ParentSchema called on catalog entry without schema");
 }
 // LCOV_EXCL_STOP
-
-void CatalogEntry::Serialize(Serializer &serializer) const {
-	const auto info = GetInfo();
-	info->Serialize(serializer);
-}
-
-unique_ptr<CreateInfo> CatalogEntry::Deserialize(Deserializer &source) {
-	return CreateInfo::Deserialize(source);
-}
-
-void CatalogEntry::FormatSerialize(FormatSerializer &serializer) const {
-	const auto info = GetInfo();
-	info->FormatSerialize(serializer);
-}
-
-unique_ptr<CreateInfo> CatalogEntry::FormatDeserialize(FormatDeserializer &deserializer) {
-	return CreateInfo::FormatDeserialize(deserializer);
-}
 
 void CatalogEntry::Verify(Catalog &catalog_p) {
 }

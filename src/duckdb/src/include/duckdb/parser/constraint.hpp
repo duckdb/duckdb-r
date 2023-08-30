@@ -16,8 +16,6 @@ namespace duckdb {
 
 class Serializer;
 class Deserializer;
-class FormatSerializer;
-class FormatDeserializer;
 class FieldWriter;
 class FieldReader;
 
@@ -69,9 +67,6 @@ public:
 	DUCKDB_API virtual void Serialize(FieldWriter &writer) const = 0;
 	//! Deserializes a blob back into a Constraint
 	DUCKDB_API static unique_ptr<Constraint> Deserialize(Deserializer &source);
-
-	DUCKDB_API virtual void FormatSerialize(FormatSerializer &serializer) const;
-	DUCKDB_API static unique_ptr<Constraint> FormatDeserialize(FormatDeserializer &deserializer);
 
 public:
 	template <class TARGET>

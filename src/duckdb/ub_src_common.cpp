@@ -18,8 +18,6 @@
 
 #include "src/common/exception_format_value.cpp"
 
-#include "src/common/extra_type_info.cpp"
-
 #include "src/common/field_writer.cpp"
 
 #include "src/common/file_buffer.cpp"
@@ -33,8 +31,6 @@
 #include "src/common/gzip_file_system.cpp"
 
 #include "src/common/hive_partitioning.cpp"
-
-#include "src/common/http_state.cpp"
 
 #include "src/common/pipe_file_system.cpp"
 

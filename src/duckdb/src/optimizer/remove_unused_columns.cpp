@@ -302,10 +302,6 @@ void RemoveUnusedColumns::VisitOperator(LogicalOperator &op) {
 		everything_referenced = true;
 		break;
 	}
-	case LogicalOperatorType::LOGICAL_MATERIALIZED_CTE: {
-		everything_referenced = true;
-		break;
-	}
 	case LogicalOperatorType::LOGICAL_CTE_REF: {
 		everything_referenced = true;
 		break;

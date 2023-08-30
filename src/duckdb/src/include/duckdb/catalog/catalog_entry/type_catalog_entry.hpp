@@ -29,7 +29,10 @@ public:
 	LogicalType user_type;
 
 public:
-	unique_ptr<CreateInfo> GetInfo() const override;
+	//! Serialize the meta information of the TypeCatalogEntry a serializer
+	virtual void Serialize(Serializer &serializer) const;
+	//! Deserializes to a TypeCatalogEntry
+	static unique_ptr<CreateTypeInfo> Deserialize(Deserializer &source);
 
 	string ToSQL() const override;
 };

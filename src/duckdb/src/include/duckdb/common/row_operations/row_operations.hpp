@@ -13,7 +13,7 @@
 
 namespace duckdb {
 
-class ArenaAllocator;
+class Allocator;
 struct AggregateObject;
 struct AggregateFilterData;
 class DataChunk;
@@ -26,10 +26,10 @@ class Vector;
 struct UnifiedVectorFormat;
 
 struct RowOperationsState {
-	explicit RowOperationsState(ArenaAllocator &allocator) : allocator(allocator) {
+	RowOperationsState(Allocator &allocator) : allocator(allocator) {
 	}
 
-	ArenaAllocator &allocator;
+	Allocator &allocator;
 };
 
 // RowOperations contains a set of operations that operate on data using a RowLayout

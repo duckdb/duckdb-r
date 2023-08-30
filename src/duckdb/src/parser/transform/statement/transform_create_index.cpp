@@ -57,13 +57,12 @@ unique_ptr<CreateStatement> Transformer::TransformCreateIndex(duckdb_libpgquery:
 	info->expressions = TransformIndexParameters(*stmt.indexParams, stmt.relation->relname);
 
 	info->index_type = StringToIndexType(string(stmt.accessMethod));
+	auto tableref = make_uniq<BaseTableRef>();
+	tableref->table_name = stmt.relation->relname;
 	if (stmt.relation->schemaname) {
-		info->schema = stmt.relation->schemaname;
+		tableref->schema_name = stmt.relation->schemaname;
 	}
-	if (stmt.relation->catalogname) {
-		info->catalog = stmt.relation->catalogname;
-	}
-	info->table = stmt.relation->relname;
+	info->table = std::move(tableref);
 	if (stmt.idxname) {
 		info->index_name = stmt.idxname;
 	} else {

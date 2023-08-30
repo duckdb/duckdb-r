@@ -1,25 +1,27 @@
 #include "column_reader.hpp"
+#include "parquet_timestamp.hpp"
+#include "utf8proc_wrapper.hpp"
+#include "parquet_reader.hpp"
 
 #include "boolean_column_reader.hpp"
-#include "callback_column_reader.hpp"
 #include "cast_column_reader.hpp"
-#include "duckdb.hpp"
-#include "list_column_reader.hpp"
-#include "miniz_wrapper.hpp"
-#include "parquet_decimal_utils.hpp"
-#include "parquet_reader.hpp"
-#include "parquet_timestamp.hpp"
 #include "row_number_column_reader.hpp"
-#include "snappy.h"
+#include "callback_column_reader.hpp"
+#include "parquet_decimal_utils.hpp"
+#include "list_column_reader.hpp"
 #include "string_column_reader.hpp"
 #include "struct_column_reader.hpp"
 #include "templated_column_reader.hpp"
-#include "utf8proc_wrapper.hpp"
-#include "zstd.h"
 
+#include "snappy.h"
+#include "miniz_wrapper.hpp"
+#include "zstd.h"
+#include <iostream>
+
+#include "duckdb.hpp"
 #ifndef DUCKDB_AMALGAMATION
-#include "duckdb/common/types/bit.hpp"
 #include "duckdb/common/types/blob.hpp"
+#include "duckdb/common/types/bit.hpp"
 #include "duckdb/common/types/chunk_collection.hpp"
 #endif
 
@@ -612,7 +614,7 @@ uint32_t StringColumnReader::VerifyString(const char *str_data, uint32_t str_len
 
 void StringColumnReader::Dictionary(shared_ptr<ResizeableBuffer> data, idx_t num_entries) {
 	dict = std::move(data);
-	dict_strings = unique_ptr<string_t[]>(new string_t[num_entries]);
+	dict_strings = duckdb::unique_ptr<string_t[]>(new string_t[num_entries]);
 	for (idx_t dict_idx = 0; dict_idx < num_entries; dict_idx++) {
 		uint32_t str_len;
 		if (fixed_width_string_length == 0) {
@@ -871,7 +873,7 @@ idx_t ListColumnReader::Read(uint64_t num_values, parquet_filter_t &filter, data
 
 ListColumnReader::ListColumnReader(ParquetReader &reader, LogicalType type_p, const SchemaElement &schema_p,
                                    idx_t schema_idx_p, idx_t max_define_p, idx_t max_repeat_p,
-                                   unique_ptr<ColumnReader> child_column_reader_p)
+                                   duckdb::unique_ptr<ColumnReader> child_column_reader_p)
     : ColumnReader(reader, std::move(type_p), schema_p, schema_idx_p, max_define_p, max_repeat_p),
       child_column_reader(std::move(child_column_reader_p)),
       read_cache(reader.allocator, ListType::GetChildType(Type())), read_vector(read_cache), overflow_child_count(0) {
@@ -887,8 +889,8 @@ ListColumnReader::ListColumnReader(ParquetReader &reader, LogicalType type_p, co
 void ListColumnReader::ApplyPendingSkips(idx_t num_values) {
 	pending_skips -= num_values;
 
-	auto define_out = unique_ptr<uint8_t[]>(new uint8_t[num_values]);
-	auto repeat_out = unique_ptr<uint8_t[]>(new uint8_t[num_values]);
+	auto define_out = duckdb::unique_ptr<uint8_t[]>(new uint8_t[num_values]);
+	auto repeat_out = duckdb::unique_ptr<uint8_t[]>(new uint8_t[num_values]);
 
 	idx_t remaining = num_values;
 	idx_t read = 0;
@@ -951,7 +953,7 @@ idx_t RowNumberColumnReader::Read(uint64_t num_values, parquet_filter_t &filter,
 //===--------------------------------------------------------------------===//
 // Cast Column Reader
 //===--------------------------------------------------------------------===//
-CastColumnReader::CastColumnReader(unique_ptr<ColumnReader> child_reader_p, LogicalType target_type_p)
+CastColumnReader::CastColumnReader(duckdb::unique_ptr<ColumnReader> child_reader_p, LogicalType target_type_p)
     : ColumnReader(child_reader_p->Reader(), std::move(target_type_p), child_reader_p->Schema(),
                    child_reader_p->FileIdx(), child_reader_p->MaxDefine(), child_reader_p->MaxRepeat()),
       child_reader(std::move(child_reader_p)) {
@@ -1003,7 +1005,7 @@ idx_t CastColumnReader::GroupRowsAvailable() {
 //===--------------------------------------------------------------------===//
 StructColumnReader::StructColumnReader(ParquetReader &reader, LogicalType type_p, const SchemaElement &schema_p,
                                        idx_t schema_idx_p, idx_t max_define_p, idx_t max_repeat_p,
-                                       vector<unique_ptr<ColumnReader>> child_readers_p)
+                                       vector<duckdb::unique_ptr<ColumnReader>> child_readers_p)
     : ColumnReader(reader, std::move(type_p), schema_p, schema_idx_p, max_define_p, max_repeat_p),
       child_readers(std::move(child_readers_p)) {
 	D_ASSERT(type.InternalType() == PhysicalType::STRUCT);
@@ -1153,9 +1155,9 @@ protected:
 };
 
 template <bool FIXED_LENGTH>
-static unique_ptr<ColumnReader> CreateDecimalReaderInternal(ParquetReader &reader, const LogicalType &type_p,
-                                                            const SchemaElement &schema_p, idx_t file_idx_p,
-                                                            idx_t max_define, idx_t max_repeat) {
+static duckdb::unique_ptr<ColumnReader> CreateDecimalReaderInternal(ParquetReader &reader, const LogicalType &type_p,
+                                                                    const SchemaElement &schema_p, idx_t file_idx_p,
+                                                                    idx_t max_define, idx_t max_repeat) {
 	switch (type_p.InternalType()) {
 	case PhysicalType::INT16:
 		return make_uniq<DecimalColumnReader<int16_t, FIXED_LENGTH>>(reader, type_p, schema_p, file_idx_p, max_define,

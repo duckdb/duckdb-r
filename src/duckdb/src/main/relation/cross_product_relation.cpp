@@ -6,10 +6,9 @@
 
 namespace duckdb {
 
-CrossProductRelation::CrossProductRelation(shared_ptr<Relation> left_p, shared_ptr<Relation> right_p,
-                                           JoinRefType ref_type)
+CrossProductRelation::CrossProductRelation(shared_ptr<Relation> left_p, shared_ptr<Relation> right_p)
     : Relation(left_p->context, RelationType::CROSS_PRODUCT_RELATION), left(std::move(left_p)),
-      right(std::move(right_p)), ref_type(ref_type) {
+      right(std::move(right_p)) {
 	if (left->context.GetContext() != right->context.GetContext()) {
 		throw Exception("Cannot combine LEFT and RIGHT relations of different connections!");
 	}
@@ -24,7 +23,7 @@ unique_ptr<QueryNode> CrossProductRelation::GetQueryNode() {
 }
 
 unique_ptr<TableRef> CrossProductRelation::GetTableRef() {
-	auto cross_product_ref = make_uniq<JoinRef>(ref_type);
+	auto cross_product_ref = make_uniq<JoinRef>(JoinRefType::CROSS);
 	cross_product_ref->left = left->GetTableRef();
 	cross_product_ref->right = right->GetTableRef();
 	return std::move(cross_product_ref);

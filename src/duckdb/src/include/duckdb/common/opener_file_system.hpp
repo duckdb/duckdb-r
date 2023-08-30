@@ -99,15 +99,11 @@ public:
 	bool IsPipe(const string &filename) override {
 		return GetFileSystem().IsPipe(filename);
 	}
-	void RemoveFile(const string &filename) override {
+	virtual void RemoveFile(const string &filename) override {
 		GetFileSystem().RemoveFile(filename);
 	}
 
-	string PathSeparator(const string &path) override {
-		return GetFileSystem().PathSeparator(path);
-	}
-
-	vector<string> Glob(const string &path, FileOpener *opener = nullptr) override {
+	virtual vector<string> Glob(const string &path, FileOpener *opener = nullptr) override {
 		if (opener) {
 			throw InternalException("OpenerFileSystem cannot take an opener - the opener is pushed automatically");
 		}

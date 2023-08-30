@@ -63,9 +63,6 @@ public:
 
 	void Serialize(Serializer &serializer) const;
 	static BoundOrderByNode Deserialize(Deserializer &source, PlanDeserializationState &state);
-
-	void FormatSerialize(FormatSerializer &serializer) const;
-	static BoundOrderByNode FormatDeserialize(FormatDeserializer &deserializer);
 };
 
 class BoundLimitModifier : public BoundResultModifier {
@@ -101,9 +98,6 @@ public:
 
 	void Serialize(Serializer &serializer) const;
 	static unique_ptr<BoundOrderModifier> Deserialize(Deserializer &source, PlanDeserializationState &state);
-
-	void FormatSerialize(FormatSerializer &serializer) const;
-	static unique_ptr<BoundOrderModifier> FormatDeserialize(FormatDeserializer &deserializer);
 };
 
 enum class DistinctType : uint8_t { DISTINCT = 0, DISTINCT_ON = 1 };

@@ -23,17 +23,15 @@ string LogicalComparisonJoin::ParamsToString() const {
 
 void LogicalComparisonJoin::Serialize(FieldWriter &writer) const {
 	LogicalJoin::Serialize(writer);
-	writer.WriteRegularSerializableList(mark_types);
 	writer.WriteRegularSerializableList(conditions);
-	writer.WriteSerializableList(duplicate_eliminated_columns);
+	writer.WriteRegularSerializableList(delim_types);
 }
 
 void LogicalComparisonJoin::Deserialize(LogicalComparisonJoin &comparison_join, LogicalDeserializationState &state,
                                         FieldReader &reader) {
 	LogicalJoin::Deserialize(comparison_join, state, reader);
-	comparison_join.mark_types = reader.ReadRequiredSerializableList<LogicalType, LogicalType>();
 	comparison_join.conditions = reader.ReadRequiredSerializableList<JoinCondition, JoinCondition>(state.gstate);
-	comparison_join.duplicate_eliminated_columns = reader.ReadRequiredSerializableList<Expression>(state.gstate);
+	comparison_join.delim_types = reader.ReadRequiredSerializableList<LogicalType, LogicalType>();
 }
 
 unique_ptr<LogicalOperator> LogicalComparisonJoin::Deserialize(LogicalDeserializationState &state,

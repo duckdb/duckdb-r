@@ -26,16 +26,14 @@ class StreamingWindowState : public OperatorState {
 public:
 	using StateBuffer = vector<data_t>;
 
-	StreamingWindowState()
-	    : initialized(false), allocator(Allocator::DefaultAllocator()),
-	      statev(LogicalType::POINTER, data_ptr_cast(&state_ptr)) {
+	StreamingWindowState() : initialized(false), statev(LogicalType::POINTER, data_ptr_cast(&state_ptr)) {
 	}
 
 	~StreamingWindowState() override {
 		for (size_t i = 0; i < aggregate_dtors.size(); ++i) {
 			auto dtor = aggregate_dtors[i];
 			if (dtor) {
-				AggregateInputData aggr_input_data(aggregate_bind_data[i], allocator);
+				AggregateInputData aggr_input_data(aggregate_bind_data[i], Allocator::DefaultAllocator());
 				state_ptr = aggregate_states[i].data();
 				dtor(statev, aggr_input_data, 1);
 			}
@@ -91,7 +89,6 @@ public:
 public:
 	bool initialized;
 	vector<unique_ptr<Vector>> const_vectors;
-	ArenaAllocator allocator;
 
 	// Aggregation
 	vector<StateBuffer> aggregate_states;
@@ -113,8 +110,6 @@ OperatorResultType PhysicalStreamingWindow::Execute(ExecutionContext &context, D
                                                     GlobalOperatorState &gstate_p, OperatorState &state_p) const {
 	auto &gstate = gstate_p.Cast<StreamingWindowGlobalState>();
 	auto &state = state_p.Cast<StreamingWindowState>();
-	state.allocator.Reset();
-
 	if (!state.initialized) {
 		state.Initialize(context.client, input, select_list);
 	}
@@ -135,7 +130,7 @@ OperatorResultType PhysicalStreamingWindow::Execute(ExecutionContext &context, D
 			auto &aggregate = *wexpr.aggregate;
 			auto &statev = state.statev;
 			state.state_ptr = state.aggregate_states[expr_idx].data();
-			AggregateInputData aggr_input_data(wexpr.bind_info.get(), state.allocator);
+			AggregateInputData aggr_input_data(wexpr.bind_info.get(), Allocator::DefaultAllocator());
 
 			// Check for COUNT(*)
 			if (wexpr.children.empty()) {

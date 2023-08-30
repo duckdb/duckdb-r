@@ -14,8 +14,6 @@
 
 #include "src/storage/compression/bitpacking.cpp"
 
-#include "src/storage/compression/bitpacking_hugeint.cpp"
-
 #include "src/storage/compression/patas.cpp"
 
 #include "src/storage/compression/fsst.cpp"

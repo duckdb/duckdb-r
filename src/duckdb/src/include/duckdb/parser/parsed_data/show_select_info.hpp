@@ -14,13 +14,6 @@
 namespace duckdb {
 
 struct ShowSelectInfo : public ParseInfo {
-public:
-	static constexpr const ParseInfoType TYPE = ParseInfoType::SHOW_SELECT_INFO;
-
-public:
-	ShowSelectInfo() : ParseInfo(TYPE) {
-	}
-
 	//! Types of projected columns
 	vector<LogicalType> types;
 	//! The QueryNode of select query

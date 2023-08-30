@@ -40,12 +40,8 @@ struct AlterEntryData {
 };
 
 struct AlterInfo : public ParseInfo {
-public:
-	static constexpr const ParseInfoType TYPE = ParseInfoType::ALTER_INFO;
-
-public:
 	AlterInfo(AlterType type, string catalog, string schema, string name, OnEntryNotFound if_not_found);
-	~AlterInfo() override;
+	virtual ~AlterInfo() override;
 
 	AlterType type;
 	//! if exists
@@ -65,18 +61,11 @@ public:
 	void Serialize(Serializer &serializer) const;
 	virtual void Serialize(FieldWriter &writer) const = 0;
 	static unique_ptr<AlterInfo> Deserialize(Deserializer &source);
-
-	void FormatSerialize(FormatSerializer &serializer) const override;
-	static unique_ptr<ParseInfo> FormatDeserialize(FormatDeserializer &deserializer);
-
 	virtual string GetColumnName() const {
 		return "";
 	};
 
 	AlterEntryData GetAlterEntryData() const;
-
-protected:
-	explicit AlterInfo(AlterType type);
 };
 
 } // namespace duckdb

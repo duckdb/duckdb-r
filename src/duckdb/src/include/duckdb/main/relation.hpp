@@ -12,7 +12,6 @@
 #include "duckdb/common/enums/join_type.hpp"
 #include "duckdb/common/enums/relation_type.hpp"
 #include "duckdb/common/winapi.hpp"
-#include "duckdb/common/enums/joinref_type.hpp"
 #include "duckdb/main/query_result.hpp"
 #include "duckdb/parser/column_definition.hpp"
 #include "duckdb/common/named_parameter_map.hpp"
@@ -95,11 +94,10 @@ public:
 
 	// JOIN operation
 	DUCKDB_API shared_ptr<Relation> Join(const shared_ptr<Relation> &other, const string &condition,
-	                                     JoinType type = JoinType::INNER, JoinRefType ref_type = JoinRefType::REGULAR);
+	                                     JoinType type = JoinType::INNER);
 
 	// CROSS PRODUCT operation
-	DUCKDB_API shared_ptr<Relation> CrossProduct(const shared_ptr<Relation> &other,
-	                                             JoinRefType join_ref_type = JoinRefType::CROSS);
+	DUCKDB_API shared_ptr<Relation> CrossProduct(const shared_ptr<Relation> &other);
 
 	// SET operations
 	DUCKDB_API shared_ptr<Relation> Union(const shared_ptr<Relation> &other);

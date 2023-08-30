@@ -57,8 +57,13 @@ public:
 	bool cycle;
 
 public:
-	unique_ptr<CreateInfo> GetInfo() const override;
+	//! Serialize the meta information of the SequenceCatalogEntry a serializer
+	virtual void Serialize(Serializer &serializer) const;
+	//! Deserializes to a CreateTableInfo
+	static unique_ptr<CreateSequenceInfo> Deserialize(Deserializer &source);
 
 	string ToSQL() const override;
+
+	CatalogEntry *AlterOwnership(ClientContext &context, AlterInfo *info);
 };
 } // namespace duckdb

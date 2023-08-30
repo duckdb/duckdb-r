@@ -16,6 +16,15 @@ PartitionedTupleData::PartitionedTupleData(const PartitionedTupleData &other)
     : type(other.type), buffer_manager(other.buffer_manager), layout(other.layout.Copy()) {
 }
 
+unique_ptr<PartitionedTupleData> PartitionedTupleData::CreateShared() {
+	switch (type) {
+	case PartitionedTupleDataType::RADIX:
+		return make_uniq<RadixPartitionedTupleData>(Cast<RadixPartitionedTupleData>());
+	default:
+		throw NotImplementedException("CreateShared for this type of PartitionedTupleData");
+	}
+}
+
 PartitionedTupleData::~PartitionedTupleData() {
 }
 
@@ -224,9 +233,6 @@ void PartitionedTupleData::Combine(PartitionedTupleData &other) {
 }
 
 void PartitionedTupleData::Partition(TupleDataCollection &source, TupleDataPinProperties properties) {
-	if (source.Count() == 0) {
-		return;
-	}
 #ifdef DEBUG
 	const auto count_before = source.Count();
 #endif

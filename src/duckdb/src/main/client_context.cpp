@@ -304,9 +304,9 @@ static bool IsExplainAnalyze(SQLStatement *statement) {
 	return explain.explain_type == ExplainType::EXPLAIN_ANALYZE;
 }
 
-shared_ptr<PreparedStatementData>
-ClientContext::CreatePreparedStatement(ClientContextLock &lock, const string &query, unique_ptr<SQLStatement> statement,
-                                       optional_ptr<case_insensitive_map_t<Value>> values) {
+shared_ptr<PreparedStatementData> ClientContext::CreatePreparedStatement(ClientContextLock &lock, const string &query,
+                                                                         unique_ptr<SQLStatement> statement,
+                                                                         vector<Value> *values) {
 	StatementType statement_type = statement->type;
 	auto result = make_shared<PreparedStatementData>(statement_type);
 
@@ -315,9 +315,8 @@ ClientContext::CreatePreparedStatement(ClientContextLock &lock, const string &qu
 	profiler.StartPhase("planner");
 	Planner planner(*this);
 	if (values) {
-		auto &parameter_values = *values;
-		for (auto &value : parameter_values) {
-			planner.parameter_data.emplace(value.first, BoundParameterData(value.second));
+		for (auto &value : *values) {
+			planner.parameter_data.emplace_back(value);
 		}
 	}
 
@@ -371,7 +370,7 @@ double ClientContext::GetProgress() {
 
 unique_ptr<PendingQueryResult> ClientContext::PendingPreparedStatement(ClientContextLock &lock,
                                                                        shared_ptr<PreparedStatementData> statement_p,
-                                                                       const PendingQueryParameters &parameters) {
+                                                                       PendingQueryParameters parameters) {
 	D_ASSERT(active_query);
 	auto &statement = *statement_p;
 	if (ValidChecker::IsInvalidated(ActiveTransaction()) && statement.properties.requires_valid_transaction) {
@@ -393,14 +392,7 @@ unique_ptr<PendingQueryResult> ClientContext::PendingPreparedStatement(ClientCon
 	}
 
 	// bind the bound values before execution
-	case_insensitive_map_t<Value> owned_values;
-	if (parameters.parameters) {
-		auto &params = *parameters.parameters;
-		for (auto &val : params) {
-			owned_values.emplace(val);
-		}
-	}
-	statement.Bind(std::move(owned_values));
+	statement.Bind(parameters.parameters ? *parameters.parameters : vector<Value>());
 
 	active_query->executor = make_uniq<Executor>(*this);
 	auto &executor = *active_query->executor;
@@ -574,7 +566,7 @@ unique_ptr<PreparedStatement> ClientContext::Prepare(const string &query) {
 
 unique_ptr<PendingQueryResult> ClientContext::PendingQueryPreparedInternal(ClientContextLock &lock, const string &query,
                                                                            shared_ptr<PreparedStatementData> &prepared,
-                                                                           const PendingQueryParameters &parameters) {
+                                                                           PendingQueryParameters parameters) {
 	try {
 		InitialCleanup(lock);
 	} catch (const Exception &ex) {
@@ -587,13 +579,13 @@ unique_ptr<PendingQueryResult> ClientContext::PendingQueryPreparedInternal(Clien
 
 unique_ptr<PendingQueryResult> ClientContext::PendingQuery(const string &query,
                                                            shared_ptr<PreparedStatementData> &prepared,
-                                                           const PendingQueryParameters &parameters) {
+                                                           PendingQueryParameters parameters) {
 	auto lock = LockContext();
 	return PendingQueryPreparedInternal(*lock, query, prepared, parameters);
 }
 
 unique_ptr<QueryResult> ClientContext::Execute(const string &query, shared_ptr<PreparedStatementData> &prepared,
-                                               const PendingQueryParameters &parameters) {
+                                               PendingQueryParameters parameters) {
 	auto lock = LockContext();
 	auto pending = PendingQueryPreparedInternal(*lock, query, prepared, parameters);
 	if (pending->HasError()) {
@@ -603,7 +595,7 @@ unique_ptr<QueryResult> ClientContext::Execute(const string &query, shared_ptr<P
 }
 
 unique_ptr<QueryResult> ClientContext::Execute(const string &query, shared_ptr<PreparedStatementData> &prepared,
-                                               case_insensitive_map_t<Value> &values, bool allow_stream_result) {
+                                               vector<Value> &values, bool allow_stream_result) {
 	PendingQueryParameters parameters;
 	parameters.parameters = &values;
 	parameters.allow_stream_result = allow_stream_result;
@@ -612,11 +604,10 @@ unique_ptr<QueryResult> ClientContext::Execute(const string &query, shared_ptr<P
 
 unique_ptr<PendingQueryResult> ClientContext::PendingStatementInternal(ClientContextLock &lock, const string &query,
                                                                        unique_ptr<SQLStatement> statement,
-                                                                       const PendingQueryParameters &parameters) {
+                                                                       PendingQueryParameters parameters) {
 	// prepare the query for execution
 	auto prepared = CreatePreparedStatement(lock, query, std::move(statement), parameters.parameters);
-	idx_t parameter_count = !parameters.parameters ? 0 : parameters.parameters->size();
-	if (prepared->properties.parameter_count > 0 && parameter_count == 0) {
+	if (prepared->properties.parameter_count > 0 && !parameters.parameters) {
 		string error_message = StringUtil::Format("Expected %lld parameters, but none were supplied",
 		                                          prepared->properties.parameter_count);
 		return make_uniq<PendingQueryResult>(PreservedError(error_message));
@@ -649,7 +640,7 @@ bool ClientContext::IsActiveResult(ClientContextLock &lock, BaseQueryResult *res
 
 unique_ptr<PendingQueryResult> ClientContext::PendingStatementOrPreparedStatementInternal(
     ClientContextLock &lock, const string &query, unique_ptr<SQLStatement> statement,
-    shared_ptr<PreparedStatementData> &prepared, const PendingQueryParameters &parameters) {
+    shared_ptr<PreparedStatementData> &prepared, PendingQueryParameters parameters) {
 	// check if we are on AutoCommit. In this case we should start a transaction.
 	if (statement && config.AnyVerification()) {
 		// query verification is enabled
@@ -706,7 +697,7 @@ unique_ptr<PendingQueryResult> ClientContext::PendingStatementOrPreparedStatemen
 
 unique_ptr<PendingQueryResult> ClientContext::PendingStatementOrPreparedStatement(
     ClientContextLock &lock, const string &query, unique_ptr<SQLStatement> statement,
-    shared_ptr<PreparedStatementData> &prepared, const PendingQueryParameters &parameters) {
+    shared_ptr<PreparedStatementData> &prepared, PendingQueryParameters parameters) {
 	unique_ptr<PendingQueryResult> result;
 
 	try {
@@ -731,7 +722,7 @@ unique_ptr<PendingQueryResult> ClientContext::PendingStatementOrPreparedStatemen
 		if (statement) {
 			result = PendingStatementInternal(lock, query, std::move(statement), parameters);
 		} else {
-			if (prepared->RequireRebind(*this, parameters.parameters)) {
+			if (prepared->RequireRebind(*this, *parameters.parameters)) {
 				// catalog was modified: rebind the statement before execution
 				auto new_prepared =
 				    CreatePreparedStatement(lock, query, prepared->unbound_statement->Copy(), parameters.parameters);
@@ -893,8 +884,7 @@ unique_ptr<PendingQueryResult> ClientContext::PendingQuery(unique_ptr<SQLStateme
 
 unique_ptr<PendingQueryResult> ClientContext::PendingQueryInternal(ClientContextLock &lock,
                                                                    unique_ptr<SQLStatement> statement,
-                                                                   const PendingQueryParameters &parameters,
-                                                                   bool verify) {
+                                                                   PendingQueryParameters parameters, bool verify) {
 	auto query = statement->query;
 	shared_ptr<PreparedStatementData> prepared;
 	if (verify) {
@@ -1165,21 +1155,8 @@ ParserOptions ClientContext::GetParserOptions() const {
 }
 
 ClientProperties ClientContext::GetClientProperties() const {
-	string timezone = "UTC";
-	Value result;
-	// 1) Check Set Variable
-	auto &client_config = ClientConfig::GetConfig(*this);
-	auto tz_config = client_config.set_variables.find("timezone");
-	if (tz_config == client_config.set_variables.end()) {
-		// 2) Check for Default Value
-		auto default_value = db->config.extension_parameters.find("timezone");
-		if (default_value != db->config.extension_parameters.end()) {
-			timezone = default_value->second.default_value.GetValue<string>();
-		}
-	} else {
-		timezone = tz_config->second.GetValue<string>();
-	}
-	return {timezone, db->config.options.arrow_offset_size};
+	auto client_context = ClientConfig::GetConfig(*this);
+	return {client_context.ExtractTimezone(), db->config.options.arrow_offset_size};
 }
 
 bool ClientContext::ExecutionIsFinished() {

@@ -25,8 +25,7 @@ enum class QueryNodeType : uint8_t {
 	SELECT_NODE = 1,
 	SET_OPERATION_NODE = 2,
 	BOUND_SUBQUERY_NODE = 3,
-	RECURSIVE_CTE_NODE = 4,
-	CTE_NODE = 5
+	RECURSIVE_CTE_NODE = 4
 };
 
 struct CommonTableExpressionInfo;

@@ -8,9 +8,10 @@
 
 #pragma once
 
-#include "duckdb/execution/index/art/fixed_size_allocator.hpp"
 #include "duckdb/execution/index/art/art.hpp"
+#include "duckdb/execution/index/art/fixed_size_allocator.hpp"
 #include "duckdb/execution/index/art/node.hpp"
+#include "duckdb/execution/index/art/prefix.hpp"
 
 namespace duckdb {
 
@@ -20,6 +21,8 @@ class Node48 {
 public:
 	//! Number of non-null children
 	uint8_t count;
+	//! Compressed path (prefix)
+	Prefix prefix;
 	//! Array containing all possible partial key bytes, those not set have an EMPTY_MARKER
 	uint8_t child_index[Node::NODE_256_CAPACITY];
 	//! ART node pointers to the child nodes
@@ -32,7 +35,6 @@ public:
 	static void Free(ART &art, Node &node);
 	//! Get a reference to the node
 	static inline Node48 &Get(const ART &art, const Node ptr) {
-		D_ASSERT(!ptr.IsSerialized());
 		return *Node::GetAllocator(art, NType::NODE_48).Get<Node48>(ptr);
 	}
 	//! Initializes all the fields of the node while growing a Node16 to a Node48
@@ -65,10 +67,10 @@ public:
 	//! Get the first child that is greater or equal to the specific byte
 	optional_ptr<Node> GetNextChild(uint8_t &byte);
 
-	//! Serialize this node
-	BlockPointer Serialize(ART &art, MetadataWriter &writer);
+	//! Serialize an ART node
+	BlockPointer Serialize(ART &art, MetaBlockWriter &writer);
 	//! Deserialize this node
-	void Deserialize(MetadataReader &reader);
+	void Deserialize(ART &art, MetaBlockReader &reader);
 
 	//! Vacuum the children of the node
 	void Vacuum(ART &art, const ARTFlags &flags);

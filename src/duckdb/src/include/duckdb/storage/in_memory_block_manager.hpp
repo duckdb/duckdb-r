@@ -29,7 +29,7 @@ public:
 	block_id_t GetFreeBlockId() override {
 		throw InternalException("Cannot perform IO in in-memory database - GetFreeBlockId!");
 	}
-	bool IsRootBlock(MetaBlockPointer root) override {
+	bool IsRootBlock(block_id_t root) override {
 		throw InternalException("Cannot perform IO in in-memory database - IsRootBlock!");
 	}
 	void MarkBlockAsFree(block_id_t block_id) override {
@@ -41,7 +41,7 @@ public:
 	void IncreaseBlockReferenceCount(block_id_t block_id) override {
 		throw InternalException("Cannot perform IO in in-memory database - IncreaseBlockReferenceCount!");
 	}
-	idx_t GetMetaBlock() override {
+	block_id_t GetMetaBlock() override {
 		throw InternalException("Cannot perform IO in in-memory database - GetMetaBlock!");
 	}
 	void Read(Block &block) override {

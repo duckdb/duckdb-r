@@ -18,7 +18,9 @@ public:
 	static constexpr const LogicalOperatorType TYPE = LogicalOperatorType::LOGICAL_CREATE_TABLE;
 
 public:
-	LogicalCreateTable(SchemaCatalogEntry &schema, unique_ptr<BoundCreateTableInfo> info);
+	LogicalCreateTable(SchemaCatalogEntry &schema, unique_ptr<BoundCreateTableInfo> info)
+	    : LogicalOperator(LogicalOperatorType::LOGICAL_CREATE_TABLE), schema(schema), info(std::move(info)) {
+	}
 
 	//! Schema to insert to
 	SchemaCatalogEntry &schema;
@@ -28,17 +30,11 @@ public:
 public:
 	void Serialize(FieldWriter &writer) const override;
 	static unique_ptr<LogicalOperator> Deserialize(LogicalDeserializationState &state, FieldReader &reader);
-
-	void FormatSerialize(FormatSerializer &serializer) const override;
-	static unique_ptr<LogicalOperator> FormatDeserialize(FormatDeserializer &deserializer);
-
 	idx_t EstimateCardinality(ClientContext &context) override;
 
 protected:
-	void ResolveTypes() override;
-
-private:
-	LogicalCreateTable(ClientContext &context, const string &catalog, const string &schema,
-	                   unique_ptr<CreateInfo> info);
+	void ResolveTypes() override {
+		types.emplace_back(LogicalType::BIGINT);
+	}
 };
 } // namespace duckdb

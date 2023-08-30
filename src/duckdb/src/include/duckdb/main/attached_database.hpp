@@ -60,7 +60,7 @@ public:
 	bool IsInitialDatabase() const;
 	void SetInitialDatabase();
 
-	static string ExtractDatabaseName(const string &dbpath, FileSystem &fs);
+	static string ExtractDatabaseName(const string &dbpath);
 
 private:
 	DatabaseInstance &db;

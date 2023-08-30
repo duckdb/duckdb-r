@@ -109,6 +109,7 @@ data_ptr_t ArenaAllocator::ReallocateAligned(data_ptr_t pointer, idx_t old_size,
 }
 
 void ArenaAllocator::Reset() {
+
 	if (head) {
 		// destroy all chunks except the current one
 		if (head->next) {
@@ -147,20 +148,8 @@ ArenaChunk *ArenaAllocator::GetTail() {
 	return tail;
 }
 
-bool ArenaAllocator::IsEmpty() const {
+bool ArenaAllocator::IsEmpty() {
 	return head == nullptr;
-}
-
-idx_t ArenaAllocator::SizeInBytes() const {
-	idx_t total_size = 0;
-	if (!IsEmpty()) {
-		auto current = head.get();
-		while (current != nullptr) {
-			total_size += current->current_position;
-			current = current->next.get();
-		}
-	}
-	return total_size;
 }
 
 } // namespace duckdb

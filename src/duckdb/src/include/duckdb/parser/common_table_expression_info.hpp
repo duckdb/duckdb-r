@@ -9,7 +9,6 @@
 #pragma once
 
 #include "duckdb/parser/statement/select_statement.hpp"
-#include "duckdb/common/enums/cte_materialize.hpp"
 
 namespace duckdb {
 
@@ -18,7 +17,6 @@ class SelectStatement;
 struct CommonTableExpressionInfo {
 	vector<string> aliases;
 	unique_ptr<SelectStatement> query;
-	CTEMaterialize materialized = CTEMaterialize::CTE_MATERIALIZE_DEFAULT;
 
 	void FormatSerialize(FormatSerializer &serializer) const;
 	static unique_ptr<CommonTableExpressionInfo> FormatDeserialize(FormatDeserializer &deserializer);

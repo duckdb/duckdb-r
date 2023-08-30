@@ -6,7 +6,6 @@
 #include "duckdb/main/client_config.hpp"
 #include "duckdb/main/client_data.hpp"
 #include "duckdb/execution/expression_executor.hpp"
-#include "duckdb/common/case_insensitive_map.hpp"
 
 namespace duckdb {
 
@@ -24,29 +23,24 @@ BoundStatement Binder::Bind(ExecuteStatement &stmt) {
 	// check if we need to rebind the prepared statement
 	// this happens if the catalog changes, since in this case e.g. tables we relied on may have been deleted
 	auto prepared = entry->second;
-	auto &named_param_map = prepared->unbound_statement->named_param_map;
 
-	PreparedStatement::VerifyParameters(stmt.named_values, named_param_map);
-
-	auto &mapped_named_values = stmt.named_values;
 	// bind any supplied parameters
-	case_insensitive_map_t<Value> bind_values;
+	vector<Value> bind_values;
 	auto constant_binder = Binder::CreateBinder(context);
 	constant_binder->SetCanContainNulls(true);
-	for (auto &pair : mapped_named_values) {
+	for (idx_t i = 0; i < stmt.values.size(); i++) {
 		ConstantBinder cbinder(*constant_binder, context, "EXECUTE statement");
-		auto bound_expr = cbinder.Bind(pair.second);
+		auto bound_expr = cbinder.Bind(stmt.values[i]);
 
 		Value value = ExpressionExecutor::EvaluateScalar(context, *bound_expr, true);
-		bind_values[pair.first] = std::move(value);
+		bind_values.push_back(std::move(value));
 	}
 	unique_ptr<LogicalOperator> rebound_plan;
-
-	if (prepared->RequireRebind(context, &bind_values)) {
+	if (prepared->RequireRebind(context, bind_values)) {
 		// catalog was modified or statement does not have clear types: rebind the statement before running the execute
 		Planner prepared_planner(context);
-		for (auto &pair : bind_values) {
-			prepared_planner.parameter_data.emplace(std::make_pair(pair.first, BoundParameterData(pair.second)));
+		for (idx_t i = 0; i < bind_values.size(); i++) {
+			prepared_planner.parameter_data.emplace_back(bind_values[i]);
 		}
 		prepared = prepared_planner.PrepareSQLStatement(entry->second->unbound_statement->Copy());
 		rebound_plan = std::move(prepared_planner.plan);

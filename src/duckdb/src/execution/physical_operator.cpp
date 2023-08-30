@@ -97,12 +97,11 @@ SinkResultType PhysicalOperator::Sink(ExecutionContext &context, DataChunk &chun
 
 // LCOV_EXCL_STOP
 
-SinkCombineResultType PhysicalOperator::Combine(ExecutionContext &context, OperatorSinkCombineInput &input) const {
-	return SinkCombineResultType::FINISHED;
+void PhysicalOperator::Combine(ExecutionContext &context, GlobalSinkState &gstate, LocalSinkState &lstate) const {
 }
 
 SinkFinalizeType PhysicalOperator::Finalize(Pipeline &pipeline, Event &event, ClientContext &context,
-                                            OperatorSinkFinalizeInput &input) const {
+                                            GlobalSinkState &gstate) const {
 	return SinkFinalizeType::READY;
 }
 
@@ -123,22 +122,6 @@ idx_t PhysicalOperator::GetMaxThreadMemory(ClientContext &context) {
 	idx_t max_memory = BufferManager::GetBufferManager(context).GetMaxMemory();
 	idx_t num_threads = TaskScheduler::GetScheduler(context).NumberOfThreads();
 	return (max_memory / num_threads) / 4;
-}
-
-bool PhysicalOperator::OperatorCachingAllowed(ExecutionContext &context) {
-	if (!context.client.config.enable_caching_operators) {
-		return false;
-	} else if (!context.pipeline) {
-		return false;
-	} else if (!context.pipeline->GetSink()) {
-		return false;
-	} else if (context.pipeline->GetSink()->RequiresBatchIndex()) {
-		return false;
-	} else if (context.pipeline->IsOrderDependent()) {
-		return false;
-	}
-
-	return true;
 }
 
 //===--------------------------------------------------------------------===//
@@ -256,7 +239,20 @@ OperatorResultType CachingPhysicalOperator::Execute(ExecutionContext &context, D
 #if STANDARD_VECTOR_SIZE >= 128
 	if (!state.initialized) {
 		state.initialized = true;
-		state.can_cache_chunk = caching_supported && PhysicalOperator::OperatorCachingAllowed(context);
+		state.can_cache_chunk = true;
+
+		if (!context.client.config.enable_caching_operators) {
+			state.can_cache_chunk = false;
+		} else if (!context.pipeline || !caching_supported) {
+			state.can_cache_chunk = false;
+		} else if (!context.pipeline->GetSink()) {
+			// Disabling for pipelines without Sink, i.e. when pulling
+			state.can_cache_chunk = false;
+		} else if (context.pipeline->GetSink()->RequiresBatchIndex()) {
+			state.can_cache_chunk = false;
+		} else if (context.pipeline->IsOrderDependent()) {
+			state.can_cache_chunk = false;
+		}
 	}
 	if (!state.can_cache_chunk) {
 		return child_result;

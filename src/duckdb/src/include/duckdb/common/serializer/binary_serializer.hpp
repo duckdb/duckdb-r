@@ -1,11 +1,3 @@
-//===----------------------------------------------------------------------===//
-//                         DuckDB
-//
-// duckdb/common/serializer/binary_serializer.hpp
-//
-//
-//===----------------------------------------------------------------------===//
-
 #pragma once
 
 #include "duckdb/common/serializer/format_serializer.hpp"
@@ -13,6 +5,7 @@
 namespace duckdb {
 
 struct BinarySerializer : public FormatSerializer {
+
 private:
 	struct State {
 		// how many fields are present in the object
@@ -24,7 +17,6 @@ private:
 	};
 
 	const char *current_tag;
-	field_id_t current_field_id = 0;
 
 	vector<data_t> data;
 	vector<State> stack;
@@ -32,14 +24,14 @@ private:
 	template <class T>
 	void Write(T element) {
 		static_assert(std::is_trivially_destructible<T>(), "Write element must be trivially destructible");
-		WriteDataInternal(const_data_ptr_cast(&element), sizeof(T));
+		WriteData(const_data_ptr_cast(&element), sizeof(T));
 	}
-	void WriteDataInternal(const_data_ptr_t buffer, idx_t write_size) {
+	void WriteData(const_data_ptr_t buffer, idx_t write_size) {
 		data.insert(data.end(), buffer, buffer + write_size);
 		stack.back().size += write_size;
 	}
-	void WriteDataInternal(const char *ptr, idx_t write_size) {
-		WriteDataInternal(const_data_ptr_cast(ptr), write_size);
+	void WriteData(const char *ptr, idx_t write_size) {
+		WriteData(const_data_ptr_cast(ptr), write_size);
 	}
 
 	explicit BinarySerializer() {
@@ -56,7 +48,7 @@ public:
 		return std::move(serializer.data);
 	}
 
-	void SetTag(const field_id_t field_id, const char *tag) final;
+	void SetTag(const char *tag) final;
 
 	//===--------------------------------------------------------------------===//
 	// Nested Types Hooks

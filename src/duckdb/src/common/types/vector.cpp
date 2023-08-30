@@ -855,61 +855,39 @@ void Vector::Flatten(const SelectionVector &sel, idx_t count) {
 	}
 }
 
-void Vector::ToUnifiedFormat(idx_t count, UnifiedVectorFormat &format) {
+void Vector::ToUnifiedFormat(idx_t count, UnifiedVectorFormat &data) {
 	switch (GetVectorType()) {
 	case VectorType::DICTIONARY_VECTOR: {
 		auto &sel = DictionaryVector::SelVector(*this);
-		format.owned_sel.Initialize(sel);
-		format.sel = &format.owned_sel;
-
 		auto &child = DictionaryVector::Child(*this);
 		if (child.GetVectorType() == VectorType::FLAT_VECTOR) {
-			format.data = FlatVector::GetData(child);
-			format.validity = FlatVector::Validity(child);
+			data.sel = &sel;
+			data.data = FlatVector::GetData(child);
+			data.validity = FlatVector::Validity(child);
 		} else {
-			// dictionary with non-flat child: create a new reference to the child and flatten it
+			// dictionary with non-flat child: create a new reference to the child and normalify it
 			Vector child_vector(child);
 			child_vector.Flatten(sel, count);
 			auto new_aux = make_buffer<VectorChildBuffer>(std::move(child_vector));
 
-			format.data = FlatVector::GetData(new_aux->data);
-			format.validity = FlatVector::Validity(new_aux->data);
+			data.sel = &sel;
+			data.data = FlatVector::GetData(new_aux->data);
+			data.validity = FlatVector::Validity(new_aux->data);
 			this->auxiliary = std::move(new_aux);
 		}
 		break;
 	}
 	case VectorType::CONSTANT_VECTOR:
-		format.sel = ConstantVector::ZeroSelectionVector(count, format.owned_sel);
-		format.data = ConstantVector::GetData(*this);
-		format.validity = ConstantVector::Validity(*this);
+		data.sel = ConstantVector::ZeroSelectionVector(count, data.owned_sel);
+		data.data = ConstantVector::GetData(*this);
+		data.validity = ConstantVector::Validity(*this);
 		break;
 	default:
 		Flatten(count);
-		format.sel = FlatVector::IncrementalSelectionVector();
-		format.data = FlatVector::GetData(*this);
-		format.validity = FlatVector::Validity(*this);
+		data.sel = FlatVector::IncrementalSelectionVector();
+		data.data = FlatVector::GetData(*this);
+		data.validity = FlatVector::Validity(*this);
 		break;
-	}
-}
-
-void Vector::RecursiveToUnifiedFormat(Vector &input, idx_t count, RecursiveUnifiedVectorFormat &data) {
-
-	input.ToUnifiedFormat(count, data.unified);
-
-	if (input.GetType().InternalType() == PhysicalType::LIST) {
-		auto &child = ListVector::GetEntry(input);
-		auto child_count = ListVector::GetListSize(input);
-		data.children.emplace_back();
-		Vector::RecursiveToUnifiedFormat(child, child_count, data.children.back());
-
-	} else if (input.GetType().InternalType() == PhysicalType::STRUCT) {
-		auto &children = StructVector::GetEntries(input);
-		for (idx_t i = 0; i < children.size(); i++) {
-			data.children.emplace_back();
-		}
-		for (idx_t i = 0; i < children.size(); i++) {
-			Vector::RecursiveToUnifiedFormat(*children[i], count, data.children[i]);
-		}
 	}
 }
 
@@ -998,15 +976,15 @@ void Vector::FormatSerialize(FormatSerializer &serializer, idx_t count) {
 	UnifiedVectorFormat vdata;
 	ToUnifiedFormat(count, vdata);
 
-	const bool all_valid = (count > 0) && !vdata.validity.AllValid();
-	serializer.WriteProperty(100, "all_valid", all_valid);
+	const auto all_valid = (count > 0) && !vdata.validity.AllValid();
+	serializer.WriteProperty("all_valid", all_valid);
 	if (all_valid) {
 		ValidityMask flat_mask(count);
 		for (idx_t i = 0; i < count; ++i) {
 			auto row_idx = vdata.sel->get_index(i);
 			flat_mask.Set(i, vdata.validity.RowIsValid(row_idx));
 		}
-		serializer.WriteProperty(101, "validity", const_data_ptr_cast(flat_mask.GetData()),
+		serializer.WriteProperty("validity", const_data_ptr_cast(flat_mask.GetData()),
 		                         flat_mask.ValidityMaskSize(count));
 	}
 	if (TypeIsConstantSize(logical_type.InternalType())) {
@@ -1014,14 +992,14 @@ void Vector::FormatSerialize(FormatSerializer &serializer, idx_t count) {
 		idx_t write_size = GetTypeIdSize(logical_type.InternalType()) * count;
 		auto ptr = make_unsafe_uniq_array<data_t>(write_size);
 		VectorOperations::WriteToStorage(*this, count, ptr.get());
-		serializer.WriteProperty(102, "data", ptr.get(), write_size);
+		serializer.WriteProperty("data", ptr.get(), write_size);
 	} else {
 		switch (logical_type.InternalType()) {
 		case PhysicalType::VARCHAR: {
 			auto strings = UnifiedVectorFormat::GetData<string_t>(vdata);
 
 			// Serialize data as a list
-			serializer.SetTag(102, "data");
+			serializer.SetTag("data");
 			serializer.OnListBegin(count);
 			for (idx_t i = 0; i < count; i++) {
 				auto idx = vdata.sel->get_index(i);
@@ -1036,7 +1014,7 @@ void Vector::FormatSerialize(FormatSerializer &serializer, idx_t count) {
 			auto &entries = StructVector::GetEntries(*this);
 
 			// Serialize entries as a list
-			serializer.SetTag(103, "children");
+			serializer.SetTag("children");
 			serializer.OnListBegin(entries.size());
 			for (auto &entry : entries) {
 				serializer.OnObjectBegin();
@@ -1059,17 +1037,17 @@ void Vector::FormatSerialize(FormatSerializer &serializer, idx_t count) {
 				entries[i].offset = source.offset;
 				entries[i].length = source.length;
 			}
-			serializer.WriteProperty(104, "list_size", list_size);
-			serializer.SetTag(105, "entries");
+			serializer.WriteProperty("list_size", list_size);
+			serializer.SetTag("entries");
 			serializer.OnListBegin(count);
 			for (idx_t i = 0; i < count; i++) {
 				serializer.OnObjectBegin();
-				serializer.WriteProperty(100, "offset", entries[i].offset);
-				serializer.WriteProperty(101, "length", entries[i].length);
+				serializer.WriteProperty("offset", entries[i].offset);
+				serializer.WriteProperty("length", entries[i].length);
 				serializer.OnObjectEnd();
 			}
 			serializer.OnListEnd(count);
-			serializer.SetTag(106, "child");
+			serializer.SetTag("child");
 			serializer.OnObjectBegin();
 			child.FormatSerialize(serializer, list_size);
 			serializer.OnObjectEnd();
@@ -1086,24 +1064,24 @@ void Vector::FormatDeserialize(FormatDeserializer &deserializer, idx_t count) {
 
 	auto &validity = FlatVector::Validity(*this);
 	validity.Reset();
-	const auto has_validity = deserializer.ReadProperty<bool>(100, "all_valid");
+	const auto has_validity = deserializer.ReadProperty<bool>("all_valid");
 	if (has_validity) {
 		validity.Initialize(count);
-		deserializer.ReadProperty(101, "validity", data_ptr_cast(validity.GetData()), validity.ValidityMaskSize(count));
+		deserializer.ReadProperty("validity", data_ptr_cast(validity.GetData()), validity.ValidityMaskSize(count));
 	}
 
 	if (TypeIsConstantSize(logical_type.InternalType())) {
 		// constant size type: read fixed amount of data
 		auto column_size = GetTypeIdSize(logical_type.InternalType()) * count;
 		auto ptr = make_unsafe_uniq_array<data_t>(column_size);
-		deserializer.ReadProperty(102, "data", ptr.get(), column_size);
+		deserializer.ReadProperty("data", ptr.get(), column_size);
 
 		VectorOperations::ReadFromStorage(ptr.get(), count, *this);
 	} else {
 		switch (logical_type.InternalType()) {
 		case PhysicalType::VARCHAR: {
 			auto strings = FlatVector::GetData<string_t>(*this);
-			deserializer.SetTag(102, "data");
+			deserializer.SetTag("data");
 			auto read_count = deserializer.OnListBegin();
 			D_ASSERT(read_count == count);
 			(void)read_count; // otherwise unused variable error in release mode
@@ -1122,7 +1100,7 @@ void Vector::FormatDeserialize(FormatDeserializer &deserializer, idx_t count) {
 		case PhysicalType::STRUCT: {
 			auto &entries = StructVector::GetEntries(*this);
 			// Deserialize entries as a list
-			deserializer.SetTag(103, "children");
+			deserializer.SetTag("children");
 			auto read_size = deserializer.OnListBegin();
 			D_ASSERT(read_size == entries.size());
 			(void)read_size;
@@ -1136,26 +1114,26 @@ void Vector::FormatDeserialize(FormatDeserializer &deserializer, idx_t count) {
 		}
 		case PhysicalType::LIST: {
 			// Read the list size
-			auto list_size = deserializer.ReadProperty<uint64_t>(104, "list_size");
+			auto list_size = deserializer.ReadProperty<uint64_t>("list_size");
 			ListVector::Reserve(*this, list_size);
 			ListVector::SetListSize(*this, list_size);
 
 			// Read the entries
 			auto list_entries = FlatVector::GetData<list_entry_t>(*this);
-			deserializer.SetTag(105, "entries");
+			deserializer.SetTag("entries");
 			auto entries_count = deserializer.OnListBegin();
 			D_ASSERT(entries_count == count);
 			(void)entries_count;
 			for (idx_t i = 0; i < count; i++) {
 				deserializer.OnObjectBegin();
-				deserializer.ReadProperty(100, "offset", list_entries[i].offset);
-				deserializer.ReadProperty(101, "length", list_entries[i].length);
+				deserializer.ReadProperty("offset", list_entries[i].offset);
+				deserializer.ReadProperty("length", list_entries[i].length);
 				deserializer.OnObjectEnd();
 			}
 			deserializer.OnListEnd();
 
 			// Read the child vector
-			deserializer.SetTag(106, "child");
+			deserializer.SetTag("child");
 			auto &child = ListVector::GetEntry(*this);
 			deserializer.OnObjectBegin();
 			child.FormatDeserialize(deserializer, list_size);

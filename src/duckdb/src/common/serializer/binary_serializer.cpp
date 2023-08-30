@@ -2,9 +2,9 @@
 
 namespace duckdb {
 
-void BinarySerializer::SetTag(const field_id_t field_id, const char *tag) {
-	current_field_id = field_id;
+void BinarySerializer::SetTag(const char *tag) {
 	current_tag = tag;
+
 	// Increment the number of fields
 	stack.back().field_count++;
 }
@@ -45,9 +45,6 @@ void BinarySerializer::OnMapEnd(idx_t count) {
 
 void BinarySerializer::OnObjectBegin() {
 	stack.push_back(State({0, 0, data.size()}));
-	// Store the field id
-	Write<field_id_t>(current_field_id);
-	// Store the offset so we can patch the field count and size later
 	Write<uint32_t>(0); // Placeholder for the field count
 	Write<uint64_t>(0); // Placeholder for the size
 }
@@ -55,11 +52,9 @@ void BinarySerializer::OnObjectBegin() {
 void BinarySerializer::OnObjectEnd() {
 	auto &frame = stack.back();
 	// Patch the field count and size
-	auto ptr = &data[frame.offset];
-	ptr += sizeof(field_id_t); // Skip the field id
-	Store<uint32_t>(frame.field_count, ptr);
-	ptr += sizeof(uint32_t); // Skip the field count
-	Store<uint64_t>(frame.size, ptr);
+	auto message_start = &data[frame.offset];
+	Store<uint32_t>(frame.field_count, message_start);
+	Store<uint64_t>(frame.size, message_start + sizeof(uint32_t));
 	stack.pop_back();
 }
 
@@ -134,7 +129,7 @@ void BinarySerializer::WriteValue(const string &value) {
 	auto len = value.length();
 	Write<uint32_t>((uint32_t)len);
 	if (len > 0) {
-		WriteDataInternal(value.c_str(), len);
+		WriteData(value.c_str(), len);
 	}
 }
 
@@ -142,7 +137,7 @@ void BinarySerializer::WriteValue(const string_t value) {
 	auto len = value.GetSize();
 	Write<uint32_t>((uint32_t)len);
 	if (len > 0) {
-		WriteDataInternal(value.GetDataUnsafe(), len);
+		WriteData(value.GetDataUnsafe(), len);
 	}
 }
 
@@ -150,7 +145,7 @@ void BinarySerializer::WriteValue(const char *value) {
 	auto len = strlen(value);
 	Write<uint32_t>((uint32_t)len);
 	if (len > 0) {
-		WriteDataInternal(value, len);
+		WriteData(value, len);
 	}
 }
 
@@ -159,7 +154,7 @@ void BinarySerializer::WriteValue(bool value) {
 }
 
 void BinarySerializer::WriteDataPtr(const_data_ptr_t ptr, idx_t count) {
-	WriteDataInternal(ptr, count);
+	WriteData(ptr, count);
 }
 
 } // namespace duckdb

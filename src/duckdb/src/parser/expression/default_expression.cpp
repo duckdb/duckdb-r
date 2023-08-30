@@ -27,4 +27,8 @@ unique_ptr<ParsedExpression> DefaultExpression::Deserialize(ExpressionType type,
 	return make_uniq<DefaultExpression>();
 }
 
+void DefaultExpression::FormatSerialize(FormatSerializer &serializer) const {
+	ParsedExpression::FormatSerialize(serializer);
+}
+
 } // namespace duckdb
