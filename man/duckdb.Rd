@@ -4,7 +4,6 @@
 \name{duckdb}
 \alias{duckdb}
 \alias{duckdb_shutdown}
-\alias{duckdb_adbc}
 \alias{dbConnect__duckdb_driver}
 \alias{dbConnect,duckdb_driver-method}
 \alias{dbDisconnect__duckdb_connection}
@@ -19,8 +18,6 @@ duckdb(
 )
 
 duckdb_shutdown(drv)
-
-duckdb_adbc()
 
 \S4method{dbConnect}{duckdb_driver}(
   drv,
@@ -74,8 +71,6 @@ time as the timestamp in the database, but with the new time zone.}
 \code{dbDisconnect()} and \code{duckdb_shutdown()} are called for their
 side effect.
 
-An object of class "adbc_driver"
-
 \code{dbConnect()} returns an object of class
 \linkS4class{duckdb_connection}.
 }
@@ -84,21 +79,12 @@ An object of class "adbc_driver"
 
 \code{duckdb_shutdown()} shuts down a database instance.
 
-Return an \code{\link[adbcdrivermanager:adbc_driver_void]{adbcdrivermanager::adbc_driver()}} for use with Arrow Database
-Connectivity via the adbcdrivermanager package.
-
 \code{dbConnect()} connects to a database instance.
 
 \code{dbDisconnect()} closes a DuckDB database connection, optionally shutting down
 the associated instance.
 }
 \examples{
-\dontshow{if (requireNamespace("adbcdrivermanager", quietly = TRUE)) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
-library(adbcdrivermanager)
-with_adbc(db <- adbc_database_init(duckdb_adbc()), {
-  as.data.frame(read_adbc(db, "SELECT 1 as one;"))
-})
-\dontshow{\}) # examplesIf}
 drv <- duckdb()
 con <- dbConnect(drv)
 

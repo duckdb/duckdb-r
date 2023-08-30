@@ -8,7 +8,6 @@
 #include "duckdb/common/types/timestamp.hpp"
 #include "duckdb/common/arrow/arrow_wrapper.hpp"
 #include "duckdb/common/arrow/result_arrow_wrapper.hpp"
-#include "duckdb/main/chunk_scan_state/query_result.hpp"
 
 #include "duckdb/parser/statement/relation_statement.hpp"
 
@@ -268,14 +267,13 @@ struct AppendableRList {
 	idx_t size = 0;
 };
 
-bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, AppendableRList &batches_list,
-                     ArrowArray &arrow_data, ArrowSchema &arrow_schema, SEXP batch_import_from_c, SEXP arrow_namespace,
-                     idx_t chunk_size) {
-	auto count = ArrowUtil::FetchChunk(scan_state, options, chunk_size, &arrow_data);
+bool FetchArrowChunk(QueryResult *result, AppendableRList &batches_list, ArrowArray &arrow_data,
+                     ArrowSchema &arrow_schema, SEXP batch_import_from_c, SEXP arrow_namespace, idx_t chunk_size) {
+	auto count = ArrowUtil::FetchChunk(result, chunk_size, &arrow_data);
 	if (count == 0) {
 		return false;
 	}
-	ArrowConverter::ToArrowSchema(&arrow_schema, scan_state.Types(), scan_state.Names(), options);
+	ArrowConverter::ToArrowSchema(&arrow_schema, result->types, result->names, QueryResult::GetArrowOptions(*result));
 	batches_list.PrepAppend();
 	batches_list.Append(cpp11::safe[Rf_eval](batch_import_from_c, arrow_namespace));
 	return true;
@@ -300,13 +298,12 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	// create data batches
 	AppendableRList batches_list;
 
-	QueryResultChunkScanState scan_state(*result);
-	while (FetchArrowChunk(scan_state, result->client_properties, batches_list, arrow_data, arrow_schema,
-	                       batch_import_from_c, arrow_namespace, chunk_size)) {
+	while (FetchArrowChunk(result, batches_list, arrow_data, arrow_schema, batch_import_from_c, arrow_namespace,
+	                       chunk_size)) {
 	}
 
 	SET_LENGTH(batches_list.the_list, batches_list.size);
-	ArrowConverter::ToArrowSchema(&arrow_schema, result->types, result->names, result->client_properties);
+	ArrowConverter::ToArrowSchema(&arrow_schema, result->types, result->names, QueryResult::GetArrowOptions(*result));
 	cpp11::sexp schema_arrow_obj(cpp11::safe[Rf_eval](schema_import_from_c, arrow_namespace));
 
 	// create arrow::Table
@@ -337,7 +334,7 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	do {
 		execution_result = pending_query->ExecuteTask();
 		R_CheckUserInterrupt();
-	} while (!PendingQueryResult::IsFinished(execution_result));
+	} while (execution_result == PendingExecutionResult::RESULT_NOT_READY);
 	if (execution_result == PendingExecutionResult::EXECUTION_ERROR) {
 		cpp11::stop("rapi_execute: Failed to run query\nError: %s", pending_query->GetError().c_str());
 	}
