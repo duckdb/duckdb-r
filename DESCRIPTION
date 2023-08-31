@@ -1,7 +1,7 @@
 Package: duckdb
 Title: DBI Package for the DuckDB Database Management System
 Version: 0.8.1-2
-Authors@R: 
+Authors@R:
     c(person(given = "Hannes",
              family = "Mühleisen",
              role = c("aut", "cre"),
@@ -42,40 +42,24 @@ Description: The DuckDB project is an embedded analytical data
 License: MIT + file LICENSE
 URL: https://duckdb.org/, https://github.com/duckdb/duckdb
 BugReports: https://github.com/duckdb/duckdb/issues
-Depends: DBI, R (>= 3.6.0)
-Imports: methods, utils
-Suggests: arrow, bit64, callr, DBItest, dplyr, dbplyr, rlang, testthat,
-        tibble, vctrs, withr
+Depends:
+    DBI,
+    R (>= 3.6.0)
+Imports:
+    methods,
+    utils
+Suggests:
+    arrow,
+    bit64,
+    callr,
+    DBItest,
+    dplyr,
+    dbplyr,
+    rlang,
+    testthat,
+    tibble,
+    vctrs,
+    withr
 Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.3
-NeedsCompilation: yes
-Packaged: 2023-08-25 07:12:45 UTC; kirill
-Author: Hannes Mühleisen [aut, cre] (<https://orcid.org/0000-0001-8552-0029>),
-  Mark Raasveldt [aut] (<https://orcid.org/0000-0001-5005-6844>),
-  Stichting DuckDB Foundation [cph],
-  Apache Software Foundation [cph],
-  PostgreSQL Global Development Group [cph],
-  The Regents of the University of California [cph],
-  Cameron Desrochers [cph],
-  Victor Zverovich [cph],
-  RAD Game Tools [cph],
-  Valve Software [cph],
-  Rich Geldreich [cph],
-  Tenacious Software LLC [cph],
-  The RE2 Authors [cph],
-  Google Inc. [cph],
-  Facebook Inc. [cph],
-  Steven G. Johnson [cph],
-  Jiahao Chen [cph],
-  Tony Kelman [cph],
-  Jonas Fonseca [cph],
-  Lukas Fittl [cph],
-  Salvatore Sanfilippo [cph],
-  Art.sy, Inc. [cph],
-  Oran Agra [cph],
-  Redis Labs, Inc. [cph],
-  Melissa O'Neill [cph],
-  PCG Project contributors [cph]
-Maintainer: Hannes Mühleisen <hannes@cwi.nl>
-Repository: CRAN
-Date/Publication: 2023-08-25 14:50:02 UTC
