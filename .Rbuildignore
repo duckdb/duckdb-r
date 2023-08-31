@@ -20,3 +20,4 @@ RELEASE.md
 ^src/CMakeLists\.txt$
 ^build$
 ^src/.*\.o$
+^duckdb$
