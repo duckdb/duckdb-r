@@ -1,4 +1,5 @@
 /.vscode
+/build
 *.tar.gz
 *.tgz
 src/**/*.o

@@ -17,3 +17,6 @@ RELEASE.md
 ^rconfigure\.py$
 ^src/\.editorconfig$
 ^\.vscode$
+^CMakeLists\.txt$
+^src/CMakeLists\.txt$
+^build$
