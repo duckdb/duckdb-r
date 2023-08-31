@@ -15,3 +15,4 @@ RELEASE.md
 ^\.gitattributes$
 ^vendor\.sh$
 ^rconfigure\.py$
+^src/\.editorconfig$
