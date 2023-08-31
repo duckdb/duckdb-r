@@ -24,6 +24,15 @@ test_that("we can round-trip a data frame", {
   expect_equivalent(iris, as.data.frame.duckdb_relation(rel_from_df(con, iris)))
 })
 
+test_that("we can recognize if a df is materialized", {
+  rel <- rel_from_df(con, data.frame(a = "x"))
+  df <- rel_to_altrep(rel)
+  expect_false(df_is_materialized(df))
+  # Side effect: materialization
+  expect_equal(nrow(df), 1)
+  expect_true(df_is_materialized(df))
+})
+
 
 test_that("we can create various expressions and don't crash", {
   ref <- expr_reference("asdf")
