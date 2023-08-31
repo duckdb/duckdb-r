@@ -43,9 +43,16 @@ void RelToAltrep::Initialize(DllInfo *dll) {
 template <class T>
 static T *GetFromExternalPtr(SEXP x) {
 	if (!x) {
-		cpp11::stop("need a SEXP pointer");
+		cpp11::stop("GetFromExternalPtr: need a SEXP pointer");
 	}
-	auto wrapper = (T *)R_ExternalPtrAddr(R_altrep_data1(x));
+	if (!ALTREP(x)) {
+		cpp11::stop("GetFromExternalPtr: not an ALTREP");
+	}
+	auto ptr = R_altrep_data1(x);
+	if (TYPEOF(ptr) != EXTPTRSXP) {
+		cpp11::stop("GetFromExternalPtr: data1 is not an external pointer");
+	}
+	auto wrapper = (T *)R_ExternalPtrAddr(ptr);
 	if (!wrapper) {
 		cpp11::stop("This looks like it has been freed");
 	}
