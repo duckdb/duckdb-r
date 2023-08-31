@@ -239,6 +239,7 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 	auto relation_wrapper = make_shared<AltrepRelationWrapper>(drel);
 
 	cpp11::external_pointer<AltrepRownamesWrapper> ptr(new AltrepRownamesWrapper(relation_wrapper));
+	R_SetExternalPtrTag(ptr, RStrings::get().duckdb_row_names_sym);
 
 	cpp11::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, rel);
 	install_new_attrib(data_frame, R_RowNamesSymbol, row_names_sexp);
@@ -251,6 +252,8 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
 		auto &column_type = drel->Columns()[col_idx].Type();
 		cpp11::external_pointer<AltrepVectorWrapper> ptr(new AltrepVectorWrapper(relation_wrapper, col_idx));
+		R_SetExternalPtrTag(ptr, RStrings::get().duckdb_vector_sym);
+
 		cpp11::sexp vector_sexp = R_new_altrep(LogicalTypeToAltrepType(column_type), ptr, R_NilValue);
 		duckdb_r_decorate(column_type, vector_sexp, false);
 		SET_VECTOR_ELT(data_frame, col_idx, vector_sexp);

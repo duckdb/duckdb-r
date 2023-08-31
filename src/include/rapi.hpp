@@ -102,6 +102,8 @@ struct RStrings {
 	SEXP ImportRecordBatch_sym;
 	SEXP ImportRecordBatchReader_sym;
 	SEXP materialize_sym;
+	SEXP duckdb_row_names_sym;
+	SEXP duckdb_vector_sym;
 
 	static const RStrings &get() {
 		// On demand
