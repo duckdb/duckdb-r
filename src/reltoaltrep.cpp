@@ -271,40 +271,60 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 	return data_frame;
 }
 
-[[cpp11::register]] SEXP rapi_rel_from_altrep_df(SEXP df) {
+[[cpp11::register]] SEXP rapi_rel_from_altrep_df(SEXP df, bool strict = true, bool allow_materialized = true) {
 	if (!Rf_inherits(df, "data.frame")) {
-		cpp11::stop("Not a data.frame");
+		if (strict) {
+			cpp11::stop("rapi_rel_from_altrep_df: Not a data.frame");
+		} else {
+			return R_NilValue;
+		}
 	}
 
 	auto row_names = get_attrib(df, R_RowNamesSymbol);
 	if (row_names == R_NilValue || !ALTREP(row_names)) {
-		cpp11::stop("Not a 'special' data.frame");
-	}
-	auto res = R_altrep_data2(row_names);
-	if (res == R_NilValue) {
-		cpp11::stop("NULL in data2?");
-	}
-	return res;
-}
-
-[[cpp11::register]] bool rapi_df_is_materialized(SEXP df) {
-	// No row names, not an ALTREP, or not our ALTREP: treat as if it's materialized
-	auto row_names = get_attrib(df, R_RowNamesSymbol);
-	if (!ALTREP(row_names)) {
-		return true;
+		if (strict) {
+			cpp11::stop("rapi_rel_from_altrep_df: Not a 'special' data.frame, row names are not ALTREP");
+		} else {
+			return R_NilValue;
+		}
 	}
 
 	auto altrep_data = R_altrep_data1(row_names);
 	if (TYPEOF(altrep_data) != EXTPTRSXP) {
-		return true;
-	}
-	auto tag = R_ExternalPtrTag(altrep_data);
-	if (tag != RStrings::get().duckdb_row_names_sym) {
-		return true;
+		if (strict) {
+			cpp11::stop("rapi_rel_from_altrep_df: Not our 'special' data.frame, data1 is not external pointer");
+		} else {
+			return R_NilValue;
+		}
 	}
 
-	auto wrapper = GetFromExternalPtr<AltrepRownamesWrapper>(row_names);
-	return wrapper->rel->res.get() != nullptr;
+	auto tag = R_ExternalPtrTag(altrep_data);
+	if (tag != RStrings::get().duckdb_row_names_sym) {
+		if (strict) {
+			cpp11::stop("rapi_rel_from_altrep_df: Not our 'special' data.frame, tag missing");
+		} else {
+			return R_NilValue;
+		}
+	}
+
+	if (!allow_materialized) {
+		auto wrapper = GetFromExternalPtr<AltrepRownamesWrapper>(row_names);
+
+		if (wrapper->rel->res.get()) {
+			return R_NilValue;
+		}
+	}
+
+	auto res = R_altrep_data2(row_names);
+	if (res == R_NilValue) {
+		if (strict) {
+			cpp11::stop("rapi_rel_from_altrep_df: NULL in data2?");
+		} else {
+			return R_NilValue;
+		}
+	}
+
+	return res;
 }
 
 // exception required as long as r-lib/decor#6 remains

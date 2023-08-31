@@ -25,8 +25,8 @@ test_that("we can round-trip a data frame", {
 })
 
 test_that("we can recognize if a df is materialized", {
-  expect_true(df_is_materialized(data.frame(a = "x")))
-  expect_true(df_is_materialized(data.frame(a = 1:2)))
+  expect_error(df_is_materialized(data.frame(a = "x")))
+  expect_error(df_is_materialized(data.frame(a = 1:2)))
 
   rel <- rel_from_df(con, data.frame(a = 1:3))
   df <- rel_to_altrep(rel)
