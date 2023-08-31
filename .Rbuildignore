@@ -20,3 +20,4 @@ RELEASE.md
 ^CMakeLists\.txt$
 ^src/CMakeLists\.txt$
 ^build$
+^src/.*\.o$
