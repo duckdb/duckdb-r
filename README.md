@@ -19,4 +19,9 @@ R CMD INSTALL .
 
 ## Dependencies
 
-To build the R package, you first need to install the dependencies. Just run run `R -f dependencies.R`
+To build the R package, you first need to install the dependencies:
+
+```r
+# install.packages("pak", repos = sprintf("https://r-lib.github.io/p/pak/stable/%s/%s/%s", .Platform$pkgType, R.Version()$os, R.Version()$arch))
+pak::pak()
+```
