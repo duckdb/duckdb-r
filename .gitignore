@@ -1,3 +1,4 @@
+/.vscode
 *.tar.gz
 *.tgz
 src/**/*.o

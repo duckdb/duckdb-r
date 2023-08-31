@@ -16,3 +16,4 @@ RELEASE.md
 ^vendor\.sh$
 ^rconfigure\.py$
 ^src/\.editorconfig$
+^\.vscode$
