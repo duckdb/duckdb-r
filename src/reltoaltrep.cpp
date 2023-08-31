@@ -288,19 +288,22 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 }
 
 [[cpp11::register]] bool rapi_df_is_materialized(SEXP df) {
-	D_ASSERT(df);
-	auto first_col = VECTOR_ELT(df, 0);
-	if (!ALTREP(first_col)) {
-		cpp11::stop("Not a lazy data frame");
+	// No row names, not an ALTREP, or not our ALTREP: treat as if it's materialized
+	auto row_names = get_attrib(df, R_RowNamesSymbol);
+	if (!ALTREP(row_names)) {
+		return true;
 	}
-	auto altrep_data = R_altrep_data1(first_col);
-	if (!altrep_data) {
-		cpp11::stop("Not a lazy data frame");
+
+	auto altrep_data = R_altrep_data1(row_names);
+	if (TYPEOF(altrep_data) != EXTPTRSXP) {
+		return true;
 	}
-	auto wrapper = (AltrepVectorWrapper *)R_ExternalPtrAddr(altrep_data);
-	if (!wrapper) {
-		cpp11::stop("Invalid lazy data frame");
+	auto tag = R_ExternalPtrTag(altrep_data);
+	if (tag != RStrings::get().duckdb_row_names_sym) {
+		return true;
 	}
+
+	auto wrapper = GetFromExternalPtr<AltrepRownamesWrapper>(row_names);
 	return wrapper->rel->res.get() != nullptr;
 }
 

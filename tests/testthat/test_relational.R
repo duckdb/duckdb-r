@@ -25,11 +25,14 @@ test_that("we can round-trip a data frame", {
 })
 
 test_that("we can recognize if a df is materialized", {
-  rel <- rel_from_df(con, data.frame(a = "x"))
+  expect_true(df_is_materialized(data.frame(a = "x")))
+  expect_true(df_is_materialized(data.frame(a = 1:2)))
+
+  rel <- rel_from_df(con, data.frame(a = 1:3))
   df <- rel_to_altrep(rel)
   expect_false(df_is_materialized(df))
   # Side effect: materialization
-  expect_equal(nrow(df), 1)
+  expect_equal(nrow(df), 3)
   expect_true(df_is_materialized(df))
 })
 
