@@ -154,6 +154,16 @@ static void install_new_attrib(SEXP vec, SEXP name, SEXP val) {
 	SETCDR(attrib_vec, attrib_cell);
 }
 
+static SEXP get_attrib(SEXP vec, SEXP name) {
+	for (SEXP attrib = ATTRIB(vec); attrib != R_NilValue; attrib = CDR(attrib)) {
+		if (TAG(attrib) == R_RowNamesSymbol) {
+			return CAR(attrib);
+		}
+	}
+
+	return R_NilValue;
+}
+
 R_xlen_t RelToAltrep::RownamesLength(SEXP x) {
 	// The BEGIN_CPP11 isn't strictly necessary here, but should be optimized away.
 	// It will become important if we ever support row names.
@@ -266,13 +276,7 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 		cpp11::stop("Not a data.frame");
 	}
 
-	SEXP row_names = R_NilValue;
-	for (SEXP attrib = ATTRIB(df); attrib != R_NilValue; attrib = CDR(attrib)) {
-		if (TAG(attrib) == R_RowNamesSymbol) {
-			row_names = CAR(attrib);
-		}
-	}
-
+	auto row_names = get_attrib(df, R_RowNamesSymbol);
 	if (row_names == R_NilValue || !ALTREP(row_names)) {
 		cpp11::stop("Not a 'special' data.frame");
 	}
