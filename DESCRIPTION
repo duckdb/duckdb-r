@@ -49,7 +49,7 @@ Imports:
     methods,
     utils
 Suggests:
-    arrow,
+    arrow (>= 13.0.0),
     bit64,
     callr,
     DBItest,
