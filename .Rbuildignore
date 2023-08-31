@@ -16,3 +16,6 @@ RELEASE.md
 ^vendor\.sh$
 ^src/\.editorconfig$
 ^\.vscode$
+^CMakeLists\.txt$
+^src/CMakeLists\.txt$
+^build$
