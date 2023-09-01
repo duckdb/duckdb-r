@@ -14,6 +14,7 @@ RELEASE.md
 \.github
 ^\.gitattributes$
 ^vendor\.sh$
+^rconfigure\.py$
 ^src/\.editorconfig$
 ^\.vscode$
 ^CMakeLists\.txt$
