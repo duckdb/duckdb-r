@@ -71,7 +71,7 @@ struct AltrepRelationWrapper {
 	}
 
 	bool HasQueryResult() const {
-	  return (bool)res;
+		return (bool)res;
 	}
 
 	MaterializedQueryResult *GetQueryResult() {
