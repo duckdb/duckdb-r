@@ -38,6 +38,8 @@
 
 #include "src/core_functions/scalar/string/string_split.cpp"
 
+#include "src/core_functions/scalar/string/to_base.cpp"
+
 #include "src/core_functions/scalar/string/translate.cpp"
 
 #include "src/core_functions/scalar/string/trim.cpp"

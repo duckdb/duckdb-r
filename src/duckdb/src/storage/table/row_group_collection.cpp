@@ -6,7 +6,7 @@
 #include "duckdb/planner/constraints/bound_not_null_constraint.hpp"
 #include "duckdb/storage/checkpoint/table_data_writer.hpp"
 #include "duckdb/storage/table/row_group_segment_tree.hpp"
-#include "duckdb/storage/meta_block_reader.hpp"
+#include "duckdb/storage/metadata/metadata_reader.hpp"
 #include "duckdb/storage/table/append_state.hpp"
 #include "duckdb/storage/table/scan_state.hpp"
 #include "duckdb/storage/table_storage_info.hpp"
@@ -27,8 +27,7 @@ void RowGroupSegmentTree::Initialize(PersistentTableData &data) {
 	current_row_group = 0;
 	max_row_group = data.row_group_count;
 	finished_loading = false;
-	reader = make_uniq<MetaBlockReader>(collection.GetBlockManager(), data.block_id);
-	reader->offset = data.offset;
+	reader = make_uniq<MetadataReader>(collection.GetMetadataManager(), data.block_pointer);
 }
 
 unique_ptr<RowGroup> RowGroupSegmentTree::LoadSegment() {
@@ -67,8 +66,8 @@ AttachedDatabase &RowGroupCollection::GetAttached() {
 	return GetTableInfo().db;
 }
 
-DatabaseInstance &RowGroupCollection::GetDatabase() {
-	return GetAttached().GetDatabase();
+MetadataManager &RowGroupCollection::GetMetadataManager() {
+	return GetBlockManager().GetMetadataManager();
 }
 
 //===--------------------------------------------------------------------===//
@@ -95,10 +94,6 @@ void RowGroupCollection::AppendRowGroup(SegmentLock &l, idx_t start_row) {
 
 RowGroup *RowGroupCollection::GetRowGroup(int64_t index) {
 	return (RowGroup *)row_groups->GetSegmentByIndex(index);
-}
-
-idx_t RowGroupCollection::RowGroupCount() {
-	return row_groups->GetSegmentCount();
 }
 
 void RowGroupCollection::Verify() {
@@ -600,11 +595,24 @@ void RowGroupCollection::UpdateColumn(TransactionData transaction, Vector &row_i
 // Checkpoint
 //===--------------------------------------------------------------------===//
 void RowGroupCollection::Checkpoint(TableDataWriter &writer, TableStatistics &global_stats) {
-	for (auto &row_group : row_groups->Segments()) {
-		auto rowg_writer = writer.GetRowGroupWriter(row_group);
-		auto pointer = row_group.Checkpoint(*rowg_writer, global_stats);
-		writer.AddRowGroup(std::move(pointer), std::move(rowg_writer));
+	bool can_vacuum_deletes = info->indexes.Empty();
+	idx_t start = this->row_start;
+	auto segments = row_groups->MoveSegments();
+	auto l = row_groups->Lock();
+	for (auto &entry : segments) {
+		auto &row_group = *entry.node;
+		if (can_vacuum_deletes && row_group.AllDeleted()) {
+			row_group.CommitDrop();
+			continue;
+		}
+		row_group.MoveToCollection(*this, start);
+		auto row_group_writer = writer.GetRowGroupWriter(row_group);
+		auto pointer = row_group.Checkpoint(*row_group_writer, global_stats);
+		writer.AddRowGroup(std::move(pointer), std::move(row_group_writer));
+		row_groups->AppendSegment(l, std::move(entry.node));
+		start += row_group.count;
 	}
+	total_rows = start;
 }
 
 //===--------------------------------------------------------------------===//
@@ -637,7 +645,7 @@ vector<ColumnSegmentInfo> RowGroupCollection::GetColumnSegmentInfo() {
 // Alter
 //===--------------------------------------------------------------------===//
 shared_ptr<RowGroupCollection> RowGroupCollection::AddColumn(ClientContext &context, ColumnDefinition &new_column,
-                                                             Expression *default_value) {
+                                                             Expression &default_value) {
 	idx_t new_column_idx = types.size();
 	auto new_types = types;
 	new_types.push_back(new_column.GetType());
@@ -647,11 +655,7 @@ shared_ptr<RowGroupCollection> RowGroupCollection::AddColumn(ClientContext &cont
 	ExpressionExecutor executor(context);
 	DataChunk dummy_chunk;
 	Vector default_vector(new_column.GetType());
-	if (!default_value) {
-		FlatVector::Validity(default_vector).SetAllInvalid(STANDARD_VECTOR_SIZE);
-	} else {
-		executor.AddExpression(*default_value);
-	}
+	executor.AddExpression(default_value);
 
 	result->stats.InitializeAddColumn(stats, new_column.GetType());
 	auto &new_column_stats = result->stats.GetStats(new_column_idx);

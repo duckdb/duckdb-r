@@ -28,7 +28,7 @@
 #include "duckdb/optimizer/optimizer_extension.hpp"
 #include "duckdb/parser/parser_extension.hpp"
 #include "duckdb/planner/operator_extension.hpp"
-#include "duckdb/common/arrow/arrow_options.hpp"
+#include "duckdb/main/client_properties.hpp"
 
 namespace duckdb {
 class BufferPool;
@@ -95,6 +95,18 @@ struct DBConfigOptions {
 	bool use_direct_io = false;
 	//! Whether extensions should be loaded on start-up
 	bool load_extensions = true;
+#ifdef DUCKDB_EXTENSION_AUTOLOAD_DEFAULT
+	//! Whether known extensions are allowed to be automatically loaded when a query depends on them
+	bool autoload_known_extensions = DUCKDB_EXTENSION_AUTOLOAD_DEFAULT;
+#else
+	bool autoload_known_extensions = false;
+#endif
+#ifdef DUCKDB_EXTENSION_AUTOINSTALL_DEFAULT
+	//! Whether known extensions are allowed to be automatically installed when a query depends on them
+	bool autoinstall_known_extensions = DUCKDB_EXTENSION_AUTOINSTALL_DEFAULT;
+#else
+	bool autoinstall_known_extensions = false;
+#endif
 	//! The maximum memory used by the database system (in bytes). Default: 80% of System available memory
 	idx_t maximum_memory = (idx_t)-1;
 	//! The maximum amount of CPU threads used by the database system. Default: all available.
@@ -158,6 +170,8 @@ struct DBConfigOptions {
 	bool lock_configuration = false;
 	//! Whether to print bindings when printing the plan (debug mode only)
 	static bool debug_print_bindings;
+	//! The peak allocation threshold at which to flush the allocator after completing a task (1 << 27, ~128MB)
+	idx_t allocator_flush_threshold = 134217728;
 
 	bool operator==(const DBConfigOptions &other) const;
 };

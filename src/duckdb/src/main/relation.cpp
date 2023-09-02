@@ -113,7 +113,8 @@ shared_ptr<Relation> Relation::Order(const vector<string> &expressions) {
 	return make_shared<OrderRelation>(shared_from_this(), std::move(order_list));
 }
 
-shared_ptr<Relation> Relation::Join(const shared_ptr<Relation> &other, const string &condition, JoinType type) {
+shared_ptr<Relation> Relation::Join(const shared_ptr<Relation> &other, const string &condition, JoinType type,
+                                    JoinRefType ref_type) {
 	auto expression_list = Parser::ParseExpressionList(condition, context.GetContext()->GetParserOptions());
 	D_ASSERT(!expression_list.empty());
 
@@ -130,15 +131,15 @@ shared_ptr<Relation> Relation::Join(const shared_ptr<Relation> &other, const str
 			}
 			using_columns.push_back(colref.column_names[0]);
 		}
-		return make_shared<JoinRelation>(shared_from_this(), other, std::move(using_columns), type);
+		return make_shared<JoinRelation>(shared_from_this(), other, std::move(using_columns), type, ref_type);
 	} else {
 		// single expression that is not a column reference: use the expression as a join condition
-		return make_shared<JoinRelation>(shared_from_this(), other, std::move(expression_list[0]), type);
+		return make_shared<JoinRelation>(shared_from_this(), other, std::move(expression_list[0]), type, ref_type);
 	}
 }
 
-shared_ptr<Relation> Relation::CrossProduct(const shared_ptr<Relation> &other) {
-	return make_shared<CrossProductRelation>(shared_from_this(), other);
+shared_ptr<Relation> Relation::CrossProduct(const shared_ptr<Relation> &other, JoinRefType join_ref_type) {
+	return make_shared<CrossProductRelation>(shared_from_this(), other, join_ref_type);
 }
 
 shared_ptr<Relation> Relation::Union(const shared_ptr<Relation> &other) {
@@ -168,7 +169,7 @@ shared_ptr<Relation> Relation::Aggregate(const string &aggregate_list) {
 
 shared_ptr<Relation> Relation::Aggregate(const string &aggregate_list, const string &group_list) {
 	auto expression_list = Parser::ParseExpressionList(aggregate_list, context.GetContext()->GetParserOptions());
-	auto groups = Parser::ParseExpressionList(group_list, context.GetContext()->GetParserOptions());
+	auto groups = Parser::ParseGroupByList(group_list, context.GetContext()->GetParserOptions());
 	return make_shared<AggregateRelation>(shared_from_this(), std::move(expression_list), std::move(groups));
 }
 
@@ -178,9 +179,9 @@ shared_ptr<Relation> Relation::Aggregate(const vector<string> &aggregates) {
 }
 
 shared_ptr<Relation> Relation::Aggregate(const vector<string> &aggregates, const vector<string> &groups) {
-	auto aggregate_list = StringListToExpressionList(*context.GetContext(), aggregates);
-	auto group_list = StringListToExpressionList(*context.GetContext(), groups);
-	return make_shared<AggregateRelation>(shared_from_this(), std::move(aggregate_list), std::move(group_list));
+	auto aggregate_list = StringUtil::Join(aggregates, ", ");
+	auto group_list = StringUtil::Join(groups, ", ");
+	return this->Aggregate(aggregate_list, group_list);
 }
 
 string Relation::GetAlias() {

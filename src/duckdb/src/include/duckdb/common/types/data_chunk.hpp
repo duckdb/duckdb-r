@@ -14,8 +14,6 @@
 #include "duckdb/common/types/vector.hpp"
 #include "duckdb/common/winapi.hpp"
 
-struct ArrowArray;
-
 namespace duckdb {
 class Allocator;
 class ClientContext;
@@ -153,7 +151,7 @@ public:
 
 	//! Converts this DataChunk to a printable string representation
 	DUCKDB_API string ToString() const;
-	DUCKDB_API void Print();
+	DUCKDB_API void Print() const;
 
 	DataChunk(const DataChunk &) = delete;
 

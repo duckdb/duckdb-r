@@ -1,7 +1,5 @@
 #include "src/optimizer/statistics/expression/propagate_aggregate.cpp"
 
-#include "src/optimizer/statistics/expression/propagate_and_compress.cpp"
-
 #include "src/optimizer/statistics/expression/propagate_between.cpp"
 
 #include "src/optimizer/statistics/expression/propagate_case.cpp"

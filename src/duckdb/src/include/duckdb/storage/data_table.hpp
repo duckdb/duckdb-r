@@ -51,7 +51,7 @@ public:
 	          const string &table, vector<ColumnDefinition> column_definitions_p,
 	          unique_ptr<PersistentTableData> data = nullptr);
 	//! Constructs a DataTable as a delta on an existing data table with a newly added column
-	DataTable(ClientContext &context, DataTable &parent, ColumnDefinition &new_column, Expression *default_value);
+	DataTable(ClientContext &context, DataTable &parent, ColumnDefinition &new_column, Expression &default_value);
 	//! Constructs a DataTable as a delta on an existing data table but with one column removed
 	DataTable(ClientContext &context, DataTable &parent, idx_t removed_column);
 	//! Constructs a DataTable as a delta on an existing data table but with one column changed type
@@ -125,7 +125,7 @@ public:
 	void UpdateColumn(TableCatalogEntry &table, ClientContext &context, Vector &row_ids,
 	                  const vector<column_t> &column_path, DataChunk &updates);
 
-	//! Add an index to the DataTable. NOTE: for CREATE (UNIQUE) INDEX statements, we use the PhysicalCreateIndex
+	//! Add an index to the DataTable. NOTE: for CREATE (UNIQUE) INDEX statements, we use the PhysicalCreateARTIndex
 	//! operator. This function is only used during the WAL replay, and is a much less performant index creation
 	//! approach.
 	void WALAddIndex(ClientContext &context, unique_ptr<Index> index,

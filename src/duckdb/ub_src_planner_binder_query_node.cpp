@@ -4,11 +4,15 @@
 
 #include "src/planner/binder/query_node/bind_recursive_cte_node.cpp"
 
+#include "src/planner/binder/query_node/bind_cte_node.cpp"
+
 #include "src/planner/binder/query_node/bind_table_macro_node.cpp"
 
 #include "src/planner/binder/query_node/plan_query_node.cpp"
 
 #include "src/planner/binder/query_node/plan_recursive_cte_node.cpp"
+
+#include "src/planner/binder/query_node/plan_cte_node.cpp"
 
 #include "src/planner/binder/query_node/plan_select_node.cpp"
 
