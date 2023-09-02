@@ -113,7 +113,6 @@ if 'TREAT_WARNINGS_AS_ERRORS' in os.environ:
 with open_utf8(os.path.join('src', 'Makevars.in'), 'r') as f:
     text = f.read()
 
-text = text.replace('{{ SOURCES }}', object_list)
 text = text.replace('{{ INCLUDES }}', include_list)
 if len(libraries) == 0:
     text = text.replace('PKG_LIBS={{ LINK_FLAGS }}', '')
@@ -130,10 +129,15 @@ with open_utf8(os.path.join('src', 'Makevars.in'), 'r') as f:
     text = f.read()
 
 include_list += " -DDUCKDB_PLATFORM_RTOOLS=1"
-text = text.replace('{{ SOURCES }}', object_list)
 text = text.replace('{{ INCLUDES }}', include_list)
 text = text.replace('{{ LINK_FLAGS }}', "-lws2_32")
 
 # now write it to the output Makevars
 with open_utf8(os.path.join('src', 'Makevars.win'), 'w+') as f:
+    f.write(text)
+
+# write sources.mk
+text = "SOURCES=" + object_list + '\n'
+
+with open_utf8(os.path.join('src', 'sources.mk'), 'w') as f:
     f.write(text)
