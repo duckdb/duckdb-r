@@ -37,15 +37,24 @@ void RelToAltrep::Initialize(DllInfo *dll) {
 	R_set_altvec_Dataptr_method(real_class, VectorDataptr);
 	R_set_altvec_Dataptr_method(string_class, VectorDataptr);
 
+	R_set_altvec_Dataptr_or_null_method(rownames_class, RownamesDataptrOrNull);
+
 	R_set_altstring_Elt_method(string_class, VectorStringElt);
 }
 
 template <class T>
 static T *GetFromExternalPtr(SEXP x) {
 	if (!x) {
-		cpp11::stop("need a SEXP pointer");
+		cpp11::stop("GetFromExternalPtr: need a SEXP pointer");
 	}
-	auto wrapper = (T *)R_ExternalPtrAddr(R_altrep_data1(x));
+	if (!ALTREP(x)) {
+		cpp11::stop("GetFromExternalPtr: not an ALTREP");
+	}
+	auto ptr = R_altrep_data1(x);
+	if (TYPEOF(ptr) != EXTPTRSXP) {
+		cpp11::stop("GetFromExternalPtr: data1 is not an external pointer");
+	}
+	auto wrapper = (T *)R_ExternalPtrAddr(ptr);
 	if (!wrapper) {
 		cpp11::stop("This looks like it has been freed");
 	}
@@ -59,6 +68,10 @@ struct AltrepRelationWrapper {
 	}
 
 	AltrepRelationWrapper(shared_ptr<Relation> rel_p) : rel(rel_p) {
+	}
+
+	bool HasQueryResult() const {
+	  return (bool)res;
 	}
 
 	MaterializedQueryResult *GetQueryResult() {
@@ -154,6 +167,16 @@ static void install_new_attrib(SEXP vec, SEXP name, SEXP val) {
 	SETCDR(attrib_vec, attrib_cell);
 }
 
+static SEXP get_attrib(SEXP vec, SEXP name) {
+	for (SEXP attrib = ATTRIB(vec); attrib != R_NilValue; attrib = CDR(attrib)) {
+		if (TAG(attrib) == R_RowNamesSymbol) {
+			return CAR(attrib);
+		}
+	}
+
+	return R_NilValue;
+}
+
 R_xlen_t RelToAltrep::RownamesLength(SEXP x) {
 	// The BEGIN_CPP11 isn't strictly necessary here, but should be optimized away.
 	// It will become important if we ever support row names.
@@ -166,6 +189,21 @@ R_xlen_t RelToAltrep::RownamesLength(SEXP x) {
 
 void *RelToAltrep::RownamesDataptr(SEXP x, Rboolean writeable) {
 	BEGIN_CPP11
+	return DoRownamesDataptrGet(x);
+	END_CPP11
+}
+
+const void *RelToAltrep::RownamesDataptrOrNull(SEXP x) {
+	BEGIN_CPP11
+	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
+	if (!rownames_wrapper->rel->HasQueryResult()) {
+		return nullptr;
+	}
+	return DoRownamesDataptrGet(x);
+	END_CPP11
+}
+
+void *RelToAltrep::DoRownamesDataptrGet(SEXP x) {
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
 	auto row_count = rownames_wrapper->rel->GetQueryResult()->RowCount();
 	if (row_count > (idx_t)NumericLimits<int32_t>::Maximum()) {
@@ -173,7 +211,6 @@ void *RelToAltrep::RownamesDataptr(SEXP x, Rboolean writeable) {
 	}
 	rownames_wrapper->rowlen_data[1] = -row_count;
 	return rownames_wrapper->rowlen_data;
-	END_CPP11
 }
 
 R_xlen_t RelToAltrep::VectorLength(SEXP x) {
@@ -239,6 +276,7 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 	auto relation_wrapper = make_shared<AltrepRelationWrapper>(drel);
 
 	cpp11::external_pointer<AltrepRownamesWrapper> ptr(new AltrepRownamesWrapper(relation_wrapper));
+	R_SetExternalPtrTag(ptr, RStrings::get().duckdb_row_names_sym);
 
 	cpp11::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, rel);
 	install_new_attrib(data_frame, R_RowNamesSymbol, row_names_sexp);
@@ -251,50 +289,69 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
 		auto &column_type = drel->Columns()[col_idx].Type();
 		cpp11::external_pointer<AltrepVectorWrapper> ptr(new AltrepVectorWrapper(relation_wrapper, col_idx));
-		cpp11::sexp vector_sexp = R_new_altrep(LogicalTypeToAltrepType(column_type), ptr, R_NilValue);
+		R_SetExternalPtrTag(ptr, RStrings::get().duckdb_vector_sym);
+
+		cpp11::sexp vector_sexp = R_new_altrep(LogicalTypeToAltrepType(column_type), ptr, rel);
 		duckdb_r_decorate(column_type, vector_sexp, false);
 		SET_VECTOR_ELT(data_frame, col_idx, vector_sexp);
 	}
 	return data_frame;
 }
 
-[[cpp11::register]] SEXP rapi_rel_from_altrep_df(SEXP df) {
+[[cpp11::register]] SEXP rapi_rel_from_altrep_df(SEXP df, bool strict = true, bool allow_materialized = true) {
 	if (!Rf_inherits(df, "data.frame")) {
-		cpp11::stop("Not a data.frame");
-	}
-
-	SEXP row_names = R_NilValue;
-	for (SEXP attrib = ATTRIB(df); attrib != R_NilValue; attrib = CDR(attrib)) {
-		if (TAG(attrib) == R_RowNamesSymbol) {
-			row_names = CAR(attrib);
+		if (strict) {
+			cpp11::stop("rapi_rel_from_altrep_df: Not a data.frame");
+		} else {
+			return R_NilValue;
 		}
 	}
 
+	auto row_names = get_attrib(df, R_RowNamesSymbol);
 	if (row_names == R_NilValue || !ALTREP(row_names)) {
-		cpp11::stop("Not a 'special' data.frame");
+		if (strict) {
+			cpp11::stop("rapi_rel_from_altrep_df: Not a 'special' data.frame, row names are not ALTREP");
+		} else {
+			return R_NilValue;
+		}
 	}
+
+	auto altrep_data = R_altrep_data1(row_names);
+	if (TYPEOF(altrep_data) != EXTPTRSXP) {
+		if (strict) {
+			cpp11::stop("rapi_rel_from_altrep_df: Not our 'special' data.frame, data1 is not external pointer");
+		} else {
+			return R_NilValue;
+		}
+	}
+
+	auto tag = R_ExternalPtrTag(altrep_data);
+	if (tag != RStrings::get().duckdb_row_names_sym) {
+		if (strict) {
+			cpp11::stop("rapi_rel_from_altrep_df: Not our 'special' data.frame, tag missing");
+		} else {
+			return R_NilValue;
+		}
+	}
+
+	if (!allow_materialized) {
+		auto wrapper = GetFromExternalPtr<AltrepRownamesWrapper>(row_names);
+
+		if (wrapper->rel->res.get()) {
+			return R_NilValue;
+		}
+	}
+
 	auto res = R_altrep_data2(row_names);
 	if (res == R_NilValue) {
-		cpp11::stop("NULL in data2?");
+		if (strict) {
+			cpp11::stop("rapi_rel_from_altrep_df: NULL in data2?");
+		} else {
+			return R_NilValue;
+		}
 	}
-	return res;
-}
 
-[[cpp11::register]] bool rapi_df_is_materialized(SEXP df) {
-	D_ASSERT(df);
-	auto first_col = VECTOR_ELT(df, 0);
-	if (!ALTREP(first_col)) {
-		cpp11::stop("Not a lazy data frame");
-	}
-	auto altrep_data = R_altrep_data1(first_col);
-	if (!altrep_data) {
-		cpp11::stop("Not a lazy data frame");
-	}
-	auto wrapper = (AltrepVectorWrapper *)R_ExternalPtrAddr(altrep_data);
-	if (!wrapper) {
-		cpp11::stop("Invalid lazy data frame");
-	}
-	return wrapper->rel->res.get() != nullptr;
+	return res;
 }
 
 // exception required as long as r-lib/decor#6 remains

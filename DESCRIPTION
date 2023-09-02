@@ -1,6 +1,6 @@
 Package: duckdb
 Title: DBI Package for the DuckDB Database Management System
-Version: 0.8.1-2
+Version: 0.8.1-3
 Authors@R:
     c(person(given = "Hannes",
              family = "Mühleisen",
@@ -49,7 +49,7 @@ Imports:
     methods,
     utils
 Suggests:
-    arrow,
+    arrow (>= 13.0.0),
     bit64,
     callr,
     DBItest,

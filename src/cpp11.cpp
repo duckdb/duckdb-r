@@ -279,17 +279,10 @@ extern "C" SEXP _duckdb_rapi_rel_to_altrep(SEXP rel) {
   END_CPP11
 }
 // reltoaltrep.cpp
-SEXP rapi_rel_from_altrep_df(SEXP df);
-extern "C" SEXP _duckdb_rapi_rel_from_altrep_df(SEXP df) {
+SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized);
+extern "C" SEXP _duckdb_rapi_rel_from_altrep_df(SEXP df, SEXP strict, SEXP allow_materialized) {
   BEGIN_CPP11
-    return cpp11::as_sexp(rapi_rel_from_altrep_df(cpp11::as_cpp<cpp11::decay_t<SEXP>>(df)));
-  END_CPP11
-}
-// reltoaltrep.cpp
-bool rapi_df_is_materialized(SEXP df);
-extern "C" SEXP _duckdb_rapi_df_is_materialized(SEXP df) {
-  BEGIN_CPP11
-    return cpp11::as_sexp(rapi_df_is_materialized(cpp11::as_cpp<cpp11::decay_t<SEXP>>(df)));
+    return cpp11::as_sexp(rapi_rel_from_altrep_df(cpp11::as_cpp<cpp11::decay_t<SEXP>>(df), cpp11::as_cpp<cpp11::decay_t<bool>>(strict), cpp11::as_cpp<cpp11::decay_t<bool>>(allow_materialized)));
   END_CPP11
 }
 // statement.cpp
@@ -375,7 +368,6 @@ extern "C" {
 static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_bind",                    (DL_FUNC) &_duckdb_rapi_bind,                    4},
     {"_duckdb_rapi_connect",                 (DL_FUNC) &_duckdb_rapi_connect,                 1},
-    {"_duckdb_rapi_df_is_materialized",      (DL_FUNC) &_duckdb_rapi_df_is_materialized,      1},
     {"_duckdb_rapi_disconnect",              (DL_FUNC) &_duckdb_rapi_disconnect,              1},
     {"_duckdb_rapi_execute",                 (DL_FUNC) &_duckdb_rapi_execute,                 3},
     {"_duckdb_rapi_execute_arrow",           (DL_FUNC) &_duckdb_rapi_execute_arrow,           2},
@@ -400,7 +392,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_rel_distinct",            (DL_FUNC) &_duckdb_rapi_rel_distinct,            1},
     {"_duckdb_rapi_rel_explain",             (DL_FUNC) &_duckdb_rapi_rel_explain,             1},
     {"_duckdb_rapi_rel_filter",              (DL_FUNC) &_duckdb_rapi_rel_filter,              2},
-    {"_duckdb_rapi_rel_from_altrep_df",      (DL_FUNC) &_duckdb_rapi_rel_from_altrep_df,      1},
+    {"_duckdb_rapi_rel_from_altrep_df",      (DL_FUNC) &_duckdb_rapi_rel_from_altrep_df,      3},
     {"_duckdb_rapi_rel_from_df",             (DL_FUNC) &_duckdb_rapi_rel_from_df,             3},
     {"_duckdb_rapi_rel_from_table",          (DL_FUNC) &_duckdb_rapi_rel_from_table,          3},
     {"_duckdb_rapi_rel_from_table_function", (DL_FUNC) &_duckdb_rapi_rel_from_table_function, 4},

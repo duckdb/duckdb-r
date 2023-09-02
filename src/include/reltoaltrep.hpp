@@ -6,6 +6,8 @@ struct RelToAltrep {
 	static void Initialize(DllInfo *dll);
 	static R_xlen_t RownamesLength(SEXP x);
 	static void *RownamesDataptr(SEXP x, Rboolean writeable);
+	static const void *RownamesDataptrOrNull(SEXP x);
+	static void *DoRownamesDataptrGet(SEXP x);
 	static Rboolean RownamesInspect(SEXP x, int pre, int deep, int pvec, void (*inspect_subtree)(SEXP, int, int, int));
 
 	static R_xlen_t VectorLength(SEXP x);
