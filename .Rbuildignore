@@ -23,3 +23,5 @@ RELEASE.md
 ^src/.*\.o$
 ^duckdb$
 ^scripts$
+^Makefile$
+^\.clang-format$

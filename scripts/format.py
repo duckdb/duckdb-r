@@ -14,22 +14,10 @@ from python_helpers import open_utf8
 cpp_format_command = 'clang-format --sort-includes=0 -style=file'
 cmake_format_command = 'cmake-format'
 extensions = ['.cpp', '.c', '.hpp', '.h', '.cc', '.hh', 'CMakeLists.txt', '.test', '.test_slow', '.test_coverage', '.benchmark']
-formatted_directories = ['src', 'benchmark', 'test', 'tools', 'examples', 'extension']
-ignored_files = ['tpch_constants.hpp', 'tpcds_constants.hpp', '_generated', 'tpce_flat_input.hpp',
-                 'test_csv_header.hpp', 'duckdb.cpp', 'duckdb.hpp', 'json.hpp', 'sqlite3.h', 'shell.c',
-                 'termcolor.hpp', 'test_insert_invalid.test', 'httplib.hpp', 'os_win.c', 'glob.c', 'printf.c',
-                 'helper.hpp', 'single_thread_ptr.hpp', 'types.hpp', 'default_views.cpp', 'default_functions.cpp',
-                 'release.h', 'genrand.cpp', 'address.cpp', 'visualizer_constants.hpp', 'icu-collate.cpp', 'icu-collate.hpp',
-                 'yyjson.cpp', 'yyjson.hpp', 'duckdb_pdqsort.hpp', 'stubdata.cpp',
-                 'nf_calendar.cpp', 'nf_calendar.h', 'nf_localedata.cpp', 'nf_localedata.h', 'nf_zformat.cpp',
-                 'nf_zformat.h', 'expr.cc', 'function_list.cpp']
-ignored_directories = ['.eggs', '__pycache__', 'dbgen', os.path.join('tools', 'pythonpkg', 'duckdb'),
-                       os.path.join('tools', 'pythonpkg', 'build'), os.path.join('tools', 'rpkg', 'src', 'duckdb'),
-                       os.path.join('tools', 'rpkg', 'inst', 'include', 'cpp11'),
-                       os.path.join('extension', 'tpcds', 'dsdgen'), os.path.join('extension', 'jemalloc', 'jemalloc'),
-                       os.path.join('extension', 'json', 'yyjson'), os.path.join('extension', 'icu', 'third_party'),
-                       os.path.join('src', 'include', 'duckdb', 'core_functions', 'aggregate'),
-                       os.path.join('src', 'include', 'duckdb', 'core_functions', 'scalar')]
+formatted_directories = ['src']
+ignored_files = []
+ignored_directories = [os.path.join('src', 'duckdb'),
+                       os.path.join('inst', 'include', 'cpp11')]
 format_all = False
 check_only = True
 confirm = True
