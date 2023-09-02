@@ -4,11 +4,8 @@ import shutil
 import subprocess
 import platform
 
-extensions = ['parquet']
-
-# check if there are any additional extensions being requested
-if 'DUCKDB_R_EXTENSIONS' in os.environ:
-    extensions = extensions + os.environ['DUCKDB_R_EXTENSIONS'].split(",")
+# We always load extensions externally
+extensions = []
 
 unity_build = 20
 if 'DUCKDB_BUILD_UNITY' in os.environ:
@@ -36,11 +33,7 @@ def open_utf8(fpath, flags):
         return open(fpath, flags, encoding="utf8")
 
 
-extension_list = ""
-
-for ext in extensions:
-    extension_list += ' -DDUCKDB_EXTENSION_{}_LINKED'.format(ext.upper())
-    extension_list += " -DDUCKDB_BUILD_LIBRARY"
+extension_list = " -DDUCKDB_BUILD_LIBRARY"
 
 libraries = []
 if platform.system() == 'Windows':
