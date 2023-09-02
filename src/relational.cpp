@@ -28,6 +28,9 @@
 
 #include "duckdb/common/enums/joinref_type.hpp"
 
+#include "duckdb/function/function_set.hpp"
+#include "duckdb/parser/parsed_data/create_scalar_function_info.hpp"
+
 using namespace duckdb;
 using namespace cpp11;
 
@@ -527,4 +530,88 @@ static SEXP result_to_df(duckdb::unique_ptr<QueryResult> res) {
 
 	auto rel = con->conn->TableFunction(function_name, std::move(positional_parameters), std::move(named_parameters));
 	return make_external<RelationWrapper>("duckdb_relation", std::move(rel));
+}
+
+static void BaseRAddFunctionInteger(DataChunk &args, ExpressionState &state, Vector &result) {
+	auto &lefts = args.data[0];
+	D_ASSERT(lefts.GetType() == LogicalType::INTEGER);
+	auto &rights = args.data[1];
+	D_ASSERT(rights.GetType() == LogicalType::INTEGER);
+	BinaryExecutor::ExecuteWithNulls<int32_t, int32_t, int32_t>(
+	    lefts, rights, result, args.size(), [&](int32_t left, int32_t right, ValidityMask &mask, idx_t idx) {
+		    int64_t result = (int64_t)left + right;
+		    if (result > INT_MAX || result < (INT_MIN + 1)) {
+			    mask.SetInvalid(idx);
+			    return 0;
+		    }
+		    return left + right;
+	    });
+}
+
+static void BaseRAddFunctionDouble(DataChunk &args, ExpressionState &state, Vector &result) {
+	auto &lefts = args.data[0];
+	D_ASSERT(lefts.GetType() == LogicalType::DOUBLE);
+	auto &rights = args.data[1];
+	D_ASSERT(rights.GetType() == LogicalType::DOUBLE);
+	BinaryExecutor::Execute<double, double, double>(lefts, rights, result, args.size(),
+	                                                [&](double left, double right) { return left + right; });
+}
+
+static void BaseREqFunctionInteger(DataChunk &args, ExpressionState &state, Vector &result) {
+	auto &lefts = args.data[0];
+	D_ASSERT(lefts.GetType() == LogicalType::INTEGER);
+	auto &rights = args.data[1];
+	D_ASSERT(rights.GetType() == LogicalType::INTEGER);
+	BinaryExecutor::Execute<int32_t, int32_t, bool>(lefts, rights, result, args.size(),
+	                                                [&](int32_t left, int32_t right) { return (left == right); });
+}
+
+static void BaseREqFunctionDouble(DataChunk &args, ExpressionState &state, Vector &result) {
+	auto &lefts = args.data[0];
+	D_ASSERT(lefts.GetType() == LogicalType::DOUBLE);
+	auto &rights = args.data[1];
+	D_ASSERT(rights.GetType() == LogicalType::DOUBLE);
+	BinaryExecutor::ExecuteWithNulls<double, double, bool>(
+	    lefts, rights, result, args.size(), [&](double left, double right, ValidityMask &mask, idx_t idx) {
+		    if (ISNAN(left) || ISNAN(right)) {
+			    mask.SetInvalid(idx);
+			    return false;
+		    }
+		    return (left == right);
+	    });
+}
+
+static void BaseREqFunctionString(DataChunk &args, ExpressionState &state, Vector &result) {
+	auto &lefts = args.data[0];
+	D_ASSERT(lefts.GetType() == LogicalType::VARCHAR);
+	auto &rights = args.data[1];
+	D_ASSERT(rights.GetType() == LogicalType::VARCHAR);
+	BinaryExecutor::Execute<string_t, string_t, bool>(lefts, rights, result, args.size(),
+	                                                  [&](string_t left, string_t right) { return (left == right); });
+}
+
+[[cpp11::register]] void rapi_rel_register_functions(duckdb::conn_eptr_t con) {
+	if (!con || !con.get() || !con->conn) {
+		stop("rapi_rel_register_functions: Invalid connection");
+	}
+
+	ScalarFunctionSet base_r_add("___base_r_add");
+	base_r_add.AddFunction(
+	    ScalarFunction({LogicalType::INTEGER, LogicalType::INTEGER}, LogicalType::INTEGER, BaseRAddFunctionInteger));
+	base_r_add.AddFunction(
+	    ScalarFunction({LogicalType::DOUBLE, LogicalType::DOUBLE}, LogicalType::DOUBLE, BaseRAddFunctionDouble));
+
+	ScalarFunctionSet base_r_eq("___base_r_eq");
+	base_r_eq.AddFunction(
+	    ScalarFunction({LogicalType::INTEGER, LogicalType::INTEGER}, LogicalType::BOOLEAN, BaseREqFunctionInteger));
+	base_r_eq.AddFunction(
+	    ScalarFunction({LogicalType::DOUBLE, LogicalType::DOUBLE}, LogicalType::BOOLEAN, BaseREqFunctionDouble));
+	base_r_eq.AddFunction(
+	    ScalarFunction({LogicalType::VARCHAR, LogicalType::VARCHAR}, LogicalType::BOOLEAN, BaseREqFunctionString));
+
+	CreateScalarFunctionInfo base_r_add_info(base_r_add);
+	con->conn->context->RegisterFunction(base_r_add_info);
+
+	CreateScalarFunctionInfo base_r_eq_info(base_r_eq);
+	con->conn->context->RegisterFunction(base_r_eq_info);
 }

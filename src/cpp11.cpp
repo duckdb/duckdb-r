@@ -271,6 +271,14 @@ extern "C" SEXP _duckdb_rapi_rel_from_table_function(SEXP con, SEXP function_nam
     return cpp11::as_sexp(rapi_rel_from_table_function(cpp11::as_cpp<cpp11::decay_t<duckdb::conn_eptr_t>>(con), cpp11::as_cpp<cpp11::decay_t<const std::string>>(function_name), cpp11::as_cpp<cpp11::decay_t<list>>(positional_parameters_sexps), cpp11::as_cpp<cpp11::decay_t<list>>(named_parameters_sexps)));
   END_CPP11
 }
+// relational.cpp
+void rapi_rel_register_functions(duckdb::conn_eptr_t con);
+extern "C" SEXP _duckdb_rapi_rel_register_functions(SEXP con) {
+  BEGIN_CPP11
+    rapi_rel_register_functions(cpp11::as_cpp<cpp11::decay_t<duckdb::conn_eptr_t>>(con));
+    return R_NilValue;
+  END_CPP11
+}
 // reltoaltrep.cpp
 SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel);
 extern "C" SEXP _duckdb_rapi_rel_to_altrep(SEXP rel) {
@@ -417,6 +425,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_rel_names",               (DL_FUNC) &_duckdb_rapi_rel_names,               1},
     {"_duckdb_rapi_rel_order",               (DL_FUNC) &_duckdb_rapi_rel_order,               2},
     {"_duckdb_rapi_rel_project",             (DL_FUNC) &_duckdb_rapi_rel_project,             2},
+    {"_duckdb_rapi_rel_register_functions",  (DL_FUNC) &_duckdb_rapi_rel_register_functions,  1},
     {"_duckdb_rapi_rel_set_alias",           (DL_FUNC) &_duckdb_rapi_rel_set_alias,           2},
     {"_duckdb_rapi_rel_set_diff",            (DL_FUNC) &_duckdb_rapi_rel_set_diff,            2},
     {"_duckdb_rapi_rel_set_intersect",       (DL_FUNC) &_duckdb_rapi_rel_set_intersect,       2},
