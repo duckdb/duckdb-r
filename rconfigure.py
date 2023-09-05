@@ -84,7 +84,7 @@ if 'DUCKDB_R_BINDIR' in os.environ and 'DUCKDB_R_CFLAGS' in os.environ and 'DUCK
     exit(0)
 
 if not os.path.isfile(os.path.join('..', 'duckdb', 'scripts', 'amalgamation.py')):
-    print("Could not find amalgamation script! This script needs to be launched from the subdirectory tools/rpkg")
+    print("Could not find amalgamation script!")
     exit(1)
 
 target_dir = os.path.join(os.getcwd(), 'src', 'duckdb')
