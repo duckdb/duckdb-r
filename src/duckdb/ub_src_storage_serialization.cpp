@@ -26,3 +26,5 @@
 
 #include "src/storage/serialization/serialize_types.cpp"
 
+#include "src/storage/serialization/serialize_storage.cpp"
+
