@@ -1,6 +1,7 @@
 reference:
 - title: Driver
   contents:
+  - duckdb
   - duckdb_driver
 - title: Connection
   contents:
@@ -8,6 +9,17 @@ reference:
 - title: Result
   contents:
   - duckdb_result
+- title: Interfaces
+  contents:
+  - backend-duckdb
+  - duckdb_register
+  - duckdb_register_arrow
+  - duckdb_read_csv
+  - duckdb_get_substrait
+  - duckdb_get_substrait_json
+  - duckdb_prepare_substrait
+  - duckdb_prepare_substrait_json
+  - duckdb_explain-class
 - title: duckdb Package
   contents:
   - duckdb-package
