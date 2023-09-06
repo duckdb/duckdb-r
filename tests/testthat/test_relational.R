@@ -83,10 +83,16 @@ test_that("we can cast R strings to DuckDB strings", {
   df <- data.frame(s = test_string_vec, stringsAsFactors = FALSE)
   expect_equivalent(df, as.data.frame.duckdb_relation(rel_from_df(con, df)))
 
-  res <- rel_from_df(con, df) |> rel_sql("SELECT s::string FROM _")
+  res <- rel_sql(
+    rel_from_df(con, df),
+    "SELECT s::string FROM _"
+  )
   expect_equivalent(df, res)
 
-  res <- rel_from_df(con, df) |> rel_sql("SELECT COUNT(*) c FROM _")
+  res <- rel_sql(
+    rel_from_df(con, df),
+    "SELECT COUNT(*) c FROM _"
+  )
   expect_equal(nrow(df), res$c)
 
   # many rounds yay
@@ -98,7 +104,12 @@ test_that("we can cast R strings to DuckDB strings", {
 
   df2 <- df
   for (i in 1:10) {
-    df2 <- as.data.frame(rel_from_df(con, df2) |> rel_sql("SELECT s::string s FROM _"))
+    df2 <- as.data.frame(
+      rel_sql(
+        rel_from_df(con, df2),
+        "SELECT s::string s FROM _"
+      )
+    )
     expect_equivalent(df, df2)
   }
 })
