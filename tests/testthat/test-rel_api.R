@@ -2864,10 +2864,7 @@ test_that("relational full_join(join_by(a)) order-preserving", {
     rel7,
     rel8,
     list(
-      expr_function(
-        "___eq_na_matches_na",
-        list(expr_reference("a_x", rel7), expr_reference("a_y", rel8))
-      )
+      expr_function("___eq_na_matches_na", list(expr_reference("a_x", rel7), expr_reference("a_y", rel8)))
     ),
     "outer"
   )
@@ -2879,10 +2876,7 @@ test_that("relational full_join(join_by(a)) order-preserving", {
     rel10,
     list(
       {
-        tmp_expr <- expr_function(
-          "___coalesce",
-          list(expr_reference("a_x", rel7), expr_reference("a_y", rel8))
-        )
+        tmp_expr <- expr_function("___coalesce", list(expr_reference("a_x", rel7), expr_reference("a_y", rel8)))
         expr_set_alias(tmp_expr, "a")
         tmp_expr
       },
@@ -2962,10 +2956,7 @@ test_that("relational full_join(join_by(a)) order-enforcing", {
     rel5,
     rel6,
     list(
-      expr_function(
-        "___eq_na_matches_na",
-        list(expr_reference("a_x", rel5), expr_reference("a_y", rel6))
-      )
+      expr_function("___eq_na_matches_na", list(expr_reference("a_x", rel5), expr_reference("a_y", rel6)))
     ),
     "outer"
   )
@@ -2973,10 +2964,7 @@ test_that("relational full_join(join_by(a)) order-enforcing", {
     rel7,
     list(
       {
-        tmp_expr <- expr_function(
-          "___coalesce",
-          list(expr_reference("a_x", rel5), expr_reference("a_y", rel6))
-        )
+        tmp_expr <- expr_function("___coalesce", list(expr_reference("a_x", rel5), expr_reference("a_y", rel6)))
         expr_set_alias(tmp_expr, "a")
         tmp_expr
       },
@@ -3100,10 +3088,7 @@ test_that("relational inner_join(join_by(a)) order-preserving", {
     rel7,
     rel8,
     list(
-      expr_function(
-        "___eq_na_matches_na",
-        list(expr_reference("a_x", rel7), expr_reference("a_y", rel8))
-      )
+      expr_function("___eq_na_matches_na", list(expr_reference("a_x", rel7), expr_reference("a_y", rel8)))
     ),
     "inner"
   )
@@ -3115,10 +3100,7 @@ test_that("relational inner_join(join_by(a)) order-preserving", {
     rel10,
     list(
       {
-        tmp_expr <- expr_function(
-          "___coalesce",
-          list(expr_reference("a_x", rel7), expr_reference("a_y", rel8))
-        )
+        tmp_expr <- expr_function("___coalesce", list(expr_reference("a_x", rel7), expr_reference("a_y", rel8)))
         expr_set_alias(tmp_expr, "a")
         tmp_expr
       },
@@ -3198,10 +3180,7 @@ test_that("relational inner_join(join_by(a)) order-enforcing", {
     rel5,
     rel6,
     list(
-      expr_function(
-        "___eq_na_matches_na",
-        list(expr_reference("a_x", rel5), expr_reference("a_y", rel6))
-      )
+      expr_function("___eq_na_matches_na", list(expr_reference("a_x", rel5), expr_reference("a_y", rel6)))
     ),
     "inner"
   )
@@ -3209,10 +3188,7 @@ test_that("relational inner_join(join_by(a)) order-enforcing", {
     rel7,
     list(
       {
-        tmp_expr <- expr_function(
-          "___coalesce",
-          list(expr_reference("a_x", rel5), expr_reference("a_y", rel6))
-        )
+        tmp_expr <- expr_function("___coalesce", list(expr_reference("a_x", rel5), expr_reference("a_y", rel6)))
         expr_set_alias(tmp_expr, "a")
         tmp_expr
       },
@@ -3381,10 +3357,7 @@ test_that("relational left_join(join_by(a)) order-preserving", {
     rel7,
     rel8,
     list(
-      expr_function(
-        "___eq_na_matches_na",
-        list(expr_reference("a_x", rel7), expr_reference("a_y", rel8))
-      )
+      expr_function("___eq_na_matches_na", list(expr_reference("a_x", rel7), expr_reference("a_y", rel8)))
     ),
     "left"
   )
@@ -3396,10 +3369,7 @@ test_that("relational left_join(join_by(a)) order-preserving", {
     rel10,
     list(
       {
-        tmp_expr <- expr_function(
-          "___coalesce",
-          list(expr_reference("a_x", rel7), expr_reference("a_y", rel8))
-        )
+        tmp_expr <- expr_function("___coalesce", list(expr_reference("a_x", rel7), expr_reference("a_y", rel8)))
         expr_set_alias(tmp_expr, "a")
         tmp_expr
       },
@@ -3479,10 +3449,7 @@ test_that("relational left_join(join_by(a)) order-enforcing", {
     rel5,
     rel6,
     list(
-      expr_function(
-        "___eq_na_matches_na",
-        list(expr_reference("a_x", rel5), expr_reference("a_y", rel6))
-      )
+      expr_function("___eq_na_matches_na", list(expr_reference("a_x", rel5), expr_reference("a_y", rel6)))
     ),
     "left"
   )
@@ -3490,10 +3457,7 @@ test_that("relational left_join(join_by(a)) order-enforcing", {
     rel7,
     list(
       {
-        tmp_expr <- expr_function(
-          "___coalesce",
-          list(expr_reference("a_x", rel5), expr_reference("a_y", rel6))
-        )
+        tmp_expr <- expr_function("___coalesce", list(expr_reference("a_x", rel5), expr_reference("a_y", rel6)))
         expr_set_alias(tmp_expr, "a")
         tmp_expr
       },
@@ -9462,10 +9426,7 @@ test_that("relational right_join(join_by(a)) order-preserving", {
     rel7,
     rel8,
     list(
-      expr_function(
-        "___eq_na_matches_na",
-        list(expr_reference("a_x", rel7), expr_reference("a_y", rel8))
-      )
+      expr_function("___eq_na_matches_na", list(expr_reference("a_x", rel7), expr_reference("a_y", rel8)))
     ),
     "right"
   )
@@ -9556,10 +9517,7 @@ test_that("relational right_join(join_by(a)) order-enforcing", {
     rel5,
     rel6,
     list(
-      expr_function(
-        "___eq_na_matches_na",
-        list(expr_reference("a_x", rel5), expr_reference("a_y", rel6))
-      )
+      expr_function("___eq_na_matches_na", list(expr_reference("a_x", rel5), expr_reference("a_y", rel6)))
     ),
     "right"
   )
