@@ -19,7 +19,7 @@ if 'DUCKDB_BUILD_UNITY' in os.environ:
 
 debug_move_flag = ''
 if 'DUCKDB_DEBUG_MOVE' in os.environ:
-    debug_move_flag = '-DDUCKDB_DEBUG_MOVE'
+    debug_move_flag = ' -DDUCKDB_DEBUG_MOVE'
 
 # This requires the mother duckdb repo to be checked out in a parallel directory
 # Submodules can't be used because they break R CMD build
@@ -103,7 +103,7 @@ include_list = ' '.join(['-I' + 'duckdb/' + x for x in include_list])
 include_list += ' -I' + os.path.join('..', 'inst', 'include')
 include_list += ' -Iduckdb'
 include_list += extension_list
-include_list += ' ' + debug_move_flag
+include_list += debug_move_flag
 
 # add -Werror if enabled
 if 'TREAT_WARNINGS_AS_ERRORS' in os.environ:
@@ -139,5 +139,5 @@ with open_utf8(os.path.join('src', 'Makevars.win'), 'w+') as f:
 # write sources.mk
 text = "SOURCES=" + object_list + '\n'
 
-with open_utf8(os.path.join('src', 'sources.mk'), 'w') as f:
+with open_utf8(os.path.join('src', 'include', 'sources.mk'), 'w') as f:
     f.write(text)

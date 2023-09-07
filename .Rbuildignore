@@ -25,3 +25,4 @@ RELEASE.md
 ^scripts$
 ^Makefile$
 ^\.clang-format$
+^\.ccache$
