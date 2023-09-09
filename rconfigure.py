@@ -115,7 +115,7 @@ with open_utf8(os.path.join('src', 'Makevars.in'), 'r') as f:
 
 text = text.replace('{{ INCLUDES }}', include_list)
 if len(libraries) == 0:
-    text = text.replace('PKG_LIBS={{ LINK_FLAGS }}', '')
+    text = text.replace('PKG_LIBS={{ LINK_FLAGS }}\n', '')
 else:
     text = text.replace('{{ LINK_FLAGS }}', link_flags.strip())
 

@@ -1,11 +1,3 @@
-/.vscode
-/build
-*.tar.gz
-*.tgz
-src/**/*.o
-src/*.so
-/scripts/__pycache__
-
 # Created by https://www.toptal.com/developers/gitignore/api/r
 # Edit at https://www.toptal.com/developers/gitignore?templates=r
 ### R ###
@@ -104,4 +96,13 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 # End of https://www.toptal.com/developers/gitignore/api/windows
+
 /duckdb
+/.vscode
+/build
+*.tar.gz
+*.tgz
+src/**/*.o
+src/*.so
+/scripts/__pycache__
+/.ccache
