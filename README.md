@@ -10,11 +10,20 @@ install.packages("duckdb")
 
 ## Building
 
-The default build compiles a release version from an amalgamation.
+To build the bleeding edge of duckdb-r, you can clone this repository and run 
 
 ```sh
-R CMD INSTALL .
+~duckdb-r: R CMD INSTALL .
 ```
+
+If you wish to test new duckdb functionality with duckdb-r, make sure your clones of `duckdb-r` and `duckdb` share the same parent directory. Then run the following commands
+```sh
+~ (cd duckdb && git checkout {{desired_branch}})
+~ (cd ducdkb-r && ./vendor.sh)
+~ (cd duckdb-r && R CMD INSTALL .)
+```
+
+It helps if both the duckdb directory and duckdb-r directory are clean. If you encounter linker errors, merge both duckdb-r and duckdb with their respective main branches. 
 
 
 ## Dependencies
