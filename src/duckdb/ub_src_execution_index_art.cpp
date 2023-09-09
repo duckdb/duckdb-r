@@ -2,8 +2,6 @@
 
 #include "src/execution/index/art/node.cpp"
 
-#include "src/execution/index/art/fixed_size_allocator.cpp"
-
 #include "src/execution/index/art/iterator.cpp"
 
 #include "src/execution/index/art/leaf.cpp"
