@@ -76,19 +76,14 @@
 <div class="section level2">
 <h2 id="building">Building<a class="anchor" aria-label="anchor" href="#building"></a>
 </h2>
-<p>To build the bleeding edge of duckdb-r, you can clone this repository and run</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">~duckdb-r:</span> R CMD INSTALL .</span></code></pre></div>
-<p>If you wish to test new duckdb functionality with duckdb-r, make sure your clones of <code>duckdb-r</code> and <code>duckdb</code> share the same parent directory. Then run the following commands</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> duckdb <span class="kw">&amp;&amp;</span> <span class="fu">git</span> checkout {{desired_branch}}<span class="kw">)</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> ducdkb-r <span class="kw">&amp;&amp;</span> <span class="ex">./vendor.sh</span><span class="kw">)</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> duckdb-r <span class="kw">&amp;&amp;</span> <span class="ex">R</span> CMD INSTALL .<span class="kw">)</span></span></code></pre></div>
-<p>It helps if both the duckdb directory and duckdb-r directory are clean. If you encounter linker errors, merge both duckdb-r and duckdb with their respective main branches.</p>
+<p>The default build compiles a release version from an amalgamation.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">R</span> CMD INSTALL .</span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="dependencies">Dependencies<a class="anchor" aria-label="anchor" href="#dependencies"></a>
 </h2>
 <p>To build the R package, you first need to install the dependencies:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("pak", repos = sprintf("https://r-lib.github.io/p/pak/stable/%s/%s/%s", .Platform$pkgType, R.Version()$os, R.Version()$arch))</span></span>
 <span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 </div>
