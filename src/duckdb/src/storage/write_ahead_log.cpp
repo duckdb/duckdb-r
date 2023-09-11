@@ -13,9 +13,9 @@ namespace duckdb {
 
 WriteAheadLog::WriteAheadLog(AttachedDatabase &database, const string &path) : skip_writing(false), database(database) {
 	wal_path = path;
-	writer = make_uniq<BufferedFileWriter>(FileSystem::Get(database), path.c_str(),
-	                                       FileFlags::FILE_FLAGS_WRITE | FileFlags::FILE_FLAGS_FILE_CREATE |
-	                                           FileFlags::FILE_FLAGS_APPEND);
+	writer = make_unique<BufferedFileWriter>(FileSystem::Get(database), path.c_str(),
+	                                         FileFlags::FILE_FLAGS_WRITE | FileFlags::FILE_FLAGS_FILE_CREATE |
+	                                             FileFlags::FILE_FLAGS_APPEND);
 }
 
 WriteAheadLog::~WriteAheadLog() {
@@ -48,73 +48,72 @@ void WriteAheadLog::Delete() {
 //===--------------------------------------------------------------------===//
 // Write Entries
 //===--------------------------------------------------------------------===//
-void WriteAheadLog::WriteCheckpoint(MetaBlockPointer meta_block) {
+void WriteAheadLog::WriteCheckpoint(block_id_t meta_block) {
 	writer->Write<WALType>(WALType::CHECKPOINT);
-	writer->Write<idx_t>(meta_block.block_pointer);
-	writer->Write<uint32_t>(meta_block.offset);
+	writer->Write<block_id_t>(meta_block);
 }
 
 //===--------------------------------------------------------------------===//
 // CREATE TABLE
 //===--------------------------------------------------------------------===//
-void WriteAheadLog::WriteCreateTable(const TableCatalogEntry &entry) {
+void WriteAheadLog::WriteCreateTable(TableCatalogEntry *entry) {
 	if (skip_writing) {
 		return;
 	}
 	writer->Write<WALType>(WALType::CREATE_TABLE);
-	entry.Serialize(*writer);
+	entry->Serialize(*writer);
 }
 
 //===--------------------------------------------------------------------===//
 // DROP TABLE
 //===--------------------------------------------------------------------===//
-void WriteAheadLog::WriteDropTable(const TableCatalogEntry &entry) {
+void WriteAheadLog::WriteDropTable(TableCatalogEntry *entry) {
 	if (skip_writing) {
 		return;
 	}
 	writer->Write<WALType>(WALType::DROP_TABLE);
-	writer->WriteString(entry.schema.name);
-	writer->WriteString(entry.name);
+	writer->WriteString(entry->schema->name);
+	writer->WriteString(entry->name);
 }
 
 //===--------------------------------------------------------------------===//
 // CREATE SCHEMA
 //===--------------------------------------------------------------------===//
-void WriteAheadLog::WriteCreateSchema(const SchemaCatalogEntry &entry) {
+void WriteAheadLog::WriteCreateSchema(SchemaCatalogEntry *entry) {
 	if (skip_writing) {
 		return;
 	}
 	writer->Write<WALType>(WALType::CREATE_SCHEMA);
-	writer->WriteString(entry.name);
+	writer->WriteString(entry->name);
 }
 
 //===--------------------------------------------------------------------===//
 // SEQUENCES
 //===--------------------------------------------------------------------===//
-void WriteAheadLog::WriteCreateSequence(const SequenceCatalogEntry &entry) {
+void WriteAheadLog::WriteCreateSequence(SequenceCatalogEntry *entry) {
 	if (skip_writing) {
 		return;
 	}
 	writer->Write<WALType>(WALType::CREATE_SEQUENCE);
-	entry.Serialize(*writer);
+	entry->Serialize(*writer);
 }
 
-void WriteAheadLog::WriteDropSequence(const SequenceCatalogEntry &entry) {
+void WriteAheadLog::WriteDropSequence(SequenceCatalogEntry *entry) {
 	if (skip_writing) {
 		return;
 	}
 	writer->Write<WALType>(WALType::DROP_SEQUENCE);
-	writer->WriteString(entry.schema.name);
-	writer->WriteString(entry.name);
+	writer->WriteString(entry->schema->name);
+	writer->WriteString(entry->name);
 }
 
-void WriteAheadLog::WriteSequenceValue(const SequenceCatalogEntry &entry, SequenceValue val) {
+void WriteAheadLog::WriteSequenceValue(SequenceCatalogEntry *entry, SequenceValue val) {
 	if (skip_writing) {
 		return;
 	}
 	writer->Write<WALType>(WALType::SEQUENCE_VALUE);
-	writer->WriteString(entry.schema.name);
-	writer->WriteString(entry.name);
+	writer->WriteString(entry->schema->name);
+	writer->WriteString(entry->name);
 	writer->Write<uint64_t>(val.usage_count);
 	writer->Write<int64_t>(val.counter);
 }
@@ -122,109 +121,109 @@ void WriteAheadLog::WriteSequenceValue(const SequenceCatalogEntry &entry, Sequen
 //===--------------------------------------------------------------------===//
 // MACROS
 //===--------------------------------------------------------------------===//
-void WriteAheadLog::WriteCreateMacro(const ScalarMacroCatalogEntry &entry) {
+void WriteAheadLog::WriteCreateMacro(ScalarMacroCatalogEntry *entry) {
 	if (skip_writing) {
 		return;
 	}
 	writer->Write<WALType>(WALType::CREATE_MACRO);
-	entry.Serialize(*writer);
+	entry->Serialize(*writer);
 }
 
-void WriteAheadLog::WriteDropMacro(const ScalarMacroCatalogEntry &entry) {
+void WriteAheadLog::WriteDropMacro(ScalarMacroCatalogEntry *entry) {
 	if (skip_writing) {
 		return;
 	}
 	writer->Write<WALType>(WALType::DROP_MACRO);
-	writer->WriteString(entry.schema.name);
-	writer->WriteString(entry.name);
+	writer->WriteString(entry->schema->name);
+	writer->WriteString(entry->name);
 }
 
-void WriteAheadLog::WriteCreateTableMacro(const TableMacroCatalogEntry &entry) {
+void WriteAheadLog::WriteCreateTableMacro(TableMacroCatalogEntry *entry) {
 	if (skip_writing) {
 		return;
 	}
 	writer->Write<WALType>(WALType::CREATE_TABLE_MACRO);
-	entry.Serialize(*writer);
+	entry->Serialize(*writer);
 }
 
-void WriteAheadLog::WriteDropTableMacro(const TableMacroCatalogEntry &entry) {
+void WriteAheadLog::WriteDropTableMacro(TableMacroCatalogEntry *entry) {
 	if (skip_writing) {
 		return;
 	}
 	writer->Write<WALType>(WALType::DROP_TABLE_MACRO);
-	writer->WriteString(entry.schema.name);
-	writer->WriteString(entry.name);
+	writer->WriteString(entry->schema->name);
+	writer->WriteString(entry->name);
 }
 
 //===--------------------------------------------------------------------===//
 // Indexes
 //===--------------------------------------------------------------------===//
-void WriteAheadLog::WriteCreateIndex(const IndexCatalogEntry &entry) {
+void WriteAheadLog::WriteCreateIndex(IndexCatalogEntry *entry) {
 	if (skip_writing) {
 		return;
 	}
 	writer->Write<WALType>(WALType::CREATE_INDEX);
-	entry.Serialize(*writer);
+	entry->Serialize(*writer);
 }
 
-void WriteAheadLog::WriteDropIndex(const IndexCatalogEntry &entry) {
+void WriteAheadLog::WriteDropIndex(IndexCatalogEntry *entry) {
 	if (skip_writing) {
 		return;
 	}
 	writer->Write<WALType>(WALType::DROP_INDEX);
-	writer->WriteString(entry.schema.name);
-	writer->WriteString(entry.name);
+	writer->WriteString(entry->schema->name);
+	writer->WriteString(entry->name);
 }
 
 //===--------------------------------------------------------------------===//
 // Custom Types
 //===--------------------------------------------------------------------===//
-void WriteAheadLog::WriteCreateType(const TypeCatalogEntry &entry) {
+void WriteAheadLog::WriteCreateType(TypeCatalogEntry *entry) {
 	if (skip_writing) {
 		return;
 	}
 	writer->Write<WALType>(WALType::CREATE_TYPE);
-	entry.Serialize(*writer);
+	entry->Serialize(*writer);
 }
 
-void WriteAheadLog::WriteDropType(const TypeCatalogEntry &entry) {
+void WriteAheadLog::WriteDropType(TypeCatalogEntry *entry) {
 	if (skip_writing) {
 		return;
 	}
 	writer->Write<WALType>(WALType::DROP_TYPE);
-	writer->WriteString(entry.schema.name);
-	writer->WriteString(entry.name);
+	writer->WriteString(entry->schema->name);
+	writer->WriteString(entry->name);
 }
 
 //===--------------------------------------------------------------------===//
 // VIEWS
 //===--------------------------------------------------------------------===//
-void WriteAheadLog::WriteCreateView(const ViewCatalogEntry &entry) {
+void WriteAheadLog::WriteCreateView(ViewCatalogEntry *entry) {
 	if (skip_writing) {
 		return;
 	}
 	writer->Write<WALType>(WALType::CREATE_VIEW);
-	entry.Serialize(*writer);
+	entry->Serialize(*writer);
 }
 
-void WriteAheadLog::WriteDropView(const ViewCatalogEntry &entry) {
+void WriteAheadLog::WriteDropView(ViewCatalogEntry *entry) {
 	if (skip_writing) {
 		return;
 	}
 	writer->Write<WALType>(WALType::DROP_VIEW);
-	writer->WriteString(entry.schema.name);
-	writer->WriteString(entry.name);
+	writer->WriteString(entry->schema->name);
+	writer->WriteString(entry->name);
 }
 
 //===--------------------------------------------------------------------===//
 // DROP SCHEMA
 //===--------------------------------------------------------------------===//
-void WriteAheadLog::WriteDropSchema(const SchemaCatalogEntry &entry) {
+void WriteAheadLog::WriteDropSchema(SchemaCatalogEntry *entry) {
 	if (skip_writing) {
 		return;
 	}
 	writer->Write<WALType>(WALType::DROP_SCHEMA);
-	writer->WriteString(entry.name);
+	writer->WriteString(entry->name);
 }
 
 //===--------------------------------------------------------------------===//
@@ -282,12 +281,12 @@ void WriteAheadLog::WriteUpdate(DataChunk &chunk, const vector<column_t> &column
 //===--------------------------------------------------------------------===//
 // Write ALTER Statement
 //===--------------------------------------------------------------------===//
-void WriteAheadLog::WriteAlter(data_ptr_t ptr, idx_t data_size) {
+void WriteAheadLog::WriteAlter(AlterInfo &info) {
 	if (skip_writing) {
 		return;
 	}
 	writer->Write<WALType>(WALType::ALTER_INFO);
-	writer->WriteData(ptr, data_size);
+	info.Serialize(*writer);
 }
 
 //===--------------------------------------------------------------------===//

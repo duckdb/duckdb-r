@@ -1,26 +1,23 @@
 #include "duckdb/storage/table/list_column_data.hpp"
-#include "duckdb/storage/statistics/list_stats.hpp"
+#include "duckdb/storage/statistics/list_statistics.hpp"
 #include "duckdb/transaction/transaction.hpp"
-#include "duckdb/storage/table/column_checkpoint_state.hpp"
-#include "duckdb/storage/table/append_state.hpp"
-#include "duckdb/storage/table/scan_state.hpp"
 
 namespace duckdb {
 
 ListColumnData::ListColumnData(BlockManager &block_manager, DataTableInfo &info, idx_t column_index, idx_t start_row,
-                               LogicalType type_p, optional_ptr<ColumnData> parent)
+                               LogicalType type_p, ColumnData *parent)
     : ColumnData(block_manager, info, column_index, start_row, std::move(type_p), parent),
-      validity(block_manager, info, 0, start_row, *this) {
+      validity(block_manager, info, 0, start_row, this) {
 	D_ASSERT(type.InternalType() == PhysicalType::LIST);
 	auto &child_type = ListType::GetChildType(type);
 	// the child column, with column index 1 (0 is the validity mask)
 	child_column = ColumnData::CreateColumnUnique(block_manager, info, 1, start_row, child_type, this);
 }
 
-void ListColumnData::SetStart(idx_t new_start) {
-	ColumnData::SetStart(new_start);
-	child_column->SetStart(new_start);
-	validity.SetStart(new_start);
+ListColumnData::ListColumnData(ColumnData &original, idx_t start_row, ColumnData *parent)
+    : ColumnData(original, start_row, parent), validity(((ListColumnData &)original).validity, start_row, this) {
+	auto &list_data = (ListColumnData &)original;
+	child_column = ColumnData::CreateColumnUnique(*list_data.child_column, start_row, this);
 }
 
 bool ListColumnData::CheckZonemap(ColumnScanState &state, TableFilter &filter) {
@@ -32,21 +29,25 @@ void ListColumnData::InitializeScan(ColumnScanState &state) {
 	ColumnData::InitializeScan(state);
 
 	// initialize the validity segment
-	D_ASSERT(state.child_states.size() == 2);
-	validity.InitializeScan(state.child_states[0]);
+	ColumnScanState validity_state;
+	validity.InitializeScan(validity_state);
+	state.child_states.push_back(std::move(validity_state));
 
 	// initialize the child scan
-	child_column->InitializeScan(state.child_states[1]);
+	ColumnScanState child_state;
+	child_column->InitializeScan(child_state);
+	state.child_states.push_back(std::move(child_state));
 }
 
-uint64_t ListColumnData::FetchListOffset(idx_t row_idx) {
-	auto segment = data.GetSegment(row_idx);
+list_entry_t ListColumnData::FetchListEntry(idx_t row_idx) {
+	auto segment = (ColumnSegment *)data.GetSegment(row_idx);
 	ColumnFetchState fetch_state;
 	Vector result(type, 1);
 	segment->FetchRow(fetch_state, row_idx, result, 0);
 
 	// initialize the child scan with the required offset
-	return FlatVector::GetData<uint64_t>(result)[0];
+	auto list_data = FlatVector::GetData<list_entry_t>(result);
+	return list_data[0];
 }
 
 void ListColumnData::InitializeScanWithOffset(ColumnScanState &state, idx_t row_idx) {
@@ -57,16 +58,20 @@ void ListColumnData::InitializeScanWithOffset(ColumnScanState &state, idx_t row_
 	ColumnData::InitializeScanWithOffset(state, row_idx);
 
 	// initialize the validity segment
-	D_ASSERT(state.child_states.size() == 2);
-	validity.InitializeScanWithOffset(state.child_states[0], row_idx);
+	ColumnScanState validity_state;
+	validity.InitializeScanWithOffset(validity_state, row_idx);
+	state.child_states.push_back(std::move(validity_state));
 
 	// we need to read the list at position row_idx to get the correct row offset of the child
-	auto child_offset = row_idx == start ? 0 : FetchListOffset(row_idx - 1);
+	auto list_entry = FetchListEntry(row_idx);
+	auto child_offset = list_entry.offset;
+
 	D_ASSERT(child_offset <= child_column->GetMaxEntry());
+	ColumnScanState child_state;
 	if (child_offset < child_column->GetMaxEntry()) {
-		child_column->InitializeScanWithOffset(state.child_states[1], start + child_offset);
+		child_column->InitializeScanWithOffset(child_state, start + child_offset);
 	}
-	state.last_offset = child_offset;
+	state.child_states.push_back(std::move(child_state));
 }
 
 idx_t ListColumnData::Scan(TransactionData transaction, idx_t vector_index, ColumnScanState &state, Vector &result) {
@@ -84,40 +89,35 @@ idx_t ListColumnData::ScanCount(ColumnScanState &state, Vector &result, idx_t co
 	// updates not supported for lists
 	D_ASSERT(!updates);
 
-	Vector offset_vector(LogicalType::UBIGINT, count);
-	idx_t scan_count = ScanVector(state, offset_vector, count);
+	idx_t scan_count = ScanVector(state, result, count);
 	D_ASSERT(scan_count > 0);
 	validity.ScanCount(state.child_states[0], result, count);
 
-	UnifiedVectorFormat offsets;
-	offset_vector.ToUnifiedFormat(scan_count, offsets);
-	auto data = UnifiedVectorFormat::GetData<uint64_t>(offsets);
-	auto last_entry = data[offsets.sel->get_index(scan_count - 1)];
+	auto data = FlatVector::GetData<list_entry_t>(result);
+	auto first_entry = data[0];
+	auto last_entry = data[scan_count - 1];
 
+#ifdef DEBUG
+	for (idx_t i = 1; i < scan_count; i++) {
+		D_ASSERT(data[i].offset == data[i - 1].offset + data[i - 1].length);
+	}
+#endif
 	// shift all offsets so they are 0 at the first entry
-	auto result_data = FlatVector::GetData<list_entry_t>(result);
-	auto base_offset = state.last_offset;
-	idx_t current_offset = 0;
 	for (idx_t i = 0; i < scan_count; i++) {
-		auto offset_index = offsets.sel->get_index(i);
-		result_data[i].offset = current_offset;
-		result_data[i].length = data[offset_index] - current_offset - base_offset;
-		current_offset += result_data[i].length;
+		data[i].offset -= first_entry.offset;
 	}
 
-	D_ASSERT(last_entry >= base_offset);
-	idx_t child_scan_count = last_entry - base_offset;
+	D_ASSERT(last_entry.offset >= first_entry.offset);
+	idx_t child_scan_count = last_entry.offset + last_entry.length - first_entry.offset;
 	ListVector::Reserve(result, child_scan_count);
 
 	if (child_scan_count > 0) {
 		auto &child_entry = ListVector::GetEntry(result);
-		if (child_entry.GetType().InternalType() != PhysicalType::STRUCT &&
-		    state.child_states[1].row_index + child_scan_count > child_column->start + child_column->GetMaxEntry()) {
-			throw InternalException("ListColumnData::ScanCount - internal list scan offset is out of range");
-		}
+		D_ASSERT(child_entry.GetType().InternalType() == PhysicalType::STRUCT ||
+		         state.child_states[1].row_index + child_scan_count <=
+		             child_column->start + child_column->GetMaxEntry());
 		child_column->ScanCount(state.child_states[1], child_entry, child_scan_count);
 	}
-	state.last_offset = last_entry;
 
 	ListVector::SetListSize(result, child_scan_count);
 	return scan_count;
@@ -130,19 +130,19 @@ void ListColumnData::Skip(ColumnScanState &state, idx_t count) {
 	// we need to read the list entries/offsets to figure out how much to skip
 	// note that we only need to read the first and last entry
 	// however, let's just read all "count" entries for now
-	Vector result(LogicalType::UBIGINT, count);
+	auto data = unique_ptr<list_entry_t[]>(new list_entry_t[count]);
+	Vector result(type, (data_ptr_t)data.get());
 	idx_t scan_count = ScanVector(state, result, count);
 	if (scan_count == 0) {
 		return;
 	}
 
-	auto data = FlatVector::GetData<uint64_t>(result);
-	auto last_entry = data[scan_count - 1];
-	idx_t child_scan_count = last_entry - state.last_offset;
+	auto &first_entry = data[0];
+	auto &last_entry = data[scan_count - 1];
+	idx_t child_scan_count = last_entry.offset + last_entry.length - first_entry.offset;
 	if (child_scan_count == 0) {
 		return;
 	}
-	state.last_offset = last_entry;
 
 	// skip the child state forward by the child_scan_count
 	child_column->Skip(state.child_states[1], child_scan_count);
@@ -163,20 +163,22 @@ void ListColumnData::InitializeAppend(ColumnAppendState &state) {
 	state.child_appends.push_back(std::move(child_append_state));
 }
 
-void ListColumnData::Append(BaseStatistics &stats, ColumnAppendState &state, Vector &vector, idx_t count) {
+void ListColumnData::Append(BaseStatistics &stats_p, ColumnAppendState &state, Vector &vector, idx_t count) {
 	D_ASSERT(count > 0);
+	auto &stats = (ListStatistics &)stats_p;
+
 	UnifiedVectorFormat list_data;
 	vector.ToUnifiedFormat(count, list_data);
 	auto &list_validity = list_data.validity;
 
 	// construct the list_entry_t entries to append to the column data
-	auto input_offsets = UnifiedVectorFormat::GetData<list_entry_t>(list_data);
+	auto input_offsets = (list_entry_t *)list_data.data;
 	auto start_offset = child_column->GetMaxEntry();
 	idx_t child_count = 0;
 
 	ValidityMask append_mask(count);
-	auto append_offsets = unique_ptr<uint64_t[]>(new uint64_t[count]);
-	bool child_contiguous = true;
+	auto append_offsets = unique_ptr<list_entry_t[]>(new list_entry_t[count]);
+	bool child_contiguous = false;
 	for (idx_t i = 0; i < count; i++) {
 		auto input_idx = list_data.sel->get_index(i);
 		if (list_validity.RowIsValid(input_idx)) {
@@ -184,11 +186,17 @@ void ListColumnData::Append(BaseStatistics &stats, ColumnAppendState &state, Vec
 			if (input_list.offset != child_count) {
 				child_contiguous = false;
 			}
-			append_offsets[i] = start_offset + child_count + input_list.length;
+			append_offsets[i].offset = start_offset + child_count;
+			append_offsets[i].length = input_list.length;
 			child_count += input_list.length;
 		} else {
 			append_mask.SetInvalid(i);
-			append_offsets[i] = start_offset + child_count;
+			if (i > 0) {
+				append_offsets[i].offset = append_offsets[i - 1].offset + append_offsets[i - 1].length;
+			} else {
+				append_offsets[i].offset = start_offset;
+			}
+			append_offsets[i].length = 0;
 		}
 	}
 	auto &list_child = ListVector::GetEntry(vector);
@@ -210,19 +218,27 @@ void ListColumnData::Append(BaseStatistics &stats, ColumnAppendState &state, Vec
 		D_ASSERT(current_count == child_count);
 		child_vector.Slice(list_child, child_sel, child_count);
 	}
+#ifdef DEBUG
+	D_ASSERT(append_offsets[0].offset == start_offset);
+	for (idx_t i = 1; i < count; i++) {
+		D_ASSERT(append_offsets[i].offset == append_offsets[i - 1].offset + append_offsets[i - 1].length);
+	}
+	D_ASSERT(append_offsets[count - 1].offset + append_offsets[count - 1].length - append_offsets[0].offset ==
+	         child_count);
+#endif
 
 	UnifiedVectorFormat vdata;
+	vdata.validity = append_mask;
 	vdata.sel = FlatVector::IncrementalSelectionVector();
-	vdata.data = data_ptr_cast(append_offsets.get());
+	vdata.data = (data_ptr_t)append_offsets.get();
 
 	// append the list offsets
 	ColumnData::AppendData(stats, state, vdata, count);
 	// append the validity data
-	vdata.validity = append_mask;
-	validity.AppendData(stats, state.child_appends[0], vdata, count);
+	validity.AppendData(*stats.validity_stats, state.child_appends[0], vdata, count);
 	// append the child vector
 	if (child_count > 0) {
-		child_column->Append(ListStats::GetChildStats(stats), state.child_appends[1], child_vector, child_count);
+		child_column->Append(*stats.child_stats, state.child_appends[1], child_vector, child_count);
 	}
 }
 
@@ -232,8 +248,8 @@ void ListColumnData::RevertAppend(row_t start_row) {
 	auto column_count = GetMaxEntry();
 	if (column_count > start) {
 		// revert append in the child column
-		auto list_offset = FetchListOffset(column_count - 1);
-		child_column->RevertAppend(list_offset);
+		auto list_entry = FetchListEntry(column_count - 1);
+		child_column->RevertAppend(list_entry.offset + list_entry.length);
 	}
 }
 
@@ -262,21 +278,22 @@ void ListColumnData::FetchRow(TransactionData transaction, ColumnFetchState &sta
 	// note that we need a scan state for the child vector
 	// this is because we will (potentially) fetch more than one tuple from the list child
 	if (state.child_states.empty()) {
-		auto child_state = make_uniq<ColumnFetchState>();
+		auto child_state = make_unique<ColumnFetchState>();
 		state.child_states.push_back(std::move(child_state));
 	}
+	// fetch the list_entry_t and the validity mask for that list
+	auto segment = (ColumnSegment *)data.GetSegment(row_id);
 
 	// now perform the fetch within the segment
-	auto start_offset = idx_t(row_id) == this->start ? 0 : FetchListOffset(row_id - 1);
-	auto end_offset = FetchListOffset(row_id);
+	segment->FetchRow(state, row_id, result, result_idx);
 	validity.FetchRow(transaction, *state.child_states[0], row_id, result, result_idx);
 
 	auto &validity = FlatVector::Validity(result);
 	auto list_data = FlatVector::GetData<list_entry_t>(result);
 	auto &list_entry = list_data[result_idx];
+	auto original_offset = list_entry.offset;
 	// set the list entry offset to the size of the current list
 	list_entry.offset = ListVector::GetListSize(result);
-	list_entry.length = end_offset - start_offset;
 	if (!validity.RowIsValid(result_idx)) {
 		// the list is NULL! no need to fetch the child
 		D_ASSERT(list_entry.length == 0);
@@ -286,12 +303,11 @@ void ListColumnData::FetchRow(TransactionData transaction, ColumnFetchState &sta
 	// now we need to read from the child all the elements between [offset...length]
 	auto child_scan_count = list_entry.length;
 	if (child_scan_count > 0) {
-		auto child_state = make_uniq<ColumnScanState>();
+		auto child_state = make_unique<ColumnScanState>();
 		auto &child_type = ListType::GetChildType(result.GetType());
 		Vector child_scan(child_type, child_scan_count);
 		// seek the scan towards the specified position and read [length] entries
-		child_state->Initialize(child_type);
-		child_column->InitializeScanWithOffset(*child_state, start + start_offset);
+		child_column->InitializeScanWithOffset(*child_state, start + original_offset);
 		D_ASSERT(child_type.InternalType() == PhysicalType::STRUCT ||
 		         child_state->row_index + child_scan_count - this->start <= child_column->GetMaxEntry());
 		child_column->ScanCount(*child_state, child_scan, child_scan_count);
@@ -308,7 +324,7 @@ void ListColumnData::CommitDropColumn() {
 struct ListColumnCheckpointState : public ColumnCheckpointState {
 	ListColumnCheckpointState(RowGroup &row_group, ColumnData &column_data, PartialBlockManager &partial_block_manager)
 	    : ColumnCheckpointState(row_group, column_data, partial_block_manager) {
-		global_stats = ListStats::CreateEmpty(column_data.type).ToUnique();
+		global_stats = make_unique<ListStatistics>(column_data.type);
 	}
 
 	unique_ptr<ColumnCheckpointState> validity_state;
@@ -317,8 +333,10 @@ struct ListColumnCheckpointState : public ColumnCheckpointState {
 public:
 	unique_ptr<BaseStatistics> GetStatistics() override {
 		auto stats = global_stats->Copy();
-		ListStats::SetChildStats(stats, child_state->GetStatistics());
-		return stats.ToUnique();
+		auto &list_stats = (ListStatistics &)*stats;
+		stats->validity_stats = validity_state->GetStatistics();
+		list_stats.child_stats = child_state->GetStatistics();
+		return stats;
 	}
 
 	void WriteDataPointers(RowGroupWriter &writer) override {
@@ -326,11 +344,16 @@ public:
 		validity_state->WriteDataPointers(writer);
 		child_state->WriteDataPointers(writer);
 	}
+	void GetBlockIds(unordered_set<block_id_t> &result) override {
+		ColumnCheckpointState::GetBlockIds(result);
+		validity_state->GetBlockIds(result);
+		child_state->GetBlockIds(result);
+	}
 };
 
 unique_ptr<ColumnCheckpointState> ListColumnData::CreateCheckpointState(RowGroup &row_group,
                                                                         PartialBlockManager &partial_block_manager) {
-	return make_uniq<ListColumnCheckpointState>(row_group, *this, partial_block_manager);
+	return make_unique<ListColumnCheckpointState>(row_group, *this, partial_block_manager);
 }
 
 unique_ptr<ColumnCheckpointState> ListColumnData::Checkpoint(RowGroup &row_group,
@@ -340,7 +363,7 @@ unique_ptr<ColumnCheckpointState> ListColumnData::Checkpoint(RowGroup &row_group
 	auto base_state = ColumnData::Checkpoint(row_group, partial_block_manager, checkpoint_info);
 	auto child_state = child_column->Checkpoint(row_group, partial_block_manager, checkpoint_info);
 
-	auto &checkpoint_state = base_state->Cast<ListColumnCheckpointState>();
+	auto &checkpoint_state = (ListColumnCheckpointState &)*base_state;
 	checkpoint_state.validity_state = std::move(validity_state);
 	checkpoint_state.child_state = std::move(child_state);
 	return base_state;
@@ -352,13 +375,11 @@ void ListColumnData::DeserializeColumn(Deserializer &source) {
 	child_column->DeserializeColumn(source);
 }
 
-void ListColumnData::GetColumnSegmentInfo(duckdb::idx_t row_group_index, vector<duckdb::idx_t> col_path,
-                                          vector<duckdb::ColumnSegmentInfo> &result) {
-	ColumnData::GetColumnSegmentInfo(row_group_index, col_path, result);
+void ListColumnData::GetStorageInfo(idx_t row_group_index, vector<idx_t> col_path, TableStorageInfo &result) {
 	col_path.push_back(0);
-	validity.GetColumnSegmentInfo(row_group_index, col_path, result);
+	validity.GetStorageInfo(row_group_index, col_path, result);
 	col_path.back() = 1;
-	child_column->GetColumnSegmentInfo(row_group_index, col_path, result);
+	child_column->GetStorageInfo(row_group_index, col_path, result);
 }
 
 } // namespace duckdb

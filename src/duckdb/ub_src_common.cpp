@@ -18,15 +18,11 @@
 
 #include "src/common/exception_format_value.cpp"
 
-#include "src/common/extra_type_info.cpp"
-
 #include "src/common/field_writer.cpp"
 
 #include "src/common/file_buffer.cpp"
 
 #include "src/common/file_system.cpp"
-
-#include "src/common/filename_pattern.cpp"
 
 #include "src/common/fsst.cpp"
 
@@ -34,13 +30,9 @@
 
 #include "src/common/hive_partitioning.cpp"
 
-#include "src/common/http_state.cpp"
-
 #include "src/common/pipe_file_system.cpp"
 
 #include "src/common/local_file_system.cpp"
-
-#include "src/common/multi_file_reader.cpp"
 
 #include "src/common/preserved_error.cpp"
 
@@ -55,8 +47,6 @@
 #include "src/common/serializer.cpp"
 
 #include "src/common/string_util.cpp"
-
-#include "src/common/enum_util.cpp"
 
 #include "src/common/tree_renderer.cpp"
 

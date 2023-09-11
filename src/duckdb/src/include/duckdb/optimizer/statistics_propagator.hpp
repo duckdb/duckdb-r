@@ -18,8 +18,6 @@
 #include "duckdb/storage/statistics/node_statistics.hpp"
 
 namespace duckdb {
-
-class Optimizer;
 class ClientContext;
 class LogicalOperator;
 class TableFilter;
@@ -27,13 +25,9 @@ struct BoundOrderByNode;
 
 class StatisticsPropagator {
 public:
-	explicit StatisticsPropagator(Optimizer &optimizer);
+	explicit StatisticsPropagator(ClientContext &context);
 
 	unique_ptr<NodeStatistics> PropagateStatistics(unique_ptr<LogicalOperator> &node_ptr);
-
-	column_binding_map_t<unique_ptr<BaseStatistics>> GetStatisticsMap() {
-		return std::move(statistics_map);
-	}
 
 private:
 	//! Propagate statistics through an operator
@@ -81,9 +75,6 @@ private:
 	//! Multiply the cardinalities together (i.e. new max cardinality is stats.max * new_stats.max): used for
 	//! joins/cross products
 	void MultiplyCardinalities(unique_ptr<NodeStatistics> &stats, NodeStatistics &new_stats);
-	//! Creates and pushes down a filter based on join statistics
-	void CreateFilterFromJoinStats(unique_ptr<LogicalOperator> &child, unique_ptr<Expression> &expr,
-	                               const BaseStatistics &stats_before, const BaseStatistics &stats_after);
 
 	unique_ptr<BaseStatistics> PropagateExpression(unique_ptr<Expression> &expr);
 	unique_ptr<BaseStatistics> PropagateExpression(Expression &expr, unique_ptr<Expression> *expr_ptr);
@@ -99,13 +90,14 @@ private:
 	unique_ptr<BaseStatistics> PropagateExpression(BoundColumnRefExpression &expr, unique_ptr<Expression> *expr_ptr);
 	unique_ptr<BaseStatistics> PropagateExpression(BoundOperatorExpression &expr, unique_ptr<Expression> *expr_ptr);
 
+	void PropagateAndCompress(unique_ptr<Expression> &expr, unique_ptr<BaseStatistics> &stats);
+
 	void ReplaceWithEmptyResult(unique_ptr<LogicalOperator> &node);
 
 	bool ExpressionIsConstant(Expression &expr, const Value &val);
 	bool ExpressionIsConstantOrNull(Expression &expr, const Value &val);
 
 private:
-	Optimizer &optimizer;
 	ClientContext &context;
 	//! The map of ColumnBinding -> statistics for the various nodes
 	column_binding_map_t<unique_ptr<BaseStatistics>> statistics_map;

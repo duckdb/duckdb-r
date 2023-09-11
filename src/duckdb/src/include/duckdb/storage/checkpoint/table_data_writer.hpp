@@ -12,7 +12,6 @@
 
 namespace duckdb {
 class DuckTableEntry;
-class TableStatistics;
 
 //! The table data writer is responsible for writing the data of a table to
 //! storage.
@@ -31,7 +30,7 @@ public:
 
 	CompressionType GetColumnCompressionType(idx_t i);
 
-	virtual void FinalizeTable(TableStatistics &&global_stats, DataTableInfo *info) = 0;
+	virtual void FinalizeTable(vector<unique_ptr<BaseStatistics>> &&global_stats, DataTableInfo *info) = 0;
 	virtual unique_ptr<RowGroupWriter> GetRowGroupWriter(RowGroup &row_group) = 0;
 
 	virtual void AddRowGroup(RowGroupPointer &&row_group_pointer, unique_ptr<RowGroupWriter> &&writer);
@@ -45,18 +44,18 @@ protected:
 class SingleFileTableDataWriter : public TableDataWriter {
 public:
 	SingleFileTableDataWriter(SingleFileCheckpointWriter &checkpoint_manager, TableCatalogEntry &table,
-	                          MetadataWriter &table_data_writer, MetadataWriter &meta_data_writer);
+	                          MetaBlockWriter &table_data_writer, MetaBlockWriter &meta_data_writer);
 
 public:
-	virtual void FinalizeTable(TableStatistics &&global_stats, DataTableInfo *info) override;
+	virtual void FinalizeTable(vector<unique_ptr<BaseStatistics>> &&global_stats, DataTableInfo *info) override;
 	virtual unique_ptr<RowGroupWriter> GetRowGroupWriter(RowGroup &row_group) override;
 
 private:
 	SingleFileCheckpointWriter &checkpoint_manager;
 	// Writes the actual table data
-	MetadataWriter &table_data_writer;
+	MetaBlockWriter &table_data_writer;
 	// Writes the metadata of the table
-	MetadataWriter &meta_data_writer;
+	MetaBlockWriter &meta_data_writer;
 };
 
 } // namespace duckdb

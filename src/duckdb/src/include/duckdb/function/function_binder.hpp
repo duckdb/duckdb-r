@@ -59,10 +59,13 @@ public:
 	DUCKDB_API unique_ptr<BoundAggregateExpression>
 	BindAggregateFunction(AggregateFunction bound_function, vector<unique_ptr<Expression>> children,
 	                      unique_ptr<Expression> filter = nullptr,
-	                      AggregateType aggr_type = AggregateType::NON_DISTINCT);
+	                      AggregateType aggr_type = AggregateType::NON_DISTINCT,
+	                      unique_ptr<BoundOrderModifier> order_bys = nullptr);
 
-	DUCKDB_API static void BindSortedAggregate(ClientContext &context, BoundAggregateExpression &expr,
-	                                           const vector<unique_ptr<Expression>> &groups);
+	DUCKDB_API unique_ptr<FunctionData> BindSortedAggregate(AggregateFunction &bound_function,
+	                                                        vector<unique_ptr<Expression>> &children,
+	                                                        unique_ptr<FunctionData> bind_info,
+	                                                        unique_ptr<BoundOrderModifier> order_bys);
 
 private:
 	//! Cast a set of expressions to the arguments of this function

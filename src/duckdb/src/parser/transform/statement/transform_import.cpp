@@ -3,10 +3,11 @@
 
 namespace duckdb {
 
-unique_ptr<PragmaStatement> Transformer::TransformImport(duckdb_libpgquery::PGImportStmt &stmt) {
-	auto result = make_uniq<PragmaStatement>();
+unique_ptr<PragmaStatement> Transformer::TransformImport(duckdb_libpgquery::PGNode *node) {
+	auto stmt = reinterpret_cast<duckdb_libpgquery::PGImportStmt *>(node);
+	auto result = make_unique<PragmaStatement>();
 	result->info->name = "import_database";
-	result->info->parameters.emplace_back(stmt.filename);
+	result->info->parameters.emplace_back(stmt->filename);
 	return result;
 }
 

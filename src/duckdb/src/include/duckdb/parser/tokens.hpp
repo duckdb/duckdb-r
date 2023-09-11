@@ -41,7 +41,6 @@ class SetVariableStatement;
 class ResetVariableStatement;
 class LoadStatement;
 class LogicalPlanStatement;
-class MultiStatement;
 
 //===--------------------------------------------------------------------===//
 // Query Node
@@ -50,7 +49,6 @@ class QueryNode;
 class SelectNode;
 class SetOperationNode;
 class RecursiveCTENode;
-class CTENode;
 
 //===--------------------------------------------------------------------===//
 // Expressions
@@ -96,7 +94,6 @@ class SubqueryRef;
 class TableFunctionRef;
 class EmptyTableRef;
 class ExpressionListRef;
-class PivotRef;
 
 //===--------------------------------------------------------------------===//
 // Other

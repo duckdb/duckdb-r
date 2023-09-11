@@ -17,9 +17,6 @@ namespace duckdb {
 //! PhysicalPragma represents the PRAGMA operator
 class PhysicalPragma : public PhysicalOperator {
 public:
-	static constexpr const PhysicalOperatorType TYPE = PhysicalOperatorType::PRAGMA;
-
-public:
 	PhysicalPragma(PragmaFunction function_p, PragmaInfo info_p, idx_t estimated_cardinality)
 	    : PhysicalOperator(PhysicalOperatorType::PRAGMA, {LogicalType::BOOLEAN}, estimated_cardinality),
 	      function(std::move(function_p)), info(std::move(info_p)) {
@@ -32,11 +29,8 @@ public:
 
 public:
 	// Source interface
-	SourceResultType GetData(ExecutionContext &context, DataChunk &chunk, OperatorSourceInput &input) const override;
-
-	bool IsSource() const override {
-		return true;
-	}
+	void GetData(ExecutionContext &context, DataChunk &chunk, GlobalSourceState &gstate,
+	             LocalSourceState &lstate) const override;
 };
 
 } // namespace duckdb

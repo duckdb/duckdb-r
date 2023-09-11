@@ -20,7 +20,6 @@ public:
 	shared_ptr<Relation> left;
 	shared_ptr<Relation> right;
 	SetOperationType setop_type;
-	vector<ColumnDefinition> columns;
 
 public:
 	unique_ptr<QueryNode> GetQueryNode() override;

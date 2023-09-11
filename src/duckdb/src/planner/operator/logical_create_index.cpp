@@ -6,64 +6,44 @@
 
 namespace duckdb {
 
-LogicalCreateIndex::LogicalCreateIndex(unique_ptr<CreateIndexInfo> info_p, vector<unique_ptr<Expression>> expressions_p,
-                                       TableCatalogEntry &table_p)
-    : LogicalOperator(LogicalOperatorType::LOGICAL_CREATE_INDEX), info(std::move(info_p)), table(table_p) {
-
-	for (auto &expr : expressions_p) {
-		this->unbound_expressions.push_back(expr->Copy());
-	}
-	this->expressions = std::move(expressions_p);
-
-	if (info->column_ids.empty()) {
-		throw BinderException("CREATE INDEX does not refer to any columns in the base table!");
-	}
-}
-
-LogicalCreateIndex::LogicalCreateIndex(ClientContext &context, unique_ptr<CreateInfo> info_p,
-                                       vector<unique_ptr<Expression>> expressions_p)
-    : LogicalOperator(LogicalOperatorType::LOGICAL_CREATE_INDEX),
-      info(unique_ptr_cast<CreateInfo, CreateIndexInfo>(std::move(info_p))), table(BindTable(context, *info)) {
-	for (auto &expr : expressions_p) {
-		this->unbound_expressions.push_back(expr->Copy());
-	}
-	this->expressions = std::move(expressions_p);
-}
-
 void LogicalCreateIndex::Serialize(FieldWriter &writer) const {
+
 	writer.WriteOptional(info);
-	writer.WriteString(table.catalog.GetName());
-	writer.WriteString(table.schema.name);
-	writer.WriteString(table.name);
+	table.Serialize(writer.GetSerializer());
+	FunctionSerializer::SerializeBase<TableFunction>(writer, function, bind_data.get());
 	writer.WriteSerializableList(unbound_expressions);
+
+	writer.Finalize();
 }
 
 unique_ptr<LogicalOperator> LogicalCreateIndex::Deserialize(LogicalDeserializationState &state, FieldReader &reader) {
-	auto &context = state.gstate.context;
 
-	auto info = reader.ReadOptional<CreateInfo>(nullptr);
-	auto catalog = reader.ReadRequired<string>();
-	auto schema = reader.ReadRequired<string>();
-	auto table_name = reader.ReadRequired<string>();
+	auto &context = state.gstate.context;
+	auto catalog_info = TableCatalogEntry::Deserialize(reader.GetSource(), context);
+
+	auto table =
+	    Catalog::GetEntry<TableCatalogEntry>(context, INVALID_CATALOG, catalog_info->schema, catalog_info->table);
 	auto unbound_expressions = reader.ReadRequiredSerializableList<Expression>(state.gstate);
-	if (info->type != CatalogType::INDEX_ENTRY) {
-		throw InternalException("Unexpected type: '%s', expected '%s'", CatalogTypeToString(info->type),
+
+	auto create_info = reader.ReadOptional<CreateInfo>(nullptr);
+	if (create_info->type != CatalogType::INDEX_ENTRY) {
+		throw InternalException("Unexpected type: '%s', expected '%s'", CatalogTypeToString(create_info->type),
 		                        CatalogTypeToString(CatalogType::INDEX_ENTRY));
 	}
-	auto index_info = unique_ptr_cast<CreateInfo, CreateIndexInfo>(std::move(info));
-	auto &table = Catalog::GetEntry<TableCatalogEntry>(context, catalog, schema, table_name);
-	return make_uniq<LogicalCreateIndex>(std::move(index_info), std::move(unbound_expressions), table);
-}
 
-void LogicalCreateIndex::ResolveTypes() {
-	types.emplace_back(LogicalType::BIGINT);
-}
+	CreateInfo *raw_create_info_ptr = create_info.release();
+	CreateIndexInfo *raw_create_index_info_ptr = static_cast<CreateIndexInfo *>(raw_create_info_ptr);
+	unique_ptr<CreateIndexInfo> uptr_create_index_info = unique_ptr<CreateIndexInfo> {raw_create_index_info_ptr};
+	auto info = unique_ptr<CreateIndexInfo> {static_cast<CreateIndexInfo *>(create_info.release())};
 
-TableCatalogEntry &LogicalCreateIndex::BindTable(ClientContext &context, CreateIndexInfo &info) {
-	auto &catalog = info.catalog;
-	auto &schema = info.schema;
-	auto &table_name = info.table;
-	return Catalog::GetEntry<TableCatalogEntry>(context, catalog, schema, table_name);
+	unique_ptr<FunctionData> bind_data;
+	bool has_deserialize;
+	auto function = FunctionSerializer::DeserializeBaseInternal<TableFunction, TableFunctionCatalogEntry>(
+	    reader, state.gstate, CatalogType::TABLE_FUNCTION_ENTRY, bind_data, has_deserialize);
+
+	reader.Finalize();
+	return make_unique<LogicalCreateIndex>(std::move(bind_data), std::move(info), std::move(unbound_expressions),
+	                                       *table, std::move(function));
 }
 
 } // namespace duckdb

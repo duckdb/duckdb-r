@@ -24,8 +24,6 @@ enum class OnConflictAction : uint8_t {
 	REPLACE // Only used in transform/bind step, changed to UPDATE later
 };
 
-enum class InsertColumnOrder : uint8_t { INSERT_BY_POSITION = 0, INSERT_BY_NAME = 1 };
-
 class OnConflictInfo {
 public:
 	OnConflictInfo();
@@ -47,9 +45,6 @@ protected:
 };
 
 class InsertStatement : public SQLStatement {
-public:
-	static constexpr const StatementType TYPE = StatementType::INSERT_STATEMENT;
-
 public:
 	InsertStatement();
 
@@ -74,12 +69,6 @@ public:
 	//! CTEs
 	CommonTableExpressionMap cte_map;
 
-	//! Whether or not this a DEFAULT VALUES
-	bool default_values = false;
-
-	//! INSERT BY POSITION or INSERT BY NAME
-	InsertColumnOrder column_order = InsertColumnOrder::INSERT_BY_POSITION;
-
 protected:
 	InsertStatement(const InsertStatement &other);
 
@@ -90,7 +79,7 @@ public:
 
 	//! If the INSERT statement is inserted DIRECTLY from a values list (i.e. INSERT INTO tbl VALUES (...)) this returns
 	//! the expression list Otherwise, this returns NULL
-	optional_ptr<ExpressionListRef> GetValuesList() const;
+	ExpressionListRef *GetValuesList() const;
 };
 
 } // namespace duckdb

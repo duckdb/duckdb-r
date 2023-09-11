@@ -5,15 +5,10 @@ namespace duckdb {
 
 unique_ptr<BaseStatistics> StatisticsPropagator::PropagateExpression(BoundFunctionExpression &func,
                                                                      unique_ptr<Expression> *expr_ptr) {
-	vector<BaseStatistics> stats;
+	vector<unique_ptr<BaseStatistics>> stats;
 	stats.reserve(func.children.size());
 	for (idx_t i = 0; i < func.children.size(); i++) {
-		auto stat = PropagateExpression(func.children[i]);
-		if (!stat) {
-			stats.push_back(BaseStatistics::CreateUnknown(func.children[i]->return_type));
-		} else {
-			stats.push_back(stat->Copy());
-		}
+		stats.push_back(PropagateExpression(func.children[i]));
 	}
 	if (!func.function.statistics) {
 		return nullptr;

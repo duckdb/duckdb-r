@@ -13,7 +13,6 @@
 #include "duckdb/common/types/value.hpp"
 #include "duckdb/common/case_insensitive_map.hpp"
 #include "duckdb/common/atomic.hpp"
-#include "duckdb/execution/operator/scan/csv/csv_state_machine_cache.hpp"
 
 namespace duckdb {
 class AttachedDatabase;
@@ -21,8 +20,7 @@ class BufferedFileWriter;
 class ClientContext;
 class CatalogSearchPath;
 class FileOpener;
-class FileSystem;
-class HTTPState;
+class HTTPStats;
 class QueryProfiler;
 class QueryProfilerHistory;
 class PreparedStatementData;
@@ -30,7 +28,7 @@ class SchemaCatalogEntry;
 struct RandomEngine;
 
 struct ClientData {
-	explicit ClientData(ClientContext &context);
+	ClientData(ClientContext &context);
 	~ClientData();
 
 	//! Query profiler
@@ -54,19 +52,11 @@ struct ClientData {
 	//! The file opener of the client context
 	unique_ptr<FileOpener> file_opener;
 
-	//! HTTP State in this query
-	shared_ptr<HTTPState> http_state;
-
-	//! The clients' file system wrapper
-	unique_ptr<FileSystem> client_file_system;
+	//! Statistics on HTTP traffic
+	unique_ptr<HTTPStats> http_stats;
 
 	//! The file search path
 	string file_search_path;
-
-	//! The Max Line Length Size of Last Query Executed on a CSV File. (Only used for testing)
-	//! FIXME: this should not be done like this
-	bool debug_set_max_line_length = false;
-	idx_t debug_max_line_length = 0;
 
 public:
 	DUCKDB_API static ClientData &Get(ClientContext &context);

@@ -18,7 +18,7 @@ bool ExpressionUtil::ExpressionListEquals(const vector<unique_ptr<T>> &a, const 
 	return true;
 }
 
-template <class T, class EXPRESSION_MAP>
+template <class T>
 bool ExpressionUtil::ExpressionSetEquals(const vector<unique_ptr<T>> &a, const vector<unique_ptr<T>> &b) {
 	if (a.size() != b.size()) {
 		return false;
@@ -26,14 +26,14 @@ bool ExpressionUtil::ExpressionSetEquals(const vector<unique_ptr<T>> &a, const v
 	// we create a map of expression -> count for the left side
 	// we keep the count because the same expression can occur multiple times (e.g. "1 AND 1" is legal)
 	// in this case we track the following value: map["Constant(1)"] = 2
-	EXPRESSION_MAP map;
+	expression_map_t<idx_t> map;
 	for (idx_t i = 0; i < a.size(); i++) {
-		map[*a[i]]++;
+		map[a[i].get()]++;
 	}
 	// now on the right side we reduce the counts again
 	// if the conjunctions are identical, all the counts will be 0 after the
 	for (auto &expr : b) {
-		auto entry = map.find(*expr);
+		auto entry = map.find(expr.get());
 		// first we check if we can find the expression in the map at all
 		if (entry == map.end()) {
 			return false;
@@ -62,11 +62,11 @@ bool ExpressionUtil::ListEquals(const vector<unique_ptr<Expression>> &a, const v
 
 bool ExpressionUtil::SetEquals(const vector<unique_ptr<ParsedExpression>> &a,
                                const vector<unique_ptr<ParsedExpression>> &b) {
-	return ExpressionSetEquals<ParsedExpression, parsed_expression_map_t<idx_t>>(a, b);
+	return ExpressionSetEquals<ParsedExpression>(a, b);
 }
 
 bool ExpressionUtil::SetEquals(const vector<unique_ptr<Expression>> &a, const vector<unique_ptr<Expression>> &b) {
-	return ExpressionSetEquals<Expression, expression_map_t<idx_t>>(a, b);
+	return ExpressionSetEquals<Expression>(a, b);
 }
 
 } // namespace duckdb

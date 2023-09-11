@@ -16,7 +16,7 @@ namespace duckdb {
 
 //! The OperatorExtensionInfo holds static information relevant to the operator extension
 struct OperatorExtensionInfo {
-	virtual ~OperatorExtensionInfo() {
+	DUCKDB_API virtual ~OperatorExtensionInfo() {
 	}
 };
 
@@ -34,11 +34,10 @@ public:
 	shared_ptr<OperatorExtensionInfo> operator_info;
 
 	virtual std::string GetName() = 0;
-	virtual unique_ptr<LogicalExtensionOperator> Deserialize(LogicalDeserializationState &state,
-	                                                         FieldReader &reader) = 0;
-	virtual unique_ptr<LogicalExtensionOperator> FormatDeserialize(FormatDeserializer &deserializer) = 0;
+	virtual std::unique_ptr<LogicalExtensionOperator> Deserialize(LogicalDeserializationState &state,
+	                                                              FieldReader &reader) = 0;
 
-	virtual ~OperatorExtension() {
+	DUCKDB_API virtual ~OperatorExtension() {
 	}
 };
 

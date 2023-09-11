@@ -1,6 +1,9 @@
 #include "duckdb/optimizer/column_lifetime_optimizer.hpp"
+
 #include "duckdb/planner/expression/bound_columnref_expression.hpp"
+
 #include "duckdb/planner/operator/logical_comparison_join.hpp"
+#include "duckdb/planner/operator/logical_delim_join.hpp"
 #include "duckdb/planner/operator/logical_filter.hpp"
 
 namespace duckdb {
@@ -17,7 +20,6 @@ void ColumnLifetimeAnalyzer::ExtractUnusedColumnBindings(vector<ColumnBinding> b
 void ColumnLifetimeAnalyzer::GenerateProjectionMap(vector<ColumnBinding> bindings,
                                                    column_binding_set_t &unused_bindings,
                                                    vector<idx_t> &projection_map) {
-	projection_map.clear();
 	if (unused_bindings.empty()) {
 		return;
 	}
@@ -37,7 +39,7 @@ void ColumnLifetimeAnalyzer::StandardVisitOperator(LogicalOperator &op) {
 	LogicalOperatorVisitor::VisitOperatorExpressions(op);
 	if (op.type == LogicalOperatorType::LOGICAL_DELIM_JOIN) {
 		// visit the duplicate eliminated columns on the LHS, if any
-		auto &delim_join = op.Cast<LogicalComparisonJoin>();
+		auto &delim_join = (LogicalDelimJoin &)op;
 		for (auto &expr : delim_join.duplicate_eliminated_columns) {
 			VisitExpression(&expr);
 		}
@@ -55,13 +57,12 @@ void ColumnLifetimeAnalyzer::VisitOperator(LogicalOperator &op) {
 		analyzer.VisitOperator(*op.children[0]);
 		return;
 	}
-	case LogicalOperatorType::LOGICAL_ASOF_JOIN:
 	case LogicalOperatorType::LOGICAL_DELIM_JOIN:
 	case LogicalOperatorType::LOGICAL_COMPARISON_JOIN: {
 		if (everything_referenced) {
 			break;
 		}
-		auto &comp_join = op.Cast<LogicalComparisonJoin>();
+		auto &comp_join = (LogicalComparisonJoin &)op;
 		if (comp_join.join_type == JoinType::MARK || comp_join.join_type == JoinType::SEMI ||
 		    comp_join.join_type == JoinType::ANTI) {
 			break;
@@ -114,7 +115,7 @@ void ColumnLifetimeAnalyzer::VisitOperator(LogicalOperator &op) {
 		break;
 	}
 	case LogicalOperatorType::LOGICAL_FILTER: {
-		auto &filter = op.Cast<LogicalFilter>();
+		auto &filter = (LogicalFilter &)op;
 		if (everything_referenced) {
 			break;
 		}

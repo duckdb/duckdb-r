@@ -11,8 +11,7 @@ bool VectorOperations::TryCast(CastFunctionSet &set, GetCastFunctionInput &input
 	auto cast_function = set.GetCastFunction(source.GetType(), result.GetType(), input);
 	unique_ptr<FunctionLocalState> local_state;
 	if (cast_function.init_local_state) {
-		CastLocalStateParameters lparameters(input.context, cast_function.cast_data);
-		local_state = cast_function.init_local_state(lparameters);
+		local_state = cast_function.init_local_state(*input.context);
 	}
 	CastParameters parameters(cast_function.cast_data.get(), strict, error_message, local_state.get());
 	return cast_function.function(source, result, count, parameters);

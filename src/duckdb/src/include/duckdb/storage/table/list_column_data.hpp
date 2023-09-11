@@ -17,7 +17,8 @@ namespace duckdb {
 class ListColumnData : public ColumnData {
 public:
 	ListColumnData(BlockManager &block_manager, DataTableInfo &info, idx_t column_index, idx_t start_row,
-	               LogicalType type, optional_ptr<ColumnData> parent = nullptr);
+	               LogicalType type, ColumnData *parent = nullptr);
+	ListColumnData(ColumnData &original, idx_t start_row, ColumnData *parent = nullptr);
 
 	//! The child-column of the list
 	unique_ptr<ColumnData> child_column;
@@ -25,7 +26,6 @@ public:
 	ValidityColumnData validity;
 
 public:
-	void SetStart(idx_t new_start) override;
 	bool CheckZonemap(ColumnScanState &state, TableFilter &filter) override;
 
 	void InitializeScan(ColumnScanState &state) override;
@@ -58,11 +58,10 @@ public:
 
 	void DeserializeColumn(Deserializer &source) override;
 
-	void GetColumnSegmentInfo(duckdb::idx_t row_group_index, vector<duckdb::idx_t> col_path,
-	                          vector<duckdb::ColumnSegmentInfo> &result) override;
+	void GetStorageInfo(idx_t row_group_index, vector<idx_t> col_path, TableStorageInfo &result) override;
 
 private:
-	uint64_t FetchListOffset(idx_t row_idx);
+	list_entry_t FetchListEntry(idx_t row_idx);
 };
 
 } // namespace duckdb

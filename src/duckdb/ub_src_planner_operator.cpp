@@ -22,7 +22,7 @@
 
 #include "src/planner/operator/logical_delim_get.cpp"
 
-#include "src/planner/operator/logical_dependent_join.cpp"
+#include "src/planner/operator/logical_delim_join.cpp"
 
 #include "src/planner/operator/logical_distinct.cpp"
 
@@ -54,8 +54,6 @@
 
 #include "src/planner/operator/logical_order.cpp"
 
-#include "src/planner/operator/logical_pivot.cpp"
-
 #include "src/planner/operator/logical_positional_join.cpp"
 
 #include "src/planner/operator/logical_pragma.cpp"
@@ -65,8 +63,6 @@
 #include "src/planner/operator/logical_projection.cpp"
 
 #include "src/planner/operator/logical_recursive_cte.cpp"
-
-#include "src/planner/operator/logical_materialized_cte.cpp"
 
 #include "src/planner/operator/logical_sample.cpp"
 

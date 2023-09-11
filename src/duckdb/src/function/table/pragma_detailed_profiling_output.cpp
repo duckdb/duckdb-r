@@ -1,12 +1,12 @@
+#include "duckdb/function/table/system_functions.hpp"
 #include "duckdb/catalog/catalog_entry/table_catalog_entry.hpp"
 #include "duckdb/catalog/catalog_entry/view_catalog_entry.hpp"
-#include "duckdb/common/limits.hpp"
-#include "duckdb/common/types/column/column_data_collection.hpp"
-#include "duckdb/function/table/system_functions.hpp"
+#include "duckdb/planner/constraints/bound_not_null_constraint.hpp"
+#include "duckdb/main/query_profiler.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/main/client_data.hpp"
-#include "duckdb/main/query_profiler.hpp"
-#include "duckdb/planner/constraints/bound_not_null_constraint.hpp"
+#include "duckdb/common/limits.hpp"
+#include "duckdb/common/types/column_data_collection.hpp"
 
 namespace duckdb {
 
@@ -55,12 +55,12 @@ static unique_ptr<FunctionData> PragmaDetailedProfilingOutputBind(ClientContext 
 	names.emplace_back("EXTRA_INFO");
 	return_types.emplace_back(LogicalType::VARCHAR);
 
-	return make_uniq<PragmaDetailedProfilingOutputData>(return_types);
+	return make_unique<PragmaDetailedProfilingOutputData>(return_types);
 }
 
 unique_ptr<GlobalTableFunctionState> PragmaDetailedProfilingOutputInit(ClientContext &context,
                                                                        TableFunctionInitInput &input) {
-	return make_uniq<PragmaDetailedProfilingOutputOperatorData>();
+	return make_unique<PragmaDetailedProfilingOutputOperatorData>();
 }
 
 // Insert a row into the given datachunk
@@ -108,12 +108,12 @@ static void ExtractFunctions(ColumnDataCollection &collection, ExpressionInfo &i
 
 static void PragmaDetailedProfilingOutputFunction(ClientContext &context, TableFunctionInput &data_p,
                                                   DataChunk &output) {
-	auto &state = data_p.global_state->Cast<PragmaDetailedProfilingOutputOperatorData>();
-	auto &data = data_p.bind_data->CastNoConst<PragmaDetailedProfilingOutputData>();
+	auto &state = (PragmaDetailedProfilingOutputOperatorData &)*data_p.global_state;
+	auto &data = (PragmaDetailedProfilingOutputData &)*data_p.bind_data;
 
 	if (!state.initialized) {
 		// create a ColumnDataCollection
-		auto collection = make_uniq<ColumnDataCollection>(context, data.types);
+		auto collection = make_unique<ColumnDataCollection>(context, data.types);
 
 		// create a chunk
 		DataChunk chunk;
@@ -123,15 +123,14 @@ static void PragmaDetailedProfilingOutputFunction(ClientContext &context, TableF
 		int operator_counter = 1;
 		int function_counter = 1;
 		int expression_counter = 1;
-		auto &client_data = ClientData::Get(context);
-		if (client_data.query_profiler_history->GetPrevProfilers().empty()) {
+		if (ClientData::Get(context).query_profiler_history->GetPrevProfilers().empty()) {
 			return;
 		}
 		// For each Operator
-		auto &tree_map = client_data.query_profiler_history->GetPrevProfilers().back().second->GetTreeMap();
-		for (auto op : tree_map) {
+		for (auto op :
+		     ClientData::Get(context).query_profiler_history->GetPrevProfilers().back().second->GetTreeMap()) {
 			// For each Expression Executor
-			for (auto &expr_executor : op.second.get().info.executors_info) {
+			for (auto &expr_executor : op.second->info.executors_info) {
 				// For each Expression tree
 				if (!expr_executor) {
 					continue;

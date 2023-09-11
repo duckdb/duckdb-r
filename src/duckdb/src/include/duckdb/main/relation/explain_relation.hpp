@@ -14,11 +14,10 @@ namespace duckdb {
 
 class ExplainRelation : public Relation {
 public:
-	explicit ExplainRelation(shared_ptr<Relation> child, ExplainType type = ExplainType::EXPLAIN_STANDARD);
+	explicit ExplainRelation(shared_ptr<Relation> child);
 
 	shared_ptr<Relation> child;
 	vector<ColumnDefinition> columns;
-	ExplainType type;
 
 public:
 	BoundStatement Bind(Binder &binder) override;

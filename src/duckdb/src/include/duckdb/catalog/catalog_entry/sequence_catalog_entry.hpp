@@ -35,7 +35,7 @@ public:
 
 public:
 	//! Create a real TableCatalogEntry and initialize storage for it
-	SequenceCatalogEntry(Catalog &catalog, SchemaCatalogEntry &schema, CreateSequenceInfo &info);
+	SequenceCatalogEntry(Catalog *catalog, SchemaCatalogEntry *schema, CreateSequenceInfo *info);
 
 	//! Lock for getting a value on the sequence
 	mutex lock;
@@ -57,8 +57,13 @@ public:
 	bool cycle;
 
 public:
-	unique_ptr<CreateInfo> GetInfo() const override;
+	//! Serialize the meta information of the SequenceCatalogEntry a serializer
+	virtual void Serialize(Serializer &serializer);
+	//! Deserializes to a CreateTableInfo
+	static unique_ptr<CreateSequenceInfo> Deserialize(Deserializer &source);
 
-	string ToSQL() const override;
+	string ToSQL() override;
+
+	CatalogEntry *AlterOwnership(ClientContext &context, AlterInfo *info);
 };
 } // namespace duckdb

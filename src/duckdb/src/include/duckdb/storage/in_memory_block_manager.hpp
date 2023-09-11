@@ -20,44 +20,41 @@ public:
 	using BlockManager::BlockManager;
 
 	// LCOV_EXCL_START
-	unique_ptr<Block> ConvertBlock(block_id_t block_id, FileBuffer &source_buffer) override {
-		throw InternalException("Cannot perform IO in in-memory database - ConvertBlock!");
-	}
 	unique_ptr<Block> CreateBlock(block_id_t block_id, FileBuffer *source_buffer) override {
-		throw InternalException("Cannot perform IO in in-memory database - CreateBlock!");
+		throw InternalException("Cannot perform IO in in-memory database!");
 	}
 	block_id_t GetFreeBlockId() override {
-		throw InternalException("Cannot perform IO in in-memory database - GetFreeBlockId!");
+		throw InternalException("Cannot perform IO in in-memory database!");
 	}
-	bool IsRootBlock(MetaBlockPointer root) override {
-		throw InternalException("Cannot perform IO in in-memory database - IsRootBlock!");
+	bool IsRootBlock(block_id_t root) override {
+		throw InternalException("Cannot perform IO in in-memory database!");
 	}
 	void MarkBlockAsFree(block_id_t block_id) override {
-		throw InternalException("Cannot perform IO in in-memory database - MarkBlockAsFree!");
+		throw InternalException("Cannot perform IO in in-memory database!");
 	}
 	void MarkBlockAsModified(block_id_t block_id) override {
-		throw InternalException("Cannot perform IO in in-memory database - MarkBlockAsModified!");
+		throw InternalException("Cannot perform IO in in-memory database!");
 	}
 	void IncreaseBlockReferenceCount(block_id_t block_id) override {
-		throw InternalException("Cannot perform IO in in-memory database - IncreaseBlockReferenceCount!");
+		throw InternalException("Cannot perform IO in in-memory database!");
 	}
-	idx_t GetMetaBlock() override {
-		throw InternalException("Cannot perform IO in in-memory database - GetMetaBlock!");
+	block_id_t GetMetaBlock() override {
+		throw InternalException("Cannot perform IO in in-memory database!");
 	}
 	void Read(Block &block) override {
-		throw InternalException("Cannot perform IO in in-memory database - Read!");
+		throw InternalException("Cannot perform IO in in-memory database!");
 	}
 	void Write(FileBuffer &block, block_id_t block_id) override {
-		throw InternalException("Cannot perform IO in in-memory database - Write!");
+		throw InternalException("Cannot perform IO in in-memory database!");
 	}
 	void WriteHeader(DatabaseHeader header) override {
-		throw InternalException("Cannot perform IO in in-memory database - WriteHeader!");
+		throw InternalException("Cannot perform IO in in-memory database!");
 	}
 	idx_t TotalBlocks() override {
-		throw InternalException("Cannot perform IO in in-memory database - TotalBlocks!");
+		throw InternalException("Cannot perform IO in in-memory database!");
 	}
 	idx_t FreeBlocks() override {
-		throw InternalException("Cannot perform IO in in-memory database - FreeBlocks!");
+		throw InternalException("Cannot perform IO in in-memory database!");
 	}
 	// LCOV_EXCL_STOP
 };

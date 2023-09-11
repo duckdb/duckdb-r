@@ -10,7 +10,7 @@ PhysicalFilter::PhysicalFilter(vector<LogicalType> types, vector<unique_ptr<Expr
 	D_ASSERT(select_list.size() > 0);
 	if (select_list.size() > 1) {
 		// create a big AND out of the expressions
-		auto conjunction = make_uniq<BoundConjunctionExpression>(ExpressionType::CONJUNCTION_AND);
+		auto conjunction = make_unique<BoundConjunctionExpression>(ExpressionType::CONJUNCTION_AND);
 		for (auto &expr : select_list) {
 			conjunction->children.push_back(std::move(expr));
 		}
@@ -30,18 +30,18 @@ public:
 	SelectionVector sel;
 
 public:
-	void Finalize(const PhysicalOperator &op, ExecutionContext &context) override {
-		context.thread.profiler.Flush(op, executor, "filter", 0);
+	void Finalize(PhysicalOperator *op, ExecutionContext &context) override {
+		context.thread.profiler.Flush(op, &executor, "filter", 0);
 	}
 };
 
 unique_ptr<OperatorState> PhysicalFilter::GetOperatorState(ExecutionContext &context) const {
-	return make_uniq<FilterState>(context, *expression);
+	return make_unique<FilterState>(context, *expression);
 }
 
 OperatorResultType PhysicalFilter::ExecuteInternal(ExecutionContext &context, DataChunk &input, DataChunk &chunk,
                                                    GlobalOperatorState &gstate, OperatorState &state_p) const {
-	auto &state = state_p.Cast<FilterState>();
+	auto &state = (FilterState &)state_p;
 	idx_t result_count = state.executor.SelectExpression(input, state.sel);
 	if (result_count == input.size()) {
 		// nothing was filtered: skip adding any selection vectors
@@ -55,7 +55,7 @@ OperatorResultType PhysicalFilter::ExecuteInternal(ExecutionContext &context, Da
 string PhysicalFilter::ParamsToString() const {
 	auto result = expression->GetName();
 	result += "\n[INFOSEPARATOR]\n";
-	result += StringUtil::Format("EC: %llu", estimated_cardinality);
+	result += StringUtil::Format("EC: %llu", estimated_props->GetCardinality<idx_t>());
 	return result;
 }
 

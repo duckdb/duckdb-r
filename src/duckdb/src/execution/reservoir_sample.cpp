@@ -93,7 +93,7 @@ ReservoirSamplePercentage::ReservoirSamplePercentage(Allocator &allocator, doubl
     : BlockingSample(seed), allocator(allocator), sample_percentage(percentage / 100.0), current_count(0),
       is_finalized(false) {
 	reservoir_sample_size = idx_t(sample_percentage * RESERVOIR_THRESHOLD);
-	current_sample = make_uniq<ReservoirSample>(allocator, reservoir_sample_size, random.NextRandomInteger());
+	current_sample = make_unique<ReservoirSample>(allocator, reservoir_sample_size, random.NextRandomInteger());
 }
 
 void ReservoirSamplePercentage::AddToReservoir(DataChunk &input) {
@@ -104,24 +104,10 @@ void ReservoirSamplePercentage::AddToReservoir(DataChunk &input) {
 		idx_t append_to_next_sample = input.size() - append_to_current_sample_count;
 		if (append_to_current_sample_count > 0) {
 			// we have elements remaining, first add them to the current sample
-			if (append_to_next_sample > 0) {
-				// we need to also add to the next sample
-				DataChunk new_chunk;
-				new_chunk.Initialize(allocator, input.GetTypes());
-				SelectionVector sel(append_to_current_sample_count);
-				for (idx_t r = 0; r < append_to_current_sample_count; r++) {
-					sel.set_index(r, r);
-				}
-				new_chunk.Slice(sel, append_to_current_sample_count);
-				new_chunk.Flatten();
+			input.Flatten();
 
-				current_sample->AddToReservoir(new_chunk);
-			} else {
-				input.Flatten();
-
-				input.SetCardinality(append_to_current_sample_count);
-				current_sample->AddToReservoir(input);
-			}
+			input.SetCardinality(append_to_current_sample_count);
+			current_sample->AddToReservoir(input);
 		}
 		if (append_to_next_sample > 0) {
 			// slice the input for the remainder
@@ -135,7 +121,7 @@ void ReservoirSamplePercentage::AddToReservoir(DataChunk &input) {
 		finished_samples.push_back(std::move(current_sample));
 
 		// allocate a new sample, and potentially add the remainder of the current input to that sample
-		current_sample = make_uniq<ReservoirSample>(allocator, reservoir_sample_size, random.NextRandomInteger());
+		current_sample = make_unique<ReservoirSample>(allocator, reservoir_sample_size, random.NextRandomInteger());
 		if (append_to_next_sample > 0) {
 			current_sample->AddToReservoir(input);
 		}
@@ -168,7 +154,7 @@ void ReservoirSamplePercentage::Finalize() {
 	if (current_count > 0) {
 		// create a new sample
 		auto new_sample_size = idx_t(round(sample_percentage * current_count));
-		auto new_sample = make_uniq<ReservoirSample>(allocator, new_sample_size, random.NextRandomInteger());
+		auto new_sample = make_unique<ReservoirSample>(allocator, new_sample_size, random.NextRandomInteger());
 		while (true) {
 			auto chunk = current_sample->GetChunk();
 			if (!chunk || chunk->size() == 0) {
@@ -200,7 +186,7 @@ void BaseReservoirSampling::InitializeReservoir(idx_t cur_size, idx_t sample_siz
 		//! we use a priority queue to extract the minimum key in O(1) time
 		for (idx_t i = 0; i < sample_size; i++) {
 			double k_i = random.NextRandom();
-			reservoir_weights.emplace(-k_i, i);
+			reservoir_weights.push(std::make_pair(-k_i, i));
 		}
 		SetNextEntry();
 	}
@@ -231,7 +217,7 @@ void BaseReservoirSampling::ReplaceElement() {
 	//! we generate a random number between (min_threshold, 1)
 	double r2 = random.NextRandom(min_threshold, 1);
 	//! now we insert the new weight into the reservoir
-	reservoir_weights.emplace(-r2, min_entry);
+	reservoir_weights.push(std::make_pair(-r2, min_entry));
 	//! we update the min entry with the new min entry in the reservoir
 	SetNextEntry();
 }

@@ -7,52 +7,45 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "duckdb/common/constants.hpp"
+#include "duckdb/execution/index/art/node.hpp"
 
 namespace duckdb {
 
-// classes
-class MetaBlockReader;
+class ART;
+class Node;
 
-// structs
-struct BlockPointer;
-
-//! SwizzleablePointer provides functions on a (possibly) swizzled pointer. If the swizzle flag is set, then the
-//! pointer points to a storage address (and has no type), otherwise the pointer has a type and stores
-//! other information (e.g., a buffer location)
+// SwizzleablePointer assumes that the 64-bit blockId always has 0s in the top
+// 33 bits. It thus uses 8 bytes of memory rather than 12.
 class SwizzleablePointer {
 public:
-	//! Constructs an empty SwizzleablePointer
-	SwizzleablePointer() : swizzle_flag(0), type(0), offset(0), buffer_id(0) {};
-	//! Constructs a swizzled pointer from a buffer ID and an offset
-	explicit SwizzleablePointer(MetaBlockReader &reader);
-	//! Constructs a non-swizzled pointer from a buffer ID and an offset
-	SwizzleablePointer(uint32_t offset, uint32_t buffer_id)
-	    : swizzle_flag(0), type(0), offset(offset), buffer_id(buffer_id) {};
+	~SwizzleablePointer();
+	explicit SwizzleablePointer(duckdb::MetaBlockReader &reader);
+	SwizzleablePointer() : pointer(0) {};
 
-	//! The swizzle flag, set if swizzled, not set otherwise
-	uint8_t swizzle_flag : 1;
-	//! The type of the pointer, zero if not set
-	uint8_t type : 7;
-	//! The offset of a memory location
-	uint32_t offset : 24;
-	//! The buffer ID of a memory location
-	uint32_t buffer_id : 32;
+	BlockPointer Serialize(ART &art, duckdb::MetaBlockWriter &writer);
 
-public:
-	//! Checks if the pointer is swizzled
-	inline bool IsSwizzled() const {
-		return swizzle_flag;
+	//! Transforms from Node* to uint64_t
+	SwizzleablePointer &operator=(const Node *ptr);
+
+	//! Checks if pointer is swizzled
+	bool IsSwizzled();
+	//! Unswizzle the pointer (if possible)
+	Node *Unswizzle(ART &art);
+
+	operator bool() const {
+		return pointer;
 	}
-	//! Returns true, if neither the swizzle flag nor the type is set, and false otherwise
-	inline bool IsSet() const {
-		return swizzle_flag || type;
-	}
-	//! Reset the pointer
-	inline void Reset() {
-		swizzle_flag = 0;
-		type = 0;
-	}
+
+	//! Deletes the underlying object (if necessary) and set the pointer to nullptr
+	void Reset();
+
+private:
+	uint64_t pointer;
+
+	friend bool operator!=(const SwizzleablePointer &s_ptr, const uint64_t &ptr);
+
+	//! Extracts the block info from swizzled pointer
+	BlockPointer GetSwizzledBlockInfo();
 };
 
 } // namespace duckdb

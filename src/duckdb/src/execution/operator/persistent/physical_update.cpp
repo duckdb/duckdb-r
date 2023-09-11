@@ -1,13 +1,12 @@
 #include "duckdb/execution/operator/persistent/physical_update.hpp"
-
+#include "duckdb/parallel/thread_context.hpp"
 #include "duckdb/catalog/catalog_entry/table_catalog_entry.hpp"
-#include "duckdb/common/types/column/column_data_collection.hpp"
+#include "duckdb/common/types/column_data_collection.hpp"
 #include "duckdb/common/vector_operations/vector_operations.hpp"
 #include "duckdb/execution/expression_executor.hpp"
-#include "duckdb/main/client_context.hpp"
-#include "duckdb/parallel/thread_context.hpp"
 #include "duckdb/planner/expression/bound_reference_expression.hpp"
 #include "duckdb/storage/data_table.hpp"
+#include "duckdb/main/client_context.hpp"
 
 namespace duckdb {
 
@@ -57,15 +56,16 @@ public:
 	ExpressionExecutor default_executor;
 };
 
-SinkResultType PhysicalUpdate::Sink(ExecutionContext &context, DataChunk &chunk, OperatorSinkInput &input) const {
-	auto &gstate = input.global_state.Cast<UpdateGlobalState>();
-	auto &lstate = input.local_state.Cast<UpdateLocalState>();
+SinkResultType PhysicalUpdate::Sink(ExecutionContext &context, GlobalSinkState &state, LocalSinkState &lstate,
+                                    DataChunk &chunk) const {
+	auto &gstate = (UpdateGlobalState &)state;
+	auto &ustate = (UpdateLocalState &)lstate;
 
-	DataChunk &update_chunk = lstate.update_chunk;
-	DataChunk &mock_chunk = lstate.mock_chunk;
+	DataChunk &update_chunk = ustate.update_chunk;
+	DataChunk &mock_chunk = ustate.mock_chunk;
 
 	chunk.Flatten();
-	lstate.default_executor.SetChunk(chunk);
+	ustate.default_executor.SetChunk(chunk);
 
 	// update data in the base table
 	// the row ids are given to us as the last column of the child chunk
@@ -76,11 +76,11 @@ SinkResultType PhysicalUpdate::Sink(ExecutionContext &context, DataChunk &chunk,
 	for (idx_t i = 0; i < expressions.size(); i++) {
 		if (expressions[i]->type == ExpressionType::VALUE_DEFAULT) {
 			// default expression, set to the default value of the column
-			lstate.default_executor.ExecuteExpression(columns[i].index, update_chunk.data[i]);
+			ustate.default_executor.ExecuteExpression(columns[i].index, update_chunk.data[i]);
 		} else {
 			D_ASSERT(expressions[i]->type == ExpressionType::BOUND_REF);
 			// index into child chunk
-			auto &binding = expressions[i]->Cast<BoundReferenceExpression>();
+			auto &binding = (BoundReferenceExpression &)*expressions[i];
 			update_chunk.data[i].Reference(chunk.data[binding.index]);
 		}
 	}
@@ -133,20 +133,18 @@ SinkResultType PhysicalUpdate::Sink(ExecutionContext &context, DataChunk &chunk,
 }
 
 unique_ptr<GlobalSinkState> PhysicalUpdate::GetGlobalSinkState(ClientContext &context) const {
-	return make_uniq<UpdateGlobalState>(context, GetTypes());
+	return make_unique<UpdateGlobalState>(context, GetTypes());
 }
 
 unique_ptr<LocalSinkState> PhysicalUpdate::GetLocalSinkState(ExecutionContext &context) const {
-	return make_uniq<UpdateLocalState>(context.client, expressions, table.GetTypes(), bound_defaults);
+	return make_unique<UpdateLocalState>(context.client, expressions, table.GetTypes(), bound_defaults);
 }
 
-SinkCombineResultType PhysicalUpdate::Combine(ExecutionContext &context, OperatorSinkCombineInput &input) const {
-	auto &state = input.local_state.Cast<UpdateLocalState>();
+void PhysicalUpdate::Combine(ExecutionContext &context, GlobalSinkState &gstate, LocalSinkState &lstate) const {
+	auto &state = (UpdateLocalState &)lstate;
 	auto &client_profiler = QueryProfiler::Get(context.client);
-	context.thread.profiler.Flush(*this, state.default_executor, "default_executor", 1);
+	context.thread.profiler.Flush(this, &state.default_executor, "default_executor", 1);
 	client_profiler.Flush(context.thread.profiler);
-
-	return SinkCombineResultType::FINISHED;
 }
 
 //===--------------------------------------------------------------------===//
@@ -154,34 +152,37 @@ SinkCombineResultType PhysicalUpdate::Combine(ExecutionContext &context, Operato
 //===--------------------------------------------------------------------===//
 class UpdateSourceState : public GlobalSourceState {
 public:
-	explicit UpdateSourceState(const PhysicalUpdate &op) {
+	explicit UpdateSourceState(const PhysicalUpdate &op) : finished(false) {
 		if (op.return_chunk) {
 			D_ASSERT(op.sink_state);
-			auto &g = op.sink_state->Cast<UpdateGlobalState>();
+			auto &g = (UpdateGlobalState &)*op.sink_state;
 			g.return_collection.InitializeScan(scan_state);
 		}
 	}
 
 	ColumnDataScanState scan_state;
+	bool finished;
 };
 
 unique_ptr<GlobalSourceState> PhysicalUpdate::GetGlobalSourceState(ClientContext &context) const {
-	return make_uniq<UpdateSourceState>(*this);
+	return make_unique<UpdateSourceState>(*this);
 }
 
-SourceResultType PhysicalUpdate::GetData(ExecutionContext &context, DataChunk &chunk,
-                                         OperatorSourceInput &input) const {
-	auto &state = input.global_state.Cast<UpdateSourceState>();
-	auto &g = sink_state->Cast<UpdateGlobalState>();
+void PhysicalUpdate::GetData(ExecutionContext &context, DataChunk &chunk, GlobalSourceState &gstate,
+                             LocalSourceState &lstate) const {
+	auto &state = (UpdateSourceState &)gstate;
+	auto &g = (UpdateGlobalState &)*sink_state;
+	if (state.finished) {
+		return;
+	}
 	if (!return_chunk) {
 		chunk.SetCardinality(1);
 		chunk.SetValue(0, 0, Value::BIGINT(g.updated_count));
-		return SourceResultType::FINISHED;
+		state.finished = true;
+		return;
 	}
 
 	g.return_collection.Scan(state.scan_state, chunk);
-
-	return chunk.size() == 0 ? SourceResultType::FINISHED : SourceResultType::HAVE_MORE_OUTPUT;
 }
 
 } // namespace duckdb

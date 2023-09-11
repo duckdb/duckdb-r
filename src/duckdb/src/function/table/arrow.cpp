@@ -9,37 +9,40 @@
 #include "duckdb/function/table/arrow.hpp"
 #include "duckdb/function/table_function.hpp"
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
-#include "duckdb/function/table/arrow/arrow_duck_schema.hpp"
 #include "utf8proc_wrapper.hpp"
 
 namespace duckdb {
 
-unique_ptr<ArrowType> ArrowTableFunction::GetArrowLogicalType(ArrowSchema &schema) {
+LogicalType ArrowTableFunction::GetArrowLogicalType(
+    ArrowSchema &schema, std::unordered_map<idx_t, unique_ptr<ArrowConvertData>> &arrow_convert_data, idx_t col_idx) {
 	auto format = string(schema.format);
+	if (arrow_convert_data.find(col_idx) == arrow_convert_data.end()) {
+		arrow_convert_data[col_idx] = make_unique<ArrowConvertData>();
+	}
 	if (format == "n") {
-		return make_uniq<ArrowType>(LogicalType::SQLNULL);
+		return LogicalType::SQLNULL;
 	} else if (format == "b") {
-		return make_uniq<ArrowType>(LogicalType::BOOLEAN);
+		return LogicalType::BOOLEAN;
 	} else if (format == "c") {
-		return make_uniq<ArrowType>(LogicalType::TINYINT);
+		return LogicalType::TINYINT;
 	} else if (format == "s") {
-		return make_uniq<ArrowType>(LogicalType::SMALLINT);
+		return LogicalType::SMALLINT;
 	} else if (format == "i") {
-		return make_uniq<ArrowType>(LogicalType::INTEGER);
+		return LogicalType::INTEGER;
 	} else if (format == "l") {
-		return make_uniq<ArrowType>(LogicalType::BIGINT);
+		return LogicalType::BIGINT;
 	} else if (format == "C") {
-		return make_uniq<ArrowType>(LogicalType::UTINYINT);
+		return LogicalType::UTINYINT;
 	} else if (format == "S") {
-		return make_uniq<ArrowType>(LogicalType::USMALLINT);
+		return LogicalType::USMALLINT;
 	} else if (format == "I") {
-		return make_uniq<ArrowType>(LogicalType::UINTEGER);
+		return LogicalType::UINTEGER;
 	} else if (format == "L") {
-		return make_uniq<ArrowType>(LogicalType::UBIGINT);
+		return LogicalType::UBIGINT;
 	} else if (format == "f") {
-		return make_uniq<ArrowType>(LogicalType::FLOAT);
+		return LogicalType::FLOAT;
 	} else if (format == "g") {
-		return make_uniq<ArrowType>(LogicalType::DOUBLE);
+		return LogicalType::DOUBLE;
 	} else if (format[0] == 'd') { //! this can be either decimal128 or decimal 256 (e.g., d:38,0)
 		std::string parameters = format.substr(format.find(':'));
 		uint8_t width = std::stoi(parameters.substr(1, parameters.find(',')));
@@ -47,138 +50,113 @@ unique_ptr<ArrowType> ArrowTableFunction::GetArrowLogicalType(ArrowSchema &schem
 		if (width > 38) {
 			throw NotImplementedException("Unsupported Internal Arrow Type for Decimal %s", format);
 		}
-		return make_uniq<ArrowType>(LogicalType::DECIMAL(width, scale));
+		return LogicalType::DECIMAL(width, scale);
 	} else if (format == "u") {
-		return make_uniq<ArrowType>(LogicalType::VARCHAR, ArrowVariableSizeType::NORMAL);
+		arrow_convert_data[col_idx]->variable_sz_type.emplace_back(ArrowVariableSizeType::NORMAL, 0);
+		return LogicalType::VARCHAR;
 	} else if (format == "U") {
-		return make_uniq<ArrowType>(LogicalType::VARCHAR, ArrowVariableSizeType::SUPER_SIZE);
+		arrow_convert_data[col_idx]->variable_sz_type.emplace_back(ArrowVariableSizeType::SUPER_SIZE, 0);
+		return LogicalType::VARCHAR;
 	} else if (format == "tsn:") {
-		return make_uniq<ArrowType>(LogicalTypeId::TIMESTAMP_NS);
+		return LogicalTypeId::TIMESTAMP_NS;
 	} else if (format == "tsu:") {
-		return make_uniq<ArrowType>(LogicalTypeId::TIMESTAMP);
+		return LogicalTypeId::TIMESTAMP;
 	} else if (format == "tsm:") {
-		return make_uniq<ArrowType>(LogicalTypeId::TIMESTAMP_MS);
+		return LogicalTypeId::TIMESTAMP_MS;
 	} else if (format == "tss:") {
-		return make_uniq<ArrowType>(LogicalTypeId::TIMESTAMP_SEC);
+		return LogicalTypeId::TIMESTAMP_SEC;
 	} else if (format == "tdD") {
-		return make_uniq<ArrowType>(LogicalType::DATE, ArrowDateTimeType::DAYS);
+		arrow_convert_data[col_idx]->date_time_precision.emplace_back(ArrowDateTimeType::DAYS);
+		return LogicalType::DATE;
 	} else if (format == "tdm") {
-		return make_uniq<ArrowType>(LogicalType::DATE, ArrowDateTimeType::MILLISECONDS);
+		arrow_convert_data[col_idx]->date_time_precision.emplace_back(ArrowDateTimeType::MILLISECONDS);
+		return LogicalType::DATE;
 	} else if (format == "tts") {
-		return make_uniq<ArrowType>(LogicalType::TIME, ArrowDateTimeType::SECONDS);
+		arrow_convert_data[col_idx]->date_time_precision.emplace_back(ArrowDateTimeType::SECONDS);
+		return LogicalType::TIME;
 	} else if (format == "ttm") {
-		return make_uniq<ArrowType>(LogicalType::TIME, ArrowDateTimeType::MILLISECONDS);
+		arrow_convert_data[col_idx]->date_time_precision.emplace_back(ArrowDateTimeType::MILLISECONDS);
+		return LogicalType::TIME;
 	} else if (format == "ttu") {
-		return make_uniq<ArrowType>(LogicalType::TIME, ArrowDateTimeType::MICROSECONDS);
+		arrow_convert_data[col_idx]->date_time_precision.emplace_back(ArrowDateTimeType::MICROSECONDS);
+		return LogicalType::TIME;
 	} else if (format == "ttn") {
-		return make_uniq<ArrowType>(LogicalType::TIME, ArrowDateTimeType::NANOSECONDS);
+		arrow_convert_data[col_idx]->date_time_precision.emplace_back(ArrowDateTimeType::NANOSECONDS);
+		return LogicalType::TIME;
 	} else if (format == "tDs") {
-		return make_uniq<ArrowType>(LogicalType::INTERVAL, ArrowDateTimeType::SECONDS);
+		arrow_convert_data[col_idx]->date_time_precision.emplace_back(ArrowDateTimeType::SECONDS);
+		return LogicalType::INTERVAL;
 	} else if (format == "tDm") {
-		return make_uniq<ArrowType>(LogicalType::INTERVAL, ArrowDateTimeType::MILLISECONDS);
+		arrow_convert_data[col_idx]->date_time_precision.emplace_back(ArrowDateTimeType::MILLISECONDS);
+		return LogicalType::INTERVAL;
 	} else if (format == "tDu") {
-		return make_uniq<ArrowType>(LogicalType::INTERVAL, ArrowDateTimeType::MICROSECONDS);
+		arrow_convert_data[col_idx]->date_time_precision.emplace_back(ArrowDateTimeType::MICROSECONDS);
+		return LogicalType::INTERVAL;
 	} else if (format == "tDn") {
-		return make_uniq<ArrowType>(LogicalType::INTERVAL, ArrowDateTimeType::NANOSECONDS);
+		arrow_convert_data[col_idx]->date_time_precision.emplace_back(ArrowDateTimeType::NANOSECONDS);
+		return LogicalType::INTERVAL;
 	} else if (format == "tiD") {
-		return make_uniq<ArrowType>(LogicalType::INTERVAL, ArrowDateTimeType::DAYS);
+		arrow_convert_data[col_idx]->date_time_precision.emplace_back(ArrowDateTimeType::DAYS);
+		return LogicalType::INTERVAL;
 	} else if (format == "tiM") {
-		return make_uniq<ArrowType>(LogicalType::INTERVAL, ArrowDateTimeType::MONTHS);
-	} else if (format == "tin") {
-		return make_uniq<ArrowType>(LogicalType::INTERVAL, ArrowDateTimeType::MONTH_DAY_NANO);
+		arrow_convert_data[col_idx]->date_time_precision.emplace_back(ArrowDateTimeType::MONTHS);
+		return LogicalType::INTERVAL;
 	} else if (format == "+l") {
-		auto child_type = GetArrowLogicalType(*schema.children[0]);
-		auto list_type =
-		    make_uniq<ArrowType>(LogicalType::LIST(child_type->GetDuckType()), ArrowVariableSizeType::NORMAL);
-		list_type->AddChild(std::move(child_type));
-		return list_type;
+		arrow_convert_data[col_idx]->variable_sz_type.emplace_back(ArrowVariableSizeType::NORMAL, 0);
+		auto child_type = GetArrowLogicalType(*schema.children[0], arrow_convert_data, col_idx);
+		return LogicalType::LIST(child_type);
 	} else if (format == "+L") {
-		auto child_type = GetArrowLogicalType(*schema.children[0]);
-		auto list_type =
-		    make_uniq<ArrowType>(LogicalType::LIST(child_type->GetDuckType()), ArrowVariableSizeType::SUPER_SIZE);
-		list_type->AddChild(std::move(child_type));
-		return list_type;
+		arrow_convert_data[col_idx]->variable_sz_type.emplace_back(ArrowVariableSizeType::SUPER_SIZE, 0);
+		auto child_type = GetArrowLogicalType(*schema.children[0], arrow_convert_data, col_idx);
+		return LogicalType::LIST(child_type);
 	} else if (format[0] == '+' && format[1] == 'w') {
 		std::string parameters = format.substr(format.find(':') + 1);
 		idx_t fixed_size = std::stoi(parameters);
-		auto child_type = GetArrowLogicalType(*schema.children[0]);
-		auto list_type = make_uniq<ArrowType>(LogicalType::LIST(child_type->GetDuckType()), fixed_size);
-		list_type->AddChild(std::move(child_type));
-		return list_type;
+		arrow_convert_data[col_idx]->variable_sz_type.emplace_back(ArrowVariableSizeType::FIXED_SIZE, fixed_size);
+		auto child_type = GetArrowLogicalType(*schema.children[0], arrow_convert_data, col_idx);
+		return LogicalType::LIST(std::move(child_type));
 	} else if (format == "+s") {
 		child_list_t<LogicalType> child_types;
-		vector<unique_ptr<ArrowType>> children;
 		for (idx_t type_idx = 0; type_idx < (idx_t)schema.n_children; type_idx++) {
-			children.emplace_back(GetArrowLogicalType(*schema.children[type_idx]));
-			child_types.emplace_back(schema.children[type_idx]->name, children.back()->GetDuckType());
+			auto child_type = GetArrowLogicalType(*schema.children[type_idx], arrow_convert_data, col_idx);
+			child_types.push_back({schema.children[type_idx]->name, child_type});
 		}
-		auto struct_type = make_uniq<ArrowType>(LogicalType::STRUCT(std::move(child_types)));
-		struct_type->AssignChildren(std::move(children));
-		return struct_type;
-	} else if (format[0] == '+' && format[1] == 'u') {
-		if (format[2] != 's') {
-			throw NotImplementedException("Unsupported Internal Arrow Type: \"%c\" Union", format[2]);
-		}
-		D_ASSERT(format[3] == ':');
+		return LogicalType::STRUCT(std::move(child_types));
 
-		std::string prefix = "+us:";
-		// TODO: what are these type ids actually for?
-		auto type_ids = StringUtil::Split(format.substr(prefix.size()), ',');
-
-		child_list_t<LogicalType> members;
-		vector<unique_ptr<ArrowType>> children;
-		for (idx_t type_idx = 0; type_idx < (idx_t)schema.n_children; type_idx++) {
-			auto type = schema.children[type_idx];
-
-			children.emplace_back(GetArrowLogicalType(*type));
-			members.emplace_back(type->name, children.back()->GetDuckType());
-		}
-
-		auto union_type = make_uniq<ArrowType>(LogicalType::UNION(members));
-		union_type->AssignChildren(std::move(children));
-		return union_type;
 	} else if (format == "+m") {
+		arrow_convert_data[col_idx]->variable_sz_type.emplace_back(ArrowVariableSizeType::NORMAL, 0);
+
 		auto &arrow_struct_type = *schema.children[0];
 		D_ASSERT(arrow_struct_type.n_children == 2);
-		auto key_type = GetArrowLogicalType(*arrow_struct_type.children[0]);
-		auto value_type = GetArrowLogicalType(*arrow_struct_type.children[1]);
-		auto map_type = make_uniq<ArrowType>(LogicalType::MAP(key_type->GetDuckType(), value_type->GetDuckType()),
-		                                     ArrowVariableSizeType::NORMAL);
-		child_list_t<LogicalType> key_value;
-		key_value.emplace_back(std::make_pair("key", key_type->GetDuckType()));
-		key_value.emplace_back(std::make_pair("value", value_type->GetDuckType()));
-
-		auto inner_struct =
-		    make_uniq<ArrowType>(LogicalType::STRUCT(std::move(key_value)), ArrowVariableSizeType::NORMAL);
-		vector<unique_ptr<ArrowType>> children;
-		children.reserve(2);
-		children.push_back(std::move(key_type));
-		children.push_back(std::move(value_type));
-		inner_struct->AssignChildren(std::move(children));
-		map_type->AddChild(std::move(inner_struct));
-		return map_type;
+		auto key_type = GetArrowLogicalType(*arrow_struct_type.children[0], arrow_convert_data, col_idx);
+		auto value_type = GetArrowLogicalType(*arrow_struct_type.children[1], arrow_convert_data, col_idx);
+		return LogicalType::MAP(key_type, value_type);
 	} else if (format == "z") {
-		return make_uniq<ArrowType>(LogicalType::BLOB, ArrowVariableSizeType::NORMAL);
+		arrow_convert_data[col_idx]->variable_sz_type.emplace_back(ArrowVariableSizeType::NORMAL, 0);
+		return LogicalType::BLOB;
 	} else if (format == "Z") {
-		return make_uniq<ArrowType>(LogicalType::BLOB, ArrowVariableSizeType::SUPER_SIZE);
+		arrow_convert_data[col_idx]->variable_sz_type.emplace_back(ArrowVariableSizeType::SUPER_SIZE, 0);
+		return LogicalType::BLOB;
 	} else if (format[0] == 'w') {
 		std::string parameters = format.substr(format.find(':') + 1);
 		idx_t fixed_size = std::stoi(parameters);
-		return make_uniq<ArrowType>(LogicalType::BLOB, fixed_size);
+		arrow_convert_data[col_idx]->variable_sz_type.emplace_back(ArrowVariableSizeType::FIXED_SIZE, fixed_size);
+		return LogicalType::BLOB;
 	} else if (format[0] == 't' && format[1] == 's') {
 		// Timestamp with Timezone
-		// TODO right now we just get the UTC value. We probably want to support this properly in the future
 		if (format[2] == 'n') {
-			return make_uniq<ArrowType>(LogicalType::TIMESTAMP_TZ, ArrowDateTimeType::NANOSECONDS);
+			arrow_convert_data[col_idx]->date_time_precision.emplace_back(ArrowDateTimeType::NANOSECONDS);
 		} else if (format[2] == 'u') {
-			return make_uniq<ArrowType>(LogicalType::TIMESTAMP_TZ, ArrowDateTimeType::MICROSECONDS);
+			arrow_convert_data[col_idx]->date_time_precision.emplace_back(ArrowDateTimeType::MICROSECONDS);
 		} else if (format[2] == 'm') {
-			return make_uniq<ArrowType>(LogicalType::TIMESTAMP_TZ, ArrowDateTimeType::MILLISECONDS);
+			arrow_convert_data[col_idx]->date_time_precision.emplace_back(ArrowDateTimeType::MILLISECONDS);
 		} else if (format[2] == 's') {
-			return make_uniq<ArrowType>(LogicalType::TIMESTAMP_TZ, ArrowDateTimeType::SECONDS);
+			arrow_convert_data[col_idx]->date_time_precision.emplace_back(ArrowDateTimeType::SECONDS);
 		} else {
 			throw NotImplementedException(" Timestamptz precision of not accepted");
 		}
+		// TODO right now we just get the UTC value. We probably want to support this properly in the future
+		return LogicalType::TIMESTAMP_TZ;
 	} else {
 		throw NotImplementedException("Unsupported Internal Arrow Type %s", format);
 	}
@@ -211,10 +189,10 @@ void ArrowTableFunction::RenameArrowColumns(vector<string> &names) {
 unique_ptr<FunctionData> ArrowTableFunction::ArrowScanBind(ClientContext &context, TableFunctionBindInput &input,
                                                            vector<LogicalType> &return_types, vector<string> &names) {
 	auto stream_factory_ptr = input.inputs[0].GetPointer();
-	auto stream_factory_produce = (stream_factory_produce_t)input.inputs[1].GetPointer();       // NOLINT
-	auto stream_factory_get_schema = (stream_factory_get_schema_t)input.inputs[2].GetPointer(); // NOLINT
+	auto stream_factory_produce = (stream_factory_produce_t)input.inputs[1].GetPointer();
+	auto stream_factory_get_schema = (stream_factory_get_schema_t)input.inputs[2].GetPointer();
 
-	auto res = make_uniq<ArrowScanFunctionData>(stream_factory_produce, stream_factory_ptr);
+	auto res = make_unique<ArrowScanFunctionData>(stream_factory_produce, stream_factory_ptr);
 
 	auto &data = *res;
 	stream_factory_get_schema(stream_factory_ptr, data.schema_root);
@@ -223,17 +201,13 @@ unique_ptr<FunctionData> ArrowTableFunction::ArrowScanBind(ClientContext &contex
 		if (!schema.release) {
 			throw InvalidInputException("arrow_scan: released schema passed");
 		}
-		auto arrow_type = GetArrowLogicalType(schema);
 		if (schema.dictionary) {
-			auto logical_type = arrow_type->GetDuckType();
-			auto dictionary = GetArrowLogicalType(*schema.dictionary);
-			return_types.emplace_back(dictionary->GetDuckType());
-			// The dictionary might have different attributes (size type, datetime precision, etc..)
-			arrow_type->SetDictionary(std::move(dictionary));
+			res->arrow_convert_data[col_idx] =
+			    make_unique<ArrowConvertData>(GetArrowLogicalType(schema, res->arrow_convert_data, col_idx));
+			return_types.emplace_back(GetArrowLogicalType(*schema.dictionary, res->arrow_convert_data, col_idx));
 		} else {
-			return_types.emplace_back(arrow_type->GetDuckType());
+			return_types.emplace_back(GetArrowLogicalType(schema, res->arrow_convert_data, col_idx));
 		}
-		res->arrow_table.AddColumn(col_idx, std::move(arrow_type));
 		auto format = string(schema.format);
 		auto name = string(schema.name);
 		if (name.empty()) {
@@ -291,10 +265,10 @@ bool ArrowTableFunction::ArrowScanParallelStateNext(ClientContext &context, cons
 
 unique_ptr<GlobalTableFunctionState> ArrowTableFunction::ArrowScanInitGlobal(ClientContext &context,
                                                                              TableFunctionInitInput &input) {
-	auto &bind_data = input.bind_data->Cast<ArrowScanFunctionData>();
-	auto result = make_uniq<ArrowScanGlobalState>();
-	result->stream = ProduceArrowScan(bind_data, input.column_ids, input.filters.get());
-	result->max_threads = ArrowScanMaxThreads(context, input.bind_data.get());
+	auto &bind_data = (const ArrowScanFunctionData &)*input.bind_data;
+	auto result = make_unique<ArrowScanGlobalState>();
+	result->stream = ProduceArrowScan(bind_data, input.column_ids, input.filters);
+	result->max_threads = ArrowScanMaxThreads(context, input.bind_data);
 	if (input.CanRemoveFilterColumns()) {
 		result->projection_ids = input.projection_ids;
 		for (const auto &col_idx : input.column_ids) {
@@ -308,41 +282,35 @@ unique_ptr<GlobalTableFunctionState> ArrowTableFunction::ArrowScanInitGlobal(Cli
 	return std::move(result);
 }
 
-unique_ptr<LocalTableFunctionState>
-ArrowTableFunction::ArrowScanInitLocalInternal(ClientContext &context, TableFunctionInitInput &input,
-                                               GlobalTableFunctionState *global_state_p) {
-	auto &global_state = global_state_p->Cast<ArrowScanGlobalState>();
-	auto current_chunk = make_uniq<ArrowArrayWrapper>();
-	auto result = make_uniq<ArrowScanLocalState>(std::move(current_chunk));
-	result->column_ids = input.column_ids;
-	result->filters = input.filters.get();
-	if (input.CanRemoveFilterColumns()) {
-		auto &asgs = global_state_p->Cast<ArrowScanGlobalState>();
-		result->all_columns.Initialize(context, asgs.scanned_types);
-	}
-	if (!ArrowScanParallelStateNext(context, input.bind_data.get(), *result, global_state)) {
-		return nullptr;
-	}
-	return std::move(result);
-}
-
 unique_ptr<LocalTableFunctionState> ArrowTableFunction::ArrowScanInitLocal(ExecutionContext &context,
                                                                            TableFunctionInitInput &input,
                                                                            GlobalTableFunctionState *global_state_p) {
-	return ArrowScanInitLocalInternal(context.client, input, global_state_p);
+	auto &global_state = (ArrowScanGlobalState &)*global_state_p;
+	auto current_chunk = make_unique<ArrowArrayWrapper>();
+	auto result = make_unique<ArrowScanLocalState>(std::move(current_chunk));
+	result->column_ids = input.column_ids;
+	result->filters = input.filters;
+	if (input.CanRemoveFilterColumns()) {
+		auto &asgs = (ArrowScanGlobalState &)*global_state_p;
+		result->all_columns.Initialize(context.client, asgs.scanned_types);
+	}
+	if (!ArrowScanParallelStateNext(context.client, input.bind_data, *result, global_state)) {
+		return nullptr;
+	}
+	return std::move(result);
 }
 
 void ArrowTableFunction::ArrowScanFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
 	if (!data_p.local_state) {
 		return;
 	}
-	auto &data = data_p.bind_data->CastNoConst<ArrowScanFunctionData>(); // FIXME
-	auto &state = data_p.local_state->Cast<ArrowScanLocalState>();
-	auto &global_state = data_p.global_state->Cast<ArrowScanGlobalState>();
+	auto &data = (ArrowScanFunctionData &)*data_p.bind_data;
+	auto &state = (ArrowScanLocalState &)*data_p.local_state;
+	auto &global_state = (ArrowScanGlobalState &)*data_p.global_state;
 
 	//! Out of tuples in this chunk
 	if (state.chunk_offset >= (idx_t)state.chunk->arrow_array.length) {
-		if (!ArrowScanParallelStateNext(context, data_p.bind_data.get(), state, global_state)) {
+		if (!ArrowScanParallelStateNext(context, data_p.bind_data, state, global_state)) {
 			return;
 		}
 	}
@@ -351,11 +319,11 @@ void ArrowTableFunction::ArrowScanFunction(ClientContext &context, TableFunction
 	if (global_state.CanRemoveFilterColumns()) {
 		state.all_columns.Reset();
 		state.all_columns.SetCardinality(output_size);
-		ArrowToDuckDB(state, data.arrow_table.GetColumns(), state.all_columns, data.lines_read - output_size);
+		ArrowToDuckDB(state, data.arrow_convert_data, state.all_columns, data.lines_read - output_size);
 		output.ReferenceColumns(state.all_columns, global_state.projection_ids);
 	} else {
 		output.SetCardinality(output_size);
-		ArrowToDuckDB(state, data.arrow_table.GetColumns(), output, data.lines_read - output_size);
+		ArrowToDuckDB(state, data.arrow_convert_data, output, data.lines_read - output_size);
 	}
 
 	output.Verify();
@@ -363,13 +331,13 @@ void ArrowTableFunction::ArrowScanFunction(ClientContext &context, TableFunction
 }
 
 unique_ptr<NodeStatistics> ArrowTableFunction::ArrowScanCardinality(ClientContext &context, const FunctionData *data) {
-	return make_uniq<NodeStatistics>();
+	return make_unique<NodeStatistics>();
 }
 
 idx_t ArrowTableFunction::ArrowGetBatchIndex(ClientContext &context, const FunctionData *bind_data_p,
                                              LocalTableFunctionState *local_state,
                                              GlobalTableFunctionState *global_state) {
-	auto &state = local_state->Cast<ArrowScanLocalState>();
+	auto &state = (ArrowScanLocalState &)*local_state;
 	return state.batch_index;
 }
 

@@ -15,9 +15,6 @@ namespace duckdb {
 
 class DropStatement : public SQLStatement {
 public:
-	static constexpr const StatementType TYPE = StatementType::DROP_STATEMENT;
-
-public:
 	DropStatement();
 
 	unique_ptr<DropInfo> info;

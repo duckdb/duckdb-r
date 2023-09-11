@@ -2,9 +2,8 @@
 
 namespace duckdb {
 
-SourceResultType PhysicalEmptyResult::GetData(ExecutionContext &context, DataChunk &chunk,
-                                              OperatorSourceInput &input) const {
-	return SourceResultType::FINISHED;
+void PhysicalEmptyResult::GetData(ExecutionContext &context, DataChunk &chunk, GlobalSourceState &gstate,
+                                  LocalSourceState &lstate) const {
 }
 
 } // namespace duckdb

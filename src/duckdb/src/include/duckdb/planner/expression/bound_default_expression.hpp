@@ -14,9 +14,6 @@ namespace duckdb {
 
 class BoundDefaultExpression : public Expression {
 public:
-	static constexpr const ExpressionClass TYPE = ExpressionClass::BOUND_DEFAULT;
-
-public:
 	explicit BoundDefaultExpression(LogicalType type = LogicalType())
 	    : Expression(ExpressionType::VALUE_DEFAULT, ExpressionClass::BOUND_DEFAULT, type) {
 	}
@@ -34,13 +31,10 @@ public:
 	}
 
 	unique_ptr<Expression> Copy() override {
-		return make_uniq<BoundDefaultExpression>(return_type);
+		return make_unique<BoundDefaultExpression>(return_type);
 	}
 
 	void Serialize(FieldWriter &writer) const override;
 	static unique_ptr<Expression> Deserialize(ExpressionDeserializationState &state, FieldReader &reader);
-
-	void FormatSerialize(FormatSerializer &serializer) const override;
-	static unique_ptr<Expression> FormatDeserialize(FormatDeserializer &deserializer);
 };
 } // namespace duckdb

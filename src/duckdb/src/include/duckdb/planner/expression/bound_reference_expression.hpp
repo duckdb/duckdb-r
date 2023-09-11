@@ -15,9 +15,6 @@ namespace duckdb {
 //! A BoundReferenceExpression represents a physical index into a DataChunk
 class BoundReferenceExpression : public Expression {
 public:
-	static constexpr const ExpressionClass TYPE = ExpressionClass::BOUND_REF;
-
-public:
 	BoundReferenceExpression(string alias, LogicalType type, idx_t index);
 	BoundReferenceExpression(LogicalType type, storage_t index);
 
@@ -35,14 +32,11 @@ public:
 	string ToString() const override;
 
 	hash_t Hash() const override;
-	bool Equals(const BaseExpression &other) const override;
+	bool Equals(const BaseExpression *other) const override;
 
 	unique_ptr<Expression> Copy() override;
 
 	void Serialize(FieldWriter &writer) const override;
 	static unique_ptr<Expression> Deserialize(ExpressionDeserializationState &state, FieldReader &reader);
-
-	void FormatSerialize(FormatSerializer &serializer) const override;
-	static unique_ptr<Expression> FormatDeserialize(FormatDeserializer &deserializer);
 };
 } // namespace duckdb

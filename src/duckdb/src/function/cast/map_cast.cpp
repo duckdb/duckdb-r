@@ -1,6 +1,5 @@
 #include "duckdb/function/cast/default_casts.hpp"
 #include "duckdb/function/cast/cast_function_set.hpp"
-#include "duckdb/function/cast/bound_cast_data.hpp"
 
 namespace duckdb {
 
@@ -13,7 +12,7 @@ unique_ptr<BoundCastData> MapBoundCastData::BindMapToMapCast(BindCastInput &inpu
 	auto target_val = MapType::ValueType(target);
 	auto key_cast = input.GetCastFunction(source_key, target_key);
 	auto value_cast = input.GetCastFunction(source_val, target_val);
-	return make_uniq<MapBoundCastData>(std::move(key_cast), std::move(value_cast));
+	return make_unique<MapBoundCastData>(std::move(key_cast), std::move(value_cast));
 }
 
 static bool MapToVarcharCast(Vector &source, Vector &result, idx_t count, CastParameters &parameters) {
@@ -79,12 +78,10 @@ static bool MapToVarcharCast(Vector &source, Vector &result, idx_t count, CastPa
 BoundCastInfo DefaultCasts::MapCastSwitch(BindCastInput &input, const LogicalType &source, const LogicalType &target) {
 	switch (target.id()) {
 	case LogicalTypeId::MAP:
-		return BoundCastInfo(ListCast::ListToListCast, ListBoundCastData::BindListToListCast(input, source, target),
-		                     ListBoundCastData::InitListLocalState);
+		return BoundCastInfo(ListCast::ListToListCast, ListBoundCastData::BindListToListCast(input, source, target));
 	case LogicalTypeId::VARCHAR: {
 		auto varchar_type = LogicalType::MAP(LogicalType::VARCHAR, LogicalType::VARCHAR);
-		return BoundCastInfo(MapToVarcharCast, ListBoundCastData::BindListToListCast(input, source, varchar_type),
-		                     ListBoundCastData::InitListLocalState);
+		return BoundCastInfo(MapToVarcharCast, ListBoundCastData::BindListToListCast(input, source, varchar_type));
 	}
 	default:
 		return TryVectorNullCast;

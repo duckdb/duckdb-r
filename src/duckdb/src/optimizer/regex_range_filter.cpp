@@ -25,26 +25,28 @@ unique_ptr<LogicalOperator> RegexRangeFilter::Rewrite(unique_ptr<LogicalOperator
 		return op;
 	}
 
-	auto new_filter = make_uniq<LogicalFilter>();
+	auto new_filter = make_unique<LogicalFilter>();
 
 	for (auto &expr : op->expressions) {
 		if (expr->type == ExpressionType::BOUND_FUNCTION) {
-			auto &func = expr->Cast<BoundFunctionExpression>();
+			auto &func = (BoundFunctionExpression &)*expr.get();
 			if (func.function.name != "regexp_full_match" || func.children.size() != 2) {
 				continue;
 			}
-			auto &info = func.bind_info->Cast<RegexpMatchesBindData>();
+			auto &info = (RegexpMatchesBindData &)*func.bind_info;
 			if (!info.range_success) {
 				continue;
 			}
-			auto filter_left = make_uniq<BoundComparisonExpression>(
+			auto filter_left = make_unique<BoundComparisonExpression>(
 			    ExpressionType::COMPARE_GREATERTHANOREQUALTO, func.children[0]->Copy(),
-			    make_uniq<BoundConstantExpression>(Value::BLOB_RAW(info.range_min)));
-			auto filter_right = make_uniq<BoundComparisonExpression>(
+			    make_unique<BoundConstantExpression>(
+			        Value::BLOB((const_data_ptr_t)info.range_min.c_str(), info.range_min.size())));
+			auto filter_right = make_unique<BoundComparisonExpression>(
 			    ExpressionType::COMPARE_LESSTHANOREQUALTO, func.children[0]->Copy(),
-			    make_uniq<BoundConstantExpression>(Value::BLOB_RAW(info.range_max)));
-			auto filter_expr = make_uniq<BoundConjunctionExpression>(ExpressionType::CONJUNCTION_AND,
-			                                                         std::move(filter_left), std::move(filter_right));
+			    make_unique<BoundConstantExpression>(
+			        Value::BLOB((const_data_ptr_t)info.range_max.c_str(), info.range_max.size())));
+			auto filter_expr = make_unique<BoundConjunctionExpression>(ExpressionType::CONJUNCTION_AND,
+			                                                           std::move(filter_left), std::move(filter_right));
 
 			new_filter->expressions.push_back(std::move(filter_expr));
 		}

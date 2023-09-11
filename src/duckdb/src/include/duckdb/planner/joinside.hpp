@@ -29,9 +29,6 @@ public:
 	//! Deserializes a blob back into a JoinCondition
 	static JoinCondition Deserialize(Deserializer &source, PlanDeserializationState &state);
 
-	void FormatSerialize(FormatSerializer &serializer) const;
-	static JoinCondition FormatDeserialize(FormatDeserializer &deserializer);
-
 public:
 	unique_ptr<Expression> left;
 	unique_ptr<Expression> right;

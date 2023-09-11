@@ -4,7 +4,7 @@
 
 namespace duckdb {
 
-DuckIndexEntry::DuckIndexEntry(Catalog &catalog, SchemaCatalogEntry &schema, CreateIndexInfo &info)
+DuckIndexEntry::DuckIndexEntry(Catalog *catalog, SchemaCatalogEntry *schema, CreateIndexInfo *info)
     : IndexCatalogEntry(catalog, schema, info) {
 }
 
@@ -13,14 +13,14 @@ DuckIndexEntry::~DuckIndexEntry() {
 	if (!info || !index) {
 		return;
 	}
-	info->indexes.RemoveIndex(*index);
+	info->indexes.RemoveIndex(index);
 }
 
-string DuckIndexEntry::GetSchemaName() const {
+string DuckIndexEntry::GetSchemaName() {
 	return info->schema;
 }
 
-string DuckIndexEntry::GetTableName() const {
+string DuckIndexEntry::GetTableName() {
 	return info->table;
 }
 

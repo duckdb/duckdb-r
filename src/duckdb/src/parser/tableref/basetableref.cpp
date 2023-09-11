@@ -2,8 +2,6 @@
 
 #include "duckdb/common/field_writer.hpp"
 #include "duckdb/parser/keyword_helper.hpp"
-#include "duckdb/common/serializer/format_serializer.hpp"
-#include "duckdb/common/serializer/format_deserializer.hpp"
 
 namespace duckdb {
 
@@ -15,13 +13,13 @@ string BaseTableRef::ToString() const {
 	return BaseToString(result, column_name_alias);
 }
 
-bool BaseTableRef::Equals(const TableRef &other_p) const {
+bool BaseTableRef::Equals(const TableRef *other_p) const {
 	if (!TableRef::Equals(other_p)) {
 		return false;
 	}
-	auto &other = other_p.Cast<BaseTableRef>();
-	return other.catalog_name == catalog_name && other.schema_name == schema_name && other.table_name == table_name &&
-	       column_name_alias == other.column_name_alias;
+	auto other = (BaseTableRef *)other_p;
+	return other->catalog_name == catalog_name && other->schema_name == schema_name &&
+	       other->table_name == table_name && column_name_alias == other->column_name_alias;
 }
 
 void BaseTableRef::Serialize(FieldWriter &writer) const {
@@ -32,7 +30,7 @@ void BaseTableRef::Serialize(FieldWriter &writer) const {
 }
 
 unique_ptr<TableRef> BaseTableRef::Deserialize(FieldReader &reader) {
-	auto result = make_uniq<BaseTableRef>();
+	auto result = make_unique<BaseTableRef>();
 
 	result->schema_name = reader.ReadRequired<string>();
 	result->table_name = reader.ReadRequired<string>();
@@ -43,7 +41,7 @@ unique_ptr<TableRef> BaseTableRef::Deserialize(FieldReader &reader) {
 }
 
 unique_ptr<TableRef> BaseTableRef::Copy() {
-	auto copy = make_uniq<BaseTableRef>();
+	auto copy = make_unique<BaseTableRef>();
 
 	copy->catalog_name = catalog_name;
 	copy->schema_name = schema_name;

@@ -30,7 +30,7 @@ PragmaFunction PragmaFunction::PragmaStatement(const string &name, pragma_functi
 	                      LogicalType::INVALID);
 }
 
-string PragmaFunction::ToString() const {
+string PragmaFunction::ToString() {
 	switch (type) {
 	case PragmaType::PRAGMA_STATEMENT:
 		return StringUtil::Format("PRAGMA %s", name);

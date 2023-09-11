@@ -19,9 +19,6 @@ namespace duckdb {
 //! every row in a table
 class BoundCheckConstraint : public BoundConstraint {
 public:
-	static constexpr const ConstraintType TYPE = ConstraintType::CHECK;
-
-public:
 	BoundCheckConstraint() : BoundConstraint(ConstraintType::CHECK) {
 	}
 

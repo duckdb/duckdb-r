@@ -1,7 +1,5 @@
 #include "duckdb/parser/query_node/recursive_cte_node.hpp"
 #include "duckdb/common/field_writer.hpp"
-#include "duckdb/common/serializer/format_serializer.hpp"
-#include "duckdb/common/serializer/format_deserializer.hpp"
 
 namespace duckdb {
 
@@ -23,22 +21,22 @@ bool RecursiveCTENode::Equals(const QueryNode *other_p) const {
 	if (this == other_p) {
 		return true;
 	}
-	auto &other = other_p->Cast<RecursiveCTENode>();
+	auto other = (RecursiveCTENode *)other_p;
 
-	if (other.union_all != union_all) {
+	if (other->union_all != union_all) {
 		return false;
 	}
-	if (!left->Equals(other.left.get())) {
+	if (!left->Equals(other->left.get())) {
 		return false;
 	}
-	if (!right->Equals(other.right.get())) {
+	if (!right->Equals(other->right.get())) {
 		return false;
 	}
 	return true;
 }
 
 unique_ptr<QueryNode> RecursiveCTENode::Copy() const {
-	auto result = make_uniq<RecursiveCTENode>();
+	auto result = make_unique<RecursiveCTENode>();
 	result->ctename = ctename;
 	result->union_all = union_all;
 	result->left = left->Copy();
@@ -57,7 +55,7 @@ void RecursiveCTENode::Serialize(FieldWriter &writer) const {
 }
 
 unique_ptr<QueryNode> RecursiveCTENode::Deserialize(FieldReader &reader) {
-	auto result = make_uniq<RecursiveCTENode>();
+	auto result = make_unique<RecursiveCTENode>();
 	result->ctename = reader.ReadRequired<string>();
 	result->union_all = reader.ReadRequired<bool>();
 	result->left = reader.ReadRequiredSerializable<QueryNode>();

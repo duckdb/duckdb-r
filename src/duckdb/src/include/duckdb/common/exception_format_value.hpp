@@ -8,37 +8,10 @@
 
 #pragma once
 
-#include "duckdb/common/string.hpp"
-#include "duckdb/common/hugeint.hpp"
-
-#include <vector>
+#include "duckdb/common/common.hpp"
+#include "duckdb/common/types.hpp"
 
 namespace duckdb {
-
-// Helper class to support custom overloading
-// Escaping " and quoting the value with "
-class SQLIdentifier {
-public:
-	SQLIdentifier(const string &raw_string) : raw_string(raw_string) {
-	}
-
-public:
-	string raw_string;
-};
-
-// Helper class to support custom overloading
-// Escaping ' and quoting the value with '
-class SQLString {
-public:
-	SQLString(const string &raw_string) : raw_string(raw_string) {
-	}
-
-public:
-	string raw_string;
-};
-
-enum class PhysicalType : uint8_t;
-struct LogicalType;
 
 enum class ExceptionFormatValueType : uint8_t {
 	FORMAT_VALUE_TYPE_DOUBLE,
@@ -63,15 +36,11 @@ public:
 	static ExceptionFormatValue CreateFormatValue(T value) {
 		return int64_t(value);
 	}
-	static string Format(const string &msg, std::vector<ExceptionFormatValue> &values);
+	static string Format(const string &msg, vector<ExceptionFormatValue> &values);
 };
 
 template <>
 DUCKDB_API ExceptionFormatValue ExceptionFormatValue::CreateFormatValue(PhysicalType value);
-template <>
-DUCKDB_API ExceptionFormatValue ExceptionFormatValue::CreateFormatValue(SQLString value);
-template <>
-DUCKDB_API ExceptionFormatValue ExceptionFormatValue::CreateFormatValue(SQLIdentifier value);
 template <>
 DUCKDB_API ExceptionFormatValue ExceptionFormatValue::CreateFormatValue(LogicalType value);
 template <>

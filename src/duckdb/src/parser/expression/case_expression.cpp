@@ -3,9 +3,6 @@
 #include "duckdb/common/exception.hpp"
 #include "duckdb/common/field_writer.hpp"
 
-#include "duckdb/common/serializer/format_serializer.hpp"
-#include "duckdb/common/serializer/format_deserializer.hpp"
-
 namespace duckdb {
 
 CaseExpression::CaseExpression() : ParsedExpression(ExpressionType::CASE_EXPR, ExpressionClass::CASE) {
@@ -15,26 +12,26 @@ string CaseExpression::ToString() const {
 	return ToString<CaseExpression, ParsedExpression>(*this);
 }
 
-bool CaseExpression::Equal(const CaseExpression &a, const CaseExpression &b) {
-	if (a.case_checks.size() != b.case_checks.size()) {
+bool CaseExpression::Equal(const CaseExpression *a, const CaseExpression *b) {
+	if (a->case_checks.size() != b->case_checks.size()) {
 		return false;
 	}
-	for (idx_t i = 0; i < a.case_checks.size(); i++) {
-		if (!a.case_checks[i].when_expr->Equals(*b.case_checks[i].when_expr)) {
+	for (idx_t i = 0; i < a->case_checks.size(); i++) {
+		if (!a->case_checks[i].when_expr->Equals(b->case_checks[i].when_expr.get())) {
 			return false;
 		}
-		if (!a.case_checks[i].then_expr->Equals(*b.case_checks[i].then_expr)) {
+		if (!a->case_checks[i].then_expr->Equals(b->case_checks[i].then_expr.get())) {
 			return false;
 		}
 	}
-	if (!a.else_expr->Equals(*b.else_expr)) {
+	if (!a->else_expr->Equals(b->else_expr.get())) {
 		return false;
 	}
 	return true;
 }
 
 unique_ptr<ParsedExpression> CaseExpression::Copy() const {
-	auto copy = make_uniq<CaseExpression>();
+	auto copy = make_unique<CaseExpression>();
 	copy->CopyProperties(*this);
 	for (auto &check : case_checks) {
 		CaseCheck new_check;
@@ -59,7 +56,7 @@ void CaseExpression::Serialize(FieldWriter &writer) const {
 }
 
 unique_ptr<ParsedExpression> CaseExpression::Deserialize(ExpressionType type, FieldReader &reader) {
-	auto result = make_uniq<CaseExpression>();
+	auto result = make_unique<CaseExpression>();
 	auto &source = reader.GetSource();
 	auto count = reader.ReadRequired<uint32_t>();
 	for (idx_t i = 0; i < count; i++) {

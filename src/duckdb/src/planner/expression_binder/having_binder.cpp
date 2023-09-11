@@ -10,29 +10,26 @@ namespace duckdb {
 
 HavingBinder::HavingBinder(Binder &binder, ClientContext &context, BoundSelectNode &node, BoundGroupInformation &info,
                            case_insensitive_map_t<idx_t> &alias_map, AggregateHandling aggregate_handling)
-    : BaseSelectBinder(binder, context, node, info), column_alias_binder(node, alias_map),
+    : SelectBinder(binder, context, node, info), column_alias_binder(node, alias_map),
       aggregate_handling(aggregate_handling) {
 	target_type = LogicalType(LogicalTypeId::BOOLEAN);
 }
 
-BindResult HavingBinder::BindColumnRef(unique_ptr<ParsedExpression> &expr_ptr, idx_t depth, bool root_expression) {
-	auto &expr = expr_ptr->Cast<ColumnRefExpression>();
+BindResult HavingBinder::BindColumnRef(unique_ptr<ParsedExpression> *expr_ptr, idx_t depth, bool root_expression) {
+	auto &expr = (ColumnRefExpression &)**expr_ptr;
 	auto alias_result = column_alias_binder.BindAlias(*this, expr, depth, root_expression);
 	if (!alias_result.HasError()) {
-		if (depth > 0) {
-			throw BinderException("Having clause cannot reference alias in correlated subquery");
-		}
 		return alias_result;
 	}
 	if (aggregate_handling == AggregateHandling::FORCE_AGGREGATES) {
 		if (depth > 0) {
 			throw BinderException("Having clause cannot reference column in correlated subquery and group by all");
 		}
-		auto expr = duckdb::BaseSelectBinder::BindExpression(expr_ptr, depth);
+		auto expr = duckdb::SelectBinder::BindExpression(expr_ptr, depth);
 		if (expr.HasError()) {
 			return expr;
 		}
-		auto group_ref = make_uniq<BoundColumnRefExpression>(
+		auto group_ref = make_unique<BoundColumnRefExpression>(
 		    expr.expression->return_type, ColumnBinding(node.group_index, node.groups.group_expressions.size()));
 		node.groups.group_expressions.push_back(std::move(expr.expression));
 		return BindResult(std::move(group_ref));
@@ -41,8 +38,8 @@ BindResult HavingBinder::BindColumnRef(unique_ptr<ParsedExpression> &expr_ptr, i
 	    "column %s must appear in the GROUP BY clause or be used in an aggregate function", expr.ToString()));
 }
 
-BindResult HavingBinder::BindExpression(unique_ptr<ParsedExpression> &expr_ptr, idx_t depth, bool root_expression) {
-	auto &expr = *expr_ptr;
+BindResult HavingBinder::BindExpression(unique_ptr<ParsedExpression> *expr_ptr, idx_t depth, bool root_expression) {
+	auto &expr = **expr_ptr;
 	// check if the expression binds to one of the groups
 	auto group_index = TryBindGroup(expr, depth);
 	if (group_index != DConstants::INVALID_INDEX) {
@@ -54,7 +51,7 @@ BindResult HavingBinder::BindExpression(unique_ptr<ParsedExpression> &expr_ptr, 
 	case ExpressionClass::COLUMN_REF:
 		return BindColumnRef(expr_ptr, depth, root_expression);
 	default:
-		return duckdb::BaseSelectBinder::BindExpression(expr_ptr, depth);
+		return duckdb::SelectBinder::BindExpression(expr_ptr, depth);
 	}
 }
 

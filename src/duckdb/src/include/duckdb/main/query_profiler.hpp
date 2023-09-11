@@ -17,7 +17,6 @@
 #include "duckdb/common/winapi.hpp"
 #include "duckdb/execution/physical_operator.hpp"
 #include "duckdb/execution/expression_executor_state.hpp"
-#include "duckdb/common/reference_map.hpp"
 #include <stack>
 #include "duckdb/common/pair.hpp"
 #include "duckdb/common/deque.hpp"
@@ -101,25 +100,25 @@ class OperatorProfiler {
 public:
 	DUCKDB_API explicit OperatorProfiler(bool enabled);
 
-	DUCKDB_API void StartOperator(optional_ptr<const PhysicalOperator> phys_op);
-	DUCKDB_API void EndOperator(optional_ptr<DataChunk> chunk);
-	DUCKDB_API void Flush(const PhysicalOperator &phys_op, ExpressionExecutor &expression_executor, const string &name,
+	DUCKDB_API void StartOperator(const PhysicalOperator *phys_op);
+	DUCKDB_API void EndOperator(DataChunk *chunk);
+	DUCKDB_API void Flush(const PhysicalOperator *phys_op, ExpressionExecutor *expression_executor, const string &name,
 	                      int id);
 
 	~OperatorProfiler() {
 	}
 
 private:
-	void AddTiming(const PhysicalOperator &op, double time, idx_t elements);
+	void AddTiming(const PhysicalOperator *op, double time, idx_t elements);
 
 	//! Whether or not the profiler is enabled
 	bool enabled;
 	//! The timer used to time the execution time of the individual Physical Operators
 	Profiler op;
 	//! The stack of Physical Operators that are currently active
-	optional_ptr<const PhysicalOperator> active_operator;
+	const PhysicalOperator *active_operator;
 	//! A mapping of physical operators to recorded timings
-	reference_map_t<const PhysicalOperator, OperatorInformation> timings;
+	unordered_map<const PhysicalOperator *, OperatorInformation> timings;
 };
 
 //! The QueryProfiler can be used to measure timings of queries
@@ -140,10 +139,10 @@ public:
 	// Propagate save_location, enabled, detailed_enabled and automatic_print_format.
 	void Propagate(QueryProfiler &qp);
 
-	using TreeMap = reference_map_t<const PhysicalOperator, reference<TreeNode>>;
+	using TreeMap = unordered_map<const PhysicalOperator *, TreeNode *>;
 
 private:
-	unique_ptr<TreeNode> CreateTree(const PhysicalOperator &root, idx_t depth = 0);
+	unique_ptr<TreeNode> CreateTree(PhysicalOperator *root, idx_t depth = 0);
 	void Render(const TreeNode &node, std::ostream &str) const;
 
 public:
@@ -166,7 +165,7 @@ public:
 	DUCKDB_API void StartPhase(string phase);
 	DUCKDB_API void EndPhase();
 
-	DUCKDB_API void Initialize(const PhysicalOperator &root);
+	DUCKDB_API void Initialize(PhysicalOperator *root);
 
 	DUCKDB_API string QueryTreeToString() const;
 	DUCKDB_API void QueryTreeToStream(std::ostream &str) const;

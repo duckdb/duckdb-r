@@ -19,23 +19,18 @@ void PhysicalReset::ResetExtensionVariable(ExecutionContext &context, DBConfig &
 	}
 }
 
-SourceResultType PhysicalReset::GetData(ExecutionContext &context, DataChunk &chunk, OperatorSourceInput &input) const {
-	auto &config = DBConfig::GetConfig(context.client);
-	if (config.options.lock_configuration) {
-		throw InvalidInputException("Cannot reset configuration option \"%s\" - the configuration has been locked",
-		                            name);
-	}
+void PhysicalReset::GetData(ExecutionContext &context, DataChunk &chunk, GlobalSourceState &gstate,
+                            LocalSourceState &lstate) const {
 	auto option = DBConfig::GetOptionByName(name);
 	if (!option) {
 		// check if this is an extra extension variable
+		auto &config = DBConfig::GetConfig(context.client);
 		auto entry = config.extension_parameters.find(name);
 		if (entry == config.extension_parameters.end()) {
-			Catalog::AutoloadExtensionByConfigName(context.client, name);
-			entry = config.extension_parameters.find(name);
-			D_ASSERT(entry != config.extension_parameters.end());
+			throw Catalog::UnrecognizedConfigurationError(context.client, name);
 		}
 		ResetExtensionVariable(context, config, entry->second);
-		return SourceResultType::FINISHED;
+		return;
 	}
 
 	// Transform scope
@@ -55,6 +50,7 @@ SourceResultType PhysicalReset::GetData(ExecutionContext &context, DataChunk &ch
 			throw CatalogException("option \"%s\" cannot be reset globally", name);
 		}
 		auto &db = DatabaseInstance::GetDatabase(context.client);
+		auto &config = DBConfig::GetConfig(context.client);
 		config.ResetOption(&db, *option);
 		break;
 	}
@@ -67,8 +63,6 @@ SourceResultType PhysicalReset::GetData(ExecutionContext &context, DataChunk &ch
 	default:
 		throw InternalException("Unsupported SetScope for variable");
 	}
-
-	return SourceResultType::FINISHED;
 }
 
 } // namespace duckdb

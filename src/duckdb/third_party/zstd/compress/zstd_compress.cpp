@@ -29,9 +29,6 @@
 #include "zstd/compress/zstd_ldm.h"
 #include "zstd/compress/zstd_compress_superblock.h"
 
-#if defined (MEMORY_SANITIZER)
-#include <sanitizer/msan_interface.h>
-#endif
 
 namespace duckdb_zstd {
 /*-*************************************

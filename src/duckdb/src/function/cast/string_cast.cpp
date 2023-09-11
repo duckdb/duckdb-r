@@ -3,12 +3,11 @@
 #include "duckdb/common/pair.hpp"
 #include "duckdb/common/vector.hpp"
 #include "duckdb/function/scalar/nested_functions.hpp"
-#include "duckdb/function/cast/bound_cast_data.hpp"
 
 namespace duckdb {
 
 template <class T>
-bool StringEnumCastLoop(const string_t *source_data, ValidityMask &source_mask, const LogicalType &source_type,
+bool StringEnumCastLoop(string_t *source_data, ValidityMask &source_mask, const LogicalType &source_type,
                         T *result_data, ValidityMask &result_mask, const LogicalType &result_type, idx_t count,
                         string *error_message, const SelectionVector *sel) {
 	bool all_converted = true;
@@ -36,6 +35,7 @@ bool StringEnumCastLoop(const string_t *source_data, ValidityMask &source_mask, 
 template <class T>
 bool StringEnumCast(Vector &source, Vector &result, idx_t count, CastParameters &parameters) {
 	D_ASSERT(source.GetType().id() == LogicalTypeId::VARCHAR);
+	auto enum_name = EnumType::GetTypeName(result.GetType());
 	switch (source.GetVectorType()) {
 	case VectorType::CONSTANT_VECTOR: {
 		result.SetVectorType(VectorType::CONSTANT_VECTOR);
@@ -54,7 +54,7 @@ bool StringEnumCast(Vector &source, Vector &result, idx_t count, CastParameters 
 
 		result.SetVectorType(VectorType::FLAT_VECTOR);
 
-		auto source_data = UnifiedVectorFormat::GetData<string_t>(vdata);
+		auto source_data = (string_t *)vdata.data;
 		auto source_sel = vdata.sel;
 		auto source_mask = vdata.validity;
 		auto result_data = FlatVector::GetData<T>(result);
@@ -115,12 +115,10 @@ static BoundCastInfo VectorStringCastNumericSwitch(BindCastInput &input, const L
 	}
 }
 
-//===--------------------------------------------------------------------===//
 // string -> list casting
-//===--------------------------------------------------------------------===//
-bool VectorStringToList::StringToNestedTypeCastLoop(const string_t *source_data, ValidityMask &source_mask,
-                                                    Vector &result, ValidityMask &result_mask, idx_t count,
-                                                    CastParameters &parameters, const SelectionVector *sel) {
+bool VectorStringToList::StringToNestedTypeCastLoop(string_t *source_data, ValidityMask &source_mask, Vector &result,
+                                                    ValidityMask &result_mask, idx_t count, CastParameters &parameters,
+                                                    const SelectionVector *sel) {
 	idx_t total_list_size = 0;
 	for (idx_t i = 0; i < count; i++) {
 		idx_t idx = i;
@@ -164,8 +162,8 @@ bool VectorStringToList::StringToNestedTypeCastLoop(const string_t *source_data,
 	D_ASSERT(total_list_size == total);
 
 	auto &result_child = ListVector::GetEntry(result);
-	auto &cast_data = parameters.cast_data->Cast<ListBoundCastData>();
-	CastParameters child_parameters(parameters, cast_data.child_cast_info.cast_data, parameters.local_state);
+	auto &cast_data = (ListBoundCastData &)*parameters.cast_data;
+	CastParameters child_parameters(parameters, cast_data.child_cast_info.cast_data.get());
 	return cast_data.child_cast_info.function(varchar_vector, result_child, total_list_size, child_parameters) &&
 	       all_converted;
 }
@@ -179,12 +177,11 @@ static LogicalType InitVarcharStructType(const LogicalType &target) {
 	return LogicalType::STRUCT(child_types);
 }
 
-//===--------------------------------------------------------------------===//
 // string -> struct casting
-//===--------------------------------------------------------------------===//
-bool VectorStringToStruct::StringToNestedTypeCastLoop(const string_t *source_data, ValidityMask &source_mask,
-                                                      Vector &result, ValidityMask &result_mask, idx_t count,
+bool VectorStringToStruct::StringToNestedTypeCastLoop(string_t *source_data, ValidityMask &source_mask, Vector &result,
+                                                      ValidityMask &result_mask, idx_t count,
                                                       CastParameters &parameters, const SelectionVector *sel) {
+
 	auto varchar_struct_type = InitVarcharStructType(result.GetType());
 	Vector varchar_vector(varchar_struct_type, count);
 	auto &child_vectors = StructVector::GetEntries(varchar_vector);
@@ -218,43 +215,25 @@ bool VectorStringToStruct::StringToNestedTypeCastLoop(const string_t *source_dat
 		}
 	}
 
-	auto &cast_data = parameters.cast_data->Cast<StructBoundCastData>();
-	auto &lstate = parameters.local_state->Cast<StructCastLocalState>();
+	auto &cast_data = (StructBoundCastData &)*parameters.cast_data;
 	D_ASSERT(cast_data.child_cast_info.size() == result_children.size());
 
 	for (idx_t child_idx = 0; child_idx < result_children.size(); child_idx++) {
-		auto &child_varchar_vector = *child_vectors[child_idx];
+		auto &varchar_vector = *child_vectors[child_idx];
 		auto &result_child_vector = *result_children[child_idx];
 		auto &child_cast_info = cast_data.child_cast_info[child_idx];
-		CastParameters child_parameters(parameters, child_cast_info.cast_data, lstate.local_states[child_idx]);
-		if (!child_cast_info.function(child_varchar_vector, result_child_vector, count, child_parameters)) {
+		CastParameters child_parameters(parameters, child_cast_info.cast_data.get());
+		if (!child_cast_info.function(varchar_vector, result_child_vector, count, child_parameters)) {
 			all_converted = false;
 		}
 	}
 	return all_converted;
 }
 
-//===--------------------------------------------------------------------===//
 // string -> map casting
-//===--------------------------------------------------------------------===//
-unique_ptr<FunctionLocalState> InitMapCastLocalState(CastLocalStateParameters &parameters) {
-	auto &cast_data = parameters.cast_data->Cast<MapBoundCastData>();
-	auto result = make_uniq<MapCastLocalState>();
-
-	if (cast_data.key_cast.init_local_state) {
-		CastLocalStateParameters child_params(parameters, cast_data.key_cast.cast_data);
-		result->key_state = cast_data.key_cast.init_local_state(child_params);
-	}
-	if (cast_data.value_cast.init_local_state) {
-		CastLocalStateParameters child_params(parameters, cast_data.value_cast.cast_data);
-		result->value_state = cast_data.value_cast.init_local_state(child_params);
-	}
-	return std::move(result);
-}
-
-bool VectorStringToMap::StringToNestedTypeCastLoop(const string_t *source_data, ValidityMask &source_mask,
-                                                   Vector &result, ValidityMask &result_mask, idx_t count,
-                                                   CastParameters &parameters, const SelectionVector *sel) {
+bool VectorStringToMap::StringToNestedTypeCastLoop(string_t *source_data, ValidityMask &source_mask, Vector &result,
+                                                   ValidityMask &result_mask, idx_t count, CastParameters &parameters,
+                                                   const SelectionVector *sel) {
 	idx_t total_elements = 0;
 	for (idx_t i = 0; i < count; i++) {
 		idx_t idx = i;
@@ -302,14 +281,13 @@ bool VectorStringToMap::StringToNestedTypeCastLoop(const string_t *source_data, 
 
 	auto &result_key_child = MapVector::GetKeys(result);
 	auto &result_val_child = MapVector::GetValues(result);
-	auto &cast_data = parameters.cast_data->Cast<MapBoundCastData>();
-	auto &lstate = parameters.local_state->Cast<MapCastLocalState>();
+	auto &cast_data = (MapBoundCastData &)*parameters.cast_data;
 
-	CastParameters key_params(parameters, cast_data.key_cast.cast_data, lstate.key_state);
+	CastParameters key_params(parameters, cast_data.key_cast.cast_data.get());
 	if (!cast_data.key_cast.function(varchar_key_vector, result_key_child, total_elements, key_params)) {
 		all_converted = false;
 	}
-	CastParameters val_params(parameters, cast_data.value_cast.cast_data, lstate.value_state);
+	CastParameters val_params(parameters, cast_data.value_cast.cast_data.get());
 	if (!cast_data.value_cast.function(varchar_val_vector, result_val_child, total_elements, val_params)) {
 		all_converted = false;
 	}
@@ -329,7 +307,7 @@ bool VectorStringToMap::StringToNestedTypeCastLoop(const string_t *source_data, 
 			}
 		}
 	}
-	MapVector::MapConversionVerify(result, count);
+	MapConversionVerify(result, count);
 	return all_converted;
 }
 
@@ -351,7 +329,7 @@ bool StringToNestedTypeCast(Vector &source, Vector &result, idx_t count, CastPar
 
 		source.ToUnifiedFormat(count, unified_source);
 		auto source_sel = unified_source.sel;
-		auto source_data = UnifiedVectorFormat::GetData<string_t>(unified_source);
+		auto source_data = (string_t *)unified_source.data;
 		auto &source_mask = unified_source.validity;
 		auto &result_mask = FlatVector::Validity(result);
 
@@ -367,9 +345,8 @@ BoundCastInfo DefaultCasts::StringCastSwitch(BindCastInput &input, const Logical
 	case LogicalTypeId::DATE:
 		return BoundCastInfo(&VectorCastHelpers::TryCastErrorLoop<string_t, date_t, duckdb::TryCastErrorMessage>);
 	case LogicalTypeId::TIME:
-		return BoundCastInfo(&VectorCastHelpers::TryCastErrorLoop<string_t, dtime_t, duckdb::TryCastErrorMessage>);
 	case LogicalTypeId::TIME_TZ:
-		return BoundCastInfo(&VectorCastHelpers::TryCastErrorLoop<string_t, dtime_tz_t, duckdb::TryCastErrorMessage>);
+		return BoundCastInfo(&VectorCastHelpers::TryCastErrorLoop<string_t, dtime_t, duckdb::TryCastErrorMessage>);
 	case LogicalTypeId::TIMESTAMP:
 	case LogicalTypeId::TIMESTAMP_TZ:
 		return BoundCastInfo(&VectorCastHelpers::TryCastErrorLoop<string_t, timestamp_t, duckdb::TryCastErrorMessage>);
@@ -396,17 +373,14 @@ BoundCastInfo DefaultCasts::StringCastSwitch(BindCastInput &input, const Logical
 		// the second argument allows for a secondary casting function to be passed in the CastParameters
 		return BoundCastInfo(
 		    &StringToNestedTypeCast<VectorStringToList>,
-		    ListBoundCastData::BindListToListCast(input, LogicalType::LIST(LogicalType::VARCHAR), target),
-		    ListBoundCastData::InitListLocalState);
+		    ListBoundCastData::BindListToListCast(input, LogicalType::LIST(LogicalType::VARCHAR), target));
 	case LogicalTypeId::STRUCT:
 		return BoundCastInfo(&StringToNestedTypeCast<VectorStringToStruct>,
-		                     StructBoundCastData::BindStructToStructCast(input, InitVarcharStructType(target), target),
-		                     StructBoundCastData::InitStructCastLocalState);
+		                     StructBoundCastData::BindStructToStructCast(input, InitVarcharStructType(target), target));
 	case LogicalTypeId::MAP:
 		return BoundCastInfo(&StringToNestedTypeCast<VectorStringToMap>,
 		                     MapBoundCastData::BindMapToMapCast(
-		                         input, LogicalType::MAP(LogicalType::VARCHAR, LogicalType::VARCHAR), target),
-		                     InitMapCastLocalState);
+		                         input, LogicalType::MAP(LogicalType::VARCHAR, LogicalType::VARCHAR), target));
 	default:
 		return VectorStringCastNumericSwitch(input, source, target);
 	}

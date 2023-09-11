@@ -9,7 +9,7 @@ unique_ptr<BaseStatistics> StatisticsPropagator::PropagateExpression(BoundColumn
 	if (stats == statistics_map.end()) {
 		return nullptr;
 	}
-	return stats->second->ToUnique();
+	return stats->second->Copy();
 }
 
 } // namespace duckdb

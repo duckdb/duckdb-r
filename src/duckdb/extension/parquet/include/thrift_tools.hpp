@@ -51,7 +51,8 @@ struct ReadHeadComparator {
 // 1: register all ranges that will be read, merging ranges that are consecutive
 // 2: prefetch all registered ranges
 struct ReadAheadBuffer {
-	ReadAheadBuffer(Allocator &allocator, FileHandle &handle) : allocator(allocator), handle(handle) {
+	ReadAheadBuffer(Allocator &allocator, FileHandle &handle, FileOpener &opener)
+	    : allocator(allocator), handle(handle), file_opener(opener) {
 	}
 
 	// The list of read heads
@@ -61,6 +62,7 @@ struct ReadAheadBuffer {
 
 	Allocator &allocator;
 	FileHandle &handle;
+	FileOpener &file_opener;
 
 	idx_t total_size = 0;
 
@@ -122,8 +124,8 @@ class ThriftFileTransport : public duckdb_apache::thrift::transport::TVirtualTra
 public:
 	static constexpr uint64_t PREFETCH_FALLBACK_BUFFERSIZE = 1000000;
 
-	ThriftFileTransport(Allocator &allocator, FileHandle &handle_p, bool prefetch_mode_p)
-	    : handle(handle_p), location(0), allocator(allocator), ra_buffer(ReadAheadBuffer(allocator, handle_p)),
+	ThriftFileTransport(Allocator &allocator, FileHandle &handle_p, FileOpener &opener, bool prefetch_mode_p)
+	    : handle(handle_p), location(0), allocator(allocator), ra_buffer(ReadAheadBuffer(allocator, handle_p, opener)),
 	      prefetch_mode(prefetch_mode_p) {
 	}
 

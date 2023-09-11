@@ -2,9 +2,6 @@
 #include "duckdb/storage/table/row_group.hpp"
 #include "duckdb/storage/table/column_segment.hpp"
 #include "duckdb/transaction/duck_transaction.hpp"
-#include "duckdb/storage/table/column_data.hpp"
-#include "duckdb/storage/table/row_group_collection.hpp"
-#include "duckdb/storage/table/row_group_segment_tree.hpp"
 
 namespace duckdb {
 
@@ -13,7 +10,7 @@ void TableScanState::Initialize(vector<column_t> column_ids, TableFilterSet *tab
 	this->table_filters = table_filters;
 	if (table_filters) {
 		D_ASSERT(table_filters->filters.size() > 0);
-		this->adaptive_filter = make_uniq<AdaptiveFilter>(table_filters);
+		this->adaptive_filter = make_unique<AdaptiveFilter>(table_filters);
 	}
 }
 
@@ -38,7 +35,7 @@ void ColumnScanState::NextInternal(idx_t count) {
 	}
 	row_index += count;
 	while (row_index >= current->start + current->count) {
-		current = segment_tree->GetNextSegment(current);
+		current = (ColumnSegment *)current->Next();
 		initialized = false;
 		segment_checked = false;
 		if (!current) {
@@ -55,7 +52,27 @@ void ColumnScanState::Next(idx_t count) {
 	}
 }
 
-const vector<storage_t> &CollectionScanState::GetColumnIds() {
+void ColumnScanState::NextVector() {
+	Next(STANDARD_VECTOR_SIZE);
+}
+
+const vector<column_t> &RowGroupScanState::GetColumnIds() {
+	return parent.GetColumnIds();
+}
+
+TableFilterSet *RowGroupScanState::GetFilters() {
+	return parent.GetFilters();
+}
+
+AdaptiveFilter *RowGroupScanState::GetAdaptiveFilter() {
+	return parent.GetAdaptiveFilter();
+}
+
+idx_t RowGroupScanState::GetParentMaxRow() {
+	return parent.max_row;
+}
+
+const vector<column_t> &CollectionScanState::GetColumnIds() {
 	return parent.GetColumnIds();
 }
 
@@ -67,67 +84,38 @@ AdaptiveFilter *CollectionScanState::GetAdaptiveFilter() {
 	return parent.GetAdaptiveFilter();
 }
 
-ParallelCollectionScanState::ParallelCollectionScanState()
-    : collection(nullptr), current_row_group(nullptr), processed_rows(0) {
-}
-
-CollectionScanState::CollectionScanState(TableScanState &parent_p)
-    : row_group(nullptr), vector_index(0), max_row_group_row(0), row_groups(nullptr), max_row(0), batch_index(0),
-      parent(parent_p) {
-}
-
 bool CollectionScanState::Scan(DuckTransaction &transaction, DataChunk &result) {
-	while (row_group) {
-		row_group->Scan(transaction, *this, result);
+	auto current_row_group = row_group_state.row_group;
+	while (current_row_group) {
+		current_row_group->Scan(transaction, row_group_state, result);
 		if (result.size() > 0) {
 			return true;
-		} else if (max_row <= row_group->start + row_group->count) {
-			row_group = nullptr;
-			return false;
 		} else {
 			do {
-				row_group = row_groups->GetNextSegment(row_group);
-				if (row_group) {
-					if (row_group->start >= max_row) {
-						row_group = nullptr;
-						break;
-					}
-					bool scan_row_group = row_group->InitializeScan(*this);
+				current_row_group = row_group_state.row_group = (RowGroup *)current_row_group->Next();
+				if (current_row_group) {
+					bool scan_row_group = current_row_group->InitializeScan(row_group_state);
 					if (scan_row_group) {
 						// scan this row group
 						break;
 					}
 				}
-			} while (row_group);
-		}
-	}
-	return false;
-}
-
-bool CollectionScanState::ScanCommitted(DataChunk &result, SegmentLock &l, TableScanType type) {
-	while (row_group) {
-		row_group->ScanCommitted(*this, result, type);
-		if (result.size() > 0) {
-			return true;
-		} else {
-			row_group = row_groups->GetNextSegment(l, row_group);
-			if (row_group) {
-				row_group->InitializeScan(*this);
-			}
+			} while (current_row_group);
 		}
 	}
 	return false;
 }
 
 bool CollectionScanState::ScanCommitted(DataChunk &result, TableScanType type) {
-	while (row_group) {
-		row_group->ScanCommitted(*this, result, type);
+	auto current_row_group = row_group_state.row_group;
+	while (current_row_group) {
+		current_row_group->ScanCommitted(row_group_state, result, type);
 		if (result.size() > 0) {
 			return true;
 		} else {
-			row_group = row_groups->GetNextSegment(row_group);
-			if (row_group) {
-				row_group->InitializeScan(*this);
+			current_row_group = row_group_state.row_group = (RowGroup *)current_row_group->Next();
+			if (current_row_group) {
+				current_row_group->InitializeScan(row_group_state);
 			}
 		}
 	}

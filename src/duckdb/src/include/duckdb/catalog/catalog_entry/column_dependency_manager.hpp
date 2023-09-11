@@ -23,7 +23,7 @@ class ColumnDependencyManager {
 public:
 	DUCKDB_API ColumnDependencyManager();
 	DUCKDB_API ~ColumnDependencyManager();
-	ColumnDependencyManager(ColumnDependencyManager &&other) = default;
+	DUCKDB_API ColumnDependencyManager(ColumnDependencyManager &&other) = default;
 	ColumnDependencyManager(const ColumnDependencyManager &other) = delete;
 
 public:

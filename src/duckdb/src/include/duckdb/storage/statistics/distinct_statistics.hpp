@@ -16,10 +16,8 @@ namespace duckdb {
 class Serializer;
 class Deserializer;
 class Vector;
-class FormatSerializer;
-class FormatDeserializer;
 
-class DistinctStatistics {
+class DistinctStatistics : public BaseStatistics {
 public:
 	DistinctStatistics();
 	explicit DistinctStatistics(unique_ptr<HyperLogLog> log, idx_t sample_count, idx_t total_count);
@@ -32,12 +30,12 @@ public:
 	atomic<idx_t> total_count;
 
 public:
-	void Merge(const DistinctStatistics &other);
+	void Merge(const BaseStatistics &other) override;
 
-	unique_ptr<DistinctStatistics> Copy() const;
+	unique_ptr<BaseStatistics> Copy() const override;
 
-	void Serialize(Serializer &serializer) const;
-	void Serialize(FieldWriter &writer) const;
+	void Serialize(Serializer &serializer) const override;
+	void Serialize(FieldWriter &writer) const override;
 
 	static unique_ptr<DistinctStatistics> Deserialize(Deserializer &source);
 	static unique_ptr<DistinctStatistics> Deserialize(FieldReader &reader);
@@ -45,13 +43,8 @@ public:
 	void Update(Vector &update, idx_t count, bool sample = true);
 	void Update(UnifiedVectorFormat &update_data, const LogicalType &ptype, idx_t count, bool sample = true);
 
-	string ToString() const;
+	string ToString() const override;
 	idx_t GetCount() const;
-
-	static bool TypeIsSupported(const LogicalType &type);
-
-	void FormatSerialize(FormatSerializer &serializer) const;
-	static unique_ptr<DistinctStatistics> FormatDeserialize(FormatDeserializer &deserializer);
 
 private:
 	//! For distinct statistics we sample the input to speed up insertions

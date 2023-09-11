@@ -18,26 +18,24 @@ class PhysicalHashAggregate;
 //! PhysicalColumnDataScan in the RHS.
 class PhysicalDelimJoin : public PhysicalOperator {
 public:
-	static constexpr const PhysicalOperatorType TYPE = PhysicalOperatorType::DELIM_JOIN;
-
-public:
 	PhysicalDelimJoin(vector<LogicalType> types, unique_ptr<PhysicalOperator> original_join,
-	                  vector<const_reference<PhysicalOperator>> delim_scans, idx_t estimated_cardinality);
+	                  vector<PhysicalOperator *> delim_scans, idx_t estimated_cardinality);
 
 	unique_ptr<PhysicalOperator> join;
 	unique_ptr<PhysicalHashAggregate> distinct;
-	vector<const_reference<PhysicalOperator>> delim_scans;
+	vector<PhysicalOperator *> delim_scans;
 
 public:
-	vector<const_reference<PhysicalOperator>> GetChildren() const override;
+	vector<PhysicalOperator *> GetChildren() const override;
 
 public:
 	unique_ptr<GlobalSinkState> GetGlobalSinkState(ClientContext &context) const override;
 	unique_ptr<LocalSinkState> GetLocalSinkState(ExecutionContext &context) const override;
-	SinkResultType Sink(ExecutionContext &context, DataChunk &chunk, OperatorSinkInput &input) const override;
-	SinkCombineResultType Combine(ExecutionContext &context, OperatorSinkCombineInput &input) const override;
+	SinkResultType Sink(ExecutionContext &context, GlobalSinkState &state, LocalSinkState &lstate,
+	                    DataChunk &input) const override;
+	void Combine(ExecutionContext &context, GlobalSinkState &state, LocalSinkState &lstate) const override;
 	SinkFinalizeType Finalize(Pipeline &pipeline, Event &event, ClientContext &context,
-	                          OperatorSinkFinalizeInput &input) const override;
+	                          GlobalSinkState &gstate) const override;
 
 	bool IsSink() const override {
 		return true;
@@ -45,10 +43,7 @@ public:
 	bool ParallelSink() const override {
 		return true;
 	}
-	OrderPreservationType SourceOrder() const override {
-		return OrderPreservationType::NO_ORDER;
-	}
-	bool SinkOrderDependent() const override {
+	bool IsOrderPreserving() const override {
 		return false;
 	}
 	string ParamsToString() const override;

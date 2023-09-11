@@ -21,7 +21,7 @@ struct DuckDBFunctionsData : public GlobalTableFunctionState {
 	DuckDBFunctionsData() : offset(0), offset_in_entry(0) {
 	}
 
-	vector<reference<CatalogEntry>> entries;
+	vector<CatalogEntry *> entries;
 	idx_t offset;
 	idx_t offset_in_entry;
 };
@@ -67,35 +67,30 @@ static unique_ptr<FunctionData> DuckDBFunctionsBind(ClientContext &context, Tabl
 	names.emplace_back("function_oid");
 	return_types.emplace_back(LogicalType::BIGINT);
 
-	names.emplace_back("example");
-	return_types.emplace_back(LogicalType::VARCHAR);
-
 	return nullptr;
 }
 
 static void ExtractFunctionsFromSchema(ClientContext &context, SchemaCatalogEntry &schema,
                                        DuckDBFunctionsData &result) {
 	schema.Scan(context, CatalogType::SCALAR_FUNCTION_ENTRY,
-	            [&](CatalogEntry &entry) { result.entries.push_back(entry); });
+	            [&](CatalogEntry *entry) { result.entries.push_back(entry); });
 	schema.Scan(context, CatalogType::TABLE_FUNCTION_ENTRY,
-	            [&](CatalogEntry &entry) { result.entries.push_back(entry); });
+	            [&](CatalogEntry *entry) { result.entries.push_back(entry); });
 	schema.Scan(context, CatalogType::PRAGMA_FUNCTION_ENTRY,
-	            [&](CatalogEntry &entry) { result.entries.push_back(entry); });
+	            [&](CatalogEntry *entry) { result.entries.push_back(entry); });
 }
 
 unique_ptr<GlobalTableFunctionState> DuckDBFunctionsInit(ClientContext &context, TableFunctionInitInput &input) {
-	auto result = make_uniq<DuckDBFunctionsData>();
+	auto result = make_unique<DuckDBFunctionsData>();
 
-	// scan all the schemas for tables and collect them and collect them
+	// scan all the schemas for tables and collect themand collect them
 	auto schemas = Catalog::GetAllSchemas(context);
 	for (auto &schema : schemas) {
-		ExtractFunctionsFromSchema(context, schema.get(), *result);
+		ExtractFunctionsFromSchema(context, *schema, *result);
 	};
 
 	std::sort(result->entries.begin(), result->entries.end(),
-	          [&](reference<CatalogEntry> a, reference<CatalogEntry> b) {
-		          return (int32_t)a.get().type < (int32_t)b.get().type;
-	          });
+	          [&](CatalogEntry *a, CatalogEntry *b) { return (int)a->type < (int)b->type; });
 	return std::move(result);
 }
 
@@ -108,16 +103,20 @@ struct ScalarFunctionExtractor {
 		return Value("scalar");
 	}
 
+	static Value GetFunctionDescription(ScalarFunctionCatalogEntry &entry, idx_t offset) {
+		return Value();
+	}
+
 	static Value GetReturnType(ScalarFunctionCatalogEntry &entry, idx_t offset) {
 		return Value(entry.functions.GetFunctionByOffset(offset).return_type.ToString());
 	}
 
-	static vector<Value> GetParameters(ScalarFunctionCatalogEntry &entry, idx_t offset) {
+	static Value GetParameters(ScalarFunctionCatalogEntry &entry, idx_t offset) {
 		vector<Value> results;
 		for (idx_t i = 0; i < entry.functions.GetFunctionByOffset(offset).arguments.size(); i++) {
 			results.emplace_back("col" + to_string(i));
 		}
-		return results;
+		return Value::LIST(LogicalType::VARCHAR, std::move(results));
 	}
 
 	static Value GetParameterTypes(ScalarFunctionCatalogEntry &entry, idx_t offset) {
@@ -153,16 +152,20 @@ struct AggregateFunctionExtractor {
 		return Value("aggregate");
 	}
 
+	static Value GetFunctionDescription(AggregateFunctionCatalogEntry &entry, idx_t offset) {
+		return Value();
+	}
+
 	static Value GetReturnType(AggregateFunctionCatalogEntry &entry, idx_t offset) {
 		return Value(entry.functions.GetFunctionByOffset(offset).return_type.ToString());
 	}
 
-	static vector<Value> GetParameters(AggregateFunctionCatalogEntry &entry, idx_t offset) {
+	static Value GetParameters(AggregateFunctionCatalogEntry &entry, idx_t offset) {
 		vector<Value> results;
 		for (idx_t i = 0; i < entry.functions.GetFunctionByOffset(offset).arguments.size(); i++) {
 			results.emplace_back("col" + to_string(i));
 		}
-		return results;
+		return Value::LIST(LogicalType::VARCHAR, std::move(results));
 	}
 
 	static Value GetParameterTypes(AggregateFunctionCatalogEntry &entry, idx_t offset) {
@@ -198,21 +201,25 @@ struct MacroExtractor {
 		return Value("macro");
 	}
 
+	static Value GetFunctionDescription(ScalarMacroCatalogEntry &entry, idx_t offset) {
+		return Value();
+	}
+
 	static Value GetReturnType(ScalarMacroCatalogEntry &entry, idx_t offset) {
 		return Value();
 	}
 
-	static vector<Value> GetParameters(ScalarMacroCatalogEntry &entry, idx_t offset) {
+	static Value GetParameters(ScalarMacroCatalogEntry &entry, idx_t offset) {
 		vector<Value> results;
 		for (auto &param : entry.function->parameters) {
 			D_ASSERT(param->type == ExpressionType::COLUMN_REF);
-			auto &colref = param->Cast<ColumnRefExpression>();
+			auto &colref = (ColumnRefExpression &)*param;
 			results.emplace_back(colref.GetColumnName());
 		}
 		for (auto &param_entry : entry.function->default_parameters) {
 			results.emplace_back(param_entry.first);
 		}
-		return results;
+		return Value::LIST(LogicalType::VARCHAR, std::move(results));
 	}
 
 	static Value GetParameterTypes(ScalarMacroCatalogEntry &entry, idx_t offset) {
@@ -232,7 +239,7 @@ struct MacroExtractor {
 
 	static Value GetMacroDefinition(ScalarMacroCatalogEntry &entry, idx_t offset) {
 		D_ASSERT(entry.function->type == MacroType::SCALAR_MACRO);
-		auto &func = entry.function->Cast<ScalarMacroFunction>();
+		auto &func = (ScalarMacroFunction &)*entry.function;
 		return func.expression->ToString();
 	}
 
@@ -250,21 +257,25 @@ struct TableMacroExtractor {
 		return Value("table_macro");
 	}
 
+	static Value GetFunctionDescription(TableMacroCatalogEntry &entry, idx_t offset) {
+		return Value();
+	}
+
 	static Value GetReturnType(TableMacroCatalogEntry &entry, idx_t offset) {
 		return Value();
 	}
 
-	static vector<Value> GetParameters(TableMacroCatalogEntry &entry, idx_t offset) {
+	static Value GetParameters(TableMacroCatalogEntry &entry, idx_t offset) {
 		vector<Value> results;
 		for (auto &param : entry.function->parameters) {
 			D_ASSERT(param->type == ExpressionType::COLUMN_REF);
-			auto &colref = param->Cast<ColumnRefExpression>();
+			auto &colref = (ColumnRefExpression &)*param;
 			results.emplace_back(colref.GetColumnName());
 		}
 		for (auto &param_entry : entry.function->default_parameters) {
 			results.emplace_back(param_entry.first);
 		}
-		return results;
+		return Value::LIST(LogicalType::VARCHAR, std::move(results));
 	}
 
 	static Value GetParameterTypes(TableMacroCatalogEntry &entry, idx_t offset) {
@@ -284,7 +295,7 @@ struct TableMacroExtractor {
 
 	static Value GetMacroDefinition(TableMacroCatalogEntry &entry, idx_t offset) {
 		if (entry.function->type == MacroType::SCALAR_MACRO) {
-			auto &func = entry.function->Cast<ScalarMacroFunction>();
+			auto &func = (ScalarMacroFunction &)*entry.function;
 			return func.expression->ToString();
 		}
 		return Value();
@@ -304,11 +315,15 @@ struct TableFunctionExtractor {
 		return Value("table");
 	}
 
+	static Value GetFunctionDescription(TableFunctionCatalogEntry &entry, idx_t offset) {
+		return Value();
+	}
+
 	static Value GetReturnType(TableFunctionCatalogEntry &entry, idx_t offset) {
 		return Value();
 	}
 
-	static vector<Value> GetParameters(TableFunctionCatalogEntry &entry, idx_t offset) {
+	static Value GetParameters(TableFunctionCatalogEntry &entry, idx_t offset) {
 		vector<Value> results;
 		auto fun = entry.functions.GetFunctionByOffset(offset);
 		for (idx_t i = 0; i < fun.arguments.size(); i++) {
@@ -317,7 +332,7 @@ struct TableFunctionExtractor {
 		for (auto &param : fun.named_parameters) {
 			results.emplace_back(param.first);
 		}
-		return results;
+		return Value::LIST(LogicalType::VARCHAR, std::move(results));
 	}
 
 	static Value GetParameterTypes(TableFunctionCatalogEntry &entry, idx_t offset) {
@@ -356,11 +371,15 @@ struct PragmaFunctionExtractor {
 		return Value("pragma");
 	}
 
+	static Value GetFunctionDescription(PragmaFunctionCatalogEntry &entry, idx_t offset) {
+		return Value();
+	}
+
 	static Value GetReturnType(PragmaFunctionCatalogEntry &entry, idx_t offset) {
 		return Value();
 	}
 
-	static vector<Value> GetParameters(PragmaFunctionCatalogEntry &entry, idx_t offset) {
+	static Value GetParameters(PragmaFunctionCatalogEntry &entry, idx_t offset) {
 		vector<Value> results;
 		auto fun = entry.functions.GetFunctionByOffset(offset);
 
@@ -370,7 +389,7 @@ struct PragmaFunctionExtractor {
 		for (auto &param : fun.named_parameters) {
 			results.emplace_back(param.first);
 		}
-		return results;
+		return Value::LIST(LogicalType::VARCHAR, std::move(results));
 	}
 
 	static Value GetParameterTypes(PragmaFunctionCatalogEntry &entry, idx_t offset) {
@@ -401,35 +420,30 @@ struct PragmaFunctionExtractor {
 };
 
 template <class T, class OP>
-bool ExtractFunctionData(FunctionEntry &entry, idx_t function_idx, DataChunk &output, idx_t output_offset) {
-	auto &function = entry.Cast<T>();
+bool ExtractFunctionData(StandardEntry *entry, idx_t function_idx, DataChunk &output, idx_t output_offset) {
+	auto &function = (T &)*entry;
 	idx_t col = 0;
 
 	// database_name, LogicalType::VARCHAR
-	output.SetValue(col++, output_offset, Value(function.schema.catalog.GetName()));
+	output.SetValue(col++, output_offset, Value(entry->schema->catalog->GetName()));
 
 	// schema_name, LogicalType::VARCHAR
-	output.SetValue(col++, output_offset, Value(function.schema.name));
+	output.SetValue(col++, output_offset, Value(entry->schema->name));
 
 	// function_name, LogicalType::VARCHAR
-	output.SetValue(col++, output_offset, Value(function.name));
+	output.SetValue(col++, output_offset, Value(entry->name));
 
 	// function_type, LogicalType::VARCHAR
 	output.SetValue(col++, output_offset, Value(OP::GetFunctionType()));
 
 	// function_description, LogicalType::VARCHAR
-	output.SetValue(col++, output_offset, entry.description.empty() ? Value() : entry.description);
+	output.SetValue(col++, output_offset, OP::GetFunctionDescription(function, function_idx));
 
 	// return_type, LogicalType::VARCHAR
 	output.SetValue(col++, output_offset, OP::GetReturnType(function, function_idx));
 
 	// parameters, LogicalType::LIST(LogicalType::VARCHAR)
-	auto parameters = OP::GetParameters(function, function_idx);
-	for (idx_t param_idx = 0; param_idx < function.parameter_names.size() && param_idx < parameters.size();
-	     param_idx++) {
-		parameters[param_idx] = Value(function.parameter_names[param_idx]);
-	}
-	output.SetValue(col++, output_offset, Value::LIST(LogicalType::VARCHAR, std::move(parameters)));
+	output.SetValue(col++, output_offset, OP::GetParameters(function, function_idx));
 
 	// parameter_types, LogicalType::LIST(LogicalType::VARCHAR)
 	output.SetValue(col++, output_offset, OP::GetParameterTypes(function, function_idx));
@@ -444,19 +458,16 @@ bool ExtractFunctionData(FunctionEntry &entry, idx_t function_idx, DataChunk &ou
 	output.SetValue(col++, output_offset, OP::HasSideEffects(function, function_idx));
 
 	// internal, LogicalType::BOOLEAN
-	output.SetValue(col++, output_offset, Value::BOOLEAN(function.internal));
+	output.SetValue(col++, output_offset, Value::BOOLEAN(entry->internal));
 
 	// function_oid, LogicalType::BIGINT
-	output.SetValue(col++, output_offset, Value::BIGINT(function.oid));
-
-	// example, LogicalType::VARCHAR
-	output.SetValue(col++, output_offset, entry.example.empty() ? Value() : entry.example);
+	output.SetValue(col++, output_offset, Value::BIGINT(entry->oid));
 
 	return function_idx + 1 == OP::FunctionCount(function);
 }
 
 void DuckDBFunctionsFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
-	auto &data = data_p.global_state->Cast<DuckDBFunctionsData>();
+	auto &data = (DuckDBFunctionsData &)*data_p.global_state;
 	if (data.offset >= data.entries.size()) {
 		// finished returning values
 		return;
@@ -465,34 +476,35 @@ void DuckDBFunctionsFunction(ClientContext &context, TableFunctionInput &data_p,
 	// either fill up the chunk or return all the remaining columns
 	idx_t count = 0;
 	while (data.offset < data.entries.size() && count < STANDARD_VECTOR_SIZE) {
-		auto &entry = data.entries[data.offset].get().Cast<FunctionEntry>();
+		auto &entry = data.entries[data.offset];
+		auto standard_entry = (StandardEntry *)entry;
 		bool finished;
 
-		switch (entry.type) {
+		switch (entry->type) {
 		case CatalogType::SCALAR_FUNCTION_ENTRY:
 			finished = ExtractFunctionData<ScalarFunctionCatalogEntry, ScalarFunctionExtractor>(
-			    entry, data.offset_in_entry, output, count);
+			    standard_entry, data.offset_in_entry, output, count);
 			break;
 		case CatalogType::AGGREGATE_FUNCTION_ENTRY:
 			finished = ExtractFunctionData<AggregateFunctionCatalogEntry, AggregateFunctionExtractor>(
-			    entry, data.offset_in_entry, output, count);
+			    standard_entry, data.offset_in_entry, output, count);
 			break;
 		case CatalogType::TABLE_MACRO_ENTRY:
-			finished = ExtractFunctionData<TableMacroCatalogEntry, TableMacroExtractor>(entry, data.offset_in_entry,
-			                                                                            output, count);
+			finished = ExtractFunctionData<TableMacroCatalogEntry, TableMacroExtractor>(
+			    standard_entry, data.offset_in_entry, output, count);
 			break;
 
 		case CatalogType::MACRO_ENTRY:
-			finished = ExtractFunctionData<ScalarMacroCatalogEntry, MacroExtractor>(entry, data.offset_in_entry, output,
-			                                                                        count);
+			finished = ExtractFunctionData<ScalarMacroCatalogEntry, MacroExtractor>(
+			    standard_entry, data.offset_in_entry, output, count);
 			break;
 		case CatalogType::TABLE_FUNCTION_ENTRY:
 			finished = ExtractFunctionData<TableFunctionCatalogEntry, TableFunctionExtractor>(
-			    entry, data.offset_in_entry, output, count);
+			    standard_entry, data.offset_in_entry, output, count);
 			break;
 		case CatalogType::PRAGMA_FUNCTION_ENTRY:
 			finished = ExtractFunctionData<PragmaFunctionCatalogEntry, PragmaFunctionExtractor>(
-			    entry, data.offset_in_entry, output, count);
+			    standard_entry, data.offset_in_entry, output, count);
 			break;
 		default:
 			throw InternalException("FIXME: unrecognized function type in duckdb_functions");

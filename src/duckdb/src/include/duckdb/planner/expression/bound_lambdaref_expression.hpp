@@ -22,9 +22,6 @@ class FieldWriter;
 //! which refers to the physical chunk of the lambda parameter during execution.
 class BoundLambdaRefExpression : public Expression {
 public:
-	static constexpr const ExpressionClass TYPE = ExpressionClass::BOUND_LAMBDA_REF;
-
-public:
 	BoundLambdaRefExpression(LogicalType type, ColumnBinding binding, idx_t lambda_index, idx_t depth = 0);
 	BoundLambdaRefExpression(string alias, LogicalType type, ColumnBinding binding, idx_t lambda_index,
 	                         idx_t depth = 0);
@@ -46,15 +43,12 @@ public:
 
 	string ToString() const override;
 
-	bool Equals(const BaseExpression &other) const override;
+	bool Equals(const BaseExpression *other) const override;
 	hash_t Hash() const override;
 
 	unique_ptr<Expression> Copy() override;
 
 	void Serialize(FieldWriter &writer) const override;
 	static unique_ptr<Expression> Deserialize(ExpressionDeserializationState &state, FieldReader &reader);
-
-	void FormatSerialize(FormatSerializer &serializer) const override;
-	static unique_ptr<Expression> FormatDeserialize(FormatDeserializer &deserializer);
 };
 } // namespace duckdb

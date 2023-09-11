@@ -16,13 +16,13 @@ WriteParquetRelation::WriteParquetRelation(shared_ptr<Relation> child_p, string 
 BoundStatement WriteParquetRelation::Bind(Binder &binder) {
 	CopyStatement copy;
 	copy.select_statement = child->GetQueryNode();
-	auto info = make_uniq<CopyInfo>();
+	auto info = make_unique<CopyInfo>();
 	info->is_from = false;
 	info->file_path = parquet_file;
 	info->format = "parquet";
 	info->options = options;
 	copy.info = std::move(info);
-	return binder.Bind(copy.Cast<SQLStatement>());
+	return binder.Bind((SQLStatement &)copy);
 }
 
 const vector<ColumnDefinition> &WriteParquetRelation::Columns() {

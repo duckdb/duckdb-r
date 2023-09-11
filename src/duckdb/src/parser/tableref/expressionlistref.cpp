@@ -1,8 +1,6 @@
 #include "duckdb/parser/tableref/expressionlistref.hpp"
 
 #include "duckdb/common/field_writer.hpp"
-#include "duckdb/common/serializer/format_serializer.hpp"
-#include "duckdb/common/serializer/format_deserializer.hpp"
 
 namespace duckdb {
 
@@ -27,20 +25,20 @@ string ExpressionListRef::ToString() const {
 	return BaseToString(result, expected_names);
 }
 
-bool ExpressionListRef::Equals(const TableRef &other_p) const {
+bool ExpressionListRef::Equals(const TableRef *other_p) const {
 	if (!TableRef::Equals(other_p)) {
 		return false;
 	}
-	auto &other = other_p.Cast<ExpressionListRef>();
-	if (values.size() != other.values.size()) {
+	auto other = (ExpressionListRef *)other_p;
+	if (values.size() != other->values.size()) {
 		return false;
 	}
 	for (idx_t i = 0; i < values.size(); i++) {
-		if (values[i].size() != other.values[i].size()) {
+		if (values[i].size() != other->values[i].size()) {
 			return false;
 		}
 		for (idx_t j = 0; j < values[i].size(); j++) {
-			if (!values[i][j]->Equals(*other.values[i][j])) {
+			if (!values[i][j]->Equals(other->values[i][j].get())) {
 				return false;
 			}
 		}
@@ -50,7 +48,7 @@ bool ExpressionListRef::Equals(const TableRef &other_p) const {
 
 unique_ptr<TableRef> ExpressionListRef::Copy() {
 	// value list
-	auto result = make_uniq<ExpressionListRef>();
+	auto result = make_unique<ExpressionListRef>();
 	for (auto &val_list : values) {
 		vector<unique_ptr<ParsedExpression>> new_val_list;
 		new_val_list.reserve(val_list.size());
@@ -76,7 +74,7 @@ void ExpressionListRef::Serialize(FieldWriter &writer) const {
 }
 
 unique_ptr<TableRef> ExpressionListRef::Deserialize(FieldReader &reader) {
-	auto result = make_uniq<ExpressionListRef>();
+	auto result = make_unique<ExpressionListRef>();
 	// value list
 	result->expected_names = reader.ReadRequiredList<string>();
 	result->expected_types = reader.ReadRequiredSerializableList<LogicalType, LogicalType>();

@@ -18,9 +18,6 @@ namespace duckdb {
 //! every row in a table
 class CheckConstraint : public Constraint {
 public:
-	static constexpr const ConstraintType TYPE = ConstraintType::CHECK;
-
-public:
 	DUCKDB_API explicit CheckConstraint(unique_ptr<ParsedExpression> expression);
 
 	unique_ptr<ParsedExpression> expression;
@@ -32,9 +29,6 @@ public:
 
 	DUCKDB_API void Serialize(FieldWriter &writer) const override;
 	DUCKDB_API static unique_ptr<Constraint> Deserialize(FieldReader &source);
-
-	DUCKDB_API void FormatSerialize(FormatSerializer &serializer) const override;
-	DUCKDB_API static unique_ptr<Constraint> FormatDeserialize(FormatDeserializer &deserializer);
 };
 
 } // namespace duckdb

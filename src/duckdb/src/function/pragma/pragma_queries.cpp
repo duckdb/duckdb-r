@@ -1,11 +1,8 @@
-#include "duckdb/catalog/catalog_search_path.hpp"
 #include "duckdb/common/constants.hpp"
 #include "duckdb/common/file_system.hpp"
 #include "duckdb/common/string_util.hpp"
 #include "duckdb/function/pragma/pragma_functions.hpp"
 #include "duckdb/main/config.hpp"
-#include "duckdb/main/database_manager.hpp"
-#include "duckdb/main/client_data.hpp"
 #include "duckdb/parser/parser.hpp"
 #include "duckdb/parser/qualified_name.hpp"
 #include "duckdb/parser/statement/copy_statement.hpp"
@@ -18,59 +15,21 @@ string PragmaTableInfo(ClientContext &context, const FunctionParameters &paramet
 }
 
 string PragmaShowTables(ClientContext &context, const FunctionParameters &parameters) {
-	// clang-format off
-	return R"EOF(
-	with "tables" as
-	(
-		SELECT table_name as "name"
-		FROM duckdb_tables
-		where in_search_path(database_name, schema_name)
-	), "views" as
-	(
-		SELECT view_name as "name"
-		FROM duckdb_views
-		where in_search_path(database_name, schema_name)
-	), db_objects as
-	(
-		SELECT "name" FROM "tables"
-		UNION ALL
-		SELECT "name" FROM "views"
-	)
-	SELECT "name"
-	FROM db_objects
-	ORDER BY "name";)EOF";
-	// clang-format on
+	return "SELECT name FROM sqlite_master ORDER BY name;";
 }
 
 string PragmaShowTablesExpanded(ClientContext &context, const FunctionParameters &parameters) {
 	return R"(
-	SELECT
-		t.database_name AS database,
-		t.schema_name AS schema,
-		t.table_name AS name,
-		LIST(c.column_name order by c.column_index) AS column_names,
-		LIST(c.data_type order by c.column_index) AS column_types,
-		FIRST(t.temporary) AS temporary,
-	FROM duckdb_tables t
-	JOIN duckdb_columns c
-	USING (table_oid)
-	GROUP BY database, schema, name
-
-	UNION ALL
-
-	SELECT
-		v.database_name AS database,
-		v.schema_name AS schema,
-		v.view_name AS name,
-		LIST(c.column_name order by c.column_index) AS column_names,
-		LIST(c.data_type order by c.column_index) AS column_types,
-		FIRST(v.temporary) AS temporary,
-	FROM duckdb_views v
-	JOIN duckdb_columns c
-	ON (v.view_oid=c.table_oid)
-	GROUP BY database, schema, name
-
-	ORDER BY database, schema, name
+			SELECT
+				t.table_name,
+				LIST(c.column_name order by c.column_index) AS column_names,
+				LIST(c.data_type order by c.column_index) AS column_types,
+				FIRST(t.temporary) AS temporary
+			FROM duckdb_tables t
+			JOIN duckdb_columns c
+			USING (table_oid)
+			GROUP BY t.table_name
+			ORDER BY t.table_name;
 	)";
 }
 
@@ -123,8 +82,7 @@ string PragmaShow(ClientContext &context, const FunctionParameters &parameters) 
 	LEFT JOIN duckdb_columns cols 
 	ON cols.column_name = pragma_table_info.name 
 	AND cols.table_name='%table_name%'
-	AND cols.schema_name='%table_schema%'
-	ORDER BY column_index;)";
+	AND cols.schema_name='%table_schema%';)";
 	// clang-format on
 
 	sql = StringUtil::Replace(sql, "%func_param_table%", parameters.values[0].ToString());
@@ -137,16 +95,13 @@ string PragmaVersion(ClientContext &context, const FunctionParameters &parameter
 	return "SELECT * FROM pragma_version();";
 }
 
-string PragmaPlatform(ClientContext &context, const FunctionParameters &parameters) {
-	return "SELECT * FROM pragma_platform();";
-}
-
 string PragmaImportDatabase(ClientContext &context, const FunctionParameters &parameters) {
 	auto &config = DBConfig::GetConfig(context);
 	if (!config.options.enable_external_access) {
 		throw PermissionException("Import is disabled through configuration");
 	}
 	auto &fs = FileSystem::GetFileSystem(context);
+	auto *opener = FileSystem::GetFileOpener(context);
 
 	string final_query;
 	// read the "shema.sql" and "load.sql" files
@@ -154,9 +109,9 @@ string PragmaImportDatabase(ClientContext &context, const FunctionParameters &pa
 	for (auto &file : files) {
 		auto file_path = fs.JoinPath(parameters.values[0].ToString(), file);
 		auto handle = fs.OpenFile(file_path, FileFlags::FILE_FLAGS_READ, FileSystem::DEFAULT_LOCK,
-		                          FileSystem::DEFAULT_COMPRESSION);
+		                          FileSystem::DEFAULT_COMPRESSION, opener);
 		auto fsize = fs.GetFileSize(*handle);
-		auto buffer = make_unsafe_uniq_array<char>(fsize);
+		auto buffer = unique_ptr<char[]>(new char[fsize]);
 		fs.Read(*handle, buffer.get(), fsize);
 		auto query = string(buffer.get(), fsize);
 		// Replace the placeholder with the path provided to IMPORT
@@ -167,7 +122,7 @@ string PragmaImportDatabase(ClientContext &context, const FunctionParameters &pa
 			query.clear();
 			for (auto &statement_p : copy_statements) {
 				D_ASSERT(statement_p->type == StatementType::COPY_STATEMENT);
-				auto &statement = statement_p->Cast<CopyStatement>();
+				auto &statement = (CopyStatement &)*statement_p;
 				auto &info = *statement.info;
 				auto file_name = fs.ExtractName(info.file_path);
 				info.file_path = fs.JoinPath(parameters.values[0].ToString(), file_name);
@@ -197,7 +152,6 @@ void PragmaQueries::RegisterFunction(BuiltinFunctions &set) {
 	set.AddFunction(PragmaFunction::PragmaStatement("collations", PragmaCollations));
 	set.AddFunction(PragmaFunction::PragmaCall("show", PragmaShow, {LogicalType::VARCHAR}));
 	set.AddFunction(PragmaFunction::PragmaStatement("version", PragmaVersion));
-	set.AddFunction(PragmaFunction::PragmaStatement("platform", PragmaPlatform));
 	set.AddFunction(PragmaFunction::PragmaStatement("database_size", PragmaDatabaseSize));
 	set.AddFunction(PragmaFunction::PragmaStatement("functions", PragmaFunctionsQuery));
 	set.AddFunction(PragmaFunction::PragmaCall("import_database", PragmaImportDatabase, {LogicalType::VARCHAR}));

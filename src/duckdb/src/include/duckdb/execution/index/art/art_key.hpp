@@ -17,37 +17,36 @@
 
 namespace duckdb {
 
-class ARTKey {
+class Key {
 public:
-	ARTKey();
-	ARTKey(const data_ptr_t &data, const uint32_t &len);
-	ARTKey(ArenaAllocator &allocator, const uint32_t &len);
+	Key();
+	Key(data_ptr_t data, idx_t len);
+	Key(ArenaAllocator &allocator, idx_t len);
 
-	uint32_t len;
+	idx_t len;
 	data_ptr_t data;
 
 public:
 	template <class T>
-	static inline ARTKey CreateARTKey(ArenaAllocator &allocator, const LogicalType &type, T element) {
-		auto data = ARTKey::CreateData<T>(allocator, element);
-		return ARTKey(data, sizeof(element));
+	static inline Key CreateKey(ArenaAllocator &allocator, const LogicalType &type, T element) {
+		auto data = Key::CreateData<T>(allocator, element);
+		return Key(data, sizeof(element));
 	}
 
 	template <class T>
-	static inline ARTKey CreateARTKey(ArenaAllocator &allocator, const LogicalType &type, const Value &element) {
-		return CreateARTKey(allocator, type, element.GetValueUnsafe<T>());
+	static inline Key CreateKey(ArenaAllocator &allocator, const LogicalType &type, const Value &element) {
+		return CreateKey(allocator, type, element.GetValueUnsafe<T>());
 	}
 
 	template <class T>
-	static inline void CreateARTKey(ArenaAllocator &allocator, const LogicalType &type, ARTKey &key, T element) {
-		key.data = ARTKey::CreateData<T>(allocator, element);
+	static inline void CreateKey(ArenaAllocator &allocator, const LogicalType &type, Key &key, T element) {
+		key.data = Key::CreateData<T>(allocator, element);
 		key.len = sizeof(element);
 	}
 
 	template <class T>
-	static inline void CreateARTKey(ArenaAllocator &allocator, const LogicalType &type, ARTKey &key,
-	                                const Value element) {
-		key.data = ARTKey::CreateData<T>(allocator, element.GetValueUnsafe<T>());
+	static inline void CreateKey(ArenaAllocator &allocator, const LogicalType &type, Key &key, const Value element) {
+		key.data = Key::CreateData<T>(allocator, element.GetValueUnsafe<T>());
 		key.len = sizeof(element);
 	}
 
@@ -58,17 +57,14 @@ public:
 	const data_t &operator[](size_t i) const {
 		return data[i];
 	}
-	bool operator>(const ARTKey &k) const;
-	bool operator>=(const ARTKey &k) const;
-	bool operator==(const ARTKey &k) const;
+	bool operator>(const Key &k) const;
+	bool operator<(const Key &k) const;
+	bool operator>=(const Key &k) const;
+	bool operator==(const Key &k) const;
 
-	inline bool ByteMatches(const ARTKey &other, const uint32_t &depth) const {
-		return data[depth] == other[depth];
-	}
-	inline bool Empty() const {
-		return len == 0;
-	}
-	void ConcatenateARTKey(ArenaAllocator &allocator, ARTKey &concat_key);
+	bool ByteMatches(Key &other, idx_t &depth);
+	bool Empty();
+	void ConcatenateKey(ArenaAllocator &allocator, Key &concat_key);
 
 private:
 	template <class T>
@@ -80,9 +76,9 @@ private:
 };
 
 template <>
-ARTKey ARTKey::CreateARTKey(ArenaAllocator &allocator, const LogicalType &type, string_t value);
+Key Key::CreateKey(ArenaAllocator &allocator, const LogicalType &type, string_t value);
 template <>
-ARTKey ARTKey::CreateARTKey(ArenaAllocator &allocator, const LogicalType &type, const char *value);
+Key Key::CreateKey(ArenaAllocator &allocator, const LogicalType &type, const char *value);
 template <>
-void ARTKey::CreateARTKey(ArenaAllocator &allocator, const LogicalType &type, ARTKey &key, string_t value);
+void Key::CreateKey(ArenaAllocator &allocator, const LogicalType &type, Key &key, string_t value);
 } // namespace duckdb

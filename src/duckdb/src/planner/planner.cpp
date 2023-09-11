@@ -1,18 +1,15 @@
 #include "duckdb/planner/planner.hpp"
-
+#include "duckdb/main/query_profiler.hpp"
 #include "duckdb/common/serializer.hpp"
-#include "duckdb/common/serializer/buffered_deserializer.hpp"
-#include "duckdb/execution/expression_executor.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/main/client_data.hpp"
 #include "duckdb/main/database.hpp"
 #include "duckdb/main/prepared_statement_data.hpp"
-#include "duckdb/main/query_profiler.hpp"
 #include "duckdb/planner/binder.hpp"
 #include "duckdb/planner/expression/bound_parameter_expression.hpp"
+#include "duckdb/execution/expression_executor.hpp"
+#include "duckdb/common/serializer/buffered_deserializer.hpp"
 #include "duckdb/transaction/meta_transaction.hpp"
-#include "duckdb/common/serializer/binary_serializer.hpp"
-#include "duckdb/common/serializer/binary_deserializer.hpp"
 
 namespace duckdb {
 
@@ -83,15 +80,15 @@ void Planner::CreatePlan(SQLStatement &statement) {
 
 	// set up a map of parameter number -> value entries
 	for (auto &kv : bound_parameters.parameters) {
-		auto &identifier = kv.first;
-		auto &param = kv.second;
+		auto parameter_index = kv.first;
+		auto &parameter_data = kv.second;
 		// check if the type of the parameter could be resolved
-		if (!param->return_type.IsValid()) {
+		if (!parameter_data->return_type.IsValid()) {
 			properties.bound_all_parameters = false;
 			continue;
 		}
-		param->SetValue(Value(param->return_type));
-		value_map[identifier] = param;
+		parameter_data->value = Value(parameter_data->return_type);
+		value_map[parameter_index] = parameter_data;
 	}
 }
 
@@ -145,35 +142,45 @@ void Planner::CreatePlan(unique_ptr<SQLStatement> statement) {
 }
 
 static bool OperatorSupportsSerialization(LogicalOperator &op) {
+	switch (op.type) {
+	case LogicalOperatorType::LOGICAL_INSERT:
+	case LogicalOperatorType::LOGICAL_UPDATE:
+	case LogicalOperatorType::LOGICAL_DELETE:
+	case LogicalOperatorType::LOGICAL_PREPARE:
+	case LogicalOperatorType::LOGICAL_EXECUTE:
+	case LogicalOperatorType::LOGICAL_ALTER:
+	case LogicalOperatorType::LOGICAL_CREATE_TABLE:
+	case LogicalOperatorType::LOGICAL_CREATE_INDEX:
+	case LogicalOperatorType::LOGICAL_CREATE_SEQUENCE:
+	case LogicalOperatorType::LOGICAL_CREATE_VIEW:
+	case LogicalOperatorType::LOGICAL_CREATE_SCHEMA:
+	case LogicalOperatorType::LOGICAL_CREATE_MACRO:
+	case LogicalOperatorType::LOGICAL_PRAGMA:
+	case LogicalOperatorType::LOGICAL_TRANSACTION:
+	case LogicalOperatorType::LOGICAL_CREATE_TYPE:
+	case LogicalOperatorType::LOGICAL_EXPLAIN:
+	case LogicalOperatorType::LOGICAL_COPY_TO_FILE:
+	case LogicalOperatorType::LOGICAL_VACUUM:
+		// unsupported (for now)
+		return false;
+	default:
+		break;
+	}
 	for (auto &child : op.children) {
 		if (!OperatorSupportsSerialization(*child)) {
 			return false;
 		}
 	}
-	return op.SupportSerialization();
+	return true;
 }
 
-void Planner::VerifyPlan(ClientContext &context, unique_ptr<LogicalOperator> &op,
-                         optional_ptr<bound_parameter_map_t> map) {
-#ifdef DUCKDB_ALTERNATIVE_VERIFY
-	// if alternate verification is enabled we run the original operator
-	return;
-#endif
+void Planner::VerifyPlan(ClientContext &context, unique_ptr<LogicalOperator> &op, bound_parameter_map_t *map) {
 	if (!op || !ClientConfig::GetConfig(context).verify_serializer) {
 		return;
 	}
 	//! SELECT only for now
 	if (!OperatorSupportsSerialization(*op)) {
 		return;
-	}
-
-	// format (de)serialization of this operator
-	try {
-		auto blob = BinarySerializer::Serialize(*op, true);
-		bound_parameter_map_t parameters;
-		auto result = BinaryDeserializer::Deserialize<LogicalOperator>(context, parameters, blob.data(), blob.size());
-	} catch (SerializationException &ex) {
-		// pass
 	}
 
 	BufferedSerializer serializer;
@@ -184,7 +191,7 @@ void Planner::VerifyPlan(ClientContext &context, unique_ptr<LogicalOperator> &op
 		return;
 	}
 	auto data = serializer.GetData();
-	auto deserializer = BufferedContextDeserializer(context, data.data.get(), data.size);
+	auto deserializer = BufferedDeserializer(data.data.get(), data.size);
 
 	PlanDeserializationState state(context);
 	auto new_plan = LogicalOperator::Deserialize(deserializer, state);

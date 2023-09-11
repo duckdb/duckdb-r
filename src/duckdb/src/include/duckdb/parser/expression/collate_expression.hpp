@@ -15,9 +15,6 @@ namespace duckdb {
 //! CollateExpression represents a COLLATE statement
 class CollateExpression : public ParsedExpression {
 public:
-	static constexpr const ExpressionClass TYPE = ExpressionClass::COLLATE;
-
-public:
 	CollateExpression(string collation, unique_ptr<ParsedExpression> child);
 
 	//! The child of the cast expression
@@ -28,16 +25,11 @@ public:
 public:
 	string ToString() const override;
 
-	static bool Equal(const CollateExpression &a, const CollateExpression &b);
+	static bool Equal(const CollateExpression *a, const CollateExpression *b);
 
 	unique_ptr<ParsedExpression> Copy() const override;
 
 	void Serialize(FieldWriter &writer) const override;
 	static unique_ptr<ParsedExpression> Deserialize(ExpressionType type, FieldReader &source);
-	void FormatSerialize(FormatSerializer &serializer) const override;
-	static unique_ptr<ParsedExpression> FormatDeserialize(FormatDeserializer &deserializer);
-
-private:
-	CollateExpression();
 };
 } // namespace duckdb

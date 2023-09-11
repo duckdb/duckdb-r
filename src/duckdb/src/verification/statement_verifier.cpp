@@ -1,16 +1,14 @@
 #include "duckdb/verification/statement_verifier.hpp"
 
 #include "duckdb/common/preserved_error.hpp"
-#include "duckdb/common/types/column/column_data_collection.hpp"
+#include "duckdb/common/types/column_data_collection.hpp"
 #include "duckdb/parser/parser.hpp"
 #include "duckdb/verification/copied_statement_verifier.hpp"
 #include "duckdb/verification/deserialized_statement_verifier.hpp"
-#include "duckdb/verification/deserialized_statement_verifier_v2.hpp"
 #include "duckdb/verification/external_statement_verifier.hpp"
 #include "duckdb/verification/parsed_statement_verifier.hpp"
 #include "duckdb/verification/prepared_statement_verifier.hpp"
 #include "duckdb/verification/unoptimized_statement_verifier.hpp"
-#include "duckdb/verification/no_operator_caching_verifier.hpp"
 
 namespace duckdb {
 
@@ -33,16 +31,10 @@ unique_ptr<StatementVerifier> StatementVerifier::Create(VerificationType type, c
 		return CopiedStatementVerifier::Create(statement_p);
 	case VerificationType::DESERIALIZED:
 		return DeserializedStatementVerifier::Create(statement_p);
-	case VerificationType::DESERIALIZED_V2:
-		return DeserializedStatementVerifierV2::Create(statement_p);
-	case VerificationType::DESERIALIZED_V2_NO_DEFAULT:
-		return DeserializedStatementVerifierNoDefaultV2::Create(statement_p);
 	case VerificationType::PARSED:
 		return ParsedStatementVerifier::Create(statement_p);
 	case VerificationType::UNOPTIMIZED:
 		return UnoptimizedStatementVerifier::Create(statement_p);
-	case VerificationType::NO_OPERATOR_CACHING:
-		return NoOperatorCachingVerifier::Create(statement_p);
 	case VerificationType::PREPARED:
 		return PreparedStatementVerifier::Create(statement_p);
 	case VerificationType::EXTERNAL:
@@ -59,7 +51,7 @@ void StatementVerifier::CheckExpressions(const StatementVerifier &other) const {
 
 	// Check equality
 	if (other.RequireEquality()) {
-		D_ASSERT(statement->Equals(*other.statement));
+		D_ASSERT(statement->Equals(other.statement.get()));
 	}
 
 #ifdef DEBUG
@@ -68,6 +60,7 @@ void StatementVerifier::CheckExpressions(const StatementVerifier &other) const {
 	const auto expr_count = select_list.size();
 	if (other.RequireEquality()) {
 		for (idx_t i = 0; i < expr_count; i++) {
+			D_ASSERT(!select_list[i]->Equals(nullptr));
 			// Run the ToString, to verify that it doesn't crash
 			select_list[i]->ToString();
 
@@ -76,7 +69,7 @@ void StatementVerifier::CheckExpressions(const StatementVerifier &other) const {
 			}
 
 			// Check that the expressions are equivalent
-			D_ASSERT(select_list[i]->Equals(*other.select_list[i]));
+			D_ASSERT(select_list[i]->Equals(other.select_list[i].get()));
 			// Check that the hashes are equivalent too
 			D_ASSERT(select_list[i]->Hash() == other.select_list[i]->Hash());
 
@@ -97,7 +90,7 @@ void StatementVerifier::CheckExpressions() const {
 			auto hash2 = select_list[inner_idx]->Hash();
 			if (hash != hash2) {
 				// if the hashes are not equivalent, the expressions should not be equivalent
-				D_ASSERT(!select_list[outer_idx]->Equals(*select_list[inner_idx]));
+				D_ASSERT(!select_list[outer_idx]->Equals(select_list[inner_idx].get()));
 			}
 		}
 	}
@@ -111,7 +104,6 @@ bool StatementVerifier::Run(
 
 	context.interrupted = false;
 	context.config.enable_optimizer = !DisableOptimizer();
-	context.config.enable_caching_operators = !DisableOperatorCaching();
 	context.config.force_external = ForceExternal();
 	try {
 		auto result = run(query, std::move(statement));
@@ -121,10 +113,10 @@ bool StatementVerifier::Run(
 		materialized_result = unique_ptr_cast<QueryResult, MaterializedQueryResult>(std::move(result));
 	} catch (const Exception &ex) {
 		failed = true;
-		materialized_result = make_uniq<MaterializedQueryResult>(PreservedError(ex));
+		materialized_result = make_unique<MaterializedQueryResult>(PreservedError(ex));
 	} catch (std::exception &ex) {
 		failed = true;
-		materialized_result = make_uniq<MaterializedQueryResult>(PreservedError(ex));
+		materialized_result = make_unique<MaterializedQueryResult>(PreservedError(ex));
 	}
 	context.interrupted = false;
 

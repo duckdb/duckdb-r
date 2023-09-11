@@ -11,7 +11,6 @@
 #include "duckdb/common/enums/catalog_type.hpp"
 #include "duckdb/parser/column_definition.hpp"
 #include "duckdb/parser/parsed_data/parse_info.hpp"
-#include "duckdb/common/enums/on_entry_not_found.hpp"
 
 namespace duckdb {
 
@@ -21,35 +20,29 @@ enum class AlterType : uint8_t {
 	ALTER_VIEW = 2,
 	ALTER_SEQUENCE = 3,
 	CHANGE_OWNERSHIP = 4,
-	ALTER_SCALAR_FUNCTION = 5,
-	ALTER_TABLE_FUNCTION = 6
+	ALTER_FUNCTION = 5
 };
 
 struct AlterEntryData {
 	AlterEntryData() {
 	}
-	AlterEntryData(string catalog_p, string schema_p, string name_p, OnEntryNotFound if_not_found)
-	    : catalog(std::move(catalog_p)), schema(std::move(schema_p)), name(std::move(name_p)),
-	      if_not_found(if_not_found) {
+	AlterEntryData(string catalog_p, string schema_p, string name_p, bool if_exists)
+	    : catalog(std::move(catalog_p)), schema(std::move(schema_p)), name(std::move(name_p)), if_exists(if_exists) {
 	}
 
 	string catalog;
 	string schema;
 	string name;
-	OnEntryNotFound if_not_found;
+	bool if_exists;
 };
 
 struct AlterInfo : public ParseInfo {
-public:
-	static constexpr const ParseInfoType TYPE = ParseInfoType::ALTER_INFO;
-
-public:
-	AlterInfo(AlterType type, string catalog, string schema, string name, OnEntryNotFound if_not_found);
-	~AlterInfo() override;
+	AlterInfo(AlterType type, string catalog, string schema, string name, bool if_exists);
+	virtual ~AlterInfo() override;
 
 	AlterType type;
 	//! if exists
-	OnEntryNotFound if_not_found;
+	bool if_exists;
 	//! Catalog name to alter
 	string catalog;
 	//! Schema name to alter
@@ -66,17 +59,7 @@ public:
 	virtual void Serialize(FieldWriter &writer) const = 0;
 	static unique_ptr<AlterInfo> Deserialize(Deserializer &source);
 
-	void FormatSerialize(FormatSerializer &serializer) const override;
-	static unique_ptr<ParseInfo> FormatDeserialize(FormatDeserializer &deserializer);
-
-	virtual string GetColumnName() const {
-		return "";
-	};
-
 	AlterEntryData GetAlterEntryData() const;
-
-protected:
-	explicit AlterInfo(AlterType type);
 };
 
 } // namespace duckdb

@@ -9,28 +9,24 @@
 #pragma once
 
 #include "duckdb/parser/parsed_data/parse_info.hpp"
-#include "duckdb/common/enums/on_entry_not_found.hpp"
 
 namespace duckdb {
 
 struct DetachInfo : public ParseInfo {
-public:
-	static constexpr const ParseInfoType TYPE = ParseInfoType::DETACH_INFO;
-
-public:
-	DetachInfo();
+	DetachInfo() {
+	}
 
 	//! The alias of the attached database
 	string name;
 	//! Whether to throw an exception if alias is not found
-	OnEntryNotFound if_not_found;
+	bool if_exists;
 
 public:
-	unique_ptr<DetachInfo> Copy() const;
-	void Serialize(Serializer &serializer) const;
-	static unique_ptr<ParseInfo> Deserialize(Deserializer &deserializer);
-
-	void FormatSerialize(FormatSerializer &serializer) const override;
-	static unique_ptr<ParseInfo> FormatDeserialize(FormatDeserializer &deserializer);
+	unique_ptr<DetachInfo> Copy() const {
+		auto result = make_unique<DetachInfo>();
+		result->name = name;
+		result->if_exists = if_exists;
+		return result;
+	}
 };
 } // namespace duckdb

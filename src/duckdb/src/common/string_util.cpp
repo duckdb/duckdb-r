@@ -3,7 +3,6 @@
 #include "duckdb/common/exception.hpp"
 #include "duckdb/common/pair.hpp"
 #include "duckdb/common/to_string.hpp"
-#include "duckdb/common/helper.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -12,22 +11,8 @@
 #include <sstream>
 #include <stdarg.h>
 #include <string.h>
-#include <random>
 
 namespace duckdb {
-
-string StringUtil::GenerateRandomName(idx_t length) {
-	std::random_device rd;
-	std::mt19937 gen(rd());
-	std::uniform_int_distribution<> dis(0, 15);
-
-	std::stringstream ss;
-	ss << std::hex;
-	for (idx_t i = 0; i < length; i++) {
-		ss << dis(gen);
-	}
-	return ss.str();
-}
 
 bool StringUtil::Contains(const string &haystack, const string &needle) {
 	return (haystack.find(needle) != string::npos);
@@ -163,11 +148,6 @@ string StringUtil::BytesToHumanReadableString(idx_t bytes) {
 	megabytes -= gigabytes * 1000;
 	auto terabytes = gigabytes / 1000;
 	gigabytes -= terabytes * 1000;
-	auto petabytes = terabytes / 1000;
-	terabytes -= petabytes * 1000;
-	if (petabytes > 0) {
-		return to_string(petabytes) + "." + to_string(terabytes / 100) + "PB";
-	}
 	if (terabytes > 0) {
 		return to_string(terabytes) + "." + to_string(gigabytes / 100) + "TB";
 	} else if (gigabytes > 0) {
@@ -177,7 +157,7 @@ string StringUtil::BytesToHumanReadableString(idx_t bytes) {
 	} else if (kilobytes > 0) {
 		return to_string(kilobytes) + "KB";
 	} else {
-		return to_string(bytes) + (bytes == 1 ? " byte" : " bytes");
+		return to_string(bytes) + " bytes";
 	}
 }
 
@@ -189,38 +169,12 @@ string StringUtil::Upper(const string &str) {
 
 string StringUtil::Lower(const string &str) {
 	string copy(str);
-	transform(copy.begin(), copy.end(), copy.begin(), [](unsigned char c) { return StringUtil::CharacterToLower(c); });
+	transform(copy.begin(), copy.end(), copy.begin(), [](unsigned char c) { return std::tolower(c); });
 	return (copy);
 }
 
-bool StringUtil::IsLower(const string &str) {
-	return str == Lower(str);
-}
-
-// Jenkins hash function: https://en.wikipedia.org/wiki/Jenkins_hash_function
-uint64_t StringUtil::CIHash(const string &str) {
-	uint32_t hash = 0;
-	for (auto c : str) {
-		hash += StringUtil::CharacterToLower(c);
-		hash += hash << 10;
-		hash ^= hash >> 6;
-	}
-	hash += hash << 3;
-	hash ^= hash >> 11;
-	hash += hash << 15;
-	return hash;
-}
-
 bool StringUtil::CIEquals(const string &l1, const string &l2) {
-	if (l1.size() != l2.size()) {
-		return false;
-	}
-	for (idx_t c = 0; c < l1.size(); c++) {
-		if (StringUtil::CharacterToLower(l1[c]) != StringUtil::CharacterToLower(l2[c])) {
-			return false;
-		}
-	}
-	return true;
+	return StringUtil::Lower(l1) == StringUtil::Lower(l2);
 }
 
 vector<string> StringUtil::Split(const string &input, const string &split) {
@@ -237,13 +191,10 @@ vector<string> StringUtil::Split(const string &input, const string &split) {
 
 		// Push the substring [last, next) on to splits
 		string substr = input.substr(last, next - last);
-		if (!substr.empty()) {
+		if (substr.empty() == false) {
 			splits.push_back(substr);
 		}
 		last = next + split_len;
-	}
-	if (splits.empty()) {
-		splits.push_back(input);
 	}
 	return splits;
 }
@@ -281,7 +232,7 @@ vector<string> StringUtil::TopNStrings(vector<pair<string, idx_t>> scores, idx_t
 
 struct LevenshteinArray {
 	LevenshteinArray(idx_t len1, idx_t len2) : len1(len1) {
-		dist = make_unsafe_uniq_array<idx_t>(len1 * len2);
+		dist = unique_ptr<idx_t[]>(new idx_t[len1 * len2]);
 	}
 
 	idx_t &Score(idx_t i, idx_t j) {
@@ -290,7 +241,7 @@ struct LevenshteinArray {
 
 private:
 	idx_t len1;
-	unsafe_unique_array<idx_t> dist;
+	unique_ptr<idx_t[]> dist;
 
 	idx_t GetIndex(idx_t i, idx_t j) {
 		return j * len1 + i;

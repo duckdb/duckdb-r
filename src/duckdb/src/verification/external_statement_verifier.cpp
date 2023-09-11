@@ -7,7 +7,7 @@ ExternalStatementVerifier::ExternalStatementVerifier(unique_ptr<SQLStatement> st
 }
 
 unique_ptr<StatementVerifier> ExternalStatementVerifier::Create(const SQLStatement &statement) {
-	return make_uniq<ExternalStatementVerifier>(statement.Copy());
+	return make_unique<ExternalStatementVerifier>(statement.Copy());
 }
 
 } // namespace duckdb

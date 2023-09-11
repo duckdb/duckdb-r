@@ -16,9 +16,6 @@ namespace duckdb {
 //! LogicalSample represents a SAMPLE clause
 class LogicalSample : public LogicalOperator {
 public:
-	static constexpr const LogicalOperatorType TYPE = LogicalOperatorType::LOGICAL_SAMPLE;
-
-public:
 	LogicalSample(unique_ptr<SampleOptions> sample_options_p, unique_ptr<LogicalOperator> child);
 
 	//! The sample options
@@ -31,14 +28,8 @@ public:
 	void Serialize(FieldWriter &writer) const override;
 	static unique_ptr<LogicalOperator> Deserialize(LogicalDeserializationState &state, FieldReader &reader);
 
-	void FormatSerialize(FormatSerializer &serializer) const override;
-	static unique_ptr<LogicalOperator> FormatDeserialize(FormatDeserializer &deserializer);
-
 protected:
 	void ResolveTypes() override;
-
-private:
-	LogicalSample();
 };
 
 } // namespace duckdb

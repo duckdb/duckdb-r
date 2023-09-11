@@ -16,7 +16,8 @@ namespace duckdb {
 class ValidityColumnData : public ColumnData {
 public:
 	ValidityColumnData(BlockManager &block_manager, DataTableInfo &info, idx_t column_index, idx_t start_row,
-	                   ColumnData &parent);
+	                   ColumnData *parent);
+	ValidityColumnData(ColumnData &original, idx_t start_row, ColumnData *parent = nullptr);
 
 public:
 	bool CheckZonemap(ColumnScanState &state, TableFilter &filter) override;

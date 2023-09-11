@@ -3,7 +3,6 @@
 #include "duckdb/function/function_set.hpp"
 #include "duckdb/common/file_system.hpp"
 #include "duckdb/main/config.hpp"
-#include "duckdb/common/multi_file_reader.hpp"
 
 namespace duckdb {
 
@@ -13,8 +12,13 @@ struct GlobFunctionBindData : public TableFunctionData {
 
 static unique_ptr<FunctionData> GlobFunctionBind(ClientContext &context, TableFunctionBindInput &input,
                                                  vector<LogicalType> &return_types, vector<string> &names) {
-	auto result = make_uniq<GlobFunctionBindData>();
-	result->files = MultiFileReader::GetFileList(context, input.inputs[0], "Globbing", FileGlobOptions::ALLOW_EMPTY);
+	auto &config = DBConfig::GetConfig(context);
+	if (!config.options.enable_external_access) {
+		throw PermissionException("Globbing is disabled through configuration");
+	}
+	auto result = make_unique<GlobFunctionBindData>();
+	auto &fs = FileSystem::GetFileSystem(context);
+	result->files = fs.Glob(StringValue::Get(input.inputs[0]), context);
 	return_types.emplace_back(LogicalType::VARCHAR);
 	names.emplace_back("file");
 	return std::move(result);
@@ -28,12 +32,12 @@ struct GlobFunctionState : public GlobalTableFunctionState {
 };
 
 static unique_ptr<GlobalTableFunctionState> GlobFunctionInit(ClientContext &context, TableFunctionInitInput &input) {
-	return make_uniq<GlobFunctionState>();
+	return make_unique<GlobFunctionState>();
 }
 
 static void GlobFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
-	auto &bind_data = data_p.bind_data->Cast<GlobFunctionBindData>();
-	auto &state = data_p.global_state->Cast<GlobFunctionState>();
+	auto &bind_data = (GlobFunctionBindData &)*data_p.bind_data;
+	auto &state = (GlobFunctionState &)*data_p.global_state;
 
 	idx_t count = 0;
 	idx_t next_idx = MinValue<idx_t>(state.current_idx + STANDARD_VECTOR_SIZE, bind_data.files.size());
@@ -45,8 +49,9 @@ static void GlobFunction(ClientContext &context, TableFunctionInput &data_p, Dat
 }
 
 void GlobTableFunction::RegisterFunction(BuiltinFunctions &set) {
-	TableFunction glob_function("glob", {LogicalType::VARCHAR}, GlobFunction, GlobFunctionBind, GlobFunctionInit);
-	set.AddFunction(MultiFileReader::CreateFunctionSet(glob_function));
+	TableFunctionSet glob("glob");
+	glob.AddFunction(TableFunction({LogicalType::VARCHAR}, GlobFunction, GlobFunctionBind, GlobFunctionInit));
+	set.AddFunction(glob);
 }
 
 } // namespace duckdb

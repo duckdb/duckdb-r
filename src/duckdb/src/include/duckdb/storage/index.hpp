@@ -14,7 +14,8 @@
 #include "duckdb/common/sort/sort.hpp"
 #include "duckdb/parser/parsed_expression.hpp"
 #include "duckdb/planner/expression.hpp"
-#include "duckdb/storage/metadata/metadata_writer.hpp"
+#include "duckdb/storage/table/scan_state.hpp"
+#include "duckdb/storage/meta_block_writer.hpp"
 #include "duckdb/execution/expression_executor.hpp"
 #include "duckdb/common/types/constraint_conflict_info.hpp"
 
@@ -26,13 +27,13 @@ class Transaction;
 class ConflictManager;
 
 struct IndexLock;
-struct IndexScanState;
 
 //! The index is an abstract base class that serves as the basis for indexes
 class Index {
 public:
 	Index(AttachedDatabase &db, IndexType type, TableIOManager &table_io_manager, const vector<column_t> &column_ids,
-	      const vector<unique_ptr<Expression>> &unbound_expressions, IndexConstraintType constraint_type);
+	      const vector<unique_ptr<Expression>> &unbound_expressions, IndexConstraintType constraint_type,
+	      bool track_memory);
 	virtual ~Index() = default;
 
 	//! The type of the index
@@ -56,28 +57,32 @@ public:
 	AttachedDatabase &db;
 	//! Buffer manager of the database instance
 	BufferManager &buffer_manager;
+	//! The size of the index in memory
+	//! This does not track the size of the index meta information, but only allocated nodes and leaves
+	idx_t memory_size;
+	//! Flag determining if this index's size is tracked by the buffer manager
+	bool track_memory;
 
 public:
 	//! Initialize a single predicate scan on the index with the given expression and column IDs
 	virtual unique_ptr<IndexScanState> InitializeScanSinglePredicate(const Transaction &transaction, const Value &value,
-	                                                                 const ExpressionType expression_type) = 0;
+	                                                                 ExpressionType expressionType) = 0;
 	//! Initialize a two predicate scan on the index with the given expression and column IDs
-	virtual unique_ptr<IndexScanState> InitializeScanTwoPredicates(const Transaction &transaction,
-	                                                               const Value &low_value,
-	                                                               const ExpressionType low_expression_type,
+	virtual unique_ptr<IndexScanState> InitializeScanTwoPredicates(Transaction &transaction, const Value &low_value,
+	                                                               ExpressionType low_expression_type,
 	                                                               const Value &high_value,
-	                                                               const ExpressionType high_expression_type) = 0;
+	                                                               ExpressionType high_expression_type) = 0;
 	//! Performs a lookup on the index, fetching up to max_count result IDs. Returns true if all row IDs were fetched,
 	//! and false otherwise
-	virtual bool Scan(const Transaction &transaction, const DataTable &table, IndexScanState &state,
-	                  const idx_t max_count, vector<row_t> &result_ids) = 0;
+	virtual bool Scan(Transaction &transaction, DataTable &table, IndexScanState &state, idx_t max_count,
+	                  vector<row_t> &result_ids) = 0;
 
 	//! Obtain a lock on the index
 	virtual void InitializeLock(IndexLock &state);
 	//! Called when data is appended to the index. The lock obtained from InitializeLock must be held
-	virtual PreservedError Append(IndexLock &state, DataChunk &entries, Vector &row_identifiers) = 0;
+	virtual bool Append(IndexLock &state, DataChunk &entries, Vector &row_identifiers) = 0;
 	//! Obtains a lock and calls Append while holding that lock
-	PreservedError Append(DataChunk &entries, Vector &row_identifiers);
+	bool Append(DataChunk &entries, Vector &row_identifiers);
 	//! Verify that data can be appended to the index without a constraint violation
 	virtual void VerifyAppend(DataChunk &chunk) = 0;
 	//! Verify that data can be appended to the index without a constraint violation using the conflict manager
@@ -91,23 +96,31 @@ public:
 	void Delete(DataChunk &entries, Vector &row_identifiers);
 
 	//! Insert a chunk of entries into the index
-	virtual PreservedError Insert(IndexLock &lock, DataChunk &input, Vector &row_identifiers) = 0;
+	virtual bool Insert(IndexLock &lock, DataChunk &input, Vector &row_identifiers) = 0;
 
 	//! Merge another index into this index. The lock obtained from InitializeLock must be held, and the other
 	//! index must also be locked during the merge
-	virtual bool MergeIndexes(IndexLock &state, Index &other_index) = 0;
+	virtual bool MergeIndexes(IndexLock &state, Index *other_index) = 0;
 	//! Obtains a lock and calls MergeIndexes while holding that lock
-	bool MergeIndexes(Index &other_index);
+	bool MergeIndexes(Index *other_index);
 
-	//! Traverses an ART and vacuums the qualifying nodes. The lock obtained from InitializeLock must be held
-	virtual void Vacuum(IndexLock &state) = 0;
-	//! Obtains a lock and calls Vacuum while holding that lock
-	void Vacuum();
+	//! Returns the string representation of an index
+	virtual string ToString() = 0;
+	//! Verifies that the in-memory size value of the index matches its actual size
+	virtual void Verify() = 0;
+	//! Increases the memory size by the difference between the old size and the current size
+	//! and performs verifications
+	virtual void IncreaseAndVerifyMemorySize(idx_t old_memory_size) = 0;
 
-	//! Returns the string representation of an index, or only traverses and verifies the index
-	virtual string VerifyAndToString(IndexLock &state, const bool only_verify) = 0;
-	//! Obtains a lock and calls VerifyAndToString while holding that lock
-	string VerifyAndToString(const bool only_verify);
+	//! Increases the in-memory size value
+	inline void IncreaseMemorySize(idx_t size) {
+		memory_size += size;
+	};
+	//! Decreases the in-memory size value
+	inline void DecreaseMemorySize(idx_t size) {
+		D_ASSERT(memory_size >= size);
+		memory_size -= size;
+	};
 
 	//! Returns true if the index is affected by updates on the specified column IDs, and false otherwise
 	bool IndexIsUpdated(const vector<PhysicalIndex> &column_ids) const;
@@ -126,7 +139,7 @@ public:
 	}
 
 	//! Serializes the index and returns the pair of block_id offset positions
-	virtual BlockPointer Serialize(MetadataWriter &writer);
+	virtual BlockPointer Serialize(MetaBlockWriter &writer);
 	//! Returns the serialized data pointer to the block and offset of the serialized index
 	BlockPointer GetSerializedDataPointer() const {
 		return serialized_data_pointer;
@@ -134,7 +147,6 @@ public:
 
 	//! Execute the index expressions on an input chunk
 	void ExecuteExpressions(DataChunk &input, DataChunk &result);
-	static string AppendRowError(DataChunk &input, idx_t index);
 
 protected:
 	//! Lock used for any changes to the index
@@ -150,19 +162,6 @@ private:
 
 	//! Bind the unbound expressions of the index
 	unique_ptr<Expression> BindExpression(unique_ptr<Expression> expr);
-
-public:
-	template <class TARGET>
-	TARGET &Cast() {
-		D_ASSERT(dynamic_cast<TARGET *>(this));
-		return reinterpret_cast<TARGET &>(*this);
-	}
-
-	template <class TARGET>
-	const TARGET &Cast() const {
-		D_ASSERT(dynamic_cast<const TARGET *>(this));
-		return reinterpret_cast<const TARGET &>(*this);
-	}
 };
 
 } // namespace duckdb

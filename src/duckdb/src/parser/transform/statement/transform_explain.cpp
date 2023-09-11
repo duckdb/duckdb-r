@@ -3,11 +3,13 @@
 
 namespace duckdb {
 
-unique_ptr<ExplainStatement> Transformer::TransformExplain(duckdb_libpgquery::PGExplainStmt &stmt) {
+unique_ptr<ExplainStatement> Transformer::TransformExplain(duckdb_libpgquery::PGNode *node) {
+	auto stmt = reinterpret_cast<duckdb_libpgquery::PGExplainStmt *>(node);
+	D_ASSERT(stmt);
 	auto explain_type = ExplainType::EXPLAIN_STANDARD;
-	if (stmt.options) {
-		for (auto n = stmt.options->head; n; n = n->next) {
-			auto def_elem = PGPointerCast<duckdb_libpgquery::PGDefElem>(n->data.ptr_value)->defname;
+	if (stmt->options) {
+		for (auto n = stmt->options->head; n; n = n->next) {
+			auto def_elem = ((duckdb_libpgquery::PGDefElem *)n->data.ptr_value)->defname;
 			string elem(def_elem);
 			if (elem == "analyze") {
 				explain_type = ExplainType::EXPLAIN_ANALYZE;
@@ -16,7 +18,7 @@ unique_ptr<ExplainStatement> Transformer::TransformExplain(duckdb_libpgquery::PG
 			}
 		}
 	}
-	return make_uniq<ExplainStatement>(TransformStatement(*stmt.query), explain_type);
+	return make_unique<ExplainStatement>(TransformStatement(stmt->query), explain_type);
 }
 
 } // namespace duckdb

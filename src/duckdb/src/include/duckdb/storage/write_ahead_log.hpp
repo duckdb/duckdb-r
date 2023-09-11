@@ -39,16 +39,17 @@ class TransactionManager;
 class ReplayState {
 public:
 	ReplayState(AttachedDatabase &db, ClientContext &context, Deserializer &source)
-	    : db(db), context(context), catalog(db.GetCatalog()), source(source), deserialize_only(false) {
+	    : db(db), context(context), catalog(db.GetCatalog()), source(source), current_table(nullptr),
+	      deserialize_only(false), checkpoint_id(INVALID_BLOCK) {
 	}
 
 	AttachedDatabase &db;
 	ClientContext &context;
 	Catalog &catalog;
 	Deserializer &source;
-	optional_ptr<TableCatalogEntry> current_table;
+	TableCatalogEntry *current_table;
 	bool deserialize_only;
-	MetaBlockPointer checkpoint_id;
+	block_id_t checkpoint_id;
 
 public:
 	void ReplayEntry(WALType entry_type);
@@ -109,34 +110,34 @@ public:
 	//! Gets the total bytes written to the WAL since startup
 	idx_t GetTotalWritten();
 
-	virtual void WriteCreateTable(const TableCatalogEntry &entry);
-	void WriteDropTable(const TableCatalogEntry &entry);
+	virtual void WriteCreateTable(TableCatalogEntry *entry);
+	void WriteDropTable(TableCatalogEntry *entry);
 
-	void WriteCreateSchema(const SchemaCatalogEntry &entry);
-	void WriteDropSchema(const SchemaCatalogEntry &entry);
+	void WriteCreateSchema(SchemaCatalogEntry *entry);
+	void WriteDropSchema(SchemaCatalogEntry *entry);
 
-	void WriteCreateView(const ViewCatalogEntry &entry);
-	void WriteDropView(const ViewCatalogEntry &entry);
+	void WriteCreateView(ViewCatalogEntry *entry);
+	void WriteDropView(ViewCatalogEntry *entry);
 
-	void WriteCreateSequence(const SequenceCatalogEntry &entry);
-	void WriteDropSequence(const SequenceCatalogEntry &entry);
-	void WriteSequenceValue(const SequenceCatalogEntry &entry, SequenceValue val);
+	void WriteCreateSequence(SequenceCatalogEntry *entry);
+	void WriteDropSequence(SequenceCatalogEntry *entry);
+	void WriteSequenceValue(SequenceCatalogEntry *entry, SequenceValue val);
 
-	void WriteCreateMacro(const ScalarMacroCatalogEntry &entry);
-	void WriteDropMacro(const ScalarMacroCatalogEntry &entry);
+	void WriteCreateMacro(ScalarMacroCatalogEntry *entry);
+	void WriteDropMacro(ScalarMacroCatalogEntry *entry);
 
-	void WriteCreateTableMacro(const TableMacroCatalogEntry &entry);
-	void WriteDropTableMacro(const TableMacroCatalogEntry &entry);
+	void WriteCreateTableMacro(TableMacroCatalogEntry *entry);
+	void WriteDropTableMacro(TableMacroCatalogEntry *entry);
 
-	void WriteCreateIndex(const IndexCatalogEntry &entry);
-	void WriteDropIndex(const IndexCatalogEntry &entry);
+	void WriteCreateIndex(IndexCatalogEntry *entry);
+	void WriteDropIndex(IndexCatalogEntry *entry);
 
-	void WriteCreateType(const TypeCatalogEntry &entry);
-	void WriteDropType(const TypeCatalogEntry &entry);
+	void WriteCreateType(TypeCatalogEntry *entry);
+	void WriteDropType(TypeCatalogEntry *entry);
 	//! Sets the table used for subsequent insert/delete/update commands
 	void WriteSetTable(string &schema, string &table);
 
-	void WriteAlter(data_ptr_t ptr, idx_t data_size);
+	void WriteAlter(AlterInfo &info);
 
 	void WriteInsert(DataChunk &chunk);
 	void WriteDelete(DataChunk &chunk);
@@ -156,7 +157,7 @@ public:
 	void Delete();
 	void Flush();
 
-	void WriteCheckpoint(MetaBlockPointer meta_block);
+	void WriteCheckpoint(block_id_t meta_block);
 
 protected:
 	AttachedDatabase &database;

@@ -8,7 +8,6 @@
 #include "duckdb/common/chrono.hpp"
 #include "duckdb/common/operator/add.hpp"
 #include "duckdb/common/operator/multiply.hpp"
-#include "duckdb/common/operator/subtract.hpp"
 #include "duckdb/common/limits.hpp"
 #include <ctime>
 
@@ -21,38 +20,6 @@ static_assert(sizeof(timestamp_t) == sizeof(int64_t), "timestamp_t was padded");
 // T may be a space
 // Z is optional
 // ISO 8601
-
-// arithmetic operators
-timestamp_t timestamp_t::operator+(const double &value) const {
-	timestamp_t result;
-	if (!TryAddOperator::Operation(this->value, int64_t(value), result.value)) {
-		throw OutOfRangeException("Overflow in timestamp addition");
-	}
-	return result;
-}
-
-int64_t timestamp_t::operator-(const timestamp_t &other) const {
-	int64_t result;
-	if (!TrySubtractOperator::Operation(value, int64_t(other.value), result)) {
-		throw OutOfRangeException("Overflow in timestamp subtraction");
-	}
-	return result;
-}
-
-// in-place operators
-timestamp_t &timestamp_t::operator+=(const int64_t &delta) {
-	if (!TryAddOperator::Operation(value, delta, value)) {
-		throw OutOfRangeException("Overflow in timestamp increment");
-	}
-	return *this;
-}
-
-timestamp_t &timestamp_t::operator-=(const int64_t &delta) {
-	if (!TrySubtractOperator::Operation(value, delta, value)) {
-		throw OutOfRangeException("Overflow in timestamp decrement");
-	}
-	return *this;
-}
 
 bool Timestamp::TryConvertTimestampTZ(const char *str, idx_t len, timestamp_t &result, bool &has_offset, string_t &tz) {
 	idx_t pos;
@@ -92,10 +59,7 @@ bool Timestamp::TryConvertTimestampTZ(const char *str, idx_t len, timestamp_t &r
 			pos++;
 			has_offset = true;
 		} else if (Timestamp::TryParseUTCOffset(str, pos, len, hour_offset, minute_offset)) {
-			const int64_t delta = hour_offset * Interval::MICROS_PER_HOUR + minute_offset * Interval::MICROS_PER_MINUTE;
-			if (!TrySubtractOperator::Operation(result.value, delta, result.value)) {
-				return false;
-			}
+			result -= hour_offset * Interval::MICROS_PER_HOUR + minute_offset * Interval::MICROS_PER_MINUTE;
 			has_offset = true;
 		} else {
 			// Parse a time zone: / [A-Za-z0-9/_]+/
@@ -138,7 +102,7 @@ TimestampCastResult Timestamp::TryConvertTimestamp(const char *str, idx_t len, t
 	}
 	if (tz.GetSize() == 3) {
 		// we can ONLY handle UTC without ICU being loaded
-		auto tz_ptr = tz.GetData();
+		auto tz_ptr = tz.GetDataUnsafe();
 		if ((tz_ptr[0] == 'u' || tz_ptr[0] == 'U') && (tz_ptr[1] == 't' || tz_ptr[1] == 'T') &&
 		    (tz_ptr[2] == 'c' || tz_ptr[2] == 'C')) {
 			return TimestampCastResult::SUCCESS;
@@ -338,13 +302,6 @@ int64_t Timestamp::GetEpochNanoSeconds(timestamp_t timestamp) {
 	if (!TryMultiplyOperator::Operation(timestamp.value, ns_in_us, result)) {
 		throw ConversionException("Could not convert Timestamp(US) to Timestamp(NS)");
 	}
-	return result;
-}
-
-double Timestamp::GetJulianDay(timestamp_t timestamp) {
-	double result = Timestamp::GetTime(timestamp).micros;
-	result /= Interval::MICROS_PER_DAY;
-	result += Date::ExtractJulianDay(Timestamp::GetDate(timestamp));
 	return result;
 }
 

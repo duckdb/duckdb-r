@@ -12,12 +12,13 @@
 #include "duckdb/execution/operator/join/physical_comparison_join.hpp"
 
 namespace duckdb {
+idx_t nested_loop_join(ExpressionType op, Vector &left, Vector &right, idx_t &lpos, idx_t &rpos, sel_t lvector[],
+                       sel_t rvector[]);
+idx_t nested_loop_comparison(ExpressionType op, Vector &left, Vector &right, sel_t lvector[], sel_t rvector[],
+                             idx_t count);
 
 //! PhysicalNestedLoopJoin represents a nested loop join between two tables
 class PhysicalNestedLoopJoin : public PhysicalComparisonJoin {
-public:
-	static constexpr const PhysicalOperatorType TYPE = PhysicalOperatorType::NESTED_LOOP_JOIN;
-
 public:
 	PhysicalNestedLoopJoin(LogicalOperator &op, unique_ptr<PhysicalOperator> left, unique_ptr<PhysicalOperator> right,
 	                       vector<JoinCondition> cond, JoinType join_type, idx_t estimated_cardinality);
@@ -40,7 +41,8 @@ public:
 	unique_ptr<GlobalSourceState> GetGlobalSourceState(ClientContext &context) const override;
 	unique_ptr<LocalSourceState> GetLocalSourceState(ExecutionContext &context,
 	                                                 GlobalSourceState &gstate) const override;
-	SourceResultType GetData(ExecutionContext &context, DataChunk &chunk, OperatorSourceInput &input) const override;
+	void GetData(ExecutionContext &context, DataChunk &chunk, GlobalSourceState &gstate,
+	             LocalSourceState &lstate) const override;
 
 	bool IsSource() const override {
 		return IsRightOuterJoin(join_type);
@@ -53,10 +55,11 @@ public:
 	// Sink Interface
 	unique_ptr<GlobalSinkState> GetGlobalSinkState(ClientContext &context) const override;
 	unique_ptr<LocalSinkState> GetLocalSinkState(ExecutionContext &context) const override;
-	SinkResultType Sink(ExecutionContext &context, DataChunk &chunk, OperatorSinkInput &input) const override;
-	SinkCombineResultType Combine(ExecutionContext &context, OperatorSinkCombineInput &input) const override;
+	SinkResultType Sink(ExecutionContext &context, GlobalSinkState &state, LocalSinkState &lstate,
+	                    DataChunk &input) const override;
+	void Combine(ExecutionContext &context, GlobalSinkState &gstate, LocalSinkState &lstate) const override;
 	SinkFinalizeType Finalize(Pipeline &pipeline, Event &event, ClientContext &context,
-	                          OperatorSinkFinalizeInput &input) const override;
+	                          GlobalSinkState &gstate) const override;
 
 	bool IsSink() const override {
 		return true;

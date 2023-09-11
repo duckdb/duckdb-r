@@ -25,7 +25,7 @@ struct IndexWriteOperation {
 
 class FieldWriter {
 public:
-	DUCKDB_API explicit FieldWriter(Serializer &serializer);
+	DUCKDB_API FieldWriter(Serializer &serializer);
 	DUCKDB_API ~FieldWriter();
 
 public:
@@ -34,12 +34,12 @@ public:
 		static_assert(std::is_trivially_destructible<T>(), "WriteField object must be trivially destructible");
 
 		AddField();
-		WriteData(const_data_ptr_cast(&element), sizeof(T));
+		WriteData((const_data_ptr_t)&element, sizeof(T));
 	}
 
 	//! Write a string with a length prefix
 	void WriteString(const string &val) {
-		WriteStringLen(const_data_ptr_cast(val.c_str()), val.size());
+		WriteStringLen((const_data_ptr_t)val.c_str(), val.size());
 	}
 	void WriteStringLen(const_data_ptr_t val, idx_t len) {
 		AddField();
@@ -128,14 +128,14 @@ public:
 		return *buffer;
 	}
 
+private:
 	void AddField() {
 		field_count++;
 	}
 
-private:
 	template <class T>
 	void Write(const T &element) {
-		WriteData(const_data_ptr_cast(&element), sizeof(T));
+		WriteData((const_data_ptr_t)&element, sizeof(T));
 	}
 
 	DUCKDB_API void WriteData(const_data_ptr_t buffer, idx_t write_size);
@@ -152,7 +152,7 @@ DUCKDB_API void FieldWriter::Write(const string &val);
 
 class FieldDeserializer : public Deserializer {
 public:
-	explicit FieldDeserializer(Deserializer &root);
+	FieldDeserializer(Deserializer &root);
 
 public:
 	void ReadData(data_ptr_t buffer, idx_t read_size) override;
@@ -161,10 +161,6 @@ public:
 	idx_t RemainingData();
 	Deserializer &GetRoot() {
 		return root;
-	}
-
-	ClientContext &GetContext() override {
-		return root.GetContext();
 	}
 
 private:
@@ -181,7 +177,7 @@ struct IndexReadOperation {
 
 class FieldReader {
 public:
-	DUCKDB_API explicit FieldReader(Deserializer &source);
+	DUCKDB_API FieldReader(Deserializer &source);
 	DUCKDB_API ~FieldReader();
 
 public:
@@ -259,15 +255,15 @@ public:
 		return ReadRequiredGenericList<T, idx_t, IndexReadOperation>();
 	}
 
-	template <class T, class CONTAINER_TYPE = set<T>>
-	CONTAINER_TYPE ReadRequiredSet() {
+	template <class T>
+	set<T> ReadRequiredSet() {
 		if (field_count >= max_field_count) {
 			// field is not there, throw an exception
 			throw SerializationException("Attempting to read a required field, but field is missing");
 		}
 		AddField();
 		auto result_count = source.Read<uint32_t>();
-		CONTAINER_TYPE result;
+		set<T> result;
 		for (idx_t i = 0; i < result_count; i++) {
 			result.insert(source.Read<T>());
 		}

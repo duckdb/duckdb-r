@@ -1,7 +1,6 @@
 #include "duckdb/execution/operator/helper/physical_streaming_sample.hpp"
 #include "duckdb/common/random_engine.hpp"
 #include "duckdb/common/to_string.hpp"
-#include "duckdb/common/enum_util.hpp"
 
 namespace duckdb {
 
@@ -24,7 +23,7 @@ public:
 
 void PhysicalStreamingSample::SystemSample(DataChunk &input, DataChunk &result, OperatorState &state_p) const {
 	// system sampling: we throw one dice per chunk
-	auto &state = state_p.Cast<StreamingSampleOperatorState>();
+	auto &state = (StreamingSampleOperatorState &)state_p;
 	double rand = state.random.NextRandom();
 	if (rand <= percentage) {
 		// rand is smaller than sample_size: output chunk
@@ -35,7 +34,7 @@ void PhysicalStreamingSample::SystemSample(DataChunk &input, DataChunk &result, 
 void PhysicalStreamingSample::BernoulliSample(DataChunk &input, DataChunk &result, OperatorState &state_p) const {
 	// bernoulli sampling: we throw one dice per tuple
 	// then slice the result chunk
-	auto &state = state_p.Cast<StreamingSampleOperatorState>();
+	auto &state = (StreamingSampleOperatorState &)state_p;
 	idx_t result_count = 0;
 	SelectionVector sel(STANDARD_VECTOR_SIZE);
 	for (idx_t i = 0; i < input.size(); i++) {
@@ -50,7 +49,7 @@ void PhysicalStreamingSample::BernoulliSample(DataChunk &input, DataChunk &resul
 }
 
 unique_ptr<OperatorState> PhysicalStreamingSample::GetOperatorState(ExecutionContext &context) const {
-	return make_uniq<StreamingSampleOperatorState>(seed);
+	return make_unique<StreamingSampleOperatorState>(seed);
 }
 
 OperatorResultType PhysicalStreamingSample::Execute(ExecutionContext &context, DataChunk &input, DataChunk &chunk,
@@ -69,7 +68,7 @@ OperatorResultType PhysicalStreamingSample::Execute(ExecutionContext &context, D
 }
 
 string PhysicalStreamingSample::ParamsToString() const {
-	return EnumUtil::ToString(method) + ": " + to_string(100 * percentage) + "%";
+	return SampleMethodToString(method) + ": " + to_string(100 * percentage) + "%";
 }
 
 } // namespace duckdb

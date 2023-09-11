@@ -14,10 +14,7 @@
 #include "duckdb/storage/statistics/column_statistics.hpp"
 
 namespace duckdb {
-class ColumnList;
 class PersistentTableData;
-class FormatSerializer;
-class FormatDeserializer;
 
 class TableStatisticsLock {
 public:
@@ -41,19 +38,12 @@ public:
 	void MergeStats(idx_t i, BaseStatistics &stats);
 	void MergeStats(TableStatisticsLock &lock, idx_t i, BaseStatistics &stats);
 
-	void CopyStats(TableStatistics &other);
 	unique_ptr<BaseStatistics> CopyStats(idx_t i);
 	ColumnStatistics &GetStats(idx_t i);
 
 	bool Empty();
 
 	unique_ptr<TableStatisticsLock> GetLock();
-
-	void Serialize(Serializer &serializer);
-	void Deserialize(Deserializer &source, ColumnList &columns);
-
-	void FormatSerialize(FormatSerializer &serializer);
-	void FormatDeserialize(FormatDeserializer &deserializer, ColumnList &columns);
 
 private:
 	//! The statistics lock

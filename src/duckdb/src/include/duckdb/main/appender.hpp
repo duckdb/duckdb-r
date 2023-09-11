@@ -77,10 +77,10 @@ public:
 	//! Flush the changes made by the appender and close it. The appender cannot be used after this point
 	DUCKDB_API void Close();
 
-	vector<LogicalType> &GetTypes() {
+	DUCKDB_API vector<LogicalType> &GetTypes() {
 		return types;
 	}
-	idx_t CurrentColumn() {
+	DUCKDB_API idx_t CurrentColumn() {
 		return column;
 	}
 	DUCKDB_API void AppendDataChunk(DataChunk &value);

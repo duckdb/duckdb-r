@@ -19,10 +19,9 @@ void LogicalOperatorVisitor::VisitOperatorChildren(LogicalOperator &op) {
 
 void LogicalOperatorVisitor::EnumerateExpressions(LogicalOperator &op,
                                                   const std::function<void(unique_ptr<Expression> *child)> &callback) {
-
 	switch (op.type) {
 	case LogicalOperatorType::LOGICAL_EXPRESSION_GET: {
-		auto &get = op.Cast<LogicalExpressionGet>();
+		auto &get = (LogicalExpressionGet &)op;
 		for (auto &expr_list : get.expressions) {
 			for (auto &expr : expr_list) {
 				callback(&expr);
@@ -31,33 +30,28 @@ void LogicalOperatorVisitor::EnumerateExpressions(LogicalOperator &op,
 		break;
 	}
 	case LogicalOperatorType::LOGICAL_ORDER_BY: {
-		auto &order = op.Cast<LogicalOrder>();
+		auto &order = (LogicalOrder &)op;
 		for (auto &node : order.orders) {
 			callback(&node.expression);
 		}
 		break;
 	}
 	case LogicalOperatorType::LOGICAL_TOP_N: {
-		auto &order = op.Cast<LogicalTopN>();
+		auto &order = (LogicalTopN &)op;
 		for (auto &node : order.orders) {
 			callback(&node.expression);
 		}
 		break;
 	}
 	case LogicalOperatorType::LOGICAL_DISTINCT: {
-		auto &distinct = op.Cast<LogicalDistinct>();
+		auto &distinct = (LogicalDistinct &)op;
 		for (auto &target : distinct.distinct_targets) {
 			callback(&target);
-		}
-		if (distinct.order_by) {
-			for (auto &order : distinct.order_by->orders) {
-				callback(&order.expression);
-			}
 		}
 		break;
 	}
 	case LogicalOperatorType::LOGICAL_INSERT: {
-		auto &insert = op.Cast<LogicalInsert>();
+		auto &insert = (LogicalInsert &)op;
 		if (insert.on_conflict_condition) {
 			callback(&insert.on_conflict_condition);
 		}
@@ -66,14 +60,15 @@ void LogicalOperatorVisitor::EnumerateExpressions(LogicalOperator &op,
 		}
 		break;
 	}
-	case LogicalOperatorType::LOGICAL_ASOF_JOIN:
 	case LogicalOperatorType::LOGICAL_DELIM_JOIN:
-	case LogicalOperatorType::LOGICAL_DEPENDENT_JOIN:
 	case LogicalOperatorType::LOGICAL_COMPARISON_JOIN: {
-		auto &join = op.Cast<LogicalComparisonJoin>();
-		for (auto &expr : join.duplicate_eliminated_columns) {
-			callback(&expr);
+		if (op.type == LogicalOperatorType::LOGICAL_DELIM_JOIN) {
+			auto &delim_join = (LogicalDelimJoin &)op;
+			for (auto &expr : delim_join.duplicate_eliminated_columns) {
+				callback(&expr);
+			}
 		}
+		auto &join = (LogicalComparisonJoin &)op;
 		for (auto &cond : join.conditions) {
 			callback(&cond.left);
 			callback(&cond.right);
@@ -81,12 +76,12 @@ void LogicalOperatorVisitor::EnumerateExpressions(LogicalOperator &op,
 		break;
 	}
 	case LogicalOperatorType::LOGICAL_ANY_JOIN: {
-		auto &join = op.Cast<LogicalAnyJoin>();
+		auto &join = (LogicalAnyJoin &)op;
 		callback(&join.condition);
 		break;
 	}
 	case LogicalOperatorType::LOGICAL_LIMIT: {
-		auto &limit = op.Cast<LogicalLimit>();
+		auto &limit = (LogicalLimit &)op;
 		if (limit.limit) {
 			callback(&limit.limit);
 		}
@@ -96,7 +91,7 @@ void LogicalOperatorVisitor::EnumerateExpressions(LogicalOperator &op,
 		break;
 	}
 	case LogicalOperatorType::LOGICAL_LIMIT_PERCENT: {
-		auto &limit = op.Cast<LogicalLimitPercent>();
+		auto &limit = (LogicalLimitPercent &)op;
 		if (limit.limit) {
 			callback(&limit.limit);
 		}
@@ -106,7 +101,7 @@ void LogicalOperatorVisitor::EnumerateExpressions(LogicalOperator &op,
 		break;
 	}
 	case LogicalOperatorType::LOGICAL_AGGREGATE_AND_GROUP_BY: {
-		auto &aggr = op.Cast<LogicalAggregate>();
+		auto &aggr = (LogicalAggregate &)op;
 		for (auto &group : aggr.groups) {
 			callback(&group);
 		}
@@ -129,52 +124,52 @@ void LogicalOperatorVisitor::VisitExpression(unique_ptr<Expression> *expression)
 	unique_ptr<Expression> result;
 	switch (expr.GetExpressionClass()) {
 	case ExpressionClass::BOUND_AGGREGATE:
-		result = VisitReplace(expr.Cast<BoundAggregateExpression>(), expression);
+		result = VisitReplace((BoundAggregateExpression &)expr, expression);
 		break;
 	case ExpressionClass::BOUND_BETWEEN:
-		result = VisitReplace(expr.Cast<BoundBetweenExpression>(), expression);
+		result = VisitReplace((BoundBetweenExpression &)expr, expression);
 		break;
 	case ExpressionClass::BOUND_CASE:
-		result = VisitReplace(expr.Cast<BoundCaseExpression>(), expression);
+		result = VisitReplace((BoundCaseExpression &)expr, expression);
 		break;
 	case ExpressionClass::BOUND_CAST:
-		result = VisitReplace(expr.Cast<BoundCastExpression>(), expression);
+		result = VisitReplace((BoundCastExpression &)expr, expression);
 		break;
 	case ExpressionClass::BOUND_COLUMN_REF:
-		result = VisitReplace(expr.Cast<BoundColumnRefExpression>(), expression);
+		result = VisitReplace((BoundColumnRefExpression &)expr, expression);
 		break;
 	case ExpressionClass::BOUND_COMPARISON:
-		result = VisitReplace(expr.Cast<BoundComparisonExpression>(), expression);
+		result = VisitReplace((BoundComparisonExpression &)expr, expression);
 		break;
 	case ExpressionClass::BOUND_CONJUNCTION:
-		result = VisitReplace(expr.Cast<BoundConjunctionExpression>(), expression);
+		result = VisitReplace((BoundConjunctionExpression &)expr, expression);
 		break;
 	case ExpressionClass::BOUND_CONSTANT:
-		result = VisitReplace(expr.Cast<BoundConstantExpression>(), expression);
+		result = VisitReplace((BoundConstantExpression &)expr, expression);
 		break;
 	case ExpressionClass::BOUND_FUNCTION:
-		result = VisitReplace(expr.Cast<BoundFunctionExpression>(), expression);
+		result = VisitReplace((BoundFunctionExpression &)expr, expression);
 		break;
 	case ExpressionClass::BOUND_SUBQUERY:
-		result = VisitReplace(expr.Cast<BoundSubqueryExpression>(), expression);
+		result = VisitReplace((BoundSubqueryExpression &)expr, expression);
 		break;
 	case ExpressionClass::BOUND_OPERATOR:
-		result = VisitReplace(expr.Cast<BoundOperatorExpression>(), expression);
+		result = VisitReplace((BoundOperatorExpression &)expr, expression);
 		break;
 	case ExpressionClass::BOUND_PARAMETER:
-		result = VisitReplace(expr.Cast<BoundParameterExpression>(), expression);
+		result = VisitReplace((BoundParameterExpression &)expr, expression);
 		break;
 	case ExpressionClass::BOUND_REF:
-		result = VisitReplace(expr.Cast<BoundReferenceExpression>(), expression);
+		result = VisitReplace((BoundReferenceExpression &)expr, expression);
 		break;
 	case ExpressionClass::BOUND_DEFAULT:
-		result = VisitReplace(expr.Cast<BoundDefaultExpression>(), expression);
+		result = VisitReplace((BoundDefaultExpression &)expr, expression);
 		break;
 	case ExpressionClass::BOUND_WINDOW:
-		result = VisitReplace(expr.Cast<BoundWindowExpression>(), expression);
+		result = VisitReplace((BoundWindowExpression &)expr, expression);
 		break;
 	case ExpressionClass::BOUND_UNNEST:
-		result = VisitReplace(expr.Cast<BoundUnnestExpression>(), expression);
+		result = VisitReplace((BoundUnnestExpression &)expr, expression);
 		break;
 	default:
 		throw InternalException("Unrecognized expression type in logical operator visitor");

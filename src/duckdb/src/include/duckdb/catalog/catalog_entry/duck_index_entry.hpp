@@ -16,14 +16,14 @@ namespace duckdb {
 class DuckIndexEntry : public IndexCatalogEntry {
 public:
 	//! Create an IndexCatalogEntry and initialize storage for it
-	DuckIndexEntry(Catalog &catalog, SchemaCatalogEntry &schema, CreateIndexInfo &info);
+	DuckIndexEntry(Catalog *catalog, SchemaCatalogEntry *schema, CreateIndexInfo *info);
 	~DuckIndexEntry();
 
 	shared_ptr<DataTableInfo> info;
 
 public:
-	string GetSchemaName() const override;
-	string GetTableName() const override;
+	string GetSchemaName() override;
+	string GetTableName() override;
 };
 
 } // namespace duckdb

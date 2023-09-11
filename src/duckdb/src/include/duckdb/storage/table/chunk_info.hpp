@@ -18,9 +18,6 @@ struct SelectionVector;
 class Transaction;
 struct TransactionData;
 
-class FormatSerializer;
-class FormatDeserializer;
-
 enum class ChunkInfoType : uint8_t { CONSTANT_INFO, VECTOR_INFO, EMPTY_INFO };
 
 class ChunkInfo {
@@ -44,38 +41,14 @@ public:
 	//! Returns whether or not a single row in the ChunkInfo should be used or not for the given transaction
 	virtual bool Fetch(TransactionData transaction, row_t row) = 0;
 	virtual void CommitAppend(transaction_t commit_id, idx_t start, idx_t end) = 0;
-	virtual idx_t GetCommittedDeletedCount(idx_t max_count) = 0;
 
 	virtual void Serialize(Serializer &serialize) = 0;
 	static unique_ptr<ChunkInfo> Deserialize(Deserializer &source);
-
-	virtual void FormatSerialize(FormatSerializer &serializer) const = 0;
-	static unique_ptr<ChunkInfo> FormatDeserialize(FormatDeserializer &deserializer);
-
-public:
-	template <class TARGET>
-	TARGET &Cast() {
-		if (type != TARGET::TYPE) {
-			throw InternalException("Failed to cast chunk info to type - query result type mismatch");
-		}
-		return reinterpret_cast<TARGET &>(*this);
-	}
-
-	template <class TARGET>
-	const TARGET &Cast() const {
-		if (type != TARGET::TYPE) {
-			throw InternalException("Failed to cast chunk info to type - query result type mismatch");
-		}
-		return reinterpret_cast<const TARGET &>(*this);
-	}
 };
 
 class ChunkConstantInfo : public ChunkInfo {
 public:
-	static constexpr const ChunkInfoType TYPE = ChunkInfoType::CONSTANT_INFO;
-
-public:
-	explicit ChunkConstantInfo(idx_t start);
+	ChunkConstantInfo(idx_t start);
 
 	atomic<transaction_t> insert_id;
 	atomic<transaction_t> delete_id;
@@ -86,26 +59,19 @@ public:
 	                            SelectionVector &sel_vector, idx_t max_count) override;
 	bool Fetch(TransactionData transaction, row_t row) override;
 	void CommitAppend(transaction_t commit_id, idx_t start, idx_t end) override;
-	idx_t GetCommittedDeletedCount(idx_t max_count) override;
 
 	void Serialize(Serializer &serialize) override;
 	static unique_ptr<ChunkInfo> Deserialize(Deserializer &source);
 
-	void FormatSerialize(FormatSerializer &serializer) const override;
-	static unique_ptr<ChunkInfo> FormatDeserialize(FormatDeserializer &deserializer);
-
 private:
 	template <class OP>
 	idx_t TemplatedGetSelVector(transaction_t start_time, transaction_t transaction_id, SelectionVector &sel_vector,
-	                            idx_t max_count) const;
+	                            idx_t max_count);
 };
 
 class ChunkVectorInfo : public ChunkInfo {
 public:
-	static constexpr const ChunkInfoType TYPE = ChunkInfoType::VECTOR_INFO;
-
-public:
-	explicit ChunkVectorInfo(idx_t start);
+	ChunkVectorInfo(idx_t start);
 
 	//! The transaction ids of the transactions that inserted the tuples (if any)
 	atomic<transaction_t> inserted[STANDARD_VECTOR_SIZE];
@@ -118,13 +84,12 @@ public:
 
 public:
 	idx_t GetSelVector(transaction_t start_time, transaction_t transaction_id, SelectionVector &sel_vector,
-	                   idx_t max_count) const;
+	                   idx_t max_count);
 	idx_t GetSelVector(TransactionData transaction, SelectionVector &sel_vector, idx_t max_count) override;
 	idx_t GetCommittedSelVector(transaction_t min_start_id, transaction_t min_transaction_id,
 	                            SelectionVector &sel_vector, idx_t max_count) override;
 	bool Fetch(TransactionData transaction, row_t row) override;
 	void CommitAppend(transaction_t commit_id, idx_t start, idx_t end) override;
-	idx_t GetCommittedDeletedCount(idx_t max_count) override;
 
 	void Append(idx_t start, idx_t end, transaction_t commit_id);
 
@@ -139,13 +104,10 @@ public:
 	void Serialize(Serializer &serialize) override;
 	static unique_ptr<ChunkInfo> Deserialize(Deserializer &source);
 
-	void FormatSerialize(FormatSerializer &serializer) const override;
-	static unique_ptr<ChunkInfo> FormatDeserialize(FormatDeserializer &deserializer);
-
 private:
 	template <class OP>
 	idx_t TemplatedGetSelVector(transaction_t start_time, transaction_t transaction_id, SelectionVector &sel_vector,
-	                            idx_t max_count) const;
+	                            idx_t max_count);
 };
 
 } // namespace duckdb

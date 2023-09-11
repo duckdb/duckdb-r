@@ -2,8 +2,6 @@
 
 #include "src/parser/transform/expression/transform_bool_expr.cpp"
 
-#include "src/parser/transform/expression/transform_boolean_test.cpp"
-
 #include "src/parser/transform/expression/transform_case.cpp"
 
 #include "src/parser/transform/expression/transform_cast.cpp"
@@ -33,6 +31,4 @@
 #include "src/parser/transform/expression/transform_positional_reference.cpp"
 
 #include "src/parser/transform/expression/transform_subquery.cpp"
-
-#include "src/parser/transform/expression/transform_multi_assign_reference.cpp"
 

@@ -8,8 +8,8 @@
 namespace duckdb {
 
 DatabaseManager::DatabaseManager(DatabaseInstance &db) : catalog_version(0), current_query_number(1) {
-	system = make_uniq<AttachedDatabase>(db);
-	databases = make_uniq<CatalogSet>(system->GetCatalog());
+	system = make_unique<AttachedDatabase>(db);
+	databases = make_unique<CatalogSet>(system->GetCatalog());
 }
 
 DatabaseManager::~DatabaseManager() {
@@ -23,11 +23,11 @@ void DatabaseManager::InitializeSystemCatalog() {
 	system->Initialize();
 }
 
-optional_ptr<AttachedDatabase> DatabaseManager::GetDatabase(ClientContext &context, const string &name) {
+AttachedDatabase *DatabaseManager::GetDatabase(ClientContext &context, const string &name) {
 	if (StringUtil::Lower(name) == TEMP_CATALOG) {
 		return context.client_data->temporary_objects.get();
 	}
-	return reinterpret_cast<AttachedDatabase *>(databases->GetEntry(context, name).get());
+	return (AttachedDatabase *)databases->GetEntry(context, name);
 }
 
 void DatabaseManager::AddDatabase(ClientContext &context, unique_ptr<AttachedDatabase> db_instance) {
@@ -42,33 +42,27 @@ void DatabaseManager::AddDatabase(ClientContext &context, unique_ptr<AttachedDat
 	}
 }
 
-void DatabaseManager::DetachDatabase(ClientContext &context, const string &name, OnEntryNotFound if_not_found) {
-	if (GetDefaultDatabase(context) == name) {
-		throw BinderException("Cannot detach database \"%s\" because it is the default database. Select a different "
-		                      "database using `USE` to allow detaching this database",
-		                      name);
-	}
+void DatabaseManager::DetachDatabase(ClientContext &context, const string &name, bool if_exists) {
 	if (!databases->DropEntry(context, name, false, true)) {
-		if (if_not_found == OnEntryNotFound::THROW_EXCEPTION) {
+		if (!if_exists) {
 			throw BinderException("Failed to detach database with name \"%s\": database not found", name);
 		}
 	}
 }
 
-optional_ptr<AttachedDatabase> DatabaseManager::GetDatabaseFromPath(ClientContext &context, const string &path) {
+AttachedDatabase *DatabaseManager::GetDatabaseFromPath(ClientContext &context, const string &path) {
 	auto databases = GetDatabases(context);
-	for (auto &db_ref : databases) {
-		auto &db = db_ref.get();
-		if (db.IsSystem()) {
+	for (auto db : databases) {
+		if (db->IsSystem()) {
 			continue;
 		}
-		auto &catalog = Catalog::GetCatalog(db);
+		auto &catalog = Catalog::GetCatalog(*db);
 		if (catalog.InMemory()) {
 			continue;
 		}
 		auto db_path = catalog.GetDBPath();
 		if (StringUtil::CIEquals(path, db_path)) {
-			return &db;
+			return db;
 		}
 	}
 	return nullptr;
@@ -87,27 +81,11 @@ const string &DatabaseManager::GetDefaultDatabase(ClientContext &context) {
 	return default_entry.catalog;
 }
 
-// LCOV_EXCL_START
-void DatabaseManager::SetDefaultDatabase(ClientContext &context, const string &new_value) {
-	auto db_entry = GetDatabase(context, new_value);
-
-	if (!db_entry) {
-		throw InternalException("Database \"%s\" not found", new_value);
-	} else if (db_entry->IsTemporary()) {
-		throw InternalException("Cannot set the default database to a temporary database");
-	} else if (db_entry->IsSystem()) {
-		throw InternalException("Cannot set the default database to a system database");
-	}
-
-	default_database = new_value;
-}
-// LCOV_EXCL_STOP
-
-vector<reference<AttachedDatabase>> DatabaseManager::GetDatabases(ClientContext &context) {
-	vector<reference<AttachedDatabase>> result;
-	databases->Scan(context, [&](CatalogEntry &entry) { result.push_back(entry.Cast<AttachedDatabase>()); });
-	result.push_back(*system);
-	result.push_back(*context.client_data->temporary_objects);
+vector<AttachedDatabase *> DatabaseManager::GetDatabases(ClientContext &context) {
+	vector<AttachedDatabase *> result;
+	databases->Scan(context, [&](CatalogEntry *entry) { result.push_back((AttachedDatabase *)entry); });
+	result.push_back(system.get());
+	result.push_back(context.client_data->temporary_objects.get());
 	return result;
 }
 

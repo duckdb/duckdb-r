@@ -11,7 +11,6 @@
 #include "duckdb/main/client_data.hpp"
 #include "duckdb/main/database.hpp"
 #include "duckdb/parser/expression/function_expression.hpp"
-#include "duckdb/main/extension_helper.hpp"
 #include "duckdb/parser/parsed_data/alter_table_info.hpp"
 #include "duckdb/parser/parsed_data/create_aggregate_function_info.hpp"
 #include "duckdb/parser/parsed_data/create_collation_info.hpp"
@@ -29,7 +28,6 @@
 #include "duckdb/planner/binder.hpp"
 #include "duckdb/catalog/default/default_types.hpp"
 #include "duckdb/main/extension_entries.hpp"
-#include "duckdb/main/extension/generated_extension_loader.hpp"
 #include "duckdb/main/connection.hpp"
 #include "duckdb/main/attached_database.hpp"
 #include "duckdb/main/database_manager.hpp"
@@ -65,34 +63,26 @@ Catalog &Catalog::GetSystemCatalog(ClientContext &context) {
 	return Catalog::GetSystemCatalog(*context.db);
 }
 
-optional_ptr<Catalog> Catalog::GetCatalogEntry(ClientContext &context, const string &catalog_name) {
+Catalog &Catalog::GetCatalog(ClientContext &context, const string &catalog_name) {
 	auto &db_manager = DatabaseManager::Get(context);
 	if (catalog_name == TEMP_CATALOG) {
-		return &ClientData::Get(context).temporary_objects->GetCatalog();
+		return ClientData::Get(context).temporary_objects->GetCatalog();
 	}
 	if (catalog_name == SYSTEM_CATALOG) {
-		return &GetSystemCatalog(context);
+		return GetSystemCatalog(context);
 	}
 	auto entry = db_manager.GetDatabase(
 	    context, IsInvalidCatalog(catalog_name) ? DatabaseManager::GetDefaultDatabase(context) : catalog_name);
 	if (!entry) {
-		return nullptr;
-	}
-	return &entry->GetCatalog();
-}
-
-Catalog &Catalog::GetCatalog(ClientContext &context, const string &catalog_name) {
-	auto catalog = Catalog::GetCatalogEntry(context, catalog_name);
-	if (!catalog) {
 		throw BinderException("Catalog \"%s\" does not exist!", catalog_name);
 	}
-	return *catalog;
+	return entry->GetCatalog();
 }
 
 //===--------------------------------------------------------------------===//
 // Schema
 //===--------------------------------------------------------------------===//
-optional_ptr<CatalogEntry> Catalog::CreateSchema(ClientContext &context, CreateSchemaInfo &info) {
+CatalogEntry *Catalog::CreateSchema(ClientContext &context, CreateSchemaInfo *info) {
 	return CreateSchema(GetCatalogTransaction(context), info);
 }
 
@@ -103,185 +93,177 @@ CatalogTransaction Catalog::GetCatalogTransaction(ClientContext &context) {
 //===--------------------------------------------------------------------===//
 // Table
 //===--------------------------------------------------------------------===//
-optional_ptr<CatalogEntry> Catalog::CreateTable(ClientContext &context, BoundCreateTableInfo &info) {
+CatalogEntry *Catalog::CreateTable(ClientContext &context, BoundCreateTableInfo *info) {
 	return CreateTable(GetCatalogTransaction(context), info);
 }
 
-optional_ptr<CatalogEntry> Catalog::CreateTable(ClientContext &context, unique_ptr<CreateTableInfo> info) {
+CatalogEntry *Catalog::CreateTable(ClientContext &context, unique_ptr<CreateTableInfo> info) {
 	auto binder = Binder::CreateBinder(context);
 	auto bound_info = binder->BindCreateTableInfo(std::move(info));
-	return CreateTable(context, *bound_info);
+	return CreateTable(context, bound_info.get());
 }
 
-optional_ptr<CatalogEntry> Catalog::CreateTable(CatalogTransaction transaction, SchemaCatalogEntry &schema,
-                                                BoundCreateTableInfo &info) {
-	return schema.CreateTable(transaction, info);
+CatalogEntry *Catalog::CreateTable(CatalogTransaction transaction, SchemaCatalogEntry *schema,
+                                   BoundCreateTableInfo *info) {
+	return schema->CreateTable(transaction, info);
 }
 
-optional_ptr<CatalogEntry> Catalog::CreateTable(CatalogTransaction transaction, BoundCreateTableInfo &info) {
-	auto &schema = GetSchema(transaction, info.base->schema);
+CatalogEntry *Catalog::CreateTable(CatalogTransaction transaction, BoundCreateTableInfo *info) {
+	auto schema = GetSchema(transaction, info->base->schema);
 	return CreateTable(transaction, schema, info);
 }
 
 //===--------------------------------------------------------------------===//
 // View
 //===--------------------------------------------------------------------===//
-optional_ptr<CatalogEntry> Catalog::CreateView(CatalogTransaction transaction, CreateViewInfo &info) {
-	auto &schema = GetSchema(transaction, info.schema);
+CatalogEntry *Catalog::CreateView(CatalogTransaction transaction, CreateViewInfo *info) {
+	auto schema = GetSchema(transaction, info->schema);
 	return CreateView(transaction, schema, info);
 }
 
-optional_ptr<CatalogEntry> Catalog::CreateView(ClientContext &context, CreateViewInfo &info) {
+CatalogEntry *Catalog::CreateView(ClientContext &context, CreateViewInfo *info) {
 	return CreateView(GetCatalogTransaction(context), info);
 }
 
-optional_ptr<CatalogEntry> Catalog::CreateView(CatalogTransaction transaction, SchemaCatalogEntry &schema,
-                                               CreateViewInfo &info) {
-	return schema.CreateView(transaction, info);
+CatalogEntry *Catalog::CreateView(CatalogTransaction transaction, SchemaCatalogEntry *schema, CreateViewInfo *info) {
+	return schema->CreateView(transaction, info);
 }
 
 //===--------------------------------------------------------------------===//
 // Sequence
 //===--------------------------------------------------------------------===//
-optional_ptr<CatalogEntry> Catalog::CreateSequence(CatalogTransaction transaction, CreateSequenceInfo &info) {
-	auto &schema = GetSchema(transaction, info.schema);
+CatalogEntry *Catalog::CreateSequence(CatalogTransaction transaction, CreateSequenceInfo *info) {
+	auto schema = GetSchema(transaction, info->schema);
 	return CreateSequence(transaction, schema, info);
 }
 
-optional_ptr<CatalogEntry> Catalog::CreateSequence(ClientContext &context, CreateSequenceInfo &info) {
+CatalogEntry *Catalog::CreateSequence(ClientContext &context, CreateSequenceInfo *info) {
 	return CreateSequence(GetCatalogTransaction(context), info);
 }
 
-optional_ptr<CatalogEntry> Catalog::CreateSequence(CatalogTransaction transaction, SchemaCatalogEntry &schema,
-                                                   CreateSequenceInfo &info) {
-	return schema.CreateSequence(transaction, info);
+CatalogEntry *Catalog::CreateSequence(CatalogTransaction transaction, SchemaCatalogEntry *schema,
+                                      CreateSequenceInfo *info) {
+	return schema->CreateSequence(transaction, info);
 }
 
 //===--------------------------------------------------------------------===//
 // Type
 //===--------------------------------------------------------------------===//
-optional_ptr<CatalogEntry> Catalog::CreateType(CatalogTransaction transaction, CreateTypeInfo &info) {
-	auto &schema = GetSchema(transaction, info.schema);
+CatalogEntry *Catalog::CreateType(CatalogTransaction transaction, CreateTypeInfo *info) {
+	auto schema = GetSchema(transaction, info->schema);
 	return CreateType(transaction, schema, info);
 }
 
-optional_ptr<CatalogEntry> Catalog::CreateType(ClientContext &context, CreateTypeInfo &info) {
+CatalogEntry *Catalog::CreateType(ClientContext &context, CreateTypeInfo *info) {
 	return CreateType(GetCatalogTransaction(context), info);
 }
 
-optional_ptr<CatalogEntry> Catalog::CreateType(CatalogTransaction transaction, SchemaCatalogEntry &schema,
-                                               CreateTypeInfo &info) {
-	return schema.CreateType(transaction, info);
+CatalogEntry *Catalog::CreateType(CatalogTransaction transaction, SchemaCatalogEntry *schema, CreateTypeInfo *info) {
+	return schema->CreateType(transaction, info);
 }
 
 //===--------------------------------------------------------------------===//
 // Table Function
 //===--------------------------------------------------------------------===//
-optional_ptr<CatalogEntry> Catalog::CreateTableFunction(CatalogTransaction transaction, CreateTableFunctionInfo &info) {
-	auto &schema = GetSchema(transaction, info.schema);
+CatalogEntry *Catalog::CreateTableFunction(CatalogTransaction transaction, CreateTableFunctionInfo *info) {
+	auto schema = GetSchema(transaction, info->schema);
 	return CreateTableFunction(transaction, schema, info);
 }
 
-optional_ptr<CatalogEntry> Catalog::CreateTableFunction(ClientContext &context, CreateTableFunctionInfo &info) {
+CatalogEntry *Catalog::CreateTableFunction(ClientContext &context, CreateTableFunctionInfo *info) {
 	return CreateTableFunction(GetCatalogTransaction(context), info);
 }
 
-optional_ptr<CatalogEntry> Catalog::CreateTableFunction(CatalogTransaction transaction, SchemaCatalogEntry &schema,
-                                                        CreateTableFunctionInfo &info) {
-	return schema.CreateTableFunction(transaction, info);
-}
-
-optional_ptr<CatalogEntry> Catalog::CreateTableFunction(ClientContext &context,
-                                                        optional_ptr<CreateTableFunctionInfo> info) {
-	return CreateTableFunction(context, *info);
+CatalogEntry *Catalog::CreateTableFunction(CatalogTransaction transaction, SchemaCatalogEntry *schema,
+                                           CreateTableFunctionInfo *info) {
+	return schema->CreateTableFunction(transaction, info);
 }
 
 //===--------------------------------------------------------------------===//
 // Copy Function
 //===--------------------------------------------------------------------===//
-optional_ptr<CatalogEntry> Catalog::CreateCopyFunction(CatalogTransaction transaction, CreateCopyFunctionInfo &info) {
-	auto &schema = GetSchema(transaction, info.schema);
+CatalogEntry *Catalog::CreateCopyFunction(CatalogTransaction transaction, CreateCopyFunctionInfo *info) {
+	auto schema = GetSchema(transaction, info->schema);
 	return CreateCopyFunction(transaction, schema, info);
 }
 
-optional_ptr<CatalogEntry> Catalog::CreateCopyFunction(ClientContext &context, CreateCopyFunctionInfo &info) {
+CatalogEntry *Catalog::CreateCopyFunction(ClientContext &context, CreateCopyFunctionInfo *info) {
 	return CreateCopyFunction(GetCatalogTransaction(context), info);
 }
 
-optional_ptr<CatalogEntry> Catalog::CreateCopyFunction(CatalogTransaction transaction, SchemaCatalogEntry &schema,
-                                                       CreateCopyFunctionInfo &info) {
-	return schema.CreateCopyFunction(transaction, info);
+CatalogEntry *Catalog::CreateCopyFunction(CatalogTransaction transaction, SchemaCatalogEntry *schema,
+                                          CreateCopyFunctionInfo *info) {
+	return schema->CreateCopyFunction(transaction, info);
 }
 
 //===--------------------------------------------------------------------===//
 // Pragma Function
 //===--------------------------------------------------------------------===//
-optional_ptr<CatalogEntry> Catalog::CreatePragmaFunction(CatalogTransaction transaction,
-                                                         CreatePragmaFunctionInfo &info) {
-	auto &schema = GetSchema(transaction, info.schema);
+CatalogEntry *Catalog::CreatePragmaFunction(CatalogTransaction transaction, CreatePragmaFunctionInfo *info) {
+	auto schema = GetSchema(transaction, info->schema);
 	return CreatePragmaFunction(transaction, schema, info);
 }
 
-optional_ptr<CatalogEntry> Catalog::CreatePragmaFunction(ClientContext &context, CreatePragmaFunctionInfo &info) {
+CatalogEntry *Catalog::CreatePragmaFunction(ClientContext &context, CreatePragmaFunctionInfo *info) {
 	return CreatePragmaFunction(GetCatalogTransaction(context), info);
 }
 
-optional_ptr<CatalogEntry> Catalog::CreatePragmaFunction(CatalogTransaction transaction, SchemaCatalogEntry &schema,
-                                                         CreatePragmaFunctionInfo &info) {
-	return schema.CreatePragmaFunction(transaction, info);
+CatalogEntry *Catalog::CreatePragmaFunction(CatalogTransaction transaction, SchemaCatalogEntry *schema,
+                                            CreatePragmaFunctionInfo *info) {
+	return schema->CreatePragmaFunction(transaction, info);
 }
 
 //===--------------------------------------------------------------------===//
 // Function
 //===--------------------------------------------------------------------===//
-optional_ptr<CatalogEntry> Catalog::CreateFunction(CatalogTransaction transaction, CreateFunctionInfo &info) {
-	auto &schema = GetSchema(transaction, info.schema);
+CatalogEntry *Catalog::CreateFunction(CatalogTransaction transaction, CreateFunctionInfo *info) {
+	auto schema = GetSchema(transaction, info->schema);
 	return CreateFunction(transaction, schema, info);
 }
 
-optional_ptr<CatalogEntry> Catalog::CreateFunction(ClientContext &context, CreateFunctionInfo &info) {
+CatalogEntry *Catalog::CreateFunction(ClientContext &context, CreateFunctionInfo *info) {
 	return CreateFunction(GetCatalogTransaction(context), info);
 }
 
-optional_ptr<CatalogEntry> Catalog::CreateFunction(CatalogTransaction transaction, SchemaCatalogEntry &schema,
-                                                   CreateFunctionInfo &info) {
-	return schema.CreateFunction(transaction, info);
+CatalogEntry *Catalog::CreateFunction(CatalogTransaction transaction, SchemaCatalogEntry *schema,
+                                      CreateFunctionInfo *info) {
+	return schema->CreateFunction(transaction, info);
 }
 
-optional_ptr<CatalogEntry> Catalog::AddFunction(ClientContext &context, CreateFunctionInfo &info) {
-	info.on_conflict = OnCreateConflict::ALTER_ON_CONFLICT;
+CatalogEntry *Catalog::AddFunction(ClientContext &context, CreateFunctionInfo *info) {
+	info->on_conflict = OnCreateConflict::ALTER_ON_CONFLICT;
 	return CreateFunction(context, info);
 }
 
 //===--------------------------------------------------------------------===//
 // Collation
 //===--------------------------------------------------------------------===//
-optional_ptr<CatalogEntry> Catalog::CreateCollation(CatalogTransaction transaction, CreateCollationInfo &info) {
-	auto &schema = GetSchema(transaction, info.schema);
+CatalogEntry *Catalog::CreateCollation(CatalogTransaction transaction, CreateCollationInfo *info) {
+	auto schema = GetSchema(transaction, info->schema);
 	return CreateCollation(transaction, schema, info);
 }
 
-optional_ptr<CatalogEntry> Catalog::CreateCollation(ClientContext &context, CreateCollationInfo &info) {
+CatalogEntry *Catalog::CreateCollation(ClientContext &context, CreateCollationInfo *info) {
 	return CreateCollation(GetCatalogTransaction(context), info);
 }
 
-optional_ptr<CatalogEntry> Catalog::CreateCollation(CatalogTransaction transaction, SchemaCatalogEntry &schema,
-                                                    CreateCollationInfo &info) {
-	return schema.CreateCollation(transaction, info);
+CatalogEntry *Catalog::CreateCollation(CatalogTransaction transaction, SchemaCatalogEntry *schema,
+                                       CreateCollationInfo *info) {
+	return schema->CreateCollation(transaction, info);
 }
 
 //===--------------------------------------------------------------------===//
 // Index
 //===--------------------------------------------------------------------===//
-optional_ptr<CatalogEntry> Catalog::CreateIndex(CatalogTransaction transaction, CreateIndexInfo &info) {
+CatalogEntry *Catalog::CreateIndex(CatalogTransaction transaction, CreateIndexInfo *info) {
 	auto &context = transaction.GetContext();
 	return CreateIndex(context, info);
 }
 
-optional_ptr<CatalogEntry> Catalog::CreateIndex(ClientContext &context, CreateIndexInfo &info) {
-	auto &schema = GetSchema(context, info.schema);
-	auto &table = GetEntry<TableCatalogEntry>(context, schema.name, info.table);
-	return schema.CreateIndex(context, info, table);
+CatalogEntry *Catalog::CreateIndex(ClientContext &context, CreateIndexInfo *info) {
+	auto schema = GetSchema(context, info->schema);
+	auto table = GetEntry<TableCatalogEntry>(context, schema->name, info->table->table_name);
+	return schema->CreateIndex(context, info, table);
 }
 
 //===--------------------------------------------------------------------===//
@@ -297,9 +279,8 @@ struct CatalogLookup {
 
 //! Return value of Catalog::LookupEntry
 struct CatalogEntryLookup {
-	optional_ptr<SchemaCatalogEntry> schema;
-	optional_ptr<CatalogEntry> entry;
-	PreservedError error;
+	SchemaCatalogEntry *schema;
+	CatalogEntry *entry;
 
 	DUCKDB_API bool Found() const {
 		return entry;
@@ -309,16 +290,15 @@ struct CatalogEntryLookup {
 //===--------------------------------------------------------------------===//
 // Generic
 //===--------------------------------------------------------------------===//
-void Catalog::DropEntry(ClientContext &context, DropInfo &info) {
+void Catalog::DropEntry(ClientContext &context, DropInfo *info) {
 	ModifyCatalog();
-	if (info.type == CatalogType::SCHEMA_ENTRY) {
+	if (info->type == CatalogType::SCHEMA_ENTRY) {
 		// DROP SCHEMA
 		DropSchema(context, info);
 		return;
 	}
 
-	auto lookup = LookupEntry(context, info.type, info.schema, info.name, info.if_not_found);
-
+	auto lookup = LookupEntry(context, info->type, info->schema, info->name, info->if_exists);
 	if (!lookup.Found()) {
 		return;
 	}
@@ -326,45 +306,50 @@ void Catalog::DropEntry(ClientContext &context, DropInfo &info) {
 	lookup.schema->DropEntry(context, info);
 }
 
-SchemaCatalogEntry &Catalog::GetSchema(ClientContext &context, const string &name, QueryErrorContext error_context) {
-	return *Catalog::GetSchema(context, name, OnEntryNotFound::THROW_EXCEPTION, error_context);
-}
-
-optional_ptr<SchemaCatalogEntry> Catalog::GetSchema(ClientContext &context, const string &schema_name,
-                                                    OnEntryNotFound if_not_found, QueryErrorContext error_context) {
-	return GetSchema(GetCatalogTransaction(context), schema_name, if_not_found, error_context);
-}
-
-SchemaCatalogEntry &Catalog::GetSchema(ClientContext &context, const string &catalog_name, const string &schema_name,
+SchemaCatalogEntry *Catalog::GetSchema(ClientContext &context, const string &schema_name, bool if_exists,
                                        QueryErrorContext error_context) {
-	return *Catalog::GetSchema(context, catalog_name, schema_name, OnEntryNotFound::THROW_EXCEPTION, error_context);
-}
-
-SchemaCatalogEntry &Catalog::GetSchema(CatalogTransaction transaction, const string &name,
-                                       QueryErrorContext error_context) {
-	return *GetSchema(transaction, name, OnEntryNotFound::THROW_EXCEPTION, error_context);
+	return GetSchema(GetCatalogTransaction(context), schema_name, if_exists, error_context);
 }
 
 //===--------------------------------------------------------------------===//
 // Lookup
 //===--------------------------------------------------------------------===//
 SimilarCatalogEntry Catalog::SimilarEntryInSchemas(ClientContext &context, const string &entry_name, CatalogType type,
-                                                   const reference_set_t<SchemaCatalogEntry> &schemas) {
+                                                   const unordered_set<SchemaCatalogEntry *> &schemas) {
 	SimilarCatalogEntry result;
-	for (auto schema_ref : schemas) {
-		auto &schema = schema_ref.get();
-		auto transaction = schema.catalog.GetCatalogTransaction(context);
-		auto entry = schema.GetSimilarEntry(transaction, type, entry_name);
+	for (auto schema : schemas) {
+		auto transaction = schema->catalog->GetCatalogTransaction(context);
+		auto entry = schema->GetSimilarEntry(transaction, type, entry_name);
 		if (!entry.Found()) {
 			// no similar entry found
 			continue;
 		}
 		if (!result.Found() || result.distance > entry.distance) {
 			result = entry;
-			result.schema = &schema;
+			result.schema = schema;
 		}
 	}
 	return result;
+}
+
+string FindExtensionGeneric(const string &name, const ExtensionEntry entries[], idx_t size) {
+	auto lcase = StringUtil::Lower(name);
+	auto it = std::lower_bound(entries, entries + size, lcase,
+	                           [](const ExtensionEntry &element, const string &value) { return element.name < value; });
+	if (it != entries + size && it->name == lcase) {
+		return it->extension;
+	}
+	return "";
+}
+
+string FindExtensionForFunction(const string &name) {
+	idx_t size = sizeof(EXTENSION_FUNCTIONS) / sizeof(ExtensionEntry);
+	return FindExtensionGeneric(name, EXTENSION_FUNCTIONS, size);
+}
+
+string FindExtensionForSetting(const string &name) {
+	idx_t size = sizeof(EXTENSION_SETTINGS) / sizeof(ExtensionEntry);
+	return FindExtensionGeneric(name, EXTENSION_SETTINGS, size);
 }
 
 vector<CatalogSearchEntry> GetCatalogEntries(ClientContext &context, const string &catalog, const string &schema) {
@@ -431,53 +416,14 @@ void FindMinimalQualification(ClientContext &context, const string &catalog_name
 	qualify_schema = true;
 }
 
-void Catalog::AutoloadExtensionByConfigName(ClientContext &context, const string &configuration_name) {
-#ifndef DUCKDB_DISABLE_EXTENSION_LOAD
-	auto &dbconfig = DBConfig::GetConfig(context);
-	if (dbconfig.options.autoload_known_extensions) {
-		auto extension_name = ExtensionHelper::FindExtensionInEntries(configuration_name, EXTENSION_SETTINGS);
-		if (ExtensionHelper::CanAutoloadExtension(extension_name)) {
-			ExtensionHelper::AutoLoadExtension(context, extension_name);
-			return;
-		}
-	}
-#endif
-
-	throw Catalog::UnrecognizedConfigurationError(context, configuration_name);
-}
-
-bool Catalog::AutoLoadExtensionByCatalogEntry(ClientContext &context, CatalogType type, const string &entry_name) {
-#ifndef DUCKDB_DISABLE_EXTENSION_LOAD
-	auto &dbconfig = DBConfig::GetConfig(context);
-	if (dbconfig.options.autoload_known_extensions) {
-		string extension_name;
-		if (type == CatalogType::TABLE_FUNCTION_ENTRY || type == CatalogType::SCALAR_FUNCTION_ENTRY ||
-		    type == CatalogType::AGGREGATE_FUNCTION_ENTRY || type == CatalogType::PRAGMA_FUNCTION_ENTRY) {
-			extension_name = ExtensionHelper::FindExtensionInEntries(entry_name, EXTENSION_FUNCTIONS);
-		} else if (type == CatalogType::COPY_FUNCTION_ENTRY) {
-			extension_name = ExtensionHelper::FindExtensionInEntries(entry_name, EXTENSION_COPY_FUNCTIONS);
-		} else if (type == CatalogType::TYPE_ENTRY) {
-			extension_name = ExtensionHelper::FindExtensionInEntries(entry_name, EXTENSION_TYPES);
-		}
-
-		if (!extension_name.empty() && ExtensionHelper::CanAutoloadExtension(extension_name)) {
-			ExtensionHelper::AutoLoadExtension(context, extension_name);
-			return true;
-		}
-	}
-#endif
-
-	return false;
-}
-
 CatalogException Catalog::UnrecognizedConfigurationError(ClientContext &context, const string &name) {
 	// check if the setting exists in any extensions
-	auto extension_name = ExtensionHelper::FindExtensionInEntries(name, EXTENSION_SETTINGS);
+	auto extension_name = FindExtensionForSetting(name);
 	if (!extension_name.empty()) {
-		auto error_message = "Setting with name \"" + name + "\" is not in the catalog, but it exists in the " +
-		                     extension_name + " extension.";
-		error_message = ExtensionHelper::AddExtensionInstallHintToErrorMsg(context, error_message, extension_name);
-		return CatalogException(error_message);
+		return CatalogException(
+		    "Setting with name \"%s\" is not in the catalog, but it exists in the %s extension.\n\nTo "
+		    "install and load the extension, run:\nINSTALL %s;\nLOAD %s;",
+		    name, extension_name, extension_name, extension_name);
 	}
 	// the setting is not in an extension
 	// get a list of all options
@@ -492,45 +438,37 @@ CatalogException Catalog::UnrecognizedConfigurationError(ClientContext &context,
 
 CatalogException Catalog::CreateMissingEntryException(ClientContext &context, const string &entry_name,
                                                       CatalogType type,
-                                                      const reference_set_t<SchemaCatalogEntry> &schemas,
+                                                      const unordered_set<SchemaCatalogEntry *> &schemas,
                                                       QueryErrorContext error_context) {
 	auto entry = SimilarEntryInSchemas(context, entry_name, type, schemas);
 
-	reference_set_t<SchemaCatalogEntry> unseen_schemas;
+	unordered_set<SchemaCatalogEntry *> unseen_schemas;
 	auto &db_manager = DatabaseManager::Get(context);
 	auto databases = db_manager.GetDatabases(context);
 	for (auto database : databases) {
-		auto &catalog = database.get().GetCatalog();
+		auto &catalog = database->GetCatalog();
 		auto current_schemas = catalog.GetAllSchemas(context);
 		for (auto &current_schema : current_schemas) {
-			unseen_schemas.insert(current_schema.get());
+			unseen_schemas.insert(current_schema);
 		}
 	}
 	// check if the entry exists in any extension
-	string extension_name;
 	if (type == CatalogType::TABLE_FUNCTION_ENTRY || type == CatalogType::SCALAR_FUNCTION_ENTRY ||
-	    type == CatalogType::AGGREGATE_FUNCTION_ENTRY || type == CatalogType::PRAGMA_FUNCTION_ENTRY) {
-		extension_name = ExtensionHelper::FindExtensionInEntries(entry_name, EXTENSION_FUNCTIONS);
-	} else if (type == CatalogType::TYPE_ENTRY) {
-		extension_name = ExtensionHelper::FindExtensionInEntries(entry_name, EXTENSION_TYPES);
-	} else if (type == CatalogType::COPY_FUNCTION_ENTRY) {
-		extension_name = ExtensionHelper::FindExtensionInEntries(entry_name, EXTENSION_COPY_FUNCTIONS);
+	    type == CatalogType::AGGREGATE_FUNCTION_ENTRY) {
+		auto extension_name = FindExtensionForFunction(entry_name);
+		if (!extension_name.empty()) {
+			return CatalogException(
+			    "Function with name \"%s\" is not in the catalog, but it exists in the %s extension.\n\nTo "
+			    "install and load the extension, run:\nINSTALL %s;\nLOAD %s;",
+			    entry_name, extension_name, extension_name, extension_name);
+		}
 	}
-
-	// if we found an extension that can handle this catalog entry, create an error hinting the user
-	if (!extension_name.empty()) {
-		auto error_message = CatalogTypeToString(type) + " with name \"" + entry_name +
-		                     "\" is not in the catalog, but it exists in the " + extension_name + " extension.";
-		error_message = ExtensionHelper::AddExtensionInstallHintToErrorMsg(context, error_message, extension_name);
-		return CatalogException(error_message);
-	}
-
 	auto unseen_entry = SimilarEntryInSchemas(context, entry_name, type, unseen_schemas);
 	string did_you_mean;
 	if (unseen_entry.Found() && unseen_entry.distance < entry.distance) {
 		// the closest matching entry requires qualification as it is not in the default search path
 		// check how to minimally qualify this entry
-		auto catalog_name = unseen_entry.schema->catalog.GetName();
+		auto catalog_name = unseen_entry.schema->catalog->GetName();
 		auto schema_name = unseen_entry.schema->name;
 		bool qualify_database;
 		bool qualify_schema;
@@ -544,267 +482,199 @@ CatalogException Catalog::CreateMissingEntryException(ClientContext &context, co
 	                                                  entry_name, did_you_mean));
 }
 
-CatalogEntryLookup Catalog::TryLookupEntryInternal(CatalogTransaction transaction, CatalogType type,
-                                                   const string &schema, const string &name) {
-	auto schema_entry = GetSchema(transaction, schema, OnEntryNotFound::RETURN_NULL);
+CatalogEntryLookup Catalog::LookupEntryInternal(CatalogTransaction transaction, CatalogType type, const string &schema,
+                                                const string &name) {
+
+	auto schema_entry = (SchemaCatalogEntry *)GetSchema(transaction, schema, true);
 	if (!schema_entry) {
-		return {nullptr, nullptr, PreservedError()};
+		return {nullptr, nullptr};
 	}
 	auto entry = schema_entry->GetEntry(transaction, type, name);
 	if (!entry) {
-		return {schema_entry, nullptr, PreservedError()};
+		return {schema_entry, nullptr};
 	}
-	return {schema_entry, entry, PreservedError()};
+	return {schema_entry, entry};
 }
 
-CatalogEntryLookup Catalog::TryLookupEntry(ClientContext &context, CatalogType type, const string &schema,
-                                           const string &name, OnEntryNotFound if_not_found,
-                                           QueryErrorContext error_context) {
-	reference_set_t<SchemaCatalogEntry> schemas;
+CatalogEntryLookup Catalog::LookupEntry(ClientContext &context, CatalogType type, const string &schema,
+                                        const string &name, bool if_exists, QueryErrorContext error_context) {
+	unordered_set<SchemaCatalogEntry *> schemas;
 	if (IsInvalidSchema(schema)) {
 		// try all schemas for this catalog
+		auto catalog_name = GetName();
+		if (catalog_name == DatabaseManager::GetDefaultDatabase(context)) {
+			catalog_name = INVALID_CATALOG;
+		}
 		auto entries = GetCatalogEntries(context, GetName(), INVALID_SCHEMA);
 		for (auto &entry : entries) {
 			auto &candidate_schema = entry.schema;
 			auto transaction = GetCatalogTransaction(context);
-			auto result = TryLookupEntryInternal(transaction, type, candidate_schema, name);
+			auto result = LookupEntryInternal(transaction, type, candidate_schema, name);
 			if (result.Found()) {
 				return result;
 			}
 			if (result.schema) {
-				schemas.insert(*result.schema);
+				schemas.insert(result.schema);
 			}
 		}
 	} else {
 		auto transaction = GetCatalogTransaction(context);
-		auto result = TryLookupEntryInternal(transaction, type, schema, name);
+		auto result = LookupEntryInternal(transaction, type, schema, name);
 		if (result.Found()) {
 			return result;
 		}
 		if (result.schema) {
-			schemas.insert(*result.schema);
+			schemas.insert(result.schema);
 		}
 	}
-
-	if (if_not_found == OnEntryNotFound::RETURN_NULL) {
-		return {nullptr, nullptr, PreservedError()};
-	} else {
-		auto except = CreateMissingEntryException(context, name, type, schemas, error_context);
-		return {nullptr, nullptr, PreservedError(except)};
+	if (if_exists) {
+		return {nullptr, nullptr};
 	}
+	throw CreateMissingEntryException(context, name, type, schemas, error_context);
 }
 
-CatalogEntryLookup Catalog::LookupEntry(ClientContext &context, CatalogType type, const string &schema,
-                                        const string &name, OnEntryNotFound if_not_found,
-                                        QueryErrorContext error_context) {
-	auto res = TryLookupEntry(context, type, schema, name, if_not_found, error_context);
-
-	if (res.error) {
-		res.error.Throw();
-	}
-
-	return res;
-}
-
-CatalogEntryLookup Catalog::TryLookupEntry(ClientContext &context, vector<CatalogLookup> &lookups, CatalogType type,
-                                           const string &name, OnEntryNotFound if_not_found,
-                                           QueryErrorContext error_context) {
-	reference_set_t<SchemaCatalogEntry> schemas;
+CatalogEntryLookup Catalog::LookupEntry(ClientContext &context, vector<CatalogLookup> &lookups, CatalogType type,
+                                        const string &name, bool if_exists, QueryErrorContext error_context) {
+	unordered_set<SchemaCatalogEntry *> schemas;
 	for (auto &lookup : lookups) {
 		auto transaction = lookup.catalog.GetCatalogTransaction(context);
-		auto result = lookup.catalog.TryLookupEntryInternal(transaction, type, lookup.schema, name);
+		auto result = lookup.catalog.LookupEntryInternal(transaction, type, lookup.schema, name);
 		if (result.Found()) {
 			return result;
 		}
 		if (result.schema) {
-			schemas.insert(*result.schema);
+			schemas.insert(result.schema);
 		}
 	}
-
-	if (if_not_found == OnEntryNotFound::RETURN_NULL) {
-		return {nullptr, nullptr, PreservedError()};
-	} else {
-		auto except = CreateMissingEntryException(context, name, type, schemas, error_context);
-		return {nullptr, nullptr, PreservedError(except)};
+	if (if_exists) {
+		return {nullptr, nullptr};
 	}
+	throw CreateMissingEntryException(context, name, type, schemas, error_context);
 }
 
-CatalogEntryLookup Catalog::TryLookupEntry(ClientContext &context, CatalogType type, const string &catalog,
-                                           const string &schema, const string &name, OnEntryNotFound if_not_found,
-                                           QueryErrorContext error_context) {
-	auto entries = GetCatalogEntries(context, catalog, schema);
-	vector<CatalogLookup> lookups;
-	lookups.reserve(entries.size());
-	for (auto &entry : entries) {
-		if (if_not_found == OnEntryNotFound::RETURN_NULL) {
-			auto catalog_entry = Catalog::GetCatalogEntry(context, entry.catalog);
-			if (!catalog_entry) {
-				return {nullptr, nullptr, PreservedError()};
-			}
-			lookups.emplace_back(*catalog_entry, entry.schema);
-		} else {
-			lookups.emplace_back(Catalog::GetCatalog(context, entry.catalog), entry.schema);
-		}
-	}
-	return Catalog::TryLookupEntry(context, lookups, type, name, if_not_found, error_context);
-}
-
-CatalogEntry &Catalog::GetEntry(ClientContext &context, const string &schema, const string &name) {
+CatalogEntry *Catalog::GetEntry(ClientContext &context, const string &schema, const string &name) {
 	vector<CatalogType> entry_types {CatalogType::TABLE_ENTRY, CatalogType::SEQUENCE_ENTRY};
 
 	for (auto entry_type : entry_types) {
-		auto result = GetEntry(context, entry_type, schema, name, OnEntryNotFound::RETURN_NULL);
-		if (result) {
-			return *result;
+		CatalogEntry *result = GetEntry(context, entry_type, schema, name, true);
+		if (result != nullptr) {
+			return result;
 		}
 	}
 
 	throw CatalogException("CatalogElement \"%s.%s\" does not exist!", schema, name);
 }
 
-optional_ptr<CatalogEntry> Catalog::GetEntry(ClientContext &context, CatalogType type, const string &schema_name,
-                                             const string &name, OnEntryNotFound if_not_found,
-                                             QueryErrorContext error_context) {
-	auto lookup_entry = TryLookupEntry(context, type, schema_name, name, if_not_found, error_context);
-
-	// Try autoloading extension to resolve lookup
-	if (!lookup_entry.Found()) {
-		if (AutoLoadExtensionByCatalogEntry(context, type, name)) {
-			lookup_entry = TryLookupEntry(context, type, schema_name, name, if_not_found, error_context);
-		}
-	}
-
-	if (lookup_entry.error) {
-		lookup_entry.error.Throw();
-	}
-
-	return lookup_entry.entry.get();
+CatalogEntry *Catalog::GetEntry(ClientContext &context, CatalogType type, const string &schema_name, const string &name,
+                                bool if_exists, QueryErrorContext error_context) {
+	return LookupEntry(context, type, schema_name, name, if_exists, error_context).entry;
 }
 
-CatalogEntry &Catalog::GetEntry(ClientContext &context, CatalogType type, const string &schema, const string &name,
-                                QueryErrorContext error_context) {
-	return *Catalog::GetEntry(context, type, schema, name, OnEntryNotFound::THROW_EXCEPTION, error_context);
-}
-
-optional_ptr<CatalogEntry> Catalog::GetEntry(ClientContext &context, CatalogType type, const string &catalog,
-                                             const string &schema, const string &name, OnEntryNotFound if_not_found,
-                                             QueryErrorContext error_context) {
-	auto result = TryLookupEntry(context, type, catalog, schema, name, if_not_found, error_context);
-
-	// Try autoloading extension to resolve lookup
-	if (!result.Found()) {
-		if (AutoLoadExtensionByCatalogEntry(context, type, name)) {
-			result = TryLookupEntry(context, type, catalog, schema, name, if_not_found, error_context);
-		}
+CatalogEntry *Catalog::GetEntry(ClientContext &context, CatalogType type, const string &catalog, const string &schema,
+                                const string &name, bool if_exists_p, QueryErrorContext error_context) {
+	auto entries = GetCatalogEntries(context, catalog, schema);
+	vector<CatalogLookup> lookups;
+	lookups.reserve(entries.size());
+	for (auto &entry : entries) {
+		lookups.emplace_back(Catalog::GetCatalog(context, entry.catalog), entry.schema);
 	}
-
-	if (result.error) {
-		result.error.Throw();
-	}
-
+	auto result = LookupEntry(context, lookups, type, name, if_exists_p, error_context);
 	if (!result.Found()) {
-		D_ASSERT(if_not_found == OnEntryNotFound::RETURN_NULL);
+		D_ASSERT(if_exists_p);
 		return nullptr;
 	}
-	return result.entry.get();
+	return result.entry;
 }
 
-CatalogEntry &Catalog::GetEntry(ClientContext &context, CatalogType type, const string &catalog, const string &schema,
-                                const string &name, QueryErrorContext error_context) {
-	return *Catalog::GetEntry(context, type, catalog, schema, name, OnEntryNotFound::THROW_EXCEPTION, error_context);
-}
-
-optional_ptr<SchemaCatalogEntry> Catalog::GetSchema(ClientContext &context, const string &catalog_name,
-                                                    const string &schema_name, OnEntryNotFound if_not_found,
-                                                    QueryErrorContext error_context) {
+SchemaCatalogEntry *Catalog::GetSchema(ClientContext &context, const string &catalog_name, const string &schema_name,
+                                       bool if_exists_p, QueryErrorContext error_context) {
 	auto entries = GetCatalogEntries(context, catalog_name, schema_name);
+	SchemaCatalogEntry *result = nullptr;
 	for (idx_t i = 0; i < entries.size(); i++) {
-		auto on_not_found = i + 1 == entries.size() ? if_not_found : OnEntryNotFound::RETURN_NULL;
+		auto if_exists = i + 1 == entries.size() ? if_exists_p : true;
 		auto &catalog = Catalog::GetCatalog(context, entries[i].catalog);
-		auto result = catalog.GetSchema(context, schema_name, on_not_found, error_context);
+		auto result = catalog.GetSchema(context, schema_name, if_exists, error_context);
 		if (result) {
 			return result;
 		}
 	}
-	return nullptr;
+	return result;
 }
 
-LogicalType Catalog::GetType(ClientContext &context, const string &schema, const string &name,
-                             OnEntryNotFound if_not_found) {
-	auto type_entry = GetEntry<TypeCatalogEntry>(context, schema, name, if_not_found);
+LogicalType Catalog::GetType(ClientContext &context, const string &schema, const string &name, bool if_exists) {
+	auto type_entry = GetEntry<TypeCatalogEntry>(context, schema, name, if_exists);
 	if (!type_entry) {
 		return LogicalType::INVALID;
 	}
-	return type_entry->user_type;
+	auto result_type = type_entry->user_type;
+	LogicalType::SetCatalog(result_type, type_entry);
+	return result_type;
 }
 
 LogicalType Catalog::GetType(ClientContext &context, const string &catalog_name, const string &schema,
                              const string &name) {
-	auto &type_entry = Catalog::GetEntry<TypeCatalogEntry>(context, catalog_name, schema, name);
-	return type_entry.user_type;
+	auto type_entry = Catalog::GetEntry<TypeCatalogEntry>(context, catalog_name, schema, name);
+	auto result_type = type_entry->user_type;
+	LogicalType::SetCatalog(result_type, type_entry);
+	return result_type;
 }
 
-vector<reference<SchemaCatalogEntry>> Catalog::GetSchemas(ClientContext &context) {
-	vector<reference<SchemaCatalogEntry>> schemas;
-	ScanSchemas(context, [&](SchemaCatalogEntry &entry) { schemas.push_back(entry); });
+vector<SchemaCatalogEntry *> Catalog::GetSchemas(ClientContext &context) {
+	vector<SchemaCatalogEntry *> schemas;
+	ScanSchemas(context, [&](CatalogEntry *entry) { schemas.push_back((SchemaCatalogEntry *)entry); });
 	return schemas;
 }
 
-vector<reference<SchemaCatalogEntry>> Catalog::GetSchemas(ClientContext &context, const string &catalog_name) {
-	vector<reference<Catalog>> catalogs;
+vector<SchemaCatalogEntry *> Catalog::GetSchemas(ClientContext &context, const string &catalog_name) {
+	vector<Catalog *> catalogs;
 	if (IsInvalidCatalog(catalog_name)) {
-		reference_set_t<Catalog> inserted_catalogs;
+		unordered_set<string> name;
 
 		auto &search_path = *context.client_data->catalog_search_path;
 		for (auto &entry : search_path.Get()) {
-			auto &catalog = Catalog::GetCatalog(context, entry.catalog);
-			if (inserted_catalogs.find(catalog) != inserted_catalogs.end()) {
+			if (name.find(entry.catalog) != name.end()) {
 				continue;
 			}
-			inserted_catalogs.insert(catalog);
-			catalogs.push_back(catalog);
+			name.insert(entry.catalog);
+			catalogs.push_back(&Catalog::GetCatalog(context, entry.catalog));
 		}
 	} else {
-		catalogs.push_back(Catalog::GetCatalog(context, catalog_name));
+		catalogs.push_back(&Catalog::GetCatalog(context, catalog_name));
 	}
-	vector<reference<SchemaCatalogEntry>> result;
+	vector<SchemaCatalogEntry *> result;
 	for (auto catalog : catalogs) {
-		auto schemas = catalog.get().GetSchemas(context);
+		auto schemas = catalog->GetSchemas(context);
 		result.insert(result.end(), schemas.begin(), schemas.end());
 	}
 	return result;
 }
 
-vector<reference<SchemaCatalogEntry>> Catalog::GetAllSchemas(ClientContext &context) {
-	vector<reference<SchemaCatalogEntry>> result;
+vector<SchemaCatalogEntry *> Catalog::GetAllSchemas(ClientContext &context) {
+	vector<SchemaCatalogEntry *> result;
 
 	auto &db_manager = DatabaseManager::Get(context);
 	auto databases = db_manager.GetDatabases(context);
 	for (auto database : databases) {
-		auto &catalog = database.get().GetCatalog();
+		auto &catalog = database->GetCatalog();
 		auto new_schemas = catalog.GetSchemas(context);
 		result.insert(result.end(), new_schemas.begin(), new_schemas.end());
 	}
-	sort(result.begin(), result.end(),
-	     [&](reference<SchemaCatalogEntry> left_p, reference<SchemaCatalogEntry> right_p) {
-		     auto &left = left_p.get();
-		     auto &right = right_p.get();
-		     if (left.catalog.GetName() < right.catalog.GetName()) {
-			     return true;
-		     }
-		     if (left.catalog.GetName() == right.catalog.GetName()) {
-			     return left.name < right.name;
-		     }
-		     return false;
-	     });
+	sort(result.begin(), result.end(), [&](SchemaCatalogEntry *x, SchemaCatalogEntry *y) {
+		if (x->catalog->GetName() < y->catalog->GetName()) {
+			return true;
+		}
+		if (x->catalog->GetName() == y->catalog->GetName()) {
+			return x->name < y->name;
+		}
+		return false;
+	});
 
 	return result;
 }
 
-void Catalog::Alter(ClientContext &context, AlterInfo &info) {
+void Catalog::Alter(ClientContext &context, AlterInfo *info) {
 	ModifyCatalog();
-	auto lookup = LookupEntry(context, info.GetCatalogType(), info.schema, info.name, info.if_not_found);
-
+	auto lookup = LookupEntry(context, info->GetCatalogType(), info->schema, info->name, info->if_exists);
 	if (!lookup.Found()) {
 		return;
 	}

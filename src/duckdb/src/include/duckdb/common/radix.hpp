@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include "duckdb/common/bswap.hpp"
 #include "duckdb/common/common.hpp"
 #include "duckdb/common/exception.hpp"
 #include "duckdb/common/types.hpp"
@@ -21,11 +20,23 @@
 
 namespace duckdb {
 
+#define BSWAP16(x) ((uint16_t)((((uint16_t)(x)&0xff00) >> 8) | (((uint16_t)(x)&0x00ff) << 8)))
+
+#define BSWAP32(x)                                                                                                     \
+	((uint32_t)((((uint32_t)(x)&0xff000000) >> 24) | (((uint32_t)(x)&0x00ff0000) >> 8) |                               \
+	            (((uint32_t)(x)&0x0000ff00) << 8) | (((uint32_t)(x)&0x000000ff) << 24)))
+
+#define BSWAP64(x)                                                                                                     \
+	((uint64_t)((((uint64_t)(x)&0xff00000000000000ull) >> 56) | (((uint64_t)(x)&0x00ff000000000000ull) >> 40) |        \
+	            (((uint64_t)(x)&0x0000ff0000000000ull) >> 24) | (((uint64_t)(x)&0x000000ff00000000ull) >> 8) |         \
+	            (((uint64_t)(x)&0x00000000ff000000ull) << 8) | (((uint64_t)(x)&0x0000000000ff0000ull) << 24) |         \
+	            (((uint64_t)(x)&0x000000000000ff00ull) << 40) | (((uint64_t)(x)&0x00000000000000ffull) << 56)))
+
 struct Radix {
 public:
 	static inline bool IsLittleEndian() {
 		int n = 1;
-		if (*char_ptr_cast(&n) == 1) {
+		if (*(char *)&n == 1) {
 			return true;
 		} else {
 			return false;
@@ -39,7 +50,7 @@ public:
 
 	static inline void EncodeStringDataPrefix(data_ptr_t dataptr, string_t value, idx_t prefix_len) {
 		auto len = value.GetSize();
-		memcpy(dataptr, value.GetData(), MinValue(len, prefix_len));
+		memcpy(dataptr, value.GetDataUnsafe(), MinValue(len, prefix_len));
 		if (len < prefix_len) {
 			memset(dataptr + len, '\0', prefix_len - len);
 		}
@@ -70,7 +81,7 @@ public:
 		if (x < -FLT_MAX) {
 			return 0;
 		}
-		buff = Load<uint32_t>(const_data_ptr_cast(&x));
+		buff = Load<uint32_t>((const_data_ptr_t)&x);
 		if ((buff & (1u << 31)) == 0) { //! +0 and positive numbers
 			buff |= (1u << 31);
 		} else {          //! negative numbers
@@ -100,7 +111,7 @@ public:
 		if (x < -DBL_MAX) {
 			return 0;
 		}
-		buff = Load<uint64_t>(const_data_ptr_cast(&x));
+		buff = Load<uint64_t>((const_data_ptr_t)&x);
 		if (buff < (1ull << 63)) { //! +0 and positive numbers
 			buff += (1ull << 63);
 		} else {          //! negative numbers
@@ -123,19 +134,19 @@ inline void Radix::EncodeData(data_ptr_t dataptr, int8_t value) {
 
 template <>
 inline void Radix::EncodeData(data_ptr_t dataptr, int16_t value) {
-	Store<uint16_t>(BSwap<uint16_t>(value), dataptr);
+	Store<uint16_t>(BSWAP16(value), dataptr);
 	dataptr[0] = FlipSign(dataptr[0]);
 }
 
 template <>
 inline void Radix::EncodeData(data_ptr_t dataptr, int32_t value) {
-	Store<uint32_t>(BSwap<uint32_t>(value), dataptr);
+	Store<uint32_t>(BSWAP32(value), dataptr);
 	dataptr[0] = FlipSign(dataptr[0]);
 }
 
 template <>
 inline void Radix::EncodeData(data_ptr_t dataptr, int64_t value) {
-	Store<uint64_t>(BSwap<uint64_t>(value), dataptr);
+	Store<uint64_t>(BSWAP64(value), dataptr);
 	dataptr[0] = FlipSign(dataptr[0]);
 }
 
@@ -146,17 +157,17 @@ inline void Radix::EncodeData(data_ptr_t dataptr, uint8_t value) {
 
 template <>
 inline void Radix::EncodeData(data_ptr_t dataptr, uint16_t value) {
-	Store<uint16_t>(BSwap<uint16_t>(value), dataptr);
+	Store<uint16_t>(BSWAP16(value), dataptr);
 }
 
 template <>
 inline void Radix::EncodeData(data_ptr_t dataptr, uint32_t value) {
-	Store<uint32_t>(BSwap<uint32_t>(value), dataptr);
+	Store<uint32_t>(BSWAP32(value), dataptr);
 }
 
 template <>
 inline void Radix::EncodeData(data_ptr_t dataptr, uint64_t value) {
-	Store<uint64_t>(BSwap<uint64_t>(value), dataptr);
+	Store<uint64_t>(BSWAP64(value), dataptr);
 }
 
 template <>
@@ -168,13 +179,13 @@ inline void Radix::EncodeData(data_ptr_t dataptr, hugeint_t value) {
 template <>
 inline void Radix::EncodeData(data_ptr_t dataptr, float value) {
 	uint32_t converted_value = EncodeFloat(value);
-	Store<uint32_t>(BSwap<uint32_t>(converted_value), dataptr);
+	Store<uint32_t>(BSWAP32(converted_value), dataptr);
 }
 
 template <>
 inline void Radix::EncodeData(data_ptr_t dataptr, double value) {
 	uint64_t converted_value = EncodeDouble(value);
-	Store<uint64_t>(BSwap<uint64_t>(converted_value), dataptr);
+	Store<uint64_t>(BSWAP64(converted_value), dataptr);
 }
 
 template <>

@@ -45,14 +45,14 @@ void IsNotNullFilter::Serialize(FieldWriter &writer) const {
 }
 
 unique_ptr<TableFilter> IsNotNullFilter::Deserialize(FieldReader &source) {
-	return make_uniq<IsNotNullFilter>();
+	return make_unique<IsNotNullFilter>();
 }
 
 void IsNullFilter::Serialize(FieldWriter &writer) const {
 }
 
 unique_ptr<TableFilter> IsNullFilter::Deserialize(FieldReader &source) {
-	return make_uniq<IsNullFilter>();
+	return make_unique<IsNullFilter>();
 }
 
 } // namespace duckdb

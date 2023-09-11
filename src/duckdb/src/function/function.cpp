@@ -46,7 +46,7 @@ SimpleFunction::SimpleFunction(string name_p, vector<LogicalType> arguments_p, L
 SimpleFunction::~SimpleFunction() {
 }
 
-string SimpleFunction::ToString() const {
+string SimpleFunction::ToString() {
 	return Function::CallToString(name, arguments);
 }
 
@@ -62,11 +62,11 @@ SimpleNamedParameterFunction::SimpleNamedParameterFunction(string name_p, vector
 SimpleNamedParameterFunction::~SimpleNamedParameterFunction() {
 }
 
-string SimpleNamedParameterFunction::ToString() const {
+string SimpleNamedParameterFunction::ToString() {
 	return Function::CallToString(name, arguments, named_parameters);
 }
 
-bool SimpleNamedParameterFunction::HasNamedParameters() const {
+bool SimpleNamedParameterFunction::HasNamedParameters() {
 	return !named_parameters.empty();
 }
 
@@ -80,7 +80,7 @@ BaseScalarFunction::BaseScalarFunction(string name_p, vector<LogicalType> argume
 BaseScalarFunction::~BaseScalarFunction() {
 }
 
-string BaseScalarFunction::ToString() const {
+string BaseScalarFunction::ToString() {
 	return Function::CallToString(name, arguments, return_type);
 }
 
@@ -92,15 +92,21 @@ void BuiltinFunctions::Initialize() {
 	RegisterTableFunctions();
 	RegisterArrowFunctions();
 
+	RegisterAlgebraicAggregates();
 	RegisterDistributiveAggregates();
+	RegisterNestedAggregates();
+	RegisterHolisticAggregates();
+	RegisterRegressiveAggregates();
 
-	RegisterCompressedMaterializationFunctions();
-
+	RegisterDateFunctions();
+	RegisterEnumFunctions();
 	RegisterGenericFunctions();
+	RegisterMathFunctions();
 	RegisterOperators();
 	RegisterSequenceFunctions();
 	RegisterStringFunctions();
 	RegisterNestedFunctions();
+	RegisterTrigonometricsFunctions();
 
 	RegisterPragmaFunctions();
 
@@ -113,7 +119,7 @@ void BuiltinFunctions::Initialize() {
 hash_t BaseScalarFunction::Hash() const {
 	hash_t hash = return_type.Hash();
 	for (auto &arg : arguments) {
-		hash = duckdb::CombineHash(hash, arg.Hash());
+		duckdb::CombineHash(hash, arg.Hash());
 	}
 	return hash;
 }

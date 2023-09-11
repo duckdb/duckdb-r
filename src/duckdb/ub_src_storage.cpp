@@ -14,15 +14,15 @@
 
 #include "src/storage/magic_bytes.cpp"
 
-#include "src/storage/storage_manager.cpp"
+#include "src/storage/meta_block_reader.cpp"
 
-#include "src/storage/standard_buffer_manager.cpp"
+#include "src/storage/meta_block_writer.cpp"
+
+#include "src/storage/storage_manager.cpp"
 
 #include "src/storage/table_index_list.cpp"
 
 #include "src/storage/write_ahead_log.cpp"
-
-#include "src/storage/optimistic_data_writer.cpp"
 
 #include "src/storage/partial_block_manager.cpp"
 

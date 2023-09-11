@@ -15,9 +15,6 @@ namespace duckdb {
 
 class BoundLambdaExpression : public Expression {
 public:
-	static constexpr const ExpressionClass TYPE = ExpressionClass::BOUND_LAMBDA;
-
-public:
 	BoundLambdaExpression(ExpressionType type_p, LogicalType return_type_p, unique_ptr<Expression> lambda_expr_p,
 	                      idx_t parameter_count_p);
 
@@ -28,13 +25,11 @@ public:
 public:
 	string ToString() const override;
 
-	bool Equals(const BaseExpression &other) const override;
+	bool Equals(const BaseExpression *other) const override;
 
 	unique_ptr<Expression> Copy() override;
 
 	void Serialize(FieldWriter &writer) const override;
-
-	void FormatSerialize(FormatSerializer &serializer) const override;
-	static unique_ptr<Expression> FormatDeserialize(FormatDeserializer &deserializer);
+	static unique_ptr<Expression> Deserialize(ExpressionDeserializationState &state, FieldReader &reader);
 };
 } // namespace duckdb

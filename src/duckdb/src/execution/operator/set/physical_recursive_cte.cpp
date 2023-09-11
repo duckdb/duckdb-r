@@ -1,6 +1,6 @@
 #include "duckdb/execution/operator/set/physical_recursive_cte.hpp"
 
-#include "duckdb/common/types/column/column_data_collection.hpp"
+#include "duckdb/common/types/column_data_collection.hpp"
 #include "duckdb/common/vector_operations/vector_operations.hpp"
 #include "duckdb/execution/aggregate_hashtable.hpp"
 #include "duckdb/execution/executor.hpp"
@@ -12,11 +12,10 @@
 
 namespace duckdb {
 
-PhysicalRecursiveCTE::PhysicalRecursiveCTE(string ctename, idx_t table_index, vector<LogicalType> types, bool union_all,
-                                           unique_ptr<PhysicalOperator> top, unique_ptr<PhysicalOperator> bottom,
-                                           idx_t estimated_cardinality)
+PhysicalRecursiveCTE::PhysicalRecursiveCTE(vector<LogicalType> types, bool union_all, unique_ptr<PhysicalOperator> top,
+                                           unique_ptr<PhysicalOperator> bottom, idx_t estimated_cardinality)
     : PhysicalOperator(PhysicalOperatorType::RECURSIVE_CTE, std::move(types), estimated_cardinality),
-      ctename(std::move(ctename)), table_index(table_index), union_all(union_all) {
+      union_all(union_all) {
 	children.push_back(std::move(top));
 	children.push_back(std::move(bottom));
 }
@@ -31,8 +30,8 @@ class RecursiveCTEState : public GlobalSinkState {
 public:
 	explicit RecursiveCTEState(ClientContext &context, const PhysicalRecursiveCTE &op)
 	    : intermediate_table(context, op.GetTypes()), new_groups(STANDARD_VECTOR_SIZE) {
-		ht = make_uniq<GroupedAggregateHashTable>(context, BufferAllocator::Get(context), op.types,
-		                                          vector<LogicalType>(), vector<BoundAggregateExpression *>());
+		ht = make_unique<GroupedAggregateHashTable>(context, Allocator::Get(context), op.types, vector<LogicalType>(),
+		                                            vector<BoundAggregateExpression *>());
 	}
 
 	unique_ptr<GroupedAggregateHashTable> ht;
@@ -46,7 +45,7 @@ public:
 };
 
 unique_ptr<GlobalSinkState> PhysicalRecursiveCTE::GetGlobalSinkState(ClientContext &context) const {
-	return make_uniq<RecursiveCTEState>(context, *this);
+	return make_unique<RecursiveCTEState>(context, *this);
 }
 
 idx_t PhysicalRecursiveCTE::ProbeHT(DataChunk &chunk, RecursiveCTEState &state) const {
@@ -61,15 +60,16 @@ idx_t PhysicalRecursiveCTE::ProbeHT(DataChunk &chunk, RecursiveCTEState &state) 
 	return new_group_count;
 }
 
-SinkResultType PhysicalRecursiveCTE::Sink(ExecutionContext &context, DataChunk &chunk, OperatorSinkInput &input) const {
-	auto &gstate = input.global_state.Cast<RecursiveCTEState>();
+SinkResultType PhysicalRecursiveCTE::Sink(ExecutionContext &context, GlobalSinkState &state, LocalSinkState &lstate,
+                                          DataChunk &input) const {
+	auto &gstate = (RecursiveCTEState &)state;
 	if (!union_all) {
-		idx_t match_count = ProbeHT(chunk, gstate);
+		idx_t match_count = ProbeHT(input, gstate);
 		if (match_count > 0) {
-			gstate.intermediate_table.Append(chunk);
+			gstate.intermediate_table.Append(input);
 		}
 	} else {
-		gstate.intermediate_table.Append(chunk);
+		gstate.intermediate_table.Append(input);
 	}
 	return SinkResultType::NEED_MORE_INPUT;
 }
@@ -77,9 +77,9 @@ SinkResultType PhysicalRecursiveCTE::Sink(ExecutionContext &context, DataChunk &
 //===--------------------------------------------------------------------===//
 // Source
 //===--------------------------------------------------------------------===//
-SourceResultType PhysicalRecursiveCTE::GetData(ExecutionContext &context, DataChunk &chunk,
-                                               OperatorSourceInput &input) const {
-	auto &gstate = sink_state->Cast<RecursiveCTEState>();
+void PhysicalRecursiveCTE::GetData(ExecutionContext &context, DataChunk &chunk, GlobalSourceState &gstate_p,
+                                   LocalSourceState &lstate) const {
+	auto &gstate = (RecursiveCTEState &)*sink_state;
 	if (!gstate.initialized) {
 		gstate.intermediate_table.InitializeScan(gstate.scan_state);
 		gstate.finished_scan = false;
@@ -116,8 +116,6 @@ SourceResultType PhysicalRecursiveCTE::GetData(ExecutionContext &context, DataCh
 			gstate.intermediate_table.InitializeScan(gstate.scan_state);
 		}
 	}
-
-	return chunk.size() == 0 ? SourceResultType::FINISHED : SourceResultType::HAVE_MORE_OUTPUT;
 }
 
 void PhysicalRecursiveCTE::ExecuteRecursivePipelines(ExecutionContext &context) const {
@@ -131,12 +129,13 @@ void PhysicalRecursiveCTE::ExecuteRecursivePipelines(ExecutionContext &context) 
 	recursive_meta_pipeline->GetPipelines(pipelines, true);
 	for (auto &pipeline : pipelines) {
 		auto sink = pipeline->GetSink();
-		if (sink.get() != this) {
+		if (sink != this) {
 			sink->sink_state.reset();
 		}
-		for (auto &op_ref : pipeline->GetOperators()) {
-			auto &op = op_ref.get();
-			op.op_state.reset();
+		for (auto &op : pipeline->GetOperators()) {
+			if (op) {
+				op->op_state.reset();
+			}
 		}
 		pipeline->ClearSource();
 	}
@@ -176,32 +175,27 @@ void PhysicalRecursiveCTE::BuildPipelines(Pipeline &current, MetaPipeline &meta_
 	recursive_meta_pipeline.reset();
 
 	auto &state = meta_pipeline.GetState();
-	state.SetPipelineSource(current, *this);
+	state.SetPipelineSource(current, this);
 
 	auto &executor = meta_pipeline.GetExecutor();
-	executor.AddRecursiveCTE(*this);
+	executor.AddRecursiveCTE(this);
+
+	if (meta_pipeline.HasRecursiveCTE()) {
+		throw InternalException("Recursive CTE detected WITHIN a recursive CTE node");
+	}
 
 	// the LHS of the recursive CTE is our initial state
-	auto &initial_state_pipeline = meta_pipeline.CreateChildMetaPipeline(current, *this);
-	initial_state_pipeline.Build(*children[0]);
+	auto initial_state_pipeline = meta_pipeline.CreateChildMetaPipeline(current, this);
+	initial_state_pipeline->Build(children[0].get());
 
 	// the RHS is the recursive pipeline
 	recursive_meta_pipeline = make_shared<MetaPipeline>(executor, state, this);
 	recursive_meta_pipeline->SetRecursiveCTE();
-	recursive_meta_pipeline->Build(*children[1]);
+	recursive_meta_pipeline->Build(children[1].get());
 }
 
-vector<const_reference<PhysicalOperator>> PhysicalRecursiveCTE::GetSources() const {
-	return {*this};
-}
-
-string PhysicalRecursiveCTE::ParamsToString() const {
-	string result = "";
-	result += "\n[INFOSEPARATOR]\n";
-	result += ctename;
-	result += "\n[INFOSEPARATOR]\n";
-	result += StringUtil::Format("idx: %llu", table_index);
-	return result;
+vector<const PhysicalOperator *> PhysicalRecursiveCTE::GetSources() const {
+	return {this};
 }
 
 } // namespace duckdb

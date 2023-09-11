@@ -1,10 +1,11 @@
 #include "duckdb/function/compression/compression.hpp"
+#include "duckdb/storage/buffer_manager.hpp"
 #include "duckdb/common/types/vector.hpp"
-
+#include "duckdb/storage/statistics/numeric_statistics.hpp"
+#include "duckdb/storage/statistics/validity_statistics.hpp"
 #include "duckdb/storage/table/column_segment.hpp"
 #include "duckdb/function/compression_function.hpp"
 #include "duckdb/storage/segment/uncompressed.hpp"
-#include "duckdb/storage/table/scan_state.hpp"
 
 namespace duckdb {
 
@@ -19,8 +20,8 @@ unique_ptr<SegmentScanState> ConstantInitScan(ColumnSegment &segment) {
 // Scan Partial
 //===--------------------------------------------------------------------===//
 void ConstantFillFunctionValidity(ColumnSegment &segment, Vector &result, idx_t start_idx, idx_t count) {
-	auto &stats = segment.stats.statistics;
-	if (stats.CanHaveNull()) {
+	auto &validity = (ValidityStatistics &)*segment.stats.statistics;
+	if (validity.has_null) {
 		auto &mask = FlatVector::Validity(result);
 		for (idx_t i = 0; i < count; i++) {
 			mask.SetInvalid(start_idx + i);
@@ -30,10 +31,10 @@ void ConstantFillFunctionValidity(ColumnSegment &segment, Vector &result, idx_t 
 
 template <class T>
 void ConstantFillFunction(ColumnSegment &segment, Vector &result, idx_t start_idx, idx_t count) {
-	auto &nstats = segment.stats.statistics;
+	auto &nstats = (NumericStatistics &)*segment.stats.statistics;
 
 	auto data = FlatVector::GetData<T>(result);
-	auto constant_value = NumericStats::GetMin<T>(nstats);
+	auto constant_value = nstats.min.GetValueUnsafe<T>();
 	for (idx_t i = 0; i < count; i++) {
 		data[start_idx + i] = constant_value;
 	}
@@ -54,8 +55,8 @@ void ConstantScanPartial(ColumnSegment &segment, ColumnScanState &state, idx_t s
 // Scan base data
 //===--------------------------------------------------------------------===//
 void ConstantScanFunctionValidity(ColumnSegment &segment, ColumnScanState &state, idx_t scan_count, Vector &result) {
-	auto &stats = segment.stats.statistics;
-	if (stats.CanHaveNull()) {
+	auto &validity = (ValidityStatistics &)*segment.stats.statistics;
+	if (validity.has_null) {
 		if (result.GetVectorType() == VectorType::CONSTANT_VECTOR) {
 			result.SetVectorType(VectorType::CONSTANT_VECTOR);
 			ConstantVector::SetNull(result, true);
@@ -68,10 +69,10 @@ void ConstantScanFunctionValidity(ColumnSegment &segment, ColumnScanState &state
 
 template <class T>
 void ConstantScanFunction(ColumnSegment &segment, ColumnScanState &state, idx_t scan_count, Vector &result) {
-	auto &nstats = segment.stats.statistics;
+	auto &nstats = (NumericStatistics &)*segment.stats.statistics;
 
 	auto data = FlatVector::GetData<T>(result);
-	data[0] = NumericStats::GetMin<T>(nstats);
+	data[0] = nstats.min.GetValueUnsafe<T>();
 	result.SetVectorType(VectorType::CONSTANT_VECTOR);
 }
 

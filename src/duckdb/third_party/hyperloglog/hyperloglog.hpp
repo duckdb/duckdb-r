@@ -17,9 +17,9 @@ namespace duckdb_hll {
 #define HLL_C_OK  0
 #define HLL_C_ERR -1
 
-struct robj {
+typedef struct {
 	void *ptr;
-};
+} robj;
 
 //! Create a new empty HyperLogLog object
 robj *hll_create(void);

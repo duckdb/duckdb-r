@@ -19,9 +19,9 @@ namespace duckdb {
 class ByteBuffer { // on to the 10 thousandth impl
 public:
 	ByteBuffer() {};
-	ByteBuffer(data_ptr_t ptr, uint64_t len) : ptr(ptr), len(len) {};
+	ByteBuffer(char *ptr, uint64_t len) : ptr(ptr), len(len) {};
 
-	data_ptr_t ptr = nullptr;
+	char *ptr = nullptr;
 	uint64_t len = 0;
 
 public:
@@ -41,7 +41,7 @@ public:
 	template <class T>
 	T get() {
 		available(sizeof(T));
-		T val = Load<T>(ptr);
+		T val = Load<T>((data_ptr_t)ptr);
 		return val;
 	}
 
@@ -76,7 +76,7 @@ public:
 		if (new_size > alloc_len) {
 			alloc_len = NextPowerOfTwo(new_size);
 			allocated_data = allocator.Allocate(alloc_len);
-			ptr = allocated_data.get();
+			ptr = (char *)allocated_data.get();
 		}
 	}
 

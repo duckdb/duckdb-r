@@ -3,10 +3,12 @@
 #include "duckdb/execution/physical_operator.hpp"
 #include "duckdb/common/string_util.hpp"
 #include "duckdb/common/pair.hpp"
+#include "duckdb/common/to_string.hpp"
 #include "duckdb/execution/operator/join/physical_delim_join.hpp"
 #include "duckdb/execution/operator/aggregate/physical_hash_aggregate.hpp"
 #include "duckdb/execution/operator/scan/physical_positional_scan.hpp"
 #include "duckdb/parallel/pipeline.hpp"
+
 #include "utf8proc_wrapper.hpp"
 
 #include <sstream>
@@ -355,7 +357,7 @@ string TreeRenderer::ExtraInfoSeparator() {
 }
 
 unique_ptr<RenderTreeNode> TreeRenderer::CreateRenderNode(string name, string extra_info) {
-	auto result = make_uniq<RenderTreeNode>();
+	auto result = make_unique<RenderTreeNode>();
 	result->name = std::move(name);
 	result->extra_text = std::move(extra_info);
 	return result;
@@ -392,10 +394,10 @@ void TreeChildrenIterator::Iterate(const PhysicalOperator &op,
 		callback(*child);
 	}
 	if (op.type == PhysicalOperatorType::DELIM_JOIN) {
-		auto &delim = op.Cast<PhysicalDelimJoin>();
+		auto &delim = (PhysicalDelimJoin &)op;
 		callback(*delim.join);
 	} else if ((op.type == PhysicalOperatorType::POSITIONAL_SCAN)) {
-		auto &pscan = op.Cast<PhysicalPositionalScan>();
+		auto &pscan = (PhysicalPositionalScan &)op;
 		for (auto &table : pscan.child_tables) {
 			callback(*table);
 		}
@@ -403,10 +405,10 @@ void TreeChildrenIterator::Iterate(const PhysicalOperator &op,
 }
 
 struct PipelineRenderNode {
-	explicit PipelineRenderNode(const PhysicalOperator &op) : op(op) {
+	explicit PipelineRenderNode(PhysicalOperator &op) : op(op) {
 	}
 
-	const PhysicalOperator &op;
+	PhysicalOperator &op;
 	unique_ptr<PipelineRenderNode> child;
 };
 
@@ -462,7 +464,7 @@ unique_ptr<RenderTree> TreeRenderer::CreateRenderTree(const T &op) {
 	idx_t width, height;
 	GetTreeWidthHeight<T>(op, width, height);
 
-	auto result = make_uniq<RenderTree>(width, height);
+	auto result = make_unique<RenderTree>(width, height);
 
 	// now fill in the tree
 	CreateRenderTreeRecursive<T>(*result, op, 0, 0);
@@ -542,7 +544,7 @@ unique_ptr<RenderTree> TreeRenderer::CreateTree(const Pipeline &op) {
 	D_ASSERT(!operators.empty());
 	unique_ptr<PipelineRenderNode> node;
 	for (auto &op : operators) {
-		auto new_node = make_uniq<PipelineRenderNode>(op.get());
+		auto new_node = make_unique<PipelineRenderNode>(*op);
 		new_node->child = std::move(node);
 		node = std::move(new_node);
 	}

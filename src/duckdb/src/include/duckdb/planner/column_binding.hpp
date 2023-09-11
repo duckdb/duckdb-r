@@ -9,13 +9,9 @@
 #pragma once
 
 #include "duckdb/common/common.hpp"
-#include "duckdb/common/to_string.hpp"
-
 #include <functional>
 
 namespace duckdb {
-class FormatSerializer;
-class FormatDeserializer;
 
 struct ColumnBinding {
 	idx_t table_index;
@@ -27,20 +23,9 @@ struct ColumnBinding {
 	ColumnBinding(idx_t table, idx_t column) : table_index(table), column_index(column) {
 	}
 
-	string ToString() const {
-		return "#[" + to_string(table_index) + "." + to_string(column_index) + "]";
-	}
-
 	bool operator==(const ColumnBinding &rhs) const {
 		return table_index == rhs.table_index && column_index == rhs.column_index;
 	}
-
-	bool operator!=(const ColumnBinding &rhs) const {
-		return !(*this == rhs);
-	}
-
-	void FormatSerialize(FormatSerializer &serializer) const;
-	static ColumnBinding FormatDeserialize(FormatDeserializer &deserializer);
 };
 
 } // namespace duckdb

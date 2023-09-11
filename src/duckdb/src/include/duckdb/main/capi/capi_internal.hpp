@@ -13,8 +13,6 @@
 #include "duckdb/common/types.hpp"
 #include "duckdb/common/types/data_chunk.hpp"
 #include "duckdb/main/appender.hpp"
-#include "duckdb/common/case_insensitive_map.hpp"
-
 #include <cstring>
 #include <cassert>
 
@@ -31,9 +29,8 @@ struct DatabaseData {
 };
 
 struct PreparedStatementWrapper {
-	//! Map of name -> values
-	case_insensitive_map_t<Value> values;
 	unique_ptr<PreparedStatement> statement;
+	vector<Value> values;
 };
 
 struct ExtractStatementsWrapper {
@@ -43,13 +40,12 @@ struct ExtractStatementsWrapper {
 
 struct PendingStatementWrapper {
 	unique_ptr<PendingQueryResult> statement;
-	bool allow_streaming;
 };
 
 struct ArrowResultWrapper {
 	unique_ptr<MaterializedQueryResult> result;
 	unique_ptr<DataChunk> current_chunk;
-	ClientProperties options;
+	string timezone_config;
 };
 
 struct AppenderWrapper {
@@ -60,7 +56,6 @@ struct AppenderWrapper {
 enum class CAPIResultSetType : uint8_t {
 	CAPI_RESULT_TYPE_NONE = 0,
 	CAPI_RESULT_TYPE_MATERIALIZED,
-	CAPI_RESULT_TYPE_STREAMING,
 	CAPI_RESULT_TYPE_DEPRECATED
 };
 

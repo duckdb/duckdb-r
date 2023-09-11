@@ -1,24 +1,21 @@
 #include "duckdb/common/types/hugeint.hpp"
-#include "duckdb/optimizer/filter_pushdown.hpp"
 #include "duckdb/optimizer/statistics_propagator.hpp"
 #include "duckdb/planner/expression/bound_columnref_expression.hpp"
-#include "duckdb/planner/expression/bound_comparison_expression.hpp"
-#include "duckdb/planner/expression/bound_constant_expression.hpp"
 #include "duckdb/planner/operator/logical_any_join.hpp"
 #include "duckdb/planner/operator/logical_comparison_join.hpp"
 #include "duckdb/planner/operator/logical_cross_product.hpp"
-#include "duckdb/planner/operator/logical_filter.hpp"
 #include "duckdb/planner/operator/logical_join.hpp"
 #include "duckdb/planner/operator/logical_limit.hpp"
 #include "duckdb/planner/operator/logical_positional_join.hpp"
+#include "duckdb/storage/statistics/validity_statistics.hpp"
 
 namespace duckdb {
 
 void StatisticsPropagator::PropagateStatistics(LogicalComparisonJoin &join, unique_ptr<LogicalOperator> *node_ptr) {
 	for (idx_t i = 0; i < join.conditions.size(); i++) {
 		auto &condition = join.conditions[i];
-		const auto stats_left = PropagateExpression(condition.left);
-		const auto stats_right = PropagateExpression(condition.right);
+		auto stats_left = PropagateExpression(condition.left);
+		auto stats_right = PropagateExpression(condition.right);
 		if (stats_left && stats_right) {
 			if ((condition.comparison == ExpressionType::COMPARE_DISTINCT_FROM ||
 			     condition.comparison == ExpressionType::COMPARE_NOT_DISTINCT_FROM) &&
@@ -29,8 +26,8 @@ void StatisticsPropagator::PropagateStatistics(LogicalComparisonJoin &join, uniq
 			}
 			auto prune_result = PropagateComparison(*stats_left, *stats_right, condition.comparison);
 			// Add stats to logical_join for perfect hash join
-			join.join_stats.push_back(stats_left->ToUnique());
-			join.join_stats.push_back(stats_right->ToUnique());
+			join.join_stats.push_back(std::move(stats_left));
+			join.join_stats.push_back(std::move(stats_right));
 			switch (prune_result) {
 			case FilterPropagateResult::FILTER_FALSE_OR_NULL:
 			case FilterPropagateResult::FILTER_ALWAYS_FALSE:
@@ -44,7 +41,7 @@ void StatisticsPropagator::PropagateStatistics(LogicalComparisonJoin &join, uniq
 				case JoinType::ANTI: {
 					// when the right child has data, return the left child
 					// when the right child has no data, return an empty set
-					auto limit = make_uniq<LogicalLimit>(1, 0, nullptr, nullptr);
+					auto limit = make_unique<LogicalLimit>(1, 0, nullptr, nullptr);
 					limit->AddChild(std::move(join.children[1]));
 					auto cross_product = LogicalCrossProduct::Create(std::move(join.children[0]), std::move(limit));
 					*node_ptr = std::move(cross_product);
@@ -80,7 +77,7 @@ void StatisticsPropagator::PropagateStatistics(LogicalComparisonJoin &join, uniq
 					case JoinType::SEMI: {
 						// when the right child has data, return the left child
 						// when the right child has no data, return an empty set
-						auto limit = make_uniq<LogicalLimit>(1, 0, nullptr, nullptr);
+						auto limit = make_unique<LogicalLimit>(1, 0, nullptr, nullptr);
 						limit->AddChild(std::move(join.children[1]));
 						auto cross_product = LogicalCrossProduct::Create(std::move(join.children[0]), std::move(limit));
 						*node_ptr = std::move(cross_product);
@@ -127,21 +124,12 @@ void StatisticsPropagator::PropagateStatistics(LogicalComparisonJoin &join, uniq
 		case JoinType::INNER:
 		case JoinType::SEMI: {
 			UpdateFilterStatistics(*condition.left, *condition.right, condition.comparison);
-			auto updated_stats_left = PropagateExpression(condition.left);
-			auto updated_stats_right = PropagateExpression(condition.right);
-
-			// Try to push lhs stats down rhs and vice versa
-			if (!context.config.force_index_join && stats_left && stats_right && updated_stats_left &&
-			    updated_stats_right && condition.left->type == ExpressionType::BOUND_COLUMN_REF &&
-			    condition.right->type == ExpressionType::BOUND_COLUMN_REF) {
-				CreateFilterFromJoinStats(join.children[0], condition.left, *stats_left, *updated_stats_left);
-				CreateFilterFromJoinStats(join.children[1], condition.right, *stats_right, *updated_stats_right);
-			}
-
+			auto stats_left = PropagateExpression(condition.left);
+			auto stats_right = PropagateExpression(condition.right);
 			// Update join_stats when is already part of the join
 			if (join.join_stats.size() == 2) {
-				join.join_stats[0] = std::move(updated_stats_left);
-				join.join_stats[1] = std::move(updated_stats_right);
+				join.join_stats[0] = std::move(stats_left);
+				join.join_stats[1] = std::move(stats_right);
 			}
 			break;
 		}
@@ -208,11 +196,10 @@ unique_ptr<NodeStatistics> StatisticsPropagator::PropagateStatistics(LogicalJoin
 	switch (join.type) {
 	case LogicalOperatorType::LOGICAL_COMPARISON_JOIN:
 	case LogicalOperatorType::LOGICAL_DELIM_JOIN:
-	case LogicalOperatorType::LOGICAL_ASOF_JOIN:
-		PropagateStatistics(join.Cast<LogicalComparisonJoin>(), node_ptr);
+		PropagateStatistics((LogicalComparisonJoin &)join, node_ptr);
 		break;
 	case LogicalOperatorType::LOGICAL_ANY_JOIN:
-		PropagateStatistics(join.Cast<LogicalAnyJoin>(), node_ptr);
+		PropagateStatistics((LogicalAnyJoin &)join, node_ptr);
 		break;
 	default:
 		break;
@@ -223,7 +210,7 @@ unique_ptr<NodeStatistics> StatisticsPropagator::PropagateStatistics(LogicalJoin
 		for (auto &binding : right_bindings) {
 			auto stats = statistics_map.find(binding);
 			if (stats != statistics_map.end()) {
-				stats->second->Set(StatsInfo::CAN_HAVE_NULL_VALUES);
+				stats->second->validity_stats = make_unique<ValidityStatistics>(true);
 			}
 		}
 	}
@@ -232,7 +219,7 @@ unique_ptr<NodeStatistics> StatisticsPropagator::PropagateStatistics(LogicalJoin
 		for (auto &binding : left_bindings) {
 			auto stats = statistics_map.find(binding);
 			if (stats != statistics_map.end()) {
-				stats->second->Set(StatsInfo::CAN_HAVE_NULL_VALUES);
+				stats->second->validity_stats = make_unique<ValidityStatistics>(true);
 			}
 		}
 	}
@@ -278,7 +265,7 @@ unique_ptr<NodeStatistics> StatisticsPropagator::PropagateStatistics(LogicalPosi
 	for (auto &binding : left_bindings) {
 		auto stats = statistics_map.find(binding);
 		if (stats != statistics_map.end()) {
-			stats->second->Set(StatsInfo::CAN_HAVE_NULL_VALUES);
+			stats->second->validity_stats = make_unique<ValidityStatistics>(true);
 		}
 	}
 
@@ -287,55 +274,11 @@ unique_ptr<NodeStatistics> StatisticsPropagator::PropagateStatistics(LogicalPosi
 	for (auto &binding : right_bindings) {
 		auto stats = statistics_map.find(binding);
 		if (stats != statistics_map.end()) {
-			stats->second->Set(StatsInfo::CAN_HAVE_NULL_VALUES);
+			stats->second->validity_stats = make_unique<ValidityStatistics>(true);
 		}
 	}
 
 	return std::move(node_stats);
-}
-
-void StatisticsPropagator::CreateFilterFromJoinStats(unique_ptr<LogicalOperator> &child, unique_ptr<Expression> &expr,
-                                                     const BaseStatistics &stats_before,
-                                                     const BaseStatistics &stats_after) {
-	// Only do this for integral colref's that have stats
-	if (expr->type != ExpressionType::BOUND_COLUMN_REF || !expr->return_type.IsIntegral() ||
-	    !NumericStats::HasMinMax(stats_before) || !NumericStats::HasMinMax(stats_after)) {
-		return;
-	}
-
-	// Retrieve min/max
-	auto min_before = NumericStats::Min(stats_before);
-	auto max_before = NumericStats::Max(stats_before);
-	auto min_after = NumericStats::Min(stats_after);
-	auto max_after = NumericStats::Max(stats_after);
-
-	vector<unique_ptr<Expression>> filter_exprs;
-	if (min_after > min_before) {
-		filter_exprs.emplace_back(
-		    make_uniq<BoundComparisonExpression>(ExpressionType::COMPARE_GREATERTHANOREQUALTO, expr->Copy(),
-		                                         make_uniq<BoundConstantExpression>(std::move(min_after))));
-	}
-	if (max_after < max_before) {
-		filter_exprs.emplace_back(
-		    make_uniq<BoundComparisonExpression>(ExpressionType::COMPARE_LESSTHANOREQUALTO, expr->Copy(),
-		                                         make_uniq<BoundConstantExpression>(std::move(max_after))));
-	}
-
-	if (filter_exprs.empty()) {
-		return;
-	}
-
-	auto filter = make_uniq<LogicalFilter>();
-	filter->children.emplace_back(std::move(child));
-	child = std::move(filter);
-
-	for (auto &filter_expr : filter_exprs) {
-		child->expressions.emplace_back(std::move(filter_expr));
-	}
-
-	FilterPushdown filter_pushdown(optimizer);
-	child = filter_pushdown.Rewrite(std::move(child));
-	PropagateExpression(expr);
 }
 
 } // namespace duckdb

@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "duckdb/common/types/column/column_data_collection.hpp"
+#include "duckdb/common/types/column_data_collection.hpp"
 #include "duckdb/execution/physical_operator.hpp"
 
 namespace duckdb {
@@ -17,16 +17,9 @@ class RecursiveCTEState;
 
 class PhysicalRecursiveCTE : public PhysicalOperator {
 public:
-	static constexpr const PhysicalOperatorType TYPE = PhysicalOperatorType::RECURSIVE_CTE;
-
-public:
-	PhysicalRecursiveCTE(string ctename, idx_t table_index, vector<LogicalType> types, bool union_all,
-	                     unique_ptr<PhysicalOperator> top, unique_ptr<PhysicalOperator> bottom,
-	                     idx_t estimated_cardinality);
+	PhysicalRecursiveCTE(vector<LogicalType> types, bool union_all, unique_ptr<PhysicalOperator> top,
+	                     unique_ptr<PhysicalOperator> bottom, idx_t estimated_cardinality);
 	~PhysicalRecursiveCTE() override;
-
-	string ctename;
-	idx_t table_index;
 
 	bool union_all;
 	std::shared_ptr<ColumnDataCollection> working_table;
@@ -34,15 +27,13 @@ public:
 
 public:
 	// Source interface
-	SourceResultType GetData(ExecutionContext &context, DataChunk &chunk, OperatorSourceInput &input) const override;
-
-	bool IsSource() const override {
-		return true;
-	}
+	void GetData(ExecutionContext &context, DataChunk &chunk, GlobalSourceState &gstate,
+	             LocalSourceState &lstate) const override;
 
 public:
 	// Sink interface
-	SinkResultType Sink(ExecutionContext &context, DataChunk &chunk, OperatorSinkInput &input) const override;
+	SinkResultType Sink(ExecutionContext &context, GlobalSinkState &state, LocalSinkState &lstate,
+	                    DataChunk &input) const override;
 
 	unique_ptr<GlobalSinkState> GetGlobalSinkState(ClientContext &context) const override;
 
@@ -50,12 +41,10 @@ public:
 		return true;
 	}
 
-	string ParamsToString() const override;
-
 public:
 	void BuildPipelines(Pipeline &current, MetaPipeline &meta_pipeline) override;
 
-	vector<const_reference<PhysicalOperator>> GetSources() const override;
+	vector<const PhysicalOperator *> GetSources() const override;
 
 private:
 	//! Probe Hash Table and eliminate duplicate rows

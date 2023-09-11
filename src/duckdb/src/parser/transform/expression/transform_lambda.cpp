@@ -4,15 +4,16 @@
 
 namespace duckdb {
 
-unique_ptr<ParsedExpression> Transformer::TransformLambda(duckdb_libpgquery::PGLambdaFunction &node) {
-	D_ASSERT(node.lhs);
-	D_ASSERT(node.rhs);
+unique_ptr<ParsedExpression> Transformer::TransformLambda(duckdb_libpgquery::PGLambdaFunction *node) {
 
-	auto lhs = TransformExpression(node.lhs);
-	auto rhs = TransformExpression(node.rhs);
+	D_ASSERT(node->lhs);
+	D_ASSERT(node->rhs);
+
+	auto lhs = TransformExpression(node->lhs);
+	auto rhs = TransformExpression(node->rhs);
 	D_ASSERT(lhs);
 	D_ASSERT(rhs);
-	return make_uniq<LambdaExpression>(std::move(lhs), std::move(rhs));
+	return make_unique<LambdaExpression>(std::move(lhs), std::move(rhs));
 }
 
 } // namespace duckdb

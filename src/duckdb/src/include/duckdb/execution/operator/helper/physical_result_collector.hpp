@@ -17,14 +17,11 @@ class PreparedStatementData;
 //! PhysicalResultCollector is an abstract class that is used to generate the final result of a query
 class PhysicalResultCollector : public PhysicalOperator {
 public:
-	static constexpr const PhysicalOperatorType TYPE = PhysicalOperatorType::RESULT_COLLECTOR;
-
-public:
 	explicit PhysicalResultCollector(PreparedStatementData &data);
 
 	StatementType statement_type;
 	StatementProperties properties;
-	PhysicalOperator &plan;
+	PhysicalOperator *plan;
 	vector<string> names;
 
 public:
@@ -39,12 +36,9 @@ public:
 	}
 
 public:
-	vector<const_reference<PhysicalOperator>> GetChildren() const override;
+	vector<PhysicalOperator *> GetChildren() const override;
+	bool AllOperatorsPreserveOrder() const override;
 	void BuildPipelines(Pipeline &current, MetaPipeline &meta_pipeline) override;
-
-	bool IsSource() const override {
-		return true;
-	}
 };
 
 } // namespace duckdb

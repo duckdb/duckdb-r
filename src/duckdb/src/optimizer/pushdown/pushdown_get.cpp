@@ -4,12 +4,13 @@
 #include "duckdb/planner/expression/bound_parameter_expression.hpp"
 #include "duckdb/planner/operator/logical_filter.hpp"
 #include "duckdb/planner/operator/logical_get.hpp"
+#include "duckdb/storage/data_table.hpp"
 
 namespace duckdb {
 
 unique_ptr<LogicalOperator> FilterPushdown::PushdownGet(unique_ptr<LogicalOperator> op) {
 	D_ASSERT(op->type == LogicalOperatorType::LOGICAL_GET);
-	auto &get = op->Cast<LogicalGet>();
+	auto &get = (LogicalGet &)*op;
 
 	if (get.function.pushdown_complex_filter || get.function.filter_pushdown) {
 		// this scan supports some form of filter push-down
@@ -38,7 +39,7 @@ unique_ptr<LogicalOperator> FilterPushdown::PushdownGet(unique_ptr<LogicalOperat
 		}
 		// re-generate the filters
 		for (auto &expr : expressions) {
-			auto f = make_uniq<Filter>();
+			auto f = make_unique<Filter>();
 			f->filter = std::move(expr);
 			f->ExtractBindings();
 			filters.push_back(std::move(f));

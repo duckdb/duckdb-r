@@ -307,7 +307,7 @@ typedef struct PGFuncCall {
 typedef struct PGAStar {
 	PGNodeTag type;
 	char *relation;       /* relation name (optional) */
-	PGNode *expr;         /* optional: the expression (regex or list) to select columns */
+	char *regex;          /* optional: REGEX to select columns */
 	PGList *except_list;  /* optional: EXCLUDE list */
 	PGList *replace_list; /* optional: REPLACE list */
 	bool columns;         /* whether or not this is a columns list */
@@ -325,7 +325,6 @@ typedef struct PGAIndices {
 	bool is_slice; /* true if slice (i.e., colon present) */
 	PGNode *lidx;  /* slice lower bound, if any */
 	PGNode *uidx;  /* subscript, or slice upper bound if any */
-	PGNode *step;  /* slice step, if any */
 } PGAIndices;
 
 /*
@@ -1046,11 +1045,11 @@ typedef struct PGInferClause {
  */
 typedef struct PGOnConflictClause {
 	PGNodeTag type;
-	PGOnConflictAction action;               /* DO NOTHING or UPDATE? */
-	PGInferClause *infer;                    /* Optional index inference clause */
-	PGList *targetList;                      /* the target list (of PGResTarget) */
-	PGNode *whereClause;                     /* qualifications */
-	int location;                            /* token location, or -1 if unknown */
+	PGOnConflictAction action; /* DO NOTHING or UPDATE? */
+	PGInferClause *infer;      /* Optional index inference clause */
+	PGList *targetList;        /* the target list (of PGResTarget) */
+	PGNode *whereClause;       /* qualifications */
+	int location;              /* token location, or -1 if unknown */
 } PGOnConflictClause;
 
 /*
@@ -1059,19 +1058,10 @@ typedef struct PGOnConflictClause {
  *
  * We don't currently support the SEARCH or CYCLE clause.
  */
-
-typedef enum PGCTEMaterialize
-{
-	PGCTEMaterializeDefault,		/* no option specified */
-	PGCTEMaterializeAlways,		/* MATERIALIZED */
-	PGCTEMaterializeNever			/* NOT MATERIALIZED */
-} PGCTEMaterialize;
-
 typedef struct PGCommonTableExpr {
 	PGNodeTag type;
 	char *ctename;         /* query name (never qualified) */
 	PGList *aliascolnames; /* optional list of column names */
-	PGCTEMaterialize ctematerialized; /* is this an optimization fence? */
 	/* SelectStmt/InsertStmt/etc before parse analysis, PGQuery afterwards: */
 	PGNode *ctequery; /* the CTE's subquery */
 	int location;     /* token location, or -1 if unknown */
@@ -1135,15 +1125,14 @@ typedef struct PGRawStmt {
  */
 typedef struct PGInsertStmt {
 	PGNodeTag type;
-	PGRangeVar *relation;                    /* relation to insert into */
-	PGList *cols;                            /* optional: names of the target columns */
-	PGNode *selectStmt;                      /* the source SELECT/VALUES, or NULL */
+	PGRangeVar *relation;                 /* relation to insert into */
+	PGList *cols;                         /* optional: names of the target columns */
+	PGNode *selectStmt;                   /* the source SELECT/VALUES, or NULL */
 	PGOnConflictActionAlias onConflictAlias; /* the (optional) shorthand provided for the onConflictClause */
-	PGOnConflictClause *onConflictClause;    /* ON CONFLICT clause */
-	PGList *returningList;                   /* list of expressions to return */
-	PGWithClause *withClause;                /* WITH clause */
-	PGOverridingKind override;               /* OVERRIDING clause */
-	PGInsertColumnOrder insert_column_order; /* INSERT BY NAME or INSERT BY POSITION */
+	PGOnConflictClause *onConflictClause; /* ON CONFLICT clause */
+	PGList *returningList;                /* list of expressions to return */
+	PGWithClause *withClause;             /* WITH clause */
+	PGOverridingKind override;            /* OVERRIDING clause */
 } PGInsertStmt;
 
 /* ----------------------
@@ -1172,39 +1161,6 @@ typedef struct PGUpdateStmt {
 	PGList *returningList;    /* list of expressions to return */
 	PGWithClause *withClause; /* WITH clause */
 } PGUpdateStmt;
-
-/* ----------------------
- *		Pivot Expression
- * ----------------------
- */
-typedef struct PGPivot {
-	PGNodeTag type;
-	PGList *pivot_columns;  /* The column names to pivot on */
-	PGList *unpivot_columns;/* The column names to unpivot */
-	PGList *pivot_value;    /* The set of pivot values */
-	PGNode *subquery;       /* Subquery to fetch valid pivot values (if any) */
-	char *pivot_enum;       /* The enum to fetch the unique values from */
-} PGPivot;
-
-typedef struct PGPivotExpr {
-	PGNodeTag type;
-	PGNode *source;      /* the source subtree */
-	PGList *aggrs;       /* The aggregations to pivot over (PIVOT only) */
-	PGList *unpivots;    /* The names to unpivot over (UNPIVOT only) */
-	PGList *pivots;      /* The set of pivot values */
-	PGList *groups;      /* The set of groups to pivot over (if any) */
-	PGAlias *alias;      /* table alias & optional column aliases */
-	bool include_nulls;  /* Whether or not to include NULL values (UNPIVOT only */
-} PGPivotExpr;
-
-typedef struct PGPivotStmt {
-	PGNodeTag type;
-	PGNode *source;      /* The source to pivot */
-	PGList *aggrs;       /* The aggregations to pivot over (PIVOT only) */
-	PGList *unpivots;    /* The names to unpivot over (UNPIVOT only) */
-	PGList *columns;     /* The set of columns to pivot over */
-	PGList *groups;      /* The set of groups to pivot over (if any) */
-} PGPivotStmt;
 
 /* ----------------------
  *		Select Statement
@@ -1247,9 +1203,6 @@ typedef struct PGSelectStmt {
 	 * analysis to reject that where not valid.
 	 */
 	PGList *valuesLists; /* untransformed list of expression lists */
-
-	/* When representing a pivot statement, all values are NULL besides the pivot field */
-	PGPivotStmt *pivot;       /* PIVOT statement */
 
 	/*
 	 * These fields are used in both "leaf" SelectStmts and upper-level
@@ -1872,7 +1825,6 @@ typedef enum PGLoadInstallType { PG_LOAD_TYPE_LOAD,  PG_LOAD_TYPE_INSTALL, PG_LO
 typedef struct PGLoadStmt {
 	PGNodeTag type;
 	const char *filename; /* file to load */
-	const char *repository; /* optionally, the repository to load from */
 	PGLoadInstallType load_type;
 } PGLoadStmt;
 
@@ -2130,6 +2082,20 @@ typedef struct PGDetachStmt
 	bool missing_ok;
 } PGDetachStmt;
 
+
+
+/* ----------------------
+ *		CREATE DATABASE Statement
+ * ----------------------
+ */
+typedef struct PGCreateDatabaseStmt
+{
+	PGNodeTag	type;
+	PGRangeVar *name;			/* The name of the created database */
+	char *extension;			/* The name of the extension which will create the database */
+	char *path;					/* The file path of the to-be-created database */
+} PGCreateDatabaseStmt;
+
 /* ----------------------
  *		Use Statement
  * ----------------------
@@ -2139,6 +2105,7 @@ typedef struct PGUseStmt {
 	PGNodeTag type;
 	PGRangeVar *name;    /* variable to be set */
 } PGUseStmt;
+
 
 
 }

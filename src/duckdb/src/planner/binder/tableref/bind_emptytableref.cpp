@@ -5,7 +5,7 @@
 namespace duckdb {
 
 unique_ptr<BoundTableRef> Binder::Bind(EmptyTableRef &ref) {
-	return make_uniq<BoundEmptyTableRef>(GenerateTableIndex());
+	return make_unique<BoundEmptyTableRef>(GenerateTableIndex());
 }
 
 } // namespace duckdb

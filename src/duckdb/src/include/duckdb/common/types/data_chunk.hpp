@@ -14,13 +14,13 @@
 #include "duckdb/common/types/vector.hpp"
 #include "duckdb/common/winapi.hpp"
 
+struct ArrowArray;
+
 namespace duckdb {
 class Allocator;
 class ClientContext;
 class ExecutionContext;
 class VectorCache;
-class FormatSerializer;
-class FormatDeserializer;
 
 //!  A Data Chunk represents a set of vectors.
 /*!
@@ -124,8 +124,7 @@ public:
 	//! Turn all the vectors from the chunk into flat vectors
 	DUCKDB_API void Flatten();
 
-	// FIXME: this is DUCKDB_API, might need conversion back to regular unique ptr?
-	DUCKDB_API unsafe_unique_array<UnifiedVectorFormat> ToUnifiedFormat();
+	DUCKDB_API unique_ptr<UnifiedVectorFormat[]> ToUnifiedFormat();
 
 	DUCKDB_API void Slice(const SelectionVector &sel_vector, idx_t count);
 
@@ -143,9 +142,6 @@ public:
 	//! Deserializes a blob back into a DataChunk
 	DUCKDB_API void Deserialize(Deserializer &source);
 
-	DUCKDB_API void FormatSerialize(FormatSerializer &serializer) const;
-	DUCKDB_API void FormatDeserialize(FormatDeserializer &source);
-
 	//! Hashes the DataChunk to the target vector
 	DUCKDB_API void Hash(Vector &result);
 	//! Hashes specific vectors of the DataChunk to the target vector
@@ -156,7 +152,7 @@ public:
 
 	//! Converts this DataChunk to a printable string representation
 	DUCKDB_API string ToString() const;
-	DUCKDB_API void Print() const;
+	DUCKDB_API void Print();
 
 	DataChunk(const DataChunk &) = delete;
 

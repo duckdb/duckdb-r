@@ -11,35 +11,45 @@
 
 namespace duckdb {
 
-SchemaCatalogEntry::SchemaCatalogEntry(Catalog &catalog, string name_p, bool internal)
-    : InCatalogEntry(CatalogType::SCHEMA_ENTRY, catalog, std::move(name_p)) {
+SchemaCatalogEntry::SchemaCatalogEntry(Catalog *catalog, string name_p, bool internal)
+    : CatalogEntry(CatalogType::SCHEMA_ENTRY, catalog, std::move(name_p)) {
 	this->internal = internal;
 }
 
 CatalogTransaction SchemaCatalogEntry::GetCatalogTransaction(ClientContext &context) {
-	return CatalogTransaction(catalog, context);
+	return CatalogTransaction(*catalog, context);
 }
 
 SimilarCatalogEntry SchemaCatalogEntry::GetSimilarEntry(CatalogTransaction transaction, CatalogType type,
                                                         const string &name) {
 	SimilarCatalogEntry result;
-	Scan(transaction.GetContext(), type, [&](CatalogEntry &entry) {
-		auto ldist = StringUtil::SimilarityScore(entry.name, name);
+	Scan(transaction.GetContext(), type, [&](CatalogEntry *entry) {
+		auto ldist = StringUtil::SimilarityScore(entry->name, name);
 		if (ldist < result.distance) {
 			result.distance = ldist;
-			result.name = entry.name;
+			result.name = entry->name;
 		}
 	});
 	return result;
 }
 
-unique_ptr<CreateInfo> SchemaCatalogEntry::GetInfo() const {
-	auto result = make_uniq<CreateSchemaInfo>();
-	result->schema = name;
-	return std::move(result);
+void SchemaCatalogEntry::Serialize(Serializer &serializer) {
+	FieldWriter writer(serializer);
+	writer.WriteString(name);
+	writer.Finalize();
 }
 
-string SchemaCatalogEntry::ToSQL() const {
+unique_ptr<CreateSchemaInfo> SchemaCatalogEntry::Deserialize(Deserializer &source) {
+	auto info = make_unique<CreateSchemaInfo>();
+
+	FieldReader reader(source);
+	info->schema = reader.ReadRequired<string>();
+	reader.Finalize();
+
+	return info;
+}
+
+string SchemaCatalogEntry::ToSQL() {
 	std::stringstream ss;
 	ss << "CREATE SCHEMA " << name << ";";
 	return ss.str();

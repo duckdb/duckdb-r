@@ -7,18 +7,23 @@
 
 namespace duckdb {
 
-DistinctStatistics::DistinctStatistics() : log(make_uniq<HyperLogLog>()), sample_count(0), total_count(0) {
+DistinctStatistics::DistinctStatistics()
+    : BaseStatistics(LogicalType::INVALID, StatisticsType::LOCAL_STATS), log(make_unique<HyperLogLog>()),
+      sample_count(0), total_count(0) {
 }
 
 DistinctStatistics::DistinctStatistics(unique_ptr<HyperLogLog> log, idx_t sample_count, idx_t total_count)
-    : log(std::move(log)), sample_count(sample_count), total_count(total_count) {
+    : BaseStatistics(LogicalType::INVALID, StatisticsType::LOCAL_STATS), log(std::move(log)),
+      sample_count(sample_count), total_count(total_count) {
 }
 
-unique_ptr<DistinctStatistics> DistinctStatistics::Copy() const {
-	return make_uniq<DistinctStatistics>(log->Copy(), sample_count, total_count);
+unique_ptr<BaseStatistics> DistinctStatistics::Copy() const {
+	return make_unique<DistinctStatistics>(log->Copy(), sample_count, total_count);
 }
 
-void DistinctStatistics::Merge(const DistinctStatistics &other) {
+void DistinctStatistics::Merge(const BaseStatistics &other_p) {
+	BaseStatistics::Merge(other_p);
+	auto &other = (const DistinctStatistics &)other_p;
 	log = log->Merge(*other.log);
 	sample_count += other.sample_count;
 	total_count += other.total_count;
@@ -46,7 +51,7 @@ unique_ptr<DistinctStatistics> DistinctStatistics::Deserialize(Deserializer &sou
 unique_ptr<DistinctStatistics> DistinctStatistics::Deserialize(FieldReader &reader) {
 	auto sample_count = reader.ReadRequired<idx_t>();
 	auto total_count = reader.ReadRequired<idx_t>();
-	return make_uniq<DistinctStatistics>(HyperLogLog::Deserialize(reader), sample_count, total_count);
+	return make_unique<DistinctStatistics>(HyperLogLog::Deserialize(reader), sample_count, total_count);
 }
 
 void DistinctStatistics::Update(Vector &v, idx_t count, bool sample) {
@@ -92,10 +97,6 @@ idx_t DistinctStatistics::GetCount() const {
 	// Estimate total uniques using Good Turing Estimation
 	idx_t estimate = u + u1 / s * (n - s);
 	return MinValue<idx_t>(estimate, total_count);
-}
-
-bool DistinctStatistics::TypeIsSupported(const LogicalType &type) {
-	return type.InternalType() != PhysicalType::LIST && type.InternalType() != PhysicalType::STRUCT;
 }
 
 } // namespace duckdb

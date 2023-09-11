@@ -5,11 +5,11 @@ namespace duckdb {
 
 unique_ptr<UpdateSetInfo> Transformer::TransformUpdateSetInfo(duckdb_libpgquery::PGList *target_list,
                                                               duckdb_libpgquery::PGNode *where_clause) {
-	auto result = make_uniq<UpdateSetInfo>();
+	auto result = make_unique<UpdateSetInfo>();
 
 	auto root = target_list;
 	for (auto cell = root->head; cell != nullptr; cell = cell->next) {
-		auto target = PGPointerCast<duckdb_libpgquery::PGResTarget>(cell->data.ptr_value);
+		auto target = (duckdb_libpgquery::PGResTarget *)(cell->data.ptr_value);
 		result->columns.emplace_back(target->name);
 		result->expressions.push_back(TransformExpression(target->val));
 	}
@@ -17,27 +17,25 @@ unique_ptr<UpdateSetInfo> Transformer::TransformUpdateSetInfo(duckdb_libpgquery:
 	return result;
 }
 
-unique_ptr<UpdateStatement> Transformer::TransformUpdate(duckdb_libpgquery::PGUpdateStmt &stmt) {
-	auto result = make_uniq<UpdateStatement>();
-	vector<unique_ptr<CTENode>> materialized_ctes;
-	if (stmt.withClause) {
-		TransformCTE(*PGPointerCast<duckdb_libpgquery::PGWithClause>(stmt.withClause), result->cte_map,
-		             materialized_ctes);
-		if (!materialized_ctes.empty()) {
-			throw NotImplementedException("Materialized CTEs are not implemented for update.");
-		}
+unique_ptr<UpdateStatement> Transformer::TransformUpdate(duckdb_libpgquery::PGNode *node) {
+	auto stmt = reinterpret_cast<duckdb_libpgquery::PGUpdateStmt *>(node);
+	D_ASSERT(stmt);
+
+	auto result = make_unique<UpdateStatement>();
+	if (stmt->withClause) {
+		TransformCTE(reinterpret_cast<duckdb_libpgquery::PGWithClause *>(stmt->withClause), result->cte_map);
 	}
 
-	result->table = TransformRangeVar(*stmt.relation);
-	if (stmt.fromClause) {
-		result->from_table = TransformFrom(stmt.fromClause);
+	result->table = TransformRangeVar(stmt->relation);
+	if (stmt->fromClause) {
+		result->from_table = TransformFrom(stmt->fromClause);
 	}
 
-	result->set_info = TransformUpdateSetInfo(stmt.targetList, stmt.whereClause);
+	result->set_info = TransformUpdateSetInfo(stmt->targetList, stmt->whereClause);
 
 	// Grab and transform the returning columns from the parser.
-	if (stmt.returningList) {
-		TransformExpressionList(*stmt.returningList, result->returning_list);
+	if (stmt->returningList) {
+		Transformer::TransformExpressionList(*(stmt->returningList), result->returning_list);
 	}
 
 	return result;

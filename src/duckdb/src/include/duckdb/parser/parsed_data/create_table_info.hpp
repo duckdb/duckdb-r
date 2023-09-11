@@ -22,7 +22,7 @@ class SchemaCatalogEntry;
 struct CreateTableInfo : public CreateInfo {
 	DUCKDB_API CreateTableInfo();
 	DUCKDB_API CreateTableInfo(string catalog, string schema, string name);
-	DUCKDB_API CreateTableInfo(SchemaCatalogEntry &schema, string name);
+	DUCKDB_API CreateTableInfo(SchemaCatalogEntry *schema, string name);
 
 	//! Table name to insert to
 	string table;
@@ -40,9 +40,6 @@ public:
 	DUCKDB_API static unique_ptr<CreateTableInfo> Deserialize(Deserializer &deserializer);
 
 	DUCKDB_API unique_ptr<CreateInfo> Copy() const override;
-
-	DUCKDB_API void FormatSerialize(FormatSerializer &serializer) const override;
-	DUCKDB_API static unique_ptr<CreateInfo> FormatDeserialize(FormatDeserializer &deserializer);
 };
 
 } // namespace duckdb

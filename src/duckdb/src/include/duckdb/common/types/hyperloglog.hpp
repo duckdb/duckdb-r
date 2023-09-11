@@ -12,19 +12,12 @@
 #include "duckdb/common/types/vector.hpp"
 #include "hyperloglog.hpp"
 
-namespace duckdb_hll {
-struct robj;
-}
-
 namespace duckdb {
 
-enum class HLLStorageType : uint8_t { UNCOMPRESSED = 1 };
+enum class HLLStorageType { UNCOMPRESSED = 1 };
 
 class FieldWriter;
 class FieldReader;
-
-class FormatSerializer;
-class FormatDeserializer;
 
 //! The HyperLogLog class holds a HyperLogLog counter for approximate cardinality counting
 class HyperLogLog {
@@ -53,9 +46,6 @@ public:
 	void Serialize(FieldWriter &writer) const;
 	static unique_ptr<HyperLogLog> Deserialize(FieldReader &reader);
 
-	void FormatSerialize(FormatSerializer &serializer) const;
-	static unique_ptr<HyperLogLog> FormatDeserialize(FormatDeserializer &deserializer);
-
 public:
 	//! Compute HLL hashes over vdata, and store them in 'hashes'
 	//! Then, compute register indices and prefix lengths, and also store them in 'hashes' as a pair of uint32_t
@@ -68,9 +58,9 @@ public:
 	void AddToLog(UnifiedVectorFormat &vdata, idx_t count, uint64_t indices[], uint8_t counts[]);
 
 private:
-	explicit HyperLogLog(duckdb_hll::robj *hll);
+	explicit HyperLogLog(void *hll);
 
-	duckdb_hll::robj *hll;
+	void *hll;
 	mutex lock;
 };
 } // namespace duckdb

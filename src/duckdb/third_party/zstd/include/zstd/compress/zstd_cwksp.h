@@ -31,10 +31,6 @@
 #define ZSTD_CWKSP_ASAN_REDZONE_SIZE 128
 #endif
 
-#if defined (MEMORY_SANITIZER)
-#include <sanitizer/msan_interface.h>
-#endif
-
 namespace duckdb_zstd {
 
 /*-*************************************

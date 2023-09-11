@@ -14,7 +14,7 @@ PreparedStatementVerifier::PreparedStatementVerifier(unique_ptr<SQLStatement> st
 }
 
 unique_ptr<StatementVerifier> PreparedStatementVerifier::Create(const SQLStatement &statement) {
-	return make_uniq<PreparedStatementVerifier>(statement.Copy());
+	return make_unique<PreparedStatementVerifier>(statement.Copy());
 }
 
 void PreparedStatementVerifier::Extract() {
@@ -23,20 +23,17 @@ void PreparedStatementVerifier::Extract() {
 	ParsedExpressionIterator::EnumerateQueryNodeChildren(
 	    *select.node, [&](unique_ptr<ParsedExpression> &child) { ConvertConstants(child); });
 	statement->n_param = values.size();
-	for (auto &kv : values) {
-		statement->named_param_map[kv.first] = 0;
-	}
 	// create the PREPARE and EXECUTE statements
 	string name = "__duckdb_verification_prepared_statement";
-	auto prepare = make_uniq<PrepareStatement>();
+	auto prepare = make_unique<PrepareStatement>();
 	prepare->name = name;
 	prepare->statement = std::move(statement);
 
-	auto execute = make_uniq<ExecuteStatement>();
+	auto execute = make_unique<ExecuteStatement>();
 	execute->name = name;
-	execute->named_values = std::move(values);
+	execute->values = std::move(values);
 
-	auto dealloc = make_uniq<DropStatement>();
+	auto dealloc = make_unique<DropStatement>();
 	dealloc->info->type = CatalogType::PREPARED_STATEMENT;
 	dealloc->info->name = string(name);
 
@@ -52,21 +49,19 @@ void PreparedStatementVerifier::ConvertConstants(unique_ptr<ParsedExpression> &c
 		child->alias = string();
 		// check if the value already exists
 		idx_t index = values.size();
-		auto identifier = std::to_string(index + 1);
-		const auto predicate = [&](const std::pair<const string, unique_ptr<ParsedExpression>> &pair) {
-			return pair.second->Equals(*child.get());
-		};
-		auto result = std::find_if(values.begin(), values.end(), predicate);
-		if (result == values.end()) {
-			// If it doesn't exist yet, add it
-			values[identifier] = std::move(child);
-		} else {
-			identifier = result->first;
+		for (idx_t v_idx = 0; v_idx < values.size(); v_idx++) {
+			if (values[v_idx]->Equals(child.get())) {
+				// duplicate value! refer to the original value
+				index = v_idx;
+				break;
+			}
 		}
-
+		if (index == values.size()) {
+			values.push_back(std::move(child));
+		}
 		// replace it with an expression
-		auto parameter = make_uniq<ParameterExpression>();
-		parameter->identifier = identifier;
+		auto parameter = make_unique<ParameterExpression>();
+		parameter->parameter_nr = index + 1;
 		parameter->alias = alias;
 		child = std::move(parameter);
 		return;
@@ -95,11 +90,11 @@ bool PreparedStatementVerifier::Run(
 		materialized_result = unique_ptr_cast<QueryResult, MaterializedQueryResult>(std::move(execute_result));
 	} catch (const Exception &ex) {
 		if (ex.type != ExceptionType::PARAMETER_NOT_ALLOWED) {
-			materialized_result = make_uniq<MaterializedQueryResult>(PreservedError(ex));
+			materialized_result = make_unique<MaterializedQueryResult>(PreservedError(ex));
 		}
 		failed = true;
 	} catch (std::exception &ex) {
-		materialized_result = make_uniq<MaterializedQueryResult>(PreservedError(ex));
+		materialized_result = make_unique<MaterializedQueryResult>(PreservedError(ex));
 		failed = true;
 	}
 	run(string(), std::move(dealloc_statement));

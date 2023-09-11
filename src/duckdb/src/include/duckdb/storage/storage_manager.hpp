@@ -54,7 +54,7 @@ public:
 	}
 
 	//! Get the WAL of the StorageManager, returns nullptr if in-memory
-	optional_ptr<WriteAheadLog> GetWriteAheadLog() {
+	WriteAheadLog *GetWriteAheadLog() {
 		return wal.get();
 	}
 
@@ -65,7 +65,7 @@ public:
 
 	virtual bool AutomaticCheckpoint(idx_t estimated_wal_bytes) = 0;
 	virtual unique_ptr<StorageCommitState> GenStorageCommitState(Transaction &transaction, bool checkpoint) = 0;
-	virtual bool IsCheckpointClean(MetaBlockPointer checkpoint_id) = 0;
+	virtual bool IsCheckpointClean(block_id_t checkpoint_id) = 0;
 	virtual void CreateCheckpoint(bool delete_wal = false, bool force_checkpoint = false) = 0;
 	virtual DatabaseSize GetDatabaseSize() = 0;
 	virtual shared_ptr<TableIOManager> GetTableIOManager(BoundCreateTableInfo *info) = 0;
@@ -82,18 +82,6 @@ protected:
 	unique_ptr<WriteAheadLog> wal;
 	//! Whether or not the database is opened in read-only mode
 	bool read_only;
-
-public:
-	template <class TARGET>
-	TARGET &Cast() {
-		D_ASSERT(dynamic_cast<TARGET *>(this));
-		return reinterpret_cast<TARGET &>(*this);
-	}
-	template <class TARGET>
-	const TARGET &Cast() const {
-		D_ASSERT(dynamic_cast<const TARGET *>(this));
-		return reinterpret_cast<const TARGET &>(*this);
-	}
 };
 
 //! Stores database in a single file.
@@ -109,7 +97,7 @@ public:
 public:
 	bool AutomaticCheckpoint(idx_t estimated_wal_bytes) override;
 	unique_ptr<StorageCommitState> GenStorageCommitState(Transaction &transaction, bool checkpoint) override;
-	bool IsCheckpointClean(MetaBlockPointer checkpoint_id) override;
+	bool IsCheckpointClean(block_id_t checkpoint_id) override;
 	void CreateCheckpoint(bool delete_wal, bool force_checkpoint) override;
 	DatabaseSize GetDatabaseSize() override;
 	shared_ptr<TableIOManager> GetTableIOManager(BoundCreateTableInfo *info) override;

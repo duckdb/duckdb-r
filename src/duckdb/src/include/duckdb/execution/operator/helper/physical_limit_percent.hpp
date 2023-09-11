@@ -16,9 +16,6 @@ namespace duckdb {
 //! PhyisicalLimitPercent represents the LIMIT PERCENT operator
 class PhysicalLimitPercent : public PhysicalOperator {
 public:
-	static constexpr const PhysicalOperatorType TYPE = PhysicalOperatorType::LIMIT_PERCENT;
-
-public:
 	PhysicalLimitPercent(vector<LogicalType> types, double limit_percent, idx_t offset,
 	                     unique_ptr<Expression> limit_expression, unique_ptr<Expression> offset_expression,
 	                     idx_t estimated_cardinality)
@@ -33,23 +30,21 @@ public:
 	unique_ptr<Expression> offset_expression;
 
 public:
-	bool SinkOrderDependent() const override {
+	bool IsOrderDependent() const override {
 		return true;
 	}
 
 public:
 	// Source interface
 	unique_ptr<GlobalSourceState> GetGlobalSourceState(ClientContext &context) const override;
-	SourceResultType GetData(ExecutionContext &context, DataChunk &chunk, OperatorSourceInput &input) const override;
-
-	bool IsSource() const override {
-		return true;
-	}
+	void GetData(ExecutionContext &context, DataChunk &chunk, GlobalSourceState &gstate,
+	             LocalSourceState &lstate) const override;
 
 public:
 	// Sink Interface
 	unique_ptr<GlobalSinkState> GetGlobalSinkState(ClientContext &context) const override;
-	SinkResultType Sink(ExecutionContext &context, DataChunk &chunk, OperatorSinkInput &input) const override;
+	SinkResultType Sink(ExecutionContext &context, GlobalSinkState &state, LocalSinkState &lstate,
+	                    DataChunk &input) const override;
 
 	bool IsSink() const override {
 		return true;

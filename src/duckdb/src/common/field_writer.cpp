@@ -6,7 +6,7 @@ namespace duckdb {
 // Field Writer
 //===--------------------------------------------------------------------===//
 FieldWriter::FieldWriter(Serializer &serializer_p)
-    : serializer(serializer_p), buffer(make_uniq<BufferedSerializer>()), field_count(0), finalized(false) {
+    : serializer(serializer_p), buffer(make_unique<BufferedSerializer>()), field_count(0), finalized(false) {
 	buffer->SetVersion(serializer.GetVersion());
 }
 
@@ -28,7 +28,7 @@ template <>
 void FieldWriter::Write(const string &val) {
 	Write<uint32_t>((uint32_t)val.size());
 	if (!val.empty()) {
-		WriteData(const_data_ptr_cast(val.c_str()), val.size());
+		WriteData((const_data_ptr_t)val.c_str(), val.size());
 	}
 }
 
@@ -72,7 +72,6 @@ FieldReader::FieldReader(Deserializer &source_p) : source(source_p), field_count
 	max_field_count = source_p.Read<uint32_t>();
 	total_size = source_p.Read<uint64_t>();
 	D_ASSERT(max_field_count > 0);
-	D_ASSERT(total_size > 0);
 	source.SetRemainingData(total_size);
 }
 

@@ -22,9 +22,6 @@ class DuckTableEntry;
 //! Physical CREATE (UNIQUE) INDEX statement
 class PhysicalCreateIndex : public PhysicalOperator {
 public:
-	static constexpr const PhysicalOperatorType TYPE = PhysicalOperatorType::CREATE_INDEX;
-
-public:
 	PhysicalCreateIndex(LogicalOperator &op, TableCatalogEntry &table, const vector<column_t> &column_ids,
 	                    unique_ptr<CreateIndexInfo> info, vector<unique_ptr<Expression>> unbound_expressions,
 	                    idx_t estimated_cardinality);
@@ -40,11 +37,8 @@ public:
 
 public:
 	//! Source interface, NOP for this operator
-	SourceResultType GetData(ExecutionContext &context, DataChunk &chunk, OperatorSourceInput &input) const override;
-
-	bool IsSource() const override {
-		return true;
-	}
+	void GetData(ExecutionContext &context, DataChunk &chunk, GlobalSourceState &gstate,
+	             LocalSourceState &lstate) const override;
 
 public:
 	//! Sink interface, thread-local sink states
@@ -52,7 +46,8 @@ public:
 	//! Sink interface, global sink state
 	unique_ptr<GlobalSinkState> GetGlobalSinkState(ClientContext &context) const override;
 
-	SinkResultType Sink(ExecutionContext &context, DataChunk &chunk, OperatorSinkInput &input) const override;
+	SinkResultType Sink(ExecutionContext &context, GlobalSinkState &gstate_p, LocalSinkState &lstate_p,
+	                    DataChunk &input) const override;
 	void Combine(ExecutionContext &context, GlobalSinkState &gstate_p, LocalSinkState &lstate_p) const override;
 	SinkFinalizeType Finalize(Pipeline &pipeline, Event &event, ClientContext &context,
 	                          GlobalSinkState &gstate) const override;

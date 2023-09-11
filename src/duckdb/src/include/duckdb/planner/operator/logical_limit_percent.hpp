@@ -15,9 +15,6 @@ namespace duckdb {
 //! LogicalLimitPercent represents a LIMIT PERCENT clause
 class LogicalLimitPercent : public LogicalOperator {
 public:
-	static constexpr const LogicalOperatorType TYPE = LogicalOperatorType::LOGICAL_LIMIT_PERCENT;
-
-public:
 	LogicalLimitPercent(double limit_percent, int64_t offset_val, unique_ptr<Expression> limit,
 	                    unique_ptr<Expression> offset)
 	    : LogicalOperator(LogicalOperatorType::LOGICAL_LIMIT_PERCENT), limit_percent(limit_percent),
@@ -39,9 +36,6 @@ public:
 
 	void Serialize(FieldWriter &writer) const override;
 	static unique_ptr<LogicalOperator> Deserialize(LogicalDeserializationState &state, FieldReader &reader);
-
-	void FormatSerialize(FormatSerializer &serializer) const override;
-	static unique_ptr<LogicalOperator> FormatDeserialize(FormatDeserializer &deserializer);
 	idx_t EstimateCardinality(ClientContext &context) override;
 
 protected:

@@ -10,7 +10,6 @@
 
 #include "duckdb/common/assert.hpp"
 #include "duckdb/common/constants.hpp"
-#include "duckdb/common/helper.hpp"
 
 #include <cstring>
 
@@ -55,7 +54,7 @@ public:
 #else
 			memset(value.pointer.prefix, 0, PREFIX_BYTES);
 #endif
-			value.pointer.ptr = (char *)data; // NOLINT
+			value.pointer.ptr = (char *)data;
 		}
 	}
 	string_t(const char *data) : string_t(data, strlen(data)) { // NOLINT: Allow implicit conversion from `const char*`
@@ -68,23 +67,17 @@ public:
 		return GetSize() <= INLINE_LENGTH;
 	}
 
-	const char *GetData() const {
-		return IsInlined() ? const_char_ptr_cast(value.inlined.inlined) : value.pointer.ptr;
-	}
+	//! this is unsafe since the string will not be terminated at the end
 	const char *GetDataUnsafe() const {
-		return GetData();
+		return IsInlined() ? (const char *)value.inlined.inlined : value.pointer.ptr;
 	}
 
 	char *GetDataWriteable() const {
-		return IsInlined() ? (char *)value.inlined.inlined : value.pointer.ptr; // NOLINT
+		return IsInlined() ? (char *)value.inlined.inlined : value.pointer.ptr;
 	}
 
 	const char *GetPrefix() const {
 		return value.pointer.prefix;
-	}
-
-	char *GetPrefixWriteable() const {
-		return (char *)value.pointer.prefix;
 	}
 
 	idx_t GetSize() const {
@@ -92,16 +85,11 @@ public:
 	}
 
 	string GetString() const {
-		return string(GetData(), GetSize());
+		return string(GetDataUnsafe(), GetSize());
 	}
 
 	explicit operator string() const {
 		return GetString();
-	}
-
-	char *GetPointer() const {
-		D_ASSERT(!IsInlined());
-		return value.pointer.ptr;
 	}
 
 	void SetPointer(char *new_ptr) {
@@ -119,7 +107,7 @@ public:
 		} else {
 			// copy the data into the prefix
 #ifndef DUCKDB_DEBUG_NO_INLINE
-			auto dataptr = GetData();
+			auto dataptr = (char *)GetDataUnsafe();
 			memcpy(value.pointer.prefix, dataptr, PREFIX_LENGTH);
 #else
 			memset(value.pointer.prefix, 0, PREFIX_BYTES);
@@ -129,79 +117,10 @@ public:
 
 	void Verify() const;
 	void VerifyNull() const;
-
-	struct StringComparisonOperators {
-		static inline bool Equals(const string_t &a, const string_t &b) {
-#ifdef DUCKDB_DEBUG_NO_INLINE
-			if (a.GetSize() != b.GetSize())
-				return false;
-			return (memcmp(a.GetData(), b.GetData(), a.GetSize()) == 0);
-#endif
-			uint64_t A = Load<uint64_t>(const_data_ptr_cast(&a));
-			uint64_t B = Load<uint64_t>(const_data_ptr_cast(&b));
-			if (A != B) {
-				// Either length or prefix are different -> not equal
-				return false;
-			}
-			// they have the same length and same prefix!
-			A = Load<uint64_t>(const_data_ptr_cast(&a) + 8u);
-			B = Load<uint64_t>(const_data_ptr_cast(&b) + 8u);
-			if (A == B) {
-				// either they are both inlined (so compare equal) or point to the same string (so compare equal)
-				return true;
-			}
-			if (!a.IsInlined()) {
-				// 'long' strings of the same length -> compare pointed value
-				if (memcmp(a.value.pointer.ptr, b.value.pointer.ptr, a.GetSize()) == 0) {
-					return true;
-				}
-			}
-			// either they are short string of same length but different content
-			//     or they point to string with different content
-			//     either way, they can't represent the same underlying string
-			return false;
-		}
-		// compare up to shared length. if still the same, compare lengths
-		static bool GreaterThan(const string_t &left, const string_t &right) {
-			const uint32_t left_length = left.GetSize();
-			const uint32_t right_length = right.GetSize();
-			const uint32_t min_length = std::min<uint32_t>(left_length, right_length);
-
-#ifndef DUCKDB_DEBUG_NO_INLINE
-			uint32_t A = Load<uint32_t>(const_data_ptr_cast(left.GetPrefix()));
-			uint32_t B = Load<uint32_t>(const_data_ptr_cast(right.GetPrefix()));
-
-			// Utility to move 0xa1b2c3d4 into 0xd4c3b2a1, basically inverting the order byte-a-byte
-			auto bswap = [](uint32_t v) -> uint32_t {
-				uint32_t t1 = (v >> 16u) | (v << 16u);
-				uint32_t t2 = t1 & 0x00ff00ff;
-				uint32_t t3 = t1 & 0xff00ff00;
-				return (t2 << 8u) | (t3 >> 8u);
-			};
-
-			// Check on prefix -----
-			// We dont' need to mask since:
-			//	if the prefix is greater(after bswap), it will stay greater regardless of the extra bytes
-			// 	if the prefix is smaller(after bswap), it will stay smaller regardless of the extra bytes
-			//	if the prefix is equal, the extra bytes are guaranteed to be /0 for the shorter one
-
-			if (A != B)
-				return bswap(A) > bswap(B);
-#endif
-			auto memcmp_res = memcmp(left.GetData(), right.GetData(), min_length);
-			return memcmp_res > 0 || (memcmp_res == 0 && left_length > right_length);
-		}
-	};
-
-	bool operator==(const string_t &r) const {
-		return StringComparisonOperators::Equals(*this, r);
-	}
-
-	bool operator>(const string_t &r) const {
-		return StringComparisonOperators::GreaterThan(*this, r);
-	}
 	bool operator<(const string_t &r) const {
-		return r > *this;
+		auto this_str = this->GetString();
+		auto r_str = r.GetString();
+		return this_str < r_str;
 	}
 
 private:

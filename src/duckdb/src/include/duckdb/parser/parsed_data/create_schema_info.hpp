@@ -18,19 +18,16 @@ struct CreateSchemaInfo : public CreateInfo {
 
 public:
 	unique_ptr<CreateInfo> Copy() const override {
-		auto result = make_uniq<CreateSchemaInfo>();
+		auto result = make_unique<CreateSchemaInfo>();
 		CopyProperties(*result);
 		return std::move(result);
 	}
 
 	static unique_ptr<CreateSchemaInfo> Deserialize(Deserializer &deserializer) {
-		auto result = make_uniq<CreateSchemaInfo>();
+		auto result = make_unique<CreateSchemaInfo>();
 		result->DeserializeBase(deserializer);
 		return result;
 	}
-
-	DUCKDB_API void FormatSerialize(FormatSerializer &serializer) const override;
-	DUCKDB_API static unique_ptr<CreateInfo> FormatDeserialize(FormatDeserializer &deserializer);
 
 protected:
 	void SerializeInternal(Serializer &) const override {

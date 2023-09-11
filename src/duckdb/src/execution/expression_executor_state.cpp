@@ -26,15 +26,16 @@ bool ExpressionState::HasContext() {
 
 ClientContext &ExpressionState::GetContext() {
 	if (!HasContext()) {
-		throw BinderException("Cannot use %s in this context", (expr.Cast<BoundFunctionExpression>()).function.name);
+		throw BinderException("Cannot use %s in this context", ((BoundFunctionExpression &)expr).function.name);
 	}
 	return root.executor->GetContext();
 }
 
-ExpressionState::ExpressionState(const Expression &expr, ExpressionExecutorState &root) : expr(expr), root(root) {
+ExpressionState::ExpressionState(const Expression &expr, ExpressionExecutorState &root)
+    : expr(expr), root(root), name(expr.ToString()) {
 }
 
-ExpressionExecutorState::ExpressionExecutorState() : profiler() {
+ExpressionExecutorState::ExpressionExecutorState(const string &name) : profiler(), name(name) {
 }
 
 void ExpressionState::Verify(ExpressionExecutorState &root_executor) {

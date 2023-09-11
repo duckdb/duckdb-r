@@ -22,9 +22,6 @@ namespace duckdb {
 //! without any DISTINCT aggregates, and (3) when all aggregates are combineable
 class PhysicalUngroupedAggregate : public PhysicalOperator {
 public:
-	static constexpr const PhysicalOperatorType TYPE = PhysicalOperatorType::UNGROUPED_AGGREGATE;
-
-public:
 	PhysicalUngroupedAggregate(vector<LogicalType> types, vector<unique_ptr<Expression>> expressions,
 	                           idx_t estimated_cardinality);
 
@@ -35,18 +32,17 @@ public:
 
 public:
 	// Source interface
-	SourceResultType GetData(ExecutionContext &context, DataChunk &chunk, OperatorSourceInput &input) const override;
-
-	bool IsSource() const override {
-		return true;
-	}
+	unique_ptr<GlobalSourceState> GetGlobalSourceState(ClientContext &context) const override;
+	void GetData(ExecutionContext &context, DataChunk &chunk, GlobalSourceState &gstate,
+	             LocalSourceState &lstate) const override;
 
 public:
 	// Sink interface
-	SinkResultType Sink(ExecutionContext &context, DataChunk &chunk, OperatorSinkInput &input) const override;
-	SinkCombineResultType Combine(ExecutionContext &context, OperatorSinkCombineInput &input) const override;
+	SinkResultType Sink(ExecutionContext &context, GlobalSinkState &state, LocalSinkState &lstate,
+	                    DataChunk &input) const override;
+	void Combine(ExecutionContext &context, GlobalSinkState &state, LocalSinkState &lstate) const override;
 	SinkFinalizeType Finalize(Pipeline &pipeline, Event &event, ClientContext &context,
-	                          OperatorSinkFinalizeInput &input) const override;
+	                          GlobalSinkState &gstate) const override;
 
 	unique_ptr<LocalSinkState> GetLocalSinkState(ExecutionContext &context) const override;
 	unique_ptr<GlobalSinkState> GetGlobalSinkState(ClientContext &context) const override;
@@ -61,16 +57,15 @@ public:
 		return true;
 	}
 
-	bool SinkOrderDependent() const override;
-
 private:
 	//! Finalize the distinct aggregates
 	SinkFinalizeType FinalizeDistinct(Pipeline &pipeline, Event &event, ClientContext &context,
 	                                  GlobalSinkState &gstate) const;
 	//! Combine the distinct aggregates
-	void CombineDistinct(ExecutionContext &context, OperatorSinkCombineInput &input) const;
+	void CombineDistinct(ExecutionContext &context, GlobalSinkState &state, LocalSinkState &lstate) const;
 	//! Sink the distinct aggregates
-	void SinkDistinct(ExecutionContext &context, DataChunk &chunk, OperatorSinkInput &input) const;
+	void SinkDistinct(ExecutionContext &context, GlobalSinkState &state, LocalSinkState &lstate,
+	                  DataChunk &input) const;
 };
 
 } // namespace duckdb

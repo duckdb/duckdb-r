@@ -26,13 +26,13 @@ static unique_ptr<FunctionData> DuckDBKeywordsBind(ClientContext &context, Table
 }
 
 unique_ptr<GlobalTableFunctionState> DuckDBKeywordsInit(ClientContext &context, TableFunctionInitInput &input) {
-	auto result = make_uniq<DuckDBKeywordsData>();
+	auto result = make_unique<DuckDBKeywordsData>();
 	result->entries = Parser::KeywordList();
 	return std::move(result);
 }
 
 void DuckDBKeywordsFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
-	auto &data = data_p.global_state->Cast<DuckDBKeywordsData>();
+	auto &data = (DuckDBKeywordsData &)*data_p.global_state;
 	if (data.offset >= data.entries.size()) {
 		// finished returning values
 		return;

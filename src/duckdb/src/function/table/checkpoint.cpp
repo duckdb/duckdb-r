@@ -8,18 +8,18 @@
 namespace duckdb {
 
 struct CheckpointBindData : public FunctionData {
-	explicit CheckpointBindData(optional_ptr<AttachedDatabase> db) : db(db) {
+	explicit CheckpointBindData(AttachedDatabase *db) : db(db) {
 	}
 
-	optional_ptr<AttachedDatabase> db;
+	AttachedDatabase *db;
 
 public:
 	unique_ptr<FunctionData> Copy() const override {
-		return make_uniq<CheckpointBindData>(db);
+		return make_unique<CheckpointBindData>(db);
 	}
 
 	bool Equals(const FunctionData &other_p) const override {
-		auto &other = other_p.Cast<CheckpointBindData>();
+		auto &other = (const CheckpointBindData &)other_p;
 		return db == other.db;
 	}
 };
@@ -29,27 +29,20 @@ static unique_ptr<FunctionData> CheckpointBind(ClientContext &context, TableFunc
 	return_types.emplace_back(LogicalType::BOOLEAN);
 	names.emplace_back("Success");
 
-	optional_ptr<AttachedDatabase> db;
+	AttachedDatabase *db;
 	auto &db_manager = DatabaseManager::Get(context);
 	if (!input.inputs.empty()) {
-		if (input.inputs[0].IsNull()) {
-			throw BinderException("Database cannot be NULL");
-		}
-		auto &db_name = StringValue::Get(input.inputs[0]);
-		db = db_manager.GetDatabase(context, db_name);
-		if (!db) {
-			throw BinderException("Database \"%s\" not found", db_name);
-		}
+		db = db_manager.GetDatabase(context, StringValue::Get(input.inputs[0]));
 	} else {
 		db = db_manager.GetDatabase(context, DatabaseManager::GetDefaultDatabase(context));
 	}
-	return make_uniq<CheckpointBindData>(db);
+	return make_unique<CheckpointBindData>(db);
 }
 
 template <bool FORCE>
 static void TemplatedCheckpointFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
-	auto &bind_data = data_p.bind_data->Cast<CheckpointBindData>();
-	auto &transaction_manager = TransactionManager::Get(*bind_data.db.get_mutable());
+	auto &bind_data = (CheckpointBindData &)*data_p.bind_data;
+	auto &transaction_manager = TransactionManager::Get(*bind_data.db);
 	transaction_manager.Checkpoint(context, FORCE);
 }
 

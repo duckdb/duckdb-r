@@ -17,9 +17,6 @@ namespace duckdb {
 //! alias
 class ColumnRefExpression : public ParsedExpression {
 public:
-	static constexpr const ExpressionClass TYPE = ExpressionClass::COLUMN_REF;
-
-public:
 	//! Specify both the column and table name
 	ColumnRefExpression(string column_name, string table_name);
 	//! Only specify the column name, the table name will be derived later
@@ -41,17 +38,12 @@ public:
 	string GetName() const override;
 	string ToString() const override;
 
-	static bool Equal(const ColumnRefExpression &a, const ColumnRefExpression &b);
+	static bool Equal(const ColumnRefExpression *a, const ColumnRefExpression *b);
 	hash_t Hash() const override;
 
 	unique_ptr<ParsedExpression> Copy() const override;
 
 	void Serialize(FieldWriter &writer) const override;
 	static unique_ptr<ParsedExpression> Deserialize(ExpressionType type, FieldReader &source);
-	void FormatSerialize(FormatSerializer &serializer) const override;
-	static unique_ptr<ParsedExpression> FormatDeserialize(FormatDeserializer &deserializer);
-
-private:
-	ColumnRefExpression();
 };
 } // namespace duckdb

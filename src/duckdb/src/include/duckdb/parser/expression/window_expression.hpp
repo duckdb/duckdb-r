@@ -25,14 +25,9 @@ enum class WindowBoundary : uint8_t {
 	EXPR_FOLLOWING_RANGE = 8
 };
 
-const char *ToString(WindowBoundary value);
-
 //! The WindowExpression represents a window function in the query. They are a special case of aggregates which is why
 //! they inherit from them.
 class WindowExpression : public ParsedExpression {
-public:
-	static constexpr const ExpressionClass TYPE = ExpressionClass::WINDOW;
-
 public:
 	WindowExpression(ExpressionType type, string catalog_name, string schema_name, const string &function_name);
 
@@ -70,16 +65,12 @@ public:
 	//! Convert the Expression to a String
 	string ToString() const override;
 
-	static bool Equal(const WindowExpression &a, const WindowExpression &b);
+	static bool Equal(const WindowExpression *a, const WindowExpression *b);
 
 	unique_ptr<ParsedExpression> Copy() const override;
 
 	void Serialize(FieldWriter &writer) const override;
 	static unique_ptr<ParsedExpression> Deserialize(ExpressionType type, FieldReader &source);
-	void FormatSerialize(FormatSerializer &serializer) const override;
-	static unique_ptr<ParsedExpression> FormatDeserialize(FormatDeserializer &deserializer);
-
-	static ExpressionType WindowToExpressionType(string &fun_name);
 
 public:
 	template <class T, class BASE, class ORDER_NODE>
@@ -87,10 +78,8 @@ public:
 		// Start with function call
 		string result = schema.empty() ? function_name : schema + "." + function_name;
 		result += "(";
-		if (entry.children.size()) {
-			result += StringUtil::Join(entry.children, entry.children.size(), ", ",
-			                           [](const unique_ptr<BASE> &child) { return child->ToString(); });
-		}
+		result += StringUtil::Join(entry.children, entry.children.size(), ", ",
+		                           [](const unique_ptr<BASE> &child) { return child->ToString(); });
 		// Lead/Lag extra arguments
 		if (entry.offset_expr.get()) {
 			result += ", ";
@@ -210,9 +199,5 @@ public:
 
 		return result;
 	}
-
-private:
-	explicit WindowExpression(ExpressionType type);
 };
-
 } // namespace duckdb

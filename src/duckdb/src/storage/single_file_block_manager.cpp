@@ -6,8 +6,8 @@
 #include "duckdb/common/serializer/buffered_deserializer.hpp"
 #include "duckdb/common/serializer/buffered_serializer.hpp"
 #include "duckdb/common/field_writer.hpp"
-#include "duckdb/storage/metadata/metadata_reader.hpp"
-#include "duckdb/storage/metadata/metadata_writer.hpp"
+#include "duckdb/storage/meta_block_reader.hpp"
+#include "duckdb/storage/meta_block_writer.hpp"
 #include "duckdb/storage/buffer_manager.hpp"
 #include "duckdb/main/config.hpp"
 
@@ -19,7 +19,7 @@ namespace duckdb {
 const char MainHeader::MAGIC_BYTES[] = "DUCK";
 
 void MainHeader::Serialize(Serializer &ser) {
-	ser.WriteData(const_data_ptr_cast(MAGIC_BYTES), MAGIC_BYTE_SIZE);
+	ser.WriteData((data_ptr_t)MAGIC_BYTES, MAGIC_BYTE_SIZE);
 	ser.Write<uint64_t>(version_number);
 	FieldWriter writer(ser);
 	for (idx_t i = 0; i < FLAG_COUNT; i++) {
@@ -81,16 +81,16 @@ MainHeader MainHeader::Deserialize(Deserializer &source) {
 
 void DatabaseHeader::Serialize(Serializer &ser) {
 	ser.Write<uint64_t>(iteration);
-	ser.Write<idx_t>(meta_block);
-	ser.Write<idx_t>(free_list);
+	ser.Write<block_id_t>(meta_block);
+	ser.Write<block_id_t>(free_list);
 	ser.Write<uint64_t>(block_count);
 }
 
 DatabaseHeader DatabaseHeader::Deserialize(Deserializer &source) {
 	DatabaseHeader header;
 	header.iteration = source.Read<uint64_t>();
-	header.meta_block = source.Read<idx_t>();
-	header.free_list = source.Read<idx_t>();
+	header.meta_block = source.Read<block_id_t>();
+	header.free_list = source.Read<block_id_t>();
 	header.block_count = source.Read<uint64_t>();
 	return header;
 }
@@ -107,15 +107,15 @@ T DeserializeHeaderStructure(data_ptr_t ptr) {
 	return T::Deserialize(source);
 }
 
-SingleFileBlockManager::SingleFileBlockManager(AttachedDatabase &db, string path_p, StorageManagerOptions options)
+SingleFileBlockManager::SingleFileBlockManager(AttachedDatabase &db, string path_p, bool read_only, bool use_direct_io)
     : BlockManager(BufferManager::GetBufferManager(db)), db(db), path(std::move(path_p)),
       header_buffer(Allocator::Get(db), FileBufferType::MANAGED_BUFFER,
                     Storage::FILE_HEADER_SIZE - Storage::BLOCK_HEADER_SIZE),
-      iteration_count(0), options(options) {
+      iteration_count(0), read_only(read_only), use_direct_io(use_direct_io) {
 }
 
 void SingleFileBlockManager::GetFileFlags(uint8_t &flags, FileLockType &lock, bool create_new) {
-	if (options.read_only) {
+	if (read_only) {
 		D_ASSERT(!create_new);
 		flags = FileFlags::FILE_FLAGS_READ;
 		lock = FileLockType::READ_LOCK;
@@ -126,7 +126,7 @@ void SingleFileBlockManager::GetFileFlags(uint8_t &flags, FileLockType &lock, bo
 			flags |= FileFlags::FILE_FLAGS_FILE_CREATE;
 		}
 	}
-	if (options.use_direct_io) {
+	if (use_direct_io) {
 		flags |= FileFlags::FILE_FLAGS_DIRECT_IO;
 	}
 }
@@ -170,7 +170,7 @@ void SingleFileBlockManager::CreateNewDatabase() {
 	h2.free_list = INVALID_BLOCK;
 	h2.block_count = 0;
 	SerializeHeaderStructure<DatabaseHeader>(h2, header_buffer.buffer);
-	ChecksumAndWrite(header_buffer, Storage::FILE_HEADER_SIZE * 2ULL);
+	ChecksumAndWrite(header_buffer, Storage::FILE_HEADER_SIZE * 2);
 	// ensure that writing to disk is completed before returning
 	handle->Sync();
 	// we start with h2 as active_header, this way our initial write will be in h1
@@ -197,7 +197,7 @@ void SingleFileBlockManager::LoadExistingDatabase() {
 	DatabaseHeader h1, h2;
 	ReadAndChecksum(header_buffer, Storage::FILE_HEADER_SIZE);
 	h1 = DeserializeHeaderStructure<DatabaseHeader>(header_buffer.buffer);
-	ReadAndChecksum(header_buffer, Storage::FILE_HEADER_SIZE * 2ULL);
+	ReadAndChecksum(header_buffer, Storage::FILE_HEADER_SIZE * 2);
 	h2 = DeserializeHeaderStructure<DatabaseHeader>(header_buffer.buffer);
 	// check the header with the highest iteration count
 	if (h1.iteration > h2.iteration) {
@@ -241,12 +241,15 @@ void SingleFileBlockManager::Initialize(DatabaseHeader &header) {
 }
 
 void SingleFileBlockManager::LoadFreeList() {
-	MetaBlockPointer free_pointer(free_list_id, 0);
-	if (!free_pointer.IsValid()) {
+	if (read_only) {
+		// no need to load free list for read only db
+		return;
+	}
+	if (free_list_id == INVALID_BLOCK) {
 		// no free list
 		return;
 	}
-	MetadataReader reader(GetMetadataManager(), free_pointer, BlockReaderType::REGISTER_BLOCKS);
+	MetaBlockReader reader(*this, free_list_id);
 	auto free_list_count = reader.Read<uint64_t>();
 	free_list.clear();
 	for (idx_t i = 0; i < free_list_count; i++) {
@@ -259,12 +262,10 @@ void SingleFileBlockManager::LoadFreeList() {
 		auto usage_count = reader.Read<uint32_t>();
 		multi_use_blocks[block_id] = usage_count;
 	}
-	GetMetadataManager().Deserialize(reader);
-	GetMetadataManager().MarkBlocksAsModified();
 }
 
-bool SingleFileBlockManager::IsRootBlock(MetaBlockPointer root) {
-	return root.block_pointer == meta_block;
+bool SingleFileBlockManager::IsRootBlock(block_id_t root) {
+	return root == meta_block;
 }
 
 block_id_t SingleFileBlockManager::GetFreeBlockId() {
@@ -286,9 +287,7 @@ void SingleFileBlockManager::MarkBlockAsFree(block_id_t block_id) {
 	lock_guard<mutex> lock(block_lock);
 	D_ASSERT(block_id >= 0);
 	D_ASSERT(block_id < max_block);
-	if (free_list.find(block_id) != free_list.end()) {
-		throw InternalException("MarkBlockAsFree called but block %llu was already freed!", block_id);
-	}
+	D_ASSERT(free_list.find(block_id) == free_list.end());
 	multi_use_blocks.erase(block_id);
 	free_list.insert(block_id);
 }
@@ -330,7 +329,7 @@ void SingleFileBlockManager::IncreaseBlockReferenceCount(block_id_t block_id) {
 	}
 }
 
-idx_t SingleFileBlockManager::GetMetaBlock() {
+block_id_t SingleFileBlockManager::GetMetaBlock() {
 	return meta_block;
 }
 
@@ -344,20 +343,13 @@ idx_t SingleFileBlockManager::FreeBlocks() {
 	return free_list.size();
 }
 
-unique_ptr<Block> SingleFileBlockManager::ConvertBlock(block_id_t block_id, FileBuffer &source_buffer) {
-	D_ASSERT(source_buffer.AllocSize() == Storage::BLOCK_ALLOC_SIZE);
-	return make_uniq<Block>(source_buffer, block_id);
-}
-
 unique_ptr<Block> SingleFileBlockManager::CreateBlock(block_id_t block_id, FileBuffer *source_buffer) {
-	unique_ptr<Block> result;
 	if (source_buffer) {
-		result = ConvertBlock(block_id, *source_buffer);
+		D_ASSERT(source_buffer->AllocSize() == Storage::BLOCK_ALLOC_SIZE);
+		return make_unique<Block>(*source_buffer, block_id);
 	} else {
-		result = make_uniq<Block>(Allocator::Get(db), block_id);
+		return make_unique<Block>(Allocator::Get(db), block_id);
 	}
-	result->Initialize(options.debug_initialize);
-	return result;
 }
 
 void SingleFileBlockManager::Read(Block &block) {
@@ -371,65 +363,50 @@ void SingleFileBlockManager::Write(FileBuffer &buffer, block_id_t block_id) {
 	ChecksumAndWrite(buffer, BLOCK_START + block_id * Storage::BLOCK_ALLOC_SIZE);
 }
 
-void SingleFileBlockManager::Truncate() {
-	BlockManager::Truncate();
-	idx_t blocks_to_truncate = 0;
-	// reverse iterate over the free-list
-	for (auto entry = free_list.rbegin(); entry != free_list.rend(); entry++) {
-		auto block_id = *entry;
-		if (block_id + 1 != max_block) {
-			break;
+vector<block_id_t> SingleFileBlockManager::GetFreeListBlocks() {
+	vector<block_id_t> free_list_blocks;
+
+	if (!free_list.empty() || !multi_use_blocks.empty() || !modified_blocks.empty()) {
+		// there are blocks in the free list or multi_use_blocks
+		// figure out how many blocks we need to write these to the file
+		auto free_list_size = sizeof(uint64_t) + sizeof(block_id_t) * (free_list.size() + modified_blocks.size());
+		auto multi_use_blocks_size =
+		    sizeof(uint64_t) + (sizeof(block_id_t) + sizeof(uint32_t)) * multi_use_blocks.size();
+		auto total_size = free_list_size + multi_use_blocks_size;
+		// because of potential alignment issues and needing to store a next pointer in a block we subtract
+		// a bit from the max block size
+		auto space_in_block = Storage::BLOCK_SIZE - 4 * sizeof(block_id_t);
+		auto total_blocks = (total_size + space_in_block - 1) / space_in_block;
+		D_ASSERT(total_size > 0);
+		D_ASSERT(total_blocks > 0);
+
+		// reserve the blocks that we are going to write
+		// since these blocks are no longer free we cannot just include them in the free list!
+		for (idx_t i = 0; i < total_blocks; i++) {
+			auto block_id = GetFreeBlockId();
+			free_list_blocks.push_back(block_id);
 		}
-		blocks_to_truncate++;
-		max_block--;
-	}
-	if (blocks_to_truncate == 0) {
-		// nothing to truncate
-		return;
-	}
-	// truncate the file
-	for (idx_t i = 0; i < blocks_to_truncate; i++) {
-		free_list.erase(max_block + i);
-	}
-	handle->Truncate(BLOCK_START + max_block * Storage::BLOCK_ALLOC_SIZE);
-}
-
-vector<MetadataHandle> SingleFileBlockManager::GetFreeListBlocks() {
-	vector<MetadataHandle> free_list_blocks;
-
-	auto free_list_size = sizeof(uint64_t) + sizeof(block_id_t) * (free_list.size() + modified_blocks.size());
-	auto multi_use_blocks_size = sizeof(uint64_t) + (sizeof(block_id_t) + sizeof(uint32_t)) * multi_use_blocks.size();
-	auto metadata_blocks = sizeof(uint64_t) + (sizeof(idx_t) * 2) * GetMetadataManager().BlockCount();
-	auto total_size = free_list_size + multi_use_blocks_size + metadata_blocks;
-
-	// reserve the blocks that we are going to write
-	// since these blocks are no longer free we cannot just include them in the free list!
-	auto block_size = MetadataManager::METADATA_BLOCK_SIZE - sizeof(idx_t);
-	while (total_size > 0) {
-		auto free_list_handle = GetMetadataManager().AllocateHandle();
-		free_list_blocks.push_back(std::move(free_list_handle));
-		total_size -= MinValue<idx_t>(total_size, block_size);
 	}
 
 	return free_list_blocks;
 }
 
-class FreeListBlockWriter : public MetadataWriter {
+class FreeListBlockWriter : public MetaBlockWriter {
 public:
-	FreeListBlockWriter(MetadataManager &manager, vector<MetadataHandle> free_list_blocks_p)
-	    : MetadataWriter(manager), free_list_blocks(std::move(free_list_blocks_p)), index(0) {
+	FreeListBlockWriter(BlockManager &block_manager, vector<block_id_t> &free_list_blocks_p)
+	    : MetaBlockWriter(block_manager, free_list_blocks_p[0]), free_list_blocks(free_list_blocks_p), index(1) {
 	}
 
-	vector<MetadataHandle> free_list_blocks;
+	vector<block_id_t> &free_list_blocks;
 	idx_t index;
 
 protected:
-	MetadataHandle NextHandle() override {
+	block_id_t GetNextBlockId() override {
 		if (index >= free_list_blocks.size()) {
 			throw InternalException(
 			    "Free List Block Writer ran out of blocks, this means not enough blocks were allocated up front");
 		}
-		return std::move(free_list_blocks[index++]);
+		return free_list_blocks[index++];
 	}
 };
 
@@ -437,7 +414,7 @@ void SingleFileBlockManager::WriteHeader(DatabaseHeader header) {
 	// set the iteration count
 	header.iteration = ++iteration_count;
 
-	auto free_list_blocks = GetFreeListBlocks();
+	vector<block_id_t> free_list_blocks = GetFreeListBlocks();
 
 	// now handle the free list
 	// add all modified blocks to the free list: they can now be written to again
@@ -446,16 +423,20 @@ void SingleFileBlockManager::WriteHeader(DatabaseHeader header) {
 	}
 	modified_blocks.clear();
 
-	auto &metadata_manager = GetMetadataManager();
 	if (!free_list_blocks.empty()) {
 		// there are blocks to write, either in the free_list or in the modified_blocks
 		// we write these blocks specifically to the free_list_blocks
-		// a normal MetadataWriter will fetch blocks to use from the free_list
+		// a normal MetaBlockWriter will fetch blocks to use from the free_list
 		// but since we are WRITING the free_list, this behavior is sub-optimal
-		FreeListBlockWriter writer(metadata_manager, std::move(free_list_blocks));
 
-		auto ptr = writer.GetMetaBlockPointer();
-		header.free_list = ptr.block_pointer;
+		FreeListBlockWriter writer(*this, free_list_blocks);
+
+		auto ptr = writer.GetBlockPointer();
+		D_ASSERT(ptr.block_id == free_list_blocks[0]);
+		header.free_list = ptr.block_id;
+		for (auto &block_id : free_list_blocks) {
+			modified_blocks.insert(block_id);
+		}
 
 		writer.Write<uint64_t>(free_list.size());
 		for (auto &block_id : free_list) {
@@ -466,13 +447,11 @@ void SingleFileBlockManager::WriteHeader(DatabaseHeader header) {
 			writer.Write<block_id_t>(entry.first);
 			writer.Write<uint32_t>(entry.second);
 		}
-		GetMetadataManager().Serialize(writer);
 		writer.Flush();
 	} else {
 		// no blocks in the free list
-		header.free_list = DConstants::INVALID_INDEX;
+		header.free_list = INVALID_BLOCK;
 	}
-	metadata_manager.Flush();
 	header.block_count = max_block;
 
 	auto &config = DBConfig::Get(db);
@@ -480,16 +459,14 @@ void SingleFileBlockManager::WriteHeader(DatabaseHeader header) {
 		throw FatalException("Checkpoint aborted after free list write because of PRAGMA checkpoint_abort flag");
 	}
 
-	if (!options.use_direct_io) {
+	if (!use_direct_io) {
 		// if we are not using Direct IO we need to fsync BEFORE we write the header to ensure that all the previous
 		// blocks are written as well
 		handle->Sync();
 	}
 	// set the header inside the buffer
 	header_buffer.Clear();
-	BufferedSerializer serializer;
-	header.Serialize(serializer);
-	memcpy(header_buffer.buffer, serializer.blob.data.get(), serializer.blob.size);
+	Store<DatabaseHeader>(header, header_buffer.buffer);
 	// now write the header to the file, active_header determines whether we write to h1 or h2
 	// note that if active_header is h1 we write to h2, and vice versa
 	ChecksumAndWrite(header_buffer, active_header == 1 ? Storage::FILE_HEADER_SIZE : Storage::FILE_HEADER_SIZE * 2);

@@ -11,18 +11,17 @@
 #include "duckdb/common/limits.hpp"
 #include "duckdb/storage/data_table.hpp"
 #include "duckdb/storage/table_storage_info.hpp"
-#include "duckdb/planner/binder.hpp"
 
 #include <algorithm>
 
 namespace duckdb {
 
 struct PragmaStorageFunctionData : public TableFunctionData {
-	explicit PragmaStorageFunctionData(TableCatalogEntry &table_entry) : table_entry(table_entry) {
+	explicit PragmaStorageFunctionData(TableCatalogEntry *table_entry) : table_entry(table_entry) {
 	}
 
-	TableCatalogEntry &table_entry;
-	vector<ColumnSegmentInfo> column_segments_info;
+	TableCatalogEntry *table_entry;
+	TableStorageInfo storage_info;
 };
 
 struct PragmaStorageOperatorData : public GlobalTableFunctionState {
@@ -79,24 +78,23 @@ static unique_ptr<FunctionData> PragmaStorageInfoBind(ClientContext &context, Ta
 	auto qname = QualifiedName::Parse(input.inputs[0].GetValue<string>());
 
 	// look up the table name in the catalog
-	Binder::BindSchemaOrCatalog(context, qname.catalog, qname.schema);
-	auto &table_entry = Catalog::GetEntry<TableCatalogEntry>(context, qname.catalog, qname.schema, qname.name);
-	auto result = make_uniq<PragmaStorageFunctionData>(table_entry);
-	result->column_segments_info = table_entry.GetColumnSegmentInfo();
+	auto table_entry = Catalog::GetEntry<TableCatalogEntry>(context, qname.catalog, qname.schema, qname.name);
+	auto result = make_unique<PragmaStorageFunctionData>(table_entry);
+	result->storage_info = table_entry->GetStorageInfo(context);
 	return std::move(result);
 }
 
 unique_ptr<GlobalTableFunctionState> PragmaStorageInfoInit(ClientContext &context, TableFunctionInitInput &input) {
-	return make_uniq<PragmaStorageOperatorData>();
+	return make_unique<PragmaStorageOperatorData>();
 }
 
 static void PragmaStorageInfoFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
-	auto &bind_data = data_p.bind_data->Cast<PragmaStorageFunctionData>();
-	auto &data = data_p.global_state->Cast<PragmaStorageOperatorData>();
+	auto &bind_data = (PragmaStorageFunctionData &)*data_p.bind_data;
+	auto &data = (PragmaStorageOperatorData &)*data_p.global_state;
 	idx_t count = 0;
-	auto &columns = bind_data.table_entry.GetColumns();
-	while (data.offset < bind_data.column_segments_info.size() && count < STANDARD_VECTOR_SIZE) {
-		auto &entry = bind_data.column_segments_info[data.offset++];
+	auto &columns = bind_data.table_entry->GetColumns();
+	while (data.offset < bind_data.storage_info.column_segments.size() && count < STANDARD_VECTOR_SIZE) {
+		auto &entry = bind_data.storage_info.column_segments[data.offset++];
 
 		idx_t col_idx = 0;
 		// row_group_id

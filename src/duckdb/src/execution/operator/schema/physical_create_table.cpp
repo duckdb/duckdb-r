@@ -7,7 +7,7 @@
 
 namespace duckdb {
 
-PhysicalCreateTable::PhysicalCreateTable(LogicalOperator &op, SchemaCatalogEntry &schema,
+PhysicalCreateTable::PhysicalCreateTable(LogicalOperator &op, SchemaCatalogEntry *schema,
                                          unique_ptr<BoundCreateTableInfo> info, idx_t estimated_cardinality)
     : PhysicalOperator(PhysicalOperatorType::CREATE_TABLE, op.types, estimated_cardinality), schema(schema),
       info(std::move(info)) {
@@ -16,12 +16,27 @@ PhysicalCreateTable::PhysicalCreateTable(LogicalOperator &op, SchemaCatalogEntry
 //===--------------------------------------------------------------------===//
 // Source
 //===--------------------------------------------------------------------===//
-SourceResultType PhysicalCreateTable::GetData(ExecutionContext &context, DataChunk &chunk,
-                                              OperatorSourceInput &input) const {
-	auto &catalog = schema.catalog;
-	catalog.CreateTable(catalog.GetCatalogTransaction(context.client), schema, *info);
+class CreateTableSourceState : public GlobalSourceState {
+public:
+	CreateTableSourceState() : finished(false) {
+	}
 
-	return SourceResultType::FINISHED;
+	bool finished;
+};
+
+unique_ptr<GlobalSourceState> PhysicalCreateTable::GetGlobalSourceState(ClientContext &context) const {
+	return make_unique<CreateTableSourceState>();
+}
+
+void PhysicalCreateTable::GetData(ExecutionContext &context, DataChunk &chunk, GlobalSourceState &gstate,
+                                  LocalSourceState &lstate) const {
+	auto &state = (CreateTableSourceState &)gstate;
+	if (state.finished) {
+		return;
+	}
+	auto &catalog = *schema->catalog;
+	catalog.CreateTable(catalog.GetCatalogTransaction(context.client), schema, info.get());
+	state.finished = true;
 }
 
 } // namespace duckdb

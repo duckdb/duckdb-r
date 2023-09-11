@@ -25,19 +25,19 @@ public:
 	ColumnDataAppendState append_state;
 };
 
-SinkResultType PhysicalMaterializedCollector::Sink(ExecutionContext &context, DataChunk &chunk,
-                                                   OperatorSinkInput &input) const {
-	auto &lstate = input.local_state.Cast<MaterializedCollectorLocalState>();
-	lstate.collection->Append(lstate.append_state, chunk);
+SinkResultType PhysicalMaterializedCollector::Sink(ExecutionContext &context, GlobalSinkState &gstate_p,
+                                                   LocalSinkState &lstate_p, DataChunk &input) const {
+	auto &lstate = (MaterializedCollectorLocalState &)lstate_p;
+	lstate.collection->Append(lstate.append_state, input);
 	return SinkResultType::NEED_MORE_INPUT;
 }
 
-SinkCombineResultType PhysicalMaterializedCollector::Combine(ExecutionContext &context,
-                                                             OperatorSinkCombineInput &input) const {
-	auto &gstate = input.global_state.Cast<MaterializedCollectorGlobalState>();
-	auto &lstate = input.local_state.Cast<MaterializedCollectorLocalState>();
+void PhysicalMaterializedCollector::Combine(ExecutionContext &context, GlobalSinkState &gstate_p,
+                                            LocalSinkState &lstate_p) const {
+	auto &gstate = (MaterializedCollectorGlobalState &)gstate_p;
+	auto &lstate = (MaterializedCollectorLocalState &)lstate_p;
 	if (lstate.collection->Count() == 0) {
-		return SinkCombineResultType::FINISHED;
+		return;
 	}
 
 	lock_guard<mutex> l(gstate.glock);
@@ -46,39 +46,33 @@ SinkCombineResultType PhysicalMaterializedCollector::Combine(ExecutionContext &c
 	} else {
 		gstate.collection->Combine(*lstate.collection);
 	}
-
-	return SinkCombineResultType::FINISHED;
 }
 
 unique_ptr<GlobalSinkState> PhysicalMaterializedCollector::GetGlobalSinkState(ClientContext &context) const {
-	auto state = make_uniq<MaterializedCollectorGlobalState>();
+	auto state = make_unique<MaterializedCollectorGlobalState>();
 	state->context = context.shared_from_this();
 	return std::move(state);
 }
 
 unique_ptr<LocalSinkState> PhysicalMaterializedCollector::GetLocalSinkState(ExecutionContext &context) const {
-	auto state = make_uniq<MaterializedCollectorLocalState>();
-	state->collection = make_uniq<ColumnDataCollection>(Allocator::DefaultAllocator(), types);
+	auto state = make_unique<MaterializedCollectorLocalState>();
+	state->collection = make_unique<ColumnDataCollection>(Allocator::DefaultAllocator(), types);
 	state->collection->InitializeAppend(state->append_state);
 	return std::move(state);
 }
 
 unique_ptr<QueryResult> PhysicalMaterializedCollector::GetResult(GlobalSinkState &state) {
-	auto &gstate = state.Cast<MaterializedCollectorGlobalState>();
+	auto &gstate = (MaterializedCollectorGlobalState &)state;
 	if (!gstate.collection) {
-		gstate.collection = make_uniq<ColumnDataCollection>(Allocator::DefaultAllocator(), types);
+		gstate.collection = make_unique<ColumnDataCollection>(Allocator::DefaultAllocator(), types);
 	}
-	auto result = make_uniq<MaterializedQueryResult>(statement_type, properties, names, std::move(gstate.collection),
-	                                                 gstate.context->GetClientProperties());
+	auto result = make_unique<MaterializedQueryResult>(statement_type, properties, names, std::move(gstate.collection),
+	                                                   gstate.context->GetClientProperties());
 	return std::move(result);
 }
 
 bool PhysicalMaterializedCollector::ParallelSink() const {
 	return parallel;
-}
-
-bool PhysicalMaterializedCollector::SinkOrderDependent() const {
-	return true;
 }
 
 } // namespace duckdb

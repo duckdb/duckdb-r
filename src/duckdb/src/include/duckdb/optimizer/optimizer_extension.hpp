@@ -15,7 +15,7 @@ namespace duckdb {
 
 //! The OptimizerExtensionInfo holds static information relevant to the optimizer extension
 struct OptimizerExtensionInfo {
-	virtual ~OptimizerExtensionInfo() {
+	DUCKDB_API virtual ~OptimizerExtensionInfo() {
 	}
 };
 

@@ -5,14 +5,7 @@
 #include "duckdb/common/types/hash.hpp"
 #include "duckdb/common/to_string.hpp"
 
-#include "duckdb/common/serializer/format_serializer.hpp"
-#include "duckdb/common/serializer/format_deserializer.hpp"
-
 namespace duckdb {
-
-PositionalReferenceExpression::PositionalReferenceExpression()
-    : ParsedExpression(ExpressionType::POSITIONAL_REFERENCE, ExpressionClass::POSITIONAL_REFERENCE) {
-}
 
 PositionalReferenceExpression::PositionalReferenceExpression(idx_t index)
     : ParsedExpression(ExpressionType::POSITIONAL_REFERENCE, ExpressionClass::POSITIONAL_REFERENCE), index(index) {
@@ -22,13 +15,13 @@ string PositionalReferenceExpression::ToString() const {
 	return "#" + to_string(index);
 }
 
-bool PositionalReferenceExpression::Equal(const PositionalReferenceExpression &a,
-                                          const PositionalReferenceExpression &b) {
-	return a.index == b.index;
+bool PositionalReferenceExpression::Equal(const PositionalReferenceExpression *a,
+                                          const PositionalReferenceExpression *b) {
+	return a->index == b->index;
 }
 
 unique_ptr<ParsedExpression> PositionalReferenceExpression::Copy() const {
-	auto copy = make_uniq<PositionalReferenceExpression>(index);
+	auto copy = make_unique<PositionalReferenceExpression>(index);
 	copy->CopyProperties(*this);
 	return std::move(copy);
 }
@@ -43,7 +36,7 @@ void PositionalReferenceExpression::Serialize(FieldWriter &writer) const {
 }
 
 unique_ptr<ParsedExpression> PositionalReferenceExpression::Deserialize(ExpressionType type, FieldReader &reader) {
-	auto expression = make_uniq<PositionalReferenceExpression>(reader.ReadRequired<idx_t>());
+	auto expression = make_unique<PositionalReferenceExpression>(reader.ReadRequired<idx_t>());
 	return std::move(expression);
 }
 

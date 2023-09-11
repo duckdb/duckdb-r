@@ -18,7 +18,7 @@ class Task;
 
 class Event : public std::enable_shared_from_this<Event> {
 public:
-	explicit Event(Executor &executor);
+	Event(Executor &executor);
 	virtual ~Event() = default;
 
 public:
@@ -41,7 +41,7 @@ public:
 
 	void CompleteDependency();
 
-	void SetTasks(vector<shared_ptr<Task>> tasks);
+	void SetTasks(vector<unique_ptr<Task>> tasks);
 
 	void InsertEvent(shared_ptr<Event> replacement_event);
 
@@ -50,17 +50,6 @@ public:
 	}
 
 	virtual void PrintPipeline() {
-	}
-
-	template <class TARGET>
-	TARGET &Cast() {
-		D_ASSERT(dynamic_cast<TARGET *>(this));
-		return reinterpret_cast<TARGET &>(*this);
-	}
-	template <class TARGET>
-	const TARGET &Cast() const {
-		D_ASSERT(dynamic_cast<const TARGET *>(this));
-		return reinterpret_cast<const TARGET &>(*this);
 	}
 
 protected:

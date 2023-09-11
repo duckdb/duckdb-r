@@ -2,8 +2,6 @@
 
 #include "src/execution/physical_plan/plan_any_join.cpp"
 
-#include "src/execution/physical_plan/plan_asof_join.cpp"
-
 #include "src/execution/physical_plan/plan_column_data_get.cpp"
 
 #include "src/execution/physical_plan/plan_comparison_join.cpp"
@@ -48,8 +46,6 @@
 
 #include "src/execution/physical_plan/plan_order.cpp"
 
-#include "src/execution/physical_plan/plan_pivot.cpp"
-
 #include "src/execution/physical_plan/plan_positional_join.cpp"
 
 #include "src/execution/physical_plan/plan_pragma.cpp"
@@ -81,6 +77,4 @@
 #include "src/execution/physical_plan/plan_expression_get.cpp"
 
 #include "src/execution/physical_plan/plan_recursive_cte.cpp"
-
-#include "src/execution/physical_plan/plan_cte.cpp"
 

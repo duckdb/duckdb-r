@@ -17,9 +17,6 @@ namespace duckdb {
 
 class LogicalReset : public LogicalOperator {
 public:
-	static constexpr const LogicalOperatorType TYPE = LogicalOperatorType::LOGICAL_RESET;
-
-public:
 	LogicalReset(std::string name_p, SetScope scope_p)
 	    : LogicalOperator(LogicalOperatorType::LOGICAL_RESET), name(name_p), scope(scope_p) {
 	}
@@ -30,10 +27,6 @@ public:
 public:
 	void Serialize(FieldWriter &writer) const override;
 	static unique_ptr<LogicalOperator> Deserialize(LogicalDeserializationState &state, FieldReader &reader);
-
-	void FormatSerialize(FormatSerializer &serializer) const override;
-	static unique_ptr<LogicalOperator> FormatDeserialize(FormatDeserializer &deserializer);
-
 	idx_t EstimateCardinality(ClientContext &context) override;
 
 protected:

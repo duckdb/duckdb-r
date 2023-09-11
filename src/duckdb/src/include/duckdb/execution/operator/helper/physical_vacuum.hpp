@@ -17,30 +17,25 @@ namespace duckdb {
 //! PhysicalVacuum represents a VACUUM operation (i.e. VACUUM or ANALYZE)
 class PhysicalVacuum : public PhysicalOperator {
 public:
-	static constexpr const PhysicalOperatorType TYPE = PhysicalOperatorType::VACUUM;
-
-public:
 	PhysicalVacuum(unique_ptr<VacuumInfo> info, idx_t estimated_cardinality);
 
 	unique_ptr<VacuumInfo> info;
 
 public:
 	// Source interface
-	SourceResultType GetData(ExecutionContext &context, DataChunk &chunk, OperatorSourceInput &input) const override;
-
-	bool IsSource() const override {
-		return true;
-	}
+	void GetData(ExecutionContext &context, DataChunk &chunk, GlobalSourceState &gstate,
+	             LocalSourceState &lstate) const override;
 
 public:
 	// Sink interface
 	unique_ptr<LocalSinkState> GetLocalSinkState(ExecutionContext &context) const override;
 	unique_ptr<GlobalSinkState> GetGlobalSinkState(ClientContext &context) const override;
 
-	SinkResultType Sink(ExecutionContext &context, DataChunk &chunk, OperatorSinkInput &input) const override;
-	SinkCombineResultType Combine(ExecutionContext &context, OperatorSinkCombineInput &input) const override;
+	SinkResultType Sink(ExecutionContext &context, GlobalSinkState &gstate_p, LocalSinkState &lstate_p,
+	                    DataChunk &input) const override;
+	void Combine(ExecutionContext &context, GlobalSinkState &gstate_p, LocalSinkState &lstate_p) const override;
 	SinkFinalizeType Finalize(Pipeline &pipeline, Event &event, ClientContext &context,
-	                          OperatorSinkFinalizeInput &input) const override;
+	                          GlobalSinkState &gstate) const override;
 
 	bool IsSink() const override {
 		return info->has_table;

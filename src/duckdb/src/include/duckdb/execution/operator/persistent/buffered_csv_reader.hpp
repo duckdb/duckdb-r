@@ -57,15 +57,14 @@ public:
 	                  const vector<LogicalType> &requested_types = vector<LogicalType>());
 	BufferedCSVReader(ClientContext &context, string filename, BufferedCSVReaderOptions options,
 	                  const vector<LogicalType> &requested_types = vector<LogicalType>());
-	virtual ~BufferedCSVReader() {
-	}
+	~BufferedCSVReader();
 
-	unsafe_unique_array<char> buffer;
+	unique_ptr<char[]> buffer;
 	idx_t buffer_size;
 	idx_t position;
 	idx_t start = 0;
 
-	vector<unsafe_unique_array<char>> cached_buffers;
+	vector<unique_ptr<char[]>> cached_buffers;
 
 	unique_ptr<CSVFileHandle> file_handle;
 
@@ -88,7 +87,7 @@ private:
 	//! Resets the steam
 	void ResetStream();
 	//! Reads a new buffer from the CSV file if the current one has been exhausted
-	bool ReadBuffer(idx_t &start, idx_t &line_start);
+	bool ReadBuffer(idx_t &start);
 	//! Jumps back to the beginning of input stream and resets necessary internal states
 	bool JumpToNextSample();
 	//! Initializes the TextSearchShiftArrays for complex parser
@@ -125,9 +124,6 @@ private:
 	                                        const vector<LogicalType> &requested_types,
 	                                        vector<vector<LogicalType>> &best_sql_types_candidates,
 	                                        map<LogicalTypeId, vector<string>> &best_format_candidates);
-
-	//! Skip Empty lines for tables with over one column
-	void SkipEmptyLines();
 };
 
 } // namespace duckdb

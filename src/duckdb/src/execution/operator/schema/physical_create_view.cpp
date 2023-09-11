@@ -6,12 +6,27 @@ namespace duckdb {
 //===--------------------------------------------------------------------===//
 // Source
 //===--------------------------------------------------------------------===//
-SourceResultType PhysicalCreateView::GetData(ExecutionContext &context, DataChunk &chunk,
-                                             OperatorSourceInput &input) const {
-	auto &catalog = Catalog::GetCatalog(context.client, info->catalog);
-	catalog.CreateView(context.client, *info);
+class CreateViewSourceState : public GlobalSourceState {
+public:
+	CreateViewSourceState() : finished(false) {
+	}
 
-	return SourceResultType::FINISHED;
+	bool finished;
+};
+
+unique_ptr<GlobalSourceState> PhysicalCreateView::GetGlobalSourceState(ClientContext &context) const {
+	return make_unique<CreateViewSourceState>();
+}
+
+void PhysicalCreateView::GetData(ExecutionContext &context, DataChunk &chunk, GlobalSourceState &gstate,
+                                 LocalSourceState &lstate) const {
+	auto &state = (CreateViewSourceState &)gstate;
+	if (state.finished) {
+		return;
+	}
+	auto &catalog = Catalog::GetCatalog(context.client, info->catalog);
+	catalog.CreateView(context.client, info.get());
+	state.finished = true;
 }
 
 } // namespace duckdb

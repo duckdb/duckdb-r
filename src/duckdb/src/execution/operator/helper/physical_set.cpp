@@ -22,23 +22,18 @@ void PhysicalSet::SetExtensionVariable(ClientContext &context, ExtensionOption &
 	}
 }
 
-SourceResultType PhysicalSet::GetData(ExecutionContext &context, DataChunk &chunk, OperatorSourceInput &input) const {
-	auto &config = DBConfig::GetConfig(context.client);
-	if (config.options.lock_configuration) {
-		throw InvalidInputException("Cannot change configuration option \"%s\" - the configuration has been locked",
-		                            name);
-	}
+void PhysicalSet::GetData(ExecutionContext &context, DataChunk &chunk, GlobalSourceState &gstate,
+                          LocalSourceState &lstate) const {
 	auto option = DBConfig::GetOptionByName(name);
 	if (!option) {
 		// check if this is an extra extension variable
+		auto &config = DBConfig::GetConfig(context.client);
 		auto entry = config.extension_parameters.find(name);
 		if (entry == config.extension_parameters.end()) {
-			Catalog::AutoloadExtensionByConfigName(context.client, name);
-			entry = config.extension_parameters.find(name);
-			D_ASSERT(entry != config.extension_parameters.end());
+			throw Catalog::UnrecognizedConfigurationError(context.client, name);
 		}
 		SetExtensionVariable(context.client, entry->second, name, scope, value);
-		return SourceResultType::FINISHED;
+		return;
 	}
 	SetScope variable_scope = scope;
 	if (variable_scope == SetScope::AUTOMATIC) {
@@ -50,7 +45,7 @@ SourceResultType PhysicalSet::GetData(ExecutionContext &context, DataChunk &chun
 		}
 	}
 
-	Value input_val = value.CastAs(context.client, option->parameter_type);
+	Value input = value.CastAs(context.client, option->parameter_type);
 	switch (variable_scope) {
 	case SetScope::GLOBAL: {
 		if (!option->set_global) {
@@ -58,20 +53,18 @@ SourceResultType PhysicalSet::GetData(ExecutionContext &context, DataChunk &chun
 		}
 		auto &db = DatabaseInstance::GetDatabase(context.client);
 		auto &config = DBConfig::GetConfig(context.client);
-		config.SetOption(&db, *option, input_val);
+		config.SetOption(&db, *option, input);
 		break;
 	}
 	case SetScope::SESSION:
 		if (!option->set_local) {
 			throw CatalogException("option \"%s\" cannot be set locally", name);
 		}
-		option->set_local(context.client, input_val);
+		option->set_local(context.client, input);
 		break;
 	default:
 		throw InternalException("Unsupported SetScope for variable");
 	}
-
-	return SourceResultType::FINISHED;
 }
 
 } // namespace duckdb

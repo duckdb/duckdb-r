@@ -11,6 +11,5 @@
 #include <set>
 
 namespace duckdb {
-using std::multiset;
 using std::set;
-} // namespace duckdb
+}

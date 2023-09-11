@@ -37,12 +37,8 @@ class TableFunction;
 struct FunctionData;
 
 class TableColumnInfo;
-struct ColumnSegmentInfo;
+class TableIndexInfo;
 class TableStorageInfo;
-
-class LogicalGet;
-class LogicalProjection;
-class LogicalUpdate;
 
 //! A table catalog entry
 class TableCatalogEntry : public StandardEntry {
@@ -52,11 +48,9 @@ public:
 
 public:
 	//! Create a TableCatalogEntry and initialize storage for it
-	DUCKDB_API TableCatalogEntry(Catalog &catalog, SchemaCatalogEntry &schema, CreateTableInfo &info);
+	DUCKDB_API TableCatalogEntry(Catalog *catalog, SchemaCatalogEntry *schema, CreateTableInfo &info);
 
 public:
-	DUCKDB_API unique_ptr<CreateInfo> GetInfo() const override;
-
 	DUCKDB_API bool HasGeneratedColumns() const;
 
 	//! Returns whether or not a column with the given name exists
@@ -71,17 +65,25 @@ public:
 	DUCKDB_API vector<LogicalType> GetTypes();
 	//! Returns a list of the columns of the table
 	DUCKDB_API const ColumnList &GetColumns() const;
+	//! Returns a mutable list of the columns of the table
+	DUCKDB_API ColumnList &GetColumnsMutable();
 	//! Returns the underlying storage of the table
 	virtual DataTable &GetStorage();
+	virtual DataTable *GetStoragePtr();
 	//! Returns a list of the bound constraints of the table
 	virtual const vector<unique_ptr<BoundConstraint>> &GetBoundConstraints();
 
 	//! Returns a list of the constraints of the table
 	DUCKDB_API const vector<unique_ptr<Constraint>> &GetConstraints();
-	DUCKDB_API string ToSQL() const override;
+	DUCKDB_API string ToSQL() override;
 
 	//! Get statistics of a column (physical or virtual) within the table
 	virtual unique_ptr<BaseStatistics> GetStatistics(ClientContext &context, column_t column_id) = 0;
+
+	//! Serialize the meta information of the TableCatalogEntry a serializer
+	virtual void Serialize(Serializer &serializer);
+	//! Deserializes to a CreateTableInfo
+	static unique_ptr<CreateTableInfo> Deserialize(Deserializer &source, ClientContext &context);
 
 	//! Returns the column index of the specified column name.
 	//! If the column does not exist:
@@ -92,20 +94,14 @@ public:
 	//! Returns the scan function that can be used to scan the given table
 	virtual TableFunction GetScanFunction(ClientContext &context, unique_ptr<FunctionData> &bind_data) = 0;
 
-	virtual bool IsDuckTable() const {
+	virtual bool IsDuckTable() {
 		return false;
 	}
 
 	DUCKDB_API static string ColumnsToSQL(const ColumnList &columns, const vector<unique_ptr<Constraint>> &constraints);
 
-	//! Returns a list of segment information for this table, if exists
-	virtual vector<ColumnSegmentInfo> GetColumnSegmentInfo();
-
 	//! Returns the storage info of this table
 	virtual TableStorageInfo GetStorageInfo(ClientContext &context) = 0;
-
-	virtual void BindUpdateConstraints(LogicalGet &get, LogicalProjection &proj, LogicalUpdate &update,
-	                                   ClientContext &context);
 
 protected:
 	//! A list of columns that are part of this table

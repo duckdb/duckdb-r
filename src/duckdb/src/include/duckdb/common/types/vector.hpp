@@ -24,20 +24,6 @@ struct UnifiedVectorFormat {
 	data_ptr_t data;
 	ValidityMask validity;
 	SelectionVector owned_sel;
-
-	template <class T>
-	static inline const T *GetData(const UnifiedVectorFormat &format) {
-		return reinterpret_cast<const T *>(format.data);
-	}
-	template <class T>
-	static inline T *GetDataNoConst(UnifiedVectorFormat &format) {
-		return reinterpret_cast<T *>(format.data);
-	}
-};
-
-struct RecursiveUnifiedVectorFormat {
-	UnifiedVectorFormat unified;
-	vector<RecursiveUnifiedVectorFormat> children;
 };
 
 class VectorCache;
@@ -101,14 +87,14 @@ public:
 	DUCKDB_API void Reference(const Value &value);
 	//! Causes this vector to reference the data held by the other vector.
 	//! The type of the "other" vector should match the type of this vector
-	DUCKDB_API void Reference(const Vector &other);
+	DUCKDB_API void Reference(Vector &other);
 	//! Reinterpret the data of the other vector as the type of this vector
 	//! Note that this takes the data of the other vector as-is and places it in this vector
 	//! Without changing the type of this vector
-	DUCKDB_API void Reinterpret(const Vector &other);
+	DUCKDB_API void Reinterpret(Vector &other);
 
 	//! Causes this vector to reference the data held by the other vector, changes the type if required.
-	DUCKDB_API void ReferenceAndSetType(const Vector &other);
+	DUCKDB_API void ReferenceAndSetType(Vector &other);
 
 	//! Resets a vector from a vector cache.
 	//! This turns the vector back into an empty FlatVector with STANDARD_VECTOR_SIZE entries.
@@ -145,8 +131,6 @@ public:
 	//! The most common vector types (flat, constant & dictionary) can be converted to the canonical format "for free"
 	//! ToUnifiedFormat was originally called Orrify, as a tribute to Orri Erling who came up with it
 	DUCKDB_API void ToUnifiedFormat(idx_t count, UnifiedVectorFormat &data);
-	//! Recursively calls UnifiedVectorFormat on a vector and its child vectors (for nested types)
-	static void RecursiveToUnifiedFormat(Vector &input, idx_t count, RecursiveUnifiedVectorFormat &data);
 
 	//! Turn the vector into a sequence vector
 	DUCKDB_API void Sequence(int64_t start, int64_t increment, idx_t count);
@@ -177,9 +161,6 @@ public:
 	DUCKDB_API void Serialize(idx_t count, Serializer &serializer);
 	//! Deserializes a blob back into a Vector
 	DUCKDB_API void Deserialize(idx_t count, Deserializer &source);
-
-	DUCKDB_API void FormatSerialize(FormatSerializer &serializer, idx_t count);
-	DUCKDB_API void FormatDeserialize(FormatDeserializer &deserializer, idx_t count);
 
 	// Getters
 	inline VectorType GetVectorType() const {
@@ -331,6 +312,7 @@ struct FlatVector {
 		return !vector.validity.RowIsValid(idx);
 	}
 	DUCKDB_API static const SelectionVector *IncrementalSelectionVector();
+	static Value GetValuesFromOffsets(Vector &values, vector<idx_t> &offsets);
 };
 
 struct ListVector {
@@ -435,24 +417,18 @@ struct FSSTVector {
 	DUCKDB_API static idx_t GetCount(Vector &vector);
 };
 
-enum class MapInvalidReason : uint8_t { VALID, NULL_KEY_LIST, NULL_KEY, DUPLICATE_KEY };
-
 struct MapVector {
 	DUCKDB_API static const Vector &GetKeys(const Vector &vector);
 	DUCKDB_API static const Vector &GetValues(const Vector &vector);
 	DUCKDB_API static Vector &GetKeys(Vector &vector);
 	DUCKDB_API static Vector &GetValues(Vector &vector);
-	DUCKDB_API static MapInvalidReason
-	CheckMapValidity(Vector &map, idx_t count, const SelectionVector &sel = *FlatVector::IncrementalSelectionVector());
-	DUCKDB_API static void MapConversionVerify(Vector &vector, idx_t count);
+	static vector<idx_t> Search(Vector &keys, idx_t count, const Value &key, list_entry_t &entry);
 };
 
 struct StructVector {
 	DUCKDB_API static const vector<unique_ptr<Vector>> &GetEntries(const Vector &vector);
 	DUCKDB_API static vector<unique_ptr<Vector>> &GetEntries(Vector &vector);
 };
-
-enum class UnionInvalidReason : uint8_t { VALID, TAG_OUT_OF_RANGE, NO_MEMBERS, VALIDITY_OVERLAP };
 
 struct UnionVector {
 	// Unions are stored as structs, but the first child is always the "tag"
@@ -487,10 +463,6 @@ struct UnionVector {
 	//! This will also handle invalidation of the non-selected members
 	DUCKDB_API static void SetToMember(Vector &vector, union_tag_t tag, Vector &member_vector, idx_t count,
 	                                   bool keep_tags_for_null);
-
-	DUCKDB_API static UnionInvalidReason
-	CheckUnionValidity(Vector &vector, idx_t count,
-	                   const SelectionVector &sel = *FlatVector::IncrementalSelectionVector());
 };
 
 struct SequenceVector {

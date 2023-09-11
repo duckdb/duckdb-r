@@ -6,13 +6,7 @@
 #include "duckdb/common/field_writer.hpp"
 #include "duckdb/common/types/hash.hpp"
 
-#include "duckdb/common/serializer/format_serializer.hpp"
-#include "duckdb/common/serializer/format_deserializer.hpp"
-
 namespace duckdb {
-
-FunctionExpression::FunctionExpression() : ParsedExpression(ExpressionType::FUNCTION, ExpressionClass::FUNCTION) {
-}
 
 FunctionExpression::FunctionExpression(string catalog, string schema, const string &function_name,
                                        vector<unique_ptr<ParsedExpression>> children_p,
@@ -24,7 +18,7 @@ FunctionExpression::FunctionExpression(string catalog, string schema, const stri
       export_state(export_state_p) {
 	D_ASSERT(!function_name.empty());
 	if (!order_bys) {
-		order_bys = make_uniq<OrderModifier>();
+		order_bys = make_unique<OrderModifier>();
 	}
 }
 
@@ -40,26 +34,26 @@ string FunctionExpression::ToString() const {
 	                                                      filter.get(), order_bys.get(), export_state, true);
 }
 
-bool FunctionExpression::Equal(const FunctionExpression &a, const FunctionExpression &b) {
-	if (a.catalog != b.catalog || a.schema != b.schema || a.function_name != b.function_name ||
-	    b.distinct != a.distinct) {
+bool FunctionExpression::Equal(const FunctionExpression *a, const FunctionExpression *b) {
+	if (a->catalog != b->catalog || a->schema != b->schema || a->function_name != b->function_name ||
+	    b->distinct != a->distinct) {
 		return false;
 	}
-	if (b.children.size() != a.children.size()) {
+	if (b->children.size() != a->children.size()) {
 		return false;
 	}
-	for (idx_t i = 0; i < a.children.size(); i++) {
-		if (!a.children[i]->Equals(*b.children[i])) {
+	for (idx_t i = 0; i < a->children.size(); i++) {
+		if (!a->children[i]->Equals(b->children[i].get())) {
 			return false;
 		}
 	}
-	if (!ParsedExpression::Equals(a.filter, b.filter)) {
+	if (!BaseExpression::Equals(a->filter.get(), b->filter.get())) {
 		return false;
 	}
-	if (!OrderModifier::Equals(a.order_bys, b.order_bys)) {
+	if (!a->order_bys->Equals(b->order_bys.get())) {
 		return false;
 	}
-	if (a.export_state != b.export_state) {
+	if (a->export_state != b->export_state) {
 		return false;
 	}
 	return true;
@@ -77,17 +71,20 @@ hash_t FunctionExpression::Hash() const {
 unique_ptr<ParsedExpression> FunctionExpression::Copy() const {
 	vector<unique_ptr<ParsedExpression>> copy_children;
 	unique_ptr<ParsedExpression> filter_copy;
-	copy_children.reserve(children.size());
 	for (auto &child : children) {
 		copy_children.push_back(child->Copy());
 	}
 	if (filter) {
 		filter_copy = filter->Copy();
 	}
-	auto order_copy = order_bys ? unique_ptr_cast<ResultModifier, OrderModifier>(order_bys->Copy()) : nullptr;
-	auto copy =
-	    make_uniq<FunctionExpression>(catalog, schema, function_name, std::move(copy_children), std::move(filter_copy),
-	                                  std::move(order_copy), distinct, is_operator, export_state);
+	unique_ptr<OrderModifier> order_copy;
+	if (order_bys) {
+		order_copy.reset(static_cast<OrderModifier *>(order_bys->Copy().release()));
+	}
+
+	auto copy = make_unique<FunctionExpression>(catalog, schema, function_name, std::move(copy_children),
+	                                            std::move(filter_copy), std::move(order_copy), distinct, is_operator,
+	                                            export_state);
 	copy->CopyProperties(*this);
 	return std::move(copy);
 }
@@ -116,8 +113,8 @@ unique_ptr<ParsedExpression> FunctionExpression::Deserialize(ExpressionType type
 	auto catalog = reader.ReadField<string>(INVALID_CATALOG);
 
 	unique_ptr<FunctionExpression> function;
-	function = make_uniq<FunctionExpression>(catalog, schema, function_name, std::move(children), std::move(filter),
-	                                         std::move(order_bys), distinct, is_operator, export_state);
+	function = make_unique<FunctionExpression>(catalog, schema, function_name, std::move(children), std::move(filter),
+	                                           std::move(order_bys), distinct, is_operator, export_state);
 	return std::move(function);
 }
 

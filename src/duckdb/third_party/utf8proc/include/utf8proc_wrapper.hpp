@@ -1,17 +1,8 @@
-//===----------------------------------------------------------------------===//
-//                         DuckDB
-//
-// utf8proc_wrapper.hpp
-//
-//
-//===----------------------------------------------------------------------===//
-
 #pragma once
 
 #include <string>
 #include <cassert>
 #include <cstring>
-#include <cstdint>
 
 namespace duckdb {
 

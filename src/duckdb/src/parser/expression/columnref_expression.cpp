@@ -5,13 +5,7 @@
 #include "duckdb/common/string_util.hpp"
 #include "duckdb/parser/qualified_name.hpp"
 
-#include "duckdb/common/serializer/format_serializer.hpp"
-#include "duckdb/common/serializer/format_deserializer.hpp"
-
 namespace duckdb {
-
-ColumnRefExpression::ColumnRefExpression() : ParsedExpression(ExpressionType::COLUMN_REF, ExpressionClass::COLUMN_REF) {
-}
 
 ColumnRefExpression::ColumnRefExpression(string column_name, string table_name)
     : ColumnRefExpression(table_name.empty() ? vector<string> {std::move(column_name)}
@@ -67,12 +61,14 @@ string ColumnRefExpression::ToString() const {
 	return result;
 }
 
-bool ColumnRefExpression::Equal(const ColumnRefExpression &a, const ColumnRefExpression &b) {
-	if (a.column_names.size() != b.column_names.size()) {
+bool ColumnRefExpression::Equal(const ColumnRefExpression *a, const ColumnRefExpression *b) {
+	if (a->column_names.size() != b->column_names.size()) {
 		return false;
 	}
-	for (idx_t i = 0; i < a.column_names.size(); i++) {
-		if (!StringUtil::CIEquals(a.column_names[i], b.column_names[i])) {
+	for (idx_t i = 0; i < a->column_names.size(); i++) {
+		auto lcase_a = StringUtil::Lower(a->column_names[i]);
+		auto lcase_b = StringUtil::Lower(b->column_names[i]);
+		if (lcase_a != lcase_b) {
 			return false;
 		}
 	}
@@ -82,13 +78,14 @@ bool ColumnRefExpression::Equal(const ColumnRefExpression &a, const ColumnRefExp
 hash_t ColumnRefExpression::Hash() const {
 	hash_t result = ParsedExpression::Hash();
 	for (auto &column_name : column_names) {
-		result = CombineHash(result, StringUtil::CIHash(column_name));
+		auto lcase = StringUtil::Lower(column_name);
+		result = CombineHash(result, duckdb::Hash<const char *>(lcase.c_str()));
 	}
 	return result;
 }
 
 unique_ptr<ParsedExpression> ColumnRefExpression::Copy() const {
-	auto copy = make_uniq<ColumnRefExpression>(column_names);
+	auto copy = make_unique<ColumnRefExpression>(column_names);
 	copy->CopyProperties(*this);
 	return std::move(copy);
 }
@@ -99,7 +96,7 @@ void ColumnRefExpression::Serialize(FieldWriter &writer) const {
 
 unique_ptr<ParsedExpression> ColumnRefExpression::Deserialize(ExpressionType type, FieldReader &reader) {
 	auto column_names = reader.ReadRequiredList<string>();
-	auto expression = make_uniq<ColumnRefExpression>(std::move(column_names));
+	auto expression = make_unique<ColumnRefExpression>(std::move(column_names));
 	return std::move(expression);
 }
 

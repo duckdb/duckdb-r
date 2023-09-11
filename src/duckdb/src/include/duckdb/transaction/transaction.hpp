@@ -57,18 +57,6 @@ public:
 	virtual bool IsDuckTransaction() const {
 		return false;
 	}
-
-public:
-	template <class TARGET>
-	TARGET &Cast() {
-		D_ASSERT(dynamic_cast<TARGET *>(this));
-		return reinterpret_cast<TARGET &>(*this);
-	}
-	template <class TARGET>
-	const TARGET &Cast() const {
-		D_ASSERT(dynamic_cast<const TARGET *>(this));
-		return reinterpret_cast<const TARGET &>(*this);
-	}
 };
 
 } // namespace duckdb

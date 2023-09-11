@@ -18,9 +18,8 @@ void PreparedStatementData::CheckParameterCount(idx_t parameter_count) {
 	}
 }
 
-bool PreparedStatementData::RequireRebind(ClientContext &context, optional_ptr<case_insensitive_map_t<Value>> values) {
-	idx_t count = values ? values->size() : 0;
-	CheckParameterCount(count);
+bool PreparedStatementData::RequireRebind(ClientContext &context, const vector<Value> &values) {
+	CheckParameterCount(values.size());
 	if (!unbound_statement) {
 		// no unbound statement!? cannot rebind?
 		return false;
@@ -34,56 +33,52 @@ bool PreparedStatementData::RequireRebind(ClientContext &context, optional_ptr<c
 		return true;
 	}
 	for (auto &it : value_map) {
-		auto &identifier = it.first;
-		auto lookup = values->find(identifier);
-		D_ASSERT(lookup != values->end());
-		if (lookup->second.type() != it.second->return_type) {
+		const idx_t i = it.first - 1;
+		if (values[i].type() != it.second->return_type) {
 			return true;
 		}
 	}
 	return false;
 }
 
-void PreparedStatementData::Bind(case_insensitive_map_t<Value> values) {
+void PreparedStatementData::Bind(vector<Value> values) {
 	// set parameters
 	D_ASSERT(!unbound_statement || unbound_statement->n_param == properties.parameter_count);
 	CheckParameterCount(values.size());
 
 	// bind the required values
 	for (auto &it : value_map) {
-		const string &identifier = it.first;
-		auto lookup = values.find(identifier);
-		if (lookup == values.end()) {
-			throw BinderException("Could not find parameter with identifier %s", identifier);
+		const idx_t i = it.first - 1;
+		if (i >= values.size()) {
+			throw BinderException("Could not find parameter with index %llu", i + 1);
 		}
 		D_ASSERT(it.second);
-		auto &value = lookup->second;
-		if (!value.DefaultTryCastAs(it.second->return_type)) {
+		if (!values[i].DefaultTryCastAs(it.second->return_type)) {
 			throw BinderException(
-			    "Type mismatch for binding parameter with identifier %s, expected type %s but got type %s", identifier,
-			    it.second->return_type.ToString().c_str(), value.type().ToString().c_str());
+			    "Type mismatch for binding parameter with index %llu, expected type %s but got type %s", i + 1,
+			    it.second->return_type.ToString().c_str(), values[i].type().ToString().c_str());
 		}
-		it.second->SetValue(value);
+		it.second->value = values[i];
 	}
 }
 
-bool PreparedStatementData::TryGetType(const string &identifier, LogicalType &result) {
-	auto it = value_map.find(identifier);
+bool PreparedStatementData::TryGetType(idx_t param_idx, LogicalType &result) {
+	auto it = value_map.find(param_idx);
 	if (it == value_map.end()) {
 		return false;
 	}
 	if (it->second->return_type.id() != LogicalTypeId::INVALID) {
 		result = it->second->return_type;
 	} else {
-		result = it->second->GetValue().type();
+		result = it->second->value.type();
 	}
 	return true;
 }
 
-LogicalType PreparedStatementData::GetType(const string &identifier) {
+LogicalType PreparedStatementData::GetType(idx_t param_idx) {
 	LogicalType result;
-	if (!TryGetType(identifier, result)) {
-		throw BinderException("Could not find parameter identified with: %s", identifier);
+	if (!TryGetType(param_idx, result)) {
+		throw BinderException("Could not find parameter with index %llu", param_idx);
 	}
 	return result;
 }

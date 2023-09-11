@@ -13,11 +13,7 @@
 #include <memory>
 
 namespace duckdb {
-
 class BoundAggregateExpression : public Expression {
-public:
-	static constexpr const ExpressionClass TYPE = ExpressionClass::BOUND_AGGREGATE;
-
 public:
 	BoundAggregateExpression(AggregateFunction function, vector<unique_ptr<Expression>> children,
 	                         unique_ptr<Expression> filter, unique_ptr<FunctionData> bind_info,
@@ -29,13 +25,10 @@ public:
 	vector<unique_ptr<Expression>> children;
 	//! The bound function data (if any)
 	unique_ptr<FunctionData> bind_info;
-	//! The aggregate type (distinct or non-distinct)
 	AggregateType aggr_type;
 
 	//! Filter for this aggregate
 	unique_ptr<Expression> filter;
-	//! The order by expression for this aggregate - if any
-	unique_ptr<BoundOrderModifier> order_bys;
 
 public:
 	bool IsDistinct() const {
@@ -53,12 +46,9 @@ public:
 	string ToString() const override;
 
 	hash_t Hash() const override;
-	bool Equals(const BaseExpression &other) const override;
+	bool Equals(const BaseExpression *other) const override;
 	unique_ptr<Expression> Copy() override;
 	void Serialize(FieldWriter &writer) const override;
 	static unique_ptr<Expression> Deserialize(ExpressionDeserializationState &state, FieldReader &reader);
-
-	void FormatSerialize(FormatSerializer &serializer) const override;
-	static unique_ptr<Expression> FormatDeserialize(FormatDeserializer &deserializer);
 };
 } // namespace duckdb

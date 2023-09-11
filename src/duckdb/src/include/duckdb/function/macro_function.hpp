@@ -21,7 +21,7 @@ enum class MacroType : uint8_t { VOID_MACRO = 0, TABLE_MACRO = 1, SCALAR_MACRO =
 
 class MacroFunction {
 public:
-	explicit MacroFunction(MacroType type);
+	MacroFunction(MacroType type);
 
 	//! The type
 	MacroType type;
@@ -34,42 +34,16 @@ public:
 	virtual ~MacroFunction() {
 	}
 
-	void CopyProperties(MacroFunction &other) const;
+	void CopyProperties(MacroFunction &other);
 
-	virtual unique_ptr<MacroFunction> Copy() const = 0;
+	virtual unique_ptr<MacroFunction> Copy() = 0;
 
 	static string ValidateArguments(MacroFunction &macro_function, const string &name,
 	                                FunctionExpression &function_expr,
 	                                vector<unique_ptr<ParsedExpression>> &positionals,
 	                                unordered_map<string, unique_ptr<ParsedExpression>> &defaults);
 
-	virtual string ToSQL(const string &schema, const string &name) const;
-
-	void Serialize(Serializer &serializer) const;
-	static unique_ptr<MacroFunction> Deserialize(Deserializer &deserializer);
-
-	virtual void FormatSerialize(FormatSerializer &serializer) const;
-	static unique_ptr<MacroFunction> FormatDeserialize(FormatDeserializer &deserializer);
-
-protected:
-	virtual void SerializeInternal(FieldWriter &writer) const = 0;
-
-public:
-	template <class TARGET>
-	TARGET &Cast() {
-		if (type != TARGET::TYPE) {
-			throw InternalException("Failed to cast macro to type - macro type mismatch");
-		}
-		return reinterpret_cast<TARGET &>(*this);
-	}
-
-	template <class TARGET>
-	const TARGET &Cast() const {
-		if (type != TARGET::TYPE) {
-			throw InternalException("Failed to cast macro to type - macro type mismatch");
-		}
-		return reinterpret_cast<const TARGET &>(*this);
-	}
+	virtual string ToSQL(const string &schema, const string &name);
 };
 
 } // namespace duckdb

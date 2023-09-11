@@ -23,7 +23,6 @@ unique_ptr<LogicalOperator> FilterPushdown::Rewrite(unique_ptr<LogicalOperator> 
 		return PushdownCrossProduct(std::move(op));
 	case LogicalOperatorType::LOGICAL_COMPARISON_JOIN:
 	case LogicalOperatorType::LOGICAL_ANY_JOIN:
-	case LogicalOperatorType::LOGICAL_ASOF_JOIN:
 	case LogicalOperatorType::LOGICAL_DELIM_JOIN:
 		return PushdownJoin(std::move(op));
 	case LogicalOperatorType::LOGICAL_PROJECTION:
@@ -47,20 +46,10 @@ unique_ptr<LogicalOperator> FilterPushdown::Rewrite(unique_ptr<LogicalOperator> 
 	}
 }
 
-ClientContext &FilterPushdown::GetContext() {
-	return optimizer.GetContext();
-}
-
 unique_ptr<LogicalOperator> FilterPushdown::PushdownJoin(unique_ptr<LogicalOperator> op) {
 	D_ASSERT(op->type == LogicalOperatorType::LOGICAL_COMPARISON_JOIN ||
-	         op->type == LogicalOperatorType::LOGICAL_ASOF_JOIN || op->type == LogicalOperatorType::LOGICAL_ANY_JOIN ||
-	         op->type == LogicalOperatorType::LOGICAL_DELIM_JOIN);
-	auto &join = op->Cast<LogicalJoin>();
-	if (!join.left_projection_map.empty() || !join.right_projection_map.empty()) {
-		// cannot push down further otherwise the projection maps won't be preserved
-		return FinishPushdown(std::move(op));
-	}
-
+	         op->type == LogicalOperatorType::LOGICAL_ANY_JOIN || op->type == LogicalOperatorType::LOGICAL_DELIM_JOIN);
+	auto &join = (LogicalJoin &)*op;
 	unordered_set<idx_t> left_bindings, right_bindings;
 	LogicalJoin::GetTableReferences(*op->children[0], left_bindings);
 	LogicalJoin::GetTableReferences(*op->children[1], right_bindings);
@@ -109,32 +98,11 @@ void FilterPushdown::GenerateFilters() {
 		return;
 	}
 	combiner.GenerateFilters([&](unique_ptr<Expression> filter) {
-		auto f = make_uniq<Filter>();
+		auto f = make_unique<Filter>();
 		f->filter = std::move(filter);
 		f->ExtractBindings();
 		filters.push_back(std::move(f));
 	});
-}
-
-unique_ptr<LogicalOperator> FilterPushdown::AddLogicalFilter(unique_ptr<LogicalOperator> op,
-                                                             vector<unique_ptr<Expression>> expressions) {
-	if (expressions.empty()) {
-		// No left expressions, so needn't to add an extra filter operator.
-		return op;
-	}
-	auto filter = make_uniq<LogicalFilter>();
-	filter->expressions = std::move(expressions);
-	filter->children.push_back(std::move(op));
-	return std::move(filter);
-}
-
-unique_ptr<LogicalOperator> FilterPushdown::PushFinalFilters(unique_ptr<LogicalOperator> op) {
-	vector<unique_ptr<Expression>> expressions;
-	for (auto &f : filters) {
-		expressions.push_back(std::move(f->filter));
-	}
-
-	return AddLogicalFilter(std::move(op), std::move(expressions));
 }
 
 unique_ptr<LogicalOperator> FilterPushdown::FinishPushdown(unique_ptr<LogicalOperator> op) {
@@ -144,7 +112,16 @@ unique_ptr<LogicalOperator> FilterPushdown::FinishPushdown(unique_ptr<LogicalOpe
 		child = pushdown.Rewrite(std::move(child));
 	}
 	// now push any existing filters
-	return PushFinalFilters(std::move(op));
+	if (filters.empty()) {
+		// no filters to push
+		return op;
+	}
+	auto filter = make_unique<LogicalFilter>();
+	for (auto &f : filters) {
+		filter->expressions.push_back(std::move(f->filter));
+	}
+	filter->children.push_back(std::move(op));
+	return std::move(filter);
 }
 
 void FilterPushdown::Filter::ExtractBindings() {

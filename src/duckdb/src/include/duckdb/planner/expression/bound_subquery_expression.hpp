@@ -17,9 +17,6 @@ namespace duckdb {
 
 class BoundSubqueryExpression : public Expression {
 public:
-	static constexpr const ExpressionClass TYPE = ExpressionClass::BOUND_SUBQUERY;
-
-public:
 	explicit BoundSubqueryExpression(LogicalType return_type);
 
 	bool IsCorrelated() {
@@ -55,7 +52,7 @@ public:
 
 	string ToString() const override;
 
-	bool Equals(const BaseExpression &other) const override;
+	bool Equals(const BaseExpression *other) const override;
 
 	unique_ptr<Expression> Copy() override;
 

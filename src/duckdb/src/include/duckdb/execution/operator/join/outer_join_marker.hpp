@@ -9,9 +9,9 @@
 #pragma once
 
 #include "duckdb/common/mutex.hpp"
-#include "duckdb/common/types/column/column_data_collection.hpp"
-#include "duckdb/execution/operator/join/physical_comparison_join.hpp"
 #include "duckdb/execution/physical_operator.hpp"
+#include "duckdb/execution/operator/join/physical_comparison_join.hpp"
+#include "duckdb/common/types/column_data_collection.hpp"
 
 namespace duckdb {
 
@@ -29,7 +29,7 @@ struct OuterJoinLocalScanState {
 
 class OuterJoinMarker {
 public:
-	explicit OuterJoinMarker(bool enabled);
+	OuterJoinMarker(bool enabled);
 
 	bool Enabled() {
 		return enabled;
@@ -60,14 +60,9 @@ public:
 	//! Perform the scan
 	void Scan(OuterJoinGlobalScanState &gstate, OuterJoinLocalScanState &lstate, DataChunk &result);
 
-	//! Read-only matches vector
-	const bool *GetMatches() const {
-		return found_match.get();
-	}
-
 private:
 	bool enabled;
-	unsafe_unique_array<bool> found_match;
+	unique_ptr<bool[]> found_match;
 	idx_t count;
 };
 

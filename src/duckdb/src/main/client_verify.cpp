@@ -7,20 +7,6 @@
 
 namespace duckdb {
 
-static void ThrowIfExceptionIsInternal(StatementVerifier &verifier) {
-	if (!verifier.materialized_result) {
-		return;
-	}
-	auto &result = *verifier.materialized_result;
-	if (!result.HasError()) {
-		return;
-	}
-	auto &error = result.GetErrorObject();
-	if (error.Type() == ExceptionType::INTERNAL) {
-		error.Throw();
-	}
-}
-
 PreservedError ClientContext::VerifyQuery(ClientContextLock &lock, const string &query,
                                           unique_ptr<SQLStatement> statement) {
 	D_ASSERT(statement->type == StatementType::SELECT_STATEMENT);
@@ -40,20 +26,14 @@ PreservedError ClientContext::VerifyQuery(ClientContextLock &lock, const string 
 	if (config.query_verification_enabled) {
 		statement_verifiers.emplace_back(StatementVerifier::Create(VerificationType::COPIED, stmt));
 		statement_verifiers.emplace_back(StatementVerifier::Create(VerificationType::DESERIALIZED, stmt));
-		statement_verifiers.emplace_back(StatementVerifier::Create(VerificationType::DESERIALIZED_V2, stmt));
-		statement_verifiers.emplace_back(StatementVerifier::Create(VerificationType::DESERIALIZED_V2_NO_DEFAULT, stmt));
 		statement_verifiers.emplace_back(StatementVerifier::Create(VerificationType::UNOPTIMIZED, stmt));
 		prepared_statement_verifier = StatementVerifier::Create(VerificationType::PREPARED, stmt);
-#ifdef DUCKDB_DEBUG_ASYNC_SINK_SOURCE
-		// This verification is quite slow, so we only run it for the async sink/source debug mode
-		statement_verifiers.emplace_back(StatementVerifier::Create(VerificationType::NO_OPERATOR_CACHING, stmt));
-#endif
 	}
 	if (config.verify_external) {
 		statement_verifiers.emplace_back(StatementVerifier::Create(VerificationType::EXTERNAL, stmt));
 	}
 
-	auto original = make_uniq<StatementVerifier>(std::move(statement));
+	auto original = make_unique<StatementVerifier>(std::move(statement));
 	for (auto &verifier : statement_verifiers) {
 		original->CheckExpressions(*verifier);
 	}
@@ -96,9 +76,6 @@ PreservedError ClientContext::VerifyQuery(ClientContextLock &lock, const string 
 		if (!failed) {
 			// PreparedStatementVerifier fails if it runs into a ParameterNotAllowedException, which is OK
 			statement_verifiers.push_back(std::move(prepared_statement_verifier));
-		} else {
-			// If it does fail, let's make sure it's not an internal exception
-			ThrowIfExceptionIsInternal(*prepared_statement_verifier);
 		}
 	} else {
 		if (ValidChecker::IsInvalidated(*db)) {
@@ -113,7 +90,7 @@ PreservedError ClientContext::VerifyQuery(ClientContextLock &lock, const string 
 	// Check explain, only if q does not already contain EXPLAIN
 	if (original->materialized_result->success) {
 		auto explain_q = "EXPLAIN " + query;
-		auto explain_stmt = make_uniq<ExplainStatement>(std::move(statement_copy_for_explain));
+		auto explain_stmt = make_unique<ExplainStatement>(std::move(statement_copy_for_explain));
 		try {
 			RunStatementInternal(lock, explain_q, std::move(explain_stmt), false, false);
 		} catch (std::exception &ex) { // LCOV_EXCL_START

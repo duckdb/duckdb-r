@@ -11,7 +11,6 @@
 #include "duckdb/common/types.hpp"
 #include "duckdb/common/exception.hpp"
 #include "duckdb/common/type_util.hpp"
-#include "duckdb/common/types/cast_helpers.hpp"
 
 namespace duckdb {
 
@@ -73,11 +72,11 @@ bool TrySubtractOperator::Operation(hugeint_t left, hugeint_t right, hugeint_t &
 
 struct SubtractOperatorOverflowCheck {
 	template <class TA, class TB, class TR>
-	static inline TR Operation(TA left, TB right) {
+	DUCKDB_API static inline TR Operation(TA left, TB right) {
 		TR result;
 		if (!TrySubtractOperator::Operation(left, right, result)) {
-			throw OutOfRangeException("Overflow in subtraction of %s (%s - %s)!", TypeIdToString(GetTypeId<TA>()),
-			                          NumericHelper::ToString(left), NumericHelper::ToString(right));
+			throw OutOfRangeException("Overflow in subtraction of %s (%d - %d)!", TypeIdToString(GetTypeId<TA>()), left,
+			                          right);
 		}
 		return result;
 	}

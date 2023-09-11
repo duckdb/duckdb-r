@@ -12,7 +12,7 @@ CatalogTransaction::CatalogTransaction(Catalog &catalog, ClientContext &context)
 		this->transaction_id = transaction_t(-1);
 		this->start_time = transaction_t(-1);
 	} else {
-		auto &dtransaction = transaction.Cast<DuckTransaction>();
+		auto &dtransaction = (DuckTransaction &)transaction;
 		this->transaction_id = dtransaction.transaction_id;
 		this->start_time = dtransaction.start_time;
 	}
@@ -29,10 +29,6 @@ ClientContext &CatalogTransaction::GetContext() {
 		throw InternalException("Attempting to get a context in a CatalogTransaction without a context");
 	}
 	return *context;
-}
-
-CatalogTransaction CatalogTransaction::GetSystemTransaction(DatabaseInstance &db) {
-	return CatalogTransaction(db, 1, 1);
 }
 
 } // namespace duckdb

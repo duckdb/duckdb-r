@@ -42,7 +42,6 @@ void ExpressionHeuristics::ReorderExpressions(vector<unique_ptr<Expression>> &ex
 	};
 
 	vector<ExpressionCosts> expression_costs;
-	expression_costs.reserve(expressions.size());
 	// iterate expressions, get cost for each one
 	for (idx_t i = 0; i < expressions.size(); i++) {
 		idx_t cost = Cost(*expressions[i]);
@@ -153,47 +152,47 @@ idx_t ExpressionHeuristics::ExpressionCost(PhysicalType return_type, idx_t multi
 idx_t ExpressionHeuristics::Cost(Expression &expr) {
 	switch (expr.expression_class) {
 	case ExpressionClass::BOUND_CASE: {
-		auto &case_expr = expr.Cast<BoundCaseExpression>();
+		auto &case_expr = (BoundCaseExpression &)expr;
 		return ExpressionCost(case_expr);
 	}
 	case ExpressionClass::BOUND_BETWEEN: {
-		auto &between_expr = expr.Cast<BoundBetweenExpression>();
+		auto &between_expr = (BoundBetweenExpression &)expr;
 		return ExpressionCost(between_expr);
 	}
 	case ExpressionClass::BOUND_CAST: {
-		auto &cast_expr = expr.Cast<BoundCastExpression>();
+		auto &cast_expr = (BoundCastExpression &)expr;
 		return ExpressionCost(cast_expr);
 	}
 	case ExpressionClass::BOUND_COMPARISON: {
-		auto &comp_expr = expr.Cast<BoundComparisonExpression>();
+		auto &comp_expr = (BoundComparisonExpression &)expr;
 		return ExpressionCost(comp_expr);
 	}
 	case ExpressionClass::BOUND_CONJUNCTION: {
-		auto &conj_expr = expr.Cast<BoundConjunctionExpression>();
+		auto &conj_expr = (BoundConjunctionExpression &)expr;
 		return ExpressionCost(conj_expr);
 	}
 	case ExpressionClass::BOUND_FUNCTION: {
-		auto &func_expr = expr.Cast<BoundFunctionExpression>();
+		auto &func_expr = (BoundFunctionExpression &)expr;
 		return ExpressionCost(func_expr);
 	}
 	case ExpressionClass::BOUND_OPERATOR: {
-		auto &op_expr = expr.Cast<BoundOperatorExpression>();
+		auto &op_expr = (BoundOperatorExpression &)expr;
 		return ExpressionCost(op_expr, expr.type);
 	}
 	case ExpressionClass::BOUND_COLUMN_REF: {
-		auto &col_expr = expr.Cast<BoundColumnRefExpression>();
+		auto &col_expr = (BoundColumnRefExpression &)expr;
 		return ExpressionCost(col_expr.return_type.InternalType(), 8);
 	}
 	case ExpressionClass::BOUND_CONSTANT: {
-		auto &const_expr = expr.Cast<BoundConstantExpression>();
+		auto &const_expr = (BoundConstantExpression &)expr;
 		return ExpressionCost(const_expr.return_type.InternalType(), 1);
 	}
 	case ExpressionClass::BOUND_PARAMETER: {
-		auto &const_expr = expr.Cast<BoundParameterExpression>();
+		auto &const_expr = (BoundParameterExpression &)expr;
 		return ExpressionCost(const_expr.return_type.InternalType(), 1);
 	}
 	case ExpressionClass::BOUND_REF: {
-		auto &col_expr = expr.Cast<BoundColumnRefExpression>();
+		auto &col_expr = (BoundColumnRefExpression &)expr;
 		return ExpressionCost(col_expr.return_type.InternalType(), 8);
 	}
 	default: {

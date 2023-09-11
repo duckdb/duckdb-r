@@ -13,9 +13,8 @@ BoundStatement Binder::Bind(CallStatement &stmt) {
 	ref.function = std::move(stmt.function);
 
 	auto bound_func = Bind(ref);
-	auto &bound_table_func = bound_func->Cast<BoundTableFunction>();
-	;
-	auto &get = bound_table_func.get->Cast<LogicalGet>();
+	auto &bound_table_func = (BoundTableFunction &)*bound_func;
+	auto &get = (LogicalGet &)*bound_table_func.get;
 	D_ASSERT(get.returned_types.size() > 0);
 	for (idx_t i = 0; i < get.returned_types.size(); i++) {
 		get.column_ids.push_back(i);

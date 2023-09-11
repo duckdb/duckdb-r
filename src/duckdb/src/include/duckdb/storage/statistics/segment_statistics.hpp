@@ -17,10 +17,15 @@ namespace duckdb {
 class SegmentStatistics {
 public:
 	SegmentStatistics(LogicalType type);
-	SegmentStatistics(BaseStatistics statistics);
+	SegmentStatistics(LogicalType type, unique_ptr<BaseStatistics> statistics);
+
+	LogicalType type;
 
 	//! Type-specific statistics of the segment
-	BaseStatistics statistics;
+	unique_ptr<BaseStatistics> statistics;
+
+public:
+	void Reset();
 };
 
 } // namespace duckdb

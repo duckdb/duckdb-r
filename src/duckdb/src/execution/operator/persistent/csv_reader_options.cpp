@@ -65,13 +65,18 @@ void BufferedCSVReaderOptions::SetHeader(bool input) {
 	this->has_header = true;
 }
 
-void BufferedCSVReaderOptions::SetCompression(const string &compression_p) {
-	this->compression = FileCompressionTypeFromString(compression_p);
+void BufferedCSVReaderOptions::SetCompression(const string &compression) {
+	this->compression = FileCompressionTypeFromString(compression);
 }
 
 void BufferedCSVReaderOptions::SetEscape(const string &input) {
 	this->escape = input;
 	this->has_escape = true;
+}
+
+void BufferedCSVReaderOptions::SetParallel(bool use_parallel) {
+	this->has_parallel = true;
+	this->use_parallel = use_parallel;
 }
 
 void BufferedCSVReaderOptions::SetDelimiter(const string &input) {
@@ -82,8 +87,8 @@ void BufferedCSVReaderOptions::SetDelimiter(const string &input) {
 	}
 }
 
-void BufferedCSVReaderOptions::SetQuote(const string &quote_p) {
-	this->quote = quote_p;
+void BufferedCSVReaderOptions::SetQuote(const string &quote) {
+	this->quote = quote;
 	this->has_quote = true;
 }
 
@@ -101,10 +106,12 @@ void BufferedCSVReaderOptions::SetNewline(const string &input) {
 void BufferedCSVReaderOptions::SetDateFormat(LogicalTypeId type, const string &format, bool read_format) {
 	string error;
 	if (read_format) {
-		error = StrTimeFormat::ParseFormatSpecifier(format, date_format[type]);
-		date_format[type].format_specifier = format;
+		auto &date_format = this->date_format[type];
+		error = StrTimeFormat::ParseFormatSpecifier(format, date_format);
+		date_format.format_specifier = format;
 	} else {
-		error = StrTimeFormat::ParseFormatSpecifier(format, write_date_format[type]);
+		auto &date_format = this->write_date_format[type];
+		error = StrTimeFormat::ParseFormatSpecifier(format, date_format);
 	}
 	if (!error.empty()) {
 		throw InvalidInputException("Could not parse DATEFORMAT: %s", error.c_str());
@@ -119,6 +126,8 @@ void BufferedCSVReaderOptions::SetReadOption(const string &loption, const Value 
 	}
 	if (loption == "auto_detect") {
 		auto_detect = ParseBoolean(value, loption);
+	} else if (loption == "parallel") {
+		SetParallel(ParseBoolean(value, loption));
 	} else if (loption == "sample_size") {
 		int64_t sample_size = ParseInteger(value, loption);
 		if (sample_size < 1 && sample_size != -1) {
@@ -136,7 +145,6 @@ void BufferedCSVReaderOptions::SetReadOption(const string &loption, const Value 
 		}
 	} else if (loption == "skip") {
 		skip_rows = ParseInteger(value, loption);
-		skip_rows_set = true;
 	} else if (loption == "max_line_size" || loption == "maximum_line_size") {
 		maximum_line_size = ParseInteger(value, loption);
 	} else if (loption == "sample_chunk_size") {
@@ -163,6 +171,8 @@ void BufferedCSVReaderOptions::SetReadOption(const string &loption, const Value 
 		SetDateFormat(LogicalTypeId::TIMESTAMP, format, true);
 	} else if (loption == "ignore_errors") {
 		ignore_errors = ParseBoolean(value, loption);
+	} else if (loption == "union_by_name") {
+		union_by_name = ParseBoolean(value, loption);
 	} else if (loption == "buffer_size") {
 		buffer_size = ParseInteger(value, loption);
 		if (buffer_size == 0) {
@@ -173,50 +183,18 @@ void BufferedCSVReaderOptions::SetReadOption(const string &loption, const Value 
 		if (decimal_separator != "." && decimal_separator != ",") {
 			throw BinderException("Unsupported parameter for DECIMAL_SEPARATOR: should be '.' or ','");
 		}
-	} else if (loption == "null_padding") {
-		null_padding = ParseBoolean(value, loption);
-	} else if (loption == "allow_quoted_nulls") {
-		allow_quoted_nulls = ParseBoolean(value, loption);
-	} else if (loption == "parallel") {
-		parallel_mode = ParseBoolean(value, loption) ? ParallelMode::PARALLEL : ParallelMode::SINGLE_THREADED;
-	} else if (loption == "rejects_table") {
-		// skip, handled in SetRejectsOptions
-		auto table_name = ParseString(value, loption);
-		if (table_name.empty()) {
-			throw BinderException("REJECTS_TABLE option cannot be empty");
-		}
-		rejects_table_name = table_name;
-	} else if (loption == "rejects_recovery_columns") {
-		// Get the list of columns to use as a recovery key
-		auto &children = ListValue::GetChildren(value);
-		for (auto &child : children) {
-			auto col_name = child.GetValue<string>();
-			rejects_recovery_columns.push_back(col_name);
-		}
-	} else if (loption == "rejects_limit") {
-		int64_t limit = ParseInteger(value, loption);
-		if (limit < 0) {
-			throw BinderException("Unsupported parameter for REJECTS_LIMIT: cannot be negative");
-		}
-		rejects_limit = limit;
 	} else {
 		throw BinderException("Unrecognized option for CSV reader \"%s\"", loption);
 	}
 }
 
 void BufferedCSVReaderOptions::SetWriteOption(const string &loption, const Value &value) {
-	if (loption == "new_line") {
-		// Steal this from SetBaseOption so we can write different newlines (e.g., format JSON ARRAY)
-		write_newline = ParseString(value, loption);
-		return;
-	}
-
 	if (SetBaseOption(loption, value)) {
 		return;
 	}
 
 	if (loption == "force_quote") {
-		force_quote = ParseColumnList(value, name_list, loption);
+		force_quote = ParseColumnList(value, names, loption);
 	} else if (loption == "date_format" || loption == "dateformat") {
 		string format = ParseString(value, loption);
 		SetDateFormat(LogicalTypeId::DATE, format, false);
@@ -226,11 +204,6 @@ void BufferedCSVReaderOptions::SetWriteOption(const string &loption, const Value
 			format = "%Y-%m-%dT%H:%M:%S.%fZ";
 		}
 		SetDateFormat(LogicalTypeId::TIMESTAMP, format, false);
-		SetDateFormat(LogicalTypeId::TIMESTAMP_TZ, format, false);
-	} else if (loption == "prefix") {
-		prefix = ParseString(value, loption);
-	} else if (loption == "suffix") {
-		suffix = ParseString(value, loption);
 	} else {
 		throw BinderException("Unrecognized option CSV writer \"%s\"", loption);
 	}

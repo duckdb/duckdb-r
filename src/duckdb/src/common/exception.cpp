@@ -58,27 +58,7 @@ string Exception::GetStackTrace(int max_depth) {
 #endif
 }
 
-string Exception::ConstructMessageRecursive(const string &msg, std::vector<ExceptionFormatValue> &values) {
-#ifdef DEBUG
-	// Verify that we have the required amount of values for the message
-	idx_t parameter_count = 0;
-	for (idx_t i = 0; i + 1 < msg.size(); i++) {
-		if (msg[i] != '%') {
-			continue;
-		}
-		if (msg[i + 1] == '%') {
-			i++;
-			continue;
-		}
-		parameter_count++;
-	}
-	if (parameter_count != values.size()) {
-		throw InternalException("Primary exception: %s\nSecondary exception in ConstructMessageRecursive: Expected %d "
-		                        "parameters, received %d",
-		                        msg.c_str(), parameter_count, values.size());
-	}
-
-#endif
+string Exception::ConstructMessageRecursive(const string &msg, vector<ExceptionFormatValue> &values) {
 	return ExceptionFormatValue::Format(msg, values);
 }
 
@@ -158,27 +138,12 @@ string Exception::ExceptionTypeToString(ExceptionType type) {
 		return "Parameter Not Allowed";
 	case ExceptionType::DEPENDENCY:
 		return "Dependency";
-	case ExceptionType::MISSING_EXTENSION:
-		return "Missing Extension";
-	case ExceptionType::HTTP:
-		return "HTTP";
-	case ExceptionType::AUTOLOAD:
-		return "Extension Autoloading";
 	default:
 		return "Unknown";
 	}
 }
 
-const HTTPException &Exception::AsHTTPException() const {
-	D_ASSERT(type == ExceptionType::HTTP);
-	const auto &e = static_cast<const HTTPException *>(this);
-	D_ASSERT(e->GetStatusCode() != 0);
-	D_ASSERT(e->GetHeaders().size() > 0);
-	return *e;
-}
-
-void Exception::ThrowAsTypeWithMessage(ExceptionType type, const string &message,
-                                       const std::shared_ptr<Exception> &original) {
+void Exception::ThrowAsTypeWithMessage(ExceptionType type, const string &message) {
 	switch (type) {
 	case ExceptionType::OUT_OF_RANGE:
 		throw OutOfRangeException(message);
@@ -226,11 +191,6 @@ void Exception::ThrowAsTypeWithMessage(ExceptionType type, const string &message
 		throw FatalException(message);
 	case ExceptionType::DEPENDENCY:
 		throw DependencyException(message);
-	case ExceptionType::HTTP: {
-		original->AsHTTPException().Throw();
-	}
-	case ExceptionType::MISSING_EXTENSION:
-		throw MissingExtensionException(message);
 	default:
 		throw Exception(type, message);
 	}
@@ -347,17 +307,6 @@ BinderException::BinderException(const string &msg) : StandardException(Exceptio
 }
 
 IOException::IOException(const string &msg) : Exception(ExceptionType::IO, msg) {
-}
-
-MissingExtensionException::MissingExtensionException(const string &msg)
-    : Exception(ExceptionType::MISSING_EXTENSION, msg) {
-}
-
-AutoloadException::AutoloadException(const string &extension_name, Exception &e)
-    : Exception(ExceptionType::AUTOLOAD,
-                "An error occured while trying to automatically install the required extension '" + extension_name +
-                    "':\n" + e.RawMessage()),
-      wrapped_exception(e) {
 }
 
 SerializationException::SerializationException(const string &msg) : Exception(ExceptionType::SERIALIZATION, msg) {

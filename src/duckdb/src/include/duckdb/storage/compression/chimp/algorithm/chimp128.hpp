@@ -17,7 +17,6 @@
 #include "duckdb/common/likely.hpp"
 #include "duckdb/storage/compression/chimp/algorithm/packed_data.hpp"
 #include "duckdb/common/limits.hpp"
-#include "duckdb/common/bit_utils.hpp"
 
 #include "duckdb/storage/compression/chimp/algorithm/bit_reader.hpp"
 #include "duckdb/storage/compression/chimp/algorithm/output_bit_stream.hpp"

@@ -6,9 +6,6 @@
 
 namespace duckdb {
 
-UniqueConstraint::UniqueConstraint() : Constraint(ConstraintType::UNIQUE), index(DConstants::INVALID_INDEX) {
-}
-
 UniqueConstraint::UniqueConstraint(LogicalIndex index, bool is_primary_key)
     : Constraint(ConstraintType::UNIQUE), index(index), is_primary_key(is_primary_key) {
 }
@@ -30,9 +27,9 @@ string UniqueConstraint::ToString() const {
 
 unique_ptr<Constraint> UniqueConstraint::Copy() const {
 	if (index.index == DConstants::INVALID_INDEX) {
-		return make_uniq<UniqueConstraint>(columns, is_primary_key);
+		return make_unique<UniqueConstraint>(columns, is_primary_key);
 	} else {
-		auto result = make_uniq<UniqueConstraint>(index, is_primary_key);
+		auto result = make_unique<UniqueConstraint>(index, is_primary_key);
 		result->columns = columns;
 		return std::move(result);
 	}
@@ -52,12 +49,12 @@ unique_ptr<Constraint> UniqueConstraint::Deserialize(FieldReader &source) {
 
 	if (index != DConstants::INVALID_INDEX) {
 		// single column parsed constraint
-		auto result = make_uniq<UniqueConstraint>(LogicalIndex(index), is_primary_key);
+		auto result = make_unique<UniqueConstraint>(LogicalIndex(index), is_primary_key);
 		result->columns = std::move(columns);
 		return std::move(result);
 	} else {
 		// column list parsed constraint
-		return make_uniq<UniqueConstraint>(std::move(columns), is_primary_key);
+		return make_unique<UniqueConstraint>(std::move(columns), is_primary_key);
 	}
 }
 

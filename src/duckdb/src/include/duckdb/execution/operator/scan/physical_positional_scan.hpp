@@ -18,9 +18,6 @@ namespace duckdb {
 //! Represents a scan of a base table
 class PhysicalPositionalScan : public PhysicalOperator {
 public:
-	static constexpr const PhysicalOperatorType TYPE = PhysicalOperatorType::POSITIONAL_SCAN;
-
-public:
 	//! Regular Table Scan
 	PhysicalPositionalScan(vector<LogicalType> types, unique_ptr<PhysicalOperator> left,
 	                       unique_ptr<PhysicalOperator> right);
@@ -35,13 +32,10 @@ public:
 	unique_ptr<LocalSourceState> GetLocalSourceState(ExecutionContext &context,
 	                                                 GlobalSourceState &gstate) const override;
 	unique_ptr<GlobalSourceState> GetGlobalSourceState(ClientContext &context) const override;
-	SourceResultType GetData(ExecutionContext &context, DataChunk &chunk, OperatorSourceInput &input) const override;
+	void GetData(ExecutionContext &context, DataChunk &chunk, GlobalSourceState &gstate,
+	             LocalSourceState &lstate) const override;
 
 	double GetProgress(ClientContext &context, GlobalSourceState &gstate) const override;
-
-	bool IsSource() const override {
-		return true;
-	}
 };
 
 } // namespace duckdb

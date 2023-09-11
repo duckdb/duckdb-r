@@ -15,9 +15,6 @@ namespace duckdb {
 
 class PhysicalStreamingLimit : public PhysicalOperator {
 public:
-	static constexpr const PhysicalOperatorType TYPE = PhysicalOperatorType::STREAMING_LIMIT;
-
-public:
 	PhysicalStreamingLimit(vector<LogicalType> types, idx_t limit, idx_t offset,
 	                       unique_ptr<Expression> limit_expression, unique_ptr<Expression> offset_expression,
 	                       idx_t estimated_cardinality, bool parallel);
@@ -35,7 +32,7 @@ public:
 	OperatorResultType Execute(ExecutionContext &context, DataChunk &input, DataChunk &chunk,
 	                           GlobalOperatorState &gstate, OperatorState &state) const override;
 
-	OrderPreservationType OperatorOrder() const override;
+	bool IsOrderDependent() const override;
 	bool ParallelOperator() const override;
 };
 

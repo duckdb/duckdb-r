@@ -29,16 +29,16 @@ struct StringAnalyzeState : public AnalyzeState {
 };
 
 unique_ptr<AnalyzeState> UncompressedStringStorage::StringInitAnalyze(ColumnData &col_data, PhysicalType type) {
-	return make_uniq<StringAnalyzeState>();
+	return make_unique<StringAnalyzeState>();
 }
 
 bool UncompressedStringStorage::StringAnalyze(AnalyzeState &state_p, Vector &input, idx_t count) {
-	auto &state = state_p.Cast<StringAnalyzeState>();
+	auto &state = (StringAnalyzeState &)state_p;
 	UnifiedVectorFormat vdata;
 	input.ToUnifiedFormat(count, vdata);
 
 	state.count += count;
-	auto data = UnifiedVectorFormat::GetData<string_t>(vdata);
+	auto data = (string_t *)vdata.data;
 	for (idx_t i = 0; i < count; i++) {
 		auto idx = vdata.sel->get_index(i);
 		if (vdata.validity.RowIsValid(idx)) {
@@ -53,7 +53,7 @@ bool UncompressedStringStorage::StringAnalyze(AnalyzeState &state_p, Vector &inp
 }
 
 idx_t UncompressedStringStorage::StringFinalAnalyze(AnalyzeState &state_p) {
-	auto &state = state_p.Cast<StringAnalyzeState>();
+	auto &state = (StringAnalyzeState &)state_p;
 	return state.count * sizeof(int32_t) + state.total_string_size + state.overflow_strings * BIG_STRING_MARKER_SIZE;
 }
 
@@ -61,7 +61,7 @@ idx_t UncompressedStringStorage::StringFinalAnalyze(AnalyzeState &state_p) {
 // Scan
 //===--------------------------------------------------------------------===//
 unique_ptr<SegmentScanState> UncompressedStringStorage::StringInitScan(ColumnSegment &segment) {
-	auto result = make_uniq<StringScanState>();
+	auto result = make_unique<StringScanState>();
 	auto &buffer_manager = BufferManager::GetBufferManager(segment.db);
 	result->handle = buffer_manager.Pin(segment.block);
 	return std::move(result);
@@ -73,12 +73,12 @@ unique_ptr<SegmentScanState> UncompressedStringStorage::StringInitScan(ColumnSeg
 void UncompressedStringStorage::StringScanPartial(ColumnSegment &segment, ColumnScanState &state, idx_t scan_count,
                                                   Vector &result, idx_t result_offset) {
 	// clear any previously locked buffers and get the primary buffer handle
-	auto &scan_state = state.scan_state->Cast<StringScanState>();
+	auto &scan_state = (StringScanState &)*state.scan_state;
 	auto start = segment.GetRelativeIndex(state.row_index);
 
 	auto baseptr = scan_state.handle.Ptr() + segment.GetBlockOffset();
 	auto dict = GetDictionary(segment, scan_state.handle);
-	auto base_data = reinterpret_cast<int32_t *>(baseptr + DICTIONARY_HEADER_SIZE);
+	auto base_data = (int32_t *)(baseptr + DICTIONARY_HEADER_SIZE);
 	auto result_data = FlatVector::GetData<string_t>(result);
 
 	int32_t previous_offset = start > 0 ? base_data[start - 1] : 0;
@@ -124,7 +124,7 @@ void UncompressedStringStorage::StringFetchRow(ColumnSegment &segment, ColumnFet
 
 	auto baseptr = handle.Ptr() + segment.GetBlockOffset();
 	auto dict = GetDictionary(segment, handle);
-	auto base_data = reinterpret_cast<int32_t *>(baseptr + DICTIONARY_HEADER_SIZE);
+	auto base_data = (int32_t *)(baseptr + DICTIONARY_HEADER_SIZE);
 	auto result_data = FlatVector::GetData<string_t>(result);
 
 	auto dict_offset = base_data[row_id];
@@ -152,7 +152,7 @@ unique_ptr<CompressedSegmentState> UncompressedStringStorage::StringInitSegment(
 		dictionary.end = segment.SegmentSize();
 		SetDictionary(segment, handle, dictionary);
 	}
-	return make_uniq<UncompressedStringSegmentState>();
+	return make_unique<UncompressedStringSegmentState>();
 }
 
 idx_t UncompressedStringStorage::FinalizeAppend(ColumnSegment &segment, SegmentStatistics &stats) {
@@ -223,7 +223,7 @@ idx_t UncompressedStringStorage::RemainingSpace(ColumnSegment &segment, BufferHa
 
 void UncompressedStringStorage::WriteString(ColumnSegment &segment, string_t string, block_id_t &result_block,
                                             int32_t &result_offset) {
-	auto &state = segment.GetSegmentState()->Cast<UncompressedStringSegmentState>();
+	auto &state = (UncompressedStringSegmentState &)*segment.GetSegmentState();
 	if (state.overflow_writer) {
 		// overflow writer is set: write string there
 		state.overflow_writer->WriteString(string, result_block, result_offset);
@@ -240,13 +240,13 @@ void UncompressedStringStorage::WriteStringMemory(ColumnSegment &segment, string
 	BufferHandle handle;
 
 	auto &buffer_manager = BufferManager::GetBufferManager(segment.db);
-	auto &state = segment.GetSegmentState()->Cast<UncompressedStringSegmentState>();
+	auto &state = (UncompressedStringSegmentState &)*segment.GetSegmentState();
 	// check if the string fits in the current block
 	if (!state.head || state.head->offset + total_length >= state.head->size) {
 		// string does not fit, allocate space for it
 		// create a new string block
 		idx_t alloc_size = MaxValue<idx_t>(total_length, Storage::BLOCK_SIZE);
-		auto new_block = make_uniq<StringBlock>();
+		auto new_block = make_unique<StringBlock>();
 		new_block->offset = 0;
 		new_block->size = alloc_size;
 		// allocate an in-memory buffer for it
@@ -267,7 +267,7 @@ void UncompressedStringStorage::WriteStringMemory(ColumnSegment &segment, string
 	auto ptr = handle.Ptr() + state.head->offset;
 	Store<uint32_t>(string.GetSize(), ptr);
 	ptr += sizeof(uint32_t);
-	memcpy(ptr, string.GetData(), string.GetSize());
+	memcpy(ptr, string.GetDataUnsafe(), string.GetSize());
 	state.head->offset += total_length;
 }
 
@@ -278,7 +278,7 @@ string_t UncompressedStringStorage::ReadOverflowString(ColumnSegment &segment, V
 
 	auto &block_manager = segment.GetBlockManager();
 	auto &buffer_manager = block_manager.buffer_manager;
-	auto &state = segment.GetSegmentState()->Cast<UncompressedStringSegmentState>();
+	auto &state = (UncompressedStringSegmentState &)*segment.GetSegmentState();
 	if (block < MAXIMUM_BLOCK) {
 		// read the overflow string from disk
 		// pin the initial handle and read the length
@@ -292,13 +292,13 @@ string_t UncompressedStringStorage::ReadOverflowString(ColumnSegment &segment, V
 		offset += 2 * sizeof(uint32_t);
 
 		data_ptr_t decompression_ptr;
-		unsafe_unique_array<data_t> decompression_buffer;
+		std::unique_ptr<data_t[]> decompression_buffer;
 
 		// If string is in single block we decompress straight from it, else we copy first
 		if (remaining <= Storage::BLOCK_SIZE - sizeof(block_id_t) - offset) {
 			decompression_ptr = handle.Ptr() + offset;
 		} else {
-			decompression_buffer = make_unsafe_uniq_array<data_t>(compressed_size);
+			decompression_buffer = std::unique_ptr<data_t[]>(new data_t[compressed_size]);
 			auto target_ptr = decompression_buffer.get();
 
 			// now append the string to the single buffer
@@ -325,7 +325,7 @@ string_t UncompressedStringStorage::ReadOverflowString(ColumnSegment &segment, V
 		    buffer_manager.Allocate(MaxValue<idx_t>(Storage::BLOCK_SIZE, uncompressed_size));
 		auto decompressed_target_ptr = decompressed_target_handle.Ptr();
 		MiniZStream s;
-		s.Decompress(const_char_ptr_cast(decompression_ptr), compressed_size, char_ptr_cast(decompressed_target_ptr),
+		s.Decompress((const char *)decompression_ptr, compressed_size, (char *)decompressed_target_ptr,
 		             uncompressed_size);
 
 		auto final_buffer = decompressed_target_handle.Ptr();
@@ -345,14 +345,14 @@ string_t UncompressedStringStorage::ReadOverflowString(ColumnSegment &segment, V
 
 string_t UncompressedStringStorage::ReadString(data_ptr_t target, int32_t offset, uint32_t string_length) {
 	auto ptr = target + offset;
-	auto str_ptr = char_ptr_cast(ptr);
+	auto str_ptr = (char *)(ptr);
 	return string_t(str_ptr, string_length);
 }
 
 string_t UncompressedStringStorage::ReadStringWithLength(data_ptr_t target, int32_t offset) {
 	auto ptr = target + offset;
 	auto str_length = Load<uint32_t>(ptr);
-	auto str_ptr = char_ptr_cast(ptr + sizeof(uint32_t));
+	auto str_ptr = (char *)(ptr + sizeof(uint32_t));
 	return string_t(str_ptr, str_length);
 }
 
@@ -403,7 +403,7 @@ string_t UncompressedStringStorage::FetchString(ColumnSegment &segment, StringDi
 		auto dict_end = baseptr + dict.end;
 		auto dict_pos = dict_end - location.offset;
 
-		auto str_ptr = char_ptr_cast(dict_pos);
+		auto str_ptr = (char *)(dict_pos);
 		return string_t(str_ptr, string_length);
 	}
 }

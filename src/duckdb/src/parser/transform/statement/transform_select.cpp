@@ -4,33 +4,22 @@
 
 namespace duckdb {
 
-unique_ptr<QueryNode> Transformer::TransformSelectNode(duckdb_libpgquery::PGSelectStmt &select) {
-	if (select.pivot) {
-		return TransformPivotStatement(select);
-	} else {
-		return TransformSelectInternal(select);
-	}
-}
-
-unique_ptr<SelectStatement> Transformer::TransformSelect(duckdb_libpgquery::PGSelectStmt &select, bool is_select) {
-	auto result = make_uniq<SelectStatement>();
+unique_ptr<SelectStatement> Transformer::TransformSelect(duckdb_libpgquery::PGNode *node, bool is_select) {
+	auto stmt = reinterpret_cast<duckdb_libpgquery::PGSelectStmt *>(node);
+	auto result = make_unique<SelectStatement>();
 
 	// Both Insert/Create Table As uses this.
 	if (is_select) {
-		if (select.intoClause) {
+		if (stmt->intoClause) {
 			throw ParserException("SELECT INTO not supported!");
 		}
-		if (select.lockingClause) {
+		if (stmt->lockingClause) {
 			throw ParserException("SELECT locking clause is not supported!");
 		}
 	}
 
-	result->node = TransformSelectNode(select);
+	result->node = TransformSelectNode(stmt);
 	return result;
-}
-
-unique_ptr<SelectStatement> Transformer::TransformSelect(optional_ptr<duckdb_libpgquery::PGNode> node, bool is_select) {
-	return TransformSelect(PGCast<duckdb_libpgquery::PGSelectStmt>(*node), is_select);
 }
 
 } // namespace duckdb

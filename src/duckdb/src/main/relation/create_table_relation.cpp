@@ -13,17 +13,17 @@ CreateTableRelation::CreateTableRelation(shared_ptr<Relation> child_p, string sc
 }
 
 BoundStatement CreateTableRelation::Bind(Binder &binder) {
-	auto select = make_uniq<SelectStatement>();
+	auto select = make_unique<SelectStatement>();
 	select->node = child->GetQueryNode();
 
 	CreateStatement stmt;
-	auto info = make_uniq<CreateTableInfo>();
+	auto info = make_unique<CreateTableInfo>();
 	info->schema = schema_name;
 	info->table = table_name;
 	info->query = std::move(select);
 	info->on_conflict = OnCreateConflict::ERROR_ON_CONFLICT;
 	stmt.info = std::move(info);
-	return binder.Bind(stmt.Cast<SQLStatement>());
+	return binder.Bind((SQLStatement &)stmt);
 }
 
 const vector<ColumnDefinition> &CreateTableRelation::Columns() {

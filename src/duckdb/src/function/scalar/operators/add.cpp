@@ -7,6 +7,9 @@
 #include "duckdb/common/types/interval.hpp"
 #include "duckdb/common/types/timestamp.hpp"
 #include "duckdb/common/types/hugeint.hpp"
+#include "duckdb/common/windows_undefs.hpp"
+
+#include <limits>
 
 namespace duckdb {
 
@@ -16,12 +19,18 @@ namespace duckdb {
 template <>
 float AddOperator::Operation(float left, float right) {
 	auto result = left + right;
+	if (!Value::FloatIsFinite(result)) {
+		throw OutOfRangeException("Overflow in addition of float!");
+	}
 	return result;
 }
 
 template <>
 double AddOperator::Operation(double left, double right) {
 	auto result = left + right;
+	if (!Value::DoubleIsFinite(result)) {
+		throw OutOfRangeException("Overflow in addition of double!");
+	}
 	return result;
 }
 
@@ -157,15 +166,6 @@ bool TryAddOperator::Operation(int64_t left, int64_t right, int64_t &result) {
 		return false;
 	}
 #endif
-	return true;
-}
-
-template <>
-bool TryAddOperator::Operation(hugeint_t left, hugeint_t right, hugeint_t &result) {
-	if (!Hugeint::AddInPlace(left, right)) {
-		return false;
-	}
-	result = left;
 	return true;
 }
 

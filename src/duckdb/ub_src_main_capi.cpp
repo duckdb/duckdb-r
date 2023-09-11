@@ -26,8 +26,6 @@
 
 #include "src/main/capi/result-c.cpp"
 
-#include "src/main/capi/stream-c.cpp"
-
 #include "src/main/capi/table_function-c.cpp"
 
 #include "src/main/capi/threading-c.cpp"

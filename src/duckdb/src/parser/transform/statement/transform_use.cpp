@@ -3,8 +3,9 @@
 
 namespace duckdb {
 
-unique_ptr<SetStatement> Transformer::TransformUse(duckdb_libpgquery::PGUseStmt &stmt) {
-	auto qualified_name = TransformQualifiedName(*stmt.name);
+unique_ptr<SetStatement> Transformer::TransformUse(duckdb_libpgquery::PGNode *node) {
+	auto stmt = reinterpret_cast<duckdb_libpgquery::PGUseStmt *>(node);
+	auto qualified_name = TransformQualifiedName(stmt->name);
 	if (!IsInvalidCatalog(qualified_name.catalog)) {
 		throw ParserException("Expected \"USE database\" or \"USE database.schema\"");
 	}
@@ -14,7 +15,7 @@ unique_ptr<SetStatement> Transformer::TransformUse(duckdb_libpgquery::PGUseStmt 
 	} else {
 		name = qualified_name.schema + "." + qualified_name.name;
 	}
-	return make_uniq<SetVariableStatement>("schema", std::move(name), SetScope::AUTOMATIC);
+	return make_unique<SetVariableStatement>("schema", std::move(name), SetScope::AUTOMATIC);
 }
 
 } // namespace duckdb

@@ -3,6 +3,7 @@
 #include "duckdb/common/vector.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/common/box_renderer.hpp"
+
 namespace duckdb {
 
 BaseQueryResult::BaseQueryResult(QueryResultType type, StatementType statement_type, StatementProperties properties_p,
@@ -57,8 +58,7 @@ QueryResult::QueryResult(QueryResultType type, StatementType statement_type, Sta
       client_properties(std::move(client_properties_p)) {
 }
 
-QueryResult::QueryResult(QueryResultType type, PreservedError error)
-    : BaseQueryResult(type, std::move(error)), client_properties("UTC", ArrowOffsetSize::REGULAR) {
+QueryResult::QueryResult(QueryResultType type, PreservedError error) : BaseQueryResult(type, std::move(error)) {
 }
 
 QueryResult::~QueryResult() {
@@ -149,6 +149,10 @@ string QueryResult::HeaderToString() {
 	}
 	result += "\n";
 	return result;
+}
+
+string QueryResult::GetConfigTimezone(QueryResult &query_result) {
+	return query_result.client_properties.timezone;
 }
 
 } // namespace duckdb

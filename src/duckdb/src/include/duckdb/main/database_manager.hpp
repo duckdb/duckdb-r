@@ -12,8 +12,6 @@
 #include "duckdb/common/case_insensitive_map.hpp"
 #include "duckdb/common/mutex.hpp"
 #include "duckdb/common/atomic.hpp"
-#include "duckdb/common/optional_ptr.hpp"
-#include "duckdb/common/enums/on_entry_not_found.hpp"
 
 namespace duckdb {
 class AttachedDatabase;
@@ -37,17 +35,16 @@ public:
 
 	void InitializeSystemCatalog();
 	//! Get an attached database with the given name
-	optional_ptr<AttachedDatabase> GetDatabase(ClientContext &context, const string &name);
+	AttachedDatabase *GetDatabase(ClientContext &context, const string &name);
 	//! Add a new attached database to the database manager
 	void AddDatabase(ClientContext &context, unique_ptr<AttachedDatabase> db);
-	void DetachDatabase(ClientContext &context, const string &name, OnEntryNotFound if_not_found);
+	void DetachDatabase(ClientContext &context, const string &name, bool if_exists);
 	//! Returns a reference to the system catalog
 	Catalog &GetSystemCatalog();
 	static const string &GetDefaultDatabase(ClientContext &context);
-	void SetDefaultDatabase(ClientContext &context, const string &new_value);
 
-	optional_ptr<AttachedDatabase> GetDatabaseFromPath(ClientContext &context, const string &path);
-	vector<reference<AttachedDatabase>> GetDatabases(ClientContext &context);
+	AttachedDatabase *GetDatabaseFromPath(ClientContext &context, const string &path);
+	vector<AttachedDatabase *> GetDatabases(ClientContext &context);
 
 	transaction_t GetNewQueryNumber() {
 		return current_query_number++;
@@ -57,9 +54,6 @@ public:
 	}
 	idx_t ModifyCatalog() {
 		return catalog_version++;
-	}
-	bool HasDefaultDatabase() {
-		return !default_database.empty();
 	}
 
 private:

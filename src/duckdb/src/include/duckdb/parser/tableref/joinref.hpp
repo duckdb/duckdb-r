@@ -20,10 +20,7 @@ namespace duckdb {
 //! Represents a JOIN between two expressions
 class JoinRef : public TableRef {
 public:
-	static constexpr const TableReferenceType TYPE = TableReferenceType::JOIN;
-
-public:
-	explicit JoinRef(JoinRefType ref_type = JoinRefType::REGULAR)
+	explicit JoinRef(JoinRefType ref_type)
 	    : TableRef(TableReferenceType::JOIN), type(JoinType::INNER), ref_type(ref_type) {
 	}
 
@@ -42,7 +39,7 @@ public:
 
 public:
 	string ToString() const override;
-	bool Equals(const TableRef &other_p) const override;
+	bool Equals(const TableRef *other_p) const override;
 
 	unique_ptr<TableRef> Copy() override;
 
@@ -50,8 +47,5 @@ public:
 	void Serialize(FieldWriter &serializer) const override;
 	//! Deserializes a blob back into a JoinRef
 	static unique_ptr<TableRef> Deserialize(FieldReader &source);
-
-	void FormatSerialize(FormatSerializer &serializer) const override;
-	static unique_ptr<TableRef> FormatDeserialize(FormatDeserializer &source);
 };
 } // namespace duckdb

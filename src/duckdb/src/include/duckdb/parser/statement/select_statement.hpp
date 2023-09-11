@@ -10,23 +10,18 @@
 
 #include "duckdb/common/unordered_map.hpp"
 #include "duckdb/parser/parsed_expression.hpp"
+#include "duckdb/parser/query_node.hpp"
 #include "duckdb/parser/sql_statement.hpp"
 #include "duckdb/parser/tableref.hpp"
-#include "duckdb/parser/query_node.hpp"
 
 namespace duckdb {
 
 class QueryNode;
-class FormatSerializer;
-class FormatDeserializer;
 
 //! SelectStatement is a typical SELECT clause
 class SelectStatement : public SQLStatement {
 public:
-	static constexpr const StatementType TYPE = StatementType::SELECT_STATEMENT;
-
-public:
-	SelectStatement() : SQLStatement(StatementType::SELECT_STATEMENT) {
+	DUCKDB_API SelectStatement() : SQLStatement(StatementType::SELECT_STATEMENT) {
 	}
 
 	//! The main query node
@@ -46,9 +41,6 @@ public:
 	//! deserialization is not possible
 	static unique_ptr<SelectStatement> Deserialize(Deserializer &source);
 	//! Whether or not the statements are equivalent
-	bool Equals(const SQLStatement &other) const;
-
-	void FormatSerialize(FormatSerializer &serializer) const;
-	static unique_ptr<SelectStatement> FormatDeserialize(FormatDeserializer &deserializer);
+	bool Equals(const SQLStatement *other) const;
 };
 } // namespace duckdb

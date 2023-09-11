@@ -1,15 +1,21 @@
 #include "duckdb/common/types/data_chunk.hpp"
 
 #include "duckdb/common/array.hpp"
+#include "duckdb/common/arrow/arrow.hpp"
 #include "duckdb/common/exception.hpp"
 #include "duckdb/common/helper.hpp"
 #include "duckdb/common/printer.hpp"
 #include "duckdb/common/serializer.hpp"
-#include "duckdb/common/serializer/format_serializer.hpp"
-#include "duckdb/common/serializer/format_deserializer.hpp"
+#include "duckdb/common/to_string.hpp"
+#include "duckdb/common/types/arrow_aux_data.hpp"
+#include "duckdb/common/types/date.hpp"
 #include "duckdb/common/types/interval.hpp"
+#include "duckdb/common/types/null_value.hpp"
 #include "duckdb/common/types/sel_cache.hpp"
+#include "duckdb/common/types/timestamp.hpp"
+#include "duckdb/common/types/uuid.hpp"
 #include "duckdb/common/types/vector_cache.hpp"
+#include "duckdb/common/unordered_map.hpp"
 #include "duckdb/common/vector.hpp"
 #include "duckdb/common/vector_operations/vector_operations.hpp"
 #include "duckdb/execution/execution_context.hpp"
@@ -56,7 +62,7 @@ void DataChunk::InitializeEmpty(vector<LogicalType>::const_iterator begin, vecto
 	D_ASSERT(data.empty());                   // can only be initialized once
 	D_ASSERT(std::distance(begin, end) != 0); // empty chunk not allowed
 	for (; begin != end; begin++) {
-		data.emplace_back(*begin, nullptr);
+		data.emplace_back(Vector(*begin, nullptr));
 	}
 }
 
@@ -262,48 +268,6 @@ void DataChunk::Deserialize(Deserializer &source) {
 	Verify();
 }
 
-void DataChunk::FormatSerialize(FormatSerializer &serializer) const {
-	// write the count
-	auto row_count = size();
-	serializer.WriteProperty<sel_t>(100, "rows", row_count);
-	auto column_count = ColumnCount();
-
-	// Write the types
-	serializer.WriteList(101, "types", column_count,
-	                     [&](FormatSerializer::List &list, idx_t i) { list.WriteElement(data[i].GetType()); });
-
-	// Write the data
-	serializer.WriteList(102, "columns", column_count, [&](FormatSerializer::List &list, idx_t i) {
-		list.WriteObject([&](FormatSerializer &object) {
-			// Reference the vector to avoid potentially mutating it during serialization
-			Vector serialized_vector(data[i].GetType());
-			serialized_vector.Reference(data[i]);
-			serialized_vector.FormatSerialize(object, row_count);
-		});
-	});
-}
-
-void DataChunk::FormatDeserialize(FormatDeserializer &deserializer) {
-	// read the count
-	auto row_count = deserializer.ReadProperty<sel_t>(100, "rows");
-
-	// Read the types
-	vector<LogicalType> types;
-	deserializer.ReadList(101, "types", [&](FormatDeserializer::List &list, idx_t i) {
-		auto type = list.ReadElement<LogicalType>();
-		types.push_back(type);
-	});
-	Initialize(Allocator::DefaultAllocator(), types);
-
-	// now load the column data
-	SetCardinality(row_count);
-
-	// Read the data
-	deserializer.ReadList(102, "columns", [&](FormatDeserializer::List &list, idx_t i) {
-		list.ReadObject([&](FormatDeserializer &object) { data[i].FormatDeserialize(object, row_count); });
-	});
-}
-
 void DataChunk::Slice(const SelectionVector &sel_vector, idx_t count_p) {
 	this->count = count_p;
 	SelCache merge_cache;
@@ -327,8 +291,8 @@ void DataChunk::Slice(DataChunk &other, const SelectionVector &sel, idx_t count_
 	}
 }
 
-unsafe_unique_array<UnifiedVectorFormat> DataChunk::ToUnifiedFormat() {
-	auto orrified_data = make_unsafe_uniq_array<UnifiedVectorFormat>(ColumnCount());
+unique_ptr<UnifiedVectorFormat[]> DataChunk::ToUnifiedFormat() {
+	auto orrified_data = unique_ptr<UnifiedVectorFormat[]>(new UnifiedVectorFormat[ColumnCount()]);
 	for (idx_t col_idx = 0; col_idx < ColumnCount(); col_idx++) {
 		data[col_idx].ToUnifiedFormat(size(), orrified_data[col_idx]);
 	}
@@ -345,7 +309,7 @@ void DataChunk::Hash(Vector &result) {
 
 void DataChunk::Hash(vector<idx_t> &column_ids, Vector &result) {
 	D_ASSERT(result.GetType().id() == LogicalType::HASH);
-	D_ASSERT(!column_ids.empty());
+	D_ASSERT(column_ids.size() > 0);
 
 	VectorOperations::Hash(data[column_ids[0]], result, size());
 	for (idx_t i = 1; i < column_ids.size(); i++) {
@@ -363,7 +327,7 @@ void DataChunk::Verify() {
 #endif
 }
 
-void DataChunk::Print() const {
+void DataChunk::Print() {
 	Printer::Print(ToString());
 }
 

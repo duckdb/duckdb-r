@@ -23,14 +23,14 @@ static unique_ptr<FunctionData> DuckDBTemporaryFilesBind(ClientContext &context,
 }
 
 unique_ptr<GlobalTableFunctionState> DuckDBTemporaryFilesInit(ClientContext &context, TableFunctionInitInput &input) {
-	auto result = make_uniq<DuckDBTemporaryFilesData>();
+	auto result = make_unique<DuckDBTemporaryFilesData>();
 
 	result->entries = BufferManager::GetBufferManager(context).GetTemporaryFiles();
 	return std::move(result);
 }
 
 void DuckDBTemporaryFilesFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
-	auto &data = data_p.global_state->Cast<DuckDBTemporaryFilesData>();
+	auto &data = (DuckDBTemporaryFilesData &)*data_p.global_state;
 	if (data.offset >= data.entries.size()) {
 		// finished returning values
 		return;

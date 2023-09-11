@@ -15,9 +15,6 @@ namespace duckdb {
 
 class LogicalExecute : public LogicalOperator {
 public:
-	static constexpr const LogicalOperatorType TYPE = LogicalOperatorType::LOGICAL_EXECUTE;
-
-public:
 	explicit LogicalExecute(shared_ptr<PreparedStatementData> prepared_p)
 	    : LogicalOperator(LogicalOperatorType::LOGICAL_EXECUTE), prepared(std::move(prepared_p)) {
 		D_ASSERT(prepared);
@@ -29,10 +26,6 @@ public:
 public:
 	void Serialize(FieldWriter &writer) const override;
 	static unique_ptr<LogicalOperator> Deserialize(LogicalDeserializationState &state, FieldReader &reader);
-	//! Skips the serialization check in VerifyPlan
-	bool SupportSerialization() const override {
-		return false;
-	}
 
 protected:
 	void ResolveTypes() override {

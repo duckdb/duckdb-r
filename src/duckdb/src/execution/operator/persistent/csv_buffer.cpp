@@ -4,8 +4,8 @@
 namespace duckdb {
 
 CSVBuffer::CSVBuffer(ClientContext &context, idx_t buffer_size_p, CSVFileHandle &file_handle,
-                     idx_t &global_csv_current_position, idx_t file_number_p)
-    : context(context), first_buffer(true), file_number(file_number_p) {
+                     idx_t &global_csv_current_position)
+    : context(context), first_buffer(true) {
 	this->handle = AllocateBuffer(buffer_size_p);
 
 	auto buffer = Ptr();
@@ -19,23 +19,23 @@ CSVBuffer::CSVBuffer(ClientContext &context, idx_t buffer_size_p, CSVFileHandle 
 }
 
 CSVBuffer::CSVBuffer(ClientContext &context, BufferHandle buffer_p, idx_t buffer_size_p, idx_t actual_size_p,
-                     bool final_buffer, idx_t global_csv_current_position, idx_t file_number_p)
+                     bool final_buffer, idx_t global_csv_current_position)
     : context(context), handle(std::move(buffer_p)), actual_size(actual_size_p), last_buffer(final_buffer),
-      global_csv_start(global_csv_current_position), file_number(file_number_p) {
+      global_csv_start(global_csv_current_position) {
 }
 
-unique_ptr<CSVBuffer> CSVBuffer::Next(CSVFileHandle &file_handle, idx_t buffer_size, idx_t &global_csv_current_position,
-                                      idx_t file_number_p) {
-	auto next_buffer = AllocateBuffer(buffer_size);
-	idx_t next_buffer_actual_size = file_handle.Read(next_buffer.Ptr(), buffer_size);
-	if (next_buffer_actual_size == 0) {
-		// We are done reading
+unique_ptr<CSVBuffer> CSVBuffer::Next(CSVFileHandle &file_handle, idx_t buffer_size,
+                                      idx_t &global_csv_current_position) {
+	if (file_handle.FinishedReading()) {
+		// this was the last buffer
 		return nullptr;
 	}
 
-	auto next_csv_buffer =
-	    make_uniq<CSVBuffer>(context, std::move(next_buffer), buffer_size, next_buffer_actual_size,
-	                         file_handle.FinishedReading(), global_csv_current_position, file_number_p);
+	auto next_buffer = AllocateBuffer(buffer_size);
+	idx_t next_buffer_actual_size = file_handle.Read(next_buffer.Ptr(), buffer_size);
+
+	auto next_csv_buffer = make_unique<CSVBuffer>(context, std::move(next_buffer), buffer_size, next_buffer_actual_size,
+	                                              file_handle.FinishedReading(), global_csv_current_position);
 	global_csv_current_position += next_buffer_actual_size;
 	return next_csv_buffer;
 }
@@ -63,10 +63,6 @@ bool CSVBuffer::IsCSVFileFirstBuffer() {
 
 idx_t CSVBuffer::GetCSVGlobalStart() {
 	return global_csv_start;
-}
-
-idx_t CSVBuffer::GetFileNumber() {
-	return file_number;
 }
 
 } // namespace duckdb

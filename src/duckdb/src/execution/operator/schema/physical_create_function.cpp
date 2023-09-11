@@ -8,12 +8,27 @@ namespace duckdb {
 //===--------------------------------------------------------------------===//
 // Source
 //===--------------------------------------------------------------------===//
-SourceResultType PhysicalCreateFunction::GetData(ExecutionContext &context, DataChunk &chunk,
-                                                 OperatorSourceInput &input) const {
-	auto &catalog = Catalog::GetCatalog(context.client, info->catalog);
-	catalog.CreateFunction(context.client, *info);
+class CreateFunctionSourceState : public GlobalSourceState {
+public:
+	CreateFunctionSourceState() : finished(false) {
+	}
 
-	return SourceResultType::FINISHED;
+	bool finished;
+};
+
+unique_ptr<GlobalSourceState> PhysicalCreateFunction::GetGlobalSourceState(ClientContext &context) const {
+	return make_unique<CreateFunctionSourceState>();
+}
+
+void PhysicalCreateFunction::GetData(ExecutionContext &context, DataChunk &chunk, GlobalSourceState &gstate,
+                                     LocalSourceState &lstate) const {
+	auto &state = (CreateFunctionSourceState &)gstate;
+	if (state.finished) {
+		return;
+	}
+	auto &catalog = Catalog::GetCatalog(context.client, info->catalog);
+	catalog.CreateFunction(context.client, info.get());
+	state.finished = true;
 }
 
 } // namespace duckdb

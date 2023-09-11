@@ -151,7 +151,7 @@ protected:
 
 private:
 	//! Client context
-	optional_ptr<ClientContext> context;
+	ClientContext *context;
 	//! The states of the expression executor; this holds any intermediates and temporary states of expressions
 	vector<unique_ptr<ExpressionExecutorState>> states;
 

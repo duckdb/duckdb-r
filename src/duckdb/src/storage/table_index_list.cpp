@@ -9,13 +9,13 @@ void TableIndexList::AddIndex(unique_ptr<Index> index) {
 	lock_guard<mutex> lock(indexes_lock);
 	indexes.push_back(std::move(index));
 }
-
-void TableIndexList::RemoveIndex(Index &index) {
+void TableIndexList::RemoveIndex(Index *index) {
+	D_ASSERT(index);
 	lock_guard<mutex> lock(indexes_lock);
 
 	for (idx_t index_idx = 0; index_idx < indexes.size(); index_idx++) {
 		auto &index_entry = indexes[index_idx];
-		if (index_entry.get() == &index) {
+		if (index_entry.get() == index) {
 			indexes.erase(indexes.begin() + index_idx);
 			break;
 		}
@@ -79,7 +79,7 @@ vector<column_t> TableIndexList::GetRequiredColumns() {
 	return result;
 }
 
-vector<BlockPointer> TableIndexList::SerializeIndexes(duckdb::MetadataWriter &writer) {
+vector<BlockPointer> TableIndexList::SerializeIndexes(duckdb::MetaBlockWriter &writer) {
 	vector<BlockPointer> blocks_info;
 	for (auto &index : indexes) {
 		blocks_info.emplace_back(index->Serialize(writer));

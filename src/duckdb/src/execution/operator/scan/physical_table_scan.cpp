@@ -10,14 +10,23 @@
 namespace duckdb {
 
 PhysicalTableScan::PhysicalTableScan(vector<LogicalType> types, TableFunction function_p,
+                                     unique_ptr<FunctionData> bind_data_p, vector<column_t> column_ids_p,
+                                     vector<string> names_p, unique_ptr<TableFilterSet> table_filters_p,
+                                     idx_t estimated_cardinality)
+    : PhysicalOperator(PhysicalOperatorType::TABLE_SCAN, std::move(types), estimated_cardinality),
+      function(std::move(function_p)), bind_data(std::move(bind_data_p)), column_ids(std::move(column_ids_p)),
+      names(std::move(names_p)), table_filters(std::move(table_filters_p)) {
+}
+
+PhysicalTableScan::PhysicalTableScan(vector<LogicalType> types, TableFunction function_p,
                                      unique_ptr<FunctionData> bind_data_p, vector<LogicalType> returned_types_p,
                                      vector<column_t> column_ids_p, vector<idx_t> projection_ids_p,
                                      vector<string> names_p, unique_ptr<TableFilterSet> table_filters_p,
-                                     idx_t estimated_cardinality, ExtraOperatorInfo extra_info)
+                                     idx_t estimated_cardinality)
     : PhysicalOperator(PhysicalOperatorType::TABLE_SCAN, std::move(types), estimated_cardinality),
       function(std::move(function_p)), bind_data(std::move(bind_data_p)), returned_types(std::move(returned_types_p)),
       column_ids(std::move(column_ids_p)), projection_ids(std::move(projection_ids_p)), names(std::move(names_p)),
-      table_filters(std::move(table_filters_p)), extra_info(extra_info) {
+      table_filters(std::move(table_filters_p)) {
 }
 
 class TableScanGlobalSourceState : public GlobalSourceState {
@@ -57,27 +66,25 @@ public:
 
 unique_ptr<LocalSourceState> PhysicalTableScan::GetLocalSourceState(ExecutionContext &context,
                                                                     GlobalSourceState &gstate) const {
-	return make_uniq<TableScanLocalSourceState>(context, gstate.Cast<TableScanGlobalSourceState>(), *this);
+	return make_unique<TableScanLocalSourceState>(context, (TableScanGlobalSourceState &)gstate, *this);
 }
 
 unique_ptr<GlobalSourceState> PhysicalTableScan::GetGlobalSourceState(ClientContext &context) const {
-	return make_uniq<TableScanGlobalSourceState>(context, *this);
+	return make_unique<TableScanGlobalSourceState>(context, *this);
 }
 
-SourceResultType PhysicalTableScan::GetData(ExecutionContext &context, DataChunk &chunk,
-                                            OperatorSourceInput &input) const {
+void PhysicalTableScan::GetData(ExecutionContext &context, DataChunk &chunk, GlobalSourceState &gstate_p,
+                                LocalSourceState &lstate) const {
 	D_ASSERT(!column_ids.empty());
-	auto &gstate = input.global_state.Cast<TableScanGlobalSourceState>();
-	auto &state = input.local_state.Cast<TableScanLocalSourceState>();
+	auto &gstate = (TableScanGlobalSourceState &)gstate_p;
+	auto &state = (TableScanLocalSourceState &)lstate;
 
 	TableFunctionInput data(bind_data.get(), state.local_state.get(), gstate.global_state.get());
 	function.function(context.client, data, chunk);
-
-	return chunk.size() == 0 ? SourceResultType::FINISHED : SourceResultType::HAVE_MORE_OUTPUT;
 }
 
 double PhysicalTableScan::GetProgress(ClientContext &context, GlobalSourceState &gstate_p) const {
-	auto &gstate = gstate_p.Cast<TableScanGlobalSourceState>();
+	auto &gstate = (TableScanGlobalSourceState &)gstate_p;
 	if (function.table_scan_progress) {
 		return function.table_scan_progress(context, bind_data.get(), gstate.global_state.get());
 	}
@@ -89,14 +96,14 @@ idx_t PhysicalTableScan::GetBatchIndex(ExecutionContext &context, DataChunk &chu
                                        LocalSourceState &lstate) const {
 	D_ASSERT(SupportsBatchIndex());
 	D_ASSERT(function.get_batch_index);
-	auto &gstate = gstate_p.Cast<TableScanGlobalSourceState>();
-	auto &state = lstate.Cast<TableScanLocalSourceState>();
+	auto &gstate = (TableScanGlobalSourceState &)gstate_p;
+	auto &state = (TableScanLocalSourceState &)lstate;
 	return function.get_batch_index(context.client, bind_data.get(), state.local_state.get(),
 	                                gstate.global_state.get());
 }
 
 string PhysicalTableScan::GetName() const {
-	return StringUtil::Upper(function.name + " " + function.extra_info);
+	return StringUtil::Upper(function.name);
 }
 
 string PhysicalTableScan::ParamsToString() const {
@@ -106,25 +113,13 @@ string PhysicalTableScan::ParamsToString() const {
 		result += "\n[INFOSEPARATOR]\n";
 	}
 	if (function.projection_pushdown) {
-		if (function.filter_prune) {
-			for (idx_t i = 0; i < projection_ids.size(); i++) {
-				const auto &column_id = column_ids[projection_ids[i]];
-				if (column_id < names.size()) {
-					if (i > 0) {
-						result += "\n";
-					}
-					result += names[column_id];
+		for (idx_t i = 0; i < projection_ids.size(); i++) {
+			const auto &column_id = column_ids[projection_ids[i]];
+			if (column_id < names.size()) {
+				if (i > 0) {
+					result += "\n";
 				}
-			}
-		} else {
-			for (idx_t i = 0; i < column_ids.size(); i++) {
-				const auto &column_id = column_ids[i];
-				if (column_id < names.size()) {
-					if (i > 0) {
-						result += "\n";
-					}
-					result += names[column_id];
-				}
+				result += names[column_id];
 			}
 		}
 	}
@@ -140,12 +135,8 @@ string PhysicalTableScan::ParamsToString() const {
 			}
 		}
 	}
-	if (!extra_info.file_filters.empty()) {
-		result += "\n[INFOSEPARATOR]\n";
-		result += "File Filters: " + extra_info.file_filters;
-	}
 	result += "\n[INFOSEPARATOR]\n";
-	result += StringUtil::Format("EC: %llu", estimated_cardinality);
+	result += StringUtil::Format("EC: %llu", estimated_props->GetCardinality<idx_t>());
 	return result;
 }
 
@@ -153,7 +144,7 @@ bool PhysicalTableScan::Equals(const PhysicalOperator &other_p) const {
 	if (type != other_p.type) {
 		return false;
 	}
-	auto &other = other_p.Cast<PhysicalTableScan>();
+	auto &other = (PhysicalTableScan &)other_p;
 	if (function.function != other.function.function) {
 		return false;
 	}

@@ -20,27 +20,16 @@ namespace duckdb {
 
 class ScalarMacroFunction : public MacroFunction {
 public:
-	static constexpr const MacroType TYPE = MacroType::SCALAR_MACRO;
+	ScalarMacroFunction(unique_ptr<ParsedExpression> expression);
 
-public:
-	explicit ScalarMacroFunction(unique_ptr<ParsedExpression> expression);
 	ScalarMacroFunction(void);
-
 	//! The macro expression
 	unique_ptr<ParsedExpression> expression;
 
 public:
-	unique_ptr<MacroFunction> Copy() const override;
+	unique_ptr<MacroFunction> Copy() override;
 
-	string ToSQL(const string &schema, const string &name) const override;
-
-	static unique_ptr<MacroFunction> Deserialize(FieldReader &reader);
-
-	void FormatSerialize(FormatSerializer &serializer) const override;
-	static unique_ptr<MacroFunction> FormatDeserialize(FormatDeserializer &deserializer);
-
-protected:
-	void SerializeInternal(FieldWriter &writer) const override;
+	string ToSQL(const string &schema, const string &name) override;
 };
 
 } // namespace duckdb

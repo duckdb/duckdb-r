@@ -8,75 +8,65 @@
 #pragma once
 
 #include "duckdb/common/stack.hpp"
-#include "duckdb/execution/index/art/art_key.hpp"
 #include "duckdb/execution/index/art/leaf.hpp"
 #include "duckdb/execution/index/art/node.hpp"
 
 namespace duckdb {
 
-//! Keeps track of the byte leading to the currently active child of the node
 struct IteratorEntry {
-	IteratorEntry(Node node, uint8_t byte) : node(node), byte(byte) {
+	IteratorEntry() {
+	}
+	IteratorEntry(Node *node, idx_t pos) : node(node), pos(pos) {
 	}
 
-	Node node;
-	uint8_t byte = 0;
+	Node *node = nullptr;
+	idx_t pos = 0;
 };
 
-//! Keeps track of the current key in the iterator leading down to the top node in the stack
-class IteratorKey {
+//! Keeps track of the current key in the iterator
+class IteratorCurrentKey {
 public:
-	//! Pushes a byte into the current key
-	inline void Push(const uint8_t key_byte) {
-		key_bytes.push_back(key_byte);
-	}
-	//! Pops n bytes from the current key
-	inline void Pop(const idx_t n) {
-		key_bytes.resize(key_bytes.size() - n);
-	}
-
+	//! Push Byte
+	void Push(uint8_t key);
+	//! Pops n elements
+	void Pop(idx_t n);
 	//! Subscript operator
-	inline uint8_t &operator[](idx_t idx) {
-		D_ASSERT(idx < key_bytes.size());
-		return key_bytes[idx];
-	}
-	//! Greater than operator
-	bool operator>(const ARTKey &k) const;
-	//! Greater than or equal to operator
-	bool operator>=(const ARTKey &k) const;
-	//! Equal to operator
-	bool operator==(const ARTKey &k) const;
+	uint8_t &operator[](idx_t idx);
+	bool operator>(const Key &k) const;
+	bool operator>=(const Key &k) const;
+	bool operator==(const Key &k) const;
 
 private:
-	vector<uint8_t> key_bytes;
+	//! The current key position
+	idx_t cur_key_pos = 0;
+	//! The current key of the Leaf Node
+	vector<uint8_t> key;
 };
 
 class Iterator {
 public:
-	//! Holds the current key leading down to the top node on the stack
-	IteratorKey current_key;
-	//! Pointer to the ART
-	optional_ptr<ART> art = nullptr;
+	//! Current Key
+	IteratorCurrentKey cur_key;
+	//! Pointer to the ART tree we are iterating
+	ART *art = nullptr;
 
-	//! Scans the tree, starting at the current top node on the stack, and ending at upper_bound.
-	//! If upper_bound is the empty ARTKey, than there is no upper bound
-	bool Scan(const ARTKey &upper_bound, const idx_t max_count, vector<row_t> &result_ids, const bool equal);
-	//! Finds the minimum (leaf) of the current subtree
+	//! Scan the tree
+	bool Scan(Key &bound, idx_t max_count, vector<row_t> &result_ids, bool is_inclusive);
+	//! Finds minimum value of the tree
 	void FindMinimum(Node &node);
-	//! Finds the lower bound of the ART and adds the nodes to the stack. Returns false, if the lower
-	//! bound exceeds the maximum value of the ART
-	bool LowerBound(Node &node, const ARTKey &key, const bool equal, idx_t depth);
+	//! Goes to lower bound
+	bool LowerBound(Node *node, Key &key, bool inclusive);
 
 private:
-	//! Stack of nodes from the root to the currently active node
+	//! Stack of iterator entries
 	stack<IteratorEntry> nodes;
-	//! Last visited leaf node
-	Node last_leaf = Node();
-
-	//! Goes to the next leaf in the ART and sets it as last_leaf,
-	//! returns false if there is no next leaf
+	//! Last visited leaf
+	Leaf *last_leaf = nullptr;
+	//! Go to the next node
 	bool Next();
-	//! Pop the top node from the stack of iterator entries and adjust the current key
+	//! Push part of the key to cur_key
+	void PushKey(Node *node, uint16_t pos);
+	//! Pop node
 	void PopNode();
 };
 } // namespace duckdb

@@ -1,5 +1,6 @@
 #include "duckdb/planner/expression/bound_lambda_expression.hpp"
 #include "duckdb/common/string_util.hpp"
+#include "duckdb/parser/expression_util.hpp"
 
 namespace duckdb {
 
@@ -13,25 +14,25 @@ string BoundLambdaExpression::ToString() const {
 	return lambda_expr->ToString();
 }
 
-bool BoundLambdaExpression::Equals(const BaseExpression &other_p) const {
+bool BoundLambdaExpression::Equals(const BaseExpression *other_p) const {
 	if (!Expression::Equals(other_p)) {
 		return false;
 	}
-	auto &other = other_p.Cast<BoundLambdaExpression>();
-	if (!Expression::Equals(*lambda_expr, *other.lambda_expr)) {
+	auto other = (BoundLambdaExpression *)other_p;
+	if (!Expression::Equals(lambda_expr.get(), other->lambda_expr.get())) {
 		return false;
 	}
-	if (!Expression::ListEquals(captures, other.captures)) {
+	if (!ExpressionUtil::ListEquals(captures, other->captures)) {
 		return false;
 	}
-	if (parameter_count != other.parameter_count) {
+	if (parameter_count != other->parameter_count) {
 		return false;
 	}
 	return true;
 }
 
 unique_ptr<Expression> BoundLambdaExpression::Copy() {
-	auto copy = make_uniq<BoundLambdaExpression>(type, return_type, lambda_expr->Copy(), parameter_count);
+	auto copy = make_unique<BoundLambdaExpression>(type, return_type, lambda_expr->Copy(), parameter_count);
 	for (auto &capture : captures) {
 		copy->captures.push_back(capture->Copy());
 	}
