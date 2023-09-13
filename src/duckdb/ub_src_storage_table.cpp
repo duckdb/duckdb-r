@@ -18,6 +18,8 @@
 
 #include "src/storage/table/row_group_collection.cpp"
 
+#include "src/storage/table/row_version_manager.cpp"
+
 #include "src/storage/table/scan_state.cpp"
 
 #include "src/storage/table/standard_column_data.cpp"
