@@ -106,8 +106,8 @@ runs:
         echo 'CCACHE_SLOPPINESS=locale,time_macros' | tee -a $GITHUB_ENV
 
         # echo 'CCACHE_DEBUG=true' | tee -a $GITHUB_ENV
-        # echo "CCACHE_DEBUGDIR=$(realpath $(pwd)/../ccache-debug" | tee -a $GITHUB_ENV
-        # mkdir -p $(pwd)/../.ccache-debug
+        # echo "CCACHE_DEBUGDIR=$(dirname $(pwd))/ccache-debug" | tee -a $GITHUB_ENV
+        # mkdir -p $(dirname $(pwd))/.ccache-debug
 
         echo 'PKG_BUILD_EXTRA_FLAGS=false' | tee -a $GITHUB_ENV
       shell: bash

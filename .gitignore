@@ -97,7 +97,6 @@ $RECYCLE.BIN/
 *.lnk
 # End of https://www.toptal.com/developers/gitignore/api/windows
 
-/duckdb
 /.vscode
 /build
 *.tar.gz
@@ -105,4 +104,7 @@ $RECYCLE.BIN/
 src/**/*.o
 src/*.so
 /scripts/__pycache__
+/duckdb
+/src/Makevars.duckdb
 /.ccache
+/src/symbols.rds
