@@ -108,5 +108,16 @@ test_that("duckdb_read_csv() works as expected", {
   res$Species <- as.factor(res$Species)
   expect_true(identical(res, iris))
 
+  # test better na.strings handling
+  # see https://github.com/duckdb/duckdb/issues/8590
+  tf3 <- tempfile()
+  na_strings <- data.frame(num=c(1, 2, NA), char=c('yes', 'no', NA), logi=c(TRUE, FALSE, NA))
+  write.csv(na_strings, tf3, row.names = FALSE)
+  duckdb_read_csv(con, "na_table", tf3, na.strings = "-")
+  identical(
+    dbReadTable(con, "na_table"),
+    read.csv(tf3, na.strings = "-")
+  )
+
   dbDisconnect(con, shutdown = TRUE)
 })
