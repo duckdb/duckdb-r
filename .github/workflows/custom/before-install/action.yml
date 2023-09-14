@@ -7,3 +7,15 @@ runs:
       run: |
         echo '_R_CHECK_PKG_SIZES_=FALSE' | tee -a $GITHUB_ENV
       shell: bash
+
+    - name: Compute cache key
+      run: |
+        echo "DUCKDB_R_PREBUILT_ARCHIVE_GHA_CACHE_KEY=duckdb-tar-${{ runner.os }}-$($(R CMD config CXX) --version | head -n 1 | sed -r 's/[, ]/-/g')-${{ hashFiles('src/duckdb/**') }}" | tee -a $GITHUB_ENV
+        echo "DUCKDB_R_PREBUILT_ARCHIVE=${{ runner.temp }}/duckdb.tar" | tee -a $GITHUB_ENV
+      shell: bash
+
+    - name: Cache duckdb archive
+      uses: actions/cache@v3
+      with:
+        path: ${{ env.DUCKDB_R_PREBUILT_ARCHIVE }}
+        key: ${{ env.DUCKDB_R_PREBUILT_ARCHIVE_GHA_CACHE_KEY }}

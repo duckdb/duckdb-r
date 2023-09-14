@@ -19,7 +19,7 @@ if 'DUCKDB_BUILD_UNITY' in os.environ:
 
 debug_move_flag = ''
 if 'DUCKDB_DEBUG_MOVE' in os.environ:
-    debug_move_flag = '-DDUCKDB_DEBUG_MOVE'
+    debug_move_flag = ' -DDUCKDB_DEBUG_MOVE'
 
 # This requires the mother duckdb repo to be checked out in a parallel directory
 # Submodules can't be used because they break R CMD build
@@ -103,7 +103,7 @@ include_list = ' '.join(['-I' + 'duckdb/' + x for x in include_list])
 include_list += ' -I' + os.path.join('..', 'inst', 'include')
 include_list += ' -Iduckdb'
 include_list += extension_list
-include_list += ' ' + debug_move_flag
+include_list += debug_move_flag
 
 # add -Werror if enabled
 if 'TREAT_WARNINGS_AS_ERRORS' in os.environ:
@@ -113,10 +113,9 @@ if 'TREAT_WARNINGS_AS_ERRORS' in os.environ:
 with open_utf8(os.path.join('src', 'Makevars.in'), 'r') as f:
     text = f.read()
 
-text = text.replace('{{ SOURCES }}', object_list)
 text = text.replace('{{ INCLUDES }}', include_list)
 if len(libraries) == 0:
-    text = text.replace('PKG_LIBS={{ LINK_FLAGS }}', '')
+    text = text.replace('PKG_LIBS={{ LINK_FLAGS }}\n', '')
 else:
     text = text.replace('{{ LINK_FLAGS }}', link_flags.strip())
 
@@ -130,10 +129,15 @@ with open_utf8(os.path.join('src', 'Makevars.in'), 'r') as f:
     text = f.read()
 
 include_list += " -DDUCKDB_PLATFORM_RTOOLS=1"
-text = text.replace('{{ SOURCES }}', object_list)
 text = text.replace('{{ INCLUDES }}', include_list)
 text = text.replace('{{ LINK_FLAGS }}', "-lws2_32")
 
 # now write it to the output Makevars
 with open_utf8(os.path.join('src', 'Makevars.win'), 'w+') as f:
+    f.write(text)
+
+# write sources.mk
+text = "SOURCES=" + object_list + '\n'
+
+with open_utf8(os.path.join('src', 'include', 'sources.mk'), 'w') as f:
     f.write(text)

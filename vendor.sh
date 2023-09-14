@@ -15,6 +15,8 @@ if [ -n "$(git -C $duckdir status --porcelain)" ]; then
   echo "Error: working directory $duckdir not clean"
 fi
 
+rm -rf src/duckdb
+
 commit=$(git -C $duckdir rev-parse HEAD)
 echo "Importing commit $commit"
 
