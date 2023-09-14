@@ -1,0 +1,17 @@
+/Applications/CLion.app/Contents/bin/cmake/mac/bin/cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_MAKE_PROGRAM=/usr/bin/make -DCMAKE_C_COMPILER=/opt/homebrew/opt/ccache/libexec/cc -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/ccache/libexec/c++ -G "CodeBlocks - Unix Makefiles" -S /Users/tomebergen/duckdb-r -B /Users/tomebergen/duckdb-r/cmake-build-debug
+-- The C compiler identification is AppleClang 14.0.3.14030022
+-- The CXX compiler identification is AppleClang 14.0.3.14030022
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /opt/homebrew/opt/ccache/libexec/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /opt/homebrew/opt/ccache/libexec/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+Include directories: /Library/Frameworks/R.framework/Resources/include;/Users/tomebergen/duckdb-r/src/../inst/include;/Users/tomebergen/duckdb-r/src/include;/Users/tomebergen/duckdb-r/src/duckdb/src/include
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /Users/tomebergen/duckdb-r/cmake-build-debug

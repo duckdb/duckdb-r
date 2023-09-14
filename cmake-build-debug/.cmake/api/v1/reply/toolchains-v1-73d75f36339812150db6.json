@@ -1,0 +1,84 @@
+{
+	"kind" : "toolchains",
+	"toolchains" : 
+	[
+		{
+			"compiler" : 
+			{
+				"id" : "AppleClang",
+				"implicit" : 
+				{
+					"includeDirectories" : 
+					[
+						"/usr/include",
+						"/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.3.sdk/usr/include"
+					],
+					"linkDirectories" : 
+					[
+						"/opt/homebrew/opt/openssl@3/lib",
+						"/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.3.sdk/usr/lib"
+					],
+					"linkFrameworkDirectories" : 
+					[
+						"/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.3.sdk/System/Library/Frameworks"
+					],
+					"linkLibraries" : []
+				},
+				"path" : "/opt/homebrew/opt/ccache/libexec/cc",
+				"version" : "14.0.3.14030022"
+			},
+			"language" : "C",
+			"sourceFileExtensions" : 
+			[
+				"c",
+				"m"
+			]
+		},
+		{
+			"compiler" : 
+			{
+				"id" : "AppleClang",
+				"implicit" : 
+				{
+					"includeDirectories" : 
+					[
+						"/usr/include",
+						"/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.3.sdk/usr/include"
+					],
+					"linkDirectories" : 
+					[
+						"/opt/homebrew/opt/openssl@3/lib",
+						"/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.3.sdk/usr/lib"
+					],
+					"linkFrameworkDirectories" : 
+					[
+						"/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.3.sdk/System/Library/Frameworks"
+					],
+					"linkLibraries" : []
+				},
+				"path" : "/opt/homebrew/opt/ccache/libexec/c++",
+				"version" : "14.0.3.14030022"
+			},
+			"language" : "CXX",
+			"sourceFileExtensions" : 
+			[
+				"C",
+				"M",
+				"c++",
+				"cc",
+				"cpp",
+				"cxx",
+				"mm",
+				"mpp",
+				"CPP",
+				"ixx",
+				"cppm"
+			]
+		}
+	],
+	"version" : 
+	{
+		"major" : 1,
+		"minor" : 0
+	}
+}

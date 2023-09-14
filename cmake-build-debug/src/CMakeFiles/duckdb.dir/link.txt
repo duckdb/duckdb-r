@@ -1,0 +1,2 @@
+/usr/bin/ar qc libduckdb.a CMakeFiles/duckdb.dir/connection.cpp.o CMakeFiles/duckdb.dir/cpp11.cpp.o CMakeFiles/duckdb.dir/database.cpp.o CMakeFiles/duckdb.dir/register.cpp.o CMakeFiles/duckdb.dir/relational.cpp.o CMakeFiles/duckdb.dir/reltoaltrep.cpp.o CMakeFiles/duckdb.dir/scan.cpp.o CMakeFiles/duckdb.dir/statement.cpp.o CMakeFiles/duckdb.dir/transform.cpp.o CMakeFiles/duckdb.dir/types.cpp.o CMakeFiles/duckdb.dir/utils.cpp.o
+/usr/bin/ranlib libduckdb.a

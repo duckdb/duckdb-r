@@ -1,0 +1,57 @@
+[
+{
+  "directory": "/Users/tomebergen/duckdb-r/cmake-build-debug/src",
+  "command": "/opt/homebrew/opt/ccache/libexec/c++  -I/Library/Frameworks/R.framework/Resources/include -I/Users/tomebergen/duckdb-r/src/../inst/include -I/Users/tomebergen/duckdb-r/src/include -I/Users/tomebergen/duckdb-r/src/duckdb/src/include -g -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.3.sdk -fcolor-diagnostics -o CMakeFiles/duckdb.dir/connection.cpp.o -c /Users/tomebergen/duckdb-r/src/connection.cpp",
+  "file": "/Users/tomebergen/duckdb-r/src/connection.cpp"
+},
+{
+  "directory": "/Users/tomebergen/duckdb-r/cmake-build-debug/src",
+  "command": "/opt/homebrew/opt/ccache/libexec/c++  -I/Library/Frameworks/R.framework/Resources/include -I/Users/tomebergen/duckdb-r/src/../inst/include -I/Users/tomebergen/duckdb-r/src/include -I/Users/tomebergen/duckdb-r/src/duckdb/src/include -g -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.3.sdk -fcolor-diagnostics -o CMakeFiles/duckdb.dir/cpp11.cpp.o -c /Users/tomebergen/duckdb-r/src/cpp11.cpp",
+  "file": "/Users/tomebergen/duckdb-r/src/cpp11.cpp"
+},
+{
+  "directory": "/Users/tomebergen/duckdb-r/cmake-build-debug/src",
+  "command": "/opt/homebrew/opt/ccache/libexec/c++  -I/Library/Frameworks/R.framework/Resources/include -I/Users/tomebergen/duckdb-r/src/../inst/include -I/Users/tomebergen/duckdb-r/src/include -I/Users/tomebergen/duckdb-r/src/duckdb/src/include -g -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.3.sdk -fcolor-diagnostics -o CMakeFiles/duckdb.dir/database.cpp.o -c /Users/tomebergen/duckdb-r/src/database.cpp",
+  "file": "/Users/tomebergen/duckdb-r/src/database.cpp"
+},
+{
+  "directory": "/Users/tomebergen/duckdb-r/cmake-build-debug/src",
+  "command": "/opt/homebrew/opt/ccache/libexec/c++  -I/Library/Frameworks/R.framework/Resources/include -I/Users/tomebergen/duckdb-r/src/../inst/include -I/Users/tomebergen/duckdb-r/src/include -I/Users/tomebergen/duckdb-r/src/duckdb/src/include -g -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.3.sdk -fcolor-diagnostics -o CMakeFiles/duckdb.dir/register.cpp.o -c /Users/tomebergen/duckdb-r/src/register.cpp",
+  "file": "/Users/tomebergen/duckdb-r/src/register.cpp"
+},
+{
+  "directory": "/Users/tomebergen/duckdb-r/cmake-build-debug/src",
+  "command": "/opt/homebrew/opt/ccache/libexec/c++  -I/Library/Frameworks/R.framework/Resources/include -I/Users/tomebergen/duckdb-r/src/../inst/include -I/Users/tomebergen/duckdb-r/src/include -I/Users/tomebergen/duckdb-r/src/duckdb/src/include -g -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.3.sdk -fcolor-diagnostics -o CMakeFiles/duckdb.dir/relational.cpp.o -c /Users/tomebergen/duckdb-r/src/relational.cpp",
+  "file": "/Users/tomebergen/duckdb-r/src/relational.cpp"
+},
+{
+  "directory": "/Users/tomebergen/duckdb-r/cmake-build-debug/src",
+  "command": "/opt/homebrew/opt/ccache/libexec/c++  -I/Library/Frameworks/R.framework/Resources/include -I/Users/tomebergen/duckdb-r/src/../inst/include -I/Users/tomebergen/duckdb-r/src/include -I/Users/tomebergen/duckdb-r/src/duckdb/src/include -g -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.3.sdk -fcolor-diagnostics -o CMakeFiles/duckdb.dir/reltoaltrep.cpp.o -c /Users/tomebergen/duckdb-r/src/reltoaltrep.cpp",
+  "file": "/Users/tomebergen/duckdb-r/src/reltoaltrep.cpp"
+},
+{
+  "directory": "/Users/tomebergen/duckdb-r/cmake-build-debug/src",
+  "command": "/opt/homebrew/opt/ccache/libexec/c++  -I/Library/Frameworks/R.framework/Resources/include -I/Users/tomebergen/duckdb-r/src/../inst/include -I/Users/tomebergen/duckdb-r/src/include -I/Users/tomebergen/duckdb-r/src/duckdb/src/include -g -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.3.sdk -fcolor-diagnostics -o CMakeFiles/duckdb.dir/scan.cpp.o -c /Users/tomebergen/duckdb-r/src/scan.cpp",
+  "file": "/Users/tomebergen/duckdb-r/src/scan.cpp"
+},
+{
+  "directory": "/Users/tomebergen/duckdb-r/cmake-build-debug/src",
+  "command": "/opt/homebrew/opt/ccache/libexec/c++  -I/Library/Frameworks/R.framework/Resources/include -I/Users/tomebergen/duckdb-r/src/../inst/include -I/Users/tomebergen/duckdb-r/src/include -I/Users/tomebergen/duckdb-r/src/duckdb/src/include -g -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.3.sdk -fcolor-diagnostics -o CMakeFiles/duckdb.dir/statement.cpp.o -c /Users/tomebergen/duckdb-r/src/statement.cpp",
+  "file": "/Users/tomebergen/duckdb-r/src/statement.cpp"
+},
+{
+  "directory": "/Users/tomebergen/duckdb-r/cmake-build-debug/src",
+  "command": "/opt/homebrew/opt/ccache/libexec/c++  -I/Library/Frameworks/R.framework/Resources/include -I/Users/tomebergen/duckdb-r/src/../inst/include -I/Users/tomebergen/duckdb-r/src/include -I/Users/tomebergen/duckdb-r/src/duckdb/src/include -g -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.3.sdk -fcolor-diagnostics -o CMakeFiles/duckdb.dir/transform.cpp.o -c /Users/tomebergen/duckdb-r/src/transform.cpp",
+  "file": "/Users/tomebergen/duckdb-r/src/transform.cpp"
+},
+{
+  "directory": "/Users/tomebergen/duckdb-r/cmake-build-debug/src",
+  "command": "/opt/homebrew/opt/ccache/libexec/c++  -I/Library/Frameworks/R.framework/Resources/include -I/Users/tomebergen/duckdb-r/src/../inst/include -I/Users/tomebergen/duckdb-r/src/include -I/Users/tomebergen/duckdb-r/src/duckdb/src/include -g -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.3.sdk -fcolor-diagnostics -o CMakeFiles/duckdb.dir/types.cpp.o -c /Users/tomebergen/duckdb-r/src/types.cpp",
+  "file": "/Users/tomebergen/duckdb-r/src/types.cpp"
+},
+{
+  "directory": "/Users/tomebergen/duckdb-r/cmake-build-debug/src",
+  "command": "/opt/homebrew/opt/ccache/libexec/c++  -I/Library/Frameworks/R.framework/Resources/include -I/Users/tomebergen/duckdb-r/src/../inst/include -I/Users/tomebergen/duckdb-r/src/include -I/Users/tomebergen/duckdb-r/src/duckdb/src/include -g -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.3.sdk -fcolor-diagnostics -o CMakeFiles/duckdb.dir/utils.cpp.o -c /Users/tomebergen/duckdb-r/src/utils.cpp",
+  "file": "/Users/tomebergen/duckdb-r/src/utils.cpp"
+}
+]
