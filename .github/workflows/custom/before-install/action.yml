@@ -19,3 +19,35 @@ runs:
       with:
         path: ${{ env.DUCKDB_R_PREBUILT_ARCHIVE }}
         key: ${{ env.DUCKDB_R_PREBUILT_ARCHIVE_GHA_CACHE_KEY }}
+
+    - name: Download DuckDB binary
+      run: |
+        # FIXME: only for stable version, other code for dynamic version
+
+        tempdir <- Sys.getenv("RUNNER_TEMP")
+        runner_os <- "${{ runner.os }}"
+        if (runner_os == "Linux") {
+          file <- "libduckdb-linux-amd64.zip"
+        } else if (runner_os == "Windows") {
+          file <- "libduckdb-windows-amd64.zip"
+        } else if (runner_os == "macOS") {
+          file <- "libduckdb-osx-universal.zip"
+        }
+        zipfile <- file.path(tempdir, "libduckdb.zip")
+        bindir <- file.path(tempdir, "libduckdb")
+
+        # FIXME: dynamic detection of version number
+        download.file(file.path("https://github.com/duckdb/duckdb/releases/download", "v0.8.1", file), zipfile)
+
+        unzip(zipfile, exdir = bindir)
+
+        writeLines(
+          paste0("DUCKDB_BINARY_PATH=", bindir),
+          Sys.getenv("GITHUB_ENV")
+        )
+      shell: Rscript {0}
+
+    - name: Show DUCKDB_BINARY_PATH
+      run: |
+        echo $DUCKDB_BINARY_PATH
+      shell: bash
