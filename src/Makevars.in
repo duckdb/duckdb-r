@@ -4,9 +4,7 @@
 #
 # The symbols.rds file helps troubleshoot issues with forbidden symbols
 # such as abort.
-all: duckdb.tar symbols.rds $(SHLIB)
-
-include include/sources.mk
+all: symbols.rds $(SHLIB)
 
 # This file is created by the configure or configure.win scripts
 # depending on the value of the DUCKDB_R_PREBUILT_ARCHIVE environment variable.

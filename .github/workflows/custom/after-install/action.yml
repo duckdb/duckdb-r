@@ -15,6 +15,36 @@ runs:
         max-size: 200M
         verbose: 1
 
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v3
+      with:
+        detached: true
+
+    - name: Download DuckDB binary
+      if: ${{ runner.os == 'Linux' }}
+      run: |
+        # FIXME: only for stable version, other code for dynamic version
+        # FIXME: dynamic detection of version number
+
+        tempdir <- "${{ runner.temp }}"
+        zipfile <- file.path(tempdir, "libduckdb-linux-amd64.zip")
+        bindir <- file.path(tempdir, "libduckdb-linux-amd64")
+
+        curl::curl_download("https://github.com/duckdb/duckdb/releases/download/v0.8.1/libduckdb-linux-amd64.zip", zipfile)
+
+        unzip(zipfile, exdir = bindir)
+
+        writeLines(
+          paste0("DUCKDB_BINARY_PATH=", bindir),
+          Sys.getenv("GITHUB_ENV")
+        )
+      shell: Rscript {0}
+
+    - name: Show DUCKDB_BINARY_PATH
+      run: |
+        echo $DUCKDB_BINARY_PATH
+      shell: bash
+
     - name: Install to avoid R CMD INSTALL --pre-clean run otherwise
       run: |
         mkdir ../lib

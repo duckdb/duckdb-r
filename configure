@@ -22,8 +22,9 @@ cd $(dirname $0)/src
 # This logic is identical for Windows or non-Windows builds,
 # only that we need to-tar-win.mk instead of to-tar.mk on Windows.
 
-if [ -f "${DUCKDB_R_PREBUILT_ARCHIVE}" ] && tar -xm -f ${DUCKDB_R_PREBUILT_ARCHIVE}; then
+if [ -d "${DUCKDB_BINARY_PATH}" ] && [ -z "$(diff ${DUCKDB_BINARY_PATH}/duckdb.h duckdb/src/include/duckdb.h)" ]; then
   cp include/from-tar.mk Makevars.duckdb
 else
+  false
   cp include/to-tar.mk Makevars.duckdb
 fi
