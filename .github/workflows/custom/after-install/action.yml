@@ -20,11 +20,16 @@ runs:
       with:
         detached: true
 
+    - name: Environment before RUNNER_TEMP
+      run: |
+        env | sort
+      shell: bash
+
     - name: Download DuckDB binary
       run: |
         # FIXME: only for stable version, other code for dynamic version
 
-        tempdir <- "${{ runner.temp }}"
+        tempdir <- Sys.getenv("RUNNER_TEMP")
         runner_os <- "${{ runner.os }}"
         if (runner_os == "Linux") {
           file <- "libduckdb-linux-amd64.zip"
