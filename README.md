@@ -8,6 +8,10 @@
 install.packages("duckdb")
 ```
 
+## User Guide
+
+See the [R API in the DuckDB documentation](https://duckdb.org/docs/api/r).
+
 ## Building
 
 To build the bleeding edge of duckdb-r, you can clone this repository and run 
