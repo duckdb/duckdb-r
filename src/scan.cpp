@@ -1,6 +1,5 @@
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/third_party/utf8proc/include/utf8proc.hpp"
-#include "iostream"
 #include "rapi.hpp"
 #include "typesr.hpp"
 
