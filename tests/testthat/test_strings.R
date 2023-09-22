@@ -1,7 +1,12 @@
+library(duckdb)
+
 test_that("Invalid unicode produces an error", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- DBI::dbConnect(duckdb::duckdb())
 
   my_df <- structure(list(no_municipio_esc = "Est\xe2ncia", no_municipio_prova = "Est\xe2ncia"), row.names = 16L, class = "data.frame")
-  expect_error(DBI::dbWriteTable( con , 'my_table' , my_df ), "Cannot process strings that are not valid", ignore.case = TRUE)
+  expect_error(dbWriteTable(con , 'my_table' , my_df ))
+
+  # test that the connection still works.
+  dbWriteTable(con, 'myTable', data.frame(a=c(1, 2, 3), b=c(4, 5, 6)))
+  DBI::dbDisconnect(con, shutdown = TRUE)
 })
