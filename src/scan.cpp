@@ -153,7 +153,7 @@ void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_ptr_t co
 		utf8proc_option_t options = (UTF8PROC_NULLTERM);
 		auto res = utf8proc_map(str, 0, &new_string, options);
 		if (res == UTF8PROC_ERROR_INVALIDUTF8) {
-			throw InternalException("rapi_execute: Cannot process strings that are not valid utf8: %s", string_val);
+			throw InvalidInputException("Strings \"%s\" is not valid utf8", (char*)string_val);
 		}
 
 		if (experimental) {
