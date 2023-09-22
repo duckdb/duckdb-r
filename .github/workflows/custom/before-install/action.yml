@@ -36,8 +36,15 @@ runs:
         zipfile <- file.path(tempdir, "libduckdb.zip")
         bindir <- file.path(tempdir, "libduckdb")
 
+        version <- readLines("src/duckdb/src/function/table/version/pragma_version.cpp", 20)
+
+        rx <- '^#define DUCKDB_VERSION "(.*)"$'
+        version_line <- grep(rx, version, value = TRUE)
+        version_line
+        tag <- gsub(rx, "v\\1", version_line)
+
         # FIXME: dynamic detection of version number
-        download.file(file.path("https://github.com/duckdb/duckdb/releases/download", "v0.8.1", file), zipfile)
+        download.file(file.path("https://github.com/duckdb/duckdb/releases/download", tag, file), zipfile)
 
         unzip(zipfile, exdir = bindir)
 
