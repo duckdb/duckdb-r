@@ -1,4 +1,4 @@
-<img src="https://duckdb.org/images/DuckDB_Logo_dl.png" height="50">
+<img src="https://duckdb.org/images/logo-dl/DuckDB_Logo.png" height="120">
 
 # duckdb R package
 
