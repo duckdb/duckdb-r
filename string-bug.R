@@ -1,5 +1,0 @@
-library(duckdb)
-con <- dbConnect( duckdb::duckdb())
-my_df <- structure(list(no_municipio_esc = "Est\xe2ncia", no_municipio_prova = "Est\xe2ncia"), row.names = 16L, class = "data.frame")
-# my_df <- data.frame(no_municipio_esc = c("Este2ncia"), no_municipio_prova = c("Este2ncia"))
-dbWriteTable( con , 'my_table' , my_df )
