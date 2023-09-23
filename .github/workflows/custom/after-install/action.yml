@@ -15,6 +15,11 @@ runs:
         max-size: 200M
         verbose: 1
 
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v3
+      with:
+        detached: true
+
     - name: Install to avoid R CMD INSTALL --pre-clean run otherwise
       run: |
         mkdir ../lib
