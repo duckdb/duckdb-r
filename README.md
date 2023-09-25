@@ -38,3 +38,20 @@ To build the R package, you first need to install the dependencies:
 # install.packages("pak", repos = sprintf("https://r-lib.github.io/p/pak/stable/%s/%s/%s", .Platform$pkgType, R.Version()$os, R.Version()$arch))
 pak::pak()
 ```
+
+### Developing with Extensions
+If you wish to build or add extensions to the R package you first need to build duckdb with the 
+`extension_static_build` flag. The following commands allow you to add the httpfs extension to 
+a duckdb R build. See the [extension ReadMe](https://github.com/duckdb/duckdb/tree/master/extension#readme) for more 
+information about extensions 
+```sh
+cd duckdb/
+EXTENSION_STATIC_BUILD=1 make
+```
+Then in R
+```r
+library(duckdb)
+con <- DBI::dbConnect(duckdb(config=list('allow_unsigned_extensions'='true')))
+dbExecute(con, "LOAD '{{path_to_duckdb}}/build/release/extension/httpfs/httpfs.duckdb_extension'")
+```
+
