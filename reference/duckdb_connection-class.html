@@ -46,54 +46,54 @@
     </div>
 
     <div class="ref-description">
-    <p>Implements DBIConnection.</p>
+    <p>Implements <a href="https://dbi.r-dbi.org/reference/DBIConnection-class.html" class="external-link">DBIConnection</a>.</p>
     </div>
 
     <div id="ref-usage">
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="co"># S4 method for duckdb_connection</span></span>
-<span><span class="fu">dbAppendTable</span><span class="op">(</span><span class="va">conn</span>, <span class="va">name</span>, <span class="va">value</span>, <span class="va">...</span>, row.names <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbAppendTable.html" class="external-link">dbAppendTable</a></span><span class="op">(</span><span class="va">conn</span>, <span class="va">name</span>, <span class="va">value</span>, <span class="va">...</span>, row.names <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for duckdb_connection</span></span>
-<span><span class="fu">dbBegin</span><span class="op">(</span><span class="va">conn</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/transactions.html" class="external-link">dbBegin</a></span><span class="op">(</span><span class="va">conn</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for duckdb_connection</span></span>
-<span><span class="fu">dbCommit</span><span class="op">(</span><span class="va">conn</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/transactions.html" class="external-link">dbCommit</a></span><span class="op">(</span><span class="va">conn</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for duckdb_connection</span></span>
-<span><span class="fu">dbDataType</span><span class="op">(</span><span class="va">dbObj</span>, <span class="va">obj</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDataType.html" class="external-link">dbDataType</a></span><span class="op">(</span><span class="va">dbObj</span>, <span class="va">obj</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for duckdb_connection,character</span></span>
-<span><span class="fu">dbExistsTable</span><span class="op">(</span><span class="va">conn</span>, <span class="va">name</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbExistsTable.html" class="external-link">dbExistsTable</a></span><span class="op">(</span><span class="va">conn</span>, <span class="va">name</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for duckdb_connection</span></span>
-<span><span class="fu">dbGetInfo</span><span class="op">(</span><span class="va">dbObj</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbGetInfo.html" class="external-link">dbGetInfo</a></span><span class="op">(</span><span class="va">dbObj</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for duckdb_connection</span></span>
-<span><span class="fu">dbIsValid</span><span class="op">(</span><span class="va">dbObj</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbIsValid.html" class="external-link">dbIsValid</a></span><span class="op">(</span><span class="va">dbObj</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for duckdb_connection,character</span></span>
-<span><span class="fu">dbListFields</span><span class="op">(</span><span class="va">conn</span>, <span class="va">name</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbListFields.html" class="external-link">dbListFields</a></span><span class="op">(</span><span class="va">conn</span>, <span class="va">name</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for duckdb_connection</span></span>
-<span><span class="fu">dbListTables</span><span class="op">(</span><span class="va">conn</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbListTables.html" class="external-link">dbListTables</a></span><span class="op">(</span><span class="va">conn</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for duckdb_connection,ANY</span></span>
-<span><span class="fu">dbQuoteIdentifier</span><span class="op">(</span><span class="va">conn</span>, <span class="va">x</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbQuoteIdentifier.html" class="external-link">dbQuoteIdentifier</a></span><span class="op">(</span><span class="va">conn</span>, <span class="va">x</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for duckdb_connection</span></span>
-<span><span class="fu">dbQuoteLiteral</span><span class="op">(</span><span class="va">conn</span>, <span class="va">x</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbQuoteLiteral.html" class="external-link">dbQuoteLiteral</a></span><span class="op">(</span><span class="va">conn</span>, <span class="va">x</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for duckdb_connection,character</span></span>
-<span><span class="fu">dbRemoveTable</span><span class="op">(</span><span class="va">conn</span>, <span class="va">name</span>, <span class="va">...</span>, fail_if_missing <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbRemoveTable.html" class="external-link">dbRemoveTable</a></span><span class="op">(</span><span class="va">conn</span>, <span class="va">name</span>, <span class="va">...</span>, fail_if_missing <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for duckdb_connection</span></span>
-<span><span class="fu">dbRollback</span><span class="op">(</span><span class="va">conn</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/transactions.html" class="external-link">dbRollback</a></span><span class="op">(</span><span class="va">conn</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for duckdb_connection,character</span></span>
-<span><span class="fu">dbSendQuery</span><span class="op">(</span><span class="va">conn</span>, <span class="va">statement</span>, params <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span>, arrow <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbSendQuery.html" class="external-link">dbSendQuery</a></span><span class="op">(</span><span class="va">conn</span>, <span class="va">statement</span>, params <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span>, arrow <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for duckdb_connection,character,data.frame</span></span>
-<span><span class="fu">dbWriteTable</span><span class="op">(</span></span>
+<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbWriteTable.html" class="external-link">dbWriteTable</a></span><span class="op">(</span></span>
 <span>  <span class="va">conn</span>,</span>
 <span>  <span class="va">name</span>,</span>
 <span>  <span class="va">value</span>,</span>
@@ -112,7 +112,7 @@
     <div id="arguments">
     <h2>Arguments</h2>
     <dl><dt>conn</dt>
-<dd><p>A DBIConnection object, as returned by
+<dd><p>A <a href="https://dbi.r-dbi.org/reference/DBIConnection-class.html" class="external-link">DBIConnection</a> object, as returned by
 <code><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">dbConnect()</a></code>.</p></dd>
 
 
@@ -140,8 +140,8 @@ with those in the target table in the database.</p></dd>
 
 
 <dt>dbObj</dt>
-<dd><p>A object inheriting from DBIDriver
-or DBIConnection</p></dd>
+<dd><p>A object inheriting from <a href="https://dbi.r-dbi.org/reference/DBIDriver-class.html" class="external-link">DBIDriver</a>
+or <a href="https://dbi.r-dbi.org/reference/DBIConnection-class.html" class="external-link">DBIConnection</a></p></dd>
 
 
 <dt>obj</dt>
