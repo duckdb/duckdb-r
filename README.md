@@ -47,12 +47,11 @@ information about extensions
 ```sh
 cd duckdb/
 EXTENSION_STATIC_BUILD=1 make
-mv {{untouched_path}}/httpfs-extension.duckdb_extension
 ```
 Then in R
 ```r
-library(“duckdb”)
-con <- DBI::dbConnect(duckdb(config=list(“allow_unsigned_extensions”=“true”)))
-dbExecute(con, “LOAD {{path_to_duckdb}}/build/release/extension/httpfs/httpfs.duckdb_extension")
+library(duckdb)
+con <- DBI::dbConnect(duckdb(config=list('allow_unsigned_extensions'='true')))
+dbExecute(con, "LOAD '{{path_to_duckdb}}/build/release/extension/httpfs/httpfs.duckdb_extension'")
 ```
 
