@@ -32,6 +32,8 @@
 
 #include "src/function/table/system/pragma_database_size.cpp"
 
+#include "src/function/table/system/pragma_metadata_info.cpp"
+
 #include "src/function/table/system/pragma_storage_info.cpp"
 
 #include "src/function/table/system/pragma_table_info.cpp"
