@@ -26,3 +26,4 @@ RELEASE.md
 ^Makefile$
 ^\.clang-format$
 ^\.ccache$
+^revdep$
