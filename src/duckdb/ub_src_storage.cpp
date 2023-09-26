@@ -6,6 +6,8 @@
 
 #include "src/storage/block.cpp"
 
+#include "src/storage/data_pointer.cpp"
+
 #include "src/storage/data_table.cpp"
 
 #include "src/storage/index.cpp"
