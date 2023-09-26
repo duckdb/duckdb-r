@@ -1,6 +1,8 @@
 library(duckdb)
 
 test_that("Invalid unicode produces an error", {
+  # this doesn't throw an error on previous versions of R
+  skip_if_no_R4()
   con <- DBI::dbConnect(duckdb::duckdb())
 
   my_df <- structure(list(no_municipio_esc = "Est\xe2ncia", no_municipio_prova = "Est\xe2ncia"), row.names = 16L, class = "data.frame")
