@@ -5,7 +5,11 @@ set -x
 
 cd `dirname $0`
 
-duckdir=../duckdb-main
+if [ -z "$1" ]; then
+  duckdir=../duckdb
+else
+  duckdir=../$1
+fi
 
 if [ -n "$(git status --porcelain)" ]; then
   echo "Error: working directory not clean"
@@ -23,5 +27,6 @@ echo "Importing commit $commit"
 echo "R: configure"
 python3 rconfigure.py
 
+git checkout vendor.sh
 git add .
 git commit -m "Update vendored sources to duckdb/duckdb@$commit"
