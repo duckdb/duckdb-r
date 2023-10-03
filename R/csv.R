@@ -18,6 +18,7 @@
 #' @return The number of rows in the resulted table, invisibly.
 #' @export
 #' @examples
+#' library(DBI)
 #' con <- dbConnect(duckdb())
 #'
 #' data <- data.frame(a = 1:3, b = letters[1:3])

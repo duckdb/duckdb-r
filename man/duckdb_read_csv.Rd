@@ -55,6 +55,7 @@ Directly reads a CSV file into DuckDB, tries to detect and create the correct sc
 This usually is much faster than reading the data into R and writing it to DuckDB.
 }
 \examples{
+library(DBI)
 con <- dbConnect(duckdb())
 
 data <- data.frame(a = 1:3, b = letters[1:3])
