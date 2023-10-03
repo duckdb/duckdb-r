@@ -26,6 +26,7 @@
 #'
 #' @rdname duckdb
 #' @examples
+#' library(DBI)
 #' drv <- duckdb()
 #' con <- dbConnect(drv)
 #'

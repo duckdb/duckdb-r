@@ -99,6 +99,7 @@ with_adbc(db <- adbc_database_init(duckdb_adbc()), {
   as.data.frame(read_adbc(db, "SELECT 1 as one;"))
 })
 \dontshow{\}) # examplesIf}
+library(DBI)
 drv <- duckdb()
 con <- dbConnect(drv)
 
