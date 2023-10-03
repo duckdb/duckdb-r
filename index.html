@@ -114,14 +114,15 @@
 <div class="section level3">
 <h3 id="developing-with-extensions">Developing with Extensions<a class="anchor" aria-label="anchor" href="#developing-with-extensions"></a>
 </h3>
-<p>If you wish to build or add extensions to the R package you first need to build duckdb with the <code>extension_static_build</code> flag. The following commands allow you to add the httpfs extension to a duckdb R build. See the <a href="https://github.com/duckdb/duckdb/tree/master/extension#readme" class="external-link">extension ReadMe</a> for more information about extensions</p>
+<p>If you wish to build or add extensions to the R package you first need to build duckdb with the <code>extension_static_build</code> flag. The following commands allow you to add the <a href="https://duckdb.org/docs/extensions/httpfs" class="external-link"><code>httpfs</code> extension</a> to a DuckDB R build. See the <a href="https://github.com/duckdb/duckdb/tree/master/extension#readme" class="external-link">extension ReadMe</a> for more information about extensions</p>
 <div class="sourceCode" id="cb7"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> duckdb/</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="va">EXTENSION_STATIC_BUILD</span><span class="op">=</span>1 <span class="fu">make</span></span></code></pre></div>
-<p>Then in R</p>
+<p>Then in R, run:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://duckdb.org/" class="external-link">duckdb</a></span><span class="op">)</span></span>
 <span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">dbConnect</a></span><span class="op">(</span><span class="fu"><a href="reference/duckdb.html">duckdb</a></span><span class="op">(</span>config<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">'allow_unsigned_extensions'</span><span class="op">=</span><span class="st">'true'</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbExecute.html" class="external-link">dbExecute</a></span><span class="op">(</span><span class="va">con</span>, <span class="st">"LOAD '{{path_to_duckdb}}/build/release/extension/httpfs/httpfs.duckdb_extension'"</span><span class="op">)</span></span></code></pre></div>
+<p>For more information about using extensions, see the <a href="https://duckdb.org/docs/extensions/overview" class="external-link">documentation on extensions</a>. For instructions on building them, see <a href="https://github.com/duckdb/duckdb/tree/main/extension#readme" class="external-link">extension README</a>.</p>
 </div>
 </div>
 </div>

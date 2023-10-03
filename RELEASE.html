@@ -60,7 +60,7 @@
 <div class="section level2">
 <h2 id="source-package">Source Package<a class="anchor" aria-label="anchor" href="#source-package"></a></h2>
 <p>The R package does not automatically pick up the DuckDB version from the git tag. Make sure the file <code>DESCRIPTION</code> in the master branch has the <code>Version</code> entry that <em>you want to create</em>.</p>
-<p>It’s important that package builds are created from the main branch of the duckdb/duckdb repo (not of a fork) because otherwise the git revision ids used to install extensions are wrong.</p>
+<p>It’s important that package builds are created from the <code>main</code> branch of the <a href="https://github.com/duckdb/duckdb" class="external-link">duckdb/duckdb repository</a> (not of a fork) because otherwise the git revision ids used to install extensions are wrong.</p>
 <p>You can get the R source tarball either from the build artifacts (r-package-source) or from a GitHub release after CI finishes (<code>duckdb_[version].tar.gz</code>).</p>
 <p>Next check the package using WinBuilder, upload the source tarball at <a href="https://win-builder.r-project.org/upload.aspx" class="external-link uri">https://win-builder.r-project.org/upload.aspx</a>, using R-devel. You will get an email at some point. Again, warnings/notes besides the ones mentioned are bad.</p>
 </div>
