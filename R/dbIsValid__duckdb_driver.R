@@ -1,6 +1,5 @@
 #' @rdname duckdb_driver-class
 #' @inheritParams DBI::dbIsValid
-#' @importFrom DBI dbConnect
 #' @usage NULL
 dbIsValid__duckdb_driver <- function(dbObj, ...) {
   valid <- FALSE
