@@ -30,7 +30,7 @@
 
 # duckdb 0.8.0
 
-- See blog post at <https://duckdb.org/2023/05/16/announcing-duckdb-080.html>.
+- See blog post at <https://duckdb.org/2023/05/17/announcing-duckdb-080.html>.
 
 # duckdb 0.7.1-1
 
