@@ -28,3 +28,4 @@ RELEASE.md
 ^\.ccache$
 ^revdep$
 ^\.git$
+^cran-comments\.md$
