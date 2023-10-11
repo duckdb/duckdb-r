@@ -4,6 +4,8 @@
 
 - See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.9.1>.
 
+- Move sources to <https://github.com/duckdb/duckdb-r> (@krlmlr).
+
 - Add ADBC integration with the adbcdrivermanager package (duckdb/duckdb#8172, @paleolimbot).
 
 - Full support of lists and structs in R (duckdb/duckdb#8503, @krlmlr).
