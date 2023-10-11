@@ -1,6 +1,7 @@
 skip_on_cran()
 skip_on_os("windows")
 skip_if_not_installed("arrow", "5.0.0")
+skip_if_not_installed("dplyr")
 
 library("testthat")
 library("DBI")
