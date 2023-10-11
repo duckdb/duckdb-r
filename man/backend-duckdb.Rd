@@ -18,6 +18,7 @@ possibilities. This mainly follows the backend for PostgreSQL, but
 contains more mapped functions.
 }
 \examples{
+\dontshow{if (rlang::is_installed("dbplyr")) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
 library(dplyr, warn.conflicts = FALSE)
 con <- DBI::dbConnect(duckdb(), path = ":memory:")
 
@@ -29,4 +30,5 @@ dbiris \%>\%
   head(5)
 
 DBI::dbDisconnect(con, shutdown = TRUE)
+\dontshow{\}) # examplesIf}
 }
