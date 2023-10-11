@@ -12,7 +12,7 @@ expr_reference <- function(names, table = NULL) {
   if (inherits(table, "duckdb_relation")) {
     names <- c(rel_alias(table), names)
   }
-  if (is.character(table)) {
+  if (is.character(table) && !identical(table, "")) {
     names <- c(table, names)
   }
    rapi_expr_reference(names)
