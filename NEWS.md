@@ -1,3 +1,55 @@
+# duckdb 0.9.1
+
+- See blog post at <https://duckdb.org/2023/09/26/announcing-duckdb-090.html>.
+
+- See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.9.1>.
+
+- Add ADBC integration with the adbcdrivermanager package (duckdb/duckdb#8172, @paleolimbot).
+
+- Full support of lists and structs in R (duckdb/duckdb#8503, @krlmlr).
+
+# duckdb 0.8.1-3
+
+- Internal changes to support the duckplyr package.
+
+# duckdb 0.8.1-2
+
+- Compatibility with dbplyr.
+
+- Internal changes to support the duckplyr package.
+
+# duckdb 0.8.1-1
+
+- Fix CRAN checks.
+
+# duckdb 0.8.1
+
+- See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.8.1>.
+
+# duckdb 0.8.0
+
+- See blog post at <https://duckdb.org/2023/05/16/announcing-duckdb-080.html>.
+
+# duckdb 0.7.1-1
+
+- See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.7.1>.
+
+# duckdb 0.7.0
+
+- See blog post at <https://duckdb.org/2023/02/13/announcing-duckdb-070.html>.
+
+# duckdb 0.6.2
+
+- See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.6.2>.
+
+# duckdb 0.6.1
+
+- See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.6.1>.
+
+# duckdb 0.6.0
+
+- See blog post at <https://duckdb.org/2022/11/14/announcing-duckdb-060.html>.
+
 # duckdb 0.2.8
 
 This preview release of DuckDB is named "Ceruttii" after a [long-extinct relative of the present-day Harleqin Duck](https://en.wikipedia.org/wiki/Harlequin_duck#Taxonomy) (Histrionicus Ceruttii).
