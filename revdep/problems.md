@@ -117,7 +117,7 @@ Run `revdepcheck::cloud_details(, "duckplyr")` for more info
       🦆: 339
       add_count, anti_join, arrange, compute, count, cross_join, distinct, do, eval, filter, full_join, inner_join, intersect, left_join, mutate, mutate.data.frame, nest_join, pull, reframe, relocate, rename, rename_with, right_join, rows_append, rows_delete, rows_insert, rows_patch, rows_update, rows_upsert, select, semi_join, setdiff, setequal, slice, slice_head, slice_tail, summarise, symdiff, transmute, ungroup, union_all
       
-      00:00:49.658042
+      00:01:07.169919
       Execution halted
     ```
 
@@ -150,11 +150,11 @@ Run `revdepcheck::cloud_details(, "mlr3db")` for more info
       Loading required package: mlr3
       Loading required package: RSQLite
     ...
-      [20] 0.3                | 0.3                  [20]          
-       ... ...                  ...                  and 1 more ...
+       `actual$..row_id[1:114]`: 1 6 10 12 15 16 17 18 23 27 and 104 more...
+      `expected$..row_id[1:72]`: 2 8  9 14 20 22 26 28 47 49             ...
       
-      `actual$Species`:   "setosa" "virginica"  "versicolor"
-      `expected$Species`: "setosa" "versicolor" "virginica" 
+        `actual$..row_id[148:150]`: 143 147 148                    and 35 more...
+      `expected$..row_id[106:150]`: 143 147 148 1 6 10 12 15 16 17            ...
       
       [ FAIL 1 | WARN 0 | SKIP 0 | PASS 1416 ]
       Error: Test failures
@@ -191,6 +191,8 @@ Run `revdepcheck::cloud_details(, "restez")` for more info
       ... Creating 'test_db_fldr/restez'
       ... Creating 'test_db_fldr/restez/downloads'
     ...
+      ── Failure ('test-status-tools.R:16:3'): restez_status() works ─────────────────
+      as.character(status_obj$Database$`Total size`) not equal to "1.01M".
       1/1 mismatches
       x[1]: "780K"
       y[1]: "1.01M"
@@ -199,7 +201,5 @@ Run `revdepcheck::cloud_details(, "restez")` for more info
       Error: Test failures
       In addition: There were 50 or more warnings (use warnings() to see the first 50)
       Execution halted
-      Warning message:
-      Database is garbage-collected, use dbDisconnect(con, shutdown=TRUE) or duckdb::duckdb_shutdown(drv) to avoid this. 
     ```
 
