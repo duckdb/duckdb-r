@@ -251,6 +251,7 @@ test_that("to_duckdb with a table", {
         int_mean = mean(int, na.rm = TRUE),
         dbl_mean = mean(dbl, na.rm = TRUE)
       ) %>%
+      arrange(dbl_mean) %>%
       collect(),
     dplyr::tibble(
       "int > 4" = c(FALSE, NA, TRUE),
