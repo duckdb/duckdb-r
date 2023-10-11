@@ -42,7 +42,7 @@
 
 # duckdb 0.6.2
 
-- See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.6.2>.
+- New `duckdb_prepare_substrait_json()`.
 
 # duckdb 0.6.1
 
@@ -51,6 +51,44 @@
 # duckdb 0.6.0
 
 - See blog post at <https://duckdb.org/2022/11/14/announcing-duckdb-060.html>.
+
+# duckdb 0.5.1
+
+- See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.5.1>.
+
+# duckdb 0.5.0
+
+- See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.5.0>.
+
+# duckdb 0.4.0
+
+- See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.4.0>.
+
+# duckdb 0.3.4-1
+
+- Minor changes for CRAN compatibility.
+
+# duckdb 0.3.4
+
+- See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.3.4>.
+
+# duckdb 0.3.3
+
+- See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.3.3>.
+
+# duckdb 0.3.2
+
+- See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.3.2>.
+
+# duckdb 0.3.1
+
+- See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.3.1>.
+
+# duckdb 0.3.0
+
+- See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.3.0>.
+
+- See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.2.9>.
 
 # duckdb 0.2.8
 
