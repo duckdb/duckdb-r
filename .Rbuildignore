@@ -27,3 +27,4 @@ RELEASE.md
 ^\.clang-format$
 ^\.ccache$
 ^revdep$
+^\.git$
