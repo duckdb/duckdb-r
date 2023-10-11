@@ -1,5 +1,7 @@
 skip_on_cran()
-`%>%` <- dplyr::`%>%`
+if (rlang::is_installed("dplyr")) {
+  `%>%` <- dplyr::`%>%`
+}
 
 test_that("Parquet files can be registered with dplyr::tbl()", {
   skip_if_not_installed("dplyr")
@@ -82,4 +84,4 @@ test_that("Strings tagged as SQL will be handled correctly with dplyr::tbl()", {
   expect_true(rs %>% dplyr::collect() == 1)
 })
 
-rm(`%>%`)
+try(rm(`%>%`))
