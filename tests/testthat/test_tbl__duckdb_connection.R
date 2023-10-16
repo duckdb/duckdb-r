@@ -1,7 +1,11 @@
 skip_on_cran()
-`%>%` <- dplyr::`%>%`
+if (rlang::is_installed("dbplyr")) {
+  `%>%` <- dplyr::`%>%`
+}
 
 test_that("Parquet files can be registered with dplyr::tbl()", {
+  skip_if_not_installed("dbplyr")
+
   con <- DBI::dbConnect(duckdb())
   on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
 
@@ -24,6 +28,8 @@ test_that("Parquet files can be registered with dplyr::tbl()", {
 
 
 test_that("Object cache can be enabled for parquet files with dplyr::tbl()", {
+  skip_if_not_installed("dbplyr")
+
   con <- DBI::dbConnect(duckdb())
   on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
 
@@ -38,6 +44,8 @@ test_that("Object cache can be enabled for parquet files with dplyr::tbl()", {
 
 
 test_that("CSV files can be registered with dplyr::tbl()", {
+  skip_if_not_installed("dbplyr")
+
   path <- file.path(tempdir(), "duckdbtest.csv")
   write.csv(iris, file = path)
   on.exit(unlink(path))
@@ -55,6 +63,8 @@ test_that("CSV files can be registered with dplyr::tbl()", {
 })
 
 test_that("Other replacement scans or functions can be registered with dplyr::tbl()", {
+  skip_if_not_installed("dbplyr")
+
   con <- DBI::dbConnect(duckdb())
   on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
 
@@ -64,12 +74,14 @@ test_that("Other replacement scans or functions can be registered with dplyr::tb
 })
 
 test_that("Strings tagged as SQL will be handled correctly with dplyr::tbl()", {
+  skip_if_not_installed("dbplyr")
+
   con <- DBI::dbConnect(duckdb())
   on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
-  
+
   rs <- dplyr::tbl(con, dplyr::sql("SELECT 1"))
   expect_true(inherits(rs, "tbl_duckdb_connection"))
   expect_true(rs %>% dplyr::collect() == 1)
 })
 
-rm(`%>%`)
+try(rm(`%>%`))
