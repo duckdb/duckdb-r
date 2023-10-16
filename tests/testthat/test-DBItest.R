@@ -1,6 +1,6 @@
 skip_on_cran()
 
-DBItest::test_all(c(
+if (rlang::is_installed("DBItest")) DBItest::test_all(c(
   "package_name", # wontfix
   "package_dependencies", # wontfix
   "reexport", # wontfix
