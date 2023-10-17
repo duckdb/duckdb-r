@@ -6,7 +6,7 @@ using namespace duckdb;
 
 typedef uint8_t AdbcStatusCode;
 struct AdbcError;
-extern "C" AdbcStatusCode duckdb_adbc_init(int version, void *raw_driver, struct AdbcError *error);
+extern "C" AdbcStatusCode duckdb_adbc_init(size_t version, void *raw_driver, struct AdbcError *error);
 
 [[cpp11::register]] SEXP rapi_adbc_init_func() {
 	return R_MakeExternalPtrFn((DL_FUNC)duckdb_adbc_init, R_NilValue, R_NilValue);
