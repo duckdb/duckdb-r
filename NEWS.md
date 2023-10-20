@@ -1,3 +1,8 @@
+# duckdb 0.9.1-1
+
+- Fix LTO checks on CRAN.
+
+
 # duckdb 0.9.1
 
 - See blog post at <https://duckdb.org/2023/09/26/announcing-duckdb-090.html>.
