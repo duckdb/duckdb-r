@@ -29,6 +29,8 @@ test_that("Parquet files can be registered with dplyr::tbl()", {
 
 test_that("Object cache can be enabled for parquet files with dplyr::tbl()", {
   skip_if_not_installed("dbplyr")
+  # https://github.com/tidyverse/dbplyr/issues/1384
+  skip_if(packageVersion("dbplyr") >= "2.4.0")
 
   con <- DBI::dbConnect(duckdb())
   on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
