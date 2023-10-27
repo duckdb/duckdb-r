@@ -29,3 +29,4 @@ RELEASE.md
 ^revdep$
 ^\.git$
 ^cran-comments\.md$
+^CRAN-SUBMISSION$
