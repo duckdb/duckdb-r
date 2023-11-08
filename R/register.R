@@ -32,6 +32,7 @@ encode_values <- function(value) {
 #' @return These functions are called for their side effect.
 #' @export
 #' @examples
+#' library(DBI)
 #' con <- dbConnect(duckdb())
 #'
 #' data <- data.frame(a = 1:3, b = letters[1:3])

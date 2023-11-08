@@ -32,6 +32,7 @@ No data is copied.
 \code{duckdb_unregister()} unregisters a previously registered data frame.
 }
 \examples{
+library(DBI)
 con <- dbConnect(duckdb())
 
 data <- data.frame(a = 1:3, b = letters[1:3])

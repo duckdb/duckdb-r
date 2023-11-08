@@ -43,11 +43,10 @@ License: MIT + file LICENSE
 URL: https://duckdb.org/, https://github.com/duckdb/duckdb-r
 BugReports: https://github.com/duckdb/duckdb-r/issues
 Depends:
-    DBI,
     R (>= 3.6.0)
 Imports:
     methods,
-    utils
+    DBI
 Suggests:
     arrow (>= 13.0.0),
     bit64,
