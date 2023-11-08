@@ -114,7 +114,7 @@ test_that("duckdb_read_csv() works as expected", {
   na_strings <- data.frame(num=c(0.5, 2, NA), char=c('yes', 'no', NA), logi=c(TRUE, FALSE, NA), lisst=c(list(1), list(2, 3), NA))
   write.csv(na_strings, tf3, row.names = FALSE)
   duckdb_read_csv(con, "na_table", tf3, na.strings = "-")
-  identical(
+  expect_identical(
     dbReadTable(con, "na_table"),
     read.csv(tf3, na.strings = "-")
   )
