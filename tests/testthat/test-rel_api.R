@@ -7,10 +7,7 @@ test_that("relational anti_join(join_by(a)) order-preserving", {
   con <- dbConnect(duckdb())
   experimental <- FALSE
   invisible(
-    dbExecute(
-      con,
-      "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS ((x IS NULL AND y IS NULL) OR (x = y))"
-    )
+    dbExecute(con, "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS (x IS NOT DISTINCT FROM y)")
   )
   df1 <- data.frame(a = 1:4, b = rep(2, 4L))
 
@@ -80,10 +77,7 @@ test_that("relational anti_join(join_by(a)) order-enforcing", {
   con <- dbConnect(duckdb())
   experimental <- FALSE
   invisible(
-    dbExecute(
-      con,
-      "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS ((x IS NULL AND y IS NULL) OR (x = y))"
-    )
+    dbExecute(con, "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS (x IS NOT DISTINCT FROM y)")
   )
   df1 <- data.frame(a = 1:4, b = rep(2, 4L))
 
@@ -136,9 +130,54 @@ test_that("relational arrange(a) order-preserving", {
   df1 <- data.frame(a = seq(1, 6, by = 1), b = rep(2, 6L), g = c(1L, 2L, 2L, 3L, 3L, 3L))
 
   rel1 <- rel_from_df(con, df1, experimental = experimental)
-  rel2 <- rel_order(rel1, list(expr_reference("a")))
-  rel2
-  out <- rel_to_altrep(rel2)
+  rel2 <- rel_project(
+    rel1,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_window(expr_function("row_number", list()), list(), list(), offset_expr = NULL, default_expr = NULL)
+        expr_set_alias(tmp_expr, "___row_number")
+        tmp_expr
+      }
+    )
+  )
+  rel3 <- rel_order(rel2, list(expr_reference("a"), expr_reference("___row_number")))
+  rel4 <- rel_project(
+    rel3,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      }
+    )
+  )
+  rel4
+  out <- rel_to_altrep(rel4)
   expect_equal(
     out,
     data.frame(a = seq(1, 6, by = 1), b = rep(2, 6L), g = c(1L, 2L, 2L, 3L, 3L, 3L))
@@ -153,9 +192,54 @@ test_that("relational arrange(g) order-preserving", {
   df1 <- data.frame(a = seq(1, 6, by = 1), b = rep(2, 6L), g = c(1L, 2L, 2L, 3L, 3L, 3L))
 
   rel1 <- rel_from_df(con, df1, experimental = experimental)
-  rel2 <- rel_order(rel1, list(expr_reference("g")))
-  rel2
-  out <- rel_to_altrep(rel2)
+  rel2 <- rel_project(
+    rel1,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_window(expr_function("row_number", list()), list(), list(), offset_expr = NULL, default_expr = NULL)
+        expr_set_alias(tmp_expr, "___row_number")
+        tmp_expr
+      }
+    )
+  )
+  rel3 <- rel_order(rel2, list(expr_reference("g"), expr_reference("___row_number")))
+  rel4 <- rel_project(
+    rel3,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      }
+    )
+  )
+  rel4
+  out <- rel_to_altrep(rel4)
   expect_equal(
     out,
     data.frame(a = seq(1, 6, by = 1), b = rep(2, 6L), g = c(1L, 2L, 2L, 3L, 3L, 3L))
@@ -170,9 +254,57 @@ test_that("relational arrange(g, a) order-preserving", {
   df1 <- data.frame(a = seq(1, 6, by = 1), b = rep(2, 6L), g = c(1L, 2L, 2L, 3L, 3L, 3L))
 
   rel1 <- rel_from_df(con, df1, experimental = experimental)
-  rel2 <- rel_order(rel1, list(expr_reference("g"), expr_reference("a")))
-  rel2
-  out <- rel_to_altrep(rel2)
+  rel2 <- rel_project(
+    rel1,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_window(expr_function("row_number", list()), list(), list(), offset_expr = NULL, default_expr = NULL)
+        expr_set_alias(tmp_expr, "___row_number")
+        tmp_expr
+      }
+    )
+  )
+  rel3 <- rel_order(
+    rel2,
+    list(expr_reference("g"), expr_reference("a"), expr_reference("___row_number"))
+  )
+  rel4 <- rel_project(
+    rel3,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      }
+    )
+  )
+  rel4
+  out <- rel_to_altrep(rel4)
   expect_equal(
     out,
     data.frame(a = seq(1, 6, by = 1), b = rep(2, 6L), g = c(1L, 2L, 2L, 3L, 3L, 3L))
@@ -187,9 +319,57 @@ test_that("relational arrange(a, g) order-preserving", {
   df1 <- data.frame(a = seq(1, 6, by = 1), b = rep(2, 6L), g = c(1L, 2L, 2L, 3L, 3L, 3L))
 
   rel1 <- rel_from_df(con, df1, experimental = experimental)
-  rel2 <- rel_order(rel1, list(expr_reference("a"), expr_reference("g")))
-  rel2
-  out <- rel_to_altrep(rel2)
+  rel2 <- rel_project(
+    rel1,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_window(expr_function("row_number", list()), list(), list(), offset_expr = NULL, default_expr = NULL)
+        expr_set_alias(tmp_expr, "___row_number")
+        tmp_expr
+      }
+    )
+  )
+  rel3 <- rel_order(
+    rel2,
+    list(expr_reference("a"), expr_reference("g"), expr_reference("___row_number"))
+  )
+  rel4 <- rel_project(
+    rel3,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      }
+    )
+  )
+  rel4
+  out <- rel_to_altrep(rel4)
   expect_equal(
     out,
     data.frame(a = seq(1, 6, by = 1), b = rep(2, 6L), g = c(1L, 2L, 2L, 3L, 3L, 3L))
@@ -930,7 +1110,7 @@ test_that("relational distinct() order-preserving", {
               tmp_expr
             }
           ),
-          list(),
+          list(expr_reference("___row_number")),
           offset_expr = NULL,
           default_expr = NULL
         )
@@ -1037,7 +1217,7 @@ test_that("relational distinct(a) order-preserving", {
               tmp_expr
             }
           ),
-          list(),
+          list(expr_reference("___row_number")),
           offset_expr = NULL,
           default_expr = NULL
         )
@@ -1144,7 +1324,7 @@ test_that("relational distinct(a, b) order-preserving", {
               tmp_expr
             }
           ),
-          list(),
+          list(expr_reference("___row_number")),
           offset_expr = NULL,
           default_expr = NULL
         )
@@ -1246,7 +1426,7 @@ test_that("relational distinct(b, b) order-preserving", {
               tmp_expr
             }
           ),
-          list(),
+          list(expr_reference("___row_number")),
           offset_expr = NULL,
           default_expr = NULL
         )
@@ -1343,7 +1523,7 @@ test_that("relational distinct(g) order-preserving", {
               tmp_expr
             }
           ),
-          list(),
+          list(expr_reference("___row_number")),
           offset_expr = NULL,
           default_expr = NULL
         )
@@ -1389,8 +1569,6 @@ test_that("relational distinct(g) order-preserving", {
 })
 
 test_that("relational union_all(data.frame(a = 1L, b = 3, g = 2L)) %>% distinct(g) order-preserving", {
-  skip_if_not_installed("duckdb", "0.8.1-9000")
-
   # Autogenerated
   con <- dbConnect(duckdb())
   experimental <- FALSE
@@ -1538,7 +1716,7 @@ test_that("relational union_all(data.frame(a = 1L, b = 3, g = 2L)) %>% distinct(
               tmp_expr
             }
           ),
-          list(),
+          list(expr_reference("___row_number")),
           offset_expr = NULL,
           default_expr = NULL
         )
@@ -1584,8 +1762,6 @@ test_that("relational union_all(data.frame(a = 1L, b = 3, g = 2L)) %>% distinct(
 })
 
 test_that("relational union_all(data.frame(a = 1L, b = 4, g = 2L)) %>% distinct(g) order-preserving", {
-  skip_if_not_installed("duckdb", "0.8.1-9000")
-
   # Autogenerated
   con <- dbConnect(duckdb())
   experimental <- FALSE
@@ -1733,7 +1909,7 @@ test_that("relational union_all(data.frame(a = 1L, b = 4, g = 2L)) %>% distinct(
               tmp_expr
             }
           ),
-          list(),
+          list(expr_reference("___row_number")),
           offset_expr = NULL,
           default_expr = NULL
         )
@@ -1779,8 +1955,6 @@ test_that("relational union_all(data.frame(a = 1L, b = 4, g = 2L)) %>% distinct(
 })
 
 test_that("relational union_all(data.frame(a = 1L, b = 5, g = 2L)) %>% distinct(g) order-preserving", {
-  skip_if_not_installed("duckdb", "0.8.1-9000")
-
   # Autogenerated
   con <- dbConnect(duckdb())
   experimental <- FALSE
@@ -1928,7 +2102,7 @@ test_that("relational union_all(data.frame(a = 1L, b = 5, g = 2L)) %>% distinct(
               tmp_expr
             }
           ),
-          list(),
+          list(expr_reference("___row_number")),
           offset_expr = NULL,
           default_expr = NULL
         )
@@ -1974,8 +2148,6 @@ test_that("relational union_all(data.frame(a = 1L, b = 5, g = 2L)) %>% distinct(
 })
 
 test_that("relational union_all(data.frame(a = 1L, b = 6, g = 2L)) %>% distinct(g) order-preserving", {
-  skip_if_not_installed("duckdb", "0.8.1-9000")
-
   # Autogenerated
   con <- dbConnect(duckdb())
   experimental <- FALSE
@@ -2123,7 +2295,7 @@ test_that("relational union_all(data.frame(a = 1L, b = 6, g = 2L)) %>% distinct(
               tmp_expr
             }
           ),
-          list(),
+          list(expr_reference("___row_number")),
           offset_expr = NULL,
           default_expr = NULL
         )
@@ -2169,8 +2341,6 @@ test_that("relational union_all(data.frame(a = 1L, b = 6, g = 2L)) %>% distinct(
 })
 
 test_that("relational union_all(data.frame(a = 1L, b = 7, g = 2L)) %>% distinct(g) order-preserving", {
-  skip_if_not_installed("duckdb", "0.8.1-9000")
-
   # Autogenerated
   con <- dbConnect(duckdb())
   experimental <- FALSE
@@ -2318,7 +2488,7 @@ test_that("relational union_all(data.frame(a = 1L, b = 7, g = 2L)) %>% distinct(
               tmp_expr
             }
           ),
-          list(),
+          list(expr_reference("___row_number")),
           offset_expr = NULL,
           default_expr = NULL
         )
@@ -2425,7 +2595,7 @@ test_that("relational distinct(g, .keep_all = TRUE) order-preserving", {
               tmp_expr
             }
           ),
-          list(),
+          list(expr_reference("___row_number")),
           offset_expr = NULL,
           default_expr = NULL
         )
@@ -2842,7 +3012,7 @@ test_that("relational distinct(g, .keep_all = TRUE) order-enforcing", {
               tmp_expr
             }
           ),
-          list(),
+          list(expr_reference("___row_number")),
           offset_expr = NULL,
           default_expr = NULL
         )
@@ -2911,8 +3081,33 @@ test_that("relational filter(a == 1) order-preserving", {
   df1 <- data.frame(a = seq(1, 6, by = 1), b = rep(2, 6L), g = c(1L, 2L, 2L, 3L, 3L, 3L))
 
   rel1 <- rel_from_df(con, df1, experimental = experimental)
-  rel2 <- rel_filter(
+  rel2 <- rel_project(
     rel1,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_window(expr_function("row_number", list()), list(), list(), offset_expr = NULL, default_expr = NULL)
+        expr_set_alias(tmp_expr, "___row_number")
+        tmp_expr
+      }
+    )
+  )
+  rel3 <- rel_filter(
+    rel2,
     list(
       expr_function(
         "==",
@@ -2927,8 +3122,29 @@ test_that("relational filter(a == 1) order-preserving", {
       )
     )
   )
-  rel2
-  out <- rel_to_altrep(rel2)
+  rel4 <- rel_order(rel3, list(expr_reference("___row_number")))
+  rel5 <- rel_project(
+    rel4,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      }
+    )
+  )
+  rel5
+  out <- rel_to_altrep(rel5)
   expect_equal(
     out,
     data.frame(a = 1, b = 2, g = 1L)
@@ -2945,8 +3161,33 @@ test_that("relational filter(a %in% 2:3, g == 2) order-preserving", {
   df1 <- data.frame(a = seq(1, 6, by = 1), b = rep(2, 6L), g = c(1L, 2L, 2L, 3L, 3L, 3L))
 
   rel1 <- rel_from_df(con, df1, experimental = experimental)
-  rel2 <- rel_filter(
+  rel2 <- rel_project(
     rel1,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_window(expr_function("row_number", list()), list(), list(), offset_expr = NULL, default_expr = NULL)
+        expr_set_alias(tmp_expr, "___row_number")
+        tmp_expr
+      }
+    )
+  )
+  rel3 <- rel_filter(
+    rel2,
     list(
       expr_function(
         "|",
@@ -2988,8 +3229,29 @@ test_that("relational filter(a %in% 2:3, g == 2) order-preserving", {
       )
     )
   )
-  rel2
-  out <- rel_to_altrep(rel2)
+  rel4 <- rel_order(rel3, list(expr_reference("___row_number")))
+  rel5 <- rel_project(
+    rel4,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      }
+    )
+  )
+  rel5
+  out <- rel_to_altrep(rel5)
   expect_equal(
     out,
     data.frame(a = c(2, 3), b = c(2, 2), g = c(2L, 2L))
@@ -3007,8 +3269,33 @@ test_that("relational filter(a %in% 2:3 & g == 2) order-preserving", {
   df1 <- data.frame(a = seq(1, 6, by = 1), b = rep(2, 6L), g = c(1L, 2L, 2L, 3L, 3L, 3L))
 
   rel1 <- rel_from_df(con, df1, experimental = experimental)
-  rel2 <- rel_filter(
+  rel2 <- rel_project(
     rel1,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_window(expr_function("row_number", list()), list(), list(), offset_expr = NULL, default_expr = NULL)
+        expr_set_alias(tmp_expr, "___row_number")
+        tmp_expr
+      }
+    )
+  )
+  rel3 <- rel_filter(
+    rel2,
     list(
       expr_function(
         "&",
@@ -3055,11 +3342,128 @@ test_that("relational filter(a %in% 2:3 & g == 2) order-preserving", {
       )
     )
   )
-  rel2
-  out <- rel_to_altrep(rel2)
+  rel4 <- rel_order(rel3, list(expr_reference("___row_number")))
+  rel5 <- rel_project(
+    rel4,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      }
+    )
+  )
+  rel5
+  out <- rel_to_altrep(rel5)
   expect_equal(
     out,
     data.frame(a = c(2, 3), b = c(2, 2), g = c(2L, 2L))
+  )
+  dbDisconnect(con, shutdown = TRUE)
+})
+
+test_that("relational filter(a != 2 | g != 2) order-preserving", {
+  # Autogenerated
+  con <- dbConnect(duckdb())
+  experimental <- FALSE
+  invisible(dbExecute(con, "CREATE MACRO \"|\"(x, y) AS (x OR y)"))
+  invisible(dbExecute(con, "CREATE MACRO \"!=\"(x, y) AS x <> y"))
+  df1 <- data.frame(a = seq(1, 6, by = 1), b = rep(2, 6L), g = c(1L, 2L, 2L, 3L, 3L, 3L))
+
+  rel1 <- rel_from_df(con, df1, experimental = experimental)
+  rel2 <- rel_project(
+    rel1,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_window(expr_function("row_number", list()), list(), list(), offset_expr = NULL, default_expr = NULL)
+        expr_set_alias(tmp_expr, "___row_number")
+        tmp_expr
+      }
+    )
+  )
+  rel3 <- rel_filter(
+    rel2,
+    list(
+      expr_function(
+        "|",
+        list(
+          expr_function(
+            "!=",
+            list(
+              expr_reference("a"),
+              if ("experimental" %in% names(formals(expr_constant))) {
+                expr_constant(2, experimental = experimental)
+              } else {
+                expr_constant(2)
+              }
+            )
+          ),
+          expr_function(
+            "!=",
+            list(
+              expr_reference("g"),
+              if ("experimental" %in% names(formals(expr_constant))) {
+                expr_constant(2, experimental = experimental)
+              } else {
+                expr_constant(2)
+              }
+            )
+          )
+        )
+      )
+    )
+  )
+  rel4 <- rel_order(rel3, list(expr_reference("___row_number")))
+  rel5 <- rel_project(
+    rel4,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      }
+    )
+  )
+  rel5
+  out <- rel_to_altrep(rel5)
+  expect_equal(
+    out,
+    data.frame(a = c(1, 3, 4, 5, 6), b = rep(2, 5L), g = c(1L, 2L, 3L, 3L, 3L))
   )
   dbDisconnect(con, shutdown = TRUE)
 })
@@ -3239,6 +3643,60 @@ test_that("relational filter(a %in% 2:3 & g == 2) order-enforcing", {
   dbDisconnect(con, shutdown = TRUE)
 })
 
+test_that("relational filter(a != 2 | g != 2) order-enforcing", {
+  # Autogenerated
+  con <- dbConnect(duckdb())
+  experimental <- FALSE
+  invisible(dbExecute(con, "CREATE MACRO \"|\"(x, y) AS (x OR y)"))
+  invisible(dbExecute(con, "CREATE MACRO \"!=\"(x, y) AS x <> y"))
+  df1 <- data.frame(a = seq(1, 6, by = 1), b = rep(2, 6L), g = c(1L, 2L, 2L, 3L, 3L, 3L))
+
+  rel1 <- rel_from_df(con, df1, experimental = experimental)
+  rel2 <- rel_filter(
+    rel1,
+    list(
+      expr_function(
+        "|",
+        list(
+          expr_function(
+            "!=",
+            list(
+              expr_reference("a"),
+              if ("experimental" %in% names(formals(expr_constant))) {
+                expr_constant(2, experimental = experimental)
+              } else {
+                expr_constant(2)
+              }
+            )
+          ),
+          expr_function(
+            "!=",
+            list(
+              expr_reference("g"),
+              if ("experimental" %in% names(formals(expr_constant))) {
+                expr_constant(2, experimental = experimental)
+              } else {
+                expr_constant(2)
+              }
+            )
+          )
+        )
+      )
+    )
+  )
+  rel3 <- rel_order(
+    rel2,
+    list(expr_reference("a"), expr_reference("b"), expr_reference("g"))
+  )
+  rel3
+  out <- rel_to_altrep(rel3)
+  expect_equal(
+    out,
+    data.frame(a = c(1, 3, 4, 5, 6), b = rep(2, 5L), g = c(1L, 2L, 3L, 3L, 3L))
+  )
+  dbDisconnect(con, shutdown = TRUE)
+})
+
 # full_join order-preserving -----------------------------------------------------------
 
 test_that("relational full_join(join_by(a)) order-preserving", {
@@ -3246,10 +3704,7 @@ test_that("relational full_join(join_by(a)) order-preserving", {
   con <- dbConnect(duckdb())
   experimental <- FALSE
   invisible(
-    dbExecute(
-      con,
-      "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS ((x IS NULL AND y IS NULL) OR (x = y))"
-    )
+    dbExecute(con, "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS (x IS NOT DISTINCT FROM y)")
   )
   invisible(dbExecute(con, "CREATE MACRO \"___coalesce\"(x, y) AS COALESCE(x, y)"))
   df1 <- data.frame(a = 1:4, b = rep(2, 4L))
@@ -3378,10 +3833,7 @@ test_that("relational full_join(join_by(a)) order-enforcing", {
   con <- dbConnect(duckdb())
   experimental <- FALSE
   invisible(
-    dbExecute(
-      con,
-      "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS ((x IS NULL AND y IS NULL) OR (x = y))"
-    )
+    dbExecute(con, "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS (x IS NOT DISTINCT FROM y)")
   )
   invisible(dbExecute(con, "CREATE MACRO \"___coalesce\"(x, y) AS COALESCE(x, y)"))
   df1 <- data.frame(a = 1:4, b = rep(2, 4L))
@@ -3470,10 +3922,7 @@ test_that("relational inner_join(join_by(a)) order-preserving", {
   con <- dbConnect(duckdb())
   experimental <- FALSE
   invisible(
-    dbExecute(
-      con,
-      "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS ((x IS NULL AND y IS NULL) OR (x = y))"
-    )
+    dbExecute(con, "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS (x IS NOT DISTINCT FROM y)")
   )
   invisible(dbExecute(con, "CREATE MACRO \"___coalesce\"(x, y) AS COALESCE(x, y)"))
   df1 <- data.frame(a = 1:4, b = rep(2, 4L))
@@ -3602,10 +4051,7 @@ test_that("relational inner_join(join_by(a)) order-enforcing", {
   con <- dbConnect(duckdb())
   experimental <- FALSE
   invisible(
-    dbExecute(
-      con,
-      "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS ((x IS NULL AND y IS NULL) OR (x = y))"
-    )
+    dbExecute(con, "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS (x IS NOT DISTINCT FROM y)")
   )
   invisible(dbExecute(con, "CREATE MACRO \"___coalesce\"(x, y) AS COALESCE(x, y)"))
   df1 <- data.frame(a = 1:4, b = rep(2, 4L))
@@ -3694,10 +4140,7 @@ test_that("relational intersect() order-preserving", {
   con <- dbConnect(duckdb())
   experimental <- FALSE
   invisible(
-    dbExecute(
-      con,
-      "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS ((x IS NULL AND y IS NULL) OR (x = y))"
-    )
+    dbExecute(con, "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS (x IS NOT DISTINCT FROM y)")
   )
   invisible(dbExecute(con, "CREATE MACRO \"==\"(x, y) AS x = y"))
   df1 <- data.frame(a = 1:4, b = rep(2, 4L))
@@ -3802,7 +4245,7 @@ test_that("relational intersect() order-preserving", {
               tmp_expr
             }
           ),
-          list(),
+          list(expr_reference("___row_number")),
           offset_expr = NULL,
           default_expr = NULL
         )
@@ -3882,10 +4325,7 @@ test_that("relational left_join(join_by(a)) order-preserving", {
   con <- dbConnect(duckdb())
   experimental <- FALSE
   invisible(
-    dbExecute(
-      con,
-      "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS ((x IS NULL AND y IS NULL) OR (x = y))"
-    )
+    dbExecute(con, "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS (x IS NOT DISTINCT FROM y)")
   )
   invisible(dbExecute(con, "CREATE MACRO \"___coalesce\"(x, y) AS COALESCE(x, y)"))
   df1 <- data.frame(a = 1:4, b = rep(2, 4L))
@@ -4014,10 +4454,7 @@ test_that("relational left_join(join_by(a)) order-enforcing", {
   con <- dbConnect(duckdb())
   experimental <- FALSE
   invisible(
-    dbExecute(
-      con,
-      "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS ((x IS NULL AND y IS NULL) OR (x = y))"
-    )
+    dbExecute(con, "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS (x IS NOT DISTINCT FROM y)")
   )
   invisible(dbExecute(con, "CREATE MACRO \"___coalesce\"(x, y) AS COALESCE(x, y)"))
   df1 <- data.frame(a = 1:4, b = rep(2, 4L))
@@ -7188,6 +7625,358 @@ test_that("relational mutate(c = 0, d = 0, e = c / d) order-preserving", {
   dbDisconnect(con, shutdown = TRUE)
 })
 
+test_that("relational mutate(c = 0, d = -1, e = log(c), f = log(d)) order-preserving", {
+  # Autogenerated
+  con <- dbConnect(duckdb())
+  experimental <- FALSE
+  invisible(
+    dbExecute(
+      con,
+      "CREATE MACRO \"log\"(x) AS CASE WHEN x < 0 THEN CAST('NaN' AS double) WHEN x = 0 THEN CAST('-Inf' AS double) ELSE ln(x) END"
+    )
+  )
+  df1 <- data.frame(a = seq(1, 6, by = 1), b = rep(2, 6L), g = c(1L, 2L, 2L, 3L, 3L, 3L))
+
+  rel1 <- rel_from_df(con, df1, experimental = experimental)
+  rel2 <- rel_project(
+    rel1,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- if ("experimental" %in% names(formals(expr_constant))) {
+          expr_constant(0, experimental = experimental)
+        } else {
+          expr_constant(0)
+        }
+        expr_set_alias(tmp_expr, "c")
+        tmp_expr
+      }
+    )
+  )
+  rel3 <- rel_project(
+    rel2,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("c")
+        expr_set_alias(tmp_expr, "c")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_function(
+          "-",
+          list(
+            if ("experimental" %in% names(formals(expr_constant))) {
+              expr_constant(1, experimental = experimental)
+            } else {
+              expr_constant(1)
+            }
+          )
+        )
+        expr_set_alias(tmp_expr, "d")
+        tmp_expr
+      }
+    )
+  )
+  rel4 <- rel_project(
+    rel3,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("c")
+        expr_set_alias(tmp_expr, "c")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("d")
+        expr_set_alias(tmp_expr, "d")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_function("log", list(expr_reference("c")))
+        expr_set_alias(tmp_expr, "e")
+        tmp_expr
+      }
+    )
+  )
+  rel5 <- rel_project(
+    rel4,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("c")
+        expr_set_alias(tmp_expr, "c")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("d")
+        expr_set_alias(tmp_expr, "d")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("e")
+        expr_set_alias(tmp_expr, "e")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_function("log", list(expr_reference("d")))
+        expr_set_alias(tmp_expr, "f")
+        tmp_expr
+      }
+    )
+  )
+  rel5
+  out <- rel_to_altrep(rel5)
+  expect_equal(
+    out,
+    data.frame(
+      a = seq(1, 6, by = 1),
+      b = rep(2, 6L),
+      g = c(1L, 2L, 2L, 3L, 3L, 3L),
+      c = numeric(6),
+      d = rep(-1, 6L),
+      e = rep(-Inf, 6L),
+      f = rep(NaN, 6L)
+    )
+  )
+  dbDisconnect(con, shutdown = TRUE)
+})
+
+test_that("relational mutate(c = 0, d = -1, e = log(c), f = log10(d)) order-preserving", {
+  # Autogenerated
+  con <- dbConnect(duckdb())
+  experimental <- FALSE
+  invisible(
+    dbExecute(
+      con,
+      "CREATE MACRO \"log\"(x) AS CASE WHEN x < 0 THEN CAST('NaN' AS double) WHEN x = 0 THEN CAST('-Inf' AS double) ELSE ln(x) END"
+    )
+  )
+  invisible(
+    dbExecute(
+      con,
+      "CREATE MACRO \"log10\"(x) AS CASE WHEN x < 0 THEN CAST('NaN' AS double) WHEN x = 0 THEN CAST('-Inf' AS double) ELSE log(x) END"
+    )
+  )
+  df1 <- data.frame(a = seq(1, 6, by = 1), b = rep(2, 6L), g = c(1L, 2L, 2L, 3L, 3L, 3L))
+
+  rel1 <- rel_from_df(con, df1, experimental = experimental)
+  rel2 <- rel_project(
+    rel1,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- if ("experimental" %in% names(formals(expr_constant))) {
+          expr_constant(0, experimental = experimental)
+        } else {
+          expr_constant(0)
+        }
+        expr_set_alias(tmp_expr, "c")
+        tmp_expr
+      }
+    )
+  )
+  rel3 <- rel_project(
+    rel2,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("c")
+        expr_set_alias(tmp_expr, "c")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_function(
+          "-",
+          list(
+            if ("experimental" %in% names(formals(expr_constant))) {
+              expr_constant(1, experimental = experimental)
+            } else {
+              expr_constant(1)
+            }
+          )
+        )
+        expr_set_alias(tmp_expr, "d")
+        tmp_expr
+      }
+    )
+  )
+  rel4 <- rel_project(
+    rel3,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("c")
+        expr_set_alias(tmp_expr, "c")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("d")
+        expr_set_alias(tmp_expr, "d")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_function("log", list(expr_reference("c")))
+        expr_set_alias(tmp_expr, "e")
+        tmp_expr
+      }
+    )
+  )
+  rel5 <- rel_project(
+    rel4,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("c")
+        expr_set_alias(tmp_expr, "c")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("d")
+        expr_set_alias(tmp_expr, "d")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("e")
+        expr_set_alias(tmp_expr, "e")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_function("log10", list(expr_reference("d")))
+        expr_set_alias(tmp_expr, "f")
+        tmp_expr
+      }
+    )
+  )
+  rel5
+  out <- rel_to_altrep(rel5)
+  expect_equal(
+    out,
+    data.frame(
+      a = seq(1, 6, by = 1),
+      b = rep(2, 6L),
+      g = c(1L, 2L, 2L, 3L, 3L, 3L),
+      c = numeric(6),
+      d = rep(-1, 6L),
+      e = rep(-Inf, 6L),
+      f = rep(NaN, 6L)
+    )
+  )
+  dbDisconnect(con, shutdown = TRUE)
+})
+
 # mutate order-enforcing ---------------------------------------------------------------
 
 test_that("relational mutate() order-enforcing", {
@@ -9481,6 +10270,366 @@ test_that("relational mutate(c = 0, d = 0, e = c / d) order-enforcing", {
   dbDisconnect(con, shutdown = TRUE)
 })
 
+test_that("relational mutate(c = 0, d = -1, e = log(c), f = log(d)) order-enforcing", {
+  # Autogenerated
+  con <- dbConnect(duckdb())
+  experimental <- FALSE
+  invisible(
+    dbExecute(
+      con,
+      "CREATE MACRO \"log\"(x) AS CASE WHEN x < 0 THEN CAST('NaN' AS double) WHEN x = 0 THEN CAST('-Inf' AS double) ELSE ln(x) END"
+    )
+  )
+  df1 <- data.frame(a = seq(1, 6, by = 1), b = rep(2, 6L), g = c(1L, 2L, 2L, 3L, 3L, 3L))
+
+  rel1 <- rel_from_df(con, df1, experimental = experimental)
+  rel2 <- rel_project(
+    rel1,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- if ("experimental" %in% names(formals(expr_constant))) {
+          expr_constant(0, experimental = experimental)
+        } else {
+          expr_constant(0)
+        }
+        expr_set_alias(tmp_expr, "c")
+        tmp_expr
+      }
+    )
+  )
+  rel3 <- rel_project(
+    rel2,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("c")
+        expr_set_alias(tmp_expr, "c")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_function(
+          "-",
+          list(
+            if ("experimental" %in% names(formals(expr_constant))) {
+              expr_constant(1, experimental = experimental)
+            } else {
+              expr_constant(1)
+            }
+          )
+        )
+        expr_set_alias(tmp_expr, "d")
+        tmp_expr
+      }
+    )
+  )
+  rel4 <- rel_project(
+    rel3,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("c")
+        expr_set_alias(tmp_expr, "c")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("d")
+        expr_set_alias(tmp_expr, "d")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_function("log", list(expr_reference("c")))
+        expr_set_alias(tmp_expr, "e")
+        tmp_expr
+      }
+    )
+  )
+  rel5 <- rel_project(
+    rel4,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("c")
+        expr_set_alias(tmp_expr, "c")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("d")
+        expr_set_alias(tmp_expr, "d")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("e")
+        expr_set_alias(tmp_expr, "e")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_function("log", list(expr_reference("d")))
+        expr_set_alias(tmp_expr, "f")
+        tmp_expr
+      }
+    )
+  )
+  rel6 <- rel_order(
+    rel5,
+    list(expr_reference("a"), expr_reference("b"), expr_reference("g"), expr_reference("c"), expr_reference("d"), expr_reference("e"), expr_reference("f"))
+  )
+  rel6
+  out <- rel_to_altrep(rel6)
+  expect_equal(
+    out,
+    data.frame(
+      a = seq(1, 6, by = 1),
+      b = rep(2, 6L),
+      g = c(1L, 2L, 2L, 3L, 3L, 3L),
+      c = numeric(6),
+      d = rep(-1, 6L),
+      e = rep(-Inf, 6L),
+      f = rep(NaN, 6L)
+    )
+  )
+  dbDisconnect(con, shutdown = TRUE)
+})
+
+test_that("relational mutate(c = 0, d = -1, e = log(c), f = log10(d)) order-enforcing", {
+  # Autogenerated
+  con <- dbConnect(duckdb())
+  experimental <- FALSE
+  invisible(
+    dbExecute(
+      con,
+      "CREATE MACRO \"log\"(x) AS CASE WHEN x < 0 THEN CAST('NaN' AS double) WHEN x = 0 THEN CAST('-Inf' AS double) ELSE ln(x) END"
+    )
+  )
+  invisible(
+    dbExecute(
+      con,
+      "CREATE MACRO \"log10\"(x) AS CASE WHEN x < 0 THEN CAST('NaN' AS double) WHEN x = 0 THEN CAST('-Inf' AS double) ELSE log(x) END"
+    )
+  )
+  df1 <- data.frame(a = seq(1, 6, by = 1), b = rep(2, 6L), g = c(1L, 2L, 2L, 3L, 3L, 3L))
+
+  rel1 <- rel_from_df(con, df1, experimental = experimental)
+  rel2 <- rel_project(
+    rel1,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- if ("experimental" %in% names(formals(expr_constant))) {
+          expr_constant(0, experimental = experimental)
+        } else {
+          expr_constant(0)
+        }
+        expr_set_alias(tmp_expr, "c")
+        tmp_expr
+      }
+    )
+  )
+  rel3 <- rel_project(
+    rel2,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("c")
+        expr_set_alias(tmp_expr, "c")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_function(
+          "-",
+          list(
+            if ("experimental" %in% names(formals(expr_constant))) {
+              expr_constant(1, experimental = experimental)
+            } else {
+              expr_constant(1)
+            }
+          )
+        )
+        expr_set_alias(tmp_expr, "d")
+        tmp_expr
+      }
+    )
+  )
+  rel4 <- rel_project(
+    rel3,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("c")
+        expr_set_alias(tmp_expr, "c")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("d")
+        expr_set_alias(tmp_expr, "d")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_function("log", list(expr_reference("c")))
+        expr_set_alias(tmp_expr, "e")
+        tmp_expr
+      }
+    )
+  )
+  rel5 <- rel_project(
+    rel4,
+    list(
+      {
+        tmp_expr <- expr_reference("a")
+        expr_set_alias(tmp_expr, "a")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("b")
+        expr_set_alias(tmp_expr, "b")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("c")
+        expr_set_alias(tmp_expr, "c")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("d")
+        expr_set_alias(tmp_expr, "d")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("e")
+        expr_set_alias(tmp_expr, "e")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_function("log10", list(expr_reference("d")))
+        expr_set_alias(tmp_expr, "f")
+        tmp_expr
+      }
+    )
+  )
+  rel6 <- rel_order(
+    rel5,
+    list(expr_reference("a"), expr_reference("b"), expr_reference("g"), expr_reference("c"), expr_reference("d"), expr_reference("e"), expr_reference("f"))
+  )
+  rel6
+  out <- rel_to_altrep(rel6)
+  expect_equal(
+    out,
+    data.frame(
+      a = seq(1, 6, by = 1),
+      b = rep(2, 6L),
+      g = c(1L, 2L, 2L, 3L, 3L, 3L),
+      c = numeric(6),
+      d = rep(-1, 6L),
+      e = rep(-Inf, 6L),
+      f = rep(NaN, 6L)
+    )
+  )
+  dbDisconnect(con, shutdown = TRUE)
+})
+
 # relocate order-preserving ------------------------------------------------------------
 
 test_that("relational relocate(g) order-preserving", {
@@ -9952,10 +11101,7 @@ test_that("relational right_join(join_by(a)) order-preserving", {
   con <- dbConnect(duckdb())
   experimental <- FALSE
   invisible(
-    dbExecute(
-      con,
-      "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS ((x IS NULL AND y IS NULL) OR (x = y))"
-    )
+    dbExecute(con, "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS (x IS NOT DISTINCT FROM y)")
   )
   df1 <- data.frame(a = 1:4, b = rep(2, 4L))
 
@@ -10083,10 +11229,7 @@ test_that("relational right_join(join_by(a)) order-enforcing", {
   con <- dbConnect(duckdb())
   experimental <- FALSE
   invisible(
-    dbExecute(
-      con,
-      "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS ((x IS NULL AND y IS NULL) OR (x = y))"
-    )
+    dbExecute(con, "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS (x IS NOT DISTINCT FROM y)")
   )
   df1 <- data.frame(a = 1:4, b = rep(2, 4L))
 
@@ -10370,10 +11513,7 @@ test_that("relational semi_join(join_by(a)) order-preserving", {
   con <- dbConnect(duckdb())
   experimental <- FALSE
   invisible(
-    dbExecute(
-      con,
-      "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS ((x IS NULL AND y IS NULL) OR (x = y))"
-    )
+    dbExecute(con, "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS (x IS NOT DISTINCT FROM y)")
   )
   df1 <- data.frame(a = 1:4, b = rep(2, 4L))
 
@@ -10443,10 +11583,7 @@ test_that("relational semi_join(join_by(a)) order-enforcing", {
   con <- dbConnect(duckdb())
   experimental <- FALSE
   invisible(
-    dbExecute(
-      con,
-      "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS ((x IS NULL AND y IS NULL) OR (x = y))"
-    )
+    dbExecute(con, "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS (x IS NOT DISTINCT FROM y)")
   )
   df1 <- data.frame(a = 1:4, b = rep(2, 4L))
 
@@ -10481,10 +11618,7 @@ test_that("relational setdiff() order-preserving", {
   con <- dbConnect(duckdb())
   experimental <- FALSE
   invisible(
-    dbExecute(
-      con,
-      "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS ((x IS NULL AND y IS NULL) OR (x = y))"
-    )
+    dbExecute(con, "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS (x IS NOT DISTINCT FROM y)")
   )
   invisible(dbExecute(con, "CREATE MACRO \"==\"(x, y) AS x = y"))
   df1 <- data.frame(a = 1:4, b = rep(2, 4L))
@@ -10589,7 +11723,7 @@ test_that("relational setdiff() order-preserving", {
               tmp_expr
             }
           ),
-          list(),
+          list(expr_reference("___row_number")),
           offset_expr = NULL,
           default_expr = NULL
         )
@@ -11106,10 +12240,7 @@ test_that("relational symdiff() order-preserving", {
   con <- dbConnect(duckdb())
   experimental <- FALSE
   invisible(
-    dbExecute(
-      con,
-      "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS ((x IS NULL AND y IS NULL) OR (x = y))"
-    )
+    dbExecute(con, "CREATE MACRO \"___eq_na_matches_na\"(x, y) AS (x IS NOT DISTINCT FROM y)")
   )
   invisible(dbExecute(con, "CREATE MACRO \"==\"(x, y) AS x = y"))
   df1 <- data.frame(a = 1:4, b = rep(2, 4L))
@@ -11295,7 +12426,7 @@ test_that("relational symdiff() order-preserving", {
               tmp_expr
             }
           ),
-          list(),
+          list(expr_reference("___row_number")),
           offset_expr = NULL,
           default_expr = NULL
         )
@@ -11701,7 +12832,7 @@ test_that("relational union() order-preserving", {
               tmp_expr
             }
           ),
-          list(),
+          list(expr_reference("___row_number")),
           offset_expr = NULL,
           default_expr = NULL
         )

@@ -7,7 +7,7 @@
 #'
 #' @name backend-duckdb
 #' @aliases NULL
-#' @examples
+#' @examplesIf rlang::is_installed("dbplyr")
 #' library(dplyr, warn.conflicts = FALSE)
 #' con <- DBI::dbConnect(duckdb(), path = ":memory:")
 #'
@@ -307,6 +307,7 @@ sql_translation.duckdb_connection <- function(con) {
     ),
     sql_translator(
       .parent = base_agg,
+      prod = sql_aggregate("PRODUCT"),
       cor = sql_aggregate_2("CORR"),
       cov = sql_aggregate_2("COVAR_SAMP"),
       sd = sql_aggregate("STDDEV", "sd"),
@@ -319,6 +320,7 @@ sql_translation.duckdb_connection <- function(con) {
     ),
     sql_translator(
       .parent = base_win,
+      prod = win_aggregate("PRODUCT"),
       cor = win_aggregate_2("CORR"),
       cov = win_aggregate_2("COVAR_SAMP"),
       sd = win_aggregate("STDDEV"),

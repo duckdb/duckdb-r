@@ -68,8 +68,6 @@ test_that("duckdb custom scalars translated correctly", {
   expect_equal(translate(as.POSIXct("2019-01-01 01:01:01")), sql(r"{CAST('2019-01-01 01:01:01' AS TIMESTAMP)}"))
 })
 
-
-
 test_that("pasting translated correctly", {
   skip_if_no_R4()
   skip_if_not_installed("dbplyr")
@@ -178,6 +176,36 @@ test_that("datetime escaping working as in DBI", {
   test_datetime_tz <- as.POSIXct("2020-01-01 18:23:45 UTC", tz = "America/Los_Angeles")
   expect_equal(escape(test_datetime_tz), sql(r"{'2020-01-02 02:23:45'::timestamp}"))
   expect_equal(escape("2020-01-01 18:23:45 PST"), sql(r"{'2020-01-01 18:23:45 PST'}"))
+})
+
+test_that("aggregators translated correctly", {
+  skip_if_no_R4()
+  skip_if_not_installed("dbplyr")
+  con <- dbConnect(duckdb())
+  on.exit(dbDisconnect(con, shutdown = TRUE))
+  translate <- function(...) dbplyr::translate_sql(..., con = con)
+  sql <- function(...) dbplyr::sql(...)
+
+  expect_equal(translate(sum(x), window = FALSE), sql(r"{SUM(x)}"))
+  expect_equal(translate(sum(x), window = TRUE), sql(r"{SUM(x) OVER ()}"))
+
+  expect_equal(translate(prod(x), window = FALSE), sql(r"{PRODUCT(x)}"))
+  expect_equal(translate(prod(x), window = TRUE), sql(r"{PRODUCT(x) OVER ()}"))
+
+  expect_equal(translate(sd(x), window = FALSE), sql(r"{STDDEV(x)}"))
+  expect_equal(translate(sd(x), window = TRUE), sql(r"{STDDEV(x) OVER ()}"))
+
+  expect_equal(translate(var(x), window = FALSE), sql(r"{VARIANCE(x)}"))
+  expect_equal(translate(var(x), window = TRUE), sql(r"{VARIANCE(x) OVER ()}"))
+
+  expect_equal(translate(all(x), window = FALSE), sql(r"{BOOL_AND(x)}"))
+  expect_equal(translate(all(x), window = TRUE), sql(r"{BOOL_AND(x) OVER ()}"))
+
+  expect_equal(translate(any(x), window = FALSE), sql(r"{BOOL_OR(x)}"))
+  expect_equal(translate(any(x), window = TRUE), sql(r"{BOOL_OR(x) OVER ()}"))
+
+  expect_equal(translate(str_flatten(x, ","), window = FALSE), sql(r"{STRING_AGG(x, ',')}"))
+  expect_equal(translate(str_flatten(x, ","), window = TRUE), sql(r"{STRING_AGG(x, ',') OVER ()}"))
 })
 
 test_that("two variable aggregates are translated correctly", {
