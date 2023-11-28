@@ -1,3 +1,8 @@
+# duckdb 0.9.2-1
+
+- Fix compiler warning on R-devel (#45).
+
+
 # duckdb 0.9.2
 
 - See release notes at <https://github.com/duckdb/duckdb/releases/tag/v0.9.2>.
