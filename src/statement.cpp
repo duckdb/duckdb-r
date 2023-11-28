@@ -357,3 +357,10 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 		return duckdb_execute_R_impl(result, integer64);
 	}
 }
+
+[[cpp11::register]] void rapi_rel_to_parquet(duckdb::rel_extptr_t rel, std::string file_name) {
+    if (file_name == "") {
+        cpp11::stop("to_parquet: please pass a file name")
+    }
+    rel->rel->WriteParquet(file_name);
+}
