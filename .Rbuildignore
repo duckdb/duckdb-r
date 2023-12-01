@@ -8,7 +8,6 @@ src/Makevars.in
 ^.*\.Rproj$
 ^\.Rproj\.user$
 ^_pkgdown\.yml$
-NEWS.md
 tests/regression
 RELEASE.md
 \.github
