@@ -196,6 +196,10 @@ rapi_execute <- function(stmt, arrow, integer64) {
   .Call(`_duckdb_rapi_execute`, stmt, arrow, integer64)
 }
 
+rapi_rel_to_parquet <- function(rel, file_name) {
+  invisible(.Call(`_duckdb_rapi_rel_to_parquet`, rel, file_name))
+}
+
 rapi_adbc_init_func <- function() {
   .Call(`_duckdb_rapi_adbc_init_func`)
 }
