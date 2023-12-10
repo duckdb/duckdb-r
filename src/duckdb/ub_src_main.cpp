@@ -10,6 +10,8 @@
 
 #include "src/main/client_verify.cpp"
 
+#include "src/main/connection_manager.cpp"
+
 #include "src/main/chunk_scan_state.cpp"
 
 #include "src/main/config.cpp"
