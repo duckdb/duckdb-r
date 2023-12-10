@@ -28,4 +28,4 @@ echo "R: configure"
 python3 rconfigure.py
 
 git add .
-git commit -m "Update vendored sources to duckdb/duckdb@$commit"
+git commit -m "chore: Update vendored sources to duckdb/duckdb@$commit"
