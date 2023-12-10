@@ -399,3 +399,5 @@ rel_from_table_function <- function(con, function_name, positional_parameters = 
     rapi_rel_from_table_function(con@conn_ref, function_name, positional_parameters, named_parameters)
 }
 
+rel_to_parquet <- rapi_rel_to_parquet
+

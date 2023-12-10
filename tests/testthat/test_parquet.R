@@ -11,3 +11,40 @@ test_that("parquet reader works with the binary as string flag", {
   expect_true(res[1] == "VARCHAR")
   dbDisconnect(con, shutdown = TRUE)
 })
+
+test_that("duckdb_write_parquet() works as expected", {
+  con <- dbConnect(duckdb())
+
+  tf <- tempfile()
+
+  # write to parquet
+  iris_rel <- rel_from_df(con, iris)
+  rel_to_parquet(iris_rel, tf)
+
+  res_rel <- rel_from_table_function(con, 'read_parquet', list(tf))
+  res_df <- rel_to_altrep(res_rel)
+  res_df$Species <- as.factor(res_df$Species)
+  expect_true(identical(res_df, iris))
+
+
+  # nulls
+  iris_na <- iris
+  iris_na[[2]][42] <- NA
+
+  iris_na_rel <- duckdb:::rel_from_df(con, iris_na)
+  duckdb:::rel_to_parquet(iris_na_rel, tf)
+
+  res_rel <- duckdb:::rel_from_table_function(con, 'read_parquet', list(tf))
+  res_df <- duckdb:::rel_to_altrep(res_rel)
+  res_df$Species <- as.factor(res_df$Species)
+  expect_true(identical(res_df, iris_na))
+})
+
+test_that("duckdb rel_to_parquet() throws error with no file name", {
+  con <- dbConnect(duckdb())
+
+  # write to parquet
+  iris_rel <- rel_from_df(con, iris)
+  expect_error(rel_to_parquet(iris_rel, ""))
+})
+

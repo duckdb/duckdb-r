@@ -329,7 +329,7 @@ static struct {
   void print() {
     static SEXP list_ = get_preserve_list();
     for (SEXP head = list_; head != R_NilValue; head = CDR(head)) {
-      REprintf("%x CAR: %x CDR: %x TAG: %x\n", head, CAR(head), CDR(head), TAG(head));
+      REprintf("%p CAR: %p CDR: %p TAG: %p\n", (void*)head, (void*)CAR(head), (void*)CDR(head), (void*)TAG(head));
     }
     REprintf("---\n");
   }

@@ -356,6 +356,14 @@ extern "C" SEXP _duckdb_rapi_execute(SEXP stmt, SEXP arrow, SEXP integer64) {
     return cpp11::as_sexp(rapi_execute(cpp11::as_cpp<cpp11::decay_t<duckdb::stmt_eptr_t>>(stmt), cpp11::as_cpp<cpp11::decay_t<bool>>(arrow), cpp11::as_cpp<cpp11::decay_t<bool>>(integer64)));
   END_CPP11
 }
+// statement.cpp
+void rapi_rel_to_parquet(duckdb::rel_extptr_t rel, std::string file_name);
+extern "C" SEXP _duckdb_rapi_rel_to_parquet(SEXP rel, SEXP file_name) {
+  BEGIN_CPP11
+    rapi_rel_to_parquet(cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rel), cpp11::as_cpp<cpp11::decay_t<std::string>>(file_name));
+    return R_NilValue;
+  END_CPP11
+}
 // utils.cpp
 SEXP rapi_adbc_init_func();
 extern "C" SEXP _duckdb_rapi_adbc_init_func() {
@@ -416,6 +424,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_rel_sql",                 (DL_FUNC) &_duckdb_rapi_rel_sql,                 2},
     {"_duckdb_rapi_rel_to_altrep",           (DL_FUNC) &_duckdb_rapi_rel_to_altrep,           1},
     {"_duckdb_rapi_rel_to_df",               (DL_FUNC) &_duckdb_rapi_rel_to_df,               1},
+    {"_duckdb_rapi_rel_to_parquet",          (DL_FUNC) &_duckdb_rapi_rel_to_parquet,          2},
     {"_duckdb_rapi_rel_to_sql",              (DL_FUNC) &_duckdb_rapi_rel_to_sql,              1},
     {"_duckdb_rapi_rel_tostring",            (DL_FUNC) &_duckdb_rapi_rel_tostring,            1},
     {"_duckdb_rapi_rel_union_all",           (DL_FUNC) &_duckdb_rapi_rel_union_all,           2},
