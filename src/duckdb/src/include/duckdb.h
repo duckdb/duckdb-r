@@ -953,7 +953,7 @@ Returns NULL if the index is out of range for the provided prepared statement.
 
 * prepared_statement: The prepared statement for which to get the parameter name from.
 */
-const char *duckdb_parameter_name(duckdb_prepared_statement prepared_statement, idx_t index);
+DUCKDB_API const char *duckdb_parameter_name(duckdb_prepared_statement prepared_statement, idx_t index);
 
 /*!
 Returns the parameter type for the parameter at the given index.
@@ -1383,6 +1383,17 @@ The resulting type should be destroyed with `duckdb_destroy_logical_type`.
 */
 DUCKDB_API duckdb_logical_type duckdb_create_struct_type(duckdb_logical_type *member_types, const char **member_names,
                                                          idx_t member_count);
+
+/*!
+Creates an ENUM type from the passed member name array.
+The resulting type should be destroyed with `duckdb_destroy_logical_type`.
+
+* enum_name: The name of the enum.
+* member_names: The array of names that the enum should consist of.
+* member_count: The number of elements that were specified in the array.
+* returns: The logical type.
+*/
+DUCKDB_API duckdb_logical_type duckdb_create_enum_type(const char **member_names, idx_t member_count);
 
 /*!
 Creates a `duckdb_logical_type` of type decimal with the specified width and scale
