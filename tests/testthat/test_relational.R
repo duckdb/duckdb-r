@@ -785,7 +785,7 @@ test_that("rel_to_sql works for row_number", {
 })
 
 test_that("rel_from_table_function works", {
-  rel <- rel_from_table_function(default_connection(), "generate_series", list(1L, 10L, 2L))
+  rel <- rel_from_table_function(con, "generate_series", list(1L, 10L, 2L))
   df <- as.data.frame(rel)
   expect_equal(df$generate_series, c(1, 3, 5, 7, 9))
 })
