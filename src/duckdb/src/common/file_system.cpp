@@ -344,7 +344,7 @@ bool FileSystem::FileExists(const string &filename) {
 }
 
 bool FileSystem::IsPipe(const string &filename) {
-	return false;
+	throw NotImplementedException("%s: IsPipe is not implemented!", GetName());
 }
 
 void FileSystem::RemoveFile(const string &filename) {
@@ -500,10 +500,6 @@ bool FileHandle::CanSeek() {
 	return file_system.CanSeek();
 }
 
-bool FileHandle::IsPipe() {
-	return file_system.IsPipe(path);
-}
-
 string FileHandle::ReadLine() {
 	string result;
 	char buffer[1];
@@ -539,7 +535,7 @@ FileType FileHandle::GetType() {
 }
 
 bool FileSystem::IsRemoteFile(const string &path) {
-	const string prefixes[] = {"http://", "https://", "s3://"};
+	const string prefixes[] = {"http://", "https://", "s3://", "gcs://", "r2://"};
 	for (auto &prefix : prefixes) {
 		if (StringUtil::StartsWith(path, prefix)) {
 			return true;

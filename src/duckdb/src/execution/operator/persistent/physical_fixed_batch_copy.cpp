@@ -450,10 +450,8 @@ void PhysicalFixedBatchCopy::ExecuteTasks(ClientContext &context, GlobalSinkStat
 //===--------------------------------------------------------------------===//
 // Next Batch
 //===--------------------------------------------------------------------===//
-SinkNextBatchType PhysicalFixedBatchCopy::NextBatch(ExecutionContext &context,
-                                                    OperatorSinkNextBatchInput &input) const {
-	auto &lstate = input.local_state;
-	auto &gstate_p = input.global_state;
+void PhysicalFixedBatchCopy::NextBatch(ExecutionContext &context, GlobalSinkState &gstate_p,
+                                       LocalSinkState &lstate) const {
 	auto &state = lstate.Cast<FixedBatchCopyLocalState>();
 	if (state.collection && state.collection->Count() > 0) {
 		// we finished processing this batch
@@ -470,7 +468,6 @@ SinkNextBatchType PhysicalFixedBatchCopy::NextBatch(ExecutionContext &context,
 	state.batch_index = lstate.partition_info.batch_index.GetIndex();
 
 	state.InitializeCollection(context.client, *this);
-	return SinkNextBatchType::READY;
 }
 
 unique_ptr<LocalSinkState> PhysicalFixedBatchCopy::GetLocalSinkState(ExecutionContext &context) const {

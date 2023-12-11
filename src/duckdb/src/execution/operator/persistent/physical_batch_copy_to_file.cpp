@@ -175,10 +175,8 @@ void PhysicalBatchCopyToFile::FlushBatchData(ClientContext &context, GlobalSinkS
 //===--------------------------------------------------------------------===//
 // Next Batch
 //===--------------------------------------------------------------------===//
-SinkNextBatchType PhysicalBatchCopyToFile::NextBatch(ExecutionContext &context,
-                                                     OperatorSinkNextBatchInput &input) const {
-	auto &lstate = input.local_state;
-	auto &gstate_p = input.global_state;
+void PhysicalBatchCopyToFile::NextBatch(ExecutionContext &context, GlobalSinkState &gstate_p,
+                                        LocalSinkState &lstate) const {
 	auto &state = lstate.Cast<BatchCopyToLocalState>();
 	if (state.collection && state.collection->Count() > 0) {
 		// we finished processing this batch
@@ -190,7 +188,6 @@ SinkNextBatchType PhysicalBatchCopyToFile::NextBatch(ExecutionContext &context,
 	state.batch_index = lstate.partition_info.batch_index.GetIndex();
 
 	state.InitializeCollection(context.client, *this);
-	return SinkNextBatchType::READY;
 }
 
 unique_ptr<LocalSinkState> PhysicalBatchCopyToFile::GetLocalSinkState(ExecutionContext &context) const {

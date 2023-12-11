@@ -49,7 +49,7 @@ AggregateFunction AggregateFunctionSet::GetFunctionByArguments(ClientContext &co
 			}
 			bool is_prefix = true;
 			for (idx_t k = 0; k < arguments.size(); k++) {
-				if (arguments[k].id() != func.arguments[k].id()) {
+				if (arguments[k] != func.arguments[k]) {
 					is_prefix = false;
 					break;
 				}

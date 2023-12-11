@@ -66,7 +66,6 @@ public:
 	DUCKDB_API string ReadLine();
 
 	DUCKDB_API bool CanSeek();
-	DUCKDB_API bool IsPipe();
 	DUCKDB_API bool OnDiskFile();
 	DUCKDB_API idx_t GetFileSize();
 	DUCKDB_API FileType GetType();

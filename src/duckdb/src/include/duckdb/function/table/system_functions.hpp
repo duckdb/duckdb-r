@@ -133,8 +133,4 @@ struct TestVectorTypesFun {
 	static void RegisterFunction(BuiltinFunctions &set);
 };
 
-struct PragmaUserAgent {
-	static void RegisterFunction(BuiltinFunctions &set);
-};
-
 } // namespace duckdb
