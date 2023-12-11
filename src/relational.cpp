@@ -387,6 +387,7 @@ static SEXP result_to_df(duckdb::unique_ptr<QueryResult> res) {
 
 [[cpp11::register]] SEXP rapi_rel_union_all(duckdb::rel_extptr_t rel_a, duckdb::rel_extptr_t rel_b) {
 	auto res = std::make_shared<SetOpRelation>(rel_a->rel, rel_b->rel, SetOperationType::UNION);
+	res->setop_all = true;
 
 	cpp11::writable::list prot = {rel_a, rel_b};
 
