@@ -4,6 +4,8 @@
 
 #include "src/storage/statistics/distinct_statistics.cpp"
 
+#include "src/storage/statistics/array_stats.cpp"
+
 #include "src/storage/statistics/list_stats.cpp"
 
 #include "src/storage/statistics/numeric_stats.cpp"

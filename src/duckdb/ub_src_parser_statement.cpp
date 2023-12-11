@@ -6,6 +6,8 @@
 
 #include "src/parser/statement/copy_statement.cpp"
 
+#include "src/parser/statement/copy_database_statement.cpp"
+
 #include "src/parser/statement/create_statement.cpp"
 
 #include "src/parser/statement/detach_statement.cpp"

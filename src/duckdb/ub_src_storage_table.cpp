@@ -8,6 +8,8 @@
 
 #include "src/storage/table/column_segment.cpp"
 
+#include "src/storage/table/array_column_data.cpp"
+
 #include "src/storage/table/list_column_data.cpp"
 
 #include "src/storage/table/update_segment.cpp"

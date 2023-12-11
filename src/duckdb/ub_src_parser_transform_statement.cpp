@@ -12,6 +12,8 @@
 
 #include "src/parser/transform/statement/transform_copy.cpp"
 
+#include "src/parser/transform/statement/transform_copy_database.cpp"
+
 #include "src/parser/transform/statement/transform_create_table_as.cpp"
 
 #include "src/parser/transform/statement/transform_create_index.cpp"

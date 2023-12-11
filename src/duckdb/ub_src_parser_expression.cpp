@@ -20,6 +20,8 @@
 
 #include "src/parser/expression/lambda_expression.cpp"
 
+#include "src/parser/expression/lambdaref_expression.cpp"
+
 #include "src/parser/expression/operator_expression.cpp"
 
 #include "src/parser/expression/parameter_expression.cpp"
