@@ -27,5 +27,10 @@ echo "Importing commit $commit"
 echo "R: configure"
 python3 rconfigure.py
 
+if [ $(git status --porcelain | wc -l) -le 1 ]; then
+  echo "No changes."
+  exit 0
+fi
+
 git add .
 git commit -m "chore: Update vendored sources to duckdb/duckdb@$commit"
