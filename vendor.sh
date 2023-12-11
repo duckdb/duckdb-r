@@ -13,10 +13,11 @@ fi
 
 if [ -n "$(git status --porcelain)" ]; then
   echo "Error: working directory not clean"
+  exit 1
 fi
 
 if [ -n "$(git -C "$duckdir" status --porcelain)" ]; then
-  echo "Error: working directory $duckdir not clean"
+  echo "Warning: working directory $duckdir not clean"
 fi
 
 commit=$(git -C "$duckdir" rev-parse HEAD)
@@ -29,8 +30,9 @@ rm -rf src/duckdb
 echo "R: configure"
 python3 rconfigure.py
 
-if [ $(git status --porcelain | wc -l) -le 1 ]; then
+if [ $(git status --porcelain -- src/duckdb | wc -l) -le 1 ]; then
   echo "No changes."
+  git checkout -- src/duckdb
   exit 0
 fi
 
