@@ -39,7 +39,7 @@
       
       $time
       Time differences in secs
-      [1]     0 86399    NA
+      [1]     0 86400    NA
       
       $timestamp
       [1] "-290308-12-22 00:00:00.00000 UTC" "294247-01-10 04:00:54.77539 UTC" 
