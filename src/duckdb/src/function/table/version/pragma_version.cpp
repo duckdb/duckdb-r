@@ -1,8 +1,8 @@
 #ifndef DUCKDB_VERSION
-#define DUCKDB_VERSION "v0.9.2"
+#define DUCKDB_VERSION "v0.9.3-dev1538"
 #endif
 #ifndef DUCKDB_SOURCE_ID
-#define DUCKDB_SOURCE_ID "3c695d7ba9"
+#define DUCKDB_SOURCE_ID "d51e1b06fa"
 #endif
 #include "duckdb/function/table/system_functions.hpp"
 #include "duckdb/main/database.hpp"
@@ -85,6 +85,8 @@ string DuckDB::Platform() {
 	os = "windows";
 #elif defined(__APPLE__)
 	os = "osx";
+#elif defined(__FreeBSD__)
+	os = "freebsd";
 #endif
 #if defined(__aarch64__) || defined(__ARM_ARCH_ISA_A64)
 	arch = "arm64";
