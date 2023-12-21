@@ -47,6 +47,8 @@ dbConnect__duckdb_driver <- function(drv, dbdir = DBDIR_MEMORY, ...,
   check_flag(debug)
   timezone_out <- check_tz(timezone_out)
   tz_out_convert <- match.arg(tz_out_convert)
+  check_bigint(bigint)
+
 
   missing_dbdir <- missing(dbdir)
   dbdir <- path.expand(as.character(dbdir))
@@ -56,12 +58,13 @@ dbConnect__duckdb_driver <- function(drv, dbdir = DBDIR_MEMORY, ...,
     drv <- duckdb(dbdir, read_only, bigint, config)
   }
 
+
   conn <- duckdb_connection(drv, debug = debug)
   on.exit(dbDisconnect(conn))
 
   conn@timezone_out <- timezone_out
   conn@tz_out_convert <- tz_out_convert
-
+  conn@driver@bigint <- bigint
   on.exit(NULL)
 
   rs_on_connection_opened(conn)
