@@ -19,7 +19,9 @@
 #'   If `"force"` is chosen, the timestamp will have the same clock
 #'   time as the timestamp in the database, but with the new time zone.
 #' @param config Named list with DuckDB configuration flags
-#' @param bigint How 64-bit integers should be returned, default is double/numeric. Set to integer64 for bit64 encoding.
+#' @param bigint How 64-bit integers should be returned. There are two options: `"numeric"` and `"integer64"`.
+#'   If `"numeric"` is selected, bigint integers will be treated as double/numeric.
+#'   If `"integer64"` is selected, bigint integers will be set to bit64 encoding.
 #'
 #' @return `dbConnect()` returns an object of class
 #'   \linkS4class{duckdb_connection}.
@@ -65,6 +67,8 @@ dbConnect__duckdb_driver <- function(
 
   if (missing(bigint)) {
     bigint <- drv@bigint
+  } else {
+    check_bigint(bigint)
   }
 
   config <- utils::modifyList(drv@config, config)
@@ -79,7 +83,6 @@ dbConnect__duckdb_driver <- function(
 
   conn@timezone_out <- timezone_out
   conn@tz_out_convert <- tz_out_convert
-
   on.exit(NULL)
 
   rs_on_connection_opened(conn)

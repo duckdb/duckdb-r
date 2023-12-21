@@ -43,7 +43,9 @@ data is kept in RAM.}
 
 \item{read_only}{Set to \code{TRUE} for read-only operation}
 
-\item{bigint}{How 64-bit integers should be returned, default is double/numeric. Set to integer64 for bit64 encoding.}
+\item{bigint}{How 64-bit integers should be returned. There are two options: \code{"numeric"} and \code{"integer64"}.
+If \code{"numeric"} is selected, bigint integers will be treated as double/numeric.
+If \code{"integer64"} is selected, bigint integers will be set to bit64 encoding.}
 
 \item{config}{Named list with DuckDB configuration flags}
 

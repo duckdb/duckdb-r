@@ -29,18 +29,7 @@ driver_registry <- new.env(parent = emptyenv())
 #' @export
 duckdb <- function(dbdir = DBDIR_MEMORY, read_only = FALSE, bigint = "numeric", config = list()) {
   check_flag(read_only)
-
-  switch(bigint,
-    numeric = {
-      # fine
-    },
-    integer64 = {
-      if (!is_installed("bit64")) {
-        stop("bit64 package is required for integer64 support")
-      }
-    },
-    stop(paste("Unsupported bigint configuration", bigint))
-  )
+  check_bigint(bigint)
 
   # R packages are not allowed to write extensions into home directory, so use R_user_dir instead
   if (!("extension_directory" %in% names(config))) {
@@ -165,7 +154,6 @@ check_tz <- function(timezone) {
 
   timezone
 }
-
 path_normalize <- function(path) {
   if (path == "" || path == DBDIR_MEMORY) {
     return(DBDIR_MEMORY)
@@ -180,4 +168,18 @@ path_normalize <- function(path) {
     out <- normalizePath(out, mustWork = TRUE)
   }
   out
+}
+
+check_bigint <- function(bigint_type) {
+  switch(bigint_type,
+    numeric = {
+      # fine
+    },
+    integer64 = {
+      if (!is_installed("bit64")) {
+        stop("bit64 package is required for integer64 support")
+      }
+    },
+    stop(paste("Unsupported bigint configuration", bigint_type))
+  )
 }
