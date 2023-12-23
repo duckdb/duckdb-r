@@ -415,21 +415,21 @@
     Code
       translate(grepl("dummy", txt, perl = TRUE))
     Condition
-      Error:
-      ! Parameters `perl`, `fixed` and `useBytes` in grepl are not currently supported in DuckDB backend
+      [1m[33mError[39m:[22m
+      [33m![39m Parameters `perl`, `fixed` and `useBytes` in grepl are not currently supported in DuckDB backend
     Code
       translate(quarter(x, type = "other"))
     Condition
-      Error:
-      ! Unsupported type other
+      [1m[33mError[39m:[22m
+      [33m![39m Unsupported type other
     Code
       translate(quarter(x, fiscal_start = 2))
     Condition
-      Error:
-      ! `fiscal_start` is not yet supported in DuckDB translation. Must be 1.
+      [1m[33mError[39m:[22m
+      [33m![39m `fiscal_start` is not yet supported in DuckDB translation. Must be 1.
     Code
       translate(str_pad(x, width = 10, side = "other"))
     Condition
-      Error:
-      ! Argument 'side' should be "left", "right" or "both"
+      [1m[33mError[39m:[22m
+      [33m![39m Argument 'side' should be "left", "right" or "both"
 
