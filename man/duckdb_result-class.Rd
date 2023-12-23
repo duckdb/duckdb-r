@@ -66,7 +66,10 @@ duckdb_fetch_record_batch(res, chunk_size = 1e+06)
 
 \item{chunk_size}{The chunk size}
 
-\item{params}{A list of bindings, named or unnamed.}
+\item{params}{For \code{dbBind()}, a list of values, named or unnamed,
+or a data frame, with one element/column per query parameter.
+For \code{dbBindArrow()}, values as a nanoarrow stream,
+with one column per query parameter.}
 
 \item{...}{Other arguments passed on to methods.}
 
