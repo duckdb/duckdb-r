@@ -109,8 +109,8 @@ e.g. \code{Id(schema = "my_schema", table = "table_name")}
 given verbatim, e.g. \code{SQL('"my_schema"."table_name"')}
 }}
 
-\item{value}{A data frame of values. The column names must be consistent
-with those in the target table in the database.}
+\item{value}{For \code{dbAppendTable()}, a \link{data.frame} (or coercible to data.frame).
+For \code{dbAppendTableArrow()}, an object coercible to an Arrow RecordBatchReader.}
 
 \item{...}{Other parameters passed on to methods.}
 
@@ -123,7 +123,10 @@ or \linkS4class{DBIConnection}}
 
 \item{statement}{a character string containing SQL.}
 
-\item{params}{A list of bindings, named or unnamed.}
+\item{params}{For \code{dbBind()}, a list of values, named or unnamed,
+or a data frame, with one element/column per query parameter.
+For \code{dbBindArrow()}, values as a nanoarrow stream,
+with one column per query parameter.}
 
 \item{arrow}{Whether the query should be returned as an Arrow Table}
 
