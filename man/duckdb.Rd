@@ -31,7 +31,7 @@ duckdb_adbc()
   timezone_out = "UTC",
   tz_out_convert = c("with", "force"),
   config = list(),
-  bigint = "numeric"
+  bigint = NULL
 )
 
 \S4method{dbDisconnect}{duckdb_connection}(conn, ..., shutdown = FALSE)
@@ -43,7 +43,9 @@ data is kept in RAM}
 
 \item{read_only}{Set to \code{TRUE} for read-only operation}
 
-\item{bigint}{How 64-bit integers should be returned, default is double/numeric. Set to integer64 for bit64 encoding.}
+\item{bigint}{How 64-bit integers should be returned. There are two options: \verb{"numeric}" and \verb{"integer64}".
+If \verb{"numeric}" is selected, bigint integers will be treated as double/numeric.
+If \verb{"integer64}" is selected, bigint integers will be set to bit64 encoding.}
 
 \item{config}{Named list with DuckDB configuration flags}
 
@@ -84,7 +86,7 @@ An object of class "adbc_driver"
 
 \code{duckdb_shutdown()} shuts down a database instance.
 
-Return an \code{\link[adbcdrivermanager:adbc_driver_void]{adbcdrivermanager::adbc_driver()}} for use with Arrow Database
+Return an \code{\link[adbcdrivermanager:adbc_driver]{adbcdrivermanager::adbc_driver()}} for use with Arrow Database
 Connectivity via the adbcdrivermanager package.
 
 \code{dbConnect()} connects to a database instance.
