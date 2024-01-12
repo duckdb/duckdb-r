@@ -15,6 +15,24 @@ struct StringLiteral {
 };
 
 
+class Allocator {
+public:
+	// std::call_once() for dlsym
+	// but why it does not hurt to dlsym twice
+
+	// TODO clean up repetition below ^^
+	// TODO actually pass in the dlopen handle (static var?)
+
+	template <class T>
+
+	static SEXP AllocateFunction() {
+		// TODO add a tag or so
+		return R_MakeExternalPtr(malloc(sizeof(T)), R_NilValue, R_NilValue);
+
+		// TODO register a finalizer to free the damn thing again
+	}
+};
+
 class FunctionWrappers {
 public:
 

@@ -35,9 +35,9 @@ class DuckDBHeaderVisitor(pycparser.c_ast.NodeVisitor):
         if not name.startswith('duckdb_'):
             return
 
-        # if isinstance(node.type, pycparser.c_ast.Struct):
-        #     self.result += f'exports.Set(Napi::String::New(env, "{name}"), duckdb_node::PointerHolder<{name}>::Init(env, "{name}")->Value());\n'
-        #
+        if isinstance(node.type, pycparser.c_ast.Struct):
+            self.result += '{"%s_new", (DL_FUNC) duckdb_r::Allocator::AllocateFunction<%s>, 0},\n' % (name, name)
+
         # if isinstance(node.type, pycparser.c_ast.Enum):
         #     self.result += f'auto {name}_enum = Napi::Object::New(env);\n'
         #     enum_idx = 0

@@ -1,3 +1,10 @@
 library(duckdb)
-.Call("duckdb_load_library", system.file(c("inst","libduckdb"), package="duckdb"), PACKAGE ="duckdb")
-print(.Call("duckdb_library_version", PACKAGE="duckdb"))
+.Call(duckdb:::`duckdb_load_library`, system.file(c("inst","libduckdb"), package="duckdb"))
+print(.Call(duckdb:::`duckdb_library_version`))
+
+
+database <- .Call(duckdb:::`duckdb_database_new`)
+print(database)
+.Call(duckdb:::`duckdb_open`,":memory:", database)
+
+.Call(duckdb:::`duckdb_close`, database)

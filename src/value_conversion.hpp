@@ -31,10 +31,31 @@ public:
 		return Rf_ScalarString(mkChar(val));
 	}
 
+	template <>
+	SEXP ToR(duckdb_state val) {
+		switch (val) {
+		case DuckDBSuccess:
+			// TODO do we dont want to allocate a string here, maybe cache them?
+			return Rf_ScalarString(mkChar("DuckDBSuccess"));
+		case DuckDBError:
+			return Rf_ScalarString(mkChar("DuckDBError"));
+		}
+	}
+
 
 	template <class T>
 	static T FromR(SEXP x) {
 		//static_assert(false, "Unimplemented value conversion from R");
+	}
+
+	template <>
+	const char* FromR(SEXP x) {
+		return CHAR(STRING_ELT(x, 0));
+	}
+
+	template <>
+	duckdb_database* FromR(SEXP x) {
+		return (duckdb_database*) R_ExternalPtrAddr(x);
 	}
 
 };

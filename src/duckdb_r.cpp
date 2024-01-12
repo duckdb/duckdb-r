@@ -17,5 +17,7 @@ static SEXP duckdb_load_library(SEXP path_sexp) {
 extern "C" {
 void R_init_duckdb(DllInfo *dll) {
 	R_registerRoutines(dll, nullptr, generated_methods, nullptr, nullptr);
+	R_useDynamicSymbols(dll, FALSE);
+	R_forceSymbols(dll, TRUE);
 }
 }
