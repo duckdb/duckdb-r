@@ -4,17 +4,7 @@
 
 add_library(
   duckdb
-  connection.cpp
-  cpp11.cpp
-  database.cpp
-  register.cpp
-  relational.cpp
-  reltoaltrep.cpp
-  scan.cpp
-  statement.cpp
-  transform.cpp
-  types.cpp
-  utils.cpp)
+  duckdb_r.cpp duckdb_r_generated.cpp)
 
 execute_process(COMMAND bash "-c" "Rscript -e 'cat(R.home(\"include\"))'"
                 OUTPUT_VARIABLE R_INCLUDE)
