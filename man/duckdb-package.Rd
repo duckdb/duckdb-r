@@ -12,3 +12,40 @@ R client package for DuckDB: an embeddable SQL OLAP Database Management System.
 
 \url{https://duckdb.org/} for the project website.
 }
+\author{
+\strong{Maintainer}: Hannes Mühleisen \email{hannes@cwi.nl} (\href{https://orcid.org/0000-0001-8552-0029}{ORCID})
+
+Authors:
+\itemize{
+  \item Mark Raasveldt \email{mark.raasveldt@cwi.nl} (\href{https://orcid.org/0000-0001-5005-6844}{ORCID})
+}
+
+Other contributors:
+\itemize{
+  \item Stichting DuckDB Foundation [copyright holder]
+  \item Apache Software Foundation [copyright holder]
+  \item PostgreSQL Global Development Group [copyright holder]
+  \item The Regents of the University of California [copyright holder]
+  \item Cameron Desrochers [copyright holder]
+  \item Victor Zverovich [copyright holder]
+  \item RAD Game Tools [copyright holder]
+  \item Valve Software [copyright holder]
+  \item Rich Geldreich [copyright holder]
+  \item Tenacious Software LLC [copyright holder]
+  \item The RE2 Authors [copyright holder]
+  \item Google Inc. [copyright holder]
+  \item Facebook Inc. [copyright holder]
+  \item Steven G. Johnson [copyright holder]
+  \item Jiahao Chen [copyright holder]
+  \item Tony Kelman [copyright holder]
+  \item Jonas Fonseca [copyright holder]
+  \item Lukas Fittl [copyright holder]
+  \item Salvatore Sanfilippo [copyright holder]
+  \item Art.sy, Inc. [copyright holder]
+  \item Oran Agra [copyright holder]
+  \item Redis Labs, Inc. [copyright holder]
+  \item Melissa O'Neill [copyright holder]
+  \item PCG Project contributors [copyright holder]
+}
+
+}
