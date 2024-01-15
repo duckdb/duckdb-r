@@ -2,17 +2,19 @@
 #include "Rdefines.h"
 #include <dlfcn.h>
 
+static void* duckdb_r_dlopen_handle;
+
+// small helper to actually call dlopen, we don't know the package location on library load
 static SEXP duckdb_load_library(SEXP path_sexp) {
 	auto path = CHAR(STRING_ELT(path_sexp, 0));
-	auto res = dlopen(path, RTLD_GLOBAL | RTLD_NOW);
-	if (!res) {
+	duckdb_r_dlopen_handle = dlopen(path, RTLD_GLOBAL | RTLD_NOW);
+	if (!duckdb_r_dlopen_handle) {
 		Rf_error("Unable to load shared object");
 	}
 	return Rf_ScalarLogical(true);
 }
 
 #include "duckdb_r_generated.cpp"
-
 
 extern "C" {
 void R_init_duckdb(DllInfo *dll) {

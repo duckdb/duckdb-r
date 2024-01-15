@@ -54,8 +54,43 @@ public:
 	}
 
 	template <>
+	idx_t FromR(SEXP x) {
+		return (idx_t) DOUBLE_DATA(x)[0];
+	}
+
+	template <>
+	int32_t FromR(SEXP x) {
+		return INTEGER_DATA(x)[0];
+	}
+
+	template <>
 	duckdb_database* FromR(SEXP x) {
 		return (duckdb_database*) R_ExternalPtrAddr(x);
+	}
+
+	template <>
+	duckdb_database FromR(SEXP x) {
+		return *FromR<duckdb_database*>(x);
+	}
+
+	template <>
+	duckdb_connection* FromR(SEXP x) {
+		return (duckdb_connection*) R_ExternalPtrAddr(x);
+	}
+
+	template <>
+	duckdb_connection FromR(SEXP x) {
+		return *FromR<duckdb_connection*>(x);
+	}
+
+	template <>
+	duckdb_prepared_statement * FromR(SEXP x) {
+		return (duckdb_prepared_statement*) R_ExternalPtrAddr(x);
+	}
+
+	template <>
+	duckdb_prepared_statement FromR(SEXP x) {
+		return *FromR<duckdb_prepared_statement*>(x);
 	}
 
 };
