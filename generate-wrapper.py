@@ -36,7 +36,7 @@ class DuckDBHeaderVisitor(pycparser.c_ast.NodeVisitor):
             return
 
         if isinstance(node.type, pycparser.c_ast.Struct):
-            self.result += '{"%s_new", (DL_FUNC) duckdb_r::Allocator::AllocateFunction<%s>, 0},\n' % (name, name)
+            self.result += '{"%s_new", (DL_FUNC) duckdb_r::PointerWrapper<%s, "%s">::Allocate, 0},\n' % (name, name, name)
 
         # if isinstance(node.type, pycparser.c_ast.Enum):
         #     self.result += f'auto {name}_enum = Napi::Object::New(env);\n'

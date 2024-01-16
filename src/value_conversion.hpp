@@ -3,18 +3,44 @@
 #include "duckdb.h"
 #include "Rdefines.h"
 
+#include <algorithm>
+
+
 namespace duckdb_r {
-//
-//typedef uint8_t data_t;
-//
-//static Napi::Value GetValue(const Napi::CallbackInfo &info, size_t offset) {
-//	Napi::Env env = info.Env();
-//
-//	if (info.Length() < offset) {
-//		throw Napi::TypeError::New(env, "Value expected at offset " + std::to_string(offset));
-//	}
-//	return info[offset].As<Napi::Value>();
-//}
+
+
+// C++ 20 magic ^^
+template<size_t N>
+struct StringLiteral {
+	constexpr StringLiteral(const char (&str)[N]) {
+		std::copy_n(str, N, value);
+	}
+	char value[N];
+};
+
+
+template <class T, StringLiteral NAME>
+
+class PointerWrapper {
+public:
+
+	static void Finalize(SEXP s) {
+		free((T*) R_ExternalPtrAddr(s));
+		R_ClearExternalPtr(s);
+	}
+
+	static SEXP Allocate() {
+		return Wrap(malloc(sizeof(T)));
+
+	}
+
+	static SEXP Wrap( void* ptr) {
+		// TODO cache this string?
+		auto ptr_sexp = R_MakeExternalPtr(ptr, Rf_ScalarString(mkChar(NAME.value)), R_NilValue);
+		R_RegisterCFinalizerEx(ptr_sexp, Finalize, Rboolean::FALSE);
+		return ptr_sexp;
+	}
+};
 
 class ValueConversion {
 public:
@@ -22,13 +48,22 @@ public:
 	static SEXP ToR(T val) {
 		//static_assert(false, "Unimplemented value conversion to R");
 		return nullptr;
-
 	}
 
 
 	template <>
 	SEXP ToR(const char* val) {
 		return Rf_ScalarString(mkChar(val));
+	}
+
+	template <>
+	SEXP ToR(idx_t val) {
+		return Rf_ScalarReal(val);
+	}
+
+	template <>
+	SEXP ToR(duckdb_data_chunk val) {
+		return PointerWrapper<duckdb_data_chunk , "duckdb_data_chunk">::Wrap(val);
 	}
 
 	template <>
@@ -65,6 +100,11 @@ public:
 
 	template <>
 	duckdb_database* FromR(SEXP x) {
+		const char* name = "duckdb_database";
+		const char* tag = CHAR(STRING_ELT(R_ExternalPtrTag(x), 0));
+		if (strcmp(tag, name) != 0) {
+			Rf_error("Passed a %s, expected %s", tag,name);
+		}
 		return (duckdb_database*) R_ExternalPtrAddr(x);
 	}
 
@@ -75,6 +115,11 @@ public:
 
 	template <>
 	duckdb_connection* FromR(SEXP x) {
+		const char* name = "duckdb_connection";
+		const char* tag = CHAR(STRING_ELT(R_ExternalPtrTag(x), 0));
+		if (strcmp(tag, name) != 0) {
+			Rf_error("Passed a %s, expected %s", tag,name);
+		}
 		return (duckdb_connection*) R_ExternalPtrAddr(x);
 	}
 
@@ -85,12 +130,33 @@ public:
 
 	template <>
 	duckdb_prepared_statement * FromR(SEXP x) {
+		const char* name = "duckdb_prepared_statement";
+		const char* tag = CHAR(STRING_ELT(R_ExternalPtrTag(x), 0));
+		if (strcmp(tag, name) != 0) {
+			Rf_error("Passed a %s, expected %s", tag,name);
+		}
 		return (duckdb_prepared_statement*) R_ExternalPtrAddr(x);
 	}
 
 	template <>
 	duckdb_prepared_statement FromR(SEXP x) {
 		return *FromR<duckdb_prepared_statement*>(x);
+	}
+
+
+	template <>
+	duckdb_result * FromR(SEXP x) {
+		const char* name = "duckdb_result";
+		const char* tag = CHAR(STRING_ELT(R_ExternalPtrTag(x), 0));
+		if (strcmp(tag, name) != 0) {
+			Rf_error("Passed a %s, expected %s", tag,name);
+		}
+		return (duckdb_result*) R_ExternalPtrAddr(x);
+	}
+
+	template <>
+	duckdb_result FromR(SEXP x) {
+		return *FromR<duckdb_result*>(x);
 	}
 
 };

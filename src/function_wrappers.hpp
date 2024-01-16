@@ -5,27 +5,6 @@
 
 namespace duckdb_r {
 
-// C++ 20 magic ^^
-template<size_t N>
-struct StringLiteral {
-	constexpr StringLiteral(const char (&str)[N]) {
-		std::copy_n(str, N, value);
-	}
-	char value[N];
-};
-
-
-class Allocator {
-public:
-	template <class T>
-
-	static SEXP AllocateFunction() {
-		// TODO add a tag or so
-		return R_MakeExternalPtr(malloc(sizeof(T)), R_NilValue, R_NilValue);
-
-		// TODO register a finalizer to free the damn thing again
-	}
-};
 
 template<typename T> void GetFunctionPointer(const char* name, T* out_ptr) {
 	if (!*out_ptr) {
