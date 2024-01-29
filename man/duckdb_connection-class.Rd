@@ -109,8 +109,7 @@ e.g. \code{Id(schema = "my_schema", table = "table_name")}
 given verbatim, e.g. \code{SQL('"my_schema"."table_name"')}
 }}
 
-\item{value}{For \code{dbAppendTable()}, a \link{data.frame} (or coercible to data.frame).
-For \code{dbAppendTableArrow()}, an object coercible to an Arrow RecordBatchReader.}
+\item{value}{A \link{data.frame} (or coercible to data.frame).}
 
 \item{...}{Other parameters passed on to methods.}
 
