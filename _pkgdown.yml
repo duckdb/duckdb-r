@@ -31,6 +31,6 @@ reference:
   - duckdb_prepare_substrait
   - duckdb_prepare_substrait_json
   - duckdb_explain-class
-- title: duckdb Package
+- title: internal
   contents:
   - duckdb-package
