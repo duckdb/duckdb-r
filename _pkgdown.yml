@@ -3,6 +3,12 @@ url: https://r.duckdb.org/
 template:
   bootstrap: 5
 
+authors:
+  Hannes Mühleisen:
+    href: "http://hannes.muehleisen.org/"
+  Mark Raasveldt:
+    href: "https://mytherin.github.io/"
+
 reference:
 - title: Driver
   contents:
