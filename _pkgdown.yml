@@ -1,5 +1,8 @@
 url: https://r.duckdb.org/
 
+template:
+  bootstrap: 5
+
 reference:
 - title: Driver
   contents:
