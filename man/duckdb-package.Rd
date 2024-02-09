@@ -3,14 +3,20 @@
 \docType{package}
 \name{duckdb-package}
 \alias{duckdb-package}
-\title{DuckDB client package for R}
+\title{duckdb: DBI Package for the DuckDB Database Management System}
 \description{
-R client package for DuckDB: an embeddable SQL OLAP Database Management System.
+\if{html}{\figure{logo.png}{options: style='float: right' alt='logo' width='120'}}
+
+The DuckDB project is an embedded analytical data management system with support for the Structured Query Language (SQL). This package includes all of DuckDB and a R Database Interface (DBI) connector.
 }
 \seealso{
-\code{\link[=duckdb]{duckdb()}} for connection instructions.
+Useful links:
+\itemize{
+  \item \url{https://r.duckdb.org/}
+  \item \url{https://github.com/duckdb/duckdb-r}
+  \item Report bugs at \url{https://github.com/duckdb/duckdb-r/issues}
+}
 
-\url{https://duckdb.org/} for the project website.
 }
 \author{
 \strong{Maintainer}: Hannes Mühleisen \email{hannes@cwi.nl} (\href{https://orcid.org/0000-0001-8552-0029}{ORCID})
@@ -49,3 +55,4 @@ Other contributors:
 }
 
 }
+\keyword{internal}
