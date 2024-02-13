@@ -14,9 +14,13 @@
 
 #include "src/function/table/system/duckdb_indexes.cpp"
 
+#include "src/function/table/system/duckdb_memory.cpp"
+
 #include "src/function/table/system/duckdb_optimizers.cpp"
 
 #include "src/function/table/system/duckdb_schemas.cpp"
+
+#include "src/function/table/system/duckdb_secrets.cpp"
 
 #include "src/function/table/system/duckdb_sequences.cpp"
 

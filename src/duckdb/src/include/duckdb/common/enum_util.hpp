@@ -34,6 +34,8 @@ struct EnumUtil {
 
 enum class AccessMode : uint8_t;
 
+enum class AggregateCombineType : uint8_t;
+
 enum class AggregateHandling : uint8_t;
 
 enum class AggregateOrderDependent : uint8_t;
@@ -100,6 +102,8 @@ enum class DefaultOrderByNullType : uint8_t;
 
 enum class DependencyEntryType : uint8_t;
 
+enum class DeprecatedIndexType : uint8_t;
+
 enum class DistinctType : uint8_t;
 
 enum class ErrorType : uint16_t;
@@ -115,6 +119,8 @@ enum class ExpressionClass : uint8_t;
 enum class ExpressionType : uint8_t;
 
 enum class ExtensionLoadResult : uint8_t;
+
+enum class ExtraDropInfoType : uint8_t;
 
 enum class ExtraTypeInfoType : uint8_t;
 
@@ -132,13 +138,11 @@ enum class ForeignKeyType : uint8_t;
 
 enum class FunctionNullHandling : uint8_t;
 
-enum class FunctionSideEffects : uint8_t;
+enum class FunctionStability : uint8_t;
 
 enum class HLLStorageType : uint8_t;
 
 enum class IndexConstraintType : uint8_t;
-
-enum class IndexType : uint8_t;
 
 enum class InsertColumnOrder : uint8_t;
 
@@ -161,6 +165,8 @@ enum class LookupResultType : uint8_t;
 enum class MacroType : uint8_t;
 
 enum class MapInvalidReason : uint8_t;
+
+enum class MemoryTag : uint8_t;
 
 enum class NType : uint8_t;
 
@@ -189,8 +195,6 @@ enum class OutputStream : uint8_t;
 enum class ParseInfoType : uint8_t;
 
 enum class ParserExtensionResultType : uint8_t;
-
-enum class ParserMode : uint8_t;
 
 enum class PartitionSortStage : uint8_t;
 
@@ -226,6 +230,10 @@ enum class ResultModifierType : uint8_t;
 
 enum class SampleMethod : uint8_t;
 
+enum class SecretDisplayType : uint8_t;
+
+enum class SecretPersistType : uint8_t;
+
 enum class SequenceInfo : uint8_t;
 
 enum class SetOperationType : uint8_t;
@@ -233,6 +241,8 @@ enum class SetOperationType : uint8_t;
 enum class SetScope : uint8_t;
 
 enum class SetType : uint8_t;
+
+enum class ShowType : uint8_t;
 
 enum class SimplifiedTokenType : uint8_t;
 
@@ -298,11 +308,12 @@ enum class WindowBoundary : uint8_t;
 
 enum class WindowExcludeMode : uint8_t;
 
-enum class WithinCollection : uint8_t;
-
 
 template<>
 const char* EnumUtil::ToChars<AccessMode>(AccessMode value);
+
+template<>
+const char* EnumUtil::ToChars<AggregateCombineType>(AggregateCombineType value);
 
 template<>
 const char* EnumUtil::ToChars<AggregateHandling>(AggregateHandling value);
@@ -404,6 +415,9 @@ template<>
 const char* EnumUtil::ToChars<DependencyEntryType>(DependencyEntryType value);
 
 template<>
+const char* EnumUtil::ToChars<DeprecatedIndexType>(DeprecatedIndexType value);
+
+template<>
 const char* EnumUtil::ToChars<DistinctType>(DistinctType value);
 
 template<>
@@ -426,6 +440,9 @@ const char* EnumUtil::ToChars<ExpressionType>(ExpressionType value);
 
 template<>
 const char* EnumUtil::ToChars<ExtensionLoadResult>(ExtensionLoadResult value);
+
+template<>
+const char* EnumUtil::ToChars<ExtraDropInfoType>(ExtraDropInfoType value);
 
 template<>
 const char* EnumUtil::ToChars<ExtraTypeInfoType>(ExtraTypeInfoType value);
@@ -452,16 +469,13 @@ template<>
 const char* EnumUtil::ToChars<FunctionNullHandling>(FunctionNullHandling value);
 
 template<>
-const char* EnumUtil::ToChars<FunctionSideEffects>(FunctionSideEffects value);
+const char* EnumUtil::ToChars<FunctionStability>(FunctionStability value);
 
 template<>
 const char* EnumUtil::ToChars<HLLStorageType>(HLLStorageType value);
 
 template<>
 const char* EnumUtil::ToChars<IndexConstraintType>(IndexConstraintType value);
-
-template<>
-const char* EnumUtil::ToChars<IndexType>(IndexType value);
 
 template<>
 const char* EnumUtil::ToChars<InsertColumnOrder>(InsertColumnOrder value);
@@ -495,6 +509,9 @@ const char* EnumUtil::ToChars<MacroType>(MacroType value);
 
 template<>
 const char* EnumUtil::ToChars<MapInvalidReason>(MapInvalidReason value);
+
+template<>
+const char* EnumUtil::ToChars<MemoryTag>(MemoryTag value);
 
 template<>
 const char* EnumUtil::ToChars<NType>(NType value);
@@ -537,9 +554,6 @@ const char* EnumUtil::ToChars<ParseInfoType>(ParseInfoType value);
 
 template<>
 const char* EnumUtil::ToChars<ParserExtensionResultType>(ParserExtensionResultType value);
-
-template<>
-const char* EnumUtil::ToChars<ParserMode>(ParserMode value);
 
 template<>
 const char* EnumUtil::ToChars<PartitionSortStage>(PartitionSortStage value);
@@ -593,6 +607,12 @@ template<>
 const char* EnumUtil::ToChars<SampleMethod>(SampleMethod value);
 
 template<>
+const char* EnumUtil::ToChars<SecretDisplayType>(SecretDisplayType value);
+
+template<>
+const char* EnumUtil::ToChars<SecretPersistType>(SecretPersistType value);
+
+template<>
 const char* EnumUtil::ToChars<SequenceInfo>(SequenceInfo value);
 
 template<>
@@ -603,6 +623,9 @@ const char* EnumUtil::ToChars<SetScope>(SetScope value);
 
 template<>
 const char* EnumUtil::ToChars<SetType>(SetType value);
+
+template<>
+const char* EnumUtil::ToChars<ShowType>(ShowType value);
 
 template<>
 const char* EnumUtil::ToChars<SimplifiedTokenType>(SimplifiedTokenType value);
@@ -700,12 +723,12 @@ const char* EnumUtil::ToChars<WindowBoundary>(WindowBoundary value);
 template<>
 const char* EnumUtil::ToChars<WindowExcludeMode>(WindowExcludeMode value);
 
-template<>
-const char* EnumUtil::ToChars<WithinCollection>(WithinCollection value);
-
 
 template<>
 AccessMode EnumUtil::FromString<AccessMode>(const char *value);
+
+template<>
+AggregateCombineType EnumUtil::FromString<AggregateCombineType>(const char *value);
 
 template<>
 AggregateHandling EnumUtil::FromString<AggregateHandling>(const char *value);
@@ -807,6 +830,9 @@ template<>
 DependencyEntryType EnumUtil::FromString<DependencyEntryType>(const char *value);
 
 template<>
+DeprecatedIndexType EnumUtil::FromString<DeprecatedIndexType>(const char *value);
+
+template<>
 DistinctType EnumUtil::FromString<DistinctType>(const char *value);
 
 template<>
@@ -829,6 +855,9 @@ ExpressionType EnumUtil::FromString<ExpressionType>(const char *value);
 
 template<>
 ExtensionLoadResult EnumUtil::FromString<ExtensionLoadResult>(const char *value);
+
+template<>
+ExtraDropInfoType EnumUtil::FromString<ExtraDropInfoType>(const char *value);
 
 template<>
 ExtraTypeInfoType EnumUtil::FromString<ExtraTypeInfoType>(const char *value);
@@ -855,16 +884,13 @@ template<>
 FunctionNullHandling EnumUtil::FromString<FunctionNullHandling>(const char *value);
 
 template<>
-FunctionSideEffects EnumUtil::FromString<FunctionSideEffects>(const char *value);
+FunctionStability EnumUtil::FromString<FunctionStability>(const char *value);
 
 template<>
 HLLStorageType EnumUtil::FromString<HLLStorageType>(const char *value);
 
 template<>
 IndexConstraintType EnumUtil::FromString<IndexConstraintType>(const char *value);
-
-template<>
-IndexType EnumUtil::FromString<IndexType>(const char *value);
 
 template<>
 InsertColumnOrder EnumUtil::FromString<InsertColumnOrder>(const char *value);
@@ -898,6 +924,9 @@ MacroType EnumUtil::FromString<MacroType>(const char *value);
 
 template<>
 MapInvalidReason EnumUtil::FromString<MapInvalidReason>(const char *value);
+
+template<>
+MemoryTag EnumUtil::FromString<MemoryTag>(const char *value);
 
 template<>
 NType EnumUtil::FromString<NType>(const char *value);
@@ -940,9 +969,6 @@ ParseInfoType EnumUtil::FromString<ParseInfoType>(const char *value);
 
 template<>
 ParserExtensionResultType EnumUtil::FromString<ParserExtensionResultType>(const char *value);
-
-template<>
-ParserMode EnumUtil::FromString<ParserMode>(const char *value);
 
 template<>
 PartitionSortStage EnumUtil::FromString<PartitionSortStage>(const char *value);
@@ -996,6 +1022,12 @@ template<>
 SampleMethod EnumUtil::FromString<SampleMethod>(const char *value);
 
 template<>
+SecretDisplayType EnumUtil::FromString<SecretDisplayType>(const char *value);
+
+template<>
+SecretPersistType EnumUtil::FromString<SecretPersistType>(const char *value);
+
+template<>
 SequenceInfo EnumUtil::FromString<SequenceInfo>(const char *value);
 
 template<>
@@ -1006,6 +1038,9 @@ SetScope EnumUtil::FromString<SetScope>(const char *value);
 
 template<>
 SetType EnumUtil::FromString<SetType>(const char *value);
+
+template<>
+ShowType EnumUtil::FromString<ShowType>(const char *value);
 
 template<>
 SimplifiedTokenType EnumUtil::FromString<SimplifiedTokenType>(const char *value);
@@ -1102,9 +1137,6 @@ WindowBoundary EnumUtil::FromString<WindowBoundary>(const char *value);
 
 template<>
 WindowExcludeMode EnumUtil::FromString<WindowExcludeMode>(const char *value);
-
-template<>
-WithinCollection EnumUtil::FromString<WithinCollection>(const char *value);
 
 
 }

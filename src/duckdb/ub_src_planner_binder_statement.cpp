@@ -48,5 +48,3 @@
 
 #include "src/planner/binder/statement/bind_vacuum.cpp"
 
-#include "src/planner/binder/statement/bind_show.cpp"
-

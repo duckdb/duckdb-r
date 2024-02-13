@@ -8,6 +8,8 @@
 
 #include "src/planner/binder/tableref/bind_pivot.cpp"
 
+#include "src/planner/binder/tableref/bind_showref.cpp"
+
 #include "src/planner/binder/tableref/bind_subqueryref.cpp"
 
 #include "src/planner/binder/tableref/bind_table_function.cpp"
