@@ -1,8 +1,4 @@
-<div align="center">
-  <img src="https://duckdb.org/images/logo-dl/DuckDB_Logo-stacked.svg" height="120">
-</div>
-
-# duckdb R package
+# duckdb <a href="https://r.duckdb.org/"><img src="man/figures/logo" align="right" height="120" alt="duckdb website" /></a>
 
 ## Installation from CRAN
 
