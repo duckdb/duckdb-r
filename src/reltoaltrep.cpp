@@ -10,6 +10,7 @@ R_altrep_class_t RelToAltrep::logical_class;
 R_altrep_class_t RelToAltrep::int_class;
 R_altrep_class_t RelToAltrep::real_class;
 R_altrep_class_t RelToAltrep::string_class;
+R_altrep_class_t RelToAltrep::list_class;
 
 void RelToAltrep::Initialize(DllInfo *dll) {
 	// this is a string so setting row names will not lead to materialization
@@ -18,28 +19,33 @@ void RelToAltrep::Initialize(DllInfo *dll) {
 	int_class = R_make_altinteger_class("reltoaltrep_int_class", "duckdb", dll);
 	real_class = R_make_altreal_class("reltoaltrep_real_class", "duckdb", dll);
 	string_class = R_make_altstring_class("reltoaltrep_string_class", "duckdb", dll);
+	list_class = R_make_altlist_class("reltoaltrep_list_class", "duckdb", dll);
 
 	R_set_altrep_Inspect_method(rownames_class, RownamesInspect);
 	R_set_altrep_Inspect_method(logical_class, RelInspect);
 	R_set_altrep_Inspect_method(int_class, RelInspect);
 	R_set_altrep_Inspect_method(real_class, RelInspect);
 	R_set_altrep_Inspect_method(string_class, RelInspect);
+	R_set_altrep_Inspect_method(list_class, RelInspect);
 
 	R_set_altrep_Length_method(rownames_class, RownamesLength);
 	R_set_altrep_Length_method(logical_class, VectorLength);
 	R_set_altrep_Length_method(int_class, VectorLength);
 	R_set_altrep_Length_method(real_class, VectorLength);
 	R_set_altrep_Length_method(string_class, VectorLength);
+	R_set_altrep_Length_method(list_class, VectorLength);
 
 	R_set_altvec_Dataptr_method(rownames_class, RownamesDataptr);
 	R_set_altvec_Dataptr_method(logical_class, VectorDataptr);
 	R_set_altvec_Dataptr_method(int_class, VectorDataptr);
 	R_set_altvec_Dataptr_method(real_class, VectorDataptr);
 	R_set_altvec_Dataptr_method(string_class, VectorDataptr);
+	R_set_altvec_Dataptr_method(list_class, VectorDataptr);
 
 	R_set_altvec_Dataptr_or_null_method(rownames_class, RownamesDataptrOrNull);
 
 	R_set_altstring_Elt_method(string_class, VectorStringElt);
+	R_set_altlist_Elt_method(list_class, VectorListElt);
 }
 
 template <class T>
@@ -231,6 +237,12 @@ SEXP RelToAltrep::VectorStringElt(SEXP x, R_xlen_t i) {
 	END_CPP11
 }
 
+SEXP RelToAltrep::VectorListElt(SEXP x, R_xlen_t i) {
+	BEGIN_CPP11
+	return VECTOR_ELT(AltrepVectorWrapper::Get(x)->Vector(), i);
+	END_CPP11
+}
+
 static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 	switch (type.id()) {
 	case LogicalTypeId::BOOLEAN:
@@ -261,13 +273,15 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 	case LogicalTypeId::VARCHAR:
 	case LogicalTypeId::UUID:
 		return RelToAltrep::string_class;
+	case LogicalTypeId::LIST:
+		return RelToAltrep::list_class;
 	default:
 		cpp11::stop("rel_to_altrep: Unknown column type for altrep: %s", type.ToString().c_str());
 	}
 }
 
 [[cpp11::register]] SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel) {
-	D_ASSERT(rel && rel->rel);
+  	D_ASSERT(rel && rel->rel);
 	auto drel = rel->rel;
 	auto ncols = drel->Columns().size();
 
