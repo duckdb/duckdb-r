@@ -85,12 +85,12 @@
   conn,
   name,
   value,
+  ...,
   row.names = FALSE,
   overwrite = FALSE,
   append = FALSE,
   field.types = NULL,
-  temporary = FALSE,
-  ...
+  temporary = FALSE
 )
 
 \S4method{show}{duckdb_connection}(object)
