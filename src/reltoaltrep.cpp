@@ -281,7 +281,7 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 }
 
 [[cpp11::register]] SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel) {
-  	D_ASSERT(rel && rel->rel);
+  D_ASSERT(rel && rel->rel);
 	auto drel = rel->rel;
 	auto ncols = drel->Columns().size();
 
