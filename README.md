@@ -1,4 +1,4 @@
-# duckdb <a href="https://r.duckdb.org/"><img src="man/figures/logo" align="right" height="120" alt="duckdb website" /></a>
+# duckdb <a href="https://r.duckdb.org/"><img src="man/figures/logo.png" align="right" height="120" alt="duckdb website" /></a>
 
 ## Installation from CRAN
 
