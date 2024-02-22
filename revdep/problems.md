@@ -1,96 +1,14 @@
-# dm
+# PatientProfiles
 
 <details>
 
-* Version: 1.0.6
-* GitHub: https://github.com/cynkra/dm
-* Source code: https://github.com/cran/dm
-* Date/Publication: 2023-07-21 13:30:02 UTC
-* Number of recursive dependencies: 137
-
-Run `revdepcheck::cloud_details(, "dm")` for more info
-
-</details>
-
-## Newly broken
-
-*   checking tests ... ERROR
-    ```
-      Running ‘testthat.R’
-    Running the tests in ‘tests/testthat.R’ failed.
-    Complete output:
-      > library(testthat)
-      > 
-      > # Need to use qualified call, this is checked in helper-print.R
-      > testthat::test_check("dm")
-      Loading required package: dm
-      
-      Attaching package: 'dm'
-    ...
-      • draw-dm/table-desc-4-dm.svg
-      • draw-dm/table-uk-1-dm.svg
-      • draw-dm/table-uk-2-dm.svg
-      • duckdb/meta/columns.csv
-      • maria/meta/columns.csv
-      • mssql/meta/columns.csv
-      • postgres/meta/columns.csv
-      • sqlite/meta/columns.csv
-      Error: Test failures
-      Execution halted
-    ```
-
-# DrugExposureDiagnostics
-
-<details>
-
-* Version: 0.4.6
+* Version: 0.6.1
 * GitHub: NA
-* Source code: https://github.com/cran/DrugExposureDiagnostics
-* Date/Publication: 2023-08-16 14:34:35 UTC
-* Number of recursive dependencies: 132
+* Source code: https://github.com/cran/PatientProfiles
+* Date/Publication: 2024-02-21 23:30:07 UTC
+* Number of recursive dependencies: 174
 
-Run `revdepcheck::cloud_details(, "DrugExposureDiagnostics")` for more info
-
-</details>
-
-## Newly broken
-
-*   checking tests ... ERROR
-    ```
-      Running ‘testthat.R’
-    Running the tests in ‘tests/testthat.R’ failed.
-    Complete output:
-      > library(testthat)
-      > library(DrugExposureDiagnostics)
-      > 
-      > test_check("DrugExposureDiagnostics")
-      trying URL 'https://example-data.ohdsi.dev/GiBleed.zip'
-      Content type 'application/zip' length 6754786 bytes (6.4 MB)
-      ==================================================
-    ...
-      Warning messages:
-      1: Connection is garbage-collected, use dbDisconnect() to avoid this. 
-      2: Database is garbage-collected, use dbDisconnect(con, shutdown=TRUE) or duckdb::duckdb_shutdown(drv) to avoid this. 
-      3: Database is garbage-collected, use dbDisconnect(con, shutdown=TRUE) or duckdb::duckdb_shutdown(drv) to avoid this. 
-      4: Database is garbage-collected, use dbDisconnect(con, shutdown=TRUE) or duckdb::duckdb_shutdown(drv) to avoid this. 
-      5: Database is garbage-collected, use dbDisconnect(con, shutdown=TRUE) or duckdb::duckdb_shutdown(drv) to avoid this. 
-      6: Database is garbage-collected, use dbDisconnect(con, shutdown=TRUE) or duckdb::duckdb_shutdown(drv) to avoid this. 
-      7: Database is garbage-collected, use dbDisconnect(con, shutdown=TRUE) or duckdb::duckdb_shutdown(drv) to avoid this. 
-      8: Database is garbage-collected, use dbDisconnect(con, shutdown=TRUE) or duckdb::duckdb_shutdown(drv) to avoid this. 
-      9: Database is garbage-collected, use dbDisconnect(con, shutdown=TRUE) or duckdb::duckdb_shutdown(drv) to avoid this. 
-    ```
-
-# duckplyr
-
-<details>
-
-* Version: 0.2.1
-* GitHub: https://github.com/duckdblabs/duckplyr
-* Source code: https://github.com/cran/duckplyr
-* Date/Publication: 2023-09-17 11:20:03 UTC
-* Number of recursive dependencies: 91
-
-Run `revdepcheck::cloud_details(, "duckplyr")` for more info
+Run `revdepcheck::cloud_details(, "PatientProfiles")` for more info
 
 </details>
 
@@ -98,6 +16,7 @@ Run `revdepcheck::cloud_details(, "duckplyr")` for more info
 
 *   checking tests ... ERROR
     ```
+      Running ‘spelling.R’
       Running ‘testthat.R’
     Running the tests in ‘tests/testthat.R’ failed.
     Complete output:
@@ -107,99 +26,16 @@ Run `revdepcheck::cloud_details(, "duckplyr")` for more info
       > # Where should you do additional test configuration?
       > # Learn more about the roles of various files in:
       > # * https://r-pkgs.org/tests.html
-      > # * https://testthat.r-lib.org/reference/test_package.html#special-files
     ...
-      3: In normalizePath(tools::R_user_dir("R.cache", which = "cache")) :
-        path[1]="/root/.cache/R/R.cache": No such file or directory
+      `expected`: TRUE 
+      ── Failure ('test-addCategories.R:25:3'): addCategories, functionality ─────────
+      all(...) is not TRUE
       
-      🛠: 883
-      🔨: 544
-      🦆: 339
-      add_count, anti_join, arrange, compute, count, cross_join, distinct, do, eval, filter, full_join, inner_join, intersect, left_join, mutate, mutate.data.frame, nest_join, pull, reframe, relocate, rename, rename_with, right_join, rows_append, rows_delete, rows_insert, rows_patch, rows_update, rows_upsert, select, semi_join, setdiff, setequal, slice, slice_head, slice_tail, summarise, symdiff, transmute, ungroup, union_all
+      `actual`:   FALSE
+      `expected`: TRUE 
       
-      00:01:07.169919
-      Execution halted
-    ```
-
-# mlr3db
-
-<details>
-
-* Version: 0.5.0
-* GitHub: https://github.com/mlr-org/mlr3db
-* Source code: https://github.com/cran/mlr3db
-* Date/Publication: 2022-08-08 10:10:02 UTC
-* Number of recursive dependencies: 71
-
-Run `revdepcheck::cloud_details(, "mlr3db")` for more info
-
-</details>
-
-## Newly broken
-
-*   checking tests ... ERROR
-    ```
-      Running ‘testthat.R’
-    Running the tests in ‘tests/testthat.R’ failed.
-    Complete output:
-      > if (requireNamespace("testthat", quietly = TRUE)) {
-      +   library("testthat")
-      +   library("mlr3db")
-      +   test_check("mlr3db")
-      + }
-      Loading required package: mlr3
-      Loading required package: RSQLite
-    ...
-       `actual$..row_id[1:114]`: 1 6 10 12 15 16 17 18 23 27 and 104 more...
-      `expected$..row_id[1:72]`: 2 8  9 14 20 22 26 28 47 49             ...
-      
-        `actual$..row_id[148:150]`: 143 147 148                    and 35 more...
-      `expected$..row_id[106:150]`: 143 147 148 1 6 10 12 15 16 17            ...
-      
-      [ FAIL 1 | WARN 0 | SKIP 0 | PASS 1416 ]
+      [ FAIL 2 | WARN 1 | SKIP 1 | PASS 666 ]
       Error: Test failures
-      In addition: There were 27 warnings (use warnings() to see them)
-      Execution halted
-    ```
-
-# restez
-
-<details>
-
-* Version: 2.1.3
-* GitHub: https://github.com/ropensci/restez
-* Source code: https://github.com/cran/restez
-* Date/Publication: 2022-11-11 07:20:10 UTC
-* Number of recursive dependencies: 71
-
-Run `revdepcheck::cloud_details(, "restez")` for more info
-
-</details>
-
-## Newly broken
-
-*   checking tests ... ERROR
-    ```
-      Running ‘test-all.R’
-    Running the tests in ‘tests/test-all.R’ failed.
-    Complete output:
-      > library(testthat)
-      > test_check("restez")
-      Loading required package: restez
-      ... Creating 'test_db_fldr/restez'
-      ... Creating 'test_db_fldr/restez/downloads'
-      ... Creating 'test_db_fldr/restez'
-      ... Creating 'test_db_fldr/restez/downloads'
-    ...
-      ── Failure ('test-status-tools.R:16:3'): restez_status() works ─────────────────
-      as.character(status_obj$Database$`Total size`) not equal to "1.01M".
-      1/1 mismatches
-      x[1]: "780K"
-      y[1]: "1.01M"
-      
-      [ FAIL 1 | WARN 0 | SKIP 2 | PASS 138 ]
-      Error: Test failures
-      In addition: There were 50 or more warnings (use warnings() to see the first 50)
       Execution halted
     ```
 
