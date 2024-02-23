@@ -186,23 +186,23 @@ test_that("aggregators translated correctly", {
   translate <- function(...) dbplyr::translate_sql(..., con = con)
   sql <- function(...) dbplyr::sql(...)
 
-  expect_equal(translate(sum(x), window = FALSE), sql(r"{SUM(x)}"))
-  expect_equal(translate(sum(x), window = TRUE), sql(r"{SUM(x) OVER ()}"))
+  expect_equal(translate(sum(x, na.rm = TRUE), window = FALSE), sql(r"{SUM(x)}"))
+  expect_equal(translate(sum(x, na.rm = TRUE), window = TRUE), sql(r"{SUM(x) OVER ()}"))
 
-  expect_equal(translate(prod(x), window = FALSE), sql(r"{PRODUCT(x)}"))
-  expect_equal(translate(prod(x), window = TRUE), sql(r"{PRODUCT(x) OVER ()}"))
+  expect_equal(translate(prod(x, na.rm = TRUE), window = FALSE), sql(r"{PRODUCT(x)}"))
+  expect_equal(translate(prod(x, na.rm = TRUE), window = TRUE), sql(r"{PRODUCT(x) OVER ()}"))
 
-  expect_equal(translate(sd(x), window = FALSE), sql(r"{STDDEV(x)}"))
-  expect_equal(translate(sd(x), window = TRUE), sql(r"{STDDEV(x) OVER ()}"))
+  expect_equal(translate(sd(x, na.rm = TRUE), window = FALSE), sql(r"{STDDEV(x)}"))
+  expect_equal(translate(sd(x, na.rm = TRUE), window = TRUE), sql(r"{STDDEV(x) OVER ()}"))
 
-  expect_equal(translate(var(x), window = FALSE), sql(r"{VARIANCE(x)}"))
-  expect_equal(translate(var(x), window = TRUE), sql(r"{VARIANCE(x) OVER ()}"))
+  expect_equal(translate(var(x, na.rm = TRUE), window = FALSE), sql(r"{VARIANCE(x)}"))
+  expect_equal(translate(var(x, na.rm = TRUE), window = TRUE), sql(r"{VARIANCE(x) OVER ()}"))
 
-  expect_equal(translate(all(x), window = FALSE), sql(r"{BOOL_AND(x)}"))
-  expect_equal(translate(all(x), window = TRUE), sql(r"{BOOL_AND(x) OVER ()}"))
+  expect_equal(translate(all(x, na.rm = TRUE), window = FALSE), sql(r"{BOOL_AND(x)}"))
+  expect_equal(translate(all(x, na.rm = TRUE), window = TRUE), sql(r"{BOOL_AND(x) OVER ()}"))
 
-  expect_equal(translate(any(x), window = FALSE), sql(r"{BOOL_OR(x)}"))
-  expect_equal(translate(any(x), window = TRUE), sql(r"{BOOL_OR(x) OVER ()}"))
+  expect_equal(translate(any(x, na.rm = TRUE), window = FALSE), sql(r"{BOOL_OR(x)}"))
+  expect_equal(translate(any(x, na.rm = TRUE), window = TRUE), sql(r"{BOOL_OR(x) OVER ()}"))
 
   expect_equal(translate(str_flatten(x, ","), window = FALSE), sql(r"{STRING_AGG(x, ',')}"))
   expect_equal(translate(str_flatten(x, ","), window = TRUE), sql(r"{STRING_AGG(x, ',') OVER ()}"))
