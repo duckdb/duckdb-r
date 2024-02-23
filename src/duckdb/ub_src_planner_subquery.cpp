@@ -4,3 +4,5 @@
 
 #include "src/planner/subquery/rewrite_correlated_expressions.cpp"
 
+#include "src/planner/subquery/rewrite_cte_scan.cpp"
+

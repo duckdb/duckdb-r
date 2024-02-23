@@ -8,6 +8,8 @@
 
 #include "src/parser/tableref/pivotref.cpp"
 
+#include "src/parser/tableref/showref.cpp"
+
 #include "src/parser/tableref/subqueryref.cpp"
 
 #include "src/parser/tableref/table_function.cpp"
