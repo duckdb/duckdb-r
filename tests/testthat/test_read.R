@@ -111,8 +111,13 @@ test_that("duckdb_read_csv() works as expected", {
   # test better na.strings handling
   # see https://github.com/duckdb/duckdb/issues/8590
   tf3 <- tempfile()
-  na_strings <- data.frame(num=c(0.5, 2, NA), char=c('yes', 'no', NA), logi=c(TRUE, FALSE, NA), lisst=c(list(1), list(2, 3), NA))
-  write.csv(na_strings, tf3, row.names = FALSE)
+  csv <- c(
+    '"num","char","logi","lisst.1","lisst.2","lisst.3","lisst.NA"',
+    '0.5,"yes",TRUE,1,2,3,NA',
+    '2,"no",FALSE,1,2,3,NA',
+    'NA,NA,NA,1,2,3,NA'
+  )
+  writeLines(csv, tf3)
   duckdb_read_csv(con, "na_table", tf3, na.strings = "-")
   expect_identical(
     dbReadTable(con, "na_table"),
