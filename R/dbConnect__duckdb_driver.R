@@ -39,11 +39,16 @@
 #' dbGetQuery(con, "SELECT 'Hello, world!'")
 #' dbDisconnect(con, shutdown = TRUE)
 #' @usage NULL
-dbConnect__duckdb_driver <- function(drv, dbdir = DBDIR_MEMORY, ...,
-                                     debug = getOption("duckdb.debug", FALSE),
-                                     read_only = FALSE,
-                                     timezone_out = "UTC",
-                                     tz_out_convert = c("with", "force"), config = list(), bigint = "numeric") {
+dbConnect__duckdb_driver <- function(
+    drv,
+    dbdir = DBDIR_MEMORY,
+    ...,
+    debug = getOption("duckdb.debug", FALSE),
+    read_only = FALSE,
+    timezone_out = "UTC",
+    tz_out_convert = c("with", "force"),
+    config = list(),
+    bigint = "numeric") {
   check_flag(debug)
   timezone_out <- check_tz(timezone_out)
   tz_out_convert <- match.arg(tz_out_convert)
