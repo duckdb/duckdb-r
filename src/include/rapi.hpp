@@ -4,12 +4,17 @@
 
 #include <Rdefines.h>
 #include <R_ext/Altrep.h>
+#include <Rversion.h>
 
 #include "duckdb.hpp"
 #include "duckdb/function/table_function.hpp"
 #include "duckdb/common/unordered_map.hpp"
 #include "duckdb/parser/tableref/table_function_ref.hpp"
 #include "duckdb/common/mutex.hpp"
+
+#if defined(R_VERSION) && R_VERSION >= R_Version(4, 3, 0)
+#define R_HAS_ALTLIST
+#endif
 
 namespace duckdb {
 

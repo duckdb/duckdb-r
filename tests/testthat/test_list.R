@@ -28,6 +28,8 @@ test_that("one-level lists can be read", {
 })
 
 test_that("rel_filter() handles LIST logical type", {
+  skip_if_not(getRversion() >= "4.3.0")
+
   con <- dbConnect(duckdb())
   on.exit(dbDisconnect(con, shutdown = TRUE))
 
