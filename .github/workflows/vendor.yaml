@@ -38,6 +38,14 @@ jobs:
       - run: |
           ./vendor.sh .git/duckdb
 
-      - if: github.event_name != 'pull_request'
-        run: |
+  rest:
+    needs: vendor
+    uses: ./.github/workflows/R-CMD-check.yaml
+
+  push:
+    needs: rest
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    steps:
+      - run: |
           git push -u origin HEAD
