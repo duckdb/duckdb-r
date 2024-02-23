@@ -243,9 +243,10 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 	case LogicalTypeId::ENUM:
 		return RelToAltrep::int_class;
 	case LogicalTypeId::UINTEGER:
-	case LogicalTypeId::UBIGINT:
 	case LogicalTypeId::BIGINT:
+	case LogicalTypeId::UBIGINT:
 	case LogicalTypeId::HUGEINT:
+	case LogicalTypeId::UHUGEINT:
 	case LogicalTypeId::FLOAT:
 	case LogicalTypeId::DOUBLE:
 	case LogicalTypeId::DECIMAL:
