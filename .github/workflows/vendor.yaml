@@ -38,6 +38,25 @@ jobs:
 
       - run: |
           ./vendor.sh .git/duckdb
+          rm -rf .git/duckdb
+
+      - uses: ./.github/workflows/custom/before-install
+        if: hashFiles('.github/workflows/custom/before-install/action.yml') != ''
+
+      - uses: ./.github/workflows/install
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          install-r: false
+          cache-version: vendor
+          needs: check
+          extra-packages: any::rcmdcheck
+
+      - uses: ./.github/workflows/custom/after-install
+        if: hashFiles('.github/workflows/custom/after-install/action.yml') != ''
+
+      - uses: ./.github/workflows/check
+        with:
+          results: ${{ runner.os }}-smoke-test
 
       - if: github.event_name != 'pull_request'
         run: |
