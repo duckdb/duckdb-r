@@ -25,7 +25,7 @@ commit=$(git -C "$duckdir" rev-parse HEAD)
 echo "Importing commit $commit"
 
 echo "R: configure"
-python3 rconfigure.py
+DUCKDB_PATH="$duckdir" python3 rconfigure.py
 
 git add .
 git commit -m "Update vendored sources to duckdb/duckdb@$commit"
