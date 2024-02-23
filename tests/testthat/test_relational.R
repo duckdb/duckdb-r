@@ -209,14 +209,17 @@ test_that("Full join returns all outer relations", {
   cond <- list(expr_function("eq", list(expr_reference("left_a"), expr_reference("right_a"))))
   rel2 <- rel_join(left, right, cond, "outer")
   rel_df <- rel_to_altrep(rel2)
-  dim(rel_df)
+
   expected_result <- data.frame(
     left_a = c(1, 2, 5, NA),
     left_b = c(4, 5, 6, NA),
     right_a = c(1, 2, NA, 3),
     right_b = c(1, 1, NA, 2)
   )
-  expect_equal(rel_df, expected_result)
+
+  rel_df_sorted <- rel_df[order(rel_df$left_a), ]
+  rownames(rel_df_sorted) <- NULL
+  expect_equal(rel_df_sorted, expected_result)
 })
 
 test_that("cross join works", {
