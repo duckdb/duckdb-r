@@ -8,10 +8,21 @@ services:
 
 # -- DUCKDB SERVICE --
 
-  r-debug-amd64:
-    container_name: duckdb-r-debug-amd64
+  r-debug-strictbarrier:
+    container_name: duckdb-r-debug-strictbarrier
     build:
-      dockerfile: docker/Dockerfile.r-debug.amd64
+      dockerfile: docker/Dockerfile.r-debug-strictbarrier
+    platform: linux/amd64
+    tty: true
+    stdin_open: true
+    volumes:
+      - .:/root/workspace
+    entrypoint: ["bash"]
+
+  r-debug-threadcheck:
+    container_name: duckdb-r-debug-threadcheck
+    build:
+      dockerfile: docker/Dockerfile.r-debug-threadcheck
     platform: linux/amd64
     tty: true
     stdin_open: true

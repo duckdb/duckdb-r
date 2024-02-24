@@ -11,6 +11,4 @@ pkgs
 
 install.packages(pkgs)
 
-r_exec <- R.home("bin") |> file.path("R")
-
-system2(r_exec, c("CMD", "INSTALL", "--preclean", "."), wait = TRUE)
+# Can't install packager from here, so we'll have to do it manually
