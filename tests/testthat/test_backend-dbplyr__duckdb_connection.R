@@ -233,6 +233,8 @@ test_that("snapshots of dbplyr generic scalar translation", {
   local_edition(3)
   translate <- function(...) dbplyr::translate_sql(..., con = con)
 
+  rlang::local_options(cli.num_colors = 1)
+
   expect_snapshot({
     translate(as.character(1))
     translate(as.character(1L))
@@ -262,6 +264,8 @@ test_that("snapshots of duckdb custom scalars translations", {
   on.exit(dbDisconnect(con, shutdown = TRUE))
   local_edition(3)
   translate <- function(...) dbplyr::translate_sql(..., con = con)
+
+  rlang::local_options(cli.num_colors = 1)
 
   expect_snapshot({
     #  translate(as(1,"CHARACTER"))        # Not implemented
@@ -304,6 +308,8 @@ test_that("snapshot tests for pasting translate", {
   local_edition(3)
   translate <- function(...) dbplyr::translate_sql(..., con = con)
 
+  rlang::local_options(cli.num_colors = 1)
+
   expect_snapshot({
     translate(paste("hi", "bye"))
     translate(paste("hi", "bye", sep = "-"))
@@ -326,6 +332,8 @@ test_that("snapshots for custom lubridate functions translated correctly", {
   on.exit(dbDisconnect(con, shutdown = TRUE))
   local_edition(3)
   translate <- function(...) dbplyr::translate_sql(..., con = con)
+
+  rlang::local_options(cli.num_colors = 1)
 
   expect_snapshot({
     translate(yday(x))
@@ -371,6 +379,8 @@ test_that("snapshots for custom stringr functions translated correctly", {
   local_edition(3)
   translate <- function(...) dbplyr::translate_sql(..., con = con)
 
+  rlang::local_options(cli.num_colors = 1)
+
   expect_snapshot({
     translate(str_c(x, y))
     #  translate(str_c(x, collapse = ""))  # Error
@@ -399,6 +409,8 @@ test_that("snapshots datetime escaping working as in DBI", {
   local_edition(3)
   escape <- function(...) dbplyr::escape(..., con = con)
 
+  rlang::local_options(cli.num_colors = 1)
+
   expect_snapshot({
     test_date <- as.Date("2020-01-01")
     escape(test_date)
@@ -422,6 +434,8 @@ test_that("two variable aggregates are translated correctly", {
   local_edition(3)
   translate <- function(...) dbplyr::translate_sql(..., con = con)
 
+  rlang::local_options(cli.num_colors = 1)
+
   expect_snapshot({
     translate(cor(x, y), window = FALSE)
     translate(cor(x, y), window = TRUE)
@@ -435,6 +449,8 @@ test_that("these should give errors", {
   on.exit(dbDisconnect(con, shutdown = TRUE))
   local_edition(3)
   translate <- function(...) dbplyr::translate_sql(..., con = con)
+
+  rlang::local_options(cli.num_colors = 1)
 
   expect_snapshot(error = TRUE, {
     translate(grepl("dummy", txt, perl = TRUE)) # Expected error
