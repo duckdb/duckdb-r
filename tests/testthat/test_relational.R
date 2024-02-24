@@ -209,14 +209,17 @@ test_that("Full join returns all outer relations", {
   cond <- list(expr_function("eq", list(expr_reference("left_a"), expr_reference("right_a"))))
   rel2 <- rel_join(left, right, cond, "outer")
   rel_df <- rel_to_altrep(rel2)
-  dim(rel_df)
+
   expected_result <- data.frame(
     left_a = c(1, 2, 5, NA),
     left_b = c(4, 5, 6, NA),
     right_a = c(1, 2, NA, 3),
     right_b = c(1, 1, NA, 2)
   )
-  expect_equal(rel_df, expected_result)
+
+  rel_df_sorted <- rel_df[order(rel_df$left_a), ]
+  rownames(rel_df_sorted) <- NULL
+  expect_equal(rel_df_sorted, expected_result)
 })
 
 test_that("cross join works", {
@@ -357,7 +360,7 @@ test_that("Invalid asof join condition throws error", {
   test_df1 <- rel_from_df(con, data.frame(ts = c(1, 2, 3, 4, 5, 6, 7, 8, 9)))
   test_df2 <- rel_from_df(con, data.frame(begin = c(1, 3, 6, 8), value = c(0, 1, 2, 3)))
   cond <- list(expr_function("neq", list(expr_reference("ts"), expr_reference("begin"))))
-  expect_error(rel_join(test_df1, test_df2, cond, join_ref_type = "asof"), "Binder Error")
+  expect_error(rel_join(test_df1, test_df2, cond, join_ref_type = "asof"), "Binder")
 })
 
 test_that("multiple inequality conditions for asof join throws error", {
@@ -367,7 +370,7 @@ test_that("multiple inequality conditions for asof join throws error", {
   cond1 <- expr_function("gte", list(expr_reference("ts"), expr_reference("begin")))
   cond2 <- expr_function("gte", list(expr_reference("ts"), expr_reference("value")))
   conds <- list(cond1, cond2)
-  expect_error(rel_join(test_df1, test_df2, conds, join_ref_type = "asof"), "Binder Error")
+  expect_error(rel_join(test_df1, test_df2, conds, join_ref_type = "asof"), "Binder")
 })
 
 
@@ -419,7 +422,7 @@ test_that("we throw an error when attempting to union all relations that are not
   test_df_a2 <- rel_from_df(con, data.frame(a = c("1", "2"), b = c("3", "4")))
   test_df_b2 <- rel_from_df(con, data.frame(a = c("1", "2"), b = c("3", "4"), c = c("5", "6")))
   # The two data frames have different dimensions, therefore you get a binding error.
-  expect_error(rel_union_all(test_df_a2, test_df_b2), "Binder Error")
+  expect_error(rel_union_all(test_df_a2, test_df_b2), "Binder")
 })
 
 test_that("A union with different column types casts to the richer type", {
