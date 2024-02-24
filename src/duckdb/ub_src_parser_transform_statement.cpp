@@ -10,6 +10,8 @@
 
 #include "src/parser/transform/statement/transform_create_function.cpp"
 
+#include "src/parser/transform/statement/transform_comment_on.cpp"
+
 #include "src/parser/transform/statement/transform_copy.cpp"
 
 #include "src/parser/transform/statement/transform_copy_database.cpp"
@@ -43,6 +45,8 @@
 #include "src/parser/transform/statement/transform_pragma.cpp"
 
 #include "src/parser/transform/statement/transform_rename.cpp"
+
+#include "src/parser/transform/statement/transform_secret.cpp"
 
 #include "src/parser/transform/statement/transform_select.cpp"
 

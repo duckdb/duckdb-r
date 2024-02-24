@@ -13,8 +13,8 @@
 #include "duckdb/common/mutex.hpp"
 #include "duckdb/common/pair.hpp"
 #include "duckdb/common/reference_map.hpp"
-#include "duckdb/parallel/pipeline.hpp"
 #include "duckdb/execution/task_error_manager.hpp"
+#include "duckdb/parallel/pipeline.hpp"
 
 namespace duckdb {
 class ClientContext;
@@ -57,7 +57,7 @@ public:
 	unique_ptr<DataChunk> FetchChunk();
 
 	//! Push a new error
-	void PushError(PreservedError exception);
+	void PushError(ErrorData exception);
 
 	//! True if an error has been thrown
 	bool HasError();
@@ -107,8 +107,8 @@ private:
 	static void ScheduleEventsInternal(ScheduleEventData &event_data);
 
 	static void VerifyScheduledEvents(const ScheduleEventData &event_data);
-	static void VerifyScheduledEventsInternal(const idx_t i, const vector<Event *> &vertices, vector<bool> &visited,
-	                                          vector<bool> &recursion_stack);
+	static void VerifyScheduledEventsInternal(const idx_t i, const vector<reference<Event>> &vertices,
+	                                          vector<bool> &visited, vector<bool> &recursion_stack);
 
 	static void SchedulePipeline(const shared_ptr<MetaPipeline> &pipeline, ScheduleEventData &event_data);
 

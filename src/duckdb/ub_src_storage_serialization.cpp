@@ -4,6 +4,8 @@
 
 #include "src/storage/serialization/serialize_expression.cpp"
 
+#include "src/storage/serialization/serialize_extra_drop_info.cpp"
+
 #include "src/storage/serialization/serialize_logical_operator.cpp"
 
 #include "src/storage/serialization/serialize_macro_function.cpp"

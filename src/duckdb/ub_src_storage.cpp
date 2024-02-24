@@ -4,6 +4,8 @@
 
 #include "src/storage/checkpoint_manager.cpp"
 
+#include "src/storage/temporary_memory_manager.cpp"
+
 #include "src/storage/block.cpp"
 
 #include "src/storage/data_pointer.cpp"
