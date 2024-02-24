@@ -2,7 +2,7 @@ FROM wch1/r-debug
 
 WORKDIR /root
 
-COPY docker/r-debug.sh docker/deps.R DESCRIPTION .
+COPY docker/r-debug-threadcheck.sh docker/deps.R DESCRIPTION .
 
 RUN ./r-debug-threadcheck.sh
 
