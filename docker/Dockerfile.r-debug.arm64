@@ -1,0 +1,5 @@
+FROM ghcr.io/cynkra/r-debug:main
+
+WORKDIR /root/workspace
+
+ENTRYPOINT /bin/bash
