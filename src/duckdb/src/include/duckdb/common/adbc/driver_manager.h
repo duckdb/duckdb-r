@@ -25,6 +25,7 @@ extern "C" {
 
 #ifndef ADBC_DRIVER_MANAGER_H
 #define ADBC_DRIVER_MANAGER_H
+namespace duckdb_adbc {
 /// \brief Common entry point for drivers via the driver manager.
 ///
 /// The driver manager can fill in default implementations of some
@@ -80,3 +81,4 @@ const char *AdbcStatusCodeMessage(AdbcStatusCode code);
 #ifdef __cplusplus
 }
 #endif
+} // namespace duckdb_adbc

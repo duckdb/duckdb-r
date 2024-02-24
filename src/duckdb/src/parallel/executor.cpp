@@ -442,6 +442,32 @@ void Executor::RescheduleTask(shared_ptr<Task> &task_p) {
 	}
 }
 
+bool Executor::ResultCollectorIsBlocked() const {
+	if (completed_pipelines + 1 != total_pipelines) {
+		// The result collector is always in the last pipeline
+		return false;
+	}
+	if (to_be_rescheduled_tasks.empty()) {
+		return false;
+	}
+	for (auto &kv : to_be_rescheduled_tasks) {
+		auto &task = kv.second;
+		D_ASSERT(task->Type() == TaskType::EXECUTOR);
+		auto &executor_task = dynamic_cast<ExecutorTask &>(*task);
+		if (!executor_task.IsPipelineTask()) {
+			return false;
+		}
+		auto &pipeline_task = dynamic_cast<PipelineTask &>(executor_task);
+		auto &pipeline_executor = pipeline_task.GetPipelineExecutor();
+		if (!pipeline_executor.RemainingSinkChunk()) {
+			// This indicates whether the Sink was blocked
+			// All blocked tasks have to be Sinks in the final pipeline
+			return false;
+		}
+	}
+	return true;
+}
+
 void Executor::AddToBeRescheduled(shared_ptr<Task> &task_p) {
 	lock_guard<mutex> l(executor_lock);
 	if (cancelled) {
@@ -472,6 +498,12 @@ PendingExecutionResult Executor::ExecuteTask() {
 		}
 		if (!task && !HasError()) {
 			// there are no tasks to be scheduled and there are tasks blocked
+			if (ResultCollectorIsBlocked()) {
+				// The blocked tasks are processing the Sink of a BufferedResultCollector
+				// We return here so the query result can be made and fetched from
+				// which will in turn unblock the Sink tasks.
+				return PendingExecutionResult::BLOCKED;
+			}
 			return PendingExecutionResult::NO_TASKS_AVAILABLE;
 		}
 		if (task) {
@@ -521,7 +553,7 @@ void Executor::Reset() {
 	root_pipeline_idx = 0;
 	completed_pipelines = 0;
 	total_pipelines = 0;
-	error_manager.Reset();
+	exceptions.clear();
 	pipelines.clear();
 	events.clear();
 	to_be_rescheduled_tasks.clear();
@@ -554,18 +586,23 @@ vector<LogicalType> Executor::GetTypes() {
 }
 
 void Executor::PushError(PreservedError exception) {
+	lock_guard<mutex> elock(error_lock);
 	// interrupt execution of any other pipelines that belong to this executor
 	context.interrupted = true;
 	// push the exception onto the stack
-	error_manager.PushError(std::move(exception));
+	exceptions.push_back(std::move(exception));
 }
 
 bool Executor::HasError() {
-	return error_manager.HasError();
+	lock_guard<mutex> elock(error_lock);
+	return !exceptions.empty();
 }
 
 void Executor::ThrowException() {
-	error_manager.ThrowException();
+	lock_guard<mutex> elock(error_lock);
+	D_ASSERT(!exceptions.empty());
+	auto &entry = exceptions[0];
+	entry.Throw();
 }
 
 void Executor::Flush(ThreadContext &tcontext) {
@@ -579,7 +616,6 @@ bool Executor::GetPipelinesProgress(double &current_progress, uint64_t &current_
 	vector<double> progress;
 	vector<idx_t> cardinality;
 	total_cardinality = 0;
-	current_cardinality = 0;
 	for (auto &pipeline : pipelines) {
 		double child_percentage;
 		idx_t child_cardinality;
@@ -591,16 +627,15 @@ bool Executor::GetPipelinesProgress(double &current_progress, uint64_t &current_
 		cardinality.push_back(child_cardinality);
 		total_cardinality += child_cardinality;
 	}
+	current_cardinality = 0;
 	if (total_cardinality == 0) {
 		return true;
 	}
 	current_progress = 0;
 
 	for (size_t i = 0; i < progress.size(); i++) {
-		D_ASSERT(progress[i] <= 100);
 		current_cardinality += double(progress[i]) * double(cardinality[i]) / double(100);
 		current_progress += progress[i] * double(cardinality[i]) / double(total_cardinality);
-		D_ASSERT(current_cardinality < total_cardinality);
 	}
 	return true;
 } // LCOV_EXCL_STOP

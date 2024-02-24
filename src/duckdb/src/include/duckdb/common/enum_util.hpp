@@ -98,8 +98,6 @@ enum class DebugInitialize : uint8_t;
 
 enum class DefaultOrderByNullType : uint8_t;
 
-enum class DependencyEntryType : uint8_t;
-
 enum class DistinctType : uint8_t;
 
 enum class ErrorType : uint16_t;
@@ -270,6 +268,8 @@ enum class TaskExecutionMode : uint8_t;
 
 enum class TaskExecutionResult : uint8_t;
 
+enum class TaskType : uint8_t;
+
 enum class TimestampCastResult : uint8_t;
 
 enum class TransactionType : uint8_t;
@@ -399,9 +399,6 @@ const char* EnumUtil::ToChars<DebugInitialize>(DebugInitialize value);
 
 template<>
 const char* EnumUtil::ToChars<DefaultOrderByNullType>(DefaultOrderByNullType value);
-
-template<>
-const char* EnumUtil::ToChars<DependencyEntryType>(DependencyEntryType value);
 
 template<>
 const char* EnumUtil::ToChars<DistinctType>(DistinctType value);
@@ -659,6 +656,9 @@ template<>
 const char* EnumUtil::ToChars<TaskExecutionResult>(TaskExecutionResult value);
 
 template<>
+const char* EnumUtil::ToChars<TaskType>(TaskType value);
+
+template<>
 const char* EnumUtil::ToChars<TimestampCastResult>(TimestampCastResult value);
 
 template<>
@@ -802,9 +802,6 @@ DebugInitialize EnumUtil::FromString<DebugInitialize>(const char *value);
 
 template<>
 DefaultOrderByNullType EnumUtil::FromString<DefaultOrderByNullType>(const char *value);
-
-template<>
-DependencyEntryType EnumUtil::FromString<DependencyEntryType>(const char *value);
 
 template<>
 DistinctType EnumUtil::FromString<DistinctType>(const char *value);
@@ -1060,6 +1057,9 @@ TaskExecutionMode EnumUtil::FromString<TaskExecutionMode>(const char *value);
 
 template<>
 TaskExecutionResult EnumUtil::FromString<TaskExecutionResult>(const char *value);
+
+template<>
+TaskType EnumUtil::FromString<TaskType>(const char *value);
 
 template<>
 TimestampCastResult EnumUtil::FromString<TimestampCastResult>(const char *value);

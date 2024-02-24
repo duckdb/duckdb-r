@@ -668,7 +668,6 @@ void RowGroup::InitializeAppend(RowGroupAppendState &append_state) {
 
 void RowGroup::Append(RowGroupAppendState &state, DataChunk &chunk, idx_t append_count) {
 	// append to the current row_group
-	D_ASSERT(chunk.ColumnCount() == GetColumnCount());
 	for (idx_t i = 0; i < GetColumnCount(); i++) {
 		auto &col_data = GetColumn(i);
 		col_data.Append(state.states[i], chunk.data[i], append_count);
@@ -760,12 +759,16 @@ RowGroupWriteData RowGroup::WriteToDisk(PartialBlockManager &manager,
 	return result;
 }
 
-idx_t RowGroup::GetCommittedRowCount() {
+bool RowGroup::AllDeleted() {
+	if (HasUnloadedDeletes()) {
+		// deletes aren't loaded yet - we know not everything is deleted
+		return false;
+	}
 	auto &vinfo = GetVersionInfo();
 	if (!vinfo) {
-		return count;
+		return false;
 	}
-	return count - vinfo->GetCommittedDeletedCount(count);
+	return vinfo->GetCommittedDeletedCount(count) == count;
 }
 
 bool RowGroup::HasUnloadedDeletes() const {
@@ -777,7 +780,9 @@ bool RowGroup::HasUnloadedDeletes() const {
 	return !deletes_is_loaded;
 }
 
-RowGroupWriteData RowGroup::WriteToDisk(RowGroupWriter &writer) {
+RowGroupPointer RowGroup::Checkpoint(RowGroupWriter &writer, TableStatistics &global_stats) {
+	RowGroupPointer row_group_pointer;
+
 	vector<CompressionType> compression_types;
 	compression_types.reserve(columns.size());
 	for (idx_t column_idx = 0; column_idx < GetColumnCount(); column_idx++) {
@@ -789,23 +794,16 @@ RowGroupWriteData RowGroup::WriteToDisk(RowGroupWriter &writer) {
 		}
 		compression_types.push_back(writer.GetColumnCompressionType(column_idx));
 	}
-
-	return WriteToDisk(writer.GetPartialBlockManager(), compression_types);
-}
-
-RowGroupPointer RowGroup::Checkpoint(RowGroupWriteData write_data, RowGroupWriter &writer,
-                                     TableStatistics &global_stats) {
-	RowGroupPointer row_group_pointer;
-
+	auto result = WriteToDisk(writer.GetPartialBlockManager(), compression_types);
 	for (idx_t column_idx = 0; column_idx < GetColumnCount(); column_idx++) {
-		global_stats.GetStats(column_idx).Statistics().Merge(write_data.statistics[column_idx]);
+		global_stats.GetStats(column_idx).Statistics().Merge(result.statistics[column_idx]);
 	}
 
 	// construct the row group pointer and write the column meta data to disk
-	D_ASSERT(write_data.states.size() == columns.size());
+	D_ASSERT(result.states.size() == columns.size());
 	row_group_pointer.row_start = start;
 	row_group_pointer.tuple_count = count;
-	for (auto &state : write_data.states) {
+	for (auto &state : result.states) {
 		// get the current position of the table data writer
 		auto &data_writer = writer.GetPayloadWriter();
 		auto pointer = data_writer.GetMetaBlockPointer();

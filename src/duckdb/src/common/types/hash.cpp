@@ -54,9 +54,7 @@ hash_t Hash(double val) {
 
 template <>
 hash_t Hash(interval_t val) {
-	int64_t months, days, micros;
-	val.Normalize(months, days, micros);
-	return Hash(days) ^ Hash(months) ^ Hash(micros);
+	return Hash(val.days) ^ Hash(val.months) ^ Hash(val.micros);
 }
 
 template <>

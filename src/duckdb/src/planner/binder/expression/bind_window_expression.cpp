@@ -179,7 +179,6 @@ BindResult BaseSelectBinder::BindWindow(WindowExpression &window, idx_t depth) {
 			if (argno == 1) {
 				bound = BoundCastExpression::AddCastToType(context, std::move(bound), LogicalType::BIGINT);
 			}
-			break;
 		default:
 			break;
 		}

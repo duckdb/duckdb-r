@@ -20,7 +20,6 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalPositional
 		default:
 			break;
 		}
-		break;
 	default:
 		break;
 	}

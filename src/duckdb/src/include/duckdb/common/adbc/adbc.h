@@ -57,6 +57,8 @@
 /// @{
 
 //! @cond Doxygen_Suppress
+namespace duckdb_adbc {
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -2228,3 +2230,4 @@ typedef AdbcStatusCode (*AdbcDriverInitFunc)(int version, void *driver, struct A
 #ifdef __cplusplus
 }
 #endif
+} // namespace duckdb_adbc

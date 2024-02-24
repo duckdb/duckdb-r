@@ -14,7 +14,6 @@
 #include "duckdb/common/pair.hpp"
 #include "duckdb/common/reference_map.hpp"
 #include "duckdb/parallel/pipeline.hpp"
-#include "duckdb/execution/task_error_manager.hpp"
 
 namespace duckdb {
 class ClientContext;
@@ -101,6 +100,7 @@ public:
 	bool ExecutionIsFinished();
 
 private:
+	bool ResultCollectorIsBlocked() const;
 	void InitializeInternal(PhysicalOperator &physical_plan);
 
 	void ScheduleEvents(const vector<shared_ptr<MetaPipeline>> &meta_pipelines);
@@ -124,6 +124,7 @@ private:
 	unique_ptr<PhysicalOperator> owned_plan;
 
 	mutex executor_lock;
+	mutex error_lock;
 	//! All pipelines of the query plan
 	vector<shared_ptr<Pipeline>> pipelines;
 	//! The root pipelines of the query
@@ -138,12 +139,12 @@ private:
 	idx_t root_pipeline_idx;
 	//! The producer of this query
 	unique_ptr<ProducerToken> producer;
+	//! Exceptions that occurred during the execution of the current query
+	vector<PreservedError> exceptions;
 	//! List of events
 	vector<shared_ptr<Event>> events;
 	//! The query profiler
 	shared_ptr<QueryProfiler> profiler;
-	//! Task error manager
-	TaskErrorManager error_manager;
 
 	//! The amount of completed pipelines of the query
 	atomic<idx_t> completed_pipelines;

@@ -29,8 +29,6 @@ class BoundConstraint;
 class RowGroupSegmentTree;
 struct ColumnSegmentInfo;
 class MetadataManager;
-struct VacuumState;
-struct CollectionCheckpointState;
 
 class RowGroupCollection {
 public:
@@ -88,10 +86,6 @@ public:
 	                  DataChunk &updates);
 
 	void Checkpoint(TableDataWriter &writer, TableStatistics &global_stats);
-
-	void InitializeVacuumState(VacuumState &state, vector<SegmentNode<RowGroup>> &segments);
-	bool ScheduleVacuumTasks(CollectionCheckpointState &checkpoint_state, VacuumState &state, idx_t segment_idx);
-	void ScheduleCheckpointTask(CollectionCheckpointState &checkpoint_state, idx_t segment_idx);
 
 	void CommitDropColumn(idx_t index);
 	void CommitDropTable();

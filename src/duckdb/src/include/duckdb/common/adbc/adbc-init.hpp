@@ -20,17 +20,15 @@
 #ifndef DUCKDB_ADBC_INIT
 #define DUCKDB_ADBC_INIT
 
-#include "duckdb.h"
 #include "duckdb/common/adbc/adbc.hpp"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef uint8_t AdbcStatusCode;
-
 //! We gotta leak the symbols of the init function
-DUCKDB_API AdbcStatusCode duckdb_adbc_init(int version, void *driver, struct AdbcError *error);
+duckdb_adbc::AdbcStatusCode duckdb_adbc_init(size_t count, struct duckdb_adbc::AdbcDriver *driver,
+                                             struct duckdb_adbc::AdbcError *error);
 
 #ifdef __cplusplus
 }
