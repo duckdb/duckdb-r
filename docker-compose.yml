@@ -18,15 +18,3 @@ services:
     volumes:
       - .:/root/workspace
     entrypoint: ["bash"]
-
-  r-debug-arm64:
-    container_name: duckdb-r-debug-amd64
-    build:
-      dockerfile: docker/Dockerfile.r-debug.arm64
-    platform: linux/arm64
-    tty: true
-    stdin_open: true
-    volumes:
-      - .:/root/workspace
-    entrypoint: ["bash"]
-

@@ -1,5 +1,11 @@
 FROM wch1/r-debug
 
+WORKDIR /root
+
+COPY docker/r-debug.sh docker/deps.R DESCRIPTION .
+
+RUN ./r-debug.sh
+
 WORKDIR /root/workspace
 
 ENTRYPOINT /bin/bash

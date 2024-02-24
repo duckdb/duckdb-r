@@ -1,5 +1,5 @@
 #!/bin/sh
 
-cd `dirname $0`/..
+cd `dirname $0`
 
-RDstrictbarrier -q -f docker/deps.R
+RDstrictbarrier -q -f deps.R
