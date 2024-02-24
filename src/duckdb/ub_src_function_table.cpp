@@ -18,6 +18,8 @@
 
 #include "src/function/table/sniff_csv.cpp"
 
+#include "src/function/table/read_file.cpp"
+
 #include "src/function/table/system_functions.cpp"
 
 #include "src/function/table/summary.cpp"

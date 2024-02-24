@@ -20,6 +20,7 @@
 #include "duckdb/common/types/null_value.hpp"
 #include "duckdb/common/types/bit.hpp"
 #include "duckdb/common/types/vector.hpp"
+#include "duckdb/common/exception/conversion_exception.hpp"
 
 namespace duckdb {
 struct ValidityMask;
@@ -99,6 +100,8 @@ DUCKDB_API bool TryCast::Operation(bool input, int64_t &result, bool strict);
 template <>
 DUCKDB_API bool TryCast::Operation(bool input, hugeint_t &result, bool strict);
 template <>
+DUCKDB_API bool TryCast::Operation(bool input, uhugeint_t &result, bool strict);
+template <>
 DUCKDB_API bool TryCast::Operation(bool input, uint8_t &result, bool strict);
 template <>
 DUCKDB_API bool TryCast::Operation(bool input, uint16_t &result, bool strict);
@@ -126,6 +129,8 @@ template <>
 DUCKDB_API bool TryCast::Operation(int8_t input, int64_t &result, bool strict);
 template <>
 DUCKDB_API bool TryCast::Operation(int8_t input, hugeint_t &result, bool strict);
+template <>
+DUCKDB_API bool TryCast::Operation(int8_t input, uhugeint_t &result, bool strict);
 template <>
 DUCKDB_API bool TryCast::Operation(int8_t input, uint8_t &result, bool strict);
 template <>
@@ -155,6 +160,8 @@ DUCKDB_API bool TryCast::Operation(int16_t input, int64_t &result, bool strict);
 template <>
 DUCKDB_API bool TryCast::Operation(int16_t input, hugeint_t &result, bool strict);
 template <>
+DUCKDB_API bool TryCast::Operation(int16_t input, uhugeint_t &result, bool strict);
+template <>
 DUCKDB_API bool TryCast::Operation(int16_t input, uint8_t &result, bool strict);
 template <>
 DUCKDB_API bool TryCast::Operation(int16_t input, uint16_t &result, bool strict);
@@ -182,6 +189,8 @@ template <>
 DUCKDB_API bool TryCast::Operation(int32_t input, int64_t &result, bool strict);
 template <>
 DUCKDB_API bool TryCast::Operation(int32_t input, hugeint_t &result, bool strict);
+template <>
+DUCKDB_API bool TryCast::Operation(int32_t input, uhugeint_t &result, bool strict);
 template <>
 DUCKDB_API bool TryCast::Operation(int32_t input, uint8_t &result, bool strict);
 template <>
@@ -211,6 +220,8 @@ DUCKDB_API bool TryCast::Operation(int64_t input, int64_t &result, bool strict);
 template <>
 DUCKDB_API bool TryCast::Operation(int64_t input, hugeint_t &result, bool strict);
 template <>
+DUCKDB_API bool TryCast::Operation(int64_t input, uhugeint_t &result, bool strict);
+template <>
 DUCKDB_API bool TryCast::Operation(int64_t input, uint8_t &result, bool strict);
 template <>
 DUCKDB_API bool TryCast::Operation(int64_t input, uint16_t &result, bool strict);
@@ -239,6 +250,8 @@ DUCKDB_API bool TryCast::Operation(hugeint_t input, int64_t &result, bool strict
 template <>
 DUCKDB_API bool TryCast::Operation(hugeint_t input, hugeint_t &result, bool strict);
 template <>
+DUCKDB_API bool TryCast::Operation(hugeint_t input, uhugeint_t &result, bool strict);
+template <>
 DUCKDB_API bool TryCast::Operation(hugeint_t input, uint8_t &result, bool strict);
 template <>
 DUCKDB_API bool TryCast::Operation(hugeint_t input, uint16_t &result, bool strict);
@@ -250,6 +263,36 @@ template <>
 DUCKDB_API bool TryCast::Operation(hugeint_t input, float &result, bool strict);
 template <>
 DUCKDB_API bool TryCast::Operation(hugeint_t input, double &result, bool strict);
+
+//===--------------------------------------------------------------------===//
+// Cast uhugeint_t -> Numeric
+//===--------------------------------------------------------------------===//
+template <>
+DUCKDB_API bool TryCast::Operation(uhugeint_t input, bool &result, bool strict);
+template <>
+DUCKDB_API bool TryCast::Operation(uhugeint_t input, int8_t &result, bool strict);
+template <>
+DUCKDB_API bool TryCast::Operation(uhugeint_t input, int16_t &result, bool strict);
+template <>
+DUCKDB_API bool TryCast::Operation(uhugeint_t input, int32_t &result, bool strict);
+template <>
+DUCKDB_API bool TryCast::Operation(uhugeint_t input, int64_t &result, bool strict);
+template <>
+DUCKDB_API bool TryCast::Operation(uhugeint_t input, uhugeint_t &result, bool strict);
+template <>
+DUCKDB_API bool TryCast::Operation(uhugeint_t input, hugeint_t &result, bool strict);
+template <>
+DUCKDB_API bool TryCast::Operation(uhugeint_t input, uint8_t &result, bool strict);
+template <>
+DUCKDB_API bool TryCast::Operation(uhugeint_t input, uint16_t &result, bool strict);
+template <>
+DUCKDB_API bool TryCast::Operation(uhugeint_t input, uint32_t &result, bool strict);
+template <>
+DUCKDB_API bool TryCast::Operation(uhugeint_t input, uint64_t &result, bool strict);
+template <>
+DUCKDB_API bool TryCast::Operation(uhugeint_t input, float &result, bool strict);
+template <>
+DUCKDB_API bool TryCast::Operation(uhugeint_t input, double &result, bool strict);
 
 //===--------------------------------------------------------------------===//
 // Cast uint8_t -> Numeric
@@ -266,6 +309,8 @@ template <>
 DUCKDB_API bool TryCast::Operation(uint8_t input, int64_t &result, bool strict);
 template <>
 DUCKDB_API bool TryCast::Operation(uint8_t input, hugeint_t &result, bool strict);
+template <>
+DUCKDB_API bool TryCast::Operation(uint8_t input, uhugeint_t &result, bool strict);
 template <>
 DUCKDB_API bool TryCast::Operation(uint8_t input, uint8_t &result, bool strict);
 template <>
@@ -295,6 +340,8 @@ DUCKDB_API bool TryCast::Operation(uint16_t input, int64_t &result, bool strict)
 template <>
 DUCKDB_API bool TryCast::Operation(uint16_t input, hugeint_t &result, bool strict);
 template <>
+DUCKDB_API bool TryCast::Operation(uint16_t input, uhugeint_t &result, bool strict);
+template <>
 DUCKDB_API bool TryCast::Operation(uint16_t input, uint8_t &result, bool strict);
 template <>
 DUCKDB_API bool TryCast::Operation(uint16_t input, uint16_t &result, bool strict);
@@ -322,6 +369,8 @@ template <>
 DUCKDB_API bool TryCast::Operation(uint32_t input, int64_t &result, bool strict);
 template <>
 DUCKDB_API bool TryCast::Operation(uint32_t input, hugeint_t &result, bool strict);
+template <>
+DUCKDB_API bool TryCast::Operation(uint32_t input, uhugeint_t &result, bool strict);
 template <>
 DUCKDB_API bool TryCast::Operation(uint32_t input, uint8_t &result, bool strict);
 template <>
@@ -351,6 +400,8 @@ DUCKDB_API bool TryCast::Operation(uint64_t input, int64_t &result, bool strict)
 template <>
 DUCKDB_API bool TryCast::Operation(uint64_t input, hugeint_t &result, bool strict);
 template <>
+DUCKDB_API bool TryCast::Operation(uint64_t input, uhugeint_t &result, bool strict);
+template <>
 DUCKDB_API bool TryCast::Operation(uint64_t input, uint8_t &result, bool strict);
 template <>
 DUCKDB_API bool TryCast::Operation(uint64_t input, uint16_t &result, bool strict);
@@ -379,6 +430,8 @@ DUCKDB_API bool TryCast::Operation(float input, int64_t &result, bool strict);
 template <>
 DUCKDB_API bool TryCast::Operation(float input, hugeint_t &result, bool strict);
 template <>
+DUCKDB_API bool TryCast::Operation(float input, uhugeint_t &result, bool strict);
+template <>
 DUCKDB_API bool TryCast::Operation(float input, uint8_t &result, bool strict);
 template <>
 DUCKDB_API bool TryCast::Operation(float input, uint16_t &result, bool strict);
@@ -406,6 +459,8 @@ template <>
 DUCKDB_API bool TryCast::Operation(double input, int64_t &result, bool strict);
 template <>
 DUCKDB_API bool TryCast::Operation(double input, hugeint_t &result, bool strict);
+template <>
+DUCKDB_API bool TryCast::Operation(double input, uhugeint_t &result, bool strict);
 template <>
 DUCKDB_API bool TryCast::Operation(double input, uint8_t &result, bool strict);
 template <>
@@ -442,6 +497,8 @@ template <>
 DUCKDB_API bool TryCast::Operation(string_t input, uint64_t &result, bool strict);
 template <>
 DUCKDB_API bool TryCast::Operation(string_t input, hugeint_t &result, bool strict);
+template <>
+DUCKDB_API bool TryCast::Operation(string_t input, uhugeint_t &result, bool strict);
 template <>
 DUCKDB_API bool TryCast::Operation(string_t input, float &result, bool strict);
 template <>
@@ -805,6 +862,8 @@ template <>
 bool CastFromBitToNumeric::Operation(string_t input, bool &result, bool strict);
 template <>
 bool CastFromBitToNumeric::Operation(string_t input, hugeint_t &result, bool strict);
+template <>
+bool CastFromBitToNumeric::Operation(string_t input, uhugeint_t &result, bool strict);
 
 struct CastFromBitToBlob {
 	template <class SRC>

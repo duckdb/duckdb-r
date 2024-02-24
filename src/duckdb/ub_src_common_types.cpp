@@ -6,8 +6,6 @@
 
 #include "src/common/types/cast_helpers.cpp"
 
-#include "src/common/types/chunk_collection.cpp"
-
 #include "src/common/types/conflict_manager.cpp"
 
 #include "src/common/types/conflict_info.cpp"
@@ -21,6 +19,8 @@
 #include "src/common/types/hash.cpp"
 
 #include "src/common/types/hugeint.cpp"
+
+#include "src/common/types/uhugeint.cpp"
 
 #include "src/common/types/uuid.cpp"
 

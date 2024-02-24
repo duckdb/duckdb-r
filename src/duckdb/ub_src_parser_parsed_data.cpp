@@ -8,6 +8,8 @@
 
 #include "src/parser/parsed_data/attach_info.cpp"
 
+#include "src/parser/parsed_data/comment_on_info.cpp"
+
 #include "src/parser/parsed_data/create_info.cpp"
 
 #include "src/parser/parsed_data/create_index_info.cpp"
@@ -21,6 +23,8 @@
 #include "src/parser/parsed_data/create_macro_info.cpp"
 
 #include "src/parser/parsed_data/create_pragma_function_info.cpp"
+
+#include "src/parser/parsed_data/create_secret_info.cpp"
 
 #include "src/parser/parsed_data/create_sequence_info.cpp"
 
@@ -37,6 +41,8 @@
 #include "src/parser/parsed_data/detach_info.cpp"
 
 #include "src/parser/parsed_data/drop_info.cpp"
+
+#include "src/parser/parsed_data/extra_drop_info.cpp"
 
 #include "src/parser/parsed_data/sample_options.cpp"
 

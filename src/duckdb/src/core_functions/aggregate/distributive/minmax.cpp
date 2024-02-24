@@ -40,6 +40,8 @@ static AggregateFunction GetUnaryAggregate(LogicalType type) {
 		return AggregateFunction::UnaryAggregate<MinMaxState<uint64_t>, uint64_t, uint64_t, OP>(type, type);
 	case PhysicalType::INT128:
 		return AggregateFunction::UnaryAggregate<MinMaxState<hugeint_t>, hugeint_t, hugeint_t, OP>(type, type);
+	case PhysicalType::UINT128:
+		return AggregateFunction::UnaryAggregate<MinMaxState<uhugeint_t>, uhugeint_t, uhugeint_t, OP>(type, type);
 	case PhysicalType::FLOAT:
 		return AggregateFunction::UnaryAggregate<MinMaxState<float>, float, float, OP>(type, type);
 	case PhysicalType::DOUBLE:
@@ -264,6 +266,8 @@ static bool TemplatedOptimumValue(Vector &left, idx_t lidx, idx_t lcount, Vector
 		return TemplatedOptimumType<uint64_t, OP>(left, lidx, lcount, right, ridx, rcount);
 	case PhysicalType::INT128:
 		return TemplatedOptimumType<hugeint_t, OP>(left, lidx, lcount, right, ridx, rcount);
+	case PhysicalType::UINT128:
+		return TemplatedOptimumType<uhugeint_t, OP>(left, lidx, lcount, right, ridx, rcount);
 	case PhysicalType::FLOAT:
 		return TemplatedOptimumType<float, OP>(left, lidx, lcount, right, ridx, rcount);
 	case PhysicalType::DOUBLE:
@@ -602,10 +606,11 @@ unique_ptr<FunctionData> BindMinMax(ClientContext &context, AggregateFunction &f
 
 			FunctionBinder function_binder(context);
 			vector<LogicalType> types {arguments[0]->return_type, arguments[0]->return_type};
-			string error;
+			ErrorData error;
 			idx_t best_function = function_binder.BindFunction(func_entry.name, func_entry.functions, types, error);
 			if (best_function == DConstants::INVALID_INDEX) {
-				throw BinderException(string("Fail to find corresponding function for collation min/max: ") + error);
+				throw BinderException(string("Fail to find corresponding function for collation min/max: ") +
+				                      error.Message());
 			}
 			function = func_entry.functions.GetFunctionByOffset(best_function);
 
