@@ -1,0 +1,31 @@
+
+version: '3'
+volumes:
+  duckdb-db:
+    driver: local
+
+services:
+
+# -- DUCKDB SERVICE --
+
+  r-debug-strictbarrier:
+    container_name: duckdb-r-debug-strictbarrier
+    build:
+      dockerfile: docker/Dockerfile.r-debug-strictbarrier
+    platform: linux/amd64
+    tty: true
+    stdin_open: true
+    volumes:
+      - .:/root/workspace
+    entrypoint: ["bash"]
+
+  r-debug-threadcheck:
+    container_name: duckdb-r-debug-threadcheck
+    build:
+      dockerfile: docker/Dockerfile.r-debug-threadcheck
+    platform: linux/amd64
+    tty: true
+    stdin_open: true
+    volumes:
+      - .:/root/workspace
+    entrypoint: ["bash"]

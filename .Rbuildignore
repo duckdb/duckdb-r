@@ -31,3 +31,5 @@ RELEASE.md
 ^CRAN-SUBMISSION$
 ^docs$
 ^pkgdown$
+^docker$
+^docker-compose\.yml$
