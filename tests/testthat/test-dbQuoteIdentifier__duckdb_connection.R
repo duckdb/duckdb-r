@@ -3,8 +3,8 @@ test_that("only quotes where needed", {
   on.exit(dbDisconnect(con, shutdown = TRUE))
 
   expect_equal(
-    dbQuoteIdentifier(con, c("x y", "select", "SELECT", "x")),
-    SQL(c('"x y"', '"select"', '"SELECT"', "x"))
+    dbQuoteIdentifier(con, c("x y", "select", "SELECT", "x", "2nd")),
+    SQL(c('"x y"', '"select"', '"SELECT"', "x", '"2nd"'))
   )
 })
 
