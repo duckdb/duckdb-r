@@ -26,9 +26,5 @@
 
 #include "src/function/table/table_scan.cpp"
 
-#include "src/function/table/pragma_last_profiling_output.cpp"
-
-#include "src/function/table/pragma_detailed_profiling_output.cpp"
-
 #include "src/function/table/unnest.cpp"
 
