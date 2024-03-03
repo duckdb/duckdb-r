@@ -101,11 +101,11 @@
 <h2 id="building">Building<a class="anchor" aria-label="anchor" href="#building"></a>
 </h2>
 <p>To build the bleeding edge of duckdb-r, you can clone this repository and run</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">~duckdb-r:</span> R CMD INSTALL .</span></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="ex">~duckdb-r:</span> R CMD INSTALL .</span></code></pre></div>
 <p>If you wish to test new duckdb functionality with duckdb-r, make sure your clones of <code>duckdb-r</code> and <code>duckdb</code> share the same parent directory. Then run the following commands</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> duckdb <span class="kw">&amp;&amp;</span> <span class="fu">git</span> checkout {{desired_branch}}<span class="kw">)</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> ducdkb-r <span class="kw">&amp;&amp;</span> <span class="ex">./vendor.sh</span><span class="kw">)</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> duckdb-r <span class="kw">&amp;&amp;</span> <span class="ex">R</span> CMD INSTALL .<span class="kw">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> duckdb <span class="kw">&amp;&amp;</span> <span class="fu">git</span> checkout {{desired_branch}}<span class="kw">)</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> ducdkb-r <span class="kw">&amp;&amp;</span> <span class="ex">./vendor.sh</span><span class="kw">)</span></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> duckdb-r <span class="kw">&amp;&amp;</span> <span class="ex">R</span> CMD INSTALL .<span class="kw">)</span></span></code></pre></div>
 <p>It helps if both the duckdb directory and duckdb-r directory are clean. If you encounter linker errors, merge both duckdb-r and duckdb with their respective main branches.</p>
 </div>
 <div class="section level2">
@@ -119,8 +119,8 @@
 <h3 id="developing-with-extensions">Developing with Extensions<a class="anchor" aria-label="anchor" href="#developing-with-extensions"></a>
 </h3>
 <p>If you wish to build or add extensions to the R package you first need to build duckdb with the <code>extension_static_build</code> flag. The following commands allow you to add the <a href="https://duckdb.org/docs/extensions/httpfs" class="external-link"><code>httpfs</code> extension</a> to a DuckDB R build. See the <a href="https://github.com/duckdb/duckdb/tree/master/extension#readme" class="external-link">extension ReadMe</a> for more information about extensions</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> duckdb/</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="va">EXTENSION_STATIC_BUILD</span><span class="op">=</span>1 <span class="fu">make</span></span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="bu">cd</span> duckdb/</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="va">EXTENSION_STATIC_BUILD</span><span class="op">=</span>1 <span class="fu">make</span></span></code></pre></div>
 <p>Then in R, run:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://r.duckdb.org/">duckdb</a></span><span class="op">)</span></span>
