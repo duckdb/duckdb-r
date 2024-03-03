@@ -3,19 +3,44 @@
 \name{backend-duckdb}
 \alias{simulate_duckdb}
 \alias{translate_duckdb}
+\alias{tbl_file}
+\alias{tbl_query}
 \title{DuckDB SQL backend for dbplyr}
 \usage{
 simulate_duckdb(...)
 
 translate_duckdb(...)
+
+tbl_file(src, path, ..., cache = FALSE)
+
+tbl_query(src, query, ..., cache = FALSE)
 }
 \arguments{
 \item{...}{Any parameters to be forwarded}
+
+\item{src}{A duckdb connection object}
+
+\item{path}{Path to existing Parquet, CSV or JSON file}
+
+\item{cache}{Enable object cache for Parquet files}
+
+\item{query}{SQL code, omitting the \code{FROM} clause}
 }
 \description{
 This is a SQL backend for dbplyr tailored to take into account DuckDB's
 possibilities. This mainly follows the backend for PostgreSQL, but
 contains more mapped functions.
+
+\code{tbl_file()} is an experimental variant of \code{\link[dplyr:tbl]{dplyr::tbl()}} to directly access files on disk.
+It is safer than \code{dplyr::tbl()} because there is no risk of misinterpreting the request,
+and paths with special characters are supported.
+
+\code{tbl_query()} is an experimental variant of \code{\link[dplyr:tbl]{dplyr::tbl()}}
+to create a lazy table from a table-generating function,
+useful for reading nonstandard CSV files or other data sources.
+It is safer than \code{dplyr::tbl()} because there is no risk of misinterpreting the query.
+Use \code{dplyr::tbl(src, dplyr::sql("SELECT ... FROM ..."))} for custom SQL queries.
+See \url{https://duckdb.org/docs/data/overview} for details on data importing functions.
 }
 \examples{
 \dontshow{if (rlang::is_installed("dbplyr")) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
