@@ -26,3 +26,18 @@ test_that("one-level lists can be read", {
   res <- dbGetQuery(con, "SELECT ['Hello', 'World'] a union all select ['There']")$a
   expect_equal(res, list(c("Hello", "World"), c("There")))
 })
+
+test_that("rel_filter() handles LIST logical type", {
+  skip_if_not(getRversion() >= "4.3.0")
+
+  con <- dbConnect(duckdb())
+  on.exit(dbDisconnect(con, shutdown = TRUE))
+
+  df1 <- tibble::tibble(a = list(1, c(1,2)))
+
+  rel1 <- rel_from_df(con, df1)
+  rel2 <- rel_filter(rel1, list(expr_constant(TRUE)))
+
+  df2 <- rel_to_altrep(rel2)
+  expect_equal(df1$a, df2$a)
+})
