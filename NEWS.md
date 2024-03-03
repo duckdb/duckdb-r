@@ -1,3 +1,49 @@
+<!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
+
+# duckdb 0.10.0
+
+## Bug fixes
+
+- `dplyr::tbl()` works again when a Parquet or CSV file is passed instead of a table name (#38, #91).
+
+- `DBI::dbQuoteIdentifier()` correctly quotes identifiers that start with a digit (#67, #92).
+
+- Align the argument order of `dbWriteTable()` with the DBI specs (@eitsupi, #43, #49).
+
+## Features
+
+- New `tbl_file()` and `tbl_query()` to explicitly access tables and queries as dbplyr lazy tables (#96).
+
+- Initial ALTREP support for `LIST` logical type (@romainfrancois, #77).
+
+- Update core to duckdb v0.10.0 (#90).
+
+- New private `rel_to_parquet()` to write a relation to parquet (@Tmonster, #46).
+
+## Chore
+
+- Change directory location for extensions and secrets for v.0.10.0 release (@Tmonster, #73).
+
+- Remove last instance of `default_connection()` (#50).
+
+## Documentation
+
+- Add list of contributors (#2, #94).
+
+- Use pkgdown BS5 (@maelle, #31, #70) with DuckDB logo (#76, @romainfrancois).
+
+- Link to R documentation page.
+
+- Include `NEWS.md` on CRAN (#48, @olivroy).
+
+## Testing
+
+- Add csv reading test for `duckdb_read_csv(na.strings = )` (@Tmonster, #10).
+
+- Fix snapshot tests.
+
+- Tweak tests for compatibility with v0.10.0 (#84).
+
 # duckdb 0.9.2-1
 
 - Fix compiler warning on R-devel (#45).
