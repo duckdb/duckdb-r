@@ -373,7 +373,7 @@ sql_escape_datetime.duckdb_connection <- function(con, x) {
 # @param src .con A \code{\link{dbConnect}} object, as returned by \code{dbConnect()}
 # @param from Table or parquet/csv -files to be registered
 # @param cache Enable object cache for parquet files
-tbl.duckdb_connection <- function(src, from, cache = FALSE, ...) {
+tbl.duckdb_connection <- function(src, from, ..., cache = FALSE) {
   if (!inherits(from, "sql") && !DBI::dbExistsTable(src, from)) {
     from <- dbplyr::sql(paste0("FROM ", from))
   }

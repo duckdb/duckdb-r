@@ -12,7 +12,7 @@
 
 ## Features
 
-- New `tbl_file()` and `tbl_query()` to explicitly access tables and queries as dbplyr lazy tables (#96).
+- New `tbl_file()` and `tbl_query()` to explicitly access tables and queries as dbplyr lazy tables (#96). The `cache` argument to `tbl()` and to the new functions must be named.
 
 - Initial ALTREP support for `LIST` logical type (@romainfrancois, #77).
 
