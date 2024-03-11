@@ -453,7 +453,7 @@ Clients:
 # duckdb 0.1.9
 
 This is a preview release of DuckDB. Binary are listed below. Feedback is very welcome. Major changes:
-New [website](https://www.duckdb.org) [woo-ho](https://www.youtube.com/watch?v=H9cmPE88a_0)!
+New [website](http://duckdb.org/) [woo-ho](https://www.youtube.com/watch?v=H9cmPE88a_0)!
 
 Engine
  - #653: Parquet reader integration
@@ -485,11 +485,11 @@ Clients
 # duckdb 0.1.7
 
 This is the sixth preview release of DuckDB. Feedback is very welcome.
-[Binary builds are available as well](http://download.duckdb.org/alias/v0.1.7).
+Binary builds are available as well.
 
 SQL
-- [Add / remove columns, change default values & column type](https://www.duckdb.org/docs/current/sql/statements/altertable.html) #612
-- [Collation support](https://www.duckdb.org/docs/current/sql/expressions/collations.html)
+- [Add / remove columns, change default values & column type](https://duckdb.org/docs/sql/statements/alter_table) #612
+- [Collation support](https://duckdb.org/docs/sql/expressions/collations)
 - CSV sniffer `READ_CSV_AUTO` for dialect, data type and header detection #582
 - `SHOW` & `DESCRIBE` Tables #501
 - String function `CONTAINS`  #488
