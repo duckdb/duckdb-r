@@ -163,7 +163,7 @@ private:
 		return conjunction_sexp;
 	}
 
-	static SEXP TransformFilter(TableFilterSet &filter_collection, std::unordered_map<idx_t, string> &columns,
+	static SEXP TransformFilter(TableFilterSet &filter_collection, unordered_map<idx_t, string> &columns,
 	                            SEXP functions, string &timezone_config) {
 		auto fit = filter_collection.filters.begin();
 		cpp11::sexp res = TransformFilterExpression(*fit->second, columns[fit->first], functions, timezone_config);
