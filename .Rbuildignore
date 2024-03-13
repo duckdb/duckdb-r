@@ -33,4 +33,4 @@ RELEASE.md
 ^pkgdown$
 ^docker$
 ^docker-compose\.yml$
-^*_files$
+^.*_files$
