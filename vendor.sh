@@ -1,7 +1,10 @@
-#!/bin/sh
+#!/bin/bash
+# https://unix.stackexchange.com/a/654932/19205
+# Using bash for -o pipefail
 
 set -e
 set -x
+set -o pipefail
 
 cd `dirname $0`
 
@@ -23,12 +26,12 @@ fi
 commit=$(git -C "$duckdir" rev-parse HEAD)
 echo "Importing commit $commit"
 
-base=$(git log -n 1 --format="%s" -- src/duckdb | sed 's#^.*duckdb/duckdb@##')
+base=$(git log -n 3 --format="%s" -- src/duckdb | tee /dev/stderr | sed -nr '/^.*duckdb.duckdb@/{s///;p;}' | head -n 1)
 
 rm -rf src/duckdb
 
 echo "R: configure"
-python3 rconfigure.py
+DUCKDB_PATH="$duckdir" python3 rconfigure.py
 
 if [ $(git status --porcelain -- src/duckdb | wc -l) -le 1 ]; then
   echo "No changes."
