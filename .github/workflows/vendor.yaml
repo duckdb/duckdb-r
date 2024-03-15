@@ -36,6 +36,7 @@ jobs:
 
       - name: Vendor sources
         run: |
+          git pull --rebase
           ./vendor.sh .git/duckdb
           rm -rf .git/duckdb
 
