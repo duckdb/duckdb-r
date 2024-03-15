@@ -1,7 +1,7 @@
 //===----------------------------------------------------------------------===//
 //                         DuckDB
 //
-// duckdb/execution/operator/csv_scanner/state_machine/csv_state_machine_cache.hpp
+// duckdb/execution/operator/csv_scanner/csv_state_machine_cache.hpp
 //
 //
 //===----------------------------------------------------------------------===//
@@ -10,9 +10,9 @@
 
 #include "duckdb/storage/object_cache.hpp"
 #include "duckdb/common/types/hash.hpp"
-#include "duckdb/execution/operator/csv_scanner/options/state_machine_options.hpp"
-#include "duckdb/execution/operator/csv_scanner/sniffer/quote_rules.hpp"
-#include "duckdb/execution/operator/csv_scanner/state_machine/csv_state.hpp"
+#include "duckdb/execution/operator/csv_scanner/state_machine_options.hpp"
+#include "duckdb/execution/operator/csv_scanner/quote_rules.hpp"
+#include "duckdb/execution/operator/csv_scanner/csv_state.hpp"
 
 namespace duckdb {
 
@@ -63,7 +63,6 @@ public:
 	//! It first caches it, then returns it.
 	const StateMachine &Get(const CSVStateMachineOptions &state_machine_options);
 
-	static const string STATE_KEY;
 	static string ObjectType() {
 		return "CSV_STATE_MACHINE_CACHE";
 	}
