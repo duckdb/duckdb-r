@@ -3,7 +3,7 @@ on:
     branches:
       - main
     paths:
-      - ".github/workflows/vendor.yml"
+      - ".github/workflows/vendor.yaml"
   workflow_dispatch:
   schedule:
     - cron: "*/5 * * * *"
