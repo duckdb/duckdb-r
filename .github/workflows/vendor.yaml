@@ -39,6 +39,7 @@ jobs:
           git pull --rebase
           ./vendor.sh .git/duckdb
           rm -rf .git/duckdb
+          git push --dry-run
 
       - uses: ./.github/workflows/custom/before-install
         if: hashFiles('.github/workflows/custom/before-install/action.yml') != ''
