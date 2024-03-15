@@ -9,9 +9,15 @@ set -o pipefail
 cd `dirname $0`
 
 if [ -z "$1" ]; then
-  upstream_dir=../duckdb
+  upstream_basedir=../duckdb
 else
-  upstream_dir="$1"
+  upstream_basedir="$1"
+fi
+
+upstream_dir=.git/duckdb
+
+if [ "$upstream_base_dir" != "../duckdb" ]; then
+  git clone "$upstream_basedir" "$upstream_dir"
 fi
 
 if [ -n "$(git status --porcelain)" ]; then
@@ -45,10 +51,9 @@ done
 if [ $(git status --porcelain -- src/duckdb | wc -l) -le 1 ]; then
   echo "No changes."
   git checkout -- src/duckdb
+  rm -rf "$upstream_dir"
   exit 0
 fi
-
-git -C "$upstream_dir" checkout "$original"
 
 git add .
 
@@ -57,3 +62,5 @@ git add .
   echo
   git -C "$upstream_dir" log --first-parent --format="%s" ${base}..${commit} | sed -r 's%(#[0-9]+)%duckdb/duckdb\1%g'
 ) | git commit --file /dev/stdin
+
+rm -rf "$upstream_dir"
