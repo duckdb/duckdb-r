@@ -40,7 +40,7 @@ jobs:
           git -C .git/duckdb checkout ${next}
 
       - name: Vendor sources
-      - run: |
+        run: |
           ./vendor.sh .git/duckdb
           rm -rf .git/duckdb
 
