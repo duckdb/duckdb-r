@@ -60,7 +60,7 @@ git add .
 (
   echo "chore: Update vendored sources to duckdb/duckdb@$commit"
   echo
-  git -C "$upstream_dir" log --first-parent --format="%s" ${base}..${commit} | sed -r 's%(#[0-9]+)%duckdb/duckdb\1%g'
+  git -C "$upstream_dir" log --first-parent --format="%s" ${base}..${commit} | tee /dev/stderr | sed -r 's%(#[0-9]+)%duckdb/duckdb\1%g'
 ) | git commit --file /dev/stdin
 
 rm -rf "$upstream_dir"
