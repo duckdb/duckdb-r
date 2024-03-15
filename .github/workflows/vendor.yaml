@@ -35,8 +35,8 @@ jobs:
 
       - name: Pick next top-level commit
         run: |
-          base=$(git log -n 3 --format="%s" -- src/duckdb | tee /dev/stderr | sed -nr '/^.*duckdb.duckdb@/{s///;p;}' | head -n 1)
-          next=$(git -C .git/duckdb log --first-parent --reverse --format="%H" ${base}..HEAD | head -n 1)
+          base=$(git log -n 3 --format="%s" -- src/duckdb | tee /dev/stderr | sed -nr '/^.*duckdb.duckdb@/{s///;p;}' | head -n 1 | tee /dev/stderr)
+          next=$(git -C .git/duckdb log --first-parent --reverse --format="%H" ${base}..HEAD | head -n 1 | tee /dev/stderr)
           git -C .git/duckdb checkout ${next}
 
       - name: Vendor sources
