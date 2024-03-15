@@ -16,7 +16,7 @@ fi
 
 upstream_dir=.git/duckdb
 
-if [ "$upstream_base_dir" != "../duckdb" ]; then
+if [ "$upstream_base_dir" != ".git/duckdb" ]; then
   git clone "$upstream_basedir" "$upstream_dir"
 fi
 
