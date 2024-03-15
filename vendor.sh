@@ -23,21 +23,32 @@ if [ -n "$(git -C "$upstream_dir" status --porcelain)" ]; then
   echo "Warning: working directory $upstream_dir not clean"
 fi
 
-commit=$(git -C "$upstream_dir" rev-parse HEAD)
-echo "Importing commit $commit"
+original=$(git -C "$upstream_dir" rev-parse --verify HEAD)
 
 base=$(git log -n 3 --format="%s" -- src/duckdb | tee /dev/stderr | sed -nr '/^.*duckdb.duckdb@/{s///;p;}' | head -n 1)
 
-rm -rf src/duckdb
+for commit in $(git -C "$upstream_dir" log --first-parent --reverse --format="%H" ${base}..HEAD); do
+  echo "Importing commit $commit"
 
-echo "R: configure"
-DUCKDB_PATH="$upstream_dir" python3 rconfigure.py
+  git -C "$upstream_dir" checkout "$commit"
+
+  rm -rf src/duckdb
+
+  echo "R: configure"
+  DUCKDB_PATH="$upstream_dir" python3 rconfigure.py
+
+  if [ $(git status --porcelain -- src/duckdb | wc -l) -gt 1 ]; then
+    break
+  fi
+done
 
 if [ $(git status --porcelain -- src/duckdb | wc -l) -le 1 ]; then
   echo "No changes."
   git checkout -- src/duckdb
   exit 0
 fi
+
+git -C "$upstream_dir" checkout "$original"
 
 git add .
 
