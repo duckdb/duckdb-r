@@ -4,6 +4,7 @@ on:
       - main
     paths:
       - ".github/workflows/vendor.yaml"
+      - "vendor.sh"
   workflow_dispatch:
   schedule:
     - cron: "*/5 * * * *"
