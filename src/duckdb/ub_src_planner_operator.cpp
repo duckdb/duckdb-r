@@ -46,8 +46,6 @@
 
 #include "src/planner/operator/logical_limit.cpp"
 
-#include "src/planner/operator/logical_limit_percent.cpp"
-
 #include "src/planner/operator/logical_order.cpp"
 
 #include "src/planner/operator/logical_pivot.cpp"
