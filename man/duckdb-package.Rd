@@ -19,10 +19,11 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Hannes Mühleisen \email{hannes@cwi.nl} (\href{https://orcid.org/0000-0001-8552-0029}{ORCID})
+\strong{Maintainer}: Kirill Müller \email{kirill@cynkra.com} (\href{https://orcid.org/0000-0002-1416-3412}{ORCID})
 
 Authors:
 \itemize{
+  \item Hannes Mühleisen \email{hannes@cwi.nl} (\href{https://orcid.org/0000-0001-8552-0029}{ORCID})
   \item Mark Raasveldt \email{mark.raasveldt@cwi.nl} (\href{https://orcid.org/0000-0001-5005-6844}{ORCID})
 }
 

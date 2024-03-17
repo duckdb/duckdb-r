@@ -2,10 +2,12 @@ Package: duckdb
 Title: DBI Package for the DuckDB Database Management System
 Version: 0.10.0.9000
 Authors@R: c(
-    person("Hannes", "Mühleisen", , "hannes@cwi.nl", role = c("aut", "cre"),
+    person("Hannes", "Mühleisen", , "hannes@cwi.nl", role = "aut",
            comment = c(ORCID = "0000-0001-8552-0029")),
     person("Mark", "Raasveldt", , "mark.raasveldt@cwi.nl", role = "aut",
            comment = c(ORCID = "0000-0001-5005-6844")),
+    person("Kirill", "Müller", , "kirill@cynkra.com", role = "cre",
+           comment = c(ORCID = "0000-0002-1416-3412")),
     person("Stichting DuckDB Foundation", role = "cph"),
     person("Apache Software Foundation", role = "cph"),
     person("PostgreSQL Global Development Group", role = "cph"),
