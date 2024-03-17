@@ -33,7 +33,8 @@ original=$(git -C "$upstream_dir" rev-parse --verify HEAD)
 
 base=$(git log -n 3 --format="%s" -- src/duckdb | tee /dev/stderr | sed -nr '/^.*duckdb.duckdb@/{s///;p;}' | head -n 1)
 
-for commit in $(git -C "$upstream_dir" log --first-parent --reverse --format="%H" ${base}..HEAD); do
+git -C "$upstream_dir" log --first-parent --reverse --format="%H" ${base}..HEAD | tee /dev/stderr |
+while read commit; do
   echo "Importing commit $commit"
 
   git -C "$upstream_dir" checkout "$commit"
