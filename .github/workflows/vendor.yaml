@@ -36,16 +36,24 @@ jobs:
       - uses: ./.github/workflows/git-identity
 
       - name: Vendor sources
+        id: vendor
         run: |
           git pull --rebase
           ./vendor.sh .git/duckdb
           rm -rf .git/duckdb
           git push --dry-run
+          # Check if ahead of upstream branch
+          # If yes, set a step output
+          if [ $(git rev-list HEAD...origin/main --count) -gt 0 ]; then
+            # Avoid set-output, it's deprecated
+            echo "vendor=ok" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: ./.github/workflows/custom/before-install
-        if: hashFiles('.github/workflows/custom/before-install/action.yml') != ''
+        if: ${{ steps.vendor.outputs.vendor != '' }} && hashFiles('.github/workflows/custom/before-install/action.yml') != ''
 
       - uses: ./.github/workflows/install
+        if: ${{ steps.vendor.outputs.vendor != '' }}
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           install-r: false
@@ -54,12 +62,14 @@ jobs:
           extra-packages: any::rcmdcheck
 
       - uses: ./.github/workflows/custom/after-install
-        if: hashFiles('.github/workflows/custom/after-install/action.yml') != ''
+        if: ${{ steps.vendor.outputs.vendor != '' }} && hashFiles('.github/workflows/custom/after-install/action.yml') != ''
 
       - uses: ./.github/workflows/check
+        if: ${{ steps.vendor.outputs.vendor != '' }}
         with:
           results: ${{ runner.os }}-smoke-test
 
       - if: github.event_name != 'pull_request'
+        if: ${{ steps.vendor.outputs.vendor != '' }}
         run: |
           git push -u origin HEAD
