@@ -1,7 +1,6 @@
 #include "duckdb/common/operator/multiply.hpp"
 
 #include "duckdb/common/limits.hpp"
-#include "duckdb/common/operator/cast_operators.hpp"
 #include "duckdb/common/types/hugeint.hpp"
 #include "duckdb/common/types/uhugeint.hpp"
 #include "duckdb/common/types/value.hpp"
@@ -29,9 +28,10 @@ double MultiplyOperator::Operation(double left, double right) {
 
 template <>
 interval_t MultiplyOperator::Operation(interval_t left, int64_t right) {
-	const auto right32 = Cast::Operation<int64_t, int32_t>(right);
-	left.months = MultiplyOperatorOverflowCheck::Operation<int32_t, int32_t, int32_t>(left.months, right32);
-	left.days = MultiplyOperatorOverflowCheck::Operation<int32_t, int32_t, int32_t>(left.days, right32);
+	left.months = MultiplyOperatorOverflowCheck::Operation<int32_t, int32_t, int32_t>(
+	    left.months, UnsafeNumericCast<int32_t>(right));
+	left.days = MultiplyOperatorOverflowCheck::Operation<int32_t, int32_t, int32_t>(left.days,
+	                                                                                UnsafeNumericCast<int32_t>(right));
 	left.micros = MultiplyOperatorOverflowCheck::Operation<int64_t, int64_t, int64_t>(left.micros, right);
 	return left;
 }
