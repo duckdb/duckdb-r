@@ -69,7 +69,6 @@ jobs:
         with:
           results: ${{ runner.os }}-smoke-test
 
-      - if: github.event_name != 'pull_request'
-        if: ${{ steps.vendor.outputs.vendor != '' }}
+      - if: ${{ steps.vendor.outputs.vendor != '' }} && github.event_name != 'pull_request'
         run: |
           git push -u origin HEAD
