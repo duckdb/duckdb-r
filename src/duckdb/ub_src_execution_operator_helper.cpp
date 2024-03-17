@@ -36,3 +36,5 @@
 
 #include "src/execution/operator/helper/physical_vacuum.cpp"
 
+#include "src/execution/operator/helper/physical_verify_vector.cpp"
+
