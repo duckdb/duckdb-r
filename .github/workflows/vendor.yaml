@@ -50,10 +50,10 @@ jobs:
           fi
 
       - uses: ./.github/workflows/custom/before-install
-        if: ${{ steps.vendor.outputs.vendor != '' }} && hashFiles('.github/workflows/custom/before-install/action.yml') != ''
+        if: steps.vendor.outputs.vendor != '' && hashFiles('.github/workflows/custom/before-install/action.yml') != ''
 
       - uses: ./.github/workflows/install
-        if: ${{ steps.vendor.outputs.vendor != '' }}
+        if: steps.vendor.outputs.vendor != ''
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           install-r: false
@@ -62,13 +62,13 @@ jobs:
           extra-packages: any::rcmdcheck
 
       - uses: ./.github/workflows/custom/after-install
-        if: ${{ steps.vendor.outputs.vendor != '' }} && hashFiles('.github/workflows/custom/after-install/action.yml') != ''
+        if: steps.vendor.outputs.vendor != '' && hashFiles('.github/workflows/custom/after-install/action.yml') != ''
 
       - uses: ./.github/workflows/check
-        if: ${{ steps.vendor.outputs.vendor != '' }}
+        if: steps.vendor.outputs.vendor != ''
         with:
           results: ${{ runner.os }}-smoke-test
 
-      - if: ${{ steps.vendor.outputs.vendor != '' }} && github.event_name != 'pull_request'
+      - if: steps.vendor.outputs.vendor != '' && github.event_name != 'pull_request'
         run: |
           git push -u origin HEAD
