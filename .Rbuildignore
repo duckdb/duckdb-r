@@ -13,6 +13,7 @@ RELEASE.md
 \.github
 ^\.gitattributes$
 ^vendor\.sh$
+^vendor-one\.sh$
 ^rconfigure\.py$
 ^src/\.editorconfig$
 ^\.vscode$
