@@ -15,7 +15,7 @@ drv_to_string <- function(drv) {
   if (!is(drv, "duckdb_driver")) {
     stop("pass a duckdb_driver object")
   }
-  sprintf("<duckdb_driver %s dbdir='%s' read_only=%s bigint=%s>", extptr_str(drv@database_ref), drv@dbdir, drv@read_only, drv@bigint)
+  sprintf("<duckdb_driver dbdir='%s' read_only=%s bigint=%s>", drv@dbdir, drv@read_only, drv@bigint)
 }
 
 #' @description
