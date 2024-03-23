@@ -18,6 +18,8 @@ drv_to_string <- function(drv) {
   sprintf("<duckdb_driver dbdir='%s' read_only=%s bigint=%s>", drv@dbdir, drv@read_only, drv@bigint)
 }
 
+driver_registry <- new.env(parent = emptyenv())
+
 #' @description
 #' `duckdb()` creates or reuses a database instance.
 #'
@@ -49,8 +51,17 @@ duckdb <- function(dbdir = DBDIR_MEMORY, read_only = FALSE, bigint = "numeric", 
   }
 
   dbdir <- path_normalize(dbdir)
+  if (dbdir != DBDIR_MEMORY) {
+    drv <- driver_registry[[dbdir]]
+    if (!is.null(drv)) {
+      # FIXME: Check that readonly and config are identical
+      return(drv)
+    }
+  }
 
-  new(
+  # Always create new database for in-memory,
+  # allows mixing different configs
+  drv <- new(
     "duckdb_driver",
     config = config,
     database_ref = rapi_startup(dbdir, read_only, config),
@@ -58,6 +69,11 @@ duckdb <- function(dbdir = DBDIR_MEMORY, read_only = FALSE, bigint = "numeric", 
     read_only = read_only,
     bigint = bigint
   )
+
+  if (dbdir != DBDIR_MEMORY) {
+    driver_registry[[dbdir]] <- drv
+  }
+  drv
 }
 
 #' @description
@@ -76,6 +92,11 @@ duckdb_shutdown <- function(drv) {
     invisible(FALSE)
   }
   rapi_shutdown(drv@database_ref)
+
+  if (drv@dbdir != DBDIR_MEMORY) {
+    rm(list = drv@dbdir, envir = driver_registry)
+  }
+
   invisible(TRUE)
 }
 
