@@ -48,7 +48,6 @@ for commit in $(git -C "$upstream_dir" log --first-parent --reverse --format="%H
   # Always vendor tags
   if [ $(git -C "$upstream_dir" describe --tags | grep -c -- -) -eq 0 ]; then
     message="chore: Update vendored sources (tag $(git -C "$upstream_dir" describe --tags)) to duckdb/duckdb@$commit"
-    changed=1
     break
   fi
 
@@ -60,6 +59,16 @@ done
 
 if [ "$message" = "" ]; then
   echo "No changes."
+  git checkout -- src/duckdb
+  rm -rf "$upstream_dir"
+  exit 0
+fi
+
+our_tag=$(git describe --tags --abbrev=0 | sed -r 's/-[0-9]$//')
+upstream_tag=$(git -C "$upstream_dir" describe --tags --abbrev=0)
+
+if [ "$our_tag" != "$upstream_tag" ]; then
+  echo "Not vendoring because our tag $our_tag is different from upstream tag $upstream_tag"
   git checkout -- src/duckdb
   rm -rf "$upstream_dir"
   exit 0
