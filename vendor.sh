@@ -33,6 +33,8 @@ original=$(git -C "$upstream_dir" rev-parse --verify HEAD)
 
 base=$(git log -n 3 --format="%s" -- src/duckdb | tee /dev/stderr | sed -nr '/^.*duckdb.duckdb@([0-9a-f]+)$/{s//\1/;p;}' | head -n 1)
 
+message=
+
 for commit in $(git -C "$upstream_dir" log --first-parent --reverse --format="%H" ${base}..HEAD); do
   echo "Importing commit $commit"
 
@@ -43,12 +45,20 @@ for commit in $(git -C "$upstream_dir" log --first-parent --reverse --format="%H
   echo "R: configure"
   DUCKDB_PATH="$upstream_dir" python3 rconfigure.py
 
+  # Always vendor tags
+  if [ $(git -C "$upstream_dir" describe --tags | grep -c -- -) -eq 0 ]; then
+    message="chore: Update vendored sources (tag $(git -C "$upstream_dir" describe --tags)) to duckdb/duckdb@$commit"
+    changed=1
+    break
+  fi
+
   if [ $(git status --porcelain -- src/duckdb | wc -l) -gt 1 ]; then
+    message="chore: Update vendored sources to duckdb/duckdb@$commit"
     break
   fi
 done
 
-if [ $(git status --porcelain -- src/duckdb | wc -l) -le 1 ]; then
+if [ "$message" = "" ]; then
   echo "No changes."
   git checkout -- src/duckdb
   rm -rf "$upstream_dir"
@@ -58,7 +68,7 @@ fi
 git add .
 
 (
-  echo "chore: Update vendored sources to duckdb/duckdb@$commit"
+  echo "$message"
   echo
   git -C "$upstream_dir" log --first-parent --format="%s" ${base}..${commit} | tee /dev/stderr | sed -r 's%(#[0-9]+)%duckdb/duckdb\1%g'
 ) | git commit --file /dev/stdin
