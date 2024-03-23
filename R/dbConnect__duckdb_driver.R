@@ -53,11 +53,18 @@ dbConnect__duckdb_driver <- function(
   timezone_out <- check_tz(timezone_out)
   tz_out_convert <- match.arg(tz_out_convert)
 
-  missing_dbdir <- missing(dbdir)
-  dbdir <- path.expand(as.character(dbdir))
+  if (missing(dbdir)) {
+    dbdir <- drv@dbdir
+  }
+
+  if (missing(read_only)) {
+    read_only <- drv@read_only
+  }
+
+  config <- utils::modifyList(drv@config, config)
 
   # aha, a late comer. let's make a new instance.
-  if (!missing_dbdir && dbdir != drv@dbdir) {
+  if (dbdir != drv@dbdir) {
     drv <- duckdb(dbdir, read_only, bigint, config)
   }
 
