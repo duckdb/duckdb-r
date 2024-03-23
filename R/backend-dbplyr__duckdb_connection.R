@@ -77,6 +77,26 @@ duckdb_grepl <- function(pattern, x, ignore.case = FALSE, perl = FALSE, fixed = 
   }
 }
 
+duckdb_n_distinct <- function(..., na.rm = FALSE) {
+  check_na_rm <- pkg_method("check_na_rm", "dbplyr")
+  glue_sql2 <- pkg_method("glue_sql2", "dbplyr")
+
+  check_na_rm(na.rm)
+
+  vars <- list(...)
+  str_struct <-
+    paste0("{", paste0(
+      lapply(
+        seq_along(vars),
+        \(i) glue::glue("'v{i}' : {vars[[i]]}")
+      ),
+      collapse = ", "
+    ), "}")
+  glue_sql2(
+    sql_current_con(),
+    "COUNT(DISTINCT {str_struct})"
+  )
+}
 
 # Customized translation functions for DuckDB SQL
 # @param con A \code{\link{dbConnect}} object, as returned by \code{dbConnect()}
@@ -316,7 +336,8 @@ sql_translation.duckdb_connection <- function(con) {
       any = sql_aggregate("BOOL_OR", "any"),
       str_flatten = function(x, collapse) sql_expr(STRING_AGG(!!x, !!collapse)),
       first = sql_prefix("FIRST", 1),
-      last = sql_prefix("LAST", 1)
+      last = sql_prefix("LAST", 1),
+      n_distinct = duckdb_n_distinct
     ),
     sql_translator(
       .parent = base_win,
@@ -333,7 +354,14 @@ sql_translation.duckdb_connection <- function(con) {
           partition = win_current_group(),
           order = win_current_order()
         )
-      }
+      },
+      n_distinct =
+        function(..., na.rm = FALSE) {
+          win_over(
+            duckdb_n_distinct(..., na.rm = na.rm),
+            partition = win_current_group()
+          )
+        }
     )
   )
 }
