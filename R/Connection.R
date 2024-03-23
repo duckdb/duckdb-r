@@ -7,6 +7,7 @@
 #' @export
 setClass("duckdb_driver", contains = "DBIDriver", slots = list(
   database_ref = "externalptr",
+  config = "list",
   dbdir = "character",
   read_only = "logical",
   bigint = "character"

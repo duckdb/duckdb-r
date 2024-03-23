@@ -50,6 +50,7 @@ duckdb <- function(dbdir = DBDIR_MEMORY, read_only = FALSE, bigint = "numeric", 
 
   new(
     "duckdb_driver",
+    config = config,
     database_ref = rapi_startup(dbdir, read_only, config),
     dbdir = dbdir,
     read_only = read_only,
