@@ -48,6 +48,8 @@ duckdb <- function(dbdir = DBDIR_MEMORY, read_only = FALSE, bigint = "numeric", 
     config["secret_directory"] <- file.path(tools::R_user_dir("duckdb", "data"), "stored_secrets")
   }
 
+  dbdir <- path_normalize(dbdir)
+
   new(
     "duckdb_driver",
     config = config,
@@ -139,4 +141,20 @@ check_tz <- function(timezone) {
   }
 
   timezone
+}
+
+path_normalize <- function(path) {
+  if (path == "" || path == DBDIR_MEMORY) {
+    return(DBDIR_MEMORY)
+  }
+
+  out <- normalizePath(path, mustWork = FALSE)
+
+  # Stable results are only guaranteed if the file exists
+  if (!file.exists(out)) {
+    on.exit(unlink(out))
+    writeLines(character(), out)
+    out <- normalizePath(out, mustWork = TRUE)
+  }
+  out
 }

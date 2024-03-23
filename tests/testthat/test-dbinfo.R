@@ -1,5 +1,5 @@
 test_that("dbGetInfo returns something meaningful", {
-  dbdir <- tempfile()
+  dbdir <- path_normalize(tempfile())
   drv <- duckdb(dbdir)
 
   info_drv <- dbGetInfo(drv)

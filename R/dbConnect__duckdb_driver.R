@@ -4,8 +4,8 @@
 #'
 #' @param drv Object returned by `duckdb()`
 #' @param dbdir Location for database files. Should be a path to an existing
-#'   directory in the file system. With the default, all
-#'   data is kept in RAM
+#'   directory in the file system. With the default (or `""`), all
+#'   data is kept in RAM.
 #' @param ... Ignored
 #' @param debug Print additional debug information such as queries
 #' @param read_only Set to `TRUE` for read-only operation
@@ -55,6 +55,8 @@ dbConnect__duckdb_driver <- function(
 
   if (missing(dbdir)) {
     dbdir <- drv@dbdir
+  } else {
+    dbdir <- path_normalize(dbdir)
   }
 
   if (missing(read_only)) {

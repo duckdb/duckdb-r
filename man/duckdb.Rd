@@ -38,8 +38,8 @@ duckdb_adbc()
 }
 \arguments{
 \item{dbdir}{Location for database files. Should be a path to an existing
-directory in the file system. With the default, all
-data is kept in RAM}
+directory in the file system. With the default (or \code{""}), all
+data is kept in RAM.}
 
 \item{read_only}{Set to \code{TRUE} for read-only operation}
 
