@@ -206,6 +206,9 @@ test_that("aggregators translated correctly", {
 
   expect_equal(translate(str_flatten(x, ","), window = FALSE), sql(r"{STRING_AGG(x, ',')}"))
   expect_equal(translate(str_flatten(x, ","), window = TRUE), sql(r"{STRING_AGG(x, ',') OVER ()}"))
+
+  expect_equal(translate(n_distinct(x, na.rm = TRUE), window = FALSE), sql(r"{COUNT(DISTINCT {'v1' : x})}"))
+  expect_equal(translate(n_distinct(x, na.rm = TRUE), window = TRUE), sql(r"{COUNT(DISTINCT {'v1' : x}) OVER ()}"))
 })
 
 test_that("two variable aggregates are translated correctly", {
@@ -218,6 +221,9 @@ test_that("two variable aggregates are translated correctly", {
 
   expect_equal(translate(cor(x, y), window = FALSE), sql(r"{CORR(x, y)}"))
   expect_equal(translate(cor(x, y), window = TRUE), sql(r"{CORR(x, y) OVER ()}"))
+
+  expect_equal(translate(n_distinct(x, y, na.rm = TRUE), window = FALSE), sql(r"{COUNT(DISTINCT {'v1' : x, 'v2' : y})}"))
+  expect_equal(translate(n_distinct(x, y, na.rm = TRUE), window = TRUE), sql(r"{COUNT(DISTINCT {'v1' : x, 'v2' : y}) OVER ()}"))
 })
 
 
