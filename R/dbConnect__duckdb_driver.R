@@ -61,6 +61,10 @@ dbConnect__duckdb_driver <- function(
     read_only <- drv@read_only
   }
 
+  if (missing(bigint)) {
+    bigint <- drv@bigint
+  }
+
   config <- utils::modifyList(drv@config, config)
 
   # aha, a late comer. let's make a new instance.
@@ -68,7 +72,7 @@ dbConnect__duckdb_driver <- function(
     drv <- duckdb(dbdir, read_only, bigint, config)
   }
 
-  conn <- duckdb_connection(drv, debug = debug)
+  conn <- duckdb_connection(drv, debug = debug, bigint = bigint)
   on.exit(dbDisconnect(conn))
 
   conn@timezone_out <- timezone_out
