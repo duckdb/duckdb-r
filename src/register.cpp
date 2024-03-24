@@ -255,3 +255,17 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, const 
 	}
 	static_cast<cpp11::sexp>(conn->db_eptr).attr("_registered_arrow_" + name) = R_NilValue;
 }
+
+[[cpp11::register]] cpp11::strings rapi_list_arrow(duckdb::conn_eptr_t conn) {
+	lock_guard<mutex> arrow_scans_lock(conn->db_eptr->lock);
+	const auto &arrow_scans = conn->db_eptr->arrow_scans;
+
+	cpp11::writable::strings names;
+	names.reserve(arrow_scans.size());
+
+	for (const auto &e : arrow_scans) {
+		names.push_back(e.first);
+	}
+
+	return names;
+}

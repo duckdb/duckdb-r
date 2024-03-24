@@ -113,5 +113,5 @@ duckdb_unregister_arrow <- function(conn, name) {
 #' @rdname duckdb_register_arrow
 #' @export
 duckdb_list_arrow <- function(conn) {
-  sort(gsub("_registered_arrow_", "", names(attributes(conn@driver@database_ref)), fixed = TRUE))
+  sort(rapi_list_arrow(conn@conn_ref))
 }

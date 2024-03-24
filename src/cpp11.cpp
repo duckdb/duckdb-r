@@ -67,6 +67,13 @@ extern "C" SEXP _duckdb_rapi_unregister_arrow(SEXP conn, SEXP name) {
     return R_NilValue;
   END_CPP11
 }
+// register.cpp
+cpp11::strings rapi_list_arrow(duckdb::conn_eptr_t conn);
+extern "C" SEXP _duckdb_rapi_list_arrow(SEXP conn) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(rapi_list_arrow(cpp11::as_cpp<cpp11::decay_t<duckdb::conn_eptr_t>>(conn)));
+  END_CPP11
+}
 // relational.cpp
 SEXP rapi_expr_reference(r_vector<r_string> rnames);
 extern "C" SEXP _duckdb_rapi_expr_reference(SEXP rnames) {
@@ -396,6 +403,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_get_null_SEXP_ptr",       (DL_FUNC) &_duckdb_rapi_get_null_SEXP_ptr,       0},
     {"_duckdb_rapi_get_substrait",           (DL_FUNC) &_duckdb_rapi_get_substrait,           3},
     {"_duckdb_rapi_get_substrait_json",      (DL_FUNC) &_duckdb_rapi_get_substrait_json,      3},
+    {"_duckdb_rapi_list_arrow",              (DL_FUNC) &_duckdb_rapi_list_arrow,              1},
     {"_duckdb_rapi_prepare",                 (DL_FUNC) &_duckdb_rapi_prepare,                 2},
     {"_duckdb_rapi_prepare_substrait",       (DL_FUNC) &_duckdb_rapi_prepare_substrait,       2},
     {"_duckdb_rapi_prepare_substrait_json",  (DL_FUNC) &_duckdb_rapi_prepare_substrait_json,  2},
