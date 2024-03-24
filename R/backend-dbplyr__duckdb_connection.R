@@ -7,7 +7,7 @@
 #'
 #' @name backend-duckdb
 #' @aliases NULL
-#' @examplesIf rlang::is_installed("dbplyr")
+#' @examplesIf duckdb:::TEST_RE2 && rlang::is_installed("dbplyr")
 #' library(dplyr, warn.conflicts = FALSE)
 #' con <- DBI::dbConnect(duckdb(), path = ":memory:")
 #'

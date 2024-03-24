@@ -55,6 +55,7 @@ Directly reads a CSV file into DuckDB, tries to detect and create the correct sc
 This usually is much faster than reading the data into R and writing it to DuckDB.
 }
 \examples{
+\dontshow{if (duckdb:::TEST_RE2) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
 con <- dbConnect(duckdb())
 
 data <- data.frame(a = 1:3, b = letters[1:3])
@@ -66,4 +67,5 @@ duckdb_read_csv(con, "data", path)
 dbReadTable(con, "data")
 
 dbDisconnect(con)
+\dontshow{\}) # examplesIf}
 }

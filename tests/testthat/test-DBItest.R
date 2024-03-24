@@ -1,6 +1,18 @@
 skip_on_cran()
 
 if (rlang::is_installed("DBItest")) DBItest::test_all(c(
+  if (!TEST_RE2) c(
+    "list_tables",
+    "list_tables_quote",
+    "list_fields_object",
+    "list_objects",
+    "list_objects_quote",
+    "list_objects_features",
+    "remove_table_list",
+    "remove_table_other_con",
+    "exists_table_list"
+  ),
+
   "package_name", # wontfix
   "package_dependencies", # wontfix
   "reexport", # wontfix
