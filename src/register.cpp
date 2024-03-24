@@ -246,7 +246,6 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, const 
 
 		arrow_scans[name] = state_list;
 	}
-	static_cast<cpp11::sexp>(conn->db_eptr).attr("_registered_arrow_" + name) = state_list;
 }
 
 [[cpp11::register]] void rapi_unregister_arrow(duckdb::conn_eptr_t conn, std::string name) {
@@ -258,7 +257,6 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, const 
 		auto &arrow_scans = conn->db_eptr->arrow_scans;
 		arrow_scans.erase(name);
 	}
-	static_cast<cpp11::sexp>(conn->db_eptr).attr("_registered_arrow_" + name) = R_NilValue;
 }
 
 [[cpp11::register]] cpp11::strings rapi_list_arrow(duckdb::conn_eptr_t conn) {
