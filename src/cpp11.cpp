@@ -35,6 +35,14 @@ extern "C" SEXP _duckdb_rapi_lock(SEXP dual) {
   END_CPP11
 }
 // database.cpp
+void rapi_unlock(duckdb::db_eptr_t dual);
+extern "C" SEXP _duckdb_rapi_unlock(SEXP dual) {
+  BEGIN_CPP11
+    rapi_unlock(cpp11::as_cpp<cpp11::decay_t<duckdb::db_eptr_t>>(dual));
+    return R_NilValue;
+  END_CPP11
+}
+// database.cpp
 bool rapi_is_locked(duckdb::db_eptr_t dual);
 extern "C" SEXP _duckdb_rapi_is_locked(SEXP dual) {
   BEGIN_CPP11
@@ -455,6 +463,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_release",                 (DL_FUNC) &_duckdb_rapi_release,                 1},
     {"_duckdb_rapi_shutdown",                (DL_FUNC) &_duckdb_rapi_shutdown,                1},
     {"_duckdb_rapi_startup",                 (DL_FUNC) &_duckdb_rapi_startup,                 3},
+    {"_duckdb_rapi_unlock",                  (DL_FUNC) &_duckdb_rapi_unlock,                  1},
     {"_duckdb_rapi_unregister_arrow",        (DL_FUNC) &_duckdb_rapi_unregister_arrow,        2},
     {"_duckdb_rapi_unregister_df",           (DL_FUNC) &_duckdb_rapi_unregister_df,           2},
     {NULL, NULL, 0}

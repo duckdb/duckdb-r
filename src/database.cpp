@@ -84,6 +84,13 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 	return dual->has();
 }
 
+[[cpp11::register]] void rapi_unlock(duckdb::db_eptr_t dual) {
+	if (!dual || !dual.get()) {
+		cpp11::stop("rapi_unlock: Invalid database reference");
+	}
+	dual->unlock();
+}
+
 [[cpp11::register]] bool rapi_is_locked(duckdb::db_eptr_t dual) {
 	if (!dual || !dual.get()) {
 		cpp11::stop("rapi_is_locked: Invalid database reference");

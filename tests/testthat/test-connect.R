@@ -47,6 +47,14 @@ test_that("no warning after dbDisconnect() for driver stored in variable", {
   expect_warning(gc(), NA)
 })
 
+test_that("no warning on dbConnect() with other dbdir", {
+  con <- dbConnect(duckdb(), tempfile(fileext = ".duckdb"))
+  dbDisconnect(con)
+
+  # The warning won't occur here anyway, this is to keep testthat happy
+  expect_warning(gc(), NA)
+})
+
 test_that("can connect to the same in-memory database via the same driver object", {
   drv <- duckdb()
 

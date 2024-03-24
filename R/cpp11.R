@@ -16,6 +16,10 @@ rapi_lock <- function(dual) {
   .Call(`_duckdb_rapi_lock`, dual)
 }
 
+rapi_unlock <- function(dual) {
+  invisible(.Call(`_duckdb_rapi_unlock`, dual))
+}
+
 rapi_is_locked <- function(dual) {
   .Call(`_duckdb_rapi_is_locked`, dual)
 }
