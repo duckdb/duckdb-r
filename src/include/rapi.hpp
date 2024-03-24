@@ -18,7 +18,7 @@
 
 namespace duckdb {
 
-typedef unordered_map<std::string, SEXP> arrow_scans_t;
+typedef unordered_map<std::string, cpp11::list> arrow_scans_t;
 
 struct DBWrapper {
 	duckdb::unique_ptr<DuckDB> db;

@@ -209,7 +209,7 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, const 
 	for (auto e = arrow_scans.find(table_name); e != arrow_scans.end(); ++e) {
 		auto table_function = make_uniq<TableFunctionRef>();
 		vector<duckdb::unique_ptr<ParsedExpression>> children;
-		children.push_back(make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)R_ExternalPtrAddr(e->second))));
+		children.push_back(make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)R_ExternalPtrAddr(e->second[0]))));
 		children.push_back(
 		    make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)RArrowTabularStreamFactory::Produce)));
 		children.push_back(
@@ -234,6 +234,8 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, const 
 	// make r external ptr object to keep factory around until arrow table is unregistered
 	cpp11::external_pointer<RArrowTabularStreamFactory> factorysexp(stream_factory);
 
+	// factorysexp must occur first here, used in ArrowScanReplacement()
+	cpp11::writable::list state_list = {factorysexp, export_funs, valuesexp};
 	{
 		lock_guard<mutex> arrow_scans_lock(conn->db_eptr->lock);
 		auto &arrow_scans = conn->db_eptr->arrow_scans;
@@ -242,9 +244,8 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, const 
 			cpp11::stop("rapi_register_arrow: Arrow table '%s' already registered", name.c_str());
 		}
 
-		arrow_scans[name] = factorysexp;
+		arrow_scans[name] = state_list;
 	}
-	cpp11::writable::list state_list = {export_funs, valuesexp, factorysexp};
 	static_cast<cpp11::sexp>(conn->db_eptr).attr("_registered_arrow_" + name) = state_list;
 }
 
