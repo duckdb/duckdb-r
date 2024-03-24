@@ -7,13 +7,18 @@ void duckdb::ConnDeleter(ConnWrapper *conn) {
 	delete conn;
 }
 
-[[cpp11::register]] duckdb::conn_eptr_t rapi_connect(duckdb::db_eptr_t db) {
-	if (!db || !db.get() || !db->db) {
+[[cpp11::register]] duckdb::conn_eptr_t rapi_connect(duckdb::db_eptr_t dual) {
+	if (!dual || !dual.get()) {
 		cpp11::stop("rapi_connect: Invalid database reference");
 	}
+	auto db = dual->get();
+	if (!db || !db->db) {
+		cpp11::stop("rapi_connect: Database already closed");
+	}
+
 	auto conn_wrapper = new ConnWrapper();
 	conn_wrapper->conn = make_uniq<Connection>(*db->db);
-	conn_wrapper->db_eptr.swap(db);
+	conn_wrapper->db.swap(db);
 
 	return conn_eptr_t(conn_wrapper);
 }

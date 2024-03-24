@@ -6,10 +6,10 @@
 #include <R_ext/Visibility.h>
 
 // connection.cpp
-duckdb::conn_eptr_t rapi_connect(duckdb::db_eptr_t db);
-extern "C" SEXP _duckdb_rapi_connect(SEXP db) {
+duckdb::conn_eptr_t rapi_connect(duckdb::db_eptr_t dual);
+extern "C" SEXP _duckdb_rapi_connect(SEXP dual) {
   BEGIN_CPP11
-    return cpp11::as_sexp(rapi_connect(cpp11::as_cpp<cpp11::decay_t<duckdb::db_eptr_t>>(db)));
+    return cpp11::as_sexp(rapi_connect(cpp11::as_cpp<cpp11::decay_t<duckdb::db_eptr_t>>(dual)));
   END_CPP11
 }
 // connection.cpp

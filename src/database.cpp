@@ -8,12 +8,6 @@
 
 using namespace duckdb;
 
-void duckdb::DBDeleter(DBWrapper *db) {
-	cpp11::warning("Database is garbage-collected, use dbDisconnect(con, shutdown=TRUE) or "
-	               "duckdb::duckdb_shutdown(drv) to avoid this.");
-	delete db;
-}
-
 static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, CastParameters &parameters) {
 	GenericExecutor::ExecuteUnary<PrimitiveType<uintptr_t>, PrimitiveType<string_t>>(
 	    source, result, count,
@@ -77,12 +71,15 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 
 	context.transaction.Commit();
 
-	return db_eptr_t(wrapper);
+	auto dual = new DBWrapperDual(wrapper);
+
+	return db_eptr_t(dual);
 }
 
 [[cpp11::register]] void rapi_shutdown(duckdb::db_eptr_t dbsexp) {
 	auto db_wrapper = dbsexp.release();
 	if (db_wrapper) {
+		db_wrapper->reset();
 		delete db_wrapper;
 	}
 }

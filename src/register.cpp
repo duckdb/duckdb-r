@@ -237,8 +237,8 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, const 
 	// factorysexp must occur first here, used in ArrowScanReplacement()
 	cpp11::writable::list state_list = {factorysexp, export_funs, valuesexp};
 	{
-		lock_guard<mutex> arrow_scans_lock(conn->db_eptr->lock);
-		auto &arrow_scans = conn->db_eptr->arrow_scans;
+		lock_guard<mutex> arrow_scans_lock(conn->db->lock);
+		auto &arrow_scans = conn->db->arrow_scans;
 
 		for (auto e = arrow_scans.find(name); e != arrow_scans.end(); ++e) {
 			cpp11::stop("rapi_register_arrow: Arrow table '%s' already registered", name.c_str());
@@ -253,15 +253,15 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, const 
 		return; // if the connection is already dead there is probably no point in cleaning this
 	}
 	{
-		lock_guard<mutex> arrow_scans_lock(conn->db_eptr->lock);
-		auto &arrow_scans = conn->db_eptr->arrow_scans;
+		lock_guard<mutex> arrow_scans_lock(conn->db->lock);
+		auto &arrow_scans = conn->db->arrow_scans;
 		arrow_scans.erase(name);
 	}
 }
 
 [[cpp11::register]] cpp11::strings rapi_list_arrow(duckdb::conn_eptr_t conn) {
-	lock_guard<mutex> arrow_scans_lock(conn->db_eptr->lock);
-	const auto &arrow_scans = conn->db_eptr->arrow_scans;
+	lock_guard<mutex> arrow_scans_lock(conn->db->lock);
+	const auto &arrow_scans = conn->db->arrow_scans;
 
 	cpp11::writable::strings names;
 	names.reserve(arrow_scans.size());
