@@ -12,6 +12,14 @@ rapi_startup <- function(dbdir, readonly, configsexp) {
   .Call(`_duckdb_rapi_startup`, dbdir, readonly, configsexp)
 }
 
+rapi_lock <- function(dual) {
+  .Call(`_duckdb_rapi_lock`, dual)
+}
+
+rapi_is_locked <- function(dual) {
+  .Call(`_duckdb_rapi_is_locked`, dual)
+}
+
 rapi_shutdown <- function(dbsexp) {
   invisible(.Call(`_duckdb_rapi_shutdown`, dbsexp))
 }

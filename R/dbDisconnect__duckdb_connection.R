@@ -1,20 +1,18 @@
 #' @description
-#' `dbDisconnect()` closes a DuckDB database connection, optionally shutting down
-#' the associated instance.
+#' `dbDisconnect()` closes a DuckDB database connection.
+#' The associated DuckDB database instance is shut down automatically,
+#' it is no longer necessary to set `shutdown = TRUE` or to call `duckdb_shutdown()`.
 #'
 #' @param conn A `duckdb_connection` object
-#' @param shutdown Set to `TRUE` to shut down the DuckDB database instance that this connection refers to.
+#' @param shutdown Unused. The database instance is shut down automatically.
 #' @rdname duckdb
 #' @usage NULL
-dbDisconnect__duckdb_connection <- function(conn, ..., shutdown = FALSE) {
+dbDisconnect__duckdb_connection <- function(conn, ..., shutdown = TRUE) {
   if (!dbIsValid(conn)) {
     warning("Connection already closed.", call. = FALSE)
     invisible(FALSE)
   }
   rapi_disconnect(conn@conn_ref)
-  if (shutdown) {
-    duckdb_shutdown(conn@driver)
-  }
   rs_on_connection_closed(conn)
   invisible(TRUE)
 }

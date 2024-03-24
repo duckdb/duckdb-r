@@ -53,14 +53,16 @@ duckdb <- function(dbdir = DBDIR_MEMORY, read_only = FALSE, bigint = "numeric", 
   dbdir <- path_normalize(dbdir)
   if (dbdir != DBDIR_MEMORY) {
     drv <- driver_registry[[dbdir]]
-    if (!is.null(drv)) {
+    # We reuse an existing driver object if the database is still alive.
+    # If not, we fall back to creating a new driver object with a new database.
+    if (!is.null(drv) && rapi_lock(drv@database_ref)) {
       # FIXME: Check that readonly and config are identical
       return(drv)
     }
   }
 
   # Always create new database for in-memory,
-  # allows mixing different configs
+  # allows isolation and mixing different configs
   drv <- new(
     "duckdb_driver",
     config = config,

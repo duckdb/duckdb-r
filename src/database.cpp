@@ -76,6 +76,21 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 	return db_eptr_t(dual);
 }
 
+[[cpp11::register]] bool rapi_lock(duckdb::db_eptr_t dual) {
+	if (!dual || !dual.get()) {
+		cpp11::stop("rapi_lock: Invalid database reference");
+	}
+	dual->lock();
+	return dual->has();
+}
+
+[[cpp11::register]] bool rapi_is_locked(duckdb::db_eptr_t dual) {
+	if (!dual || !dual.get()) {
+		cpp11::stop("rapi_is_locked: Invalid database reference");
+	}
+	return dual->is_locked();
+}
+
 [[cpp11::register]] void rapi_shutdown(duckdb::db_eptr_t dbsexp) {
 	auto db_wrapper = dbsexp.release();
 	if (db_wrapper) {

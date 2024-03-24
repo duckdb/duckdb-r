@@ -34,7 +34,7 @@ duckdb_adbc()
   bigint = "numeric"
 )
 
-\S4method{dbDisconnect}{duckdb_connection}(conn, ..., shutdown = FALSE)
+\S4method{dbDisconnect}{duckdb_connection}(conn, ..., shutdown = TRUE)
 }
 \arguments{
 \item{dbdir}{Location for database files. Should be a path to an existing
@@ -66,7 +66,7 @@ time as the timestamp in the database, but with the new time zone.}
 
 \item{conn}{A \code{duckdb_connection} object}
 
-\item{shutdown}{Set to \code{TRUE} to shut down the DuckDB database instance that this connection refers to.}
+\item{shutdown}{Unused. The database instance is shut down automatically.}
 }
 \value{
 \code{duckdb()} returns an object of class \linkS4class{duckdb_driver}.
@@ -89,8 +89,9 @@ Connectivity via the adbcdrivermanager package.
 
 \code{dbConnect()} connects to a database instance.
 
-\code{dbDisconnect()} closes a DuckDB database connection, optionally shutting down
-the associated instance.
+\code{dbDisconnect()} closes a DuckDB database connection.
+The associated DuckDB database instance is shut down automatically,
+it is no longer necessary to set \code{shutdown = TRUE} or to call \code{duckdb_shutdown()}.
 }
 \examples{
 \dontshow{if (requireNamespace("adbcdrivermanager", quietly = TRUE)) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}

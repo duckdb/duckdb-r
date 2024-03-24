@@ -38,7 +38,7 @@ public:
 	}
 	~DualWrapper() {
 		if (has()) {
-			cpp11::warning("Database is garbage-collected, use dbDisconnect(con, shutdown=TRUE) or "
+			cpp11::warning("Database is garbage-collected, use dbConnect(duckdb()) with dbDisconnect(), or "
 			               "duckdb::duckdb_shutdown(drv) to avoid this.");
 		}
 	}
@@ -57,6 +57,10 @@ public:
 
 	bool has() const {
 		return !!get();
+	}
+
+	bool is_locked() const {
+		return !!precious_;
 	}
 
 	void lock() {

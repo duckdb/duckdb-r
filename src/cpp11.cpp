@@ -28,6 +28,20 @@ extern "C" SEXP _duckdb_rapi_startup(SEXP dbdir, SEXP readonly, SEXP configsexp)
   END_CPP11
 }
 // database.cpp
+bool rapi_lock(duckdb::db_eptr_t dual);
+extern "C" SEXP _duckdb_rapi_lock(SEXP dual) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(rapi_lock(cpp11::as_cpp<cpp11::decay_t<duckdb::db_eptr_t>>(dual)));
+  END_CPP11
+}
+// database.cpp
+bool rapi_is_locked(duckdb::db_eptr_t dual);
+extern "C" SEXP _duckdb_rapi_is_locked(SEXP dual) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(rapi_is_locked(cpp11::as_cpp<cpp11::decay_t<duckdb::db_eptr_t>>(dual)));
+  END_CPP11
+}
+// database.cpp
 void rapi_shutdown(duckdb::db_eptr_t dbsexp);
 extern "C" SEXP _duckdb_rapi_shutdown(SEXP dbsexp) {
   BEGIN_CPP11
@@ -403,7 +417,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_get_null_SEXP_ptr",       (DL_FUNC) &_duckdb_rapi_get_null_SEXP_ptr,       0},
     {"_duckdb_rapi_get_substrait",           (DL_FUNC) &_duckdb_rapi_get_substrait,           3},
     {"_duckdb_rapi_get_substrait_json",      (DL_FUNC) &_duckdb_rapi_get_substrait_json,      3},
+    {"_duckdb_rapi_is_locked",               (DL_FUNC) &_duckdb_rapi_is_locked,               1},
     {"_duckdb_rapi_list_arrow",              (DL_FUNC) &_duckdb_rapi_list_arrow,              1},
+    {"_duckdb_rapi_lock",                    (DL_FUNC) &_duckdb_rapi_lock,                    1},
     {"_duckdb_rapi_prepare",                 (DL_FUNC) &_duckdb_rapi_prepare,                 2},
     {"_duckdb_rapi_prepare_substrait",       (DL_FUNC) &_duckdb_rapi_prepare_substrait,       2},
     {"_duckdb_rapi_prepare_substrait_json",  (DL_FUNC) &_duckdb_rapi_prepare_substrait_json,  2},
