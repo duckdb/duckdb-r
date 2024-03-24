@@ -20,7 +20,6 @@
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <winbase.h>
 #else
 #include "duckdb/common/windows_util.hpp"
 
