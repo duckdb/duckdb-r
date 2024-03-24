@@ -124,7 +124,6 @@ jobs:
   # To achieve this, remove the "needs:" element below.
   rcc-windows:
     # Begin custom: early run
-    needs: rcc-smoke
     # End custom: early run
 
     runs-on: ${{ matrix.config.os }}
