@@ -2,7 +2,7 @@
 
 ## New problems (1)
 
-|package         |version |error  |warning |note |
-|:---------------|:-------|:------|:-------|:----|
-|[PatientProfiles](problems.md#patientprofiles)|0.6.2   |__+1__ |        |     |
+|package    |version |error  |warning |note |
+|:----------|:-------|:------|:-------|:----|
+|[starwarsdb](problems.md#starwarsdb)|0.1.2   |__+1__ |        |1    |
 
