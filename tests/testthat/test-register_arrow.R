@@ -448,6 +448,19 @@ test_that("we can list registered arrow tables", {
 })
 
 
+test_that("registered tables must be unique", {
+  con <- DBI::dbConnect(duckdb())
+  on.exit(dbDisconnect(con, shutdown = TRUE))
+  ds1 <- arrow::InMemoryDataset$create(mtcars)
+  ds2 <- arrow::InMemoryDataset$create(mtcars)
+
+  expect_equal(length(duckdb_list_arrow(con)), 0)
+
+  duckdb_register_arrow(con, "t1", ds1)
+  expect_error(duckdb_register_arrow(con, "t1", ds2), "'t1' already registered")
+})
+
+
 test_that("duckdb can read arrow timestamps", {
   con <- DBI::dbConnect(duckdb(), timezone_out = "UTC")
   on.exit(dbDisconnect(con, shutdown = TRUE))

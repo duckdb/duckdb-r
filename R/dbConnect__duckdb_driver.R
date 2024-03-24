@@ -4,11 +4,14 @@
 #'
 #' @param drv Object returned by `duckdb()`
 #' @param dbdir Location for database files. Should be a path to an existing
-#'   directory in the file system. With the default, all
-#'   data is kept in RAM
+#'   directory in the file system. With the default (or `""`), all
+#'   data is kept in RAM.
 #' @param ... Ignored
 #' @param debug Print additional debug information such as queries
-#' @param read_only Set to `TRUE` for read-only operation
+#' @param read_only Set to `TRUE` for read-only operation.
+#'   For file-based databases, this is only applied when the database file is opened for the first time.
+#'   Subsequent connections (via the same `drv` object or a `drv` object pointing to the same path)
+#'   will silently ignore this flag.
 #' @param timezone_out The time zone returned to R, defaults to `"UTC"`, which
 #'   is currently the only timezone supported by duckdb.
 #'   If you want to display datetime values in the local timezone,
@@ -18,8 +21,13 @@
 #'   is chosen, the timestamp will be returned as it would appear in the specified time zone.
 #'   If `"force"` is chosen, the timestamp will have the same clock
 #'   time as the timestamp in the database, but with the new time zone.
-#' @param config Named list with DuckDB configuration flags
-#' @param bigint How 64-bit integers should be returned, default is double/numeric. Set to integer64 for bit64 encoding.
+#' @param config Named list with DuckDB configuration flags, see
+#'   <https://duckdb.org/docs/configuration/overview#configuration-reference> for the possible options.
+#'   These flags are only applied when the database object is instantiated.
+#'   Subsequent connections will silently ignore these flags.
+#' @param bigint How 64-bit integers should be returned. There are two options: `"numeric"` and `"integer64"`.
+#'   If `"numeric"` is selected, bigint integers will be treated as double/numeric.
+#'   If `"integer64"` is selected, bigint integers will be set to bit64 encoding.
 #'
 #' @return `dbConnect()` returns an object of class
 #'   \linkS4class{duckdb_connection}.
@@ -53,20 +61,35 @@ dbConnect__duckdb_driver <- function(
   timezone_out <- check_tz(timezone_out)
   tz_out_convert <- match.arg(tz_out_convert)
 
-  missing_dbdir <- missing(dbdir)
-  dbdir <- path.expand(as.character(dbdir))
+  if (missing(dbdir)) {
+    dbdir <- drv@dbdir
+  } else {
+    dbdir <- path_normalize(dbdir)
+  }
+
+  if (missing(read_only)) {
+    read_only <- drv@read_only
+  }
+
+  if (missing(bigint)) {
+    bigint <- drv@bigint
+  } else {
+    check_bigint(bigint)
+  }
+
+  config <- utils::modifyList(drv@config, config)
 
   # aha, a late comer. let's make a new instance.
-  if (!missing_dbdir && dbdir != drv@dbdir) {
+  if (dbdir != drv@dbdir || !rapi_lock(drv@database_ref)) {
+    rapi_unlock(drv@database_ref)
     drv <- duckdb(dbdir, read_only, bigint, config)
   }
 
-  conn <- duckdb_connection(drv, debug = debug)
+  conn <- duckdb_connection(drv, debug = debug, bigint = bigint)
   on.exit(dbDisconnect(conn))
 
   conn@timezone_out <- timezone_out
   conn@tz_out_convert <- tz_out_convert
-
   on.exit(NULL)
 
   rs_on_connection_opened(conn)

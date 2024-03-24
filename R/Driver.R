@@ -15,8 +15,10 @@ drv_to_string <- function(drv) {
   if (!is(drv, "duckdb_driver")) {
     stop("pass a duckdb_driver object")
   }
-  sprintf("<duckdb_driver %s dbdir='%s' read_only=%s bigint=%s>", extptr_str(drv@database_ref), drv@dbdir, drv@read_only, drv@bigint)
+  sprintf("<duckdb_driver dbdir='%s' read_only=%s bigint=%s>", drv@dbdir, drv@read_only, drv@bigint)
 }
+
+driver_registry <- new.env(parent = emptyenv())
 
 #' @description
 #' `duckdb()` creates or reuses a database instance.
@@ -27,18 +29,20 @@ drv_to_string <- function(drv) {
 #' @export
 duckdb <- function(dbdir = DBDIR_MEMORY, read_only = FALSE, bigint = "numeric", config = list()) {
   check_flag(read_only)
+  check_bigint(bigint)
 
-  switch(bigint,
-    numeric = {
-      # fine
-    },
-    integer64 = {
-      if (!is_installed("bit64")) {
-        stop("bit64 package is required for integer64 support")
-      }
-    },
-    stop(paste("Unsupported bigint configuration", bigint))
-  )
+  dbdir <- path_normalize(dbdir)
+  if (dbdir != DBDIR_MEMORY) {
+    drv <- driver_registry[[dbdir]]
+    # We reuse an existing driver object if the database is still alive.
+    # If not, we fall back to creating a new driver object with a new database.
+    if (!is.null(drv) && rapi_lock(drv@database_ref)) {
+      # We don't care about different read_only or config settings here.
+      # The bigint setting can be actually picked up by dbConnect(), we update it here.
+      drv@bigint <- bigint
+      return(drv)
+    }
+  }
 
   # R packages are not allowed to write extensions into home directory, so use R_user_dir instead
   if (!("extension_directory" %in% names(config))) {
@@ -48,13 +52,21 @@ duckdb <- function(dbdir = DBDIR_MEMORY, read_only = FALSE, bigint = "numeric", 
     config["secret_directory"] <- file.path(tools::R_user_dir("duckdb", "data"), "stored_secrets")
   }
 
-  new(
+  # Always create new database for in-memory,
+  # allows isolation and mixing different configs
+  drv <- new(
     "duckdb_driver",
+    config = config,
     database_ref = rapi_startup(dbdir, read_only, config),
     dbdir = dbdir,
     read_only = read_only,
     bigint = bigint
   )
+
+  if (dbdir != DBDIR_MEMORY) {
+    driver_registry[[dbdir]] <- drv
+  }
+  drv
 }
 
 #' @description
@@ -73,6 +85,11 @@ duckdb_shutdown <- function(drv) {
     invisible(FALSE)
   }
   rapi_shutdown(drv@database_ref)
+
+  if (drv@dbdir != DBDIR_MEMORY) {
+    rm(list = drv@dbdir, envir = driver_registry)
+  }
+
   invisible(TRUE)
 }
 
@@ -138,4 +155,33 @@ check_tz <- function(timezone) {
   }
 
   timezone
+}
+path_normalize <- function(path) {
+  if (path == "" || path == DBDIR_MEMORY) {
+    return(DBDIR_MEMORY)
+  }
+
+  out <- normalizePath(path, mustWork = FALSE)
+
+  # Stable results are only guaranteed if the file exists
+  if (!file.exists(out)) {
+    on.exit(unlink(out))
+    writeLines(character(), out)
+    out <- normalizePath(out, mustWork = TRUE)
+  }
+  out
+}
+
+check_bigint <- function(bigint_type) {
+  switch(bigint_type,
+    numeric = {
+      # fine
+    },
+    integer64 = {
+      if (!is_installed("bit64")) {
+        stop("bit64 package is required for integer64 support")
+      }
+    },
+    stop(paste("Unsupported bigint configuration", bigint_type))
+  )
 }

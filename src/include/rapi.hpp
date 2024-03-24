@@ -18,7 +18,7 @@
 
 namespace duckdb {
 
-typedef unordered_map<std::string, SEXP> arrow_scans_t;
+typedef unordered_map<std::string, cpp11::list> arrow_scans_t;
 
 struct DBWrapper {
 	duckdb::unique_ptr<DuckDB> db;
@@ -26,12 +26,70 @@ struct DBWrapper {
 	mutex lock;
 };
 
-void DBDeleter(DBWrapper *);
-typedef cpp11::external_pointer<DBWrapper, DBDeleter> db_eptr_t;
+template <class T>
+class DualWrapper {
+public:
+	DualWrapper(T *db) : precious_(db) {}
+	DualWrapper(std::shared_ptr<T> db) : precious_(db) {}
+	DualWrapper(DualWrapper *dual) : precious_(dual->get()) {
+		if (!precious_) {
+			cpp11::stop("dual is already released");
+		}
+	}
+	~DualWrapper() {
+		if (has()) {
+			cpp11::warning("Database is garbage-collected, use dbConnect(duckdb()) with dbDisconnect(), or "
+			               "duckdb::duckdb_shutdown(drv) to avoid this.");
+		}
+	}
+
+	std::shared_ptr<T> get() const {
+		if (precious_) {
+			return precious_;
+		} else {
+			return disposable_.lock();
+		}
+	}
+
+	std::shared_ptr<T> operator->() const {
+		return get();
+	}
+
+	bool has() const {
+		return !!get();
+	}
+
+	bool is_locked() const {
+		return !!precious_;
+	}
+
+	void lock() {
+		precious_ = get();
+		disposable_.reset();
+	}
+
+	void unlock() {
+		disposable_ = get();
+		precious_.reset();
+	}
+
+	void reset() {
+		precious_.reset();
+		disposable_.reset();
+	}
+
+private:
+	std::shared_ptr<T> precious_;
+	std::weak_ptr<T> disposable_;
+};
+
+typedef DualWrapper<DBWrapper> DBWrapperDual;
+
+typedef cpp11::external_pointer<DBWrapperDual> db_eptr_t;
 
 struct ConnWrapper {
 	duckdb::unique_ptr<Connection> conn;
-	db_eptr_t db_eptr;
+	std::shared_ptr<DBWrapper> db;
 };
 
 void ConnDeleter(ConnWrapper *);

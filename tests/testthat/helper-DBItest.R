@@ -1,5 +1,7 @@
-drv <- duckdb()
-reg.finalizer(drv@database_ref, function(x) rapi_shutdown(x))
+drv <- duckdb(tempfile(fileext = ".duckdb"))
+reg.finalizer(drv@database_ref, function(x) {
+  unlink(drv@dbdir, force = TRUE)
+})
 
 # remotes::install_github("r-dbi/dblog")
 # Then, use DBItest::test_some() to see the DBI calls emitted by the tests

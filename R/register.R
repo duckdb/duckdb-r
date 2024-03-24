@@ -45,7 +45,7 @@ encode_values <- function(value) {
 duckdb_register <- function(conn, name, df, overwrite = FALSE, experimental = FALSE) {
   stopifnot(dbIsValid(conn))
   df <- encode_values(as.data.frame(df))
-  rapi_register_df(conn@conn_ref, enc2utf8(as.character(name)), df, conn@driver@bigint == "integer64", overwrite, experimental)
+  rapi_register_df(conn@conn_ref, enc2utf8(as.character(name)), df, conn@bigint == "integer64", overwrite, experimental)
   invisible(TRUE)
 }
 
@@ -113,5 +113,5 @@ duckdb_unregister_arrow <- function(conn, name) {
 #' @rdname duckdb_register_arrow
 #' @export
 duckdb_list_arrow <- function(conn) {
-  sort(gsub("_registered_arrow_", "", names(attributes(conn@driver@database_ref)), fixed = TRUE))
+  sort(rapi_list_arrow(conn@conn_ref))
 }
