@@ -205,18 +205,17 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, const 
 	auto &data = (ArrowScanReplacementData &)*data_p;
 	auto db_wrapper = data.wrapper;
 	lock_guard<mutex> arrow_scans_lock(db_wrapper->lock);
-	for (auto &e : db_wrapper->arrow_scans) {
-		if (e.first == table_name) {
-			auto table_function = make_uniq<TableFunctionRef>();
-			vector<duckdb::unique_ptr<ParsedExpression>> children;
-			children.push_back(make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)R_ExternalPtrAddr(e.second))));
-			children.push_back(
-			    make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)RArrowTabularStreamFactory::Produce)));
-			children.push_back(
-			    make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)RArrowTabularStreamFactory::GetSchema)));
-			table_function->function = make_uniq<FunctionExpression>("arrow_scan", std::move(children));
-			return std::move(table_function);
-		}
+	const auto &arrow_scans = db_wrapper->arrow_scans;
+	for (auto e = arrow_scans.find(table_name); e != arrow_scans.end(); ++e) {
+		auto table_function = make_uniq<TableFunctionRef>();
+		vector<duckdb::unique_ptr<ParsedExpression>> children;
+		children.push_back(make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)R_ExternalPtrAddr(e->second))));
+		children.push_back(
+		    make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)RArrowTabularStreamFactory::Produce)));
+		children.push_back(
+		    make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)RArrowTabularStreamFactory::GetSchema)));
+		table_function->function = make_uniq<FunctionExpression>("arrow_scan", std::move(children));
+		return std::move(table_function);
 	}
 	return nullptr;
 }
