@@ -235,9 +235,13 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, const 
 	cpp11::external_pointer<RArrowTabularStreamFactory> factorysexp(stream_factory);
 
 	{
-		// TODO check if this name already exists?
 		lock_guard<mutex> arrow_scans_lock(conn->db_eptr->lock);
 		auto &arrow_scans = conn->db_eptr->arrow_scans;
+
+		for (auto e = arrow_scans.find(name); e != arrow_scans.end(); ++e) {
+			cpp11::stop("rapi_register_arrow: Arrow table '%s' already registered", name.c_str());
+		}
+
 		arrow_scans[name] = factorysexp;
 	}
 	cpp11::writable::list state_list = {export_funs, valuesexp, factorysexp};
