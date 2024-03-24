@@ -41,13 +41,19 @@ duckdb_adbc()
 directory in the file system. With the default (or \code{""}), all
 data is kept in RAM.}
 
-\item{read_only}{Set to \code{TRUE} for read-only operation}
+\item{read_only}{Set to \code{TRUE} for read-only operation.
+For file-based databases, this is only applied when the database file is opened for the first time.
+Subsequent connections (via the same \code{drv} object or a \code{drv} object pointing to the same path)
+will silently ignore this flag.}
 
 \item{bigint}{How 64-bit integers should be returned. There are two options: \code{"numeric"} and \code{"integer64"}.
 If \code{"numeric"} is selected, bigint integers will be treated as double/numeric.
 If \code{"integer64"} is selected, bigint integers will be set to bit64 encoding.}
 
-\item{config}{Named list with DuckDB configuration flags}
+\item{config}{Named list with DuckDB configuration flags, see
+\url{https://duckdb.org/docs/configuration/overview#configuration-reference} for the possible options.
+These flags are only applied when the database object is instantiated.
+Subsequent connections will silently ignore these flags.}
 
 \item{drv}{Object returned by \code{duckdb()}}
 

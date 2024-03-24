@@ -31,23 +31,25 @@ duckdb <- function(dbdir = DBDIR_MEMORY, read_only = FALSE, bigint = "numeric", 
   check_flag(read_only)
   check_bigint(bigint)
 
-  # R packages are not allowed to write extensions into home directory, so use R_user_dir instead
-  if (!("extension_directory" %in% names(config))) {
-    config["extension_directory"] <- file.path(tools::R_user_dir("duckdb", "data"), "extensions")
-  }
-  if (!("secret_directory" %in% names(config))) {
-    config["secret_directory"] <- file.path(tools::R_user_dir("duckdb", "data"), "stored_secrets")
-  }
-
   dbdir <- path_normalize(dbdir)
   if (dbdir != DBDIR_MEMORY) {
     drv <- driver_registry[[dbdir]]
     # We reuse an existing driver object if the database is still alive.
     # If not, we fall back to creating a new driver object with a new database.
     if (!is.null(drv) && rapi_lock(drv@database_ref)) {
-      # FIXME: Check that readonly and config are identical
+      # We don't care about different read_only or config settings here.
+      # The bigint setting can be actually picked up by dbConnect(), we update it here.
+      drv@bigint <- bigint
       return(drv)
     }
+  }
+
+  # R packages are not allowed to write extensions into home directory, so use R_user_dir instead
+  if (!("extension_directory" %in% names(config))) {
+    config["extension_directory"] <- file.path(tools::R_user_dir("duckdb", "data"), "extensions")
+  }
+  if (!("secret_directory" %in% names(config))) {
+    config["secret_directory"] <- file.path(tools::R_user_dir("duckdb", "data"), "stored_secrets")
   }
 
   # Always create new database for in-memory,
