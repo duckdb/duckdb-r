@@ -5,6 +5,15 @@ encode_values <- function(value) {
   }
 
   is_character <- vapply(value, is.character, logical(1))
+
+  for (col in names(is_character)) {
+    for (val in value[col]) {
+        if (Encoding(val) == "unknown") {
+            stop(sprintf("Value %s in the provided df does not have a valid encoding.", val))
+        }
+    }
+  }
+
   value[is_character] <- lapply(value[is_character], enc2utf8)
   is_factor <- vapply(value, is.factor, logical(1))
   value[is_factor] <- lapply(value[is_factor], function(x) {
