@@ -9,11 +9,12 @@
 #include "duckdb/planner/filter/null_filter.hpp"
 #include "duckdb/planner/filter/constant_filter.hpp"
 #include "duckdb/planner/filter/conjunction_filter.hpp"
+#include "duckdb/planner/filter/struct_filter.hpp"
 
 namespace duckdb {
 
 void TableFilter::Serialize(Serializer &serializer) const {
-	serializer.WriteProperty(100, "filter_type", filter_type);
+	serializer.WriteProperty<TableFilterType>(100, "filter_type", filter_type);
 }
 
 unique_ptr<TableFilter> TableFilter::Deserialize(Deserializer &deserializer) {
@@ -35,6 +36,9 @@ unique_ptr<TableFilter> TableFilter::Deserialize(Deserializer &deserializer) {
 	case TableFilterType::IS_NULL:
 		result = IsNullFilter::Deserialize(deserializer);
 		break;
+	case TableFilterType::STRUCT_EXTRACT:
+		result = StructFilter::Deserialize(deserializer);
+		break;
 	default:
 		throw SerializationException("Unsupported type for deserialization of TableFilter!");
 	}
@@ -43,30 +47,30 @@ unique_ptr<TableFilter> TableFilter::Deserialize(Deserializer &deserializer) {
 
 void ConjunctionAndFilter::Serialize(Serializer &serializer) const {
 	TableFilter::Serialize(serializer);
-	serializer.WriteProperty(200, "child_filters", child_filters);
+	serializer.WritePropertyWithDefault<vector<unique_ptr<TableFilter>>>(200, "child_filters", child_filters);
 }
 
 unique_ptr<TableFilter> ConjunctionAndFilter::Deserialize(Deserializer &deserializer) {
 	auto result = duckdb::unique_ptr<ConjunctionAndFilter>(new ConjunctionAndFilter());
-	deserializer.ReadProperty(200, "child_filters", result->child_filters);
+	deserializer.ReadPropertyWithDefault<vector<unique_ptr<TableFilter>>>(200, "child_filters", result->child_filters);
 	return std::move(result);
 }
 
 void ConjunctionOrFilter::Serialize(Serializer &serializer) const {
 	TableFilter::Serialize(serializer);
-	serializer.WriteProperty(200, "child_filters", child_filters);
+	serializer.WritePropertyWithDefault<vector<unique_ptr<TableFilter>>>(200, "child_filters", child_filters);
 }
 
 unique_ptr<TableFilter> ConjunctionOrFilter::Deserialize(Deserializer &deserializer) {
 	auto result = duckdb::unique_ptr<ConjunctionOrFilter>(new ConjunctionOrFilter());
-	deserializer.ReadProperty(200, "child_filters", result->child_filters);
+	deserializer.ReadPropertyWithDefault<vector<unique_ptr<TableFilter>>>(200, "child_filters", result->child_filters);
 	return std::move(result);
 }
 
 void ConstantFilter::Serialize(Serializer &serializer) const {
 	TableFilter::Serialize(serializer);
-	serializer.WriteProperty(200, "comparison_type", comparison_type);
-	serializer.WriteProperty(201, "constant", constant);
+	serializer.WriteProperty<ExpressionType>(200, "comparison_type", comparison_type);
+	serializer.WriteProperty<Value>(201, "constant", constant);
 }
 
 unique_ptr<TableFilter> ConstantFilter::Deserialize(Deserializer &deserializer) {
@@ -91,6 +95,21 @@ void IsNullFilter::Serialize(Serializer &serializer) const {
 
 unique_ptr<TableFilter> IsNullFilter::Deserialize(Deserializer &deserializer) {
 	auto result = duckdb::unique_ptr<IsNullFilter>(new IsNullFilter());
+	return std::move(result);
+}
+
+void StructFilter::Serialize(Serializer &serializer) const {
+	TableFilter::Serialize(serializer);
+	serializer.WritePropertyWithDefault<idx_t>(200, "child_idx", child_idx);
+	serializer.WritePropertyWithDefault<string>(201, "child_name", child_name);
+	serializer.WritePropertyWithDefault<unique_ptr<TableFilter>>(202, "child_filter", child_filter);
+}
+
+unique_ptr<TableFilter> StructFilter::Deserialize(Deserializer &deserializer) {
+	auto child_idx = deserializer.ReadPropertyWithDefault<idx_t>(200, "child_idx");
+	auto child_name = deserializer.ReadPropertyWithDefault<string>(201, "child_name");
+	auto child_filter = deserializer.ReadPropertyWithDefault<unique_ptr<TableFilter>>(202, "child_filter");
+	auto result = duckdb::unique_ptr<StructFilter>(new StructFilter(child_idx, std::move(child_name), std::move(child_filter)));
 	return std::move(result);
 }
 

@@ -6,8 +6,8 @@
 #include "duckdb/common/string_util.hpp"
 #include "duckdb/common/assert.hpp"
 #include "duckdb/common/operator/multiply.hpp"
+#include "duckdb/common/exception/conversion_exception.hpp"
 #include "duckdb/common/limits.hpp"
-
 #include <cstring>
 #include <cctype>
 #include <algorithm>
@@ -190,7 +190,7 @@ bool Date::ParseDoubleDigit(const char *buf, idx_t len, idx_t &pos, int32_t &res
 	return false;
 }
 
-static bool TryConvertDateSpecial(const char *buf, idx_t len, idx_t &pos, const char *special) {
+bool Date::TryConvertDateSpecial(const char *buf, idx_t len, idx_t &pos, const char *special) {
 	auto p = pos;
 	for (; p < len && *special; ++p) {
 		const auto s = *special++;
@@ -417,7 +417,7 @@ int32_t Date::EpochDays(date_t date) {
 }
 
 date_t Date::EpochToDate(int64_t epoch) {
-	return date_t(epoch / Interval::SECS_PER_DAY);
+	return date_t(UnsafeNumericCast<int32_t>(epoch / Interval::SECS_PER_DAY));
 }
 
 int64_t Date::Epoch(date_t date) {
@@ -492,7 +492,7 @@ int32_t Date::ExtractDayOfTheYear(date_t date) {
 
 int64_t Date::ExtractJulianDay(date_t date) {
 	// Julian Day 0 is (-4713, 11, 24) in the proleptic Gregorian calendar.
-	static const auto JULIAN_EPOCH = -2440588;
+	static const int64_t JULIAN_EPOCH = -2440588;
 	return date.days - JULIAN_EPOCH;
 }
 

@@ -9,12 +9,12 @@
 dbWriteTable__duckdb_connection_character_data.frame <- function(conn,
                                                                  name,
                                                                  value,
+                                                                 ...,
                                                                  row.names = FALSE,
                                                                  overwrite = FALSE,
                                                                  append = FALSE,
                                                                  field.types = NULL,
-                                                                 temporary = FALSE,
-                                                                 ...) {
+                                                                 temporary = FALSE) {
   check_flag(overwrite)
   check_flag(append)
   check_flag(temporary)

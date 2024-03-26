@@ -6,6 +6,8 @@
 
 #include "src/parser/statement/copy_statement.cpp"
 
+#include "src/parser/statement/copy_database_statement.cpp"
+
 #include "src/parser/statement/create_statement.cpp"
 
 #include "src/parser/statement/detach_statement.cpp"
@@ -37,8 +39,6 @@
 #include "src/parser/statement/select_statement.cpp"
 
 #include "src/parser/statement/set_statement.cpp"
-
-#include "src/parser/statement/show_statement.cpp"
 
 #include "src/parser/statement/transaction_statement.cpp"
 

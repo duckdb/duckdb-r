@@ -46,17 +46,18 @@ external_pointer<T> make_external_prot(const string &rclass, SEXP prot, ARGS &&.
 }
 // DuckDB Expressions
 
-[[cpp11::register]] SEXP rapi_expr_reference(std::string name, std::string table) {
-	if (name.size() == 0) {
-		stop("expr_reference: Zero length name");
+[[cpp11::register]] SEXP rapi_expr_reference(r_vector<r_string> rnames) {
+	if (rnames.size() == 0) {
+		stop("expr_reference: Zero length name vector");
 	}
-	if (!table.empty()) {
-		auto res = make_external<ColumnRefExpression>("duckdb_expr", name, table);
-		res->alias = name; // TODO does this really make sense here?
-		return res;
-	} else {
-		return make_external<ColumnRefExpression>("duckdb_expr", name);
+	duckdb::vector<std::string> names;
+	for (auto name : rnames) {
+		if (name.size() == 0) {
+			stop("expr_reference: Zero length name");
+		}
+		names.push_back(name);
 	}
+	return make_external<ColumnRefExpression>("duckdb_expr", names);;
 }
 
 [[cpp11::register]] SEXP rapi_expr_constant(sexp val) {
@@ -386,6 +387,7 @@ static SEXP result_to_df(duckdb::unique_ptr<QueryResult> res) {
 
 [[cpp11::register]] SEXP rapi_rel_union_all(duckdb::rel_extptr_t rel_a, duckdb::rel_extptr_t rel_b) {
 	auto res = std::make_shared<SetOpRelation>(rel_a->rel, rel_b->rel, SetOperationType::UNION);
+	res->setop_all = true;
 
 	cpp11::writable::list prot = {rel_a, rel_b};
 

@@ -1,0 +1,11 @@
+FROM wch1/r-debug
+
+WORKDIR /root
+
+COPY docker/r-debug-threadcheck.sh docker/deps.R DESCRIPTION .
+
+RUN ./r-debug-threadcheck.sh
+
+WORKDIR /root/workspace
+
+ENTRYPOINT /bin/bash

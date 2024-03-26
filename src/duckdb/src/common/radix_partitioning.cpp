@@ -188,7 +188,7 @@ void RadixPartitionedTupleData::InitializeAppendStateInternal(PartitionedTupleDa
 	for (idx_t col_idx = 0; col_idx < column_count; col_idx++) {
 		column_ids.emplace_back(col_idx);
 	}
-	partitions[0]->InitializeAppend(state.chunk_state, std::move(column_ids));
+	partitions[0]->InitializeChunkState(state.chunk_state, std::move(column_ids));
 
 	// Initialize fixed-size map
 	state.fixed_partition_entries.resize(RadixPartitioning::NumberOfPartitions(radix_bits));
@@ -204,7 +204,7 @@ void RadixPartitionedTupleData::ComputePartitionIndices(Vector &row_locations, i
                                                         Vector &partition_indices) const {
 	Vector intermediate(LogicalType::HASH);
 	partitions[0]->Gather(row_locations, *FlatVector::IncrementalSelectionVector(), count, hash_col_idx, intermediate,
-	                      *FlatVector::IncrementalSelectionVector());
+	                      *FlatVector::IncrementalSelectionVector(), nullptr);
 	RadixBitsSwitch<ComputePartitionIndicesFunctor, void>(radix_bits, intermediate, partition_indices, count);
 }
 

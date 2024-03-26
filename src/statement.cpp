@@ -337,7 +337,7 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	do {
 		execution_result = pending_query->ExecuteTask();
 		R_CheckUserInterrupt();
-	} while (!PendingQueryResult::IsFinished(execution_result));
+	} while (!PendingQueryResult::IsFinishedOrBlocked(execution_result));
 	if (execution_result == PendingExecutionResult::EXECUTION_ERROR) {
 		cpp11::stop("rapi_execute: Failed to run query\nError: %s", pending_query->GetError().c_str());
 	}
@@ -356,4 +356,8 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 		auto result = (MaterializedQueryResult *)generic_result.get();
 		return duckdb_execute_R_impl(result, integer64);
 	}
+}
+
+[[cpp11::register]] void rapi_rel_to_parquet(duckdb::rel_extptr_t rel, std::string file_name) {
+    rel->rel->WriteParquet(file_name);
 }

@@ -1,3 +1,16 @@
+url: https://r.duckdb.org/
+
+template:
+  bootstrap: 5
+
+authors:
+  Hannes Mühleisen:
+    href: "http://hannes.muehleisen.org/"
+  Mark Raasveldt:
+    href: "https://mytherin.github.io/"
+  Kirill Müller:
+    href: "https://krlmlr.info/"
+
 reference:
 - title: Driver
   contents:
@@ -20,6 +33,3 @@ reference:
   - duckdb_prepare_substrait
   - duckdb_prepare_substrait_json
   - duckdb_explain-class
-- title: duckdb Package
-  contents:
-  - duckdb-package

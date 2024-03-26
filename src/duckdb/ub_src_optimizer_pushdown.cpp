@@ -2,6 +2,8 @@
 
 #include "src/optimizer/pushdown/pushdown_cross_product.cpp"
 
+#include "src/optimizer/pushdown/pushdown_distinct.cpp"
+
 #include "src/optimizer/pushdown/pushdown_filter.cpp"
 
 #include "src/optimizer/pushdown/pushdown_get.cpp"
@@ -15,6 +17,8 @@
 #include "src/optimizer/pushdown/pushdown_mark_join.cpp"
 
 #include "src/optimizer/pushdown/pushdown_projection.cpp"
+
+#include "src/optimizer/pushdown/pushdown_semi_anti_join.cpp"
 
 #include "src/optimizer/pushdown/pushdown_set_operation.cpp"
 

@@ -85,12 +85,12 @@
   conn,
   name,
   value,
+  ...,
   row.names = FALSE,
   overwrite = FALSE,
   append = FALSE,
   field.types = NULL,
-  temporary = FALSE,
-  ...
+  temporary = FALSE
 )
 
 \S4method{show}{duckdb_connection}(object)
@@ -109,8 +109,7 @@ e.g. \code{Id(schema = "my_schema", table = "table_name")}
 given verbatim, e.g. \code{SQL('"my_schema"."table_name"')}
 }}
 
-\item{value}{A data frame of values. The column names must be consistent
-with those in the target table in the database.}
+\item{value}{A \link{data.frame} (or coercible to data.frame).}
 
 \item{...}{Other parameters passed on to methods.}
 
@@ -123,7 +122,10 @@ or \linkS4class{DBIConnection}}
 
 \item{statement}{a character string containing SQL.}
 
-\item{params}{A list of bindings, named or unnamed.}
+\item{params}{For \code{dbBind()}, a list of values, named or unnamed,
+or a data frame, with one element/column per query parameter.
+For \code{dbBindArrow()}, values as a nanoarrow stream,
+with one column per query parameter.}
 
 \item{arrow}{Whether the query should be returned as an Arrow Table}
 

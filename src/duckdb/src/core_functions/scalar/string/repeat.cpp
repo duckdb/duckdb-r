@@ -1,10 +1,9 @@
-#include "duckdb/core_functions/scalar/string_functions.hpp"
-
 #include "duckdb/common/exception.hpp"
 #include "duckdb/common/vector_operations/binary_executor.hpp"
+#include "duckdb/core_functions/scalar/string_functions.hpp"
 
-#include <string.h>
 #include <ctype.h>
+#include <string.h>
 
 namespace duckdb {
 
@@ -19,7 +18,7 @@ static string_t RepeatScalarFunction(const string_t &str, const int64_t cnt, vec
 		result.insert(result.end(), input_str, input_str + size_str);
 	}
 
-	return string_t(result.data(), result.size());
+	return string_t(result.data(), UnsafeNumericCast<uint32_t>(result.size()));
 }
 
 static void RepeatFunction(DataChunk &args, ExpressionState &state, Vector &result) {
@@ -33,8 +32,12 @@ static void RepeatFunction(DataChunk &args, ExpressionState &state, Vector &resu
 	    });
 }
 
-ScalarFunction RepeatFun::GetFunction() {
-	return ScalarFunction({LogicalType::VARCHAR, LogicalType::BIGINT}, LogicalType::VARCHAR, RepeatFunction);
+ScalarFunctionSet RepeatFun::GetFunctions() {
+	ScalarFunctionSet repeat;
+	for (const auto &type : {LogicalType::VARCHAR, LogicalType::BLOB}) {
+		repeat.AddFunction(ScalarFunction({type, LogicalType::BIGINT}, type, RepeatFunction));
+	}
+	return repeat;
 }
 
 } // namespace duckdb

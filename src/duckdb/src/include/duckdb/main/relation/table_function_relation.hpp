@@ -20,6 +20,8 @@ public:
 
 	TableFunctionRelation(const std::shared_ptr<ClientContext> &context, string name, vector<Value> parameters,
 	                      shared_ptr<Relation> input_relation_p = nullptr, bool auto_init = true);
+	~TableFunctionRelation() override {
+	}
 
 	string name;
 	vector<Value> parameters;
@@ -35,6 +37,7 @@ public:
 	string ToString(idx_t depth) override;
 	string GetAlias() override;
 	void AddNamedParameter(const string &name, Value argument);
+	void SetNamedParameters(named_parameter_map_t &&named_parameters);
 
 private:
 	void InitializeColumns();

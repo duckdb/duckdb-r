@@ -1,5 +1,9 @@
 #include "src/execution/operator/helper/physical_batch_collector.cpp"
 
+#include "src/execution/operator/helper/physical_buffered_collector.cpp"
+
+#include "src/execution/operator/helper/physical_create_secret.cpp"
+
 #include "src/execution/operator/helper/physical_execute.cpp"
 
 #include "src/execution/operator/helper/physical_explain_analyze.cpp"
@@ -31,4 +35,6 @@
 #include "src/execution/operator/helper/physical_transaction.cpp"
 
 #include "src/execution/operator/helper/physical_vacuum.cpp"
+
+#include "src/execution/operator/helper/physical_verify_vector.cpp"
 

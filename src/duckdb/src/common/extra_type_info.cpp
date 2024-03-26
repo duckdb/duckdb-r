@@ -1,6 +1,7 @@
 #include "duckdb/common/extra_type_info.hpp"
 #include "duckdb/common/serializer/deserializer.hpp"
 #include "duckdb/common/enum_util.hpp"
+#include "duckdb/common/numeric_utils.hpp"
 #include "duckdb/common/serializer/serializer.hpp"
 #include "duckdb/catalog/catalog_entry/schema_catalog_entry.hpp"
 #include "duckdb/common/string_map_set.hpp"
@@ -134,6 +135,11 @@ UserTypeInfo::UserTypeInfo(string name_p)
     : ExtraTypeInfo(ExtraTypeInfoType::USER_TYPE_INFO), user_type_name(std::move(name_p)) {
 }
 
+UserTypeInfo::UserTypeInfo(string catalog_p, string schema_p, string name_p)
+    : ExtraTypeInfo(ExtraTypeInfoType::USER_TYPE_INFO), catalog(std::move(catalog_p)), schema(std::move(schema_p)),
+      user_type_name(std::move(name_p)) {
+}
+
 bool UserTypeInfo::EqualsInternal(ExtraTypeInfo *other_p) const {
 	auto &other = other_p->Cast<UserTypeInfo>();
 	return other.user_type_name == user_type_name;
@@ -173,7 +179,7 @@ struct EnumTypeInfoTemplated : public EnumTypeInfo {
 				throw InvalidInputException("Attempted to create ENUM type with duplicate value %s",
 				                            data[idx].GetString());
 			}
-			values[data[idx]] = i;
+			values[data[idx]] = UnsafeNumericCast<T>(i);
 		}
 	}
 
@@ -269,11 +275,11 @@ shared_ptr<ExtraTypeInfo> EnumTypeInfo::Deserialize(Deserializer &deserializer) 
 	auto enum_internal_type = EnumTypeInfo::DictType(values_count);
 	switch (enum_internal_type) {
 	case PhysicalType::UINT8:
-		return EnumTypeInfoTemplated<uint8_t>::Deserialize(deserializer, values_count);
+		return EnumTypeInfoTemplated<uint8_t>::Deserialize(deserializer, NumericCast<uint32_t>(values_count));
 	case PhysicalType::UINT16:
-		return EnumTypeInfoTemplated<uint16_t>::Deserialize(deserializer, values_count);
+		return EnumTypeInfoTemplated<uint16_t>::Deserialize(deserializer, NumericCast<uint32_t>(values_count));
 	case PhysicalType::UINT32:
-		return EnumTypeInfoTemplated<uint32_t>::Deserialize(deserializer, values_count);
+		return EnumTypeInfoTemplated<uint32_t>::Deserialize(deserializer, NumericCast<uint32_t>(values_count));
 	default:
 		throw InternalException("Invalid Physical Type for ENUMs");
 	}
@@ -310,6 +316,49 @@ void EnumTypeInfo::Serialize(Serializer &serializer) const {
 	serializer.WriteProperty(200, "values_count", dict_size);
 	serializer.WriteList(201, "values", dict_size,
 	                     [&](Serializer::List &list, idx_t i) { list.WriteElement(strings[i]); });
+}
+
+//===--------------------------------------------------------------------===//
+// ArrayTypeInfo
+//===--------------------------------------------------------------------===//
+
+ArrayTypeInfo::ArrayTypeInfo(LogicalType child_type_p, uint32_t size_p)
+    : ExtraTypeInfo(ExtraTypeInfoType::ARRAY_TYPE_INFO), child_type(std::move(child_type_p)), size(size_p) {
+}
+
+bool ArrayTypeInfo::EqualsInternal(ExtraTypeInfo *other_p) const {
+	auto &other = other_p->Cast<ArrayTypeInfo>();
+	return child_type == other.child_type && size == other.size;
+}
+
+//===--------------------------------------------------------------------===//
+// Any Type Info
+//===--------------------------------------------------------------------===//
+AnyTypeInfo::AnyTypeInfo() : ExtraTypeInfo(ExtraTypeInfoType::ANY_TYPE_INFO) {
+}
+
+AnyTypeInfo::AnyTypeInfo(LogicalType target_type_p, idx_t cast_score_p)
+    : ExtraTypeInfo(ExtraTypeInfoType::ANY_TYPE_INFO), target_type(std::move(target_type_p)), cast_score(cast_score_p) {
+}
+
+bool AnyTypeInfo::EqualsInternal(ExtraTypeInfo *other_p) const {
+	auto &other = other_p->Cast<AnyTypeInfo>();
+	return target_type == other.target_type && cast_score == other.cast_score;
+}
+
+//===--------------------------------------------------------------------===//
+// Any Type Info
+//===--------------------------------------------------------------------===//
+IntegerLiteralTypeInfo::IntegerLiteralTypeInfo() : ExtraTypeInfo(ExtraTypeInfoType::INTEGER_LITERAL_TYPE_INFO) {
+}
+
+IntegerLiteralTypeInfo::IntegerLiteralTypeInfo(Value constant_value_p)
+    : ExtraTypeInfo(ExtraTypeInfoType::INTEGER_LITERAL_TYPE_INFO), constant_value(std::move(constant_value_p)) {
+}
+
+bool IntegerLiteralTypeInfo::EqualsInternal(ExtraTypeInfo *other_p) const {
+	auto &other = other_p->Cast<IntegerLiteralTypeInfo>();
+	return constant_value == other.constant_value;
 }
 
 } // namespace duckdb

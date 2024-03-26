@@ -33,7 +33,7 @@ struct ExpressionState {
 
 public:
 	void AddChild(Expression *expr);
-	void Finalize();
+	void Finalize(bool empty = false);
 	Allocator &GetAllocator();
 	bool HasContext();
 	DUCKDB_API ClientContext &GetContext();
@@ -43,7 +43,7 @@ public:
 public:
 	template <class TARGET>
 	TARGET &Cast() {
-		D_ASSERT(dynamic_cast<TARGET *>(this));
+		DynamicCastCheck<TARGET>(this);
 		return reinterpret_cast<TARGET &>(*this);
 	}
 	template <class TARGET>

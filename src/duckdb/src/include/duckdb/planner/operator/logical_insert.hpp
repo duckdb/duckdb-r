@@ -53,7 +53,7 @@ public:
 	// The types of the columns targeted by the DO UPDATE SET expressions
 	vector<LogicalType> set_types;
 	// The table_index referring to the column references qualified with 'excluded'
-	idx_t excluded_table_index;
+	idx_t excluded_table_index = 0;
 	// The columns to fetch from the 'destination' table
 	vector<column_t> columns_to_fetch;
 	// The columns to fetch from the 'source' table
@@ -72,6 +72,6 @@ protected:
 	string GetName() const override;
 
 private:
-	LogicalInsert(ClientContext &context, const string &catalog, const string &schema, const string &table);
+	LogicalInsert(ClientContext &context, const unique_ptr<CreateInfo> table_info);
 };
 } // namespace duckdb

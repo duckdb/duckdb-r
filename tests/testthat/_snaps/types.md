@@ -2,7 +2,7 @@
 
     Code
       as.list(dbGetQuery(con,
-        "SELECT * EXCLUDE (timestamp_tz, time_tz, timestamp_ns, timestamp_array, timestamptz_array, map, bit, \"union\") REPLACE(replace(varchar, chr(0), '') AS varchar) FROM test_all_types(use_large_enum=true)"))
+        "SELECT * EXCLUDE (timestamp_tz, time_tz, timestamp_ns, timestamp_array, timestamptz_array, map, bit, \"union\", fixed_int_array, fixed_varchar_array, fixed_nested_int_array, fixed_nested_varchar_array, fixed_struct_array, struct_of_fixed_array, fixed_array_of_int_list, list_of_fixed_int_array) REPLACE(replace(varchar, chr(0), '') AS varchar) FROM test_all_types(use_large_enum=true)"))
     Output
       $bool
       [1] FALSE  TRUE    NA
@@ -22,6 +22,9 @@
       $hugeint
       [1] -1.701412e+38  1.701412e+38            NA
       
+      $uhugeint
+      [1] 0.000000e+00 3.402824e+38           NA
+      
       $utinyint
       [1]   0 255  NA
       
@@ -39,7 +42,7 @@
       
       $time
       Time differences in secs
-      [1]     0 86399    NA
+      [1]     0 86400    NA
       
       $timestamp
       [1] "-290308-12-22 00:00:00.00000 UTC" "294247-01-10 04:00:54.77539 UTC" 
@@ -72,7 +75,7 @@
       [1] -1e+28  1e+28     NA
       
       $uuid
-      [1] "00000000-0000-0000-0000-000000000001"
+      [1] "00000000-0000-0000-0000-000000000000"
       [2] "ffffffff-ffff-ffff-ffff-ffffffffffff"
       [3] NA                                    
       

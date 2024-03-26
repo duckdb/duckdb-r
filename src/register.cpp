@@ -163,7 +163,7 @@ private:
 		return conjunction_sexp;
 	}
 
-	static SEXP TransformFilter(TableFilterSet &filter_collection, std::unordered_map<idx_t, string> &columns,
+	static SEXP TransformFilter(TableFilterSet &filter_collection, unordered_map<idx_t, string> &columns,
 	                            SEXP functions, string &timezone_config) {
 		auto fit = filter_collection.filters.begin();
 		cpp11::sexp res = TransformFilterExpression(*fit->second, columns[fit->first], functions, timezone_config);
@@ -205,18 +205,17 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, const 
 	auto &data = (ArrowScanReplacementData &)*data_p;
 	auto db_wrapper = data.wrapper;
 	lock_guard<mutex> arrow_scans_lock(db_wrapper->lock);
-	for (auto &e : db_wrapper->arrow_scans) {
-		if (e.first == table_name) {
-			auto table_function = make_uniq<TableFunctionRef>();
-			vector<duckdb::unique_ptr<ParsedExpression>> children;
-			children.push_back(make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)R_ExternalPtrAddr(e.second))));
-			children.push_back(
-			    make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)RArrowTabularStreamFactory::Produce)));
-			children.push_back(
-			    make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)RArrowTabularStreamFactory::GetSchema)));
-			table_function->function = make_uniq<FunctionExpression>("arrow_scan", std::move(children));
-			return std::move(table_function);
-		}
+	const auto &arrow_scans = db_wrapper->arrow_scans;
+	for (auto e = arrow_scans.find(table_name); e != arrow_scans.end(); ++e) {
+		auto table_function = make_uniq<TableFunctionRef>();
+		vector<duckdb::unique_ptr<ParsedExpression>> children;
+		children.push_back(make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)R_ExternalPtrAddr(e->second[0]))));
+		children.push_back(
+		    make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)RArrowTabularStreamFactory::Produce)));
+		children.push_back(
+		    make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)RArrowTabularStreamFactory::GetSchema)));
+		table_function->function = make_uniq<FunctionExpression>("arrow_scan", std::move(children));
+		return std::move(table_function);
 	}
 	return nullptr;
 }
@@ -235,14 +234,18 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, const 
 	// make r external ptr object to keep factory around until arrow table is unregistered
 	cpp11::external_pointer<RArrowTabularStreamFactory> factorysexp(stream_factory);
 
+	// factorysexp must occur first here, used in ArrowScanReplacement()
+	cpp11::writable::list state_list = {factorysexp, export_funs, valuesexp};
 	{
-		// TODO check if this name already exists?
-		lock_guard<mutex> arrow_scans_lock(conn->db_eptr->lock);
-		auto &arrow_scans = conn->db_eptr->arrow_scans;
-		arrow_scans[name] = factorysexp;
+		lock_guard<mutex> arrow_scans_lock(conn->db->lock);
+		auto &arrow_scans = conn->db->arrow_scans;
+
+		for (auto e = arrow_scans.find(name); e != arrow_scans.end(); ++e) {
+			cpp11::stop("rapi_register_arrow: Arrow table '%s' already registered", name.c_str());
+		}
+
+		arrow_scans[name] = state_list;
 	}
-	cpp11::writable::list state_list = {export_funs, valuesexp, factorysexp};
-	static_cast<cpp11::sexp>(conn->db_eptr).attr("_registered_arrow_" + name) = state_list;
 }
 
 [[cpp11::register]] void rapi_unregister_arrow(duckdb::conn_eptr_t conn, std::string name) {
@@ -250,9 +253,22 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, const 
 		return; // if the connection is already dead there is probably no point in cleaning this
 	}
 	{
-		lock_guard<mutex> arrow_scans_lock(conn->db_eptr->lock);
-		auto &arrow_scans = conn->db_eptr->arrow_scans;
+		lock_guard<mutex> arrow_scans_lock(conn->db->lock);
+		auto &arrow_scans = conn->db->arrow_scans;
 		arrow_scans.erase(name);
 	}
-	static_cast<cpp11::sexp>(conn->db_eptr).attr("_registered_arrow_" + name) = R_NilValue;
+}
+
+[[cpp11::register]] cpp11::strings rapi_list_arrow(duckdb::conn_eptr_t conn) {
+	lock_guard<mutex> arrow_scans_lock(conn->db->lock);
+	const auto &arrow_scans = conn->db->arrow_scans;
+
+	cpp11::writable::strings names;
+	names.reserve(arrow_scans.size());
+
+	for (const auto &e : arrow_scans) {
+		names.push_back(e.first);
+	}
+
+	return names;
 }

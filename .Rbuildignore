@@ -8,12 +8,12 @@ src/Makevars.in
 ^.*\.Rproj$
 ^\.Rproj\.user$
 ^_pkgdown\.yml$
-NEWS.md
 tests/regression
 RELEASE.md
 \.github
 ^\.gitattributes$
 ^vendor\.sh$
+^vendor-one\.sh$
 ^rconfigure\.py$
 ^src/\.editorconfig$
 ^\.vscode$
@@ -26,3 +26,12 @@ RELEASE.md
 ^Makefile$
 ^\.clang-format$
 ^\.ccache$
+^revdep$
+^\.git$
+^cran-comments\.md$
+^CRAN-SUBMISSION$
+^docs$
+^pkgdown$
+^docker$
+^docker-compose\.yml$
+_files$

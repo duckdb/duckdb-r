@@ -1,5 +1,6 @@
 #include "duckdb/common/types/validity_mask.hpp"
 #include "duckdb/common/limits.hpp"
+#include "duckdb/common/numeric_utils.hpp"
 #include "duckdb/common/serializer/write_stream.hpp"
 #include "duckdb/common/serializer/read_stream.hpp"
 
@@ -53,6 +54,7 @@ string ValidityMask::ToString(idx_t count) const {
 
 void ValidityMask::Resize(idx_t old_size, idx_t new_size) {
 	D_ASSERT(new_size >= old_size);
+	target_count = new_size;
 	if (validity_mask) {
 		auto new_size_count = EntryCount(new_size);
 		auto old_size_count = EntryCount(old_size);
@@ -66,9 +68,11 @@ void ValidityMask::Resize(idx_t old_size, idx_t new_size) {
 		}
 		validity_data = std::move(new_validity_data);
 		validity_mask = validity_data->owned_data.get();
-	} else {
-		Initialize(new_size);
 	}
+}
+
+idx_t ValidityMask::TargetCount() {
+	return target_count;
 }
 
 void ValidityMask::Slice(const ValidityMask &other, idx_t source_offset, idx_t count) {
@@ -91,6 +95,7 @@ bool ValidityMask::IsAligned(idx_t count) {
 }
 
 void ValidityMask::SliceInPlace(const ValidityMask &other, idx_t target_offset, idx_t source_offset, idx_t count) {
+	EnsureWritable();
 	if (IsAligned(source_offset) && IsAligned(target_offset)) {
 		auto target_validity = GetData();
 		auto source_validity = other.GetData();
@@ -191,13 +196,13 @@ void ValidityMask::Write(WriteStream &writer, idx_t count) {
 		// serialize (in)valid value indexes as [COUNT][V0][V1][...][VN]
 		auto flag = serialize_valid ? ValiditySerialization::VALID_VALUES : ValiditySerialization::INVALID_VALUES;
 		writer.Write(flag);
-		writer.Write<uint32_t>(MinValue<uint32_t>(valid_values, invalid_values));
+		writer.Write<uint32_t>(NumericCast<uint32_t>(MinValue(valid_values, invalid_values)));
 		for (idx_t i = 0; i < count; i++) {
 			if (RowIsValid(i) == serialize_valid) {
 				if (need_u32) {
-					writer.Write<uint32_t>(i);
+					writer.Write<uint32_t>(UnsafeNumericCast<uint32_t>(i));
 				} else {
-					writer.Write<uint16_t>(i);
+					writer.Write<uint16_t>(UnsafeNumericCast<uint16_t>(i));
 				}
 			}
 		}

@@ -12,6 +12,7 @@
 #include "duckdb/planner/binder.hpp"
 #include "duckdb/planner/expression/bound_parameter_expression.hpp"
 #include "duckdb/transaction/meta_transaction.hpp"
+#include "duckdb/execution/column_binding_resolver.hpp"
 
 namespace duckdb {
 
@@ -47,41 +48,42 @@ void Planner::CreatePlan(SQLStatement &statement) {
 
 		auto max_tree_depth = ClientConfig::GetConfig(context).max_expression_depth;
 		CheckTreeDepth(*plan, max_tree_depth);
-	} catch (const ParameterNotResolvedException &ex) {
-		// parameter types could not be resolved
-		this->names = {"unknown"};
-		this->types = {LogicalTypeId::UNKNOWN};
+	} catch (const std::exception &ex) {
+		ErrorData error(ex);
 		this->plan = nullptr;
-		parameters_resolved = false;
-	} catch (const Exception &ex) {
-		auto &config = DBConfig::GetConfig(context);
-
-		this->plan = nullptr;
-		for (auto &extension_op : config.operator_extensions) {
-			auto bound_statement =
-			    extension_op->Bind(context, *this->binder, extension_op->operator_info.get(), statement);
-			if (bound_statement.plan != nullptr) {
-				this->names = bound_statement.names;
-				this->types = bound_statement.types;
-				this->plan = std::move(bound_statement.plan);
-				break;
+		if (error.Type() == ExceptionType::PARAMETER_NOT_RESOLVED) {
+			// parameter types could not be resolved
+			this->names = {"unknown"};
+			this->types = {LogicalTypeId::UNKNOWN};
+			parameters_resolved = false;
+		} else if (error.Type() != ExceptionType::INVALID) {
+			// different exception type - try operator_extensions
+			auto &config = DBConfig::GetConfig(context);
+			for (auto &extension_op : config.operator_extensions) {
+				auto bound_statement =
+				    extension_op->Bind(context, *this->binder, extension_op->operator_info.get(), statement);
+				if (bound_statement.plan != nullptr) {
+					this->names = bound_statement.names;
+					this->types = bound_statement.types;
+					this->plan = std::move(bound_statement.plan);
+					break;
+				}
 			}
-		}
-
-		if (!this->plan) {
+			if (!this->plan) {
+				throw;
+			}
+		} else {
 			throw;
 		}
-	} catch (std::exception &ex) {
-		throw;
 	}
 	this->properties = binder->properties;
 	this->properties.parameter_count = parameter_count;
-	properties.bound_all_parameters = parameters_resolved;
+	properties.bound_all_parameters = !bound_parameters.rebind && parameters_resolved;
 
-	Planner::VerifyPlan(context, plan, &bound_parameters.parameters);
+	Planner::VerifyPlan(context, plan, bound_parameters.GetParametersPtr());
 
 	// set up a map of parameter number -> value entries
-	for (auto &kv : bound_parameters.parameters) {
+	for (auto &kv : bound_parameters.GetParameters()) {
 		auto &identifier = kv.first;
 		auto &param = kv.second;
 		// check if the type of the parameter could be resolved
@@ -127,7 +129,6 @@ void Planner::CreatePlan(unique_ptr<SQLStatement> statement) {
 	case StatementType::CALL_STATEMENT:
 	case StatementType::EXPORT_STATEMENT:
 	case StatementType::PRAGMA_STATEMENT:
-	case StatementType::SHOW_STATEMENT:
 	case StatementType::SET_STATEMENT:
 	case StatementType::LOAD_STATEMENT:
 	case StatementType::EXTENSION_STATEMENT:
@@ -136,6 +137,7 @@ void Planner::CreatePlan(unique_ptr<SQLStatement> statement) {
 	case StatementType::LOGICAL_PLAN_STATEMENT:
 	case StatementType::ATTACH_STATEMENT:
 	case StatementType::DETACH_STATEMENT:
+	case StatementType::COPY_DATABASE_STATEMENT:
 		CreatePlan(*statement);
 		break;
 	default:
@@ -165,6 +167,8 @@ void Planner::VerifyPlan(ClientContext &context, unique_ptr<LogicalOperator> &op
 	if (!OperatorSupportsSerialization(*op)) {
 		return;
 	}
+	// verify the column bindings of the plan
+	ColumnBindingResolver::Verify(*op);
 
 	// format (de)serialization of this operator
 	try {

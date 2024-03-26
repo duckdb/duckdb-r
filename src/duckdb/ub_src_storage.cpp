@@ -4,7 +4,11 @@
 
 #include "src/storage/checkpoint_manager.cpp"
 
+#include "src/storage/temporary_memory_manager.cpp"
+
 #include "src/storage/block.cpp"
+
+#include "src/storage/data_pointer.cpp"
 
 #include "src/storage/data_table.cpp"
 
@@ -17,6 +21,8 @@
 #include "src/storage/storage_manager.cpp"
 
 #include "src/storage/standard_buffer_manager.cpp"
+
+#include "src/storage/temporary_file_manager.cpp"
 
 #include "src/storage/table_index_list.cpp"
 

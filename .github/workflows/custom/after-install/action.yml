@@ -20,3 +20,8 @@ runs:
         mkdir ../lib
         R CMD INSTALL --library=$(dirname $(pwd))/lib -d --no-byte-compile .
       shell: bash
+
+    - name: Show ccache stats
+      run: |
+        ccache -s
+      shell: bash

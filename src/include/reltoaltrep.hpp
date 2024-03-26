@@ -21,4 +21,10 @@ struct RelToAltrep {
 	static R_altrep_class_t int_class;
 	static R_altrep_class_t real_class;
 	static R_altrep_class_t string_class;
+
+#if defined(R_HAS_ALTLIST)
+	static SEXP VectorListElt(SEXP x, R_xlen_t i);
+	static R_altrep_class_t list_class;
+#endif
+
 };

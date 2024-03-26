@@ -8,12 +8,6 @@
 
 using namespace duckdb;
 
-void duckdb::DBDeleter(DBWrapper *db) {
-	cpp11::warning("Database is garbage-collected, use dbDisconnect(con, shutdown=TRUE) or "
-	               "duckdb::duckdb_shutdown(drv) to avoid this.");
-	delete db;
-}
-
 static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, CastParameters &parameters) {
 	GenericExecutor::ExecuteUnary<PrimitiveType<uintptr_t>, PrimitiveType<string_t>>(
 	    source, result, count,
@@ -24,7 +18,7 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 [[cpp11::register]] duckdb::db_eptr_t rapi_startup(std::string dbdir, bool readonly, cpp11::list configsexp) {
 	const char *dbdirchar;
 
-	if (dbdir.length() == 0 || dbdir.compare(":memory:") == 0) {
+	if (dbdir.length() == 0 || dbdir.compare(IN_MEMORY_PATH) == 0) {
 		dbdirchar = NULL;
 	} else {
 		dbdirchar = dbdir.c_str();
@@ -77,12 +71,37 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 
 	context.transaction.Commit();
 
-	return db_eptr_t(wrapper);
+	auto dual = new DBWrapperDual(wrapper);
+
+	return db_eptr_t(dual);
+}
+
+[[cpp11::register]] bool rapi_lock(duckdb::db_eptr_t dual) {
+	if (!dual || !dual.get()) {
+		cpp11::stop("rapi_lock: Invalid database reference");
+	}
+	dual->lock();
+	return dual->has();
+}
+
+[[cpp11::register]] void rapi_unlock(duckdb::db_eptr_t dual) {
+	if (!dual || !dual.get()) {
+		cpp11::stop("rapi_unlock: Invalid database reference");
+	}
+	dual->unlock();
+}
+
+[[cpp11::register]] bool rapi_is_locked(duckdb::db_eptr_t dual) {
+	if (!dual || !dual.get()) {
+		cpp11::stop("rapi_is_locked: Invalid database reference");
+	}
+	return dual->is_locked();
 }
 
 [[cpp11::register]] void rapi_shutdown(duckdb::db_eptr_t dbsexp) {
 	auto db_wrapper = dbsexp.release();
 	if (db_wrapper) {
+		db_wrapper->reset();
 		delete db_wrapper;
 	}
 }

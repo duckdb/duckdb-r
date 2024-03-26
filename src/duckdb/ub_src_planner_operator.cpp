@@ -8,6 +8,8 @@
 
 #include "src/planner/operator/logical_copy_to_file.cpp"
 
+#include "src/planner/operator/logical_copy_database.cpp"
+
 #include "src/planner/operator/logical_create.cpp"
 
 #include "src/planner/operator/logical_create_index.cpp"
@@ -43,8 +45,6 @@
 #include "src/planner/operator/logical_join.cpp"
 
 #include "src/planner/operator/logical_limit.cpp"
-
-#include "src/planner/operator/logical_limit_percent.cpp"
 
 #include "src/planner/operator/logical_order.cpp"
 

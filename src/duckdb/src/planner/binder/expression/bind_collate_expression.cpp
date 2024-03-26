@@ -6,9 +6,9 @@ namespace duckdb {
 
 BindResult ExpressionBinder::BindExpression(CollateExpression &expr, idx_t depth) {
 	// first try to bind the child of the cast expression
-	string error = Bind(expr.child, depth);
-	if (!error.empty()) {
-		return BindResult(error);
+	auto error = Bind(expr.child, depth);
+	if (error.HasError()) {
+		return BindResult(std::move(error));
 	}
 	auto &child = BoundExpression::GetExpression(*expr.child);
 	if (child->HasParameter()) {
@@ -18,8 +18,10 @@ BindResult ExpressionBinder::BindExpression(CollateExpression &expr, idx_t depth
 		throw BinderException("collations are only supported for type varchar");
 	}
 	// Validate the collation, but don't use it
-	PushCollation(context, child->Copy(), expr.collation, false);
-	child->return_type = LogicalType::VARCHAR_COLLATION(expr.collation);
+	auto child_copy = child->Copy();
+	auto collation_type = LogicalType::VARCHAR_COLLATION(expr.collation);
+	PushCollation(context, child_copy, collation_type, false);
+	child->return_type = collation_type;
 	return BindResult(std::move(child));
 }
 

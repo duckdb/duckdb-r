@@ -11,6 +11,10 @@ R_altrep_class_t RelToAltrep::int_class;
 R_altrep_class_t RelToAltrep::real_class;
 R_altrep_class_t RelToAltrep::string_class;
 
+#if defined(R_HAS_ALTLIST)
+R_altrep_class_t RelToAltrep::list_class;
+#endif
+
 void RelToAltrep::Initialize(DllInfo *dll) {
 	// this is a string so setting row names will not lead to materialization
 	rownames_class = R_make_altinteger_class("reltoaltrep_rownames_class", "duckdb", dll);
@@ -40,6 +44,15 @@ void RelToAltrep::Initialize(DllInfo *dll) {
 	R_set_altvec_Dataptr_or_null_method(rownames_class, RownamesDataptrOrNull);
 
 	R_set_altstring_Elt_method(string_class, VectorStringElt);
+
+#if defined(R_HAS_ALTLIST)
+	list_class = R_make_altlist_class("reltoaltrep_list_class", "duckdb", dll);
+	R_set_altrep_Inspect_method(list_class, RelInspect);
+	R_set_altrep_Length_method(list_class, VectorLength);
+	R_set_altvec_Dataptr_method(list_class, VectorDataptr);
+	R_set_altlist_Elt_method(list_class, VectorListElt);
+#endif
+
 }
 
 template <class T>
@@ -231,6 +244,14 @@ SEXP RelToAltrep::VectorStringElt(SEXP x, R_xlen_t i) {
 	END_CPP11
 }
 
+#if defined(R_HAS_ALTLIST)
+SEXP RelToAltrep::VectorListElt(SEXP x, R_xlen_t i) {
+	BEGIN_CPP11
+	return VECTOR_ELT(AltrepVectorWrapper::Get(x)->Vector(), i);
+	END_CPP11
+}
+#endif
+
 static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 	switch (type.id()) {
 	case LogicalTypeId::BOOLEAN:
@@ -243,9 +264,10 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 	case LogicalTypeId::ENUM:
 		return RelToAltrep::int_class;
 	case LogicalTypeId::UINTEGER:
-	case LogicalTypeId::UBIGINT:
 	case LogicalTypeId::BIGINT:
+	case LogicalTypeId::UBIGINT:
 	case LogicalTypeId::HUGEINT:
+	case LogicalTypeId::UHUGEINT:
 	case LogicalTypeId::FLOAT:
 	case LogicalTypeId::DOUBLE:
 	case LogicalTypeId::DECIMAL:
@@ -261,6 +283,12 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 	case LogicalTypeId::VARCHAR:
 	case LogicalTypeId::UUID:
 		return RelToAltrep::string_class;
+
+#if defined(R_HAS_ALTLIST)
+	case LogicalTypeId::LIST:
+		return RelToAltrep::list_class;
+#endif
+
 	default:
 		cpp11::stop("rel_to_altrep: Unknown column type for altrep: %s", type.ToString().c_str());
 	}

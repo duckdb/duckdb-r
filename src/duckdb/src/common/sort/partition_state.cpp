@@ -3,7 +3,7 @@
 #include "duckdb/common/types/column/column_data_consumer.hpp"
 #include "duckdb/common/row_operations/row_operations.hpp"
 #include "duckdb/main/config.hpp"
-#include "duckdb/parallel/event.hpp"
+#include "duckdb/parallel/executor_task.hpp"
 
 #include <numeric>
 
@@ -22,35 +22,35 @@ PartitionGlobalHashGroup::PartitionGlobalHashGroup(BufferManager &buffer_manager
 	partition_layout = global_sort->sort_layout.GetPrefixComparisonLayout(partitions.size());
 }
 
-int PartitionGlobalHashGroup::ComparePartitions(const SBIterator &left, const SBIterator &right) const {
-	int part_cmp = 0;
-	if (partition_layout.all_constant) {
-		part_cmp = FastMemcmp(left.entry_ptr, right.entry_ptr, partition_layout.comparison_size);
-	} else {
-		part_cmp = Comparators::CompareTuple(left.scan, right.scan, left.entry_ptr, right.entry_ptr, partition_layout,
-		                                     left.external);
-	}
-	return part_cmp;
-}
-
-void PartitionGlobalHashGroup::ComputeMasks(ValidityMask &partition_mask, ValidityMask &order_mask) {
+void PartitionGlobalHashGroup::ComputeMasks(ValidityMask &partition_mask, OrderMasks &order_masks) {
 	D_ASSERT(count > 0);
 
 	SBIterator prev(*global_sort, ExpressionType::COMPARE_LESSTHAN);
 	SBIterator curr(*global_sort, ExpressionType::COMPARE_LESSTHAN);
 
 	partition_mask.SetValidUnsafe(0);
-	order_mask.SetValidUnsafe(0);
+	unordered_map<idx_t, SortLayout> prefixes;
+	for (auto &order_mask : order_masks) {
+		order_mask.second.SetValidUnsafe(0);
+		D_ASSERT(order_mask.first >= partition_layout.column_count);
+		prefixes[order_mask.first] = global_sort->sort_layout.GetPrefixComparisonLayout(order_mask.first);
+	}
+
 	for (++curr; curr.GetIndex() < count; ++curr) {
 		//	Compare the partition subset first because if that differs, then so does the full ordering
 		const auto part_cmp = ComparePartitions(prev, curr);
-		;
 
 		if (part_cmp) {
 			partition_mask.SetValidUnsafe(curr.GetIndex());
-			order_mask.SetValidUnsafe(curr.GetIndex());
-		} else if (prev.Compare(curr)) {
-			order_mask.SetValidUnsafe(curr.GetIndex());
+			for (auto &order_mask : order_masks) {
+				order_mask.second.SetValidUnsafe(curr.GetIndex());
+			}
+		} else {
+			for (auto &order_mask : order_masks) {
+				if (prev.Compare(curr, prefixes[order_mask.first])) {
+					order_mask.second.SetValidUnsafe(curr.GetIndex());
+				}
+			}
 		}
 		++prev;
 	}
@@ -565,7 +565,7 @@ class PartitionMergeTask : public ExecutorTask {
 public:
 	PartitionMergeTask(shared_ptr<Event> event_p, ClientContext &context_p, PartitionGlobalMergeStates &hash_groups_p,
 	                   PartitionGlobalSinkState &gstate)
-	    : ExecutorTask(context_p), event(std::move(event_p)), local_state(gstate), hash_groups(hash_groups_p) {
+	    : ExecutorTask(context_p, std::move(event_p)), local_state(gstate), hash_groups(hash_groups_p) {
 	}
 
 	TaskExecutionResult ExecuteTask(TaskExecutionMode mode) override;
@@ -582,7 +582,6 @@ private:
 		Executor &executor;
 	};
 
-	shared_ptr<Event> event;
 	PartitionLocalMergeState local_state;
 	PartitionGlobalMergeStates &hash_groups;
 };

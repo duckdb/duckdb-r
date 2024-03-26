@@ -14,7 +14,7 @@
 
 namespace duckdb {
 
-unique_ptr<ArrowType> ArrowTableFunction::GetArrowLogicalType(ArrowSchema &schema) {
+static unique_ptr<ArrowType> GetArrowLogicalTypeNoDictionary(ArrowSchema &schema) {
 	auto format = string(schema.format);
 	if (format == "n") {
 		return make_uniq<ArrowType>(LogicalType::SQLNULL);
@@ -41,13 +41,30 @@ unique_ptr<ArrowType> ArrowTableFunction::GetArrowLogicalType(ArrowSchema &schem
 	} else if (format == "g") {
 		return make_uniq<ArrowType>(LogicalType::DOUBLE);
 	} else if (format[0] == 'd') { //! this can be either decimal128 or decimal 256 (e.g., d:38,0)
-		std::string parameters = format.substr(format.find(':'));
-		uint8_t width = std::stoi(parameters.substr(1, parameters.find(',')));
-		uint8_t scale = std::stoi(parameters.substr(parameters.find(',') + 1));
-		if (width > 38) {
+		auto extra_info = StringUtil::Split(format, ':');
+		if (extra_info.size() != 2) {
+			throw InvalidInputException(
+			    "Decimal format of Arrow object is incomplete, it is missing the scale and width. Current format: %s",
+			    format);
+		}
+		auto parameters = StringUtil::Split(extra_info[1], ",");
+		// Parameters must always be 2 or 3 values (i.e., width, scale and an optional bit-width)
+		if (parameters.size() != 2 && parameters.size() != 3) {
+			throw InvalidInputException(
+			    "Decimal format of Arrow object is incomplete, it is missing the scale or width. Current format: %s",
+			    format);
+		}
+		uint64_t width = std::stoull(parameters[0]);
+		uint64_t scale = std::stoull(parameters[1]);
+		uint64_t bitwidth = 128;
+		if (parameters.size() == 3) {
+			// We have a bit-width defined
+			bitwidth = std::stoull(parameters[2]);
+		}
+		if (width > 38 || bitwidth > 128) {
 			throw NotImplementedException("Unsupported Internal Arrow Type for Decimal %s", format);
 		}
-		return make_uniq<ArrowType>(LogicalType::DECIMAL(width, scale));
+		return make_uniq<ArrowType>(LogicalType::DECIMAL(NumericCast<uint8_t>(width), NumericCast<uint8_t>(scale)));
 	} else if (format == "u") {
 		return make_uniq<ArrowType>(LogicalType::VARCHAR, ArrowVariableSizeType::NORMAL);
 	} else if (format == "U") {
@@ -87,13 +104,13 @@ unique_ptr<ArrowType> ArrowTableFunction::GetArrowLogicalType(ArrowSchema &schem
 	} else if (format == "tin") {
 		return make_uniq<ArrowType>(LogicalType::INTERVAL, ArrowDateTimeType::MONTH_DAY_NANO);
 	} else if (format == "+l") {
-		auto child_type = GetArrowLogicalType(*schema.children[0]);
+		auto child_type = ArrowTableFunction::GetArrowLogicalType(*schema.children[0]);
 		auto list_type =
 		    make_uniq<ArrowType>(LogicalType::LIST(child_type->GetDuckType()), ArrowVariableSizeType::NORMAL);
 		list_type->AddChild(std::move(child_type));
 		return list_type;
 	} else if (format == "+L") {
-		auto child_type = GetArrowLogicalType(*schema.children[0]);
+		auto child_type = ArrowTableFunction::GetArrowLogicalType(*schema.children[0]);
 		auto list_type =
 		    make_uniq<ArrowType>(LogicalType::LIST(child_type->GetDuckType()), ArrowVariableSizeType::SUPER_SIZE);
 		list_type->AddChild(std::move(child_type));
@@ -101,15 +118,15 @@ unique_ptr<ArrowType> ArrowTableFunction::GetArrowLogicalType(ArrowSchema &schem
 	} else if (format[0] == '+' && format[1] == 'w') {
 		std::string parameters = format.substr(format.find(':') + 1);
 		idx_t fixed_size = std::stoi(parameters);
-		auto child_type = GetArrowLogicalType(*schema.children[0]);
-		auto list_type = make_uniq<ArrowType>(LogicalType::LIST(child_type->GetDuckType()), fixed_size);
+		auto child_type = ArrowTableFunction::GetArrowLogicalType(*schema.children[0]);
+		auto list_type = make_uniq<ArrowType>(LogicalType::ARRAY(child_type->GetDuckType(), fixed_size), fixed_size);
 		list_type->AddChild(std::move(child_type));
 		return list_type;
 	} else if (format == "+s") {
 		child_list_t<LogicalType> child_types;
 		vector<unique_ptr<ArrowType>> children;
 		for (idx_t type_idx = 0; type_idx < (idx_t)schema.n_children; type_idx++) {
-			children.emplace_back(GetArrowLogicalType(*schema.children[type_idx]));
+			children.emplace_back(ArrowTableFunction::GetArrowLogicalType(*schema.children[type_idx]));
 			child_types.emplace_back(schema.children[type_idx]->name, children.back()->GetDuckType());
 		}
 		auto struct_type = make_uniq<ArrowType>(LogicalType::STRUCT(std::move(child_types)));
@@ -130,18 +147,35 @@ unique_ptr<ArrowType> ArrowTableFunction::GetArrowLogicalType(ArrowSchema &schem
 		for (idx_t type_idx = 0; type_idx < (idx_t)schema.n_children; type_idx++) {
 			auto type = schema.children[type_idx];
 
-			children.emplace_back(GetArrowLogicalType(*type));
+			children.emplace_back(ArrowTableFunction::GetArrowLogicalType(*type));
 			members.emplace_back(type->name, children.back()->GetDuckType());
 		}
 
 		auto union_type = make_uniq<ArrowType>(LogicalType::UNION(members));
 		union_type->AssignChildren(std::move(children));
 		return union_type;
+	} else if (format == "+r") {
+		child_list_t<LogicalType> members;
+		vector<unique_ptr<ArrowType>> children;
+		idx_t n_children = idx_t(schema.n_children);
+		D_ASSERT(n_children == 2);
+		D_ASSERT(string(schema.children[0]->name) == "run_ends");
+		D_ASSERT(string(schema.children[1]->name) == "values");
+		for (idx_t i = 0; i < n_children; i++) {
+			auto type = schema.children[i];
+			children.emplace_back(ArrowTableFunction::GetArrowLogicalType(*type));
+			members.emplace_back(type->name, children.back()->GetDuckType());
+		}
+
+		auto struct_type = make_uniq<ArrowType>(LogicalType::STRUCT(members));
+		struct_type->AssignChildren(std::move(children));
+		struct_type->SetRunEndEncoded();
+		return struct_type;
 	} else if (format == "+m") {
 		auto &arrow_struct_type = *schema.children[0];
 		D_ASSERT(arrow_struct_type.n_children == 2);
-		auto key_type = GetArrowLogicalType(*arrow_struct_type.children[0]);
-		auto value_type = GetArrowLogicalType(*arrow_struct_type.children[1]);
+		auto key_type = ArrowTableFunction::GetArrowLogicalType(*arrow_struct_type.children[0]);
+		auto value_type = ArrowTableFunction::GetArrowLogicalType(*arrow_struct_type.children[1]);
 		auto map_type = make_uniq<ArrowType>(LogicalType::MAP(key_type->GetDuckType(), value_type->GetDuckType()),
 		                                     ArrowVariableSizeType::NORMAL);
 		child_list_t<LogicalType> key_value;
@@ -184,56 +218,25 @@ unique_ptr<ArrowType> ArrowTableFunction::GetArrowLogicalType(ArrowSchema &schem
 	}
 }
 
-void ArrowTableFunction::RenameArrowColumns(vector<string> &names) {
-	unordered_map<string, idx_t> name_map;
-	for (auto &column_name : names) {
-		// put it all lower_case
-		auto low_column_name = StringUtil::Lower(column_name);
-		if (name_map.find(low_column_name) == name_map.end()) {
-			// Name does not exist yet
-			name_map[low_column_name]++;
-		} else {
-			// Name already exists, we add _x where x is the repetition number
-			string new_column_name = column_name + "_" + std::to_string(name_map[low_column_name]);
-			auto new_column_name_low = StringUtil::Lower(new_column_name);
-			while (name_map.find(new_column_name_low) != name_map.end()) {
-				// This name is already here due to a previous definition
-				name_map[low_column_name]++;
-				new_column_name = column_name + "_" + std::to_string(name_map[low_column_name]);
-				new_column_name_low = StringUtil::Lower(new_column_name);
-			}
-			column_name = new_column_name;
-			name_map[new_column_name_low]++;
-		}
+unique_ptr<ArrowType> ArrowTableFunction::GetArrowLogicalType(ArrowSchema &schema) {
+	auto arrow_type = GetArrowLogicalTypeNoDictionary(schema);
+	if (schema.dictionary) {
+		auto dictionary = GetArrowLogicalType(*schema.dictionary);
+		arrow_type->SetDictionary(std::move(dictionary));
 	}
+	return arrow_type;
 }
 
-unique_ptr<FunctionData> ArrowTableFunction::ArrowScanBind(ClientContext &context, TableFunctionBindInput &input,
-                                                           vector<LogicalType> &return_types, vector<string> &names) {
-	auto stream_factory_ptr = input.inputs[0].GetPointer();
-	auto stream_factory_produce = (stream_factory_produce_t)input.inputs[1].GetPointer();       // NOLINT
-	auto stream_factory_get_schema = (stream_factory_get_schema_t)input.inputs[2].GetPointer(); // NOLINT
-
-	auto res = make_uniq<ArrowScanFunctionData>(stream_factory_produce, stream_factory_ptr);
-
-	auto &data = *res;
-	stream_factory_get_schema(stream_factory_ptr, data.schema_root);
-	for (idx_t col_idx = 0; col_idx < (idx_t)data.schema_root.arrow_schema.n_children; col_idx++) {
-		auto &schema = *data.schema_root.arrow_schema.children[col_idx];
+void ArrowTableFunction::PopulateArrowTableType(ArrowTableType &arrow_table, ArrowSchemaWrapper &schema_p,
+                                                vector<string> &names, vector<LogicalType> &return_types) {
+	for (idx_t col_idx = 0; col_idx < (idx_t)schema_p.arrow_schema.n_children; col_idx++) {
+		auto &schema = *schema_p.arrow_schema.children[col_idx];
 		if (!schema.release) {
 			throw InvalidInputException("arrow_scan: released schema passed");
 		}
 		auto arrow_type = GetArrowLogicalType(schema);
-		if (schema.dictionary) {
-			auto logical_type = arrow_type->GetDuckType();
-			auto dictionary = GetArrowLogicalType(*schema.dictionary);
-			return_types.emplace_back(dictionary->GetDuckType());
-			// The dictionary might have different attributes (size type, datetime precision, etc..)
-			arrow_type->SetDictionary(std::move(dictionary));
-		} else {
-			return_types.emplace_back(arrow_type->GetDuckType());
-		}
-		res->arrow_table.AddColumn(col_idx, std::move(arrow_type));
+		return_types.emplace_back(arrow_type->GetDuckType(true));
+		arrow_table.AddColumn(col_idx, std::move(arrow_type));
 		auto format = string(schema.format);
 		auto name = string(schema.name);
 		if (name.empty()) {
@@ -241,7 +244,24 @@ unique_ptr<FunctionData> ArrowTableFunction::ArrowScanBind(ClientContext &contex
 		}
 		names.push_back(name);
 	}
-	RenameArrowColumns(names);
+}
+
+unique_ptr<FunctionData> ArrowTableFunction::ArrowScanBind(ClientContext &context, TableFunctionBindInput &input,
+                                                           vector<LogicalType> &return_types, vector<string> &names) {
+	if (input.inputs[0].IsNull() || input.inputs[1].IsNull() || input.inputs[2].IsNull()) {
+		throw BinderException("arrow_scan: pointers cannot be null");
+	}
+
+	auto stream_factory_ptr = input.inputs[0].GetPointer();
+	auto stream_factory_produce = (stream_factory_produce_t)input.inputs[1].GetPointer();       // NOLINT
+	auto stream_factory_get_schema = (stream_factory_get_schema_t)input.inputs[2].GetPointer(); // NOLINT
+
+	auto res = make_uniq<ArrowScanFunctionData>(stream_factory_produce, stream_factory_ptr);
+
+	auto &data = *res;
+	stream_factory_get_schema(reinterpret_cast<ArrowArrayStream *>(stream_factory_ptr), data.schema_root.arrow_schema);
+	PopulateArrowTableType(res->arrow_table, data.schema_root, names, return_types);
+	QueryResult::DeduplicateColumns(names);
 	res->all_types = return_types;
 	return std::move(res);
 }
@@ -257,6 +277,7 @@ unique_ptr<ArrowArrayStreamWrapper> ProduceArrowScan(const ArrowScanFunctionData
 			auto &schema = *function.schema_root.arrow_schema.children[col_idx];
 			parameters.projected_columns.projection_map[idx] = schema.name;
 			parameters.projected_columns.columns.emplace_back(schema.name);
+			parameters.projected_columns.filter_to_col[idx] = col_idx;
 		}
 	}
 	parameters.filters = filters;
@@ -273,7 +294,7 @@ bool ArrowTableFunction::ArrowScanParallelStateNext(ClientContext &context, cons
 	if (parallel_state.done) {
 		return false;
 	}
-	state.chunk_offset = 0;
+	state.Reset();
 	state.batch_index = ++parallel_state.batch_index;
 
 	auto current_chunk = parallel_state.stream->GetNextChunk();

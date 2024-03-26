@@ -1,3 +1,4 @@
+#include "duckdb/common/numeric_utils.hpp"
 #include "duckdb/common/arrow/arrow_appender.hpp"
 #include "duckdb/common/arrow/appender/union_data.hpp"
 
@@ -24,7 +25,7 @@ void ArrowUnionData::Append(ArrowAppendData &append_data, Vector &input, idx_t f
 
 	duckdb::vector<Vector> child_vectors;
 	for (const auto &child : UnionType::CopyMemberTypes(input.GetType())) {
-		child_vectors.emplace_back(child.second);
+		child_vectors.emplace_back(child.second, size);
 	}
 
 	for (idx_t input_idx = from; input_idx < to; input_idx++) {
@@ -42,7 +43,7 @@ void ArrowUnionData::Append(ArrowAppendData &append_data, Vector &input, idx_t f
 			child_vectors[child_idx].SetValue(input_idx, child_idx == tag ? resolved_value : Value(nullptr));
 		}
 
-		types_buffer.data()[input_idx] = tag;
+		types_buffer.data()[input_idx] = NumericCast<data_t>(tag);
 	}
 
 	for (idx_t child_idx = 0; child_idx < child_vectors.size(); child_idx++) {
@@ -58,12 +59,12 @@ void ArrowUnionData::Finalize(ArrowAppendData &append_data, const LogicalType &t
 	result->buffers[1] = append_data.main_buffer.data();
 
 	auto &child_types = UnionType::CopyMemberTypes(type);
-	append_data.child_pointers.resize(child_types.size());
+	ArrowAppender::AddChildren(append_data, child_types.size());
 	result->children = append_data.child_pointers.data();
 	result->n_children = child_types.size();
 	for (idx_t i = 0; i < child_types.size(); i++) {
 		auto &child_type = child_types[i].second;
-		append_data.child_pointers[i] = ArrowAppender::FinalizeChild(child_type, *append_data.child_data[i]);
+		append_data.child_arrays[i] = *ArrowAppender::FinalizeChild(child_type, std::move(append_data.child_data[i]));
 	}
 }
 

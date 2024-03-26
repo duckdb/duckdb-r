@@ -112,8 +112,9 @@ static DefaultExtension internal_extensions[] = {
     {"jemalloc", "Overwrites system allocator with JEMalloc", DUCKDB_EXTENSION_JEMALLOC_LINKED},
     {"autocomplete", "Adds support for autocomplete in the shell", DUCKDB_EXTENSION_AUTOCOMPLETE_LINKED},
     {"motherduck", "Enables motherduck integration with the system", false},
-    {"sqlite_scanner", "Adds support for reading SQLite database files", false},
-    {"postgres_scanner", "Adds support for reading from a Postgres database", false},
+    {"mysql_scanner", "Adds support for connecting to a MySQL database", false},
+    {"sqlite_scanner", "Adds support for reading and writing SQLite database files", false},
+    {"postgres_scanner", "Adds support for connecting to a Postgres database", false},
     {"inet", "Adds support for IP-related data types and functions", false},
     {"spatial", "Geospatial extension that adds support for working with spatial data and functions", false},
     {"substrait", "Adds support for the Substrait integration", false},
@@ -121,7 +122,6 @@ static DefaultExtension internal_extensions[] = {
     {"arrow", "A zero-copy data integration between Apache Arrow and DuckDB", false},
     {"azure", "Adds a filesystem abstraction for Azure blob storage to DuckDB", false},
     {"iceberg", "Adds support for Apache Iceberg", false},
-    {"visualizer", "Creates an HTML-based visualization of the query plan", false},
     {nullptr, nullptr, false}};
 
 idx_t ExtensionHelper::DefaultExtensionCount() {
@@ -139,7 +139,7 @@ DefaultExtension ExtensionHelper::GetDefaultExtension(idx_t index) {
 //===--------------------------------------------------------------------===//
 // Allow Auto-Install Extensions
 //===--------------------------------------------------------------------===//
-static const char *auto_install[] = {"motherduck", "postgres_scanner", "sqlite_scanner", nullptr};
+static const char *auto_install[] = {"motherduck", "postgres_scanner", "mysql_scanner", "sqlite_scanner", nullptr};
 
 // TODO: unify with new autoload mechanism
 bool ExtensionHelper::AllowAutoInstall(const string &extension) {
@@ -170,19 +170,23 @@ bool ExtensionHelper::CanAutoloadExtension(const string &ext_name) {
 
 string ExtensionHelper::AddExtensionInstallHintToErrorMsg(ClientContext &context, const string &base_error,
                                                           const string &extension_name) {
-	auto &dbconfig = DBConfig::GetConfig(context);
+
+	return AddExtensionInstallHintToErrorMsg(DBConfig::GetConfig(context), base_error, extension_name);
+}
+string ExtensionHelper::AddExtensionInstallHintToErrorMsg(DBConfig &config, const string &base_error,
+                                                          const string &extension_name) {
 	string install_hint;
 
 	if (!ExtensionHelper::CanAutoloadExtension(extension_name)) {
 		install_hint = "Please try installing and loading the " + extension_name + " extension:\nINSTALL " +
 		               extension_name + ";\nLOAD " + extension_name + ";\n\n";
-	} else if (!dbconfig.options.autoload_known_extensions) {
+	} else if (!config.options.autoload_known_extensions) {
 		install_hint =
 		    "Please try installing and loading the " + extension_name + " extension by running:\nINSTALL " +
 		    extension_name + ";\nLOAD " + extension_name +
 		    ";\n\nAlternatively, consider enabling auto-install "
 		    "and auto-load by running:\nSET autoinstall_known_extensions=1;\nSET autoload_known_extensions=1;";
-	} else if (!dbconfig.options.autoinstall_known_extensions) {
+	} else if (!config.options.autoinstall_known_extensions) {
 		install_hint =
 		    "Please try installing the " + extension_name + " extension by running:\nINSTALL " + extension_name +
 		    ";\n\nAlternatively, consider enabling autoinstall by running:\nSET autoinstall_known_extensions=1;";
@@ -196,32 +200,45 @@ string ExtensionHelper::AddExtensionInstallHintToErrorMsg(ClientContext &context
 }
 
 bool ExtensionHelper::TryAutoLoadExtension(ClientContext &context, const string &extension_name) noexcept {
+	if (context.db->ExtensionIsLoaded(extension_name)) {
+		return true;
+	}
 	auto &dbconfig = DBConfig::GetConfig(context);
 	try {
 		if (dbconfig.options.autoinstall_known_extensions) {
+			auto &config = DBConfig::GetConfig(context);
 			ExtensionHelper::InstallExtension(context, extension_name, false,
-			                                  context.config.autoinstall_extension_repo);
+			                                  config.options.autoinstall_extension_repo);
 		}
 		ExtensionHelper::LoadExternalExtension(context, extension_name);
 		return true;
 	} catch (...) {
 		return false;
 	}
-	return false;
 }
 
 void ExtensionHelper::AutoLoadExtension(ClientContext &context, const string &extension_name) {
-	auto &dbconfig = DBConfig::GetConfig(context);
+	return ExtensionHelper::AutoLoadExtension(*context.db, extension_name);
+}
+
+void ExtensionHelper::AutoLoadExtension(DatabaseInstance &db, const string &extension_name) {
+	if (db.ExtensionIsLoaded(extension_name)) {
+		// Avoid downloading again
+		return;
+	}
+	auto &dbconfig = DBConfig::GetConfig(db);
 	try {
+		auto fs = FileSystem::CreateLocal();
 #ifndef DUCKDB_WASM
 		if (dbconfig.options.autoinstall_known_extensions) {
-			ExtensionHelper::InstallExtension(context, extension_name, false,
-			                                  context.config.autoinstall_extension_repo);
+			ExtensionHelper::InstallExtension(db.config, *fs, extension_name, false,
+			                                  dbconfig.options.autoinstall_extension_repo);
 		}
 #endif
-		ExtensionHelper::LoadExternalExtension(context, extension_name);
-	} catch (Exception &e) {
-		throw AutoloadException(extension_name, e);
+		ExtensionHelper::LoadExternalExtension(db, *fs, extension_name);
+	} catch (std::exception &e) {
+		ErrorData error(e);
+		throw AutoloadException(extension_name, error.RawMessage());
 	}
 }
 
@@ -232,14 +249,14 @@ void ExtensionHelper::LoadAllExtensions(DuckDB &db) {
 	// The in-tree extensions that we check. Non-cmake builds are currently limited to these for static linking
 	// TODO: rewrite package_build.py to allow also loading out-of-tree extensions in non-cmake builds, after that
 	//		 these can be removed
-	unordered_set<string> extensions {"parquet", "icu",   "tpch",     "tpcds", "fts",      "httpfs",      "visualizer",
+	unordered_set<string> extensions {"parquet", "icu",   "tpch",     "tpcds", "fts",      "httpfs",
 	                                  "json",    "excel", "sqlsmith", "inet",  "jemalloc", "autocomplete"};
 	for (auto &ext : extensions) {
 		LoadExtensionInternal(db, ext, true);
 	}
 
 #if defined(GENERATED_EXTENSION_HEADERS) && GENERATED_EXTENSION_HEADERS
-	for (auto &ext : linked_extensions) {
+	for (const auto &ext : LinkedExtensions()) {
 		LoadExtensionInternal(db, ext, true);
 	}
 #endif
@@ -332,13 +349,6 @@ ExtensionLoadResult ExtensionHelper::LoadExtensionInternal(DuckDB &db, const std
 #if DUCKDB_EXTENSION_HTTPFS_LINKED
 		db.LoadExtension<HttpfsExtension>();
 #else
-		return ExtensionLoadResult::NOT_LOADED;
-#endif
-	} else if (extension == "visualizer") {
-#if DUCKDB_EXTENSION_VISUALIZER_LINKED
-		db.LoadExtension<VisualizerExtension>();
-#else
-		// visualizer extension required but not build: skip this test
 		return ExtensionLoadResult::NOT_LOADED;
 #endif
 	} else if (extension == "json") {

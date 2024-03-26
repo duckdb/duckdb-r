@@ -9,176 +9,180 @@
 
 namespace duckdb {
 
-// Example:
-// source: [1,2,3], expansion_factor: 4
-// target (result): [1,2,3,1,2,3,1,2,3,1,2,3]
-static void CreateExpandedVector(const Vector &source, Vector &target, idx_t expansion_factor) {
-	idx_t count = ListVector::GetListSize(source);
-	auto &entry = ListVector::GetEntry(source);
+static void MapFunctionEmptyInput(Vector &result, const idx_t row_count) {
 
-	idx_t target_idx = 0;
-	for (idx_t copy = 0; copy < expansion_factor; copy++) {
-		for (idx_t key_idx = 0; key_idx < count; key_idx++) {
-			target.SetValue(target_idx, entry.GetValue(key_idx));
-			target_idx++;
-		}
-	}
-	D_ASSERT(target_idx == count * expansion_factor);
+	// if no chunk is set in ExpressionExecutor::ExecuteExpression (args.data.empty(), e.g.,
+	// in SELECT MAP()), then we always pass a row_count of 1
+	result.SetVectorType(VectorType::CONSTANT_VECTOR);
+	ListVector::SetListSize(result, 0);
+
+	auto result_data = ListVector::GetData(result);
+	result_data[0] = list_entry_t();
+	result.Verify(row_count);
 }
 
-static void AlignVectorToReference(const Vector &original, const Vector &reference, idx_t tuple_count, Vector &result) {
-	auto original_length = ListVector::GetListSize(original);
-	auto new_length = ListVector::GetListSize(reference);
+static void MapFunction(DataChunk &args, ExpressionState &, Vector &result) {
 
-	Vector expanded_const(ListType::GetChildType(original.GetType()), new_length);
+	// internal MAP representation
+	// - LIST-vector that contains STRUCTs as child entries
+	// - STRUCTs have exactly two fields, a key-field, and a value-field
+	// - key names are unique
 
-	auto expansion_factor = new_length / original_length;
-	if (expansion_factor != tuple_count) {
-		throw InvalidInputException("Error in MAP creation: key list and value list do not align. i.e. different "
-		                            "size or incompatible structure");
+	D_ASSERT(result.GetType().id() == LogicalTypeId::MAP);
+	auto row_count = args.size();
+
+	// early-out, if no data
+	if (args.data.empty()) {
+		return MapFunctionEmptyInput(result, row_count);
 	}
-	CreateExpandedVector(original, expanded_const, expansion_factor);
-	result.Reference(expanded_const);
-}
 
-static bool ListEntriesEqual(Vector &keys, Vector &values, idx_t count) {
-	auto key_count = ListVector::GetListSize(keys);
-	auto value_count = ListVector::GetListSize(values);
-	bool same_vector_type = keys.GetVectorType() == values.GetVectorType();
+	auto &keys = args.data[0];
+	auto &values = args.data[1];
 
-	D_ASSERT(keys.GetType().id() == LogicalTypeId::LIST);
-	D_ASSERT(values.GetType().id() == LogicalTypeId::LIST);
-
+	// a LIST vector, where each row contains a LIST of KEYS
 	UnifiedVectorFormat keys_data;
-	UnifiedVectorFormat values_data;
-
-	keys.ToUnifiedFormat(count, keys_data);
-	values.ToUnifiedFormat(count, values_data);
-
+	keys.ToUnifiedFormat(row_count, keys_data);
 	auto keys_entries = UnifiedVectorFormat::GetData<list_entry_t>(keys_data);
+
+	// the KEYs child vector
+	auto keys_child_vector = ListVector::GetEntry(keys);
+	UnifiedVectorFormat keys_child_data;
+	keys_child_vector.ToUnifiedFormat(ListVector::GetListSize(keys), keys_child_data);
+
+	// a LIST vector, where each row contains a LIST of VALUES
+	UnifiedVectorFormat values_data;
+	values.ToUnifiedFormat(row_count, values_data);
 	auto values_entries = UnifiedVectorFormat::GetData<list_entry_t>(values_data);
 
-	if (same_vector_type) {
-		const auto key_data = keys_data.data;
-		const auto value_data = values_data.data;
+	// the VALUEs child vector
+	auto values_child_vector = ListVector::GetEntry(values);
+	UnifiedVectorFormat values_child_data;
+	values_child_vector.ToUnifiedFormat(ListVector::GetListSize(values), values_child_data);
 
-		if (keys.GetVectorType() == VectorType::CONSTANT_VECTOR) {
-			D_ASSERT(values.GetVectorType() == VectorType::CONSTANT_VECTOR);
-			// Only need to compare one entry in this case
-			return memcmp(key_data, value_data, sizeof(list_entry_t)) == 0;
-		}
+	// a LIST vector, where each row contains a MAP (LIST of STRUCTs)
+	UnifiedVectorFormat result_data;
+	result.ToUnifiedFormat(row_count, result_data);
+	auto result_entries = UnifiedVectorFormat::GetDataNoConst<list_entry_t>(result_data);
+	result_data.validity.SetAllValid(row_count);
 
-		// Fast path if the vector types are equal, can just check if the entries are the same
-		if (key_count != value_count) {
-			return false;
+	// get the resulting size of the key/value child lists
+	idx_t result_child_size = 0;
+	for (idx_t row_idx = 0; row_idx < row_count; row_idx++) {
+		auto keys_idx = keys_data.sel->get_index(row_idx);
+		if (!keys_data.validity.RowIsValid(keys_idx)) {
+			continue;
 		}
-		return memcmp(key_data, value_data, count * sizeof(list_entry_t)) == 0;
+		auto keys_entry = keys_entries[keys_idx];
+		result_child_size += keys_entry.length;
 	}
 
-	// Compare the list_entries one by one
-	for (idx_t i = 0; i < count; i++) {
-		auto keys_idx = keys_data.sel->get_index(i);
-		auto values_idx = values_data.sel->get_index(i);
+	// we need to slice potential non-flat vectors
+	SelectionVector sel_keys(result_child_size);
+	SelectionVector sel_values(result_child_size);
+	idx_t offset = 0;
 
-		if (keys_entries[keys_idx] != values_entries[values_idx]) {
-			return false;
+	for (idx_t row_idx = 0; row_idx < row_count; row_idx++) {
+
+		auto keys_idx = keys_data.sel->get_index(row_idx);
+		auto values_idx = values_data.sel->get_index(row_idx);
+		auto result_idx = result_data.sel->get_index(row_idx);
+
+		// empty map
+		if (!keys_data.validity.RowIsValid(keys_idx) && !values_data.validity.RowIsValid(values_idx)) {
+			result_entries[result_idx] = list_entry_t();
+			continue;
 		}
+
+		auto keys_entry = keys_entries[keys_idx];
+		auto values_entry = values_entries[values_idx];
+
+		// validity checks
+		if (!keys_data.validity.RowIsValid(keys_idx)) {
+			MapVector::EvalMapInvalidReason(MapInvalidReason::NULL_KEY_LIST);
+		}
+		if (!values_data.validity.RowIsValid(values_idx)) {
+			MapVector::EvalMapInvalidReason(MapInvalidReason::NULL_VALUE_LIST);
+		}
+		if (keys_entry.length != values_entry.length) {
+			MapVector::EvalMapInvalidReason(MapInvalidReason::NOT_ALIGNED);
+		}
+
+		// set the selection vectors and perform a duplicate key check
+		value_set_t unique_keys;
+		for (idx_t child_idx = 0; child_idx < keys_entry.length; child_idx++) {
+
+			auto key_idx = keys_child_data.sel->get_index(keys_entry.offset + child_idx);
+			auto value_idx = values_child_data.sel->get_index(values_entry.offset + child_idx);
+
+			// NULL check
+			if (!keys_child_data.validity.RowIsValid(key_idx)) {
+				MapVector::EvalMapInvalidReason(MapInvalidReason::NULL_KEY);
+			}
+
+			// unique check
+			auto value = keys_child_vector.GetValue(key_idx);
+			auto unique = unique_keys.insert(value).second;
+			if (!unique) {
+				MapVector::EvalMapInvalidReason(MapInvalidReason::DUPLICATE_KEY);
+			}
+
+			// set selection vectors
+			sel_keys.set_index(offset + child_idx, key_idx);
+			sel_values.set_index(offset + child_idx, value_idx);
+		}
+
+		// keys_entry and values_entry have the same length
+		result_entries[result_idx].length = keys_entry.length;
+		result_entries[result_idx].offset = offset;
+		offset += keys_entry.length;
 	}
-	return true;
+	D_ASSERT(offset == result_child_size);
+
+	auto &result_key_vector = MapVector::GetKeys(result);
+	auto &result_value_vector = MapVector::GetValues(result);
+
+	ListVector::SetListSize(result, offset);
+	result_key_vector.Slice(keys_child_vector, sel_keys, offset);
+	result_key_vector.Flatten(offset);
+	result_value_vector.Slice(values_child_vector, sel_values, offset);
+	result_value_vector.Flatten(offset);
+
+	if (args.AllConstant()) {
+		result.SetVectorType(VectorType::CONSTANT_VECTOR);
+	}
+	result.Verify(row_count);
 }
 
-static void MapFunction(DataChunk &args, ExpressionState &state, Vector &result) {
-	D_ASSERT(result.GetType().id() == LogicalTypeId::MAP);
-
-	auto &key_vector = MapVector::GetKeys(result);
-	auto &value_vector = MapVector::GetValues(result);
-	auto result_data = ListVector::GetData(result);
-
-	result.SetVectorType(VectorType::CONSTANT_VECTOR);
-	if (args.data.empty()) {
-		ListVector::SetListSize(result, 0);
-		result_data->offset = 0;
-		result_data->length = 0;
-		result.Verify(args.size());
-		return;
-	}
-
-	bool keys_are_const = args.data[0].GetVectorType() == VectorType::CONSTANT_VECTOR;
-	bool values_are_const = args.data[1].GetVectorType() == VectorType::CONSTANT_VECTOR;
-	if (!keys_are_const || !values_are_const) {
-		result.SetVectorType(VectorType::FLAT_VECTOR);
-	}
-
-	auto key_count = ListVector::GetListSize(args.data[0]);
-	auto value_count = ListVector::GetListSize(args.data[1]);
-	auto key_data = ListVector::GetData(args.data[0]);
-	auto value_data = ListVector::GetData(args.data[1]);
-	auto src_data = key_data;
-
-	if (keys_are_const && !values_are_const) {
-		AlignVectorToReference(args.data[0], args.data[1], args.size(), key_vector);
-		src_data = value_data;
-	} else if (values_are_const && !keys_are_const) {
-		AlignVectorToReference(args.data[1], args.data[0], args.size(), value_vector);
-	} else {
-		if (!ListEntriesEqual(args.data[0], args.data[1], args.size())) {
-			throw InvalidInputException("Error in MAP creation: key list and value list do not align. i.e. different "
-			                            "size or incompatible structure");
-		}
-	}
-
-	ListVector::SetListSize(result, MaxValue(key_count, value_count));
-
-	result_data = ListVector::GetData(result);
-	for (idx_t i = 0; i < args.size(); i++) {
-		result_data[i] = src_data[i];
-	}
-
-	// check whether one of the vectors has already been referenced to an expanded vector in the case of const/non-const
-	// combination. If not, then referencing is still necessary
-	if (!(keys_are_const && !values_are_const)) {
-		key_vector.Reference(ListVector::GetEntry(args.data[0]));
-	}
-	if (!(values_are_const && !keys_are_const)) {
-		value_vector.Reference(ListVector::GetEntry(args.data[1]));
-	}
-
-	MapVector::MapConversionVerify(result, args.size());
-	result.Verify(args.size());
-}
-
-static unique_ptr<FunctionData> MapBind(ClientContext &context, ScalarFunction &bound_function,
+static unique_ptr<FunctionData> MapBind(ClientContext &, ScalarFunction &bound_function,
                                         vector<unique_ptr<Expression>> &arguments) {
-	child_list_t<LogicalType> child_types;
 
 	if (arguments.size() != 2 && !arguments.empty()) {
-		throw Exception("We need exactly two lists for a map");
-	}
-	if (arguments.size() == 2) {
-		if (arguments[0]->return_type.id() != LogicalTypeId::LIST) {
-			throw Exception("First argument is not a list");
-		}
-		if (arguments[1]->return_type.id() != LogicalTypeId::LIST) {
-			throw Exception("Second argument is not a list");
-		}
-		child_types.push_back(make_pair("key", arguments[0]->return_type));
-		child_types.push_back(make_pair("value", arguments[1]->return_type));
+		MapVector::EvalMapInvalidReason(MapInvalidReason::INVALID_PARAMS);
 	}
 
+	// bind an empty MAP
 	if (arguments.empty()) {
-		auto empty = LogicalType::LIST(LogicalTypeId::SQLNULL);
-		child_types.push_back(make_pair("key", empty));
-		child_types.push_back(make_pair("value", empty));
+		bound_function.return_type = LogicalType::MAP(LogicalTypeId::SQLNULL, LogicalTypeId::SQLNULL);
+		return make_uniq<VariableReturnBindData>(bound_function.return_type);
 	}
 
-	bound_function.return_type =
-	    LogicalType::MAP(ListType::GetChildType(child_types[0].second), ListType::GetChildType(child_types[1].second));
+	// bind a MAP with key-value pairs
+	D_ASSERT(arguments.size() == 2);
+	if (arguments[0]->return_type.id() != LogicalTypeId::LIST) {
+		MapVector::EvalMapInvalidReason(MapInvalidReason::INVALID_PARAMS);
+	}
+	if (arguments[1]->return_type.id() != LogicalTypeId::LIST) {
+		MapVector::EvalMapInvalidReason(MapInvalidReason::INVALID_PARAMS);
+	}
 
+	auto key_type = ListType::GetChildType(arguments[0]->return_type);
+	auto value_type = ListType::GetChildType(arguments[1]->return_type);
+
+	bound_function.return_type = LogicalType::MAP(key_type, value_type);
 	return make_uniq<VariableReturnBindData>(bound_function.return_type);
 }
 
 ScalarFunction MapFun::GetFunction() {
-	//! the arguments and return types are actually set in the binder function
 	ScalarFunction fun({}, LogicalTypeId::MAP, MapFunction, MapBind);
 	fun.varargs = LogicalType::ANY;
 	fun.null_handling = FunctionNullHandling::SPECIAL_HANDLING;

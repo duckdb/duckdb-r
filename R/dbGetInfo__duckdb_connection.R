@@ -2,10 +2,11 @@
 #' @inheritParams DBI::dbGetInfo
 #' @usage NULL
 dbGetInfo__duckdb_connection <- function(dbObj, ...) {
-  info <- dbGetInfo(dbObj@driver)
+  version <- dbGetQuery(dbObj, "select library_version from pragma_version()")[[1]][[1]]
+
   list(
-    dbname = info$dbname,
-    db.version = info$driver.version,
+    dbname = dbObj@driver@dbdir,
+    db.version = version,
     username = NA,
     host = NA,
     port = NA

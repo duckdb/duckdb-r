@@ -1,12 +1,17 @@
 #' @rdname duckdb_driver-class
 #' @inheritParams DBI::dbIsValid
-#' @importFrom DBI dbConnect
 #' @usage NULL
 dbIsValid__duckdb_driver <- function(dbObj, ...) {
   valid <- FALSE
   tryCatch(
     {
+      was_locked <- rapi_is_locked(dbObj@database_ref)
       con <- dbConnect(dbObj)
+      # Keep driver alive, but only if needed
+      if (was_locked) {
+        rapi_lock(dbObj@database_ref)
+      }
+
       dbExecute(con, SQL("SELECT 1"))
       dbDisconnect(con)
       valid <- TRUE

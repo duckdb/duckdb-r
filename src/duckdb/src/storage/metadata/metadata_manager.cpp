@@ -3,6 +3,7 @@
 #include "duckdb/storage/buffer/block_handle.hpp"
 #include "duckdb/common/serializer/write_stream.hpp"
 #include "duckdb/common/serializer/read_stream.hpp"
+#include "duckdb/storage/database_size.hpp"
 
 namespace duckdb {
 
@@ -66,7 +67,7 @@ void MetadataManager::ConvertToTransient(MetadataBlock &block) {
 
 	// allocate a new transient block to replace it
 	shared_ptr<BlockHandle> new_block;
-	auto new_buffer = buffer_manager.Allocate(Storage::BLOCK_SIZE, false, &new_block);
+	auto new_buffer = buffer_manager.Allocate(MemoryTag::METADATA, Storage::BLOCK_SIZE, false, &new_block);
 
 	// copy the data to the transient block
 	memcpy(new_buffer.Ptr(), old_buffer.Ptr(), Storage::BLOCK_SIZE);
@@ -81,11 +82,13 @@ block_id_t MetadataManager::AllocateNewBlock() {
 	auto new_block_id = GetNextBlockId();
 
 	MetadataBlock new_block;
-	buffer_manager.Allocate(Storage::BLOCK_SIZE, false, &new_block.block);
+	auto handle = buffer_manager.Allocate(MemoryTag::METADATA, Storage::BLOCK_SIZE, false, &new_block.block);
 	new_block.block_id = new_block_id;
 	for (idx_t i = 0; i < METADATA_BLOCK_COUNT; i++) {
-		new_block.free_blocks.push_back(METADATA_BLOCK_COUNT - i - 1);
+		new_block.free_blocks.push_back(NumericCast<uint8_t>(METADATA_BLOCK_COUNT - i - 1));
 	}
+	// zero-initialize the handle
+	memset(handle.Ptr(), 0, Storage::BLOCK_SIZE);
 	AddBlock(std::move(new_block));
 	return new_block_id;
 }
@@ -132,7 +135,7 @@ MetadataPointer MetadataManager::FromDiskPointer(MetaBlockPointer pointer) {
 	} // LCOV_EXCL_STOP
 	MetadataPointer result;
 	result.block_index = block_id;
-	result.index = index;
+	result.index = UnsafeNumericCast<uint8_t>(index);
 	return result;
 }
 
@@ -162,7 +165,7 @@ MetaBlockPointer MetadataManager::FromBlockPointer(BlockPointer block_pointer) {
 	D_ASSERT(offset < MetadataManager::METADATA_BLOCK_SIZE);
 	MetaBlockPointer result;
 	result.block_pointer = idx_t(block_pointer.block_id) | index << 56ULL;
-	result.offset = offset;
+	result.offset = UnsafeNumericCast<uint32_t>(offset);
 	return result;
 }
 
@@ -176,11 +179,6 @@ void MetadataManager::Flush() {
 	for (auto &kv : blocks) {
 		auto &block = kv.second;
 		auto handle = buffer_manager.Pin(block.block);
-		// zero-initialize any free blocks
-		for (auto free_block : block.free_blocks) {
-			memset(handle.Ptr() + free_block * MetadataManager::METADATA_BLOCK_SIZE, 0,
-			       MetadataManager::METADATA_BLOCK_SIZE);
-		}
 		// there are a few bytes left-over at the end of the block, zero-initialize them
 		memset(handle.Ptr() + total_metadata_size, 0, Storage::BLOCK_SIZE - total_metadata_size);
 		D_ASSERT(kv.first == block.block_id);
@@ -249,13 +247,12 @@ void MetadataBlock::FreeBlocksFromInteger(idx_t free_list) {
 		auto index = i - 1;
 		idx_t mask = idx_t(1) << index;
 		if (free_list & mask) {
-			free_blocks.push_back(index);
+			free_blocks.push_back(UnsafeNumericCast<uint8_t>(index));
 		}
 	}
 }
 
 void MetadataManager::MarkBlocksAsModified() {
-
 	// for any blocks that were modified in the last checkpoint - set them to free blocks currently
 	for (auto &kv : modified_blocks) {
 		auto block_id = kv.first;
@@ -266,14 +263,14 @@ void MetadataManager::MarkBlocksAsModified() {
 		idx_t current_free_blocks = block.FreeBlocksToInteger();
 		// merge the current set of free blocks with the modified blocks
 		idx_t new_free_blocks = current_free_blocks | modified_list;
-		//			if (new_free_blocks == NumericLimits<idx_t>::Maximum()) {
-		//				// if new free_blocks is all blocks - mark entire block as modified
-		//				blocks.erase(entry);
-		//				block_manager.MarkBlockAsModified(block_id);
-		//			} else {
-		// set the new set of free blocks
-		block.FreeBlocksFromInteger(new_free_blocks);
-		//			}
+		if (new_free_blocks == NumericLimits<idx_t>::Maximum()) {
+			// if new free_blocks is all blocks - mark entire block as modified
+			blocks.erase(entry);
+			block_manager.MarkBlockAsModified(block_id);
+		} else {
+			// set the new set of free blocks
+			block.FreeBlocksFromInteger(new_free_blocks);
+		}
 	}
 
 	modified_blocks.clear();
@@ -299,6 +296,23 @@ void MetadataManager::ClearModifiedBlocks(const vector<MetaBlockPointer> &pointe
 		// unset the bit
 		modified_list &= ~(1ULL << block_index);
 	}
+}
+
+vector<MetadataBlockInfo> MetadataManager::GetMetadataInfo() const {
+	vector<MetadataBlockInfo> result;
+	for (auto &block : blocks) {
+		MetadataBlockInfo block_info;
+		block_info.block_id = block.second.block_id;
+		block_info.total_blocks = MetadataManager::METADATA_BLOCK_COUNT;
+		for (auto free_block : block.second.free_blocks) {
+			block_info.free_list.push_back(free_block);
+		}
+		std::sort(block_info.free_list.begin(), block_info.free_list.end());
+		result.push_back(std::move(block_info));
+	}
+	std::sort(result.begin(), result.end(),
+	          [](const MetadataBlockInfo &a, const MetadataBlockInfo &b) { return a.block_id < b.block_id; });
+	return result;
 }
 
 block_id_t MetadataManager::GetNextBlockId() {

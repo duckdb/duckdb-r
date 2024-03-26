@@ -118,8 +118,10 @@ public:
 	idx_t Delete(TransactionData transaction, DataTable &table, row_t *row_ids, idx_t count);
 
 	RowGroupWriteData WriteToDisk(PartialBlockManager &manager, const vector<CompressionType> &compression_types);
-	bool AllDeleted();
-	RowGroupPointer Checkpoint(RowGroupWriter &writer, TableStatistics &global_stats);
+	//! Returns the number of committed rows (count - committed deletes)
+	idx_t GetCommittedRowCount();
+	RowGroupWriteData WriteToDisk(RowGroupWriter &writer);
+	RowGroupPointer Checkpoint(RowGroupWriteData write_data, RowGroupWriter &writer, TableStatistics &global_stats);
 
 	void InitializeAppend(RowGroupAppendState &append_state);
 	void Append(RowGroupAppendState &append_state, DataChunk &chunk, idx_t append_count);
@@ -136,6 +138,10 @@ public:
 	unique_ptr<BaseStatistics> GetStatistics(idx_t column_idx);
 
 	void GetColumnSegmentInfo(idx_t row_group_index, vector<ColumnSegmentInfo> &result);
+
+	idx_t GetAllocationSize() const {
+		return allocation_size;
+	}
 
 	void Verify();
 
@@ -170,6 +176,7 @@ private:
 	unique_ptr<atomic<bool>[]> is_loaded;
 	vector<MetaBlockPointer> deletes_pointers;
 	atomic<bool> deletes_is_loaded;
+	idx_t allocation_size;
 };
 
 } // namespace duckdb

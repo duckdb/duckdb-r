@@ -7,7 +7,7 @@
 #'
 #' @name backend-duckdb
 #' @aliases NULL
-#' @examples
+#' @examplesIf rlang::is_installed("dbplyr")
 #' library(dplyr, warn.conflicts = FALSE)
 #' con <- DBI::dbConnect(duckdb(), path = ":memory:")
 #'
@@ -307,6 +307,7 @@ sql_translation.duckdb_connection <- function(con) {
     ),
     sql_translator(
       .parent = base_agg,
+      prod = sql_aggregate("PRODUCT"),
       cor = sql_aggregate_2("CORR"),
       cov = sql_aggregate_2("COVAR_SAMP"),
       sd = sql_aggregate("STDDEV", "sd"),
@@ -319,6 +320,7 @@ sql_translation.duckdb_connection <- function(con) {
     ),
     sql_translator(
       .parent = base_win,
+      prod = win_aggregate("PRODUCT"),
       cor = win_aggregate_2("CORR"),
       cov = win_aggregate_2("COVAR_SAMP"),
       sd = win_aggregate("STDDEV"),
@@ -371,12 +373,55 @@ sql_escape_datetime.duckdb_connection <- function(con, x) {
 # @param src .con A \code{\link{dbConnect}} object, as returned by \code{dbConnect()}
 # @param from Table or parquet/csv -files to be registered
 # @param cache Enable object cache for parquet files
-tbl.duckdb_connection <- function(src, from, cache = FALSE, ...) {
-  ident_q <- pkg_method("ident_q", "dbplyr")
-  if (!inherits(from, "sql") & !DBI::dbExistsTable(src, from)) from <- ident_q(from)
+tbl.duckdb_connection <- function(src, from, ..., cache = FALSE) {
+  if (!inherits(from, "sql") && !DBI::dbExistsTable(src, from)) {
+    from <- dbplyr::sql(paste0("FROM ", from))
+  }
   if (cache) DBI::dbExecute(src, "PRAGMA enable_object_cache")
   NextMethod("tbl")
 }
 
+#' Create a lazy table from a Parquet or SQL file
+#'
+#' `tbl_file()` is an experimental variant of [dplyr::tbl()] to directly access files on disk.
+#' It is safer than `dplyr::tbl()` because there is no risk of misinterpreting the request,
+#' and paths with special characters are supported.
+#'
+#' @param src A duckdb connection object
+#' @param path Path to existing Parquet, CSV or JSON file
+#' @param cache Enable object cache for Parquet files
+#' @export
+#' @rdname backend-duckdb
+tbl_file <- function(src, path, ..., cache = FALSE) {
+  if (...length() > 0) {
+    stop("... must be empty.", call. = FALSE)
+  }
+  if (!file.exists(path)) {
+    stop("File '", path, "' not found", call. = FALSE)
+  }
+  if (grepl("'", path)) {
+    stop("File '", path, "' contains a single quote, this is not supported", call. = FALSE)
+  }
+  tbl_query(src, paste0("'", path, "'"), cache = cache)
+}
+
+#' Create a lazy table from a query
+#'
+#' `tbl_query()` is an experimental variant of [dplyr::tbl()]
+#' to create a lazy table from a table-generating function,
+#' useful for reading nonstandard CSV files or other data sources.
+#' It is safer than `dplyr::tbl()` because there is no risk of misinterpreting the query.
+#' Use `dplyr::tbl(src, dplyr::sql("SELECT ... FROM ..."))` for custom SQL queries.
+#' See <https://duckdb.org/docs/data/overview> for details on data importing functions.
+#'
+#' @param query SQL code, omitting the `FROM` clause
+#' @export
+#' @rdname backend-duckdb
+tbl_query <- function(src, query, ..., cache = FALSE) {
+  if (cache) DBI::dbExecute(src, "PRAGMA enable_object_cache")
+  table <- dplyr::sql(paste0("FROM ", query))
+  dplyr::tbl(src, table)
+}
+
 # Needed to suppress the R CHECK notes (due to the use of sql_expr)
-globalVariables(c("REGEXP_MATCHES", "CAST", "%AS%", "INTEGER", "XOR", "%<<%", "%>>%", "LN", "LOG", "ROUND", "EXTRACT", "%FROM%", "MONTH", "STRFTIME", "QUARTER", "YEAR", "DATE_TRUNC", "DATE", "DOY", "TO_SECONDS", "BIGINT", "TO_MINUTES", "TO_HOURS", "TO_DAYS", "TO_WEEKS", "TO_MONTHS", "TO_YEARS", "STRPOS", "NOT", "REGEXP_REPLACE", "TRIM", "LPAD", "RPAD", "%||%", "REPEAT", "LENGTH", "STRING_AGG", "GREATEST", "LIST_EXTRACT", "LOG10", "LOG2", "STRING_SPLIT_REGEX", "FLOOR", "FMOD", "FDIV"))
+utils::globalVariables(c("REGEXP_MATCHES", "CAST", "%AS%", "INTEGER", "XOR", "%<<%", "%>>%", "LN", "LOG", "ROUND", "EXTRACT", "%FROM%", "MONTH", "STRFTIME", "QUARTER", "YEAR", "DATE_TRUNC", "DATE", "DOY", "TO_SECONDS", "BIGINT", "TO_MINUTES", "TO_HOURS", "TO_DAYS", "TO_WEEKS", "TO_MONTHS", "TO_YEARS", "STRPOS", "NOT", "REGEXP_REPLACE", "TRIM", "LPAD", "RPAD", "%||%", "REPEAT", "LENGTH", "STRING_AGG", "GREATEST", "LIST_EXTRACT", "LOG10", "LOG2", "STRING_SPLIT_REGEX", "FLOOR", "FMOD", "FDIV"))

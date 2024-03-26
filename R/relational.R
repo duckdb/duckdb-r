@@ -1,18 +1,21 @@
 # expressions
 
 #' Create a column reference expression
-#' @param name the column name to be referenced
+#' @param names the column name to be referenced, could be a list to refer to schema.table.column etc.
 #' @param table the optional table name or a relation object to be referenced
 #' @return a column reference expression
 #' @noRd
 #' @examples
 #' col_ref_expr <- expr_reference("some_column_name")
 #' col_ref_expr2 <- expr_reference("some_column_name", "some_table_name")
-expr_reference <- function(name, table = "") {
+expr_reference <- function(names, table = NULL) {
   if (inherits(table, "duckdb_relation")) {
-    table <- rel_alias(table)
+    names <- c(rel_alias(table), names)
   }
-  rapi_expr_reference(name, table)
+  if (is.character(table) && !identical(table, "")) {
+    names <- c(table, names)
+  }
+   rapi_expr_reference(names)
 }
 
 #' Create a constant expression
@@ -395,4 +398,6 @@ rel_from_table <- function(con, table_name, schema_name="MAIN") {
 rel_from_table_function <- function(con, function_name, positional_parameters = list(), named_parameters = list()) {
     rapi_rel_from_table_function(con@conn_ref, function_name, positional_parameters, named_parameters)
 }
+
+rel_to_parquet <- rapi_rel_to_parquet
 

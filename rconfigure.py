@@ -22,8 +22,14 @@ if 'DUCKDB_DEBUG_MOVE' in os.environ:
     debug_move_flag = ' -DDUCKDB_DEBUG_MOVE'
 
 # This requires the mother duckdb repo to be checked out in a parallel directory
+# (or in a directory specified by the DUCKDB_PATH environment variable).
 # Submodules can't be used because they break R CMD build
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'duckdb', 'scripts'))
+if 'DUCKDB_PATH' in os.environ:
+    duckdb_path = os.environ['DUCKDB_PATH']
+else:
+    duckdb_path = os.path.join(duckdb_path)
+
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), duckdb_path, 'scripts'))
 import package_build
 
 
@@ -83,7 +89,7 @@ if 'DUCKDB_R_BINDIR' in os.environ and 'DUCKDB_R_CFLAGS' in os.environ and 'DUCK
         f.write(text)
     exit(0)
 
-if not os.path.isfile(os.path.join('..', 'duckdb', 'scripts', 'amalgamation.py')):
+if not os.path.isfile(os.path.join(duckdb_path, 'scripts', 'amalgamation.py')):
     print("Could not find amalgamation script!")
     exit(1)
 
@@ -130,7 +136,7 @@ with open_utf8(os.path.join('src', 'Makevars.in'), 'r') as f:
 
 include_list += " -DDUCKDB_PLATFORM_RTOOLS=1"
 text = text.replace('{{ INCLUDES }}', include_list)
-text = text.replace('{{ LINK_FLAGS }}', "-lws2_32")
+text = text.replace('{{ LINK_FLAGS }}', "-lws2_32 -lrstrtmgr")
 
 # now write it to the output Makevars
 with open_utf8(os.path.join('src', 'Makevars.win'), 'w+') as f:

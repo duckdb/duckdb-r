@@ -43,10 +43,20 @@ Int96 TimestampToImpalaTimestamp(timestamp_t &ts) {
 timestamp_t ParquetTimestampMicrosToTimestamp(const int64_t &raw_ts) {
 	return Timestamp::FromEpochMicroSeconds(raw_ts);
 }
+
 timestamp_t ParquetTimestampMsToTimestamp(const int64_t &raw_ts) {
+	timestamp_t input(raw_ts);
+	if (!Timestamp::IsFinite(input)) {
+		return input;
+	}
 	return Timestamp::FromEpochMs(raw_ts);
 }
+
 timestamp_t ParquetTimestampNsToTimestamp(const int64_t &raw_ts) {
+	timestamp_t input(raw_ts);
+	if (!Timestamp::IsFinite(input)) {
+		return input;
+	}
 	return Timestamp::FromEpochNanoSeconds(raw_ts);
 }
 
@@ -54,22 +64,28 @@ date_t ParquetIntToDate(const int32_t &raw_date) {
 	return date_t(raw_date);
 }
 
-dtime_t ParquetIntToTimeMs(const int32_t &raw_time) {
-	return Time::FromTimeMs(raw_time);
+dtime_t ParquetIntToTimeMs(const int32_t &raw_millis) {
+	return Time::FromTimeMs(raw_millis);
 }
 
-dtime_t ParquetIntToTime(const int64_t &raw_time) {
-	return dtime_t(raw_time);
+dtime_t ParquetIntToTime(const int64_t &raw_micros) {
+	return dtime_t(raw_micros);
 }
 
-dtime_t ParquetIntToTimeNs(const int64_t &raw_time) {
-	return Time::FromTimeNs(raw_time);
+dtime_t ParquetIntToTimeNs(const int64_t &raw_nanos) {
+	return Time::FromTimeNs(raw_nanos);
 }
 
-dtime_tz_t ParquetIntToTimeTZ(const int64_t &raw_time) {
-	dtime_tz_t result;
-	result.bits = raw_time;
-	return result;
+dtime_tz_t ParquetIntToTimeMsTZ(const int32_t &raw_millis) {
+	return dtime_tz_t(Time::FromTimeMs(raw_millis), 0);
+}
+
+dtime_tz_t ParquetIntToTimeTZ(const int64_t &raw_micros) {
+	return dtime_tz_t(dtime_t(raw_micros), 0);
+}
+
+dtime_tz_t ParquetIntToTimeNsTZ(const int64_t &raw_nanos) {
+	return dtime_tz_t(Time::FromTimeNs(raw_nanos), 0);
 }
 
 } // namespace duckdb

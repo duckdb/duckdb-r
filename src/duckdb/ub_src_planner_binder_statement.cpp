@@ -4,6 +4,8 @@
 
 #include "src/planner/binder/statement/bind_copy.cpp"
 
+#include "src/planner/binder/statement/bind_copy_database.cpp"
+
 #include "src/planner/binder/statement/bind_create.cpp"
 
 #include "src/planner/binder/statement/bind_create_table.cpp"
@@ -45,6 +47,4 @@
 #include "src/planner/binder/statement/bind_update.cpp"
 
 #include "src/planner/binder/statement/bind_vacuum.cpp"
-
-#include "src/planner/binder/statement/bind_show.cpp"
 

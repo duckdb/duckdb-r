@@ -16,15 +16,15 @@
 
 #include "src/function/table/read_csv.cpp"
 
+#include "src/function/table/sniff_csv.cpp"
+
+#include "src/function/table/read_file.cpp"
+
 #include "src/function/table/system_functions.cpp"
 
 #include "src/function/table/summary.cpp"
 
 #include "src/function/table/table_scan.cpp"
-
-#include "src/function/table/pragma_last_profiling_output.cpp"
-
-#include "src/function/table/pragma_detailed_profiling_output.cpp"
 
 #include "src/function/table/unnest.cpp"
 

@@ -1,15 +1,15 @@
 #include "duckdb/planner/expression_binder/base_select_binder.hpp"
 
+#include "duckdb/common/string_util.hpp"
 #include "duckdb/parser/expression/columnref_expression.hpp"
+#include "duckdb/parser/expression/operator_expression.hpp"
 #include "duckdb/parser/expression/window_expression.hpp"
 #include "duckdb/parser/parsed_expression_iterator.hpp"
+#include "duckdb/planner/binder.hpp"
 #include "duckdb/planner/expression/bound_columnref_expression.hpp"
 #include "duckdb/planner/expression/bound_window_expression.hpp"
 #include "duckdb/planner/expression_binder/aggregate_binder.hpp"
 #include "duckdb/planner/query_node/bound_select_node.hpp"
-#include "duckdb/parser/expression/operator_expression.hpp"
-#include "duckdb/common/string_util.hpp"
-#include "duckdb/planner/binder.hpp"
 
 namespace duckdb {
 
@@ -88,7 +88,7 @@ BindResult BaseSelectBinder::BindColumnRef(unique_ptr<ParsedExpression> &expr_pt
 				                      "cannot be referenced before it is defined",
 				                      colref.column_names[0]);
 			}
-			if (node.select_list[index]->HasSideEffects()) {
+			if (node.select_list[index]->IsVolatile()) {
 				throw BinderException("Alias \"%s\" referenced in a SELECT clause - but the expression has side "
 				                      "effects. This is not yet supported.",
 				                      colref.column_names[0]);
@@ -98,11 +98,8 @@ BindResult BaseSelectBinder::BindColumnRef(unique_ptr<ParsedExpression> &expr_pt
 				                      " This is not yet supported.",
 				                      colref.column_names[0]);
 			}
-			auto result = BindResult(node.select_list[index]->Copy());
-			if (result.expression->type == ExpressionType::BOUND_COLUMN_REF) {
-				auto &result_expr = result.expression->Cast<BoundColumnRefExpression>();
-				result_expr.depth = depth;
-			}
+			auto copied_expression = node.original_expressions[index]->Copy();
+			result = BindExpression(copied_expression, depth, false);
 			return result;
 		}
 	}
@@ -115,10 +112,10 @@ BindResult BaseSelectBinder::BindGroupingFunction(OperatorExpression &op, idx_t 
 		throw InternalException("GROUPING requires at least one child");
 	}
 	if (node.groups.group_expressions.empty()) {
-		return BindResult(binder.FormatError(op, "GROUPING statement cannot be used without groups"));
+		return BindResult(BinderException(op, "GROUPING statement cannot be used without groups"));
 	}
 	if (op.children.size() >= 64) {
-		return BindResult(binder.FormatError(op, "GROUPING statement cannot have more than 64 groups"));
+		return BindResult(BinderException(op, "GROUPING statement cannot have more than 64 groups"));
 	}
 	vector<idx_t> group_indexes;
 	group_indexes.reserve(op.children.size());
@@ -126,8 +123,7 @@ BindResult BaseSelectBinder::BindGroupingFunction(OperatorExpression &op, idx_t 
 		ExpressionBinder::QualifyColumnNames(binder, child);
 		auto idx = TryBindGroup(*child, depth);
 		if (idx == DConstants::INVALID_INDEX) {
-			return BindResult(binder.FormatError(
-			    op, StringUtil::Format("GROUPING child \"%s\" must be a grouping column", child->GetName())));
+			return BindResult(BinderException(op, "GROUPING child \"%s\" must be a grouping column", child->GetName()));
 		}
 		group_indexes.push_back(idx);
 	}
@@ -138,14 +134,22 @@ BindResult BaseSelectBinder::BindGroupingFunction(OperatorExpression &op, idx_t 
 }
 
 BindResult BaseSelectBinder::BindGroup(ParsedExpression &expr, idx_t depth, idx_t group_index) {
-	auto &group = node.groups.group_expressions[group_index];
-	return BindResult(make_uniq<BoundColumnRefExpression>(expr.GetName(), group->return_type,
-	                                                      ColumnBinding(node.group_index, group_index), depth));
+	auto it = info.collated_groups.find(group_index);
+	if (it != info.collated_groups.end()) {
+		// This is an implicitly collated group, so we need to refer to the first() aggregate
+		const auto &aggr_index = it->second;
+		return BindResult(make_uniq<BoundColumnRefExpression>(expr.GetName(), node.aggregates[aggr_index]->return_type,
+		                                                      ColumnBinding(node.aggregate_index, aggr_index), depth));
+	} else {
+		auto &group = node.groups.group_expressions[group_index];
+		return BindResult(make_uniq<BoundColumnRefExpression>(expr.GetName(), group->return_type,
+		                                                      ColumnBinding(node.group_index, group_index), depth));
+	}
 }
 
 bool BaseSelectBinder::QualifyColumnAlias(const ColumnRefExpression &colref) {
 	if (!colref.IsQualified()) {
-		return alias_map.find(colref.column_names[0]) != alias_map.end() ? true : false;
+		return alias_map.find(colref.column_names[0]) != alias_map.end();
 	}
 	return false;
 }
