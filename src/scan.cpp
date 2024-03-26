@@ -145,16 +145,6 @@ void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_ptr_t co
 	}
 	case RType::STRING: {
 		auto data_ptr = (SEXP *)coldata_ptr;
-		auto string_val = GetColDataPtr(rtype, *data_ptr);
-		const utf8proc_uint8_t *str = string_val;
-
-		utf8proc_uint8_t* new_string = nullptr;
-		utf8proc_option_t options = (UTF8PROC_NULLTERM);
-		auto res = utf8proc_map(str, 0, &new_string, options);
-		if (res == UTF8PROC_ERROR_INVALIDUTF8) {
-			throw InvalidInputException("Strings \"%s\" is not valid utf8", (char*)string_val);
-		}
-
 		if (experimental) {
 			D_ASSERT(v.GetType().id() == LogicalTypeId::POINTER);
 			AppendColumnSegment<SEXP, uintptr_t, DedupPointerEnumType>(data_ptr, sexp_offset, v, this_count);
