@@ -262,6 +262,8 @@ test_that("to_duckdb with a table", {
 })
 
 test_that("to_duckdb passing a connection", {
+  skip_if_not(TEST_RE2)
+
   ds <- InMemoryDataset$create(example_data)
 
   con_separate <- dbConnect(duckdb())

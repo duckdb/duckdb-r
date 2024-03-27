@@ -1,4 +1,6 @@
 test_that("dbWriteTable can write tables with keyword column names", {
+  skip_if_not(TEST_RE2)
+
   con <- dbConnect(duckdb())
   on.exit(dbDisconnect(con, shutdown = TRUE))
 

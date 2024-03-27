@@ -1,4 +1,6 @@
 test_that("fractional seconds can be roundtripped", {
+  skip_if_not(TEST_RE2)
+
   con <- dbConnect(duckdb())
   on.exit(dbDisconnect(con, shutdown = TRUE))
 
