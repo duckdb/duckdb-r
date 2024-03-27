@@ -7,6 +7,8 @@ skip_if_not(arrow::arrow_with_parquet(), message = "The installed Arrow is not f
 library("arrow")
 
 test_that("duckdb_register_arrow() works", {
+  skip_if_not(TEST_RE2)
+
   con <- dbConnect(duckdb())
   on.exit(dbDisconnect(con, shutdown = TRUE))
 
@@ -27,6 +29,8 @@ test_that("duckdb_register_arrow() works", {
 })
 
 test_that("duckdb_register_arrow() works with record_batch_readers", {
+  skip_if_not(TEST_RE2)
+
   con <- dbConnect(duckdb())
   on.exit(dbDisconnect(con, shutdown = TRUE))
 
@@ -45,6 +49,8 @@ test_that("duckdb_register_arrow() works with record_batch_readers", {
 })
 
 test_that("duckdb_register_arrow() works with scanner", {
+  skip_if_not(TEST_RE2)
+
   con <- dbConnect(duckdb())
   on.exit(dbDisconnect(con, shutdown = TRUE))
 

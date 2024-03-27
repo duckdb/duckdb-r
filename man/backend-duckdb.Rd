@@ -43,7 +43,7 @@ Use \code{dplyr::tbl(src, dplyr::sql("SELECT ... FROM ..."))} for custom SQL que
 See \url{https://duckdb.org/docs/data/overview} for details on data importing functions.
 }
 \examples{
-\dontshow{if (rlang::is_installed("dbplyr")) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
+\dontshow{if (duckdb:::TEST_RE2 && rlang::is_installed("dbplyr")) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
 library(dplyr, warn.conflicts = FALSE)
 con <- DBI::dbConnect(duckdb(), path = ":memory:")
 

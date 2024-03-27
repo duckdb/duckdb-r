@@ -1,4 +1,6 @@
 test_that("factors can be round tripped", {
+  skip_if_not(TEST_RE2)
+
   con <- dbConnect(duckdb())
   on.exit(dbDisconnect(con, shutdown = TRUE))
 
@@ -20,6 +22,8 @@ test_that("factors can be round tripped", {
 
 
 test_that("iris can be round-tripped", {
+  skip_if_not(TEST_RE2)
+
   con <- dbConnect(duckdb())
   on.exit(dbDisconnect(con, shutdown = TRUE))
 
@@ -33,6 +37,8 @@ test_that("iris can be round-tripped", {
 })
 
 test_that("non-utf things can be read", {
+  skip_if_not(TEST_RE2)
+
   con <- dbConnect(duckdb())
   on.exit(dbDisconnect(con, shutdown = TRUE))
 
@@ -60,6 +66,8 @@ test_that("non-utf things can be read", {
 
 
 test_that("single value factors round trip correctly, issue 2627", {
+  skip_if_not(TEST_RE2)
+
   con <- dbConnect(duckdb())
   on.exit(dbDisconnect(con, shutdown = TRUE))
 

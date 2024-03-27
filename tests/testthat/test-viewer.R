@@ -1,4 +1,6 @@
 test_that("rs_list_object_types", {
+  skip_if_not(TEST_RE2)
+
   con <- dbConnect(duckdb())
   on.exit(dbDisconnect(con, shutdown = TRUE))
 
@@ -12,6 +14,8 @@ test_that("rs_list_object_types", {
 })
 
 test_that("rs_list_objects", {
+  skip_if_not(TEST_RE2)
+
   con <- dbConnect(duckdb())
   on.exit(dbDisconnect(con, shutdown = TRUE))
 
@@ -30,6 +34,8 @@ test_that("rs_list_objects", {
 })
 
 test_that("rs_list_columns", {
+  skip_if_not(TEST_RE2)
+
   con <- dbConnect(duckdb())
   on.exit(dbDisconnect(con, shutdown = TRUE))
 
@@ -51,6 +57,8 @@ test_that("rs_list_columns", {
 })
 
 test_that("rs_viewer", {
+  skip_if_not(TEST_RE2)
+
   con <- dbConnect(duckdb())
   on.exit(dbDisconnect(con, shutdown = TRUE))
 
@@ -69,6 +77,8 @@ test_that("rs_actions", {
 })
 
 test_that("mock observer hooray", {
+  skip_if_not(TEST_RE2)
+
   called_connection_opened <- FALSE
   called_connection_closed <- FALSE
   called_connection_updated <- FALSE

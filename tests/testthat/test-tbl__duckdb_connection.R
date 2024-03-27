@@ -4,6 +4,8 @@ if (rlang::is_installed("dbplyr")) {
 }
 
 test_that("Parquet files can be registered with dplyr::tbl()", {
+  skip_if_not(TEST_RE2)
+
   skip_if_not_installed("dbplyr")
 
   con <- DBI::dbConnect(duckdb())
@@ -86,6 +88,8 @@ test_that("Object cache can be enabled for parquet files with tbl_file() and tbl
 
 
 test_that("CSV files can be registered with dplyr::tbl()", {
+  skip_if_not(TEST_RE2)
+
   skip_if_not_installed("dbplyr")
 
   path <- file.path(tempdir(), "duckdbtest.csv")
@@ -125,6 +129,8 @@ test_that("CSV files can be registered with tbl_file() and tbl_query()", {
 
 
 test_that("Other replacement scans or functions can be registered with dplyr::tbl()", {
+  skip_if_not(TEST_RE2)
+
   skip_if_not_installed("dbplyr")
 
   con <- DBI::dbConnect(duckdb())

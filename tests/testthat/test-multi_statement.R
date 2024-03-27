@@ -38,6 +38,8 @@ test_that("statements can be splitted apart correctly", {
 })
 
 test_that("export/import database works", {
+  skip_if_not(TEST_RE2)
+
   export_location <- file.path(tempdir(), "duckdb_test_export")
   if (!file.exists(export_location)) dir.create(export_location)
 

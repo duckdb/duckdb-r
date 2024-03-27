@@ -110,6 +110,8 @@ test_that("structs give the same results via Arrow", {
 })
 
 test_that("nested lists of atomic values can be written", {
+  skip_if_not(TEST_RE2)
+
   skip_if_not_installed("vctrs")
 
   con <- dbConnect(duckdb())
@@ -128,6 +130,8 @@ test_that("nested lists of atomic values can be written", {
 })
 
 test_that("nested and packed columns work in full", {
+  skip_if_not(TEST_RE2)
+
   skip_if_not_installed("vctrs")
 
   con <- dbConnect(duckdb())
