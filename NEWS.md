@@ -10,6 +10,8 @@
 
 - Don't run tests that invoke re2 by default (#121, #127).
 
+- Fix compilation for R 4.0 and R 4.1, regression introduced in v0.10.0. The package still cannot be built due to a missing `rstrtmgr.lib` in rtools40 (#130).
+
 ## Internal
 
 - The C++ core is now vendored commit by commit, once every five minutes. Vendoring stops if `R CMD check` fails or if a previously unreleased tag is reached.
