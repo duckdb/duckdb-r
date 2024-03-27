@@ -56,6 +56,8 @@ test_that("no warning on dbConnect() with other dbdir", {
 })
 
 test_that("can connect to the same in-memory database via the same driver object", {
+  skip_if_not(TEST_RE2)
+
   drv <- duckdb()
 
   con1 <- dbConnect(drv)
@@ -74,6 +76,8 @@ test_that("can connect to the same in-memory database via the same driver object
 })
 
 test_that("will connect to different in-memory databases via different driver objects", {
+  skip_if_not(TEST_RE2)
+
   drv1 <- duckdb()
   con1 <- dbConnect(drv1)
   on.exit(dbDisconnect(con1), add = TRUE)
@@ -92,6 +96,8 @@ test_that("will connect to different in-memory databases via different driver ob
 })
 
 test_that("can connect to the same database file via the same driver object", {
+  skip_if_not(TEST_RE2)
+
   drv <- duckdb(tempfile(fileext = ".duckdb"))
 
   con1 <- dbConnect(drv)
@@ -110,6 +116,8 @@ test_that("can connect to the same database file via the same driver object", {
 })
 
 test_that("can connect to the same database file via different driver objects", {
+  skip_if_not(TEST_RE2)
+
   path <- tempfile(fileext = ".duckdb")
   writeLines(character(), path)
   path <- normalizePath(path)
@@ -133,6 +141,8 @@ test_that("can connect to the same database file via different driver objects", 
 })
 
 test_that("read_only only applies to the first driver object for a path", {
+  skip_if_not(TEST_RE2)
+
   path <- tempfile(fileext = ".duckdb")
   writeLines(character(), path)
   path <- normalizePath(path)
@@ -154,6 +164,8 @@ test_that("read_only only applies to the first driver object for a path", {
 })
 
 test_that("config only applies to the first driver object for a path", {
+  skip_if_not(TEST_RE2)
+
   path <- tempfile(fileext = ".duckdb")
   writeLines(character(), path)
   path <- normalizePath(path)

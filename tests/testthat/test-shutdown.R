@@ -1,4 +1,6 @@
 test_that("disconnect releases database file", {
+  skip_if_not(TEST_RE2)
+
   db_path <- withr::local_tempfile(fileext = ".duckdb")
 
   session_1 <- callr::r_session$new()
