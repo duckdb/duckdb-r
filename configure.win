@@ -7,7 +7,7 @@ cd $(dirname $0)/src
 # http://www.ii.uib.no/~olev/win32/tools/dlltool.html
 if [ "$(Rscript --vanilla -e 'writeLines(format(getRversion() < "4.2"))')" = "TRUE" ]; then
   echo "Creating rstrtmgr.a for R < 4.2"
-  dlltool --dllname rstrtmgr.dll --def rstrtmgr.def --output-lib rstrtmgr.a -k
+  dlltool --dllname rstrtmgr.dll --def rstrtmgr.def --output-lib librstrtmgr.a -k
 fi
 
 # The purpose of this is to avoid rebuilding duckdb in every CI/CD run.
