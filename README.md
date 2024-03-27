@@ -1,4 +1,12 @@
-# duckdb <a href="https://r.duckdb.org/"><img src="man/figures/logo.png" align="right" height="120" alt="duckdb website" /></a>
+<div align="center">
+  <a href="https://r.duckdb.org/"><picture>
+    <source media="(prefers-color-scheme: light)" srcset="https://duckdb.org/images/logo-dl/DuckDB_Logo-horizontal.svg">
+    <source media="(prefers-color-scheme: dark)" srcset="https://duckdb.org/images/logo-dl/DuckDB_Logo-horizontal-dark-mode.svg">
+    <img alt="DuckDB logo" src="https://duckdb.org/images/logo-dl/DuckDB_Logo-horizontal.svg" height="100">
+  </picture></a>
+</div>
+
+# duckdb
 
 ## Installation from CRAN
 
