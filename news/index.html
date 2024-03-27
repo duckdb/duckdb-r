@@ -10,7 +10,7 @@
     
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0.9001</small>
 
     
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -45,22 +45,22 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.10.1" id="duckdb-0101">duckdb 0.10.1<a class="anchor" aria-label="anchor" href="#duckdb-0101"></a></h2>
+<h2 class="pkg-version" data-toc-text="0.10.0.9001" id="duckdb-01009001">duckdb 0.10.0.9001<a class="anchor" aria-label="anchor" href="#duckdb-01009001"></a></h2>
 <div class="section level3">
-<h3 id="internal-0-10-1">Internal<a class="anchor" aria-label="anchor" href="#internal-0-10-1"></a></h3>
-<ul><li>The C++ core is now vendored commit by commit, once every five minutes. Vendoring stops if <code>R CMD check</code> fails or if a previously unreleased tag is reached.</li>
-<li>New maintainer: Kirill Müller.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="bug-fixes-0-10-1">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-10-1"></a></h3>
+<h3 id="bug-fixes-0-10-0-9001">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-10-0-9001"></a></h3>
 <ul><li>Don’t run tests that invoke re2 by default (<a href="https://github.com/duckdb/duckdb-r/issues/121" class="external-link">#121</a>, <a href="https://github.com/duckdb/duckdb-r/issues/127" class="external-link">#127</a>).</li>
 </ul></div>
 <div class="section level3">
-<h3 id="features-0-10-1">Features<a class="anchor" aria-label="anchor" href="#features-0-10-1"></a></h3>
+<h3 id="features-0-10-0-9001">Features<a class="anchor" aria-label="anchor" href="#features-0-10-0-9001"></a></h3>
 <ul><li>Fix shutdown semantics for the driver object created by <code><a href="../reference/duckdb.html">duckdb()</a></code>. A database file is closed (and available to be opened from another session) after the last connection that uses this file calls <code><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect()</a></code> . The <code>shutdown</code> argument to <code><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect()</a></code> or the <code><a href="../reference/duckdb.html">duckdb_shutdown()</a></code> functions are no longer necessary. Two database connections from the same R session can access the same file concurrently in read-write mode (<a href="https://github.com/duckdb/duckdb-r/issues/124" class="external-link">#124</a>).</li>
 </ul></div>
 <div class="section level3">
-<h3 id="continuous-integration-0-10-1">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-0-10-1"></a></h3>
+<h3 id="internal-0-10-0-9001">Internal<a class="anchor" aria-label="anchor" href="#internal-0-10-0-9001"></a></h3>
+<ul><li><p>The C++ core is now vendored commit by commit, once every five minutes. Vendoring stops if <code>R CMD check</code> fails or if a previously unreleased tag is reached.</p></li>
+<li><p>New maintainer: Kirill Müller.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="continuous-integration-0-10-0-9001">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-0-10-0-9001"></a></h3>
 <ul><li>Add rhub2 workflow.</li>
 </ul></div>
 </div>
