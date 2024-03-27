@@ -5,7 +5,10 @@ set -e
 cd $(dirname $0)/src
 
 # http://www.ii.uib.no/~olev/win32/tools/dlltool.html
-dlltool --dllname rstrtmgr.dll --def rstrtmgr.def --output-lib rstrtmgr.a -k
+if [ "$(Rscript --vanilla -e 'writeLines(format(getRversion() < "4.2"))')" = "TRUE" ]; then
+  echo "Creating rstrtmgr.a for R < 4.2"
+  dlltool --dllname rstrtmgr.dll --def rstrtmgr.def --output-lib rstrtmgr.a -k
+fi
 
 # The purpose of this is to avoid rebuilding duckdb in every CI/CD run.
 # We set the DUCKDB_R_PREBUILT_ARCHIVE environment variable to a file path
