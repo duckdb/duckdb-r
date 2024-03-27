@@ -9,13 +9,4 @@ duckdb 0.10.1
 ## Current CRAN check results
 
 - [x] Checked on 2024-03-27, problems found: https://cran.r-project.org/web/checks/check_results_duckdb.html
-- [ ] other_issue: NA
-See: <https://www.stats.ox.ac.uk/pub/bdr/memtests/gcc-UBSAN/duckdb>
-- [ ] other_issue: NA
-See: <https://www.stats.ox.ac.uk/pub/bdr/memtests/valgrind/duckdb>
-- [ ] other_issue: NA
-See: <https://www.stats.ox.ac.uk/pub/bdr/memtests/gcc-UBSAN/duckdb>
-- [ ] other_issue: NA
-See: <https://www.stats.ox.ac.uk/pub/bdr/memtests/valgrind/duckdb>
-
-Check results at: https://cran.r-project.org/web/checks/check_results_duckdb.html
+- [x] other_issue: UBSAN and valgrind, fixed.
