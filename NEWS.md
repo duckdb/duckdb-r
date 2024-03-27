@@ -1,14 +1,16 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 0.10.0.9001
+# duckdb 0.10.1
+
+## Features
+
+- Fix shutdown semantics for the driver object created by `duckdb()`. A database file is closed (and available to be opened from another session) after the last connection that uses this file calls `dbDisconnect()` . The `shutdown` argument to `dbDisconnect()` or the `duckdb_shutdown()` functions are no longer necessary. Two database connections from the same R session can access the same file concurrently in read-write mode (#124).
 
 ## Bug fixes
 
 - Don't run tests that invoke re2 by default (#121, #127).
 
-## Features
-
-- Fix shutdown semantics for the driver object created by `duckdb()`. A database file is closed (and available to be opened from another session) after the last connection that uses this file calls `dbDisconnect()` . The `shutdown` argument to `dbDisconnect()` or the `duckdb_shutdown()` functions are no longer necessary. Two database connections from the same R session can access the same file concurrently in read-write mode (#124).
+- Fix compilation for R 4.0 and R 4.1, regression introduced in v0.10.0. The package still cannot be built due to a missing `rstrtmgr.lib` in rtools40 (#130).
 
 ## Internal
 
