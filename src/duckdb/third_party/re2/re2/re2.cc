@@ -165,6 +165,8 @@ int RE2::Options::ParseFlags() const {
 }
 
 void RE2::Init(const StringPiece& pattern, const Options& options) {
+  abort();
+
   static std::once_flag empty_once;
   std::call_once(empty_once, []() {
     empty_string = new std::string;
