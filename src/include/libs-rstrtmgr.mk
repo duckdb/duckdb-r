@@ -1,1 +1,1 @@
-DUCKDB_EXTRA_LIBS=-L../tools -lrstrtmgr
+DUCKDB_EXTRA_LIBS=-L../tools
