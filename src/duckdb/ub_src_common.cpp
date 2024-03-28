@@ -12,8 +12,6 @@
 
 #include "src/common/checksum.cpp"
 
-#include "src/common/cycle_counter.cpp"
-
 #include "src/common/exception.cpp"
 
 #include "src/common/exception_format_value.cpp"
