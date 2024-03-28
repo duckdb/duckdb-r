@@ -1,6 +1,16 @@
 #!/bin/sh
 
+set -e
+
 cd $(dirname $0)/src
+
+# http://www.ii.uib.no/~olev/win32/tools/dlltool.html
+if [ "$(Rscript --vanilla -e 'writeLines(format(getRversion() < "4.2"))')" = "TRUE" ]; then
+  echo "Using bundled librstrtmgr.a for R < 4.2"
+  cp include/from-tar.mk include/libs.mk
+else
+  touch include/libs.mk
+fi
 
 # The purpose of this is to avoid rebuilding duckdb in every CI/CD run.
 # We set the DUCKDB_R_PREBUILT_ARCHIVE environment variable to a file path
