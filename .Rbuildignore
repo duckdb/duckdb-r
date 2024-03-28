@@ -37,3 +37,4 @@ RELEASE.md
 _files$
 ^vscode-build$
 ^vscode-integrate-build$
+^patch$
