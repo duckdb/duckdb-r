@@ -70,7 +70,7 @@ upstream_tag=$(git -C "$upstream_dir" describe --tags --abbrev=0)
 echo "Our tag: $our_tag"
 echo "Upstream tag: $upstream_tag"
 
-if [ "${our_tag#$upstream_tag}" != "$our_tag" ]; then
+if [ "${our_tag#$upstream_tag}" == "$our_tag" ]; then
   echo "Not vendoring because our tag $our_tag does not start with upstream tag $upstream_tag"
   git checkout -- src/duckdb
   rm -rf "$upstream_dir"
