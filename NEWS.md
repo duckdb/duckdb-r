@@ -20,7 +20,7 @@
 
 - Don't run tests that invoke re2 by default (#121, #127).
 
-- Fix compilation for R 4.0 and R 4.1, regression introduced in v0.10.0. The package still cannot be built due to a missing `rstrtmgr.lib` in rtools40 (#130).
+- Fix compilation for R 4.0 and R 4.1, regression introduced in v0.10.0. Using `librstrtmgr.a` from UCRT build of rtools40 (#130).
 
 ## Internal
 
