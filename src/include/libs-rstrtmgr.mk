@@ -1,1 +1,0 @@
-DUCKDB_EXTRA_LIBS=-L../tools
