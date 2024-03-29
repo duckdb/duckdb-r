@@ -5,7 +5,7 @@ set -e
 cd $(dirname $0)/src
 
 # http://www.ii.uib.no/~olev/win32/tools/dlltool.html
-if [ "$(Rscript --vanilla -e 'writeLines(format(getRversion() < "4.2"))')" = "TRUE" ]; then
+if [ "$(${R_HOME}/bin/Rscript --vanilla -e 'writeLines(format(getRversion() < "4.2"))')" = "TRUE" ]; then
   echo "Extracting librstrtmgr.a for R < 4.2 into local directory"
   gunzip ../libs/librstrtmgr.a.gz -c > librstrtmgr.a
 fi
