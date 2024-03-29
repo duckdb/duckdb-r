@@ -38,4 +38,5 @@ _files$
 ^vscode-build$
 ^vscode-integrate-build$
 ^patch$
+^libs$
 ^src/librstrtmgr\.a$
