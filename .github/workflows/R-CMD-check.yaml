@@ -124,7 +124,6 @@ jobs:
   # To achieve this, remove the "needs:" element below.
   rcc-windows:
     # Begin custom: early run
-    needs: rcc-smoke
     # End custom: early run
 
     runs-on: ${{ matrix.config.os }}
@@ -159,6 +158,12 @@ jobs:
           cache-version: rcc-windows-1
           token: ${{ secrets.GITHUB_TOKEN }}
           needs: check
+
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        with:
+          detached: true
+          limit-access-to-actor: true
 
       - uses: ./.github/workflows/custom/after-install
         if: hashFiles('.github/workflows/custom/after-install/action.yml') != ''
