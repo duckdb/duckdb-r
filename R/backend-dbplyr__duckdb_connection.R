@@ -81,7 +81,7 @@ duckdb_n_distinct <- function(..., na.rm = FALSE) {
   sql <- pkg_method("sql", "dbplyr")
 
   if (identical(na.rm, TRUE)) {
-    cli::cli_abort("`na.rm = TRUE` not implemented.")
+    stop("Parameter `na.rm = TRUE` in n_distinct() is currently not supported in DuckDB backend.", call. = FALSE)
   }
 
   # https://duckdb.org/docs/sql/data_types/struct.html#creating-structs-with-the-row-function
