@@ -1,0 +1,74 @@
+From 29ce4d6cd16a6ed9e6602d4ebfeaf1a3a85268d0 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Sat, 30 Mar 2024 14:19:41 +0100
+Subject: [PATCH] MUTEX_THROW and keep pragmas
+
+---
+ src/duckdb/third_party/re2/re2/re2.h    |  2 +-
+ src/duckdb/third_party/re2/util/mutex.h | 24 +++++++++++++++---------
+ 2 files changed, 16 insertions(+), 10 deletions(-)
+
+diff --git a/src/duckdb/third_party/re2/re2/re2.h b/src/duckdb/third_party/re2/re2/re2.h
+index f3493601..da4df537 100644
+--- a/src/duckdb/third_party/re2/re2/re2.h
++++ b/src/duckdb/third_party/re2/re2/re2.h
+@@ -926,7 +926,7 @@ inline RE2::Arg RE2::Octal(T* ptr) {
+ 
+ // Silence warnings about missing initializers for members of LazyRE2.
+ #if !defined(__clang__) && defined(__GNUC__) && __GNUC__ >= 6
+-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
++// #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+ #endif
+ 
+ // Helper for writing global or static RE2s safely.
+diff --git a/src/duckdb/third_party/re2/util/mutex.h b/src/duckdb/third_party/re2/util/mutex.h
+index 45e590ca..9f2a566c 100644
+--- a/src/duckdb/third_party/re2/util/mutex.h
++++ b/src/duckdb/third_party/re2/util/mutex.h
+@@ -44,12 +44,18 @@ typedef pthread_rwlock_t MutexType;
+ typedef std::shared_mutex MutexType;
+ #endif
+ 
++#ifdef MUTEX_IS_PTHREAD_RWLOCK
++#define MUTEX_THROW noexcept(false)
++#else
++#define MUTEX_THROW
++#endif
++
+ namespace duckdb_re2 {
+ 
+ class Mutex {
+  public:
+-  inline Mutex();
+-  inline ~Mutex();
++  inline Mutex() MUTEX_THROW;
++  inline ~Mutex() MUTEX_THROW;
+   inline void Lock();    // Block if needed until free then acquire exclusively
+   inline void Unlock();  // Release a lock acquired via Lock()
+   // Note that on systems that don't support read-write locks, these may
+@@ -93,15 +99,15 @@ void Mutex::ReaderUnlock() { ReleaseSRWLockShared(&mutex_); }
+ 
+ #define SAFE_PTHREAD(fncall)    \
+   do {                          \
+-    if ((fncall) != 0) abort(); \
++    if ((fncall) != 0) throw std::runtime_error("re2 mutex pthread error"); \
+   } while (0)
+ 
+-Mutex::Mutex()             { SAFE_PTHREAD(pthread_rwlock_init(&mutex_, NULL)); }
+-Mutex::~Mutex()            { SAFE_PTHREAD(pthread_rwlock_destroy(&mutex_)); }
+-void Mutex::Lock()         { SAFE_PTHREAD(pthread_rwlock_wrlock(&mutex_)); }
+-void Mutex::Unlock()       { SAFE_PTHREAD(pthread_rwlock_unlock(&mutex_)); }
+-void Mutex::ReaderLock()   { SAFE_PTHREAD(pthread_rwlock_rdlock(&mutex_)); }
+-void Mutex::ReaderUnlock() { SAFE_PTHREAD(pthread_rwlock_unlock(&mutex_)); }
++Mutex::Mutex() MUTEX_THROW  { SAFE_PTHREAD(pthread_rwlock_init(&mutex_, NULL)); }
++Mutex::~Mutex() MUTEX_THROW { SAFE_PTHREAD(pthread_rwlock_destroy(&mutex_)); }
++void Mutex::Lock()          { SAFE_PTHREAD(pthread_rwlock_wrlock(&mutex_)); }
++void Mutex::Unlock()        { SAFE_PTHREAD(pthread_rwlock_unlock(&mutex_)); }
++void Mutex::ReaderLock()    { SAFE_PTHREAD(pthread_rwlock_rdlock(&mutex_)); }
++void Mutex::ReaderUnlock()  { SAFE_PTHREAD(pthread_rwlock_unlock(&mutex_)); }
+ 
+ #undef SAFE_PTHREAD
+ 
+-- 
+2.43.0
+
