@@ -1,3 +1,5 @@
+# {{ HEADER }}
+
 # This is required as a first target if we add additional targets
 # (and we do in Makevars.duckdb, which is either include/from-tar.mk
 # or include/to-tar.mk).
