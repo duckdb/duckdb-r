@@ -12,7 +12,11 @@ include include/sources.mk
 # depending on the value of the DUCKDB_R_PREBUILT_ARCHIVE environment variable.
 include Makevars.duckdb
 
+# This file is created by the configure script
+# depending on the value of the DUCKDB_R_DEBUG environment variable.
+include debug.duckdb
+
 CXX_STD = CXX17
-PKG_CPPFLAGS = -Iinclude -I../inst/include -DDUCKDB_DISABLE_PRINT -DDUCKDB_R_BUILD {{ INCLUDES }}
+PKG_CPPFLAGS = -Iinclude -I../inst/include -DDUCKDB_DISABLE_PRINT -DDUCKDB_R_BUILD $(DEBUG) {{ INCLUDES }}
 OBJECTS=database.o connection.o statement.o register.o relational.o scan.o transform.o utils.o reltoaltrep.o types.o cpp11.o $(SOURCES)
 PKG_LIBS={{ LINK_FLAGS }}

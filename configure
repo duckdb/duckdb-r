@@ -4,6 +4,13 @@ set -ex
 
 cd $(dirname $0)/src
 
+if [ -n "${DUCKDB_R_DEBUG}" ]; then
+  echo "Debugging mode set"
+  cp include/debug.mk debug.duckdb
+else
+  cp include/ndebug.mk debug.duckdb
+fi
+
 # The purpose of this is to avoid rebuilding duckdb in every CI/CD run.
 # We set the DUCKDB_R_PREBUILT_ARCHIVE environment variable to a file path
 # that contains a .tar of all object files.
