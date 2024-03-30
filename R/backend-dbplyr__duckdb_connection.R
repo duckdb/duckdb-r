@@ -78,25 +78,16 @@ duckdb_grepl <- function(pattern, x, ignore.case = FALSE, perl = FALSE, fixed = 
 }
 
 duckdb_n_distinct <- function(..., na.rm = FALSE) {
-  glue_sql2 <- pkg_method("glue_sql2", "dbplyr")
+  sql <- pkg_method("sql", "dbplyr")
 
   if (identical(na.rm, TRUE)) {
     cli::cli_abort("`na.rm = TRUE` not implemented.")
   }
 
-  vars <- list(...)
-  str_struct <-
-    paste0("{", paste0(
-      lapply(
-        seq_along(vars),
-        \(i) glue::glue("'v{i}' : {vars[[i]]}")
-      ),
-      collapse = ", "
-    ), "}")
-  glue_sql2(
-    sql_current_con(),
-    "COUNT(DISTINCT {str_struct})"
-  )
+  # https://duckdb.org/docs/sql/data_types/struct.html#creating-structs-with-the-row-function
+  str_struct <- paste0("row(", paste0(list(...), collapse = ", "), ")")
+
+  sql(paste0("COUNT(DISTINCT ", str_struct, ")"))
 }
 
 # Customized translation functions for DuckDB SQL
