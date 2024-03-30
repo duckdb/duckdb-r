@@ -48,8 +48,8 @@ for commit in $(git -C "$upstream_dir" log --first-parent --reverse --format="%H
   cat patch/*.patch | patch -p1
 
   # Always vendor tags
-  if [ $(git -C "$upstream_dir" describe --tags | grep -c -- -) -eq 0 ]; then
-    message="chore: Update vendored sources (tag $(git -C "$upstream_dir" describe --tags)) to duckdb/duckdb@$commit"
+  if [ $(git -C "$upstream_dir" describe --tags "$commit" | grep -c -- -) -eq 0 ]; then
+    message="chore: Update vendored sources (tag $(git -C "$upstream_dir" describe --tags "$commit")) to duckdb/duckdb@$commit"
     break
   fi
 
