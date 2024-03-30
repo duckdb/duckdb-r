@@ -236,44 +236,36 @@ test_that("n_distinct() computations are correct", {
   summarize <- dplyr::summarize
   pull <- dplyr::pull
 
-  duckdb_register(con, "df1", data.frame(x = c(1, 1, 2)))
-  duckdb_register(con, "df1_na", data.frame(x = c(1, 1, 2, NA)))
-  duckdb_register(con, "df2", data.frame(x = c(1, 1, 2, 2), y = c(1, 2, 2, 2)))
-  duckdb_register(con, "df2_na", data.frame(x = c(1, 1, 2, NA, NA), y = c(1, 2, NA, 2, NA)))
+  duckdb_register(con, "df", data.frame(x = c(1, 1, 2, 2), y = c(1, 2, 2, 2)))
+  duckdb_register(con, "df_na", data.frame(x = c(1, 1, 2, NA, NA), y = c(1, 2, NA, 2, NA)))
+
+  df <- tbl(con, "df")
+  df_na <- tbl(con, "df_na")
 
   expect_error(
-    tbl(con, "df1") |>
-      summarize(n = n_distinct(x, na.rm = TRUE)) |>
-      pull(n)
+    pull(summarize(df, n = n_distinct(x, na.rm = TRUE)), n)
   )
 
   # single column is working as usual
   expect_equal(
-    tbl(con, "df1") |>
-      summarize(n = n_distinct(x)) |>
-      pull(n),
+    pull(summarize(df, n = n_distinct(x)), n),
     2
   )
+
   expect_equal(
-    tbl(con, "df1_na") |>
-      summarize(n = n_distinct(x)) |>
-      pull(n),
+    pull(summarize(df_na, n = n_distinct(x)), n),
     3
   )
 
   # two columns return correct results
   expect_equal(
-    tbl(con, "df2") |>
-      summarize(n = n_distinct(x, y)) |>
-      pull(n),
+    pull(summarize(df, n = n_distinct(x, y)), n),
     3
   )
 
   # two columns containing NAs return correct results
   expect_equal(
-    tbl(con, "df2_na") |>
-      summarize(n = n_distinct(x, y)) |>
-      pull(n),
+    pull(summarize(df_na, n = n_distinct(x, y)), n),
     5
   )
 })
