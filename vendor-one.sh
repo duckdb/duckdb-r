@@ -45,7 +45,14 @@ for commit in $(git -C "$upstream_dir" log --first-parent --reverse --format="%H
   echo "R: configure"
   DUCKDB_PATH="$upstream_dir" python3 rconfigure.py
 
-  cat patch/*.patch | patch -p1
+  for f in patch/*.patch; do
+    if cat $f | patch -p1 --dry-run; then
+      cat $f | patch -p1
+    else
+      echo "Patch $f does not apply, skipping it and remaining patches"
+      break
+    fi
+  done
 
   # Always vendor tags
   if [ $(git -C "$upstream_dir" describe --tags "$commit" | grep -c -- -) -eq 0 ]; then
