@@ -78,10 +78,11 @@ duckdb_grepl <- function(pattern, x, ignore.case = FALSE, perl = FALSE, fixed = 
 }
 
 duckdb_n_distinct <- function(..., na.rm = FALSE) {
-  check_na_rm <- pkg_method("check_na_rm", "dbplyr")
   glue_sql2 <- pkg_method("glue_sql2", "dbplyr")
 
-  check_na_rm(na.rm)
+  if (identical(na.rm, TRUE)) {
+    cli::cli_abort("`na.rm = TRUE` not implemented.")
+  }
 
   vars <- list(...)
   str_struct <-
