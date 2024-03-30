@@ -226,6 +226,57 @@ test_that("two variable aggregates are translated correctly", {
   expect_equal(translate(n_distinct(x, y), window = TRUE), sql(r"{COUNT(DISTINCT {'v1' : x, 'v2' : y}) OVER ()}"))
 })
 
+test_that("n_distinct() computations are correct", {
+  skip_if_no_R4()
+  skip_if_not_installed("dplyr")
+  skip_if_not_installed("dbplyr")
+  con <- dbConnect(duckdb())
+  on.exit(dbDisconnect(con, shutdown = TRUE))
+  tbl <- dplyr::tbl
+  summarize <- dplyr::summarize
+  pull <- dplyr::pull
+
+  duckdb_register(con, "df1", data.frame(x = c(1, 1, 2)))
+  duckdb_register(con, "df1_na", data.frame(x = c(1, 1, 2, NA)))
+  duckdb_register(con, "df2", data.frame(x = c(1, 1, 2, 2), y = c(1, 2, 2, 2)))
+  duckdb_register(con, "df2_na", data.frame(x = c(1, 1, 2, NA, NA), y = c(1, 2, NA, 2, NA)))
+
+  expect_error(
+    tbl(con, "df1") |>
+      summarize(n = n_distinct(x, na.rm = TRUE)) |>
+      pull(n)
+  )
+
+  # single column is working as usual
+  expect_equal(
+    tbl(con, "df1") |>
+      summarize(n = n_distinct(x)) |>
+      pull(n),
+    2
+  )
+  expect_equal(
+    tbl(con, "df1_na") |>
+      summarize(n = n_distinct(x)) |>
+      pull(n),
+    3
+  )
+
+  # two columns return correct results
+  expect_equal(
+    tbl(con, "df2") |>
+      summarize(n = n_distinct(x, y)) |>
+      pull(n),
+    3
+  )
+
+  # two columns containing NAs return correct results
+  expect_equal(
+    tbl(con, "df2_na") |>
+      summarize(n = n_distinct(x, y)) |>
+      pull(n),
+    5
+  )
+})
 
 
 
