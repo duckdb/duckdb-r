@@ -44,18 +44,12 @@ typedef pthread_rwlock_t MutexType;
 typedef std::shared_mutex MutexType;
 #endif
 
-#ifdef MUTEX_IS_PTHREAD_RWLOCK
-#define MUTEX_THROW noexcept(false)
-#else
-#define MUTEX_THROW
-#endif
-
 namespace duckdb_re2 {
 
 class Mutex {
  public:
-  inline Mutex() MUTEX_THROW;
-  inline ~Mutex() MUTEX_THROW;
+  inline Mutex();
+  inline ~Mutex();
   inline void Lock();    // Block if needed until free then acquire exclusively
   inline void Unlock();  // Release a lock acquired via Lock()
   // Note that on systems that don't support read-write locks, these may
@@ -99,15 +93,15 @@ void Mutex::ReaderUnlock() { ReleaseSRWLockShared(&mutex_); }
 
 #define SAFE_PTHREAD(fncall)    \
   do {                          \
-    if ((fncall) != 0) throw std::runtime_error("re2 mutex pthread error"); \
-  } while (0)
+    if ((fncall) != 0) throw std::runtime_error("RE2 pthread failure"); \
+  } while (0);
 
-Mutex::Mutex() MUTEX_THROW  { SAFE_PTHREAD(pthread_rwlock_init(&mutex_, NULL)); }
-Mutex::~Mutex() MUTEX_THROW { SAFE_PTHREAD(pthread_rwlock_destroy(&mutex_)); }
-void Mutex::Lock()          { SAFE_PTHREAD(pthread_rwlock_wrlock(&mutex_)); }
-void Mutex::Unlock()        { SAFE_PTHREAD(pthread_rwlock_unlock(&mutex_)); }
-void Mutex::ReaderLock()    { SAFE_PTHREAD(pthread_rwlock_rdlock(&mutex_)); }
-void Mutex::ReaderUnlock()  { SAFE_PTHREAD(pthread_rwlock_unlock(&mutex_)); }
+Mutex::Mutex()             { SAFE_PTHREAD(pthread_rwlock_init(&mutex_, NULL)); }
+Mutex::~Mutex()            { SAFE_PTHREAD(pthread_rwlock_destroy(&mutex_)); }
+void Mutex::Lock()         { SAFE_PTHREAD(pthread_rwlock_wrlock(&mutex_)); }
+void Mutex::Unlock()       { SAFE_PTHREAD(pthread_rwlock_unlock(&mutex_)); }
+void Mutex::ReaderLock()   { SAFE_PTHREAD(pthread_rwlock_rdlock(&mutex_)); }
+void Mutex::ReaderUnlock() { SAFE_PTHREAD(pthread_rwlock_unlock(&mutex_)); }
 
 #undef SAFE_PTHREAD
 
