@@ -76,6 +76,8 @@
 
 #include "src/execution/physical_plan/plan_window.cpp"
 
+#include "src/execution/physical_plan/plan_vacuum.cpp"
+
 #include "src/execution/physical_plan/plan_unnest.cpp"
 
 #include "src/execution/physical_plan/plan_expression_get.cpp"

@@ -80,5 +80,7 @@
 
 #include "src/planner/operator/logical_update.cpp"
 
+#include "src/planner/operator/logical_vacuum.cpp"
+
 #include "src/planner/operator/logical_window.cpp"
 
