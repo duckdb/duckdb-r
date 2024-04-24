@@ -114,12 +114,12 @@ R_len_t RApiTypes::GetVecSize(RType rtype, SEXP coldata) {
 	return Rf_length(coldata);
 }
 
-Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx) {
+Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null) {
 	auto rtype = RApiTypes::DetectRType(valsexp, false); // TODO
 	switch (rtype.id()) {
 	case RType::LOGICAL: {
 		auto lgl_val = INTEGER_POINTER(valsexp)[idx];
-		return RBooleanType::IsNull(lgl_val) ? Value(LogicalType::SQLNULL) : Value::BOOLEAN(lgl_val);
+		return RBooleanType::IsNull(lgl_val) ? Value(typed_logical_null ? LogicalType::BOOLEAN : LogicalType::SQLNULL) : Value::BOOLEAN(lgl_val);
 	}
 	case RType::INTEGER: {
 		auto int_val = INTEGER_POINTER(valsexp)[idx];

@@ -115,7 +115,7 @@ struct RApiTypes {
 	static LogicalType LogicalTypeFromRType(const RType &rtype, bool experimental);
 	static string DetectLogicalType(const LogicalType &stype, const char *caller);
 	static R_len_t GetVecSize(RType rtype, SEXP coldata);
-	static Value SexpToValue(SEXP valsexp, R_len_t idx);
+	static Value SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null = true);
 	static SEXP ValueToSexp(Value &val, string &timezone_config);
 };
 
