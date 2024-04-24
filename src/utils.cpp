@@ -119,7 +119,7 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx) {
 	switch (rtype.id()) {
 	case RType::LOGICAL: {
 		auto lgl_val = INTEGER_POINTER(valsexp)[idx];
-		return RBooleanType::IsNull(lgl_val) ? Value(LogicalType::BOOLEAN) : Value::BOOLEAN(lgl_val);
+		return RBooleanType::IsNull(lgl_val) ? Value(LogicalType::SQLNULL) : Value::BOOLEAN(lgl_val);
 	}
 	case RType::INTEGER: {
 		auto int_val = INTEGER_POINTER(valsexp)[idx];
