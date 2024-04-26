@@ -2,6 +2,7 @@
 #include "rapi.hpp"
 #include "typesr.hpp"
 #include "duckdb/common/adbc/adbc-init.hpp"
+#include "include/rfuns_extension.hpp"
 
 using namespace duckdb;
 
@@ -292,4 +293,15 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 	default:
 		throw NotImplementedException("Can't convert %s of type %s", val.ToString(), val.type().ToString());
 	}
+}
+
+[[cpp11::register]] SEXP rapi_load_rfuns(duckdb::db_eptr_t dual) {
+	if (!dual || !dual.get()) {
+		cpp11::stop("rapi_lock: Invalid database reference");
+	}
+	auto db = dual->get();
+	if (!db || !db->db) {
+		cpp11::stop("rapi_connect: Database already closed");
+	}
+	db->db->LoadExtension<RfunsExtension>();
 }
