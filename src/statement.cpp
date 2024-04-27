@@ -63,7 +63,7 @@ using namespace cpp11::literals;
 
 static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt, const string &query, idx_t n_param) {
 	cpp11::writable::list retlist;
-	retlist.reserve(6);
+	retlist.reserve(7);
 	retlist.push_back({"str"_nm = query});
 
 	auto stmtholder = new RStatement();
