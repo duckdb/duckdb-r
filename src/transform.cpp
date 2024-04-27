@@ -51,6 +51,7 @@ SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows) {
 		return NEW_LIST(nrows);
 	case LogicalTypeId::STRUCT: {
 		cpp11::writable::list dest_list;
+		dest_list.reserve(StructType::GetChildTypes(type).size());
 
 		for (const auto &child : StructType::GetChildTypes(type)) {
 			const auto &name = child.first;
@@ -59,6 +60,9 @@ SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows) {
 			cpp11::sexp dest_child = duckdb_r_allocate(child_type, nrows);
 			dest_list.push_back(cpp11::named_arg(name.c_str()) = std::move(dest_child));
 		}
+
+		// convert to SEXP, with potential side effect of truncation
+		(void)(SEXP)dest_list;
 
 		// Note we cannot use cpp11's data frame here as it tries to calculate the number of rows itself,
 		// but gives the wrong answer if the first column is another data frame or the struct is empty.

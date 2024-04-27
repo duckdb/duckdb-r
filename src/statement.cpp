@@ -63,7 +63,7 @@ using namespace cpp11::literals;
 
 static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt, const string &query, idx_t n_param) {
 	cpp11::writable::list retlist;
-	retlist.reserve(6);
+	retlist.reserve(7);
 	retlist.push_back({"str"_nm = query});
 
 	auto stmtholder = new RStatement();
@@ -213,16 +213,21 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, bool integer
 	// Note we cannot use cpp11's data frame here as it tries to calculate the number of rows itself,
 	// but gives the wrong answer if the first column is another data frame. So we set the necessary
 	// attributes manually.
-	cpp11::writable::list data_frame(NEW_LIST(ncols));
-	data_frame.attr(R_ClassSymbol) = RStrings::get().dataframe_str;
-	data_frame.attr(R_RowNamesSymbol) = {NA_INTEGER, -static_cast<int>(nrows)};
-	SET_NAMES(data_frame, StringsToSexp(result->names));
+	cpp11::writable::list data_frame;
+	data_frame.reserve(ncols);
 
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
 		cpp11::sexp varvalue = duckdb_r_allocate(result->types[col_idx], nrows);
 		duckdb_r_decorate(result->types[col_idx], varvalue, integer64);
-		SET_VECTOR_ELT(data_frame, col_idx, varvalue);
+		data_frame.push_back(varvalue);
 	}
+
+	// Convert to SEXP, finalize length
+	(void)(SEXP)data_frame;
+
+	data_frame.attr(R_ClassSymbol) = RStrings::get().dataframe_str;
+	data_frame.attr(R_RowNamesSymbol) = {NA_INTEGER, -static_cast<int>(nrows)};
+	SET_NAMES(data_frame, StringsToSexp(result->names));
 
 	// at this point data_frame is fully allocated and the only protected SEXP
 
