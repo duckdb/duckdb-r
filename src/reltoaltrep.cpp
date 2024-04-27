@@ -299,21 +299,11 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 	auto drel = rel->rel;
 	auto ncols = drel->Columns().size();
 
-	cpp11::writable::list data_frame(NEW_LIST(ncols));
-	data_frame.attr(R_ClassSymbol) = RStrings::get().dataframe_str;
 	auto relation_wrapper = make_shared<AltrepRelationWrapper>(drel);
 
-	cpp11::external_pointer<AltrepRownamesWrapper> ptr(new AltrepRownamesWrapper(relation_wrapper));
-	R_SetExternalPtrTag(ptr, RStrings::get().duckdb_row_names_sym);
+	cpp11::writable::list data_frame;
+	data_frame.reserve(ncols);
 
-	cpp11::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, rel);
-	install_new_attrib(data_frame, R_RowNamesSymbol, row_names_sexp);
-	vector<string> names;
-	for (auto &col : drel->Columns()) {
-		names.push_back(col.Name());
-	}
-
-	SET_NAMES(data_frame, StringsToSexp(names));
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
 		auto &column_type = drel->Columns()[col_idx].Type();
 		cpp11::external_pointer<AltrepVectorWrapper> ptr(new AltrepVectorWrapper(relation_wrapper, col_idx));
@@ -321,8 +311,28 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 
 		cpp11::sexp vector_sexp = R_new_altrep(LogicalTypeToAltrepType(column_type), ptr, rel);
 		duckdb_r_decorate(column_type, vector_sexp, false);
-		SET_VECTOR_ELT(data_frame, col_idx, vector_sexp);
+		data_frame.push_back(vector_sexp);
 	}
+
+	// convert to SEXP, with potential side effect of truncation and removal of attributes
+	(void)(SEXP)data_frame;
+
+	// Names
+	vector<string> names;
+	for (auto &col : drel->Columns()) {
+		names.push_back(col.Name());
+	}
+	SET_NAMES(data_frame, StringsToSexp(names));
+
+	// Row names
+	cpp11::external_pointer<AltrepRownamesWrapper> ptr(new AltrepRownamesWrapper(relation_wrapper));
+	R_SetExternalPtrTag(ptr, RStrings::get().duckdb_row_names_sym);
+	cpp11::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, rel);
+	install_new_attrib(data_frame, R_RowNamesSymbol, row_names_sexp);
+
+	// Class
+	data_frame.attr(R_ClassSymbol) = RStrings::get().dataframe_str;
+
 	return data_frame;
 }
 
