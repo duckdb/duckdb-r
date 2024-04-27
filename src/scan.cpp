@@ -37,12 +37,12 @@ data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 		return (data_ptr_t)INTEGER_POINTER(coldata);
 	case RType::DATE:
 		if (!IS_NUMERIC(coldata)) {
-			cpp11::stop("DATE should really be integer");
+			cpp11::stop("DATE should be of numeric type");
 		}
 		return (data_ptr_t)NUMERIC_POINTER(coldata);
 	case RType::DATE_INTEGER:
 		if (!IS_INTEGER(coldata)) {
-			cpp11::stop("DATE_INTEGER should really be integer");
+			cpp11::stop("DATE_INTEGER should be of integer type");
 		}
 		return (data_ptr_t)INTEGER_POINTER(coldata);
 	case RType::LIST_OF_NULLS:
