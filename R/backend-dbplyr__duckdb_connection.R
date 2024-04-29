@@ -77,6 +77,18 @@ duckdb_grepl <- function(pattern, x, ignore.case = FALSE, perl = FALSE, fixed = 
   }
 }
 
+duckdb_n_distinct <- function(..., na.rm = FALSE) {
+  sql <- pkg_method("sql", "dbplyr")
+
+  if (!identical(na.rm, FALSE)) {
+    stop("Parameter `na.rm = TRUE` in n_distinct() is currently not supported in DuckDB backend.", call. = FALSE)
+  }
+
+  # https://duckdb.org/docs/sql/data_types/struct.html#creating-structs-with-the-row-function
+  str_struct <- paste0("row(", paste0(list(...), collapse = ", "), ")")
+
+  sql(paste0("COUNT(DISTINCT ", str_struct, ")"))
+}
 
 # Customized translation functions for DuckDB SQL
 # @param con A \code{\link{dbConnect}} object, as returned by \code{dbConnect()}
@@ -316,7 +328,8 @@ sql_translation.duckdb_connection <- function(con) {
       any = sql_aggregate("BOOL_OR", "any"),
       str_flatten = function(x, collapse) sql_expr(STRING_AGG(!!x, !!collapse)),
       first = sql_prefix("FIRST", 1),
-      last = sql_prefix("LAST", 1)
+      last = sql_prefix("LAST", 1),
+      n_distinct = duckdb_n_distinct
     ),
     sql_translator(
       .parent = base_win,
@@ -333,7 +346,14 @@ sql_translation.duckdb_connection <- function(con) {
           partition = win_current_group(),
           order = win_current_order()
         )
-      }
+      },
+      n_distinct =
+        function(..., na.rm = FALSE) {
+          win_over(
+            duckdb_n_distinct(..., na.rm = na.rm),
+            partition = win_current_group()
+          )
+        }
     )
   )
 }

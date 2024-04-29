@@ -206,6 +206,9 @@ test_that("aggregators translated correctly", {
 
   expect_equal(translate(str_flatten(x, ","), window = FALSE), sql(r"{STRING_AGG(x, ',')}"))
   expect_equal(translate(str_flatten(x, ","), window = TRUE), sql(r"{STRING_AGG(x, ',') OVER ()}"))
+
+  expect_equal(translate(n_distinct(x), window = FALSE), sql(r"{COUNT(DISTINCT row(x))}"))
+  expect_equal(translate(n_distinct(x), window = TRUE), sql(r"{COUNT(DISTINCT row(x)) OVER ()}"))
 })
 
 test_that("two variable aggregates are translated correctly", {
@@ -218,8 +221,54 @@ test_that("two variable aggregates are translated correctly", {
 
   expect_equal(translate(cor(x, y), window = FALSE), sql(r"{CORR(x, y)}"))
   expect_equal(translate(cor(x, y), window = TRUE), sql(r"{CORR(x, y) OVER ()}"))
+
+  expect_equal(translate(n_distinct(x, y), window = FALSE), sql(r"{COUNT(DISTINCT row(x, y))}"))
+  expect_equal(translate(n_distinct(x, y), window = TRUE), sql(r"{COUNT(DISTINCT row(x, y)) OVER ()}"))
 })
 
+test_that("n_distinct() computations are correct", {
+  skip_if_no_R4()
+  skip_if_not_installed("dplyr")
+  skip_if_not_installed("dbplyr")
+  con <- dbConnect(duckdb())
+  on.exit(dbDisconnect(con, shutdown = TRUE))
+  tbl <- dplyr::tbl
+  summarize <- dplyr::summarize
+  pull <- dplyr::pull
+
+  duckdb_register(con, "df", data.frame(x = c(1, 1, 2, 2), y = c(1, 2, 2, 2)))
+  duckdb_register(con, "df_na", data.frame(x = c(1, 1, 2, NA, NA), y = c(1, 2, NA, 2, NA)))
+
+  df <- tbl(con, "df")
+  df_na <- tbl(con, "df_na")
+
+  expect_error(
+    pull(summarize(df, n = n_distinct(x, na.rm = TRUE)), n)
+  )
+
+  # single column is working as usual
+  expect_equal(
+    pull(summarize(df, n = n_distinct(x)), n),
+    2
+  )
+
+  expect_equal(
+    pull(summarize(df_na, n = n_distinct(x)), n),
+    3
+  )
+
+  # two columns return correct results
+  expect_equal(
+    pull(summarize(df, n = n_distinct(x, y)), n),
+    3
+  )
+
+  # two columns containing NAs return correct results
+  expect_equal(
+    pull(summarize(df_na, n = n_distinct(x, y)), n),
+    5
+  )
+})
 
 
 
