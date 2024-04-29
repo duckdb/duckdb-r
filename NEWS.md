@@ -1,5 +1,621 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 0.10.1.9002
+
+## Bug fixes
+
+- `rel_sql(rel, "{{sql}}")` works even on a read-only database (@Tmonster, #138).
+
+- Avoid `R CMD check` warning regarding `SETLENGTH()` and `SET_TRUELENGTH()` (#145).
+
+- Fix vendoring script without arguments, align.
+
+## Features
+
+- Use latest tests from DBItest (#148).
+
+- Implement `n_distinct()` for multiple arguments using duckdb structs (@lschneiderbauer, #110, #122).
+
+- Include rfuns extension (hannes/duckdb-rfuns#78, #144).
+
+- Map `NA` to `SQLNULL` (#143).
+
+## Chore
+
+- Update vendored sources (tag v0.10.2) to duckdb/duckdb@1601d94f94a7e0d2eb805a94803eb1e3afbbe4ed.
+
+- Update vendored sources to duckdb/duckdb@1601d94f94a7e0d2eb805a94803eb1e3afbbe4ed.
+
+  Merge pull request duckdb/duckdb#11681 from Maxxen/bump-vss
+  Merge pull request duckdb/duckdb#11682 from Mytherin/shellutf8
+
+- Update vendored sources to duckdb/duckdb@d7d6f9830ed14d50f27c0ff4a45e5938c7ae22f3.
+
+  Merge pull request duckdb/duckdb#11678 from Mytherin/pivotcaseinsensitivity
+
+- Update vendored sources to duckdb/duckdb@1253581f091b4617cba10e573f25eb5c5626253d.
+
+  Merge pull request duckdb/duckdb#11676 from Mytherin/hivetypesautocast
+
+- Update vendored sources to duckdb/duckdb@f67f77c604296427b1dbfd666afb47bcc24afc87.
+
+  Merge pull request duckdb/duckdb#11674 from Mytherin/issue11484
+
+- Update vendored sources to duckdb/duckdb@e9c94226867a68e2d747e4c309412a2acb2ca0a3.
+
+  Merge pull request duckdb/duckdb#11675 from pdet/decimal_auto
+  Merge pull request duckdb/duckdb#11672 from carlopi/fix_version_remote
+
+- Update vendored sources to duckdb/duckdb@49ea721f39c9d2029212919cb620609ae9927401.
+
+  Merge pull request duckdb/duckdb#11665 from Mytherin/unionbynametypes
+
+- Update vendored sources to duckdb/duckdb@5960154dcce5a1119eb0abcabb40c1ffa5733989.
+
+  Merge pull request duckdb/duckdb#11670 from Mytherin/fixissue11542
+
+- Update vendored sources to duckdb/duckdb@3c7ad7001e271f32b11bb233143d1e03df2a47b1.
+
+  Merge pull request duckdb/duckdb#11671 from Mytherin/valgrindfix
+  Merge pull request duckdb/duckdb#11653 from pdet/adbc_py9
+
+- Update vendored sources to duckdb/duckdb@846ef2c59a6723b601bcdc9ee236b73b402d29c5.
+
+  Merge pull request duckdb/duckdb#11668 from Mytherin/issue11467
+
+- Update vendored sources to duckdb/duckdb@9934420aec07701ff9c3701226fbc1a15b2ac0a5.
+
+  Merge pull request duckdb/duckdb#11667 from Mytherin/issue11469
+
+- Update vendored sources to duckdb/duckdb@5bcfd7434790fabb0ea99998abb78e3a31bad47a.
+
+  Merge pull request duckdb/duckdb#11663 from zmbc/include-falloc
+
+- Update vendored sources to duckdb/duckdb@9a3cc6aecb460fe0755febaf48e095406c3a2e62.
+
+  Merge pull request duckdb/duckdb#11616 from pdet/multiple_nullstr
+  Merge pull request duckdb/duckdb#11662 from carlopi/patches
+  Merge pull request duckdb/duckdb#11658 from chrisiou/support-gzipped-files
+
+- Update vendored sources to duckdb/duckdb@f37773d43c201fd1013364190357f9a101452832.
+
+  Merge pull request duckdb/duckdb#11659 from Maxxen/initialize-unknown-index-on-lookup
+
+- Update vendored sources to duckdb/duckdb@7b8f79469443760ab76e103211175a732789d085.
+
+  Merge pull request duckdb/duckdb#11656 from Tishj/statement_copy_verification
+
+- Update vendored sources to duckdb/duckdb@076daa998f351130195d4920e03facd876235aaa.
+
+  Merge pull request duckdb/duckdb#11655 from Mytherin/limitbatchinsertthreads
+
+- Update vendored sources to duckdb/duckdb@22cdf0a7f9208f32903b081a1b9bf2284b57f6dc.
+
+  Merge pull request duckdb/duckdb#11465 from Tishj/fix_duckdb_sequences_last_value
+
+- Update vendored sources to duckdb/duckdb@4476a915db79cfb142acc5f3362d9069093b5877.
+
+  Merge pull request duckdb/duckdb#11645 from wangxiaoying/ec0
+  Merge pull request duckdb/duckdb#11652 from carlopi/no_macos_codesign_extensions
+
+- Update vendored sources to duckdb/duckdb@acfcf5185f4557a15a518ed9e822a498534a1d2d.
+
+  Merge pull request duckdb/duckdb#11650 from Maxxen/bump-spatial
+
+- Update vendored sources to duckdb/duckdb@ee9802db9ff339c3b1e6d45944508c3672d2e023.
+
+  Merge pull request duckdb/duckdb#11648 from Mytherin/fuzzerissues3
+  Merge pull request duckdb/duckdb#11646 from Mause/bugfix/jdbc-parameter-types
+
+- Update vendored sources to duckdb/duckdb@38dd6c56d814b76cd382bf274a2c53b8a5380c9a.
+
+  Merge pull request duckdb/duckdb#11642 from Mytherin/fuzzerissues2
+
+- Update vendored sources to duckdb/duckdb@b2d51518c83685ce3777295ad0e091e6fbc14a04.
+
+  Merge pull request duckdb/duckdb#11630 from pdet/gz_buffers
+  Merge pull request duckdb/duckdb#11635 from motherduckdb/flo/fix-scripts-path-cmake
+
+- Update vendored sources to duckdb/duckdb@e0c4d9c4dcb08573dba54df18a460ad8606ac9a0.
+
+  Merge pull request duckdb/duckdb#11631 from pdet/recursive
+  Merge pull request duckdb/duckdb#11628 from carlopi/fix_extension_config
+  Merge pull request duckdb/duckdb#11629 from carlopi/metadata_fix
+
+- Update vendored sources to duckdb/duckdb@c54063a9a56747e7a57bba93a4ba7d05eb86306e.
+
+  Merge pull request duckdb/duckdb#11614 from Maxxen/add-vss
+  Merge pull request duckdb/duckdb#11490 from carlopi/docker_scripts
+  Merge pull request duckdb/duckdb#11626 from carlopi/upload_pyodide
+
+- Update vendored sources to duckdb/duckdb@5277974b7e15e4ccc3a8a5a04b0d9bce8f397600.
+
+  Merge pull request duckdb/duckdb#11462 from Tishj/create_index_to_string
+
+- Update vendored sources to duckdb/duckdb@ec84e37ae1b81f67b52f9289c48e5d9fd9a1b3d1.
+
+  Merge pull request duckdb/duckdb#11515 from carlopi/extension_metadata
+
+- Update vendored sources to duckdb/duckdb@55607c05dffda52ca0fea42994632e26d2aa167d.
+
+  Merge pull request duckdb/duckdb#11619 from carlopi/checked_dyn_casts
+  Merge pull request duckdb/duckdb#11531 from cpcloud/pyodide
+
+- Update vendored sources to duckdb/duckdb@8116e65f1c86be9eecdb78f17b686de6244b54ae.
+
+  Merge pull request duckdb/duckdb#11618 from joellubi/adbc-getobjects-no-filter
+  Merge pull request duckdb/duckdb#11623 from Tishj/modular_extension_entries_generation
+
+- Update vendored sources to duckdb/duckdb@9e97aa38b7f3bb2e52b778ffdd09789d4eafde93.
+
+  Merge pull request duckdb/duckdb#11622 from Mytherin/fuzzerissues
+  Merge pull request duckdb/duckdb#11610 from guenp/guenp/fix-timestamp-is-date
+
+- Update vendored sources to duckdb/duckdb@b9199653c3acc0e627c55b99724c636b13f80a7d.
+
+  Merge pull request duckdb/duckdb#11613 from Mytherin/ossfuzz
+
+- Update vendored sources to duckdb/duckdb@e5f45238740e8c8fef3d22ee61f6b7faf950c05d.
+
+  Merge pull request duckdb/duckdb#11601 from Tmonster/fix_topn_placement
+
+- Update vendored sources to duckdb/duckdb@41419f3df6a04af9c46098de92f6511916a276aa.
+
+  Merge pull request duckdb/duckdb#11512 from pdet/rejects_tables_2.0
+
+- Update vendored sources to duckdb/duckdb@6598220b953b0be8a612ea1a9d5c1bd85c5379c8.
+
+  Merge pull request duckdb/duckdb#11273 from pdet/dont_store_single
+
+- Update vendored sources to duckdb/duckdb@f16b6a3bc6a23d4a1221c08496721d665d220199.
+
+  Merge pull request duckdb/duckdb#11551 from Maxxen/initialize-unknown-index-on-lookup
+  Merge pull request duckdb/duckdb#11600 from chrisiou/support-gzipped-files
+
+- Update vendored sources to duckdb/duckdb@25f4fdc9d09be54ee24738642afa4f90cb452225.
+
+  Merge pull request duckdb/duckdb#11604 from carlopi/bump_oot
+
+- Update vendored sources to duckdb/duckdb@b9aadb70595025c9cfc62e6ab76bdbf51fcc9df7.
+
+  Merge pull request duckdb/duckdb#11587 from Mytherin/usequotes
+  Merge pull request duckdb/duckdb#11595 from carlopi/fix_lzma_again
+
+- Update vendored sources to duckdb/duckdb@43b8f8bb510da48bf3a0c41acb3f5f9d338646a6.
+
+  Merge pull request duckdb/duckdb#11585 from Mytherin/dbgenreadonly
+  Merge pull request duckdb/duckdb#11593 from carlopi/remove_github_pat
+  Merge pull request duckdb/duckdb#11577 from szarnyasg/update-issue-template2
+  Merge pull request duckdb/duckdb#11592 from Mytherin/drafttoken
+
+- Update vendored sources to duckdb/duckdb@52c0b23fd04d59599756b597cd78ef74606e73a3.
+
+  Merge pull request duckdb/duckdb#11580 from Mytherin/unneststructcleanup
+  Merge pull request duckdb/duckdb#11576 from szarnyasg/reprox-labels
+  Merge pull request duckdb/duckdb#11575 from Mytherin/permissions
+  Merge pull request duckdb/duckdb#11423 from guenp/guenp/fix-sqlgetinfo-1750-unknown-attribute
+  Merge pull request duckdb/duckdb#11382 from guenp/guenp/ignore-pq-driver-key
+
+- Update vendored sources to duckdb/duckdb@b8533afc3db47e090651c8967cc1e0c94035113f.
+
+  Merge pull request duckdb/duckdb#11461 from lnkuiper/parquet_dict_early_out
+  Merge pull request duckdb/duckdb#11137 from Tishj/sqllogic_parser
+  Merge pull request duckdb/duckdb#11095 from Tishj/python_struct_child_count_mismatch
+  Merge pull request duckdb/duckdb#10382 from jzavala-gonzalez/python-write-csv-options
+
+- Update vendored sources to duckdb/duckdb@7c0c66d5f7cceaaa6ebd6f2e513dc9fc3a5a550d.
+
+  Merge pull request duckdb/duckdb#11267 from Tishj/uncompressed_storage_asserts
+
+- Update vendored sources to duckdb/duckdb@cc3547d753cb6feaa6e613dad5bb4aaf47763bab.
+
+  Merge pull request duckdb/duckdb#11558 from Maxxen/bugfixes
+  Merge pull request duckdb/duckdb#11532 from Tmonster/run_new_micro_benchmarks_to_check_for_improvement
+
+- Update vendored sources to duckdb/duckdb@2e6f74803b63c0c2679c6f6603d292b04a68c31e.
+
+  Merge pull request duckdb/duckdb#11528 from lnkuiper/radixht_tasks_main
+  Merge pull request duckdb/duckdb#11553 from carlopi/fix_assets_to_staging
+  Merge pull request duckdb/duckdb#11556 from carlopi/fix_github_token
+
+- Update vendored sources to duckdb/duckdb@b4408a8aab9f5658e971c67530a62326767ce1ec.
+
+  Merge pull request duckdb/duckdb#11546 from Tishj/client_properties_timezone
+  Merge pull request duckdb/duckdb#11547 from Tishj/c_enum_integrity_ci_fix
+
+- Update vendored sources to duckdb/duckdb@b1f580c298fa5f1ca641d0f43a3588ccae7e6cd4.
+
+  Merge pull request duckdb/duckdb#11544 from Maxxen/bugfixes
+
+- Update vendored sources to duckdb/duckdb@b4c28bf4afa53bd56732e23f7a54a8cdeaf4fa24.
+
+  Merge pull request duckdb/duckdb#11519 from hawkfish/try-from-time
+  Merge pull request duckdb/duckdb#11530 from lnkuiper/json_scan_assertion
+
+- Update vendored sources to duckdb/duckdb@ba2b8a318d6b151e24094f9ac848aab37a7fea39.
+
+  Merge pull request duckdb/duckdb#11525 from samansmink/fix-timeout-async-ci
+
+- Update vendored sources to duckdb/duckdb@0e3a51a627fecf6f401b759df273ca2ead038755.
+
+  Merge pull request duckdb/duckdb#11270 from Tishj/initialize_with_garbage
+
+- Update vendored sources to duckdb/duckdb@32c1c67529fa8f62a49c69b3b7685d516cf234ca.
+
+  Merge pull request duckdb/duckdb#11496 from hawkfish/nested-nulls
+
+- Update vendored sources to duckdb/duckdb@03c8e7a287b0fd83bd4062913cc7be1d91871bef.
+
+  Merge pull request duckdb/duckdb#11513 from carlopi/fix_re2
+  Merge pull request duckdb/duckdb#11522 from Mytherin/issueworkflow
+  Merge pull request duckdb/duckdb#11509 from szarnyasg/bump-stale-bot
+
+- Update vendored sources to duckdb/duckdb@9c9c2ca52bb1206418c826e7d85a7b798f579017.
+
+  Merge pull request duckdb/duckdb#11495 from lnkuiper/cm_sp_integration
+
+- Update vendored sources to duckdb/duckdb@bb65caca6d8e331c23ffc381cc17be06c870b144.
+
+  Merge pull request duckdb/duckdb#11506 from Mytherin/decimalmodulo
+
+- Update vendored sources to duckdb/duckdb@6c3a94cd4130f0d11718673887a85862931f8d96.
+
+  Merge pull request duckdb/duckdb#11446 from joellubi/fix-adbc-getobjects-schema
+  Merge pull request duckdb/duckdb#11468 from Tishj/python_time_df_convert
+  Merge pull request duckdb/duckdb#11508 from rdavis120/main
+
+- Update vendored sources to duckdb/duckdb@5316fd4da6aa2b8ea1257497a05b1e5350b65a01.
+
+  Merge pull request duckdb/duckdb#11401 from motherduckdb/flo/copy-database-serialization
+
+- Update vendored sources to duckdb/duckdb@2eecda939ad41e484c225b7cb0d70244d96711ff.
+
+  Merge pull request duckdb/duckdb#11498 from Mytherin/issue11444
+
+- Update vendored sources to duckdb/duckdb@925698598e6601552c0ada78b684a330216b7127.
+
+  Merge pull request duckdb/duckdb#11497 from Mytherin/issue11445
+  Merge pull request duckdb/duckdb#11488 from patmaddox/conditional-iutf8
+
+- Update vendored sources to duckdb/duckdb@dfaac6862994c4775369f1472cf748ff139ad5ee.
+
+  Merge pull request duckdb/duckdb#11247 from taniabogatsch/fix-fuzzer
+
+- Update vendored sources to duckdb/duckdb@8d9e71ffe9f29caad73f57aa21eed7af57da2b23.
+
+  Merge pull request duckdb/duckdb#11486 from carlopi/fix_extension_builds
+
+- Update vendored sources to duckdb/duckdb@4b72786f3c42127d891ace4606d30d6c3b4054da.
+
+  Merge pull request duckdb/duckdb#11408 from Tishj/logical_dependency
+
+- Update vendored sources to duckdb/duckdb@5345a494c7d2d9f69f3d2486c66c191e67a93474.
+
+  Merge pull request duckdb/duckdb#11464 from Tishj/arrow_invalid_struct
+
+- Update vendored sources to duckdb/duckdb@0b4caed8bcd253fced268da739933ecbff104199.
+
+  Merge pull request duckdb/duckdb#11478 from duckdb/revert-11402-bind-create-index-on-binder
+
+- Update vendored sources to duckdb/duckdb@4da84ddf5645e33a2ae8f67b5883e2ed1446c319.
+
+  Merge pull request duckdb/duckdb#11466 from Mytherin/moreoptionalidx
+
+- Update vendored sources to duckdb/duckdb@4842b8204c5f0bd06c2a7d03c7e09d366066e756.
+
+  Merge pull request duckdb/duckdb#11470 from Mytherin/deletememoryusage
+  Merge pull request duckdb/duckdb#11476 from carlopi/fix_lzma
+  Merge pull request duckdb/duckdb#11432 from guenp/guenp/add-escape-to-filter
+  Merge pull request duckdb/duckdb#11378 from lnkuiper/read_json_defer_allocation
+
+- Update vendored sources to duckdb/duckdb@2be8c43ca39a48545da675f6f1092ca38f8cf627.
+
+  Merge pull request duckdb/duckdb#11458 from hannes/zapabortre2
+
+- Fix patch.
+
+- Update vendored sources to duckdb/duckdb@310e11f214deddbdcd3cfe8dde7f55903e6f3098.
+
+  Merge pull request duckdb/duckdb#11358 from pdet/substrait_adbc
+
+- Update vendored sources to duckdb/duckdb@acc5e79b453b0a76292cb039bc8305bd9fd28fb3.
+
+  Merge pull request duckdb/duckdb#11402 from philippmd/bind-create-index-on-binder
+
+- Update vendored sources to duckdb/duckdb@13f272413770a83e3dec808f35beca31bd0fe38d.
+
+  Merge pull request duckdb/duckdb#11399 from kryonix/cte_fix
+  Merge pull request duckdb/duckdb#11459 from carlopi/skip_ccache_r
+
+- Update vendored sources to duckdb/duckdb@f41419fa88585f929bd818d287c0e91f67a59482.
+
+  Merge pull request duckdb/duckdb#11443 from huachaohuang/patch-1
+
+- Update vendored sources to duckdb/duckdb@6a6a1028f192cb8eaec39fdf0e6caedf60634287.
+
+  Merge pull request duckdb/duckdb#11456 from bodand/main
+  Merge pull request duckdb/duckdb#11447 from Mytherin/editshell
+  Merge pull request duckdb/duckdb#11452 from Mytherin/windowsunicoderead
+
+- Update vendored sources to duckdb/duckdb@a4be579474c7a92e29b54f8a0e72cadc103ecf96.
+
+  Merge pull request duckdb/duckdb#11454 from quentingodeau/hotfix/opener-propagation
+
+- Update vendored sources to duckdb/duckdb@f0c47c1c5d3ec1414729301d1b095555da66824b.
+
+  Merge pull request duckdb/duckdb#11429 from motherduckdb/ddb-databases-readonly
+
+- Update vendored sources to duckdb/duckdb@472271c0bb853ce54edd62d35c6080323a9f3389.
+
+  Merge pull request duckdb/duckdb#11436 from Mytherin/improvelateralerror
+
+- Update vendored sources to duckdb/duckdb@afef088bd1e0020449f78de9df058361be5ea151.
+
+  Merge pull request duckdb/duckdb#11437 from Mytherin/virtualdestructor
+
+- Update vendored sources to duckdb/duckdb@86e0f9ed812b5427b0b66893fb16ce528c4a9d31.
+
+  Merge pull request duckdb/duckdb#11418 from pdet/newline_csv
+
+- Update vendored sources to duckdb/duckdb@04a66604fa0861b3e3ee6e80a2540b37d355ca57.
+
+  Merge pull request duckdb/duckdb#11428 from hawkfish/quantile-orderby
+
+- Update vendored sources to duckdb/duckdb@903f14e91d5687b6fcd7cef3325be7b2912963ed.
+
+  Merge pull request duckdb/duckdb#11424 from Mytherin/constglobals
+
+- Update vendored sources to duckdb/duckdb@e6929cf46eda7a12f55f0fe04bb475913b48d9eb.
+
+  Merge pull request duckdb/duckdb#11414 from Mytherin/constcast
+
+- Update vendored sources to duckdb/duckdb@5d1baa5e0ee18ab41da74fc4a21e63ebbbf4f32e.
+
+  Merge pull request duckdb/duckdb#11415 from szarnyasg/remove-redundant-defaults
+  Merge pull request duckdb/duckdb#11421 from Mause/bugfix/jdbc-one-index-bytes
+  Merge pull request duckdb/duckdb#11420 from szarnyasg/stale-prs
+
+- Update vendored sources to duckdb/duckdb@43677ea475937ca3a2f634770ce764b352ac8e69.
+
+  Merge pull request duckdb/duckdb#11405 from Maxxen/more-serialization
+
+- Update vendored sources to duckdb/duckdb@af1ba841a5f7640c775f84b51f6fa4f68800de76.
+
+  Merge pull request duckdb/duckdb#11400 from pdet/preference_fsspec
+
+- Update vendored sources to duckdb/duckdb@62d1fb0c5a0306425c4b150c93a367d740f231f2.
+
+  Merge pull request duckdb/duckdb#11397 from motherduckdb/readonly-db
+
+- Update vendored sources to duckdb/duckdb@57d4ea684ee1dc93568dae36c588696a7adebc58.
+
+  Merge pull request duckdb/duckdb#11396 from hawkfish/struct-casts
+  Merge pull request duckdb/duckdb#11394 from oomojola/patch-1
+
+- Update vendored sources to duckdb/duckdb@efcbee2d1b2dc89a4aad28e626fde2dd542cdef0.
+
+  Merge pull request duckdb/duckdb#11392 from hawkfish/timestampns-invertible
+
+- Update vendored sources to duckdb/duckdb@91af200d565638573ab0828f88e9e66b02aae5e3.
+
+  Merge pull request duckdb/duckdb#11390 from hawkfish/negative-ranges
+  Merge pull request duckdb/duckdb#11357 from jingshi-ant/patch-1
+
+- Update vendored sources to duckdb/duckdb@5425ef0a12fc9d3659ed6549df3e668ca9ea75fb.
+
+  Merge pull request duckdb/duckdb#11360 from lnkuiper/fix_10022
+
+- Fix generated Makevars.win.
+
+- Update vendored sources to duckdb/duckdb@9b8e5b607e5ccf978b9899da0c5b71ef376acac5.
+
+  Merge pull request duckdb/duckdb#11356 from kindred77/master-fix-build-issue-on-win32-remove-unnecessary-modification
+
+- Update vendored sources to duckdb/duckdb@d4c2eca71b00c896e397796054871707f9b2c02b.
+
+  Merge pull request duckdb/duckdb#11372 from hawkfish/respect-ignore-nulls
+
+- Update vendored sources to duckdb/duckdb@beb5fbfd8eccc1069dc99a259be460bf8202983c.
+
+  Merge pull request duckdb/duckdb#11369 from motherduckdb/flo/fix-pg-defs
+
+- Update vendored sources to duckdb/duckdb@60e89a404e46e2e8a463554d1a1e9c68a048c95b.
+
+  Merge pull request duckdb/duckdb#11376 from Mytherin/clangtidyfixes
+  Merge pull request duckdb/duckdb#11379 from samansmink/fix-https-ci-macos
+  Merge pull request duckdb/duckdb#11368 from pfarndt/blob-fix
+  Merge pull request duckdb/duckdb#11366 from szarnyasg/readme-logo
+
+- Update vendored sources to duckdb/duckdb@0465529666ef63a17cb1b7c3ce9141d2d10c0506.
+
+  Merge pull request duckdb/duckdb#11343 from Mytherin/s3attach
+
+- Update vendored sources to duckdb/duckdb@ecfe10291e741ce3e5338a221625e808528c326e.
+
+  Merge pull request duckdb/duckdb#11252 from hannes/re2upgrade
+  Merge pull request duckdb/duckdb#11355 from szarnyasg/remove-issue-labeling-workflow
+  Merge pull request duckdb/duckdb#11342 from carlopi/fix_staged_releases
+  Merge pull request duckdb/duckdb#11341 from szarnyasg/iss11339
+
+- Add patch for re2 update.
+
+- Update vendored sources to duckdb/duckdb@7935b7cbbb5cd82d51677fb3ed3c0c5167e5e030.
+
+  Merge pull request duckdb/duckdb#11347 from hawkfish/iejoin-scan
+  Merge pull request duckdb/duckdb#11346 from carlopi/fix_regression
+  Merge pull request duckdb/duckdb#11345 from Tmonster/fix_duckdb_r_script
+
+- Update vendored sources to duckdb/duckdb@f4f6e719fabb765deab2c26033ff27e37467f083.
+
+  Merge pull request duckdb/duckdb#11326 from Mause/bugfix/arrow-union
+
+- Update vendored sources to duckdb/duckdb@1faa754431d655d88947edeb9b870bb7cccdc525.
+
+  Merge pull request duckdb/duckdb#11313 from pdet/more_predictable_dialect
+
+- Update vendored sources to duckdb/duckdb@35de27646546b4948e4d5a641d49103ce4bcffb5.
+
+  Merge pull request duckdb/duckdb#11340 from lnkuiper/fix_11280
+
+- Update vendored sources to duckdb/duckdb@cc8af5035c703f3d26653448a0d915e5cff2faef.
+
+  Merge pull request duckdb/duckdb#11327 from Tishj/attach_sequence_fix
+
+- Update vendored sources to duckdb/duckdb@8ef134fa0e855ad0cd9d03af0f8907a6adab8718.
+
+  Merge pull request duckdb/duckdb#11321 from hawkfish/distinct-sorted-aggs
+
+- Update vendored sources to duckdb/duckdb@9dd19695bfd8c5c5ef71018bd60fedf82dcafd49.
+
+  Merge pull request duckdb/duckdb#11329 from Mytherin/relassertscanfail
+
+- Update vendored sources to duckdb/duckdb@4f80905a76f715244ad94461702eb933346a336a.
+
+  Merge pull request duckdb/duckdb#11325 from Mytherin/issue11284
+  Merge pull request duckdb/duckdb#11333 from carlopi/fixup_py_upload2
+  Merge pull request duckdb/duckdb#11328 from Mytherin/issue11319
+  Merge pull request duckdb/duckdb#11324 from Mytherin/windowscli
+
+- Update vendored sources to duckdb/duckdb@5d065f3a19e4ae1ff8d1f465ac5211de88cb172d.
+
+  Merge pull request duckdb/duckdb#11314 from Mytherin/positionprepare
+
+- Update vendored sources to duckdb/duckdb@f339e3ccc4606c9baf8b6a581cf22febdb15c14a.
+
+  Merge pull request duckdb/duckdb#11315 from Mytherin/issue11294
+
+- Update vendored sources to duckdb/duckdb@54e26a013bacd665b657890c8d064af20712c399.
+
+  Merge pull request duckdb/duckdb#11318 from Mytherin/issue11283
+
+- Update vendored sources to duckdb/duckdb@8a7e07bd54bda01b03d5723c7d81e1c11e7399f2.
+
+  Merge pull request duckdb/duckdb#11309 from Mytherin/updatenullrefrollback
+
+- Update vendored sources to duckdb/duckdb@69f4cabfea2c7564049f3371bd3f24efbc0b49ef.
+
+  Merge pull request duckdb/duckdb#11320 from hawkfish/timestamp-timestamptz
+  Merge pull request duckdb/duckdb#11308 from carlopi/fixup_py_upload
+
+- Update vendored sources to duckdb/duckdb@dd214c292f45ccb7db7d1712f416be684d2a4bb5.
+
+  Merge pull request duckdb/duckdb#11317 from Mytherin/issue11281
+
+- Update vendored sources to duckdb/duckdb@bf050db984add97e1ef3143460c9c7a9950d5f3f.
+
+  Merge pull request duckdb/duckdb#11316 from Mytherin/issue11293
+
+- Update vendored sources to duckdb/duckdb@ef62c27528b726c0777b8f42b10b0c75d017e2d3.
+
+  Merge pull request duckdb/duckdb#11306 from Maxxen/bugfixes
+
+- Update vendored sources to duckdb/duckdb@9bc963f1a44fbb0248c1c6d11f97b1b22b156b64.
+
+  Merge pull request duckdb/duckdb#11297 from Mytherin/tryopenfile2
+
+- Update vendored sources to duckdb/duckdb@aeefca06cb4e1be507c7c7137547e703312cdb0f.
+
+  Merge pull request duckdb/duckdb#11304 from hannes/generatorstypeinferece
+  Merge pull request duckdb/duckdb#11303 from lnkuiper/je_mallctl_exception
+
+- Update vendored sources to duckdb/duckdb@2f58548f84103e18ea9ccfcab28de75714fecddd.
+
+  Merge pull request duckdb/duckdb#10878 from kryonix/materialized_insert
+  Merge pull request duckdb/duckdb#11295 from lnkuiper/json_stuff
+
+- Update vendored sources to duckdb/duckdb@e25ca7519cc87e4b353b7c9dd6c3acd71a918bf8.
+
+  Merge pull request duckdb/duckdb#11215 from jkub/buffer_manager_override
+  Merge pull request duckdb/duckdb#11291 from carlopi/spatial_rtools
+
+- Update vendored sources to duckdb/duckdb@61bbb0e5b934bc875a9aa9cbd4bc817f41818e14.
+
+  Merge pull request duckdb/duckdb#11286 from lnkuiper/fuzzer_stuff
+
+- Update vendored sources to duckdb/duckdb@2626cb2b1cf497b9dbf929133c761c1e1e48331b.
+
+  Merge pull request duckdb/duckdb#11203 from quentingodeau/feature/buffer-writer
+
+- Update vendored sources to duckdb/duckdb@cf02e63b37a2ef348ca4a0ac29aa030114844c01.
+
+  Merge pull request duckdb/duckdb#11258 from jkub/fs_trim_support
+  Merge pull request duckdb/duckdb#11268 from lnkuiper/shell_json
+  Merge pull request duckdb/duckdb#11271 from lnkuiper/json_stuff
+
+- Update vendored sources to duckdb/duckdb@cac258298126aad61785493643c79de649700284.
+
+  Merge pull request duckdb/duckdb#11276 from pdet/error_handler_csv
+  Merge pull request duckdb/duckdb#11129 from Tmonster/fix_plan_cost_runner_regression
+
+- Update vendored sources to duckdb/duckdb@5f74399a0e7a93609546ecc86b2ae9285dffcb7d.
+
+  Merge pull request duckdb/duckdb#11233 from hawkfish/asof-pushdown
+  Merge pull request duckdb/duckdb#11265 from Mytherin/terminalmissingincludes
+
+- Update vendored sources to duckdb/duckdb@16938041baa047e77378aff013acde6a6d863c52.
+
+  Merge pull request duckdb/duckdb#11220 from hannes/parquetlz4
+
+- Update vendored sources to duckdb/duckdb@85a8b95db69a10135e3d8489f63ede1215add0ba.
+
+  Merge pull request duckdb/duckdb#11248 from taniabogatsch/fix-fuzzer-select
+  Merge pull request duckdb/duckdb#11255 from Tishj/pytype_transaction
+
+- Update vendored sources to duckdb/duckdb@e2b1ed87b123b75dfc06f4bba0afc2c0dd7323c4.
+
+  Merge pull request duckdb/duckdb#11257 from pdet/sniff_csv_ignore
+  Merge pull request duckdb/duckdb#11256 from szarnyasg/README-update
+  Merge pull request duckdb/duckdb#11242 from maiadegraaf/verify_vector_map
+
+- Update vendored sources to duckdb/duckdb@9bc0ac5523be437335d5702b3c20570d15c3eb39.
+
+  Merge pull request duckdb/duckdb#11243 from Mytherin/hexunhexblob
+  Merge pull request duckdb/duckdb#11245 from carlopi/pin_r
+
+- Update vendored sources to duckdb/duckdb@5dc0930c5a9de55635f73d102d798fbcef3587bf.
+
+  Merge pull request duckdb/duckdb#11236 from Mytherin/threadconstructorfailed
+
+- Update vendored sources to duckdb/duckdb@e2cecdd43f28cad341a41dcf9342be80c5ae070a.
+
+  Merge pull request duckdb/duckdb#11231 from Mytherin/bitverify
+
+- Update vendored sources to duckdb/duckdb@7f4b66bb47a711c7cbddf2764120bd2fe75e2301.
+
+  Merge pull request duckdb/duckdb#11222 from hannes/cleanupfsst
+  Merge pull request duckdb/duckdb#11192 from szarnyasg/ask-for-mwe
+  Merge pull request duckdb/duckdb#11135 from binste/add_missing_type_hints
+
+- Update vendored sources to duckdb/duckdb@60489faad5d14cf2dac3c98e62099fbc49571c6b.
+
+  Merge pull request duckdb/duckdb#11139 from tiagokepe/master
+
+- Update vendored sources to duckdb/duckdb@24daa36256aa1122e5a8ec2aa5ba8426efcbe80e.
+
+  Merge pull request duckdb/duckdb#11223 from maiadegraaf/verify_vector_flatten
+  Merge pull request duckdb/duckdb#11225 from Mytherin/juliabumpandfix
+
+- Apply patches during vendoring.
+
+## Continuous integration
+
+- Move caching of duckdb prebuilt archive.
+
+- More careful patching.
+
+- Better tag detection.
+
+- Add R version to cache key.
+
+- Logic.
+
+- Fix vendoring.
+
+## Uncategorized
+
+- Merge branch 'cran-0.10.1'.
+
+
 # duckdb 0.10.1.9001
 
 - Merge branch 'cran-0.10.1'.
