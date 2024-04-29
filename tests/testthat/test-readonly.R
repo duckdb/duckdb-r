@@ -49,3 +49,31 @@ test_that("read_only flag and shutdown works as expected", {
 
   expect_true(TRUE)
 })
+
+test_that("read_only flag does not throw error when rel_sql is called", {
+    unlink("tmp.duckdb")
+    con <- dbConnect(duckdb(), "tmp.duckdb")
+    # just need a db to open in read only mode
+    dbExecute(con, "create table t1 as select range a from range(2)")
+    dbDisconnect(con)
+
+    con <- dbConnect(duckdb(), "tmp.duckdb", read_only=TRUE)
+    rel <- duckdb:::rel_from_df(con, mtcars)
+    ans <- data.frame(cyl=c(4), disp=c(71.1))
+    expect_rel2 <- duckdb:::rel_sql(rel, "SELECT cyl, disp FROM _ where disp = 71.1")
+    expect_equivalent(expect_rel2, ans)
+    dbDisconnect(con)
+})
+
+test_that("read_only flag still throws error when table is attempted to be created", {
+    unlink("tmp.duckdb")
+    con <- dbConnect(duckdb(), "tmp.duckdb")
+    # just need a db to open in read only mode
+    dbExecute(con, "create table t1 as select range a from range(2)")
+    dbDisconnect(con)
+
+    con <- dbConnect(duckdb(), "tmp.duckdb", read_only=TRUE)
+    rel <- duckdb:::rel_from_df(con, mtcars)
+    expect_error(duckdb:::rel_sql(rel, "create table t2 as (SELECT cyl, disp FROM _ )"))
+    dbDisconnect(con)
+})
