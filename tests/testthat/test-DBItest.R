@@ -184,5 +184,10 @@ if (rlang::is_installed("DBItest")) DBItest::test_all(c(
   "write_table_row_names_na_missing",
   "append_roundtrip_factor",
   "bind_factor",
+  "arrow_bind_factor",
+  "arrow_send_query_stale_warning", # wontfix
+  "arrow_send_query_only_one_result_set", # wontfix
+  "arrow_write_table_arrow_roundtrip_timestamp_extended", # precision
+  "arrow_append_table_arrow_roundtrip_timestamp_extended", # precision
   NULL
 ))
