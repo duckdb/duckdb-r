@@ -407,6 +407,14 @@ extern "C" SEXP _duckdb_rapi_ptr_to_str(SEXP extptr) {
     return cpp11::as_sexp(rapi_ptr_to_str(cpp11::as_cpp<cpp11::decay_t<SEXP>>(extptr)));
   END_CPP11
 }
+// utils.cpp
+void rapi_load_rfuns(duckdb::db_eptr_t dual);
+extern "C" SEXP _duckdb_rapi_load_rfuns(SEXP dual) {
+  BEGIN_CPP11
+    rapi_load_rfuns(cpp11::as_cpp<cpp11::decay_t<duckdb::db_eptr_t>>(dual));
+    return R_NilValue;
+  END_CPP11
+}
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
@@ -427,6 +435,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_get_substrait_json",      (DL_FUNC) &_duckdb_rapi_get_substrait_json,      3},
     {"_duckdb_rapi_is_locked",               (DL_FUNC) &_duckdb_rapi_is_locked,               1},
     {"_duckdb_rapi_list_arrow",              (DL_FUNC) &_duckdb_rapi_list_arrow,              1},
+    {"_duckdb_rapi_load_rfuns",              (DL_FUNC) &_duckdb_rapi_load_rfuns,              1},
     {"_duckdb_rapi_lock",                    (DL_FUNC) &_duckdb_rapi_lock,                    1},
     {"_duckdb_rapi_prepare",                 (DL_FUNC) &_duckdb_rapi_prepare,                 2},
     {"_duckdb_rapi_prepare_substrait",       (DL_FUNC) &_duckdb_rapi_prepare_substrait,       2},

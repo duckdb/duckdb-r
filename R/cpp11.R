@@ -223,3 +223,7 @@ rapi_adbc_init_func <- function() {
 rapi_ptr_to_str <- function(extptr) {
   .Call(`_duckdb_rapi_ptr_to_str`, extptr)
 }
+
+rapi_load_rfuns <- function(dual) {
+  invisible(.Call(`_duckdb_rapi_load_rfuns`, dual))
+}
