@@ -26,7 +26,7 @@ dbFetch__duckdb_result <- function(res, n = -1, ...) {
   if (length(n) != 1) {
     stop("need exactly one value in n")
   }
-  if (is.infinite(n)) {
+  if (is.infinite(n) || is.na(n)) {
     n <- -1
   }
   if (n < -1) {
