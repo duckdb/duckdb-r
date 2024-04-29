@@ -295,7 +295,7 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 	}
 }
 
-[[cpp11::register]] SEXP rapi_load_rfuns(duckdb::db_eptr_t dual) {
+[[cpp11::register]] void rapi_load_rfuns(duckdb::db_eptr_t dual) {
 	if (!dual || !dual.get()) {
 		cpp11::stop("rapi_lock: Invalid database reference");
 	}

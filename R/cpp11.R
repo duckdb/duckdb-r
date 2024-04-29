@@ -225,5 +225,5 @@ rapi_ptr_to_str <- function(extptr) {
 }
 
 rapi_load_rfuns <- function(dual) {
-  .Call(`_duckdb_rapi_load_rfuns`, dual)
+  invisible(.Call(`_duckdb_rapi_load_rfuns`, dual))
 }

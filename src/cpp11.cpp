@@ -408,10 +408,11 @@ extern "C" SEXP _duckdb_rapi_ptr_to_str(SEXP extptr) {
   END_CPP11
 }
 // utils.cpp
-SEXP rapi_load_rfuns(duckdb::db_eptr_t dual);
+void rapi_load_rfuns(duckdb::db_eptr_t dual);
 extern "C" SEXP _duckdb_rapi_load_rfuns(SEXP dual) {
   BEGIN_CPP11
-    return cpp11::as_sexp(rapi_load_rfuns(cpp11::as_cpp<cpp11::decay_t<duckdb::db_eptr_t>>(dual)));
+    rapi_load_rfuns(cpp11::as_cpp<cpp11::decay_t<duckdb::db_eptr_t>>(dual));
+    return R_NilValue;
   END_CPP11
 }
 
