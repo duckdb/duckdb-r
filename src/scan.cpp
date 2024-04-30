@@ -23,17 +23,17 @@ data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 		return (data_ptr_t)DATAPTR_RO(coldata);
 	case RType::TIMESTAMP:
 		return (data_ptr_t)NUMERIC_POINTER(coldata);
-	case RType::TIME_SECONDS:
-	case RType::TIME_MINUTES:
-	case RType::TIME_HOURS:
-	case RType::TIME_DAYS:
-	case RType::TIME_WEEKS:
+	case RType::INTERVAL_SECONDS:
+	case RType::INTERVAL_MINUTES:
+	case RType::INTERVAL_HOURS:
+	case RType::INTERVAL_DAYS:
+	case RType::INTERVAL_WEEKS:
 		return (data_ptr_t)NUMERIC_POINTER(coldata);
-	case RType::TIME_SECONDS_INTEGER:
-	case RType::TIME_MINUTES_INTEGER:
-	case RType::TIME_HOURS_INTEGER:
-	case RType::TIME_DAYS_INTEGER:
-	case RType::TIME_WEEKS_INTEGER:
+	case RType::INTERVAL_SECONDS_INTEGER:
+	case RType::INTERVAL_MINUTES_INTEGER:
+	case RType::INTERVAL_HOURS_INTEGER:
+	case RType::INTERVAL_DAYS_INTEGER:
+	case RType::INTERVAL_WEEKS_INTEGER:
 		return (data_ptr_t)INTEGER_POINTER(coldata);
 	case RType::DATE:
 		if (!IS_NUMERIC(coldata)) {
@@ -181,54 +181,54 @@ void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_ptr_t co
 		AppendColumnSegment<double, timestamp_t, RTimestampType>(data_ptr, sexp_offset, v, this_count);
 		break;
 	}
-	case RType::TIME_SECONDS: {
+	case RType::INTERVAL_SECONDS: {
 		auto data_ptr = (double *)coldata_ptr;
-		AppendColumnSegment<double, dtime_t, RTimeSecondsType>(data_ptr, sexp_offset, v, this_count);
+		AppendColumnSegment<double, interval_t, RIntervalSecondsType>(data_ptr, sexp_offset, v, this_count);
 		break;
 	}
-	case RType::TIME_MINUTES: {
+	case RType::INTERVAL_MINUTES: {
 		auto data_ptr = (double *)coldata_ptr;
-		AppendColumnSegment<double, dtime_t, RTimeMinutesType>(data_ptr, sexp_offset, v, this_count);
+		AppendColumnSegment<double, interval_t, RIntervalMinutesType>(data_ptr, sexp_offset, v, this_count);
 		break;
 	}
-	case RType::TIME_HOURS: {
+	case RType::INTERVAL_HOURS: {
 		auto data_ptr = (double *)coldata_ptr;
-		AppendColumnSegment<double, dtime_t, RTimeHoursType>(data_ptr, sexp_offset, v, this_count);
+		AppendColumnSegment<double, interval_t, RIntervalHoursType>(data_ptr, sexp_offset, v, this_count);
 		break;
 	}
-	case RType::TIME_DAYS: {
+	case RType::INTERVAL_DAYS: {
 		auto data_ptr = (double *)coldata_ptr;
-		AppendColumnSegment<double, dtime_t, RTimeDaysType>(data_ptr, sexp_offset, v, this_count);
+		AppendColumnSegment<double, interval_t, RIntervalDaysType>(data_ptr, sexp_offset, v, this_count);
 		break;
 	}
-	case RType::TIME_WEEKS: {
+	case RType::INTERVAL_WEEKS: {
 		auto data_ptr = (double *)coldata_ptr;
-		AppendColumnSegment<double, dtime_t, RTimeWeeksType>(data_ptr, sexp_offset, v, this_count);
+		AppendColumnSegment<double, interval_t, RIntervalWeeksType>(data_ptr, sexp_offset, v, this_count);
 		break;
 	}
-	case RType::TIME_SECONDS_INTEGER: {
+	case RType::INTERVAL_SECONDS_INTEGER: {
 		auto data_ptr = (int *)coldata_ptr;
-		AppendColumnSegment<int, dtime_t, RTimeSecondsType>(data_ptr, sexp_offset, v, this_count);
+		AppendColumnSegment<int, interval_t, RIntervalSecondsType>(data_ptr, sexp_offset, v, this_count);
 		break;
 	}
-	case RType::TIME_MINUTES_INTEGER: {
+	case RType::INTERVAL_MINUTES_INTEGER: {
 		auto data_ptr = (int *)coldata_ptr;
-		AppendColumnSegment<int, dtime_t, RTimeMinutesType>(data_ptr, sexp_offset, v, this_count);
+		AppendColumnSegment<int, interval_t, RIntervalMinutesType>(data_ptr, sexp_offset, v, this_count);
 		break;
 	}
-	case RType::TIME_HOURS_INTEGER: {
+	case RType::INTERVAL_HOURS_INTEGER: {
 		auto data_ptr = (int *)coldata_ptr;
-		AppendColumnSegment<int, dtime_t, RTimeHoursType>(data_ptr, sexp_offset, v, this_count);
+		AppendColumnSegment<int, interval_t, RIntervalHoursType>(data_ptr, sexp_offset, v, this_count);
 		break;
 	}
-	case RType::TIME_DAYS_INTEGER: {
+	case RType::INTERVAL_DAYS_INTEGER: {
 		auto data_ptr = (int *)coldata_ptr;
-		AppendColumnSegment<int, dtime_t, RTimeDaysType>(data_ptr, sexp_offset, v, this_count);
+		AppendColumnSegment<int, interval_t, RIntervalDaysType>(data_ptr, sexp_offset, v, this_count);
 		break;
 	}
-	case RType::TIME_WEEKS_INTEGER: {
+	case RType::INTERVAL_WEEKS_INTEGER: {
 		auto data_ptr = (int *)coldata_ptr;
-		AppendColumnSegment<int, dtime_t, RTimeWeeksType>(data_ptr, sexp_offset, v, this_count);
+		AppendColumnSegment<int, interval_t, RIntervalWeeksType>(data_ptr, sexp_offset, v, this_count);
 		break;
 	}
 	case RType::DATE: {
@@ -405,7 +405,6 @@ static void DataFrameScanFunc(ClientContext &context, TableFunctionInput &data, 
 		auto rtype = bind_data.rtypes[src_df_col_idx];
 		AppendAnyColumnSegment(rtype, bind_data.experimental, coldata_ptr, sexp_offset, v, this_count);
 	}
-
 	operator_data.position += this_count;
 }
 

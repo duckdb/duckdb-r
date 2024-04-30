@@ -26,16 +26,16 @@ enum class RTypeId {
 	DATE,
 	DATE_INTEGER,
 	TIMESTAMP,
-	TIME_SECONDS,
-	TIME_MINUTES,
-	TIME_HOURS,
-	TIME_DAYS,
-	TIME_WEEKS,
-	TIME_SECONDS_INTEGER,
-	TIME_MINUTES_INTEGER,
-	TIME_HOURS_INTEGER,
-	TIME_DAYS_INTEGER,
-	TIME_WEEKS_INTEGER,
+	INTERVAL_SECONDS,
+	INTERVAL_MINUTES,
+	INTERVAL_HOURS,
+	INTERVAL_DAYS,
+	INTERVAL_WEEKS,
+	INTERVAL_SECONDS_INTEGER,
+	INTERVAL_MINUTES_INTEGER,
+	INTERVAL_HOURS_INTEGER,
+	INTERVAL_DAYS_INTEGER,
+	INTERVAL_WEEKS_INTEGER,
 	INTEGER64,
 	LIST_OF_NULLS,
 	BLOB,
@@ -80,16 +80,16 @@ struct RType {
 	static constexpr const RTypeId DATE = RTypeId::DATE;
 	static constexpr const RTypeId DATE_INTEGER = RTypeId::DATE_INTEGER;
 	static constexpr const RTypeId TIMESTAMP = RTypeId::TIMESTAMP;
-	static constexpr const RTypeId TIME_SECONDS = RTypeId::TIME_SECONDS;
-	static constexpr const RTypeId TIME_MINUTES = RTypeId::TIME_MINUTES;
-	static constexpr const RTypeId TIME_HOURS = RTypeId::TIME_HOURS;
-	static constexpr const RTypeId TIME_DAYS = RTypeId::TIME_DAYS;
-	static constexpr const RTypeId TIME_WEEKS = RTypeId::TIME_WEEKS;
-	static constexpr const RTypeId TIME_SECONDS_INTEGER = RTypeId::TIME_SECONDS_INTEGER;
-	static constexpr const RTypeId TIME_MINUTES_INTEGER = RTypeId::TIME_MINUTES_INTEGER;
-	static constexpr const RTypeId TIME_HOURS_INTEGER = RTypeId::TIME_HOURS_INTEGER;
-	static constexpr const RTypeId TIME_DAYS_INTEGER = RTypeId::TIME_DAYS_INTEGER;
-	static constexpr const RTypeId TIME_WEEKS_INTEGER = RTypeId::TIME_WEEKS_INTEGER;
+	static constexpr const RTypeId INTERVAL_SECONDS = RTypeId::INTERVAL_SECONDS;
+	static constexpr const RTypeId INTERVAL_MINUTES = RTypeId::INTERVAL_MINUTES;
+	static constexpr const RTypeId INTERVAL_HOURS = RTypeId::INTERVAL_HOURS;
+	static constexpr const RTypeId INTERVAL_DAYS = RTypeId::INTERVAL_DAYS;
+	static constexpr const RTypeId INTERVAL_WEEKS = RTypeId::INTERVAL_WEEKS;
+	static constexpr const RTypeId INTERVAL_SECONDS_INTEGER = RTypeId::INTERVAL_SECONDS_INTEGER;
+	static constexpr const RTypeId INTERVAL_MINUTES_INTEGER = RTypeId::INTERVAL_MINUTES_INTEGER;
+	static constexpr const RTypeId INTERVAL_HOURS_INTEGER = RTypeId::INTERVAL_HOURS_INTEGER;
+	static constexpr const RTypeId INTERVAL_DAYS_INTEGER = RTypeId::INTERVAL_DAYS_INTEGER;
+	static constexpr const RTypeId INTERVAL_WEEKS_INTEGER = RTypeId::INTERVAL_WEEKS_INTEGER;
 	static constexpr const RTypeId INTEGER64 = RTypeId::INTEGER64;
 	static constexpr const RTypeId LIST_OF_NULLS = RTypeId::LIST_OF_NULLS;
 	static constexpr const RTypeId BLOB = RTypeId::BLOB;
@@ -153,24 +153,24 @@ struct RTimestampType : public RDoubleType {
 	static timestamp_t Convert(double val);
 };
 
-struct RTimeSecondsType : public RDoubleType {
-	static dtime_t Convert(double val);
+struct RIntervalSecondsType : public RDoubleType {
+	static interval_t Convert(double val);
 };
 
-struct RTimeMinutesType : public RDoubleType {
-	static dtime_t Convert(double val);
+struct RIntervalMinutesType : public RDoubleType {
+	static interval_t Convert(double val);
 };
 
-struct RTimeHoursType : public RDoubleType {
-	static dtime_t Convert(double val);
+struct RIntervalHoursType : public RDoubleType {
+	static interval_t Convert(double val);
 };
 
-struct RTimeDaysType : public RDoubleType {
-	static dtime_t Convert(double val);
+struct RIntervalDaysType : public RDoubleType {
+	static interval_t Convert(double val);
 };
 
-struct RTimeWeeksType : public RDoubleType {
-	static dtime_t Convert(double val);
+struct RIntervalWeeksType : public RDoubleType {
+	static interval_t Convert(double val);
 };
 
 struct RIntegerType {
