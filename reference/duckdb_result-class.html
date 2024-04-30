@@ -93,39 +93,39 @@ Implements <a href="https://dbi.r-dbi.org/reference/DBIResult-class.html" class=
 
     <div class="section level2">
     <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
-    <dl><dt>res</dt>
+    <dl><dt id="arg-res">res<a class="anchor" aria-label="anchor" href="#arg-res"></a></dt>
 <dd><p>Query result to be converted to a Record Batch Reader</p></dd>
 
 
-<dt>chunk_size</dt>
+<dt id="arg-chunk-size">chunk_size<a class="anchor" aria-label="anchor" href="#arg-chunk-size"></a></dt>
 <dd><p>The chunk size</p></dd>
 
 
-<dt>params</dt>
+<dt id="arg-params">params<a class="anchor" aria-label="anchor" href="#arg-params"></a></dt>
 <dd><p>For <code><a href="https://dbi.r-dbi.org/reference/dbBind.html" class="external-link">dbBind()</a></code>, a list of values, named or unnamed,
 or a data frame, with one element/column per query parameter.
 For <code><a href="https://dbi.r-dbi.org/reference/dbBind.html" class="external-link">dbBindArrow()</a></code>, values as a nanoarrow stream,
 with one column per query parameter.</p></dd>
 
 
-<dt>...</dt>
+<dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Other arguments passed on to methods.</p></dd>
 
 
-<dt>n</dt>
+<dt id="arg-n">n<a class="anchor" aria-label="anchor" href="#arg-n"></a></dt>
 <dd><p>maximum number of records to retrieve per fetch. Use <code>n = -1</code>
 or <code>n = Inf</code>
 to retrieve all pending records.  Some implementations may recognize other
 special values.</p></dd>
 
 
-<dt>dbObj</dt>
+<dt id="arg-dbobj">dbObj<a class="anchor" aria-label="anchor" href="#arg-dbobj"></a></dt>
 <dd><p>An object inheriting from <a href="https://dbi.r-dbi.org/reference/DBIObject-class.html" class="external-link">DBIObject</a>,
 i.e. <a href="https://dbi.r-dbi.org/reference/DBIDriver-class.html" class="external-link">DBIDriver</a>, <a href="https://dbi.r-dbi.org/reference/DBIConnection-class.html" class="external-link">DBIConnection</a>,
 or a <a href="https://dbi.r-dbi.org/reference/DBIResult-class.html" class="external-link">DBIResult</a></p></dd>
 
 
-<dt>object</dt>
+<dt id="arg-object">object<a class="anchor" aria-label="anchor" href="#arg-object"></a></dt>
 <dd><p>Any R object</p></dd>
 
 </dl></div>

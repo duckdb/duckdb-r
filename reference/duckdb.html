@@ -101,52 +101,52 @@ it is no longer necessary to set <code>shutdown = TRUE</code> or to call <code>d
 
     <div class="section level2">
     <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
-    <dl><dt>dbdir</dt>
+    <dl><dt id="arg-dbdir">dbdir<a class="anchor" aria-label="anchor" href="#arg-dbdir"></a></dt>
 <dd><p>Location for database files. Should be a path to an existing
 directory in the file system. With the default (or <code>""</code>), all
 data is kept in RAM.</p></dd>
 
 
-<dt>read_only</dt>
+<dt id="arg-read-only">read_only<a class="anchor" aria-label="anchor" href="#arg-read-only"></a></dt>
 <dd><p>Set to <code>TRUE</code> for read-only operation.
 For file-based databases, this is only applied when the database file is opened for the first time.
 Subsequent connections (via the same <code>drv</code> object or a <code>drv</code> object pointing to the same path)
 will silently ignore this flag.</p></dd>
 
 
-<dt>bigint</dt>
+<dt id="arg-bigint">bigint<a class="anchor" aria-label="anchor" href="#arg-bigint"></a></dt>
 <dd><p>How 64-bit integers should be returned. There are two options: <code>"numeric"</code> and <code>"integer64"</code>.
 If <code>"numeric"</code> is selected, bigint integers will be treated as double/numeric.
 If <code>"integer64"</code> is selected, bigint integers will be set to bit64 encoding.</p></dd>
 
 
-<dt>config</dt>
+<dt id="arg-config">config<a class="anchor" aria-label="anchor" href="#arg-config"></a></dt>
 <dd><p>Named list with DuckDB configuration flags, see
 <a href="https://duckdb.org/docs/configuration/overview#configuration-reference" class="external-link">https://duckdb.org/docs/configuration/overview#configuration-reference</a> for the possible options.
 These flags are only applied when the database object is instantiated.
 Subsequent connections will silently ignore these flags.</p></dd>
 
 
-<dt>drv</dt>
+<dt id="arg-drv">drv<a class="anchor" aria-label="anchor" href="#arg-drv"></a></dt>
 <dd><p>Object returned by <code>duckdb()</code></p></dd>
 
 
-<dt>...</dt>
+<dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Ignored</p></dd>
 
 
-<dt>debug</dt>
+<dt id="arg-debug">debug<a class="anchor" aria-label="anchor" href="#arg-debug"></a></dt>
 <dd><p>Print additional debug information such as queries</p></dd>
 
 
-<dt>timezone_out</dt>
+<dt id="arg-timezone-out">timezone_out<a class="anchor" aria-label="anchor" href="#arg-timezone-out"></a></dt>
 <dd><p>The time zone returned to R, defaults to <code>"UTC"</code>, which
 is currently the only timezone supported by duckdb.
 If you want to display datetime values in the local timezone,
 set to <code><a href="https://rdrr.io/r/base/timezones.html" class="external-link">Sys.timezone()</a></code> or <code>""</code>.</p></dd>
 
 
-<dt>tz_out_convert</dt>
+<dt id="arg-tz-out-convert">tz_out_convert<a class="anchor" aria-label="anchor" href="#arg-tz-out-convert"></a></dt>
 <dd><p>How to convert timestamp columns to the timezone specified
 in <code>timezone_out</code>. There are two options: <code>"with"</code>, and <code>"force"</code>. If <code>"with"</code>
 is chosen, the timestamp will be returned as it would appear in the specified time zone.
@@ -154,11 +154,11 @@ If <code>"force"</code> is chosen, the timestamp will have the same clock
 time as the timestamp in the database, but with the new time zone.</p></dd>
 
 
-<dt>conn</dt>
+<dt id="arg-conn">conn<a class="anchor" aria-label="anchor" href="#arg-conn"></a></dt>
 <dd><p>A <code>duckdb_connection</code> object</p></dd>
 
 
-<dt>shutdown</dt>
+<dt id="arg-shutdown">shutdown<a class="anchor" aria-label="anchor" href="#arg-shutdown"></a></dt>
 <dd><p>Unused. The database instance is shut down automatically.</p></dd>
 
 </dl></div>
