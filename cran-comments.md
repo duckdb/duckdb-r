@@ -1,3 +1,5 @@
+Resubmission.
+
 duckdb 0.10.2
 
 ## R CMD check results
