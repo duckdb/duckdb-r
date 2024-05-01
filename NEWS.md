@@ -10,6 +10,7 @@
 ## Features
 
 - Update to duckdb v0.10.2, see <https://github.com/duckdb/duckdb/releases/tag/v0.10.2> for details.
+- The `"difftime"` class is now mapped to the `INTERVAL` data type (#151).
 - Use latest tests from DBItest (#148).
 - Implement `n_distinct()` for multiple arguments using duckdb structs (@lschneiderbauer, #110, #122).
 - Include rfuns extension (hannes/duckdb-rfuns#78, #144).
