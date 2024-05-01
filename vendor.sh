@@ -58,7 +58,6 @@ done
 if [ "$message" = "" ]; then
   echo "No changes."
   git checkout -- src/duckdb
-  rm -rf "$upstream_dir"
   exit 0
 fi
 
