@@ -99,15 +99,15 @@ RType RApiTypes::DetectRType(SEXP v, bool integer64) {
 		}
 		SEXP units0 = STRING_ELT(units, 0);
 		if (units0 == RStrings::get().secs) {
-			return RType::TIME_SECONDS;
+			return RType::INTERVAL_SECONDS;
 		} else if (units0 == RStrings::get().mins) {
-			return RType::TIME_MINUTES;
+			return RType::INTERVAL_MINUTES;
 		} else if (units0 == RStrings::get().hours) {
-			return RType::TIME_HOURS;
+			return RType::INTERVAL_HOURS;
 		} else if (units0 == RStrings::get().days) {
-			return RType::TIME_DAYS;
+			return RType::INTERVAL_DAYS;
 		} else if (units0 == RStrings::get().weeks) {
-			return RType::TIME_WEEKS;
+			return RType::INTERVAL_WEEKS;
 		} else {
 			return RType::UNKNOWN;
 		}
@@ -118,15 +118,15 @@ RType RApiTypes::DetectRType(SEXP v, bool integer64) {
 		}
 		SEXP units0 = STRING_ELT(units, 0);
 		if (units0 == RStrings::get().secs) {
-			return RType::TIME_SECONDS_INTEGER;
+			return RType::INTERVAL_SECONDS_INTEGER;
 		} else if (units0 == RStrings::get().mins) {
-			return RType::TIME_MINUTES_INTEGER;
+			return RType::INTERVAL_MINUTES_INTEGER;
 		} else if (units0 == RStrings::get().hours) {
-			return RType::TIME_HOURS_INTEGER;
+			return RType::INTERVAL_HOURS_INTEGER;
 		} else if (units0 == RStrings::get().days) {
-			return RType::TIME_DAYS_INTEGER;
+			return RType::INTERVAL_DAYS_INTEGER;
 		} else if (units0 == RStrings::get().weeks) {
-			return RType::TIME_WEEKS_INTEGER;
+			return RType::INTERVAL_WEEKS_INTEGER;
 		} else {
 			return RType::UNKNOWN;
 		}
@@ -223,18 +223,17 @@ LogicalType RApiTypes::LogicalTypeFromRType(const RType &rtype, bool experimenta
 		break;
 	case RType::TIMESTAMP:
 		return LogicalType::TIMESTAMP;
-	case RType::TIME_SECONDS:
-	case RType::TIME_MINUTES:
-	case RType::TIME_HOURS:
-	case RType::TIME_DAYS:
-	case RType::TIME_WEEKS:
-		return LogicalType::TIME;
-	case RType::TIME_SECONDS_INTEGER:
-	case RType::TIME_MINUTES_INTEGER:
-	case RType::TIME_HOURS_INTEGER:
-	case RType::TIME_DAYS_INTEGER:
-	case RType::TIME_WEEKS_INTEGER:
-		return LogicalType::TIME;
+	case RType::INTERVAL_SECONDS:
+	case RType::INTERVAL_MINUTES:
+	case RType::INTERVAL_HOURS:
+	case RType::INTERVAL_DAYS:
+	case RType::INTERVAL_WEEKS:
+	case RType::INTERVAL_SECONDS_INTEGER:
+	case RType::INTERVAL_MINUTES_INTEGER:
+	case RType::INTERVAL_HOURS_INTEGER:
+	case RType::INTERVAL_DAYS_INTEGER:
+	case RType::INTERVAL_WEEKS_INTEGER:
+		return LogicalType::INTERVAL;
 	case RType::DATE:
 		return LogicalType::DATE;
 	case RType::DATE_INTEGER:
@@ -332,24 +331,24 @@ timestamp_t RTimestampType::Convert(double val) {
 	return Timestamp::FromEpochMicroSeconds(round(val * Interval::MICROS_PER_SEC));
 }
 
-dtime_t RTimeSecondsType::Convert(double val) {
-	return dtime_t(int64_t(val * Interval::MICROS_PER_SEC));
+interval_t RIntervalSecondsType::Convert(double val) {
+	return Interval::FromMicro(int64_t(round(val * Interval::MICROS_PER_SEC)));
 }
 
-dtime_t RTimeMinutesType::Convert(double val) {
-	return dtime_t(int64_t(val * Interval::MICROS_PER_MINUTE));
+interval_t RIntervalMinutesType::Convert(double val) {
+	return Interval::FromMicro(int64_t(round(val * Interval::MICROS_PER_MINUTE)));
 }
 
-dtime_t RTimeHoursType::Convert(double val) {
-	return dtime_t(int64_t(val * Interval::MICROS_PER_HOUR));
+interval_t RIntervalHoursType::Convert(double val) {
+	return Interval::FromMicro(int64_t(round(val * Interval::MICROS_PER_HOUR)));
 }
 
-dtime_t RTimeDaysType::Convert(double val) {
-	return dtime_t(int64_t(val * Interval::MICROS_PER_DAY));
+interval_t RIntervalDaysType::Convert(double val) {
+	return Interval::FromMicro(int64_t(round(val * Interval::MICROS_PER_DAY)));
 }
 
-dtime_t RTimeWeeksType::Convert(double val) {
-	return dtime_t(int64_t(val * (Interval::MICROS_PER_DAY * Interval::DAYS_PER_WEEK)));
+interval_t RIntervalWeeksType::Convert(double val) {
+	return Interval::FromMicro(int64_t(round(val * (Interval::MICROS_PER_DAY * Interval::DAYS_PER_WEEK))));
 }
 
 bool RIntegerType::IsNull(int val) {

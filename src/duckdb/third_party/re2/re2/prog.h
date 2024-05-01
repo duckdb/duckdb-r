@@ -23,6 +23,11 @@
 #include "re2/sparse_array.h"
 #include "re2/sparse_set.h"
 
+// For CRAN
+#  pragma clang diagnostic ignored "-Wgnu-anonymous-struct"
+#  pragma clang diagnostic ignored "-Wnested-anon-types"
+// For CRAN
+
 namespace duckdb_re2 {
 
 // Opcodes for Inst

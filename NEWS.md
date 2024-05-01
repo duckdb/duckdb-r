@@ -1,15 +1,11 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 0.10.2.9000
-
-- Merge branch 'cran-0.10.2'.
-
-
 # duckdb 0.10.2
 
 ## Features
 
 - Update to duckdb v0.10.2, see <https://github.com/duckdb/duckdb/releases/tag/v0.10.2> for details.
+- The `"difftime"` class is now mapped to the `INTERVAL` data type (#151).
 - Use latest tests from DBItest (#148).
 - Implement `n_distinct()` for multiple arguments using duckdb structs (@lschneiderbauer, #110, #122).
 - Include rfuns extension (hannes/duckdb-rfuns#78, #144).
@@ -213,8 +209,8 @@ Note: Again, this release introduces a backwards-incompatible change to the on-d
 
 ### APIs
 
- - [Many Arrow integration improvements](https://github.com/duckdb/duckdb/pulls?q=is%3Apr+is%3Aclosed+arrow)
- - [Many ODBC driver improvements](https://github.com/duckdb/duckdb/pulls?q=is%3Apr+is%3Aclosed+odbc)
+ - Many Arrow integration improvements
+ - Many ODBC driver improvements
  - #1815: Initial version: SQLite UDF API
  - #2001: Support DBConfig in C API
 

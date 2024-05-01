@@ -6,7 +6,7 @@ set -x
 cd `dirname $0`
 
 if [ -z "$1" ]; then
-  upstream_dir=../duckdb
+  upstream_dir=../duckdb-rfuns
 else
   upstream_dir="$1"
 fi
@@ -29,35 +29,19 @@ message=
 for commit in $commit; do
   echo "Importing commit $commit"
 
-  rm -rf src/duckdb
+  echo "Copy"
+  cat "$upstream_dir"/src/*.cpp > src/rfuns.cpp
+  cp "$upstream_dir"/src/include/* src/include/
 
-  echo "R: configure"
-  python3 rconfigure.py
-
-  for f in patch/*.patch; do
-    if cat $f | patch -p1 --dry-run; then
-      cat $f | patch -p1
-    else
-      echo "Patch $f does not apply, skipping it and remaining patches"
-      break
-    fi
-  done
-
-  # Always vendor tags
-  if [ $(git -C "$upstream_dir" describe --tags "$commit" | grep -c -- -) -eq 0 ]; then
-    message="chore: Update vendored sources (tag $(git -C "$upstream_dir" describe --tags "$commit")) to duckdb/duckdb@$commit"
-    break
-  fi
-
-  if [ $(git status --porcelain -- src/duckdb | wc -l) -gt 1 ]; then
-    message="chore: Update vendored sources to duckdb/duckdb@$commit"
+  if [ $(git status --porcelain -- src/ | wc -l) -gt 1 ]; then
+    message="chore: Update vendored sources to hannes/duckdb-rfuns@$commit"
     break
   fi
 done
 
 if [ "$message" = "" ]; then
   echo "No changes."
-  git checkout -- src/duckdb
+  git checkout -- src/
   exit 0
 fi
 
