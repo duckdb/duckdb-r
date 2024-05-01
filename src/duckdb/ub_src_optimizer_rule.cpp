@@ -18,11 +18,11 @@
 
 #include "src/optimizer/rule/equal_or_null_simplification.cpp"
 
-#include "src/optimizer/rule/move_constants.cpp"
+#include "src/optimizer/rule/in_clause_simplification_rule.cpp"
 
 #include "src/optimizer/rule/like_optimizations.cpp"
 
-#include "src/optimizer/rule/in_clause_simplification_rule.cpp"
+#include "src/optimizer/rule/move_constants.cpp"
 
 #include "src/optimizer/rule/ordered_aggregate_optimizer.cpp"
 
