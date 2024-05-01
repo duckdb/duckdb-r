@@ -59,15 +59,15 @@ ScalarFunctionSet base_r_lte();
 ScalarFunctionSet base_r_gt();
 ScalarFunctionSet base_r_gte();
 
+ScalarFunctionSet base_r_is_na();
+ScalarFunctionSet base_r_as_integer();
+
 // sum
 AggregateFunctionSet base_r_sum();
 AggregateFunctionSet base_r_min();
 AggregateFunctionSet base_r_max();
 
 ScalarFunctionSet binary_dispatch(ScalarFunctionSet fn) ;
-
-// is_na
-ScalarFunctionSet base_r_is_na();
 
 } // namespace rfuns
 
