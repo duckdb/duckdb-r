@@ -1,0 +1,44 @@
+From 56f582c4a3fbd6ab7d6bd3f2bc836029909e1c52 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Wed, 1 May 2024 11:12:44 +0200
+Subject: [PATCH] Try to ignore clang warnings
+
+---
+ src/duckdb/third_party/re2/re2/prog.h       | 5 +++++
+ src/duckdb/third_party/re2/re2/walker-inl.h | 4 ++++
+ 2 files changed, 9 insertions(+)
+
+diff --git a/src/duckdb/third_party/re2/re2/prog.h b/src/duckdb/third_party/re2/re2/prog.h
+index 29be811a..e27956b9 100644
+--- a/src/duckdb/third_party/re2/re2/prog.h
++++ b/src/duckdb/third_party/re2/re2/prog.h
+@@ -23,6 +23,11 @@
+ #include "re2/sparse_array.h"
+ #include "re2/sparse_set.h"
+ 
++// For CRAN
++#  pragma clang diagnostic ignored "-Wgnu-anonymous-struct"
++#  pragma clang diagnostic ignored "-Wnested-anon-types"
++// For CRAN
++
+ namespace duckdb_re2 {
+ 
+ // Opcodes for Inst
+diff --git a/src/duckdb/third_party/re2/re2/walker-inl.h b/src/duckdb/third_party/re2/re2/walker-inl.h
+index 1bbec1c1..635c0583 100644
+--- a/src/duckdb/third_party/re2/re2/walker-inl.h
++++ b/src/duckdb/third_party/re2/re2/walker-inl.h
+@@ -18,6 +18,10 @@
+ #include "util/logging.h"
+ #include "re2/regexp.h"
+ 
++// For CRAN
++#  pragma clang diagnostic ignored "-Wdtor-name"
++// For CRAN
++
+ namespace duckdb_re2 {
+ 
+ template<typename T> struct WalkState;
+-- 
+2.43.0
+

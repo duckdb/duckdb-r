@@ -18,6 +18,10 @@
 #include "util/logging.h"
 #include "re2/regexp.h"
 
+// For CRAN
+#  pragma clang diagnostic ignored "-Wdtor-name"
+// For CRAN
+
 namespace duckdb_re2 {
 
 template<typename T> struct WalkState;
