@@ -43,8 +43,13 @@ dbQuoteLiteral__duckdb_connection <- function(conn, x, ...) {
       return(SQL(character()))
     }
 
-    out <- callNextMethod()
-    return(SQL(paste0(out, "::time")))
+    units(x) <- "secs"
+    value <- round(as.numeric(x) * 1000000)
+    value[!is.finite(x)] <- NA
+
+    out <- paste0("to_microseconds(", formatC(value, format = "f", digits = 0), ")")
+    out[is.na(value)] <- "NULL"
+    return(SQL(out))
   }
 
   if (is.list(x)) {
