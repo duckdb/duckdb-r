@@ -332,23 +332,23 @@ timestamp_t RTimestampType::Convert(double val) {
 }
 
 interval_t RIntervalSecondsType::Convert(double val) {
-	return Interval::FromMicro(int64_t(val * Interval::MICROS_PER_SEC));
+	return Interval::FromMicro(int64_t(round(val * Interval::MICROS_PER_SEC)));
 }
 
 interval_t RIntervalMinutesType::Convert(double val) {
-	return Interval::FromMicro(int64_t(val * Interval::MICROS_PER_MINUTE));
+	return Interval::FromMicro(int64_t(round(val * Interval::MICROS_PER_MINUTE)));
 }
 
 interval_t RIntervalHoursType::Convert(double val) {
-	return Interval::FromMicro(int64_t(val * Interval::MICROS_PER_HOUR));
+	return Interval::FromMicro(int64_t(round(val * Interval::MICROS_PER_HOUR)));
 }
 
 interval_t RIntervalDaysType::Convert(double val) {
-	return Interval::FromMicro(int64_t(val * Interval::MICROS_PER_DAY));
+	return Interval::FromMicro(int64_t(round(val * Interval::MICROS_PER_DAY)));
 }
 
 interval_t RIntervalWeeksType::Convert(double val) {
-	return Interval::FromMicro(int64_t(val * (Interval::MICROS_PER_DAY * Interval::DAYS_PER_WEEK)));
+	return Interval::FromMicro(int64_t(round(val * (Interval::MICROS_PER_DAY * Interval::DAYS_PER_WEEK))));
 }
 
 bool RIntegerType::IsNull(int val) {
