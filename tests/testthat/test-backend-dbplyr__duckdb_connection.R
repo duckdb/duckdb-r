@@ -139,7 +139,7 @@ test_that("custom clock functions translated correctly", {
   sql <- function(...) dbplyr::sql(...)
 
   expect_equal(translate(add_days(x, 1L)), sql(r"{date_add(x, INTERVAL '1 day')}"))
-  expect_equal(translate(add_years(x, 2L)), sql(r"{date_add(x, INTERVAL '2 day')}"))
+  expect_equal(translate(add_days(x, 2L)), sql(r"{date_add(x, INTERVAL '2 day')}"))
 
   expect_equal(translate(add_years(x, 1L)), sql(r"{date_add(x, INTERVAL '1 year')}"))
   expect_equal(translate(add_years(x, 2L)), sql(r"{date_add(x, INTERVAL '2 year')}"))
