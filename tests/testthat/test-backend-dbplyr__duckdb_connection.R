@@ -129,6 +129,22 @@ test_that("custom lubridate functions translated correctly", {
   expect_equal(translate(floor_date(x, "week", week_start = 4)), sql(r"{CAST(x AS DATE) - CAST(EXTRACT('dow' FROM CAST(x AS DATE) + 3) AS INTEGER)}"))
 })
 
+# clock functions
+test_that("custom clock functions translated correctly", {
+  skip_if_no_R4()
+  skip_if_not_installed("dbplyr")
+  con <- dbConnect(duckdb())
+  on.exit(dbDisconnect(con, shutdown = TRUE))
+  translate <- function(...) dbplyr::translate_sql(..., con = con)
+  sql <- function(...) dbplyr::sql(...)
+
+  expect_equal(translate(add_days(x, 1L)), sql(r"{date_add(x, INTERVAL '1 day')}"))
+  expect_equal(translate(add_years(x, 2L)), sql(r"{date_add(x, INTERVAL '2 day')}"))
+
+  expect_equal(translate(add_years(x, 1L)), sql(r"{date_add(x, INTERVAL '1 year')}"))
+  expect_equal(translate(add_years(x, 2L)), sql(r"{date_add(x, INTERVAL '2 year')}"))
+})
+
 # stringr functions
 
 test_that("custom stringr functions translated correctly", {
