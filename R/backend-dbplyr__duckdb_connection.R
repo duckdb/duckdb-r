@@ -269,10 +269,10 @@ sql_translation.duckdb_connection <- function(con) {
 
       # clock
       add_days = function(x, n, ...) {
-        build_sql("date_add(", !!x, " + INTERVAL '", n ," day')")
+        build_sql("date_add(", !!x, ", INTERVAL '", n ," day')")
       },
       add_years = function(x, n, ...) {
-        glue_sql2(sql_current_con(), "({.col x} + {.val n}*INTERVAL'1 year')")
+        build_sql("date_add(", !!x, ", INTERVAL '", n ," year')")
       },
 
       # stringr functions
