@@ -269,11 +269,9 @@ sql_translation.duckdb_connection <- function(con) {
 
       # clock
       add_days = function(x, n, ...) {
-        check_dots_empty()
         glue_sql2(sql_current_con(), "({.col x} + {.val n}*INTERVAL'1 day')")
       },
       add_years = function(x, n, ...) {
-        check_dots_empty()
         glue_sql2(sql_current_con(), "({.col x} + {.val n}*INTERVAL'1 year')")
       },
 
