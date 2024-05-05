@@ -57,7 +57,7 @@ external_pointer<T> make_external_prot(const string &rclass, SEXP prot, ARGS &&.
 		}
 		names.push_back(name);
 	}
-	return make_external<ColumnRefExpression>("duckdb_expr", names);;
+	return make_external<ColumnRefExpression>("duckdb_expr", names);
 }
 
 [[cpp11::register]] SEXP rapi_expr_constant(sexp val) {
@@ -398,8 +398,7 @@ static SEXP result_to_df(duckdb::unique_ptr<QueryResult> res) {
 
 	cpp11::writable::list prot = {rel};
 
-	return make_external_prot<RelationWrapper>("duckdb_relation", prot,
-	                                           make_shared_ptr<LimitRelation>(rel->rel, n, 0));
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, make_shared_ptr<LimitRelation>(rel->rel, n, 0));
 }
 
 [[cpp11::register]] SEXP rapi_rel_distinct(duckdb::rel_extptr_t rel) {

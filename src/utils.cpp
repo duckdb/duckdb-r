@@ -120,7 +120,8 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 	switch (rtype.id()) {
 	case RType::LOGICAL: {
 		auto lgl_val = INTEGER_POINTER(valsexp)[idx];
-		return RBooleanType::IsNull(lgl_val) ? Value(typed_logical_null ? LogicalType::BOOLEAN : LogicalType::SQLNULL) : Value::BOOLEAN(lgl_val);
+		return RBooleanType::IsNull(lgl_val) ? Value(typed_logical_null ? LogicalType::BOOLEAN : LogicalType::SQLNULL)
+		                                     : Value::BOOLEAN(lgl_val);
 	}
 	case RType::INTEGER: {
 		auto int_val = INTEGER_POINTER(valsexp)[idx];
@@ -163,44 +164,52 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 	case RType::INTERVAL_SECONDS: {
 		auto ts_val = NUMERIC_POINTER(valsexp)[idx];
 		return RIntervalSecondsType::IsNull(ts_val) ? Value(LogicalType::INTERVAL)
-		                                        : Value::INTERVAL(RIntervalSecondsType::Convert(ts_val));
+		                                            : Value::INTERVAL(RIntervalSecondsType::Convert(ts_val));
 	}
 	case RType::INTERVAL_MINUTES: {
 		auto ts_val = NUMERIC_POINTER(valsexp)[idx];
 		return RIntervalMinutesType::IsNull(ts_val) ? Value(LogicalType::INTERVAL)
-		                                        : Value::INTERVAL(RIntervalMinutesType::Convert(ts_val));
+		                                            : Value::INTERVAL(RIntervalMinutesType::Convert(ts_val));
 	}
 	case RType::INTERVAL_HOURS: {
 		auto ts_val = NUMERIC_POINTER(valsexp)[idx];
-		return RIntervalHoursType::IsNull(ts_val) ? Value(LogicalType::INTERVAL) : Value::INTERVAL(RIntervalHoursType::Convert(ts_val));
+		return RIntervalHoursType::IsNull(ts_val) ? Value(LogicalType::INTERVAL)
+		                                          : Value::INTERVAL(RIntervalHoursType::Convert(ts_val));
 	}
 	case RType::INTERVAL_DAYS: {
 		auto ts_val = NUMERIC_POINTER(valsexp)[idx];
-		return RIntervalDaysType::IsNull(ts_val) ? Value(LogicalType::INTERVAL) : Value::INTERVAL(RIntervalDaysType::Convert(ts_val));
+		return RIntervalDaysType::IsNull(ts_val) ? Value(LogicalType::INTERVAL)
+		                                         : Value::INTERVAL(RIntervalDaysType::Convert(ts_val));
 	}
 	case RType::INTERVAL_WEEKS: {
 		auto ts_val = NUMERIC_POINTER(valsexp)[idx];
-		return RIntervalWeeksType::IsNull(ts_val) ? Value(LogicalType::INTERVAL) : Value::INTERVAL(RIntervalWeeksType::Convert(ts_val));
+		return RIntervalWeeksType::IsNull(ts_val) ? Value(LogicalType::INTERVAL)
+		                                          : Value::INTERVAL(RIntervalWeeksType::Convert(ts_val));
 	}
 	case RType::INTERVAL_SECONDS_INTEGER: {
 		auto ts_val = INTEGER_POINTER(valsexp)[idx];
-		return RIntegerType::IsNull(ts_val) ? Value(LogicalType::INTERVAL) : Value::INTERVAL(RIntervalSecondsType::Convert(ts_val));
+		return RIntegerType::IsNull(ts_val) ? Value(LogicalType::INTERVAL)
+		                                    : Value::INTERVAL(RIntervalSecondsType::Convert(ts_val));
 	}
 	case RType::INTERVAL_MINUTES_INTEGER: {
 		auto ts_val = INTEGER_POINTER(valsexp)[idx];
-		return RIntegerType::IsNull(ts_val) ? Value(LogicalType::INTERVAL) : Value::INTERVAL(RIntervalMinutesType::Convert(ts_val));
+		return RIntegerType::IsNull(ts_val) ? Value(LogicalType::INTERVAL)
+		                                    : Value::INTERVAL(RIntervalMinutesType::Convert(ts_val));
 	}
 	case RType::INTERVAL_HOURS_INTEGER: {
 		auto ts_val = INTEGER_POINTER(valsexp)[idx];
-		return RIntegerType::IsNull(ts_val) ? Value(LogicalType::INTERVAL) : Value::INTERVAL(RIntervalHoursType::Convert(ts_val));
+		return RIntegerType::IsNull(ts_val) ? Value(LogicalType::INTERVAL)
+		                                    : Value::INTERVAL(RIntervalHoursType::Convert(ts_val));
 	}
 	case RType::INTERVAL_DAYS_INTEGER: {
 		auto ts_val = INTEGER_POINTER(valsexp)[idx];
-		return RIntegerType::IsNull(ts_val) ? Value(LogicalType::INTERVAL) : Value::INTERVAL(RIntervalDaysType::Convert(ts_val));
+		return RIntegerType::IsNull(ts_val) ? Value(LogicalType::INTERVAL)
+		                                    : Value::INTERVAL(RIntervalDaysType::Convert(ts_val));
 	}
 	case RType::INTERVAL_WEEKS_INTEGER: {
 		auto ts_val = INTEGER_POINTER(valsexp)[idx];
-		return RIntegerType::IsNull(ts_val) ? Value(LogicalType::INTERVAL) : Value::INTERVAL(RIntervalWeeksType::Convert(ts_val));
+		return RIntegerType::IsNull(ts_val) ? Value(LogicalType::INTERVAL)
+		                                    : Value::INTERVAL(RIntervalWeeksType::Convert(ts_val));
 	}
 	case RType::LIST_OF_NULLS:
 		// Performance shortcut: this corresponds to the RType::BLOB case,

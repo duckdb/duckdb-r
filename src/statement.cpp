@@ -364,5 +364,5 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 }
 
 [[cpp11::register]] void rapi_rel_to_parquet(duckdb::rel_extptr_t rel, std::string file_name) {
-    rel->rel->WriteParquet(file_name);
+	rel->rel->WriteParquet(file_name);
 }

@@ -29,8 +29,10 @@ struct DBWrapper {
 template <class T>
 class DualWrapper {
 public:
-	DualWrapper(T *db) : precious_(db) {}
-	DualWrapper(std::shared_ptr<T> db) : precious_(db) {}
+	DualWrapper(T *db) : precious_(db) {
+	}
+	DualWrapper(std::shared_ptr<T> db) : precious_(db) {
+	}
 	DualWrapper(DualWrapper *dual) : precious_(dual->get()) {
 		if (!precious_) {
 			cpp11::stop("dual is already released");
