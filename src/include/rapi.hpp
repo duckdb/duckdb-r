@@ -101,9 +101,9 @@ struct RStatement {
 };
 
 struct RelationWrapper {
-	RelationWrapper(std::shared_ptr<Relation> rel_p) : rel(std::move(rel_p)) {
+	RelationWrapper(duckdb::shared_ptr<Relation> rel_p) : rel(std::move(rel_p)) {
 	}
-	shared_ptr<Relation> rel;
+	duckdb::shared_ptr<Relation> rel;
 };
 
 typedef cpp11::external_pointer<ParsedExpression> expr_extptr_t;
