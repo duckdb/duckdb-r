@@ -160,7 +160,7 @@ sql_translation.duckdb_connection <- function(con) {
       regexpr = function(p, x) {
         build_sql("(CASE WHEN REGEXP_MATCHES(", x, ", ", p, ") THEN (LENGTH(LIST_EXTRACT(STRING_SPLIT_REGEX(", x, ", ", p, "), 0))+1) ELSE -1 END)")
       },
-      round = function(x, digits) sql_expr(ROUND_EVEN(!!x, CAST(ROUND((!!digits), 0L) %AS% INTEGER))),
+      round = function(x, digits = 0) sql_expr(ROUND_EVEN(!!x, CAST(ROUND((!!digits), 0L) %AS% INTEGER))),
       as.Date = sql_cast("DATE"),
       as.POSIXct = sql_cast("TIMESTAMP"),
 
