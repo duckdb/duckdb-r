@@ -82,7 +82,7 @@ duckdb_n_distinct <- function(..., na.rm = FALSE) {
   check_dots_unnamed <- pkg_method("check_dots_unnamed", "rlang")
 
   if (missing(...)) {
-    cli::cli_abort("{.arg ...} is absent, but must be supplied.")
+    stop("`...` is absent, but must be supplied.")
   }
   check_dots_unnamed()
 
