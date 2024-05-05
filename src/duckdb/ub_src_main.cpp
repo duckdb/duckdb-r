@@ -6,6 +6,8 @@
 
 #include "src/main/client_context.cpp"
 
+#include "src/main/client_context_wrapper.cpp"
+
 #include "src/main/client_data.cpp"
 
 #include "src/main/client_verify.cpp"
