@@ -143,6 +143,28 @@ test_that("custom clock functions translated correctly", {
 
   expect_equal(translate(add_years(x, 1L)), sql(r"{date_add(x, INTERVAL '1 year')}"))
   expect_equal(translate(add_years(x, 2L)), sql(r"{date_add(x, INTERVAL '2 year')}"))
+
+  test_data <- data.frame(
+    person = 1L,
+    date_1 = as.Date("2000-01-01")
+  )
+  test_data <- test_data |>
+    mutate(date_plus_two_days  = clock::add_days(date_1, 2),
+           date_plus_two_years = clock::add_years(date_1, 2),
+           date_minus_two_days  = clock::add_days(date_1, -2),
+           date_minus_two_years = clock::add_years(date_1, -2)) |>
+    dplyr::glimpse()
+  db_test_data <- copy_to(con, test_data, overwrite = TRUE)
+  db_test_data <- db_test_data |>
+    mutate(date_plus_two_days  = as.Date(clock::add_days(date_1, 2)),
+           date_plus_two_years = as.Date(clock::add_years(date_1, 2)),
+           date_minus_two_days  = as.Date(clock::add_days(date_1, -2)),
+           date_minus_two_years = as.Date(clock::add_years(date_1, -2))) |>
+    dplyr::collect()
+
+  expect_equal(unclass(test_data), unclass(db_test_data))
+
+
 })
 
 # stringr functions
