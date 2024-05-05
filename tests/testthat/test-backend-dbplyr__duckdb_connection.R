@@ -321,7 +321,7 @@ test_that("n_distinct() computations are correct", {
 })
 
 
-test_that("duckdb round() results equal R version", {
+test_that("duckdb round() results equal its R version", {
   skip_if_no_R4()
   skip_if_not_installed("dplyr")
   skip_if_not_installed("dbplyr")
