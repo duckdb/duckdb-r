@@ -28,6 +28,8 @@
 
 #include "src/parser/parsed_data/create_sequence_info.cpp"
 
+#include "src/parser/parsed_data/create_schema_info.cpp"
+
 #include "src/parser/parsed_data/create_scalar_function_info.cpp"
 
 #include "src/parser/parsed_data/create_table_function_info.cpp"
@@ -45,6 +47,8 @@
 #include "src/parser/parsed_data/extra_drop_info.cpp"
 
 #include "src/parser/parsed_data/sample_options.cpp"
+
+#include "src/parser/parsed_data/parse_info.cpp"
 
 #include "src/parser/parsed_data/transaction_info.cpp"
 
