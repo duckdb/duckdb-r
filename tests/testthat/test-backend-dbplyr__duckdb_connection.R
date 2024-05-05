@@ -63,7 +63,7 @@ test_that("duckdb custom scalars translated correctly", {
   expect_equal(translate(grepl("pattern", text, ignore.case = TRUE)), sql(r"{REGEXP_MATCHES("text", '(?i)pattern')}"))
   expect_error(translate(grepl("dummy", txt, perl = TRUE)))
   expect_equal(translate(regexpr("pattern", text)), sql(r"{(CASE WHEN REGEXP_MATCHES("text", 'pattern') THEN (LENGTH(LIST_EXTRACT(STRING_SPLIT_REGEX("text", 'pattern'), 0))+1) ELSE -1 END)}"))
-  expect_equal(translate(round(x, digits = 1.1)), sql(r"{ROUND(x, CAST(ROUND(1.1, 0) AS INTEGER))}"))
+  expect_equal(translate(round(x, digits = 1.1)), sql(r"{ROUND_EVEN(x, CAST(ROUND(1.1, 0) AS INTEGER))}"))
   expect_equal(translate(as.Date("2019-01-01")), sql(r"{CAST('2019-01-01' AS DATE)}"))
   expect_equal(translate(as.POSIXct("2019-01-01 01:01:01")), sql(r"{CAST('2019-01-01 01:01:01' AS TIMESTAMP)}"))
 })
@@ -320,6 +320,27 @@ test_that("n_distinct() computations are correct", {
   )
 })
 
+
+test_that("duckdb round() results equal R version", {
+  skip_if_no_R4()
+  skip_if_not_installed("dplyr")
+  skip_if_not_installed("dbplyr")
+
+  con <- dbConnect(duckdb())
+  on.exit(dbDisconnect(con, shutdown = TRUE))
+  mutate <- dplyr::mutate
+  pull <- dplyr::pull
+
+  df <- data.frame(x = c(-1.5, -0.5, 0.5, 1.5))
+
+  duckdb_register(con, "df", df)
+  df_duckdb <- dplyr::tbl(con, "df")
+
+  expect_equal(
+    pull(mutate(df_duckdb, r = round(x)), r),
+    pull(mutate(df, r = round(x)), r)
+  )
+})
 
 
 # Snapshot tests
