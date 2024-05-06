@@ -36,6 +36,8 @@
 
 #include "src/common/local_file_system.cpp"
 
+#include "src/common/multi_file_list.cpp"
+
 #include "src/common/multi_file_reader.cpp"
 
 #include "src/common/error_data.cpp"
