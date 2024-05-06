@@ -4,6 +4,8 @@
 
 #include "src/parser/tableref/expressionlistref.cpp"
 
+#include "src/parser/tableref/column_data_ref.cpp"
+
 #include "src/parser/tableref/joinref.cpp"
 
 #include "src/parser/tableref/pivotref.cpp"

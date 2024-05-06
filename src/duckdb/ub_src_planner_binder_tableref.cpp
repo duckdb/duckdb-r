@@ -4,6 +4,8 @@
 
 #include "src/planner/binder/tableref/bind_expressionlistref.cpp"
 
+#include "src/planner/binder/tableref/bind_column_data_ref.cpp"
+
 #include "src/planner/binder/tableref/bind_joinref.cpp"
 
 #include "src/planner/binder/tableref/bind_pivot.cpp"
@@ -21,6 +23,8 @@
 #include "src/planner/binder/tableref/plan_dummytableref.cpp"
 
 #include "src/planner/binder/tableref/plan_expressionlistref.cpp"
+
+#include "src/planner/binder/tableref/plan_column_data_ref.cpp"
 
 #include "src/planner/binder/tableref/plan_joinref.cpp"
 

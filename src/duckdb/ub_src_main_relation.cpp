@@ -42,6 +42,8 @@
 
 #include "src/main/relation/value_relation.cpp"
 
+#include "src/main/relation/materialized_relation.cpp"
+
 #include "src/main/relation/view_relation.cpp"
 
 #include "src/main/relation/write_parquet_relation.cpp"
