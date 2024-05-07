@@ -133,6 +133,7 @@ test_that("custom lubridate functions translated correctly", {
 test_that("custom clock functions translated correctly", {
   skip_if_no_R4()
   skip_if_not_installed("dbplyr")
+  skip_if_not_installed("clock")
   con <- dbConnect(duckdb())
   on.exit(dbDisconnect(con, shutdown = TRUE))
   translate <- function(...) dbplyr::translate_sql(..., con = con)
