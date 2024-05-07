@@ -267,6 +267,23 @@ sql_translation.duckdb_connection <- function(con) {
       paste = sql_paste(" "),
       paste0 = sql_paste(""),
 
+      # clock
+      add_days = function(x, n, ...) {
+        build_sql("DATE_ADD(", !!x, ", INTERVAL '", n ," day')")
+      },
+      add_years = function(x, n, ...) {
+        build_sql("DATE_ADD(", !!x, ", INTERVAL '", n ," year')")
+      },
+      get_year = function(x) {
+        build_sql("DATE_PART('year', ", !!x, ")")
+      },
+      get_month = function(x) {
+        build_sql("DATE_PART('month', ", !!x, ")")
+      },
+      get_day = function(x) {
+        build_sql("DATE_PART('day', ", !!x, ")")
+      },
+
       # stringr functions
       str_c = sql_paste(""),
       str_detect = function(string, pattern, negate = FALSE) {

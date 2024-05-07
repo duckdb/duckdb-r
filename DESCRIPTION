@@ -51,6 +51,7 @@ Suggests:
     arrow (>= 13.0.0),
     bit64,
     callr,
+    clock,
     DBItest,
     dbplyr,
     dplyr,

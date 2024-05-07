@@ -129,6 +129,56 @@ test_that("custom lubridate functions translated correctly", {
   expect_equal(translate(floor_date(x, "week", week_start = 4)), sql(r"{CAST(x AS DATE) - CAST(EXTRACT('dow' FROM CAST(x AS DATE) + 3) AS INTEGER)}"))
 })
 
+# clock functions
+test_that("custom clock functions translated correctly", {
+  skip_if_no_R4()
+  skip_if_not_installed("dbplyr")
+  skip_if_not_installed("clock")
+  con <- dbConnect(duckdb())
+  on.exit(dbDisconnect(con, shutdown = TRUE))
+  translate <- function(...) dbplyr::translate_sql(..., con = con)
+  sql <- function(...) dbplyr::sql(...)
+
+  expect_equal(translate(add_days(x, 1L)), sql(r"{DATE_ADD(x, INTERVAL '1 day')}"))
+  expect_equal(translate(add_days(x, 2L)), sql(r"{DATE_ADD(x, INTERVAL '2 day')}"))
+
+  expect_equal(translate(add_years(x, 1L)), sql(r"{DATE_ADD(x, INTERVAL '1 year')}"))
+  expect_equal(translate(add_years(x, 2L)), sql(r"{DATE_ADD(x, INTERVAL '2 year')}"))
+
+  expect_equal(translate(get_day(x)), sql(r"{DATE_PART('day', x)}"))
+  expect_equal(translate(get_month(x)), sql(r"{DATE_PART('month', x)}"))
+  expect_equal(translate(get_year(x)), sql(r"{DATE_PART('year', x)}"))
+
+  test_data <- data.frame(
+    person = 1L,
+    date_1 = as.Date("2000-01-01")
+  )
+  test_data <- test_data |>
+    dplyr::mutate(date_plus_two_days  = clock::add_days(date_1, 2),
+           date_plus_two_years = clock::add_years(date_1, 2),
+           date_minus_two_days  = clock::add_days(date_1, -2),
+           date_minus_two_years = clock::add_years(date_1, -2),
+           day = clock::get_day(date_1),
+           month = clock::get_month(date_1),
+           year = clock::get_year(date_1)
+           ) |>
+    dplyr::glimpse()
+  db_test_data <- dplyr::copy_to(con, test_data, overwrite = TRUE)
+  db_test_data <- db_test_data |>
+    dplyr::mutate(date_plus_two_days  = as.Date(clock::add_days(date_1, 2)),
+           date_plus_two_years = as.Date(clock::add_years(date_1, 2)),
+           date_minus_two_days  = as.Date(clock::add_days(date_1, -2)),
+           date_minus_two_years = as.Date(clock::add_years(date_1, -2)),
+           day = clock::get_day(date_1),
+           month = clock::get_month(date_1),
+           year = clock::get_year(date_1)) |>
+    dplyr::collect()
+
+  expect_equal(unclass(test_data), unclass(db_test_data))
+
+
+})
+
 # stringr functions
 
 test_that("custom stringr functions translated correctly", {
