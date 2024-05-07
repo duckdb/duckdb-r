@@ -10,6 +10,12 @@ test_that("we can create a relation from a df", {
   expect_s3_class(rel, "duckdb_relation")
 })
 
+test_that("we can create a relation from a df with no columns", {
+  rel <- rel_from_df(con, mtcars[, 0])
+  expect_type(rel, "externalptr")
+  expect_s3_class(rel, "duckdb_relation")
+})
+
 test_that("we don't add optional quotes to columns", {
   df1 <- data.frame(a.b = 1)
   rel3 <- rel_from_df(con, df1)
