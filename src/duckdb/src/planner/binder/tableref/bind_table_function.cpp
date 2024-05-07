@@ -162,10 +162,6 @@ Binder::BindTableFunctionInternal(TableFunction &table_function, const string &f
 	if (return_types.size() != return_names.size()) {
 		throw InternalException("Failed to bind \"%s\": return_types/names must have same size", table_function.name);
 	}
-	if (return_types.empty()) {
-		throw InternalException("Failed to bind \"%s\": Table function must return at least one column",
-		                        table_function.name);
-	}
 	// overwrite the names with any supplied aliases
 	for (idx_t i = 0; i < column_name_alias.size() && i < return_names.size(); i++) {
 		return_names[i] = column_name_alias[i];

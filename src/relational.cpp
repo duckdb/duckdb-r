@@ -124,14 +124,12 @@ external_pointer<T> make_external_prot(const string &rclass, SEXP prot, ARGS &&.
 	if (!con || !con.get() || !con->conn) {
 		stop("rel_from_df: Invalid connection");
 	}
-	if (df.size() == 0) {
-		stop("rel_from_df: Invalid data frame");
-	}
 
 	named_parameter_map_t other_params;
 	other_params["experimental"] = Value::BOOLEAN(experimental);
 	auto alias = StringUtil::Format("dataframe_%d_%d", (uintptr_t)(SEXP)df,
 	                                (int32_t)(NumericLimits<int32_t>::Maximum() * unif_rand()));
+
 	auto rel =
 	    con->conn->TableFunction("r_dataframe_scan", {Value::POINTER((uintptr_t)(SEXP)df)}, other_params)->Alias(alias);
 

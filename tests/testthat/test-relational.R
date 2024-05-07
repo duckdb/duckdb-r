@@ -22,8 +22,10 @@ test_that("we won't crash when creating a relation from odd things", {
   # na seems to be fine, single col data frame with a single row with NA in it
   rel_from_df(con, NA)
 
+  # fine too: 0 columns and 0 rows
+  rel_from_df(con, NULL)
+
   expect_error(rel_from_df(NULL, NULL))
-  expect_error(rel_from_df(con, NULL))
 
   expect_true(TRUE)
 })
