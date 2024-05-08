@@ -110,3 +110,5 @@ src/*.so
 /src/symbols.rds
 /docs/
 /vscode-*/
+.idea
+cmake-build-debug
