@@ -46,9 +46,12 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 	try {
 		wrapper = new DBWrapper();
 
-		auto data = make_uniq<ArrowScanReplacementData>();
-		data->wrapper = wrapper;
-		config.replacement_scans.emplace_back(ArrowScanReplacement, std::move(data));
+		auto data1 = make_uniq<ReplacementDataDBWrapper>();
+		data1->wrapper = wrapper;
+		config.replacement_scans.emplace_back(ArrowScanReplacement, std::move(data1));
+		auto data2 = make_uniq<ReplacementDataDBWrapper>();
+		data2->wrapper = wrapper;
+		config.replacement_scans.emplace_back(EnvironmentScanReplacement, std::move(data2));
 		wrapper->db = make_uniq<DuckDB>(dbdirchar, &config);
 	} catch (std::exception &e) {
 		cpp11::stop("rapi_startup: Failed to open database: %s", e.what());

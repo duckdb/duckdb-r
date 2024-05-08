@@ -46,6 +46,41 @@ using namespace duckdb;
 	}
 }
 
+
+
+unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(duckdb::ClientContext &context, const std::string &table_name, duckdb::ReplacementScanData *data_p) {
+	auto &data = (ReplacementDataDBWrapper &)*data_p;
+	auto db_wrapper = data.wrapper;
+
+	auto table_name_symbol = Rf_install(table_name.c_str());
+	SEXP df;
+	SEXP rho = R_GetCurrentEnv();
+	while(rho != R_EmptyEnv) {
+		df = Rf_findVarInFrame3(rho, table_name_symbol, TRUE);
+		if (df != R_UnboundValue) {
+			break;
+		}
+		rho = ENCLOS(rho);
+	}
+	if (!df) {
+		return nullptr;
+	}
+	if (TYPEOF(df) == PROMSXP) {
+		df = Rf_eval(df, rho);
+	}
+	if (!Rf_inherits(df, "data.frame")) {
+		return nullptr;
+	}
+	// TODO: do utf conversion
+	auto table_function = make_uniq<TableFunctionRef>();
+	vector<duckdb::unique_ptr<ParsedExpression>> children;
+	children.push_back(
+	make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)df)));
+	table_function->function = make_uniq<FunctionExpression>("r_dataframe_scan", std::move(children));
+	return std::move(table_function);
+}
+
+
 class RArrowTabularStreamFactory {
 public:
 	RArrowTabularStreamFactory(SEXP export_fun_p, SEXP arrow_scannable_p, ClientProperties config)
@@ -200,9 +235,11 @@ private:
 	}
 };
 
+
+
 unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, const string &table_name,
                                                   ReplacementScanData *data_p) {
-	auto &data = (ArrowScanReplacementData &)*data_p;
+	auto &data = (ReplacementDataDBWrapper &)*data_p;
 	auto db_wrapper = data.wrapper;
 	lock_guard<mutex> arrow_scans_lock(db_wrapper->lock);
 	const auto &arrow_scans = db_wrapper->arrow_scans;
