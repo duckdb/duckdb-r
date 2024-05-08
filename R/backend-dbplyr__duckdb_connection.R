@@ -287,10 +287,10 @@ sql_translation.duckdb_connection <- function(con) {
 
         rlang::check_dots_empty()
         if (precision != "day") {
-          cli::cli_abort('The only supported value for {.arg precision} on SQL backends is "day"')
+          stop('The only supported value for `precision` on SQL backends is "day"')
         }
         if (n != 1) {
-          cli::cli_abort('The only supported value for {.arg n} on SQL backends is "1"')
+          stop('The only supported value for `n` on SQL backends is "1"')
         }
 
         build_sql("DATEDIFF('day', ", !!start, ", " ,!!end, ")")
