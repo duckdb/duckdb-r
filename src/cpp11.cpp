@@ -104,10 +104,10 @@ extern "C" SEXP _duckdb_rapi_expr_reference(SEXP rnames) {
   END_CPP11
 }
 // relational.cpp
-SEXP rapi_expr_constant(sexp val);
-extern "C" SEXP _duckdb_rapi_expr_constant(SEXP val) {
+SEXP rapi_expr_constant(sexp val, bool typed_logical_null);
+extern "C" SEXP _duckdb_rapi_expr_constant(SEXP val, SEXP typed_logical_null) {
   BEGIN_CPP11
-    return cpp11::as_sexp(rapi_expr_constant(cpp11::as_cpp<cpp11::decay_t<sexp>>(val)));
+    return cpp11::as_sexp(rapi_expr_constant(cpp11::as_cpp<cpp11::decay_t<sexp>>(val), cpp11::as_cpp<cpp11::decay_t<bool>>(typed_logical_null)));
   END_CPP11
 }
 // relational.cpp
@@ -424,7 +424,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_disconnect",              (DL_FUNC) &_duckdb_rapi_disconnect,              1},
     {"_duckdb_rapi_execute",                 (DL_FUNC) &_duckdb_rapi_execute,                 3},
     {"_duckdb_rapi_execute_arrow",           (DL_FUNC) &_duckdb_rapi_execute_arrow,           2},
-    {"_duckdb_rapi_expr_constant",           (DL_FUNC) &_duckdb_rapi_expr_constant,           1},
+    {"_duckdb_rapi_expr_constant",           (DL_FUNC) &_duckdb_rapi_expr_constant,           2},
     {"_duckdb_rapi_expr_function",           (DL_FUNC) &_duckdb_rapi_expr_function,           4},
     {"_duckdb_rapi_expr_reference",          (DL_FUNC) &_duckdb_rapi_expr_reference,          1},
     {"_duckdb_rapi_expr_set_alias",          (DL_FUNC) &_duckdb_rapi_expr_set_alias,          2},
