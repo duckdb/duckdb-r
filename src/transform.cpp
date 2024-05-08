@@ -48,6 +48,7 @@ SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows) {
 	case LogicalTypeId::INTERVAL:
 		return NEW_NUMERIC(nrows);
 	case LogicalTypeId::LIST:
+	case LogicalTypeId::MAP:
 		return NEW_LIST(nrows);
 	case LogicalTypeId::STRUCT: {
 		cpp11::writable::list dest_list;
@@ -147,6 +148,7 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, bool integer64)
 	case LogicalTypeId::BLOB:
 	case LogicalTypeId::UUID:
 	case LogicalTypeId::LIST:
+	case LogicalTypeId::MAP:
 		break; // no extra decoration required, do nothing
 	case LogicalTypeId::TIMESTAMP_SEC:
 	case LogicalTypeId::TIMESTAMP_MS:
@@ -432,6 +434,56 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 
 		break;
 	}
+
+	case LogicalTypeId::MAP: {
+		auto src_data = ListVector::GetData(src_vec);
+
+		auto &key_type = MapType::KeyType(src_vec.GetType());
+		auto &value_type = MapType::ValueType(src_vec.GetType());
+
+		Vector key_child(key_type, nullptr);
+		Vector value_child(value_type, nullptr);
+
+		for (size_t row_idx = 0; row_idx < n; row_idx++) {
+			if (!FlatVector::Validity(src_vec).RowIsValid(row_idx)) {
+				SET_ELEMENT(dest, dest_offset + row_idx, R_NilValue);
+			} else {
+				auto offset = src_data[row_idx].offset;
+				auto length = src_data[row_idx].length;
+				const auto end = offset + length;
+
+				key_child.Slice(MapVector::GetKeys(src_vec), offset, end);
+				value_child.Slice(MapVector::GetValues(src_vec), offset, end);
+
+				cpp11::sexp key_sexp = duckdb_r_allocate(key_type, length);
+				cpp11::sexp value_sexp = duckdb_r_allocate(value_type, length);
+
+				duckdb_r_decorate(key_type, key_sexp, integer64);
+				duckdb_r_decorate(value_type, value_sexp, integer64);
+
+				duckdb_r_transform(key_child, key_sexp, 0, length, integer64);
+				duckdb_r_transform(value_child, value_sexp, 0, length, integer64);
+
+				cpp11::writable::list dest_list;
+				dest_list.reserve(2);
+
+				dest_list.push_back(cpp11::named_arg("key") = std::move(key_sexp));
+				dest_list.push_back(cpp11::named_arg("value") = std::move(value_sexp));
+
+				// convert to SEXP, with potential side effect of truncation
+				(void)(SEXP)dest_list;
+
+				// Note we cannot use cpp11's data frame here as it tries to calculate the number of rows itself,
+				// but gives the wrong answer if the first column is another data frame or the struct is empty.
+				dest_list.attr(R_ClassSymbol) = RStrings::get().dataframe_str;
+				dest_list.attr(R_RowNamesSymbol) = {NA_INTEGER, -static_cast<int>(length)};
+				// call R's own extract subset method
+				SET_ELEMENT(dest, dest_offset + row_idx, dest_list);
+			}
+		}
+		break;
+	}
+
 	case LogicalTypeId::BLOB: {
 		auto src_ptr = FlatVector::GetData<string_t>(src_vec);
 		auto &mask = FlatVector::Validity(src_vec);

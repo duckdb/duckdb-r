@@ -303,12 +303,15 @@ string RApiTypes::DetectLogicalType(const LogicalType &stype, const char *caller
 	case LogicalTypeId::LIST:
 		return "list";
 	case LogicalTypeId::STRUCT:
+	case LogicalTypeId::MAP:
+		return "data.frame";
 		return "data.frame";
 	case LogicalTypeId::ENUM:
 		return "factor";
 	case LogicalTypeId::UNKNOWN:
 	case LogicalTypeId::SQLNULL:
 		return "unknown";
+
 	default:
 		cpp11::stop("%s: Unknown column type for prepare: %s", caller, stype.ToString().c_str());
 		break;
