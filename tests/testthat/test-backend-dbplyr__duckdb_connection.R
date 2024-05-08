@@ -134,6 +134,8 @@ test_that("custom clock functions translated correctly", {
   skip_if_no_R4()
   skip_if_not_installed("dbplyr")
   skip_if_not_installed("clock")
+  skip_if_not_installed("rlang")
+  skip_if_not_installed("cli")
   con <- dbConnect(duckdb())
   on.exit(dbDisconnect(con, shutdown = TRUE))
   translate <- function(...) dbplyr::translate_sql(..., con = con)
@@ -149,10 +151,18 @@ test_that("custom clock functions translated correctly", {
   expect_equal(translate(get_month(x)), sql(r"{DATE_PART('month', x)}"))
   expect_equal(translate(get_year(x)), sql(r"{DATE_PART('year', x)}"))
 
+  expect_equal(translate(date_count_between(start = "start",
+                                            end = "end",
+                                            precision = "day")),
+               sql(r"{DATEDIFF('day', start, end)}"))
+
   test_data <- data.frame(
     person = 1L,
-    date_1 = as.Date("2000-01-01")
+    date_1 = as.Date("2000-01-01"),
+    date_2 = as.Date("2000-01-30")
   )
+  db_test_data <- dplyr::copy_to(con, test_data, overwrite = TRUE)
+
   test_data <- test_data |>
     dplyr::mutate(date_plus_two_days  = clock::add_days(date_1, 2),
            date_plus_two_years = clock::add_years(date_1, 2),
@@ -160,10 +170,10 @@ test_that("custom clock functions translated correctly", {
            date_minus_two_years = clock::add_years(date_1, -2),
            day = clock::get_day(date_1),
            month = clock::get_month(date_1),
-           year = clock::get_year(date_1)
-           ) |>
-    dplyr::glimpse()
-  db_test_data <- dplyr::copy_to(con, test_data, overwrite = TRUE)
+           year = clock::get_year(date_1),
+           diff = clock::date_count_between(date_1, date_2, "day"),
+           diff2 = clock::date_count_between(date_2, date_1, "day")
+           )
   db_test_data <- db_test_data |>
     dplyr::mutate(date_plus_two_days  = as.Date(clock::add_days(date_1, 2)),
            date_plus_two_years = as.Date(clock::add_years(date_1, 2)),
@@ -171,11 +181,21 @@ test_that("custom clock functions translated correctly", {
            date_minus_two_years = as.Date(clock::add_years(date_1, -2)),
            day = clock::get_day(date_1),
            month = clock::get_month(date_1),
-           year = clock::get_year(date_1)) |>
+           year = clock::get_year(date_1),
+           diff = clock::date_count_between(date_1, date_2, "day"),
+           diff2 = clock::date_count_between(date_2, date_1, "day")) |>
     dplyr::collect()
 
   expect_equal(unclass(test_data), unclass(db_test_data))
 
+  # errors for unsupported arguments
+  expect_error(translate(date_count_between(start = "start",
+                                            end = "end",
+                                            precision = "year")))
+  expect_error(translate(date_count_between(start = "start",
+                                            end = "end",
+                                            precision = "day",
+                                            n = 5)))
 
 })
 
