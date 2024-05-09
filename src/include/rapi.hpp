@@ -120,8 +120,7 @@ struct RQueryResult {
 typedef cpp11::external_pointer<RQueryResult> rqry_eptr_t;
 
 // internal
-unique_ptr<TableRef> ArrowScanReplacement(ClientContext &context, const std::string &table_name,
-                                          ReplacementScanData *data);
+unique_ptr<TableRef> ArrowScanReplacement(ClientContext &context, ReplacementScanInput &input, optional_ptr<ReplacementScanData> data);
 
 struct ArrowScanReplacementData : public ReplacementScanData {
 	DBWrapper *wrapper;

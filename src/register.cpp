@@ -200,9 +200,9 @@ private:
 	}
 };
 
-unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, const string &table_name,
-                                                  ReplacementScanData *data_p) {
-	auto &data = (ArrowScanReplacementData &)*data_p;
+unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, ReplacementScanInput &input, optional_ptr<ReplacementScanData> data_p) {
+  auto table_name = input.table_name;
+  ArrowScanReplacementData& data = static_cast<ArrowScanReplacementData&>(*data_p);
 	auto db_wrapper = data.wrapper;
 	lock_guard<mutex> arrow_scans_lock(db_wrapper->lock);
 	const auto &arrow_scans = db_wrapper->arrow_scans;
