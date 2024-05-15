@@ -1,0 +1,40 @@
+From f8db129a0e4991f0ad7cc4c506661bc1cc75f0bc Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Wed, 15 May 2024 08:17:37 +0200
+Subject: [PATCH] yyjson: Avoid suppression of warnings
+
+---
+ .../third_party/yyjson/include/yyjson.hpp       | 17 +----------------
+ 1 file changed, 1 insertion(+), 16 deletions(-)
+
+diff --git a/src/duckdb/third_party/yyjson/include/yyjson.hpp b/src/duckdb/third_party/yyjson/include/yyjson.hpp
+index 05332384..d1936dfa 100644
+--- a/src/duckdb/third_party/yyjson/include/yyjson.hpp
++++ b/src/duckdb/third_party/yyjson/include/yyjson.hpp
+@@ -387,22 +387,7 @@ namespace duckdb_yyjson {
+ // extern "C" {
+ #endif
+ 
+-/* warning suppress begin */
+-#if defined(__clang__)
+-#   pragma clang diagnostic push
+-#   pragma clang diagnostic ignored "-Wunused-function"
+-#   pragma clang diagnostic ignored "-Wunused-parameter"
+-#elif defined(__GNUC__)
+-#   if (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
+-#   pragma GCC diagnostic push
+-#   endif
+-#   pragma GCC diagnostic ignored "-Wunused-function"
+-#   pragma GCC diagnostic ignored "-Wunused-parameter"
+-#elif defined(_MSC_VER)
+-#   pragma warning(push)
+-#   pragma warning(disable:4800) /* 'int': forcing value to 'true' or 'false' */
+-#endif
+-
++/* warning suppress not allowed on CRAN */
+ 
+ 
+ /*==============================================================================
+-- 
+2.43.0
+
