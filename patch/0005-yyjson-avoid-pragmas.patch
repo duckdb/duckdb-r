@@ -1,0 +1,83 @@
+From 9500dd5e2dc8d25767a3ac7f072ffef4b6461bcc Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Wed, 15 May 2024 18:08:19 +0200
+Subject: [PATCH 5/5] yyjson: avoid pragmas
+
+---
+ .../third_party/yyjson/include/yyjson.hpp       | 17 -----------------
+ 1 file changed, 17 deletions(-)
+
+diff --git a/src/duckdb/third_party/yyjson/include/yyjson.hpp b/src/duckdb/third_party/yyjson/include/yyjson.hpp
+index 05332384..44c161a0 100644
+--- a/src/duckdb/third_party/yyjson/include/yyjson.hpp
++++ b/src/duckdb/third_party/yyjson/include/yyjson.hpp
+@@ -389,18 +389,10 @@ namespace duckdb_yyjson {
+ 
+ /* warning suppress begin */
+ #if defined(__clang__)
+-#   pragma clang diagnostic push
+-#   pragma clang diagnostic ignored "-Wunused-function"
+-#   pragma clang diagnostic ignored "-Wunused-parameter"
+ #elif defined(__GNUC__)
+ #   if (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
+-#   pragma GCC diagnostic push
+ #   endif
+-#   pragma GCC diagnostic ignored "-Wunused-function"
+-#   pragma GCC diagnostic ignored "-Wunused-parameter"
+ #elif defined(_MSC_VER)
+-#   pragma warning(push)
+-#   pragma warning(disable:4800) /* 'int': forcing value to 'true' or 'false' */
+ #endif
+ 
+ 
+@@ -564,8 +556,6 @@ typedef struct yyjson_mut_val yyjson_mut_val;
+  * JSON Reader API
+  *============================================================================*/
+ #ifdef __clang__
+-#pragma clang diagnostic push
+-#pragma clang diagnostic ignored "-Wunused-const-variable"
+ #endif
+ 
+ /** Run-time options for JSON reader. */
+@@ -677,7 +667,6 @@ typedef struct yyjson_read_err {
+ } yyjson_read_err;
+ 
+ #ifdef __clang__
+-#pragma clang diagnostic pop
+ #endif
+ 
+ /**
+@@ -877,8 +866,6 @@ yyjson_api_inline const char *yyjson_mut_read_number(const char *dat,
+ typedef uint32_t yyjson_write_flag;
+ 
+ #ifdef __clang__
+-#pragma clang diagnostic push
+-#pragma clang diagnostic ignored "-Wunused-const-variable"
+ #endif
+ 
+ /** Default option:
+@@ -953,7 +940,6 @@ typedef struct yyjson_write_err {
+ } yyjson_write_err;
+ 
+ #ifdef __clang__
+-#pragma clang diagnostic pop
+ #endif
+ 
+ /*==============================================================================
+@@ -6002,13 +5988,10 @@ yyjson_api_inline yyjson_mut_val *yyjson_mut_doc_get_pointer(
+  *============================================================================*/
+ 
+ #if defined(__clang__)
+-#   pragma clang diagnostic pop
+ #elif defined(__GNUC__)
+ #   if (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
+-#   pragma GCC diagnostic pop
+ #   endif
+ #elif defined(_MSC_VER)
+-#   pragma warning(pop)
+ #endif /* warning suppress end */
+ 
+ #ifdef __cplusplus
+-- 
+2.43.0
+
