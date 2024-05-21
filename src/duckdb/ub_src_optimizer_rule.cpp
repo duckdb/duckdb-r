@@ -28,3 +28,5 @@
 
 #include "src/optimizer/rule/regex_optimizations.cpp"
 
+#include "src/optimizer/rule/timestamp_comparison.cpp"
+
