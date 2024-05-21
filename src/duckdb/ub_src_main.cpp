@@ -32,6 +32,8 @@
 
 #include "src/main/extension.cpp"
 
+#include "src/main/extension_install_info.cpp"
+
 #include "src/main/materialized_query_result.cpp"
 
 #include "src/main/pending_query_result.cpp"

@@ -1,7 +1,7 @@
 //===----------------------------------------------------------------------===//
 //                         DuckDB
 //
-// duckdb/parser/parsed_data/load_info.hpp
+// duckdb/parser/parsed_data/update_extensions_info.hpp
 //
 //
 //===----------------------------------------------------------------------===//
@@ -12,25 +12,22 @@
 
 namespace duckdb {
 
-enum class LoadType : uint8_t { LOAD, INSTALL, FORCE_INSTALL };
-
-struct LoadInfo : public ParseInfo {
+struct UpdateExtensionsInfo : public ParseInfo {
 public:
-	static constexpr const ParseInfoType TYPE = ParseInfoType::LOAD_INFO;
+	static constexpr const ParseInfoType TYPE = ParseInfoType::UPDATE_EXTENSIONS_INFO;
 
 public:
-	LoadInfo() : ParseInfo(TYPE) {
+	UpdateExtensionsInfo() : ParseInfo(TYPE) {
 	}
 
-	string filename;
-	string repository;
-	bool repo_is_alias;
-	string version;
-	LoadType load_type;
+	vector<string> extensions_to_update;
 
 public:
-	unique_ptr<LoadInfo> Copy() const;
-	string ToString() const;
+	unique_ptr<UpdateExtensionsInfo> Copy() const {
+		auto result = make_uniq<UpdateExtensionsInfo>();
+		result->extensions_to_update = extensions_to_update;
+		return result;
+	}
 
 	void Serialize(Serializer &serializer) const override;
 	static unique_ptr<ParseInfo> Deserialize(Deserializer &deserializer);

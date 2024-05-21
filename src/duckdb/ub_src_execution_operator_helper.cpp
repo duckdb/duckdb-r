@@ -34,6 +34,8 @@
 
 #include "src/execution/operator/helper/physical_transaction.cpp"
 
+#include "src/execution/operator/helper/physical_update_extensions.cpp"
+
 #include "src/execution/operator/helper/physical_vacuum.cpp"
 
 #include "src/execution/operator/helper/physical_verify_vector.cpp"
