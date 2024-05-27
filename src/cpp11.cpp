@@ -161,10 +161,10 @@ extern "C" SEXP _duckdb_rapi_rel_aggregate(SEXP rel, SEXP groups, SEXP aggregate
   END_CPP11
 }
 // relational.cpp
-SEXP rapi_rel_order(duckdb::rel_extptr_t rel, list orders);
-extern "C" SEXP _duckdb_rapi_rel_order(SEXP rel, SEXP orders) {
+SEXP rapi_rel_order(duckdb::rel_extptr_t rel, list orders, r_vector<r_bool> ascending);
+extern "C" SEXP _duckdb_rapi_rel_order(SEXP rel, SEXP orders, SEXP ascending) {
   BEGIN_CPP11
-    return cpp11::as_sexp(rapi_rel_order(cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rel), cpp11::as_cpp<cpp11::decay_t<list>>(orders)));
+    return cpp11::as_sexp(rapi_rel_order(cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rel), cpp11::as_cpp<cpp11::decay_t<list>>(orders), cpp11::as_cpp<cpp11::decay_t<r_vector<r_bool>>>(ascending)));
   END_CPP11
 }
 // relational.cpp
@@ -456,7 +456,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_rel_join",                (DL_FUNC) &_duckdb_rapi_rel_join,                5},
     {"_duckdb_rapi_rel_limit",               (DL_FUNC) &_duckdb_rapi_rel_limit,               2},
     {"_duckdb_rapi_rel_names",               (DL_FUNC) &_duckdb_rapi_rel_names,               1},
-    {"_duckdb_rapi_rel_order",               (DL_FUNC) &_duckdb_rapi_rel_order,               2},
+    {"_duckdb_rapi_rel_order",               (DL_FUNC) &_duckdb_rapi_rel_order,               3},
     {"_duckdb_rapi_rel_project",             (DL_FUNC) &_duckdb_rapi_rel_project,             2},
     {"_duckdb_rapi_rel_set_alias",           (DL_FUNC) &_duckdb_rapi_rel_set_alias,           2},
     {"_duckdb_rapi_rel_set_diff",            (DL_FUNC) &_duckdb_rapi_rel_set_diff,            2},

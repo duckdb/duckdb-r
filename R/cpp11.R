@@ -84,8 +84,8 @@ rapi_rel_aggregate <- function(rel, groups, aggregates) {
   .Call(`_duckdb_rapi_rel_aggregate`, rel, groups, aggregates)
 }
 
-rapi_rel_order <- function(rel, orders) {
-  .Call(`_duckdb_rapi_rel_order`, rel, orders)
+rapi_rel_order <- function(rel, orders, ascending) {
+  .Call(`_duckdb_rapi_rel_order`, rel, orders, ascending)
 }
 
 rapi_expr_window <- function(window_function, partitions, order_bys, window_boundary_start, window_boundary_end, start_expr, end_expr, offset_expr, default_expr) {

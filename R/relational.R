@@ -148,13 +148,24 @@ rel_aggregate <- rapi_rel_aggregate
 #' Lazily reorder a DuckDB relation object
 #' @param rel the DuckDB relation object
 #' @param orders a list of DuckDB expressions to order by
+#' @param ascending a vector of boolean values describing sort order of expressions. True for ascending. 
 #' @return the now aggregated `duckdb_relation` object
 #' @noRd
 #' @examples
 #' con <- DBI::dbConnect(duckdb())
 #' rel <- rel_from_df(con, mtcars)
 #' rel2 <- rel_order(rel, list(expr_reference("hp")))
-rel_order <- rapi_rel_order
+rel_order <- function(rel, orders, ascending = NULL) {
+  if (is.null(ascending)) {
+    ascending <- rep(TRUE, length(orders))
+  }
+
+  if (length(orders) != length(ascending)) {
+    stop("length of ascending must equal length of orders")
+  }
+  
+  return(rapi_rel_order(rel, orders, ascending))
+}
 
 #' Get an external pointer pointing to NULL
 #' @return an external pointer pointing to null_ptr.
