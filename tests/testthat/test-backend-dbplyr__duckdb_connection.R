@@ -284,6 +284,7 @@ test_that("n_distinct() computations are correct", {
   on.exit(dbDisconnect(con, shutdown = TRUE))
   tbl <- dplyr::tbl
   summarize <- dplyr::summarize
+  mutate <- dplyr::mutate
   pull <- dplyr::pull
 
   duckdb_register(con, "df", data.frame(x = c(1, 1, 2, 2), y = c(1, 2, 2, 2)))
@@ -317,6 +318,11 @@ test_that("n_distinct() computations are correct", {
   expect_equal(
     pull(summarize(df_na, n = n_distinct(x, y)), n),
     5
+  )
+
+  expect_equal(
+    pull(mutate(df_na, n = n_distinct(x, y)), n),
+    rep(5, 5)
   )
 })
 

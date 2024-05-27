@@ -79,6 +79,12 @@ duckdb_grepl <- function(pattern, x, ignore.case = FALSE, perl = FALSE, fixed = 
 
 duckdb_n_distinct <- function(..., na.rm = FALSE) {
   sql <- pkg_method("sql", "dbplyr")
+  check_dots_unnamed <- pkg_method("check_dots_unnamed", "rlang")
+
+  if (missing(...)) {
+    stop("`...` is absent, but must be supplied.")
+  }
+  check_dots_unnamed()
 
   if (!identical(na.rm, FALSE)) {
     stop("Parameter `na.rm = TRUE` in n_distinct() is currently not supported in DuckDB backend.", call. = FALSE)
