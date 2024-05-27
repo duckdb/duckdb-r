@@ -289,6 +289,19 @@ sql_translation.duckdb_connection <- function(con) {
       get_day = function(x) {
         build_sql("DATE_PART('day', ", !!x, ")")
       },
+      date_count_between = function(start, end, precision, ..., n = 1L){
+
+        rlang::check_dots_empty()
+        if (precision != "day") {
+          stop('The only supported value for `precision` on SQL backends is "day"')
+        }
+        if (n != 1) {
+          stop('The only supported value for `n` on SQL backends is "1"')
+        }
+
+        build_sql("DATEDIFF('day', ", !!start, ", " ,!!end, ")")
+
+      },
 
       # stringr functions
       str_c = sql_paste(""),
