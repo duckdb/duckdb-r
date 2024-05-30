@@ -114,7 +114,7 @@ sql_translation.duckdb_connection <- function(con) {
   win_aggregate_2 <- pkg_method("win_aggregate_2", "dbplyr")
   win_over <- pkg_method("win_over", "dbplyr")
   win_current_order <- pkg_method("win_current_order", "dbplyr")
-  win_current_group <- pkg_method("win_current_order", "dbplyr")
+  win_current_group <- pkg_method("win_current_group", "dbplyr")
 
 
   base_scalar <- pkg_method("base_scalar", "dbplyr")
