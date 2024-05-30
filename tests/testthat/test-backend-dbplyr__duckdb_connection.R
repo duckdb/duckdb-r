@@ -276,9 +276,11 @@ test_that("aggregators translated correctly", {
 
   expect_equal(translate(str_flatten(x, ","), window = FALSE), sql(r"{STRING_AGG(x, ',')}"))
   expect_equal(translate(str_flatten(x, ","), window = TRUE), sql(r"{STRING_AGG(x, ',') OVER ()}"))
+  expect_equal(translate(str_flatten(x, ","), window = TRUE, vars_group = "y"), sql(r"{STRING_AGG(x, ',') OVER (PARTITION BY y)}"))
 
   expect_equal(translate(n_distinct(x), window = FALSE), sql(r"{COUNT(DISTINCT row(x))}"))
   expect_equal(translate(n_distinct(x), window = TRUE), sql(r"{COUNT(DISTINCT row(x)) OVER ()}"))
+  expect_equal(translate(n_distinct(x), window = TRUE, vars_group = "y"), sql(r"{COUNT(DISTINCT row(x)) OVER (PARTITION BY y)}"))
 })
 
 test_that("two variable aggregates are translated correctly", {
@@ -294,6 +296,7 @@ test_that("two variable aggregates are translated correctly", {
 
   expect_equal(translate(n_distinct(x, y), window = FALSE), sql(r"{COUNT(DISTINCT row(x, y))}"))
   expect_equal(translate(n_distinct(x, y), window = TRUE), sql(r"{COUNT(DISTINCT row(x, y)) OVER ()}"))
+  expect_equal(translate(n_distinct(x, y), window = TRUE, vars_group = "y"), sql(r"{COUNT(DISTINCT row(x, y)) OVER (PARTITION BY y)}"))
 })
 
 test_that("n_distinct() computations are correct", {
@@ -305,6 +308,7 @@ test_that("n_distinct() computations are correct", {
   tbl <- dplyr::tbl
   summarize <- dplyr::summarize
   mutate <- dplyr::mutate
+  arrange <- dplyr::arrange
   pull <- dplyr::pull
 
   duckdb_register(con, "df", data.frame(x = c(1, 1, 2, 2), y = c(1, 2, 2, 2)))
@@ -340,9 +344,15 @@ test_that("n_distinct() computations are correct", {
     5
   )
 
+  # window functions are working
   expect_equal(
     pull(mutate(df_na, n = n_distinct(x, y)), n),
     rep(5, 5)
+  )
+
+  expect_equal(
+    pull(arrange(mutate(df, n = n_distinct(x), .by = y), x, y), n),
+    c(1, 2, 2, 2)
   )
 })
 
