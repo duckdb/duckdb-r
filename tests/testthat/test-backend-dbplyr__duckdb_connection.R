@@ -161,7 +161,7 @@ test_that("custom clock functions translated correctly", {
     date_1 = as.Date("2000-01-01"),
     date_2 = as.Date("2000-01-30")
   )
-  db_test_data <- dplyr::copy_to(con, test_data, overwrite = TRUE)
+  db_test_data <- dbplyr::copy_inline(con, test_data)
 
   test_data <- test_data |>
     dplyr::mutate(date_plus_two_days  = clock::add_days(date_1, 2),
