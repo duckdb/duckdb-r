@@ -2,7 +2,7 @@
 
     Code
       as.list(dbGetQuery(con,
-        "SELECT * EXCLUDE (timestamp_tz, time_tz, timestamp_ns, timestamp_array, timestamptz_array, map, bit, \"union\", fixed_int_array, fixed_varchar_array, fixed_nested_int_array, fixed_nested_varchar_array, fixed_struct_array, struct_of_fixed_array, fixed_array_of_int_list, list_of_fixed_int_array) REPLACE(replace(varchar, chr(0), '') AS varchar) FROM test_all_types(use_large_enum=true)"))
+        "SELECT * EXCLUDE (timestamp_tz, time_tz, timestamp_ns, timestamp_array, timestamptz_array, bit, \"union\", fixed_int_array, fixed_varchar_array, fixed_nested_int_array, fixed_nested_varchar_array, fixed_struct_array, struct_of_fixed_array, fixed_array_of_int_list, list_of_fixed_int_array) REPLACE(replace(varchar, chr(0), '') AS varchar) FROM test_all_types(use_large_enum=true)"))
     Output
       $bool
       [1] FALSE  TRUE    NA
@@ -204,6 +204,20 @@
       3 NA         <NA>
       
       $array_of_structs[[3]]
+      NULL
+      
+      
+      $map
+      $map[[1]]
+      [1] key   value
+      <0 rows> (or 0-length row.names)
+      
+      $map[[2]]
+         key        value
+      1 key1 🦆🦆🦆🦆🦆🦆
+      2 key2        goose
+      
+      $map[[3]]
       NULL
       
       
