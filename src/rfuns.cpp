@@ -4,6 +4,7 @@
 
 #include <math.h>
 #include <climits>
+#include <cmath>
 
 namespace duckdb {
 namespace rfuns {
@@ -29,7 +30,7 @@ void BaseRAddFunctionDouble(DataChunk &args, ExpressionState &state, Vector &res
 
 	BinaryExecutor::ExecuteWithNulls<double, double, double>(
 	    parts.lefts, parts.rights, result, args.size(), [&](double left, double right, ValidityMask &mask, idx_t idx) {
-		    if (isnan(left) || isnan(right)) {
+		    if (std::isnan(left) || std::isnan(right)) {
 			    mask.SetInvalid(idx);
 			    return 0.0;
 		    }
@@ -38,7 +39,7 @@ void BaseRAddFunctionDouble(DataChunk &args, ExpressionState &state, Vector &res
 }
 
 double ExecuteBaseRPlusFunctionIntDouble(int32_t left, double right, ValidityMask &mask, idx_t idx) {
-	if (isnan(right)) {
+	if (std::isnan(right)) {
 		mask.SetInvalid(idx);
 		return 0.0;
 	}
@@ -86,6 +87,7 @@ ScalarFunctionSet base_r_add() {
 #include <math.h>
 #include <climits>
 #include <limits>
+#include <cmath>
 
 namespace duckdb {
 namespace rfuns {
@@ -93,7 +95,7 @@ namespace rfuns {
 namespace {
 
 template <typename T>
-int32_t check_range(T value, ValidityMask &mask, idx_t idx) {
+int32_t check_int_range(T value, ValidityMask &mask, idx_t idx) {
 	if (value > std::numeric_limits<int32_t>::max() || value < std::numeric_limits<int32_t>::min() ) {
 		mask.SetInvalid(idx);
 	}
@@ -101,66 +103,90 @@ int32_t check_range(T value, ValidityMask &mask, idx_t idx) {
 	return static_cast<int32_t>(value);
 }
 
-template <typename T>
-int32_t cast(T input, ValidityMask &mask, idx_t idx) {
-	return static_cast<int32_t>(input);
+template <typename FROM, typename TO>
+TO cast(FROM input, ValidityMask &mask, idx_t idx) {
+	return static_cast<TO>(input);
 }
 
 template <>
-int32_t cast<double>(double input, ValidityMask &mask, idx_t idx) {
-	if (isnan(input)) {
+int32_t cast<double, int32_t>(double input, ValidityMask &mask, idx_t idx) {
+	if (std::isnan(input)) {
 		mask.SetInvalid(idx);
 	}
-	return check_range(input, mask, idx);
+	return check_int_range(input, mask, idx);
 }
 
 template <>
-int32_t cast<string_t>(string_t input, ValidityMask &mask, idx_t idx) {
+double cast<string_t, double>(string_t input, ValidityMask &mask, idx_t idx) {
 	double result;
 	if (!TryDoubleCast<double>(input.GetData(), input.GetSize(), result, false)) {
 		mask.SetInvalid(idx);
 	}
 
-	return cast<double>(result, mask, idx);
+	return result;
 }
 
 template <>
-int32_t cast<date_t>(date_t input, ValidityMask &mask, idx_t idx) {
+int32_t cast<string_t, int32_t>(string_t input, ValidityMask &mask, idx_t idx) {
+	auto dbl = cast<string_t, double>(input, mask, idx);
+	return cast<double, int32_t>(dbl, mask, idx);
+}
+
+template <>
+int32_t cast<date_t, int32_t>(date_t input, ValidityMask &mask, idx_t idx) {
 	return input.days;
 }
 
 template <>
-int32_t cast<timestamp_t>(timestamp_t input, ValidityMask &mask, idx_t idx) {
-	return check_range(Timestamp::GetEpochSeconds(input), mask, idx);
+double cast<date_t, double>(date_t input, ValidityMask &mask, idx_t idx) {
+	return input.days;
 }
 
-template <LogicalTypeId TYPE>
-ScalarFunction AsIntegerFunction() {
+template <>
+int32_t cast<timestamp_t, int32_t>(timestamp_t input, ValidityMask &mask, idx_t idx) {
+	return check_int_range(Timestamp::GetEpochSeconds(input), mask, idx);
+}
+
+template <>
+double cast<timestamp_t, double>(timestamp_t input, ValidityMask &mask, idx_t idx) {
+	return check_int_range(Timestamp::GetEpochSeconds(input), mask, idx);
+}
+
+template <LogicalTypeId TYPE, LogicalTypeId RESULT_TYPE>
+ScalarFunction AsNumberFunction() {
 	using physical_type = typename physical<TYPE>::type;
+	using result_type = typename physical<RESULT_TYPE>::type;
 
 	auto fun = [](DataChunk &args, ExpressionState &state, Vector &result) {
-		UnaryExecutor::ExecuteWithNulls<physical_type, int32_t>(
-			args.data[0], result, args.size(), cast<physical_type>
+		UnaryExecutor::ExecuteWithNulls<physical_type, result_type>(
+			args.data[0], result, args.size(), cast<physical_type, result_type>
 		);
 	};
-	return ScalarFunction({TYPE}, LogicalType::INTEGER, fun);
+	return ScalarFunction({TYPE}, RESULT_TYPE, fun);
+}
+
+template <LogicalTypeId RESULT_TYPE>
+ScalarFunctionSet as_number(std::string name) {
+	ScalarFunctionSet set(name);
+
+	set.AddFunction(AsNumberFunction<LogicalType::BOOLEAN   , RESULT_TYPE>());
+	set.AddFunction(AsNumberFunction<LogicalType::INTEGER   , RESULT_TYPE>());
+	set.AddFunction(AsNumberFunction<LogicalType::DOUBLE    , RESULT_TYPE>());
+	set.AddFunction(AsNumberFunction<LogicalType::VARCHAR   , RESULT_TYPE>());
+	set.AddFunction(AsNumberFunction<LogicalType::DATE      , RESULT_TYPE>());
+	set.AddFunction(AsNumberFunction<LogicalType::TIMESTAMP , RESULT_TYPE>());
+
+	return set;
 }
 
 }
 
 ScalarFunctionSet base_r_as_integer() {
-	ScalarFunctionSet set("r_base::as.integer");
+	return as_number<LogicalTypeId::INTEGER>("r_base::as.integer");
+}
 
-	set.AddFunction(AsIntegerFunction<LogicalType::BOOLEAN>());
-	set.AddFunction(AsIntegerFunction<LogicalType::INTEGER>());
-	set.AddFunction(AsIntegerFunction<LogicalType::DOUBLE>());
-
-	set.AddFunction(AsIntegerFunction<LogicalType::VARCHAR>());
-
-	set.AddFunction(AsIntegerFunction<LogicalType::DATE>());
-	set.AddFunction(AsIntegerFunction<LogicalType::TIMESTAMP>());
-
-	return set;
+ScalarFunctionSet base_r_as_numeric() {
+	return as_number<LogicalTypeId::DOUBLE>("r_base::as.numeric");
 }
 
 }
@@ -206,19 +232,12 @@ ScalarFunctionSet binary_dispatch(ScalarFunctionSet fn) {
 #include <math.h>
 #include <climits>
 #include <iostream>
+#include <cmath>
 
 namespace duckdb {
 namespace rfuns {
 
-void isna_double(DataChunk &args, ExpressionState &state, Vector &result) {
-	auto count = args.size();
-	auto input = args.data[0];
-	auto mask = FlatVector::Validity(input);
-	auto* data = FlatVector::GetData<double>(input);
-
-	result.SetVectorType(VectorType::FLAT_VECTOR);
-	auto result_data = FlatVector::GetData<bool>(result);
-
+void isna_double_loop(idx_t count, const double* data, bool* result_data, ValidityMask mask) {
 	idx_t base_idx = 0;
 	auto entry_count = ValidityMask::EntryCount(count);
 	for (idx_t entry_idx = 0; entry_idx < entry_count; entry_idx++) {
@@ -250,14 +269,52 @@ void isna_double(DataChunk &args, ExpressionState &state, Vector &result) {
 	}
 }
 
-void isna_any(DataChunk &args, ExpressionState &state, Vector &result) {
+void isna_double(DataChunk &args, ExpressionState &state, Vector &result) {
 	auto count = args.size();
 	auto input = args.data[0];
-	auto mask = FlatVector::Validity(input);
 
-	result.SetVectorType(VectorType::FLAT_VECTOR);
-	auto result_data = FlatVector::GetData<bool>(result);
+	switch(input.GetVectorType()) {
+		case VectorType::FLAT_VECTOR: {
+			result.SetVectorType(VectorType::FLAT_VECTOR);
 
+			isna_double_loop(
+				count,
+				FlatVector::GetData<double>(input),
+				FlatVector::GetData<bool>(result),
+				FlatVector::Validity(input)
+			);
+
+			break;
+		}
+
+		case VectorType::CONSTANT_VECTOR: {
+			result.SetVectorType(VectorType::CONSTANT_VECTOR);
+			auto result_data = ConstantVector::GetData<bool>(result);
+			auto ldata = ConstantVector::GetData<double>(input);
+
+			*result_data = ConstantVector::IsNull(input) || isnan(*ldata);
+
+			break;
+		}
+
+		default: {
+			UnifiedVectorFormat vdata;
+			input.ToUnifiedFormat(count, vdata);
+			result.SetVectorType(VectorType::FLAT_VECTOR);
+
+			isna_double_loop(
+				count,
+				UnifiedVectorFormat::GetData<double>(vdata),
+				FlatVector::GetData<bool>(result),
+				vdata.validity
+			);
+
+			break;
+		}
+	}
+}
+
+void isna_any_loop(idx_t count, bool* result_data, ValidityMask mask) {
 	if (mask.AllValid()) {
 		for (idx_t i = 0; i < count; i++) {
 			result_data[i] = false;
@@ -289,6 +346,47 @@ void isna_any(DataChunk &args, ExpressionState &state, Vector &result) {
 			}
 		}
 	}
+
+}
+
+void isna_any(DataChunk &args, ExpressionState &state, Vector &result) {
+	auto count = args.size();
+	auto input = args.data[0];
+
+	switch(input.GetVectorType()) {
+		case VectorType::FLAT_VECTOR: {
+			result.SetVectorType(VectorType::FLAT_VECTOR);
+			isna_any_loop(
+				count,
+				FlatVector::GetData<bool>(result),
+				FlatVector::Validity(input)
+			);
+
+			break;
+		}
+
+		case VectorType::CONSTANT_VECTOR: {
+			result.SetVectorType(VectorType::CONSTANT_VECTOR);
+			auto result_data = ConstantVector::GetData<bool>(result);
+			*result_data = ConstantVector::IsNull(input);
+
+			break;
+		}
+
+		default : {
+			UnifiedVectorFormat vdata;
+			input.ToUnifiedFormat(count, vdata);
+			result.SetVectorType(VectorType::FLAT_VECTOR);
+			isna_any_loop(
+				count,
+				FlatVector::GetData<bool>(result),
+				vdata.validity
+			);
+
+			break;
+		}
+	}
+
 }
 
 
@@ -464,6 +562,7 @@ AggregateFunctionSet base_r_max() {
 #include <math.h>
 #include <climits>
 #include <iostream>
+#include <cmath>
 
 namespace duckdb {
 namespace rfuns {
@@ -627,7 +726,7 @@ bool set_null(T value, ValidityMask &mask, idx_t idx) {
 
 template <>
 bool set_null<double>(double value, ValidityMask &mask, idx_t idx) {
-	if (isnan(value)) {
+	if (std::isnan(value)) {
 		mask.SetInvalid(idx);
 		return true;
 	}
@@ -772,6 +871,7 @@ static void register_rfuns(DatabaseInstance &instance) {
 
 	ExtensionUtil::RegisterFunction(instance, base_r_is_na());
 	ExtensionUtil::RegisterFunction(instance, base_r_as_integer());
+	ExtensionUtil::RegisterFunction(instance, base_r_as_numeric());
 
 	ExtensionUtil::RegisterFunction(instance, base_r_sum());
 	ExtensionUtil::RegisterFunction(instance, base_r_min());
