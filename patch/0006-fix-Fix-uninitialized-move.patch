@@ -1,0 +1,25 @@
+From 96d3210ea99e8002315cebb9332397577ba52578 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Tue, 4 Jun 2024 22:32:54 +0200
+Subject: [PATCH 2/2] fix: Fix uninitialized move
+
+---
+ src/duckdb/src/storage/buffer/buffer_handle.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/duckdb/src/storage/buffer/buffer_handle.cpp b/src/duckdb/src/storage/buffer/buffer_handle.cpp
+index dc3be3f2..21226eb6 100644
+--- a/src/duckdb/src/storage/buffer/buffer_handle.cpp
++++ b/src/duckdb/src/storage/buffer/buffer_handle.cpp
+@@ -11,7 +11,7 @@ BufferHandle::BufferHandle(shared_ptr<BlockHandle> handle_p, FileBuffer *node_p)
+     : handle(std::move(handle_p)), node(node_p) {
+ }
+ 
+-BufferHandle::BufferHandle(BufferHandle &&other) noexcept {
++BufferHandle::BufferHandle(BufferHandle &&other) noexcept : node(nullptr) {
+ 	std::swap(node, other.node);
+ 	std::swap(handle, other.handle);
+ }
+-- 
+2.43.0
+
