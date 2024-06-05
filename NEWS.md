@@ -1,8 +1,19 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 0.10.2.9001
+# duckdb 0.10.3
 
-- Merge branch 'cran-0.10.2'.
+## Features
+
+- Update to duckdb v0.10.3, see <https://github.com/duckdb/duckdb/releases/tag/v0.10.3> for details.
+- Support fetching `MAP` type (#61, #165).
+- Add dbplyr translations for `clock::date_count_between()` (@edward-burn, #163, #166).
+- `round()` duckdb translation uses `ROUND_EVEN()` instead of `ROUND()` (@lschneiderbauer, #146, #157).
+- New `sort` argument to `rel_order()` (@toppyy, #168).
+- Add dbplyr translations for `clock::add_days()`, `clock::add_years()`, `clock::get_day()`, `clock::get_month()`, and `clock::get_year()` (@edward-burn, #153).
+
+## Bug fixes
+
+- Correct usage of `win_current_group()` instead of `win_current_order()` in SQL translation (@lschneiderbauer, #173, #175).
 
 
 # duckdb 0.10.2
