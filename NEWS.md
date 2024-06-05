@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 0.10.3.9000
+
+## Continuous integration
+
+- Fail if patch does not apply.
+
+
 # duckdb 0.10.3
 
 ## Features
