@@ -3,7 +3,7 @@
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
     <nav class="navbar navbar-expand-lg fixed-top bg-light" data-bs-theme="light" aria-label="Site navigation"><div class="container">
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.2.9001</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.3</small>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
@@ -22,9 +22,22 @@
       <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.10.2.9001" id="duckdb-01029001">duckdb 0.10.2.9001<a class="anchor" aria-label="anchor" href="#duckdb-01029001"></a></h2>
-<ul><li>Merge branch ‘cran-0.10.2’.</li>
+<h2 class="pkg-version" data-toc-text="0.10.3" id="duckdb-0103">duckdb 0.10.3<a class="anchor" aria-label="anchor" href="#duckdb-0103"></a></h2>
+<div class="section level3">
+<h3 id="features-0-10-3">Features<a class="anchor" aria-label="anchor" href="#features-0-10-3"></a></h3>
+<ul><li>Update to duckdb v0.10.3, see <a href="https://github.com/duckdb/duckdb/releases/tag/v0.10.3" class="external-link uri">https://github.com/duckdb/duckdb/releases/tag/v0.10.3</a> for details.</li>
+<li>Support fetching <code>MAP</code> type (<a href="https://github.com/duckdb/duckdb-r/issues/61" class="external-link">#61</a>, <a href="https://github.com/duckdb/duckdb-r/issues/165" class="external-link">#165</a>).</li>
+<li>Add dbplyr translations for <code><a href="https://clock.r-lib.org/reference/date_count_between.html" class="external-link">clock::date_count_between()</a></code> (<a href="https://github.com/edward-burn" class="external-link">@edward-burn</a>, <a href="https://github.com/duckdb/duckdb-r/issues/163" class="external-link">#163</a>, <a href="https://github.com/duckdb/duckdb-r/issues/166" class="external-link">#166</a>).</li>
+<li>
+<code><a href="https://rdrr.io/r/base/Round.html" class="external-link">round()</a></code> duckdb translation uses <code>ROUND_EVEN()</code> instead of <code>ROUND()</code> (<a href="https://github.com/lschneiderbauer" class="external-link">@lschneiderbauer</a>, <a href="https://github.com/duckdb/duckdb-r/issues/146" class="external-link">#146</a>, <a href="https://github.com/duckdb/duckdb-r/issues/157" class="external-link">#157</a>).</li>
+<li>New <code>sort</code> argument to <code>rel_order()</code> (<a href="https://github.com/toppyy" class="external-link">@toppyy</a>, <a href="https://github.com/duckdb/duckdb-r/issues/168" class="external-link">#168</a>).</li>
+<li>Add dbplyr translations for <code><a href="https://clock.r-lib.org/reference/clock-arithmetic.html" class="external-link">clock::add_days()</a></code>, <code><a href="https://clock.r-lib.org/reference/clock-arithmetic.html" class="external-link">clock::add_years()</a></code>, <code><a href="https://clock.r-lib.org/reference/clock-getters.html" class="external-link">clock::get_day()</a></code>, <code><a href="https://clock.r-lib.org/reference/clock-getters.html" class="external-link">clock::get_month()</a></code>, and <code><a href="https://clock.r-lib.org/reference/clock-getters.html" class="external-link">clock::get_year()</a></code> (<a href="https://github.com/edward-burn" class="external-link">@edward-burn</a>, <a href="https://github.com/duckdb/duckdb-r/issues/153" class="external-link">#153</a>).</li>
 </ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-0-10-3">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-10-3"></a></h3>
+<ul><li>Correct usage of <code>win_current_group()</code> instead of <code>win_current_order()</code> in SQL translation (<a href="https://github.com/lschneiderbauer" class="external-link">@lschneiderbauer</a>, <a href="https://github.com/duckdb/duckdb-r/issues/173" class="external-link">#173</a>, <a href="https://github.com/duckdb/duckdb-r/issues/175" class="external-link">#175</a>).</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.10.2" id="duckdb-0102">duckdb 0.10.2<a class="anchor" aria-label="anchor" href="#duckdb-0102"></a></h2><p class="text-muted">CRAN release: 2024-05-01</p>
 <div class="section level3">
