@@ -46,12 +46,8 @@ for commit in $(git -C "$upstream_dir" log --first-parent --reverse --format="%H
   DUCKDB_PATH="$upstream_dir" python3 rconfigure.py
 
   for f in patch/*.patch; do
-    if cat $f | patch -p1 --dry-run; then
-      cat $f | patch -p1
-    else
-      echo "Patch $f does not apply, skipping it and remaining patches"
-      break
-    fi
+    # cat $f | patch -p1 --dry-run
+    cat $f | patch -p1
   done
 
   # Always vendor tags
