@@ -1,0 +1,88 @@
+From a7bf4fb62af63c0333b3c0a58167badb232dfc8c Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Wed, 5 Jun 2024 15:53:34 +0200
+Subject: [PATCH] fix: Compatibility with clang19
+
+---
+ .../core_functions/aggregate/distributive/arg_min_max.cpp | 4 ++--
+ .../src/core_functions/aggregate/distributive/bitagg.cpp  | 8 ++++----
+ .../src/core_functions/aggregate/distributive/minmax.cpp  | 4 ++--
+ 3 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/duckdb/src/core_functions/aggregate/distributive/arg_min_max.cpp b/src/duckdb/src/core_functions/aggregate/distributive/arg_min_max.cpp
+index c39b0599..6feffca4 100644
+--- a/src/duckdb/src/core_functions/aggregate/distributive/arg_min_max.cpp
++++ b/src/duckdb/src/core_functions/aggregate/distributive/arg_min_max.cpp
+@@ -164,7 +164,7 @@ struct ArgMinMaxBase {
+ 		if (!state.is_initialized || state.arg_null) {
+ 			finalize_data.ReturnNull();
+ 		} else {
+-			STATE::template ReadValue(finalize_data.result, state.arg, target);
++			STATE::template ReadValue<T>(finalize_data.result, state.arg, target);
+ 		}
+ 	}
+ 
+@@ -248,7 +248,7 @@ struct VectorArgMinMaxBase : ArgMinMaxBase<COMPARATOR, IGNORE_NULL> {
+ 			return;
+ 		}
+ 		if (!target.is_initialized || COMPARATOR::Operation(source.value, target.value)) {
+-			STATE::template AssignValue(target.value, source.value);
++			STATE::template AssignValue<typename STATE::BY_TYPE>(target.value, source.value);
+ 			AssignVector(target, *source.arg, source.arg_null, 0);
+ 			target.is_initialized = true;
+ 		}
+diff --git a/src/duckdb/src/core_functions/aggregate/distributive/bitagg.cpp b/src/duckdb/src/core_functions/aggregate/distributive/bitagg.cpp
+index 2d57a4f5..af305635 100644
+--- a/src/duckdb/src/core_functions/aggregate/distributive/bitagg.cpp
++++ b/src/duckdb/src/core_functions/aggregate/distributive/bitagg.cpp
+@@ -53,10 +53,10 @@ struct BitwiseOperation {
+ 	template <class INPUT_TYPE, class STATE, class OP>
+ 	static void Operation(STATE &state, const INPUT_TYPE &input, AggregateUnaryInput &) {
+ 		if (!state.is_set) {
+-			OP::template Assign(state, input);
++			OP::template Assign<INPUT_TYPE>(state, input);
+ 			state.is_set = true;
+ 		} else {
+-			OP::template Execute(state, input);
++			OP::template Execute<INPUT_TYPE>(state, input);
+ 		}
+ 	}
+ 
+@@ -79,10 +79,10 @@ struct BitwiseOperation {
+ 		}
+ 		if (!target.is_set) {
+ 			// target is NULL, use source value directly.
+-			OP::template Assign(target, source.value);
++			OP::template Assign<typename STATE::TYPE>(target, source.value);
+ 			target.is_set = true;
+ 		} else {
+-			OP::template Execute(target, source.value);
++			OP::template Execute<typename STATE::TYPE>(target, source.value);
+ 		}
+ 	}
+ 
+diff --git a/src/duckdb/src/core_functions/aggregate/distributive/minmax.cpp b/src/duckdb/src/core_functions/aggregate/distributive/minmax.cpp
+index d3a5dd49..0e40b45d 100644
+--- a/src/duckdb/src/core_functions/aggregate/distributive/minmax.cpp
++++ b/src/duckdb/src/core_functions/aggregate/distributive/minmax.cpp
+@@ -487,7 +487,7 @@ struct VectorMinMaxBase {
+ 			if (!state.value) {
+ 				Assign(state, input, i);
+ 			} else {
+-				OP::template Execute(state, input, i, count);
++				OP::template Execute<STATE>(state, input, i, count);
+ 			}
+ 		}
+ 	}
+@@ -499,7 +499,7 @@ struct VectorMinMaxBase {
+ 		} else if (!target.value) {
+ 			Assign(target, *source.value, 0);
+ 		} else {
+-			OP::template Execute(target, *source.value, 0, 1);
++			OP::template Execute<STATE>(target, *source.value, 0, 1);
+ 		}
+ 	}
+ 
+-- 
+2.43.0
+
