@@ -3,7 +3,7 @@
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
     <nav class="navbar navbar-expand-lg fixed-top bg-light" data-bs-theme="light" aria-label="Site navigation"><div class="container">
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.3.9001</small>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
@@ -19,40 +19,115 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/cran-1.0.0/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.0.0" id="duckdb-100">duckdb 1.0.0<a class="anchor" aria-label="anchor" href="#duckdb-100"></a></h2>
+<h2 class="pkg-version" data-toc-text="0.10.3.9001" id="duckdb-01039001">duckdb 0.10.3.9001<a class="anchor" aria-label="anchor" href="#duckdb-01039001"></a></h2>
 <div class="section level3">
-<h3 id="chore-1-0-0">Chore<a class="anchor" aria-label="anchor" href="#chore-1-0-0"></a></h3>
-<ul><li>Update vendored sources (tag v1.0.0) to <a href="mailto:duckdb/duckdb@1f98600c2cf8722a6d2f2d805bb4af5e701319fc" class="email">duckdb/duckdb@1f98600c2cf8722a6d2f2d805bb4af5e701319fc</a>. 🦆</li>
-<li>Update vendored sources to <a href="mailto:duckdb/duckdb@5591a1b5f7c1c6cb59da79b6692721aeaba7b8a6" class="email">duckdb/duckdb@5591a1b5f7c1c6cb59da79b6692721aeaba7b8a6</a>. Merge pull request duckdb/duckdb#12291 from Mytherin/enablemacrodependencies</li>
-<li>Update vendored sources to <a href="mailto:duckdb/duckdb@7b8efd3d0fab38ec9dae467861a317af3f1d7f3e" class="email">duckdb/duckdb@7b8efd3d0fab38ec9dae467861a317af3f1d7f3e</a>. Merge pull request duckdb/duckdb#12281 from samansmink/fix-multifilereader-w-count-star</li>
-<li>Update vendored sources to <a href="mailto:duckdb/duckdb@3ab01fc9d8065388022ca2f10816433099a1172c" class="email">duckdb/duckdb@3ab01fc9d8065388022ca2f10816433099a1172c</a>. Merge pull request duckdb/duckdb#12257 from Tishj/capi_fix_register_table_function</li>
-<li>Update vendored sources to <a href="mailto:duckdb/duckdb@4834a0b7e75448b1d892c05b3587dcb5c27a1d2e" class="email">duckdb/duckdb@4834a0b7e75448b1d892c05b3587dcb5c27a1d2e</a>. Merge pull request duckdb/duckdb#12267 from carlopi/add_vss_delta</li>
-<li>Update vendored sources to <a href="mailto:duckdb/duckdb@dffd1b2415e3f6678c11bc2101a4e04e61d922e5" class="email">duckdb/duckdb@dffd1b2415e3f6678c11bc2101a4e04e61d922e5</a>. Merge pull request duckdb/duckdb#12264 from Mytherin/copyfromdatabaseindex</li>
-<li>Update vendored sources to <a href="mailto:duckdb/duckdb@cc521454fd1d7bf9d47aba435244ec3987b74932" class="email">duckdb/duckdb@cc521454fd1d7bf9d47aba435244ec3987b74932</a>. Merge pull request duckdb/duckdb#12271 from hawkfish/approx-array</li>
-<li>Update vendored sources to <a href="mailto:duckdb/duckdb@ee197d8f764bd675d9acd8f73258126b7f2e13b5" class="email">duckdb/duckdb@ee197d8f764bd675d9acd8f73258126b7f2e13b5</a>. Merge pull request duckdb/duckdb#12259 from hannes/capideprecatefun</li>
-<li>Update vendored sources to <a href="mailto:duckdb/duckdb@ec06c6e94ce40092fe902f6fbda5fc8262010946" class="email">duckdb/duckdb@ec06c6e94ce40092fe902f6fbda5fc8262010946</a>. Merge pull request duckdb/duckdb#12269 from samansmink/fix-small-extensions-table-function-bug</li>
-<li>Update vendored sources to <a href="mailto:duckdb/duckdb@3cae6908f3b92fd15f0b74902e966e048c1d11f2" class="email">duckdb/duckdb@3cae6908f3b92fd15f0b74902e966e048c1d11f2</a>. Merge pull request duckdb/duckdb#12265 from bleskes/do_not_prefix_errors_with_unknown_type</li>
-<li>Update vendored sources to <a href="mailto:duckdb/duckdb@e384770b52d7feefaa2e84f1e6ae56a4f383f49e" class="email">duckdb/duckdb@e384770b52d7feefaa2e84f1e6ae56a4f383f49e</a>. Merge pull request duckdb/duckdb#12260 from bleskes/storage_extension_checkpoint_callbacks</li>
-<li>Update vendored sources to <a href="mailto:duckdb/duckdb@6ca5d6014bf29e2403c38effe0e5dc3b8f011fe4" class="email">duckdb/duckdb@6ca5d6014bf29e2403c38effe0e5dc3b8f011fe4</a>. Merge pull request duckdb/duckdb#12266 from samansmink/add-virtual-descructor-to-mfr-global-state Merge pull request duckdb/duckdb#12258 from taniabogatsch/wal-unpinned Merge pull request duckdb/duckdb#12255 from Tishj/fix_python_examples Merge pull request duckdb/duckdb#12253 from carlopi/fix_git_describe Merge pull request duckdb/duckdb#12223 from paparodeo/add-hffs-httpfs-config Merge pull request duckdb/duckdb#12245 from carlopi/fixup_staged_3</li>
-<li>Update vendored sources to <a href="mailto:duckdb/duckdb@b54303fa0e7f399e619775d508d89cac58d71b9d" class="email">duckdb/duckdb@b54303fa0e7f399e619775d508d89cac58d71b9d</a>. Merge pull request duckdb/duckdb#12244 from carlopi/fix_fallthrough</li>
-<li>Update vendored sources to <a href="mailto:duckdb/duckdb@ae4865165a600c5b3409027efc520bbe10136bd1" class="email">duckdb/duckdb@ae4865165a600c5b3409027efc520bbe10136bd1</a>. Merge pull request duckdb/duckdb#12240 from Mytherin/overwriteorignore</li>
-<li>Update vendored sources to <a href="mailto:duckdb/duckdb@73d615ea835ea73ff976e6ab0c080787fa20d3a2" class="email">duckdb/duckdb@73d615ea835ea73ff976e6ab0c080787fa20d3a2</a>. Merge pull request duckdb/duckdb#12123 from carlopi/excel_oote</li>
-<li>Update vendored sources to <a href="mailto:duckdb/duckdb@e658bf62dc3cae0c0637aa7c80ec5cad2b7538af" class="email">duckdb/duckdb@e658bf62dc3cae0c0637aa7c80ec5cad2b7538af</a>. Merge pull request duckdb/duckdb#12221 from samansmink/extension-updating-hotfixes Merge pull request duckdb/duckdb#12233 from Tishj/python_table_function_unhappy_path</li>
-<li>Update vendored sources to <a href="mailto:duckdb/duckdb@f792d48d7a4837249ac67b73bec8abf00cff2003" class="email">duckdb/duckdb@f792d48d7a4837249ac67b73bec8abf00cff2003</a>. Merge pull request duckdb/duckdb#12226 from Tishj/always_allow_alter_add_column</li>
-<li>Update vendored sources to <a href="mailto:duckdb/duckdb@8a34c96138174ea7bbdca276af09d71b59739707" class="email">duckdb/duckdb@8a34c96138174ea7bbdca276af09d71b59739707</a>. Merge pull request duckdb/duckdb#12238 from hawkfish/asof-pushdown Merge pull request duckdb/duckdb#12236 from carlopi/macosmin12 Merge pull request duckdb/duckdb#12229 from carlopi/cleanup_workflows Merge pull request duckdb/duckdb#12224 from Tishj/python_disable_replacement_scan Merge pull request duckdb/duckdb#12106 from Tishj/generic_new_micro_benchmark_check Merge pull request duckdb/duckdb#12208 from Tishj/python_fix_replacement_scan_hiding</li>
-<li>Update vendored sources to <a href="mailto:duckdb/duckdb@caef2cd0c7bac1b2195451181844614c984f835a" class="email">duckdb/duckdb@caef2cd0c7bac1b2195451181844614c984f835a</a>. Merge pull request duckdb/duckdb#12209 from Tishj/enable_view_dependencies</li>
-<li>Update vendored sources to <a href="mailto:duckdb/duckdb@7e89f501bd76d564ae3a6893378be899a5d678fe" class="email">duckdb/duckdb@7e89f501bd76d564ae3a6893378be899a5d678fe</a>. Merge pull request duckdb/duckdb#12206 from Mytherin/systemcatalog Merge pull request duckdb/duckdb#12207 from tm-drtina/fix-generated-python-stubs Merge pull request duckdb/duckdb#12198 from smonkewitz/serge/install-ipp-files</li>
-<li>Update vendored sources to <a href="mailto:duckdb/duckdb@84d61276194ee2bc9a5c1b23c453684cd3245a96" class="email">duckdb/duckdb@84d61276194ee2bc9a5c1b23c453684cd3245a96</a>. Merge pull request duckdb/duckdb#12195 from carlopi/fix_warnings</li>
-<li>Update vendored sources to <a href="mailto:duckdb/duckdb@3f97165632e8e5599d115d122e94bed231bdd405" class="email">duckdb/duckdb@3f97165632e8e5599d115d122e94bed231bdd405</a>. Merge pull request duckdb/duckdb#12194 from carlopi/fix_hpp_install</li>
-<li>Update vendored sources to <a href="mailto:duckdb/duckdb@3f33d34debb665b37c5e4d479afd7f85a64a94f7" class="email">duckdb/duckdb@3f33d34debb665b37c5e4d479afd7f85a64a94f7</a>. Merge pull request duckdb/duckdb#12193 from Mytherin/glibcfallocatecheck</li>
-<li>Update vendored sources to <a href="mailto:duckdb/duckdb@9584ad0a974932b76d8eaa25e74ee4bd987f2cf5" class="email">duckdb/duckdb@9584ad0a974932b76d8eaa25e74ee4bd987f2cf5</a>. Merge pull request duckdb/duckdb#12189 from gitccl/issue_12181</li>
-<li>Update vendored sources (tag v0.10.3) to <a href="mailto:duckdb/duckdb@70fd6a8a2450c1e2a7d0547d4c0666a649dc378e" class="email">duckdb/duckdb@70fd6a8a2450c1e2a7d0547d4c0666a649dc378e</a>.</li>
+<h3 id="chore-0-10-3-9001">Chore<a class="anchor" aria-label="anchor" href="#chore-0-10-3-9001"></a></h3>
+<ul><li>
+<p>Update vendored sources (tag v1.0.0) to <a href="mailto:duckdb/duckdb@1f98600c2cf8722a6d2f2d805bb4af5e701319fc" class="email">duckdb/duckdb@1f98600c2cf8722a6d2f2d805bb4af5e701319fc</a>.</p>
+<p>🦆</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@5591a1b5f7c1c6cb59da79b6692721aeaba7b8a6" class="email">duckdb/duckdb@5591a1b5f7c1c6cb59da79b6692721aeaba7b8a6</a>.</p>
+<p>Merge pull request duckdb/duckdb#12291 from Mytherin/enablemacrodependencies</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@7b8efd3d0fab38ec9dae467861a317af3f1d7f3e" class="email">duckdb/duckdb@7b8efd3d0fab38ec9dae467861a317af3f1d7f3e</a>.</p>
+<p>Merge pull request duckdb/duckdb#12281 from samansmink/fix-multifilereader-w-count-star</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@3ab01fc9d8065388022ca2f10816433099a1172c" class="email">duckdb/duckdb@3ab01fc9d8065388022ca2f10816433099a1172c</a>.</p>
+<p>Merge pull request duckdb/duckdb#12257 from Tishj/capi_fix_register_table_function</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@4834a0b7e75448b1d892c05b3587dcb5c27a1d2e" class="email">duckdb/duckdb@4834a0b7e75448b1d892c05b3587dcb5c27a1d2e</a>.</p>
+<p>Merge pull request duckdb/duckdb#12267 from carlopi/add_vss_delta</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@dffd1b2415e3f6678c11bc2101a4e04e61d922e5" class="email">duckdb/duckdb@dffd1b2415e3f6678c11bc2101a4e04e61d922e5</a>.</p>
+<p>Merge pull request duckdb/duckdb#12264 from Mytherin/copyfromdatabaseindex</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@cc521454fd1d7bf9d47aba435244ec3987b74932" class="email">duckdb/duckdb@cc521454fd1d7bf9d47aba435244ec3987b74932</a>.</p>
+<p>Merge pull request duckdb/duckdb#12271 from hawkfish/approx-array</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@ee197d8f764bd675d9acd8f73258126b7f2e13b5" class="email">duckdb/duckdb@ee197d8f764bd675d9acd8f73258126b7f2e13b5</a>.</p>
+<p>Merge pull request duckdb/duckdb#12259 from hannes/capideprecatefun</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@ec06c6e94ce40092fe902f6fbda5fc8262010946" class="email">duckdb/duckdb@ec06c6e94ce40092fe902f6fbda5fc8262010946</a>.</p>
+<p>Merge pull request duckdb/duckdb#12269 from samansmink/fix-small-extensions-table-function-bug</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@3cae6908f3b92fd15f0b74902e966e048c1d11f2" class="email">duckdb/duckdb@3cae6908f3b92fd15f0b74902e966e048c1d11f2</a>.</p>
+<p>Merge pull request duckdb/duckdb#12265 from bleskes/do_not_prefix_errors_with_unknown_type</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@e384770b52d7feefaa2e84f1e6ae56a4f383f49e" class="email">duckdb/duckdb@e384770b52d7feefaa2e84f1e6ae56a4f383f49e</a>.</p>
+<p>Merge pull request duckdb/duckdb#12260 from bleskes/storage_extension_checkpoint_callbacks</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@6ca5d6014bf29e2403c38effe0e5dc3b8f011fe4" class="email">duckdb/duckdb@6ca5d6014bf29e2403c38effe0e5dc3b8f011fe4</a>.</p>
+<p>Merge pull request duckdb/duckdb#12266 from samansmink/add-virtual-descructor-to-mfr-global-state Merge pull request duckdb/duckdb#12258 from taniabogatsch/wal-unpinned Merge pull request duckdb/duckdb#12255 from Tishj/fix_python_examples Merge pull request duckdb/duckdb#12253 from carlopi/fix_git_describe Merge pull request duckdb/duckdb#12223 from paparodeo/add-hffs-httpfs-config Merge pull request duckdb/duckdb#12245 from carlopi/fixup_staged_3</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@b54303fa0e7f399e619775d508d89cac58d71b9d" class="email">duckdb/duckdb@b54303fa0e7f399e619775d508d89cac58d71b9d</a>.</p>
+<p>Merge pull request duckdb/duckdb#12244 from carlopi/fix_fallthrough</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@ae4865165a600c5b3409027efc520bbe10136bd1" class="email">duckdb/duckdb@ae4865165a600c5b3409027efc520bbe10136bd1</a>.</p>
+<p>Merge pull request duckdb/duckdb#12240 from Mytherin/overwriteorignore</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@73d615ea835ea73ff976e6ab0c080787fa20d3a2" class="email">duckdb/duckdb@73d615ea835ea73ff976e6ab0c080787fa20d3a2</a>.</p>
+<p>Merge pull request duckdb/duckdb#12123 from carlopi/excel_oote</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@e658bf62dc3cae0c0637aa7c80ec5cad2b7538af" class="email">duckdb/duckdb@e658bf62dc3cae0c0637aa7c80ec5cad2b7538af</a>.</p>
+<p>Merge pull request duckdb/duckdb#12221 from samansmink/extension-updating-hotfixes Merge pull request duckdb/duckdb#12233 from Tishj/python_table_function_unhappy_path</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@f792d48d7a4837249ac67b73bec8abf00cff2003" class="email">duckdb/duckdb@f792d48d7a4837249ac67b73bec8abf00cff2003</a>.</p>
+<p>Merge pull request duckdb/duckdb#12226 from Tishj/always_allow_alter_add_column</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@8a34c96138174ea7bbdca276af09d71b59739707" class="email">duckdb/duckdb@8a34c96138174ea7bbdca276af09d71b59739707</a>.</p>
+<p>Merge pull request duckdb/duckdb#12238 from hawkfish/asof-pushdown Merge pull request duckdb/duckdb#12236 from carlopi/macosmin12 Merge pull request duckdb/duckdb#12229 from carlopi/cleanup_workflows Merge pull request duckdb/duckdb#12224 from Tishj/python_disable_replacement_scan Merge pull request duckdb/duckdb#12106 from Tishj/generic_new_micro_benchmark_check Merge pull request duckdb/duckdb#12208 from Tishj/python_fix_replacement_scan_hiding</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@caef2cd0c7bac1b2195451181844614c984f835a" class="email">duckdb/duckdb@caef2cd0c7bac1b2195451181844614c984f835a</a>.</p>
+<p>Merge pull request duckdb/duckdb#12209 from Tishj/enable_view_dependencies</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@7e89f501bd76d564ae3a6893378be899a5d678fe" class="email">duckdb/duckdb@7e89f501bd76d564ae3a6893378be899a5d678fe</a>.</p>
+<p>Merge pull request duckdb/duckdb#12206 from Mytherin/systemcatalog Merge pull request duckdb/duckdb#12207 from tm-drtina/fix-generated-python-stubs Merge pull request duckdb/duckdb#12198 from smonkewitz/serge/install-ipp-files</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@84d61276194ee2bc9a5c1b23c453684cd3245a96" class="email">duckdb/duckdb@84d61276194ee2bc9a5c1b23c453684cd3245a96</a>.</p>
+<p>Merge pull request duckdb/duckdb#12195 from carlopi/fix_warnings</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@3f97165632e8e5599d115d122e94bed231bdd405" class="email">duckdb/duckdb@3f97165632e8e5599d115d122e94bed231bdd405</a>.</p>
+<p>Merge pull request duckdb/duckdb#12194 from carlopi/fix_hpp_install</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@3f33d34debb665b37c5e4d479afd7f85a64a94f7" class="email">duckdb/duckdb@3f33d34debb665b37c5e4d479afd7f85a64a94f7</a>.</p>
+<p>Merge pull request duckdb/duckdb#12193 from Mytherin/glibcfallocatecheck</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@9584ad0a974932b76d8eaa25e74ee4bd987f2cf5" class="email">duckdb/duckdb@9584ad0a974932b76d8eaa25e74ee4bd987f2cf5</a>.</p>
+<p>Merge pull request duckdb/duckdb#12189 from gitccl/issue_12181</p>
+</li>
+<li><p>Update vendored sources (tag v0.10.3) to <a href="mailto:duckdb/duckdb@70fd6a8a2450c1e2a7d0547d4c0666a649dc378e" class="email">duckdb/duckdb@70fd6a8a2450c1e2a7d0547d4c0666a649dc378e</a>.</p></li>
 </ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.10.3.9000" id="duckdb-01039000">duckdb 0.10.3.9000<a class="anchor" aria-label="anchor" href="#duckdb-01039000"></a></h2>
 <div class="section level3">
-<h3 id="continuous-integration-1-0-0">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-0-0"></a></h3>
+<h3 id="continuous-integration-0-10-3-9000">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-0-10-3-9000"></a></h3>
 <ul><li>Fail if patch does not apply.</li>
 </ul></div>
 </div>
