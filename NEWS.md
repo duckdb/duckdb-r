@@ -1,5 +1,10 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.0.0.9000
+
+- Merge branch 'cran-1.0.0'.
+
+
 # duckdb 1.0.0
 
 ## Bug fixes
