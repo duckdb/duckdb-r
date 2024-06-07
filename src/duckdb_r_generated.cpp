@@ -218,5 +218,5 @@ static R_CallMethodDef generated_methods[]= {
 {"duckdb_append_null", (DL_FUNC) duckdb_r::FunctionWrappers::FunctionWrapper1<duckdb_state, duckdb_appender, "duckdb_append_null">, 1},
 {"duckdb_append_data_chunk", (DL_FUNC) duckdb_r::FunctionWrappers::FunctionWrapper2<duckdb_state, duckdb_appender, duckdb_data_chunk, "duckdb_append_data_chunk">, 2},
 {"duckdb_fetch_chunk", (DL_FUNC) duckdb_r::FunctionWrappers::FunctionWrapper1<duckdb_data_chunk, duckdb_result, "duckdb_fetch_chunk">, 1},
-{"duckdb_load_library", (DL_FUNC) duckdb_load_library, 1},{nullptr, nullptr, 0}};
+{"duckdb_load_library", (DL_FUNC) duckdb_load_library, 1},{"duckdb_copy_buffer", (DL_FUNC) duckdb_copy_buffer, 2},{nullptr, nullptr, 0}};
 

@@ -67,16 +67,46 @@ public:
 		return res;
 	}
 
+	template <>
+	SEXP ToR(duckdb_vector val) {
+		// TOOD reduce code replication here
+		auto res = PointerWrapper<duckdb_vector , "duckdb_vector">::Allocate();
+		*(duckdb_vector*)R_ExternalPtrAddr(res) = val;
+		return res;
+	}
+
+	template <>
+SEXP ToR(duckdb_logical_type val) {
+		// TOOD reduce code replication here
+		auto res = PointerWrapper<duckdb_vector , "duckdb_logical_type">::Allocate();
+		*(duckdb_logical_type*)R_ExternalPtrAddr(res) = val;
+		return res;
+	}
+
+
+	template <>
+	SEXP ToR(uint64_t *val) {
+		auto res = PointerWrapper<void* , "duckdb_void_ptr">::Allocate();
+		R_SetExternalPtrAddr(res, val);
+		return res;
+	}
+
+	template <>
+SEXP ToR(void *val) {
+		auto res = PointerWrapper<void* , "duckdb_void_ptr">::Allocate();
+		R_SetExternalPtrAddr(res, val);
+		return res;
+	}
+
 
 	template <>
 	SEXP ToR(duckdb_state val) {
-		switch (val) {
-		case DuckDBSuccess:
-			// TODO do we dont want to allocate a string here, maybe cache them?
-			return Rf_ScalarString(mkChar("DuckDBSuccess"));
-		case DuckDBError:
-			return Rf_ScalarString(mkChar("DuckDBError"));
-		}
+		return ScalarInteger(val);
+	}
+
+	template <>
+	SEXP ToR(duckdb_type val) {
+		return ScalarInteger(val);
 	}
 
 
@@ -174,6 +204,37 @@ public:
 	template <>
 	duckdb_data_chunk FromR(SEXP x) {
 		return *FromR<duckdb_data_chunk*>(x);
+	}
+
+
+	template <>
+	duckdb_vector * FromR(SEXP x) {
+		const char* name = "duckdb_vector";
+		const char* tag = CHAR(STRING_ELT(R_ExternalPtrTag(x), 0));
+		if (strcmp(tag, name) != 0) {
+			Rf_error("Passed a %s, expected %s", tag,name);
+		}
+		return (duckdb_vector*) R_ExternalPtrAddr(x);
+	}
+
+	template <>
+	duckdb_vector FromR(SEXP x) {
+		return *FromR<duckdb_vector*>(x);
+	}
+
+	template <>
+	duckdb_logical_type * FromR(SEXP x) {
+		const char* name = "duckdb_logical_type";
+		const char* tag = CHAR(STRING_ELT(R_ExternalPtrTag(x), 0));
+		if (strcmp(tag, name) != 0) {
+			Rf_error("Passed a %s, expected %s", tag,name);
+		}
+		return (duckdb_logical_type*) R_ExternalPtrAddr(x);
+	}
+
+	template <>
+	duckdb_logical_type FromR(SEXP x) {
+		return *FromR<duckdb_logical_type*>(x);
 	}
 
 

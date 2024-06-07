@@ -13,6 +13,19 @@ static SEXP duckdb_load_library(SEXP path_sexp) {
 	}
 	return Rf_ScalarLogical(true);
 }
+
+static SEXP duckdb_copy_buffer(SEXP x, SEXP len_sexp) {
+	const char* name = "duckdb_void_ptr";
+	const char* tag = CHAR(STRING_ELT(R_ExternalPtrTag(x), 0));
+	if (strcmp(tag, name) != 0) {
+		Rf_error("Passed a %s, expected %s", tag,name);
+	}
+	auto ptr = R_ExternalPtrAddr(x);
+	auto len = INTEGER_DATA(len_sexp)[0]; // TODO check
+	auto res = NEW_RAW(len);
+	memcpy(RAW_POINTER((res)), ptr,len );
+	return res;
+}
 #define DUCKDB_NO_EXTENSION_FUNCTIONS
 #define DUCKDB_API_NO_DEPRECATED
 #include "duckdb_r_generated.cpp"
