@@ -13,7 +13,8 @@ static SEXP duckdb_load_library(SEXP path_sexp) {
 	}
 	return Rf_ScalarLogical(true);
 }
-
+#define DUCKDB_NO_EXTENSION_FUNCTIONS
+#define DUCKDB_API_NO_DEPRECATED
 #include "duckdb_r_generated.cpp"
 
 extern "C" {
