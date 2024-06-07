@@ -17,7 +17,7 @@ it is no longer necessary to set shutdown = TRUE or to call duckdb_shutdown().">
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
     <nav class="navbar navbar-expand-lg fixed-top bg-light" data-bs-theme="light" aria-label="Site navigation"><div class="container">
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0.9000</small>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
@@ -33,7 +33,7 @@ it is no longer necessary to set shutdown = TRUE or to call duckdb_shutdown().">
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Connect to a DuckDB database instance</h1>
-      <small class="dont-index">Source: <a href="https://github.com/duckdb/duckdb-r/blob/cran-1.0.0/R/Driver.R" class="external-link"><code>R/Driver.R</code></a>, <a href="https://github.com/duckdb/duckdb-r/blob/cran-1.0.0/R/dbConnect__duckdb_driver.R" class="external-link"><code>R/dbConnect__duckdb_driver.R</code></a>, <a href="https://github.com/duckdb/duckdb-r/blob/cran-1.0.0/R/dbDisconnect__duckdb_connection.R" class="external-link"><code>R/dbDisconnect__duckdb_connection.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/R/Driver.R" class="external-link"><code>R/Driver.R</code></a>, <a href="https://github.com/duckdb/duckdb-r/blob/main/R/dbConnect__duckdb_driver.R" class="external-link"><code>R/dbConnect__duckdb_driver.R</code></a>, <a href="https://github.com/duckdb/duckdb-r/blob/main/R/dbDisconnect__duckdb_connection.R" class="external-link"><code>R/dbDisconnect__duckdb_connection.R</code></a></small>
       <div class="d-none name"><code>duckdb.Rd</code></div>
     </div>
     <div class="ref-description section level2">
@@ -52,7 +52,7 @@ it is no longer necessary to set <code>shutdown = TRUE</code> or to call <code>d
 <span>  dbdir <span class="op">=</span> <span class="va">DBDIR_MEMORY</span>,</span>
 <span>  read_only <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  bigint <span class="op">=</span> <span class="st">"numeric"</span>,</span>
-<span>config <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span></span>
+<span>  config <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">duckdb_shutdown</span><span class="op">(</span><span class="va">drv</span><span class="op">)</span></span>
@@ -69,7 +69,7 @@ it is no longer necessary to set <code>shutdown = TRUE</code> or to call <code>d
 <span>  timezone_out <span class="op">=</span> <span class="st">"UTC"</span>,</span>
 <span>  tz_out_convert <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"with"</span>, <span class="st">"force"</span><span class="op">)</span>,</span>
 <span>  config <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>bigint <span class="op">=</span> <span class="st">"numeric"</span></span>
+<span>  bigint <span class="op">=</span> <span class="st">"numeric"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for class 'duckdb_connection'</span></span>
