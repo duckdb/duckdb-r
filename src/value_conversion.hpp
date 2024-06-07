@@ -31,7 +31,6 @@ public:
 
 	static SEXP Allocate() {
 		return Wrap(malloc(sizeof(T)));
-
 	}
 
 	static SEXP Wrap( void* ptr) {
@@ -63,8 +62,11 @@ public:
 
 	template <>
 	SEXP ToR(duckdb_data_chunk val) {
-		return PointerWrapper<duckdb_data_chunk , "duckdb_data_chunk">::Wrap(val);
+		auto res = PointerWrapper<duckdb_data_chunk , "duckdb_data_chunk">::Allocate();
+		*(duckdb_data_chunk*)R_ExternalPtrAddr(res) = val;
+		return res;
 	}
+
 
 	template <>
 	SEXP ToR(duckdb_state val) {
@@ -158,6 +160,22 @@ public:
 	duckdb_result FromR(SEXP x) {
 		return *FromR<duckdb_result*>(x);
 	}
+
+	template <>
+	duckdb_data_chunk * FromR(SEXP x) {
+		const char* name = "duckdb_data_chunk";
+		const char* tag = CHAR(STRING_ELT(R_ExternalPtrTag(x), 0));
+		if (strcmp(tag, name) != 0) {
+			Rf_error("Passed a %s, expected %s", tag,name);
+		}
+		return (duckdb_data_chunk*) R_ExternalPtrAddr(x);
+	}
+
+	template <>
+	duckdb_data_chunk FromR(SEXP x) {
+		return *FromR<duckdb_data_chunk*>(x);
+	}
+
 
 };
 } // namespace duckdb_node
