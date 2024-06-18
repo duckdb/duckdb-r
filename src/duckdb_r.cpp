@@ -16,11 +16,20 @@ static SEXP duckdb_load_library(SEXP path_sexp) {
 
 static SEXP duckdb_copy_buffer(SEXP x, SEXP len_sexp) {
 	const char* name = "duckdb_void_ptr";
-	const char* tag = CHAR(STRING_ELT(R_ExternalPtrTag(x), 0));
-	if (strcmp(tag, name) != 0) {
-		Rf_error("Passed a %s, expected %s", tag,name);
+	void* ptr;
+	if (IS_NUMERIC((x))) {
+		auto ptr_dbl = NUMERIC_POINTER(x)[0];
+		ptr = (void*) *((uintptr_t*) &ptr_dbl);
+	} else {
+		const char* tag = CHAR(STRING_ELT(R_ExternalPtrTag(x), 0));
+		if (strcmp(tag, name) != 0) {
+			Rf_error("Passed a %s, expected %s", tag,name);
+		}
+		ptr = R_ExternalPtrAddr(x);
 	}
-	auto ptr = R_ExternalPtrAddr(x);
+	if (!ptr) {
+		Rf_error("Pointer cannot be 0");
+	}
 	auto len = INTEGER_DATA(len_sexp)[0]; // TODO check
 	auto res = NEW_RAW(len);
 	memcpy(RAW_POINTER((res)), ptr,len );
