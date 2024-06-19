@@ -3,12 +3,19 @@
 Implements DBIResult."><meta property="og:description" content="Methods for accessing result sets for queries on DuckDB connections.
 Implements DBIResult."><meta property="og:image" content="https://r.duckdb.org/logo.png"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
+
+
     <nav class="navbar navbar-expand-lg fixed-top bg-light" data-bs-theme="light" aria-label="Site navigation"><div class="container">
+
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
+
     <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0.9000</small>
+
+
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
+
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -16,6 +23,8 @@ Implements DBIResult."><meta property="og:image" content="https://r.duckdb.org/l
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/duckdb/duckdb-r/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul></div>
+
+
   </div>
 </nav><div class="container template-reference-topic">
 <div class="row">
@@ -24,10 +33,12 @@ Implements DBIResult."><meta property="og:image" content="https://r.duckdb.org/l
       <small class="dont-index">Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/R/Result.R" class="external-link"><code>R/Result.R</code></a>, <a href="https://github.com/duckdb/duckdb-r/blob/main/R/dbBind__duckdb_result.R" class="external-link"><code>R/dbBind__duckdb_result.R</code></a>, <a href="https://github.com/duckdb/duckdb-r/blob/main/R/dbClearResult__duckdb_result.R" class="external-link"><code>R/dbClearResult__duckdb_result.R</code></a>, and 9 more</small>
       <div class="d-none name"><code>duckdb_result-class.Rd</code></div>
     </div>
+
     <div class="ref-description section level2">
     <p>Methods for accessing result sets for queries on DuckDB connections.
 Implements <a href="https://dbi.r-dbi.org/reference/DBIResult-class.html" class="external-link">DBIResult</a>.</p>
     </div>
+
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">duckdb_fetch_arrow</span><span class="op">(</span><span class="va">res</span>, chunk_size <span class="op">=</span> <span class="fl">1e+06</span><span class="op">)</span></span>
@@ -67,39 +78,65 @@ Implements <a href="https://dbi.r-dbi.org/reference/DBIResult-class.html" class=
 <span><span class="co"># S4 method for class 'duckdb_result'</span></span>
 <span><span class="fu">show</span><span class="op">(</span><span class="va">object</span><span class="op">)</span></span></code></pre></div>
     </div>
+
     <div class="section level2">
     <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
+
+
 <dl><dt id="arg-res">res<a class="anchor" aria-label="anchor" href="#arg-res"></a></dt>
 <dd><p>Query result to be converted to a Record Batch Reader</p></dd>
+
+
 <dt id="arg-chunk-size">chunk_size<a class="anchor" aria-label="anchor" href="#arg-chunk-size"></a></dt>
 <dd><p>The chunk size</p></dd>
+
+
 <dt id="arg-params">params<a class="anchor" aria-label="anchor" href="#arg-params"></a></dt>
 <dd><p>For <code><a href="https://dbi.r-dbi.org/reference/dbBind.html" class="external-link">dbBind()</a></code>, a list of values, named or unnamed,
 or a data frame, with one element/column per query parameter.
 For <code><a href="https://dbi.r-dbi.org/reference/dbBind.html" class="external-link">dbBindArrow()</a></code>, values as a nanoarrow stream,
 with one column per query parameter.</p></dd>
+
+
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Other arguments passed on to methods.</p></dd>
+
+
 <dt id="arg-n">n<a class="anchor" aria-label="anchor" href="#arg-n"></a></dt>
 <dd><p>maximum number of records to retrieve per fetch. Use <code>n = -1</code>
 or <code>n = Inf</code>
 to retrieve all pending records.  Some implementations may recognize other
 special values.</p></dd>
+
+
 <dt id="arg-dbobj">dbObj<a class="anchor" aria-label="anchor" href="#arg-dbobj"></a></dt>
 <dd><p>An object inheriting from <a href="https://dbi.r-dbi.org/reference/DBIObject-class.html" class="external-link">DBIObject</a>,
 i.e. <a href="https://dbi.r-dbi.org/reference/DBIDriver-class.html" class="external-link">DBIDriver</a>, <a href="https://dbi.r-dbi.org/reference/DBIConnection-class.html" class="external-link">DBIConnection</a>,
 or a <a href="https://dbi.r-dbi.org/reference/DBIResult-class.html" class="external-link">DBIResult</a></p></dd>
+
+
 <dt id="arg-object">object<a class="anchor" aria-label="anchor" href="#arg-object"></a></dt>
 <dd><p>Any R object</p></dd>
+
 </dl></div>
+
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
+
+
     <footer><div class="pkgdown-footer-left">
   <p>Developed by <a href="http://hannes.muehleisen.org/" class="external-link">Hannes Mühleisen</a>, <a href="https://mytherin.github.io/" class="external-link">Mark Raasveldt</a>, <a href="https://krlmlr.info/" class="external-link">Kirill Müller</a>.</p>
 </div>
+
 <div class="pkgdown-footer-right">
   <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.9.9000.</p>
 </div>
+
     </footer></div>
+
+
+
+
+
   </body></html>
 

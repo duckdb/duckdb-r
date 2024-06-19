@@ -23,12 +23,19 @@ It is safer than dplyr::tbl() because there is no risk of misinterpreting the qu
 Use dplyr::tbl(src, dplyr::sql(&quot;SELECT ... FROM ...&quot;)) for custom SQL queries.
 See https://duckdb.org/docs/data/overview for details on data importing functions."><meta property="og:image" content="https://r.duckdb.org/logo.png"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
+
+
     <nav class="navbar navbar-expand-lg fixed-top bg-light" data-bs-theme="light" aria-label="Site navigation"><div class="container">
+
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
+
     <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0.9000</small>
+
+
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
+
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -36,6 +43,8 @@ See https://duckdb.org/docs/data/overview for details on data importing function
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/duckdb/duckdb-r/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul></div>
+
+
   </div>
 </nav><div class="container template-reference-topic">
 <div class="row">
@@ -44,6 +53,7 @@ See https://duckdb.org/docs/data/overview for details on data importing function
       <small class="dont-index">Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/R/backend-dbplyr__duckdb_connection.R" class="external-link"><code>R/backend-dbplyr__duckdb_connection.R</code></a></small>
       <div class="d-none name"><code>backend-duckdb.Rd</code></div>
     </div>
+
     <div class="ref-description section level2">
     <p>This is a SQL backend for dbplyr tailored to take into account DuckDB's
 possibilities. This mainly follows the backend for PostgreSQL, but
@@ -58,6 +68,7 @@ It is safer than <code><a href="https://dplyr.tidyverse.org/reference/tbl.html" 
 Use <code>dplyr::tbl(src, dplyr::sql("SELECT ... FROM ..."))</code> for custom SQL queries.
 See <a href="https://duckdb.org/docs/data/overview" class="external-link">https://duckdb.org/docs/data/overview</a> for details on data importing functions.</p>
     </div>
+
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">simulate_duckdb</span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span>
@@ -68,19 +79,32 @@ See <a href="https://duckdb.org/docs/data/overview" class="external-link">https:
 <span></span>
 <span><span class="fu">tbl_query</span><span class="op">(</span><span class="va">src</span>, <span class="va">query</span>, <span class="va">...</span>, cache <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
     </div>
+
     <div class="section level2">
     <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
+
+
 <dl><dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Any parameters to be forwarded</p></dd>
+
+
 <dt id="arg-src">src<a class="anchor" aria-label="anchor" href="#arg-src"></a></dt>
 <dd><p>A duckdb connection object</p></dd>
+
+
 <dt id="arg-path">path<a class="anchor" aria-label="anchor" href="#arg-path"></a></dt>
 <dd><p>Path to existing Parquet, CSV or JSON file</p></dd>
+
+
 <dt id="arg-cache">cache<a class="anchor" aria-label="anchor" href="#arg-cache"></a></dt>
 <dd><p>Enable object cache for Parquet files</p></dd>
+
+
 <dt id="arg-query">query<a class="anchor" aria-label="anchor" href="#arg-query"></a></dt>
 <dd><p>SQL code, omitting the <code>FROM</code> clause</p></dd>
+
 </dl></div>
+
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># duckdb:::TEST_RE2 &amp;&amp; rlang::is_installed("dbplyr")</span></span></span>
@@ -100,12 +124,21 @@ See <a href="https://duckdb.org/docs/data/overview" class="external-link">https:
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
+
+
     <footer><div class="pkgdown-footer-left">
   <p>Developed by <a href="http://hannes.muehleisen.org/" class="external-link">Hannes Mühleisen</a>, <a href="https://mytherin.github.io/" class="external-link">Mark Raasveldt</a>, <a href="https://krlmlr.info/" class="external-link">Kirill Müller</a>.</p>
 </div>
+
 <div class="pkgdown-footer-right">
   <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.9.9000.</p>
 </div>
+
     </footer></div>
+
+
+
+
+
   </body></html>
 

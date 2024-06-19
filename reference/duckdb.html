@@ -15,12 +15,19 @@ dbDisconnect() closes a DuckDB database connection.
 The associated DuckDB database instance is shut down automatically,
 it is no longer necessary to set shutdown = TRUE or to call duckdb_shutdown()."><meta property="og:image" content="https://r.duckdb.org/logo.png"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
+
+
     <nav class="navbar navbar-expand-lg fixed-top bg-light" data-bs-theme="light" aria-label="Site navigation"><div class="container">
+
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
+
     <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0.9000</small>
+
+
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
+
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -28,6 +35,8 @@ it is no longer necessary to set shutdown = TRUE or to call duckdb_shutdown().">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/duckdb/duckdb-r/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul></div>
+
+
   </div>
 </nav><div class="container template-reference-topic">
 <div class="row">
@@ -36,6 +45,7 @@ it is no longer necessary to set shutdown = TRUE or to call duckdb_shutdown().">
       <small class="dont-index">Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/R/Driver.R" class="external-link"><code>R/Driver.R</code></a>, <a href="https://github.com/duckdb/duckdb-r/blob/main/R/dbConnect__duckdb_driver.R" class="external-link"><code>R/dbConnect__duckdb_driver.R</code></a>, <a href="https://github.com/duckdb/duckdb-r/blob/main/R/dbDisconnect__duckdb_connection.R" class="external-link"><code>R/dbDisconnect__duckdb_connection.R</code></a></small>
       <div class="d-none name"><code>duckdb.Rd</code></div>
     </div>
+
     <div class="ref-description section level2">
     <p><code>duckdb()</code> creates or reuses a database instance.</p>
 <p><code>duckdb_shutdown()</code> shuts down a database instance.</p>
@@ -46,6 +56,7 @@ Connectivity via the adbcdrivermanager package.</p>
 The associated DuckDB database instance is shut down automatically,
 it is no longer necessary to set <code>shutdown = TRUE</code> or to call <code>duckdb_shutdown()</code>.</p>
     </div>
+
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">duckdb</span><span class="op">(</span></span>
@@ -75,47 +86,71 @@ it is no longer necessary to set <code>shutdown = TRUE</code> or to call <code>d
 <span><span class="co"># S4 method for class 'duckdb_connection'</span></span>
 <span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">conn</span>, <span class="va">...</span>, shutdown <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
     </div>
+
     <div class="section level2">
     <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
+
+
 <dl><dt id="arg-dbdir">dbdir<a class="anchor" aria-label="anchor" href="#arg-dbdir"></a></dt>
 <dd><p>Location for database files. Should be a path to an existing
 directory in the file system. With the default (or <code>""</code>), all
 data is kept in RAM.</p></dd>
+
+
 <dt id="arg-read-only">read_only<a class="anchor" aria-label="anchor" href="#arg-read-only"></a></dt>
 <dd><p>Set to <code>TRUE</code> for read-only operation.
 For file-based databases, this is only applied when the database file is opened for the first time.
 Subsequent connections (via the same <code>drv</code> object or a <code>drv</code> object pointing to the same path)
 will silently ignore this flag.</p></dd>
+
+
 <dt id="arg-bigint">bigint<a class="anchor" aria-label="anchor" href="#arg-bigint"></a></dt>
 <dd><p>How 64-bit integers should be returned. There are two options: <code>"numeric"</code> and <code>"integer64"</code>.
 If <code>"numeric"</code> is selected, bigint integers will be treated as double/numeric.
 If <code>"integer64"</code> is selected, bigint integers will be set to bit64 encoding.</p></dd>
+
+
 <dt id="arg-config">config<a class="anchor" aria-label="anchor" href="#arg-config"></a></dt>
 <dd><p>Named list with DuckDB configuration flags, see
 <a href="https://duckdb.org/docs/configuration/overview#configuration-reference" class="external-link">https://duckdb.org/docs/configuration/overview#configuration-reference</a> for the possible options.
 These flags are only applied when the database object is instantiated.
 Subsequent connections will silently ignore these flags.</p></dd>
+
+
 <dt id="arg-drv">drv<a class="anchor" aria-label="anchor" href="#arg-drv"></a></dt>
 <dd><p>Object returned by <code>duckdb()</code></p></dd>
+
+
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Ignored</p></dd>
+
+
 <dt id="arg-debug">debug<a class="anchor" aria-label="anchor" href="#arg-debug"></a></dt>
 <dd><p>Print additional debug information such as queries</p></dd>
+
+
 <dt id="arg-timezone-out">timezone_out<a class="anchor" aria-label="anchor" href="#arg-timezone-out"></a></dt>
 <dd><p>The time zone returned to R, defaults to <code>"UTC"</code>, which
 is currently the only timezone supported by duckdb.
 If you want to display datetime values in the local timezone,
 set to <code><a href="https://rdrr.io/r/base/timezones.html" class="external-link">Sys.timezone()</a></code> or <code>""</code>.</p></dd>
+
+
 <dt id="arg-tz-out-convert">tz_out_convert<a class="anchor" aria-label="anchor" href="#arg-tz-out-convert"></a></dt>
 <dd><p>How to convert timestamp columns to the timezone specified
 in <code>timezone_out</code>. There are two options: <code>"with"</code>, and <code>"force"</code>. If <code>"with"</code>
 is chosen, the timestamp will be returned as it would appear in the specified time zone.
 If <code>"force"</code> is chosen, the timestamp will have the same clock
 time as the timestamp in the database, but with the new time zone.</p></dd>
+
+
 <dt id="arg-conn">conn<a class="anchor" aria-label="anchor" href="#arg-conn"></a></dt>
 <dd><p>A <code>duckdb_connection</code> object</p></dd>
+
+
 <dt id="arg-shutdown">shutdown<a class="anchor" aria-label="anchor" href="#arg-shutdown"></a></dt>
 <dd><p>Unused. The database instance is shut down automatically.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -126,6 +161,7 @@ side effect.</p>
 <p><code><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">dbConnect()</a></code> returns an object of class
 <a href="duckdb_connection-class.html">duckdb_connection</a>.</p>
     </div>
+
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/apache/arrow-adbc" class="external-link">adbcdrivermanager</a></span><span class="op">)</span></span></span>
@@ -154,12 +190,21 @@ side effect.</p>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
+
+
     <footer><div class="pkgdown-footer-left">
   <p>Developed by <a href="http://hannes.muehleisen.org/" class="external-link">Hannes Mühleisen</a>, <a href="https://mytherin.github.io/" class="external-link">Mark Raasveldt</a>, <a href="https://krlmlr.info/" class="external-link">Kirill Müller</a>.</p>
 </div>
+
 <div class="pkgdown-footer-right">
   <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.9.9000.</p>
 </div>
+
     </footer></div>
+
+
+
+
+
   </body></html>
 
