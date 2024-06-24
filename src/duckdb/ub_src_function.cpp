@@ -4,6 +4,8 @@
 
 #include "src/function/compression_config.cpp"
 
+#include "src/function/copy_function.cpp"
+
 #include "src/function/function.cpp"
 
 #include "src/function/function_binder.cpp"

@@ -2,6 +2,8 @@
 
 #include "src/main/attached_database.cpp"
 
+#include "src/main/client_config.cpp"
+
 #include "src/main/client_context_file_opener.cpp"
 
 #include "src/main/client_context.cpp"
@@ -49,6 +51,8 @@
 #include "src/main/query_result.cpp"
 
 #include "src/main/stream_query_result.cpp"
+
+#include "src/main/profiling_info.cpp"
 
 #include "src/main/valid_checker.cpp"
 

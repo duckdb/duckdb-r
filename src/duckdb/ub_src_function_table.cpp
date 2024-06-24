@@ -6,6 +6,8 @@
 
 #include "src/function/table/glob.cpp"
 
+#include "src/function/table/query_function.cpp"
+
 #include "src/function/table/range.cpp"
 
 #include "src/function/table/repeat.cpp"

@@ -2,6 +2,8 @@
 
 #include "src/planner/bound_parameter_map.cpp"
 
+#include "src/planner/collation_binding.cpp"
+
 #include "src/planner/expression_iterator.cpp"
 
 #include "src/planner/expression.cpp"

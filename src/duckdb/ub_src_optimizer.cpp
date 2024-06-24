@@ -1,3 +1,5 @@
+#include "src/optimizer/build_probe_side_optimizer.cpp"
+
 #include "src/optimizer/column_binding_replacer.cpp"
 
 #include "src/optimizer/column_lifetime_analyzer.cpp"
@@ -31,6 +33,8 @@
 #include "src/optimizer/remove_unused_columns.cpp"
 
 #include "src/optimizer/statistics_propagator.cpp"
+
+#include "src/optimizer/limit_pushdown.cpp"
 
 #include "src/optimizer/topn_optimizer.cpp"
 

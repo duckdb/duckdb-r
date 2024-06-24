@@ -26,7 +26,11 @@
 
 #include "src/main/capi/result-c.cpp"
 
+#include "src/main/capi/scalar_function-c.cpp"
+
 #include "src/main/capi/stream-c.cpp"
+
+#include "src/main/capi/table_description-c.cpp"
 
 #include "src/main/capi/table_function-c.cpp"
 
