@@ -33,7 +33,7 @@ for commit in $commit; do
   cat "$upstream_dir"/src/*.cpp > src/rfuns.cpp
   cp "$upstream_dir"/src/include/* src/include/
 
-  if [ $(git status --porcelain -- src/ | wc -l) -gt 1 ]; then
+  if [ $(git status --porcelain -- src/ | wc -l) -gt 0 ]; then
     message="chore: Update vendored sources to hannes/duckdb-rfuns@$commit"
     break
   fi
