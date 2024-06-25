@@ -43,8 +43,8 @@ public:
 
 class ValueConversion {
 public:
-	template <class T>
-	static SEXP ToR(T val) {
+	template <class DUCKDB_NATIVE_TYPE>
+	static SEXP ToR(DUCKDB_NATIVE_TYPE val) {
 		//static_assert(false, "Unimplemented value conversion to R");
 		return nullptr;
 	}
@@ -110,9 +110,10 @@ SEXP ToR(void *val) {
 	}
 
 
-	template <class T>
-	static T FromR(SEXP x) {
+	template <class DUCKDB_NATIVE_TYPE>
+	static DUCKDB_NATIVE_TYPE FromR(SEXP x) {
 		//static_assert(false, "Unimplemented value conversion from R");
+		Rf_error("Unimplemented value conversion from R");
 	}
 
 	template <>
