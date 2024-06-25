@@ -1,4 +1,4 @@
-Package: duckdb
+Package: duckdbneo
 Title: DBI Package for the DuckDB Database Management System
 Version: 0.9.2
 Authors@R: c(

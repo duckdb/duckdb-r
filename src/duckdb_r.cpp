@@ -2,6 +2,33 @@
 #include "Rdefines.h"
 #include <dlfcn.h>
 
+
+#ifdef _WIN32
+
+
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+
+#define RTLD_NOW   0
+#define RTLD_LOCAL 0
+inline void *dlopen(const char *file, int mode) {
+	D_ASSERT(file);
+	auto fpath = WindowsUtil::UTF8ToUnicode(file);
+	return (void *)LoadLibraryW(fpath.c_str());
+}
+
+inline void *dlsym(void *handle, const char *name) {
+	D_ASSERT(handle);
+	return (void *)GetProcAddress((HINSTANCE)handle, name);
+}
+
+inline std::string GetDLError(void) {
+	return LocalFileSystem::GetLastErrorAsString();
+}
+#endif
+
 static void* duckdb_r_dlopen_handle;
 
 // small helper to actually call dlopen, we don't know the package location on library load
@@ -13,6 +40,15 @@ static SEXP duckdb_load_library(SEXP path_sexp) {
 	}
 	return Rf_ScalarLogical(true);
 }
+
+static SEXP duckdb_adbc() {
+	auto init_func_xptr =
+		  PROTECT(R_MakeExternalPtrFn((DL_FUNC)dlsym(duckdb_r_dlopen_handle, "duckdb_adbc_init"), R_NilValue, R_NilValue));
+	Rf_setAttrib(init_func_xptr, R_ClassSymbol, Rf_mkString("adbc_driver_init_func"));
+	UNPROTECT(1);
+	return init_func_xptr;
+}
+
 
 static SEXP duckdb_copy_buffer(SEXP x, SEXP len_sexp) {
 	const char* name = "duckdb_void_ptr";
@@ -40,7 +76,7 @@ static SEXP duckdb_copy_buffer(SEXP x, SEXP len_sexp) {
 #include "duckdb_r_generated.cpp"
 
 extern "C" {
-void R_init_duckdb(DllInfo *dll) {
+void R_init_duckdbneo(DllInfo *dll) {
 	R_registerRoutines(dll, nullptr, generated_methods, nullptr, nullptr);
 	R_useDynamicSymbols(dll, FALSE);
 	R_forceSymbols(dll, TRUE);

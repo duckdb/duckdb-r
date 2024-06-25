@@ -1,1 +1,1 @@
-useDynLib(duckdb, .registration = TRUE)
+useDynLib(duckdbneo, .registration = TRUE)
