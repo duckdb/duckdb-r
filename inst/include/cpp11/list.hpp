@@ -1,5 +1,5 @@
-// cpp11 version: 0.4.2
-// vendored on: 2022-01-10
+// cpp11 version: 0.4.7
+// vendored on: 2024-06-26
 #pragma once
 
 #include <initializer_list>  // for initializer_list
@@ -47,7 +47,7 @@ inline SEXP r_vector<SEXP>::operator[](const r_string& name) const {
 }
 
 template <>
-inline SEXP* r_vector<SEXP>::get_p(bool, SEXP) {
+inline typename r_vector<SEXP>::underlying_type* r_vector<SEXP>::get_p(bool, SEXP) {
   return nullptr;
 }
 
