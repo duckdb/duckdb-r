@@ -890,8 +890,13 @@ inline void r_vector<T>::clear() {
 }
 
 inline SEXP truncate(SEXP x, R_xlen_t length, R_xlen_t capacity) {
-  // Avoid SETLENGTH() and SET_TRUELENGTH() which trigger a warning on R-devel 4.5
+#if R_VERSION >= R_Version(3, 4, 0)
+  SETLENGTH(x, length);
+  SET_TRUELENGTH(x, capacity);
+  SET_GROWABLE_BIT(x);
+#else
   x = safe[Rf_lengthgets](x, length);
+#endif
   return x;
 }
 
