@@ -92,7 +92,7 @@ An object of class "adbc_driver"
 
 \code{duckdb_shutdown()} shuts down a database instance.
 
-Return an \code{\link[adbcdrivermanager:adbc_driver_void]{adbcdrivermanager::adbc_driver()}} for use with Arrow Database
+Return an \code{\link[adbcdrivermanager:adbc_driver]{adbcdrivermanager::adbc_driver()}} for use with Arrow Database
 Connectivity via the adbcdrivermanager package.
 
 \code{dbConnect()} connects to a database instance.
