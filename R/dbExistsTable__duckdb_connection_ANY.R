@@ -1,7 +1,7 @@
 #' @rdname duckdb_connection-class
 #' @inheritParams DBI::dbExistsTable
 #' @usage NULL
-dbExistsTable__duckdb_connection_character <- function(conn, name, ...) {
+dbExistsTable__duckdb_connection_ANY <- function(conn, name, ...) {
   if (!dbIsValid(conn)) {
     stop("Invalid connection")
   }
@@ -29,4 +29,4 @@ dbExistsTable__duckdb_connection_character <- function(conn, name, ...) {
 
 #' @rdname duckdb_connection-class
 #' @export
-setMethod("dbExistsTable", c("duckdb_connection", "character"), dbExistsTable__duckdb_connection_character)
+setMethod("dbExistsTable", c("duckdb_connection", "ANY"), dbExistsTable__duckdb_connection_ANY)
