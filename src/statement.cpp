@@ -342,7 +342,7 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	do {
 		execution_result = pending_query->ExecuteTask();
 		R_CheckUserInterrupt();
-	} while (!PendingQueryResult::IsFinishedOrBlocked(execution_result));
+	} while (!PendingQueryResult::IsResultReady(execution_result));
 	if (execution_result == PendingExecutionResult::EXECUTION_ERROR) {
 		cpp11::stop("rapi_execute: Failed to run query\nError: %s", pending_query->GetError().c_str());
 	}
