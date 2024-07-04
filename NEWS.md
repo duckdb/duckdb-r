@@ -1,5 +1,14 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.0.0-1
+
+## Bug fixes
+
+- Upgrade vendored cpp11 to 0.4.7 to fix compilation with R-devel.
+
+- Support `dplyr::tbl(conn, I(...))`.
+
+
 # duckdb 1.0.0
 
 ## Bug fixes
