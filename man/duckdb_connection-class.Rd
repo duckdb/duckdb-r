@@ -25,8 +25,8 @@
 \alias{dbCommit,duckdb_connection-method}
 \alias{dbDataType__duckdb_connection}
 \alias{dbDataType,duckdb_connection-method}
-\alias{dbExistsTable__duckdb_connection_character}
-\alias{dbExistsTable,duckdb_connection,character-method}
+\alias{dbExistsTable__duckdb_connection_ANY}
+\alias{dbExistsTable,duckdb_connection,ANY-method}
 \alias{dbGetInfo__duckdb_connection}
 \alias{dbGetInfo,duckdb_connection-method}
 \alias{dbIsValid__duckdb_connection}
@@ -61,7 +61,7 @@
 
 \S4method{dbDataType}{duckdb_connection}(dbObj, obj, ...)
 
-\S4method{dbExistsTable}{duckdb_connection,character}(conn, name, ...)
+\S4method{dbExistsTable}{duckdb_connection,ANY}(conn, name, ...)
 
 \S4method{dbGetInfo}{duckdb_connection}(dbObj, ...)
 
