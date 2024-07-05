@@ -2,6 +2,8 @@
 
 #include "src/execution/operator/csv_scanner/scanner/column_count_scanner.cpp"
 
+#include "src/execution/operator/csv_scanner/scanner/csv_schema.cpp"
+
 #include "src/execution/operator/csv_scanner/scanner/scanner_boundary.cpp"
 
 #include "src/execution/operator/csv_scanner/scanner/skip_scanner.cpp"
