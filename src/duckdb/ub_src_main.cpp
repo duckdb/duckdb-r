@@ -44,6 +44,8 @@
 
 #include "src/main/prepared_statement_data.cpp"
 
+#include "src/main/profiling_info.cpp"
+
 #include "src/main/relation.cpp"
 
 #include "src/main/query_profiler.cpp"
@@ -51,8 +53,6 @@
 #include "src/main/query_result.cpp"
 
 #include "src/main/stream_query_result.cpp"
-
-#include "src/main/profiling_info.cpp"
 
 #include "src/main/valid_checker.cpp"
 
