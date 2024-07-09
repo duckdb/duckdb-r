@@ -64,7 +64,7 @@ Subsequent connections will silently ignore these flags.}
 \item{timezone_out}{The time zone returned to R, defaults to \code{"UTC"}, which
 is currently the only timezone supported by duckdb.
 If you want to display datetime values in the local timezone,
-set to \code{\link[=Sys.timezone]{Sys.timezone()}} or \code{""}.}
+set to \code{\link[base:timezones]{base::Sys.timezone()}} or \code{""}.}
 
 \item{tz_out_convert}{How to convert timestamp columns to the timezone specified
 in \code{timezone_out}. There are two options: \code{"with"}, and \code{"force"}. If \code{"with"}
@@ -84,8 +84,7 @@ side effect.
 
 An object of class "adbc_driver"
 
-\code{dbConnect()} returns an object of class
-\linkS4class{duckdb_connection}.
+\code{dbConnect()} returns an object of class \linkS4class{duckdb_connection}.
 }
 \description{
 \code{duckdb()} creates or reuses a database instance.

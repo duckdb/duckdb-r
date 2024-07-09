@@ -29,8 +29,7 @@
 #'   If `"numeric"` is selected, bigint integers will be treated as double/numeric.
 #'   If `"integer64"` is selected, bigint integers will be set to bit64 encoding.
 #'
-#' @return `dbConnect()` returns an object of class
-#'   \linkS4class{duckdb_connection}.
+#' @return `dbConnect()` returns an object of class [duckdb_connection-class].
 #'
 #' @rdname duckdb
 #' @examples

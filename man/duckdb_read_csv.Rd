@@ -45,7 +45,7 @@ duckdb_read_csv(
 
 \item{transaction}{Should a transaction be used for the entire operation}
 
-\item{...}{Passed on to \code{\link[=read.csv]{read.csv()}}}
+\item{...}{Passed on to \code{\link[utils:read.table]{utils::read.csv()}}}
 }
 \value{
 The number of rows in the resulted table, invisibly.

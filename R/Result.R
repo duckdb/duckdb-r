@@ -1,7 +1,7 @@
 #' DuckDB Result Set
 #'
 #' Methods for accessing result sets for queries on DuckDB connections.
-#' Implements \linkS4class{DBIResult}.
+#' Implements [DBIResult-class].
 #'
 #' @aliases duckdb_result
 #' @keywords internal
