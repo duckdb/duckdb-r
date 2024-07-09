@@ -138,6 +138,6 @@ with one column per query parameter.}
 \item{object}{Any R object}
 }
 \description{
-Implements \link[DBI:DBIConnection-class]{DBI::DBIConnection}.
+Implements \linkS4class{DBIConnection}.
 }
 \keyword{internal}
