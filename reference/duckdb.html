@@ -133,7 +133,7 @@ Subsequent connections will silently ignore these flags.</p></dd>
 <dd><p>The time zone returned to R, defaults to <code>"UTC"</code>, which
 is currently the only timezone supported by duckdb.
 If you want to display datetime values in the local timezone,
-set to <code><a href="https://rdrr.io/r/base/timezones.html" class="external-link">Sys.timezone()</a></code> or <code>""</code>.</p></dd>
+set to <code><a href="https://rdrr.io/r/base/timezones.html" class="external-link">base::Sys.timezone()</a></code> or <code>""</code>.</p></dd>
 
 
 <dt id="arg-tz-out-convert">tz_out_convert<a class="anchor" aria-label="anchor" href="#arg-tz-out-convert"></a></dt>
@@ -158,8 +158,7 @@ time as the timestamp in the database, but with the new time zone.</p></dd>
 <p><code><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect()</a></code> and <code>duckdb_shutdown()</code> are called for their
 side effect.</p>
 <p>An object of class "adbc_driver"</p>
-<p><code><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">dbConnect()</a></code> returns an object of class
-<a href="duckdb_connection-class.html">duckdb_connection</a>.</p>
+<p><code><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">dbConnect()</a></code> returns an object of class <a href="duckdb_connection-class.html">duckdb_connection</a>.</p>
     </div>
 
     <div class="section level2">
@@ -197,7 +196,7 @@ side effect.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.9.9000.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.0.9000.</p>
 </div>
 
     </footer></div>
