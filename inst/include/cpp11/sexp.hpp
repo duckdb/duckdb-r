@@ -1,5 +1,5 @@
-// cpp11 version: 0.4.2
-// vendored on: 2022-01-10
+// cpp11 version: 0.4.7
+// vendored on: 2024-06-26
 #pragma once
 
 #include <stddef.h>  // for size_t
@@ -22,14 +22,15 @@ class sexp {
   sexp() = default;
 
   sexp(SEXP data) : data_(data), preserve_token_(preserved.insert(data_)) {
-    // REprintf("created %x %x : %i\n", data_, preserve_token_, protect_head_size());
+    // REprintf("created %p %p\n", reinterpret_cast<void*>(data_),
+    //          reinterpret_cast<void*>(preserve_token_));
   }
 
   sexp(const sexp& rhs) {
     data_ = rhs.data_;
     preserve_token_ = preserved.insert(data_);
-    // REprintf("copied %x new protect %x : %i\n", rhs.data_, preserve_token_,
-    // protect_head_size());
+    // REprintf("copied %p new protect %p\n", reinterpret_cast<void*>(rhs.data_),
+    //          reinterpret_cast<void*>(preserve_token_));
   }
 
   sexp(sexp&& rhs) {
@@ -39,7 +40,7 @@ class sexp {
     rhs.data_ = R_NilValue;
     rhs.preserve_token_ = R_NilValue;
 
-    // REprintf("moved %x : %i\n", rhs.data_, protect_head_size());
+    // REprintf("moved %p\n", reinterpret_cast<void*>(rhs.data_));
   }
 
   sexp& operator=(const sexp& rhs) {
@@ -47,7 +48,7 @@ class sexp {
 
     data_ = rhs.data_;
     preserve_token_ = preserved.insert(data_);
-    // REprintf("assigned %x : %i\n", rhs.data_, protect_head_size());
+    // REprintf("assigned %p\n", reinterpret_cast<void*>(rhs.data_));
     return *this;
   }
 

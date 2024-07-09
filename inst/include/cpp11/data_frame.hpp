@@ -1,5 +1,5 @@
-// cpp11 version: 0.4.2
-// vendored on: 2022-01-10
+// cpp11 version: 0.4.7
+// vendored on: 2024-06-26
 #pragma once
 
 #include <cstdlib>  // for abs
