@@ -1,5 +1,6 @@
 #' @rdname duckdb_connection-class
 #' @inheritParams DBI::dbWriteTable
+#' @param conn A [duckdb_connection-class] object as returned by [DBI::dbConnect()]
 #' @param row.names Whether the row.names of the data.frame should be preserved
 #' @param overwrite If a table with the given name already exists, should it be overwritten?
 #' @param append If a table with the given name already exists, just try to append the passed data to it

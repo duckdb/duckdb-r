@@ -78,9 +78,7 @@ or \code{n = Inf}
 to retrieve all pending records.  Some implementations may recognize other
 special values.}
 
-\item{dbObj}{An object inheriting from \linkS4class{DBIObject},
-i.e. \linkS4class{DBIDriver}, \linkS4class{DBIConnection},
-or a \linkS4class{DBIResult}}
+\item{dbObj}{An object inheriting from class \linkS4class{duckdb_result}.}
 
 \item{object}{Any R object}
 }

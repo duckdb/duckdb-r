@@ -96,8 +96,7 @@
 \S4method{show}{duckdb_connection}(object)
 }
 \arguments{
-\item{conn}{A \linkS4class{DBIConnection} object, as returned by
-\code{\link[DBI:dbConnect]{dbConnect()}}.}
+\item{conn}{A \linkS4class{duckdb_connection} object as returned by \code{\link[DBI:dbConnect]{DBI::dbConnect()}}}
 
 \item{name}{The table name, passed on to \code{\link[DBI:dbQuoteIdentifier]{dbQuoteIdentifier()}}. Options are:
 \itemize{
@@ -115,8 +114,7 @@ given verbatim, e.g. \code{SQL('"my_schema"."table_name"')}
 
 \item{row.names}{Whether the row.names of the data.frame should be preserved}
 
-\item{dbObj}{A object inheriting from \linkS4class{DBIDriver}
-or \linkS4class{DBIConnection}}
+\item{dbObj}{An object inheriting from class \linkS4class{duckdb_connection}.}
 
 \item{obj}{An R object whose SQL type we want to determine.}
 
