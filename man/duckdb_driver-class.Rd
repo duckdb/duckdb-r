@@ -34,6 +34,6 @@ or a \linkS4class{DBIResult}}
 \item{object}{Any R object}
 }
 \description{
-Implements \link[DBI:DBIDriver-class]{DBI::DBIDriver}.
+Implements \linkS4class{DBIDriver}.
 }
 \keyword{internal}

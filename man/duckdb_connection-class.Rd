@@ -2,7 +2,7 @@
 % Please edit documentation in R/Connection.R,
 %   R/dbAppendTable__duckdb_connection.R, R/dbBegin__duckdb_connection.R,
 %   R/dbCommit__duckdb_connection.R, R/dbDataType__duckdb_connection.R,
-%   R/dbExistsTable__duckdb_connection_character.R,
+%   R/dbExistsTable__duckdb_connection_ANY.R,
 %   R/dbGetInfo__duckdb_connection.R, R/dbIsValid__duckdb_connection.R,
 %   R/dbListFields__duckdb_connection_character.R,
 %   R/dbListTables__duckdb_connection.R,
@@ -140,6 +140,6 @@ with one column per query parameter.}
 \item{object}{Any R object}
 }
 \description{
-Implements \link[DBI:DBIConnection-class]{DBI::DBIConnection}.
+Implements \linkS4class{DBIConnection}.
 }
 \keyword{internal}
