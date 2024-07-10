@@ -10,11 +10,13 @@ on:
       - main
       - master
       - release
+      - cran-*
   pull_request:
     branches:
       - main
       - master
       - release
+      - cran-*
   schedule:
     - cron: "10 0 * * *"
 

@@ -1,6 +1,6 @@
 #' DuckDB driver class
 #'
-#' Implements \linkS4class{DBIDriver}.
+#' Implements [DBIDriver-class].
 #'
 #' @aliases duckdb_driver
 #' @keywords internal
@@ -15,7 +15,7 @@ setClass("duckdb_driver", contains = "DBIDriver", slots = list(
 
 #' DuckDB connection class
 #'
-#' Implements \linkS4class{DBIConnection}.
+#' Implements [DBIConnection-class].
 #'
 #' @aliases duckdb_connection
 #' @keywords internal

@@ -2,7 +2,7 @@
 % Please edit documentation in R/Connection.R,
 %   R/dbAppendTable__duckdb_connection.R, R/dbBegin__duckdb_connection.R,
 %   R/dbCommit__duckdb_connection.R, R/dbDataType__duckdb_connection.R,
-%   R/dbExistsTable__duckdb_connection_character.R,
+%   R/dbExistsTable__duckdb_connection_ANY.R,
 %   R/dbGetInfo__duckdb_connection.R, R/dbIsValid__duckdb_connection.R,
 %   R/dbListFields__duckdb_connection_character.R,
 %   R/dbListTables__duckdb_connection.R,
@@ -25,8 +25,8 @@
 \alias{dbCommit,duckdb_connection-method}
 \alias{dbDataType__duckdb_connection}
 \alias{dbDataType,duckdb_connection-method}
-\alias{dbExistsTable__duckdb_connection_character}
-\alias{dbExistsTable,duckdb_connection,character-method}
+\alias{dbExistsTable__duckdb_connection_ANY}
+\alias{dbExistsTable,duckdb_connection,ANY-method}
 \alias{dbGetInfo__duckdb_connection}
 \alias{dbGetInfo,duckdb_connection-method}
 \alias{dbIsValid__duckdb_connection}
@@ -61,7 +61,7 @@
 
 \S4method{dbDataType}{duckdb_connection}(dbObj, obj, ...)
 
-\S4method{dbExistsTable}{duckdb_connection,character}(conn, name, ...)
+\S4method{dbExistsTable}{duckdb_connection,ANY}(conn, name, ...)
 
 \S4method{dbGetInfo}{duckdb_connection}(dbObj, ...)
 
@@ -96,8 +96,7 @@
 \S4method{show}{duckdb_connection}(object)
 }
 \arguments{
-\item{conn}{A \linkS4class{DBIConnection} object, as returned by
-\code{\link[DBI:dbConnect]{dbConnect()}}.}
+\item{conn}{A \linkS4class{duckdb_connection} object as returned by \code{\link[DBI:dbConnect]{DBI::dbConnect()}}}
 
 \item{name}{The table name, passed on to \code{\link[DBI:dbQuoteIdentifier]{dbQuoteIdentifier()}}. Options are:
 \itemize{
@@ -115,8 +114,7 @@ given verbatim, e.g. \code{SQL('"my_schema"."table_name"')}
 
 \item{row.names}{Whether the row.names of the data.frame should be preserved}
 
-\item{dbObj}{A object inheriting from \linkS4class{DBIDriver}
-or \linkS4class{DBIConnection}}
+\item{dbObj}{An object inheriting from class \linkS4class{duckdb_connection}.}
 
 \item{obj}{An R object whose SQL type we want to determine.}
 
@@ -140,6 +138,6 @@ with one column per query parameter.}
 \item{object}{Any R object}
 }
 \description{
-Implements \linkS4class{DBIConnection}.
+Implements \link[DBI:DBIConnection-class]{DBI::DBIConnection}.
 }
 \keyword{internal}

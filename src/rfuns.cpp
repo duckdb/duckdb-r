@@ -247,7 +247,7 @@ void isna_double_loop(idx_t count, const double* data, bool* result_data, Validi
 		if (ValidityMask::AllValid(validity_entry)) {
 			// all valid: check with isnan()
 			for (; base_idx < next; base_idx++) {
-				result_data[base_idx] = isnan(data[base_idx]);
+				result_data[base_idx] = std::isnan(data[base_idx]);
 			}
 		} else if (ValidityMask::NoneValid(validity_entry)) {
 			// None valid:
@@ -260,7 +260,7 @@ void isna_double_loop(idx_t count, const double* data, bool* result_data, Validi
 			for (; base_idx < next; base_idx++) {
 				if (ValidityMask::RowIsValid(validity_entry, base_idx - start)) {
 					D_ASSERT(mask.RowIsValid(base_idx));
-					result_data[base_idx] = isnan(data[base_idx]);
+					result_data[base_idx] = std::isnan(data[base_idx]);
 				} else {
 					result_data[base_idx] = true;
 				}
@@ -292,7 +292,7 @@ void isna_double(DataChunk &args, ExpressionState &state, Vector &result) {
 			auto result_data = ConstantVector::GetData<bool>(result);
 			auto ldata = ConstantVector::GetData<double>(input);
 
-			*result_data = ConstantVector::IsNull(input) || isnan(*ldata);
+			*result_data = ConstantVector::IsNull(input) || std::isnan(*ldata);
 
 			break;
 		}

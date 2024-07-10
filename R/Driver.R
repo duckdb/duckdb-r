@@ -23,7 +23,7 @@ driver_registry <- new.env(parent = emptyenv())
 #' @description
 #' `duckdb()` creates or reuses a database instance.
 #'
-#' @return `duckdb()` returns an object of class \linkS4class{duckdb_driver}.
+#' @return `duckdb()` returns an object of class [duckdb_driver-class].
 #'
 #' @import methods DBI
 #' @export
