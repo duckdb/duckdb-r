@@ -29,6 +29,8 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 		config.options.access_mode = AccessMode::READ_ONLY;
 	}
 
+	config.options.initialize_in_main_thread = true;
+
 	auto confignames = configsexp.names();
 
 	for (auto it = confignames.begin(); it != confignames.end(); ++it) {
