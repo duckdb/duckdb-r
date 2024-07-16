@@ -1,0 +1,66 @@
+From 524a84ef3809ceb004eddb80aa6e640300bdace0 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Tue, 16 Jul 2024 12:53:05 +0200
+Subject: [PATCH] 12990 Mytherin/addrworkaround
+
+---
+ src/duckdb/src/include/duckdb/execution/executor.hpp | 4 ++--
+ src/duckdb/src/include/duckdb/main/config.hpp        | 4 ++++
+ src/duckdb/src/parallel/executor.cpp                 | 6 ++++++
+ 3 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/duckdb/src/include/duckdb/execution/executor.hpp b/src/duckdb/src/include/duckdb/execution/executor.hpp
+index 7d8ff4e6..149b0460 100644
+--- a/src/duckdb/src/include/duckdb/execution/executor.hpp
++++ b/src/duckdb/src/include/duckdb/execution/executor.hpp
+@@ -118,13 +118,13 @@ private:
+ 	void InitializeInternal(PhysicalOperator &physical_plan);
+ 
+ 	void ScheduleEvents(const vector<shared_ptr<MetaPipeline>> &meta_pipelines);
+-	static void ScheduleEventsInternal(ScheduleEventData &event_data);
++	void ScheduleEventsInternal(ScheduleEventData &event_data);
+ 
+ 	static void VerifyScheduledEvents(const ScheduleEventData &event_data);
+ 	static void VerifyScheduledEventsInternal(const idx_t i, const vector<reference<Event>> &vertices,
+ 	                                          vector<bool> &visited, vector<bool> &recursion_stack);
+ 
+-	static void SchedulePipeline(const shared_ptr<MetaPipeline> &pipeline, ScheduleEventData &event_data);
++	void SchedulePipeline(const shared_ptr<MetaPipeline> &pipeline, ScheduleEventData &event_data);
+ 
+ 	bool NextExecutor();
+ 
+diff --git a/src/duckdb/src/include/duckdb/main/config.hpp b/src/duckdb/src/include/duckdb/main/config.hpp
+index a2711967..981cfdf8 100644
+--- a/src/duckdb/src/include/duckdb/main/config.hpp
++++ b/src/duckdb/src/include/duckdb/main/config.hpp
+@@ -250,6 +250,10 @@ struct DBConfigOptions {
+ 	//! If fewer than MAX(index_scan_max_count, index_scan_percentage * total_row_count)
+ 	// rows match, we perform an index scan instead of a table scan.
+ 	idx_t index_scan_max_count = STANDARD_VECTOR_SIZE;
++	//! Whether or not we initialize table functions in the main thread
++	//! This is a work-around that exists for certain clients (specifically R)
++	//! Because those clients do not like it when threads other than the main thread call into R, for e.g., arrow scans
++	bool initialize_in_main_thread = false;
+ 
+ 	bool operator==(const DBConfigOptions &other) const;
+ };
+diff --git a/src/duckdb/src/parallel/executor.cpp b/src/duckdb/src/parallel/executor.cpp
+index b67bf2cc..a198c48c 100644
+--- a/src/duckdb/src/parallel/executor.cpp
++++ b/src/duckdb/src/parallel/executor.cpp
+@@ -149,6 +149,12 @@ void Executor::SchedulePipeline(const shared_ptr<MetaPipeline> &meta_pipeline, S
+ 
+ 	// set up the dependencies within this MetaPipeline
+ 	for (auto &pipeline : pipelines) {
++		auto &config = DBConfig::GetConfig(context);
++		auto source = pipeline->GetSource();
++		if (source->type == PhysicalOperatorType::TABLE_SCAN && config.options.initialize_in_main_thread) {
++			// this is a work-around for the R client that requires the init to be called in the main thread
++			pipeline->ResetSource(true);
++		}
+ 		auto dependencies = meta_pipeline->GetDependencies(*pipeline);
+ 		if (!dependencies) {
+ 			continue;
+-- 
+2.43.0
+
