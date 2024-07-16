@@ -40,3 +40,5 @@ _files$
 ^vscode-integrate-build$
 ^patch$
 ^src/librstrtmgr\.a$
+^compile_commands\.json$
+^\.cache$
