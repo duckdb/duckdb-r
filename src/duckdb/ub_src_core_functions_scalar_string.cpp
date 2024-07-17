@@ -52,3 +52,5 @@
 
 #include "src/core_functions/scalar/string/unicode.cpp"
 
+#include "src/core_functions/scalar/string/url_encode.cpp"
+
