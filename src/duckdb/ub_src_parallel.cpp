@@ -22,6 +22,8 @@
 
 #include "src/parallel/pipeline_initialize_event.cpp"
 
+#include "src/parallel/task_executor.cpp"
+
 #include "src/parallel/task_scheduler.cpp"
 
 #include "src/parallel/thread_context.cpp"
