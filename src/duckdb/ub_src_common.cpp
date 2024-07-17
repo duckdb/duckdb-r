@@ -52,6 +52,8 @@
 
 #include "src/common/enum_util.cpp"
 
+#include "src/common/render_tree.cpp"
+
 #include "src/common/tree_renderer.cpp"
 
 #include "src/common/types.cpp"
