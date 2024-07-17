@@ -6,5 +6,9 @@
 
 #include "src/common/arrow/physical_arrow_collector.cpp"
 
+#include "src/common/arrow/physical_arrow_batch_collector.cpp"
+
+#include "src/common/arrow/arrow_merge_event.cpp"
+
 #include "src/common/arrow/arrow_query_result.cpp"
 
