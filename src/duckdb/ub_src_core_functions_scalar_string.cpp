@@ -38,6 +38,8 @@
 
 #include "src/core_functions/scalar/string/reverse.cpp"
 
+#include "src/core_functions/scalar/string/sha1.cpp"
+
 #include "src/core_functions/scalar/string/sha256.cpp"
 
 #include "src/core_functions/scalar/string/starts_with.cpp"
