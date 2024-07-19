@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.0.0-2
+
+## Features
+
+- Reduce the package installation size on macOS (#185).
+
+
 # duckdb 1.0.0-1
 
 ## Bug fixes
