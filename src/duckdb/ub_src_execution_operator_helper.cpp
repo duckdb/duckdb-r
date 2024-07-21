@@ -28,6 +28,8 @@
 
 #include "src/execution/operator/helper/physical_set.cpp"
 
+#include "src/execution/operator/helper/physical_set_variable.cpp"
+
 #include "src/execution/operator/helper/physical_reset.cpp"
 
 #include "src/execution/operator/helper/physical_streaming_limit.cpp"
