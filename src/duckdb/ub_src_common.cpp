@@ -6,6 +6,8 @@
 
 #include "src/common/box_renderer.cpp"
 
+#include "src/common/cgroups.cpp"
+
 #include "src/common/compressed_file_system.cpp"
 
 #include "src/common/constants.cpp"
