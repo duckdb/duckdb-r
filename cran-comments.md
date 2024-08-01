@@ -1,4 +1,4 @@
-duckdb 1.0.0-1
+duckdb 1.0.0-2
 
 ## R CMD check results
 

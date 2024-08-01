@@ -1,8 +1,10 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.0.0.9000
+# duckdb 1.0.0-2
 
-- Merge branch 'cran-1.0.0'.
+## Features
+
+- Reduce the package installation size on macOS (#185).
 
 
 # duckdb 1.0.0-1
