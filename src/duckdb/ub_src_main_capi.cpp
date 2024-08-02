@@ -1,3 +1,5 @@
+#include "src/main/capi/aggregate_function-c.cpp"
+
 #include "src/main/capi/appender-c.cpp"
 
 #include "src/main/capi/arrow-c.cpp"
