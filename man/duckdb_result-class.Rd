@@ -84,6 +84,6 @@ special values.}
 }
 \description{
 Methods for accessing result sets for queries on DuckDB connections.
-Implements \linkS4class{DBIResult}.
+Implements \link[DBI:DBIResult-class]{DBI::DBIResult}.
 }
 \keyword{internal}

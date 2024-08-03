@@ -101,7 +101,7 @@ The associated DuckDB database instance is shut down automatically,
 it is no longer necessary to set \code{shutdown = TRUE} or to call \code{duckdb_shutdown()}.
 }
 \examples{
-\dontshow{if (requireNamespace("adbcdrivermanager", quietly = TRUE)) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
+\dontshow{if (requireNamespace("adbcdrivermanager", quietly = TRUE)) withAutoprint(\{ # examplesIf}
 library(adbcdrivermanager)
 with_adbc(db <- adbc_database_init(duckdb_adbc()), {
   as.data.frame(read_adbc(db, "SELECT 1 as one;"))
