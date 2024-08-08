@@ -100,7 +100,6 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 
 	auto rel = conn->conn->TableFunction("from_substrait", {Value::BLOB(RAW_POINTER(query), LENGTH(query))});
 	auto relation_stmt = make_uniq<RelationStatement>(rel);
-	relation_stmt->n_param = 0;
 	relation_stmt->query = "";
 	auto stmt = conn->conn->Prepare(std::move(relation_stmt));
 	if (stmt->HasError()) {
@@ -117,7 +116,6 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 
 	auto rel = conn->conn->TableFunction("from_substrait_json", {Value(json)});
 	auto relation_stmt = make_uniq<RelationStatement>(rel);
-	relation_stmt->n_param = 0;
 	relation_stmt->query = "";
 	auto stmt = conn->conn->Prepare(std::move(relation_stmt));
 	if (stmt->HasError()) {
@@ -152,7 +150,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		cpp11::stop("rapi_prepare: Failed to prepare query %s\nError: %s", query.c_str(),
 		            stmt->error.Message().c_str());
 	}
-	auto n_param = stmt->n_param;
+	auto n_param = stmt->named_param_map.size();
 	return construct_retlist(std::move(stmt), query, n_param);
 }
 
@@ -161,16 +159,18 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		cpp11::stop("rapi_bind: Invalid statement");
 	}
 
-	stmt->parameters.clear();
-	stmt->parameters.resize(stmt->stmt->n_param);
+	auto n_param = stmt->stmt->named_param_map.size();
 
-	if (stmt->stmt->n_param == 0) {
+	if (n_param == 0) {
 		cpp11::stop("rapi_bind: dbBind called but query takes no parameters");
 	}
 
-	if (params.size() != R_xlen_t(stmt->stmt->n_param)) {
-		cpp11::stop("rapi_bind: Bind parameters need to be a list of length %i", stmt->stmt->n_param);
+	if (params.size() != R_xlen_t(n_param)) {
+		cpp11::stop("rapi_bind: Bind parameters need to be a list of length %i", n_param);
 	}
+
+	stmt->parameters.clear();
+	stmt->parameters.resize(n_param);
 
 	R_len_t n_rows = Rf_length(params[0]);
 
