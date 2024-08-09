@@ -2,3 +2,5 @@
 
 #include "src/common/tree_renderer/text_tree_renderer.cpp"
 
+#include "src/common/tree_renderer/graphviz_tree_renderer.cpp"
+
