@@ -11,34 +11,25 @@
 #' library(dplyr, warn.conflicts = FALSE)
 #' con <- DBI::dbConnect(duckdb(), path = ":memory:")
 #'
-#' dbiris <- copy_to(con, iris, overwrite = TRUE)
+#' db <- copy_to(con, data.frame(a = 1:3, b = letters[2:4]))
 #'
-#' dbiris %>%
-#'   select(Petal.Length, Petal.Width) %>%
-#'   filter(Petal.Length > 1.5) %>%
-#'   head(5)
+#' db %>%
+#'   filter(a > 1) %>%
+#'   select(b)
+#'
+#' path <- tempfile(fileext = ".csv")
+#' write.csv(data.frame(a = 1:3, b = letters[2:4]))
+#'
+#' db_csv <- tbl_file(con, path)
+#' db_csv %>%
+#'   summarize(sum_a = sum(a))
+#'
+#' db_csv_fun <- tbl_function(con, paste0("read_csv_auto('", path, "')"))
+#' db_csv %>%
+#'   count()
 #'
 #' DBI::dbDisconnect(con, shutdown = TRUE)
 NULL
-
-#' Connection object for simulation of the SQL generation without actual database.
-#' dbplyr overrides database specific identifier and string quotes
-#' @param ... Any parameters to be forwarded
-#' @export
-#' @rdname backend-duckdb
-simulate_duckdb <- function(...) {
-  structure(list(), ..., class = c("duckdb_connection", "TestConnection", "DBIConnection"))
-}
-
-#' Connection object for simulation of the SQL generation without actual database.
-#' This version keeps the database specific identifier and string quotes, i.e.
-#' allows to translate to DuckDB SQL dialect.
-#' @param ... Any parameters to be forwarded
-#' @export
-#' @rdname backend-duckdb
-translate_duckdb <- function(...) {
-  structure(list(), ..., class = c("duckdb_connection", "DBIConnection"))
-}
 
 # Declare which version of dbplyr API is being called.
 # @param con A \code{\link{dbConnect}} object, as returned by \code{dbConnect()}
@@ -437,7 +428,7 @@ tbl.duckdb_connection <- function(src, from, ..., cache = FALSE) {
   NextMethod("tbl")
 }
 
-#' Create a lazy table from a Parquet or SQL file
+#' Create a lazy table from a Parquet file or SQL query
 #'
 #' `tbl_file()` is an experimental variant of [dplyr::tbl()] to directly access files on disk.
 #' It is safer than `dplyr::tbl()` because there is no risk of misinterpreting the request,
@@ -458,26 +449,51 @@ tbl_file <- function(src, path, ..., cache = FALSE) {
   if (grepl("'", path)) {
     stop("File '", path, "' contains a single quote, this is not supported", call. = FALSE)
   }
-  tbl_query(src, paste0("'", path, "'"), cache = cache)
+  tbl_function(src, paste0("'", path, "'"), cache = cache)
 }
 
 #' Create a lazy table from a query
 #'
-#' `tbl_query()` is an experimental variant of [dplyr::tbl()]
+#' @description
+#' `tbl_function()` is an experimental variant of [dplyr::tbl()]
 #' to create a lazy table from a table-generating function,
 #' useful for reading nonstandard CSV files or other data sources.
 #' It is safer than `dplyr::tbl()` because there is no risk of misinterpreting the query.
-#' Use `dplyr::tbl(src, dplyr::sql("SELECT ... FROM ..."))` for custom SQL queries.
 #' See <https://duckdb.org/docs/data/overview> for details on data importing functions.
+#'
+#' As an alternative, use `dplyr::tbl(src, dplyr::sql("SELECT ... FROM ..."))` for custom SQL queries.
 #'
 #' @param query SQL code, omitting the `FROM` clause
 #' @export
 #' @rdname backend-duckdb
-tbl_query <- function(src, query, ..., cache = FALSE) {
+tbl_function <- function(src, query, ..., cache = FALSE) {
   if (cache) DBI::dbExecute(src, "PRAGMA enable_object_cache")
   table <- dplyr::sql(paste0("FROM ", query))
   dplyr::tbl(src, table)
 }
+
+#' Deprecated
+#'
+#' `tbl_query()` is deprecated in favor of `tbl_function()`.
+#' @export
+#' @rdname backend-duckdb
+tbl_query <- function(src, query, ...) {
+  .Deprecated("tbl_function")
+  tbl_function(src, query, ...)
+}
+
+#' Connection object for simulation of the SQL generation without actual database.
+#' dbplyr overrides database specific identifier and string quotes
+#'
+#' Use `simulate_duckdb()` with `lazy_frame()`
+#' to see simulated SQL without opening a DuckDB connection.
+#' @param ... Any parameters to be forwarded
+#' @export
+#' @rdname backend-duckdb
+simulate_duckdb <- function(...) {
+  structure(list(), ..., class = c("duckdb_connection", "TestConnection", "DBIConnection"))
+}
+
 
 # Needed to suppress the R CHECK notes (due to the use of sql_expr)
 utils::globalVariables(c("REGEXP_MATCHES", "CAST", "%AS%", "INTEGER", "XOR", "%<<%", "%>>%", "LN", "LOG", "ROUND", "ROUND_EVEN", "EXTRACT", "%FROM%", "MONTH", "STRFTIME", "QUARTER", "YEAR", "DATE_TRUNC", "DATE", "DOY", "TO_SECONDS", "BIGINT", "TO_MINUTES", "TO_HOURS", "TO_DAYS", "TO_WEEKS", "TO_MONTHS", "TO_YEARS", "STRPOS", "NOT", "REGEXP_REPLACE", "TRIM", "LPAD", "RPAD", "%||%", "REPEAT", "LENGTH", "STRING_AGG", "GREATEST", "LIST_EXTRACT", "LOG10", "LOG2", "STRING_SPLIT_REGEX", "FLOOR", "FMOD", "FDIV"))
