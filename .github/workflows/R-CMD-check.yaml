@@ -210,8 +210,10 @@ jobs:
 
   rcc-success:
     needs:
+      # FIXME: Adding rcc-suggests nees to include this into the big matrix
       - rcc-full
       - rcc-smoke
+      - pkgdown
 
     runs-on: ubuntu-latest
 
