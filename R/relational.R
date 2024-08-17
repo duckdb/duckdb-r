@@ -148,7 +148,7 @@ rel_aggregate <- rapi_rel_aggregate
 #' Lazily reorder a DuckDB relation object
 #' @param rel the DuckDB relation object
 #' @param orders a list of DuckDB expressions to order by
-#' @param ascending a vector of boolean values describing sort order of expressions. True for ascending. 
+#' @param ascending a vector of boolean values describing sort order of expressions. True for ascending.
 #' @return the now aggregated `duckdb_relation` object
 #' @noRd
 #' @examples
@@ -163,7 +163,7 @@ rel_order <- function(rel, orders, ascending = NULL) {
   if (length(orders) != length(ascending)) {
     stop("length of ascending must equal length of orders")
   }
-  
+
   return(rapi_rel_order(rel, orders, ascending))
 }
 
@@ -386,6 +386,18 @@ rel_to_sql <- rapi_rel_to_sql
 
 
 #' Create a duckdb table relation from a table name
+#' @param sql An SQL query
+#' @return a duckdb relation
+#' @noRd
+#' @examples
+#' con <- DBI::dbConnect(duckdb())
+#' DBI::dbWriteTable(con, "mtcars", mtcars)
+#' rel <- rel_from_sql(con, "SELECT * FROM mtcars")
+rel_from_sql <- function(con, sql) {
+    rapi_rel_from_sql(con@conn_ref, sql)
+}
+
+#' Create a duckdb table relation from a table name
 #' @param table the table name
 #' @return a duckdb relation
 #' @noRd
@@ -393,7 +405,7 @@ rel_to_sql <- rapi_rel_to_sql
 #' con <- DBI::dbConnect(duckdb())
 #' DBI::dbWriteTable(con, "mtcars", mtcars)
 #' rel <- rel_from_table(con, "mtcars")
-rel_from_table <- function(con, table_name, schema_name="MAIN") {
+rel_from_table <- function(con, table_name, schema_name = "MAIN") {
     rapi_rel_from_table(con@conn_ref, schema_name, table_name)
 }
 

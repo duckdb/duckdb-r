@@ -490,12 +490,20 @@ static SEXP result_to_df(duckdb::unique_ptr<QueryResult> res) {
 	return make_external_prot<RelationWrapper>("duckdb_relation", prot, symdiff);
 }
 
+[[cpp11::register]] SEXP rapi_rel_from_sql(duckdb::conn_eptr_t con, const std::string sql) {
+	if (!con || !con.get() || !con->conn) {
+		stop("rel_from_table: Invalid connection");
+	}
+	auto rel = con->conn->RelationFromQuery(sql);
+	cpp11::writable::list prot = {};
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(rel));
+}
+
 [[cpp11::register]] SEXP rapi_rel_from_table(duckdb::conn_eptr_t con, const std::string schema_name,
                                              const std::string table_name) {
 	if (!con || !con.get() || !con->conn) {
 		stop("rel_from_table: Invalid connection");
 	}
-	auto desc = make_uniq<TableDescription>();
 	auto rel = con->conn->Table(schema_name, table_name);
 	cpp11::writable::list prot = {};
 	return make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(rel));
