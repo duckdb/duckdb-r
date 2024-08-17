@@ -204,7 +204,25 @@ jobs:
           results: ${{ runner.os }}-r${{ matrix.r }}
 
       - uses: ./.github/workflows/update-status
-        if: always()
+        if: failure()
+        with:
+          sha: ${{ needs.rcc-smoke.outputs.sha }}
+
+  rcc-success:
+    needs:
+      - rcc-full
+      - rcc-smoke
+
+    runs-on: ubuntu-latest
+
+    name: 'rcc: success'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.rcc-smoke.outputs.sha }}
+
+      - uses: ./.github/workflows/update-status
         with:
           sha: ${{ needs.rcc-smoke.outputs.sha }}
 
