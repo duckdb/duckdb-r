@@ -49,26 +49,13 @@ jobs:
             echo "vendor=ok" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: ./.github/workflows/custom/before-install
-        if: steps.vendor.outputs.vendor != '' && hashFiles('.github/workflows/custom/before-install/action.yml') != ''
-
-      - uses: ./.github/workflows/install
-        if: steps.vendor.outputs.vendor != ''
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          install-r: false
-          cache-version: vendor
-          needs: check
-          extra-packages: any::rcmdcheck
-
-      - uses: ./.github/workflows/custom/after-install
-        if: steps.vendor.outputs.vendor != '' && hashFiles('.github/workflows/custom/after-install/action.yml') != ''
-
-      - uses: ./.github/workflows/check
-        if: steps.vendor.outputs.vendor != ''
-        with:
-          results: ${{ runner.os }}-smoke-test
-
-      - if: steps.vendor.outputs.vendor != '' && github.event_name != 'pull_request'
+      - if: steps.vendor.outputs.vendor != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git push -u origin HEAD
+          git checkout -b vendor
+          if git push -u origin HEAD; then
+            gh pr create --fill-first
+            gh workflow run rcc -f ref=$(git rev-parse HEAD)
+            gh pr merge --auto --squash
+          fi
