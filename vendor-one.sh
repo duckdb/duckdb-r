@@ -31,7 +31,7 @@ fi
 
 original=$(git -C "$upstream_dir" rev-parse --verify HEAD)
 
-base=$(git log -n 3 --format="%s" -- src/duckdb | tee /dev/stderr | sed -nr '/^.*duckdb.duckdb@([0-9a-f]+)$/{s//\1/;p;}' | head -n 1)
+base=$(git log -n 3 --format="%s" -- src/duckdb | tee /dev/stderr | sed -nr '/^.*duckdb.duckdb@([0-9a-f]+)( .*)?$/{s//\1/;p;}' | head -n 1)
 
 message=
 
