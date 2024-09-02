@@ -12,6 +12,8 @@
 
 #include "src/common/enums/logical_operator_type.cpp"
 
+#include "src/common/enums/metric_type.cpp"
+
 #include "src/common/enums/optimizer_type.cpp"
 
 #include "src/common/enums/physical_operator_type.cpp"
