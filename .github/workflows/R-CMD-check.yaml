@@ -21,6 +21,14 @@ on:
         description: "Branch or tag to check out"
         required: false
         default: "main"
+      versions-matrix:
+        description: "Create a matrix of R versions"
+        type: boolean
+        default: false
+      dep-suggests-matrix:
+        description: "Create a matrix of suggested dependencies"
+        type: boolean
+        default: false
   merge_group:
     types:
       - checks_requested
@@ -77,11 +85,13 @@ jobs:
         if: hashFiles('.github/workflows/custom/after-install/action.yml') != ''
 
       - id: versions-matrix
-        # Only run for pull requests if the base repo is different from the head repo, always run for other events
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+        # Only run for pull requests if the base repo is different from the head repo, not for workflow_dispatch if not requested, always run for other events
+        if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository) && (github.event_name != 'workflow_dispatch' || inputs.versions-matrix)
         uses: ./.github/workflows/versions-matrix
 
       - id: dep-suggests-matrix
+        # Not for workflow_dispatch if not requested, always run for other events
+        if: github.event_name != 'workflow_dispatch' || inputs.dep-suggests-matrix
         uses: ./.github/workflows/dep-suggests-matrix
 
       - uses: ./.github/workflows/update-snapshots
