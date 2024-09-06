@@ -67,9 +67,14 @@ jobs:
         run: |
           # Check status of this workflow
           state="pending"
-          sha=${{ steps.commit.outputs.sha }}
-          html_url=${{ github.event.workflow_run.html_url }}
-          description=${{ github.event.workflow_run.name }}
+          sha=${{ github.sha }}
+
+          html_url=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            repos/${{ github.repository }}/actions/runs/${{ github.run_id }} | jq -r .html_url)
+
+          description="${{ github.workflow }} / ${{ github.job }}"
 
           gh api \
             --method POST \
@@ -163,8 +168,13 @@ jobs:
             state="failure"
           fi
           sha=${{ steps.commit.outputs.sha }}
-          html_url=${{ github.event.workflow_run.html_url }}
-          description=${{ github.event.workflow_run.name }}
+
+          html_url=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            repos/${{ github.repository }}/actions/runs/${{ github.run_id }} | jq -r .html_url)
+
+          description="${{ github.workflow }} / ${{ github.job }}"
 
           gh api \
             --method POST \
