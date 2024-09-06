@@ -59,6 +59,26 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
+      - name: Update status for rcc
+        # FIXME: Wrap into action
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Check status of this workflow
+          state="pending"
+          sha=${{ steps.commit.outputs.sha }}
+          html_url=${{ github.event.workflow_run.html_url }}
+          description=${{ github.event.workflow_run.name }}
+
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            repos/${{ github.repository }}/statuses/${sha} \
+            -f "state=${state}" -f "target_url=${html_url}" -f "description=${description}" -f "context=rcc"
+        shell: bash
+
       - uses: ./.github/workflows/rate-limit
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -129,6 +149,30 @@ jobs:
         with:
           name: rcc-smoke-sha
           path: rcc-smoke-sha.txt
+
+      - name: Update status for rcc
+        # FIXME: Wrap into action
+        if: always() && github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Check status of this workflow
+          if [ "${{ github.event.workflow_run.status }}" == "success" ]; then
+            state="success"
+          else
+            state="failure"
+          fi
+          sha=${{ steps.commit.outputs.sha }}
+          html_url=${{ github.event.workflow_run.html_url }}
+          description=${{ github.event.workflow_run.name }}
+
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            repos/${{ github.repository }}/statuses/${sha} \
+            -f "state=${state}" -f "target_url=${html_url}" -f "description=${description}" -f "context=rcc"
+        shell: bash
 
   rcc-smoke-check-matrix:
     runs-on: ubuntu-latest
