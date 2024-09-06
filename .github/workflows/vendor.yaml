@@ -49,10 +49,12 @@ jobs:
             echo "vendor=ok" >> "$GITHUB_OUTPUT"
           fi
 
-      - if: steps.vendor.outputs.vendor != ''
+      - name: Create PR
+        if: steps.vendor.outputs.vendor != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -x
           git checkout -b vendor
           if git push -u origin HEAD; then
             gh pr create --fill-first
