@@ -162,12 +162,16 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Check status of this workflow
-          if [ "${{ github.event.workflow_run.status }}" == "success" ]; then
+          if [ "${{ "success()" }}" == "true" ]; then
             state="success"
           else
             state="failure"
           fi
+
           sha=${{ steps.commit.outputs.sha }}
+          if [ -z "${sha}" ]; then
+            sha=${{ github.sha }}
+          fi
 
           html_url=$(gh api \
             -H "Accept: application/vnd.github+json" \
