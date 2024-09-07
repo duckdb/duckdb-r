@@ -162,7 +162,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Check status of this workflow
-          if [ "${{ "success()" }}" == "true" ]; then
+          if [ "${{ success() }}" == "true" ]; then
             state="success"
           else
             state="failure"
