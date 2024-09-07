@@ -34,6 +34,8 @@
 
 #include "src/common/hive_partitioning.cpp"
 
+#include "src/common/http_util.cpp"
+
 #include "src/common/pipe_file_system.cpp"
 
 #include "src/common/local_file_system.cpp"
