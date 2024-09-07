@@ -67,9 +67,9 @@ jobs:
         run: |
           # Check status of this workflow
           state="pending"
-          sha=$(git rev-parse ${{ github.head_ref }})
+          sha=${{ inputs.ref }}
           if [ -z "${sha}" ]; then
-            sha=${{ inputs.ref }}
+            sha=$(git rev-parse ${{ github.head_ref }})
           fi
           if [ -z "${sha}" ]; then
             sha=${{ github.sha }}
@@ -176,10 +176,10 @@ jobs:
 
           sha=${{ steps.commit.outputs.sha }}
           if [ -z "${sha}" ]; then
-            sha=$(git rev-parse ${{ github.head_ref }})
+            sha=${{ inputs.ref }}
           fi
           if [ -z "${sha}" ]; then
-            sha=${{ inputs.ref }}
+            sha=$(git rev-parse ${{ github.head_ref }})
           fi
           if [ -z "${sha}" ]; then
             sha=${{ github.sha }}
