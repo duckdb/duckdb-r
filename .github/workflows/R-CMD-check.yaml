@@ -67,7 +67,10 @@ jobs:
         run: |
           # Check status of this workflow
           state="pending"
-          sha=${{ github.sha }}
+          sha=$(git rev-parse ${{ github.head_ref }})
+          if [ -z "${sha}" ]; then
+            sha=${{ github.sha }}
+          fi
 
           html_url=$(gh api \
             -H "Accept: application/vnd.github+json" \
@@ -169,6 +172,9 @@ jobs:
           fi
 
           sha=${{ steps.commit.outputs.sha }}
+          if [ -z "${sha}" ]; then
+            sha=$(git rev-parse ${{ github.head_ref }})
+          fi
           if [ -z "${sha}" ]; then
             sha=${{ github.sha }}
           fi
