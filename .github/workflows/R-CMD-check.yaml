@@ -69,6 +69,9 @@ jobs:
           state="pending"
           sha=$(git rev-parse ${{ github.head_ref }})
           if [ -z "${sha}" ]; then
+            sha=${{ inputs.ref }}
+          fi
+          if [ -z "${sha}" ]; then
             sha=${{ github.sha }}
           fi
 
@@ -174,6 +177,9 @@ jobs:
           sha=${{ steps.commit.outputs.sha }}
           if [ -z "${sha}" ]; then
             sha=$(git rev-parse ${{ github.head_ref }})
+          fi
+          if [ -z "${sha}" ]; then
+            sha=${{ inputs.ref }}
           fi
           if [ -z "${sha}" ]; then
             sha=${{ github.sha }}
