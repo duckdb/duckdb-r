@@ -1,0 +1,25 @@
+From ac8318dda4c948a4c1179f303854d91331bf9c2a Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Sun, 8 Sep 2024 16:22:50 +0200
+Subject: [PATCH] ext fix
+
+---
+ src/duckdb/src/main/extension/extension_helper.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/duckdb/src/main/extension/extension_helper.cpp b/src/duckdb/src/main/extension/extension_helper.cpp
+index 0db77193..c821caed 100644
+--- a/src/duckdb/src/main/extension/extension_helper.cpp
++++ b/src/duckdb/src/main/extension/extension_helper.cpp
+@@ -232,7 +232,7 @@ bool ExtensionHelper::TryAutoLoadExtension(DatabaseInstance &instance, const str
+ 		if (dbconfig.options.autoinstall_known_extensions) {
+ 			auto autoinstall_repo =
+ 			    ExtensionRepository::GetRepositoryByUrl(dbconfig.options.autoinstall_extension_repo);
+-			ExtensionHelper::InstallExtension(dbconfig, fs, extension_name, false, autoinstall_repo, false);
++			ExtensionHelper::InstallExtension(instance, fs, extension_name, false, autoinstall_repo, false);
+ 		}
+ 		ExtensionHelper::LoadExternalExtension(instance, fs, extension_name);
+ 		return true;
+-- 
+2.43.0
+
