@@ -4,3 +4,5 @@
 
 #include "src/main/secret/secret_storage.cpp"
 
+#include "src/main/secret/default_secrets.cpp"
+
