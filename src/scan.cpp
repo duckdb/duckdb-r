@@ -425,4 +425,5 @@ DataFrameScanFunction::DataFrameScanFunction()
 	named_parameters["experimental"] = LogicalType::BOOLEAN;
 	named_parameters["integer64"] = LogicalType::BOOLEAN;
 	projection_pushdown = true;
+	global_initialization = TableFunctionInitialization::INITIALIZE_ON_SCHEDULE;
 }
