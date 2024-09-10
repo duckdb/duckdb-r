@@ -5,6 +5,7 @@
 #include "duckdb/parser/parsed_data/create_type_info.hpp"
 #include "duckdb/function/cast/cast_function_set.hpp"
 #include "duckdb/common/vector_operations/generic_executor.hpp"
+#include "duckdb/catalog/catalog_entry/table_function_catalog_entry.hpp"
 
 using namespace duckdb;
 
@@ -50,6 +51,16 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 		data->wrapper = wrapper;
 		config.replacement_scans.emplace_back(ArrowScanReplacement, std::move(data));
 		wrapper->db = make_uniq<DuckDB>(dbdirchar, &config);
+
+		auto &instance = *wrapper->db->instance;
+		auto &catalog = Catalog::GetSystemCatalog(instance);
+		auto transaction = CatalogTransaction::GetSystemTransaction(instance);
+		auto &schema = catalog.GetSchema(transaction, DEFAULT_SCHEMA);
+		auto scan_entry = schema.GetEntry(transaction, CatalogType::TABLE_FUNCTION_ENTRY, "arrow_scan");
+		auto &arrow_scan = scan_entry->Cast<TableFunctionCatalogEntry>();
+		for(auto &function : arrow_scan.functions.functions) {
+				function.global_initialization = TableFunctionInitialization::INITIALIZE_ON_SCHEDULE;
+		}
 	} catch (std::exception &e) {
 		cpp11::stop("rapi_startup: Failed to open database: %s", e.what());
 	}
