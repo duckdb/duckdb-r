@@ -69,11 +69,12 @@ jobs:
           state="pending"
           sha=${{ inputs.ref }}
           if [ -z "${sha}" ]; then
-            sha=$(git rev-parse ${{ github.head_ref }})
+            sha=${{ github.head_ref }}
           fi
           if [ -z "${sha}" ]; then
             sha=${{ github.sha }}
           fi
+          sha=$(git rev-parse ${sha})
 
           html_url=$(gh api \
             -H "Accept: application/vnd.github+json" \
@@ -181,11 +182,12 @@ jobs:
             sha=${{ inputs.ref }}
           fi
           if [ -z "${sha}" ]; then
-            sha=$(git rev-parse ${{ github.head_ref }})
+            sha=${{ github.head_ref }}
           fi
           if [ -z "${sha}" ]; then
             sha=${{ github.sha }}
           fi
+            sha=$(git rev-parse ${sha})
 
           html_url=$(gh api \
             -H "Accept: application/vnd.github+json" \
