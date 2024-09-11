@@ -34,6 +34,7 @@ original=$(git -C "$upstream_dir" rev-parse --verify HEAD)
 base=$(git log -n 3 --format="%s" -- src/duckdb | tee /dev/stderr | sed -nr '/^.*duckdb.duckdb@([0-9a-f]+)( .*)?$/{s//\1/;p;}' | head -n 1)
 
 message=
+is_tag=
 
 for commit in $(git -C "$upstream_dir" log --first-parent --reverse --format="%H" ${base}..HEAD); do
   echo "Importing commit $commit"
@@ -53,6 +54,7 @@ for commit in $(git -C "$upstream_dir" log --first-parent --reverse --format="%H
   # Always vendor tags
   if [ $(git -C "$upstream_dir" describe --tags "$commit" | grep -c -- -) -eq 0 ]; then
     message="chore: Update vendored sources (tag $(git -C "$upstream_dir" describe --tags "$commit")) to duckdb/duckdb@$commit"
+    is_tag=true
     break
   fi
 
@@ -75,7 +77,7 @@ upstream_tag=$(git -C "$upstream_dir" describe --tags --abbrev=0)
 echo "Our tag: $our_tag"
 echo "Upstream tag: $upstream_tag"
 
-if [ "${our_tag#$upstream_tag}" == "$our_tag" ]; then
+if [ -z "${is_tag}" -a "${our_tag#$upstream_tag}" == "$our_tag" ]; then
   echo "Not vendoring because our tag $our_tag does not start with upstream tag $upstream_tag"
   git checkout -- src/duckdb
   rm -rf "$upstream_dir"
