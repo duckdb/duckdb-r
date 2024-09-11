@@ -126,6 +126,8 @@ jobs:
         uses: ./.github/workflows/dep-suggests-matrix
 
       - uses: ./.github/workflows/update-snapshots
+        with:
+          base: ${{ inputs.ref || github.head_ref }}
 
       - uses: ./.github/workflows/style
 
