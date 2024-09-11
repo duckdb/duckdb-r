@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: "Branch or tag to check out"
+        description: "Branch, tag, or commit to check out"
         required: false
         default: "main"
       versions-matrix:

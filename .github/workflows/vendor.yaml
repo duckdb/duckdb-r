@@ -58,6 +58,6 @@ jobs:
           git checkout -b vendor
           if git push -u origin HEAD; then
             gh pr create --fill-first
-            gh workflow run rcc -f ref=$(git rev-parse HEAD)
+            gh workflow run rcc -f ref=vendor
             gh pr merge --auto --squash
           fi

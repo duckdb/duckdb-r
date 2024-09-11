@@ -67,7 +67,7 @@ runs:
       id: cpr
       uses: peter-evans/create-pull-request@v6
       with:
-        base: ${{ github.head_ref }}
+        base: ${{ inputs.ref || github.head_ref }}
         branch: snapshot-${{ github.ref_name }}-${{ github.job }}-${{ steps.matrix-desc.outputs.branch }}
         delete-branch: true
         title: "test: Snapshot updates for ${{ github.job }} (${{ steps.matrix-desc.outputs.text }})"
