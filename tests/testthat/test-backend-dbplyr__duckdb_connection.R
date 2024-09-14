@@ -281,6 +281,9 @@ test_that("aggregators translated correctly", {
   expect_equal(translate(n_distinct(x), window = FALSE), sql(r"{COUNT(DISTINCT row(x))}"))
   expect_equal(translate(n_distinct(x), window = TRUE), sql(r"{COUNT(DISTINCT row(x)) OVER ()}"))
   expect_equal(translate(n_distinct(x), window = TRUE, vars_group = "y"), sql(r"{COUNT(DISTINCT row(x)) OVER (PARTITION BY y)}"))
+  expect_equal(translate(n_distinct(x, na.rm = TRUE), window = FALSE), sql(r"{COUNT(DISTINCT x)}"))
+  expect_equal(translate(n_distinct(x, na.rm = TRUE), window = TRUE), sql(r"{COUNT(DISTINCT x) OVER ()}"))
+  expect_equal(translate(n_distinct(x, na.rm = TRUE), window = TRUE, vars_group = "y"), sql(r"{COUNT(DISTINCT x) OVER (PARTITION BY y)}"))
 })
 
 test_that("two variable aggregates are translated correctly", {
@@ -317,8 +320,17 @@ test_that("n_distinct() computations are correct", {
   df <- tbl(con, "df")
   df_na <- tbl(con, "df_na")
 
+  expect_equal(
+    pull(summarize(df, n = n_distinct(x, na.rm = TRUE)), n),
+    2
+  )
+  expect_equal(
+    pull(summarize(df_na, n = n_distinct(x, na.rm = TRUE)), n),
+    2
+  )
+
   expect_error(
-    pull(summarize(df, n = n_distinct(x, na.rm = TRUE)), n)
+    pull(summarize(df, n = n_distinct(x, y, na.rm = TRUE)), n)
   )
 
   # single column is working as usual

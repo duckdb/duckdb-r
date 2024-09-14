@@ -78,13 +78,22 @@ duckdb_n_distinct <- function(..., na.rm = FALSE) {
   check_dots_unnamed()
 
   if (!identical(na.rm, FALSE)) {
-    stop("Parameter `na.rm = TRUE` in n_distinct() is currently not supported in DuckDB backend.", call. = FALSE)
+    cols <- list(...)
+
+    # check for more than one vector argument: only one vector is supported
+    # Why not use ROW() as well? Because duckdb's FILTER clause does not support
+    # a windowing context as of now: https://duckdb.org/docs/sql/query_syntax/filter.html
+    if (length(cols) > 1) {
+      stop("n_distinct(): Only one vector argument is currently supported when `na.rm = TRUE`.", call. = FALSE)
+    }
+
+    return(sql(paste0("COUNT(DISTINCT ", cols[[1]], ")")))
+  } else {
+    # https://duckdb.org/docs/sql/data_types/struct.html#creating-structs-with-the-row-function
+    str_struct <- paste0("row(", paste0(list(...), collapse = ", "), ")")
+
+    return(sql(paste0("COUNT(DISTINCT ", str_struct, ")")))
   }
-
-  # https://duckdb.org/docs/sql/data_types/struct.html#creating-structs-with-the-row-function
-  str_struct <- paste0("row(", paste0(list(...), collapse = ", "), ")")
-
-  sql(paste0("COUNT(DISTINCT ", str_struct, ")"))
 }
 
 # Customized translation functions for DuckDB SQL
