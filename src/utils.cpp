@@ -115,6 +115,11 @@ R_len_t RApiTypes::GetVecSize(RType rtype, SEXP coldata) {
 	return Rf_length(coldata);
 }
 
+R_len_t RApiTypes::GetVecSize(SEXP coldata, bool integer64) {
+	auto rtype = DetectRType(coldata, integer64);
+	return GetVecSize(rtype, coldata);
+}
+
 Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null) {
 	auto rtype = RApiTypes::DetectRType(valsexp, false); // TODO
 	switch (rtype.id()) {
