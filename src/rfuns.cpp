@@ -921,6 +921,7 @@ struct RSumOperation {
 
 	template <class STATE>
 	static void Initialize(STATE &state) {
+		state.value = 0;
 		state.is_set = false;
 		state.is_null = false;
 	}
@@ -980,10 +981,10 @@ unique_ptr<FunctionData> BindRSum_dispatch(ClientContext &context, AggregateFunc
 		function = AggregateFunction::UnaryAggregate<RSumKeepNaState<double>, double, double, RSumOperation<RegularAdd, NA_RM>>(type, type);
 		break;
 	case LogicalTypeId::INTEGER:
-		function = AggregateFunction::UnaryAggregate<RSumKeepNaState<hugeint_t>, int32_t, hugeint_t, RSumOperation<HugeintAdd, NA_RM>>(type, type);
+		function = AggregateFunction::UnaryAggregate<RSumKeepNaState<double>, int32_t, double, RSumOperation<RegularAdd, NA_RM>>(type, LogicalTypeId::DOUBLE);
 		break;
 	case LogicalTypeId::BOOLEAN:
-		function = AggregateFunction::UnaryAggregate<RSumKeepNaState<int32_t>, bool, int32_t, RSumOperation<RegularAdd, NA_RM>>(LogicalType::BOOLEAN, LogicalType::INTEGER);
+		function = AggregateFunction::UnaryAggregate<RSumKeepNaState<int32_t>, bool, int32_t, RSumOperation<RegularAdd, NA_RM>>(type, LogicalType::INTEGER);
 		break;
 	default:
 		break;
@@ -1001,8 +1002,7 @@ unique_ptr<FunctionData> BindRSum(ClientContext &context, AggregateFunction &fun
 	}
 }
 
-void add_RSum(AggregateFunctionSet& set, const LogicalType& type) {
-	auto return_type = type == LogicalType::BOOLEAN ? LogicalType::INTEGER : type;
+void add_RSum(AggregateFunctionSet& set, const LogicalType& type, const LogicalType& return_type) {
 	set.AddFunction(AggregateFunction(
 		{type, LogicalType::BOOLEAN}, return_type,
 		nullptr, nullptr, nullptr, nullptr, nullptr, FunctionNullHandling::DEFAULT_NULL_HANDLING, nullptr,
@@ -1019,9 +1019,9 @@ void add_RSum(AggregateFunctionSet& set, const LogicalType& type) {
 AggregateFunctionSet base_r_sum() {
 	AggregateFunctionSet set("r_base::sum");
 
-	add_RSum(set, LogicalType::BOOLEAN);
-	add_RSum(set, LogicalType::INTEGER);
-	add_RSum(set, LogicalType::DOUBLE);
+	add_RSum(set, LogicalType::BOOLEAN, LogicalType::INTEGER);
+	add_RSum(set, LogicalType::INTEGER, LogicalType::DOUBLE);
+	add_RSum(set, LogicalType::DOUBLE, LogicalType::DOUBLE);
 
 	return set;
 }
