@@ -110,7 +110,7 @@ jobs:
 
       - name: Install package
         run: |
-          R CMD INSTALL .
+          _R_SHLIB_STRIP_=true R CMD INSTALL .
         shell: bash
 
       - uses: ./.github/workflows/custom/after-install

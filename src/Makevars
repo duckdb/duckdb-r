@@ -21,7 +21,8 @@ OBJECTS=rfuns.o database.o connection.o statement.o register.o relational.o scan
 all: $(SHLIB) strip
 
 strip: $(SHLIB)
-	if which strip >/dev/null && which uname >/dev/null && test "`uname`" = "Linux" && test "$$_R_SHLIB_STRIP_" = "true" && test -n "$$R_STRIP_SHARED_LIB" ; \
+	set -x; \
+	if which strip && which uname && test "`uname`" = "Linux" && test "$$_R_SHLIB_STRIP_" = "true" && test -n "$$R_STRIP_SHARED_LIB" ; \
 	then \
 		echo stripping $(SHLIB) ; \
 		echo $$R_STRIP_SHARED_LIB $(SHLIB) ; \
