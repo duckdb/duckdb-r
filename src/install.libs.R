@@ -7,7 +7,9 @@ if (Sys.which("strip") != "" && Sys.info()["sysname"] == "Linux" && isTRUE(as.lo
   dest_files <- file.path(dest, files)
   for (file in dest_files) {
     message("Stripping: ", file)
+    message("File size before stripping: ", file.size(file))
     system(paste0(Sys.getenv("R_STRIP_SHARED_LIB"), " ", shQuote(file)))
+    message("File size after stripping: ", file.size(file))
   }
 }
 
