@@ -18,3 +18,16 @@ CXX_STD = CXX17
 PKG_CPPFLAGS = -Iinclude -I../inst/include -DDUCKDB_DISABLE_PRINT -DDUCKDB_R_BUILD -DBROTLI_ENCODER_CLEANUP_ON_OOM {{ INCLUDES }}
 OBJECTS=rfuns.o database.o connection.o statement.o register.o relational.o scan.o transform.o utils.o reltoaltrep.o types.o cpp11.o $(SOURCES)
 PKG_LIBS={{ LINK_FLAGS }}
+
+all: $(SHLIB) strip
+
+strip: $(SHLIB)
+	if which strip >/dev/null && which uname >/dev/null && test "`uname`" = "Linux" && test "$$_R_SHLIB_STRIP_" = "true" && test -n "$$R_STRIP_SHARED_LIB" ; \
+	then \
+		echo stripping $(SHLIB) ; \
+		echo $$R_STRIP_SHARED_LIB $(SHLIB) ; \
+		$$R_STRIP_SHARED_LIB $(SHLIB) ; \
+	fi ; \
+	ls -l $(SHLIB)
+
+.PHONY: all clean strip
