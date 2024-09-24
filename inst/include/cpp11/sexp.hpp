@@ -1,5 +1,5 @@
-// cpp11 version: 0.4.7
-// vendored on: 2024-06-26
+// cpp11 version: 0.5.0
+// vendored on: 2024-09-24
 #pragma once
 
 #include <stddef.h>  // for size_t
@@ -8,7 +8,7 @@
 
 #include "cpp11/R.hpp"                // for SEXP, SEXPREC, REAL_ELT, R_NilV...
 #include "cpp11/attribute_proxy.hpp"  // for attribute_proxy
-#include "cpp11/protect.hpp"          // for preserved
+#include "cpp11/protect.hpp"          // for store
 
 namespace cpp11 {
 
@@ -21,44 +21,34 @@ class sexp {
  public:
   sexp() = default;
 
-  sexp(SEXP data) : data_(data), preserve_token_(preserved.insert(data_)) {
-    // REprintf("created %p %p\n", reinterpret_cast<void*>(data_),
-    //          reinterpret_cast<void*>(preserve_token_));
-  }
+  sexp(SEXP data) : data_(data), preserve_token_(detail::store::insert(data_)) {}
 
+  // We maintain our own new `preserve_token_`
   sexp(const sexp& rhs) {
     data_ = rhs.data_;
-    preserve_token_ = preserved.insert(data_);
-    // REprintf("copied %p new protect %p\n", reinterpret_cast<void*>(rhs.data_),
-    //          reinterpret_cast<void*>(preserve_token_));
+    preserve_token_ = detail::store::insert(data_);
   }
 
+  // We take ownership over the `rhs.preserve_token_`.
+  // Importantly we clear it in the `rhs` so it can't release the object upon destruction.
   sexp(sexp&& rhs) {
     data_ = rhs.data_;
     preserve_token_ = rhs.preserve_token_;
 
     rhs.data_ = R_NilValue;
     rhs.preserve_token_ = R_NilValue;
-
-    // REprintf("moved %p\n", reinterpret_cast<void*>(rhs.data_));
   }
 
   sexp& operator=(const sexp& rhs) {
-    preserved.release(preserve_token_);
+    detail::store::release(preserve_token_);
 
     data_ = rhs.data_;
-    preserve_token_ = preserved.insert(data_);
-    // REprintf("assigned %p\n", reinterpret_cast<void*>(rhs.data_));
+    preserve_token_ = detail::store::insert(data_);
+
     return *this;
   }
 
-  // void swap(sexp& rhs) {
-  // sexp tmp(rhs);
-  // rhs = *this;
-  //*this = tmp;
-  //}
-
-  ~sexp() { preserved.release(preserve_token_); }
+  ~sexp() { detail::store::release(preserve_token_); }
 
   attribute_proxy<sexp> attr(const char* name) const {
     return attribute_proxy<sexp>(*this, name);
@@ -77,10 +67,14 @@ class sexp {
   }
 
   operator SEXP() const { return data_; }
-  operator double() const { return REAL_ELT(data_, 0); }
-  operator size_t() const { return REAL_ELT(data_, 0); }
-  operator bool() const { return LOGICAL_ELT(data_, 0); }
   SEXP data() const { return data_; }
+
+  /// DEPRECATED: Do not use this, it will be removed soon.
+  operator double() const { return REAL_ELT(data_, 0); }
+  /// DEPRECATED: Do not use this, it will be removed soon.
+  operator size_t() const { return REAL_ELT(data_, 0); }
+  /// DEPRECATED: Do not use this, it will be removed soon.
+  operator bool() const { return LOGICAL_ELT(data_, 0); }
 };
 
 }  // namespace cpp11
