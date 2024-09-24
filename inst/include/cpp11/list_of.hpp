@@ -1,5 +1,5 @@
-// cpp11 version: 0.4.7
-// vendored on: 2024-06-26
+// cpp11 version: 0.5.0
+// vendored on: 2024-09-24
 #pragma once
 
 #include <string>  // for string, basic_string
@@ -15,10 +15,10 @@ class list_of : public list {
   list_of(const list& data) : list(data) {}
 
 #ifdef LONG_VECTOR_SUPPORT
-  T operator[](int pos) const { return operator[](static_cast<R_xlen_t>(pos)); }
+  T operator[](const int pos) const { return operator[](static_cast<R_xlen_t>(pos)); }
 #endif
 
-  T operator[](R_xlen_t pos) const { return list::operator[](pos); }
+  T operator[](const R_xlen_t pos) const { return list::operator[](pos); }
 
   T operator[](const char* pos) const { return list::operator[](pos); }
 
