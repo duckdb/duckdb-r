@@ -7,7 +7,7 @@ if (Sys.which("strip") != "" && Sys.info()["sysname"] == "Linux" && isTRUE(as.lo
   dest_files <- file.path(dest, files)
   for (file in dest_files) {
     message("Stripping: ", file)
-    system2(Sys.getenv("R_STRIP_SHARED_LIB"), args = file)
+    system(paste0(Sys.getenv("R_STRIP_SHARED_LIB"), " ", shQuote(file)))
   }
 }
 
