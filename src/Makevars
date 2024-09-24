@@ -27,5 +27,6 @@ strip: $(SHLIB)
 		echo $$R_STRIP_SHARED_LIB $(SHLIB)
 		$$R_STRIP_SHARED_LIB $(SHLIB)
 	fi
+	ls -l $(SHLIB)
 
 .PHONY: all clean strip
