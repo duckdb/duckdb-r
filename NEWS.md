@@ -1,5 +1,14 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.1.0
+
+## Features
+
+- Update to duckdb v1.1.0, see <https://github.com/duckdb/duckdb/releases/tag/v1.1.0> for details.
+
+- Upgrade vendored cpp11 to 0.5.0.
+
+
 # duckdb 1.0.0-2
 
 ## Features
