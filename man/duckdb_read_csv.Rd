@@ -14,6 +14,7 @@ duckdb_read_csv(
   delim = ",",
   quote = "\\"",
   col.names = NULL,
+  col.types = NULL,
   lower.case.names = FALSE,
   sep = delim,
   transaction = TRUE,
@@ -39,6 +40,10 @@ duckdb_read_csv(
 
 \item{col.names}{Override the detected or generated column names}
 
+\item{col.types}{Character vector of column types in the same order as col.names,
+or a named character vector where names are column names and types pairs.
+Valid ypes are DuckDB data types, e.g. VARCHAR, DOUBLE, DATE, BIGINT, BOOLEAN, etc.}
+
 \item{lower.case.names}{Transform column names to lower case}
 
 \item{sep}{Alias for delim for compatibility}
@@ -54,8 +59,11 @@ The number of rows in the resulted table, invisibly.
 Directly reads a CSV file into DuckDB, tries to detect and create the correct schema for it.
 This usually is much faster than reading the data into R and writing it to DuckDB.
 }
+\details{
+If the table already exists in the database, the csv is appended to it. Otherwise the table is created.
+}
 \examples{
-\dontshow{if (duckdb:::TEST_RE2) withAutoprint(\{ # examplesIf}
+\dontshow{if (duckdb:::TEST_RE2) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
 con <- dbConnect(duckdb())
 
 data <- data.frame(a = 1:3, b = letters[1:3])
@@ -66,6 +74,24 @@ write.csv(data, path, row.names = FALSE)
 duckdb_read_csv(con, "data", path)
 dbReadTable(con, "data")
 
+dbDisconnect(con)
+
+
+# Providing data types for columns
+path <- tempfile(fileext = ".csv")
+write.csv(iris, path, row.names = FALSE)
+
+con <- dbConnect(duckdb())
+duckdb_read_csv(con, "iris", path,
+  col.types = c(
+    Sepal.Length = "DOUBLE",
+    Sepal.Width = "DOUBLE",
+    Petal.Length = "DOUBLE",
+    Petal.Width = "DOUBLE",
+    Species = "VARCHAR"
+  )
+)
+dbReadTable(con, "iris")
 dbDisconnect(con)
 \dontshow{\}) # examplesIf}
 }

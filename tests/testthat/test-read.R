@@ -4,6 +4,7 @@ test_that("duckdb_read_csv() works as expected", {
   con <- dbConnect(duckdb())
 
   tf <- tempfile()
+  tf2 <- tempfile()
 
   # default case
   write.csv(iris, tf, row.names = FALSE)
@@ -117,13 +118,133 @@ test_that("duckdb_read_csv() works as expected", {
     '"num","char","logi","lisst.1","lisst.2","lisst.3","lisst.NA"',
     '0.5,"yes",TRUE,1,2,3,NA',
     '2,"no",FALSE,1,2,3,NA',
-    'NA,NA,NA,1,2,3,NA'
+    "NA,NA,NA,1,2,3,NA"
   )
   writeLines(csv, tf3)
   duckdb_read_csv(con, "na_table", tf3, na.strings = "-")
   expect_identical(
     dbReadTable(con, "na_table"),
     read.csv(tf3, na.strings = "-")
+  )
+
+  dbDisconnect(con, shutdown = TRUE)
+})
+
+test_that("duckdb_read_csv() col.types works as expected", {
+  skip_if_not(TEST_RE2)
+
+  con <- dbConnect(duckdb())
+
+  tf <- tempfile()
+
+  # Case with col.types as character vector
+  write.csv(iris, tf, row.names = FALSE)
+  duckdb_read_csv(con, "iris", tf,
+    col.types = c(
+      "DOUBLE",
+      "DOUBLE",
+      "DOUBLE",
+      "DOUBLE",
+      "VARCHAR"
+    )
+  )
+
+  res <- dbReadTable(con, "iris")
+  res$Species <- as.factor(res$Species)
+  expect_true(identical(res, iris))
+  dbRemoveTable(con, "iris")
+
+  # Case with col.types as character vector and col.names
+  write.csv(iris, tf, row.names = FALSE)
+  duckdb_read_csv(
+    con, "iris", tf,
+    col.names = c("S.Length", "S.Width", "P.Length", "P.Width", "Species"),
+    col.types = c("DOUBLE", "DOUBLE", "DOUBLE", "DOUBLE", "VARCHAR")
+  )
+
+  res <- dbReadTable(con, "iris")
+  res$Species <- as.factor(res$Species)
+  iris_renamed <- setNames(iris, c("S.Length", "S.Width", "P.Length", "P.Width", "Species"))
+  expect_true(identical(res, iris_renamed))
+  dbRemoveTable(con, "iris")
+
+
+  # Case with col.types as named character vector and that col.names is ignored when col.types is a named vector
+  write.csv(iris, tf, row.names = FALSE)
+  expect_warning(
+    duckdb_read_csv(con, "iris", tf,
+      col.names = c("A", "B", "C", "D", "E"),
+      col.types = c(
+        Sepal.Length = "DOUBLE",
+        Sepal.Width = "DOUBLE",
+        Petal.Length = "DOUBLE",
+        Petal.Width = "DOUBLE",
+        Species = "VARCHAR"
+      )
+    )
+  )
+  res <- dbReadTable(con, "iris")
+  res$Species <- as.factor(res$Species)
+  expect_true(identical(res, iris))
+  dbRemoveTable(con, "iris")
+
+
+  # Case with col.types as named character vector
+  write.csv(iris, tf, row.names = FALSE)
+  duckdb_read_csv(con, "iris", tf,
+    col.types = c(
+      S.Length = "DOUBLE",
+      S.Width = "DOUBLE",
+      P.Length = "DOUBLE",
+      P.Width = "DOUBLE",
+      Species = "VARCHAR"
+    )
+  )
+
+  res <- dbReadTable(con, "iris")
+  res$Species <- as.factor(res$Species)
+  iris_renamed <- setNames(iris, c("S.Length", "S.Width", "P.Length", "P.Width", "Species"))
+  expect_true(identical(res, iris_renamed))
+  dbRemoveTable(con, "iris")
+
+
+  # Case with col.types as named character vector with lower.case.names = TRUE
+  write.csv(iris, tf, row.names = FALSE)
+  duckdb_read_csv(con, "iris", tf,
+    col.types = c(
+      S.lEngth = "DOUBLE",
+      S.wiDth = "DOUBLE",
+      p.leNgth = "DOUBLE",
+      p.Width = "DOUBLE",
+      spEc = "VARCHAR"
+    ), lower.case.names = TRUE
+  )
+
+  res <- dbReadTable(con, "iris")
+  res$spec <- as.factor(res$spec)
+  iris_renamed <- setNames(iris, tolower(c("s.length", "s.width", "p.length", "p.width", "spec")))
+  expect_true(identical(res, iris_renamed))
+  dbRemoveTable(con, "iris")
+
+
+  # Length col.types not equal to number of cols detected in file
+  write.csv(iris, tf, row.names = FALSE)
+  expect_error(duckdb_read_csv(con, "iris", tf, col.types = c(rep("VARCHAR", 4))))
+  dbRemoveTable(con, "iris")
+
+
+  # Check for wrong data type given
+  write.csv(iris, tf, row.names = FALSE)
+  expect_error(
+    duckdb_read_csv(con, "iris", tf,
+      col.types = c(
+        Sepal.Length = "DOUBLE",
+        Sepal.Width = "DOUBLE",
+        Petal.Length = "DOUBLE",
+        Petal.Width = "DOUBLE",
+        Species = "DOUBLE"
+      )
+    )
   )
 
   dbDisconnect(con, shutdown = TRUE)
