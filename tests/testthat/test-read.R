@@ -126,5 +126,17 @@ test_that("duckdb_read_csv() works as expected", {
     read.csv(tf3, na.strings = "-")
   )
 
+  # temporary table
+  # see https://github.com/duckdb/duckdb-r/issues/142
+  db <- tempfile()
+  con2 <- dbConnect(duckdb(), dbdir = db)
+  duckdb_read_csv(con2, "iris", tf, temporary = TRUE)
+  expect_true(length(dbListTables(con2)) == 1)
+  dbDisconnect(con2)
+
+  con2 <- dbConnect(duckdb(), dbdir = db)
+  expect_true(length(dbListTables(con2)) == 0)
+  dbDisconnect(con2)
+
   dbDisconnect(con, shutdown = TRUE)
 })
