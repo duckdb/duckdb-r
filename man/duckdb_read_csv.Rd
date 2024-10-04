@@ -8,6 +8,7 @@ duckdb_read_csv(
   conn,
   name,
   files,
+  ...,
   header = TRUE,
   na.strings = "",
   nrow.check = 500,
@@ -17,7 +18,7 @@ duckdb_read_csv(
   lower.case.names = FALSE,
   sep = delim,
   transaction = TRUE,
-  ...
+  temporary = FALSE
 )
 }
 \arguments{
@@ -26,6 +27,8 @@ duckdb_read_csv(
 \item{name}{The name for the virtual table that is registered or unregistered}
 
 \item{files}{One or more CSV file names, should all have the same structure though}
+
+\item{...}{Reserved for future extensions, must be empty.}
 
 \item{header}{Whether or not the CSV files have a separate header in the first line}
 
@@ -45,7 +48,7 @@ duckdb_read_csv(
 
 \item{transaction}{Should a transaction be used for the entire operation}
 
-\item{...}{Passed on to \code{\link[=read.csv]{read.csv()}}}
+\item{temporary}{Set to \code{TRUE} to create a temporary table}
 }
 \value{
 The number of rows in the resulted table, invisibly.
