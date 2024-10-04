@@ -49,7 +49,7 @@ Use \code{simulate_duckdb()} with \code{lazy_frame()}
 to see simulated SQL without opening a DuckDB connection.
 }
 \examples{
-\dontshow{if (duckdb:::TEST_RE2 && rlang::is_installed("dbplyr")) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
+\dontshow{if (duckdb:::TEST_RE2 && rlang::is_installed("dbplyr")) withAutoprint(\{ # examplesIf}
 library(dplyr, warn.conflicts = FALSE)
 con <- DBI::dbConnect(duckdb(), path = ":memory:")
 
