@@ -41,3 +41,4 @@ test_that("rel_filter() handles LIST logical type", {
   df2 <- rel_to_altrep(rel2)
   expect_equal(df1$a, df2$a)
 })
+

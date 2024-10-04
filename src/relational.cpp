@@ -60,11 +60,11 @@ external_pointer<T> make_external_prot(const string &rclass, SEXP prot, ARGS &&.
 	return make_external<ColumnRefExpression>("duckdb_expr", names);
 }
 
-[[cpp11::register]] SEXP rapi_expr_constant(sexp val) {
+[[cpp11::register]] SEXP rapi_expr_constant(sexp val, bool typed_logical_null) {
 	if (LENGTH(val) != 1) {
 		stop("expr_constant: Need value of length one");
 	}
-	return make_external<ConstantExpression>("duckdb_expr", RApiTypes::SexpToValue(val, 0, false));
+	return make_external<ConstantExpression>("duckdb_expr", RApiTypes::SexpToValue(val, 0, typed_logical_null));
 }
 
 [[cpp11::register]] SEXP rapi_expr_function(std::string name, list args, list order_bys, list filter_bys) {
