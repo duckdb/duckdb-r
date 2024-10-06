@@ -111,6 +111,13 @@ extern "C" SEXP _duckdb_rapi_expr_constant(SEXP val) {
   END_CPP11
 }
 // relational.cpp
+SEXP rapi_expr_comparison(list exprs, std::string cmp_op);
+extern "C" SEXP _duckdb_rapi_expr_comparison(SEXP exprs, SEXP cmp_op) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(rapi_expr_comparison(cpp11::as_cpp<cpp11::decay_t<list>>(exprs),cpp11::as_cpp<cpp11::decay_t<std::string>>(cmp_op)));
+  END_CPP11
+}
+// relational.cpp
 SEXP rapi_expr_function(std::string name, list args, list order_bys, list filter_bys);
 extern "C" SEXP _duckdb_rapi_expr_function(SEXP name, SEXP args, SEXP order_bys, SEXP filter_bys) {
   BEGIN_CPP11
@@ -432,6 +439,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_execute",                 (DL_FUNC) &_duckdb_rapi_execute,                 3},
     {"_duckdb_rapi_execute_arrow",           (DL_FUNC) &_duckdb_rapi_execute_arrow,           2},
     {"_duckdb_rapi_expr_constant",           (DL_FUNC) &_duckdb_rapi_expr_constant,           1},
+    {"_duckdb_rapi_expr_comparison",         (DL_FUNC) &_duckdb_rapi_expr_comparison,         2},
     {"_duckdb_rapi_expr_function",           (DL_FUNC) &_duckdb_rapi_expr_function,           4},
     {"_duckdb_rapi_expr_reference",          (DL_FUNC) &_duckdb_rapi_expr_reference,          1},
     {"_duckdb_rapi_expr_set_alias",          (DL_FUNC) &_duckdb_rapi_expr_set_alias,          2},
