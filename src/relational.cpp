@@ -7,6 +7,7 @@
 
 #include "duckdb/parser/expression/columnref_expression.hpp"
 #include "duckdb/parser/expression/constant_expression.hpp"
+#include "duckdb/parser/expression/comparison_expression.hpp"
 #include "duckdb/parser/expression/function_expression.hpp"
 #include "duckdb/parser/expression/comparison_expression.hpp"
 #include "duckdb/parser/expression/conjunction_expression.hpp"
@@ -65,6 +66,21 @@ external_pointer<T> make_external_prot(const string &rclass, SEXP prot, ARGS &&.
 		stop("expr_constant: Need value of length one");
 	}
 	return make_external<ConstantExpression>("duckdb_expr", RApiTypes::SexpToValue(val, 0, false));
+}
+
+[[cpp11::register]] SEXP rapi_expr_comparison(list exprs, std::string cmp_op) {
+
+	ExpressionType expr_type = OperatorToExpressionType(cmp_op);
+	if (expr_type ==ExpressionType::INVALID) {
+		stop("expr_comparison: Invalid comparison operator");
+	}
+
+	return make_external<ComparisonExpression>(
+		"duckdb_expr",
+		expr_type,
+		expr_extptr_t(exprs[0])->Copy(),
+		expr_extptr_t(exprs[1])->Copy()
+	);
 }
 
 [[cpp11::register]] SEXP rapi_expr_function(std::string name, list args, list order_bys, list filter_bys) {

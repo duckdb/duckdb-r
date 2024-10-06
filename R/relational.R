@@ -27,6 +27,15 @@ expr_reference <- function(names, table = NULL) {
 #' const_str_expr <- expr_constant("Hello, World")
 expr_constant <- rapi_expr_constant
 
+#' Create a comparison expression
+#' @param exprs a vector of size two, the expressions to compare
+#' @param cmp_op the comparison operators
+#' @return a comparison expression
+#' @noRd
+#' @examples
+#' comp_expr <- expr_comparison(list(expr_constant(-42), expr_constant(42)), ">")
+expr_comparison <- rapi_expr_comparison
+
 #' Create a function call expression
 #' @param name the function name
 #' @param args the a list of expressions for the function arguments
