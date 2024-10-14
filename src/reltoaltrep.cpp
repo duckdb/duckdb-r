@@ -92,7 +92,17 @@ struct AltrepRelationWrapper {
 			if (option != R_NilValue && !Rf_isNull(option) && LOGICAL_ELT(option, 0) == true) {
 				Rprintf("materializing:\n%s\n", rel->ToString().c_str());
 			}
+
+			// We need to temporarily allow a deeper execution stack
+			auto old_depth = rel->context.GetContext()->config.max_expression_depth;
+			rel->context.GetContext()->config.max_expression_depth = old_depth * 2;
 			res = rel->Execute();
+			if (rel->context.GetContext()->config.max_expression_depth != old_depth * 2) {
+				Rprintf("Internal error: max_expression_depth was changed from %lu to %lu\n", old_depth * 2,
+				        rel->context.GetContext()->config.max_expression_depth);
+			}
+			rel->context.GetContext()->config.max_expression_depth = old_depth;
+
 			if (res->HasError()) {
 				cpp11::stop("Error evaluating duckdb query: %s", res->GetError().c_str());
 			}
@@ -132,6 +142,13 @@ struct AltrepVectorWrapper {
 	void *Dataptr() {
 		if (transformed_vector.data() == R_NilValue) {
 			auto res = rel->GetQueryResult();
+			auto error = res->GetError();
+			if (error != "") {
+				Rprintf("accessing column %ld:\n%s\n", column_index, error.c_str());
+				//rel->res = nullptr;
+				//res = rel->GetQueryResult();
+			}
+
 			transformed_vector = duckdb_r_allocate(res->types[column_index], res->RowCount());
 			idx_t dest_offset = 0;
 			for (auto &chunk : res->Collection().Chunks()) {

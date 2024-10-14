@@ -7,6 +7,7 @@
 #'
 #' @inheritParams duckdb_register
 #' @param files One or more CSV file names, should all have the same structure though
+#' @param ... Reserved for future extensions, must be empty.
 #' @param header Whether or not the CSV files have a separate header in the first line
 #' @param na.strings Which strings in the CSV files should be considered to be NULL
 #' @param nrow.check How many rows should be read from the CSV file to figure out data types
@@ -19,7 +20,7 @@
 #' @param lower.case.names Transform column names to lower case
 #' @param sep Alias for delim for compatibility
 #' @param transaction Should a transaction be used for the entire operation
-#' @param ... Passed on to [read.csv()]
+#' @param temporary Set to `TRUE` to create a temporary table
 #' @return The number of rows in the resulted table, invisibly.
 #' @export
 #' @examplesIf duckdb:::TEST_RE2
@@ -34,6 +35,7 @@
 #' dbReadTable(con, "data")
 #'
 #' dbDisconnect(con)
+# Start
 #'
 #'
 #' # Providing data types for columns
@@ -58,6 +60,28 @@ duckdb_read_csv <- function(
     delim = ",", quote = "\"", col.names = NULL, col.types = NULL,
     lower.case.names = FALSE, sep = delim, transaction = TRUE, ...) {
 
+## divider
+duckdb_read_csv <- function(
+  conn,
+  name,
+  files,
+  ...,
+  header = TRUE,
+  na.strings = "",
+  nrow.check = 500,
+  delim = ",",
+  quote = "\"",
+  col.names = NULL,
+  lower.case.names = FALSE,
+  sep = delim,
+  transaction = TRUE,
+  temporary = FALSE
+) {
+  # FIXME: Warning as of duckdb 1.1.1, turn this into an error later
+  if (...length() > 0) warning("Arguments passed to ... are currently not used")
+
+  ## End
+  
   if (length(na.strings) > 1) stop("na.strings must be of length 1")
   if (!missing(sep)) delim <- sep
 
@@ -112,10 +136,14 @@ duckdb_read_csv <- function(
     } else { # Names and types from utils::read.csv()
       fields <- headers[[1]][FALSE, , drop = FALSE]
     }
+# Start 
 
     if (lower.case.names) names(fields) <- tolower(names(fields))
 
     dbCreateTable(conn, tablename, fields)
+# Divider
+    dbCreateTable(conn, tablename, headers[[1]], temporary = temporary)
+# End
   }
 
   for (i in seq_along(files)) {
