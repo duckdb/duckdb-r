@@ -45,6 +45,7 @@ This usually is much faster than reading the data into R and writing it to DuckD
 <span>  <span class="va">conn</span>,</span>
 <span>  <span class="va">name</span>,</span>
 <span>  <span class="va">files</span>,</span>
+<span>  <span class="va">...</span>,</span>
 <span>  header <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  na.strings <span class="op">=</span> <span class="st">""</span>,</span>
 <span>  nrow.check <span class="op">=</span> <span class="fl">500</span>,</span>
@@ -54,7 +55,7 @@ This usually is much faster than reading the data into R and writing it to DuckD
 <span>  lower.case.names <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  sep <span class="op">=</span> <span class="va">delim</span>,</span>
 <span>  transaction <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  <span class="va">...</span></span>
+<span>  temporary <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -72,6 +73,10 @@ This usually is much faster than reading the data into R and writing it to DuckD
 
 <dt id="arg-files">files<a class="anchor" aria-label="anchor" href="#arg-files"></a></dt>
 <dd><p>One or more CSV file names, should all have the same structure though</p></dd>
+
+
+<dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
+<dd><p>Reserved for future extensions, must be empty.</p></dd>
 
 
 <dt id="arg-header">header<a class="anchor" aria-label="anchor" href="#arg-header"></a></dt>
@@ -110,8 +115,8 @@ This usually is much faster than reading the data into R and writing it to DuckD
 <dd><p>Should a transaction be used for the entire operation</p></dd>
 
 
-<dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
-<dd><p>Passed on to <code><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">read.csv()</a></code></p></dd>
+<dt id="arg-temporary">temporary<a class="anchor" aria-label="anchor" href="#arg-temporary"></a></dt>
+<dd><p>Set to <code>TRUE</code> to create a temporary table</p></dd>
 
 </dl></div>
     <div class="section level2">
