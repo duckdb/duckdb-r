@@ -94,6 +94,7 @@ struct AltrepRelationWrapper {
 			}
 
 			// We need to temporarily allow a deeper execution stack
+			// https://github.com/duckdb/duckdb-r/issues/101
 			auto old_depth = rel->context.GetContext()->config.max_expression_depth;
 			rel->context.GetContext()->config.max_expression_depth = old_depth * 2;
 			res = rel->Execute();
