@@ -1,7 +1,11 @@
+#define __STDC_FORMAT_MACROS
+
 #include "rapi.hpp"
 #include "typesr.hpp"
 #include "reltoaltrep.hpp"
 #include "cpp11/declarations.hpp"
+
+#include <cinttypes>
 
 using namespace duckdb;
 
@@ -99,7 +103,7 @@ struct AltrepRelationWrapper {
 			rel->context.GetContext()->config.max_expression_depth = old_depth * 2;
 			res = rel->Execute();
 			if (rel->context.GetContext()->config.max_expression_depth != old_depth * 2) {
-				Rprintf("Internal error: max_expression_depth was changed from %lu to %lu\n", old_depth * 2,
+				Rprintf("Internal error: max_expression_depth was changed from %" PRIu64 " to %" PRIu64 "\n", old_depth * 2,
 				        rel->context.GetContext()->config.max_expression_depth);
 			}
 			rel->context.GetContext()->config.max_expression_depth = old_depth;
@@ -145,7 +149,7 @@ struct AltrepVectorWrapper {
 			auto res = rel->GetQueryResult();
 			auto error = res->GetError();
 			if (error != "") {
-				Rprintf("accessing column %ld:\n%s\n", column_index, error.c_str());
+				Rprintf("accessing column %" PRIu64 ":\n%s\n", column_index, error.c_str());
 				//rel->res = nullptr;
 				//res = rel->GetQueryResult();
 			}
