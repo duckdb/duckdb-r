@@ -20,12 +20,17 @@ expr_reference <- function(names, table = NULL) {
 
 #' Create a constant expression
 #' @param val the constant value
+#' @param typed_logical_null Whether NA is converted to a LOGICAL NULL or a SQLNULL
 #' @return a constant expression
 #' @noRd
 #' @examples
 #' const_int_expr <- expr_constant(42)
 #' const_str_expr <- expr_constant("Hello, World")
-expr_constant <- rapi_expr_constant
+#' const_sql_null_expr <- expr_constant(NA)
+#' const_lgl_null_expr <- expr_constant(NA, TRUE)
+expr_constant <- function(val, typed_logical_null = FALSE) {
+  rapi_expr_constant(val, typed_logical_null)
+}
 
 #' Create a function call expression
 #' @param name the function name

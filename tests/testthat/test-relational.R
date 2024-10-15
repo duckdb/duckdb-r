@@ -76,6 +76,13 @@ test_that("we can create various expressions and don't crash", {
   expect_true(TRUE)
 })
 
+test_that("we can create a constant NA with LOGICAL type", {
+  rel1 <- rel_from_df(con, data.frame(x = 42))
+  exprs <- list(
+    y = expr_constant(NA, TRUE)
+  )
+  expect_equal(rel_to_altrep(rel_project(rel1, exprs))[, ], NA)
+})
 
 # TODO should maybe be a different file, test_enum_strings.R
 
