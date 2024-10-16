@@ -1,5 +1,24 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.1.1
+
+## Features
+
+- Update to duckdb v1.1.1, see <https://github.com/duckdb/duckdb/releases/tag/v1.1.1> for details.
+
+- Add comparison expression to relational API (@toppyy, #457).
+
+- Temporarily change `max_expression_depth` during ALTREP evaluation (#101, #460).
+
+- Add `temporary` argument to `duckdb_read_csv()` (@ThomasSoeiro, #223).
+
+## Chore
+
+- Update vendored extension sources to hannes/duckdb-rfuns@20cde009b51b9355e6041b72b87105c6b45793fe.
+
+- Remove warnings for uninitialized variables.
+
+
 # duckdb 1.1.0
 
 ## Features
