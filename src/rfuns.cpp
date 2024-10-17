@@ -329,7 +329,7 @@ void isna_any_loop(idx_t count, bool* result_data, ValidityMask mask) {
 		idx_t next = MinValue<idx_t>(base_idx + ValidityMask::BITS_PER_VALUE, count);
 
 		if (ValidityMask::AllValid(validity_entry)) {
-			// all valid: check with std::isnan()
+			// all valid
 			for (; base_idx < next; base_idx++) {
 				result_data[base_idx] = false;
 			}
@@ -581,113 +581,50 @@ enum Relop {
 };
 
 template <typename LHS, typename RHS, Relop OP>
-struct SimpleDispatch {
+struct RelopDispatch {
 	inline bool operator()(LHS lhs, RHS rhs);
 };
 
 
 template <typename LHS, typename RHS>
-struct SimpleDispatch<LHS, RHS, EQ> {
+struct RelopDispatch<LHS, RHS, EQ> {
 	inline bool operator()(LHS lhs, RHS rhs) {
 		return lhs == rhs;
 	}
 };
 
 template <typename LHS, typename RHS>
-struct SimpleDispatch<LHS, RHS, NEQ> {
+struct RelopDispatch<LHS, RHS, NEQ> {
 	inline bool operator()(LHS lhs, RHS rhs) {
 		return !(lhs == rhs);
 	}
 };
 
 template <typename LHS, typename RHS>
-struct SimpleDispatch<LHS, RHS, LT> {
+struct RelopDispatch<LHS, RHS, LT> {
 	inline bool operator()(LHS lhs, RHS rhs) {
 		return lhs < rhs;
 	}
 };
 
 template <typename LHS, typename RHS>
-struct SimpleDispatch<LHS, RHS, LTE> {
+struct RelopDispatch<LHS, RHS, LTE> {
 	inline bool operator()(LHS lhs, RHS rhs) {
 		return lhs < rhs || lhs == rhs;
 	}
 };
 
 template <typename LHS, typename RHS>
-struct SimpleDispatch<LHS, RHS, GT> {
+struct RelopDispatch<LHS, RHS, GT> {
 	inline bool operator()(LHS lhs, RHS rhs) {
 		return lhs > rhs;
 	}
 };
 
 template <typename LHS, typename RHS>
-struct SimpleDispatch<LHS, RHS, GTE> {
+struct RelopDispatch<LHS, RHS, GTE> {
 	inline bool operator()(LHS lhs, RHS rhs) {
 		return lhs > rhs || lhs == rhs;
-	}
-};
-
-template <typename LHS, typename RHS, Relop OP>
-struct RelopDispatch {
-	inline bool operator()(LHS lhs, RHS rhs) {
-		return SimpleDispatch<LHS, RHS, OP>()(lhs, rhs);
-	}
-};
-
-template <typename LHS, typename RHS, Relop OP>
-inline bool relop(LHS lhs, RHS rhs);
-
-string_t bool_to_string(bool x) {
-	return string_t(x ? "TRUE" : "FALSE");
-}
-
-template <Relop OP>
-struct RelopDispatch<string_t, date_t, OP> {
-	inline bool operator()(string_t lhs, date_t rhs) {
-		return SimpleDispatch<date_t, date_t, OP>()(Date::FromString(lhs.GetData(), false), rhs);
-	}
-};
-
-template <Relop OP>
-struct RelopDispatch<date_t, string_t, OP> {
-	inline bool operator()(date_t lhs, string_t rhs) {
-		return SimpleDispatch<date_t, date_t, OP>()(lhs, Date::FromString(rhs.GetData(), false));
-	}
-};
-
-template <Relop OP>
-struct RelopDispatch<string_t, timestamp_t, OP> {
-	inline bool operator()(string_t lhs, timestamp_t rhs) {
-		return SimpleDispatch<timestamp_t, timestamp_t, OP>()(Timestamp::FromString(lhs.GetData()), rhs);
-	}
-};
-
-template <Relop OP>
-struct RelopDispatch<timestamp_t, string_t, OP> {
-	inline bool operator()(timestamp_t lhs, string_t rhs) {
-		return SimpleDispatch<timestamp_t, timestamp_t, OP>()(lhs, Timestamp::FromString(rhs.GetData()));
-	}
-};
-
-template <Relop OP>
-struct RelopDispatch<bool, string_t, OP> {
-	inline bool operator()(bool lhs, string_t rhs) {
-		return SimpleDispatch<string_t, string_t, OP>()(bool_to_string(lhs), rhs);
-	}
-};
-
-template <Relop OP>
-struct RelopDispatch<string_t, bool, OP> {
-	inline bool operator()(string_t lhs, bool rhs) {
-		return SimpleDispatch<string_t, string_t, OP>()(lhs, bool_to_string(rhs));
-	}
-};
-
-template <Relop OP>
-struct RelopDispatch<string_t, string_t, OP> {
-	inline bool operator()(string_t lhs, string_t rhs) {
-		return SimpleDispatch<string_t, string_t, OP>()(lhs, rhs);
 	}
 };
 
@@ -775,25 +712,11 @@ ScalarFunctionSet base_r_relop(string name) {
 	set.AddFunction(RELOP_VARIANT(DOUBLE, BOOLEAN));
 	set.AddFunction(RELOP_VARIANT(BOOLEAN, DOUBLE));
 
-	set.AddFunction(RELOP_VARIANT(VARCHAR, BOOLEAN));
-	set.AddFunction(RELOP_VARIANT(BOOLEAN, VARCHAR));
-
 	set.AddFunction(RELOP_VARIANT(DOUBLE, DOUBLE));
 	set.AddFunction(RELOP_VARIANT(VARCHAR, VARCHAR));
 
 	set.AddFunction(RELOP_VARIANT(TIMESTAMP, TIMESTAMP));
 	set.AddFunction(RELOP_VARIANT(DATE, DATE));
-
-	set.AddFunction(RELOP_VARIANT(DATE, VARCHAR));
-	set.AddFunction(RELOP_VARIANT(VARCHAR, DATE));
-
-	set.AddFunction(RELOP_VARIANT(TIMESTAMP, VARCHAR));
-	set.AddFunction(RELOP_VARIANT(VARCHAR, TIMESTAMP));
-
-	set.AddFunction(RELOP_VARIANT_BIND_FAIL(VARCHAR, INTEGER, "Comparing strings and integers is not supported"));
-	set.AddFunction(RELOP_VARIANT_BIND_FAIL(INTEGER, VARCHAR, "Comparing strings and integers is not supported"));
-	set.AddFunction(RELOP_VARIANT_BIND_FAIL(VARCHAR, DOUBLE , "Comparing strings and doubles is not supported"));
-	set.AddFunction(RELOP_VARIANT_BIND_FAIL(DOUBLE, VARCHAR, "Comparing strings and doubles is not supported"));
 
 	set.AddFunction(RELOP_VARIANT_BIND_FAIL(TIMESTAMP, DATE, "Comparing times and dates is not supported"));
 	set.AddFunction(RELOP_VARIANT_BIND_FAIL(DATE, TIMESTAMP, "Comparing dates and times is not supported"));
@@ -821,6 +744,200 @@ ScalarFunctionSet base_r_gt() {
 ScalarFunctionSet base_r_gte() {
 	return base_r_relop<GTE>("r_base::>=");
 }
+
+namespace {
+
+template <typename LHS_TYPE, typename RHS_TYPE>
+bool try_equal(LHS_TYPE lhs, RHS_TYPE rhs) {
+	return relop<LHS_TYPE, RHS_TYPE, EQ>(lhs, rhs);
+}
+
+template <typename LHS_TYPE, typename RHS_TYPE>
+void InExecute(DataChunk &args, ExpressionState &state, Vector &result) {
+
+	auto count = args.size();
+	auto x = args.data[0];
+
+	auto y = args.data[1];
+	if (y.GetVectorType() != VectorType::CONSTANT_VECTOR) {
+		throw InvalidInputException("rhs must be a constant");
+	}
+	auto y_size = ListVector::GetListSize(y);
+	auto y_data = FlatVector::GetData<RHS_TYPE>(ListVector::GetEntry(y));
+	auto y_mask = FlatVector::Validity(ListVector::GetEntry(y));
+
+	bool na_in_y = [&](){
+		if (!y_mask.AllValid()) {
+			idx_t y_base_idx = 0;
+			auto y_entry_count = ValidityMask::EntryCount(y_size);
+			for (idx_t y_entry_idx = 0; y_entry_idx < y_entry_count; y_entry_idx++) {
+				auto y_validity_entry = y_mask.GetValidityEntry(y_entry_idx);
+				idx_t y_next = MinValue<idx_t>(y_base_idx + ValidityMask::BITS_PER_VALUE, y_size);
+
+				if (!ValidityMask::AllValid(y_validity_entry)) {
+					if (ValidityMask::NoneValid(y_validity_entry)) {
+						return true;
+					} else {
+						idx_t y_start = y_base_idx;
+						for (; y_base_idx < y_next; y_base_idx++) {
+							if (!ValidityMask::RowIsValid(y_validity_entry, y_base_idx - y_start)) {
+								return true;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		return false;
+	}();
+
+
+	auto is_in_y = [&](LHS_TYPE left) {
+		// special case when there are no NAs in y
+		if (!na_in_y) {
+			for (int i = 0; i < y_size; i++) {
+				if (try_equal(left, y_data[i])) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		// there are NAs in y, so do entry by entry
+		idx_t y_base_idx = 0;
+		auto y_entry_count = ValidityMask::EntryCount(y_size);
+		for (idx_t y_entry_idx = 0; y_entry_idx < y_entry_count; y_entry_idx++) {
+			auto y_validity_entry = y_mask.GetValidityEntry(y_entry_idx);
+			idx_t y_next = MinValue<idx_t>(y_base_idx + ValidityMask::BITS_PER_VALUE, y_size);
+
+			if (ValidityMask::AllValid(y_validity_entry)) {
+				for (; y_base_idx < y_next; y_base_idx++) {
+					if (try_equal(left, y_data[y_base_idx])) {
+						return true;
+					}
+				}
+			} else if (ValidityMask::NoneValid(y_validity_entry)) {
+				// nothing to do, because inside is_in_y() we know left is valid
+				for (; y_base_idx < y_next; y_base_idx++) {}
+			} else {
+				idx_t y_start = y_base_idx;
+
+				for (; y_base_idx < y_next; y_base_idx++) {
+					if (ValidityMask::RowIsValid(y_validity_entry, y_base_idx - y_start)) {
+						if (try_equal(left, y_data[y_base_idx])) {
+							return true;
+						}
+					}
+				}
+			}
+
+		}
+		return false;
+	};
+
+	auto in_loop = [&](idx_t count, LHS_TYPE* x_data, bool* result_data, ValidityMask mask) {
+		idx_t base_idx = 0;
+		auto entry_count = ValidityMask::EntryCount(count);
+		for (idx_t entry_idx = 0; entry_idx < entry_count; entry_idx++) {
+			auto validity_entry = mask.GetValidityEntry(entry_idx);
+			idx_t next = MinValue<idx_t>(base_idx + ValidityMask::BITS_PER_VALUE, count);
+
+			if (ValidityMask::AllValid(validity_entry)) {
+				for (; base_idx < next; base_idx++) {
+					result_data[base_idx] = is_in_y(x_data[base_idx]);
+				}
+			} else if (ValidityMask::NoneValid(validity_entry)) {
+				// None valid:
+				for (; base_idx < next; base_idx++) {
+					result_data[base_idx] = !y_mask.AllValid();
+				}
+			} else {
+				// partially valid: need to check individual elements for validity
+				idx_t start = base_idx;
+
+				for (; base_idx < next; base_idx++) {
+					if (ValidityMask::RowIsValid(validity_entry, base_idx - start)) {
+						result_data[base_idx] = is_in_y(x_data[base_idx]);
+					} else {
+						result_data[base_idx] = na_in_y;
+					}
+				}
+			}
+		}
+	};
+
+	switch(x.GetVectorType()) {
+		case VectorType::FLAT_VECTOR: {
+			result.SetVectorType(VectorType::FLAT_VECTOR);
+
+			in_loop(
+				count,
+				FlatVector::GetData<LHS_TYPE>(x),
+				FlatVector::GetData<bool>(result),
+				FlatVector::Validity(x)
+			);
+
+			break;
+		}
+
+		case VectorType::CONSTANT_VECTOR: {
+			result.SetVectorType(VectorType::CONSTANT_VECTOR);
+			auto result_data = ConstantVector::GetData<bool>(result);
+			*result_data = is_in_y(*ConstantVector::GetData<LHS_TYPE>(x));
+
+			break;
+		}
+
+		default : {
+			UnifiedVectorFormat vdata;
+			x.ToUnifiedFormat(count, vdata);
+			result.SetVectorType(VectorType::FLAT_VECTOR);
+			in_loop(
+				count,
+				FlatVector::GetData<LHS_TYPE>(x),
+				FlatVector::GetData<bool>(result),
+				vdata.validity
+			);
+
+			break;
+		}
+	}
+
+}
+
+#define IN_VARIANT(__LHS__, __RHS__) ScalarFunction(                                      \
+	/* arguments   = */ {LogicalType::__LHS__, LogicalType::LIST(LogicalType::__RHS__)},  \
+	/* return_type = */ LogicalType::BOOLEAN,                                \
+	/* function    = */ InExecute<                                           \
+		typename physical<LogicalType::__LHS__>::type, \
+	    typename physical<LogicalType::__RHS__>::type  \
+	>)
+
+} // namespace
+
+ScalarFunctionSet base_r_in() {
+	ScalarFunctionSet set("r_base::%in%");
+
+	set.AddFunction(IN_VARIANT(DOUBLE, DOUBLE));
+	set.AddFunction(IN_VARIANT(BOOLEAN, BOOLEAN));
+	set.AddFunction(IN_VARIANT(BOOLEAN, INTEGER));
+	set.AddFunction(IN_VARIANT(INTEGER, BOOLEAN));
+	set.AddFunction(IN_VARIANT(INTEGER, INTEGER));
+
+	set.AddFunction(IN_VARIANT(DOUBLE, INTEGER));
+	set.AddFunction(IN_VARIANT(INTEGER, DOUBLE));
+	set.AddFunction(IN_VARIANT(DOUBLE, BOOLEAN));
+	set.AddFunction(IN_VARIANT(BOOLEAN, DOUBLE));
+
+	set.AddFunction(IN_VARIANT(VARCHAR, VARCHAR));
+	set.AddFunction(IN_VARIANT(TIMESTAMP, TIMESTAMP));
+	set.AddFunction(IN_VARIANT(DATE, DATE));
+
+	return set;
+}
+
+
 
 } // namespace rfuns
 } // namespace duckdb
@@ -862,6 +979,8 @@ static void register_rfuns(DatabaseInstance &instance) {
 	ExtensionUtil::RegisterFunction(instance, base_r_is_na());
 	ExtensionUtil::RegisterFunction(instance, base_r_as_integer());
 	ExtensionUtil::RegisterFunction(instance, base_r_as_numeric());
+
+	ExtensionUtil::RegisterFunction(instance, base_r_in());
 
 	ExtensionUtil::RegisterFunction(instance, base_r_sum());
 	ExtensionUtil::RegisterFunction(instance, base_r_min());

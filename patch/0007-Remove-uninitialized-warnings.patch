@@ -1,0 +1,39 @@
+From 05bcc4be635b37116490609db74afc95a6e8e573 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Tue, 15 Oct 2024 14:23:29 +0200
+Subject: [PATCH] chore: Remove uninitialized warnings
+
+---
+ .../duckdb/core_functions/aggregate/minmax_n_helpers.hpp        | 2 ++
+ src/duckdb/src/planner/binder/query_node/plan_setop.cpp         | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/duckdb/src/include/duckdb/core_functions/aggregate/minmax_n_helpers.hpp b/src/duckdb/src/include/duckdb/core_functions/aggregate/minmax_n_helpers.hpp
+index 6dbdb8bc..55a7a150 100644
+--- a/src/duckdb/src/include/duckdb/core_functions/aggregate/minmax_n_helpers.hpp
++++ b/src/duckdb/src/include/duckdb/core_functions/aggregate/minmax_n_helpers.hpp
+@@ -40,6 +40,8 @@ struct HeapEntry<string_t> {
+ 	HeapEntry(HeapEntry &&other) noexcept {
+ 		if (other.value.IsInlined()) {
+ 			value = other.value;
++			capacity = 0;
++			allocated_data = nullptr;
+ 		} else {
+ 			capacity = other.capacity;
+ 			allocated_data = other.allocated_data;
+diff --git a/src/duckdb/src/planner/binder/query_node/plan_setop.cpp b/src/duckdb/src/planner/binder/query_node/plan_setop.cpp
+index 12e1dcb0..0960fef1 100644
+--- a/src/duckdb/src/planner/binder/query_node/plan_setop.cpp
++++ b/src/duckdb/src/planner/binder/query_node/plan_setop.cpp
+@@ -132,7 +132,7 @@ unique_ptr<LogicalOperator> Binder::CreatePlan(BoundSetOperationNode &node) {
+ 	                                node.right_binder->has_unplanned_dependent_joins;
+ 
+ 	// create actual logical ops for setops
+-	LogicalOperatorType logical_type;
++	LogicalOperatorType logical_type = LogicalOperatorType::LOGICAL_INVALID;
+ 	switch (node.setop_type) {
+ 	case SetOperationType::UNION:
+ 	case SetOperationType::UNION_BY_NAME:
+-- 
+2.43.0
+
