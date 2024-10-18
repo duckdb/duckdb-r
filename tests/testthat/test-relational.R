@@ -54,6 +54,7 @@ test_that("we can create various expressions and don't crash", {
   expect_error(expr_reference(""))
   expect_error(expr_reference(NULL))
 
+  expr_constant(NULL)
   expr_constant(TRUE)
   expr_constant(FALSE)
   expr_constant(NA)
@@ -62,9 +63,7 @@ test_that("we can create various expressions and don't crash", {
   const <- expr_constant("asdf")
   print(const)
 
-  expect_error(expr_constant(NULL))
   expect_error(expr_constant())
-
 
   expr_function("asdf", list())
 
