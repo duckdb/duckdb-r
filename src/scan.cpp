@@ -1,7 +1,7 @@
+#include "duckdb/main/client_context.hpp"
+#include "duckdb/third_party/utf8proc/include/utf8proc.hpp"
 #include "rapi.hpp"
 #include "typesr.hpp"
-
-#include "duckdb/main/client_context.hpp"
 
 using namespace duckdb;
 using namespace cpp11;
@@ -145,7 +145,6 @@ void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_ptr_t co
 	}
 	case RType::STRING: {
 		auto data_ptr = (SEXP *)coldata_ptr;
-
 		if (experimental) {
 			D_ASSERT(v.GetType().id() == LogicalTypeId::POINTER);
 			AppendColumnSegment<SEXP, uintptr_t, DedupPointerEnumType>(data_ptr, sexp_offset, v, this_count);
