@@ -45,6 +45,8 @@ jobs:
           fi
 
       - name: Vendor sources
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git push --dry-run
 
