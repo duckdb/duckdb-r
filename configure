@@ -4,6 +4,16 @@ set -ex
 
 cd $(dirname $0)/src
 
+# Download duckdb from GitHub if missing
+if ! [ -d duckdb ]; then
+  version=$(egrep '^Version:' ../DESCRIPTION | sed -r 's/^Version: ([0-9]+[.][0-9]+[.][0-9]+)([.][0-9]+)?$/\1/')
+  # Download tagged version
+  curl -OL https://github.com/duckdb/duckdb-r/archive/refs/tags/v${version}.tar.gz
+  tar -xzf v${version}.tar.gz
+  mv duckdb-r-${version}/src/duckdb .
+  rm -rf duckdb-r-${version} v${version}.tar.gz
+fi
+
 # The purpose of this is to avoid rebuilding duckdb in every CI/CD run.
 # We set the DUCKDB_R_PREBUILT_ARCHIVE environment variable to a file path
 # that contains a .tar of all object files.

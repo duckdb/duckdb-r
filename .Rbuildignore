@@ -42,3 +42,4 @@ _files$
 ^src/librstrtmgr\.a$
 ^compile_commands\.json$
 ^\.cache$
+^src/duckdb$
