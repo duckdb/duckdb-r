@@ -1,5 +1,6 @@
 #include "cpp11.hpp"
 #include "duckdb.hpp"
+#include "signal.hpp"
 #include "typesr.hpp"
 #include "rapi.hpp"
 
@@ -431,7 +432,15 @@ static SEXP result_to_df(duckdb::unique_ptr<QueryResult> res) {
 }
 
 [[cpp11::register]] SEXP rapi_rel_to_df(duckdb::rel_extptr_t rel) {
+	ScopedInterruptHandler signal_handler(rel->rel->context.GetContext());
+
 	auto res = rel->rel->Execute();
+
+	if (signal_handler.HandleInterrupt()) {
+		return R_NilValue;
+	}
+
+	signal_handler.Disable();
 
 	return result_to_df(std::move(res));
 }
