@@ -1,25 +1,18 @@
-#include "cpp11/function.hpp"
-#include "cpp11/protect.hpp"
+#include "rapi.hpp"
+#include "typesr.hpp"
+#include "signal.hpp"
+
+#include <R_ext/Utils.h>
+
 #include "duckdb/common/arrow/arrow.hpp"
 #include "duckdb/common/arrow/arrow_converter.hpp"
 #include "duckdb/common/arrow/arrow_util.hpp"
+#include "duckdb/common/types/timestamp.hpp"
 #include "duckdb/common/arrow/arrow_wrapper.hpp"
 #include "duckdb/common/arrow/result_arrow_wrapper.hpp"
-#include "duckdb/common/enums/pending_execution_result.hpp"
-#include "duckdb/common/exception.hpp"
-#include "duckdb/common/shared_ptr.hpp"
-#include "duckdb/common/types/timestamp.hpp"
 #include "duckdb/main/chunk_scan_state/query_result.hpp"
-#include "duckdb/main/client_context.hpp"
+
 #include "duckdb/parser/statement/relation_statement.hpp"
-#include "rapi.hpp"
-#include "typesr.hpp"
-
-#include <R.h>
-#include <R_ext/GraphicsEngine.h>
-#include <R_ext/Utils.h>
-
-#include <csignal>
 
 using namespace duckdb;
 using namespace cpp11::literals;
@@ -342,53 +335,12 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	return cpp11::safe[Rf_eval](record_batch_reader, arrow_namespace);
 }
 
-class LocalSignalHandler {
-private:
-	shared_ptr<ClientContext> context;
-	bool interrupted = false;
-
-	// oldhandler stores the old signal handler
-	// so that it can be restored when the object is destroyed
-	sig_t oldhandler;
-
-	static LocalSignalHandler *instance;
-
-public:
-	LocalSignalHandler(shared_ptr<ClientContext> context_) {
-		if (instance != nullptr) {
-			throw("Only one instance of LocalSignalHandler is allowed");
-		}
-		instance = this;
-		oldhandler = signal(SIGINT, signal_handler);
-		context = context_;
-	}
-
-	~LocalSignalHandler() {
-		signal(SIGINT, oldhandler);
-		instance = nullptr;
-	}
-
-	bool WasInterrupted() const {
-		return interrupted;
-	}
-
-private:
-	static void signal_handler(int signum) {
-		if (signum == SIGINT) {
-			instance->context->Interrupt();
-			instance->interrupted = true;
-		}
-	}
-};
-
-LocalSignalHandler *LocalSignalHandler::instance = nullptr;
-
 [[cpp11::register]] SEXP rapi_execute(duckdb::stmt_eptr_t stmt, bool arrow, bool integer64) {
 	if (!stmt || !stmt.get() || !stmt->stmt) {
 		cpp11::stop("rapi_execute: Invalid statement");
 	}
 
-	LocalSignalHandler signal_handler(stmt->stmt->context);
+	ScopedInterruptHandler signal_handler(stmt->stmt->context);
 
 	auto generic_result = stmt->stmt->Execute(stmt->parameters, false);
 
