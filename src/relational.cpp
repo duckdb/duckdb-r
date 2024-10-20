@@ -431,7 +431,9 @@ static SEXP result_to_df(duckdb::unique_ptr<QueryResult> res) {
 }
 
 [[cpp11::register]] SEXP rapi_rel_to_df(duckdb::rel_extptr_t rel) {
-	return result_to_df(rel->rel->Execute());
+	auto res = rel->rel->Execute();
+
+	return result_to_df(std::move(res));
 }
 
 [[cpp11::register]] std::string rapi_rel_tostring(duckdb::rel_extptr_t rel) {
