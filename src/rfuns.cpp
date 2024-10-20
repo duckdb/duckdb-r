@@ -796,7 +796,7 @@ void InExecute(DataChunk &args, ExpressionState &state, Vector &result) {
 	auto is_in_y = [&](LHS_TYPE left) {
 		// special case when there are no NAs in y
 		if (!na_in_y) {
-			for (int i = 0; i < y_size; i++) {
+			for (idx_t i = 0; i < y_size; i++) {
 				if (try_equal(left, y_data[i])) {
 					return true;
 				}
