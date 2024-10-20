@@ -1,5 +1,8 @@
 test_that("long-running queries can be cancelled", {
   skip_if_not_installed("callr")
+  # Skip on Windows for R < 4.4, the signal doesn't seem to make it through
+  # (but works for the toy repository)
+  skip_if(getRversion() < "4.4.0" && .Platform$OS.type == "windows")
 
   r_session <- callr::r_session$new()
 
