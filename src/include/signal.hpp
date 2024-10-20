@@ -32,6 +32,7 @@ public:
 	~ScopedInterruptHandler();
 
 	bool HandleInterrupt() const;
+	void Disable();
 
 private:
 	static void signal_handler(int signum);

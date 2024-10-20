@@ -349,6 +349,8 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 		cpp11::stop("rapi_execute: Failed to run query\nError: %s", generic_result->GetError().c_str());
 	}
 
+	signal_handler.Disable();
+
 	if (arrow) {
 		auto query_result = new RQueryResult();
 		query_result->result = std::move(generic_result);

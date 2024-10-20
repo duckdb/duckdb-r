@@ -23,10 +23,8 @@ ScopedInterruptHandler::ScopedInterruptHandler(shared_ptr<ClientContext> context
 }
 
 ScopedInterruptHandler::~ScopedInterruptHandler() {
-	if (context) {
-		std::signal(SIGINT, oldhandler);
-		instance = nullptr;
-	}
+	Disable();
+	instance = nullptr;
 }
 
 bool ScopedInterruptHandler::HandleInterrupt() const {
@@ -41,6 +39,13 @@ bool ScopedInterruptHandler::HandleInterrupt() const {
 	// so this is likely equivalent to cpp11::safe[Rf_onintrNoResume]()
 	cpp11::safe[Rf_onintr]();
 	return true;
+}
+
+void ScopedInterruptHandler::Disable() {
+	if (context) {
+		std::signal(SIGINT, oldhandler);
+		context.reset();
+	}
 }
 
 void ScopedInterruptHandler::signal_handler(int signum) {
