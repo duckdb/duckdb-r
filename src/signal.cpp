@@ -1,6 +1,7 @@
 #include "signal.hpp"
 
 #include "cpp11/R.hpp"
+#include "cpp11/protect.hpp"   // for safe
 
 #include <R_ext/GraphicsEngine.h>
 
