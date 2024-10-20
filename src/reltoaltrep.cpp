@@ -147,12 +147,6 @@ struct AltrepVectorWrapper {
 	void *Dataptr() {
 		if (transformed_vector.data() == R_NilValue) {
 			auto res = rel->GetQueryResult();
-			auto error = res->GetError();
-			if (error != "") {
-				Rprintf("accessing column %" PRIu64 ":\n%s\n", column_index, error.c_str());
-				//rel->res = nullptr;
-				//res = rel->GetQueryResult();
-			}
 
 			transformed_vector = duckdb_r_allocate(res->types[column_index], res->RowCount());
 			idx_t dest_offset = 0;
