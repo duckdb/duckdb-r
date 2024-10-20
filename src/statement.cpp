@@ -18,6 +18,8 @@
 #include <R.h>
 #include <R_ext/Utils.h>
 
+#include <csignal>
+
 using namespace duckdb;
 using namespace cpp11::literals;
 
