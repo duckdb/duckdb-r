@@ -16,6 +16,7 @@
 #include "typesr.hpp"
 
 #include <R.h>
+#include <R_ext/GraphicsEngine.h>
 #include <R_ext/Utils.h>
 
 #include <csignal>
@@ -380,11 +381,7 @@ private:
 	}
 };
 
-LocalSignalHandler* LocalSignalHandler::instance = nullptr;
-
-extern "C" {
-	extern int R_interrupts_pending;
-}
+LocalSignalHandler *LocalSignalHandler::instance = nullptr;
 
 [[cpp11::register]] SEXP rapi_execute(duckdb::stmt_eptr_t stmt, bool arrow, bool integer64) {
 	if (!stmt || !stmt.get() || !stmt->stmt) {
@@ -397,7 +394,8 @@ extern "C" {
 
 	if (generic_result->HasError()) {
 		if (signal_handler.WasInterrupted()) {
-			R_interrupts_pending = 1;
+			cpp11::safe[Rf_onintr]();
+			// FIXME: Is the following better? cpp11::safe[Rf_onintrNoResume]();
 			return R_NilValue;
 		}
 		cpp11::stop("rapi_execute: Failed to run query\nError: %s", generic_result->GetError().c_str());
