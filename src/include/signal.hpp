@@ -5,10 +5,6 @@
 #include "duckdb/common/shared_ptr.hpp"
 #include "duckdb/main/client_context.hpp"
 
-// For Rf_onintr() needed by users of this class
-#include "cpp11/R.hpp"
-#include <R_ext/GraphicsEngine.h>
-
 // Toy repo: https://github.com/krlmlr/cancel.test
 
 namespace duckdb {
@@ -29,7 +25,7 @@ public:
 	ScopedInterruptHandler(shared_ptr<ClientContext> context_);
 	~ScopedInterruptHandler();
 
-	bool WasInterrupted() const;
+	bool HandleInterrupt() const;
 
 private:
 	static void signal_handler(int signum);

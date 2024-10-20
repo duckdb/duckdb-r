@@ -1,5 +1,9 @@
 #include "signal.hpp"
 
+#include "cpp11/R.hpp"
+
+#include <R_ext/GraphicsEngine.h>
+
 // Toy repo: https://github.com/krlmlr/cancel.test
 
 namespace duckdb {
@@ -16,8 +20,15 @@ ScopedInterruptHandler::~ScopedInterruptHandler() {
 	instance = nullptr;
 }
 
-bool ScopedInterruptHandler::WasInterrupted() const {
-	return interrupted;
+bool ScopedInterruptHandler::HandleInterrupt() const {
+	if (!interrupted) {
+		return false;
+	}
+
+	// We're presumably still blocking interrupts here in the R session,
+	// so this is likely equivalent to cpp11::safe[Rf_onintrNoResume]()
+	cpp11::safe[Rf_onintr]();
+	return true;
 }
 
 void ScopedInterruptHandler::signal_handler(int signum) {
@@ -27,4 +38,4 @@ void ScopedInterruptHandler::signal_handler(int signum) {
 	}
 }
 
-};
+}; // namespace duckdb

@@ -1,18 +1,16 @@
-#include "rapi.hpp"
-#include "typesr.hpp"
-#include "signal.hpp"
-
-#include <R_ext/Utils.h>
-
 #include "duckdb/common/arrow/arrow.hpp"
 #include "duckdb/common/arrow/arrow_converter.hpp"
 #include "duckdb/common/arrow/arrow_util.hpp"
-#include "duckdb/common/types/timestamp.hpp"
 #include "duckdb/common/arrow/arrow_wrapper.hpp"
 #include "duckdb/common/arrow/result_arrow_wrapper.hpp"
+#include "duckdb/common/types/timestamp.hpp"
 #include "duckdb/main/chunk_scan_state/query_result.hpp"
-
 #include "duckdb/parser/statement/relation_statement.hpp"
+#include "rapi.hpp"
+#include "signal.hpp"
+#include "typesr.hpp"
+
+#include <R_ext/Utils.h>
 
 using namespace duckdb;
 using namespace cpp11::literals;
@@ -345,9 +343,7 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	auto generic_result = stmt->stmt->Execute(stmt->parameters, false);
 
 	if (generic_result->HasError()) {
-		if (signal_handler.WasInterrupted()) {
-			cpp11::safe[Rf_onintr]();
-			// FIXME: Is the following better? cpp11::safe[Rf_onintrNoResume]();
+		if (signal_handler.HandleInterrupt()) {
 			return R_NilValue;
 		}
 		cpp11::stop("rapi_execute: Failed to run query\nError: %s", generic_result->GetError().c_str());
