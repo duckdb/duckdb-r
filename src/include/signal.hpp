@@ -9,6 +9,8 @@
 #include "cpp11/R.hpp"
 #include <R_ext/GraphicsEngine.h>
 
+// Toy repo: https://github.com/krlmlr/cancel.test
+
 namespace duckdb {
 
 class ScopedInterruptHandler {

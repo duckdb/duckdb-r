@@ -1,5 +1,7 @@
 #include "signal.hpp"
 
+// Toy repo: https://github.com/krlmlr/cancel.test
+
 namespace duckdb {
 
 ScopedInterruptHandler *ScopedInterruptHandler::instance = nullptr;
