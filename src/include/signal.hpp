@@ -21,6 +21,12 @@ private:
 
 	static ScopedInterruptHandler *instance;
 
+private:
+	ScopedInterruptHandler() = delete;
+	ScopedInterruptHandler(const ScopedInterruptHandler &) = delete;
+	ScopedInterruptHandler &operator=(const ScopedInterruptHandler &) = delete;
+	ScopedInterruptHandler(ScopedInterruptHandler &&) = delete;
+
 public:
 	ScopedInterruptHandler(shared_ptr<ClientContext> context_);
 	~ScopedInterruptHandler();
