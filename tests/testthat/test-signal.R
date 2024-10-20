@@ -24,7 +24,7 @@ test_that("long-running queries can be cancelled", {
   expect_equal(r_session$get_state(), "busy")
   polled <- r_session$poll_process(200)
   expect_equal(polled, "timeout")
-  r_session$signal(2)
+  r_session$interrupt()
   polled <- r_session$poll_process(200)
   expect_equal(polled, "ready")
   expect_equal(r_session$read()$code, 200)
