@@ -16,18 +16,25 @@ ScopedInterruptHandler::ScopedInterruptHandler(shared_ptr<ClientContext> context
 	if (instance) {
 		throw InternalException("ScopedInterruptHandler already active");
 	}
-	instance = this;
-	oldhandler = std::signal(SIGINT, ScopedInterruptHandler::signal_handler);
+	if (context) {
+		instance = this;
+		oldhandler = std::signal(SIGINT, ScopedInterruptHandler::signal_handler);
+	}
 }
 
 ScopedInterruptHandler::~ScopedInterruptHandler() {
-	std::signal(SIGINT, oldhandler);
-	instance = nullptr;
+	if (context) {
+		std::signal(SIGINT, oldhandler);
+		instance = nullptr;
+	}
 }
 
 bool ScopedInterruptHandler::HandleInterrupt() const {
+	// Never interrupted without context
 	if (!interrupted) {
 		return false;
+	} else {
+		D_ASSERT(context);
 	}
 
 	// We're presumably still blocking interrupts here in the R session,
