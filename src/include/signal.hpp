@@ -18,6 +18,7 @@ private:
 
 	// oldhandler stores the old signal handler
 	// so that it can be restored when the object is destroyed
+	typedef void (*sig_t)(int);
 	sig_t oldhandler;
 
 	static ScopedInterruptHandler *instance;
