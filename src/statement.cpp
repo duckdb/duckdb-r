@@ -1,17 +1,16 @@
-#include "rapi.hpp"
-#include "typesr.hpp"
-
-#include <R_ext/Utils.h>
-
 #include "duckdb/common/arrow/arrow.hpp"
 #include "duckdb/common/arrow/arrow_converter.hpp"
 #include "duckdb/common/arrow/arrow_util.hpp"
-#include "duckdb/common/types/timestamp.hpp"
 #include "duckdb/common/arrow/arrow_wrapper.hpp"
 #include "duckdb/common/arrow/result_arrow_wrapper.hpp"
+#include "duckdb/common/types/timestamp.hpp"
 #include "duckdb/main/chunk_scan_state/query_result.hpp"
-
 #include "duckdb/parser/statement/relation_statement.hpp"
+#include "rapi.hpp"
+#include "signal.hpp"
+#include "typesr.hpp"
+
+#include <R_ext/Utils.h>
 
 using namespace duckdb;
 using namespace cpp11::literals;
@@ -338,16 +337,17 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	if (!stmt || !stmt.get() || !stmt->stmt) {
 		cpp11::stop("rapi_execute: Invalid statement");
 	}
-	auto pending_query = stmt->stmt->PendingQuery(stmt->parameters, arrow);
-	duckdb::PendingExecutionResult execution_result;
-	do {
-		execution_result = pending_query->ExecuteTask();
-		R_CheckUserInterrupt();
-	} while (!PendingQueryResult::IsResultReady(execution_result));
-	if (execution_result == PendingExecutionResult::EXECUTION_ERROR) {
-		cpp11::stop("rapi_execute: Failed to run query\nError: %s", pending_query->GetError().c_str());
+
+	ScopedInterruptHandler signal_handler(stmt->stmt->context);
+
+	auto generic_result = stmt->stmt->Execute(stmt->parameters, false);
+
+	if (signal_handler.HandleInterrupt()) {
+		return R_NilValue;
 	}
-	auto generic_result = pending_query->Execute();
+
+	signal_handler.Disable();
+
 	if (generic_result->HasError()) {
 		cpp11::stop("rapi_execute: Failed to run query\nError: %s", generic_result->GetError().c_str());
 	}
