@@ -1,6 +1,7 @@
 #include "signal.hpp"
 
 #include "cpp11/R.hpp"
+#include "cpp11/function.hpp"
 #include "cpp11/protect.hpp"   // for safe
 #include "duckdb/common/exception.hpp"
 
@@ -35,8 +36,12 @@ bool ScopedInterruptHandler::HandleInterrupt() const {
 		D_ASSERT(context);
 	}
 
-	// We're presumably still blocking interrupts here in the R session,
-	// so this is likely equivalent to cpp11::safe[Rf_onintrNoResume]()
+	// This seems necessary to work around a specificity with the RStudio IDE on Windows.
+	// Without the message, the interrupt is not available as a catchable condition.
+	// https://github.com/krlmlr/cancel.test/issues/1
+	cpp11::message("");
+
+	// FIXME: Is this equivalent to cpp11::safe[Rf_onintrNoResume](), or worse?
 	cpp11::safe[Rf_onintr]();
 	return true;
 }
