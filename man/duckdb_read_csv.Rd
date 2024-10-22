@@ -63,7 +63,7 @@ This usually is much faster than reading the data into R and writing it to DuckD
 If the table already exists in the database, the csv is appended to it. Otherwise the table is created.
 }
 \examples{
-\dontshow{if (duckdb:::TEST_RE2) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
+\dontshow{if (duckdb:::TEST_RE2) withAutoprint(\{ # examplesIf}
 con <- dbConnect(duckdb())
 
 data <- data.frame(a = 1:3, b = letters[1:3])
