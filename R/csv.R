@@ -35,7 +35,6 @@
 #' dbReadTable(con, "data")
 #'
 #' dbDisconnect(con)
-# Start
 #'
 #'
 #' # Providing data types for columns
@@ -56,36 +55,30 @@
 #' dbDisconnect(con)
 #'
 duckdb_read_csv <- function(
-    conn, name, files, header = TRUE, na.strings = "", nrow.check = 500,
-    delim = ",", quote = "\"", col.names = NULL, col.types = NULL,
-    lower.case.names = FALSE, sep = delim, transaction = TRUE, ...) {
-
-## divider
-duckdb_read_csv <- function(
-  conn,
-  name,
-  files,
-  ...,
-  header = TRUE,
-  na.strings = "",
-  nrow.check = 500,
-  delim = ",",
-  quote = "\"",
-  col.names = NULL,
-  lower.case.names = FALSE,
-  sep = delim,
-  transaction = TRUE,
-  temporary = FALSE
-) {
+    conn,
+    name,
+    files,
+    ...,
+    header = TRUE,
+    na.strings = "",
+    nrow.check = 500,
+    delim = ",",
+    quote = "\"",
+    col.names = NULL,
+    col.types = NULL,
+    lower.case.names = FALSE,
+    sep = delim,
+    transaction = TRUE,
+    temporary = FALSE) {
   # FIXME: Warning as of duckdb 1.1.1, turn this into an error later
   if (...length() > 0) warning("Arguments passed to ... are currently not used")
-
-  ## End
-  
   if (length(na.strings) > 1) stop("na.strings must be of length 1")
   if (!missing(sep)) delim <- sep
 
-  headers <- lapply(files, utils::read.csv, sep = delim, na.strings = na.strings, quote = quote, nrows = nrow.check, header = header, ...)
+  headers <- lapply(files, utils::read.csv,
+    sep = delim, na.strings = na.strings,
+    quote = quote, nrows = nrow.check, header = header, ...
+  )
   if (length(files) > 1) {
     nn <- sapply(headers, ncol)
     if (!all(nn == nn[1])) stop("Files have different numbers of columns")
@@ -97,6 +90,10 @@ duckdb_read_csv <- function(
     }
   }
 
+  fields <- set_csv_fields(found = headers[[1]][FALSE, , drop = FALSE], col.names, col.types)
+
+  if (lower.case.names) { names(fields) <- tolower(names(fields)) }
+
   if (transaction) {
     dbBegin(conn)
     on.exit(tryCatch(dbRollback(conn), error = function(e) {}))
@@ -105,45 +102,7 @@ duckdb_read_csv <- function(
   tablename <- dbQuoteIdentifier(conn, name)
 
   if (!dbExistsTable(conn, tablename)) {
-    if (!is.null(names(col.types)) && !is.null(col.names)) {
-      warning("Ignoring `col.names` as column names provided by `col.types` parameter")
-    } else if (!is.null(col.names)) {
-      if (lower.case.names) names(headers[[1]]) <- tolower(names(headers[[1]]))
-      if (!is.null(col.names)) {
-        col.names <- as.character(col.names)
-        if (length(unique(col.names)) != length(names(headers[[1]]))) {
-          stop(
-            "You supplied ", length(unique(col.names)), " unique column names, but file has ",
-            length(names(headers[[1]])), " columns."
-          )
-        }
-        names(headers[[1]]) <- col.names
-      }
-    }
-
-    if (!is.null(col.types)) {
-      fields <- col.types # Col names and types provided by user
-      if (is.null(names(col.types))) {
-        if (length(col.types) != ncol(headers[[1]])) {
-          stop(
-            "You supplied ", length(col.types), " column types, but file has ",
-            length(names(headers[[1]])), " columns."
-          )
-        }
-        # Only types provided, not names. Col names taken from utils::read.csv()
-        names(fields) <- colnames(headers[[1]])
-      }
-    } else { # Names and types from utils::read.csv()
-      fields <- headers[[1]][FALSE, , drop = FALSE]
-    }
-# Start 
-
-    if (lower.case.names) names(fields) <- tolower(names(fields))
-
-    dbCreateTable(conn, tablename, fields)
-# Divider
-    dbCreateTable(conn, tablename, headers[[1]], temporary = temporary)
-# End
+    dbCreateTable(conn, tablename, fields, temporary = temporary)
   }
 
   for (i in seq_along(files)) {
@@ -159,6 +118,55 @@ duckdb_read_csv <- function(
 
   invisible(out)
 }
+
+
+#' Column names and types logic for duckdb_read_csv()
+#'
+#' @param found the detected (found) header and types from `utils::read_csv`
+#' @param col.names user provided column names
+#' @param col.types user provider column types and maybe names too
+#'
+#' @return returns a valid fields argument for `dbCreateTable`
+set_csv_fields <- function(found, col.names, col.types) {
+  if (is.null(col.types) && is.null(col.types)) {
+    return(found)
+  }
+
+  if (!is.null(names(col.types)) && !is.null(col.names)) {
+    warning("Ignoring `col.names` as column names provided by `col.types` parameter")
+    return(col.types)
+  }
+
+  if (!is.null(col.types)) {
+    if (length(col.types) != ncol(found)) {
+      stop(
+        "You supplied ", length(col.types), " values to `col.names`, but file has ",
+        ncol(found), " columns."
+      )
+    }
+
+    if (!is.null(names(col.types))) {
+      return(col.types)
+    } else {
+      if (length(col.types) != ncol(found)) {
+        stop(
+          "You supplied ", length(col.types), " values to `col.types`, but file has ",
+          ncol(found), " columns."
+        )
+      }
+      fields <- col.types
+      name(fields) <- col.names
+      return(fields)
+    }
+  } else {
+    fields <- col.types
+    name(fields) <- names(found)
+  }
+  fields
+}
+
+
+
 
 #' Deprecated functions
 #'
