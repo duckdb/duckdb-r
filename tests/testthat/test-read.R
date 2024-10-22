@@ -259,5 +259,14 @@ test_that("duckdb_read_csv() col.types works as expected", {
     )
   )
 
+  dates_df <- data.frame(dates = as.Date(seq(1:10), origin = '2020-01-01'))
+  write.csv(dates_df, tf, row.names = FALSE)
+  duckdb_read_csv(con, "dates_test", tf, col.types = c(dates = 'DATE'))
+
+  res <- dbReadTable(con, "dates_test")
+  expect_true(identical(res, dates_df))
+  dbRemoveTable(con, "iris")
+
+
   dbDisconnect(con, shutdown = TRUE)
 })
