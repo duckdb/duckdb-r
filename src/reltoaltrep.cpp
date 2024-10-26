@@ -85,7 +85,8 @@ struct AltrepRelationWrapper {
 		return GetFromExternalPtr<AltrepRelationWrapper>(x);
 	}
 
-	AltrepRelationWrapper(duckdb::shared_ptr<Relation> rel_p) : rel(rel_p) {
+	AltrepRelationWrapper(duckdb::shared_ptr<Relation> rel_p, bool allow_materialization_)
+	    : rel(rel_p), allow_materialization(allow_materialization_) {
 	}
 
 	bool HasQueryResult() const {
@@ -94,6 +95,10 @@ struct AltrepRelationWrapper {
 
 	MaterializedQueryResult *GetQueryResult() {
 		if (!res) {
+			if (!allow_materialization) {
+				cpp11::stop("Materialization is disabled, use collect() or as_tibble() to materialize");
+			}
+
 			auto option = Rf_GetOption(RStrings::get().materialize_sym, R_BaseEnv);
 			if (option != R_NilValue && !Rf_isNull(option) && LOGICAL_ELT(option, 0) == true) {
 				Rprintf("materializing:\n%s\n", rel->ToString().c_str());
@@ -132,6 +137,8 @@ struct AltrepRelationWrapper {
 		D_ASSERT(res);
 		return (MaterializedQueryResult *)res.get();
 	}
+
+	bool allow_materialization;
 
 	duckdb::shared_ptr<Relation> rel;
 	duckdb::unique_ptr<QueryResult> res;
@@ -325,12 +332,12 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 	}
 }
 
-[[cpp11::register]] SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel) {
+[[cpp11::register]] SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel, bool allow_materialization) {
 	D_ASSERT(rel && rel->rel);
 	auto drel = rel->rel;
 	auto ncols = drel->Columns().size();
 
-	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(drel);
+	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(drel, allow_materialization);
 
 	cpp11::writable::list data_frame;
 	data_frame.reserve(ncols);
