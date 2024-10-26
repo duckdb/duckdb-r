@@ -66,6 +66,9 @@ duckdb <- function(dbdir = DBDIR_MEMORY, read_only = FALSE, bigint = "numeric", 
   if (dbdir != DBDIR_MEMORY) {
     driver_registry[[dbdir]] <- drv
   }
+
+  reg.finalizer(drv@database_ref, onexit = TRUE, rapi_shutdown)
+
   drv
 }
 
