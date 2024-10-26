@@ -433,3 +433,6 @@ rel_from_table_function <- function(con, function_name, positional_parameters = 
 
 rel_to_parquet <- rapi_rel_to_parquet
 
+rel_names <- rapi_rel_names
+
+load_rfuns <- rapi_load_rfuns
