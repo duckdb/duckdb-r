@@ -10,7 +10,7 @@
 duckdb_prepare_substrait <- function(conn, query, arrow = FALSE) {
   stopifnot(dbIsValid(conn))
   stopifnot(is.raw(query))
-  stmt_lst <- rapi_prepare_substrait(conn@conn_ref, query)
+  stmt_lst <- rethrow_rapi_prepare_substrait(conn@conn_ref, query)
   duckdb_result(
     connection = conn,
     stmt_lst = stmt_lst,
@@ -30,7 +30,7 @@ duckdb_prepare_substrait <- function(conn, query, arrow = FALSE) {
 duckdb_prepare_substrait_json <- function(conn, json, arrow = FALSE) {
   stopifnot(dbIsValid(conn))
   stopifnot(is.character(json))
-  stmt_lst <- rapi_prepare_substrait_json(conn@conn_ref, json)
+  stmt_lst <- rethrow_rapi_prepare_substrait_json(conn@conn_ref, json)
   duckdb_result(
       connection = conn,
       stmt_lst = stmt_lst,
@@ -52,7 +52,7 @@ duckdb_prepare_substrait_json <- function(conn, json, arrow = FALSE) {
 duckdb_get_substrait <- function(conn, query, enable_optimizer = TRUE) {
   stopifnot(dbIsValid(conn))
   stopifnot(is.character(query))
-  rapi_get_substrait(conn@conn_ref, query, enable_optimizer)
+  rethrow_rapi_get_substrait(conn@conn_ref, query, enable_optimizer)
 }
 
 #' Get the Substrait plan for a SQL query in the JSON format
@@ -66,5 +66,5 @@ duckdb_get_substrait <- function(conn, query, enable_optimizer = TRUE) {
 duckdb_get_substrait_json <- function(conn, query, enable_optimizer = TRUE) {
   stopifnot(dbIsValid(conn))
   stopifnot(is.character(query))
-  rapi_get_substrait_json(conn@conn_ref, query, enable_optimizer)
+  rethrow_rapi_get_substrait_json(conn@conn_ref, query, enable_optimizer)
 }

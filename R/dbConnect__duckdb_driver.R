@@ -79,8 +79,8 @@ dbConnect__duckdb_driver <- function(
   config <- utils::modifyList(drv@config, config)
 
   # aha, a late comer. let's make a new instance.
-  if (dbdir != drv@dbdir || !rapi_lock(drv@database_ref)) {
-    rapi_unlock(drv@database_ref)
+  if (dbdir != drv@dbdir || !rethrow_rapi_lock(drv@database_ref)) {
+    rethrow_rapi_unlock(drv@database_ref)
     drv <- duckdb(dbdir, read_only, bigint, config)
   }
 

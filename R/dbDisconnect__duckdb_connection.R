@@ -12,7 +12,7 @@ dbDisconnect__duckdb_connection <- function(conn, ..., shutdown = TRUE) {
     warning("Connection already closed.", call. = FALSE)
     invisible(FALSE)
   }
-  rapi_disconnect(conn@conn_ref)
+  rethrow_rapi_disconnect(conn@conn_ref)
   rs_on_connection_closed(conn)
   invisible(TRUE)
 }

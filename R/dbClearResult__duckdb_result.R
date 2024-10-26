@@ -3,7 +3,7 @@
 #' @usage NULL
 dbClearResult__duckdb_result <- function(res, ...) {
   if (res@env$open) {
-    rapi_release(res@stmt_lst$ref)
+    rethrow_rapi_release(res@stmt_lst$ref)
     res@env$open <- FALSE
   } else {
     warning("Result was cleared already")
