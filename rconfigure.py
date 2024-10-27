@@ -99,6 +99,18 @@ linenr = bool(os.getenv("DUCKDB_R_LINENR", ""))
 
 (source_list, include_list, original_sources) = package_build.build_package(target_dir, extensions, linenr, unity_build)
 
+# Walk target_dir, find all source and include files, and terminate with newline,
+# if not already present
+for root, dirs, files in os.walk(target_dir):
+    for file in files:
+        if file.endswith('.cpp') or file.endswith('.hpp') or file.endswith('.c') or file.endswith('.h') or file.endswith('.cc'):
+            filename = os.path.join(root, file)
+            with open (filename, "r") as f:
+                lines = f.readlines()
+                if len(lines) > 0 and lines[-1][-1] != '\n':
+                    with open (filename, "a") as fw:
+                        fw.write("\n")
+
 # object list, relative paths
 script_path = os.path.dirname(os.path.abspath(__file__)).replace('\\', '/')
 duckdb_sources = [package_build.get_relative_path(os.path.join(script_path, 'src'), x) for x in source_list]
