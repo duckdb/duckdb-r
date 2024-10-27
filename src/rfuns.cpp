@@ -889,13 +889,13 @@ void InExecute(DataChunk &args, ExpressionState &state, Vector &result) {
 			break;
 		}
 
-		default : {
+		default: {
 			UnifiedVectorFormat vdata;
 			x.ToUnifiedFormat(count, vdata);
 			result.SetVectorType(VectorType::FLAT_VECTOR);
 			in_loop(
 				count,
-				FlatVector::GetData<LHS_TYPE>(x),
+				UnifiedVectorFormat::GetData<LHS_TYPE>(vdata),
 				FlatVector::GetData<bool>(result),
 				vdata.validity
 			);
