@@ -131,7 +131,14 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		cpp11::stop("rapi_prepare: Invalid connection");
 	}
 
-	auto statements = conn->conn->ExtractStatements(query.c_str());
+	vector<unique_ptr<SQLStatement>> statements;
+	try {
+		statements = conn->conn->ExtractStatements(query.c_str());
+	} catch (std::exception &ex) {
+		ErrorData error(ex);
+		error.AddErrorLocation(query);
+		cpp11::stop("rapi_prepare: Failed to extract statements:\n%s", error.Message().c_str());
+	}
 	if (statements.empty()) {
 		// no statements to execute
 		cpp11::stop("rapi_prepare: No statements to execute");
