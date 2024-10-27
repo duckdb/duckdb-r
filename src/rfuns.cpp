@@ -766,25 +766,29 @@ void InExecute(DataChunk &args, ExpressionState &state, Vector &result) {
 	auto y_data = FlatVector::GetData<RHS_TYPE>(ListVector::GetEntry(y));
 	auto y_mask = FlatVector::Validity(ListVector::GetEntry(y));
 
-	bool na_in_y = [&](){
-		if (!y_mask.AllValid()) {
-			idx_t y_base_idx = 0;
-			auto y_entry_count = ValidityMask::EntryCount(y_size);
-			for (idx_t y_entry_idx = 0; y_entry_idx < y_entry_count; y_entry_idx++) {
-				auto y_validity_entry = y_mask.GetValidityEntry(y_entry_idx);
-				idx_t y_next = MinValue<idx_t>(y_base_idx + ValidityMask::BITS_PER_VALUE, y_size);
+	bool na_in_y = [&]() {
+		if (y_mask.AllValid()) {
+			return false;
+		}
 
-				if (!ValidityMask::AllValid(y_validity_entry)) {
-					if (ValidityMask::NoneValid(y_validity_entry)) {
-						return true;
-					} else {
-						idx_t y_start = y_base_idx;
-						for (; y_base_idx < y_next; y_base_idx++) {
-							if (!ValidityMask::RowIsValid(y_validity_entry, y_base_idx - y_start)) {
-								return true;
-							}
-						}
-					}
+		idx_t y_base_idx = 0;
+		auto y_entry_count = ValidityMask::EntryCount(y_size);
+		for (idx_t y_entry_idx = 0; y_entry_idx < y_entry_count; y_entry_idx++) {
+			auto y_validity_entry = y_mask.GetValidityEntry(y_entry_idx);
+			idx_t y_next = MinValue<idx_t>(y_base_idx + ValidityMask::BITS_PER_VALUE, y_size);
+
+			if (ValidityMask::AllValid(y_validity_entry)) {
+				continue;
+			}
+
+			if (ValidityMask::NoneValid(y_validity_entry)) {
+				return true;
+			}
+
+			idx_t y_start = y_base_idx;
+			for (; y_base_idx < y_next; y_base_idx++) {
+				if (!ValidityMask::RowIsValid(y_validity_entry, y_base_idx - y_start)) {
+					return true;
 				}
 			}
 		}
