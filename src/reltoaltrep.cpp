@@ -86,7 +86,7 @@ struct AltrepRelationWrapper {
 	}
 
 	AltrepRelationWrapper(duckdb::shared_ptr<Relation> rel_p, bool allow_materialization_)
-	    : rel(rel_p), allow_materialization(allow_materialization_) {
+	    : allow_materialization(allow_materialization_), rel(rel_p) {
 	}
 
 	bool HasQueryResult() const {
