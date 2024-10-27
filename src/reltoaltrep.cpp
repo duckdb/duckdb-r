@@ -105,16 +105,15 @@ struct AltrepRelationWrapper {
 			// https://github.com/duckdb/duckdb-r/issues/101
 			auto old_depth = rel->context.GetContext()->config.max_expression_depth;
 			rel->context.GetContext()->config.max_expression_depth = old_depth * 2;
-			duckdb_httplib::detail::scope_exit reset_max_expression_depth([&]() {
-				rel->context.GetContext()->config.max_expression_depth = old_depth;
-			});
+			duckdb_httplib::detail::scope_exit reset_max_expression_depth(
+			    [&]() { rel->context.GetContext()->config.max_expression_depth = old_depth; });
 
 			res = rel->Execute();
 
 			// FIXME: Use std::experimental::scope_exit
 			if (rel->context.GetContext()->config.max_expression_depth != old_depth * 2) {
-				Rprintf("Internal error: max_expression_depth was changed from %" PRIu64 " to %" PRIu64 "\n", old_depth * 2,
-				        rel->context.GetContext()->config.max_expression_depth);
+				Rprintf("Internal error: max_expression_depth was changed from %" PRIu64 " to %" PRIu64 "\n",
+				        old_depth * 2, rel->context.GetContext()->config.max_expression_depth);
 			}
 			rel->context.GetContext()->config.max_expression_depth = old_depth;
 			reset_max_expression_depth.release();
@@ -408,6 +407,8 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 		auto wrapper = GetFromExternalPtr<AltrepRownamesWrapper>(row_names);
 
 		if (wrapper->rel->res.get()) {
+			// We return NULL here even for strict = true
+			// because this is expected from df_is_materialized()
 			return R_NilValue;
 		}
 	}
