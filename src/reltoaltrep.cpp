@@ -74,7 +74,7 @@ static T *GetFromExternalPtr(SEXP x) {
 	}
 	auto wrapper = (T *)R_ExternalPtrAddr(ptr);
 	if (!wrapper) {
-		cpp11::stop("This looks like it has been freed");
+		cpp11::stop("GetFromExternalPtr: This looks like it has been freed");
 	}
 	return wrapper;
 }
@@ -387,7 +387,7 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 	return data_frame;
 }
 
-[[cpp11::register]] SEXP rapi_rel_from_altrep_df(SEXP df, bool strict = true, bool allow_materialized = true) {
+[[cpp11::register]] SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized, bool enable_materialization) {
 	if (!Rf_inherits(df, "data.frame")) {
 		if (strict) {
 			cpp11::stop("rapi_rel_from_altrep_df: Not a data.frame");
@@ -423,9 +423,8 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 		}
 	}
 
+	auto wrapper = GetFromExternalPtr<AltrepRownamesWrapper>(row_names);
 	if (!allow_materialized) {
-		auto wrapper = GetFromExternalPtr<AltrepRownamesWrapper>(row_names);
-
 		if (wrapper->rel->res.get()) {
 			// We return NULL here even for strict = true
 			// because this is expected from df_is_materialized()
@@ -440,6 +439,12 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 		} else {
 			return R_NilValue;
 		}
+	}
+
+	// Side effect comes last
+	// FIXME: Add separate rapi_() function for this
+	if (enable_materialization) {
+		wrapper->rel->allow_materialization = true;
 	}
 
 	return res;

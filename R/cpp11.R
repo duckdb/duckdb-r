@@ -181,8 +181,8 @@ rapi_rel_to_altrep <- function(rel, allow_materialization = TRUE) {
   .Call(`_duckdb_rapi_rel_to_altrep`, rel, allow_materialization)
 }
 
-rapi_rel_from_altrep_df <- function(df, strict, allow_materialized) {
-  .Call(`_duckdb_rapi_rel_from_altrep_df`, df, strict, allow_materialized)
+rapi_rel_from_altrep_df <- function(df, strict, allow_materialized, enable_materialization) {
+  .Call(`_duckdb_rapi_rel_from_altrep_df`, df, strict, allow_materialized, enable_materialization)
 }
 
 rapi_release <- function(stmt) {

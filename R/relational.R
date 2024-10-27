@@ -389,6 +389,11 @@ rel_to_altrep <- function(rel) {
 
 #' Retrieves the data frame back from a altrep df
 #' @param df the data frame created by rel_to_altrep
+#' @param strict whether to throw an error if the data frame is not an altrep
+#'   or if other criteria are not met
+#' @param allow_materialized whether to succeed if the data frame is already materialized
+#' @param enable_materialization set to `TRUE` for side effect: allow materialization of this a data frame
+#'   if it was not allowed previously
 #' @return the relation object
 #' @noRd
 #' @examples
@@ -396,8 +401,8 @@ rel_to_altrep <- function(rel) {
 #' rel <- rel_from_df(con, mtcars)
 #' df = rel_to_altrep(rel)
 #' print(rel_from_altrep_df(df))
-rel_from_altrep_df <- function(df, strict = TRUE, allow_materialized = TRUE) {
-  rethrow_rapi_rel_from_altrep_df(df, strict, allow_materialized)
+rel_from_altrep_df <- function(df, strict = TRUE, allow_materialized = TRUE, enable_materialization = FALSE) {
+  rethrow_rapi_rel_from_altrep_df(df, strict, allow_materialized, enable_materialization)
 }
 
 
