@@ -443,7 +443,7 @@ rel_from_sql <- function(con, sql) {
 #' DBI::dbWriteTable(con, "mtcars", mtcars)
 #' rel <- rel_from_table(con, "mtcars")
 rel_from_table <- function(con, table_name, schema_name = "MAIN") {
-    rethrow_rapi_rel_from_table(con@conn_ref, schema_name, table_name)
+  rethrow_rapi_rel_from_table(con@conn_ref, schema_name, table_name)
 }
 
 #' Convert a duckdb relation from a table-producing function
@@ -456,7 +456,7 @@ rel_from_table <- function(con, table_name, schema_name = "MAIN") {
 #' con <- DBI::dbConnect(duckdb())
 #' rel <- rel_from_table_function(con, 'generate_series', list(10L))
 rel_from_table_function <- function(con, function_name, positional_parameters = list(), named_parameters = list()) {
-    rethrow_rapi_rel_from_table_function(con@conn_ref, function_name, positional_parameters, named_parameters)
+  rethrow_rapi_rel_from_table_function(con@conn_ref, function_name, positional_parameters, named_parameters)
 }
 
 rel_to_parquet <- function(rel, file_name) {
