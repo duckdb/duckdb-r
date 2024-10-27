@@ -407,6 +407,8 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 		auto wrapper = GetFromExternalPtr<AltrepRownamesWrapper>(row_names);
 
 		if (wrapper->rel->res.get()) {
+			// We return NULL here even for strict = true
+			// because this is expected from df_is_materialized()
 			return R_NilValue;
 		}
 	}
