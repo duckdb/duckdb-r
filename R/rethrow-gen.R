@@ -387,9 +387,9 @@ rethrow_rapi_rel_from_table_function <- function(con, function_name, positional_
   )
 }
 
-rethrow_rapi_get_last_rel_mat <- function(call = parent.frame(2)) {
+rethrow_rapi_get_last_rel <- function(call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_get_last_rel_mat(),
+    rapi_get_last_rel(),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
@@ -585,7 +585,7 @@ rethrow_restore <- function() {
   rethrow_rapi_rel_from_sql <<- rapi_rel_from_sql
   rethrow_rapi_rel_from_table <<- rapi_rel_from_table
   rethrow_rapi_rel_from_table_function <<- rapi_rel_from_table_function
-  rethrow_rapi_get_last_rel_mat <<- rapi_get_last_rel_mat
+  rethrow_rapi_get_last_rel <<- rapi_get_last_rel
   rethrow_rapi_rel_to_altrep <<- rapi_rel_to_altrep
   rethrow_rapi_rel_from_altrep_df <<- rapi_rel_from_altrep_df
   rethrow_rapi_release <<- rapi_release
