@@ -338,6 +338,13 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 	}
 }
 
+[[cpp11::register]] std::string rapi_get_last_rel_mat() {
+	if (!AltrepRelationWrapper::last_rel) {
+		return "";
+	}
+	return AltrepRelationWrapper::last_rel->ToString();
+}
+
 [[cpp11::register]] SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel, bool allow_materialization) {
 	D_ASSERT(rel && rel->rel);
 	auto drel = rel->rel;
