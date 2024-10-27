@@ -796,7 +796,6 @@ void InExecute(DataChunk &args, ExpressionState &state, Vector &result) {
 		return false;
 	}();
 
-
 	auto is_in_y = [&](LHS_TYPE left) {
 		// special case when there are no NAs in y
 		if (!na_in_y) {
@@ -823,7 +822,8 @@ void InExecute(DataChunk &args, ExpressionState &state, Vector &result) {
 				}
 			} else if (ValidityMask::NoneValid(y_validity_entry)) {
 				// nothing to do, because inside is_in_y() we know left is valid
-				for (; y_base_idx < y_next; y_base_idx++) {}
+				for (; y_base_idx < y_next; y_base_idx++) {
+				}
 			} else {
 				idx_t y_start = y_base_idx;
 
@@ -835,7 +835,6 @@ void InExecute(DataChunk &args, ExpressionState &state, Vector &result) {
 					}
 				}
 			}
-
 		}
 		return false;
 	};
@@ -907,7 +906,6 @@ void InExecute(DataChunk &args, ExpressionState &state, Vector &result) {
 			break;
 		}
 	}
-
 }
 
 #define IN_VARIANT(__LHS__, __RHS__) ScalarFunction(                                      \
