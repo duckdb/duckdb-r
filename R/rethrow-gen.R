@@ -398,7 +398,8 @@ rethrow_rapi_get_last_rel_mat <- function(call = parent.frame(2)) {
 
 rethrow_rapi_rel_to_altrep <- function(rel, allow_materialization = TRUE, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_rel_to_altrep(rel, allow_materialization = TRUE),
+    # duckplyr compat
+    rapi_rel_to_altrep(rel, allow_materialization),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
