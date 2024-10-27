@@ -476,6 +476,6 @@ load_rfuns <- function() {
   rethrow_rapi_load_rfuns()
 }
 
-get_last_rel_mat <- function() {
-  rethrow_rapi_get_last_rel_mat()
+get_last_rel <- function() {
+  rethrow_rapi_get_last_rel()
 }

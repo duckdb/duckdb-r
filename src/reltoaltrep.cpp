@@ -101,7 +101,7 @@ struct AltrepRelationWrapper {
 
 			auto option = Rf_GetOption(RStrings::get().materialize_sym, R_BaseEnv);
 			if (option != R_NilValue && !Rf_isNull(option) && LOGICAL_ELT(option, 0) == true) {
-				Rprintf("duckplyr: materializing, review details with duckplyr::last_rel_mat()\n");
+				Rprintf("duckplyr: materializing, review details with duckplyr::last_rel()\n");
 			}
 
 			last_rel = rel;
@@ -338,11 +338,9 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 	}
 }
 
-[[cpp11::register]] std::string rapi_get_last_rel_mat() {
-	if (!AltrepRelationWrapper::last_rel) {
-		return "";
-	}
-	return AltrepRelationWrapper::last_rel->ToString();
+[[cpp11::register]] SEXP rapi_get_last_rel() {
+	auto last_rel = AltrepRelationWrapper::last_rel;
+	return sexp(make_external_prot<RelationWrapper>("duckdb_relation", R_NilValue, std::move(last_rel)));
 }
 
 [[cpp11::register]] SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel, bool allow_materialization) {

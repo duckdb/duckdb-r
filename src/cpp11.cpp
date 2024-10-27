@@ -315,10 +315,10 @@ extern "C" SEXP _duckdb_rapi_rel_from_table_function(SEXP con, SEXP function_nam
   END_CPP11
 }
 // reltoaltrep.cpp
-std::string rapi_get_last_rel_mat();
-extern "C" SEXP _duckdb_rapi_get_last_rel_mat() {
+SEXP rapi_get_last_rel();
+extern "C" SEXP _duckdb_rapi_get_last_rel() {
   BEGIN_CPP11
-    return cpp11::as_sexp(rapi_get_last_rel_mat());
+    return cpp11::as_sexp(rapi_get_last_rel());
   END_CPP11
 }
 // reltoaltrep.cpp
@@ -452,7 +452,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_expr_set_alias",          (DL_FUNC) &_duckdb_rapi_expr_set_alias,          2},
     {"_duckdb_rapi_expr_tostring",           (DL_FUNC) &_duckdb_rapi_expr_tostring,           1},
     {"_duckdb_rapi_expr_window",             (DL_FUNC) &_duckdb_rapi_expr_window,             9},
-    {"_duckdb_rapi_get_last_rel_mat",        (DL_FUNC) &_duckdb_rapi_get_last_rel_mat,        0},
+    {"_duckdb_rapi_get_last_rel",            (DL_FUNC) &_duckdb_rapi_get_last_rel,            0},
     {"_duckdb_rapi_get_null_SEXP_ptr",       (DL_FUNC) &_duckdb_rapi_get_null_SEXP_ptr,       0},
     {"_duckdb_rapi_get_substrait",           (DL_FUNC) &_duckdb_rapi_get_substrait,           3},
     {"_duckdb_rapi_get_substrait_json",      (DL_FUNC) &_duckdb_rapi_get_substrait_json,      3},

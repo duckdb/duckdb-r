@@ -172,8 +172,8 @@ rapi_rel_from_table_function <- function(con, function_name, positional_paramete
   .Call(`_duckdb_rapi_rel_from_table_function`, con, function_name, positional_parameters_sexps, named_parameters_sexps)
 }
 
-rapi_get_last_rel_mat <- function() {
-  .Call(`_duckdb_rapi_get_last_rel_mat`)
+rapi_get_last_rel <- function() {
+  .Call(`_duckdb_rapi_get_last_rel`)
 }
 
 # allow_materialization = TRUE: compatibility with duckplyr <= 0.4.1
