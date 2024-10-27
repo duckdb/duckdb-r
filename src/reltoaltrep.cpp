@@ -101,8 +101,10 @@ struct AltrepRelationWrapper {
 
 			auto option = Rf_GetOption(RStrings::get().materialize_sym, R_BaseEnv);
 			if (option != R_NilValue && !Rf_isNull(option) && LOGICAL_ELT(option, 0) == true) {
-				Rprintf("materializing:\n%s\n", rel->ToString().c_str());
+				Rprintf("duckplyr: materializing, review details with duckplyr::last_rel_mat()\n");
 			}
+
+			last_rel = rel;
 
 			ScopedInterruptHandler signal_handler(rel->context.GetContext());
 
@@ -142,7 +144,11 @@ struct AltrepRelationWrapper {
 
 	duckdb::shared_ptr<Relation> rel;
 	duckdb::unique_ptr<QueryResult> res;
+
+	static duckdb::shared_ptr<Relation> last_rel;
 };
+
+duckdb::shared_ptr<Relation> AltrepRelationWrapper::last_rel;
 
 struct AltrepRownamesWrapper {
 
