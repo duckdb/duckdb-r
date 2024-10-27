@@ -836,7 +836,7 @@ void InExecute(DataChunk &args, ExpressionState &state, Vector &result) {
 		return false;
 	};
 
-	auto in_loop = [&](idx_t count, const LHS_TYPE* x_data, bool* result_data, const ValidityMask& mask) {
+	auto in_loop = [&](idx_t count, const LHS_TYPE *x_data, bool *result_data, const ValidityMask &mask) {
 		idx_t base_idx = 0;
 		auto entry_count = ValidityMask::EntryCount(count);
 		for (idx_t entry_idx = 0; entry_idx < entry_count; entry_idx++) {
