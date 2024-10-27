@@ -40,7 +40,7 @@ duckdb_result <- function(connection, stmt_lst, arrow) {
 }
 
 duckdb_execute <- function(res) {
-  out <- rapi_execute(res@stmt_lst$ref, res@arrow, res@connection@bigint == "integer64")
+  out <- rethrow_rapi_execute(res@stmt_lst$ref, res@arrow, res@connection@bigint == "integer64")
   duckdb_post_execute(res, out)
 }
 
@@ -74,7 +74,7 @@ duckdb_fetch_arrow <- function(res, chunk_size = 1000000) {
   if (chunk_size <= 0) {
     stop("Chunk Size must be higher than 0")
   }
-  rapi_execute_arrow(res@query_result, chunk_size)
+  rethrow_rapi_execute_arrow(res@query_result, chunk_size)
 }
 
 #' @rdname duckdb_result-class
@@ -85,7 +85,7 @@ duckdb_fetch_record_batch <- function(res, chunk_size = 1000000) {
   if (chunk_size <= 0) {
     stop("Chunk Size must be higher than 0")
   }
-  rapi_record_batch(res@query_result, chunk_size)
+  rethrow_rapi_record_batch(res@query_result, chunk_size)
 }
 
 set_output_tz <- function(x, timezone, convert) {
