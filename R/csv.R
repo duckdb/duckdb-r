@@ -126,6 +126,7 @@ duckdb_read_csv <- function(
 #' @param col.names user provided column names
 #' @param col.types user provider column types and maybe names too
 #'
+#' @noRd
 #' @return returns a valid fields argument for `dbCreateTable`
 set_csv_fields <- function(found, col.names, col.types) {
   if (is.null(col.types) && is.null(col.types)) {
@@ -155,7 +156,7 @@ set_csv_fields <- function(found, col.names, col.types) {
         )
       }
       fields <- col.types
-      name(fields) <- col.names
+      names(fields) <- col.names
       return(fields)
     }
   } else {
