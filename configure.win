@@ -39,5 +39,5 @@ fi
 
 if [ -f duckdb.tar.xz ]; then
   tar xJf duckdb.tar.xz
-  find duckdb -type f | xargs unix2dos
+  find duckdb -type f | xargs sed -i 's/$/\r/'
 fi
