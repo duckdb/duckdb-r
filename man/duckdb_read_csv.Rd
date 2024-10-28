@@ -45,7 +45,7 @@ duckdb_read_csv(
 
 \item{col.types}{Character vector of column types in the same order as col.names,
 or a named character vector where names are column names and types pairs.
-Valid ypes are DuckDB data types, e.g. VARCHAR, DOUBLE, DATE, BIGINT, BOOLEAN, etc.}
+Valid types are \href{https://duckdb.org/docs/sql/data_types/overview.html}{DuckDB data types}, e.g. VARCHAR, DOUBLE, DATE, BIGINT, BOOLEAN, etc.}
 
 \item{lower.case.names}{Transform column names to lower case}
 
