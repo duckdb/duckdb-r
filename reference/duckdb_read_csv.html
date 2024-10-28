@@ -52,6 +52,7 @@ This usually is much faster than reading the data into R and writing it to DuckD
 <span>  delim <span class="op">=</span> <span class="st">","</span>,</span>
 <span>  quote <span class="op">=</span> <span class="st">"\""</span>,</span>
 <span>  col.names <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  col.types <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  lower.case.names <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  sep <span class="op">=</span> <span class="va">delim</span>,</span>
 <span>  transaction <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -103,6 +104,12 @@ This usually is much faster than reading the data into R and writing it to DuckD
 <dd><p>Override the detected or generated column names</p></dd>
 
 
+<dt id="arg-col-types">col.types<a class="anchor" aria-label="anchor" href="#arg-col-types"></a></dt>
+<dd><p>Character vector of column types in the same order as col.names,
+or a named character vector where names are column names and types pairs.
+Valid types are <a href="https://duckdb.org/docs/sql/data_types/overview.html" class="external-link">DuckDB data types</a>, e.g. VARCHAR, DOUBLE, DATE, BIGINT, BOOLEAN, etc.</p></dd>
+
+
 <dt id="arg-lower-case-names">lower.case.names<a class="anchor" aria-label="anchor" href="#arg-lower-case-names"></a></dt>
 <dd><p>Transform column names to lower case</p></dd>
 
@@ -123,6 +130,10 @@ This usually is much faster than reading the data into R and writing it to DuckD
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>The number of rows in the resulted table, invisibly.</p>
     </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>If the table already exists in the database, the csv is appended to it. Otherwise the table is created.</p>
+    </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
@@ -137,6 +148,24 @@ This usually is much faster than reading the data into R and writing it to DuckD
 <span class="r-in"><span><span class="fu">duckdb_read_csv</span><span class="op">(</span><span class="va">con</span>, <span class="st">"data"</span>, <span class="va">path</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbReadTable.html" class="external-link">dbReadTable</a></span><span class="op">(</span><span class="va">con</span>, <span class="st">"data"</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Providing data types for columns</span></span></span>
+<span class="r-in"><span><span class="va">path</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span>fileext <span class="op">=</span> <span class="st">".csv"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/write.table.html" class="external-link">write.csv</a></span><span class="op">(</span><span class="va">iris</span>, <span class="va">path</span>, row.names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">dbConnect</a></span><span class="op">(</span><span class="fu"><a href="duckdb.html">duckdb</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">duckdb_read_csv</span><span class="op">(</span><span class="va">con</span>, <span class="st">"iris"</span>, <span class="va">path</span>,</span></span>
+<span class="r-in"><span>  col.types <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>    Sepal.Length <span class="op">=</span> <span class="st">"DOUBLE"</span>,</span></span>
+<span class="r-in"><span>    Sepal.Width <span class="op">=</span> <span class="st">"DOUBLE"</span>,</span></span>
+<span class="r-in"><span>    Petal.Length <span class="op">=</span> <span class="st">"DOUBLE"</span>,</span></span>
+<span class="r-in"><span>    Petal.Width <span class="op">=</span> <span class="st">"DOUBLE"</span>,</span></span>
+<span class="r-in"><span>    Species <span class="op">=</span> <span class="st">"VARCHAR"</span></span></span>
+<span class="r-in"><span>  <span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbReadTable.html" class="external-link">dbReadTable</a></span><span class="op">(</span><span class="va">con</span>, <span class="st">"iris"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span></span></span>
 </code></pre></div>
