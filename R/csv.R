@@ -161,7 +161,7 @@ set_csv_fields <- function(found, col.names, col.types) {
     }
   } else {
     fields <- col.types
-    name(fields) <- names(found)
+    names(fields) <- names(found)
   }
   fields
 }
