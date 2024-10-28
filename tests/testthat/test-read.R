@@ -4,6 +4,7 @@ test_that("duckdb_read_csv() works as expected", {
   con <- dbConnect(duckdb())
 
   tf <- tempfile()
+  tf2 <- tempfile()
 
   # default case
   write.csv(iris, tf, row.names = FALSE)
@@ -117,7 +118,7 @@ test_that("duckdb_read_csv() works as expected", {
     '"num","char","logi","lisst.1","lisst.2","lisst.3","lisst.NA"',
     '0.5,"yes",TRUE,1,2,3,NA',
     '2,"no",FALSE,1,2,3,NA',
-    'NA,NA,NA,1,2,3,NA'
+    "NA,NA,NA,1,2,3,NA"
   )
   writeLines(csv, tf3)
   duckdb_read_csv(con, "na_table", tf3, na.strings = "-")
@@ -139,4 +140,130 @@ test_that("duckdb_read_csv() works as expected", {
   dbDisconnect(con2)
 
   dbDisconnect(con, shutdown = TRUE)
+})
+
+describe("duckdb_read_csv", {
+
+  skip_if_not(TEST_RE2)
+  tf <- tempfile()
+  con <- dbConnect(duckdb())
+
+  it("col.types arg works with vector of types and inferred colnames", {
+
+    # Case with col.types as character vector
+    write.csv(iris, tf, row.names = FALSE)
+    duckdb_read_csv(con, "iris", tf,
+                    col.types = c(
+                      "DOUBLE",
+                      "DOUBLE",
+                      "DOUBLE",
+                      "DOUBLE",
+                      "VARCHAR"
+                    )
+    )
+
+    res <- dbReadTable(con, "iris")
+    res$Species <- as.factor(res$Species)
+    expect_true(identical(res, iris))
+    dbRemoveTable(con, "iris")
+
+  })
+
+  it("col.types and col.names work together when unnamed", {
+
+    write.csv(iris, tf, row.names = FALSE)
+    duckdb_read_csv(
+      con, "iris", tf,
+      col.names = c("S.Length", "S.Width", "P.Length", "P.Width", "Species"),
+      col.types = c("DOUBLE", "DOUBLE", "DOUBLE", "DOUBLE", "VARCHAR")
+    )
+
+    res <- dbReadTable(con, "iris")
+    res$Species <- as.factor(res$Species)
+    iris_renamed <- setNames(iris, c("S.Length", "S.Width", "P.Length", "P.Width", "Species"))
+    expect_true(identical(res, iris_renamed))
+    dbRemoveTable(con, "iris")
+
+  })
+
+  it("col.types overwrites col.names when col.types is named", {
+
+    write.csv(iris, tf, row.names = FALSE)
+    expect_warning(
+      duckdb_read_csv(con, "iris", tf,
+                      col.names = c("A", "B", "C", "D", "E"),
+                      col.types = c(
+                        Sepal.Length = "DOUBLE",
+                        Sepal.Width = "DOUBLE",
+                        Petal.Length = "DOUBLE",
+                        Petal.Width = "DOUBLE",
+                        Species = "VARCHAR"
+                      )
+      )
+    )
+    res <- dbReadTable(con, "iris")
+    res$Species <- as.factor(res$Species)
+    expect_true(identical(res, iris))
+    dbRemoveTable(con, "iris")
+
+  })
+
+  it("lower.case.names works as expected with col.types named vector", {
+
+    write.csv(iris, tf, row.names = FALSE)
+    duckdb_read_csv(con, "iris", tf,
+                    col.types = c(
+                      S.lEngth = "DOUBLE",
+                      S.wiDth = "DOUBLE",
+                      p.leNgth = "DOUBLE",
+                      p.Width = "DOUBLE",
+                      spEc = "VARCHAR"
+                    ), lower.case.names = TRUE)
+
+    res <- dbReadTable(con, "iris")
+    res$spec <- as.factor(res$spec)
+    iris_renamed <- setNames(iris, tolower(c("s.length", "s.width", "p.length", "p.width", "spec")))
+    expect_true(identical(res, iris_renamed))
+    dbRemoveTable(con, "iris")
+
+  })
+
+  it("error when col.types length not equal to number of cols in file", {
+
+    write.csv(iris, tf, row.names = FALSE)
+    expect_error(duckdb_read_csv(con, "iris", tf, col.types = c(rep("VARCHAR", 4))))
+    dbRemoveTable(con, "iris")
+
+  })
+
+  it("invalid col.types gives error", {
+
+    write.csv(iris, tf, row.names = FALSE)
+    expect_error(
+      duckdb_read_csv(con, "iris", tf,
+                      col.types = c(
+                        Sepal.Length = "DOUBLE",
+                        Sepal.Width = "DOUBLE",
+                        Petal.Length = "DOUBLE",
+                        Petal.Width = "DOUBLE",
+                        Species = "DOUBLE"
+                      )
+      )
+    )
+  })
+
+  it("test date types works as expected", {
+
+    dates_df <- data.frame(dates = as.Date(seq(1:10), origin = '2020-01-01'))
+    write.csv(dates_df, tf, row.names = FALSE)
+    duckdb_read_csv(con, "dates_test", tf, col.types = c(dates = 'DATE'))
+
+    res <- dbReadTable(con, "dates_test")
+    expect_true(identical(res, dates_df))
+    dbRemoveTable(con, "dates_test")  # Corrected table name
+
+  })
+
+  dbDisconnect(con, shutdown = TRUE)
+
 })
