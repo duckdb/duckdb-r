@@ -55,21 +55,22 @@
 #' dbDisconnect(con)
 #'
 duckdb_read_csv <- function(
-    conn,
-    name,
-    files,
-    ...,
-    header = TRUE,
-    na.strings = "",
-    nrow.check = 500,
-    delim = ",",
-    quote = "\"",
-    col.names = NULL,
-    col.types = NULL,
-    lower.case.names = FALSE,
-    sep = delim,
-    transaction = TRUE,
-    temporary = FALSE) {
+  conn,
+  name,
+  files,
+  ...,
+  header = TRUE,
+  na.strings = "",
+  nrow.check = 500,
+  delim = ",",
+  quote = "\"",
+  col.names = NULL,
+  col.types = NULL,
+  lower.case.names = FALSE,
+  sep = delim,
+  transaction = TRUE,
+  temporary = FALSE
+) {
   # FIXME: Warning as of duckdb 1.1.1, turn this into an error later
   if (...length() > 0) warning("Arguments passed to ... are currently not used")
   if (length(na.strings) > 1) stop("na.strings must be of length 1")
