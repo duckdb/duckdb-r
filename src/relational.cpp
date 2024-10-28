@@ -33,19 +33,6 @@
 using namespace duckdb;
 using namespace cpp11;
 
-template <typename T, typename... ARGS>
-external_pointer<T> make_external(const string &rclass, ARGS &&... args) {
-	auto extptr = external_pointer<T>(new T(std::forward<ARGS>(args)...));
-	((sexp)extptr).attr("class") = rclass;
-	return extptr;
-}
-
-template <typename T, typename... ARGS>
-external_pointer<T> make_external_prot(const string &rclass, SEXP prot, ARGS &&... args) {
-	auto extptr = external_pointer<T>(new T(std::forward<ARGS>(args)...), true, true, prot);
-	((sexp)extptr).attr("class") = rclass;
-	return extptr;
-}
 // DuckDB Expressions
 
 [[cpp11::register]] SEXP rapi_expr_reference(r_vector<r_string> rnames) {

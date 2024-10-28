@@ -7,7 +7,7 @@ check_flag <- function(x) {
 }
 
 extptr_str <- function(e, n = 5) {
-  x <- rapi_ptr_to_str(e)
+  x <- rethrow_rapi_ptr_to_str(e)
   substr(x, nchar(x) - n + 1, nchar(x))
 }
 
@@ -36,7 +36,7 @@ duckdb <- function(dbdir = DBDIR_MEMORY, read_only = FALSE, bigint = "numeric", 
     drv <- driver_registry[[dbdir]]
     # We reuse an existing driver object if the database is still alive.
     # If not, we fall back to creating a new driver object with a new database.
-    if (!is.null(drv) && rapi_lock(drv@database_ref)) {
+    if (!is.null(drv) && rethrow_rapi_lock(drv@database_ref)) {
       # We don't care about different read_only or config settings here.
       # The bigint setting can be actually picked up by dbConnect(), we update it here.
       drv@bigint <- bigint
@@ -57,7 +57,7 @@ duckdb <- function(dbdir = DBDIR_MEMORY, read_only = FALSE, bigint = "numeric", 
   drv <- new(
     "duckdb_driver",
     config = config,
-    database_ref = rapi_startup(dbdir, read_only, config),
+    database_ref = rethrow_rapi_startup(dbdir, read_only, config),
     dbdir = dbdir,
     read_only = read_only,
     bigint = bigint
@@ -66,6 +66,9 @@ duckdb <- function(dbdir = DBDIR_MEMORY, read_only = FALSE, bigint = "numeric", 
   if (dbdir != DBDIR_MEMORY) {
     driver_registry[[dbdir]] <- drv
   }
+
+  reg.finalizer(drv@database_ref, onexit = TRUE, rapi_shutdown)
+
   drv
 }
 
@@ -84,7 +87,7 @@ duckdb_shutdown <- function(drv) {
     warning("invalid driver object, already closed?")
     invisible(FALSE)
   }
-  rapi_shutdown(drv@database_ref)
+  rethrow_rapi_shutdown(drv@database_ref)
 
   if (drv@dbdir != DBDIR_MEMORY) {
     rm(list = drv@dbdir, envir = driver_registry)
@@ -106,7 +109,7 @@ duckdb_shutdown <- function(drv) {
 #'   as.data.frame(read_adbc(db, "SELECT 1 as one;"))
 #' })
 duckdb_adbc <- function() {
-  init_func <- structure(rapi_adbc_init_func(), class = "adbc_driver_init_func")
+  init_func <- structure(rethrow_rapi_adbc_init_func(), class = "adbc_driver_init_func")
   adbcdrivermanager::adbc_driver(init_func, subclass = "duckdb_driver_adbc")
 }
 

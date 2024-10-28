@@ -33,7 +33,7 @@ setClass("duckdb_connection", contains = "DBIConnection", slots = list(
 duckdb_connection <- function(duckdb_driver, debug, bigint) {
   out <- new(
     "duckdb_connection",
-    conn_ref = rapi_connect(duckdb_driver@database_ref),
+    conn_ref = rethrow_rapi_connect(duckdb_driver@database_ref),
     driver = duckdb_driver,
     debug = debug,
     timezone_out = "UTC",

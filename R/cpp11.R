@@ -172,12 +172,17 @@ rapi_rel_from_table_function <- function(con, function_name, positional_paramete
   .Call(`_duckdb_rapi_rel_from_table_function`, con, function_name, positional_parameters_sexps, named_parameters_sexps)
 }
 
-rapi_rel_to_altrep <- function(rel) {
-  .Call(`_duckdb_rapi_rel_to_altrep`, rel)
+rapi_get_last_rel <- function() {
+  .Call(`_duckdb_rapi_get_last_rel`)
 }
 
-rapi_rel_from_altrep_df <- function(df, strict, allow_materialized) {
-  .Call(`_duckdb_rapi_rel_from_altrep_df`, df, strict, allow_materialized)
+# allow_materialization = TRUE: compatibility with duckplyr <= 0.4.1
+rapi_rel_to_altrep <- function(rel, allow_materialization = TRUE) {
+  .Call(`_duckdb_rapi_rel_to_altrep`, rel, allow_materialization)
+}
+
+rapi_rel_from_altrep_df <- function(df, strict, allow_materialized, enable_materialization) {
+  .Call(`_duckdb_rapi_rel_from_altrep_df`, df, strict, allow_materialized, enable_materialization)
 }
 
 rapi_release <- function(stmt) {

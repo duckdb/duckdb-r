@@ -11,7 +11,7 @@ runs:
       shell: bash
 
     - name: Cache duckdb archive
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ${{ env.DUCKDB_R_PREBUILT_ARCHIVE }}
         key: ${{ env.DUCKDB_R_PREBUILT_ARCHIVE_GHA_CACHE_KEY }}
@@ -22,7 +22,7 @@ runs:
       shell: bash
 
     - name: Install persistent ccache
-      uses: hendrikmuhs/ccache-action@v1.2.10
+      uses: hendrikmuhs/ccache-action@v1.2.14
       with:
         key: ${{ env.GHA_CCACHE_KEY }}
         max-size: 200M
