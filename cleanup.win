@@ -4,5 +4,6 @@ set -ex
 
 git clean -fdx src
 cd src
+find duckdb -type f | egrep '[.](cc|cpp|h|hpp)$' | xargs dos2unix
 tar cvJf duckdb.tar.xz duckdb
 rm -rf duckdb
