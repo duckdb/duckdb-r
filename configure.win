@@ -39,5 +39,5 @@ fi
 
 if [ -f duckdb.tar.xz ]; then
   tar xJf duckdb.tar.xz
-  find duckdb -type f -regex '[.](cc|cpp|h|hpp)$' | xargs sed -i 's/$/\r/'
+  find duckdb -type f | egrep '[.](cc|cpp|h|hpp)$' | xargs sed -i 's/$/\r/'
 fi
