@@ -1,0 +1,8 @@
+#!/bin/sh
+
+set -ex
+
+git clean -fdx src
+cd src
+tar cvJf duckdb.tar.xz duckdb
+rm -rf duckdb

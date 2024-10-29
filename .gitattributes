@@ -1,1 +1,6 @@
 src/duckdb/** linguist-vendored
+src/duckdb/**/*.c text eol=lf
+src/duckdb/**/*.cc text eol=lf
+src/duckdb/**/*.cpp text eol=lf
+src/duckdb/**/*.h text eol=lf
+src/duckdb/**/*.hpp text eol=lf
