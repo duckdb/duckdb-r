@@ -2,187 +2,33 @@
 
 # duckdb 1.1.2
 
-## Bug fixes
+## Features
 
-- `%in%` works correctly as part of a `&` conjunction (#528).
-  - chore: Sync duckplyr tests
-  - Unrelated: Fix Windows check
-  - fix: `%in%` works correctly as part of a `&` conjunction
-  - const safety
-  - Shortcuts
-  - Formatting
-- Avoid RStudio IDE crashes when ending session with open objects (#520).
+- Update to duckdb v1.1.2, see <https://github.com/duckdb/duckdb/releases/tag/v1.1.2> for details.
 
 ## Features
 
-- Xz-compress duckdb sources in the tarball (#530).
-  - ci: Check tarball size
-  - feat: xz-compress duckdb sources in the tarball
-  - Remove objects
-  - Windows too
-  - Some compilers
-  - sed
-  - Restrict
-  - gfind
-  - LF, not CRLF
-- Add `col.types` argument to `duckdb_read_csv()` (#445).
-  - add col.types to duckdb_read_csv
-  - ref : duckdb_read_csv
-  - feat : add dates test to read_csv_duckdb
-  - post check addition
-  - refactor tests for more insightful test messages
-  - Apply suggestions from code review
-  - fix: name to names
-  - doc: add link to duckdb data type docs
-  - Formatting
-  - Document
-- `last_rel` (#529).
-- `rapi_get_last_rel_mat()`, `rapi_rel_to_altrep(allow_materialization = TRUE)`, `rapi_rel_from_altrep_df(enable_materialization)` (#526).
+- Long-running queries can now be canceled immediately with Ctrl + C (terminal) or Escape (RStudio IDE and Workbench) (#514, #515).
+
+- Add `col.types` argument to `duckdb_read_csv()` (#445, @eli-daniels).
+
 - Rethrow errors with rlang if installed (#522).
-- Catch and add query context for statement extraction (tidyverse/duckplyr#219, #521).
-- Implement query cancellation (#514, #515).
 
-## Chore
+- Improve error message for parsing erros during statement extraction (tidyverse/duckplyr#219, #521).
 
-- Move responsibility for removing CR (#533).
-- Terminate all sources with newline (#531).
-  - chore: Terminate all sources with newline
-  - chore: Update vendored sources (tag v1.1.2) to duckdb/duckdb@f680b7d08f56183391b581077d4baf589e1cc8bd
-- Sync duckplyr tests (#527).
-  - chore: Sync duckplyr tests
-  - Unrelated: Fix Windows check
-- Cleanup, preparation (#525).
-- Bump version.
-- Update vendored sources (tag v1.1.2) to duckdb/duckdb@f680b7d08f56183391b581077d4baf589e1cc8bd.
-  Emit profiling info for extension operators (duckdb/duckdb#14355)
-  Bump more extensions: iceberg, vss and sqlite_scanner (duckdb/duckdb#14352)
-  Bump spatial to 3f94d52aa9f7d67b1a30e6cea642bbb790c04aa2 (duckdb/duckdb#14351)
-  Bump azure and delta extensions commits (duckdb/duckdb#14350) (@krlmlr, #510)
-- Update vendored sources to duckdb/duckdb@5f49126b92a0899a2049aaa57da886138c5f879d.
-  Internal duckdb/duckdb#3251: DateDiff Across Epoch (duckdb/duckdb#14338) (@krlmlr, #509)
-- Update vendored sources to duckdb/duckdb@2c21eb1c2eec3a1e359d87fb2a2cd8e427dc03c1.
-  \[Appender\] Support appending to table with generated columns (duckdb/duckdb#14346)
-  JSON reader - never generate maps if map_inference_threshold is -1 (duckdb/duckdb#14348) (@krlmlr, #508)
-- Update vendored sources to duckdb/duckdb@cc067e6b7db33f516437567cbc726536e34ed716.
-  delay the rewrite of a large IN-clause into a MarkJoin on remote Filter-Scans (duckdb/duckdb#14266) (@krlmlr, #507)
-- Update vendored sources to duckdb/duckdb@d2dfc6090685470cb09326a7530066fc4b3db42a.
-  Avoid throwing InternalException on reading secret (duckdb/duckdb#14336) (@krlmlr, #506)
-- Update vendored sources to duckdb/duckdb@56e2e0e5721b8547f564fccf252db0ba93c85471.
-  \[SecretManager\] Fix deserialization of Value types in KeyValueSecret::Deserialize (duckdb/duckdb#14332) (@krlmlr, #505)
-- Update vendored sources to duckdb/duckdb@35dfcc06e6c76ad6bd8e4acdae1bcc30751777eb.
-  allow external cardinality information (e.g. from iceberg) (duckdb/duckdb#14292) (@krlmlr, #504)
-- Update vendored sources to duckdb/duckdb@92e0964376a78f990408a0e81af155504b35d27c.
-  \[CSV Reader\] Making escape not limited to only quotes (duckdb/duckdb#14314)
-  Change Makefile to correctly handle DISABLE_SANITIZER and DISABLE_UBSAN (duckdb/duckdb#14316) (@krlmlr, #503)
-- Update vendored sources to duckdb/duckdb@01e6e98e3875ed12cbcb9257f81844743b1665fa.
-  More defensive programming in RowVersionManager::CleanupAppend (duckdb/duckdb#14317) (@krlmlr, #502)
-- Update vendored sources to duckdb/duckdb@6dc2e9375870e60f82becb1cece4cc878289d3b8.
-  Add option to ignore GeoParquet, disable spatial autoloading when reading GeoParquet (duckdb/duckdb#14297) (@krlmlr, #501)
-- Update vendored sources to duckdb/duckdb@52b19d5ece35be344830800db0e4961f47114aa9.
-  Fix extension size increase (duckdb/duckdb#14185) (@krlmlr, #500)
-- Update vendored sources to duckdb/duckdb@0d3e84330e845ceefdc55a36d52ef0296af5d1e1.
-  Profiling - correct settings per node type and minor renaming for clarity (duckdb/duckdb#14290) (@krlmlr, #499)
-- Update vendored sources to duckdb/duckdb@d0cf23ead54f191bf2518598edf04e209f07452e.
-  \[Fix\] Don't initialize reference, constant, and parameter children in intermediate chunk (duckdb/duckdb#14254) (@krlmlr, #498)
-- Update vendored sources to duckdb/duckdb@d57a94430e50263cbd1b719b984da189e5bba0c5.
-  \[Bitstring\] Add overload for `bitstring` to accept BIT as the type of the first argument (duckdb/duckdb#14247)
-  Json bugfixes (duckdb/duckdb#14288) (@krlmlr, #497)
-- Update vendored sources to duckdb/duckdb@a5ddffef692c0627dd6c7efaed7cf65148321452.
-  Fixing issue with the sniffer on copy statetements (duckdb/duckdb#14295) (@krlmlr, #496)
-- Update vendored sources to duckdb/duckdb@536f979f69b1bbe40d582450b6cfa6a68463f172.
-  fix macro name with the same function name in it which causing repeat… (duckdb/duckdb#14296) (@krlmlr, #495)
-- Update vendored sources to duckdb/duckdb@443380a11dbb31a1c218a759ec0c3b56880f1c38.
-  Revert "Fix duckdb/duckdb#14249: return NAN when dividened is 0" (duckdb/duckdb#14308) (@krlmlr, #494)
-- Update vendored sources to duckdb/duckdb@7919e4abc5597dc4fbeb5a19dff19ff69b5c4113.
-  Fix duckdb/duckdb#14249: return NAN when dividened is 0 (duckdb/duckdb#14298) (@krlmlr, #493)
-- Update vendored sources to duckdb/duckdb@52f967a42861032fd5f4392609afc195cd025dde.
-  Only slice initialized vectors in `PhysicalHashAggregate::SinkDistinctGrouping` (duckdb/duckdb#14289)
-  Disable CSV ignore_errors benchmark (duckdb/duckdb#14277) (@krlmlr, #492)
-- Update vendored sources to duckdb/duckdb@1f20676c7d997fe4964a8b51378bf984e53a4b4c.
-  Support for duckdb.varint extension in Arrow. (duckdb/duckdb#14273)
-  Update sqlsmith extension and patches (duckdb/duckdb#14270) (@krlmlr, #491)
-- Update vendored sources to duckdb/duckdb@8cec9b1537f900e7a644e7b466ea899cf1ca8f8f.
-  Removing overzealous check in Parquet (duckdb/duckdb#14268) (@krlmlr, #490)
-- Update vendored sources to duckdb/duckdb@4f0cd4d60035e8c6afafed47b68b2240b39e3566.
-  Fix duckdb/duckdb#14212: mention correct query component when using literal in DISTINCT ON (duckdb/duckdb#14255) (@krlmlr, #489)
-- Update vendored sources to duckdb/duckdb@5a9a382a573b107a38f5ee277619b362d5079c32.
-  remove redundant Bit::SetBit (duckdb/duckdb#14226) (@krlmlr, #488)
-- Update vendored sources to duckdb/duckdb@123b82b9053c4843559035b6723c867b2618b2d9.
-  \[CSV Reader\] Also use figure-out-line code when ignoring errors. (duckdb/duckdb#14184) (@krlmlr, #487)
-- Update vendored sources to duckdb/duckdb@405e15fcde8a4da4a7c6d3889f992f0a363c05f2.
-  Fix duckdb/duckdb#14232: fix deliminator optimizer (duckdb/duckdb#14238)
-  \[Python\] Don't allow construction of DuckDBPyType from empty Dict type (duckdb/duckdb#14221) (@krlmlr, #486)
-- Update vendored sources to duckdb/duckdb@0e398d95c50ae40730467c53922c8fb8d5c69f90.
-  \[Dev\] Add the ExecutorException class, making use of the EXECUTOR ExceptionType (duckdb/duckdb#14231)
-  Fix typos in code (duckdb/duckdb#14243) (@krlmlr, #485)
-- Update vendored sources to duckdb/duckdb@1eac05ecd3a6b8ec2cdf0c53ccece7ca2effef26.
-  Avoid schema changes with IF NOT EXISTS (duckdb/duckdb#14143)
-  add method to check whether julia connection is open (duckdb/duckdb#14195) (@krlmlr, #484)
-- Update vendored sources to duckdb/duckdb@048f5ffcec9c1a4b73cbfbd4158cd5b6669f102b.
-  Add missing word in TableFunction comment (duckdb/duckdb#14210) (@krlmlr, #483)
-- Update vendored sources to duckdb/duckdb@0b2d95601c2d9474f2c823ac3363e9ca14224c7c.
-  Fix an uncaught error with a generated column containing a subquery (duckdb/duckdb#14198) (@krlmlr, #482)
-- Update vendored sources to duckdb/duckdb@350d061846ed7e4c96d2efa7b523bb97ae84538a.
-  Issue 14189: Fix build when threads are disabled (duckdb/duckdb#14190) (@krlmlr, #481)
-- Update vendored sources to duckdb/duckdb@2f6b78c21d1634c7228e00c809a790701705c82b.
-  Issue 14151: Fix conflicting defines on Windows hidden by cmake unity builds (duckdb/duckdb#14154) (@krlmlr, #480)
-- Update vendored sources to duckdb/duckdb@8aca4330ac46be3950c6b12e29040322dd245b7a.
-  fix: ArrowSchemaMetadata::GetOption to return empty string instead of raising exception if key is not found. (duckdb/duckdb#14157) (@krlmlr, #479)
-- Update vendored sources to duckdb/duckdb@9931d723ccde2b2435b1a927234338e6f0353d90.
-  fix minmax type info miss (duckdb/duckdb#14159) (@krlmlr, #478)
-- Update vendored sources to duckdb/duckdb@d896e73fe2db62b6749b95e30faa8bfa41dc4d32.
-  Fix some warnings found while compiling duckdb-node (duckdb/duckdb#13994)
-  \[Python\] Fix issue related to scanning float64 dtype columns that contain a mask (duckdb/duckdb#14170) (@krlmlr, #477)
-- Update vendored sources to duckdb/duckdb@f8c82ab2620f8066b0141df0c3982885a5258746.
-  \[Dev\] Fix issue where the InsertStatement::ToString call destroyed the `alias` of the ValuesList (duckdb/duckdb#14171)
-  \[Python\] Fix a bug with `python_scan_all_frames` reaching the bottom of the frame stack (duckdb/duckdb#14183)
-  subtype DBInterface.Connection in julia client (duckdb/duckdb#14193) (@krlmlr, #476)
-- Update vendored sources to duckdb/duckdb@ee256eb45552601db71d4cad7a5cd4f46f0d5a1d.
-  comparison of nested types returns true or false always (even with nulls) (duckdb/duckdb#14094) (@krlmlr, #475)
-- Update vendored sources to duckdb/duckdb@130aab3f9ddb84e0c6e7f543a99881d8fc1bd6b7.
-  remove redundant code (duckdb/duckdb#14172) (@krlmlr, #474)
-- Update vendored sources to duckdb/duckdb@92c65a4341c57f313dbeba5acc7b1fb917808010.
-  Less salt (duckdb/duckdb#14173)
-  \[Python Dev\] Make sure the GIL is released when the connection+db are being shut down (duckdb/duckdb#14113) (@krlmlr, #473)
-- Update vendored sources to duckdb/duckdb@47e1d3d60b4d6d075cf88c2707572df12a630a3a.
-  fix parquet cardinality when first file is empty (duckdb/duckdb#14058) (@krlmlr, #472)
-- Update vendored sources to duckdb/duckdb@45559f5eeb1834454a30490fc4ffad1807e13f3b.
-  CREATE TABLE now supports columns with `ENUM[]` types. (duckdb/duckdb#14102) (@krlmlr, #471)
-- Update vendored sources to duckdb/duckdb@dfdd09f46c0169c9d8aa5381086e46a66e44fabc.
-  Add v1.1.1 to version_map.json (duckdb/duckdb#14110)
-  Fix the answer file for tpcds q67 at sf100 (duckdb/duckdb#14096) (@krlmlr, #470)
-- Update vendored sources to duckdb/duckdb@89828abb72219957372f316da06f007dadd2a9aa.
-  Format CSV error messages (duckdb/duckdb#14097) (@krlmlr, #469)
-- Update vendored sources to duckdb/duckdb@12e9777cf6283f44710b2610ba3d3735a1208751.
-  Fix duckdb/duckdb#14077: correctly reset next pointer when reconstructing new row group segment tree after vacuum (duckdb/duckdb#14092) (@krlmlr, #468)
-- Update vendored sources to duckdb/duckdb@4a55e2334232afe94e47ab398ddb44f88fcd6658.
-  \[Dev\] Move `EnumTypeInfoTemplated` definition into a `hpp` file (duckdb/duckdb#14038) (@krlmlr, #467)
-- Update vendored sources to duckdb/duckdb@0f3c46215feb0fb92d4998977fc31b2f52db6b14.
-  Fix parser error by removing alias (duckdb/duckdb#14090)
-  Bump minimum required cmake version (duckdb/duckdb#14089)
-  Add duckdb_extension.h to amalgamation release (duckdb/duckdb#14086) (@krlmlr, #466)
-- Update vendored sources to duckdb/duckdb@c87246586490b442706d0be66b82d71930a00578.
-  Fix: remove is_probe_in_domain (duckdb/duckdb#14084)
-  fix maximum_threads test inside containers (duckdb/duckdb#14083)
-  Fix test (duckdb/duckdb#14079) (@krlmlr, #465)
-- Update vendored sources to duckdb/duckdb@cd8cb3f1c81a74a3b2c1ed7d94e3913485895074.
-  Push filters instead of overwriting filters (duckdb/duckdb#14078) (@krlmlr, #464)
-- Update vendored sources to duckdb/duckdb@acd16816e31789bdb27e144ccd19ddb9da4fe6df.
-  \[CI\] Re-enable ART zero initialisation verification (duckdb/duckdb#14031) (@krlmlr, #463)
+## Bug fixes
 
-## Continuous integration
+- Avoid RStudio IDE crashes when ending session with open objects (#520).
 
-- Update actions to avoid warnings (#524).
-- Use pkgdown branch (#523).
-- Bring back stepwise vendoring.
-- Don't remove dir.
-- Add env.
-- Vendor without creating PR.
+- `rfuns` extension: `%in%` works correctly as part of a `&` conjunction (#528).
 
-## Uncategorized
+## Internal
 
-- Merge pull request #516 from duckdb/f-tweak.
-  Fix signedness
+- New interal APIs: `rapi_get_last_rel_mat()`, `rapi_rel_to_altrep(allow_materialization = TRUE)`, `rapi_rel_from_altrep_df(enable_materialization)` (#526).
+
+- xz-compress duckdb sources in the tarball (#530).
+
+- `rfuns` extension: Fix signedness.
 
 
 # duckdb 1.1.1
