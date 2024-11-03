@@ -43,5 +43,3 @@ _files$
 ^compile_commands\.json$
 ^\.cache$
 ^tests/testthat/helper-rethrow\.R$
-^cleanup$
-^cleanup\.win$
