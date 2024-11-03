@@ -20,3 +20,5 @@
 
 #include "src/execution/index/art/art.cpp"
 
+#include "src/execution/index/art/plan_art.cpp"
+
