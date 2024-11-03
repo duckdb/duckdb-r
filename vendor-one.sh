@@ -47,8 +47,12 @@ for commit in $(git -C "$upstream_dir" log --first-parent --reverse --format="%H
   DUCKDB_PATH="$upstream_dir" python3 rconfigure.py
 
   for f in patch/*.patch; do
-    # cat $f | patch -p1 --dry-run
-    cat $f | patch -p1
+    if patch -i $f -p1 --forward --dry-run; then
+      patch -i $f -p1 --forward
+    else
+      echo "Removing patch $f"
+      rm $f
+    fi
   done
 
   # Always vendor tags
