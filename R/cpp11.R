@@ -56,8 +56,8 @@ rapi_expr_constant <- function(val) {
   .Call(`_duckdb_rapi_expr_constant`, val)
 }
 
-rapi_expr_comparison <- function(exprs, cmp_op) {
-  .Call(`_duckdb_rapi_expr_comparison`, exprs, cmp_op)
+rapi_expr_comparison <- function(cmp_op, exprs) {
+  .Call(`_duckdb_rapi_expr_comparison`, cmp_op, exprs)
 }
 
 rapi_expr_function <- function(name, args, order_bys, filter_bys) {

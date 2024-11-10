@@ -111,10 +111,10 @@ extern "C" SEXP _duckdb_rapi_expr_constant(SEXP val) {
   END_CPP11
 }
 // relational.cpp
-SEXP rapi_expr_comparison(list exprs, std::string cmp_op);
-extern "C" SEXP _duckdb_rapi_expr_comparison(SEXP exprs, SEXP cmp_op) {
+SEXP rapi_expr_comparison(std::string cmp_op, list exprs);
+extern "C" SEXP _duckdb_rapi_expr_comparison(SEXP cmp_op, SEXP exprs) {
   BEGIN_CPP11
-    return cpp11::as_sexp(rapi_expr_comparison(cpp11::as_cpp<cpp11::decay_t<list>>(exprs), cpp11::as_cpp<cpp11::decay_t<std::string>>(cmp_op)));
+    return cpp11::as_sexp(rapi_expr_comparison(cpp11::as_cpp<cpp11::decay_t<std::string>>(cmp_op), cpp11::as_cpp<cpp11::decay_t<list>>(exprs)));
   END_CPP11
 }
 // relational.cpp

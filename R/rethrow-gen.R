@@ -126,9 +126,9 @@ rethrow_rapi_expr_constant <- function(val, call = parent.frame(2)) {
   )
 }
 
-rethrow_rapi_expr_comparison <- function(exprs, cmp_op, call = parent.frame(2)) {
+rethrow_rapi_expr_comparison <- function(cmp_op, exprs, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_expr_comparison(exprs, cmp_op),
+    rapi_expr_comparison(cmp_op, exprs),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }

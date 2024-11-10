@@ -56,7 +56,7 @@ using namespace cpp11;
 	return make_external<ConstantExpression>("duckdb_expr", RApiTypes::SexpToValue(val, 0, false));
 }
 
-[[cpp11::register]] SEXP rapi_expr_comparison(list exprs, std::string cmp_op) {
+[[cpp11::register]] SEXP rapi_expr_comparison(std::string cmp_op, list exprs) {
 
 	ExpressionType expr_type = OperatorToExpressionType(cmp_op);
 	if (expr_type ==ExpressionType::INVALID) {
