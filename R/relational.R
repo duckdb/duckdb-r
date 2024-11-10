@@ -33,7 +33,7 @@ expr_constant <- rapi_expr_constant
 #' @return a comparison expression
 #' @noRd
 #' @examples
-#' comp_expr <- expr_comparison(list(expr_constant(-42), expr_constant(42)), ">")
+#' comp_expr <- expr_comparison(">", list(expr_constant(-42), expr_constant(42)))
 expr_comparison <- rapi_expr_comparison
 
 #' Create a function call expression

@@ -77,19 +77,41 @@ test_that("we can create various expressions and don't crash", {
 })
 
 test_that("we can create comparison expressions with appropriate operators", {
-  expr_comparison(list(expr_constant(-42), expr_constant(42L)), "=")
-  expr_comparison(list(expr_constant(-42), expr_constant(42L)), "!=")
-  expr_comparison(list(expr_constant(-42), expr_constant(42L)), ">")
-  expr_comparison(list(expr_constant(-42), expr_constant(42L)), "<")
-  expr_comparison(list(expr_constant(-42), expr_constant(42L)), ">=")
-  expr_comparison(list(expr_constant(-42), expr_constant(42L)), "<=")
+  local_edition(3)
+
+  expect_snapshot({
+    expr_comparison("=", list(expr_constant(-42), expr_constant(42L)))
+  })
+  expect_snapshot({
+    expr_comparison("!=", list(expr_constant(-42), expr_constant(42L)))
+  })
+  expect_snapshot({
+    expr_comparison(">", list(expr_constant(-42), expr_constant(42L)))
+  })
+  expect_snapshot({
+    expr_comparison("<", list(expr_constant(-42), expr_constant(42L)))
+  })
+  expect_snapshot({
+    expr_comparison(">=", list(expr_constant(-42), expr_constant(42L)))
+  })
+  expect_snapshot({
+    expr_comparison("<=", list(expr_constant(-42), expr_constant(42L)))
+  })
   expect_true(TRUE)
 })
 
 test_that("we cannot create comparison expressions with inappropriate operators", {
-  expect_error(expr_comparison(list(expr_constant(-42), expr_constant(42L)), "z"))
-  expect_error(expr_comparison(list(expr_constant(-42), expr_constant(42L)), "2"))
-  expect_error(expr_comparison(list(expr_constant(-42), expr_constant(42L)), "-"))
+  local_edition(3)
+
+  expect_snapshot(error = TRUE, {
+    expr_comparison("z", list(expr_constant(-42), expr_constant(42L)))
+  })
+  expect_snapshot(error = TRUE, {
+    expr_comparison("2", list(expr_constant(-42), expr_constant(42L)))
+  })
+  expect_snapshot(error = TRUE, {
+    expr_comparison("-", list(expr_constant(-42), expr_constant(42L)))
+  })
 })
 
 
