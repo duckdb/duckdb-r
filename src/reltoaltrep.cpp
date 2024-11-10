@@ -385,7 +385,7 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 	return data_frame;
 }
 
-[[cpp11::register]] SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized, bool enable_materialization) {
+[[cpp11::register]] SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized) {
 	if (!Rf_inherits(df, "data.frame")) {
 		if (strict) {
 			cpp11::stop("rapi_rel_from_altrep_df: Not a data.frame");
@@ -437,12 +437,6 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 		} else {
 			return R_NilValue;
 		}
-	}
-
-	// Side effect comes last
-	// FIXME: Add separate rapi_() function for this
-	if (enable_materialization) {
-		wrapper->rel->allow_materialization = true;
 	}
 
 	return res;
