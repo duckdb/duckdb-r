@@ -202,5 +202,24 @@ if (rlang::is_installed("DBItest")) DBItest::test_all(c(
   "arrow_send_query_only_one_result_set", # wontfix
   "arrow_write_table_arrow_roundtrip_timestamp_extended", # precision
   "arrow_append_table_arrow_roundtrip_timestamp_extended", # precision
+
+  if (!rlang::is_installed("vctrs")) {
+    c(
+      "arrow_append_table_arrow_roundtrip_blob",
+      "data_type_driver",
+      "data_type_connection",
+      "data_time",
+      "data_time_current",
+      "data_timestamp_current",
+      "data_timestamp_current_typed",
+      "append_roundtrip_raw",
+      "append_roundtrip_blob",
+      "bind_blob",
+      "arrow_bind_blob",
+      "stream_bind_blob",
+      "arrow_stream_bind_blob",
+      NULL
+    )
+  },
   NULL
 ))
