@@ -1,8 +1,6 @@
-#include "cpp11.hpp"
-#include "duckdb.hpp"
+#include "rapi.hpp"
 #include "signal.hpp"
 #include "typesr.hpp"
-#include "rapi.hpp"
 
 #include "R_ext/Random.h"
 
@@ -12,9 +10,6 @@
 #include "duckdb/parser/expression/function_expression.hpp"
 #include "duckdb/parser/expression/comparison_expression.hpp"
 #include "duckdb/parser/expression/conjunction_expression.hpp"
-#include "duckdb/parser/expression/operator_expression.hpp"
-#include "duckdb/parser/expression/cast_expression.hpp"
-#include "duckdb/parser/expression/case_expression.hpp"
 #include "duckdb/parser/expression/window_expression.hpp"
 
 #include "duckdb/main/relation/filter_relation.hpp"
@@ -26,8 +21,8 @@
 #include "duckdb/main/relation/setop_relation.hpp"
 #include "duckdb/main/relation/limit_relation.hpp"
 #include "duckdb/main/relation/distinct_relation.hpp"
-#include "duckdb/main/relation/table_function_relation.hpp"
 
+#include "duckdb/common/enum_util.hpp"
 #include "duckdb/common/enums/joinref_type.hpp"
 
 using namespace duckdb;
@@ -432,16 +427,22 @@ static SEXP result_to_df(duckdb::unique_ptr<QueryResult> res) {
 	return result_to_df(std::move(res));
 }
 
-[[cpp11::register]] std::string rapi_rel_tostring(duckdb::rel_extptr_t rel) {
-	return rel->rel->ToString();
+[[cpp11::register]] std::string rapi_rel_tostring(duckdb::rel_extptr_t rel, std::string format) {
+	if (format == "tree") {
+		return rel->rel->ToString(0);
+	} else {
+		return rel->rel->ToString();
+	}
 }
 
 [[cpp11::register]] std::string rapi_rel_to_sql(duckdb::rel_extptr_t rel) {
 	return rel->rel->GetQueryNode()->ToString();
 }
 
-[[cpp11::register]] SEXP rapi_rel_explain(duckdb::rel_extptr_t rel) {
-	return result_to_df(rel->rel->Explain());
+[[cpp11::register]] SEXP rapi_rel_explain(duckdb::rel_extptr_t rel, std::string type, std::string format) {
+	auto type_enum = EnumUtil::FromString<ExplainType>(type);
+	auto format_enum = EnumUtil::FromString<ExplainFormat>(format);
+	return result_to_df(rel->rel->Explain(type_enum, format_enum));
 }
 
 [[cpp11::register]] std::string rapi_rel_alias(duckdb::rel_extptr_t rel) {

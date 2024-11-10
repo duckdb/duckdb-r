@@ -86,7 +86,7 @@ rel_from_df <- function(con, df, experimental=FALSE) {
 
 #' @export
 print.duckdb_relation <- function(x, ...) {
-  message("DuckDB Relation: \n", rethrow_rapi_rel_tostring(x))
+  message("DuckDB Relation: \n", rapi_rel_tostring(x))
 }
 
 #' @export
@@ -347,8 +347,38 @@ rel_sql <- function(rel, sql) {
 #' rel <- rel_from_df(con, mtcars)
 #' rel_explain(rel)
 rel_explain <- function(rel) {
-  cat(rethrow_rapi_rel_explain(rel)[[2]][[1]])
+  # Legacy
+  cat(rethrow_rapi_rel_explain(rel, "EXPLAIN_STANDARD", "DEFAULT")[[2]][[1]])
   invisible(NULL)
+}
+
+#' Return the EXPLAIN output for a DuckDB relation object as a data frame
+#' @param rel the DuckDB relation object
+#' @noRd
+#' @examples
+#' con <- DBI::dbConnect(duckdb())
+#' rel <- rel_from_df(con, mtcars)
+#' rel_explain(rel)
+rel_explain_df <- function(
+  rel,
+  type = c("standard", "analyze"),
+  format = c("default", "text", "json", "html", "graphviz")
+) {
+  type <- match.arg(type)
+  format <- match.arg(format)
+  rethrow_rapi_rel_explain(rel, paste0("EXPLAIN_", toupper(type)), toupper(format))
+}
+
+#' Format a DuckDB relation object as a string
+#' @param rel the DuckDB relation object
+#' @noRd
+#' @examples
+#' con <- DBI::dbConnect(duckdb())
+#' rel <- rel_from_df(con, mtcars)
+#' rel_tostring(rel)
+rel_tostring <- function(rel, format = c("full", "tree")) {
+  format <- match.arg(format)
+  rethrow_rapi_rel_tostring(rel, format)
 }
 
 #' Get the internal alias for a DuckDB relation object

@@ -116,16 +116,16 @@ rapi_rel_to_df <- function(rel) {
   .Call(`_duckdb_rapi_rel_to_df`, rel)
 }
 
-rapi_rel_tostring <- function(rel) {
-  .Call(`_duckdb_rapi_rel_tostring`, rel)
+rapi_rel_tostring <- function(rel, format) {
+  .Call(`_duckdb_rapi_rel_tostring`, rel, format)
 }
 
 rapi_rel_to_sql <- function(rel) {
   .Call(`_duckdb_rapi_rel_to_sql`, rel)
 }
 
-rapi_rel_explain <- function(rel) {
-  .Call(`_duckdb_rapi_rel_explain`, rel)
+rapi_rel_explain <- function(rel, type, format) {
+  .Call(`_duckdb_rapi_rel_explain`, rel, type, format)
 }
 
 rapi_rel_alias <- function(rel) {
