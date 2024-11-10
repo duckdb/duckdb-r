@@ -897,3 +897,11 @@ test_that("we don't crash with evaluation errors", {
   # If this succeeds, find a new query that throws a runtime error.
   expect_error(nrow(ans), "Error evaluating duckdb query")
 })
+
+test_that("Handle zero-length lists (#186)", {
+  local_edition(3)
+
+  expect_snapshot({
+    expr_constant(list(integer()))
+  })
+})

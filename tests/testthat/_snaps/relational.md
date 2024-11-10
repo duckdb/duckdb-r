@@ -64,3 +64,10 @@
       Error:
       ! expr_comparison: Invalid comparison operator
 
+# Handle zero-length lists (#186)
+
+    Code
+      expr_constant(list(integer()))
+    Message
+      DuckDB Expression: []
+
