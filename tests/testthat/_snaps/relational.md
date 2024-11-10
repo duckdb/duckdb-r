@@ -45,22 +45,22 @@
     Code
       expr_comparison("z", list(expr_constant(-42), expr_constant(42L)))
     Condition
-      [1m[33mError[39m:[22m
-      [33m![39m expr_comparison: Invalid comparison operator
+      Error:
+      ! expr_comparison: Invalid comparison operator
 
 ---
 
     Code
       expr_comparison("2", list(expr_constant(-42), expr_constant(42L)))
     Condition
-      [1m[33mError[39m:[22m
-      [33m![39m expr_comparison: Invalid comparison operator
+      Error:
+      ! expr_comparison: Invalid comparison operator
 
 ---
 
     Code
       expr_comparison("-", list(expr_constant(-42), expr_constant(42L)))
     Condition
-      [1m[33mError[39m:[22m
-      [33m![39m expr_comparison: Invalid comparison operator
+      Error:
+      ! expr_comparison: Invalid comparison operator
 
