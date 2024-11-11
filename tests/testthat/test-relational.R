@@ -162,6 +162,15 @@ test_that("we can cast R strings to DuckDB strings", {
 })
 
 test_that("the altrep-conversion for relations works", {
+  local_edition(3)
+
+  n_callback <- 0
+  last_rel <- NULL
+  rlang::local_options(duckdb.materialize_callback = function(rel) {
+    n_callback <<- n_callback + 1
+    last_rel <<- rel
+  })
+
   iris$Species <- as.character(iris$Species)
   rel <- rel_from_df(con, iris)
   df <- rel_to_altrep(rel)
@@ -170,8 +179,15 @@ test_that("the altrep-conversion for relations works", {
   expect_true(any(grepl("DUCKDB_ALTREP_REL_VECTOR", inspect_output, fixed = TRUE)))
   expect_true(any(grepl("DUCKDB_ALTREP_REL_ROWNAMES", inspect_output, fixed = TRUE)))
   expect_false(df_is_materialized(df))
+  expect_equal(n_callback, 0)
   dim(df)
   expect_true(df_is_materialized(df))
+
+  expect_snapshot(transform = function(x) gsub("0x[0-9a-f]+", "0x...", x), {
+    last_rel
+  })
+
+  expect_equal(n_callback, 1)
   expect_equal(iris, df)
 })
 

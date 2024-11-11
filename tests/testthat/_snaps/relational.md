@@ -64,6 +64,27 @@
       Error:
       ! expr_comparison: Invalid comparison operator
 
+# the altrep-conversion for relations works
+
+    Code
+      last_rel
+    Message
+      DuckDB Relation: 
+      ---------------------
+      --- Relation Tree ---
+      ---------------------
+      r_dataframe_scan(0x...)
+      
+      ---------------------
+      -- Result Columns  --
+      ---------------------
+      - Sepal.Length (DOUBLE)
+      - Sepal.Width (DOUBLE)
+      - Petal.Length (DOUBLE)
+      - Petal.Width (DOUBLE)
+      - Species (VARCHAR)
+      
+
 # rel_tostring()
 
     Code
