@@ -261,9 +261,9 @@ rethrow_rapi_rel_to_df <- function(rel, call = parent.frame(2)) {
   )
 }
 
-rethrow_rapi_rel_tostring <- function(rel, call = parent.frame(2)) {
+rethrow_rapi_rel_tostring <- function(rel, format, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_rel_tostring(rel),
+    rapi_rel_tostring(rel, format),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
@@ -279,9 +279,9 @@ rethrow_rapi_rel_to_sql <- function(rel, call = parent.frame(2)) {
   )
 }
 
-rethrow_rapi_rel_explain <- function(rel, call = parent.frame(2)) {
+rethrow_rapi_rel_explain <- function(rel, type, format, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_rel_explain(rel),
+    rapi_rel_explain(rel, type, format),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }

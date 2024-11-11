@@ -814,6 +814,58 @@ test_that("rel_project does not automatically quote upper-case column names", {
   expect_equal(df, ans)
 })
 
+test_that("rel_tostring()", {
+  local_edition(3)
+
+  df <- data.frame(x = 1)
+  rel <- rel_from_df(con, df)
+  ref <- expr_reference(names(df))
+  exprs <- list(ref)
+  proj <- rel_project(rel, exprs)
+
+  expect_snapshot(transform = function(x) gsub("0x[0-9a-f]+", "0x...", x), {
+    writeLines(rel_tostring(proj))
+  })
+
+  expect_snapshot(transform = function(x) gsub("0x[0-9a-f]+", "0x...", x), {
+    writeLines(rel_tostring(proj, "tree"))
+  })
+})
+
+test_that("rel_explain()", {
+  local_edition(3)
+
+  df <- data.frame(x = 1)
+  rel <- rel_from_df(con, df)
+  ref <- expr_reference(names(df))
+  exprs <- list(ref)
+  proj <- rel_project(rel, exprs)
+
+  expect_snapshot({
+    writeLines(rel_explain_df(proj)[[2]])
+  })
+
+  expect_snapshot({
+    writeLines(rel_explain_df(proj, "analyze")[[2]])
+  })
+
+  expect_snapshot({
+    writeLines(rel_explain_df(proj, "standard", "json")[[2]])
+  })
+
+  expect_snapshot({
+    writeLines(rel_explain_df(proj, "analyze", "json")[[2]])
+  })
+
+  expect_snapshot({
+    writeLines(rel_explain_df(proj, "standard", "html")[[2]])
+  })
+
+  expect_snapshot({
+    writeLines(rel_explain_df(proj, "standard", "graphviz")[[2]])
+  })
+})
+
 test_that("rel_to_sql works for row_number", {
   invisible(DBI::dbExecute(con, "CREATE MACRO \"==\"(a, b) AS a = b"))
   df1 <- data.frame(a = 1)
