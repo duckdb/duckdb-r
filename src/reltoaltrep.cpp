@@ -104,7 +104,9 @@ struct AltrepRelationWrapper {
 				sexp call = Rf_lang2(materialize_callback, rel_eptr);
 				Rf_eval(call, R_BaseEnv);
 			}
-			else if (Rf_isLogical(materialize_callback) && Rf_length(materialize_callback) == 1 && LOGICAL_ELT(materialize_callback, 0) == true) {
+
+			auto materialize_message = Rf_GetOption(RStrings::get().materialize_message_sym, R_BaseEnv);
+		  if (Rf_isLogical(materialize_message) && Rf_length(materialize_message) == 1 && LOGICAL_ELT(materialize_message, 0) == true) {
 				// Legacy
 				Rprintf("duckplyr: materializing\n");
 			}
