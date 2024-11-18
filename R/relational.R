@@ -86,7 +86,7 @@ rel_from_df <- function(con, df, experimental=FALSE) {
 
 #' @export
 print.duckdb_relation <- function(x, ...) {
-  message("DuckDB Relation: \n", rapi_rel_tostring(x))
+  message("DuckDB Relation: \n", rel_tostring(x))
 }
 
 #' @export
@@ -502,8 +502,4 @@ rel_names <- function(rel) {
 
 load_rfuns <- function() {
   rethrow_rapi_load_rfuns()
-}
-
-get_last_rel <- function() {
-  rethrow_rapi_get_last_rel()
 }

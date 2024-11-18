@@ -1,12 +1,12 @@
 #define __STDC_FORMAT_MACROS
 
-#include "httplib.hpp"
 #include "rapi.hpp"
 #include "typesr.hpp"
 #include "reltoaltrep.hpp"
 #include "signal.hpp"
 #include "cpp11/declarations.hpp"
 
+#include "httplib.hpp"
 #include <cinttypes>
 
 using namespace duckdb;
@@ -85,8 +85,8 @@ struct AltrepRelationWrapper {
 		return GetFromExternalPtr<AltrepRelationWrapper>(x);
 	}
 
-	AltrepRelationWrapper(duckdb::shared_ptr<Relation> rel_p, bool allow_materialization_)
-	    : allow_materialization(allow_materialization_), rel(rel_p) {
+	AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_)
+	    : allow_materialization(allow_materialization_), rel_eptr(rel_), rel(rel_->rel) {
 	}
 
 	bool HasQueryResult() const {
@@ -99,12 +99,15 @@ struct AltrepRelationWrapper {
 				cpp11::stop("Materialization is disabled, use collect() or as_tibble() to materialize");
 			}
 
-			auto option = Rf_GetOption(RStrings::get().materialize_sym, R_BaseEnv);
-			if (option != R_NilValue && !Rf_isNull(option) && LOGICAL_ELT(option, 0) == true) {
-				Rprintf("duckplyr: materializing, review details with duckplyr::last_rel()\n");
+			auto materialize_callback = Rf_GetOption(RStrings::get().materialize_callback_sym, R_BaseEnv);
+			if (Rf_isFunction(materialize_callback)) {
+				sexp call = Rf_lang2(materialize_callback, rel_eptr);
+				Rf_eval(call, R_BaseEnv);
 			}
-
-			last_rel = rel;
+			else if (Rf_isLogical(materialize_callback) && Rf_length(materialize_callback) == 1 && LOGICAL_ELT(materialize_callback, 0) == true) {
+				// Legacy
+				Rprintf("duckplyr: materializing\n");
+			}
 
 			ScopedInterruptHandler signal_handler(rel->context.GetContext());
 
@@ -142,13 +145,10 @@ struct AltrepRelationWrapper {
 
 	bool allow_materialization;
 
+	rel_extptr_t rel_eptr;
 	duckdb::shared_ptr<Relation> rel;
 	duckdb::unique_ptr<QueryResult> res;
-
-	static duckdb::shared_ptr<Relation> last_rel;
 };
-
-duckdb::shared_ptr<Relation> AltrepRelationWrapper::last_rel;
 
 struct AltrepRownamesWrapper {
 
@@ -338,17 +338,12 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 	}
 }
 
-[[cpp11::register]] SEXP rapi_get_last_rel() {
-	auto last_rel = AltrepRelationWrapper::last_rel;
-	return sexp(make_external_prot<RelationWrapper>("duckdb_relation", R_NilValue, std::move(last_rel)));
-}
-
 [[cpp11::register]] SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel, bool allow_materialization) {
 	D_ASSERT(rel && rel->rel);
 	auto drel = rel->rel;
 	auto ncols = drel->Columns().size();
 
-	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(drel, allow_materialization);
+	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, allow_materialization);
 
 	cpp11::writable::list data_frame;
 	data_frame.reserve(ncols);
