@@ -1,5 +1,226 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.1.2.9902
+
+## Bug fixes
+
+- Check `"duckdb.materialize_message"` symbol (#592).
+
+## Features
+
+- New `duckdb.materialize_callback` option, supersedes `get_last_rel()` (#589).
+
+- New `rel_explain_df()` and `rel_tostring()` (#587).
+
+- Handle empty child values for list constants (#186).
+
+## Chore
+
+- Remove `enable_materialization` argument in favor of creating a new data frame when needed (#588).
+
+- Flip argument order for `expr_comparison()` (#585).
+
+- Bump for pre-release.
+
+- Keep `cleanup` files to accommodate different build scenarios (#536).
+
+- Update vendored sources to duckdb/duckdb@19864453f7d0ed095256d848b46e7b8630989bac.
+
+  fix scoping problem with function argument (duckdb/duckdb#14666)
+  Bump extensions: AWS, Delta, Iceberg, INET (duckdb/duckdb#14669)
+  bump vss + spatial (duckdb/duckdb#14667) (@krlmlr, #580)
+
+- Update vendored sources to duckdb/duckdb@c3ca3607c221d315f38227b8bf58e68746c59083.
+
+  Force error on CSV Sniffer Failure (duckdb/duckdb#14661) (@krlmlr, #579)
+
+- Update vendored sources to duckdb/duckdb@9cba6a2a03e3fbca4364cab89d81a19ab50511b8.
+
+  Add serialization for bitstring_agg function (duckdb/duckdb#14654) (@krlmlr, #578)
+
+- Update vendored sources to duckdb/duckdb@c6c08d4c1b363231b3b9689367735c7264cacefb.
+
+  Fix secret serialization issues (duckdb/duckdb#14652)
+  fix: Initialize atomic class member (duckdb/duckdb#14627)
+  chore: Add qualification for brotli code (duckdb/duckdb#14628)
+  Fix Windows Extensions CI (duckdb/duckdb#14643) (@krlmlr, #577)
+
+- Update vendored sources to duckdb/duckdb@7f34190f3f94fc1b1575af829a9a0ccead87dc99.
+
+  FIX: Discrepancy Between Count and Sum Queries in SQL (duckdb/duckdb#14634) (@krlmlr, #576)
+
+- Update vendored sources to duckdb/duckdb@78b65d4a9aa80c4be4efcdd29fadd6f0c893f1ce.
+
+  add index plan callback to IndexType (duckdb/duckdb#14511) (@krlmlr, #575)
+
+- Update vendored sources to duckdb/duckdb@c31c46a875979ce3343edeedcb497485ca2fd751.
+
+  Fix duckdb/duckdb#14542 (duckdb/duckdb#14610) (@krlmlr, #574)
+
+- Update vendored sources to duckdb/duckdb@4ba2e66277a7576f58318c1aac112faa67c47b11.
+
+  Issue duckdb/duckdb#14618: Year Day Year (duckdb/duckdb#14624) (@krlmlr, #573)
+
+- Update vendored sources to duckdb/duckdb@247fcb31733a5297c1070fbd244f2349091253aa.
+
+  Fix duckdb/duckdb#14601: avoid exporting entries in the temp or system schema (duckdb/duckdb#14623) (@krlmlr, #572)
+
+- Update vendored sources to duckdb/duckdb@1a519fce83b3d262247325dbf8014067686a2c94.
+
+  Fix duckdb/duckdb#14600: use UUID to generate unique pivot enum names (duckdb/duckdb#14622) (@krlmlr, #571)
+
+- Update vendored sources to duckdb/duckdb@b653a8c2b760425a83302e894bf930f18a1bdf64.
+
+  Storage info update (duckdb/duckdb#14371) (@krlmlr, #570)
+
+- Update vendored sources to duckdb/duckdb@79bf967e1b6ab438e0a83a014e937af571ed7acb.
+
+  Unexpected result comparing blob (duckdb/duckdb#14604)
+  CI: Add repo name to labelling script (duckdb/duckdb#14612)
+  CI: Fix labelling bot (duckdb/duckdb#14611)
+  Test fixes for new arrow release (duckdb/duckdb#14593) (@krlmlr, #569)
+
+- Update vendored sources to duckdb/duckdb@4b62ee43a7d5f62313d77d36dec8aea29412431f.
+
+  Enable serialization of LogicalExport (duckdb/duckdb#14594)
+  CI: Fix and simplify 'needs reproducible example' labelling (duckdb/duckdb#14609)
+  CI: Fix and simplify 'needs reproducible example' labelling (duckdb/duckdb#14608)
+  CI: Add bot for 'minimal reproducible example' (duckdb/duckdb#14598) (@krlmlr, #568)
+
+- Update vendored sources to duckdb/duckdb@3293c92b6e657084318f7556b14077896b333109.
+
+  \[bufferpool\] Fix PurgeAgedBlocksInternal() evictions (duckdb/duckdb#14446)
+  HTTPFS: HTTPException no longer inherits from IOException (duckdb/duckdb#14585) (@krlmlr, #567)
+
+- Update vendored sources to duckdb/duckdb@8664b710beb205ec6fc7e9f3d18dfe24dd28625f.
+
+  Cas strong (duckdb/duckdb#14592) (@krlmlr, #566)
+
+- Update vendored sources to duckdb/duckdb@92a1ccbcef04dda11c85fa2bf6daf27daf8d9c49.
+
+  Fix for underflow issue on number of rows in the CSV Reader (duckdb/duckdb#14587)
+  Issue template: Add Swift redirect (duckdb/duckdb#14588)
+  chore: Add EOL to source files (duckdb/duckdb#14583) (@krlmlr, #565)
+
+- Update vendored sources to duckdb/duckdb@2635a87a566b90e086caa84805019f66eedf0859.
+
+  \[Dev\] Traverse the `replace_list` of StarExpression in `ParsedExpressionIterator::EnumerateChildren` (duckdb/duckdb#14535) (@krlmlr, #564)
+
+- Update vendored sources to duckdb/duckdb@0d5ec0057838081251b388726353f09cba9577ad.
+
+  Fix typos (duckdb/duckdb#14579)
+  Fix query_graph tool for duckdb/duckdb#14290 (duckdb/duckdb#14521) (@krlmlr, #563)
+
+- Update vendored sources to duckdb/duckdb@6af32330b51af4d72d3fed665bfc03f78c8b3876.
+
+  Don't pre-initialize hash vector in DistinctStatistics construction (duckdb/duckdb#14570) (@krlmlr, #562)
+
+- Update vendored sources to duckdb/duckdb@662b0b34eaaf7f52545638cbc87c10e32b33834d.
+
+  Approx-Top K: Make aggregate state trivially destructible (duckdb/duckdb#14571)
+  CI: Mirror 'reproduced' / 'under review' to the internal repository (duckdb/duckdb#14527) (@krlmlr, #561)
+
+- Update vendored sources to duckdb/duckdb@bccd37ae7ea09f77b6299165bf80bca3bc1efc7c.
+
+  \[Dev\] Include aliases for RETURNING list expressions in `ToString` (duckdb/duckdb#14533) (@krlmlr, #560)
+
+- Update vendored sources to duckdb/duckdb@5090b7396173069bb0d51b0e1341cfa9950c154f.
+
+  \[Python\]\[Arrow\] Cast to `py::bytes` when dealing with BLOB in filter pushdown (duckdb/duckdb#14553) (@krlmlr, #559)
+
+- Update vendored sources to duckdb/duckdb@f5ebc9b8e1d6c040a2276e0ac4a41d6bf9475880.
+
+  Fix duckdb/duckdb#14545 - pivot header must be defined in the grammar (duckdb/duckdb#14556) (@krlmlr, #558)
+
+- Update vendored sources to duckdb/duckdb@b8c5248b9c18f7cafbdf7992421662adbd95bf38.
+
+  \[Arrow\] Fix issue where uninitialized memory was being read when scanning empty lists (duckdb/duckdb#14538) (@krlmlr, #557)
+
+- Update vendored sources to duckdb/duckdb@dfdd7968262d912910d8249bde3524e068c67713.
+
+  Being more restrictive with the names option in the csv reader (duckdb/duckdb#14466)
+  Python 3.7 tests are particularly brittle, we will keep building wheels but avoid testing them (duckdb/duckdb#14510) (@krlmlr, #556)
+
+- Update vendored sources to duckdb/duckdb@d0673165b52e89fe70d1891504e4dea82adeca85.
+
+  Avoid throwing on failure to open extensions's .info file (when force installing) (duckdb/duckdb#14272)
+  \[Python\]\[Dev\] Fix up test to work with older version (duckdb/duckdb#14505) (@krlmlr, #555)
+
+- Update vendored sources to duckdb/duckdb@d79e66bd032dbd2066c16a88f517f6da1cd0aa78.
+
+  fix: standardize usage of LogicalType::ROW_TYPE for COLUMN_IDENTIFIER_ROW_ID (duckdb/duckdb#14480)
+  Bug in percentage calculation in query_graph (duckdb/duckdb#14494)
+  bump vss (duckdb/duckdb#14493) (@krlmlr, #554)
+
+- Update vendored sources to duckdb/duckdb@0359726be957673a62ab1ab61f1cca9ba5667386.
+
+  Don't move lvalue when inserting in order preserving map (duckdb/duckdb#14492) (@krlmlr, #553)
+
+- Update vendored sources to duckdb/duckdb@10c42435f1805ee4415faa5d6da4943e8c98fa55.
+
+  acosh: Change example to avoid returning NaN (duckdb/duckdb#14477) (@krlmlr, #552)
+
+- Update vendored sources to duckdb/duckdb@43d26298affa89bc6ca829a1defc4819b42b6fb4.
+
+  SingleFileBlockManager::MarkBlockAsUsed - also erase from newly_freed_list to ensure trim does not prune blocks that are in-use (duckdb/duckdb#14467) (@krlmlr, #551)
+
+- Update vendored sources to duckdb/duckdb@52b43b166091c82b3f04bf8af15f0ace18207a64.
+
+  Rework list_concat to accept a variable number of arguments similar to string concat (duckdb/duckdb#14443) (@krlmlr, #550)
+
+- Update vendored sources to duckdb/duckdb@0446ab42e96b6269e78f55293f4096fa10224837.
+
+  Use corrent container to produce BinderErrors (duckdb/duckdb#14437) (@krlmlr, #549)
+
+- Update vendored sources to duckdb/duckdb@ceb77af7935c3c7a4a34e1199abd4d6ea080448c.
+
+  Fix duckdb/duckdb#14430 - throw an error when reading corrupt statistics in the perfect hash aggregate (duckdb/duckdb#14442) (@krlmlr, #548)
+
+- Update vendored sources to duckdb/duckdb@aed52f5cabe34075c53bcec4407e297124c8d336.
+
+  Sniff CSV rejects options and small sniffer fix for ignore_errors (duckdb/duckdb#14417) (@krlmlr, #547)
+
+- Update vendored sources to duckdb/duckdb@e41a881658ae579cedebe19c5070dad660086aea.
+
+  Escape should default to quoted (duckdb/duckdb#14418) (@krlmlr, #546)
+
+- Update vendored sources to duckdb/duckdb@98d4ad28be35cf5c37e18760e76d11bc07be1ab4.
+
+  Issue duckdb/duckdb#14398: Lead Shift Defaults (duckdb/duckdb#14409) (@krlmlr, #545)
+
+- Update vendored sources to duckdb/duckdb@1bb332c9c59a9d15b196b4486a6d1ffcaa833ba5.
+
+  Fixing type pushdown on the CSV Scanner (duckdb/duckdb#14399) (@krlmlr, #544)
+
+- Update vendored sources to duckdb/duckdb@0bbfe09937e3744325f3b2dfdb182e9ac1ff916f.
+
+  avoid unnecessary file list materialization when pruning readers (duckdb/duckdb#14397) (@krlmlr, #543)
+
+- Update vendored sources to duckdb/duckdb@08969b4677534b6870bff4c99998c753a6e784fc.
+
+  \[Arrow\] Fix scanning of BOOL columns when offsets are involved (duckdb/duckdb#14395) (@krlmlr, #542)
+
+- Update vendored sources to duckdb/duckdb@4756244efa04d204be6f20d55036fc503b7ed49c (@krlmlr, #541).
+
+- Update vendored sources to duckdb/duckdb@217ec4722e949eaa49568bd707e49431ef727ab5 (@krlmlr, #539).
+
+## Continuous integration
+
+- Use stable pak (#591).
+
+- Latest changes (#584).
+
+- Tweak patch call.
+
+- Can't check incoming.
+
+## Testing
+
+- Skip if not installed.
+
+- Skip if not installed.
+
+
 # duckdb 1.1.2.9000
 
 - Merge branch 'cran-1.1.2'.
