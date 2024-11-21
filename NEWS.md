@@ -1,29 +1,6 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.1.2.9904
-
-## Bug fixes
-
-- Avoid compiler warning related to `Rboolean` (#594).
-
-  - fix: Avoid compiler warning related to `Rboolean`
-
-  - Don't use xz if not available
-
-## Chore
-
-- Undef `TRUE` and `FALSE` (#595).
-
-## Testing
-
-- Sync tests with duckplyr (#596).
-
-  - test: Sync tests with duckplyr
-
-  - Skip
-
-
-# duckdb 1.1.2.9903
+# duckdb 1.1.3
 
 ## Features
 
@@ -37,11 +14,14 @@
 
 ## Chore
 
+- Undef `TRUE` and `FALSE` (#595).
+
 - Remove `enable_materialization` argument to `rel_from_altrep_df()` in favor of creating a new data frame when needed (#588).
 
 - Flip argument order for `expr_comparison()` (#585).
 
 - Keep `cleanup` files to accommodate different build scenarios (#536).
+
 
 # duckdb 1.1.2
 
