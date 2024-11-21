@@ -206,7 +206,7 @@ Rboolean RelToAltrep::RownamesInspect(SEXP x, int pre, int deep, int pvec,
 	AltrepRownamesWrapper::Get(x); // make sure this is alive
 	Rprintf("DUCKDB_ALTREP_REL_ROWNAMES\n");
 	return TRUE;
-	END_CPP11_EX(FALSE)
+	END_CPP11_EX(Rboolean::FALSE)
 }
 
 Rboolean RelToAltrep::RelInspect(SEXP x, int pre, int deep, int pvec, void (*inspect_subtree)(SEXP, int, int, int)) {
@@ -215,7 +215,7 @@ Rboolean RelToAltrep::RelInspect(SEXP x, int pre, int deep, int pvec, void (*ins
 	auto &col = wrapper->rel->rel->Columns()[wrapper->column_index];
 	Rprintf("DUCKDB_ALTREP_REL_VECTOR %s (%s)\n", col.Name().c_str(), col.Type().ToString().c_str());
 	return TRUE;
-	END_CPP11_EX(FALSE)
+	END_CPP11_EX(Rboolean::FALSE)
 }
 
 // this allows us to set row names on a data frame with an int argument without calling INTPTR on it
