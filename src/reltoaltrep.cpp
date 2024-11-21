@@ -9,6 +9,14 @@
 #include "httplib.hpp"
 #include <cinttypes>
 
+#ifdef TRUE
+#undef TRUE
+#endif
+
+#ifdef FALSE
+#undef FALSE
+#endif
+
 using namespace duckdb;
 
 R_altrep_class_t RelToAltrep::rownames_class;
