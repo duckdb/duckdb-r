@@ -1,5 +1,28 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.1.2.9904
+
+## Bug fixes
+
+- Avoid compiler warning related to `Rboolean` (#594).
+
+  - fix: Avoid compiler warning related to `Rboolean`
+
+  - Don't use xz if not available
+
+## Chore
+
+- Undef `TRUE` and `FALSE` (#595).
+
+## Testing
+
+- Sync tests with duckplyr (#596).
+
+  - test: Sync tests with duckplyr
+
+  - Skip
+
+
 # duckdb 1.1.2.9903
 
 ## Features
