@@ -46,6 +46,8 @@
 
 #include "src/common/error_data.cpp"
 
+#include "src/common/opener_file_system.cpp"
+
 #include "src/common/printer.cpp"
 
 #include "src/common/radix_partitioning.cpp"
