@@ -414,7 +414,7 @@ static SEXP result_to_df(duckdb::unique_ptr<QueryResult> res) {
 }
 
 [[cpp11::register]] SEXP rapi_rel_to_df(duckdb::rel_extptr_t rel) {
-	ScopedInterruptHandler signal_handler(rel->rel->context.GetContext());
+	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
 
 	auto res = rel->rel->Execute();
 
