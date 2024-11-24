@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.1.3.9003
+
+## fledge
+
+  - Bump version to 1.1.3.9002 (#602).
+
+
 # duckdb 1.1.3.9002
 
 ## fledge
