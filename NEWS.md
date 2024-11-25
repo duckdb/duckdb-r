@@ -1,5 +1,22 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.1.3.9004
+
+## Features
+
+- Throw exception when non-utf8 characters are in a data.frame (@Tmonster, #12, #16).
+
+## Continuous integration
+
+- Need to install R on Ubuntu 24.04 (#607).
+
+- Use Ubuntu 24.04 and styler PR (#605).
+
+## fledge
+
+- Bump version to 1.1.3.9003 (#604).
+
+
 # duckdb 1.1.3.9003
 
 ## fledge
