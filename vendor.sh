@@ -1,14 +1,23 @@
-#!/bin/sh
+#!/bin/bash
+# https://unix.stackexchange.com/a/654932/19205
+# Using bash for -o pipefail
 
 set -e
 set -x
+set -o pipefail
 
 cd `dirname $0`
 
 if [ -z "$1" ]; then
-  upstream_dir=../duckdb
+  upstream_basedir=../duckdb
 else
-  upstream_dir="$1"
+  upstream_basedir="$1"
+fi
+
+upstream_dir=.git/duckdb
+
+if [ "$upstream_basedir" != "$upstream_dir" ]; then
+  git clone "$upstream_basedir" "$upstream_dir"
 fi
 
 if [ -n "$(git status --porcelain)" ]; then
@@ -20,48 +29,58 @@ if [ -n "$(git -C "$upstream_dir" status --porcelain)" ]; then
   echo "Warning: working directory $upstream_dir not clean"
 fi
 
-commit=$(git -C "$upstream_dir" rev-parse HEAD)
+vendor_dir=src/duckdb
+repo_org=duckdb
+repo_name=duckdb
 
-base=$(git log -n 3 --format="%s" -- src/duckdb | tee /dev/stderr | sed -nr '/^.*duckdb.duckdb@([0-9a-f]+)$/{s//\1/;p;}' | head -n 1)
+commit=$(git -C "$upstream_dir" rev-parse --verify HEAD)
+
+base=$(git log -n 3 --format="%s" -- ${vendor_dir} | tee /dev/stderr | sed -nr '/^.*'${repo_org}.${repo_name}'@([0-9a-f]+)( .*)?$/{s//\1/;p;}' | head -n 1)
 
 message=
 
 for commit in $commit; do
   echo "Importing commit $commit"
 
-  rm -rf src/duckdb
+  rm -rf ${vendor_dir}
 
   echo "R: configure"
-  python3 rconfigure.py
+  DUCKDB_PATH="$upstream_dir" python3 rconfigure.py
 
   for f in patch/*.patch; do
-    # cat $f | patch -p1 --dry-run
-    cat $f | patch -p1
+    if patch -i $f -p1 --forward --dry-run; then
+      patch -i $f -p1 --forward --no-backup-if-mismatch
+    else
+      echo "Removing patch $f"
+      rm $f
+    fi
   done
 
   # Always vendor tags
   if [ $(git -C "$upstream_dir" describe --tags "$commit" | grep -c -- -) -eq 0 ]; then
-    message="chore: Update vendored sources (tag $(git -C "$upstream_dir" describe --tags "$commit")) to duckdb/duckdb@$commit"
+    message="chore: Update vendored sources (tag $(git -C "$upstream_dir" describe --tags "$commit")) to ${repo_org}/${repo_name}@$commit"
     break
   fi
 
-  if [ $(git status --porcelain -- src/duckdb | wc -l) -gt 1 ]; then
-    message="chore: Update vendored sources to duckdb/duckdb@$commit"
+  if [ $(git status --porcelain -- ${vendor_dir} | wc -l) -gt 1 ]; then
+    message="chore: Update vendored sources to ${repo_org}/${repo_name}@$commit"
     break
   fi
 done
 
 if [ "$message" = "" ]; then
   echo "No changes."
-  git checkout -- src/duckdb
+  git checkout -- ${vendor_dir}
+  rm -rf "$upstream_dir"
   exit 0
 fi
-
 
 git add .
 
 (
   echo "$message"
   echo
-  git -C "$upstream_dir" log --first-parent --format="%s" ${base}..${commit} | tee /dev/stderr | sed -r 's%(#[0-9]+)%duckdb/duckdb\1%g'
+  git -C "$upstream_dir" log --first-parent --format="%s" ${base}..${commit} | tee /dev/stderr | sed -r 's%(#[0-9]+)%'${repo_org}/${repo_name}'\1%g'
 ) | git commit --file /dev/stdin
+
+rm -rf "$upstream_dir"
