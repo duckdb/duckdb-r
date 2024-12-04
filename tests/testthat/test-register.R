@@ -81,6 +81,8 @@ test_that("experimental string handling works", {
 })
 
 test_that("can register list of NULL values", {
+  skip_if_not_installed("tibble")
+
   con <- dbConnect(duckdb())
   on.exit(dbDisconnect(con, shutdown = TRUE))
   df <- tibble::tibble(a = 1:2, b = list(NULL))

@@ -8,6 +8,8 @@
 
 #include "src/main/relation/delete_relation.cpp"
 
+#include "src/main/relation/delim_get_relation.cpp"
+
 #include "src/main/relation/distinct_relation.cpp"
 
 #include "src/main/relation/explain_relation.cpp"

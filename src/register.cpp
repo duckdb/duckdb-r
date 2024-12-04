@@ -48,11 +48,11 @@ using namespace duckdb;
 
 
 
-unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(duckdb::ClientContext &context, const std::string &table_name, duckdb::ReplacementScanData *data_p) {
+unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, ReplacementScanInput &input, optional_ptr<ReplacementScanData> data_p) {
 	auto &data = (ReplacementDataDBWrapper &)*data_p;
 	auto db_wrapper = data.wrapper;
 
-	auto table_name_symbol = Rf_install(table_name.c_str());
+	auto table_name_symbol = Rf_install(input.table_name.c_str());
 	SEXP df;
 	SEXP rho = R_GetCurrentEnv();
 	while(rho != R_EmptyEnv) {
@@ -235,11 +235,9 @@ private:
 	}
 };
 
-
-
-unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, const string &table_name,
-                                                  ReplacementScanData *data_p) {
-	auto &data = (ReplacementDataDBWrapper &)*data_p;
+unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, ReplacementScanInput &input, optional_ptr<ReplacementScanData> data_p) {
+  auto table_name = input.table_name;
+  ReplacementDataDBWrapper& data = static_cast<ReplacementDataDBWrapper&>(*data_p);
 	auto db_wrapper = data.wrapper;
 	lock_guard<mutex> arrow_scans_lock(db_wrapper->lock);
 	const auto &arrow_scans = db_wrapper->arrow_scans;

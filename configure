@@ -27,3 +27,10 @@ if [ -f "${DUCKDB_R_PREBUILT_ARCHIVE}" ] && tar -xm -f ${DUCKDB_R_PREBUILT_ARCHI
 else
   cp include/to-tar.mk Makevars.duckdb
 fi
+
+# The duckdb sources are xz-compressed in the tarball to keep it under 5000000 bytes.
+# This happens in the cleanup script.
+
+if [ -f duckdb.tar.xz ]; then
+  tar xJf duckdb.tar.xz
+fi

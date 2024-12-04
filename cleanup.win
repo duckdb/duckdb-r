@@ -1,0 +1,12 @@
+#!/bin/sh
+
+set -ex
+
+# For CI/CD: only compress if expansion is possible too
+if which xz > /dev/null; then
+  if [ -d .git ]; then git clean -fdx src; fi
+  cd src
+  find duckdb -type f | egrep '[.](cc|cpp|h|hpp)$' | xargs dos2unix
+  tar cvJf duckdb.tar.xz duckdb
+  rm -rf duckdb
+fi

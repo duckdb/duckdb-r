@@ -103,6 +103,7 @@ $RECYCLE.BIN/
 *.tgz
 src/**/*.o
 src/*.so
+src/*.dll
 /scripts/__pycache__
 /duckdb
 /src/Makevars.duckdb
@@ -112,3 +113,5 @@ src/*.so
 /vscode-*/
 .idea
 cmake-build-debug
+compile_commands.json
+.cache

@@ -1,5 +1,6 @@
 #' @rdname duckdb_driver-class
 #' @inheritParams DBI::dbGetInfo
+#' @param dbObj An object inheriting from class [duckdb_driver-class].
 #' @usage NULL
 dbGetInfo__duckdb_driver <- function(dbObj, ...) {
   info <- dbGetInfo__duckdb_connection(default_connection())

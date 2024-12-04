@@ -1,5 +1,6 @@
 #' @rdname duckdb_result-class
 #' @inheritParams DBI::dbGetInfo
+#' @param dbObj An object inheriting from class [duckdb_result-class].
 #' @usage NULL
 dbGetInfo__duckdb_result <- function(dbObj, ...) {
   # Optional

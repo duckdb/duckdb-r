@@ -18,3 +18,5 @@
 
 #include "src/transaction/cleanup_state.cpp"
 
+#include "src/transaction/wal_write_state.cpp"
+

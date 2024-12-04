@@ -63,7 +63,7 @@ test_that("duckdb custom scalars translated correctly", {
   expect_equal(translate(grepl("pattern", text, ignore.case = TRUE)), sql(r"{REGEXP_MATCHES("text", '(?i)pattern')}"))
   expect_error(translate(grepl("dummy", txt, perl = TRUE)))
   expect_equal(translate(regexpr("pattern", text)), sql(r"{(CASE WHEN REGEXP_MATCHES("text", 'pattern') THEN (LENGTH(LIST_EXTRACT(STRING_SPLIT_REGEX("text", 'pattern'), 0))+1) ELSE -1 END)}"))
-  expect_equal(translate(round(x, digits = 1.1)), sql(r"{ROUND(x, CAST(ROUND(1.1, 0) AS INTEGER))}"))
+  expect_equal(translate(round(x, digits = 1.1)), sql(r"{ROUND_EVEN(x, CAST(ROUND(1.1, 0) AS INTEGER))}"))
   expect_equal(translate(as.Date("2019-01-01")), sql(r"{CAST('2019-01-01' AS DATE)}"))
   expect_equal(translate(as.POSIXct("2019-01-01 01:01:01")), sql(r"{CAST('2019-01-01 01:01:01' AS TIMESTAMP)}"))
 })
@@ -134,6 +134,8 @@ test_that("custom clock functions translated correctly", {
   skip_if_no_R4()
   skip_if_not_installed("dbplyr")
   skip_if_not_installed("clock")
+  skip_if_not_installed("rlang")
+  skip_if_not_installed("cli")
   con <- dbConnect(duckdb())
   on.exit(dbDisconnect(con, shutdown = TRUE))
   translate <- function(...) dbplyr::translate_sql(..., con = con)
@@ -149,33 +151,51 @@ test_that("custom clock functions translated correctly", {
   expect_equal(translate(get_month(x)), sql(r"{DATE_PART('month', x)}"))
   expect_equal(translate(get_year(x)), sql(r"{DATE_PART('year', x)}"))
 
+  expect_equal(translate(date_count_between(start = "start",
+                                            end = "end",
+                                            precision = "day")),
+               sql(r"{DATEDIFF('day', start, end)}"))
+
   test_data <- data.frame(
     person = 1L,
-    date_1 = as.Date("2000-01-01")
+    date_1 = as.Date("2000-01-01"),
+    date_2 = as.Date("2000-01-30")
   )
-  test_data <- test_data |>
+  db_test_data <- dbplyr::copy_inline(con, test_data)
+
+  test_data <- test_data %>%
     dplyr::mutate(date_plus_two_days  = clock::add_days(date_1, 2),
            date_plus_two_years = clock::add_years(date_1, 2),
            date_minus_two_days  = clock::add_days(date_1, -2),
            date_minus_two_years = clock::add_years(date_1, -2),
            day = clock::get_day(date_1),
            month = clock::get_month(date_1),
-           year = clock::get_year(date_1)
-           ) |>
-    dplyr::glimpse()
-  db_test_data <- dplyr::copy_to(con, test_data, overwrite = TRUE)
-  db_test_data <- db_test_data |>
+           year = clock::get_year(date_1),
+           diff = clock::date_count_between(date_1, date_2, "day"),
+           diff2 = clock::date_count_between(date_2, date_1, "day")
+           )
+  db_test_data <- db_test_data %>%
     dplyr::mutate(date_plus_two_days  = as.Date(clock::add_days(date_1, 2)),
            date_plus_two_years = as.Date(clock::add_years(date_1, 2)),
            date_minus_two_days  = as.Date(clock::add_days(date_1, -2)),
            date_minus_two_years = as.Date(clock::add_years(date_1, -2)),
            day = clock::get_day(date_1),
            month = clock::get_month(date_1),
-           year = clock::get_year(date_1)) |>
+           year = clock::get_year(date_1),
+           diff = clock::date_count_between(date_1, date_2, "day"),
+           diff2 = clock::date_count_between(date_2, date_1, "day")) %>%
     dplyr::collect()
 
   expect_equal(unclass(test_data), unclass(db_test_data))
 
+  # errors for unsupported arguments
+  expect_error(translate(date_count_between(start = "start",
+                                            end = "end",
+                                            precision = "year")))
+  expect_error(translate(date_count_between(start = "start",
+                                            end = "end",
+                                            precision = "day",
+                                            n = 5)))
 
 })
 
@@ -256,9 +276,14 @@ test_that("aggregators translated correctly", {
 
   expect_equal(translate(str_flatten(x, ","), window = FALSE), sql(r"{STRING_AGG(x, ',')}"))
   expect_equal(translate(str_flatten(x, ","), window = TRUE), sql(r"{STRING_AGG(x, ',') OVER ()}"))
+  expect_equal(translate(str_flatten(x, ","), window = TRUE, vars_group = "y"), sql(r"{STRING_AGG(x, ',') OVER (PARTITION BY y)}"))
 
   expect_equal(translate(n_distinct(x), window = FALSE), sql(r"{COUNT(DISTINCT row(x))}"))
   expect_equal(translate(n_distinct(x), window = TRUE), sql(r"{COUNT(DISTINCT row(x)) OVER ()}"))
+  expect_equal(translate(n_distinct(x), window = TRUE, vars_group = "y"), sql(r"{COUNT(DISTINCT row(x)) OVER (PARTITION BY y)}"))
+  expect_equal(translate(n_distinct(x, na.rm = TRUE), window = FALSE), sql(r"{COUNT(DISTINCT x)}"))
+  expect_equal(translate(n_distinct(x, na.rm = TRUE), window = TRUE), sql(r"{COUNT(DISTINCT x) OVER ()}"))
+  expect_equal(translate(n_distinct(x, na.rm = TRUE), window = TRUE, vars_group = "y"), sql(r"{COUNT(DISTINCT x) OVER (PARTITION BY y)}"))
 })
 
 test_that("two variable aggregates are translated correctly", {
@@ -274,6 +299,7 @@ test_that("two variable aggregates are translated correctly", {
 
   expect_equal(translate(n_distinct(x, y), window = FALSE), sql(r"{COUNT(DISTINCT row(x, y))}"))
   expect_equal(translate(n_distinct(x, y), window = TRUE), sql(r"{COUNT(DISTINCT row(x, y)) OVER ()}"))
+  expect_equal(translate(n_distinct(x, y), window = TRUE, vars_group = "y"), sql(r"{COUNT(DISTINCT row(x, y)) OVER (PARTITION BY y)}"))
 })
 
 test_that("n_distinct() computations are correct", {
@@ -284,6 +310,8 @@ test_that("n_distinct() computations are correct", {
   on.exit(dbDisconnect(con, shutdown = TRUE))
   tbl <- dplyr::tbl
   summarize <- dplyr::summarize
+  mutate <- dplyr::mutate
+  arrange <- dplyr::arrange
   pull <- dplyr::pull
 
   duckdb_register(con, "df", data.frame(x = c(1, 1, 2, 2), y = c(1, 2, 2, 2)))
@@ -292,8 +320,17 @@ test_that("n_distinct() computations are correct", {
   df <- tbl(con, "df")
   df_na <- tbl(con, "df_na")
 
+  expect_equal(
+    pull(summarize(df, n = n_distinct(x, na.rm = TRUE)), n),
+    2
+  )
+  expect_equal(
+    pull(summarize(df_na, n = n_distinct(x, na.rm = TRUE)), n),
+    2
+  )
+
   expect_error(
-    pull(summarize(df, n = n_distinct(x, na.rm = TRUE)), n)
+    pull(summarize(df, n = n_distinct(x, y, na.rm = TRUE)), n)
   )
 
   # single column is working as usual
@@ -318,8 +355,40 @@ test_that("n_distinct() computations are correct", {
     pull(summarize(df_na, n = n_distinct(x, y)), n),
     5
   )
+
+  # window functions are working
+  expect_equal(
+    pull(mutate(df_na, n = n_distinct(x, y)), n),
+    rep(5, 5)
+  )
+
+  expect_equal(
+    pull(arrange(mutate(df, n = n_distinct(x), .by = y), x, y), n),
+    c(1, 2, 2, 2)
+  )
 })
 
+
+test_that("duckdb round() results equal its R version", {
+  skip_if_no_R4()
+  skip_if_not_installed("dplyr")
+  skip_if_not_installed("dbplyr")
+
+  con <- dbConnect(duckdb())
+  on.exit(dbDisconnect(con, shutdown = TRUE))
+  mutate <- dplyr::mutate
+  pull <- dplyr::pull
+
+  df <- data.frame(x = c(-1.5, -0.5, 0.5, 1.5))
+
+  duckdb_register(con, "df", df)
+  df_duckdb <- dplyr::tbl(con, "df")
+
+  expect_equal(
+    pull(mutate(df_duckdb, r = round(x)), r),
+    pull(mutate(df, r = round(x)), r)
+  )
+})
 
 
 # Snapshot tests

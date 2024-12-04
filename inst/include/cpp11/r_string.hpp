@@ -1,5 +1,5 @@
-// cpp11 version: 0.4.2
-// vendored on: 2022-01-10
+// cpp11 version: 0.5.0
+// vendored on: 2024-09-24
 #pragma once
 
 #include <string>       // for string, basic_string, operator==
@@ -94,5 +94,12 @@ template <>
 inline r_string na() {
   return NA_STRING;
 }
+
+namespace traits {
+template <>
+struct get_underlying_type<r_string> {
+  using type = SEXP;
+};
+}  // namespace traits
 
 }  // namespace cpp11

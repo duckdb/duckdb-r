@@ -111,6 +111,13 @@ extern "C" SEXP _duckdb_rapi_expr_constant(SEXP val) {
   END_CPP11
 }
 // relational.cpp
+SEXP rapi_expr_comparison(std::string cmp_op, list exprs);
+extern "C" SEXP _duckdb_rapi_expr_comparison(SEXP cmp_op, SEXP exprs) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(rapi_expr_comparison(cpp11::as_cpp<cpp11::decay_t<std::string>>(cmp_op), cpp11::as_cpp<cpp11::decay_t<list>>(exprs)));
+  END_CPP11
+}
+// relational.cpp
 SEXP rapi_expr_function(std::string name, list args, list order_bys, list filter_bys);
 extern "C" SEXP _duckdb_rapi_expr_function(SEXP name, SEXP args, SEXP order_bys, SEXP filter_bys) {
   BEGIN_CPP11
@@ -161,10 +168,10 @@ extern "C" SEXP _duckdb_rapi_rel_aggregate(SEXP rel, SEXP groups, SEXP aggregate
   END_CPP11
 }
 // relational.cpp
-SEXP rapi_rel_order(duckdb::rel_extptr_t rel, list orders);
-extern "C" SEXP _duckdb_rapi_rel_order(SEXP rel, SEXP orders) {
+SEXP rapi_rel_order(duckdb::rel_extptr_t rel, list orders, r_vector<r_bool> ascending);
+extern "C" SEXP _duckdb_rapi_rel_order(SEXP rel, SEXP orders, SEXP ascending) {
   BEGIN_CPP11
-    return cpp11::as_sexp(rapi_rel_order(cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rel), cpp11::as_cpp<cpp11::decay_t<list>>(orders)));
+    return cpp11::as_sexp(rapi_rel_order(cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rel), cpp11::as_cpp<cpp11::decay_t<list>>(orders), cpp11::as_cpp<cpp11::decay_t<r_vector<r_bool>>>(ascending)));
   END_CPP11
 }
 // relational.cpp
@@ -210,10 +217,10 @@ extern "C" SEXP _duckdb_rapi_rel_to_df(SEXP rel) {
   END_CPP11
 }
 // relational.cpp
-std::string rapi_rel_tostring(duckdb::rel_extptr_t rel);
-extern "C" SEXP _duckdb_rapi_rel_tostring(SEXP rel) {
+std::string rapi_rel_tostring(duckdb::rel_extptr_t rel, std::string format);
+extern "C" SEXP _duckdb_rapi_rel_tostring(SEXP rel, SEXP format) {
   BEGIN_CPP11
-    return cpp11::as_sexp(rapi_rel_tostring(cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rel)));
+    return cpp11::as_sexp(rapi_rel_tostring(cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rel), cpp11::as_cpp<cpp11::decay_t<std::string>>(format)));
   END_CPP11
 }
 // relational.cpp
@@ -224,10 +231,10 @@ extern "C" SEXP _duckdb_rapi_rel_to_sql(SEXP rel) {
   END_CPP11
 }
 // relational.cpp
-SEXP rapi_rel_explain(duckdb::rel_extptr_t rel);
-extern "C" SEXP _duckdb_rapi_rel_explain(SEXP rel) {
+SEXP rapi_rel_explain(duckdb::rel_extptr_t rel, std::string type, std::string format);
+extern "C" SEXP _duckdb_rapi_rel_explain(SEXP rel, SEXP type, SEXP format) {
   BEGIN_CPP11
-    return cpp11::as_sexp(rapi_rel_explain(cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rel)));
+    return cpp11::as_sexp(rapi_rel_explain(cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rel), cpp11::as_cpp<cpp11::decay_t<std::string>>(type), cpp11::as_cpp<cpp11::decay_t<std::string>>(format)));
   END_CPP11
 }
 // relational.cpp
@@ -287,6 +294,13 @@ extern "C" SEXP _duckdb_rapi_rel_set_symdiff(SEXP rel_a, SEXP rel_b) {
   END_CPP11
 }
 // relational.cpp
+SEXP rapi_rel_from_sql(duckdb::conn_eptr_t con, const std::string sql);
+extern "C" SEXP _duckdb_rapi_rel_from_sql(SEXP con, SEXP sql) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(rapi_rel_from_sql(cpp11::as_cpp<cpp11::decay_t<duckdb::conn_eptr_t>>(con), cpp11::as_cpp<cpp11::decay_t<const std::string>>(sql)));
+  END_CPP11
+}
+// relational.cpp
 SEXP rapi_rel_from_table(duckdb::conn_eptr_t con, const std::string schema_name, const std::string table_name);
 extern "C" SEXP _duckdb_rapi_rel_from_table(SEXP con, SEXP schema_name, SEXP table_name) {
   BEGIN_CPP11
@@ -301,10 +315,10 @@ extern "C" SEXP _duckdb_rapi_rel_from_table_function(SEXP con, SEXP function_nam
   END_CPP11
 }
 // reltoaltrep.cpp
-SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel);
-extern "C" SEXP _duckdb_rapi_rel_to_altrep(SEXP rel) {
+SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel, bool allow_materialization);
+extern "C" SEXP _duckdb_rapi_rel_to_altrep(SEXP rel, SEXP allow_materialization) {
   BEGIN_CPP11
-    return cpp11::as_sexp(rapi_rel_to_altrep(cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rel)));
+    return cpp11::as_sexp(rapi_rel_to_altrep(cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rel), cpp11::as_cpp<cpp11::decay_t<bool>>(allow_materialization)));
   END_CPP11
 }
 // reltoaltrep.cpp
@@ -424,6 +438,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_disconnect",              (DL_FUNC) &_duckdb_rapi_disconnect,              1},
     {"_duckdb_rapi_execute",                 (DL_FUNC) &_duckdb_rapi_execute,                 3},
     {"_duckdb_rapi_execute_arrow",           (DL_FUNC) &_duckdb_rapi_execute_arrow,           2},
+    {"_duckdb_rapi_expr_comparison",         (DL_FUNC) &_duckdb_rapi_expr_comparison,         2},
     {"_duckdb_rapi_expr_constant",           (DL_FUNC) &_duckdb_rapi_expr_constant,           1},
     {"_duckdb_rapi_expr_function",           (DL_FUNC) &_duckdb_rapi_expr_function,           4},
     {"_duckdb_rapi_expr_reference",          (DL_FUNC) &_duckdb_rapi_expr_reference,          1},
@@ -447,27 +462,28 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_rel_aggregate",           (DL_FUNC) &_duckdb_rapi_rel_aggregate,           3},
     {"_duckdb_rapi_rel_alias",               (DL_FUNC) &_duckdb_rapi_rel_alias,               1},
     {"_duckdb_rapi_rel_distinct",            (DL_FUNC) &_duckdb_rapi_rel_distinct,            1},
-    {"_duckdb_rapi_rel_explain",             (DL_FUNC) &_duckdb_rapi_rel_explain,             1},
+    {"_duckdb_rapi_rel_explain",             (DL_FUNC) &_duckdb_rapi_rel_explain,             3},
     {"_duckdb_rapi_rel_filter",              (DL_FUNC) &_duckdb_rapi_rel_filter,              2},
     {"_duckdb_rapi_rel_from_altrep_df",      (DL_FUNC) &_duckdb_rapi_rel_from_altrep_df,      3},
     {"_duckdb_rapi_rel_from_df",             (DL_FUNC) &_duckdb_rapi_rel_from_df,             3},
+    {"_duckdb_rapi_rel_from_sql",            (DL_FUNC) &_duckdb_rapi_rel_from_sql,            2},
     {"_duckdb_rapi_rel_from_table",          (DL_FUNC) &_duckdb_rapi_rel_from_table,          3},
     {"_duckdb_rapi_rel_from_table_function", (DL_FUNC) &_duckdb_rapi_rel_from_table_function, 4},
     {"_duckdb_rapi_rel_join",                (DL_FUNC) &_duckdb_rapi_rel_join,                5},
     {"_duckdb_rapi_rel_limit",               (DL_FUNC) &_duckdb_rapi_rel_limit,               2},
     {"_duckdb_rapi_rel_names",               (DL_FUNC) &_duckdb_rapi_rel_names,               1},
-    {"_duckdb_rapi_rel_order",               (DL_FUNC) &_duckdb_rapi_rel_order,               2},
+    {"_duckdb_rapi_rel_order",               (DL_FUNC) &_duckdb_rapi_rel_order,               3},
     {"_duckdb_rapi_rel_project",             (DL_FUNC) &_duckdb_rapi_rel_project,             2},
     {"_duckdb_rapi_rel_set_alias",           (DL_FUNC) &_duckdb_rapi_rel_set_alias,           2},
     {"_duckdb_rapi_rel_set_diff",            (DL_FUNC) &_duckdb_rapi_rel_set_diff,            2},
     {"_duckdb_rapi_rel_set_intersect",       (DL_FUNC) &_duckdb_rapi_rel_set_intersect,       2},
     {"_duckdb_rapi_rel_set_symdiff",         (DL_FUNC) &_duckdb_rapi_rel_set_symdiff,         2},
     {"_duckdb_rapi_rel_sql",                 (DL_FUNC) &_duckdb_rapi_rel_sql,                 2},
-    {"_duckdb_rapi_rel_to_altrep",           (DL_FUNC) &_duckdb_rapi_rel_to_altrep,           1},
+    {"_duckdb_rapi_rel_to_altrep",           (DL_FUNC) &_duckdb_rapi_rel_to_altrep,           2},
     {"_duckdb_rapi_rel_to_df",               (DL_FUNC) &_duckdb_rapi_rel_to_df,               1},
     {"_duckdb_rapi_rel_to_parquet",          (DL_FUNC) &_duckdb_rapi_rel_to_parquet,          2},
     {"_duckdb_rapi_rel_to_sql",              (DL_FUNC) &_duckdb_rapi_rel_to_sql,              1},
-    {"_duckdb_rapi_rel_tostring",            (DL_FUNC) &_duckdb_rapi_rel_tostring,            1},
+    {"_duckdb_rapi_rel_tostring",            (DL_FUNC) &_duckdb_rapi_rel_tostring,            2},
     {"_duckdb_rapi_rel_union_all",           (DL_FUNC) &_duckdb_rapi_rel_union_all,           2},
     {"_duckdb_rapi_release",                 (DL_FUNC) &_duckdb_rapi_release,                 1},
     {"_duckdb_rapi_shutdown",                (DL_FUNC) &_duckdb_rapi_shutdown,                1},

@@ -84,8 +84,7 @@ side effect.
 
 An object of class "adbc_driver"
 
-\code{dbConnect()} returns an object of class
-\linkS4class{duckdb_connection}.
+\code{dbConnect()} returns an object of class \linkS4class{duckdb_connection}.
 }
 \description{
 \code{duckdb()} creates or reuses a database instance.
@@ -102,7 +101,7 @@ The associated DuckDB database instance is shut down automatically,
 it is no longer necessary to set \code{shutdown = TRUE} or to call \code{duckdb_shutdown()}.
 }
 \examples{
-\dontshow{if (requireNamespace("adbcdrivermanager", quietly = TRUE)) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
+\dontshow{if (requireNamespace("adbcdrivermanager", quietly = TRUE)) withAutoprint(\{ # examplesIf}
 library(adbcdrivermanager)
 with_adbc(db <- adbc_database_init(duckdb_adbc()), {
   as.data.frame(read_adbc(db, "SELECT 1 as one;"))

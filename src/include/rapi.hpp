@@ -120,11 +120,9 @@ struct RQueryResult {
 typedef cpp11::external_pointer<RQueryResult> rqry_eptr_t;
 
 // internal
-unique_ptr<TableRef> ArrowScanReplacement(ClientContext &context, const std::string &table_name,
-                                          ReplacementScanData *data);
+unique_ptr<TableRef> ArrowScanReplacement(ClientContext &context, ReplacementScanInput &input, optional_ptr<ReplacementScanData> data);
 
-unique_ptr<TableRef> EnvironmentScanReplacement(ClientContext &context, const std::string &table_name,
-                                          ReplacementScanData *data);
+unique_ptr<TableRef> EnvironmentScanReplacement(ClientContext &context, ReplacementScanInput &input, optional_ptr<ReplacementScanData> data);
 
 struct ReplacementDataDBWrapper : public ReplacementScanData {
 	DBWrapper *wrapper;
@@ -169,7 +167,8 @@ struct RStrings {
 	SEXP ImportSchema_sym;
 	SEXP ImportRecordBatch_sym;
 	SEXP ImportRecordBatchReader_sym;
-	SEXP materialize_sym;
+	SEXP materialize_callback_sym;
+	SEXP materialize_message_sym;
 	SEXP duckdb_row_names_sym;
 	SEXP duckdb_vector_sym;
 
@@ -222,3 +221,17 @@ cpp11::r_string rapi_ptr_to_str(SEXP extptr);
 void duckdb_r_transform(duckdb::Vector &src_vec, SEXP dest, duckdb::idx_t dest_offset, duckdb::idx_t n, bool integer64);
 SEXP duckdb_r_allocate(const duckdb::LogicalType &type, duckdb::idx_t nrows);
 void duckdb_r_decorate(const duckdb::LogicalType &type, SEXP dest, bool integer64);
+
+template <typename T, typename... ARGS>
+cpp11::external_pointer<T> make_external(const std::string &rclass, ARGS &&... args) {
+	auto extptr = cpp11::external_pointer<T>(new T(std::forward<ARGS>(args)...));
+	((cpp11::sexp)extptr).attr("class") = rclass;
+	return extptr;
+}
+
+template <typename T, typename... ARGS>
+cpp11::external_pointer<T> make_external_prot(const std::string &rclass, SEXP prot, ARGS &&... args) {
+	auto extptr = cpp11::external_pointer<T>(new T(std::forward<ARGS>(args)...), true, true, prot);
+	((cpp11::sexp)extptr).attr("class") = rclass;
+	return extptr;
+}

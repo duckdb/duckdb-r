@@ -38,6 +38,8 @@
 
 #include "src/core_functions/scalar/string/reverse.cpp"
 
+#include "src/core_functions/scalar/string/sha1.cpp"
+
 #include "src/core_functions/scalar/string/sha256.cpp"
 
 #include "src/core_functions/scalar/string/starts_with.cpp"
@@ -51,4 +53,6 @@
 #include "src/core_functions/scalar/string/trim.cpp"
 
 #include "src/core_functions/scalar/string/unicode.cpp"
+
+#include "src/core_functions/scalar/string/url_encode.cpp"
 

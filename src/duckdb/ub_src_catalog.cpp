@@ -1,5 +1,7 @@
 #include "src/catalog/catalog_entry.cpp"
 
+#include "src/catalog/catalog_entry_retriever.cpp"
+
 #include "src/catalog/catalog.cpp"
 
 #include "src/catalog/catalog_search_path.cpp"

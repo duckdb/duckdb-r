@@ -1,5 +1,5 @@
-// cpp11 version: 0.4.2
-// vendored on: 2022-01-10
+// cpp11 version: 0.5.0
+// vendored on: 2024-09-24
 #pragma once
 
 #include <stddef.h>  // for size_t

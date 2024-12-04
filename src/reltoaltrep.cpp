@@ -1,7 +1,21 @@
+#define __STDC_FORMAT_MACROS
+
 #include "rapi.hpp"
 #include "typesr.hpp"
 #include "reltoaltrep.hpp"
+#include "signal.hpp"
 #include "cpp11/declarations.hpp"
+
+#include "httplib.hpp"
+#include <cinttypes>
+
+#ifdef TRUE
+#undef TRUE
+#endif
+
+#ifdef FALSE
+#undef FALSE
+#endif
 
 using namespace duckdb;
 
@@ -68,7 +82,7 @@ static T *GetFromExternalPtr(SEXP x) {
 	}
 	auto wrapper = (T *)R_ExternalPtrAddr(ptr);
 	if (!wrapper) {
-		cpp11::stop("This looks like it has been freed");
+		cpp11::stop("GetFromExternalPtr: This looks like it has been freed");
 	}
 	return wrapper;
 }
@@ -79,7 +93,8 @@ struct AltrepRelationWrapper {
 		return GetFromExternalPtr<AltrepRelationWrapper>(x);
 	}
 
-	AltrepRelationWrapper(duckdb::shared_ptr<Relation> rel_p) : rel(rel_p) {
+	AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_)
+	    : allow_materialization(allow_materialization_), rel_eptr(rel_), rel(rel_->rel) {
 	}
 
 	bool HasQueryResult() const {
@@ -88,11 +103,47 @@ struct AltrepRelationWrapper {
 
 	MaterializedQueryResult *GetQueryResult() {
 		if (!res) {
-			auto option = Rf_GetOption(RStrings::get().materialize_sym, R_BaseEnv);
-			if (option != R_NilValue && !Rf_isNull(option) && LOGICAL_ELT(option, 0) == true) {
-				Rprintf("materializing:\n%s\n", rel->ToString().c_str());
+			if (!allow_materialization) {
+				cpp11::stop("Materialization is disabled, use collect() or as_tibble() to materialize");
 			}
+
+			auto materialize_callback = Rf_GetOption(RStrings::get().materialize_callback_sym, R_BaseEnv);
+			if (Rf_isFunction(materialize_callback)) {
+				sexp call = Rf_lang2(materialize_callback, rel_eptr);
+				Rf_eval(call, R_BaseEnv);
+			}
+
+			auto materialize_message = Rf_GetOption(RStrings::get().materialize_message_sym, R_BaseEnv);
+		  if (Rf_isLogical(materialize_message) && Rf_length(materialize_message) == 1 && LOGICAL_ELT(materialize_message, 0) == true) {
+				// Legacy
+				Rprintf("duckplyr: materializing\n");
+			}
+
+			ScopedInterruptHandler signal_handler(rel->context.GetContext());
+
+			// We need to temporarily allow a deeper execution stack
+			// https://github.com/duckdb/duckdb-r/issues/101
+			auto old_depth = rel->context.GetContext()->config.max_expression_depth;
+			rel->context.GetContext()->config.max_expression_depth = old_depth * 2;
+			duckdb_httplib::detail::scope_exit reset_max_expression_depth(
+			    [&]() { rel->context.GetContext()->config.max_expression_depth = old_depth; });
+
 			res = rel->Execute();
+
+			// FIXME: Use std::experimental::scope_exit
+			if (rel->context.GetContext()->config.max_expression_depth != old_depth * 2) {
+				Rprintf("Internal error: max_expression_depth was changed from %" PRIu64 " to %" PRIu64 "\n",
+				        old_depth * 2, rel->context.GetContext()->config.max_expression_depth);
+			}
+			rel->context.GetContext()->config.max_expression_depth = old_depth;
+			reset_max_expression_depth.release();
+
+			if (signal_handler.HandleInterrupt()) {
+				cpp11::stop("Query execution was interrupted");
+			}
+
+			signal_handler.Disable();
+
 			if (res->HasError()) {
 				cpp11::stop("Error evaluating duckdb query: %s", res->GetError().c_str());
 			}
@@ -102,6 +153,9 @@ struct AltrepRelationWrapper {
 		return (MaterializedQueryResult *)res.get();
 	}
 
+	bool allow_materialization;
+
+	rel_extptr_t rel_eptr;
 	duckdb::shared_ptr<Relation> rel;
 	duckdb::unique_ptr<QueryResult> res;
 };
@@ -132,6 +186,7 @@ struct AltrepVectorWrapper {
 	void *Dataptr() {
 		if (transformed_vector.data() == R_NilValue) {
 			auto res = rel->GetQueryResult();
+
 			transformed_vector = duckdb_r_allocate(res->types[column_index], res->RowCount());
 			idx_t dest_offset = 0;
 			for (auto &chunk : res->Collection().Chunks()) {
@@ -159,7 +214,7 @@ Rboolean RelToAltrep::RownamesInspect(SEXP x, int pre, int deep, int pvec,
 	AltrepRownamesWrapper::Get(x); // make sure this is alive
 	Rprintf("DUCKDB_ALTREP_REL_ROWNAMES\n");
 	return TRUE;
-	END_CPP11_EX(FALSE)
+	END_CPP11_EX(Rboolean::FALSE)
 }
 
 Rboolean RelToAltrep::RelInspect(SEXP x, int pre, int deep, int pvec, void (*inspect_subtree)(SEXP, int, int, int)) {
@@ -168,7 +223,7 @@ Rboolean RelToAltrep::RelInspect(SEXP x, int pre, int deep, int pvec, void (*ins
 	auto &col = wrapper->rel->rel->Columns()[wrapper->column_index];
 	Rprintf("DUCKDB_ALTREP_REL_VECTOR %s (%s)\n", col.Name().c_str(), col.Type().ToString().c_str());
 	return TRUE;
-	END_CPP11_EX(FALSE)
+	END_CPP11_EX(Rboolean::FALSE)
 }
 
 // this allows us to set row names on a data frame with an int argument without calling INTPTR on it
@@ -293,12 +348,12 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 	}
 }
 
-[[cpp11::register]] SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel) {
+[[cpp11::register]] SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel, bool allow_materialization) {
 	D_ASSERT(rel && rel->rel);
 	auto drel = rel->rel;
 	auto ncols = drel->Columns().size();
 
-	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(drel);
+	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, allow_materialization);
 
 	cpp11::writable::list data_frame;
 	data_frame.reserve(ncols);
@@ -335,7 +390,7 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 	return data_frame;
 }
 
-[[cpp11::register]] SEXP rapi_rel_from_altrep_df(SEXP df, bool strict = true, bool allow_materialized = true) {
+[[cpp11::register]] SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized) {
 	if (!Rf_inherits(df, "data.frame")) {
 		if (strict) {
 			cpp11::stop("rapi_rel_from_altrep_df: Not a data.frame");
@@ -371,10 +426,11 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 		}
 	}
 
+	auto wrapper = GetFromExternalPtr<AltrepRownamesWrapper>(row_names);
 	if (!allow_materialized) {
-		auto wrapper = GetFromExternalPtr<AltrepRownamesWrapper>(row_names);
-
 		if (wrapper->rel->res.get()) {
+			// We return NULL here even for strict = true
+			// because this is expected from df_is_materialized()
 			return R_NilValue;
 		}
 	}

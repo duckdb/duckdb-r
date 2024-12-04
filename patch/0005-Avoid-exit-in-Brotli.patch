@@ -1,0 +1,46 @@
+From 74c15454e4a5a044bf745528fbaef18b48e0c0cb Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Sun, 23 Jun 2024 20:25:43 +0200
+Subject: [PATCH] Avoid exit in Brotli
+
+---
+ src/duckdb/third_party/brotli/enc/brotli_hash.h | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/duckdb/third_party/brotli/enc/brotli_hash.h b/src/duckdb/third_party/brotli/enc/brotli_hash.h
+index d16cce54..70fc83e3 100644
+--- a/src/duckdb/third_party/brotli/enc/brotli_hash.h
++++ b/src/duckdb/third_party/brotli/enc/brotli_hash.h
+@@ -3657,8 +3657,7 @@ static BROTLI_INLINE void FN(HashMemAllocInBytes)(
+   FN_A(HashMemAllocInBytes)(params, one_shot, input_size, alloc_size_a);
+   FN_B(HashMemAllocInBytes)(params, one_shot, input_size, alloc_size_b);
+   /* Should never happen. */
+-  if (alloc_size_a[2] != 0 || alloc_size_a[3] != 0) exit(EXIT_FAILURE);
+-  if (alloc_size_b[2] != 0 || alloc_size_b[3] != 0) exit(EXIT_FAILURE);
++  /* Can't call exit() on CRAN. */
+   alloc_size[0] = alloc_size_a[0];
+   alloc_size[1] = alloc_size_a[1];
+   alloc_size[2] = alloc_size_b[0];
+@@ -3804,8 +3803,7 @@ static BROTLI_INLINE void FN(HashMemAllocInBytes)(
+   FN_A(HashMemAllocInBytes)(params, one_shot, input_size, alloc_size_a);
+   FN_B(HashMemAllocInBytes)(params, one_shot, input_size, alloc_size_b);
+   /* Should never happen. */
+-  if (alloc_size_a[2] != 0 || alloc_size_a[3] != 0) exit(EXIT_FAILURE);
+-  if (alloc_size_b[2] != 0 || alloc_size_b[3] != 0) exit(EXIT_FAILURE);
++  /* Can't call exit() on CRAN. */
+   alloc_size[0] = alloc_size_a[0];
+   alloc_size[1] = alloc_size_a[1];
+   alloc_size[2] = alloc_size_b[0];
+@@ -3951,8 +3949,7 @@ static BROTLI_INLINE void FN(HashMemAllocInBytes)(
+   FN_A(HashMemAllocInBytes)(params, one_shot, input_size, alloc_size_a);
+   FN_B(HashMemAllocInBytes)(params, one_shot, input_size, alloc_size_b);
+   /* Should never happen. */
+-  if (alloc_size_a[2] != 0 || alloc_size_a[3] != 0) exit(EXIT_FAILURE);
+-  if (alloc_size_b[2] != 0 || alloc_size_b[3] != 0) exit(EXIT_FAILURE);
++  /* Can't call exit() on CRAN. */
+   alloc_size[0] = alloc_size_a[0];
+   alloc_size[1] = alloc_size_a[1];
+   alloc_size[2] = alloc_size_b[0];
+-- 
+2.43.0
+

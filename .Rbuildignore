@@ -40,3 +40,6 @@ _files$
 ^vscode-integrate-build$
 ^patch$
 ^src/librstrtmgr\.a$
+^compile_commands\.json$
+^\.cache$
+^tests/testthat/helper-rethrow\.R$

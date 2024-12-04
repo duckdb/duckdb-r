@@ -46,5 +46,7 @@
 
 #include "src/planner/binder/statement/bind_update.cpp"
 
+#include "src/planner/binder/statement/bind_update_extensions.cpp"
+
 #include "src/planner/binder/statement/bind_vacuum.cpp"
 

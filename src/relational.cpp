@@ -1,18 +1,15 @@
-#include "cpp11.hpp"
-#include "duckdb.hpp"
-#include "typesr.hpp"
 #include "rapi.hpp"
+#include "signal.hpp"
+#include "typesr.hpp"
 
 #include "R_ext/Random.h"
 
 #include "duckdb/parser/expression/columnref_expression.hpp"
 #include "duckdb/parser/expression/constant_expression.hpp"
+#include "duckdb/parser/expression/comparison_expression.hpp"
 #include "duckdb/parser/expression/function_expression.hpp"
 #include "duckdb/parser/expression/comparison_expression.hpp"
 #include "duckdb/parser/expression/conjunction_expression.hpp"
-#include "duckdb/parser/expression/operator_expression.hpp"
-#include "duckdb/parser/expression/cast_expression.hpp"
-#include "duckdb/parser/expression/case_expression.hpp"
 #include "duckdb/parser/expression/window_expression.hpp"
 
 #include "duckdb/main/relation/filter_relation.hpp"
@@ -24,26 +21,13 @@
 #include "duckdb/main/relation/setop_relation.hpp"
 #include "duckdb/main/relation/limit_relation.hpp"
 #include "duckdb/main/relation/distinct_relation.hpp"
-#include "duckdb/main/relation/table_function_relation.hpp"
 
+#include "duckdb/common/enum_util.hpp"
 #include "duckdb/common/enums/joinref_type.hpp"
 
 using namespace duckdb;
 using namespace cpp11;
 
-template <typename T, typename... ARGS>
-external_pointer<T> make_external(const string &rclass, ARGS &&... args) {
-	auto extptr = external_pointer<T>(new T(std::forward<ARGS>(args)...));
-	((sexp)extptr).attr("class") = rclass;
-	return extptr;
-}
-
-template <typename T, typename... ARGS>
-external_pointer<T> make_external_prot(const string &rclass, SEXP prot, ARGS &&... args) {
-	auto extptr = external_pointer<T>(new T(std::forward<ARGS>(args)...), true, true, prot);
-	((sexp)extptr).attr("class") = rclass;
-	return extptr;
-}
 // DuckDB Expressions
 
 [[cpp11::register]] SEXP rapi_expr_reference(r_vector<r_string> rnames) {
@@ -65,6 +49,21 @@ external_pointer<T> make_external_prot(const string &rclass, SEXP prot, ARGS &&.
 		stop("expr_constant: Need value of length one");
 	}
 	return make_external<ConstantExpression>("duckdb_expr", RApiTypes::SexpToValue(val, 0, false));
+}
+
+[[cpp11::register]] SEXP rapi_expr_comparison(std::string cmp_op, list exprs) {
+
+	ExpressionType expr_type = OperatorToExpressionType(cmp_op);
+	if (expr_type ==ExpressionType::INVALID) {
+		stop("expr_comparison: Invalid comparison operator");
+	}
+
+	return make_external<ComparisonExpression>(
+		"duckdb_expr",
+		expr_type,
+		expr_extptr_t(exprs[0])->Copy(),
+		expr_extptr_t(exprs[1])->Copy()
+	);
 }
 
 [[cpp11::register]] SEXP rapi_expr_function(std::string name, list args, list order_bys, list filter_bys) {
@@ -214,11 +213,16 @@ external_pointer<T> make_external_prot(const string &rclass, SEXP prot, ARGS &&.
 	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res);
 }
 
-[[cpp11::register]] SEXP rapi_rel_order(duckdb::rel_extptr_t rel, list orders) {
+[[cpp11::register]] SEXP rapi_rel_order(duckdb::rel_extptr_t rel, list orders, r_vector<r_bool> ascending) {
 	vector<OrderByNode> res_orders;
 
+	OrderType order_type;
+	size_t i = 0;
+
 	for (expr_extptr_t expr : orders) {
-		res_orders.emplace_back(OrderType::ASCENDING, OrderByNullType::NULLS_LAST, expr->Copy());
+		order_type = ascending[i] ? OrderType::ASCENDING : OrderType::DESCENDING;
+		i++;
+		res_orders.emplace_back(order_type, OrderByNullType::NULLS_LAST, expr->Copy());
 	}
 
 	auto res = make_shared_ptr<OrderRelation>(rel->rel, std::move(res_orders));
@@ -227,6 +231,7 @@ external_pointer<T> make_external_prot(const string &rclass, SEXP prot, ARGS &&.
 
 	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res);
 }
+
 
 static WindowBoundary StringToWindowBoundary(string &window_boundary) {
 	if (window_boundary == "unbounded_preceding") {
@@ -409,19 +414,35 @@ static SEXP result_to_df(duckdb::unique_ptr<QueryResult> res) {
 }
 
 [[cpp11::register]] SEXP rapi_rel_to_df(duckdb::rel_extptr_t rel) {
-	return result_to_df(rel->rel->Execute());
+	ScopedInterruptHandler signal_handler(rel->rel->context.GetContext());
+
+	auto res = rel->rel->Execute();
+
+	if (signal_handler.HandleInterrupt()) {
+		return R_NilValue;
+	}
+
+	signal_handler.Disable();
+
+	return result_to_df(std::move(res));
 }
 
-[[cpp11::register]] std::string rapi_rel_tostring(duckdb::rel_extptr_t rel) {
-	return rel->rel->ToString();
+[[cpp11::register]] std::string rapi_rel_tostring(duckdb::rel_extptr_t rel, std::string format) {
+	if (format == "tree") {
+		return rel->rel->ToString(0);
+	} else {
+		return rel->rel->ToString();
+	}
 }
 
 [[cpp11::register]] std::string rapi_rel_to_sql(duckdb::rel_extptr_t rel) {
 	return rel->rel->GetQueryNode()->ToString();
 }
 
-[[cpp11::register]] SEXP rapi_rel_explain(duckdb::rel_extptr_t rel) {
-	return result_to_df(rel->rel->Explain());
+[[cpp11::register]] SEXP rapi_rel_explain(duckdb::rel_extptr_t rel, std::string type, std::string format) {
+	auto type_enum = EnumUtil::FromString<ExplainType>(type);
+	auto format_enum = EnumUtil::FromString<ExplainFormat>(format);
+	return result_to_df(rel->rel->Explain(type_enum, format_enum));
 }
 
 [[cpp11::register]] std::string rapi_rel_alias(duckdb::rel_extptr_t rel) {
@@ -484,12 +505,20 @@ static SEXP result_to_df(duckdb::unique_ptr<QueryResult> res) {
 	return make_external_prot<RelationWrapper>("duckdb_relation", prot, symdiff);
 }
 
+[[cpp11::register]] SEXP rapi_rel_from_sql(duckdb::conn_eptr_t con, const std::string sql) {
+	if (!con || !con.get() || !con->conn) {
+		stop("rel_from_table: Invalid connection");
+	}
+	auto rel = con->conn->RelationFromQuery(sql);
+	cpp11::writable::list prot = {};
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(rel));
+}
+
 [[cpp11::register]] SEXP rapi_rel_from_table(duckdb::conn_eptr_t con, const std::string schema_name,
                                              const std::string table_name) {
 	if (!con || !con.get() || !con->conn) {
 		stop("rel_from_table: Invalid connection");
 	}
-	auto desc = make_uniq<TableDescription>();
 	auto rel = con->conn->Table(schema_name, table_name);
 	cpp11::writable::list prot = {};
 	return make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(rel));
@@ -503,7 +532,7 @@ static SEXP result_to_df(duckdb::unique_ptr<QueryResult> res) {
 	vector<Value> positional_parameters;
 
 	for (sexp parameter_sexp : positional_parameters_sexps) {
-		if (LENGTH(parameter_sexp) < 1) {
+		if (RApiTypes::GetVecSize(parameter_sexp) < 1) {
 			stop("rel_from_table_function: Can't have zero-length parameter");
 		}
 		positional_parameters.push_back(RApiTypes::SexpToValue(parameter_sexp, 0));
@@ -517,7 +546,7 @@ static SEXP result_to_df(duckdb::unique_ptr<QueryResult> res) {
 	}
 	R_xlen_t named_parameter_idx = 0;
 	for (sexp parameter_sexp : named_parameters_sexps) {
-		if (LENGTH(parameter_sexp) != 1) {
+		if (RApiTypes::GetVecSize(parameter_sexp) != 1) {
 			stop("rel_from_table_function: Need scalar parameter");
 		}
 		named_parameters[names[named_parameter_idx]] = RApiTypes::SexpToValue(parameter_sexp, 0);

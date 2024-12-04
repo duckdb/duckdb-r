@@ -29,8 +29,7 @@
 #'   If `"numeric"` is selected, bigint integers will be treated as double/numeric.
 #'   If `"integer64"` is selected, bigint integers will be set to bit64 encoding.
 #'
-#' @return `dbConnect()` returns an object of class
-#'   \linkS4class{duckdb_connection}.
+#' @return `dbConnect()` returns an object of class [duckdb_connection-class].
 #'
 #' @rdname duckdb
 #' @examples
@@ -80,8 +79,8 @@ dbConnect__duckdb_driver <- function(
   config <- utils::modifyList(drv@config, config)
 
   # aha, a late comer. let's make a new instance.
-  if (dbdir != drv@dbdir || !rapi_lock(drv@database_ref)) {
-    rapi_unlock(drv@database_ref)
+  if (dbdir != drv@dbdir || !rethrow_rapi_lock(drv@database_ref)) {
+    rethrow_rapi_unlock(drv@database_ref)
     drv <- duckdb(dbdir, read_only, bigint, config)
   }
 
@@ -90,6 +89,7 @@ dbConnect__duckdb_driver <- function(
 
   conn@timezone_out <- timezone_out
   conn@tz_out_convert <- tz_out_convert
+  reg.finalizer(conn@conn_ref, onexit = TRUE, rapi_disconnect)
   on.exit(NULL)
 
   rs_on_connection_opened(conn)

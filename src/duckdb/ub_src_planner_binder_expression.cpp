@@ -28,6 +28,8 @@
 
 #include "src/planner/binder/expression/bind_positional_reference_expression.cpp"
 
+#include "src/planner/binder/expression/bind_unpacked_star_expression.cpp"
+
 #include "src/planner/binder/expression/bind_star_expression.cpp"
 
 #include "src/planner/binder/expression/bind_subquery_expression.cpp"

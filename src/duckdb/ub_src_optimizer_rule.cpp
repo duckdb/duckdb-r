@@ -20,6 +20,8 @@
 
 #include "src/optimizer/rule/in_clause_simplification_rule.cpp"
 
+#include "src/optimizer/rule/join_dependent_filter.cpp"
+
 #include "src/optimizer/rule/like_optimizations.cpp"
 
 #include "src/optimizer/rule/move_constants.cpp"
@@ -27,4 +29,6 @@
 #include "src/optimizer/rule/ordered_aggregate_optimizer.cpp"
 
 #include "src/optimizer/rule/regex_optimizations.cpp"
+
+#include "src/optimizer/rule/timestamp_comparison.cpp"
 

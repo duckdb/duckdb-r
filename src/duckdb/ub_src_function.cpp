@@ -1,8 +1,12 @@
+#include "src/function/aggregate_function.cpp"
+
 #include "src/function/built_in_functions.cpp"
 
 #include "src/function/cast_rules.cpp"
 
 #include "src/function/compression_config.cpp"
+
+#include "src/function/copy_function.cpp"
 
 #include "src/function/function.cpp"
 

@@ -162,7 +162,7 @@
     Code
       translate(round(x, digits = 1.1))
     Output
-      <SQL> ROUND(x, CAST(ROUND(1.1, 0) AS INTEGER))
+      <SQL> ROUND_EVEN(x, CAST(ROUND(1.1, 0) AS INTEGER))
     Code
       translate(as.Date("2019-01-01"))
     Output

@@ -201,6 +201,7 @@ void Binder::BindGeneratedColumns(BoundCreateTableInfo &info) {
 
 	// Create a new binder because we dont need (or want) these bindings in this scope
 	auto binder = Binder::CreateBinder(context);
+	binder->SetCatalogLookupCallback(entry_retriever.GetCallback());
 	binder->bind_context.AddGenericBinding(table_index, base.table, names, types);
 	auto expr_binder = ExpressionBinder(*binder, context);
 	ErrorData ignore;
@@ -227,7 +228,10 @@ void Binder::BindGeneratedColumns(BoundCreateTableInfo &info) {
 
 		auto bound_expression = expr_binder.Bind(expression);
 		D_ASSERT(bound_expression);
-		D_ASSERT(!bound_expression->HasSubquery());
+		if (bound_expression->HasSubquery()) {
+			throw BinderException("Failed to bind generated column '%s' because the expression contains a subquery",
+			                      col.Name());
+		}
 		if (col.Type().id() == LogicalTypeId::ANY) {
 			// Do this before changing the type, so we know it's the first time the type is set
 			col.ChangeGeneratedExpressionType(bound_expression->return_type);
@@ -292,10 +296,18 @@ unique_ptr<BoundCreateTableInfo> Binder::BindCreateTableInfo(unique_ptr<CreateIn
 	return BindCreateTableInfo(std::move(info), schema, bound_defaults);
 }
 
+unique_ptr<BoundCreateTableInfo> Binder::BindCreateTableCheckpoint(unique_ptr<CreateInfo> info,
+                                                                   SchemaCatalogEntry &schema) {
+	auto result = make_uniq<BoundCreateTableInfo>(schema, std::move(info));
+	CreateColumnDependencyManager(*result);
+	return result;
+}
+
 unique_ptr<BoundCreateTableInfo> Binder::BindCreateTableInfo(unique_ptr<CreateInfo> info, SchemaCatalogEntry &schema,
                                                              vector<unique_ptr<Expression>> &bound_defaults) {
 	auto &base = info->Cast<CreateTableInfo>();
 	auto result = make_uniq<BoundCreateTableInfo>(schema, std::move(info));
+	auto &dependencies = result->dependencies;
 
 	vector<unique_ptr<BoundConstraint>> bound_constraints;
 	if (base.query) {
@@ -312,10 +324,14 @@ unique_ptr<BoundCreateTableInfo> Binder::BindCreateTableInfo(unique_ptr<CreateIn
 		for (idx_t i = 0; i < names.size(); i++) {
 			base.columns.AddColumn(ColumnDefinition(names[i], sql_types[i]));
 		}
-		CreateColumnDependencyManager(*result);
-		// bind the generated column expressions
-		BindGeneratedColumns(*result);
 	} else {
+		SetCatalogLookupCallback([&dependencies, &schema](CatalogEntry &entry) {
+			if (&schema.ParentCatalog() != &entry.ParentCatalog()) {
+				// Don't register dependencies between catalogs
+				return;
+			}
+			dependencies.AddDependency(entry);
+		});
 		CreateColumnDependencyManager(*result);
 		// bind the generated column expressions
 		BindGeneratedColumns(*result);
@@ -336,7 +352,7 @@ unique_ptr<BoundCreateTableInfo> Binder::BindCreateTableInfo(unique_ptr<CreateIn
 		if (column.Type().id() == LogicalTypeId::VARCHAR) {
 			ExpressionBinder::TestCollation(context, StringType::GetCollation(column.Type()));
 		}
-		BindLogicalType(context, column.TypeMutable(), &result->schema.catalog);
+		BindLogicalType(column.TypeMutable(), &result->schema.catalog, result->schema.name);
 	}
 	result->dependencies.VerifyDependencies(schema.catalog, result->Base().table);
 

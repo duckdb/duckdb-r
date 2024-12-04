@@ -1,16 +1,16 @@
+#include "duckdb/common/arrow/arrow.hpp"
+#include "duckdb/common/arrow/arrow_converter.hpp"
+#include "duckdb/common/arrow/arrow_util.hpp"
+#include "duckdb/common/arrow/arrow_wrapper.hpp"
+#include "duckdb/common/arrow/result_arrow_wrapper.hpp"
+#include "duckdb/common/types/timestamp.hpp"
+#include "duckdb/main/chunk_scan_state/query_result.hpp"
+#include "duckdb/parser/statement/relation_statement.hpp"
 #include "rapi.hpp"
+#include "signal.hpp"
 #include "typesr.hpp"
 
 #include <R_ext/Utils.h>
-
-#include "duckdb/common/arrow/arrow.hpp"
-#include "duckdb/common/arrow/arrow_converter.hpp"
-#include "duckdb/common/types/timestamp.hpp"
-#include "duckdb/common/arrow/arrow_wrapper.hpp"
-#include "duckdb/common/arrow/result_arrow_wrapper.hpp"
-#include "duckdb/main/chunk_scan_state/query_result.hpp"
-
-#include "duckdb/parser/statement/relation_statement.hpp"
 
 using namespace duckdb;
 using namespace cpp11::literals;
@@ -100,7 +100,6 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 
 	auto rel = conn->conn->TableFunction("from_substrait", {Value::BLOB(RAW_POINTER(query), LENGTH(query))});
 	auto relation_stmt = make_uniq<RelationStatement>(rel);
-	relation_stmt->n_param = 0;
 	relation_stmt->query = "";
 	auto stmt = conn->conn->Prepare(std::move(relation_stmt));
 	if (stmt->HasError()) {
@@ -117,7 +116,6 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 
 	auto rel = conn->conn->TableFunction("from_substrait_json", {Value(json)});
 	auto relation_stmt = make_uniq<RelationStatement>(rel);
-	relation_stmt->n_param = 0;
 	relation_stmt->query = "";
 	auto stmt = conn->conn->Prepare(std::move(relation_stmt));
 	if (stmt->HasError()) {
@@ -133,7 +131,14 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		cpp11::stop("rapi_prepare: Invalid connection");
 	}
 
-	auto statements = conn->conn->ExtractStatements(query.c_str());
+	vector<unique_ptr<SQLStatement>> statements;
+	try {
+		statements = conn->conn->ExtractStatements(query.c_str());
+	} catch (std::exception &ex) {
+		ErrorData error(ex);
+		error.AddErrorLocation(query);
+		cpp11::stop("rapi_prepare: Failed to extract statements:\n%s", error.Message().c_str());
+	}
 	if (statements.empty()) {
 		// no statements to execute
 		cpp11::stop("rapi_prepare: No statements to execute");
@@ -152,7 +157,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		cpp11::stop("rapi_prepare: Failed to prepare query %s\nError: %s", query.c_str(),
 		            stmt->error.Message().c_str());
 	}
-	auto n_param = stmt->n_param;
+	auto n_param = stmt->named_param_map.size();
 	return construct_retlist(std::move(stmt), query, n_param);
 }
 
@@ -161,16 +166,18 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		cpp11::stop("rapi_bind: Invalid statement");
 	}
 
-	stmt->parameters.clear();
-	stmt->parameters.resize(stmt->stmt->n_param);
+	auto n_param = stmt->stmt->named_param_map.size();
 
-	if (stmt->stmt->n_param == 0) {
+	if (n_param == 0) {
 		cpp11::stop("rapi_bind: dbBind called but query takes no parameters");
 	}
 
-	if (params.size() != R_xlen_t(stmt->stmt->n_param)) {
-		cpp11::stop("rapi_bind: Bind parameters need to be a list of length %i", stmt->stmt->n_param);
+	if (params.size() != R_xlen_t(n_param)) {
+		cpp11::stop("rapi_bind: Bind parameters need to be a list of length %i", n_param);
 	}
+
+	stmt->parameters.clear();
+	stmt->parameters.resize(n_param);
 
 	R_len_t n_rows = Rf_length(params[0]);
 
@@ -337,16 +344,17 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	if (!stmt || !stmt.get() || !stmt->stmt) {
 		cpp11::stop("rapi_execute: Invalid statement");
 	}
-	auto pending_query = stmt->stmt->PendingQuery(stmt->parameters, arrow);
-	duckdb::PendingExecutionResult execution_result;
-	do {
-		execution_result = pending_query->ExecuteTask();
-		R_CheckUserInterrupt();
-	} while (!PendingQueryResult::IsFinishedOrBlocked(execution_result));
-	if (execution_result == PendingExecutionResult::EXECUTION_ERROR) {
-		cpp11::stop("rapi_execute: Failed to run query\nError: %s", pending_query->GetError().c_str());
+
+	ScopedInterruptHandler signal_handler(stmt->stmt->context);
+
+	auto generic_result = stmt->stmt->Execute(stmt->parameters, false);
+
+	if (signal_handler.HandleInterrupt()) {
+		return R_NilValue;
 	}
-	auto generic_result = pending_query->Execute();
+
+	signal_handler.Disable();
+
 	if (generic_result->HasError()) {
 		cpp11::stop("rapi_execute: Failed to run query\nError: %s", generic_result->GetError().c_str());
 	}

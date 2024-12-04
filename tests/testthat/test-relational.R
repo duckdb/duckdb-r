@@ -76,6 +76,44 @@ test_that("we can create various expressions and don't crash", {
   expect_true(TRUE)
 })
 
+test_that("we can create comparison expressions with appropriate operators", {
+  local_edition(3)
+
+  expect_snapshot({
+    expr_comparison("=", list(expr_constant(-42), expr_constant(42L)))
+  })
+  expect_snapshot({
+    expr_comparison("!=", list(expr_constant(-42), expr_constant(42L)))
+  })
+  expect_snapshot({
+    expr_comparison(">", list(expr_constant(-42), expr_constant(42L)))
+  })
+  expect_snapshot({
+    expr_comparison("<", list(expr_constant(-42), expr_constant(42L)))
+  })
+  expect_snapshot({
+    expr_comparison(">=", list(expr_constant(-42), expr_constant(42L)))
+  })
+  expect_snapshot({
+    expr_comparison("<=", list(expr_constant(-42), expr_constant(42L)))
+  })
+  expect_true(TRUE)
+})
+
+test_that("we cannot create comparison expressions with inappropriate operators", {
+  local_edition(3)
+
+  expect_snapshot(error = TRUE, {
+    expr_comparison("z", list(expr_constant(-42), expr_constant(42L)))
+  })
+  expect_snapshot(error = TRUE, {
+    expr_comparison("2", list(expr_constant(-42), expr_constant(42L)))
+  })
+  expect_snapshot(error = TRUE, {
+    expr_comparison("-", list(expr_constant(-42), expr_constant(42L)))
+  })
+})
+
 
 # TODO should maybe be a different file, test_enum_strings.R
 
@@ -124,6 +162,15 @@ test_that("we can cast R strings to DuckDB strings", {
 })
 
 test_that("the altrep-conversion for relations works", {
+  local_edition(3)
+
+  n_callback <- 0
+  last_rel <- NULL
+  rlang::local_options(duckdb.materialize_callback = function(rel) {
+    n_callback <<- n_callback + 1
+    last_rel <<- rel
+  })
+
   iris$Species <- as.character(iris$Species)
   rel <- rel_from_df(con, iris)
   df <- rel_to_altrep(rel)
@@ -132,8 +179,15 @@ test_that("the altrep-conversion for relations works", {
   expect_true(any(grepl("DUCKDB_ALTREP_REL_VECTOR", inspect_output, fixed = TRUE)))
   expect_true(any(grepl("DUCKDB_ALTREP_REL_ROWNAMES", inspect_output, fixed = TRUE)))
   expect_false(df_is_materialized(df))
+  expect_equal(n_callback, 0)
   dim(df)
   expect_true(df_is_materialized(df))
+
+  expect_snapshot(transform = function(x) gsub("0x[0-9a-f]+", "0x...", x), {
+    last_rel
+  })
+
+  expect_equal(n_callback, 1)
   expect_equal(iris, df)
 })
 
@@ -512,7 +566,7 @@ test_that("Window sum expression function test works", {
   aggrs <- expr_window(sum_func, partitions = list(expr_reference("b")))
   expr_set_alias(aggrs, "window_result")
   window_proj <- rel_project(rel_a, list(expr_reference("a"), aggrs))
-  order_over_window <- rapi_rel_order(window_proj, list(expr_reference("window_result")))
+  order_over_window <- rel_order(window_proj, list(expr_reference("window_result")))
   res <- rel_to_altrep(order_over_window)
   expected_result <- data.frame(a = c(1:8), window_result = c(3, 3, 7, 7, 11, 11, 15, 15))
   expect_equal(res, expected_result)
@@ -547,7 +601,7 @@ test_that("Window sum with Partition, order, and window boundaries works", {
   #     SUM(x) OVER (partition by b ROWS BETWEEN 3 PRECEDING AND CURRENT ROW)
   rel_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, 1, 1, 2, 2, 2, 2)))
   partitions <- list(expr_reference("b"))
-  order_by_a <- list(rapi_rel_order(rel_a, list(expr_reference("a"))))
+  order_by_a <- list(rel_order(rel_a, list(expr_reference("a"))))
   sum_func <- expr_function("sum", list(expr_reference("a")))
   sum_window <- expr_window(sum_func,
     partitions = partitions,
@@ -568,7 +622,7 @@ test_that("Window boundaries boundaries are CaSe INsenSItive", {
   #     SUM(x) OVER (partition by b ROWS BETWEEN 3 PRECEDING AND CURRENT ROW)
   rel_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, 1, 1, 2, 2, 2, 2)))
   partitions <- list(expr_reference("b"))
-  order_by_a <- list(rapi_rel_order(rel_a, list(expr_reference("a"))))
+  order_by_a <- list(rel_order(rel_a, list(expr_reference("a"))))
   sum_func <- expr_function("sum", list(expr_reference("a")))
   sum_window <- expr_window(sum_func,
     partitions = partitions,
@@ -611,7 +665,7 @@ test_that("Window lag function works as expected", {
   window_lag <- expr_window(lag, offset_expr = expr_constant(1))
   expr_set_alias(window_lag, "lag")
   proj_window <- rel_project(rel_a, list(expr_reference("a"), window_lag))
-  order_over_window <- rapi_rel_order(proj_window, list(expr_reference("a")))
+  order_over_window <- rel_order(proj_window, list(expr_reference("a")))
   expected_result <- data.frame(a = c(1:8), lag = c(NA, 1, 2, 3, 4, 5, 6, 7))
   res <- rel_to_altrep(order_over_window)
   expect_equal(res, expected_result)
@@ -625,7 +679,7 @@ test_that("function name for window is case insensitive", {
   window_lag <- expr_window(lag, offset_expr = expr_constant(1))
   expr_set_alias(window_lag, "lag")
   proj_window <- rel_project(rel_a, list(expr_reference("a"), window_lag))
-  order_over_window <- rapi_rel_order(proj_window, list(expr_reference("a")))
+  order_over_window <- rel_order(proj_window, list(expr_reference("a")))
   expected_result <- data.frame(a = c(1:8), lag = c(NA, 1, 2, 3, 4, 5, 6, 7))
   res <- rel_to_altrep(order_over_window)
   expect_equal(res, expected_result)
@@ -638,7 +692,7 @@ test_that("Window lead function works as expected", {
   window_lead <- expr_window(lead, offset_expr = expr_constant(1))
   expr_set_alias(window_lead, "lead")
   proj_window <- rel_project(rel_a, list(expr_reference("a"), window_lead))
-  order_over_window <- rapi_rel_order(proj_window, list(expr_reference("a")))
+  order_over_window <- rel_order(proj_window, list(expr_reference("a")))
   expected_result <- data.frame(a = c(1:8), lead = c(2, 3, 4, 5, 6, 7, 8, NA))
   res <- rel_to_altrep(order_over_window)
   expect_equal(res, expected_result)
@@ -652,7 +706,7 @@ test_that("Window function with string aggregate works", {
   window_str_cat <- expr_window(str_agg, partitions = partitions)
   expr_set_alias(window_str_cat, "str_agg_res")
   proj_window <- rel_project(rel_a, list(expr_reference("r"), window_str_cat))
-  order_over_window <- rapi_rel_order(proj_window, list(expr_reference("r")))
+  order_over_window <- rel_order(proj_window, list(expr_reference("r")))
   expected_result <- data.frame(r = c(1:4), str_agg_res = c("hello,Big", "hello,Big", "world,42", "world,42"))
   res <- rel_to_altrep(order_over_window)
   expect_equal(res, expected_result)
@@ -771,8 +825,61 @@ test_that("rel_project does not automatically quote upper-case column names", {
   ref <- expr_reference(names(df))
   exprs <- list(ref)
   proj <- rel_project(rel, exprs)
+  # FIXME: Change to rel_to_altrep() in 1.1.3
   ans <- rapi_rel_to_altrep(proj)
   expect_equal(df, ans)
+})
+
+test_that("rel_tostring()", {
+  local_edition(3)
+
+  df <- data.frame(x = 1)
+  rel <- rel_from_df(con, df)
+  ref <- expr_reference(names(df))
+  exprs <- list(ref)
+  proj <- rel_project(rel, exprs)
+
+  expect_snapshot(transform = function(x) gsub("0x[0-9a-f]+", "0x...", x), {
+    writeLines(rel_tostring(proj))
+  })
+
+  expect_snapshot(transform = function(x) gsub("0x[0-9a-f]+", "0x...", x), {
+    writeLines(rel_tostring(proj, "tree"))
+  })
+})
+
+test_that("rel_explain()", {
+  local_edition(3)
+
+  df <- data.frame(x = 1)
+  rel <- rel_from_df(con, df)
+  ref <- expr_reference(names(df))
+  exprs <- list(ref)
+  proj <- rel_project(rel, exprs)
+
+  expect_snapshot({
+    writeLines(rel_explain_df(proj)[[2]])
+  })
+
+  expect_snapshot({
+    writeLines(rel_explain_df(proj, "analyze")[[2]])
+  })
+
+  expect_snapshot({
+    writeLines(rel_explain_df(proj, "standard", "json")[[2]])
+  })
+
+  expect_snapshot({
+    writeLines(rel_explain_df(proj, "analyze", "json")[[2]])
+  })
+
+  expect_snapshot({
+    writeLines(rel_explain_df(proj, "standard", "html")[[2]])
+  })
+
+  expect_snapshot({
+    writeLines(rel_explain_df(proj, "standard", "graphviz")[[2]])
+  })
 })
 
 test_that("rel_to_sql works for row_number", {
@@ -822,6 +929,7 @@ test_that("we don't crash with evaluation errors", {
     )
   )
 
+  # FIXME: Change to rel_to_altrep() in 1.1.3
   ans <- rapi_rel_to_altrep(rel2)
 
   # This query is supposed to throw a runtime error.
@@ -853,9 +961,18 @@ test_that("we don't crash with evaluation errors", {
     )
   )
 
+  # FIXME: Change to rel_to_altrep() in 1.1.3
   ans <- rapi_rel_to_altrep(rel2)
 
   # This query is supposed to throw a runtime error.
   # If this succeeds, find a new query that throws a runtime error.
   expect_error(nrow(ans), "Error evaluating duckdb query")
+})
+
+test_that("Handle zero-length lists (#186)", {
+  local_edition(3)
+
+  expect_snapshot({
+    expr_constant(list(integer()))
+  })
 })

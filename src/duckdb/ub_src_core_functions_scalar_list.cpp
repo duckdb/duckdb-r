@@ -6,13 +6,11 @@
 
 #include "src/core_functions/scalar/list/list_filter.cpp"
 
+#include "src/core_functions/scalar/list/list_has_any_or_all.cpp"
+
 #include "src/core_functions/scalar/list/list_sort.cpp"
 
 #include "src/core_functions/scalar/list/list_distance.cpp"
-
-#include "src/core_functions/scalar/list/list_cosine_similarity.cpp"
-
-#include "src/core_functions/scalar/list/list_inner_product.cpp"
 
 #include "src/core_functions/scalar/list/list_reduce.cpp"
 

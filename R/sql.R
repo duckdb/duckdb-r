@@ -14,7 +14,7 @@ sql <- function(sql, conn = default_connection()) {
   dbGetQuery(conn, sql)
 }
 
-default_duckdb_connection <- new.env(parent=emptyenv())
+the <- new.env(parent = emptyenv())
 
 #' Get the default connection
 #'
@@ -26,14 +26,10 @@ default_duckdb_connection <- new.env(parent=emptyenv())
 #' conn <- default_connection()
 #' print(duckdb::sql("SELECT 42", conn=conn))
 default_connection <- function() {
-  if(!exists("con", default_duckdb_connection)) {
+  if(!exists("con", the)) {
     con <- DBI::dbConnect(duckdb::duckdb())
 
-    default_duckdb_connection$con <- con
-
-    reg.finalizer(default_duckdb_connection, onexit = TRUE, function(e) {
-      DBI::dbDisconnect(e$con, shutdown = TRUE)
-    })
+    the$con <- con
   }
-  default_duckdb_connection$con
+  the$con
 }
