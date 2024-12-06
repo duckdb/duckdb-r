@@ -1,5 +1,1516 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.1.3.9015
+
+## Bug fixes
+
+- Avoid compiler warning related to `Rboolean` (#594).
+
+- Check `"duckdb.materialize_message"` symbol (#592).
+
+- `%in%` works correctly as part of a `&` conjunction (#528).
+
+- Avoid RStudio IDE crashes when ending session with open objects (#520).
+
+- Use portable format modifiers.
+
+- Correctly compute vector length for data frames passed to relational functions (#379).
+
+- Set `initialize_in_main_thread`, add patch.
+
+## Features
+
+- Throw exception when non-utf8 characters are in a data.frame (@Tmonster, #12, #16).
+
+- New `duckdb.materialize_callback` option, supersedes `get_last_rel()` (#589).
+
+- New `rel_explain_df()` and `rel_tostring()` (#587).
+
+- Handle empty child values for list constants (@romainfrancois, #186).
+
+- Xz-compress duckdb sources in the tarball (#530).
+
+- Add `col.types` argument to `duckdb_read_csv()` (@eli-daniels, #383, #445).
+
+- `last_rel` (#529).
+
+- `rapi_get_last_rel_mat()`, `rapi_rel_to_altrep(allow_materialization = TRUE)`, `rapi_rel_from_altrep_df(enable_materialization)` (#526).
+
+- Rethrow errors with rlang if installed (#522).
+
+- Catch and add query context for statement extraction (tidyverse/duckplyr#219, #521).
+
+- Implement query cancellation (#514, #515).
+
+- Add comparison expression to relational api (@toppyy, #457).
+
+- Temporarily change `max_expression_depth` during ALTREP evaluation (#101, #460).
+
+- Add `temporary` argument to `duckdb_read_csv()` (@ThomasSoeiro, #223).
+
+- Bump vendored cpp11 to v0.5.0 (#382, #387).
+
+- Tweak implementation of `r_base::sum()` (#381, #385).
+
+- `n_distinct()` supports `na.rm = TRUE` with a single vector argument again (@lschneiderbauer, #204, #216).
+
+- New `rel_from_sql()` (#212).
+
+- Breaking change: Rename `tbl_query()` to `tbl_function()`, remove `translate_duckdb()` (#133, #159, #211).
+
+## Chore
+
+- Undef `TRUE` and `FALSE` (#595).
+
+- Remove `enable_materialization` argument in favor of creating a new data frame when needed (#588).
+
+- Flip argument order for `expr_comparison()` (#585).
+
+- Bump for pre-release.
+
+- Keep `cleanup` files to accommodate different build scenarios (#536).
+
+- Update vendored sources to duckdb/duckdb@19864453f7d0ed095256d848b46e7b8630989bac (#580).
+
+- Update vendored sources to duckdb/duckdb@c3ca3607c221d315f38227b8bf58e68746c59083 (#579).
+
+- Update vendored sources to duckdb/duckdb@9cba6a2a03e3fbca4364cab89d81a19ab50511b8 (#578).
+
+- Update vendored sources to duckdb/duckdb@c6c08d4c1b363231b3b9689367735c7264cacefb (#577).
+
+- Update vendored sources to duckdb/duckdb@7f34190f3f94fc1b1575af829a9a0ccead87dc99 (#576).
+
+- Update vendored sources to duckdb/duckdb@78b65d4a9aa80c4be4efcdd29fadd6f0c893f1ce (#575).
+
+- Update vendored sources to duckdb/duckdb@c31c46a875979ce3343edeedcb497485ca2fd751 (duckdb/duckdb#14542, #574).
+
+- Update vendored sources to duckdb/duckdb@4ba2e66277a7576f58318c1aac112faa67c47b11 (#573).
+
+- Update vendored sources to duckdb/duckdb@247fcb31733a5297c1070fbd244f2349091253aa (duckdb/duckdb#14601, #572).
+
+- Update vendored sources to duckdb/duckdb@1a519fce83b3d262247325dbf8014067686a2c94 (duckdb/duckdb#14600, #571).
+
+- Update vendored sources to duckdb/duckdb@b653a8c2b760425a83302e894bf930f18a1bdf64 (#570).
+
+- Update vendored sources to duckdb/duckdb@79bf967e1b6ab438e0a83a014e937af571ed7acb (#569).
+
+- Update vendored sources to duckdb/duckdb@4b62ee43a7d5f62313d77d36dec8aea29412431f (#568).
+
+- Update vendored sources to duckdb/duckdb@3293c92b6e657084318f7556b14077896b333109 (#567).
+
+- Update vendored sources to duckdb/duckdb@8664b710beb205ec6fc7e9f3d18dfe24dd28625f (#566).
+
+- Update vendored sources to duckdb/duckdb@92a1ccbcef04dda11c85fa2bf6daf27daf8d9c49 (#565).
+
+- Update vendored sources to duckdb/duckdb@2635a87a566b90e086caa84805019f66eedf0859 (#564).
+
+- Update vendored sources to duckdb/duckdb@0d5ec0057838081251b388726353f09cba9577ad (#563).
+
+- Update vendored sources to duckdb/duckdb@6af32330b51af4d72d3fed665bfc03f78c8b3876 (#562).
+
+- Update vendored sources to duckdb/duckdb@662b0b34eaaf7f52545638cbc87c10e32b33834d (#561).
+
+- Update vendored sources to duckdb/duckdb@bccd37ae7ea09f77b6299165bf80bca3bc1efc7c (#560).
+
+- Update vendored sources to duckdb/duckdb@5090b7396173069bb0d51b0e1341cfa9950c154f (#559).
+
+- Update vendored sources to duckdb/duckdb@f5ebc9b8e1d6c040a2276e0ac4a41d6bf9475880 (duckdb/duckdb#14545, #558).
+
+- Update vendored sources to duckdb/duckdb@b8c5248b9c18f7cafbdf7992421662adbd95bf38 (#557).
+
+- Update vendored sources to duckdb/duckdb@dfdd7968262d912910d8249bde3524e068c67713 (#556).
+
+- Update vendored sources to duckdb/duckdb@d0673165b52e89fe70d1891504e4dea82adeca85 (#555).
+
+- Update vendored sources to duckdb/duckdb@d79e66bd032dbd2066c16a88f517f6da1cd0aa78 (#554).
+
+- Update vendored sources to duckdb/duckdb@0359726be957673a62ab1ab61f1cca9ba5667386 (#553).
+
+- Update vendored sources to duckdb/duckdb@10c42435f1805ee4415faa5d6da4943e8c98fa55 (#552).
+
+- Update vendored sources to duckdb/duckdb@43d26298affa89bc6ca829a1defc4819b42b6fb4 (#551).
+
+- Update vendored sources to duckdb/duckdb@52b43b166091c82b3f04bf8af15f0ace18207a64 (#550).
+
+- Update vendored sources to duckdb/duckdb@0446ab42e96b6269e78f55293f4096fa10224837 (#549).
+
+- Update vendored sources to duckdb/duckdb@ceb77af7935c3c7a4a34e1199abd4d6ea080448c (duckdb/duckdb#14430, #548).
+
+- Update vendored sources to duckdb/duckdb@aed52f5cabe34075c53bcec4407e297124c8d336 (#547).
+
+- Update vendored sources to duckdb/duckdb@e41a881658ae579cedebe19c5070dad660086aea (#546).
+
+- Update vendored sources to duckdb/duckdb@98d4ad28be35cf5c37e18760e76d11bc07be1ab4 (#545).
+
+- Update vendored sources to duckdb/duckdb@1bb332c9c59a9d15b196b4486a6d1ffcaa833ba5 (#544).
+
+- Update vendored sources to duckdb/duckdb@0bbfe09937e3744325f3b2dfdb182e9ac1ff916f (#543).
+
+- Update vendored sources to duckdb/duckdb@08969b4677534b6870bff4c99998c753a6e784fc (#542).
+
+- Update vendored sources to duckdb/duckdb@4756244efa04d204be6f20d55036fc503b7ed49c (#541).
+
+- Update vendored sources to duckdb/duckdb@217ec4722e949eaa49568bd707e49431ef727ab5 (#539).
+
+- Move responsibility for removing CR (#533).
+
+- Terminate all sources with newline (#531).
+
+- Sync duckplyr tests (#527).
+
+- Cleanup, preparation (#525).
+
+- Bump version.
+
+- Update vendored sources (tag v1.1.2) to duckdb/duckdb@f680b7d08f56183391b581077d4baf589e1cc8bd (#510).
+
+- Update vendored sources to duckdb/duckdb@5f49126b92a0899a2049aaa57da886138c5f879d (#509).
+
+- Update vendored sources to duckdb/duckdb@2c21eb1c2eec3a1e359d87fb2a2cd8e427dc03c1 (#508).
+
+- Update vendored sources to duckdb/duckdb@cc067e6b7db33f516437567cbc726536e34ed716 (#507).
+
+- Update vendored sources to duckdb/duckdb@d2dfc6090685470cb09326a7530066fc4b3db42a (#506).
+
+- Update vendored sources to duckdb/duckdb@56e2e0e5721b8547f564fccf252db0ba93c85471 (#505).
+
+- Update vendored sources to duckdb/duckdb@35dfcc06e6c76ad6bd8e4acdae1bcc30751777eb (#504).
+
+- Update vendored sources to duckdb/duckdb@92e0964376a78f990408a0e81af155504b35d27c (#503).
+
+- Update vendored sources to duckdb/duckdb@01e6e98e3875ed12cbcb9257f81844743b1665fa (#502).
+
+- Update vendored sources to duckdb/duckdb@6dc2e9375870e60f82becb1cece4cc878289d3b8 (#501).
+
+- Update vendored sources to duckdb/duckdb@52b19d5ece35be344830800db0e4961f47114aa9 (#500).
+
+- Update vendored sources to duckdb/duckdb@0d3e84330e845ceefdc55a36d52ef0296af5d1e1 (#499).
+
+- Update vendored sources to duckdb/duckdb@d0cf23ead54f191bf2518598edf04e209f07452e (#498).
+
+- Update vendored sources to duckdb/duckdb@d57a94430e50263cbd1b719b984da189e5bba0c5 (#497).
+
+- Update vendored sources to duckdb/duckdb@a5ddffef692c0627dd6c7efaed7cf65148321452 (#496).
+
+- Update vendored sources to duckdb/duckdb@536f979f69b1bbe40d582450b6cfa6a68463f172 (#495).
+
+- Update vendored sources to duckdb/duckdb@443380a11dbb31a1c218a759ec0c3b56880f1c38 (duckdb/duckdb#14249, #494).
+
+- Update vendored sources to duckdb/duckdb@7919e4abc5597dc4fbeb5a19dff19ff69b5c4113 (duckdb/duckdb#14249, #493).
+
+- Update vendored sources to duckdb/duckdb@52f967a42861032fd5f4392609afc195cd025dde (#492).
+
+- Update vendored sources to duckdb/duckdb@1f20676c7d997fe4964a8b51378bf984e53a4b4c (#491).
+
+- Update vendored sources to duckdb/duckdb@8cec9b1537f900e7a644e7b466ea899cf1ca8f8f (#490).
+
+- Update vendored sources to duckdb/duckdb@4f0cd4d60035e8c6afafed47b68b2240b39e3566 (duckdb/duckdb#14212, #489).
+
+- Update vendored sources to duckdb/duckdb@5a9a382a573b107a38f5ee277619b362d5079c32 (#488).
+
+- Update vendored sources to duckdb/duckdb@123b82b9053c4843559035b6723c867b2618b2d9 (#487).
+
+- Update vendored sources to duckdb/duckdb@405e15fcde8a4da4a7c6d3889f992f0a363c05f2 (duckdb/duckdb#14232, #486).
+
+- Update vendored sources to duckdb/duckdb@0e398d95c50ae40730467c53922c8fb8d5c69f90 (#485).
+
+- Update vendored sources to duckdb/duckdb@1eac05ecd3a6b8ec2cdf0c53ccece7ca2effef26 (#484).
+
+- Update vendored sources to duckdb/duckdb@048f5ffcec9c1a4b73cbfbd4158cd5b6669f102b (#483).
+
+- Update vendored sources to duckdb/duckdb@0b2d95601c2d9474f2c823ac3363e9ca14224c7c (#482).
+
+- Update vendored sources to duckdb/duckdb@350d061846ed7e4c96d2efa7b523bb97ae84538a (#481).
+
+- Update vendored sources to duckdb/duckdb@2f6b78c21d1634c7228e00c809a790701705c82b (#480).
+
+- Update vendored sources to duckdb/duckdb@8aca4330ac46be3950c6b12e29040322dd245b7a (#479).
+
+- Update vendored sources to duckdb/duckdb@9931d723ccde2b2435b1a927234338e6f0353d90 (#478).
+
+- Update vendored sources to duckdb/duckdb@d896e73fe2db62b6749b95e30faa8bfa41dc4d32 (#477).
+
+- Update vendored sources to duckdb/duckdb@f8c82ab2620f8066b0141df0c3982885a5258746 (#476).
+
+- Update vendored sources to duckdb/duckdb@ee256eb45552601db71d4cad7a5cd4f46f0d5a1d (#475).
+
+- Update vendored sources to duckdb/duckdb@130aab3f9ddb84e0c6e7f543a99881d8fc1bd6b7 (#474).
+
+- Update vendored sources to duckdb/duckdb@92c65a4341c57f313dbeba5acc7b1fb917808010 (#473).
+
+- Update vendored sources to duckdb/duckdb@47e1d3d60b4d6d075cf88c2707572df12a630a3a (#472).
+
+- Update vendored sources to duckdb/duckdb@45559f5eeb1834454a30490fc4ffad1807e13f3b (#471).
+
+- Update vendored sources to duckdb/duckdb@dfdd09f46c0169c9d8aa5381086e46a66e44fabc (#470).
+
+- Update vendored sources to duckdb/duckdb@89828abb72219957372f316da06f007dadd2a9aa (#469).
+
+- Update vendored sources to duckdb/duckdb@12e9777cf6283f44710b2610ba3d3735a1208751 (duckdb/duckdb#14077, #468).
+
+- Update vendored sources to duckdb/duckdb@4a55e2334232afe94e47ab398ddb44f88fcd6658 (#467).
+
+- Update vendored sources to duckdb/duckdb@0f3c46215feb0fb92d4998977fc31b2f52db6b14 (#466).
+
+- Update vendored sources to duckdb/duckdb@c87246586490b442706d0be66b82d71930a00578 (#465).
+
+- Update vendored sources to duckdb/duckdb@cd8cb3f1c81a74a3b2c1ed7d94e3913485895074 (#464).
+
+- Update vendored sources to duckdb/duckdb@acd16816e31789bdb27e144ccd19ddb9da4fe6df (#463).
+
+- Update vendored sources to hannes/duckdb-rfuns@20cde009b51b9355e6041b72b87105c6b45793fe.
+
+- Remove uninitialized warnings.
+
+- Document (#456).
+
+- Update vendored sources (tag v1.1.1) to duckdb/duckdb@af39bd0dcf66876e09ac2a7c3baa28fe1b301151 (#454).
+
+- Update vendored sources to duckdb/duckdb@0fe7708eef6b9b77270ca21cb9b5e30a3de84e3c (#453).
+
+- Update vendored sources to duckdb/duckdb@34a3acc6b3354be86fe593d09e0702ab5eafe757 (#452).
+
+- Update vendored sources to duckdb/duckdb@cb2a947e9df4f6c40b6dd5751c412d6946cbb62b (#451).
+
+- Update vendored sources to duckdb/duckdb@64520f224d8a0a096cfe10f0c2cfbd1ac9457811 (duckdb/duckdb#13934, #450).
+
+- Update vendored sources to duckdb/duckdb@b0eee44df70eb7bf9efac5f65dd2eaf7ad1e5403 (#449).
+
+- Update vendored sources to duckdb/duckdb@4fe3dc559d10648691f9ab34f20207771890dd45 (#448).
+
+- Update vendored sources to duckdb/duckdb@6c02032393583f353f2f2a0337a8e16f34dc5d82 (duckdb/duckdb#14026, #447).
+
+- Update vendored sources to duckdb/duckdb@4ce455c84029195ffa4c3e540c10360ae8c73724 (#446).
+
+- Update vendored sources to duckdb/duckdb@03dd0df6185d903ecbff9d80017e5449e78e5017 (#443).
+
+- Update vendored sources to duckdb/duckdb@d1037da3139de90dc0a82df746d8ce92a50d9838 (#442).
+
+- Update vendored sources to duckdb/duckdb@cb27c0423fa7107674c267b5de8eb93dd603cb69 (duckdb/duckdb#13993, #441).
+
+- Update vendored sources to duckdb/duckdb@b787fcc1cb9bc4daf36e6eec19c1e9b2b162f4b0 (duckdb/duckdb#14020, #440).
+
+- Update vendored sources to duckdb/duckdb@0ce863113043806780e776bcfb86b24afcb0263c (#439).
+
+- Update vendored sources to duckdb/duckdb@f9e96b191088e65b4a1f95918312c40e31096dd9 (#438).
+
+- Update vendored sources to duckdb/duckdb@2ff9c687e2c448914a28c59bd50f48f54e47de3c (#437).
+
+- Update vendored sources to duckdb/duckdb@dcc302aef4491db8cc2efd2955ac254a4d62dcbc (#436).
+
+- Update vendored sources to duckdb/duckdb@03976af191370d4020c172a82b28ca7885d98ea3 (#435).
+
+- Update vendored sources to duckdb/duckdb@29c46243993319b0db24509c862126b8e17f1e8c (#434).
+
+- Update vendored sources to duckdb/duckdb@e7da966e87539457f3de94a1bee288861fdca6d6 (#433).
+
+- Update vendored sources to duckdb/duckdb@44bba02cea5d316e38f6edbad7fad3a1f913d63f (#432).
+
+- Update vendored sources to duckdb/duckdb@04a1f750a6fab3f1a9cf3fb7cce5fd119c522304 (#431).
+
+- Update vendored sources to duckdb/duckdb@0da70d9de97ff2cf39ad99b9e30b7e6cb91614b8 (duckdb/duckdb#13933, #430).
+
+- Update vendored sources to duckdb/duckdb@df82a0e2c47e8b3ddd5a93e08530b83bc49e0da0 (#429).
+
+- Update vendored sources to duckdb/duckdb@86723c9912fde7b76d3863b2ccd2d4333251c4af (#428).
+
+- Update vendored sources to duckdb/duckdb@66d8ed93f67a00006ec99226c1205bcffb1ef07b (duckdb/duckdb#13941, #427).
+
+- Update vendored sources to duckdb/duckdb@b2f68017070c1910dd3438f9428c7162cb428f84 (#426).
+
+- Update vendored sources to duckdb/duckdb@35a104529b56c4f4f1e383e2ead26d6047d3442e (#425).
+
+- Update vendored sources to duckdb/duckdb@b8c5fa937919631b759a70e33f068aa05de8bd36 (#424).
+
+- Update vendored sources to duckdb/duckdb@18670a10f1b3da56382e272518d6b149e489ca51 (#423).
+
+- Update vendored sources to duckdb/duckdb@0b0c95b9dc685e1a6ca011d8e086d885afbe0398 (#422).
+
+- Update vendored sources to duckdb/duckdb@e5e1595da75ea01559f2b4bc9531505422b7fcdc (duckdb/duckdb#13585, #421).
+
+- Update vendored sources to duckdb/duckdb@75d4bd0cc759dcb609ab349b87bff07dddf2ebb7 (#420).
+
+- Update vendored sources to duckdb/duckdb@c0f29465624aaa1472ee05d4723415cfa1bfbdf9 (#419).
+
+- Update vendored sources to duckdb/duckdb@b369bcb4e08235e52866a5f8afb7e172fe573287 (#418).
+
+- Update vendored sources to duckdb/duckdb@414207f2120ad9019b416cf891947004c74c7347 (#417).
+
+- Update vendored sources to duckdb/duckdb@38ceb86f1aa4cfae7c993f59de19e0cfee7ff68e (#416).
+
+- Update vendored sources to duckdb/duckdb@0dbb79e8de897b4a710ed53becc063bcdf80884d (duckdb/duckdb#13824, #415).
+
+- Update vendored sources to duckdb/duckdb@9af117f0e6d3f2f9ade385dadc46807c1b388dd4 (#414).
+
+- Update vendored sources to duckdb/duckdb@88a4c1e5893f316d763343d7f66f57917b065f50 (#413).
+
+- Update vendored sources to duckdb/duckdb@d93225aab5c8e0da34776398358373f4c0232864 (duckdb/duckdb#13872, #412).
+
+- Update vendored sources to duckdb/duckdb@8c2ee1eb7987a981cdf4bb1ed52683784a26e3bf (duckdb/duckdb#13880, #411).
+
+- Update vendored sources to duckdb/duckdb@081a748340c4fcd3b3652230a02432afae72bbb3 (#410).
+
+- Update vendored sources to duckdb/duckdb@bc7683e100867fae06c1f65e055df403c2ee25cf (#409).
+
+- Update vendored sources to duckdb/duckdb@b87545985fc03e43baf84d9554eab23ea4b21f6c (#408).
+
+- Update vendored sources to duckdb/duckdb@1d7e05c9737821fdb2c8eba996642c9953de52f6 (#407).
+
+- Update vendored sources to duckdb/duckdb@b383f3668095fac2574bc6a0c417047a6fe80c9f (#406).
+
+- Update vendored sources to duckdb/duckdb@039a262ae9805f30690ae1c8ec6a7fb27812c1b5 (#405).
+
+- Update vendored sources to duckdb/duckdb@d697acfb108f6ec1b1ed26f0062445e1d49ee1c4 (#404).
+
+- Update vendored sources to duckdb/duckdb@dfbfdef89aad145dc9d81c275bc2c9fad4062bed (#403).
+
+- Update vendored sources to duckdb/duckdb@c41ae2cb6e2390b9656ac2d22885df0572a87796 (#402).
+
+- Update vendored sources to duckdb/duckdb@d066254185fa56ec851183e9178edb04ae34c0b9 (#401).
+
+- Update vendored sources to duckdb/duckdb@5fd2501220b80adaddf009b78cac44b97813258c (#400).
+
+- Update vendored sources to duckdb/duckdb@6d9d429d5e7f464b69671b46dcbc99a6e46378df (#399).
+
+- Update vendored sources to duckdb/duckdb@d9e89b5cc192ea052f038d8e7b26d253ec81bc49 (#398).
+
+- Update vendored sources to duckdb/duckdb@95038c5eee75f733c99193c66c3faa7289d6f599 (#397).
+
+- Update vendored sources to duckdb/duckdb@8d1c2b29badfcc55246829e00e97b86b38b3606a (#396).
+
+- Update vendored sources to duckdb/duckdb@329bb5393b686421b40261211354f4d77cac1633 (#395).
+
+- Update vendored sources to duckdb/duckdb@403f0fc6459fc5a1f185350d30eafa555c145d1f (#394).
+
+- Update vendored sources to duckdb/duckdb@6a197b22652d02749c3e755e75b10d75e7ad6b75 (#393).
+
+- Show file sizes (#380, #391).
+
+- Fix stripping call (#380, #390).
+
+- Move stripping logic to `install.libs.R` (#380, #389).
+
+- Strip binary if requested (#380, #386).
+
+- Update vendored sources to hannes/duckdb-rfuns@4fccc0b6e577f5b32c84d03cd79cb9fd9827212b (#378).
+
+- Bump.
+
+- Update vendored sources (tag v1.1.0) to duckdb/duckdb@fa5c2fe15f3da5f32397b009196c0895fce60820 (#377).
+
+- Update vendored sources to duckdb/duckdb@fc21edf1508fa785a0ce06ffd245fe30b20eefe0 (#376).
+
+- Update vendored sources to duckdb/duckdb@1d3fc5aec6b846c563d6d99c96df7c30117b5a94 (#375).
+
+- Update vendored sources to duckdb/duckdb@893d007e64df94658d4da92c02698559f89d2072 (#374).
+
+- Update vendored sources to duckdb/duckdb@64bacde85e4c24134cf73f9b4ed3ae362510f287 (#373).
+
+- Update vendored sources to duckdb/duckdb@93494bd74d30f7ae11456dcee6c5e5143be58606 (#372).
+
+- Update vendored sources to duckdb/duckdb@f76d6f2e7e170d6434e2725f43bac5ede31985fa (#371).
+
+- Update vendored sources to duckdb/duckdb@310176118d5dc9897fb752bda145ee9dca628240 (#370).
+
+- Update vendored sources to duckdb/duckdb@c1183d72ed9b388fdc894e86f7e999b2ba8301e5 (#369).
+
+- Update vendored sources to duckdb/duckdb@d454d2458646151fc89c60639f0c50cecf1f4ebd (#367).
+
+- Update vendored sources to duckdb/duckdb@0e6dacd8932c22f9d383b8047fb11aad59564895 (#363).
+
+- Update vendored sources to duckdb/duckdb@4d18b9d05caf88f0420dbdbe03d35a0faabf4aa7 (#362).
+
+- Update vendored sources to duckdb/duckdb@c4940720ce2ee93f39f6d80ceb25a729718a6828 (#361).
+
+- Update vendored sources to duckdb/duckdb@421acb0f7c924216bc689f3731d7a971e7e4fa2b (#360).
+
+- Update vendored sources to duckdb/duckdb@7c988cf7bf417d6534f0ae60f6e0297ef22cd18a (#359).
+
+- Update vendored sources to duckdb/duckdb@dd3cbcee009bf664e3a9bce2467c8af6d2bc53d2 (#358).
+
+- Update vendored sources to duckdb/duckdb@95a9fe9f2681175788ac85dfe67a370ef9b6f32d (#357).
+
+- Update vendored sources to duckdb/duckdb@756d4fcb624c2c180969630b11d44380704a871a (#356).
+
+- Update vendored sources to duckdb/duckdb@450b7e45d9e717d2c475995dabbde47b5acdfc4a (#355).
+
+- Update vendored sources to duckdb/duckdb@dffc4ffad7d9cb7c181db87b1bfb51e261bcedf6 (#354).
+
+- Update vendored sources to duckdb/duckdb@a6e32b115826ba543e32a733cb92f68fd0549186 (#353).
+
+- Update vendored sources to duckdb/duckdb@1f01ef8781c8a3edf192286e0044ff37f043fb47 (#352).
+
+- Update vendored sources to duckdb/duckdb@9aa68025b1ddf0deba9e7caf17cd0dbe4abd7206 (#351).
+
+- Update vendored sources to duckdb/duckdb@7a7547f5da232111d52c4afb05e98e19fd8c7e31 (#350).
+
+- Update vendored sources to duckdb/duckdb@fa2daf7a09e477e30e53b4cc8f4269c39eaf62ef (#349).
+
+- Update vendored sources to duckdb/duckdb@a65fc4ed0847cb073231ba2be21bbd8515b91171 (#348).
+
+- Update vendored sources to duckdb/duckdb@1844ae51091ee85c9194036405abd561ff9b58ae (#347).
+
+- Update vendored sources to duckdb/duckdb@439bb91fc33e8bc45cc6e6d73c823ab44b48876d (#346).
+
+- Update vendored sources to duckdb/duckdb@9067c648ef182084b3159b72213097505d5b5cab (#345).
+
+- Update vendored sources to duckdb/duckdb@a05e81d31b178bd41ff4fb3aa46c30fe2a7068e5 (#344).
+
+- Update vendored sources to duckdb/duckdb@74c9f4df1fe5c3f39007aa38c112cb7582f91302 (#343).
+
+- Update vendored sources to duckdb/duckdb@e90611400749d641a07dbcd5f10df85d99813f33 (#342).
+
+- Update vendored sources to duckdb/duckdb@902af6f21cf5e15979ecab02f15223a0f9a0baff (#341).
+
+- Update vendored sources to duckdb/duckdb@6f9795184545d841a35e75b938f78a1e0520bd8f (#340).
+
+- Update vendored sources to duckdb/duckdb@67b69b0c6e9411a2755baffa2305000dae887937 (#339).
+
+- Update vendored sources to duckdb/duckdb@18e97dd88525d42c5de9faf6d1a89b90590c94fe (#338).
+
+- Update vendored sources to duckdb/duckdb@37a55bdf6665705eb6be311bc61fa8a2f2b900fe (#337).
+
+- Update vendored sources to duckdb/duckdb@0d37df84df6c0226423eda80d2adce9b6fdf1eea (#336).
+
+- Update vendored sources to duckdb/duckdb@2355a5bd10fe6ae24b0b7604a66b78d6c657c104 (#335).
+
+- Update vendored sources to duckdb/duckdb@206320c56140238066fdfca3aa503ec09f7cb2bd (#334).
+
+- Update vendored sources to duckdb/duckdb@40c9c5a5f9b54dcaf75c45ecaa311ec478721559 (#333).
+
+- Update vendored sources to duckdb/duckdb@379a80032a96a454190c4d2f524898ecad8fec89 (#332).
+
+- Update vendored sources to duckdb/duckdb@20100aa2560b68b2f0b46bdc07877a96ed270959 (#331).
+
+- Update vendored sources to duckdb/duckdb@5896c638099998449f06ce1a61e6c01045ba4a7f (#330).
+
+- Update vendored sources to duckdb/duckdb@1a2791b7b415ee41e2285e298ee97f37caf9eeeb (#329).
+
+- Update vendored sources to duckdb/duckdb@01c5bed3c2235171f59527832b1d41fc4a669219 (#328).
+
+- Update vendored sources to duckdb/duckdb@686bcd10b3d617b8a00c41505ab1a97d8c53319f (#327).
+
+- Update vendored sources to duckdb/duckdb@2e78e027dbc812e301088cb72aec80025af0b7a2 (#326).
+
+- Update vendored sources to duckdb/duckdb@4b8274729b3037ce1c3528e90896aa3f6d94559b (#325).
+
+- Update vendored sources to duckdb/duckdb@de5f77c08b5c37afc511e581212639050be2c691 (#324).
+
+- Update vendored sources to duckdb/duckdb@7691b57aa1ef638c4b825c388b1bd2877a4e8ec4 (#323).
+
+- Update vendored sources to duckdb/duckdb@b881dc1265f222e0de23403d8b3c155e8a0c5f17 (#322).
+
+- Update vendored sources to duckdb/duckdb@2be970dda0e5047b1075f938691455d63ba63a67 (#321).
+
+- Update vendored sources to duckdb/duckdb@573bedb4c23ae67248fa7545c5af6f455b9523a8 (#320).
+
+- Update vendored sources to duckdb/duckdb@892f631d24711e3911e8bac2baca66ebf07d9edb (#319).
+
+- Update vendored sources to duckdb/duckdb@ea6f5c4e0903ebfe171969a214c19b77ccb7f7e8 (#318).
+
+- Update vendored sources to duckdb/duckdb@0af71afe6c3e932c1f55b29418c3aef8eebf671f (#317).
+
+- Update vendored sources to duckdb/duckdb@48a8b81d5264adae02777b80b73d69be6ea6aa36 (#316).
+
+- Update vendored sources to duckdb/duckdb@5f4af5343a4f09c3ba184a171bbcf9abd9c8b139 (#315).
+
+- Update vendored sources to duckdb/duckdb@0e6f3fb91a072d370eb81d200cff4ba952bf20f2 (#314).
+
+- Update vendored sources to duckdb/duckdb@5bdb091a5d67460da3ca3a89f21b7cdc588d4544 (#313).
+
+- Update vendored sources to duckdb/duckdb@6e24bb278d11538e46ce69446cd2849d331bc7a4 (#312).
+
+- Update vendored sources to duckdb/duckdb@b1bae91af9cbf8443b69aa851accba42657fb3fb (#311).
+
+- Update vendored sources to duckdb/duckdb@bb5f35c7af618d7636a1f61b26aa6a5c60b0d88a (#310).
+
+- Update vendored sources to duckdb/duckdb@4cabb03b151deb6aec8b14a2496f1b2d9031574a (#309).
+
+- Update vendored sources to duckdb/duckdb@dd2f87c0e2038e3bbfffecd904f407b80f298212 (#308).
+
+- Update vendored sources to duckdb/duckdb@729468452530e898b34a9eec3b48574f8f6fe70e (#307).
+
+- Update vendored sources to duckdb/duckdb@afecd99dbbcf9dec503ffffd2b9fefb8d9d826bd (#306).
+
+- Update vendored sources to duckdb/duckdb@8eff1500c78807d6ff6f4cac99d799da27ff0f2b (#305).
+
+- Update vendored sources to duckdb/duckdb@87ba8503f2a2d53284d0cde88e52df39959eeffa (#304).
+
+- Update vendored sources to duckdb/duckdb@58fe5162afadc1a9b52cc095a86ad1769d3e9384 (#303).
+
+- Update vendored sources to duckdb/duckdb@536fb3b02b0f0e436eb0b1345ae4b155c2993fa4 (#302).
+
+- Update vendored sources to duckdb/duckdb@de92c08cb0585ccb364c3daf0b7e251841dc088b (#301).
+
+- Update vendored sources to duckdb/duckdb@7d2a6d0332ca85730220c926fe8d2330ed2cb6cd (#300).
+
+- Update vendored sources to duckdb/duckdb@13ace3f6ccbd81fa1f66a467583aab10bd888496 (#299).
+
+- Update vendored sources to duckdb/duckdb@69afac464d1f0de4dedab96e26fec05d5b8118c8 (#298).
+
+- Update vendored sources to duckdb/duckdb@e08c0bf105c2ad3d1a6445488182aedf680306e6 (#297).
+
+- Update vendored sources to duckdb/duckdb@567bdebcba6e58da96ceb9465505a38a6c60e69f (#296).
+
+- Update vendored sources to duckdb/duckdb@47715960b6ce0b724d9d061addbc85d0397367bf (#295).
+
+- Update vendored sources to duckdb/duckdb@de13238537197a5e23b3450e8c931844034ca047 (#294).
+
+- Update vendored sources to duckdb/duckdb@c84676023c279bfec3441657d54baaef499276f5 (#293).
+
+- Update vendored sources to duckdb/duckdb@610d79431c7aeccb0d6a4cf9ce2c04a4a96d2f63 (#292).
+
+- Update vendored sources to duckdb/duckdb@dabc6df8f5608453f2da1e23b16d55d6df2aaf52 (#291).
+
+- Update vendored sources to duckdb/duckdb@8226769114e16a3cb42d38bfe58c218a9009b1a3 (#290).
+
+- Update vendored sources to duckdb/duckdb@3897524b31f668ce73fef0b1e63c2a7e6e58cbb1 (#289).
+
+- Update vendored sources to duckdb/duckdb@226c56b7dff9174ce54c83b907d59bca35363040 (#288).
+
+- Update vendored sources to duckdb/duckdb@4d8693be1a39e3cb4c1ce42d6bc64978a5f6e7be (#287).
+
+- Update vendored sources to duckdb/duckdb@35346d87637d8e6731ec1fcd1909c4a309a6d6ad (#286).
+
+- Update vendored sources to duckdb/duckdb@f94b8acedb26d606691c62b3a80ee3ab45eb4ad3 (#285).
+
+- Update vendored sources to duckdb/duckdb@42c504b821beba03867241dde68e9408a9740806 (#284).
+
+- Update vendored sources to duckdb/duckdb@a6b5523b3a55961b282c20fe2704ec955a311069 (#283).
+
+- Remove hotfix.
+
+- Update vendored sources to duckdb/duckdb@56619faf054a284b88317a811d8f0cab0fe0974a (#281).
+
+- Update vendored sources to duckdb/duckdb@8ecc90c8d60ce446f227fad40fe8fbafdaf2b4e1 (#280).
+
+- Update vendored sources to duckdb/duckdb@0d612daeec725915c1b3083a6a8f5e854f424fb2 (#279).
+
+- Update vendored sources to duckdb/duckdb@798f5a2ba0ddf1d849355293cd5d7debb2dc9e9a (#278).
+
+- Update vendored sources to duckdb/duckdb@b32a97a77241fcd3fb29ac6b007035d8d733e8fc (#277).
+
+- Update vendored sources to duckdb/duckdb@f683023d703649b6a813e6f4d5aaf2d329c58a72 (#276).
+
+- Update vendored sources to duckdb/duckdb@7f3889c389b2e6e7111c2963c4cca1685de5e791 (#275).
+
+- Update vendored sources to duckdb/duckdb@5819112b7e6480c377255ccab6f4e1657730b5fe (#274).
+
+- Update vendored sources to duckdb/duckdb@9ed561eee5afc2242f73de5ea9c8cf1422c32a40 (#273).
+
+- Update vendored sources to duckdb/duckdb@f0dbafd48f62dbd6ec1c763dd38bab2a611dac43 (#272).
+
+- Update vendored sources to duckdb/duckdb@18c5431edff65f2260874a0a7290cd10069f9e59 (#271).
+
+- Update vendored sources to duckdb/duckdb@f97ad19a296aa6f37e24a23a7ea2cdb87ebe6813 (#270).
+
+- Update vendored sources to duckdb/duckdb@7abb7065d6a924f87d8cd7e61f3c1a488b825554 (#269).
+
+- Update vendored sources to duckdb/duckdb@6aa0ab01b0e0cd008a2331a7deba1f6c7dc190fa (#268).
+
+- Update vendored sources to duckdb/duckdb@8c1ef04afaad4e9901e714e76a22a4ecd7f96b10 (#267).
+
+- Update vendored sources to duckdb/duckdb@e1c738e7e29e7f105d5c4a67df7a44bc2f3dc909 (#266).
+
+- Update vendored sources to duckdb/duckdb@cdf7125edb568360896cc4ae01f7e52ece68020a (#265).
+
+- Update vendored sources to duckdb/duckdb@16193a714ebac04fa89d0074b1c4d42e62e9fb61 (#264).
+
+- Update vendored sources to duckdb/duckdb@285553fe3e6962bc2be7a69486e7f1bb223f8f1b (#263).
+
+- Update vendored sources to duckdb/duckdb@e5d994bbc6c3e158264af3156f71e7f0340a1d0c (#262).
+
+- Update vendored sources to duckdb/duckdb@627a70286b70dc6b3c35c2f5f4ebea0552f7c6e8 (#261).
+
+- Update vendored sources to duckdb/duckdb@862852fa395b99735e5713cb55d0cea1d9320659 (#260).
+
+- Update vendored sources to duckdb/duckdb@ecb8dc908b1fc97ed6255284701de8c57a9f8c39 (#259).
+
+- Update vendored sources to duckdb/duckdb@b33069bb4ec5ed1e369a260efdb2aab60fa5ec79 (#247).
+
+- Update vendored sources to duckdb/duckdb@9ad037f3adfe372f17b5178a449ac4b6f9142240 (#246).
+
+- Update vendored sources to duckdb/duckdb@1345b3013e801be526e7fac8c8984c89b0033d6a (#245).
+
+- Update vendored sources to duckdb/duckdb@bb97c95a1ad2c277fcf2a60bb1a8af4b0f29b6c7 (#244).
+
+- Update vendored sources to duckdb/duckdb@26685b133edd712ef62e74dbf25ea611e1cf91dc (#243).
+
+- Update vendored sources to duckdb/duckdb@513c2f22c0923045179a8800edf72d212a9bf682 (#242).
+
+- Update vendored sources to duckdb/duckdb@fe535b02b3b8d2b3ac7660134fd588848be9e859 (#241).
+
+- Update vendored sources to duckdb/duckdb@b371fc1b9a8960af25205a85ea89b381e1f98705 (#240).
+
+- Update vendored sources to duckdb/duckdb@c4b6b8f3543bf440d4149a824eed118e4e54c4be (#239).
+
+- Update vendored sources to duckdb/duckdb@10ea4832d3f1850685a65369e0b19c27ec81e638 (#238).
+
+- Update vendored sources to duckdb/duckdb@f6a8ec460ae23e20e6f52859c32c96012dcc0b13 (#236).
+
+- Update vendored sources to duckdb/duckdb@8d4a30cf72c2695c15bed2ec69b5a5bc56a5a594 (#235).
+
+- Update vendored sources to duckdb/duckdb@367aa8db1cc622c46661d762f9cafdd88263040e (#234).
+
+- Update vendored sources to duckdb/duckdb@3d85a139fe1f4c78284a0e8cde522a38f2bcde0a (#233).
+
+- Update vendored sources to duckdb/duckdb@a4f0adb1cf051f6ec4d58326ccf4fc3d3f333d35 (#232).
+
+- Update vendored sources to duckdb/duckdb@ad4639ed1a3448e0c7383d8601d3b797a1861c86 (#231).
+
+- Update vendored sources to duckdb/duckdb@b8df1598853d55f4421bb72dd3d86db553e897b4 (#230).
+
+- Update vendored sources to duckdb/duckdb@f5048f0ffd25b9d1d67b1a68f75ac435c9f5cbfa (#229).
+
+- Update vendored sources to duckdb/duckdb@ac8efca3fc3bc1fa277a0ca32104e2e861b6eef5 (#228).
+
+- Update vendored sources to duckdb/duckdb@c2e18955aff66454aa3ab5b39abd6f3c90f8010b (#227).
+
+- Update vendored sources to duckdb/duckdb@d5b10fc4d96afe2fcdc8af04b4bf77b856026c3b (#226).
+
+- Update vendored sources to duckdb/duckdb@e1568a2981c0f0ec86f322848a8bddb36e81e1d1 (#220).
+
+- Update vendored sources to duckdb/duckdb@d5b10fc4d96afe2fcdc8af04b4bf77b856026c3b (#219).
+
+- Update vendored sources to duckdb/duckdb@e1568a2981c0f0ec86f322848a8bddb36e81e1d1 (#218).
+
+- Auto-update from GitHub Actions.
+
+  Run: https://github.com/duckdb/duckdb-r/actions/runs/10430870381
+
+- Auto-update from GitHub Actions.
+
+  Run: https://github.com/duckdb/duckdb-r/actions/runs/10425609276
+
+- Auto-update from GitHub Actions.
+
+  Run: https://github.com/duckdb/duckdb-r/actions/runs/10425483466
+
+- Auto-update from GitHub Actions.
+
+  Run: https://github.com/duckdb/duckdb-r/actions/runs/10223714659
+
+- Remove temporary patch.
+
+- Enable creation of compilation database.
+
+- Auto-update from GitHub Actions.
+
+  Run: https://github.com/duckdb/duckdb-r/actions/runs/9879707346
+
+- Adapt glue code.
+
+- Auto-update from GitHub Actions.
+
+  Run: https://github.com/duckdb/duckdb-r/actions/runs/9727972793
+
+- Auto-update from GitHub Actions.
+
+  Run: https://github.com/duckdb/duckdb-r/actions/runs/9692337257
+
+- Fix rfuns vendoring.
+
+- Add another brotli patch.
+
+- Brotli patch and compilation flags.
+
+## Continuous integration
+
+- Ignore errors when removing pkg-config on macOS (#614).
+
+- Explicit permissions (#611).
+
+- Use styler from main branch (#609).
+
+- Need to install R on Ubuntu 24.04 (#607).
+
+- Use Ubuntu 24.04 and styler PR (#605).
+
+- Add fledge workflow.
+
+- Use stable pak (#591).
+
+- Latest changes (#584).
+
+- Tweak patch call.
+
+- Can't check incoming.
+
+- Update actions to avoid warnings (#524).
+
+- Use pkgdown branch (#523).
+
+- Bring back stepwise vendoring.
+
+- Don't remove dir.
+
+- Add env.
+
+- Vendor without creating PR.
+
+- Set up R for r-hub.
+
+- Force vendoring when tag.
+
+- Fix passing branch names as reef.
+
+- Pass inputs.ref to create-pull-request.
+
+- Fix PR generation for snapshot tests for vendoring.
+
+- Flip order.
+
+- Use inputs.
+
+- Use head ref for status reports.
+
+- Check job.status.
+
+- Tweak.
+
+- Fix final status reporting.
+
+- Fix status.
+
+- Bump version of action.
+
+- Post status for workflow_dispatch.
+
+- Only smoke test for workflow_dispatch.
+
+- Move condition to check if status event is triggered.
+
+- Install package manually, faster.
+
+- Verbosity.
+
+- Improve support for protected branches, without fledge (#248).
+
+- Fix vendoring (#225).
+
+- Fix vendoring workflow (#217).
+
+- Wait for pkgdown (#215).
+
+- Fix builds (#213).
+
+- Sync with latest developments.
+
+- Use v2 instead of master.
+
+- Inline action.
+
+- Use dev roxygen2 and decor.
+
+- Fix on Windows, tweak lock workflow.
+
+- Avoid checking bashisms on Windows.
+
+- Better commit message.
+
+- Bump versions, better default, consume custom matrix.
+
+- Recent updates.
+
+- Prepare for dynamic check matrix.
+
+## Documentation
+
+- Upgrade roxygen2.
+
+- Fix typo.
+
+## Testing
+
+- Sync tests with duckplyr (#596).
+
+- Skip if not installed.
+
+- Skip if not installed.
+
+- Add tests for comparison expression (@toppyy, #462).
+
+- Update snapshot.
+
+## Breaking changes
+
+- Breaking change: Rename `tbl_query()` to `tbl_function()`, remove `translate_duckdb()` (#133, #159, #211).
+
+## fledge
+
+- Bump version to 1.1.3.9003 (#604).
+
+- Bump version to 1.1.3.9002 (#602).
+
+- Bump version to 1.1.3.9001 (#599).
+
+## Uncategorized
+
+- Merge branch 'cran-1.1.2'.
+
+- Merge pull request #516 from duckdb/f-tweak.
+
+  Fix signedness
+
+- Merge pull request #461 from duckdb/f-exp-depth-2.
+
+  Sync tests
+
+- Merge pull request #392 from duckdb/cran-1.1.0.
+
+  Bump
+
+- Merge pull request #388 from duckdb/f-380-ppm-strip.
+
+  Merge pull request #386 from duckdb/f-380-ppm-strip
+
+- Merge pull request #214 from duckdb/b-ci.
+
+  Only report success once
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13415 (#13415).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13431 (#13431).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13439 (#13439).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13202 (#13202).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13268 (#13268).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13434 (#13434).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13433 (#13433).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13421 (#13421).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13417 (#13417).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13411 (#13411).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13410 (#13410).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13408 (#13408).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13409 (#13409).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13358 (#13358).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13402 (#13402).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13383 (#13383).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13394 (#13394).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13401 (#13401).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13370 (#13370).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13399 (#13399).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13329 (#13329).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13344 (#13344).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13354 (#13354).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13372 (#13372).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13168 (#13168).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13359 (#13359).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13356 (#13356).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13335 (#13335).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13267 (#13267).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13201 (#13201).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13360 (#13360).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13355 (#13355).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13346 (#13346).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13350 (#13350).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13341 (#13341).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13343 (#13343).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13342 (#13342).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13317 (#13317).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12886 (#12886).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13313 (#13313).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13330 (#13330).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13234 (#13234).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13307 (#13307).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13167 (#13167).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12682 (#12682).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13291 (#13291).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13290 (#13290).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13262 (#13262).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13278 (#13278).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13231 (#13231).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13284 (#13284).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13281 (#13281).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13283 (#13283).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13280 (#13280).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13282 (#13282).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13275 (#13275).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13260 (#13260).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13261 (#13261).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13258 (#13258).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13249 (#13249).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13229 (#13229).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13256 (#13256).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13162 (#13162).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13230 (#13230).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13233 (#13233).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13236 (#13236).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13242 (#13242).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13241 (#13241).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13240 (#13240).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13223 (#13223).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13207 (#13207).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13170 (#13170).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13203 (#13203).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13109 (#13109).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13194 (#13194).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13191 (#13191).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13189 (#13189).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13188 (#13188).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13186 (#13186).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13063 (#13063).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13163 (#13163).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13150 (#13150).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13182 (#13182).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13160 (#13160).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13180 (#13180).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13161 (#13161).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13151 (#13151).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13146 (#13146).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13140 (#13140).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13136 (#13136).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13087 (#13087).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13101 (#13101).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13108 (#13108).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13142 (#13142).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12978 (#12978).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13130 (#13130).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13123 (#13123).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13137 (#13137).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13139 (#13139).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13117 (#13117).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13133 (#13133).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13129 (#13129).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13131 (#13131).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13127 (#13127).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13125 (#13125).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13122 (#13122).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13126 (#13126).
+
+- Merge tag 'v1.0.0-2'.
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13114 (#13114).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13093 (#13093).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13110 (#13110).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13118 (#13118).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13111 (#13111).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13106 (#13106).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12967 (#12967).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13090 (#13090).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13098 (#13098).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13105 (#13105).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13094 (#13094).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13084 (#13084).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13083 (#13083).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13082 (#13082).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13081 (#13081).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13089 (#13089).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13086 (#13086).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13062 (#13062).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13073 (#13073).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13076 (#13076).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13074 (#13074).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13015 (#13015).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13065 (#13065).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13068 (#13068).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13027 (#13027).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12579 (#12579).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12998 (#12998).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13040 (#13040).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12920 (#12920).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13054 (#13054).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13056 (#13056).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13057 (#13057).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13052 (#13052).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12995 (#12995).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13050 (#13050).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13033 (#13033).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13039 (#13039).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13035 (#13035).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13030 (#13030).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13028 (#13028).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13025 (#13025).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13023 (#13023).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13024 (#13024).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12953 (#12953).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13002 (#13002).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12627 (#12627).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13020 (#13020).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13019 (#13019).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13014 (#13014).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13010 (#13010).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13013 (#13013).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12728 (#12728).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13004 (#13004).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12993 (#12993).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12994 (#12994).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12931 (#12931).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13003 (#13003).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13001 (#13001).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12785 (#12785).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/13000 (#13000).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/11720 (#11720).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12971 (#12971).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12928 (#12928).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12829 (#12829).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12929 (#12929).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12979 (#12979).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12982 (#12982).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12984 (#12984).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12980 (#12980).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12942 (#12942).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12973 (#12973).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12974 (#12974).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12972 (#12972).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12965 (#12965).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12968 (#12968).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12970 (#12970).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12966 (#12966).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12954 (#12954).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12755 (#12755).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12716 (#12716).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12912 (#12912).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12957 (#12957).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12290 (#12290).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12955 (#12955).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12916 (#12916).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12948 (#12948).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12824 (#12824).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12625 (#12625).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12787 (#12787).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12907 (#12907).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12885 (#12885).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12943 (#12943).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12938 (#12938).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12937 (#12937).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12932 (#12932).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12890 (#12890).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12924 (#12924).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12866 (#12866).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12889 (#12889).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12918 (#12918).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12908 (#12908).
+
+- Merge branch 'cran-1.0.0-1'.
+
+- Merge tag 'v1.0.0-1'.
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12913 (#12913).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12914 (#12914).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12851 (#12851).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12887 (#12887).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12858 (#12858).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12888 (#12888).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12884 (#12884).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12751 (#12751).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12848 (#12848).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12498 (#12498).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12398 (#12398).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12878 (#12878).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12859 (#12859).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12834 (#12834).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12844 (#12844).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12849 (#12849).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12847 (#12847).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/11191 (#11191).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12840 (#12840).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12698 (#12698).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12806 (#12806).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12734 (#12734).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12835 (#12835).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12812 (#12812).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12832 (#12832).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12691 (#12691).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12810 (#12810).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12780 (#12780).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12575 (#12575).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12803 (#12803).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12791 (#12791).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12754 (#12754).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12765 (#12765).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12685 (#12685).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12770 (#12770).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12768 (#12768).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12769 (#12769).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12762 (#12762).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12759 (#12759).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12753 (#12753).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12636 (#12636).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12496 (#12496).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12745 (#12745).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12740 (#12740).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12738 (#12738).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12737 (#12737).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12736 (#12736).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12731 (#12731).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12730 (#12730).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12599 (#12599).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12678 (#12678).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12725 (#12725).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12724 (#12724).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12708 (#12708).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12697 (#12697).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12705 (#12705).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12717 (#12717).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12681 (#12681).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12692 (#12692).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12694 (#12694).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12689 (#12689).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12690 (#12690).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12671 (#12671).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12679 (#12679).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12288 (#12288).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12655 (#12655).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12669 (#12669).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12653 (#12653).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12663 (#12663).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12658 (#12658).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12654 (#12654).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12637 (#12637).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12650 (#12650).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12642 (#12642).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12652 (#12652).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12639 (#12639).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12635 (#12635).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12629 (#12629).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12630 (#12630).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12633 (#12633).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12603 (#12603).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12608 (#12608).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12554 (#12554).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12539 (#12539).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12516 (#12516).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12515 (#12515).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12445 (#12445).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12456 (#12456).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12467 (#12467).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12465 (#12465).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12470 (#12470).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12461 (#12461).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12448 (#12448).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12436 (#12436).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12421 (#12421).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12424 (#12424).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12401 (#12401).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12409 (#12409).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12370 (#12370).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12405 (#12405).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12393 (#12393).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12391 (#12391).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12352 (#12352).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12360 (#12360).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12344 (#12344).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12332 (#12332).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12305 (#12305).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12302 (#12302).
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/12282 (#12282).
+
+- Merge branch 'cran-1.0.0'.
+
+
 # duckdb 1.1.3.9014
 
 ## Bug fixes
