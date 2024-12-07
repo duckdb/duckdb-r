@@ -18,9 +18,9 @@ rethrow_rapi_disconnect <- function(conn, call = parent.frame(2)) {
   )
 }
 
-rethrow_rapi_startup <- function(dbdir, readonly, configsexp, call = parent.frame(2)) {
+rethrow_rapi_startup <- function(dbdir, readonly, configsexp, environment_scan, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_startup(dbdir, readonly, configsexp),
+    rapi_startup(dbdir, readonly, configsexp, environment_scan),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
@@ -451,9 +451,9 @@ rethrow_rapi_prepare_substrait_json <- function(conn, json, call = parent.frame(
   )
 }
 
-rethrow_rapi_prepare <- function(conn, query, call = parent.frame(2)) {
+rethrow_rapi_prepare <- function(conn, query, env, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_prepare(conn, query),
+    rapi_prepare(conn, query, env),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
