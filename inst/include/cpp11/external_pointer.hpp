@@ -1,5 +1,5 @@
-// cpp11 version: 0.5.0
-// vendored on: 2024-09-24
+// cpp11 version: 0.5.1
+// vendored on: 2024-12-07
 #pragma once
 
 #include <cstddef>      // for nullptr_t, NULL
@@ -57,7 +57,8 @@ class external_pointer {
 
   external_pointer(SEXP data) : data_(valid_type(data)) {}
 
-  external_pointer(pointer p, bool use_deleter = true, bool finalize_on_exit = true, SEXP prot = R_NilValue)
+  external_pointer(pointer p, bool use_deleter = true, bool finalize_on_exit = true,
+                   SEXP prot = R_NilValue)
       : data_(safe[R_MakeExternalPtr]((void*)p, R_NilValue, prot)) {
     if (use_deleter) {
       R_RegisterCFinalizerEx(data_, r_deleter, static_cast<r_bool>(finalize_on_exit));
