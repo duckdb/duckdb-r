@@ -378,7 +378,10 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	} else {
 		D_ASSERT(generic_result->type == QueryResultType::MATERIALIZED_RESULT);
 		auto result = (MaterializedQueryResult *)generic_result.get();
-		return duckdb_execute_R_impl(result, integer64);
+
+		// Avoid rchk warning, it sees QueryResult::~QueryResult() as an allocating function
+		cpp11::sexp out = duckdb_execute_R_impl(result, integer64);
+		return out;
 	}
 }
 
