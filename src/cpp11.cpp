@@ -21,10 +21,10 @@ extern "C" SEXP _duckdb_rapi_disconnect(SEXP conn) {
   END_CPP11
 }
 // database.cpp
-duckdb::db_eptr_t rapi_startup(std::string dbdir, bool readonly, cpp11::list configsexp);
-extern "C" SEXP _duckdb_rapi_startup(SEXP dbdir, SEXP readonly, SEXP configsexp) {
+duckdb::db_eptr_t rapi_startup(std::string dbdir, bool readonly, cpp11::list configsexp, bool environment_scan);
+extern "C" SEXP _duckdb_rapi_startup(SEXP dbdir, SEXP readonly, SEXP configsexp, SEXP environment_scan) {
   BEGIN_CPP11
-    return cpp11::as_sexp(rapi_startup(cpp11::as_cpp<cpp11::decay_t<std::string>>(dbdir), cpp11::as_cpp<cpp11::decay_t<bool>>(readonly), cpp11::as_cpp<cpp11::decay_t<cpp11::list>>(configsexp)));
+    return cpp11::as_sexp(rapi_startup(cpp11::as_cpp<cpp11::decay_t<std::string>>(dbdir), cpp11::as_cpp<cpp11::decay_t<bool>>(readonly), cpp11::as_cpp<cpp11::decay_t<cpp11::list>>(configsexp), cpp11::as_cpp<cpp11::decay_t<bool>>(environment_scan)));
   END_CPP11
 }
 // database.cpp
@@ -487,7 +487,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_rel_union_all",           (DL_FUNC) &_duckdb_rapi_rel_union_all,           2},
     {"_duckdb_rapi_release",                 (DL_FUNC) &_duckdb_rapi_release,                 1},
     {"_duckdb_rapi_shutdown",                (DL_FUNC) &_duckdb_rapi_shutdown,                1},
-    {"_duckdb_rapi_startup",                 (DL_FUNC) &_duckdb_rapi_startup,                 3},
+    {"_duckdb_rapi_startup",                 (DL_FUNC) &_duckdb_rapi_startup,                 4},
     {"_duckdb_rapi_unlock",                  (DL_FUNC) &_duckdb_rapi_unlock,                  1},
     {"_duckdb_rapi_unregister_arrow",        (DL_FUNC) &_duckdb_rapi_unregister_arrow,        2},
     {"_duckdb_rapi_unregister_df",           (DL_FUNC) &_duckdb_rapi_unregister_df,           2},

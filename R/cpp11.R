@@ -8,8 +8,8 @@ rapi_disconnect <- function(conn) {
   invisible(.Call(`_duckdb_rapi_disconnect`, conn))
 }
 
-rapi_startup <- function(dbdir, readonly, configsexp) {
-  .Call(`_duckdb_rapi_startup`, dbdir, readonly, configsexp)
+rapi_startup <- function(dbdir, readonly, configsexp, environment_scan) {
+  .Call(`_duckdb_rapi_startup`, dbdir, readonly, configsexp, environment_scan)
 }
 
 rapi_lock <- function(dual) {

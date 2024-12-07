@@ -6,8 +6,8 @@
 #' @param dbdir Location for database files. Should be a path to an existing
 #'   directory in the file system. With the default (or `""`), all
 #'   data is kept in RAM.
-#' @param ... Ignored
-#' @param debug Print additional debug information such as queries
+#' @param ... Reserved for future extensions, must be empty.
+#' @param debug Print additional debug information, such as queries.
 #' @param read_only Set to `TRUE` for read-only operation.
 #'   For file-based databases, this is only applied when the database file is opened for the first time.
 #'   Subsequent connections (via the same `drv` object or a `drv` object pointing to the same path)

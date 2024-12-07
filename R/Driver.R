@@ -23,13 +23,28 @@ driver_registry <- new.env(parent = emptyenv())
 #' @description
 #' `duckdb()` creates or reuses a database instance.
 #'
+#' @param environment_scan Set to `TRUE` to treat
+#'   data frames from the calling environment as tables.
+#'   If a database table with the same name exists, it takes precedence.
+#'   The default of this setting may change in a future version.
+#'
 #' @return `duckdb()` returns an object of class [duckdb_driver-class].
 #'
 #' @import methods DBI
 #' @export
-duckdb <- function(dbdir = DBDIR_MEMORY, read_only = FALSE, bigint = "numeric", config = list()) {
+duckdb <- function(
+  dbdir = DBDIR_MEMORY,
+  read_only = FALSE,
+  bigint = "numeric",
+  config = list(),
+  ...,
+  environment_scan = FALSE
+) {
   check_flag(read_only)
   check_bigint(bigint)
+  if (...length() > 0) {
+    stop("... must be empty")
+  }
 
   dbdir <- path_normalize(dbdir)
   if (dbdir != DBDIR_MEMORY) {
@@ -57,7 +72,7 @@ duckdb <- function(dbdir = DBDIR_MEMORY, read_only = FALSE, bigint = "numeric", 
   drv <- new(
     "duckdb_driver",
     config = config,
-    database_ref = rethrow_rapi_startup(dbdir, read_only, config),
+    database_ref = rethrow_rapi_startup(dbdir, read_only, config, environment_scan),
     dbdir = dbdir,
     read_only = read_only,
     bigint = bigint

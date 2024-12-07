@@ -16,7 +16,7 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 	return true;
 }
 
-[[cpp11::register]] duckdb::db_eptr_t rapi_startup(std::string dbdir, bool readonly, cpp11::list configsexp) {
+[[cpp11::register]] duckdb::db_eptr_t rapi_startup(std::string dbdir, bool readonly, cpp11::list configsexp, bool environment_scan) {
 	const char *dbdirchar;
 
 	if (dbdir.length() == 0 || dbdir.compare(IN_MEMORY_PATH) == 0) {
@@ -50,9 +50,12 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 		auto data1 = make_uniq<ReplacementDataDBWrapper>();
 		data1->wrapper = wrapper;
 		config.replacement_scans.emplace_back(ArrowScanReplacement, std::move(data1));
-		auto data2 = make_uniq<ReplacementDataDBWrapper>();
-		data2->wrapper = wrapper;
-		config.replacement_scans.emplace_back(EnvironmentScanReplacement, std::move(data2));
+
+		if (environment_scan) {
+			auto data2 = make_uniq<ReplacementDataDBWrapper>();
+			data2->wrapper = wrapper;
+			config.replacement_scans.emplace_back(EnvironmentScanReplacement, std::move(data2));
+		}
 		wrapper->db = make_uniq<DuckDB>(dbdirchar, &config);
 
 		auto &instance = *wrapper->db->instance;

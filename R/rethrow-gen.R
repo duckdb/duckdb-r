@@ -18,9 +18,9 @@ rethrow_rapi_disconnect <- function(conn, call = parent.frame(2)) {
   )
 }
 
-rethrow_rapi_startup <- function(dbdir, readonly, configsexp, call = parent.frame(2)) {
+rethrow_rapi_startup <- function(dbdir, readonly, configsexp, environment_scan, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_startup(dbdir, readonly, configsexp),
+    rapi_startup(dbdir, readonly, configsexp, environment_scan),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
