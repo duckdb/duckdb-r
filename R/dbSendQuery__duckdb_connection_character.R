@@ -7,8 +7,11 @@ dbSendQuery__duckdb_connection_character <- function(conn, statement, params = N
   if (conn@debug) {
     message("Q ", statement)
   }
+
+  env <- find_caller()
+
   statement <- enc2utf8(statement)
-  stmt_lst <- rethrow_rapi_prepare(conn@conn_ref, statement)
+  stmt_lst <- rethrow_rapi_prepare(conn@conn_ref, statement, env)
 
   res <- duckdb_result(
     connection = conn,
@@ -24,3 +27,19 @@ dbSendQuery__duckdb_connection_character <- function(conn, statement, params = N
 #' @rdname duckdb_connection-class
 #' @export
 setMethod("dbSendQuery", c("duckdb_connection", "character"), dbSendQuery__duckdb_connection_character)
+
+find_caller <- function() {
+  i <- 3L
+  env <- parent.frame(i)
+
+  while (!identical(env, emptyenv())) {
+    env_name <- environmentName(parent.env(env))
+    if (!(env_name %in% c("duckdb", "DBI"))) {
+      return(env)
+    }
+    i <- i + 1L
+    env <- parent.frame(i)
+  }
+
+  env
+}

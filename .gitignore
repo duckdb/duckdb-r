@@ -111,5 +111,7 @@ src/*.dll
 /src/symbols.rds
 /docs/
 /vscode-*/
+.idea
+cmake-build-debug
 compile_commands.json
 .cache

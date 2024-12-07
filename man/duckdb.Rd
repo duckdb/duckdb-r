@@ -15,7 +15,9 @@ duckdb(
   dbdir = DBDIR_MEMORY,
   read_only = FALSE,
   bigint = "numeric",
-  config = list()
+  config = list(),
+  ...,
+  environment_scan = FALSE
 )
 
 duckdb_shutdown(drv)
@@ -55,11 +57,16 @@ If \code{"integer64"} is selected, bigint integers will be set to bit64 encoding
 These flags are only applied when the database object is instantiated.
 Subsequent connections will silently ignore these flags.}
 
+\item{...}{Reserved for future extensions, must be empty.}
+
+\item{environment_scan}{Set to \code{TRUE} to treat
+data frames from the calling environment as tables.
+If a database table with the same name exists, it takes precedence.
+The default of this setting may change in a future version.}
+
 \item{drv}{Object returned by \code{duckdb()}}
 
-\item{...}{Ignored}
-
-\item{debug}{Print additional debug information such as queries}
+\item{debug}{Print additional debug information, such as queries.}
 
 \item{timezone_out}{The time zone returned to R, defaults to \code{"UTC"}, which
 is currently the only timezone supported by duckdb.
