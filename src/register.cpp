@@ -52,11 +52,11 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	auto &data = (ReplacementDataDBWrapper &)*data_p;
 	auto db_wrapper = data.wrapper;
 
-	auto table_name_symbol = Rf_install(input.table_name.c_str());
+	auto table_name_symbol = cpp11::safe[Rf_install](input.table_name.c_str());
 	SEXP df;
 	SEXP rho = db_wrapper->env;
 	while(rho != R_EmptyEnv) {
-		df = Rf_findVarInFrame3(rho, table_name_symbol, TRUE);
+		df = cpp11::safe[Rf_findVarInFrame3](rho, table_name_symbol, TRUE);
 		if (df != R_UnboundValue) {
 			break;
 		}
@@ -66,11 +66,16 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 		return nullptr;
 	}
 	if (TYPEOF(df) == PROMSXP) {
-		df = Rf_eval(df, rho);
+		df = cpp11::safe[Rf_eval](df, rho);
 	}
 	if (!Rf_inherits(df, "data.frame")) {
 		return nullptr;
 	}
+
+	// Avoid garbage collection of data frame
+	SEXP node = Rf_cons(df, CDR(db_wrapper->registered_dfs));
+	SETCDR(db_wrapper->registered_dfs, node);
+
 	// TODO: do utf conversion
 	auto table_function = make_uniq<TableFunctionRef>();
 	vector<duckdb::unique_ptr<ParsedExpression>> children;

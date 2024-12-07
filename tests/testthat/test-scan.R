@@ -31,3 +31,17 @@ test_that("Data frame scan fetches from the correct environment", {
   expect_equal(fun(), data.frame(a = 2))
   expect_equal(dbGetQuery(con, "FROM x"), x)
 })
+
+test_that("Data frames scan survives garbage collection", {
+  con <- dbConnect(duckdb())
+  withr::defer(dbDisconnect(con))
+
+  x <- data.frame(a = 1)
+  res <- dbSendQuery(con, "FROM x")
+  rm(x)
+  gc()
+  gc()
+  x <- data.frame(a = 2)
+  withr::defer(dbClearResult(res))
+  expect_equal(dbFetch(res), data.frame(a = 1))
+})

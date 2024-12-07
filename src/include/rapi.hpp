@@ -25,6 +25,7 @@ struct DBWrapper {
 	arrow_scans_t arrow_scans;
 	mutex lock;
 	cpp11::sexp env;
+	cpp11::sexp registered_dfs;
 };
 
 template <class T>
