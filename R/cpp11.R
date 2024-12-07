@@ -201,8 +201,8 @@ rapi_prepare_substrait_json <- function(conn, json) {
   .Call(`_duckdb_rapi_prepare_substrait_json`, conn, json)
 }
 
-rapi_prepare <- function(conn, query) {
-  .Call(`_duckdb_rapi_prepare`, conn, query)
+rapi_prepare <- function(conn, query, env) {
+  .Call(`_duckdb_rapi_prepare`, conn, query, env)
 }
 
 rapi_bind <- function(stmt, params, arrow, integer64) {

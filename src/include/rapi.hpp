@@ -24,6 +24,7 @@ struct DBWrapper {
 	duckdb::unique_ptr<DuckDB> db;
 	arrow_scans_t arrow_scans;
 	mutex lock;
+	cpp11::sexp env;
 };
 
 template <class T>

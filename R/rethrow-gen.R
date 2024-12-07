@@ -451,9 +451,9 @@ rethrow_rapi_prepare_substrait_json <- function(conn, json, call = parent.frame(
   )
 }
 
-rethrow_rapi_prepare <- function(conn, query, call = parent.frame(2)) {
+rethrow_rapi_prepare <- function(conn, query, env, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_prepare(conn, query),
+    rapi_prepare(conn, query, env),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }

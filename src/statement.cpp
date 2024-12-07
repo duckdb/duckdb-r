@@ -11,6 +11,7 @@
 #include "typesr.hpp"
 
 #include <R_ext/Utils.h>
+#include "httplib.hpp"
 
 using namespace duckdb;
 using namespace cpp11::literals;
@@ -126,10 +127,16 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	return construct_retlist(std::move(stmt), "", 0);
 }
 
-[[cpp11::register]] cpp11::list rapi_prepare(duckdb::conn_eptr_t conn, std::string query) {
+[[cpp11::register]] cpp11::list rapi_prepare(duckdb::conn_eptr_t conn, std::string query, cpp11::environment env) {
 	if (!conn || !conn.get() || !conn->conn) {
 		cpp11::stop("rapi_prepare: Invalid connection");
 	}
+
+	D_ASSERT(conn->db->env == R_NilValue);
+	conn->db->env = (SEXP)env;
+	duckdb_httplib::detail::scope_exit reset_db_env([&]() {
+		conn->db->env = R_NilValue;
+	});
 
 	vector<unique_ptr<SQLStatement>> statements;
 	try {

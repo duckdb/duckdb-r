@@ -54,7 +54,7 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 
 	auto table_name_symbol = Rf_install(input.table_name.c_str());
 	SEXP df;
-	SEXP rho = R_GetCurrentEnv();
+	SEXP rho = db_wrapper->env;
 	while(rho != R_EmptyEnv) {
 		df = Rf_findVarInFrame3(rho, table_name_symbol, TRUE);
 		if (df != R_UnboundValue) {
