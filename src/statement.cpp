@@ -211,8 +211,9 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 			stmt->parameters[param_idx] = val;
 		}
 
-		// No protection, assigned immediately
-		out.push_back(rapi_execute(stmt, arrow, integer64));
+		// Protection error is flagged by rchk
+		cpp11::sexp res = rapi_execute(stmt, arrow, integer64);
+		out.push_back(res);
 	}
 
 	return out;
