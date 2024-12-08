@@ -211,8 +211,9 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 			stmt->parameters[param_idx] = val;
 		}
 
-		// No protection, assigned immediately
-		out.push_back(rapi_execute(stmt, arrow, integer64));
+		// Protection error is flagged by rchk
+		cpp11::sexp res = rapi_execute(stmt, arrow, integer64);
+		out.push_back(res);
 	}
 
 	return out;
@@ -377,7 +378,10 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	} else {
 		D_ASSERT(generic_result->type == QueryResultType::MATERIALIZED_RESULT);
 		auto result = (MaterializedQueryResult *)generic_result.get();
-		return duckdb_execute_R_impl(result, integer64);
+
+		// Avoid rchk warning, it sees QueryResult::~QueryResult() as an allocating function
+		cpp11::sexp out = duckdb_execute_R_impl(result, integer64);
+		return out;
 	}
 }
 

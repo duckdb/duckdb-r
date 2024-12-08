@@ -14,7 +14,7 @@
 
 - Fix installation of extensions (#623).
 
-- Fix rchk errors (#635).
+- Fix rchk and UB errors (#635).
 
 - Avoid loading rlang during startup (#601).
 
@@ -742,7 +742,7 @@ Major changes:
  - #440 Builds on Solaris & OpenBSD
 
 
-*Note*: This release contains a bug in the Python API that leads to crashes when fetching strings to NumPy/Pandas #447 
+*Note*: This release contains a bug in the Python API that leads to crashes when fetching strings to NumPy/Pandas #447
 
 
 # duckdb 0.1.3
@@ -756,7 +756,7 @@ Major changes:
   * #390 Unused Column & Column Lifetime Optimizers
   * #402 String and compound keys in indices/primary keys
   * #406 Adaptive reordering of filter expressions
-  
+
 
 
 # duckdb 0.1.2
