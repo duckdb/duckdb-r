@@ -40,6 +40,21 @@ test_that("Data frame scan fetches from the correct environment", {
   expect_equal(dbGetQuery(con, "FROM x"), x)
 })
 
+test_that("Function hides data frame", {
+  con <- dbConnect(duckdb(environment_scan = TRUE))
+  on.exit(dbDisconnect(con))
+
+  x <- data.frame(a = 1)
+
+  fun <- function() {
+    x <- function() {}
+    dbGetQuery(con, "FROM x")
+  }
+
+  expect_error(fun())
+  expect_equal(dbGetQuery(con, "FROM x"), x)
+})
+
 test_that("Database tables take precedence", {
   con <- dbConnect(duckdb(environment_scan = TRUE))
   on.exit(dbDisconnect(con))
