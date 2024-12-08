@@ -12,11 +12,15 @@
 
 #include "src/function/function_binder.cpp"
 
+#include "src/function/function_list.cpp"
+
 #include "src/function/function_set.cpp"
 
 #include "src/function/pragma_function.cpp"
 
 #include "src/function/macro_function.cpp"
+
+#include "src/function/register_function_list.cpp"
 
 #include "src/function/scalar_macro_function.cpp"
 

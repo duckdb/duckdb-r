@@ -57,13 +57,13 @@ for commit in $(git -C "$upstream_dir" log --first-parent --reverse --format="%H
 
   # Always vendor tags
   if [ $(git -C "$upstream_dir" describe --tags "$commit" | grep -c -- -) -eq 0 ]; then
-    message="chore: Update vendored sources (tag $(git -C "$upstream_dir" describe --tags "$commit")) to duckdb/duckdb@$commit"
+    message="vendor: Update vendored sources (tag $(git -C "$upstream_dir" describe --tags "$commit")) to duckdb/duckdb@$commit"
     is_tag=true
     break
   fi
 
   if [ $(git status --porcelain -- src/duckdb | wc -l) -gt 1 ]; then
-    message="chore: Update vendored sources to duckdb/duckdb@$commit"
+    message="vendor: Update vendored sources to duckdb/duckdb@$commit"
     break
   fi
 done
