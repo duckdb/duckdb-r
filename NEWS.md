@@ -18,6 +18,10 @@
 
 - Avoid loading rlang during startup (#601).
 
+## Documentation
+
+- Mention `xz` requirement in `DESCRIPTION`.
+
 
 # duckdb 1.1.3
 
