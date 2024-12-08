@@ -55,6 +55,9 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	auto table_name_symbol = cpp11::safe[Rf_install](input.table_name.c_str());
 	SEXP df;
 	SEXP rho = db_wrapper->env;
+#if defined(R_VERSION) && R_VERSION >= R_Version(4, 5, 0)
+	df = cpp11::safe[R_getVarEx](table_name_symbol, rho, Rboolean::TRUE, R_NilValue);
+#else
 	while(rho != R_EmptyEnv) {
 		df = cpp11::safe[Rf_findVarInFrame3](rho, table_name_symbol, TRUE);
 		if (df != R_UnboundValue) {
@@ -62,12 +65,10 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 		}
 		rho = ENCLOS(rho);
 	}
-	if (!df) {
-		return nullptr;
-	}
 	if (TYPEOF(df) == PROMSXP) {
 		df = cpp11::safe[Rf_eval](df, rho);
 	}
+#endif
 	if (!Rf_inherits(df, "data.frame")) {
 		return nullptr;
 	}
@@ -79,8 +80,7 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	// TODO: do utf conversion
 	auto table_function = make_uniq<TableFunctionRef>();
 	vector<duckdb::unique_ptr<ParsedExpression>> children;
-	children.push_back(
-	make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)df)));
+	children.push_back(make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)df)));
 	table_function->function = make_uniq<FunctionExpression>("r_dataframe_scan", std::move(children));
 	return std::move(table_function);
 }
