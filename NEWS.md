@@ -1,5 +1,22 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.1.3.9017
+
+## Bug fixes
+
+- Make `./cleanup` script reentrant (@Antonov548, #612, #634).
+
+## Features
+
+- With `duckdb(environment_scan = TRUE)`, data frame objects are available as views in duckdb SQL queries (#140, #164).
+
+- Update vendored cpp11 to 0.5.1 (#636).
+
+## Continuous integration
+
+- Fetch tags for fledge workflow to avoid unnecessary NEWS entries (#633).
+
+
 # duckdb 1.1.3.9016
 
 ## Bug fixes
