@@ -1,5 +1,20 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.1.3.9018
+
+## Continuous integration
+
+- Avoid failure in fledge workflow if no changes (#639).
+
+## Uncategorized
+
+- Merge branch 'cran-1.1.3-1'.
+
+- Merge branch 'cran-1.1.3-1'.
+
+- Merge branch 'f-bump'.
+
+
 # duckdb 1.1.3-1
 
 ## Features
