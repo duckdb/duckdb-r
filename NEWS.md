@@ -1,5 +1,27 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+
+# duckdb 1.1.3-2
+
+## Bug fixes
+
+- Make `cleanup` truly idempotent (#612, #940).
+
+## Chore
+
+- Sync vendoring script with igraph (#936).
+
+## Features
+
+- New internal `rapi_rel_to_csv()`,`rapi_rel_to_table()`, and `rapi_rel_insert()`; `rapi_rel_to_parquet()` gains `options` argument (#867).
+
+## Testing
+
+- Skip tests that are about to fail.
+
+- Sync tests.
+
+
 # duckdb 1.1.3-1
 
 ## Features
