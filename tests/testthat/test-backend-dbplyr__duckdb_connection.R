@@ -141,11 +141,12 @@ test_that("custom clock functions translated correctly", {
   translate <- function(...) dbplyr::translate_sql(..., con = con)
   sql <- function(...) dbplyr::sql(...)
 
-  expect_equal(translate(add_days(x, 1L)), sql(r"{DATE_ADD(x, INTERVAL '1 day')}"))
-  expect_equal(translate(add_days(x, 2L)), sql(r"{DATE_ADD(x, INTERVAL '2 day')}"))
+  m <- 1
+  expect_equal(translate(add_days(x, m)), sql(r"{DATE_ADD(x, INTERVAL (m) day)}"))
+  expect_equal(translate(add_days(x, 2L)), sql(r"{DATE_ADD(x, INTERVAL (2) day)}"))
 
-  expect_equal(translate(add_years(x, 1L)), sql(r"{DATE_ADD(x, INTERVAL '1 year')}"))
-  expect_equal(translate(add_years(x, 2L)), sql(r"{DATE_ADD(x, INTERVAL '2 year')}"))
+  expect_equal(translate(add_years(x, m)), sql(r"{DATE_ADD(x, INTERVAL (m) year)}"))
+  expect_equal(translate(add_years(x, 2L)), sql(r"{DATE_ADD(x, INTERVAL (2) year)}"))
 
   expect_equal(translate(get_day(x)), sql(r"{DATE_PART('day', x)}"))
   expect_equal(translate(get_month(x)), sql(r"{DATE_PART('month', x)}"))
@@ -155,6 +156,10 @@ test_that("custom clock functions translated correctly", {
                                             end = "end",
                                             precision = "day")),
                sql(r"{DATEDIFF('day', start, end)}"))
+
+  expect_equal(translate(difftime(time1 = "time1", time2 = "time2", units = "days")), sql(r"{DATEDIFF('day', time2, time1)}"))
+  expect_equal(translate(date_build(year = 2000, month = 08, day = 08)), sql(r"{MAKE_DATE(CAST(2000.0 AS INTEGER), CAST(8.0 AS INTEGER), CAST(8.0 AS INTEGER))}"))
+  expect_equal(translate(date_build(year = 2000)), sql(r"{MAKE_DATE(CAST(2000.0 AS INTEGER), CAST(1 AS INTEGER), CAST(1 AS INTEGER))}"))
 
   test_data <- data.frame(
     person = 1L,
@@ -197,6 +202,9 @@ test_that("custom clock functions translated correctly", {
                                             precision = "day",
                                             n = 5)))
 
+  expect_error(translate(date_build(year = 2000, month = 08, day = 08, invalid = "next-day")))
+  expect_error(translate(difftime(time1, time2, units = "secs")))
+  expect_error(translate(difftime(time1, time2, tz = Sys.timezone())))
 })
 
 # stringr functions
