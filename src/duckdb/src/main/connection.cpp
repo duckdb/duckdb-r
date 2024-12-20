@@ -28,6 +28,7 @@ Connection::Connection(DatabaseInstance &database)
 }
 
 Connection::Connection(DuckDB &database) : Connection(*database.instance) {
+	warning_cb = nullptr;
 }
 
 Connection::Connection(Connection &&other) noexcept {

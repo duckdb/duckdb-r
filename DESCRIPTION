@@ -1,6 +1,6 @@
 Package: duckdb
 Title: DBI Package for the DuckDB Database Management System
-Version: 1.1.3.9002
+Version: 1.1.3.9019
 Authors@R: c(
     person("Hannes", "Mühleisen", , "hannes@cwi.nl", role = "aut",
            comment = c(ORCID = "0000-0001-8552-0029")),
@@ -60,7 +60,8 @@ Suggests:
     tibble,
     vctrs,
     withr
+Config/build/compilation-database: true
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2.9000
-Config/build/compilation-database: true
+SystemRequirements: xz (for building from source)

@@ -24,6 +24,8 @@ struct DBWrapper {
 	duckdb::unique_ptr<DuckDB> db;
 	arrow_scans_t arrow_scans;
 	mutex lock;
+	cpp11::sexp env;
+	cpp11::sexp registered_dfs;
 };
 
 template <class T>
@@ -122,7 +124,9 @@ typedef cpp11::external_pointer<RQueryResult> rqry_eptr_t;
 // internal
 unique_ptr<TableRef> ArrowScanReplacement(ClientContext &context, ReplacementScanInput &input, optional_ptr<ReplacementScanData> data);
 
-struct ArrowScanReplacementData : public ReplacementScanData {
+unique_ptr<TableRef> EnvironmentScanReplacement(ClientContext &context, ReplacementScanInput &input, optional_ptr<ReplacementScanData> data);
+
+struct ReplacementDataDBWrapper : public ReplacementScanData {
 	DBWrapper *wrapper;
 };
 

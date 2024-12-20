@@ -153,14 +153,15 @@ RType RApiTypes::DetectRType(SEXP v, bool integer64) {
 		if (Rf_inherits(v, "data.frame")) {
 			child_list_t<RType> child_types;
 			R_xlen_t ncol = Rf_length(v);
-			SEXP names = GET_NAMES(v);
 
+			cpp11::strings names = GET_NAMES(v);
 			for (R_xlen_t i = 0; i < ncol; ++i) {
 				RType child = DetectRType(VECTOR_ELT(v, i), integer64);
 				if (child == RType::UNKNOWN) {
 					return (RType::UNKNOWN);
 				}
-				child_types.push_back(std::make_pair(CHAR(STRING_ELT(names, i)), child));
+
+				child_types.push_back(std::make_pair(CHAR(names[i]), child));
 			}
 
 			return RType::STRUCT(std::move(child_types));

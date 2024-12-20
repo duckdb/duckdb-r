@@ -1,5 +1,5 @@
-// cpp11 version: 0.5.0
-// vendored on: 2024-09-24
+// cpp11 version: 0.5.1
+// vendored on: 2024-12-07
 #pragma once
 
 #ifdef R_INTERNALS_H_
@@ -13,9 +13,11 @@
 #ifndef R_NO_REMAP
 #define R_NO_REMAP
 #endif
+
 #ifndef STRICT_R_HEADERS
 #define STRICT_R_HEADERS
 #endif
+
 #include "R_ext/Boolean.h"
 #include "Rinternals.h"
 #include "Rversion.h"
@@ -33,7 +35,6 @@
 // clang-format on
 
 #include <type_traits>
-#include "cpp11/altrep.hpp"
 
 #if defined(R_VERSION) && R_VERSION >= R_Version(4, 4, 0)
 // Use R's new macro

@@ -1,5 +1,5 @@
-// cpp11 version: 0.5.0
-// vendored on: 2024-09-24
+// cpp11 version: 0.5.1
+// vendored on: 2024-12-07
 #pragma once
 
 #include <algorithm>         // for min, tranform
@@ -50,7 +50,7 @@ inline void r_vector<double>::get_region(SEXP x, R_xlen_t i, R_xlen_t n,
                                          typename r_vector::underlying_type* buf) {
   // NOPROTECT: likely too costly to unwind protect here
   REAL_GET_REGION(x, i, n, buf);
-};
+}
 
 template <>
 inline bool r_vector<double>::const_iterator::use_buf(bool is_altrep) {

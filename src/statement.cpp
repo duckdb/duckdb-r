@@ -11,6 +11,7 @@
 #include "typesr.hpp"
 
 #include <R_ext/Utils.h>
+#include "httplib.hpp"
 
 using namespace duckdb;
 using namespace cpp11::literals;
@@ -61,9 +62,9 @@ using namespace cpp11::literals;
 	return StringsToSexp({json});
 }
 
-static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt, const string &query, idx_t n_param) {
+static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt, const string &query, idx_t n_param, SEXP registered_dfs = R_NilValue) {
 	cpp11::writable::list retlist;
-	retlist.reserve(7);
+	retlist.reserve(8);
 	retlist.push_back({"str"_nm = query});
 
 	auto stmtholder = new RStatement();
@@ -85,6 +86,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	retlist.push_back({"n_param"_nm = n_param});
 	retlist.push_back(
 	    {"return_type"_nm = StatementReturnTypeToString(stmtholder->stmt->GetStatementProperties().return_type)});
+	retlist.push_back({"registered_dfs"_nm = registered_dfs});
 
 	return retlist;
 }
@@ -126,10 +128,18 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	return construct_retlist(std::move(stmt), "", 0);
 }
 
-[[cpp11::register]] cpp11::list rapi_prepare(duckdb::conn_eptr_t conn, std::string query) {
+[[cpp11::register]] cpp11::list rapi_prepare(duckdb::conn_eptr_t conn, std::string query, cpp11::environment env) {
 	if (!conn || !conn.get() || !conn->conn) {
 		cpp11::stop("rapi_prepare: Invalid connection");
 	}
+
+	D_ASSERT(conn->db->env == R_NilValue);
+	conn->db->env = (SEXP)env;
+	conn->db->registered_dfs = Rf_cons(R_NilValue, R_NilValue);
+	duckdb_httplib::detail::scope_exit reset_db_env([&]() {
+		conn->db->env = R_NilValue;
+		conn->db->registered_dfs = R_NilValue;
+	});
 
 	vector<unique_ptr<SQLStatement>> statements;
 	try {
@@ -158,7 +168,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		            stmt->error.Message().c_str());
 	}
 	auto n_param = stmt->named_param_map.size();
-	return construct_retlist(std::move(stmt), query, n_param);
+	return construct_retlist(std::move(stmt), query, n_param, conn->db->registered_dfs);
 }
 
 [[cpp11::register]] cpp11::list rapi_bind(duckdb::stmt_eptr_t stmt, cpp11::list params, bool arrow, bool integer64) {
@@ -201,8 +211,9 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 			stmt->parameters[param_idx] = val;
 		}
 
-		// No protection, assigned immediately
-		out.push_back(rapi_execute(stmt, arrow, integer64));
+		// Protection error is flagged by rchk
+		cpp11::sexp res = rapi_execute(stmt, arrow, integer64);
+		out.push_back(res);
 	}
 
 	return out;
@@ -367,7 +378,10 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	} else {
 		D_ASSERT(generic_result->type == QueryResultType::MATERIALIZED_RESULT);
 		auto result = (MaterializedQueryResult *)generic_result.get();
-		return duckdb_execute_R_impl(result, integer64);
+
+		// Avoid rchk warning, it sees QueryResult::~QueryResult() as an allocating function
+		cpp11::sexp out = duckdb_execute_R_impl(result, integer64);
+		return out;
 	}
 }
 

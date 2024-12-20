@@ -1,22 +1,13 @@
-// cpp11 version: 0.5.0
-// vendored on: 2024-09-24
+// cpp11 version: 0.5.1
+// vendored on: 2024-12-07
 #pragma once
 
 #include <string>  // for string, basic_string
 
-#include "Rversion.h"         // for R_VERSION, R_Version
 #include "cpp11/R.hpp"        // for SEXP, SEXPREC, Rf_install, r_env_get...
 #include "cpp11/as.hpp"       // for as_sexp
 #include "cpp11/protect.hpp"  // for protect, protect::function, safe, unwin...
 #include "cpp11/sexp.hpp"     // for sexp
-
-#if R_VERSION >= R_Version(4, 0, 0)
-#define HAS_REMOVE_VAR_FROM_FRAME
-#endif
-
-#ifndef HAS_REMOVE_VAR_FROM_FRAME
-#include "cpp11/function.hpp"
-#endif
 
 namespace cpp11 {
 
@@ -53,12 +44,7 @@ class environment {
 
   void remove(SEXP name) {
     PROTECT(name);
-#ifdef HAS_REMOVE_VAR_FROM_FRAME
     R_removeVarFromFrame(name, env_);
-#else
-    auto remove = package("base")["remove"];
-    remove(name, "envir"_nm = env_);
-#endif
     UNPROTECT(1);
   }
 

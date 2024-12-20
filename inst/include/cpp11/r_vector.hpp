@@ -1,5 +1,5 @@
-// cpp11 version: 0.5.0
-// vendored on: 2024-09-24
+// cpp11 version: 0.5.1
+// vendored on: 2024-12-07
 #pragma once
 
 #include <stddef.h>  // for ptrdiff_t, size_t
@@ -422,7 +422,7 @@ inline r_vector<T>& r_vector<T>::operator=(const r_vector& rhs) {
   length_ = rhs.length_;
 
   return *this;
-};
+}
 
 // Same reasoning as `r_vector(r_vector&& x)` constructor
 template <typename T>
@@ -448,7 +448,7 @@ inline r_vector<T>& r_vector<T>::operator=(r_vector&& rhs) {
   rhs.length_ = 0;
 
   return *this;
-};
+}
 
 template <typename T>
 inline r_vector<T>::operator SEXP() const {
@@ -1325,7 +1325,8 @@ inline SEXP r_vector<T>::reserve_data(SEXP x, bool is_altrep, R_xlen_t size) {
   SEXP out = PROTECT(resize_data(x, is_altrep, size));
 
   // Resize names, if required
-  SEXP names = Rf_getAttrib(x, R_NamesSymbol);
+  // Protection seems needed to make rchk happy
+  SEXP names = PROTECT(Rf_getAttrib(x, R_NamesSymbol));
   if (names != R_NilValue) {
     if (Rf_xlength(names) != size) {
       names = resize_names(names, size);
@@ -1340,7 +1341,7 @@ inline SEXP r_vector<T>::reserve_data(SEXP x, bool is_altrep, R_xlen_t size) {
   // Does not look like it would ever error in our use cases, so no `safe[]`.
   Rf_copyMostAttrib(x, out);
 
-  UNPROTECT(1);
+  UNPROTECT(2);
   return out;
 }
 

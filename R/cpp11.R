@@ -8,8 +8,8 @@ rapi_disconnect <- function(conn) {
   invisible(.Call(`_duckdb_rapi_disconnect`, conn))
 }
 
-rapi_startup <- function(dbdir, readonly, configsexp) {
-  .Call(`_duckdb_rapi_startup`, dbdir, readonly, configsexp)
+rapi_startup <- function(dbdir, readonly, configsexp, environment_scan) {
+  .Call(`_duckdb_rapi_startup`, dbdir, readonly, configsexp, environment_scan)
 }
 
 rapi_lock <- function(dual) {
@@ -201,8 +201,8 @@ rapi_prepare_substrait_json <- function(conn, json) {
   .Call(`_duckdb_rapi_prepare_substrait_json`, conn, json)
 }
 
-rapi_prepare <- function(conn, query) {
-  .Call(`_duckdb_rapi_prepare`, conn, query)
+rapi_prepare <- function(conn, query, env) {
+  .Call(`_duckdb_rapi_prepare`, conn, query, env)
 }
 
 rapi_bind <- function(stmt, params, arrow, integer64) {
