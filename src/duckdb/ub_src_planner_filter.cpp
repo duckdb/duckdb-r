@@ -6,3 +6,5 @@
 
 #include "src/planner/filter/struct_filter.cpp"
 
+#include "src/planner/filter/optional_filter.cpp"
+
