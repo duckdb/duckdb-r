@@ -55,10 +55,9 @@ namespace duckdb_zstd {
 static int g_displayLevel = 0;
 #endif
 #undef  DISPLAY
+// CRAN does not allow stderr references
 #define DISPLAY(...)                                                           \
   {                                                                            \
-    fprintf(stderr, __VA_ARGS__);                                              \
-    fflush(stderr);                                                            \
   }
 #undef  LOCALDISPLAYLEVEL
 #define LOCALDISPLAYLEVEL(displayLevel, l, ...)                                \
