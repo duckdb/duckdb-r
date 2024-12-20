@@ -26,7 +26,7 @@
 
 /*- Compiler specifics -*/
 #ifdef __clang__
-#pragma clang diagnostic ignored "-Wshorten-64-to-32"
+// CRAN does not allow pragmas
 #endif
 
 #if defined(_MSC_VER)
