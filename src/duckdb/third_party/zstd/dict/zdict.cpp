@@ -479,15 +479,9 @@ static size_t ZDICT_trainBuffer_legacy(dictItem* dictList, U32 dictListSize,
     clock_t const refreshRate = CLOCKS_PER_SEC * 3 / 10;
 
 #   undef  DISPLAYUPDATE
+// CRAN does not allow stderr references
 #   define DISPLAYUPDATE(l, ...)                                   \
         do {                                                       \
-            if (notificationLevel>=l) {                            \
-                if (ZDICT_clockSpan(displayClock) > refreshRate) { \
-                    displayClock = clock();                        \
-                    DISPLAY(__VA_ARGS__);                          \
-                }                                                  \
-                if (notificationLevel>=4) fflush(stderr);          \
-            }                                                      \
         } while (0)
 
     /* init */
