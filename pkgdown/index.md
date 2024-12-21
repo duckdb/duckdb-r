@@ -1,4 +1,9 @@
-# duckdb
+# The DuckDB R Package 🦆
+
+DuckDB is an in-process SQL database for R, offering fast data manipulation 
+through SQL queries without the need for a server or complex setup. It 
+provides real-time querying, automatic schema inference, and seamless 
+integration with other R packages for efficient data analysis and visualization.
 
 ## Installation from CRAN
 
