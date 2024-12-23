@@ -170,7 +170,7 @@ static unique_ptr<GlobalTableFunctionState> ReadCSVInitGlobal(ClientContext &con
 		return nullptr;
 	}
 	return make_uniq<CSVGlobalState>(context, bind_data.buffer_manager, bind_data.options,
-	                                 context.db->NumberOfThreads(), bind_data.files, input.column_ids, bind_data);
+	                                 context.db->NumberOfThreads(), bind_data.files, input.column_indexes, bind_data);
 }
 
 unique_ptr<LocalTableFunctionState> ReadCSVInitLocal(ExecutionContext &context, TableFunctionInitInput &input,
@@ -269,6 +269,7 @@ void ReadCSVTableFunction::ReadCSVAddNamedParameters(TableFunction &table_functi
 	table_function.named_parameters["column_names"] = LogicalType::LIST(LogicalType::VARCHAR);
 	table_function.named_parameters["comment"] = LogicalType::VARCHAR;
 	table_function.named_parameters["encoding"] = LogicalType::VARCHAR;
+	table_function.named_parameters["rfc_4180"] = LogicalType::BOOLEAN;
 
 	MultiFileReader::AddParameters(table_function);
 }
