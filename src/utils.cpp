@@ -284,7 +284,7 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 		return res;
 	}
 	case LogicalTypeId::TIMESTAMP_TZ: {
-		cpp11::doubles res({(double)Timestamp::GetEpochSeconds(val.GetValue<timestamp_t>())});
+		cpp11::doubles res({(double)Timestamp::GetEpochSeconds(val.GetValue<timestamp_tz_t>())});
 		SET_CLASS(res, RStrings::get().POSIXct_POSIXt_str);
 		Rf_setAttrib(res, RStrings::get().tzone_sym, StringsToSexp({timezone_config}));
 		return res;
