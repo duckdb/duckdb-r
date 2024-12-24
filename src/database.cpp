@@ -29,6 +29,7 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 	if (readonly) {
 		config.options.access_mode = AccessMode::READ_ONLY;
 	}
+	config.options.duckdb_api = "r-dbi";
 
 	auto confignames = configsexp.names();
 
