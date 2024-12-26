@@ -1,0 +1,94 @@
+From ca7815caa970bc98ff51fbe9e4b2aef5f9cff935 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Thu, 26 Dec 2024 22:06:39 +0100
+Subject: [PATCH] Trivial timestamp casts 14954
+
+---
+ .../src/common/operator/cast_operators.cpp    | 24 +++++++++++++++++++
+ .../duckdb/common/operator/cast_operators.hpp |  8 +++++++
+ 2 files changed, 32 insertions(+)
+
+diff --git a/src/duckdb/src/common/operator/cast_operators.cpp b/src/duckdb/src/common/operator/cast_operators.cpp
+index c1bdff1d6..5e1dc4423 100644
+--- a/src/duckdb/src/common/operator/cast_operators.cpp
++++ b/src/duckdb/src/common/operator/cast_operators.cpp
+@@ -1066,6 +1066,12 @@ bool TryCast::Operation(timestamp_t input, timestamp_t &result, bool strict) {
+ 	return true;
+ }
+ 
++template <>
++bool TryCast::Operation(timestamp_sec_t input, timestamp_sec_t &result, bool strict) {
++	result.value = input.value;
++	return true;
++}
++
+ template <>
+ bool TryCast::Operation(timestamp_t input, timestamp_sec_t &result, bool strict) {
+ 	D_ASSERT(Timestamp::IsFinite(input));
+@@ -1073,6 +1079,12 @@ bool TryCast::Operation(timestamp_t input, timestamp_sec_t &result, bool strict)
+ 	return true;
+ }
+ 
++template <>
++bool TryCast::Operation(timestamp_ms_t input, timestamp_ms_t &result, bool strict) {
++	result.value = input.value;
++	return true;
++}
++
+ template <>
+ bool TryCast::Operation(timestamp_t input, timestamp_ms_t &result, bool strict) {
+ 	D_ASSERT(Timestamp::IsFinite(input));
+@@ -1080,6 +1092,12 @@ bool TryCast::Operation(timestamp_t input, timestamp_ms_t &result, bool strict)
+ 	return true;
+ }
+ 
++template <>
++bool TryCast::Operation(timestamp_ns_t input, timestamp_ns_t &result, bool strict) {
++	result.value = input.value;
++	return true;
++}
++
+ template <>
+ bool TryCast::Operation(timestamp_t input, timestamp_ns_t &result, bool strict) {
+ 	D_ASSERT(Timestamp::IsFinite(input));
+@@ -1089,6 +1107,12 @@ bool TryCast::Operation(timestamp_t input, timestamp_ns_t &result, bool strict)
+ 	return true;
+ }
+ 
++template <>
++bool TryCast::Operation(timestamp_tz_t input, timestamp_tz_t &result, bool strict) {
++	result.value = input.value;
++	return true;
++}
++
+ template <>
+ bool TryCast::Operation(timestamp_t input, timestamp_tz_t &result, bool strict) {
+ 	result.value = input.value;
+diff --git a/src/duckdb/src/include/duckdb/common/operator/cast_operators.hpp b/src/duckdb/src/include/duckdb/common/operator/cast_operators.hpp
+index d50210fc4..d86b29d9c 100644
+--- a/src/duckdb/src/include/duckdb/common/operator/cast_operators.hpp
++++ b/src/duckdb/src/include/duckdb/common/operator/cast_operators.hpp
+@@ -615,12 +615,20 @@ DUCKDB_API bool TryCast::Operation(timestamp_t input, dtime_tz_t &result, bool s
+ template <>
+ DUCKDB_API bool TryCast::Operation(timestamp_t input, timestamp_t &result, bool strict);
+ template <>
++DUCKDB_API bool TryCast::Operation(timestamp_sec_t input, timestamp_sec_t &result, bool strict);
++template <>
+ DUCKDB_API bool TryCast::Operation(timestamp_t input, timestamp_sec_t &result, bool strict);
+ template <>
++DUCKDB_API bool TryCast::Operation(timestamp_ms_t input, timestamp_ms_t &result, bool strict);
++template <>
+ DUCKDB_API bool TryCast::Operation(timestamp_t input, timestamp_ms_t &result, bool strict);
+ template <>
++DUCKDB_API bool TryCast::Operation(timestamp_ns_t input, timestamp_ns_t &result, bool strict);
++template <>
+ DUCKDB_API bool TryCast::Operation(timestamp_t input, timestamp_ns_t &result, bool strict);
+ template <>
++DUCKDB_API bool TryCast::Operation(timestamp_tz_t input, timestamp_tz_t &result, bool strict);
++template <>
+ DUCKDB_API bool TryCast::Operation(timestamp_t input, timestamp_tz_t &result, bool strict);
+ 
+ //===--------------------------------------------------------------------===//
+-- 
+2.43.0
+
