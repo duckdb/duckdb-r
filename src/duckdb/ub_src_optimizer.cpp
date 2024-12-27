@@ -48,3 +48,5 @@
 
 #include "src/optimizer/sampling_pushdown.cpp"
 
+#include "src/optimizer/sum_rewriter.cpp"
+
