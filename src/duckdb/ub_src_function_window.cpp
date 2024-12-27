@@ -20,6 +20,8 @@
 
 #include "src/function/window/window_index_tree.cpp"
 
+#include "src/function/window/window_merge_sort_tree.cpp"
+
 #include "src/function/window/window_naive_aggregator.cpp"
 
 #include "src/function/window/window_rank_function.cpp"
@@ -29,6 +31,8 @@
 #include "src/function/window/window_segment_tree.cpp"
 
 #include "src/function/window/window_shared_expressions.cpp"
+
+#include "src/function/window/window_token_tree.cpp"
 
 #include "src/function/window/window_value_function.cpp"
 
