@@ -1,3 +1,12 @@
+maybe_encode_to_utf_8 <- function(a) {
+  b <- enc2utf8(a)
+  res <- iconv(b, from="UTF-8", to="UTF-8")
+  res
+}
+
+is_not_na <- function(x) {
+  !is.na(x)
+}
 # helper to clean up non-utf and posixlt vectors
 encode_values <- function(value) {
   if (!is.null(names(value))) {
@@ -5,7 +14,14 @@ encode_values <- function(value) {
   }
 
   is_character <- vapply(value, is.character, logical(1))
+  encoded_df <- lapply(value[is_character], maybe_encode_to_utf_8)
+  all_are_utf8 <- lapply(encoded_df[is_character], is_not_na)
+  if (!all(as.data.frame(all_are_utf8))) {
+    stop("not all values in the provided df are valid utf8")
+  }
+
   value[is_character] <- lapply(value[is_character], enc2utf8)
+
   is_factor <- vapply(value, is.factor, logical(1))
   value[is_factor] <- lapply(value[is_factor], function(x) {
     levels(x) <- enc2utf8(levels(x))
