@@ -1,3 +1,4 @@
+#include "duckdb/common/case_insensitive_map.hpp"
 #include "rapi.hpp"
 #include "typesr.hpp"
 
@@ -260,6 +261,35 @@ void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_ptr_t co
 	default:
 		cpp11::stop("rapi_execute: Unsupported column type for scan");
 	}
+}
+
+case_insensitive_map_t<vector<Value>> ListToVectorOfValue(list input_sexps) {
+	const bool integer64 = false, experimental = false;
+	case_insensitive_map_t<vector<Value>> output;
+
+	auto names = input_sexps.names();
+	if (names.size() != input_sexps.size()) {
+		stop("rel_from_table_function: Named parameters need names");
+	}
+	R_xlen_t input_idx = 0;
+	for (sexp parameter_sexp : input_sexps) {
+		auto rtype = RApiTypes::DetectRType(parameter_sexp, integer64);
+		auto coldata = GetColDataPtr(rtype, parameter_sexp);
+		auto size = RApiTypes::GetVecSize(parameter_sexp, integer64);
+		Vector v(RApiTypes::LogicalTypeFromRType(rtype, experimental));
+		AppendAnyColumnSegment(rtype, experimental, coldata, 0, v, size);
+
+		vector<Value> vv;
+		vv.reserve(size);
+		for (idx_t i = 0; i < size; ++i) {
+			vv.push_back(v.GetValue(i));
+		}
+
+		output[names[input_idx]] = vv;
+		input_idx++;
+	}
+
+	return std::move(output);
 }
 
 static bool get_bool_param(named_parameter_map_t &named_parameters, string name, bool dflt = false) {
