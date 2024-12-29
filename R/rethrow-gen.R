@@ -387,9 +387,8 @@ rethrow_rapi_rel_from_table_function <- function(con, function_name, positional_
   )
 }
 
-rethrow_rapi_rel_to_altrep <- function(rel, allow_materialization = TRUE, call = parent.frame(2)) {
+rethrow_rapi_rel_to_altrep <- function(rel, allow_materialization, call = parent.frame(2)) {
   rlang::try_fetch(
-    # duckplyr compat
     rapi_rel_to_altrep(rel, allow_materialization),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
