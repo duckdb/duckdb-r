@@ -564,3 +564,11 @@ static SEXP result_to_df(duckdb::unique_ptr<QueryResult> res) {
 [[cpp11::register]] void rapi_rel_to_csv(duckdb::rel_extptr_t rel, std::string file_name, list options_sexps) {
 	rel->rel->WriteCSV(file_name, ListToVectorOfValue(options_sexps));
 }
+
+[[cpp11::register]] void rapi_rel_to_table(duckdb::rel_extptr_t rel, std::string schema_name, std::string table_name, bool temporary) {
+	rel->rel->Create(table_name, schema_name, temporary);
+}
+
+[[cpp11::register]] void rapi_rel_insert(duckdb::rel_extptr_t rel, std::string schema_name, std::string table_name) {
+	rel->rel->Insert(table_name, schema_name);
+}

@@ -180,6 +180,14 @@ rapi_rel_to_csv <- function(rel, file_name, options_sexps) {
   invisible(.Call(`_duckdb_rapi_rel_to_csv`, rel, file_name, options_sexps))
 }
 
+rapi_rel_to_table <- function(rel, schema_name, table_name, temporary) {
+  invisible(.Call(`_duckdb_rapi_rel_to_table`, rel, schema_name, table_name, temporary))
+}
+
+rapi_rel_insert <- function(rel, schema_name, table_name) {
+  invisible(.Call(`_duckdb_rapi_rel_insert`, rel, schema_name, table_name))
+}
+
 rapi_rel_to_altrep <- function(rel, allow_materialization) {
   .Call(`_duckdb_rapi_rel_to_altrep`, rel, allow_materialization)
 }

@@ -330,6 +330,22 @@ extern "C" SEXP _duckdb_rapi_rel_to_csv(SEXP rel, SEXP file_name, SEXP options_s
     return R_NilValue;
   END_CPP11
 }
+// relational.cpp
+void rapi_rel_to_table(duckdb::rel_extptr_t rel, std::string schema_name, std::string table_name, bool temporary);
+extern "C" SEXP _duckdb_rapi_rel_to_table(SEXP rel, SEXP schema_name, SEXP table_name, SEXP temporary) {
+  BEGIN_CPP11
+    rapi_rel_to_table(cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rel), cpp11::as_cpp<cpp11::decay_t<std::string>>(schema_name), cpp11::as_cpp<cpp11::decay_t<std::string>>(table_name), cpp11::as_cpp<cpp11::decay_t<bool>>(temporary));
+    return R_NilValue;
+  END_CPP11
+}
+// relational.cpp
+void rapi_rel_insert(duckdb::rel_extptr_t rel, std::string schema_name, std::string table_name);
+extern "C" SEXP _duckdb_rapi_rel_insert(SEXP rel, SEXP schema_name, SEXP table_name) {
+  BEGIN_CPP11
+    rapi_rel_insert(cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rel), cpp11::as_cpp<cpp11::decay_t<std::string>>(schema_name), cpp11::as_cpp<cpp11::decay_t<std::string>>(table_name));
+    return R_NilValue;
+  END_CPP11
+}
 // reltoaltrep.cpp
 SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel, bool allow_materialization);
 extern "C" SEXP _duckdb_rapi_rel_to_altrep(SEXP rel, SEXP allow_materialization) {
@@ -477,6 +493,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_rel_from_sql",            (DL_FUNC) &_duckdb_rapi_rel_from_sql,            2},
     {"_duckdb_rapi_rel_from_table",          (DL_FUNC) &_duckdb_rapi_rel_from_table,          3},
     {"_duckdb_rapi_rel_from_table_function", (DL_FUNC) &_duckdb_rapi_rel_from_table_function, 4},
+    {"_duckdb_rapi_rel_insert",              (DL_FUNC) &_duckdb_rapi_rel_insert,              3},
     {"_duckdb_rapi_rel_join",                (DL_FUNC) &_duckdb_rapi_rel_join,                5},
     {"_duckdb_rapi_rel_limit",               (DL_FUNC) &_duckdb_rapi_rel_limit,               2},
     {"_duckdb_rapi_rel_names",               (DL_FUNC) &_duckdb_rapi_rel_names,               1},
@@ -492,6 +509,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_rel_to_df",               (DL_FUNC) &_duckdb_rapi_rel_to_df,               1},
     {"_duckdb_rapi_rel_to_parquet",          (DL_FUNC) &_duckdb_rapi_rel_to_parquet,          3},
     {"_duckdb_rapi_rel_to_sql",              (DL_FUNC) &_duckdb_rapi_rel_to_sql,              1},
+    {"_duckdb_rapi_rel_to_table",            (DL_FUNC) &_duckdb_rapi_rel_to_table,            4},
     {"_duckdb_rapi_rel_tostring",            (DL_FUNC) &_duckdb_rapi_rel_tostring,            2},
     {"_duckdb_rapi_rel_union_all",           (DL_FUNC) &_duckdb_rapi_rel_union_all,           2},
     {"_duckdb_rapi_release",                 (DL_FUNC) &_duckdb_rapi_release,                 1},
