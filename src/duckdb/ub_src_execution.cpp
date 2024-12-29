@@ -20,5 +20,3 @@
 
 #include "src/execution/radix_partitioned_hashtable.cpp"
 
-#include "src/execution/reservoir_sample.cpp"
-

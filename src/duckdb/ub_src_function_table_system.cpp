@@ -48,6 +48,8 @@
 
 #include "src/function/table/system/pragma_table_info.cpp"
 
+#include "src/function/table/system/pragma_table_sample.cpp"
+
 #include "src/function/table/system/pragma_user_agent.cpp"
 
 #include "src/function/table/system/test_all_types.cpp"
