@@ -322,6 +322,14 @@ extern "C" SEXP _duckdb_rapi_rel_to_parquet(SEXP rel, SEXP file_name, SEXP optio
     return R_NilValue;
   END_CPP11
 }
+// relational.cpp
+void rapi_rel_to_csv(duckdb::rel_extptr_t rel, std::string file_name, list options_sexps);
+extern "C" SEXP _duckdb_rapi_rel_to_csv(SEXP rel, SEXP file_name, SEXP options_sexps) {
+  BEGIN_CPP11
+    rapi_rel_to_csv(cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rel), cpp11::as_cpp<cpp11::decay_t<std::string>>(file_name), cpp11::as_cpp<cpp11::decay_t<list>>(options_sexps));
+    return R_NilValue;
+  END_CPP11
+}
 // reltoaltrep.cpp
 SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel, bool allow_materialization);
 extern "C" SEXP _duckdb_rapi_rel_to_altrep(SEXP rel, SEXP allow_materialization) {
@@ -480,6 +488,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_rel_set_symdiff",         (DL_FUNC) &_duckdb_rapi_rel_set_symdiff,         2},
     {"_duckdb_rapi_rel_sql",                 (DL_FUNC) &_duckdb_rapi_rel_sql,                 2},
     {"_duckdb_rapi_rel_to_altrep",           (DL_FUNC) &_duckdb_rapi_rel_to_altrep,           2},
+    {"_duckdb_rapi_rel_to_csv",              (DL_FUNC) &_duckdb_rapi_rel_to_csv,              3},
     {"_duckdb_rapi_rel_to_df",               (DL_FUNC) &_duckdb_rapi_rel_to_df,               1},
     {"_duckdb_rapi_rel_to_parquet",          (DL_FUNC) &_duckdb_rapi_rel_to_parquet,          3},
     {"_duckdb_rapi_rel_to_sql",              (DL_FUNC) &_duckdb_rapi_rel_to_sql,              1},

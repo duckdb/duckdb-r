@@ -560,3 +560,7 @@ static SEXP result_to_df(duckdb::unique_ptr<QueryResult> res) {
 [[cpp11::register]] void rapi_rel_to_parquet(duckdb::rel_extptr_t rel, std::string file_name, list options_sexps) {
 	rel->rel->WriteParquet(file_name, ListToVectorOfValue(options_sexps));
 }
+
+[[cpp11::register]] void rapi_rel_to_csv(duckdb::rel_extptr_t rel, std::string file_name, list options_sexps) {
+	rel->rel->WriteCSV(file_name, ListToVectorOfValue(options_sexps));
+}

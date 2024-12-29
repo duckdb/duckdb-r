@@ -396,6 +396,15 @@ rethrow_rapi_rel_to_parquet <- function(rel, file_name, options_sexps, call = pa
   )
 }
 
+rethrow_rapi_rel_to_csv <- function(rel, file_name, options_sexps, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_rel_to_csv(rel, file_name, options_sexps),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
 rethrow_rapi_rel_to_altrep <- function(rel, allow_materialization, call = parent.frame(2)) {
   rlang::try_fetch(
     rapi_rel_to_altrep(rel, allow_materialization),
@@ -576,6 +585,7 @@ rethrow_restore <- function() {
   rethrow_rapi_rel_from_table <<- rapi_rel_from_table
   rethrow_rapi_rel_from_table_function <<- rapi_rel_from_table_function
   rethrow_rapi_rel_to_parquet <<- rapi_rel_to_parquet
+  rethrow_rapi_rel_to_csv <<- rapi_rel_to_csv
   rethrow_rapi_rel_to_altrep <<- rapi_rel_to_altrep
   rethrow_rapi_rel_from_altrep_df <<- rapi_rel_from_altrep_df
   rethrow_rapi_release <<- rapi_release

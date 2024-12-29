@@ -176,6 +176,10 @@ rapi_rel_to_parquet <- function(rel, file_name, options_sexps) {
   invisible(.Call(`_duckdb_rapi_rel_to_parquet`, rel, file_name, options_sexps))
 }
 
+rapi_rel_to_csv <- function(rel, file_name, options_sexps) {
+  invisible(.Call(`_duckdb_rapi_rel_to_csv`, rel, file_name, options_sexps))
+}
+
 rapi_rel_to_altrep <- function(rel, allow_materialization) {
   .Call(`_duckdb_rapi_rel_to_altrep`, rel, allow_materialization)
 }

@@ -496,6 +496,10 @@ rel_to_parquet <- function(rel, file_name, options = list()) {
   rethrow_rapi_rel_to_parquet(rel, file_name, options)
 }
 
+rel_to_csv <- function(rel, file_name, options = list()) {
+  rethrow_rapi_rel_to_csv(rel, file_name, options)
+}
+
 rel_names <- function(rel) {
   rethrow_rapi_rel_names(rel)
 }
