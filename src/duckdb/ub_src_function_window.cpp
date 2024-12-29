@@ -18,6 +18,8 @@
 
 #include "src/function/window/window_executor.cpp"
 
+#include "src/function/window/window_index_tree.cpp"
+
 #include "src/function/window/window_naive_aggregator.cpp"
 
 #include "src/function/window/window_rank_function.cpp"
