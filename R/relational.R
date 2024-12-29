@@ -492,8 +492,8 @@ rel_from_table_function <- function(con, function_name, positional_parameters = 
   rethrow_rapi_rel_from_table_function(con@conn_ref, function_name, positional_parameters, named_parameters)
 }
 
-rel_to_parquet <- function(rel, file_name) {
-  rethrow_rapi_rel_to_parquet(rel, file_name)
+rel_to_parquet <- function(rel, file_name, options = list()) {
+  rethrow_rapi_rel_to_parquet(rel, file_name, options)
 }
 
 rel_names <- function(rel) {

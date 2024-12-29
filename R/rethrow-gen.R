@@ -387,6 +387,15 @@ rethrow_rapi_rel_from_table_function <- function(con, function_name, positional_
   )
 }
 
+rethrow_rapi_rel_to_parquet <- function(rel, file_name, options_sexps, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_rel_to_parquet(rel, file_name, options_sexps),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
 rethrow_rapi_rel_to_altrep <- function(rel, allow_materialization, call = parent.frame(2)) {
   rlang::try_fetch(
     rapi_rel_to_altrep(rel, allow_materialization),
@@ -495,15 +504,6 @@ rethrow_rapi_execute <- function(stmt, arrow, integer64, call = parent.frame(2))
   )
 }
 
-rethrow_rapi_rel_to_parquet <- function(rel, file_name, call = parent.frame(2)) {
-  rlang::try_fetch(
-    rapi_rel_to_parquet(rel, file_name),
-    error = function(e) {
-      rethrow_error_from_rapi(e, call)
-    }
-  )
-}
-
 rethrow_rapi_adbc_init_func <- function(call = parent.frame(2)) {
   rlang::try_fetch(
     rapi_adbc_init_func(),
@@ -575,6 +575,7 @@ rethrow_restore <- function() {
   rethrow_rapi_rel_from_sql <<- rapi_rel_from_sql
   rethrow_rapi_rel_from_table <<- rapi_rel_from_table
   rethrow_rapi_rel_from_table_function <<- rapi_rel_from_table_function
+  rethrow_rapi_rel_to_parquet <<- rapi_rel_to_parquet
   rethrow_rapi_rel_to_altrep <<- rapi_rel_to_altrep
   rethrow_rapi_rel_from_altrep_df <<- rapi_rel_from_altrep_df
   rethrow_rapi_release <<- rapi_release
@@ -587,7 +588,6 @@ rethrow_restore <- function() {
   rethrow_rapi_execute_arrow <<- rapi_execute_arrow
   rethrow_rapi_record_batch <<- rapi_record_batch
   rethrow_rapi_execute <<- rapi_execute
-  rethrow_rapi_rel_to_parquet <<- rapi_rel_to_parquet
   rethrow_rapi_adbc_init_func <<- rapi_adbc_init_func
   rethrow_rapi_ptr_to_str <<- rapi_ptr_to_str
   rethrow_rapi_load_rfuns <<- rapi_load_rfuns

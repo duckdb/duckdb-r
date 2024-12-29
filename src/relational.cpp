@@ -556,3 +556,7 @@ static SEXP result_to_df(duckdb::unique_ptr<QueryResult> res) {
 	auto rel = con->conn->TableFunction(function_name, std::move(positional_parameters), std::move(named_parameters));
 	return make_external<RelationWrapper>("duckdb_relation", std::move(rel));
 }
+
+[[cpp11::register]] void rapi_rel_to_parquet(duckdb::rel_extptr_t rel, std::string file_name, list options_sexps) {
+	rel->rel->WriteParquet(file_name, ListToVectorOfValue(options_sexps));
+}

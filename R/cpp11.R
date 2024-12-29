@@ -172,6 +172,10 @@ rapi_rel_from_table_function <- function(con, function_name, positional_paramete
   .Call(`_duckdb_rapi_rel_from_table_function`, con, function_name, positional_parameters_sexps, named_parameters_sexps)
 }
 
+rapi_rel_to_parquet <- function(rel, file_name, options_sexps) {
+  invisible(.Call(`_duckdb_rapi_rel_to_parquet`, rel, file_name, options_sexps))
+}
+
 rapi_rel_to_altrep <- function(rel, allow_materialization) {
   .Call(`_duckdb_rapi_rel_to_altrep`, rel, allow_materialization)
 }
@@ -218,10 +222,6 @@ rapi_record_batch <- function(qry_res, chunk_size) {
 
 rapi_execute <- function(stmt, arrow, integer64) {
   .Call(`_duckdb_rapi_execute`, stmt, arrow, integer64)
-}
-
-rapi_rel_to_parquet <- function(rel, file_name) {
-  invisible(.Call(`_duckdb_rapi_rel_to_parquet`, rel, file_name))
 }
 
 rapi_adbc_init_func <- function() {
