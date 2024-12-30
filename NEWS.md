@@ -1,5 +1,120 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.1.3.9028
+
+## Features
+
+- New internal `rapi_rel_to_csv()`,`rapi_rel_to_table()`, and `rapi_rel_insert()`; `rapi_rel_to_parquet()` gains `options` argument (#867).
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@abd4759216599b454d89b0d13d3b476eb67df3e1 (#877).
+
+- Update vendored sources to duckdb/duckdb@d9965a511aa15178af155a4ef8581198e067570b (#876).
+
+- Update vendored sources to duckdb/duckdb@5302c13337dcd6d87c375e89ab66a28e31862ead (#875).
+
+- Update vendored sources to duckdb/duckdb@5370afc08e09c953218f6ce65298f93e95ed2952 (#874).
+
+- Update vendored sources to duckdb/duckdb@7e3dca3b06ab9cc99cf205fa1ae8003841631f81 (#873).
+
+- Update vendored sources to duckdb/duckdb@4f3a7d585d57f1c17cd261ce0c3c2362cda8b181 (#872).
+
+- Update vendored sources to duckdb/duckdb@428bff2e564de2cde1e4aa029ce5fe6a041c5749 (#871).
+
+- Update vendored sources to duckdb/duckdb@80b1684decdae6596877aa1f550f5d7d1c3efbf9 (#870).
+
+- Update vendored sources to duckdb/duckdb@332c9830b7b0768670b3a7bf35b2fa56f0cbae7b (#869).
+
+- Update vendored sources to duckdb/duckdb@902331125660f5ead08a870cbd8534572d13536c (#868).
+
+- Update vendored sources to duckdb/duckdb@a39967c3b67410d165fdede4f12967ff240154c7 (#866).
+
+- Update vendored sources to duckdb/duckdb@115a8aedcd80706bf776c5993f46e95c1a25d91a (#865).
+
+- Update vendored sources to duckdb/duckdb@c80d58c16ad1ddacb6aa291d0f99be169019c355 (#864).
+
+- Update vendored sources to duckdb/duckdb@61dc3243083a7bc4eb5110ab67d76f1704f80ce9 (#863).
+
+- Update vendored sources to duckdb/duckdb@30e05b95fa999d6d7ca8f78692c5ef8bc851f1a1 (#862).
+
+- Update vendored sources to duckdb/duckdb@98981b3a33eade1b0d38433d9c924e308cb56511 (duckdb/duckdb#14938, #861).
+
+- Update vendored sources to duckdb/duckdb@4835faaa9288a75ebbc36811f7142fbb2dd7ed87 (#860).
+
+- Update vendored sources to duckdb/duckdb@4ca094fa6370d5bc7893ca156db422082b9a5528 (#859).
+
+- Update vendored sources to duckdb/duckdb@d27b5c188e3ba73d98bddf81f3a95a26e758e208 (#858).
+
+- Update vendored sources to duckdb/duckdb@dac040e902b5021b0e8a49c0e5f01873e5ad32b5 (duckdb/duckdb#15183, #857).
+
+- Update vendored sources to duckdb/duckdb@2bec31833360904590a86c5dc59e3523ad39a257 (#856).
+
+- Update vendored sources to duckdb/duckdb@eadc6168f73e6f85c47597c84438bb8e769c12ae (#855).
+
+- Update vendored sources to duckdb/duckdb@b0cca8f83bba978071ecf5c0eed5495443ed05b1 (#854).
+
+- Update vendored sources to duckdb/duckdb@4a8188effcf664085eedf723996a90dc870a7d7e (#853).
+
+- Update vendored sources to duckdb/duckdb@a52e92d404cbc3e38b48ea65b36ecc928ad318ee (#852).
+
+- Update vendored sources to duckdb/duckdb@680a21db3923c14452240e8818741327d1b7d64a (#851).
+
+- Update vendored sources to duckdb/duckdb@18c85f7b7078418ca6c85477ff5225ecda37e63a (#850).
+
+- Update vendored sources to duckdb/duckdb@9489881191eba8af452b94120d542c09b3ffd0c1 (duckdb/duckdb#15261, #849).
+
+- Update vendored sources to duckdb/duckdb@04d8f995da72c57b07aa5fca3c3a11cf65263430 (#848).
+
+- Update vendored sources to duckdb/duckdb@c828cadfc1c5f8df89f94cdb8eb62aba8fdb5e5e (#847).
+
+- Update vendored sources to duckdb/duckdb@236524b273f1ebaafb9b938018135b64e64ce02f (duckdb/duckdb#15239, #846).
+
+- Update vendored sources to duckdb/duckdb@3c6182ea20185e93f788399a80bb3ae6c86528d2 (#845).
+
+- Update vendored sources to duckdb/duckdb@7e9bd28f0010bb82980e1c6c19a25b757ed4c1d7 (#844).
+
+- Update vendored sources to duckdb/duckdb@12a0e9048732c37102817209fd36b3f7c2815120 (duckdb/duckdb#15012, #843).
+
+- Update vendored sources to duckdb/duckdb@8ddb090b56cabfe5afc58b4a93d169399afb6324 (#842).
+
+- Update vendored sources to duckdb/duckdb@1da0ac1eb7cf0d4ec804be8bdb116c6d288c8326 (#841).
+
+- Update vendored sources to duckdb/duckdb@76ba54844a2b66c2c2457723f60b073bc57db19f (#840).
+
+- Update vendored sources to duckdb/duckdb@b50ff2aecfb5862c99cccd07a19f6d68c741b5d0 (#839).
+
+- Update vendored sources to duckdb/duckdb@7ce73e9db7a7f05ae871342751c5621a7ea325af (duckdb/duckdb#15051, #838).
+
+- Update vendored sources to duckdb/duckdb@6eb3eb68b68ff01be3f5affe93fe90dd7a24808d (duckdb/duckdb#15072, #837).
+
+- Update vendored sources to duckdb/duckdb@bebfb9ddeb96259ce5b53cf23b46bfc6f5c1a342 (#836).
+
+- Update vendored sources to duckdb/duckdb@7d9c93ba68eef8512b3d8637f34f5bdc18c8f373 (#835).
+
+- Update vendored sources to duckdb/duckdb@ce587041dcd60b7be22a5c1dd740c1a6c10674d6 (#834).
+
+- Update vendored sources to duckdb/duckdb@60e97349f4ca4989ed79cc1272d6c08729dcd75b (#833).
+
+- Update vendored sources to duckdb/duckdb@067ecb1c7f66a4ecaa1b7f9db33432e8ba896960 (#832).
+
+- Update vendored sources to duckdb/duckdb@86eed65e6f7c07c8adc8d686e4703a573aca9755 (#831).
+
+- Update vendored sources to duckdb/duckdb@a3a6909f7f99e384ef0fc1c5acc7a5c878192ec6 (#830).
+
+- Update vendored sources to duckdb/duckdb@3c8c7f67785342f77efbbdaee1f38a7ed2024bef (duckdb/duckdb#15175, #829).
+
+- Update vendored sources to duckdb/duckdb@c004f8af0feede375cece18d1aabe68bb054fcd8 (duckdb/duckdb#15177, #828).
+
+- Update vendored sources to duckdb/duckdb@5c1abcf8cc5ef70ac2eb673e2832552f955ad6c8 (duckdb/duckdb#15221, #827).
+
+- Update vendored sources to duckdb/duckdb@23dc2bc4dc6d34c3a59d29a43d2351d873675098 (#826).
+
+- Update vendored sources to duckdb/duckdb@8095a6ecc5e81c2c383050fbdd5876ce1e5ea22f (#825).
+
+- Update vendored sources to duckdb/duckdb@7f09c98f0022336671aac0197f6820044e065c4f (#823).
+
+
 # duckdb 1.1.3.9027
 
 ## vendor
