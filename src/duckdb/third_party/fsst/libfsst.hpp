@@ -16,6 +16,7 @@
 //                 
 // You can contact the authors via the FSST source repository : https://github.com/cwida/fsst 
 #include <algorithm>
+#include <cstdint>
 #include <cassert>
 #include <cstring>
 #include <fstream>
