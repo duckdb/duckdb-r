@@ -1,5 +1,48 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.1.3.9030
+
+## Bug fixes
+
+- Make `cleanup` truly idempotent (#612, #940).
+
+## Chore
+
+- Sync vendoring script with igraph (#936).
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@6c4d2a394ff166af23cfd9be499d96f2b1bfb0de (#939).
+
+- Update vendored sources to duckdb/duckdb@cd286cb51c16c55320143f8fbe6ad4f058bc09c9 (#938).
+
+- Update vendored sources to duckdb/duckdb@13ff921d7c4c5947dd69eaa6191c3cedad5672b8 (#937).
+
+- Update vendored sources to duckdb/duckdb@e1db888231f0cbe856d75ee8db6e677a2e19dd4a (#935).
+
+- Update vendored sources to duckdb/duckdb@b7a133935512bbcba9f98b83ab4a6238a7b776c5 (#934).
+
+- Update vendored sources to duckdb/duckdb@44074848caa1b2e98850a5e1d4a45295d008861e (#933).
+
+- Update vendored sources to duckdb/duckdb@8d3319e35abd834a51809422c5253b88c7ad8ce1 (#932).
+
+- Update vendored sources to duckdb/duckdb@701a39ebc2dacf80249ae3df069bac56e3fb0ba6 (#931).
+
+- Update vendored sources to duckdb/duckdb@d29c199646ec52f3e84fec4d0058b3aecb3a2156 (#930).
+
+- Update vendored sources to duckdb/duckdb@21e6acf2669ad56b1809353da2c9ac8e35adffd2 (#929).
+
+- Update vendored sources to duckdb/duckdb@30c80bb3111b2ac8db37d31d71e971d47768987c (#928).
+
+- Update vendored sources to duckdb/duckdb@ad6b3f4c4966b0fc0831cbf624847761d8ffee62 (#927).
+
+- Update vendored sources to duckdb/duckdb@987ea2c40964013cac5e32e47519d7f5ca00148f (#926).
+
+- Update vendored sources to duckdb/duckdb@342f13856f9b54492597cd25a51a35d29b3a655c (#925).
+
+- Update vendored sources to duckdb/duckdb@26f483b873b967cc875935cda7c58a9bccbc359e (#924).
+
+
 # duckdb 1.1.3.9029
 
 ## Bug fixes
