@@ -2,6 +2,7 @@ url: https://r.duckdb.org/
 
 template:
   bootstrap: 5
+  light-switch: true
 
 authors:
   Hannes Mühleisen:
