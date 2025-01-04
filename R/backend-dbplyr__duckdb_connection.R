@@ -275,10 +275,10 @@ sql_translation.duckdb_connection <- function(con) {
 
       # clock
       add_days = function(x, n, ...) {
-        build_sql("DATE_ADD(", !!x, ", INTERVAL '", n ," day')")
+        build_sql("DATE_ADD(", !!x, ", INTERVAL (", n ,") day)")
       },
       add_years = function(x, n, ...) {
-        build_sql("DATE_ADD(", !!x, ", INTERVAL '", n ," year')")
+        build_sql("DATE_ADD(", !!x, ", INTERVAL (", n ,") year)")
       },
       get_year = function(x) {
         build_sql("DATE_PART('year', ", !!x, ")")
@@ -301,6 +301,17 @@ sql_translation.duckdb_connection <- function(con) {
 
         build_sql("DATEDIFF('day', ", !!start, ", " ,!!end, ")")
 
+      },
+      date_build = function(year, month = 1L, day = 1L, ..., invalid = NULL) {
+        dbplyr:::check_unsupported_arg(invalid, allow_null = TRUE)
+        rlang::check_dots_empty()
+        build_sql("MAKE_DATE(CAST(", year, " AS INTEGER), CAST(", month, " AS INTEGER), CAST(", day, " AS INTEGER))")
+
+      },
+      difftime = function(time1, time2, tz, units = "days") {
+        dbplyr:::check_unsupported_arg(tz)
+        dbplyr:::check_unsupported_arg(units, allowed = "days")
+        build_sql("DATEDIFF('day', ", !!time2, ", " ,!!time1, ")")
       },
 
       # stringr functions
