@@ -189,6 +189,15 @@ rethrow_rapi_rel_project <- function(rel, exprs, call = parent.frame(2)) {
   )
 }
 
+rethrow_rapi_rel_project2 <- function(df, con, exprs, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_rel_project2(df, con, exprs),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
 rethrow_rapi_rel_aggregate <- function(rel, groups, aggregates, call = parent.frame(2)) {
   rlang::try_fetch(
     rapi_rel_aggregate(rel, groups, aggregates),
@@ -580,6 +589,7 @@ rethrow_restore <- function() {
   rethrow_rapi_rel_from_df <<- rapi_rel_from_df
   rethrow_rapi_rel_filter <<- rapi_rel_filter
   rethrow_rapi_rel_project <<- rapi_rel_project
+  rethrow_rapi_rel_project2 <<- rapi_rel_project2
   rethrow_rapi_rel_aggregate <<- rapi_rel_aggregate
   rethrow_rapi_rel_order <<- rapi_rel_order
   rethrow_rapi_expr_window <<- rapi_expr_window

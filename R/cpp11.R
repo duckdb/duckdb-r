@@ -80,6 +80,10 @@ rapi_rel_filter <- function(rel, exprs) {
   .Call(`_duckdb_rapi_rel_filter`, rel, exprs)
 }
 
+rapi_rel_project2 <- function(df, con, exprs) {
+  .Call(`_duckdb_rapi_rel_project2`, df, con, exprs)
+}
+
 rapi_rel_project <- function(rel, exprs) {
   .Call(`_duckdb_rapi_rel_project`, rel, exprs)
 }

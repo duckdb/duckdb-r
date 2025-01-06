@@ -162,6 +162,29 @@ using namespace cpp11;
 	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res);
 }
 
+[[cpp11::register]] SEXP rapi_rel_project2(data_frame df, duckdb::conn_eptr_t con, list exprs) {
+	if (exprs.size() == 0) {
+		warning("rel_project without projection expressions has no effect");
+		return df;
+	}
+	vector<duckdb::unique_ptr<ParsedExpression>> projections;
+	vector<string> aliases;
+
+	for (expr_extptr_t expr : exprs) {
+		auto dexpr = expr->Copy();
+		aliases.push_back(dexpr->GetName());
+		projections.push_back(std::move(dexpr));
+	}
+
+	duckdb::rel_extptr_t rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_df(con, df, false));
+
+	auto res = make_shared_ptr<ProjectionRelation>(rel->rel, std::move(projections), std::move(aliases));
+
+	cpp11::writable::list prot = {rel};
+
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res);
+}
+
 [[cpp11::register]] SEXP rapi_rel_project(duckdb::rel_extptr_t rel, list exprs) {
 	if (exprs.size() == 0) {
 		warning("rel_project without projection expressions has no effect");

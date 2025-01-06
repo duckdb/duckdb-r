@@ -154,6 +154,13 @@ extern "C" SEXP _duckdb_rapi_rel_filter(SEXP rel, SEXP exprs) {
   END_CPP11
 }
 // relational.cpp
+SEXP rapi_rel_project2(data_frame df, duckdb::conn_eptr_t con, list exprs);
+extern "C" SEXP _duckdb_rapi_rel_project2(SEXP df, SEXP con, SEXP exprs) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(rapi_rel_project2(cpp11::as_cpp<cpp11::decay_t<data_frame>>(df), cpp11::as_cpp<cpp11::decay_t<duckdb::conn_eptr_t>>(con), cpp11::as_cpp<cpp11::decay_t<list>>(exprs)));
+  END_CPP11
+}
+// relational.cpp
 SEXP rapi_rel_project(duckdb::rel_extptr_t rel, list exprs);
 extern "C" SEXP _duckdb_rapi_rel_project(SEXP rel, SEXP exprs) {
   BEGIN_CPP11
@@ -499,6 +506,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_rel_names",               (DL_FUNC) &_duckdb_rapi_rel_names,               1},
     {"_duckdb_rapi_rel_order",               (DL_FUNC) &_duckdb_rapi_rel_order,               3},
     {"_duckdb_rapi_rel_project",             (DL_FUNC) &_duckdb_rapi_rel_project,             2},
+    {"_duckdb_rapi_rel_project2",            (DL_FUNC) &_duckdb_rapi_rel_project2,            3},
     {"_duckdb_rapi_rel_set_alias",           (DL_FUNC) &_duckdb_rapi_rel_set_alias,           2},
     {"_duckdb_rapi_rel_set_diff",            (DL_FUNC) &_duckdb_rapi_rel_set_diff,            2},
     {"_duckdb_rapi_rel_set_intersect",       (DL_FUNC) &_duckdb_rapi_rel_set_intersect,       2},
