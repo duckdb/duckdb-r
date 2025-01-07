@@ -143,7 +143,7 @@ rel_project <- function(rel, exprs) {
 #' rel <- rel_from_df(con, mtcars)
 #' rel2 <- rel_project(rel, list(expr_reference("cyl"), expr_reference("disp")))
 rel_project2 <- function(df, con, exprs) {
-  rethrow_rapi_rel_project2(df, con@conn_ref, exprs)
+  rethrow_rapi_rel_project2(as.data.frame(df), con@conn_ref, exprs)
 }
 
 #' Lazily filter a DuckDB relation object
@@ -158,6 +158,20 @@ rel_project2 <- function(df, con, exprs) {
 #' rel2 <- rel_filter(rel, list(expr_function("gt", list(expr_reference("cyl"), expr_constant("6")))))
 rel_filter <- function(rel, exprs) {
   rethrow_rapi_rel_filter(rel, exprs)
+}
+
+#' Lazily filter a DuckDB relation object
+#' @param rel the DuckDB relation object
+#' @param exprs a list of DuckDB expressions to filter by
+#' @return the now filtered `duckdb_relation` object
+#' @noRd
+#' @examples
+#' con <- DBI::dbConnect(duckdb())
+#' DBI::dbExecute(con, "CREATE OR REPLACE MACRO gt(a, b) AS a > b")
+#' rel <- rel_from_df(con, mtcars)
+#' rel2 <- rel_filter(rel, list(expr_function("gt", list(expr_reference("cyl"), expr_constant("6")))))
+rel_filter2 <- function(df, con, exprs) {
+  rethrow_rapi_rel_filter2(as.data.frame(df), con@conn_ref, exprs)
 }
 
 #' Lazily aggregate a DuckDB relation object
