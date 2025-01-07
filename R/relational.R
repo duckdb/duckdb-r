@@ -143,7 +143,7 @@ rel_project <- function(rel, exprs) {
 #' rel <- rel_from_df(con, mtcars)
 #' rel2 <- rel_project(rel, list(expr_reference("cyl"), expr_reference("disp")))
 rel_project2 <- function(df, con, exprs) {
-  rethrow_rapi_rel_project2(as.data.frame(df), con@conn_ref, exprs)
+  rethrow_rapi_rel_project2(df, con@conn_ref, exprs)
 }
 
 #' Lazily filter a DuckDB relation object
