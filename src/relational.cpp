@@ -164,8 +164,7 @@ using namespace cpp11;
 
 [[cpp11::register]] SEXP rapi_rel_project2(data_frame df, duckdb::conn_eptr_t con, list exprs) {
 	if (exprs.size() == 0) {
-		warning("rel_project without projection expressions has no effect");
-		return df;
+		stop("expected projection expressions");
 	}
 	vector<duckdb::unique_ptr<ParsedExpression>> projections;
 	vector<string> aliases;
