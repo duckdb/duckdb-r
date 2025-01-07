@@ -1,6 +1,7 @@
 #include "rapi.hpp"
 #include "signal.hpp"
 #include "typesr.hpp"
+#include "reltoaltrep.hpp"
 
 #include "R_ext/Random.h"
 
@@ -141,6 +142,15 @@ using namespace cpp11;
 	return res;
 }
 
+SEXP rapi_rel_from_any_df(duckdb::conn_eptr_t con, SEXP df, bool allow_materialized) {
+	auto rel = rapi_rel_from_altrep_df(df, false, allow_materialized);
+	if (rel != R_NilValue) {
+		return rel;
+	}
+
+	return rapi_rel_from_df(con, df, false);
+}
+
 [[cpp11::register]] SEXP rapi_rel_filter(duckdb::rel_extptr_t rel, list exprs) {
 	duckdb::unique_ptr<ParsedExpression> filter_expr;
 	if (exprs.size() == 0) { // nop
@@ -162,8 +172,6 @@ using namespace cpp11;
 	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res);
 }
 
-SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized);
-
 [[cpp11::register]] SEXP rapi_rel_filter2(data_frame df, duckdb::conn_eptr_t con, list exprs) {
 	duckdb::unique_ptr<ParsedExpression> filter_expr;
 	if (exprs.size() == 0) { // nop
@@ -177,7 +185,7 @@ SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized);
 		}
 		filter_expr = make_uniq<ConjunctionExpression>(ExpressionType::CONJUNCTION_AND, std::move(filters));
 	}
-	duckdb::rel_extptr_t rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_altrep_df(df, true, true));
+	duckdb::rel_extptr_t rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
 
 	auto res = make_shared_ptr<FilterRelation>(rel->rel, std::move(filter_expr));
 
@@ -220,7 +228,7 @@ SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized);
 		projections.push_back(std::move(dexpr));
 	}
 
-	duckdb::rel_extptr_t rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_altrep_df( df, true, true));
+	duckdb::rel_extptr_t rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
 
 	auto res = make_shared_ptr<ProjectionRelation>(rel->rel, std::move(projections), std::move(aliases));
 
