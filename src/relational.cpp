@@ -177,7 +177,7 @@ SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized);
 		}
 		filter_expr = make_uniq<ConjunctionExpression>(ExpressionType::CONJUNCTION_AND, std::move(filters));
 	}
-	duckdb::rel_extptr_t rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_altrep_df(df, false, true));
+	duckdb::rel_extptr_t rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_altrep_df(df, true, true));
 
 	auto res = make_shared_ptr<FilterRelation>(rel->rel, std::move(filter_expr));
 
@@ -220,7 +220,7 @@ SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized);
 		projections.push_back(std::move(dexpr));
 	}
 
-	duckdb::rel_extptr_t rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_altrep_df( df, false, true));
+	duckdb::rel_extptr_t rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_altrep_df( df, true, true));
 
 	auto res = make_shared_ptr<ProjectionRelation>(rel->rel, std::move(projections), std::move(aliases));
 
