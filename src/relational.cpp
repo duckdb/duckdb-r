@@ -224,9 +224,9 @@ SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized);
 
 	auto res = make_shared_ptr<ProjectionRelation>(rel->rel, std::move(projections), std::move(aliases));
 
-	cpp11::writable::list prot = {rel};
+	auto my_df = rapi_rel_to_altrep(res, true);
 
-	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res);
+	return my_df;
 }
 
 [[cpp11::register]] SEXP rapi_rel_aggregate(duckdb::rel_extptr_t rel, list groups, list aggregates) {
