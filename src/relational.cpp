@@ -2,6 +2,7 @@
 #include "signal.hpp"
 #include "typesr.hpp"
 #include "reltoaltrep.hpp"
+#include "altrepdataframe_relation.hpp"
 
 #include "R_ext/Random.h"
 
@@ -187,7 +188,9 @@ SEXP rapi_rel_from_any_df(duckdb::conn_eptr_t con, SEXP df, bool allow_materiali
 	}
 	duckdb::rel_extptr_t rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
 
-	auto res = make_shared_ptr<FilterRelation>(rel->rel, std::move(filter_expr));
+	auto filter = make_shared_ptr<FilterRelation>(rel->rel, std::move(filter_expr));
+
+	auto res = make_shared_ptr<AltrepDataFrameRelation>(filter);
 
 	cpp11::writable::list prot = {rel};
 
@@ -230,7 +233,9 @@ SEXP rapi_rel_from_any_df(duckdb::conn_eptr_t con, SEXP df, bool allow_materiali
 
 	duckdb::rel_extptr_t rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
 
-	auto res = make_shared_ptr<ProjectionRelation>(rel->rel, std::move(projections), std::move(aliases));
+	auto projection = make_shared_ptr<ProjectionRelation>(rel->rel, std::move(projections), std::move(aliases));
+
+	auto res = make_shared_ptr<AltrepDataFrameRelation>(projection);
 
 	cpp11::writable::list prot = {rel};
 
