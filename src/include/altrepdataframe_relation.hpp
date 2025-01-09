@@ -21,10 +21,21 @@ public:
 	string ToString(idx_t depth) override;
 	bool IsReadOnly() override;
 
+	void BuildTableRelation();
+
 private:
 	Relation& GetTableRelation();
 
 	Relation& GetParent();
 };
 
-}
+class RebuildRelationException : public std::exception {
+public:
+	RebuildRelationException(AltrepDataFrameRelation* target_) : target(target_) {
+	}
+
+public:
+	AltrepDataFrameRelation* target;
+};
+
+} // namespace duckdb

@@ -38,7 +38,7 @@ Relation& AltrepDataFrameRelation::GetParent() {
 	}
 }
 
-Relation& AltrepDataFrameRelation::GetTableRelation() {
+void AltrepDataFrameRelation::BuildTableRelation() {
 	if (!table_function_relation) {
 		named_parameter_map_t other_params;
 		other_params["experimental"] = Value::BOOLEAN(false);
@@ -46,6 +46,12 @@ Relation& AltrepDataFrameRelation::GetTableRelation() {
 										(int32_t)(NumericLimits<int32_t>::Maximum() * unif_rand()));
 
 		table_function_relation = connection->conn->TableFunction("r_dataframe_scan", {Value::POINTER((uintptr_t)(SEXP)dataframe)}, other_params)->Alias(alias);
+	}
+}
+
+Relation& AltrepDataFrameRelation::GetTableRelation() {
+	if (!table_function_relation) {
+		throw RebuildRelationException(this);
 	}
 
 	return *table_function_relation;
