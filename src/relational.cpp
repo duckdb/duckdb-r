@@ -192,7 +192,7 @@ SEXP rapi_rel_from_any_df(duckdb::conn_eptr_t con, SEXP df, bool allow_materiali
 
 	cpp11::writable::list prot = {rel};
 
-	return rapi_rel_to_altrep(make_external_prot<RelationWrapper>("duckdb_relation", prot, filter), con, true);
+	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, filter), con, true);
 }
 
 [[cpp11::register]] SEXP rapi_rel_project(duckdb::rel_extptr_t rel, list exprs) {
@@ -235,7 +235,7 @@ SEXP rapi_rel_from_any_df(duckdb::conn_eptr_t con, SEXP df, bool allow_materiali
 
 	cpp11::writable::list prot = {rel};
 
-	return rapi_rel_to_altrep(make_external_prot<RelationWrapper>("duckdb_relation", prot, projection), con, true);
+	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, projection), con, true);
 }
 
 [[cpp11::register]] SEXP rapi_rel_aggregate(duckdb::rel_extptr_t rel, list groups, list aggregates) {

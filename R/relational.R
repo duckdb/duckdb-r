@@ -440,7 +440,7 @@ rel_set_alias <- function(rel, alias) {
 #' rel <- rel_from_df(con, mtcars)
 #' print(rel_to_altrep(rel))
 rel_to_altrep <- function(rel, con, allow_materialization = TRUE) {
-  rethrow_rapi_rel_to_altrep(rel, con@conn_ref, allow_materialization)
+  rethrow_rapi_rel_to_altrep(rel, allow_materialization)
 }
 
 
