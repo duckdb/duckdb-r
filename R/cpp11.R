@@ -196,8 +196,8 @@ rapi_rel_insert <- function(rel, schema_name, table_name) {
   invisible(.Call(`_duckdb_rapi_rel_insert`, rel, schema_name, table_name))
 }
 
-rapi_rel_to_altrep <- function(rel, allow_materialization) {
-  .Call(`_duckdb_rapi_rel_to_altrep`, rel, allow_materialization)
+rapi_rel_to_altrep <- function(rel, con, allow_materialization) {
+  .Call(`_duckdb_rapi_rel_to_altrep`, rel, con, allow_materialization)
 }
 
 rapi_rel_from_altrep_df <- function(df, strict, allow_materialized) {
