@@ -2,6 +2,26 @@
 
 #include "rapi.hpp"
 
+namespace duckdb {
+
+struct AltrepRelationWrapper {
+	AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_);
+
+	static AltrepRelationWrapper *Get(SEXP x);
+
+	bool HasQueryResult() const;
+
+	MaterializedQueryResult *GetQueryResult();
+
+	bool allow_materialization;
+
+	rel_extptr_t rel_eptr;
+	duckdb::shared_ptr<Relation> rel;
+	duckdb::unique_ptr<QueryResult> res;
+};
+
+}
+
 struct RelToAltrep {
 	static void Initialize(DllInfo *dll);
 	static R_xlen_t RownamesLength(SEXP x);
@@ -31,3 +51,5 @@ struct RelToAltrep {
 SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized);
 
 SEXP rapi_rel_from_any_df(duckdb::conn_eptr_t con, SEXP df, bool allow_materialized);
+
+SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel, duckdb::conn_eptr_t con, bool allow_materialization);

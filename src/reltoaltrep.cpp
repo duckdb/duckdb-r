@@ -5,6 +5,7 @@
 #include "reltoaltrep.hpp"
 #include "signal.hpp"
 #include "cpp11/declarations.hpp"
+#include "altrepdataframe_relation.hpp"
 
 #include "httplib.hpp"
 #include <cinttypes>
@@ -87,78 +88,69 @@ static T *GetFromExternalPtr(SEXP x) {
 	return wrapper;
 }
 
-struct AltrepRelationWrapper {
+AltrepRelationWrapper *AltrepRelationWrapper::Get(SEXP x) {
+	return GetFromExternalPtr<AltrepRelationWrapper>(x);
+}
 
-	static AltrepRelationWrapper *Get(SEXP x) {
-		return GetFromExternalPtr<AltrepRelationWrapper>(x);
-	}
+AltrepRelationWrapper::AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_)
+	: allow_materialization(allow_materialization_), rel_eptr(rel_), rel(rel_->rel) {
+}
 
-	AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_)
-	    : allow_materialization(allow_materialization_), rel_eptr(rel_), rel(rel_->rel) {
-	}
+bool AltrepRelationWrapper::HasQueryResult() const {
+	return (bool)res;
+}
 
-	bool HasQueryResult() const {
-		return (bool)res;
-	}
-
-	MaterializedQueryResult *GetQueryResult() {
-		if (!res) {
-			if (!allow_materialization) {
-				cpp11::stop("Materialization is disabled, use collect() or as_tibble() to materialize");
-			}
-
-			auto materialize_callback = Rf_GetOption(RStrings::get().materialize_callback_sym, R_BaseEnv);
-			if (Rf_isFunction(materialize_callback)) {
-				sexp call = Rf_lang2(materialize_callback, rel_eptr);
-				Rf_eval(call, R_BaseEnv);
-			}
-
-			auto materialize_message = Rf_GetOption(RStrings::get().materialize_message_sym, R_BaseEnv);
-		    if (Rf_isLogical(materialize_message) && Rf_length(materialize_message) == 1 && LOGICAL_ELT(materialize_message, 0) == true) {
-				// Legacy
-				Rprintf("duckplyr: materializing\n");
-			}
-
-			ScopedInterruptHandler signal_handler(rel->context->GetContext());
-
-			// We need to temporarily allow a deeper execution stack
-			// https://github.com/duckdb/duckdb-r/issues/101
-			auto old_depth = rel->context->GetContext()->config.max_expression_depth;
-			rel->context->GetContext()->config.max_expression_depth = old_depth * 2;
-			duckdb_httplib::detail::scope_exit reset_max_expression_depth(
-			    [&]() { rel->context->GetContext()->config.max_expression_depth = old_depth; });
-
-			res = rel->Execute();
-
-			// FIXME: Use std::experimental::scope_exit
-			if (rel->context->GetContext()->config.max_expression_depth != old_depth * 2) {
-				Rprintf("Internal error: max_expression_depth was changed from %" PRIu64 " to %" PRIu64 "\n",
-				        old_depth * 2, rel->context->GetContext()->config.max_expression_depth);
-			}
-			rel->context->GetContext()->config.max_expression_depth = old_depth;
-			reset_max_expression_depth.release();
-
-			if (signal_handler.HandleInterrupt()) {
-				cpp11::stop("Query execution was interrupted");
-			}
-
-			signal_handler.Disable();
-
-			if (res->HasError()) {
-				cpp11::stop("Error evaluating duckdb query: %s", res->GetError().c_str());
-			}
-			D_ASSERT(res->type == QueryResultType::MATERIALIZED_RESULT);
+MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
+	if (!res) {
+		if (!allow_materialization) {
+			cpp11::stop("Materialization is disabled, use collect() or as_tibble() to materialize");
 		}
-		D_ASSERT(res);
-		return (MaterializedQueryResult *)res.get();
+
+		auto materialize_callback = Rf_GetOption(RStrings::get().materialize_callback_sym, R_BaseEnv);
+		if (Rf_isFunction(materialize_callback)) {
+			sexp call = Rf_lang2(materialize_callback, rel_eptr);
+			Rf_eval(call, R_BaseEnv);
+		}
+
+		auto materialize_message = Rf_GetOption(RStrings::get().materialize_message_sym, R_BaseEnv);
+		if (Rf_isLogical(materialize_message) && Rf_length(materialize_message) == 1 && LOGICAL_ELT(materialize_message, 0) == true) {
+			// Legacy
+			Rprintf("duckplyr: materializing\n");
+		}
+
+		ScopedInterruptHandler signal_handler(rel->context->GetContext());
+
+		// We need to temporarily allow a deeper execution stack
+		// https://github.com/duckdb/duckdb-r/issues/101
+		auto old_depth = rel->context->GetContext()->config.max_expression_depth;
+		rel->context->GetContext()->config.max_expression_depth = old_depth * 2;
+		duckdb_httplib::detail::scope_exit reset_max_expression_depth(
+			[&]() { rel->context->GetContext()->config.max_expression_depth = old_depth; });
+
+		res = rel->Execute();
+
+		// FIXME: Use std::experimental::scope_exit
+		if (rel->context->GetContext()->config.max_expression_depth != old_depth * 2) {
+			Rprintf("Internal error: max_expression_depth was changed from %" PRIu64 " to %" PRIu64 "\n",
+					old_depth * 2, rel->context->GetContext()->config.max_expression_depth);
+		}
+		rel->context->GetContext()->config.max_expression_depth = old_depth;
+		reset_max_expression_depth.release();
+
+		if (signal_handler.HandleInterrupt()) {
+			cpp11::stop("Query execution was interrupted");
+		}
+
+		signal_handler.Disable();
+
+		if (res->HasError()) {
+			cpp11::stop("Error evaluating duckdb query: %s", res->GetError().c_str());
+		}
+		D_ASSERT(res->type == QueryResultType::MATERIALIZED_RESULT);
 	}
-
-	bool allow_materialization;
-
-	rel_extptr_t rel_eptr;
-	duckdb::shared_ptr<Relation> rel;
-	duckdb::unique_ptr<QueryResult> res;
-};
+	D_ASSERT(res);
+	return (MaterializedQueryResult *)res.get();
+}
 
 struct AltrepRownamesWrapper {
 
@@ -348,7 +340,7 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 	}
 }
 
-[[cpp11::register]] SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel, bool allow_materialization) {
+[[cpp11::register]] SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel, duckdb::conn_eptr_t con, bool allow_materialization) {
 	D_ASSERT(rel && rel->rel);
 	auto drel = rel->rel;
 	auto ncols = drel->Columns().size();
@@ -381,7 +373,8 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 	// Row names
 	cpp11::external_pointer<AltrepRownamesWrapper> ptr(new AltrepRownamesWrapper(relation_wrapper));
 	R_SetExternalPtrTag(ptr, RStrings::get().duckdb_row_names_sym);
-	cpp11::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, rel);
+	cpp11::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, make_external<RelationWrapper>("duckdb_relation",
+		make_shared_ptr<duckdb::AltrepDataFrameRelation>(rel->rel, data_frame, con, relation_wrapper)));
 	install_new_attrib(data_frame, R_RowNamesSymbol, row_names_sexp);
 
 	// Class

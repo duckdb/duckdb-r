@@ -190,11 +190,9 @@ SEXP rapi_rel_from_any_df(duckdb::conn_eptr_t con, SEXP df, bool allow_materiali
 
 	auto filter = make_shared_ptr<FilterRelation>(rel->rel, std::move(filter_expr));
 
-	auto res = make_shared_ptr<AltrepDataFrameRelation>(filter);
-
 	cpp11::writable::list prot = {rel};
 
-	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res);
+	return rapi_rel_to_altrep(make_external_prot<RelationWrapper>("duckdb_relation", prot, filter), con, true);
 }
 
 [[cpp11::register]] SEXP rapi_rel_project(duckdb::rel_extptr_t rel, list exprs) {
@@ -235,11 +233,9 @@ SEXP rapi_rel_from_any_df(duckdb::conn_eptr_t con, SEXP df, bool allow_materiali
 
 	auto projection = make_shared_ptr<ProjectionRelation>(rel->rel, std::move(projections), std::move(aliases));
 
-	auto res = make_shared_ptr<AltrepDataFrameRelation>(projection);
-
 	cpp11::writable::list prot = {rel};
 
-	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res);
+	return rapi_rel_to_altrep(make_external_prot<RelationWrapper>("duckdb_relation", prot, projection), con, true);
 }
 
 [[cpp11::register]] SEXP rapi_rel_aggregate(duckdb::rel_extptr_t rel, list groups, list aggregates) {

@@ -1,10 +1,15 @@
 #include "altrepdataframe_relation.hpp"
 
+#include "R_ext/Random.h"
+
 namespace duckdb {
 
-AltrepDataFrameRelation::AltrepDataFrameRelation(shared_ptr<Relation> parent)
-// TODO: which RelationType should be used?
-	: Relation(parent->context, RelationType::AGGREGATE_RELATION), parent(std::move(parent)) {
+AltrepDataFrameRelation::AltrepDataFrameRelation(duckdb::shared_ptr<Relation> p, cpp11::sexp df, duckdb::conn_eptr_t con, duckdb::shared_ptr<AltrepRelationWrapper> altrep)
+	: Relation(p->context, RelationType::EXTENSION_RELATION)
+	, altrep(std::move(altrep))
+	, dataframe(df)
+	, connection(std::move(con))
+	, parent(std::move(p)) {
 	TryBindRelation(columns);
 }
 
@@ -13,15 +18,37 @@ const vector<ColumnDefinition> &AltrepDataFrameRelation::Columns() {
 }
 
 string AltrepDataFrameRelation::ToString(idx_t depth) {
-	return parent->ToString(depth);
+	return GetParent().ToString(depth);
 }
 
 bool AltrepDataFrameRelation::IsReadOnly() {
-	return parent->IsReadOnly();
+	return GetParent().IsReadOnly();
 }
 
 unique_ptr<QueryNode> AltrepDataFrameRelation::GetQueryNode() {
-	return parent->GetQueryNode();
+	return GetParent().GetQueryNode();
+}
+
+Relation& AltrepDataFrameRelation::GetParent() {
+	if (altrep->HasQueryResult()) {
+		// here context mutex locked
+		return GetTableRelation();
+	} else {
+		return *parent;
+	}
+}
+
+Relation& AltrepDataFrameRelation::GetTableRelation() {
+	if (!table_function_relation) {
+		named_parameter_map_t other_params;
+		other_params["experimental"] = Value::BOOLEAN(false);
+		auto alias = StringUtil::Format("dataframe_%d_%d", (uintptr_t)(SEXP)dataframe,
+										(int32_t)(NumericLimits<int32_t>::Maximum() * unif_rand()));
+
+		table_function_relation = connection->conn->TableFunction("r_dataframe_scan", {Value::POINTER((uintptr_t)(SEXP)dataframe)}, other_params)->Alias(alias);
+	}
+
+	return *table_function_relation;
 }
 
 }
