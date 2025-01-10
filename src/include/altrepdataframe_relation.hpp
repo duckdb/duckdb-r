@@ -1,6 +1,7 @@
 #include "duckdb/main/relation.hpp"
 #include "rapi.hpp"
 #include "reltoaltrep.hpp"
+#include <exception>
 
 namespace duckdb {
 
@@ -29,9 +30,9 @@ private:
 	Relation& GetParent();
 };
 
-class RebuildRelationException : public std::exception {
+class RebuildRelationException : public std::runtime_error {
 public:
-	RebuildRelationException(AltrepDataFrameRelation* target_) : target(target_) {
+	RebuildRelationException(AltrepDataFrameRelation* target_) : std::runtime_error("RebuildRelationException"), target(target_) {
 	}
 
 public:
