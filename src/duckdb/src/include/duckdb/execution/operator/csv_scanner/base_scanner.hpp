@@ -21,13 +21,23 @@ class ScannerResult {
 public:
 	ScannerResult(CSVStates &states, CSVStateMachine &state_machine, idx_t result_size);
 
-	//! Adds a Value to the result
 	static inline void SetQuoted(ScannerResult &result, idx_t quoted_position) {
 		if (!result.quoted) {
 			result.quoted_position = quoted_position;
 		}
 		result.quoted = true;
+		result.unquoted = true;
 	}
+
+	static inline void SetUnquoted(ScannerResult &result) {
+		if (result.states.states[0] == CSVState::UNQUOTED && result.states.states[1] == CSVState::UNQUOTED &&
+		    result.state_machine.dialect_options.state_machine_options.escape != '\0') {
+			// This means we touched an unescaped quote, we must go through the remove escape code to remove it.
+			result.escaped = true;
+		}
+		result.quoted = true;
+	}
+
 	static inline void SetEscaped(ScannerResult &result) {
 		result.escaped = true;
 	}
@@ -44,8 +54,11 @@ public:
 
 	//! Variable to keep information regarding quoted and escaped values
 	bool quoted = false;
+	//! If the current quoted value is unquoted
+	bool unquoted = false;
+	//! If the current value has been escaped
 	bool escaped = false;
-	//! Variable to keep track if we are in a comment row. Hence won't add it
+	//! Variable to keep track if we are in a comment row. Hence, won't add it
 	bool comment = false;
 	idx_t quoted_position = 0;
 
@@ -152,6 +165,7 @@ protected:
 	template <class T>
 	void Process(T &result) {
 		idx_t to_pos;
+		const bool has_escaped_value = state_machine->dialect_options.state_machine_options.escape != '\0';
 		const idx_t start_pos = iterator.pos.buffer_pos;
 		if (iterator.IsBoundarySet()) {
 			to_pos = iterator.GetEndPos();
@@ -232,14 +246,15 @@ protected:
 				iterator.pos.buffer_pos++;
 				break;
 			case CSVState::QUOTED: {
-				if (states.states[0] == CSVState::UNQUOTED) {
+				if ((states.states[0] == CSVState::UNQUOTED || states.states[0] == CSVState::MAYBE_QUOTED) &&
+				    has_escaped_value) {
 					T::SetEscaped(result);
 				}
 				ever_quoted = true;
 				T::SetQuoted(result, iterator.pos.buffer_pos);
 				iterator.pos.buffer_pos++;
 				while (iterator.pos.buffer_pos + 8 < to_pos) {
-					uint64_t value =
+					const uint64_t value =
 					    Load<uint64_t>(reinterpret_cast<const_data_ptr_t>(&buffer_handle_ptr[iterator.pos.buffer_pos]));
 					if (ContainsZeroByte((value ^ state_machine->transition_array.quote) &
 					                     (value ^ state_machine->transition_array.escape))) {
@@ -254,6 +269,14 @@ protected:
 					iterator.pos.buffer_pos++;
 				}
 			} break;
+			case CSVState::UNQUOTED: {
+				if (states.states[0] == CSVState::MAYBE_QUOTED) {
+					T::SetEscaped(result);
+				}
+				T::SetUnquoted(result);
+				iterator.pos.buffer_pos++;
+				break;
+			}
 			case CSVState::ESCAPE:
 			case CSVState::UNQUOTED_ESCAPE:
 			case CSVState::ESCAPED_RETURN:
@@ -290,7 +313,7 @@ protected:
 				T::SetComment(result, iterator.pos.buffer_pos);
 				iterator.pos.buffer_pos++;
 				while (iterator.pos.buffer_pos + 8 < to_pos) {
-					uint64_t value =
+					const uint64_t value =
 					    Load<uint64_t>(reinterpret_cast<const_data_ptr_t>(&buffer_handle_ptr[iterator.pos.buffer_pos]));
 					if (ContainsZeroByte((value ^ state_machine->transition_array.new_line) &
 					                     (value ^ state_machine->transition_array.carriage_return))) {

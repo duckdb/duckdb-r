@@ -96,7 +96,8 @@ public:
 
 class LineError {
 public:
-	explicit LineError(bool ignore_errors_p) : is_error_in_line(false), ignore_errors(ignore_errors_p) {};
+	explicit LineError(const idx_t scan_id_p, const bool ignore_errors_p)
+	    : is_error_in_line(false), ignore_errors(ignore_errors_p), scan_id(scan_id_p) {};
 	//! We clear up our CurrentError Vector
 	void Reset() {
 		current_errors.clear();
@@ -136,10 +137,15 @@ public:
 		return !current_errors.empty();
 	}
 
+	idx_t Size() const {
+		return current_errors.size();
+	}
+
 private:
 	vector<CurrentError> current_errors;
 	bool is_error_in_line;
 	bool ignore_errors;
+	idx_t scan_id;
 };
 
 struct ParseTypeInfo {
@@ -159,13 +165,14 @@ struct ParseTypeInfo {
 	uint8_t scale;
 	uint8_t width;
 };
+
 class StringValueResult : public ScannerResult {
 public:
 	StringValueResult(CSVStates &states, CSVStateMachine &state_machine,
 	                  const shared_ptr<CSVBufferHandle> &buffer_handle, Allocator &buffer_allocator,
 	                  idx_t result_size_p, idx_t buffer_position, CSVErrorHandler &error_handler, CSVIterator &iterator,
 	                  bool store_line_size, shared_ptr<CSVFileScan> csv_file_scan, idx_t &lines_read, bool sniffing,
-	                  string path);
+	                  string path, idx_t scan_id);
 
 	~StringValueResult();
 
@@ -183,6 +190,8 @@ public:
 	const uint32_t number_of_columns;
 	const bool null_padding;
 	const bool ignore_errors;
+
+	const idx_t extra_delimiter_bytes = 0;
 
 	unsafe_unique_array<const char *> null_str_ptr;
 	unsafe_unique_array<idx_t> null_str_size;
@@ -253,12 +262,14 @@ public:
 	//! Handles EmptyLine states
 	static inline bool EmptyLine(StringValueResult &result, const idx_t buffer_pos);
 	inline bool AddRowInternal();
-	//! Force the throw of a unicode error
+	//! Force the throw of a Unicode error
 	void HandleUnicodeError(idx_t col_idx, LinePosition &error_position);
 	bool HandleTooManyColumnsError(const char *value_ptr, const idx_t size);
 	inline void AddValueToVector(const char *value_ptr, const idx_t size, bool allocate = false);
 	static inline void SetComment(StringValueResult &result, idx_t buffer_pos);
 	static inline bool UnsetComment(StringValueResult &result, idx_t buffer_pos);
+
+	inline idx_t HandleMultiDelimiter(const idx_t buffer_pos) const;
 
 	DataChunk &ToChunk();
 	//! Resets the state of the result
@@ -311,7 +322,7 @@ public:
 	bool FinishedIterator() const;
 
 	//! Creates a new string with all escaped values removed
-	static string_t RemoveEscape(const char *str_ptr, idx_t end, char escape, Vector &vector);
+	static string_t RemoveEscape(const char *str_ptr, idx_t end, char escape, char quote, Vector &vector);
 
 	//! If we can directly cast the type when consuming the CSV file, or we have to do it later
 	static bool CanDirectlyCast(const LogicalType &type, bool icu_loaded);
@@ -320,6 +331,8 @@ public:
 	ValidatorLine GetValidationLine();
 
 	const idx_t scanner_idx;
+	//! We use the max of idx_t to signify this is a line finder scanner.
+	static constexpr idx_t LINE_FINDER_ID = NumericLimits<idx_t>::Maximum();
 
 	//! Variable that manages buffer tracking
 	shared_ptr<CSVBufferUsage> buffer_tracker;
@@ -353,6 +366,8 @@ private:
 	idx_t start_pos;
 	//! Pointer to the previous buffer handle, necessary for over-buffer values
 	shared_ptr<CSVBufferHandle> previous_buffer_handle;
+	//! Strict state machine, is basically a state machine with rfc 4180 set to true, used to figure out new line.
+	shared_ptr<CSVStateMachine> state_machine_strict;
 };
 
 } // namespace duckdb

@@ -10,9 +10,8 @@
 namespace duckdb {
 
 static void MapFunctionEmptyInput(Vector &result, const idx_t row_count) {
-
-	// if no chunk is set in ExpressionExecutor::ExecuteExpression (args.data.empty(), e.g.,
-	// in SELECT MAP()), then we always pass a row_count of 1
+	// If no chunk is set in ExpressionExecutor::ExecuteExpression (args.data.empty(), e.g., in SELECT MAP()),
+	// then we always pass a row_count of 1.
 	result.SetVectorType(VectorType::CONSTANT_VECTOR);
 	ListVector::SetListSize(result, 0);
 
@@ -216,6 +215,7 @@ static unique_ptr<FunctionData> MapBind(ClientContext &, ScalarFunction &bound_f
 ScalarFunction MapFun::GetFunction() {
 	ScalarFunction fun({}, LogicalTypeId::MAP, MapFunction, MapBind);
 	fun.varargs = LogicalType::ANY;
+	BaseScalarFunction::SetReturnsError(fun);
 	fun.null_handling = FunctionNullHandling::SPECIAL_HANDLING;
 	return fun;
 }
