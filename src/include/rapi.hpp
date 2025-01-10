@@ -171,6 +171,7 @@ struct RStrings {
 	SEXP ImportRecordBatchReader_sym;
 	SEXP materialize_callback_sym;
 	SEXP materialize_message_sym;
+	SEXP progress_display_sym;
 	SEXP duckdb_row_names_sym;
 	SEXP duckdb_vector_sym;
 
