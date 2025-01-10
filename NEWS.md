@@ -1,5 +1,38 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.1.3.9036
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@d707b4432b74b51f8a176c533b98e24d48f4d165 (#998).
+
+- Update vendored sources to duckdb/duckdb@d3444ef1413102e5c8246a066b201c59ac5c4c04 (#997).
+
+- Update vendored sources to duckdb/duckdb@2c203c13b52f8d6073f5e03f3226eaadf0973654 (#996).
+
+- Update vendored sources to duckdb/duckdb@acea8cde22f802b792adc8cfdeea335103edc5fe (#994).
+
+- Update vendored sources to duckdb/duckdb@f850786ddef96177354ca8183280bc0de62a66c0 (#992).
+
+- Update vendored sources to duckdb/duckdb@00cbb18d634352d1ae0cdf4dd42d587d187f5a04 (#991).
+
+- Update vendored sources to duckdb/duckdb@bdf0f8c7231c44ed17bc2ede63498b3ef8d85d35 (#990).
+
+- Update vendored sources to duckdb/duckdb@5ec2adafa54af246814bd869bb6f48073a2f660b (#989).
+
+- Update vendored sources to duckdb/duckdb@b89f77c881fcdb8018bf3562c6de00b9e9849451 (#988).
+
+- Update vendored sources to duckdb/duckdb@b5393f7d0f8234028f9719889d33178ef793279f (#987).
+
+- Update vendored sources to duckdb/duckdb@b48222edb439e42517392eaa2e918b625cafd09a (#986).
+
+- Update vendored sources to duckdb/duckdb@c93ab6e8171b6cba652439cadc91e79d488ffd01 (#985).
+
+- Update vendored sources to duckdb/duckdb@3b44a57608458b063303d3576b2e21b6f1908a76 (#984).
+
+- Update vendored sources to duckdb/duckdb@fbc4d92fe6239536948a49d093196534c3492656 (#983).
+
+
 # duckdb 1.1.3.9035
 
 ## vendor
