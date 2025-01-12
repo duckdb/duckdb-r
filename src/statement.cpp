@@ -294,7 +294,7 @@ struct AppendableRList {
 bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, AppendableRList &batches_list,
                      ArrowArray &arrow_data, ArrowSchema &arrow_schema, SEXP batch_import_from_c, SEXP arrow_namespace,
                      idx_t chunk_size) {
-	auto count = ArrowUtil::FetchChunk(scan_state, options, chunk_size, &arrow_data);
+	auto count = ArrowUtil::FetchChunk(scan_state, options, chunk_size, &arrow_data, ArrowTypeExtensionData::GetExtensionTypes(*options.client_context, scan_state.Types()));
 	if (count == 0) {
 		return false;
 	}
