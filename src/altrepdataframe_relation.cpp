@@ -51,7 +51,7 @@ void AltrepDataFrameRelation::BuildTableRelation() {
 
 Relation& AltrepDataFrameRelation::GetTableRelation() {
 	if (!table_function_relation) {
-		throw RebuildRelationException(this);
+		BuildTableRelation();
 	}
 
 	return *table_function_relation;
