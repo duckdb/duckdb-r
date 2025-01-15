@@ -495,19 +495,10 @@ static SEXP result_to_df(duckdb::unique_ptr<QueryResult> res) {
 }
 
 [[cpp11::register]] std::string rapi_rel_tostring(duckdb::rel_extptr_t rel, std::string format) {
-	while (true) {
-		try {
-			if (format == "tree") {
-				return rel->rel->ToString(0);
-			} else {
-				return rel->rel->ToString();
-			}
-		}
-		catch (RebuildRelationException &e) {
-			e.target->BuildTableRelation();
-			continue;
-		}
-		break;
+	if (format == "tree") {
+		return rel->rel->ToString(0);
+	} else {
+		return rel->rel->ToString();
 	}
 }
 
