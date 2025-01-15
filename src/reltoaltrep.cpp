@@ -127,19 +127,7 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 		duckdb_httplib::detail::scope_exit reset_max_expression_depth(
 			[&]() { rel->context->GetContext()->config.max_expression_depth = old_depth; });
 
-		// We can't build the table relation on the fly because of a deadlock situation:
-		// The context is locked by Execute(),
-		// and a lock is attempted when creating a new Relation object.
-		while (true) {
-			try {
-				res = rel->Execute();
-			}
-			catch (RebuildRelationException &e) {
-				e.target->BuildTableRelation();
-				continue;
-			}
-			break;
-		}
+		res = rel->Execute();
 
 		// FIXME: Use std::experimental::scope_exit
 		if (rel->context->GetContext()->config.max_expression_depth != old_depth * 2) {
