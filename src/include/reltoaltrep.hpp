@@ -5,7 +5,7 @@
 namespace duckdb {
 
 struct AltrepRelationWrapper {
-	AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_);
+	AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_, SEXP df_);
 
 	static AltrepRelationWrapper *Get(SEXP x);
 
@@ -18,6 +18,7 @@ struct AltrepRelationWrapper {
 	rel_extptr_t rel_eptr;
 	duckdb::shared_ptr<Relation> rel;
 	duckdb::unique_ptr<QueryResult> res;
+	cpp11::sexp df;
 };
 
 }

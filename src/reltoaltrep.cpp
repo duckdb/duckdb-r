@@ -92,8 +92,8 @@ AltrepRelationWrapper *AltrepRelationWrapper::Get(SEXP x) {
 	return GetFromExternalPtr<AltrepRelationWrapper>(x);
 }
 
-AltrepRelationWrapper::AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_)
-	: allow_materialization(allow_materialization_), rel_eptr(rel_), rel(rel_->rel) {
+AltrepRelationWrapper::AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_, SEXP df_)
+	: allow_materialization(allow_materialization_), rel_eptr(rel_), rel(rel_->rel), df(df_) {
 }
 
 bool AltrepRelationWrapper::HasQueryResult() const {
@@ -345,10 +345,13 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 	auto drel = rel->rel;
 	auto ncols = drel->Columns().size();
 
-	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, allow_materialization);
-
 	cpp11::writable::list data_frame;
-	data_frame.reserve(ncols);
+	data_frame.resize(ncols);
+
+	// convert to SEXP
+	(void)(SEXP)data_frame;
+
+	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, allow_materialization, data_frame);
 
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
 		auto &column_type = drel->Columns()[col_idx].Type();
@@ -357,11 +360,9 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 
 		cpp11::sexp vector_sexp = R_new_altrep(LogicalTypeToAltrepType(column_type), ptr, rel);
 		duckdb_r_decorate(column_type, vector_sexp, false);
-		data_frame.push_back(vector_sexp);
-	}
 
-	// convert to SEXP, with potential side effect of truncation and removal of attributes
-	(void)(SEXP)data_frame;
+		data_frame[col_idx] = vector_sexp;
+	}
 
 	// Names
 	vector<string> names;
@@ -388,10 +389,13 @@ SEXP rapi_rel_to_altrep2(duckdb::rel_extptr_t rel, duckdb::conn_eptr_t con, bool
 	auto drel = rel->rel;
 	auto ncols = drel->Columns().size();
 
-	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, allow_materialization);
-
 	cpp11::writable::list data_frame;
-	data_frame.reserve(ncols);
+	data_frame.resize(ncols);
+
+	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, allow_materialization, data_frame);
+
+	// convert to SEXP
+	(void)(SEXP)data_frame;
 
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
 		auto &column_type = drel->Columns()[col_idx].Type();
@@ -400,11 +404,9 @@ SEXP rapi_rel_to_altrep2(duckdb::rel_extptr_t rel, duckdb::conn_eptr_t con, bool
 
 		cpp11::sexp vector_sexp = R_new_altrep(LogicalTypeToAltrepType(column_type), ptr, rel);
 		duckdb_r_decorate(column_type, vector_sexp, false);
-		data_frame.push_back(vector_sexp);
-	}
 
-	// convert to SEXP, with potential side effect of truncation and removal of attributes
-	(void)(SEXP)data_frame;
+		data_frame[col_idx] = vector_sexp;
+	}
 
 	// Names
 	vector<string> names;
