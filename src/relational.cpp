@@ -194,16 +194,7 @@ SEXP rapi_rel_from_any_df(duckdb::conn_eptr_t con, SEXP df, bool allow_materiali
 
 	shared_ptr<FilterRelation> filter;
 
-	while (true) {
-		try {
-			filter = make_shared_ptr<FilterRelation>(rel->rel, build_filter_expr(exprs));
-		}
-		catch (RebuildRelationException &e) {
-			e.target->BuildTableRelation();
-			continue;
-		}
-		break;
-	}
+	filter = make_shared_ptr<FilterRelation>(rel->rel, build_filter_expr(exprs));
 
 	cpp11::writable::list prot = {rel};
 
@@ -251,17 +242,8 @@ SEXP rapi_rel_from_any_df(duckdb::conn_eptr_t con, SEXP df, bool allow_materiali
 
 	shared_ptr<ProjectionRelation> projection;
 
-	while (true) {
-		try {
-			auto&& [projections, aliases] = build_arguments(exprs);
-			projection = make_shared_ptr<ProjectionRelation>(rel->rel, std::move(projections), std::move(aliases));
-		}
-		catch (RebuildRelationException &e) {
-			e.target->BuildTableRelation();
-			continue;
-		}
-		break;
-	}
+	auto&& [projections, aliases] = build_arguments(exprs);
+	projection = make_shared_ptr<ProjectionRelation>(rel->rel, std::move(projections), std::move(aliases));
 
 	cpp11::writable::list prot = {rel};
 
