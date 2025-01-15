@@ -45,7 +45,7 @@ void AltrepDataFrameRelation::BuildTableRelation() {
 		auto alias = StringUtil::Format("dataframe_%d_%d", (uintptr_t)(SEXP)dataframe,
 										(int32_t)(NumericLimits<int32_t>::Maximum() * unif_rand()));
 
-		table_function_relation = connection->conn->TableFunction("r_dataframe_scan", {Value::POINTER((uintptr_t)(SEXP)dataframe)}, other_params)->Alias(alias);
+		table_function_relation = connection->conn->TableFunction("r_dataframe_scan", {Value::POINTER((uintptr_t)(SEXP)dataframe)}, other_params, false)->Alias(alias);
 	}
 }
 
