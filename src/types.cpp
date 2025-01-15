@@ -328,7 +328,7 @@ double RDoubleType::Convert(double val) {
 }
 
 date_t RDateType::Convert(double val) {
-	return date_t((int32_t)val);
+	return date_t((int32_t) std::floor(val));
 }
 
 timestamp_t RTimestampType::Convert(double val) {
