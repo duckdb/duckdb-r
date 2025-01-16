@@ -208,6 +208,18 @@ rapi_rel_join2 <- function(left, right, con, conds, join, join_ref_type) {
   .Call(`_duckdb_rapi_rel_join2`, left, right, con, conds, join, join_ref_type)
 }
 
+rapi_rel_union_all2 <- function(left, right, con) {
+  .Call(`_duckdb_rapi_rel_union_all2`, left, right, con)
+}
+
+rapi_rel_limit2 <- function(df, con, n) {
+  .Call(`_duckdb_rapi_rel_limit2`, df, con, n)
+}
+
+rapi_rel_distinct2 <- function(df, con) {
+  .Call(`_duckdb_rapi_rel_distinct2`, df, con)
+}
+
 rapi_rel_to_altrep <- function(rel, allow_materialization) {
   .Call(`_duckdb_rapi_rel_to_altrep`, rel, allow_materialization)
 }

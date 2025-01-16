@@ -120,6 +120,19 @@ rel_limit <- function(rel, n) {
   rethrow_rapi_rel_limit(rel, n)
 }
 
+#' Lazily retrieve the top-n rows of a DuckDB relation object
+#' @param rel the DuckDB relation object
+#' @param n the amount of rows to retrieve
+#' @return the now limited `duckdb_relation` object
+#' @noRd
+#' @examples
+#' con <- DBI::dbConnect(duckdb())
+#' rel <- rel_from_df(con, mtcars)
+#' rel2 <- rel_limit(rel, 10)
+rel_limit2 <- function(df, con, n) {
+  rethrow_rapi_rel_limit2(df, con@conn_ref, n)
+}
+
 #' Lazily project a DuckDB relation object
 #' @param rel the DuckDB relation object
 #' @param exprs a list of DuckDB expressions to project
@@ -200,8 +213,8 @@ rel_aggregate <- function(rel, groups, aggregates) {
 #' rel <- rel_from_df(con, mtcars)
 #' aggrs <- list(avg_hp = expr_function("avg", list(expr_reference("hp"))))
 #' rel2 <- rel_aggregate(rel, list(expr_reference("cyl")), aggrs)
-rel_aggregate2 <- function(rel, con, groups, aggregates) {
-  rethrow_rapi_rel_aggregate2(rel, con@conn_ref, groups, aggregates)
+rel_aggregate2 <- function(df, con, groups, aggregates) {
+  rethrow_rapi_rel_aggregate2(df, con@conn_ref, groups, aggregates)
 }
 
 #' Lazily reorder a DuckDB relation object
@@ -236,7 +249,7 @@ rel_order <- function(rel, orders, ascending = NULL) {
 #' con <- DBI::dbConnect(duckdb())
 #' rel <- rel_from_df(con, mtcars)
 #' rel2 <- rel_order(rel, list(expr_reference("hp")))
-rel_order2 <- function(rel, con, orders, ascending = NULL) {
+rel_order2 <- function(df, con, orders, ascending = NULL) {
   if (is.null(ascending)) {
     ascending <- rep(TRUE, length(orders))
   }
@@ -245,7 +258,7 @@ rel_order2 <- function(rel, con, orders, ascending = NULL) {
     stop("length of ascending must equal length of orders")
   }
 
-  return(rethrow_rapi_rel_order2(rel, con@conn_ref, orders, ascending))
+  return(rethrow_rapi_rel_order2(df, con@conn_ref, orders, ascending))
 }
 
 #' Get an external pointer pointing to NULL
@@ -339,6 +352,20 @@ rel_union_all <- function(rel_a, rel_b) {
   rethrow_rapi_rel_union_all(rel_a, rel_b)
 }
 
+#' UNION ALL on two DuckDB relation objects
+#' @param rel_a a DuckDB relation object
+#' @param rel_b a DuckDB relation object
+#' @return a new `duckdb_relation` object resulting from the union
+#' @noRd
+#' @examples
+#' con <- DBI::dbConnect(duckdb())
+#' rel_a <- rel_from_df(con, mtcars)
+#' rel_b <- rel_from_df(con, mtcars)
+#' rel_union_all(rel_a, rel_b)
+rel_union_all2 <- function(df_a, df_b, con) {
+  rethrow_rapi_rel_union_all2(df_a, df_b, con@conn_ref)
+}
+
 #' Lazily compute a distinct result on a DuckDB relation object
 #' @param rel the input DuckDB relation object
 #' @return a new `duckdb_relation` object with distinct rows
@@ -349,6 +376,18 @@ rel_union_all <- function(rel_a, rel_b) {
 #' rel2 <- rel_distinct(rel)
 rel_distinct <- function(rel) {
   rethrow_rapi_rel_distinct(rel)
+}
+
+#' Lazily compute a distinct result on a DuckDB relation object
+#' @param rel the input DuckDB relation object
+#' @return a new `duckdb_relation` object with distinct rows
+#' @noRd
+#' @examples
+#' con <- DBI::dbConnect(duckdb())
+#' rel <- rel_from_df(con, mtcars)
+#' rel2 <- rel_distinct(rel)
+rel_distinct2 <- function(df, con) {
+  rethrow_rapi_rel_distinct(df, con@conn_ref)
 }
 
 #' SET INTERSECT on two DuckDB relation objects

@@ -216,9 +216,9 @@ rethrow_rapi_rel_aggregate <- function(rel, groups, aggregates, call = parent.fr
   )
 }
 
-rethrow_rapi_rel_aggregate2 <- function(rel, con, groups, aggregates, call = parent.frame(2)) {
+rethrow_rapi_rel_aggregate2 <- function(df, con, groups, aggregates, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_rel_aggregate2(rel, con, groups, aggregates),
+    rapi_rel_aggregate2(df, con, groups, aggregates),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
@@ -234,9 +234,9 @@ rethrow_rapi_rel_order <- function(rel, orders, ascending, call = parent.frame(2
   )
 }
 
-rethrow_rapi_rel_order2 <- function(rel, con, orders, ascending, call = parent.frame(2)) {
+rethrow_rapi_rel_order2 <- function(df, con, orders, ascending, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_rel_order2(rel, con, orders, ascending),
+    rapi_rel_order2(df, con, orders, ascending),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
@@ -270,6 +270,15 @@ rethrow_rapi_rel_union_all <- function(rel_a, rel_b, call = parent.frame(2)) {
   )
 }
 
+rethrow_rapi_rel_union_all2 <- function(df_a, df_b, con, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_rel_union_all2(df_a, df_b, con),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
 rethrow_rapi_rel_limit <- function(rel, n, call = parent.frame(2)) {
   rlang::try_fetch(
     rapi_rel_limit(rel, n),
@@ -279,9 +288,27 @@ rethrow_rapi_rel_limit <- function(rel, n, call = parent.frame(2)) {
   )
 }
 
+rethrow_rapi_rel_limit2 <- function(df, con, n, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_rel_limit2(df, con, n),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
 rethrow_rapi_rel_distinct <- function(rel, call = parent.frame(2)) {
   rlang::try_fetch(
     rapi_rel_distinct(rel),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_rel_distinct2 <- function(df, con, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_rel_distinct2(df, con),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
@@ -625,8 +652,11 @@ rethrow_restore <- function() {
   rethrow_rapi_expr_window <<- rapi_expr_window
   rethrow_rapi_rel_join <<- rapi_rel_join
   rethrow_rapi_rel_union_all <<- rapi_rel_union_all
+  rethrow_rapi_rel_union_all2 <<- rapi_rel_union_all2
   rethrow_rapi_rel_limit <<- rapi_rel_limit
+  rethrow_rapi_rel_limit2 <<- rapi_rel_limit2
   rethrow_rapi_rel_distinct <<- rapi_rel_distinct
+  rethrow_rapi_rel_distinct2 <<- rapi_rel_distinct2
   rethrow_rapi_rel_to_df <<- rapi_rel_to_df
   rethrow_rapi_rel_tostring <<- rapi_rel_tostring
   rethrow_rapi_rel_to_sql <<- rapi_rel_to_sql

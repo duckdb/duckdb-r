@@ -186,3 +186,31 @@ using namespace cpp11;
 	auto res = make_shared_ptr<JoinRelation>(rel_left->rel, rel_right->rel, std::move(cond), join_type, ref_type);
 	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(res)), con, true);
 }
+
+[[cpp11::register]] SEXP rapi_rel_union_all2(data_frame left, data_frame right, duckdb::conn_eptr_t con) {
+	duckdb::rel_extptr_t rel_left = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, left, true));
+	duckdb::rel_extptr_t rel_right = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, right, true));
+
+	cpp11::writable::list prot = {rel_left, rel_right};
+
+	auto setop = make_shared_ptr<SetOpRelation>(rel_left->rel, rel_right->rel, SetOperationType::UNION);
+	setop->setop_all = true;
+
+	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(setop)), con, true);
+}
+
+[[cpp11::register]] SEXP rapi_rel_limit2(data_frame df, duckdb::conn_eptr_t con, int64_t n) {
+	duckdb::rel_extptr_t rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
+
+	cpp11::writable::list prot = {rel};
+
+	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, make_shared_ptr<LimitRelation>(rel->rel, n, 0)), con, true);
+}
+
+[[cpp11::register]] SEXP rapi_rel_distinct2(data_frame df, duckdb::conn_eptr_t con) {
+	duckdb::rel_extptr_t rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
+
+	cpp11::writable::list prot = {rel};
+
+	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, make_shared_ptr<DistinctRelation>(rel->rel)), con, true);
+}
