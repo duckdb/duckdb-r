@@ -80,16 +80,8 @@ rapi_rel_filter <- function(rel, exprs) {
   .Call(`_duckdb_rapi_rel_filter`, rel, exprs)
 }
 
-rapi_rel_filter2 <- function(df, con, exprs) {
-  .Call(`_duckdb_rapi_rel_filter2`, df, con, exprs)
-}
-
 rapi_rel_project <- function(rel, exprs) {
   .Call(`_duckdb_rapi_rel_project`, rel, exprs)
-}
-
-rapi_rel_project2 <- function(df, con, exprs) {
-  .Call(`_duckdb_rapi_rel_project2`, df, con, exprs)
 }
 
 rapi_rel_aggregate <- function(rel, groups, aggregates) {
@@ -194,6 +186,26 @@ rapi_rel_to_table <- function(rel, schema_name, table_name, temporary) {
 
 rapi_rel_insert <- function(rel, schema_name, table_name) {
   invisible(.Call(`_duckdb_rapi_rel_insert`, rel, schema_name, table_name))
+}
+
+rapi_rel_project2 <- function(df, con, exprs) {
+  .Call(`_duckdb_rapi_rel_project2`, df, con, exprs)
+}
+
+rapi_rel_filter2 <- function(df, con, exprs) {
+  .Call(`_duckdb_rapi_rel_filter2`, df, con, exprs)
+}
+
+rapi_rel_aggregate2 <- function(df, con, groups, aggregates) {
+  .Call(`_duckdb_rapi_rel_aggregate2`, df, con, groups, aggregates)
+}
+
+rapi_rel_order2 <- function(df, con, orders, ascending) {
+  .Call(`_duckdb_rapi_rel_order2`, df, con, orders, ascending)
+}
+
+rapi_rel_join2 <- function(left, right, con, conds, join, join_ref_type) {
+  .Call(`_duckdb_rapi_rel_join2`, left, right, con, conds, join, join_ref_type)
 }
 
 rapi_rel_to_altrep <- function(rel, allow_materialization) {

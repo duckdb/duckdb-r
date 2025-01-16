@@ -189,6 +189,21 @@ rel_aggregate <- function(rel, groups, aggregates) {
   rethrow_rapi_rel_aggregate(rel, groups, aggregates)
 }
 
+#' Lazily aggregate a DuckDB relation object
+#' @param rel the DuckDB relation object
+#' @param groups a list of DuckDB expressions to group by
+#' @param aggregates a (optionally named) list of DuckDB expressions with aggregates to compute
+#' @return the now aggregated `duckdb_relation` object
+#' @noRd
+#' @examples
+#' con <- DBI::dbConnect(duckdb())
+#' rel <- rel_from_df(con, mtcars)
+#' aggrs <- list(avg_hp = expr_function("avg", list(expr_reference("hp"))))
+#' rel2 <- rel_aggregate(rel, list(expr_reference("cyl")), aggrs)
+rel_aggregate2 <- function(rel, con, groups, aggregates) {
+  rethrow_rapi_rel_aggregate2(rel, con@conn_ref, groups, aggregates)
+}
+
 #' Lazily reorder a DuckDB relation object
 #' @param rel the DuckDB relation object
 #' @param orders a list of DuckDB expressions to order by
@@ -209,6 +224,28 @@ rel_order <- function(rel, orders, ascending = NULL) {
   }
 
   return(rethrow_rapi_rel_order(rel, orders, ascending))
+}
+
+#' Lazily reorder a DuckDB relation object
+#' @param rel the DuckDB relation object
+#' @param orders a list of DuckDB expressions to order by
+#' @param ascending a vector of boolean values describing sort order of expressions. True for ascending.
+#' @return the now aggregated `duckdb_relation` object
+#' @noRd
+#' @examples
+#' con <- DBI::dbConnect(duckdb())
+#' rel <- rel_from_df(con, mtcars)
+#' rel2 <- rel_order(rel, list(expr_reference("hp")))
+rel_order2 <- function(rel, con, orders, ascending = NULL) {
+  if (is.null(ascending)) {
+    ascending <- rep(TRUE, length(orders))
+  }
+
+  if (length(orders) != length(ascending)) {
+    stop("length of ascending must equal length of orders")
+  }
+
+  return(rethrow_rapi_rel_order2(rel, con@conn_ref, orders, ascending))
 }
 
 #' Get an external pointer pointing to NULL

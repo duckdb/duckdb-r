@@ -216,9 +216,27 @@ rethrow_rapi_rel_aggregate <- function(rel, groups, aggregates, call = parent.fr
   )
 }
 
+rethrow_rapi_rel_aggregate2 <- function(rel, con, groups, aggregates, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_rel_aggregate2(rel, con, groups, aggregates),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
 rethrow_rapi_rel_order <- function(rel, orders, ascending, call = parent.frame(2)) {
   rlang::try_fetch(
     rapi_rel_order(rel, orders, ascending),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_rel_order2 <- function(rel, con, orders, ascending, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_rel_order2(rel, con, orders, ascending),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
@@ -601,7 +619,9 @@ rethrow_restore <- function() {
   rethrow_rapi_rel_project <<- rapi_rel_project
   rethrow_rapi_rel_project2 <<- rapi_rel_project2
   rethrow_rapi_rel_aggregate <<- rapi_rel_aggregate
+  rethrow_rapi_rel_aggregate2 <<- rapi_rel_aggregate2
   rethrow_rapi_rel_order <<- rapi_rel_order
+  rethrow_rapi_rel_order2 <<- rapi_rel_order2
   rethrow_rapi_expr_window <<- rapi_expr_window
   rethrow_rapi_rel_join <<- rapi_rel_join
   rethrow_rapi_rel_union_all <<- rapi_rel_union_all
