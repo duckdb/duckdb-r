@@ -49,7 +49,7 @@ using namespace cpp11;
 
 	cpp11::writable::list prot = {rel};
 
-	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, projection), con, true);
+	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(projection)), con, true);
 }
 
 [[cpp11::register]] SEXP rapi_rel_filter2(data_frame df, duckdb::conn_eptr_t con, list exprs) {
@@ -72,5 +72,117 @@ using namespace cpp11;
 
 	cpp11::writable::list prot = {rel};
 
-	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, filter), con, true);
+	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(filter)), con, true);
+}
+
+[[cpp11::register]] SEXP rapi_rel_aggregate2(data_frame df, duckdb::conn_eptr_t con, list groups, list aggregates) {
+	vector<duckdb::unique_ptr<ParsedExpression>> res_groups, res_aggregates;
+
+	// TODO deal with empty groups
+	vector<string> aliases;
+
+	for (expr_extptr_t expr : groups) {
+		res_groups.push_back(expr->Copy());
+		res_aggregates.push_back(expr->Copy());
+	}
+
+	int aggr_idx = 0; // has to be int for - reasons
+	auto aggr_names = aggregates.names();
+
+	for (expr_extptr_t expr_p : aggregates) {
+		auto expr = expr_p->Copy();
+		if (aggr_names.size() > aggr_idx) {
+			expr->alias = aggr_names[aggr_idx];
+		}
+		res_aggregates.push_back(std::move(expr));
+		aggr_idx++;
+	}
+	duckdb::rel_extptr_t rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
+
+	auto aggregate = make_shared_ptr<AggregateRelation>(rel->rel, std::move(res_aggregates), std::move(res_groups));
+
+	cpp11::writable::list prot = {rel};
+
+	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(aggregate)), con, true);
+}
+
+[[cpp11::register]] SEXP rapi_rel_order2(data_frame df, duckdb::conn_eptr_t con, list orders, r_vector<r_bool> ascending) {
+	vector<OrderByNode> res_orders;
+
+	OrderType order_type;
+	size_t i = 0;
+
+	for (expr_extptr_t expr : orders) {
+		order_type = ascending[i] ? OrderType::ASCENDING : OrderType::DESCENDING;
+		i++;
+		res_orders.emplace_back(order_type, OrderByNullType::NULLS_LAST, expr->Copy());
+	}
+
+	duckdb::rel_extptr_t rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
+
+	auto order = make_shared_ptr<OrderRelation>(rel->rel, std::move(res_orders));
+
+	cpp11::writable::list prot = {rel};
+
+	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(order)), con, true);
+}
+
+[[cpp11::register]] SEXP rapi_rel_join2(data_frame left, data_frame right, duckdb::conn_eptr_t con, list conds,
+                                       std::string join, std::string join_ref_type) {
+	auto join_type = JoinType::INNER;
+	auto ref_type = JoinRefType::REGULAR;
+	unique_ptr<ParsedExpression> cond;
+
+	if (join_ref_type == "regular") {
+		ref_type = JoinRefType::REGULAR;
+	} else if (join_ref_type == "cross") {
+		ref_type = JoinRefType::CROSS;
+	} else if (join_ref_type == "positional") {
+		ref_type = JoinRefType::POSITIONAL;
+	} else if (join_ref_type == "asof") {
+		ref_type = JoinRefType::ASOF;
+	}
+
+	duckdb::rel_extptr_t rel_left = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, left, true));
+	duckdb::rel_extptr_t rel_right = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, right, true));
+
+	cpp11::writable::list prot = {rel_left, rel_right};
+
+	if (join == "left") {
+		join_type = JoinType::LEFT;
+	} else if (join == "right") {
+		join_type = JoinType::RIGHT;
+	} else if (join == "outer") {
+		join_type = JoinType::OUTER;
+	} else if (join == "semi") {
+		join_type = JoinType::SEMI;
+	} else if (join == "anti") {
+		join_type = JoinType::ANTI;
+	} else if (join == "cross" || ref_type == JoinRefType::POSITIONAL) {
+		if (ref_type != JoinRefType::POSITIONAL && ref_type != JoinRefType::CROSS) {
+			// users can only supply positional cross join, or cross join.
+			warning("Using `rel_join(join_ref_type = \"cross\")`");
+			ref_type = JoinRefType::CROSS;
+		}
+		auto res = make_shared_ptr<CrossProductRelation>(rel_left->rel, rel_right->rel, ref_type);
+		auto df = rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(res)), con, true);
+		// if the user described filters, apply them on top of the cross product relation
+		if (conds.size() > 0) {
+			return rapi_rel_filter2(df, con, conds);
+		}
+		return df;
+	}
+
+	if (conds.size() == 1) {
+		cond = ((expr_extptr_t)conds[0])->Copy();
+	} else {
+		vector<duckdb::unique_ptr<ParsedExpression>> cond_args;
+		for (expr_extptr_t expr : conds) {
+			cond_args.push_back(expr->Copy());
+		}
+		cond = make_uniq<ConjunctionExpression>(ExpressionType::CONJUNCTION_AND, std::move(cond_args));
+	}
+
+	auto res = make_shared_ptr<JoinRelation>(rel_left->rel, rel_right->rel, std::move(cond), join_type, ref_type);
+	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(res)), con, true);
 }
