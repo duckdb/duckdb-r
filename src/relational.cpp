@@ -173,34 +173,6 @@ SEXP rapi_rel_from_any_df(duckdb::conn_eptr_t con, SEXP df, bool allow_materiali
 	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res);
 }
 
-[[cpp11::register]] SEXP rapi_rel_filter2(data_frame df, duckdb::conn_eptr_t con, list exprs) {
-	auto build_filter_expr = [](const auto& _exprs) {
-		duckdb::unique_ptr<ParsedExpression> filter_expr;
-		if (_exprs.size() == 0) { // nop
-			stop("expected filter expressions");
-		} else if (_exprs.size() == 1) {
-			filter_expr = ((expr_extptr_t)_exprs[0])->Copy();
-		} else {
-			vector<duckdb::unique_ptr<ParsedExpression>> filters;
-			for (expr_extptr_t expr : _exprs) {
-				filters.push_back(expr->Copy());
-			}
-			filter_expr = make_uniq<ConjunctionExpression>(ExpressionType::CONJUNCTION_AND, std::move(filters));
-		}
-
-		return filter_expr;
-	};
-	duckdb::rel_extptr_t rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
-
-	shared_ptr<FilterRelation> filter;
-
-	filter = make_shared_ptr<FilterRelation>(rel->rel, build_filter_expr(exprs));
-
-	cpp11::writable::list prot = {rel};
-
-	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, filter), con, true);
-}
-
 [[cpp11::register]] SEXP rapi_rel_project(duckdb::rel_extptr_t rel, list exprs) {
 	if (exprs.size() == 0) {
 		warning("rel_project without projection expressions has no effect");
@@ -220,34 +192,6 @@ SEXP rapi_rel_from_any_df(duckdb::conn_eptr_t con, SEXP df, bool allow_materiali
 	cpp11::writable::list prot = {rel};
 
 	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res);
-}
-
-[[cpp11::register]] SEXP rapi_rel_project2(data_frame df, duckdb::conn_eptr_t con, list exprs) {
-	if (exprs.size() == 0) {
-		stop("expected projection expressions");
-	}
-	auto build_arguments = [](const auto& _exprs) {
-		vector<string> aliases;
-		vector<duckdb::unique_ptr<ParsedExpression>> projections;
-		for (expr_extptr_t expr : _exprs) {
-			auto dexpr = expr->Copy();
-			aliases.push_back(dexpr->GetName());
-			projections.push_back(std::move(dexpr));
-		}
-
-		return std::make_pair(std::move(projections), std::move(aliases));
-	};
-
-	duckdb::rel_extptr_t rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
-
-	shared_ptr<ProjectionRelation> projection;
-
-	auto&& [projections, aliases] = build_arguments(exprs);
-	projection = make_shared_ptr<ProjectionRelation>(rel->rel, std::move(projections), std::move(aliases));
-
-	cpp11::writable::list prot = {rel};
-
-	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, projection), con, true);
 }
 
 [[cpp11::register]] SEXP rapi_rel_aggregate(duckdb::rel_extptr_t rel, list groups, list aggregates) {
