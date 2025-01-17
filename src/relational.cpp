@@ -502,6 +502,9 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 	return make_external_prot<RelationWrapper>("duckdb_relation", prot, symdiff);
 }
 
+
+// DuckDB Relations: conversion
+
 [[cpp11::register]] SEXP rapi_rel_from_sql(duckdb::conn_eptr_t con, const std::string sql) {
 	if (!con || !con.get() || !con->conn) {
 		stop("rel_from_table: Invalid connection");
