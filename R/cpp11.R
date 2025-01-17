@@ -184,12 +184,12 @@ rapi_rel_insert <- function(rel, schema_name, table_name) {
   invisible(.Call(`_duckdb_rapi_rel_insert`, rel, schema_name, table_name))
 }
 
-rapi_rel_project2 <- function(df, con, exprs) {
-  .Call(`_duckdb_rapi_rel_project2`, df, con, exprs)
-}
-
 rapi_rel_filter2 <- function(df, con, exprs) {
   .Call(`_duckdb_rapi_rel_filter2`, df, con, exprs)
+}
+
+rapi_rel_project2 <- function(df, con, exprs) {
+  .Call(`_duckdb_rapi_rel_project2`, df, con, exprs)
 }
 
 rapi_rel_aggregate2 <- function(df, con, groups, aggregates) {
