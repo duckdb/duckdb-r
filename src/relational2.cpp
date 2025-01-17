@@ -29,29 +29,6 @@ using namespace cpp11;
 
 // DuckDB Expressions
 
-[[cpp11::register]] SEXP rapi_rel_project2(data_frame df, duckdb::conn_eptr_t con, list exprs) {
-	if (exprs.size() == 0) {
-		stop("expected projection expressions");
-	}
-	vector<duckdb::unique_ptr<ParsedExpression>> projections;
-	vector<string> aliases;
-
-	for (expr_extptr_t expr : exprs) {
-		auto dexpr = expr->Copy();
-		aliases.push_back(dexpr->GetName());
-		projections.push_back(std::move(dexpr));
-	}
-
-
-	duckdb::rel_extptr_t rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
-
-	auto projection = make_shared_ptr<ProjectionRelation>(rel->rel, std::move(projections), std::move(aliases));
-
-	cpp11::writable::list prot = {rel};
-
-	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(projection)), con, true);
-}
-
 [[cpp11::register]] SEXP rapi_rel_filter2(data_frame df, duckdb::conn_eptr_t con, list exprs) {
 	duckdb::unique_ptr<ParsedExpression> filter_expr;
 	if (exprs.size() == 0) { // nop
@@ -73,6 +50,29 @@ using namespace cpp11;
 	cpp11::writable::list prot = {rel};
 
 	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(filter)), con, true);
+}
+
+[[cpp11::register]] SEXP rapi_rel_project2(data_frame df, duckdb::conn_eptr_t con, list exprs) {
+	if (exprs.size() == 0) {
+		stop("expected projection expressions");
+	}
+	vector<duckdb::unique_ptr<ParsedExpression>> projections;
+	vector<string> aliases;
+
+	for (expr_extptr_t expr : exprs) {
+		auto dexpr = expr->Copy();
+		aliases.push_back(dexpr->GetName());
+		projections.push_back(std::move(dexpr));
+	}
+
+
+	duckdb::rel_extptr_t rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
+
+	auto projection = make_shared_ptr<ProjectionRelation>(rel->rel, std::move(projections), std::move(aliases));
+
+	cpp11::writable::list prot = {rel};
+
+	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(projection)), con, true);
 }
 
 [[cpp11::register]] SEXP rapi_rel_aggregate2(data_frame df, duckdb::conn_eptr_t con, list groups, list aggregates) {
