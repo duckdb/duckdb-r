@@ -507,6 +507,29 @@ rel_set_alias <- function(rel, alias) {
   rethrow_rapi_rel_set_alias(rel, alias)
 }
 
+#' Get the internal alias for a DuckDB relation object
+#' @param rel the DuckDB relation object
+#' @noRd
+#' @examples
+#' con <- DBI::dbConnect(duckdb())
+#' rel <- rel_from_df(con, mtcars)
+#' rel_alias(rel)
+rel_alias2 <- function(rel) {
+  rethrow_rapi_rel_alias2(rel)
+}
+
+#' Set the internal alias for a DuckDB relation object
+#' @param rel the DuckDB relation object
+#' @param alias the new alias
+#' @noRd
+#' @examples
+#' con <- DBI::dbConnect(duckdb())
+#' rel <- rel_from_df(con, mtcars)
+#' rel_set_alias(rel, "my_new_alias")
+rel_set_alias2 <- function(rel, alias) {
+  rethrow_rapi_rel_set_alias2(rel, alias)
+}
+
 #' Transforms a relation object to a lazy data frame using altrep
 #' @param rel the DuckDB relation object
 #' @return a data frame
@@ -613,6 +636,10 @@ rel_insert <- function(rel, schema_name, table_name) {
 
 rel_names <- function(rel) {
   rethrow_rapi_rel_names(rel)
+}
+
+rel_names2 <- function(rel) {
+  rethrow_rapi_rel_names2(rel)
 }
 
 load_rfuns <- function() {
