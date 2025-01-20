@@ -702,6 +702,7 @@ Value Value::STRUCT(const LogicalType &type, vector<Value> struct_values) {
 	result.is_null = false;
 	return result;
 }
+
 Value Value::STRUCT(child_list_t<Value> values) {
 	child_list_t<LogicalType> child_types;
 	vector<Value> struct_values;
