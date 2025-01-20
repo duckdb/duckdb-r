@@ -32,5 +32,10 @@ fi
 # This happens in the cleanup script.
 
 if [ -f duckdb.tar.xz ]; then
-  tar xJf duckdb.tar.xz
+  if [ -d duckdb ]; then
+    echo "Ignoring duckdb.tar.gz because duckdb directory still exists"
+    rm duckdb.tar.xz
+  else
+    tar xJf duckdb.tar.xz
+  fi
 fi

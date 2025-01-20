@@ -2,6 +2,15 @@
 
 set -ex
 
+# Get command line of grandparent process
+parent_call=$(ps -o args= -p $(ps -o ppid= -p $$))
+
+# Check if --preclean is in the command line
+if [ $(echo $parent_call | grep -c -- --preclean) -ne 0 ]; then
+  echo "Skipping cleanup"
+  exit 0
+fi
+
 # Check if the archive already exists
 if [ -f "src/duckdb.tar.xz" ]; then
   echo "duckdb.tar.xz already exists. Skipping compression."
