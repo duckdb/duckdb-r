@@ -220,39 +220,42 @@ vector<TestType> TestAllTypesFun::GetTestTypes(bool use_large_enum) {
 
 	// fixed int array
 	auto fixed_int_array_type = LogicalType::ARRAY(LogicalType::INTEGER, 3);
-	auto fixed_int_min_array_value = Value::ARRAY({Value(LogicalType::INTEGER), 2, 3});
-	auto fixed_int_max_array_value = Value::ARRAY({4, 5, 6});
+	auto fixed_int_min_array_value = Value::ARRAY(LogicalType::INTEGER, {Value(LogicalType::INTEGER), 2, 3});
+	auto fixed_int_max_array_value = Value::ARRAY(LogicalType::INTEGER, {4, 5, 6});
 	result.emplace_back(fixed_int_array_type, "fixed_int_array", fixed_int_min_array_value, fixed_int_max_array_value);
 
 	// fixed varchar array
 	auto fixed_varchar_array_type = LogicalType::ARRAY(LogicalType::VARCHAR, 3);
-	auto fixed_varchar_min_array_value = Value::ARRAY({Value("a"), Value(LogicalType::VARCHAR), Value("c")});
-	auto fixed_varchar_max_array_value = Value::ARRAY({Value("d"), Value("e"), Value("f")});
+	auto fixed_varchar_min_array_value =
+	    Value::ARRAY(LogicalType::VARCHAR, {Value("a"), Value(LogicalType::VARCHAR), Value("c")});
+	auto fixed_varchar_max_array_value = Value::ARRAY(LogicalType::VARCHAR, {Value("d"), Value("e"), Value("f")});
 	result.emplace_back(fixed_varchar_array_type, "fixed_varchar_array", fixed_varchar_min_array_value,
 	                    fixed_varchar_max_array_value);
 
 	// fixed nested int array
 	auto fixed_nested_int_array_type = LogicalType::ARRAY(fixed_int_array_type, 3);
-	auto fixed_nested_int_min_array_value =
-	    Value::ARRAY({fixed_int_min_array_value, Value(fixed_int_array_type), fixed_int_min_array_value});
-	auto fixed_nested_int_max_array_value =
-	    Value::ARRAY({fixed_int_max_array_value, fixed_int_min_array_value, fixed_int_max_array_value});
+	auto fixed_nested_int_min_array_value = Value::ARRAY(
+	    fixed_int_array_type, {fixed_int_min_array_value, Value(fixed_int_array_type), fixed_int_min_array_value});
+	auto fixed_nested_int_max_array_value = Value::ARRAY(
+	    fixed_int_array_type, {fixed_int_max_array_value, fixed_int_min_array_value, fixed_int_max_array_value});
 	result.emplace_back(fixed_nested_int_array_type, "fixed_nested_int_array", fixed_nested_int_min_array_value,
 	                    fixed_nested_int_max_array_value);
 
 	// fixed nested varchar array
 	auto fixed_nested_varchar_array_type = LogicalType::ARRAY(fixed_varchar_array_type, 3);
 	auto fixed_nested_varchar_min_array_value =
-	    Value::ARRAY({fixed_varchar_min_array_value, Value(fixed_varchar_array_type), fixed_varchar_min_array_value});
+	    Value::ARRAY(fixed_varchar_array_type,
+	                 {fixed_varchar_min_array_value, Value(fixed_varchar_array_type), fixed_varchar_min_array_value});
 	auto fixed_nested_varchar_max_array_value =
-	    Value::ARRAY({fixed_varchar_max_array_value, fixed_varchar_min_array_value, fixed_varchar_max_array_value});
+	    Value::ARRAY(fixed_varchar_array_type,
+	                 {fixed_varchar_max_array_value, fixed_varchar_min_array_value, fixed_varchar_max_array_value});
 	result.emplace_back(fixed_nested_varchar_array_type, "fixed_nested_varchar_array",
 	                    fixed_nested_varchar_min_array_value, fixed_nested_varchar_max_array_value);
 
 	// fixed array of structs
 	auto fixed_struct_array_type = LogicalType::ARRAY(struct_type, 3);
-	auto fixed_struct_min_array_value = Value::ARRAY({min_struct_val, max_struct_val, min_struct_val});
-	auto fixed_struct_max_array_value = Value::ARRAY({max_struct_val, min_struct_val, max_struct_val});
+	auto fixed_struct_min_array_value = Value::ARRAY(struct_type, {min_struct_val, max_struct_val, min_struct_val});
+	auto fixed_struct_max_array_value = Value::ARRAY(struct_type, {max_struct_val, min_struct_val, max_struct_val});
 	result.emplace_back(fixed_struct_array_type, "fixed_struct_array", fixed_struct_min_array_value,
 	                    fixed_struct_max_array_value);
 
