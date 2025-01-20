@@ -72,6 +72,10 @@ rapi_expr_tostring <- function(expr) {
   .Call(`_duckdb_rapi_expr_tostring`, expr)
 }
 
+rapi_get_null_SEXP_ptr <- function() {
+  .Call(`_duckdb_rapi_get_null_SEXP_ptr`)
+}
+
 rapi_rel_from_df <- function(con, df, experimental) {
   .Call(`_duckdb_rapi_rel_from_df`, con, df, experimental)
 }
@@ -214,6 +218,18 @@ rapi_rel_limit2 <- function(df, con, n) {
 
 rapi_rel_distinct2 <- function(df, con) {
   .Call(`_duckdb_rapi_rel_distinct2`, df, con)
+}
+
+rapi_rel_names2 <- function(df, con) {
+  .Call(`_duckdb_rapi_rel_names2`, df, con)
+}
+
+rapi_rel_alias2 <- function(df, con) {
+  .Call(`_duckdb_rapi_rel_alias2`, df, con)
+}
+
+rapi_rel_set_alias2 <- function(df, con, alias) {
+  .Call(`_duckdb_rapi_rel_set_alias2`, df, con, alias)
 }
 
 rapi_rel_to_altrep <- function(rel, allow_materialization) {

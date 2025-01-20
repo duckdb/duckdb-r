@@ -122,6 +122,11 @@ using namespace cpp11;
 
 // DuckDB Relations: low-level conversion
 
+[[cpp11::register]] SEXP rapi_get_null_SEXP_ptr() {
+	auto ret = make_external<ConstantExpression>("duckdb_null_ptr", nullptr);
+	return ret;
+}
+
 [[cpp11::register]] SEXP rapi_rel_from_df(duckdb::conn_eptr_t con, data_frame df, bool experimental) {
 	if (!con || !con.get() || !con->conn) {
 		stop("rel_from_df: Invalid connection");

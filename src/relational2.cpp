@@ -43,7 +43,7 @@ using namespace cpp11;
 		}
 		filter_expr = make_uniq<ConjunctionExpression>(ExpressionType::CONJUNCTION_AND, std::move(filters));
 	}
-	duckdb::rel_extptr_t rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
+	auto rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
 
 	auto filter = make_shared_ptr<FilterRelation>(rel->rel, std::move(filter_expr));
 
@@ -66,7 +66,7 @@ using namespace cpp11;
 	}
 
 
-	duckdb::rel_extptr_t rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
+	auto rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
 
 	auto projection = make_shared_ptr<ProjectionRelation>(rel->rel, std::move(projections), std::move(aliases));
 
@@ -97,7 +97,7 @@ using namespace cpp11;
 		res_aggregates.push_back(std::move(expr));
 		aggr_idx++;
 	}
-	duckdb::rel_extptr_t rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
+	auto rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
 
 	auto aggregate = make_shared_ptr<AggregateRelation>(rel->rel, std::move(res_aggregates), std::move(res_groups));
 
@@ -118,7 +118,7 @@ using namespace cpp11;
 		res_orders.emplace_back(order_type, OrderByNullType::NULLS_LAST, expr->Copy());
 	}
 
-	duckdb::rel_extptr_t rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
+	auto rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
 
 	auto order = make_shared_ptr<OrderRelation>(rel->rel, std::move(res_orders));
 
@@ -143,8 +143,8 @@ using namespace cpp11;
 		ref_type = JoinRefType::ASOF;
 	}
 
-	duckdb::rel_extptr_t rel_left = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, left, true));
-	duckdb::rel_extptr_t rel_right = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, right, true));
+	auto rel_left = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, left, true));
+	auto rel_right = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, right, true));
 
 	cpp11::writable::list prot = {rel_left, rel_right};
 
@@ -188,8 +188,8 @@ using namespace cpp11;
 }
 
 [[cpp11::register]] SEXP rapi_rel_union_all2(data_frame left, data_frame right, duckdb::conn_eptr_t con) {
-	duckdb::rel_extptr_t rel_left = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, left, true));
-	duckdb::rel_extptr_t rel_right = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, right, true));
+	auto rel_left = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, left, true));
+	auto rel_right = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, right, true));
 
 	cpp11::writable::list prot = {rel_left, rel_right};
 
@@ -200,7 +200,7 @@ using namespace cpp11;
 }
 
 [[cpp11::register]] SEXP rapi_rel_limit2(data_frame df, duckdb::conn_eptr_t con, int64_t n) {
-	duckdb::rel_extptr_t rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
+	auto rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
 
 	cpp11::writable::list prot = {rel};
 
@@ -208,9 +208,33 @@ using namespace cpp11;
 }
 
 [[cpp11::register]] SEXP rapi_rel_distinct2(data_frame df, duckdb::conn_eptr_t con) {
-	duckdb::rel_extptr_t rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
+	auto rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
 
 	cpp11::writable::list prot = {rel};
 
 	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, make_shared_ptr<DistinctRelation>(rel->rel)), con, true);
+}
+
+// DuckDB Relations: names
+
+[[cpp11::register]] SEXP rapi_rel_names2(data_frame df, duckdb::conn_eptr_t con) {
+	auto rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
+
+	auto ret = writable::strings();
+	for (auto &col : rel->rel->Columns()) {
+		ret.push_back(col.Name());
+	}
+	return (ret);
+}
+
+[[cpp11::register]] std::string rapi_rel_alias2(data_frame df, duckdb::conn_eptr_t con) {
+	auto rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
+	return rel->rel->GetAlias();
+}
+
+[[cpp11::register]] SEXP rapi_rel_set_alias2(data_frame df, duckdb::conn_eptr_t con, std::string alias) {
+	auto rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
+	cpp11::writable::list prot = {rel};
+
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, rel->rel->Alias(alias));
 }
