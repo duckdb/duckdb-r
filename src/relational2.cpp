@@ -215,6 +215,43 @@ using namespace cpp11;
 	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, make_shared_ptr<DistinctRelation>(rel->rel)), con, true);
 }
 
+[[cpp11::register]] SEXP rapi_rel_set_intersect2(data_frame left, data_frame right, duckdb::conn_eptr_t con) {
+	auto rel_left = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, left, true));
+	auto rel_right = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, right, true));
+
+	auto res = make_shared_ptr<SetOpRelation>(rel_left->rel, rel_right->rel, SetOperationType::INTERSECT);
+
+	cpp11::writable::list prot = {rel_left, rel_right};
+
+	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, res), con, true);
+}
+
+[[cpp11::register]] SEXP rapi_rel_set_diff2(data_frame left, data_frame right, duckdb::conn_eptr_t con) {
+	auto rel_left = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, left, true));
+	auto rel_right = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, right, true));
+
+	auto res = make_shared_ptr<SetOpRelation>(rel_left->rel, rel_right->rel, SetOperationType::EXCEPT);
+
+	cpp11::writable::list prot = {rel_left, rel_right};
+
+	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, res), con, true);
+}
+
+[[cpp11::register]] SEXP rapi_rel_set_symdiff2(data_frame left, data_frame right, duckdb::conn_eptr_t con) {
+	auto rel_left = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, left, true));
+	auto rel_right = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, right, true));
+
+	// symdiff implemented using the equation below
+	// A symdiff B = (A except B) UNION (B except A)
+	auto a_except_b = make_shared_ptr<SetOpRelation>(rel_left->rel, rel_right->rel, SetOperationType::EXCEPT);
+	auto b_except_a = make_shared_ptr<SetOpRelation>(rel_right->rel, rel_left->rel, SetOperationType::EXCEPT);
+	auto symdiff = make_shared_ptr<SetOpRelation>(a_except_b, b_except_a, SetOperationType::UNION);
+
+	cpp11::writable::list prot = {rel_left, rel_right};
+
+	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, symdiff), con, true);
+}
+
 // DuckDB Relations: names
 
 [[cpp11::register]] SEXP rapi_rel_names2(data_frame df, duckdb::conn_eptr_t con) {
@@ -236,5 +273,5 @@ using namespace cpp11;
 	auto rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
 	cpp11::writable::list prot = {rel};
 
-	return make_external_prot<RelationWrapper>("duckdb_relation", prot, rel->rel->Alias(alias));
+	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, rel->rel->Alias(alias)), con, true);
 }

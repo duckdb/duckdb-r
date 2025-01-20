@@ -220,6 +220,18 @@ rapi_rel_distinct2 <- function(df, con) {
   .Call(`_duckdb_rapi_rel_distinct2`, df, con)
 }
 
+rapi_rel_set_intersect2 <- function(left, right, con) {
+  .Call(`_duckdb_rapi_rel_set_intersect2`, left, right, con)
+}
+
+rapi_rel_set_diff2 <- function(left, right, con) {
+  .Call(`_duckdb_rapi_rel_set_diff2`, left, right, con)
+}
+
+rapi_rel_set_symdiff2 <- function(left, right, con) {
+  .Call(`_duckdb_rapi_rel_set_symdiff2`, left, right, con)
+}
+
 rapi_rel_names2 <- function(df, con) {
   .Call(`_duckdb_rapi_rel_names2`, df, con)
 }

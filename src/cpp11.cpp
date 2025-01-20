@@ -403,6 +403,27 @@ extern "C" SEXP _duckdb_rapi_rel_distinct2(SEXP df, SEXP con) {
   END_CPP11
 }
 // relational2.cpp
+SEXP rapi_rel_set_intersect2(data_frame left, data_frame right, duckdb::conn_eptr_t con);
+extern "C" SEXP _duckdb_rapi_rel_set_intersect2(SEXP left, SEXP right, SEXP con) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(rapi_rel_set_intersect2(cpp11::as_cpp<cpp11::decay_t<data_frame>>(left), cpp11::as_cpp<cpp11::decay_t<data_frame>>(right), cpp11::as_cpp<cpp11::decay_t<duckdb::conn_eptr_t>>(con)));
+  END_CPP11
+}
+// relational2.cpp
+SEXP rapi_rel_set_diff2(data_frame left, data_frame right, duckdb::conn_eptr_t con);
+extern "C" SEXP _duckdb_rapi_rel_set_diff2(SEXP left, SEXP right, SEXP con) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(rapi_rel_set_diff2(cpp11::as_cpp<cpp11::decay_t<data_frame>>(left), cpp11::as_cpp<cpp11::decay_t<data_frame>>(right), cpp11::as_cpp<cpp11::decay_t<duckdb::conn_eptr_t>>(con)));
+  END_CPP11
+}
+// relational2.cpp
+SEXP rapi_rel_set_symdiff2(data_frame left, data_frame right, duckdb::conn_eptr_t con);
+extern "C" SEXP _duckdb_rapi_rel_set_symdiff2(SEXP left, SEXP right, SEXP con) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(rapi_rel_set_symdiff2(cpp11::as_cpp<cpp11::decay_t<data_frame>>(left), cpp11::as_cpp<cpp11::decay_t<data_frame>>(right), cpp11::as_cpp<cpp11::decay_t<duckdb::conn_eptr_t>>(con)));
+  END_CPP11
+}
+// relational2.cpp
 SEXP rapi_rel_names2(data_frame df, duckdb::conn_eptr_t con);
 extern "C" SEXP _duckdb_rapi_rel_names2(SEXP df, SEXP con) {
   BEGIN_CPP11
@@ -588,8 +609,11 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_rel_set_alias",           (DL_FUNC) &_duckdb_rapi_rel_set_alias,           2},
     {"_duckdb_rapi_rel_set_alias2",          (DL_FUNC) &_duckdb_rapi_rel_set_alias2,          3},
     {"_duckdb_rapi_rel_set_diff",            (DL_FUNC) &_duckdb_rapi_rel_set_diff,            2},
+    {"_duckdb_rapi_rel_set_diff2",           (DL_FUNC) &_duckdb_rapi_rel_set_diff2,           3},
     {"_duckdb_rapi_rel_set_intersect",       (DL_FUNC) &_duckdb_rapi_rel_set_intersect,       2},
+    {"_duckdb_rapi_rel_set_intersect2",      (DL_FUNC) &_duckdb_rapi_rel_set_intersect2,      3},
     {"_duckdb_rapi_rel_set_symdiff",         (DL_FUNC) &_duckdb_rapi_rel_set_symdiff,         2},
+    {"_duckdb_rapi_rel_set_symdiff2",        (DL_FUNC) &_duckdb_rapi_rel_set_symdiff2,        3},
     {"_duckdb_rapi_rel_sql",                 (DL_FUNC) &_duckdb_rapi_rel_sql,                 2},
     {"_duckdb_rapi_rel_to_altrep",           (DL_FUNC) &_duckdb_rapi_rel_to_altrep,           2},
     {"_duckdb_rapi_rel_to_csv",              (DL_FUNC) &_duckdb_rapi_rel_to_csv,              3},

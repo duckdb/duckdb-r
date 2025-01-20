@@ -403,6 +403,19 @@ rel_set_intersect <- function(rel_a, rel_b) {
   rethrow_rapi_rel_set_intersect(rel_a, rel_b)
 }
 
+#' SET INTERSECT on two DuckDB relation objects
+#' @param rel_a a DuckDB relation object
+#' @param rel_b a DuckDB relation object
+#' @return a new `duckdb_relation` object resulting from the intersection
+#' @noRd
+#' @examples
+#' rel_a <- rel_from_df(con, mtcars)
+#' rel_b <- rel_from_df(con, mtcars)
+#' rel_set_intersect_all(rel_a, rel_b)
+rel_set_intersect2 <- function(df_a, df_b, con) {
+  rethrow_rapi_rel_set_intersect2(df_a, df_b, con@conn_ref)
+}
+
 #' SET DIFF on two DuckDB relation objects
 #' @param rel_a a DuckDB relation object
 #' @param rel_b a DuckDB relation object
@@ -416,6 +429,19 @@ rel_set_diff <- function(rel_a, rel_b) {
   rethrow_rapi_rel_set_diff(rel_a, rel_b)
 }
 
+#' SET DIFF on two DuckDB relation objects
+#' @param rel_a a DuckDB relation object
+#' @param rel_b a DuckDB relation object
+#' @return a new `duckdb_relation` object resulting from the set difference
+#' @noRd
+#' @examples
+#' rel_a <- rel_from_df(con, mtcars)
+#' rel_b <- rel_from_df(con, mtcars)
+#' rel_set_diff(rel_a, rel_b)
+rel_set_diff2 <- function(df_a, df_b, con) {
+  rethrow_rapi_rel_set_diff2(df_a, df_b, con@conn_ref)
+}
+
 #' SET SYMDIFF on two DuckDB relation objects
 #' @param rel_a a DuckDB relation object
 #' @param rel_b a DuckDB relation object
@@ -427,6 +453,19 @@ rel_set_diff <- function(rel_a, rel_b) {
 #' rel_set_symdiff(rel_a, rel_b)
 rel_set_symdiff <- function(rel_a, rel_b) {
   rethrow_rapi_rel_set_symdiff(rel_a, rel_b)
+}
+
+#' SET SYMDIFF on two DuckDB relation objects
+#' @param rel_a a DuckDB relation object
+#' @param rel_b a DuckDB relation object
+#' @return a new `duckdb_relation` object resulting from the symmetric difference of rel_a and rel_b
+#' @noRd
+#' @examples
+#' rel_a <- rel_from_df(con, mtcars)
+#' rel_b <- rel_from_df(con, mtcars)
+#' rel_set_symdiff(rel_a, rel_b)
+rel_set_symdiff2 <- function(df_a, df_b, con) {
+  rethrow_rapi_rel_set_symdiff2(df_a, df_b, con@conn_ref)
 }
 
 #' Run a SQL query on a DuckDB relation object

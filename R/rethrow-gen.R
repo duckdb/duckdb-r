@@ -495,6 +495,33 @@ rethrow_rapi_rel_distinct2 <- function(df, con, call = parent.frame(2)) {
   )
 }
 
+rethrow_rapi_rel_set_intersect2 <- function(left, right, con, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_rel_set_intersect2(left, right, con),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_rel_set_diff2 <- function(left, right, con, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_rel_set_diff2(left, right, con),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_rel_set_symdiff2 <- function(left, right, con, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_rel_set_symdiff2(left, right, con),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
 rethrow_rapi_rel_names2 <- function(df, con, call = parent.frame(2)) {
   rlang::try_fetch(
     rapi_rel_names2(df, con),
@@ -713,6 +740,9 @@ rethrow_restore <- function() {
   rethrow_rapi_rel_union_all2 <<- rapi_rel_union_all2
   rethrow_rapi_rel_limit2 <<- rapi_rel_limit2
   rethrow_rapi_rel_distinct2 <<- rapi_rel_distinct2
+  rethrow_rapi_rel_set_intersect2 <<- rapi_rel_set_intersect2
+  rethrow_rapi_rel_set_diff2 <<- rapi_rel_set_diff2
+  rethrow_rapi_rel_set_symdiff2 <<- rapi_rel_set_symdiff2
   rethrow_rapi_rel_names2 <<- rapi_rel_names2
   rethrow_rapi_rel_alias2 <<- rapi_rel_alias2
   rethrow_rapi_rel_set_alias2 <<- rapi_rel_set_alias2
