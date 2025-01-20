@@ -5,9 +5,9 @@
 # or include/to-tar.mk).
 #
 # The symbols.rds file helps troubleshoot issues with forbidden symbols
-# such as abort. Omitted to speed up compilation during development.
-# all: symbols.rds $(SHLIB)
-all: $(SHLIB)
+# such as abort.
+# Set UserNM=true to speed up compilation during development.
+all: symbols.rds $(SHLIB)
 
 include include/sources.mk
 
