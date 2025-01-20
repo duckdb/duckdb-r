@@ -137,9 +137,9 @@ vector<TestType> TestAllTypesFun::GetTestTypes(bool use_large_enum) {
 	result.emplace_back(timestamptz_list_type, "timestamptz_array", empty_timestamptz_list, timestamptz_list);
 
 	auto varchar_list_type = LogicalType::LIST(LogicalType::VARCHAR);
-	auto empty_varchar_list = Value::EMPTYLIST(LogicalType::VARCHAR);
-	auto varchar_list =
-	    Value::LIST({Value("🦆🦆🦆🦆🦆🦆"), Value("goose"), Value(LogicalType::VARCHAR), Value("")});
+	auto empty_varchar_list = Value::LIST(LogicalType::VARCHAR, vector<Value>());
+	auto varchar_list = Value::LIST(LogicalType::VARCHAR, {Value("🦆🦆🦆🦆🦆🦆"), Value("goose"),
+	                                                       Value(LogicalType::VARCHAR), Value("")});
 	result.emplace_back(varchar_list_type, "varchar_array", empty_varchar_list, varchar_list);
 
 	// nested arrays
