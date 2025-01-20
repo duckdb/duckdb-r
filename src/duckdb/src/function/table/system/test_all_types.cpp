@@ -270,18 +270,18 @@ vector<TestType> TestAllTypesFun::GetTestTypes(bool use_large_enum) {
 	                    struct_of_fixed_array_max_value);
 
 	// fixed array of list of int
-	auto fixed_array_of_list_of_int_type = LogicalType::ARRAY(LogicalType::LIST(LogicalType::INTEGER), 3);
-	auto fixed_array_of_list_of_int_min_value = Value::ARRAY({empty_int_list, int_list, empty_int_list});
-	auto fixed_array_of_list_of_int_max_value = Value::ARRAY({int_list, empty_int_list, int_list});
+	auto fixed_array_of_list_of_int_type = LogicalType::ARRAY(int_list_type, 3);
+	auto fixed_array_of_list_of_int_min_value = Value::ARRAY(int_list_type, {empty_int_list, int_list, empty_int_list});
+	auto fixed_array_of_list_of_int_max_value = Value::ARRAY(int_list_type, {int_list, empty_int_list, int_list});
 	result.emplace_back(fixed_array_of_list_of_int_type, "fixed_array_of_int_list",
 	                    fixed_array_of_list_of_int_min_value, fixed_array_of_list_of_int_max_value);
 
 	// list of fixed array of int
 	auto list_of_fixed_array_of_int_type = LogicalType::LIST(fixed_int_array_type);
-	auto list_of_fixed_array_of_int_min_value =
-	    Value::LIST({fixed_int_min_array_value, fixed_int_max_array_value, fixed_int_min_array_value});
-	auto list_of_fixed_array_of_int_max_value =
-	    Value::LIST({fixed_int_max_array_value, fixed_int_min_array_value, fixed_int_max_array_value});
+	auto list_of_fixed_array_of_int_min_value = Value::LIST(
+	    fixed_int_array_type, {fixed_int_min_array_value, fixed_int_max_array_value, fixed_int_min_array_value});
+	auto list_of_fixed_array_of_int_max_value = Value::LIST(
+	    fixed_int_array_type, {fixed_int_max_array_value, fixed_int_min_array_value, fixed_int_max_array_value});
 	result.emplace_back(list_of_fixed_array_of_int_type, "list_of_fixed_int_array",
 	                    list_of_fixed_array_of_int_min_value, list_of_fixed_array_of_int_max_value);
 
