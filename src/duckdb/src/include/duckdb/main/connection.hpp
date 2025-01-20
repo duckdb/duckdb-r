@@ -139,10 +139,10 @@ public:
 	DUCKDB_API shared_ptr<Relation> View(const string &tname);
 	DUCKDB_API shared_ptr<Relation> View(const string &schema_name, const string &table_name);
 	//! Returns a relation that calls a specified table function
-	DUCKDB_API shared_ptr<Relation> TableFunction(const string &tname);
+	DUCKDB_API shared_ptr<Relation> TableFunction(const string &tname, bool auto_init = true);
 	DUCKDB_API shared_ptr<Relation> TableFunction(const string &tname, const vector<Value> &values,
-	                                              const named_parameter_map_t &named_parameters);
-	DUCKDB_API shared_ptr<Relation> TableFunction(const string &tname, const vector<Value> &values);
+	                                              const named_parameter_map_t &named_parameters, bool auto_init = true);
+	DUCKDB_API shared_ptr<Relation> TableFunction(const string &tname, const vector<Value> &values, bool auto_init = true);
 	//! Returns a relation that produces values
 	DUCKDB_API shared_ptr<Relation> Values(const vector<vector<Value>> &values);
 	DUCKDB_API shared_ptr<Relation> Values(vector<vector<unique_ptr<ParsedExpression>>> &&values);

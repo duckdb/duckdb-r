@@ -245,19 +245,19 @@ shared_ptr<Relation> Connection::View(const string &schema_name, const string &t
 	return make_shared_ptr<ViewRelation>(context, schema_name, table_name);
 }
 
-shared_ptr<Relation> Connection::TableFunction(const string &fname) {
+shared_ptr<Relation> Connection::TableFunction(const string &fname, const vector<Value> &values,
+                                               const named_parameter_map_t &named_parameters, bool auto_init) {
+	return make_shared_ptr<TableFunctionRelation>(context, fname, values, named_parameters, nullptr, auto_init);
+}
+
+shared_ptr<Relation> Connection::TableFunction(const string &fname, const vector<Value> &values, bool auto_init) {
+	return make_shared_ptr<TableFunctionRelation>(context, fname, values, nullptr, auto_init);
+}
+
+shared_ptr<Relation> Connection::TableFunction(const string &fname, bool auto_init) {
 	vector<Value> values;
 	named_parameter_map_t named_parameters;
-	return TableFunction(fname, values, named_parameters);
-}
-
-shared_ptr<Relation> Connection::TableFunction(const string &fname, const vector<Value> &values,
-                                               const named_parameter_map_t &named_parameters) {
-	return make_shared_ptr<TableFunctionRelation>(context, fname, values, named_parameters);
-}
-
-shared_ptr<Relation> Connection::TableFunction(const string &fname, const vector<Value> &values) {
-	return make_shared_ptr<TableFunctionRelation>(context, fname, values);
+	return TableFunction(fname, values, named_parameters, auto_init);
 }
 
 shared_ptr<Relation> Connection::Values(const vector<vector<Value>> &values) {
