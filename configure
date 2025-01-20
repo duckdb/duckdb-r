@@ -4,6 +4,18 @@ set -ex
 
 cd $(dirname $0)/src
 
+# The duckdb sources are xz-compressed in the tarball to keep it under 5000000 bytes.
+# This happens in the cleanup script.
+
+if [ -f duckdb.tar.xz ]; then
+  if [ -d duckdb ]; then
+    echo "Ignoring duckdb.tar.gz because duckdb directory still exists"
+    rm duckdb.tar.xz
+  else
+    tar xJf duckdb.tar.xz
+  fi
+fi
+
 # The purpose of this is to avoid rebuilding duckdb in every CI/CD run.
 # We set the DUCKDB_R_PREBUILT_ARCHIVE environment variable to a file path
 # that contains a .tar of all object files.
@@ -26,16 +38,4 @@ if [ -f "${DUCKDB_R_PREBUILT_ARCHIVE}" ] && tar -xm -f ${DUCKDB_R_PREBUILT_ARCHI
   cp include/from-tar.mk Makevars.duckdb
 else
   cp include/to-tar.mk Makevars.duckdb
-fi
-
-# The duckdb sources are xz-compressed in the tarball to keep it under 5000000 bytes.
-# This happens in the cleanup script.
-
-if [ -f duckdb.tar.xz ]; then
-  if [ -d duckdb ]; then
-    echo "Ignoring duckdb.tar.gz because duckdb directory still exists"
-    rm duckdb.tar.xz
-  else
-    tar xJf duckdb.tar.xz
-  fi
 fi
