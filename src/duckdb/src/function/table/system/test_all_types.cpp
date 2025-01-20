@@ -114,10 +114,10 @@ vector<TestType> TestAllTypesFun::GetTestTypes(bool use_large_enum) {
 	result.emplace_back(double_list_type, "double_array", empty_double_list, double_list);
 
 	auto date_list_type = LogicalType::LIST(LogicalType::DATE);
-	auto empty_date_list = Value::EMPTYLIST(LogicalType::DATE);
-	auto date_list =
-	    Value::LIST({Value::DATE(date_t()), Value::DATE(date_t::infinity()), Value::DATE(date_t::ninfinity()),
-	                 Value(LogicalType::DATE), Value::DATE(Date::FromString("2022-05-12"))});
+	auto empty_date_list = Value::LIST(LogicalType::DATE, vector<Value>());
+	auto date_list = Value::LIST(LogicalType::DATE, {Value::DATE(date_t()), Value::DATE(date_t::infinity()),
+	                                                 Value::DATE(date_t::ninfinity()), Value(LogicalType::DATE),
+	                                                 Value::DATE(Date::FromString("2022-05-12"))});
 	result.emplace_back(date_list_type, "date_array", empty_date_list, date_list);
 
 	auto timestamp_list_type = LogicalType::LIST(LogicalType::TIMESTAMP);
