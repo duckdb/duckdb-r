@@ -144,8 +144,9 @@ vector<TestType> TestAllTypesFun::GetTestTypes(bool use_large_enum) {
 
 	// nested arrays
 	auto nested_list_type = LogicalType::LIST(int_list_type);
-	auto empty_nested_list = Value::EMPTYLIST(int_list_type);
-	auto nested_int_list = Value::LIST({empty_int_list, int_list, Value(int_list_type), empty_int_list, int_list});
+	auto empty_nested_list = Value::LIST(int_list_type, vector<Value>());
+	auto nested_int_list =
+	    Value::LIST(int_list_type, {empty_int_list, int_list, Value(int_list_type), empty_int_list, int_list});
 	result.emplace_back(nested_list_type, "nested_int_array", empty_nested_list, nested_int_list);
 
 	// structs
