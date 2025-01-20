@@ -6,8 +6,8 @@
 #
 # The symbols.rds file helps troubleshoot issues with forbidden symbols
 # such as abort. Omitted to speed up compilation during development.
-# all: duckdb.tar symbols.rds $(SHLIB)
-all: duckdb.tar $(SHLIB)
+# all: symbols.rds $(SHLIB)
+all: $(SHLIB)
 
 include include/sources.mk
 
