@@ -99,9 +99,10 @@ vector<TestType> TestAllTypesFun::GetTestTypes(bool use_large_enum) {
 
 	// arrays
 	auto int_list_type = LogicalType::LIST(LogicalType::INTEGER);
-	auto empty_int_list = Value::EMPTYLIST(LogicalType::INTEGER);
-	auto int_list = Value::LIST({Value::INTEGER(42), Value::INTEGER(999), Value(LogicalType::INTEGER),
-	                             Value(LogicalType::INTEGER), Value::INTEGER(-42)});
+	auto empty_int_list = Value::LIST(LogicalType::INTEGER, vector<Value>());
+	auto int_list =
+	    Value::LIST(LogicalType::INTEGER, {Value::INTEGER(42), Value::INTEGER(999), Value(LogicalType::INTEGER),
+	                                       Value(LogicalType::INTEGER), Value::INTEGER(-42)});
 	result.emplace_back(int_list_type, "int_array", empty_int_list, int_list);
 
 	auto double_list_type = LogicalType::LIST(LogicalType::DOUBLE);
