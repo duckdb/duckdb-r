@@ -737,8 +737,8 @@ Value Value::MAP(const LogicalType &key_type, const LogicalType &value_type, vec
 	for (idx_t i = 0; i < keys.size(); i++) {
 		child_list_t<Value> new_children;
 		new_children.reserve(2);
-		new_children.push_back(std::make_pair("key", std::move(keys[i])));
-		new_children.push_back(std::make_pair("value", std::move(values[i])));
+		new_children.push_back(std::make_pair("key", keys[i].DefaultCastAs(key_type)));
+		new_children.push_back(std::make_pair("value", values[i].DefaultCastAs(value_type)));
 		values[i] = Value::STRUCT(std::move(new_children));
 	}
 	result.value_info_ = make_shared_ptr<NestedValueInfo>(std::move(values));
