@@ -121,10 +121,11 @@ vector<TestType> TestAllTypesFun::GetTestTypes(bool use_large_enum) {
 	result.emplace_back(date_list_type, "date_array", empty_date_list, date_list);
 
 	auto timestamp_list_type = LogicalType::LIST(LogicalType::TIMESTAMP);
-	auto empty_timestamp_list = Value::EMPTYLIST(LogicalType::TIMESTAMP);
-	auto timestamp_list = Value::LIST({Value::TIMESTAMP(timestamp_t()), Value::TIMESTAMP(timestamp_t::infinity()),
-	                                   Value::TIMESTAMP(timestamp_t::ninfinity()), Value(LogicalType::TIMESTAMP),
-	                                   Value::TIMESTAMP(Timestamp::FromString("2022-05-12 16:23:45"))});
+	auto empty_timestamp_list = Value::LIST(LogicalType::TIMESTAMP, vector<Value>());
+	auto timestamp_list =
+	    Value::LIST(LogicalType::TIMESTAMP, {Value::TIMESTAMP(timestamp_t()), Value::TIMESTAMP(timestamp_t::infinity()),
+	                                         Value::TIMESTAMP(timestamp_t::ninfinity()), Value(LogicalType::TIMESTAMP),
+	                                         Value::TIMESTAMP(Timestamp::FromString("2022-05-12 16:23:45"))});
 	result.emplace_back(timestamp_list_type, "timestamp_array", empty_timestamp_list, timestamp_list);
 
 	auto timestamptz_list_type = LogicalType::LIST(LogicalType::TIMESTAMP_TZ);
