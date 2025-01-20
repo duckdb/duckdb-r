@@ -43,3 +43,4 @@ _files$
 ^compile_commands\.json$
 ^\.cache$
 ^tests/testthat/helper-rethrow\.R$
+^vignettes/articles$
