@@ -188,8 +188,8 @@ vector<TestType> TestAllTypesFun::GetTestTypes(bool use_large_enum) {
 
 	// array of structs
 	auto array_of_structs_type = LogicalType::LIST(struct_type);
-	auto min_array_of_struct_val = Value::EMPTYLIST(struct_type);
-	auto max_array_of_struct_val = Value::LIST({min_struct_val, max_struct_val, Value(struct_type)});
+	auto min_array_of_struct_val = Value::LIST(struct_type, vector<Value>());
+	auto max_array_of_struct_val = Value::LIST(struct_type, {min_struct_val, max_struct_val, Value(struct_type)});
 	result.emplace_back(array_of_structs_type, "array_of_structs", std::move(min_array_of_struct_val),
 	                    std::move(max_array_of_struct_val));
 
