@@ -10,47 +10,47 @@ void duckdb::ConnDeleter(ConnWrapper *conn) {
 }
 
 unique_ptr<ProgressBarDisplay> RProgressBarDisplay::Create() {
-  return make_uniq<RProgressBarDisplay>();
+	return make_uniq<RProgressBarDisplay>();
 }
 
 void RProgressBarDisplay::Initialize() {
-  auto progress_display = Rf_GetOption(RStrings::get().progress_display_sym, R_BaseEnv);
-  if (Rf_isFunction(progress_display)) {
-    progress_callback = progress_display;
-  }
-  D_ASSERT(progress_callback != R_NilValue);
+	auto progress_display = Rf_GetOption(RStrings::get().progress_display_sym, R_BaseEnv);
+	if (Rf_isFunction(progress_display)) {
+		progress_callback = progress_display;
+	}
+	D_ASSERT(progress_callback != R_NilValue);
 }
 
 RProgressBarDisplay::RProgressBarDisplay() : ProgressBarDisplay() {
-  // Empty
+	// Empty
 }
 
 void RProgressBarDisplay::Update(double percentage) {
-  if (progress_callback == R_NilValue) {
-    Initialize();
-  }
-  if (progress_callback != R_NilValue) {
-    try {
-      cpp11::sexp call = Rf_lang2(progress_callback, Rf_ScalarReal(percentage));
-      cpp11::safe[Rf_eval](call, R_BaseEnv);
-    } catch (std::exception &e) {
-      // Ignore progress bar error
-    }
-  }
+	if (progress_callback == R_NilValue) {
+		Initialize();
+	}
+	if (progress_callback != R_NilValue) {
+		try {
+			cpp11::sexp call = Rf_lang2(progress_callback, Rf_ScalarReal(percentage));
+			cpp11::safe[Rf_eval](call, R_BaseEnv);
+		} catch (std::exception &e) {
+			// Ignore progress bar error
+		}
+	}
 }
 
 void RProgressBarDisplay::Finish() {
-  Update(100);
+	Update(100);
 }
 
 static void SetDefaultConfigArguments(ClientContext &context) {
-  auto &config = ClientConfig::GetConfig(context);
-  // Set the function used to create the display for the progress bar
-  config.display_create_func = RProgressBarDisplay::Create;
-  auto progress_display = Rf_GetOption(RStrings::get().progress_display_sym, R_BaseEnv);
-  if (Rf_isFunction(progress_display)) {
-    config.enable_progress_bar = true;
-  }
+	auto &config = ClientConfig::GetConfig(context);
+	// Set the function used to create the display for the progress bar
+	config.display_create_func = RProgressBarDisplay::Create;
+	auto progress_display = Rf_GetOption(RStrings::get().progress_display_sym, R_BaseEnv);
+	if (Rf_isFunction(progress_display)) {
+		config.enable_progress_bar = true;
+	}
 }
 
 [[cpp11::register]] duckdb::conn_eptr_t rapi_connect(duckdb::db_eptr_t dual) {
