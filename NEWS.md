@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.1.3.9039
+
+## Chore
+
+- Move internal `duckdb.tar` dependency (#1013).
+
+
 # duckdb 1.1.3.9038
 
 ## vendor
