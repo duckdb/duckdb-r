@@ -825,8 +825,7 @@ test_that("rel_project does not automatically quote upper-case column names", {
   ref <- expr_reference(names(df))
   exprs <- list(ref)
   proj <- rel_project(rel, exprs)
-  # FIXME: Change to rel_to_altrep() in 1.1.3
-  ans <- rapi_rel_to_altrep(proj)
+  ans <- rel_to_altrep(proj)
   expect_equal(df, ans)
 })
 
@@ -929,8 +928,7 @@ test_that("we don't crash with evaluation errors", {
     )
   )
 
-  # FIXME: Change to rel_to_altrep() in 1.1.3
-  ans <- rapi_rel_to_altrep(rel2)
+  ans <- rel_to_altrep(rel2)
 
   # This query is supposed to throw a runtime error.
   # If this succeeds, find a new query that throws a runtime error.
@@ -961,8 +959,7 @@ test_that("we don't crash with evaluation errors", {
     )
   )
 
-  # FIXME: Change to rel_to_altrep() in 1.1.3
-  ans <- rapi_rel_to_altrep(rel2)
+  ans <- rel_to_altrep(rel2)
 
   # This query is supposed to throw a runtime error.
   # If this succeeds, find a new query that throws a runtime error.
