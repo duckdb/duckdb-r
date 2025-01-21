@@ -114,7 +114,7 @@ struct AltrepRelationWrapper {
 			}
 
 			auto materialize_message = Rf_GetOption(RStrings::get().materialize_message_sym, R_BaseEnv);
-		  if (Rf_isLogical(materialize_message) && Rf_length(materialize_message) == 1 && LOGICAL_ELT(materialize_message, 0) == true) {
+			if (Rf_isLogical(materialize_message) && Rf_length(materialize_message) == 1 && LOGICAL_ELT(materialize_message, 0) == true) {
 				// Legacy
 				Rprintf("duckplyr: materializing\n");
 			}
