@@ -135,7 +135,7 @@ struct AltrepRelationWrapper {
 			duckdb_httplib::detail::scope_exit reset_max_expression_depth(
 			    [&]() { rel->context->GetContext()->config.max_expression_depth = old_depth; });
 
-			res = rel->Execute();
+			res = Materialize();
 
 			// FIXME: Use std::experimental::scope_exit
 			if (rel->context->GetContext()->config.max_expression_depth != old_depth * 2) {
@@ -150,14 +150,48 @@ struct AltrepRelationWrapper {
 			}
 
 			signal_handler.Disable();
-
-			if (res->HasError()) {
-				cpp11::stop("Error evaluating duckdb query: %s", res->GetError().c_str());
-			}
-			D_ASSERT(res->type == QueryResultType::MATERIALIZED_RESULT);
 		}
 		D_ASSERT(res);
 		return (MaterializedQueryResult *)res.get();
+	}
+
+	duckdb::unique_ptr<QueryResult> Materialize() {
+		// Init with max value
+		size_t max_rows = std::numeric_limits<size_t>::max();
+
+		// Number of cells limited?
+		if (n_cells < std::numeric_limits<size_t>::max()) {
+			max_rows = n_cells / rel->Columns().size();
+		}
+
+		// Number of rows limited?
+		if (n_rows < max_rows) {
+			max_rows = n_rows;
+		}
+
+		// For tethered, we push a limit relation and check the number of output rows
+		auto local_rel = rel;
+		if (max_rows < std::numeric_limits<size_t>::max()) {
+			local_rel = make_shared_ptr<LimitRelation>(rel, max_rows + 1, 0);
+		}
+
+		auto local_res = local_rel->Execute();
+
+		if (local_res->HasError()) {
+			cpp11::stop("Error evaluating duckdb query: %s", local_res->GetError().c_str());
+		}
+		D_ASSERT(local_res->type == QueryResultType::MATERIALIZED_RESULT);
+
+		if (max_rows < std::numeric_limits<size_t>::max()) {
+			auto mat_res = (MaterializedQueryResult *)local_res.get();
+			if (mat_res->RowCount() > max_rows) {
+				cpp11::stop("Materialization would result in %" PRIu64 " rows, which exceeds the limit of %" PRIu64,
+							". Use collect() or as_tibble() to materialize.",
+							mat_res->RowCount(), max_rows);
+			}
+		}
+
+		return std::move(local_res);
 	}
 
 	const bool allow_materialization;
