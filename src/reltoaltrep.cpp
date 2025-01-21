@@ -104,7 +104,7 @@ struct AltrepRelationWrapper {
 	MaterializedQueryResult *GetQueryResult() {
 		if (!res) {
 			if (!allow_materialization) {
-				cpp11::stop("Materialization is disabled, use collect() or as_tibble() to materialize");
+				cpp11::stop("Materialization is disabled, use collect() or as_tibble() to materialize.");
 			}
 
 			auto materialize_callback = Rf_GetOption(RStrings::get().materialize_callback_sym, R_BaseEnv);
