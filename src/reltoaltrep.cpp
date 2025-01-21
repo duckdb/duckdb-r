@@ -153,7 +153,7 @@ struct AltrepRelationWrapper {
 		return (MaterializedQueryResult *)res.get();
 	}
 
-	bool allow_materialization;
+	const bool allow_materialization;
 
 	rel_extptr_t rel_eptr;
 	duckdb::shared_ptr<Relation> rel;
