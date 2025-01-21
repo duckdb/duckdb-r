@@ -8,6 +8,8 @@
 
 #include "httplib.hpp"
 #include <cinttypes>
+#include <cmath>
+#include <cstddef>
 
 #ifdef TRUE
 #undef TRUE
@@ -93,8 +95,8 @@ struct AltrepRelationWrapper {
 		return GetFromExternalPtr<AltrepRelationWrapper>(x);
 	}
 
-	AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_)
-	    : allow_materialization(allow_materialization_), rel_eptr(rel_), rel(rel_->rel) {
+	AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_, size_t n_rows_, size_t n_cells_)
+	    : allow_materialization(allow_materialization_), n_rows(n_rows_), n_cells(n_cells_), rel_eptr(rel_), rel(rel_->rel) {
 	}
 
 	bool HasQueryResult() const {
@@ -154,6 +156,8 @@ struct AltrepRelationWrapper {
 	}
 
 	const bool allow_materialization;
+	const size_t n_rows;
+	const size_t n_cells;
 
 	rel_extptr_t rel_eptr;
 	duckdb::shared_ptr<Relation> rel;
@@ -348,12 +352,27 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 	}
 }
 
-[[cpp11::register]] SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel, bool allow_materialization) {
+size_t DoubleToSize(double d) {
+	if (d < 0) {
+		cpp11::stop("rel_to_altrep: Negative size");
+	}
+	if (!std::isfinite(d)) {
+		// Return maximum size_t for Inf
+		return std::numeric_limits<size_t>::max();
+	}
+	if (d >= (double)std::numeric_limits<size_t>::max()) {
+		cpp11::stop("rel_to_altrep: Size overflow");
+	}
+	return (size_t)d;
+}
+
+[[cpp11::register]] SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel, bool allow_materialization, double n_rows, double n_cells) {
 	D_ASSERT(rel && rel->rel);
 	auto drel = rel->rel;
 	auto ncols = drel->Columns().size();
 
-	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, allow_materialization);
+	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, allow_materialization, DoubleToSize(n_rows),
+	                                                              DoubleToSize(n_cells));
 
 	cpp11::writable::list data_frame;
 	data_frame.reserve(ncols);
