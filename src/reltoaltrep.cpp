@@ -36,6 +36,8 @@ R_altrep_class_t RelToAltrep::string_class;
 R_altrep_class_t RelToAltrep::list_class;
 #endif
 
+const size_t MAX_SIZE_T = std::numeric_limits<size_t>::max();
+
 void RelToAltrep::Initialize(DllInfo *dll) {
 	// this is a string so setting row names will not lead to materialization
 	rownames_class = R_make_altinteger_class("reltoaltrep_rownames_class", "duckdb", dll);
@@ -157,10 +159,10 @@ struct AltrepRelationWrapper {
 
 	duckdb::unique_ptr<QueryResult> Materialize() {
 		// Init with max value
-		size_t max_rows = std::numeric_limits<size_t>::max();
+		size_t max_rows = MAX_SIZE_T;
 
 		// Number of cells limited?
-		if (n_cells < std::numeric_limits<size_t>::max()) {
+		if (n_cells < MAX_SIZE_T) {
 			max_rows = n_cells / rel->Columns().size();
 		}
 
@@ -171,7 +173,7 @@ struct AltrepRelationWrapper {
 
 		// For tethered, we push a limit relation and check the number of output rows
 		auto local_rel = rel;
-		if (max_rows < std::numeric_limits<size_t>::max()) {
+		if (max_rows < MAX_SIZE_T) {
 			local_rel = make_shared_ptr<LimitRelation>(rel, max_rows + 1, 0);
 		}
 
@@ -182,7 +184,7 @@ struct AltrepRelationWrapper {
 		}
 		D_ASSERT(local_res->type == QueryResultType::MATERIALIZED_RESULT);
 
-		if (max_rows < std::numeric_limits<size_t>::max()) {
+		if (max_rows < MAX_SIZE_T) {
 			auto mat_res = (MaterializedQueryResult *)local_res.get();
 			if (mat_res->RowCount() > max_rows) {
 				cpp11::stop("Materialization would result in %" PRIu64 " rows, which exceeds the limit of %" PRIu64,
@@ -397,9 +399,9 @@ size_t DoubleToSize(double d) {
 	}
 	if (!std::isfinite(d)) {
 		// Return maximum size_t for Inf
-		return std::numeric_limits<size_t>::max();
+		return MAX_SIZE_T;
 	}
-	if (d >= (double)std::numeric_limits<size_t>::max()) {
+	if (d >= (double)MAX_SIZE_T) {
 		cpp11::stop("rel_to_altrep: Size overflow");
 	}
 	return (size_t)d;
