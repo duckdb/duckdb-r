@@ -32,11 +32,7 @@ void PhysicalUnion::BuildPipelines(Pipeline &current, MetaPipeline &meta_pipelin
 		order_matters = true;
 	}
 	if (sink) {
-		if (sink->SinkOrderDependent()) {
-			order_matters = true;
-		}
-		auto partition_info = sink->RequiredPartitionInfo();
-		if (partition_info.batch_index) {
+		if (sink->SinkOrderDependent() || sink->RequiresBatchIndex()) {
 			order_matters = true;
 		}
 		if (!sink->ParallelSink()) {

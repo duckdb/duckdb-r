@@ -30,7 +30,7 @@ struct DialectCandidates {
 	explicit DialectCandidates(const CSVStateMachineOptions &options);
 
 	//! Static functions to get defaults of the search space
-	static vector<string> GetDefaultDelimiter();
+	static vector<char> GetDefaultDelimiter();
 
 	static vector<vector<char>> GetDefaultQuote();
 
@@ -43,7 +43,7 @@ struct DialectCandidates {
 	string Print();
 
 	//! Candidates for the delimiter
-	vector<string> delim_candidates;
+	vector<char> delim_candidates;
 	//! Candidates for the comment
 	vector<char> comment_candidates;
 	//! Quote-Rule Candidates
@@ -136,8 +136,6 @@ public:
 	static bool CanYouCastIt(ClientContext &context, const string_t value, const LogicalType &type,
 	                         const DialectOptions &dialect_options, const bool is_null, const char decimal_separator);
 
-	idx_t LinesSniffed() const;
-
 private:
 	//! CSV State Machine Cache
 	CSVStateMachineCache &state_machine_cache;
@@ -153,10 +151,9 @@ private:
 	SetColumns set_columns;
 	shared_ptr<CSVErrorHandler> error_handler;
 	shared_ptr<CSVErrorHandler> detection_error_handler;
-	//! Number of lines sniffed in this sniffer
-	idx_t lines_sniffed;
+
 	//! Sets the result options
-	void SetResultOptions() const;
+	void SetResultOptions();
 
 	//! ------------------------------------------------------//
 	//! ----------------- Dialect Detection ----------------- //

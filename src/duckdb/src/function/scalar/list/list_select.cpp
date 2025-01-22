@@ -4,7 +4,6 @@
 #include "duckdb/planner/expression/bound_function_expression.hpp"
 #include "duckdb/planner/expression/bound_parameter_expression.hpp"
 #include "duckdb/planner/expression/bound_cast_expression.hpp"
-#include "duckdb/function/scalar/list_functions.hpp"
 
 namespace duckdb {
 
@@ -180,4 +179,8 @@ ScalarFunction ListSelectFun::GetFunction() {
 	return fun;
 }
 
+void ListSelectFun::RegisterFunction(BuiltinFunctions &set) {
+	set.AddFunction({"list_select", "array_select"}, ListSelectFun::GetFunction());
+	set.AddFunction({"list_where", "array_where"}, ListWhereFun::GetFunction());
+}
 } // namespace duckdb

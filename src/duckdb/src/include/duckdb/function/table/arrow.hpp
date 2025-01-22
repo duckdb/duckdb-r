@@ -65,8 +65,6 @@ public:
 	shared_ptr<DependencyItem> dependency;
 	//! Arrow table data
 	ArrowTableType arrow_table;
-	//! Whether projection pushdown is enabled on the scan
-	bool projection_pushdown_enabled = true;
 };
 
 struct ArrowRunEndEncodingState {
@@ -186,12 +184,9 @@ public:
 	//! Binds an arrow table
 	static unique_ptr<FunctionData> ArrowScanBind(ClientContext &context, TableFunctionBindInput &input,
 	                                              vector<LogicalType> &return_types, vector<string> &names);
-	static unique_ptr<FunctionData> ArrowScanBindDumb(ClientContext &context, TableFunctionBindInput &input,
-	                                                  vector<LogicalType> &return_types, vector<string> &names);
 	//! Actual conversion from Arrow to DuckDB
 	static void ArrowToDuckDB(ArrowScanLocalState &scan_state, const arrow_column_map_t &arrow_convert_data,
-	                          DataChunk &output, idx_t start, bool arrow_scan_is_projected = true,
-	                          idx_t rowid_column_index = COLUMN_IDENTIFIER_ROW_ID);
+	                          DataChunk &output, idx_t start, bool arrow_scan_is_projected = true);
 
 	//! Get next scan state
 	static bool ArrowScanParallelStateNext(ClientContext &context, const FunctionData *bind_data_p,
@@ -219,7 +214,8 @@ protected:
 	static idx_t ArrowScanMaxThreads(ClientContext &context, const FunctionData *bind_data);
 
 	//! Allows parallel Create Table / Insertion
-	static OperatorPartitionData ArrowGetPartitionData(ClientContext &context, TableFunctionGetPartitionInput &input);
+	static idx_t ArrowGetBatchIndex(ClientContext &context, const FunctionData *bind_data_p,
+	                                LocalTableFunctionState *local_state, GlobalTableFunctionState *global_state);
 
 	//! Specify if a given type can be pushed-down by the arrow engine
 	static bool ArrowPushdownType(const LogicalType &type);

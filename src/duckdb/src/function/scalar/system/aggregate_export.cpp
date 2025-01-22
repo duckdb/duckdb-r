@@ -1,7 +1,5 @@
 #include "duckdb/catalog/catalog_entry/aggregate_function_catalog_entry.hpp"
 #include "duckdb/function/function_binder.hpp"
-#include "duckdb/function/scalar/generic_common.hpp"
-#include "duckdb/function/scalar/system_functions.hpp"
 #include "duckdb/function/scalar/generic_functions.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/main/database.hpp"
@@ -267,7 +265,7 @@ static void ExportAggregateFinalize(Vector &state, AggregateInputData &aggr_inpu
 }
 
 ExportAggregateFunctionBindData::ExportAggregateFunctionBindData(unique_ptr<Expression> aggregate_p) {
-	D_ASSERT(aggregate_p->GetExpressionType() == ExpressionType::BOUND_AGGREGATE);
+	D_ASSERT(aggregate_p->type == ExpressionType::BOUND_AGGREGATE);
 	aggregate = unique_ptr_cast<Expression, BoundAggregateExpression>(std::move(aggregate_p));
 }
 
@@ -341,7 +339,7 @@ ExportAggregateFunction::Bind(unique_ptr<BoundAggregateExpression> child_aggrega
 	                                           child_aggregate->aggr_type);
 }
 
-ScalarFunction FinalizeFun::GetFunction() {
+ScalarFunction ExportAggregateFunction::GetFinalize() {
 	auto result = ScalarFunction("finalize", {LogicalTypeId::AGGREGATE_STATE}, LogicalTypeId::INVALID,
 	                             AggregateStateFinalize, BindAggregateState, nullptr, nullptr, InitFinalizeState);
 	result.null_handling = FunctionNullHandling::SPECIAL_HANDLING;
@@ -350,7 +348,7 @@ ScalarFunction FinalizeFun::GetFunction() {
 	return result;
 }
 
-ScalarFunction CombineFun::GetFunction() {
+ScalarFunction ExportAggregateFunction::GetCombine() {
 	auto result =
 	    ScalarFunction("combine", {LogicalTypeId::AGGREGATE_STATE, LogicalTypeId::ANY}, LogicalTypeId::AGGREGATE_STATE,
 	                   AggregateStateCombine, BindAggregateState, nullptr, nullptr, InitCombineState);
@@ -358,6 +356,11 @@ ScalarFunction CombineFun::GetFunction() {
 	result.serialize = ExportStateScalarSerialize;
 	result.deserialize = ExportStateScalarDeserialize;
 	return result;
+}
+
+void ExportAggregateFunction::RegisterFunction(BuiltinFunctions &set) {
+	set.AddFunction(ExportAggregateFunction::GetCombine());
+	set.AddFunction(ExportAggregateFunction::GetFinalize());
 }
 
 } // namespace duckdb

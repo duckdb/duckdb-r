@@ -21,6 +21,7 @@ class ExecutionContext;
 //! ExpressionExecutor is responsible for executing a set of expressions and storing the result in a data chunk
 class ExpressionExecutor {
 	friend class BoundIndex;
+	friend class CreateIndexLocalSinkState;
 
 public:
 	DUCKDB_API explicit ExpressionExecutor(ClientContext &context);

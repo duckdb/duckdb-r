@@ -54,6 +54,7 @@ void CleanupState::CleanupEntry(UndoFlags type, data_ptr_t data) {
 
 void CleanupState::CleanupUpdate(UpdateInfo &info) {
 	// remove the update info from the update chain
+	// first obtain an exclusive lock on the segment
 	info.segment->CleanupUpdate(info);
 }
 

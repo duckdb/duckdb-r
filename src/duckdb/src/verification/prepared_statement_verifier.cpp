@@ -9,15 +9,12 @@
 
 namespace duckdb {
 
-PreparedStatementVerifier::PreparedStatementVerifier(
-    unique_ptr<SQLStatement> statement_p, optional_ptr<case_insensitive_map_t<BoundParameterData>> parameters)
-    : StatementVerifier(VerificationType::PREPARED, "Prepared", std::move(statement_p), parameters) {
+PreparedStatementVerifier::PreparedStatementVerifier(unique_ptr<SQLStatement> statement_p)
+    : StatementVerifier(VerificationType::PREPARED, "Prepared", std::move(statement_p)) {
 }
 
-unique_ptr<StatementVerifier>
-PreparedStatementVerifier::Create(const SQLStatement &statement,
-                                  optional_ptr<case_insensitive_map_t<BoundParameterData>> parameters) {
-	return make_uniq<PreparedStatementVerifier>(statement.Copy(), parameters);
+unique_ptr<StatementVerifier> PreparedStatementVerifier::Create(const SQLStatement &statement) {
+	return make_uniq<PreparedStatementVerifier>(statement.Copy());
 }
 
 void PreparedStatementVerifier::Extract() {
@@ -48,10 +45,10 @@ void PreparedStatementVerifier::Extract() {
 }
 
 void PreparedStatementVerifier::ConvertConstants(unique_ptr<ParsedExpression> &child) {
-	if (child->GetExpressionType() == ExpressionType::VALUE_CONSTANT) {
+	if (child->type == ExpressionType::VALUE_CONSTANT) {
 		// constant: extract the constant value
-		auto alias = child->GetAlias();
-		child->ClearAlias();
+		auto alias = child->alias;
+		child->alias = string();
 		// check if the value already exists
 		idx_t index = values.size();
 		auto identifier = std::to_string(index + 1);
@@ -69,7 +66,7 @@ void PreparedStatementVerifier::ConvertConstants(unique_ptr<ParsedExpression> &c
 		// replace it with an expression
 		auto parameter = make_uniq<ParameterExpression>();
 		parameter->identifier = identifier;
-		parameter->SetAlias(alias);
+		parameter->alias = alias;
 		child = std::move(parameter);
 		return;
 	}
@@ -79,19 +76,18 @@ void PreparedStatementVerifier::ConvertConstants(unique_ptr<ParsedExpression> &c
 
 bool PreparedStatementVerifier::Run(
     ClientContext &context, const string &query,
-    const std::function<unique_ptr<QueryResult>(const string &, unique_ptr<SQLStatement>,
-                                                optional_ptr<case_insensitive_map_t<BoundParameterData>>)> &run) {
+    const std::function<unique_ptr<QueryResult>(const string &, unique_ptr<SQLStatement>)> &run) {
 	bool failed = false;
 	// verify that we can extract all constants from the query and run the query as a prepared statement
 	// create the PREPARE and EXECUTE statements
 	Extract();
 	// execute the prepared statements
 	try {
-		auto prepare_result = run(string(), std::move(prepare_statement), parameters);
+		auto prepare_result = run(string(), std::move(prepare_statement));
 		if (prepare_result->HasError()) {
 			prepare_result->ThrowError("Failed prepare during verify: ");
 		}
-		auto execute_result = run(string(), std::move(execute_statement), parameters);
+		auto execute_result = run(string(), std::move(execute_statement));
 		if (execute_result->HasError()) {
 			execute_result->ThrowError("Failed execute during verify: ");
 		}
@@ -103,7 +99,7 @@ bool PreparedStatementVerifier::Run(
 		}
 		failed = true;
 	}
-	run(string(), std::move(dealloc_statement), parameters);
+	run(string(), std::move(dealloc_statement));
 	context.interrupted = false;
 
 	return failed;

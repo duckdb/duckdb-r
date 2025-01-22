@@ -1,5 +1,4 @@
 #include "duckdb/common/types/data_chunk.hpp"
-#include "duckdb/function/scalar/list_functions.hpp"
 #include "duckdb/function/scalar/nested_functions.hpp"
 #include "duckdb/planner/expression/bound_cast_expression.hpp"
 #include "duckdb/planner/expression_binder.hpp"
@@ -112,7 +111,7 @@ static void ListZipFunction(DataChunk &args, ExpressionState &state, Vector &res
 		offset += len;
 	}
 	for (idx_t child_idx = 0; child_idx < args_size; child_idx++) {
-		if (args.data[child_idx].GetType() != LogicalType::SQLNULL) {
+		if (!(args.data[child_idx].GetType() == LogicalType::SQLNULL)) {
 			struct_entries[child_idx]->Slice(ListVector::GetEntry(args.data[child_idx]), selections[child_idx],
 			                                 result_size);
 		}
@@ -132,9 +131,7 @@ static unique_ptr<FunctionData> ListZipBind(ClientContext &context, ScalarFuncti
 		throw BinderException("Provide at least one argument to " + bound_function.name);
 	}
 	if (arguments[size - 1]->return_type.id() == LogicalTypeId::BOOLEAN) {
-		if (--size == 0) {
-			throw BinderException("Provide at least one list argument to " + bound_function.name);
-		}
+		size--;
 	}
 
 	case_insensitive_set_t struct_names;
@@ -163,8 +160,11 @@ ScalarFunction ListZipFun::GetFunction() {
 
 	auto fun = ScalarFunction({}, LogicalType::LIST(LogicalTypeId::STRUCT), ListZipFunction, ListZipBind);
 	fun.varargs = LogicalType::ANY;
-	fun.null_handling = FunctionNullHandling::SPECIAL_HANDLING;
+	fun.null_handling = FunctionNullHandling::SPECIAL_HANDLING; // Special handling needed?
 	return fun;
 }
 
+void ListZipFun::RegisterFunction(BuiltinFunctions &set) {
+	set.AddFunction({"list_zip", "array_zip"}, GetFunction());
+}
 } // namespace duckdb

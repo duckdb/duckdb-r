@@ -43,12 +43,12 @@ MacroBindResult MacroFunction::BindMacroFunction(const vector<unique_ptr<MacroFu
                                                  unordered_map<string, unique_ptr<ParsedExpression>> &defaults) {
 	// separate positional and default arguments
 	for (auto &arg : function_expr.children) {
-		if (!arg->GetAlias().empty()) {
+		if (!arg->alias.empty()) {
 			// default argument
-			if (defaults.count(arg->GetAlias())) {
-				return MacroBindResult(StringUtil::Format("Duplicate default parameters %s!", arg->GetAlias()));
+			if (defaults.count(arg->alias)) {
+				return MacroBindResult(StringUtil::Format("Duplicate default parameters %s!", arg->alias));
 			}
-			defaults[arg->GetAlias()] = std::move(arg);
+			defaults[arg->alias] = std::move(arg);
 		} else if (!defaults.empty()) {
 			return MacroBindResult("Positional parameters cannot come after parameters with a default value!");
 		} else {

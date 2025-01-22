@@ -1,5 +1,4 @@
 #include "duckdb/catalog/catalog_entry/schema_catalog_entry.hpp"
-#include "duckdb/catalog/default/default_schemas.hpp"
 
 #include "duckdb/catalog/catalog.hpp"
 #include "duckdb/common/algorithm.hpp"
@@ -37,20 +36,6 @@ SimilarCatalogEntry SchemaCatalogEntry::GetSimilarEntry(CatalogTransaction trans
 			result.name = entry.name;
 		}
 	});
-	return result;
-}
-
-//! This should not be used, it's only implemented to not put the burden of implementing it on every derived class of
-//! SchemaCatalogEntry
-CatalogSet::EntryLookup SchemaCatalogEntry::GetEntryDetailed(CatalogTransaction transaction, CatalogType type,
-                                                             const string &name) {
-	CatalogSet::EntryLookup result;
-	result.result = GetEntry(transaction, type, name);
-	if (!result.result) {
-		result.reason = CatalogSet::EntryLookup::FailureReason::DELETED;
-	} else {
-		result.reason = CatalogSet::EntryLookup::FailureReason::SUCCESS;
-	}
 	return result;
 }
 

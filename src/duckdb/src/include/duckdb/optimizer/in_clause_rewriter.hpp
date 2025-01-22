@@ -9,8 +9,6 @@
 #pragma once
 
 #include "duckdb/planner/logical_operator_visitor.hpp"
-#include "duckdb/planner/logical_operator.hpp"
-#include "duckdb/common/optional_ptr.hpp"
 
 namespace duckdb {
 class ClientContext;
@@ -23,7 +21,6 @@ public:
 
 	ClientContext &context;
 	Optimizer &optimizer;
-	optional_ptr<LogicalOperator> current_op;
 	unique_ptr<LogicalOperator> root;
 
 public:

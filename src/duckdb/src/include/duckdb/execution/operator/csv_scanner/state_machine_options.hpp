@@ -15,13 +15,11 @@ namespace duckdb {
 //! Basically which char, quote and escape were used to generate it.
 struct CSVStateMachineOptions {
 	CSVStateMachineOptions() {};
-	CSVStateMachineOptions(string delimiter_p, char quote_p, char escape_p, char comment_p,
-	                       NewLineIdentifier new_line_p, bool rfc_4180_p)
-	    : delimiter(std::move(delimiter_p)), quote(quote_p), escape(escape_p), comment(comment_p), new_line(new_line_p),
-	      rfc_4180(rfc_4180_p) {};
+	CSVStateMachineOptions(char delimiter_p, char quote_p, char escape_p, char comment_p, NewLineIdentifier new_line_p)
+	    : delimiter(delimiter_p), quote(quote_p), escape(escape_p), comment(comment_p), new_line(new_line_p) {};
 
 	//! Delimiter to separate columns within each line
-	CSVOption<string> delimiter {","};
+	CSVOption<char> delimiter = ',';
 	//! Quote used for columns that contain reserved characters, e.g '
 	CSVOption<char> quote = '\"';
 	//! Escape character to escape quote character
@@ -30,12 +28,10 @@ struct CSVStateMachineOptions {
 	CSVOption<char> comment = '\0';
 	//! New Line separator
 	CSVOption<NewLineIdentifier> new_line = NewLineIdentifier::NOT_SET;
-	//! RFC 4180 conformance
-	CSVOption<bool> rfc_4180 = false;
 
 	bool operator==(const CSVStateMachineOptions &other) const {
 		return delimiter == other.delimiter && quote == other.quote && escape == other.escape &&
-		       new_line == other.new_line && comment == other.comment && rfc_4180 == other.rfc_4180;
+		       new_line == other.new_line && comment == other.comment;
 	}
 };
 } // namespace duckdb

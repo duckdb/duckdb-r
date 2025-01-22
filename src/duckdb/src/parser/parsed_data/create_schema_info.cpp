@@ -22,7 +22,7 @@ string CreateSchemaInfo::ToString() const {
 		break;
 	}
 	case OnCreateConflict::IGNORE_ON_CONFLICT: {
-		ret += "CREATE SCHEMA IF NOT EXISTS " + qualified + ";";
+		ret += "CREATE SCHEMA " + qualified + " IF NOT EXISTS;";
 		break;
 	}
 	case OnCreateConflict::REPLACE_ON_CONFLICT: {

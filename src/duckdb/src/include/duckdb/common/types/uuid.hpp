@@ -13,7 +13,7 @@
 
 namespace duckdb {
 class ClientContext;
-class RandomEngine;
+struct RandomEngine;
 
 //! The UUID class contains static operations for the UUID type
 class UUID {
@@ -30,8 +30,6 @@ public:
 
 	//! Convert a uhugeint_t object to a uuid value
 	static hugeint_t FromUHugeint(uhugeint_t input);
-	//! Convert a uuid value to a uhugeint_t object
-	static uhugeint_t ToUHugeint(hugeint_t input);
 
 	//! Convert a hugeint object to a uuid style string
 	static hugeint_t GenerateRandomUUID(RandomEngine &engine);

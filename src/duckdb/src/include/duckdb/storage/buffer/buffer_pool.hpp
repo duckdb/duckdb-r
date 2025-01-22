@@ -82,21 +82,14 @@ protected:
 	idx_t PurgeAgedBlocks(uint32_t max_age_sec);
 	idx_t PurgeAgedBlocksInternal(EvictionQueue &queue, uint32_t max_age_sec, int64_t now, int64_t limit);
 	//! Garbage collect dead nodes in the eviction queue.
-	void PurgeQueue(const BlockHandle &handle);
+	void PurgeQueue(FileBufferType type);
 	//! Add a buffer handle to the eviction queue. Returns true, if the queue is
 	//! ready to be purged, and false otherwise.
 	bool AddToEvictionQueue(shared_ptr<BlockHandle> &handle);
 	//! Gets the eviction queue for the specified type
-	EvictionQueue &GetEvictionQueueForBlockHandle(const BlockHandle &handle);
+	EvictionQueue &GetEvictionQueueForType(FileBufferType type);
 	//! Increments the dead nodes for the queue with specified type
-	void IncrementDeadNodes(const BlockHandle &handle);
-
-	//! How many eviction queues we have for the different FileBufferTypes
-	static constexpr idx_t BLOCK_QUEUE_SIZE = 1;
-	static constexpr idx_t MANAGED_BUFFER_QUEUE_SIZE = 6;
-	static constexpr idx_t TINY_BUFFER_QUEUE_SIZE = 1;
-	//! Mapping and priority order for the eviction queues
-	const array<idx_t, FILE_BUFFER_TYPE_COUNT> eviction_queue_sizes;
+	void IncrementDeadNodes(FileBufferType type);
 
 protected:
 	enum class MemoryUsageCaches {

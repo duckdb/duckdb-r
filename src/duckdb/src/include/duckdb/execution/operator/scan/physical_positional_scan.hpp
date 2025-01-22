@@ -30,7 +30,6 @@ public:
 
 public:
 	bool Equals(const PhysicalOperator &other) const override;
-	vector<const_reference<PhysicalOperator>> GetChildren() const override;
 
 public:
 	unique_ptr<LocalSourceState> GetLocalSourceState(ExecutionContext &context,
@@ -38,7 +37,7 @@ public:
 	unique_ptr<GlobalSourceState> GetGlobalSourceState(ClientContext &context) const override;
 	SourceResultType GetData(ExecutionContext &context, DataChunk &chunk, OperatorSourceInput &input) const override;
 
-	ProgressData GetProgress(ClientContext &context, GlobalSourceState &gstate) const override;
+	double GetProgress(ClientContext &context, GlobalSourceState &gstate) const override;
 
 	bool IsSource() const override {
 		return true;

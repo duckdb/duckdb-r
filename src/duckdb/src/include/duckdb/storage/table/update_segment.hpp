@@ -12,7 +12,6 @@
 #include "duckdb/storage/storage_lock.hpp"
 #include "duckdb/storage/statistics/segment_statistics.hpp"
 #include "duckdb/common/types/string_heap.hpp"
-#include "duckdb/transaction/undo_buffer_allocator.hpp"
 
 namespace duckdb {
 class ColumnData;
@@ -20,7 +19,6 @@ class DataTable;
 class Vector;
 struct UpdateInfo;
 struct UpdateNode;
-struct UndoBufferAllocator;
 
 class UpdateSegment {
 public:
@@ -53,7 +51,7 @@ public:
 
 private:
 	//! The lock for the update segment
-	mutable StorageLock lock;
+	StorageLock lock;
 	//! The root node (if any)
 	unique_ptr<UpdateNode> root;
 	//! Update statistics
@@ -66,16 +64,16 @@ private:
 	StringHeap heap;
 
 public:
-	typedef void (*initialize_update_function_t)(UpdateInfo &base_info, Vector &base_data, UpdateInfo &update_info,
+	typedef void (*initialize_update_function_t)(UpdateInfo *base_info, Vector &base_data, UpdateInfo *update_info,
 	                                             Vector &update, const SelectionVector &sel);
-	typedef void (*merge_update_function_t)(UpdateInfo &base_info, Vector &base_data, UpdateInfo &update_info,
+	typedef void (*merge_update_function_t)(UpdateInfo *base_info, Vector &base_data, UpdateInfo *update_info,
 	                                        Vector &update, row_t *ids, idx_t count, const SelectionVector &sel);
-	typedef void (*fetch_update_function_t)(transaction_t start_time, transaction_t transaction_id, UpdateInfo &info,
+	typedef void (*fetch_update_function_t)(transaction_t start_time, transaction_t transaction_id, UpdateInfo *info,
 	                                        Vector &result);
-	typedef void (*fetch_committed_function_t)(UpdateInfo &info, Vector &result);
-	typedef void (*fetch_committed_range_function_t)(UpdateInfo &info, idx_t start, idx_t end, idx_t result_offset,
+	typedef void (*fetch_committed_function_t)(UpdateInfo *info, Vector &result);
+	typedef void (*fetch_committed_range_function_t)(UpdateInfo *info, idx_t start, idx_t end, idx_t result_offset,
 	                                                 Vector &result);
-	typedef void (*fetch_row_function_t)(transaction_t start_time, transaction_t transaction_id, UpdateInfo &info,
+	typedef void (*fetch_row_function_t)(transaction_t start_time, transaction_t transaction_id, UpdateInfo *info,
 	                                     idx_t row_idx, Vector &result, idx_t result_idx);
 	typedef void (*rollback_update_function_t)(UpdateInfo &base_info, UpdateInfo &rollback_info);
 	typedef idx_t (*statistics_update_function_t)(UpdateSegment *segment, SegmentStatistics &stats, Vector &update,
@@ -92,18 +90,18 @@ private:
 	statistics_update_function_t statistics_update_function;
 
 private:
-	UndoBufferPointer GetUpdateNode(idx_t vector_idx) const;
-	void InitializeUpdateInfo(idx_t vector_idx);
 	void InitializeUpdateInfo(UpdateInfo &info, row_t *ids, const SelectionVector &sel, idx_t count, idx_t vector_index,
 	                          idx_t vector_offset);
 };
 
-struct UpdateNode {
-	explicit UpdateNode(BufferManager &manager);
-	~UpdateNode();
+struct UpdateNodeData {
+	unique_ptr<UpdateInfo> info;
+	unsafe_unique_array<sel_t> tuples;
+	unsafe_unique_array<data_t> tuple_data;
+};
 
-	UndoBufferAllocator allocator;
-	vector<UndoBufferPointer> info;
+struct UpdateNode {
+	unique_ptr<UpdateNodeData> info[Storage::ROW_GROUP_VECTOR_COUNT];
 };
 
 } // namespace duckdb

@@ -134,8 +134,14 @@ void Prefix::Concat(ART &art, Node &parent, uint8_t byte, const GateStatus old_s
 
 	if (status == GateStatus::GATE_SET && child.GetType() == NType::LEAF_INLINED) {
 		auto row_id = child.GetRowId();
-		Free(art, parent);
-		Leaf::New(parent, row_id);
+		if (parent.GetType() == PREFIX) {
+			auto parent_status = parent.GetGateStatus();
+			Free(art, parent);
+			Leaf::New(parent, row_id);
+			parent.SetGateStatus(parent_status);
+		} else {
+			Leaf::New(parent, row_id);
+		}
 		return;
 	}
 
@@ -291,8 +297,8 @@ GateStatus Prefix::Split(ART &art, reference<Node> &node, Node &child, const uin
 	return GateStatus::GATE_NOT_SET;
 }
 
-ARTConflictType Prefix::Insert(ART &art, Node &node, const ARTKey &key, idx_t depth, const ARTKey &row_id,
-                               const GateStatus status, optional_ptr<ART> delete_art) {
+bool Prefix::Insert(ART &art, Node &node, const ARTKey &key, idx_t depth, const ARTKey &row_id,
+                    const GateStatus status) {
 	reference<Node> next(node);
 	auto pos = TraverseMutable(art, next, key, depth);
 
@@ -301,7 +307,7 @@ ARTConflictType Prefix::Insert(ART &art, Node &node, const ARTKey &key, idx_t de
 	// (2) we reach a gate.
 	if (pos == DConstants::INVALID_INDEX) {
 		if (next.get().GetType() != NType::PREFIX || next.get().GetGateStatus() == GateStatus::GATE_SET) {
-			return art.Insert(next, key, depth, row_id, status, delete_art);
+			return art.Insert(next, key, depth, row_id, status);
 		}
 	}
 
@@ -319,7 +325,7 @@ ARTConflictType Prefix::Insert(ART &art, Node &node, const ARTKey &key, idx_t de
 		Node new_row_id;
 		Leaf::New(new_row_id, key.GetRowId());
 		Node::InsertChild(art, next, key[depth], new_row_id);
-		return ARTConflictType::NO_CONFLICT;
+		return true;
 	}
 
 	Node leaf;
@@ -332,7 +338,7 @@ ARTConflictType Prefix::Insert(ART &art, Node &node, const ARTKey &key, idx_t de
 	// Create the inlined leaf.
 	Leaf::New(ref, row_id.GetRowId());
 	Node4::InsertChild(art, next, key[depth], leaf);
-	return ARTConflictType::NO_CONFLICT;
+	return true;
 }
 
 string Prefix::VerifyAndToString(ART &art, const Node &node, const bool only_verify) {

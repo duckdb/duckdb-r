@@ -18,8 +18,6 @@
 #include "duckdb/storage/table/segment_base.hpp"
 #include "duckdb/storage/block.hpp"
 #include "duckdb/common/enums/checkpoint_type.hpp"
-#include "duckdb/storage/storage_index.hpp"
-#include "duckdb/function/partition_stats.hpp"
 
 namespace duckdb {
 class AttachedDatabase;
@@ -125,7 +123,7 @@ public:
 	//! For a specific row, returns true if it should be used for the transaction and false otherwise.
 	bool Fetch(TransactionData transaction, idx_t row);
 	//! Fetch a specific row from the row_group and insert it into the result at the specified index
-	void FetchRow(TransactionData transaction, ColumnFetchState &state, const vector<StorageIndex> &column_ids,
+	void FetchRow(TransactionData transaction, ColumnFetchState &state, const vector<column_t> &column_ids,
 	              row_t row_id, DataChunk &result, idx_t result_idx);
 
 	//! Append count rows to the version info
@@ -164,7 +162,6 @@ public:
 	unique_ptr<BaseStatistics> GetStatistics(idx_t column_idx);
 
 	void GetColumnSegmentInfo(idx_t row_group_index, vector<ColumnSegmentInfo> &result);
-	PartitionStatistics GetPartitionStats() const;
 
 	idx_t GetAllocationSize() const {
 		return allocation_size;
@@ -181,8 +178,6 @@ public:
 	static void Serialize(RowGroupPointer &pointer, Serializer &serializer);
 	static RowGroupPointer Deserialize(Deserializer &deserializer);
 
-	idx_t GetRowGroupSize() const;
-
 private:
 	optional_ptr<RowVersionManager> GetVersionInfo();
 	shared_ptr<RowVersionManager> GetOrCreateVersionInfoPtr();
@@ -190,7 +185,6 @@ private:
 	void SetVersionInfo(shared_ptr<RowVersionManager> version);
 
 	ColumnData &GetColumn(storage_t c);
-	ColumnData &GetColumn(const StorageIndex &c);
 	idx_t GetColumnCount() const;
 	vector<shared_ptr<ColumnData>> &GetColumns();
 

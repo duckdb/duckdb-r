@@ -47,7 +47,6 @@ string CreateTableInfo::ToString() const {
 	ret += QualifierToString(temporary ? "" : catalog, schema, table);
 
 	if (query != nullptr) {
-		ret += TableCatalogEntry::ColumnNamesToSQL(columns);
 		ret += " AS " + query->ToString();
 	} else {
 		ret += TableCatalogEntry::ColumnsToSQL(columns, constraints) + ";";

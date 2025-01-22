@@ -10,7 +10,6 @@
 
 #include "duckdb/common/common.hpp"
 #include "duckdb/common/types/vector.hpp"
-#include "duckdb/common/extension_type_info.hpp"
 
 namespace duckdb {
 
@@ -31,18 +30,13 @@ enum class ExtraTypeInfoType : uint8_t {
 };
 
 struct ExtraTypeInfo {
-	ExtraTypeInfoType type;
-	string alias;
-	unique_ptr<ExtensionTypeInfo> extension_info;
-
 	explicit ExtraTypeInfo(ExtraTypeInfoType type);
 	explicit ExtraTypeInfo(ExtraTypeInfoType type, string alias);
 	virtual ~ExtraTypeInfo();
 
-protected:
-	// copy	constructor (protected)
-	ExtraTypeInfo(const ExtraTypeInfo &other);
-	ExtraTypeInfo &operator=(const ExtraTypeInfo &other);
+	ExtraTypeInfoType type;
+	string alias;
+	vector<Value> modifiers;
 
 public:
 	bool Equals(ExtraTypeInfo *other_p) const;

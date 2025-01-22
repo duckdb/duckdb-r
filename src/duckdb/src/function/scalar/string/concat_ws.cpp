@@ -130,7 +130,7 @@ static unique_ptr<FunctionData> BindConcatWSFunction(ClientContext &context, Sca
 	return nullptr;
 }
 
-ScalarFunction ConcatWsFun::GetFunction() {
+void ConcatWSFun::RegisterFunction(BuiltinFunctions &set) {
 	// concat_ws functions similarly to the concat function, except the result is NULL if the separator is NULL
 	// if the separator is not NULL, however, NULL values are counted as empty string
 	// there is one separate rule: there are no separators added between NULL values,
@@ -143,7 +143,7 @@ ScalarFunction ConcatWsFun::GetFunction() {
 	                                          LogicalType::VARCHAR, ConcatWSFunction, BindConcatWSFunction);
 	concat_ws.varargs = LogicalType::ANY;
 	concat_ws.null_handling = FunctionNullHandling::SPECIAL_HANDLING;
-	return ScalarFunction(concat_ws);
+	set.AddFunction(concat_ws);
 }
 
 } // namespace duckdb

@@ -2,7 +2,6 @@
 #include "duckdb/planner/expression/bound_default_expression.hpp"
 #include "duckdb/planner/expression/bound_parameter_expression.hpp"
 #include "duckdb/planner/expression/bound_constant_expression.hpp"
-#include "duckdb/planner/expression_iterator.hpp"
 #include "duckdb/function/cast_rules.hpp"
 #include "duckdb/function/cast/cast_function_set.hpp"
 #include "duckdb/main/config.hpp"
@@ -42,7 +41,7 @@ unique_ptr<Expression> AddCastExpressionInternal(unique_ptr<Expression> expr, co
 		}
 	}
 	auto result = make_uniq<BoundCastExpression>(std::move(expr), target_type, std::move(bound_cast), try_cast);
-	result->SetQueryLocation(result->child->GetQueryLocation());
+	result->query_location = result->child->query_location;
 	return std::move(result);
 }
 
@@ -50,7 +49,7 @@ unique_ptr<Expression> AddCastToTypeInternal(unique_ptr<Expression> expr, const 
                                              CastFunctionSet &cast_functions, GetCastFunctionInput &get_input,
                                              bool try_cast) {
 	D_ASSERT(expr);
-	if (expr->GetExpressionClass() == ExpressionClass::BOUND_PARAMETER) {
+	if (expr->expression_class == ExpressionClass::BOUND_PARAMETER) {
 		auto &parameter = expr->Cast<BoundParameterExpression>();
 		if (!target_type.IsValid()) {
 			// invalidate the parameter
@@ -79,7 +78,7 @@ unique_ptr<Expression> AddCastToTypeInternal(unique_ptr<Expression> expr, const 
 		parameter.parameter_data->return_type = LogicalType::INVALID;
 		parameter.return_type = target_type;
 		return expr;
-	} else if (expr->GetExpressionClass() == ExpressionClass::BOUND_DEFAULT) {
+	} else if (expr->expression_class == ExpressionClass::BOUND_DEFAULT) {
 		D_ASSERT(target_type.IsValid());
 		auto &def = expr->Cast<BoundDefaultExpression>();
 		def.return_type = target_type;
@@ -96,7 +95,7 @@ unique_ptr<Expression> BoundCastExpression::AddDefaultCastToType(unique_ptr<Expr
                                                                  const LogicalType &target_type, bool try_cast) {
 	CastFunctionSet default_set;
 	GetCastFunctionInput get_input;
-	get_input.query_location = expr->GetQueryLocation();
+	get_input.query_location = expr->query_location;
 	return AddCastToTypeInternal(std::move(expr), target_type, default_set, get_input, try_cast);
 }
 
@@ -104,7 +103,7 @@ unique_ptr<Expression> BoundCastExpression::AddCastToType(ClientContext &context
                                                           const LogicalType &target_type, bool try_cast) {
 	auto &cast_functions = DBConfig::GetConfig(context).GetCastFunctions();
 	GetCastFunctionInput get_input(context);
-	get_input.query_location = expr->GetQueryLocation();
+	get_input.query_location = expr->query_location;
 	return AddCastToTypeInternal(std::move(expr), target_type, cast_functions, get_input, try_cast);
 }
 
@@ -216,17 +215,6 @@ unique_ptr<Expression> BoundCastExpression::Copy() const {
 	auto copy = make_uniq<BoundCastExpression>(child->Copy(), return_type, bound_cast.Copy(), try_cast);
 	copy->CopyProperties(*this);
 	return std::move(copy);
-}
-
-bool BoundCastExpression::CanThrow() const {
-	const auto child_type = child->return_type;
-	if (return_type.id() != child_type.id() &&
-	    LogicalType::ForceMaxLogicalType(return_type, child_type) == child_type.id()) {
-		return true;
-	}
-	bool changes_type = false;
-	ExpressionIterator::EnumerateChildren(*this, [&](const Expression &child) { changes_type |= child.CanThrow(); });
-	return changes_type;
 }
 
 } // namespace duckdb

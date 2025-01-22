@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Meta Platforms, Inc. and affiliates.
+ * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -15,11 +15,10 @@
 /*-*******************************************************
  *  Dependencies
  *********************************************************/
-#include "zstd/common/zstd_deps.h"   /* size_t */
+#include <stddef.h>   /* size_t */
 #include "zstd.h"     /* ZSTD_DDict, and several public functions */
 
 namespace duckdb_zstd {
-
 /*-*******************************************************
  *  Interface
  *********************************************************/
@@ -40,6 +39,6 @@ size_t ZSTD_DDict_dictSize(const ZSTD_DDict* ddict);
 
 void ZSTD_copyDDictParameters(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict);
 
-} // namespace duckdb_zstd
+}
 
 #endif /* ZSTD_DDICT_H */

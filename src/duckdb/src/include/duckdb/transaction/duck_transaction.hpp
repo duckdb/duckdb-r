@@ -11,7 +11,6 @@
 #include "duckdb/transaction/transaction.hpp"
 #include "duckdb/common/reference_map.hpp"
 #include "duckdb/common/error_data.hpp"
-#include "duckdb/transaction/undo_buffer.hpp"
 
 namespace duckdb {
 class CheckpointLock;
@@ -59,7 +58,7 @@ public:
 	bool AutomaticCheckpoint(AttachedDatabase &db, const UndoBufferProperties &properties);
 
 	//! Rollback
-	ErrorData Rollback();
+	void Rollback() noexcept;
 	//! Cleanup the undo buffer
 	void Cleanup(transaction_t lowest_active_transaction);
 
@@ -70,7 +69,7 @@ public:
 	                idx_t base_row);
 	void PushSequenceUsage(SequenceCatalogEntry &entry, const SequenceData &data);
 	void PushAppend(DataTable &table, idx_t row_start, idx_t row_count);
-	UndoBufferReference CreateUpdateInfo(idx_t type_size, idx_t entries);
+	UpdateInfo *CreateUpdateInfo(idx_t type_size, idx_t entries);
 
 	bool IsDuckTransaction() const override {
 		return true;

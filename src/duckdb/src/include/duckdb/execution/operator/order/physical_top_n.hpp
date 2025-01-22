@@ -12,7 +12,6 @@
 #include "duckdb/planner/bound_query_node.hpp"
 
 namespace duckdb {
-struct DynamicFilterData;
 
 //! Represents a physical ordering of the data. Note that this will not change
 //! the data but only add a selection vector.
@@ -22,14 +21,11 @@ public:
 
 public:
 	PhysicalTopN(vector<LogicalType> types, vector<BoundOrderByNode> orders, idx_t limit, idx_t offset,
-	             shared_ptr<DynamicFilterData> dynamic_filter, idx_t estimated_cardinality);
-	~PhysicalTopN() override;
+	             idx_t estimated_cardinality);
 
 	vector<BoundOrderByNode> orders;
 	idx_t limit;
 	idx_t offset;
-	//! Dynamic table filter (if any)
-	shared_ptr<DynamicFilterData> dynamic_filter;
 
 public:
 	// Source interface

@@ -1,10 +1,9 @@
 #include "duckdb/optimizer/rule/arithmetic_simplification.hpp"
 
 #include "duckdb/common/exception.hpp"
-#include "duckdb/function/function_binder.hpp"
-#include "duckdb/optimizer/expression_rewriter.hpp"
 #include "duckdb/planner/expression/bound_constant_expression.hpp"
 #include "duckdb/planner/expression/bound_function_expression.hpp"
+#include "duckdb/optimizer/expression_rewriter.hpp"
 
 namespace duckdb {
 

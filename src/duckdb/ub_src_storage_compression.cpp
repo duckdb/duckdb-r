@@ -18,11 +18,7 @@
 
 #include "src/storage/compression/patas.cpp"
 
-#include "src/storage/compression/zstd.cpp"
-
 #include "src/storage/compression/alprd.cpp"
 
 #include "src/storage/compression/fsst.cpp"
-
-#include "src/storage/compression/empty_validity.cpp"
 

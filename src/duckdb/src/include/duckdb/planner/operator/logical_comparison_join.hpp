@@ -70,8 +70,6 @@ public:
 	                                  const unordered_set<idx_t> &right_bindings,
 	                                  vector<unique_ptr<Expression>> &expressions, vector<JoinCondition> &conditions,
 	                                  vector<unique_ptr<Expression>> &arbitrary_expressions);
-
-	bool HasEquality(idx_t &range_count) const;
 };
 
 } // namespace duckdb

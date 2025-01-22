@@ -26,10 +26,6 @@ public:
 public:
 	vector<ColumnBinding> GetColumnBindings() override;
 
-	bool HasProjectionMap() const override {
-		return !projection_map.empty();
-	}
-
 	void Serialize(Serializer &serializer) const override;
 	static unique_ptr<LogicalOperator> Deserialize(Deserializer &deserializer);
 

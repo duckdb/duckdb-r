@@ -22,7 +22,7 @@ unique_ptr<CreateInfo> CreateTableFunctionInfo::Copy() const {
 	TableFunctionSet set(name);
 	set.functions = functions.functions;
 	auto result = make_uniq<CreateTableFunctionInfo>(std::move(set));
-	CopyFunctionProperties(*result);
+	CopyProperties(*result);
 	return std::move(result);
 }
 

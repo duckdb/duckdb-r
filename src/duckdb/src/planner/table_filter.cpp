@@ -7,8 +7,7 @@
 
 namespace duckdb {
 
-void TableFilterSet::PushFilter(const ColumnIndex &col_idx, unique_ptr<TableFilter> filter) {
-	auto column_index = col_idx.GetPrimaryIndex();
+void TableFilterSet::PushFilter(idx_t column_index, unique_ptr<TableFilter> filter) {
 	auto entry = filters.find(column_index);
 	if (entry == filters.end()) {
 		// no filter yet: push the filter directly
@@ -47,7 +46,7 @@ void DynamicTableFilterSet::PushFilter(const PhysicalOperator &op, idx_t column_
 	} else {
 		filter_ptr = entry->second.get();
 	}
-	filter_ptr->PushFilter(ColumnIndex(column_index), std::move(filter));
+	filter_ptr->PushFilter(column_index, std::move(filter));
 }
 
 bool DynamicTableFilterSet::HasFilters() const {
@@ -62,12 +61,16 @@ DynamicTableFilterSet::GetFinalTableFilters(const PhysicalTableScan &scan,
 	auto result = make_uniq<TableFilterSet>();
 	if (existing_filters) {
 		for (auto &entry : existing_filters->filters) {
-			result->PushFilter(ColumnIndex(entry.first), entry.second->Copy());
+			result->PushFilter(entry.first, entry.second->Copy());
 		}
 	}
 	for (auto &entry : filters) {
 		for (auto &filter : entry.second->filters) {
-			result->PushFilter(ColumnIndex(filter.first), filter.second->Copy());
+			if (IsRowIdColumnId(scan.column_ids[filter.first])) {
+				// skip row id filters
+				continue;
+			}
+			result->PushFilter(filter.first, filter.second->Copy());
 		}
 	}
 	if (result->filters.empty()) {

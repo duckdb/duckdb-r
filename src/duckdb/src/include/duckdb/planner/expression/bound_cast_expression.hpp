@@ -54,8 +54,6 @@ public:
 
 	unique_ptr<Expression> Copy() const override;
 
-	bool CanThrow() const override;
-
 	void Serialize(Serializer &serializer) const override;
 	static unique_ptr<Expression> Deserialize(Deserializer &deserializer);
 

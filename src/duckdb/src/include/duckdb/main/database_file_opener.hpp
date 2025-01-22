@@ -22,7 +22,7 @@ public:
 	}
 
 	SettingLookupResult TryGetCurrentSetting(const string &key, Value &result) override {
-		return db.TryGetCurrentSetting(key, result);
+		return SettingLookupResult();
 	}
 
 	optional_ptr<ClientContext> TryGetClientContext() override {

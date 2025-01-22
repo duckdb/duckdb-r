@@ -377,18 +377,18 @@ idx_t BitpackingFinalAnalyze(AnalyzeState &state) {
 template <class T, bool WRITE_STATISTICS, class T_S = typename MakeSigned<T>::type>
 struct BitpackingCompressState : public CompressionState {
 public:
-	explicit BitpackingCompressState(ColumnDataCheckpointData &checkpoint_data, const CompressionInfo &info)
-	    : CompressionState(info), checkpoint_data(checkpoint_data),
-	      function(checkpoint_data.GetCompressionFunction(CompressionType::COMPRESSION_BITPACKING)) {
-		CreateEmptySegment(checkpoint_data.GetRowGroup().start);
+	explicit BitpackingCompressState(ColumnDataCheckpointer &checkpointer, const CompressionInfo &info)
+	    : CompressionState(info), checkpointer(checkpointer),
+	      function(checkpointer.GetCompressionFunction(CompressionType::COMPRESSION_BITPACKING)) {
+		CreateEmptySegment(checkpointer.GetRowGroup().start);
 
 		state.data_ptr = reinterpret_cast<void *>(this);
 
-		auto &config = DBConfig::GetConfig(checkpoint_data.GetDatabase());
+		auto &config = DBConfig::GetConfig(checkpointer.GetDatabase());
 		state.mode = config.options.force_bitpacking_mode;
 	}
 
-	ColumnDataCheckpointData &checkpoint_data;
+	ColumnDataCheckpointer &checkpointer;
 	CompressionFunction &function;
 	unique_ptr<ColumnSegment> current_segment;
 	BufferHandle handle;
@@ -495,11 +495,12 @@ public:
 	}
 
 	void CreateEmptySegment(idx_t row_start) {
-		auto &db = checkpoint_data.GetDatabase();
-		auto &type = checkpoint_data.GetType();
+		auto &db = checkpointer.GetDatabase();
+		auto &type = checkpointer.GetType();
 
-		auto compressed_segment = ColumnSegment::CreateTransientSegment(db, function, type, row_start,
-		                                                                info.GetBlockSize(), info.GetBlockSize());
+		auto compressed_segment =
+		    ColumnSegment::CreateTransientSegment(db, type, row_start, info.GetBlockSize(), info.GetBlockSize());
+		compressed_segment->function = function;
 		current_segment = std::move(compressed_segment);
 
 		auto &buffer_manager = BufferManager::GetBufferManager(db);
@@ -528,7 +529,7 @@ public:
 	}
 
 	void FlushSegment() {
-		auto &state = checkpoint_data.GetCheckpointState();
+		auto &state = checkpointer.GetCheckpointState();
 		auto base_ptr = handle.Ptr();
 
 		// Compact the segment by moving the metadata next to the data.
@@ -551,8 +552,9 @@ public:
 
 		// Store the offset of the metadata of the first group (which is at the highest address).
 		Store<idx_t>(metadata_offset + metadata_size, base_ptr);
+		handle.Destroy();
 
-		state.FlushSegment(std::move(current_segment), std::move(handle), total_segment_size);
+		state.FlushSegment(std::move(current_segment), total_segment_size);
 	}
 
 	void Finalize() {
@@ -563,9 +565,9 @@ public:
 };
 
 template <class T, bool WRITE_STATISTICS>
-unique_ptr<CompressionState> BitpackingInitCompression(ColumnDataCheckpointData &checkpoint_data,
+unique_ptr<CompressionState> BitpackingInitCompression(ColumnDataCheckpointer &checkpointer,
                                                        unique_ptr<AnalyzeState> state) {
-	return make_uniq<BitpackingCompressState<T, WRITE_STATISTICS>>(checkpoint_data, state->info);
+	return make_uniq<BitpackingCompressState<T, WRITE_STATISTICS>>(checkpointer, state->info);
 }
 
 template <class T, bool WRITE_STATISTICS>

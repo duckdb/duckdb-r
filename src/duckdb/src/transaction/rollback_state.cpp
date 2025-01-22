@@ -13,13 +13,10 @@
 
 namespace duckdb {
 
-RollbackState::RollbackState(DuckTransaction &transaction_p) : transaction(transaction_p) {
-}
-
 void RollbackState::RollbackEntry(UndoFlags type, data_ptr_t data) {
 	switch (type) {
 	case UndoFlags::CATALOG_ENTRY: {
-		// Load and undo the catalog entry.
+		// undo this catalog entry
 		auto catalog_entry = Load<CatalogEntry *>(data);
 		D_ASSERT(catalog_entry->set);
 		catalog_entry->set->Undo(*catalog_entry);
@@ -28,7 +25,7 @@ void RollbackState::RollbackEntry(UndoFlags type, data_ptr_t data) {
 	case UndoFlags::INSERT_TUPLE: {
 		auto info = reinterpret_cast<AppendInfo *>(data);
 		// revert the append in the base table
-		info->table->RevertAppend(transaction, info->start_row, info->count);
+		info->table->RevertAppend(info->start_row, info->count);
 		break;
 	}
 	case UndoFlags::DELETE_TUPLE: {

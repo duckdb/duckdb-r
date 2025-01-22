@@ -1,11 +1,10 @@
-#include "duckdb/function/scalar/string_common.hpp"
 #include "duckdb/function/scalar/string_functions.hpp"
 
 #include "utf8proc.hpp"
 
 namespace duckdb {
 
-bool IsAscii(const char *input, idx_t n) {
+bool StripAccentsFun::IsAscii(const char *input, idx_t n) {
 	for (idx_t i = 0; i < n; i++) {
 		if (input[i] & 0x80) {
 			// non-ascii character
@@ -18,7 +17,7 @@ bool IsAscii(const char *input, idx_t n) {
 struct StripAccentsOperator {
 	template <class INPUT_TYPE, class RESULT_TYPE>
 	static RESULT_TYPE Operation(INPUT_TYPE input, Vector &result) {
-		if (IsAscii(input.GetData(), input.GetSize())) {
+		if (StripAccentsFun::IsAscii(input.GetData(), input.GetSize())) {
 			return input;
 		}
 
@@ -40,6 +39,10 @@ static void StripAccentsFunction(DataChunk &args, ExpressionState &state, Vector
 
 ScalarFunction StripAccentsFun::GetFunction() {
 	return ScalarFunction("strip_accents", {LogicalType::VARCHAR}, LogicalType::VARCHAR, StripAccentsFunction);
+}
+
+void StripAccentsFun::RegisterFunction(BuiltinFunctions &set) {
+	set.AddFunction(StripAccentsFun::GetFunction());
 }
 
 } // namespace duckdb

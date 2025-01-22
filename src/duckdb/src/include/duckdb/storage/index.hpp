@@ -59,8 +59,9 @@ public:
 
 	//! Returns unique flag
 	bool IsUnique() const {
-		auto type = GetConstraintType();
-		return type == IndexConstraintType::UNIQUE || type == IndexConstraintType::PRIMARY;
+		auto index_constraint_type = GetConstraintType();
+		return (index_constraint_type == IndexConstraintType::UNIQUE ||
+		        index_constraint_type == IndexConstraintType::PRIMARY);
 	}
 
 	//! Returns primary key flag

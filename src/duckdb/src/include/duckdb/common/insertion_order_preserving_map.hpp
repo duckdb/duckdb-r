@@ -96,33 +96,23 @@ public:
 	}
 
 	void insert(const string &key, V &&value) { // NOLINT: match stl API
-		if (contains(key)) {
-			return;
-		}
 		map.emplace_back(key, std::move(value));
 		map_idx[key] = map.size() - 1;
 	}
 
 	void insert(const string &key, const V &value) { // NOLINT: match stl API
-		if (contains(key)) {
-			return;
-		}
 		map.emplace_back(key, value);
 		map_idx[key] = map.size() - 1;
 	}
 
 	void insert(pair<string, V> &&value) { // NOLINT: match stl API
-		auto &key = value.first;
-		if (contains(key)) {
-			return;
-		}
-		map_idx[key] = map.size();
+		map_idx[value.first] = map.size();
 		map.push_back(std::move(value));
 	}
 
 	void erase(typename VECTOR_TYPE::iterator it) { // NOLINT: match stl API
 		auto key = it->first;
-		auto idx = map_idx[key];
+		auto idx = map_idx[it->first];
 		map.erase(it);
 		map_idx.erase(key);
 		for (auto &kv : map_idx) {

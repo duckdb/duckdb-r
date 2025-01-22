@@ -40,4 +40,8 @@ ScalarFunction SuffixFun::GetFunction() {
 	                      ScalarFunction::BinaryFunction<string_t, string_t, bool, SuffixOperator>);
 }
 
+void SuffixFun::RegisterFunction(BuiltinFunctions &set) {
+	set.AddFunction({"suffix", "ends_with"}, GetFunction());
+}
+
 } // namespace duckdb

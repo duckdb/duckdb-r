@@ -4,7 +4,6 @@
 #include "duckdb/execution/expression_executor.hpp"
 #include "duckdb/function/function_binder.hpp"
 #include "duckdb/function/scalar/generic_functions.hpp"
-#include "duckdb/function/scalar/generic_common.hpp"
 #include "duckdb/main/config.hpp"
 #include "duckdb/parser/expression/constant_expression.hpp"
 #include "duckdb/parser/expression/function_expression.hpp"
@@ -21,31 +20,16 @@
 
 namespace duckdb {
 
-static bool IsFunctionallyDependent(const unique_ptr<Expression> &expr, const vector<unique_ptr<Expression>> &deps) {
-	//	Volatile expressions can't depend on anything else
-	if (expr->IsVolatile()) {
-		return false;
-	}
-	//	Constant expressions are always FD
-	if (expr->IsFoldable()) {
-		return true;
-	}
-	// If the expression matches ANY of the dependencies, then it is FD on them
-	for (const auto &dep : deps) {
-		// We don't need to check volatility of the dependencies because we checked it for the expression.
-		if (expr->Equals(*dep)) {
-			return true;
-		}
+static bool ExtractFunctionalDependencies(column_binding_set_t &deps, const unique_ptr<Expression> &expr) {
+	if (expr->type == ExpressionType::BOUND_COLUMN_REF) {
+		auto &colref = expr->Cast<BoundColumnRefExpression>();
+		deps.insert(colref.binding);
 	}
 
-	// The expression doesn't match any dependency, so check ALL children.
-	bool has_children = false;
-	bool are_dependent = true;
-	ExpressionIterator::EnumerateChildren(*expr, [&](unique_ptr<Expression> &child) {
-		has_children = true;
-		are_dependent &= IsFunctionallyDependent(child, deps);
-	});
-	return has_children && are_dependent;
+	bool is_volatile = expr->IsVolatile();
+	ExpressionIterator::EnumerateChildren(
+	    *expr, [&](unique_ptr<Expression> &child) { is_volatile |= ExtractFunctionalDependencies(deps, child); });
+	return is_volatile;
 }
 
 static Value NegatePercentileValue(const Value &v, const bool desc) {
@@ -90,7 +74,7 @@ static Value NegatePercentileValue(const Value &v, const bool desc) {
 
 static void NegatePercentileFractions(ClientContext &context, unique_ptr<ParsedExpression> &fractions, bool desc) {
 	D_ASSERT(fractions.get());
-	D_ASSERT(fractions->GetExpressionClass() == ExpressionClass::BOUND_EXPRESSION);
+	D_ASSERT(fractions->expression_class == ExpressionClass::BOUND_EXPRESSION);
 	auto &bound = BoundExpression::GetExpression(*fractions);
 
 	if (!bound->IsFoldable()) {
@@ -157,7 +141,7 @@ BindResult BaseSelectBinder::BindAggregate(FunctionExpression &aggr, AggregateFu
 	// Bind the ORDER BYs, if any
 	if (aggr.order_bys && !aggr.order_bys->orders.empty()) {
 		for (auto &order : aggr.order_bys->orders) {
-			if (order.expression->GetExpressionType() == ExpressionType::VALUE_CONSTANT) {
+			if (order.expression->type == ExpressionType::VALUE_CONSTANT) {
 				auto &const_expr = order.expression->Cast<ConstantExpression>();
 				if (!const_expr.value.type().IsIntegral()) {
 					auto &config = ClientConfig::GetConfig(context);
@@ -255,7 +239,7 @@ BindResult BaseSelectBinder::BindAggregate(FunctionExpression &aggr, AggregateFu
 	}
 
 	// bind the aggregate
-	FunctionBinder function_binder(binder);
+	FunctionBinder function_binder(context);
 	auto best_function = function_binder.BindFunction(func.name, func.functions, types, error);
 	if (!best_function.IsValid()) {
 		error.AddQueryLocation(aggr);
@@ -280,9 +264,26 @@ BindResult BaseSelectBinder::BindAggregate(FunctionExpression &aggr, AggregateFu
 
 	// If the aggregate is DISTINCT then the ORDER BYs need to be functional dependencies of the arguments.
 	if (aggr.distinct && order_bys) {
-		bool in_args = true;
+		column_binding_set_t child_dependencies;
+		bool children_volatile = false;
+		for (const auto &child : children) {
+			children_volatile |= ExtractFunctionalDependencies(child_dependencies, child);
+		}
+
+		column_binding_set_t order_dependencies;
+		bool order_volatile = false;
 		for (const auto &order_by : order_bys->orders) {
-			in_args &= IsFunctionallyDependent(order_by.expression, children);
+			order_volatile |= ExtractFunctionalDependencies(order_dependencies, order_by.expression);
+		}
+
+		bool in_args = !children_volatile && !order_volatile;
+		if (in_args) {
+			for (const auto &binding : order_dependencies) {
+				if (!child_dependencies.count(binding)) {
+					in_args = false;
+					break;
+				}
+			}
 		}
 
 		if (!in_args) {
@@ -313,7 +314,7 @@ BindResult BaseSelectBinder::BindAggregate(FunctionExpression &aggr, AggregateFu
 
 	// now create a column reference referring to the aggregate
 	auto colref = make_uniq<BoundColumnRefExpression>(
-	    aggr.GetAlias().empty() ? node.aggregates[aggr_index]->ToString() : aggr.GetAlias(),
+	    aggr.alias.empty() ? node.aggregates[aggr_index]->ToString() : aggr.alias,
 	    node.aggregates[aggr_index]->return_type, ColumnBinding(node.aggregate_index, aggr_index), depth);
 	// move the aggregate expression into the set of bound aggregates
 	return BindResult(std::move(colref));

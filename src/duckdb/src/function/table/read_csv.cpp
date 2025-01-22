@@ -26,16 +26,14 @@
 #include "duckdb/execution/operator/csv_scanner/string_value_scanner.hpp"
 
 #include <limits>
-#include "duckdb/execution/operator/csv_scanner/csv_schema.hpp"
 
 namespace duckdb {
 
-unique_ptr<CSVFileHandle> ReadCSV::OpenCSV(const string &file_path, const CSVReaderOptions &options,
+unique_ptr<CSVFileHandle> ReadCSV::OpenCSV(const string &file_path, FileCompressionType compression,
                                            ClientContext &context) {
 	auto &fs = FileSystem::GetFileSystem(context);
 	auto &allocator = BufferAllocator::Get(context);
-	auto &db_config = DBConfig::GetConfig(context);
-	return CSVFileHandle::OpenFile(db_config, fs, allocator, file_path, options);
+	return CSVFileHandle::OpenFile(fs, allocator, file_path, compression);
 }
 
 ReadCSVData::ReadCSVData() {
@@ -45,113 +43,44 @@ void ReadCSVData::FinalizeRead(ClientContext &context) {
 	BaseCSVData::Finalize();
 }
 
-//! Function to do schema discovery over one CSV file or a list/glob of CSV files
-void SchemaDiscovery(ClientContext &context, ReadCSVData &result, CSVReaderOptions &options,
-                     vector<LogicalType> &return_types, vector<string> &names, MultiFileList &multi_file_list) {
-	vector<CSVSchema> schemas;
-	const auto option_og = options;
-
-	const auto file_paths = multi_file_list.GetAllFiles();
-
-	// Here what we want to do is to sniff a given number of lines, if we have many files, we might go through them
-	// to reach the number of lines.
-	const idx_t required_number_of_lines = options.sniff_size * options.sample_size_chunks;
-
-	idx_t total_number_of_rows = 0;
-	idx_t current_file = 0;
-	options.file_path = file_paths[current_file];
-
-	result.buffer_manager = make_shared_ptr<CSVBufferManager>(context, options, options.file_path, 0, false);
-	{
-		CSVSniffer sniffer(options, result.buffer_manager, CSVStateMachineCache::Get(context));
-		auto sniffer_result = sniffer.SniffCSV();
-		idx_t rows_read = sniffer.LinesSniffed() -
-		                  (options.dialect_options.skip_rows.GetValue() + options.dialect_options.header.GetValue());
-
-		schemas.emplace_back(sniffer_result.names, sniffer_result.return_types, file_paths[0], rows_read,
-		                     result.buffer_manager->GetBuffer(0)->actual_size == 0);
-		total_number_of_rows += sniffer.LinesSniffed();
-	}
-
-	// We do a copy of the options to not pollute the options of the first file.
-	constexpr idx_t max_files_to_sniff = 10;
-	idx_t files_to_sniff = file_paths.size() > max_files_to_sniff ? max_files_to_sniff : file_paths.size();
-	while (total_number_of_rows < required_number_of_lines && current_file + 1 < files_to_sniff) {
-		auto option_copy = option_og;
-		current_file++;
-		option_copy.file_path = file_paths[current_file];
-		auto buffer_manager =
-		    make_shared_ptr<CSVBufferManager>(context, option_copy, option_copy.file_path, current_file, false);
-		// TODO: We could cache the sniffer to be reused during scanning. Currently that's an exercise left to the
-		// reader
-		CSVSniffer sniffer(option_copy, buffer_manager, CSVStateMachineCache::Get(context));
-		auto sniffer_result = sniffer.SniffCSV();
-		idx_t rows_read = sniffer.LinesSniffed() - (option_copy.dialect_options.skip_rows.GetValue() +
-		                                            option_copy.dialect_options.header.GetValue());
-		if (buffer_manager->GetBuffer(0)->actual_size == 0) {
-			schemas.emplace_back(true);
-		} else {
-			schemas.emplace_back(sniffer_result.names, sniffer_result.return_types, option_copy.file_path, rows_read);
-		}
-		total_number_of_rows += sniffer.LinesSniffed();
-	}
-
-	// We might now have multiple schemas, we need to go through them to define the one true schema
-	CSVSchema best_schema;
-	for (auto &schema : schemas) {
-		if (best_schema.Empty()) {
-			// A schema is bettah than no schema
-			best_schema = schema;
-		} else if (best_schema.GetRowsRead() == 0) {
-			// If the best-schema has no data-rows, that's easy, we just take the new schema
-			best_schema = schema;
-		} else if (schema.GetRowsRead() != 0) {
-			// We might have conflicting-schemas, we must merge them
-			best_schema.MergeSchemas(schema, options.null_padding);
-		}
-	}
-
-	if (names.empty()) {
-		names = best_schema.GetNames();
-		return_types = best_schema.GetTypes();
-	}
-	result.csv_types = return_types;
-	result.csv_names = names;
-}
-
 static unique_ptr<FunctionData> ReadCSVBind(ClientContext &context, TableFunctionBindInput &input,
                                             vector<LogicalType> &return_types, vector<string> &names) {
 
 	auto result = make_uniq<ReadCSVData>();
 	auto &options = result->options;
-	const auto multi_file_reader = MultiFileReader::Create(input.table_function);
-	const auto multi_file_list = multi_file_reader->CreateFileList(context, input.inputs[0]);
-	if (multi_file_list->GetTotalFileCount() > 1) {
-		options.multi_file_reader = true;
-	}
+	auto multi_file_reader = MultiFileReader::Create(input.table_function);
+	auto multi_file_list = multi_file_reader->CreateFileList(context, input.inputs[0]);
+
 	options.FromNamedParameters(input.named_parameters, context);
 
 	options.file_options.AutoDetectHivePartitioning(*multi_file_list, context);
 	options.Verify();
-	if (!options.file_options.union_by_name) {
-		if (options.auto_detect) {
-			SchemaDiscovery(context, *result, options, return_types, names, *multi_file_list);
+	if (!options.auto_detect) {
+		if (!options.columns_set) {
+			throw BinderException("read_csv requires columns to be specified through the 'columns' option. Use "
+			                      "read_csv_auto or set read_csv(..., "
+			                      "AUTO_DETECT=TRUE) to automatically guess columns.");
 		} else {
-			// If we are not running the sniffer, the columns must be set!
-			if (!options.columns_set) {
-				throw BinderException("read_csv requires columns to be specified through the 'columns' option. Use "
-				                      "read_csv_auto or set read_csv(..., "
-				                      "AUTO_DETECT=TRUE) to automatically guess columns.");
-			}
 			names = options.name_list;
 			return_types = options.sql_type_list;
 		}
-		D_ASSERT(return_types.size() == names.size());
-		result->options.dialect_options.num_cols = names.size();
+	}
+	if (options.auto_detect && !options.file_options.union_by_name) {
+		options.file_path = multi_file_list->GetFirstFile();
+		result->buffer_manager = make_shared_ptr<CSVBufferManager>(context, options, options.file_path, 0);
+		CSVSniffer sniffer(options, result->buffer_manager, CSVStateMachineCache::Get(context));
+		auto sniffer_result = sniffer.SniffCSV();
+		if (names.empty()) {
+			names = sniffer_result.names;
+			return_types = sniffer_result.return_types;
+		}
+		result->csv_types = return_types;
+		result->csv_names = names;
+	}
 
-		multi_file_reader->BindOptions(options.file_options, *multi_file_list, return_types, names,
-		                               result->reader_bind);
-	} else {
+	D_ASSERT(return_types.size() == names.size());
+	result->options.dialect_options.num_cols = names.size();
+	if (options.file_options.union_by_name) {
 		result->reader_bind = multi_file_reader->BindUnionReader<CSVFileScan>(context, return_types, names,
 		                                                                      *multi_file_list, *result, options);
 		if (result->union_readers.size() > 1) {
@@ -160,7 +89,7 @@ static unique_ptr<FunctionData> ReadCSVBind(ClientContext &context, TableFunctio
 			}
 		}
 		if (!options.sql_types_per_column.empty()) {
-			const auto exception = CSVError::ColumnTypesError(options.sql_types_per_column, names);
+			auto exception = CSVError::ColumnTypesError(options.sql_types_per_column, names);
 			if (!exception.error_message.empty()) {
 				throw BinderException(exception.error_message);
 			}
@@ -171,14 +100,18 @@ static unique_ptr<FunctionData> ReadCSVBind(ClientContext &context, TableFunctio
 				}
 			}
 		}
+		result->csv_types = return_types;
+		result->csv_names = names;
+	} else {
+		result->csv_types = return_types;
+		result->csv_names = names;
+		multi_file_reader->BindOptions(options.file_options, *multi_file_list, return_types, names,
+		                               result->reader_bind);
 	}
-
-	result->csv_types = return_types;
-	result->csv_names = names;
 	result->return_types = return_types;
 	result->return_names = names;
 	if (!options.force_not_null_names.empty()) {
-		// Let's first check all column names match
+		// Lets first check all column names match
 		duckdb::unordered_set<string> column_names;
 		for (auto &name : names) {
 			column_names.insert(name);
@@ -201,6 +134,7 @@ static unique_ptr<FunctionData> ReadCSVBind(ClientContext &context, TableFunctio
 
 	// TODO: make the CSV reader use MultiFileList throughout, instead of converting to vector<string>
 	result->files = multi_file_list->GetAllFiles();
+
 	result->Finalize();
 	return std::move(result);
 }
@@ -235,7 +169,7 @@ static unique_ptr<GlobalTableFunctionState> ReadCSVInitGlobal(ClientContext &con
 		return nullptr;
 	}
 	return make_uniq<CSVGlobalState>(context, bind_data.buffer_manager, bind_data.options,
-	                                 context.db->NumberOfThreads(), bind_data.files, input.column_indexes, bind_data);
+	                                 context.db->NumberOfThreads(), bind_data.files, input.column_ids, bind_data);
 }
 
 unique_ptr<LocalTableFunctionState> ReadCSVInitLocal(ExecutionContext &context, TableFunctionInitInput &input,
@@ -288,12 +222,10 @@ static void ReadCSVFunction(ClientContext &context, TableFunctionInput &data_p, 
 	} while (true);
 }
 
-static OperatorPartitionData CSVReaderGetPartitionData(ClientContext &context, TableFunctionGetPartitionInput &input) {
-	if (input.partition_info.RequiresPartitionColumns()) {
-		throw InternalException("CSVReader::GetPartitionData: partition columns not supported");
-	}
-	auto &data = input.local_state->Cast<CSVLocalState>();
-	return OperatorPartitionData(data.csv_reader->scanner_idx);
+static idx_t CSVReaderGetBatchIndex(ClientContext &context, const FunctionData *bind_data_p,
+                                    LocalTableFunctionState *local_state, GlobalTableFunctionState *global_state) {
+	auto &data = local_state->Cast<CSVLocalState>();
+	return data.csv_reader->scanner_idx;
 }
 
 void ReadCSVTableFunction::ReadCSVAddNamedParameters(TableFunction &table_function) {
@@ -333,8 +265,6 @@ void ReadCSVTableFunction::ReadCSVAddNamedParameters(TableFunction &table_functi
 	table_function.named_parameters["names"] = LogicalType::LIST(LogicalType::VARCHAR);
 	table_function.named_parameters["column_names"] = LogicalType::LIST(LogicalType::VARCHAR);
 	table_function.named_parameters["comment"] = LogicalType::VARCHAR;
-	table_function.named_parameters["encoding"] = LogicalType::VARCHAR;
-	table_function.named_parameters["rfc_4180"] = LogicalType::BOOLEAN;
 
 	MultiFileReader::AddParameters(table_function);
 }
@@ -366,11 +296,13 @@ void CSVComplexFilterPushdown(ClientContext &context, LogicalGet &get, FunctionD
 
 unique_ptr<NodeStatistics> CSVReaderCardinality(ClientContext &context, const FunctionData *bind_data_p) {
 	auto &bind_data = bind_data_p->Cast<ReadCSVData>();
-	// determined through the scientific method as the average amount of rows in a CSV file
-	idx_t per_file_cardinality = 42;
+	idx_t per_file_cardinality = 0;
 	if (bind_data.buffer_manager && bind_data.buffer_manager->file_handle) {
 		auto estimated_row_width = (bind_data.csv_types.size() * 5);
 		per_file_cardinality = bind_data.buffer_manager->file_handle->FileSize() / estimated_row_width;
+	} else {
+		// determined through the scientific method as the average amount of rows in a CSV file
+		per_file_cardinality = 42;
 	}
 	return make_uniq<NodeStatistics>(bind_data.files.size() * per_file_cardinality);
 }
@@ -405,7 +337,7 @@ TableFunction ReadCSVTableFunction::GetFunction() {
 	read_csv.pushdown_complex_filter = CSVComplexFilterPushdown;
 	read_csv.serialize = CSVReaderSerialize;
 	read_csv.deserialize = CSVReaderDeserialize;
-	read_csv.get_partition_data = CSVReaderGetPartitionData;
+	read_csv.get_batch_index = CSVReaderGetBatchIndex;
 	read_csv.cardinality = CSVReaderCardinality;
 	read_csv.projection_pushdown = true;
 	read_csv.type_pushdown = PushdownTypeToCSVScanner;

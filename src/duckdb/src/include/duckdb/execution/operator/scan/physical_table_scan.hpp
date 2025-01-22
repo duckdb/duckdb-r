@@ -13,7 +13,6 @@
 #include "duckdb/planner/table_filter.hpp"
 #include "duckdb/storage/data_table.hpp"
 #include "duckdb/common/extra_operator_info.hpp"
-#include "duckdb/common/column_index.hpp"
 
 namespace duckdb {
 
@@ -25,7 +24,7 @@ public:
 public:
 	//! Table scan that immediately projects out filter columns that are unused in the remainder of the query plan
 	PhysicalTableScan(vector<LogicalType> types, TableFunction function, unique_ptr<FunctionData> bind_data,
-	                  vector<LogicalType> returned_types, vector<ColumnIndex> column_ids, vector<idx_t> projection_ids,
+	                  vector<LogicalType> returned_types, vector<column_t> column_ids, vector<idx_t> projection_ids,
 	                  vector<string> names, unique_ptr<TableFilterSet> table_filters, idx_t estimated_cardinality,
 	                  ExtraOperatorInfo extra_info, vector<Value> parameters);
 
@@ -36,15 +35,14 @@ public:
 	//! The types of ALL columns that can be returned by the table function
 	vector<LogicalType> returned_types;
 	//! The column ids used within the table function
-	vector<ColumnIndex> column_ids;
+	vector<column_t> column_ids;
 	//! The projected-out column ids
 	vector<idx_t> projection_ids;
 	//! The names of the columns
 	vector<string> names;
 	//! The table filters
 	unique_ptr<TableFilterSet> table_filters;
-	//! Currently stores info related to filters pushed down into MultiFileLists and sample rate pushed down into the
-	//! table scan
+	//! Currently stores info related to filters pushed down into MultiFileLists
 	ExtraOperatorInfo extra_info;
 	//! Parameters
 	vector<Value> parameters;
@@ -62,18 +60,19 @@ public:
 	                                                 GlobalSourceState &gstate) const override;
 	unique_ptr<GlobalSourceState> GetGlobalSourceState(ClientContext &context) const override;
 	SourceResultType GetData(ExecutionContext &context, DataChunk &chunk, OperatorSourceInput &input) const override;
-	OperatorPartitionData GetPartitionData(ExecutionContext &context, DataChunk &chunk, GlobalSourceState &gstate,
-	                                       LocalSourceState &lstate,
-	                                       const OperatorPartitionInfo &partition_info) const override;
+	idx_t GetBatchIndex(ExecutionContext &context, DataChunk &chunk, GlobalSourceState &gstate,
+	                    LocalSourceState &lstate) const override;
 
 	bool IsSource() const override {
 		return true;
 	}
 	bool ParallelSource() const override;
 
-	bool SupportsPartitioning(const OperatorPartitionInfo &partition_info) const override;
+	bool SupportsBatchIndex() const override {
+		return function.get_batch_index != nullptr;
+	}
 
-	ProgressData GetProgress(ClientContext &context, GlobalSourceState &gstate) const override;
+	double GetProgress(ClientContext &context, GlobalSourceState &gstate) const override;
 };
 
 } // namespace duckdb

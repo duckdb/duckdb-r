@@ -14,22 +14,22 @@
 
 namespace duckdb {
 
-unique_ptr<TableFilterSet> CreateTableFilterSet(TableFilterSet &table_filters, const vector<ColumnIndex> &column_ids) {
+unique_ptr<TableFilterSet> CreateTableFilterSet(TableFilterSet &table_filters, const vector<column_t> &column_ids) {
 	// create the table filter map
 	auto table_filter_set = make_uniq<TableFilterSet>();
 	for (auto &table_filter : table_filters.filters) {
 		// find the relative column index from the absolute column index into the table
-		optional_idx column_index;
+		idx_t column_index = DConstants::INVALID_INDEX;
 		for (idx_t i = 0; i < column_ids.size(); i++) {
-			if (table_filter.first == column_ids[i].GetPrimaryIndex()) {
+			if (table_filter.first == column_ids[i]) {
 				column_index = i;
 				break;
 			}
 		}
-		if (!column_index.IsValid()) {
+		if (column_index == DConstants::INVALID_INDEX) {
 			throw InternalException("Could not find column index for table filter");
 		}
-		table_filter_set->filters[column_index.GetIndex()] = std::move(table_filter.second);
+		table_filter_set->filters[column_index] = std::move(table_filter.second);
 	}
 	return table_filter_set;
 }
@@ -95,7 +95,7 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalGet &op) {
 		unique_ptr<Expression> unsupported_filter;
 		unordered_set<idx_t> to_remove;
 		for (auto &entry : table_filters->filters) {
-			auto column_id = column_ids[entry.first].GetPrimaryIndex();
+			auto column_id = column_ids[entry.first];
 			auto &type = op.returned_types[column_id];
 			if (!op.function.supports_pushdown_type(type)) {
 				idx_t column_id_filter = entry.first;
@@ -123,8 +123,7 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalGet &op) {
 		if (!select_list.empty()) {
 			vector<LogicalType> filter_types;
 			for (auto &c : projection_ids) {
-				auto column_id = column_ids[c].GetPrimaryIndex();
-				filter_types.push_back(op.returned_types[column_id]);
+				filter_types.push_back(op.returned_types[column_ids[c]]);
 			}
 			filter = make_uniq<PhysicalFilter>(filter_types, std::move(select_list), op.estimated_cardinality);
 		}
@@ -140,7 +139,7 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalGet &op) {
 		if (column_ids.size() == op.returned_types.size()) {
 			bool projection_necessary = false;
 			for (idx_t i = 0; i < column_ids.size(); i++) {
-				if (column_ids[i].GetPrimaryIndex() != i) {
+				if (column_ids[i] != i) {
 					projection_necessary = true;
 					break;
 				}
@@ -159,15 +158,13 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalGet &op) {
 		vector<LogicalType> types;
 		vector<unique_ptr<Expression>> expressions;
 		for (auto &column_id : column_ids) {
-			if (column_id.IsRowIdColumn()) {
-				types.emplace_back(op.GetRowIdType());
-				// Now how to make that a constant expression.
-				expressions.push_back(make_uniq<BoundConstantExpression>(Value(op.GetRowIdType())));
+			if (column_id == COLUMN_IDENTIFIER_ROW_ID) {
+				types.emplace_back(LogicalType::ROW_TYPE);
+				expressions.push_back(make_uniq<BoundConstantExpression>(Value::BIGINT(0)));
 			} else {
-				auto col_id = column_id.GetPrimaryIndex();
-				auto type = op.returned_types[col_id];
+				auto type = op.returned_types[column_id];
 				types.push_back(type);
-				expressions.push_back(make_uniq<BoundReferenceExpression>(type, col_id));
+				expressions.push_back(make_uniq<BoundReferenceExpression>(type, column_id));
 			}
 		}
 		unique_ptr<PhysicalProjection> projection =

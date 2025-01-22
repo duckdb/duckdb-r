@@ -32,7 +32,6 @@ public:
 	}
 	CSVOption(T value_p, bool set_by_user_p) : value(value_p), set_by_user(set_by_user_p) {
 	}
-
 	CSVOption() {};
 
 	//! Sets value.
@@ -78,7 +77,7 @@ public:
 		return value != other;
 	}
 	//! Returns CSV Option value
-	inline const T &GetValue() const {
+	inline const T GetValue() const {
 		return value;
 	}
 	bool IsSetByUser() const {

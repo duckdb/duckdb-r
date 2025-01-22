@@ -74,7 +74,6 @@ public:
 	};
 
 	AlterEntryData GetAlterEntryData() const;
-	bool IsAddPrimaryKey() const;
 
 protected:
 	explicit AlterInfo(AlterType type);

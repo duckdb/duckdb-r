@@ -14,11 +14,11 @@ ProjectionRelation::ProjectionRelation(shared_ptr<Relation> child_p,
 			throw ParserException("Aliases list length must match expression list length!");
 		}
 		for (idx_t i = 0; i < aliases.size(); i++) {
-			expressions[i]->SetAlias(aliases[i]);
+			expressions[i]->alias = aliases[i];
 		}
 	}
 	// bind the expressions
-	TryBindRelation(columns);
+	context.GetContext()->TryBindRelation(*this, this->columns);
 }
 
 unique_ptr<QueryNode> ProjectionRelation::GetQueryNode() {
@@ -60,7 +60,7 @@ string ProjectionRelation::ToString(idx_t depth) {
 		if (i != 0) {
 			str += ", ";
 		}
-		str += expressions[i]->ToString() + " as " + expressions[i]->GetAlias();
+		str += expressions[i]->ToString() + " as " + expressions[i]->alias;
 	}
 	str += "]\n";
 	return str + child->ToString(depth + 1);

@@ -80,10 +80,6 @@ public:
 		return true;
 	};
 
-	virtual bool HasProjectionMap() const {
-		return false;
-	}
-
 	//! Returns the set of table indexes of this operator
 	virtual vector<idx_t> GetTableIndex() const;
 

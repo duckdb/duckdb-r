@@ -15,7 +15,7 @@ PhysicalVacuum::PhysicalVacuum(unique_ptr<VacuumInfo> info_p, optional_ptr<Table
 
 class VacuumLocalSinkState : public LocalSinkState {
 public:
-	explicit VacuumLocalSinkState(VacuumInfo &info, optional_ptr<TableCatalogEntry> table) : hashes(LogicalType::HASH) {
+	explicit VacuumLocalSinkState(VacuumInfo &info, optional_ptr<TableCatalogEntry> table) {
 		for (const auto &column_name : info.columns) {
 			auto &column = table->GetColumn(column_name);
 			if (DistinctStatistics::TypeIsSupported(column.GetType())) {
@@ -27,7 +27,6 @@ public:
 	};
 
 	vector<unique_ptr<DistinctStatistics>> column_distinct_stats;
-	Vector hashes;
 };
 
 unique_ptr<LocalSinkState> PhysicalVacuum::GetLocalSinkState(ExecutionContext &context) const {
@@ -63,7 +62,7 @@ SinkResultType PhysicalVacuum::Sink(ExecutionContext &context, DataChunk &chunk,
 		if (!DistinctStatistics::TypeIsSupported(chunk.data[col_idx].GetType())) {
 			continue;
 		}
-		lstate.column_distinct_stats[col_idx]->Update(chunk.data[col_idx], chunk.size(), lstate.hashes);
+		lstate.column_distinct_stats[col_idx]->Update(chunk.data[col_idx], chunk.size(), false);
 	}
 
 	return SinkResultType::NEED_MORE_INPUT;

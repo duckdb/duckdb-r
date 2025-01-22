@@ -115,7 +115,7 @@ string FileSystem::GetEnvVariable(const string &name) {
 
 bool FileSystem::IsPathAbsolute(const string &path) {
 	auto path_separator = PathSeparator(path);
-	return PathMatched(path, path_separator) || StringUtil::StartsWith(path, "file:/");
+	return PathMatched(path, path_separator);
 }
 
 string FileSystem::PathSeparator(const string &path) {
@@ -237,11 +237,7 @@ string FileSystem::NormalizeAbsolutePath(const string &path) {
 }
 
 string FileSystem::PathSeparator(const string &path) {
-	if (StringUtil::StartsWith(path, "file:")) {
-		return "/";
-	} else {
-		return "\\";
-	}
+	return "\\";
 }
 
 void FileSystem::SetWorkingDirectory(const string &path) {
@@ -555,8 +551,7 @@ bool FileSystem::OnDiskFile(FileHandle &handle) {
 }
 // LCOV_EXCL_STOP
 
-FileHandle::FileHandle(FileSystem &file_system, string path_p, FileOpenFlags flags)
-    : file_system(file_system), path(std::move(path_p)), flags(flags) {
+FileHandle::FileHandle(FileSystem &file_system, string path_p) : file_system(file_system), path(std::move(path_p)) {
 }
 
 FileHandle::~FileHandle() {

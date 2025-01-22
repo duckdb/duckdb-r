@@ -4,8 +4,6 @@
 
 #include "src/transaction/meta_transaction.cpp"
 
-#include "src/transaction/undo_buffer_allocator.cpp"
-
 #include "src/transaction/undo_buffer.cpp"
 
 #include "src/transaction/transaction_context.cpp"

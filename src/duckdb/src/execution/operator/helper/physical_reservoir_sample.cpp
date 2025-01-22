@@ -15,14 +15,13 @@ public:
 			if (percentage == 0) {
 				return;
 			}
-			sample = make_uniq<ReservoirSamplePercentage>(allocator, percentage,
-			                                              static_cast<int64_t>(options.seed.GetIndex()));
+			sample = make_uniq<ReservoirSamplePercentage>(allocator, percentage, options.seed);
 		} else {
 			auto size = NumericCast<idx_t>(options.sample_size.GetValue<int64_t>());
 			if (size == 0) {
 				return;
 			}
-			sample = make_uniq<ReservoirSample>(allocator, size, static_cast<int64_t>(options.seed.GetIndex()));
+			sample = make_uniq<ReservoirSample>(allocator, size, options.seed);
 		}
 	}
 
@@ -50,15 +49,13 @@ SinkResultType PhysicalReservoirSample::Sink(ExecutionContext &context, DataChun
 			if (percentage == 0) {
 				return SinkResultType::FINISHED;
 			}
-			global_state.sample = make_uniq<ReservoirSamplePercentage>(allocator, percentage,
-			                                                           static_cast<int64_t>(options->seed.GetIndex()));
+			global_state.sample = make_uniq<ReservoirSamplePercentage>(allocator, percentage, options->seed);
 		} else {
 			idx_t num_samples = options->sample_size.GetValue<idx_t>();
 			if (num_samples == 0) {
 				return SinkResultType::FINISHED;
 			}
-			global_state.sample =
-			    make_uniq<ReservoirSample>(allocator, num_samples, static_cast<int64_t>(options->seed.GetIndex()));
+			global_state.sample = make_uniq<ReservoirSample>(allocator, num_samples, options->seed);
 		}
 	}
 	global_state.sample->AddToReservoir(chunk);

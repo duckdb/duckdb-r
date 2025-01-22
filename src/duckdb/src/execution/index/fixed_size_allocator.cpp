@@ -44,6 +44,7 @@ FixedSizeAllocator::FixedSizeAllocator(const idx_t segment_size, BlockManager &b
 }
 
 IndexPointer FixedSizeAllocator::New() {
+
 	// no more segments available
 	if (buffers_with_free_space.empty()) {
 
@@ -56,7 +57,7 @@ IndexPointer FixedSizeAllocator::New() {
 		// set the bitmask
 		D_ASSERT(buffers.find(buffer_id) != buffers.end());
 		auto &buffer = buffers.find(buffer_id)->second;
-		ValidityMask mask(reinterpret_cast<validity_t *>(buffer.Get()), available_segments_per_buffer);
+		ValidityMask mask(reinterpret_cast<validity_t *>(buffer.Get()));
 
 		// zero-initialize the bitmask to avoid leaking memory to disk
 		auto data = mask.GetData();
@@ -74,7 +75,7 @@ IndexPointer FixedSizeAllocator::New() {
 
 	D_ASSERT(buffers.find(buffer_id) != buffers.end());
 	auto &buffer = buffers.find(buffer_id)->second;
-	auto offset = buffer.GetOffset(bitmask_count, available_segments_per_buffer);
+	auto offset = buffer.GetOffset(bitmask_count);
 
 	total_segment_count++;
 	buffer.segment_count++;
@@ -99,7 +100,7 @@ void FixedSizeAllocator::Free(const IndexPointer ptr) {
 	auto &buffer = buffers.find(buffer_id)->second;
 
 	auto bitmask_ptr = reinterpret_cast<validity_t *>(buffer.Get());
-	ValidityMask mask(bitmask_ptr, offset + 1); // FIXME
+	ValidityMask mask(bitmask_ptr);
 	D_ASSERT(!mask.RowIsValid(offset));
 	mask.SetValid(offset);
 
@@ -288,6 +289,7 @@ vector<IndexBufferInfo> FixedSizeAllocator::InitSerializationToWAL() {
 }
 
 void FixedSizeAllocator::Init(const FixedSizeAllocatorInfo &info) {
+
 	segment_size = info.segment_size;
 	total_segment_count = 0;
 

@@ -102,7 +102,7 @@ bool FunctionExpression::IsLambdaFunction() const {
 	}
 	// Check the children for lambda expressions.
 	for (auto &child : children) {
-		if (child->GetExpressionClass() == ExpressionClass::LAMBDA) {
+		if (child->expression_class == ExpressionClass::LAMBDA) {
 			return true;
 		}
 	}

@@ -11,7 +11,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #endif
-#include "duckdb/common/stacktrace.hpp"
+#ifdef DUCKDB_DEBUG_STACKTRACE
+#include <execinfo.h>
+#endif
 
 namespace duckdb {
 
@@ -30,16 +32,13 @@ string Exception::ToJSON(ExceptionType type, const string &message) {
 }
 
 string Exception::ToJSON(ExceptionType type, const string &message, const unordered_map<string, string> &extra_info) {
-#ifndef DUCKDB_DEBUG_STACKTRACE
-	// by default we only enable stack traces for internal exceptions
-	if (type == ExceptionType::INTERNAL)
+#ifdef DUCKDB_DEBUG_STACKTRACE
+	auto extended_extra_info = extra_info;
+	extended_extra_info["stack_trace"] = Exception::GetStackTrace();
+	return StringUtil::ToJSONMap(type, message, extended_extra_info);
+#else
+	return StringUtil::ToJSONMap(type, message, extra_info);
 #endif
-	{
-		auto extended_extra_info = extra_info;
-		extended_extra_info["stack_trace_pointers"] = StackTrace::GetStacktracePointers();
-		return StringUtil::ExceptionToJSONMap(type, message, extended_extra_info);
-	}
-	return StringUtil::ExceptionToJSONMap(type, message, extra_info);
 }
 
 bool Exception::UncaughtException() {
@@ -66,6 +65,7 @@ bool Exception::InvalidatesTransaction(ExceptionType exception_type) {
 
 bool Exception::InvalidatesDatabase(ExceptionType exception_type) {
 	switch (exception_type) {
+	case ExceptionType::INTERNAL:
 	case ExceptionType::FATAL:
 		return true;
 	default:
@@ -73,8 +73,22 @@ bool Exception::InvalidatesDatabase(ExceptionType exception_type) {
 	}
 }
 
-string Exception::GetStackTrace(idx_t max_depth) {
-	return StackTrace::GetStackTrace(max_depth);
+string Exception::GetStackTrace(int max_depth) {
+#ifdef DUCKDB_DEBUG_STACKTRACE
+	string result;
+	auto callstack = unique_ptr<void *[]>(new void *[max_depth]);
+	int frames = backtrace(callstack.get(), max_depth);
+	char **strs = backtrace_symbols(callstack.get(), frames);
+	for (int i = 0; i < frames; i++) {
+		result += strs[i];
+		result += "\n";
+	}
+	free(strs);
+	return "\n" + result;
+#else
+	// Stack trace not available. Toggle DUCKDB_DEBUG_STACKTRACE in exception.cpp to enable stack traces.
+	return "";
+#endif
 }
 
 string Exception::ConstructMessageRecursive(const string &msg, std::vector<ExceptionFormatValue> &values) {
@@ -168,11 +182,11 @@ ExceptionType Exception::StringToExceptionType(const string &type) {
 }
 
 unordered_map<string, string> Exception::InitializeExtraInfo(const Expression &expr) {
-	return InitializeExtraInfo(expr.GetQueryLocation());
+	return InitializeExtraInfo(expr.query_location);
 }
 
 unordered_map<string, string> Exception::InitializeExtraInfo(const ParsedExpression &expr) {
-	return InitializeExtraInfo(expr.GetQueryLocation());
+	return InitializeExtraInfo(expr.query_location);
 }
 
 unordered_map<string, string> Exception::InitializeExtraInfo(const QueryErrorContext &error_context) {
@@ -319,7 +333,6 @@ FatalException::FatalException(ExceptionType type, const string &msg) : Exceptio
 InternalException::InternalException(const string &msg) : Exception(ExceptionType::INTERNAL, msg) {
 #ifdef DUCKDB_CRASH_ON_ASSERT
 	Printer::Print("ABORT THROWN BY INTERNAL EXCEPTION: " + msg);
-	Printer::Print(StackTrace::GetStackTrace());
 	abort();
 #endif
 }

@@ -16,8 +16,6 @@
 
 #include "src/parser/parser.cpp"
 
-#include "src/parser/qualified_name.cpp"
-
 #include "src/parser/query_error_context.cpp"
 
 #include "src/parser/query_node.cpp"

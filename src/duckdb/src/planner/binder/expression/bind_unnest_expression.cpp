@@ -21,12 +21,12 @@ unique_ptr<Expression> CreateBoundStructExtract(ClientContext &context, unique_p
 	vector<unique_ptr<Expression>> arguments;
 	arguments.push_back(std::move(expr));
 	arguments.push_back(make_uniq<BoundConstantExpression>(Value(key)));
-	auto extract_function = GetKeyExtractFunction();
+	auto extract_function = StructExtractFun::KeyExtractFunction();
 	auto bind_info = extract_function.bind(context, extract_function, arguments);
 	auto return_type = extract_function.return_type;
 	auto result = make_uniq<BoundFunctionExpression>(return_type, std::move(extract_function), std::move(arguments),
 	                                                 std::move(bind_info));
-	result->SetAlias(std::move(key));
+	result->alias = std::move(key);
 	return std::move(result);
 }
 
@@ -34,12 +34,12 @@ unique_ptr<Expression> CreateBoundStructExtractIndex(ClientContext &context, uni
 	vector<unique_ptr<Expression>> arguments;
 	arguments.push_back(std::move(expr));
 	arguments.push_back(make_uniq<BoundConstantExpression>(Value::BIGINT(int64_t(key))));
-	auto extract_function = GetIndexExtractFunction();
+	auto extract_function = StructExtractFun::IndexExtractFunction();
 	auto bind_info = extract_function.bind(context, extract_function, arguments);
 	auto return_type = extract_function.return_type;
 	auto result = make_uniq<BoundFunctionExpression>(return_type, std::move(extract_function), std::move(arguments),
 	                                                 std::move(bind_info));
-	result->SetAlias("element" + to_string(key));
+	result->alias = "element" + to_string(key);
 	return std::move(result);
 }
 
@@ -89,7 +89,7 @@ BindResult SelectBinder::BindUnnest(FunctionExpression &function, idx_t depth, b
 			if (!function.children[i]->IsScalar()) {
 				break;
 			}
-			auto alias = StringUtil::Lower(function.children[i]->GetAlias());
+			auto alias = StringUtil::Lower(function.children[i]->alias);
 			BindChild(function.children[i], depth, error);
 			if (error.HasError()) {
 				return BindResult(std::move(error));
@@ -187,7 +187,7 @@ BindResult SelectBinder::BindUnnest(FunctionExpression &function, idx_t depth, b
 		}
 		auto result = make_uniq<BoundUnnestExpression>(return_type);
 		result->child = std::move(unnest_expr);
-		auto alias = function.GetAlias().empty() ? result->ToString() : function.GetAlias();
+		auto alias = function.alias.empty() ? result->ToString() : function.alias;
 
 		auto current_level = unnest_level + list_unnests - current_depth - 1;
 		auto entry = node.unnests.find(current_level);

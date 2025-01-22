@@ -10,8 +10,6 @@
 
 #include "src/optimizer/rule/date_part_simplification.cpp"
 
-#include "src/optimizer/rule/distinct_aggregate_optimizer.cpp"
-
 #include "src/optimizer/rule/distributivity.cpp"
 
 #include "src/optimizer/rule/empty_needle_removal.cpp"

@@ -10,7 +10,7 @@ OrderRelation::OrderRelation(shared_ptr<Relation> child_p, vector<OrderByNode> o
     : Relation(child_p->context, RelationType::ORDER_RELATION), orders(std::move(orders)), child(std::move(child_p)) {
 	D_ASSERT(child.get() != this);
 	// bind the expressions
-	TryBindRelation(columns);
+	context.GetContext()->TryBindRelation(*this, this->columns);
 }
 
 unique_ptr<QueryNode> OrderRelation::GetQueryNode() {

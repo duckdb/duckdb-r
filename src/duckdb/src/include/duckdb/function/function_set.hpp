@@ -41,29 +41,23 @@ public:
 		D_ASSERT(offset < functions.size());
 		return functions[offset];
 	}
-	bool MergeFunctionSet(FunctionSet<T> new_functions, bool override = false) {
+	bool MergeFunctionSet(FunctionSet<T> new_functions) {
 		D_ASSERT(!new_functions.functions.empty());
+		bool need_rewrite_entry = false;
 		for (auto &new_func : new_functions.functions) {
-			bool overwritten = false;
+			bool can_add = true;
 			for (auto &func : functions) {
 				if (new_func.Equal(func)) {
-					// function overload already exists
-					if (override) {
-						// override it
-						overwritten = true;
-						func = new_func;
-					} else {
-						// throw an error
-						return false;
-					}
+					can_add = false;
 					break;
 				}
 			}
-			if (!overwritten) {
+			if (can_add) {
 				functions.push_back(new_func);
+				need_rewrite_entry = true;
 			}
 		}
-		return true;
+		return need_rewrite_entry;
 	}
 };
 

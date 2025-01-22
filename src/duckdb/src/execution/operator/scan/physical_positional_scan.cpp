@@ -119,7 +119,7 @@ public:
 		return source.ColumnCount();
 	}
 
-	ProgressData GetProgress(ClientContext &context) {
+	double GetProgress(ClientContext &context) {
 		return table.GetProgress(context, global_state);
 	}
 
@@ -179,16 +179,15 @@ SourceResultType PhysicalPositionalScan::GetData(ExecutionContext &context, Data
 	return SourceResultType::HAVE_MORE_OUTPUT;
 }
 
-ProgressData PhysicalPositionalScan::GetProgress(ClientContext &context, GlobalSourceState &gstate_p) const {
+double PhysicalPositionalScan::GetProgress(ClientContext &context, GlobalSourceState &gstate_p) const {
 	auto &gstate = gstate_p.Cast<PositionalScanGlobalSourceState>();
 
-	ProgressData res;
-
-	for (size_t t = 0; t < child_tables.size(); ++t) {
-		res.Add(child_tables[t]->GetProgress(context, *gstate.global_states[t]));
+	double result = child_tables[0]->GetProgress(context, *gstate.global_states[0]);
+	for (size_t t = 1; t < child_tables.size(); ++t) {
+		result = MinValue(result, child_tables[t]->GetProgress(context, *gstate.global_states[t]));
 	}
 
-	return res;
+	return result;
 }
 
 bool PhysicalPositionalScan::Equals(const PhysicalOperator &other_p) const {
@@ -207,14 +206,6 @@ bool PhysicalPositionalScan::Equals(const PhysicalOperator &other_p) const {
 	}
 
 	return true;
-}
-
-vector<const_reference<PhysicalOperator>> PhysicalPositionalScan::GetChildren() const {
-	auto result = PhysicalOperator::GetChildren();
-	for (auto &entry : child_tables) {
-		result.push_back(*entry);
-	}
-	return result;
 }
 
 } // namespace duckdb

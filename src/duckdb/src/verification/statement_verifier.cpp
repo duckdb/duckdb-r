@@ -14,41 +14,37 @@
 
 namespace duckdb {
 
-StatementVerifier::StatementVerifier(VerificationType type, string name, unique_ptr<SQLStatement> statement_p,
-                                     optional_ptr<case_insensitive_map_t<BoundParameterData>> parameters_p)
+StatementVerifier::StatementVerifier(VerificationType type, string name, unique_ptr<SQLStatement> statement_p)
     : type(type), name(std::move(name)),
-      statement(unique_ptr_cast<SQLStatement, SelectStatement>(std::move(statement_p))), parameters(parameters_p),
+      statement(unique_ptr_cast<SQLStatement, SelectStatement>(std::move(statement_p))),
       select_list(statement->node->GetSelectList()) {
 }
 
-StatementVerifier::StatementVerifier(unique_ptr<SQLStatement> statement_p,
-                                     optional_ptr<case_insensitive_map_t<BoundParameterData>> parameters)
-    : StatementVerifier(VerificationType::ORIGINAL, "Original", std::move(statement_p), parameters) {
+StatementVerifier::StatementVerifier(unique_ptr<SQLStatement> statement_p)
+    : StatementVerifier(VerificationType::ORIGINAL, "Original", std::move(statement_p)) {
 }
 
 StatementVerifier::~StatementVerifier() noexcept {
 }
 
-unique_ptr<StatementVerifier>
-StatementVerifier::Create(VerificationType type, const SQLStatement &statement_p,
-                          optional_ptr<case_insensitive_map_t<BoundParameterData>> parameters) {
+unique_ptr<StatementVerifier> StatementVerifier::Create(VerificationType type, const SQLStatement &statement_p) {
 	switch (type) {
 	case VerificationType::COPIED:
-		return CopiedStatementVerifier::Create(statement_p, parameters);
+		return CopiedStatementVerifier::Create(statement_p);
 	case VerificationType::DESERIALIZED:
-		return DeserializedStatementVerifier::Create(statement_p, parameters);
+		return DeserializedStatementVerifier::Create(statement_p);
 	case VerificationType::PARSED:
-		return ParsedStatementVerifier::Create(statement_p, parameters);
+		return ParsedStatementVerifier::Create(statement_p);
 	case VerificationType::UNOPTIMIZED:
-		return UnoptimizedStatementVerifier::Create(statement_p, parameters);
+		return UnoptimizedStatementVerifier::Create(statement_p);
 	case VerificationType::NO_OPERATOR_CACHING:
-		return NoOperatorCachingVerifier::Create(statement_p, parameters);
+		return NoOperatorCachingVerifier::Create(statement_p);
 	case VerificationType::PREPARED:
-		return PreparedStatementVerifier::Create(statement_p, parameters);
+		return PreparedStatementVerifier::Create(statement_p);
 	case VerificationType::EXTERNAL:
-		return ExternalStatementVerifier::Create(statement_p, parameters);
+		return ExternalStatementVerifier::Create(statement_p);
 	case VerificationType::FETCH_ROW_AS_SCAN:
-		return FetchRowVerifier::Create(statement_p, parameters);
+		return FetchRowVerifier::Create(statement_p);
 	case VerificationType::INVALID:
 	default:
 		throw InternalException("Invalid statement verification type!");
@@ -108,8 +104,7 @@ void StatementVerifier::CheckExpressions() const {
 
 bool StatementVerifier::Run(
     ClientContext &context, const string &query,
-    const std::function<unique_ptr<QueryResult>(const string &, unique_ptr<SQLStatement>,
-                                                optional_ptr<case_insensitive_map_t<BoundParameterData>>)> &run) {
+    const std::function<unique_ptr<QueryResult>(const string &, unique_ptr<SQLStatement>)> &run) {
 	bool failed = false;
 
 	context.interrupted = false;
@@ -118,7 +113,7 @@ bool StatementVerifier::Run(
 	context.config.force_external = ForceExternal();
 	context.config.force_fetch_row = ForceFetchRow();
 	try {
-		auto result = run(query, std::move(statement), parameters);
+		auto result = run(query, std::move(statement));
 		if (result->HasError()) {
 			failed = true;
 		}

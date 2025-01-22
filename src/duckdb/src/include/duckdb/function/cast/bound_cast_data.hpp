@@ -48,27 +48,21 @@ struct ListCast {
 };
 
 struct StructBoundCastData : public BoundCastData {
-	StructBoundCastData(vector<BoundCastInfo> child_casts, LogicalType target_p, vector<idx_t> source_indexes_p,
-	                    vector<idx_t> target_indexes_p, vector<idx_t> target_null_indexes_p)
+	StructBoundCastData(vector<BoundCastInfo> child_casts, LogicalType target_p, vector<idx_t> child_member_map_p)
 	    : child_cast_info(std::move(child_casts)), target(std::move(target_p)),
-	      source_indexes(std::move(source_indexes_p)), target_indexes(std::move(target_indexes_p)),
-	      target_null_indexes(std::move(target_null_indexes_p)) {
-		D_ASSERT(child_cast_info.size() == source_indexes.size());
-		D_ASSERT(source_indexes.size() == target_indexes.size());
+	      child_member_map(std::move(child_member_map_p)) {
+		D_ASSERT(child_cast_info.size() == child_member_map.size());
 	}
 	StructBoundCastData(vector<BoundCastInfo> child_casts, LogicalType target_p)
 	    : child_cast_info(std::move(child_casts)), target(std::move(target_p)) {
 		for (idx_t i = 0; i < child_cast_info.size(); i++) {
-			source_indexes.push_back(i);
-			target_indexes.push_back(i);
+			child_member_map.push_back(i);
 		}
 	}
 
 	vector<BoundCastInfo> child_cast_info;
 	LogicalType target;
-	vector<idx_t> source_indexes;
-	vector<idx_t> target_indexes;
-	vector<idx_t> target_null_indexes;
+	vector<idx_t> child_member_map;
 
 	static unique_ptr<BoundCastData> BindStructToStructCast(BindCastInput &input, const LogicalType &source,
 	                                                        const LogicalType &target);
@@ -80,8 +74,7 @@ public:
 		for (auto &info : child_cast_info) {
 			copy_info.push_back(info.Copy());
 		}
-		return make_uniq<StructBoundCastData>(std::move(copy_info), target, source_indexes, target_indexes,
-		                                      target_null_indexes);
+		return make_uniq<StructBoundCastData>(std::move(copy_info), target, child_member_map);
 	}
 };
 

@@ -43,12 +43,7 @@ string DeleteStatement::ToString() const {
 			if (i > 0) {
 				result += ", ";
 			}
-			auto column = returning_list[i]->ToString();
-			if (!returning_list[i]->GetAlias().empty()) {
-				column +=
-				    StringUtil::Format(" AS %s", KeywordHelper::WriteOptionallyQuoted(returning_list[i]->GetAlias()));
-			}
-			result += column;
+			result += returning_list[i]->ToString();
 		}
 	}
 	return result;

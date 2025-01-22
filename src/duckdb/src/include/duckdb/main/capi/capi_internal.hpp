@@ -16,7 +16,6 @@
 #include "duckdb/common/case_insensitive_map.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/planner/expression/bound_parameter_data.hpp"
-#include "duckdb/main/db_instance_cache.hpp"
 
 #include <cstring>
 #include <cassert>
@@ -29,12 +28,8 @@
 
 namespace duckdb {
 
-struct DBInstanceCacheWrapper {
-	unique_ptr<DBInstanceCache> instance_cache;
-};
-
-struct DatabaseWrapper {
-	shared_ptr<DuckDB> database;
+struct DatabaseData {
+	unique_ptr<DuckDB> database;
 };
 
 struct PreparedStatementWrapper {

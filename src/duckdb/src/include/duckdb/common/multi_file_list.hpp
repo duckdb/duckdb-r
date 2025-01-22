@@ -59,8 +59,7 @@ struct MultiFilePushdownInfo {
 
 	idx_t table_index;
 	const vector<string> &column_names;
-	vector<column_t> column_ids;
-	vector<ColumnIndex> column_indexes;
+	const vector<column_t> &column_ids;
 	ExtraOperatorInfo &extra_info;
 };
 

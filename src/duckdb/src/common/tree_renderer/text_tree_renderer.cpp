@@ -168,12 +168,13 @@ void TextTreeRenderer::RenderBoxContent(RenderTree &root, std::ostream &ss, idx_
 	for (idx_t x = 0; x < root.width; x++) {
 		auto node = root.GetNode(x, y);
 		if (node) {
-			SplitUpExtraInfo(node->extra_text, extra_info[x], config.max_extra_lines);
+			SplitUpExtraInfo(node->extra_text, extra_info[x]);
 			if (extra_info[x].size() > extra_height) {
 				extra_height = extra_info[x].size();
 			}
 		}
 	}
+	extra_height = MinValue<idx_t>(extra_height, config.max_extra_lines);
 	idx_t halfway_point = (extra_height + 1) / 2;
 	// now we render the actual node
 	for (idx_t render_y = 0; render_y <= extra_height; render_y++) {
@@ -404,8 +405,7 @@ void TextTreeRenderer::SplitStringBuffer(const string &source, vector<string> &r
 	}
 }
 
-void TextTreeRenderer::SplitUpExtraInfo(const InsertionOrderPreservingMap<string> &extra_info, vector<string> &result,
-                                        idx_t max_lines) {
+void TextTreeRenderer::SplitUpExtraInfo(const InsertionOrderPreservingMap<string> &extra_info, vector<string> &result) {
 	if (extra_info.empty()) {
 		return;
 	}
@@ -467,18 +467,6 @@ void TextTreeRenderer::SplitUpExtraInfo(const InsertionOrderPreservingMap<string
 			break;
 		}
 		auto splits = StringUtil::Split(str, "\n");
-		if (splits.size() > max_lines) {
-			// truncate this entry
-			vector<string> truncated_splits;
-			for (idx_t i = 0; i < max_lines / 2; i++) {
-				truncated_splits.push_back(std::move(splits[i]));
-			}
-			truncated_splits.push_back("...");
-			for (idx_t i = splits.size() - max_lines / 2; i < splits.size(); i++) {
-				truncated_splits.push_back(std::move(splits[i]));
-			}
-			splits = std::move(truncated_splits);
-		}
 		for (auto &split : splits) {
 			SplitStringBuffer(split, result);
 		}

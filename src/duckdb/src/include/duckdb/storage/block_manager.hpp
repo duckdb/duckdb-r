@@ -17,7 +17,6 @@
 
 namespace duckdb {
 class BlockHandle;
-class BufferHandle;
 class BufferManager;
 class ClientContext;
 class DatabaseInstance;
@@ -87,8 +86,6 @@ public:
 	//! Register a block with the given block id in the base file
 	shared_ptr<BlockHandle> RegisterBlock(block_id_t block_id);
 	//! Convert an existing in-memory buffer into a persistent disk-backed block
-	shared_ptr<BlockHandle> ConvertToPersistent(block_id_t block_id, shared_ptr<BlockHandle> old_block,
-	                                            BufferHandle old_handle);
 	shared_ptr<BlockHandle> ConvertToPersistent(block_id_t block_id, shared_ptr<BlockHandle> old_block);
 
 	void UnregisterBlock(BlockHandle &block);

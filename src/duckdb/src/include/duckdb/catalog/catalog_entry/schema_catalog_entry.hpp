@@ -85,8 +85,6 @@ public:
 
 	DUCKDB_API virtual optional_ptr<CatalogEntry> GetEntry(CatalogTransaction transaction, CatalogType type,
 	                                                       const string &name) = 0;
-	DUCKDB_API virtual CatalogSet::EntryLookup GetEntryDetailed(CatalogTransaction transaction, CatalogType type,
-	                                                            const string &name);
 	DUCKDB_API virtual SimilarCatalogEntry GetSimilarEntry(CatalogTransaction transaction, CatalogType type,
 	                                                       const string &name);
 

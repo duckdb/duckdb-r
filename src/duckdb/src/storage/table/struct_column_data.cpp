@@ -43,9 +43,6 @@ idx_t StructColumnData::GetMaxEntry() {
 void StructColumnData::InitializePrefetch(PrefetchState &prefetch_state, ColumnScanState &scan_state, idx_t rows) {
 	validity.InitializePrefetch(prefetch_state, scan_state.child_states[0], rows);
 	for (idx_t i = 0; i < sub_columns.size(); i++) {
-		if (!scan_state.scan_child_column[i]) {
-			continue;
-		}
 		sub_columns[i]->InitializePrefetch(prefetch_state, scan_state.child_states[i + 1], rows);
 	}
 }
@@ -60,9 +57,6 @@ void StructColumnData::InitializeScan(ColumnScanState &state) {
 
 	// initialize the sub-columns
 	for (idx_t i = 0; i < sub_columns.size(); i++) {
-		if (!state.scan_child_column[i]) {
-			continue;
-		}
 		sub_columns[i]->InitializeScan(state.child_states[i + 1]);
 	}
 }
@@ -77,9 +71,6 @@ void StructColumnData::InitializeScanWithOffset(ColumnScanState &state, idx_t ro
 
 	// initialize the sub-columns
 	for (idx_t i = 0; i < sub_columns.size(); i++) {
-		if (!state.scan_child_column[i]) {
-			continue;
-		}
 		sub_columns[i]->InitializeScanWithOffset(state.child_states[i + 1], row_idx);
 	}
 }
@@ -89,14 +80,7 @@ idx_t StructColumnData::Scan(TransactionData transaction, idx_t vector_index, Co
 	auto scan_count = validity.Scan(transaction, vector_index, state.child_states[0], result, target_count);
 	auto &child_entries = StructVector::GetEntries(result);
 	for (idx_t i = 0; i < sub_columns.size(); i++) {
-		auto &target_vector = *child_entries[i];
-		if (!state.scan_child_column[i]) {
-			// if we are not scanning this vector - set it to NULL
-			target_vector.SetVectorType(VectorType::CONSTANT_VECTOR);
-			ConstantVector::SetNull(target_vector, true);
-			continue;
-		}
-		sub_columns[i]->Scan(transaction, vector_index, state.child_states[i + 1], target_vector, target_count);
+		sub_columns[i]->Scan(transaction, vector_index, state.child_states[i + 1], *child_entries[i], target_count);
 	}
 	return scan_count;
 }
@@ -106,14 +90,7 @@ idx_t StructColumnData::ScanCommitted(idx_t vector_index, ColumnScanState &state
 	auto scan_count = validity.ScanCommitted(vector_index, state.child_states[0], result, allow_updates, target_count);
 	auto &child_entries = StructVector::GetEntries(result);
 	for (idx_t i = 0; i < sub_columns.size(); i++) {
-		auto &target_vector = *child_entries[i];
-		if (!state.scan_child_column[i]) {
-			// if we are not scanning this vector - set it to NULL
-			target_vector.SetVectorType(VectorType::CONSTANT_VECTOR);
-			ConstantVector::SetNull(target_vector, true);
-			continue;
-		}
-		sub_columns[i]->ScanCommitted(vector_index, state.child_states[i + 1], target_vector, allow_updates,
+		sub_columns[i]->ScanCommitted(vector_index, state.child_states[i + 1], *child_entries[i], allow_updates,
 		                              target_count);
 	}
 	return scan_count;
@@ -123,14 +100,7 @@ idx_t StructColumnData::ScanCount(ColumnScanState &state, Vector &result, idx_t 
 	auto scan_count = validity.ScanCount(state.child_states[0], result, count);
 	auto &child_entries = StructVector::GetEntries(result);
 	for (idx_t i = 0; i < sub_columns.size(); i++) {
-		auto &target_vector = *child_entries[i];
-		if (!state.scan_child_column[i]) {
-			// if we are not scanning this vector - set it to NULL
-			target_vector.SetVectorType(VectorType::CONSTANT_VECTOR);
-			ConstantVector::SetNull(target_vector, true);
-			continue;
-		}
-		sub_columns[i]->ScanCount(state.child_states[i + 1], target_vector, count);
+		sub_columns[i]->ScanCount(state.child_states[i + 1], *child_entries[i], count);
 	}
 	return scan_count;
 }
@@ -140,9 +110,6 @@ void StructColumnData::Skip(ColumnScanState &state, idx_t count) {
 
 	// skip inside the sub-columns
 	for (idx_t child_idx = 0; child_idx < sub_columns.size(); child_idx++) {
-		if (!state.scan_child_column[child_idx]) {
-			continue;
-		}
 		sub_columns[child_idx]->Skip(state.child_states[child_idx + 1], count);
 	}
 }
@@ -160,12 +127,7 @@ void StructColumnData::InitializeAppend(ColumnAppendState &state) {
 }
 
 void StructColumnData::Append(BaseStatistics &stats, ColumnAppendState &state, Vector &vector, idx_t count) {
-	if (vector.GetVectorType() != VectorType::FLAT_VECTOR) {
-		Vector append_vector(vector);
-		append_vector.Flatten(count);
-		Append(stats, state, append_vector, count);
-		return;
-	}
+	vector.Flatten(count);
 
 	// append the null values
 	validity.Append(stats, state.child_appends[0], vector, count);

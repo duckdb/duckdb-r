@@ -10,20 +10,16 @@
 
 #include "duckdb/common/common.hpp"
 #include "duckdb/common/enums/undo_flags.hpp"
-#include "duckdb/transaction/undo_buffer_allocator.hpp"
+#include "duckdb/storage/arena_allocator.hpp"
 
 namespace duckdb {
-class BufferManager;
-class DuckTransaction;
 class StorageCommitState;
 class WriteAheadLog;
-struct UndoBufferPointer;
 
 struct UndoBufferProperties {
 	idx_t estimated_size = 0;
 	bool has_updates = false;
 	bool has_deletes = false;
-	bool has_index_deletes = false;
 	bool has_catalog_changes = false;
 	bool has_dropped_entries = false;
 };
@@ -34,17 +30,17 @@ struct UndoBufferProperties {
 class UndoBuffer {
 public:
 	struct IteratorState {
-		BufferHandle handle;
-		optional_ptr<UndoBufferEntry> current;
+		ArenaChunk *current;
 		data_ptr_t start;
 		data_ptr_t end;
 	};
 
 public:
-	explicit UndoBuffer(DuckTransaction &transaction, ClientContext &context);
+	explicit UndoBuffer(ClientContext &context);
 
-	//! Write a specified entry to the undo buffer
-	UndoBufferReference CreateEntry(UndoFlags type, idx_t len);
+	//! Reserve space for an entry of the specified type and length in the undo
+	//! buffer
+	data_ptr_t CreateEntry(UndoFlags type, idx_t len);
 
 	bool ChangesMade();
 	UndoBufferProperties GetProperties();
@@ -59,11 +55,10 @@ public:
 	void RevertCommit(UndoBuffer::IteratorState &iterator_state, transaction_t transaction_id);
 	//! Rollback the changes made in this UndoBuffer: should be called on
 	//! rollback
-	void Rollback();
+	void Rollback() noexcept;
 
 private:
-	DuckTransaction &transaction;
-	UndoBufferAllocator allocator;
+	ArenaAllocator allocator;
 
 private:
 	template <class T>

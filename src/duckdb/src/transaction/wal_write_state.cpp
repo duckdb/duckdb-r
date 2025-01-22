@@ -22,9 +22,8 @@
 
 namespace duckdb {
 
-WALWriteState::WALWriteState(DuckTransaction &transaction_p, WriteAheadLog &log,
-                             optional_ptr<StorageCommitState> commit_state)
-    : transaction(transaction_p), log(log), commit_state(commit_state), current_table_info(nullptr) {
+WALWriteState::WALWriteState(WriteAheadLog &log, optional_ptr<StorageCommitState> commit_state)
+    : log(log), commit_state(commit_state), current_table_info(nullptr) {
 }
 
 void WALWriteState::SwitchTable(DataTableInfo *table_info, UndoFlags new_op) {
@@ -64,7 +63,7 @@ void WALWriteState::WriteCatalogEntry(CatalogEntry &entry, data_ptr_t dataptr) {
 			deserializer.End();
 
 			auto &alter_info = parse_info->Cast<AlterInfo>();
-			log.WriteAlter(entry, alter_info);
+			log.WriteAlter(alter_info);
 		} else {
 			switch (parent.type) {
 			case CatalogType::TABLE_ENTRY:
@@ -218,28 +217,27 @@ void WALWriteState::WriteUpdate(UpdateInfo &info) {
 	// write the row ids into the chunk
 	auto row_ids = FlatVector::GetData<row_t>(update_chunk->data[1]);
 	idx_t start = column_data.start + info.vector_index * STANDARD_VECTOR_SIZE;
-	auto tuples = info.GetTuples();
 	for (idx_t i = 0; i < info.N; i++) {
-		row_ids[tuples[i]] = UnsafeNumericCast<int64_t>(start + tuples[i]);
+		row_ids[info.tuples[i]] = UnsafeNumericCast<int64_t>(start + info.tuples[i]);
 	}
 	if (column_data.type.id() == LogicalTypeId::VALIDITY) {
 		// zero-initialize the booleans
 		// FIXME: this is only required because of NullValue<T> in Vector::Serialize...
 		auto booleans = FlatVector::GetData<bool>(update_chunk->data[0]);
 		for (idx_t i = 0; i < info.N; i++) {
-			auto idx = tuples[i];
+			auto idx = info.tuples[i];
 			booleans[idx] = false;
 		}
 	}
-	SelectionVector sel(tuples);
+	SelectionVector sel(info.tuples);
 	update_chunk->Slice(sel, info.N);
 
 	// construct the column index path
 	vector<column_t> column_indexes;
-	reference<const ColumnData> current_column_data = column_data;
-	while (current_column_data.get().HasParent()) {
+	reference<ColumnData> current_column_data = column_data;
+	while (current_column_data.get().parent) {
 		column_indexes.push_back(current_column_data.get().column_index);
-		current_column_data = current_column_data.get().Parent();
+		current_column_data = *current_column_data.get().parent;
 	}
 	column_indexes.push_back(info.column_index);
 	std::reverse(column_indexes.begin(), column_indexes.end());
@@ -261,7 +259,7 @@ void WALWriteState::CommitEntry(UndoFlags type, data_ptr_t data) {
 		// append:
 		auto info = reinterpret_cast<AppendInfo *>(data);
 		if (!info->table->IsTemporary()) {
-			info->table->WriteToLog(transaction, log, info->start_row, info->count, commit_state.get());
+			info->table->WriteToLog(log, info->start_row, info->count, commit_state.get());
 		}
 		break;
 	}

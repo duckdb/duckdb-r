@@ -12,29 +12,28 @@
 #include "duckdb/common/mutex.hpp"
 #include "duckdb/common/helper.hpp"
 #include "duckdb/common/allocator.hpp"
-#include "duckdb/execution/operator/csv_scanner/encode/csv_encoder.hpp"
+
 namespace duckdb {
 class Allocator;
 class FileSystem;
-struct CSVReaderOptions;
 
-class CSVFileHandle {
+struct CSVFileHandle {
 public:
-	CSVFileHandle(DBConfig &config, unique_ptr<FileHandle> file_handle_p, const string &path_p,
-	              const CSVReaderOptions &options);
+	CSVFileHandle(FileSystem &fs, Allocator &allocator, unique_ptr<FileHandle> file_handle_p, const string &path_p,
+	              FileCompressionType compression);
 
 	mutex main_mutex;
 
-	bool CanSeek() const;
-	void Seek(idx_t position) const;
-	bool OnDiskFile() const;
-	bool IsPipe() const;
+	bool CanSeek();
+	void Seek(idx_t position);
+	bool OnDiskFile();
+	bool IsPipe();
 
 	void Reset();
 
-	idx_t FileSize() const;
+	idx_t FileSize();
 
-	bool FinishedReading() const;
+	bool FinishedReading();
 
 	idx_t Read(void *buffer, idx_t nr_bytes);
 
@@ -44,15 +43,14 @@ public:
 
 	static unique_ptr<FileHandle> OpenFileHandle(FileSystem &fs, Allocator &allocator, const string &path,
 	                                             FileCompressionType compression);
-	static unique_ptr<CSVFileHandle> OpenFile(DBConfig &config, FileSystem &fs, Allocator &allocator,
-	                                          const string &path, const CSVReaderOptions &options);
+	static unique_ptr<CSVFileHandle> OpenFile(FileSystem &fs, Allocator &allocator, const string &path,
+	                                          FileCompressionType compression);
 	FileCompressionType compression_type;
 
-	double GetProgress() const;
+	double GetProgress();
 
 private:
 	unique_ptr<FileHandle> file_handle;
-	CSVEncoder encoder;
 	string path;
 	bool can_seek = false;
 	bool on_disk_file = false;

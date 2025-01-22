@@ -53,7 +53,7 @@ enum class FileType {
 
 struct FileHandle {
 public:
-	DUCKDB_API FileHandle(FileSystem &file_system, string path, FileOpenFlags flags);
+	DUCKDB_API FileHandle(FileSystem &file_system, string path);
 	FileHandle(const FileHandle &) = delete;
 	DUCKDB_API virtual ~FileHandle();
 
@@ -84,10 +84,6 @@ public:
 		return path;
 	}
 
-	FileOpenFlags GetFlags() const {
-		return flags;
-	}
-
 	template <class TARGET>
 	TARGET &Cast() {
 		DynamicCastCheck<TARGET>(this);
@@ -102,7 +98,6 @@ public:
 public:
 	FileSystem &file_system;
 	string path;
-	FileOpenFlags flags;
 };
 
 class FileSystem {

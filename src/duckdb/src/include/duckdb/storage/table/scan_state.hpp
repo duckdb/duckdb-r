@@ -13,11 +13,8 @@
 #include "duckdb/storage/buffer/buffer_handle.hpp"
 #include "duckdb/storage/storage_lock.hpp"
 #include "duckdb/common/enums/scan_options.hpp"
-#include "duckdb/common/random_engine.hpp"
 #include "duckdb/storage/table/segment_lock.hpp"
 #include "duckdb/common/types/data_chunk.hpp"
-#include "duckdb/parser/parsed_data/sample_options.hpp"
-#include "duckdb/storage/storage_index.hpp"
 
 namespace duckdb {
 class AdaptiveFilter;
@@ -39,7 +36,6 @@ class RowGroupSegmentTree;
 class TableFilter;
 struct AdaptiveFilterState;
 struct TableScanOptions;
-struct ScanSamplingInfo;
 
 struct SegmentScanState {
 	virtual ~SegmentScanState() {
@@ -97,14 +93,10 @@ struct ColumnScanState {
 	vector<unique_ptr<SegmentScanState>> previous_states;
 	//! The last read offset in the child state (used for LIST columns only)
 	idx_t last_offset = 0;
-	//! Whether or not we should scan a specific child column
-	vector<bool> scan_child_column;
 	//! Contains TableScan level config for scanning
 	optional_ptr<TableScanOptions> scan_options;
 
 public:
-	void Initialize(const LogicalType &type, const vector<StorageIndex> &children,
-	                optional_ptr<TableScanOptions> options);
 	void Initialize(const LogicalType &type, optional_ptr<TableScanOptions> options);
 	//! Move the scan state forward by "count" rows (including all child states)
 	void Next(idx_t count);
@@ -122,7 +114,7 @@ struct ColumnFetchState {
 };
 
 struct ScanFilter {
-	ScanFilter(idx_t index, const vector<StorageIndex> &column_ids, TableFilter &filter);
+	ScanFilter(idx_t index, const vector<column_t> &column_ids, TableFilter &filter);
 
 	idx_t scan_column_index;
 	idx_t table_column_index;
@@ -138,7 +130,7 @@ class ScanFilterInfo {
 public:
 	~ScanFilterInfo();
 
-	void Initialize(TableFilterSet &filters, const vector<StorageIndex> &column_ids);
+	void Initialize(TableFilterSet &filters, const vector<column_t> &column_ids);
 
 	const vector<ScanFilter> &GetFilterList() const {
 		return filter_list;
@@ -196,13 +188,10 @@ public:
 	//! The valid selection
 	SelectionVector valid_sel;
 
-	RandomEngine random;
-
 public:
 	void Initialize(const vector<LogicalType> &types);
-	const vector<StorageIndex> &GetColumnIds();
+	const vector<storage_t> &GetColumnIds();
 	ScanFilterInfo &GetFilterInfo();
-	ScanSamplingInfo &GetSamplingInfo();
 	TableScanOptions &GetOptions();
 	bool Scan(DuckTransaction &transaction, DataChunk &result);
 	bool ScanCommitted(DataChunk &result, TableScanType type);
@@ -210,13 +199,6 @@ public:
 
 private:
 	TableScanState &parent;
-};
-
-struct ScanSamplingInfo {
-	//! Whether or not to do a system sample during scanning
-	bool do_system_sample = false;
-	//! The sampling rate to use
-	double sample_rate;
 };
 
 struct TableScanOptions {
@@ -248,22 +230,17 @@ public:
 	shared_ptr<CheckpointLock> checkpoint_lock;
 	//! Filter info
 	ScanFilterInfo filters;
-	//! Sampling info
-	ScanSamplingInfo sampling_info;
 
 public:
-	void Initialize(vector<StorageIndex> column_ids, optional_ptr<TableFilterSet> table_filters = nullptr,
-	                optional_ptr<SampleOptions> table_sampling = nullptr);
+	void Initialize(vector<storage_t> column_ids, optional_ptr<TableFilterSet> table_filters = nullptr);
 
-	const vector<StorageIndex> &GetColumnIds();
+	const vector<storage_t> &GetColumnIds();
 
 	ScanFilterInfo &GetFilterInfo();
 
-	ScanSamplingInfo &GetSamplingInfo();
-
 private:
 	//! The column identifiers of the scan
-	vector<StorageIndex> column_ids;
+	vector<storage_t> column_ids;
 };
 
 struct ParallelCollectionScanState {

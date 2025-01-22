@@ -40,8 +40,7 @@ protected:
 public:
 	virtual unique_ptr<BaseStatistics> GetStatistics();
 
-	virtual void FlushSegmentInternal(unique_ptr<ColumnSegment> segment, idx_t segment_size);
-	virtual void FlushSegment(unique_ptr<ColumnSegment> segment, BufferHandle handle, idx_t segment_size);
+	virtual void FlushSegment(unique_ptr<ColumnSegment> segment, idx_t segment_size);
 	virtual PersistentColumnData ToPersistentData();
 
 	PartialBlockManager &GetPartialBlockManager() {

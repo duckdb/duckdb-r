@@ -8,8 +8,7 @@
 
 namespace duckdb {
 
-bool PushVarcharCollation(ClientContext &context, unique_ptr<Expression> &source, const LogicalType &sql_type,
-                          CollationType type) {
+bool PushVarcharCollation(ClientContext &context, unique_ptr<Expression> &source, const LogicalType &sql_type) {
 	if (sql_type.id() != LogicalTypeId::VARCHAR) {
 		// only VARCHAR columns require collation
 		return false;
@@ -31,12 +30,7 @@ bool PushVarcharCollation(ClientContext &context, unique_ptr<Expression> &source
 	auto &catalog = Catalog::GetSystemCatalog(context);
 	auto splits = StringUtil::Split(StringUtil::Lower(collation), ".");
 	vector<reference<CollateCatalogEntry>> entries;
-	unordered_set<string> collations;
 	for (auto &collation_argument : splits) {
-		if (collations.count(collation_argument)) {
-			// we already applied this collation
-			continue;
-		}
 		auto &collation_entry = catalog.GetEntry<CollateCatalogEntry>(context, DEFAULT_SCHEMA, collation_argument);
 		if (collation_entry.combinable) {
 			entries.insert(entries.begin(), collation_entry);
@@ -47,14 +41,9 @@ bool PushVarcharCollation(ClientContext &context, unique_ptr<Expression> &source
 			}
 			entries.push_back(collation_entry);
 		}
-		collations.insert(collation_argument);
 	}
 	for (auto &entry : entries) {
 		auto &collation_entry = entry.get();
-		if (!collation_entry.combinable && type == CollationType::COMBINABLE_COLLATIONS) {
-			// not a combinable collation - ignore
-			return false;
-		}
 		vector<unique_ptr<Expression>> children;
 		children.push_back(std::move(source));
 
@@ -65,8 +54,7 @@ bool PushVarcharCollation(ClientContext &context, unique_ptr<Expression> &source
 	return true;
 }
 
-bool PushTimeTZCollation(ClientContext &context, unique_ptr<Expression> &source, const LogicalType &sql_type,
-                         CollationType) {
+bool PushTimeTZCollation(ClientContext &context, unique_ptr<Expression> &source, const LogicalType &sql_type) {
 	if (sql_type.id() != LogicalTypeId::TIME_TZ) {
 		return false;
 	}
@@ -87,32 +75,10 @@ bool PushTimeTZCollation(ClientContext &context, unique_ptr<Expression> &source,
 	return true;
 }
 
-bool PushIntervalCollation(ClientContext &context, unique_ptr<Expression> &source, const LogicalType &sql_type,
-                           CollationType) {
-	if (sql_type.id() != LogicalTypeId::INTERVAL) {
-		return false;
-	}
-
-	auto &catalog = Catalog::GetSystemCatalog(context);
-	auto &function_entry = catalog.GetEntry<ScalarFunctionCatalogEntry>(context, DEFAULT_SCHEMA, "normalized_interval");
-	if (function_entry.functions.Size() != 1) {
-		throw InternalException("normalized_interval should only have a single overload");
-	}
-	auto &scalar_function = function_entry.functions.GetFunctionReferenceByOffset(0);
-	vector<unique_ptr<Expression>> children;
-	children.push_back(std::move(source));
-
-	FunctionBinder function_binder(context);
-	auto function = function_binder.BindScalarFunction(scalar_function, std::move(children));
-	source = std::move(function);
-	return true;
-}
-
 // timetz_byte_comparable
 CollationBinding::CollationBinding() {
 	RegisterCollation(CollationCallback(PushVarcharCollation));
 	RegisterCollation(CollationCallback(PushTimeTZCollation));
-	RegisterCollation(CollationCallback(PushIntervalCollation));
 }
 
 void CollationBinding::RegisterCollation(CollationCallback callback) {
@@ -120,9 +86,9 @@ void CollationBinding::RegisterCollation(CollationCallback callback) {
 }
 
 bool CollationBinding::PushCollation(ClientContext &context, unique_ptr<Expression> &source,
-                                     const LogicalType &sql_type, CollationType type) const {
+                                     const LogicalType &sql_type) const {
 	for (auto &collation : collations) {
-		if (collation.try_push_collation(context, source, sql_type, type)) {
+		if (collation.try_push_collation(context, source, sql_type)) {
 			// successfully pushed a collation
 			return true;
 		}

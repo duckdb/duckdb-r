@@ -307,6 +307,7 @@ void DuckDBConstraintsFunction(ClientContext &context, TableFunctionInput &data_
 			for (auto &name : info.referenced_columns) {
 				referenced_column_name_list.push_back(Value(std::move(name)));
 			}
+
 			// constraint_column_indexes, LIST
 			output.SetValue(col++, count, Value::LIST(LogicalType::BIGINT, std::move(column_index_list)));
 
@@ -324,7 +325,6 @@ void DuckDBConstraintsFunction(ClientContext &context, TableFunctionInput &data_
 			output.SetValue(col++, count, Value::LIST(LogicalType::VARCHAR, std::move(referenced_column_name_list)));
 			count++;
 		}
-
 		if (data.constraint_offset >= constraints.size()) {
 			data.constraint_offset = 0;
 			data.offset++;

@@ -79,13 +79,6 @@ void TupleDataCollection::Unpin() {
 	}
 }
 
-void TupleDataCollection::SetPartitionIndex(const idx_t index) {
-	D_ASSERT(!partition_index.IsValid());
-	D_ASSERT(Count() == 0);
-	partition_index = index;
-	allocator->SetPartitionIndex(index);
-}
-
 // LCOV_EXCL_START
 void VerifyAppendColumns(const TupleDataLayout &layout, const vector<column_t> &column_ids) {
 #ifdef DEBUG
@@ -169,8 +162,6 @@ void TupleDataCollection::InitializeChunkState(TupleDataChunkState &chunk_state,
 	}
 	InitializeVectorFormat(chunk_state.vector_data, types);
 
-	chunk_state.cached_cast_vectors.clear();
-	chunk_state.cached_cast_vector_cache.clear();
 	for (auto &col : column_ids) {
 		auto &type = types[col];
 		if (TypeVisitor::Contains(type, LogicalTypeId::ARRAY)) {
@@ -255,7 +246,7 @@ static inline void ToUnifiedFormatInternal(TupleDataVectorFormat &format, Vector
 		// Make sure we round up so its all covered
 		auto child_array_total_size = ArrayVector::GetTotalSize(vector);
 		auto list_entry_t_count =
-		    MaxValue((child_array_total_size + array_size) / array_size, format.unified.validity.Capacity());
+		    MaxValue((child_array_total_size + array_size) / array_size, format.unified.validity.TargetCount());
 
 		// Create list entries!
 		format.array_list_entries = make_unsafe_uniq_array<list_entry_t>(list_entry_t_count);

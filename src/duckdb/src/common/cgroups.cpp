@@ -86,13 +86,7 @@ string CGroups::ReadCGroupPath(FileSystem &fs, const char *cgroup_file) {
 	string content(buffer);
 	auto pos = content.find("::");
 	if (pos != string::npos) {
-		// remove trailing \n
-		auto pos2 = content.find('\n', pos + 2);
-		if (pos2 != string::npos) {
-			return content.substr(pos + 2, pos2 - (pos + 2));
-		} else {
-			return content.substr(pos + 2);
-		}
+		return content.substr(pos + 2);
 	}
 #endif
 	return "";

@@ -28,10 +28,10 @@ Connection::Connection(DatabaseInstance &database)
 }
 
 Connection::Connection(DuckDB &database) : Connection(*database.instance) {
-	warning_cb = nullptr;
+	// Initialization of warning_cb happens in the other constructor
 }
 
-Connection::Connection(Connection &&other) noexcept {
+Connection::Connection(Connection &&other) noexcept : warning_cb(nullptr) {
 	std::swap(context, other.context);
 	std::swap(warning_cb, other.warning_cb);
 }
@@ -51,7 +51,11 @@ Connection::~Connection() {
 
 string Connection::GetProfilingInformation(ProfilerPrintFormat format) {
 	auto &profiler = QueryProfiler::Get(*context);
-	return profiler.ToString(format);
+	if (format == ProfilerPrintFormat::JSON) {
+		return profiler.ToJSON();
+	} else {
+		return profiler.QueryTreeToString();
+	}
 }
 
 optional_ptr<ProfilingNode> Connection::GetProfilingTree() {
@@ -141,39 +145,6 @@ unique_ptr<PendingQueryResult> Connection::PendingQuery(unique_ptr<SQLStatement>
 	return context->PendingQuery(std::move(statement), allow_stream_result);
 }
 
-unique_ptr<PendingQueryResult> Connection::PendingQuery(const string &query,
-                                                        case_insensitive_map_t<BoundParameterData> &named_values,
-                                                        bool allow_stream_result) {
-	return context->PendingQuery(query, named_values, allow_stream_result);
-}
-
-unique_ptr<PendingQueryResult> Connection::PendingQuery(unique_ptr<SQLStatement> statement,
-                                                        case_insensitive_map_t<BoundParameterData> &named_values,
-                                                        bool allow_stream_result) {
-	return context->PendingQuery(std::move(statement), named_values, allow_stream_result);
-}
-
-static case_insensitive_map_t<BoundParameterData> ConvertParamListToMap(vector<Value> &param_list) {
-	case_insensitive_map_t<BoundParameterData> named_values;
-	for (idx_t i = 0; i < param_list.size(); i++) {
-		auto &val = param_list[i];
-		named_values[std::to_string(i + 1)] = BoundParameterData(val);
-	}
-	return named_values;
-}
-
-unique_ptr<PendingQueryResult> Connection::PendingQuery(const string &query, vector<Value> &values,
-                                                        bool allow_stream_result) {
-	auto named_params = ConvertParamListToMap(values);
-	return context->PendingQuery(query, named_params, allow_stream_result);
-}
-
-unique_ptr<PendingQueryResult> Connection::PendingQuery(unique_ptr<SQLStatement> statement, vector<Value> &values,
-                                                        bool allow_stream_result) {
-	auto named_params = ConvertParamListToMap(values);
-	return context->PendingQuery(std::move(statement), named_params, allow_stream_result);
-}
-
 unique_ptr<PreparedStatement> Connection::Prepare(const string &query) {
 	return context->Prepare(query);
 }
@@ -183,25 +154,19 @@ unique_ptr<PreparedStatement> Connection::Prepare(unique_ptr<SQLStatement> state
 }
 
 unique_ptr<QueryResult> Connection::QueryParamsRecursive(const string &query, vector<Value> &values) {
-	auto named_params = ConvertParamListToMap(values);
-	auto pending = PendingQuery(query, named_params, false);
-	if (pending->HasError()) {
-		return make_uniq<MaterializedQueryResult>(pending->GetErrorObject());
+	auto statement = Prepare(query);
+	if (statement->HasError()) {
+		return make_uniq<MaterializedQueryResult>(statement->error);
 	}
-	return pending->Execute();
-}
-
-unique_ptr<TableDescription> Connection::TableInfo(const string &database_name, const string &schema_name,
-                                                   const string &table_name) {
-	return context->TableInfo(database_name, schema_name, table_name);
-}
-
-unique_ptr<TableDescription> Connection::TableInfo(const string &schema_name, const string &table_name) {
-	return TableInfo(INVALID_CATALOG, schema_name, table_name);
+	return statement->Execute(values, false);
 }
 
 unique_ptr<TableDescription> Connection::TableInfo(const string &table_name) {
-	return TableInfo(INVALID_CATALOG, DEFAULT_SCHEMA, table_name);
+	return TableInfo(INVALID_SCHEMA, table_name);
+}
+
+unique_ptr<TableDescription> Connection::TableInfo(const string &schema_name, const string &table_name) {
+	return context->TableInfo(schema_name, table_name);
 }
 
 vector<unique_ptr<SQLStatement>> Connection::ExtractStatements(const string &query) {
@@ -230,7 +195,7 @@ shared_ptr<Relation> Connection::Table(const string &table_name) {
 }
 
 shared_ptr<Relation> Connection::Table(const string &schema_name, const string &table_name) {
-	auto table_info = TableInfo(INVALID_CATALOG, schema_name, table_name);
+	auto table_info = TableInfo(schema_name, table_name);
 	if (!table_info) {
 		throw CatalogException("Table '%s' does not exist!", table_name);
 	}
@@ -263,11 +228,6 @@ shared_ptr<Relation> Connection::TableFunction(const string &fname, const vector
 shared_ptr<Relation> Connection::Values(const vector<vector<Value>> &values) {
 	vector<string> column_names;
 	return Values(values, column_names);
-}
-
-shared_ptr<Relation> Connection::Values(vector<vector<unique_ptr<ParsedExpression>>> &&expressions) {
-	vector<string> column_names;
-	return make_shared_ptr<ValueRelation>(context, std::move(expressions), column_names);
 }
 
 shared_ptr<Relation> Connection::Values(const vector<vector<Value>> &values, const vector<string> &column_names,

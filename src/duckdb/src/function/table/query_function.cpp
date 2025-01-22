@@ -16,39 +16,33 @@ static unique_ptr<SubqueryRef> ParseSubquery(const string &query, const ParserOp
 	return duckdb::make_uniq<SubqueryRef>(std::move(select_stmt));
 }
 
-static string UnionTablesQuery(TableFunctionBindInput &input) {
+static void UnionTablesQuery(TableFunctionBindInput &input, string &query) {
 	for (auto &input_val : input.inputs) {
 		if (input_val.IsNull()) {
 			throw BinderException("Cannot use NULL as function argument");
 		}
 	}
-	string result;
 	string by_name = (input.inputs.size() == 2 &&
 	                  (input.inputs[1].type().id() == LogicalTypeId::BOOLEAN && input.inputs[1].GetValue<bool>()))
 	                     ? "BY NAME "
 	                     : ""; // 'by_name' variable defaults to false
 	if (input.inputs[0].type().id() == LogicalTypeId::VARCHAR) {
-		auto from_path = input.inputs[0].ToString();
-		auto qualified_name = QualifiedName::Parse(from_path);
-		result += "FROM " + qualified_name.ToString();
+		query += "FROM " + KeywordHelper::WriteOptionallyQuoted(input.inputs[0].ToString());
 	} else if (input.inputs[0].type() == LogicalType::LIST(LogicalType::VARCHAR)) {
 		string union_all_clause = " UNION ALL " + by_name + "FROM ";
 		const auto &children = ListValue::GetChildren(input.inputs[0]);
-
 		if (children.empty()) {
 			throw InvalidInputException("Input list is empty");
 		}
-		auto qualified_name = QualifiedName::Parse(children[0].ToString());
-		result += "FROM " + qualified_name.ToString();
+
+		query += "FROM " + KeywordHelper::WriteOptionallyQuoted(children[0].ToString());
 		for (size_t i = 1; i < children.size(); ++i) {
 			auto child = children[i].ToString();
-			auto qualified_name = QualifiedName::Parse(child);
-			result += union_all_clause + qualified_name.ToString();
+			query += union_all_clause + KeywordHelper::WriteOptionallyQuoted(child);
 		}
 	} else {
 		throw InvalidInputException("Expected a table or a list with tables as input");
 	}
-	return result;
 }
 
 static unique_ptr<TableRef> QueryBindReplace(ClientContext &context, TableFunctionBindInput &input) {
@@ -58,7 +52,8 @@ static unique_ptr<TableRef> QueryBindReplace(ClientContext &context, TableFuncti
 }
 
 static unique_ptr<TableRef> TableBindReplace(ClientContext &context, TableFunctionBindInput &input) {
-	auto query = UnionTablesQuery(input);
+	string query;
+	UnionTablesQuery(input, query);
 	auto subquery_ref =
 	    ParseSubquery(query, context.GetParserOptions(), "Expected a table or a list with tables as input");
 	return std::move(subquery_ref);

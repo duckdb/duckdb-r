@@ -72,8 +72,6 @@ struct TableAppendState {
 	TransactionData transaction;
 	//! Table statistics
 	TableStatistics stats;
-	//! Cached hash vector
-	Vector hashes;
 };
 
 struct ConstraintState {

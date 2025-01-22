@@ -17,7 +17,7 @@ namespace duckdb {
 class Catalog;
 struct CreatePragmaFunctionInfo;
 
-//! A pragma function in the catalog
+//! A table function in the catalog
 class PragmaFunctionCatalogEntry : public FunctionEntry {
 public:
 	static constexpr const CatalogType Type = CatalogType::PRAGMA_FUNCTION_ENTRY;

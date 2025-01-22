@@ -23,8 +23,7 @@ public:
 
 public:
 	LogicalGet(idx_t table_index, TableFunction function, unique_ptr<FunctionData> bind_data,
-	           vector<LogicalType> returned_types, vector<string> returned_names,
-	           LogicalType rowid_type = LogicalType(LogicalType::ROW_TYPE));
+	           vector<LogicalType> returned_types, vector<string> returned_names);
 
 	//! The table index in the current bind context
 	idx_t table_index;
@@ -50,9 +49,8 @@ public:
 	vector<string> input_table_names;
 	//! For a table-in-out function, the set of projected input columns
 	vector<column_t> projected_input;
-	//! Currently stores File Filters (as strings) applied by hive partitioning/complex filter pushdown and sample rate
-	//! pushed down into the table scan
-	//! Stored so the can be included in explain output
+	//! Currently stores File Filters (as strings) applied by hive partitioning/complex filter pushdown
+	//! Stored so they can be included in explain output
 	ExtraOperatorInfo extra_info;
 	//! Contains a reference to dynamically generated table filters (through e.g. a join up in the tree)
 	shared_ptr<DynamicTableFilterSet> dynamic_filters;
@@ -63,11 +61,11 @@ public:
 	optional_ptr<TableCatalogEntry> GetTable() const;
 
 public:
-	void SetColumnIds(vector<ColumnIndex> &&column_ids);
+	void SetColumnIds(vector<column_t> &&column_ids);
 	void AddColumnId(column_t column_id);
 	void ClearColumnIds();
-	const vector<ColumnIndex> &GetColumnIds() const;
-	vector<ColumnIndex> &GetMutableColumnIds();
+	const vector<column_t> &GetColumnIds() const;
+	vector<column_t> &GetMutableColumnIds();
 	vector<ColumnBinding> GetColumnBindings() override;
 	idx_t EstimateCardinality(ClientContext &context) override;
 
@@ -80,10 +78,6 @@ public:
 	void Serialize(Serializer &serializer) const override;
 	static unique_ptr<LogicalOperator> Deserialize(Deserializer &deserializer);
 
-	LogicalType GetRowIdType() const {
-		return rowid_type;
-	}
-
 protected:
 	void ResolveTypes() override;
 
@@ -92,9 +86,6 @@ private:
 
 private:
 	//! Bound column IDs
-	vector<ColumnIndex> column_ids;
-
-	//! The type of the rowid column
-	LogicalType rowid_type = LogicalType(LogicalType::ROW_TYPE);
+	vector<column_t> column_ids;
 };
 } // namespace duckdb

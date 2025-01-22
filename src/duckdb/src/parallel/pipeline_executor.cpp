@@ -15,9 +15,8 @@ PipelineExecutor::PipelineExecutor(ClientContext &context_p, Pipeline &pipeline_
 	D_ASSERT(pipeline.source_state);
 	if (pipeline.sink) {
 		local_sink_state = pipeline.sink->GetLocalSinkState(context);
-		required_partition_info = pipeline.sink->RequiredPartitionInfo();
-		if (required_partition_info.AnyRequired()) {
-			D_ASSERT(pipeline.source->SupportsPartitioning(OperatorPartitionInfo::BatchIndex()));
+		requires_batch_index = pipeline.sink->RequiresBatchIndex() && pipeline.source->SupportsBatchIndex();
+		if (requires_batch_index) {
 			auto &partition_info = local_sink_state->partition_info;
 			D_ASSERT(!partition_info.batch_index.IsValid());
 			// batch index is not set yet - initialize before fetching anything
@@ -49,7 +48,7 @@ PipelineExecutor::PipelineExecutor(ClientContext &context_p, Pipeline &pipeline_
 	InitializeChunk(final_chunk);
 }
 
-bool PipelineExecutor::TryFlushCachingOperators(ExecutionBudget &chunk_budget) {
+bool PipelineExecutor::TryFlushCachingOperators() {
 	if (!started_flushing) {
 		// Remainder of this method assumes any in process operators are from flushing
 		D_ASSERT(in_process_operators.empty());
@@ -57,9 +56,7 @@ bool PipelineExecutor::TryFlushCachingOperators(ExecutionBudget &chunk_budget) {
 		flushing_idx = IsFinished() ? idx_t(finished_processing_idx) : 0;
 	}
 
-	// For each operator that supports FinalExecute,
-	// extract every chunk from it and push it through the rest of the pipeline
-	// before moving onto the next operators' FinalExecute
+	// Go over each operator and keep flushing them using `FinalExecute` until empty
 	while (flushing_idx < pipeline.operators.size()) {
 		if (!pipeline.operators[flushing_idx].get().RequiresFinalExecute()) {
 			flushing_idx++;
@@ -79,6 +76,7 @@ bool PipelineExecutor::TryFlushCachingOperators(ExecutionBudget &chunk_budget) {
 		auto &current_operator = pipeline.operators[flushing_idx].get();
 
 		OperatorFinalizeResultType finalize_result;
+		OperatorResultType push_result;
 
 		if (in_process_operators.empty()) {
 			curr_chunk.Reset();
@@ -91,7 +89,7 @@ bool PipelineExecutor::TryFlushCachingOperators(ExecutionBudget &chunk_budget) {
 			finalize_result = OperatorFinalizeResultType::HAVE_MORE_OUTPUT;
 		}
 
-		auto push_result = ExecutePushInternal(curr_chunk, chunk_budget, flushing_idx + 1);
+		push_result = ExecutePushInternal(curr_chunk, flushing_idx + 1);
 
 		if (finalize_result == OperatorFinalizeResultType::HAVE_MORE_OUTPUT) {
 			should_flush_current_idx = true;
@@ -99,58 +97,43 @@ bool PipelineExecutor::TryFlushCachingOperators(ExecutionBudget &chunk_budget) {
 			should_flush_current_idx = false;
 		}
 
-		switch (push_result) {
-		case OperatorResultType::BLOCKED: {
+		if (push_result == OperatorResultType::BLOCKED) {
 			remaining_sink_chunk = true;
 			return false;
-		}
-		case OperatorResultType::HAVE_MORE_OUTPUT: {
-			D_ASSERT(chunk_budget.IsDepleted());
-			// The chunk budget was used up, pushing the chunk through the pipeline created more chunks
-			// we need to continue this the next time Execute is called.
-			return false;
-		}
-		case OperatorResultType::NEED_MORE_INPUT:
-			continue;
-		case OperatorResultType::FINISHED:
+		} else if (push_result == OperatorResultType::FINISHED) {
 			break;
-		default:
-			throw InternalException("Unexpected OperatorResultType (%s) in TryFlushCachingOperators",
-			                        EnumUtil::ToString(push_result));
 		}
-		break;
 	}
 	return true;
 }
 
-SinkNextBatchType PipelineExecutor::NextBatch(DataChunk &source_chunk) {
-	D_ASSERT(required_partition_info.AnyRequired());
+SinkNextBatchType PipelineExecutor::NextBatch(duckdb::DataChunk &source_chunk) {
+	D_ASSERT(requires_batch_index);
+	idx_t next_batch_index;
 	auto max_batch_index = pipeline.base_batch_index + PipelineBuildState::BATCH_INCREMENT - 1;
-	// by default set it to the maximum valid batch index value for the current pipeline
-	OperatorPartitionData next_data(max_batch_index);
-	if (source_chunk.size() > 0) {
-		// if we retrieved data - initialize the next batch index
-		auto partition_data = pipeline.source->GetPartitionData(context, source_chunk, *pipeline.source_state,
-		                                                        *local_source_state, required_partition_info);
-		auto batch_index = partition_data.batch_index;
+	if (source_chunk.size() == 0) {
+		// set it to the maximum valid batch index value for the current pipeline
+		next_batch_index = max_batch_index;
+	} else {
+		auto batch_index =
+		    pipeline.source->GetBatchIndex(context, source_chunk, *pipeline.source_state, *local_source_state);
 		// we start with the base_batch_index as a valid starting value. Make sure that next batch is called below
-		next_data = std::move(partition_data);
-		next_data.batch_index = pipeline.base_batch_index + batch_index + 1;
-		if (next_data.batch_index >= max_batch_index) {
+		next_batch_index = pipeline.base_batch_index + batch_index + 1;
+		if (next_batch_index >= max_batch_index) {
 			throw InternalException("Pipeline batch index - invalid batch index %llu returned by source operator",
 			                        batch_index);
 		}
 	}
 	auto &partition_info = local_sink_state->partition_info;
-	if (next_data.batch_index == partition_info.batch_index.GetIndex()) {
+	if (next_batch_index == partition_info.batch_index.GetIndex()) {
 		// no changes, return
 		return SinkNextBatchType::READY;
 	}
 	// batch index has changed - update it
-	if (partition_info.batch_index.GetIndex() > next_data.batch_index) {
+	if (partition_info.batch_index.GetIndex() > next_batch_index) {
 		throw InternalException(
 		    "Pipeline batch index - gotten lower batch index %llu (down from previous batch index of %llu)",
-		    next_data.batch_index, partition_info.batch_index.GetIndex());
+		    next_batch_index, partition_info.batch_index.GetIndex());
 	}
 #ifdef DUCKDB_DEBUG_ASYNC_SINK_SOURCE
 	if (debug_blocked_next_batch_count < debug_blocked_target_count) {
@@ -167,8 +150,7 @@ SinkNextBatchType PipelineExecutor::NextBatch(DataChunk &source_chunk) {
 	}
 #endif
 	auto current_batch = partition_info.batch_index.GetIndex();
-	partition_info.batch_index = next_data.batch_index;
-	partition_info.partition_data = std::move(next_data.partition_data);
+	partition_info.batch_index = next_batch_index;
 	OperatorSinkNextBatchInput next_batch_input {*pipeline.sink->sink_state, *local_sink_state, interrupt_state};
 	// call NextBatch before updating min_batch_index to provide the opportunity to flush the previous batch
 	auto next_batch_result = pipeline.sink->NextBatch(context, next_batch_input);
@@ -178,7 +160,7 @@ SinkNextBatchType PipelineExecutor::NextBatch(DataChunk &source_chunk) {
 		return SinkNextBatchType::BLOCKED;
 	}
 
-	partition_info.min_batch_index = pipeline.UpdateBatchIndex(current_batch, next_data.batch_index);
+	partition_info.min_batch_index = pipeline.UpdateBatchIndex(current_batch, next_batch_index);
 
 	return SinkNextBatchType::READY;
 }
@@ -186,8 +168,7 @@ SinkNextBatchType PipelineExecutor::NextBatch(DataChunk &source_chunk) {
 PipelineExecuteResult PipelineExecutor::Execute(idx_t max_chunks) {
 	D_ASSERT(pipeline.sink);
 	auto &source_chunk = pipeline.operators.empty() ? final_chunk : *intermediate_chunks[0];
-	ExecutionBudget chunk_budget(max_chunks);
-	do {
+	for (idx_t i = 0; i < max_chunks; i++) {
 		if (context.client.interrupted) {
 			throw InterruptException();
 		}
@@ -198,27 +179,22 @@ PipelineExecuteResult PipelineExecutor::Execute(idx_t max_chunks) {
 			break;
 		} else if (remaining_sink_chunk) {
 			// The pipeline was interrupted by the Sink. We should retry sinking the final chunk.
-			result = ExecutePushInternal(final_chunk, chunk_budget);
-			D_ASSERT(result != OperatorResultType::HAVE_MORE_OUTPUT);
+			result = ExecutePushInternal(final_chunk);
 			remaining_sink_chunk = false;
 		} else if (!in_process_operators.empty() && !started_flushing) {
-			// Operator(s) in the pipeline have returned `HAVE_MORE_OUTPUT` in the last Execute call
-			// the operators have to be called with the same input chunk to produce the rest of the output
+			// The pipeline was interrupted by the Sink when pushing a source chunk through the pipeline. We need to
+			// re-push the same source chunk through the pipeline because there are in_process operators, meaning that
+			// the result for the pipeline
 			D_ASSERT(source_chunk.size() > 0);
-			result = ExecutePushInternal(source_chunk, chunk_budget);
+			result = ExecutePushInternal(source_chunk);
 		} else if (exhausted_source && !next_batch_blocked && !done_flushing) {
 			// The source was exhausted, try flushing all operators
-			auto flush_completed = TryFlushCachingOperators(chunk_budget);
+			auto flush_completed = TryFlushCachingOperators();
 			if (flush_completed) {
 				done_flushing = true;
 				break;
 			} else {
-				if (remaining_sink_chunk) {
-					return PipelineExecuteResult::INTERRUPTED;
-				} else {
-					D_ASSERT(chunk_budget.IsDepleted());
-					return PipelineExecuteResult::NOT_FINISHED;
-				}
+				return PipelineExecuteResult::INTERRUPTED;
 			}
 		} else if (!exhausted_source || next_batch_blocked) {
 			SourceResultType source_result;
@@ -234,7 +210,7 @@ PipelineExecuteResult PipelineExecutor::Execute(idx_t max_chunks) {
 				}
 			}
 
-			if (required_partition_info.AnyRequired()) {
+			if (requires_batch_index) {
 				auto next_batch_result = NextBatch(source_chunk);
 				next_batch_blocked = next_batch_result == SinkNextBatchType::BLOCKED;
 				if (next_batch_blocked) {
@@ -247,7 +223,7 @@ PipelineExecuteResult PipelineExecutor::Execute(idx_t max_chunks) {
 				continue;
 			}
 
-			result = ExecutePushInternal(source_chunk, chunk_budget);
+			result = ExecutePushInternal(source_chunk);
 		} else {
 			throw InternalException("Unexpected state reached in pipeline executor");
 		}
@@ -261,7 +237,7 @@ PipelineExecuteResult PipelineExecutor::Execute(idx_t max_chunks) {
 		if (result == OperatorResultType::FINISHED) {
 			break;
 		}
-	} while (chunk_budget.Next());
+	}
 
 	if ((!exhausted_source || !done_flushing) && !IsFinished()) {
 		return PipelineExecuteResult::NOT_FINISHED;
@@ -277,6 +253,10 @@ bool PipelineExecutor::RemainingSinkChunk() const {
 PipelineExecuteResult PipelineExecutor::Execute() {
 	return Execute(NumericLimits<idx_t>::Maximum());
 }
+
+OperatorResultType PipelineExecutor::ExecutePush(DataChunk &input) { // LCOV_EXCL_START
+	return ExecutePushInternal(input);
+} // LCOV_EXCL_STOP
 
 void PipelineExecutor::FinishProcessing(int32_t operator_idx) {
 	finished_processing_idx = operator_idx < 0 ? NumericLimits<int32_t>::Maximum() : operator_idx;
@@ -298,8 +278,7 @@ bool PipelineExecutor::IsFinished() {
 	return finished_processing_idx >= 0;
 }
 
-OperatorResultType PipelineExecutor::ExecutePushInternal(DataChunk &input, ExecutionBudget &chunk_budget,
-                                                         idx_t initial_idx) {
+OperatorResultType PipelineExecutor::ExecutePushInternal(DataChunk &input, idx_t initial_idx) {
 	D_ASSERT(pipeline.sink);
 	if (input.size() == 0) { // LCOV_EXCL_START
 		return OperatorResultType::NEED_MORE_INPUT;
@@ -308,13 +287,11 @@ OperatorResultType PipelineExecutor::ExecutePushInternal(DataChunk &input, Execu
 	// this loop will continuously push the input chunk through the pipeline as long as:
 	// - the OperatorResultType for the Execute is HAVE_MORE_OUTPUT
 	// - the Sink doesn't block
-	// - the ExecutionBudget has not been depleted
-	OperatorResultType result = OperatorResultType::HAVE_MORE_OUTPUT;
-	do {
+	while (true) {
+		OperatorResultType result;
 		// Note: if input is the final_chunk, we don't do any executing, the chunk just needs to be sinked
 		if (&input != &final_chunk) {
 			final_chunk.Reset();
-			// Execute and put the result into 'final_chunk'
 			result = Execute(input, final_chunk, initial_idx);
 			if (result == OperatorResultType::FINISHED) {
 				return OperatorResultType::FINISHED;
@@ -343,8 +320,7 @@ OperatorResultType PipelineExecutor::ExecutePushInternal(DataChunk &input, Execu
 		if (result == OperatorResultType::NEED_MORE_INPUT) {
 			return OperatorResultType::NEED_MORE_INPUT;
 		}
-	} while (chunk_budget.Next());
-	return result;
+	}
 }
 
 PipelineExecuteResult PipelineExecutor::PushFinalize() {

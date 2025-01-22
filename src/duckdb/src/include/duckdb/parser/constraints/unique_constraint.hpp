@@ -8,11 +8,8 @@
 
 #pragma once
 
-#include "duckdb/common/enum_util.hpp"
-#include "duckdb/common/enums/index_constraint_type.hpp"
-#include "duckdb/common/vector.hpp"
-#include "duckdb/parser/column_list.hpp"
 #include "duckdb/parser/constraint.hpp"
+#include "duckdb/common/vector.hpp"
 
 namespace duckdb {
 
@@ -21,33 +18,52 @@ public:
 	static constexpr const ConstraintType TYPE = ConstraintType::UNIQUE;
 
 public:
-	DUCKDB_API UniqueConstraint(const LogicalIndex index, const bool is_primary_key);
-	DUCKDB_API UniqueConstraint(vector<string> columns, const bool is_primary_key);
+	DUCKDB_API UniqueConstraint(LogicalIndex index, bool is_primary_key);
+	DUCKDB_API UniqueConstraint(vector<string> columns, bool is_primary_key);
 
 public:
 	DUCKDB_API string ToString() const override;
+
 	DUCKDB_API unique_ptr<Constraint> Copy() const override;
+
 	DUCKDB_API void Serialize(Serializer &serializer) const override;
 	DUCKDB_API static unique_ptr<Constraint> Deserialize(Deserializer &deserializer);
 
-	//! Returns true, if the constraint is a PRIMARY KEY constraint.
-	bool IsPrimaryKey() const;
-	//! Returns true, if the constraint is defined on a single column.
-	bool HasIndex() const;
-	//! Returns the column index on which the constraint is defined.
-	LogicalIndex GetIndex() const;
-	//! Sets the column index of the constraint.
-	void SetIndex(const LogicalIndex new_index);
-	//! Returns a constant reference to the column names on which the constraint is defined.
-	const vector<string> &GetColumnNames() const;
-	//! Returns a mutable reference to the column names on which the constraint is defined.
-	vector<string> &GetColumnNamesMutable();
-	//! Returns the column indexes on which the constraint is defined.
-	vector<LogicalIndex> GetLogicalIndexes(const ColumnList &columns) const;
-	//! Get the name of the constraint.
-	string GetName(const string &table_name) const;
-	//! Sets a single column name. Does nothing, if the name is already set.
-	void SetColumnName(const string &name);
+	bool IsPrimaryKey() const {
+		return is_primary_key;
+	}
+
+	bool HasIndex() const {
+		return index.index != DConstants::INVALID_INDEX;
+	}
+
+	LogicalIndex GetIndex() const {
+		if (!HasIndex()) {
+			throw InternalException("UniqueConstraint::GetIndex called on a unique constraint without a defined index");
+		}
+		return index;
+	}
+	void SetIndex(LogicalIndex new_index) {
+		D_ASSERT(new_index.index != DConstants::INVALID_INDEX);
+		index = new_index;
+	}
+
+	const vector<string> &GetColumnNames() const {
+		D_ASSERT(columns.size() >= 1);
+		return columns;
+	}
+	vector<string> &GetColumnNamesMutable() {
+		D_ASSERT(columns.size() >= 1);
+		return columns;
+	}
+
+	void SetColumnName(string name) {
+		if (!columns.empty()) {
+			// name has already been set
+			return;
+		}
+		columns.push_back(std::move(name));
+	}
 
 private:
 	UniqueConstraint();
@@ -57,12 +73,12 @@ private:
 #else
 public:
 #endif
-
-	//! The indexed column of the constraint. Only used for single-column constraints, invalid otherwise.
+	//! The index of the column for which this constraint holds. Only used when the constraint relates to a single
+	//! column, equal to DConstants::INVALID_INDEX if not used
 	LogicalIndex index;
-	//! The names of the columns on which this constraint is defined. Only set if the index field is not set.
+	//! The set of columns for which this constraint holds by name. Only used when the index field is not used.
 	vector<string> columns;
-	//! Whether this is a PRIMARY KEY constraint, or a UNIQUE constraint.
+	//! Whether or not this is a PRIMARY KEY constraint, or a UNIQUE constraint.
 	bool is_primary_key;
 };
 

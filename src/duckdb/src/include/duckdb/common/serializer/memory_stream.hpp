@@ -33,13 +33,6 @@ public:
 	// is destroyed
 	explicit MemoryStream(data_ptr_t buffer, idx_t capacity);
 
-	// Cant copy!
-	MemoryStream(const MemoryStream &) = delete;
-	MemoryStream &operator=(const MemoryStream &) = delete;
-
-	MemoryStream(MemoryStream &&other) noexcept;
-	MemoryStream &operator=(MemoryStream &&other) noexcept;
-
 	~MemoryStream() override;
 
 	// Write data to the stream.

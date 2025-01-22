@@ -41,7 +41,7 @@ public:
 	SinkFinalizeType Finalize(Pipeline &pipeline, Event &event, ClientContext &context,
 	                          OperatorSinkFinalizeInput &input) const override;
 	bool ParallelSink() const override {
-		return !options->repeatable;
+		return true;
 	}
 
 	bool IsSink() const override {

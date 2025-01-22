@@ -14,10 +14,8 @@ namespace duckdb {
 
 class FetchRowVerifier : public StatementVerifier {
 public:
-	explicit FetchRowVerifier(unique_ptr<SQLStatement> statement_p,
-	                          optional_ptr<case_insensitive_map_t<BoundParameterData>> parameters);
-	static unique_ptr<StatementVerifier> Create(const SQLStatement &statement_p,
-	                                            optional_ptr<case_insensitive_map_t<BoundParameterData>> parameters);
+	explicit FetchRowVerifier(unique_ptr<SQLStatement> statement_p);
+	static unique_ptr<StatementVerifier> Create(const SQLStatement &statement_p);
 
 	bool ForceFetchRow() const override {
 		return true;

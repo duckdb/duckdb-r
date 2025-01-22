@@ -30,7 +30,6 @@
 #include "duckdb/storage/table/column_checkpoint_state.hpp"
 #include "duckdb/transaction/meta_transaction.hpp"
 #include "duckdb/transaction/transaction_manager.hpp"
-#include "duckdb/catalog/dependency_manager.hpp"
 
 namespace duckdb {
 
@@ -150,14 +149,6 @@ void SingleFileCheckpointWriter::CreateCheckpoint() {
 	// we scan the set of committed schemas
 	auto &catalog = Catalog::GetCatalog(db).Cast<DuckCatalog>();
 	catalog.ScanSchemas([&](SchemaCatalogEntry &entry) { schemas.push_back(entry); });
-
-	catalog_entry_vector_t catalog_entries;
-	D_ASSERT(catalog.IsDuckCatalog());
-
-	auto &dependency_manager = *catalog.GetDependencyManager();
-	catalog_entries = GetCatalogEntries(schemas);
-	dependency_manager.ReorderEntries(catalog_entries);
-
 	// write the actual data into the database
 
 	// Create a serializer to write the checkpoint data
@@ -178,6 +169,7 @@ void SingleFileCheckpointWriter::CreateCheckpoint() {
 	        ]
 	    }
 	 */
+	auto catalog_entries = GetCatalogEntries(schemas);
 	SerializationOptions serialization_options;
 
 	serialization_options.serialization_compatibility = config.options.serialization_compatibility;
@@ -450,12 +442,7 @@ void CheckpointReader::ReadIndex(CatalogTransaction transaction, Deserializer &d
 
 	// look for the table in the catalog
 	auto &schema = catalog.GetSchema(transaction, create_info->schema);
-	auto catalog_table = schema.GetEntry(transaction, CatalogType::TABLE_ENTRY, info.table);
-	if (!catalog_table) {
-		// See internal issue 3663.
-		throw IOException("corrupt database file - index entry without table entry");
-	}
-	auto &table = catalog_table->Cast<DuckTableEntry>();
+	auto &table = schema.GetEntry(transaction, CatalogType::TABLE_ENTRY, info.table)->Cast<DuckTableEntry>();
 
 	// we also need to make sure the index type is loaded
 	// backwards compatibility:
@@ -467,7 +454,6 @@ void CheckpointReader::ReadIndex(CatalogTransaction transaction, Deserializer &d
 	// now we can look for the index in the catalog and assign the table info
 	auto &index = schema.CreateIndex(transaction, info, table)->Cast<DuckIndexEntry>();
 	auto &data_table = table.GetStorage();
-	auto &table_info = data_table.GetDataTableInfo();
 
 	IndexStorageInfo index_storage_info;
 	if (root_block_pointer.IsValid()) {
@@ -477,7 +463,7 @@ void CheckpointReader::ReadIndex(CatalogTransaction transaction, Deserializer &d
 
 	} else {
 		// Read the matching index storage info.
-		for (auto const &elem : table_info->GetIndexStorageInfo()) {
+		for (auto const &elem : data_table.GetDataTableInfo()->GetIndexStorageInfo()) {
 			if (elem.name == index.name) {
 				index_storage_info = elem;
 				break;
@@ -485,13 +471,12 @@ void CheckpointReader::ReadIndex(CatalogTransaction transaction, Deserializer &d
 		}
 	}
 
-	D_ASSERT(index_storage_info.IsValid());
-	D_ASSERT(!index_storage_info.name.empty());
+	D_ASSERT(index_storage_info.IsValid() && !index_storage_info.name.empty());
 
 	// Create an unbound index and add it to the table.
 	auto unbound_index = make_uniq<UnboundIndex>(std::move(create_info), index_storage_info,
 	                                             TableIOManager::Get(data_table), data_table.db);
-	table_info->GetIndexes().AddIndex(std::move(unbound_index));
+	data_table.GetDataTableInfo()->GetIndexes().AddIndex(std::move(unbound_index));
 }
 
 //===--------------------------------------------------------------------===//
@@ -552,10 +537,6 @@ void CheckpointReader::ReadTable(CatalogTransaction transaction, Deserializer &d
 	auto info = deserializer.ReadProperty<unique_ptr<CreateInfo>>(100, "table");
 	auto &schema = catalog.GetSchema(transaction, info->schema);
 	auto bound_info = Binder::BindCreateTableCheckpoint(std::move(info), schema);
-
-	for (auto &dep : bound_info->Base().dependencies.Set()) {
-		bound_info->dependencies.AddDependency(dep);
-	}
 
 	// now read the actual table data and place it into the CreateTableInfo
 	ReadTableData(transaction, deserializer, *bound_info);

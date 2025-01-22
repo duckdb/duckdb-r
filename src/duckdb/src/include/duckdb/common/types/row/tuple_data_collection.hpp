@@ -66,8 +66,6 @@ public:
 	idx_t SizeInBytes() const;
 	//! Unpins all held pins
 	void Unpin();
-	//! Sets the partition index of this tuple data collection
-	void SetPartitionIndex(idx_t index);
 
 	//! Gets the scatter function for the given type
 	static TupleDataScatterFunction GetScatterFunction(const LogicalType &type, bool within_collection = false);
@@ -254,8 +252,6 @@ private:
 	vector<TupleDataScatterFunction> scatter_functions;
 	//! The set of gather functions
 	vector<TupleDataGatherFunction> gather_functions;
-	//! Partition index (optional, if partitioned)
-	optional_idx partition_index;
 };
 
 } // namespace duckdb

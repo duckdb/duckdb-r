@@ -17,7 +17,7 @@ namespace duckdb {
 struct FileHandle;
 
 //! The standard row group size
-#define DEFAULT_ROW_GROUP_SIZE 122880ULL
+#define STANDARD_ROW_GROUPS_SIZE 122880
 //! The definition of an invalid block
 #define INVALID_BLOCK (-1)
 //! The maximum block id is 2^62
@@ -38,8 +38,10 @@ struct Storage {
 	//! The size of the headers. This should be small and written more or less atomically by the hard disk. We default
 	//! to the page size, which is 4KB. (1 << 12)
 	constexpr static idx_t FILE_HEADER_SIZE = 4096U;
-	//! The maximum row group size
-	constexpr static const idx_t MAX_ROW_GROUP_SIZE = 1ULL << 30ULL;
+	//! The number of rows per row group (must be a multiple of the vector size)
+	constexpr static const idx_t ROW_GROUP_SIZE = STANDARD_ROW_GROUPS_SIZE;
+	//! The number of vectors per row group
+	constexpr static const idx_t ROW_GROUP_VECTOR_COUNT = ROW_GROUP_SIZE / STANDARD_VECTOR_SIZE;
 
 	//! The minimum block allocation size. This is the minimum size we test in our nightly tests.
 	constexpr static idx_t MIN_BLOCK_ALLOC_SIZE = 16384ULL;
@@ -116,10 +118,10 @@ struct DatabaseHeader {
 
 //! Detect mismatching constant values when compiling
 
-#if (DEFAULT_ROW_GROUP_SIZE % STANDARD_VECTOR_SIZE != 0)
+#if (STANDARD_ROW_GROUPS_SIZE % STANDARD_VECTOR_SIZE != 0)
 #error The row group size must be a multiple of the vector size
 #endif
-#if (DEFAULT_ROW_GROUP_SIZE < STANDARD_VECTOR_SIZE)
+#if (STANDARD_ROW_GROUPS_SIZE < STANDARD_VECTOR_SIZE)
 #error Row groups must be able to hold at least one vector
 #endif
 #if (DEFAULT_BLOCK_ALLOC_SIZE & (DEFAULT_BLOCK_ALLOC_SIZE - 1) != 0)

@@ -31,7 +31,6 @@ struct ColumnSegmentInfo {
 	bool has_updates;
 	bool persistent;
 	block_id_t block_id;
-	vector<block_id_t> additional_blocks;
 	idx_t block_offset;
 	string segment_info;
 };

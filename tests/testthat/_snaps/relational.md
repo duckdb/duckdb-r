@@ -118,7 +118,8 @@
       ┌───────────────────────────┐
       │     R_DATAFRAME_SCAN      │
       │    ────────────────────   │
-      │      Text: data.frame     │
+      │         data.frame        │
+      │                           │
       │       Projections: x      │
       │                           │
       │          ~1 Rows          │

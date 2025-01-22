@@ -27,7 +27,7 @@ Executor::Executor(ClientContext &context) : context(context), executor_tasks(0)
 }
 
 Executor::~Executor() {
-	D_ASSERT(Exception::UncaughtException() || executor_tasks == 0);
+	D_ASSERT(executor_tasks == 0);
 }
 
 Executor &Executor::Get(ClientContext &context) {
@@ -684,21 +684,39 @@ void Executor::Flush(ThreadContext &thread_context) {
 	}
 }
 
-idx_t Executor::GetPipelinesProgress(ProgressData &progress) { // LCOV_EXCL_START
+bool Executor::GetPipelinesProgress(double &current_progress, uint64_t &current_cardinality,
+                                    uint64_t &total_cardinality) { // LCOV_EXCL_START
 	lock_guard<mutex> elock(executor_lock);
 
-	progress.done = 0;
-	progress.total = 0;
-	idx_t count_invalid = 0;
+	vector<double> progress;
+	vector<idx_t> cardinality;
+	total_cardinality = 0;
+	current_cardinality = 0;
 	for (auto &pipeline : pipelines) {
-		ProgressData p;
-		if (!pipeline->GetProgress(p)) {
-			count_invalid++;
-		} else {
-			progress.Add(p);
+		double child_percentage;
+		idx_t child_cardinality;
+
+		if (!pipeline->GetProgress(child_percentage, child_cardinality)) {
+			return false;
 		}
+		progress.push_back(child_percentage);
+		cardinality.push_back(child_cardinality);
+		total_cardinality += child_cardinality;
 	}
-	return count_invalid;
+	if (total_cardinality == 0) {
+		return true;
+	}
+	current_progress = 0;
+
+	for (size_t i = 0; i < progress.size(); i++) {
+		progress[i] = MaxValue(0.0, MinValue(100.0, progress[i]));
+		current_cardinality = LossyNumericCast<idx_t>(static_cast<double>(
+		    static_cast<double>(current_cardinality) +
+		    static_cast<double>(progress[i]) * static_cast<double>(cardinality[i]) / static_cast<double>(100)));
+		current_progress += progress[i] * double(cardinality[i]) / double(total_cardinality);
+		D_ASSERT(current_cardinality <= total_cardinality);
+	}
+	return true;
 } // LCOV_EXCL_STOP
 
 bool Executor::HasResultCollector() {

@@ -66,11 +66,11 @@ public:
 	static constexpr const idx_t STANDARD_MASK_SIZE = STANDARD_ENTRY_COUNT * sizeof(validity_t);
 
 public:
-	inline TemplatedValidityMask() : validity_mask(nullptr), capacity(STANDARD_VECTOR_SIZE) {
+	inline TemplatedValidityMask() : validity_mask(nullptr), target_count(STANDARD_VECTOR_SIZE) {
 	}
-	inline explicit TemplatedValidityMask(idx_t target_count) : validity_mask(nullptr), capacity(target_count) {
+	inline explicit TemplatedValidityMask(idx_t target_count) : validity_mask(nullptr), target_count(target_count) {
 	}
-	inline explicit TemplatedValidityMask(V *ptr, idx_t capacity) : validity_mask(ptr), capacity(capacity) {
+	inline explicit TemplatedValidityMask(V *ptr) : validity_mask(ptr), target_count(STANDARD_VECTOR_SIZE) {
 	}
 	inline TemplatedValidityMask(const TemplatedValidityMask &original, idx_t count) {
 		Copy(original, count);
@@ -84,9 +84,6 @@ public:
 	}
 	inline bool CheckAllValid(idx_t count) const {
 		return CountValid(count) == count;
-	}
-	inline bool CheckAllInvalid(idx_t count) const {
-		return CountValid(count) == 0;
 	}
 
 	inline bool CheckAllValid(idx_t to, idx_t from) const {
@@ -142,7 +139,7 @@ public:
 	inline void Reset(idx_t target_count_p = STANDARD_VECTOR_SIZE) {
 		validity_mask = nullptr;
 		validity_data.reset();
-		capacity = target_count_p;
+		target_count = target_count_p;
 	}
 
 	static inline idx_t EntryCount(idx_t count) {
@@ -158,7 +155,6 @@ public:
 		return validity_mask[entry_idx];
 	}
 	static inline bool AllValid(V entry) {
-		// Check if all the tuples that are covered by this entry (usually 64) are valid
 		return entry == ValidityBuffer::MAX_ENTRY;
 	}
 	static inline bool NoneValid(V entry) {
@@ -194,12 +190,6 @@ public:
 
 	//! Returns true if a row is valid (i.e. not null), false otherwise
 	inline bool RowIsValid(idx_t row_idx) const {
-#ifdef DEBUG
-		if (row_idx >= capacity) {
-			throw InternalException("ValidityMask::RowIsValid - row_idx %d is out-of-range for mask with capacity %llu",
-			                        row_idx, capacity);
-		}
-#endif
 		if (!validity_mask) {
 			return true;
 		}
@@ -216,12 +206,6 @@ public:
 
 	//! Marks the entry at the specified row index as valid (i.e. not-null)
 	inline void SetValid(idx_t row_idx) {
-#ifdef DEBUG
-		if (row_idx >= capacity) {
-			throw InternalException("ValidityMask::SetValid - row_idx %d is out-of-range for mask with capacity %llu",
-			                        row_idx, capacity);
-		}
-#endif
 		if (!validity_mask) {
 			// if AllValid() we don't need to do anything
 			// the row is already valid
@@ -245,14 +229,9 @@ public:
 
 	//! Marks the entry at the specified row index as invalid (i.e. null)
 	inline void SetInvalid(idx_t row_idx) {
-#ifdef DEBUG
-		if (row_idx >= capacity) {
-			throw InternalException("ValidityMask::SetInvalid - row_idx %d is out-of-range for mask with capacity %llu",
-			                        row_idx, capacity);
-		}
-#endif
 		if (!validity_mask) {
-			Initialize(capacity);
+			D_ASSERT(row_idx <= target_count);
+			Initialize(target_count);
 		}
 		SetInvalidUnsafe(row_idx);
 	}
@@ -312,26 +291,25 @@ public:
 	}
 
 public:
-	inline void Initialize(validity_t *validity, idx_t new_capacity) {
+	inline void Initialize(validity_t *validity) {
 		validity_data.reset();
 		validity_mask = validity;
-		capacity = new_capacity;
 	}
 	inline void Initialize(const TemplatedValidityMask &other) {
 		validity_mask = other.validity_mask;
 		validity_data = other.validity_data;
-		capacity = other.capacity;
+		target_count = other.target_count;
 	}
 	inline void Initialize(idx_t count) {
-		capacity = count;
+		target_count = count;
 		validity_data = make_buffer<ValidityBuffer>(count);
 		validity_mask = validity_data->owned_data.get();
 	}
 	inline void Initialize() {
-		Initialize(capacity);
+		Initialize(target_count);
 	}
 	inline void Copy(const TemplatedValidityMask &other, idx_t count) {
-		capacity = count;
+		target_count = count;
 		if (other.AllValid()) {
 			validity_data = nullptr;
 			validity_mask = nullptr;
@@ -344,30 +322,30 @@ public:
 protected:
 	V *validity_mask;
 	buffer_ptr<ValidityBuffer> validity_data;
-	idx_t capacity;
+	// The size to initialize the validity mask to when/if the mask is lazily initialized
+	idx_t target_count;
 };
 
 struct ValidityMask : public TemplatedValidityMask<validity_t> {
 public:
-	inline ValidityMask() : TemplatedValidityMask(nullptr, STANDARD_VECTOR_SIZE) {
+	inline ValidityMask() : TemplatedValidityMask(nullptr) {
 	}
-	inline explicit ValidityMask(idx_t capacity) : TemplatedValidityMask(capacity) {
+	inline explicit ValidityMask(idx_t target_count) : TemplatedValidityMask(target_count) {
 	}
-	inline explicit ValidityMask(validity_t *ptr, idx_t capacity) : TemplatedValidityMask(ptr, capacity) {
+	inline explicit ValidityMask(validity_t *ptr) : TemplatedValidityMask(ptr) {
 	}
 	inline ValidityMask(const ValidityMask &original, idx_t count) : TemplatedValidityMask(original, count) {
 	}
 
 public:
-	DUCKDB_API void Resize(idx_t new_size);
-	DUCKDB_API idx_t Capacity() const;
+	DUCKDB_API void Resize(idx_t old_size, idx_t new_size);
+	DUCKDB_API idx_t TargetCount() const;
 	DUCKDB_API void SliceInPlace(const ValidityMask &other, idx_t target_offset, idx_t source_offset, idx_t count);
 	DUCKDB_API void Slice(const ValidityMask &other, idx_t source_offset, idx_t count);
 	DUCKDB_API void CopySel(const ValidityMask &other, const SelectionVector &sel, idx_t source_offset,
 	                        idx_t target_offset, idx_t count);
 	DUCKDB_API void Combine(const ValidityMask &other, idx_t count);
 	DUCKDB_API string ToString(idx_t count) const;
-	DUCKDB_API string ToString() const;
 
 	DUCKDB_API static bool IsAligned(idx_t count);
 
@@ -387,17 +365,10 @@ struct ValidityArray {
 	}
 
 	inline void Initialize(idx_t count, bool initial = true) {
-		capacity = count;
+		target_count = count;
 		validity_data = make_unsafe_uniq_array<bool>(count);
 		validity_mask = validity_data.get();
 		memset(validity_mask, initial, sizeof(bool) * count);
-	}
-	inline void InitializeEmpty(idx_t count) {
-		capacity = count;
-	}
-
-	idx_t Capacity() const {
-		return capacity;
 	}
 
 	//! RowIsValidUnsafe should only be used if AllValid() is false: it achieves the same as RowIsValid but skips a
@@ -409,12 +380,6 @@ struct ValidityArray {
 
 	//! Returns true if a row is valid (i.e. not null), false otherwise
 	inline bool RowIsValid(idx_t row_idx) const {
-#ifdef DEBUG
-		if (row_idx >= capacity) {
-			throw InternalException("ValidityData::RowIsValid - row_idx %d is out-of-range for mask with capacity %llu",
-			                        row_idx, capacity);
-		}
-#endif
 		if (!validity_mask) {
 			return true;
 		}
@@ -429,12 +394,6 @@ struct ValidityArray {
 
 	//! Marks the entry at the specified row index as valid (i.e. not-null)
 	inline void SetValid(idx_t row_idx) {
-#ifdef DEBUG
-		if (row_idx >= capacity) {
-			throw InternalException("ValidityData::SetValid - row_idx %d is out-of-range for mask with capacity %llu",
-			                        row_idx, capacity);
-		}
-#endif
 		if (!validity_mask) {
 			// if AllValid() we don't need to do anything
 			// the row is already valid
@@ -446,7 +405,7 @@ struct ValidityArray {
 
 	inline void Pack(ValidityMask &mask, const idx_t count) const {
 		if (AllValid()) {
-			mask.Reset(count);
+			mask.Reset();
 			return;
 		}
 		mask.Initialize(count);
@@ -475,10 +434,9 @@ struct ValidityArray {
 		}
 	}
 
-private:
 	bool *validity_mask = nullptr;
 	unsafe_unique_array<bool> validity_data;
-	idx_t capacity = 0;
+	idx_t target_count = 0;
 };
 
 } // namespace duckdb

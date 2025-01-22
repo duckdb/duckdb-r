@@ -114,13 +114,7 @@ void ArrayColumnData::InitializeAppend(ColumnAppendState &state) {
 }
 
 void ArrayColumnData::Append(BaseStatistics &stats, ColumnAppendState &state, Vector &vector, idx_t count) {
-	if (vector.GetVectorType() != VectorType::FLAT_VECTOR) {
-		Vector append_vector(vector);
-		append_vector.Flatten(count);
-		Append(stats, state, append_vector, count);
-		return;
-	}
-
+	vector.Flatten(count);
 	// Append validity
 	validity.Append(stats, state.child_appends[0], vector, count);
 	// Append child column

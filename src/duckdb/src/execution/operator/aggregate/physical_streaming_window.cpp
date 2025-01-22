@@ -129,7 +129,7 @@ public:
 			}
 
 			//	We can only support LEAD and LAG values within one standard vector
-			if (wexpr.GetExpressionType() == ExpressionType::WINDOW_LEAD) {
+			if (wexpr.type == ExpressionType::WINDOW_LEAD) {
 				offset = -offset;
 			}
 			return idx_t(std::abs(offset)) < MAX_BUFFER;
@@ -332,11 +332,11 @@ public:
 
 bool PhysicalStreamingWindow::IsStreamingFunction(ClientContext &context, unique_ptr<Expression> &expr) {
 	auto &wexpr = expr->Cast<BoundWindowExpression>();
-	if (!wexpr.partitions.empty() || !wexpr.orders.empty() || wexpr.ignore_nulls || !wexpr.arg_orders.empty() ||
+	if (!wexpr.partitions.empty() || !wexpr.orders.empty() || wexpr.ignore_nulls ||
 	    wexpr.exclude_clause != WindowExcludeMode::NO_OTHER) {
 		return false;
 	}
-	switch (wexpr.GetExpressionType()) {
+	switch (wexpr.type) {
 	// TODO: add more expression types here?
 	case ExpressionType::WINDOW_AGGREGATE:
 		// We can stream aggregates if they are "running totals"

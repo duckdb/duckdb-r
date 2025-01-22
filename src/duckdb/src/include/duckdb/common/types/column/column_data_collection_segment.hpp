@@ -137,8 +137,7 @@ public:
 	void Verify();
 
 	static idx_t GetDataSize(idx_t type_size);
-	static validity_t *GetValidityPointerForWriting(data_ptr_t base_ptr, idx_t type_size);
-	static validity_t *GetValidityPointer(data_ptr_t base_ptr, idx_t type_size, idx_t count);
+	static validity_t *GetValidityPointer(data_ptr_t base_ptr, idx_t type_size);
 
 private:
 	idx_t ReadVectorInternal(ChunkManagementState &state, VectorDataIndex vector_index, Vector &result);

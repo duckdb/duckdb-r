@@ -56,19 +56,36 @@ ObjectCache &ObjectCache::GetObjectCache(ClientContext &context) {
 	return context.db->GetObjectCache();
 }
 
+bool ObjectCache::ObjectCacheEnabled(ClientContext &context) {
+	return context.db->config.options.object_cache_enable;
+}
+
 idx_t StorageManager::GetWALSize() {
-	return wal->GetWALSize();
+	auto wal_ptr = GetWAL();
+	if (!wal_ptr) {
+		return 0;
+	}
+	return wal_ptr->GetWALSize();
 }
 
 optional_ptr<WriteAheadLog> StorageManager::GetWAL() {
 	if (InMemory() || read_only || !load_complete) {
 		return nullptr;
 	}
+
+	if (!wal) {
+		auto wal_path = GetWALPath();
+		wal = make_uniq<WriteAheadLog>(db, wal_path);
+	}
 	return wal.get();
 }
 
 void StorageManager::ResetWAL() {
-	wal->Delete();
+	auto wal_ptr = GetWAL();
+	if (wal_ptr) {
+		wal_ptr->Delete();
+	}
+	wal.reset();
 }
 
 string StorageManager::GetWALPath() {
@@ -92,25 +109,23 @@ bool StorageManager::InMemory() {
 	return path == IN_MEMORY_PATH;
 }
 
-void StorageManager::Initialize(StorageOptions options) {
+void StorageManager::Initialize(const optional_idx block_alloc_size) {
 	bool in_memory = InMemory();
 	if (in_memory && read_only) {
 		throw CatalogException("Cannot launch in-memory database in read-only mode!");
 	}
 
 	// Create or load the database from disk, if not in-memory mode.
-	LoadDatabase(options);
+	LoadDatabase(block_alloc_size);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 class SingleFileTableIOManager : public TableIOManager {
 public:
-	explicit SingleFileTableIOManager(BlockManager &block_manager, idx_t row_group_size)
-	    : block_manager(block_manager), row_group_size(row_group_size) {
+	explicit SingleFileTableIOManager(BlockManager &block_manager) : block_manager(block_manager) {
 	}
 
 	BlockManager &block_manager;
-	idx_t row_group_size;
 
 public:
 	BlockManager &GetIndexBlockManager() override {
@@ -122,43 +137,32 @@ public:
 	MetadataManager &GetMetadataManager() override {
 		return block_manager.GetMetadataManager();
 	}
-	idx_t GetRowGroupSize() const override {
-		return row_group_size;
-	}
 };
 
 SingleFileStorageManager::SingleFileStorageManager(AttachedDatabase &db, string path, bool read_only)
     : StorageManager(db, std::move(path), read_only) {
 }
 
-void SingleFileStorageManager::LoadDatabase(StorageOptions storage_options) {
+void SingleFileStorageManager::LoadDatabase(const optional_idx block_alloc_size) {
 	if (InMemory()) {
 		block_manager = make_uniq<InMemoryBlockManager>(BufferManager::GetBufferManager(db), DEFAULT_BLOCK_ALLOC_SIZE);
-		table_io_manager = make_uniq<SingleFileTableIOManager>(*block_manager, DEFAULT_ROW_GROUP_SIZE);
+		table_io_manager = make_uniq<SingleFileTableIOManager>(*block_manager);
 		return;
 	}
 
 	auto &fs = FileSystem::Get(db);
 	auto &config = DBConfig::Get(db);
+	if (!config.options.enable_external_access) {
+		if (!db.IsInitialDatabase()) {
+			throw PermissionException("Attaching on-disk databases is disabled through configuration");
+		}
+	}
 
 	StorageManagerOptions options;
 	options.read_only = read_only;
 	options.use_direct_io = config.options.use_direct_io;
 	options.debug_initialize = config.options.debug_initialize;
 
-	idx_t row_group_size = DEFAULT_ROW_GROUP_SIZE;
-	if (storage_options.row_group_size.IsValid()) {
-		row_group_size = storage_options.row_group_size.GetIndex();
-		if (row_group_size == 0) {
-			throw NotImplementedException("Invalid row group size: %llu - row group size must be bigger than 0",
-			                              row_group_size);
-		}
-		if (row_group_size % STANDARD_VECTOR_SIZE != 0) {
-			throw NotImplementedException(
-			    "Invalid row group size: %llu - row group size must be divisible by the vector size (%llu)",
-			    row_group_size, STANDARD_VECTOR_SIZE);
-		}
-	}
 	// Check if the database file already exists.
 	// Note: a file can also exist if there was a ROLLBACK on a previous transaction creating that file.
 	if (!read_only && !fs.FileExists(path)) {
@@ -174,10 +178,9 @@ void SingleFileStorageManager::LoadDatabase(StorageOptions storage_options) {
 		}
 
 		// Set the block allocation size for the new database file.
-		if (storage_options.block_alloc_size.IsValid()) {
+		if (block_alloc_size.IsValid()) {
 			// Use the option provided by the user.
-			Storage::VerifyBlockAllocSize(storage_options.block_alloc_size.GetIndex());
-			options.block_alloc_size = storage_options.block_alloc_size;
+			options.block_alloc_size = block_alloc_size;
 		} else {
 			// No explicit option provided: use the default option.
 			options.block_alloc_size = config.options.default_block_alloc_size;
@@ -187,8 +190,8 @@ void SingleFileStorageManager::LoadDatabase(StorageOptions storage_options) {
 		auto sf_block_manager = make_uniq<SingleFileBlockManager>(db, path, options);
 		sf_block_manager->CreateNewDatabase();
 		block_manager = std::move(sf_block_manager);
-		table_io_manager = make_uniq<SingleFileTableIOManager>(*block_manager, row_group_size);
-		wal = make_uniq<WriteAheadLog>(db, wal_path);
+		table_io_manager = make_uniq<SingleFileTableIOManager>(*block_manager);
+
 	} else {
 		// Either the file exists, or we are in read-only mode, so we
 		// try to read the existing file on disk.
@@ -199,24 +202,27 @@ void SingleFileStorageManager::LoadDatabase(StorageOptions storage_options) {
 		auto sf_block_manager = make_uniq<SingleFileBlockManager>(db, path, options);
 		sf_block_manager->LoadExistingDatabase();
 		block_manager = std::move(sf_block_manager);
-		table_io_manager = make_uniq<SingleFileTableIOManager>(*block_manager, row_group_size);
+		table_io_manager = make_uniq<SingleFileTableIOManager>(*block_manager);
 
-		if (storage_options.block_alloc_size.IsValid()) {
-			// user-provided block alloc size
-			idx_t block_alloc_size = storage_options.block_alloc_size.GetIndex();
-			if (block_alloc_size != block_manager->GetBlockAllocSize()) {
-				throw InvalidInputException(
-				    "block size parameter does not match the file's block size, got %llu, expected %llu",
-				    storage_options.block_alloc_size.GetIndex(), block_manager->GetBlockAllocSize());
-			}
+		if (block_alloc_size.IsValid() && block_alloc_size.GetIndex() != block_manager->GetBlockAllocSize()) {
+			throw InvalidInputException(
+			    "block size parameter does not match the file's block size, got %llu, expected %llu",
+			    block_alloc_size.GetIndex(), block_manager->GetBlockAllocSize());
 		}
 
 		// load the db from storage
 		auto checkpoint_reader = SingleFileCheckpointReader(*this);
 		checkpoint_reader.LoadFromStorage();
 
+		// check if the WAL file exists
 		auto wal_path = GetWALPath();
-		wal = WriteAheadLog::Replay(fs, db, wal_path);
+		auto handle = fs.OpenFile(wal_path, FileFlags::FILE_FLAGS_READ | FileFlags::FILE_FLAGS_NULL_IF_NOT_EXISTS);
+		if (handle) {
+			// replay the WAL
+			if (WriteAheadLog::Replay(db, std::move(handle))) {
+				fs.RemoveFile(wal_path);
+			}
+		}
 	}
 
 	load_complete = true;

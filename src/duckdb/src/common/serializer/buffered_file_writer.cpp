@@ -21,7 +21,7 @@ idx_t BufferedFileWriter::GetFileSize() {
 	return NumericCast<idx_t>(fs.GetFileSize(*handle)) + offset;
 }
 
-idx_t BufferedFileWriter::GetTotalWritten() const {
+idx_t BufferedFileWriter::GetTotalWritten() {
 	return total_written + offset;
 }
 

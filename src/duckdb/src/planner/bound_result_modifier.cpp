@@ -93,7 +93,7 @@ bool BoundOrderModifier::Equals(const unique_ptr<BoundOrderModifier> &left,
 	return BoundOrderModifier::Equals(*left, *right);
 }
 
-bool BoundOrderModifier::Simplify(vector<BoundOrderByNode> &orders, const vector<unique_ptr<Expression>> &groups) {
+bool BoundOrderModifier::Simplify(const vector<unique_ptr<Expression>> &groups) {
 	// for each ORDER BY - check if it is actually necessary
 	// expressions that are in the groups do not need to be ORDERED BY
 	// `ORDER BY` on a group has no effect, because for each aggregate, the group is unique
@@ -113,11 +113,7 @@ bool BoundOrderModifier::Simplify(vector<BoundOrderByNode> &orders, const vector
 	}
 	orders.swap(new_order_nodes);
 
-	return orders.empty(); // NOLINT
-}
-
-bool BoundOrderModifier::Simplify(const vector<unique_ptr<Expression>> &groups) {
-	return Simplify(orders, groups);
+	return orders.empty();
 }
 
 BoundLimitNode::BoundLimitNode(LimitNodeType type, idx_t constant_integer, double constant_percentage,

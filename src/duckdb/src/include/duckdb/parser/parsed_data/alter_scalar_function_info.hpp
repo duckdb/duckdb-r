@@ -13,7 +13,6 @@
 #include "duckdb/parser/parsed_data/alter_info.hpp"
 
 namespace duckdb {
-struct CreateScalarFunctionInfo;
 
 //===--------------------------------------------------------------------===//
 // Alter Scalar Function
@@ -34,10 +33,10 @@ public:
 // AddScalarFunctionOverloadInfo
 //===--------------------------------------------------------------------===//
 struct AddScalarFunctionOverloadInfo : public AlterScalarFunctionInfo {
-	AddScalarFunctionOverloadInfo(AlterEntryData data, unique_ptr<CreateScalarFunctionInfo> new_overloads);
+	AddScalarFunctionOverloadInfo(AlterEntryData data, ScalarFunctionSet new_overloads);
 	~AddScalarFunctionOverloadInfo() override;
 
-	unique_ptr<CreateScalarFunctionInfo> new_overloads;
+	ScalarFunctionSet new_overloads;
 
 public:
 	unique_ptr<AlterInfo> Copy() const override;

@@ -119,8 +119,13 @@ TO UnsafeNumericCast(FROM in) {
 // LossyNumericCast
 // When: between double/float to other convertible types
 // Checks: no checks performed (at the moment, to be improved adding range checks)
-template <class TO, class FROM>
-TO LossyNumericCast(FROM val) {
+template <class TO>
+TO LossyNumericCast(double val) {
+	return static_cast<TO>(val);
+}
+
+template <class TO>
+TO LossyNumericCast(float val) {
 	return static_cast<TO>(val);
 }
 

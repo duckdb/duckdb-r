@@ -3,14 +3,12 @@
 #include "duckdb/common/numeric_utils.hpp"
 #include "duckdb/common/compressed_file_system.hpp"
 #include "duckdb/common/string_util.hpp"
-#include "duckdb/execution/operator/csv_scanner/csv_reader_options.hpp"
 
 namespace duckdb {
 
-CSVFileHandle::CSVFileHandle(DBConfig &config, unique_ptr<FileHandle> file_handle_p, const string &path_p,
-                             const CSVReaderOptions &options)
-    : compression_type(options.compression), file_handle(std::move(file_handle_p)),
-      encoder(config, options.encoding, options.buffer_size_option.GetValue()), path(path_p) {
+CSVFileHandle::CSVFileHandle(FileSystem &fs, Allocator &allocator, unique_ptr<FileHandle> file_handle_p,
+                             const string &path_p, FileCompressionType compression)
+    : compression_type(compression), file_handle(std::move(file_handle_p)), path(path_p) {
 	can_seek = file_handle->CanSeek();
 	on_disk_file = file_handle->OnDiskFile();
 	file_size = file_handle->GetFileSize();
@@ -27,21 +25,21 @@ unique_ptr<FileHandle> CSVFileHandle::OpenFileHandle(FileSystem &fs, Allocator &
 	return file_handle;
 }
 
-unique_ptr<CSVFileHandle> CSVFileHandle::OpenFile(DBConfig &config, FileSystem &fs, Allocator &allocator,
-                                                  const string &path, const CSVReaderOptions &options) {
-	auto file_handle = OpenFileHandle(fs, allocator, path, options.compression);
-	return make_uniq<CSVFileHandle>(config, std::move(file_handle), path, options);
+unique_ptr<CSVFileHandle> CSVFileHandle::OpenFile(FileSystem &fs, Allocator &allocator, const string &path,
+                                                  FileCompressionType compression) {
+	auto file_handle = CSVFileHandle::OpenFileHandle(fs, allocator, path, compression);
+	return make_uniq<CSVFileHandle>(fs, allocator, std::move(file_handle), path, compression);
 }
 
-double CSVFileHandle::GetProgress() const {
+double CSVFileHandle::GetProgress() {
 	return static_cast<double>(file_handle->GetProgress());
 }
 
-bool CSVFileHandle::CanSeek() const {
+bool CSVFileHandle::CanSeek() {
 	return can_seek;
 }
 
-void CSVFileHandle::Seek(const idx_t position) const {
+void CSVFileHandle::Seek(idx_t position) {
 	if (!can_seek) {
 		if (is_pipe) {
 			throw InternalException("Trying to seek a piped CSV File.");
@@ -51,7 +49,7 @@ void CSVFileHandle::Seek(const idx_t position) const {
 	file_handle->Seek(position);
 }
 
-bool CSVFileHandle::OnDiskFile() const {
+bool CSVFileHandle::OnDiskFile() {
 	return on_disk_file;
 }
 
@@ -61,27 +59,22 @@ void CSVFileHandle::Reset() {
 	requested_bytes = 0;
 }
 
-bool CSVFileHandle::IsPipe() const {
+bool CSVFileHandle::IsPipe() {
 	return is_pipe;
 }
 
-idx_t CSVFileHandle::FileSize() const {
+idx_t CSVFileHandle::FileSize() {
 	return file_size;
 }
 
-bool CSVFileHandle::FinishedReading() const {
+bool CSVFileHandle::FinishedReading() {
 	return finished;
 }
 
 idx_t CSVFileHandle::Read(void *buffer, idx_t nr_bytes) {
 	requested_bytes += nr_bytes;
 	// if this is a plain file source OR we can seek we are not caching anything
-	idx_t bytes_read = 0;
-	if (encoder.encoding_name == "utf-8") {
-		bytes_read = static_cast<idx_t>(file_handle->Read(buffer, nr_bytes));
-	} else {
-		bytes_read = encoder.Encode(*file_handle, static_cast<char *>(buffer), nr_bytes);
-	}
+	auto bytes_read = file_handle->Read(buffer, nr_bytes);
 	if (!finished) {
 		finished = bytes_read == 0;
 	}

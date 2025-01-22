@@ -14,7 +14,6 @@
 
 namespace duckdb {
 class DuckTransaction;
-struct UndoBufferProperties;
 
 //! The Transaction Manager is responsible for creating and managing
 //! transactions
