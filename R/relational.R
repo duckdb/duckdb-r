@@ -494,6 +494,19 @@ rel_explain <- function(rel) {
   invisible(NULL)
 }
 
+#' Print the EXPLAIN output for a DuckDB relation object
+#' @param rel the DuckDB relation object
+#' @noRd
+#' @examples
+#' con <- DBI::dbConnect(duckdb())
+#' rel <- rel_from_df(con, mtcars)
+#' rel_explain(rel)
+rel_explain2 <- function(df, con) {
+  # Legacy
+  cat(rethrow_rapi_rel_explain2(df, con@conn_ref, "EXPLAIN_STANDARD", "DEFAULT")[[2]][[1]])
+  invisible(NULL)
+}
+
 #' Return the EXPLAIN output for a DuckDB relation object as a data frame
 #' @param rel the DuckDB relation object
 #' @noRd
@@ -534,6 +547,17 @@ rel_alias <- function(rel) {
   rethrow_rapi_rel_alias(rel)
 }
 
+#' Get the internal alias for a DuckDB relation object
+#' @param rel the DuckDB relation object
+#' @noRd
+#' @examples
+#' con <- DBI::dbConnect(duckdb())
+#' rel <- rel_from_df(con, mtcars)
+#' rel_alias(rel)
+rel_alias2 <- function(df, con) {
+  rethrow_rapi_rel_alias2(df, con@conn_ref)
+}
+
 #' Set the internal alias for a DuckDB relation object
 #' @param rel the DuckDB relation object
 #' @param alias the new alias
@@ -544,17 +568,6 @@ rel_alias <- function(rel) {
 #' rel_set_alias(rel, "my_new_alias")
 rel_set_alias <- function(rel, alias) {
   rethrow_rapi_rel_set_alias(rel, alias)
-}
-
-#' Get the internal alias for a DuckDB relation object
-#' @param rel the DuckDB relation object
-#' @noRd
-#' @examples
-#' con <- DBI::dbConnect(duckdb())
-#' rel <- rel_from_df(con, mtcars)
-#' rel_alias(rel)
-rel_alias2 <- function(df, con) {
-  rethrow_rapi_rel_alias2(df, con@conn_ref)
 }
 
 #' Set the internal alias for a DuckDB relation object
@@ -633,6 +646,18 @@ rel_from_sql <- function(con, sql) {
 }
 
 #' Create a duckdb table relation from a table name
+#' @param sql An SQL query
+#' @return a duckdb relation
+#' @noRd
+#' @examples
+#' con <- DBI::dbConnect(duckdb())
+#' DBI::dbWriteTable(con, "mtcars", mtcars)
+#' rel <- rel_from_sql(con, "SELECT * FROM mtcars")
+rel_from_sql2 <- function(con, sql) {
+    rethrow_rapi_rel_from_sql2(con@conn_ref, sql)
+}
+
+#' Create a duckdb table relation from a table name
 #' @param table the table name
 #' @return a duckdb relation
 #' @noRd
@@ -642,6 +667,18 @@ rel_from_sql <- function(con, sql) {
 #' rel <- rel_from_table(con, "mtcars")
 rel_from_table <- function(con, table_name, schema_name = "MAIN") {
   rethrow_rapi_rel_from_table(con@conn_ref, schema_name, table_name)
+}
+
+#' Create a duckdb table relation from a table name
+#' @param table the table name
+#' @return a duckdb relation
+#' @noRd
+#' @examples
+#' con <- DBI::dbConnect(duckdb())
+#' DBI::dbWriteTable(con, "mtcars", mtcars)
+#' rel <- rel_from_table(con, "mtcars")
+rel_from_table2 <- function(con, table_name, schema_name = "MAIN") {
+  rethrow_rapi_rel_from_table2(con@conn_ref, schema_name, table_name)
 }
 
 #' Convert a duckdb relation from a table-producing function
@@ -657,20 +694,49 @@ rel_from_table_function <- function(con, function_name, positional_parameters = 
   rethrow_rapi_rel_from_table_function(con@conn_ref, function_name, positional_parameters, named_parameters)
 }
 
+#' Convert a duckdb relation from a table-producing function
+#' @param name the table function name
+#' @param positional_parameters the table function positional parameters list
+#' @param named_parameters the table function named parameters list
+#' @return a duckdb relation
+#' @noRd
+#' @examples
+#' con <- DBI::dbConnect(duckdb())
+#' rel <- rel_from_table_function(con, 'generate_series', list(10L))
+rel_from_table_function2 <- function(con, function_name, positional_parameters = list(), named_parameters = list()) {
+  rethrow_rapi_rel_from_table_function2(con@conn_ref, function_name, positional_parameters, named_parameters)
+}
+
 rel_to_parquet <- function(rel, file_name, options = list()) {
   rethrow_rapi_rel_to_parquet(rel, file_name, options)
+}
+
+rel_to_parquet2 <- function(df, con, file_name, options = list()) {
+  rethrow_rapi_rel_to_parquet2(df, con@conn_ref, file_name, options)
 }
 
 rel_to_csv <- function(rel, file_name, options = list()) {
   rethrow_rapi_rel_to_csv(rel, file_name, options)
 }
 
+rel_to_csv2 <- function(df, con, file_name, options = list()) {
+  rethrow_rapi_rel_to_csv2(df, con@conn_ref, file_name, options)
+}
+
 rel_to_table <- function(rel, schema_name, table_name, temporary) {
-  rethrow_rapi_rel_to_table(rel, schema_name, table_name, temporary)
+  rethrow_rapi_rel_to_table2(rel, schema_name, table_name, temporary)
+}
+
+rel_to_table2 <- function(df, con, schema_name, table_name, temporary) {
+  rethrow_rapi_rel_to_table2(df, con@conn_ref, schema_name, table_name, temporary)
 }
 
 rel_insert <- function(rel, schema_name, table_name) {
   rethrow_rapi_rel_insert(rel, schema_name, table_name)
+}
+
+rel_insert2 <- function(df, con, schema_name, table_name) {
+  rethrow_rapi_rel_insert2(df, con@conn_ref, schema_name, table_name)
 }
 
 rel_names <- function(rel) {

@@ -188,6 +188,18 @@ rapi_rel_insert <- function(rel, schema_name, table_name) {
   invisible(.Call(`_duckdb_rapi_rel_insert`, rel, schema_name, table_name))
 }
 
+rapi_rel_names2 <- function(df, con) {
+  .Call(`_duckdb_rapi_rel_names2`, df, con)
+}
+
+rapi_rel_alias2 <- function(df, con) {
+  .Call(`_duckdb_rapi_rel_alias2`, df, con)
+}
+
+rapi_rel_set_alias2 <- function(df, con, alias) {
+  .Call(`_duckdb_rapi_rel_set_alias2`, df, con, alias)
+}
+
 rapi_rel_filter2 <- function(df, con, exprs) {
   .Call(`_duckdb_rapi_rel_filter2`, df, con, exprs)
 }
@@ -232,16 +244,36 @@ rapi_rel_set_symdiff2 <- function(left, right, con) {
   .Call(`_duckdb_rapi_rel_set_symdiff2`, left, right, con)
 }
 
-rapi_rel_names2 <- function(df, con) {
-  .Call(`_duckdb_rapi_rel_names2`, df, con)
+rapi_rel_from_sql2 <- function(con, sql) {
+  .Call(`_duckdb_rapi_rel_from_sql2`, con, sql)
 }
 
-rapi_rel_alias2 <- function(df, con) {
-  .Call(`_duckdb_rapi_rel_alias2`, df, con)
+rapi_rel_from_table2 <- function(con, schema_name, table_name) {
+  .Call(`_duckdb_rapi_rel_from_table2`, con, schema_name, table_name)
 }
 
-rapi_rel_set_alias2 <- function(df, con, alias) {
-  .Call(`_duckdb_rapi_rel_set_alias2`, df, con, alias)
+rapi_rel_from_table_function2 <- function(con, function_name, positional_parameters_sexps, named_parameters_sexps) {
+  .Call(`_duckdb_rapi_rel_from_table_function2`, con, function_name, positional_parameters_sexps, named_parameters_sexps)
+}
+
+rapi_rel_explain2 <- function(df, con, type, format) {
+  .Call(`_duckdb_rapi_rel_explain2`, df, con, type, format)
+}
+
+rapi_rel_to_parquet2 <- function(df, con, file_name, options_sexps) {
+  invisible(.Call(`_duckdb_rapi_rel_to_parquet2`, df, con, file_name, options_sexps))
+}
+
+rapi_rel_to_csv2 <- function(df, con, file_name, options_sexps) {
+  invisible(.Call(`_duckdb_rapi_rel_to_csv2`, df, con, file_name, options_sexps))
+}
+
+rapi_rel_to_table2 <- function(df, con, schema_name, table_name, temporary) {
+  invisible(.Call(`_duckdb_rapi_rel_to_table2`, df, con, schema_name, table_name, temporary))
+}
+
+rapi_rel_insert2 <- function(df, con, schema_name, table_name) {
+  invisible(.Call(`_duckdb_rapi_rel_insert2`, df, con, schema_name, table_name))
 }
 
 rapi_rel_to_altrep <- function(rel, allow_materialization) {
