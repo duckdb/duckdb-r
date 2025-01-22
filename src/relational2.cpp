@@ -27,7 +27,31 @@
 using namespace duckdb;
 using namespace cpp11;
 
-// DuckDB Expressions
+// DuckDB Relations: names
+
+[[cpp11::register]] SEXP rapi_rel_names2(data_frame df, duckdb::conn_eptr_t con) {
+	auto rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
+
+	auto ret = writable::strings();
+	for (auto &col : rel->rel->Columns()) {
+		ret.push_back(col.Name());
+	}
+	return (ret);
+}
+
+[[cpp11::register]] std::string rapi_rel_alias2(data_frame df, duckdb::conn_eptr_t con) {
+	auto rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
+	return rel->rel->GetAlias();
+}
+
+[[cpp11::register]] SEXP rapi_rel_set_alias2(data_frame df, duckdb::conn_eptr_t con, std::string alias) {
+	auto rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
+	cpp11::writable::list prot = {rel};
+
+	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, rel->rel->Alias(alias)), con, true);
+}
+
+// DuckDB Relations: operators
 
 [[cpp11::register]] SEXP rapi_rel_filter2(data_frame df, duckdb::conn_eptr_t con, list exprs) {
 	duckdb::unique_ptr<ParsedExpression> filter_expr;
@@ -250,28 +274,4 @@ using namespace cpp11;
 	cpp11::writable::list prot = {rel_left, rel_right};
 
 	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, symdiff), con, true);
-}
-
-// DuckDB Relations: names
-
-[[cpp11::register]] SEXP rapi_rel_names2(data_frame df, duckdb::conn_eptr_t con) {
-	auto rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
-
-	auto ret = writable::strings();
-	for (auto &col : rel->rel->Columns()) {
-		ret.push_back(col.Name());
-	}
-	return (ret);
-}
-
-[[cpp11::register]] std::string rapi_rel_alias2(data_frame df, duckdb::conn_eptr_t con) {
-	auto rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
-	return rel->rel->GetAlias();
-}
-
-[[cpp11::register]] SEXP rapi_rel_set_alias2(data_frame df, duckdb::conn_eptr_t con, std::string alias) {
-	auto rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
-	cpp11::writable::list prot = {rel};
-
-	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, rel->rel->Alias(alias)), con, true);
 }
