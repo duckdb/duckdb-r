@@ -443,8 +443,10 @@ static unique_ptr<NodeStatistics> DataFrameScanCardinality(ClientContext &contex
 	return make_uniq<NodeStatistics>(bind_data.row_count, bind_data.row_count);
 }
 
-static string DataFrameScanToString(const FunctionData *bind_data_p) {
-	return "data.frame";
+static InsertionOrderPreservingMap<string> DataFrameScanToString(TableFunctionToStringInput &input) {
+	InsertionOrderPreservingMap<string> result;
+	result["Text"] = "data.frame";
+	return result;
 }
 
 DataFrameScanFunction::DataFrameScanFunction()

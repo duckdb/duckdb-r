@@ -4,6 +4,8 @@
 
 #include "src/optimizer/column_lifetime_analyzer.cpp"
 
+#include "src/optimizer/empty_result_pullup.cpp"
+
 #include "src/optimizer/common_aggregate_optimizer.cpp"
 
 #include "src/optimizer/compressed_materialization.cpp"
@@ -43,4 +45,8 @@
 #include "src/optimizer/topn_optimizer.cpp"
 
 #include "src/optimizer/unnest_rewriter.cpp"
+
+#include "src/optimizer/sampling_pushdown.cpp"
+
+#include "src/optimizer/sum_rewriter.cpp"
 
