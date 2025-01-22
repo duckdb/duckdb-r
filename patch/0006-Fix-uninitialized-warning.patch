@@ -1,24 +1,28 @@
-From 8b297dc5efaf19bde1520f417e323aba0a3fbf92 Mon Sep 17 00:00:00 2001
+From a2f61993d29d45a68b53ea3251dac675d890654e Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
-Date: Sun, 8 Dec 2024 06:34:40 +0100
+Date: Wed, 22 Jan 2025 18:45:41 +0100
 Subject: [PATCH] fix: Fix uninitialized warning
 
 ---
- src/duckdb/src/main/connection.cpp | 1 +
- 1 file changed, 1 insertion(+)
+ src/duckdb/src/main/connection.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/src/duckdb/src/main/connection.cpp b/src/duckdb/src/main/connection.cpp
-index 4dd7ad11..a08874fc 100644
+index 4dd7ad11e..fe6fd7247 100644
 --- a/src/duckdb/src/main/connection.cpp
 +++ b/src/duckdb/src/main/connection.cpp
-@@ -28,6 +28,7 @@ Connection::Connection(DatabaseInstance &database)
+@@ -28,9 +28,10 @@ Connection::Connection(DatabaseInstance &database)
  }
  
  Connection::Connection(DuckDB &database) : Connection(*database.instance) {
-+	warning_cb = nullptr;
++	// Initialization of warning_cb happens in the other constructor
  }
  
- Connection::Connection(Connection &&other) noexcept {
+-Connection::Connection(Connection &&other) noexcept {
++Connection::Connection(Connection &&other) noexcept : warning_cb(nullptr) {
+ 	std::swap(context, other.context);
+ 	std::swap(warning_cb, other.warning_cb);
+ }
 -- 
-2.43.0
+2.48.1
 
