@@ -1,5 +1,24 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.1.3.9040
+
+## Features
+
+- Limit automatic materialization by number of rows or number of cells (#1017).
+
+## Chore
+
+- Restore state before the CRAN release.
+
+- Combine patches.
+
+- Add patch for vendoring.
+
+## Documentation
+
+- Restore old NEWS.
+
+
 # duckdb 1.1.3.9039
 
 ## Chore
