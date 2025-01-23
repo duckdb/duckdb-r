@@ -830,6 +830,8 @@
 
 ## Features
 
+- Limit automatic materialization by number of rows or number of cells (#1017).
+
 - New internal `rapi_rel_to_csv()`,`rapi_rel_to_table()`, and `rapi_rel_insert()`; `rapi_rel_to_parquet()` gains `options` argument (#867).
 
 ## Testing
