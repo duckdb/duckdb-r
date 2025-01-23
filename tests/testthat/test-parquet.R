@@ -48,3 +48,20 @@ test_that("duckdb rel_to_parquet() throws error with no file name", {
   expect_error(rel_to_parquet(iris_rel, ""))
 })
 
+test_that("duckdb rel_to_parquet() allows multiple files (#1015)", {
+  con <- dbConnect(duckdb())
+  on.exit(dbDisconnect(con))
+
+  tf1 <- tempfile(fileext = ".parquet")
+  rel1 <- rel_from_df(con, data.frame(a = 1))
+  rel_to_parquet(rel1, tf1)
+
+  tf2 <- tempfile(fileext = ".parquet")
+  rel2 <- rel_from_df(con, data.frame(a = 2))
+  rel_to_parquet(rel2, tf2)
+
+  res_rel <- rel_from_table_function(con, "read_parquet", list(list(c(tf1, tf2))))
+
+  res_df <- rel_to_altrep(res_rel)
+  expect_identical(res_df, data.frame(a = c(1, 2)))
+})
