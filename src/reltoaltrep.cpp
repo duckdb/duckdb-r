@@ -186,10 +186,11 @@ struct AltrepRelationWrapper {
 
 		if (max_rows < MAX_SIZE_T) {
 			auto mat_res = (MaterializedQueryResult *)local_res.get();
-			if (mat_res->RowCount() > max_rows) {
-				cpp11::stop("Materialization would result in %" PRIu64 " rows, which exceeds the limit of %" PRIu64,
+			const auto row_count = mat_res->RowCount();
+			if (row_count > max_rows) {
+				cpp11::stop("Materialization would result in %" PRIu64 " rows, which exceeds the limit of %" PRIu64
 							". Use collect() or as_tibble() to materialize.",
-							mat_res->RowCount(), max_rows);
+							row_count, max_rows);
 			}
 		}
 

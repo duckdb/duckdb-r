@@ -102,6 +102,7 @@ test_that("we can create comparison expressions with appropriate operators", {
 
 test_that("we cannot create comparison expressions with inappropriate operators", {
   local_edition(3)
+  withr::local_envvar(NO_COLOR = "true")
 
   expect_snapshot(error = TRUE, {
     expr_comparison("z", list(expr_constant(-42), expr_constant(42L)))
@@ -975,6 +976,9 @@ test_that("Handle zero-length lists (#186)", {
 })
 
 test_that("tethering", {
+  local_edition(3)
+  withr::local_envvar(NO_COLOR = "true")
+
   invisible(DBI::dbExecute(con, "CREATE MACRO \"<=\"(a, b) AS a <= b"))
   df1 <- data.frame(a = 1:10, b = 1:10)
 
@@ -993,26 +997,36 @@ test_that("tethering", {
   )
 
   forbid <- rel_to_altrep(rel2, allow_materialization = FALSE)
-  expect_error(nrow(forbid), "collect")
+  expect_snapshot(error = TRUE, {
+    nrow(forbid)
+  })
 
   five_rows <- rel_to_altrep(rel2, n_rows = 5)
   expect_error(nrow(five_rows), NA)
 
   four_rows <- rel_to_altrep(rel2, n_rows = 4)
-  expect_error(nrow(four_rows), "exceeds")
+  expect_snapshot(error = TRUE, {
+    nrow(four_rows)
+  })
 
   ten_cells <- rel_to_altrep(rel2, n_cells = 10)
   expect_error(nrow(ten_cells), NA)
 
   nine_cells <- rel_to_altrep(rel2, n_cells = 9)
-  expect_error(nrow(nine_cells), "exceeds")
+  expect_snapshot(error = TRUE, {
+    nrow(nine_cells)
+  })
 
   ok_both <- rel_to_altrep(rel2, n_rows = 5, n_cells = 10)
   expect_error(nrow(ok_both), NA)
 
   bad_rows <- rel_to_altrep(rel2, n_rows = 4, n_cells = 10)
-  expect_error(nrow(bad_rows), "exceeds")
+  expect_snapshot(error = TRUE, {
+    nrow(bad_rows)
+  })
 
   bad_cells <- rel_to_altrep(rel2, n_rows = 5, n_cells = 9)
-  expect_error(nrow(bad_cells), "exceeds")
+  expect_snapshot(error = TRUE, {
+    nrow(bad_cells)
+  })
 })
