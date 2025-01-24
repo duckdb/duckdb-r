@@ -1,0 +1,25 @@
+From b5dba3205f2f5c2b4613bf94c1eed1208856cc4c Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Fri, 24 Jan 2025 18:03:00 +0100
+Subject: [PATCH 11/11] Use cmath
+
+---
+ .../duckdb/core_functions/aggregate/algebraic/stddev.hpp        | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/duckdb/src/include/duckdb/core_functions/aggregate/algebraic/stddev.hpp b/src/duckdb/src/include/duckdb/core_functions/aggregate/algebraic/stddev.hpp
+index bdcafae95..c1cf1aef9 100644
+--- a/src/duckdb/src/include/duckdb/core_functions/aggregate/algebraic/stddev.hpp
++++ b/src/duckdb/src/include/duckdb/core_functions/aggregate/algebraic/stddev.hpp
+@@ -9,7 +9,7 @@
+ #pragma once
+ 
+ #include "duckdb/function/aggregate_function.hpp"
+-#include <ctgmath>
++#include <cmath>
+ 
+ namespace duckdb {
+ 
+-- 
+2.48.1
+
