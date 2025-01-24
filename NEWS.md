@@ -1,5 +1,16 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.1.3.9041
+
+## Bug fixes
+
+- Support reading from multiple Parquet files again (#1015, #1024).
+
+## Testing
+
+- Tweak Parquet tests (#1025).
+
+
 # duckdb 1.1.3.9040
 
 ## Features
