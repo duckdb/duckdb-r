@@ -226,9 +226,10 @@ struct AltrepRownamesWrapper {
 		return GetFromExternalPtr<AltrepRownamesWrapper>(x);
 	}
 
-	bool rowlen_data_retrieved;
 	int32_t rowlen_data[2];
 	duckdb::shared_ptr<AltrepRelationWrapper> rel;
+	bool rowlen_data_retrieved;
+
 };
 
 struct AltrepVectorWrapper {
