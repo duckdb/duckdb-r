@@ -1,5 +1,35 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.1.3.9041
+
+## Bug fixes
+
+- Support reading from multiple Parquet files again (#1015, #1024).
+
+## Testing
+
+- Tweak Parquet tests (#1025).
+
+
+# duckdb 1.1.3.9040
+
+## Features
+
+- Limit automatic materialization by number of rows or number of cells (#1017).
+
+## Chore
+
+- Restore state before the CRAN release.
+
+- Combine patches.
+
+- Add patch for vendoring.
+
+## Documentation
+
+- Restore old NEWS.
+
+
 # duckdb 1.1.3.9039
 
 ## Chore
@@ -796,6 +826,30 @@
 - Merge branch 'cran-1.1.3-1'.
 
 - Merge branch 'f-bump'.
+
+
+
+# duckdb 1.1.3-2
+
+## Bug fixes
+
+- Make `cleanup` truly idempotent (#612, #940).
+
+## Chore
+
+- Sync vendoring script with igraph (#936).
+
+## Features
+
+- Limit automatic materialization by number of rows or number of cells (#1017).
+
+- New internal `rapi_rel_to_csv()`,`rapi_rel_to_table()`, and `rapi_rel_insert()`; `rapi_rel_to_parquet()` gains `options` argument (#867).
+
+## Testing
+
+- Skip tests that are about to fail.
+
+- Sync tests.
 
 
 # duckdb 1.1.3-1

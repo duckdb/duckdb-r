@@ -8,6 +8,13 @@
 
 #include "httplib.hpp"
 #include <cinttypes>
+#include <cmath>
+#include <cstddef>
+
+#include "duckdb/common/unique_ptr.hpp"
+#include "duckdb/main/materialized_query_result.hpp"
+#include "duckdb/main/query_result.hpp"
+#include "duckdb/main/relation/limit_relation.hpp"
 
 #ifdef TRUE
 #undef TRUE
@@ -28,6 +35,8 @@ R_altrep_class_t RelToAltrep::string_class;
 #if defined(R_HAS_ALTLIST)
 R_altrep_class_t RelToAltrep::list_class;
 #endif
+
+const size_t MAX_SIZE_T = std::numeric_limits<size_t>::max();
 
 void RelToAltrep::Initialize(DllInfo *dll) {
 	// this is a string so setting row names will not lead to materialization
@@ -93,8 +102,9 @@ struct AltrepRelationWrapper {
 		return GetFromExternalPtr<AltrepRelationWrapper>(x);
 	}
 
-	AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_)
-	    : allow_materialization(allow_materialization_), rel_eptr(rel_) , rel(rel_->rel) , rowcount(0) , rowcount_retrieved(false) , ncols(0) , cols_transformed(0) {
+
+	AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_, size_t n_rows_, size_t n_cells_)
+	    : allow_materialization(allow_materialization_), n_rows(n_rows_), n_cells(n_cells_), rel_eptr(rel_), rel(rel_->rel), rowcount(0), rowcount_retrieved(false), ncols(0), cols_transformed(0) {
 	}
 
 	bool HasQueryResult() const {
@@ -104,7 +114,7 @@ struct AltrepRelationWrapper {
 	MaterializedQueryResult *GetQueryResult() {
 		if (!res) {
 			if (!allow_materialization) {
-				cpp11::stop("Materialization is disabled, use collect() or as_tibble() to materialize");
+				cpp11::stop("Materialization is disabled, use collect() or as_tibble() to materialize.");
 			}
 
 			auto materialize_callback = Rf_GetOption(RStrings::get().materialize_callback_sym, R_BaseEnv);
@@ -114,7 +124,7 @@ struct AltrepRelationWrapper {
 			}
 
 			auto materialize_message = Rf_GetOption(RStrings::get().materialize_message_sym, R_BaseEnv);
-		  if (Rf_isLogical(materialize_message) && Rf_length(materialize_message) == 1 && LOGICAL_ELT(materialize_message, 0) == true) {
+			if (Rf_isLogical(materialize_message) && Rf_length(materialize_message) == 1 && LOGICAL_ELT(materialize_message, 0) == true) {
 				// Legacy
 				Rprintf("duckplyr: materializing\n");
 			}
@@ -128,7 +138,7 @@ struct AltrepRelationWrapper {
 			duckdb_httplib::detail::scope_exit reset_max_expression_depth(
 			    [&]() { rel->context->GetContext()->config.max_expression_depth = old_depth; });
 
-			res = rel->Execute();
+			res = Materialize();
 
 			// FIXME: Use std::experimental::scope_exit
 			if (rel->context->GetContext()->config.max_expression_depth != old_depth * 2) {
@@ -144,11 +154,6 @@ struct AltrepRelationWrapper {
 
 			signal_handler.Disable();
 
-			if (res->HasError()) {
-				cpp11::stop("Error evaluating duckdb query: %s", res->GetError().c_str());
-			}
-			D_ASSERT(res->type == QueryResultType::MATERIALIZED_RESULT);
-
 			rowcount = ((MaterializedQueryResult *)res.get())->RowCount();
 			rowcount_retrieved = true;
 		}
@@ -156,7 +161,48 @@ struct AltrepRelationWrapper {
 		return (MaterializedQueryResult *)res.get();
 	}
 
-	bool allow_materialization;
+	duckdb::unique_ptr<QueryResult> Materialize() {
+		// Init with max value
+		size_t max_rows = MAX_SIZE_T;
+
+		// Number of cells limited?
+		if (n_cells < MAX_SIZE_T) {
+			max_rows = n_cells / rel->Columns().size();
+		}
+
+		// Number of rows limited?
+		if (n_rows < max_rows) {
+			max_rows = n_rows;
+		}
+
+		// For tethered, we push a limit relation and check the number of output rows
+		auto local_rel = rel;
+		if (max_rows < MAX_SIZE_T) {
+			local_rel = make_shared_ptr<LimitRelation>(rel, max_rows + 1, 0);
+		}
+
+		auto local_res = local_rel->Execute();
+
+		if (local_res->HasError()) {
+			cpp11::stop("Error evaluating duckdb query: %s", local_res->GetError().c_str());
+		}
+		D_ASSERT(local_res->type == QueryResultType::MATERIALIZED_RESULT);
+
+		if (max_rows < MAX_SIZE_T) {
+			auto mat_res = (MaterializedQueryResult *)local_res.get();
+			if (mat_res->RowCount() > max_rows) {
+				cpp11::stop("Materialization would result in %" PRIu64 " rows, which exceeds the limit of %" PRIu64,
+							". Use collect() or as_tibble() to materialize.",
+							mat_res->RowCount(), max_rows);
+			}
+		}
+
+		return std::move(local_res);
+	}
+
+	const bool allow_materialization;
+	const size_t n_rows;
+	const size_t n_cells;
 
 	size_t ncols;
 	size_t cols_transformed;
@@ -375,12 +421,27 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 	}
 }
 
-[[cpp11::register]] SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel, bool allow_materialization) {
+size_t DoubleToSize(double d) {
+	if (d < 0) {
+		cpp11::stop("rel_to_altrep: Negative size");
+	}
+	if (!std::isfinite(d)) {
+		// Return maximum size_t for Inf
+		return MAX_SIZE_T;
+	}
+	if (d >= (double)MAX_SIZE_T) {
+		cpp11::stop("rel_to_altrep: Size overflow");
+	}
+	return (size_t)d;
+}
+
+[[cpp11::register]] SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel, bool allow_materialization, double n_rows, double n_cells) {
 	D_ASSERT(rel && rel->rel);
 	auto drel = rel->rel;
 	auto ncols = drel->Columns().size();
 
-	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, allow_materialization);
+	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, allow_materialization, DoubleToSize(n_rows),
+	                                                              DoubleToSize(n_cells));
 
 	cpp11::writable::list data_frame;
 	data_frame.reserve(ncols);

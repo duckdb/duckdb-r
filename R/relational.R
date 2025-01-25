@@ -412,8 +412,8 @@ rel_set_alias <- function(rel, alias) {
 #' con <- DBI::dbConnect(duckdb())
 #' rel <- rel_from_df(con, mtcars)
 #' print(rel_to_altrep(rel))
-rel_to_altrep <- function(rel, allow_materialization = TRUE) {
-  rethrow_rapi_rel_to_altrep(rel, allow_materialization)
+rel_to_altrep <- function(rel, allow_materialization = TRUE, n_rows = Inf, n_cells = Inf) {
+  rethrow_rapi_rel_to_altrep(rel, allow_materialization, n_rows = n_rows, n_cells = n_cells)
 }
 
 
