@@ -204,13 +204,16 @@ struct AltrepRelationWrapper {
 	const size_t n_rows;
 	const size_t n_cells;
 
-	size_t ncols;
-	size_t cols_transformed;
-	R_xlen_t rowcount;
-	bool rowcount_retrieved;
 	rel_extptr_t rel_eptr;
 	duckdb::shared_ptr<Relation> rel;
 	duckdb::unique_ptr<QueryResult> res;
+
+	R_xlen_t rowcount;
+	bool rowcount_retrieved;
+
+	size_t ncols;
+	size_t cols_transformed;
+
 };
 
 struct AltrepRownamesWrapper {
