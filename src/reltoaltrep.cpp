@@ -94,7 +94,7 @@ struct AltrepRelationWrapper {
 	}
 
 	AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_)
-	    : allow_materialization(allow_materialization_), rel_eptr(rel_), rel(rel_->rel) {
+	    : allow_materialization(allow_materialization_), rel_eptr(rel_) , rel(rel_->rel) , rowcount(0) , rowcount_retrieved(false) , ncols(0) , cols_transformed(0) {
 	}
 
 	bool HasQueryResult() const {
@@ -148,6 +148,9 @@ struct AltrepRelationWrapper {
 				cpp11::stop("Error evaluating duckdb query: %s", res->GetError().c_str());
 			}
 			D_ASSERT(res->type == QueryResultType::MATERIALIZED_RESULT);
+
+			rowcount = ((MaterializedQueryResult *)res.get())->RowCount();
+			rowcount_retrieved = true;
 		}
 		D_ASSERT(res);
 		return (MaterializedQueryResult *)res.get();
@@ -155,6 +158,10 @@ struct AltrepRelationWrapper {
 
 	bool allow_materialization;
 
+	size_t ncols;
+	size_t cols_transformed;
+	R_xlen_t rowcount;
+	bool rowcount_retrieved;
 	rel_extptr_t rel_eptr;
 	duckdb::shared_ptr<Relation> rel;
 	duckdb::unique_ptr<QueryResult> res;
@@ -162,7 +169,7 @@ struct AltrepRelationWrapper {
 
 struct AltrepRownamesWrapper {
 
-	AltrepRownamesWrapper(duckdb::shared_ptr<AltrepRelationWrapper> rel_p) : rel(rel_p) {
+	AltrepRownamesWrapper(duckdb::shared_ptr<AltrepRelationWrapper> rel_p) : rel(rel_p) , rowlen_data_retrieved(false) {
 		rowlen_data[0] = NA_INTEGER;
 	}
 
@@ -170,6 +177,7 @@ struct AltrepRownamesWrapper {
 		return GetFromExternalPtr<AltrepRownamesWrapper>(x);
 	}
 
+	bool rowlen_data_retrieved;
 	int32_t rowlen_data[2];
 	duckdb::shared_ptr<AltrepRelationWrapper> rel;
 };
@@ -193,6 +201,14 @@ struct AltrepVectorWrapper {
 				SEXP dest = transformed_vector.data();
 				duckdb_r_transform(chunk.data[column_index], dest, dest_offset, chunk.size(), false);
 				dest_offset += chunk.size();
+			}
+			// keep tabs on how many of the columns have been transformed
+			// to their R-representation
+			rel->cols_transformed++;
+			// if all of the columns have been transformed, we can reset
+			// the query-result pointer and free the memory
+			if (rel->cols_transformed == rel->ncols) {
+				rel->res.reset();
 			}
 		}
 		return DATAPTR(transformed_vector);
@@ -272,16 +288,27 @@ const void *RelToAltrep::RownamesDataptrOrNull(SEXP x) {
 
 void *RelToAltrep::DoRownamesDataptrGet(SEXP x) {
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
+
+	// the query has been materialized, return the rowcount
+	// (and void recomputing the query if it's been reset)
+	if (rownames_wrapper->rowlen_data_retrieved) {
+		return rownames_wrapper->rowlen_data;
+	}
+
 	auto row_count = rownames_wrapper->rel->GetQueryResult()->RowCount();
 	if (row_count > (idx_t)NumericLimits<int32_t>::Maximum()) {
 		cpp11::stop("Integer overflow for row.names attribute");
 	}
 	rownames_wrapper->rowlen_data[1] = -row_count;
+	rownames_wrapper->rowlen_data_retrieved = true;
 	return rownames_wrapper->rowlen_data;
 }
 
 R_xlen_t RelToAltrep::VectorLength(SEXP x) {
 	BEGIN_CPP11
+	if (AltrepVectorWrapper::Get(x)->rel->rowcount_retrieved) {
+		return AltrepVectorWrapper::Get(x)->rel->rowcount;
+	}
 	return AltrepVectorWrapper::Get(x)->rel->GetQueryResult()->RowCount();
 	END_CPP11_EX(0)
 }
@@ -377,6 +404,9 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 		names.push_back(col.Name());
 	}
 	SET_NAMES(data_frame, StringsToSexp(names));
+
+	// Colcount
+	relation_wrapper->ncols = ncols;
 
 	// Row names
 	cpp11::external_pointer<AltrepRownamesWrapper> ptr(new AltrepRownamesWrapper(relation_wrapper));
