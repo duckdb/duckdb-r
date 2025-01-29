@@ -1,5 +1,160 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.1.3.9041
+
+## Bug fixes
+
+- Support reading from multiple Parquet files again (#1015, #1024).
+
+## Testing
+
+- Tweak Parquet tests (#1025).
+
+
+# duckdb 1.1.3.9040
+
+## Features
+
+- Limit automatic materialization by number of rows or number of cells (#1017).
+
+## Chore
+
+- Restore state before the CRAN release.
+
+- Combine patches.
+
+- Add patch for vendoring.
+
+## Documentation
+
+- Restore old NEWS.
+
+
+# duckdb 1.1.3.9039
+
+## Chore
+
+- Move internal `duckdb.tar` dependency (#1013).
+
+
+# duckdb 1.1.3.9038
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@a1c7e9b115788c7cae8e99d946598c49eecec6f9 (#1007).
+
+- Update vendored sources to duckdb/duckdb@bec4a7b985b030c41f37a57c93a2fdd394ba0212 (#1006).
+
+- Update vendored sources to duckdb/duckdb@c4d8ab37c430aea372ea08e45e5fead447dfb8fe (#1005).
+
+
+# duckdb 1.1.3.9037
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@cb8ecb6b96f89790f6ab835084d86e828a1b91b5 (#1003).
+
+- Update vendored sources to duckdb/duckdb@f8e95f0d66d2dd466d1d2c3a079f5d8c63ac5f21 (#1002).
+
+- Update vendored sources to duckdb/duckdb@af82bd7158e78256a5f2d7ae37cebb3bfd39f852 (#1001).
+
+- Update vendored sources to duckdb/duckdb@8dc08b1da039ceb38618a59f2128e5e22d2fb0ac (#1000).
+
+
+# duckdb 1.1.3.9036
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@d707b4432b74b51f8a176c533b98e24d48f4d165 (#998).
+
+- Update vendored sources to duckdb/duckdb@d3444ef1413102e5c8246a066b201c59ac5c4c04 (#997).
+
+- Update vendored sources to duckdb/duckdb@2c203c13b52f8d6073f5e03f3226eaadf0973654 (#996).
+
+- Update vendored sources to duckdb/duckdb@acea8cde22f802b792adc8cfdeea335103edc5fe (#994).
+
+- Update vendored sources to duckdb/duckdb@f850786ddef96177354ca8183280bc0de62a66c0 (#992).
+
+- Update vendored sources to duckdb/duckdb@00cbb18d634352d1ae0cdf4dd42d587d187f5a04 (#991).
+
+- Update vendored sources to duckdb/duckdb@bdf0f8c7231c44ed17bc2ede63498b3ef8d85d35 (#990).
+
+- Update vendored sources to duckdb/duckdb@5ec2adafa54af246814bd869bb6f48073a2f660b (#989).
+
+- Update vendored sources to duckdb/duckdb@b89f77c881fcdb8018bf3562c6de00b9e9849451 (#988).
+
+- Update vendored sources to duckdb/duckdb@b5393f7d0f8234028f9719889d33178ef793279f (#987).
+
+- Update vendored sources to duckdb/duckdb@b48222edb439e42517392eaa2e918b625cafd09a (#986).
+
+- Update vendored sources to duckdb/duckdb@c93ab6e8171b6cba652439cadc91e79d488ffd01 (#985).
+
+- Update vendored sources to duckdb/duckdb@3b44a57608458b063303d3576b2e21b6f1908a76 (#984).
+
+- Update vendored sources to duckdb/duckdb@fbc4d92fe6239536948a49d093196534c3492656 (#983).
+
+
+# duckdb 1.1.3.9035
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@dcb9627543af52e4322de464003259a6b0e7fdb4 (#980).
+
+- Update vendored sources to duckdb/duckdb@69dff93d1a956c68eb9dc603d24d06719e57749d (#979).
+
+- Update vendored sources to duckdb/duckdb@ce33de966a521d1a6e86ec9579e133ff2b2534f4 (#978).
+
+- Update vendored sources to duckdb/duckdb@c8fa9aee7858909c625b5c3abcc3a257c5d9d934 (#977).
+
+
+# duckdb 1.1.3.9034
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@acdbf60889033d2701a5fef360a19963cafea471 (#974).
+
+- Update vendored sources to duckdb/duckdb@2edfde3071cdc3ccc6047773e8229fb80238443d (#973).
+
+- Update vendored sources to duckdb/duckdb@3c0db29b2bf182105c1537ddf2fa8b12d186941d (#972).
+
+- Update vendored sources to duckdb/duckdb@5705d13dbf1d4f3db3e4f36d3194f669aaf99bc0 (#971).
+
+- Update vendored sources to duckdb/duckdb@41d13ad1612b3e91ff7a9a5c17edd6fdf51073f1 (#970).
+
+- Update vendored sources to duckdb/duckdb@52032a5b00d4f11376f4ba106753629aea87c0a8 (#969).
+
+- Update vendored sources to duckdb/duckdb@add512094d022fec50354208f908c3d60f3755a5 (#968).
+
+- Update vendored sources to duckdb/duckdb@d42c34cbd62061e5088fc1b81ced0c1008fa58ea (#967).
+
+- Update vendored sources to duckdb/duckdb@35bf611cc4832ceb2f20ec70a2597d0765618610 (duckdb/duckdb#15526, #966).
+
+- Update vendored sources to duckdb/duckdb@22de1ef5310136803f2caab0c9cc063b4fad52e5 (#965).
+
+- Update vendored sources to duckdb/duckdb@a3636bdd6203f4e4c47c5191264b9209e4f2a516 (#964).
+
+- Update vendored sources to duckdb/duckdb@50de06cec8de9c8da1b6fd9fcec3f514694a9b6a (#963).
+
+- Update vendored sources to duckdb/duckdb@4b163ff7c8cb9693fafe4d822dff54b31cfd2adf (#962).
+
+
+# duckdb 1.1.3.9033
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@adc6f607a71b87da2d0a7550e90db623e9bea637 (#959).
+
+- Update vendored sources to duckdb/duckdb@13ba13c121acfb3f4c48c16337297ac705779c19 (#958).
+
+- Update vendored sources to duckdb/duckdb@45462bcffd761b7d797cc1ab660930be62c110cb (#957).
+
+- Update vendored sources to duckdb/duckdb@a0a828b712f538a64263dad251d20a5f91f83a80 (#956).
+
+- Update vendored sources to duckdb/duckdb@2082b55f89fe6e810f982c57dceecbee5ecd40fa (#955).
+
+- Update vendored sources to duckdb/duckdb@7ee114cea8a43d9cdd0f0442cbde05c63a65a9c3 (#954).
+
+
 # duckdb 1.1.3.9032
 
 ## vendor
@@ -671,6 +826,30 @@
 - Merge branch 'cran-1.1.3-1'.
 
 - Merge branch 'f-bump'.
+
+
+
+# duckdb 1.1.3-2
+
+## Bug fixes
+
+- Make `cleanup` truly idempotent (#612, #940).
+
+## Chore
+
+- Sync vendoring script with igraph (#936).
+
+## Features
+
+- Limit automatic materialization by number of rows or number of cells (#1017).
+
+- New internal `rapi_rel_to_csv()`,`rapi_rel_to_table()`, and `rapi_rel_insert()`; `rapi_rel_to_parquet()` gains `options` argument (#867).
+
+## Testing
+
+- Skip tests that are about to fail.
+
+- Sync tests.
 
 
 # duckdb 1.1.3-1

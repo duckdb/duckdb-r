@@ -234,7 +234,10 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 			auto value = SexpToValue(ts_val, child_idx);
 			child_values.push_back(value);
 		}
-		return Value::LIST(RApiTypes::LogicalTypeFromRType(child_rtype, true), std::move(child_values));
+		if (child_values.empty()) {
+			return Value::LIST(RApiTypes::LogicalTypeFromRType(child_rtype, true), std::move(child_values));
+		}
+		return Value::LIST(std::move(child_values));
 	}
 	case RTypeId::STRUCT: {
 		child_list_t<Value> child_values;

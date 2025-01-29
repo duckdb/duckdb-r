@@ -102,6 +102,7 @@ test_that("we can create comparison expressions with appropriate operators", {
 
 test_that("we cannot create comparison expressions with inappropriate operators", {
   local_edition(3)
+  withr::local_envvar(NO_COLOR = "true")
 
   expect_snapshot(error = TRUE, {
     expr_comparison("z", list(expr_constant(-42), expr_constant(42L)))
@@ -825,8 +826,7 @@ test_that("rel_project does not automatically quote upper-case column names", {
   ref <- expr_reference(names(df))
   exprs <- list(ref)
   proj <- rel_project(rel, exprs)
-  # FIXME: Change to rel_to_altrep() in 1.1.3
-  ans <- rapi_rel_to_altrep(proj)
+  ans <- rel_to_altrep(proj)
   expect_equal(df, ans)
 })
 
@@ -929,8 +929,7 @@ test_that("we don't crash with evaluation errors", {
     )
   )
 
-  # FIXME: Change to rel_to_altrep() in 1.1.3
-  ans <- rapi_rel_to_altrep(rel2)
+  ans <- rel_to_altrep(rel2)
 
   # This query is supposed to throw a runtime error.
   # If this succeeds, find a new query that throws a runtime error.
@@ -961,8 +960,7 @@ test_that("we don't crash with evaluation errors", {
     )
   )
 
-  # FIXME: Change to rel_to_altrep() in 1.1.3
-  ans <- rapi_rel_to_altrep(rel2)
+  ans <- rel_to_altrep(rel2)
 
   # This query is supposed to throw a runtime error.
   # If this succeeds, find a new query that throws a runtime error.
@@ -974,5 +972,61 @@ test_that("Handle zero-length lists (#186)", {
 
   expect_snapshot({
     expr_constant(list(integer()))
+  })
+})
+
+test_that("tethering", {
+  local_edition(3)
+  withr::local_envvar(NO_COLOR = "true")
+
+  invisible(DBI::dbExecute(con, "CREATE MACRO \"<=\"(a, b) AS a <= b"))
+  df1 <- data.frame(a = 1:10, b = 1:10)
+
+  rel1 <- rel_from_df(con, df1)
+  rel2 <- rel_filter(
+    rel1,
+    list(
+      expr_function(
+        "<=",
+        list(
+          expr_reference("a"),
+          expr_constant(5L)
+        )
+      )
+    )
+  )
+
+  forbid <- rel_to_altrep(rel2, allow_materialization = FALSE)
+  expect_snapshot(error = TRUE, {
+    nrow(forbid)
+  })
+
+  five_rows <- rel_to_altrep(rel2, n_rows = 5)
+  expect_error(nrow(five_rows), NA)
+
+  four_rows <- rel_to_altrep(rel2, n_rows = 4)
+  expect_snapshot(error = TRUE, {
+    nrow(four_rows)
+  })
+
+  ten_cells <- rel_to_altrep(rel2, n_cells = 10)
+  expect_error(nrow(ten_cells), NA)
+
+  nine_cells <- rel_to_altrep(rel2, n_cells = 9)
+  expect_snapshot(error = TRUE, {
+    nrow(nine_cells)
+  })
+
+  ok_both <- rel_to_altrep(rel2, n_rows = 5, n_cells = 10)
+  expect_error(nrow(ok_both), NA)
+
+  bad_rows <- rel_to_altrep(rel2, n_rows = 4, n_cells = 10)
+  expect_snapshot(error = TRUE, {
+    nrow(bad_rows)
+  })
+
+  bad_cells <- rel_to_altrep(rel2, n_rows = 5, n_cells = 9)
+  expect_snapshot(error = TRUE, {
+    nrow(bad_cells)
   })
 })
