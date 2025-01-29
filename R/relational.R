@@ -18,6 +18,22 @@ expr_reference <- function(names, table = NULL) {
    rethrow_rapi_expr_reference(names)
 }
 
+
+#' Create a column reference expression
+#' @param names the column name to be referenced, could be a list to refer to schema.table.column etc.
+#' @param table the optional table name or a relation object to be referenced
+#' @return a column reference expression
+#' @noRd
+#' @examples
+#' col_ref_expr <- expr_reference("some_column_name")
+#' col_ref_expr2 <- expr_reference("some_column_name", "some_table_name")
+expr_reference2 <- function(names, table = NULL) {
+  if (is.character(table) && !identical(table, "")) {
+    names <- c(table, names)
+  }
+  rethrow_rapi_expr_reference(names)
+}
+
 #' Create a constant expression
 #' @param val the constant value
 #' @return a constant expression
@@ -336,6 +352,19 @@ rel_join <- function(left, right, conds,
     join_ref_type <- "cross"
   }
   rethrow_rapi_rel_join(left, right, conds, join, join_ref_type)
+}
+
+rel_join2 <- function(left, right, con, conds,
+                     join = c("inner", "left", "right", "outer", "cross", "semi", "anti"),
+                     join_ref_type = c("regular", "natural", "cross", "positional", "asof")) {
+  join <- match.arg(join)
+  join_ref_type <- match.arg(join_ref_type)
+  # the ref type is naturally regular. Users won't write rel_join(left, right, conds, "cross", "cross")
+  # so we update it here.
+  if (join == "cross" && join_ref_type == "regular") {
+    join_ref_type <- "cross"
+  }
+  rethrow_rapi_rel_join2(left, right, con@conn_ref, conds, join, join_ref_type)
 }
 
 #' UNION ALL on two DuckDB relation objects
