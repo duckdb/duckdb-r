@@ -87,6 +87,7 @@ QueryProfiler &QueryProfiler::Get(ClientContext &context) {
 }
 
 void QueryProfiler::StartQuery(string query, bool is_explain_analyze_p, bool start_at_optimizer) {
+	lock_guard<std::mutex> guard(lock);
 	if (is_explain_analyze_p) {
 		StartExplainAnalyze();
 	}
@@ -196,7 +197,7 @@ Value GetCumulativeOptimizers(ProfilingNode &node) {
 }
 
 void QueryProfiler::EndQuery() {
-	lock_guard<mutex> guard(flush_lock);
+	unique_lock<std::mutex> guard(lock);
 	if (!IsEnabled() || !running) {
 		return;
 	}
@@ -209,6 +210,8 @@ void QueryProfiler::EndQuery() {
 		}
 	}
 	running = false;
+
+	bool emit_output = false;
 
 	// Print or output the query profiling after query termination.
 	// EXPLAIN ANALYZE output is not written by the profiler.
@@ -250,20 +253,26 @@ void QueryProfiler::EndQuery() {
 			}
 		}
 
+		if (ClientConfig::GetConfig(context).emit_profiler_output) {
+			emit_output = true;
+		}
+	}
+
+	is_explain_analyze = false;
+
+	guard.unlock();
+
+	if (emit_output) {
 		string tree = ToString();
 		auto save_location = GetSaveLocation();
 
-		if (!ClientConfig::GetConfig(context).emit_profiler_output) {
-			// disable output
-		} else if (save_location.empty()) {
+		if (save_location.empty()) {
 			Printer::Print(tree);
 			Printer::Print("\n");
 		} else {
 			WriteToFile(save_location.c_str(), tree);
 		}
 	}
-
-	is_explain_analyze = false;
 }
 
 string QueryProfiler::ToString(ExplainFormat explain_format) const {
@@ -284,6 +293,7 @@ string QueryProfiler::ToString(ProfilerPrintFormat format) const {
 		return "";
 	case ProfilerPrintFormat::HTML:
 	case ProfilerPrintFormat::GRAPHVIZ: {
+		lock_guard<std::mutex> guard(lock);
 		// checking the tree to ensure the query is really empty
 		// the query string is empty when a logical plan is deserialized
 		if (query_info.query_name.empty() && !root) {
@@ -304,6 +314,7 @@ string QueryProfiler::ToString(ProfilerPrintFormat format) const {
 }
 
 void QueryProfiler::StartPhase(MetricsType phase_metric) {
+	lock_guard<std::mutex> guard(lock);
 	if (!IsEnabled() || !running) {
 		return;
 	}
@@ -315,6 +326,7 @@ void QueryProfiler::StartPhase(MetricsType phase_metric) {
 }
 
 void QueryProfiler::EndPhase() {
+	lock_guard<std::mutex> guard(lock);
 	if (!IsEnabled() || !running) {
 		return;
 	}
@@ -360,9 +372,17 @@ void OperatorProfiler::StartOperator(optional_ptr<const PhysicalOperator> phys_o
 	}
 	active_operator = phys_op;
 
-	// Start the timing of the current operator.
-	if (ProfilingInfo::Enabled(settings, MetricsType::OPERATOR_TIMING)) {
-		op.Start();
+	if (!settings.empty()) {
+		if (ProfilingInfo::Enabled(settings, MetricsType::EXTRA_INFO)) {
+			auto &info = GetOperatorInfo(*active_operator);
+			auto params = active_operator->ParamsToString();
+			info.extra_info = params;
+		}
+
+		// Start the timing of the current operator.
+		if (ProfilingInfo::Enabled(settings, MetricsType::OPERATOR_TIMING)) {
+			op.Start();
+		}
 	}
 }
 
@@ -392,30 +412,32 @@ void OperatorProfiler::EndOperator(optional_ptr<DataChunk> chunk) {
 }
 
 OperatorInformation &OperatorProfiler::GetOperatorInfo(const PhysicalOperator &phys_op) {
-	auto entry = timings.find(phys_op);
-	if (entry != timings.end()) {
+	auto entry = operator_infos.find(phys_op);
+	if (entry != operator_infos.end()) {
 		return entry->second;
 	}
+
 	// Add a new entry.
-	timings[phys_op] = OperatorInformation();
-	return timings[phys_op];
+	operator_infos[phys_op] = OperatorInformation();
+	return operator_infos[phys_op];
 }
 
 void OperatorProfiler::Flush(const PhysicalOperator &phys_op) {
-	auto entry = timings.find(phys_op);
-	if (entry == timings.end()) {
+	auto entry = operator_infos.find(phys_op);
+	if (entry == operator_infos.end()) {
 		return;
 	}
-	auto &operator_timing = timings.find(phys_op)->second;
-	operator_timing.name = phys_op.GetName();
+
+	auto &info = operator_infos.find(phys_op)->second;
+	info.name = phys_op.GetName();
 }
 
 void QueryProfiler::Flush(OperatorProfiler &profiler) {
-	lock_guard<mutex> guard(flush_lock);
+	lock_guard<std::mutex> guard(lock);
 	if (!IsEnabled() || !running) {
 		return;
 	}
-	for (auto &node : profiler.timings) {
+	for (auto &node : profiler.operator_infos) {
 		auto &op = node.first.get();
 		auto entry = tree_map.find(op);
 		D_ASSERT(entry != tree_map.end());
@@ -445,12 +467,15 @@ void QueryProfiler::Flush(OperatorProfiler &profiler) {
 		if (ProfilingInfo::Enabled(profiler.settings, MetricsType::RESULT_SET_SIZE)) {
 			info.AddToMetric<idx_t>(MetricsType::RESULT_SET_SIZE, node.second.result_set_size);
 		}
+		if (ProfilingInfo::Enabled(profiler.settings, MetricsType::EXTRA_INFO)) {
+			info.extra_info = node.second.extra_info;
+		}
 	}
-	profiler.timings.clear();
+	profiler.operator_infos.clear();
 }
 
 void QueryProfiler::SetInfo(const double &blocked_thread_time) {
-	lock_guard<mutex> guard(flush_lock);
+	lock_guard<std::mutex> guard(lock);
 	if (!IsEnabled() || !running) {
 		return;
 	}
@@ -566,6 +591,7 @@ void PrintPhaseTimingsToStream(std::ostream &ss, const ProfilingInfo &info, idx_
 }
 
 void QueryProfiler::QueryTreeToStream(std::ostream &ss) const {
+	lock_guard<std::mutex> guard(lock);
 	ss << "┌─────────────────────────────────────┐\n";
 	ss << "│┌───────────────────────────────────┐│\n";
 	ss << "││    Query Profiling Information    ││\n";
@@ -677,6 +703,7 @@ static string StringifyAndFree(yyjson_mut_doc *doc, yyjson_mut_val *object) {
 }
 
 string QueryProfiler::ToJSON() const {
+	lock_guard<std::mutex> guard(lock);
 	auto doc = yyjson_mut_doc_new(nullptr);
 	auto result_obj = yyjson_mut_obj(doc);
 	yyjson_mut_doc_set_root(doc, result_obj);
@@ -796,6 +823,7 @@ string QueryProfiler::RenderDisabledMessage(ProfilerPrintFormat format) const {
 }
 
 void QueryProfiler::Initialize(const PhysicalOperator &root_op) {
+	lock_guard<std::mutex> guard(lock);
 	if (!IsEnabled() || !running) {
 		return;
 	}

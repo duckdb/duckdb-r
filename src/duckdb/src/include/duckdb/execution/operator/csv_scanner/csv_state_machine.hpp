@@ -48,6 +48,15 @@ struct CSVStates {
 		       (states[0] == CSVState::RECORD_SEPARATOR || states[0] == CSVState::NOT_SET);
 	}
 
+	inline bool IsDelimiterBytes() const {
+		return states[0] == CSVState::DELIMITER_FIRST_BYTE || states[0] == CSVState::DELIMITER_SECOND_BYTE ||
+		       states[0] == CSVState::DELIMITER_THIRD_BYTE;
+	}
+
+	inline bool IsDelimiter() const {
+		return states[1] == CSVState::DELIMITER;
+	}
+
 	inline bool IsNotSet() const {
 		return states[1] == CSVState::NOT_SET;
 	}
@@ -71,6 +80,9 @@ struct CSVStates {
 	inline bool IsQuoted() const {
 		return states[0] == CSVState::QUOTED;
 	}
+	inline bool IsUnquoted() const {
+		return states[0] == CSVState::UNQUOTED;
+	}
 	inline bool IsEscaped() const {
 		switch (states[1]) {
 		case CSVState::ESCAPE:
@@ -78,7 +90,9 @@ struct CSVStates {
 		case CSVState::ESCAPED_RETURN:
 			return true;
 		case CSVState::QUOTED:
-			return states[0] == CSVState::UNQUOTED;
+			return states[0] == CSVState::UNQUOTED || states[0] == CSVState::MAYBE_QUOTED;
+		case CSVState::UNQUOTED:
+			return states[0] == CSVState::MAYBE_QUOTED;
 		default:
 			return false;
 		}

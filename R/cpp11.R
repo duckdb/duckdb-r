@@ -172,9 +172,24 @@ rapi_rel_from_table_function <- function(con, function_name, positional_paramete
   .Call(`_duckdb_rapi_rel_from_table_function`, con, function_name, positional_parameters_sexps, named_parameters_sexps)
 }
 
-# allow_materialization = TRUE: compatibility with duckplyr <= 0.4.1
-rapi_rel_to_altrep <- function(rel, allow_materialization = TRUE) {
-  .Call(`_duckdb_rapi_rel_to_altrep`, rel, allow_materialization)
+rapi_rel_to_parquet <- function(rel, file_name, options_sexps) {
+  invisible(.Call(`_duckdb_rapi_rel_to_parquet`, rel, file_name, options_sexps))
+}
+
+rapi_rel_to_csv <- function(rel, file_name, options_sexps) {
+  invisible(.Call(`_duckdb_rapi_rel_to_csv`, rel, file_name, options_sexps))
+}
+
+rapi_rel_to_table <- function(rel, schema_name, table_name, temporary) {
+  invisible(.Call(`_duckdb_rapi_rel_to_table`, rel, schema_name, table_name, temporary))
+}
+
+rapi_rel_insert <- function(rel, schema_name, table_name) {
+  invisible(.Call(`_duckdb_rapi_rel_insert`, rel, schema_name, table_name))
+}
+
+rapi_rel_to_altrep <- function(rel, allow_materialization, n_rows, n_cells) {
+  .Call(`_duckdb_rapi_rel_to_altrep`, rel, allow_materialization, n_rows, n_cells)
 }
 
 rapi_rel_from_altrep_df <- function(df, strict, allow_materialized) {
@@ -219,10 +234,6 @@ rapi_record_batch <- function(qry_res, chunk_size) {
 
 rapi_execute <- function(stmt, arrow, integer64) {
   .Call(`_duckdb_rapi_execute`, stmt, arrow, integer64)
-}
-
-rapi_rel_to_parquet <- function(rel, file_name) {
-  invisible(.Call(`_duckdb_rapi_rel_to_parquet`, rel, file_name))
 }
 
 rapi_adbc_init_func <- function() {

@@ -611,6 +611,19 @@ bool EnableExternalAccessSetting::OnGlobalReset(DatabaseInstance *db, DBConfig &
 }
 
 //===----------------------------------------------------------------------===//
+// Enable Object Cache
+//===----------------------------------------------------------------------===//
+void EnableObjectCacheSetting::SetGlobal(DatabaseInstance *db, DBConfig &config, const Value &input) {
+}
+
+void EnableObjectCacheSetting::ResetGlobal(DatabaseInstance *db, DBConfig &config) {
+}
+
+Value EnableObjectCacheSetting::GetSetting(const ClientContext &context) {
+	return Value();
+}
+
+//===----------------------------------------------------------------------===//
 // Enable Profiling
 //===----------------------------------------------------------------------===//
 void EnableProfilingSetting::SetLocal(ClientContext &context, const Value &input) {
@@ -882,6 +895,10 @@ Value MaxMemorySetting::GetSetting(const ClientContext &context) {
 // Max Temp Directory Size
 //===----------------------------------------------------------------------===//
 void MaxTempDirectorySizeSetting::SetGlobal(DatabaseInstance *db, DBConfig &config, const Value &input) {
+	if (input == "90% of available disk space") {
+		ResetGlobal(db, config);
+		return;
+	}
 	auto maximum_swap_space = DBConfig::ParseMemoryLimit(input.ToString());
 	if (maximum_swap_space == DConstants::INVALID_INDEX) {
 		// We use INVALID_INDEX to indicate that the value is not set by the user
@@ -919,7 +936,7 @@ Value MaxTempDirectorySizeSetting::GetSetting(const ClientContext &context) {
 		return Value(StringUtil::BytesToHumanReadableString(max_swap.GetIndex()));
 	} else {
 		// The temp directory has not been used yet
-		return Value(StringUtil::BytesToHumanReadableString(0));
+		return Value("90% of available disk space");
 	}
 }
 
@@ -1149,7 +1166,7 @@ void TempDirectorySetting::SetGlobal(DatabaseInstance *db, DBConfig &config, con
 	if (!config.options.enable_external_access) {
 		throw PermissionException("Modifying the temp_directory has been disabled by configuration");
 	}
-	config.options.temporary_directory = input.ToString();
+	config.options.temporary_directory = input.IsNull() ? "" : input.ToString();
 	config.options.use_temporary_directory = !config.options.temporary_directory.empty();
 	if (db) {
 		auto &buffer_manager = BufferManager::GetBufferManager(*db);

@@ -68,4 +68,14 @@ struct ZSTDFun {
 	static bool TypeIsSupported(PhysicalType type);
 };
 
+struct RoaringCompressionFun {
+	static CompressionFunction GetFunction(PhysicalType type);
+	static bool TypeIsSupported(const PhysicalType physical_type);
+};
+
+struct EmptyValidityCompressionFun {
+	static CompressionFunction GetFunction(PhysicalType type);
+	static bool TypeIsSupported(const PhysicalType physical_type);
+};
+
 } // namespace duckdb

@@ -27,9 +27,12 @@ public:
 		if (op.dynamic_filters && op.dynamic_filters->HasFilters()) {
 			table_filters = op.dynamic_filters->GetFinalTableFilters(op, op.table_filters.get());
 		}
+
 		if (op.function.init_global) {
-			TableFunctionInitInput input(op.bind_data.get(), op.column_ids, op.projection_ids, GetTableFilters(op),
+			auto filters = table_filters ? *table_filters : GetTableFilters(op);
+			TableFunctionInitInput input(op.bind_data.get(), op.column_ids, op.projection_ids, filters,
 			                             op.extra_info.sample_options);
+
 			global_state = op.function.init_global(context, input);
 			if (global_state) {
 				max_threads = global_state->MaxThreads();
@@ -92,33 +95,45 @@ unique_ptr<GlobalSourceState> PhysicalTableScan::GetGlobalSourceState(ClientCont
 SourceResultType PhysicalTableScan::GetData(ExecutionContext &context, DataChunk &chunk,
                                             OperatorSourceInput &input) const {
 	D_ASSERT(!column_ids.empty());
-	auto &gstate = input.global_state.Cast<TableScanGlobalSourceState>();
-	auto &state = input.local_state.Cast<TableScanLocalSourceState>();
+	auto &g_state = input.global_state.Cast<TableScanGlobalSourceState>();
+	auto &l_state = input.local_state.Cast<TableScanLocalSourceState>();
 
-	TableFunctionInput data(bind_data.get(), state.local_state.get(), gstate.global_state.get());
+	TableFunctionInput data(bind_data.get(), l_state.local_state.get(), g_state.global_state.get());
+
 	if (function.function) {
 		function.function(context.client, data, chunk);
-	} else {
-		if (gstate.in_out_final) {
-			function.in_out_function_final(context, data, chunk);
-		}
-		function.in_out_function(context, data, gstate.input_chunk, chunk);
-		if (chunk.size() == 0 && function.in_out_function_final) {
-			function.in_out_function_final(context, data, chunk);
-			gstate.in_out_final = true;
-		}
+		return chunk.size() == 0 ? SourceResultType::FINISHED : SourceResultType::HAVE_MORE_OUTPUT;
 	}
 
+	if (g_state.in_out_final) {
+		function.in_out_function_final(context, data, chunk);
+	}
+	function.in_out_function(context, data, g_state.input_chunk, chunk);
+	if (chunk.size() == 0 && function.in_out_function_final) {
+		function.in_out_function_final(context, data, chunk);
+		g_state.in_out_final = true;
+	}
 	return chunk.size() == 0 ? SourceResultType::FINISHED : SourceResultType::HAVE_MORE_OUTPUT;
 }
 
-double PhysicalTableScan::GetProgress(ClientContext &context, GlobalSourceState &gstate_p) const {
+ProgressData PhysicalTableScan::GetProgress(ClientContext &context, GlobalSourceState &gstate_p) const {
 	auto &gstate = gstate_p.Cast<TableScanGlobalSourceState>();
+	ProgressData res;
 	if (function.table_scan_progress) {
-		return function.table_scan_progress(context, bind_data.get(), gstate.global_state.get());
+		double table_progress = function.table_scan_progress(context, bind_data.get(), gstate.global_state.get());
+		if (table_progress < 0.0) {
+			res.SetInvalid();
+		} else {
+			res.done = table_progress;
+			res.total = 100.0;
+			// Assume cardinality is always 1e3
+			res.Normalize(1e3);
+		}
+	} else {
+		// if table_scan_progress is not implemented we don't support this function yet in the progress bar
+		res.SetInvalid();
 	}
-	// if table_scan_progress is not implemented we don't support this function yet in the progress bar
-	return -1;
+	return res;
 }
 
 bool PhysicalTableScan::SupportsPartitioning(const OperatorPartitionInfo &partition_info) const {
@@ -197,8 +212,13 @@ InsertionOrderPreservingMap<string> PhysicalTableScan::ParamsToString() const {
 					filters_info += "\n";
 				}
 				first_item = false;
-				auto &col_name = names[column_ids[column_index].GetPrimaryIndex()];
-				filters_info += filter->ToString(col_name);
+
+				const auto col_id = column_ids[column_index].GetPrimaryIndex();
+				if (col_id == COLUMN_IDENTIFIER_ROW_ID) {
+					filters_info += filter->ToString("rowid");
+				} else {
+					filters_info += filter->ToString(names[col_id]);
+				}
 			}
 		}
 		result["Filters"] = filters_info;
