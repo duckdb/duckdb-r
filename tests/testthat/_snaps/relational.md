@@ -333,7 +333,7 @@
       nrow(four_rows)
     Condition
       Error:
-      ! Materialization would result in 5 rows, which exceeds the limit of 4. Use collect() or as_tibble() to materialize.
+      ! Materialization would result in more than 4 rows. Use collect() or as_tibble() to materialize.
 
 ---
 
@@ -341,7 +341,7 @@
       nrow(nine_cells)
     Condition
       Error:
-      ! Materialization would result in 5 rows, which exceeds the limit of 4. Use collect() or as_tibble() to materialize.
+      ! Materialization would result in more than 4 rows. Use collect() or as_tibble() to materialize.
 
 ---
 
@@ -349,7 +349,7 @@
       nrow(bad_rows)
     Condition
       Error:
-      ! Materialization would result in 5 rows, which exceeds the limit of 4. Use collect() or as_tibble() to materialize.
+      ! Materialization would result in more than 4 rows. Use collect() or as_tibble() to materialize.
 
 ---
 
@@ -357,5 +357,5 @@
       nrow(bad_cells)
     Condition
       Error:
-      ! Materialization would result in 5 rows, which exceeds the limit of 4. Use collect() or as_tibble() to materialize.
+      ! Materialization would result in more than 4 rows. Use collect() or as_tibble() to materialize.
 
