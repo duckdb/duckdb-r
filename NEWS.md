@@ -1,5 +1,16 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.1.3.9042
+
+## Features
+
+- Simplify valve message.
+
+## Chore
+
+- Split definition and declaration.
+
+
 # duckdb 1.1.3.9041
 
 ## Bug fixes
