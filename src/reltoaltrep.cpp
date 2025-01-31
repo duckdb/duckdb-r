@@ -110,7 +110,7 @@ bool AltrepRelationWrapper::HasQueryResult() const {
 
 MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 	if (!res) {
-		if (!allow_materialization) {
+		if (!allow_materialization || n_cells == 0) {
 			cpp11::stop("Materialization is disabled, use collect() or as_tibble() to materialize.");
 		}
 
