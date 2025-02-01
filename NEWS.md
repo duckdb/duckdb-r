@@ -1,5 +1,22 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.1.3.9042
+
+## Features
+
+- Use cells == 0 as additional (later only) switch for forbidden materialization.
+
+- Simplify valve message.
+
+## Chore
+
+- Split definition and declaration.
+
+## Testing
+
+- Snapshot updates for R-CMD-check-base (null) (#1031).
+
+
 # duckdb 1.1.3.9041
 
 ## Bug fixes
