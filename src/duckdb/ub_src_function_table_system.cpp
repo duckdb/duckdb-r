@@ -28,6 +28,8 @@
 
 #include "src/function/table/system/duckdb_which_secret.cpp"
 
+#include "src/function/table/system/duckdb_secret_types.cpp"
+
 #include "src/function/table/system/duckdb_sequences.cpp"
 
 #include "src/function/table/system/duckdb_settings.cpp"
