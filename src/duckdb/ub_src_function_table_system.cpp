@@ -12,6 +12,10 @@
 
 #include "src/function/table/system/duckdb_keywords.cpp"
 
+#include "src/function/table/system/duckdb_log.cpp"
+
+#include "src/function/table/system/duckdb_log_contexts.cpp"
+
 #include "src/function/table/system/duckdb_indexes.cpp"
 
 #include "src/function/table/system/duckdb_memory.cpp"
