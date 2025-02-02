@@ -1,5 +1,33 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.1.3.9043
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@4e3920c3ec63284d11411d1ac6b28af5ceb784a0 (#1035).
+
+- Update vendored sources to duckdb/duckdb@db06cdd9ddb420a7f04248e7a62ea1785868d97c (#1034).
+
+- Update vendored sources to duckdb/duckdb@6c3fdfc17b3690db2892703956e2a4f3739adf6b (#1022).
+
+
+# duckdb 1.1.3.9042
+
+## Features
+
+- Use cells == 0 as additional (later only) switch for forbidden materialization.
+
+- Simplify valve message.
+
+## Chore
+
+- Split definition and declaration.
+
+## Testing
+
+- Snapshot updates for R-CMD-check-base (null) (#1031).
+
+
 # duckdb 1.1.3.9041
 
 ## Bug fixes
