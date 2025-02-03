@@ -101,7 +101,7 @@ AltrepRelationWrapper *AltrepRelationWrapper::Get(SEXP x) {
 }
 
 AltrepRelationWrapper::AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_, size_t n_rows_, size_t n_cells_)
-    : allow_materialization(allow_materialization_), n_rows(n_rows_), n_cells(n_cells_), rel_eptr(rel_), rel(rel_->rel) {
+    	    : allow_materialization(allow_materialization_), n_rows(n_rows_), n_cells(n_cells_), rel_eptr(rel_), rel(rel_->rel), rowcount(0), rowcount_retrieved(false), ncols(0), cols_transformed(0) {
 }
 
 bool AltrepRelationWrapper::HasQueryResult() const {
@@ -148,6 +148,10 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 		if (signal_handler.HandleInterrupt()) {
 			cpp11::stop("Query execution was interrupted");
 		}
+
+
+		rowcount = ((MaterializedQueryResult *)res.get())->RowCount();
+		rowcount_retrieved = true;
 
 		signal_handler.Disable();
 	}
@@ -196,7 +200,7 @@ duckdb::unique_ptr<QueryResult> AltrepRelationWrapper::Materialize() {
 
 struct AltrepRownamesWrapper {
 
-	AltrepRownamesWrapper(duckdb::shared_ptr<AltrepRelationWrapper> rel_p) : rel(rel_p) {
+	AltrepRownamesWrapper(duckdb::shared_ptr<AltrepRelationWrapper> rel_p) : rel(rel_p), rowlen_data_retrieved(false) {
 		rowlen_data[0] = NA_INTEGER;
 	}
 
@@ -206,6 +210,7 @@ struct AltrepRownamesWrapper {
 
 	int32_t rowlen_data[2];
 	duckdb::shared_ptr<AltrepRelationWrapper> rel;
+	bool rowlen_data_retrieved;
 };
 
 struct AltrepVectorWrapper {
@@ -219,6 +224,7 @@ struct AltrepVectorWrapper {
 
 	void *Dataptr() {
 		if (transformed_vector.data() == R_NilValue) {
+			printf("transformed_vector.data() == R_NilValue\n");
 			auto res = rel->GetQueryResult();
 
 			transformed_vector = duckdb_r_allocate(res->types[column_index], res->RowCount());
@@ -227,6 +233,17 @@ struct AltrepVectorWrapper {
 				SEXP dest = transformed_vector.data();
 				duckdb_r_transform(chunk.data[column_index], dest, dest_offset, chunk.size(), false);
 				dest_offset += chunk.size();
+			}
+			// keep tabs on how many of the columns have been transformed
+			// to their R-representation
+			rel->cols_transformed++;
+			// if all of the columns have been transformed, we can reset
+			// the query-result pointer and free the memory
+			if (rel->cols_transformed == rel->ncols) {
+				printf("Resetting query results\n");
+				rel->res.reset();
+			} else {
+				printf("cols_transformed: %ld vs. ncols %ld\n", rel->cols_transformed, rel->ncols);
 			}
 		}
 		return DATAPTR(transformed_vector);
@@ -306,6 +323,13 @@ const void *RelToAltrep::RownamesDataptrOrNull(SEXP x) {
 
 void *RelToAltrep::DoRownamesDataptrGet(SEXP x) {
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
+
+	// the query has been materialized, return the rowcount
+	// (and void recomputing the query if it's been reset)
+	if (rownames_wrapper->rowlen_data_retrieved) {
+		return rownames_wrapper->rowlen_data;
+	}
+
 	auto row_count = rownames_wrapper->rel->GetQueryResult()->RowCount();
 	if (row_count > (idx_t)NumericLimits<int32_t>::Maximum()) {
 		cpp11::stop("Integer overflow for row.names attribute");
@@ -316,6 +340,9 @@ void *RelToAltrep::DoRownamesDataptrGet(SEXP x) {
 
 R_xlen_t RelToAltrep::VectorLength(SEXP x) {
 	BEGIN_CPP11
+	if (AltrepVectorWrapper::Get(x)->rel->rowcount_retrieved) {
+		return AltrepVectorWrapper::Get(x)->rel->rowcount;
+	}
 	return AltrepVectorWrapper::Get(x)->rel->GetQueryResult()->RowCount();
 	END_CPP11_EX(0)
 }
@@ -404,6 +431,8 @@ size_t DoubleToSize(double d) {
 	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, allow_materialization, DoubleToSize(n_rows),
 	                                                              DoubleToSize(n_cells));
 
+	relation_wrapper->ncols = drel->Columns().size();
+
 	cpp11::writable::list data_frame;
 	data_frame.reserve(ncols);
 
@@ -426,6 +455,8 @@ size_t DoubleToSize(double d) {
 		names.push_back(col.Name());
 	}
 	SET_NAMES(data_frame, StringsToSexp(names));
+
+	relation_wrapper->ncols = drel->Columns().size();
 
 	// Row names
 	cpp11::external_pointer<AltrepRownamesWrapper> ptr(new AltrepRownamesWrapper(relation_wrapper));
