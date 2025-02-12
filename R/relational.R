@@ -27,7 +27,10 @@ expr_reference <- function(names, table = NULL) {
 #' @examples
 #' col_ref_expr <- expr_reference("some_column_name")
 #' col_ref_expr2 <- expr_reference("some_column_name", "some_table_name")
-expr_reference2 <- function(names, table = NULL) {
+expr_reference2 <- function(names, table = NULL, con = NULL) {
+  if (inherits(table, "data.frame")) {
+    names <- c(rel_alias2(table, con), names)
+  }
   if (is.character(table) && !identical(table, "")) {
     names <- c(table, names)
   }

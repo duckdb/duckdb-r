@@ -18,7 +18,7 @@ test_that("relational anti_join(join_by(a)) order-enforcing 2", {
     df4,
     con,
     list(
-      expr_function("___eq_na_matches_na", list(expr_reference("a", rel5), expr_reference("a", rel4)))
+      expr_function("___eq_na_matches_na", list(expr_reference2("a", df2, con), expr_reference2("a", df4, con)))
     ),
     "anti"
   )
