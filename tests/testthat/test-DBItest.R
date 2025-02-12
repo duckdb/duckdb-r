@@ -203,6 +203,11 @@ if (rlang::is_installed("DBItest")) DBItest::test_all(c(
   "arrow_write_table_arrow_roundtrip_timestamp_extended", # precision
   "arrow_append_table_arrow_roundtrip_timestamp_extended", # precision
 
+  # https://github.com/duckdb/duckdb/pull/15125
+  "data_date_current_typed",
+  "data_time_current",
+  "data_date_current",
+
   if (!rlang::is_installed("vctrs")) {
     c(
       "arrow_append_table_arrow_roundtrip_blob",

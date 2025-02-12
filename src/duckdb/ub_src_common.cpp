@@ -46,6 +46,8 @@
 
 #include "src/common/error_data.cpp"
 
+#include "src/common/opener_file_system.cpp"
+
 #include "src/common/printer.cpp"
 
 #include "src/common/radix_partitioning.cpp"
@@ -53,6 +55,8 @@
 #include "src/common/re2_regex.cpp"
 
 #include "src/common/random_engine.cpp"
+
+#include "src/common/stacktrace.cpp"
 
 #include "src/common/string_util.cpp"
 

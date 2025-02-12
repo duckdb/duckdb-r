@@ -412,8 +412,8 @@ rel_set_alias <- function(rel, alias) {
 #' con <- DBI::dbConnect(duckdb())
 #' rel <- rel_from_df(con, mtcars)
 #' print(rel_to_altrep(rel))
-rel_to_altrep <- function(rel, allow_materialization = TRUE) {
-  rethrow_rapi_rel_to_altrep(rel, allow_materialization)
+rel_to_altrep <- function(rel, allow_materialization = TRUE, n_rows = Inf, n_cells = Inf) {
+  rethrow_rapi_rel_to_altrep(rel, allow_materialization, n_rows = n_rows, n_cells = n_cells)
 }
 
 
@@ -492,8 +492,20 @@ rel_from_table_function <- function(con, function_name, positional_parameters = 
   rethrow_rapi_rel_from_table_function(con@conn_ref, function_name, positional_parameters, named_parameters)
 }
 
-rel_to_parquet <- function(rel, file_name) {
-  rethrow_rapi_rel_to_parquet(rel, file_name)
+rel_to_parquet <- function(rel, file_name, options = list()) {
+  rethrow_rapi_rel_to_parquet(rel, file_name, options)
+}
+
+rel_to_csv <- function(rel, file_name, options = list()) {
+  rethrow_rapi_rel_to_csv(rel, file_name, options)
+}
+
+rel_to_table <- function(rel, schema_name, table_name, temporary) {
+  rethrow_rapi_rel_to_table(rel, schema_name, table_name, temporary)
+}
+
+rel_insert <- function(rel, schema_name, table_name) {
+  rethrow_rapi_rel_insert(rel, schema_name, table_name)
 }
 
 rel_names <- function(rel) {

@@ -407,7 +407,7 @@ ScalarFunctionSet base_r_is_na() {
 
 #include <math.h>
 #include <climits>
-#include "duckdb/core_functions/aggregate/distributive_functions.hpp"
+#include "duckdb/extension/core_functions/include/core_functions/aggregate/distributive_functions.hpp"
 
 namespace duckdb {
 namespace rfuns {
@@ -1024,8 +1024,8 @@ DUCKDB_EXTENSION_API const char *rfuns_version() {
 
 #include <math.h>
 #include <climits>
-#include "duckdb/core_functions/aggregate/sum_helpers.hpp"
-#include "duckdb/core_functions/aggregate/distributive_functions.hpp"
+#include "duckdb/extension/core_functions/include/core_functions/aggregate/sum_helpers.hpp"
+#include "duckdb/extension/core_functions/include/core_functions/aggregate/distributive_functions.hpp"
 
 namespace duckdb {
 namespace rfuns {

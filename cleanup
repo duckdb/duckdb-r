@@ -3,7 +3,7 @@
 set -ex
 
 # Check if the archive already exists
-if [ -f "duckdb.tar.xz" ]; then
+if [ -f "src/duckdb.tar.xz" ]; then
   echo "duckdb.tar.xz already exists. Skipping compression."
   exit 0
 fi

@@ -235,7 +235,7 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 			child_values.push_back(value);
 		}
 		if (child_values.empty()) {
-			return Value::EMPTYLIST(RApiTypes::LogicalTypeFromRType(child_rtype, true));
+			return Value::LIST(RApiTypes::LogicalTypeFromRType(child_rtype, true), std::move(child_values));
 		}
 		return Value::LIST(std::move(child_values));
 	}
@@ -287,7 +287,7 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 		return res;
 	}
 	case LogicalTypeId::TIMESTAMP_TZ: {
-		cpp11::doubles res({(double)Timestamp::GetEpochSeconds(val.GetValue<timestamp_t>())});
+		cpp11::doubles res({(double)Timestamp::GetEpochSeconds(val.GetValue<timestamp_tz_t>())});
 		SET_CLASS(res, RStrings::get().POSIXct_POSIXt_str);
 		Rf_setAttrib(res, RStrings::get().tzone_sym, StringsToSexp({timezone_config}));
 		return res;
