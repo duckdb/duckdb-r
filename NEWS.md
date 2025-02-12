@@ -1,5 +1,16 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.1.3.9045
+
+## Continuous integration
+
+- Check R 4.1 on Windows.
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@0e844786417d80226851f5fc375060b47d3b65e0 (#1040).
+
+
 # duckdb 1.1.3.9044
 
 ## Chore
