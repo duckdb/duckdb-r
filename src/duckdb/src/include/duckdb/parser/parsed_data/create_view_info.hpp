@@ -40,8 +40,7 @@ public:
 	//! Gets a bound CreateViewInfo object from a SELECT statement and a view name, schema name, etc
 	DUCKDB_API static unique_ptr<CreateViewInfo> FromSelect(ClientContext &context, unique_ptr<CreateViewInfo> info);
 	//! Gets a bound CreateViewInfo object from a CREATE VIEW statement
-	DUCKDB_API static unique_ptr<CreateViewInfo> FromCreateView(ClientContext &context, SchemaCatalogEntry &schema,
-	                                                            const string &sql);
+	DUCKDB_API static unique_ptr<CreateViewInfo> FromCreateView(ClientContext &context, const string &sql);
 	//! Parse a SELECT statement from a SQL string
 	DUCKDB_API static unique_ptr<SelectStatement> ParseSelect(const string &sql);
 
