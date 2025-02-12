@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cassert>
+#include <cstdint>
 #include <cstring>
 #include <fstream>
 #include <iostream>

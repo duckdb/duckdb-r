@@ -423,9 +423,9 @@ rethrow_rapi_rel_insert <- function(rel, schema_name, table_name, call = parent.
   )
 }
 
-rethrow_rapi_rel_to_altrep <- function(rel, allow_materialization, call = parent.frame(2)) {
+rethrow_rapi_rel_to_altrep <- function(rel, allow_materialization, n_rows, n_cells, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_rel_to_altrep(rel, allow_materialization),
+    rapi_rel_to_altrep(rel, allow_materialization, n_rows, n_cells),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
@@ -444,42 +444,6 @@ rethrow_rapi_rel_from_altrep_df <- function(df, strict, allow_materialized, call
 rethrow_rapi_release <- function(stmt, call = parent.frame(2)) {
   rlang::try_fetch(
     rapi_release(stmt),
-    error = function(e) {
-      rethrow_error_from_rapi(e, call)
-    }
-  )
-}
-
-rethrow_rapi_get_substrait <- function(conn, query, enable_optimizer, call = parent.frame(2)) {
-  rlang::try_fetch(
-    rapi_get_substrait(conn, query, enable_optimizer),
-    error = function(e) {
-      rethrow_error_from_rapi(e, call)
-    }
-  )
-}
-
-rethrow_rapi_get_substrait_json <- function(conn, query, enable_optimizer, call = parent.frame(2)) {
-  rlang::try_fetch(
-    rapi_get_substrait_json(conn, query, enable_optimizer),
-    error = function(e) {
-      rethrow_error_from_rapi(e, call)
-    }
-  )
-}
-
-rethrow_rapi_prepare_substrait <- function(conn, query, call = parent.frame(2)) {
-  rlang::try_fetch(
-    rapi_prepare_substrait(conn, query),
-    error = function(e) {
-      rethrow_error_from_rapi(e, call)
-    }
-  )
-}
-
-rethrow_rapi_prepare_substrait_json <- function(conn, json, call = parent.frame(2)) {
-  rlang::try_fetch(
-    rapi_prepare_substrait_json(conn, json),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
@@ -609,10 +573,6 @@ rethrow_restore <- function() {
   rethrow_rapi_rel_to_altrep <<- rapi_rel_to_altrep
   rethrow_rapi_rel_from_altrep_df <<- rapi_rel_from_altrep_df
   rethrow_rapi_release <<- rapi_release
-  rethrow_rapi_get_substrait <<- rapi_get_substrait
-  rethrow_rapi_get_substrait_json <<- rapi_get_substrait_json
-  rethrow_rapi_prepare_substrait <<- rapi_prepare_substrait
-  rethrow_rapi_prepare_substrait_json <<- rapi_prepare_substrait_json
   rethrow_rapi_prepare <<- rapi_prepare
   rethrow_rapi_bind <<- rapi_bind
   rethrow_rapi_execute_arrow <<- rapi_execute_arrow

@@ -2,6 +2,32 @@
 
 #include "rapi.hpp"
 
+#include "duckdb/main/query_result.hpp"
+
+namespace duckdb {
+
+struct AltrepRelationWrapper {
+	static AltrepRelationWrapper *Get(SEXP x);
+
+	AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_, size_t n_rows_, size_t n_cells_);
+
+	bool HasQueryResult() const;
+
+	MaterializedQueryResult *GetQueryResult();
+
+	duckdb::unique_ptr<QueryResult> Materialize();
+
+	const bool allow_materialization;
+	const size_t n_rows;
+	const size_t n_cells;
+
+	rel_extptr_t rel_eptr;
+	duckdb::shared_ptr<Relation> rel;
+	duckdb::unique_ptr<QueryResult> res;
+};
+
+}
+
 struct RelToAltrep {
 	static void Initialize(DllInfo *dll);
 	static R_xlen_t RownamesLength(SEXP x);
