@@ -1001,6 +1001,11 @@ test_that("tethering", {
     nrow(forbid)
   })
 
+  forbid_nrow <- rel_to_altrep(rel2, n_cells = 0)
+  expect_snapshot(error = TRUE, {
+    nrow(forbid)
+  })
+
   five_rows <- rel_to_altrep(rel2, n_rows = 5)
   expect_error(nrow(five_rows), NA)
 
