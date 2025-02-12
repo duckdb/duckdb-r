@@ -28,8 +28,4 @@ reference:
   - duckdb_register
   - duckdb_register_arrow
   - duckdb_read_csv
-  - duckdb_get_substrait
-  - duckdb_get_substrait_json
-  - duckdb_prepare_substrait
-  - duckdb_prepare_substrait_json
   - duckdb_explain-class

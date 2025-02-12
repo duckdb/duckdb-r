@@ -23,45 +23,6 @@ using namespace cpp11::literals;
 	}
 }
 
-[[cpp11::register]] SEXP rapi_get_substrait(duckdb::conn_eptr_t conn, std::string query, bool enable_optimizer = true) {
-	if (!conn || !conn.get() || !conn->conn) {
-		cpp11::stop("rapi_get_substrait: Invalid connection");
-	}
-
-	named_parameter_map_t parameter_map;
-	parameter_map["enable_optimizer"] = Value::BOOLEAN(enable_optimizer);
-
-	auto rel = conn->conn->TableFunction("get_substrait", {Value(query)}, parameter_map);
-	auto res = rel->Execute();
-	auto chunk = res->Fetch();
-	auto blob_string = StringValue::Get(chunk->GetValue(0, 0));
-
-	auto rawval = NEW_RAW(blob_string.size());
-	if (!rawval) {
-		throw std::bad_alloc();
-	}
-	memcpy(RAW_POINTER(rawval), blob_string.data(), blob_string.size());
-
-	return rawval;
-}
-
-[[cpp11::register]] SEXP rapi_get_substrait_json(duckdb::conn_eptr_t conn, std::string query,
-                                                 bool enable_optimizer = true) {
-	if (!conn || !conn.get() || !conn->conn) {
-		cpp11::stop("rapi_get_substrait_json: Invalid connection");
-	}
-
-	named_parameter_map_t parameter_map;
-	parameter_map["enable_optimizer"] = Value::BOOLEAN(enable_optimizer);
-
-	auto rel = conn->conn->TableFunction("get_substrait_json", {Value(query)}, parameter_map);
-	auto res = rel->Execute();
-	auto chunk = res->Fetch();
-	auto json = StringValue::Get(chunk->GetValue(0, 0));
-
-	return StringsToSexp({json});
-}
-
 static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt, const string &query, idx_t n_param, SEXP registered_dfs = R_NilValue) {
 	cpp11::writable::list retlist;
 	retlist.reserve(8);
@@ -89,43 +50,6 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	retlist.push_back({"registered_dfs"_nm = registered_dfs});
 
 	return retlist;
-}
-
-[[cpp11::register]] cpp11::list rapi_prepare_substrait(duckdb::conn_eptr_t conn, cpp11::sexp query) {
-	if (!conn || !conn.get() || !conn->conn) {
-		cpp11::stop("rapi_prepare_substrait: Invalid connection");
-	}
-
-	if (!IS_RAW(query)) {
-		cpp11::stop("rapi_prepare_substrait: Query is not a raw()/BLOB");
-	}
-
-	auto rel = conn->conn->TableFunction("from_substrait", {Value::BLOB(RAW_POINTER(query), LENGTH(query))});
-	auto relation_stmt = make_uniq<RelationStatement>(rel);
-	relation_stmt->query = "";
-	auto stmt = conn->conn->Prepare(std::move(relation_stmt));
-	if (stmt->HasError()) {
-		cpp11::stop("rapi_prepare_substrait: Failed to prepare query %s\nError: %s", stmt->error.Message().c_str());
-	}
-
-	return construct_retlist(std::move(stmt), "", 0);
-}
-
-[[cpp11::register]] cpp11::list rapi_prepare_substrait_json(duckdb::conn_eptr_t conn, std::string json) {
-	if (!conn || !conn.get() || !conn->conn) {
-		cpp11::stop("rapi_prepare_substrait_json: Invalid connection");
-	}
-
-	auto rel = conn->conn->TableFunction("from_substrait_json", {Value(json)});
-	auto relation_stmt = make_uniq<RelationStatement>(rel);
-	relation_stmt->query = "";
-	auto stmt = conn->conn->Prepare(std::move(relation_stmt));
-	if (stmt->HasError()) {
-		cpp11::stop("rapi_prepare_substrait_json: Failed to prepare query %s\nError: %s",
-		            stmt->error.Message().c_str());
-	}
-
-	return construct_retlist(std::move(stmt), "", 0);
 }
 
 [[cpp11::register]] cpp11::list rapi_prepare(duckdb::conn_eptr_t conn, std::string query, cpp11::environment env) {
@@ -294,7 +218,7 @@ struct AppendableRList {
 bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, AppendableRList &batches_list,
                      ArrowArray &arrow_data, ArrowSchema &arrow_schema, SEXP batch_import_from_c, SEXP arrow_namespace,
                      idx_t chunk_size) {
-	auto count = ArrowUtil::FetchChunk(scan_state, options, chunk_size, &arrow_data);
+	auto count = ArrowUtil::FetchChunk(scan_state, options, chunk_size, &arrow_data, ArrowTypeExtensionData::GetExtensionTypes(*options.client_context, scan_state.Types()));
 	if (count == 0) {
 		return false;
 	}
