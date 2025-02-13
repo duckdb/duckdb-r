@@ -5,7 +5,7 @@ duckdb_progress_display <- function(x) {
 
 check_progress_display <- function(f) {
   if (is.null(f)) return()
-  if (is.TRUE(f) || isFALSE(f)) return()
+  if (isTRUE(f) || isFALSE(f)) return()
   if (is.function(f)) {
     if (length(formals(f)) > 0) return()
     stop("`progress_display` has no argument, expecting at least one.")
