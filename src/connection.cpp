@@ -50,6 +50,7 @@ static void SetDefaultConfigArguments(ClientContext &context) {
 	auto progress_display = Rf_GetOption(RStrings::get().progress_display_sym, R_BaseEnv);
 	if (Rf_isFunction(progress_display)) {
 		config.enable_progress_bar = true;
+		config.wait_time = 0;
 	}
 }
 
