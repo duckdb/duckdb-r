@@ -18,11 +18,9 @@
 
 ## Bug fixes
 
-- Remove unconditional use of `CPPHTTPLIB_USE_POLL` (@Antonov548, #1043).
+- Remove unconditional use of `CPPHTTPLIB_USE_POLL` to support compilation with R 4.0 and R 4.1 again (@Antonov548, #1043).
 
 - Support reading from multiple Parquet files again (#1015, #1024).
-
-- Make the `cleanup` script truly idempotent (#612, #940).
 
 
 # duckdb 1.1.3-2
