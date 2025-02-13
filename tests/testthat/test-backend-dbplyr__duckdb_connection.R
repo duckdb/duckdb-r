@@ -262,9 +262,9 @@ test_that("aggregators translated correctly", {
   expect_equal(translate(prod(x, na.rm = TRUE), window = FALSE), sql(r"{PRODUCT(x)}"))
   expect_equal(translate(prod(x, na.rm = TRUE), window = TRUE), sql(r"{PRODUCT(x) OVER ()}"))
 
-  expect_equal(translate(median(x), window = FALSE), sql(r"{MEDIAN(x)}"))
-  expect_equal(translate(median(x), window = TRUE), sql(r"{MEDIAN(x) OVER ()}"))
-  expect_equal(translate(median(x), window = TRUE, vars_group="z"), sql(r"{MEDIAN(x) OVER (PARTITION BY z)}"))
+  expect_equal(translate(median(x, na.rm = TRUE), window = FALSE), sql(r"{MEDIAN(x)}"))
+  expect_equal(translate(median(x, na.rm = TRUE), window = TRUE), sql(r"{MEDIAN(x) OVER ()}"))
+  expect_equal(translate(median(x, na.rm = TRUE), window = TRUE, vars_group="z"), sql(r"{MEDIAN(x) OVER (PARTITION BY z)}"))
 
   expect_equal(translate(sd(x, na.rm = TRUE), window = FALSE), sql(r"{STDDEV(x)}"))
   expect_equal(translate(sd(x, na.rm = TRUE), window = TRUE), sql(r"{STDDEV(x) OVER ()}"))
