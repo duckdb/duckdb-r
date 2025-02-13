@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.3.9045</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.3.9046</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -31,6 +31,36 @@
       <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.1.3.9046" id="duckdb-1139046">duckdb 1.1.3.9046<a class="anchor" aria-label="anchor" href="#duckdb-1139046"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-1-1-3-9046">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-1-3-9046"></a></h3>
+<ul><li>Remove unconditional use of <code>CPPHTTPLIB_USE_POLL</code> (<a href="https://github.com/Antonov548" class="external-link">@Antonov548</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1043" class="external-link">#1043</a>).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="features-1-1-3-9046">Features<a class="anchor" aria-label="anchor" href="#features-1-1-3-9046"></a></h3>
+<ul><li><p>Add translation for <code><a href="https://rdrr.io/r/stats/median.html" class="external-link">median()</a></code> (<a href="https://github.com/toppyy" class="external-link">@toppyy</a>, <a href="https://github.com/duckdb/duckdb-r/issues/993" class="external-link">#993</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1011" class="external-link">#1011</a>).</p></li>
+<li><p>Breaking change: Remove substrait API: <code>duckdb_get_substrait()</code>, <code>duckdb_get_substrait_json()</code>, <code>duckdb_prepare_substrait()</code>, <code>duckdb_prepare_substrait_json()</code> (<a href="https://github.com/pdet" class="external-link">@pdet</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1021" class="external-link">#1021</a>).</p></li>
+<li><p>Floor sub-day precision date before casting to int (<a href="https://github.com/toppyy" class="external-link">@toppyy</a>, <a href="https://github.com/duckdb/duckdb-r/issues/517" class="external-link">#517</a>, <a href="https://github.com/duckdb/duckdb-r/issues/981" class="external-link">#981</a>).</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="continuous-integration-1-1-3-9046">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-1-3-9046"></a></h3>
+<ul><li>Check R 4.0.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="breaking-changes-1-1-3-9046">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-1-1-3-9046"></a></h3>
+<ul><li>Breaking change: Remove substrait API: <code>duckdb_get_substrait()</code>, <code>duckdb_get_substrait_json()</code>, <code>duckdb_prepare_substrait()</code>, <code>duckdb_prepare_substrait_json()</code> (<a href="https://github.com/pdet" class="external-link">@pdet</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1021" class="external-link">#1021</a>).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="vendor-1-1-3-9046">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-1-3-9046"></a></h3>
+<ul><li>Update vendored sources to <a href="mailto:duckdb/duckdb@0e844786417d80226851f5fc375060b47d3b65e0" class="email">duckdb/duckdb@0e844786417d80226851f5fc375060b47d3b65e0</a> (<a href="https://github.com/duckdb/duckdb-r/issues/1042" class="external-link">#1042</a>).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="uncategorized-1-1-3-9046">Uncategorized<a class="anchor" aria-label="anchor" href="#uncategorized-1-1-3-9046"></a></h3>
+<ul><li><p>Vendor: Update vendored sources (tag v1.2.0) to <a href="mailto:duckdb/duckdb@5f5512b827df6397afd31daedb4bbdee76520019" class="email">duckdb/duckdb@5f5512b827df6397afd31daedb4bbdee76520019</a>.</p></li>
+<li><p>Vendor: Update vendored sources (tag v1.2.0) to <a href="mailto:duckdb/duckdb@5f5512b827df6397afd31daedb4bbdee76520019" class="email">duckdb/duckdb@5f5512b827df6397afd31daedb4bbdee76520019</a>.</p></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.1.3.9045" id="duckdb-1139045">duckdb 1.1.3.9045<a class="anchor" aria-label="anchor" href="#duckdb-1139045"></a></h2>
 <div class="section level3">
