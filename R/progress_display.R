@@ -13,8 +13,8 @@ check_progress_display <- function(f) {
   stop("`progress_display` is not function, expecting either a boolean or function.")
 }
 
-set_progress_display <- function(f) {
-  check_progress_display(f)
+set_progress_display <- function(progress_display) {
+  check_progress_display(progress_display)
   options("duckdb.progress_display" = {
     if (isTRUE(progress_display)) {
       duckdb_progress_display
