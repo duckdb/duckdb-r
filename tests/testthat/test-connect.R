@@ -184,3 +184,12 @@ test_that("config only applies to the first driver object for a path", {
   gc()
 })
 
+test_that("user agent is set to r", {
+  skip_if_not(TEST_RE2)
+
+  drv <- duckdb()
+  con <- dbConnect(drv)
+  expect_match(dbGetQuery(con, "PRAGMA user_agent")[1, "user_agent"], "duckdb/.*(.*) r-dbi")
+
+  gc()
+})

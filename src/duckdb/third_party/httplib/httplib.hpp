@@ -70,10 +70,6 @@
 #define CPPHTTPLIB_REQUEST_URI_MAX_LENGTH 8192
 #endif
 
-#ifndef CPPHTTPLIB_USE_POLL
-#define CPPHTTPLIB_USE_POLL
-#endif
-
 #ifndef CPPHTTPLIB_HEADER_MAX_LENGTH
 #define CPPHTTPLIB_HEADER_MAX_LENGTH 8192
 #endif
@@ -2466,7 +2462,6 @@ inline std::string encode_url(const std::string &s) {
   for (size_t i = 0; s[i]; i++) {
     switch (s[i]) {
     case ' ': result += "%20"; break;
-    case '+': result += "%2B"; break;
     case '\r': result += "%0D"; break;
     case '\n': result += "%0A"; break;
     case '\'': result += "%27"; break;

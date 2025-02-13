@@ -188,8 +188,8 @@ rapi_rel_insert <- function(rel, schema_name, table_name) {
   invisible(.Call(`_duckdb_rapi_rel_insert`, rel, schema_name, table_name))
 }
 
-rapi_rel_to_altrep <- function(rel, allow_materialization) {
-  .Call(`_duckdb_rapi_rel_to_altrep`, rel, allow_materialization)
+rapi_rel_to_altrep <- function(rel, allow_materialization, n_rows, n_cells) {
+  .Call(`_duckdb_rapi_rel_to_altrep`, rel, allow_materialization, n_rows, n_cells)
 }
 
 rapi_rel_from_altrep_df <- function(df, strict, allow_materialized) {
@@ -198,22 +198,6 @@ rapi_rel_from_altrep_df <- function(df, strict, allow_materialized) {
 
 rapi_release <- function(stmt) {
   invisible(.Call(`_duckdb_rapi_release`, stmt))
-}
-
-rapi_get_substrait <- function(conn, query, enable_optimizer) {
-  .Call(`_duckdb_rapi_get_substrait`, conn, query, enable_optimizer)
-}
-
-rapi_get_substrait_json <- function(conn, query, enable_optimizer) {
-  .Call(`_duckdb_rapi_get_substrait_json`, conn, query, enable_optimizer)
-}
-
-rapi_prepare_substrait <- function(conn, query) {
-  .Call(`_duckdb_rapi_prepare_substrait`, conn, query)
-}
-
-rapi_prepare_substrait_json <- function(conn, json) {
-  .Call(`_duckdb_rapi_prepare_substrait_json`, conn, json)
 }
 
 rapi_prepare <- function(conn, query, env) {
