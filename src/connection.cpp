@@ -1,3 +1,4 @@
+#include "cpp11/environment.hpp"
 #include "rapi.hpp"
 #include "r_progress_bar_display.hpp"
 #include "duckdb/main/client_context.hpp"
@@ -14,28 +15,30 @@ unique_ptr<ProgressBarDisplay> RProgressBarDisplay::Create() {
 }
 
 void RProgressBarDisplay::Initialize() {
-	auto progress_display = Rf_GetOption(RStrings::get().progress_display_sym, R_BaseEnv);
+	cpp11::function getNamespace = RStrings::get().getNamespace_sym;
+	cpp11::environment duckdb_namespace(getNamespace(RStrings::get().duckdb_str));
+	cpp11::sexp get_progress_display(Rf_lang1(RStrings::get().get_progress_display_sym));
+	auto progress_display = cpp11::safe[Rf_eval](get_progress_display, duckdb_namespace);
+
 	if (Rf_isFunction(progress_display)) {
 		progress_callback = progress_display;
 	}
-	D_ASSERT(progress_callback != R_NilValue);
 }
 
 RProgressBarDisplay::RProgressBarDisplay() : ProgressBarDisplay() {
-	// Empty
+	Initialize();
 }
 
 void RProgressBarDisplay::Update(double percentage) {
 	if (progress_callback == R_NilValue) {
-		Initialize();
+		return;
 	}
-	if (progress_callback != R_NilValue) {
-		try {
-			cpp11::sexp call = Rf_lang2(progress_callback, Rf_ScalarReal(percentage));
-			cpp11::safe[Rf_eval](call, R_BaseEnv);
-		} catch (std::exception &e) {
-			// Ignore progress bar error
-		}
+
+	try {
+		cpp11::sexp call = Rf_lang2(progress_callback, Rf_ScalarReal(percentage));
+		cpp11::safe[Rf_eval](call, R_BaseEnv);
+	} catch (std::exception &e) {
+		// Ignore progress bar error
 	}
 }
 
@@ -47,11 +50,8 @@ static void SetDefaultConfigArguments(ClientContext &context) {
 	auto &config = ClientConfig::GetConfig(context);
 	// Set the function used to create the display for the progress bar
 	config.display_create_func = RProgressBarDisplay::Create;
-	auto progress_display = Rf_GetOption(RStrings::get().progress_display_sym, R_BaseEnv);
-	if (Rf_isFunction(progress_display)) {
-		config.enable_progress_bar = true;
-		config.wait_time = 0;
-	}
+	config.enable_progress_bar = true;
+	config.wait_time = 0;
 }
 
 [[cpp11::register]] duckdb::conn_eptr_t rapi_connect(duckdb::db_eptr_t dual) {

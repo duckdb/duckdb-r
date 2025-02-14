@@ -161,6 +161,7 @@ struct RStrings {
 	SEXP difftime_str;
 	SEXP secs_str;
 	SEXP arrow_str; // StringsToSexp
+	SEXP duckdb_str;
 	SEXP POSIXct_POSIXt_str;
 	SEXP integer64_str;
 	SEXP enc2utf8_sym; // Rf_install
@@ -173,7 +174,7 @@ struct RStrings {
 	SEXP ImportRecordBatchReader_sym;
 	SEXP materialize_callback_sym;
 	SEXP materialize_message_sym;
-	SEXP progress_display_sym;
+	SEXP get_progress_display_sym;
 	SEXP duckdb_row_names_sym;
 	SEXP duckdb_vector_sym;
 

@@ -57,16 +57,17 @@ RStrings::RStrings() {
 	R_PreserveObject(strings);
 	MARK_NOT_MUTABLE(strings);
 
-	cpp11::sexp chars = Rf_allocVector(VECSXP, 9);
+	cpp11::sexp chars = Rf_allocVector(VECSXP, 10);
 	SET_VECTOR_ELT(chars, 0, UTC_str = Rf_mkString("UTC"));
 	SET_VECTOR_ELT(chars, 1, Date_str = Rf_mkString("Date"));
 	SET_VECTOR_ELT(chars, 2, difftime_str = Rf_mkString("difftime"));
 	SET_VECTOR_ELT(chars, 3, secs_str = Rf_mkString("secs"));
 	SET_VECTOR_ELT(chars, 4, arrow_str = Rf_mkString("arrow"));
-	SET_VECTOR_ELT(chars, 5, POSIXct_POSIXt_str = StringsToSexp({"POSIXct", "POSIXt"}));
-	SET_VECTOR_ELT(chars, 6, factor_str = Rf_mkString("factor"));
-	SET_VECTOR_ELT(chars, 7, dataframe_str = Rf_mkString("data.frame"));
-	SET_VECTOR_ELT(chars, 8, integer64_str = Rf_mkString("integer64"));
+	SET_VECTOR_ELT(chars, 5, duckdb_str = Rf_mkString("duckdb"));
+	SET_VECTOR_ELT(chars, 6, POSIXct_POSIXt_str = StringsToSexp({"POSIXct", "POSIXt"}));
+	SET_VECTOR_ELT(chars, 7, factor_str = Rf_mkString("factor"));
+	SET_VECTOR_ELT(chars, 8, dataframe_str = Rf_mkString("data.frame"));
+	SET_VECTOR_ELT(chars, 9, integer64_str = Rf_mkString("integer64"));
 
 	R_PreserveObject(chars);
 	MARK_NOT_MUTABLE(chars);
@@ -82,7 +83,7 @@ RStrings::RStrings() {
 	Table__from_record_batches_sym = Rf_install("Table__from_record_batches");
 	materialize_message_sym = Rf_install("duckdb.materialize_message");
 	materialize_callback_sym = Rf_install("duckdb.materialize_callback");
-	progress_display_sym = Rf_install("duckdb.progress_display");
+	get_progress_display_sym = Rf_install("get_progress_display");
 	duckdb_row_names_sym = Rf_install("duckdb_row_names");
 	duckdb_vector_sym = Rf_install("duckdb_vector");
 }
