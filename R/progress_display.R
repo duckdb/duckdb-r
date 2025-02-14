@@ -1,6 +1,22 @@
+duckdb_progress_env <- new.env(parent = emptyenv())
+
 duckdb_progress_display <- function(x) {
-  if (x <= 100) cat(sprintf("\r%3d%%", x))
-  if (x >= 100) cat("\r    ")
+  time <- Sys.time()
+  if (is.null(duckdb_progress_env$last_time)) {
+    duckdb_progress_env$last_time <- time
+  }
+
+  min_seconds <- 0.5
+  if (time - duckdb_progress_env$last_time < min_seconds) {
+    return()
+  }
+
+  if (x < 100) {
+    cat(sprintf("\rDuckDB progress: %3d%%", x))
+  } else {
+    cat("\r                     \r")
+    duckdb_progress_env$last_time <- NULL
+  }
 }
 
 check_progress_display <- function(f) {
