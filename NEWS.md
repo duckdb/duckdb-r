@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.1.3.9048
+
+## Documentation
+
+- Tweak README \[ci skip\].
+
+
 # duckdb 1.1.3.9047
 
 ## Continuous integration
