@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.3.9900</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.3.9048</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -91,7 +91,7 @@
 <div class="sourceCode" id="cb4"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="ex">~duckdb-r:</span> R CMD INSTALL .</span></code></pre></div>
 <p>If you wish to test new duckdb functionality with duckdb-r, make sure your clones of <code>duckdb-r</code> and <code>duckdb</code> share the same parent directory. Then run the following commands</p>
 <div class="sourceCode" id="cb5"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> duckdb <span class="kw">&amp;&amp;</span> <span class="fu">git</span> checkout {{desired_branch}}<span class="kw">)</span></span>
-<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> ducdkb-r <span class="kw">&amp;&amp;</span> <span class="ex">./vendor-one.sh</span><span class="kw">)</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> ducdkb-r <span class="kw">&amp;&amp;</span> <span class="ex">./vendor.sh</span><span class="kw">)</span></span>
 <span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> duckdb-r <span class="kw">&amp;&amp;</span> <span class="ex">R</span> CMD INSTALL .<span class="kw">)</span></span></code></pre></div>
 <p>It helps if both the duckdb directory and duckdb-r directory are clean. If you encounter linker errors, merge both duckdb-r and duckdb with their respective main branches.</p>
 </div>
