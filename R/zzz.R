@@ -12,6 +12,8 @@
 
   if (!requireNamespace("rlang", quietly = TRUE)) {
     rethrow_restore()
+    is_interactive <<- rlang::is_interactive
+    local_interactive <<- rlang::local_interactive
   }
 
   invisible()
