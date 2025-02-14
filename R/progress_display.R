@@ -19,7 +19,9 @@ duckdb_progress_display <- function(x) {
   }
 }
 
-check_progress_display <- function(f) {
+get_progress_display <- function() {
+  f <- getOption("duckdb.progress_display", default = is_interactive())
+
   if (is.null(f)) {
     f
   } else if (isTRUE(f)) {
@@ -27,22 +29,16 @@ check_progress_display <- function(f) {
   } else if (is.logical(f)) {
     NULL
   } else if (is.function(f)) {
-    if (length(formals(f)) >= 0) {
+    if (length(formals(f)) > 0) {
       f
     } else {
-      message('`getOption("duckdb.progress_display")` has no argument, expecting at least one.')
+      message('`getOption("duckdb.progress_display")` is a function that has no argument, expecting at least one argument.')
+      options(duckdb.progress_display = NULL)
       NULL
     }
   } else {
     message('`getOption("duckdb.progress_display")` is not a function, expecting either a boolean or function.')
+    options(duckdb.progress_display = NULL)
     NULL
   }
-}
-
-get_progress_display <- function() {
-  if (!is_interactive()) {
-    return(NULL)
-  }
-  progress_display <- getOption("duckdb.progress_display", default = duckdb_progress_display)
-  check_progress_display(progress_display)
 }
