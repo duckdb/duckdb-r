@@ -26,6 +26,7 @@
 
 - Fix translation for `add_days()` and `add_years()` clock functions (#976, @IoannaNika).
 
+
 # duckdb 1.1.3-2
 
 ## Bug fixes
