@@ -10,7 +10,7 @@
 
 - Update to duckdb v1.2.0, see <https://github.com/duckdb/duckdb/releases/tag/v1.2.0> for details.
 
-- Progress is shown for slow operation (#951, @meztez).
+- Progress is shown for slow operation (#199, #951, @meztez).
 
 - Add translation for `median()` (@toppyy, #993, #1011).
 
