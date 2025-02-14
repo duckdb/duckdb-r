@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.1.3.9047</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -28,191 +28,30 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/cran-1.2.0/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9047" id="duckdb-1139047">duckdb 1.1.3.9047<a class="anchor" aria-label="anchor" href="#duckdb-1139047"></a></h2>
+<h2 class="pkg-version" data-toc-text="1.2.0" id="duckdb-120">duckdb 1.2.0<a class="anchor" aria-label="anchor" href="#duckdb-120"></a></h2>
 <div class="section level3">
-<h3 id="continuous-integration-1-1-3-9047">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-1-3-9047"></a></h3>
-<ul><li>Fix Windows failure.</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9046" id="duckdb-1139046">duckdb 1.1.3.9046<a class="anchor" aria-label="anchor" href="#duckdb-1139046"></a></h2>
-<div class="section level3">
-<h3 id="bug-fixes-1-1-3-9046">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-1-3-9046"></a></h3>
-<ul><li>Remove unconditional use of <code>CPPHTTPLIB_USE_POLL</code> (<a href="https://github.com/Antonov548" class="external-link">@Antonov548</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1043" class="external-link">#1043</a>).</li>
-</ul></div>
-<div class="section level3">
-<h3 id="features-1-1-3-9046">Features<a class="anchor" aria-label="anchor" href="#features-1-1-3-9046"></a></h3>
-<ul><li><p>Add translation for <code><a href="https://rdrr.io/r/stats/median.html" class="external-link">median()</a></code> (<a href="https://github.com/toppyy" class="external-link">@toppyy</a>, <a href="https://github.com/duckdb/duckdb-r/issues/993" class="external-link">#993</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1011" class="external-link">#1011</a>).</p></li>
-<li><p>Breaking change: Remove substrait API: <code>duckdb_get_substrait()</code>, <code>duckdb_get_substrait_json()</code>, <code>duckdb_prepare_substrait()</code>, <code>duckdb_prepare_substrait_json()</code> (<a href="https://github.com/pdet" class="external-link">@pdet</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1021" class="external-link">#1021</a>).</p></li>
-<li><p>Floor sub-day precision date before casting to int (<a href="https://github.com/toppyy" class="external-link">@toppyy</a>, <a href="https://github.com/duckdb/duckdb-r/issues/517" class="external-link">#517</a>, <a href="https://github.com/duckdb/duckdb-r/issues/981" class="external-link">#981</a>).</p></li>
-</ul></div>
-<div class="section level3">
-<h3 id="continuous-integration-1-1-3-9046">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-1-3-9046"></a></h3>
-<ul><li>Check R 4.0.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="breaking-changes-1-1-3-9046">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-1-1-3-9046"></a></h3>
+<h3 id="breaking-changes-1-2-0">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-1-2-0"></a></h3>
 <ul><li>Breaking change: Remove substrait API: <code>duckdb_get_substrait()</code>, <code>duckdb_get_substrait_json()</code>, <code>duckdb_prepare_substrait()</code>, <code>duckdb_prepare_substrait_json()</code> (<a href="https://github.com/pdet" class="external-link">@pdet</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1021" class="external-link">#1021</a>).</li>
 </ul></div>
 <div class="section level3">
-<h3 id="vendor-1-1-3-9046">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-1-3-9046"></a></h3>
-<ul><li>Update vendored sources to <a href="mailto:duckdb/duckdb@0e844786417d80226851f5fc375060b47d3b65e0" class="email">duckdb/duckdb@0e844786417d80226851f5fc375060b47d3b65e0</a> (<a href="https://github.com/duckdb/duckdb-r/issues/1042" class="external-link">#1042</a>).</li>
-</ul></div>
-<div class="section level3">
-<h3 id="uncategorized-1-1-3-9046">Uncategorized<a class="anchor" aria-label="anchor" href="#uncategorized-1-1-3-9046"></a></h3>
-<ul><li><p>Vendor: Update vendored sources (tag v1.2.0) to <a href="mailto:duckdb/duckdb@5f5512b827df6397afd31daedb4bbdee76520019" class="email">duckdb/duckdb@5f5512b827df6397afd31daedb4bbdee76520019</a>.</p></li>
-<li><p>Vendor: Update vendored sources (tag v1.2.0) to <a href="mailto:duckdb/duckdb@5f5512b827df6397afd31daedb4bbdee76520019" class="email">duckdb/duckdb@5f5512b827df6397afd31daedb4bbdee76520019</a>.</p></li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9045" id="duckdb-1139045">duckdb 1.1.3.9045<a class="anchor" aria-label="anchor" href="#duckdb-1139045"></a></h2>
-<div class="section level3">
-<h3 id="continuous-integration-1-1-3-9045">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-1-3-9045"></a></h3>
-<ul><li>Check R 4.1 on Windows.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="vendor-1-1-3-9045">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-1-3-9045"></a></h3>
-<ul><li>Update vendored sources to <a href="mailto:duckdb/duckdb@0e844786417d80226851f5fc375060b47d3b65e0" class="email">duckdb/duckdb@0e844786417d80226851f5fc375060b47d3b65e0</a> (<a href="https://github.com/duckdb/duckdb-r/issues/1040" class="external-link">#1040</a>).</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9044" id="duckdb-1139044">duckdb 1.1.3.9044<a class="anchor" aria-label="anchor" href="#duckdb-1139044"></a></h2>
-<div class="section level3">
-<h3 id="chore-1-1-3-9044">Chore<a class="anchor" aria-label="anchor" href="#chore-1-1-3-9044"></a></h3>
-<ul><li>Set value returned by <code>PRAGMA user_agent</code> to r-dbi (<a href="https://github.com/krlmlr" class="external-link">@krlmlr</a>).</li>
-</ul></div>
-<div class="section level3">
-<h3 id="continuous-integration-1-1-3-9044">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-1-3-9044"></a></h3>
-<ul><li>Add workflow to run each commit.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="uncategorized-1-1-3-9044">Uncategorized<a class="anchor" aria-label="anchor" href="#uncategorized-1-1-3-9044"></a></h3>
-<ul><li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@3240832cddb955d4240cf2d3adcc053b77c88717" class="email">duckdb/duckdb@3240832cddb955d4240cf2d3adcc053b77c88717</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@a7b405351ed3c319c4989fac0653fcf6fdbf126e" class="email">duckdb/duckdb@a7b405351ed3c319c4989fac0653fcf6fdbf126e</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@c57501cba7aef92bf63e0c11dc4931cac7a5f4d2" class="email">duckdb/duckdb@c57501cba7aef92bf63e0c11dc4931cac7a5f4d2</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@e70015aeac5595391b87faf250b9e980cfda3516" class="email">duckdb/duckdb@e70015aeac5595391b87faf250b9e980cfda3516</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@dc4b8892e2429a9f203db55d7e52ff9e275c1608" class="email">duckdb/duckdb@dc4b8892e2429a9f203db55d7e52ff9e275c1608</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@d0c4cf8a28b062fd41e7fbf5e98c279af12a2ccf" class="email">duckdb/duckdb@d0c4cf8a28b062fd41e7fbf5e98c279af12a2ccf</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@5d02d69e5ca85c9fb00cf3cd51e91ea7b875872c" class="email">duckdb/duckdb@5d02d69e5ca85c9fb00cf3cd51e91ea7b875872c</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@8e68a3e34aa526a342ae91e1b14b764bb3075a12" class="email">duckdb/duckdb@8e68a3e34aa526a342ae91e1b14b764bb3075a12</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@b6513473ba48f46c39c8a9d506e4ad32b7a6f2ae" class="email">duckdb/duckdb@b6513473ba48f46c39c8a9d506e4ad32b7a6f2ae</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@0024e5d4beba0185733df68642775e3f38e089cb" class="email">duckdb/duckdb@0024e5d4beba0185733df68642775e3f38e089cb</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@96d58253c4e116f2d9c6d3f9502eb18737ce040c" class="email">duckdb/duckdb@96d58253c4e116f2d9c6d3f9502eb18737ce040c</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@a597e41cb76fd31ed7040abeffa5ee407d1a0556" class="email">duckdb/duckdb@a597e41cb76fd31ed7040abeffa5ee407d1a0556</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@e00ba6ae90267757cd1bb973fff422d7ada3cd62" class="email">duckdb/duckdb@e00ba6ae90267757cd1bb973fff422d7ada3cd62</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@09cef57892e5dc221f7eee7e6c4ab440d2ab4078" class="email">duckdb/duckdb@09cef57892e5dc221f7eee7e6c4ab440d2ab4078</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@677a8e7cd679f89748f8e05b668c7496255d5430" class="email">duckdb/duckdb@677a8e7cd679f89748f8e05b668c7496255d5430</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@31ef2854d9e9c5c14adf628f0372ea1e3c374585" class="email">duckdb/duckdb@31ef2854d9e9c5c14adf628f0372ea1e3c374585</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@d2f0f31e2c6da59b9f78d1d6188c15372bfb09b3" class="email">duckdb/duckdb@d2f0f31e2c6da59b9f78d1d6188c15372bfb09b3</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@ff6dde14531fbfc1f71f67fd037aa6fa5a53340b" class="email">duckdb/duckdb@ff6dde14531fbfc1f71f67fd037aa6fa5a53340b</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@4a08b949d83e24cd02514a4dffd8def443534eb9" class="email">duckdb/duckdb@4a08b949d83e24cd02514a4dffd8def443534eb9</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@d1740d6cf7d9d2efda59f6e798ff7d2d62f62816" class="email">duckdb/duckdb@d1740d6cf7d9d2efda59f6e798ff7d2d62f62816</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@eda5288cfbb15e7d5c74ba0c44756e3c4d4f25d8" class="email">duckdb/duckdb@eda5288cfbb15e7d5c74ba0c44756e3c4d4f25d8</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@e4b2f772dd2b932424dc3835d7ea82c6bd270ec9" class="email">duckdb/duckdb@e4b2f772dd2b932424dc3835d7ea82c6bd270ec9</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@26cb7178fd89f924a936874e5c09ec1f6df8a0a4" class="email">duckdb/duckdb@26cb7178fd89f924a936874e5c09ec1f6df8a0a4</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@8ec6162490f7696357b8ef518fb6fbc890ca6f58" class="email">duckdb/duckdb@8ec6162490f7696357b8ef518fb6fbc890ca6f58</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@b76b8f7b2b1fa7c2169fabecb31fecc3d8d381cd" class="email">duckdb/duckdb@b76b8f7b2b1fa7c2169fabecb31fecc3d8d381cd</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@e0d79a7eb019477b12976b33352a2370d48d2cad" class="email">duckdb/duckdb@e0d79a7eb019477b12976b33352a2370d48d2cad</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@945a96cd3fffc49b1522342f710b9b133f77107b" class="email">duckdb/duckdb@945a96cd3fffc49b1522342f710b9b133f77107b</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@2a1d5e2ab8882b27474e733f8703ef05ebcb0524" class="email">duckdb/duckdb@2a1d5e2ab8882b27474e733f8703ef05ebcb0524</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@45bd1170945062a0e1688db2673ebe7d97476269" class="email">duckdb/duckdb@45bd1170945062a0e1688db2673ebe7d97476269</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@cb05b0d2f1f0c8ff5c19686253c21455e7fafa77" class="email">duckdb/duckdb@cb05b0d2f1f0c8ff5c19686253c21455e7fafa77</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@20ae352efcff50351d479e4677b2b8757810d532" class="email">duckdb/duckdb@20ae352efcff50351d479e4677b2b8757810d532</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@89bcc3e2ce739b1b470afa79818ee03c8cf96fe8" class="email">duckdb/duckdb@89bcc3e2ce739b1b470afa79818ee03c8cf96fe8</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@31cb6c558281afd67bb755e482422d7ba6c60ff9" class="email">duckdb/duckdb@31cb6c558281afd67bb755e482422d7ba6c60ff9</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@ea53cb71c7d50986c7e4645f499aec1a1d549b26" class="email">duckdb/duckdb@ea53cb71c7d50986c7e4645f499aec1a1d549b26</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@1c6ea28bdc7557dddd3726bb3c68a1fcc7a4ede1" class="email">duckdb/duckdb@1c6ea28bdc7557dddd3726bb3c68a1fcc7a4ede1</a>.</p></li>
-<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@16d1d6445dbf6edf5972893c9be938e84ebd26d4" class="email">duckdb/duckdb@16d1d6445dbf6edf5972893c9be938e84ebd26d4</a>.</p></li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9043" id="duckdb-1139043">duckdb 1.1.3.9043<a class="anchor" aria-label="anchor" href="#duckdb-1139043"></a></h2>
-<div class="section level3">
-<h3 id="vendor-1-1-3-9043">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-1-3-9043"></a></h3>
-<ul><li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@4e3920c3ec63284d11411d1ac6b28af5ceb784a0" class="email">duckdb/duckdb@4e3920c3ec63284d11411d1ac6b28af5ceb784a0</a> (<a href="https://github.com/duckdb/duckdb-r/issues/1035" class="external-link">#1035</a>).</p></li>
+<h3 id="vendor-1-2-0">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-2-0"></a></h3>
+<ul><li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@0e844786417d80226851f5fc375060b47d3b65e0" class="email">duckdb/duckdb@0e844786417d80226851f5fc375060b47d3b65e0</a> (<a href="https://github.com/duckdb/duckdb-r/issues/1042" class="external-link">#1042</a>).</p></li>
+<li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@0e844786417d80226851f5fc375060b47d3b65e0" class="email">duckdb/duckdb@0e844786417d80226851f5fc375060b47d3b65e0</a> (<a href="https://github.com/duckdb/duckdb-r/issues/1040" class="external-link">#1040</a>).</p></li>
+<li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@4e3920c3ec63284d11411d1ac6b28af5ceb784a0" class="email">duckdb/duckdb@4e3920c3ec63284d11411d1ac6b28af5ceb784a0</a> (<a href="https://github.com/duckdb/duckdb-r/issues/1035" class="external-link">#1035</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@db06cdd9ddb420a7f04248e7a62ea1785868d97c" class="email">duckdb/duckdb@db06cdd9ddb420a7f04248e7a62ea1785868d97c</a> (<a href="https://github.com/duckdb/duckdb-r/issues/1034" class="external-link">#1034</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@6c3fdfc17b3690db2892703956e2a4f3739adf6b" class="email">duckdb/duckdb@6c3fdfc17b3690db2892703956e2a4f3739adf6b</a> (<a href="https://github.com/duckdb/duckdb-r/issues/1022" class="external-link">#1022</a>).</p></li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9042" id="duckdb-1139042">duckdb 1.1.3.9042<a class="anchor" aria-label="anchor" href="#duckdb-1139042"></a></h2>
-<div class="section level3">
-<h3 id="features-1-1-3-9042">Features<a class="anchor" aria-label="anchor" href="#features-1-1-3-9042"></a></h3>
-<ul><li><p>Use cells == 0 as additional (later only) switch for forbidden materialization.</p></li>
-<li><p>Simplify valve message.</p></li>
-</ul></div>
-<div class="section level3">
-<h3 id="chore-1-1-3-9042">Chore<a class="anchor" aria-label="anchor" href="#chore-1-1-3-9042"></a></h3>
-<ul><li>Split definition and declaration.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="testing-1-1-3-9042">Testing<a class="anchor" aria-label="anchor" href="#testing-1-1-3-9042"></a></h3>
-<ul><li>Snapshot updates for R-CMD-check-base (null) (<a href="https://github.com/duckdb/duckdb-r/issues/1031" class="external-link">#1031</a>).</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9041" id="duckdb-1139041">duckdb 1.1.3.9041<a class="anchor" aria-label="anchor" href="#duckdb-1139041"></a></h2>
-<div class="section level3">
-<h3 id="bug-fixes-1-1-3-9041">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-1-3-9041"></a></h3>
-<ul><li>Support reading from multiple Parquet files again (<a href="https://github.com/duckdb/duckdb-r/issues/1015" class="external-link">#1015</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1024" class="external-link">#1024</a>).</li>
-</ul></div>
-<div class="section level3">
-<h3 id="testing-1-1-3-9041">Testing<a class="anchor" aria-label="anchor" href="#testing-1-1-3-9041"></a></h3>
-<ul><li>Tweak Parquet tests (<a href="https://github.com/duckdb/duckdb-r/issues/1025" class="external-link">#1025</a>).</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9040" id="duckdb-1139040">duckdb 1.1.3.9040<a class="anchor" aria-label="anchor" href="#duckdb-1139040"></a></h2>
-<div class="section level3">
-<h3 id="features-1-1-3-9040">Features<a class="anchor" aria-label="anchor" href="#features-1-1-3-9040"></a></h3>
-<ul><li>Limit automatic materialization by number of rows or number of cells (<a href="https://github.com/duckdb/duckdb-r/issues/1017" class="external-link">#1017</a>).</li>
-</ul></div>
-<div class="section level3">
-<h3 id="chore-1-1-3-9040">Chore<a class="anchor" aria-label="anchor" href="#chore-1-1-3-9040"></a></h3>
-<ul><li><p>Restore state before the CRAN release.</p></li>
-<li><p>Combine patches.</p></li>
-<li><p>Add patch for vendoring.</p></li>
-</ul></div>
-<div class="section level3">
-<h3 id="documentation-1-1-3-9040">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-1-3-9040"></a></h3>
-<ul><li>Restore old NEWS.</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9039" id="duckdb-1139039">duckdb 1.1.3.9039<a class="anchor" aria-label="anchor" href="#duckdb-1139039"></a></h2>
-<div class="section level3">
-<h3 id="chore-1-1-3-9039">Chore<a class="anchor" aria-label="anchor" href="#chore-1-1-3-9039"></a></h3>
-<ul><li>Move internal <code>duckdb.tar</code> dependency (<a href="https://github.com/duckdb/duckdb-r/issues/1013" class="external-link">#1013</a>).</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9038" id="duckdb-1139038">duckdb 1.1.3.9038<a class="anchor" aria-label="anchor" href="#duckdb-1139038"></a></h2>
-<div class="section level3">
-<h3 id="vendor-1-1-3-9038">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-1-3-9038"></a></h3>
-<ul><li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@a1c7e9b115788c7cae8e99d946598c49eecec6f9" class="email">duckdb/duckdb@a1c7e9b115788c7cae8e99d946598c49eecec6f9</a> (<a href="https://github.com/duckdb/duckdb-r/issues/1007" class="external-link">#1007</a>).</p></li>
+<li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@a1c7e9b115788c7cae8e99d946598c49eecec6f9" class="email">duckdb/duckdb@a1c7e9b115788c7cae8e99d946598c49eecec6f9</a> (<a href="https://github.com/duckdb/duckdb-r/issues/1007" class="external-link">#1007</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@bec4a7b985b030c41f37a57c93a2fdd394ba0212" class="email">duckdb/duckdb@bec4a7b985b030c41f37a57c93a2fdd394ba0212</a> (<a href="https://github.com/duckdb/duckdb-r/issues/1006" class="external-link">#1006</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@c4d8ab37c430aea372ea08e45e5fead447dfb8fe" class="email">duckdb/duckdb@c4d8ab37c430aea372ea08e45e5fead447dfb8fe</a> (<a href="https://github.com/duckdb/duckdb-r/issues/1005" class="external-link">#1005</a>).</p></li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9037" id="duckdb-1139037">duckdb 1.1.3.9037<a class="anchor" aria-label="anchor" href="#duckdb-1139037"></a></h2>
-<div class="section level3">
-<h3 id="vendor-1-1-3-9037">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-1-3-9037"></a></h3>
-<ul><li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@cb8ecb6b96f89790f6ab835084d86e828a1b91b5" class="email">duckdb/duckdb@cb8ecb6b96f89790f6ab835084d86e828a1b91b5</a> (<a href="https://github.com/duckdb/duckdb-r/issues/1003" class="external-link">#1003</a>).</p></li>
+<li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@cb8ecb6b96f89790f6ab835084d86e828a1b91b5" class="email">duckdb/duckdb@cb8ecb6b96f89790f6ab835084d86e828a1b91b5</a> (<a href="https://github.com/duckdb/duckdb-r/issues/1003" class="external-link">#1003</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@f8e95f0d66d2dd466d1d2c3a079f5d8c63ac5f21" class="email">duckdb/duckdb@f8e95f0d66d2dd466d1d2c3a079f5d8c63ac5f21</a> (<a href="https://github.com/duckdb/duckdb-r/issues/1002" class="external-link">#1002</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@af82bd7158e78256a5f2d7ae37cebb3bfd39f852" class="email">duckdb/duckdb@af82bd7158e78256a5f2d7ae37cebb3bfd39f852</a> (<a href="https://github.com/duckdb/duckdb-r/issues/1001" class="external-link">#1001</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@8dc08b1da039ceb38618a59f2128e5e22d2fb0ac" class="email">duckdb/duckdb@8dc08b1da039ceb38618a59f2128e5e22d2fb0ac</a> (<a href="https://github.com/duckdb/duckdb-r/issues/1000" class="external-link">#1000</a>).</p></li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9036" id="duckdb-1139036">duckdb 1.1.3.9036<a class="anchor" aria-label="anchor" href="#duckdb-1139036"></a></h2>
-<div class="section level3">
-<h3 id="vendor-1-1-3-9036">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-1-3-9036"></a></h3>
-<ul><li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@d707b4432b74b51f8a176c533b98e24d48f4d165" class="email">duckdb/duckdb@d707b4432b74b51f8a176c533b98e24d48f4d165</a> (<a href="https://github.com/duckdb/duckdb-r/issues/998" class="external-link">#998</a>).</p></li>
+<li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@d707b4432b74b51f8a176c533b98e24d48f4d165" class="email">duckdb/duckdb@d707b4432b74b51f8a176c533b98e24d48f4d165</a> (<a href="https://github.com/duckdb/duckdb-r/issues/998" class="external-link">#998</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@d3444ef1413102e5c8246a066b201c59ac5c4c04" class="email">duckdb/duckdb@d3444ef1413102e5c8246a066b201c59ac5c4c04</a> (<a href="https://github.com/duckdb/duckdb-r/issues/997" class="external-link">#997</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@2c203c13b52f8d6073f5e03f3226eaadf0973654" class="email">duckdb/duckdb@2c203c13b52f8d6073f5e03f3226eaadf0973654</a> (<a href="https://github.com/duckdb/duckdb-r/issues/996" class="external-link">#996</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@acea8cde22f802b792adc8cfdeea335103edc5fe" class="email">duckdb/duckdb@acea8cde22f802b792adc8cfdeea335103edc5fe</a> (<a href="https://github.com/duckdb/duckdb-r/issues/994" class="external-link">#994</a>).</p></li>
@@ -226,23 +65,11 @@
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@c93ab6e8171b6cba652439cadc91e79d488ffd01" class="email">duckdb/duckdb@c93ab6e8171b6cba652439cadc91e79d488ffd01</a> (<a href="https://github.com/duckdb/duckdb-r/issues/985" class="external-link">#985</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@3b44a57608458b063303d3576b2e21b6f1908a76" class="email">duckdb/duckdb@3b44a57608458b063303d3576b2e21b6f1908a76</a> (<a href="https://github.com/duckdb/duckdb-r/issues/984" class="external-link">#984</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@fbc4d92fe6239536948a49d093196534c3492656" class="email">duckdb/duckdb@fbc4d92fe6239536948a49d093196534c3492656</a> (<a href="https://github.com/duckdb/duckdb-r/issues/983" class="external-link">#983</a>).</p></li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9035" id="duckdb-1139035">duckdb 1.1.3.9035<a class="anchor" aria-label="anchor" href="#duckdb-1139035"></a></h2>
-<div class="section level3">
-<h3 id="vendor-1-1-3-9035">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-1-3-9035"></a></h3>
-<ul><li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@dcb9627543af52e4322de464003259a6b0e7fdb4" class="email">duckdb/duckdb@dcb9627543af52e4322de464003259a6b0e7fdb4</a> (<a href="https://github.com/duckdb/duckdb-r/issues/980" class="external-link">#980</a>).</p></li>
+<li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@dcb9627543af52e4322de464003259a6b0e7fdb4" class="email">duckdb/duckdb@dcb9627543af52e4322de464003259a6b0e7fdb4</a> (<a href="https://github.com/duckdb/duckdb-r/issues/980" class="external-link">#980</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@69dff93d1a956c68eb9dc603d24d06719e57749d" class="email">duckdb/duckdb@69dff93d1a956c68eb9dc603d24d06719e57749d</a> (<a href="https://github.com/duckdb/duckdb-r/issues/979" class="external-link">#979</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@ce33de966a521d1a6e86ec9579e133ff2b2534f4" class="email">duckdb/duckdb@ce33de966a521d1a6e86ec9579e133ff2b2534f4</a> (<a href="https://github.com/duckdb/duckdb-r/issues/978" class="external-link">#978</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@c8fa9aee7858909c625b5c3abcc3a257c5d9d934" class="email">duckdb/duckdb@c8fa9aee7858909c625b5c3abcc3a257c5d9d934</a> (<a href="https://github.com/duckdb/duckdb-r/issues/977" class="external-link">#977</a>).</p></li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9034" id="duckdb-1139034">duckdb 1.1.3.9034<a class="anchor" aria-label="anchor" href="#duckdb-1139034"></a></h2>
-<div class="section level3">
-<h3 id="vendor-1-1-3-9034">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-1-3-9034"></a></h3>
-<ul><li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@acdbf60889033d2701a5fef360a19963cafea471" class="email">duckdb/duckdb@acdbf60889033d2701a5fef360a19963cafea471</a> (<a href="https://github.com/duckdb/duckdb-r/issues/974" class="external-link">#974</a>).</p></li>
+<li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@acdbf60889033d2701a5fef360a19963cafea471" class="email">duckdb/duckdb@acdbf60889033d2701a5fef360a19963cafea471</a> (<a href="https://github.com/duckdb/duckdb-r/issues/974" class="external-link">#974</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@2edfde3071cdc3ccc6047773e8229fb80238443d" class="email">duckdb/duckdb@2edfde3071cdc3ccc6047773e8229fb80238443d</a> (<a href="https://github.com/duckdb/duckdb-r/issues/973" class="external-link">#973</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@3c0db29b2bf182105c1537ddf2fa8b12d186941d" class="email">duckdb/duckdb@3c0db29b2bf182105c1537ddf2fa8b12d186941d</a> (<a href="https://github.com/duckdb/duckdb-r/issues/972" class="external-link">#972</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@5705d13dbf1d4f3db3e4f36d3194f669aaf99bc0" class="email">duckdb/duckdb@5705d13dbf1d4f3db3e4f36d3194f669aaf99bc0</a> (<a href="https://github.com/duckdb/duckdb-r/issues/971" class="external-link">#971</a>).</p></li>
@@ -255,49 +82,17 @@
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@a3636bdd6203f4e4c47c5191264b9209e4f2a516" class="email">duckdb/duckdb@a3636bdd6203f4e4c47c5191264b9209e4f2a516</a> (<a href="https://github.com/duckdb/duckdb-r/issues/964" class="external-link">#964</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@50de06cec8de9c8da1b6fd9fcec3f514694a9b6a" class="email">duckdb/duckdb@50de06cec8de9c8da1b6fd9fcec3f514694a9b6a</a> (<a href="https://github.com/duckdb/duckdb-r/issues/963" class="external-link">#963</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@4b163ff7c8cb9693fafe4d822dff54b31cfd2adf" class="email">duckdb/duckdb@4b163ff7c8cb9693fafe4d822dff54b31cfd2adf</a> (<a href="https://github.com/duckdb/duckdb-r/issues/962" class="external-link">#962</a>).</p></li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9033" id="duckdb-1139033">duckdb 1.1.3.9033<a class="anchor" aria-label="anchor" href="#duckdb-1139033"></a></h2>
-<div class="section level3">
-<h3 id="vendor-1-1-3-9033">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-1-3-9033"></a></h3>
-<ul><li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@adc6f607a71b87da2d0a7550e90db623e9bea637" class="email">duckdb/duckdb@adc6f607a71b87da2d0a7550e90db623e9bea637</a> (<a href="https://github.com/duckdb/duckdb-r/issues/959" class="external-link">#959</a>).</p></li>
+<li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@adc6f607a71b87da2d0a7550e90db623e9bea637" class="email">duckdb/duckdb@adc6f607a71b87da2d0a7550e90db623e9bea637</a> (<a href="https://github.com/duckdb/duckdb-r/issues/959" class="external-link">#959</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@13ba13c121acfb3f4c48c16337297ac705779c19" class="email">duckdb/duckdb@13ba13c121acfb3f4c48c16337297ac705779c19</a> (<a href="https://github.com/duckdb/duckdb-r/issues/958" class="external-link">#958</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@45462bcffd761b7d797cc1ab660930be62c110cb" class="email">duckdb/duckdb@45462bcffd761b7d797cc1ab660930be62c110cb</a> (<a href="https://github.com/duckdb/duckdb-r/issues/957" class="external-link">#957</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@a0a828b712f538a64263dad251d20a5f91f83a80" class="email">duckdb/duckdb@a0a828b712f538a64263dad251d20a5f91f83a80</a> (<a href="https://github.com/duckdb/duckdb-r/issues/956" class="external-link">#956</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@2082b55f89fe6e810f982c57dceecbee5ecd40fa" class="email">duckdb/duckdb@2082b55f89fe6e810f982c57dceecbee5ecd40fa</a> (<a href="https://github.com/duckdb/duckdb-r/issues/955" class="external-link">#955</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@7ee114cea8a43d9cdd0f0442cbde05c63a65a9c3" class="email">duckdb/duckdb@7ee114cea8a43d9cdd0f0442cbde05c63a65a9c3</a> (<a href="https://github.com/duckdb/duckdb-r/issues/954" class="external-link">#954</a>).</p></li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9032" id="duckdb-1139032">duckdb 1.1.3.9032<a class="anchor" aria-label="anchor" href="#duckdb-1139032"></a></h2>
-<div class="section level3">
-<h3 id="vendor-1-1-3-9032">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-1-3-9032"></a></h3>
-<ul><li>Update vendored sources to <a href="mailto:duckdb/duckdb@4488c61ee780635e67abe1b6164f2cdfadc21b65" class="email">duckdb/duckdb@4488c61ee780635e67abe1b6164f2cdfadc21b65</a> (<a href="https://github.com/duckdb/duckdb-r/issues/947" class="external-link">#947</a>).</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9031" id="duckdb-1139031">duckdb 1.1.3.9031<a class="anchor" aria-label="anchor" href="#duckdb-1139031"></a></h2>
-<div class="section level3">
-<h3 id="vendor-1-1-3-9031">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-1-3-9031"></a></h3>
-<ul><li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@8869b59d17a0b0a40544f0ef9a8e129a51c6bcc1" class="email">duckdb/duckdb@8869b59d17a0b0a40544f0ef9a8e129a51c6bcc1</a> (<a href="https://github.com/duckdb/duckdb-r/issues/944" class="external-link">#944</a>).</p></li>
+<li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@4488c61ee780635e67abe1b6164f2cdfadc21b65" class="email">duckdb/duckdb@4488c61ee780635e67abe1b6164f2cdfadc21b65</a> (<a href="https://github.com/duckdb/duckdb-r/issues/947" class="external-link">#947</a>).</p></li>
+<li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@8869b59d17a0b0a40544f0ef9a8e129a51c6bcc1" class="email">duckdb/duckdb@8869b59d17a0b0a40544f0ef9a8e129a51c6bcc1</a> (<a href="https://github.com/duckdb/duckdb-r/issues/944" class="external-link">#944</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@61d1e92f27f99ea2142218d0ac4c0dc158622024" class="email">duckdb/duckdb@61d1e92f27f99ea2142218d0ac4c0dc158622024</a> (<a href="https://github.com/duckdb/duckdb-r/issues/943" class="external-link">#943</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@f4bde059af5bec613a2f44d82ea354605e1000ef" class="email">duckdb/duckdb@f4bde059af5bec613a2f44d82ea354605e1000ef</a> (<a href="https://github.com/duckdb/duckdb-r/issues/942" class="external-link">#942</a>).</p></li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9030" id="duckdb-1139030">duckdb 1.1.3.9030<a class="anchor" aria-label="anchor" href="#duckdb-1139030"></a></h2>
-<div class="section level3">
-<h3 id="bug-fixes-1-1-3-9030">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-1-3-9030"></a></h3>
-<ul><li>Make <code>cleanup</code> truly idempotent (<a href="https://github.com/duckdb/duckdb-r/issues/612" class="external-link">#612</a>, <a href="https://github.com/duckdb/duckdb-r/issues/940" class="external-link">#940</a>).</li>
-</ul></div>
-<div class="section level3">
-<h3 id="chore-1-1-3-9030">Chore<a class="anchor" aria-label="anchor" href="#chore-1-1-3-9030"></a></h3>
-<ul><li>Sync vendoring script with igraph (<a href="https://github.com/duckdb/duckdb-r/issues/936" class="external-link">#936</a>).</li>
-</ul></div>
-<div class="section level3">
-<h3 id="vendor-1-1-3-9030">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-1-3-9030"></a></h3>
-<ul><li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@6c4d2a394ff166af23cfd9be499d96f2b1bfb0de" class="email">duckdb/duckdb@6c4d2a394ff166af23cfd9be499d96f2b1bfb0de</a> (<a href="https://github.com/duckdb/duckdb-r/issues/939" class="external-link">#939</a>).</p></li>
+<li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@6c4d2a394ff166af23cfd9be499d96f2b1bfb0de" class="email">duckdb/duckdb@6c4d2a394ff166af23cfd9be499d96f2b1bfb0de</a> (<a href="https://github.com/duckdb/duckdb-r/issues/939" class="external-link">#939</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@cd286cb51c16c55320143f8fbe6ad4f058bc09c9" class="email">duckdb/duckdb@cd286cb51c16c55320143f8fbe6ad4f058bc09c9</a> (<a href="https://github.com/duckdb/duckdb-r/issues/938" class="external-link">#938</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@13ff921d7c4c5947dd69eaa6191c3cedad5672b8" class="email">duckdb/duckdb@13ff921d7c4c5947dd69eaa6191c3cedad5672b8</a> (<a href="https://github.com/duckdb/duckdb-r/issues/937" class="external-link">#937</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@e1db888231f0cbe856d75ee8db6e677a2e19dd4a" class="email">duckdb/duckdb@e1db888231f0cbe856d75ee8db6e677a2e19dd4a</a> (<a href="https://github.com/duckdb/duckdb-r/issues/935" class="external-link">#935</a>).</p></li>
@@ -312,22 +107,7 @@
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@987ea2c40964013cac5e32e47519d7f5ca00148f" class="email">duckdb/duckdb@987ea2c40964013cac5e32e47519d7f5ca00148f</a> (<a href="https://github.com/duckdb/duckdb-r/issues/926" class="external-link">#926</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@342f13856f9b54492597cd25a51a35d29b3a655c" class="email">duckdb/duckdb@342f13856f9b54492597cd25a51a35d29b3a655c</a> (<a href="https://github.com/duckdb/duckdb-r/issues/925" class="external-link">#925</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@26f483b873b967cc875935cda7c58a9bccbc359e" class="email">duckdb/duckdb@26f483b873b967cc875935cda7c58a9bccbc359e</a> (<a href="https://github.com/duckdb/duckdb-r/issues/924" class="external-link">#924</a>).</p></li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9029" id="duckdb-1139029">duckdb 1.1.3.9029<a class="anchor" aria-label="anchor" href="#duckdb-1139029"></a></h2>
-<div class="section level3">
-<h3 id="bug-fixes-1-1-3-9029">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-1-3-9029"></a></h3>
-<ul><li>Argument order.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="chore-1-1-3-9029">Chore<a class="anchor" aria-label="anchor" href="#chore-1-1-3-9029"></a></h3>
-<ul><li>
-<code>rethrow_()</code> variants.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="vendor-1-1-3-9029">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-1-3-9029"></a></h3>
-<ul><li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@ec7be6f00e0dd7fa02d272f126c32aedbff13bb3" class="email">duckdb/duckdb@ec7be6f00e0dd7fa02d272f126c32aedbff13bb3</a> (<a href="https://github.com/duckdb/duckdb-r/issues/920" class="external-link">#920</a>).</p></li>
+<li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@ec7be6f00e0dd7fa02d272f126c32aedbff13bb3" class="email">duckdb/duckdb@ec7be6f00e0dd7fa02d272f126c32aedbff13bb3</a> (<a href="https://github.com/duckdb/duckdb-r/issues/920" class="external-link">#920</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@eecb1b42dc481cc8b636ec4168f912ad125c67b8" class="email">duckdb/duckdb@eecb1b42dc481cc8b636ec4168f912ad125c67b8</a> (<a href="https://github.com/duckdb/duckdb-r/issues/919" class="external-link">#919</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@e7765f25f1345597e4d0509a0f0248680f68da20" class="email">duckdb/duckdb@e7765f25f1345597e4d0509a0f0248680f68da20</a> (<a href="https://github.com/duckdb/duckdb-r/issues/918" class="external-link">#918</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@1eb2cbcc60de4b62661fa9a05c71b17a7d19007b" class="email">duckdb/duckdb@1eb2cbcc60de4b62661fa9a05c71b17a7d19007b</a> (<a href="https://github.com/duckdb/duckdb-r/issues/917" class="external-link">#917</a>).</p></li>
@@ -369,17 +149,7 @@
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@6ce195704a8d3af894766af51e0451955e4fc93d" class="email">duckdb/duckdb@6ce195704a8d3af894766af51e0451955e4fc93d</a> (<a href="https://github.com/duckdb/duckdb-r/issues/881" class="external-link">#881</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@a5d55eaf1506028b5dc9577e8a92bffc10a2ba3d" class="email">duckdb/duckdb@a5d55eaf1506028b5dc9577e8a92bffc10a2ba3d</a> (<a href="https://github.com/duckdb/duckdb-r/issues/880" class="external-link">#880</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@f1ccf047d11477e704cfc5dd6b44065dba073f57" class="email">duckdb/duckdb@f1ccf047d11477e704cfc5dd6b44065dba073f57</a> (<a href="https://github.com/duckdb/duckdb-r/issues/878" class="external-link">#878</a>).</p></li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9028" id="duckdb-1139028">duckdb 1.1.3.9028<a class="anchor" aria-label="anchor" href="#duckdb-1139028"></a></h2>
-<div class="section level3">
-<h3 id="features-1-1-3-9028">Features<a class="anchor" aria-label="anchor" href="#features-1-1-3-9028"></a></h3>
-<ul><li>New internal <code>rapi_rel_to_csv()</code>,<code>rapi_rel_to_table()</code>, and <code>rapi_rel_insert()</code>; <code>rapi_rel_to_parquet()</code> gains <code>options</code> argument (<a href="https://github.com/duckdb/duckdb-r/issues/867" class="external-link">#867</a>).</li>
-</ul></div>
-<div class="section level3">
-<h3 id="vendor-1-1-3-9028">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-1-3-9028"></a></h3>
-<ul><li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@abd4759216599b454d89b0d13d3b476eb67df3e1" class="email">duckdb/duckdb@abd4759216599b454d89b0d13d3b476eb67df3e1</a> (<a href="https://github.com/duckdb/duckdb-r/issues/877" class="external-link">#877</a>).</p></li>
+<li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@abd4759216599b454d89b0d13d3b476eb67df3e1" class="email">duckdb/duckdb@abd4759216599b454d89b0d13d3b476eb67df3e1</a> (<a href="https://github.com/duckdb/duckdb-r/issues/877" class="external-link">#877</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@d9965a511aa15178af155a4ef8581198e067570b" class="email">duckdb/duckdb@d9965a511aa15178af155a4ef8581198e067570b</a> (<a href="https://github.com/duckdb/duckdb-r/issues/876" class="external-link">#876</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@5302c13337dcd6d87c375e89ab66a28e31862ead" class="email">duckdb/duckdb@5302c13337dcd6d87c375e89ab66a28e31862ead</a> (<a href="https://github.com/duckdb/duckdb-r/issues/875" class="external-link">#875</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@5370afc08e09c953218f6ce65298f93e95ed2952" class="email">duckdb/duckdb@5370afc08e09c953218f6ce65298f93e95ed2952</a> (<a href="https://github.com/duckdb/duckdb-r/issues/874" class="external-link">#874</a>).</p></li>
@@ -432,13 +202,7 @@
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@23dc2bc4dc6d34c3a59d29a43d2351d873675098" class="email">duckdb/duckdb@23dc2bc4dc6d34c3a59d29a43d2351d873675098</a> (<a href="https://github.com/duckdb/duckdb-r/issues/826" class="external-link">#826</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@8095a6ecc5e81c2c383050fbdd5876ce1e5ea22f" class="email">duckdb/duckdb@8095a6ecc5e81c2c383050fbdd5876ce1e5ea22f</a> (<a href="https://github.com/duckdb/duckdb-r/issues/825" class="external-link">#825</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@7f09c98f0022336671aac0197f6820044e065c4f" class="email">duckdb/duckdb@7f09c98f0022336671aac0197f6820044e065c4f</a> (<a href="https://github.com/duckdb/duckdb-r/issues/823" class="external-link">#823</a>).</p></li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9027" id="duckdb-1139027">duckdb 1.1.3.9027<a class="anchor" aria-label="anchor" href="#duckdb-1139027"></a></h2>
-<div class="section level3">
-<h3 id="vendor-1-1-3-9027">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-1-3-9027"></a></h3>
-<ul><li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@ed645161037027a0ddc7631a40874d298262bc4f" class="email">duckdb/duckdb@ed645161037027a0ddc7631a40874d298262bc4f</a> (<a href="https://github.com/duckdb/duckdb-r/issues/822" class="external-link">#822</a>).</p></li>
+<li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@ed645161037027a0ddc7631a40874d298262bc4f" class="email">duckdb/duckdb@ed645161037027a0ddc7631a40874d298262bc4f</a> (<a href="https://github.com/duckdb/duckdb-r/issues/822" class="external-link">#822</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@087d8f34f6d974a1fedfc500fb5c8e269da01c95" class="email">duckdb/duckdb@087d8f34f6d974a1fedfc500fb5c8e269da01c95</a> (<a href="https://github.com/duckdb/duckdb-r/issues/821" class="external-link">#821</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@b2cd12758c1b0b3b22408cf883b4a5ebf0e44a94" class="email">duckdb/duckdb@b2cd12758c1b0b3b22408cf883b4a5ebf0e44a94</a> (<a href="https://github.com/duckdb/duckdb-r/issues/820" class="external-link">#820</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@1c6eacd28aae3f20337634b991d60ec001187313" class="email">duckdb/duckdb@1c6eacd28aae3f20337634b991d60ec001187313</a> (<a href="https://github.com/duckdb/duckdb-r/issues/819" class="external-link">#819</a>).</p></li>
@@ -488,17 +252,7 @@
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@24d5a327497a384dcfeddff05de5e61142b42ed2" class="email">duckdb/duckdb@24d5a327497a384dcfeddff05de5e61142b42ed2</a> (<a href="https://github.com/duckdb/duckdb-r/issues/775" class="external-link">#775</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@358d7344ebd9977c92cf7501bde94ce3ba2f0ea4" class="email">duckdb/duckdb@358d7344ebd9977c92cf7501bde94ce3ba2f0ea4</a> (<a href="https://github.com/duckdb/duckdb-r/issues/774" class="external-link">#774</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@cbe809291b28394d494aa21472e694e9638cad39" class="email">duckdb/duckdb@cbe809291b28394d494aa21472e694e9638cad39</a> (<a href="https://github.com/duckdb/duckdb-r/issues/772" class="external-link">#772</a>).</p></li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9026" id="duckdb-1139026">duckdb 1.1.3.9026<a class="anchor" aria-label="anchor" href="#duckdb-1139026"></a></h2>
-<div class="section level3">
-<h3 id="testing-1-1-3-9026">Testing<a class="anchor" aria-label="anchor" href="#testing-1-1-3-9026"></a></h3>
-<ul><li>Skip tests that are about to fail.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="vendor-1-1-3-9026">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-1-3-9026"></a></h3>
-<ul><li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@f5fba86dd1bb6cfded68e71825615759248a145b" class="email">duckdb/duckdb@f5fba86dd1bb6cfded68e71825615759248a145b</a> (<a href="https://github.com/duckdb/duckdb-r/issues/770" class="external-link">#770</a>).</p></li>
+<li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@f5fba86dd1bb6cfded68e71825615759248a145b" class="email">duckdb/duckdb@f5fba86dd1bb6cfded68e71825615759248a145b</a> (<a href="https://github.com/duckdb/duckdb-r/issues/770" class="external-link">#770</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@cd09b6e41e6efb5dd16e1317070420dfebe3ee0c" class="email">duckdb/duckdb@cd09b6e41e6efb5dd16e1317070420dfebe3ee0c</a> (<a href="https://github.com/duckdb/duckdb-r/issues/769" class="external-link">#769</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@547ffc95ff6c0b31cc7df6172296f4739aaacdb0" class="email">duckdb/duckdb@547ffc95ff6c0b31cc7df6172296f4739aaacdb0</a> (<a href="https://github.com/duckdb/duckdb-r/issues/768" class="external-link">#768</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@b1840cfc161484a5d9a649b5b5ec412f4a4205d9" class="email">duckdb/duckdb@b1840cfc161484a5d9a649b5b5ec412f4a4205d9</a> (<a href="https://github.com/duckdb/duckdb-r/issues/767" class="external-link">#767</a>).</p></li>
@@ -544,31 +298,12 @@
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@ae2178ec2c1f1e961761b8dbd895a5d137f20f51" class="email">duckdb/duckdb@ae2178ec2c1f1e961761b8dbd895a5d137f20f51</a> (<a href="https://github.com/duckdb/duckdb-r/issues/726" class="external-link">#726</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@1a3d614f0eec5a2198af8ba4ea06eb9adee9d5f8" class="email">duckdb/duckdb@1a3d614f0eec5a2198af8ba4ea06eb9adee9d5f8</a> (<a href="https://github.com/duckdb/duckdb-r/issues/725" class="external-link">#725</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@742e86dce29a84990ffadf6136de840ac177ec6d" class="email">duckdb/duckdb@742e86dce29a84990ffadf6136de840ac177ec6d</a> (<a href="https://github.com/duckdb/duckdb-r/issues/723" class="external-link">#723</a>).</p></li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9025" id="duckdb-1139025">duckdb 1.1.3.9025<a class="anchor" aria-label="anchor" href="#duckdb-1139025"></a></h2>
-<div class="section level3">
-<h3 id="vendor-1-1-3-9025">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-1-3-9025"></a></h3>
-<ul><li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@e0d1305a33cf1b2c6eaa3ef45b5044ac55ae7bad" class="email">duckdb/duckdb@e0d1305a33cf1b2c6eaa3ef45b5044ac55ae7bad</a> (<a href="https://github.com/duckdb/duckdb-r/issues/722" class="external-link">#722</a>).</p></li>
+<li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@e0d1305a33cf1b2c6eaa3ef45b5044ac55ae7bad" class="email">duckdb/duckdb@e0d1305a33cf1b2c6eaa3ef45b5044ac55ae7bad</a> (<a href="https://github.com/duckdb/duckdb-r/issues/722" class="external-link">#722</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@79cbfab4cdfbae9a7bd4808f0d808a70267440f0" class="email">duckdb/duckdb@79cbfab4cdfbae9a7bd4808f0d808a70267440f0</a> (<a href="https://github.com/duckdb/duckdb-r/issues/721" class="external-link">#721</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@c29c67bb971362cd1e9143305acffebb1bc9bd63" class="email">duckdb/duckdb@c29c67bb971362cd1e9143305acffebb1bc9bd63</a> (<a href="https://github.com/duckdb/duckdb-r/issues/720" class="external-link">#720</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@89b6e4f5a528e5f88f4b8fc9cad16b879f2ec53c" class="email">duckdb/duckdb@89b6e4f5a528e5f88f4b8fc9cad16b879f2ec53c</a> (duckdb/duckdb#14833, <a href="https://github.com/duckdb/duckdb-r/issues/719" class="external-link">#719</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@dcb700fef00d6da027c5269d90345ee5dd679d43" class="email">duckdb/duckdb@dcb700fef00d6da027c5269d90345ee5dd679d43</a> (<a href="https://github.com/duckdb/duckdb-r/issues/716" class="external-link">#716</a>).</p></li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9024" id="duckdb-1139024">duckdb 1.1.3.9024<a class="anchor" aria-label="anchor" href="#duckdb-1139024"></a></h2>
-<div class="section level3">
-<h3 id="chore-1-1-3-9024">Chore<a class="anchor" aria-label="anchor" href="#chore-1-1-3-9024"></a></h3>
-<ul><li>IDE.</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9023" id="duckdb-1139023">duckdb 1.1.3.9023<a class="anchor" aria-label="anchor" href="#duckdb-1139023"></a></h2>
-<div class="section level3">
-<h3 id="vendor-1-1-3-9023">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-1-3-9023"></a></h3>
-<ul><li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@4ebeb16350eb2f819d682c581490af460dd0c995" class="email">duckdb/duckdb@4ebeb16350eb2f819d682c581490af460dd0c995</a> (<a href="https://github.com/duckdb/duckdb-r/issues/715" class="external-link">#715</a>).</p></li>
+<li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@4ebeb16350eb2f819d682c581490af460dd0c995" class="email">duckdb/duckdb@4ebeb16350eb2f819d682c581490af460dd0c995</a> (<a href="https://github.com/duckdb/duckdb-r/issues/715" class="external-link">#715</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@8ca81bab81b00bc8d97a228d57fada526e8f3be7" class="email">duckdb/duckdb@8ca81bab81b00bc8d97a228d57fada526e8f3be7</a> (<a href="https://github.com/duckdb/duckdb-r/issues/714" class="external-link">#714</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@eef81b43a7a9f3431b39982cd4816a63d58abf25" class="email">duckdb/duckdb@eef81b43a7a9f3431b39982cd4816a63d58abf25</a> (<a href="https://github.com/duckdb/duckdb-r/issues/713" class="external-link">#713</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@448b46937fcafdc789b053536d093ef22b9105b5" class="email">duckdb/duckdb@448b46937fcafdc789b053536d093ef22b9105b5</a> (<a href="https://github.com/duckdb/duckdb-r/issues/712" class="external-link">#712</a>).</p></li>
@@ -585,13 +320,7 @@
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@4982c3f135d0f55cbb896ca35a0cd8dc458fc4ee" class="email">duckdb/duckdb@4982c3f135d0f55cbb896ca35a0cd8dc458fc4ee</a> (<a href="https://github.com/duckdb/duckdb-r/issues/700" class="external-link">#700</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@46948504b4e9c879cf59ec3f73291b9c6367c84f" class="email">duckdb/duckdb@46948504b4e9c879cf59ec3f73291b9c6367c84f</a> (<a href="https://github.com/duckdb/duckdb-r/issues/699" class="external-link">#699</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@24680c5a73c491d9d96920a31440a2912c2f2831" class="email">duckdb/duckdb@24680c5a73c491d9d96920a31440a2912c2f2831</a> (<a href="https://github.com/duckdb/duckdb-r/issues/695" class="external-link">#695</a>).</p></li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9022" id="duckdb-1139022">duckdb 1.1.3.9022<a class="anchor" aria-label="anchor" href="#duckdb-1139022"></a></h2>
-<div class="section level3">
-<h3 id="vendor-1-1-3-9022">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-1-3-9022"></a></h3>
-<ul><li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@2dd3d187c15c3fef36bdc4f11f3c63b56a988f6e" class="email">duckdb/duckdb@2dd3d187c15c3fef36bdc4f11f3c63b56a988f6e</a> (<a href="https://github.com/duckdb/duckdb-r/issues/694" class="external-link">#694</a>).</p></li>
+<li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@2dd3d187c15c3fef36bdc4f11f3c63b56a988f6e" class="email">duckdb/duckdb@2dd3d187c15c3fef36bdc4f11f3c63b56a988f6e</a> (<a href="https://github.com/duckdb/duckdb-r/issues/694" class="external-link">#694</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@810cfa4568ffb4b4019480287ab6a6e414b47cd7" class="email">duckdb/duckdb@810cfa4568ffb4b4019480287ab6a6e414b47cd7</a> (<a href="https://github.com/duckdb/duckdb-r/issues/693" class="external-link">#693</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@c92a86dd7e1d30a047cc5ccdc54256f3903f34ec" class="email">duckdb/duckdb@c92a86dd7e1d30a047cc5ccdc54256f3903f34ec</a> (<a href="https://github.com/duckdb/duckdb-r/issues/692" class="external-link">#692</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@b6ca9af3ed8fd49a914237ad3368bce248034b9e" class="email">duckdb/duckdb@b6ca9af3ed8fd49a914237ad3368bce248034b9e</a> (<a href="https://github.com/duckdb/duckdb-r/issues/691" class="external-link">#691</a>).</p></li>
@@ -600,13 +329,7 @@
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@dd01b20840f687936de23530a45bfee36aa5a3b1" class="email">duckdb/duckdb@dd01b20840f687936de23530a45bfee36aa5a3b1</a> (<a href="https://github.com/duckdb/duckdb-r/issues/688" class="external-link">#688</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@00e9fb9364a671f458b9461869febe40553648b1" class="email">duckdb/duckdb@00e9fb9364a671f458b9461869febe40553648b1</a> (<a href="https://github.com/duckdb/duckdb-r/issues/687" class="external-link">#687</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@e5c89d84685debbb6de27d406482972bdcb37b07" class="email">duckdb/duckdb@e5c89d84685debbb6de27d406482972bdcb37b07</a> (<a href="https://github.com/duckdb/duckdb-r/issues/685" class="external-link">#685</a>).</p></li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9021" id="duckdb-1139021">duckdb 1.1.3.9021<a class="anchor" aria-label="anchor" href="#duckdb-1139021"></a></h2>
-<div class="section level3">
-<h3 id="vendor-1-1-3-9021">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-1-3-9021"></a></h3>
-<ul><li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@b484c2d96fa8fd4ba34e0a6bec72b2324572b78d" class="email">duckdb/duckdb@b484c2d96fa8fd4ba34e0a6bec72b2324572b78d</a> (<a href="https://github.com/duckdb/duckdb-r/issues/684" class="external-link">#684</a>).</p></li>
+<li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@b484c2d96fa8fd4ba34e0a6bec72b2324572b78d" class="email">duckdb/duckdb@b484c2d96fa8fd4ba34e0a6bec72b2324572b78d</a> (<a href="https://github.com/duckdb/duckdb-r/issues/684" class="external-link">#684</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@d5d8d8716ddd32fbc9dda7ca684b9f3b1f8ce32b" class="email">duckdb/duckdb@d5d8d8716ddd32fbc9dda7ca684b9f3b1f8ce32b</a> (<a href="https://github.com/duckdb/duckdb-r/issues/683" class="external-link">#683</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@79646c30f07b32106b80b7f4f0fd5667340b75c5" class="email">duckdb/duckdb@79646c30f07b32106b80b7f4f0fd5667340b75c5</a> (<a href="https://github.com/duckdb/duckdb-r/issues/682" class="external-link">#682</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@50a797c428e7bd59f5793af489d0ca944cf74d69" class="email">duckdb/duckdb@50a797c428e7bd59f5793af489d0ca944cf74d69</a> (<a href="https://github.com/duckdb/duckdb-r/issues/681" class="external-link">#681</a>).</p></li>
@@ -640,35 +363,100 @@
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@9e446321cdc1482c9750654d6bb4e1a3ac12ed4f" class="email">duckdb/duckdb@9e446321cdc1482c9750654d6bb4e1a3ac12ed4f</a> (<a href="https://github.com/duckdb/duckdb-r/issues/653" class="external-link">#653</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@9982a4a0128f02cbb93fb562165e55ce5d2ae033" class="email">duckdb/duckdb@9982a4a0128f02cbb93fb562165e55ce5d2ae033</a> (<a href="https://github.com/duckdb/duckdb-r/issues/652" class="external-link">#652</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@564eb25ef0ec700c8a289fe852c16629a19650bd" class="email">duckdb/duckdb@564eb25ef0ec700c8a289fe852c16629a19650bd</a> (<a href="https://github.com/duckdb/duckdb-r/issues/650" class="external-link">#650</a>).</p></li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9020" id="duckdb-1139020">duckdb 1.1.3.9020<a class="anchor" aria-label="anchor" href="#duckdb-1139020"></a></h2>
-<div class="section level3">
-<h3 id="vendor-1-1-3-9020">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-1-3-9020"></a></h3>
-<ul><li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@2fd71f4d61e594f396a7a4911dbb8f56b15dc08a" class="email">duckdb/duckdb@2fd71f4d61e594f396a7a4911dbb8f56b15dc08a</a> (<a href="https://github.com/duckdb/duckdb-r/issues/649" class="external-link">#649</a>).</p></li>
+<li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@2fd71f4d61e594f396a7a4911dbb8f56b15dc08a" class="email">duckdb/duckdb@2fd71f4d61e594f396a7a4911dbb8f56b15dc08a</a> (<a href="https://github.com/duckdb/duckdb-r/issues/649" class="external-link">#649</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@ec0304403710ca7e87814a042d23058a5ad91f9f" class="email">duckdb/duckdb@ec0304403710ca7e87814a042d23058a5ad91f9f</a> (duckdb/duckdb#14701, <a href="https://github.com/duckdb/duckdb-r/issues/648" class="external-link">#648</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@fc413a0c263a8118ee17a0c27c60c0766d18f2d4" class="email">duckdb/duckdb@fc413a0c263a8118ee17a0c27c60c0766d18f2d4</a> (duckdb/duckdb#14699, <a href="https://github.com/duckdb/duckdb-r/issues/647" class="external-link">#647</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@131787252cc0506d0fdeb4e8b9de10b68118d156" class="email">duckdb/duckdb@131787252cc0506d0fdeb4e8b9de10b68118d156</a> (<a href="https://github.com/duckdb/duckdb-r/issues/646" class="external-link">#646</a>).</p></li>
 <li><p>Update vendored sources to <a href="mailto:duckdb/duckdb@059ac75f6225fde78b686bc85f23d2e70af1dbe0" class="email">duckdb/duckdb@059ac75f6225fde78b686bc85f23d2e70af1dbe0</a> (<a href="https://github.com/duckdb/duckdb-r/issues/603" class="external-link">#603</a>).</p></li>
 </ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9019" id="duckdb-1139019">duckdb 1.1.3.9019<a class="anchor" aria-label="anchor" href="#duckdb-1139019"></a></h2>
 <div class="section level3">
-<h3 id="testing-1-1-3-9019">Testing<a class="anchor" aria-label="anchor" href="#testing-1-1-3-9019"></a></h3>
-<ul><li>Sync tests.</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.1.3.9018" id="duckdb-1139018">duckdb 1.1.3.9018<a class="anchor" aria-label="anchor" href="#duckdb-1139018"></a></h2>
-<div class="section level3">
-<h3 id="continuous-integration-1-1-3-9018">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-1-3-9018"></a></h3>
-<ul><li>Avoid failure in fledge workflow if no changes (<a href="https://github.com/duckdb/duckdb-r/issues/639" class="external-link">#639</a>).</li>
+<h3 id="bug-fixes-1-2-0">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-2-0"></a></h3>
+<ul><li><p>Remove unconditional use of <code>CPPHTTPLIB_USE_POLL</code> (<a href="https://github.com/Antonov548" class="external-link">@Antonov548</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1043" class="external-link">#1043</a>).</p></li>
+<li><p>Support reading from multiple Parquet files again (<a href="https://github.com/duckdb/duckdb-r/issues/1015" class="external-link">#1015</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1024" class="external-link">#1024</a>).</p></li>
+<li><p>Make <code>cleanup</code> truly idempotent (<a href="https://github.com/duckdb/duckdb-r/issues/612" class="external-link">#612</a>, <a href="https://github.com/duckdb/duckdb-r/issues/940" class="external-link">#940</a>).</p></li>
+<li><p>Argument order.</p></li>
 </ul></div>
 <div class="section level3">
-<h3 id="uncategorized-1-1-3-9018">Uncategorized<a class="anchor" aria-label="anchor" href="#uncategorized-1-1-3-9018"></a></h3>
-<ul><li><p>Merge branch ‘cran-1.1.3-1’.</p></li>
+<h3 id="features-1-2-0">Features<a class="anchor" aria-label="anchor" href="#features-1-2-0"></a></h3>
+<ul><li><p>Add translation for <code><a href="https://rdrr.io/r/stats/median.html" class="external-link">median()</a></code> (<a href="https://github.com/toppyy" class="external-link">@toppyy</a>, <a href="https://github.com/duckdb/duckdb-r/issues/993" class="external-link">#993</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1011" class="external-link">#1011</a>).</p></li>
+<li><p>Breaking change: Remove substrait API: <code>duckdb_get_substrait()</code>, <code>duckdb_get_substrait_json()</code>, <code>duckdb_prepare_substrait()</code>, <code>duckdb_prepare_substrait_json()</code> (<a href="https://github.com/pdet" class="external-link">@pdet</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1021" class="external-link">#1021</a>).</p></li>
+<li><p>Floor sub-day precision date before casting to int (<a href="https://github.com/toppyy" class="external-link">@toppyy</a>, <a href="https://github.com/duckdb/duckdb-r/issues/517" class="external-link">#517</a>, <a href="https://github.com/duckdb/duckdb-r/issues/981" class="external-link">#981</a>).</p></li>
+<li><p>Use cells == 0 as additional (later only) switch for forbidden materialization.</p></li>
+<li><p>Simplify valve message.</p></li>
+<li><p>Limit automatic materialization by number of rows or number of cells (<a href="https://github.com/duckdb/duckdb-r/issues/1017" class="external-link">#1017</a>).</p></li>
+<li><p>New internal <code>rapi_rel_to_csv()</code>,<code>rapi_rel_to_table()</code>, and <code>rapi_rel_insert()</code>; <code>rapi_rel_to_parquet()</code> gains <code>options</code> argument (<a href="https://github.com/duckdb/duckdb-r/issues/867" class="external-link">#867</a>).</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="chore-1-2-0">Chore<a class="anchor" aria-label="anchor" href="#chore-1-2-0"></a></h3>
+<ul><li><p>Set value returned by <code>PRAGMA user_agent</code> to r-dbi (<a href="https://github.com/krlmlr" class="external-link">@krlmlr</a>).</p></li>
+<li><p>Split definition and declaration.</p></li>
+<li><p>Restore state before the CRAN release.</p></li>
+<li><p>Combine patches.</p></li>
+<li><p>Add patch for vendoring.</p></li>
+<li><p>Move internal <code>duckdb.tar</code> dependency (<a href="https://github.com/duckdb/duckdb-r/issues/1013" class="external-link">#1013</a>).</p></li>
+<li><p>Sync vendoring script with igraph (<a href="https://github.com/duckdb/duckdb-r/issues/936" class="external-link">#936</a>).</p></li>
+<li><p><code>rethrow_()</code> variants.</p></li>
+<li><p>IDE.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="continuous-integration-1-2-0">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-2-0"></a></h3>
+<ul><li><p>Fix Windows failure.</p></li>
+<li><p>Check R 4.0.</p></li>
+<li><p>Check R 4.1 on Windows.</p></li>
+<li><p>Add workflow to run each commit.</p></li>
+<li><p>Avoid failure in fledge workflow if no changes (<a href="https://github.com/duckdb/duckdb-r/issues/639" class="external-link">#639</a>).</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-1-2-0">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-2-0"></a></h3>
+<ul><li><p>Tweak README [ci skip].</p></li>
+<li><p>Restore old NEWS.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="testing-1-2-0">Testing<a class="anchor" aria-label="anchor" href="#testing-1-2-0"></a></h3>
+<ul><li><p>Snapshot updates for R-CMD-check-base (null) (<a href="https://github.com/duckdb/duckdb-r/issues/1031" class="external-link">#1031</a>).</p></li>
+<li><p>Tweak Parquet tests (<a href="https://github.com/duckdb/duckdb-r/issues/1025" class="external-link">#1025</a>).</p></li>
+<li><p>Skip tests that are about to fail.</p></li>
+<li><p>Sync tests.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="uncategorized-1-2-0">Uncategorized<a class="anchor" aria-label="anchor" href="#uncategorized-1-2-0"></a></h3>
+<ul><li><p>Vendor: Update vendored sources (tag v1.2.0) to <a href="mailto:duckdb/duckdb@5f5512b827df6397afd31daedb4bbdee76520019" class="email">duckdb/duckdb@5f5512b827df6397afd31daedb4bbdee76520019</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@3240832cddb955d4240cf2d3adcc053b77c88717" class="email">duckdb/duckdb@3240832cddb955d4240cf2d3adcc053b77c88717</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@a7b405351ed3c319c4989fac0653fcf6fdbf126e" class="email">duckdb/duckdb@a7b405351ed3c319c4989fac0653fcf6fdbf126e</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@c57501cba7aef92bf63e0c11dc4931cac7a5f4d2" class="email">duckdb/duckdb@c57501cba7aef92bf63e0c11dc4931cac7a5f4d2</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@e70015aeac5595391b87faf250b9e980cfda3516" class="email">duckdb/duckdb@e70015aeac5595391b87faf250b9e980cfda3516</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@dc4b8892e2429a9f203db55d7e52ff9e275c1608" class="email">duckdb/duckdb@dc4b8892e2429a9f203db55d7e52ff9e275c1608</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@d0c4cf8a28b062fd41e7fbf5e98c279af12a2ccf" class="email">duckdb/duckdb@d0c4cf8a28b062fd41e7fbf5e98c279af12a2ccf</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@5d02d69e5ca85c9fb00cf3cd51e91ea7b875872c" class="email">duckdb/duckdb@5d02d69e5ca85c9fb00cf3cd51e91ea7b875872c</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@8e68a3e34aa526a342ae91e1b14b764bb3075a12" class="email">duckdb/duckdb@8e68a3e34aa526a342ae91e1b14b764bb3075a12</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@b6513473ba48f46c39c8a9d506e4ad32b7a6f2ae" class="email">duckdb/duckdb@b6513473ba48f46c39c8a9d506e4ad32b7a6f2ae</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@0024e5d4beba0185733df68642775e3f38e089cb" class="email">duckdb/duckdb@0024e5d4beba0185733df68642775e3f38e089cb</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@96d58253c4e116f2d9c6d3f9502eb18737ce040c" class="email">duckdb/duckdb@96d58253c4e116f2d9c6d3f9502eb18737ce040c</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@a597e41cb76fd31ed7040abeffa5ee407d1a0556" class="email">duckdb/duckdb@a597e41cb76fd31ed7040abeffa5ee407d1a0556</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@e00ba6ae90267757cd1bb973fff422d7ada3cd62" class="email">duckdb/duckdb@e00ba6ae90267757cd1bb973fff422d7ada3cd62</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@09cef57892e5dc221f7eee7e6c4ab440d2ab4078" class="email">duckdb/duckdb@09cef57892e5dc221f7eee7e6c4ab440d2ab4078</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@677a8e7cd679f89748f8e05b668c7496255d5430" class="email">duckdb/duckdb@677a8e7cd679f89748f8e05b668c7496255d5430</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@31ef2854d9e9c5c14adf628f0372ea1e3c374585" class="email">duckdb/duckdb@31ef2854d9e9c5c14adf628f0372ea1e3c374585</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@d2f0f31e2c6da59b9f78d1d6188c15372bfb09b3" class="email">duckdb/duckdb@d2f0f31e2c6da59b9f78d1d6188c15372bfb09b3</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@ff6dde14531fbfc1f71f67fd037aa6fa5a53340b" class="email">duckdb/duckdb@ff6dde14531fbfc1f71f67fd037aa6fa5a53340b</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@4a08b949d83e24cd02514a4dffd8def443534eb9" class="email">duckdb/duckdb@4a08b949d83e24cd02514a4dffd8def443534eb9</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@d1740d6cf7d9d2efda59f6e798ff7d2d62f62816" class="email">duckdb/duckdb@d1740d6cf7d9d2efda59f6e798ff7d2d62f62816</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@eda5288cfbb15e7d5c74ba0c44756e3c4d4f25d8" class="email">duckdb/duckdb@eda5288cfbb15e7d5c74ba0c44756e3c4d4f25d8</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@e4b2f772dd2b932424dc3835d7ea82c6bd270ec9" class="email">duckdb/duckdb@e4b2f772dd2b932424dc3835d7ea82c6bd270ec9</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@26cb7178fd89f924a936874e5c09ec1f6df8a0a4" class="email">duckdb/duckdb@26cb7178fd89f924a936874e5c09ec1f6df8a0a4</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@8ec6162490f7696357b8ef518fb6fbc890ca6f58" class="email">duckdb/duckdb@8ec6162490f7696357b8ef518fb6fbc890ca6f58</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@b76b8f7b2b1fa7c2169fabecb31fecc3d8d381cd" class="email">duckdb/duckdb@b76b8f7b2b1fa7c2169fabecb31fecc3d8d381cd</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@e0d79a7eb019477b12976b33352a2370d48d2cad" class="email">duckdb/duckdb@e0d79a7eb019477b12976b33352a2370d48d2cad</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@945a96cd3fffc49b1522342f710b9b133f77107b" class="email">duckdb/duckdb@945a96cd3fffc49b1522342f710b9b133f77107b</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@2a1d5e2ab8882b27474e733f8703ef05ebcb0524" class="email">duckdb/duckdb@2a1d5e2ab8882b27474e733f8703ef05ebcb0524</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@45bd1170945062a0e1688db2673ebe7d97476269" class="email">duckdb/duckdb@45bd1170945062a0e1688db2673ebe7d97476269</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@cb05b0d2f1f0c8ff5c19686253c21455e7fafa77" class="email">duckdb/duckdb@cb05b0d2f1f0c8ff5c19686253c21455e7fafa77</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@20ae352efcff50351d479e4677b2b8757810d532" class="email">duckdb/duckdb@20ae352efcff50351d479e4677b2b8757810d532</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@89bcc3e2ce739b1b470afa79818ee03c8cf96fe8" class="email">duckdb/duckdb@89bcc3e2ce739b1b470afa79818ee03c8cf96fe8</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@31cb6c558281afd67bb755e482422d7ba6c60ff9" class="email">duckdb/duckdb@31cb6c558281afd67bb755e482422d7ba6c60ff9</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@ea53cb71c7d50986c7e4645f499aec1a1d549b26" class="email">duckdb/duckdb@ea53cb71c7d50986c7e4645f499aec1a1d549b26</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@1c6ea28bdc7557dddd3726bb3c68a1fcc7a4ede1" class="email">duckdb/duckdb@1c6ea28bdc7557dddd3726bb3c68a1fcc7a4ede1</a>.</p></li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@16d1d6445dbf6edf5972893c9be938e84ebd26d4" class="email">duckdb/duckdb@16d1d6445dbf6edf5972893c9be938e84ebd26d4</a>.</p></li>
 <li><p>Merge branch ‘cran-1.1.3-1’.</p></li>
 <li><p>Merge branch ‘f-bump’.</p></li>
 </ul></div>
