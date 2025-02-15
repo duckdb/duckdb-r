@@ -108,7 +108,7 @@ bool AltrepRelationWrapper::HasQueryResult() const {
 	return (bool)res;
 }
 
-void AltrepRelationWrapper::MarkColumnAsMaterialized() {
+void AltrepRelationWrapper::MarkColumnAsTransformed() {
 	// AltrepRelationWrapper keeps tabs on how many of the columns have been transformed
 	// to their R-representation
 	cols_transformed++;
@@ -245,7 +245,7 @@ struct AltrepVectorWrapper {
 				dest_offset += chunk.size();
 			}
 
-			rel->MarkColumnAsMaterialized();
+			rel->MarkColumnAsTransformed();
 		}
 		return DATAPTR(transformed_vector);
 	}
