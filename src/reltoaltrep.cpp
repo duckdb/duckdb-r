@@ -108,6 +108,17 @@ bool AltrepRelationWrapper::HasQueryResult() const {
 	return (bool)res;
 }
 
+void AltrepRelationWrapper::MarkColumnAsMaterialized() {
+	// AltrepRelationWrapper keeps tabs on how many of the columns have been transformed
+	// to their R-representation
+	cols_transformed++;
+	// If all of the columns have been transformed, we can reset
+	// the query-result pointer and free the memory
+	if (cols_transformed == ncols) {
+		res.reset();
+	}
+}
+
 MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 	if (!res) {
 		if (!allow_materialization || n_cells == 0) {
@@ -224,7 +235,6 @@ struct AltrepVectorWrapper {
 
 	void *Dataptr() {
 		if (transformed_vector.data() == R_NilValue) {
-			printf("transformed_vector.data() == R_NilValue\n");
 			auto res = rel->GetQueryResult();
 
 			transformed_vector = duckdb_r_allocate(res->types[column_index], res->RowCount());
@@ -234,17 +244,8 @@ struct AltrepVectorWrapper {
 				duckdb_r_transform(chunk.data[column_index], dest, dest_offset, chunk.size(), false);
 				dest_offset += chunk.size();
 			}
-			// keep tabs on how many of the columns have been transformed
-			// to their R-representation
-			rel->cols_transformed++;
-			// if all of the columns have been transformed, we can reset
-			// the query-result pointer and free the memory
-			if (rel->cols_transformed == rel->ncols) {
-				printf("Resetting query results\n");
-				rel->res.reset();
-			} else {
-				printf("cols_transformed: %ld vs. ncols %ld\n", rel->cols_transformed, rel->ncols);
-			}
+
+			rel->MarkColumnAsMaterialized();
 		}
 		return DATAPTR(transformed_vector);
 	}
