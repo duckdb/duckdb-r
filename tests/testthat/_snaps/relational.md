@@ -319,3 +319,51 @@
     Message
       DuckDB Expression: []
 
+# tethering
+
+    Code
+      nrow(forbid)
+    Condition
+      Error:
+      ! Materialization is disabled, use collect() or as_tibble() to materialize.
+
+---
+
+    Code
+      nrow(forbid)
+    Condition
+      Error:
+      ! Materialization is disabled, use collect() or as_tibble() to materialize.
+
+---
+
+    Code
+      nrow(four_rows)
+    Condition
+      Error:
+      ! Materialization would result in more than 4 rows. Use collect() or as_tibble() to materialize.
+
+---
+
+    Code
+      nrow(nine_cells)
+    Condition
+      Error:
+      ! Materialization would result in more than 4 rows. Use collect() or as_tibble() to materialize.
+
+---
+
+    Code
+      nrow(bad_rows)
+    Condition
+      Error:
+      ! Materialization would result in more than 4 rows. Use collect() or as_tibble() to materialize.
+
+---
+
+    Code
+      nrow(bad_cells)
+    Condition
+      Error:
+      ! Materialization would result in more than 4 rows. Use collect() or as_tibble() to materialize.
+

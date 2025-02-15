@@ -96,129 +96,122 @@ static T *GetFromExternalPtr(SEXP x) {
 	return wrapper;
 }
 
-struct AltrepRelationWrapper {
+AltrepRelationWrapper *AltrepRelationWrapper::Get(SEXP x) {
+	return GetFromExternalPtr<AltrepRelationWrapper>(x);
+}
 
-	static AltrepRelationWrapper *Get(SEXP x) {
-		return GetFromExternalPtr<AltrepRelationWrapper>(x);
+AltrepRelationWrapper::AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_, size_t n_rows_, size_t n_cells_)
+    	    : allow_materialization(allow_materialization_), n_rows(n_rows_), n_cells(n_cells_), rel_eptr(rel_), rel(rel_->rel), rowcount(0), rowcount_retrieved(false), ncols(0), cols_transformed(0) {
+}
+
+bool AltrepRelationWrapper::HasQueryResult() const {
+	return (bool)res;
+}
+
+void AltrepRelationWrapper::MarkColumnAsMaterialized() {
+	// AltrepRelationWrapper keeps tabs on how many of the columns have been transformed
+	// to their R-representation
+	cols_transformed++;
+	// If all of the columns have been transformed, we can reset
+	// the query-result pointer and free the memory
+	if (cols_transformed == ncols) {
+		res.reset();
+	}
+}
+
+MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
+	if (!res) {
+		if (!allow_materialization || n_cells == 0) {
+			cpp11::stop("Materialization is disabled, use collect() or as_tibble() to materialize.");
+		}
+
+		auto materialize_callback = Rf_GetOption(RStrings::get().materialize_callback_sym, R_BaseEnv);
+		if (Rf_isFunction(materialize_callback)) {
+			sexp call = Rf_lang2(materialize_callback, rel_eptr);
+			Rf_eval(call, R_BaseEnv);
+		}
+
+		auto materialize_message = Rf_GetOption(RStrings::get().materialize_message_sym, R_BaseEnv);
+		if (Rf_isLogical(materialize_message) && Rf_length(materialize_message) == 1 && LOGICAL_ELT(materialize_message, 0) == true) {
+			// Legacy
+			Rprintf("duckplyr: materializing\n");
+		}
+
+		ScopedInterruptHandler signal_handler(rel->context->GetContext());
+
+		// We need to temporarily allow a deeper execution stack
+		// https://github.com/duckdb/duckdb-r/issues/101
+		auto old_depth = rel->context->GetContext()->config.max_expression_depth;
+		rel->context->GetContext()->config.max_expression_depth = old_depth * 2;
+		duckdb_httplib::detail::scope_exit reset_max_expression_depth(
+		    [&]() { rel->context->GetContext()->config.max_expression_depth = old_depth; });
+
+		res = Materialize();
+
+		// FIXME: Use std::experimental::scope_exit
+		if (rel->context->GetContext()->config.max_expression_depth != old_depth * 2) {
+			Rprintf("Internal error: max_expression_depth was changed from %" PRIu64 " to %" PRIu64 "\n",
+			        old_depth * 2, rel->context->GetContext()->config.max_expression_depth);
+		}
+		rel->context->GetContext()->config.max_expression_depth = old_depth;
+		reset_max_expression_depth.release();
+
+		if (signal_handler.HandleInterrupt()) {
+			cpp11::stop("Query execution was interrupted");
+		}
+
+
+		rowcount = ((MaterializedQueryResult *)res.get())->RowCount();
+		rowcount_retrieved = true;
+
+		signal_handler.Disable();
+	}
+	D_ASSERT(res);
+	return (MaterializedQueryResult *)res.get();
+}
+
+duckdb::unique_ptr<QueryResult> AltrepRelationWrapper::Materialize() {
+	// Init with max value
+	size_t max_rows = MAX_SIZE_T;
+
+	// Number of cells limited?
+	if (n_cells < MAX_SIZE_T) {
+		max_rows = n_cells / rel->Columns().size();
 	}
 
-
-	AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_, size_t n_rows_, size_t n_cells_)
-	    : allow_materialization(allow_materialization_), n_rows(n_rows_), n_cells(n_cells_), rel_eptr(rel_), rel(rel_->rel), rowcount(0), rowcount_retrieved(false), ncols(0), cols_transformed(0) {
+	// Number of rows limited?
+	if (n_rows < max_rows) {
+		max_rows = n_rows;
 	}
 
-	bool HasQueryResult() const {
-		return (bool)res;
+	// For tethered, we push a limit relation and check the number of output rows
+	auto local_rel = rel;
+	if (max_rows < MAX_SIZE_T) {
+		local_rel = make_shared_ptr<LimitRelation>(rel, max_rows + 1, 0);
 	}
 
-	MaterializedQueryResult *GetQueryResult() {
-		if (!res) {
-			if (!allow_materialization) {
-				cpp11::stop("Materialization is disabled, use collect() or as_tibble() to materialize.");
-			}
+	auto local_res = local_rel->Execute();
 
-			auto materialize_callback = Rf_GetOption(RStrings::get().materialize_callback_sym, R_BaseEnv);
-			if (Rf_isFunction(materialize_callback)) {
-				sexp call = Rf_lang2(materialize_callback, rel_eptr);
-				Rf_eval(call, R_BaseEnv);
-			}
+	if (local_res->HasError()) {
+		cpp11::stop("Error evaluating duckdb query: %s", local_res->GetError().c_str());
+	}
+	D_ASSERT(local_res->type == QueryResultType::MATERIALIZED_RESULT);
 
-			auto materialize_message = Rf_GetOption(RStrings::get().materialize_message_sym, R_BaseEnv);
-			if (Rf_isLogical(materialize_message) && Rf_length(materialize_message) == 1 && LOGICAL_ELT(materialize_message, 0) == true) {
-				// Legacy
-				Rprintf("duckplyr: materializing\n");
-			}
-
-			ScopedInterruptHandler signal_handler(rel->context->GetContext());
-
-			// We need to temporarily allow a deeper execution stack
-			// https://github.com/duckdb/duckdb-r/issues/101
-			auto old_depth = rel->context->GetContext()->config.max_expression_depth;
-			rel->context->GetContext()->config.max_expression_depth = old_depth * 2;
-			duckdb_httplib::detail::scope_exit reset_max_expression_depth(
-			    [&]() { rel->context->GetContext()->config.max_expression_depth = old_depth; });
-
-			res = Materialize();
-
-			// FIXME: Use std::experimental::scope_exit
-			if (rel->context->GetContext()->config.max_expression_depth != old_depth * 2) {
-				Rprintf("Internal error: max_expression_depth was changed from %" PRIu64 " to %" PRIu64 "\n",
-				        old_depth * 2, rel->context->GetContext()->config.max_expression_depth);
-			}
-			rel->context->GetContext()->config.max_expression_depth = old_depth;
-			reset_max_expression_depth.release();
-
-			if (signal_handler.HandleInterrupt()) {
-				cpp11::stop("Query execution was interrupted");
-			}
-
-			signal_handler.Disable();
-
-			rowcount = ((MaterializedQueryResult *)res.get())->RowCount();
-			rowcount_retrieved = true;
+	if (max_rows < MAX_SIZE_T) {
+		auto mat_res = (MaterializedQueryResult *)local_res.get();
+		if (mat_res->RowCount() > max_rows) {
+			cpp11::stop("Materialization would result in more than %" PRIu64
+						" rows. Use collect() or as_tibble() to materialize.",
+						max_rows);
 		}
-		D_ASSERT(res);
-		return (MaterializedQueryResult *)res.get();
 	}
 
-	duckdb::unique_ptr<QueryResult> Materialize() {
-		// Init with max value
-		size_t max_rows = MAX_SIZE_T;
-
-		// Number of cells limited?
-		if (n_cells < MAX_SIZE_T) {
-			max_rows = n_cells / rel->Columns().size();
-		}
-
-		// Number of rows limited?
-		if (n_rows < max_rows) {
-			max_rows = n_rows;
-		}
-
-		// For tethered, we push a limit relation and check the number of output rows
-		auto local_rel = rel;
-		if (max_rows < MAX_SIZE_T) {
-			local_rel = make_shared_ptr<LimitRelation>(rel, max_rows + 1, 0);
-		}
-
-		auto local_res = local_rel->Execute();
-
-		if (local_res->HasError()) {
-			cpp11::stop("Error evaluating duckdb query: %s", local_res->GetError().c_str());
-		}
-		D_ASSERT(local_res->type == QueryResultType::MATERIALIZED_RESULT);
-
-		if (max_rows < MAX_SIZE_T) {
-			auto mat_res = (MaterializedQueryResult *)local_res.get();
-			if (mat_res->RowCount() > max_rows) {
-				cpp11::stop("Materialization would result in %" PRIu64 " rows, which exceeds the limit of %" PRIu64,
-							". Use collect() or as_tibble() to materialize.",
-							mat_res->RowCount(), max_rows);
-			}
-		}
-
-		return std::move(local_res);
-	}
-
-	const bool allow_materialization;
-	const size_t n_rows;
-	const size_t n_cells;
-
-	rel_extptr_t rel_eptr;
-	duckdb::shared_ptr<Relation> rel;
-	duckdb::unique_ptr<QueryResult> res;
-
-	R_xlen_t rowcount;
-	bool rowcount_retrieved;
-
-	size_t ncols;
-	size_t cols_transformed;
-
-};
+	return std::move(local_res);
+}
 
 struct AltrepRownamesWrapper {
 
-	AltrepRownamesWrapper(duckdb::shared_ptr<AltrepRelationWrapper> rel_p) : rel(rel_p) , rowlen_data_retrieved(false) {
+	AltrepRownamesWrapper(duckdb::shared_ptr<AltrepRelationWrapper> rel_p) : rel(rel_p), rowlen_data_retrieved(false) {
 		rowlen_data[0] = NA_INTEGER;
 	}
 
@@ -229,7 +222,6 @@ struct AltrepRownamesWrapper {
 	int32_t rowlen_data[2];
 	duckdb::shared_ptr<AltrepRelationWrapper> rel;
 	bool rowlen_data_retrieved;
-
 };
 
 struct AltrepVectorWrapper {
@@ -252,14 +244,8 @@ struct AltrepVectorWrapper {
 				duckdb_r_transform(chunk.data[column_index], dest, dest_offset, chunk.size(), false);
 				dest_offset += chunk.size();
 			}
-			// keep tabs on how many of the columns have been transformed
-			// to their R-representation
-			rel->cols_transformed++;
-			// if all of the columns have been transformed, we can reset
-			// the query-result pointer and free the memory
-			if (rel->cols_transformed == rel->ncols) {
-				rel->res.reset();
-			}
+
+			rel->MarkColumnAsMaterialized();
 		}
 		return DATAPTR(transformed_vector);
 	}
@@ -447,6 +433,8 @@ size_t DoubleToSize(double d) {
 	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, allow_materialization, DoubleToSize(n_rows),
 	                                                              DoubleToSize(n_cells));
 
+	relation_wrapper->ncols = drel->Columns().size();
+
 	cpp11::writable::list data_frame;
 	data_frame.reserve(ncols);
 
@@ -470,8 +458,7 @@ size_t DoubleToSize(double d) {
 	}
 	SET_NAMES(data_frame, StringsToSexp(names));
 
-	// Colcount
-	relation_wrapper->ncols = ncols;
+	relation_wrapper->ncols = drel->Columns().size();
 
 	// Row names
 	cpp11::external_pointer<AltrepRownamesWrapper> ptr(new AltrepRownamesWrapper(relation_wrapper));

@@ -1,5 +1,118 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.1.3.9044
+
+## Chore
+
+- Set value returned by `PRAGMA user_agent` to r-dbi (@krlmlr).
+
+## Continuous integration
+
+- Add workflow to run each commit.
+
+## Uncategorized
+
+- Vendor: Update vendored sources to duckdb/duckdb@3240832cddb955d4240cf2d3adcc053b77c88717.
+
+- Vendor: Update vendored sources to duckdb/duckdb@a7b405351ed3c319c4989fac0653fcf6fdbf126e.
+
+- Vendor: Update vendored sources to duckdb/duckdb@c57501cba7aef92bf63e0c11dc4931cac7a5f4d2.
+
+- Vendor: Update vendored sources to duckdb/duckdb@e70015aeac5595391b87faf250b9e980cfda3516.
+
+- Vendor: Update vendored sources to duckdb/duckdb@dc4b8892e2429a9f203db55d7e52ff9e275c1608.
+
+- Vendor: Update vendored sources to duckdb/duckdb@d0c4cf8a28b062fd41e7fbf5e98c279af12a2ccf.
+
+- Vendor: Update vendored sources to duckdb/duckdb@5d02d69e5ca85c9fb00cf3cd51e91ea7b875872c.
+
+- Vendor: Update vendored sources to duckdb/duckdb@8e68a3e34aa526a342ae91e1b14b764bb3075a12.
+
+- Vendor: Update vendored sources to duckdb/duckdb@b6513473ba48f46c39c8a9d506e4ad32b7a6f2ae.
+
+- Vendor: Update vendored sources to duckdb/duckdb@0024e5d4beba0185733df68642775e3f38e089cb.
+
+- Vendor: Update vendored sources to duckdb/duckdb@96d58253c4e116f2d9c6d3f9502eb18737ce040c.
+
+- Vendor: Update vendored sources to duckdb/duckdb@a597e41cb76fd31ed7040abeffa5ee407d1a0556.
+
+- Vendor: Update vendored sources to duckdb/duckdb@e00ba6ae90267757cd1bb973fff422d7ada3cd62.
+
+- Vendor: Update vendored sources to duckdb/duckdb@09cef57892e5dc221f7eee7e6c4ab440d2ab4078.
+
+- Vendor: Update vendored sources to duckdb/duckdb@677a8e7cd679f89748f8e05b668c7496255d5430.
+
+- Vendor: Update vendored sources to duckdb/duckdb@31ef2854d9e9c5c14adf628f0372ea1e3c374585.
+
+- Vendor: Update vendored sources to duckdb/duckdb@d2f0f31e2c6da59b9f78d1d6188c15372bfb09b3.
+
+- Vendor: Update vendored sources to duckdb/duckdb@ff6dde14531fbfc1f71f67fd037aa6fa5a53340b.
+
+- Vendor: Update vendored sources to duckdb/duckdb@4a08b949d83e24cd02514a4dffd8def443534eb9.
+
+- Vendor: Update vendored sources to duckdb/duckdb@d1740d6cf7d9d2efda59f6e798ff7d2d62f62816.
+
+- Vendor: Update vendored sources to duckdb/duckdb@eda5288cfbb15e7d5c74ba0c44756e3c4d4f25d8.
+
+- Vendor: Update vendored sources to duckdb/duckdb@e4b2f772dd2b932424dc3835d7ea82c6bd270ec9.
+
+- Vendor: Update vendored sources to duckdb/duckdb@26cb7178fd89f924a936874e5c09ec1f6df8a0a4.
+
+- Vendor: Update vendored sources to duckdb/duckdb@8ec6162490f7696357b8ef518fb6fbc890ca6f58.
+
+- Vendor: Update vendored sources to duckdb/duckdb@b76b8f7b2b1fa7c2169fabecb31fecc3d8d381cd.
+
+- Vendor: Update vendored sources to duckdb/duckdb@e0d79a7eb019477b12976b33352a2370d48d2cad.
+
+- Vendor: Update vendored sources to duckdb/duckdb@945a96cd3fffc49b1522342f710b9b133f77107b.
+
+- Vendor: Update vendored sources to duckdb/duckdb@2a1d5e2ab8882b27474e733f8703ef05ebcb0524.
+
+- Vendor: Update vendored sources to duckdb/duckdb@45bd1170945062a0e1688db2673ebe7d97476269.
+
+- Vendor: Update vendored sources to duckdb/duckdb@cb05b0d2f1f0c8ff5c19686253c21455e7fafa77.
+
+- Vendor: Update vendored sources to duckdb/duckdb@20ae352efcff50351d479e4677b2b8757810d532.
+
+- Vendor: Update vendored sources to duckdb/duckdb@89bcc3e2ce739b1b470afa79818ee03c8cf96fe8.
+
+- Vendor: Update vendored sources to duckdb/duckdb@31cb6c558281afd67bb755e482422d7ba6c60ff9.
+
+- Vendor: Update vendored sources to duckdb/duckdb@ea53cb71c7d50986c7e4645f499aec1a1d549b26.
+
+- Vendor: Update vendored sources to duckdb/duckdb@1c6ea28bdc7557dddd3726bb3c68a1fcc7a4ede1.
+
+- Vendor: Update vendored sources to duckdb/duckdb@16d1d6445dbf6edf5972893c9be938e84ebd26d4.
+
+
+# duckdb 1.1.3.9043
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@4e3920c3ec63284d11411d1ac6b28af5ceb784a0 (#1035).
+
+- Update vendored sources to duckdb/duckdb@db06cdd9ddb420a7f04248e7a62ea1785868d97c (#1034).
+
+- Update vendored sources to duckdb/duckdb@6c3fdfc17b3690db2892703956e2a4f3739adf6b (#1022).
+
+
+# duckdb 1.1.3.9042
+
+## Features
+
+- Use cells == 0 as additional (later only) switch for forbidden materialization.
+
+- Simplify valve message.
+
+## Chore
+
+- Split definition and declaration.
+
+## Testing
+
+- Snapshot updates for R-CMD-check-base (null) (#1031).
+
+
 # duckdb 1.1.3.9041
 
 ## Bug fixes
