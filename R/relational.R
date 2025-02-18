@@ -419,7 +419,7 @@ rel_distinct <- function(rel) {
 #' rel <- rel_from_df(con, mtcars)
 #' rel2 <- rel_distinct(rel)
 rel_distinct2 <- function(df, con) {
-  rethrow_rapi_rel_distinct(df, con@conn_ref)
+  rethrow_rapi_rel_distinct2(df, con@conn_ref)
 }
 
 #' SET INTERSECT on two DuckDB relation objects
