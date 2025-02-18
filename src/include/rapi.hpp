@@ -122,9 +122,11 @@ struct RQueryResult {
 typedef cpp11::external_pointer<RQueryResult> rqry_eptr_t;
 
 // internal
-unique_ptr<TableRef> ArrowScanReplacement(ClientContext &context, ReplacementScanInput &input, optional_ptr<ReplacementScanData> data);
+unique_ptr<TableRef> ArrowScanReplacement(ClientContext &context, ReplacementScanInput &input,
+                                          optional_ptr<ReplacementScanData> data);
 
-unique_ptr<TableRef> EnvironmentScanReplacement(ClientContext &context, ReplacementScanInput &input, optional_ptr<ReplacementScanData> data);
+unique_ptr<TableRef> EnvironmentScanReplacement(ClientContext &context, ReplacementScanInput &input,
+                                                optional_ptr<ReplacementScanData> data);
 
 struct ReplacementDataDBWrapper : public ReplacementScanData {
 	DBWrapper *wrapper;
@@ -159,6 +161,7 @@ struct RStrings {
 	SEXP difftime_str;
 	SEXP secs_str;
 	SEXP arrow_str; // StringsToSexp
+	SEXP duckdb_str;
 	SEXP POSIXct_POSIXt_str;
 	SEXP integer64_str;
 	SEXP enc2utf8_sym; // Rf_install
@@ -171,6 +174,7 @@ struct RStrings {
 	SEXP ImportRecordBatchReader_sym;
 	SEXP materialize_callback_sym;
 	SEXP materialize_message_sym;
+	SEXP get_progress_display_sym;
 	SEXP duckdb_row_names_sym;
 	SEXP duckdb_vector_sym;
 

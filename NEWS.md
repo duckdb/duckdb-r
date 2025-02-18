@@ -1,5 +1,52 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.1.3.9048
+
+## Documentation
+
+- Tweak README \[ci skip\].
+
+
+# duckdb 1.1.3.9047
+
+## Continuous integration
+
+- Fix Windows failure.
+
+
+# duckdb 1.1.3.9046
+
+## Bug fixes
+
+- Remove unconditional use of `CPPHTTPLIB_USE_POLL` (@Antonov548, #1043).
+
+## Features
+
+- Add translation for `median()` (@toppyy, #993, #1011).
+
+- Breaking change: Remove substrait API: `duckdb_get_substrait()`, `duckdb_get_substrait_json()`, `duckdb_prepare_substrait()`, `duckdb_prepare_substrait_json()` (@pdet, #1021).
+
+- Floor sub-day precision date before casting to int (@toppyy, #517, #981).
+
+## Continuous integration
+
+- Check R 4.0.
+
+## Breaking changes
+
+- Breaking change: Remove substrait API: `duckdb_get_substrait()`, `duckdb_get_substrait_json()`, `duckdb_prepare_substrait()`, `duckdb_prepare_substrait_json()` (@pdet, #1021).
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@0e844786417d80226851f5fc375060b47d3b65e0 (#1042).
+
+## Uncategorized
+
+- Vendor: Update vendored sources (tag v1.2.0) to duckdb/duckdb@5f5512b827df6397afd31daedb4bbdee76520019.
+
+- Vendor: Update vendored sources (tag v1.2.0) to duckdb/duckdb@5f5512b827df6397afd31daedb4bbdee76520019.
+
+
 # duckdb 1.1.3.9045
 
 ## Continuous integration

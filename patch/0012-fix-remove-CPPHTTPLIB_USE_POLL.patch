@@ -1,0 +1,27 @@
+From 4adff1d6627b868aa6c5b6fd7617543de3d2a254 Mon Sep 17 00:00:00 2001
+From: Antonov548 <antonov5551998@gmail.com>
+Date: Wed, 12 Feb 2025 14:42:13 +0100
+Subject: [PATCH 12/13] fix: remove `CPPHTTPLIB_USE_POLL`
+
+---
+ src/duckdb/third_party/httplib/httplib.hpp | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/src/duckdb/third_party/httplib/httplib.hpp b/src/duckdb/third_party/httplib/httplib.hpp
+index f06db896a..44cd5be40 100644
+--- a/src/duckdb/third_party/httplib/httplib.hpp
++++ b/src/duckdb/third_party/httplib/httplib.hpp
+@@ -70,10 +70,6 @@
+ #define CPPHTTPLIB_REQUEST_URI_MAX_LENGTH 8192
+ #endif
+ 
+-#ifndef CPPHTTPLIB_USE_POLL
+-#define CPPHTTPLIB_USE_POLL
+-#endif
+-
+ #ifndef CPPHTTPLIB_HEADER_MAX_LENGTH
+ #define CPPHTTPLIB_HEADER_MAX_LENGTH 8192
+ #endif
+-- 
+2.48.1
+

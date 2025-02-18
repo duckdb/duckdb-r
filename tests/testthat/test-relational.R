@@ -849,6 +849,7 @@ test_that("rel_tostring()", {
 })
 
 test_that("rel_explain()", {
+  skip_if(getRversion() < "4.2")
   local_edition(3)
 
   df <- data.frame(x = 1)
