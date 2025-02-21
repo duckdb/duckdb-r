@@ -10,6 +10,7 @@ add_library(
   register.cpp
   relational.cpp
   reltoaltrep.cpp
+  altrepdataframe_relation.cpp
   scan.cpp
   statement.cpp
   transform.cpp

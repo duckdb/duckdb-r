@@ -72,8 +72,32 @@ rapi_expr_tostring <- function(expr) {
   .Call(`_duckdb_rapi_expr_tostring`, expr)
 }
 
+rapi_get_null_SEXP_ptr <- function() {
+  .Call(`_duckdb_rapi_get_null_SEXP_ptr`)
+}
+
 rapi_rel_from_df <- function(con, df, experimental) {
   .Call(`_duckdb_rapi_rel_from_df`, con, df, experimental)
+}
+
+rapi_rel_to_df <- function(rel) {
+  .Call(`_duckdb_rapi_rel_to_df`, rel)
+}
+
+rapi_rel_sql <- function(rel, sql) {
+  .Call(`_duckdb_rapi_rel_sql`, rel, sql)
+}
+
+rapi_rel_names <- function(rel) {
+  .Call(`_duckdb_rapi_rel_names`, rel)
+}
+
+rapi_rel_alias <- function(rel) {
+  .Call(`_duckdb_rapi_rel_alias`, rel)
+}
+
+rapi_rel_set_alias <- function(rel, alias) {
+  .Call(`_duckdb_rapi_rel_set_alias`, rel, alias)
 }
 
 rapi_rel_filter <- function(rel, exprs) {
@@ -112,42 +136,6 @@ rapi_rel_distinct <- function(rel) {
   .Call(`_duckdb_rapi_rel_distinct`, rel)
 }
 
-rapi_rel_to_df <- function(rel) {
-  .Call(`_duckdb_rapi_rel_to_df`, rel)
-}
-
-rapi_rel_tostring <- function(rel, format) {
-  .Call(`_duckdb_rapi_rel_tostring`, rel, format)
-}
-
-rapi_rel_to_sql <- function(rel) {
-  .Call(`_duckdb_rapi_rel_to_sql`, rel)
-}
-
-rapi_rel_explain <- function(rel, type, format) {
-  .Call(`_duckdb_rapi_rel_explain`, rel, type, format)
-}
-
-rapi_rel_alias <- function(rel) {
-  .Call(`_duckdb_rapi_rel_alias`, rel)
-}
-
-rapi_get_null_SEXP_ptr <- function() {
-  .Call(`_duckdb_rapi_get_null_SEXP_ptr`)
-}
-
-rapi_rel_set_alias <- function(rel, alias) {
-  .Call(`_duckdb_rapi_rel_set_alias`, rel, alias)
-}
-
-rapi_rel_sql <- function(rel, sql) {
-  .Call(`_duckdb_rapi_rel_sql`, rel, sql)
-}
-
-rapi_rel_names <- function(rel) {
-  .Call(`_duckdb_rapi_rel_names`, rel)
-}
-
 rapi_rel_set_intersect <- function(rel_a, rel_b) {
   .Call(`_duckdb_rapi_rel_set_intersect`, rel_a, rel_b)
 }
@@ -172,6 +160,18 @@ rapi_rel_from_table_function <- function(con, function_name, positional_paramete
   .Call(`_duckdb_rapi_rel_from_table_function`, con, function_name, positional_parameters_sexps, named_parameters_sexps)
 }
 
+rapi_rel_tostring <- function(rel, format) {
+  .Call(`_duckdb_rapi_rel_tostring`, rel, format)
+}
+
+rapi_rel_to_sql <- function(rel) {
+  .Call(`_duckdb_rapi_rel_to_sql`, rel)
+}
+
+rapi_rel_explain <- function(rel, type, format) {
+  .Call(`_duckdb_rapi_rel_explain`, rel, type, format)
+}
+
 rapi_rel_to_parquet <- function(rel, file_name, options_sexps) {
   invisible(.Call(`_duckdb_rapi_rel_to_parquet`, rel, file_name, options_sexps))
 }
@@ -186,6 +186,94 @@ rapi_rel_to_table <- function(rel, schema_name, table_name, temporary) {
 
 rapi_rel_insert <- function(rel, schema_name, table_name) {
   invisible(.Call(`_duckdb_rapi_rel_insert`, rel, schema_name, table_name))
+}
+
+rapi_rel_names2 <- function(df, con) {
+  .Call(`_duckdb_rapi_rel_names2`, df, con)
+}
+
+rapi_rel_alias2 <- function(df, con) {
+  .Call(`_duckdb_rapi_rel_alias2`, df, con)
+}
+
+rapi_rel_set_alias2 <- function(df, con, alias) {
+  .Call(`_duckdb_rapi_rel_set_alias2`, df, con, alias)
+}
+
+rapi_rel_filter2 <- function(df, con, exprs) {
+  .Call(`_duckdb_rapi_rel_filter2`, df, con, exprs)
+}
+
+rapi_rel_project2 <- function(df, con, exprs) {
+  .Call(`_duckdb_rapi_rel_project2`, df, con, exprs)
+}
+
+rapi_rel_aggregate2 <- function(df, con, groups, aggregates) {
+  .Call(`_duckdb_rapi_rel_aggregate2`, df, con, groups, aggregates)
+}
+
+rapi_rel_order2 <- function(df, con, orders, ascending) {
+  .Call(`_duckdb_rapi_rel_order2`, df, con, orders, ascending)
+}
+
+rapi_rel_join2 <- function(left, right, con, conds, join, join_ref_type) {
+  .Call(`_duckdb_rapi_rel_join2`, left, right, con, conds, join, join_ref_type)
+}
+
+rapi_rel_union_all2 <- function(left, right, con) {
+  .Call(`_duckdb_rapi_rel_union_all2`, left, right, con)
+}
+
+rapi_rel_limit2 <- function(df, con, n) {
+  .Call(`_duckdb_rapi_rel_limit2`, df, con, n)
+}
+
+rapi_rel_distinct2 <- function(df, con) {
+  .Call(`_duckdb_rapi_rel_distinct2`, df, con)
+}
+
+rapi_rel_set_intersect2 <- function(left, right, con) {
+  .Call(`_duckdb_rapi_rel_set_intersect2`, left, right, con)
+}
+
+rapi_rel_set_diff2 <- function(left, right, con) {
+  .Call(`_duckdb_rapi_rel_set_diff2`, left, right, con)
+}
+
+rapi_rel_set_symdiff2 <- function(left, right, con) {
+  .Call(`_duckdb_rapi_rel_set_symdiff2`, left, right, con)
+}
+
+rapi_rel_from_sql2 <- function(con, sql) {
+  .Call(`_duckdb_rapi_rel_from_sql2`, con, sql)
+}
+
+rapi_rel_from_table2 <- function(con, schema_name, table_name) {
+  .Call(`_duckdb_rapi_rel_from_table2`, con, schema_name, table_name)
+}
+
+rapi_rel_from_table_function2 <- function(con, function_name, positional_parameters_sexps, named_parameters_sexps) {
+  .Call(`_duckdb_rapi_rel_from_table_function2`, con, function_name, positional_parameters_sexps, named_parameters_sexps)
+}
+
+rapi_rel_explain2 <- function(df, con, type, format) {
+  .Call(`_duckdb_rapi_rel_explain2`, df, con, type, format)
+}
+
+rapi_rel_to_parquet2 <- function(df, con, file_name, options_sexps) {
+  invisible(.Call(`_duckdb_rapi_rel_to_parquet2`, df, con, file_name, options_sexps))
+}
+
+rapi_rel_to_csv2 <- function(df, con, file_name, options_sexps) {
+  invisible(.Call(`_duckdb_rapi_rel_to_csv2`, df, con, file_name, options_sexps))
+}
+
+rapi_rel_to_table2 <- function(df, con, schema_name, table_name, temporary) {
+  invisible(.Call(`_duckdb_rapi_rel_to_table2`, df, con, schema_name, table_name, temporary))
+}
+
+rapi_rel_insert2 <- function(df, con, schema_name, table_name) {
+  invisible(.Call(`_duckdb_rapi_rel_insert2`, df, con, schema_name, table_name))
 }
 
 rapi_rel_to_altrep <- function(rel, allow_materialization, n_rows, n_cells) {

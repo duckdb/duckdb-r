@@ -5,6 +5,7 @@
 #include "reltoaltrep.hpp"
 #include "signal.hpp"
 #include "cpp11/declarations.hpp"
+#include "altrepdataframe_relation.hpp"
 
 #include "httplib.hpp"
 #include <cinttypes>
@@ -100,8 +101,8 @@ AltrepRelationWrapper *AltrepRelationWrapper::Get(SEXP x) {
 	return GetFromExternalPtr<AltrepRelationWrapper>(x);
 }
 
-AltrepRelationWrapper::AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_, size_t n_rows_, size_t n_cells_)
-    : allow_materialization(allow_materialization_), n_rows(n_rows_), n_cells(n_cells_), rel_eptr(rel_), rel(rel_->rel) {
+AltrepRelationWrapper::AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_, size_t n_rows_, size_t n_cells_, SEXP df_)
+    : allow_materialization(allow_materialization_), n_rows(n_rows_), n_cells(n_cells_), rel_eptr(rel_), rel(rel_->rel), df(df_) {
 }
 
 bool AltrepRelationWrapper::HasQueryResult() const {
@@ -401,11 +402,14 @@ size_t DoubleToSize(double d) {
 	auto drel = rel->rel;
 	auto ncols = drel->Columns().size();
 
-	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, allow_materialization, DoubleToSize(n_rows),
-	                                                              DoubleToSize(n_cells));
-
 	cpp11::writable::list data_frame;
-	data_frame.reserve(ncols);
+	data_frame.resize(ncols);
+
+	// convert to SEXP
+	(void)(SEXP)data_frame;
+
+	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, allow_materialization, DoubleToSize(n_rows),
+	                                                               DoubleToSize(n_cells), data_frame);
 
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
 		auto &column_type = drel->Columns()[col_idx].Type();
@@ -414,11 +418,9 @@ size_t DoubleToSize(double d) {
 
 		cpp11::sexp vector_sexp = R_new_altrep(LogicalTypeToAltrepType(column_type), ptr, rel);
 		duckdb_r_decorate(column_type, vector_sexp, false);
-		data_frame.push_back(vector_sexp);
-	}
 
-	// convert to SEXP, with potential side effect of truncation and removal of attributes
-	(void)(SEXP)data_frame;
+		data_frame[col_idx] = vector_sexp;
+	}
 
 	// Names
 	vector<string> names;
@@ -431,6 +433,51 @@ size_t DoubleToSize(double d) {
 	cpp11::external_pointer<AltrepRownamesWrapper> ptr(new AltrepRownamesWrapper(relation_wrapper));
 	R_SetExternalPtrTag(ptr, RStrings::get().duckdb_row_names_sym);
 	cpp11::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, rel);
+	install_new_attrib(data_frame, R_RowNamesSymbol, row_names_sexp);
+
+	// Class
+	data_frame.attr(R_ClassSymbol) = RStrings::get().dataframe_str;
+
+	return data_frame;
+}
+
+
+SEXP rapi_rel_to_altrep2(duckdb::rel_extptr_t rel, duckdb::conn_eptr_t con, bool allow_materialization) {
+	D_ASSERT(rel && rel->rel);
+	auto drel = rel->rel;
+	auto ncols = drel->Columns().size();
+
+	cpp11::writable::list data_frame;
+	data_frame.resize(ncols);
+
+	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, allow_materialization, MAX_SIZE_T, MAX_SIZE_T, data_frame);
+
+	// convert to SEXP
+	(void)(SEXP)data_frame;
+
+	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
+		auto &column_type = drel->Columns()[col_idx].Type();
+		cpp11::external_pointer<AltrepVectorWrapper> ptr(new AltrepVectorWrapper(relation_wrapper, col_idx));
+		R_SetExternalPtrTag(ptr, RStrings::get().duckdb_vector_sym);
+
+		cpp11::sexp vector_sexp = R_new_altrep(LogicalTypeToAltrepType(column_type), ptr, rel);
+		duckdb_r_decorate(column_type, vector_sexp, false);
+
+		data_frame[col_idx] = vector_sexp;
+	}
+
+	// Names
+	vector<string> names;
+	for (auto &col : drel->Columns()) {
+		names.push_back(col.Name());
+	}
+	SET_NAMES(data_frame, StringsToSexp(names));
+
+	// Row names
+	cpp11::external_pointer<AltrepRownamesWrapper> ptr(new AltrepRownamesWrapper(relation_wrapper));
+	R_SetExternalPtrTag(ptr, RStrings::get().duckdb_row_names_sym);
+	cpp11::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, make_external<RelationWrapper>("duckdb_relation",
+		make_shared_ptr<duckdb::AltrepDataFrameRelation>(rel->rel, data_frame, con, relation_wrapper)));
 	install_new_attrib(data_frame, R_RowNamesSymbol, row_names_sexp);
 
 	// Class
@@ -494,6 +541,32 @@ size_t DoubleToSize(double d) {
 	}
 
 	return res;
+}
+
+SEXP result_to_df(duckdb::unique_ptr<duckdb::QueryResult> res) {
+	if (res->HasError()) {
+		stop("%s", res->GetError().c_str());
+	}
+	if (res->type == QueryResultType::STREAM_RESULT) {
+		res = ((StreamQueryResult &)*res).Materialize();
+	}
+	D_ASSERT(res->type == QueryResultType::MATERIALIZED_RESULT);
+	auto mat_res = (MaterializedQueryResult *)res.get();
+
+	writable::integers row_names;
+	row_names.push_back(NA_INTEGER);
+	row_names.push_back(-mat_res->RowCount());
+
+	// TODO this thing we can probably statically cache
+	writable::strings classes;
+	classes.push_back("tbl_df");
+	classes.push_back("tbl");
+	classes.push_back("data.frame");
+
+	auto df = sexp(duckdb_execute_R_impl(mat_res, false));
+	df.attr("class") = classes;
+	df.attr("row.names") = row_names;
+	return df;
 }
 
 // exception required as long as r-lib/decor#6 remains
