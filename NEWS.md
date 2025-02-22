@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.2.0.9000
+
+## Chore
+
+- Prepare removal of `allow_materialization` (#1057).
+
+
 # duckdb 1.2.0
 
 ## Breaking changes
