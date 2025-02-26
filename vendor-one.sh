@@ -22,6 +22,7 @@ else
 fi
 
 upstream_dir=.git/${project}
+rm -rf "$upstream_dir"
 
 if [ "$upstream_basedir" != "$upstream_dir" ]; then
   git clone "$upstream_basedir" "$upstream_dir"

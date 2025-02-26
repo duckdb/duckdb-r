@@ -623,7 +623,10 @@ rel_set_alias2 <- function(df, con, alias) {
 #' rel <- rel_from_df(con, mtcars)
 #' print(rel_to_altrep(rel))
 rel_to_altrep <- function(rel, allow_materialization = TRUE, n_rows = Inf, n_cells = Inf) {
-  rethrow_rapi_rel_to_altrep(rel, allow_materialization, n_rows = n_rows, n_cells = n_cells)
+  if (!isTRUE(allow_materialization)) {
+    n_cells <- 0
+  }
+  rethrow_rapi_rel_to_altrep(rel, n_rows = n_rows, n_cells = n_cells)
 }
 
 
