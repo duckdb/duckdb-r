@@ -408,6 +408,7 @@ size_t DoubleToSize(double d) {
 	// convert to SEXP
 	(void)(SEXP)data_frame;
 
+	const auto allow_materialization = true;
 	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, allow_materialization, DoubleToSize(n_rows),
 	                                                               DoubleToSize(n_cells), data_frame);
 
