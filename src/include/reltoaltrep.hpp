@@ -9,7 +9,8 @@ namespace duckdb {
 struct AltrepRelationWrapper {
 	static AltrepRelationWrapper *Get(SEXP x);
 
-	AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_, size_t n_rows_, size_t n_cells_);
+
+	AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_, size_t n_rows_, size_t n_cells_, SEXP df_);
 
 	bool HasQueryResult() const;
 
@@ -24,6 +25,7 @@ struct AltrepRelationWrapper {
 	rel_extptr_t rel_eptr;
 	duckdb::shared_ptr<Relation> rel;
 	duckdb::unique_ptr<QueryResult> res;
+	cpp11::sexp df;
 };
 
 }
@@ -53,3 +55,11 @@ struct RelToAltrep {
 	static R_altrep_class_t list_class;
 #endif
 };
+
+SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized);
+
+SEXP rapi_rel_from_any_df(duckdb::conn_eptr_t con, SEXP df, bool allow_materialized);
+
+SEXP rapi_rel_to_altrep2(duckdb::rel_extptr_t rel, duckdb::conn_eptr_t con, bool allow_materialization);
+
+SEXP result_to_df(duckdb::unique_ptr<duckdb::QueryResult> res);
