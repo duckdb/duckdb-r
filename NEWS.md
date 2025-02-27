@@ -1,5 +1,18 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.2.0.9001
+
+## Chore
+
+- More careful cleanup.
+
+- Clean up after failed vendoring.
+
+## Uncategorized
+
+- Vendor: Update vendored sources to duckdb/duckdb@0e844786417d80226851f5fc375060b47d3b65e0.
+
+
 # duckdb 1.2.0.9000
 
 ## Chore
