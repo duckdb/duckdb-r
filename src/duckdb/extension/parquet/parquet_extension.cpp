@@ -61,7 +61,6 @@ struct ParquetReadBindData : public TableFunctionData {
 	atomic<idx_t> chunk_count;
 	vector<string> names;
 	vector<LogicalType> types;
-	virtual_column_map_t virtual_columns;
 	vector<MultiFileReaderColumnDefinition> columns;
 	//! Table column names - set when using COPY tbl FROM file.parquet
 	vector<string> table_columns;
@@ -360,14 +359,6 @@ TablePartitionInfo ParquetGetPartitionInfo(ClientContext &context, TableFunction
 	return parquet_bind.multi_file_reader->GetPartitionInfo(context, parquet_bind.reader_bind, input);
 }
 
-virtual_column_map_t ParquetGetVirtualColumns(ClientContext &context, optional_ptr<FunctionData> bind_data) {
-	auto &parquet_bind = bind_data->Cast<ParquetReadBindData>();
-	virtual_column_map_t result;
-	MultiFileReader::GetVirtualColumns(context, parquet_bind.reader_bind, result);
-	parquet_bind.virtual_columns = result;
-	return result;
-}
-
 class ParquetScanFunction {
 public:
 	static TableFunctionSet GetFunctionSet() {
@@ -393,7 +384,6 @@ public:
 		table_function.filter_prune = true;
 		table_function.pushdown_complex_filter = ParquetComplexFilterPushdown;
 		table_function.get_partition_info = ParquetGetPartitionInfo;
-		table_function.get_virtual_columns = ParquetGetVirtualColumns;
 
 		MultiFileReader::AddParameters(table_function);
 
@@ -441,7 +431,7 @@ public:
 	                                                   column_t column_index) {
 		auto &bind_data = bind_data_p->Cast<ParquetReadBindData>();
 
-		if (IsVirtualColumn(column_index)) {
+		if (IsRowIdColumnId(column_index)) {
 			return nullptr;
 		}
 
@@ -756,17 +746,12 @@ public:
 				iota(begin(result->projection_ids), end(result->projection_ids), 0);
 			}
 
-			const auto &table_types = bind_data.types;
+			const auto table_types = bind_data.types;
 			for (const auto &col_idx : input.column_indexes) {
-				auto column_id = col_idx.GetPrimaryIndex();
-				if (col_idx.IsVirtualColumn()) {
-					auto entry = bind_data.virtual_columns.find(column_id);
-					if (entry == bind_data.virtual_columns.end()) {
-						throw InternalException("Parquet - virtual column definition not found");
-					}
-					result->scanned_types.emplace_back(entry->second.type);
+				if (col_idx.IsRowIdColumn()) {
+					result->scanned_types.emplace_back(LogicalType::ROW_TYPE);
 				} else {
-					result->scanned_types.push_back(table_types[column_id]);
+					result->scanned_types.push_back(table_types[col_idx.GetPrimaryIndex()]);
 				}
 			}
 		}
