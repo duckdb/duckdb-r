@@ -15,7 +15,7 @@ struct AltrepRelationWrapper {
 
 	MaterializedQueryResult *GetQueryResult();
 
-	duckdb::unique_ptr<QueryResult> Materialize();
+	void Materialize();
 
 	const bool allow_materialization;
 	const size_t n_rows;
@@ -23,10 +23,11 @@ struct AltrepRelationWrapper {
 
 	rel_extptr_t rel_eptr;
 	duckdb::shared_ptr<Relation> rel;
-	duckdb::unique_ptr<QueryResult> res;
+	duckdb::unique_ptr<QueryResult> mat_result;
+	std::string mat_error;
 };
 
-}
+} // namespace duckdb
 
 struct RelToAltrep {
 	static void Initialize(DllInfo *dll);
