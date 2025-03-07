@@ -46,6 +46,7 @@
 namespace duckdb {
 
 void Binder::BindSchemaOrCatalog(ClientContext &context, string &catalog, string &schema) {
+	CatalogEntryRetriever retriever(context);
 	if (catalog.empty() && !schema.empty()) {
 		// schema is specified - but catalog is not
 		// try searching for the catalog instead
@@ -60,8 +61,12 @@ void Binder::BindSchemaOrCatalog(ClientContext &context, string &catalog, string
 				catalog_names.push_back(DatabaseManager::GetDefaultDatabase(context));
 			}
 			for (auto &catalog_name : catalog_names) {
-				auto &catalog = Catalog::GetCatalog(context, catalog_name);
-				if (catalog.CheckAmbiguousCatalogOrSchema(context, schema)) {
+				auto catalog = Catalog::GetCatalogEntry(retriever, catalog_name);
+				if (!catalog) {
+					continue;
+				}
+				if (catalog->CheckAmbiguousCatalogOrSchema(context, schema)) {
+
 					throw BinderException(
 					    "Ambiguous reference to catalog or schema \"%s\" - use a fully qualified path like \"%s.%s\"",
 					    schema, catalog_name, schema);
@@ -157,6 +162,9 @@ void Binder::BindCreateViewInfo(CreateViewInfo &base) {
 		});
 	}
 	view_binder->can_contain_nulls = true;
+
+	auto view_search_path = GetSearchPath(catalog, base.schema);
+	view_binder->entry_retriever.SetSearchPath(std::move(view_search_path));
 
 	auto copy = base.query->Copy();
 	auto query_node = view_binder->Bind(*base.query);
