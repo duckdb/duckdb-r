@@ -16,6 +16,8 @@
 #include "duckdb/main/query_result.hpp"
 #include "duckdb/main/relation/limit_relation.hpp"
 
+#include "fmt/format.h"
+
 #ifdef TRUE
 #undef TRUE
 #endif
@@ -100,16 +102,22 @@ AltrepRelationWrapper *AltrepRelationWrapper::Get(SEXP x) {
 	return GetFromExternalPtr<AltrepRelationWrapper>(x);
 }
 
-AltrepRelationWrapper::AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_, size_t n_rows_, size_t n_cells_)
-    : allow_materialization(allow_materialization_), n_rows(n_rows_), n_cells(n_cells_), rel_eptr(rel_), rel(rel_->rel) {
+AltrepRelationWrapper::AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_, size_t n_rows_,
+                                             size_t n_cells_)
+    : allow_materialization(allow_materialization_), n_rows(n_rows_), n_cells(n_cells_), rel_eptr(rel_),
+      rel(rel_->rel) {
 }
 
 bool AltrepRelationWrapper::HasQueryResult() const {
-	return (bool)res;
+	return (bool)mat_result;
 }
 
 MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
-	if (!res) {
+	if (!mat_error.empty()) {
+		cpp11::stop(mat_error);
+	}
+
+	if (!mat_result) {
 		if (!allow_materialization || n_cells == 0) {
 			cpp11::stop("Materialization is disabled, use collect() or as_tibble() to materialize.");
 		}
@@ -121,7 +129,8 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 		}
 
 		auto materialize_message = Rf_GetOption(RStrings::get().materialize_message_sym, R_BaseEnv);
-		if (Rf_isLogical(materialize_message) && Rf_length(materialize_message) == 1 && LOGICAL_ELT(materialize_message, 0) == true) {
+		if (Rf_isLogical(materialize_message) && Rf_length(materialize_message) == 1 &&
+		    LOGICAL_ELT(materialize_message, 0) == true) {
 			// Legacy
 			Rprintf("duckplyr: materializing\n");
 		}
@@ -135,12 +144,16 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 		duckdb_httplib::detail::scope_exit reset_max_expression_depth(
 		    [&]() { rel->context->GetContext()->config.max_expression_depth = old_depth; });
 
-		res = Materialize();
+		Materialize();
+
+		if (!mat_error.empty()) {
+			cpp11::stop(mat_error);
+		}
 
 		// FIXME: Use std::experimental::scope_exit
 		if (rel->context->GetContext()->config.max_expression_depth != old_depth * 2) {
-			Rprintf("Internal error: max_expression_depth was changed from %" PRIu64 " to %" PRIu64 "\n",
-			        old_depth * 2, rel->context->GetContext()->config.max_expression_depth);
+			Rprintf("Internal error: max_expression_depth was changed from %" PRIu64 " to %" PRIu64 "\n", old_depth * 2,
+			        rel->context->GetContext()->config.max_expression_depth);
 		}
 		rel->context->GetContext()->config.max_expression_depth = old_depth;
 		reset_max_expression_depth.release();
@@ -151,11 +164,11 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 
 		signal_handler.Disable();
 	}
-	D_ASSERT(res);
-	return (MaterializedQueryResult *)res.get();
+	D_ASSERT(mat_result);
+	return (MaterializedQueryResult *)mat_result.get();
 }
 
-duckdb::unique_ptr<QueryResult> AltrepRelationWrapper::Materialize() {
+void AltrepRelationWrapper::Materialize() {
 	// Init with max value
 	size_t max_rows = MAX_SIZE_T;
 
@@ -178,20 +191,22 @@ duckdb::unique_ptr<QueryResult> AltrepRelationWrapper::Materialize() {
 	auto local_res = local_rel->Execute();
 
 	if (local_res->HasError()) {
-		cpp11::stop("Error evaluating duckdb query: %s", local_res->GetError().c_str());
+		mat_error = duckdb_fmt::format("Error evaluating duckdb query: {}", local_res->GetError().c_str());
+		return;
 	}
 	D_ASSERT(local_res->type == QueryResultType::MATERIALIZED_RESULT);
 
 	if (max_rows < MAX_SIZE_T) {
-		auto mat_res = (MaterializedQueryResult *)local_res.get();
-		if (mat_res->RowCount() > max_rows) {
-			cpp11::stop("Materialization would result in more than %" PRIu64
-						" rows. Use collect() or as_tibble() to materialize.",
-						max_rows);
+		auto local_mat_res = (MaterializedQueryResult *)local_res.get();
+		if (local_mat_res->RowCount() > max_rows) {
+			mat_error = duckdb_fmt::format(
+			    "Materialization would result in more than {} rows. Use collect() or as_tibble() to materialize.",
+			    max_rows);
+			return;
 		}
 	}
 
-	return std::move(local_res);
+	mat_result = std::move(local_res);
 }
 
 struct AltrepRownamesWrapper {
@@ -403,8 +418,8 @@ size_t DoubleToSize(double d) {
 
 	// FIXME: Remove allow_materialization
 	auto allow_materialization = true;
-	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, allow_materialization, DoubleToSize(n_rows),
-	                                                              DoubleToSize(n_cells));
+	auto relation_wrapper =
+	    make_shared_ptr<AltrepRelationWrapper>(rel, allow_materialization, DoubleToSize(n_rows), DoubleToSize(n_cells));
 
 	cpp11::writable::list data_frame;
 	data_frame.reserve(ncols);
@@ -479,7 +494,7 @@ size_t DoubleToSize(double d) {
 
 	auto wrapper = GetFromExternalPtr<AltrepRownamesWrapper>(row_names);
 	if (!allow_materialized) {
-		if (wrapper->rel->res.get()) {
+		if (wrapper->rel->mat_result.get()) {
 			// We return NULL here even for strict = true
 			// because this is expected from df_is_materialized()
 			return R_NilValue;
