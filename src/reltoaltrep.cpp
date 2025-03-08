@@ -458,7 +458,7 @@ size_t DoubleToSize(double d) {
 }
 
 
-SEXP rapi_rel_to_altrep2(duckdb::rel_extptr_t rel, duckdb::conn_eptr_t con, bool allow_materialization) {
+SEXP rapi_reldf_to_altrep(duckdb::rel_extptr_t rel, duckdb::conn_eptr_t con, bool allow_materialization) {
 	D_ASSERT(rel && rel->rel);
 	auto drel = rel->rel;
 	auto ncols = drel->Columns().size();
@@ -550,7 +550,7 @@ SEXP rapi_rel_to_altrep2(duckdb::rel_extptr_t rel, duckdb::conn_eptr_t con, bool
 	auto res = R_altrep_data2(row_names);
 	if (res == R_NilValue) {
 		if (strict) {
-			cpp11::stop("rapi_rel_from_altrep_df: NULL in data2?");
+			cpp11::stop("rapi_reldf_from_altrep_df: NULL in data?");
 		} else {
 			return R_NilValue;
 		}

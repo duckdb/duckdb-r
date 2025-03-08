@@ -62,6 +62,6 @@ SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized);
 
 SEXP rapi_rel_from_any_df(duckdb::conn_eptr_t con, SEXP df, bool allow_materialized);
 
-SEXP rapi_rel_to_altrep2(duckdb::rel_extptr_t rel, duckdb::conn_eptr_t con, bool allow_materialization);
+SEXP rapi_reldf_to_altrep(duckdb::rel_extptr_t rel, duckdb::conn_eptr_t con, bool allow_materialization);
 
 SEXP result_to_df(duckdb::unique_ptr<duckdb::QueryResult> res);

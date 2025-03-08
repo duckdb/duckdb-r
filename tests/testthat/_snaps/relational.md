@@ -113,7 +113,7 @@
 # rel_explain()
 
     Code
-      writeLines(rel_explain_df(proj)[[2]])
+      writeLines(reldf_explain_df(proj)[[]])
     Output
       ┌───────────────────────────┐
       │     R_DATAFRAME_SCAN      │
@@ -128,14 +128,14 @@
 ---
 
     Code
-      writeLines(rel_explain_df(proj, "analyze")[[2]])
+      writeLines(reldf_explain_df(proj, "analyze")[[]])
     Output
       Query profiling is disabled. Use 'PRAGMA enable_profiling;' to enable profiling!
 
 ---
 
     Code
-      writeLines(rel_explain_df(proj, "standard", "json")[[2]])
+      writeLines(reldf_explain_df(proj, "standard", "json")[[]])
     Output
       [
           {
@@ -152,7 +152,7 @@
 ---
 
     Code
-      writeLines(rel_explain_df(proj, "analyze", "json")[[2]])
+      writeLines(reldf_explain_df(proj, "analyze", "json")[[]])
     Output
       {
           "result": "disabled"
@@ -161,7 +161,7 @@
 ---
 
     Code
-      writeLines(rel_explain_df(proj, "standard", "html")[[2]])
+      writeLines(reldf_explain_df(proj, "standard", "html")[[]])
     Output
       
       <!DOCTYPE html>
@@ -302,7 +302,7 @@
 ---
 
     Code
-      writeLines(rel_explain_df(proj, "standard", "graphviz")[[2]])
+      writeLines(reldf_explain_df(proj, "standard", "graphviz")[[]])
     Output
       
       digraph G {

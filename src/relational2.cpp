@@ -29,7 +29,7 @@ using namespace cpp11;
 
 // DuckDB Relations: names
 
-[[cpp11::register]] SEXP rapi_rel_names2(data_frame df, duckdb::conn_eptr_t con) {
+[[cpp11::register]] SEXP rapi_reldf_names(data_frame df, duckdb::conn_eptr_t con) {
 	auto rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
 
 	auto ret = writable::strings();
@@ -39,21 +39,21 @@ using namespace cpp11;
 	return (ret);
 }
 
-[[cpp11::register]] std::string rapi_rel_alias2(data_frame df, duckdb::conn_eptr_t con) {
+[[cpp11::register]] std::string rapi_reldf_alias(data_frame df, duckdb::conn_eptr_t con) {
 	auto rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
 	return rel->rel->GetAlias();
 }
 
-[[cpp11::register]] SEXP rapi_rel_set_alias2(data_frame df, duckdb::conn_eptr_t con, std::string alias) {
+[[cpp11::register]] SEXP rapi_reldf_set_alias(data_frame df, duckdb::conn_eptr_t con, std::string alias) {
 	auto rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
 	cpp11::writable::list prot = {rel};
 
-	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, rel->rel->Alias(alias)), con, true);
+	return rapi_reldf_to_altrep(make_external_prot<RelationWrapper>("duckdb_relation", prot, rel->rel->Alias(alias)), con, true);
 }
 
 // DuckDB Relations: operators
 
-[[cpp11::register]] SEXP rapi_rel_filter2(data_frame df, duckdb::conn_eptr_t con, list exprs) {
+[[cpp11::register]] SEXP rapi_reldf_filter(data_frame df, duckdb::conn_eptr_t con, list exprs) {
 	duckdb::unique_ptr<ParsedExpression> filter_expr;
 	if (exprs.size() == 0) { // nop
 		warning("rel_filter without filter expressions has no effect");
@@ -73,10 +73,10 @@ using namespace cpp11;
 
 	cpp11::writable::list prot = {rel};
 
-	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(filter)), con, true);
+	return rapi_reldf_to_altrep(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(filter)), con, true);
 }
 
-[[cpp11::register]] SEXP rapi_rel_project2(data_frame df, duckdb::conn_eptr_t con, list exprs) {
+[[cpp11::register]] SEXP rapi_reldf_project(data_frame df, duckdb::conn_eptr_t con, list exprs) {
 	if (exprs.size() == 0) {
 		stop("expected projection expressions");
 	}
@@ -96,10 +96,10 @@ using namespace cpp11;
 
 	cpp11::writable::list prot = {rel};
 
-	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(projection)), con, true);
+	return rapi_reldf_to_altrep(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(projection)), con, true);
 }
 
-[[cpp11::register]] SEXP rapi_rel_aggregate2(data_frame df, duckdb::conn_eptr_t con, list groups, list aggregates) {
+[[cpp11::register]] SEXP rapi_reldf_aggregate(data_frame df, duckdb::conn_eptr_t con, list groups, list aggregates) {
 	vector<duckdb::unique_ptr<ParsedExpression>> res_groups, res_aggregates;
 
 	// TODO deal with empty groups
@@ -127,10 +127,10 @@ using namespace cpp11;
 
 	cpp11::writable::list prot = {rel};
 
-	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(aggregate)), con, true);
+	return rapi_reldf_to_altrep(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(aggregate)), con, true);
 }
 
-[[cpp11::register]] SEXP rapi_rel_order2(data_frame df, duckdb::conn_eptr_t con, list orders, r_vector<r_bool> ascending) {
+[[cpp11::register]] SEXP rapi_reldf_order(data_frame df, duckdb::conn_eptr_t con, list orders, r_vector<r_bool> ascending) {
 	vector<OrderByNode> res_orders;
 
 	OrderType order_type;
@@ -148,10 +148,10 @@ using namespace cpp11;
 
 	cpp11::writable::list prot = {rel};
 
-	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(order)), con, true);
+	return rapi_reldf_to_altrep(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(order)), con, true);
 }
 
-[[cpp11::register]] SEXP rapi_rel_join2(data_frame left, data_frame right, duckdb::conn_eptr_t con, list conds,
+[[cpp11::register]] SEXP rapi_reldf_join(data_frame left, data_frame right, duckdb::conn_eptr_t con, list conds,
                                        std::string join, std::string join_ref_type) {
 	auto join_type = JoinType::INNER;
 	auto ref_type = JoinRefType::REGULAR;
@@ -189,10 +189,10 @@ using namespace cpp11;
 			ref_type = JoinRefType::CROSS;
 		}
 		auto res = make_shared_ptr<CrossProductRelation>(rel_left->rel, rel_right->rel, ref_type);
-		auto df = rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(res)), con, true);
+		auto df = rapi_reldf_to_altrep(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(res)), con, true);
 		// if the user described filters, apply them on top of the cross product relation
 		if (conds.size() > 0) {
-			return rapi_rel_filter2(df, con, conds);
+			return rapi_reldf_filter(df, con, conds);
 		}
 		return df;
 	}
@@ -208,10 +208,10 @@ using namespace cpp11;
 	}
 
 	auto res = make_shared_ptr<JoinRelation>(rel_left->rel, rel_right->rel, std::move(cond), join_type, ref_type);
-	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(res)), con, true);
+	return rapi_reldf_to_altrep(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(res)), con, true);
 }
 
-[[cpp11::register]] SEXP rapi_rel_union_all2(data_frame left, data_frame right, duckdb::conn_eptr_t con) {
+[[cpp11::register]] SEXP rapi_reldf_union_all(data_frame left, data_frame right, duckdb::conn_eptr_t con) {
 	auto rel_left = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, left, true));
 	auto rel_right = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, right, true));
 
@@ -220,26 +220,26 @@ using namespace cpp11;
 	auto setop = make_shared_ptr<SetOpRelation>(rel_left->rel, rel_right->rel, SetOperationType::UNION);
 	setop->setop_all = true;
 
-	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(setop)), con, true);
+	return rapi_reldf_to_altrep(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(setop)), con, true);
 }
 
-[[cpp11::register]] SEXP rapi_rel_limit2(data_frame df, duckdb::conn_eptr_t con, int64_t n) {
+[[cpp11::register]] SEXP rapi_reldf_limit(data_frame df, duckdb::conn_eptr_t con, int64_t n) {
 	auto rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
 
 	cpp11::writable::list prot = {rel};
 
-	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, make_shared_ptr<LimitRelation>(rel->rel, n, 0)), con, true);
+	return rapi_reldf_to_altrep(make_external_prot<RelationWrapper>("duckdb_relation", prot, make_shared_ptr<LimitRelation>(rel->rel, n, 0)), con, true);
 }
 
-[[cpp11::register]] SEXP rapi_rel_distinct2(data_frame df, duckdb::conn_eptr_t con) {
+[[cpp11::register]] SEXP rapi_reldf_distinct(data_frame df, duckdb::conn_eptr_t con) {
 	auto rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
 
 	cpp11::writable::list prot = {rel};
 
-	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, make_shared_ptr<DistinctRelation>(rel->rel)), con, true);
+	return rapi_reldf_to_altrep(make_external_prot<RelationWrapper>("duckdb_relation", prot, make_shared_ptr<DistinctRelation>(rel->rel)), con, true);
 }
 
-[[cpp11::register]] SEXP rapi_rel_set_intersect2(data_frame left, data_frame right, duckdb::conn_eptr_t con) {
+[[cpp11::register]] SEXP rapi_reldf_set_intersect(data_frame left, data_frame right, duckdb::conn_eptr_t con) {
 	auto rel_left = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, left, true));
 	auto rel_right = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, right, true));
 
@@ -247,10 +247,10 @@ using namespace cpp11;
 
 	cpp11::writable::list prot = {rel_left, rel_right};
 
-	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(res)), con, true);
+	return rapi_reldf_to_altrep(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(res)), con, true);
 }
 
-[[cpp11::register]] SEXP rapi_rel_set_diff2(data_frame left, data_frame right, duckdb::conn_eptr_t con) {
+[[cpp11::register]] SEXP rapi_reldf_set_diff(data_frame left, data_frame right, duckdb::conn_eptr_t con) {
 	auto rel_left = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, left, true));
 	auto rel_right = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, right, true));
 
@@ -258,10 +258,10 @@ using namespace cpp11;
 
 	cpp11::writable::list prot = {rel_left, rel_right};
 
-	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(res)), con, true);
+	return rapi_reldf_to_altrep(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(res)), con, true);
 }
 
-[[cpp11::register]] SEXP rapi_rel_set_symdiff2(data_frame left, data_frame right, duckdb::conn_eptr_t con) {
+[[cpp11::register]] SEXP rapi_reldf_set_symdiff(data_frame left, data_frame right, duckdb::conn_eptr_t con) {
 	auto rel_left = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, left, true));
 	auto rel_right = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, right, true));
 
@@ -273,31 +273,31 @@ using namespace cpp11;
 
 	cpp11::writable::list prot = {rel_left, rel_right};
 
-	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(symdiff)), con, true);
+	return rapi_reldf_to_altrep(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(symdiff)), con, true);
 }
 
 // DuckDB Relations: conversion
 
-[[cpp11::register]] SEXP rapi_rel_from_sql2(duckdb::conn_eptr_t con, const std::string sql) {
+[[cpp11::register]] SEXP rapi_reldf_from_sql(duckdb::conn_eptr_t con, const std::string sql) {
 	if (!con || !con.get() || !con->conn) {
 		stop("rel_from_table: Invalid connection");
 	}
 	auto rel = con->conn->RelationFromQuery(sql);
 	cpp11::writable::list prot = {};
-	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(rel)), con, true);
+	return rapi_reldf_to_altrep(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(rel)), con, true);
 }
 
-[[cpp11::register]] SEXP rapi_rel_from_table2(duckdb::conn_eptr_t con, const std::string schema_name,
+[[cpp11::register]] SEXP rapi_reldf_from_table(duckdb::conn_eptr_t con, const std::string schema_name,
                                              const std::string table_name) {
 	if (!con || !con.get() || !con->conn) {
 		stop("rel_from_table: Invalid connection");
 	}
 	auto rel = con->conn->Table(schema_name, table_name);
 	cpp11::writable::list prot = {};
-	return rapi_rel_to_altrep2(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(rel)), con, true);
+	return rapi_reldf_to_altrep(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(rel)), con, true);
 }
 
-[[cpp11::register]] SEXP rapi_rel_from_table_function2(duckdb::conn_eptr_t con, const std::string function_name,
+[[cpp11::register]] SEXP rapi_reldf_from_table_function(duckdb::conn_eptr_t con, const std::string function_name,
                                                       list positional_parameters_sexps, list named_parameters_sexps) {
 	if (!con || !con.get() || !con->conn) {
 		stop("rel_from_table_function: Invalid connection");
@@ -327,10 +327,10 @@ using namespace cpp11;
 	}
 
 	auto rel = con->conn->TableFunction(function_name, std::move(positional_parameters), std::move(named_parameters));
-	return rapi_rel_to_altrep2(make_external<RelationWrapper>("duckdb_relation", std::move(rel)), con, true);
+	return rapi_reldf_to_altrep(make_external<RelationWrapper>("duckdb_relation", std::move(rel)), con, true);
 }
 
-[[cpp11::register]] SEXP rapi_rel_explain2(data_frame df, duckdb::conn_eptr_t con, std::string type, std::string format) {
+[[cpp11::register]] SEXP rapi_reldf_explain(data_frame df, duckdb::conn_eptr_t con, std::string type, std::string format) {
 	auto type_enum = EnumUtil::FromString<ExplainType>(type);
 	auto format_enum = EnumUtil::FromString<ExplainFormat>(format);
 
@@ -339,22 +339,22 @@ using namespace cpp11;
 	return result_to_df(rel->rel->Explain(type_enum, format_enum));
 }
 
-[[cpp11::register]] void rapi_rel_to_parquet2(data_frame df, duckdb::conn_eptr_t con, std::string file_name, list options_sexps) {
+[[cpp11::register]] void rapi_reldf_to_parquet(data_frame df, duckdb::conn_eptr_t con, std::string file_name, list options_sexps) {
 	auto rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
 	rel->rel->WriteParquet(file_name, ListToVectorOfValue(options_sexps));
 }
 
-[[cpp11::register]] void rapi_rel_to_csv2(data_frame df, duckdb::conn_eptr_t con, std::string file_name, list options_sexps) {
+[[cpp11::register]] void rapi_reldf_to_csv(data_frame df, duckdb::conn_eptr_t con, std::string file_name, list options_sexps) {
 	auto rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
 	rel->rel->WriteCSV(file_name, ListToVectorOfValue(options_sexps));
 }
 
-[[cpp11::register]] void rapi_rel_to_table2(data_frame df, duckdb::conn_eptr_t con, std::string schema_name, std::string table_name, bool temporary) {
+[[cpp11::register]] void rapi_reldf_to_table(data_frame df, duckdb::conn_eptr_t con, std::string schema_name, std::string table_name, bool temporary) {
 	auto rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
 	rel->rel->Create(schema_name, table_name, temporary);
 }
 
-[[cpp11::register]] void rapi_rel_insert2(data_frame df, duckdb::conn_eptr_t con, std::string schema_name, std::string table_name) {
+[[cpp11::register]] void rapi_reldf_insert(data_frame df, duckdb::conn_eptr_t con, std::string schema_name, std::string table_name) {
 	auto rel = cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rapi_rel_from_any_df(con, df, true));
 	rel->rel->Insert(schema_name, table_name);
 }

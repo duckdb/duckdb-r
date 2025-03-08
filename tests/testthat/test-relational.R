@@ -146,7 +146,7 @@ test_that("we can cast R strings to DuckDB strings", {
   # many rounds yay
   df2 <- df
   for (i in 1:10) {
-    df2 <- as.data.frame.duckdb_relation(rel_from_df(con, df2))
+    df2 <- as.data.frame.duckdb_relation(reldf_from_df(con, df))
     expect_equivalent(df, df2)
   }
 
@@ -154,7 +154,7 @@ test_that("we can cast R strings to DuckDB strings", {
   for (i in 1:10) {
     df2 <- as.data.frame(
       rel_sql(
-        rel_from_df(con, df2),
+        reldf_from_df(con, df),
         "SELECT s::string s FROM _"
       )
     )
@@ -223,11 +223,11 @@ test_that("rel_order() sorts NAs last", {
 
 test_that("Inner join returns all inner relations", {
   dbExecute(con, "CREATE OR REPLACE MACRO eq(a, b) AS a = b")
-  left <- rel_from_df(con, data.frame(left_a = c(1, 2, 3), left_b = c(1, 1, 2)))
+  left <- reldf_from_df(con, data.frame(left_a = c(1, , 3), left_b = c(1, 1, 2)))
   right <- rel_from_df(con, data.frame(right_b = c(1, 3), right_c = c(4, 5)))
   cond <- list(expr_function("eq", list(expr_reference("left_b"), expr_reference("right_b"))))
   rel2 <- rel_join(left, right, cond, "inner")
-  rel_df <- rel_to_altrep(rel2)
+  reldf_df <- rel_to_altrep(rel)
   dim(rel_df)
   expected_result <- data.frame(left_a = c(1, 2), left_b = c(1, 1), right_b = c(1, 1), right_c = c(4, 4))
   expect_equal(rel_df, expected_result)
@@ -235,11 +235,11 @@ test_that("Inner join returns all inner relations", {
 
 test_that("Left join returns all left relations", {
   dbExecute(con, "CREATE OR REPLACE MACRO eq(a, b) AS a = b")
-  left <- rel_from_df(con, data.frame(left_a = c(1, 2, 3), left_b = c(1, 1, 2)))
+  left <- reldf_from_df(con, data.frame(left_a = c(1, , 3), left_b = c(1, 1, 2)))
   right <- rel_from_df(con, data.frame(right_b = c(1)))
   cond <- list(expr_function("eq", list(expr_reference("left_b"), expr_reference("right_b"))))
   rel2 <- rel_join(left, right, cond, "left")
-  rel_df <- rel_to_altrep(rel2)
+  reldf_df <- rel_to_altrep(rel)
   dim(rel_df)
   expected_result <- data.frame(left_a = c(1, 2, 3), left_b = c(1, 1, 2), right_b = c(1, 1, NA))
   expect_equal(rel_df, expected_result)
@@ -248,10 +248,10 @@ test_that("Left join returns all left relations", {
 test_that("Right join returns all right relations", {
   dbExecute(con, "CREATE OR REPLACE MACRO eq(a, b) AS a = b")
   left <- rel_from_df(con, data.frame(left_b = c(1)))
-  right <- rel_from_df(con, data.frame(right_a = c(1, 2, 3), right_b = c(1, 1, 2)))
+  right <- reldf_from_df(con, data.frame(right_a = c(1, , 3), right_b = c(1, 1, 2)))
   cond <- list(expr_function("eq", list(expr_reference("left_b"), expr_reference("right_b"))))
   rel2 <- rel_join(left, right, cond, "right")
-  rel_df <- rel_to_altrep(rel2)
+  reldf_df <- rel_to_altrep(rel)
   dim(rel_df)
   expected_result <- data.frame(left_b = c(1, 1, NA), right_a = c(1, 2, 3), right_b = c(1, 1, 2))
   expect_equal(rel_df, expected_result)
@@ -259,11 +259,11 @@ test_that("Right join returns all right relations", {
 
 test_that("Full join returns all outer relations", {
   dbExecute(con, "CREATE OR REPLACE MACRO eq(a, b) AS a = b")
-  left <- rel_from_df(con, data.frame(left_a = c(1, 2, 5), left_b = c(4, 5, 6)))
-  right <- rel_from_df(con, data.frame(right_a = c(1, 2, 3), right_b = c(1, 1, 2)))
+  left <- reldf_from_df(con, data.frame(left_a = c(1, , 5), left_b = c(4, 5, 6)))
+  right <- reldf_from_df(con, data.frame(right_a = c(1, , 3), right_b = c(1, 1, 2)))
   cond <- list(expr_function("eq", list(expr_reference("left_a"), expr_reference("right_a"))))
   rel2 <- rel_join(left, right, cond, "outer")
-  rel_df <- rel_to_altrep(rel2)
+  reldf_df <- rel_to_altrep(rel)
 
   expected_result <- data.frame(
     left_a = c(1, 2, 5, NA),
@@ -278,7 +278,7 @@ test_that("Full join returns all outer relations", {
 })
 
 test_that("cross join works", {
-  left <- rel_from_df(con, data.frame(left_a = c(1, 2, 3), left_b = c(1, 1, 2)))
+  left <- reldf_from_df(con, data.frame(left_a = c(1, , 3), left_b = c(1, 1, 2)))
   right <- rel_from_df(con, data.frame(right_a = c(1, 4, 5), right_b = c(7, 8, 9)))
   cross <- rel_join(left, right, list(), "cross")
   order_by <- rel_order(cross, list(expr_reference("right_a"), expr_reference("right_a")))
@@ -295,11 +295,11 @@ test_that("cross join works", {
 
 test_that("semi join works", {
   left <- rel_from_df(con, data.frame(left_b = c(1, 5, 6)))
-  right <- rel_from_df(con, data.frame(right_a = c(1, 2, 3), right_b = c(1, 1, 2)))
+  right <- reldf_from_df(con, data.frame(right_a = c(1, , 3), right_b = c(1, 1, 2)))
   cond <- list(expr_function("eq", list(expr_reference("left_b"), expr_reference("right_a"))))
   # select * from left semi join right on (left_b = right_a)
   rel2 <- rel_join(left, right, cond, "semi")
-  rel_df <- rel_to_altrep(rel2)
+  reldf_df <- rel_to_altrep(rel)
   dim(rel_df)
   expected_result <- data.frame(left_b = c(1))
   expect_equal(rel_df, expected_result)
@@ -308,18 +308,18 @@ test_that("semi join works", {
 
 test_that("anti join works", {
   left <- rel_from_df(con, data.frame(left_b = c(1, 5, 6)))
-  right <- rel_from_df(con, data.frame(right_a = c(1, 2, 3), right_b = c(1, 1, 2)))
+  right <- reldf_from_df(con, data.frame(right_a = c(1, , 3), right_b = c(1, 1, 2)))
   cond <- list(expr_function("eq", list(expr_reference("left_b"), expr_reference("right_a"))))
   # select * from left anti join right on (left_b = right_a)
   rel2 <- rel_join(left, right, cond, "anti")
-  rel_df <- rel_to_altrep(rel2)
+  reldf_df <- rel_to_altrep(rel)
   dim(rel_df)
   expected_result <- data.frame(left_b = c(5, 6))
   expect_equal(rel_df, expected_result)
 })
 
 test_that("Union all does not immediately materialize", {
-  test_df_a <- rel_from_df(con, data.frame(a = c("1", "2"), b = c("3", "4")))
+  test_df_a <- reldf_from_df(con, data.frame(a = c("1", ""), b = c("3", "4")))
   test_df_b <- rel_from_df(con, data.frame(a = c("5", "6"), b = c("7", "8")))
   rel <- rel_union_all(test_df_a, test_df_b)
   rel_df <- rel_to_altrep(rel)
@@ -329,7 +329,7 @@ test_that("Union all does not immediately materialize", {
 })
 
 test_that("Union all has the correct values", {
-  test_df_a <- rel_from_df(con, data.frame(a = c("1", "2"), b = c("3", "4")))
+  test_df_a <- reldf_from_df(con, data.frame(a = c("1", ""), b = c("3", "4")))
   test_df_b <- rel_from_df(con, data.frame(a = c("5", "6"), b = c("7", "8")))
   rel <- rel_union_all(test_df_a, test_df_b)
   order_by_rel <- rel_order(rel, list(expr_reference("a"), expr_reference("b")))
@@ -342,9 +342,9 @@ test_that("Union all has the correct values", {
 })
 
 test_that("Union all keeps duplicates", {
-  test_df_a2 <- rel_from_df(con, data.frame(a = c("1", "2"), b = c("3", "4")))
-  test_df_b2 <- rel_from_df(con, data.frame(a = c("1", "2"), b = c("3", "4")))
-  rel <- rel_union_all(test_df_a2, test_df_b2)
+  test_df_a2 <- reldf_from_df(con, data.frame(a = c("1", ""), b = c("3", "4")))
+  test_df_b2 <- reldf_from_df(con, data.frame(a = c("1", ""), b = c("3", "4")))
+  rel <- reldf_union_all(test_df_a, test_df_b2)
   order_by_rel <- rel_order(rel, list(expr_reference("a"), expr_reference("b")))
   rel_df <- rel_to_altrep(order_by_rel)
   dim(rel_df)
@@ -355,11 +355,11 @@ test_that("Union all keeps duplicates", {
 
 test_that("Inner join returns all inner relations", {
   dbExecute(con, "CREATE OR REPLACE MACRO eq(a, b) AS a = b")
-  left <- rel_from_df(con, data.frame(left_a = c(1, 2, 3), left_b = c(1, 1, 2)))
+  left <- reldf_from_df(con, data.frame(left_a = c(1, , 3), left_b = c(1, 1, 2)))
   right <- rel_from_df(con, data.frame(right_b = c(1, 3), right_c = c(4, 5)))
   cond <- list(expr_function("eq", list(expr_reference("left_b"), expr_reference("right_b"))))
   rel2 <- rel_join(left, right, cond, "inner")
-  rel_df <- rel_to_altrep(rel2)
+  reldf_df <- rel_to_altrep(rel)
   dim(rel_df)
   expected_result <- data.frame(left_a = c(1, 2), left_b = c(1, 1), right_b = c(1, 1), right_c = c(4, 4))
   expect_equal(rel_df, expected_result)
@@ -367,10 +367,10 @@ test_that("Inner join returns all inner relations", {
 
 test_that("ASOF join works", {
   dbExecute(con, "CREATE OR REPLACE MACRO gte(a, b) AS a >= b")
-  test_df1 <- rel_from_df(con, data.frame(ts = c(1, 2, 3, 4, 5, 6, 7, 8, 9)))
-  test_df2 <- rel_from_df(con, data.frame(event_ts = c(1, 3, 6, 8), event_id = c(0, 1, 2, 3)))
+  test_df1 <- reldf_from_df(con, data.frame(ts = c(1, , 3, 4, 5, 6, 7, 8, 9)))
+  test_df2 <- reldf_from_df(con, data.frame(event_ts = c(1, 3, 6, 8), event_id = c(0, 1, , 3)))
   cond <- list(expr_function("gte", list(expr_reference("ts"), expr_reference("event_ts"))))
-  rel <- rel_join(test_df1, test_df2, cond, join_ref_type = "asof")
+  rel <- reldf_join(test_df1, test_df, cond, join_ref_type = "asof")
   rel_proj <- rel_project(rel, list(expr_reference("ts"), expr_reference("event_id")))
   order <- rel_order(rel_proj, list(expr_reference("ts")))
   rel_df <- rel_to_altrep(order)
@@ -380,10 +380,10 @@ test_that("ASOF join works", {
 
 test_that("LEFT ASOF join works", {
   dbExecute(con, "CREATE OR REPLACE MACRO gte(a, b) AS a >= b")
-  test_df1 <- rel_from_df(con, data.frame(ts = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)))
-  test_df2 <- rel_from_df(con, data.frame(event_ts = c(2, 4, 6, 8), event_id = c(0, 1, 2, 3)))
+  test_df1 <- reldf_from_df(con, data.frame(ts = c(0, 1, , 3, 4, 5, 6, 7, 8, 9)))
+  test_df2 <- reldf_from_df(con, data.frame(event_ts = c(, 4, 6, 8), event_id = c(0, 1, 2, 3)))
   cond <- list(expr_function("gte", list(expr_reference("ts"), expr_reference("event_ts"))))
-  rel <- rel_join(test_df1, test_df2, cond, join = "left", join_ref_type = "asof")
+  rel <- reldf_join(test_df1, test_df, cond, join = "left", join_ref_type = "asof")
   rel_proj <- rel_project(rel, list(expr_reference("ts"), expr_reference("event_ts"), expr_reference("event_id")))
   order <- rel_order(rel_proj, list(expr_reference("ts")))
   rel_df <- rel_to_altrep(order)
@@ -392,9 +392,9 @@ test_that("LEFT ASOF join works", {
 })
 
 test_that("Positional cross join works", {
-  test_df1 <- rel_from_df(con, data.frame(a = c(11, 12, 13), b = c(1, 2, 3)))
-  test_df2 <- rel_from_df(con, data.frame(c = c(11, 12), d = c(1, 2)))
-  rel <- rel_join(test_df1, test_df2, list(), join = "cross", join_ref_type = "positional")
+  test_df1 <- reldf_from_df(con, data.frame(a = c(11, 1, 13), b = c(1, 2, 3)))
+  test_df2 <- reldf_from_df(con, data.frame(c = c(11, 1), d = c(1, 2)))
+  rel <- reldf_join(test_df1, test_df, list(), join = "cross", join_ref_type = "positional")
   rel_df <- rel_to_altrep(rel)
   expected_result <- data.frame(a = c(11, 12, 13), b = c(1, 2, 3), c = c(11, 12, NA), d = c(1, 2, NA))
   expect_equal(expected_result, rel_df)
@@ -402,10 +402,10 @@ test_that("Positional cross join works", {
 
 test_that("regular positional join works", {
   dbExecute(con, "CREATE OR REPLACE MACRO eq(a, b) AS a = b")
-  test_df1 <- rel_from_df(con, data.frame(a = c(11, 12, 13), b = c(1, 2, 3)))
-  test_df2 <- rel_from_df(con, data.frame(c = c(11, 12, 14, 11), d = c(4, 5, 6, 8)))
+  test_df1 <- reldf_from_df(con, data.frame(a = c(11, 1, 13), b = c(1, 2, 3)))
+  test_df2 <- reldf_from_df(con, data.frame(c = c(11, 1, 14, 11), d = c(4, 5, 6, 8)))
   cond <- expr_function("eq", list(expr_reference("a"), expr_reference("c")))
-  rel <- rel_join(test_df1, test_df2, list(cond), join_ref_type = "positional")
+  rel <- reldf_join(test_df1, test_df, list(cond), join_ref_type = "positional")
   rel_df <- rel_to_altrep(rel)
   expected_result <- data.frame(a = c(11, 12), b = c(1, 2), c = c(11, 12), d = c(4, 5))
   expect_equal(expected_result, rel_df)
@@ -413,27 +413,27 @@ test_that("regular positional join works", {
 
 test_that("Invalid asof join condition throws error", {
   dbExecute(con, "CREATE OR REPLACE MACRO neq(a, b) AS a <> b")
-  test_df1 <- rel_from_df(con, data.frame(ts = c(1, 2, 3, 4, 5, 6, 7, 8, 9)))
-  test_df2 <- rel_from_df(con, data.frame(begin = c(1, 3, 6, 8), value = c(0, 1, 2, 3)))
+  test_df1 <- reldf_from_df(con, data.frame(ts = c(1, , 3, 4, 5, 6, 7, 8, 9)))
+  test_df2 <- reldf_from_df(con, data.frame(begin = c(1, 3, 6, 8), value = c(0, 1, , 3)))
   cond <- list(expr_function("neq", list(expr_reference("ts"), expr_reference("begin"))))
-  expect_error(rel_join(test_df1, test_df2, cond, join_ref_type = "asof"), "Binder")
+  expect_error(reldf_join(test_df1, test_df, cond, join_ref_type = "asof"), "Binder")
 })
 
 test_that("multiple inequality conditions for asof join throws error", {
   dbExecute(con, "CREATE OR REPLACE MACRO gte(a, b) AS a >= b")
-  test_df1 <- rel_from_df(con, data.frame(ts = c(1, 2, 3, 4, 5, 6, 7, 8, 9)))
-  test_df2 <- rel_from_df(con, data.frame(begin = c(1, 3, 6, 8), value = c(0, 1, 2, 3)))
+  test_df1 <- reldf_from_df(con, data.frame(ts = c(1, , 3, 4, 5, 6, 7, 8, 9)))
+  test_df2 <- reldf_from_df(con, data.frame(begin = c(1, 3, 6, 8), value = c(0, 1, , 3)))
   cond1 <- expr_function("gte", list(expr_reference("ts"), expr_reference("begin")))
   cond2 <- expr_function("gte", list(expr_reference("ts"), expr_reference("value")))
   conds <- list(cond1, cond2)
-  expect_error(rel_join(test_df1, test_df2, conds, join_ref_type = "asof"), "Binder")
+  expect_error(reldf_join(test_df1, test_df, conds, join_ref_type = "asof"), "Binder")
 })
 
 
 test_that("Inequality joins work", {
   dbExecute(con, "CREATE OR REPLACE MACRO gte(a, b) AS a >= b")
-  timing_df <- rel_from_df(con, data.frame(ts = c(1, 2, 3, 4, 5, 6)))
-  events_df <- rel_from_df(con, data.frame(event_ts = c(1, 3, 6, 8), event_id = c(0, 1, 2, 3)))
+  timing_df <- reldf_from_df(con, data.frame(ts = c(1, , 3, 4, 5, 6)))
+  events_df <- reldf_from_df(con, data.frame(event_ts = c(1, 3, 6, 8), event_id = c(0, 1, , 3)))
   cond <- list(expr_function("gte", list(expr_reference("ts"), expr_reference("event_ts"))))
   rel <- rel_inner_join(timing_df, events_df, cond)
   rel_proj <- rel_project(rel, list(expr_reference("ts"), expr_reference("event_ts")))
@@ -447,8 +447,8 @@ test_that("Inequality joins work", {
 test_that("Inequality join works to perform between operation", {
   dbExecute(con, "CREATE OR REPLACE MACRO gt(a, b) AS a > b")
   dbExecute(con, "CREATE OR REPLACE MACRO lt(a, b) AS a < b")
-  timing_df <- rel_from_df(con, data.frame(ts = c(1, 2, 3, 4, 5, 6, 7, 8, 9)))
-  events_df <- rel_from_df(con, data.frame(event_ts = c(1, 3, 6, 8), event_id = c(0, 1, 2, 3)))
+  timing_df <- reldf_from_df(con, data.frame(ts = c(1, , 3, 4, 5, 6, 7, 8, 9)))
+  events_df <- reldf_from_df(con, data.frame(event_ts = c(1, 3, 6, 8), event_id = c(0, 1, , 3)))
   lead <- expr_function("lead", list(expr_reference("event_ts")))
   window_lead <- expr_window(lead, offset_expr = expr_constant(1))
   expr_set_alias(window_lead, "lead")
@@ -467,24 +467,24 @@ test_that("Inequality join works to perform between operation", {
 
 # nobody should do this in reality. It's a pretty dumb idea
 test_that("we can union the same relation to itself", {
-  test_df_a2 <- rel_from_df(con, data.frame(a = c("1", "2"), b = c("3", "4")))
-  rel <- rel_union_all(test_df_a2, test_df_a2)
+  test_df_a2 <- reldf_from_df(con, data.frame(a = c("1", ""), b = c("3", "4")))
+  rel <- reldf_union_all(test_df_a, test_df_a2)
   rel_df <- rel_to_altrep(rel)
   expected_result <- data.frame(a = c("1", "2", "1", "2"), b = c("3", "4", "3", "4"))
   expect_equal(rel_df, expected_result)
 })
 
 test_that("we throw an error when attempting to union all relations that are not compatible", {
-  test_df_a2 <- rel_from_df(con, data.frame(a = c("1", "2"), b = c("3", "4")))
-  test_df_b2 <- rel_from_df(con, data.frame(a = c("1", "2"), b = c("3", "4"), c = c("5", "6")))
+  test_df_a2 <- reldf_from_df(con, data.frame(a = c("1", ""), b = c("3", "4")))
+  test_df_b2 <- reldf_from_df(con, data.frame(a = c("1", ""), b = c("3", "4"), c = c("5", "6")))
   # The two data frames have different dimensions, therefore you get a binding error.
-  expect_error(rel_union_all(test_df_a2, test_df_b2), "Binder")
+  expect_error(reldf_union_all(test_df_a, test_df_b2), "Binder")
 })
 
 test_that("A union with different column types casts to the richer type", {
   test_df_a1 <- rel_from_df(con, data.frame(a = c(1)))
   test_df_a2 <- rel_from_df(con, data.frame(a = c("1")))
-  rel <- rel_union_all(test_df_a1, test_df_a2)
+  rel <- reldf_union_all(test_df_a1, test_df_a)
   res <- rapi_rel_to_df(rel)
   expected <- data.frame(a = c("1.0", "1"))
   expect_equal(class(res$a), class(expected$a))
@@ -493,7 +493,7 @@ test_that("A union with different column types casts to the richer type", {
 })
 
 test_that("Set Intersect returns set intersection", {
-  test_df_a <- rel_from_df(con, data.frame(a = c(1, 2), b = c(3, 4)))
+  test_df_a <- reldf_from_df(con, data.frame(a = c(1, ), b = c(3, 4)))
   test_df_b <- rel_from_df(con, data.frame(a = c(1, 6), b = c(3, 8)))
   rel <- rel_set_intersect(test_df_a, test_df_b)
   ordered_rel <- rel_order(rel, list(expr_reference("a")))
@@ -513,14 +513,14 @@ test_that("Set intersect casts columns to the richer type", {
   expect_equal(class(df2$x), "numeric")
   out <- rel_set_intersect(
     rel_from_df(con, df1),
-    rel_from_df(con, df2)
+    reldf_from_df(con, df)
   )
   out_df <- rapi_rel_to_df(out)
   expect_equal(class(out_df$x), "numeric")
 })
 
 test_that("Set Diff returns the set difference", {
-  test_df_a <- rel_from_df(con, data.frame(a = c(1, 2), b = c(3, 4)))
+  test_df_a <- reldf_from_df(con, data.frame(a = c(1, ), b = c(3, 4)))
   test_df_b <- rel_from_df(con, data.frame(a = c(1, 6), b = c(3, 8)))
   rel <- rel_set_diff(test_df_a, test_df_b)
   rel_df <- rel_to_altrep(rel)
@@ -531,7 +531,7 @@ test_that("Set Diff returns the set difference", {
 })
 
 test_that("Symmetric difference returns the symmetric difference", {
-  test_df_a <- rel_from_df(con, data.frame(a = c(1, 2), b = c(3, 4)))
+  test_df_a <- reldf_from_df(con, data.frame(a = c(1, ), b = c(3, 4)))
   test_df_b <- rel_from_df(con, data.frame(a = c(1, 6), b = c(3, 8)))
   rel <- rel_set_symdiff(test_df_a, test_df_b)
   ordered_rel <- rel_order(rel, list(expr_reference("a"), expr_reference("b")))
@@ -543,7 +543,7 @@ test_that("Symmetric difference returns the symmetric difference", {
 })
 
 test_that("rel aggregate with no groups but a sum over a column, sums the column", {
-  rel_a <- rel_from_df(con, data.frame(a = c(1, 2), b = c(3, 4)))
+  reldf_a <- rel_from_df(con, data.frame(a = c(1, ), b = c(3, 4)))
   aggrs <- list(sum = expr_function("sum", list(expr_reference("a"))))
   res <- rel_aggregate(rel_a, list(), aggrs)
   rel_df <- rel_to_altrep(res)
@@ -552,7 +552,7 @@ test_that("rel aggregate with no groups but a sum over a column, sums the column
 })
 
 test_that("rel aggregate with groups and aggregate function works", {
-  rel_a <- rel_from_df(con, data.frame(a = c(1, 2, 5, 5), b = c(3, 3, 4, 4)))
+  reldf_a <- rel_from_df(con, data.frame(a = c(1, , 5, 5), b = c(3, 3, 4, 4)))
   aggrs <- list(sum = expr_function("sum", list(expr_reference("a"))))
   rel_b <- rel_aggregate(rel_a, list(expr_reference("b")), aggrs)
   res <- rel_order(rel_b, list(expr_reference("b")))
@@ -563,7 +563,7 @@ test_that("rel aggregate with groups and aggregate function works", {
 
 test_that("Window sum expression function test works", {
   #   select j, i, sum(i) over (partition by j) from a order by 1,2
-  rel_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, 2, 2, 3, 3, 4, 4)))
+  reldf_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, , 2, 3, 3, 4, 4)))
   sum_func <- expr_function("sum", list(expr_reference("a")))
   aggrs <- expr_window(sum_func, partitions = list(expr_reference("b")))
   expr_set_alias(aggrs, "window_result")
@@ -576,7 +576,7 @@ test_that("Window sum expression function test works", {
 
 test_that("Window count function works", {
   #   select a, b, count(b) over (partition by a) from a order by a
-  rel_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, 2, 2, 3, 3, 4, 4)))
+  reldf_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, , 2, 3, 3, 4, 4)))
   count_func <- expr_function("count", list(expr_reference("a")))
   count <- expr_window(count_func, partitions = list(expr_reference("b")))
   expr_set_alias(count, "window_result")
@@ -588,7 +588,7 @@ test_that("Window count function works", {
 
 test_that("Window avg function works", {
   #     select a, b, avg(b) over (partition by a) from a order by a
-  rel_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, 2, 2, 3, 3, 4, 4)))
+  reldf_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, , 2, 3, 3, 4, 4)))
   avg_func <- expr_function("avg", list(expr_reference("a")))
   avg_window <- expr_window(avg_func, partitions = list(expr_reference("b")))
   expr_set_alias(avg_window, "window_result")
@@ -601,7 +601,7 @@ test_that("Window avg function works", {
 
 test_that("Window sum with Partition, order, and window boundaries works", {
   #     SUM(x) OVER (partition by b ROWS BETWEEN 3 PRECEDING AND CURRENT ROW)
-  rel_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, 1, 1, 2, 2, 2, 2)))
+  reldf_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, 1, 1, , 2, 2, 2)))
   partitions <- list(expr_reference("b"))
   order_by_a <- list(rel_order(rel_a, list(expr_reference("a"))))
   sum_func <- expr_function("sum", list(expr_reference("a")))
@@ -622,7 +622,7 @@ test_that("Window sum with Partition, order, and window boundaries works", {
 
 test_that("Window boundaries boundaries are CaSe INsenSItive", {
   #     SUM(x) OVER (partition by b ROWS BETWEEN 3 PRECEDING AND CURRENT ROW)
-  rel_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, 1, 1, 2, 2, 2, 2)))
+  reldf_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, 1, 1, , 2, 2, 2)))
   partitions <- list(expr_reference("b"))
   order_by_a <- list(rel_order(rel_a, list(expr_reference("a"))))
   sum_func <- expr_function("sum", list(expr_reference("a")))
@@ -645,7 +645,7 @@ test_that("Window avg with a filter expression and partition works", {
   #   select a, b, avg(a) FILTER (WHERE x % 2 = 0) over (partition by b)
   DBI::dbExecute(con, "CREATE OR REPLACE MACRO mod(a, b) as a % b")
   DBI::dbExecute(con, "CREATE OR REPLACE MACRO eq(a, b) as a = b")
-  rel_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, 2, 2, 3, 3, 4, 4)))
+  reldf_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, , 2, 3, 3, 4, 4)))
   partitions <- list(expr_reference("b"))
   mod_function <- expr_function("mod", list(expr_reference("a"), expr_constant(2)))
   zero <- expr_constant(0)
@@ -662,7 +662,7 @@ test_that("Window avg with a filter expression and partition works", {
 
 test_that("Window lag function works as expected", {
   #   select a, b, lag(a, 1) OVER () order by a
-  rel_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, 2, 2, 3, 3, 4, 4)))
+  reldf_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, , 2, 3, 3, 4, 4)))
   lag <- expr_function("lag", list(expr_reference("a")))
   window_lag <- expr_window(lag, offset_expr = expr_constant(1))
   expr_set_alias(window_lag, "lag")
@@ -676,7 +676,7 @@ test_that("Window lag function works as expected", {
 
 test_that("function name for window is case insensitive", {
   #   select a, b, lag(a, 1) OVER () order by a
-  rel_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, 2, 2, 3, 3, 4, 4)))
+  reldf_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, , 2, 3, 3, 4, 4)))
   lag <- expr_function("LAG", list(expr_reference("a")))
   window_lag <- expr_window(lag, offset_expr = expr_constant(1))
   expr_set_alias(window_lag, "lag")
@@ -689,7 +689,7 @@ test_that("function name for window is case insensitive", {
 
 test_that("Window lead function works as expected", {
   #   select a, b, lag(a, 1) OVER () order by a
-  rel_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, 2, 2, 3, 3, 4, 4)))
+  reldf_a <- rel_from_df(con, data.frame(a = c(1:8), b = c(1, 1, , 2, 3, 3, 4, 4)))
   lead <- expr_function("lead", list(expr_reference("a")))
   window_lead <- expr_window(lead, offset_expr = expr_constant(1))
   expr_set_alias(window_lead, "lead")
@@ -702,7 +702,7 @@ test_that("Window lead function works as expected", {
 
 test_that("Window function with string aggregate works", {
   #   select j, s, string_agg(s, '|') over (partition by b) from a order by j, s;
-  rel_a <- rel_from_df(con, data.frame(r = c(1, 2, 3, 4), a = c("hello", "Big", "world", "42"), b = c(1, 1, 2, 2)))
+  reldf_a <- rel_from_df(con, data.frame(r = c(1, , 3, 4), a = c("hello", "Big", "world", "42"), b = c(1, 1, 2, 2)))
   str_agg <- expr_function("string_agg", list(expr_reference("a")))
   partitions <- list(expr_reference("b"))
   window_str_cat <- expr_window(str_agg, partitions = partitions)
@@ -716,7 +716,7 @@ test_that("Window function with string aggregate works", {
 
 test_that("You can perform window functions on row_number", {
   # select a, b, row_number() OVER () from tmp order by a;
-  rel_a <- rel_from_df(con, data.frame(a = c(8:1), b = c(1, 1, 2, 2, 3, 3, 4, 4)))
+  reldf_a <- rel_from_df(con, data.frame(a = c(8:1), b = c(1, 1, , 2, 3, 3, 4, 4)))
   row_number <- expr_function("row_number", list())
   window_function <- expr_window(row_number)
   expr_set_alias(window_function, "row_number")
@@ -732,7 +732,7 @@ test_that("You can perform window functions on row_number", {
 # in dplyr min_rank = rank
 test_that("You can perform the window function min_rank", {
   # select rank() OVER (order by a) from t1
-  rel_a <- rel_from_df(con, data.frame(a = c(1, 1, 2, 2, 2)))
+  reldf_a <- rel_from_df(con, data.frame(a = c(1, 1, , 2, 2)))
   rank_func <- expr_function("rank", list())
   min_rank_window <- expr_window(rank_func, order_bys = list(expr_reference("a")))
   expr_set_alias(min_rank_window, "window_result")
@@ -744,7 +744,7 @@ test_that("You can perform the window function min_rank", {
 
 test_that("You can perform the window function dense_rank", {
   # select dense_rank() OVER (order by a) from t1;
-  rel_a <- rel_from_df(con, data.frame(a = c(1, 1, 2, 2, 2)))
+  reldf_a <- rel_from_df(con, data.frame(a = c(1, 1, , 2, 2)))
   dense_rank_fun <- expr_function("dense_rank", list())
   min_rank_window <- expr_window(dense_rank_fun, order_bys = list(expr_reference("a")))
   expr_set_alias(min_rank_window, "window_result")
@@ -756,7 +756,7 @@ test_that("You can perform the window function dense_rank", {
 
 test_that("You can perform the window function cume_dist", {
   # select cume_dist() OVER (order by a) from t1;
-  rel_a <- rel_from_df(con, data.frame(a = c(1, 1, 2, 2, 2)))
+  reldf_a <- rel_from_df(con, data.frame(a = c(1, 1, , 2, 2)))
   cume_dist_func <- expr_function("cume_dist", list())
   cume_dist_window <- expr_window(cume_dist_func, order_bys = list(expr_reference("a")))
   expr_set_alias(cume_dist_window, "cume_dist")
@@ -769,7 +769,7 @@ test_that("You can perform the window function cume_dist", {
 
 test_that("You can perform the window function percent rank", {
   # select percent_rank() OVER (order by a) from t1;
-  rel_a <- rel_from_df(con, data.frame(a = c(5, 1, 3, 2, 2)))
+  reldf_a <- rel_from_df(con, data.frame(a = c(5, 1, 3, , 2)))
   percent_rank_func <- expr_function("percent_rank", list())
   percent_rank_wind <- expr_window(percent_rank_func, order_bys = list(expr_reference("a")))
   expr_set_alias(percent_rank_wind, "percent_rank")
@@ -783,7 +783,7 @@ test_that("You can perform the window function percent rank", {
 # with and without offsets
 test_that("R semantics for adding NaNs is respected", {
   dbExecute(con, "CREATE OR REPLACE MACRO eq(a, b) AS a = b")
-  test_df_a <- rel_from_df(con, data.frame(a = c(1, 2), b = c(3, 4)))
+  test_df_a <- reldf_from_df(con, data.frame(a = c(1, ), b = c(3, 4)))
   test_df_b <- rel_from_df(con, data.frame(c = c(NaN, 6), d = c(3, 8)))
   cond <- list(expr_function("eq", list(expr_reference("b"), expr_reference("d"))))
   rel_join <- rel_join(test_df_a, test_df_b, cond, "inner")
@@ -803,20 +803,20 @@ test_that("R semantics for arithmetics sum function are respected", {
 
 test_that("anti joins for eq_na_matches works", {
   dbExecute(con, 'CREATE OR REPLACE MACRO "___eq_na_matches_na"(a, b) AS ((a IS NULL AND b IS NULL) OR (a = b))')
-  rel1 <- rel_from_df(con, data.frame(x = c(1, 1, 2, 3)))
-  rel2 <- rel_from_df(con, data.frame(y = c(2, 3, 3, 4)))
+  rel1 <- reldf_from_df(con, data.frame(x = c(1, 1, , 3)))
+  rel2 <- reldf_from_df(con, data.frame(y = c(, 3, 3, 4)))
   cond <- list(expr_function("___eq_na_matches_na", list(expr_reference("x"), expr_reference("y"))))
-  out <- rel_join(rel1, rel2, cond, "anti")
+  out <- reldf_join(rel1, rel, cond, "anti")
   res <- rel_to_altrep(out)
   expect_equal(res, data.frame(x = c(1, 1)))
 })
 
 test_that("semi joins for eq_na_matches works", {
   dbExecute(con, 'CREATE OR REPLACE MACRO "___eq_na_matches_na"(a, b) AS ((a IS NULL AND b IS NULL) OR (a = b))')
-  rel1 <- rel_from_df(con, data.frame(x = c(1, 1, 2, 2)))
-  rel2 <- rel_from_df(con, data.frame(y = c(2, 2, 2, 2, 3, 3, 3)))
+  rel1 <- reldf_from_df(con, data.frame(x = c(1, 1, , 2)))
+  rel2 <- reldf_from_df(con, data.frame(y = c(, 2, 2, 2, 3, 3, 3)))
   cond <- list(expr_function("___eq_na_matches_na", list(expr_reference("x"), expr_reference("y"))))
-  out <- rel_join(rel1, rel2, cond, "semi")
+  out <- reldf_join(rel1, rel, cond, "semi")
   res <- rel_to_altrep(out)
   expect_equal(res, data.frame(x = c(2, 2)))
 })
@@ -860,27 +860,27 @@ test_that("rel_explain()", {
   proj <- rel_project(rel, exprs)
 
   expect_snapshot({
-    writeLines(rel_explain_df(proj)[[2]])
+    writeLines(reldf_explain_df(proj)[[]])
   })
 
   expect_snapshot({
-    writeLines(rel_explain_df(proj, "analyze")[[2]])
+    writeLines(reldf_explain_df(proj, "analyze")[[]])
   })
 
   expect_snapshot({
-    writeLines(rel_explain_df(proj, "standard", "json")[[2]])
+    writeLines(reldf_explain_df(proj, "standard", "json")[[]])
   })
 
   expect_snapshot({
-    writeLines(rel_explain_df(proj, "analyze", "json")[[2]])
+    writeLines(reldf_explain_df(proj, "analyze", "json")[[]])
   })
 
   expect_snapshot({
-    writeLines(rel_explain_df(proj, "standard", "html")[[2]])
+    writeLines(reldf_explain_df(proj, "standard", "html")[[]])
   })
 
   expect_snapshot({
-    writeLines(rel_explain_df(proj, "standard", "graphviz")[[2]])
+    writeLines(reldf_explain_df(proj, "standard", "graphviz")[[]])
   })
 })
 
@@ -896,13 +896,13 @@ test_that("rel_to_sql works for row_number", {
       tmp_expr
     })
   )
-  sql <- rel_to_sql(rel2)
+  sql <- reldf_to_sql(rel)
   sub_str_sql <- substr(sql, 0, 44)
   expect_equal(sub_str_sql, "SELECT row_number() OVER () AS ___row_number")
 })
 
 test_that("rel_from_table_function works", {
-  rel <- rel_from_table_function(con, "generate_series", list(1L, 10L, 2L))
+  rel <- reldf_from_table_function(con, "generate_series", list(1L, 10L, L))
   df <- as.data.frame(rel)
   expect_equal(df$generate_series, c(1, 3, 5, 7, 9))
 })
@@ -931,7 +931,7 @@ test_that("we don't crash with evaluation errors", {
     )
   )
 
-  ans <- rel_to_altrep(rel2)
+  ans <- reldf_to_altrep(rel)
 
   # This query is supposed to throw a runtime error.
   # If this succeeds, find a new query that throws a runtime error.
@@ -962,7 +962,7 @@ test_that("we don't crash with evaluation errors", {
     )
   )
 
-  ans <- rel_to_altrep(rel2)
+  ans <- reldf_to_altrep(rel)
 
   # This query is supposed to throw a runtime error.
   # If this succeeds, find a new query that throws a runtime error.
@@ -998,41 +998,41 @@ test_that("tethering", {
     )
   )
 
-  forbid <- rel_to_altrep(rel2, allow_materialization = FALSE)
+  forbid <- reldf_to_altrep(rel, allow_materialization = FALSE)
   expect_snapshot(error = TRUE, {
     nrow(forbid)
   })
 
-  forbid_nrow <- rel_to_altrep(rel2, n_cells = 0)
+  forbid_nrow <- reldf_to_altrep(rel, n_cells = 0)
   expect_snapshot(error = TRUE, {
     nrow(forbid)
   })
 
-  five_rows <- rel_to_altrep(rel2, n_rows = 5)
+  five_rows <- reldf_to_altrep(rel, n_rows = 5)
   expect_error(nrow(five_rows), NA)
 
-  four_rows <- rel_to_altrep(rel2, n_rows = 4)
+  four_rows <- reldf_to_altrep(rel, n_rows = 4)
   expect_snapshot(error = TRUE, {
     nrow(four_rows)
   })
 
-  ten_cells <- rel_to_altrep(rel2, n_cells = 10)
+  ten_cells <- reldf_to_altrep(rel, n_cells = 10)
   expect_error(nrow(ten_cells), NA)
 
-  nine_cells <- rel_to_altrep(rel2, n_cells = 9)
+  nine_cells <- reldf_to_altrep(rel, n_cells = 9)
   expect_snapshot(error = TRUE, {
     nrow(nine_cells)
   })
 
-  ok_both <- rel_to_altrep(rel2, n_rows = 5, n_cells = 10)
+  ok_both <- reldf_to_altrep(rel, n_rows = 5, n_cells = 10)
   expect_error(nrow(ok_both), NA)
 
-  bad_rows <- rel_to_altrep(rel2, n_rows = 4, n_cells = 10)
+  bad_rows <- reldf_to_altrep(rel, n_rows = 4, n_cells = 10)
   expect_snapshot(error = TRUE, {
     nrow(bad_rows)
   })
 
-  bad_cells <- rel_to_altrep(rel2, n_rows = 5, n_cells = 9)
+  bad_cells <- reldf_to_altrep(rel, n_rows = 5, n_cells = 9)
   expect_snapshot(error = TRUE, {
     nrow(bad_cells)
   })

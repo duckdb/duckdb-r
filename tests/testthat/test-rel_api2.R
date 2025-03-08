@@ -8,12 +8,12 @@ test_that("relational anti_join(join_by(a)) order-enforcing 2", {
   )
   df1 <- data.frame(a = 1:4, b = 2)
   "anti_join"
-  df2 <- rel_set_alias2(df1, con, "lhs")
+  df2 <- reldf_set_alias(df1, con, "lhs")
   df3 <- data.frame(a = 2:5, b = 2)
   "anti_join"
-  df4 <- rel_set_alias2(df3, con, "rhs")
+  df4 <- reldf_set_alias(df3, con, "rhs")
   "anti_join"
-  df5 <- rel_join2(
+  df5 <- reldf_join(
     df2,
     df4,
     con,
@@ -23,7 +23,7 @@ test_that("relational anti_join(join_by(a)) order-enforcing 2", {
     "anti"
   )
   "anti_join"
-  df6 <- rel_order2(df5, con, list(expr_reference("a"), expr_reference("b")))
+  df6 <- reldf_order(df5, con, list(expr_reference("a"), expr_reference("b")))
   df6
   expect_identical(
     df6,
@@ -42,12 +42,12 @@ test_that("relational anti_join(join_by(a)) order-enforcing 2", {
   )
   df1 <- data.frame(a = 1:4, b = 2)
   "anti_join"
-  df2 <- rel_set_alias2(df1, con, "lhs")
+  df2 <- reldf_set_alias(df1, con, "lhs")
   df3 <- data.frame(a = 2:5, b = 2)
   "anti_join"
-  df4 <- rel_set_alias2(df3, con, "rhs")
+  df4 <- reldf_set_alias(df3, con, "rhs")
   "anti_join"
-  df5 <- rel_join2(
+  df5 <- reldf_join(
     df2,
     df4,
     con,
@@ -57,7 +57,7 @@ test_that("relational anti_join(join_by(a)) order-enforcing 2", {
     "anti"
   )
   "arrange"
-  df6 <- rel_order2(df5, con, list(expr_reference("a"), expr_reference("b")))
+  df6 <- reldf_order(df5, con, list(expr_reference("a"), expr_reference("b")))
   df6
   expect_identical(
     df6,
@@ -74,7 +74,7 @@ test_that("relational arrange(a) order-preserving 2", {
   df1 <- data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L))
 
   "arrange"
-  df2 <- rel_project2(
+  df2 <- reldf_project(
     df1,
     con,
     list(
@@ -101,9 +101,9 @@ test_that("relational arrange(a) order-preserving 2", {
     )
   )
   "arrange"
-  df3 <- rel_order2(df2, con, list(expr_reference2("a"), expr_reference2("___row_number")))
+  df3 <- reldf_order(df2, con, list(expr_reference2("a"), expr_reference2("___row_number")))
   "arrange"
-  df4 <- rel_project2(
+  df4 <- reldf_project(
     df3,
     con,
     list(
@@ -139,7 +139,7 @@ test_that("relational arrange(g) order-enforcing 2", {
   df1 <- data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L))
 
   "arrange"
-  df2 <- rel_project2(
+  df2 <- reldf_project(
     df1,
     con,
     list(
@@ -166,9 +166,9 @@ test_that("relational arrange(g) order-enforcing 2", {
     )
   )
   "arrange"
-  df3 <- rel_order2(df2, con, list(expr_reference("g"), expr_reference("___row_number")))
+  df3 <- reldf_order(df2, con, list(expr_reference("g"), expr_reference("___row_number")))
   "arrange"
-  df4 <- rel_project2(
+  df4 <- reldf_project(
     df3,
     con,
     list(
@@ -204,7 +204,7 @@ test_that("relational arrange() order-enforcing 2", {
   df1 <- data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L))
 
   "arrange"
-  df2 <- rel_order2(
+  df2 <- reldf_order(
     df1,
     con,
     list(expr_reference("a"), expr_reference("b"), expr_reference("g"))
@@ -224,7 +224,7 @@ test_that("relational arrange(a) order-enforcing 2", {
   df1 <- data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L))
 
   "arrange"
-  df2 <- rel_order2(
+  df2 <- reldf_order(
     df1,
     con,
     list(expr_reference("a"), expr_reference("b"), expr_reference("g"))
@@ -293,7 +293,7 @@ test_that("relational arrange(a, g) order-enforcing 2", {
   experimental <- FALSE
   df1 <- data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L))
 
-  df2 <- rel_order2(
+  df2 <- reldf_order(
     df1,
     con,
     list(expr_reference("a"), expr_reference("b"), expr_reference("g"))
@@ -314,7 +314,7 @@ test_that("relational count() order-preserving 2", {
   df1 <- data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L))
 
   "count"
-  df2 <- rel_aggregate2(
+  df2 <- reldf_aggregate(
     df1,
     con,
     groups = list(),
@@ -342,7 +342,7 @@ test_that("relational count(a) order-preserving 2", {
   df1 <- data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L))
 
   "count"
-  df2 <- rel_aggregate2(
+  df2 <- reldf_aggregate(
     df1,
     con,
     groups = list(
@@ -361,7 +361,7 @@ test_that("relational count(a) order-preserving 2", {
     )
   )
   "count"
-  df3 <- rel_order2(
+  df3 <- reldf_order(
     df2,
     con,
     list(
@@ -388,7 +388,7 @@ test_that("relational count(b) order-preserving 2", {
   df1 <- data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L))
 
   "count"
-  df2 <- rel_aggregate2(
+  df2 <- reldf_aggregate(
     df1,
     con,
     groups = list(
@@ -407,7 +407,7 @@ test_that("relational count(b) order-preserving 2", {
     )
   )
   "count"
-  df3 <- rel_order2(
+  df3 <- reldf_order(
     df2,
     con,
     list(
@@ -433,7 +433,7 @@ test_that("relational distinct() order-preserving 2", {
   df1 <- data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L))
 
   "distinct"
-  df2 <- rel_project2(
+  df2 <- reldf_project(
     df1,
     con,
     list(
@@ -460,7 +460,7 @@ test_that("relational distinct() order-preserving 2", {
     )
   )
   "distinct"
-  df3 <- rel_project2(
+  df3 <- reldf_project(
     df2,
     con,
     list(
@@ -510,7 +510,7 @@ test_that("relational distinct() order-preserving 2", {
     )
   )
   "distinct"
-  df4 <- rel_filter2(
+  df4 <- reldf_filter(
     df3,
     con,
     list(
@@ -528,9 +528,9 @@ test_that("relational distinct() order-preserving 2", {
     )
   )
   "distinct"
-  df5 <- rel_order2(df4, con, list(expr_reference("___row_number")))
+  df5 <- reldf_order(df4, con, list(expr_reference("___row_number")))
   "distinct"
-  df6 <- rel_project2(
+  df6 <- reldf_project(
     df5,
     con,
     list(
@@ -566,7 +566,7 @@ test_that("relational distinct(a) order-preserving 2", {
   df1 <- data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L))
 
   "distinct"
-  df2 <- rel_project2(
+  df2 <- reldf_project(
     df1,
     con,
     list(
@@ -593,7 +593,7 @@ test_that("relational distinct(a) order-preserving 2", {
     )
   )
   "distinct"
-  df3 <- rel_project2(
+  df3 <- reldf_project(
     df2,
     con,
     list(
@@ -623,7 +623,7 @@ test_that("relational distinct(a) order-preserving 2", {
     )
   )
   "distinct"
-  df4 <- rel_filter2(
+  df4 <- reldf_filter(
     df3,
     con,
     list(
@@ -641,9 +641,9 @@ test_that("relational distinct(a) order-preserving 2", {
     )
   )
   "distinct"
-  df5 <- rel_order2(df4, con, list(expr_reference("___row_number")))
+  df5 <- reldf_order(df4, con, list(expr_reference("___row_number")))
   "distinct"
-  df6 <- rel_project2(
+  df6 <- reldf_project(
     df5,
     con,
     list(
@@ -669,7 +669,7 @@ test_that("relational union_all(data.frame(a = 1L, b = 3, g = 2L)) %>% distinct(
   df1 <- data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L))
 
   "union_all"
-  df2 <- rel_project2(
+  df2 <- reldf_project(
     df1,
     con,
     list(
@@ -705,7 +705,7 @@ test_that("relational union_all(data.frame(a = 1L, b = 3, g = 2L)) %>% distinct(
     )
   )
   "union_all"
-  df3 <- rel_project2(
+  df3 <- reldf_project(
     df2,
     con,
     list(
@@ -741,15 +741,15 @@ test_that("relational union_all(data.frame(a = 1L, b = 3, g = 2L)) %>% distinct(
     )
   )
   "union_all"
-  df4 <- rel_union_all2(df2, df3, con)
+  df4 <- reldf_union_all(df2, df3, con)
   "union_all"
-  df5 <- rel_order2(
+  df5 <- reldf_order(
     df4,
     con,
     list(expr_reference("___row_number_x"), expr_reference("___row_number_y"))
   )
   "union_all"
-  df6 <- rel_project2(
+  df6 <- reldf_project(
     df5,
     con,
     list(
@@ -771,7 +771,7 @@ test_that("relational union_all(data.frame(a = 1L, b = 3, g = 2L)) %>% distinct(
     )
   )
   "distinct"
-  df7 <- rel_project2(
+  df7 <- reldf_project(
     df6,
     con,
     list(
@@ -798,7 +798,7 @@ test_that("relational union_all(data.frame(a = 1L, b = 3, g = 2L)) %>% distinct(
     )
   )
   "distinct"
-  df8 <- rel_project2(
+  df8 <- reldf_project(
     df7,
     con,
     list(
@@ -828,7 +828,7 @@ test_that("relational union_all(data.frame(a = 1L, b = 3, g = 2L)) %>% distinct(
     )
   )
   "distinct"
-  df9 <- rel_filter2(
+  df9 <- reldf_filter(
     df8,
     con,
     list(
@@ -846,9 +846,9 @@ test_that("relational union_all(data.frame(a = 1L, b = 3, g = 2L)) %>% distinct(
     )
   )
   "distinct"
-  df10 <- rel_order2(df9, con, list(expr_reference("___row_number")))
+  df10 <- reldf_order(df9, con, list(expr_reference("___row_number")))
   "distinct"
-  df11 <- rel_project2(
+  df11 <- reldf_project(
     df10,
     con,
     list(
@@ -874,7 +874,7 @@ test_that("relational filter(a == 1) order-enforcing", {
   df1 <- data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L))
 
   "filter"
-  df2 <- rel_filter2(
+  df2 <- reldf_filter(
     df1,
     con,
     list(
@@ -892,7 +892,7 @@ test_that("relational filter(a == 1) order-enforcing", {
     )
   )
   "arrange"
-  df3 <- rel_order2(
+  df3 <- reldf_order(
     df2,
     con,
     list(expr_reference("a"), expr_reference("b"), expr_reference("g"))
@@ -916,7 +916,7 @@ test_that("relational filter(a %in% 2:3 & g == 2) order-enforcing", {
   df1 <- data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L))
 
   "filter"
-  df2 <- rel_filter2(
+  df2 <- reldf_filter(
     df1,
     con,
     list(
@@ -976,7 +976,7 @@ test_that("relational filter(a %in% 2:3 & g == 2) order-enforcing", {
     )
   )
   "arrange"
-  df3 <- rel_order2(
+  df3 <- reldf_order(
     df2,
     con,
     list(expr_reference("a"), expr_reference("b"), expr_reference("g"))
@@ -997,7 +997,7 @@ test_that("relational summarise(c = mean(a)) order-enforcing", {
   df1 <- data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L))
 
   "summarise"
-  df2 <- rel_aggregate2(
+  df2 <- reldf_aggregate(
     df1,
     con,
     groups = list(),
@@ -1010,9 +1010,9 @@ test_that("relational summarise(c = mean(a)) order-enforcing", {
     )
   )
   "summarise"
-  df3 <- rel_distinct2(df2, con)
+  df3 <- reldf_distinct(df2, con)
   "arrange"
-  df4 <- rel_order2(df3, con, list(expr_reference("c")))
+  df4 <- reldf_order(df3, con, list(expr_reference("c")))
   expect_identical(
     df4,
     data.frame(c = 3.5)
@@ -1028,7 +1028,7 @@ test_that("relational summarise(c = mean(a), .by = b) order-enforcing", {
   df1 <- data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L))
 
   "summarise"
-  df2 <- rel_aggregate2(
+  df2 <- reldf_aggregate(
     df1,
     con,
     groups = list(expr_reference("b")),
@@ -1041,7 +1041,7 @@ test_that("relational summarise(c = mean(a), .by = b) order-enforcing", {
     )
   )
   "arrange"
-  df3 <- rel_order2(df2, con, list(expr_reference("b"), expr_reference("c")))
+  df3 <- reldf_order(df2, con, list(expr_reference("b"), expr_reference("c")))
   expect_identical(
     df3,
     data.frame(b = 2, c = 3.5)
@@ -1057,7 +1057,7 @@ test_that("relational summarise(c = mean(a), .by = g) order-enforcing", {
   df1 <- data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L))
 
   "summarise"
-  df2 <- rel_aggregate2(
+  df2 <- reldf_aggregate(
     df1,
     con,
     groups = list(expr_reference("g")),
@@ -1070,7 +1070,7 @@ test_that("relational summarise(c = mean(a), .by = g) order-enforcing", {
     )
   )
   "arrange"
-  df3 <- rel_order2(df2, con, list(expr_reference("g"), expr_reference("c")))
+  df3 <- reldf_order(df2, con, list(expr_reference("g"), expr_reference("c")))
   expect_identical(
     df3,
     data.frame(g = 1:3, c = c(1, 2.5, 5))
@@ -1087,9 +1087,9 @@ test_that("relational intersect() order-enforcing", {
   df2 <- data.frame(a = 2:5, b = 2)
 
   "intersect"
-  df3 <- rel_set_intersect2(df1, df2, con)
+  df3 <- reldf_set_intersect(df1, df2, con)
   "arrange"
-  df4 <- rel_order2(df3, con, list(expr_reference("a"), expr_reference("b")))
+  df4 <- reldf_order(df3, con, list(expr_reference("a"), expr_reference("b")))
   expect_identical(
     df4,
     data.frame(a = 2:4, b = 2)
@@ -1106,9 +1106,9 @@ test_that("relational setdiff() order-enforcing", {
   df2 <- data.frame(a = 2:5, b = 2)
 
   "setdiff"
-  df3 <- rel_set_diff2(df1, df2, con)
+  df3 <- reldf_set_diff(df1, df2, con)
   "arrange"
-  df4 <- rel_order2(df3, con, list(expr_reference("a"), expr_reference("b")))
+  df4 <- reldf_order(df3, con, list(expr_reference("a"), expr_reference("b")))
   expect_identical(
     df4,
     data.frame(a = 1L, b = 2)
@@ -1125,9 +1125,9 @@ test_that("relational symdiff() order-enforcing", {
   df2 <- data.frame(a = 2:5, b = 2)
 
   "symdiff"
-  df3 <- rel_set_symdiff2(df1, df2, con)
+  df3 <- reldf_set_symdiff(df1, df2, con)
   "arrange"
-  df4 <- rel_order2(df3, con, list(expr_reference("a"), expr_reference("b")))
+  df4 <- reldf_order(df3, con, list(expr_reference("a"), expr_reference("b")))
   expect_identical(
     df4,
     data.frame(a = c(1L, 5L), b = 2)

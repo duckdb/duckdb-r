@@ -29,7 +29,7 @@ expr_reference <- function(names, table = NULL) {
 #' col_ref_expr2 <- expr_reference("some_column_name", "some_table_name")
 expr_reference2 <- function(names, table = NULL, con = NULL) {
   if (inherits(table, "data.frame")) {
-    names <- c(rel_alias2(table, con), names)
+    names <- c(reldf_alias(table, con), names)
   }
   if (is.character(table) && !identical(table, "")) {
     names <- c(table, names)
@@ -148,8 +148,8 @@ rel_limit <- function(rel, n) {
 #' con <- DBI::dbConnect(duckdb())
 #' rel <- rel_from_df(con, mtcars)
 #' rel2 <- rel_limit(rel, 10)
-rel_limit2 <- function(df, con, n) {
-  rethrow_rapi_rel_limit2(df, con@conn_ref, n)
+reldf_limit <- function(df, con, n) {
+  rethrow_rapi_reldf_limit(df, con@conn_ref, n)
 }
 
 #' Lazily project a DuckDB relation object
@@ -174,8 +174,8 @@ rel_project <- function(rel, exprs) {
 #' con <- DBI::dbConnect(duckdb())
 #' rel <- rel_from_df(con, mtcars)
 #' rel2 <- rel_project(rel, list(expr_reference("cyl"), expr_reference("disp")))
-rel_project2 <- function(df, con, exprs) {
-  rethrow_rapi_rel_project2(df, con@conn_ref, exprs)
+reldf_project <- function(df, con, exprs) {
+  rethrow_rapi_reldf_project(df, con@conn_ref, exprs)
 }
 
 #' Lazily filter a DuckDB relation object
@@ -202,8 +202,8 @@ rel_filter <- function(rel, exprs) {
 #' DBI::dbExecute(con, "CREATE OR REPLACE MACRO gt(a, b) AS a > b")
 #' rel <- rel_from_df(con, mtcars)
 #' rel2 <- rel_filter(rel, list(expr_function("gt", list(expr_reference("cyl"), expr_constant("6")))))
-rel_filter2 <- function(df, con, exprs) {
-  rethrow_rapi_rel_filter2(df, con@conn_ref, exprs)
+reldf_filter <- function(df, con, exprs) {
+  rethrow_rapi_reldf_filter(df, con@conn_ref, exprs)
 }
 
 #' Lazily aggregate a DuckDB relation object
@@ -232,8 +232,8 @@ rel_aggregate <- function(rel, groups, aggregates) {
 #' rel <- rel_from_df(con, mtcars)
 #' aggrs <- list(avg_hp = expr_function("avg", list(expr_reference("hp"))))
 #' rel2 <- rel_aggregate(rel, list(expr_reference("cyl")), aggrs)
-rel_aggregate2 <- function(df, con, groups, aggregates) {
-  rethrow_rapi_rel_aggregate2(df, con@conn_ref, groups, aggregates)
+reldf_aggregate <- function(df, con, groups, aggregates) {
+  rethrow_rapi_reldf_aggregate(df, con@conn_ref, groups, aggregates)
 }
 
 #' Lazily reorder a DuckDB relation object
@@ -268,7 +268,7 @@ rel_order <- function(rel, orders, ascending = NULL) {
 #' con <- DBI::dbConnect(duckdb())
 #' rel <- rel_from_df(con, mtcars)
 #' rel2 <- rel_order(rel, list(expr_reference("hp")))
-rel_order2 <- function(df, con, orders, ascending = NULL) {
+reldf_order <- function(df, con, orders, ascending = NULL) {
   if (is.null(ascending)) {
     ascending <- rep(TRUE, length(orders))
   }
@@ -277,7 +277,7 @@ rel_order2 <- function(df, con, orders, ascending = NULL) {
     stop("length of ascending must equal length of orders")
   }
 
-  return(rethrow_rapi_rel_order2(df, con@conn_ref, orders, ascending))
+  return(rethrow_rapi_reldf_order(df, con@conn_ref, orders, ascending))
 }
 
 #' Get an external pointer pointing to NULL
@@ -357,9 +357,14 @@ rel_join <- function(left, right, conds,
   rethrow_rapi_rel_join(left, right, conds, join, join_ref_type)
 }
 
-rel_join2 <- function(left, right, con, conds,
-                     join = c("inner", "left", "right", "outer", "cross", "semi", "anti"),
-                     join_ref_type = c("regular", "natural", "cross", "positional", "asof")) {
+reldf_join <- function(
+  left,
+  right,
+  con,
+  conds,
+  join = c("inner", "left", "right", "outer", "cross", "semi", "anti"),
+  join_ref_type = c("regular", "natural", "cross", "positional", "asof")
+) {
   join <- match.arg(join)
   join_ref_type <- match.arg(join_ref_type)
   # the ref type is naturally regular. Users won't write rel_join(left, right, conds, "cross", "cross")
@@ -367,7 +372,7 @@ rel_join2 <- function(left, right, con, conds,
   if (join == "cross" && join_ref_type == "regular") {
     join_ref_type <- "cross"
   }
-  rethrow_rapi_rel_join2(left, right, con@conn_ref, conds, join, join_ref_type)
+  rethrow_rapi_reldf_join(left, right, con@conn_ref, conds, join, join_ref_type)
 }
 
 #' UNION ALL on two DuckDB relation objects
@@ -394,8 +399,8 @@ rel_union_all <- function(rel_a, rel_b) {
 #' rel_a <- rel_from_df(con, mtcars)
 #' rel_b <- rel_from_df(con, mtcars)
 #' rel_union_all(rel_a, rel_b)
-rel_union_all2 <- function(df_a, df_b, con) {
-  rethrow_rapi_rel_union_all2(df_a, df_b, con@conn_ref)
+reldf_union_all <- function(df_a, df_b, con) {
+  rethrow_rapi_reldf_union_all(df_a, df_b, con@conn_ref)
 }
 
 #' Lazily compute a distinct result on a DuckDB relation object
@@ -418,8 +423,8 @@ rel_distinct <- function(rel) {
 #' con <- DBI::dbConnect(duckdb())
 #' rel <- rel_from_df(con, mtcars)
 #' rel2 <- rel_distinct(rel)
-rel_distinct2 <- function(df, con) {
-  rethrow_rapi_rel_distinct2(df, con@conn_ref)
+reldf_distinct <- function(df, con) {
+  rethrow_rapi_reldf_distinct(df, con@conn_ref)
 }
 
 #' SET INTERSECT on two DuckDB relation objects
@@ -444,8 +449,8 @@ rel_set_intersect <- function(rel_a, rel_b) {
 #' rel_a <- rel_from_df(con, mtcars)
 #' rel_b <- rel_from_df(con, mtcars)
 #' rel_set_intersect_all(rel_a, rel_b)
-rel_set_intersect2 <- function(df_a, df_b, con) {
-  rethrow_rapi_rel_set_intersect2(df_a, df_b, con@conn_ref)
+reldf_set_intersect <- function(df_a, df_b, con) {
+  rethrow_rapi_reldf_set_intersect(df_a, df_b, con@conn_ref)
 }
 
 #' SET DIFF on two DuckDB relation objects
@@ -470,8 +475,8 @@ rel_set_diff <- function(rel_a, rel_b) {
 #' rel_a <- rel_from_df(con, mtcars)
 #' rel_b <- rel_from_df(con, mtcars)
 #' rel_set_diff(rel_a, rel_b)
-rel_set_diff2 <- function(df_a, df_b, con) {
-  rethrow_rapi_rel_set_diff2(df_a, df_b, con@conn_ref)
+reldf_set_diff <- function(df_a, df_b, con) {
+  rethrow_rapi_reldf_set_diff(df_a, df_b, con@conn_ref)
 }
 
 #' SET SYMDIFF on two DuckDB relation objects
@@ -496,8 +501,8 @@ rel_set_symdiff <- function(rel_a, rel_b) {
 #' rel_a <- rel_from_df(con, mtcars)
 #' rel_b <- rel_from_df(con, mtcars)
 #' rel_set_symdiff(rel_a, rel_b)
-rel_set_symdiff2 <- function(df_a, df_b, con) {
-  rethrow_rapi_rel_set_symdiff2(df_a, df_b, con@conn_ref)
+reldf_set_symdiff <- function(df_a, df_b, con) {
+  rethrow_rapi_reldf_set_symdiff(df_a, df_b, con@conn_ref)
 }
 
 #' Run a SQL query on a DuckDB relation object
@@ -522,7 +527,7 @@ rel_sql <- function(rel, sql) {
 #' rel_explain(rel)
 rel_explain <- function(rel) {
   # Legacy
-  cat(rethrow_rapi_rel_explain(rel, "EXPLAIN_STANDARD", "DEFAULT")[[2]][[1]])
+  cat(rethrow_rapi_reldf_explain(rel, "EXPLAIN_STANDARD", "DEFAULT")[[]][[1]])
   invisible(NULL)
 }
 
@@ -533,9 +538,9 @@ rel_explain <- function(rel) {
 #' con <- DBI::dbConnect(duckdb())
 #' rel <- rel_from_df(con, mtcars)
 #' rel_explain(rel)
-rel_explain2 <- function(df, con) {
+reldf_explain <- function(df, con) {
   # Legacy
-  cat(rethrow_rapi_rel_explain2(df, con@conn_ref, "EXPLAIN_STANDARD", "DEFAULT")[[2]][[1]])
+  cat(rethrow_rapi_reldf_explain(df, con@conn_ref, "EXPLAIN_STANDARD", "DEFAULT")[[2]][[1]])
   invisible(NULL)
 }
 
@@ -586,8 +591,8 @@ rel_alias <- function(rel) {
 #' con <- DBI::dbConnect(duckdb())
 #' rel <- rel_from_df(con, mtcars)
 #' rel_alias(rel)
-rel_alias2 <- function(df, con) {
-  rethrow_rapi_rel_alias2(df, con@conn_ref)
+reldf_alias <- function(df, con) {
+  rethrow_rapi_reldf_alias(df, con@conn_ref)
 }
 
 #' Set the internal alias for a DuckDB relation object
@@ -610,8 +615,8 @@ rel_set_alias <- function(rel, alias) {
 #' con <- DBI::dbConnect(duckdb())
 #' rel <- rel_from_df(con, mtcars)
 #' rel_set_alias(rel, "my_new_alias")
-rel_set_alias2 <- function(df, con, alias) {
-  rethrow_rapi_rel_set_alias2(df, con@conn_ref, alias)
+reldf_set_alias <- function(df, con, alias) {
+  rethrow_rapi_reldf_set_alias(df, con@conn_ref, alias)
 }
 
 #' Transforms a relation object to a lazy data frame using altrep
@@ -688,8 +693,8 @@ rel_from_sql <- function(con, sql) {
 #' con <- DBI::dbConnect(duckdb())
 #' DBI::dbWriteTable(con, "mtcars", mtcars)
 #' rel <- rel_from_sql(con, "SELECT * FROM mtcars")
-rel_from_sql2 <- function(con, sql) {
-    rethrow_rapi_rel_from_sql2(con@conn_ref, sql)
+reldf_from_sql <- function(con, sql) {
+    rethrow_rapi_reldf_from_sql(con@conn_ref, sql)
 }
 
 #' Create a duckdb table relation from a table name
@@ -712,8 +717,8 @@ rel_from_table <- function(con, table_name, schema_name = "MAIN") {
 #' con <- DBI::dbConnect(duckdb())
 #' DBI::dbWriteTable(con, "mtcars", mtcars)
 #' rel <- rel_from_table(con, "mtcars")
-rel_from_table2 <- function(con, table_name, schema_name = "MAIN") {
-  rethrow_rapi_rel_from_table2(con@conn_ref, schema_name, table_name)
+reldf_from_table <- function(con, table_name, schema_name = "MAIN") {
+  rethrow_rapi_reldf_from_table(con@conn_ref, schema_name, table_name)
 }
 
 #' Convert a duckdb relation from a table-producing function
@@ -738,48 +743,48 @@ rel_from_table_function <- function(con, function_name, positional_parameters = 
 #' @examples
 #' con <- DBI::dbConnect(duckdb())
 #' rel <- rel_from_table_function(con, 'generate_series', list(10L))
-rel_from_table_function2 <- function(con, function_name, positional_parameters = list(), named_parameters = list()) {
-  rethrow_rapi_rel_from_table_function2(con@conn_ref, function_name, positional_parameters, named_parameters)
+reldf_from_table_function <- function(con, function_name, positional_parameters = list(), named_parameters = list()) {
+  rethrow_rapi_reldf_from_table_function(con@conn_ref, function_name, positional_parameters, named_parameters)
 }
 
 rel_to_parquet <- function(rel, file_name, options = list()) {
   rethrow_rapi_rel_to_parquet(rel, file_name, options)
 }
 
-rel_to_parquet2 <- function(df, con, file_name, options = list()) {
-  rethrow_rapi_rel_to_parquet2(df, con@conn_ref, file_name, options)
+reldf_to_parquet <- function(df, con, file_name, options = list()) {
+  rethrow_rapi_reldf_to_parquet(df, con@conn_ref, file_name, options)
 }
 
 rel_to_csv <- function(rel, file_name, options = list()) {
   rethrow_rapi_rel_to_csv(rel, file_name, options)
 }
 
-rel_to_csv2 <- function(df, con, file_name, options = list()) {
-  rethrow_rapi_rel_to_csv2(df, con@conn_ref, file_name, options)
+reldf_to_csv <- function(df, con, file_name, options = list()) {
+  rethrow_rapi_reldf_to_csv(df, con@conn_ref, file_name, options)
 }
 
 rel_to_table <- function(rel, schema_name, table_name, temporary) {
   rethrow_rapi_rel_to_table(rel, schema_name, table_name, temporary)
 }
 
-rel_to_table2 <- function(df, con, schema_name, table_name, temporary) {
-  rethrow_rapi_rel_to_table2(df, con@conn_ref, schema_name, table_name, temporary)
+reldf_to_table <- function(df, con, schema_name, table_name, temporary) {
+  rethrow_rapi_reldf_to_table(df, con@conn_ref, schema_name, table_name, temporary)
 }
 
 rel_insert <- function(rel, schema_name, table_name) {
   rethrow_rapi_rel_insert(rel, schema_name, table_name)
 }
 
-rel_insert2 <- function(df, con, schema_name, table_name) {
-  rethrow_rapi_rel_insert2(df, con@conn_ref, schema_name, table_name)
+reldf_insert <- function(df, con, schema_name, table_name) {
+  rethrow_rapi_reldf_insert(df, con@conn_ref, schema_name, table_name)
 }
 
 rel_names <- function(rel) {
   rethrow_rapi_rel_names(rel)
 }
 
-rel_names2 <- function(df, con) {
-  rethrow_rapi_rel_names2(df, con@conn_ref)
+reldf_names <- function(df, con) {
+  rethrow_rapi_reldf_names(df, con@conn_ref)
 }
 
 load_rfuns <- function() {
