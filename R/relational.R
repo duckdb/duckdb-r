@@ -28,7 +28,9 @@ expr_reference <- function(names, table = NULL, con = NULL) {
 #' @examples
 #' const_int_expr <- expr_constant(42)
 #' const_str_expr <- expr_constant("Hello, World")
-expr_constant <- rapi_expr_constant
+expr_constant <- function(val) {
+  rethrow_rapi_expr_constant(val)
+}
 
 #' Create a comparison expression
 #' @param exprs a vector of size two, the expressions to compare
@@ -37,7 +39,9 @@ expr_constant <- rapi_expr_constant
 #' @noRd
 #' @examples
 #' comp_expr <- expr_comparison(">", list(expr_constant(-42), expr_constant(42)))
-expr_comparison <- rapi_expr_comparison
+expr_comparison <- function(cmp_op, exprs) {
+  rethrow_rapi_expr_comparison(cmp_op, exprs)
+}
 
 #' Create a function call expression
 #' @param name the function name
@@ -56,7 +60,9 @@ expr_function <- function(name, args, order_bys = list(), filter_bys = list()) {
 #' @noRd
 #' @examples
 #' expr_str <- expr_tostring(expr_constant(42))
-expr_tostring <- rapi_expr_tostring
+expr_tostring <- function(expr) {
+  rethrow_rapi_expr_tostring(expr)
+}
 
 #' Set the alias for an expression
 #' @param expr the expression
@@ -64,7 +70,9 @@ expr_tostring <- rapi_expr_tostring
 #' @noRd
 #' @examples
 #' expr_set_alias(expr_constant(42), "my_alias")
-expr_set_alias <- rapi_expr_set_alias
+expr_set_alias <- function(expr, alias) {
+  rethrow_rapi_expr_set_alias(expr, alias)
+}
 
 #' @export
 print.duckdb_expr <- function(x, ...) {
@@ -269,6 +277,7 @@ reldf_order <- function(df, con, orders, ascending = NULL) {
 #' @noRd
 #' @examples
 #' null_ptr <- sexp_null_ptr()
+# Not rethrowing, internal utility
 sexp_null_ptr <- rapi_get_null_SEXP_ptr
 
 expr_window <- function(window_function, partitions=list(), order_bys=list(),
