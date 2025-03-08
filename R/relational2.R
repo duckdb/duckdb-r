@@ -5,8 +5,8 @@
 #' @noRd
 #' @examples
 #' con <- DBI::dbConnect(duckdb())
-#' rel <- rel_from_df(con, mtcars)
-#' rel2 <- rel_limit(rel, 10)
+#' df <- data.frame(a = 1:5, b = letters[1:5])
+#' rel2 <- reldf_limit(df, con, 3)
 reldf_limit <- function(df, con, n) {
   rethrow_rapi_reldf_limit(df, con@conn_ref, n)
 }
@@ -18,8 +18,8 @@ reldf_limit <- function(df, con, n) {
 #' @noRd
 #' @examples
 #' con <- DBI::dbConnect(duckdb())
-#' rel <- rel_from_df(con, mtcars)
-#' rel2 <- rel_project(rel, list(expr_reference("cyl"), expr_reference("disp")))
+#' df <- data.frame(a = 1:3, b = letters[1:3], c = LETTERS[1:3])
+#' rel2 <- reldf_project(df, con, list(expr_reference("a"), expr_reference("c")))
 reldf_project <- function(df, con, exprs) {
   rethrow_rapi_reldf_project(df, con@conn_ref, exprs)
 }
@@ -32,8 +32,8 @@ reldf_project <- function(df, con, exprs) {
 #' @examples
 #' con <- DBI::dbConnect(duckdb())
 #' DBI::dbExecute(con, "CREATE OR REPLACE MACRO gt(a, b) AS a > b")
-#' rel <- rel_from_df(con, mtcars)
-#' rel2 <- rel_filter(rel, list(expr_function("gt", list(expr_reference("cyl"), expr_constant("6")))))
+#' df <- data.frame(a = 1:5, b = letters[1:5])
+#' rel2 <- reldf_filter(df, con, list(expr_function("gt", list(expr_reference("a"), expr_constant(2)))))
 reldf_filter <- function(df, con, exprs) {
   rethrow_rapi_reldf_filter(df, con@conn_ref, exprs)
 }
@@ -46,9 +46,9 @@ reldf_filter <- function(df, con, exprs) {
 #' @noRd
 #' @examples
 #' con <- DBI::dbConnect(duckdb())
-#' rel <- rel_from_df(con, mtcars)
-#' aggrs <- list(avg_hp = expr_function("avg", list(expr_reference("hp"))))
-#' rel2 <- rel_aggregate(rel, list(expr_reference("cyl")), aggrs)
+#' df <- data.frame(group = c("A", "A", "B", "B"), value = c(1, 2, 3, 4))
+#' aggrs <- list(sum_val = expr_function("sum", list(expr_reference("value"))))
+#' rel2 <- reldf_aggregate(df, con, list(expr_reference("group")), aggrs)
 reldf_aggregate <- function(df, con, groups, aggregates) {
   rethrow_rapi_reldf_aggregate(df, con@conn_ref, groups, aggregates)
 }
@@ -61,8 +61,8 @@ reldf_aggregate <- function(df, con, groups, aggregates) {
 #' @noRd
 #' @examples
 #' con <- DBI::dbConnect(duckdb())
-#' rel <- rel_from_df(con, mtcars)
-#' rel2 <- rel_order(rel, list(expr_reference("hp")))
+#' df <- data.frame(a = c(2, 1, 3), b = letters[1:3])
+#' rel2 <- reldf_order(df, con, list(expr_reference("a")))
 reldf_order <- function(df, con, orders, ascending = NULL) {
   if (is.null(ascending)) {
     ascending <- rep(TRUE, length(orders))
@@ -85,13 +85,13 @@ reldf_order <- function(df, con, orders, ascending = NULL) {
 #' @examples
 #' con <- DBI::dbConnect(duckdb())
 #' DBI::dbExecute(con, "CREATE OR REPLACE MACRO eq(a, b) AS a = b")
-#' left <- rel_from_df(con, mtcars)
-#' right <- rel_from_df(con, mtcars)
-#' cond <- list(expr_function("eq", list(expr_reference("cyl", left), expr_reference("cyl", right))))
-#' rel2 <- rel_join(left, right, cond, "inner")
-#' rel2 <- rel_join(left, right, cond, "right")
-#' rel2 <- rel_join(left, right, cond, "left")
-#' rel2 <- rel_join(left, right, cond, "outer")
+#' left <- data.frame(id = 1:3, val_a = c("a", "b", "c"))
+#' right <- data.frame(id = 2:4, val_b = c("x", "y", "z"))
+#' cond <- list(expr_function("eq", list(expr_reference("id", left), expr_reference("id", right))))
+#' rel2 <- reldf_join(left, right, con, cond, "inner")
+#' rel2 <- reldf_join(left, right, con, cond, "right")
+#' rel2 <- reldf_join(left, right, con, cond, "left")
+#' rel2 <- reldf_join(left, right, con, cond, "outer")
 reldf_join <- function(
   left,
   right,
@@ -117,9 +117,9 @@ reldf_join <- function(
 #' @noRd
 #' @examples
 #' con <- DBI::dbConnect(duckdb())
-#' rel_a <- rel_from_df(con, mtcars)
-#' rel_b <- rel_from_df(con, mtcars)
-#' rel_union_all(rel_a, rel_b)
+#' df_a <- data.frame(a = 1:2, b = c("a", "b"))
+#' df_b <- data.frame(a = 3:4, b = c("c", "d"))
+#' reldf_union_all(df_a, df_b, con)
 reldf_union_all <- function(df_a, df_b, con) {
   rethrow_rapi_reldf_union_all(df_a, df_b, con@conn_ref)
 }
@@ -130,8 +130,8 @@ reldf_union_all <- function(df_a, df_b, con) {
 #' @noRd
 #' @examples
 #' con <- DBI::dbConnect(duckdb())
-#' rel <- rel_from_df(con, mtcars)
-#' rel2 <- rel_distinct(rel)
+#' df <- data.frame(a = c(1, 1, 2, 2), b = c("a", "a", "b", "c"))
+#' rel2 <- reldf_distinct(df, con)
 reldf_distinct <- function(df, con) {
   rethrow_rapi_reldf_distinct(df, con@conn_ref)
 }
@@ -142,9 +142,10 @@ reldf_distinct <- function(df, con) {
 #' @return a new `duckdb_relation` object resulting from the intersection
 #' @noRd
 #' @examples
-#' rel_a <- rel_from_df(con, mtcars)
-#' rel_b <- rel_from_df(con, mtcars)
-#' rel_set_intersect_all(rel_a, rel_b)
+#' con <- DBI::dbConnect(duckdb())
+#' df_a <- data.frame(a = 1:3, b = letters[1:3])
+#' df_b <- data.frame(a = 2:4, b = letters[2:4])
+#' reldf_set_intersect(df_a, df_b, con)
 reldf_set_intersect <- function(df_a, df_b, con) {
   rethrow_rapi_reldf_set_intersect(df_a, df_b, con@conn_ref)
 }
@@ -155,9 +156,10 @@ reldf_set_intersect <- function(df_a, df_b, con) {
 #' @return a new `duckdb_relation` object resulting from the set difference
 #' @noRd
 #' @examples
-#' rel_a <- rel_from_df(con, mtcars)
-#' rel_b <- rel_from_df(con, mtcars)
-#' rel_set_diff(rel_a, rel_b)
+#' con <- DBI::dbConnect(duckdb())
+#' df_a <- data.frame(a = 1:3, b = letters[1:3])
+#' df_b <- data.frame(a = 2:4, b = letters[2:4])
+#' reldf_set_diff(df_a, df_b, con)
 reldf_set_diff <- function(df_a, df_b, con) {
   rethrow_rapi_reldf_set_diff(df_a, df_b, con@conn_ref)
 }
@@ -168,9 +170,10 @@ reldf_set_diff <- function(df_a, df_b, con) {
 #' @return a new `duckdb_relation` object resulting from the symmetric difference of rel_a and rel_b
 #' @noRd
 #' @examples
-#' rel_a <- rel_from_df(con, mtcars)
-#' rel_b <- rel_from_df(con, mtcars)
-#' rel_set_symdiff(rel_a, rel_b)
+#' con <- DBI::dbConnect(duckdb())
+#' df_a <- data.frame(a = 1:3, b = letters[1:3])
+#' df_b <- data.frame(a = 2:4, b = letters[2:4])
+#' reldf_set_symdiff(df_a, df_b, con)
 reldf_set_symdiff <- function(df_a, df_b, con) {
   rethrow_rapi_reldf_set_symdiff(df_a, df_b, con@conn_ref)
 }
@@ -180,8 +183,8 @@ reldf_set_symdiff <- function(df_a, df_b, con) {
 #' @noRd
 #' @examples
 #' con <- DBI::dbConnect(duckdb())
-#' rel <- rel_from_df(con, mtcars)
-#' rel_explain(rel)
+#' df <- data.frame(a = 1:3, b = letters[1:3])
+#' reldf_explain(df, con)
 reldf_explain <- function(df, con) {
   # Legacy
   cat(rethrow_rapi_reldf_explain(df, con@conn_ref, "EXPLAIN_STANDARD", "DEFAULT")[[2]][[1]])
@@ -193,8 +196,8 @@ reldf_explain <- function(df, con) {
 #' @noRd
 #' @examples
 #' con <- DBI::dbConnect(duckdb())
-#' rel <- rel_from_df(con, mtcars)
-#' rel_alias(rel)
+#' df <- data.frame(a = 1:3, b = letters[1:3])
+#' reldf_alias(df, con)
 reldf_alias <- function(df, con) {
   rethrow_rapi_reldf_alias(df, con@conn_ref)
 }
@@ -205,8 +208,8 @@ reldf_alias <- function(df, con) {
 #' @noRd
 #' @examples
 #' con <- DBI::dbConnect(duckdb())
-#' rel <- rel_from_df(con, mtcars)
-#' rel_set_alias(rel, "my_new_alias")
+#' df <- data.frame(a = 1:3, b = letters[1:3])
+#' reldf_set_alias(df, con, "my_new_alias")
 reldf_set_alias <- function(df, con, alias) {
   rethrow_rapi_reldf_set_alias(df, con@conn_ref, alias)
 }
@@ -217,8 +220,9 @@ reldf_set_alias <- function(df, con, alias) {
 #' @noRd
 #' @examples
 #' con <- DBI::dbConnect(duckdb())
-#' DBI::dbWriteTable(con, "mtcars", mtcars)
-#' rel <- rel_from_sql(con, "SELECT * FROM mtcars")
+#' df <- data.frame(a = 1:3, b = letters[1:3])
+#' DBI::dbWriteTable(con, "small_table", df)
+#' reldf_from_sql(con, "SELECT * FROM small_table")
 reldf_from_sql <- function(con, sql) {
     rethrow_rapi_reldf_from_sql(con@conn_ref, sql)
 }
@@ -229,8 +233,9 @@ reldf_from_sql <- function(con, sql) {
 #' @noRd
 #' @examples
 #' con <- DBI::dbConnect(duckdb())
-#' DBI::dbWriteTable(con, "mtcars", mtcars)
-#' rel <- rel_from_table(con, "mtcars")
+#' df <- data.frame(a = 1:3, b = letters[1:3])
+#' DBI::dbWriteTable(con, "small_table", df)
+#' reldf_from_table(con, "small_table")
 reldf_from_table <- function(con, table_name, schema_name = "MAIN") {
   rethrow_rapi_reldf_from_table(con@conn_ref, schema_name, table_name)
 }
@@ -243,7 +248,7 @@ reldf_from_table <- function(con, table_name, schema_name = "MAIN") {
 #' @noRd
 #' @examples
 #' con <- DBI::dbConnect(duckdb())
-#' rel <- rel_from_table_function(con, 'generate_series', list(10L))
+#' reldf_from_table_function(con, 'generate_series', list(10L))
 reldf_from_table_function <- function(con, function_name, positional_parameters = list(), named_parameters = list()) {
   rethrow_rapi_reldf_from_table_function(con@conn_ref, function_name, positional_parameters, named_parameters)
 }
