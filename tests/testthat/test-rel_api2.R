@@ -18,7 +18,7 @@ test_that("relational anti_join(join_by(a)) order-enforcing 2", {
     df4,
     con,
     list(
-      expr_function("___eq_na_matches_na", list(expr_reference2("a", df2, con), expr_reference2("a", df4, con)))
+      expr_function("___eq_na_matches_na", list(expr_reference("a", df2, con), expr_reference("a", df4, con)))
     ),
     "anti"
   )
@@ -52,7 +52,7 @@ test_that("relational anti_join(join_by(a)) order-enforcing 2", {
     df4,
     con,
     list(
-      expr_function("___eq_na_matches_na", list(expr_reference2("a", df2, con), expr_reference2("a", df4, con)))
+      expr_function("___eq_na_matches_na", list(expr_reference("a", df2, con), expr_reference("a", df4, con)))
     ),
     "anti"
   )
@@ -79,17 +79,17 @@ test_that("relational arrange(a) order-preserving 2", {
     con,
     list(
       {
-        tmp_expr <- expr_reference2("a")
+        tmp_expr <- expr_reference("a")
         expr_set_alias(tmp_expr, "a")
         tmp_expr
       },
       {
-        tmp_expr <- expr_reference2("b")
+        tmp_expr <- expr_reference("b")
         expr_set_alias(tmp_expr, "b")
         tmp_expr
       },
       {
-        tmp_expr <- expr_reference2("g")
+        tmp_expr <- expr_reference("g")
         expr_set_alias(tmp_expr, "g")
         tmp_expr
       },
@@ -101,7 +101,7 @@ test_that("relational arrange(a) order-preserving 2", {
     )
   )
   "arrange"
-  df3 <- reldf_order(df2, con, list(expr_reference2("a"), expr_reference2("___row_number")))
+  df3 <- reldf_order(df2, con, list(expr_reference("a"), expr_reference("___row_number")))
   "arrange"
   df4 <- reldf_project(
     df3,

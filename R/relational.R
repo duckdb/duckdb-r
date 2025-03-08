@@ -2,38 +2,22 @@
 
 #' Create a column reference expression
 #' @param names the column name to be referenced, could be a list to refer to schema.table.column etc.
-#' @param table the optional table name or a relation object to be referenced
+#' @param table the optional table name or a relation object or relational data frame to be referenced
+#' @param con the optional connection
 #' @return a column reference expression
 #' @noRd
 #' @examples
 #' col_ref_expr <- expr_reference("some_column_name")
 #' col_ref_expr2 <- expr_reference("some_column_name", "some_table_name")
-expr_reference <- function(names, table = NULL) {
+expr_reference <- function(names, table = NULL, con = NULL) {
   if (inherits(table, "duckdb_relation")) {
     names <- c(rel_alias(table), names)
-  }
-  if (is.character(table) && !identical(table, "")) {
-    names <- c(table, names)
-  }
-   rethrow_rapi_expr_reference(names)
-}
-
-
-#' Create a column reference expression
-#' @param names the column name to be referenced, could be a list to refer to schema.table.column etc.
-#' @param table the optional table name or a relation object to be referenced
-#' @return a column reference expression
-#' @noRd
-#' @examples
-#' col_ref_expr <- expr_reference("some_column_name")
-#' col_ref_expr2 <- expr_reference("some_column_name", "some_table_name")
-expr_reference2 <- function(names, table = NULL, con = NULL) {
-  if (inherits(table, "data.frame")) {
+  } else if (inherits(table, "data.frame")) {
     names <- c(reldf_alias(table, con), names)
-  }
-  if (is.character(table) && !identical(table, "")) {
+  } else if (is.character(table) && !identical(table, "")) {
     names <- c(table, names)
   }
+
   rethrow_rapi_expr_reference(names)
 }
 
