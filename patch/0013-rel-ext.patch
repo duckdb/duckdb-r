@@ -1,0 +1,144 @@
+diff --git a/src/duckdb/src/common/enum_util.cpp b/src/duckdb/src/common/enum_util.cpp
+index 49e7bb2b9..8ab96b7da 100644
+--- a/src/duckdb/src/common/enum_util.cpp
++++ b/src/duckdb/src/common/enum_util.cpp
+@@ -3157,19 +3157,20 @@ const StringUtil::EnumStringLiteral *GetRelationTypeValues() {
+ 		{ static_cast<uint32_t>(RelationType::VIEW_RELATION), "VIEW_RELATION" },
+ 		{ static_cast<uint32_t>(RelationType::QUERY_RELATION), "QUERY_RELATION" },
+ 		{ static_cast<uint32_t>(RelationType::DELIM_JOIN_RELATION), "DELIM_JOIN_RELATION" },
+-		{ static_cast<uint32_t>(RelationType::DELIM_GET_RELATION), "DELIM_GET_RELATION" }
++		{ static_cast<uint32_t>(RelationType::DELIM_GET_RELATION), "DELIM_GET_RELATION" },
++		{ static_cast<uint32_t>(RelationType::EXTENSION_RELATION), "EXTENSION_RELATION" }
+ 	};
+ 	return values;
+ }
+ 
+ template<>
+ const char* EnumUtil::ToChars<RelationType>(RelationType value) {
+-	return StringUtil::EnumToString(GetRelationTypeValues(), 28, "RelationType", static_cast<uint32_t>(value));
++	return StringUtil::EnumToString(GetRelationTypeValues(), 29, "RelationType", static_cast<uint32_t>(value));
+ }
+ 
+ template<>
+ RelationType EnumUtil::FromString<RelationType>(const char *value) {
+-	return static_cast<RelationType>(StringUtil::StringToEnum(GetRelationTypeValues(), 28, "RelationType", value));
++	return static_cast<RelationType>(StringUtil::StringToEnum(GetRelationTypeValues(), 29, "RelationType", value));
+ }
+ 
+ const StringUtil::EnumStringLiteral *GetRenderModeValues() {
+diff --git a/src/duckdb/src/common/enums/relation_type.cpp b/src/duckdb/src/common/enums/relation_type.cpp
+index 4f58ed7c4..dc02b8970 100644
+--- a/src/duckdb/src/common/enums/relation_type.cpp
++++ b/src/duckdb/src/common/enums/relation_type.cpp
+@@ -61,6 +61,8 @@ string RelationTypeToString(RelationType type) {
+ 		return "VIEW_RELATION";
+ 	case RelationType::QUERY_RELATION:
+ 		return "QUERY_RELATION";
++	case RelationType::EXTENSION_RELATION:
++		return "EXTENSION_RELATION";
+ 	case RelationType::INVALID_RELATION:
+ 		break;
+ 	}
+diff --git a/src/duckdb/src/include/duckdb/common/enums/relation_type.hpp b/src/duckdb/src/include/duckdb/common/enums/relation_type.hpp
+index 302b2f369..bca6af491 100644
+--- a/src/duckdb/src/include/duckdb/common/enums/relation_type.hpp
++++ b/src/duckdb/src/include/duckdb/common/enums/relation_type.hpp
+@@ -43,7 +43,8 @@ enum class RelationType : uint8_t {
+ 	VIEW_RELATION,
+ 	QUERY_RELATION,
+ 	DELIM_JOIN_RELATION,
+-	DELIM_GET_RELATION
++	DELIM_GET_RELATION,
++	EXTENSION_RELATION = 255
+ };
+ 
+ string RelationTypeToString(RelationType type);
+diff --git a/src/duckdb/src/include/duckdb/main/connection.hpp b/src/duckdb/src/include/duckdb/main/connection.hpp
+index f5b46717c..a40042768 100644
+--- a/src/duckdb/src/include/duckdb/main/connection.hpp
++++ b/src/duckdb/src/include/duckdb/main/connection.hpp
+@@ -139,10 +139,10 @@ public:
+ 	DUCKDB_API shared_ptr<Relation> View(const string &tname);
+ 	DUCKDB_API shared_ptr<Relation> View(const string &schema_name, const string &table_name);
+ 	//! Returns a relation that calls a specified table function
+-	DUCKDB_API shared_ptr<Relation> TableFunction(const string &tname);
++	DUCKDB_API shared_ptr<Relation> TableFunction(const string &tname, bool auto_init = true);
+ 	DUCKDB_API shared_ptr<Relation> TableFunction(const string &tname, const vector<Value> &values,
+-	                                              const named_parameter_map_t &named_parameters);
+-	DUCKDB_API shared_ptr<Relation> TableFunction(const string &tname, const vector<Value> &values);
++	                                              const named_parameter_map_t &named_parameters, bool auto_init = true);
++	DUCKDB_API shared_ptr<Relation> TableFunction(const string &tname, const vector<Value> &values, bool auto_init = true);
+ 	//! Returns a relation that produces values
+ 	DUCKDB_API shared_ptr<Relation> Values(const vector<vector<Value>> &values);
+ 	DUCKDB_API shared_ptr<Relation> Values(vector<vector<unique_ptr<ParsedExpression>>> &&values);
+diff --git a/src/duckdb/src/include/duckdb/main/relation.hpp b/src/duckdb/src/include/duckdb/main/relation.hpp
+index 37b137aae..62ffeedb8 100644
+--- a/src/duckdb/src/include/duckdb/main/relation.hpp
++++ b/src/duckdb/src/include/duckdb/main/relation.hpp
+@@ -197,9 +197,9 @@ public:
+ 	DUCKDB_API virtual void Delete(const string &condition = string());
+ 	//! Create a relation from calling a table in/out function on the input relation
+ 	//! Create a relation from calling a table in/out function on the input relation
+-	DUCKDB_API shared_ptr<Relation> TableFunction(const std::string &fname, const vector<Value> &values);
++	DUCKDB_API shared_ptr<Relation> TableFunction(const std::string &fname, const vector<Value> &values, bool auto_init = true);
+ 	DUCKDB_API shared_ptr<Relation> TableFunction(const std::string &fname, const vector<Value> &values,
+-	                                              const named_parameter_map_t &named_parameters);
++	                                              const named_parameter_map_t &named_parameters, bool auto_init = true);
+ 
+ public:
+ 	//! Whether or not the relation inherits column bindings from its child or not, only relevant for binding
+diff --git a/src/duckdb/src/main/connection.cpp b/src/duckdb/src/main/connection.cpp
+index a5742dbfd..9c137581a 100644
+--- a/src/duckdb/src/main/connection.cpp
++++ b/src/duckdb/src/main/connection.cpp
+@@ -217,19 +217,19 @@ shared_ptr<Relation> Connection::View(const string &schema_name, const string &t
+ 	return make_shared_ptr<ViewRelation>(context, schema_name, table_name);
+ }
+ 
+-shared_ptr<Relation> Connection::TableFunction(const string &fname) {
+-	vector<Value> values;
+-	named_parameter_map_t named_parameters;
+-	return TableFunction(fname, values, named_parameters);
++shared_ptr<Relation> Connection::TableFunction(const string &fname, const vector<Value> &values,
++                                               const named_parameter_map_t &named_parameters, bool auto_init) {
++	return make_shared_ptr<TableFunctionRelation>(context, fname, values, named_parameters, nullptr, auto_init);
+ }
+ 
+-shared_ptr<Relation> Connection::TableFunction(const string &fname, const vector<Value> &values,
+-                                               const named_parameter_map_t &named_parameters) {
+-	return make_shared_ptr<TableFunctionRelation>(context, fname, values, named_parameters);
++shared_ptr<Relation> Connection::TableFunction(const string &fname, const vector<Value> &values, bool auto_init) {
++	return make_shared_ptr<TableFunctionRelation>(context, fname, values, nullptr, auto_init);
+ }
+ 
+-shared_ptr<Relation> Connection::TableFunction(const string &fname, const vector<Value> &values) {
+-	return make_shared_ptr<TableFunctionRelation>(context, fname, values);
++shared_ptr<Relation> Connection::TableFunction(const string &fname, bool auto_init) {
++	vector<Value> values;
++	named_parameter_map_t named_parameters;
++	return TableFunction(fname, values, named_parameters, auto_init);
+ }
+ 
+ shared_ptr<Relation> Connection::Values(const vector<vector<Value>> &values) {
+diff --git a/src/duckdb/src/main/relation.cpp b/src/duckdb/src/main/relation.cpp
+index 9154822f9..3e65ce993 100644
+--- a/src/duckdb/src/main/relation.cpp
++++ b/src/duckdb/src/main/relation.cpp
+@@ -369,13 +369,13 @@ void Relation::Delete(const string &condition) {
+ }
+ 
+ shared_ptr<Relation> Relation::TableFunction(const std::string &fname, const vector<Value> &values,
+-                                             const named_parameter_map_t &named_parameters) {
++                                             const named_parameter_map_t &named_parameters, bool auto_init) {
+ 	return make_shared_ptr<TableFunctionRelation>(context->GetContext(), fname, values, named_parameters,
+-	                                              shared_from_this());
++	                                              shared_from_this(), auto_init);
+ }
+ 
+-shared_ptr<Relation> Relation::TableFunction(const std::string &fname, const vector<Value> &values) {
+-	return make_shared_ptr<TableFunctionRelation>(context->GetContext(), fname, values, shared_from_this());
++shared_ptr<Relation> Relation::TableFunction(const std::string &fname, const vector<Value> &values, bool auto_init) {
++	return make_shared_ptr<TableFunctionRelation>(context->GetContext(), fname, values, shared_from_this(), auto_init);
+ }
+ 
+ string Relation::ToString() {
