@@ -9,6 +9,7 @@ add_library(
   database.cpp
   register.cpp
   relational.cpp
+  relational2.cpp
   reltoaltrep.cpp
   altrepdataframe_relation.cpp
   scan.cpp
