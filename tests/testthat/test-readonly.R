@@ -76,6 +76,6 @@ test_that("read_only flag still throws error when table is attempted to be creat
 
     con <- dbConnect(duckdb(), db_path, read_only=TRUE)
     rel <- duckdb:::rel_from_df(con, mtcars)
-    expect_error(duckdb:::reldf_sql(rel, "create table t as (SELECT cyl, disp FROM _ )"))
+    expect_error(duckdb:::rel_sql(rel, "create table t2 as (SELECT cyl, disp FROM _ )"))
     dbDisconnect(con)
 })

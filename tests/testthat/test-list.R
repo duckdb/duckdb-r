@@ -39,6 +39,6 @@ test_that("rel_filter() handles LIST logical type", {
   rel1 <- rel_from_df(con, df1)
   rel2 <- rel_filter(rel1, list(expr_constant(TRUE)))
 
-  df2 <- reldf_to_altrep(rel)
+  df2 <- rel_to_altrep(rel2)
   expect_equal(df1$a, df2$a)
 })

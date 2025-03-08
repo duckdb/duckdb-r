@@ -19,7 +19,7 @@ test_that("relational anti_join(join_by(a)) order-preserving", {
   df2 <- data.frame(a = 2:5, b = 2)
 
   "anti_join"
-  rel3 <- reldf_from_df(con, df, experimental = experimental)
+  rel3 <- rel_from_df(con, df2, experimental = experimental)
   "anti_join"
   rel4 <- rel_set_alias(rel3, "rhs")
   "anti_join"
@@ -98,7 +98,7 @@ test_that("relational anti_join(join_by(a)) order-enforcing", {
   df2 <- data.frame(a = 2:5, b = 2)
 
   "anti_join"
-  rel3 <- reldf_from_df(con, df, experimental = experimental)
+  rel3 <- rel_from_df(con, df2, experimental = experimental)
   "anti_join"
   rel4 <- rel_set_alias(rel3, "rhs")
   "anti_join"
@@ -177,7 +177,7 @@ test_that("relational arrange(a) order-preserving", {
     )
   )
   "arrange"
-  rel3 <- reldf_order(rel, list(expr_reference("a"), expr_reference("___row_number")))
+  rel3 <- rel_order(rel2, list(expr_reference("a"), expr_reference("___row_number")))
   "arrange"
   rel4 <- rel_project(
     rel3,
@@ -244,7 +244,7 @@ test_that("relational arrange(g) order-preserving", {
     )
   )
   "arrange"
-  rel3 <- reldf_order(rel, list(expr_reference("g"), expr_reference("___row_number")))
+  rel3 <- rel_order(rel2, list(expr_reference("g"), expr_reference("___row_number")))
   "arrange"
   rel4 <- rel_project(
     rel3,
@@ -567,7 +567,7 @@ test_that("relational count() order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(n = 6L)
@@ -860,7 +860,7 @@ test_that("relational count() order-enforcing", {
     )
   )
   "arrange"
-  rel3 <- reldf_order(rel, list(expr_reference("n")))
+  rel3 <- rel_order(rel2, list(expr_reference("n")))
   rel3
   out <- rel_to_altrep(rel3)
   expect_identical(
@@ -1720,7 +1720,7 @@ test_that("relational union_all(data.frame(a = 1L, b = 3, g = 2L)) %>% distinct(
   df2 <- data.frame(a = 1L, b = 3, g = 2L)
 
   "union_all"
-  rel2 <- reldf_from_df(con, df, experimental = experimental)
+  rel2 <- rel_from_df(con, df2, experimental = experimental)
   "union_all"
   rel3 <- rel_project(
     rel1,
@@ -1905,7 +1905,7 @@ test_that("relational union_all(data.frame(a = 1L, b = 3, g = 2L)) %>% distinct(
     )
   )
   rel12
-  out <- reldf_to_altrep(rel1)
+  out <- rel_to_altrep(rel12)
   expect_identical(
     out,
     data.frame(g = 1:3)
@@ -1925,7 +1925,7 @@ test_that("relational union_all(data.frame(a = 1L, b = 4, g = 2L)) %>% distinct(
   df2 <- data.frame(a = 1L, b = 4, g = 2L)
 
   "union_all"
-  rel2 <- reldf_from_df(con, df, experimental = experimental)
+  rel2 <- rel_from_df(con, df2, experimental = experimental)
   "union_all"
   rel3 <- rel_project(
     rel1,
@@ -2110,7 +2110,7 @@ test_that("relational union_all(data.frame(a = 1L, b = 4, g = 2L)) %>% distinct(
     )
   )
   rel12
-  out <- reldf_to_altrep(rel1)
+  out <- rel_to_altrep(rel12)
   expect_identical(
     out,
     data.frame(g = 1:3)
@@ -2130,7 +2130,7 @@ test_that("relational union_all(data.frame(a = 1L, b = 5, g = 2L)) %>% distinct(
   df2 <- data.frame(a = 1L, b = 5, g = 2L)
 
   "union_all"
-  rel2 <- reldf_from_df(con, df, experimental = experimental)
+  rel2 <- rel_from_df(con, df2, experimental = experimental)
   "union_all"
   rel3 <- rel_project(
     rel1,
@@ -2315,7 +2315,7 @@ test_that("relational union_all(data.frame(a = 1L, b = 5, g = 2L)) %>% distinct(
     )
   )
   rel12
-  out <- reldf_to_altrep(rel1)
+  out <- rel_to_altrep(rel12)
   expect_identical(
     out,
     data.frame(g = 1:3)
@@ -2335,7 +2335,7 @@ test_that("relational union_all(data.frame(a = 1L, b = 6, g = 2L)) %>% distinct(
   df2 <- data.frame(a = 1L, b = 6, g = 2L)
 
   "union_all"
-  rel2 <- reldf_from_df(con, df, experimental = experimental)
+  rel2 <- rel_from_df(con, df2, experimental = experimental)
   "union_all"
   rel3 <- rel_project(
     rel1,
@@ -2520,7 +2520,7 @@ test_that("relational union_all(data.frame(a = 1L, b = 6, g = 2L)) %>% distinct(
     )
   )
   rel12
-  out <- reldf_to_altrep(rel1)
+  out <- rel_to_altrep(rel12)
   expect_identical(
     out,
     data.frame(g = 1:3)
@@ -2540,7 +2540,7 @@ test_that("relational union_all(data.frame(a = 1L, b = 7, g = 2L)) %>% distinct(
   df2 <- data.frame(a = 1L, b = 7, g = 2L)
 
   "union_all"
-  rel2 <- reldf_from_df(con, df, experimental = experimental)
+  rel2 <- rel_from_df(con, df2, experimental = experimental)
   "union_all"
   rel3 <- rel_project(
     rel1,
@@ -2725,7 +2725,7 @@ test_that("relational union_all(data.frame(a = 1L, b = 7, g = 2L)) %>% distinct(
     )
   )
   rel12
-  out <- reldf_to_altrep(rel1)
+  out <- rel_to_altrep(rel12)
   expect_identical(
     out,
     data.frame(g = 1:3)
@@ -2904,7 +2904,7 @@ test_that("relational distinct(a) order-enforcing", {
     )
   )
   "distinct"
-  rel3 <- reldf_distinct(rel)
+  rel3 <- rel_distinct(rel2)
   "arrange"
   rel4 <- rel_order(rel3, list(expr_reference("a")))
   rel4
@@ -2942,7 +2942,7 @@ test_that("relational distinct(a, b) order-enforcing", {
     )
   )
   "distinct"
-  rel3 <- reldf_distinct(rel)
+  rel3 <- rel_distinct(rel2)
   "arrange"
   rel4 <- rel_order(rel3, list(expr_reference("a"), expr_reference("b")))
   rel4
@@ -2975,7 +2975,7 @@ test_that("relational distinct(b, b) order-enforcing", {
     )
   )
   "distinct"
-  rel3 <- reldf_distinct(rel)
+  rel3 <- rel_distinct(rel2)
   "arrange"
   rel4 <- rel_order(rel3, list(expr_reference("b")))
   rel4
@@ -3008,7 +3008,7 @@ test_that("relational distinct(g) order-enforcing", {
     )
   )
   "distinct"
-  rel3 <- reldf_distinct(rel)
+  rel3 <- rel_distinct(rel2)
   "arrange"
   rel4 <- rel_order(rel3, list(expr_reference("g")))
   rel4
@@ -3032,9 +3032,9 @@ test_that("relational union_all(data.frame(a = 1L, b = 3, g = 2L)) %>% distinct(
   df2 <- data.frame(a = 1L, b = 3, g = 2L)
 
   "union_all"
-  rel2 <- reldf_from_df(con, df, experimental = experimental)
+  rel2 <- rel_from_df(con, df2, experimental = experimental)
   "union_all"
-  rel3 <- reldf_union_all(rel1, rel)
+  rel3 <- rel_union_all(rel1, rel2)
   "distinct"
   rel4 <- rel_project(
     rel3,
@@ -3071,9 +3071,9 @@ test_that("relational union_all(data.frame(a = 1L, b = 4, g = 2L)) %>% distinct(
   df2 <- data.frame(a = 1L, b = 4, g = 2L)
 
   "union_all"
-  rel2 <- reldf_from_df(con, df, experimental = experimental)
+  rel2 <- rel_from_df(con, df2, experimental = experimental)
   "union_all"
-  rel3 <- reldf_union_all(rel1, rel)
+  rel3 <- rel_union_all(rel1, rel2)
   "distinct"
   rel4 <- rel_project(
     rel3,
@@ -3110,9 +3110,9 @@ test_that("relational union_all(data.frame(a = 1L, b = 5, g = 2L)) %>% distinct(
   df2 <- data.frame(a = 1L, b = 5, g = 2L)
 
   "union_all"
-  rel2 <- reldf_from_df(con, df, experimental = experimental)
+  rel2 <- rel_from_df(con, df2, experimental = experimental)
   "union_all"
-  rel3 <- reldf_union_all(rel1, rel)
+  rel3 <- rel_union_all(rel1, rel2)
   "distinct"
   rel4 <- rel_project(
     rel3,
@@ -3149,9 +3149,9 @@ test_that("relational union_all(data.frame(a = 1L, b = 6, g = 2L)) %>% distinct(
   df2 <- data.frame(a = 1L, b = 6, g = 2L)
 
   "union_all"
-  rel2 <- reldf_from_df(con, df, experimental = experimental)
+  rel2 <- rel_from_df(con, df2, experimental = experimental)
   "union_all"
-  rel3 <- reldf_union_all(rel1, rel)
+  rel3 <- rel_union_all(rel1, rel2)
   "distinct"
   rel4 <- rel_project(
     rel3,
@@ -3188,9 +3188,9 @@ test_that("relational union_all(data.frame(a = 1L, b = 7, g = 2L)) %>% distinct(
   df2 <- data.frame(a = 1L, b = 7, g = 2L)
 
   "union_all"
-  rel2 <- reldf_from_df(con, df, experimental = experimental)
+  rel2 <- rel_from_df(con, df2, experimental = experimental)
   "union_all"
-  rel3 <- reldf_union_all(rel1, rel)
+  rel3 <- rel_union_all(rel1, rel2)
   "distinct"
   rel4 <- rel_project(
     rel3,
@@ -4071,7 +4071,7 @@ test_that("relational full_join(join_by(a)) order-preserving", {
   df2 <- data.frame(a = 2:5, b = 2)
 
   "full_join"
-  rel3 <- reldf_from_df(con, df, experimental = experimental)
+  rel3 <- rel_from_df(con, df2, experimental = experimental)
   "full_join"
   rel4 <- rel_set_alias(rel3, "rhs")
   "full_join"
@@ -4212,7 +4212,7 @@ test_that("relational full_join(join_by(a)) order-enforcing", {
   df2 <- data.frame(a = 2:5, b = 2)
 
   "full_join"
-  rel3 <- reldf_from_df(con, df, experimental = experimental)
+  rel3 <- rel_from_df(con, df2, experimental = experimental)
   "full_join"
   rel4 <- rel_set_alias(rel3, "rhs")
   "full_join"
@@ -4311,7 +4311,7 @@ test_that("relational inner_join(join_by(a)) order-preserving", {
   df2 <- data.frame(a = 2:5, b = 2)
 
   "inner_join"
-  rel3 <- reldf_from_df(con, df, experimental = experimental)
+  rel3 <- rel_from_df(con, df2, experimental = experimental)
   "inner_join"
   rel4 <- rel_set_alias(rel3, "rhs")
   "inner_join"
@@ -4452,7 +4452,7 @@ test_that("relational inner_join(join_by(a)) order-enforcing", {
   df2 <- data.frame(a = 2:5, b = 2)
 
   "inner_join"
-  rel3 <- reldf_from_df(con, df, experimental = experimental)
+  rel3 <- rel_from_df(con, df2, experimental = experimental)
   "inner_join"
   rel4 <- rel_set_alias(rel3, "rhs")
   "inner_join"
@@ -4550,7 +4550,7 @@ test_that("relational intersect() order-preserving", {
   df2 <- data.frame(a = 2:5, b = 2)
 
   "semi_join"
-  rel3 <- reldf_from_df(con, df, experimental = experimental)
+  rel3 <- rel_from_df(con, df2, experimental = experimental)
   "semi_join"
   rel4 <- rel_set_alias(rel3, "rhs")
   "semi_join"
@@ -4720,9 +4720,9 @@ test_that("relational intersect() order-enforcing", {
   df2 <- data.frame(a = 2:5, b = 2)
 
   "intersect"
-  rel2 <- reldf_from_df(con, df, experimental = experimental)
+  rel2 <- rel_from_df(con, df2, experimental = experimental)
   "intersect"
-  rel3 <- reldf_set_intersect(rel1, rel)
+  rel3 <- rel_set_intersect(rel1, rel2)
   "arrange"
   rel4 <- rel_order(rel3, list(expr_reference("a"), expr_reference("b")))
   rel4
@@ -4754,7 +4754,7 @@ test_that("relational left_join(join_by(a)) order-preserving", {
   df2 <- data.frame(a = 2:5, b = 2)
 
   "left_join"
-  rel3 <- reldf_from_df(con, df, experimental = experimental)
+  rel3 <- rel_from_df(con, df2, experimental = experimental)
   "left_join"
   rel4 <- rel_set_alias(rel3, "rhs")
   "left_join"
@@ -4895,7 +4895,7 @@ test_that("relational left_join(join_by(a)) order-enforcing", {
   df2 <- data.frame(a = 2:5, b = 2)
 
   "left_join"
-  rel3 <- reldf_from_df(con, df, experimental = experimental)
+  rel3 <- rel_from_df(con, df2, experimental = experimental)
   "left_join"
   rel4 <- rel_set_alias(rel3, "rhs")
   "left_join"
@@ -5040,7 +5040,7 @@ test_that("relational mutate(a + 1) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(
@@ -5219,7 +5219,7 @@ test_that("relational mutate(c = a + 1) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(
@@ -5278,7 +5278,7 @@ test_that("relational mutate(`if` = a + 1) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(
@@ -5328,7 +5328,7 @@ test_that("relational mutate(sum(a)) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(
@@ -5487,7 +5487,7 @@ test_that("relational mutate(mean(a)) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(
@@ -5646,7 +5646,7 @@ test_that("relational mutate(sd(a)) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(
@@ -5815,7 +5815,7 @@ test_that("relational mutate(lag(a)) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(
@@ -5994,7 +5994,7 @@ test_that("relational mutate(lead(a)) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(
@@ -6173,7 +6173,7 @@ test_that("relational mutate(lag(a, 2)) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(
@@ -6352,7 +6352,7 @@ test_that("relational mutate(lead(a, 2)) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(
@@ -6531,7 +6531,7 @@ test_that("relational mutate(lag(a, 4)) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(
@@ -6710,7 +6710,7 @@ test_that("relational mutate(lead(a, 4)) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(
@@ -6893,7 +6893,7 @@ test_that("relational mutate(lag(a, default = 0)) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(
@@ -7080,7 +7080,7 @@ test_that("relational mutate(lead(a, default = 1000)) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(
@@ -7253,7 +7253,7 @@ test_that("relational mutate(min(a)) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(
@@ -7412,7 +7412,7 @@ test_that("relational mutate(max(a)) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(
@@ -7571,7 +7571,7 @@ test_that("relational mutate(first(a)) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(
@@ -7730,7 +7730,7 @@ test_that("relational mutate(last(a)) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(
@@ -7905,7 +7905,7 @@ test_that("relational mutate(nth(a, 2)) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(
@@ -8086,7 +8086,7 @@ test_that("relational mutate(a / b) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(
@@ -8968,7 +8968,7 @@ test_that("relational mutate(d = a %in% NA_real_) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L), d = FALSE)
@@ -9016,7 +9016,7 @@ test_that("relational mutate(d = a %in% NULL) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L), d = FALSE)
@@ -9064,7 +9064,7 @@ test_that("relational mutate(d = a %in% integer()) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L), d = FALSE)
@@ -9280,7 +9280,7 @@ test_that("relational mutate(d = row_number()) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L), d = 1:6)
@@ -9438,7 +9438,7 @@ test_that("relational mutate(c = .data$b) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L), c = 2)
@@ -9483,7 +9483,7 @@ test_that("relational mutate(d = NA) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L), d = NA)
@@ -9531,7 +9531,7 @@ test_that("relational mutate(d = NA_integer_) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L), d = NA_integer_)
@@ -9579,7 +9579,7 @@ test_that("relational mutate(d = NA_real_) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L), d = NA_real_)
@@ -9627,7 +9627,7 @@ test_that("relational mutate(d = NA_character_) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L), d = NA_character_)
@@ -9702,7 +9702,7 @@ test_that("relational mutate(d = if_else(a > 1, \"ok\", NA)) order-preserving", 
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(
@@ -9732,7 +9732,7 @@ test_that("relational mutate() order-enforcing", {
     list(expr_reference("a"), expr_reference("b"), expr_reference("g"))
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L))
@@ -13712,7 +13712,7 @@ test_that("relational relocate(g) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(g = c(1L, 2L, 2L, 3L, 3L, 3L), a = seq(1, 6, by = 1), b = 2)
@@ -13751,7 +13751,7 @@ test_that("relational relocate(a) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L))
@@ -13790,7 +13790,7 @@ test_that("relational relocate(g, .before = b) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(a = seq(1, 6, by = 1), g = c(1L, 2L, 2L, 3L, 3L, 3L), b = 2)
@@ -13829,7 +13829,7 @@ test_that("relational relocate(a:b, .after = g) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(g = c(1L, 2L, 2L, 3L, 3L, 3L), a = seq(1, 6, by = 1), b = 2)
@@ -14048,7 +14048,7 @@ test_that("relational rename() order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L))
@@ -14087,7 +14087,7 @@ test_that("relational rename(c = a) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(c = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L))
@@ -14204,7 +14204,7 @@ test_that("relational right_join(join_by(a)) order-preserving", {
   df2 <- data.frame(a = 2:5, b = 2)
 
   "right_join"
-  rel3 <- reldf_from_df(con, df, experimental = experimental)
+  rel3 <- rel_from_df(con, df2, experimental = experimental)
   "right_join"
   rel4 <- rel_set_alias(rel3, "rhs")
   "right_join"
@@ -14344,7 +14344,7 @@ test_that("relational right_join(join_by(a)) order-enforcing", {
   df2 <- data.frame(a = 2:5, b = 2)
 
   "right_join"
-  rel3 <- reldf_from_df(con, df, experimental = experimental)
+  rel3 <- rel_from_df(con, df2, experimental = experimental)
   "right_join"
   rel4 <- rel_set_alias(rel3, "rhs")
   "right_join"
@@ -14446,7 +14446,7 @@ test_that("relational select(a) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(a = seq(1, 6, by = 1))
@@ -14480,7 +14480,7 @@ test_that("relational select(-g) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(a = seq(1, 6, by = 1), b = 2)
@@ -14519,7 +14519,7 @@ test_that("relational select(everything()) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(a = seq(1, 6, by = 1), b = 2, g = c(1L, 2L, 2L, 3L, 3L, 3L))
@@ -14550,7 +14550,7 @@ test_that("relational select(a) order-enforcing", {
     )
   )
   "arrange"
-  rel3 <- reldf_order(rel, list(expr_reference("a")))
+  rel3 <- rel_order(rel2, list(expr_reference("a")))
   rel3
   out <- rel_to_altrep(rel3)
   expect_identical(
@@ -14586,7 +14586,7 @@ test_that("relational select(-g) order-enforcing", {
     )
   )
   "arrange"
-  rel3 <- reldf_order(rel, list(expr_reference("a"), expr_reference("b")))
+  rel3 <- rel_order(rel2, list(expr_reference("a"), expr_reference("b")))
   rel3
   out <- rel_to_altrep(rel3)
   expect_identical(
@@ -14659,7 +14659,7 @@ test_that("relational semi_join(join_by(a)) order-preserving", {
   df2 <- data.frame(a = 2:5, b = 2)
 
   "semi_join"
-  rel3 <- reldf_from_df(con, df, experimental = experimental)
+  rel3 <- rel_from_df(con, df2, experimental = experimental)
   "semi_join"
   rel4 <- rel_set_alias(rel3, "rhs")
   "semi_join"
@@ -14738,7 +14738,7 @@ test_that("relational semi_join(join_by(a)) order-enforcing", {
   df2 <- data.frame(a = 2:5, b = 2)
 
   "semi_join"
-  rel3 <- reldf_from_df(con, df, experimental = experimental)
+  rel3 <- rel_from_df(con, df2, experimental = experimental)
   "semi_join"
   rel4 <- rel_set_alias(rel3, "rhs")
   "semi_join"
@@ -14780,7 +14780,7 @@ test_that("relational setdiff() order-preserving", {
   df2 <- data.frame(a = 2:5, b = 2)
 
   "anti_join"
-  rel3 <- reldf_from_df(con, df, experimental = experimental)
+  rel3 <- rel_from_df(con, df2, experimental = experimental)
   "anti_join"
   rel4 <- rel_set_alias(rel3, "rhs")
   "anti_join"
@@ -14950,9 +14950,9 @@ test_that("relational setdiff() order-enforcing", {
   df2 <- data.frame(a = 2:5, b = 2)
 
   "setdiff"
-  rel2 <- reldf_from_df(con, df, experimental = experimental)
+  rel2 <- rel_from_df(con, df2, experimental = experimental)
   "setdiff"
-  rel3 <- reldf_set_diff(rel1, rel)
+  rel3 <- rel_set_diff(rel1, rel2)
   "arrange"
   rel4 <- rel_order(rel3, list(expr_reference("a"), expr_reference("b")))
   rel4
@@ -14988,7 +14988,7 @@ test_that("relational summarise(c = mean(a)) order-preserving", {
     )
   )
   "summarise"
-  rel3 <- reldf_distinct(rel)
+  rel3 <- rel_distinct(rel2)
   rel3
   out <- rel_to_altrep(rel3)
   expect_identical(
@@ -15182,7 +15182,7 @@ test_that("relational summarise(c = 1) order-preserving", {
     )
   )
   "summarise"
-  rel3 <- reldf_distinct(rel)
+  rel3 <- rel_distinct(rel2)
   rel3
   out <- rel_to_altrep(rel3)
   expect_identical(
@@ -15398,7 +15398,7 @@ test_that("relational summarise(n = n(), n = n() + 1L) order-preserving", {
     )
   )
   "summarise"
-  rel3 <- reldf_distinct(rel)
+  rel3 <- rel_distinct(rel2)
   rel3
   out <- rel_to_altrep(rel3)
   expect_identical(
@@ -15432,7 +15432,7 @@ test_that("relational summarise(c = mean(a)) order-enforcing", {
     )
   )
   "summarise"
-  rel3 <- reldf_distinct(rel)
+  rel3 <- rel_distinct(rel2)
   "arrange"
   rel4 <- rel_order(rel3, list(expr_reference("c")))
   rel4
@@ -15466,7 +15466,7 @@ test_that("relational summarise(c = mean(a), .by = b) order-enforcing", {
     )
   )
   "arrange"
-  rel3 <- reldf_order(rel, list(expr_reference("b"), expr_reference("c")))
+  rel3 <- rel_order(rel2, list(expr_reference("b"), expr_reference("c")))
   rel3
   out <- rel_to_altrep(rel3)
   expect_identical(
@@ -15498,7 +15498,7 @@ test_that("relational summarise(c = mean(a), .by = g) order-enforcing", {
     )
   )
   "arrange"
-  rel3 <- reldf_order(rel, list(expr_reference("g"), expr_reference("c")))
+  rel3 <- rel_order(rel2, list(expr_reference("g"), expr_reference("c")))
   rel3
   out <- rel_to_altrep(rel3)
   expect_identical(
@@ -15534,7 +15534,7 @@ test_that("relational summarise(c = 1) order-enforcing", {
     )
   )
   "summarise"
-  rel3 <- reldf_distinct(rel)
+  rel3 <- rel_distinct(rel2)
   "arrange"
   rel4 <- rel_order(rel3, list(expr_reference("c")))
   rel4
@@ -15572,7 +15572,7 @@ test_that("relational summarise(c = 1, .by = g) order-enforcing", {
     )
   )
   "arrange"
-  rel3 <- reldf_order(rel, list(expr_reference("g"), expr_reference("c")))
+  rel3 <- rel_order(rel2, list(expr_reference("g"), expr_reference("c")))
   rel3
   out <- rel_to_altrep(rel3)
   expect_identical(
@@ -15615,7 +15615,7 @@ test_that("relational summarise(n = n(), n = n() + 1L, .by = g) order-enforcing"
     )
   )
   "arrange"
-  rel3 <- reldf_order(rel, list(expr_reference("g"), expr_reference("n")))
+  rel3 <- rel_order(rel2, list(expr_reference("g"), expr_reference("n")))
   rel3
   out <- rel_to_altrep(rel3)
   expect_identical(
@@ -15658,7 +15658,7 @@ test_that("relational summarise(n = n(), n = n() + 1L) order-enforcing", {
     )
   )
   "summarise"
-  rel3 <- reldf_distinct(rel)
+  rel3 <- rel_distinct(rel2)
   "arrange"
   rel4 <- rel_order(rel3, list(expr_reference("n")))
   rel4
@@ -15689,7 +15689,7 @@ test_that("relational symdiff() order-preserving", {
   df2 <- data.frame(a = 2:5, b = 2)
 
   "anti_join"
-  rel3 <- reldf_from_df(con, df, experimental = experimental)
+  rel3 <- rel_from_df(con, df2, experimental = experimental)
   "anti_join"
   rel4 <- rel_set_alias(rel3, "rhs")
   "anti_join"
@@ -15946,9 +15946,9 @@ test_that("relational symdiff() order-enforcing", {
   df2 <- data.frame(a = 2:5, b = 2)
 
   "symdiff"
-  rel2 <- reldf_from_df(con, df, experimental = experimental)
+  rel2 <- rel_from_df(con, df2, experimental = experimental)
   "symdiff"
-  rel3 <- reldf_set_symdiff(rel1, rel)
+  rel3 <- rel_set_symdiff(rel1, rel2)
   "arrange"
   rel4 <- rel_order(rel3, list(expr_reference("a"), expr_reference("b")))
   rel4
@@ -15985,7 +15985,7 @@ test_that("relational tally() order-preserving", {
     )
   )
   "summarise"
-  rel3 <- reldf_distinct(rel)
+  rel3 <- rel_distinct(rel2)
   rel3
   out <- rel_to_altrep(rel3)
   expect_identical(
@@ -16020,7 +16020,7 @@ test_that("relational tally() order-enforcing", {
     )
   )
   "summarise"
-  rel3 <- reldf_distinct(rel)
+  rel3 <- rel_distinct(rel2)
   "arrange"
   rel4 <- rel_order(rel3, list(expr_reference("n")))
   rel4
@@ -16065,7 +16065,7 @@ test_that("relational transmute(c = a + 1) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(c = seq(2, 7, by = 1))
@@ -16094,7 +16094,7 @@ test_that("relational transmute(row = a) order-preserving", {
     )
   )
   rel2
-  out <- reldf_to_altrep(rel)
+  out <- rel_to_altrep(rel2)
   expect_identical(
     out,
     data.frame(row = seq(1, 6, by = 1))
@@ -16135,7 +16135,7 @@ test_that("relational transmute(c = a + 1) order-enforcing", {
     )
   )
   "arrange"
-  rel3 <- reldf_order(rel, list(expr_reference("c")))
+  rel3 <- rel_order(rel2, list(expr_reference("c")))
   rel3
   out <- rel_to_altrep(rel3)
   expect_identical(
@@ -16166,7 +16166,7 @@ test_that("relational transmute(row = a) order-enforcing", {
     )
   )
   "arrange"
-  rel3 <- reldf_order(rel, list(expr_reference("row")))
+  rel3 <- rel_order(rel2, list(expr_reference("row")))
   rel3
   out <- rel_to_altrep(rel3)
   expect_identical(
@@ -16190,7 +16190,7 @@ test_that("relational union() order-preserving", {
   df2 <- data.frame(a = 2:5, b = 2)
 
   "union_all"
-  rel2 <- reldf_from_df(con, df, experimental = experimental)
+  rel2 <- rel_from_df(con, df2, experimental = experimental)
   "union_all"
   rel3 <- rel_project(
     rel1,
@@ -16370,7 +16370,7 @@ test_that("relational union() order-preserving", {
     )
   )
   rel12
-  out <- reldf_to_altrep(rel1)
+  out <- rel_to_altrep(rel12)
   expect_identical(
     out,
     data.frame(a = 1:5, b = 2)
@@ -16392,9 +16392,9 @@ test_that("relational union() order-enforcing", {
   df2 <- data.frame(a = 2:5, b = 2)
 
   "union_all"
-  rel2 <- reldf_from_df(con, df, experimental = experimental)
+  rel2 <- rel_from_df(con, df2, experimental = experimental)
   "union_all"
-  rel3 <- reldf_union_all(rel1, rel)
+  rel3 <- rel_union_all(rel1, rel2)
   "distinct"
   rel4 <- rel_distinct(rel3)
   "arrange"
@@ -16422,7 +16422,7 @@ test_that("relational union_all() order-preserving", {
   df2 <- data.frame(a = 2:5, b = 2)
 
   "union_all"
-  rel2 <- reldf_from_df(con, df, experimental = experimental)
+  rel2 <- rel_from_df(con, df2, experimental = experimental)
   "union_all"
   rel3 <- rel_project(
     rel1,
@@ -16529,9 +16529,9 @@ test_that("relational union_all() order-enforcing", {
   df2 <- data.frame(a = 2:5, b = 2)
 
   "union_all"
-  rel2 <- reldf_from_df(con, df, experimental = experimental)
+  rel2 <- rel_from_df(con, df2, experimental = experimental)
   "union_all"
-  rel3 <- reldf_union_all(rel1, rel)
+  rel3 <- rel_union_all(rel1, rel2)
   "arrange"
   rel4 <- rel_order(rel3, list(expr_reference("a"), expr_reference("b")))
   rel4
