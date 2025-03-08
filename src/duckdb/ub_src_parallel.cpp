@@ -26,6 +26,8 @@
 
 #include "src/parallel/task_executor.cpp"
 
+#include "src/parallel/task_notifier.cpp"
+
 #include "src/parallel/task_scheduler.cpp"
 
 #include "src/parallel/thread_context.cpp"
