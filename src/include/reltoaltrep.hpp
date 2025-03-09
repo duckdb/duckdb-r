@@ -54,3 +54,9 @@ struct RelToAltrep {
 	static R_altrep_class_t list_class;
 #endif
 };
+
+SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized);
+
+SEXP rapi_rel_from_any_df(duckdb::conn_eptr_t con, SEXP df, bool allow_materialized);
+
+SEXP result_to_df(duckdb::unique_ptr<duckdb::QueryResult> res);

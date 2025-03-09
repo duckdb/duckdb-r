@@ -513,6 +513,32 @@ size_t DoubleToSize(double d) {
 	return res;
 }
 
+SEXP result_to_df(duckdb::unique_ptr<duckdb::QueryResult> res) {
+	if (res->HasError()) {
+		stop("%s", res->GetError().c_str());
+	}
+	if (res->type == QueryResultType::STREAM_RESULT) {
+		res = ((StreamQueryResult &)*res).Materialize();
+	}
+	D_ASSERT(res->type == QueryResultType::MATERIALIZED_RESULT);
+	auto mat_res = (MaterializedQueryResult *)res.get();
+
+	writable::integers row_names;
+	row_names.push_back(NA_INTEGER);
+	row_names.push_back(-mat_res->RowCount());
+
+	// TODO this thing we can probably statically cache
+	writable::strings classes;
+	classes.push_back("tbl_df");
+	classes.push_back("tbl");
+	classes.push_back("data.frame");
+
+	auto df = sexp(duckdb_execute_R_impl(mat_res, false));
+	df.attr("class") = classes;
+	df.attr("row.names") = row_names;
+	return df;
+}
+
 // exception required as long as r-lib/decor#6 remains
 // clang-format off
 [[cpp11::init]] void RelToAltrep_Initialize(DllInfo* dll) {
