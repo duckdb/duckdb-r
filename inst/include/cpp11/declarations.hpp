@@ -43,7 +43,7 @@ T& unmove(T&& t) {
   SEXP err = R_NilValue;              \
   char buf[CPP11_ERROR_BUFSIZE] = ""; \
   try {
-#define END_CPP11_EX(RET)                                       \
+#define END_CPP11                                               \
   }                                                             \
   catch (cpp11::unwind_exception & e) {                         \
     err = e.token;                                              \
@@ -59,5 +59,4 @@ T& unmove(T&& t) {
   } else if (err != R_NilValue) {                               \
     R_ContinueUnwind(err);                                      \
   }                                                             \
-  return RET;
-#define END_CPP11 END_CPP11_EX(R_NilValue)
+  return R_NilValue;
