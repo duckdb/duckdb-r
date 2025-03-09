@@ -550,7 +550,7 @@ SEXP rapi_reldf_to_altrep(duckdb::rel_extptr_t rel, duckdb::conn_eptr_t con, boo
 	auto res = R_altrep_data2(row_names);
 	if (res == R_NilValue) {
 		if (strict) {
-			cpp11::stop("rapi_reldf_from_altrep_df: NULL in data?");
+			cpp11::stop("rapi_rel_from_altrep_df: NULL in data2?");
 		} else {
 			return R_NilValue;
 		}
