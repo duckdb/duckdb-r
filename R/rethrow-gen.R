@@ -162,9 +162,63 @@ rethrow_rapi_expr_tostring <- function(expr, call = parent.frame(2)) {
   )
 }
 
+rethrow_rapi_get_null_SEXP_ptr <- function(call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_get_null_SEXP_ptr(),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
 rethrow_rapi_rel_from_df <- function(con, df, experimental, call = parent.frame(2)) {
   rlang::try_fetch(
     rapi_rel_from_df(con, df, experimental),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_rel_to_df <- function(rel, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_rel_to_df(rel),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_rel_sql <- function(rel, sql, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_rel_sql(rel, sql),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_rel_names <- function(rel, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_rel_names(rel),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_rel_alias <- function(rel, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_rel_alias(rel),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_rel_set_alias <- function(rel, alias, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_rel_set_alias(rel, alias),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
@@ -252,87 +306,6 @@ rethrow_rapi_rel_distinct <- function(rel, call = parent.frame(2)) {
   )
 }
 
-rethrow_rapi_rel_to_df <- function(rel, call = parent.frame(2)) {
-  rlang::try_fetch(
-    rapi_rel_to_df(rel),
-    error = function(e) {
-      rethrow_error_from_rapi(e, call)
-    }
-  )
-}
-
-rethrow_rapi_rel_tostring <- function(rel, format, call = parent.frame(2)) {
-  rlang::try_fetch(
-    rapi_rel_tostring(rel, format),
-    error = function(e) {
-      rethrow_error_from_rapi(e, call)
-    }
-  )
-}
-
-rethrow_rapi_rel_to_sql <- function(rel, call = parent.frame(2)) {
-  rlang::try_fetch(
-    rapi_rel_to_sql(rel),
-    error = function(e) {
-      rethrow_error_from_rapi(e, call)
-    }
-  )
-}
-
-rethrow_rapi_rel_explain <- function(rel, type, format, call = parent.frame(2)) {
-  rlang::try_fetch(
-    rapi_rel_explain(rel, type, format),
-    error = function(e) {
-      rethrow_error_from_rapi(e, call)
-    }
-  )
-}
-
-rethrow_rapi_rel_alias <- function(rel, call = parent.frame(2)) {
-  rlang::try_fetch(
-    rapi_rel_alias(rel),
-    error = function(e) {
-      rethrow_error_from_rapi(e, call)
-    }
-  )
-}
-
-rethrow_rapi_get_null_SEXP_ptr <- function(call = parent.frame(2)) {
-  rlang::try_fetch(
-    rapi_get_null_SEXP_ptr(),
-    error = function(e) {
-      rethrow_error_from_rapi(e, call)
-    }
-  )
-}
-
-rethrow_rapi_rel_set_alias <- function(rel, alias, call = parent.frame(2)) {
-  rlang::try_fetch(
-    rapi_rel_set_alias(rel, alias),
-    error = function(e) {
-      rethrow_error_from_rapi(e, call)
-    }
-  )
-}
-
-rethrow_rapi_rel_sql <- function(rel, sql, call = parent.frame(2)) {
-  rlang::try_fetch(
-    rapi_rel_sql(rel, sql),
-    error = function(e) {
-      rethrow_error_from_rapi(e, call)
-    }
-  )
-}
-
-rethrow_rapi_rel_names <- function(rel, call = parent.frame(2)) {
-  rlang::try_fetch(
-    rapi_rel_names(rel),
-    error = function(e) {
-      rethrow_error_from_rapi(e, call)
-    }
-  )
-}
-
 rethrow_rapi_rel_set_intersect <- function(rel_a, rel_b, call = parent.frame(2)) {
   rlang::try_fetch(
     rapi_rel_set_intersect(rel_a, rel_b),
@@ -387,6 +360,33 @@ rethrow_rapi_rel_from_table_function <- function(con, function_name, positional_
   )
 }
 
+rethrow_rapi_rel_tostring <- function(rel, format, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_rel_tostring(rel, format),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_rel_to_sql <- function(rel, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_rel_to_sql(rel),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_rel_explain <- function(rel, type, format, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_rel_explain(rel, type, format),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
 rethrow_rapi_rel_to_parquet <- function(rel, file_name, options_sexps, call = parent.frame(2)) {
   rlang::try_fetch(
     rapi_rel_to_parquet(rel, file_name, options_sexps),
@@ -417,6 +417,204 @@ rethrow_rapi_rel_to_table <- function(rel, schema_name, table_name, temporary, c
 rethrow_rapi_rel_insert <- function(rel, schema_name, table_name, call = parent.frame(2)) {
   rlang::try_fetch(
     rapi_rel_insert(rel, schema_name, table_name),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_reldf_names <- function(df, con, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_reldf_names(df, con),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_reldf_alias <- function(df, con, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_reldf_alias(df, con),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_reldf_set_alias <- function(df, con, alias, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_reldf_set_alias(df, con, alias),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_reldf_filter <- function(df, con, exprs, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_reldf_filter(df, con, exprs),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_reldf_project <- function(df, con, exprs, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_reldf_project(df, con, exprs),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_reldf_aggregate <- function(df, con, groups, aggregates, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_reldf_aggregate(df, con, groups, aggregates),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_reldf_order <- function(df, con, orders, ascending, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_reldf_order(df, con, orders, ascending),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_reldf_join <- function(left, right, con, conds, join, join_ref_type, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_reldf_join(left, right, con, conds, join, join_ref_type),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_reldf_union_all <- function(left, right, con, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_reldf_union_all(left, right, con),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_reldf_limit <- function(df, con, n, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_reldf_limit(df, con, n),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_reldf_distinct <- function(df, con, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_reldf_distinct(df, con),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_reldf_set_intersect <- function(left, right, con, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_reldf_set_intersect(left, right, con),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_reldf_set_diff <- function(left, right, con, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_reldf_set_diff(left, right, con),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_reldf_set_symdiff <- function(left, right, con, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_reldf_set_symdiff(left, right, con),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_reldf_from_sql <- function(con, sql, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_reldf_from_sql(con, sql),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_reldf_from_table <- function(con, schema_name, table_name, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_reldf_from_table(con, schema_name, table_name),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_reldf_from_table_function <- function(con, function_name, positional_parameters_sexps, named_parameters_sexps, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_reldf_from_table_function(con, function_name, positional_parameters_sexps, named_parameters_sexps),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_reldf_explain <- function(df, con, type, format, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_reldf_explain(df, con, type, format),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_reldf_to_parquet <- function(df, con, file_name, options_sexps, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_reldf_to_parquet(df, con, file_name, options_sexps),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_reldf_to_csv <- function(df, con, file_name, options_sexps, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_reldf_to_csv(df, con, file_name, options_sexps),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_reldf_to_table <- function(df, con, schema_name, table_name, temporary, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_reldf_to_table(df, con, schema_name, table_name, temporary),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_reldf_insert <- function(df, con, schema_name, table_name, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_reldf_insert(df, con, schema_name, table_name),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
@@ -541,7 +739,13 @@ rethrow_restore <- function() {
   rethrow_rapi_expr_function <<- rapi_expr_function
   rethrow_rapi_expr_set_alias <<- rapi_expr_set_alias
   rethrow_rapi_expr_tostring <<- rapi_expr_tostring
+  rethrow_rapi_get_null_SEXP_ptr <<- rapi_get_null_SEXP_ptr
   rethrow_rapi_rel_from_df <<- rapi_rel_from_df
+  rethrow_rapi_rel_to_df <<- rapi_rel_to_df
+  rethrow_rapi_rel_sql <<- rapi_rel_sql
+  rethrow_rapi_rel_names <<- rapi_rel_names
+  rethrow_rapi_rel_alias <<- rapi_rel_alias
+  rethrow_rapi_rel_set_alias <<- rapi_rel_set_alias
   rethrow_rapi_rel_filter <<- rapi_rel_filter
   rethrow_rapi_rel_project <<- rapi_rel_project
   rethrow_rapi_rel_aggregate <<- rapi_rel_aggregate
@@ -551,25 +755,41 @@ rethrow_restore <- function() {
   rethrow_rapi_rel_union_all <<- rapi_rel_union_all
   rethrow_rapi_rel_limit <<- rapi_rel_limit
   rethrow_rapi_rel_distinct <<- rapi_rel_distinct
-  rethrow_rapi_rel_to_df <<- rapi_rel_to_df
-  rethrow_rapi_rel_tostring <<- rapi_rel_tostring
-  rethrow_rapi_rel_to_sql <<- rapi_rel_to_sql
-  rethrow_rapi_rel_explain <<- rapi_rel_explain
-  rethrow_rapi_rel_alias <<- rapi_rel_alias
-  rethrow_rapi_get_null_SEXP_ptr <<- rapi_get_null_SEXP_ptr
-  rethrow_rapi_rel_set_alias <<- rapi_rel_set_alias
-  rethrow_rapi_rel_sql <<- rapi_rel_sql
-  rethrow_rapi_rel_names <<- rapi_rel_names
   rethrow_rapi_rel_set_intersect <<- rapi_rel_set_intersect
   rethrow_rapi_rel_set_diff <<- rapi_rel_set_diff
   rethrow_rapi_rel_set_symdiff <<- rapi_rel_set_symdiff
   rethrow_rapi_rel_from_sql <<- rapi_rel_from_sql
   rethrow_rapi_rel_from_table <<- rapi_rel_from_table
   rethrow_rapi_rel_from_table_function <<- rapi_rel_from_table_function
+  rethrow_rapi_rel_tostring <<- rapi_rel_tostring
+  rethrow_rapi_rel_to_sql <<- rapi_rel_to_sql
+  rethrow_rapi_rel_explain <<- rapi_rel_explain
   rethrow_rapi_rel_to_parquet <<- rapi_rel_to_parquet
   rethrow_rapi_rel_to_csv <<- rapi_rel_to_csv
   rethrow_rapi_rel_to_table <<- rapi_rel_to_table
   rethrow_rapi_rel_insert <<- rapi_rel_insert
+  rethrow_rapi_reldf_names <<- rapi_reldf_names
+  rethrow_rapi_reldf_alias <<- rapi_reldf_alias
+  rethrow_rapi_reldf_set_alias <<- rapi_reldf_set_alias
+  rethrow_rapi_reldf_filter <<- rapi_reldf_filter
+  rethrow_rapi_reldf_project <<- rapi_reldf_project
+  rethrow_rapi_reldf_aggregate <<- rapi_reldf_aggregate
+  rethrow_rapi_reldf_order <<- rapi_reldf_order
+  rethrow_rapi_reldf_join <<- rapi_reldf_join
+  rethrow_rapi_reldf_union_all <<- rapi_reldf_union_all
+  rethrow_rapi_reldf_limit <<- rapi_reldf_limit
+  rethrow_rapi_reldf_distinct <<- rapi_reldf_distinct
+  rethrow_rapi_reldf_set_intersect <<- rapi_reldf_set_intersect
+  rethrow_rapi_reldf_set_diff <<- rapi_reldf_set_diff
+  rethrow_rapi_reldf_set_symdiff <<- rapi_reldf_set_symdiff
+  rethrow_rapi_reldf_from_sql <<- rapi_reldf_from_sql
+  rethrow_rapi_reldf_from_table <<- rapi_reldf_from_table
+  rethrow_rapi_reldf_from_table_function <<- rapi_reldf_from_table_function
+  rethrow_rapi_reldf_explain <<- rapi_reldf_explain
+  rethrow_rapi_reldf_to_parquet <<- rapi_reldf_to_parquet
+  rethrow_rapi_reldf_to_csv <<- rapi_reldf_to_csv
+  rethrow_rapi_reldf_to_table <<- rapi_reldf_to_table
+  rethrow_rapi_reldf_insert <<- rapi_reldf_insert
   rethrow_rapi_rel_to_altrep <<- rapi_rel_to_altrep
   rethrow_rapi_rel_from_altrep_df <<- rapi_rel_from_altrep_df
   rethrow_rapi_release <<- rapi_release
