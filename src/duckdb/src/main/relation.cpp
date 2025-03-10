@@ -369,13 +369,13 @@ void Relation::Delete(const string &condition) {
 }
 
 shared_ptr<Relation> Relation::TableFunction(const std::string &fname, const vector<Value> &values,
-                                             const named_parameter_map_t &named_parameters) {
+                                             const named_parameter_map_t &named_parameters, bool auto_init) {
 	return make_shared_ptr<TableFunctionRelation>(context->GetContext(), fname, values, named_parameters,
-	                                              shared_from_this());
+	                                              shared_from_this(), auto_init);
 }
 
-shared_ptr<Relation> Relation::TableFunction(const std::string &fname, const vector<Value> &values) {
-	return make_shared_ptr<TableFunctionRelation>(context->GetContext(), fname, values, shared_from_this());
+shared_ptr<Relation> Relation::TableFunction(const std::string &fname, const vector<Value> &values, bool auto_init) {
+	return make_shared_ptr<TableFunctionRelation>(context->GetContext(), fname, values, shared_from_this(), auto_init);
 }
 
 string Relation::ToString() {
