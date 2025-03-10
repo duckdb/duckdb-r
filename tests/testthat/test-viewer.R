@@ -25,7 +25,8 @@ test_that("rs_list_objects", {
   dbExecute(con, "CREATE TABLE a (j integer)")
   dbExecute(con, "CREATE VIEW b as SELECT 42")
 
-  expect_equal(rs_list_objects(con), data.frame(name = c("a", "b"), type = c("table", "view"), stringsAsFactors = FALSE))
+  expect_equal(rs_list_objects(con), data.frame(name = c("main"), type = c("schema"), stringsAsFactors = FALSE))
+  expect_equal(rs_list_objects(con, schema = "main"), data.frame(name = c("a", "b"), type = c("table", "view"), stringsAsFactors = FALSE))
 
   dbExecute(con, "CREATE schema fuu ;")
   dbExecute(con, "CREATE TABLE fuu.x (j integer)")
@@ -44,15 +45,14 @@ test_that("rs_list_columns", {
 
   dbExecute(con, "CREATE TABLE t (a integer, b string, c timestamp)")
 
-  cmp <- data.frame(name = c("a", "b", "c"), field.type = c("INTEGER", "VARCHAR", "TIMESTAMP"), stringsAsFactors = FALSE)
+  cmp <- data.frame(name = c("a", "b", "c"), type = c("INTEGER", "VARCHAR", "TIMESTAMP"), stringsAsFactors = FALSE)
 
-  expect_equal(rs_list_columns(con, "t"), cmp)
   expect_equal(rs_list_columns(con, "t", schema = "main"), cmp)
 
   dbExecute(con, "CREATE schema fuu ;")
   dbExecute(con, "CREATE TABLE fuu.t (x integer, y string, z timestamp)")
 
-  cmp <- data.frame(name = c("x", "y", "z"), field.type = c("INTEGER", "VARCHAR", "TIMESTAMP"), stringsAsFactors = FALSE)
+  cmp <- data.frame(name = c("x", "y", "z"), type = c("INTEGER", "VARCHAR", "TIMESTAMP"), stringsAsFactors = FALSE)
   expect_equal(rs_list_columns(con, "t", schema = "fuu"), cmp)
 })
 
