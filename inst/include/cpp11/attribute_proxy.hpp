@@ -1,5 +1,5 @@
-// cpp11 version: 0.5.1
-// vendored on: 2024-12-07
+// cpp11 version: 0.5.2
+// vendored on: 2025-03-09
 #pragma once
 
 #include <initializer_list>  // for initializer_list
