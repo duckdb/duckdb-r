@@ -123,13 +123,13 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 			cpp11::stop("Materialization is disabled, use collect() or as_tibble() to materialize.");
 		}
 
-		auto materialize_callback = Rf_GetOption(RStrings::get().materialize_callback_sym, R_BaseEnv);
+		auto materialize_callback = Rf_GetOption1(RStrings::get().materialize_callback_sym);
 		if (Rf_isFunction(materialize_callback)) {
 			sexp call = Rf_lang2(materialize_callback, rel_eptr);
 			Rf_eval(call, R_BaseEnv);
 		}
 
-		auto materialize_message = Rf_GetOption(RStrings::get().materialize_message_sym, R_BaseEnv);
+		auto materialize_message = Rf_GetOption1(RStrings::get().materialize_message_sym);
 		if (Rf_isLogical(materialize_message) && Rf_length(materialize_message) == 1 &&
 		    LOGICAL_ELT(materialize_message, 0) == true) {
 			// Legacy
@@ -245,7 +245,7 @@ struct AltrepVectorWrapper {
 				dest_offset += chunk.size();
 			}
 		}
-		return DATAPTR(transformed_vector);
+		return (void*)DATAPTR_RO(transformed_vector);
 	}
 
 	SEXP Vector() {
