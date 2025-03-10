@@ -6,9 +6,9 @@ namespace duckdb {
 
 AltrepDataFrameRelation::AltrepDataFrameRelation(duckdb::shared_ptr<Relation> p, cpp11::sexp df, duckdb::conn_eptr_t con, duckdb::shared_ptr<AltrepRelationWrapper> altrep)
 	: Relation(p->context, RelationType::EXTENSION_RELATION)
-	, altrep(std::move(altrep))
 	, dataframe(df)
 	, connection(std::move(con))
+	, altrep(std::move(altrep))
 	, parent(std::move(p)) {
 	TryBindRelation(columns);
 }
