@@ -103,10 +103,8 @@ AltrepRelationWrapper *AltrepRelationWrapper::Get(SEXP x) {
 	return GetFromExternalPtr<AltrepRelationWrapper>(x);
 }
 
-AltrepRelationWrapper::AltrepRelationWrapper(rel_extptr_t rel_, size_t n_rows_,
-                                             size_t n_cells_, SEXP df_)
-    : n_rows(n_rows_), n_cells(n_cells_), rel_eptr(rel_),
-      rel(rel_->rel), df(df_) {
+AltrepRelationWrapper::AltrepRelationWrapper(rel_extptr_t rel_, size_t n_rows_, size_t n_cells_, SEXP df_)
+    : n_rows(n_rows_), n_cells(n_cells_), rel_eptr(rel_), rel(rel_->rel), df(df_) {
 }
 
 bool AltrepRelationWrapper::HasQueryResult() const {
@@ -245,7 +243,7 @@ struct AltrepVectorWrapper {
 				dest_offset += chunk.size();
 			}
 		}
-		return (void*)DATAPTR_RO(transformed_vector);
+		return (void *)DATAPTR_RO(transformed_vector);
 	}
 
 	SEXP Vector() {
@@ -423,8 +421,8 @@ size_t DoubleToSize(double d) {
 	// convert to SEXP
 	(void)(SEXP)data_frame;
 
-	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, DoubleToSize(n_rows),
-	                                                               DoubleToSize(n_cells), data_frame);
+	auto relation_wrapper =
+	    make_shared_ptr<AltrepRelationWrapper>(rel, DoubleToSize(n_rows), DoubleToSize(n_cells), data_frame);
 
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
 		auto &column_type = drel->Columns()[col_idx].Type();
@@ -456,7 +454,6 @@ size_t DoubleToSize(double d) {
 	return data_frame;
 }
 
-
 SEXP rapi_reldf_to_altrep(duckdb::rel_extptr_t rel, duckdb::conn_eptr_t con, cpp11::list template_) {
 	D_ASSERT(rel && rel->rel);
 	auto drel = rel->rel;
@@ -467,7 +464,8 @@ SEXP rapi_reldf_to_altrep(duckdb::rel_extptr_t rel, duckdb::conn_eptr_t con, cpp
 
 	auto template_wrapper_args = rapi_rel_wrapper_args_from_altrep_df(template_);
 
-	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, template_wrapper_args.first, template_wrapper_args.second, data_frame);
+	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, template_wrapper_args.first,
+	                                                               template_wrapper_args.second, data_frame);
 
 	// convert to SEXP
 	(void)(SEXP)data_frame;

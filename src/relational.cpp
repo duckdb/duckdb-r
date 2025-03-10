@@ -56,16 +56,12 @@ using namespace cpp11;
 [[cpp11::register]] SEXP rapi_expr_comparison(std::string cmp_op, list exprs) {
 
 	ExpressionType expr_type = OperatorToExpressionType(cmp_op);
-	if (expr_type ==ExpressionType::INVALID) {
+	if (expr_type == ExpressionType::INVALID) {
 		stop("expr_comparison: Invalid comparison operator");
 	}
 
-	return make_external<ComparisonExpression>(
-		"duckdb_expr",
-		expr_type,
-		expr_extptr_t(exprs[0])->Copy(),
-		expr_extptr_t(exprs[1])->Copy()
-	);
+	return make_external<ComparisonExpression>("duckdb_expr", expr_type, expr_extptr_t(exprs[0])->Copy(),
+	                                           expr_extptr_t(exprs[1])->Copy());
 }
 
 [[cpp11::register]] SEXP rapi_expr_function(std::string name, list args, list order_bys, list filter_bys) {
@@ -119,7 +115,7 @@ using namespace cpp11;
 	return expr->ToString();
 }
 
-
+//
 // DuckDB Relations: low-level conversion
 
 [[cpp11::register]] SEXP rapi_get_null_SEXP_ptr() {
@@ -172,7 +168,7 @@ SEXP rapi_rel_from_any_df(duckdb::conn_eptr_t con, SEXP df, bool allow_materiali
 	return result_to_df(std::move(res));
 }
 
-
+//
 // DuckDB Relations: questioning
 
 [[cpp11::register]] SEXP rapi_rel_sql(duckdb::rel_extptr_t rel, std::string sql) {
@@ -183,7 +179,7 @@ SEXP rapi_rel_from_any_df(duckdb::conn_eptr_t con, SEXP df, bool allow_materiali
 	return result_to_df(std::move(res));
 }
 
-
+//
 // DuckDB Relations: names
 
 [[cpp11::register]] SEXP rapi_rel_names(duckdb::rel_extptr_t rel) {
@@ -204,7 +200,7 @@ SEXP rapi_rel_from_any_df(duckdb::conn_eptr_t con, SEXP df, bool allow_materiali
 	return make_external_prot<RelationWrapper>("duckdb_relation", prot, rel->rel->Alias(alias));
 }
 
-
+//
 // DuckDB Relations: operators
 
 [[cpp11::register]] SEXP rapi_rel_filter(duckdb::rel_extptr_t rel, list exprs) {
@@ -297,7 +293,6 @@ SEXP rapi_rel_from_any_df(duckdb::conn_eptr_t con, SEXP df, bool allow_materiali
 
 	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res);
 }
-
 
 static WindowBoundary StringToWindowBoundary(string &window_boundary) {
 	if (window_boundary == "unbounded_preceding") {
@@ -481,7 +476,6 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 	return make_external_prot<RelationWrapper>("duckdb_relation", prot, symdiff);
 }
 
-
 // DuckDB Relations: conversion
 
 [[cpp11::register]] SEXP rapi_rel_from_sql(duckdb::conn_eptr_t con, const std::string sql) {
@@ -563,7 +557,8 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 	rel->rel->WriteCSV(file_name, ListToVectorOfValue(options_sexps));
 }
 
-[[cpp11::register]] void rapi_rel_to_table(duckdb::rel_extptr_t rel, std::string schema_name, std::string table_name, bool temporary) {
+[[cpp11::register]] void rapi_rel_to_table(duckdb::rel_extptr_t rel, std::string schema_name, std::string table_name,
+                                           bool temporary) {
 	rel->rel->Create(schema_name, table_name, temporary);
 }
 

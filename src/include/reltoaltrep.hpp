@@ -9,7 +9,6 @@ namespace duckdb {
 struct AltrepRelationWrapper {
 	static AltrepRelationWrapper *Get(SEXP x);
 
-
 	AltrepRelationWrapper(rel_extptr_t rel_, size_t n_rows_, size_t n_cells_, SEXP df_);
 
 	bool HasQueryResult() const;

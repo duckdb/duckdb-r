@@ -7,7 +7,8 @@ namespace duckdb {
 
 class AltrepDataFrameRelation final : public Relation {
 public:
-	AltrepDataFrameRelation(duckdb::shared_ptr<Relation> p, cpp11::sexp df, duckdb::conn_eptr_t con, duckdb::shared_ptr<AltrepRelationWrapper> altrep);
+	AltrepDataFrameRelation(duckdb::shared_ptr<Relation> p, cpp11::sexp df, duckdb::conn_eptr_t con,
+	                        duckdb::shared_ptr<AltrepRelationWrapper> altrep);
 
 	cpp11::sexp dataframe;
 	duckdb::conn_eptr_t connection;
@@ -27,18 +28,19 @@ public:
 	void BuildTableRelation();
 
 private:
-	Relation& GetTableRelation();
+	Relation &GetTableRelation();
 
-	Relation& GetParent();
+	Relation &GetParent();
 };
 
 class RebuildRelationException : public std::runtime_error {
 public:
-	RebuildRelationException(AltrepDataFrameRelation* target_) : std::runtime_error("RebuildRelationException"), target(target_) {
+	RebuildRelationException(AltrepDataFrameRelation *target_)
+	    : std::runtime_error("RebuildRelationException"), target(target_) {
 	}
 
 public:
-	AltrepDataFrameRelation* target;
+	AltrepDataFrameRelation *target;
 };
 
 } // namespace duckdb
