@@ -1,5 +1,14 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.2.0.9003
+
+## Chore
+
+- Update vendored cpp11 to 0.5.2 (#1068).
+
+- Avoid calls to non-API R functions.
+
+
 # duckdb 1.2.0.9002
 
 ## Features
