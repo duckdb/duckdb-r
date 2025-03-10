@@ -103,9 +103,9 @@ AltrepRelationWrapper *AltrepRelationWrapper::Get(SEXP x) {
 	return GetFromExternalPtr<AltrepRelationWrapper>(x);
 }
 
-AltrepRelationWrapper::AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_, size_t n_rows_,
+AltrepRelationWrapper::AltrepRelationWrapper(rel_extptr_t rel_, size_t n_rows_,
                                              size_t n_cells_, SEXP df_)
-    : allow_materialization(allow_materialization_), n_rows(n_rows_), n_cells(n_cells_), rel_eptr(rel_),
+    : n_rows(n_rows_), n_cells(n_cells_), rel_eptr(rel_),
       rel(rel_->rel), df(df_) {
 }
 
@@ -119,7 +119,7 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 	}
 
 	if (!mat_result) {
-		if (!allow_materialization || n_cells == 0) {
+		if (n_cells == 0) {
 			cpp11::stop("Materialization is disabled, use collect() or as_tibble() to materialize.");
 		}
 
@@ -423,8 +423,7 @@ size_t DoubleToSize(double d) {
 	// convert to SEXP
 	(void)(SEXP)data_frame;
 
-	const auto allow_materialization = true;
-	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, allow_materialization, DoubleToSize(n_rows),
+	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, DoubleToSize(n_rows),
 	                                                               DoubleToSize(n_cells), data_frame);
 
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
@@ -432,7 +431,7 @@ size_t DoubleToSize(double d) {
 		cpp11::external_pointer<AltrepVectorWrapper> ptr(new AltrepVectorWrapper(relation_wrapper, col_idx));
 		R_SetExternalPtrTag(ptr, RStrings::get().duckdb_vector_sym);
 
-		cpp11::sexp vector_sexp = R_new_altrep(LogicalTypeToAltrepType(column_type), ptr, rel);
+		cpp11::sexp vector_sexp = R_new_altrep(LogicalTypeToAltrepType(column_type), ptr, R_NilValue);
 		duckdb_r_decorate(column_type, vector_sexp, false);
 
 		data_frame[col_idx] = vector_sexp;
@@ -448,7 +447,7 @@ size_t DoubleToSize(double d) {
 	// Row names
 	cpp11::external_pointer<AltrepRownamesWrapper> ptr(new AltrepRownamesWrapper(relation_wrapper));
 	R_SetExternalPtrTag(ptr, RStrings::get().duckdb_row_names_sym);
-	cpp11::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, rel);
+	cpp11::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, R_NilValue);
 	install_new_attrib(data_frame, R_RowNamesSymbol, row_names_sexp);
 
 	// Class
@@ -458,7 +457,7 @@ size_t DoubleToSize(double d) {
 }
 
 
-SEXP rapi_reldf_to_altrep(duckdb::rel_extptr_t rel, duckdb::conn_eptr_t con, bool allow_materialization) {
+SEXP rapi_reldf_to_altrep(duckdb::rel_extptr_t rel, duckdb::conn_eptr_t con, cpp11::list template_) {
 	D_ASSERT(rel && rel->rel);
 	auto drel = rel->rel;
 	auto ncols = drel->Columns().size();
@@ -466,7 +465,9 @@ SEXP rapi_reldf_to_altrep(duckdb::rel_extptr_t rel, duckdb::conn_eptr_t con, boo
 	cpp11::writable::list data_frame;
 	data_frame.resize(ncols);
 
-	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, allow_materialization, MAX_SIZE_T, MAX_SIZE_T, data_frame);
+	auto template_wrapper_args = rapi_rel_wrapper_args_from_altrep_df(template_);
+
+	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, template_wrapper_args.first, template_wrapper_args.second, data_frame);
 
 	// convert to SEXP
 	(void)(SEXP)data_frame;
@@ -476,7 +477,7 @@ SEXP rapi_reldf_to_altrep(duckdb::rel_extptr_t rel, duckdb::conn_eptr_t con, boo
 		cpp11::external_pointer<AltrepVectorWrapper> ptr(new AltrepVectorWrapper(relation_wrapper, col_idx));
 		R_SetExternalPtrTag(ptr, RStrings::get().duckdb_vector_sym);
 
-		cpp11::sexp vector_sexp = R_new_altrep(LogicalTypeToAltrepType(column_type), ptr, rel);
+		cpp11::sexp vector_sexp = R_new_altrep(LogicalTypeToAltrepType(column_type), ptr, R_NilValue);
 		duckdb_r_decorate(column_type, vector_sexp, false);
 
 		data_frame[col_idx] = vector_sexp;
@@ -492,8 +493,7 @@ SEXP rapi_reldf_to_altrep(duckdb::rel_extptr_t rel, duckdb::conn_eptr_t con, boo
 	// Row names
 	cpp11::external_pointer<AltrepRownamesWrapper> ptr(new AltrepRownamesWrapper(relation_wrapper));
 	R_SetExternalPtrTag(ptr, RStrings::get().duckdb_row_names_sym);
-	cpp11::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, make_external<RelationWrapper>("duckdb_relation",
-		make_shared_ptr<duckdb::AltrepDataFrameRelation>(rel->rel, data_frame, con, relation_wrapper)));
+	cpp11::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, R_NilValue);
 	install_new_attrib(data_frame, R_RowNamesSymbol, row_names_sexp);
 
 	// Class
@@ -502,12 +502,12 @@ SEXP rapi_reldf_to_altrep(duckdb::rel_extptr_t rel, duckdb::conn_eptr_t con, boo
 	return data_frame;
 }
 
-[[cpp11::register]] SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized) {
+shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool strict, bool allow_materialized) {
 	if (!Rf_inherits(df, "data.frame")) {
 		if (strict) {
 			cpp11::stop("rapi_rel_from_altrep_df: Not a data.frame");
 		} else {
-			return R_NilValue;
+			return nullptr;
 		}
 	}
 
@@ -516,7 +516,7 @@ SEXP rapi_reldf_to_altrep(duckdb::rel_extptr_t rel, duckdb::conn_eptr_t con, boo
 		if (strict) {
 			cpp11::stop("rapi_rel_from_altrep_df: Not a 'special' data.frame, row names are not ALTREP");
 		} else {
-			return R_NilValue;
+			return nullptr;
 		}
 	}
 
@@ -525,7 +525,7 @@ SEXP rapi_reldf_to_altrep(duckdb::rel_extptr_t rel, duckdb::conn_eptr_t con, boo
 		if (strict) {
 			cpp11::stop("rapi_rel_from_altrep_df: Not our 'special' data.frame, data1 is not external pointer");
 		} else {
-			return R_NilValue;
+			return nullptr;
 		}
 	}
 
@@ -534,7 +534,7 @@ SEXP rapi_reldf_to_altrep(duckdb::rel_extptr_t rel, duckdb::conn_eptr_t con, boo
 		if (strict) {
 			cpp11::stop("rapi_rel_from_altrep_df: Not our 'special' data.frame, tag missing");
 		} else {
-			return R_NilValue;
+			return nullptr;
 		}
 	}
 
@@ -543,20 +543,32 @@ SEXP rapi_reldf_to_altrep(duckdb::rel_extptr_t rel, duckdb::conn_eptr_t con, boo
 		if (wrapper->rel->mat_result.get()) {
 			// We return NULL here even for strict = true
 			// because this is expected from df_is_materialized()
-			return R_NilValue;
+			return nullptr;
 		}
 	}
 
-	auto res = R_altrep_data2(row_names);
-	if (res == R_NilValue) {
-		if (strict) {
-			cpp11::stop("rapi_rel_from_altrep_df: NULL in data2?");
-		} else {
-			return R_NilValue;
-		}
+	return wrapper->rel;
+}
+
+[[cpp11::register]] SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized) {
+	auto wrapper = rapi_rel_wrapper_from_altrep_df(df, strict, allow_materialized);
+	if (!wrapper) {
+		return R_NilValue;
+	}
+	return wrapper->rel_eptr;
+}
+
+std::pair<size_t, size_t> rapi_rel_wrapper_args_from_altrep_df(SEXP df) {
+	if (Rf_isNull(df)) {
+		return std::make_pair(MAX_SIZE_T, MAX_SIZE_T);
 	}
 
-	return res;
+	auto wrapper = rapi_rel_wrapper_from_altrep_df(df, false, true);
+	if (!wrapper) {
+		return std::make_pair(MAX_SIZE_T, MAX_SIZE_T);
+	}
+
+	return std::make_pair(wrapper->n_rows, wrapper->n_cells);
 }
 
 SEXP result_to_df(duckdb::unique_ptr<duckdb::QueryResult> res) {
