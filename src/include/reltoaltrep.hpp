@@ -22,6 +22,8 @@ struct AltrepRelationWrapper {
 
 	rel_extptr_t rel_eptr;
 	duckdb::shared_ptr<Relation> rel;
+
+	// FIXME: Does this need to be here?
 	cpp11::sexp df;
 
 	duckdb::unique_ptr<QueryResult> mat_result;

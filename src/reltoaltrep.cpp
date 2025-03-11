@@ -464,6 +464,8 @@ SEXP rapi_reldf_to_altrep(duckdb::rel_extptr_t rel, duckdb::conn_eptr_t con, cpp
 
 	auto template_wrapper_args = rapi_rel_wrapper_args_from_altrep_df(template_);
 
+	// FIXME: Construct AltrepDataFrameRelation
+
 	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, template_wrapper_args.first,
 	                                                               template_wrapper_args.second, data_frame);
 
