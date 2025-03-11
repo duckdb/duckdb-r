@@ -424,7 +424,7 @@ size_t DoubleToSize(double d) {
 		cpp11::external_pointer<AltrepVectorWrapper> ptr(new AltrepVectorWrapper(relation_wrapper, col_idx));
 		R_SetExternalPtrTag(ptr, RStrings::get().duckdb_vector_sym);
 
-		cpp11::sexp vector_sexp = R_new_altrep(LogicalTypeToAltrepType(column_type), ptr, rel);
+		cpp11::sexp vector_sexp = R_new_altrep(LogicalTypeToAltrepType(column_type), ptr, R_NilValue);
 		duckdb_r_decorate(column_type, vector_sexp, false);
 		data_frame.push_back(vector_sexp);
 	}
@@ -442,7 +442,7 @@ size_t DoubleToSize(double d) {
 	// Row names
 	cpp11::external_pointer<AltrepRownamesWrapper> ptr(new AltrepRownamesWrapper(relation_wrapper));
 	R_SetExternalPtrTag(ptr, RStrings::get().duckdb_row_names_sym);
-	cpp11::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, rel);
+	cpp11::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, R_NilValue);
 	install_new_attrib(data_frame, R_RowNamesSymbol, row_names_sexp);
 
 	// Class
