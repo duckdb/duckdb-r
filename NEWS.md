@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.2.0.9004
+
+## Bug fixes
+
+- Fix support for the connections pane in RStudio and Positron (@dfalbel, #1063).
+
+
 # duckdb 1.2.0.9003
 
 ## Chore
