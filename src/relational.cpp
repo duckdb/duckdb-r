@@ -144,15 +144,6 @@ using namespace cpp11;
 	return res;
 }
 
-SEXP rapi_rel_from_any_df(duckdb::conn_eptr_t con, SEXP df, bool allow_materialized) {
-	auto rel = rapi_rel_from_altrep_df(df, false, allow_materialized, con);
-	if (rel != R_NilValue) {
-		return rel;
-	}
-
-	return rapi_rel_from_df(con, df, false);
-}
-
 [[cpp11::register]] SEXP rapi_rel_to_df(duckdb::rel_extptr_t rel) {
 	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
 
