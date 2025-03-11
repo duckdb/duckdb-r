@@ -242,7 +242,7 @@ struct AltrepVectorWrapper {
 				dest_offset += chunk.size();
 			}
 		}
-		return (void*)DATAPTR_RO(transformed_vector);
+		return const_cast<void *>(DATAPTR_RO(transformed_vector));
 	}
 
 	SEXP Vector() {
