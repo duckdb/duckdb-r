@@ -102,10 +102,8 @@ AltrepRelationWrapper *AltrepRelationWrapper::Get(SEXP x) {
 	return GetFromExternalPtr<AltrepRelationWrapper>(x);
 }
 
-AltrepRelationWrapper::AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_, size_t n_rows_,
-                                             size_t n_cells_)
-    : allow_materialization(allow_materialization_), n_rows(n_rows_), n_cells(n_cells_), rel_eptr(rel_),
-      rel(rel_->rel) {
+AltrepRelationWrapper::AltrepRelationWrapper(rel_extptr_t rel_, size_t n_rows_, size_t n_cells_)
+    : n_rows(n_rows_), n_cells(n_cells_), rel_eptr(rel_), rel(rel_->rel) {
 }
 
 bool AltrepRelationWrapper::HasQueryResult() const {
@@ -118,7 +116,7 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 	}
 
 	if (!mat_result) {
-		if (!allow_materialization || n_cells == 0) {
+		if (n_cells == 0) {
 			cpp11::stop("Materialization is disabled, use collect() or as_tibble() to materialize.");
 		}
 
@@ -416,10 +414,7 @@ size_t DoubleToSize(double d) {
 	auto drel = rel->rel;
 	auto ncols = drel->Columns().size();
 
-	// FIXME: Remove allow_materialization
-	auto allow_materialization = true;
-	auto relation_wrapper =
-	    make_shared_ptr<AltrepRelationWrapper>(rel, allow_materialization, DoubleToSize(n_rows), DoubleToSize(n_cells));
+	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, DoubleToSize(n_rows), DoubleToSize(n_cells));
 
 	cpp11::writable::list data_frame;
 	data_frame.reserve(ncols);
