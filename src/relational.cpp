@@ -1,6 +1,7 @@
 #include "rapi.hpp"
 #include "signal.hpp"
 #include "typesr.hpp"
+#include "reltoaltrep.hpp"
 
 #include "R_ext/Random.h"
 
@@ -144,7 +145,7 @@ using namespace cpp11;
 }
 
 SEXP rapi_rel_from_any_df(duckdb::conn_eptr_t con, SEXP df, bool allow_materialized) {
-	auto rel = rapi_rel_from_altrep_df(df, false, allow_materialized);
+	auto rel = rapi_rel_from_altrep_df(df, false, allow_materialized, con);
 	if (rel != R_NilValue) {
 		return rel;
 	}

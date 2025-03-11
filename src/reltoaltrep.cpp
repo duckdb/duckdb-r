@@ -5,6 +5,7 @@
 #include "reltoaltrep.hpp"
 #include "signal.hpp"
 #include "cpp11/declarations.hpp"
+#include "altrepdataframe_relation.hpp"
 
 #include "httplib.hpp"
 #include <cinttypes>
@@ -499,12 +500,16 @@ shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool 
 	return wrapper->rel;
 }
 
-[[cpp11::register]] SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized) {
+[[cpp11::register]] SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized, bool wrap) {
 	auto wrapper = rapi_rel_wrapper_from_altrep_df(df, strict, allow_materialized);
 	if (!wrapper) {
 		return R_NilValue;
 	}
-	return wrapper->rel_eptr;
+	if (!wrap) {
+		return wrapper->rel_eptr;
+	}
+
+	return make_external<RelationWrapper>("duckdb_relation", make_shared_ptr<duckdb::AltrepDataFrameRelation>(wrapper->rel, df, wrapper));
 }
 
 SEXP result_to_df(duckdb::unique_ptr<duckdb::QueryResult> res) {

@@ -441,8 +441,13 @@ rel_to_altrep <- function(rel, allow_materialization = TRUE, n_rows = Inf, n_cel
 #' rel <- rel_from_df(con, mtcars)
 #' df = rel_to_altrep(rel)
 #' print(rel_from_altrep_df(df))
-rel_from_altrep_df <- function(df, strict = TRUE, allow_materialized = TRUE) {
-  rethrow_rapi_rel_from_altrep_df(df, strict, allow_materialized)
+rel_from_altrep_df <- function(df, strict = TRUE, allow_materialized = TRUE, wrap = FALSE) {
+  rethrow_rapi_rel_from_altrep_df(
+    df,
+    strict,
+    allow_materialized,
+    wrap
+  )
 }
 
 

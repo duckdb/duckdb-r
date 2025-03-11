@@ -432,9 +432,9 @@ rethrow_rapi_rel_to_altrep <- function(rel, n_rows, n_cells, call = parent.frame
   )
 }
 
-rethrow_rapi_rel_from_altrep_df <- function(df, strict, allow_materialized, call = parent.frame(2)) {
+rethrow_rapi_rel_from_altrep_df <- function(df, strict, allow_materialized, wrap, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_rel_from_altrep_df(df, strict, allow_materialized),
+    rapi_rel_from_altrep_df(df, strict, allow_materialized, wrap),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }

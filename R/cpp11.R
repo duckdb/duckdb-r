@@ -192,8 +192,8 @@ rapi_rel_to_altrep <- function(rel, n_rows, n_cells) {
   .Call(`_duckdb_rapi_rel_to_altrep`, rel, n_rows, n_cells)
 }
 
-rapi_rel_from_altrep_df <- function(df, strict, allow_materialized) {
-  .Call(`_duckdb_rapi_rel_from_altrep_df`, df, strict, allow_materialized)
+rapi_rel_from_altrep_df <- function(df, strict, allow_materialized, wrap) {
+  .Call(`_duckdb_rapi_rel_from_altrep_df`, df, strict, allow_materialized, wrap)
 }
 
 rapi_release <- function(stmt) {
