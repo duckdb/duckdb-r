@@ -451,12 +451,12 @@ size_t DoubleToSize(double d) {
 	return data_frame;
 }
 
-[[cpp11::register]] SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized) {
+shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool strict, bool allow_materialized) {
 	if (!Rf_inherits(df, "data.frame")) {
 		if (strict) {
 			cpp11::stop("rapi_rel_from_altrep_df: Not a data.frame");
 		} else {
-			return R_NilValue;
+			return nullptr;
 		}
 	}
 
@@ -465,7 +465,7 @@ size_t DoubleToSize(double d) {
 		if (strict) {
 			cpp11::stop("rapi_rel_from_altrep_df: Not a 'special' data.frame, row names are not ALTREP");
 		} else {
-			return R_NilValue;
+			return nullptr;
 		}
 	}
 
@@ -474,7 +474,7 @@ size_t DoubleToSize(double d) {
 		if (strict) {
 			cpp11::stop("rapi_rel_from_altrep_df: Not our 'special' data.frame, data1 is not external pointer");
 		} else {
-			return R_NilValue;
+			return nullptr;
 		}
 	}
 
@@ -483,7 +483,7 @@ size_t DoubleToSize(double d) {
 		if (strict) {
 			cpp11::stop("rapi_rel_from_altrep_df: Not our 'special' data.frame, tag missing");
 		} else {
-			return R_NilValue;
+			return nullptr;
 		}
 	}
 
@@ -492,20 +492,19 @@ size_t DoubleToSize(double d) {
 		if (wrapper->rel->mat_result.get()) {
 			// We return NULL here even for strict = true
 			// because this is expected from df_is_materialized()
-			return R_NilValue;
+			return nullptr;
 		}
 	}
 
-	auto res = R_altrep_data2(row_names);
-	if (res == R_NilValue) {
-		if (strict) {
-			cpp11::stop("rapi_rel_from_altrep_df: NULL in data2?");
-		} else {
-			return R_NilValue;
-		}
-	}
+	return wrapper->rel;
+}
 
-	return res;
+[[cpp11::register]] SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized) {
+	auto wrapper = rapi_rel_wrapper_from_altrep_df(df, strict, allow_materialized);
+	if (!wrapper) {
+		return R_NilValue;
+	}
+	return wrapper->rel_eptr;
 }
 
 SEXP result_to_df(duckdb::unique_ptr<duckdb::QueryResult> res) {
