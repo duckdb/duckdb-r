@@ -1,5 +1,16 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.2.0.9005
+
+## Features
+
+- New internal `AltrepDataframeRelation`, used with `rel_from_altrep_df(wrap = TRUE)` (#949, #1072).
+
+## Chore
+
+- Fix clang 20 compatibility (#1071).
+
+
 # duckdb 1.2.0.9004
 
 ## Bug fixes
