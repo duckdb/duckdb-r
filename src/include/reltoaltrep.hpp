@@ -9,7 +9,7 @@ namespace duckdb {
 struct AltrepRelationWrapper {
 	static AltrepRelationWrapper *Get(SEXP x);
 
-	AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_, size_t n_rows_, size_t n_cells_);
+	AltrepRelationWrapper(rel_extptr_t rel_, size_t n_rows_, size_t n_cells_);
 
 	bool HasQueryResult() const;
 
@@ -17,7 +17,6 @@ struct AltrepRelationWrapper {
 
 	void Materialize();
 
-	const bool allow_materialization;
 	const size_t n_rows;
 	const size_t n_cells;
 
@@ -54,3 +53,5 @@ struct RelToAltrep {
 	static R_altrep_class_t list_class;
 #endif
 };
+
+SEXP result_to_df(duckdb::unique_ptr<duckdb::QueryResult> res);

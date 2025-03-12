@@ -5,6 +5,7 @@
 #include "reltoaltrep.hpp"
 #include "signal.hpp"
 #include "cpp11/declarations.hpp"
+#include "altrepdataframe_relation.hpp"
 
 #include "httplib.hpp"
 #include <cinttypes>
@@ -102,10 +103,8 @@ AltrepRelationWrapper *AltrepRelationWrapper::Get(SEXP x) {
 	return GetFromExternalPtr<AltrepRelationWrapper>(x);
 }
 
-AltrepRelationWrapper::AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_, size_t n_rows_,
-                                             size_t n_cells_)
-    : allow_materialization(allow_materialization_), n_rows(n_rows_), n_cells(n_cells_), rel_eptr(rel_),
-      rel(rel_->rel) {
+AltrepRelationWrapper::AltrepRelationWrapper(rel_extptr_t rel_, size_t n_rows_, size_t n_cells_)
+    : n_rows(n_rows_), n_cells(n_cells_), rel_eptr(rel_), rel(rel_->rel) {
 }
 
 bool AltrepRelationWrapper::HasQueryResult() const {
@@ -118,7 +117,7 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 	}
 
 	if (!mat_result) {
-		if (!allow_materialization || n_cells == 0) {
+		if (n_cells == 0) {
 			cpp11::stop("Materialization is disabled, use collect() or as_tibble() to materialize.");
 		}
 
@@ -244,7 +243,7 @@ struct AltrepVectorWrapper {
 				dest_offset += chunk.size();
 			}
 		}
-		return (void*)DATAPTR_RO(transformed_vector);
+		return const_cast<void *>(DATAPTR_RO(transformed_vector));
 	}
 
 	SEXP Vector() {
@@ -416,10 +415,7 @@ size_t DoubleToSize(double d) {
 	auto drel = rel->rel;
 	auto ncols = drel->Columns().size();
 
-	// FIXME: Remove allow_materialization
-	auto allow_materialization = true;
-	auto relation_wrapper =
-	    make_shared_ptr<AltrepRelationWrapper>(rel, allow_materialization, DoubleToSize(n_rows), DoubleToSize(n_cells));
+	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, DoubleToSize(n_rows), DoubleToSize(n_cells));
 
 	cpp11::writable::list data_frame;
 	data_frame.reserve(ncols);
@@ -429,7 +425,7 @@ size_t DoubleToSize(double d) {
 		cpp11::external_pointer<AltrepVectorWrapper> ptr(new AltrepVectorWrapper(relation_wrapper, col_idx));
 		R_SetExternalPtrTag(ptr, RStrings::get().duckdb_vector_sym);
 
-		cpp11::sexp vector_sexp = R_new_altrep(LogicalTypeToAltrepType(column_type), ptr, rel);
+		cpp11::sexp vector_sexp = R_new_altrep(LogicalTypeToAltrepType(column_type), ptr, R_NilValue);
 		duckdb_r_decorate(column_type, vector_sexp, false);
 		data_frame.push_back(vector_sexp);
 	}
@@ -447,7 +443,7 @@ size_t DoubleToSize(double d) {
 	// Row names
 	cpp11::external_pointer<AltrepRownamesWrapper> ptr(new AltrepRownamesWrapper(relation_wrapper));
 	R_SetExternalPtrTag(ptr, RStrings::get().duckdb_row_names_sym);
-	cpp11::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, rel);
+	cpp11::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, R_NilValue);
 	install_new_attrib(data_frame, R_RowNamesSymbol, row_names_sexp);
 
 	// Class
@@ -456,12 +452,12 @@ size_t DoubleToSize(double d) {
 	return data_frame;
 }
 
-[[cpp11::register]] SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized) {
+shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool strict, bool allow_materialized) {
 	if (!Rf_inherits(df, "data.frame")) {
 		if (strict) {
 			cpp11::stop("rapi_rel_from_altrep_df: Not a data.frame");
 		} else {
-			return R_NilValue;
+			return nullptr;
 		}
 	}
 
@@ -470,7 +466,7 @@ size_t DoubleToSize(double d) {
 		if (strict) {
 			cpp11::stop("rapi_rel_from_altrep_df: Not a 'special' data.frame, row names are not ALTREP");
 		} else {
-			return R_NilValue;
+			return nullptr;
 		}
 	}
 
@@ -479,7 +475,7 @@ size_t DoubleToSize(double d) {
 		if (strict) {
 			cpp11::stop("rapi_rel_from_altrep_df: Not our 'special' data.frame, data1 is not external pointer");
 		} else {
-			return R_NilValue;
+			return nullptr;
 		}
 	}
 
@@ -488,7 +484,7 @@ size_t DoubleToSize(double d) {
 		if (strict) {
 			cpp11::stop("rapi_rel_from_altrep_df: Not our 'special' data.frame, tag missing");
 		} else {
-			return R_NilValue;
+			return nullptr;
 		}
 	}
 
@@ -497,20 +493,49 @@ size_t DoubleToSize(double d) {
 		if (wrapper->rel->mat_result.get()) {
 			// We return NULL here even for strict = true
 			// because this is expected from df_is_materialized()
-			return R_NilValue;
+			return nullptr;
 		}
 	}
 
-	auto res = R_altrep_data2(row_names);
-	if (res == R_NilValue) {
-		if (strict) {
-			cpp11::stop("rapi_rel_from_altrep_df: NULL in data2?");
-		} else {
-			return R_NilValue;
-		}
+	return wrapper->rel;
+}
+
+[[cpp11::register]] SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized, bool wrap) {
+	auto wrapper = rapi_rel_wrapper_from_altrep_df(df, strict, allow_materialized);
+	if (!wrapper) {
+		return R_NilValue;
+	}
+	if (!wrap) {
+		return wrapper->rel_eptr;
 	}
 
-	return res;
+	return make_external<RelationWrapper>("duckdb_relation", make_shared_ptr<duckdb::AltrepDataFrameRelation>(wrapper->rel, df, wrapper));
+}
+
+SEXP result_to_df(duckdb::unique_ptr<duckdb::QueryResult> res) {
+	if (res->HasError()) {
+		stop("%s", res->GetError().c_str());
+	}
+	if (res->type == QueryResultType::STREAM_RESULT) {
+		res = ((StreamQueryResult &)*res).Materialize();
+	}
+	D_ASSERT(res->type == QueryResultType::MATERIALIZED_RESULT);
+	auto mat_res = (MaterializedQueryResult *)res.get();
+
+	writable::integers row_names;
+	row_names.push_back(NA_INTEGER);
+	row_names.push_back(-mat_res->RowCount());
+
+	// TODO this thing we can probably statically cache
+	writable::strings classes;
+	classes.push_back("tbl_df");
+	classes.push_back("tbl");
+	classes.push_back("data.frame");
+
+	auto df = sexp(duckdb_execute_R_impl(mat_res, false));
+	df.attr("class") = classes;
+	df.attr("row.names") = row_names;
+	return df;
 }
 
 // exception required as long as r-lib/decor#6 remains

@@ -8,14 +8,14 @@
 #' @examples
 #' col_ref_expr <- expr_reference("some_column_name")
 #' col_ref_expr2 <- expr_reference("some_column_name", "some_table_name")
-expr_reference <- function(names, table = NULL) {
+expr_reference <- function(names, table = NULL, con = NULL) {
   if (inherits(table, "duckdb_relation")) {
     names <- c(rel_alias(table), names)
-  }
-  if (is.character(table) && !identical(table, "")) {
+  } else if (is.character(table) && !identical(table, "")) {
     names <- c(table, names)
   }
-   rethrow_rapi_expr_reference(names)
+
+  rethrow_rapi_expr_reference(names)
 }
 
 #' Create a constant expression
@@ -25,7 +25,9 @@ expr_reference <- function(names, table = NULL) {
 #' @examples
 #' const_int_expr <- expr_constant(42)
 #' const_str_expr <- expr_constant("Hello, World")
-expr_constant <- rapi_expr_constant
+expr_constant <- function(val) {
+  rethrow_rapi_expr_constant(val)
+}
 
 #' Create a comparison expression
 #' @param exprs a vector of size two, the expressions to compare
@@ -34,7 +36,9 @@ expr_constant <- rapi_expr_constant
 #' @noRd
 #' @examples
 #' comp_expr <- expr_comparison(">", list(expr_constant(-42), expr_constant(42)))
-expr_comparison <- rapi_expr_comparison
+expr_comparison <- function(cmp_op, exprs) {
+  rethrow_rapi_expr_comparison(cmp_op, exprs)
+}
 
 #' Create a function call expression
 #' @param name the function name
@@ -53,7 +57,9 @@ expr_function <- function(name, args, order_bys = list(), filter_bys = list()) {
 #' @noRd
 #' @examples
 #' expr_str <- expr_tostring(expr_constant(42))
-expr_tostring <- rapi_expr_tostring
+expr_tostring <- function(expr) {
+  rethrow_rapi_expr_tostring(expr)
+}
 
 #' Set the alias for an expression
 #' @param expr the expression
@@ -61,7 +67,9 @@ expr_tostring <- rapi_expr_tostring
 #' @noRd
 #' @examples
 #' expr_set_alias(expr_constant(42), "my_alias")
-expr_set_alias <- rapi_expr_set_alias
+expr_set_alias <- function(expr, alias) {
+  rethrow_rapi_expr_set_alias(expr, alias)
+}
 
 #' @export
 print.duckdb_expr <- function(x, ...) {
@@ -189,6 +197,7 @@ rel_order <- function(rel, orders, ascending = NULL) {
 #' @noRd
 #' @examples
 #' null_ptr <- sexp_null_ptr()
+# Not rethrowing, internal utility
 sexp_null_ptr <- rapi_get_null_SEXP_ptr
 
 expr_window <- function(window_function, partitions=list(), order_bys=list(),
@@ -432,8 +441,13 @@ rel_to_altrep <- function(rel, allow_materialization = TRUE, n_rows = Inf, n_cel
 #' rel <- rel_from_df(con, mtcars)
 #' df = rel_to_altrep(rel)
 #' print(rel_from_altrep_df(df))
-rel_from_altrep_df <- function(df, strict = TRUE, allow_materialized = TRUE) {
-  rethrow_rapi_rel_from_altrep_df(df, strict, allow_materialized)
+rel_from_altrep_df <- function(df, strict = TRUE, allow_materialized = TRUE, wrap = FALSE) {
+  rethrow_rapi_rel_from_altrep_df(
+    df,
+    strict,
+    allow_materialized,
+    wrap
+  )
 }
 
 
