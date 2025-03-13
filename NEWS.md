@@ -1,14 +1,20 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.2.0.9006
+# duckdb 1.2.1
 
 ## Bug fixes
 
 - `dbExecute(con, "CALL ...")` no longer attempts to access the resulting data frame. Use `dbGetQuery(con, "CALL ...")` to access the data (#1062, #1080).
 
+- Fix support for the connections pane in RStudio and Positron (@dfalbel, #1063).
+
 ## Features
 
 - New `rel_to_view() (`\#1075\`{=html}).
+
+- New internal `AltrepDataframeRelation`, used with `rel_from_altrep_df(wrap = TRUE)` (#949, #1072).
+
+- Try materialization only once (#1066).
 
 ## Chore
 
@@ -16,49 +22,25 @@
 
 - Fix error if `NULL` is passed as environment for sessions with `duckdb(environment_scan = TRUE)` (#1076).
 
-## Uncategorized
-
-- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/1074 (#1074).
-
-
-# duckdb 1.2.0.9005
-
-## Features
-
-- New internal `AltrepDataframeRelation`, used with `rel_from_altrep_df(wrap = TRUE)` (#949, #1072).
-
-## Chore
-
 - Fix clang 20 compatibility (#1071).
-
-
-# duckdb 1.2.0.9004
-
-## Bug fixes
-
-- Fix support for the connections pane in RStudio and Positron (@dfalbel, #1063).
-
-
-# duckdb 1.2.0.9003
-
-## Chore
 
 - Update vendored cpp11 to 0.5.2 (#1068).
 
 - Avoid calls to non-API R functions.
 
+- More careful cleanup.
 
-# duckdb 1.2.0.9002
+- Clean up after failed vendoring.
 
-## Features
-
-- Try materialization only once (#1066).
+- Prepare removal of `allow_materialization` (#1057).
 
 ## Testing
 
 - Adapt malformed test.
 
 ## Uncategorized
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/1074 (#1074).
 
 - Vendor: Update vendored sources (tag v1.2.1) to duckdb/duckdb@8e52ec43959ab363643d63cb78ee214577111da4.
 
@@ -174,25 +156,7 @@
 
 - Vendor: Update vendored sources (tag v1.2.0) to duckdb/duckdb@5f5512b827df6397afd31daedb4bbdee76520019.
 
-
-# duckdb 1.2.0.9001
-
-## Chore
-
-- More careful cleanup.
-
-- Clean up after failed vendoring.
-
-## Uncategorized
-
 - Vendor: Update vendored sources to duckdb/duckdb@0e844786417d80226851f5fc375060b47d3b65e0.
-
-
-# duckdb 1.2.0.9000
-
-## Chore
-
-- Prepare removal of `allow_materialization` (#1057).
 
 
 # duckdb 1.2.0
