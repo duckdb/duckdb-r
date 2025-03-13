@@ -148,8 +148,8 @@ rapi_rel_set_symdiff <- function(rel_a, rel_b) {
   .Call(`_duckdb_rapi_rel_set_symdiff`, rel_a, rel_b)
 }
 
-rapi_rel_from_sql <- function(con, sql) {
-  .Call(`_duckdb_rapi_rel_from_sql`, con, sql)
+rapi_rel_from_sql <- function(con, sql, env) {
+  .Call(`_duckdb_rapi_rel_from_sql`, con, sql, env)
 }
 
 rapi_rel_from_table <- function(con, schema_name, table_name) {
