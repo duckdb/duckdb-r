@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.0.9005</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -28,48 +28,41 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/cran-1.2.1/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.2.0.9005" id="duckdb-1209005">duckdb 1.2.0.9005<a class="anchor" aria-label="anchor" href="#duckdb-1209005"></a></h2>
+<h2 class="pkg-version" data-toc-text="1.2.1" id="duckdb-121">duckdb 1.2.1<a class="anchor" aria-label="anchor" href="#duckdb-121"></a></h2>
 <div class="section level3">
-<h3 id="features-1-2-0-9005">Features<a class="anchor" aria-label="anchor" href="#features-1-2-0-9005"></a></h3>
-<ul><li>New internal <code>AltrepDataframeRelation</code>, used with <code>rel_from_altrep_df(wrap = TRUE)</code> (<a href="https://github.com/duckdb/duckdb-r/issues/949" class="external-link">#949</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1072" class="external-link">#1072</a>).</li>
+<h3 id="bug-fixes-1-2-1">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-2-1"></a></h3>
+<ul><li><p><code>dbExecute(con, "CALL ...")</code> no longer attempts to access the resulting data frame. Use <code>dbGetQuery(con, "CALL ...")</code> to access the data (<a href="https://github.com/duckdb/duckdb-r/issues/1062" class="external-link">#1062</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1080" class="external-link">#1080</a>).</p></li>
+<li><p>Fix support for the connections pane in RStudio and Positron (<a href="https://github.com/dfalbel" class="external-link">@dfalbel</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1063" class="external-link">#1063</a>).</p></li>
 </ul></div>
 <div class="section level3">
-<h3 id="chore-1-2-0-9005">Chore<a class="anchor" aria-label="anchor" href="#chore-1-2-0-9005"></a></h3>
-<ul><li>Fix clang 20 compatibility (<a href="https://github.com/duckdb/duckdb-r/issues/1071" class="external-link">#1071</a>).</li>
+<h3 id="features-1-2-1">Features<a class="anchor" aria-label="anchor" href="#features-1-2-1"></a></h3>
+<ul><li><p>New <code>rel_to_view() (</code>#1075`{=html}).</p></li>
+<li><p>New internal <code>AltrepDataframeRelation</code>, used with <code>rel_from_altrep_df(wrap = TRUE)</code> (<a href="https://github.com/duckdb/duckdb-r/issues/949" class="external-link">#949</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1072" class="external-link">#1072</a>).</p></li>
+<li><p>Try materialization only once (<a href="https://github.com/duckdb/duckdb-r/issues/1066" class="external-link">#1066</a>).</p></li>
 </ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.2.0.9004" id="duckdb-1209004">duckdb 1.2.0.9004<a class="anchor" aria-label="anchor" href="#duckdb-1209004"></a></h2>
 <div class="section level3">
-<h3 id="bug-fixes-1-2-0-9004">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-2-0-9004"></a></h3>
-<ul><li>Fix support for the connections pane in RStudio and Positron (<a href="https://github.com/dfalbel" class="external-link">@dfalbel</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1063" class="external-link">#1063</a>).</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.2.0.9003" id="duckdb-1209003">duckdb 1.2.0.9003<a class="anchor" aria-label="anchor" href="#duckdb-1209003"></a></h2>
-<div class="section level3">
-<h3 id="chore-1-2-0-9003">Chore<a class="anchor" aria-label="anchor" href="#chore-1-2-0-9003"></a></h3>
-<ul><li><p>Update vendored cpp11 to 0.5.2 (<a href="https://github.com/duckdb/duckdb-r/issues/1068" class="external-link">#1068</a>).</p></li>
+<h3 id="chore-1-2-1">Chore<a class="anchor" aria-label="anchor" href="#chore-1-2-1"></a></h3>
+<ul><li><p>Tweak error message.</p></li>
+<li><p>Fix error if <code>NULL</code> is passed as environment for sessions with <code>duckdb(environment_scan = TRUE)</code> (<a href="https://github.com/duckdb/duckdb-r/issues/1076" class="external-link">#1076</a>).</p></li>
+<li><p>Fix clang 20 compatibility (<a href="https://github.com/duckdb/duckdb-r/issues/1071" class="external-link">#1071</a>).</p></li>
+<li><p>Update vendored cpp11 to 0.5.2 (<a href="https://github.com/duckdb/duckdb-r/issues/1068" class="external-link">#1068</a>).</p></li>
 <li><p>Avoid calls to non-API R functions.</p></li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.2.0.9002" id="duckdb-1209002">duckdb 1.2.0.9002<a class="anchor" aria-label="anchor" href="#duckdb-1209002"></a></h2>
-<div class="section level3">
-<h3 id="features-1-2-0-9002">Features<a class="anchor" aria-label="anchor" href="#features-1-2-0-9002"></a></h3>
-<ul><li>Try materialization only once (<a href="https://github.com/duckdb/duckdb-r/issues/1066" class="external-link">#1066</a>).</li>
+<li><p>More careful cleanup.</p></li>
+<li><p>Clean up after failed vendoring.</p></li>
+<li><p>Prepare removal of <code>allow_materialization</code> (<a href="https://github.com/duckdb/duckdb-r/issues/1057" class="external-link">#1057</a>).</p></li>
 </ul></div>
 <div class="section level3">
-<h3 id="testing-1-2-0-9002">Testing<a class="anchor" aria-label="anchor" href="#testing-1-2-0-9002"></a></h3>
+<h3 id="testing-1-2-1">Testing<a class="anchor" aria-label="anchor" href="#testing-1-2-1"></a></h3>
 <ul><li>Adapt malformed test.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="uncategorized-1-2-0-9002">Uncategorized<a class="anchor" aria-label="anchor" href="#uncategorized-1-2-0-9002"></a></h3>
-<ul><li><p>Vendor: Update vendored sources (tag v1.2.1) to <a href="mailto:duckdb/duckdb@8e52ec43959ab363643d63cb78ee214577111da4" class="email">duckdb/duckdb@8e52ec43959ab363643d63cb78ee214577111da4</a>.</p></li>
+<h3 id="uncategorized-1-2-1">Uncategorized<a class="anchor" aria-label="anchor" href="#uncategorized-1-2-1"></a></h3>
+<ul><li><p>PLACEHOLDER <a href="https://github.com/duckdb/duckdb-r/pull/1074" class="external-link uri">https://github.com/duckdb/duckdb-r/pull/1074</a> (<a href="https://github.com/duckdb/duckdb-r/issues/1074" class="external-link">#1074</a>).</p></li>
+<li><p>Vendor: Update vendored sources (tag v1.2.1) to <a href="mailto:duckdb/duckdb@8e52ec43959ab363643d63cb78ee214577111da4" class="email">duckdb/duckdb@8e52ec43959ab363643d63cb78ee214577111da4</a>.</p></li>
 <li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@ef253eea8eb6f97244578c4df3ef0c72dc72ca65" class="email">duckdb/duckdb@ef253eea8eb6f97244578c4df3ef0c72dc72ca65</a>.</p></li>
 <li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@fba0ffea7e034d2601b8ec5c7afb508245bbec93" class="email">duckdb/duckdb@fba0ffea7e034d2601b8ec5c7afb508245bbec93</a>.</p></li>
 <li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@28b8a398a493f2e845cecb367f1ac04892c9edab" class="email">duckdb/duckdb@28b8a398a493f2e845cecb367f1ac04892c9edab</a>.</p></li>
@@ -126,25 +119,7 @@
 <li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@4f8064425d24da27ec8403927809f55ff4fdbe02" class="email">duckdb/duckdb@4f8064425d24da27ec8403927809f55ff4fdbe02</a>.</p></li>
 <li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@f7637a9b9be4c8fb199e47d8f1011f5eee0a9b4e" class="email">duckdb/duckdb@f7637a9b9be4c8fb199e47d8f1011f5eee0a9b4e</a>.</p></li>
 <li><p>Vendor: Update vendored sources (tag v1.2.0) to <a href="mailto:duckdb/duckdb@5f5512b827df6397afd31daedb4bbdee76520019" class="email">duckdb/duckdb@5f5512b827df6397afd31daedb4bbdee76520019</a>.</p></li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.2.0.9001" id="duckdb-1209001">duckdb 1.2.0.9001<a class="anchor" aria-label="anchor" href="#duckdb-1209001"></a></h2>
-<div class="section level3">
-<h3 id="chore-1-2-0-9001">Chore<a class="anchor" aria-label="anchor" href="#chore-1-2-0-9001"></a></h3>
-<ul><li><p>More careful cleanup.</p></li>
-<li><p>Clean up after failed vendoring.</p></li>
-</ul></div>
-<div class="section level3">
-<h3 id="uncategorized-1-2-0-9001">Uncategorized<a class="anchor" aria-label="anchor" href="#uncategorized-1-2-0-9001"></a></h3>
-<ul><li>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@0e844786417d80226851f5fc375060b47d3b65e0" class="email">duckdb/duckdb@0e844786417d80226851f5fc375060b47d3b65e0</a>.</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.2.0.9000" id="duckdb-1209000">duckdb 1.2.0.9000<a class="anchor" aria-label="anchor" href="#duckdb-1209000"></a></h2>
-<div class="section level3">
-<h3 id="chore-1-2-0-9000">Chore<a class="anchor" aria-label="anchor" href="#chore-1-2-0-9000"></a></h3>
-<ul><li>Prepare removal of <code>allow_materialization</code> (<a href="https://github.com/duckdb/duckdb-r/issues/1057" class="external-link">#1057</a>).</li>
+<li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@0e844786417d80226851f5fc375060b47d3b65e0" class="email">duckdb/duckdb@0e844786417d80226851f5fc375060b47d3b65e0</a>.</p></li>
 </ul></div>
 </div>
     <div class="section level2">
