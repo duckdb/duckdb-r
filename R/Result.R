@@ -48,9 +48,11 @@ duckdb_post_execute <- function(res, out) {
   if (!res@arrow) {
     stopifnot(is.data.frame(out))
 
-    if (!res@stmt_lst$type %in% c("SELECT", "EXPLAIN")) {
-      res@env$rows_affected <- sum(as.numeric(out[[1]]))
+    rows_affected <- 0
+    if (!(res@stmt_lst$type %in% c("SELECT", "EXPLAIN", "CALL"))) {
+      rows_affected <- sum(as.numeric(out[[1]]))
     }
+    res@env$rows_affected <- rows_affected
 
     res@env$resultset <- out
   }
