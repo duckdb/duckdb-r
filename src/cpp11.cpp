@@ -339,6 +339,14 @@ extern "C" SEXP _duckdb_rapi_rel_to_table(SEXP rel, SEXP schema_name, SEXP table
   END_CPP11
 }
 // relational.cpp
+void rapi_rel_to_view(duckdb::rel_extptr_t rel, std::string schema_name, std::string view_name, bool temporary);
+extern "C" SEXP _duckdb_rapi_rel_to_view(SEXP rel, SEXP schema_name, SEXP view_name, SEXP temporary) {
+  BEGIN_CPP11
+    rapi_rel_to_view(cpp11::as_cpp<cpp11::decay_t<duckdb::rel_extptr_t>>(rel), cpp11::as_cpp<cpp11::decay_t<std::string>>(schema_name), cpp11::as_cpp<cpp11::decay_t<std::string>>(view_name), cpp11::as_cpp<cpp11::decay_t<bool>>(temporary));
+    return R_NilValue;
+  END_CPP11
+}
+// relational.cpp
 void rapi_rel_insert(duckdb::rel_extptr_t rel, std::string schema_name, std::string table_name);
 extern "C" SEXP _duckdb_rapi_rel_insert(SEXP rel, SEXP schema_name, SEXP table_name) {
   BEGIN_CPP11
@@ -478,6 +486,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_rel_to_parquet",          (DL_FUNC) &_duckdb_rapi_rel_to_parquet,          3},
     {"_duckdb_rapi_rel_to_sql",              (DL_FUNC) &_duckdb_rapi_rel_to_sql,              1},
     {"_duckdb_rapi_rel_to_table",            (DL_FUNC) &_duckdb_rapi_rel_to_table,            4},
+    {"_duckdb_rapi_rel_to_view",             (DL_FUNC) &_duckdb_rapi_rel_to_view,             4},
     {"_duckdb_rapi_rel_tostring",            (DL_FUNC) &_duckdb_rapi_rel_tostring,            2},
     {"_duckdb_rapi_rel_union_all",           (DL_FUNC) &_duckdb_rapi_rel_union_all,           2},
     {"_duckdb_rapi_release",                 (DL_FUNC) &_duckdb_rapi_release,                 1},
