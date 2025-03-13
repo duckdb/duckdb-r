@@ -1,5 +1,26 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.2.0.9006
+
+## Bug fixes
+
+- `dbExecute(con, "CALL ...")` no longer attempts to access the resulting data frame. Use `dbGetQuery(con, "CALL ...")` to access the data (#1062, #1080).
+
+## Features
+
+- New `rel_to_view() (`\#1075\`{=html}).
+
+## Chore
+
+- Tweak error message.
+
+- Fix error if `NULL` is passed as environment for sessions with `duckdb(environment_scan = TRUE)` (#1076).
+
+## Uncategorized
+
+- PLACEHOLDER https://github.com/duckdb/duckdb-r/pull/1074 (#1074).
+
+
 # duckdb 1.2.0.9005
 
 ## Features
