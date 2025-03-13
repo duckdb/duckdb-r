@@ -53,8 +53,12 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	auto db_wrapper = data.wrapper;
 
 	auto table_name_symbol = cpp11::safe[Rf_install](input.table_name.c_str());
-	SEXP df;
+	SEXP df = R_NilValue;
 	SEXP rho = db_wrapper->env;
+	if (TYPEOF(rho) != ENVSXP) {
+		return nullptr;
+	}
+
 #if defined(R_VERSION) && R_VERSION >= R_Version(4, 5, 0)
 	df = cpp11::safe[R_getVarEx](table_name_symbol, rho, Rboolean::TRUE, R_NilValue);
 #else
