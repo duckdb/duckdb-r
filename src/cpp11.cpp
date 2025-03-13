@@ -273,10 +273,10 @@ extern "C" SEXP _duckdb_rapi_rel_set_symdiff(SEXP rel_a, SEXP rel_b) {
   END_CPP11
 }
 // relational.cpp
-SEXP rapi_rel_from_sql(duckdb::conn_eptr_t con, const std::string sql);
-extern "C" SEXP _duckdb_rapi_rel_from_sql(SEXP con, SEXP sql) {
+SEXP rapi_rel_from_sql(duckdb::conn_eptr_t con, const std::string sql, SEXP env);
+extern "C" SEXP _duckdb_rapi_rel_from_sql(SEXP con, SEXP sql, SEXP env) {
   BEGIN_CPP11
-    return cpp11::as_sexp(rapi_rel_from_sql(cpp11::as_cpp<cpp11::decay_t<duckdb::conn_eptr_t>>(con), cpp11::as_cpp<cpp11::decay_t<const std::string>>(sql)));
+    return cpp11::as_sexp(rapi_rel_from_sql(cpp11::as_cpp<cpp11::decay_t<duckdb::conn_eptr_t>>(con), cpp11::as_cpp<cpp11::decay_t<const std::string>>(sql), cpp11::as_cpp<cpp11::decay_t<SEXP>>(env)));
   END_CPP11
 }
 // relational.cpp
@@ -458,7 +458,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_rel_filter",              (DL_FUNC) &_duckdb_rapi_rel_filter,              2},
     {"_duckdb_rapi_rel_from_altrep_df",      (DL_FUNC) &_duckdb_rapi_rel_from_altrep_df,      4},
     {"_duckdb_rapi_rel_from_df",             (DL_FUNC) &_duckdb_rapi_rel_from_df,             3},
-    {"_duckdb_rapi_rel_from_sql",            (DL_FUNC) &_duckdb_rapi_rel_from_sql,            2},
+    {"_duckdb_rapi_rel_from_sql",            (DL_FUNC) &_duckdb_rapi_rel_from_sql,            3},
     {"_duckdb_rapi_rel_from_table",          (DL_FUNC) &_duckdb_rapi_rel_from_table,          3},
     {"_duckdb_rapi_rel_from_table_function", (DL_FUNC) &_duckdb_rapi_rel_from_table_function, 4},
     {"_duckdb_rapi_rel_insert",              (DL_FUNC) &_duckdb_rapi_rel_insert,              3},
