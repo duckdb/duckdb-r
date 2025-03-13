@@ -317,11 +317,11 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 
 [[cpp11::register]] void rapi_load_rfuns(duckdb::db_eptr_t dual) {
 	if (!dual || !dual.get()) {
-		cpp11::stop("rapi_lock: Invalid database reference");
+		cpp11::stop("rapi_load_rfuns: Invalid database reference");
 	}
 	auto db = dual->get();
 	if (!db || !db->db) {
-		cpp11::stop("rapi_connect: Database already closed");
+		cpp11::stop("rapi_load_rfuns: Database already closed");
 	}
 	db->db->LoadExtension<RfunsExtension>();
 }
