@@ -1,0 +1,27 @@
+From bde583340d571dca2af1693375964161a37bea6d Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Fri, 14 Mar 2025 07:38:54 +0100
+Subject: [PATCH 15/17] UMA 1
+
+---
+ .../include/core_functions/aggregate/quantile_state.hpp       | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/duckdb/extension/core_functions/include/core_functions/aggregate/quantile_state.hpp b/src/duckdb/extension/core_functions/include/core_functions/aggregate/quantile_state.hpp
+index 00f4baf77..49ac31861 100644
+--- a/src/duckdb/extension/core_functions/include/core_functions/aggregate/quantile_state.hpp
++++ b/src/duckdb/extension/core_functions/include/core_functions/aggregate/quantile_state.hpp
+@@ -208,6 +208,10 @@ struct WindowQuantileState {
+ 				if (skips.size() > 1) {
+ 					dest[1] = skips[1].second;
+ 				}
++				else {
++					// Avoid UMA
++					dest[1] = skips[0].second;
++				}
+ 				return interp.template Extract<INPUT_TYPE, RESULT_TYPE>(dest.data(), result);
+ 			} catch (const duckdb_skiplistlib::skip_list::IndexError &idx_err) {
+ 				throw InternalException(idx_err.message());
+-- 
+2.48.1
+
