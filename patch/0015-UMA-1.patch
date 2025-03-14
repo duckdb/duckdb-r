@@ -1,27 +1,26 @@
-From bde583340d571dca2af1693375964161a37bea6d Mon Sep 17 00:00:00 2001
+From ced20e495b349ecb43664e6c8fba71b033e4835d Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
-Date: Fri, 14 Mar 2025 07:38:54 +0100
-Subject: [PATCH 15/17] UMA 1
+Date: Fri, 14 Mar 2025 08:02:53 +0100
+Subject: [PATCH] UMA 1
 
 ---
- .../include/core_functions/aggregate/quantile_state.hpp       | 4 ++++
- 1 file changed, 4 insertions(+)
+ .../include/core_functions/aggregate/quantile_state.hpp        | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
 diff --git a/src/duckdb/extension/core_functions/include/core_functions/aggregate/quantile_state.hpp b/src/duckdb/extension/core_functions/include/core_functions/aggregate/quantile_state.hpp
-index 00f4baf77..49ac31861 100644
+index 49ac31861..cdf242ae9 100644
 --- a/src/duckdb/extension/core_functions/include/core_functions/aggregate/quantile_state.hpp
 +++ b/src/duckdb/extension/core_functions/include/core_functions/aggregate/quantile_state.hpp
-@@ -208,6 +208,10 @@ struct WindowQuantileState {
+@@ -207,8 +207,7 @@ struct WindowQuantileState {
+ 				dest[0] = skips[0].second;
  				if (skips.size() > 1) {
  					dest[1] = skips[1].second;
+-				}
+-				else {
++				} else {
+ 					// Avoid UMA
+ 					dest[1] = skips[0].second;
  				}
-+				else {
-+					// Avoid UMA
-+					dest[1] = skips[0].second;
-+				}
- 				return interp.template Extract<INPUT_TYPE, RESULT_TYPE>(dest.data(), result);
- 			} catch (const duckdb_skiplistlib::skip_list::IndexError &idx_err) {
- 				throw InternalException(idx_err.message());
 -- 
 2.48.1
 

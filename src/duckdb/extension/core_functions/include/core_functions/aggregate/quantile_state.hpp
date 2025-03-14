@@ -207,8 +207,7 @@ struct WindowQuantileState {
 				dest[0] = skips[0].second;
 				if (skips.size() > 1) {
 					dest[1] = skips[1].second;
-				}
-				else {
+				} else {
 					// Avoid UMA
 					dest[1] = skips[0].second;
 				}
