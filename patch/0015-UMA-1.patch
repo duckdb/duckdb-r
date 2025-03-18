@@ -1,0 +1,26 @@
+From ced20e495b349ecb43664e6c8fba71b033e4835d Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Fri, 14 Mar 2025 08:02:53 +0100
+Subject: [PATCH] UMA 1
+
+---
+ .../include/core_functions/aggregate/quantile_state.hpp        | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/duckdb/extension/core_functions/include/core_functions/aggregate/quantile_state.hpp b/src/duckdb/extension/core_functions/include/core_functions/aggregate/quantile_state.hpp
+index 49ac31861..cdf242ae9 100644
+--- a/src/duckdb/extension/core_functions/include/core_functions/aggregate/quantile_state.hpp
++++ b/src/duckdb/extension/core_functions/include/core_functions/aggregate/quantile_state.hpp
+@@ -207,8 +207,7 @@ struct WindowQuantileState {
+ 				dest[0] = skips[0].second;
+ 				if (skips.size() > 1) {
+ 					dest[1] = skips[1].second;
+-				}
+-				else {
++				} else {
+ 					// Avoid UMA
+ 					dest[1] = skips[0].second;
+ 				}
+-- 
+2.48.1
+
