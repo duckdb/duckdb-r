@@ -4,6 +4,7 @@
 #include "reltoaltrep.hpp"
 
 #include "R_ext/Random.h"
+#include "httplib.hpp"
 
 #include "duckdb/parser/expression/columnref_expression.hpp"
 #include "duckdb/parser/expression/constant_expression.hpp"
@@ -469,12 +470,25 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 //
 // DuckDB Relations: conversion
 
-[[cpp11::register]] SEXP rapi_rel_from_sql(duckdb::conn_eptr_t con, const std::string sql) {
+[[cpp11::register]] SEXP rapi_rel_from_sql(duckdb::conn_eptr_t con, const std::string sql, SEXP env) {
 	if (!con || !con.get() || !con->conn) {
-		stop("rel_from_table: Invalid connection");
+		stop("rel_from_sql: Invalid connection");
 	}
+
+	D_ASSERT(con->db->env == R_NilValue);
+	con->db->env = (SEXP)env;
+	con->db->registered_dfs = Rf_cons(R_NilValue, R_NilValue);
+	duckdb_httplib::detail::scope_exit reset_db_env([&]() {
+		con->db->env = R_NilValue;
+		con->db->registered_dfs = R_NilValue;
+	});
+
+	// Possible FIXME (but anti-pattern):
+	// Prepend a WITH clause to the query to register the data frames.
+	// Better FIXME: RelationFromQuery() binds the data frames in the query.
+
 	auto rel = con->conn->RelationFromQuery(sql);
-	cpp11::writable::list prot = {};
+	cpp11::writable::list prot = { con->db->registered_dfs };
 	return make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(rel));
 }
 
