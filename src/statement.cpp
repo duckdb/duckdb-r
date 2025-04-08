@@ -180,7 +180,7 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, bool integer
 		D_ASSERT(chunk.ColumnCount() == (idx_t)Rf_length(data_frame));
 		for (size_t col_idx = 0; col_idx < chunk.ColumnCount(); col_idx++) {
 			SEXP dest = VECTOR_ELT(data_frame, col_idx);
-			duckdb_r_transform(chunk.data[col_idx], dest, dest_offset, chunk.size(), integer64);
+			duckdb_r_transform(chunk.data[col_idx], dest, dest_offset, 1, chunk.size(), integer64);
 		}
 		dest_offset += chunk.size();
 	}

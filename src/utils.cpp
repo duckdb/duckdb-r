@@ -76,6 +76,7 @@ RStrings::RStrings() {
 	enc2utf8_sym = Rf_install("enc2utf8");
 	tzone_sym = Rf_install("tzone");
 	units_sym = Rf_install("units");
+	dim_sym = Rf_install("dim");
 	getNamespace_sym = Rf_install("getNamespace");
 	ImportSchema_sym = Rf_install("ImportSchema");
 	ImportRecordBatch_sym = Rf_install("ImportRecordBatch");
