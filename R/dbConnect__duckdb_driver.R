@@ -71,10 +71,10 @@ dbConnect__duckdb_driver <- function(
   }
 
   if (missing(bigint)) {
-    bigint <- drv@bigint
-  } else {
-    check_bigint(bigint)
+    bigint <- bigint_from_convert_opts(drv@convert_opts)
   }
+
+  convert_opts <- convert_opts_from_args(bigint)
 
   config <- utils::modifyList(drv@config, config)
 
@@ -84,7 +84,7 @@ dbConnect__duckdb_driver <- function(
     drv <- duckdb(dbdir, read_only, bigint, config)
   }
 
-  conn <- duckdb_connection(drv, debug = debug, bigint = bigint)
+  conn <- duckdb_connection(drv, debug = debug, convert_opts = convert_opts)
   on.exit(dbDisconnect(conn))
 
   conn@timezone_out <- timezone_out
