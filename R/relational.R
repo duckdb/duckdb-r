@@ -521,6 +521,10 @@ rel_to_table <- function(rel, schema_name, table_name, temporary) {
   rethrow_rapi_rel_to_table(rel, schema_name, table_name, temporary)
 }
 
+rel_to_view <- function(rel, schema_name, view_name, temporary) {
+  rethrow_rapi_rel_to_view(rel, schema_name, view_name, temporary)
+}
+
 rel_insert <- function(rel, schema_name, table_name) {
   rethrow_rapi_rel_insert(rel, schema_name, table_name)
 }

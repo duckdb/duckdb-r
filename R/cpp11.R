@@ -184,6 +184,10 @@ rapi_rel_to_table <- function(rel, schema_name, table_name, temporary) {
   invisible(.Call(`_duckdb_rapi_rel_to_table`, rel, schema_name, table_name, temporary))
 }
 
+rapi_rel_to_view <- function(rel, schema_name, view_name, temporary) {
+  invisible(.Call(`_duckdb_rapi_rel_to_view`, rel, schema_name, view_name, temporary))
+}
+
 rapi_rel_insert <- function(rel, schema_name, table_name) {
   invisible(.Call(`_duckdb_rapi_rel_insert`, rel, schema_name, table_name))
 }

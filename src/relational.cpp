@@ -567,6 +567,10 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 	rel->rel->Create(schema_name, table_name, temporary);
 }
 
+[[cpp11::register]] void rapi_rel_to_view(duckdb::rel_extptr_t rel, std::string schema_name, std::string view_name, bool temporary) {
+	rel->rel->CreateView(schema_name, view_name, false, temporary);
+}
+
 [[cpp11::register]] void rapi_rel_insert(duckdb::rel_extptr_t rel, std::string schema_name, std::string table_name) {
 	rel->rel->Insert(schema_name, table_name);
 }
