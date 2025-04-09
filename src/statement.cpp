@@ -95,7 +95,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	return construct_retlist(std::move(stmt), query, n_param, conn->db->registered_dfs);
 }
 
-[[cpp11::register]] cpp11::list rapi_bind(duckdb::stmt_eptr_t stmt, cpp11::list params, bool arrow, bool integer64) {
+[[cpp11::register]] cpp11::list rapi_bind(duckdb::stmt_eptr_t stmt, cpp11::list params, duckdb::ConvertOpts convert_opts) {
 	if (!stmt || !stmt.get() || !stmt->stmt) {
 		cpp11::stop("rapi_bind: Invalid statement");
 	}
@@ -121,7 +121,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		}
 	}
 
-	if (n_rows != 1 && arrow) {
+	if (n_rows != 1 && (convert_opts & ConvertOpts::CONVERT_ARROW)) {
 		cpp11::stop("rapi_bind: Bind parameter values need to have length one for arrow queries");
 	}
 
@@ -136,7 +136,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		}
 
 		// Protection error is flagged by rchk
-		cpp11::sexp res = rapi_execute(stmt, (integer64 ? ConvertOpts::CONVERT_BIGINT_INTEGER64 : ConvertOpts::CONVERT_BIGINT_NUMERIC) | (arrow ? ConvertOpts::CONVERT_ARROW : ConvertOpts::CONVERT_NONE));
+		cpp11::sexp res = rapi_execute(stmt, convert_opts);
 		out.push_back(res);
 	}
 

@@ -384,10 +384,10 @@ extern "C" SEXP _duckdb_rapi_prepare(SEXP conn, SEXP query, SEXP env) {
   END_CPP11
 }
 // statement.cpp
-cpp11::list rapi_bind(duckdb::stmt_eptr_t stmt, cpp11::list params, bool arrow, bool integer64);
-extern "C" SEXP _duckdb_rapi_bind(SEXP stmt, SEXP params, SEXP arrow, SEXP integer64) {
+cpp11::list rapi_bind(duckdb::stmt_eptr_t stmt, cpp11::list params, duckdb::ConvertOpts convert_opts);
+extern "C" SEXP _duckdb_rapi_bind(SEXP stmt, SEXP params, SEXP convert_opts) {
   BEGIN_CPP11
-    return cpp11::as_sexp(rapi_bind(cpp11::as_cpp<cpp11::decay_t<duckdb::stmt_eptr_t>>(stmt), cpp11::as_cpp<cpp11::decay_t<cpp11::list>>(params), cpp11::as_cpp<cpp11::decay_t<bool>>(arrow), cpp11::as_cpp<cpp11::decay_t<bool>>(integer64)));
+    return cpp11::as_sexp(rapi_bind(cpp11::as_cpp<cpp11::decay_t<duckdb::stmt_eptr_t>>(stmt), cpp11::as_cpp<cpp11::decay_t<cpp11::list>>(params), cpp11::as_cpp<cpp11::decay_t<duckdb::ConvertOpts>>(convert_opts)));
   END_CPP11
 }
 // statement.cpp
@@ -437,7 +437,7 @@ extern "C" SEXP _duckdb_rapi_load_rfuns(SEXP dual) {
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_adbc_init_func",          (DL_FUNC) &_duckdb_rapi_adbc_init_func,          0},
-    {"_duckdb_rapi_bind",                    (DL_FUNC) &_duckdb_rapi_bind,                    4},
+    {"_duckdb_rapi_bind",                    (DL_FUNC) &_duckdb_rapi_bind,                    3},
     {"_duckdb_rapi_connect",                 (DL_FUNC) &_duckdb_rapi_connect,                 1},
     {"_duckdb_rapi_disconnect",              (DL_FUNC) &_duckdb_rapi_disconnect,              1},
     {"_duckdb_rapi_execute",                 (DL_FUNC) &_duckdb_rapi_execute,                 2},

@@ -15,7 +15,11 @@ dbBind__duckdb_result <- function(res, params, ...) {
 
   params <- encode_values(params)
 
-  out <- rethrow_rapi_bind(res@stmt_lst$ref, params, res@arrow, res@connection@bigint == "integer64")
+  out <- rethrow_rapi_bind(
+    res@stmt_lst$ref,
+    params,
+    convert_opts_set_arrow(res@connection@convert_opts, res@arrow)
+  )
   if (length(out) == 1) {
     out <- out[[1]]
   } else if (length(out) == 0) {

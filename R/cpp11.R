@@ -208,8 +208,8 @@ rapi_prepare <- function(conn, query, env) {
   .Call(`_duckdb_rapi_prepare`, conn, query, env)
 }
 
-rapi_bind <- function(stmt, params, arrow, integer64) {
-  .Call(`_duckdb_rapi_bind`, stmt, params, arrow, integer64)
+rapi_bind <- function(stmt, params, convert_opts) {
+  .Call(`_duckdb_rapi_bind`, stmt, params, convert_opts)
 }
 
 rapi_execute_arrow <- function(qry_res, chunk_size) {
