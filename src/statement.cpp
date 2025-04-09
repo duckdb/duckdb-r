@@ -136,7 +136,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		}
 
 		// Protection error is flagged by rchk
-		cpp11::sexp res = rapi_execute(stmt, arrow, integer64);
+		cpp11::sexp res = rapi_execute(stmt, (integer64 ? ConvertOpts::CONVERT_BIGINT_INTEGER64 : ConvertOpts::CONVERT_BIGINT_NUMERIC) | (arrow ? ConvertOpts::CONVERT_ARROW : ConvertOpts::CONVERT_NONE));
 		out.push_back(res);
 	}
 
@@ -275,7 +275,7 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	return cpp11::safe[Rf_eval](record_batch_reader, arrow_namespace);
 }
 
-[[cpp11::register]] SEXP rapi_execute(duckdb::stmt_eptr_t stmt, bool arrow, bool integer64) {
+[[cpp11::register]] SEXP rapi_execute(duckdb::stmt_eptr_t stmt, duckdb::ConvertOpts convert_opts) {
 	if (!stmt || !stmt.get() || !stmt->stmt) {
 		cpp11::stop("rapi_execute: Invalid statement");
 	}
@@ -294,7 +294,7 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 		cpp11::stop("rapi_execute: Failed to run query\nError: %s", generic_result->GetError().c_str());
 	}
 
-	if (arrow) {
+	if (convert_opts & ConvertOpts::CONVERT_ARROW) {
 		auto query_result = new RQueryResult();
 		query_result->result = std::move(generic_result);
 		rqry_eptr_t query_resultsexp(query_result);
@@ -304,7 +304,7 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 		auto result = (MaterializedQueryResult *)generic_result.get();
 
 		// Avoid rchk warning, it sees QueryResult::~QueryResult() as an allocating function
-		cpp11::sexp out = duckdb_execute_R_impl(result, integer64);
+		cpp11::sexp out = duckdb_execute_R_impl(result, (convert_opts & ConvertOptsMask::CONVERT_BIGINT_MASK) == ConvertOpts::CONVERT_BIGINT_INTEGER64);
 		return out;
 	}
 }

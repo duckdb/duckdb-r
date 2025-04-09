@@ -18,6 +18,27 @@
 
 namespace duckdb {
 
+enum ConvertOpts {
+	CONVERT_NONE = 0x00000000,
+
+	CONVERT_BIGINT_NUMERIC = 0x00000000,
+	CONVERT_BIGINT_INTEGER64 = 0x00000001,
+
+	CONVERT_ARROW = 0x10000000,
+};
+
+enum ConvertOptsMask {
+	CONVERT_BIGINT_MASK = 0x00000003,
+};
+
+inline ConvertOpts operator|(ConvertOpts a, ConvertOpts b) {
+	return static_cast<ConvertOpts>(static_cast<int>(a) | static_cast<int>(b));
+}
+
+inline ConvertOpts operator&(ConvertOpts a, ConvertOptsMask b) {
+	return static_cast<ConvertOpts>(static_cast<int>(a) & static_cast<int>(b));
+}
+
 typedef unordered_map<std::string, cpp11::list> arrow_scans_t;
 
 struct DBWrapper {
@@ -207,7 +228,7 @@ cpp11::list rapi_prepare(duckdb::conn_eptr_t, std::string);
 
 cpp11::list rapi_bind(duckdb::stmt_eptr_t, SEXP paramsexp, bool);
 
-SEXP rapi_execute(duckdb::stmt_eptr_t, bool, bool);
+SEXP rapi_execute(duckdb::stmt_eptr_t, duckdb::ConvertOpts);
 
 void rapi_release(duckdb::stmt_eptr_t);
 

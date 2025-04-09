@@ -220,8 +220,8 @@ rapi_record_batch <- function(qry_res, chunk_size) {
   .Call(`_duckdb_rapi_record_batch`, qry_res, chunk_size)
 }
 
-rapi_execute <- function(stmt, arrow, integer64) {
-  .Call(`_duckdb_rapi_execute`, stmt, arrow, integer64)
+rapi_execute <- function(stmt, convert_opts) {
+  .Call(`_duckdb_rapi_execute`, stmt, convert_opts)
 }
 
 rapi_adbc_init_func <- function() {

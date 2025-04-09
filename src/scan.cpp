@@ -55,7 +55,7 @@ data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 		// Will bind child columns dynamically. Could also optimize by descending early and recording.
 		return (data_ptr_t)coldata;
 	default:
-		cpp11::stop("rapi_execute: Unsupported column type for bind");
+		cpp11::stop("GetColDataPtr: Unsupported column type for bind");
 	}
 }
 
@@ -172,7 +172,7 @@ void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_ptr_t co
 			break;
 
 		default:
-			cpp11::stop("rapi_execute: Unknown enum type for scan: %s",
+			cpp11::stop("AppendAnyColumnSegment: Unknown enum type for scan: %s",
 			            TypeIdToString(v.GetType().InternalType()).c_str());
 		}
 		break;
@@ -259,7 +259,7 @@ void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_ptr_t co
 		break;
 	}
 	default:
-		cpp11::stop("rapi_execute: Unsupported column type for scan");
+		cpp11::stop("AppendAnyColumnSegment: Unsupported column type for scan");
 	}
 }
 
