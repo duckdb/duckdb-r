@@ -241,12 +241,49 @@ static void TransformArrayVector(Vector &src_vec, const SEXP dest, idx_t dest_of
 	Vector child_vector(child_type, nullptr);
 	auto matrix_nrow = (Rf_xlength(dest) / array_size);
 
+	cpp11::sexp buffer = duckdb_r_allocate(child_type, array_size);
+
 	// actual loop over rows
 	for (size_t row_idx = 0; row_idx < n; row_idx++) {
 		size_t offset = (row_idx * array_size);
 		size_t end = offset + array_size;
 		child_vector.Slice(ArrayVector::GetEntry(src_vec), offset, end);
-		duckdb_r_transform(child_vector, dest, dest_offset + row_idx, matrix_nrow, array_size, integer64);
+		duckdb_r_transform(child_vector, buffer, 0, 1, array_size, integer64);
+
+		switch (TYPEOF(buffer)) {
+		case LGLSXP:
+			for (size_t i = 0; i < array_size; i++) {
+				LOGICAL(dest)[dest_offset + row_idx + n * i] = LOGICAL(buffer)[i];
+			}
+			break;
+		case INTSXP:
+			for (size_t i = 0; i < array_size; i++) {
+				INTEGER(dest)[dest_offset + row_idx + n * i] = INTEGER(buffer)[i];
+			}
+			break;
+		case REALSXP:
+			for (size_t i = 0; i < array_size; i++) {
+				REAL(dest)[dest_offset + row_idx + n * i] = REAL(buffer)[i];
+			}
+			break;
+		case CPLXSXP:
+			for (size_t i = 0; i < array_size; i++) {
+				COMPLEX(dest)[dest_offset + row_idx + n * i] = COMPLEX(buffer)[i];
+			}
+			break;
+		case STRSXP:
+			for (size_t i = 0; i < array_size; i++) {
+				SEXP str = STRING_ELT(buffer, i);
+				SET_STRING_ELT(dest, dest_offset + row_idx + n * i, str);
+			}
+			break;
+		case VECSXP:
+			for (size_t i = 0; i < array_size; i++) {
+				SEXP vec = VECTOR_ELT(buffer, i);
+				SET_VECTOR_ELT(dest, dest_offset + row_idx + n * i, vec);
+			}
+			break;
+		}
 	}
 }
 
