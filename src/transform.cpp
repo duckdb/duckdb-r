@@ -204,6 +204,7 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, bool integer64)
 
 		break;
 	}
+
 	case LogicalTypeId::ENUM: {
 		auto &str_vec = EnumType::GetValuesInsertOrder(type);
 		auto size = EnumType::GetSize(type);
@@ -215,6 +216,7 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, bool integer64)
 		SET_CLASS(dest, RStrings::get().factor_str);
 		break;
 	}
+
 	default:
 		cpp11::stop("rapi_execute: Unknown column type for convert: %s", type.ToString().c_str());
 		break;
@@ -387,7 +389,8 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 	case LogicalTypeId::UBIGINT:
 		if (integer64) {
 			// this silently loses the high bit
-			VectorToR<uint64_t, int64_t>(src_vec, n, NUMERIC_POINTER(dest), dest_offset, NumericLimits<int64_t>::Minimum());
+			VectorToR<uint64_t, int64_t>(src_vec, n, NUMERIC_POINTER(dest), dest_offset,
+			                             NumericLimits<int64_t>::Minimum());
 			Rf_setAttrib(dest, R_ClassSymbol, RStrings::get().integer64_str);
 		} else {
 			VectorToR<uint64_t, double>(src_vec, n, NUMERIC_POINTER(dest), dest_offset, NA_REAL);
@@ -395,7 +398,8 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 		break;
 	case LogicalTypeId::BIGINT:
 		if (integer64) {
-			VectorToR<int64_t, int64_t>(src_vec, n, NUMERIC_POINTER(dest), dest_offset, NumericLimits<int64_t>::Minimum());
+			VectorToR<int64_t, int64_t>(src_vec, n, NUMERIC_POINTER(dest), dest_offset,
+			                            NumericLimits<int64_t>::Minimum());
 			Rf_setAttrib(dest, R_ClassSymbol, RStrings::get().integer64_str);
 		} else {
 			VectorToR<int64_t, double>(src_vec, n, NUMERIC_POINTER(dest), dest_offset, NA_REAL);
@@ -508,6 +512,7 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 
 		break;
 	}
+
 	case LogicalTypeId::MAP: {
 		auto src_data = ListVector::GetData(src_vec);
 
@@ -556,6 +561,7 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 		}
 		break;
 	}
+
 	case LogicalTypeId::BLOB: {
 		auto src_ptr = FlatVector::GetData<string_t>(src_vec);
 		auto &mask = FlatVector::Validity(src_vec);
