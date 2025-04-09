@@ -303,6 +303,8 @@ string RApiTypes::DetectLogicalType(const LogicalType &stype, const char *caller
 		return "raw";
 	case LogicalTypeId::LIST:
 		return "list";
+	case LogicalTypeId::ARRAY:
+		return "matrix";
 	case LogicalTypeId::STRUCT:
 	case LogicalTypeId::MAP:
 		return "data.frame";

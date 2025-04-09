@@ -167,6 +167,7 @@ struct RStrings {
 	SEXP enc2utf8_sym; // Rf_install
 	SEXP tzone_sym;
 	SEXP units_sym;
+	SEXP dim_sym;
 	SEXP getNamespace_sym;
 	SEXP Table__from_record_batches_sym;
 	SEXP ImportSchema_sym;

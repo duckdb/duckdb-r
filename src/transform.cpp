@@ -50,6 +50,14 @@ SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows) {
 	case LogicalTypeId::LIST:
 	case LogicalTypeId::MAP:
 		return NEW_LIST(nrows);
+	case LogicalTypeId::ARRAY: {
+		auto array_size = ArrayType::GetSize(type);
+		auto &child_type = ArrayType::GetChildType(type);
+		if (child_type.IsNested())
+			cpp11::stop("Nested arrays cannot be returned to R as column data.");
+		cpp11::sexp varvalue = duckdb_r_allocate(child_type, (nrows * array_size));
+		return varvalue;
+	}
 	case LogicalTypeId::STRUCT: {
 		cpp11::writable::list dest_list;
 		dest_list.reserve(StructType::GetChildTypes(type).size());
@@ -150,6 +158,20 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, bool integer64)
 	case LogicalTypeId::LIST:
 	case LogicalTypeId::MAP:
 		break; // no extra decoration required, do nothing
+	case LogicalTypeId::ARRAY: {
+		auto array_size = ArrayType::GetSize(type);
+		auto &child_type = ArrayType::GetChildType(type);
+		duckdb_r_decorate(child_type, dest, integer64);
+		// The class of a matrix and an array is implicit from
+		// the dim attribute so we don't set the class attribute.
+		// See: https://svn.r-project.org/R/trunk/src/main/attrib.c:656
+		// SET_CLASS(dest, RStrings::get().matrix_array_str);
+		cpp11::sexp dims = NEW_INTEGER(2);
+		INTEGER(dims)[0] = (Rf_xlength(dest) / array_size);
+		INTEGER(dims)[1] = array_size;
+		Rf_setAttrib(dest, RStrings::get().dim_sym, dims);
+		break;
+	}
 	case LogicalTypeId::TIMESTAMP_SEC:
 	case LogicalTypeId::TIMESTAMP_MS:
 	case LogicalTypeId::TIMESTAMP:
@@ -212,6 +234,58 @@ SEXP ToRString(const string_t &input) {
 		cpp11::stop("String contains null byte");
 	}
 	return Rf_mkCharLenCE(data, len, CE_UTF8);
+}
+
+static void TransformArrayVector(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx_t n, bool integer64) {
+	auto array_size = ArrayType::GetSize(src_vec.GetType());
+	auto &child_type = ArrayType::GetChildType(src_vec.GetType());
+	Vector child_vector(child_type, nullptr);
+	auto matrix_nrow = (Rf_xlength(dest) / array_size);
+
+	cpp11::sexp buffer = duckdb_r_allocate(child_type, array_size);
+
+	// actual loop over rows
+	for (size_t row_idx = 0; row_idx < n; row_idx++) {
+		size_t offset = (row_idx * array_size);
+		size_t end = offset + array_size;
+		child_vector.Slice(ArrayVector::GetEntry(src_vec), offset, end);
+		duckdb_r_transform(child_vector, buffer, 0, array_size, integer64);
+
+		switch (TYPEOF(buffer)) {
+		case LGLSXP:
+			for (size_t i = 0; i < array_size; i++) {
+				LOGICAL(dest)[dest_offset + row_idx + n * i] = LOGICAL(buffer)[i];
+			}
+			break;
+		case INTSXP:
+			for (size_t i = 0; i < array_size; i++) {
+				INTEGER(dest)[dest_offset + row_idx + n * i] = INTEGER(buffer)[i];
+			}
+			break;
+		case REALSXP:
+			for (size_t i = 0; i < array_size; i++) {
+				REAL(dest)[dest_offset + row_idx + n * i] = REAL(buffer)[i];
+			}
+			break;
+		case CPLXSXP:
+			for (size_t i = 0; i < array_size; i++) {
+				COMPLEX(dest)[dest_offset + row_idx + n * i] = COMPLEX(buffer)[i];
+			}
+			break;
+		case STRSXP:
+			for (size_t i = 0; i < array_size; i++) {
+				SEXP str = STRING_ELT(buffer, i);
+				SET_STRING_ELT(dest, dest_offset + row_idx + n * i, str);
+			}
+			break;
+		case VECSXP:
+			for (size_t i = 0; i < array_size; i++) {
+				SEXP vec = VECTOR_ELT(buffer, i);
+				SET_VECTOR_ELT(dest, dest_offset + row_idx + n * i, vec);
+			}
+			break;
+		}
+	}
 }
 
 void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx_t n, bool integer64) {
@@ -421,6 +495,10 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 				SET_ELEMENT(dest, dest_offset + row_idx, list_element);
 			}
 		}
+		break;
+	}
+	case LogicalTypeId::ARRAY: {
+		TransformArrayVector(src_vec, dest, dest_offset, n, integer64);
 		break;
 	}
 	case LogicalTypeId::STRUCT: {
