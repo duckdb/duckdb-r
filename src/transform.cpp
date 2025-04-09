@@ -7,13 +7,13 @@ using namespace duckdb;
 
 // converter for primitive types
 template <class SRC, class DEST>
-static void VectorToR(Vector &src_vec, size_t count, void *dest, uint64_t dest_offset, uint64_t dest_step_size, DEST na_val) {
+static void VectorToR(Vector &src_vec, size_t count, void *dest, uint64_t dest_offset, DEST na_val) {
 	auto src_ptr = FlatVector::GetData<SRC>(src_vec);
 	auto &mask = FlatVector::Validity(src_vec);
 	auto dest_ptr = ((DEST *)dest) + dest_offset;
 	for (size_t row_idx = 0; row_idx < count; row_idx++) {
 		dest_ptr[0] = !mask.RowIsValid(row_idx) ? na_val : src_ptr[row_idx];
-		dest_ptr += dest_step_size;
+		dest_ptr += 1;
 	}
 }
 
@@ -248,7 +248,7 @@ static void TransformArrayVector(Vector &src_vec, const SEXP dest, idx_t dest_of
 		size_t offset = (row_idx * array_size);
 		size_t end = offset + array_size;
 		child_vector.Slice(ArrayVector::GetEntry(src_vec), offset, end);
-		duckdb_r_transform(child_vector, buffer, 0, 1, array_size, integer64);
+		duckdb_r_transform(child_vector, buffer, 0, array_size, integer64);
 
 		switch (TYPEOF(buffer)) {
 		case LGLSXP:
@@ -287,7 +287,7 @@ static void TransformArrayVector(Vector &src_vec, const SEXP dest, idx_t dest_of
 	}
 }
 
-void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx_t dest_step_size, idx_t n, bool integer64) {
+void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx_t n, bool integer64) {
 	if (src_vec.GetType().GetAlias() == R_STRING_TYPE_NAME) {
 		ptrdiff_t sexp_header_size = (data_ptr_t)DATAPTR_RO(R_BlankString) - (data_ptr_t)R_BlankString;
 
@@ -306,22 +306,22 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 
 	switch (src_vec.GetType().id()) {
 	case LogicalTypeId::BOOLEAN:
-		VectorToR<int8_t, uint32_t>(src_vec, n, LOGICAL_POINTER(dest), dest_offset, dest_step_size, NA_LOGICAL);
+		VectorToR<int8_t, uint32_t>(src_vec, n, LOGICAL_POINTER(dest), dest_offset, NA_LOGICAL);
 		break;
 	case LogicalTypeId::UTINYINT:
-		VectorToR<uint8_t, uint32_t>(src_vec, n, INTEGER_POINTER(dest), dest_offset, dest_step_size, NA_INTEGER);
+		VectorToR<uint8_t, uint32_t>(src_vec, n, INTEGER_POINTER(dest), dest_offset, NA_INTEGER);
 		break;
 	case LogicalTypeId::TINYINT:
-		VectorToR<int8_t, uint32_t>(src_vec, n, INTEGER_POINTER(dest), dest_offset, dest_step_size, NA_INTEGER);
+		VectorToR<int8_t, uint32_t>(src_vec, n, INTEGER_POINTER(dest), dest_offset, NA_INTEGER);
 		break;
 	case LogicalTypeId::USMALLINT:
-		VectorToR<uint16_t, uint32_t>(src_vec, n, INTEGER_POINTER(dest), dest_offset, dest_step_size, NA_INTEGER);
+		VectorToR<uint16_t, uint32_t>(src_vec, n, INTEGER_POINTER(dest), dest_offset, NA_INTEGER);
 		break;
 	case LogicalTypeId::SMALLINT:
-		VectorToR<int16_t, uint32_t>(src_vec, n, INTEGER_POINTER(dest), dest_offset, dest_step_size, NA_INTEGER);
+		VectorToR<int16_t, uint32_t>(src_vec, n, INTEGER_POINTER(dest), dest_offset, NA_INTEGER);
 		break;
 	case LogicalTypeId::INTEGER:
-		VectorToR<int32_t, uint32_t>(src_vec, n, INTEGER_POINTER(dest), dest_offset, dest_step_size, NA_INTEGER);
+		VectorToR<int32_t, uint32_t>(src_vec, n, INTEGER_POINTER(dest), dest_offset, NA_INTEGER);
 		break;
 	case LogicalTypeId::TIMESTAMP_SEC:
 		ConvertTimestampVector<LogicalTypeId::TIMESTAMP_SEC>(src_vec, n, dest, dest_offset);
@@ -383,25 +383,23 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 		break;
 	}
 	case LogicalTypeId::UINTEGER:
-		VectorToR<uint32_t, double>(src_vec, n, NUMERIC_POINTER(dest), dest_offset, dest_step_size, NA_REAL);
+		VectorToR<uint32_t, double>(src_vec, n, NUMERIC_POINTER(dest), dest_offset, NA_REAL);
 		break;
 	case LogicalTypeId::UBIGINT:
 		if (integer64) {
 			// this silently loses the high bit
-			VectorToR<uint64_t, int64_t>(src_vec, n, NUMERIC_POINTER(dest), dest_offset, dest_step_size,
-			                             NumericLimits<int64_t>::Minimum());
+			VectorToR<uint64_t, int64_t>(src_vec, n, NUMERIC_POINTER(dest), dest_offset, NumericLimits<int64_t>::Minimum());
 			Rf_setAttrib(dest, R_ClassSymbol, RStrings::get().integer64_str);
 		} else {
-			VectorToR<uint64_t, double>(src_vec, n, NUMERIC_POINTER(dest), dest_offset, dest_step_size, NA_REAL);
+			VectorToR<uint64_t, double>(src_vec, n, NUMERIC_POINTER(dest), dest_offset, NA_REAL);
 		}
 		break;
 	case LogicalTypeId::BIGINT:
 		if (integer64) {
-			VectorToR<int64_t, int64_t>(src_vec, n, NUMERIC_POINTER(dest), dest_offset, dest_step_size,
-			                            NumericLimits<int64_t>::Minimum());
+			VectorToR<int64_t, int64_t>(src_vec, n, NUMERIC_POINTER(dest), dest_offset, NumericLimits<int64_t>::Minimum());
 			Rf_setAttrib(dest, R_ClassSymbol, RStrings::get().integer64_str);
 		} else {
-			VectorToR<int64_t, double>(src_vec, n, NUMERIC_POINTER(dest), dest_offset, dest_step_size, NA_REAL);
+			VectorToR<int64_t, double>(src_vec, n, NUMERIC_POINTER(dest), dest_offset, NA_REAL);
 		}
 		break;
 	case LogicalTypeId::HUGEINT: {
@@ -453,11 +451,11 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 		break;
 	}
 	case LogicalTypeId::FLOAT:
-		VectorToR<float, double>(src_vec, n, NUMERIC_POINTER(dest), dest_offset, dest_step_size, NA_REAL);
+		VectorToR<float, double>(src_vec, n, NUMERIC_POINTER(dest), dest_offset, NA_REAL);
 		break;
 
 	case LogicalTypeId::DOUBLE:
-		VectorToR<double, double>(src_vec, n, NUMERIC_POINTER(dest), dest_offset, dest_step_size, NA_REAL);
+		VectorToR<double, double>(src_vec, n, NUMERIC_POINTER(dest), dest_offset, NA_REAL);
 		break;
 	case LogicalTypeId::VARCHAR: {
 		auto src_ptr = FlatVector::GetData<string_t>(src_vec);
@@ -488,7 +486,7 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 				// transform the list child vector to a single R SEXP
 				cpp11::sexp list_element = duckdb_r_allocate(child_type, src_data[row_idx].length);
 				duckdb_r_decorate(child_type, list_element, integer64);
-				duckdb_r_transform(child_vector, list_element, 0, 1, src_data[row_idx].length, integer64);
+				duckdb_r_transform(child_vector, list_element, 0, src_data[row_idx].length, integer64);
 
 				// call R's own extract subset method
 				SET_ELEMENT(dest, dest_offset + row_idx, list_element);
@@ -506,7 +504,7 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 		for (size_t i = 0; i < children.size(); i++) {
 			const auto &struct_child = children[i];
 			SEXP child_dest = VECTOR_ELT(dest, i);
-			duckdb_r_transform(*struct_child, child_dest, dest_offset, 1, n, integer64);
+			duckdb_r_transform(*struct_child, child_dest, dest_offset, n, integer64);
 		}
 
 		break;
@@ -537,8 +535,8 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 				duckdb_r_decorate(key_type, key_sexp, integer64);
 				duckdb_r_decorate(value_type, value_sexp, integer64);
 
-				duckdb_r_transform(key_child, key_sexp, 0, 1, length, integer64);
-				duckdb_r_transform(value_child, value_sexp, 0, 1, length, integer64);
+				duckdb_r_transform(key_child, key_sexp, 0, length, integer64);
+				duckdb_r_transform(value_child, value_sexp, 0, length, integer64);
 
 				cpp11::writable::list dest_list;
 				dest_list.reserve(2);
@@ -581,15 +579,15 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 
 		switch (physical_type) {
 		case PhysicalType::UINT8:
-			VectorToR<uint8_t, uint32_t>(src_vec, n, INTEGER_POINTER(dest), dest_offset, dest_step_size, NA_INTEGER);
+			VectorToR<uint8_t, uint32_t>(src_vec, n, INTEGER_POINTER(dest), dest_offset, NA_INTEGER);
 			break;
 
 		case PhysicalType::UINT16:
-			VectorToR<uint16_t, uint32_t>(src_vec, n, INTEGER_POINTER(dest), dest_offset, dest_step_size, NA_INTEGER);
+			VectorToR<uint16_t, uint32_t>(src_vec, n, INTEGER_POINTER(dest), dest_offset, NA_INTEGER);
 			break;
 
 		case PhysicalType::UINT32:
-			VectorToR<uint8_t, uint32_t>(src_vec, n, INTEGER_POINTER(dest), dest_offset, dest_step_size, NA_INTEGER);
+			VectorToR<uint8_t, uint32_t>(src_vec, n, INTEGER_POINTER(dest), dest_offset, NA_INTEGER);
 			break;
 
 		default:

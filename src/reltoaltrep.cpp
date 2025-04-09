@@ -239,7 +239,7 @@ struct AltrepVectorWrapper {
 			idx_t dest_offset = 0;
 			for (auto &chunk : res->Collection().Chunks()) {
 				SEXP dest = transformed_vector.data();
-				duckdb_r_transform(chunk.data[column_index], dest, dest_offset, 1, chunk.size(), false);
+				duckdb_r_transform(chunk.data[column_index], dest, dest_offset, chunk.size(), false);
 				dest_offset += chunk.size();
 			}
 		}
