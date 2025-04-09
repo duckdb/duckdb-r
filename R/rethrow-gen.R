@@ -63,9 +63,9 @@ rethrow_rapi_shutdown <- function(dbsexp, call = parent.frame(2)) {
   )
 }
 
-rethrow_rapi_register_df <- function(conn, name, value, integer64, overwrite, experimental, call = parent.frame(2)) {
+rethrow_rapi_register_df <- function(conn, name, value, convert_opts, overwrite, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_register_df(conn, name, value, integer64, overwrite, experimental),
+    rapi_register_df(conn, name, value, convert_opts, overwrite),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
@@ -171,9 +171,9 @@ rethrow_rapi_get_null_SEXP_ptr <- function(call = parent.frame(2)) {
   )
 }
 
-rethrow_rapi_rel_from_df <- function(con, df, experimental, call = parent.frame(2)) {
+rethrow_rapi_rel_from_df <- function(con, df, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_rel_from_df(con, df, experimental),
+    rapi_rel_from_df(con, df),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }

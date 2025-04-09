@@ -28,8 +28,8 @@ rapi_shutdown <- function(dbsexp) {
   invisible(.Call(`_duckdb_rapi_shutdown`, dbsexp))
 }
 
-rapi_register_df <- function(conn, name, value, integer64, overwrite, experimental) {
-  invisible(.Call(`_duckdb_rapi_register_df`, conn, name, value, integer64, overwrite, experimental))
+rapi_register_df <- function(conn, name, value, convert_opts, overwrite) {
+  invisible(.Call(`_duckdb_rapi_register_df`, conn, name, value, convert_opts, overwrite))
 }
 
 rapi_unregister_df <- function(conn, name) {
@@ -76,8 +76,8 @@ rapi_get_null_SEXP_ptr <- function() {
   .Call(`_duckdb_rapi_get_null_SEXP_ptr`)
 }
 
-rapi_rel_from_df <- function(con, df, experimental) {
-  .Call(`_duckdb_rapi_rel_from_df`, con, df, experimental)
+rapi_rel_from_df <- function(con, df) {
+  .Call(`_duckdb_rapi_rel_from_df`, con, df)
 }
 
 rapi_rel_to_df <- function(rel) {

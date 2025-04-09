@@ -24,6 +24,8 @@ enum ConvertOpts {
 	CONVERT_BIGINT_NUMERIC = 0x00000000,
 	CONVERT_BIGINT_INTEGER64 = 0x00000001,
 
+	CONVERT_EXPERIMENTAL = 0x02000000,
+
 	CONVERT_ARROW = 0x10000000,
 };
 
@@ -232,7 +234,7 @@ SEXP rapi_execute(duckdb::stmt_eptr_t, duckdb::ConvertOpts);
 
 void rapi_release(duckdb::stmt_eptr_t);
 
-void rapi_register_df(duckdb::conn_eptr_t, std::string, cpp11::data_frame, bool);
+void rapi_register_df(duckdb::conn_eptr_t, std::string, cpp11::data_frame, duckdb::ConvertOpts);
 
 void rapi_unregister_df(duckdb::conn_eptr_t, std::string);
 

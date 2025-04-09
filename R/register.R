@@ -45,7 +45,13 @@ encode_values <- function(value) {
 duckdb_register <- function(conn, name, df, overwrite = FALSE, experimental = FALSE) {
   stopifnot(dbIsValid(conn))
   df <- encode_values(as.data.frame(df))
-  rethrow_rapi_register_df(conn@conn_ref, enc2utf8(as.character(name)), df, conn@bigint == "integer64", overwrite, experimental)
+  rethrow_rapi_register_df(
+    conn@conn_ref,
+    enc2utf8(as.character(name)),
+    df,
+    convert_opts_set_experimental(conn@convert_opts, experimental),
+    overwrite
+  )
   invisible(TRUE)
 }
 
