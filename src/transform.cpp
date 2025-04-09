@@ -163,7 +163,7 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, bool integer64)
 		auto array_size = ArrayType::GetSize(type);
 		auto &child_type = ArrayType::GetChildType(type);
 		duckdb_r_decorate(child_type, dest, integer64);
-		// The class of a matrix and an array is implicit from 
+		// The class of a matrix and an array is implicit from
 		// the dim attribute so we don't set the class attribute.
 		// See: https://svn.r-project.org/R/trunk/src/main/attrib.c:656
 		// SET_CLASS(dest, RStrings::get().matrix_array_str);
@@ -345,7 +345,7 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 		break;
 	case LogicalTypeId::BIGINT:
 		if (integer64) {
-			VectorToR<int64_t, int64_t>(src_vec, n, NUMERIC_POINTER(dest), dest_offset, dest_step_size, 
+			VectorToR<int64_t, int64_t>(src_vec, n, NUMERIC_POINTER(dest), dest_offset, dest_step_size,
 			                            NumericLimits<int64_t>::Minimum());
 			Rf_setAttrib(dest, R_ClassSymbol, RStrings::get().integer64_str);
 		} else {
