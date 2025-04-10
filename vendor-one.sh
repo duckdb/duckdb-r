@@ -6,7 +6,7 @@ set -e
 set -x
 set -o pipefail
 
-cd `dirname $0`
+cd "$(dirname "$0")"
 
 project=duckdb
 vendor_base_dir=src/duckdb
@@ -39,7 +39,7 @@ fi
 
 base=$(git log -n 10 --format="%s" -- ${vendor_dir} | tee /dev/stderr | sed -nr '/^.*'${repo_org}.${repo_name}'@([0-9a-f]+)( .*)?$/{s//\1/;p;}' | head -n 1)
 
-original=$(git -C "$upstream_dir" log --first-parent --reverse --format="%H" ${base}..HEAD)
+original=$(git -C "$upstream_dir" log --first-parent --reverse --format="%H" "${base}"..HEAD)
 
 message=
 is_tag=
@@ -52,25 +52,25 @@ for commit in $original; do
   rm -rf ${vendor_dir}
 
   echo "R: configure"
-  DUCKDB_PATH="$upstream_dir" python3 rconfigure.py
+  DUCKDB_PATH="$upstream_dir" python3 scripts/rconfigure.py
 
   for f in patch/*.patch; do
-    if patch -i $f -p1 --forward --dry-run; then
-      patch -i $f -p1 --forward --no-backup-if-mismatch
+    if patch -i "$f" -p1 --forward --dry-run; then
+      patch -i "$f" -p1 --forward --no-backup-if-mismatch
     else
       echo "Removing patch $f"
-      rm $f
+      rm "$f"
     fi
   done
 
   # Always vendor tags
-  if [ $(git -C "$upstream_dir" describe --tags "$commit" | grep -c -- -) -eq 0 ]; then
+  if [ "$(git -C "$upstream_dir" describe --tags "$commit" | grep -c -- -)" -eq 0 ]; then
     message="vendor: Update vendored sources (tag $(git -C "$upstream_dir" describe --tags "$commit")) to ${repo_org}/${repo_name}@$commit"
     is_tag=true
     break
   fi
 
-  if [ $(git status --porcelain -- ${vendor_base_dir} | wc -l) -gt 1 ]; then
+  if [ "$(git status --porcelain -- ${vendor_base_dir} | wc -l)" -gt 1 ]; then
     message="vendor: Update vendored sources to ${repo_org}/${repo_name}@$commit"
     break
   fi
@@ -89,7 +89,7 @@ upstream_tag=$(git -C "$upstream_dir" describe --tags --abbrev=0)
 echo "Our tag: $our_tag"
 echo "Upstream tag: $upstream_tag"
 
-if [ -z "${is_tag}" -a "${our_tag#$upstream_tag}" == "$our_tag" ]; then
+if [ -z "${is_tag}" ] && [ "${our_tag#"$upstream_tag"}" == "$our_tag" ]; then
   echo "Not vendoring because our tag $our_tag does not start with upstream tag $upstream_tag"
   git checkout -- ${vendor_base_dir}
   rm -rf "$upstream_dir"
@@ -101,7 +101,9 @@ git add .
 (
   echo "$message"
   echo
-  git -C "$upstream_dir" log --first-parent --format="%s" ${base}..${commit} | tee /dev/stderr | sed -r 's%(#[0-9]+)%'${repo_org}/${repo_name}'\1%g'
+  git -C "$upstream_dir" log --first-parent --format="%s" "${base}".."${commit}" |
+    tee /dev/stderr |
+    sed -r 's%(#[0-9]+)%'${repo_org}/${repo_name}'\1%g'
 ) | git commit --file /dev/stdin
 
 rm -rf "$upstream_dir"

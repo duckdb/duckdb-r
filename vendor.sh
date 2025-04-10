@@ -6,7 +6,7 @@ set -e
 set -x
 set -o pipefail
 
-cd `dirname $0`
+cd "$(dirname "$0")"
 
 project=duckdb
 vendor_base_dir=src/duckdb
@@ -49,25 +49,25 @@ for commit in $original; do
   rm -rf ${vendor_dir}
 
   echo "R: configure"
-  DUCKDB_PATH="$upstream_dir" python3 rconfigure.py
+  DUCKDB_PATH="$upstream_dir" python3 scripts/rconfigure.py
 
   for f in patch/*.patch; do
-    if patch -i $f -p1 --forward --dry-run; then
-      patch -i $f -p1 --forward --no-backup-if-mismatch
+    if patch -i "$f" -p1 --forward --dry-run; then
+      patch -i "$f" -p1 --forward --no-backup-if-mismatch
     else
       echo "Removing patch $f"
-      rm $f
+      rm "$f"
     fi
   done
 
   # Always vendor tags
-  if [ $(git -C "$upstream_dir" describe --tags "$commit" | grep -c -- -) -eq 0 ]; then
+  if [ "$(git -C "$upstream_dir" describe --tags "$commit" | grep -c -- -)" -eq 0 ]; then
     message="vendor: Update vendored sources (tag $(git -C "$upstream_dir" describe --tags "$commit")) to ${repo_org}/${repo_name}@$commit"
     is_tag=true
     break
   fi
 
-  if [ $(git status --porcelain -- ${vendor_base_dir} | wc -l) -gt 1 ]; then
+  if [ "$(git status --porcelain -- ${vendor_base_dir} | wc -l)" -gt 1 ]; then
     message="vendor: Update vendored sources to ${repo_org}/${repo_name}@$commit"
     break
   fi
@@ -85,7 +85,13 @@ git add .
 (
   echo "$message"
   echo
-  git -C "$upstream_dir" log --first-parent --format="%s" ${base}..${commit} | tee /dev/stderr | sed -r 's%(#[0-9]+)%'${repo_org}/${repo_name}'\1%g'
+  git -C "$upstream_dir" log --first-parent --format="%s" "${base}".."${commit}" |
+    tee /dev/stderr |
+    sed -r 's%(#[0-9]+)%'${repo_org}/${repo_name}'\1%g'
 ) | git commit --file /dev/stdin
 
 rm -rf "$upstream_dir"
+
+# Remove "unused" warnings
+# Keep the variable for consistency between vendor.sh and vendor-one.sh
+true "${is_tag}"

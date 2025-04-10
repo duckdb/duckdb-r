@@ -44,7 +44,7 @@ Then run the following commands
 
 ``` sh
 ~ (cd duckdb && git checkout {{desired_branch}})
-~ (cd ducdkb-r && ./vendor.sh)
+~ (cd ducdkb-r && scripts/vendor.sh)
 ~ (cd duckdb-r && R CMD INSTALL .)
 ```
 

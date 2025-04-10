@@ -12,10 +12,6 @@ tests/regression
 RELEASE.md
 \.github
 ^\.gitattributes$
-^vendor\.sh$
-^vendor-one\.sh$
-^vendor-rfuns\.sh$
-^rconfigure\.py$
 ^src/\.editorconfig$
 ^\.vscode$
 ^CMakeLists\.txt$
@@ -43,3 +39,4 @@ _files$
 ^compile_commands\.json$
 ^\.cache$
 ^tests/testthat/helper-rethrow\.R$
+^\.Rprofile$
