@@ -41,7 +41,6 @@ void AltrepDataFrameRelation::BuildTableRelation() {
 		vector<Value> params = {Value::POINTER((uintptr_t)(SEXP)dataframe)};
 
 		named_parameter_map_t other_params;
-		other_params["experimental"] = Value::BOOLEAN(false);
 
 		// Can't do an alias here and need auto_init = false
 		// to avoid a recursive lock

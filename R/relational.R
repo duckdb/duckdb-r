@@ -88,8 +88,13 @@ print.duckdb_expr <- function(x, ...) {
 #' @examples
 #' con <- DBI::dbConnect(duckdb())
 #' rel <- rel_from_df(con, mtcars)
-rel_from_df <- function(con, df, experimental=FALSE) {
-    rethrow_rapi_rel_from_df(con@conn_ref, as.data.frame(df), experimental)
+rel_from_df <- function(con, df, experimental = NULL) {
+  # FIXME: Enable warning
+  # if (!is.null(experimental)) {
+  #   .Deprecated(msg = "The experimental parameter is deprecated.")
+  # }
+
+  rethrow_rapi_rel_from_df(con@conn_ref, as.data.frame(df))
 }
 
 #' @export

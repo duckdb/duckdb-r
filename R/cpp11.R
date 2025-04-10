@@ -28,8 +28,8 @@ rapi_shutdown <- function(dbsexp) {
   invisible(.Call(`_duckdb_rapi_shutdown`, dbsexp))
 }
 
-rapi_register_df <- function(conn, name, value, integer64, overwrite, experimental) {
-  invisible(.Call(`_duckdb_rapi_register_df`, conn, name, value, integer64, overwrite, experimental))
+rapi_register_df <- function(conn, name, value, convert_opts, overwrite) {
+  invisible(.Call(`_duckdb_rapi_register_df`, conn, name, value, convert_opts, overwrite))
 }
 
 rapi_unregister_df <- function(conn, name) {
@@ -76,8 +76,8 @@ rapi_get_null_SEXP_ptr <- function() {
   .Call(`_duckdb_rapi_get_null_SEXP_ptr`)
 }
 
-rapi_rel_from_df <- function(con, df, experimental) {
-  .Call(`_duckdb_rapi_rel_from_df`, con, df, experimental)
+rapi_rel_from_df <- function(con, df) {
+  .Call(`_duckdb_rapi_rel_from_df`, con, df)
 }
 
 rapi_rel_to_df <- function(rel) {
@@ -208,8 +208,8 @@ rapi_prepare <- function(conn, query, env) {
   .Call(`_duckdb_rapi_prepare`, conn, query, env)
 }
 
-rapi_bind <- function(stmt, params, arrow, integer64) {
-  .Call(`_duckdb_rapi_bind`, stmt, params, arrow, integer64)
+rapi_bind <- function(stmt, params, convert_opts) {
+  .Call(`_duckdb_rapi_bind`, stmt, params, convert_opts)
 }
 
 rapi_execute_arrow <- function(qry_res, chunk_size) {
@@ -220,8 +220,8 @@ rapi_record_batch <- function(qry_res, chunk_size) {
   .Call(`_duckdb_rapi_record_batch`, qry_res, chunk_size)
 }
 
-rapi_execute <- function(stmt, arrow, integer64) {
-  .Call(`_duckdb_rapi_execute`, stmt, arrow, integer64)
+rapi_execute <- function(stmt, convert_opts) {
+  .Call(`_duckdb_rapi_execute`, stmt, convert_opts)
 }
 
 rapi_adbc_init_func <- function() {

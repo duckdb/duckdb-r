@@ -10,6 +10,7 @@ setClass("duckdb_driver", contains = "DBIDriver", slots = list(
   config = "list",
   dbdir = "character",
   read_only = "logical",
+  convert_opts = "integer",
   bigint = "character"
 ))
 
@@ -27,10 +28,11 @@ setClass("duckdb_connection", contains = "DBIConnection", slots = list(
   timezone_out = "character",
   tz_out_convert = "character",
   reserved_words = "character",
+  convert_opts = "integer",
   bigint = "character"
 ))
 
-duckdb_connection <- function(duckdb_driver, debug, bigint) {
+duckdb_connection <- function(duckdb_driver, debug, convert_opts) {
   out <- new(
     "duckdb_connection",
     conn_ref = rethrow_rapi_connect(duckdb_driver@database_ref),
@@ -38,7 +40,8 @@ duckdb_connection <- function(duckdb_driver, debug, bigint) {
     debug = debug,
     timezone_out = "UTC",
     tz_out_convert = "with",
-    bigint = bigint
+    convert_opts = convert_opts,
+    bigint = bigint_from_convert_opts(convert_opts)
   )
   out@reserved_words <- get_reserved_words(out)
   out

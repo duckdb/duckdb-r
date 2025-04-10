@@ -40,7 +40,10 @@ duckdb_result <- function(connection, stmt_lst, arrow) {
 }
 
 duckdb_execute <- function(res) {
-  out <- rethrow_rapi_execute(res@stmt_lst$ref, res@arrow, res@connection@bigint == "integer64")
+  out <- rethrow_rapi_execute(
+    res@stmt_lst$ref,
+    convert_opts_set_arrow(res@connection@convert_opts, res@arrow)
+  )
   duckdb_post_execute(res, out)
 }
 

@@ -18,6 +18,29 @@
 
 namespace duckdb {
 
+enum ConvertOpts {
+	CONVERT_NONE = 0x00000000,
+
+	CONVERT_BIGINT_NUMERIC = 0x00000000,
+	CONVERT_BIGINT_INTEGER64 = 0x00000001,
+
+	CONVERT_EXPERIMENTAL = 0x02000000,
+
+	CONVERT_ARROW = 0x10000000,
+};
+
+enum ConvertOptsMask {
+	CONVERT_BIGINT_MASK = 0x00000003,
+};
+
+inline ConvertOpts operator|(ConvertOpts a, ConvertOpts b) {
+	return static_cast<ConvertOpts>(static_cast<int>(a) | static_cast<int>(b));
+}
+
+inline ConvertOpts operator&(ConvertOpts a, ConvertOptsMask b) {
+	return static_cast<ConvertOpts>(static_cast<int>(a) & static_cast<int>(b));
+}
+
 typedef unordered_map<std::string, cpp11::list> arrow_scans_t;
 
 struct DBWrapper {
@@ -205,13 +228,13 @@ void rapi_disconnect(duckdb::conn_eptr_t);
 
 cpp11::list rapi_prepare(duckdb::conn_eptr_t, std::string);
 
-cpp11::list rapi_bind(duckdb::stmt_eptr_t, SEXP paramsexp, bool);
+cpp11::list rapi_bind(duckdb::stmt_eptr_t, SEXP paramsexp, duckdb::ConvertOpts);
 
-SEXP rapi_execute(duckdb::stmt_eptr_t, bool, bool);
+SEXP rapi_execute(duckdb::stmt_eptr_t, duckdb::ConvertOpts);
 
 void rapi_release(duckdb::stmt_eptr_t);
 
-void rapi_register_df(duckdb::conn_eptr_t, std::string, cpp11::data_frame, bool);
+void rapi_register_df(duckdb::conn_eptr_t, std::string, cpp11::data_frame, duckdb::ConvertOpts);
 
 void rapi_unregister_df(duckdb::conn_eptr_t, std::string);
 

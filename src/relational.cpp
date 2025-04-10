@@ -122,7 +122,7 @@ using namespace cpp11;
 	return ret;
 }
 
-[[cpp11::register]] SEXP rapi_rel_from_df(duckdb::conn_eptr_t con, data_frame df, bool experimental) {
+[[cpp11::register]] SEXP rapi_rel_from_df(duckdb::conn_eptr_t con, data_frame df) {
 	if (!con || !con.get() || !con->conn) {
 		stop("rel_from_df: Invalid connection");
 	}
@@ -131,7 +131,6 @@ using namespace cpp11;
 	}
 
 	named_parameter_map_t other_params;
-	other_params["experimental"] = Value::BOOLEAN(experimental);
 	auto alias = StringUtil::Format("dataframe_%d_%d", (uintptr_t)(SEXP)df,
 	                                (int32_t)(NumericLimits<int32_t>::Maximum() * unif_rand()));
 	auto rel =
