@@ -6,7 +6,7 @@ set -e
 set -x
 set -o pipefail
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")"/..
 
 project=duckdb
 vendor_base_dir=src/duckdb
