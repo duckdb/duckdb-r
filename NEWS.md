@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.2.1.9003
+
+## Features
+
+- Add support for duckdb arrays in R (@joakimlinde, #102, #1090).
+
+
 # duckdb 1.2.1.9002
 
 ## Chore
