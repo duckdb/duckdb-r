@@ -480,8 +480,8 @@ rel_to_sql <- function(rel) {
 #' con <- DBI::dbConnect(duckdb())
 #' DBI::dbWriteTable(con, "mtcars", mtcars)
 #' rel <- rel_from_sql(con, "SELECT * FROM mtcars")
-rel_from_sql <- function(con, sql) {
-    rethrow_rapi_rel_from_sql(con@conn_ref, sql)
+rel_from_sql <- function(con, sql, env = parent.frame()) {
+  rethrow_rapi_rel_from_sql(con@conn_ref, sql, env)
 }
 
 #' Create a duckdb table relation from a table name

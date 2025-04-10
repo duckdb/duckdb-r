@@ -333,9 +333,9 @@ rethrow_rapi_rel_set_symdiff <- function(rel_a, rel_b, call = parent.frame(2)) {
   )
 }
 
-rethrow_rapi_rel_from_sql <- function(con, sql, call = parent.frame(2)) {
+rethrow_rapi_rel_from_sql <- function(con, sql, env, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_rel_from_sql(con, sql),
+    rapi_rel_from_sql(con, sql, env),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
