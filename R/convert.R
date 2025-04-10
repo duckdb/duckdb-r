@@ -19,7 +19,7 @@ convert_opts_from_args <- function(bigint) {
     }
     out <- bitwOr(out, CONVERT_BIGINT_INTEGER64)
   } else {
-    stop(paste0("Unsupported bigint configuration: ", bigint_type))
+    stop(paste0("Unsupported bigint configuration: ", bigint))
   }
 
   out
