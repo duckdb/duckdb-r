@@ -1,5 +1,18 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.2.1.9004
+
+## Chore
+
+- Move scripts.
+
+- Reorganize scripts.
+
+## Continuous integration
+
+- Fix script location.
+
+
 # duckdb 1.2.1.9003
 
 ## Features
