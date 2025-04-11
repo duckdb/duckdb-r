@@ -61,6 +61,7 @@ Suggests:
     vctrs,
     withr
 Config/build/compilation-database: true
+Config/gha/extra-packages: arrow=?ignore-before-r=4.2.0
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2.9000
