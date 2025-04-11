@@ -29,7 +29,7 @@ if 'DUCKDB_PATH' in os.environ:
 else:
     duckdb_path = os.path.join('../duckdb')
 
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), duckdb_path, 'scripts'))
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', duckdb_path, 'scripts'))
 import package_build
 
 
