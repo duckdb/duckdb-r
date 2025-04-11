@@ -46,10 +46,13 @@ using namespace cpp11;
 }
 
 [[cpp11::register]] SEXP rapi_expr_constant(sexp val) {
+	if (val == R_NilValue) {
+		return make_external<ConstantExpression>("duckdb_expr", Value(LogicalType::SQLNULL));
+	}
 	if (LENGTH(val) != 1) {
 		stop("expr_constant: Need value of length one");
 	}
-	return make_external<ConstantExpression>("duckdb_expr", RApiTypes::SexpToValue(val, 0, false));
+	return make_external<ConstantExpression>("duckdb_expr", RApiTypes::SexpToValue(val, 0, true));
 }
 
 [[cpp11::register]] SEXP rapi_expr_comparison(std::string cmp_op, list exprs) {
