@@ -1,5 +1,16 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.2.1.9005
+
+## Chore
+
+- Fix path.
+
+## Continuous integration
+
+- Ignore arrow for R \< 4.2.
+
+
 # duckdb 1.2.1.9004
 
 ## Chore
