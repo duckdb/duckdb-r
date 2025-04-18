@@ -40,9 +40,6 @@ dbFetch__duckdb_result <- function(res, n = -1, ...) {
     return(data.frame())
   }
 
-  timezone_out <- res@connection@timezone_out
-  tz_out_convert <- res@connection@tz_out_convert
-
   if (res@env$rows_fetched < 0) {
     res@env$rows_fetched <- 0
   }
@@ -67,7 +64,6 @@ dbFetch__duckdb_result <- function(res, n = -1, ...) {
 
   res@env$rows_fetched <- res@env$rows_fetched + n
 
-  df <- set_output_tz(df, timezone_out, tz_out_convert)
   df
 }
 
