@@ -57,7 +57,7 @@ RStrings::RStrings() {
 	R_PreserveObject(strings);
 	MARK_NOT_MUTABLE(strings);
 
-	cpp11::sexp chars = Rf_allocVector(VECSXP, 10);
+	cpp11::sexp chars = Rf_allocVector(VECSXP, 11);
 	SET_VECTOR_ELT(chars, 0, UTC_str = Rf_mkString("UTC"));
 	SET_VECTOR_ELT(chars, 1, Date_str = Rf_mkString("Date"));
 	SET_VECTOR_ELT(chars, 2, difftime_str = Rf_mkString("difftime"));
@@ -68,6 +68,7 @@ RStrings::RStrings() {
 	SET_VECTOR_ELT(chars, 7, factor_str = Rf_mkString("factor"));
 	SET_VECTOR_ELT(chars, 8, dataframe_str = Rf_mkString("data.frame"));
 	SET_VECTOR_ELT(chars, 9, integer64_str = Rf_mkString("integer64"));
+	SET_VECTOR_ELT(chars, 10, tbl_df_tbl_dataframe_str = StringsToSexp({"tbl_df", "tbl", "data.frame"}));
 
 	R_PreserveObject(chars);
 	MARK_NOT_MUTABLE(chars);
