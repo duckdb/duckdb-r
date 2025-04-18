@@ -121,7 +121,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		}
 	}
 
-	if (n_rows != 1 && (convert_opts & ConvertOpts::CONVERT_ARROW)) {
+	if (n_rows != 1 && convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED) {
 		cpp11::stop("rapi_bind: Bind parameter values need to have length one for arrow queries");
 	}
 
@@ -294,7 +294,7 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 		cpp11::stop("rapi_execute: Failed to run query\nError: %s", generic_result->GetError().c_str());
 	}
 
-	if (convert_opts & ConvertOpts::CONVERT_ARROW) {
+	if (convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED) {
 		auto query_result = new RQueryResult();
 		query_result->result = std::move(generic_result);
 		rqry_eptr_t query_resultsexp(query_result);
@@ -304,7 +304,8 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 		auto result = (MaterializedQueryResult *)generic_result.get();
 
 		// Avoid rchk warning, it sees QueryResult::~QueryResult() as an allocating function
-		cpp11::sexp out = duckdb_execute_R_impl(result, (convert_opts & ConvertOptsMask::CONVERT_BIGINT_MASK) == ConvertOpts::CONVERT_BIGINT_INTEGER64, RStrings::get().dataframe_str);
+		cpp11::sexp out = duckdb_execute_R_impl(result, convert_opts.bigint == ConvertOpts::BigIntType::INTEGER64,
+		                                        RStrings::get().dataframe_str);
 		return out;
 	}
 }

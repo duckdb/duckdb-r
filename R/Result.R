@@ -41,7 +41,7 @@ duckdb_result <- function(connection, stmt_lst, arrow) {
 duckdb_execute <- function(res) {
   out <- rethrow_rapi_execute(
     res@stmt_lst$ref,
-    convert_opts_set_arrow(res@connection@convert_opts, res@arrow)
+    duckdb_convert_opts_impl(res@connection@convert_opts, arrow = res@arrow)
   )
   duckdb_post_execute(res, out)
 }
