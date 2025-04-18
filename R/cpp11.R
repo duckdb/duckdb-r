@@ -48,20 +48,20 @@ rapi_list_arrow <- function(conn) {
   .Call(`_duckdb_rapi_list_arrow`, conn)
 }
 
-rapi_expr_reference <- function(rnames) {
-  .Call(`_duckdb_rapi_expr_reference`, rnames)
+rapi_expr_reference <- function(rnames, alias) {
+  .Call(`_duckdb_rapi_expr_reference`, rnames, alias)
 }
 
-rapi_expr_constant <- function(val) {
-  .Call(`_duckdb_rapi_expr_constant`, val)
+rapi_expr_constant <- function(val, alias) {
+  .Call(`_duckdb_rapi_expr_constant`, val, alias)
 }
 
-rapi_expr_comparison <- function(cmp_op, exprs) {
-  .Call(`_duckdb_rapi_expr_comparison`, cmp_op, exprs)
+rapi_expr_comparison <- function(cmp_op, exprs, alias) {
+  .Call(`_duckdb_rapi_expr_comparison`, cmp_op, exprs, alias)
 }
 
-rapi_expr_function <- function(name, args, order_bys, filter_bys) {
-  .Call(`_duckdb_rapi_expr_function`, name, args, order_bys, filter_bys)
+rapi_expr_function <- function(name, args, order_bys, filter_bys, alias) {
+  .Call(`_duckdb_rapi_expr_function`, name, args, order_bys, filter_bys, alias)
 }
 
 rapi_expr_set_alias <- function(expr, alias) {
@@ -116,8 +116,8 @@ rapi_rel_order <- function(rel, orders, ascending) {
   .Call(`_duckdb_rapi_rel_order`, rel, orders, ascending)
 }
 
-rapi_expr_window <- function(window_function, partitions, order_bys, window_boundary_start, window_boundary_end, start_expr, end_expr, offset_expr, default_expr) {
-  .Call(`_duckdb_rapi_expr_window`, window_function, partitions, order_bys, window_boundary_start, window_boundary_end, start_expr, end_expr, offset_expr, default_expr)
+rapi_expr_window <- function(window_function, partitions, order_bys, window_boundary_start, window_boundary_end, start_expr, end_expr, offset_expr, default_expr, alias) {
+  .Call(`_duckdb_rapi_expr_window`, window_function, partitions, order_bys, window_boundary_start, window_boundary_end, start_expr, end_expr, offset_expr, default_expr, alias)
 }
 
 rapi_rel_join <- function(left, right, conds, join, join_ref_type) {

@@ -31,7 +31,7 @@ using namespace cpp11;
 
 // DuckDB Expressions
 
-[[cpp11::register]] SEXP rapi_expr_reference(r_vector<r_string> rnames) {
+[[cpp11::register]] SEXP rapi_expr_reference(r_vector<r_string> rnames, std::string alias = "") {
 	if (rnames.size() == 0) {
 		stop("expr_reference: Zero length name vector");
 	}
@@ -42,28 +42,40 @@ using namespace cpp11;
 		}
 		names.push_back(name);
 	}
-	return make_external<ColumnRefExpression>("duckdb_expr", names);
+	auto out = make_external<ColumnRefExpression>("duckdb_expr", names);
+	if (alias != "") {
+		out->SetAlias(std::move(alias));
+	}
+	return out;
 }
 
-[[cpp11::register]] SEXP rapi_expr_constant(sexp val) {
+[[cpp11::register]] SEXP rapi_expr_constant(sexp val, std::string alias = "") {
 	if (LENGTH(val) != 1) {
 		stop("expr_constant: Need value of length one");
 	}
-	return make_external<ConstantExpression>("duckdb_expr", RApiTypes::SexpToValue(val, 0, false));
+	auto out = make_external<ConstantExpression>("duckdb_expr", RApiTypes::SexpToValue(val, 0, false));
+	if (alias != "") {
+		out->SetAlias(std::move(alias));
+	}
+	return out;
 }
 
-[[cpp11::register]] SEXP rapi_expr_comparison(std::string cmp_op, list exprs) {
+[[cpp11::register]] SEXP rapi_expr_comparison(std::string cmp_op, list exprs, std::string alias = "") {
 
 	ExpressionType expr_type = OperatorToExpressionType(cmp_op);
 	if (expr_type == ExpressionType::INVALID) {
 		stop("expr_comparison: Invalid comparison operator");
 	}
 
-	return make_external<ComparisonExpression>("duckdb_expr", expr_type, expr_extptr_t(exprs[0])->Copy(),
+	auto out = make_external<ComparisonExpression>("duckdb_expr", expr_type, expr_extptr_t(exprs[0])->Copy(),
 	                                           expr_extptr_t(exprs[1])->Copy());
+	if (alias != "") {
+		out->SetAlias(std::move(alias));
+	}
+	return out;
 }
 
-[[cpp11::register]] SEXP rapi_expr_function(std::string name, list args, list order_bys, list filter_bys) {
+[[cpp11::register]] SEXP rapi_expr_function(std::string name, list args, list order_bys, list filter_bys, std::string alias = "") {
 	if (name.size() == 0) {
 		stop("expr_function: Zero length name");
 	}
@@ -102,6 +114,9 @@ using namespace cpp11;
 	}
 	if (!filter_bys.empty()) {
 		func_expr->filter = std::move(filter_expr);
+	}
+	if (alias != "") {
+		func_expr->SetAlias(std::move(alias));
 	}
 	return func_expr;
 }
@@ -312,7 +327,8 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 [[cpp11::register]] SEXP rapi_expr_window(duckdb::expr_extptr_t window_function, list partitions, list order_bys,
                                           std::string window_boundary_start, std::string window_boundary_end,
                                           duckdb::expr_extptr_t start_expr, duckdb::expr_extptr_t end_expr,
-                                          duckdb::expr_extptr_t offset_expr, duckdb::expr_extptr_t default_expr) {
+                                          duckdb::expr_extptr_t offset_expr, duckdb::expr_extptr_t default_expr,
+                                          std::string alias = "") {
 
 	if (!window_function || window_function->type != ExpressionType::FUNCTION) {
 		stop("expected function expression");
@@ -350,6 +366,10 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 	}
 	if (constant_expression_is_not_null(default_expr)) {
 		window_expr->default_expr = default_expr->Copy();
+	}
+
+	if (alias != "") {
+		window_expr->SetAlias(std::move(alias));
 	}
 
 	return window_expr;

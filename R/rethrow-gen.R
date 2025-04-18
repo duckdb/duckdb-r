@@ -108,36 +108,36 @@ rethrow_rapi_list_arrow <- function(conn, call = parent.frame(2)) {
   )
 }
 
-rethrow_rapi_expr_reference <- function(rnames, call = parent.frame(2)) {
+rethrow_rapi_expr_reference <- function(rnames, alias, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_expr_reference(rnames),
+    rapi_expr_reference(rnames, alias),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
   )
 }
 
-rethrow_rapi_expr_constant <- function(val, call = parent.frame(2)) {
+rethrow_rapi_expr_constant <- function(val, alias, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_expr_constant(val),
+    rapi_expr_constant(val, alias),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
   )
 }
 
-rethrow_rapi_expr_comparison <- function(cmp_op, exprs, call = parent.frame(2)) {
+rethrow_rapi_expr_comparison <- function(cmp_op, exprs, alias, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_expr_comparison(cmp_op, exprs),
+    rapi_expr_comparison(cmp_op, exprs, alias),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
   )
 }
 
-rethrow_rapi_expr_function <- function(name, args, order_bys, filter_bys, call = parent.frame(2)) {
+rethrow_rapi_expr_function <- function(name, args, order_bys, filter_bys, alias, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_expr_function(name, args, order_bys, filter_bys),
+    rapi_expr_function(name, args, order_bys, filter_bys, alias),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
@@ -261,9 +261,9 @@ rethrow_rapi_rel_order <- function(rel, orders, ascending, call = parent.frame(2
   )
 }
 
-rethrow_rapi_expr_window <- function(window_function, partitions, order_bys, window_boundary_start, window_boundary_end, start_expr, end_expr, offset_expr, default_expr, call = parent.frame(2)) {
+rethrow_rapi_expr_window <- function(window_function, partitions, order_bys, window_boundary_start, window_boundary_end, start_expr, end_expr, offset_expr, default_expr, alias, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_expr_window(window_function, partitions, order_bys, window_boundary_start, window_boundary_end, start_expr, end_expr, offset_expr, default_expr),
+    rapi_expr_window(window_function, partitions, order_bys, window_boundary_start, window_boundary_end, start_expr, end_expr, offset_expr, default_expr, alias),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
