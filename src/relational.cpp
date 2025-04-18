@@ -29,6 +29,20 @@
 using namespace duckdb;
 using namespace cpp11;
 
+
+SEXP result_to_df(duckdb::unique_ptr<duckdb::QueryResult> res) {
+	if (res->HasError()) {
+		stop("%s", res->GetError().c_str());
+	}
+	if (res->type == QueryResultType::STREAM_RESULT) {
+		res = ((StreamQueryResult &)*res).Materialize();
+	}
+	D_ASSERT(res->type == QueryResultType::MATERIALIZED_RESULT);
+	auto mat_res = (MaterializedQueryResult *)res.get();
+
+	return duckdb_execute_R_impl(mat_res, false, RStrings::get().tbl_df_tbl_dataframe_str);
+}
+
 // DuckDB Expressions
 
 [[cpp11::register]] SEXP rapi_expr_reference(r_vector<r_string> rnames, std::string alias = "") {

@@ -187,6 +187,7 @@ struct RStrings {
 	SEXP duckdb_str;
 	SEXP POSIXct_POSIXt_str;
 	SEXP integer64_str;
+	SEXP tbl_df_tbl_dataframe_str;
 	SEXP enc2utf8_sym; // Rf_install
 	SEXP tzone_sym;
 	SEXP units_sym;
@@ -212,7 +213,7 @@ private:
 	RStrings();
 };
 
-SEXP duckdb_execute_R_impl(MaterializedQueryResult *result, bool);
+SEXP duckdb_execute_R_impl(MaterializedQueryResult *result, bool integer64, SEXP class_);
 
 } // namespace duckdb
 

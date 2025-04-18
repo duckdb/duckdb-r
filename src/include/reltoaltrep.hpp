@@ -53,5 +53,3 @@ struct RelToAltrep {
 	static R_altrep_class_t list_class;
 #endif
 };
-
-SEXP result_to_df(duckdb::unique_ptr<duckdb::QueryResult> res);

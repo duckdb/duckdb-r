@@ -143,7 +143,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	return out;
 }
 
-SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, bool integer64) {
+SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, bool integer64, SEXP class_) {
 	// step 2: create result data frame and allocate columns
 	auto ncols = result->types.size();
 	if (ncols == 0) {
@@ -167,9 +167,9 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, bool integer
 	// Convert to SEXP, finalize length
 	(void)(SEXP)data_frame;
 
-	data_frame.attr(R_ClassSymbol) = RStrings::get().dataframe_str;
-	data_frame.attr(R_RowNamesSymbol) = {NA_INTEGER, -static_cast<int>(nrows)};
 	SET_NAMES(data_frame, StringsToSexp(result->names));
+	data_frame.attr(R_ClassSymbol) = class_;
+	data_frame.attr(R_RowNamesSymbol) = { NA_INTEGER, -static_cast<int>(nrows) };
 
 	// at this point data_frame is fully allocated and the only protected SEXP
 
@@ -304,7 +304,7 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 		auto result = (MaterializedQueryResult *)generic_result.get();
 
 		// Avoid rchk warning, it sees QueryResult::~QueryResult() as an allocating function
-		cpp11::sexp out = duckdb_execute_R_impl(result, (convert_opts & ConvertOptsMask::CONVERT_BIGINT_MASK) == ConvertOpts::CONVERT_BIGINT_INTEGER64);
+		cpp11::sexp out = duckdb_execute_R_impl(result, (convert_opts & ConvertOptsMask::CONVERT_BIGINT_MASK) == ConvertOpts::CONVERT_BIGINT_INTEGER64, RStrings::get().dataframe_str);
 		return out;
 	}
 }
