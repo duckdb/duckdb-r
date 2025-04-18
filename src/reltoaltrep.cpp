@@ -509,7 +509,8 @@ shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool 
 		return wrapper->rel_eptr;
 	}
 
-	return make_external<RelationWrapper>("duckdb_relation", make_shared_ptr<duckdb::AltrepDataFrameRelation>(wrapper->rel, df, wrapper));
+	auto rel = make_shared_ptr<duckdb::AltrepDataFrameRelation>(wrapper->rel, df, wrapper);
+	return make_external<RelationWrapper>("duckdb_relation", rel, wrapper->rel_eptr);
 }
 
 SEXP result_to_df(duckdb::unique_ptr<duckdb::QueryResult> res) {
