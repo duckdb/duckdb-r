@@ -66,11 +66,6 @@ duckdb_post_execute <- function(res, out) {
 # as per is.integer documentation
 is_wholenumber <- function(x, tol = .Machine$double.eps^0.5) abs(x - round(x)) < tol
 
-fix_rownames <- function(df) {
-  attr(df, "row.names") <- c(NA, as.integer(-nrow(df)))
-  return(df)
-}
-
 #' @rdname duckdb_result-class
 #' @param res Query result to be converted to an Arrow Table
 #' @param chunk_size The chunk size

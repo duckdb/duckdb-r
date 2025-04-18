@@ -43,38 +43,32 @@ dbFetch__duckdb_result <- function(res, n = -1, ...) {
   timezone_out <- res@connection@timezone_out
   tz_out_convert <- res@connection@tz_out_convert
 
-  # FIXME this is ugly
-  if (n == 0) {
-    return(utils::head(res@env$resultset, 0))
-  }
   if (res@env$rows_fetched < 0) {
     res@env$rows_fetched <- 0
   }
-  if (res@env$rows_fetched >= nrow(res@env$resultset)) {
-    df <- fix_rownames(res@env$resultset[F, , drop = F])
-    df <- set_output_tz(df, timezone_out, tz_out_convert)
-    return(df)
+
+  n_remaining <- nrow(res@env$resultset) - res@env$rows_fetched
+
+  if (n == -1) {
+    n <- n_remaining
+  } else {
+    n <- min(n, n_remaining)
   }
-  # special case, return everything
-  if (n == -1 && res@env$rows_fetched == 0) {
-    res@env$rows_fetched <- nrow(res@env$resultset)
+
+  if (res@env$rows_fetched == 0 && n == n_remaining) {
+    # Shortcut for performance
     df <- res@env$resultset
-    df <- set_output_tz(df, timezone_out, tz_out_convert)
-    return(df)
+  } else if (n > 0) {
+    df <- res@env$resultset[seq.int(res@env$rows_fetched + 1, res@env$rows_fetched + n), , drop = FALSE]
+    attr(df, "row.names") <- c(NA_integer_, as.integer(-n))
+  } else {
+    df <- res@env$resultset[integer(), , drop = FALSE]
   }
-  if (n > -1) {
-    n <- min(n, nrow(res@env$resultset) - res@env$rows_fetched)
-    res@env$rows_fetched <- res@env$rows_fetched + n
-    df <- res@env$resultset[(res@env$rows_fetched - n + 1):(res@env$rows_fetched), , drop = F]
-    df <- set_output_tz(df, timezone_out, tz_out_convert)
-    return(fix_rownames(df))
-  }
-  start <- res@env$rows_fetched + 1
-  res@env$rows_fetched <- nrow(res@env$resultset)
-  df <- res@env$resultset[nrow(res@env$resultset), , drop = F]
+
+  res@env$rows_fetched <- res@env$rows_fetched + n
 
   df <- set_output_tz(df, timezone_out, tz_out_convert)
-  return(fix_rownames(df))
+  df
 }
 
 #' @rdname duckdb_result-class
