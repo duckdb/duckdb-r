@@ -138,9 +138,7 @@ using namespace cpp11;
 
 	cpp11::writable::list prot = {df};
 
-	auto res = sexp(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(rel)));
-	res.attr("df") = df;
-	return res;
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(rel));
 }
 
 [[cpp11::register]] SEXP rapi_rel_to_df(duckdb::rel_extptr_t rel) {
