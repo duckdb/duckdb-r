@@ -292,27 +292,36 @@ case_insensitive_map_t<vector<Value>> ListToVectorOfValue(list input_sexps) {
 	return std::move(output);
 }
 
-static duckdb::ConvertOpts get_convert_opts_param(named_parameter_map_t &named_parameters, string name, duckdb::ConvertOpts dflt = duckdb::ConvertOpts::CONVERT_NONE) {
-	int32_t res = dflt;
-	auto entry = named_parameters.find(name);
+static bool get_integer64_param(named_parameter_map_t &named_parameters) {
+	auto entry = named_parameters.find("integer64");
 	if (entry != named_parameters.end()) {
-		res = IntegerValue::Get(entry->second);
+		return BooleanValue::Get(entry->second);
 	}
-	return duckdb::ConvertOpts(res);
+	return false;
+}
+
+static bool get_experimental_param(named_parameter_map_t &named_parameters) {
+	auto entry = named_parameters.find("experimental");
+	if (entry != named_parameters.end()) {
+		return BooleanValue::Get(entry->second);
+	}
+	return false;
 }
 
 struct DataFrameScanBindData : public TableFunctionData {
 	DataFrameScanBindData(SEXP df_p, idx_t row_count_p, vector<RType> &rtypes_p, vector<data_ptr_t> &dataptrs_p,
 	                      named_parameter_map_t &named_parameters)
 	    : df(df_p), row_count(row_count_p), rtypes(rtypes_p), data_ptrs(dataptrs_p) {
-		convert_opts = get_convert_opts_param(named_parameters, "convert_opts");
+		integer64 = get_integer64_param(named_parameters);
+		experimental = get_experimental_param(named_parameters);
 	}
 	data_frame df;
 	idx_t row_count;
 	vector<RType> rtypes;
 	vector<data_ptr_t> data_ptrs;
 	idx_t rows_per_task = 1000000;
-	ConvertOpts convert_opts;
+	bool integer64 = false;
+	bool experimental = false;
 };
 
 struct DataFrameGlobalState : public GlobalTableFunctionState {
@@ -339,13 +348,12 @@ static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context
                                                           vector<LogicalType> &return_types, vector<string> &names) {
 	data_frame df((SEXP)input.inputs[0].GetPointer());
 
-	auto convert_opts = get_convert_opts_param(input.named_parameters, "convert_opts");
+	auto integer64 = get_integer64_param(input.named_parameters);
+	auto experimental = get_experimental_param(input.named_parameters);
 
 	auto df_names = df.names();
 	vector<RType> rtypes;
 	vector<data_ptr_t> data_ptrs;
-
-	auto integer64 = (convert_opts & ConvertOptsMask::CONVERT_BIGINT_MASK) == ConvertOpts::CONVERT_BIGINT_INTEGER64;
 
 	for (R_xlen_t col_idx = 0; col_idx < df.size(); col_idx++) {
 		names.push_back(df_names[col_idx]);
@@ -353,7 +361,7 @@ static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context
 		auto coldata = df[col_idx];
 		auto rtype = RApiTypes::DetectRType(coldata, integer64);
 		rtypes.push_back(rtype);
-		return_types.push_back(RApiTypes::LogicalTypeFromRType(rtype, convert_opts & ConvertOpts::CONVERT_EXPERIMENTAL));
+		return_types.push_back(RApiTypes::LogicalTypeFromRType(rtype, experimental));
 
 		data_ptrs.push_back(GetColDataPtr(rtype, coldata));
 	}
@@ -434,7 +442,7 @@ static void DataFrameScanFunc(ClientContext &context, TableFunctionInput &data, 
 
 		auto coldata_ptr = bind_data.data_ptrs[src_df_col_idx];
 		auto rtype = bind_data.rtypes[src_df_col_idx];
-		AppendAnyColumnSegment(rtype, bind_data.convert_opts & ConvertOpts::CONVERT_EXPERIMENTAL, coldata_ptr, sexp_offset, v, this_count);
+		AppendAnyColumnSegment(rtype, bind_data.experimental, coldata_ptr, sexp_offset, v, this_count);
 	}
 	operator_data.position += this_count;
 }
@@ -455,7 +463,8 @@ DataFrameScanFunction::DataFrameScanFunction()
                     DataFrameScanInitGlobal, DataFrameScanInitLocal) {
 	cardinality = DataFrameScanCardinality;
 	to_string = DataFrameScanToString;
-	named_parameters["convert_opts"] = LogicalType::INTEGER;
+	named_parameters["integer64"] = LogicalType::BOOLEAN;
+	named_parameters["experimental"] = LogicalType::BOOLEAN;
 	projection_pushdown = true;
 	global_initialization = TableFunctionInitialization::INITIALIZE_ON_SCHEDULE;
 }

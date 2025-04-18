@@ -24,7 +24,8 @@ using namespace duckdb;
 	}
 	try {
 		named_parameter_map_t parameter_map;
-		parameter_map["convert_opts"] = convert_opts;
+		parameter_map["integer64"] = (convert_opts & ConvertOptsMask::CONVERT_BIGINT_MASK) == ConvertOpts::CONVERT_BIGINT_INTEGER64;
+		parameter_map["experimental"] = (convert_opts & ConvertOpts::CONVERT_EXPERIMENTAL) != 0;
 
 		conn->conn->TableFunction("r_dataframe_scan", {Value::POINTER((uintptr_t)value.data())}, parameter_map)
 		    ->CreateView(name, overwrite, true);
