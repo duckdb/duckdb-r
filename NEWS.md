@@ -1,5 +1,24 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.2.1.9006
+
+## Features
+
+- Rework data frame creation (#1103).
+
+- Add optional alias argument to all functions returning an expression (#1100).
+
+## Chore
+
+- Avoid passing bitmask through data frame scan function (#1105).
+
+- Clean up edge case for fetching zero rows (#1104).
+
+- Remove unused attribute.
+
+- Avoid test for timings on CRAN (#1101).
+
+
 # duckdb 1.2.1.9005
 
 ## Chore
