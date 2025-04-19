@@ -128,9 +128,21 @@ struct RStatement {
 };
 
 struct RelationWrapper {
-	RelationWrapper(duckdb::shared_ptr<Relation> rel_p) : rel(std::move(rel_p)) {
+	RelationWrapper(duckdb::shared_ptr<Relation> rel_p, const std::string& tzone_) : rel(std::move(rel_p)) {
+		tzone = tzone_;
+	}
+	RelationWrapper(duckdb::shared_ptr<Relation> rel_p, const cpp11::external_pointer<RelationWrapper>& rel_orig_1) : rel(std::move(rel_p)) {
+		tzone = rel_orig_1.get()->tzone;
+	}
+	RelationWrapper(duckdb::shared_ptr<Relation> rel_p, const cpp11::external_pointer<RelationWrapper>& rel_orig_1, const cpp11::external_pointer<RelationWrapper>& rel_orig_2) : rel(std::move(rel_p)) {
+		if (rel_orig_1.get()->tzone != "") {
+			tzone = rel_orig_1.get()->tzone;
+		} else {
+			tzone = rel_orig_2.get()->tzone;
+		}
 	}
 	duckdb::shared_ptr<Relation> rel;
+	std::string tzone;
 };
 
 typedef cpp11::external_pointer<ParsedExpression> expr_extptr_t;
