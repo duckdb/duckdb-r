@@ -12,34 +12,13 @@
 #include "duckdb/parser/tableref/table_function_ref.hpp"
 #include "duckdb/common/mutex.hpp"
 
+#include "convert.hpp"
+
 #if defined(R_VERSION) && R_VERSION >= R_Version(4, 3, 0)
 #define R_HAS_ALTLIST
 #endif
 
 namespace duckdb {
-
-enum ConvertOpts {
-	CONVERT_NONE = 0x00000000,
-
-	CONVERT_BIGINT_NUMERIC = 0x00000000,
-	CONVERT_BIGINT_INTEGER64 = 0x00000001,
-
-	CONVERT_EXPERIMENTAL = 0x02000000,
-
-	CONVERT_ARROW = 0x10000000,
-};
-
-enum ConvertOptsMask {
-	CONVERT_BIGINT_MASK = 0x00000003,
-};
-
-inline ConvertOpts operator|(ConvertOpts a, ConvertOpts b) {
-	return static_cast<ConvertOpts>(static_cast<int>(a) | static_cast<int>(b));
-}
-
-inline ConvertOpts operator&(ConvertOpts a, ConvertOptsMask b) {
-	return static_cast<ConvertOpts>(static_cast<int>(a) & static_cast<int>(b));
-}
 
 typedef unordered_map<std::string, cpp11::list> arrow_scans_t;
 

@@ -49,7 +49,7 @@ duckdb_register <- function(conn, name, df, overwrite = FALSE, experimental = FA
     conn@conn_ref,
     enc2utf8(as.character(name)),
     df,
-    convert_opts_set_experimental(conn@convert_opts, experimental),
+    duckdb_convert_opts_impl(conn@convert_opts, experimental = experimental),
     overwrite
   )
   invisible(TRUE)

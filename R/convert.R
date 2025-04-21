@@ -1,52 +1,53 @@
-CONVERT_BIGINT_NUMERIC    <- 0L
-CONVERT_BIGINT_INTEGER64  <- 1L
-# CONVERT_BIGINT_CHARACTER  <- 2L
-# CONVERT_BIGINT_INTEGER    <- 3L
-CONVERT_BIGINT_MASK <- 3L
+duckdb_convert_opts <- function(
+  ...,
+  timezone_out = "UTC",
+  tz_out_convert = c("with", "force"),
+  bigint = "numeric"
+) {
+  tz_out_convert <- match.arg(tz_out_convert)
+  timezone_out <- check_tz(timezone_out)
 
-CONVERT_EXPERIMENTAL <- 0x02000000L
-
-CONVERT_ARROW <- 0x10000000L
-
-convert_opts_from_args <- function(bigint) {
-  out <- 0L
-
-  if (bigint == "numeric") {
-    out <- bitwOr(out, CONVERT_BIGINT_NUMERIC)
-  } else if (bigint == "integer64") {
+  if (bigint == "integer64") {
     if (!is_installed("bit64")) {
       stop("bit64 package is required for integer64 support")
     }
-    out <- bitwOr(out, CONVERT_BIGINT_INTEGER64)
-  } else {
+  } else if (bigint != "numeric") {
     stop(paste0("Unsupported bigint configuration: ", bigint))
   }
 
-  out
+  duckdb_convert_opts_impl(
+    timezone_out = timezone_out,
+    tz_out_convert = tz_out_convert,
+    bigint = bigint,
+    arrow = FALSE,
+    experimental = FALSE
+  )
 }
 
-bigint_from_convert_opts <- function(convert_opts) {
-  if (bitwAnd(convert_opts, CONVERT_BIGINT_MASK) == CONVERT_BIGINT_NUMERIC) {
-    "numeric"
-  } else if (bitwAnd(convert_opts, CONVERT_BIGINT_MASK) == CONVERT_BIGINT_INTEGER64) {
-    "integer64"
-  } else {
-    stop("Unsupported bigint configuration")
+duckdb_convert_opts_impl <- function(
+  x = list(),
+  ...,
+  timezone_out = NULL,
+  tz_out_convert = NULL,
+  bigint = NULL,
+  arrow = NULL,
+  experimental = NULL
+) {
+  if (!is.null(timezone_out)) {
+    x$timezone_out <- timezone_out
   }
-}
+  if (!is.null(tz_out_convert)) {
+    x$tz_out_convert <- tz_out_convert
+  }
+  if (!is.null(bigint)) {
+    x$bigint <- bigint
+  }
+  if (!is.null(arrow)) {
+    x$arrow <- arrow
+  }
+  if (!is.null(experimental)) {
+    x$experimental <- experimental
+  }
 
-convert_opts_set_arrow <- function(convert_opts, arrow) {
-  if (arrow) {
-    bitwOr(convert_opts, CONVERT_ARROW)
-  } else {
-    bitwAnd(convert_opts, bitwNot(CONVERT_ARROW))
-  }
-}
-
-convert_opts_set_experimental <- function(convert_opts, experimental) {
-  if (experimental) {
-    bitwOr(convert_opts, CONVERT_EXPERIMENTAL)
-  } else {
-    bitwAnd(convert_opts, bitwNot(CONVERT_EXPERIMENTAL))
-  }
+  x
 }

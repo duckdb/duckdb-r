@@ -18,7 +18,7 @@ dbBind__duckdb_result <- function(res, params, ...) {
   out <- rethrow_rapi_bind(
     res@stmt_lst$ref,
     params,
-    convert_opts_set_arrow(res@connection@convert_opts, res@arrow)
+    duckdb_convert_opts_impl(res@connection@convert_opts, arrow = res@arrow)
   )
   if (length(out) == 1) {
     out <- out[[1]]

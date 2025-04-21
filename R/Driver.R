@@ -19,7 +19,7 @@ drv_to_string <- function(drv) {
     "<duckdb_driver dbdir='%s' read_only=%s bigint=%s>",
     drv@dbdir,
     drv@read_only,
-    bigint_from_convert_opts(drv@convert_opts)
+    drv@convert_opts$bigint
   )
 }
 
@@ -50,7 +50,7 @@ duckdb <- function(
     stop("... must be empty")
   }
 
-  convert_opts <- convert_opts_from_args(bigint)
+  convert_opts <- duckdb_convert_opts(bigint = bigint)
 
   dbdir <- path_normalize(dbdir)
   if (dbdir != DBDIR_MEMORY) {
@@ -61,7 +61,7 @@ duckdb <- function(
       # We don't care about different read_only or config settings here.
       # The bigint setting can be actually picked up by dbConnect(), we update it here.
       drv@convert_opts <- convert_opts
-      drv@bigint <- bigint_from_convert_opts(convert_opts)
+      drv@bigint <- convert_opts$bigint
       return(drv)
     }
   }
@@ -83,7 +83,7 @@ duckdb <- function(
     dbdir = dbdir,
     read_only = read_only,
     convert_opts = convert_opts,
-    bigint = bigint_from_convert_opts(convert_opts)
+    bigint = convert_opts$bigint
   )
 
   if (dbdir != DBDIR_MEMORY) {
