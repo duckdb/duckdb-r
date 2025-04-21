@@ -28,7 +28,14 @@ duckdb_result <- function(connection, stmt_lst, arrow) {
   if (stmt_lst$n_param == 0) {
     if (arrow) {
       query_result <- duckdb_execute(res)
-      new_res <- new("duckdb_result", connection = connection, stmt_lst = stmt_lst, env = env, arrow = arrow, query_result = query_result)
+      new_res <- new(
+        "duckdb_result",
+        connection = connection,
+        stmt_lst = stmt_lst,
+        env = env,
+        arrow = arrow,
+        query_result = query_result
+      )
       return(new_res)
     } else {
       duckdb_execute(res)
