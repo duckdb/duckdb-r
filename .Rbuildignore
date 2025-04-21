@@ -40,3 +40,4 @@ _files$
 ^\.cache$
 ^tests/testthat/helper-rethrow\.R$
 ^\.Rprofile$
+^\.clangd$
