@@ -356,44 +356,23 @@ SEXP RelToAltrep::VectorListElt(SEXP x, R_xlen_t i) {
 #endif
 
 static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type, const duckdb::string &name) {
-	switch (type.id()) {
-	case LogicalTypeId::BOOLEAN:
+	auto rtype = duckdb_r_typeof(type, name, "LogicalTypeToAltrepType");
+	switch (rtype) {
+	case LGLSXP:
 		return RelToAltrep::logical_class;
-	case LogicalTypeId::UTINYINT:
-	case LogicalTypeId::TINYINT:
-	case LogicalTypeId::SMALLINT:
-	case LogicalTypeId::USMALLINT:
-	case LogicalTypeId::INTEGER:
-	case LogicalTypeId::ENUM:
+	case INTSXP:
 		return RelToAltrep::int_class;
-	case LogicalTypeId::UINTEGER:
-	case LogicalTypeId::BIGINT:
-	case LogicalTypeId::UBIGINT:
-	case LogicalTypeId::HUGEINT:
-	case LogicalTypeId::UHUGEINT:
-	case LogicalTypeId::FLOAT:
-	case LogicalTypeId::DOUBLE:
-	case LogicalTypeId::DECIMAL:
-	case LogicalTypeId::TIMESTAMP_SEC:
-	case LogicalTypeId::TIMESTAMP_MS:
-	case LogicalTypeId::TIMESTAMP:
-	case LogicalTypeId::TIMESTAMP_TZ:
-	case LogicalTypeId::TIMESTAMP_NS:
-	case LogicalTypeId::DATE:
-	case LogicalTypeId::TIME:
-	case LogicalTypeId::INTERVAL:
+	case REALSXP:
 		return RelToAltrep::real_class;
-	case LogicalTypeId::VARCHAR:
-	case LogicalTypeId::UUID:
+	case STRSXP:
 		return RelToAltrep::string_class;
-
 #if defined(R_HAS_ALTLIST)
-	case LogicalTypeId::LIST:
+	case VECSXP:
 		return RelToAltrep::list_class;
 #endif
 
 	default:
-		cpp11::stop("rel_to_altrep: Column `%s` has type for altrep: %s", name.c_str(), type.ToString().c_str());
+		cpp11::stop("LogicalTypeToAltrepType: Column `%s` has no type for altrep: %s", name.c_str(), type.ToString().c_str());
 	}
 }
 

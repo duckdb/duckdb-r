@@ -228,6 +228,7 @@ SEXP rapi_record_batch(duckdb::rqry_eptr_t, int);
 
 cpp11::r_string rapi_ptr_to_str(SEXP extptr);
 
+int duckdb_r_typeof(const duckdb::LogicalType &type, const duckdb::string &name, const char *caller);
 SEXP duckdb_r_allocate(const duckdb::LogicalType &type, duckdb::idx_t nrows, const duckdb::string &name,
                        const char *caller);
 void duckdb_r_decorate(const duckdb::LogicalType &type, SEXP dest, bool integer64);
