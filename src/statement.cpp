@@ -159,7 +159,8 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, bool integer
 	data_frame.reserve(ncols);
 
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
-		cpp11::sexp varvalue = duckdb_r_allocate(result->types[col_idx], nrows);
+		cpp11::sexp varvalue =
+		    duckdb_r_allocate(result->types[col_idx], nrows, result->names[col_idx], "duckdb_execute_R_impl");
 		duckdb_r_decorate(result->types[col_idx], varvalue, integer64);
 		data_frame.push_back(varvalue);
 	}
@@ -180,7 +181,7 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, bool integer
 		D_ASSERT(chunk.ColumnCount() == (idx_t)Rf_length(data_frame));
 		for (size_t col_idx = 0; col_idx < chunk.ColumnCount(); col_idx++) {
 			SEXP dest = VECTOR_ELT(data_frame, col_idx);
-			duckdb_r_transform(chunk.data[col_idx], dest, dest_offset, chunk.size(), integer64);
+			duckdb_r_transform(chunk.data[col_idx], dest, dest_offset, chunk.size(), integer64, result->names[col_idx]);
 		}
 		dest_offset += chunk.size();
 	}
