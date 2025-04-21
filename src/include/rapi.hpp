@@ -249,9 +249,11 @@ SEXP rapi_record_batch(duckdb::rqry_eptr_t, int);
 
 cpp11::r_string rapi_ptr_to_str(SEXP extptr);
 
-void duckdb_r_transform(duckdb::Vector &src_vec, SEXP dest, duckdb::idx_t dest_offset, duckdb::idx_t n, bool integer64);
-SEXP duckdb_r_allocate(const duckdb::LogicalType &type, duckdb::idx_t nrows);
+SEXP duckdb_r_allocate(const duckdb::LogicalType &type, duckdb::idx_t nrows, const duckdb::string &name,
+                       const char *caller);
 void duckdb_r_decorate(const duckdb::LogicalType &type, SEXP dest, bool integer64);
+void duckdb_r_transform(duckdb::Vector &src_vec, SEXP dest, duckdb::idx_t dest_offset, duckdb::idx_t n, bool integer64,
+                        const duckdb::string &name);
 
 template <typename T, typename... ARGS>
 cpp11::external_pointer<T> make_external(const std::string &rclass, ARGS &&... args) {

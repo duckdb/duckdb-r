@@ -234,12 +234,13 @@ struct AltrepVectorWrapper {
 	void *Dataptr() {
 		if (transformed_vector.data() == R_NilValue) {
 			auto res = rel->GetQueryResult();
+			const auto &name = res->names[column_index];
 
-			transformed_vector = duckdb_r_allocate(res->types[column_index], res->RowCount());
+			transformed_vector = duckdb_r_allocate(res->types[column_index], res->RowCount(), name, "Dataptr");
 			idx_t dest_offset = 0;
 			for (auto &chunk : res->Collection().Chunks()) {
 				SEXP dest = transformed_vector.data();
-				duckdb_r_transform(chunk.data[column_index], dest, dest_offset, chunk.size(), false);
+				duckdb_r_transform(chunk.data[column_index], dest, dest_offset, chunk.size(), false, name);
 				dest_offset += chunk.size();
 			}
 		}
@@ -354,7 +355,7 @@ SEXP RelToAltrep::VectorListElt(SEXP x, R_xlen_t i) {
 }
 #endif
 
-static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
+static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type, const duckdb::string &name) {
 	switch (type.id()) {
 	case LogicalTypeId::BOOLEAN:
 		return RelToAltrep::logical_class;
@@ -392,7 +393,7 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type) {
 #endif
 
 	default:
-		cpp11::stop("rel_to_altrep: Unknown column type for altrep: %s", type.ToString().c_str());
+		cpp11::stop("rel_to_altrep: Column `%s` has type for altrep: %s", name.c_str(), type.ToString().c_str());
 	}
 }
 
@@ -421,12 +422,14 @@ size_t DoubleToSize(double d) {
 	data_frame.reserve(ncols);
 
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
-		auto &column_type = drel->Columns()[col_idx].Type();
+		auto &col = drel->Columns()[col_idx];
+		auto &col_name = col.Name();
+		auto &col_type = col.Type();
 		cpp11::external_pointer<AltrepVectorWrapper> ptr(new AltrepVectorWrapper(relation_wrapper, col_idx));
 		R_SetExternalPtrTag(ptr, RStrings::get().duckdb_vector_sym);
 
-		cpp11::sexp vector_sexp = R_new_altrep(LogicalTypeToAltrepType(column_type), ptr, R_NilValue);
-		duckdb_r_decorate(column_type, vector_sexp, false);
+		cpp11::sexp vector_sexp = R_new_altrep(LogicalTypeToAltrepType(col_type, col_name), ptr, R_NilValue);
+		duckdb_r_decorate(col_type, vector_sexp, false);
 		data_frame.push_back(vector_sexp);
 	}
 
