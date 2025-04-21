@@ -16,23 +16,26 @@ static void VectorToR(Vector &src_vec, size_t count, void *dest, uint64_t dest_o
 	}
 }
 
-SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows, const string &name, const char *caller) {
+int duckdb_r_typeof(const LogicalType &type, const string &name, const char *caller) {
 	if (type.GetAlias() == R_STRING_TYPE_NAME) {
-		return NEW_STRING(nrows);
+		return STRSXP;
 	}
 
 	switch (type.id()) {
 	case LogicalTypeId::BOOLEAN:
-		return NEW_LOGICAL(nrows);
+		return LGLSXP;
 	case LogicalTypeId::UTINYINT:
 	case LogicalTypeId::TINYINT:
 	case LogicalTypeId::SMALLINT:
 	case LogicalTypeId::USMALLINT:
 	case LogicalTypeId::INTEGER:
-		return NEW_INTEGER(nrows);
+		return INTSXP;
 	case LogicalTypeId::UINTEGER:
+		return REALSXP;
 	case LogicalTypeId::BIGINT:
 	case LogicalTypeId::UBIGINT:
+		// Both for numeric and integer64 options
+		return REALSXP;
 	case LogicalTypeId::HUGEINT:
 	case LogicalTypeId::UHUGEINT:
 	case LogicalTypeId::FLOAT:
@@ -46,10 +49,32 @@ SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows, const string &name,
 	case LogicalTypeId::DATE:
 	case LogicalTypeId::TIME:
 	case LogicalTypeId::INTERVAL:
-		return NEW_NUMERIC(nrows);
+		return REALSXP;
 	case LogicalTypeId::LIST:
 	case LogicalTypeId::MAP:
-		return NEW_LIST(nrows);
+		return VECSXP;
+	case LogicalTypeId::ARRAY: {
+		auto &child_type = ArrayType::GetChildType(type);
+		return duckdb_r_typeof(child_type, name, caller);
+	}
+	case LogicalTypeId::STRUCT:
+		return VECSXP;
+	case LogicalTypeId::VARCHAR:
+	case LogicalTypeId::UUID:
+		return STRSXP;
+	case LogicalTypeId::BLOB:
+		return VECSXP;
+	case LogicalTypeId::ENUM:
+		return INTSXP;
+	default:
+		cpp11::stop("%s: Unknown type for column `%s`: %s", caller, name.c_str(), type.ToString().c_str());
+	}
+}
+
+SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows, const string &name, const char *caller) {
+	int rtype = duckdb_r_typeof(type, name, caller);
+
+	switch (type.id()) {
 	case LogicalTypeId::ARRAY: {
 		auto array_size = ArrayType::GetSize(type);
 		auto &child_type = ArrayType::GetChildType(type);
@@ -80,15 +105,8 @@ SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows, const string &name,
 
 		return dest_list;
 	}
-	case LogicalTypeId::VARCHAR:
-	case LogicalTypeId::UUID:
-		return NEW_STRING(nrows);
-	case LogicalTypeId::BLOB:
-		return NEW_LIST(nrows);
-	case LogicalTypeId::ENUM:
-		return NEW_INTEGER(nrows);
 	default:
-		cpp11::stop("%s: Unknown type for column `%s`: %s", caller, name.c_str(), type.ToString().c_str());
+		return Rf_allocVector(rtype, nrows);
 	}
 }
 
