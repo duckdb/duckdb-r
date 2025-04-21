@@ -346,7 +346,7 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 		auto &mask = FlatVector::Validity(src_vec);
 		double *dest_ptr = ((double *)NUMERIC_POINTER(dest)) + dest_offset;
 		for (size_t row_idx = 0; row_idx < n; row_idx++) {
-			dest_ptr[row_idx] = !mask.RowIsValid(row_idx) ? NA_REAL : (double)int32_t(src_data[row_idx]);
+			dest_ptr[row_idx] = !mask.RowIsValid(row_idx) ? NA_REAL : static_cast<double>(int32_t(src_data[row_idx]));
 		}
 
 		// some dresssup for R
@@ -361,7 +361,7 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 			if (!mask.RowIsValid(row_idx)) {
 				dest_ptr[row_idx] = NA_REAL;
 			} else {
-				dest_ptr[row_idx] = src_data[row_idx].micros / Interval::MICROS_PER_SEC;
+				dest_ptr[row_idx] = static_cast<double>(src_data[row_idx].micros) / Interval::MICROS_PER_SEC;
 			}
 		}
 		SET_CLASS(dest, RStrings::get().difftime_str);
@@ -376,7 +376,7 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 			if (!mask.RowIsValid(row_idx)) {
 				dest_ptr[row_idx] = NA_REAL;
 			} else {
-				dest_ptr[row_idx] = Interval::GetMicro(src_data[row_idx]) / Interval::MICROS_PER_SEC;
+				dest_ptr[row_idx] = static_cast<double>(Interval::GetMicro(src_data[row_idx])) / Interval::MICROS_PER_SEC;
 			}
 		}
 		SET_CLASS(dest, RStrings::get().difftime_str);
