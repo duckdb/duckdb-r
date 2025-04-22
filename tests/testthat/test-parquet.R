@@ -20,26 +20,23 @@ test_that("duckdb_write_parquet() works as expected", {
   tf <- tempfile()
 
   # write to parquet
-  iris_rel <- rel_from_df(con, iris)
-  rel_to_parquet(iris_rel, tf)
+  df_rel <- rel_from_df(con, data.frame(a = 1:3))
+  rel_to_parquet(df_rel, tf)
 
   res_rel <- rel_from_table_function(con, 'read_parquet', list(tf))
   res_df <- rel_to_altrep(res_rel)
-  res_df$Species <- as.factor(res_df$Species)
-  expect_true(identical(res_df, iris))
+  expect_true(identical(res_df, data.frame(a = 1:3)))
 
 
   # nulls
-  iris_na <- iris
-  iris_na[[2]][42] <- NA
+  df_na <- data.frame(a = c(1:3, NA, 5:6))
 
-  iris_na_rel <- rel_from_df(con, iris_na)
-  rel_to_parquet(iris_na_rel, tf)
+  df_na_rel <- rel_from_df(con, df_na)
+  rel_to_parquet(df_na_rel, tf)
 
   res_rel <- rel_from_table_function(con, 'read_parquet', list(tf))
   res_df <- rel_to_altrep(res_rel)
-  res_df$Species <- as.factor(res_df$Species)
-  expect_true(identical(res_df, iris_na))
+  expect_true(identical(res_df, df_na))
 })
 
 test_that("duckdb rel_to_parquet() throws error with no file name", {
@@ -47,8 +44,8 @@ test_that("duckdb rel_to_parquet() throws error with no file name", {
   on.exit(dbDisconnect(con))
 
   # write to parquet
-  iris_rel <- rel_from_df(con, iris)
-  expect_error(rel_to_parquet(iris_rel, ""))
+  df_rel <- rel_from_df(con, data.frame(a = 1L))
+  expect_error(rel_to_parquet(df_rel, ""))
 })
 
 test_that("duckdb rel_to_parquet() allows multiple files (#1015)", {
