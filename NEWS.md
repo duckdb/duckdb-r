@@ -1,5 +1,30 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.2.1.9007
+
+## Bug fixes
+
+- Support fractional seconds in `TIME` and `INTERVAL` data (#1109).
+
+## Features
+
+- Types exposed through ALTREP are the same as through DBI (#1111).
+
+- Mention column name for conversion errors (#1108).
+
+## Chore
+
+- Satisfy lintr.
+
+- `ConvertOpts` is a struct (#1110).
+
+- Configure clangd.
+
+## Continuous integration
+
+- More accurate determination if no-suggests tests need to run.
+
+
 # duckdb 1.2.1.9006
 
 ## Features
