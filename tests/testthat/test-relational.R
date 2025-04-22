@@ -5,7 +5,7 @@ con <- dbConnect(duckdb())
 on.exit(dbDisconnect(con, shutdown = TRUE))
 
 test_that("we can create a relation from a df", {
-  rel <- rel_from_df(con, mtcars)
+  rel <- rel_from_df(con, data.frame(a = 1))
   expect_type(rel, "externalptr")
   expect_s3_class(rel, "duckdb_relation")
 })
@@ -29,8 +29,10 @@ test_that("we won't crash when creating a relation from odd things", {
 })
 
 test_that("we can round-trip a data frame", {
-  expect_equivalent(mtcars, as.data.frame.duckdb_relation(rel_from_df(con, mtcars)))
-  expect_equivalent(iris, as.data.frame.duckdb_relation(rel_from_df(con, iris)))
+  expect_equivalent(
+    data.frame(a = 1:3, b = letters[1:3]),
+    as.data.frame.duckdb_relation(rel_from_df(con, data.frame(a = 1:3, b = letters[1:3])))
+  )
 })
 
 test_that("we can recognize if a df is materialized", {
@@ -192,8 +194,12 @@ test_that("the altrep-conversion for relations works", {
   expect_equal(iris, df)
 })
 
-test_that("the altrep-conversion for relations work for weirdo types", {
-  test_df <- data.frame(col_date = as.Date("2019-11-26"), col_ts = as.POSIXct("2019-11-26 21:11Z", "UTC"), col_factor = factor(c("a")))
+test_that("the altrep-conversion for relations work for weirdo types for strict = FALSE", {
+  test_df <- data.frame(
+    col_date = as.Date("2019-11-26"),
+    col_ts = as.POSIXct("2019-11-26 21:11Z", tz = "UTC"),
+    col_factor = factor(c("a"))
+  )
   rel <- rel_from_df(con, test_df)
   df <- rel_to_altrep(rel)
   expect_false(df_is_materialized(df))
