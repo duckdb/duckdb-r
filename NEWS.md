@@ -1,10 +1,24 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.2.1.9009
+# duckdb 1.2.1.9900
+
+## Bug fixes
+
+- Support fractional seconds in `TIME` and `INTERVAL` data (#1109).
 
 ## Features
 
 - Perform optional checks for ALTREP compatibility in `rel_from_df()` and `expr_constant()` (#1117).
+
+- Types exposed through ALTREP are the same as through DBI (#1111).
+
+- Mention column name for conversion errors (#1108).
+
+- Rework data frame creation (#1103).
+
+- Add optional alias argument to all functions returning an expression (#1100).
+
+- Add support for duckdb arrays in R (@joakimlinde, #102, #1090).
 
 ## Chore
 
@@ -14,48 +28,13 @@
 
 - Add dots (#1115).
 
-
-# duckdb 1.2.1.9008
-
-## Chore
-
 - Adapt tests to use data frames without row names (#1113).
-
-
-# duckdb 1.2.1.9007
-
-## Bug fixes
-
-- Support fractional seconds in `TIME` and `INTERVAL` data (#1109).
-
-## Features
-
-- Types exposed through ALTREP are the same as through DBI (#1111).
-
-- Mention column name for conversion errors (#1108).
-
-## Chore
 
 - Satisfy lintr.
 
 - `ConvertOpts` is a struct (#1110).
 
 - Configure clangd.
-
-## Continuous integration
-
-- More accurate determination if no-suggests tests need to run.
-
-
-# duckdb 1.2.1.9006
-
-## Features
-
-- Rework data frame creation (#1103).
-
-- Add optional alias argument to all functions returning an expression (#1100).
-
-## Chore
 
 - Avoid passing bitmask through data frame scan function (#1105).
 
@@ -65,43 +44,21 @@
 
 - Avoid test for timings on CRAN (#1101).
 
-
-# duckdb 1.2.1.9005
-
-## Chore
-
 - Fix path.
-
-## Continuous integration
-
-- Ignore arrow for R \< 4.2.
-
-
-# duckdb 1.2.1.9004
-
-## Chore
 
 - Move scripts.
 
 - Reorganize scripts.
 
+- Increase window.
+
 ## Continuous integration
 
+- More accurate determination if no-suggests tests need to run.
+
+- Ignore arrow for R \< 4.2.
+
 - Fix script location.
-
-
-# duckdb 1.2.1.9003
-
-## Features
-
-- Add support for duckdb arrays in R (@joakimlinde, #102, #1090).
-
-
-# duckdb 1.2.1.9002
-
-## Chore
-
-- Increase window.
 
 ## Uncategorized
 
@@ -191,13 +148,7 @@
 
 - Vendor: Update vendored sources to duckdb/duckdb@52a9e8faee041ec226c4720b853b777bb08dd914.
 
-
-# duckdb 1.2.1.9001
-
 - Same as previous version.
-
-
-# duckdb 1.2.1.9000
 
 - Switching to development version.
 
