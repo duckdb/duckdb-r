@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1.9009</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1.9900</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -28,104 +28,50 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/cran-1.2.1.9900/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.2.1.9009" id="duckdb-1219009">duckdb 1.2.1.9009<a class="anchor" aria-label="anchor" href="#duckdb-1219009"></a></h2>
+<h2 class="pkg-version" data-toc-text="1.2.1.9900" id="duckdb-1219900">duckdb 1.2.1.9900<a class="anchor" aria-label="anchor" href="#duckdb-1219900"></a></h2>
 <div class="section level3">
-<h3 id="features-1-2-1-9009">Features<a class="anchor" aria-label="anchor" href="#features-1-2-1-9009"></a></h3>
-<ul><li>Perform optional checks for ALTREP compatibility in <code>rel_from_df()</code> and <code>expr_constant()</code> (<a href="https://github.com/duckdb/duckdb-r/issues/1117" class="external-link">#1117</a>).</li>
-</ul></div>
-<div class="section level3">
-<h3 id="chore-1-2-1-9009">Chore<a class="anchor" aria-label="anchor" href="#chore-1-2-1-9009"></a></h3>
-<ul><li><p>Backticks in error message.</p></li>
-<li><p>Remove lints (<a href="https://github.com/duckdb/duckdb-r/issues/1116" class="external-link">#1116</a>).</p></li>
-<li><p>Add dots (<a href="https://github.com/duckdb/duckdb-r/issues/1115" class="external-link">#1115</a>).</p></li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.2.1.9008" id="duckdb-1219008">duckdb 1.2.1.9008<a class="anchor" aria-label="anchor" href="#duckdb-1219008"></a></h2>
-<div class="section level3">
-<h3 id="chore-1-2-1-9008">Chore<a class="anchor" aria-label="anchor" href="#chore-1-2-1-9008"></a></h3>
-<ul><li>Adapt tests to use data frames without row names (<a href="https://github.com/duckdb/duckdb-r/issues/1113" class="external-link">#1113</a>).</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.2.1.9007" id="duckdb-1219007">duckdb 1.2.1.9007<a class="anchor" aria-label="anchor" href="#duckdb-1219007"></a></h2>
-<div class="section level3">
-<h3 id="bug-fixes-1-2-1-9007">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-2-1-9007"></a></h3>
+<h3 id="bug-fixes-1-2-1-9900">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-2-1-9900"></a></h3>
 <ul><li>Support fractional seconds in <code>TIME</code> and <code>INTERVAL</code> data (<a href="https://github.com/duckdb/duckdb-r/issues/1109" class="external-link">#1109</a>).</li>
 </ul></div>
 <div class="section level3">
-<h3 id="features-1-2-1-9007">Features<a class="anchor" aria-label="anchor" href="#features-1-2-1-9007"></a></h3>
-<ul><li><p>Types exposed through ALTREP are the same as through DBI (<a href="https://github.com/duckdb/duckdb-r/issues/1111" class="external-link">#1111</a>).</p></li>
+<h3 id="features-1-2-1-9900">Features<a class="anchor" aria-label="anchor" href="#features-1-2-1-9900"></a></h3>
+<ul><li><p>Perform optional checks for ALTREP compatibility in <code>rel_from_df()</code> and <code>expr_constant()</code> (<a href="https://github.com/duckdb/duckdb-r/issues/1117" class="external-link">#1117</a>).</p></li>
+<li><p>Types exposed through ALTREP are the same as through DBI (<a href="https://github.com/duckdb/duckdb-r/issues/1111" class="external-link">#1111</a>).</p></li>
 <li><p>Mention column name for conversion errors (<a href="https://github.com/duckdb/duckdb-r/issues/1108" class="external-link">#1108</a>).</p></li>
+<li><p>Rework data frame creation (<a href="https://github.com/duckdb/duckdb-r/issues/1103" class="external-link">#1103</a>).</p></li>
+<li><p>Add optional alias argument to all functions returning an expression (<a href="https://github.com/duckdb/duckdb-r/issues/1100" class="external-link">#1100</a>).</p></li>
+<li><p>Add support for duckdb arrays in R (<a href="https://github.com/joakimlinde" class="external-link">@joakimlinde</a>, <a href="https://github.com/duckdb/duckdb-r/issues/102" class="external-link">#102</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1090" class="external-link">#1090</a>).</p></li>
 </ul></div>
 <div class="section level3">
-<h3 id="chore-1-2-1-9007">Chore<a class="anchor" aria-label="anchor" href="#chore-1-2-1-9007"></a></h3>
-<ul><li><p>Satisfy lintr.</p></li>
+<h3 id="chore-1-2-1-9900">Chore<a class="anchor" aria-label="anchor" href="#chore-1-2-1-9900"></a></h3>
+<ul><li><p>Backticks in error message.</p></li>
+<li><p>Remove lints (<a href="https://github.com/duckdb/duckdb-r/issues/1116" class="external-link">#1116</a>).</p></li>
+<li><p>Add dots (<a href="https://github.com/duckdb/duckdb-r/issues/1115" class="external-link">#1115</a>).</p></li>
+<li><p>Adapt tests to use data frames without row names (<a href="https://github.com/duckdb/duckdb-r/issues/1113" class="external-link">#1113</a>).</p></li>
+<li><p>Satisfy lintr.</p></li>
 <li><p><code>ConvertOpts</code> is a struct (<a href="https://github.com/duckdb/duckdb-r/issues/1110" class="external-link">#1110</a>).</p></li>
 <li><p>Configure clangd.</p></li>
-</ul></div>
-<div class="section level3">
-<h3 id="continuous-integration-1-2-1-9007">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-2-1-9007"></a></h3>
-<ul><li>More accurate determination if no-suggests tests need to run.</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.2.1.9006" id="duckdb-1219006">duckdb 1.2.1.9006<a class="anchor" aria-label="anchor" href="#duckdb-1219006"></a></h2>
-<div class="section level3">
-<h3 id="features-1-2-1-9006">Features<a class="anchor" aria-label="anchor" href="#features-1-2-1-9006"></a></h3>
-<ul><li><p>Rework data frame creation (<a href="https://github.com/duckdb/duckdb-r/issues/1103" class="external-link">#1103</a>).</p></li>
-<li><p>Add optional alias argument to all functions returning an expression (<a href="https://github.com/duckdb/duckdb-r/issues/1100" class="external-link">#1100</a>).</p></li>
-</ul></div>
-<div class="section level3">
-<h3 id="chore-1-2-1-9006">Chore<a class="anchor" aria-label="anchor" href="#chore-1-2-1-9006"></a></h3>
-<ul><li><p>Avoid passing bitmask through data frame scan function (<a href="https://github.com/duckdb/duckdb-r/issues/1105" class="external-link">#1105</a>).</p></li>
+<li><p>Avoid passing bitmask through data frame scan function (<a href="https://github.com/duckdb/duckdb-r/issues/1105" class="external-link">#1105</a>).</p></li>
 <li><p>Clean up edge case for fetching zero rows (<a href="https://github.com/duckdb/duckdb-r/issues/1104" class="external-link">#1104</a>).</p></li>
 <li><p>Remove unused attribute.</p></li>
 <li><p>Avoid test for timings on CRAN (<a href="https://github.com/duckdb/duckdb-r/issues/1101" class="external-link">#1101</a>).</p></li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.2.1.9005" id="duckdb-1219005">duckdb 1.2.1.9005<a class="anchor" aria-label="anchor" href="#duckdb-1219005"></a></h2>
-<div class="section level3">
-<h3 id="chore-1-2-1-9005">Chore<a class="anchor" aria-label="anchor" href="#chore-1-2-1-9005"></a></h3>
-<ul><li>Fix path.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="continuous-integration-1-2-1-9005">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-2-1-9005"></a></h3>
-<ul><li>Ignore arrow for R &lt; 4.2.</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.2.1.9004" id="duckdb-1219004">duckdb 1.2.1.9004<a class="anchor" aria-label="anchor" href="#duckdb-1219004"></a></h2>
-<div class="section level3">
-<h3 id="chore-1-2-1-9004">Chore<a class="anchor" aria-label="anchor" href="#chore-1-2-1-9004"></a></h3>
-<ul><li><p>Move scripts.</p></li>
+<li><p>Fix path.</p></li>
+<li><p>Move scripts.</p></li>
 <li><p>Reorganize scripts.</p></li>
+<li><p>Increase window.</p></li>
 </ul></div>
 <div class="section level3">
-<h3 id="continuous-integration-1-2-1-9004">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-2-1-9004"></a></h3>
-<ul><li>Fix script location.</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.2.1.9003" id="duckdb-1219003">duckdb 1.2.1.9003<a class="anchor" aria-label="anchor" href="#duckdb-1219003"></a></h2>
-<div class="section level3">
-<h3 id="features-1-2-1-9003">Features<a class="anchor" aria-label="anchor" href="#features-1-2-1-9003"></a></h3>
-<ul><li>Add support for duckdb arrays in R (<a href="https://github.com/joakimlinde" class="external-link">@joakimlinde</a>, <a href="https://github.com/duckdb/duckdb-r/issues/102" class="external-link">#102</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1090" class="external-link">#1090</a>).</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.2.1.9002" id="duckdb-1219002">duckdb 1.2.1.9002<a class="anchor" aria-label="anchor" href="#duckdb-1219002"></a></h2>
-<div class="section level3">
-<h3 id="chore-1-2-1-9002">Chore<a class="anchor" aria-label="anchor" href="#chore-1-2-1-9002"></a></h3>
-<ul><li>Increase window.</li>
+<h3 id="continuous-integration-1-2-1-9900">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-2-1-9900"></a></h3>
+<ul><li><p>More accurate determination if no-suggests tests need to run.</p></li>
+<li><p>Ignore arrow for R &lt; 4.2.</p></li>
+<li><p>Fix script location.</p></li>
 </ul></div>
 <div class="section level3">
-<h3 id="uncategorized-1-2-1-9002">Uncategorized<a class="anchor" aria-label="anchor" href="#uncategorized-1-2-1-9002"></a></h3>
+<h3 id="uncategorized-1-2-1-9900">Uncategorized<a class="anchor" aria-label="anchor" href="#uncategorized-1-2-1-9900"></a></h3>
 <ul><li><p>Vendor: Update vendored sources (tag v1.2.2) to <a href="mailto:duckdb/duckdb@7c039464e452ddc3330e2691d3fa6d305521d09b" class="email">duckdb/duckdb@7c039464e452ddc3330e2691d3fa6d305521d09b</a>.</p></li>
 <li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@4d7180d13e8988c73d565f97a29855ff425ed340" class="email">duckdb/duckdb@4d7180d13e8988c73d565f97a29855ff425ed340</a>.</p></li>
 <li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@4de79a0fcb1e260ce2543fb40d1a6977d7c1750a" class="email">duckdb/duckdb@4de79a0fcb1e260ce2543fb40d1a6977d7c1750a</a>.</p></li>
@@ -169,16 +115,10 @@
 <li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@34b9403c4def6a88c87410741e7071a84177f220" class="email">duckdb/duckdb@34b9403c4def6a88c87410741e7071a84177f220</a>.</p></li>
 <li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@c577724b2c1a21ac0f5d67a447f9e69956457ba8" class="email">duckdb/duckdb@c577724b2c1a21ac0f5d67a447f9e69956457ba8</a>.</p></li>
 <li><p>Vendor: Update vendored sources to <a href="mailto:duckdb/duckdb@52a9e8faee041ec226c4720b853b777bb08dd914" class="email">duckdb/duckdb@52a9e8faee041ec226c4720b853b777bb08dd914</a>.</p></li>
+<li><p>Same as previous version.</p></li>
+<li><p>Switching to development version.</p></li>
 </ul></div>
 </div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.2.1.9001" id="duckdb-1219001">duckdb 1.2.1.9001<a class="anchor" aria-label="anchor" href="#duckdb-1219001"></a></h2>
-<ul><li>Same as previous version.</li>
-</ul></div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.2.1.9000" id="duckdb-1219000">duckdb 1.2.1.9000<a class="anchor" aria-label="anchor" href="#duckdb-1219000"></a></h2>
-<ul><li>Switching to development version.</li>
-</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.2.1" id="duckdb-121">duckdb 1.2.1<a class="anchor" aria-label="anchor" href="#duckdb-121"></a></h2><p class="text-muted">CRAN release: 2025-03-14</p>
 <div class="section level3">
