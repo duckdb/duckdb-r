@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.2.1.9008
+
+## Chore
+
+- Adapt tests to use data frames without row names (#1113).
+
+
 # duckdb 1.2.1.9007
 
 ## Bug fixes
