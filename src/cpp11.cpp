@@ -104,10 +104,10 @@ extern "C" SEXP _duckdb_rapi_expr_reference(SEXP rnames, SEXP alias) {
   END_CPP11
 }
 // relational.cpp
-SEXP rapi_expr_constant(sexp val, std::string alias);
-extern "C" SEXP _duckdb_rapi_expr_constant(SEXP val, SEXP alias) {
+SEXP rapi_expr_constant(sexp val, std::string alias, duckdb::ConvertOpts convert_opts);
+extern "C" SEXP _duckdb_rapi_expr_constant(SEXP val, SEXP alias, SEXP convert_opts) {
   BEGIN_CPP11
-    return cpp11::as_sexp(rapi_expr_constant(cpp11::as_cpp<cpp11::decay_t<sexp>>(val), cpp11::as_cpp<cpp11::decay_t<std::string>>(alias)));
+    return cpp11::as_sexp(rapi_expr_constant(cpp11::as_cpp<cpp11::decay_t<sexp>>(val), cpp11::as_cpp<cpp11::decay_t<std::string>>(alias), cpp11::as_cpp<cpp11::decay_t<duckdb::ConvertOpts>>(convert_opts)));
   END_CPP11
 }
 // relational.cpp
@@ -147,10 +147,10 @@ extern "C" SEXP _duckdb_rapi_get_null_SEXP_ptr() {
   END_CPP11
 }
 // relational.cpp
-SEXP rapi_rel_from_df(duckdb::conn_eptr_t con, data_frame df);
-extern "C" SEXP _duckdb_rapi_rel_from_df(SEXP con, SEXP df) {
+SEXP rapi_rel_from_df(duckdb::conn_eptr_t con, data_frame df, duckdb::ConvertOpts convert_opts);
+extern "C" SEXP _duckdb_rapi_rel_from_df(SEXP con, SEXP df, SEXP convert_opts) {
   BEGIN_CPP11
-    return cpp11::as_sexp(rapi_rel_from_df(cpp11::as_cpp<cpp11::decay_t<duckdb::conn_eptr_t>>(con), cpp11::as_cpp<cpp11::decay_t<data_frame>>(df)));
+    return cpp11::as_sexp(rapi_rel_from_df(cpp11::as_cpp<cpp11::decay_t<duckdb::conn_eptr_t>>(con), cpp11::as_cpp<cpp11::decay_t<data_frame>>(df), cpp11::as_cpp<cpp11::decay_t<duckdb::ConvertOpts>>(convert_opts)));
   END_CPP11
 }
 // relational.cpp
@@ -443,7 +443,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_execute",                 (DL_FUNC) &_duckdb_rapi_execute,                  2},
     {"_duckdb_rapi_execute_arrow",           (DL_FUNC) &_duckdb_rapi_execute_arrow,            2},
     {"_duckdb_rapi_expr_comparison",         (DL_FUNC) &_duckdb_rapi_expr_comparison,          3},
-    {"_duckdb_rapi_expr_constant",           (DL_FUNC) &_duckdb_rapi_expr_constant,            2},
+    {"_duckdb_rapi_expr_constant",           (DL_FUNC) &_duckdb_rapi_expr_constant,            3},
     {"_duckdb_rapi_expr_function",           (DL_FUNC) &_duckdb_rapi_expr_function,            5},
     {"_duckdb_rapi_expr_reference",          (DL_FUNC) &_duckdb_rapi_expr_reference,           2},
     {"_duckdb_rapi_expr_set_alias",          (DL_FUNC) &_duckdb_rapi_expr_set_alias,           2},
@@ -465,7 +465,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_rel_explain",             (DL_FUNC) &_duckdb_rapi_rel_explain,              3},
     {"_duckdb_rapi_rel_filter",              (DL_FUNC) &_duckdb_rapi_rel_filter,               2},
     {"_duckdb_rapi_rel_from_altrep_df",      (DL_FUNC) &_duckdb_rapi_rel_from_altrep_df,       4},
-    {"_duckdb_rapi_rel_from_df",             (DL_FUNC) &_duckdb_rapi_rel_from_df,              2},
+    {"_duckdb_rapi_rel_from_df",             (DL_FUNC) &_duckdb_rapi_rel_from_df,              3},
     {"_duckdb_rapi_rel_from_sql",            (DL_FUNC) &_duckdb_rapi_rel_from_sql,             2},
     {"_duckdb_rapi_rel_from_table",          (DL_FUNC) &_duckdb_rapi_rel_from_table,           3},
     {"_duckdb_rapi_rel_from_table_function", (DL_FUNC) &_duckdb_rapi_rel_from_table_function,  4},

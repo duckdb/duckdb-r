@@ -41,7 +41,9 @@ expr_reference <- function(
 expr_constant <- function(
   val,
   ...,
-  alias = NULL
+  alias = NULL,
+  con = NULL,
+  convert_opts = NULL
 ) {
   if (...length() > 0) {
     stop("... must be empty")
@@ -51,7 +53,15 @@ expr_constant <- function(
     alias <- ""
   }
 
-  rethrow_rapi_expr_constant(val, alias)
+  if (is.null(convert_opts)) {
+    if (is.null(con)) {
+      convert_opts <- duckdb_convert_opts()
+    } else {
+      convert_opts <- con@convert_opts
+    }
+  }
+
+  rethrow_rapi_expr_constant(val, alias, convert_opts)
 }
 
 #' Create a comparison expression
@@ -145,18 +155,26 @@ rel_from_df <- function(
   con,
   df,
   ...,
-  experimental = NULL
+  experimental = NULL,
+  convert_opts = NULL,
+  strict = NULL
 ) {
   if (...length() > 0) {
     stop("... must be empty")
   }
 
   # FIXME: Enable warning
-  # if (!is.null(experimental)) {
-  #   .Deprecated(msg = "The experimental parameter is deprecated.")
-  # }
+  if (is.null(convert_opts)) {
+    convert_opts <- con@convert_opts
+  }
+  if (!is.null(experimental)) {
+    convert_opts$experimental <- experimental
+  }
+  if (!is.null(strict)) {
+    convert_opts$strict_relational <- strict
+  }
 
-  rethrow_rapi_rel_from_df(con@conn_ref, as.data.frame(df))
+  rethrow_rapi_rel_from_df(con@conn_ref, as.data.frame(df), convert_opts)
 }
 
 #' @export

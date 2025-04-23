@@ -200,7 +200,7 @@ test_that("the altrep-conversion for relations work for weirdo types for strict 
     col_ts = as.POSIXct("2019-11-26 21:11Z", tz = "UTC"),
     col_factor = factor(c("a"))
   )
-  rel <- rel_from_df(con, test_df)
+  rel <- rel_from_df(con, test_df, strict = FALSE)
   df <- rel_to_altrep(rel)
   expect_false(df_is_materialized(df))
   expect_equal(test_df, df)

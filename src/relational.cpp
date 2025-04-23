@@ -43,6 +43,104 @@ SEXP result_to_df(duckdb::unique_ptr<duckdb::QueryResult> res) {
 	return duckdb_execute_R_impl(mat_res, false, RStrings::get().tbl_df_tbl_dataframe_str);
 }
 
+// Get row names, can't use Rf_getAttrib()
+SEXP get_row_names(SEXP x) {
+	for (SEXP attr = ATTRIB(x); attr != R_NilValue; attr = CDR(attr)) {
+		if (TAG(attr) == R_RowNamesSymbol) {
+			return CAR(attr);
+		}
+	}
+
+	return R_NilValue;
+}
+
+// Check if column has names
+bool check_has_names(SEXP col, const std::string &col_name) {
+	if (Rf_getAttrib(col, R_NamesSymbol) != R_NilValue) {
+		std::string error_msg = "Can't convert named vectors to relational. Affected column: " + col_name + ".";
+		stop(error_msg.c_str());
+		return true;
+	}
+	return false;
+}
+
+// Check if column is an array or matrix
+bool check_is_array_or_matrix(SEXP col, const std::string &col_name) {
+	if (Rf_getAttrib(col, R_DimSymbol) != R_NilValue) {
+		std::string error_msg = "Can't convert arrays or matrices to relational. Affected column: " + col_name + ".";
+		stop(error_msg.c_str());
+		return true;
+	}
+	return false;
+}
+
+// Check if column is an S4 object
+bool check_is_s4_object(SEXP col, const std::string &col_name) {
+	if (Rf_isS4(col)) {
+		std::string error_msg = "Can't convert S4 columns to relational. Affected column: " + col_name + ".";
+		stop(error_msg.c_str());
+		return true;
+	}
+	return false;
+}
+
+// Check if column class is valid for relational conversion
+bool check_has_valid_class(SEXP col, const std::string &col_name, const std::string &tzone) {
+	SEXP col_class_sexp = Rf_getAttrib(col, R_ClassSymbol);
+	bool valid = false;
+
+	if (col_class_sexp == R_NilValue) {
+		return true;
+	} 
+
+	writable::strings col_class = col_class_sexp;
+	if (col_class.size() == 1) {
+		const auto &class_name = col_class[0];
+		valid = (class_name == "logical" || class_name == "integer" || class_name == "numeric" ||
+				class_name == "character" || class_name == "Date" || class_name == "difftime");
+	} else if (col_class.size() == 2) {
+		const auto &class1 = col_class[0];
+		const auto &class2 = col_class[1];
+
+		if (class1 == "hms" && class2 == "difftime") {
+			valid = true;
+		} else if (class1 == "POSIXct" && class2 == "POSIXt") {
+			SEXP tzone_attr = Rf_getAttrib(col, RStrings::get().tzone_sym);
+			if (tzone == "") {
+				if (tzone_attr == R_NilValue) {
+					valid = true;
+				} else if (Rf_isString(tzone_attr) && LENGTH(tzone_attr) == 1 &&
+						cpp11::as_cpp<string>(tzone_attr) == "") {
+					valid = true;
+				}
+			} else if (Rf_isString(tzone_attr) && LENGTH(tzone_attr) == 1 &&
+					cpp11::as_cpp<string>(tzone_attr) == tzone) {
+				valid = true;
+			}
+		}
+	}
+
+	if (!valid) {
+		std::string error_msg =
+		    "Can't convert column `" + col_name + "` to relational.";
+		stop(error_msg.c_str());
+		return false;
+	}
+
+	return true;
+}
+
+// Run all column checks in one function
+void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::StrictRelational strict_relational,
+                           const std::string &tzone) {
+	check_has_names(col, col_name);
+	check_is_s4_object(col, col_name);
+	if (strict_relational == ConvertOpts::StrictRelational::ENABLED) {
+		check_is_array_or_matrix(col, col_name);
+		check_has_valid_class(col, col_name, tzone);
+	}
+}
+
 // DuckDB Expressions
 
 [[cpp11::register]] SEXP rapi_expr_reference(r_vector<r_string> rnames, std::string alias = "") {
@@ -63,11 +161,13 @@ SEXP result_to_df(duckdb::unique_ptr<duckdb::QueryResult> res) {
 	return out;
 }
 
-[[cpp11::register]] SEXP rapi_expr_constant(sexp val, std::string alias = "") {
+[[cpp11::register]] SEXP rapi_expr_constant(sexp val, std::string alias, duckdb::ConvertOpts convert_opts) {
 	if (LENGTH(val) != 1) {
 		stop("expr_constant: Need value of length one");
 	}
-	auto out = make_external<ConstantExpression>("duckdb_expr", RApiTypes::SexpToValue(val, 0, false));
+	check_column_validity(val, "val", convert_opts.strict_relational, convert_opts.timezone_out);
+	auto const_value = RApiTypes::SexpToValue(val, 0, false);
+	auto out = make_external<ConstantExpression>("duckdb_expr", const_value);
 	if (alias != "") {
 		out->SetAlias(std::move(alias));
 	}
@@ -151,12 +251,47 @@ SEXP result_to_df(duckdb::unique_ptr<duckdb::QueryResult> res) {
 	return ret;
 }
 
-[[cpp11::register]] SEXP rapi_rel_from_df(duckdb::conn_eptr_t con, data_frame df) {
+[[cpp11::register]] SEXP rapi_rel_from_df(duckdb::conn_eptr_t con, data_frame df, duckdb::ConvertOpts convert_opts) {
 	if (!con || !con.get() || !con->conn) {
-		stop("rel_from_df: Invalid connection");
+		stop("rel_from_df: Invalid connection.");
 	}
+
+	// Get row names info directly
+	SEXP row_names = get_row_names(df);
+
+	// Check if row names are character
+	if (TYPEOF(row_names) == STRSXP) {
+		stop("rel_from_df: Need data frame without row names to convert to relational, got character row names.");
+	}
+
+	// Check if row names are not empty or automatic
+	auto length = Rf_xlength(row_names);
+	if (length != 0) {
+		if (length != 2) {
+			stop("rel_from_df: Need data frame without row names to convert to relational, got numeric row names of "
+			     "length %d.",
+			     length);
+		}
+		auto first = INTEGER(row_names)[0];
+		if (first != NA_INTEGER) {
+			stop("rel_from_df: Need data frame without row names to convert to relational, got numeric row names with "
+			     "first element not NA.");
+		}
+	}
+
 	if (df.size() == 0) {
-		stop("rel_from_df: Invalid data frame");
+		stop("rel_from_df: Can't convert empty data frame to relational.");
+	}
+
+	// Check each column
+	strings df_names = df.names();
+
+	for (int i = 0; i < df.ncol(); i++) {
+		SEXP col = df[i];
+		std::string col_name = static_cast<std::string>(df_names[i]);
+
+		// Run all column checks at once
+		check_column_validity(col, col_name, convert_opts.strict_relational, convert_opts.timezone_out);
 	}
 
 	named_parameter_map_t other_params;

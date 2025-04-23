@@ -20,7 +20,8 @@ duckdb_convert_opts <- function(
     tz_out_convert = tz_out_convert,
     bigint = bigint,
     arrow = FALSE,
-    experimental = FALSE
+    experimental = FALSE,
+    strict_relational = TRUE
   )
 }
 
@@ -31,7 +32,8 @@ duckdb_convert_opts_impl <- function(
   tz_out_convert = NULL,
   bigint = NULL,
   arrow = NULL,
-  experimental = NULL
+  experimental = NULL,
+  strict_relational = NULL
 ) {
   if (!is.null(timezone_out)) {
     x$timezone_out <- timezone_out
@@ -47,6 +49,9 @@ duckdb_convert_opts_impl <- function(
   }
   if (!is.null(experimental)) {
     x$experimental <- experimental
+  }
+  if (!is.null(strict_relational)) {
+    x$strict_relational <- strict_relational
   }
 
   x
