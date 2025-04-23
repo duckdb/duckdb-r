@@ -117,9 +117,9 @@ rethrow_rapi_expr_reference <- function(rnames, alias, call = parent.frame(2)) {
   )
 }
 
-rethrow_rapi_expr_constant <- function(val, alias, call = parent.frame(2)) {
+rethrow_rapi_expr_constant <- function(val, alias, convert_opts, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_expr_constant(val, alias),
+    rapi_expr_constant(val, alias, convert_opts),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
@@ -171,9 +171,9 @@ rethrow_rapi_get_null_SEXP_ptr <- function(call = parent.frame(2)) {
   )
 }
 
-rethrow_rapi_rel_from_df <- function(con, df, call = parent.frame(2)) {
+rethrow_rapi_rel_from_df <- function(con, df, convert_opts, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_rel_from_df(con, df),
+    rapi_rel_from_df(con, df, convert_opts),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }

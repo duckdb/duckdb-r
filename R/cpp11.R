@@ -52,8 +52,8 @@ rapi_expr_reference <- function(rnames, alias) {
   .Call(`_duckdb_rapi_expr_reference`, rnames, alias)
 }
 
-rapi_expr_constant <- function(val, alias) {
-  .Call(`_duckdb_rapi_expr_constant`, val, alias)
+rapi_expr_constant <- function(val, alias, convert_opts) {
+  .Call(`_duckdb_rapi_expr_constant`, val, alias, convert_opts)
 }
 
 rapi_expr_comparison <- function(cmp_op, exprs, alias) {
@@ -76,8 +76,8 @@ rapi_get_null_SEXP_ptr <- function() {
   .Call(`_duckdb_rapi_get_null_SEXP_ptr`)
 }
 
-rapi_rel_from_df <- function(con, df) {
-  .Call(`_duckdb_rapi_rel_from_df`, con, df)
+rapi_rel_from_df <- function(con, df, convert_opts) {
+  .Call(`_duckdb_rapi_rel_from_df`, con, df, convert_opts)
 }
 
 rapi_rel_to_df <- function(rel) {

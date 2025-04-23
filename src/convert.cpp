@@ -30,6 +30,10 @@ ConvertOpts::ExperimentalFeatures bool_to_experimental_features(bool use_experim
 	return use_experimental ? ConvertOpts::ExperimentalFeatures::ENABLED : ConvertOpts::ExperimentalFeatures::DISABLED;
 }
 
+ConvertOpts::StrictRelational bool_to_strict_relational(bool use_strict_relational) {
+	return use_strict_relational ? ConvertOpts::StrictRelational::ENABLED : ConvertOpts::StrictRelational::DISABLED;
+}
+
 ConvertOpts::ConvertOpts(cpp11::list options) {
 	// Extract timezone_out
 	timezone_out = as_cpp<std::string>(options["timezone_out"]);
@@ -45,6 +49,9 @@ ConvertOpts::ConvertOpts(cpp11::list options) {
 
 	// Extract experimental
 	experimental = bool_to_experimental_features(as_cpp<bool>(options["experimental"]));
+
+	// Extract strict_relational
+	strict_relational = bool_to_strict_relational(as_cpp<bool>(options["strict_relational"]));
 }
 
 } // namespace duckdb
