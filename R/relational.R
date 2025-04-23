@@ -8,7 +8,16 @@
 #' @examples
 #' col_ref_expr <- expr_reference("some_column_name")
 #' col_ref_expr2 <- expr_reference("some_column_name", "some_table_name")
-expr_reference <- function(names, table = NULL, con = NULL, alias = NULL) {
+expr_reference <- function(
+  names,
+  table = NULL,
+  ...,
+  alias = NULL
+) {
+  if (...length() > 0) {
+    stop("... must be empty")
+  }
+
   if (inherits(table, "duckdb_relation")) {
     names <- c(rel_alias(table), names)
   } else if (is.character(table) && !identical(table, "")) {
@@ -29,7 +38,15 @@ expr_reference <- function(names, table = NULL, con = NULL, alias = NULL) {
 #' @examples
 #' const_int_expr <- expr_constant(42)
 #' const_str_expr <- expr_constant("Hello, World")
-expr_constant <- function(val, alias = NULL) {
+expr_constant <- function(
+  val,
+  ...,
+  alias = NULL
+) {
+  if (...length() > 0) {
+    stop("... must be empty")
+  }
+
   if (is.null(alias)) {
     alias <- ""
   }
@@ -44,7 +61,16 @@ expr_constant <- function(val, alias = NULL) {
 #' @noRd
 #' @examples
 #' comp_expr <- expr_comparison(">", list(expr_constant(-42), expr_constant(42)))
-expr_comparison <- function(cmp_op, exprs, alias = NULL) {
+expr_comparison <- function(
+  cmp_op,
+  exprs,
+  ...,
+  alias = NULL
+) {
+  if (...length() > 0) {
+    stop("... must be empty")
+  }
+
   if (is.null(alias)) {
     alias <- ""
   }
@@ -62,10 +88,15 @@ expr_comparison <- function(cmp_op, exprs, alias = NULL) {
 expr_function <- function(
   name,
   args,
+  ...,
   order_bys = list(),
   filter_bys = list(),
   alias = NULL
 ) {
+  if (...length() > 0) {
+    stop("... must be empty")
+  }
+
   if (is.null(alias)) {
     alias <- ""
   }
@@ -110,7 +141,16 @@ print.duckdb_expr <- function(x, ...) {
 #' @examples
 #' con <- DBI::dbConnect(duckdb())
 #' rel <- rel_from_df(con, mtcars)
-rel_from_df <- function(con, df, experimental = NULL) {
+rel_from_df <- function(
+  con,
+  df,
+  ...,
+  experimental = NULL
+) {
+  if (...length() > 0) {
+    stop("... must be empty")
+  }
+
   # FIXME: Enable warning
   # if (!is.null(experimental)) {
   #   .Deprecated(msg = "The experimental parameter is deprecated.")
