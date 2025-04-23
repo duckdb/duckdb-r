@@ -1,5 +1,20 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.2.1.9009
+
+## Features
+
+- Perform optional checks for ALTREP compatibility in `rel_from_df()` and `expr_constant()` (#1117).
+
+## Chore
+
+- Backticks in error message.
+
+- Remove lints (#1116).
+
+- Add dots (#1115).
+
+
 # duckdb 1.2.1.9008
 
 ## Chore
