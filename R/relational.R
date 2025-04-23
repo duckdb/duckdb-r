@@ -165,7 +165,8 @@ print.duckdb_relation <- function(x, ...) {
 }
 
 #' @export
-as.data.frame.duckdb_relation <- function(x, row.names = NULL, optional = NULL, ...) {
+
+as.data.frame.duckdb_relation <- function(x, row.names = NULL, optional = NULL, ...) { # nolint: object_name_linter
   if (!missing(row.names) || !missing(optional)) {
     stop("row.names and optional parameters not supported")
   }
@@ -269,10 +270,10 @@ sexp_null_ptr <- rapi_get_null_SEXP_ptr
 
 expr_window <- function(
   window_function,
-  partitions=list(),
-  order_bys=list(),
-  window_boundary_start="unbounded_preceding",
-  window_boundary_end="current_row_range",
+  partitions = list(),
+  order_bys = list(),
+  window_boundary_start = "unbounded_preceding",
+  window_boundary_end = "current_row_range",
   start_expr = NULL,
   end_expr = NULL,
   offset_expr = NULL,
@@ -320,10 +321,10 @@ window_boundaries <- c("unbounded_preceding",
 
 expr_window_ <- function(
   window_function,
-  partitions=list(),
-  order_bys=list(),
-  window_boundary_start=window_boundaries,
-  window_boundary_end=window_boundaries,
+  partitions = list(),
+  order_bys = list(),
+  window_boundary_start = window_boundaries,
+  window_boundary_end = window_boundaries,
   start_expr = list(),
   end_expr = list(),
   offset_expr = list(),
@@ -592,7 +593,7 @@ rel_to_sql <- function(rel) {
 #' DBI::dbWriteTable(con, "mtcars", mtcars)
 #' rel <- rel_from_sql(con, "SELECT * FROM mtcars")
 rel_from_sql <- function(con, sql) {
-    rethrow_rapi_rel_from_sql(con@conn_ref, sql)
+  rethrow_rapi_rel_from_sql(con@conn_ref, sql)
 }
 
 #' Create a duckdb table relation from a table name
