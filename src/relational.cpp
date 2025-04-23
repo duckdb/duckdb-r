@@ -57,7 +57,7 @@ SEXP get_row_names(SEXP x) {
 // Check if column has names
 bool check_has_names(SEXP col, const std::string &col_name) {
 	if (Rf_getAttrib(col, R_NamesSymbol) != R_NilValue) {
-		std::string error_msg = "Can't convert named vectors to relational. Affected column: " + col_name + ".";
+		std::string error_msg = "Can't convert named vectors to relational. Affected column: `" + col_name + "`.";
 		stop(error_msg.c_str());
 		return true;
 	}
@@ -67,7 +67,7 @@ bool check_has_names(SEXP col, const std::string &col_name) {
 // Check if column is an array or matrix
 bool check_is_array_or_matrix(SEXP col, const std::string &col_name) {
 	if (Rf_getAttrib(col, R_DimSymbol) != R_NilValue) {
-		std::string error_msg = "Can't convert arrays or matrices to relational. Affected column: " + col_name + ".";
+		std::string error_msg = "Can't convert arrays or matrices to relational. Affected column: `" + col_name + "`.";
 		stop(error_msg.c_str());
 		return true;
 	}
@@ -77,7 +77,7 @@ bool check_is_array_or_matrix(SEXP col, const std::string &col_name) {
 // Check if column is an S4 object
 bool check_is_s4_object(SEXP col, const std::string &col_name) {
 	if (Rf_isS4(col)) {
-		std::string error_msg = "Can't convert S4 columns to relational. Affected column: " + col_name + ".";
+		std::string error_msg = "Can't convert S4 columns to relational. Affected column: `" + col_name + "`.";
 		stop(error_msg.c_str());
 		return true;
 	}
