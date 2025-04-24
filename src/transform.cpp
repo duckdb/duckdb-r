@@ -259,7 +259,6 @@ static void TransformArrayVector(Vector &src_vec, const SEXP dest, idx_t dest_of
 	auto array_size = ArrayType::GetSize(src_vec.GetType());
 	auto &child_type = ArrayType::GetChildType(src_vec.GetType());
 	Vector child_vector(child_type, nullptr);
-	auto matrix_nrow = (Rf_xlength(dest) / array_size);
 
 	cpp11::sexp buffer = duckdb_r_allocate(child_type, array_size, name, "TransformArrayVector");
 
