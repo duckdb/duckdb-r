@@ -12,6 +12,8 @@
 #include "duckdb/parser/tableref/table_function_ref.hpp"
 #include "duckdb/common/mutex.hpp"
 
+#include "convert.hpp"
+
 #if defined(R_VERSION) && R_VERSION >= R_Version(4, 3, 0)
 #define R_HAS_ALTLIST
 #endif
@@ -164,9 +166,11 @@ struct RStrings {
 	SEXP duckdb_str;
 	SEXP POSIXct_POSIXt_str;
 	SEXP integer64_str;
+	SEXP tbl_df_tbl_dataframe_str;
 	SEXP enc2utf8_sym; // Rf_install
 	SEXP tzone_sym;
 	SEXP units_sym;
+	SEXP dim_sym;
 	SEXP getNamespace_sym;
 	SEXP Table__from_record_batches_sym;
 	SEXP ImportSchema_sym;
@@ -188,7 +192,7 @@ private:
 	RStrings();
 };
 
-SEXP duckdb_execute_R_impl(MaterializedQueryResult *result, bool);
+SEXP duckdb_execute_R_impl(MaterializedQueryResult *result, bool integer64, SEXP class_);
 
 } // namespace duckdb
 
@@ -204,13 +208,13 @@ void rapi_disconnect(duckdb::conn_eptr_t);
 
 cpp11::list rapi_prepare(duckdb::conn_eptr_t, std::string);
 
-cpp11::list rapi_bind(duckdb::stmt_eptr_t, SEXP paramsexp, bool);
+cpp11::list rapi_bind(duckdb::stmt_eptr_t, SEXP paramsexp, duckdb::ConvertOpts);
 
-SEXP rapi_execute(duckdb::stmt_eptr_t, bool, bool);
+SEXP rapi_execute(duckdb::stmt_eptr_t, duckdb::ConvertOpts);
 
 void rapi_release(duckdb::stmt_eptr_t);
 
-void rapi_register_df(duckdb::conn_eptr_t, std::string, cpp11::data_frame, bool);
+void rapi_register_df(duckdb::conn_eptr_t, std::string, cpp11::data_frame, duckdb::ConvertOpts);
 
 void rapi_unregister_df(duckdb::conn_eptr_t, std::string);
 
@@ -224,9 +228,12 @@ SEXP rapi_record_batch(duckdb::rqry_eptr_t, int);
 
 cpp11::r_string rapi_ptr_to_str(SEXP extptr);
 
-void duckdb_r_transform(duckdb::Vector &src_vec, SEXP dest, duckdb::idx_t dest_offset, duckdb::idx_t n, bool integer64);
-SEXP duckdb_r_allocate(const duckdb::LogicalType &type, duckdb::idx_t nrows);
+int duckdb_r_typeof(const duckdb::LogicalType &type, const duckdb::string &name, const char *caller);
+SEXP duckdb_r_allocate(const duckdb::LogicalType &type, duckdb::idx_t nrows, const duckdb::string &name,
+                       const char *caller);
 void duckdb_r_decorate(const duckdb::LogicalType &type, SEXP dest, bool integer64);
+void duckdb_r_transform(duckdb::Vector &src_vec, SEXP dest, duckdb::idx_t dest_offset, duckdb::idx_t n, bool integer64,
+                        const duckdb::string &name);
 
 template <typename T, typename... ARGS>
 cpp11::external_pointer<T> make_external(const std::string &rclass, ARGS &&... args) {

@@ -215,7 +215,9 @@ public:
 		auto &gstate = gstate_p.Cast<BatchInsertGlobalState>();
 		auto &lstate = lstate_p.Cast<BatchInsertLocalState>();
 		// merge together the collections
-		D_ASSERT(lstate.writer);
+		if (!lstate.writer) {
+			lstate.writer = &gstate.table.GetStorage().CreateOptimisticWriter(context);
+		}
 		auto final_collection = gstate.MergeCollections(context, std::move(merge_collections), *lstate.writer);
 		// add the merged-together collection to the set of batch indexes
 		lock_guard<mutex> l(gstate.lock);
@@ -517,8 +519,12 @@ SinkResultType PhysicalBatchInsert::Sink(ExecutionContext &context, DataChunk &c
 	if (!lstate.constraint_state) {
 		lstate.constraint_state = table.GetStorage().InitializeConstraintState(table, bound_constraints);
 	}
+
 	auto &storage = table.GetStorage();
-	storage.VerifyAppendConstraints(*lstate.constraint_state, context.client, lstate.insert_chunk, nullptr, nullptr);
+	auto &local_storage = LocalStorage::Get(context.client, storage.db);
+	auto local_table_storage = local_storage.GetStorage(table.GetStorage());
+	storage.VerifyAppendConstraints(*lstate.constraint_state, context.client, lstate.insert_chunk, local_table_storage,
+	                                nullptr);
 
 	auto new_row_group = lstate.current_collection->Append(lstate.insert_chunk, lstate.current_append_state);
 	if (new_row_group) {

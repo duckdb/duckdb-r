@@ -5,7 +5,7 @@ con <- dbConnect(duckdb())
 on.exit(dbDisconnect(con, shutdown = TRUE))
 
 test_that("we can create a relation from a df", {
-  rel <- rel_from_df(con, mtcars)
+  rel <- rel_from_df(con, data.frame(a = 1))
   expect_type(rel, "externalptr")
   expect_s3_class(rel, "duckdb_relation")
 })
@@ -29,8 +29,10 @@ test_that("we won't crash when creating a relation from odd things", {
 })
 
 test_that("we can round-trip a data frame", {
-  expect_equivalent(mtcars, as.data.frame.duckdb_relation(rel_from_df(con, mtcars)))
-  expect_equivalent(iris, as.data.frame.duckdb_relation(rel_from_df(con, iris)))
+  expect_equivalent(
+    data.frame(a = 1:3, b = letters[1:3]),
+    as.data.frame.duckdb_relation(rel_from_df(con, data.frame(a = 1:3, b = letters[1:3])))
+  )
 })
 
 test_that("we can recognize if a df is materialized", {
@@ -192,9 +194,13 @@ test_that("the altrep-conversion for relations works", {
   expect_equal(iris, df)
 })
 
-test_that("the altrep-conversion for relations work for weirdo types", {
-  test_df <- data.frame(col_date = as.Date("2019-11-26"), col_ts = as.POSIXct("2019-11-26 21:11Z", "UTC"), col_factor = factor(c("a")))
-  rel <- rel_from_df(con, test_df)
+test_that("the altrep-conversion for relations work for weirdo types for strict = FALSE", {
+  test_df <- data.frame(
+    col_date = as.Date("2019-11-26"),
+    col_ts = as.POSIXct("2019-11-26 21:11Z", tz = "UTC"),
+    col_factor = factor(c("a"))
+  )
+  rel <- rel_from_df(con, test_df, strict = FALSE)
   df <- rel_to_altrep(rel)
   expect_false(df_is_materialized(df))
   expect_equal(test_df, df)
@@ -372,7 +378,8 @@ test_that("ASOF join works", {
   cond <- list(expr_function("gte", list(expr_reference("ts"), expr_reference("event_ts"))))
   rel <- rel_join(test_df1, test_df2, cond, join_ref_type = "asof")
   rel_proj <- rel_project(rel, list(expr_reference("ts"), expr_reference("event_id")))
-  rel_df <- rel_to_altrep(rel_proj)
+  order <- rel_order(rel_proj, list(expr_reference("ts")))
+  rel_df <- rel_to_altrep(order)
   expected_result <- data.frame(ts = c(1, 2, 3, 4, 5, 6, 7, 8, 9), event_id = c(0, 0, 1, 1, 1, 2, 2, 3, 3))
   expect_equal(expected_result, rel_df)
 })
@@ -976,7 +983,7 @@ test_that("Handle zero-length lists (#186)", {
   })
 })
 
-test_that("tethering", {
+test_that("prudence", {
   local_edition(3)
   withr::local_envvar(NO_COLOR = "true")
 
@@ -1035,4 +1042,13 @@ test_that("tethering", {
   expect_snapshot(error = TRUE, {
     nrow(bad_cells)
   })
+})
+
+test_that("rel_to_view()", {
+  df1 <- data.frame(a = 1:10, b = 1:10)
+  rel1 <- rel_from_df(con, df1)
+  rel_to_view(rel1, "", "test_view", temporary = TRUE)
+
+  expect_equal(dbGetQuery(con, "SELECT * FROM test_view"), df1)
+  expect_error(dbExecute(con, "DROP VIEW test_view"), NA)
 })

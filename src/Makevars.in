@@ -17,5 +17,5 @@ include Makevars.duckdb
 
 CXX_STD = CXX17
 PKG_CPPFLAGS = -Iinclude -I../inst/include -DDUCKDB_DISABLE_PRINT -DDUCKDB_R_BUILD -DBROTLI_ENCODER_CLEANUP_ON_OOM {{ INCLUDES }}
-OBJECTS=rfuns.o database.o connection.o statement.o register.o relational.o scan.o signal.o transform.o utils.o reltoaltrep.o types.o cpp11.o $(SOURCES)
+OBJECTS=rfuns.o database.o connection.o statement.o register.o relational.o scan.o signal.o transform.o utils.o reltoaltrep.o altrepdataframe_relation.o types.o convert.o cpp11.o $(SOURCES)
 PKG_LIBS={{ LINK_FLAGS }}

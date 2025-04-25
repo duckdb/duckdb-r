@@ -1,6 +1,7 @@
 #include "rapi.hpp"
 #include "signal.hpp"
 #include "typesr.hpp"
+#include "reltoaltrep.hpp"
 
 #include "R_ext/Random.h"
 
@@ -28,9 +29,121 @@
 using namespace duckdb;
 using namespace cpp11;
 
+
+SEXP result_to_df(duckdb::unique_ptr<duckdb::QueryResult> res) {
+	if (res->HasError()) {
+		stop("%s", res->GetError().c_str());
+	}
+	if (res->type == QueryResultType::STREAM_RESULT) {
+		res = ((StreamQueryResult &)*res).Materialize();
+	}
+	D_ASSERT(res->type == QueryResultType::MATERIALIZED_RESULT);
+	auto mat_res = (MaterializedQueryResult *)res.get();
+
+	return duckdb_execute_R_impl(mat_res, false, RStrings::get().tbl_df_tbl_dataframe_str);
+}
+
+// Get row names, can't use Rf_getAttrib()
+SEXP get_row_names(SEXP x) {
+	for (SEXP attr = ATTRIB(x); attr != R_NilValue; attr = CDR(attr)) {
+		if (TAG(attr) == R_RowNamesSymbol) {
+			return CAR(attr);
+		}
+	}
+
+	return R_NilValue;
+}
+
+// Check if column has names
+bool check_has_names(SEXP col, const std::string &col_name) {
+	if (Rf_getAttrib(col, R_NamesSymbol) != R_NilValue) {
+		std::string error_msg = "Can't convert named vectors to relational. Affected column: `" + col_name + "`.";
+		stop(error_msg.c_str());
+		return true;
+	}
+	return false;
+}
+
+// Check if column is an array or matrix
+bool check_is_array_or_matrix(SEXP col, const std::string &col_name) {
+	if (Rf_getAttrib(col, R_DimSymbol) != R_NilValue) {
+		std::string error_msg = "Can't convert arrays or matrices to relational. Affected column: `" + col_name + "`.";
+		stop(error_msg.c_str());
+		return true;
+	}
+	return false;
+}
+
+// Check if column is an S4 object
+bool check_is_s4_object(SEXP col, const std::string &col_name) {
+	if (Rf_isS4(col)) {
+		std::string error_msg = "Can't convert S4 columns to relational. Affected column: `" + col_name + "`.";
+		stop(error_msg.c_str());
+		return true;
+	}
+	return false;
+}
+
+// Check if column class is valid for relational conversion
+bool check_has_valid_class(SEXP col, const std::string &col_name, const std::string &tzone) {
+	SEXP col_class_sexp = Rf_getAttrib(col, R_ClassSymbol);
+	bool valid = false;
+
+	if (col_class_sexp == R_NilValue) {
+		return true;
+	} 
+
+	writable::strings col_class = col_class_sexp;
+	if (col_class.size() == 1) {
+		const auto &class_name = col_class[0];
+		valid = (class_name == "logical" || class_name == "integer" || class_name == "numeric" ||
+				class_name == "character" || class_name == "Date" || class_name == "difftime");
+	} else if (col_class.size() == 2) {
+		const auto &class1 = col_class[0];
+		const auto &class2 = col_class[1];
+
+		if (class1 == "hms" && class2 == "difftime") {
+			valid = true;
+		} else if (class1 == "POSIXct" && class2 == "POSIXt") {
+			SEXP tzone_attr = Rf_getAttrib(col, RStrings::get().tzone_sym);
+			if (tzone == "") {
+				if (tzone_attr == R_NilValue) {
+					valid = true;
+				} else if (Rf_isString(tzone_attr) && LENGTH(tzone_attr) == 1 &&
+						cpp11::as_cpp<string>(tzone_attr) == "") {
+					valid = true;
+				}
+			} else if (Rf_isString(tzone_attr) && LENGTH(tzone_attr) == 1 &&
+					cpp11::as_cpp<string>(tzone_attr) == tzone) {
+				valid = true;
+			}
+		}
+	}
+
+	if (!valid) {
+		std::string error_msg =
+		    "Can't convert column `" + col_name + "` to relational.";
+		stop(error_msg.c_str());
+		return false;
+	}
+
+	return true;
+}
+
+// Run all column checks in one function
+void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::StrictRelational strict_relational,
+                           const std::string &tzone) {
+	check_has_names(col, col_name);
+	check_is_s4_object(col, col_name);
+	if (strict_relational == ConvertOpts::StrictRelational::ENABLED) {
+		check_is_array_or_matrix(col, col_name);
+		check_has_valid_class(col, col_name, tzone);
+	}
+}
+
 // DuckDB Expressions
 
-[[cpp11::register]] SEXP rapi_expr_reference(r_vector<r_string> rnames) {
+[[cpp11::register]] SEXP rapi_expr_reference(r_vector<r_string> rnames, std::string alias = "") {
 	if (rnames.size() == 0) {
 		stop("expr_reference: Zero length name vector");
 	}
@@ -41,32 +154,42 @@ using namespace cpp11;
 		}
 		names.push_back(name);
 	}
-	return make_external<ColumnRefExpression>("duckdb_expr", names);
+	auto out = make_external<ColumnRefExpression>("duckdb_expr", names);
+	if (alias != "") {
+		out->SetAlias(std::move(alias));
+	}
+	return out;
 }
 
-[[cpp11::register]] SEXP rapi_expr_constant(sexp val) {
+[[cpp11::register]] SEXP rapi_expr_constant(sexp val, std::string alias, duckdb::ConvertOpts convert_opts) {
 	if (LENGTH(val) != 1) {
 		stop("expr_constant: Need value of length one");
 	}
-	return make_external<ConstantExpression>("duckdb_expr", RApiTypes::SexpToValue(val, 0, false));
+	check_column_validity(val, "val", convert_opts.strict_relational, convert_opts.timezone_out);
+	auto const_value = RApiTypes::SexpToValue(val, 0, false);
+	auto out = make_external<ConstantExpression>("duckdb_expr", const_value);
+	if (alias != "") {
+		out->SetAlias(std::move(alias));
+	}
+	return out;
 }
 
-[[cpp11::register]] SEXP rapi_expr_comparison(std::string cmp_op, list exprs) {
+[[cpp11::register]] SEXP rapi_expr_comparison(std::string cmp_op, list exprs, std::string alias = "") {
 
 	ExpressionType expr_type = OperatorToExpressionType(cmp_op);
-	if (expr_type ==ExpressionType::INVALID) {
+	if (expr_type == ExpressionType::INVALID) {
 		stop("expr_comparison: Invalid comparison operator");
 	}
 
-	return make_external<ComparisonExpression>(
-		"duckdb_expr",
-		expr_type,
-		expr_extptr_t(exprs[0])->Copy(),
-		expr_extptr_t(exprs[1])->Copy()
-	);
+	auto out = make_external<ComparisonExpression>("duckdb_expr", expr_type, expr_extptr_t(exprs[0])->Copy(),
+	                                           expr_extptr_t(exprs[1])->Copy());
+	if (alias != "") {
+		out->SetAlias(std::move(alias));
+	}
+	return out;
 }
 
-[[cpp11::register]] SEXP rapi_expr_function(std::string name, list args, list order_bys, list filter_bys) {
+[[cpp11::register]] SEXP rapi_expr_function(std::string name, list args, list order_bys, list filter_bys, std::string alias = "") {
 	if (name.size() == 0) {
 		stop("expr_function: Zero length name");
 	}
@@ -106,6 +229,9 @@ using namespace cpp11;
 	if (!filter_bys.empty()) {
 		func_expr->filter = std::move(filter_expr);
 	}
+	if (alias != "") {
+		func_expr->SetAlias(std::move(alias));
+	}
 	return func_expr;
 }
 
@@ -117,18 +243,58 @@ using namespace cpp11;
 	return expr->ToString();
 }
 
-// DuckDB Relations
+//
+// DuckDB Relations: low-level conversion
 
-[[cpp11::register]] SEXP rapi_rel_from_df(duckdb::conn_eptr_t con, data_frame df, bool experimental) {
+[[cpp11::register]] SEXP rapi_get_null_SEXP_ptr() {
+	auto ret = make_external<ConstantExpression>("duckdb_null_ptr", nullptr);
+	return ret;
+}
+
+[[cpp11::register]] SEXP rapi_rel_from_df(duckdb::conn_eptr_t con, data_frame df, duckdb::ConvertOpts convert_opts) {
 	if (!con || !con.get() || !con->conn) {
-		stop("rel_from_df: Invalid connection");
+		stop("rel_from_df: Invalid connection.");
 	}
+
+	// Get row names info directly
+	SEXP row_names = get_row_names(df);
+
+	// Check if row names are character
+	if (TYPEOF(row_names) == STRSXP) {
+		stop("rel_from_df: Need data frame without row names to convert to relational, got character row names.");
+	}
+
+	// Check if row names are not empty or automatic
+	auto length = Rf_xlength(row_names);
+	if (length != 0) {
+		if (length != 2) {
+			stop("rel_from_df: Need data frame without row names to convert to relational, got numeric row names of "
+			     "length %d.",
+			     length);
+		}
+		auto first = INTEGER(row_names)[0];
+		if (first != NA_INTEGER) {
+			stop("rel_from_df: Need data frame without row names to convert to relational, got numeric row names with "
+			     "first element not NA.");
+		}
+	}
+
 	if (df.size() == 0) {
-		stop("rel_from_df: Invalid data frame");
+		stop("rel_from_df: Can't convert empty data frame to relational.");
+	}
+
+	// Check each column
+	strings df_names = df.names();
+
+	for (int i = 0; i < df.ncol(); i++) {
+		SEXP col = df[i];
+		std::string col_name = static_cast<std::string>(df_names[i]);
+
+		// Run all column checks at once
+		check_column_validity(col, col_name, convert_opts.strict_relational, convert_opts.timezone_out);
 	}
 
 	named_parameter_map_t other_params;
-	other_params["experimental"] = Value::BOOLEAN(experimental);
 	auto alias = StringUtil::Format("dataframe_%d_%d", (uintptr_t)(SEXP)df,
 	                                (int32_t)(NumericLimits<int32_t>::Maximum() * unif_rand()));
 	auto rel =
@@ -136,10 +302,57 @@ using namespace cpp11;
 
 	cpp11::writable::list prot = {df};
 
-	auto res = sexp(make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(rel)));
-	res.attr("df") = df;
-	return res;
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(rel));
 }
+
+[[cpp11::register]] SEXP rapi_rel_to_df(duckdb::rel_extptr_t rel) {
+	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
+
+	auto res = rel->rel->Execute();
+
+	if (signal_handler.HandleInterrupt()) {
+		return R_NilValue;
+	}
+
+	signal_handler.Disable();
+
+	return result_to_df(std::move(res));
+}
+
+//
+// DuckDB Relations: questioning
+
+[[cpp11::register]] SEXP rapi_rel_sql(duckdb::rel_extptr_t rel, std::string sql) {
+	auto res = rel->rel->Query("_", sql);
+	if (res->HasError()) {
+		stop("%s", res->GetError().c_str());
+	}
+	return result_to_df(std::move(res));
+}
+
+//
+// DuckDB Relations: names
+
+[[cpp11::register]] SEXP rapi_rel_names(duckdb::rel_extptr_t rel) {
+	auto ret = writable::strings();
+	for (auto &col : rel->rel->Columns()) {
+		ret.push_back(col.Name());
+	}
+	return (ret);
+}
+
+[[cpp11::register]] std::string rapi_rel_alias(duckdb::rel_extptr_t rel) {
+	return rel->rel->GetAlias();
+}
+
+[[cpp11::register]] SEXP rapi_rel_set_alias(duckdb::rel_extptr_t rel, std::string alias) {
+	cpp11::writable::list prot = {rel};
+
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, rel->rel->Alias(alias));
+}
+
+//
+// DuckDB Relations: operators
 
 [[cpp11::register]] SEXP rapi_rel_filter(duckdb::rel_extptr_t rel, list exprs) {
 	duckdb::unique_ptr<ParsedExpression> filter_expr;
@@ -232,7 +445,6 @@ using namespace cpp11;
 	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res);
 }
 
-
 static WindowBoundary StringToWindowBoundary(string &window_boundary) {
 	if (window_boundary == "unbounded_preceding") {
 		return WindowBoundary::UNBOUNDED_PRECEDING;
@@ -264,7 +476,8 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 [[cpp11::register]] SEXP rapi_expr_window(duckdb::expr_extptr_t window_function, list partitions, list order_bys,
                                           std::string window_boundary_start, std::string window_boundary_end,
                                           duckdb::expr_extptr_t start_expr, duckdb::expr_extptr_t end_expr,
-                                          duckdb::expr_extptr_t offset_expr, duckdb::expr_extptr_t default_expr) {
+                                          duckdb::expr_extptr_t offset_expr, duckdb::expr_extptr_t default_expr,
+                                          std::string alias = "") {
 
 	if (!window_function || window_function->type != ExpressionType::FUNCTION) {
 		stop("expected function expression");
@@ -302,6 +515,10 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 	}
 	if (constant_expression_is_not_null(default_expr)) {
 		window_expr->default_expr = default_expr->Copy();
+	}
+
+	if (alias != "") {
+		window_expr->SetAlias(std::move(alias));
 	}
 
 	return window_expr;
@@ -364,32 +581,6 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res);
 }
 
-static SEXP result_to_df(duckdb::unique_ptr<QueryResult> res) {
-	if (res->HasError()) {
-		stop("%s", res->GetError().c_str());
-	}
-	if (res->type == QueryResultType::STREAM_RESULT) {
-		res = ((StreamQueryResult &)*res).Materialize();
-	}
-	D_ASSERT(res->type == QueryResultType::MATERIALIZED_RESULT);
-	auto mat_res = (MaterializedQueryResult *)res.get();
-
-	writable::integers row_names;
-	row_names.push_back(NA_INTEGER);
-	row_names.push_back(-mat_res->RowCount());
-
-	// TODO this thing we can probably statically cache
-	writable::strings classes;
-	classes.push_back("tbl_df");
-	classes.push_back("tbl");
-	classes.push_back("data.frame");
-
-	auto df = sexp(duckdb_execute_R_impl(mat_res, false));
-	df.attr("class") = classes;
-	df.attr("row.names") = row_names;
-	return df;
-}
-
 [[cpp11::register]] SEXP rapi_rel_union_all(duckdb::rel_extptr_t rel_a, duckdb::rel_extptr_t rel_b) {
 	auto res = make_shared_ptr<SetOpRelation>(rel_a->rel, rel_b->rel, SetOperationType::UNION);
 	res->setop_all = true;
@@ -411,70 +602,6 @@ static SEXP result_to_df(duckdb::unique_ptr<QueryResult> res) {
 	cpp11::writable::list prot = {rel};
 
 	return make_external_prot<RelationWrapper>("duckdb_relation", prot, make_shared_ptr<DistinctRelation>(rel->rel));
-}
-
-[[cpp11::register]] SEXP rapi_rel_to_df(duckdb::rel_extptr_t rel) {
-	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
-
-	auto res = rel->rel->Execute();
-
-	if (signal_handler.HandleInterrupt()) {
-		return R_NilValue;
-	}
-
-	signal_handler.Disable();
-
-	return result_to_df(std::move(res));
-}
-
-[[cpp11::register]] std::string rapi_rel_tostring(duckdb::rel_extptr_t rel, std::string format) {
-	if (format == "tree") {
-		return rel->rel->ToString(0);
-	} else {
-		return rel->rel->ToString();
-	}
-}
-
-[[cpp11::register]] std::string rapi_rel_to_sql(duckdb::rel_extptr_t rel) {
-	return rel->rel->GetQueryNode()->ToString();
-}
-
-[[cpp11::register]] SEXP rapi_rel_explain(duckdb::rel_extptr_t rel, std::string type, std::string format) {
-	auto type_enum = EnumUtil::FromString<ExplainType>(type);
-	auto format_enum = EnumUtil::FromString<ExplainFormat>(format);
-	return result_to_df(rel->rel->Explain(type_enum, format_enum));
-}
-
-[[cpp11::register]] std::string rapi_rel_alias(duckdb::rel_extptr_t rel) {
-	return rel->rel->GetAlias();
-}
-
-// Call this function to avoid passing an empty list if an argument is optional
-[[cpp11::register]] SEXP rapi_get_null_SEXP_ptr() {
-	auto ret = make_external<ConstantExpression>("duckdb_null_ptr", nullptr);
-	return ret;
-}
-
-[[cpp11::register]] SEXP rapi_rel_set_alias(duckdb::rel_extptr_t rel, std::string alias) {
-	cpp11::writable::list prot = {rel};
-
-	return make_external_prot<RelationWrapper>("duckdb_relation", prot, rel->rel->Alias(alias));
-}
-
-[[cpp11::register]] SEXP rapi_rel_sql(duckdb::rel_extptr_t rel, std::string sql) {
-	auto res = rel->rel->Query("_", sql);
-	if (res->HasError()) {
-		stop("%s", res->GetError().c_str());
-	}
-	return result_to_df(std::move(res));
-}
-
-[[cpp11::register]] SEXP rapi_rel_names(duckdb::rel_extptr_t rel) {
-	auto ret = writable::strings();
-	for (auto &col : rel->rel->Columns()) {
-		ret.push_back(col.Name());
-	}
-	return (ret);
 }
 
 [[cpp11::register]] SEXP rapi_rel_set_intersect(duckdb::rel_extptr_t rel_a, duckdb::rel_extptr_t rel_b) {
@@ -504,6 +631,9 @@ static SEXP result_to_df(duckdb::unique_ptr<QueryResult> res) {
 
 	return make_external_prot<RelationWrapper>("duckdb_relation", prot, symdiff);
 }
+
+//
+// DuckDB Relations: conversion
 
 [[cpp11::register]] SEXP rapi_rel_from_sql(duckdb::conn_eptr_t con, const std::string sql) {
 	if (!con || !con.get() || !con->conn) {
@@ -557,6 +687,25 @@ static SEXP result_to_df(duckdb::unique_ptr<QueryResult> res) {
 	return make_external<RelationWrapper>("duckdb_relation", std::move(rel));
 }
 
+[[cpp11::register]] std::string rapi_rel_tostring(duckdb::rel_extptr_t rel, std::string format) {
+	// FIXME: Support format = "sql" here, forwarding to rapi_rel_to_sql()
+	if (format == "tree") {
+		return rel->rel->ToString(0);
+	} else {
+		return rel->rel->ToString();
+	}
+}
+
+[[cpp11::register]] std::string rapi_rel_to_sql(duckdb::rel_extptr_t rel) {
+	return rel->rel->GetQueryNode()->ToString();
+}
+
+[[cpp11::register]] SEXP rapi_rel_explain(duckdb::rel_extptr_t rel, std::string type, std::string format) {
+	auto type_enum = EnumUtil::FromString<ExplainType>(type);
+	auto format_enum = EnumUtil::FromString<ExplainFormat>(format);
+	return result_to_df(rel->rel->Explain(type_enum, format_enum));
+}
+
 [[cpp11::register]] void rapi_rel_to_parquet(duckdb::rel_extptr_t rel, std::string file_name, list options_sexps) {
 	rel->rel->WriteParquet(file_name, ListToVectorOfValue(options_sexps));
 }
@@ -565,8 +714,13 @@ static SEXP result_to_df(duckdb::unique_ptr<QueryResult> res) {
 	rel->rel->WriteCSV(file_name, ListToVectorOfValue(options_sexps));
 }
 
-[[cpp11::register]] void rapi_rel_to_table(duckdb::rel_extptr_t rel, std::string schema_name, std::string table_name, bool temporary) {
+[[cpp11::register]] void rapi_rel_to_table(duckdb::rel_extptr_t rel, std::string schema_name, std::string table_name,
+                                           bool temporary) {
 	rel->rel->Create(schema_name, table_name, temporary);
+}
+
+[[cpp11::register]] void rapi_rel_to_view(duckdb::rel_extptr_t rel, std::string schema_name, std::string view_name, bool temporary) {
+	rel->rel->CreateView(schema_name, view_name, false, temporary);
 }
 
 [[cpp11::register]] void rapi_rel_insert(duckdb::rel_extptr_t rel, std::string schema_name, std::string table_name) {

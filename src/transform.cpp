@@ -16,23 +16,26 @@ static void VectorToR(Vector &src_vec, size_t count, void *dest, uint64_t dest_o
 	}
 }
 
-SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows) {
+int duckdb_r_typeof(const LogicalType &type, const string &name, const char *caller) {
 	if (type.GetAlias() == R_STRING_TYPE_NAME) {
-		return NEW_STRING(nrows);
+		return STRSXP;
 	}
 
 	switch (type.id()) {
 	case LogicalTypeId::BOOLEAN:
-		return NEW_LOGICAL(nrows);
+		return LGLSXP;
 	case LogicalTypeId::UTINYINT:
 	case LogicalTypeId::TINYINT:
 	case LogicalTypeId::SMALLINT:
 	case LogicalTypeId::USMALLINT:
 	case LogicalTypeId::INTEGER:
-		return NEW_INTEGER(nrows);
+		return INTSXP;
 	case LogicalTypeId::UINTEGER:
+		return REALSXP;
 	case LogicalTypeId::BIGINT:
 	case LogicalTypeId::UBIGINT:
+		// Both for numeric and integer64 options
+		return REALSXP;
 	case LogicalTypeId::HUGEINT:
 	case LogicalTypeId::UHUGEINT:
 	case LogicalTypeId::FLOAT:
@@ -46,10 +49,40 @@ SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows) {
 	case LogicalTypeId::DATE:
 	case LogicalTypeId::TIME:
 	case LogicalTypeId::INTERVAL:
-		return NEW_NUMERIC(nrows);
+		return REALSXP;
 	case LogicalTypeId::LIST:
 	case LogicalTypeId::MAP:
-		return NEW_LIST(nrows);
+		return VECSXP;
+	case LogicalTypeId::ARRAY: {
+		auto &child_type = ArrayType::GetChildType(type);
+		return duckdb_r_typeof(child_type, name, caller);
+	}
+	case LogicalTypeId::STRUCT:
+		return VECSXP;
+	case LogicalTypeId::VARCHAR:
+	case LogicalTypeId::UUID:
+		return STRSXP;
+	case LogicalTypeId::BLOB:
+		return VECSXP;
+	case LogicalTypeId::ENUM:
+		return INTSXP;
+	default:
+		cpp11::stop("%s: Unknown type for column `%s`: %s", caller, name.c_str(), type.ToString().c_str());
+	}
+}
+
+SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows, const string &name, const char *caller) {
+	int rtype = duckdb_r_typeof(type, name, caller);
+
+	switch (type.id()) {
+	case LogicalTypeId::ARRAY: {
+		auto array_size = ArrayType::GetSize(type);
+		auto &child_type = ArrayType::GetChildType(type);
+		if (child_type.IsNested())
+			cpp11::stop("Nested arrays cannot be returned to R as column data.");
+		cpp11::sexp varvalue = duckdb_r_allocate(child_type, (nrows * array_size), name, "LogicalTypeId::ARRAY");
+		return varvalue;
+	}
 	case LogicalTypeId::STRUCT: {
 		cpp11::writable::list dest_list;
 		dest_list.reserve(StructType::GetChildTypes(type).size());
@@ -58,7 +91,7 @@ SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows) {
 			const auto &name = child.first;
 			const auto &child_type = child.second;
 
-			cpp11::sexp dest_child = duckdb_r_allocate(child_type, nrows);
+			cpp11::sexp dest_child = duckdb_r_allocate(child_type, nrows, name, "LogicalTypeId::STRUCT");
 			dest_list.push_back(cpp11::named_arg(name.c_str()) = std::move(dest_child));
 		}
 
@@ -72,15 +105,8 @@ SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows) {
 
 		return dest_list;
 	}
-	case LogicalTypeId::VARCHAR:
-	case LogicalTypeId::UUID:
-		return NEW_STRING(nrows);
-	case LogicalTypeId::BLOB:
-		return NEW_LIST(nrows);
-	case LogicalTypeId::ENUM:
-		return NEW_INTEGER(nrows);
 	default:
-		cpp11::stop("rapi_execute: Unknown column type for execute: %s", type.ToString().c_str());
+		return Rf_allocVector(rtype, nrows);
 	}
 }
 
@@ -150,6 +176,20 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, bool integer64)
 	case LogicalTypeId::LIST:
 	case LogicalTypeId::MAP:
 		break; // no extra decoration required, do nothing
+	case LogicalTypeId::ARRAY: {
+		auto array_size = ArrayType::GetSize(type);
+		auto &child_type = ArrayType::GetChildType(type);
+		duckdb_r_decorate(child_type, dest, integer64);
+		// The class of a matrix and an array is implicit from
+		// the dim attribute so we don't set the class attribute.
+		// See: https://svn.r-project.org/R/trunk/src/main/attrib.c:656
+		// SET_CLASS(dest, RStrings::get().matrix_array_str);
+		cpp11::sexp dims = NEW_INTEGER(2);
+		INTEGER(dims)[0] = (Rf_xlength(dest) / array_size);
+		INTEGER(dims)[1] = array_size;
+		Rf_setAttrib(dest, RStrings::get().dim_sym, dims);
+		break;
+	}
 	case LogicalTypeId::TIMESTAMP_SEC:
 	case LogicalTypeId::TIMESTAMP_MS:
 	case LogicalTypeId::TIMESTAMP:
@@ -196,7 +236,7 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, bool integer64)
 	}
 
 	default:
-		cpp11::stop("rapi_execute: Unknown column type for convert: %s", type.ToString().c_str());
+		cpp11::stop("duckdb_r_decorate: Unknown column type: %s", type.ToString().c_str());
 		break;
 	}
 }
@@ -214,9 +254,62 @@ SEXP ToRString(const string_t &input) {
 	return Rf_mkCharLenCE(data, len, CE_UTF8);
 }
 
-void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx_t n, bool integer64) {
+static void TransformArrayVector(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx_t n, bool integer64,
+                                 const string &name) {
+	auto array_size = ArrayType::GetSize(src_vec.GetType());
+	auto &child_type = ArrayType::GetChildType(src_vec.GetType());
+	Vector child_vector(child_type, nullptr);
+
+	cpp11::sexp buffer = duckdb_r_allocate(child_type, array_size, name, "TransformArrayVector");
+
+	// actual loop over rows
+	for (size_t row_idx = 0; row_idx < n; row_idx++) {
+		size_t offset = (row_idx * array_size);
+		size_t end = offset + array_size;
+		child_vector.Slice(ArrayVector::GetEntry(src_vec), offset, end);
+		duckdb_r_transform(child_vector, buffer, 0, array_size, integer64, name);
+
+		switch (TYPEOF(buffer)) {
+		case LGLSXP:
+			for (size_t i = 0; i < array_size; i++) {
+				LOGICAL(dest)[dest_offset + row_idx + n * i] = LOGICAL(buffer)[i];
+			}
+			break;
+		case INTSXP:
+			for (size_t i = 0; i < array_size; i++) {
+				INTEGER(dest)[dest_offset + row_idx + n * i] = INTEGER(buffer)[i];
+			}
+			break;
+		case REALSXP:
+			for (size_t i = 0; i < array_size; i++) {
+				REAL(dest)[dest_offset + row_idx + n * i] = REAL(buffer)[i];
+			}
+			break;
+		case CPLXSXP:
+			for (size_t i = 0; i < array_size; i++) {
+				COMPLEX(dest)[dest_offset + row_idx + n * i] = COMPLEX(buffer)[i];
+			}
+			break;
+		case STRSXP:
+			for (size_t i = 0; i < array_size; i++) {
+				SEXP str = STRING_ELT(buffer, i);
+				SET_STRING_ELT(dest, dest_offset + row_idx + n * i, str);
+			}
+			break;
+		case VECSXP:
+			for (size_t i = 0; i < array_size; i++) {
+				SEXP vec = VECTOR_ELT(buffer, i);
+				SET_VECTOR_ELT(dest, dest_offset + row_idx + n * i, vec);
+			}
+			break;
+		}
+	}
+}
+
+void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx_t n, bool integer64,
+                        const string &name) {
 	if (src_vec.GetType().GetAlias() == R_STRING_TYPE_NAME) {
-		ptrdiff_t sexp_header_size = (data_ptr_t)DATAPTR(R_BlankString) - (data_ptr_t)R_BlankString;
+		ptrdiff_t sexp_header_size = (data_ptr_t)DATAPTR_RO(R_BlankString) - (data_ptr_t)R_BlankString;
 
 		auto child_ptr = FlatVector::GetData<uintptr_t>(src_vec);
 		auto &mask = FlatVector::Validity(src_vec);
@@ -272,7 +365,7 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 		auto &mask = FlatVector::Validity(src_vec);
 		double *dest_ptr = ((double *)NUMERIC_POINTER(dest)) + dest_offset;
 		for (size_t row_idx = 0; row_idx < n; row_idx++) {
-			dest_ptr[row_idx] = !mask.RowIsValid(row_idx) ? NA_REAL : (double)int32_t(src_data[row_idx]);
+			dest_ptr[row_idx] = !mask.RowIsValid(row_idx) ? NA_REAL : static_cast<double>(int32_t(src_data[row_idx]));
 		}
 
 		// some dresssup for R
@@ -287,7 +380,7 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 			if (!mask.RowIsValid(row_idx)) {
 				dest_ptr[row_idx] = NA_REAL;
 			} else {
-				dest_ptr[row_idx] = src_data[row_idx].micros / Interval::MICROS_PER_SEC;
+				dest_ptr[row_idx] = static_cast<double>(src_data[row_idx].micros) / Interval::MICROS_PER_SEC;
 			}
 		}
 		SET_CLASS(dest, RStrings::get().difftime_str);
@@ -302,7 +395,7 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 			if (!mask.RowIsValid(row_idx)) {
 				dest_ptr[row_idx] = NA_REAL;
 			} else {
-				dest_ptr[row_idx] = Interval::GetMicro(src_data[row_idx]) / Interval::MICROS_PER_SEC;
+				dest_ptr[row_idx] = static_cast<double>(Interval::GetMicro(src_data[row_idx])) / Interval::MICROS_PER_SEC;
 			}
 		}
 		SET_CLASS(dest, RStrings::get().difftime_str);
@@ -413,14 +506,19 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 				child_vector.Slice(ListVector::GetEntry(src_vec), src_data[row_idx].offset, end);
 
 				// transform the list child vector to a single R SEXP
-				cpp11::sexp list_element = duckdb_r_allocate(child_type, src_data[row_idx].length);
+				cpp11::sexp list_element =
+				    duckdb_r_allocate(child_type, src_data[row_idx].length, name, "LogicalTypeId::LIST");
 				duckdb_r_decorate(child_type, list_element, integer64);
-				duckdb_r_transform(child_vector, list_element, 0, src_data[row_idx].length, integer64);
+				duckdb_r_transform(child_vector, list_element, 0, src_data[row_idx].length, integer64, name);
 
 				// call R's own extract subset method
 				SET_ELEMENT(dest, dest_offset + row_idx, list_element);
 			}
 		}
+		break;
+	}
+	case LogicalTypeId::ARRAY: {
+		TransformArrayVector(src_vec, dest, dest_offset, n, integer64, name);
 		break;
 	}
 	case LogicalTypeId::STRUCT: {
@@ -429,7 +527,7 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 		for (size_t i = 0; i < children.size(); i++) {
 			const auto &struct_child = children[i];
 			SEXP child_dest = VECTOR_ELT(dest, i);
-			duckdb_r_transform(*struct_child, child_dest, dest_offset, n, integer64);
+			duckdb_r_transform(*struct_child, child_dest, dest_offset, n, integer64, name);
 		}
 
 		break;
@@ -455,14 +553,14 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 				key_child.Slice(MapVector::GetKeys(src_vec), offset, end);
 				value_child.Slice(MapVector::GetValues(src_vec), offset, end);
 
-				cpp11::sexp key_sexp = duckdb_r_allocate(key_type, length);
-				cpp11::sexp value_sexp = duckdb_r_allocate(value_type, length);
+				cpp11::sexp key_sexp = duckdb_r_allocate(key_type, length, name, "LogicalTypeId::MAP");
+				cpp11::sexp value_sexp = duckdb_r_allocate(value_type, length, name, "LogicalTypeId::MAP");
 
 				duckdb_r_decorate(key_type, key_sexp, integer64);
 				duckdb_r_decorate(value_type, value_sexp, integer64);
 
-				duckdb_r_transform(key_child, key_sexp, 0, length, integer64);
-				duckdb_r_transform(value_child, value_sexp, 0, length, integer64);
+				duckdb_r_transform(key_child, key_sexp, 0, length, integer64, name);
+				duckdb_r_transform(value_child, value_sexp, 0, length, integer64, name);
 
 				cpp11::writable::list dest_list;
 				dest_list.reserve(2);
@@ -555,6 +653,6 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 		break;
 	}
 	default:
-		cpp11::stop("rapi_execute: Unknown column type for convert: %s", src_vec.GetType().ToString().c_str());
+		cpp11::stop("duckdb_r_transform: Unknown column type for convert: %s", src_vec.GetType().ToString().c_str());
 	}
 }

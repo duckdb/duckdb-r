@@ -9,24 +9,24 @@ namespace duckdb {
 struct AltrepRelationWrapper {
 	static AltrepRelationWrapper *Get(SEXP x);
 
-	AltrepRelationWrapper(rel_extptr_t rel_, bool allow_materialization_, size_t n_rows_, size_t n_cells_);
+	AltrepRelationWrapper(rel_extptr_t rel_, size_t n_rows_, size_t n_cells_);
 
 	bool HasQueryResult() const;
 
 	MaterializedQueryResult *GetQueryResult();
 
-	duckdb::unique_ptr<QueryResult> Materialize();
+	void Materialize();
 
-	const bool allow_materialization;
 	const size_t n_rows;
 	const size_t n_cells;
 
 	rel_extptr_t rel_eptr;
 	duckdb::shared_ptr<Relation> rel;
-	duckdb::unique_ptr<QueryResult> res;
+	duckdb::unique_ptr<QueryResult> mat_result;
+	std::string mat_error;
 };
 
-}
+} // namespace duckdb
 
 struct RelToAltrep {
 	static void Initialize(DllInfo *dll);
