@@ -236,11 +236,11 @@ struct AltrepVectorWrapper {
 			auto res = rel->GetQueryResult();
 			const auto &name = res->names[column_index];
 
-			transformed_vector = duckdb_r_allocate(res->types[column_index], res->RowCount(), name, "Dataptr");
+			transformed_vector = duckdb_r_allocate(res->types[column_index], res->RowCount(), name, duckdb::ConvertOpts(),"Dataptr");
 			idx_t dest_offset = 0;
 			for (auto &chunk : res->Collection().Chunks()) {
 				SEXP dest = transformed_vector.data();
-				duckdb_r_transform(chunk.data[column_index], dest, dest_offset, chunk.size(), false, name);
+				duckdb_r_transform(chunk.data[column_index], dest, dest_offset, chunk.size(), duckdb::ConvertOpts(), name);
 				dest_offset += chunk.size();
 			}
 		}
@@ -408,7 +408,7 @@ size_t DoubleToSize(double d) {
 		R_SetExternalPtrTag(ptr, RStrings::get().duckdb_vector_sym);
 
 		cpp11::sexp vector_sexp = R_new_altrep(LogicalTypeToAltrepType(col_type, col_name), ptr, R_NilValue);
-		duckdb_r_decorate(col_type, vector_sexp, false);
+		duckdb_r_decorate(col_type, vector_sexp, duckdb::ConvertOpts());
 		data_frame.push_back(vector_sexp);
 	}
 

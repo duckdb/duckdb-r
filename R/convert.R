@@ -2,7 +2,8 @@ duckdb_convert_opts <- function(
   ...,
   timezone_out = "UTC",
   tz_out_convert = c("with", "force"),
-  bigint = "numeric"
+  bigint = "numeric",
+  array = "none"
 ) {
   tz_out_convert <- match.arg(tz_out_convert)
   timezone_out <- check_tz(timezone_out)
@@ -19,6 +20,7 @@ duckdb_convert_opts <- function(
     timezone_out = timezone_out,
     tz_out_convert = tz_out_convert,
     bigint = bigint,
+    array = array,
     arrow = FALSE,
     experimental = FALSE,
     strict_relational = TRUE
@@ -31,6 +33,7 @@ duckdb_convert_opts_impl <- function(
   timezone_out = NULL,
   tz_out_convert = NULL,
   bigint = NULL,
+  array = NULL,
   arrow = NULL,
   experimental = NULL,
   strict_relational = NULL
@@ -43,6 +46,9 @@ duckdb_convert_opts_impl <- function(
   }
   if (!is.null(bigint)) {
     x$bigint <- bigint
+  }
+  if (!is.null(array)) {
+    x$array <- array
   }
   if (!is.null(arrow)) {
     x$arrow <- arrow
