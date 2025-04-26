@@ -283,9 +283,9 @@ static void install_new_attrib(SEXP vec, SEXP name, SEXP val) {
 	SETCDR(attrib_vec, attrib_cell);
 }
 
-static SEXP get_attrib(SEXP vec, SEXP name) {
+SEXP get_attrib(SEXP vec, SEXP name) {
 	for (SEXP attrib = ATTRIB(vec); attrib != R_NilValue; attrib = CDR(attrib)) {
-		if (TAG(attrib) == R_RowNamesSymbol) {
+		if (TAG(attrib) == name) {
 			return CAR(attrib);
 		}
 	}

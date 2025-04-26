@@ -43,17 +43,6 @@ SEXP result_to_df(duckdb::unique_ptr<duckdb::QueryResult> res) {
 	return duckdb_execute_R_impl(mat_res, duckdb::ConvertOpts(), RStrings::get().tbl_df_tbl_dataframe_str);
 }
 
-// Get row names, can't use Rf_getAttrib()
-SEXP get_row_names(SEXP x) {
-	for (SEXP attr = ATTRIB(x); attr != R_NilValue; attr = CDR(attr)) {
-		if (TAG(attr) == R_RowNamesSymbol) {
-			return CAR(attr);
-		}
-	}
-
-	return R_NilValue;
-}
-
 // Check if column has names
 bool check_has_names(SEXP col, const std::string &col_name) {
 	if (Rf_getAttrib(col, R_NamesSymbol) != R_NilValue) {
@@ -257,7 +246,9 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 	}
 
 	// Get row names info directly
-	SEXP row_names = get_row_names(df);
+	SEXP row_names = get_attrib(df, R_RowNamesSymbol);
+
+	// FIXME: Check if ALTREP here?
 
 	// Check if row names are character
 	if (TYPEOF(row_names) == STRSXP) {
