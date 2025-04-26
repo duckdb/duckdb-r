@@ -397,6 +397,12 @@ size_t DoubleToSize(double d) {
 
 	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, DoubleToSize(n_rows), DoubleToSize(n_cells));
 
+	// Row names
+	cpp11::external_pointer<AltrepRownamesWrapper> ptr(new AltrepRownamesWrapper(relation_wrapper));
+	R_SetExternalPtrTag(ptr, RStrings::get().duckdb_row_names_sym);
+	cpp11::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, R_NilValue);
+
+	// Data
 	cpp11::writable::list data_frame;
 	data_frame.reserve(ncols);
 
@@ -422,10 +428,6 @@ size_t DoubleToSize(double d) {
 	}
 	SET_NAMES(data_frame, StringsToSexp(names));
 
-	// Row names
-	cpp11::external_pointer<AltrepRownamesWrapper> ptr(new AltrepRownamesWrapper(relation_wrapper));
-	R_SetExternalPtrTag(ptr, RStrings::get().duckdb_row_names_sym);
-	cpp11::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, R_NilValue);
 	install_new_attrib(data_frame, R_RowNamesSymbol, row_names_sexp);
 
 	// Class
