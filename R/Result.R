@@ -66,7 +66,9 @@ duckdb_post_execute <- function(res, out) {
   }
   res@env$rows_affected <- rows_affected
 
-  out <- set_output_tz(out, res@connection@timezone_out, res@connection@tz_out_convert)
+  if (res@connection@tz_out_convert == "force") {
+    out <- tz_force(out, res@connection@timezone_out)
+  }
 
   res@env$resultset <- out
 
@@ -98,30 +100,22 @@ duckdb_fetch_record_batch <- function(res, chunk_size = 1000000) {
   rethrow_rapi_record_batch(res@query_result, chunk_size)
 }
 
-set_output_tz <- function(x, timezone, convert) {
+tz_force <- function(x, timezone) {
   if (timezone == "UTC") {
     return(x)
   }
 
-  tz_convert <- switch(convert,
-    with = tz_convert,
-    force = tz_force
-  )
-
   is_datetime <- which(vapply(x, inherits, "POSIXt", FUN.VALUE = logical(1)))
 
   if (length(is_datetime) > 0) {
-    x[is_datetime] <- lapply(x[is_datetime], tz_convert, timezone)
+    x[is_datetime] <- lapply(x[is_datetime], tz_force_one, timezone)
   }
   x
 }
 
-tz_convert <- function(x, timezone) {
-  attr(x, "tzone") <- timezone
-  x
-}
-
-tz_force <- function(x, timezone) {
+tz_force_one <- function(x, timezone) {
+  # Reset back to UTC
+  attr(x, "tzone") <- "UTC"
   # convert to character in ISO format, stripping the timezone
   ct <- format(x, format = "%Y-%m-%d %H:%M:%OS", usetz = FALSE)
   # recreate the POSIXct with specified timezone
