@@ -1,0 +1,6 @@
+altrepdataframe_relation.o: \
+  altrepdataframe_relation.cpp \
+  include/altrepdataframe_relation.hpp \
+  include/convert.hpp \
+  include/rapi.hpp \
+  include/reltoaltrep.hpp \
