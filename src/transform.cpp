@@ -221,8 +221,10 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 	case LogicalTypeId::TIMESTAMP_NS:
 		SET_CLASS(dest, RStrings::get().POSIXct_POSIXt_str);
 		if (convert_opts.tz_out_convert == ConvertOpts::TzOutConvert::WITH) {
-			// Conversion can happen here, also useful for ALTREP
-			Rf_setAttrib(dest, RStrings::get().tzone_sym, StringsToSexp({convert_opts.timezone_out}));
+			// Attribute added here here, also useful for ALTREP
+			if (convert_opts.timezone_out != "") {
+				Rf_setAttrib(dest, RStrings::get().tzone_sym, StringsToSexp({convert_opts.timezone_out}));
+			}
 		} else {
 			// Conversion happens in the R layer
 			Rf_setAttrib(dest, RStrings::get().tzone_sym, RStrings::get().UTC_str);
