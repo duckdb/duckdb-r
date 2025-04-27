@@ -1058,7 +1058,7 @@ test_that("logical", {
   rel <- rel_from_df(con, df1)
   expect_equal(rel_to_altrep(rel), df1)
 
-  df2 <- data.frame(a = structure(c(TRUE, FALSE, NA), class = "foo"))
+  df2 <- vctrs::new_data_frame(list(a = structure(c(TRUE, FALSE, NA), class = "foo")))
   rel <- rel_from_df(con, df2, strict = FALSE)
   expect_equal(rel_to_altrep(rel), df1)
 
@@ -1070,7 +1070,7 @@ test_that("integer", {
   rel <- rel_from_df(con, df1)
   expect_equal(rel_to_altrep(rel), df1)
 
-  df2 <- data.frame(a = structure(c(1L, 2L, NA), class = "foo"))
+  df2 <- vctrs::new_data_frame(list(a = structure(c(1L, 2L, NA), class = "foo")))
   rel <- rel_from_df(con, df2, strict = FALSE)
   expect_equal(rel_to_altrep(rel), df1)
 
@@ -1082,7 +1082,7 @@ test_that("numeric", {
   rel <- rel_from_df(con, df1)
   expect_equal(rel_to_altrep(rel), df1)
 
-  df2 <- data.frame(a = structure(c(1, 2, NA), class = "foo"))
+  df2 <- vctrs::new_data_frame(list(a = structure(c(1, 2, NA), class = "foo")))
   rel <- rel_from_df(con, df2, strict = FALSE)
   expect_equal(rel_to_altrep(rel), df1)
 
@@ -1107,7 +1107,7 @@ test_that("Date", {
   rel <- rel_from_df(con, df1)
   expect_equal(rel_to_altrep(rel), df1)
 
-  df2 <- data.frame(a = structure(as.Date(c("2020-01-01", "2020-01-02", NA)), class = c("foo", "Date")))
+  df2 <- vctrs::new_data_frame(list(a = structure(as.Date(c("2020-01-01", "2020-01-02", NA)), class = c("foo", "Date"))))
   rel <- rel_from_df(con, df2, strict = FALSE)
   expect_equal(rel_to_altrep(rel), df1)
 
@@ -1119,7 +1119,7 @@ test_that("difftime", {
   rel <- rel_from_df(con, df1)
   expect_equal(rel_to_altrep(rel), df1)
 
-  df2 <- data.frame(a = structure(as.difftime(c(1, 2, NA), units = "secs"), class = c("foo", "difftime")))
+  df2 <- vctrs::new_data_frame(list(a = structure(as.difftime(c(1, 2, NA), units = "secs"), class = c("foo", "difftime"))))
   rel <- rel_from_df(con, df2, strict = FALSE)
   expect_equal(rel_to_altrep(rel), df1)
 
