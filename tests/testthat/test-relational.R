@@ -1141,6 +1141,8 @@ test_that("factor", {
 })
 
 test_that("data.frame", {
+  skip_if(getRversion() < "4.3")
+
   df1 <- vctrs::new_data_frame(list(a = data.frame(b = 1:3, c = 4:6)))
   rel <- rel_from_df(con, df1)
   expect_equal(rel_to_altrep(rel), df1)
