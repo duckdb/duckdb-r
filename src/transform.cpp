@@ -78,7 +78,7 @@ SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows, const string &name,
 	switch (type.id()) {
 	case LogicalTypeId::ARRAY: {
 		if (convert_opts.array != ConvertOpts::ArrayConversion::MATRIX)
-			cpp11::stop("Use connection convert option to enable arrays to be returned to R.");
+			cpp11::stop("Use `dbConnect(array = \"matrix\")` to enable arrays to be returned to R.");
 		auto array_size = ArrayType::GetSize(type);
 		auto &child_type = ArrayType::GetChildType(type);
 		if (child_type.IsNested())

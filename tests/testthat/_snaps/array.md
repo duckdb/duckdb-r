@@ -12,7 +12,7 @@
       dbGetQuery(con, "FROM tbl")
     Condition
       Error in `duckdb_result()`:
-      ! Use connection convert option to enable arrays to be returned to R.
+      ! Use `dbConnect(array = "matrix")` to enable arrays to be returned to R.
 
 # array errors with default convert option array
 
@@ -20,5 +20,5 @@
       dbGetQuery(con, "FROM tbl")
     Condition
       Error in `duckdb_result()`:
-      ! Use connection convert option to enable arrays to be returned to R.
+      ! Use `dbConnect(array = "matrix")` to enable arrays to be returned to R.
 

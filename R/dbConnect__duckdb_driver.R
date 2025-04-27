@@ -30,7 +30,7 @@
 #'   If `"integer64"` is selected, bigint integers will be set to bit64 encoding.
 #' @param array How arrays should be returned. There are two options: `"none"` and `"matrix"`.
 #'   If `"none"` is selected, arrays are not returned. Instead an error is generated.
-#'   If `"matrix"` is selected, arrays are returned as a column matrix. Each array is one row in the matrix. 
+#'   If `"matrix"` is selected, arrays are returned as a column matrix. Each array is one row in the matrix.
 #'
 #' @return `dbConnect()` returns an object of class [duckdb_connection-class].
 #'
