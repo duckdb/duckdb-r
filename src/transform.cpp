@@ -101,16 +101,37 @@ SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows, const string &name,
 		// convert to SEXP, with potential side effect of truncation
 		(void)(SEXP)dest_list;
 
-		// Note we cannot use cpp11's data frame here as it tries to calculate the number of rows itself,
-		// but gives the wrong answer if the first column is another data frame or the struct is empty.
-		dest_list.attr(R_ClassSymbol) = RStrings::get().dataframe_str;
-		dest_list.attr(R_RowNamesSymbol) = {NA_INTEGER, -static_cast<int>(nrows)};
+		// This is overstretching the concern of this function.
+		// This logic belongs in duckdb_r_decorate(), but that function
+		// does not know the number of rows.
+		duckdb_r_df_decorate(dest_list, nrows);
 
 		return dest_list;
 	}
 	default:
 		return Rf_allocVector(rtype, nrows);
 	}
+}
+
+// this allows us to set row names on a data frame with an int argument without calling INTPTR on it
+void install_new_attrib(SEXP vec, SEXP name, SEXP val) {
+	Rf_setAttrib(vec, name, R_NilValue);
+	SEXP attrib_vec = ATTRIB(vec);
+	SEXP attrib_cell = Rf_cons(val, CDR(attrib_vec));
+	SET_TAG(attrib_cell, name);
+	SETCDR(attrib_vec, attrib_cell);
+}
+
+void duckdb_r_df_decorate_impl(SEXP dest, SEXP rownames, SEXP class_) {
+	Rf_setAttrib(dest, R_ClassSymbol, class_);
+	install_new_attrib(dest, R_RowNamesSymbol, rownames);
+}
+
+void duckdb_r_df_decorate(SEXP dest, idx_t nrows, SEXP class_) {
+	if (class_ == R_NilValue) {
+		class_ = RStrings::get().dataframe_str;
+	}
+	duckdb_r_df_decorate_impl(dest, cpp11::writable::integers({ NA_INTEGER, -static_cast<int>(nrows)}), class_);
 }
 
 // Convert DuckDB's timestamp to R's timestamp (POSIXct). This is a represented as the number of seconds since the
@@ -522,7 +543,7 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 				duckdb_r_decorate(child_type, list_element, convert_opts);
 				duckdb_r_transform(child_vector, list_element, 0, src_data[row_idx].length, convert_opts, name);
 
-				// call R's own extract subset method
+				// call R's own assign subset method
 				SET_ELEMENT(dest, dest_offset + row_idx, list_element);
 			}
 		}
@@ -584,9 +605,9 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 
 				// Note we cannot use cpp11's data frame here as it tries to calculate the number of rows itself,
 				// but gives the wrong answer if the first column is another data frame or the struct is empty.
-				dest_list.attr(R_ClassSymbol) = RStrings::get().dataframe_str;
-				dest_list.attr(R_RowNamesSymbol) = {NA_INTEGER, -static_cast<int>(length)};
-				// call R's own extract subset method
+				duckdb_r_df_decorate(dest_list, length);
+
+				// call R's own assign subset method
 				SET_ELEMENT(dest, dest_offset + row_idx, dest_list);
 			}
 		}

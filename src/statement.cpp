@@ -150,7 +150,7 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 		return Rf_ScalarReal(0); // no need for protection because no allocation can happen afterwards
 	}
 
-	auto nrows = result->RowCount();
+	auto rows = result->RowCount();
 
 	// Note we cannot use cpp11's data frame here as it tries to calculate the number of rows itself,
 	// but gives the wrong answer if the first column is another data frame. So we set the necessary
@@ -160,19 +160,10 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
 		cpp11::sexp varvalue =
-		    duckdb_r_allocate(result->types[col_idx], nrows, result->names[col_idx], convert_opts, "duckdb_execute_R_impl");
+		    duckdb_r_allocate(result->types[col_idx], rows, result->names[col_idx], convert_opts, "duckdb_execute_R_impl");
 		duckdb_r_decorate(result->types[col_idx], varvalue, convert_opts);
 		data_frame.push_back(varvalue);
 	}
-
-	// Convert to SEXP, finalize length
-	(void)(SEXP)data_frame;
-
-	SET_NAMES(data_frame, StringsToSexp(result->names));
-	data_frame.attr(R_ClassSymbol) = class_;
-	data_frame.attr(R_RowNamesSymbol) = { NA_INTEGER, -static_cast<int>(nrows) };
-
-	// at this point data_frame is fully allocated and the only protected SEXP
 
 	// step 3: set values from chunks
 	idx_t dest_offset = 0;
@@ -180,13 +171,21 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 		D_ASSERT(chunk.ColumnCount() == ncols);
 		D_ASSERT(chunk.ColumnCount() == (idx_t)Rf_length(data_frame));
 		for (size_t col_idx = 0; col_idx < chunk.ColumnCount(); col_idx++) {
-			SEXP dest = VECTOR_ELT(data_frame, col_idx);
-			duckdb_r_transform(chunk.data[col_idx], dest, dest_offset, chunk.size(), convert_opts, result->names[col_idx]);
+			duckdb_r_transform(chunk.data[col_idx], data_frame[col_idx], dest_offset, chunk.size(), convert_opts, result->names[col_idx]);
 		}
 		dest_offset += chunk.size();
 	}
 
 	D_ASSERT(dest_offset == nrows);
+
+	// Convert to SEXP, finalize length
+	(void)(SEXP)data_frame;
+
+	SET_NAMES(data_frame, StringsToSexp(result->names));
+	duckdb_r_df_decorate(data_frame, rows, class_);
+
+	// at this point data_frame is fully allocated and the only protected SEXP
+
 	return data_frame;
 }
 
