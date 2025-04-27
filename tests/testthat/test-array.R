@@ -1,7 +1,7 @@
 local_edition(3)
 
 test_that("arrays of INTEGER can be read", {
-  con <- dbConnect(duckdb())
+  con <- dbConnect(duckdb(), array = "matrix")
   on.exit(dbDisconnect(con, shutdown = TRUE))
 
   dbExecute(con, "CREATE TABLE tbl (a INTEGER, b INTEGER[3])")
@@ -21,7 +21,7 @@ test_that("arrays of INTEGER can be read", {
 
 
 test_that("arrays of INTEGER with NULL can be read", {
-  con <- dbConnect(duckdb())
+  con <- dbConnect(duckdb(), array = "matrix")
   on.exit(dbDisconnect(con, shutdown = TRUE))
 
   dbExecute(con, "CREATE TABLE tbl (a INTEGER, b INTEGER[3])")
@@ -41,7 +41,7 @@ test_that("arrays of INTEGER with NULL can be read", {
 
 
 test_that("arrays of DOUBLE can be read", {
-  con <- dbConnect(duckdb())
+  con <- dbConnect(duckdb(), array = "matrix")
   on.exit(dbDisconnect(con, shutdown = TRUE))
 
   dbExecute(con, "CREATE TABLE tbl (a INTEGER, b DOUBLE[3])")
@@ -61,7 +61,7 @@ test_that("arrays of DOUBLE can be read", {
 
 
 test_that("arrays of DOUBLE with NULL can be read", {
-  con <- dbConnect(duckdb())
+  con <- dbConnect(duckdb(), array = "matrix")
   on.exit(dbDisconnect(con, shutdown = TRUE))
 
   dbExecute(con, "CREATE TABLE tbl (a INTEGER, b DOUBLE[3])")
@@ -81,7 +81,7 @@ test_that("arrays of DOUBLE with NULL can be read", {
 
 
 test_that("arrays of BOOELAN can be read", {
-  con <- dbConnect(duckdb())
+  con <- dbConnect(duckdb(), array = "matrix")
   on.exit(dbDisconnect(con, shutdown = TRUE))
 
   dbExecute(con, "CREATE TABLE tbl (a INTEGER, b BOOLEAN[3])")
@@ -101,7 +101,7 @@ test_that("arrays of BOOELAN can be read", {
 
 
 test_that("arrays of BOOELAN with NULL can be read", {
-  con <- dbConnect(duckdb())
+  con <- dbConnect(duckdb(), array = "matrix")
   on.exit(dbDisconnect(con, shutdown = TRUE))
 
   dbExecute(con, "CREATE TABLE tbl (a INTEGER, b BOOLEAN[3])")
@@ -121,7 +121,7 @@ test_that("arrays of BOOELAN with NULL can be read", {
 
 
 test_that("arrays of INTEGER in struct column can be read", {
-  con <- dbConnect(duckdb())
+  con <- dbConnect(duckdb(), array = "matrix")
   on.exit(dbDisconnect(con, shutdown = TRUE))
 
   dbExecute(con, "CREATE TABLE tbl (s STRUCT(a INTEGER, b INTEGER[3]))")
@@ -141,7 +141,7 @@ test_that("arrays of INTEGER in struct column can be read", {
 
 
 test_that("arrays of DOUBLE in struct column can be read", {
-  con <- dbConnect(duckdb())
+  con <- dbConnect(duckdb(), array = "matrix")
   on.exit(dbDisconnect(con, shutdown = TRUE))
 
   dbExecute(con, "CREATE TABLE tbl (s STRUCT(a INTEGER, b DOUBLE[3]))")
@@ -161,7 +161,7 @@ test_that("arrays of DOUBLE in struct column can be read", {
 
 
 test_that("arrays of BOOLEAN in struct column can be read", {
-  con <- dbConnect(duckdb())
+  con <- dbConnect(duckdb(), array = "matrix")
   on.exit(dbDisconnect(con, shutdown = TRUE))
 
   dbExecute(con, "CREATE TABLE tbl (s STRUCT(a INTEGER, b BOOLEAN[3]))")
@@ -181,12 +181,44 @@ test_that("arrays of BOOLEAN in struct column can be read", {
 
 
 test_that("array errors with more than one dimention", {
-  con <- dbConnect(duckdb())
+  con <- dbConnect(duckdb(), array = "matrix")
   on.exit(dbDisconnect(con, shutdown = TRUE))
 
   dbExecute(con, "CREATE TABLE tbl (a INTEGER, b INTEGER[3][3])")
   dbExecute(con, "INSERT INTO tbl VALUES (10, [[1,3,4], [4,5,6], [7,8,9]])")
   dbExecute(con, "INSERT INTO tbl VALUES (11, [[1,3,4], [4,5,6], [7,8,9]])")
+
+  expect_snapshot( error = TRUE, {
+    dbGetQuery(con, "FROM tbl")
+  })
+})
+
+
+test_that("array errors with convert option array = 'none'", {
+  con <- dbConnect(duckdb(), array = "none")
+  on.exit(dbDisconnect(con, shutdown = TRUE))
+
+  dbExecute(con, "CREATE TABLE tbl (a INTEGER, b INTEGER[3])")
+  dbExecute(con, "INSERT INTO tbl VALUES (10, [1, 5, 9])")
+  dbExecute(con, "INSERT INTO tbl VALUES (11, [2, 6, 10])")
+  dbExecute(con, "INSERT INTO tbl VALUES (12, [3, 7, 11])")
+  dbExecute(con, "INSERT INTO tbl VALUES (13, [4, 8, 12])")
+
+  expect_snapshot( error = TRUE, {
+    dbGetQuery(con, "FROM tbl")
+  })
+})
+
+
+test_that("array errors with default convert option array", {
+  con <- dbConnect(duckdb())
+  on.exit(dbDisconnect(con, shutdown = TRUE))
+
+  dbExecute(con, "CREATE TABLE tbl (a INTEGER, b INTEGER[3])")
+  dbExecute(con, "INSERT INTO tbl VALUES (10, [1, 5, 9])")
+  dbExecute(con, "INSERT INTO tbl VALUES (11, [2, 6, 10])")
+  dbExecute(con, "INSERT INTO tbl VALUES (12, [3, 7, 11])")
+  dbExecute(con, "INSERT INTO tbl VALUES (13, [4, 8, 12])")
 
   expect_snapshot( error = TRUE, {
     dbGetQuery(con, "FROM tbl")

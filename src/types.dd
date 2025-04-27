@@ -1,0 +1,5 @@
+types.o: \
+  include/convert.hpp \
+  include/rapi.hpp \
+  include/typesr.hpp \
+  types.cpp \

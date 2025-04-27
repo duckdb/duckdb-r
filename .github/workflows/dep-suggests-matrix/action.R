@@ -41,7 +41,7 @@ if (length(packages) > 0) {
   json <- paste0(
     '{"package":[',
     paste0('"', packages, '"', collapse = ","),
-    ']}'
+    "]}"
   )
   writeLines(paste0("matrix=", json), Sys.getenv("GITHUB_OUTPUT"))
   writeLines(json)

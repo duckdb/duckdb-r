@@ -40,7 +40,7 @@ SEXP result_to_df(duckdb::unique_ptr<duckdb::QueryResult> res) {
 	D_ASSERT(res->type == QueryResultType::MATERIALIZED_RESULT);
 	auto mat_res = (MaterializedQueryResult *)res.get();
 
-	return duckdb_execute_R_impl(mat_res, false, RStrings::get().tbl_df_tbl_dataframe_str);
+	return duckdb_execute_R_impl(mat_res, duckdb::ConvertOpts(), RStrings::get().tbl_df_tbl_dataframe_str);
 }
 
 // Get row names, can't use Rf_getAttrib()

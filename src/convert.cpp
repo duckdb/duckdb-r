@@ -22,6 +22,14 @@ ConvertOpts::BigIntType string_to_bigint_type(const std::string &str) {
 	cpp11::stop("Invalid bigint value: %s", str.c_str());
 }
 
+ConvertOpts::ArrayConversion string_to_array_conversion(const std::string &str) {
+	if (str == "none")
+		return ConvertOpts::ArrayConversion::NONE;
+	if (str == "matrix")
+		return ConvertOpts::ArrayConversion::MATRIX;
+	cpp11::stop("Invalid array value: %s", str.c_str());
+}
+
 ConvertOpts::ArrowConversion bool_to_arrow_conversion(bool use_arrow) {
 	return use_arrow ? ConvertOpts::ArrowConversion::ENABLED : ConvertOpts::ArrowConversion::DISABLED;
 }
@@ -43,6 +51,9 @@ ConvertOpts::ConvertOpts(cpp11::list options) {
 
 	// Extract bigint
 	bigint = string_to_bigint_type(as_cpp<std::string>(options["bigint"]));
+
+	// Extract array
+	array = string_to_array_conversion(as_cpp<std::string>(options["array"]));
 
 	// Extract arrow
 	arrow = bool_to_arrow_conversion(as_cpp<bool>(options["arrow"]));

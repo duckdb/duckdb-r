@@ -143,7 +143,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	return out;
 }
 
-SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, bool integer64, SEXP class_) {
+SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb::ConvertOpts &convert_opts, SEXP class_) {
 	// step 2: create result data frame and allocate columns
 	auto ncols = result->types.size();
 	if (ncols == 0) {
@@ -160,8 +160,8 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, bool integer
 
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
 		cpp11::sexp varvalue =
-		    duckdb_r_allocate(result->types[col_idx], nrows, result->names[col_idx], "duckdb_execute_R_impl");
-		duckdb_r_decorate(result->types[col_idx], varvalue, integer64);
+		    duckdb_r_allocate(result->types[col_idx], nrows, result->names[col_idx], convert_opts, "duckdb_execute_R_impl");
+		duckdb_r_decorate(result->types[col_idx], varvalue, convert_opts);
 		data_frame.push_back(varvalue);
 	}
 
@@ -181,7 +181,7 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, bool integer
 		D_ASSERT(chunk.ColumnCount() == (idx_t)Rf_length(data_frame));
 		for (size_t col_idx = 0; col_idx < chunk.ColumnCount(); col_idx++) {
 			SEXP dest = VECTOR_ELT(data_frame, col_idx);
-			duckdb_r_transform(chunk.data[col_idx], dest, dest_offset, chunk.size(), integer64, result->names[col_idx]);
+			duckdb_r_transform(chunk.data[col_idx], dest, dest_offset, chunk.size(), convert_opts, result->names[col_idx]);
 		}
 		dest_offset += chunk.size();
 	}
@@ -305,8 +305,7 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 		auto result = (MaterializedQueryResult *)generic_result.get();
 
 		// Avoid rchk warning, it sees QueryResult::~QueryResult() as an allocating function
-		cpp11::sexp out = duckdb_execute_R_impl(result, convert_opts.bigint == ConvertOpts::BigIntType::INTEGER64,
-		                                        RStrings::get().dataframe_str);
+		cpp11::sexp out = duckdb_execute_R_impl(result, convert_opts, RStrings::get().dataframe_str);
 		return out;
 	}
 }

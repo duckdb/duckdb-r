@@ -1052,3 +1052,76 @@ test_that("rel_to_view()", {
   expect_equal(dbGetQuery(con, "SELECT * FROM test_view"), df1)
   expect_error(dbExecute(con, "DROP VIEW test_view"), NA)
 })
+
+test_that("logical", {
+  df1 <- data.frame(a = c(TRUE, FALSE, NA))
+  rel <- rel_from_df(con, df1)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  df2 <- data.frame(a = structure(c(TRUE, FALSE, NA), class = "foo"))
+  rel <- rel_from_df(con, df2, strict = FALSE)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  expect_error(rel_from_df(con, df2), "convert")
+})
+
+test_that("integer", {
+  df1 <- data.frame(a = c(1L, 2L, NA))
+  rel <- rel_from_df(con, df1)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  df2 <- data.frame(a = structure(c(1L, 2L, NA), class = "foo"))
+  rel <- rel_from_df(con, df2, strict = FALSE)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  expect_error(rel_from_df(con, df2), "convert")
+})
+
+test_that("numeric", {
+  df1 <- data.frame(a = c(1, 2, NA))
+  rel <- rel_from_df(con, df1)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  df2 <- data.frame(a = structure(c(1, 2, NA), class = "foo"))
+  rel <- rel_from_df(con, df2, strict = FALSE)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  expect_error(rel_from_df(con, df2), "convert")
+})
+
+test_that("list", {
+  skip_if_not_installed("vctrs")
+  df1 <- vctrs::new_data_frame(list(a = list(1L, 2:3, NULL, 4:6)))
+  rel <- rel_from_df(con, df1)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  df2 <- vctrs::new_data_frame(list(a = structure(list(1L, 2:3, NULL, 4:6), class = "foo")), n = 4L)
+  rel <- rel_from_df(con, df2, strict = FALSE)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  expect_error(rel_from_df(con, df2), "convert")
+})
+
+test_that("Date", {
+  df1 <- data.frame(a = as.Date(c("2020-01-01", "2020-01-02", NA)))
+  rel <- rel_from_df(con, df1)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  df2 <- data.frame(a = structure(as.Date(c("2020-01-01", "2020-01-02", NA)), class = c("foo", "Date")))
+  rel <- rel_from_df(con, df2, strict = FALSE)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  expect_error(rel_from_df(con, df2), "convert")
+})
+
+test_that("difftime", {
+  df1 <- data.frame(a = as.difftime(c(1, 2, NA), units = "secs"))
+  rel <- rel_from_df(con, df1)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  df2 <- data.frame(a = structure(as.difftime(c(1, 2, NA), units = "secs"), class = c("foo", "difftime")))
+  rel <- rel_from_df(con, df2, strict = FALSE)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  expect_error(rel_from_df(con, df2), "convert")
+})

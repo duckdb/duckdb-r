@@ -28,6 +28,9 @@
 #' @param bigint How 64-bit integers should be returned. There are two options: `"numeric"` and `"integer64"`.
 #'   If `"numeric"` is selected, bigint integers will be treated as double/numeric.
 #'   If `"integer64"` is selected, bigint integers will be set to bit64 encoding.
+#' @param array How arrays should be returned. There are two options: `"none"` and `"matrix"`.
+#'   If `"none"` is selected, arrays are not returned. Instead an error is generated.
+#'   If `"matrix"` is selected, arrays are returned as a column matrix. Each array is one row in the matrix.
 #'
 #' @return `dbConnect()` returns an object of class [duckdb_connection-class].
 #'
@@ -55,7 +58,8 @@ dbConnect__duckdb_driver <- function(
   timezone_out = "UTC",
   tz_out_convert = c("with", "force"),
   config = list(),
-  bigint = "numeric"
+  bigint = "numeric",
+  array = "none"
 ) {
   check_flag(debug)
   timezone_out <- check_tz(timezone_out)
@@ -78,7 +82,8 @@ dbConnect__duckdb_driver <- function(
   convert_opts <- duckdb_convert_opts(
     timezone_out = timezone_out,
     tz_out_convert = tz_out_convert,
-    bigint = bigint
+    bigint = bigint,
+    array = array
   )
 
   config <- utils::modifyList(drv@config, config)
