@@ -91,26 +91,47 @@ SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows, const string &name,
 		dest_list.reserve(StructType::GetChildTypes(type).size());
 
 		for (const auto &child : StructType::GetChildTypes(type)) {
-			const auto &name = child.first;
+			const auto &child_name = child.first;
 			const auto &child_type = child.second;
 
-			cpp11::sexp dest_child = duckdb_r_allocate(child_type, nrows, name, convert_opts, "LogicalTypeId::STRUCT");
-			dest_list.push_back(cpp11::named_arg(name.c_str()) = std::move(dest_child));
+			cpp11::sexp dest_child = duckdb_r_allocate(child_type, nrows, name + "$" + child_name, convert_opts, "LogicalTypeId::STRUCT");
+			dest_list.push_back(std::move(dest_child));
 		}
 
 		// convert to SEXP, with potential side effect of truncation
 		(void)(SEXP)dest_list;
 
-		// Note we cannot use cpp11's data frame here as it tries to calculate the number of rows itself,
-		// but gives the wrong answer if the first column is another data frame or the struct is empty.
-		dest_list.attr(R_ClassSymbol) = RStrings::get().dataframe_str;
-		dest_list.attr(R_RowNamesSymbol) = {NA_INTEGER, -static_cast<int>(nrows)};
+		// This is overstretching the concern of this function.
+		// This logic belongs in duckdb_r_decorate(), but that function
+		// does not know the number of rows.
+		duckdb_r_df_decorate(dest_list, nrows);
 
 		return dest_list;
 	}
 	default:
 		return Rf_allocVector(rtype, nrows);
 	}
+}
+
+// this allows us to set row names on a data frame with an int argument without calling INTPTR on it
+void install_new_attrib(SEXP vec, SEXP name, SEXP val) {
+	Rf_setAttrib(vec, name, R_NilValue);
+	SEXP attrib_vec = ATTRIB(vec);
+	SEXP attrib_cell = Rf_cons(val, CDR(attrib_vec));
+	SET_TAG(attrib_cell, name);
+	SETCDR(attrib_vec, attrib_cell);
+}
+
+void duckdb_r_df_decorate_impl(SEXP dest, SEXP rownames, SEXP class_) {
+	Rf_setAttrib(dest, R_ClassSymbol, class_);
+	install_new_attrib(dest, R_RowNamesSymbol, rownames);
+}
+
+void duckdb_r_df_decorate(SEXP dest, idx_t nrows, SEXP class_) {
+	if (class_ == R_NilValue) {
+		class_ = RStrings::get().dataframe_str;
+	}
+	duckdb_r_df_decorate_impl(dest, cpp11::writable::integers({ NA_INTEGER, -static_cast<int>(nrows)}), class_);
 }
 
 // Convert DuckDB's timestamp to R's timestamp (POSIXct). This is a represented as the number of seconds since the
@@ -200,8 +221,10 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 	case LogicalTypeId::TIMESTAMP_NS:
 		SET_CLASS(dest, RStrings::get().POSIXct_POSIXt_str);
 		if (convert_opts.tz_out_convert == ConvertOpts::TzOutConvert::WITH) {
-			// Conversion can happen here, also useful for ALTREP
-			Rf_setAttrib(dest, RStrings::get().tzone_sym, StringsToSexp({convert_opts.timezone_out}));
+			// Attribute added here here, also useful for ALTREP
+			if (convert_opts.timezone_out != "") {
+				Rf_setAttrib(dest, RStrings::get().tzone_sym, StringsToSexp({convert_opts.timezone_out}));
+			}
 		} else {
 			// Conversion happens in the R layer
 			Rf_setAttrib(dest, RStrings::get().tzone_sym, RStrings::get().UTC_str);
@@ -223,12 +246,19 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 		break;
 	case LogicalTypeId::STRUCT: {
 		const auto &child_types = StructType::GetChildTypes(type);
+		cpp11::writable::strings names;
+		names.reserve(child_types.size());
+
 		for (size_t i = 0; i < child_types.size(); i++) {
+			const auto &child_name = child_types[i].first;
+			names.push_back(child_name);
+
 			const auto &child_type = child_types[i].second;
 			SEXP child_dest = VECTOR_ELT(dest, i);
 			duckdb_r_decorate(child_type, child_dest, convert_opts);
 		}
 
+		SET_NAMES(dest, names);
 		break;
 	}
 
@@ -522,7 +552,7 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 				duckdb_r_decorate(child_type, list_element, convert_opts);
 				duckdb_r_transform(child_vector, list_element, 0, src_data[row_idx].length, convert_opts, name);
 
-				// call R's own extract subset method
+				// call R's own assign subset method
 				SET_ELEMENT(dest, dest_offset + row_idx, list_element);
 			}
 		}
@@ -584,9 +614,9 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 
 				// Note we cannot use cpp11's data frame here as it tries to calculate the number of rows itself,
 				// but gives the wrong answer if the first column is another data frame or the struct is empty.
-				dest_list.attr(R_ClassSymbol) = RStrings::get().dataframe_str;
-				dest_list.attr(R_RowNamesSymbol) = {NA_INTEGER, -static_cast<int>(length)};
-				// call R's own extract subset method
+				duckdb_r_df_decorate(dest_list, length);
+
+				// call R's own assign subset method
 				SET_ELEMENT(dest, dest_offset + row_idx, dest_list);
 			}
 		}

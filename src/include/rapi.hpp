@@ -237,6 +237,8 @@ void duckdb_r_decorate(const duckdb::LogicalType &type, SEXP dest, const duckdb:
 void duckdb_r_transform(duckdb::Vector &src_vec, SEXP dest, duckdb::idx_t dest_offset, duckdb::idx_t n,
                         const duckdb::ConvertOpts &convert_opts,const duckdb::string &name);
 
+SEXP get_attrib(SEXP vec, SEXP name);
+
 template <typename T, typename... ARGS>
 cpp11::external_pointer<T> make_external(const std::string &rclass, ARGS &&... args) {
 	auto extptr = cpp11::external_pointer<T>(new T(std::forward<ARGS>(args)...));

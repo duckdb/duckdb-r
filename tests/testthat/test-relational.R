@@ -1058,7 +1058,9 @@ test_that("logical", {
   rel <- rel_from_df(con, df1)
   expect_equal(rel_to_altrep(rel), df1)
 
-  df2 <- data.frame(a = structure(c(TRUE, FALSE, NA), class = "foo"))
+  skip_if_not_installed("vctrs")
+
+  df2 <- vctrs::new_data_frame(list(a = structure(c(TRUE, FALSE, NA), class = "foo")))
   rel <- rel_from_df(con, df2, strict = FALSE)
   expect_equal(rel_to_altrep(rel), df1)
 
@@ -1070,7 +1072,9 @@ test_that("integer", {
   rel <- rel_from_df(con, df1)
   expect_equal(rel_to_altrep(rel), df1)
 
-  df2 <- data.frame(a = structure(c(1L, 2L, NA), class = "foo"))
+  skip_if_not_installed("vctrs")
+
+  df2 <- vctrs::new_data_frame(list(a = structure(c(1L, 2L, NA), class = "foo")))
   rel <- rel_from_df(con, df2, strict = FALSE)
   expect_equal(rel_to_altrep(rel), df1)
 
@@ -1082,7 +1086,9 @@ test_that("numeric", {
   rel <- rel_from_df(con, df1)
   expect_equal(rel_to_altrep(rel), df1)
 
-  df2 <- data.frame(a = structure(c(1, 2, NA), class = "foo"))
+  skip_if_not_installed("vctrs")
+
+  df2 <- vctrs::new_data_frame(list(a = structure(c(1, 2, NA), class = "foo")))
   rel <- rel_from_df(con, df2, strict = FALSE)
   expect_equal(rel_to_altrep(rel), df1)
 
@@ -1091,6 +1097,8 @@ test_that("numeric", {
 
 test_that("list", {
   skip_if_not_installed("vctrs")
+  skip_if(getRversion() < "4.3")
+
   df1 <- vctrs::new_data_frame(list(a = list(1L, 2:3, NULL, 4:6)))
   rel <- rel_from_df(con, df1)
   expect_equal(rel_to_altrep(rel), df1)
@@ -1107,7 +1115,9 @@ test_that("Date", {
   rel <- rel_from_df(con, df1)
   expect_equal(rel_to_altrep(rel), df1)
 
-  df2 <- data.frame(a = structure(as.Date(c("2020-01-01", "2020-01-02", NA)), class = c("foo", "Date")))
+  skip_if_not_installed("vctrs")
+
+  df2 <- vctrs::new_data_frame(list(a = structure(as.Date(c("2020-01-01", "2020-01-02", NA)), class = c("foo", "Date"))))
   rel <- rel_from_df(con, df2, strict = FALSE)
   expect_equal(rel_to_altrep(rel), df1)
 
@@ -1119,7 +1129,62 @@ test_that("difftime", {
   rel <- rel_from_df(con, df1)
   expect_equal(rel_to_altrep(rel), df1)
 
-  df2 <- data.frame(a = structure(as.difftime(c(1, 2, NA), units = "secs"), class = c("foo", "difftime")))
+  skip_if_not_installed("vctrs")
+
+  df2 <- vctrs::new_data_frame(list(a = structure(as.difftime(c(1, 2, NA), units = "secs"), class = c("foo", "difftime"))))
+  rel <- rel_from_df(con, df2, strict = FALSE)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  expect_error(rel_from_df(con, df2), "convert")
+})
+
+test_that("factor", {
+  df1 <- data.frame(a = factor(c("a", "b", NA)))
+  rel <- rel_from_df(con, df1)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  df2 <- data.frame(a = ordered(c("a", "b", NA)))
+  rel <- rel_from_df(con, df2, strict = FALSE)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  expect_error(rel_from_df(con, df2), "convert")
+})
+
+test_that("data.frame", {
+  skip_if_not_installed("vctrs")
+  skip_if(getRversion() < "4.3")
+
+  df1 <- vctrs::new_data_frame(list(a = data.frame(b = 1:3, c = 4:6)))
+  rel <- rel_from_df(con, df1)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  df2 <- vctrs::new_data_frame(list(a = structure(data.frame(b = 1:3, c = 4:6), class = c("foo", "data.frame"))))
+  rel <- rel_from_df(con, df2, strict = FALSE)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  expect_error(rel_from_df(con, df2), "convert")
+})
+
+test_that("POSIXct", {
+  df1 <- data.frame(a = structure(1745781814.84963, class = c("POSIXct", "POSIXt"), tzone = "UTC"))
+  rel <- rel_from_df(con, df1)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  df2 <- data.frame(a = structure(1745781814.84963, class = c("foo", "POSIXct", "POSIXt")))
+  rel <- rel_from_df(con, df2, strict = FALSE)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  expect_error(rel_from_df(con, df2), "convert")
+
+  df2 <- data.frame(a = structure(1745781814.84963, class = c("foo", "POSIXct", "POSIXt"), tzone = ""))
+  rel <- rel_from_df(con, df2, strict = FALSE)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  expect_error(rel_from_df(con, df2), "convert")
+
+  skip_if_not_installed("vctrs")
+
+  df2 <- data.frame(a = structure(1745781814.84963, class = c("foo", "POSIXct", "POSIXt"), tzone = "UTC"))
   rel <- rel_from_df(con, df2, strict = FALSE)
   expect_equal(rel_to_altrep(rel), df1)
 

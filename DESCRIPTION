@@ -42,7 +42,7 @@ URL: https://r.duckdb.org/, https://github.com/duckdb/duckdb-r
 BugReports: https://github.com/duckdb/duckdb-r/issues
 Depends:
     DBI,
-    R (>= 3.6.0)
+    R (>= 4.1.0)
 Imports:
     methods,
     utils
@@ -60,10 +60,10 @@ Suggests:
     tibble,
     vctrs,
     withr
-Config/build/never-clean: true
 Config/build/compilation-database: false
-Config/comment/compilation-database: 
-    Generate manually with pkgload:::generate_db() for faster pkgload::load_all()
+Config/build/never-clean: true
+Config/comment/compilation-database: Generate manually with
+    pkgload:::generate_db() for faster pkgload::load_all()
 Config/gha/extra-packages: arrow=?ignore-before-r=4.2.0
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

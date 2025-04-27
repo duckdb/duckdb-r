@@ -43,20 +43,9 @@ SEXP result_to_df(duckdb::unique_ptr<duckdb::QueryResult> res) {
 	return duckdb_execute_R_impl(mat_res, duckdb::ConvertOpts(), RStrings::get().tbl_df_tbl_dataframe_str);
 }
 
-// Get row names, can't use Rf_getAttrib()
-SEXP get_row_names(SEXP x) {
-	for (SEXP attr = ATTRIB(x); attr != R_NilValue; attr = CDR(attr)) {
-		if (TAG(attr) == R_RowNamesSymbol) {
-			return CAR(attr);
-		}
-	}
-
-	return R_NilValue;
-}
-
 // Check if column has names
 bool check_has_names(SEXP col, const std::string &col_name) {
-	if (Rf_getAttrib(col, R_NamesSymbol) != R_NilValue) {
+	if (Rf_getAttrib(col, R_NamesSymbol) != R_NilValue && !Rf_inherits(col, "data.frame")) {
 		std::string error_msg = "Can't convert named vectors to relational. Affected column: `" + col_name + "`.";
 		stop(error_msg.c_str());
 		return true;
@@ -90,14 +79,15 @@ bool check_has_valid_class(SEXP col, const std::string &col_name, const std::str
 	bool valid = false;
 
 	if (col_class_sexp == R_NilValue) {
-		return true;
-	} 
+		auto col_type = TYPEOF(col);
+		return (col_type == LGLSXP || col_type == INTSXP || col_type == REALSXP ||
+				col_type == STRSXP || col_type == VECSXP);
+	}
 
 	writable::strings col_class = col_class_sexp;
 	if (col_class.size() == 1) {
 		const auto &class_name = col_class[0];
-		valid = (class_name == "logical" || class_name == "integer" || class_name == "numeric" ||
-				class_name == "character" || class_name == "Date" || class_name == "difftime");
+		valid = (class_name == "Date" || class_name == "difftime" || class_name == "factor" || class_name == "data.frame");
 	} else if (col_class.size() == 2) {
 		const auto &class1 = col_class[0];
 		const auto &class2 = col_class[1];
@@ -106,11 +96,8 @@ bool check_has_valid_class(SEXP col, const std::string &col_name, const std::str
 			valid = true;
 		} else if (class1 == "POSIXct" && class2 == "POSIXt") {
 			SEXP tzone_attr = Rf_getAttrib(col, RStrings::get().tzone_sym);
-			if (tzone == "") {
-				if (tzone_attr == R_NilValue) {
-					valid = true;
-				} else if (Rf_isString(tzone_attr) && LENGTH(tzone_attr) == 1 &&
-						cpp11::as_cpp<string>(tzone_attr) == "") {
+			if (tzone_attr == R_NilValue) {
+				if (tzone == "") {
 					valid = true;
 				}
 			} else if (Rf_isString(tzone_attr) && LENGTH(tzone_attr) == 1 &&
@@ -257,7 +244,9 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 	}
 
 	// Get row names info directly
-	SEXP row_names = get_row_names(df);
+	SEXP row_names = get_attrib(df, R_RowNamesSymbol);
+
+	// FIXME: Check if ALTREP here?
 
 	// Check if row names are character
 	if (TYPEOF(row_names) == STRSXP) {

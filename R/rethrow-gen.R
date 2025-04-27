@@ -432,9 +432,9 @@ rethrow_rapi_rel_insert <- function(rel, schema_name, table_name, call = parent.
   )
 }
 
-rethrow_rapi_rel_to_altrep <- function(rel, n_rows, n_cells, call = parent.frame(2)) {
+rethrow_rapi_rel_to_altrep <- function(rel, n_rows, n_cells, convert_opts, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_rel_to_altrep(rel, n_rows, n_cells),
+    rapi_rel_to_altrep(rel, n_rows, n_cells, convert_opts),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }

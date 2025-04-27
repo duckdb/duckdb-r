@@ -31,7 +31,7 @@ struct ConvertOpts {
 	// Constructor with defaults
 	ConvertOpts() = default;
 
-	explicit ConvertOpts(cpp11::list opts);
+	explicit ConvertOpts(cpp11::sexp options_nullable);
 
 	// Constructor with parameters
 	ConvertOpts(std::string timezone_out_p, TzOutConvert tz_out_convert_p, BigIntType bigint_p, ArrayConversion array_p,

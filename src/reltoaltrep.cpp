@@ -37,6 +37,7 @@ R_altrep_class_t RelToAltrep::string_class;
 
 #if defined(R_HAS_ALTLIST)
 R_altrep_class_t RelToAltrep::list_class;
+R_altrep_class_t RelToAltrep::struct_class;
 #endif
 
 const size_t MAX_SIZE_T = std::numeric_limits<size_t>::max();
@@ -77,6 +78,12 @@ void RelToAltrep::Initialize(DllInfo *dll) {
 	R_set_altrep_Length_method(list_class, VectorLength);
 	R_set_altvec_Dataptr_method(list_class, VectorDataptr);
 	R_set_altlist_Elt_method(list_class, VectorListElt);
+
+	struct_class = R_make_altlist_class("reltoaltrep_struct_class", "duckdb", dll);
+	R_set_altrep_Inspect_method(struct_class, RelInspect);
+	R_set_altrep_Length_method(struct_class, StructLength);
+	R_set_altvec_Dataptr_method(struct_class, VectorDataptr);
+	R_set_altlist_Elt_method(struct_class, VectorListElt);
 #endif
 }
 
@@ -275,17 +282,9 @@ Rboolean RelToAltrep::RelInspect(SEXP x, int pre, int deep, int pvec, void (*ins
 	END_CPP11_EX(Rboolean::FALSE)
 }
 
-// this allows us to set row names on a data frame with an int argument without calling INTPTR on it
-static void install_new_attrib(SEXP vec, SEXP name, SEXP val) {
-	SEXP attrib_vec = ATTRIB(vec);
-	SEXP attrib_cell = Rf_cons(val, R_NilValue);
-	SET_TAG(attrib_cell, name);
-	SETCDR(attrib_vec, attrib_cell);
-}
-
-static SEXP get_attrib(SEXP vec, SEXP name) {
+SEXP get_attrib(SEXP vec, SEXP name) {
 	for (SEXP attrib = ATTRIB(vec); attrib != R_NilValue; attrib = CDR(attrib)) {
-		if (TAG(attrib) == R_RowNamesSymbol) {
+		if (TAG(attrib) == name) {
 			return CAR(attrib);
 		}
 	}
@@ -348,6 +347,17 @@ SEXP RelToAltrep::VectorStringElt(SEXP x, R_xlen_t i) {
 }
 
 #if defined(R_HAS_ALTLIST)
+R_xlen_t RelToAltrep::StructLength(SEXP x) {
+	BEGIN_CPP11
+	auto const *wrapper = AltrepVectorWrapper::Get(x);
+	auto const column_index = wrapper->column_index;
+	auto const &res = wrapper->rel->GetQueryResult();
+	auto const &type = res->types[column_index];
+
+	return static_cast<R_xlen_t>(StructType::GetChildTypes(type).size());
+	END_CPP11_EX(0)
+}
+
 SEXP RelToAltrep::VectorListElt(SEXP x, R_xlen_t i) {
 	BEGIN_CPP11
 	return VECTOR_ELT(AltrepVectorWrapper::Get(x)->Vector(), i);
@@ -368,7 +378,11 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type, const d
 		return RelToAltrep::string_class;
 #if defined(R_HAS_ALTLIST)
 	case VECSXP:
-		return RelToAltrep::list_class;
+		if (type.id() == LogicalTypeId::STRUCT) {
+			return RelToAltrep::struct_class;
+		} else {
+			return RelToAltrep::list_class;
+		}
 #endif
 
 	default:
@@ -390,13 +404,19 @@ size_t DoubleToSize(double d) {
 	return (size_t)d;
 }
 
-[[cpp11::register]] SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel, double n_rows, double n_cells) {
+[[cpp11::register]] SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel, double n_rows, double n_cells, duckdb::ConvertOpts convert_opts) {
 	D_ASSERT(rel && rel->rel);
 	auto drel = rel->rel;
 	auto ncols = drel->Columns().size();
 
 	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, DoubleToSize(n_rows), DoubleToSize(n_cells));
 
+	// Row names
+	cpp11::external_pointer<AltrepRownamesWrapper> ptr(new AltrepRownamesWrapper(relation_wrapper));
+	R_SetExternalPtrTag(ptr, RStrings::get().duckdb_row_names_sym);
+	cpp11::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, R_NilValue);
+
+	// Data
 	cpp11::writable::list data_frame;
 	data_frame.reserve(ncols);
 
@@ -408,7 +428,16 @@ size_t DoubleToSize(double d) {
 		R_SetExternalPtrTag(ptr, RStrings::get().duckdb_vector_sym);
 
 		cpp11::sexp vector_sexp = R_new_altrep(LogicalTypeToAltrepType(col_type, col_name), ptr, R_NilValue);
-		duckdb_r_decorate(col_type, vector_sexp, duckdb::ConvertOpts());
+		duckdb_r_decorate(col_type, vector_sexp, convert_opts);
+
+		// Special case: Only STRUCTs have a redundant row names attribute
+		// Moving this logic into duckdb_r_decorate() would add too much noise elsewhere
+		if (col_type.id() == LogicalTypeId::STRUCT) {
+			// FIXME: The exact class of nested columns can be a property
+			// of the relation object, determined by the data on input
+			duckdb_r_df_decorate_impl(vector_sexp, row_names_sexp, RStrings::get().dataframe_str);
+		}
+
 		data_frame.push_back(vector_sexp);
 	}
 
@@ -422,14 +451,8 @@ size_t DoubleToSize(double d) {
 	}
 	SET_NAMES(data_frame, StringsToSexp(names));
 
-	// Row names
-	cpp11::external_pointer<AltrepRownamesWrapper> ptr(new AltrepRownamesWrapper(relation_wrapper));
-	R_SetExternalPtrTag(ptr, RStrings::get().duckdb_row_names_sym);
-	cpp11::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, R_NilValue);
-	install_new_attrib(data_frame, R_RowNamesSymbol, row_names_sexp);
-
-	// Class
-	data_frame.attr(R_ClassSymbol) = RStrings::get().dataframe_str;
+	// Class and row names
+	duckdb_r_df_decorate_impl(data_frame, row_names_sexp, RStrings::get().dataframe_str);
 
 	return data_frame;
 }
