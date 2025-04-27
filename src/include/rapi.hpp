@@ -192,7 +192,7 @@ private:
 	RStrings();
 };
 
-SEXP duckdb_execute_R_impl(MaterializedQueryResult *result, bool integer64, SEXP class_);
+SEXP duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb::ConvertOpts &convert_opts, SEXP class_);
 
 } // namespace duckdb
 
@@ -230,12 +230,12 @@ cpp11::r_string rapi_ptr_to_str(SEXP extptr);
 
 int duckdb_r_typeof(const duckdb::LogicalType &type, const duckdb::string &name, const char *caller);
 SEXP duckdb_r_allocate(const duckdb::LogicalType &type, duckdb::idx_t nrows, const duckdb::string &name,
-                       const char *caller);
+                       const duckdb::ConvertOpts &convert_opts, const char *caller);
 void duckdb_r_df_decorate_impl(SEXP dest, SEXP rownames, SEXP class_);
 void duckdb_r_df_decorate(SEXP dest, duckdb::idx_t nrows, SEXP class_ = R_NilValue);
-void duckdb_r_decorate(const duckdb::LogicalType &type, SEXP dest, bool integer64);
-void duckdb_r_transform(duckdb::Vector &src_vec, SEXP dest, duckdb::idx_t dest_offset, duckdb::idx_t n, bool integer64,
-                        const duckdb::string &name);
+void duckdb_r_decorate(const duckdb::LogicalType &type, SEXP dest, const duckdb::ConvertOpts &convert_opts);
+void duckdb_r_transform(duckdb::Vector &src_vec, SEXP dest, duckdb::idx_t dest_offset, duckdb::idx_t n,
+                        const duckdb::ConvertOpts &convert_opts,const duckdb::string &name);
 
 template <typename T, typename... ARGS>
 cpp11::external_pointer<T> make_external(const std::string &rclass, ARGS &&... args) {
