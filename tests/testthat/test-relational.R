@@ -1137,3 +1137,15 @@ test_that("factor", {
 
   expect_error(rel_from_df(con, df2), "convert")
 })
+
+test_that("data.frame", {
+  df1 <- vctrs::new_data_frame(list(a = data.frame(b = 1:3, c = 4:6)))
+  rel <- rel_from_df(con, df1)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  df2 <- vctrs::new_data_frame(list(a = structure(data.frame(b = 1:3, c = 4:6), class = c("foo", "data.frame"))))
+  rel <- rel_from_df(con, df2, strict = FALSE)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  expect_error(rel_from_df(con, df2), "convert")
+})

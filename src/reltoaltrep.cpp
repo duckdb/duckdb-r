@@ -37,6 +37,7 @@ R_altrep_class_t RelToAltrep::string_class;
 
 #if defined(R_HAS_ALTLIST)
 R_altrep_class_t RelToAltrep::list_class;
+R_altrep_class_t RelToAltrep::struct_class;
 #endif
 
 const size_t MAX_SIZE_T = std::numeric_limits<size_t>::max();
@@ -77,6 +78,12 @@ void RelToAltrep::Initialize(DllInfo *dll) {
 	R_set_altrep_Length_method(list_class, VectorLength);
 	R_set_altvec_Dataptr_method(list_class, VectorDataptr);
 	R_set_altlist_Elt_method(list_class, VectorListElt);
+
+	struct_class = R_make_altlist_class("reltoaltrep_struct_class", "duckdb", dll);
+	R_set_altrep_Inspect_method(struct_class, RelInspect);
+	R_set_altrep_Length_method(struct_class, StructLength);
+	R_set_altvec_Dataptr_method(struct_class, VectorDataptr);
+	R_set_altlist_Elt_method(struct_class, VectorListElt);
 #endif
 }
 
@@ -340,6 +347,17 @@ SEXP RelToAltrep::VectorStringElt(SEXP x, R_xlen_t i) {
 }
 
 #if defined(R_HAS_ALTLIST)
+R_xlen_t RelToAltrep::StructLength(SEXP x) {
+	BEGIN_CPP11
+	auto const *wrapper = AltrepVectorWrapper::Get(x);
+	auto const column_index = wrapper->column_index;
+	auto const &res = wrapper->rel->GetQueryResult();
+	auto const &type = res->types[column_index];
+
+	return static_cast<R_xlen_t>(StructType::GetChildTypes(type).size());
+	END_CPP11_EX(0)
+}
+
 SEXP RelToAltrep::VectorListElt(SEXP x, R_xlen_t i) {
 	BEGIN_CPP11
 	return VECTOR_ELT(AltrepVectorWrapper::Get(x)->Vector(), i);
@@ -360,7 +378,11 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type, const d
 		return RelToAltrep::string_class;
 #if defined(R_HAS_ALTLIST)
 	case VECSXP:
-		return RelToAltrep::list_class;
+		if (type.id() == LogicalTypeId::STRUCT) {
+			return RelToAltrep::struct_class;
+		} else {
+			return RelToAltrep::list_class;
+		}
 #endif
 
 	default:
@@ -407,6 +429,15 @@ size_t DoubleToSize(double d) {
 
 		cpp11::sexp vector_sexp = R_new_altrep(LogicalTypeToAltrepType(col_type, col_name), ptr, R_NilValue);
 		duckdb_r_decorate(col_type, vector_sexp, duckdb::ConvertOpts());
+
+		// Special case: Only STRUCTs have a redundant row names attribute
+		// Moving this logic into duckdb_r_decorate() would add too much noise elsewhere
+		if (col_type.id() == LogicalTypeId::STRUCT) {
+			// FIXME: The exact class of nested columns can be a property
+			// of the relation object, determined by the data on input
+			duckdb_r_df_decorate_impl(vector_sexp, row_names_sexp, RStrings::get().dataframe_str);
+		}
+
 		data_frame.push_back(vector_sexp);
 	}
 
