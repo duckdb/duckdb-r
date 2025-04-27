@@ -41,3 +41,4 @@ _files$
 ^tests/testthat/helper-rethrow\.R$
 ^\.Rprofile$
 ^\.clangd$
+^src/include/deps\.mk$
