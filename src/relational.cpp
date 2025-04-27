@@ -82,7 +82,7 @@ bool check_has_valid_class(SEXP col, const std::string &col_name, const std::str
 		auto col_type = TYPEOF(col);
 		return (col_type == LGLSXP || col_type == INTSXP || col_type == REALSXP ||
 				col_type == STRSXP || col_type == VECSXP);
-	} 
+	}
 
 	writable::strings col_class = col_class_sexp;
 	if (col_class.size() == 1) {
@@ -96,11 +96,8 @@ bool check_has_valid_class(SEXP col, const std::string &col_name, const std::str
 			valid = true;
 		} else if (class1 == "POSIXct" && class2 == "POSIXt") {
 			SEXP tzone_attr = Rf_getAttrib(col, RStrings::get().tzone_sym);
-			if (tzone == "") {
-				if (tzone_attr == R_NilValue) {
-					valid = true;
-				} else if (Rf_isString(tzone_attr) && LENGTH(tzone_attr) == 1 &&
-						cpp11::as_cpp<string>(tzone_attr) == "") {
+			if (tzone_attr == R_NilValue) {
+				if (tzone == "") {
 					valid = true;
 				}
 			} else if (Rf_isString(tzone_attr) && LENGTH(tzone_attr) == 1 &&

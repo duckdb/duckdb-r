@@ -404,7 +404,7 @@ size_t DoubleToSize(double d) {
 	return (size_t)d;
 }
 
-[[cpp11::register]] SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel, double n_rows, double n_cells) {
+[[cpp11::register]] SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel, double n_rows, double n_cells, duckdb::ConvertOpts convert_opts) {
 	D_ASSERT(rel && rel->rel);
 	auto drel = rel->rel;
 	auto ncols = drel->Columns().size();
@@ -428,7 +428,7 @@ size_t DoubleToSize(double d) {
 		R_SetExternalPtrTag(ptr, RStrings::get().duckdb_vector_sym);
 
 		cpp11::sexp vector_sexp = R_new_altrep(LogicalTypeToAltrepType(col_type, col_name), ptr, R_NilValue);
-		duckdb_r_decorate(col_type, vector_sexp, duckdb::ConvertOpts());
+		duckdb_r_decorate(col_type, vector_sexp, convert_opts);
 
 		// Special case: Only STRUCTs have a redundant row names attribute
 		// Moving this logic into duckdb_r_decorate() would add too much noise elsewhere

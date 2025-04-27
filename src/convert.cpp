@@ -42,7 +42,13 @@ ConvertOpts::StrictRelational bool_to_strict_relational(bool use_strict_relation
 	return use_strict_relational ? ConvertOpts::StrictRelational::ENABLED : ConvertOpts::StrictRelational::DISABLED;
 }
 
-ConvertOpts::ConvertOpts(cpp11::list options) {
+ConvertOpts::ConvertOpts(cpp11::sexp options_nullable) {
+	if (options_nullable == R_NilValue) {
+		return;
+	}
+
+	cpp11::list options(options_nullable);
+
 	// Extract timezone_out
 	timezone_out = as_cpp<std::string>(options["timezone_out"]);
 
