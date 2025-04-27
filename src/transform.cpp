@@ -91,11 +91,11 @@ SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows, const string &name,
 		dest_list.reserve(StructType::GetChildTypes(type).size());
 
 		for (const auto &child : StructType::GetChildTypes(type)) {
-			const auto &name = child.first;
+			const auto &child_name = child.first;
 			const auto &child_type = child.second;
 
-			cpp11::sexp dest_child = duckdb_r_allocate(child_type, nrows, name, convert_opts, "LogicalTypeId::STRUCT");
-			dest_list.push_back(cpp11::named_arg(name.c_str()) = std::move(dest_child));
+			cpp11::sexp dest_child = duckdb_r_allocate(child_type, nrows, name + "$" + child_name, convert_opts, "LogicalTypeId::STRUCT");
+			dest_list.push_back(std::move(dest_child));
 		}
 
 		// convert to SEXP, with potential side effect of truncation
@@ -244,12 +244,19 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 		break;
 	case LogicalTypeId::STRUCT: {
 		const auto &child_types = StructType::GetChildTypes(type);
+		cpp11::writable::strings names;
+		names.reserve(child_types.size());
+
 		for (size_t i = 0; i < child_types.size(); i++) {
+			const auto &child_name = child_types[i].first;
+			names.push_back(child_name);
+
 			const auto &child_type = child_types[i].second;
 			SEXP child_dest = VECTOR_ELT(dest, i);
 			duckdb_r_decorate(child_type, child_dest, convert_opts);
 		}
 
+		SET_NAMES(dest, names);
 		break;
 	}
 
