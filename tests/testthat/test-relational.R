@@ -1091,6 +1091,8 @@ test_that("numeric", {
 
 test_that("list", {
   skip_if_not_installed("vctrs")
+  skip_if(getRversion() < "4.3")
+
   df1 <- vctrs::new_data_frame(list(a = list(1L, 2:3, NULL, 4:6)))
   rel <- rel_from_df(con, df1)
   expect_equal(rel_to_altrep(rel), df1)
