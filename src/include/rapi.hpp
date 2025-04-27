@@ -231,6 +231,8 @@ cpp11::r_string rapi_ptr_to_str(SEXP extptr);
 int duckdb_r_typeof(const duckdb::LogicalType &type, const duckdb::string &name, const char *caller);
 SEXP duckdb_r_allocate(const duckdb::LogicalType &type, duckdb::idx_t nrows, const duckdb::string &name,
                        const duckdb::ConvertOpts &convert_opts, const char *caller);
+void duckdb_r_df_decorate_impl(SEXP dest, SEXP rownames, SEXP class_);
+void duckdb_r_df_decorate(SEXP dest, duckdb::idx_t nrows, SEXP class_ = R_NilValue);
 void duckdb_r_decorate(const duckdb::LogicalType &type, SEXP dest, const duckdb::ConvertOpts &convert_opts);
 void duckdb_r_transform(duckdb::Vector &src_vec, SEXP dest, duckdb::idx_t dest_offset, duckdb::idx_t n,
                         const duckdb::ConvertOpts &convert_opts,const duckdb::string &name);

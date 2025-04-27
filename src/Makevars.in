@@ -9,13 +9,26 @@
 # Set UserNM=true to speed up compilation during development.
 all: symbols.rds $(SHLIB)
 
+include include/glue.mk
 include include/sources.mk
+
+# This file is available only during development.
+# For the tarball, we create an empty file.
+include/deps.mk:
+	touch -r $$(ls -t *.cpp | head -n 1) "$@"
+
+include include/deps.mk
 
 # This file is created by the configure or configure.win scripts
 # depending on the value of the DUCKDB_R_PREBUILT_ARCHIVE environment variable.
+# An empty file is fine too for development, keeping an old timestamp to avoid
+# pkgbuild removing all .o files.
+Makevars.duckdb:
+	touch -r $$(ls -t *.cpp | head -n 1) "$@"
+
 include Makevars.duckdb
 
 CXX_STD = CXX17
 PKG_CPPFLAGS = -Iinclude -I../inst/include -DDUCKDB_DISABLE_PRINT -DDUCKDB_R_BUILD -DBROTLI_ENCODER_CLEANUP_ON_OOM {{ INCLUDES }}
-OBJECTS=rfuns.o database.o connection.o statement.o register.o relational.o scan.o signal.o transform.o utils.o reltoaltrep.o altrepdataframe_relation.o types.o convert.o cpp11.o $(SOURCES)
+OBJECTS=$(GLUE) $(SOURCES)
 PKG_LIBS={{ LINK_FLAGS }}

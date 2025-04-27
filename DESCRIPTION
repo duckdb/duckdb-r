@@ -60,7 +60,10 @@ Suggests:
     tibble,
     vctrs,
     withr
-Config/build/compilation-database: true
+Config/build/never-clean: true
+Config/build/compilation-database: false
+Config/comment/compilation-database: 
+    Generate manually with pkgload:::generate_db() for faster pkgload::load_all()
 Config/gha/extra-packages: arrow=?ignore-before-r=4.2.0
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
