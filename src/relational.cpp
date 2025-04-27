@@ -45,7 +45,7 @@ SEXP result_to_df(duckdb::unique_ptr<duckdb::QueryResult> res) {
 
 // Check if column has names
 bool check_has_names(SEXP col, const std::string &col_name) {
-	if (Rf_getAttrib(col, R_NamesSymbol) != R_NilValue) {
+	if (Rf_getAttrib(col, R_NamesSymbol) != R_NilValue && !Rf_inherits(col, "data.frame")) {
 		std::string error_msg = "Can't convert named vectors to relational. Affected column: `" + col_name + "`.";
 		stop(error_msg.c_str());
 		return true;
