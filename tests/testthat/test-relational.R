@@ -1125,3 +1125,15 @@ test_that("difftime", {
 
   expect_error(rel_from_df(con, df2), "convert")
 })
+
+test_that("factor", {
+  df1 <- data.frame(a = factor(c("a", "b", NA)))
+  rel <- rel_from_df(con, df1)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  df2 <- data.frame(a = ordered(c("a", "b", NA)))
+  rel <- rel_from_df(con, df2, strict = FALSE)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  expect_error(rel_from_df(con, df2), "convert")
+})

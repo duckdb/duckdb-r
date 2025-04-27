@@ -79,14 +79,15 @@ bool check_has_valid_class(SEXP col, const std::string &col_name, const std::str
 	bool valid = false;
 
 	if (col_class_sexp == R_NilValue) {
-		return true;
+		auto col_type = TYPEOF(col);
+		return (col_type == LGLSXP || col_type == INTSXP || col_type == REALSXP ||
+				col_type == STRSXP || col_type == VECSXP);
 	} 
 
 	writable::strings col_class = col_class_sexp;
 	if (col_class.size() == 1) {
 		const auto &class_name = col_class[0];
-		valid = (class_name == "logical" || class_name == "integer" || class_name == "numeric" ||
-				class_name == "character" || class_name == "Date" || class_name == "difftime");
+		valid = (class_name == "Date" || class_name == "difftime" || class_name == "factor" || class_name == "data.frame");
 	} else if (col_class.size() == 2) {
 		const auto &class1 = col_class[0];
 		const auto &class2 = col_class[1];
