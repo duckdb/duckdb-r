@@ -38,13 +38,3 @@ runs:
       run: |
         ccache -s
       shell: bash
-
-    # Must happen after R is installed...
-    - name: Define R CMD check error condition
-      run: |
-        # Arrow is missing
-        if (getRversion() < "4.2") {
-          message("Setting _R_CHECK_FORCE_SUGGESTS_")
-          cat('_R_CHECK_FORCE_SUGGESTS_=false\n', file = Sys.getenv("GITHUB_ENV"), append = TRUE)
-        }
-      shell: Rscript {0}
