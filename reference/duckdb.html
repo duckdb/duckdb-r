@@ -82,7 +82,8 @@ it is no longer necessary to set <code>shutdown = TRUE</code> or to call <code>d
 <span>  timezone_out <span class="op">=</span> <span class="st">"UTC"</span>,</span>
 <span>  tz_out_convert <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"with"</span>, <span class="st">"force"</span><span class="op">)</span>,</span>
 <span>  config <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  bigint <span class="op">=</span> <span class="st">"numeric"</span></span>
+<span>  bigint <span class="op">=</span> <span class="st">"numeric"</span>,</span>
+<span>  array <span class="op">=</span> <span class="st">"none"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for class 'duckdb_connection'</span></span>
@@ -151,6 +152,12 @@ in <code>timezone_out</code>. There are two options: <code>"with"</code>, and <c
 is chosen, the timestamp will be returned as it would appear in the specified time zone.
 If <code>"force"</code> is chosen, the timestamp will have the same clock
 time as the timestamp in the database, but with the new time zone.</p></dd>
+
+
+<dt id="arg-array">array<a class="anchor" aria-label="anchor" href="#arg-array"></a></dt>
+<dd><p>How arrays should be returned. There are two options: <code>"none"</code> and <code>"matrix"</code>.
+If <code>"none"</code> is selected, arrays are not returned. Instead an error is generated.
+If <code>"matrix"</code> is selected, arrays are returned as a column matrix. Each array is one row in the matrix.</p></dd>
 
 
 <dt id="arg-conn">conn<a class="anchor" aria-label="anchor" href="#arg-conn"></a></dt>
