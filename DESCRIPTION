@@ -61,8 +61,6 @@ Suggests:
     vctrs,
     withr
 Config/build/never-clean: true
-Config/comment/never-clean: 
-    https://github.com/r-lib/pkgbuild/pull/204
 Config/build/compilation-database: false
 Config/comment/compilation-database: 
     Generate manually with pkgload:::generate_db() for faster pkgload::load_all()

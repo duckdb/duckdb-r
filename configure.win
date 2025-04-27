@@ -28,11 +28,6 @@ fi
 # This logic is identical for Windows or non-Windows builds,
 # only that we need to-tar-win.mk instead of to-tar.mk on Windows.
 
-# Only on CI/CD
-if [ "$CI" != "true" ]; then
-  exit 0
-fi
-
 if [ -f "${DUCKDB_R_PREBUILT_ARCHIVE}" ] && tar -xm --force-local -f "${DUCKDB_R_PREBUILT_ARCHIVE}"; then
   cp include/from-tar.mk Makevars.duckdb
 else

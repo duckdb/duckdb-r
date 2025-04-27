@@ -2,11 +2,6 @@
 
 set -ex
 
-# Only on CI/CD
-if [ "$CI" != "true" ]; then
-  exit 0
-fi
-
 # Check if the archive already exists
 if [ -f "src/duckdb.tar.xz" ]; then
   echo "duckdb.tar.xz already exists. Skipping compression."

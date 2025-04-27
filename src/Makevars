@@ -11,10 +11,13 @@ all: symbols.rds $(SHLIB)
 
 include include/glue.mk
 include include/sources.mk
-# Dependency tracking only for development
-ifneq ("$(wildcard include/deps.mk)","")
+
+# This file is available only during development.
+# For the tarball, we create an empty file.
+include/deps.mk:
+	touch -r $$(ls -t *.cpp | head -n 1) "$@"
+
 include include/deps.mk
-endif
 
 # This file is created by the configure or configure.win scripts
 # depending on the value of the DUCKDB_R_PREBUILT_ARCHIVE environment variable.
