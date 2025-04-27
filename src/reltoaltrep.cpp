@@ -275,14 +275,6 @@ Rboolean RelToAltrep::RelInspect(SEXP x, int pre, int deep, int pvec, void (*ins
 	END_CPP11_EX(Rboolean::FALSE)
 }
 
-// this allows us to set row names on a data frame with an int argument without calling INTPTR on it
-static void install_new_attrib(SEXP vec, SEXP name, SEXP val) {
-	SEXP attrib_vec = ATTRIB(vec);
-	SEXP attrib_cell = Rf_cons(val, R_NilValue);
-	SET_TAG(attrib_cell, name);
-	SETCDR(attrib_vec, attrib_cell);
-}
-
 SEXP get_attrib(SEXP vec, SEXP name) {
 	for (SEXP attrib = ATTRIB(vec); attrib != R_NilValue; attrib = CDR(attrib)) {
 		if (TAG(attrib) == name) {
@@ -428,10 +420,8 @@ size_t DoubleToSize(double d) {
 	}
 	SET_NAMES(data_frame, StringsToSexp(names));
 
-	install_new_attrib(data_frame, R_RowNamesSymbol, row_names_sexp);
-
-	// Class
-	data_frame.attr(R_ClassSymbol) = RStrings::get().dataframe_str;
+	// Class and row names
+	duckdb_r_df_decorate_impl(data_frame, row_names_sexp, RStrings::get().dataframe_str);
 
 	return data_frame;
 }
