@@ -2,11 +2,41 @@
 
 # duckdb 1.2.1.9902
 
+## Bug fixes
+
+- Avoid setting empty tzone attribute.
+
+- Correctly check unclassed vectors.
+
+- Use vctrs to construct funny data frames.
+
+- Windows builds.
+
+- Support fractional seconds in `TIME` and `INTERVAL` data (#1109).
+
 ## Features
 
 - Store `convert_opts` for relations (#1140).
 
 - Store `convert_opts` with the connection in C++ land (#1139).
+
+- The `autoload_known_extensions` configuration option is now enabled by default (#582, #1084, #1134).
+
+- Support `STRUCT` in ALTREP data frames.
+
+- Add `dbConnect(array = "none")`, pass `array = "matrix"` to enable conversion of array columns (@joakimlinde, #1125).
+
+- Perform optional checks for ALTREP compatibility in `rel_from_df()` and `expr_constant()` (#1117).
+
+- Types exposed through ALTREP are the same as through DBI (#1111).
+
+- Mention column name for conversion errors (#1108).
+
+- Rework data frame creation (#1103).
+
+- Add optional alias argument to all functions returning an expression (#1100).
+
+- Add support for duckdb arrays in R (@joakimlinde, #102, #1090).
 
 ## Chore
 
@@ -21,33 +51,6 @@
 - Delete empty constructors.
 
 - Reorder.
-
-## Continuous integration
-
-- Fix detection for running without suggested.
-
-
-# duckdb 1.2.1.9901
-
-## Bug fixes
-
-- Avoid setting empty tzone attribute.
-
-- Correctly check unclassed vectors.
-
-- Use vctrs to construct funny data frames.
-
-- Windows builds.
-
-## Features
-
-- The `autoload_known_extensions` configuration option is now enabled by default (#582, #1084, #1134).
-
-- Support `STRUCT` in ALTREP data frames.
-
-- Add `dbConnect(array = "none")`, pass `array = "matrix"` to enable conversion of array columns (@joakimlinde, #1125).
-
-## Chore
 
 - Require R \>= 4.1 (#1087, #1133).
 
@@ -64,65 +67,6 @@
 - Fix `pkgload::load_all()` (#1128).
 
 - Fix build.
-
-## Continuous integration
-
-- Allow NOTEs if suggested packages are missing.
-
-- Only fail covr builds if token is given (#1131).
-
-- Tweak permissions.
-
-- Lints.
-
-- Always use `_R_CHECK_FORCE_SUGGESTS_=false` (#1129).
-
-- Correct installation of xml2 (#1123).
-
-- Explain (#1121).
-
-- Add xml2 for covr, print testthat results (#1120).
-
-- Sync (#1119).
-
-## Testing
-
-- Support relational datetime with time zones.
-
-- Skip tests using `grep()` or `sub()` on CRAN.
-
-- Skip test if vctrs not installed.
-
-- Skip ALTVEC for old R versions.
-
-- Skip ALTVEC for old R versions.
-
-- Add tests.
-
-- Sync tests.
-
-
-# duckdb 1.2.1.9900
-
-## Bug fixes
-
-- Support fractional seconds in `TIME` and `INTERVAL` data (#1109).
-
-## Features
-
-- Perform optional checks for ALTREP compatibility in `rel_from_df()` and `expr_constant()` (#1117).
-
-- Types exposed through ALTREP are the same as through DBI (#1111).
-
-- Mention column name for conversion errors (#1108).
-
-- Rework data frame creation (#1103).
-
-- Add optional alias argument to all functions returning an expression (#1100).
-
-- Add support for duckdb arrays in R (@joakimlinde, #102, #1090).
-
-## Chore
 
 - Backticks in error message.
 
@@ -156,11 +100,45 @@
 
 ## Continuous integration
 
+- Fix detection for running without suggested.
+
+- Allow NOTEs if suggested packages are missing.
+
+- Only fail covr builds if token is given (#1131).
+
+- Tweak permissions.
+
+- Lints.
+
+- Always use `_R_CHECK_FORCE_SUGGESTS_=false` (#1129).
+
+- Correct installation of xml2 (#1123).
+
+- Explain (#1121).
+
+- Add xml2 for covr, print testthat results (#1120).
+
+- Sync (#1119).
+
 - More accurate determination if no-suggests tests need to run.
 
 - Ignore arrow for R \< 4.2.
 
 - Fix script location.
+
+## Testing
+
+- Support relational datetime with time zones.
+
+- Skip tests using `grep()` or `sub()` on CRAN.
+
+- Skip test if vctrs not installed.
+
+- Skip ALTVEC for old R versions.
+
+- Add tests.
+
+- Sync tests.
 
 ## Uncategorized
 
