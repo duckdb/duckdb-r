@@ -3419,7 +3419,7 @@ inline unsigned int str2tag(const std::string &s) {
 
 namespace udl {
 
-inline constexpr unsigned int operator "" _t(const char *s, size_t l) {
+inline constexpr unsigned int operator ""_t(const char *s, size_t l) {
   return str2tag_core(s, l, 0);
 }
 
@@ -3434,7 +3434,7 @@ find_content_type(const std::string &path,
   auto it = user_data.find(ext);
   if (it != user_data.end()) { return it->second; }
 
-  using udl::operator "" _t;
+  using udl::operator ""_t;
 
   switch (str2tag(ext)) {
   default: return default_content_type;
@@ -3492,7 +3492,7 @@ find_content_type(const std::string &path,
 }
 
 inline bool can_compress_content_type(const std::string &content_type) {
-  using udl::operator "" _t;
+  using udl::operator ""_t;
 
   auto tag = str2tag(content_type);
 
@@ -7093,9 +7093,9 @@ inline bool ClientImpl::redirect(Request &req, Response &res, Error &error) {
   if (next_scheme.empty()) { next_scheme = scheme; }
   if (next_host.empty()) { next_host = host_; }
   if (next_path.empty()) { next_path = "/"; }
-  
+
   auto path = detail::decode_url(next_path, true, std::set<char> {'/'}) + next_query;
-	
+
   if (next_scheme == scheme && next_host == host_ && next_port == port_) {
     return detail::redirect(*this, req, res, path, location, error);
   } else {

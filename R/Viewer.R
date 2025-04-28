@@ -23,7 +23,7 @@ rs_list_objects <- function(connection, catalog = NULL, schema = NULL, name = NU
   # if no schema was supplied but this database has schema, return a list of
   # schema
   if (is.null(schema)) {
-    dbGetQuery(connection, "SELECT DISTINCT table_schema \"name\", 'schema' \"type\" FROM information_schema.tables ORDER BY table_schema")
+    return(dbGetQuery(connection, "SELECT DISTINCT table_schema \"name\", 'schema' \"type\" FROM information_schema.tables ORDER BY table_schema"))
   }
 
   if (is.null(schema)) {
@@ -59,7 +59,7 @@ rs_list_columns <- function(connection, table, catalog = NULL, schema = NULL, ..
   }
   dbGetQuery(
     connection, "
-    SELECT column_name \"name\", data_type \"field.type\"
+    SELECT column_name \"name\", data_type \"type\"
     FROM information_schema.columns
     WHERE (?::STRING IS NULL OR table_schema = ?) AND
       table_name = ?

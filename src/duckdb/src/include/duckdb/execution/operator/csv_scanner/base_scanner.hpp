@@ -116,7 +116,7 @@ class BaseScanner {
 public:
 	explicit BaseScanner(shared_ptr<CSVBufferManager> buffer_manager, shared_ptr<CSVStateMachine> state_machine,
 	                     shared_ptr<CSVErrorHandler> error_handler, bool sniffing = false,
-	                     shared_ptr<CSVFileScan> csv_file_scan = nullptr, CSVIterator iterator = {});
+	                     shared_ptr<CSVFileScan> csv_file_scan = nullptr, const CSVIterator &iterator = {});
 
 	virtual ~BaseScanner() = default;
 
@@ -283,6 +283,7 @@ protected:
 			case CSVState::QUOTED: {
 				if ((states.states[0] == CSVState::UNQUOTED || states.states[0] == CSVState::MAYBE_QUOTED) &&
 				    has_escaped_value) {
+					ever_escaped = true;
 					T::SetEscaped(result);
 				}
 				ever_quoted = true;
@@ -306,6 +307,7 @@ protected:
 			} break;
 			case CSVState::UNQUOTED: {
 				if (states.states[0] == CSVState::MAYBE_QUOTED) {
+					ever_escaped = true;
 					T::SetEscaped(result);
 				}
 				T::SetUnquoted(result);

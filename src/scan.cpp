@@ -55,7 +55,7 @@ data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 		// Will bind child columns dynamically. Could also optimize by descending early and recording.
 		return (data_ptr_t)coldata;
 	default:
-		cpp11::stop("rapi_execute: Unsupported column type for bind");
+		cpp11::stop("GetColDataPtr: Unsupported column type for bind");
 	}
 }
 
@@ -64,7 +64,7 @@ struct DedupPointerEnumType {
 		return val == NA_STRING;
 	}
 	static uintptr_t Convert(SEXP val) {
-		return (uintptr_t)DATAPTR(val);
+		return (uintptr_t)DATAPTR_RO(val);
 	}
 };
 
@@ -172,7 +172,7 @@ void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_ptr_t co
 			break;
 
 		default:
-			cpp11::stop("rapi_execute: Unknown enum type for scan: %s",
+			cpp11::stop("AppendAnyColumnSegment: Unknown enum type for scan: %s",
 			            TypeIdToString(v.GetType().InternalType()).c_str());
 		}
 		break;
@@ -259,7 +259,7 @@ void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_ptr_t co
 		break;
 	}
 	default:
-		cpp11::stop("rapi_execute: Unsupported column type for scan");
+		cpp11::stop("AppendAnyColumnSegment: Unsupported column type for scan");
 	}
 }
 
@@ -292,27 +292,36 @@ case_insensitive_map_t<vector<Value>> ListToVectorOfValue(list input_sexps) {
 	return std::move(output);
 }
 
-static bool get_bool_param(named_parameter_map_t &named_parameters, string name, bool dflt = false) {
-	bool res = dflt;
-	auto entry = named_parameters.find(name);
+static bool get_integer64_param(named_parameter_map_t &named_parameters) {
+	auto entry = named_parameters.find("integer64");
 	if (entry != named_parameters.end()) {
-		res = BooleanValue::Get(entry->second);
+		return BooleanValue::Get(entry->second);
 	}
-	return res;
+	return false;
+}
+
+static bool get_experimental_param(named_parameter_map_t &named_parameters) {
+	auto entry = named_parameters.find("experimental");
+	if (entry != named_parameters.end()) {
+		return BooleanValue::Get(entry->second);
+	}
+	return false;
 }
 
 struct DataFrameScanBindData : public TableFunctionData {
 	DataFrameScanBindData(SEXP df_p, idx_t row_count_p, vector<RType> &rtypes_p, vector<data_ptr_t> &dataptrs_p,
 	                      named_parameter_map_t &named_parameters)
 	    : df(df_p), row_count(row_count_p), rtypes(rtypes_p), data_ptrs(dataptrs_p) {
-		experimental = get_bool_param(named_parameters, "experimental", false);
+		integer64 = get_integer64_param(named_parameters);
+		experimental = get_experimental_param(named_parameters);
 	}
 	data_frame df;
 	idx_t row_count;
 	vector<RType> rtypes;
 	vector<data_ptr_t> data_ptrs;
 	idx_t rows_per_task = 1000000;
-	bool experimental;
+	bool integer64 = false;
+	bool experimental = false;
 };
 
 struct DataFrameGlobalState : public GlobalTableFunctionState {
@@ -339,8 +348,8 @@ static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context
                                                           vector<LogicalType> &return_types, vector<string> &names) {
 	data_frame df((SEXP)input.inputs[0].GetPointer());
 
-	auto integer64 = get_bool_param(input.named_parameters, "integer64", false);
-	auto experimental = get_bool_param(input.named_parameters, "experimental", false);
+	auto integer64 = get_integer64_param(input.named_parameters);
+	auto experimental = get_experimental_param(input.named_parameters);
 
 	auto df_names = df.names();
 	vector<RType> rtypes;
@@ -454,8 +463,8 @@ DataFrameScanFunction::DataFrameScanFunction()
                     DataFrameScanInitGlobal, DataFrameScanInitLocal) {
 	cardinality = DataFrameScanCardinality;
 	to_string = DataFrameScanToString;
-	named_parameters["experimental"] = LogicalType::BOOLEAN;
 	named_parameters["integer64"] = LogicalType::BOOLEAN;
+	named_parameters["experimental"] = LogicalType::BOOLEAN;
 	projection_pushdown = true;
 	global_initialization = TableFunctionInitialization::INITIALIZE_ON_SCHEDULE;
 }

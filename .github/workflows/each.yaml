@@ -17,6 +17,11 @@ jobs:
 
     name: "Trigger rcc workflow for each commit"
 
+    permissions:
+      contents: read
+      statuses: read
+      actions: write
+
     # Begin custom: services
     # End custom: services
 

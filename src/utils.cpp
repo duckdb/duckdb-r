@@ -57,16 +57,18 @@ RStrings::RStrings() {
 	R_PreserveObject(strings);
 	MARK_NOT_MUTABLE(strings);
 
-	cpp11::sexp chars = Rf_allocVector(VECSXP, 9);
+	cpp11::sexp chars = Rf_allocVector(VECSXP, 11);
 	SET_VECTOR_ELT(chars, 0, UTC_str = Rf_mkString("UTC"));
 	SET_VECTOR_ELT(chars, 1, Date_str = Rf_mkString("Date"));
 	SET_VECTOR_ELT(chars, 2, difftime_str = Rf_mkString("difftime"));
 	SET_VECTOR_ELT(chars, 3, secs_str = Rf_mkString("secs"));
 	SET_VECTOR_ELT(chars, 4, arrow_str = Rf_mkString("arrow"));
-	SET_VECTOR_ELT(chars, 5, POSIXct_POSIXt_str = StringsToSexp({"POSIXct", "POSIXt"}));
-	SET_VECTOR_ELT(chars, 6, factor_str = Rf_mkString("factor"));
-	SET_VECTOR_ELT(chars, 7, dataframe_str = Rf_mkString("data.frame"));
-	SET_VECTOR_ELT(chars, 8, integer64_str = Rf_mkString("integer64"));
+	SET_VECTOR_ELT(chars, 5, duckdb_str = Rf_mkString("duckdb"));
+	SET_VECTOR_ELT(chars, 6, POSIXct_POSIXt_str = StringsToSexp({"POSIXct", "POSIXt"}));
+	SET_VECTOR_ELT(chars, 7, factor_str = Rf_mkString("factor"));
+	SET_VECTOR_ELT(chars, 8, dataframe_str = Rf_mkString("data.frame"));
+	SET_VECTOR_ELT(chars, 9, integer64_str = Rf_mkString("integer64"));
+	SET_VECTOR_ELT(chars, 10, tbl_df_tbl_dataframe_str = StringsToSexp({"tbl_df", "tbl", "data.frame"}));
 
 	R_PreserveObject(chars);
 	MARK_NOT_MUTABLE(chars);
@@ -75,6 +77,7 @@ RStrings::RStrings() {
 	enc2utf8_sym = Rf_install("enc2utf8");
 	tzone_sym = Rf_install("tzone");
 	units_sym = Rf_install("units");
+	dim_sym = Rf_install("dim");
 	getNamespace_sym = Rf_install("getNamespace");
 	ImportSchema_sym = Rf_install("ImportSchema");
 	ImportRecordBatch_sym = Rf_install("ImportRecordBatch");
@@ -82,6 +85,7 @@ RStrings::RStrings() {
 	Table__from_record_batches_sym = Rf_install("Table__from_record_batches");
 	materialize_message_sym = Rf_install("duckdb.materialize_message");
 	materialize_callback_sym = Rf_install("duckdb.materialize_callback");
+	get_progress_display_sym = Rf_install("get_progress_display");
 	duckdb_row_names_sym = Rf_install("duckdb_row_names");
 	duckdb_vector_sym = Rf_install("duckdb_vector");
 }
@@ -315,11 +319,11 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 
 [[cpp11::register]] void rapi_load_rfuns(duckdb::db_eptr_t dual) {
 	if (!dual || !dual.get()) {
-		cpp11::stop("rapi_lock: Invalid database reference");
+		cpp11::stop("rapi_load_rfuns: Invalid database reference");
 	}
 	auto db = dual->get();
 	if (!db || !db->db) {
-		cpp11::stop("rapi_connect: Database already closed");
+		cpp11::stop("rapi_load_rfuns: Database already closed");
 	}
 	db->db->LoadExtension<RfunsExtension>();
 }

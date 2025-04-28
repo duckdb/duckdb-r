@@ -28,8 +28,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	retlist.reserve(8);
 	retlist.push_back({"str"_nm = query});
 
-	auto stmtholder = new RStatement();
-	stmtholder->stmt = std::move(stmt);
+	auto stmtholder = new RStatement(std::move(stmt));
 
 	retlist.push_back({"ref"_nm = stmt_eptr_t(stmtholder)});
 	retlist.push_back({"type"_nm = StatementTypeToString(stmtholder->stmt->GetStatementType())});
@@ -95,7 +94,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	return construct_retlist(std::move(stmt), query, n_param, conn->db->registered_dfs);
 }
 
-[[cpp11::register]] cpp11::list rapi_bind(duckdb::stmt_eptr_t stmt, cpp11::list params, bool arrow, bool integer64) {
+[[cpp11::register]] cpp11::list rapi_bind(duckdb::stmt_eptr_t stmt, cpp11::list params, duckdb::ConvertOpts convert_opts) {
 	if (!stmt || !stmt.get() || !stmt->stmt) {
 		cpp11::stop("rapi_bind: Invalid statement");
 	}
@@ -121,7 +120,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		}
 	}
 
-	if (n_rows != 1 && arrow) {
+	if (n_rows != 1 && convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED) {
 		cpp11::stop("rapi_bind: Bind parameter values need to have length one for arrow queries");
 	}
 
@@ -136,21 +135,21 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		}
 
 		// Protection error is flagged by rchk
-		cpp11::sexp res = rapi_execute(stmt, arrow, integer64);
+		cpp11::sexp res = rapi_execute(stmt, convert_opts);
 		out.push_back(res);
 	}
 
 	return out;
 }
 
-SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, bool integer64) {
+SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb::ConvertOpts &convert_opts, SEXP class_) {
 	// step 2: create result data frame and allocate columns
 	auto ncols = result->types.size();
 	if (ncols == 0) {
 		return Rf_ScalarReal(0); // no need for protection because no allocation can happen afterwards
 	}
 
-	auto nrows = result->RowCount();
+	auto rows = result->RowCount();
 
 	// Note we cannot use cpp11's data frame here as it tries to calculate the number of rows itself,
 	// but gives the wrong answer if the first column is another data frame. So we set the necessary
@@ -159,19 +158,11 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, bool integer
 	data_frame.reserve(ncols);
 
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
-		cpp11::sexp varvalue = duckdb_r_allocate(result->types[col_idx], nrows);
-		duckdb_r_decorate(result->types[col_idx], varvalue, integer64);
+		cpp11::sexp varvalue =
+		    duckdb_r_allocate(result->types[col_idx], rows, result->names[col_idx], convert_opts, "duckdb_execute_R_impl");
+		duckdb_r_decorate(result->types[col_idx], varvalue, convert_opts);
 		data_frame.push_back(varvalue);
 	}
-
-	// Convert to SEXP, finalize length
-	(void)(SEXP)data_frame;
-
-	data_frame.attr(R_ClassSymbol) = RStrings::get().dataframe_str;
-	data_frame.attr(R_RowNamesSymbol) = {NA_INTEGER, -static_cast<int>(nrows)};
-	SET_NAMES(data_frame, StringsToSexp(result->names));
-
-	// at this point data_frame is fully allocated and the only protected SEXP
 
 	// step 3: set values from chunks
 	idx_t dest_offset = 0;
@@ -179,13 +170,21 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, bool integer
 		D_ASSERT(chunk.ColumnCount() == ncols);
 		D_ASSERT(chunk.ColumnCount() == (idx_t)Rf_length(data_frame));
 		for (size_t col_idx = 0; col_idx < chunk.ColumnCount(); col_idx++) {
-			SEXP dest = VECTOR_ELT(data_frame, col_idx);
-			duckdb_r_transform(chunk.data[col_idx], dest, dest_offset, chunk.size(), integer64);
+			duckdb_r_transform(chunk.data[col_idx], data_frame[col_idx], dest_offset, chunk.size(), convert_opts, result->names[col_idx]);
 		}
 		dest_offset += chunk.size();
 	}
 
 	D_ASSERT(dest_offset == nrows);
+
+	// Convert to SEXP, finalize length
+	(void)(SEXP)data_frame;
+
+	SET_NAMES(data_frame, StringsToSexp(result->names));
+	duckdb_r_df_decorate(data_frame, rows, class_);
+
+	// at this point data_frame is fully allocated and the only protected SEXP
+
 	return data_frame;
 }
 
@@ -275,7 +274,7 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	return cpp11::safe[Rf_eval](record_batch_reader, arrow_namespace);
 }
 
-[[cpp11::register]] SEXP rapi_execute(duckdb::stmt_eptr_t stmt, bool arrow, bool integer64) {
+[[cpp11::register]] SEXP rapi_execute(duckdb::stmt_eptr_t stmt, duckdb::ConvertOpts convert_opts) {
 	if (!stmt || !stmt.get() || !stmt->stmt) {
 		cpp11::stop("rapi_execute: Invalid statement");
 	}
@@ -294,7 +293,7 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 		cpp11::stop("rapi_execute: Failed to run query\nError: %s", generic_result->GetError().c_str());
 	}
 
-	if (arrow) {
+	if (convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED) {
 		auto query_result = new RQueryResult();
 		query_result->result = std::move(generic_result);
 		rqry_eptr_t query_resultsexp(query_result);
@@ -304,7 +303,7 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 		auto result = (MaterializedQueryResult *)generic_result.get();
 
 		// Avoid rchk warning, it sees QueryResult::~QueryResult() as an allocating function
-		cpp11::sexp out = duckdb_execute_R_impl(result, integer64);
+		cpp11::sexp out = duckdb_execute_R_impl(result, convert_opts, RStrings::get().dataframe_str);
 		return out;
 	}
 }

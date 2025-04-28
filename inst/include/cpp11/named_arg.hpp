@@ -1,5 +1,5 @@
-// cpp11 version: 0.5.1
-// vendored on: 2024-12-07
+// cpp11 version: 0.5.2
+// vendored on: 2025-03-09
 #pragma once
 
 #include <stddef.h>  // for size_t
@@ -41,7 +41,7 @@ class named_arg {
 
 namespace literals {
 
-inline named_arg operator"" _nm(const char* name, std::size_t) { return named_arg(name); }
+inline named_arg operator""_nm(const char* name, std::size_t) { return named_arg(name); }
 
 }  // namespace literals
 

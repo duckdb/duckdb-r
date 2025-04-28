@@ -319,7 +319,7 @@
     Message
       DuckDB Expression: []
 
-# tethering
+# prudence
 
     Code
       nrow(forbid)

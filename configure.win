@@ -2,7 +2,7 @@
 
 set -e
 
-cd $(dirname $0)/src
+cd "$(dirname "$0")/src"
 
 # http://www.ii.uib.no/~olev/win32/tools/dlltool.html
 if [ "$(${R_HOME}/bin/Rscript --vanilla -e 'writeLines(format(getRversion() < "4.2"))')" = "TRUE" ]; then
@@ -28,7 +28,7 @@ fi
 # This logic is identical for Windows or non-Windows builds,
 # only that we need to-tar-win.mk instead of to-tar.mk on Windows.
 
-if [ -f "${DUCKDB_R_PREBUILT_ARCHIVE}" ] && tar -xm --force-local -f ${DUCKDB_R_PREBUILT_ARCHIVE}; then
+if [ -f "${DUCKDB_R_PREBUILT_ARCHIVE}" ] && tar -xm --force-local -f "${DUCKDB_R_PREBUILT_ARCHIVE}"; then
   cp include/from-tar.mk Makevars.duckdb
 else
   cp include/to-tar-win.mk Makevars.duckdb

@@ -10,7 +10,10 @@
   s3_register("adbcdrivermanager::adbc_connection_init", "duckdb_database_adbc")
   s3_register("adbcdrivermanager::adbc_statement_init", "duckdb_connection_adbc")
 
-  if (!requireNamespace("rlang", quietly = TRUE)) {
+  if (requireNamespace("rlang", quietly = TRUE)) {
+    is_interactive <<- rlang::is_interactive
+    local_interactive <<- rlang::local_interactive
+  } else {
     rethrow_restore()
   }
 

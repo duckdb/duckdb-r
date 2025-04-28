@@ -81,7 +81,7 @@
       
       $interval
       Time differences in secs
-      [1]          0 2675722599         NA
+      [1]          0 2675722600         NA
       
       $varchar
       [1] "🦆🦆🦆🦆🦆🦆" "goose"        NA            

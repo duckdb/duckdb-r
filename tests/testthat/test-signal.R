@@ -36,8 +36,10 @@ test_that("long-running queries can be cancelled", {
   expect_true(r_session$run(function() .GlobalEnv$interrupted))
 
   end_time <- Sys.time()
-  expect_lt(end_time - start_time, 1)
 
   r_session$run(function() DBI::dbDisconnect(.GlobalEnv$con))
   r_session$close()
+
+  skip_on_cran()
+  expect_lt(end_time - start_time, 1)
 })

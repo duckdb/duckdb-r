@@ -1,5 +1,5 @@
-// cpp11 version: 0.5.1
-// vendored on: 2024-12-07
+// cpp11 version: 0.5.2
+// vendored on: 2025-03-09
 #pragma once
 
 #ifdef R_INTERNALS_H_
@@ -51,7 +51,7 @@
 namespace cpp11 {
 namespace literals {
 
-constexpr R_xlen_t operator"" _xl(unsigned long long int value) { return value; }
+constexpr R_xlen_t operator""_xl(unsigned long long int value) { return value; }
 
 }  // namespace literals
 
