@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1.9900</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2.1.9901</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -31,6 +31,55 @@
       <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.2.1.9901" id="duckdb-1219901">duckdb 1.2.1.9901<a class="anchor" aria-label="anchor" href="#duckdb-1219901"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-1-2-1-9901">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-2-1-9901"></a></h3>
+<ul><li><p>Avoid setting empty tzone attribute.</p></li>
+<li><p>Correctly check unclassed vectors.</p></li>
+<li><p>Use vctrs to construct funny data frames.</p></li>
+<li><p>Windows builds.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="features-1-2-1-9901">Features<a class="anchor" aria-label="anchor" href="#features-1-2-1-9901"></a></h3>
+<ul><li><p>The <code>autoload_known_extensions</code> configuration option is now enabled by default (<a href="https://github.com/duckdb/duckdb-r/issues/582" class="external-link">#582</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1084" class="external-link">#1084</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1134" class="external-link">#1134</a>).</p></li>
+<li><p>Support <code>STRUCT</code> in ALTREP data frames.</p></li>
+<li><p>Add <code>dbConnect(array = "none")</code>, pass <code>array = "matrix"</code> to enable conversion of array columns (<a href="https://github.com/joakimlinde" class="external-link">@joakimlinde</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1125" class="external-link">#1125</a>).</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="chore-1-2-1-9901">Chore<a class="anchor" aria-label="anchor" href="#chore-1-2-1-9901"></a></h3>
+<ul><li><p>Require R &gt;= 4.1 (<a href="https://github.com/duckdb/duckdb-r/issues/1087" class="external-link">#1087</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1133" class="external-link">#1133</a>).</p></li>
+<li><p>Move naming of structs to <code>duckdb_r_decorate()</code>.</p></li>
+<li><p><code>duckdb_r_df_decorate()</code>.</p></li>
+<li><p>Move computation of row names.</p></li>
+<li><p><code>get_attrib()</code>.</p></li>
+<li><p>Perform time zone conversion in the C++ layer where possible, to support ALTREP (<a href="https://github.com/duckdb/duckdb-r/issues/1130" class="external-link">#1130</a>).</p></li>
+<li><p>Fix <code><a href="https://pkgload.r-lib.org/reference/load_all.html" class="external-link">pkgload::load_all()</a></code> (<a href="https://github.com/duckdb/duckdb-r/issues/1128" class="external-link">#1128</a>).</p></li>
+<li><p>Fix build.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="continuous-integration-1-2-1-9901">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-2-1-9901"></a></h3>
+<ul><li><p>Allow NOTEs if suggested packages are missing.</p></li>
+<li><p>Only fail covr builds if token is given (<a href="https://github.com/duckdb/duckdb-r/issues/1131" class="external-link">#1131</a>).</p></li>
+<li><p>Tweak permissions.</p></li>
+<li><p>Lints.</p></li>
+<li><p>Always use <code>_R_CHECK_FORCE_SUGGESTS_=false</code> (<a href="https://github.com/duckdb/duckdb-r/issues/1129" class="external-link">#1129</a>).</p></li>
+<li><p>Correct installation of xml2 (<a href="https://github.com/duckdb/duckdb-r/issues/1123" class="external-link">#1123</a>).</p></li>
+<li><p>Explain (<a href="https://github.com/duckdb/duckdb-r/issues/1121" class="external-link">#1121</a>).</p></li>
+<li><p>Add xml2 for covr, print testthat results (<a href="https://github.com/duckdb/duckdb-r/issues/1120" class="external-link">#1120</a>).</p></li>
+<li><p>Sync (<a href="https://github.com/duckdb/duckdb-r/issues/1119" class="external-link">#1119</a>).</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="testing-1-2-1-9901">Testing<a class="anchor" aria-label="anchor" href="#testing-1-2-1-9901"></a></h3>
+<ul><li><p>Support relational datetime with time zones.</p></li>
+<li><p>Skip tests using <code><a href="https://rdrr.io/r/base/grep.html" class="external-link">grep()</a></code> or <code><a href="https://rdrr.io/r/base/grep.html" class="external-link">sub()</a></code> on CRAN.</p></li>
+<li><p>Skip test if vctrs not installed.</p></li>
+<li><p>Skip ALTVEC for old R versions.</p></li>
+<li><p>Skip ALTVEC for old R versions.</p></li>
+<li><p>Add tests.</p></li>
+<li><p>Sync tests.</p></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.2.1.9900" id="duckdb-1219900">duckdb 1.2.1.9900<a class="anchor" aria-label="anchor" href="#duckdb-1219900"></a></h2>
 <div class="section level3">
