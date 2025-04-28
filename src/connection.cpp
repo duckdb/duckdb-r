@@ -63,9 +63,7 @@ static void SetDefaultConfigArguments(ClientContext &context) {
 		cpp11::stop("rapi_connect: Database already closed");
 	}
 
-	auto conn_wrapper = new ConnWrapper();
-	conn_wrapper->conn = make_uniq<Connection>(*db->db);
-	conn_wrapper->db.swap(db);
+	auto conn_wrapper = new ConnWrapper(std::move(db));
 
 	// Set progress display config
 	auto &client_context = *conn_wrapper->conn->context;
