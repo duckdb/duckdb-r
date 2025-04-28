@@ -1,5 +1,80 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.2.1.9901
+
+## Bug fixes
+
+- Avoid setting empty tzone attribute.
+
+- Correctly check unclassed vectors.
+
+- Use vctrs to construct funny data frames.
+
+- Windows builds.
+
+## Features
+
+- The `autoload_known_extensions` configuration option is now enabled by default (#582, #1084, #1134).
+
+- Support `STRUCT` in ALTREP data frames.
+
+- Add `dbConnect(array = "none")`, pass `array = "matrix"` to enable conversion of array columns (@joakimlinde, #1125).
+
+## Chore
+
+- Require R \>= 4.1 (#1087, #1133).
+
+- Move naming of structs to `duckdb_r_decorate()`.
+
+- `duckdb_r_df_decorate()`.
+
+- Move computation of row names.
+
+- `get_attrib()`.
+
+- Perform time zone conversion in the C++ layer where possible, to support ALTREP (#1130).
+
+- Fix `pkgload::load_all()` (#1128).
+
+- Fix build.
+
+## Continuous integration
+
+- Allow NOTEs if suggested packages are missing.
+
+- Only fail covr builds if token is given (#1131).
+
+- Tweak permissions.
+
+- Lints.
+
+- Always use `_R_CHECK_FORCE_SUGGESTS_=false` (#1129).
+
+- Correct installation of xml2 (#1123).
+
+- Explain (#1121).
+
+- Add xml2 for covr, print testthat results (#1120).
+
+- Sync (#1119).
+
+## Testing
+
+- Support relational datetime with time zones.
+
+- Skip tests using `grep()` or `sub()` on CRAN.
+
+- Skip test if vctrs not installed.
+
+- Skip ALTVEC for old R versions.
+
+- Skip ALTVEC for old R versions.
+
+- Add tests.
+
+- Sync tests.
+
+
 # duckdb 1.2.1.9900
 
 ## Bug fixes
