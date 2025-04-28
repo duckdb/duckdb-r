@@ -556,8 +556,7 @@ rel_to_altrep <- function(
   ...,
   allow_materialization = TRUE,
   n_rows = Inf,
-  n_cells = Inf,
-  con = NULL
+  n_cells = Inf
 ) {
   if (...length() > 0) {
     stop("... must be empty")
@@ -565,17 +564,7 @@ rel_to_altrep <- function(
   if (!isTRUE(allow_materialization)) {
     n_cells <- 0
   }
-  if (is.null(con)) {
-    convert_opts <- NULL
-  } else {
-    convert_opts <- con@convert_opts
-  }
-  rethrow_rapi_rel_to_altrep(
-    rel,
-    n_rows = n_rows,
-    n_cells = n_cells,
-    convert_opts = convert_opts
-  )
+  rethrow_rapi_rel_to_altrep(rel, n_rows = n_rows, n_cells = n_cells)
 }
 
 

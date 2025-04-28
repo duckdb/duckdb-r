@@ -95,12 +95,13 @@ typedef cpp11::external_pointer<DBWrapperDual> db_eptr_t;
 
 struct ConnWrapper {
 	ConnWrapper() = delete;
-	ConnWrapper(std::shared_ptr<DBWrapper> db_p)
-	    : db(std::move(db_p)) {
+	ConnWrapper(std::shared_ptr<DBWrapper> db_p, ConvertOpts convert_opts_p)
+	    : db(std::move(db_p)), convert_opts(std::move(convert_opts_p)) {
 		conn = make_uniq<Connection>(*db->db);
 	}
 	std::shared_ptr<DBWrapper> db;
 	duckdb::unique_ptr<Connection> conn;
+	const ConvertOpts convert_opts;
 };
 
 void ConnDeleter(ConnWrapper *);
@@ -119,8 +120,10 @@ typedef cpp11::external_pointer<RStatement> stmt_eptr_t;
 
 struct RelationWrapper {
 	RelationWrapper() = delete;
-	RelationWrapper(duckdb::shared_ptr<Relation> rel_p) : rel(std::move(rel_p)) {}
+	RelationWrapper(duckdb::shared_ptr<Relation> rel_p, ConvertOpts convert_opts) : rel(std::move(rel_p)), convert_opts(std::move(convert_opts)) {
+	}
 	duckdb::shared_ptr<Relation> rel;
+	const ConvertOpts convert_opts;
 };
 
 typedef cpp11::external_pointer<RelationWrapper> rel_extptr_t;
