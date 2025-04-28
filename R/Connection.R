@@ -37,7 +37,7 @@ setClass("duckdb_connection", contains = "DBIConnection", slots = list(
 duckdb_connection <- function(duckdb_driver, debug, convert_opts) {
   out <- new(
     "duckdb_connection",
-    conn_ref = rethrow_rapi_connect(duckdb_driver@database_ref),
+    conn_ref = rethrow_rapi_connect(duckdb_driver@database_ref, convert_opts),
     driver = duckdb_driver,
     debug = debug,
     convert_opts = convert_opts,

@@ -95,12 +95,13 @@ typedef cpp11::external_pointer<DBWrapperDual> db_eptr_t;
 
 struct ConnWrapper {
 	ConnWrapper() = delete;
-	ConnWrapper(std::shared_ptr<DBWrapper> db_p)
-	    : db(std::move(db_p)) {
+	ConnWrapper(std::shared_ptr<DBWrapper> db_p, ConvertOpts convert_opts_p)
+	    : db(std::move(db_p)), convert_opts(std::move(convert_opts_p)) {
 		conn = make_uniq<Connection>(*db->db);
 	}
 	std::shared_ptr<DBWrapper> db;
 	duckdb::unique_ptr<Connection> conn;
+	const ConvertOpts convert_opts;
 };
 
 void ConnDeleter(ConnWrapper *);
