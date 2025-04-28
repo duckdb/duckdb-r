@@ -94,6 +94,10 @@ typedef DualWrapper<DBWrapper> DBWrapperDual;
 typedef cpp11::external_pointer<DBWrapperDual> db_eptr_t;
 
 struct ConnWrapper {
+	ConnWrapper() = delete;
+	ConnWrapper(duckdb::unique_ptr<Connection> conn_p, std::shared_ptr<DBWrapper> db_p)
+	    : conn(std::move(conn_p)), db(std::move(db_p)) {
+	}
 	duckdb::unique_ptr<Connection> conn;
 	std::shared_ptr<DBWrapper> db;
 };
@@ -102,6 +106,10 @@ void ConnDeleter(ConnWrapper *);
 typedef cpp11::external_pointer<ConnWrapper, ConnDeleter> conn_eptr_t;
 
 struct RStatement {
+	RStatement() = delete;
+	RStatement(duckdb::unique_ptr<PreparedStatement> stmt_p)
+	    : stmt(std::move(stmt_p)) {
+	}
 	duckdb::unique_ptr<PreparedStatement> stmt;
 	vector<Value> parameters;
 };
@@ -109,8 +117,8 @@ struct RStatement {
 typedef cpp11::external_pointer<RStatement> stmt_eptr_t;
 
 struct RelationWrapper {
-	RelationWrapper(duckdb::shared_ptr<Relation> rel_p) : rel(std::move(rel_p)) {
-	}
+	RelationWrapper() = delete;
+	RelationWrapper(duckdb::shared_ptr<Relation> rel_p) : rel(std::move(rel_p)) {}
 	duckdb::shared_ptr<Relation> rel;
 };
 
