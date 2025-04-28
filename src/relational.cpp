@@ -291,7 +291,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 
 	cpp11::writable::list prot = {df};
 
-	return make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(rel));
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(rel), convert_opts);
 }
 
 [[cpp11::register]] SEXP rapi_rel_to_df(duckdb::rel_extptr_t rel) {
@@ -337,7 +337,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 [[cpp11::register]] SEXP rapi_rel_set_alias(duckdb::rel_extptr_t rel, std::string alias) {
 	cpp11::writable::list prot = {rel};
 
-	return make_external_prot<RelationWrapper>("duckdb_relation", prot, rel->rel->Alias(alias));
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, rel->rel->Alias(alias), rel->convert_opts);
 }
 
 //
@@ -361,7 +361,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 
 	cpp11::writable::list prot = {rel};
 
-	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res);
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res, rel->convert_opts);
 }
 
 [[cpp11::register]] SEXP rapi_rel_project(duckdb::rel_extptr_t rel, list exprs) {
@@ -382,7 +382,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 
 	cpp11::writable::list prot = {rel};
 
-	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res);
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res, rel->convert_opts);
 }
 
 [[cpp11::register]] SEXP rapi_rel_aggregate(duckdb::rel_extptr_t rel, list groups, list aggregates) {
@@ -412,7 +412,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 
 	cpp11::writable::list prot = {rel};
 
-	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res);
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res, rel->convert_opts);
 }
 
 [[cpp11::register]] SEXP rapi_rel_order(duckdb::rel_extptr_t rel, list orders, r_vector<r_bool> ascending) {
@@ -431,7 +431,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 
 	cpp11::writable::list prot = {rel};
 
-	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res);
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res, rel->convert_opts);
 }
 
 static WindowBoundary StringToWindowBoundary(string &window_boundary) {
@@ -548,7 +548,7 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 			ref_type = JoinRefType::CROSS;
 		}
 		auto res = make_shared_ptr<CrossProductRelation>(left->rel, right->rel, ref_type);
-		auto rel = make_external_prot<RelationWrapper>("duckdb_relation", prot, res);
+		auto rel = make_external_prot<RelationWrapper>("duckdb_relation", prot, res, left->convert_opts);
 		// if the user described filters, apply them on top of the cross product relation
 		if (conds.size() > 0) {
 			return rapi_rel_filter(rel, conds);
@@ -567,7 +567,7 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 	}
 
 	auto res = make_shared_ptr<JoinRelation>(left->rel, right->rel, std::move(cond), join_type, ref_type);
-	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res);
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res, left->convert_opts);
 }
 
 [[cpp11::register]] SEXP rapi_rel_union_all(duckdb::rel_extptr_t rel_a, duckdb::rel_extptr_t rel_b) {
@@ -576,21 +576,21 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 
 	cpp11::writable::list prot = {rel_a, rel_b};
 
-	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res);
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res, rel_a->convert_opts);
 }
 
 [[cpp11::register]] SEXP rapi_rel_limit(duckdb::rel_extptr_t rel, int64_t n) {
 
 	cpp11::writable::list prot = {rel};
 
-	return make_external_prot<RelationWrapper>("duckdb_relation", prot, make_shared_ptr<LimitRelation>(rel->rel, n, 0));
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, make_shared_ptr<LimitRelation>(rel->rel, n, 0), rel->convert_opts);
 }
 
 [[cpp11::register]] SEXP rapi_rel_distinct(duckdb::rel_extptr_t rel) {
 
 	cpp11::writable::list prot = {rel};
 
-	return make_external_prot<RelationWrapper>("duckdb_relation", prot, make_shared_ptr<DistinctRelation>(rel->rel));
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, make_shared_ptr<DistinctRelation>(rel->rel), rel->convert_opts);
 }
 
 [[cpp11::register]] SEXP rapi_rel_set_intersect(duckdb::rel_extptr_t rel_a, duckdb::rel_extptr_t rel_b) {
@@ -598,7 +598,7 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 
 	cpp11::writable::list prot = {rel_a, rel_b};
 
-	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res);
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res, rel_a->convert_opts);
 }
 
 [[cpp11::register]] SEXP rapi_rel_set_diff(duckdb::rel_extptr_t rel_a, duckdb::rel_extptr_t rel_b) {
@@ -606,7 +606,7 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 
 	cpp11::writable::list prot = {rel_a, rel_b};
 
-	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res);
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res, rel_a->convert_opts);
 }
 
 [[cpp11::register]] SEXP rapi_rel_set_symdiff(duckdb::rel_extptr_t rel_a, duckdb::rel_extptr_t rel_b) {
@@ -618,7 +618,7 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 
 	cpp11::writable::list prot = {rel_a, rel_b};
 
-	return make_external_prot<RelationWrapper>("duckdb_relation", prot, symdiff);
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, symdiff, rel_a->convert_opts);
 }
 
 //
@@ -630,7 +630,7 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 	}
 	auto rel = con->conn->RelationFromQuery(sql);
 	cpp11::writable::list prot = {};
-	return make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(rel));
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(rel), con->convert_opts);
 }
 
 [[cpp11::register]] SEXP rapi_rel_from_table(duckdb::conn_eptr_t con, const std::string schema_name,
@@ -640,7 +640,7 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 	}
 	auto rel = con->conn->Table(schema_name, table_name);
 	cpp11::writable::list prot = {};
-	return make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(rel));
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(rel), con->convert_opts);
 }
 
 [[cpp11::register]] SEXP rapi_rel_from_table_function(duckdb::conn_eptr_t con, const std::string function_name,
@@ -673,7 +673,7 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 	}
 
 	auto rel = con->conn->TableFunction(function_name, std::move(positional_parameters), std::move(named_parameters));
-	return make_external<RelationWrapper>("duckdb_relation", std::move(rel));
+	return make_external<RelationWrapper>("duckdb_relation", std::move(rel), con->convert_opts);
 }
 
 [[cpp11::register]] std::string rapi_rel_tostring(duckdb::rel_extptr_t rel, std::string format) {
