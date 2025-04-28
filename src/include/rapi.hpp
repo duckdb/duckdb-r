@@ -94,28 +94,38 @@ typedef DualWrapper<DBWrapper> DBWrapperDual;
 typedef cpp11::external_pointer<DBWrapperDual> db_eptr_t;
 
 struct ConnWrapper {
-	duckdb::unique_ptr<Connection> conn;
+	ConnWrapper() = delete;
+	ConnWrapper(std::shared_ptr<DBWrapper> db_p)
+	    : db(std::move(db_p)) {
+		conn = make_uniq<Connection>(*db->db);
+	}
 	std::shared_ptr<DBWrapper> db;
+	duckdb::unique_ptr<Connection> conn;
 };
 
 void ConnDeleter(ConnWrapper *);
 typedef cpp11::external_pointer<ConnWrapper, ConnDeleter> conn_eptr_t;
 
 struct RStatement {
+	RStatement() = delete;
+	RStatement(duckdb::unique_ptr<PreparedStatement> stmt_p)
+	    : stmt(std::move(stmt_p)) {
+	}
 	duckdb::unique_ptr<PreparedStatement> stmt;
 	vector<Value> parameters;
 };
 
+typedef cpp11::external_pointer<RStatement> stmt_eptr_t;
+
 struct RelationWrapper {
-	RelationWrapper(duckdb::shared_ptr<Relation> rel_p) : rel(std::move(rel_p)) {
-	}
+	RelationWrapper() = delete;
+	RelationWrapper(duckdb::shared_ptr<Relation> rel_p) : rel(std::move(rel_p)) {}
 	duckdb::shared_ptr<Relation> rel;
 };
 
-typedef cpp11::external_pointer<ParsedExpression> expr_extptr_t;
 typedef cpp11::external_pointer<RelationWrapper> rel_extptr_t;
 
-typedef cpp11::external_pointer<RStatement> stmt_eptr_t;
+typedef cpp11::external_pointer<ParsedExpression> expr_extptr_t;
 
 struct RQueryResult {
 	duckdb::unique_ptr<QueryResult> result;
