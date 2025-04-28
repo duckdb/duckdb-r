@@ -109,8 +109,8 @@ struct RStatement {
 typedef cpp11::external_pointer<RStatement> stmt_eptr_t;
 
 struct RelationWrapper {
-	RelationWrapper(duckdb::shared_ptr<Relation> rel_p) : rel(std::move(rel_p)) {
-	}
+	RelationWrapper() = delete;
+	RelationWrapper(duckdb::shared_ptr<Relation> rel_p) : rel(std::move(rel_p)) {}
 	duckdb::shared_ptr<Relation> rel;
 };
 
