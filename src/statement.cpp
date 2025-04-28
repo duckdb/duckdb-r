@@ -28,8 +28,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	retlist.reserve(8);
 	retlist.push_back({"str"_nm = query});
 
-	auto stmtholder = new RStatement();
-	stmtholder->stmt = std::move(stmt);
+	auto stmtholder = new RStatement(std::move(stmt));
 
 	retlist.push_back({"ref"_nm = stmt_eptr_t(stmtholder)});
 	retlist.push_back({"type"_nm = StatementTypeToString(stmtholder->stmt->GetStatementType())});

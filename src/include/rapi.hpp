@@ -102,6 +102,10 @@ void ConnDeleter(ConnWrapper *);
 typedef cpp11::external_pointer<ConnWrapper, ConnDeleter> conn_eptr_t;
 
 struct RStatement {
+	RStatement() = delete;
+	RStatement(duckdb::unique_ptr<PreparedStatement> stmt_p)
+	    : stmt(std::move(stmt_p)) {
+	}
 	duckdb::unique_ptr<PreparedStatement> stmt;
 	vector<Value> parameters;
 };
