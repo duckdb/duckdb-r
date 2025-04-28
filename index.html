@@ -60,21 +60,25 @@
 <img src="logo.png" class="logo" alt=""><h1 id="duckdb">duckdb<a class="anchor" aria-label="anchor" href="#duckdb"></a>
 </h1>
 </div>
+<p><a href="https://duckdb.org/" class="external-link">DuckDB</a> is an in-process SQL OLAP database management system. It is designed to support analytical query workloads and is optimized for fast query execution. This repository contains the R bindings for DuckDB.</p>
 <div class="section level2">
 <h2 id="installation-from-cran">Installation from CRAN<a class="anchor" aria-label="anchor" href="#installation-from-cran"></a>
 </h2>
+<p>Installing the package from source may take up to an hour. Consider using binary Windows/macOS packages from CRAN for recent R versions, or <a href="https://p3m.dev/" class="external-link">Posit Package Manager</a> for various flavors of Linux or older R versions.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"duckdb"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="installation-from-r-universe">Installation from r-universe<a class="anchor" aria-label="anchor" href="#installation-from-r-universe"></a>
 </h2>
+<p>Installing the package from source may take up to an hour. Binaries are available for recent versions of R. Review <a href="https://docs.r-universe.dev/install/binaries.html" class="external-link uri">https://docs.r-universe.dev/install/binaries.html</a> for configuring installation of binary packages on Linux.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"duckdb"</span>, repos <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"https://duckdb.r-universe.dev"</span>, <span class="st">"https://cloud.r-project.org"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="installation-from-github">Installation from GitHub<a class="anchor" aria-label="anchor" href="#installation-from-github"></a>
 </h2>
+<p>Installing the package from GitHub may take up to an hour.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("pak", repos = sprintf("https://r-lib.github.io/p/pak/stable/%s/%s/%s", .Platform$pkgType, R.Version()$os, R.Version()$arch))</span></span>
 <span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"duckdb/duckdb-r"</span><span class="op">)</span></span></code></pre></div>
@@ -87,34 +91,18 @@
 <div class="section level2">
 <h2 id="building">Building<a class="anchor" aria-label="anchor" href="#building"></a>
 </h2>
-<p>To build the bleeding edge of duckdb-r, you can clone this repository and run</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="ex">~duckdb-r:</span> R CMD INSTALL .</span></code></pre></div>
-<p>If you wish to test new duckdb functionality with duckdb-r, make sure your clones of <code>duckdb-r</code> and <code>duckdb</code> share the same parent directory. Then run the following commands</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> duckdb <span class="kw">&amp;&amp;</span> <span class="fu">git</span> checkout {{desired_branch}}<span class="kw">)</span></span>
-<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> ducdkb-r <span class="kw">&amp;&amp;</span> <span class="ex">scripts/vendor.sh</span><span class="kw">)</span></span>
-<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> duckdb-r <span class="kw">&amp;&amp;</span> <span class="ex">R</span> CMD INSTALL .<span class="kw">)</span></span></code></pre></div>
-<p>It helps if both the duckdb directory and duckdb-r directory are clean. If you encounter linker errors, merge both duckdb-r and duckdb with their respective main branches.</p>
-</div>
-<div class="section level2">
-<h2 id="dependencies">Dependencies<a class="anchor" aria-label="anchor" href="#dependencies"></a>
-</h2>
-<p>To build the R package, you first need to install the dependencies:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<p>To build the R package, you first need to clone this repository and install the dependencies:</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("pak", repos = sprintf("https://r-lib.github.io/p/pak/stable/%s/%s/%s", .Platform$pkgType, R.Version()$os, R.Version()$arch))</span></span>
 <span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<div class="section level3">
-<h3 id="developing-with-extensions">Developing with Extensions<a class="anchor" aria-label="anchor" href="#developing-with-extensions"></a>
-</h3>
-<p>If you wish to build or add extensions to the R package you first need to build duckdb with the <code>extension_static_build</code> flag. The following commands allow you to add the <a href="https://duckdb.org/docs/extensions/httpfs" class="external-link"><code>httpfs</code> extension</a> to a DuckDB R build. See the <a href="https://github.com/duckdb/duckdb/tree/master/extension#readme" class="external-link">extension ReadMe</a> for more information about extensions</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="bu">cd</span> duckdb/</span>
-<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="va">EXTENSION_STATIC_BUILD</span><span class="op">=</span>1 <span class="fu">make</span></span></code></pre></div>
-<p>Then in R, run:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://r.duckdb.org/">duckdb</a></span><span class="op">)</span></span>
-<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">dbConnect</a></span><span class="op">(</span><span class="fu"><a href="reference/duckdb.html">duckdb</a></span><span class="op">(</span>config<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">'allow_unsigned_extensions'</span><span class="op">=</span><span class="st">'true'</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbExecute.html" class="external-link">dbExecute</a></span><span class="op">(</span><span class="va">con</span>, <span class="st">"LOAD '{{path_to_duckdb}}/build/release/extension/httpfs/httpfs.duckdb_extension'"</span><span class="op">)</span></span></code></pre></div>
-<p>For more information about using extensions, see the <a href="https://duckdb.org/docs/extensions/overview" class="external-link">documentation on extensions</a>. For instructions on building them, see <a href="https://github.com/duckdb/duckdb/tree/main/extension#readme" class="external-link">extension README</a>.</p>
-</div>
+<p>Then, install:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="ex">~duckdb-r:</span> R CMD INSTALL .</span></code></pre></div>
+<p>Set the <code>MAKEFLAGS</code> environment variable to <code>-j8</code> or similar for parallel builds. Configure <code>ccache</code> for faster repeated builds.</p>
+<p>If you wish to test new DuckDB functionality with duckdb-r, make sure your clones of <code>duckdb-r</code> and <code>duckdb</code> share the same parent directory. Then run the following commands:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> duckdb <span class="kw">&amp;&amp;</span> <span class="fu">git</span> checkout {{desired_branch}}<span class="kw">)</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> duckdb-r <span class="kw">&amp;&amp;</span> <span class="ex">scripts/vendor.sh</span><span class="kw">)</span></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> duckdb-r <span class="kw">&amp;&amp;</span> <span class="ex">R</span> CMD INSTALL .<span class="kw">)</span></span></code></pre></div>
+<p>It helps if both the duckdb directory and duckdb-r directory are clean.</p>
 </div>
 <div class="section level2">
 <h2 id="contributors">Contributors<a class="anchor" aria-label="anchor" href="#contributors"></a>
