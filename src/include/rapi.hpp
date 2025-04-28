@@ -106,16 +106,17 @@ struct RStatement {
 	vector<Value> parameters;
 };
 
+typedef cpp11::external_pointer<RStatement> stmt_eptr_t;
+
 struct RelationWrapper {
 	RelationWrapper(duckdb::shared_ptr<Relation> rel_p) : rel(std::move(rel_p)) {
 	}
 	duckdb::shared_ptr<Relation> rel;
 };
 
-typedef cpp11::external_pointer<ParsedExpression> expr_extptr_t;
 typedef cpp11::external_pointer<RelationWrapper> rel_extptr_t;
 
-typedef cpp11::external_pointer<RStatement> stmt_eptr_t;
+typedef cpp11::external_pointer<ParsedExpression> expr_extptr_t;
 
 struct RQueryResult {
 	duckdb::unique_ptr<QueryResult> result;
