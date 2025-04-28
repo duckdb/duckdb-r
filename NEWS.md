@@ -1,5 +1,32 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.2.1.9902
+
+## Features
+
+- Store `convert_opts` for relations (#1140).
+
+- Store `convert_opts` with the connection in C++ land (#1139).
+
+## Chore
+
+- Remove lints.
+
+- Delete empty constructor (#1137).
+
+- Delete empty constructor (#1136).
+
+- Delete empty constructor (#1138).
+
+- Delete empty constructors.
+
+- Reorder.
+
+## Continuous integration
+
+- Fix detection for running without suggested.
+
+
 # duckdb 1.2.1.9901
 
 ## Bug fixes
