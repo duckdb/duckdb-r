@@ -1,19 +1,6 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.2.1.9903
-
-## Chore
-
-- Revdepchecks.
-
-## Documentation
-
-- Tweak wd.
-
-- Tweak README.
-
-
-# duckdb 1.2.1.9902
+# duckdb 1.2.2
 
 ## Features
 
@@ -28,6 +15,8 @@
 - Mention column name for conversion errors (#1108).
 
 ## Chore
+
+- Revdepchecks.
 
 - Require R \>= 4.1 (#1087, #1133).
 
@@ -44,6 +33,12 @@
 - Clean up edge case for fetching zero rows (#1104).
 
 - Avoid test for timings on CRAN (#1101).
+
+## Documentation
+
+- Tweak wd.
+
+- Tweak README.
 
 
 # duckdb 1.2.1
