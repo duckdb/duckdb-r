@@ -16,8 +16,6 @@
 
 ## Chore
 
-- Revdepchecks.
-
 - Require R \>= 4.1 (#1087, #1133).
 
 - Types exposed through ALTREP are the same as through DBI (#1111), including `STRUCT`. This enables support more types in upcoming duckplyr versions.
@@ -35,8 +33,6 @@
 - Avoid test for timings on CRAN (#1101).
 
 ## Documentation
-
-- Tweak wd.
 
 - Tweak README.
 
