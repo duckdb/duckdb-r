@@ -1,19 +1,6 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.2.1.9903
-
-## Chore
-
-- Revdepchecks.
-
-## Documentation
-
-- Tweak wd.
-
-- Tweak README.
-
-
-# duckdb 1.2.1.9902
+# duckdb 1.2.2
 
 ## Features
 
@@ -44,6 +31,10 @@
 - Clean up edge case for fetching zero rows (#1104).
 
 - Avoid test for timings on CRAN (#1101).
+
+## Documentation
+
+- Tweak README.
 
 
 # duckdb 1.2.1
