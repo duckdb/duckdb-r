@@ -553,11 +553,12 @@ rel_set_alias <- function(rel, alias) {
 #' print(rel_to_altrep(rel))
 rel_to_altrep <- function(
   rel,
-  ...,
   allow_materialization = TRUE,
   n_rows = Inf,
-  n_cells = Inf
+  n_cells = Inf,
+  ...
 ) {
+  # FIXME: Move dots after `rel` for duckplyr >= 1.1.0
   if (...length() > 0) {
     stop("... must be empty")
   }
