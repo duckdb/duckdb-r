@@ -1,5 +1,10 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.2.2.9000
+
+- Switching to development version.
+
+
 # duckdb 1.2.2
 
 ## Features
