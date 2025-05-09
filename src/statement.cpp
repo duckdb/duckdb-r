@@ -149,7 +149,7 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 		return Rf_ScalarReal(0); // no need for protection because no allocation can happen afterwards
 	}
 
-	auto rows = result->RowCount();
+	auto nrows = result->RowCount();
 
 	// Note we cannot use cpp11's data frame here as it tries to calculate the number of rows itself,
 	// but gives the wrong answer if the first column is another data frame. So we set the necessary
@@ -159,7 +159,7 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
 		cpp11::sexp varvalue =
-		    duckdb_r_allocate(result->types[col_idx], rows, result->names[col_idx], convert_opts, "duckdb_execute_R_impl");
+		    duckdb_r_allocate(result->types[col_idx], nrows, result->names[col_idx], convert_opts, "duckdb_execute_R_impl");
 		duckdb_r_decorate(result->types[col_idx], varvalue, convert_opts);
 		data_frame.push_back(varvalue);
 	}
@@ -181,7 +181,7 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 	(void)(SEXP)data_frame;
 
 	SET_NAMES(data_frame, StringsToSexp(result->names));
-	duckdb_r_df_decorate(data_frame, rows, class_);
+	duckdb_r_df_decorate(data_frame, nrows, class_);
 
 	// at this point data_frame is fully allocated and the only protected SEXP
 
