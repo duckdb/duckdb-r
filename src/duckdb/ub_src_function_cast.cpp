@@ -32,5 +32,7 @@
 
 #include "src/function/cast/varint_casts.cpp"
 
+#include "src/function/cast/nested_to_varchar_cast.cpp"
+
 #include "src/function/cast/vector_cast_helpers.cpp"
 
