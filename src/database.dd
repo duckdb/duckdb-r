@@ -1,0 +1,4 @@
+database.o: \
+  database.cpp \
+  include/convert.hpp \
+  include/rapi.hpp \

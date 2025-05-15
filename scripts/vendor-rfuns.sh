@@ -3,7 +3,7 @@
 set -e
 set -x
 
-cd `dirname $0`
+cd "$(dirname "$0")"/..
 
 if [ -z "$1" ]; then
   upstream_dir=../duckdb-rfuns

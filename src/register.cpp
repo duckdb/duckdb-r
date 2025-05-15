@@ -12,7 +12,7 @@
 using namespace duckdb;
 
 [[cpp11::register]] void rapi_register_df(duckdb::conn_eptr_t conn, std::string name, cpp11::data_frame value,
-                                          bool integer64, bool overwrite, bool experimental) {
+                                          duckdb::ConvertOpts convert_opts, bool overwrite) {
 	if (!conn || !conn.get() || !conn->conn) {
 		cpp11::stop("rapi_register_df: Invalid connection");
 	}
@@ -24,8 +24,8 @@ using namespace duckdb;
 	}
 	try {
 		named_parameter_map_t parameter_map;
-		parameter_map["integer64"] = Value::BOOLEAN(integer64);
-		parameter_map["experimental"] = Value::BOOLEAN(experimental);
+		parameter_map["integer64"] = convert_opts.bigint == ConvertOpts::BigIntType::INTEGER64;
+		parameter_map["experimental"] = convert_opts.experimental == ConvertOpts::ExperimentalFeatures::ENABLED;
 
 		conn->conn->TableFunction("r_dataframe_scan", {Value::POINTER((uintptr_t)value.data())}, parameter_map)
 		    ->CreateView(name, overwrite, true);
@@ -53,8 +53,12 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	auto db_wrapper = data.wrapper;
 
 	auto table_name_symbol = cpp11::safe[Rf_install](input.table_name.c_str());
-	SEXP df;
+	SEXP df = R_NilValue;
 	SEXP rho = db_wrapper->env;
+	if (TYPEOF(rho) != ENVSXP) {
+		return nullptr;
+	}
+
 #if defined(R_VERSION) && R_VERSION >= R_Version(4, 5, 0)
 	df = cpp11::safe[R_getVarEx](table_name_symbol, rho, Rboolean::TRUE, R_NilValue);
 #else

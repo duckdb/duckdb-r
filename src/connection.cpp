@@ -54,7 +54,7 @@ static void SetDefaultConfigArguments(ClientContext &context) {
 	config.wait_time = 0;
 }
 
-[[cpp11::register]] duckdb::conn_eptr_t rapi_connect(duckdb::db_eptr_t dual) {
+[[cpp11::register]] duckdb::conn_eptr_t rapi_connect(duckdb::db_eptr_t dual, duckdb::ConvertOpts convert_opts) {
 	if (!dual || !dual.get()) {
 		cpp11::stop("rapi_connect: Invalid database reference");
 	}
@@ -63,9 +63,7 @@ static void SetDefaultConfigArguments(ClientContext &context) {
 		cpp11::stop("rapi_connect: Database already closed");
 	}
 
-	auto conn_wrapper = new ConnWrapper();
-	conn_wrapper->conn = make_uniq<Connection>(*db->db);
-	conn_wrapper->db.swap(db);
+	auto conn_wrapper = new ConnWrapper(std::move(db), std::move(convert_opts));
 
 	// Set progress display config
 	auto &client_context = *conn_wrapper->conn->context;

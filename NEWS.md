@@ -1,5 +1,81 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.2.2.9001
+
+## Continuous integration
+
+- Enhance permissions for workflow (#1145).
+
+
+# duckdb 1.2.2.9000
+
+- Switching to development version.
+
+
+# duckdb 1.2.2
+
+## Features
+
+- Update to duckdb v1.2.2, see <https://github.com/duckdb/duckdb/releases/tag/v1.2.2> for details.
+
+- Add support for duckdb arrays in R (@joakimlinde, #102, #1090). To enable, connect with `dbConnect(duckdb(), array = "matrix")` (@joakimlinde, #1125).
+
+- Support fractional seconds in `TIME` and `INTERVAL` data (#1109).
+
+- The `autoload_known_extensions` configuration option is now enabled by default (#582, #1084, #1134).
+
+- Mention column name for conversion errors (#1108).
+
+## Chore
+
+- Require R \>= 4.1 (#1087, #1133).
+
+- Types exposed through ALTREP are the same as through DBI (#1111), including `STRUCT`. This enables support more types in upcoming duckplyr versions.
+
+- Perform optional checks for ALTREP compatibility in `rel_from_df()` and `expr_constant()` (#1117).
+
+- Perform time zone conversion in the C++ layer where possible, to support ALTREP (#1130).
+
+- Improve developer experience: `pkgload::load_all()` now works, source files are rebuilt if header files change, configure clangd (#1128).
+
+- Add dots with checks to unexported functions (#1115).
+
+- Clean up edge case for fetching zero rows (#1104).
+
+- Avoid test for timings on CRAN (#1101).
+
+## Documentation
+
+- Tweak README.
+
+
+# duckdb 1.2.1
+
+## Features
+
+- Update to duckdb v1.2.1, see <https://github.com/duckdb/duckdb/releases/tag/v1.2.1> for details.
+
+## Bug fixes
+
+- `dbExecute(con, "CALL ...")` no longer attempts to access the resulting data frame. Use `dbGetQuery(con, "CALL ...")` to access the data (#1062, #1080).
+
+- Fix support for the connections pane in RStudio and Positron (@dfalbel, #1063).
+
+## Internal
+
+- New `rel_to_view()` (\#1075).
+
+- New internal `AltrepDataframeRelation`, used with `rel_from_altrep_df(wrap = TRUE)` (#949, #1072).
+
+- Try relational materialization only once (#1066).
+
+## Chore
+
+- Update vendored cpp11 to 0.5.2 (#1068).
+
+- Avoid calls to non-API R functions.
+
+
 # duckdb 1.2.0
 
 ## Breaking changes
@@ -10,7 +86,7 @@
 
 - Update to duckdb v1.2.0, see <https://github.com/duckdb/duckdb/releases/tag/v1.2.0> for details.
 
-- Progress is shown for slow operation (#199, #951, @meztez).
+- Progress is shown for slow operation. This is on by default in interactive mode and can be controlled by setting the `"duckdb.progress_display"` option to a logical scalar (#199, #951, @meztez).
 
 - Add translation for `median()` (@toppyy, #993, #1011).
 

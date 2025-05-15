@@ -28,6 +28,9 @@
 #' @param bigint How 64-bit integers should be returned. There are two options: `"numeric"` and `"integer64"`.
 #'   If `"numeric"` is selected, bigint integers will be treated as double/numeric.
 #'   If `"integer64"` is selected, bigint integers will be set to bit64 encoding.
+#' @param array How arrays should be returned. There are two options: `"none"` and `"matrix"`.
+#'   If `"none"` is selected, arrays are not returned. Instead an error is generated.
+#'   If `"matrix"` is selected, arrays are returned as a column matrix. Each array is one row in the matrix.
 #'
 #' @return `dbConnect()` returns an object of class [duckdb_connection-class].
 #'
@@ -47,15 +50,17 @@
 #' dbDisconnect(con, shutdown = TRUE)
 #' @usage NULL
 dbConnect__duckdb_driver <- function(
-    drv,
-    dbdir = DBDIR_MEMORY,
-    ...,
-    debug = getOption("duckdb.debug", FALSE),
-    read_only = FALSE,
-    timezone_out = "UTC",
-    tz_out_convert = c("with", "force"),
-    config = list(),
-    bigint = "numeric") {
+  drv,
+  dbdir = DBDIR_MEMORY,
+  ...,
+  debug = getOption("duckdb.debug", FALSE),
+  read_only = FALSE,
+  timezone_out = "UTC",
+  tz_out_convert = c("with", "force"),
+  config = list(),
+  bigint = "numeric",
+  array = "none"
+) {
   check_flag(debug)
   timezone_out <- check_tz(timezone_out)
   tz_out_convert <- match.arg(tz_out_convert)
@@ -71,10 +76,15 @@ dbConnect__duckdb_driver <- function(
   }
 
   if (missing(bigint)) {
-    bigint <- drv@bigint
-  } else {
-    check_bigint(bigint)
+    bigint <- drv@convert_opts$bigint
   }
+
+  convert_opts <- duckdb_convert_opts(
+    timezone_out = timezone_out,
+    tz_out_convert = tz_out_convert,
+    bigint = bigint,
+    array = array
+  )
 
   config <- utils::modifyList(drv@config, config)
 
@@ -84,11 +94,9 @@ dbConnect__duckdb_driver <- function(
     drv <- duckdb(dbdir, read_only, bigint, config)
   }
 
-  conn <- duckdb_connection(drv, debug = debug, bigint = bigint)
+  conn <- duckdb_connection(drv, debug = debug, convert_opts = convert_opts)
   on.exit(dbDisconnect(conn))
 
-  conn@timezone_out <- timezone_out
-  conn@tz_out_convert <- tz_out_convert
   reg.finalizer(conn@conn_ref, onexit = TRUE, rapi_disconnect)
   on.exit(NULL)
 

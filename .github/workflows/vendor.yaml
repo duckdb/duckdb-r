@@ -4,7 +4,7 @@ on:
       - main
     paths:
       - ".github/workflows/vendor.yaml"
-      - "vendor-one.sh"
+      - "scripts/vendor-one.sh"
   workflow_dispatch:
   schedule:
     - cron: "*/5 * * * *"
@@ -39,7 +39,7 @@ jobs:
         id: vendor
         run: |
           git pull --rebase
-          ./vendor-one.sh .git/duckdb
+          scripts/vendor-one.sh .git/duckdb
           rm -rf .git/duckdb
           git push --dry-run
           # Check if ahead of upstream branch

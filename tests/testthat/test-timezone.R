@@ -125,3 +125,35 @@ test_that("timezone_out and tz_out_convert = force with midnight times (#8547)",
                as.POSIXct(c("1975-01-01 00:00:00", "1975-01-01 15:27:00"),
                           tz = "Etc/GMT+8"))
 })
+
+test_that("POSIXct with local time zone", {
+  con <- dbConnect(duckdb(), timezone_out = "")
+  on.exit(dbDisconnect(con))
+
+  df1 <- data.frame(a = structure(1745781814.84963, class = c("POSIXct", "POSIXt")))
+  rel <- rel_from_df(con, df1)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  # With extra class
+  df2 <- data.frame(a = structure(1745781814.84963, class = c("foo", "POSIXct", "POSIXt")))
+  rel <- rel_from_df(con, df2, strict = FALSE)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  expect_error(rel_from_df(con, df2), "convert")
+})
+
+test_that("POSIXct with local time zone and existing but empty attribute", {
+  con <- dbConnect(duckdb(), timezone_out = "")
+  on.exit(dbDisconnect(con))
+
+  df1 <- data.frame(a = structure(1745781814.84963, class = c("POSIXct", "POSIXt"), tzone = ""))
+  rel <- rel_from_df(con, df1)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  # With extra class
+  df2 <- data.frame(a = structure(1745781814.84963, class = c("foo", "POSIXct", "POSIXt"), tzone = ""))
+  rel <- rel_from_df(con, df2, strict = FALSE)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  expect_error(rel_from_df(con, df2), "convert")
+})

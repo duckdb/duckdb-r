@@ -15,7 +15,12 @@ drv_to_string <- function(drv) {
   if (!is(drv, "duckdb_driver")) {
     stop("pass a duckdb_driver object")
   }
-  sprintf("<duckdb_driver dbdir='%s' read_only=%s bigint=%s>", drv@dbdir, drv@read_only, drv@bigint)
+  sprintf(
+    "<duckdb_driver dbdir='%s' read_only=%s bigint=%s>",
+    drv@dbdir,
+    drv@read_only,
+    drv@convert_opts$bigint
+  )
 }
 
 driver_registry <- new.env(parent = emptyenv())
@@ -41,10 +46,11 @@ duckdb <- function(
   environment_scan = FALSE
 ) {
   check_flag(read_only)
-  check_bigint(bigint)
   if (...length() > 0) {
     stop("... must be empty")
   }
+
+  convert_opts <- duckdb_convert_opts(bigint = bigint)
 
   dbdir <- path_normalize(dbdir)
   if (dbdir != DBDIR_MEMORY) {
@@ -54,7 +60,8 @@ duckdb <- function(
     if (!is.null(drv) && rethrow_rapi_lock(drv@database_ref)) {
       # We don't care about different read_only or config settings here.
       # The bigint setting can be actually picked up by dbConnect(), we update it here.
-      drv@bigint <- bigint
+      drv@convert_opts <- convert_opts
+      drv@bigint <- convert_opts$bigint
       return(drv)
     }
   }
@@ -75,7 +82,8 @@ duckdb <- function(
     database_ref = rethrow_rapi_startup(dbdir, read_only, config, environment_scan),
     dbdir = dbdir,
     read_only = read_only,
-    bigint = bigint
+    convert_opts = convert_opts,
+    bigint = convert_opts$bigint
   )
 
   if (dbdir != DBDIR_MEMORY) {
@@ -159,7 +167,7 @@ is_installed <- function(pkg) {
 
 check_tz <- function(timezone) {
   if (!is.null(timezone) && timezone == "") {
-    return(Sys.timezone())
+    return("")
   }
 
   if (is.null(timezone) || !timezone %in% OlsonNames()) {
@@ -174,6 +182,7 @@ check_tz <- function(timezone) {
 
   timezone
 }
+
 path_normalize <- function(path) {
   if (path == "" || path == DBDIR_MEMORY) {
     return(DBDIR_MEMORY)
@@ -188,18 +197,4 @@ path_normalize <- function(path) {
     out <- normalizePath(out, mustWork = TRUE)
   }
   out
-}
-
-check_bigint <- function(bigint_type) {
-  switch(bigint_type,
-    numeric = {
-      # fine
-    },
-    integer64 = {
-      if (!is_installed("bit64")) {
-        stop("bit64 package is required for integer64 support")
-      }
-    },
-    stop(paste("Unsupported bigint configuration", bigint_type))
-  )
 }

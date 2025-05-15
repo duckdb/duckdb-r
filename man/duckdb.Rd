@@ -33,7 +33,8 @@ duckdb_adbc()
   timezone_out = "UTC",
   tz_out_convert = c("with", "force"),
   config = list(),
-  bigint = "numeric"
+  bigint = "numeric",
+  array = "none"
 )
 
 \S4method{dbDisconnect}{duckdb_connection}(conn, ..., shutdown = TRUE)
@@ -78,6 +79,10 @@ in \code{timezone_out}. There are two options: \code{"with"}, and \code{"force"}
 is chosen, the timestamp will be returned as it would appear in the specified time zone.
 If \code{"force"} is chosen, the timestamp will have the same clock
 time as the timestamp in the database, but with the new time zone.}
+
+\item{array}{How arrays should be returned. There are two options: \code{"none"} and \code{"matrix"}.
+If \code{"none"} is selected, arrays are not returned. Instead an error is generated.
+If \code{"matrix"} is selected, arrays are returned as a column matrix. Each array is one row in the matrix.}
 
 \item{conn}{A \code{duckdb_connection} object}
 

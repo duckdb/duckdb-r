@@ -8,7 +8,14 @@
 
 # duckdb
 
+[DuckDB](https://duckdb.org/) is an in-process SQL OLAP database management system.
+It is designed to support analytical query workloads and is optimized for fast query execution.
+This repository contains the R bindings for DuckDB.
+
 ## Installation from CRAN
+
+Installing the package from source may take up to an hour.
+Consider using binary Windows/macOS packages from CRAN for recent R versions, or [Posit Package Manager](https://p3m.dev/) for various flavors of Linux or older R versions.
 
 ``` r
 install.packages("duckdb")
@@ -16,11 +23,17 @@ install.packages("duckdb")
 
 ## Installation from r-universe
 
+Installing the package from source may take up to an hour.
+Binaries are available for recent versions of R.
+Review <https://docs.r-universe.dev/install/binaries.html> for configuring installation of binary packages on Linux.
+
 ``` r
 install.packages("duckdb", repos = c("https://duckdb.r-universe.dev", "https://cloud.r-project.org"))
 ```
 
 ## Installation from GitHub
+
+Installing the package from GitHub may take up to an hour.
 
 ``` r
 # install.packages("pak", repos = sprintf("https://r-lib.github.io/p/pak/stable/%s/%s/%s", .Platform$pkgType, R.Version()$os, R.Version()$arch))
@@ -33,54 +46,32 @@ See the [R API in the DuckDB documentation](https://duckdb.org/docs/api/r).
 
 ## Building
 
-To build the bleeding edge of duckdb-r, you can clone this repository and run
-
-``` sh
-~duckdb-r: R CMD INSTALL .
-```
-
-If you wish to test new duckdb functionality with duckdb-r, make sure your clones of `duckdb-r` and `duckdb` share the same parent directory.
-Then run the following commands
-
-``` sh
-~ (cd duckdb && git checkout {{desired_branch}})
-~ (cd ducdkb-r && ./vendor.sh)
-~ (cd duckdb-r && R CMD INSTALL .)
-```
-
-It helps if both the duckdb directory and duckdb-r directory are clean.
-If you encounter linker errors, merge both duckdb-r and duckdb with their respective main branches.
-
-## Dependencies
-
-To build the R package, you first need to install the dependencies:
+To build the R package, you first need to clone this repository and install the dependencies:
 
 ``` r
 # install.packages("pak", repos = sprintf("https://r-lib.github.io/p/pak/stable/%s/%s/%s", .Platform$pkgType, R.Version()$os, R.Version()$arch))
 pak::pak()
 ```
 
-### Developing with Extensions
-
-If you wish to build or add extensions to the R package you first need to build duckdb with the `extension_static_build` flag.
-The following commands allow you to add the [`httpfs` extension](https://duckdb.org/docs/extensions/httpfs) to a DuckDB R build.
-See the [extension ReadMe](https://github.com/duckdb/duckdb/tree/master/extension#readme) for more information about extensions
+Then, install:
 
 ``` sh
-cd duckdb/
-EXTENSION_STATIC_BUILD=1 make
+~duckdb-r: R CMD INSTALL .
 ```
 
-Then in R, run:
+Set the `MAKEFLAGS` environment variable to `-j8` or similar for parallel builds.
+Configure `ccache` for faster repeated builds.
 
-``` r
-library(duckdb)
-con <- DBI::dbConnect(duckdb(config=list('allow_unsigned_extensions'='true')))
-dbExecute(con, "LOAD '{{path_to_duckdb}}/build/release/extension/httpfs/httpfs.duckdb_extension'")
+If you wish to test new DuckDB functionality with duckdb-r, make sure your clone of `duckdb-r` is one level deeper than your clone of `duckdb` (e.g. `R/duckdb-r` and `duckdb`).
+Then run the following commands:
+
+``` sh
+~ (cd duckdb && git checkout {{desired_branch}})
+~ (cd R/duckdb-r && scripts/vendor.sh)
+~ (cd R/duckdb-r && R CMD INSTALL .)
 ```
 
-For more information about using extensions, see the [documentation on extensions](https://duckdb.org/docs/extensions/overview).
-For instructions on building them, see [extension README](https://github.com/duckdb/duckdb/tree/main/extension#readme).
+It helps if both the duckdb directory and duckdb-r directory are clean.
 
 ## Contributors
 
