@@ -1,3 +1,5 @@
+#include "src/parser/tableref/at_clause.cpp"
+
 #include "src/parser/tableref/basetableref.cpp"
 
 #include "src/parser/tableref/delimgetref.cpp"
