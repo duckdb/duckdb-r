@@ -8,6 +8,8 @@
 
 #include "src/common/cgroups.cpp"
 
+#include "src/common/complex_json.cpp"
+
 #include "src/common/compressed_file_system.cpp"
 
 #include "src/common/constants.cpp"
