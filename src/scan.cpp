@@ -7,6 +7,7 @@
 using namespace duckdb;
 using namespace cpp11;
 
+static
 data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 	switch (rtype.id()) {
 	case RType::LOGICAL:
@@ -51,6 +52,7 @@ data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 		return (data_ptr_t)DATAPTR_RO(coldata);
 	case RTypeId::LIST:
 		return (data_ptr_t)DATAPTR_RO(coldata);
+	case RTypeId::MATRIX: 
 	case RTypeId::STRUCT:
 		// Will bind child columns dynamically. Could also optimize by descending early and recording.
 		return (data_ptr_t)coldata;
@@ -83,6 +85,7 @@ static void AppendColumnSegment(SRC *source_data, idx_t sexp_offset, Vector &res
 	}
 }
 
+static
 void AppendListColumnSegment(const RType &rtype, SEXP *source_data, idx_t sexp_offset, Vector &result, idx_t count) {
 	source_data += sexp_offset;
 	auto &result_mask = FlatVector::Validity(result);
@@ -104,9 +107,84 @@ void AppendListColumnSegment(const RType &rtype, SEXP *source_data, idx_t sexp_o
 	}
 }
 
+template <class SRC, class DST, class RTYPE> 
+static inline 
+void AppendMatrixSegmentAtomic(SRC *src_ptr, int nrows, int ncols, idx_t sexp_offset, 
+                               Vector &child_vector, idx_t count) {
+	auto child_data = FlatVector::GetData<DST>(child_vector);
+	auto &child_mask = FlatVector::Validity(child_vector);
+	idx_t vector_idx = 0;
+	for (idx_t i = 0; i < count; i++) {
+		auto matrix_elt_idx = sexp_offset + i;
+		for (idx_t k = 0; k < ncols; k++) {
+			auto val = src_ptr[matrix_elt_idx];
+			if (RTYPE::IsNull(val)) {
+				child_mask.SetInvalid(vector_idx++);
+			} else {
+				child_data[vector_idx++] = RTYPE::Convert(val);
+			}
+			matrix_elt_idx += nrows;
+		}
+	}
+}
+
+static
+void AppendMatrixColumnSegment(const RType &rtype, bool experimental, SEXP source_data, idx_t sexp_offset, Vector &result, idx_t count) {
+	auto element_rtype = rtype.GetMatrixElementType();
+	auto nrows = Rf_nrows(source_data);
+	auto ncols = Rf_ncols(source_data);
+	auto &child_vector = ArrayVector::GetEntry(result);
+
+	switch (element_rtype.id()) {
+	case RType::LOGICAL: //LGLSXP
+		AppendMatrixSegmentAtomic<int, bool, RBooleanType>(LOGICAL_POINTER(source_data),
+		                                                   nrows, ncols, sexp_offset, child_vector, count);
+		break;
+
+	case RType::INTEGER: //INTSXP
+		AppendMatrixSegmentAtomic<int, int, RIntegerType>(INTEGER_POINTER(source_data),
+		                                                  nrows, ncols, sexp_offset, child_vector, count);
+		break;
+
+	case RType::INTEGER64: //REALSXP
+		AppendMatrixSegmentAtomic<int64_t, int64_t, RInteger64Type>((int64_t *)NUMERIC_POINTER(source_data),
+		                                                            nrows, ncols, sexp_offset, child_vector, count);
+		break;
+
+	case RType::NUMERIC: //REALSXP
+		AppendMatrixSegmentAtomic<double, double, RDoubleType>(NUMERIC_POINTER(source_data),
+		                                                       nrows, ncols, sexp_offset, child_vector, count);
+		break;
+
+	case RType::COMPLEX: //CPLXSXP
+		cpp11::stop("Matrix with complex numbers are not supported.");
+		break;
+
+	case RTypeId::BYTE: // RAWSXP
+		cpp11::stop("Matrix of type raw is not supported.");
+		break;
+
+	case RType::STRING: //STRSXP
+		if (experimental) {
+			D_ASSERT(result.GetType().id() == LogicalTypeId::POINTER);
+			AppendMatrixSegmentAtomic<SEXP, uintptr_t, DedupPointerEnumType>((SEXP *)DATAPTR_RO(source_data),
+		                                                                     nrows, ncols, sexp_offset, child_vector, count);
+		} else {
+			AppendMatrixSegmentAtomic<SEXP, string_t, RStringSexpType>((SEXP *)DATAPTR_RO(source_data),
+		                                                               nrows, ncols, sexp_offset, child_vector, count);
+		}
+		break;
+
+	default:
+		cpp11::stop("AppendMatrixColumnSegment: Unsupported matrix type for scan");
+	}
+}
+
+static
 void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_ptr_t coldata_ptr, idx_t sexp_offset, Vector &v,
                             idx_t this_count);
 
+static
 void AppendStructColumnSegment(const RType &rtype, bool experimental, SEXP source_data, idx_t sexp_offset,
                                Vector &result, idx_t count) {
 	// No NULL values for STRUCTs.
@@ -120,6 +198,7 @@ void AppendStructColumnSegment(const RType &rtype, bool experimental, SEXP sourc
 	}
 }
 
+static
 void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_ptr_t coldata_ptr, idx_t sexp_offset, Vector &v,
                             idx_t this_count) {
 	switch (rtype.id()) {
@@ -251,6 +330,11 @@ void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_ptr_t co
 	case RTypeId::LIST: {
 		auto data_ptr = (SEXP *)coldata_ptr;
 		AppendListColumnSegment(rtype, data_ptr, sexp_offset, v, this_count);
+		break;
+	}
+	case RTypeId::MATRIX: {
+		auto data_ptr = (SEXP)coldata_ptr;
+		AppendMatrixColumnSegment(rtype, experimental, data_ptr, sexp_offset, v, this_count);
 		break;
 	}
 	case RTypeId::STRUCT: {

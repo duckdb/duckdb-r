@@ -116,6 +116,9 @@ R_len_t RApiTypes::GetVecSize(RType rtype, SEXP coldata) {
 		D_ASSERT(TYPEOF(coldata) == VECSXP);
 		coldata = VECTOR_ELT(coldata, 0);
 	}
+	if (rtype.id() == RTypeId::MATRIX) {
+		return Rf_nrows(coldata);
+	}
 	// This still isn't quite accurate, but good enough for the types we support.
 	return Rf_length(coldata);
 }

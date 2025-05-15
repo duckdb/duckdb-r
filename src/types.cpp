@@ -12,13 +12,16 @@ using namespace duckdb;
 RType::RType() : id_(RTypeId::UNKNOWN) {
 }
 
-RType::RType(RTypeId id) : id_(id) {
+RType::RType(RTypeId id) : id_(id), size_(0) {
 }
 
-RType::RType(const RType &other) : id_(other.id_), aux_(other.aux_) {
+RType::RType(RTypeId id, R_len_t size) : id_(id), size_(size) {
 }
 
-RType::RType(RType &&other) noexcept : id_(other.id_), aux_(std::move(other.aux_)) {
+RType::RType(const RType &other) : id_(other.id_), size_(other.size_), aux_(other.aux_) {
+}
+
+RType::RType(RType &&other) noexcept : id_(other.id_), size_(other.size_), aux_(std::move(other.aux_)) {
 }
 
 RTypeId RType::id() const {
@@ -26,7 +29,7 @@ RTypeId RType::id() const {
 }
 
 bool RType::operator==(const RType &rhs) const {
-	return id_ == rhs.id_ && aux_ == rhs.aux_;
+	return id_ == rhs.id_ && size_ == rhs.size_ && aux_ == rhs.aux_;
 }
 
 RType RType::FACTOR(cpp11::strings levels) {
@@ -72,6 +75,22 @@ RType RType::LIST(const RType &child) {
 RType RType::GetListChildType() const {
 	D_ASSERT(id_ == RTypeId::LIST);
 	return aux_.front().second;
+}
+
+RType RType::MATRIX(const RType &child, R_len_t ncols) {
+	RType out = RType(RTypeId::MATRIX, ncols);
+	out.aux_.push_back(std::make_pair("", child));
+	return out;
+}
+
+RType RType::GetMatrixElementType() const {
+	D_ASSERT(id_ == RTypeId::MATRIX);
+	return aux_.front().second;
+}
+
+R_len_t RType::GetMatrixNcols() const {
+	D_ASSERT(id_ == RTypeId::MATRIX);
+	return size_;
 }
 
 RType RType::STRUCT(child_list_t<RType> &&children) {
@@ -132,6 +151,23 @@ RType RApiTypes::DetectRType(SEXP v, bool integer64) {
 		}
 	} else if (Rf_isFactor(v) && TYPEOF(v) == INTSXP) {
 		return RType::FACTOR(GET_LEVELS(v));
+	} else if (Rf_isMatrix(v)) {
+		if (TYPEOF(v) == LGLSXP) {
+			return RType::MATRIX(RType::LOGICAL, Rf_ncols(v));
+		} else if (TYPEOF(v) == INTSXP) {
+			return RType::MATRIX(RType::INTEGER, Rf_ncols(v));
+		} else if (TYPEOF(v) == REALSXP) {
+			if (integer64 && Rf_inherits(v, "integer64")) {
+				return RType::MATRIX(RType::INTEGER64, Rf_ncols(v));
+			}
+			return RType::MATRIX(RType::NUMERIC, Rf_ncols(v));
+		} else if (TYPEOF(v) == CPLXSXP) {
+			return RType::MATRIX(RType::COMPLEX, Rf_ncols(v));
+		} else if (TYPEOF(v) == STRSXP) {
+			return RType::MATRIX(RType::STRING, Rf_ncols(v));
+		} else {
+			return RType::UNKNOWN;
+		}
 	} else if (TYPEOF(v) == LGLSXP) {
 		return RType::LOGICAL;
 	} else if (TYPEOF(v) == INTSXP) {
@@ -145,6 +181,8 @@ RType RApiTypes::DetectRType(SEXP v, bool integer64) {
 		return RType::NUMERIC;
 	} else if (TYPEOF(v) == STRSXP) {
 		return RType::STRING;
+	} else if (TYPEOF(v) == CPLXSXP) {
+		return RType::COMPLEX;
 	} else if (TYPEOF(v) == VECSXP) {
 		if (Rf_inherits(v, "blob")) {
 			return RType::BLOB;
@@ -211,6 +249,8 @@ LogicalType RApiTypes::LogicalTypeFromRType(const RType &rtype, bool experimenta
 		return LogicalType::DOUBLE;
 	case RType::INTEGER64:
 		return LogicalType::BIGINT;
+	case RType::COMPLEX:
+		return LogicalType::ARRAY(LogicalType::DOUBLE, 2);
 	case RTypeId::FACTOR: {
 		auto duckdb_levels = rtype.GetFactorLevels();
 		return LogicalType::ENUM(duckdb_levels, rtype.GetFactorLevelsCount());
@@ -244,6 +284,8 @@ LogicalType RApiTypes::LogicalTypeFromRType(const RType &rtype, bool experimenta
 		return LogicalType::BLOB;
 	case RTypeId::LIST:
 		return LogicalType::LIST(RApiTypes::LogicalTypeFromRType(rtype.GetListChildType(), experimental));
+	case RTypeId::MATRIX:
+		return LogicalType::ARRAY(RApiTypes::LogicalTypeFromRType(rtype.GetMatrixElementType(), experimental), rtype.GetMatrixNcols());
 	case RTypeId::STRUCT: {
 		child_list_t<LogicalType> children;
 		for (const auto &child : rtype.GetStructChildTypes()) {
