@@ -57,12 +57,12 @@ test_that("structs give the same results via Arrow", {
   con <- dbConnect(duckdb())
   on.exit(dbDisconnect(con, shutdown = TRUE))
 
-  res <- dbGetQuery(con, "SELECT {'x': 100, 'y': 'hello', 'z': 3.14} AS s", arrow = TRUE)
+  res <- dbGetQuery(con, "SELECT {'x': 100, 'y': 'hello', 'z': 3.14::double} AS s", arrow = TRUE)
   expect_equal(res, vctrs::data_frame(
     s = tibble::tibble(x = 100L, y = "hello", z = 3.14)
   ))
 
-  res <- dbGetQuery(con, "SELECT 1 AS n, {'x': 100, 'y': 'hello', 'z': 3.14} AS s", arrow = TRUE)
+  res <- dbGetQuery(con, "SELECT 1 AS n, {'x': 100, 'y': 'hello', 'z': 3.14::double} AS s", arrow = TRUE)
   expect_equal(res, vctrs::data_frame(
     n = 1L,
     s = tibble::tibble(x = 100L, y = "hello", z = 3.14)
