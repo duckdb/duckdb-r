@@ -8,6 +8,8 @@
 
 #include "src/function/table/system/duckdb_extensions.cpp"
 
+#include "src/function/table/system/duckdb_external_file_cache.cpp"
+
 #include "src/function/table/system/duckdb_functions.cpp"
 
 #include "src/function/table/system/duckdb_keywords.cpp"
