@@ -113,7 +113,11 @@ for root, dirs, files in os.walk(target_dir):
 
 # object list, relative paths
 script_path = os.path.dirname(os.path.abspath(__file__)).replace('\\', '/')
-duckdb_sources = [package_build.get_relative_path(os.path.join(script_path, 'src'), x) for x in source_list]
+
+# remove last component of the path
+root_path = os.path.dirname(script_path)
+
+duckdb_sources = [package_build.get_relative_path(os.path.join(root_path, 'src'), x) for x in source_list]
 object_list = ' '.join([x.rsplit('.', 1)[0] + '.o' for x in duckdb_sources])
 
 # include list
