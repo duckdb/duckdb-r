@@ -1,5 +1,7 @@
 #include "src/execution/index/art/art_key.cpp"
 
+#include "src/execution/index/art/art_merger.cpp"
+
 #include "src/execution/index/art/node.cpp"
 
 #include "src/execution/index/art/iterator.cpp"
