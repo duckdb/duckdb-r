@@ -32,6 +32,8 @@
 
 #include "src/storage/write_ahead_log.cpp"
 
+#include "src/storage/open_file_storage_extension.cpp"
+
 #include "src/storage/optimistic_data_writer.cpp"
 
 #include "src/storage/partial_block_manager.cpp"
