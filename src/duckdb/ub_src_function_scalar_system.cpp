@@ -8,3 +8,5 @@
 
 #include "src/function/scalar/system/current_query_id.cpp"
 
+#include "src/function/scalar/system/parse_log_message.cpp"
+

@@ -6,3 +6,5 @@
 
 #include "src/logging/logging.cpp"
 
+#include "src/logging/log_types.cpp"
+
