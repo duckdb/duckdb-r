@@ -22,3 +22,14 @@
       Error in `duckdb_result()`:
       ! Use `dbConnect(array = "matrix")` to enable arrays to be returned to R.
 
+# array errors when writing matrix of complex numbers
+
+    Code
+      dbWriteTable(con, "tbl", df)
+    Condition
+      Error in `duckdb_result()`:
+      ! Matrix with complex numbers are not supported.
+      Error in `duckdb_result()`:
+      ! rapi_execute: Failed to run query
+      Error: Invalid Error: std::exception
+
