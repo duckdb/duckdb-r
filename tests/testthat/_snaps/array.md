@@ -28,8 +28,6 @@
       dbWriteTable(con, "tbl", df)
     Condition
       Error in `duckdb_result()`:
-      ! Matrix with complex numbers are not supported.
-      Error in `duckdb_result()`:
       ! rapi_execute: Failed to run query
       Error: Invalid Error: std::exception
 
