@@ -1,5 +1,14 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.2.2.9003
+
+## Testing
+
+- Snapshot updates for rcc-smoke (null) (#1163).
+
+- Snapshot updates for rcc-smoke (null) (#1155).
+
+
 # duckdb 1.2.2.9002
 
 ## Bug fixes
