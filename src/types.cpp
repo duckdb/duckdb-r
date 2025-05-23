@@ -161,8 +161,6 @@ RType RApiTypes::DetectRType(SEXP v, bool integer64) {
 				return RType::MATRIX(RType::INTEGER64, Rf_ncols(v));
 			}
 			return RType::MATRIX(RType::NUMERIC, Rf_ncols(v));
-		} else if (TYPEOF(v) == CPLXSXP) {
-			return RType::MATRIX(RType::COMPLEX, Rf_ncols(v));
 		} else if (TYPEOF(v) == STRSXP) {
 			return RType::MATRIX(RType::STRING, Rf_ncols(v));
 		} else {
@@ -181,8 +179,6 @@ RType RApiTypes::DetectRType(SEXP v, bool integer64) {
 		return RType::NUMERIC;
 	} else if (TYPEOF(v) == STRSXP) {
 		return RType::STRING;
-	} else if (TYPEOF(v) == CPLXSXP) {
-		return RType::COMPLEX;
 	} else if (TYPEOF(v) == VECSXP) {
 		if (Rf_inherits(v, "blob")) {
 			return RType::BLOB;
@@ -249,8 +245,6 @@ LogicalType RApiTypes::LogicalTypeFromRType(const RType &rtype, bool experimenta
 		return LogicalType::DOUBLE;
 	case RType::INTEGER64:
 		return LogicalType::BIGINT;
-	case RType::COMPLEX:
-		return LogicalType::ARRAY(LogicalType::DOUBLE, 2);
 	case RTypeId::FACTOR: {
 		auto duckdb_levels = rtype.GetFactorLevels();
 		return LogicalType::ENUM(duckdb_levels, rtype.GetFactorLevelsCount());

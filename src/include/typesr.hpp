@@ -21,7 +21,6 @@ enum class RTypeId {
 	LOGICAL,
 	INTEGER,
 	NUMERIC,
-	COMPLEX, 
 	STRING,
 	FACTOR,
 	DATE,
@@ -81,7 +80,6 @@ struct RType {
 	static constexpr const RTypeId LOGICAL = RTypeId::LOGICAL;
 	static constexpr const RTypeId INTEGER = RTypeId::INTEGER;
 	static constexpr const RTypeId NUMERIC = RTypeId::NUMERIC;
-	static constexpr const RTypeId COMPLEX = RTypeId::COMPLEX;
 	static constexpr const RTypeId STRING = RTypeId::STRING;
 	static constexpr const RTypeId DATE = RTypeId::DATE;
 	static constexpr const RTypeId DATE_INTEGER = RTypeId::DATE_INTEGER;

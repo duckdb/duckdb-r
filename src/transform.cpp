@@ -324,11 +324,6 @@ static void TransformArrayVector(Vector &src_vec, const SEXP dest, idx_t dest_of
 				REAL(dest)[dest_offset + row_idx + n * i] = REAL(buffer)[i];
 			}
 			break;
-		case CPLXSXP:
-			for (size_t i = 0; i < array_size; i++) {
-				COMPLEX(dest)[dest_offset + row_idx + n * i] = COMPLEX(buffer)[i];
-			}
-			break;
 		case STRSXP:
 			for (size_t i = 0; i < array_size; i++) {
 				SEXP str = STRING_ELT(buffer, i);

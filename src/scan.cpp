@@ -52,7 +52,7 @@ data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 		return (data_ptr_t)DATAPTR_RO(coldata);
 	case RTypeId::LIST:
 		return (data_ptr_t)DATAPTR_RO(coldata);
-	case RTypeId::MATRIX: 
+	case RTypeId::MATRIX:
 	case RTypeId::STRUCT:
 		// Will bind child columns dynamically. Could also optimize by descending early and recording.
 		return (data_ptr_t)coldata;
@@ -107,9 +107,9 @@ void AppendListColumnSegment(const RType &rtype, SEXP *source_data, idx_t sexp_o
 	}
 }
 
-template <class SRC, class DST, class RTYPE> 
-static inline 
-void AppendMatrixSegmentAtomic(SRC *src_ptr, int nrows, int ncols, idx_t sexp_offset, 
+template <class SRC, class DST, class RTYPE>
+static inline
+void AppendMatrixSegmentAtomic(SRC *src_ptr, int nrows, int ncols, idx_t sexp_offset,
                                Vector &child_vector, idx_t count) {
 	auto child_data = FlatVector::GetData<DST>(child_vector);
 	auto &child_mask = FlatVector::Validity(child_vector);
@@ -154,10 +154,6 @@ void AppendMatrixColumnSegment(const RType &rtype, bool experimental, SEXP sourc
 	case RType::NUMERIC: //REALSXP
 		AppendMatrixSegmentAtomic<double, double, RDoubleType>(NUMERIC_POINTER(source_data),
 		                                                       nrows, ncols, sexp_offset, child_vector, count);
-		break;
-
-	case RType::COMPLEX: //CPLXSXP
-		cpp11::stop("Matrix with complex numbers are not supported.");
 		break;
 
 	case RTypeId::BYTE: // RAWSXP
