@@ -1,10 +1,32 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.2.2.9004
+# duckdb 1.2.99.9900
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@7e7236414cce705934a0fed89c2231c2a774b172.
+
+  Better comment in optimizer.cpp
 
 ## Bug fixes
 
 - Remove handling of complex values.
+
+- Vendoring.
+
+## Features
+
+- Add ingestion of matrices (@joakimlinde, #1150).
+
+## Continuous integration
+
+- Enhance permissions for workflow (#1145).
+
+## Testing
+
+- Snapshot updates for rcc-smoke (null) (#1163).
+
+- Snapshot updates for rcc-smoke (null) (#1155).
 
 ## Uncategorized
 
@@ -43,34 +65,6 @@
 - Vendor: Update vendored sources to duckdb/duckdb@3c8f023bf61930dfd594212fdc97331603f8cdfc.
 
 - Vendor: Update vendored sources to duckdb/duckdb@feb4ed8f1909d7894cffff29c6887682440c567c.
-
-
-# duckdb 1.2.2.9003
-
-## Testing
-
-- Snapshot updates for rcc-smoke (null) (#1163).
-
-- Snapshot updates for rcc-smoke (null) (#1155).
-
-
-# duckdb 1.2.2.9002
-
-## Bug fixes
-
-- Vendoring.
-
-## Features
-
-- Add ingestion of matrices (@joakimlinde, #1150).
-
-## vendor
-
-- Update vendored sources to duckdb/duckdb@7e7236414cce705934a0fed89c2231c2a774b172.
-
-  Better comment in optimizer.cpp
-
-## Uncategorized
 
 - Vendor: Update vendored sources to duckdb/duckdb@03dc8da3ea203ee09e3634304dd4d3958fe1e388.
 
@@ -813,16 +807,6 @@
 - Vendor: Update vendored sources to duckdb/duckdb@1b8c9023d0c574da22a3ee30f294ee94b4b7d772.
 
 - Vendor: Update vendored sources to duckdb/duckdb@0e844786417d80226851f5fc375060b47d3b65e0.
-
-
-# duckdb 1.2.2.9001
-
-## Continuous integration
-
-- Enhance permissions for workflow (#1145).
-
-
-# duckdb 1.2.2.9000
 
 - Switching to development version.
 
