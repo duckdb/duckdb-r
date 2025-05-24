@@ -295,17 +295,22 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 }
 
 [[cpp11::register]] SEXP rapi_rel_to_df(duckdb::rel_extptr_t rel) {
-	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
+	// For rchk
+	cpp11::sexp out;
 
-	auto res = rel->rel->Execute();
+	{
+		ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
 
-	if (signal_handler.HandleInterrupt()) {
-		return R_NilValue;
+		auto res = rel->rel->Execute();
+
+		if (signal_handler.HandleInterrupt()) {
+			return R_NilValue;
+		}
+
+		out = result_to_df(std::move(res));
 	}
 
-	signal_handler.Disable();
-
-	return result_to_df(std::move(res));
+	return out;
 }
 
 //
