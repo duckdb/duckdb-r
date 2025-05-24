@@ -369,7 +369,7 @@ case_insensitive_map_t<vector<Value>> ListToVectorOfValue(list input_sexps) {
 		input_idx++;
 	}
 
-	return std::move(output);
+	return output;
 }
 
 static bool get_integer64_param(named_parameter_map_t &named_parameters) {
