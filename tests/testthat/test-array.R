@@ -387,7 +387,251 @@ test_that("array errors when writing matrix of complex numbers", {
   b <- matrix(1+1i , nrow = 4, ncol = 3)
   df <- dplyr::tibble(a, b)
 
-  expect_snapshot( error = TRUE, {
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
+    dbWriteTable(con, "tbl", df)
+  })
+
+  expect_snapshot(error = TRUE, {
     dbWriteTable(con, "tbl", df)
   })
 })
