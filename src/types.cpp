@@ -9,7 +9,7 @@
 
 using namespace duckdb;
 
-RType::RType() : id_(RTypeId::UNKNOWN) {
+RType::RType() : id_(RTypeId::UNKNOWN), size_(0) {
 }
 
 RType::RType(RTypeId id) : id_(id), size_(0) {
