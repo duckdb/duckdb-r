@@ -1,5 +1,14 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.2.99.9901
+
+## Chore
+
+- Fix rchk (#1173).
+
+- Fix compiler warning (@joakimlinde, #1172).
+
+
 # duckdb 1.2.99.9900
 
 ## Features
