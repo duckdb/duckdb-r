@@ -1,0 +1,25 @@
+From 7531b4e80ccad1ef83659d46ecc48f46986b1d75 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Sun, 25 May 2025 16:09:35 +0200
+Subject: [PATCH] uninitialized
+
+---
+ src/duckdb/src/common/types/row/tuple_data_segment.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/duckdb/src/common/types/row/tuple_data_segment.cpp b/src/duckdb/src/common/types/row/tuple_data_segment.cpp
+index 1b69dbf83..73660e15a 100644
+--- a/src/duckdb/src/common/types/row/tuple_data_segment.cpp
++++ b/src/duckdb/src/common/types/row/tuple_data_segment.cpp
+@@ -26,7 +26,7 @@ static inline void SwapTupleDataChunk(TupleDataChunk &a, TupleDataChunk &b) noex
+ 	std::swap(a.lock, b.lock);
+ }
+ 
+-TupleDataChunk::TupleDataChunk(TupleDataChunk &&other) noexcept {
++TupleDataChunk::TupleDataChunk(TupleDataChunk &&other) noexcept : count(0) {
+ 	SwapTupleDataChunk(*this, other);
+ }
+ 
+-- 
+2.48.1
+
