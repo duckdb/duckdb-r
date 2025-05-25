@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.2.99.9902
+
+## Testing
+
+- Skip timing tests on CRAN.
+
+
 # duckdb 1.2.99.9901
 
 ## Chore
