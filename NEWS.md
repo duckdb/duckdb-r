@@ -2,12 +2,11 @@
 
 # duckdb 1.2.99.9902
 
-## Testing
+## Features
 
-- Skip timing tests on CRAN.
+- Update to duckdb v1.3.0, see <https://github.com/duckdb/duckdb/releases/tag/v1.3.0> for details.
 
-
-# duckdb 1.2.99.9901
+- Add ingestion of matrices (@joakimlinde, #1150).
 
 ## Chore
 
@@ -15,14 +14,9 @@
 
 - Fix compiler warning (@joakimlinde, #1172).
 
+## Testing
 
-# duckdb 1.2.99.9900
-
-## Features
-
-- Update to duckdb v1.3.0, see <https://github.com/duckdb/duckdb/releases/tag/v1.3.0> for details.
-
-- Add ingestion of matrices (@joakimlinde, #1150).
+- Skip timing tests on CRAN.
 
 
 # duckdb 1.2.2
