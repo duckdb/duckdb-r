@@ -1,5 +1,48 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.3.0.9001
+
+- Vendor: Update vendored sources to duckdb/duckdb@0de6960b0e8a66402bb245f404906cf1ef45499c.
+
+- Vendor: Update vendored sources to duckdb/duckdb@1fdb10c96076ae035527402a6f5e63f9eb005682.
+
+- Vendor: Update vendored sources to duckdb/duckdb@bca5bdd592ed221a4394f9e4949a4ecfd19e4f74.
+
+- Vendor: Update vendored sources to duckdb/duckdb@51070f2fb6c8943c5d830255f9b095764ac95675.
+
+- Vendor: Update vendored sources to duckdb/duckdb@95cc51601b441b884ec98a7e5114a8f3ae525c33.
+
+- Vendor: Update vendored sources to duckdb/duckdb@4e0a953228ab377e47fa3a59583d0fd3579ad325.
+
+- Vendor: Update vendored sources to duckdb/duckdb@a2e752670dc89d10ce8453451f427cc72d798c83.
+
+- Vendor: Update vendored sources to duckdb/duckdb@1bbbba939e7e94b32cb3ce55a652437bee711cc2.
+
+- Vendor: Update vendored sources to duckdb/duckdb@a0a4aae7d94129ed25417446398594d4f2471ce5.
+
+- Vendor: Update vendored sources to duckdb/duckdb@ca7af7ffdcc86b3cd91606c1e634e7cbee601e38.
+
+- Vendor: Update vendored sources to duckdb/duckdb@243eb89447e350b5e907ac799d234e66692114c1.
+
+- Vendor: Update vendored sources to duckdb/duckdb@1854bf84cdad2ea527b2754e3766100bdb43f8f0.
+
+- Vendor: Update vendored sources to duckdb/duckdb@199b61b7db984efa5bb4b75f387800761b674f91.
+
+- Vendor: Update vendored sources to duckdb/duckdb@66c2f1e558dfe5ceb032fab809532a3378f791ec.
+
+- Vendor: Update vendored sources to duckdb/duckdb@ae17830a858358329a0dc9849ddda7834ae193d0.
+
+- Vendor: Update vendored sources to duckdb/duckdb@bbf0c28eac3e6f2afbe9b5a15e5b6f1476100fd8.
+
+- Vendor: Update vendored sources to duckdb/duckdb@14986f29f96b3feec1c7b682056d3f1828376939.
+
+- Vendor: Update vendored sources to duckdb/duckdb@4dd19cbb76d1384cde06067aa00c9b98e968f59d.
+
+- Vendor: Update vendored sources to duckdb/duckdb@df518fe584481690ae812d702f212787c2b6953b.
+
+- Vendor: Update vendored sources to duckdb/duckdb@406888577e0e56a7d5784a189bca73f87e2ea9c2.
+
+
 # duckdb 1.3.0.9000
 
 ## Chore
