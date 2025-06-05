@@ -2,6 +2,7 @@ on:
   push:
     branches:
       - main
+      - next
     paths:
       - ".github/workflows/vendor.yaml"
       - "scripts/vendor-one.sh"
@@ -17,22 +18,30 @@ name: vendor
 jobs:
   vendor:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - branch: main
+            upstream: v1.3-ossivalis
+          - branch: next
+            upstream: main
     outputs:
       sha: ${{ steps.commit.outputs.sha }}
 
-    name: "Update vendored sources"
+    name: "Update vendored sources (${{ matrix.branch }})"
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ matrix.branch }}
 
       - uses: actions/checkout@v4
         with:
           repository: duckdb/duckdb
           path: .git/duckdb
           fetch-depth: 0
-          branch: v1.3-ossivalis
+          ref: ${{ matrix.upstream }}
 
       - uses: ./.github/workflows/git-identity
 
