@@ -1,3 +1,5 @@
+#include "src/common/types/row/block_iterator.cpp"
+
 #include "src/common/types/row/partitioned_tuple_data.cpp"
 
 #include "src/common/types/row/row_data_collection.cpp"
