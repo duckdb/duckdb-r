@@ -16,6 +16,8 @@
 
 #include "src/main/capi/duckdb_value-c.cpp"
 
+#include "src/main/capi/error_data-c.cpp"
+
 #include "src/main/capi/helper-c.cpp"
 
 #include "src/main/capi/hugeint-c.cpp"
