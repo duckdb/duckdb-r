@@ -15,7 +15,7 @@ void PipelineEvent::Schedule() {
 	} catch (std::exception &ex) {
 		executor.PushError(ErrorData(ex));
 	} catch (...) { // LCOV_EXCL_START
-		executor.PushError(ErrorData("Unknown exception while calling pipeline->Schedule(event)!"));
+		executor.PushError(ErrorData("Unknown exception in Finalize!"));
 	} // LCOV_EXCL_STOP
 }
 

@@ -13,8 +13,8 @@
 namespace duckdb {
 
 struct BaseTableColumnInfo {
-	optional_ptr<TableCatalogEntry> table = nullptr;
-	optional_ptr<const ColumnDefinition> column = nullptr;
+	optional_ptr<TableCatalogEntry> table;
+	optional_ptr<const ColumnDefinition> column;
 };
 
 BaseTableColumnInfo FindBaseTableColumn(LogicalOperator &op, ColumnBinding binding) {
@@ -32,12 +32,8 @@ BaseTableColumnInfo FindBaseTableColumn(LogicalOperator &op, ColumnBinding bindi
 		if (!get.projection_ids.empty()) {
 			throw InternalException("Projection ids should not exist here");
 		}
-		auto base_column_id = get.GetColumnIds()[binding.column_index];
-		if (base_column_id.IsVirtualColumn()) {
-			//! Virtual column (like ROW_ID) does not have a ColumnDefinition entry in the TableCatalogEntry
-			return result;
-		}
 		result.table = table;
+		auto base_column_id = get.GetColumnIds()[binding.column_index];
 		result.column = &table->GetColumn(LogicalIndex(base_column_id.GetPrimaryIndex()));
 		return result;
 	}

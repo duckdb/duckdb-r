@@ -50,9 +50,6 @@ void ExternalFileCache::CachedFileRange::VerifyCheckSum() {
 		return;
 	}
 	auto buffer_handle = block_handle->block_manager.buffer_manager.Pin(block_handle);
-	if (!buffer_handle.IsValid()) {
-		return;
-	}
 	D_ASSERT(checksum == Checksum(buffer_handle.Ptr(), nr_bytes));
 #endif
 }
@@ -64,7 +61,7 @@ void ExternalFileCache::CachedFile::Verify(const unique_ptr<StorageLockKey> &gua
 #ifdef DEBUG
 	for (const auto &range1 : ranges) {
 		for (const auto &range2 : ranges) {
-			if (range1.first == range2.first) {
+			if (range1 == range2) {
 				continue;
 			}
 			D_ASSERT(range1.second->GetOverlap(*range2.second) != CachedFileRangeOverlap::FULL);

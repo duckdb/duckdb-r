@@ -193,10 +193,6 @@ bool MultiFileList::IsEmpty() {
 	return GetExpandResult() == FileExpandResult::NO_FILES;
 }
 
-unique_ptr<MultiFileList> MultiFileList::Copy() {
-	return make_uniq<SimpleMultiFileList>(GetAllFiles());
-}
-
 //===--------------------------------------------------------------------===//
 // SimpleMultiFileList
 //===--------------------------------------------------------------------===//

@@ -104,7 +104,6 @@ public:
 	virtual idx_t GetTotalFileCount() = 0;
 
 	virtual unique_ptr<NodeStatistics> GetCardinality(ClientContext &context);
-	virtual unique_ptr<MultiFileList> Copy();
 
 protected:
 	//! Get the i-th expanded file
