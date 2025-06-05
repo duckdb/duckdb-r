@@ -23,8 +23,8 @@ jobs:
         include:
           - branch: main
             upstream: v1.3-ossivalis
-          # - branch: next
-          #   upstream: main
+          - branch: next
+            upstream: main
     outputs:
       sha: ${{ steps.commit.outputs.sha }}
 
