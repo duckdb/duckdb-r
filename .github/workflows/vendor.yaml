@@ -32,6 +32,7 @@ jobs:
           repository: duckdb/duckdb
           path: .git/duckdb
           fetch-depth: 0
+          branch: v1.3-ossivalis
 
       - uses: ./.github/workflows/git-identity
 
