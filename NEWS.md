@@ -1,5 +1,54 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.3.0.9002
+
+## Continuous integration
+
+- Enable next for vendoring.
+
+- Complete, only main for now.
+
+- Syntax, matrix.
+
+- Vendor from patch version.
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@6d6324a1bdce93aeadb6c5ada8031a4859e2bf4d (#1210).
+
+- Update vendored sources to duckdb/duckdb@fe3c08f299ab446b6e9b2fbb1290404e2269a2c8 (#1209).
+
+- Update vendored sources to duckdb/duckdb@a8d649362cb8fd981731d9f2d7debf30c76be286 (#1208).
+
+- Update vendored sources to duckdb/duckdb@163b0d235887b32c7fa810ece76e7a6d06510d3c (#1206).
+
+- Update vendored sources to duckdb/duckdb@3c2f966d1fc2d91df28bd7b7dcc70bfd4d0ee638 (#1204).
+
+- Update vendored sources to duckdb/duckdb@7d90a940e10f8c1758204f0cb33bba4ad0a3a3d2 (#1202).
+
+- Update vendored sources to duckdb/duckdb@d81605edd39a308ab02bce50177ed82bbeb38b64 (#1200).
+
+- Update vendored sources to duckdb/duckdb@843ea85218a21008086d7f27ae9e5cf06ec978d7 (#1198).
+
+- Update vendored sources to duckdb/duckdb@4d90750e9642dd07aba2fcc3083bcf654dcd77cb (#1196).
+
+- Update vendored sources to duckdb/duckdb@40baf59defb497977d2fad48bdd88df31ba60b6c (#1195).
+
+- Update vendored sources to duckdb/duckdb@f2700198d96248af70eae3114d41eab9146aaf52 (#1193).
+
+- Update vendored sources to duckdb/duckdb@508811b5bb87caa42bfb288cd882c93d0e8f3adc (#1191).
+
+- Update vendored sources to duckdb/duckdb@72ee13e629ace785fa010632fedb8246762c5ba2 (#1189).
+
+- Update vendored sources to duckdb/duckdb@d0fe0698f44f644a1d55477fe1da036e3eb91d86 (#1187).
+
+- Update vendored sources to duckdb/duckdb@ff7ad850eb7e76cbc6a2f36ba26d642d4aa04469 (#1185).
+
+- Update vendored sources to duckdb/duckdb@c663b24a6b11a573d6998c4d8935e87afef5d7c7 (#1184).
+
+- Update vendored sources to duckdb/duckdb@e1d3536dc946b84e1a3f8a649506303a23ced241 (#1183).
+
+
 # duckdb 1.3.0.9001
 
 - Vendor: Update vendored sources to duckdb/duckdb@0de6960b0e8a66402bb245f404906cf1ef45499c.
