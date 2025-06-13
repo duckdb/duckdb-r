@@ -1,5 +1,38 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.3.0.9008
+
+## Chore
+
+- Add biarch to install x64 and i386 on R 4.1.
+
+## Continuous integration
+
+- Hourly vendoring workflow.
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@f486804d7662e68845af8b986ed93a050f914d41 (#1237).
+
+- Update vendored sources to duckdb/duckdb@dd2f74722f31d409650c1031d408d7093d497cc2 (#1236).
+
+- Update vendored sources to duckdb/duckdb@2a383f238af1289604c5cbab84d1bcf8f99fa575 (#1235).
+
+- Update vendored sources to duckdb/duckdb@befde41873d36112e79d12db3a0c18516d40a966 (#1234).
+
+- Update vendored sources to duckdb/duckdb@e3df4b02f2f2fae148184bf62d05ddde6ffdbbbc (#1233).
+
+- Update vendored sources to duckdb/duckdb@f79594b97226ee82dc01332b29649ae78526860d (#1232).
+
+- Update vendored sources to duckdb/duckdb@59b77965de3eeaf9d58d7c7424145d3fe191629d (#1231).
+
+- Update vendored sources to duckdb/duckdb@a189a91bd3f1fe16ec2e6b41e310ba0f49b13659 (#1230).
+
+- Update vendored sources to duckdb/duckdb@c5f80e216b0e8aa8c90b3960eb69f15579e48acc (#1229).
+
+- Update vendored sources to duckdb/duckdb@c17917dc559a94fe9eb1f1922268a702b1159481 (#1228).
+
+
 # duckdb 1.3.0.9007
 
 ## vendor
