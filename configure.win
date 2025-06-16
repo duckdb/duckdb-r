@@ -5,10 +5,18 @@ set -e
 cd "$(dirname "$0")/src"
 
 # http://www.ii.uib.no/~olev/win32/tools/dlltool.html
-if [ "$(${R_HOME}/bin/Rscript --vanilla -e 'writeLines(format(getRversion() < "4.2"))')" = "TRUE" ]; then
-  echo "Extracting librstrtmgr.a for R < 4.2"
+if [ "$(${R_HOME}/bin/Rscript --vanilla -e 'writeLines(format(getRversion() < "4.2" && .Platform$r_arch == \"x64\"))')" = "TRUE" ]; then
+  echo "Extracting librstrtmgr.a for R < 4.2 (x64)"
   gunzip -k librstrtmgr.a.gz
 fi
+
+if [ "$(${R_HOME}/bin/Rscript --vanilla -e 'writeLines(format(getRversion() < "4.2" && .Platform$r_arch != \"x64\"))')" = "TRUE" ]; then
+  echo "Extracting librstrtmgr.a for R < 4.2 (i386)"
+  gunzip -k librstrtmgr-i386.a.gz
+fi
+
+pwd
+sleep 10
 
 # The purpose of this is to avoid rebuilding duckdb in every CI/CD run.
 # We set the DUCKDB_R_PREBUILT_ARCHIVE environment variable to a file path
