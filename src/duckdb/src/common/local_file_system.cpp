@@ -27,6 +27,13 @@
 #include <io.h>
 #include <string>
 
+#ifdef __MINGW32__
+#if DUCKDB_RSTRTMGR == 1
+// need to manually define this for mingw
+extern "C" WINBASEAPI BOOL QueryFullProcessImageNameW(HANDLE, DWORD, LPWSTR, PDWORD);
+#endif
+#endif
+
 #undef FILE_CREATE // woo mingw
 #endif
 
@@ -822,7 +829,71 @@ public:
 };
 
 static string AdditionalLockInfo(const std::wstring path) {
+#if DUCKDB_RSTRTMGR == 1
+	// try to find out if another process is holding the lock
+
+	// init of the somewhat obscure "Windows Restart Manager"
+	// see also https://devblogs.microsoft.com/oldnewthing/20120217-00/?p=8283
+
+	DWORD session, status, reason;
+	WCHAR session_key[CCH_RM_SESSION_KEY + 1] = {0};
+
+	status = RmStartSession(&session, 0, session_key);
+	if (status != ERROR_SUCCESS) {
+		return string();
+	}
+
+	PCWSTR path_ptr = path.c_str();
+	status = RmRegisterResources(session, 1, &path_ptr, 0, NULL, 0, NULL);
+	if (status != ERROR_SUCCESS) {
+		return string();
+	}
+	UINT process_info_size_needed, process_info_size;
+
+	// we first call with nProcInfo = 0 to find out how much to allocate
+	process_info_size = 0;
+	status = RmGetList(session, &process_info_size_needed, &process_info_size, NULL, &reason);
+	if (status != ERROR_MORE_DATA || process_info_size_needed == 0) {
+		return string();
+	}
+
+	// allocate
+	auto process_info_buffer = duckdb::unique_ptr<RM_PROCESS_INFO[]>(new RM_PROCESS_INFO[process_info_size_needed]);
+	auto process_info = process_info_buffer.get();
+
+	// now call again to get actual data
+	process_info_size = process_info_size_needed;
+	status = RmGetList(session, &process_info_size_needed, &process_info_size, process_info, &reason);
+	if (status != ERROR_SUCCESS || process_info_size == 0) {
+		return "";
+	}
+
+	string conflict_string;
+	for (UINT process_idx = 0; process_idx < process_info_size; process_idx++) {
+		string process_name = WindowsUtil::UnicodeToUTF8(process_info[process_idx].strAppName);
+		auto pid = process_info[process_idx].Process.dwProcessId;
+
+		// find out full path if possible
+		HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+		if (process) {
+			WCHAR full_path[MAX_PATH];
+			DWORD full_path_size = MAX_PATH;
+			if (QueryFullProcessImageNameW(process, 0, full_path, &full_path_size) && full_path_size <= MAX_PATH) {
+				process_name = WindowsUtil::UnicodeToUTF8(full_path);
+			}
+			CloseHandle(process);
+		}
+		conflict_string += StringUtil::Format("\n%s (PID %d)", process_name, pid);
+	}
+
+	RmEndSession(session);
+	if (conflict_string.empty()) {
+		return string();
+	}
+	return "File is already open in " + conflict_string;
+#else
 	return "";
+#endif // DUCKDB_RSTRTMGR == 1
 }
 
 bool LocalFileSystem::IsPrivateFile(const string &path_p, FileOpener *opener) {

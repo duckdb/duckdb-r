@@ -4,6 +4,13 @@ set -e
 
 cd "$(dirname "$0")/src"
 
+# Kludge for R < 4.2, which does not have librstrtmgr.a included
+if [ "$(${R_HOME}/bin/Rscript --vanilla -e 'writeLines(format(getRversion() < "4.2"))')" = "TRUE" ]; then
+  echo DUCKDB_RSTRTMGR=0 > Makevars.rstrtmgr
+else
+  echo DUCKDB_RSTRTMGR=1 > Makevars.rstrtmgr
+fi
+
 # The purpose of this is to avoid rebuilding duckdb in every CI/CD run.
 # We set the DUCKDB_R_PREBUILT_ARCHIVE environment variable to a file path
 # that contains a .tar of all object files.

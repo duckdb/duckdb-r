@@ -12,6 +12,8 @@ all: symbols.rds $(SHLIB)
 include include/glue.mk
 include include/sources.mk
 
+include Makevars.rstrtmgr
+
 # This file is available only during development.
 # For the tarball, we create an empty file.
 include/deps.mk:
