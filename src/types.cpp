@@ -344,7 +344,6 @@ string RApiTypes::DetectLogicalType(const LogicalType &stype, const char *caller
 	case LogicalTypeId::STRUCT:
 	case LogicalTypeId::MAP:
 		return "data.frame";
-		return "data.frame";
 	case LogicalTypeId::ENUM:
 		return "factor";
 	case LogicalTypeId::UNKNOWN:
