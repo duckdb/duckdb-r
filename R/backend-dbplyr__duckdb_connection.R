@@ -335,10 +335,10 @@ sql_translation.duckdb_connection <- function(con) {
       },
       # Respect OR (|) operator: https://github.com/tidyverse/stringr/pull/340
       str_starts = function(string, pattern) {
-        build_sql("REGEXP_MATCHES(", string, ",'^(?:'||", pattern, "))")
+        build_sql("REGEXP_MATCHES(", string, ", '^(?:' || ", pattern, " || ')')")
       },
       str_ends = function(string, pattern) {
-        build_sql("REGEXP_MATCHES((?:", string, ",", pattern, "||')$')")
+        build_sql("REGEXP_MATCHES(", string, ", '(?:' || ", pattern, " || ')$')")
       },
       # NOTE: GREATEST needed because DuckDB PAD-functions truncate the string if width < length of string
       str_pad = function(string, width, side = "left", pad = " ", use_length = FALSE) {
