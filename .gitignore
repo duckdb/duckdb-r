@@ -108,6 +108,7 @@ src/*.dll
 /scripts/__pycache__
 /duckdb
 /src/Makevars.duckdb
+/src/Makevars.rstrtmgr
 /.ccache
 /src/symbols.rds
 /docs/
