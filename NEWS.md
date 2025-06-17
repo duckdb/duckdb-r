@@ -1,25 +1,6 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.3.0.9012
-
-## Bug fixes
-
-- Correct dbplyr translations for `str_starts()` and `str_ends()` (#1182, #1247).
-
-## Chore
-
-- Fix multiarch build on R 4.1.
-
-- Sort object list.
-
-- Adapt checkout directory for vendoring.
-
-- Remove dead code.
-
-- Remove unused member (#1248).
-
-
-# duckdb 1.3.0.9011
+# duckdb 1.3.1
 
 ## vendor
 
@@ -27,34 +8,11 @@
 
 - Update vendored sources to duckdb/duckdb@3596ba09334ce4e567e042989121776191811950 (#1244).
 
-
-# duckdb 1.3.0.9010
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@a90f582037f98e078554ad7d29e51e9fcd16d8e2 (#1242).
-
-
-# duckdb 1.3.0.9009
-
-## vendor
 
 - Update vendored sources to duckdb/duckdb@db3f895ce83dd731f333cebc6e3f23a94f35f1c7 (#1240).
 
 - Update vendored sources to duckdb/duckdb@07661de910e8c4df650e5f2faa807724bf9517ec (#1239).
-
-
-# duckdb 1.3.0.9008
-
-## Chore
-
-- Add biarch to install x64 and i386 on R 4.1.
-
-## Continuous integration
-
-- Hourly vendoring workflow.
-
-## vendor
 
 - Update vendored sources to duckdb/duckdb@f486804d7662e68845af8b986ed93a050f914d41 (#1237).
 
@@ -76,44 +34,19 @@
 
 - Update vendored sources to duckdb/duckdb@c17917dc559a94fe9eb1f1922268a702b1159481 (#1228).
 
-
-# duckdb 1.3.0.9007
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@05f691c65fd559277dcdf37d3d7cc6c417e9fa04 (#1226).
 
 - Update vendored sources to duckdb/duckdb@1306eb4dcfaf29fe4895a0104718eda65ec6a34e (#1225).
-
-
-# duckdb 1.3.0.9006
-
-## vendor
 
 - Update vendored sources to duckdb/duckdb@b1cce91f6c53f78252ea7b0a0c4e4f198e7422d3 (#1223).
 
 - Update vendored sources to duckdb/duckdb@ff6158cd230753665660d5a316eeebf58125b24d (#1222).
 
-
-# duckdb 1.3.0.9005
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@c078af8c64791ec9f5e9513cec2ab812aceac4f0 (#1220).
 
 - Update vendored sources to duckdb/duckdb@a427cccee92c4024e458b8505467253f3434e729 (#1219).
 
-
-# duckdb 1.3.0.9004
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@57920c146c0dfda56eec6cf892b38220e51904b9 (#1217).
-
-
-# duckdb 1.3.0.9003
-
-## vendor
 
 - Update vendored sources to duckdb/duckdb@f9bd118d555816311a5acebae6a9cc2b8b719fb7 (#1215).
 
@@ -122,21 +55,6 @@
 - Update vendored sources to duckdb/duckdb@357c63ed0e55b4aa8f6a79935ca3d07c38f58088 (#1213).
 
 - Update vendored sources to duckdb/duckdb@18847b9fc252a04257f2fe341fe0c6cabfab2128 (#1212).
-
-
-# duckdb 1.3.0.9002
-
-## Continuous integration
-
-- Enable next for vendoring.
-
-- Complete, only main for now.
-
-- Syntax, matrix.
-
-- Vendor from patch version.
-
-## vendor
 
 - Update vendored sources to duckdb/duckdb@6d6324a1bdce93aeadb6c5ada8031a4859e2bf4d (#1210).
 
@@ -172,8 +90,39 @@
 
 - Update vendored sources to duckdb/duckdb@e1d3536dc946b84e1a3f8a649506303a23ced241 (#1183).
 
+## Bug fixes
 
-# duckdb 1.3.0.9001
+- Correct dbplyr translations for `str_starts()` and `str_ends()` (#1182, #1247).
+
+## Chore
+
+- Fix multiarch build on R 4.1.
+
+- Sort object list.
+
+- Adapt checkout directory for vendoring.
+
+- Remove dead code.
+
+- Remove unused member (#1248).
+
+- Add biarch to install x64 and i386 on R 4.1.
+
+- Avoid uninitialized warning.
+
+## Continuous integration
+
+- Hourly vendoring workflow.
+
+- Enable next for vendoring.
+
+- Complete, only main for now.
+
+- Syntax, matrix.
+
+- Vendor from patch version.
+
+## Uncategorized
 
 - Vendor: Update vendored sources to duckdb/duckdb@0de6960b0e8a66402bb245f404906cf1ef45499c.
 
@@ -214,13 +163,6 @@
 - Vendor: Update vendored sources to duckdb/duckdb@df518fe584481690ae812d702f212787c2b6953b.
 
 - Vendor: Update vendored sources to duckdb/duckdb@406888577e0e56a7d5784a189bca73f87e2ea9c2.
-
-
-# duckdb 1.3.0.9000
-
-## Chore
-
-- Avoid uninitialized warning.
 
 
 # duckdb 1.3.0
