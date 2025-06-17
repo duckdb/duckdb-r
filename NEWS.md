@@ -1,5 +1,24 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.3.0.9012
+
+## Bug fixes
+
+- Correct dbplyr translations for `str_starts()` and `str_ends()` (#1182, #1247).
+
+## Chore
+
+- Fix multiarch build on R 4.1.
+
+- Sort object list.
+
+- Adapt checkout directory for vendoring.
+
+- Remove dead code.
+
+- Remove unused member (#1248).
+
+
 # duckdb 1.3.0.9011
 
 ## vendor
