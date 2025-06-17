@@ -4,11 +4,13 @@ set -e
 
 cd "$(dirname "$0")/src"
 
+r_4_2=$(Rscript --vanilla -e 'writeLines(format(getRversion() >= "4.2"))')
+
 # Kludge for R < 4.2, which does not have librstrtmgr.a included
-if [ "$(${R_HOME}/bin/Rscript --vanilla -e 'writeLines(format(getRversion() < "4.2"))')" = "TRUE" ]; then
-  echo DUCKDB_RSTRTMGR=0 > Makevars.rstrtmgr
-else
+if [ "$r_4_2" = "TRUE" ]; then
   echo DUCKDB_RSTRTMGR=1 > Makevars.rstrtmgr
+else
+  echo DUCKDB_RSTRTMGR=0 > Makevars.rstrtmgr
 fi
 
 # The purpose of this is to avoid rebuilding duckdb in every CI/CD run.
@@ -28,8 +30,10 @@ fi
 #
 # This logic is identical for Windows or non-Windows builds,
 # only that we need to-tar-win.mk instead of to-tar.mk on Windows.
+#
+# This does not work for R < 4.2, where multiarch builds are used.
 
-if [ -f "${DUCKDB_R_PREBUILT_ARCHIVE}" ] && tar -xm --force-local -f "${DUCKDB_R_PREBUILT_ARCHIVE}"; then
+if [ "$r_4_2" = "TRUE" ] && [ -f "${DUCKDB_R_PREBUILT_ARCHIVE}" ] && tar -xm --force-local -f "${DUCKDB_R_PREBUILT_ARCHIVE}"; then
   cp include/from-tar.mk Makevars.duckdb
 else
   cp include/to-tar-win.mk Makevars.duckdb
