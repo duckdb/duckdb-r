@@ -37,13 +37,11 @@ Connection::Connection(DuckDB &database) : Connection(*database.instance) {
 Connection::Connection(Connection &&other) noexcept : warning_cb(nullptr) {
 	std::swap(context, other.context);
 	std::swap(warning_cb, other.warning_cb);
-	std::swap(connection_id, other.connection_id);
 }
 
 Connection &Connection::operator=(Connection &&other) noexcept {
 	std::swap(context, other.context);
 	std::swap(warning_cb, other.warning_cb);
-	std::swap(connection_id, other.connection_id);
 	return *this;
 }
 

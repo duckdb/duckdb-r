@@ -251,10 +251,6 @@ public:
 	}
 	// NOLINTEND
 
-protected:
-	//! Identified used to uniquely identify connections to the database.
-	connection_t connection_id;
-
 private:
 	unique_ptr<QueryResult> QueryParamsRecursive(const string &query, vector<Value> &values);
 
