@@ -351,11 +351,11 @@
     Code
       translate(str_starts(x, y))
     Output
-      <SQL> REGEXP_MATCHES(x,'^(?:'||y))
+      <SQL> REGEXP_MATCHES(x, '^(?:' || y || ')')
     Code
       translate(str_ends(x, y))
     Output
-      <SQL> REGEXP_MATCHES((?:x,y||')$')
+      <SQL> REGEXP_MATCHES(x, '(?:' || y || ')$')
     Code
       translate(str_pad(x, width = 10))
     Output
