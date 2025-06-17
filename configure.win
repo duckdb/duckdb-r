@@ -9,8 +9,10 @@ r_4_2=$(Rscript --vanilla -e 'writeLines(format(getRversion() >= "4.2"))')
 # Kludge for R < 4.2, which does not have librstrtmgr.a included
 if [ "$r_4_2" = "TRUE" ]; then
   echo DUCKDB_RSTRTMGR=1 > Makevars.rstrtmgr
+  echo DUCKDB_RSTRTMGR_LIB=-lrstrtmgr >> Makevars.rstrtmgr
 else
   echo DUCKDB_RSTRTMGR=0 > Makevars.rstrtmgr
+  echo DUCKDB_RSTRTMGR_LIB= >> Makevars.rstrtmgr
 fi
 
 # The purpose of this is to avoid rebuilding duckdb in every CI/CD run.

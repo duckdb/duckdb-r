@@ -6,6 +6,7 @@ cd "$(dirname "$0")/src"
 
 # Not used on Linux, for completeness.
 echo DUCKDB_RSTRTMGR=1 > Makevars.rstrtmgr
+echo DUCKDB_RSTRTMGR_LIB= >> Makevars.rstrtmgr
 
 
 # The purpose of this is to avoid rebuilding duckdb in every CI/CD run.
