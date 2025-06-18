@@ -1,0 +1,32 @@
+From 3b3042eff6115b27af2ff0d64aec5008e878510d Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Wed, 18 Jun 2025 05:44:32 +0200
+Subject: [PATCH] mbdedtls ignore vla warning
+
+---
+ src/duckdb/third_party/mbedtls/library/platform_util.cpp | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/src/duckdb/third_party/mbedtls/library/platform_util.cpp b/src/duckdb/third_party/mbedtls/library/platform_util.cpp
+index 889caab08..9a1e15212 100644
+--- a/src/duckdb/third_party/mbedtls/library/platform_util.cpp
++++ b/src/duckdb/third_party/mbedtls/library/platform_util.cpp
+@@ -119,8 +119,15 @@ void mbedtls_platform_zeroize(void *buf, size_t len)
+ #if defined(__clang__) || (__GNUC__ >= 10)
+ #if defined(__clang__)
+ #elif defined(MBEDTLS_COMPILER_IS_GCC)
++#endif
++#if (__GNUC__ >= 10)
++#pragma GCC diagnostic push
++#pragma GCC diagnostic ignored "-Wvla"
+ #endif
+         asm volatile ("" : : "m" (*(char (*)[len]) buf) :);
++#if (__GNUC__ >= 10)
++#pragma GCC diagnostic pop
++#endif
+ #if defined(__clang__)
+ #elif defined(MBEDTLS_COMPILER_IS_GCC)
+ #endif
+-- 
+2.49.0
+
