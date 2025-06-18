@@ -1156,6 +1156,11 @@ HashJoinGlobalSourceState::HashJoinGlobalSourceState(const PhysicalHashJoin &op,
       probe_chunk_done(0), probe_count(op.children[0].get().estimated_cardinality),
       parallel_scan_chunk_count(context.config.verify_parallelism ? 1 : 120), full_outer_chunk_count(0),
       full_outer_chunk_done(0) {
+    // Explicitly initialize all member variables to avoid uninitialized memory errors
+    build_chunk_idx = DConstants::INVALID_INDEX;
+    build_chunks_per_thread = DConstants::INVALID_INDEX;
+    full_outer_chunk_idx = DConstants::INVALID_INDEX;
+    full_outer_chunks_per_thread = DConstants::INVALID_INDEX;
 }
 
 void HashJoinGlobalSourceState::Initialize(HashJoinGlobalSinkState &sink) {
