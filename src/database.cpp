@@ -44,7 +44,6 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 	}
 
 	DBWrapper *wrapper;
-	auto dual = new DBWrapperDual(wrapper);
 
 	try {
 		wrapper = new DBWrapper();
@@ -89,6 +88,8 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 	casts.RegisterCastFunction(RStringsType::Get(), LogicalType::VARCHAR, CastRstringToVarchar);
 
 	context.transaction.Commit();
+
+	auto dual = new DBWrapperDual(wrapper);
 
 	return db_eptr_t(dual);
 }
