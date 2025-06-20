@@ -33,9 +33,7 @@ struct DBWrapper {
 template <class T>
 class DualWrapper {
 public:
-	DualWrapper(T *db) : precious_(db) {
-	}
-	DualWrapper(std::shared_ptr<T> db) : precious_(db) {
+	DualWrapper(duckdb::shared_ptr<T>&& db) : precious_(std::move(db)) {
 	}
 	DualWrapper(DualWrapper *dual) : precious_(dual->get()) {
 		if (!precious_) {
@@ -49,7 +47,7 @@ public:
 		}
 	}
 
-	std::shared_ptr<T> get() const {
+	shared_ptr<T> get() const {
 		if (precious_) {
 			return precious_;
 		} else {
@@ -57,7 +55,7 @@ public:
 		}
 	}
 
-	std::shared_ptr<T> operator->() const {
+	shared_ptr<T> operator->() const {
 		return get();
 	}
 
@@ -85,8 +83,8 @@ public:
 	}
 
 private:
-	std::shared_ptr<T> precious_;
-	std::weak_ptr<T> disposable_;
+	shared_ptr<T> precious_;
+	weak_ptr<T> disposable_;
 };
 
 typedef DualWrapper<DBWrapper> DBWrapperDual;
@@ -95,12 +93,12 @@ typedef cpp11::external_pointer<DBWrapperDual> db_eptr_t;
 
 struct ConnWrapper {
 	ConnWrapper() = delete;
-	ConnWrapper(std::shared_ptr<DBWrapper> db_p, ConvertOpts convert_opts_p)
+	ConnWrapper(shared_ptr<DBWrapper>&& db_p, ConvertOpts convert_opts_p)
 	    : db(std::move(db_p)), convert_opts(std::move(convert_opts_p)) {
 		conn = make_uniq<Connection>(*db->db);
 	}
-	std::shared_ptr<DBWrapper> db;
-	duckdb::unique_ptr<Connection> conn;
+	shared_ptr<DBWrapper> db;
+	unique_ptr<Connection> conn;
 	const ConvertOpts convert_opts;
 };
 
@@ -144,7 +142,7 @@ unique_ptr<TableRef> EnvironmentScanReplacement(ClientContext &context, Replacem
                                                 optional_ptr<ReplacementScanData> data);
 
 struct ReplacementDataDBWrapper : public ReplacementScanData {
-	DBWrapper *wrapper;
+	shared_ptr<DBWrapper> wrapper;
 };
 
 cpp11::strings StringsToSexp(vector<std::string> s);

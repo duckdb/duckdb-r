@@ -43,11 +43,9 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 		}
 	}
 
-	DBWrapper *wrapper;
+	auto wrapper = make_shared_ptr<DBWrapper>();
 
 	try {
-		wrapper = new DBWrapper();
-
 		auto data1 = make_uniq<ReplacementDataDBWrapper>();
 		data1->wrapper = wrapper;
 		config.replacement_scans.emplace_back(ArrowScanReplacement, std::move(data1));
@@ -89,9 +87,9 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 
 	context.transaction.Commit();
 
-	auto dual = new DBWrapperDual(wrapper);
+	auto dual = make_uniq<DBWrapperDual>(std::move(wrapper));
 
-	return db_eptr_t(dual);
+	return db_eptr_t(dual.release());
 }
 
 [[cpp11::register]] bool rapi_lock(duckdb::db_eptr_t dual) {
