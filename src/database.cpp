@@ -43,11 +43,11 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 		}
 	}
 
-	DBWrapper *wrapper;
+	// FIXME: Rewrite properly with shared pointers
+	auto wrapper_ = make_uniq<DBWrapper>();
+	DBWrapper *wrapper = wrapper_.get();
 
 	try {
-		wrapper = new DBWrapper();
-
 		auto data1 = make_uniq<ReplacementDataDBWrapper>();
 		data1->wrapper = wrapper;
 		config.replacement_scans.emplace_back(ArrowScanReplacement, std::move(data1));
@@ -89,7 +89,8 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 
 	context.transaction.Commit();
 
-	auto dual = new DBWrapperDual(wrapper);
+	auto dual = new DBWrapperDual(wrapper_.release());
+	wrapper = nullptr;
 
 	return db_eptr_t(dual);
 }

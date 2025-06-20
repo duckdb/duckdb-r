@@ -28,9 +28,8 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	retlist.reserve(8);
 	retlist.push_back({"str"_nm = query});
 
-	auto stmtholder = new RStatement(std::move(stmt));
+	auto stmtholder = make_uniq<RStatement>(std::move(stmt));
 
-	retlist.push_back({"ref"_nm = stmt_eptr_t(stmtholder)});
 	retlist.push_back({"type"_nm = StatementTypeToString(stmtholder->stmt->GetStatementType())});
 	retlist.push_back({"names"_nm = cpp11::as_sexp(stmtholder->stmt->GetNames())});
 
@@ -47,6 +46,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	retlist.push_back(
 	    {"return_type"_nm = StatementReturnTypeToString(stmtholder->stmt->GetStatementProperties().return_type)});
 	retlist.push_back({"registered_dfs"_nm = registered_dfs});
+	retlist.push_back({"ref"_nm = stmt_eptr_t(stmtholder.release())});
 
 	return retlist;
 }
@@ -267,7 +267,9 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	cpp11::function getNamespace = RStrings::get().getNamespace_sym;
 	cpp11::sexp arrow_namespace(getNamespace(RStrings::get().arrow_str));
 
+	// FIXME: This is a memory leak, need better lifecycle management
 	auto result_stream = new ResultArrowArrayStreamWrapper(std::move(qry_res->result), chunk_size);
+
 	cpp11::sexp stream_ptr_sexp(
 	    Rf_ScalarReal(static_cast<double>(reinterpret_cast<uintptr_t>(&result_stream->stream))));
 	cpp11::sexp record_batch_reader(Rf_lang2(RStrings::get().ImportRecordBatchReader_sym, stream_ptr_sexp));
@@ -294,9 +296,9 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	}
 
 	if (convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED) {
-		auto query_result = new RQueryResult();
+		auto query_result = make_uniq<RQueryResult>();
 		query_result->result = std::move(generic_result);
-		rqry_eptr_t query_resultsexp(query_result);
+		rqry_eptr_t query_resultsexp(query_result.release());
 		return query_resultsexp;
 	} else {
 		D_ASSERT(generic_result->type == QueryResultType::MATERIALIZED_RESULT);
