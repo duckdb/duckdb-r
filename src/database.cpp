@@ -43,21 +43,21 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 		}
 	}
 
-	DBWrapper *wrapper_ = new DBWrapper();
+	DBWrapper *wrapper = new DBWrapper();
 
 	try {
 		auto data1 = make_uniq<ReplacementDataDBWrapper>();
-		data1->wrapper = wrapper_;
+		data1->wrapper = wrapper;
 		config.replacement_scans.emplace_back(ArrowScanReplacement, std::move(data1));
 
 		if (environment_scan) {
 			auto data2 = make_uniq<ReplacementDataDBWrapper>();
-			data2->wrapper = wrapper_;
+			data2->wrapper = wrapper;
 			config.replacement_scans.emplace_back(EnvironmentScanReplacement, std::move(data2));
 		}
-		wrapper_->db = make_uniq<DuckDB>(dbdirchar, &config);
+		wrapper->db = make_uniq<DuckDB>(dbdirchar, &config);
 
-		auto &instance = *wrapper_->db->instance;
+		auto &instance = *wrapper->db->instance;
 		auto &catalog = Catalog::GetSystemCatalog(instance);
 		auto transaction = CatalogTransaction::GetSystemTransaction(instance);
 		auto &schema = catalog.GetSchema(transaction, DEFAULT_SCHEMA);
@@ -73,7 +73,7 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 
 	DataFrameScanFunction scan_fun;
 	CreateTableFunctionInfo info(scan_fun);
-	Connection conn(*wrapper_->db);
+	Connection conn(*wrapper->db);
 	auto &context = *conn.context;
 	auto &catalog = Catalog::GetSystemCatalog(context);
 	context.transaction.BeginTransaction();
@@ -87,7 +87,7 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 
 	context.transaction.Commit();
 
-	auto dual = new DBWrapperDual(wrapper_);
+	auto dual = new DBWrapperDual(wrapper);
 
 	return db_eptr_t(dual);
 }
