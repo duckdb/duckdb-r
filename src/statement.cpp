@@ -28,9 +28,8 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	retlist.reserve(8);
 	retlist.push_back({"str"_nm = query});
 
-	auto stmtholder = new RStatement(std::move(stmt));
+	auto stmtholder = make_uniq<RStatement>(std::move(stmt));
 
-	retlist.push_back({"ref"_nm = stmt_eptr_t(stmtholder)});
 	retlist.push_back({"type"_nm = StatementTypeToString(stmtholder->stmt->GetStatementType())});
 	retlist.push_back({"names"_nm = cpp11::as_sexp(stmtholder->stmt->GetNames())});
 
@@ -47,6 +46,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	retlist.push_back(
 	    {"return_type"_nm = StatementReturnTypeToString(stmtholder->stmt->GetStatementProperties().return_type)});
 	retlist.push_back({"registered_dfs"_nm = registered_dfs});
+	retlist.push_back({"ref"_nm = stmt_eptr_t(stmtholder.release())});
 
 	return retlist;
 }
