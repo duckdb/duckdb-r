@@ -43,11 +43,9 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 		}
 	}
 
-	DBWrapper *wrapper;
+	DBWrapper *wrapper = new DBWrapper();
 
 	try {
-		wrapper = new DBWrapper();
-
 		auto data1 = make_uniq<ReplacementDataDBWrapper>();
 		data1->wrapper = wrapper;
 		config.replacement_scans.emplace_back(ArrowScanReplacement, std::move(data1));
