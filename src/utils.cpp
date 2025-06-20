@@ -328,5 +328,5 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 	if (!db || !db->db) {
 		cpp11::stop("rapi_load_rfuns: Database already closed");
 	}
-	db->db->LoadExtension<RfunsExtension>();
+	db->db->LoadStaticExtension<RfunsExtension>();
 }
