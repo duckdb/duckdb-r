@@ -12,21 +12,24 @@ diff --git a/src/duckdb/third_party/mbedtls/library/constant_time_impl.h b/src/d
 index f63176c16..8d8aa87f0 100644
 --- a/src/duckdb/third_party/mbedtls/library/constant_time_impl.h
 +++ b/src/duckdb/third_party/mbedtls/library/constant_time_impl.h
-@@ -32,8 +32,6 @@
+@@ -32,8 +32,8 @@
   * at the bottom of this file.
   */
  #if defined(MBEDTLS_COMPILER_IS_GCC) && (__GNUC__ > 4)
 -    #pragma GCC diagnostic push
 -    #pragma GCC diagnostic ignored "-Wredundant-decls"
++    #pragma  GCC  diagnostic  push
++    #pragma  GCC  diagnostic  ignored "-Wredundant-decls"
  #endif
  
  /* Disable asm under Memsan because it confuses Memsan and generates false errors.
-@@ -549,8 +547,6 @@ inline mbedtls_ct_condition_t mbedtls_ct_bool_not(mbedtls_ct_condition_t x)
+@@ -549,8 +547,8 @@ inline mbedtls_ct_condition_t mbedtls_ct_bool_not(mbedtls_ct_condition_t x)
  }
  
  #if defined(MBEDTLS_COMPILER_IS_GCC) && (__GNUC__ > 4)
--/* Restore warnings for -Wredundant-decls on gcc */
+ /* Restore warnings for -Wredundant-decls on gcc */
 -    #pragma GCC diagnostic pop
++    #pragma  GCC  diagnostic  pop
  #endif
  
  #endif /* MBEDTLS_CONSTANT_TIME_IMPL_H */
@@ -34,21 +37,27 @@ diff --git a/src/duckdb/third_party/mbedtls/library/platform_util.cpp b/src/duck
 index 19ef07aea..889caab08 100644
 --- a/src/duckdb/third_party/mbedtls/library/platform_util.cpp
 +++ b/src/duckdb/third_party/mbedtls/library/platform_util.cpp
-@@ -118,17 +118,11 @@ void mbedtls_platform_zeroize(void *buf, size_t len)
+@@ -118,17 +118,17 @@ void mbedtls_platform_zeroize(void *buf, size_t len)
           * zero'd memory as an additional protection against being optimised away. */
  #if defined(__clang__) || (__GNUC__ >= 10)
  #if defined(__clang__)
 -#pragma clang diagnostic push
 -#pragma clang diagnostic ignored "-Wvla"
++#pragma  clang  diagnostic  push
++#pragma  clang  diagnostic  ignored "-Wvla"
  #elif defined(MBEDTLS_COMPILER_IS_GCC)
 -#pragma GCC diagnostic push
 -#pragma GCC diagnostic ignored "-Wvla"
++#pragma  GCC  diagnostic  push
++#pragma  GCC  diagnostic  ignored "-Wvla"
  #endif
          asm volatile ("" : : "m" (*(char (*)[len]) buf) :);
  #if defined(__clang__)
 -#pragma clang diagnostic pop
++#pragma  clang  diagnostic  pop
  #elif defined(MBEDTLS_COMPILER_IS_GCC)
 -#pragma GCC diagnostic pop
++#pragma  GCC  diagnostic  pop
  #endif
  #endif
  #endif
