@@ -43,7 +43,9 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 		}
 	}
 
-	DBWrapper *wrapper = new DBWrapper();
+	// FIXME: Rewrite properly with shared pointers
+	auto wrapper_ = make_uniq<DBWrapper>();
+	DBWrapper *wrapper = wrapper_.get();
 
 	try {
 		auto data1 = make_uniq<ReplacementDataDBWrapper>();
@@ -87,7 +89,8 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 
 	context.transaction.Commit();
 
-	auto dual = new DBWrapperDual(wrapper);
+	auto dual = new DBWrapperDual(wrapper_.release());
+	wrapper = nullptr;
 
 	return db_eptr_t(dual);
 }
