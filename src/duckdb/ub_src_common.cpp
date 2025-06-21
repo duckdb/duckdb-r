@@ -16,6 +16,10 @@
 
 #include "src/common/checksum.cpp"
 
+#include "src/common/encryption_functions.cpp"
+
+#include "src/common/encryption_key_manager.cpp"
+
 #include "src/common/encryption_state.cpp"
 
 #include "src/common/exception.cpp"
