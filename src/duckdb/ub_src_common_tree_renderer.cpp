@@ -6,5 +6,7 @@
 
 #include "src/common/tree_renderer/text_tree_renderer.cpp"
 
+#include "src/common/tree_renderer/yaml_tree_renderer.cpp"
+
 #include "src/common/tree_renderer/tree_renderer.cpp"
 
