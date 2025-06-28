@@ -1,5 +1,36 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.3.1.9003
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@24bb8debdf99bbae48829f8b6b31eae15bbe7709 (#1308).
+
+- Update vendored sources to duckdb/duckdb@3cb90b8994d4e4ba3d586d2c4732e0d5d10451b5 (#1307).
+
+- Update vendored sources to duckdb/duckdb@a9c07bab9af3fcea2e75416170d83bb64ebce99d (#1306).
+
+- Update vendored sources to duckdb/duckdb@232fffb672ce02eeece7c8479a7a4af5b7d1a491 (#1305).
+
+- Update vendored sources to duckdb/duckdb@2dd0dc9c888013edff5e1e021bae7856d1246ebe (#1304).
+
+- Update vendored sources to duckdb/duckdb@78092e2226b3b0264873a52e1f8ef7cd01be1d77 (#1303).
+
+- Update vendored sources to duckdb/duckdb@138b7fe2f69cff57738e718ba5481400ebd4431f (#1302).
+
+- Update vendored sources to duckdb/duckdb@78d3ad31a51a7785b2f8f1e1f0d48b47ba708cf8 (#1301).
+
+## Uncategorized
+
+- Merge tag 'v1.3.1'.
+
+- Update to duckdb v1.3.1, see <https://github.com/duckdb/duckdb/releases/tag/v1.3.1> for details.
+
+- Correct dbplyr translations for `str_starts()` and `str_ends()` (#1182, #1247).
+
+- Fix multiarch build on R 4.1 for Windows.
+
+
 # duckdb 1.3.1.9002
 
 ## vendor
