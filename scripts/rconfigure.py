@@ -118,7 +118,8 @@ script_path = os.path.dirname(os.path.abspath(__file__)).replace('\\', '/')
 root_path = os.path.dirname(script_path)
 
 duckdb_sources = [package_build.get_relative_path(os.path.join(root_path, 'src'), x) for x in source_list]
-object_list = ' '.join([x.rsplit('.', 1)[0] + '.o' for x in duckdb_sources])
+object_list = ' '.join([x.rsplit('.', 1)[0] + '.o' for x in sorted(duckdb_sources)])
+
 
 # include list
 include_list = ' '.join(['-I' + 'duckdb/' + x for x in include_list])
