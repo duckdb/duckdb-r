@@ -1,5 +1,18 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.3.1
+
+## Features
+
+- Update to duckdb v1.3.1, see <https://github.com/duckdb/duckdb/releases/tag/v1.3.1> for details.
+
+## Bug fixes
+
+- Correct dbplyr translations for `str_starts()` and `str_ends()` (#1182, #1247).
+
+- Fix multiarch build on R 4.1 for Windows.
+
+
 # duckdb 1.3.0
 
 ## Features

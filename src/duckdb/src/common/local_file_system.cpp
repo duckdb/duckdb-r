@@ -28,9 +28,10 @@
 #include <string>
 
 #ifdef __MINGW32__
+#if DUCKDB_RSTRTMGR == 1
 // need to manually define this for mingw
-extern "C" WINBASEAPI BOOL WINAPI GetPhysicallyInstalledSystemMemory(PULONGLONG);
 extern "C" WINBASEAPI BOOL QueryFullProcessImageNameW(HANDLE, DWORD, LPWSTR, PDWORD);
+#endif
 #endif
 
 #undef FILE_CREATE // woo mingw
@@ -831,6 +832,7 @@ public:
 };
 
 static string AdditionalLockInfo(const std::wstring path) {
+#if DUCKDB_RSTRTMGR == 1
 	// try to find out if another process is holding the lock
 
 	// init of the somewhat obscure "Windows Restart Manager"
@@ -892,6 +894,9 @@ static string AdditionalLockInfo(const std::wstring path) {
 		return string();
 	}
 	return "File is already open in " + conflict_string;
+#else
+	return "";
+#endif // DUCKDB_RSTRTMGR == 1
 }
 
 bool LocalFileSystem::IsPrivateFile(const string &path_p, FileOpener *opener) {

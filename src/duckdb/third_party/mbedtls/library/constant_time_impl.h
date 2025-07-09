@@ -32,6 +32,8 @@
  * at the bottom of this file.
  */
 #if defined(MBEDTLS_COMPILER_IS_GCC) && (__GNUC__ > 4)
+    #pragma  GCC  diagnostic  push
+    #pragma  GCC  diagnostic  ignored "-Wredundant-decls"
 #endif
 
 /* Disable asm under Memsan because it confuses Memsan and generates false errors.
@@ -547,6 +549,8 @@ inline mbedtls_ct_condition_t mbedtls_ct_bool_not(mbedtls_ct_condition_t x)
 }
 
 #if defined(MBEDTLS_COMPILER_IS_GCC) && (__GNUC__ > 4)
+/* Restore warnings for -Wredundant-decls on gcc */
+    #pragma  GCC  diagnostic  pop
 #endif
 
 #endif /* MBEDTLS_CONSTANT_TIME_IMPL_H */
