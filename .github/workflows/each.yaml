@@ -35,10 +35,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Get name of main branch of repository
-          # origin/HEAD isn't known here
-          main=$(git remote show origin | grep 'HEAD branch' | cut -d' ' -f5)
-          commits=$(git log --reverse --pretty=format:"%H" origin/${main}.. --)
+          # Get name of corresponding base branch by stripping the "each-" prefix
+          base_branch=${GITHUB_REF#refs/heads/each-}
+          commits=$(git log --reverse --pretty=format:"%H" origin/${base_branch}.. --)
           echo $commits
 
           # Run workflow for each commit where the status of the rcc workflow isn't "pending" or "success"
