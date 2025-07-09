@@ -2,91 +2,9 @@
 
 # duckdb 1.3.2
 
-## vendor
+## Features
 
-- Update vendored sources to duckdb/duckdb@ce537bfc7b2be51ab64e04f2299a911fac5fc1ac (#1320).
-
-- Update vendored sources to duckdb/duckdb@8a648b4701bcb39ffcd60d140e017a8c7a1b3d64 (#1319).
-
-- Update vendored sources to duckdb/duckdb@6267d4e31b033aaf3125c12bd3514d02dec53720 (#1317).
-
-- Update vendored sources to duckdb/duckdb@8cab422a70dc74ed2943dcf75e9e91721a07e48e (#1315).
-
-- Update vendored sources to duckdb/duckdb@4eccabdcd8a14ab07f7247b6266dc491ed4b807e (#1314).
-
-- Update vendored sources to duckdb/duckdb@2b17cee2dd1d1cc9a4afcff2423090d2c49d1aba (#1313).
-
-- Update vendored sources to duckdb/duckdb@66dd71724a33dd2d263142138e613f2467c66999 (#1312).
-
-- Update vendored sources to duckdb/duckdb@15ef853303e9d77d7950b1830ff6022d8b0115d3 (#1311).
-
-- Update vendored sources to duckdb/duckdb@8147b4391571d7d50609a9666e5d461ae42d513b (#1310).
-
-- Update vendored sources to duckdb/duckdb@24bb8debdf99bbae48829f8b6b31eae15bbe7709 (#1308).
-
-- Update vendored sources to duckdb/duckdb@3cb90b8994d4e4ba3d586d2c4732e0d5d10451b5 (#1307).
-
-- Update vendored sources to duckdb/duckdb@a9c07bab9af3fcea2e75416170d83bb64ebce99d (#1306).
-
-- Update vendored sources to duckdb/duckdb@232fffb672ce02eeece7c8479a7a4af5b7d1a491 (#1305).
-
-- Update vendored sources to duckdb/duckdb@2dd0dc9c888013edff5e1e021bae7856d1246ebe (#1304).
-
-- Update vendored sources to duckdb/duckdb@78092e2226b3b0264873a52e1f8ef7cd01be1d77 (#1303).
-
-- Update vendored sources to duckdb/duckdb@138b7fe2f69cff57738e718ba5481400ebd4431f (#1302).
-
-- Update vendored sources to duckdb/duckdb@78d3ad31a51a7785b2f8f1e1f0d48b47ba708cf8 (#1301).
-
-- Update vendored sources to duckdb/duckdb@f11b826ebeb32c1bc3d6f0d8c7e9a2eaeddc6ffb (#1255).
-
-- Update vendored sources to duckdb/duckdb@e4f6023b219c33382c5be14caa31a08c8ddb7809 (#1253).
-
-- Update vendored sources to duckdb/duckdb@8c40a99d4d1628d2ac8a689554209ddb44a72550 (#1252).
-
-## Uncategorized
-
-- Vendor: Update vendored sources (tag v1.3.2) to duckdb/duckdb@0b83e5d2f68bc02dfefde74b846bd039f078affa.
-
-- Vendor: Update vendored sources to duckdb/duckdb@8e92841aa0e9351e17d4e1988e56df5e459f3b41.
-
-- Vendor: Update vendored sources to duckdb/duckdb@b9b1e449fea13c4d7284302a227f25aae51dd3db.
-
-- Vendor: Update vendored sources to duckdb/duckdb@a4595bc9e2bb3e751f0c0289068fd6ff012748a5.
-
-- Vendor: Update vendored sources to duckdb/duckdb@42f166771fa3f4496c36d2424e3de3e24c3136dc.
-
-- Vendor: Update vendored sources to duckdb/duckdb@bc9bd8f2a18276b7fef5ef7309e282bd12599193.
-
-- Vendor: Update vendored sources to duckdb/duckdb@2afda3aed54946d2ef73bbd86ed939cc30e9db8d.
-
-- Vendor: Update vendored sources to duckdb/duckdb@49247310e79ba3cf39d21bbeccb27ea9b39425e1.
-
-- Vendor: Update vendored sources to duckdb/duckdb@dc5dc2b115e46684d31cdb9790ad4e063c9c2a6d.
-
-- Vendor: Update vendored sources to duckdb/duckdb@59a35ee41f6f1eac678597a16443f5ed0573e0de.
-
-- Vendor: Update vendored sources to duckdb/duckdb@54a010221e2a1a1cec6ce2348023e63a32edcd77.
-
-- Vendor: Update vendored sources to duckdb/duckdb@98066e1a3d9091403400df47560f0fdebb78309e.
-
-- Vendor: Update vendored sources to duckdb/duckdb@f5903393c1d99284a3906fb1997720000000486d.
-
-- Vendor: Update vendored sources to duckdb/duckdb@03a2ddf09ed827ad7a95b43d296dd0dd63b1e462.
-
-- Vendor: Update vendored sources to duckdb/duckdb@64998bd30700e69accfc64644d8396567c859f18.
-
-- Vendor: Update vendored sources to duckdb/duckdb@39c99b288e8ffb3c0fd09407209f6c621847b881.
-
-- Merge tag 'v1.3.1'.
-
-- Update to duckdb v1.3.1, see <https://github.com/duckdb/duckdb/releases/tag/v1.3.1> for details.
-
-- Correct dbplyr translations for `str_starts()` and `str_ends()` (#1182, #1247).
-
-- Fix multiarch build on R 4.1 for Windows.
-
-- Switching to development version.
+- Update to duckdb v1.3.2, see <https://github.com/duckdb/duckdb/releases/tag/v1.3.2> for details.
 
 
 # duckdb 1.3.1
