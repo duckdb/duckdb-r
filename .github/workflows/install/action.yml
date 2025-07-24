@@ -94,7 +94,7 @@ runs:
     - id: get-extra
       run: |
         set -x
-        packages=$( ( grep Config/gha/extra-packages DESCRIPTION || true ) | cut -d " " -f 2)
+        packages=$( ( grep Config/gha/extra-packages DESCRIPTION || true ) | cut -d " " -f 2-)
         echo packages=$packages >> $GITHUB_OUTPUT
       shell: bash
 
