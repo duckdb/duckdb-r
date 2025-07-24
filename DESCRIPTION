@@ -64,7 +64,9 @@ Config/build/compilation-database: false
 Config/build/never-clean: true
 Config/comment/compilation-database: Generate manually with
     pkgload:::generate_db() for faster pkgload::load_all()
-Config/gha/extra-packages: arrow=?ignore-before-r=4.2.0
+Config/gha/extra-packages:
+    arrow=?ignore-before-r=4.2.0,
+    adbcdrivermanager=?ignore-before-r=4.2.0
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2.9000
