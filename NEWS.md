@@ -1,5 +1,20 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.3.2.9009
+
+## Continuous integration
+
+- Ignore all extra-packages.
+
+- Syntax.
+
+- Ignore adbcdrivermanager if it cannot be installed.
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@61cf5c71bd6a2aac2e862ceeb5010d3cf396e709 (#1350).
+
+
 # duckdb 1.3.2.9008
 
 ## vendor
