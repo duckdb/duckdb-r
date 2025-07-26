@@ -1,5 +1,16 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.3.2.9010
+
+## Bug fixes
+
+- Fix compiler error in debug build (@joakimlinde, #1368).
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@4f243e8c1fe894c06efb252d8ae8c64bcf272906 (#1369).
+
+
 # duckdb 1.3.2.9009
 
 ## Continuous integration
