@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.3.2.9011
+
+## Bug fixes
+
+- Fix retrieval of large enums.
+
+
 # duckdb 1.3.2.9010
 
 ## Bug fixes
