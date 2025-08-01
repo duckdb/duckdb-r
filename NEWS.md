@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.3.2.9013
+
+## Continuous integration
+
+- Format with air, check detritus, better handling of `extra-packages` (#1388).
+
+
 # duckdb 1.3.2.9012
 
 ## vendor
