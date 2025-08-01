@@ -68,6 +68,8 @@
 
 #include "src/common/types.cpp"
 
+#include "src/common/varint.cpp"
+
 #include "src/common/virtual_file_system.cpp"
 
 #include "src/common/windows_util.cpp"
