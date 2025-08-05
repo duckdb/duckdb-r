@@ -1,5 +1,16 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.3.2.9015
+
+## Continuous integration
+
+- Cleanup and fix macOS (#1394).
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@67cbce34e13c7b6c9178d13b3886428b3f6f7485 (#1395).
+
+
 # duckdb 1.3.2.9014
 
 ## vendor
