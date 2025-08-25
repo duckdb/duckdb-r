@@ -68,7 +68,7 @@
 
 #include "src/common/types.cpp"
 
-#include "src/common/varint.cpp"
+#include "src/common/bignum.cpp"
 
 #include "src/common/virtual_file_system.cpp"
 

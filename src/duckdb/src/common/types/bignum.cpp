@@ -1,5 +1,5 @@
-#include "duckdb/common/varint.hpp"
-#include "duckdb/common/types/varint.hpp"
+#include "duckdb/common/bignum.hpp"
+#include "duckdb/common/types/bignum.hpp"
 #include "duckdb/common/exception/conversion_exception.hpp"
 #include "duckdb/common/numeric_utils.hpp"
 #include "duckdb/common/typedefs.hpp"
@@ -7,55 +7,55 @@
 
 namespace duckdb {
 
-void Varint::Verify(const varint_t &input) {
+void Bignum::Verify(const bignum_t &input) {
 #ifdef DEBUG
 	// Size must be >= 4
-	idx_t varint_bytes = input.data.GetSize();
-	if (varint_bytes < 4) {
-		throw InternalException("Varint number of bytes is invalid, current number of bytes is %d", varint_bytes);
+	idx_t bignum_bytes = input.data.GetSize();
+	if (bignum_bytes < 4) {
+		throw InternalException("Bignum number of bytes is invalid, current number of bytes is %d", bignum_bytes);
 	}
 	// Bytes in header must quantify the number of data bytes
-	auto varint_ptr = input.data.GetData();
-	bool is_negative = (varint_ptr[0] & 0x80) == 0;
+	auto bignum_ptr = input.data.GetData();
+	bool is_negative = (bignum_ptr[0] & 0x80) == 0;
 	uint32_t number_of_bytes = 0;
-	if (varint_bytes == 4 && is_negative) {
+	if (bignum_bytes == 4 && is_negative) {
 		// There is only one invalid value, which is -0
-		if (varint_ptr[3] == static_cast<char>(0xFF)) {
-			throw InternalException("Varint value -0 is not allowed in the Varint specification.");
+		if (bignum_ptr[3] == static_cast<char>(0xFF)) {
+			throw InternalException("Bignum value -0 is not allowed in the Bignum specification.");
 		}
 	}
 
 	char mask = 0x7F;
 	if (is_negative) {
-		number_of_bytes |= static_cast<uint32_t>(~varint_ptr[0] & mask) << 16 & 0xFF0000;
-		number_of_bytes |= static_cast<uint32_t>(~varint_ptr[1]) << 8 & 0xFF00;
+		number_of_bytes |= static_cast<uint32_t>(~bignum_ptr[0] & mask) << 16 & 0xFF0000;
+		number_of_bytes |= static_cast<uint32_t>(~bignum_ptr[1]) << 8 & 0xFF00;
 		;
-		number_of_bytes |= static_cast<uint32_t>(~varint_ptr[2]) & 0xFF;
+		number_of_bytes |= static_cast<uint32_t>(~bignum_ptr[2]) & 0xFF;
 	} else {
-		number_of_bytes |= static_cast<uint32_t>(varint_ptr[0] & mask) << 16 & 0xFF0000;
-		number_of_bytes |= static_cast<uint32_t>(varint_ptr[1]) << 8 & 0xFF00;
-		number_of_bytes |= static_cast<uint32_t>(varint_ptr[2]) & 0xFF;
+		number_of_bytes |= static_cast<uint32_t>(bignum_ptr[0] & mask) << 16 & 0xFF0000;
+		number_of_bytes |= static_cast<uint32_t>(bignum_ptr[1]) << 8 & 0xFF00;
+		number_of_bytes |= static_cast<uint32_t>(bignum_ptr[2]) & 0xFF;
 	}
-	if (number_of_bytes != varint_bytes - 3) {
-		throw InternalException("The number of bytes set in the Varint header: %d bytes. Does not "
-		                        "match the number of bytes encountered as the varint data: %d bytes.",
-		                        number_of_bytes, varint_bytes - 3);
+	if (number_of_bytes != bignum_bytes - 3) {
+		throw InternalException("The number of bytes set in the Bignum header: %d bytes. Does not "
+		                        "match the number of bytes encountered as the bignum data: %d bytes.",
+		                        number_of_bytes, bignum_bytes - 3);
 	}
 	//  No bytes between 4 and end can be 0, unless total size == 4
-	if (varint_bytes > 4) {
+	if (bignum_bytes > 4) {
 		if (is_negative) {
-			if (static_cast<data_t>(~varint_ptr[3]) == 0) {
-				throw InternalException("Invalid top data bytes set to 0 for VARINT values");
+			if (static_cast<data_t>(~bignum_ptr[3]) == 0) {
+				throw InternalException("Invalid top data bytes set to 0 for BIGNUM values");
 			}
 		} else {
-			if (varint_ptr[3] == 0) {
-				throw InternalException("Invalid top data bytes set to 0 for VARINT values");
+			if (bignum_ptr[3] == 0) {
+				throw InternalException("Invalid top data bytes set to 0 for BIGNUM values");
 			}
 		}
 	}
 #endif
 }
-void Varint::SetHeader(char *blob, uint64_t number_of_bytes, bool is_negative) {
+void Bignum::SetHeader(char *blob, uint64_t number_of_bytes, bool is_negative) {
 	uint32_t header = static_cast<uint32_t>(number_of_bytes);
 	// Set MSBit of 3rd byte
 	header |= 0x00800000;
@@ -70,36 +70,36 @@ void Varint::SetHeader(char *blob, uint64_t number_of_bytes, bool is_negative) {
 }
 
 // Creates a blob representing the value 0
-varint_t Varint::InitializeVarintZero(Vector &result) {
-	uint32_t blob_size = 1 + VARINT_HEADER_SIZE;
+bignum_t Bignum::InitializeBignumZero(Vector &result) {
+	uint32_t blob_size = 1 + BIGNUM_HEADER_SIZE;
 	auto blob = StringVector::EmptyString(result, blob_size);
 	auto writable_blob = blob.GetDataWriteable();
 	SetHeader(writable_blob, 1, false);
 	writable_blob[3] = 0;
 	blob.Finalize();
-	const varint_t result_varint(blob);
-	return result_varint;
+	const bignum_t result_bignum(blob);
+	return result_bignum;
 }
 
-string Varint::InitializeVarintZero() {
-	uint32_t blob_size = 1 + VARINT_HEADER_SIZE;
+string Bignum::InitializeBignumZero() {
+	uint32_t blob_size = 1 + BIGNUM_HEADER_SIZE;
 	string result(blob_size, '0');
 	SetHeader(&result[0], 1, false);
 	result[3] = 0;
 	return result;
 }
 
-int Varint::CharToDigit(char c) {
+int Bignum::CharToDigit(char c) {
 	return c - '0';
 }
 
-char Varint::DigitToChar(int digit) {
+char Bignum::DigitToChar(int digit) {
 	// FIXME: this would be the proper solution:
 	// return UnsafeNumericCast<char>(digit + '0');
 	return static_cast<char>(digit + '0');
 }
 
-bool Varint::VarcharFormatting(const string_t &value, idx_t &start_pos, idx_t &end_pos, bool &is_negative,
+bool Bignum::VarcharFormatting(const string_t &value, idx_t &start_pos, idx_t &end_pos, bool &is_negative,
                                bool &is_zero) {
 	// If it's empty we error
 	if (value.Empty()) {
@@ -162,7 +162,7 @@ bool Varint::VarcharFormatting(const string_t &value, idx_t &start_pos, idx_t &e
 	return true;
 }
 
-void Varint::GetByteArray(vector<uint8_t> &byte_array, bool &is_negative, const string_t &blob) {
+void Bignum::GetByteArray(vector<uint8_t> &byte_array, bool &is_negative, const string_t &blob) {
 	if (blob.GetSize() < 4) {
 		throw InvalidInputException("Invalid blob size.");
 	}
@@ -182,10 +182,10 @@ void Varint::GetByteArray(vector<uint8_t> &byte_array, bool &is_negative, const 
 	}
 }
 
-string Varint::FromByteArray(uint8_t *data, idx_t size, bool is_negative) {
-	string result(VARINT_HEADER_SIZE + size, '0');
+string Bignum::FromByteArray(uint8_t *data, idx_t size, bool is_negative) {
+	string result(BIGNUM_HEADER_SIZE + size, '0');
 	SetHeader(&result[0], size, is_negative);
-	uint8_t *result_data = reinterpret_cast<uint8_t *>(&result[VARINT_HEADER_SIZE]);
+	uint8_t *result_data = reinterpret_cast<uint8_t *>(&result[BIGNUM_HEADER_SIZE]);
 	if (is_negative) {
 		for (idx_t i = 0; i < size; i++) {
 			result_data[i] = ~data[i];
@@ -199,7 +199,7 @@ string Varint::FromByteArray(uint8_t *data, idx_t size, bool is_negative) {
 }
 
 // Following CPython and Knuth (TAOCP, Volume 2 (3rd edn), section 4.4, Method 1b).
-string Varint::VarIntToVarchar(const varint_t &blob) {
+string Bignum::BignumToVarchar(const bignum_t &blob) {
 	string decimal_string;
 	vector<uint8_t> byte_array;
 	bool is_negative;
@@ -253,21 +253,21 @@ string Varint::VarIntToVarchar(const varint_t &blob) {
 	return decimal_string;
 }
 
-string Varint::VarcharToVarInt(const string_t &value) {
+string Bignum::VarcharToBignum(const string_t &value) {
 	idx_t start_pos, end_pos;
 	bool is_negative, is_zero;
 	if (!VarcharFormatting(value, start_pos, end_pos, is_negative, is_zero)) {
-		throw ConversionException("Could not convert string \'%s\' to Varint", value.GetString());
+		throw ConversionException("Could not convert string \'%s\' to Bignum", value.GetString());
 	}
 	if (is_zero) {
 		// Return Value 0
-		return InitializeVarintZero();
+		return InitializeBignumZero();
 	}
 	auto int_value_char = value.GetData();
 	idx_t actual_size = end_pos - start_pos;
 
 	// we initalize result with space for our header
-	string result(VARINT_HEADER_SIZE, '0');
+	string result(BIGNUM_HEADER_SIZE, '0');
 	unsafe_vector<uint64_t> digits;
 
 	// The max number a uint64_t can represent is 18.446.744.073.709.551.615
@@ -311,13 +311,13 @@ string Varint::VarcharToVarInt(const string_t &value) {
 			result.push_back(static_cast<char>(remainder));
 		}
 	}
-	std::reverse(result.begin() + VARINT_HEADER_SIZE, result.end());
-	// Set header after we know the size of the varint
-	SetHeader(&result[0], result.size() - VARINT_HEADER_SIZE, is_negative);
+	std::reverse(result.begin() + BIGNUM_HEADER_SIZE, result.end());
+	// Set header after we know the size of the bignum
+	SetHeader(&result[0], result.size() - BIGNUM_HEADER_SIZE, is_negative);
 	return result;
 }
 
-bool Varint::VarintToDouble(const varint_t &blob, double &result, bool &strict) {
+bool Bignum::BignumToDouble(const bignum_t &blob, double &result, bool &strict) {
 	result = 0;
 
 	if (blob.data.GetSize() < 4) {
@@ -342,7 +342,7 @@ bool Varint::VarintToDouble(const varint_t &blob, double &result, bool &strict) 
 	}
 	if (!std::isfinite(result)) {
 		// We throw an error
-		throw ConversionException("Could not convert varint '%s' to Double", VarIntToVarchar(blob));
+		throw ConversionException("Could not convert bignum '%s' to Double", BignumToVarchar(blob));
 	}
 	return true;
 }

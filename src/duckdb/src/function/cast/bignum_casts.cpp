@@ -1,14 +1,14 @@
 #include "duckdb/function/cast/default_casts.hpp"
 #include "duckdb/common/operator/cast_operators.hpp"
 #include "duckdb/function/cast/vector_cast_helpers.hpp"
-#include "duckdb/common/types/varint.hpp"
+#include "duckdb/common/types/bignum.hpp"
 #include <cmath>
-#include "duckdb/common/varint.hpp"
+#include "duckdb/common/bignum.hpp"
 
 namespace duckdb {
 
 template <class T>
-static varint_t IntToVarInt(Vector &result, T int_value) {
+static bignum_t IntToBignum(Vector &result, T int_value) {
 	// Determine if the number is negative
 	bool is_negative = int_value < 0;
 	// Determine the number of data bytes
@@ -29,13 +29,13 @@ static varint_t IntToVarInt(Vector &result, T int_value) {
 		data_byte_size = static_cast<uint32_t>(std::ceil(std::log2(abs_value) / 8.0));
 	}
 
-	uint32_t blob_size = data_byte_size + Varint::VARINT_HEADER_SIZE;
+	uint32_t blob_size = data_byte_size + Bignum::BIGNUM_HEADER_SIZE;
 	auto blob = StringVector::EmptyString(result, blob_size);
 	auto writable_blob = blob.GetDataWriteable();
-	Varint::SetHeader(writable_blob, data_byte_size, is_negative);
+	Bignum::SetHeader(writable_blob, data_byte_size, is_negative);
 
 	// Add data bytes to the blob, starting off after header bytes
-	idx_t wb_idx = Varint::VARINT_HEADER_SIZE;
+	idx_t wb_idx = Bignum::BIGNUM_HEADER_SIZE;
 	for (int i = static_cast<int>(data_byte_size) - 1; i >= 0; --i) {
 		if (is_negative) {
 			writable_blob[wb_idx++] = static_cast<char>(~(abs_value >> i * 8 & 0xFF));
@@ -44,12 +44,12 @@ static varint_t IntToVarInt(Vector &result, T int_value) {
 		}
 	}
 	blob.Finalize();
-	varint_t result_varint(blob);
-	return result_varint;
+	bignum_t result_bignum(blob);
+	return result_bignum;
 }
 
 template <>
-varint_t HugeintCastToVarInt::Operation(uhugeint_t int_value, Vector &result) {
+bignum_t HugeintCastToBignum::Operation(uhugeint_t int_value, Vector &result) {
 	uint32_t data_byte_size;
 	if (int_value.upper != NumericLimits<uint64_t>::Maximum()) {
 		data_byte_size =
@@ -72,13 +72,13 @@ varint_t HugeintCastToVarInt::Operation(uhugeint_t int_value, Vector &result) {
 	if (data_byte_size == 0) {
 		data_byte_size++;
 	}
-	uint32_t blob_size = data_byte_size + Varint::VARINT_HEADER_SIZE;
+	uint32_t blob_size = data_byte_size + Bignum::BIGNUM_HEADER_SIZE;
 	auto blob = StringVector::EmptyString(result, blob_size);
 	auto writable_blob = blob.GetDataWriteable();
-	Varint::SetHeader(writable_blob, data_byte_size, false);
+	Bignum::SetHeader(writable_blob, data_byte_size, false);
 
 	// Add data bytes to the blob, starting off after header bytes
-	idx_t wb_idx = Varint::VARINT_HEADER_SIZE;
+	idx_t wb_idx = Bignum::BIGNUM_HEADER_SIZE;
 	for (int i = static_cast<int>(upper_byte_size) - 1; i >= 0; --i) {
 		writable_blob[wb_idx++] = static_cast<char>(int_value.upper >> i * 8 & 0xFF);
 	}
@@ -86,12 +86,12 @@ varint_t HugeintCastToVarInt::Operation(uhugeint_t int_value, Vector &result) {
 		writable_blob[wb_idx++] = static_cast<char>(int_value.lower >> i * 8 & 0xFF);
 	}
 	blob.Finalize();
-	varint_t result_varint(blob);
-	return result_varint;
+	bignum_t result_bignum(blob);
+	return result_bignum;
 }
 
 template <>
-varint_t HugeintCastToVarInt::Operation(hugeint_t int_value, Vector &result) {
+bignum_t HugeintCastToBignum::Operation(hugeint_t int_value, Vector &result) {
 	// Determine if the number is negative
 	bool is_negative = int_value.upper >> 63 & 1;
 	if (is_negative) {
@@ -102,8 +102,8 @@ varint_t HugeintCastToVarInt::Operation(hugeint_t int_value, Vector &result) {
 			auto cast_value = Operation<uhugeint_t>(u_int_value, result);
 			// We have to do all the bit flipping.
 			auto writable_value_ptr = cast_value.data.GetDataWriteable();
-			Varint::SetHeader(writable_value_ptr, cast_value.data.GetSize() - Varint::VARINT_HEADER_SIZE, is_negative);
-			for (idx_t i = Varint::VARINT_HEADER_SIZE; i < cast_value.data.GetSize(); i++) {
+			Bignum::SetHeader(writable_value_ptr, cast_value.data.GetSize() - Bignum::BIGNUM_HEADER_SIZE, is_negative);
+			for (idx_t i = Bignum::BIGNUM_HEADER_SIZE; i < cast_value.data.GetSize(); i++) {
 				writable_value_ptr[i] = static_cast<char>(~writable_value_ptr[i]);
 			}
 			cast_value.data.Finalize();
@@ -137,13 +137,13 @@ varint_t HugeintCastToVarInt::Operation(hugeint_t int_value, Vector &result) {
 	if (data_byte_size == 0) {
 		data_byte_size++;
 	}
-	uint32_t blob_size = data_byte_size + Varint::VARINT_HEADER_SIZE;
+	uint32_t blob_size = data_byte_size + Bignum::BIGNUM_HEADER_SIZE;
 	auto blob = StringVector::EmptyString(result, blob_size);
 	auto writable_blob = blob.GetDataWriteable();
-	Varint::SetHeader(writable_blob, data_byte_size, is_negative);
+	Bignum::SetHeader(writable_blob, data_byte_size, is_negative);
 
 	// Add data bytes to the blob, starting off after header bytes
-	idx_t wb_idx = Varint::VARINT_HEADER_SIZE;
+	idx_t wb_idx = Bignum::BIGNUM_HEADER_SIZE;
 	for (int i = static_cast<int>(upper_byte_size) - 1; i >= 0; --i) {
 		if (is_negative) {
 			writable_blob[wb_idx++] = static_cast<char>(~(abs_value_upper >> i * 8 & 0xFF));
@@ -159,18 +159,18 @@ varint_t HugeintCastToVarInt::Operation(hugeint_t int_value, Vector &result) {
 		}
 	}
 	blob.Finalize();
-	varint_t result_varint(blob);
-	return result_varint;
+	bignum_t result_bignum(blob);
+	return result_bignum;
 }
 
-// Varchar to Varint
+// Varchar to Bignum
 template <>
-bool TryCastToVarInt::Operation(string_t input_value, varint_t &result_value, Vector &result,
+bool TryCastToBignum::Operation(string_t input_value, bignum_t &result_value, Vector &result,
                                 CastParameters &parameters) {
-	auto blob_string = Varint::VarcharToVarInt(input_value);
+	auto blob_string = Bignum::VarcharToBignum(input_value);
 
 	uint32_t blob_size = static_cast<uint32_t>(blob_string.size());
-	result_value = varint_t(StringVector::EmptyString(result, blob_size));
+	result_value = bignum_t(StringVector::EmptyString(result, blob_size));
 	auto writable_blob = result_value.data.GetDataWriteable();
 
 	// Write string_blob into blob
@@ -182,7 +182,7 @@ bool TryCastToVarInt::Operation(string_t input_value, varint_t &result_value, Ve
 }
 
 template <class T>
-static bool DoubleToVarInt(T double_value, varint_t &result_value, Vector &result) {
+static bool DoubleToBignum(T double_value, bignum_t &result_value, Vector &result) {
 	// Check if we can cast it
 	if (!std::isfinite(double_value)) {
 		// We can't cast inf -inf nan
@@ -195,7 +195,7 @@ static bool DoubleToVarInt(T double_value, varint_t &result_value, Vector &resul
 
 	if (abs_value == 0) {
 		// Return Value 0
-		result_value = Varint::InitializeVarintZero(result);
+		result_value = Bignum::InitializeBignumZero(result);
 		return true;
 	}
 	vector<char> value;
@@ -211,13 +211,13 @@ static bool DoubleToVarInt(T double_value, varint_t &result_value, Vector &resul
 		}
 	}
 	uint32_t data_byte_size = static_cast<uint32_t>(value.size());
-	uint32_t blob_size = data_byte_size + Varint::VARINT_HEADER_SIZE;
+	uint32_t blob_size = data_byte_size + Bignum::BIGNUM_HEADER_SIZE;
 	result_value.data = StringVector::EmptyString(result, blob_size);
 	auto writable_blob = result_value.data.GetDataWriteable();
-	Varint::SetHeader(writable_blob, data_byte_size, is_negative);
+	Bignum::SetHeader(writable_blob, data_byte_size, is_negative);
 	// Add data bytes to the blob, starting off after header bytes
 	idx_t blob_string_idx = value.size() - 1;
-	for (idx_t i = Varint::VARINT_HEADER_SIZE; i < blob_size; i++) {
+	for (idx_t i = Bignum::BIGNUM_HEADER_SIZE; i < blob_size; i++) {
 		writable_blob[i] = value[blob_string_idx--];
 	}
 	result_value.data.Finalize();
@@ -225,88 +225,88 @@ static bool DoubleToVarInt(T double_value, varint_t &result_value, Vector &resul
 }
 
 template <>
-bool TryCastToVarInt::Operation(double double_value, varint_t &result_value, Vector &result,
+bool TryCastToBignum::Operation(double double_value, bignum_t &result_value, Vector &result,
                                 CastParameters &parameters) {
-	return DoubleToVarInt(double_value, result_value, result);
+	return DoubleToBignum(double_value, result_value, result);
 }
 
 template <>
-bool TryCastToVarInt::Operation(float double_value, varint_t &result_value, Vector &result,
+bool TryCastToBignum::Operation(float double_value, bignum_t &result_value, Vector &result,
                                 CastParameters &parameters) {
-	return DoubleToVarInt(double_value, result_value, result);
+	return DoubleToBignum(double_value, result_value, result);
 }
 
-BoundCastInfo Varint::NumericToVarintCastSwitch(const LogicalType &source) {
+BoundCastInfo Bignum::NumericToBignumCastSwitch(const LogicalType &source) {
 	// now switch on the result type
 	switch (source.id()) {
 	case LogicalTypeId::TINYINT:
-		return BoundCastInfo(&VectorCastHelpers::StringCast<int8_t, IntCastToVarInt, varint_t>);
+		return BoundCastInfo(&VectorCastHelpers::StringCast<int8_t, IntCastToBignum, bignum_t>);
 	case LogicalTypeId::UTINYINT:
-		return BoundCastInfo(&VectorCastHelpers::StringCast<uint8_t, IntCastToVarInt, varint_t>);
+		return BoundCastInfo(&VectorCastHelpers::StringCast<uint8_t, IntCastToBignum, bignum_t>);
 	case LogicalTypeId::SMALLINT:
-		return BoundCastInfo(&VectorCastHelpers::StringCast<int16_t, IntCastToVarInt, varint_t>);
+		return BoundCastInfo(&VectorCastHelpers::StringCast<int16_t, IntCastToBignum, bignum_t>);
 	case LogicalTypeId::USMALLINT:
-		return BoundCastInfo(&VectorCastHelpers::StringCast<uint16_t, IntCastToVarInt, varint_t>);
+		return BoundCastInfo(&VectorCastHelpers::StringCast<uint16_t, IntCastToBignum, bignum_t>);
 	case LogicalTypeId::INTEGER:
-		return BoundCastInfo(&VectorCastHelpers::StringCast<int32_t, IntCastToVarInt, varint_t>);
+		return BoundCastInfo(&VectorCastHelpers::StringCast<int32_t, IntCastToBignum, bignum_t>);
 	case LogicalTypeId::UINTEGER:
-		return BoundCastInfo(&VectorCastHelpers::StringCast<uint32_t, IntCastToVarInt, varint_t>);
+		return BoundCastInfo(&VectorCastHelpers::StringCast<uint32_t, IntCastToBignum, bignum_t>);
 	case LogicalTypeId::BIGINT:
-		return BoundCastInfo(&VectorCastHelpers::StringCast<int64_t, IntCastToVarInt, varint_t>);
+		return BoundCastInfo(&VectorCastHelpers::StringCast<int64_t, IntCastToBignum, bignum_t>);
 	case LogicalTypeId::UBIGINT:
-		return BoundCastInfo(&VectorCastHelpers::StringCast<uint64_t, IntCastToVarInt, varint_t>);
+		return BoundCastInfo(&VectorCastHelpers::StringCast<uint64_t, IntCastToBignum, bignum_t>);
 	case LogicalTypeId::UHUGEINT:
-		return BoundCastInfo(&VectorCastHelpers::StringCast<uhugeint_t, HugeintCastToVarInt, varint_t>);
+		return BoundCastInfo(&VectorCastHelpers::StringCast<uhugeint_t, HugeintCastToBignum, bignum_t>);
 	case LogicalTypeId::FLOAT:
-		return BoundCastInfo(&VectorCastHelpers::TryCastStringLoop<float, varint_t, TryCastToVarInt>);
+		return BoundCastInfo(&VectorCastHelpers::TryCastStringLoop<float, bignum_t, TryCastToBignum>);
 	case LogicalTypeId::DOUBLE:
-		return BoundCastInfo(&VectorCastHelpers::TryCastStringLoop<double, varint_t, TryCastToVarInt>);
+		return BoundCastInfo(&VectorCastHelpers::TryCastStringLoop<double, bignum_t, TryCastToBignum>);
 	case LogicalTypeId::HUGEINT:
-		return BoundCastInfo(&VectorCastHelpers::StringCast<hugeint_t, HugeintCastToVarInt, varint_t>);
+		return BoundCastInfo(&VectorCastHelpers::StringCast<hugeint_t, HugeintCastToBignum, bignum_t>);
 	case LogicalTypeId::DECIMAL:
 	default:
 		return DefaultCasts::TryVectorNullCast;
 	}
 }
 
-BoundCastInfo DefaultCasts::VarintCastSwitch(BindCastInput &input, const LogicalType &source,
+BoundCastInfo DefaultCasts::BignumCastSwitch(BindCastInput &input, const LogicalType &source,
                                              const LogicalType &target) {
-	D_ASSERT(source.id() == LogicalTypeId::VARINT);
+	D_ASSERT(source.id() == LogicalTypeId::BIGNUM);
 	// now switch on the result type
 	switch (target.id()) {
 	case LogicalTypeId::TINYINT:
-		return BoundCastInfo(&VectorCastHelpers::TryCastLoop<varint_t, int8_t, VarintToIntCast>);
+		return BoundCastInfo(&VectorCastHelpers::TryCastLoop<bignum_t, int8_t, BignumToIntCast>);
 	case LogicalTypeId::UTINYINT:
-		return BoundCastInfo(&VectorCastHelpers::TryCastLoop<varint_t, uint8_t, VarintToIntCast>);
+		return BoundCastInfo(&VectorCastHelpers::TryCastLoop<bignum_t, uint8_t, BignumToIntCast>);
 
 	case LogicalTypeId::SMALLINT:
-		return BoundCastInfo(&VectorCastHelpers::TryCastLoop<varint_t, int16_t, VarintToIntCast>);
+		return BoundCastInfo(&VectorCastHelpers::TryCastLoop<bignum_t, int16_t, BignumToIntCast>);
 
 	case LogicalTypeId::USMALLINT:
-		return BoundCastInfo(&VectorCastHelpers::TryCastLoop<varint_t, uint16_t, VarintToIntCast>);
+		return BoundCastInfo(&VectorCastHelpers::TryCastLoop<bignum_t, uint16_t, BignumToIntCast>);
 
 	case LogicalTypeId::INTEGER:
-		return BoundCastInfo(&VectorCastHelpers::TryCastLoop<varint_t, int32_t, VarintToIntCast>);
+		return BoundCastInfo(&VectorCastHelpers::TryCastLoop<bignum_t, int32_t, BignumToIntCast>);
 
 	case LogicalTypeId::UINTEGER:
-		return BoundCastInfo(&VectorCastHelpers::TryCastLoop<varint_t, uint32_t, VarintToIntCast>);
+		return BoundCastInfo(&VectorCastHelpers::TryCastLoop<bignum_t, uint32_t, BignumToIntCast>);
 
 	case LogicalTypeId::BIGINT:
-		return BoundCastInfo(&VectorCastHelpers::TryCastLoop<varint_t, int64_t, VarintToIntCast>);
+		return BoundCastInfo(&VectorCastHelpers::TryCastLoop<bignum_t, int64_t, BignumToIntCast>);
 
 	case LogicalTypeId::UBIGINT:
-		return BoundCastInfo(&VectorCastHelpers::TryCastLoop<varint_t, uint64_t, VarintToIntCast>);
+		return BoundCastInfo(&VectorCastHelpers::TryCastLoop<bignum_t, uint64_t, BignumToIntCast>);
 
 	case LogicalTypeId::HUGEINT:
-		return BoundCastInfo(&VectorCastHelpers::TryCastLoop<varint_t, hugeint_t, VarintToIntCast>);
+		return BoundCastInfo(&VectorCastHelpers::TryCastLoop<bignum_t, hugeint_t, BignumToIntCast>);
 
 	case LogicalTypeId::UHUGEINT:
-		return BoundCastInfo(&VectorCastHelpers::TryCastLoop<varint_t, uhugeint_t, VarintToIntCast>);
+		return BoundCastInfo(&VectorCastHelpers::TryCastLoop<bignum_t, uhugeint_t, BignumToIntCast>);
 
 	case LogicalTypeId::VARCHAR:
-		return BoundCastInfo(&VectorCastHelpers::StringCast<varint_t, VarIntCastToVarchar>);
+		return BoundCastInfo(&VectorCastHelpers::StringCast<bignum_t, BignumCastToVarchar>);
 	case LogicalTypeId::DOUBLE:
-		return BoundCastInfo(&VectorCastHelpers::TryCastLoop<varint_t, double, VarintToDoubleCast>);
+		return BoundCastInfo(&VectorCastHelpers::TryCastLoop<bignum_t, double, BignumToDoubleCast>);
 	default:
 		return TryVectorNullCast;
 	}

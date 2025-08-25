@@ -1,29 +1,29 @@
-#include "duckdb/common/varint.hpp"
-#include "duckdb/common/types/varint.hpp"
+#include "duckdb/common/bignum.hpp"
+#include "duckdb/common/types/bignum.hpp"
 #include <iostream>
 
 namespace duckdb {
 void PrintBits(const char value) {
-	for (int i = 7; i >= 0; --i) {
 #ifndef DUCKDB_DISABLE_PRINT
+	for (int i = 7; i >= 0; --i) {
 		std::cout << ((value >> i) & 1);
-#endif
 	}
+#endif
 }
 
-void varint_t::Print() const {
+void bignum_t::Print() const {
+#ifndef DUCKDB_DISABLE_PRINT
 	auto ptr = data.GetData();
 	auto length = data.GetSize();
-#ifndef DUCKDB_DISABLE_PRINT
 	for (idx_t i = 0; i < length; ++i) {
 		PrintBits(ptr[i]);
 		std::cout << "  ";
 	}
 	std::cout << '\n';
-	#endif
+#endif
 }
 
-void VarintIntermediate::Print() const {
+void BignumIntermediate::Print() const {
 #ifndef DUCKDB_DISABLE_PRINT
 	for (idx_t i = 0; i < size; ++i) {
 		PrintBits(static_cast<char>(data[i]));
@@ -33,19 +33,19 @@ void VarintIntermediate::Print() const {
 #endif
 }
 
-VarintIntermediate::VarintIntermediate(const varint_t &value) {
+BignumIntermediate::BignumIntermediate(const bignum_t &value) {
 	is_negative = (value.data.GetData()[0] & 0x80) == 0;
-	data = reinterpret_cast<data_ptr_t>(value.data.GetDataWriteable() + Varint::VARINT_HEADER_SIZE);
-	size = static_cast<uint32_t>(value.data.GetSize()) - Varint::VARINT_HEADER_SIZE;
+	data = reinterpret_cast<data_ptr_t>(value.data.GetDataWriteable() + Bignum::BIGNUM_HEADER_SIZE);
+	size = static_cast<uint32_t>(value.data.GetSize()) - Bignum::BIGNUM_HEADER_SIZE;
 }
 
-VarintIntermediate::VarintIntermediate(uint8_t *value, idx_t ptr_size) {
+BignumIntermediate::BignumIntermediate(uint8_t *value, idx_t ptr_size) {
 	is_negative = (value[0] & 0x80) == 0;
-	data = value + Varint::VARINT_HEADER_SIZE;
-	size = static_cast<uint32_t>(ptr_size) - Varint::VARINT_HEADER_SIZE;
+	data = value + Bignum::BIGNUM_HEADER_SIZE;
+	size = static_cast<uint32_t>(ptr_size) - Bignum::BIGNUM_HEADER_SIZE;
 }
 
-uint8_t VarintIntermediate::GetAbsoluteByte(int64_t index) const {
+uint8_t BignumIntermediate::GetAbsoluteByte(int64_t index) const {
 	if (index < 0) {
 		// byte-extension
 		return 0;
@@ -53,7 +53,7 @@ uint8_t VarintIntermediate::GetAbsoluteByte(int64_t index) const {
 	return is_negative ? static_cast<uint8_t>(~data[index]) : static_cast<uint8_t>(data[index]);
 }
 
-AbsoluteNumberComparison VarintIntermediate::IsAbsoluteBigger(const VarintIntermediate &rhs) const {
+AbsoluteNumberComparison BignumIntermediate::IsAbsoluteBigger(const BignumIntermediate &rhs) const {
 	idx_t actual_start_pos = GetStartDataPos();
 	idx_t actual_size = size - actual_start_pos;
 
@@ -87,13 +87,13 @@ AbsoluteNumberComparison VarintIntermediate::IsAbsoluteBigger(const VarintInterm
 	return EQUAL;
 }
 
-bool VarintIntermediate::IsMSBSet() const {
+bool BignumIntermediate::IsMSBSet() const {
 	if (is_negative) {
 		return (data[0] & 0x80) == 0;
 	}
 	return (data[0] & 0x80) != 0;
 }
-void VarintIntermediate::Initialize(ArenaAllocator &allocator) {
+void BignumIntermediate::Initialize(ArenaAllocator &allocator) {
 	is_negative = false;
 	size = 1;
 	data = allocator.Allocate(size);
@@ -101,7 +101,7 @@ void VarintIntermediate::Initialize(ArenaAllocator &allocator) {
 	data[0] = 0;
 }
 
-uint32_t VarintIntermediate::GetStartDataPos(data_ptr_t data, idx_t size, bool is_negative) {
+uint32_t BignumIntermediate::GetStartDataPos(data_ptr_t data, idx_t size, bool is_negative) {
 	uint8_t non_initialized = is_negative ? 0xFF : 0x00;
 	uint32_t actual_start = 0;
 	for (idx_t i = 0; i < size; ++i) {
@@ -114,11 +114,11 @@ uint32_t VarintIntermediate::GetStartDataPos(data_ptr_t data, idx_t size, bool i
 	return actual_start;
 }
 
-uint32_t VarintIntermediate::GetStartDataPos() const {
+uint32_t BignumIntermediate::GetStartDataPos() const {
 	return GetStartDataPos(data, size, is_negative);
 }
 
-void VarintIntermediate::Reallocate(ArenaAllocator &allocator, idx_t min_size) {
+void BignumIntermediate::Reallocate(ArenaAllocator &allocator, idx_t min_size) {
 	if (min_size < size) {
 		return;
 	}
@@ -136,7 +136,7 @@ void VarintIntermediate::Reallocate(ArenaAllocator &allocator, idx_t min_size) {
 	size = new_size;
 }
 
-idx_t VarintIntermediate::Trim(data_ptr_t data, uint32_t &size, bool is_negative) {
+idx_t BignumIntermediate::Trim(data_ptr_t data, uint32_t &size, bool is_negative) {
 	auto actual_start = GetStartDataPos(data, size, is_negative);
 	if (actual_start == 0) {
 		return 0;
@@ -153,19 +153,19 @@ idx_t VarintIntermediate::Trim(data_ptr_t data, uint32_t &size, bool is_negative
 	return actual_start;
 }
 
-void VarintIntermediate::Trim() {
+void BignumIntermediate::Trim() {
 	Trim(data, size, is_negative);
 }
 
-bool VarintIntermediate::OverOrUnderflow(data_ptr_t data, idx_t size, bool is_negative) {
-	if (size <= Varint::MAX_DATA_SIZE) {
+bool BignumIntermediate::OverOrUnderflow(data_ptr_t data, idx_t size, bool is_negative) {
+	if (size <= Bignum::MAX_DATA_SIZE) {
 		return false;
 	}
 	// variable that stores a fully unset byte can safely be ignored
 	uint8_t byte_to_compare = is_negative ? 0xFF : 0x00;
-	// we will basically check if any byte has any set bit up to Varint::MAX_DATA_SIZE, if so, that's an under/overflow
+	// we will basically check if any byte has any set bit up to Bignum::MAX_DATA_SIZE, if so, that's an under/overflow
 	idx_t data_pos = 0;
-	for (idx_t i = size; i > Varint::MAX_DATA_SIZE; i--) {
+	for (idx_t i = size; i > Bignum::MAX_DATA_SIZE; i--) {
 		if (data[data_pos++] != byte_to_compare) {
 			return true;
 		}
@@ -173,26 +173,26 @@ bool VarintIntermediate::OverOrUnderflow(data_ptr_t data, idx_t size, bool is_ne
 	return false;
 }
 
-bool VarintIntermediate::OverOrUnderflow() const {
+bool BignumIntermediate::OverOrUnderflow() const {
 	return OverOrUnderflow(data, size, is_negative);
 }
 
-varint_t VarintIntermediate::ToVarint(ArenaAllocator &allocator) {
+bignum_t BignumIntermediate::ToBignum(ArenaAllocator &allocator) {
 	// This must be trimmed before transforming
 	Trim();
-	varint_t result;
-	uint32_t varint_size = Varint::VARINT_HEADER_SIZE + size;
-	auto ptr = reinterpret_cast<char *>(allocator.Allocate(varint_size));
+	bignum_t result;
+	uint32_t bignum_size = Bignum::BIGNUM_HEADER_SIZE + size;
+	auto ptr = reinterpret_cast<char *>(allocator.Allocate(bignum_size));
 	// Set Header
-	Varint::SetHeader(ptr, size, is_negative);
+	Bignum::SetHeader(ptr, size, is_negative);
 	// Copy data
-	memcpy(ptr + Varint::VARINT_HEADER_SIZE, data, size);
-	result.data = string_t(ptr, varint_size);
+	memcpy(ptr + Bignum::BIGNUM_HEADER_SIZE, data, size);
+	result.data = string_t(ptr, bignum_size);
 	return result;
 }
 
-void VarintAddition(data_ptr_t result, int64_t result_end, bool is_target_absolute_bigger,
-                    const VarintIntermediate &lhs, const VarintIntermediate &rhs) {
+void BignumAddition(data_ptr_t result, int64_t result_end, bool is_target_absolute_bigger,
+                    const BignumIntermediate &lhs, const BignumIntermediate &rhs) {
 	bool is_result_negative = is_target_absolute_bigger ? lhs.is_negative : rhs.is_negative;
 
 	int64_t i_target = lhs.size - 1;   // last byte index in target
@@ -237,30 +237,30 @@ void VarintAddition(data_ptr_t result, int64_t result_end, bool is_target_absolu
 	}
 }
 
-string_t VarintIntermediate::Negate(Vector &result_vector) const {
+string_t BignumIntermediate::Negate(Vector &result_vector) const {
 
-	auto target = StringVector::EmptyString(result_vector, size + Varint::VARINT_HEADER_SIZE);
+	auto target = StringVector::EmptyString(result_vector, size + Bignum::BIGNUM_HEADER_SIZE);
 	auto ptr = target.GetDataWriteable();
 
 	if (!is_negative && size == 1 && data[0] == 0x00) {
 		// If we have a zero, we just do a copy
-		Varint::SetHeader(ptr, size, is_negative);
+		Bignum::SetHeader(ptr, size, is_negative);
 		for (idx_t i = 0; i < size; ++i) {
-			ptr[i + Varint::VARINT_HEADER_SIZE] = static_cast<char>(data[i]);
+			ptr[i + Bignum::BIGNUM_HEADER_SIZE] = static_cast<char>(data[i]);
 		}
 	} else {
 		// Otherwise, we set the header with a flip on the signal
-		Varint::SetHeader(ptr, size, !is_negative);
+		Bignum::SetHeader(ptr, size, !is_negative);
 		for (idx_t i = 0; i < size; ++i) {
 			// And flip all the data bits
-			ptr[i + Varint::VARINT_HEADER_SIZE] = static_cast<char>(~data[i]);
+			ptr[i + Bignum::BIGNUM_HEADER_SIZE] = static_cast<char>(~data[i]);
 		}
 	}
 
 	return target;
 }
 
-void VarintIntermediate::NegateInPlace() {
+void BignumIntermediate::NegateInPlace() {
 	if (!is_negative && size == 1 && data[0] == 0x00) {
 		// this is a zero, there is no negation
 		return;
@@ -280,12 +280,12 @@ string ProduceOverUnderFlowError(bool is_result_negative, idx_t actual_start, id
 	} else {
 		error << "Overflow ";
 	}
-	error << "in Varint Operation. A Varint can hold max " << Varint::MAX_DATA_SIZE
-	      << " data bytes. Current varint has " << data_size - actual_start << " bytes.";
+	error << "in Bignum Operation. A Bignum can hold max " << Bignum::MAX_DATA_SIZE
+	      << " data bytes. Current bignum has " << data_size - actual_start << " bytes.";
 	return error.str();
 }
 
-string_t VarintIntermediate::Add(Vector &result_vector, const VarintIntermediate &lhs, const VarintIntermediate &rhs) {
+string_t BignumIntermediate::Add(Vector &result_vector, const BignumIntermediate &lhs, const BignumIntermediate &rhs) {
 	const bool same_sign = lhs.is_negative == rhs.is_negative;
 	const uint32_t actual_size = lhs.size - lhs.GetStartDataPos();
 	const uint32_t actual_rhs_size = rhs.size - rhs.GetStartDataPos();
@@ -297,15 +297,15 @@ string_t VarintIntermediate::Add(Vector &result_vector, const VarintIntermediate
 	if (result_size == 0) {
 		result_size++;
 	}
-	result_size += Varint::VARINT_HEADER_SIZE;
+	result_size += Bignum::BIGNUM_HEADER_SIZE;
 	if (lhs.is_negative != rhs.is_negative) {
 		auto is_absolute_bigger = lhs.IsAbsoluteBigger(rhs);
 		if (is_absolute_bigger == EQUAL) {
 			// We set this value to 0
 			auto target = StringVector::EmptyString(result_vector, result_size);
 			auto target_data = target.GetDataWriteable();
-			Varint::SetHeader(target_data, 1, false);
-			target_data[Varint::VARINT_HEADER_SIZE] = 0;
+			Bignum::SetHeader(target_data, 1, false);
+			target_data[Bignum::BIGNUM_HEADER_SIZE] = 0;
 			return target;
 
 		} else if (is_absolute_bigger == SMALLER) {
@@ -314,24 +314,24 @@ string_t VarintIntermediate::Add(Vector &result_vector, const VarintIntermediate
 	}
 
 	auto target = StringVector::EmptyString(result_vector, result_size);
-	auto result_size_data = result_size - Varint::VARINT_HEADER_SIZE;
+	auto result_size_data = result_size - Bignum::BIGNUM_HEADER_SIZE;
 
 	auto target_data = target.GetDataWriteable();
-	VarintAddition(reinterpret_cast<data_ptr_t>(target_data + Varint::VARINT_HEADER_SIZE), result_size_data,
+	BignumAddition(reinterpret_cast<data_ptr_t>(target_data + Bignum::BIGNUM_HEADER_SIZE), result_size_data,
 	               is_target_absolute_bigger, lhs, rhs);
 	bool is_result_negative = is_target_absolute_bigger ? lhs.is_negative : rhs.is_negative;
-	if (OverOrUnderflow(reinterpret_cast<data_ptr_t>(target_data + Varint::VARINT_HEADER_SIZE), result_size_data,
+	if (OverOrUnderflow(reinterpret_cast<data_ptr_t>(target_data + Bignum::BIGNUM_HEADER_SIZE), result_size_data,
 	                    is_result_negative)) {
-		auto actual_start = GetStartDataPos(reinterpret_cast<data_ptr_t>(target_data + Varint::VARINT_HEADER_SIZE),
+		auto actual_start = GetStartDataPos(reinterpret_cast<data_ptr_t>(target_data + Bignum::BIGNUM_HEADER_SIZE),
 		                                    result_size_data, is_result_negative);
 		throw OutOfRangeException(ProduceOverUnderFlowError(is_result_negative, actual_start, result_size_data));
 	}
-	Trim(reinterpret_cast<data_ptr_t>(target_data + Varint::VARINT_HEADER_SIZE), result_size_data, is_result_negative);
-	Varint::SetHeader(target_data, result_size_data, is_result_negative);
-	target.SetSizeAndFinalize(result_size_data + Varint::VARINT_HEADER_SIZE);
+	Trim(reinterpret_cast<data_ptr_t>(target_data + Bignum::BIGNUM_HEADER_SIZE), result_size_data, is_result_negative);
+	Bignum::SetHeader(target_data, result_size_data, is_result_negative);
+	target.SetSizeAndFinalize(result_size_data + Bignum::BIGNUM_HEADER_SIZE);
 	return target;
 }
-void VarintIntermediate::AddInPlace(ArenaAllocator &allocator, const VarintIntermediate &rhs) {
+void BignumIntermediate::AddInPlace(ArenaAllocator &allocator, const BignumIntermediate &rhs) {
 	const bool same_sign = is_negative == rhs.is_negative;
 	idx_t actual_size = size - GetStartDataPos();
 	idx_t actual_rhs_size = rhs.size - rhs.GetStartDataPos();
@@ -345,7 +345,7 @@ void VarintIntermediate::AddInPlace(ArenaAllocator &allocator, const VarintInter
 		auto is_absolute_bigger = IsAbsoluteBigger(rhs);
 		if (is_absolute_bigger == EQUAL) {
 			// We set this value to 0
-			*this = VarintIntermediate();
+			*this = BignumIntermediate();
 			Initialize(allocator);
 			return;
 		} else if (is_absolute_bigger == SMALLER) {
@@ -354,7 +354,7 @@ void VarintIntermediate::AddInPlace(ArenaAllocator &allocator, const VarintInter
 	}
 
 	bool is_result_negative = is_target_absolute_bigger ? is_negative : rhs.is_negative;
-	VarintAddition(data, size, is_target_absolute_bigger, *this, rhs);
+	BignumAddition(data, size, is_target_absolute_bigger, *this, rhs);
 	if (is_result_negative != is_negative) {
 		is_negative = is_result_negative;
 	}
