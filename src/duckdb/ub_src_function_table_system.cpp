@@ -50,6 +50,8 @@
 
 #include "src/function/table/system/duckdb_views.cpp"
 
+#include "src/function/table/system/logging_utils.cpp"
+
 #include "src/function/table/system/pragma_collations.cpp"
 
 #include "src/function/table/system/pragma_database_size.cpp"

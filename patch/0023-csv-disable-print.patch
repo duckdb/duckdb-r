@@ -1,7 +1,7 @@
-From 4eb5358996358ec8d64c6614846a6ae83d5d66fb Mon Sep 17 00:00:00 2001
+From c36e9dbf119b67991276a256b40b4bf69ac8f4ed Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
-Date: Fri, 16 May 2025 03:50:15 +0200
-Subject: [PATCH] DUCKDB_DISABLE_PRINT
+Date: Wed, 27 Aug 2025 07:52:16 +0200
+Subject: [PATCH] csv-disable-print
 
 ---
  .../duckdb/execution/operator/csv_scanner/csv_state_machine.hpp | 2 ++
@@ -9,7 +9,7 @@ Subject: [PATCH] DUCKDB_DISABLE_PRINT
  2 files changed, 4 insertions(+)
 
 diff --git a/src/duckdb/src/include/duckdb/execution/operator/csv_scanner/csv_state_machine.hpp b/src/duckdb/src/include/duckdb/execution/operator/csv_scanner/csv_state_machine.hpp
-index 71eb1c11e..eca9fec11 100644
+index 45aeaad9b..c7191aa5b 100644
 --- a/src/duckdb/src/include/duckdb/execution/operator/csv_scanner/csv_state_machine.hpp
 +++ b/src/duckdb/src/include/duckdb/execution/operator/csv_scanner/csv_state_machine.hpp
 @@ -129,12 +129,14 @@ public:
@@ -28,24 +28,20 @@ index 71eb1c11e..eca9fec11 100644
  	//! The Transition Array is a Finite State Machine
  	//! It holds the transitions of all states, on all 256 possible different characters
 diff --git a/src/duckdb/src/logging/log_storage.cpp b/src/duckdb/src/logging/log_storage.cpp
-index 625757490..253db8514 100644
+index 3c6845f64..4f83b263c 100644
 --- a/src/duckdb/src/logging/log_storage.cpp
 +++ b/src/duckdb/src/logging/log_storage.cpp
-@@ -37,12 +37,14 @@ StdOutLogStorage::~StdOutLogStorage() {
+@@ -253,8 +253,10 @@ void BufferingLogStorage::UpdateConfigInternal(DatabaseInstance &db, case_insens
+ }
  
- void StdOutLogStorage::WriteLogEntry(timestamp_t timestamp, LogLevel level, const string &log_type,
-                                      const string &log_message, const RegisteredLoggingContext &context) {
+ void StdOutLogStorage::StdOutWriteStream::WriteData(const_data_ptr_t buffer, idx_t write_size) {
 +#ifndef DUCKDB_DISABLE_PRINT
- 	std::cout << StringUtil::Format(
- 	    "[LOG] %s, %s, %s, %s, %s, %s, %s, %s\n", Value::TIMESTAMP(timestamp).ToString(), log_type,
- 	    EnumUtil::ToString(level), log_message, EnumUtil::ToString(context.context.scope),
- 	    context.context.connection_id.IsValid() ? to_string(context.context.connection_id.GetIndex()) : "NULL",
- 	    context.context.transaction_id.IsValid() ? to_string(context.context.transaction_id.GetIndex()) : "NULL",
- 	    context.context.thread_id.IsValid() ? to_string(context.context.thread_id.GetIndex()) : "NULL");
+ 	std::cout.write(const_char_ptr_cast(buffer), NumericCast<int64_t>(write_size));
+ 	std::cout.flush();
 +#endif
  }
  
- void StdOutLogStorage::WriteLogEntries(DataChunk &chunk, const RegisteredLoggingContext &context) {
+ StdOutLogStorage::StdOutLogStorage(DatabaseInstance &db) : CSVLogStorage(db, false, 1) {
 -- 
-2.48.1
+2.50.1
 
