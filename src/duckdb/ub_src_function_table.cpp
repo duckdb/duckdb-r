@@ -4,6 +4,8 @@
 
 #include "src/function/table/checkpoint.cpp"
 
+#include "src/function/table/direct_file_reader.cpp"
+
 #include "src/function/table/glob.cpp"
 
 #include "src/function/table/query_function.cpp"
