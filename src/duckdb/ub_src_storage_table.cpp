@@ -18,6 +18,8 @@
 
 #include "src/storage/table/persistent_table_data.cpp"
 
+#include "src/storage/table/row_id_column_data.cpp"
+
 #include "src/storage/table/row_group.cpp"
 
 #include "src/storage/table/row_group_collection.cpp"
