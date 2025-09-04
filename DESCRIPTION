@@ -67,6 +67,6 @@ Config/comment/compilation-database: Generate manually with
 Config/gha/extra-packages: arrow=?ignore-before-r=4.2.0
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2.9000
+RoxygenNote: 7.3.3.9000
 SystemRequirements: xz (for building from source)
 Biarch: true
