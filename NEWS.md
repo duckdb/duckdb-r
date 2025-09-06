@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.3.2.9020
+
+## Continuous integration
+
+- Use reviewdog for external PRs (#1471).
+
+
 # duckdb 1.3.2.9019
 
 ## Chore
