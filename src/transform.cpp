@@ -301,6 +301,10 @@ static void TransformArrayVector(Vector &src_vec, const SEXP dest, idx_t dest_of
 
 	cpp11::sexp buffer = duckdb_r_allocate(child_type, array_size, name, convert_opts, "TransformArrayVector");
 
+	// Calculate total number of rows in the final matrix from the length of dest
+	// The dest length should be total_rows * array_size
+	idx_t total_rows = Rf_xlength(dest) / array_size;
+
 	// actual loop over rows
 	for (size_t row_idx = 0; row_idx < n; row_idx++) {
 		size_t offset = (row_idx * array_size);
@@ -308,32 +312,38 @@ static void TransformArrayVector(Vector &src_vec, const SEXP dest, idx_t dest_of
 		child_vector.Slice(ArrayVector::GetEntry(src_vec), offset, end);
 		duckdb_r_transform(child_vector, buffer, 0, array_size, convert_opts, name);
 
+		// Calculate destination index for R column-major matrix layout
+		size_t actual_row_idx = dest_offset + row_idx;
+
 		switch (TYPEOF(buffer)) {
 		case LGLSXP:
 			for (size_t i = 0; i < array_size; i++) {
-				LOGICAL(dest)[dest_offset + row_idx + n * i] = LOGICAL(buffer)[i];
+				size_t dest_idx = actual_row_idx + i * total_rows;
+				LOGICAL(dest)[dest_idx] = LOGICAL(buffer)[i];
 			}
 			break;
 		case INTSXP:
 			for (size_t i = 0; i < array_size; i++) {
-				INTEGER(dest)[dest_offset + row_idx + n * i] = INTEGER(buffer)[i];
+				size_t dest_idx = actual_row_idx + i * total_rows;
+				INTEGER(dest)[dest_idx] = INTEGER(buffer)[i];
 			}
 			break;
 		case REALSXP:
 			for (size_t i = 0; i < array_size; i++) {
-				REAL(dest)[dest_offset + row_idx + n * i] = REAL(buffer)[i];
+				size_t dest_idx = actual_row_idx + i * total_rows;
+				REAL(dest)[dest_idx] = REAL(buffer)[i];
 			}
 			break;
 		case STRSXP:
 			for (size_t i = 0; i < array_size; i++) {
-				SEXP str = STRING_ELT(buffer, i);
-				SET_STRING_ELT(dest, dest_offset + row_idx + n * i, str);
+				size_t dest_idx = actual_row_idx + i * total_rows;
+				SET_STRING_ELT(dest, dest_idx, STRING_ELT(buffer, i));
 			}
 			break;
 		case VECSXP:
 			for (size_t i = 0; i < array_size; i++) {
-				SEXP vec = VECTOR_ELT(buffer, i);
-				SET_VECTOR_ELT(dest, dest_offset + row_idx + n * i, vec);
+				size_t dest_idx = actual_row_idx + i * total_rows;
+				SET_VECTOR_ELT(dest, dest_idx, VECTOR_ELT(buffer, i));
 			}
 			break;
 		default:
