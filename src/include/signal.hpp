@@ -10,7 +10,7 @@
 namespace duckdb {
 
 //! ScopedInterruptHandler serves a dual purpose:
-//! 1. Install interrupt handler: Installs a signal handler to catch SIGINT 
+//! 1. Install interrupt handler: Installs a signal handler to catch SIGINT
 //!    and properly interrupt DuckDB operations by calling ClientContext::Interrupt()
 //! 2. Avoid reentrant calls: Ensures only one ScopedInterruptHandler is active at a time,
 //!    preventing deadlocks when operations are called from within signal handlers

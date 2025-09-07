@@ -86,9 +86,9 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	// we only return the result of the last statement to the user, unless one of the previous statements fails
 	for (idx_t i = 0; i + 1 < statements.size(); i++) {
 		auto res = conn->conn->Query(std::move(statements[i]));
-		
+
 		signal_handler.HandleInterrupt();
-		
+
 		if (res->HasError()) {
 			cpp11::stop("rapi_prepare: Failed to execute statement %s\nError: %s", query.c_str(),
 			            res->GetError().c_str());
