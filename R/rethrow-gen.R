@@ -18,6 +18,15 @@ rethrow_rapi_disconnect <- function(conn, call = parent.frame(2)) {
   )
 }
 
+rethrow_rapi_connection_valid <- function(conn, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_connection_valid(conn),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
 rethrow_rapi_startup <- function(dbdir, readonly, configsexp, environment_scan, call = parent.frame(2)) {
   rlang::try_fetch(
     rapi_startup(dbdir, readonly, configsexp, environment_scan),
@@ -534,6 +543,7 @@ rethrow_rapi_load_rfuns <- function(dual, call = parent.frame(2)) {
 rethrow_restore <- function() {
   rethrow_rapi_connect <<- rapi_connect
   rethrow_rapi_disconnect <<- rapi_disconnect
+  rethrow_rapi_connection_valid <<- rapi_connection_valid
   rethrow_rapi_startup <<- rapi_startup
   rethrow_rapi_lock <<- rapi_lock
   rethrow_rapi_unlock <<- rapi_unlock
