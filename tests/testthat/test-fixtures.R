@@ -15,9 +15,9 @@ test_that("local_con() creates and cleans up connection", {
   # Call the function that uses local_con()
   con <- test_connection()
   
-  # After the function exits, connection should still be valid 
-  # (because withr::defer_parent defers to this test function's exit)
-  expect_true(dbIsValid(con))
+  # After the function exits, connection should be disconnected 
+  # (because withr::defer_parent defers to the immediate parent function's exit)
+  expect_false(dbIsValid(con))
 })
 
 test_that("local_con() accepts duckdb() arguments", {

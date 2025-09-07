@@ -18,8 +18,8 @@
 #'   # It will be automatically disconnected when the test exits
 #' })
 #' }
-local_con <- function(...) {
-  con <- dbConnect(duckdb(), ...)
+local_con <- function(..., drv = duckdb()) {
+  con <- dbConnect(drv, ...)
   withr::defer_parent(dbDisconnect(con, shutdown = TRUE))
   con
 }

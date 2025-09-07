@@ -29,6 +29,7 @@ test_that("Parquet files can be registered with dplyr::tbl()", {
 test_that("Parquet files can be registered with tbl_file() and tbl_function()", {
   skip_if_not_installed("dbplyr")
 
+  con <- local_con()
 
   tab0 <- tbl_file(con, "data/userdata1.parquet")
   expect_true(inherits(tab0, "tbl_duckdb_connection"))
@@ -132,6 +133,7 @@ test_that("Other replacement scans or functions can be registered with dplyr::tb
 test_that("Other replacement scans or functions can be registered with tbl_function()", {
   skip_if_not_installed("dbplyr")
 
+  con <- local_con()
 
   obj <- tbl_function(con, "duckdb_keywords()")
   expect_true(inherits(obj, "tbl_duckdb_connection"))
@@ -142,6 +144,7 @@ test_that("Other replacement scans or functions can be registered with tbl_funct
 test_that("Strings tagged as SQL will be handled correctly with dplyr::tbl()", {
   skip_if_not_installed("dbplyr")
 
+  con <- local_con()
 
   rs <- dplyr::tbl(con, dplyr::sql("SELECT 1"))
   expect_true(inherits(rs, "tbl_duckdb_connection"))

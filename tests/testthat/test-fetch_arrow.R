@@ -97,8 +97,6 @@ test_that("duckdb_fetch_arrow() record_batch_reader multiple vectors per chunk",
   expect_equal(904, cur_batch$num_rows)
 
   record_batch_reader$read_next_batch()
-
-  dbDisconnect(con, shutdown = T)
 })
 
 test_that("record_batch_reader and table error", {
@@ -108,8 +106,6 @@ test_that("record_batch_reader and table error", {
   res <- dbSendQuery(con, "SELECT * FROM t", arrow = TRUE)
   expect_error(duckdb_fetch_record_batch(res, 0))
   expect_error(duckdb_fetch_arrow(dbSendQuery(con, "SELECT * FROM test", arrow = TRUE), 0))
-
-  dbDisconnect(con, shutdown = T)
 })
 
 
@@ -123,8 +119,6 @@ test_that("duckdb_fetch_arrow() record_batch_reader defaultparamenter", {
   expect_equal(5000, cur_batch$num_rows)
 
   record_batch_reader$read_next_batch()
-
-  dbDisconnect(con, shutdown = T)
 })
 
 test_that("duckdb_fetch_arrow() record_batch_reader Read Table", {
