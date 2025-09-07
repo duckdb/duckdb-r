@@ -404,7 +404,7 @@ size_t DoubleToSize(double d) {
 	return (size_t)d;
 }
 
-[[cpp11::register]] SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel, double n_rows, double n_cells, duckdb::ConvertOpts convert_opts) {
+[[cpp11::register]] SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel, double n_rows, double n_cells) {
 	D_ASSERT(rel && rel->rel);
 	auto drel = rel->rel;
 	auto ncols = drel->Columns().size();
@@ -428,7 +428,8 @@ size_t DoubleToSize(double d) {
 		R_SetExternalPtrTag(ptr, RStrings::get().duckdb_vector_sym);
 
 		cpp11::sexp vector_sexp = R_new_altrep(LogicalTypeToAltrepType(col_type, col_name), ptr, R_NilValue);
-		duckdb_r_decorate(col_type, vector_sexp, convert_opts);
+
+		duckdb_r_decorate(col_type, vector_sexp, rel->convert_opts);
 
 		// Special case: Only STRUCTs have a redundant row names attribute
 		// Moving this logic into duckdb_r_decorate() would add too much noise elsewhere
@@ -514,7 +515,8 @@ shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool 
 		return wrapper->rel_eptr;
 	}
 
-	return make_external<RelationWrapper>("duckdb_relation", make_shared_ptr<duckdb::AltrepDataFrameRelation>(wrapper->rel, df, wrapper));
+	auto out = make_shared_ptr<duckdb::AltrepDataFrameRelation>(wrapper->rel, df, wrapper);
+	return make_external<RelationWrapper>("duckdb_relation", out, wrapper->rel_eptr->convert_opts);
 }
 
 // exception required as long as r-lib/decor#6 remains

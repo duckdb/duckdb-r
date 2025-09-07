@@ -553,29 +553,19 @@ rel_set_alias <- function(rel, alias) {
 #' print(rel_to_altrep(rel))
 rel_to_altrep <- function(
   rel,
-  ...,
   allow_materialization = TRUE,
   n_rows = Inf,
   n_cells = Inf,
-  con = NULL
+  ...
 ) {
+  # FIXME: Move dots after `rel` for duckplyr >= 1.1.0
   if (...length() > 0) {
     stop("... must be empty")
   }
   if (!isTRUE(allow_materialization)) {
     n_cells <- 0
   }
-  if (is.null(con)) {
-    convert_opts <- NULL
-  } else {
-    convert_opts <- con@convert_opts
-  }
-  rethrow_rapi_rel_to_altrep(
-    rel,
-    n_rows = n_rows,
-    n_cells = n_cells,
-    convert_opts = convert_opts
-  )
+  rethrow_rapi_rel_to_altrep(rel, n_rows = n_rows, n_cells = n_cells)
 }
 
 

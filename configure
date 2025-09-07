@@ -4,6 +4,11 @@ set -ex
 
 cd "$(dirname "$0")/src"
 
+# Not used on Linux, for completeness.
+echo DUCKDB_RSTRTMGR=1 > Makevars.rstrtmgr
+echo DUCKDB_RSTRTMGR_LIB= >> Makevars.rstrtmgr
+
+
 # The purpose of this is to avoid rebuilding duckdb in every CI/CD run.
 # We set the DUCKDB_R_PREBUILT_ARCHIVE environment variable to a file path
 # that contains a .tar of all object files.

@@ -69,8 +69,13 @@ inline uint8_t StringCompress(const string_t &input) {
 
 template <class RESULT_TYPE>
 static void StringCompressFunction(DataChunk &args, ExpressionState &state, Vector &result) {
-	UnaryExecutor::Execute<string_t, RESULT_TYPE>(args.data[0], result, args.size(), StringCompress<RESULT_TYPE>,
-	                                              FunctionErrors::CANNOT_ERROR);
+	UnaryExecutor::Execute<string_t, RESULT_TYPE>(
+	    args.data[0], result, args.size(), StringCompress<RESULT_TYPE>,
+#if defined(D_ASSERT_IS_ENABLED)
+	    FunctionErrors::CAN_THROW_RUNTIME_ERROR); // Can only throw a runtime error when assertions are enabled
+#else
+	    FunctionErrors::CANNOT_ERROR);
+#endif
 }
 
 template <class RESULT_TYPE>
@@ -88,7 +93,10 @@ static scalar_function_t GetStringCompressFunctionSwitch(const LogicalType &resu
 		return GetStringCompressFunction<uint32_t>(result_type);
 	case LogicalTypeId::UBIGINT:
 		return GetStringCompressFunction<uint64_t>(result_type);
+	case LogicalTypeId::UHUGEINT:
+		return GetStringCompressFunction<uhugeint_t>(result_type);
 	case LogicalTypeId::HUGEINT:
+		// Never generated, only for backwards compatibility
 		return GetStringCompressFunction<hugeint_t>(result_type);
 	default:
 		throw InternalException("Unexpected type in GetStringCompressFunctionSwitch");
@@ -184,8 +192,8 @@ static scalar_function_t GetStringDecompressFunctionSwitch(const LogicalType &in
 		return GetStringDecompressFunction<uint32_t>(input_type);
 	case LogicalTypeId::UBIGINT:
 		return GetStringDecompressFunction<uint64_t>(input_type);
-	case LogicalTypeId::HUGEINT:
-		return GetStringDecompressFunction<hugeint_t>(input_type);
+	case LogicalTypeId::UHUGEINT:
+		return GetStringDecompressFunction<uhugeint_t>(input_type);
 	default:
 		throw InternalException("Unexpected type in GetStringDecompressFunctionSwitch");
 	}
@@ -258,7 +266,12 @@ ScalarFunction InternalCompressStringUbigintFun::GetFunction() {
 }
 
 ScalarFunction InternalCompressStringHugeintFun::GetFunction() {
+	// We never generate this, but it's needed for backwards compatibility
 	return CMStringCompressFun::GetFunction(LogicalType(LogicalTypeId::HUGEINT));
+}
+
+ScalarFunction InternalCompressStringUhugeintFun::GetFunction() {
+	return CMStringCompressFun::GetFunction(LogicalType(LogicalTypeId::UHUGEINT));
 }
 
 ScalarFunctionSet InternalDecompressStringFun::GetFunctions() {

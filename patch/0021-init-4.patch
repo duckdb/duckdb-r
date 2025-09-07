@@ -1,0 +1,26 @@
+From 50b312fcea89e1186d0792d22b4249e586515f5f Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Fri, 20 Jun 2025 15:16:06 +0200
+Subject: [PATCH 21/21] init-4
+
+---
+ src/duckdb/src/execution/operator/join/physical_hash_join.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/duckdb/src/execution/operator/join/physical_hash_join.cpp b/src/duckdb/src/execution/operator/join/physical_hash_join.cpp
+index 0ddd7b4f4..5e223ef95 100644
+--- a/src/duckdb/src/execution/operator/join/physical_hash_join.cpp
++++ b/src/duckdb/src/execution/operator/join/physical_hash_join.cpp
+@@ -1154,7 +1154,8 @@ unique_ptr<LocalSourceState> PhysicalHashJoin::GetLocalSourceState(ExecutionCont
+ HashJoinGlobalSourceState::HashJoinGlobalSourceState(const PhysicalHashJoin &op, const ClientContext &context)
+     : op(op), global_stage(HashJoinSourceStage::INIT), build_chunk_count(0), build_chunk_done(0), probe_chunk_count(0),
+       probe_chunk_done(0), probe_count(op.children[0].get().estimated_cardinality),
+-      parallel_scan_chunk_count(context.config.verify_parallelism ? 1 : 120) {
++      parallel_scan_chunk_count(context.config.verify_parallelism ? 1 : 120), full_outer_chunk_count(0),
++      full_outer_chunk_done(0) {
+ }
+ 
+ void HashJoinGlobalSourceState::Initialize(HashJoinGlobalSinkState &sink) {
+-- 
+2.49.0
+

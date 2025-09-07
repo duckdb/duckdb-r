@@ -103,6 +103,7 @@ void Optimizer::RunBuiltInOptimizers() {
 	case LogicalOperatorType::LOGICAL_TRANSACTION:
 	case LogicalOperatorType::LOGICAL_PRAGMA:
 	case LogicalOperatorType::LOGICAL_SET:
+	case LogicalOperatorType::LOGICAL_ATTACH:
 	case LogicalOperatorType::LOGICAL_UPDATE_EXTENSIONS:
 	case LogicalOperatorType::LOGICAL_CREATE_SECRET:
 	case LogicalOperatorType::LOGICAL_EXTENSION_OPERATOR:
@@ -118,7 +119,7 @@ void Optimizer::RunBuiltInOptimizers() {
 	// this does not change the logical plan structure, but only simplifies the expression trees
 	RunOptimizer(OptimizerType::EXPRESSION_REWRITER, [&]() { rewriter.VisitOperator(*plan); });
 
-	// transform ORDER BY + LIMIT to TopN
+	// Rewrites SUM(x + C) into SUM(x) + C * COUNT(x)
 	RunOptimizer(OptimizerType::SUM_REWRITER, [&]() {
 		SumRewriterOptimizer optimizer(*this);
 		optimizer.Optimize(plan);
@@ -224,7 +225,7 @@ void Optimizer::RunBuiltInOptimizers() {
 
 	// transform ORDER BY + LIMIT to TopN
 	RunOptimizer(OptimizerType::TOP_N, [&]() {
-		TopN topn;
+		TopN topn(context);
 		plan = topn.Optimize(std::move(plan));
 	});
 

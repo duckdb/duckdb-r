@@ -63,7 +63,7 @@ static void SetDefaultConfigArguments(ClientContext &context) {
 		cpp11::stop("rapi_connect: Database already closed");
 	}
 
-	auto conn_wrapper = new ConnWrapper(std::move(db), std::move(convert_opts));
+	auto conn_wrapper = make_uniq<ConnWrapper>(std::move(db), std::move(convert_opts));
 
 	// Set progress display config
 	auto &client_context = *conn_wrapper->conn->context;
@@ -75,7 +75,7 @@ static void SetDefaultConfigArguments(ClientContext &context) {
 	// as long as at least one connection to that database is open.
 	dual->unlock();
 
-	return conn_eptr_t(conn_wrapper);
+	return conn_eptr_t(conn_wrapper.release());
 }
 
 [[cpp11::register]] void rapi_disconnect(duckdb::conn_eptr_t conn) {

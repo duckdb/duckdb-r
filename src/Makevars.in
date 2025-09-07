@@ -12,6 +12,8 @@ all: symbols.rds $(SHLIB)
 include include/glue.mk
 include include/sources.mk
 
+include Makevars.rstrtmgr
+
 # This file is available only during development.
 # For the tarball, we create an empty file.
 include/deps.mk:
@@ -29,6 +31,6 @@ Makevars.duckdb:
 include Makevars.duckdb
 
 CXX_STD = CXX17
-PKG_CPPFLAGS = -Iinclude -I../inst/include -DDUCKDB_DISABLE_PRINT -DDUCKDB_R_BUILD -DBROTLI_ENCODER_CLEANUP_ON_OOM -DDUCKDB_EXTENSION_AUTOLOAD_DEFAULT {{ INCLUDES }}
+PKG_CPPFLAGS = -Iinclude -I../inst/include -DDUCKDB_DISABLE_PRINT -DDUCKDB_R_BUILD -DBROTLI_ENCODER_CLEANUP_ON_OOM -DDUCKDB_EXTENSION_AUTOLOAD_DEFAULT -DDUCKDB_RSTRTMGR=$(DUCKDB_RSTRTMGR) {{ INCLUDES }}
 OBJECTS=$(GLUE) $(SOURCES)
 PKG_LIBS={{ LINK_FLAGS }}

@@ -132,17 +132,12 @@ test_that("POSIXct with local time zone", {
 
   df1 <- data.frame(a = structure(1745781814.84963, class = c("POSIXct", "POSIXt")))
   rel <- rel_from_df(con, df1)
-  expect_equal(rel_to_altrep(rel, con = con), df1)
-
-  # Without con = con, different pattern than elsewhere
-  df2 <- data.frame(a = structure(1745781814.84963, class = c("POSIXct", "POSIXt"), tzone = "UTC"))
-  rel <- rel_from_df(con, df1, strict = FALSE)
-  expect_equal(rel_to_altrep(rel), df2)
+  expect_equal(rel_to_altrep(rel), df1)
 
   # With extra class
   df2 <- data.frame(a = structure(1745781814.84963, class = c("foo", "POSIXct", "POSIXt")))
   rel <- rel_from_df(con, df2, strict = FALSE)
-  expect_equal(rel_to_altrep(rel, con = con), df1)
+  expect_equal(rel_to_altrep(rel), df1)
 
   expect_error(rel_from_df(con, df2), "convert")
 })
@@ -153,17 +148,12 @@ test_that("POSIXct with local time zone and existing but empty attribute", {
 
   df1 <- data.frame(a = structure(1745781814.84963, class = c("POSIXct", "POSIXt"), tzone = ""))
   rel <- rel_from_df(con, df1)
-  expect_equal(rel_to_altrep(rel, con = con), df1)
-
-  # Without con = con, different pattern than elsewhere
-  df2 <- data.frame(a = structure(1745781814.84963, class = c("POSIXct", "POSIXt"), tzone = "UTC"))
-  rel <- rel_from_df(con, df1, strict = FALSE)
-  expect_equal(rel_to_altrep(rel), df2)
+  expect_equal(rel_to_altrep(rel), df1)
 
   # With extra class
   df2 <- data.frame(a = structure(1745781814.84963, class = c("foo", "POSIXct", "POSIXt"), tzone = ""))
   rel <- rel_from_df(con, df2, strict = FALSE)
-  expect_equal(rel_to_altrep(rel, con = con), df1)
+  expect_equal(rel_to_altrep(rel), df1)
 
   expect_error(rel_from_df(con, df2), "convert")
 })

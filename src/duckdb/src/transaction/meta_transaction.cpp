@@ -3,13 +3,16 @@
 #include "duckdb/common/exception/transaction_exception.hpp"
 #include "duckdb/main/attached_database.hpp"
 #include "duckdb/main/client_context.hpp"
+#include "duckdb/main/database.hpp"
 #include "duckdb/transaction/transaction_manager.hpp"
 
 namespace duckdb {
 
-MetaTransaction::MetaTransaction(ClientContext &context_p, timestamp_t start_timestamp_p)
-    : context(context_p), start_timestamp(start_timestamp_p), active_query(MAXIMUM_QUERY_ID),
-      modified_database(nullptr), is_read_only(false) {
+MetaTransaction::MetaTransaction(ClientContext &context_p, timestamp_t start_timestamp_p,
+                                 transaction_t transaction_id_p)
+    : context(context_p), start_timestamp(start_timestamp_p), global_transaction_id(transaction_id_p),
+      transaction_validity(*context_p.db), active_query(MAXIMUM_QUERY_ID), modified_database(nullptr),
+      is_read_only(false) {
 }
 
 MetaTransaction &MetaTransaction::Get(ClientContext &context) {
@@ -61,6 +64,7 @@ Transaction &MetaTransaction::GetTransaction(AttachedDatabase &db) {
 #endif
 		all_transactions.push_back(db);
 		transactions.insert(make_pair(reference<AttachedDatabase>(db), reference<Transaction>(new_transaction)));
+		referenced_databases.insert(make_pair(reference<AttachedDatabase>(db), db.shared_from_this()));
 
 		return new_transaction;
 	} else {
@@ -112,34 +116,48 @@ ErrorData MetaTransaction::Commit() {
 		if (entry == transactions.end()) {
 			throw InternalException("Could not find transaction corresponding to database in MetaTransaction");
 		}
+
 #ifdef DEBUG
 		auto already_committed = committed_tx.insert(db).second == false;
 		if (already_committed) {
 			throw InternalException("All databases inside all_transactions should be unique, invariant broken!");
 		}
 #endif
+
 		auto &transaction_manager = db.GetTransactionManager();
 		auto &transaction = entry->second.get();
-		if (!error.HasError()) {
-			// commit
-			error = transaction_manager.CommitTransaction(context, transaction);
-		} else {
-			// we have encountered an error previously - roll back subsequent entries
-			transaction_manager.RollbackTransaction(transaction);
+		try {
+			if (!error.HasError()) {
+				// Commit the transaction.
+				error = transaction_manager.CommitTransaction(context, transaction);
+			} else {
+				// Rollback due to previous error.
+				transaction_manager.RollbackTransaction(transaction);
+			}
+		} catch (std::exception &ex) {
+			error.Merge(ErrorData(ex));
 		}
 	}
 	return error;
 }
 
 void MetaTransaction::Rollback() {
-	// rollback transactions in reverse order
+	// Rollback all transactions in reverse order.
+	ErrorData error;
 	for (idx_t i = all_transactions.size(); i > 0; i--) {
 		auto &db = all_transactions[i - 1].get();
 		auto &transaction_manager = db.GetTransactionManager();
 		auto entry = transactions.find(db);
 		D_ASSERT(entry != transactions.end());
-		auto &transaction = entry->second.get();
-		transaction_manager.RollbackTransaction(transaction);
+		try {
+			auto &transaction = entry->second.get();
+			transaction_manager.RollbackTransaction(transaction);
+		} catch (std::exception &ex) {
+			error.Merge(ErrorData(ex));
+		}
+	}
+	if (error.HasError()) {
+		error.Throw();
 	}
 }
 
@@ -152,6 +170,15 @@ void MetaTransaction::SetActiveQuery(transaction_t query_number) {
 	for (auto &entry : transactions) {
 		entry.second.get().active_query = query_number;
 	}
+}
+
+AttachedDatabase &MetaTransaction::UseDatabase(shared_ptr<AttachedDatabase> &database) {
+	auto &db_ref = *database;
+	auto entry = referenced_databases.find(db_ref);
+	if (entry == referenced_databases.end()) {
+		referenced_databases.emplace(reference<AttachedDatabase>(db_ref), database);
+	}
+	return db_ref;
 }
 
 void MetaTransaction::ModifyDatabase(AttachedDatabase &db) {

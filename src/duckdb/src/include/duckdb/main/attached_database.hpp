@@ -32,6 +32,14 @@ enum class AttachedDatabaseType {
 	TEMP_DATABASE,
 };
 
+struct StoredDatabasePath {
+	StoredDatabasePath(DatabaseManager &manager, string path, const string &name);
+	~StoredDatabasePath();
+
+	DatabaseManager &manager;
+	string path;
+};
+
 //! AttachOptions holds information about a database we plan to attach. These options are generalized, i.e.,
 //! they have to apply to any database file type (duckdb, sqlite, etc.).
 struct AttachOptions {
@@ -51,20 +59,20 @@ struct AttachOptions {
 };
 
 //! The AttachedDatabase represents an attached database instance.
-class AttachedDatabase : public CatalogEntry {
+class AttachedDatabase : public CatalogEntry, public enable_shared_from_this<AttachedDatabase> {
 public:
 	//! Create the built-in system database (without storage).
 	explicit AttachedDatabase(DatabaseInstance &db, AttachedDatabaseType type = AttachedDatabaseType::SYSTEM_DATABASE);
 	//! Create an attached database instance with the specified name and storage.
-	AttachedDatabase(DatabaseInstance &db, Catalog &catalog, string name, string file_path,
-	                 const AttachOptions &options);
+	AttachedDatabase(DatabaseInstance &db, Catalog &catalog, string name, string file_path, AttachOptions &options);
 	//! Create an attached database instance with the specified storage extension.
 	AttachedDatabase(DatabaseInstance &db, Catalog &catalog, StorageExtension &ext, ClientContext &context, string name,
-	                 const AttachInfo &info, const AttachOptions &options);
+	                 AttachInfo &info, AttachOptions &options);
 	~AttachedDatabase() override;
 
 	//! Initializes the catalog and storage of the attached database.
-	void Initialize(StorageOptions options = StorageOptions());
+	void Initialize(optional_ptr<ClientContext> context = nullptr, StorageOptions options = StorageOptions());
+	void FinalizeLoad(optional_ptr<ClientContext> context);
 	void Close();
 
 	Catalog &ParentCatalog() override;
@@ -89,12 +97,17 @@ public:
 	bool IsInitialDatabase() const;
 	void SetInitialDatabase();
 	void SetReadOnlyDatabase();
+	void OnDetach(ClientContext &context);
 
 	static bool NameIsReserved(const string &name);
 	static string ExtractDatabaseName(const string &dbpath, FileSystem &fs);
 
 private:
+	void InsertDatabasePath(const string &path);
+
+private:
 	DatabaseInstance &db;
+	unique_ptr<StoredDatabasePath> stored_database_path;
 	unique_ptr<StorageManager> storage;
 	unique_ptr<Catalog> catalog;
 	unique_ptr<TransactionManager> transaction_manager;

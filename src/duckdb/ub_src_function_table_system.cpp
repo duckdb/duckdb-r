@@ -8,6 +8,8 @@
 
 #include "src/function/table/system/duckdb_extensions.cpp"
 
+#include "src/function/table/system/duckdb_external_file_cache.cpp"
+
 #include "src/function/table/system/duckdb_functions.cpp"
 
 #include "src/function/table/system/duckdb_keywords.cpp"
@@ -25,6 +27,8 @@
 #include "src/function/table/system/duckdb_schemas.cpp"
 
 #include "src/function/table/system/duckdb_secrets.cpp"
+
+#include "src/function/table/system/duckdb_prepared_statements.cpp"
 
 #include "src/function/table/system/duckdb_which_secret.cpp"
 

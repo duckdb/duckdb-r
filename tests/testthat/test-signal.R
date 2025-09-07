@@ -3,6 +3,7 @@ test_that("long-running queries can be cancelled", {
   # Skip on Windows for R < 4.4, the signal doesn't seem to make it through
   # (but works for the toy repository)
   skip_if(getRversion() < "4.4.0" && .Platform$OS.type == "windows")
+  skip_on_cran()
 
   r_session <- callr::r_session$new()
 
@@ -40,6 +41,5 @@ test_that("long-running queries can be cancelled", {
   r_session$run(function() DBI::dbDisconnect(.GlobalEnv$con))
   r_session$close()
 
-  skip_on_cran()
   expect_lt(end_time - start_time, 1)
 })

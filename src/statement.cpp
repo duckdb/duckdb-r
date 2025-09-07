@@ -28,9 +28,8 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	retlist.reserve(8);
 	retlist.push_back({"str"_nm = query});
 
-	auto stmtholder = new RStatement(std::move(stmt));
+	auto stmtholder = make_uniq<RStatement>(std::move(stmt));
 
-	retlist.push_back({"ref"_nm = stmt_eptr_t(stmtholder)});
 	retlist.push_back({"type"_nm = StatementTypeToString(stmtholder->stmt->GetStatementType())});
 	retlist.push_back({"names"_nm = cpp11::as_sexp(stmtholder->stmt->GetNames())});
 
@@ -47,6 +46,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	retlist.push_back(
 	    {"return_type"_nm = StatementReturnTypeToString(stmtholder->stmt->GetStatementProperties().return_type)});
 	retlist.push_back({"registered_dfs"_nm = registered_dfs});
+	retlist.push_back({"ref"_nm = stmt_eptr_t(stmtholder.release())});
 
 	return retlist;
 }
@@ -149,7 +149,7 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 		return Rf_ScalarReal(0); // no need for protection because no allocation can happen afterwards
 	}
 
-	auto rows = result->RowCount();
+	auto nrows = result->RowCount();
 
 	// Note we cannot use cpp11's data frame here as it tries to calculate the number of rows itself,
 	// but gives the wrong answer if the first column is another data frame. So we set the necessary
@@ -159,7 +159,7 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
 		cpp11::sexp varvalue =
-		    duckdb_r_allocate(result->types[col_idx], rows, result->names[col_idx], convert_opts, "duckdb_execute_R_impl");
+		    duckdb_r_allocate(result->types[col_idx], nrows, result->names[col_idx], convert_opts, "duckdb_execute_R_impl");
 		duckdb_r_decorate(result->types[col_idx], varvalue, convert_opts);
 		data_frame.push_back(varvalue);
 	}
@@ -181,7 +181,7 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 	(void)(SEXP)data_frame;
 
 	SET_NAMES(data_frame, StringsToSexp(result->names));
-	duckdb_r_df_decorate(data_frame, rows, class_);
+	duckdb_r_df_decorate(data_frame, nrows, class_);
 
 	// at this point data_frame is fully allocated and the only protected SEXP
 
@@ -267,7 +267,9 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	cpp11::function getNamespace = RStrings::get().getNamespace_sym;
 	cpp11::sexp arrow_namespace(getNamespace(RStrings::get().arrow_str));
 
+	// FIXME: This is a memory leak, need better lifecycle management
 	auto result_stream = new ResultArrowArrayStreamWrapper(std::move(qry_res->result), chunk_size);
+
 	cpp11::sexp stream_ptr_sexp(
 	    Rf_ScalarReal(static_cast<double>(reinterpret_cast<uintptr_t>(&result_stream->stream))));
 	cpp11::sexp record_batch_reader(Rf_lang2(RStrings::get().ImportRecordBatchReader_sym, stream_ptr_sexp));
@@ -294,9 +296,9 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	}
 
 	if (convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED) {
-		auto query_result = new RQueryResult();
+		auto query_result = make_uniq<RQueryResult>();
 		query_result->result = std::move(generic_result);
-		rqry_eptr_t query_resultsexp(query_result);
+		rqry_eptr_t query_resultsexp(query_result.release());
 		return query_resultsexp;
 	} else {
 		D_ASSERT(generic_result->type == QueryResultType::MATERIALIZED_RESULT);

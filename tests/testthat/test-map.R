@@ -61,7 +61,7 @@ test_that("structs give the same results via Arrow", {
 
   res <- dbGetQuery(
     con,
-    "SELECT 1 as a, map([1,2],[1.5,2.5]) AS x UNION SELECT 2, map([3,4,5],[5.5,4.5,3.5]) ORDER BY a",
+    "SELECT 1 as a, map([1,2],[1.5,2.5]) AS x UNION SELECT 2, map([3,4,5],[5.5,4.5,3.5]::double[]) ORDER BY a",
     arrow = TRUE
   )
   expect_equal(res, vctrs::data_frame(

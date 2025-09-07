@@ -40,12 +40,18 @@ public:
 
 	atomic<idx_t> catalog_version;
 
+	//! Transactions undergo Cleanup, after (1) removing them directly in RemoveTransaction,
+	//! or (2) after they exist old_transactions.
+	//! Some (after rollback) enter old_transactions, but do not require Cleanup.
+	bool awaiting_cleanup;
+
 public:
 	static DuckTransaction &Get(ClientContext &context, AttachedDatabase &db);
 	static DuckTransaction &Get(ClientContext &context, Catalog &catalog);
 	LocalStorage &GetLocalStorage();
 
 	void PushCatalogEntry(CatalogEntry &entry, data_ptr_t extra_data, idx_t extra_data_size);
+	void PushAttach(AttachedDatabase &db);
 
 	void SetReadWrite() override;
 
@@ -81,10 +87,10 @@ public:
 		return write_lock.get();
 	}
 
-	void UpdateCollection(shared_ptr<RowGroupCollection> &collection);
-
 	//! Get a shared lock on a table
 	shared_ptr<CheckpointLock> SharedLockTable(DataTableInfo &info);
+
+	void ModifyTable(DataTable &tbl);
 
 private:
 	DuckTransactionManager &transaction_manager;
@@ -99,8 +105,8 @@ private:
 	mutex sequence_lock;
 	//! Map of all sequences that were used during the transaction and the value they had in this transaction
 	reference_map_t<SequenceCatalogEntry, reference<SequenceValue>> sequence_usage;
-	//! Collections that are updated by this transaction
-	reference_map_t<RowGroupCollection, shared_ptr<RowGroupCollection>> updated_collections;
+	//! Tables that are modified by this transaction
+	reference_map_t<DataTable, shared_ptr<DataTable>> modified_tables;
 	//! Lock for the active_locks map
 	mutex active_locks_lock;
 	struct ActiveTableLock {

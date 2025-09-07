@@ -1,8 +1,12 @@
 # test_all_types() output
 
     Code
-      as.list(dbGetQuery(con,
-        "SELECT * EXCLUDE (timestamp_tz, time_tz, timestamp_ns, timestamp_array, timestamptz_array, bit, \"union\", fixed_int_array, fixed_varchar_array, fixed_nested_int_array, fixed_nested_varchar_array, fixed_struct_array, struct_of_fixed_array, fixed_array_of_int_list, list_of_fixed_int_array, varint) REPLACE(replace(varchar, chr(0), '') AS varchar) FROM test_all_types(use_large_enum=true)"))
+      bad <- c("timestamp_tz", "time_tz", "timestamp_ns", "timestamp_array",
+        "timestamptz_array", "bit", "\"union\"", "fixed_nested_int_array",
+        "fixed_nested_varchar_array", "fixed_struct_array", "fixed_array_of_int_list",
+        "varint", NULL)
+      as.list(dbGetQuery(con, paste0("SELECT * EXCLUDE (", paste(bad, collapse = ", "),
+      ") REPLACE(replace(varchar, chr(0), '') AS varchar) FROM test_all_types(use_large_enum=true)")))
     Output
       $bool
       [1] FALSE  TRUE    NA
@@ -107,7 +111,7 @@
       300 Levels: enum_0 enum_1 enum_2 enum_3 enum_4 enum_5 enum_6 enum_7 ... enum_299
       
       $large_enum
-      [1] enum_0 enum_0 <NA>  
+      [1] enum_0     enum_69999 <NA>      
       70000 Levels: enum_0 enum_1 enum_2 enum_3 enum_4 enum_5 enum_6 enum_7 ... enum_69999
       
       $int_array
@@ -218,6 +222,41 @@
       2 key2        goose
       
       $map[[3]]
+      NULL
+      
+      
+      $fixed_int_array
+           [,1] [,2] [,3]
+      [1,]   NA    2    3
+      [2,]    4    5    6
+      [3,]   NA   NA   NA
+      
+      $fixed_varchar_array
+           [,1] [,2] [,3]
+      [1,] "a"  NA   "c" 
+      [2,] "d"  "e"  "f" 
+      [3,] NA   NA   NA  
+      
+      $struct_of_fixed_array
+        a.1 a.2 a.3  b.1  b.2  b.3
+      1  NA   2   3    a <NA>    c
+      2   4   5   6    d    e    f
+      3  NA  NA  NA <NA> <NA> <NA>
+      
+      $list_of_fixed_int_array
+      $list_of_fixed_int_array[[1]]
+           [,1] [,2] [,3]
+      [1,]   NA    2    3
+      [2,]    4    5    6
+      [3,]   NA    2    3
+      
+      $list_of_fixed_int_array[[2]]
+           [,1] [,2] [,3]
+      [1,]    4    5    6
+      [2,]   NA    2    3
+      [3,]    4    5    6
+      
+      $list_of_fixed_int_array[[3]]
       NULL
       
       
