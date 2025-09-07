@@ -34,31 +34,19 @@ def extract_version_info_early():
     """Extract version info from duckdb sources if available."""
     pragma_version_path = os.path.join('src', 'duckdb', 'src', 'function', 'table', 'version', 'pragma_version.cpp')
     version = None
-    
-    if os.path.exists(pragma_version_path):
-        with open(pragma_version_path, 'r', encoding='utf-8') as f:
-            for line in f:
-                line = line.strip()
-                if line.startswith('#define DUCKDB_VERSION'):
-                    # Extract version string, e.g., from '#define DUCKDB_VERSION "v1.3.3-dev231"'
-                    parts = line.split('"')
-                    if len(parts) >= 2:
-                        version = parts[1]
-                        # Remove 'v' prefix for consistency with R test expectations
-                        if version.startswith('v'):
-                            version = version[1:]
-                        break
-    
-    if version is None:
-        # Fallback: try to get version from DESCRIPTION file
-        desc_path = 'DESCRIPTION'
-        if os.path.exists(desc_path):
-            with open(desc_path, 'r', encoding='utf-8') as f:
-                for line in f:
-                    if line.startswith('Version:'):
-                        version = line.split(':', 1)[1].strip()
-                        break
-    
+    with open(pragma_version_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if line.startswith('#define DUCKDB_VERSION'):
+                # Extract version string, e.g., from '#define DUCKDB_VERSION "v1.3.3-dev231"'
+                parts = line.split('"')
+                if len(parts) >= 2:
+                    version = parts[1]
+                    # Remove 'v' prefix for consistency with R test expectations
+                    if version.startswith('v'):
+                        version = version[1:]
+                    break
+
     return version
 
 # Generate R file with version information early in the process
@@ -75,7 +63,7 @@ def generate_version_r_file(version):
   .duckdb_version
 }}
 '''
-        
+
         with open(os.path.join('R', 'version.R'), 'w', encoding='utf-8') as f:
             f.write(r_version_content)
 
@@ -84,15 +72,7 @@ extracted_version = extract_version_info_early()
 generate_version_r_file(extracted_version)
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', duckdb_path, 'scripts'))
-try:
-    import package_build
-except ImportError:
-    # If package_build is not available, we've at least generated the version file
-    # This can happen in certain build environments
-    print("Warning: package_build module not available, but version file has been generated")
-    if extracted_version:
-        print(f"Generated version file with version: {extracted_version}")
-    exit(0)
+import package_build
 
 
 def open_utf8(fpath, flags):
