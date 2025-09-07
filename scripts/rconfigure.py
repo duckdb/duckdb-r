@@ -30,7 +30,7 @@ else:
     duckdb_path = os.path.join('../duckdb')
 
 # Extract version information early when DuckDB sources are available
-def extract_version_info_early():
+def extract_version_info():
     """Extract version info from duckdb sources if available."""
     pragma_version_path = os.path.join('src', 'duckdb', 'src', 'function', 'table', 'version', 'pragma_version.cpp')
     version = None
@@ -66,10 +66,6 @@ def generate_version_r_file(version):
 
         with open(os.path.join('R', 'version.R'), 'w', encoding='utf-8') as f:
             f.write(r_version_content)
-
-# Try to extract version and generate R file early
-extracted_version = extract_version_info_early()
-generate_version_r_file(extracted_version)
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', duckdb_path, 'scripts'))
 import package_build
@@ -208,3 +204,7 @@ text = "SOURCES=" + object_list + '\n'
 
 with open_utf8(os.path.join('src', 'include', 'sources.mk'), 'w') as f:
     f.write(text)
+
+# Try to extract version and generate R file
+extracted_version = extract_version_info()
+generate_version_r_file(extracted_version)
