@@ -7,15 +7,11 @@
 NULL
 
 # Internal error function for C++ layer
-rapi_error_base <- function(context, message) {
+rapi_error <- function(context, message) {
   stop(paste0(context, ": ", message), call. = FALSE)
 }
 
-# Default error function (will be conditionally replaced in .onLoad)
-rapi_error <- function(context, message) {
-  if (requireNamespace("rlang", quietly = TRUE)) {
-    rlang::abort(paste0(context, ": ", message))
-  } else {
-    rapi_error_base(context, message)
-  }
+# rlang error function (will be conditionally replaced in .onLoad)
+rapi_error_rlang <- function(context, message) {
+  rlang::abort(c(message, i = paste0("Context: ", context)))
 }

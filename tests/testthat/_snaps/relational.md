@@ -326,6 +326,7 @@
     Condition
       Error:
       ! Materialization is disabled, use collect() or as_tibble() to materialize.
+      ℹ Context: GetQueryResult
 
 ---
 
@@ -334,6 +335,7 @@
     Condition
       Error:
       ! Materialization is disabled, use collect() or as_tibble() to materialize.
+      ℹ Context: GetQueryResult
 
 ---
 
@@ -342,6 +344,7 @@
     Condition
       Error:
       ! Materialization would result in more than 4 rows. Use collect() or as_tibble() to materialize.
+      ℹ Context: GetQueryResult
 
 ---
 
@@ -350,6 +353,7 @@
     Condition
       Error:
       ! Materialization would result in more than 4 rows. Use collect() or as_tibble() to materialize.
+      ℹ Context: GetQueryResult
 
 ---
 
@@ -358,6 +362,7 @@
     Condition
       Error:
       ! Materialization would result in more than 4 rows. Use collect() or as_tibble() to materialize.
+      ℹ Context: GetQueryResult
 
 ---
 
@@ -366,4 +371,5 @@
     Condition
       Error:
       ! Materialization would result in more than 4 rows. Use collect() or as_tibble() to materialize.
+      ℹ Context: GetQueryResult
 
