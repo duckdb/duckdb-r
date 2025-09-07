@@ -1,8 +1,10 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://r.duckdb.org/404.html</loc></url>
+<url><loc>https://r.duckdb.org/CLAUDE.html</loc></url>
 <url><loc>https://r.duckdb.org/LICENSE-text.html</loc></url>
 <url><loc>https://r.duckdb.org/RELEASE.html</loc></url>
 <url><loc>https://r.duckdb.org/authors.html</loc></url>
+<url><loc>https://r.duckdb.org/copilot-instructions.html</loc></url>
 <url><loc>https://r.duckdb.org/index.html</loc></url>
 <url><loc>https://r.duckdb.org/news/index.html</loc></url>
 <url><loc>https://r.duckdb.org/reference/backend-duckdb.html</loc></url>
