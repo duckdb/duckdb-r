@@ -88,6 +88,7 @@ RStrings::RStrings() {
 	get_progress_display_sym = Rf_install("get_progress_display");
 	duckdb_row_names_sym = Rf_install("duckdb_row_names");
 	duckdb_vector_sym = Rf_install("duckdb_vector");
+	rapi_error_sym = Rf_install("rapi_error");
 }
 
 LogicalType RStringsType::Get() {
@@ -333,9 +334,11 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 
 // Helper functions to communicate errors via R's stop() function
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message) {
-	// Cache R function lookup as static local variable
-	static cpp11::function rapi_error = cpp11::package("duckdb")["rapi_error"];
-	rapi_error(context, message);
+	// Get duckdb namespace and call rapi_error function
+	cpp11::function getNamespace = RStrings::get().getNamespace_sym;
+	cpp11::environment duckdb_namespace(getNamespace(RStrings::get().duckdb_str));
+	cpp11::sexp rapi_error_call(Rf_lang3(RStrings::get().rapi_error_sym, Rf_mkString(context.c_str()), Rf_mkString(message.c_str())));
+	cpp11::safe[Rf_eval](rapi_error_call, duckdb_namespace);
 }
 
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::exception &e) {

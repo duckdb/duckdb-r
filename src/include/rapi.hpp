@@ -195,6 +195,7 @@ struct RStrings {
 	SEXP get_progress_display_sym;
 	SEXP duckdb_row_names_sym;
 	SEXP duckdb_vector_sym;
+	SEXP rapi_error_sym;
 
 	static const RStrings &get() {
 		// On demand
