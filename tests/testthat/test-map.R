@@ -1,8 +1,7 @@
 test_that("maps can be read", {
   skip_if_not_installed("vctrs")
 
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   res <- dbGetQuery(
     con,
