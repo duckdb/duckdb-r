@@ -84,3 +84,31 @@ static void SetDefaultConfigArguments(ClientContext &context) {
 		delete conn_wrapper;
 	}
 }
+
+[[cpp11::register]] bool rapi_connection_valid(duckdb::conn_eptr_t conn) {
+	// Check connection validity without acquiring ClientContext locks
+	// This avoids the "ScopedInterruptHandler already active" issue when
+	// called from progress bar handlers or other contexts that already 
+	// have interrupt protection
+	if (!conn || !conn.get()) {
+		return false;
+	}
+	
+	auto conn_wrapper = conn.get();
+	if (!conn_wrapper) {
+		return false;
+	}
+	
+	// Check if the connection object exists
+	if (!conn_wrapper->conn) {
+		return false;
+	}
+	
+	// Check if the database wrapper is still valid
+	if (!conn_wrapper->db || !conn_wrapper->db->db) {
+		return false;
+	}
+	
+	// All checks passed - connection appears valid
+	return true;
+}
