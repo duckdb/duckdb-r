@@ -23,7 +23,8 @@ using namespace cpp11::literals;
 	}
 }
 
-static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt, const string &query, idx_t n_param, SEXP registered_dfs = R_NilValue) {
+static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt, const string &query, idx_t n_param,
+                                     SEXP registered_dfs = R_NilValue) {
 	cpp11::writable::list retlist;
 	retlist.reserve(8);
 	retlist.push_back({"str"_nm = query});
@@ -98,7 +99,8 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	return construct_retlist(std::move(stmt), query, n_param, conn->db->registered_dfs);
 }
 
-[[cpp11::register]] cpp11::list rapi_bind(duckdb::stmt_eptr_t stmt, cpp11::list params, duckdb::ConvertOpts convert_opts) {
+[[cpp11::register]] cpp11::list rapi_bind(duckdb::stmt_eptr_t stmt, cpp11::list params,
+                                          duckdb::ConvertOpts convert_opts) {
 	if (!stmt || !stmt.get() || !stmt->stmt) {
 		rapi_error_with_context("rapi_bind", "Invalid statement");
 	}
@@ -147,7 +149,8 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	return out;
 }
 
-SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb::ConvertOpts &convert_opts, SEXP class_) {
+SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb::ConvertOpts &convert_opts,
+                                   SEXP class_) {
 	// step 2: create result data frame and allocate columns
 	auto ncols = result->types.size();
 	if (ncols == 0) {
@@ -163,8 +166,8 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 	data_frame.reserve(ncols);
 
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
-		cpp11::sexp varvalue =
-		    duckdb_r_allocate(result->types[col_idx], nrows, result->names[col_idx], convert_opts, "duckdb_execute_R_impl");
+		cpp11::sexp varvalue = duckdb_r_allocate(result->types[col_idx], nrows, result->names[col_idx], convert_opts,
+		                                         "duckdb_execute_R_impl");
 		duckdb_r_decorate(result->types[col_idx], varvalue, convert_opts);
 		data_frame.push_back(varvalue);
 	}
@@ -175,7 +178,8 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 		D_ASSERT(chunk.ColumnCount() == ncols);
 		D_ASSERT(chunk.ColumnCount() == (idx_t)Rf_length(data_frame));
 		for (size_t col_idx = 0; col_idx < chunk.ColumnCount(); col_idx++) {
-			duckdb_r_transform(chunk.data[col_idx], data_frame[col_idx], dest_offset, chunk.size(), convert_opts, result->names[col_idx]);
+			duckdb_r_transform(chunk.data[col_idx], data_frame[col_idx], dest_offset, chunk.size(), convert_opts,
+			                   result->names[col_idx]);
 		}
 		dest_offset += chunk.size();
 	}
@@ -222,7 +226,9 @@ struct AppendableRList {
 bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, AppendableRList &batches_list,
                      ArrowArray &arrow_data, ArrowSchema &arrow_schema, SEXP batch_import_from_c, SEXP arrow_namespace,
                      idx_t chunk_size) {
-	auto count = ArrowUtil::FetchChunk(scan_state, options, chunk_size, &arrow_data, ArrowTypeExtensionData::GetExtensionTypes(*options.client_context, scan_state.Types()));
+	auto count =
+	    ArrowUtil::FetchChunk(scan_state, options, chunk_size, &arrow_data,
+	                          ArrowTypeExtensionData::GetExtensionTypes(*options.client_context, scan_state.Types()));
 	if (count == 0) {
 		return false;
 	}

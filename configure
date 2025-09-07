@@ -2,6 +2,19 @@
 
 set -ex
 
+# Setup parallel compilation if MAKEFLAGS not already set
+cd "$(dirname "$0")"
+if [ -z "${MAKEFLAGS}" ]; then
+  makeflags_value=$(Rscript scripts/setup-makeflags.R 2>/dev/null || echo "")
+  if [ -n "${makeflags_value}" ]; then
+    export MAKEFLAGS="${makeflags_value}"
+    echo "Setting MAKEFLAGS=${makeflags_value} for parallel compilation"
+    echo "Set NOT_CRAN or MAKEFLAGS to override"
+  fi
+else
+  echo "MAKEFLAGS already set to: ${MAKEFLAGS}"
+fi
+
 cd "$(dirname "$0")/src"
 
 # Not used on Linux, for completeness.

@@ -74,7 +74,7 @@ int duckdb_r_typeof(const LogicalType &type, const string &name, const char *cal
 }
 
 SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows, const string &name,
-	                   const duckdb::ConvertOpts &convert_opts, const char *caller) {
+                       const duckdb::ConvertOpts &convert_opts, const char *caller) {
 	int rtype = duckdb_r_typeof(type, name, caller);
 
 	switch (type.id()) {
@@ -96,7 +96,8 @@ SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows, const string &name,
 			const auto &child_name = child.first;
 			const auto &child_type = child.second;
 
-			cpp11::sexp dest_child = duckdb_r_allocate(child_type, nrows, name + "$" + child_name, convert_opts, "LogicalTypeId::STRUCT");
+			cpp11::sexp dest_child =
+			    duckdb_r_allocate(child_type, nrows, name + "$" + child_name, convert_opts, "LogicalTypeId::STRUCT");
 			dest_list.push_back(std::move(dest_child));
 		}
 
@@ -133,7 +134,7 @@ void duckdb_r_df_decorate(SEXP dest, idx_t nrows, SEXP class_) {
 	if (class_ == R_NilValue) {
 		class_ = RStrings::get().dataframe_str;
 	}
-	duckdb_r_df_decorate_impl(dest, cpp11::writable::integers({ NA_INTEGER, -static_cast<int>(nrows)}), class_);
+	duckdb_r_df_decorate_impl(dest, cpp11::writable::integers({NA_INTEGER, -static_cast<int>(nrows)}), class_);
 }
 
 // Convert DuckDB's timestamp to R's timestamp (POSIXct). This is a represented as the number of seconds since the
@@ -445,7 +446,8 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 			if (!mask.RowIsValid(row_idx)) {
 				dest_ptr[row_idx] = NA_REAL;
 			} else {
-				dest_ptr[row_idx] = static_cast<double>(Interval::GetMicro(src_data[row_idx])) / Interval::MICROS_PER_SEC;
+				dest_ptr[row_idx] =
+				    static_cast<double>(Interval::GetMicro(src_data[row_idx])) / Interval::MICROS_PER_SEC;
 			}
 		}
 		SET_CLASS(dest, RStrings::get().difftime_str);
@@ -604,7 +606,8 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 				value_child.Slice(MapVector::GetValues(src_vec), offset, end);
 
 				cpp11::sexp key_sexp = duckdb_r_allocate(key_type, length, name, convert_opts, "LogicalTypeId::MAP");
-				cpp11::sexp value_sexp = duckdb_r_allocate(value_type, length, name, convert_opts, "LogicalTypeId::MAP");
+				cpp11::sexp value_sexp =
+				    duckdb_r_allocate(value_type, length, name, convert_opts, "LogicalTypeId::MAP");
 
 				duckdb_r_decorate(key_type, key_sexp, convert_opts);
 				duckdb_r_decorate(value_type, value_sexp, convert_opts);

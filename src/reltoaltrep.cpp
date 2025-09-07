@@ -243,11 +243,13 @@ struct AltrepVectorWrapper {
 			auto res = rel->GetQueryResult();
 			const auto &name = res->names[column_index];
 
-			transformed_vector = duckdb_r_allocate(res->types[column_index], res->RowCount(), name, duckdb::ConvertOpts(),"Dataptr");
+			transformed_vector =
+			    duckdb_r_allocate(res->types[column_index], res->RowCount(), name, duckdb::ConvertOpts(), "Dataptr");
 			idx_t dest_offset = 0;
 			for (auto &chunk : res->Collection().Chunks()) {
 				SEXP dest = transformed_vector.data();
-				duckdb_r_transform(chunk.data[column_index], dest, dest_offset, chunk.size(), duckdb::ConvertOpts(), name);
+				duckdb_r_transform(chunk.data[column_index], dest, dest_offset, chunk.size(), duckdb::ConvertOpts(),
+				                   name);
 				dest_offset += chunk.size();
 			}
 		}
