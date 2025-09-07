@@ -90,18 +90,18 @@ void RelToAltrep::Initialize(DllInfo *dll) {
 template <class T>
 static T *GetFromExternalPtr(SEXP x) {
 	if (!x) {
-		cpp11::stop("GetFromExternalPtr: need a SEXP pointer");
+		rapi_error_with_context("GetFromExternalPtr", "need a SEXP pointer");
 	}
 	if (!ALTREP(x)) {
-		cpp11::stop("GetFromExternalPtr: not an ALTREP");
+		rapi_error_with_context("GetFromExternalPtr", "not an ALTREP");
 	}
 	auto ptr = R_altrep_data1(x);
 	if (TYPEOF(ptr) != EXTPTRSXP) {
-		cpp11::stop("GetFromExternalPtr: data1 is not an external pointer");
+		rapi_error_with_context("GetFromExternalPtr", "data1 is not an external pointer");
 	}
 	auto wrapper = (T *)R_ExternalPtrAddr(ptr);
 	if (!wrapper) {
-		cpp11::stop("GetFromExternalPtr: This looks like it has been freed");
+		rapi_error_with_context("GetFromExternalPtr", "This looks like it has been freed");
 	}
 	return wrapper;
 }
@@ -120,12 +120,12 @@ bool AltrepRelationWrapper::HasQueryResult() const {
 
 MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 	if (!mat_error.empty()) {
-		cpp11::stop(mat_error);
+		rapi_error_with_context("GetQueryResult", mat_error);
 	}
 
 	if (!mat_result) {
 		if (n_cells == 0) {
-			cpp11::stop("Materialization is disabled, use collect() or as_tibble() to materialize.");
+			rapi_error_with_context("GetQueryResult", "Materialization is disabled, use collect() or as_tibble() to materialize.");
 		}
 
 		auto materialize_callback = Rf_GetOption1(RStrings::get().materialize_callback_sym);
@@ -386,20 +386,21 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type, const d
 #endif
 
 	default:
-		cpp11::stop("LogicalTypeToAltrepType: Column `%s` has no type for altrep: %s", name.c_str(), type.ToString().c_str());
+		std::string error_msg = "Column `" + name + "` has no type for altrep: " + type.ToString();
+		rapi_error_with_context("LogicalTypeToAltrepType", error_msg);
 	}
 }
 
 size_t DoubleToSize(double d) {
 	if (d < 0) {
-		cpp11::stop("rel_to_altrep: Negative size");
+		rapi_error_with_context("DoubleToSize", "Negative size");
 	}
 	if (!std::isfinite(d)) {
 		// Return maximum size_t for Inf
 		return MAX_SIZE_T;
 	}
 	if (d >= (double)MAX_SIZE_T) {
-		cpp11::stop("rel_to_altrep: Size overflow");
+		rapi_error_with_context("DoubleToSize", "Size overflow");
 	}
 	return (size_t)d;
 }
