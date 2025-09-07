@@ -70,7 +70,9 @@ for commit in $original; do
     break
   fi
 
-  if [ "$(git status --porcelain -- ${vendor_base_dir} | wc -l)" -gt 1 ]; then
+  # Expecting two changes even if nothing else changed.
+  # Need at least three changed files to consider it a real update.
+  if [ "$(git status --porcelain -- ${vendor_base_dir} | wc -l)" -gt 2 ]; then
     message="vendor: Update vendored sources to ${repo_org}/${repo_name}@$commit"
     break
   fi
@@ -91,7 +93,7 @@ echo "Upstream tag: $upstream_tag"
 
 if [ -z "${is_tag}" ] && [ "${our_tag#"$upstream_tag"}" == "$our_tag" ]; then
   echo "Not vendoring because our tag $our_tag does not start with upstream tag $upstream_tag"
-  git checkout -- ${vendor_base_dir}
+  git checkout -- ${vendor_base_dir} R/version.R
   rm -rf "$upstream_dir"
   exit 0
 fi
