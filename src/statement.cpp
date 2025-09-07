@@ -56,6 +56,9 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		cpp11::stop("rapi_prepare: Invalid connection");
 	}
 
+	// Create ScopedInterruptHandler to prevent deadlock when called re-entrantly
+	// during progress bar callbacks. This will throw "ScopedInterruptHandler already active"
+	// if another query is already executing, providing fast failure instead of deadlock.
 	ScopedInterruptHandler signal_handler(conn->conn->context);
 
 	D_ASSERT(conn->db->env == R_NilValue);
