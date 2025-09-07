@@ -1,5 +1,6 @@
 #include "signal.hpp"
 
+#include "cpp11.hpp"
 #include "cpp11/R.hpp"
 #include "cpp11/function.hpp"
 #include "cpp11/protect.hpp"   // for safe
@@ -28,10 +29,10 @@ ScopedInterruptHandler::~ScopedInterruptHandler() {
 	instance = nullptr;
 }
 
-bool ScopedInterruptHandler::HandleInterrupt() const {
+void ScopedInterruptHandler::HandleInterrupt() const {
 	// Never interrupted without context
 	if (!interrupted) {
-		return false;
+		return;
 	} else {
 		D_ASSERT(context);
 	}
@@ -43,7 +44,9 @@ bool ScopedInterruptHandler::HandleInterrupt() const {
 
 	// FIXME: Is this equivalent to cpp11::safe[Rf_onintrNoResume](), or worse?
 	cpp11::safe[Rf_onintr]();
-	return true;
+	
+	// Stop execution with an appropriate interruption message
+	cpp11::stop("Query execution was interrupted");
 }
 
 void ScopedInterruptHandler::Disable() {

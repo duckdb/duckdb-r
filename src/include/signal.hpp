@@ -31,7 +31,7 @@ public:
 	ScopedInterruptHandler(shared_ptr<ClientContext> context_);
 	~ScopedInterruptHandler();
 
-	bool HandleInterrupt() const;
+	void HandleInterrupt() const;
 	void Disable();
 
 private:
