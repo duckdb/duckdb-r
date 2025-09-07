@@ -59,9 +59,8 @@ using namespace duckdb;
 	}
 }
 
-
-
-unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, ReplacementScanInput &input, optional_ptr<ReplacementScanData> data_p) {
+unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, ReplacementScanInput &input,
+                                                        optional_ptr<ReplacementScanData> data_p) {
 	auto &data = (ReplacementDataDBWrapper &)*data_p;
 	auto db_wrapper = data.wrapper;
 
@@ -75,7 +74,7 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 #if defined(R_VERSION) && R_VERSION >= R_Version(4, 5, 0)
 	df = cpp11::safe[R_getVarEx](table_name_symbol, rho, Rboolean::TRUE, R_NilValue);
 #else
-	while(rho != R_EmptyEnv) {
+	while (rho != R_EmptyEnv) {
 		df = cpp11::safe[Rf_findVarInFrame3](rho, table_name_symbol, TRUE);
 		if (df != R_UnboundValue) {
 			break;
@@ -101,7 +100,6 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	table_function->function = make_uniq<FunctionExpression>("r_dataframe_scan", std::move(children));
 	return std::move(table_function);
 }
-
 
 class RArrowTabularStreamFactory {
 public:
@@ -257,9 +255,10 @@ private:
 	}
 };
 
-unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, ReplacementScanInput &input, optional_ptr<ReplacementScanData> data_p) {
-  auto table_name = input.table_name;
-  ReplacementDataDBWrapper& data = static_cast<ReplacementDataDBWrapper&>(*data_p);
+unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, ReplacementScanInput &input,
+                                                  optional_ptr<ReplacementScanData> data_p) {
+	auto table_name = input.table_name;
+	ReplacementDataDBWrapper &data = static_cast<ReplacementDataDBWrapper &>(*data_p);
 	auto db_wrapper = data.wrapper;
 	lock_guard<mutex> arrow_scans_lock(db_wrapper->lock);
 	const auto &arrow_scans = db_wrapper->arrow_scans;

@@ -29,7 +29,6 @@
 using namespace duckdb;
 using namespace cpp11;
 
-
 SEXP result_to_df(duckdb::unique_ptr<duckdb::QueryResult> res) {
 	if (res->HasError()) {
 		stop("%s", res->GetError().c_str());
@@ -80,14 +79,15 @@ bool check_has_valid_class(SEXP col, const std::string &col_name, const std::str
 
 	if (col_class_sexp == R_NilValue) {
 		auto col_type = TYPEOF(col);
-		return (col_type == LGLSXP || col_type == INTSXP || col_type == REALSXP ||
-				col_type == STRSXP || col_type == VECSXP);
+		return (col_type == LGLSXP || col_type == INTSXP || col_type == REALSXP || col_type == STRSXP ||
+		        col_type == VECSXP);
 	}
 
 	writable::strings col_class = col_class_sexp;
 	if (col_class.size() == 1) {
 		const auto &class_name = col_class[0];
-		valid = (class_name == "Date" || class_name == "difftime" || class_name == "factor" || class_name == "data.frame");
+		valid =
+		    (class_name == "Date" || class_name == "difftime" || class_name == "factor" || class_name == "data.frame");
 	} else if (col_class.size() == 2) {
 		const auto &class1 = col_class[0];
 		const auto &class2 = col_class[1];
@@ -101,15 +101,14 @@ bool check_has_valid_class(SEXP col, const std::string &col_name, const std::str
 					valid = true;
 				}
 			} else if (Rf_isString(tzone_attr) && LENGTH(tzone_attr) == 1 &&
-					cpp11::as_cpp<string>(tzone_attr) == tzone) {
+			           cpp11::as_cpp<string>(tzone_attr) == tzone) {
 				valid = true;
 			}
 		}
 	}
 
 	if (!valid) {
-		std::string error_msg =
-		    "Can't convert column `" + col_name + "` to relational.";
+		std::string error_msg = "Can't convert column `" + col_name + "` to relational.";
 		stop(error_msg.c_str());
 		return false;
 	}
@@ -169,14 +168,15 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 	}
 
 	auto out = make_external<ComparisonExpression>("duckdb_expr", expr_type, expr_extptr_t(exprs[0])->Copy(),
-	                                           expr_extptr_t(exprs[1])->Copy());
+	                                               expr_extptr_t(exprs[1])->Copy());
 	if (alias != "") {
 		out->SetAlias(std::move(alias));
 	}
 	return out;
 }
 
-[[cpp11::register]] SEXP rapi_expr_function(std::string name, list args, list order_bys, list filter_bys, std::string alias = "") {
+[[cpp11::register]] SEXP rapi_expr_function(std::string name, list args, list order_bys, list filter_bys,
+                                            std::string alias = "") {
 	if (name.size() == 0) {
 		stop("expr_function: Zero length name");
 	}
@@ -591,14 +591,16 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 
 	cpp11::writable::list prot = {rel};
 
-	return make_external_prot<RelationWrapper>("duckdb_relation", prot, make_shared_ptr<LimitRelation>(rel->rel, n, 0), rel->convert_opts);
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, make_shared_ptr<LimitRelation>(rel->rel, n, 0),
+	                                           rel->convert_opts);
 }
 
 [[cpp11::register]] SEXP rapi_rel_distinct(duckdb::rel_extptr_t rel) {
 
 	cpp11::writable::list prot = {rel};
 
-	return make_external_prot<RelationWrapper>("duckdb_relation", prot, make_shared_ptr<DistinctRelation>(rel->rel), rel->convert_opts);
+	return make_external_prot<RelationWrapper>("duckdb_relation", prot, make_shared_ptr<DistinctRelation>(rel->rel),
+	                                           rel->convert_opts);
 }
 
 [[cpp11::register]] SEXP rapi_rel_set_intersect(duckdb::rel_extptr_t rel_a, duckdb::rel_extptr_t rel_b) {
@@ -728,9 +730,10 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 	signal_handler.HandleInterrupt();
 }
 
-[[cpp11::register]] void rapi_rel_to_view(duckdb::rel_extptr_t rel, std::string schema_name, std::string view_name, bool temporary) {
+[[cpp11::register]] void rapi_rel_to_view(duckdb::rel_extptr_t rel, std::string schema_name, std::string view_name,
+                                          bool temporary) {
 	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
-	
+
 	rel->rel->CreateView(schema_name, view_name, false, temporary);
 	
 	signal_handler.HandleInterrupt();

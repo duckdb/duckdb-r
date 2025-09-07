@@ -3,7 +3,7 @@
 #include "cpp11.hpp"
 #include "cpp11/R.hpp"
 #include "cpp11/function.hpp"
-#include "cpp11/protect.hpp"   // for safe
+#include "cpp11/protect.hpp" // for safe
 #include "duckdb/common/exception.hpp"
 
 #include <R_ext/GraphicsEngine.h>
