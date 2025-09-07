@@ -17,8 +17,6 @@
 #'   # It will be automatically disconnected when the test exits
 #' })
 #' }
-#'
-#' @export
 local_con <- function(...) {
   con <- dbConnect(duckdb(...))
   withr::defer_parent(dbDisconnect(con, shutdown = TRUE))

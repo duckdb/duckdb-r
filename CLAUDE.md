@@ -42,3 +42,9 @@ R
 - Test files located in `tests/testthat/`
 - Use `testthat::test_local(filter = "name")` for running specific test files
 - Always add tests when fixing bugs to prevent regression
+
+## Code Style Guidelines
+
+- All files must end with an end-of-line (EOL) character
+- Ensure proper code formatting and consistent indentation
+- Follow R package development best practices
