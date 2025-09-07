@@ -19,6 +19,10 @@
 #define R_HAS_ALTLIST
 #endif
 
+// Helper functions to communicate errors via R's stop() function with context information
+[[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message);
+[[noreturn]] void rapi_error_with_context(const std::string &context, const std::exception &e);
+
 namespace duckdb {
 
 typedef unordered_map<std::string, cpp11::list> arrow_scans_t;
@@ -252,10 +256,6 @@ void duckdb_r_transform(duckdb::Vector &src_vec, SEXP dest, duckdb::idx_t dest_o
                         const duckdb::ConvertOpts &convert_opts, const duckdb::string &name);
 
 SEXP get_attrib(SEXP vec, SEXP name);
-
-// Helper functions to communicate errors via R's stop() function with context information
-[[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message);
-[[noreturn]] void rapi_error_with_context(const std::string &context, const std::exception &e);
 
 template <typename T, typename... ARGS>
 cpp11::external_pointer<T> make_external(const std::string &rclass, ARGS &&... args) {
