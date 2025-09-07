@@ -109,8 +109,7 @@ typedef cpp11::external_pointer<ConnWrapper, ConnDeleter> conn_eptr_t;
 
 struct RStatement {
 	RStatement() = delete;
-	RStatement(duckdb::unique_ptr<PreparedStatement> stmt_p)
-	    : stmt(std::move(stmt_p)) {
+	RStatement(duckdb::unique_ptr<PreparedStatement> stmt_p) : stmt(std::move(stmt_p)) {
 	}
 	duckdb::unique_ptr<PreparedStatement> stmt;
 	vector<Value> parameters;
@@ -120,7 +119,8 @@ typedef cpp11::external_pointer<RStatement> stmt_eptr_t;
 
 struct RelationWrapper {
 	RelationWrapper() = delete;
-	RelationWrapper(duckdb::shared_ptr<Relation> rel_p, ConvertOpts convert_opts) : rel(std::move(rel_p)), convert_opts(std::move(convert_opts)) {
+	RelationWrapper(duckdb::shared_ptr<Relation> rel_p, ConvertOpts convert_opts)
+	    : rel(std::move(rel_p)), convert_opts(std::move(convert_opts)) {
 	}
 	duckdb::shared_ptr<Relation> rel;
 	const ConvertOpts convert_opts;
@@ -248,7 +248,7 @@ void duckdb_r_df_decorate_impl(SEXP dest, SEXP rownames, SEXP class_);
 void duckdb_r_df_decorate(SEXP dest, duckdb::idx_t nrows, SEXP class_ = R_NilValue);
 void duckdb_r_decorate(const duckdb::LogicalType &type, SEXP dest, const duckdb::ConvertOpts &convert_opts);
 void duckdb_r_transform(duckdb::Vector &src_vec, SEXP dest, duckdb::idx_t dest_offset, duckdb::idx_t n,
-                        const duckdb::ConvertOpts &convert_opts,const duckdb::string &name);
+                        const duckdb::ConvertOpts &convert_opts, const duckdb::string &name);
 
 SEXP get_attrib(SEXP vec, SEXP name);
 

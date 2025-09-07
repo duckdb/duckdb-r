@@ -5,8 +5,8 @@ namespace duckdb {
 
 AltrepDataFrameRelation::AltrepDataFrameRelation(duckdb::shared_ptr<Relation> p, cpp11::list df,
                                                  duckdb::shared_ptr<AltrepRelationWrapper> altrep)
-    : Relation(p->context, RelationType::EXTENSION_RELATION), dataframe(df),
-      altrep(std::move(altrep)), parent(std::move(p)) {
+    : Relation(p->context, RelationType::EXTENSION_RELATION), dataframe(df), altrep(std::move(altrep)),
+      parent(std::move(p)) {
 	TryBindRelation(columns);
 }
 
@@ -15,7 +15,8 @@ const vector<ColumnDefinition> &AltrepDataFrameRelation::Columns() {
 }
 
 string AltrepDataFrameRelation::ToString(idx_t depth) {
-	string str = RenderWhitespace(depth) + "AltrepDataFrame [" + Value::POINTER((uintptr_t)(SEXP)dataframe).ToString() + "]\n";
+	string str =
+	    RenderWhitespace(depth) + "AltrepDataFrame [" + Value::POINTER((uintptr_t)(SEXP)dataframe).ToString() + "]\n";
 	return str + GetParent().ToString(depth + 1);
 }
 
@@ -44,8 +45,8 @@ void AltrepDataFrameRelation::BuildTableRelation() {
 
 		// Can't do an alias here and need auto_init = false
 		// to avoid a recursive lock
-		table_function_relation =
-			make_shared_ptr<TableFunctionRelation>(context->GetContext(), "r_dataframe_scan", params, other_params, nullptr, false);
+		table_function_relation = make_shared_ptr<TableFunctionRelation>(context->GetContext(), "r_dataframe_scan",
+		                                                                 params, other_params, nullptr, false);
 	}
 }
 

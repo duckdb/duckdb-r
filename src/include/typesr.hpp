@@ -49,7 +49,7 @@ enum class RTypeId {
 
 struct RType {
 	RType();
-	RType(RTypeId id); // NOLINT: Allow implicit conversion from `RTypeId`
+	RType(RTypeId id);               // NOLINT: Allow implicit conversion from `RTypeId`
 	RType(RTypeId id, R_len_t size); // NOLINT: Allow implicit conversion from `RTypeId`
 	RType(const RType &other);
 	RType(RType &&other) noexcept;
