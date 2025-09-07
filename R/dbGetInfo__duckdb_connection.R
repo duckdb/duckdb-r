@@ -4,7 +4,7 @@
 #' @usage NULL
 dbGetInfo__duckdb_connection <- function(dbObj, ...) {
   # Use hard-coded version instead of querying database to avoid establishing connection
-  version <- .get_duckdb_version()
+  version <- get_duckdb_version()
 
   list(
     dbname = dbObj@driver@dbdir,
