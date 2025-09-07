@@ -7,6 +7,7 @@
 #' @param ... Additional arguments passed to [duckdb()]
 #'
 #' @return A DuckDB connection object
+#' @noRd
 #'
 #' @examples
 #' \dontrun{
@@ -18,7 +19,7 @@
 #' })
 #' }
 local_con <- function(...) {
-  con <- dbConnect(duckdb(...))
+  con <- dbConnect(duckdb(), ...)
   withr::defer_parent(dbDisconnect(con, shutdown = TRUE))
   con
 }
