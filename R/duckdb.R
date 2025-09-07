@@ -5,3 +5,8 @@
 #' @keywords internal
 "_PACKAGE"
 NULL
+
+# Internal error function for C++ layer
+rapi_error <- function(message) {
+  stop(message, call. = FALSE)
+}

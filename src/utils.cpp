@@ -331,33 +331,21 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 	db->db->LoadExtension<RfunsExtension>();
 }
 
-// Helper functions to communicate errors via JSON format with context information
+// Helper functions to communicate errors via R's stop() function
 void rapi_error_with_context(const std::string &context, const std::string &message) {
-	// Add context information to extra_info
-	std::unordered_map<std::string, std::string> extra_info;
-	extra_info["r_function"] = context;
+	// Create error message with context
+	std::string full_message = context + ": " + message;
 	
-	// Create error with context information and convert to JSON
-	try {
-		throw duckdb::InvalidInputException(message, extra_info);
-	} catch (const std::exception &e) {
-		duckdb::ErrorData final_error(e);
-		final_error.ConvertErrorToJSON();
-		cpp11::stop(final_error.Message().c_str());
-	}
+	// Call R's rapi_error function
+	cpp11::function rapi_error("rapi_error");
+	rapi_error(full_message);
 }
 
 void rapi_error_with_context(const std::string &context, const std::exception &e) {
-	// Add context information to extra_info
-	std::unordered_map<std::string, std::string> extra_info;
-	extra_info["r_function"] = context;
+	// Create error message with context
+	std::string full_message = context + ": " + e.what();
 	
-	// Create new error with context information and convert to JSON
-	try {
-		throw duckdb::InvalidInputException(e.what(), extra_info);
-	} catch (const std::exception &context_e) {
-		duckdb::ErrorData final_error(context_e);
-		final_error.ConvertErrorToJSON();
-		cpp11::stop(final_error.Message().c_str());
-	}
+	// Call R's rapi_error function  
+	cpp11::function rapi_error("rapi_error");
+	rapi_error(full_message);
 }

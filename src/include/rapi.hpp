@@ -253,7 +253,7 @@ void duckdb_r_transform(duckdb::Vector &src_vec, SEXP dest, duckdb::idx_t dest_o
 
 SEXP get_attrib(SEXP vec, SEXP name);
 
-// Helper functions to communicate errors via JSON format with context information
+// Helper functions to communicate errors via R's stop() function with context information
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message);
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::exception &e);
 

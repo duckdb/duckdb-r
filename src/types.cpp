@@ -350,10 +350,11 @@ string RApiTypes::DetectLogicalType(const LogicalType &stype, const char *caller
 	case LogicalTypeId::SQLNULL:
 		return "unknown";
 
-	default:
+	default: {
 		std::string error_msg = std::string(caller) + ": Unknown column type for prepare: " + stype.ToString();
 		rapi_error_with_context("LogicalTypeToSexpString", error_msg);
 		break;
+	}
 	}
 }
 

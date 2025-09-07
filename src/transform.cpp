@@ -66,9 +66,10 @@ int duckdb_r_typeof(const LogicalType &type, const string &name, const char *cal
 		return VECSXP;
 	case LogicalTypeId::ENUM:
 		return INTSXP;
-	default:
+	default: {
 		std::string error_msg = std::string(caller) + ": Unknown type for column `" + name + "`: " + type.ToString();
 		rapi_error_with_context("duckdb_r_typeof", error_msg);
+	}
 	}
 }
 
@@ -275,10 +276,11 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 		break;
 	}
 
-	default:
+	default: {
 		std::string error_msg = "Unknown column type: " + type.ToString();
 		rapi_error_with_context("duckdb_r_decorate", error_msg);
 		break;
+	}
 	}
 }
 
@@ -663,9 +665,10 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 			VectorToR<uint32_t, uint32_t>(src_vec, n, INTEGER_POINTER(dest), dest_offset, NA_INTEGER);
 			break;
 
-		default:
+		default: {
 			std::string error_msg = "Unknown enum type for convert: " + TypeIdToString(physical_type);
 			rapi_error_with_context("duckdb_r_transform", error_msg);
+		}
 		}
 		// increment by one cause R factor offsets start at 1
 		auto dest_ptr = ((int32_t *)INTEGER_POINTER(dest)) + dest_offset;
@@ -701,8 +704,9 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 		}
 		break;
 	}
-	default:
+	default: {
 		std::string error_msg = "Unknown column type for convert: " + src_vec.GetType().ToString();
 		rapi_error_with_context("duckdb_r_transform", error_msg);
+	}
 	}
 }
