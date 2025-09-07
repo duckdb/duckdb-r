@@ -7,6 +7,6 @@
 NULL
 
 # Internal error function for C++ layer
-rapi_error <- function(message) {
-  stop(message, call. = FALSE)
+rapi_error <- function(context, message) {
+  stop(paste0(context, ": ", message), call. = FALSE)
 }

@@ -333,19 +333,13 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 
 // Helper functions to communicate errors via R's stop() function
 void rapi_error_with_context(const std::string &context, const std::string &message) {
-	// Create error message with context
-	std::string full_message = context + ": " + message;
-	
-	// Call R's rapi_error function
-	cpp11::function rapi_error("rapi_error");
-	rapi_error(full_message);
+	// Call R's rapi_error function with separate arguments
+	cpp11::function rapi_error = cpp11::package("duckdb")["rapi_error"];
+	rapi_error(context, message);
 }
 
 void rapi_error_with_context(const std::string &context, const std::exception &e) {
-	// Create error message with context
-	std::string full_message = context + ": " + e.what();
-	
-	// Call R's rapi_error function  
-	cpp11::function rapi_error("rapi_error");
-	rapi_error(full_message);
+	// Call R's rapi_error function with separate arguments
+	cpp11::function rapi_error = cpp11::package("duckdb")["rapi_error"];
+	rapi_error(context, e.what());
 }
