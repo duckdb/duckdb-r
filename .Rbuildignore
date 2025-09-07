@@ -42,3 +42,4 @@ _files$
 ^\.Rprofile$
 ^\.clangd$
 ^src/include/deps\.mk$
+^CLAUDE\.md$
