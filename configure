@@ -9,6 +9,7 @@ if [ -z "${MAKEFLAGS}" ]; then
   if [ -n "${makeflags_value}" ]; then
     export MAKEFLAGS="${makeflags_value}"
     echo "Setting MAKEFLAGS=${makeflags_value} for parallel compilation"
+    echo "Set NOT_CRAN or MAKEFLAGS to override"
   fi
 else
   echo "MAKEFLAGS already set to: ${MAKEFLAGS}"
