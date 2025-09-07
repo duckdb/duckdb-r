@@ -157,3 +157,32 @@ test_that("POSIXct with local time zone and existing but empty attribute", {
 
   expect_error(rel_from_df(con, df2), "convert")
 })
+
+test_that("tz_out_convert = force handles invalid timestamps during DST transitions", {
+  # For some reason, this doesn't work on CI
+  skip_on_ci()
+
+  # This test reproduces the issue where invalid timestamps during DST transitions
+  # cause all timestamps to lose their time component when tz_out_convert = "force"
+  con <- dbConnect(duckdb(), timezone_out = "Europe/London", tz_out_convert = "force")
+  on.exit(dbDisconnect(con, shutdown = TRUE))
+
+  # Test with a single valid timestamp
+  query1 <- "VALUES ('2025-03-30 00:59:00'::TIMESTAMP);"
+  res1 <- dbGetQuery(con, query1)
+  expected1 <- as.POSIXct("2025-03-30 00:59:00", tz = "Europe/London")
+  expect_equal(res1[[1]], expected1)
+
+  # Test with mixed valid and invalid timestamps
+  # 2025-03-30 01:00:00 does not exist in Europe/London (DST transition)
+  query2 <- "VALUES ('2025-03-30 00:59:00'::TIMESTAMP), ('2025-03-30 01:00:00'::TIMESTAMP);"
+  res2 <- dbGetQuery(con, query2)
+
+  # The first timestamp should remain valid with full time information
+  # The second should be NA (not stripped to date only)
+  expected2 <- c(
+    as.POSIXct("2025-03-30 00:59:00", tz = "Europe/London"),
+    as.POSIXct(NA, tz = "Europe/London")
+  )
+  expect_equal(res2[[1]], expected2)
+})
