@@ -53,12 +53,12 @@ test_that("read_only flag and shutdown works as expected", {
 test_that("read_only flag does not throw error when rel_sql is called", {
   db_path <- withr::local_tempfile(pattern = "readonly", fileext = ".duckdb")
 
-  con <- dbConnect(duckdb(), db_path)
+  con <- local_con(db_path)
   # just need a db to open in read only mode
   dbExecute(con, "create table t1 as select range a from range(2)")
   dbDisconnect(con)
 
-  con <- dbConnect(duckdb(), db_path, read_only=TRUE)
+  con <- local_con(db_path, read_only=TRUE)
   rel <- rel_from_df(con, data.frame(a = 1:2, b = 2:3, c = 4:5))
   ans <- data.frame(a = 1L, b = 2L)
   expect_rel2 <- rel_sql(rel, "SELECT a, b FROM _ where c = 4")
@@ -69,12 +69,12 @@ test_that("read_only flag does not throw error when rel_sql is called", {
 test_that("read_only flag still throws error when table is attempted to be created", {
   db_path <- withr::local_tempfile(pattern = "readonly", fileext = ".duckdb")
 
-  con <- dbConnect(duckdb(), db_path)
+  con <- local_con(db_path)
   # just need a db to open in read only mode
   dbExecute(con, "create table t1 as select range a from range(2)")
   dbDisconnect(con)
 
-  con <- dbConnect(duckdb(), db_path, read_only = TRUE)
+  con <- local_con(db_path, read_only = TRUE)
   ans <- data.frame(a = 1L, b = 2L)
   expect_error(rel_sql(rel, "SELECT a, b FROM _ where c = 4"))
   dbDisconnect(con)

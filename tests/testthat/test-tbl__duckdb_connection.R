@@ -8,7 +8,7 @@ test_that("Parquet files can be registered with dplyr::tbl()", {
 
   skip_if_not_installed("dbplyr")
 
-  con <- DBI::dbConnect(duckdb())
+  con <- local_con()
   on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
 
   tab0 <- dplyr::tbl(con, "data/userdata1.parquet")
@@ -31,7 +31,7 @@ test_that("Parquet files can be registered with dplyr::tbl()", {
 test_that("Parquet files can be registered with tbl_file() and tbl_function()", {
   skip_if_not_installed("dbplyr")
 
-  con <- DBI::dbConnect(duckdb())
+  con <- local_con()
   on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
 
   tab0 <- tbl_file(con, "data/userdata1.parquet")
@@ -57,7 +57,7 @@ test_that("Object cache can be enabled for parquet files with dplyr::tbl()", {
   # https://github.com/tidyverse/dbplyr/issues/1384
   skip_if(packageVersion("dbplyr") >= "2.4.0")
 
-  con <- DBI::dbConnect(duckdb())
+  con <- local_con()
   on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
 
   DBI::dbExecute(con, "SET enable_object_cache=False;")
@@ -74,7 +74,7 @@ test_that("Object cache can be enabled for parquet files with tbl_file() and tbl
   # https://github.com/tidyverse/dbplyr/issues/1384
   skip_if(packageVersion("dbplyr") >= "2.4.0")
 
-  con <- DBI::dbConnect(duckdb())
+  con <- local_con()
   on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
 
   DBI::dbExecute(con, "SET enable_object_cache=False;")
@@ -96,7 +96,7 @@ test_that("CSV files can be registered with dplyr::tbl()", {
   write.csv(iris, file = path)
   on.exit(unlink(path))
 
-  con <- DBI::dbConnect(duckdb())
+  con <- local_con()
   on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
 
   tab1 <- dplyr::tbl(con, path)
@@ -115,7 +115,7 @@ test_that("CSV files can be registered with tbl_file() and tbl_function()", {
   write.csv(iris, file = path)
   on.exit(unlink(path))
 
-  con <- DBI::dbConnect(duckdb())
+  con <- local_con()
   on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
 
   tab1 <- tbl_file(con, path)
@@ -133,7 +133,7 @@ test_that("Other replacement scans or functions can be registered with dplyr::tb
 
   skip_if_not_installed("dbplyr")
 
-  con <- DBI::dbConnect(duckdb())
+  con <- local_con()
   on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
 
   obj <- dplyr::tbl(con, "duckdb_keywords()")
@@ -144,7 +144,7 @@ test_that("Other replacement scans or functions can be registered with dplyr::tb
 test_that("Other replacement scans or functions can be registered with tbl_function()", {
   skip_if_not_installed("dbplyr")
 
-  con <- DBI::dbConnect(duckdb())
+  con <- local_con()
   on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
 
   obj <- tbl_function(con, "duckdb_keywords()")
@@ -156,7 +156,7 @@ test_that("Other replacement scans or functions can be registered with tbl_funct
 test_that("Strings tagged as SQL will be handled correctly with dplyr::tbl()", {
   skip_if_not_installed("dbplyr")
 
-  con <- DBI::dbConnect(duckdb())
+  con <- local_con()
   on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
 
   rs <- dplyr::tbl(con, dplyr::sql("SELECT 1"))

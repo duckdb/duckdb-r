@@ -1,5 +1,5 @@
 test_that("Data frame scan is off by default", {
-  con <- dbConnect(duckdb())
+  con <- local_con()
   withr::defer(dbDisconnect(con))
 
   x <- data.frame(a = 1)
@@ -7,7 +7,7 @@ test_that("Data frame scan is off by default", {
 })
 
 test_that("Can scan data frames as tables with dbGetQuery()", {
-  con <- dbConnect(duckdb(environment_scan = TRUE))
+  con <- local_con(environment_scan = TRUE)
   withr::defer(dbDisconnect(con))
 
   x <- data.frame(a = 1)
@@ -16,7 +16,7 @@ test_that("Can scan data frames as tables with dbGetQuery()", {
 })
 
 test_that("Can scan data frames as tables with dbSendQuery()", {
-  con <- dbConnect(duckdb(environment_scan = TRUE))
+  con <- local_con(environment_scan = TRUE)
   withr::defer(dbDisconnect(con))
 
   x <- data.frame(a = 1)
@@ -26,8 +26,7 @@ test_that("Can scan data frames as tables with dbSendQuery()", {
 })
 
 test_that("Data frame scan fetches from the correct environment", {
-  con <- dbConnect(duckdb(environment_scan = TRUE))
-  on.exit(dbDisconnect(con))
+  con <- local_con(environment_scan = TRUE)
 
   x <- data.frame(a = 1)
 
@@ -41,8 +40,7 @@ test_that("Data frame scan fetches from the correct environment", {
 })
 
 test_that("Function hides data frame", {
-  con <- dbConnect(duckdb(environment_scan = TRUE))
-  on.exit(dbDisconnect(con))
+  con <- local_con(environment_scan = TRUE)
 
   x <- data.frame(a = 1)
 
@@ -56,8 +54,7 @@ test_that("Function hides data frame", {
 })
 
 test_that("Database tables take precedence", {
-  con <- dbConnect(duckdb(environment_scan = TRUE))
-  on.exit(dbDisconnect(con))
+  con <- local_con(environment_scan = TRUE)
 
   dbWriteTable(con, "x", data.frame(a = 2))
 
@@ -67,7 +64,7 @@ test_that("Database tables take precedence", {
 })
 
 test_that("Data frames scan survives garbage collection", {
-  con <- dbConnect(duckdb(environment_scan = TRUE))
+  con <- local_con(environment_scan = TRUE)
   withr::defer(dbDisconnect(con))
 
   x <- data.frame(a = 1)

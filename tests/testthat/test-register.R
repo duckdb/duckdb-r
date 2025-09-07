@@ -39,7 +39,7 @@ test_that("duckdb_register() works", {
 test_that("various error cases for duckdb_register()", {
   skip_if_not(TEST_RE2)
 
-  con <- dbConnect(duckdb())
+  con <- local_con()
 
   duckdb_register(con, "my_df1", iris)
   duckdb_unregister(con, "my_df1")

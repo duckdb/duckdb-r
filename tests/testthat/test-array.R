@@ -1,8 +1,7 @@
 local_edition(3)
 
 test_that("arrays of INTEGER can be read", {
-  con <- dbConnect(duckdb(), array = "matrix")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(array = "matrix")
 
   dbExecute(con, "CREATE TABLE tbl (a INTEGER, b INTEGER[3])")
   dbExecute(con, "INSERT INTO tbl VALUES (10, [1, 5, 9])")
@@ -21,8 +20,7 @@ test_that("arrays of INTEGER can be read", {
 
 
 test_that("arrays of INTEGER with NULL can be read", {
-  con <- dbConnect(duckdb(), array = "matrix")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(array = "matrix")
 
   dbExecute(con, "CREATE TABLE tbl (a INTEGER, b INTEGER[3])")
   dbExecute(con, "INSERT INTO tbl VALUES (10, [1, 5, 9])")
@@ -41,8 +39,7 @@ test_that("arrays of INTEGER with NULL can be read", {
 
 
 test_that("arrays of DOUBLE can be read", {
-  con <- dbConnect(duckdb(), array = "matrix")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(array = "matrix")
 
   dbExecute(con, "CREATE TABLE tbl (a INTEGER, b DOUBLE[3])")
   dbExecute(con, "INSERT INTO tbl VALUES (10, [1, 5, 9])")
@@ -61,8 +58,7 @@ test_that("arrays of DOUBLE can be read", {
 
 
 test_that("arrays of DOUBLE with NULL can be read", {
-  con <- dbConnect(duckdb(), array = "matrix")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(array = "matrix")
 
   dbExecute(con, "CREATE TABLE tbl (a INTEGER, b DOUBLE[3])")
   dbExecute(con, "INSERT INTO tbl VALUES (10, [1, 5, 9])")
@@ -81,8 +77,7 @@ test_that("arrays of DOUBLE with NULL can be read", {
 
 
 test_that("arrays of BOOELAN can be read", {
-  con <- dbConnect(duckdb(), array = "matrix")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(array = "matrix")
 
   dbExecute(con, "CREATE TABLE tbl (a INTEGER, b BOOLEAN[3])")
   dbExecute(con, "INSERT INTO tbl VALUES (10, [true, false, true])")
@@ -101,8 +96,7 @@ test_that("arrays of BOOELAN can be read", {
 
 
 test_that("arrays of BOOELAN with NULL can be read", {
-  con <- dbConnect(duckdb(), array = "matrix")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(array = "matrix")
 
   dbExecute(con, "CREATE TABLE tbl (a INTEGER, b BOOLEAN[3])")
   dbExecute(con, "INSERT INTO tbl VALUES (10, [true, NULL, true])")
@@ -121,8 +115,7 @@ test_that("arrays of BOOELAN with NULL can be read", {
 
 
 test_that("arrays of INTEGER in struct column can be read", {
-  con <- dbConnect(duckdb(), array = "matrix")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(array = "matrix")
 
   dbExecute(con, "CREATE TABLE tbl (s STRUCT(a INTEGER, b INTEGER[3]))")
   dbExecute(con, "INSERT INTO tbl VALUES (row(10, [1, 5, 9]))")
@@ -141,8 +134,7 @@ test_that("arrays of INTEGER in struct column can be read", {
 
 
 test_that("arrays of DOUBLE in struct column can be read", {
-  con <- dbConnect(duckdb(), array = "matrix")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(array = "matrix")
 
   dbExecute(con, "CREATE TABLE tbl (s STRUCT(a INTEGER, b DOUBLE[3]))")
   dbExecute(con, "INSERT INTO tbl VALUES (row(10, [1, 5, 9]))")
@@ -161,8 +153,7 @@ test_that("arrays of DOUBLE in struct column can be read", {
 
 
 test_that("arrays of BOOLEAN in struct column can be read", {
-  con <- dbConnect(duckdb(), array = "matrix")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(array = "matrix")
 
   dbExecute(con, "CREATE TABLE tbl (s STRUCT(a INTEGER, b BOOLEAN[3]))")
   dbExecute(con, "INSERT INTO tbl VALUES (row(10, [true, false, true]))")
@@ -181,8 +172,7 @@ test_that("arrays of BOOLEAN in struct column can be read", {
 
 
 test_that("array errors with more than one dimention", {
-  con <- dbConnect(duckdb(), array = "matrix")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(array = "matrix")
 
   dbExecute(con, "CREATE TABLE tbl (a INTEGER, b INTEGER[3][3])")
   dbExecute(con, "INSERT INTO tbl VALUES (10, [[1,3,4], [4,5,6], [7,8,9]])")
@@ -195,8 +185,7 @@ test_that("array errors with more than one dimention", {
 
 
 test_that("array errors with convert option array = 'none'", {
-  con <- dbConnect(duckdb(), array = "none")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(array = "none")
 
   dbExecute(con, "CREATE TABLE tbl (a INTEGER, b INTEGER[3])")
   dbExecute(con, "INSERT INTO tbl VALUES (10, [1, 5, 9])")
@@ -211,8 +200,7 @@ test_that("array errors with convert option array = 'none'", {
 
 
 test_that("array errors with default convert option array", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   dbExecute(con, "CREATE TABLE tbl (a INTEGER, b INTEGER[3])")
   dbExecute(con, "INSERT INTO tbl VALUES (10, [1, 5, 9])")
@@ -229,8 +217,7 @@ test_that("array errors with default convert option array", {
 test_that("Single array of INTEGER can be written", {
   skip_if_not_installed("dplyr")
 
-  con <- dbConnect(duckdb(), array = "matrix")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(array = "matrix")
 
   a <- matrix(1:12, nrow = 4, ncol = 3)
   dbWriteTable(con, "tbl", dplyr::tibble(a))
@@ -244,8 +231,7 @@ test_that("Single array of INTEGER can be written", {
 test_that("arrays of INTEGER can be written", {
   skip_if_not_installed("dplyr")
 
-  con <- dbConnect(duckdb(), array = "matrix")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(array = "matrix")
 
   a <- c(10, 11, 12, 13)
   b <- matrix(1:12, nrow = 4, ncol = 3)
@@ -261,8 +247,7 @@ test_that("arrays of INTEGER can be written", {
 test_that("arrays of INTEGER with NULL can be written", {
   skip_if_not_installed("dplyr")
 
-  con <- dbConnect(duckdb(), array = "matrix")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(array = "matrix")
 
   a <- c(10, 11, 12, 13)
   b <- matrix(c(1, NA, 3, 4, 5, 6, 7, 8, 9, 10, NA, 12), nrow = 4, ncol = 3)
@@ -278,8 +263,7 @@ test_that("arrays of INTEGER with NULL can be written", {
 test_that("arrays of DOUBLE can be written", {
   skip_if_not_installed("dplyr")
 
-  con <- dbConnect(duckdb(), array = "matrix")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(array = "matrix")
 
   a <- c(10, 11, 12, 13)
   b <- matrix(as.double(1:12), nrow = 4, ncol = 3)
@@ -295,8 +279,7 @@ test_that("arrays of DOUBLE can be written", {
 test_that("arrays of DOUBLE with NULL can be written", {
   skip_if_not_installed("dplyr")
 
-  con <- dbConnect(duckdb(), array = "matrix")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(array = "matrix")
 
   a <- c(10, 11, 12, 13)
   b <- matrix(as.double(c(1, 2, 3, 4, 5, 6, 7, NA, 9, NA, 11, 12)), nrow = 4, ncol = 3)
@@ -312,8 +295,7 @@ test_that("arrays of DOUBLE with NULL can be written", {
 test_that("arrays of BOOLEAN can be written", {
   skip_if_not_installed("dplyr")
 
-  con <- dbConnect(duckdb(), array = "matrix")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(array = "matrix")
 
   a <- c(10, 11, 12, 13)
   b <- matrix(c(T, F, T, F, F, T, T, F, T, T, F, F) , nrow = 4, ncol = 3)
@@ -329,8 +311,7 @@ test_that("arrays of BOOLEAN can be written", {
 test_that("arrays of BOOLEAN with NULL can be written", {
   skip_if_not_installed("dplyr")
 
-  con <- dbConnect(duckdb(), array = "matrix")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(array = "matrix")
 
   a <- c(10, 11, 12, 13)
   b <- matrix(c(T, F, NA, F, NA, T, T, F, T, T, F, F) , nrow = 4, ncol = 3)
@@ -346,8 +327,7 @@ test_that("arrays of BOOLEAN with NULL can be written", {
 test_that("arrays of STRING can be written", {
   skip_if_not_installed("dplyr")
 
-  con <- dbConnect(duckdb(), array = "matrix")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(array = "matrix")
 
   a <- c(10, 11, 12, 13)
   b <- matrix(c("a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l") , nrow = 4, ncol = 3)
@@ -363,8 +343,7 @@ test_that("arrays of STRING can be written", {
 test_that("arrays of STRING with NULL can be written", {
   skip_if_not_installed("dplyr")
 
-  con <- dbConnect(duckdb(), array = "matrix")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(array = "matrix")
 
   a <- c(10, 11, 12, 13)
   b <- matrix(c("a", "b", "c", "d", "e", NA, "g", "h", NA, "j", "k", "l") , nrow = 4, ncol = 3)
@@ -380,8 +359,7 @@ test_that("arrays of STRING with NULL can be written", {
 test_that("array errors when writing matrix of complex numbers", {
   skip_if_not_installed("dplyr")
 
-  con <- dbConnect(duckdb(), array = "matrix")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(array = "matrix")
 
   a <- c(10, 11, 12, 13)
   b <- matrix(1+1i , nrow = 4, ncol = 3)
@@ -396,8 +374,7 @@ test_that("arrays work correctly with UNION ALL queries", {
   # Regression test for array indexing bug with UNION ALL
   # Previously, UNION ALL queries with arrays would produce incorrect matrix values
   # due to improper column-major indexing when rows were processed individually
-  con <- dbConnect(duckdb(), array = "matrix")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(array = "matrix")
 
   # Test with INTEGER arrays
   result <- dbGetQuery(con, "
@@ -444,8 +421,7 @@ test_that("arrays work correctly with UNION ALL queries", {
 
 test_that("arrays work correctly in write/read roundtrip after UNION ALL fix", {
   # Additional test to ensure the fix doesn't break UNION ALL array operations
-  con <- dbConnect(duckdb(), array = "matrix")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(array = "matrix")
 
   # Test UNION ALL with arrays to ensure our fix works in roundtrip scenarios
   dbExecute(con, "CREATE TABLE test_table AS SELECT 1 as id, [4, 5, 6]::INTEGER[3] as matrix_col
