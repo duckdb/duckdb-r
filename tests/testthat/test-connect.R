@@ -28,7 +28,7 @@ test_that("no warning after duckdb_shutdown() for unused driver", {
 })
 
 test_that("no warning after dbDisconnect() for used driver", {
-  con <- local_con()
+  con <- dbConnect(duckdb())
   dbDisconnect(con)
 
   # The warning won't occur here anyway, this is to keep testthat happy
@@ -48,7 +48,7 @@ test_that("no warning after dbDisconnect() for driver stored in variable", {
 })
 
 test_that("no warning on dbConnect() with other dbdir", {
-  con <- local_con(tempfile(fileext = ".duckdb"))
+  con <- dbConnect(duckdb(), tempfile(fileext = ".duckdb"))
   dbDisconnect(con)
 
   # The warning won't occur here anyway, this is to keep testthat happy
