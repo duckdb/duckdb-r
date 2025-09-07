@@ -15,6 +15,8 @@
     local_interactive <<- rlang::local_interactive
   } else {
     rethrow_restore()
+    # Overwrite rapi_error with base version when rlang is not available
+    rapi_error <<- rapi_error_base
   }
 
   invisible()
