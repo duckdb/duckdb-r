@@ -35,37 +35,103 @@
 
 <p>R package that contains a vendored copy of the DuckDB C++ library and glue code for R, including a DBI and a relational interface.</p>
 <div class="section level2">
-<h2 id="package-layout">Package layout<a class="anchor" aria-label="anchor" href="#package-layout"></a></h2>
+<h2 id="working-effectively">Working Effectively<a class="anchor" aria-label="anchor" href="#working-effectively"></a></h2>
+<div class="section level3">
+<h3 id="bootstrap-build-and-test-the-repository">Bootstrap, Build, and Test the Repository<a class="anchor" aria-label="anchor" href="#bootstrap-build-and-test-the-repository"></a></h3>
 <ul><li>
-<code>R/</code>: R scripts and package code</li>
+<code>sudo apt-get install -y r-base r-base-dev build-essential</code> – installs R and development tools</li>
 <li>
-<code>src/*.cpp</code>: C++ glue</li>
+<code>mkdir -p ~/R/library &amp;&amp; echo '.libPaths("~/R/library")' &gt; ~/.Rprofile</code> – sets up local R library</li>
 <li>
-<code>src/duckdb/</code>: C++ source code for DuckDB, can be reviewed but only modified in rare cases</li>
+<code>export MAKEFLAGS="-j$(nproc)"</code> – enables parallel compilation</li>
 <li>
-<code>tests/</code>: Unit tests for the package</li>
+<code>UserNM=true R CMD INSTALL . --no-byte-compile</code> – builds and installs the package. NEVER CANCEL: takes 10-15 minutes on first build. Set timeout to 30+ minutes.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="run-tests">Run Tests<a class="anchor" aria-label="anchor" href="#run-tests"></a></h3>
+<ul><li>
+<code>R -q -e "testthat::test_local()"</code> – runs all tests. Takes about 45 seconds. NEVER CANCEL: set timeout to 5+ minutes.</li>
+<li>
+<code>R -q -e "testthat::test_local(filter = '^name$')"</code> – runs specific test file by name</li>
+</ul></div>
+<div class="section level3">
+<h3 id="manual-validation">Manual Validation<a class="anchor" aria-label="anchor" href="#manual-validation"></a></h3>
+<ul><li><p>ALWAYS test basic DuckDB functionality after making changes by running a complete scenario</p></li>
+<li>
+<p>Test connection, table creation, data insertion, and querying:</p>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://r.duckdb.org/">duckdb</a></span><span class="op">)</span></span>
+<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">dbConnect</a></span><span class="op">(</span><span class="fu"><a href="reference/duckdb.html">duckdb</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbExecute.html" class="external-link">dbExecute</a></span><span class="op">(</span><span class="va">con</span>, <span class="st">"CREATE TABLE test (id INTEGER, name VARCHAR)"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbExecute.html" class="external-link">dbExecute</a></span><span class="op">(</span><span class="va">con</span>, <span class="st">"INSERT INTO test VALUES (1, 'Alice'), (2, 'Bob')"</span><span class="op">)</span></span>
+<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://dbi.r-dbi.org/reference/dbGetQuery.html" class="external-link">dbGetQuery</a></span><span class="op">(</span><span class="va">con</span>, <span class="st">"SELECT * FROM test ORDER BY id"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">result</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">con</span>, shutdown<span class="op">=</span><span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+</li>
+</ul></div>
+<div class="section level3">
+<h3 id="format-checking-optional---has-known-issues">Format Checking (Optional - Has Known Issues)<a class="anchor" aria-label="anchor" href="#format-checking-optional---has-known-issues"></a></h3>
+<ul><li>
+<code>pip3 install cmake-format &amp;&amp; export PATH="$HOME/.local/bin:$PATH"</code> – installs formatter</li>
+<li>
+<code>make format-check</code> – checks code formatting (currently shows formatting differences)</li>
+</ul></div>
+</div>
+<div class="section level2">
+<h2 id="validation">Validation<a class="anchor" aria-label="anchor" href="#validation"></a></h2>
+<ul><li>ALWAYS run through a complete end-to-end scenario after making changes to ensure DuckDB R package functionality works correctly.</li>
+<li>The package can be built and tested successfully, though some formatting issues exist in the current codebase.</li>
+<li>One test failure is expected in clock function tests (unrelated to core functionality).</li>
+<li>Format checking will show differences but should not block development.</li>
 </ul></div>
 <div class="section level2">
-<h2 id="compilation">Compilation<a class="anchor" aria-label="anchor" href="#compilation"></a></h2>
-<div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="co"># From the duckdb-r directory</span></span>
-<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="va">UserNM</span><span class="op">=</span>true <span class="ex">R</span> CMD INSTALL . <span class="at">--no-byte-compile</span></span></code></pre></div>
+<h2 id="repository-structure-and-key-locations">Repository Structure and Key Locations<a class="anchor" aria-label="anchor" href="#repository-structure-and-key-locations"></a></h2>
+<ul><li>
+<code>R/</code>: R source code (17 files) - DBI interface, connection handling, result processing</li>
+<li>
+<code>src/*.cpp</code>: C++ glue code (~30 files) - R to DuckDB interface</li>
+<li>
+<code>src/duckdb/</code>: Vendored DuckDB C++ source code (~1700 C++ files, ~1400 headers) - DO NOT modify except in rare cases</li>
+<li>
+<code>tests/testthat/</code>: Unit tests (~40 test files) - comprehensive test coverage</li>
+<li>
+<code>scripts/</code>: Build and maintenance scripts - vendor.sh, format.py, setup-makeflags.R</li>
+<li>
+<code>configure</code>/<code>configure.win</code>: Build configuration scripts</li>
+<li>
+<code>DESCRIPTION</code>: R package metadata and dependencies</li>
+<li>
+<code>README.md</code>: Main documentation with build instructions</li>
+<li>
+<code>CLAUDE.md</code>: Operational instructions for AI</li>
+<li>
+<code>.github/workflows/</code>: CI/CD workflows for testing on multiple platforms</li>
+</ul></div>
+<div class="section level2">
+<h2 id="common-tasks">Common Tasks<a class="anchor" aria-label="anchor" href="#common-tasks"></a></h2>
+<p>The following are validated commands and their typical execution times:</p>
+<div class="section level3">
+<h3 id="building">Building<a class="anchor" aria-label="anchor" href="#building"></a></h3>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="co"># From the duckdb-r directory</span></span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="va">UserNM</span><span class="op">=</span>true <span class="ex">R</span> CMD INSTALL . <span class="at">--no-byte-compile</span></span></code></pre></div>
+</div>
 </div>
 <div class="section level2">
 <h2 id="running-tests">Running Tests<a class="anchor" aria-label="anchor" href="#running-tests"></a></h2>
-<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="co"># Run all tests</span></span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="ex">R</span> <span class="at">-q</span> <span class="at">-e</span> <span class="st">"testthat::test_local()"</span></span>
-<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a></span>
-<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="co"># Run specific test file (replace 'array' with the test name, or use more complex regex)</span></span>
-<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="ex">R</span> <span class="at">-q</span> <span class="at">-e</span> <span class="st">"testthat::test_local(filter = '^array$')"</span></span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="co"># Run all tests</span></span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="ex">R</span> <span class="at">-q</span> <span class="at">-e</span> <span class="st">"testthat::test_local()"</span></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co"># Run specific test file (replace 'array' with the test name, or use more complex regex)</span></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="ex">R</span> <span class="at">-q</span> <span class="at">-e</span> <span class="st">"testthat::test_local(filter = '^array$')"</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="manual-testing-scripts">Manual Testing Scripts<a class="anchor" aria-label="anchor" href="#manual-testing-scripts"></a></h2>
-<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="co"># Run bug reproduction script</span></span>
-<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="ex">R</span> <span class="at">-q</span> <span class="at">-f</span> bug.R</span>
-<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a></span>
-<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co"># Run any R script</span></span>
-<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="ex">R</span> <span class="at">-q</span> <span class="at">-f</span> script_name.R</span>
-<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="ex">R</span></span></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co"># Run bug reproduction script</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="ex">R</span> <span class="at">-q</span> <span class="at">-f</span> bug.R</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a><span class="co"># Run any R script</span></span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a><span class="ex">R</span> <span class="at">-q</span> <span class="at">-f</span> script_name.R</span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a><span class="ex">R</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="test-development">Test Development<a class="anchor" aria-label="anchor" href="#test-development"></a></h2>
@@ -73,6 +139,23 @@
 </li>
 <li>Use <code>testthat::test_local(filter = "name")</code> for running specific test files</li>
 <li>Always add tests when fixing bugs to prevent regression</li>
+</ul></div>
+<div class="section level2">
+<h2 id="dependencies">Dependencies<a class="anchor" aria-label="anchor" href="#dependencies"></a></h2>
+<p>System requirements already satisfied in typical development environment: - R &gt;= 4.1.0 - build-essential (gcc, g++, make) - Standard R packages: DBI, testthat, methods, utils - Optional: cmake-format for code formatting</p>
+</div>
+<div class="section level2">
+<h2 id="package-information">Package Information<a class="anchor" aria-label="anchor" href="#package-information"></a></h2>
+<ul><li>
+<strong>Package Type</strong>: R package providing DBI interface to DuckDB</li>
+<li>
+<strong>Core Functionality</strong>: In-process SQL OLAP database for R</li>
+<li>
+<strong>Installation Time</strong>: Up to 60 minutes from source (mentioned in README)</li>
+<li>
+<strong>Build Architecture</strong>: C++ database engine with R bindings</li>
+<li>
+<strong>Key Features</strong>: DBI compliance, Arrow integration, analytical query performance</li>
 </ul></div>
 </div>
 
