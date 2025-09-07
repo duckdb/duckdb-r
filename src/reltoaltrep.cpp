@@ -322,7 +322,7 @@ void *RelToAltrep::DoRownamesDataptrGet(SEXP x) {
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
 	auto row_count = rownames_wrapper->rel->GetQueryResult()->RowCount();
 	if (row_count > (idx_t)NumericLimits<int32_t>::Maximum()) {
-		cpp11::stop("Integer overflow for row.names attribute");
+		rapi_error_with_context("altrep_rownames_integer_Elt", "Integer overflow for row.names attribute");
 	}
 	rownames_wrapper->rowlen_data[1] = -row_count;
 	return rownames_wrapper->rowlen_data;
@@ -462,7 +462,7 @@ size_t DoubleToSize(double d) {
 shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool strict, bool allow_materialized) {
 	if (!Rf_inherits(df, "data.frame")) {
 		if (strict) {
-			cpp11::stop("rapi_rel_from_altrep_df: Not a data.frame");
+			rapi_error_with_context("rapi_rel_from_altrep_df", "Not a data.frame");
 		} else {
 			return nullptr;
 		}
@@ -471,7 +471,7 @@ shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool 
 	auto row_names = get_attrib(df, R_RowNamesSymbol);
 	if (row_names == R_NilValue || !ALTREP(row_names)) {
 		if (strict) {
-			cpp11::stop("rapi_rel_from_altrep_df: Not a 'special' data.frame, row names are not ALTREP");
+			rapi_error_with_context("rapi_rel_from_altrep_df", "Not a 'special' data.frame, row names are not ALTREP");
 		} else {
 			return nullptr;
 		}
@@ -480,7 +480,7 @@ shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool 
 	auto altrep_data = R_altrep_data1(row_names);
 	if (TYPEOF(altrep_data) != EXTPTRSXP) {
 		if (strict) {
-			cpp11::stop("rapi_rel_from_altrep_df: Not our 'special' data.frame, data1 is not external pointer");
+			rapi_error_with_context("rapi_rel_from_altrep_df", "Not our 'special' data.frame, data1 is not external pointer");
 		} else {
 			return nullptr;
 		}
@@ -489,7 +489,7 @@ shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool 
 	auto tag = R_ExternalPtrTag(altrep_data);
 	if (tag != RStrings::get().duckdb_row_names_sym) {
 		if (strict) {
-			cpp11::stop("rapi_rel_from_altrep_df: Not our 'special' data.frame, tag missing");
+			rapi_error_with_context("rapi_rel_from_altrep_df", "Not our 'special' data.frame, tag missing");
 		} else {
 			return nullptr;
 		}
