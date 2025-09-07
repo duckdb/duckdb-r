@@ -334,7 +334,7 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 // Helper functions to communicate errors via R's stop() function
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message) {
 	// Look up R function in duckdb namespace
-	cpp11::function rapi_error = cpp11::package("duckdb")["rapi_error"];
+	static cpp11::function rapi_error = cpp11::package("duckdb")["rapi_error"];
 	rapi_error(context, message);
 }
 
