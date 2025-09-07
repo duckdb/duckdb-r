@@ -267,10 +267,10 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, Replac
 [[cpp11::register]] void rapi_register_arrow(duckdb::conn_eptr_t conn, std::string name, cpp11::list export_funs,
                                              cpp11::sexp valuesexp) {
 	if (!conn || !conn.get() || !conn->conn) {
-		cpp11::stop("rapi_register_arrow: Invalid connection");
+		rapi_error_with_context("rapi_register_arrow", "Invalid connection");
 	}
 	if (name.empty()) {
-		cpp11::stop("rapi_register_arrow: Name cannot be empty");
+		rapi_error_with_context("rapi_register_arrow", "Name cannot be empty");
 	}
 
 	auto stream_factory =
@@ -285,7 +285,8 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, Replac
 		auto &arrow_scans = conn->db->arrow_scans;
 
 		for (auto e = arrow_scans.find(name); e != arrow_scans.end(); ++e) {
-			cpp11::stop("rapi_register_arrow: Arrow table '%s' already registered", name.c_str());
+			std::string error_msg = "Arrow table '" + name + "' already registered";
+			rapi_error_with_context("rapi_register_arrow", error_msg);
 		}
 
 		arrow_scans[name] = state_list;

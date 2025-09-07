@@ -110,7 +110,8 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	}
 
 	if (params.size() != R_xlen_t(n_param)) {
-		cpp11::stop("rapi_bind: Bind parameters need to be a list of length %i", n_param);
+		std::string error_msg = "Bind parameters need to be a list of length " + std::to_string(n_param);
+		rapi_error_with_context("rapi_bind", error_msg);
 	}
 
 	stmt->parameters.clear();
@@ -120,12 +121,12 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 
 	for (auto param = std::next(params.begin()); param != params.end(); ++param) {
 		if (Rf_length(*param) != n_rows) {
-			cpp11::stop("rapi_bind: Bind parameter values need to have the same length");
+			rapi_error_with_context("rapi_bind", "Bind parameter values need to have the same length");
 		}
 	}
 
 	if (n_rows != 1 && convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED) {
-		cpp11::stop("rapi_bind: Bind parameter values need to have length one for arrow queries");
+		rapi_error_with_context("rapi_bind", "Bind parameter values need to have length one for arrow queries");
 	}
 
 	cpp11::writable::list out;
@@ -282,7 +283,7 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 
 [[cpp11::register]] SEXP rapi_execute(duckdb::stmt_eptr_t stmt, duckdb::ConvertOpts convert_opts) {
 	if (!stmt || !stmt.get() || !stmt->stmt) {
-		cpp11::stop("rapi_execute: Invalid statement");
+		rapi_error_with_context("rapi_execute", "Invalid statement");
 	}
 
 	ScopedInterruptHandler signal_handler(stmt->stmt->context);
@@ -296,7 +297,9 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	signal_handler.Disable();
 
 	if (generic_result->HasError()) {
-		cpp11::stop("rapi_execute: Failed to run query\nError: %s", generic_result->GetError().c_str());
+		ErrorData error(generic_result->GetError());
+		error.ConvertErrorToJSON();
+		rapi_error_with_context("rapi_execute", error.Message());
 	}
 
 	if (convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED) {

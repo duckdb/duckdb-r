@@ -153,7 +153,7 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 		Materialize();
 
 		if (!mat_error.empty()) {
-			cpp11::stop(mat_error);
+			rapi_error_with_context("GetQueryResult", mat_error);
 		}
 
 		// FIXME: Use std::experimental::scope_exit
@@ -165,7 +165,7 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 		reset_max_expression_depth.release();
 
 		if (signal_handler.HandleInterrupt()) {
-			cpp11::stop("Query execution was interrupted");
+			rapi_error_with_context("GetQueryResult", "Query execution was interrupted");
 		}
 
 		signal_handler.Disable();
