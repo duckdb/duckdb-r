@@ -86,9 +86,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	for (idx_t i = 0; i + 1 < statements.size(); i++) {
 		auto res = conn->conn->Query(std::move(statements[i]));
 		
-		if (signal_handler.HandleInterrupt()) {
-			return cpp11::list();
-		}
+		signal_handler.HandleInterrupt();
 		
 		if (res->HasError()) {
 			cpp11::stop("rapi_prepare: Failed to execute statement %s\nError: %s", query.c_str(),
@@ -97,9 +95,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	}
 	auto stmt = conn->conn->Prepare(std::move(statements.back()));
 
-	if (signal_handler.HandleInterrupt()) {
-		return cpp11::list();
-	}
+	signal_handler.HandleInterrupt();
 
 	signal_handler.Disable();
 
@@ -302,9 +298,7 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 
 	auto generic_result = stmt->stmt->Execute(stmt->parameters, false);
 
-	if (signal_handler.HandleInterrupt()) {
-		return R_NilValue;
-	}
+	signal_handler.HandleInterrupt();
 
 	signal_handler.Disable();
 

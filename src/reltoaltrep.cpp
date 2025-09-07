@@ -164,9 +164,7 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 		rel->context->GetContext()->config.max_expression_depth = old_depth;
 		reset_max_expression_depth.release();
 
-		if (signal_handler.HandleInterrupt()) {
-			cpp11::stop("Query execution was interrupted");
-		}
+		signal_handler.HandleInterrupt();
 
 		signal_handler.Disable();
 	}
