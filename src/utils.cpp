@@ -17,7 +17,7 @@ SEXP duckdb::ToUtf8(SEXP string_sexp) {
 
 [[cpp11::register]] cpp11::r_string rapi_ptr_to_str(SEXP extptr) {
 	if (TYPEOF(extptr) != EXTPTRSXP) {
-		cpp11::stop("rapi_ptr_to_str: Need external pointer parameter");
+		rapi_error_with_context("rapi_ptr_to_str", "Need external pointer parameter");
 	}
 
 	void *ptr = R_ExternalPtrAddr(extptr);
@@ -257,7 +257,7 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 		return Value::STRUCT(std::move(child_values));
 	}
 	default:
-		cpp11::stop("duckdb_sexp_to_value: Unsupported type");
+		rapi_error_with_context("duckdb_sexp_to_value", "Unsupported type");
 		return Value();
 	}
 }
@@ -322,11 +322,42 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 
 [[cpp11::register]] void rapi_load_rfuns(duckdb::db_eptr_t dual) {
 	if (!dual || !dual.get()) {
-		cpp11::stop("rapi_load_rfuns: Invalid database reference");
+		rapi_error_with_context("rapi_load_rfuns", "Invalid database reference");
 	}
 	auto db = dual->get();
 	if (!db || !db->db) {
-		cpp11::stop("rapi_load_rfuns: Database already closed");
+		rapi_error_with_context("rapi_load_rfuns", "Database already closed");
 	}
 	db->db->LoadExtension<RfunsExtension>();
+}
+
+// Helper functions to communicate errors via JSON format with context information
+void rapi_error_with_context(const std::string &context, const std::string &message) {
+	// Add context information to extra_info
+	std::unordered_map<std::string, std::string> extra_info;
+	extra_info["r_function"] = context;
+	
+	// Create error with context information and convert to JSON
+	try {
+		throw duckdb::InvalidInputException(message, extra_info);
+	} catch (const std::exception &e) {
+		duckdb::ErrorData final_error(e);
+		final_error.ConvertErrorToJSON();
+		cpp11::stop(final_error.Message().c_str());
+	}
+}
+
+void rapi_error_with_context(const std::string &context, const std::exception &e) {
+	// Add context information to extra_info
+	std::unordered_map<std::string, std::string> extra_info;
+	extra_info["r_function"] = context;
+	
+	// Create new error with context information and convert to JSON
+	try {
+		throw duckdb::InvalidInputException(e.what(), extra_info);
+	} catch (const std::exception &context_e) {
+		duckdb::ErrorData final_error(context_e);
+		final_error.ConvertErrorToJSON();
+		cpp11::stop(final_error.Message().c_str());
+	}
 }

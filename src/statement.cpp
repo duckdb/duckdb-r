@@ -53,7 +53,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 
 [[cpp11::register]] cpp11::list rapi_prepare(duckdb::conn_eptr_t conn, std::string query, cpp11::environment env) {
 	if (!conn || !conn.get() || !conn->conn) {
-		cpp11::stop("rapi_prepare: Invalid connection");
+		rapi_error_with_context("rapi_prepare", "Invalid connection");
 	}
 
 	D_ASSERT(conn->db->env == R_NilValue);
@@ -70,25 +70,29 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	} catch (std::exception &ex) {
 		ErrorData error(ex);
 		error.AddErrorLocation(query);
-		cpp11::stop("rapi_prepare: Failed to extract statements:\n%s", error.Message().c_str());
+		error.ConvertErrorToJSON();
+		// Add context through our helper that will add more context info
+		rapi_error_with_context("rapi_prepare", error.Message());
 	}
 	if (statements.empty()) {
 		// no statements to execute
-		cpp11::stop("rapi_prepare: No statements to execute");
+		rapi_error_with_context("rapi_prepare", "No statements to execute");
 	}
 	// if there are multiple statements, we directly execute the statements besides the last one
 	// we only return the result of the last statement to the user, unless one of the previous statements fails
 	for (idx_t i = 0; i + 1 < statements.size(); i++) {
 		auto res = conn->conn->Query(std::move(statements[i]));
 		if (res->HasError()) {
-			cpp11::stop("rapi_prepare: Failed to execute statement %s\nError: %s", query.c_str(),
-			            res->GetError().c_str());
+			ErrorData error(res->GetError());
+			error.ConvertErrorToJSON();
+			rapi_error_with_context("rapi_prepare", error.Message());
 		}
 	}
 	auto stmt = conn->conn->Prepare(std::move(statements.back()));
 	if (stmt->HasError()) {
-		cpp11::stop("rapi_prepare: Failed to prepare query %s\nError: %s", query.c_str(),
-		            stmt->error.Message().c_str());
+		ErrorData error(stmt->error);
+		error.ConvertErrorToJSON();
+		rapi_error_with_context("rapi_prepare", error.Message());
 	}
 	auto n_param = stmt->named_param_map.size();
 	return construct_retlist(std::move(stmt), query, n_param, conn->db->registered_dfs);

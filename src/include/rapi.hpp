@@ -11,6 +11,7 @@
 #include "duckdb/common/unordered_map.hpp"
 #include "duckdb/parser/tableref/table_function_ref.hpp"
 #include "duckdb/common/mutex.hpp"
+#include "duckdb/common/error_data.hpp"
 
 #include "convert.hpp"
 
@@ -39,7 +40,7 @@ public:
 	}
 	DualWrapper(DualWrapper *dual) : precious_(dual->get()) {
 		if (!precious_) {
-			cpp11::stop("dual is already released");
+			rapi_error_with_context("DualWrapper", "dual is already released");
 		}
 	}
 	~DualWrapper() {
@@ -251,6 +252,10 @@ void duckdb_r_transform(duckdb::Vector &src_vec, SEXP dest, duckdb::idx_t dest_o
                         const duckdb::ConvertOpts &convert_opts,const duckdb::string &name);
 
 SEXP get_attrib(SEXP vec, SEXP name);
+
+// Helper functions to communicate errors via JSON format with context information
+[[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message);
+[[noreturn]] void rapi_error_with_context(const std::string &context, const std::exception &e);
 
 template <typename T, typename... ARGS>
 cpp11::external_pointer<T> make_external(const std::string &rclass, ARGS &&... args) {

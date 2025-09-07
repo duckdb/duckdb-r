@@ -14,13 +14,13 @@ using namespace duckdb;
 [[cpp11::register]] void rapi_register_df(duckdb::conn_eptr_t conn, std::string name, cpp11::data_frame value,
                                           duckdb::ConvertOpts convert_opts, bool overwrite) {
 	if (!conn || !conn.get() || !conn->conn) {
-		cpp11::stop("rapi_register_df: Invalid connection");
+		rapi_error_with_context("rapi_register_df", "Invalid connection");
 	}
 	if (name.empty()) {
-		cpp11::stop("rapi_register_df: Name cannot be empty");
+		rapi_error_with_context("rapi_register_df", "Name cannot be empty");
 	}
 	if (value.ncol() < 1) {
-		cpp11::stop("rapi_register_df: Data frame with at least one column required");
+		rapi_error_with_context("rapi_register_df", "Data frame with at least one column required");
 	}
 	try {
 		named_parameter_map_t parameter_map;
@@ -31,7 +31,7 @@ using namespace duckdb;
 		    ->CreateView(name, overwrite, true);
 		static_cast<cpp11::sexp>(conn).attr("_registered_df_" + name) = value;
 	} catch (std::exception &e) {
-		cpp11::stop("rapi_register_df: Failed to register data frame: %s", e.what());
+		rapi_error_with_context("rapi_register_df", e);
 	}
 }
 
@@ -42,7 +42,7 @@ using namespace duckdb;
 	static_cast<cpp11::sexp>(conn).attr("_registered_df_" + name) = R_NilValue;
 	auto res = conn->conn->Query("DROP VIEW IF EXISTS \"" + name + "\"");
 	if (res->HasError()) {
-		cpp11::stop("%s", res->GetError().c_str());
+		rapi_error_with_context("rapi_unregister_df", res->GetError());
 	}
 }
 
