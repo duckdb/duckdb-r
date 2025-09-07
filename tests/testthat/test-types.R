@@ -1,8 +1,7 @@
 test_that("test_all_types() output", {
   skip_on_os("windows")
 
-  con <- dbConnect(duckdb(), array = "matrix")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(array = "matrix")
 
   local_edition(3)
   withr::local_options(digits.secs = 6)

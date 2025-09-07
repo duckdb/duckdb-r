@@ -1,8 +1,7 @@
 
 # Run this file with testthat::test_local(filter = "^relational$")
 
-con <- dbConnect(duckdb())
-on.exit(dbDisconnect(con, shutdown = TRUE))
+con <- local_con()
 
 test_that("we can create a relation from a df", {
   rel <- rel_from_df(con, data.frame(a = 1))

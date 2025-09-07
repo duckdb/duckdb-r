@@ -7,8 +7,7 @@ test_that("dbGetInfo returns something meaningful", {
   expect_true(grepl("\\d+\\.\\d+\\.\\d+", info_drv$client.version))
   expect_true(grepl("\\d+\\.\\d+\\.\\d+", info_drv$driver.version))
 
-  con <- dbConnect(drv)
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(dbdir)
   info_con <- dbGetInfo(con)
   expect_equal(info_con$dbname, dbdir)
   expect_true(grepl("\\d+\\.\\d+\\.\\d+", info_con$db.version))

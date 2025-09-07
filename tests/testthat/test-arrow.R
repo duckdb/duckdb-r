@@ -40,8 +40,7 @@ example_data <- dplyr::tibble(
 
 test_that("to_duckdb", {
   ds <- InMemoryDataset$create(example_data)
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   dbExecute(con, "PRAGMA threads=1")
   expect_equal(
@@ -197,9 +196,8 @@ test_that("to_arrow roundtrip, with dataset", {
 # persistence and querying against the table without using the `tbl` itself, so
 # we need to create a connection separate from the ephemeral one that is made
 # with arrow_duck_connection()
-con <- dbConnect(duckdb())
+con <- local_con()
 dbExecute(con, "PRAGMA threads=1")
-on.exit(dbDisconnect(con, shutdown = TRUE), add = TRUE)
 
 test_that("Joining, auto-cleanup enabled", {
   ds <- InMemoryDataset$create(example_data)
@@ -266,10 +264,9 @@ test_that("to_duckdb passing a connection", {
 
   ds <- InMemoryDataset$create(example_data)
 
-  con_separate <- dbConnect(duckdb())
+  con_separate <- local_con()
   # we always want to test in parallel
   dbExecute(con_separate, "PRAGMA threads=2")
-  on.exit(dbDisconnect(con_separate, shutdown = TRUE), add = TRUE)
 
   # create a table to join to that we know is in our con_separate
   new_df <- data.frame(
