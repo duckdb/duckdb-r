@@ -3,13 +3,11 @@ local_edition(3)
 
 test_that("empty statement gives an error", {
   con <- local_con()
-  on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
   expect_snapshot_error(DBI::dbGetQuery(con, "; ;   ; -- SELECT 1;"))
 })
 
 test_that("multiple statements can be used in one call", {
   con <- local_con()
-  on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
   query <- paste(
     "CREATE TABLE integers(i integer);",
     "insert into integers select * from range(10);",
@@ -22,7 +20,6 @@ test_that("multiple statements can be used in one call", {
 
 test_that("statements can be splitted apart correctly", {
   con <- local_con()
-  on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
   expect_snapshot(DBI::dbGetQuery(con, a <- paste(
     "--Multistatement testing; testing",
     "/*  test;   ",
@@ -52,7 +49,6 @@ test_that("export/import database works", {
   DBI::dbDisconnect(con, shutdown = TRUE)
 
   con <- local_con()
-  on.exit(DBI::dbDisconnect(con, shutdown = TRUE))
 
   DBI::dbExecute(con, paste0("IMPORT DATABASE '", export_location, "'"))
   if (file.exists(export_location)) unlink(export_location, recursive = TRUE)

@@ -150,8 +150,7 @@ test_that("tz_out_convert = force handles invalid timestamps during DST transiti
 
   # This test reproduces the issue where invalid timestamps during DST transitions
   # cause all timestamps to lose their time component when tz_out_convert = "force"
-  con <- dbConnect(duckdb(), timezone_out = "Europe/London", tz_out_convert = "force")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(timezone_out = "Europe/London", tz_out_convert = "force")
 
   # Test with a single valid timestamp
   query1 <- "VALUES ('2025-03-30 00:59:00'::TIMESTAMP);"

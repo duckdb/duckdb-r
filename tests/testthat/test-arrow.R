@@ -198,7 +198,6 @@ test_that("to_arrow roundtrip, with dataset", {
 # with arrow_duck_connection()
 con <- local_con()
 dbExecute(con, "PRAGMA threads=1")
-on.exit(dbDisconnect(con, shutdown = TRUE), add = TRUE)
 
 test_that("Joining, auto-cleanup enabled", {
   ds <- InMemoryDataset$create(example_data)
@@ -268,7 +267,6 @@ test_that("to_duckdb passing a connection", {
   con_separate <- local_con()
   # we always want to test in parallel
   dbExecute(con_separate, "PRAGMA threads=2")
-  on.exit(dbDisconnect(con_separate, shutdown = TRUE), add = TRUE)
 
   # create a table to join to that we know is in our con_separate
   new_df <- data.frame(
