@@ -119,5 +119,5 @@ tz_force_one <- function(x, timezone) {
   # convert to character in ISO format, stripping the timezone
   ct <- format(x, format = "%Y-%m-%d %H:%M:%OS", usetz = FALSE)
   # recreate the POSIXct with specified timezone
-  as.POSIXct(ct, tz = timezone)
+  as.POSIXct(ct, format = "%Y-%m-%d %H:%M:%OS", tz = timezone)
 }

@@ -2,6 +2,18 @@
 
 set -e
 
+# Setup parallel compilation if MAKEFLAGS not already set
+cd "$(dirname "$0")"
+if [ -z "${MAKEFLAGS}" ]; then
+  makeflags_value=$(Rscript scripts/setup-makeflags.R 2>/dev/null || echo "")
+  if [ -n "${makeflags_value}" ]; then
+    export MAKEFLAGS="${makeflags_value}"
+    echo "Setting MAKEFLAGS=${makeflags_value} for parallel compilation"
+  fi
+else
+  echo "MAKEFLAGS already set to: ${MAKEFLAGS}"
+fi
+
 cd "$(dirname "$0")/src"
 
 r_4_2=$(Rscript --vanilla -e 'writeLines(format(getRversion() >= "4.2"))')
