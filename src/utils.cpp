@@ -336,6 +336,8 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 	// Look up R function in duckdb namespace
 	static cpp11::function rapi_error = cpp11::package("duckdb")["rapi_error"];
 	rapi_error(context, message);
+
+	throw InternalException("Unreachable code after rapi_error()");
 }
 
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::exception &e) {
