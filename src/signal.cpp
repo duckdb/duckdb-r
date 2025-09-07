@@ -16,7 +16,11 @@ ScopedInterruptHandler *ScopedInterruptHandler::instance = nullptr;
 
 ScopedInterruptHandler::ScopedInterruptHandler(shared_ptr<ClientContext> context_) : context(context_) {
 	if (instance) {
-		throw InternalException("ScopedInterruptHandler already active");
+		// ScopedInterruptHandler serves a dual purpose:
+		// 1. It allows for interrupting long-running queries.
+		// 2. It ensures that only one query can be interrupted at a time.
+		// If we see this error, it most likely means that a query is already being executed.
+		throw InternalException("Connection already working on another query");
 	}
 	if (context) {
 		instance = this;
@@ -44,7 +48,7 @@ void ScopedInterruptHandler::HandleInterrupt() const {
 
 	// FIXME: Is this equivalent to cpp11::safe[Rf_onintrNoResume](), or worse?
 	cpp11::safe[Rf_onintr]();
-	
+
 	// Stop execution with an appropriate interruption message
 	cpp11::stop("Query execution was interrupted");
 }
