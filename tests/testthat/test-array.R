@@ -391,3 +391,70 @@ test_that("array errors when writing matrix of complex numbers", {
     dbWriteTable(con, "tbl", df)
   })
 })
+
+test_that("arrays work correctly with UNION ALL queries", {
+  # Regression test for array indexing bug with UNION ALL
+  # Previously, UNION ALL queries with arrays would produce incorrect matrix values
+  # due to improper column-major indexing when rows were processed individually
+  con <- dbConnect(duckdb(), array = "matrix")
+  on.exit(dbDisconnect(con, shutdown = TRUE))
+
+  # Test with INTEGER arrays
+  result <- dbGetQuery(con, "
+    SELECT 1 AS id, [4, 5, 6]::integer[3] AS matrix
+    UNION ALL
+    SELECT 2, [7, 8, 9]
+  ")
+
+  expected_matrix <- matrix(c(4, 7, 5, 8, 6, 9), nrow = 2, ncol = 3)
+  expect_equal(result$matrix, expected_matrix)
+
+  # Test with DOUBLE arrays
+  result_double <- dbGetQuery(con, "
+    SELECT 1 AS id, [1.1, 2.2, 3.3]::double[3] AS matrix
+    UNION ALL
+    SELECT 2, [4.4, 5.5, 6.6]
+  ")
+
+  expected_matrix_double <- matrix(c(1.1, 4.4, 2.2, 5.5, 3.3, 6.6), nrow = 2, ncol = 3)
+  expect_equal(result_double$matrix, expected_matrix_double)
+
+  # Test with three rows to ensure it works with more than two rows
+  result_three <- dbGetQuery(con, "
+    SELECT 1 AS id, [10, 20, 30]::integer[3] AS matrix
+    UNION ALL
+    SELECT 2, [40, 50, 60]
+    UNION ALL
+    SELECT 3, [70, 80, 90]
+  ")
+
+  expected_matrix_three <- matrix(c(10, 40, 70, 20, 50, 80, 30, 60, 90), nrow = 3, ncol = 3)
+  expect_equal(result_three$matrix, expected_matrix_three)
+
+  # Test with different array sizes
+  result_size4 <- dbGetQuery(con, "
+    SELECT 1 AS id, [1, 2, 3, 4]::integer[4] AS matrix
+    UNION ALL
+    SELECT 2, [5, 6, 7, 8]
+  ")
+
+  expected_matrix_size4 <- matrix(c(1, 5, 2, 6, 3, 7, 4, 8), nrow = 2, ncol = 4)
+  expect_equal(result_size4$matrix, expected_matrix_size4)
+})
+
+test_that("arrays work correctly in write/read roundtrip after UNION ALL fix", {
+  # Additional test to ensure the fix doesn't break UNION ALL array operations
+  con <- dbConnect(duckdb(), array = "matrix")
+  on.exit(dbDisconnect(con, shutdown = TRUE))
+
+  # Test UNION ALL with arrays to ensure our fix works in roundtrip scenarios
+  dbExecute(con, "CREATE TABLE test_table AS SELECT 1 as id, [4, 5, 6]::INTEGER[3] as matrix_col
+                  UNION ALL
+                  SELECT 2 as id, [7, 8, 9]::INTEGER[3] as matrix_col")
+
+  result <- dbReadTable(con, "test_table")
+
+  # The matrix_col should be read as a matrix with correct values
+  expected_matrix <- matrix(c(4, 7, 5, 8, 6, 9), nrow = 2, ncol = 3)
+  expect_equal(result$matrix_col, expected_matrix)
+})
