@@ -76,6 +76,13 @@
 <li>
 <code>make format-check</code> – checks code formatting (currently shows formatting differences)</li>
 </ul></div>
+<div class="section level3">
+<h3 id="markdown-linting">Markdown Linting<a class="anchor" aria-label="anchor" href="#markdown-linting"></a></h3>
+<ul><li>
+<code>npm install -g markdownlint-cli</code> – installs markdownlint</li>
+<li>
+<code>markdownlint *.md scripts/*.md</code> – checks markdown files for style issues</li>
+</ul></div>
 </div>
 <div class="section level2">
 <h2 id="validation">Validation<a class="anchor" aria-label="anchor" href="#validation"></a></h2>
@@ -95,7 +102,7 @@
 <li>
 <code>tests/testthat/</code>: Unit tests (~40 test files) - comprehensive test coverage</li>
 <li>
-<code>scripts/</code>: Build and maintenance scripts - vendor.sh, format.py, setup-makeflags.R</li>
+<code>scripts/</code>: Build and maintenance scripts - vendor.sh, vendor-one.sh, format.py, setup-makeflags.R</li>
 <li>
 <code>configure</code>/<code>configure.win</code>: Build configuration scripts</li>
 <li>
@@ -105,7 +112,26 @@
 <li>
 <code>CLAUDE.md</code>: Operational instructions for AI</li>
 <li>
+<code>scripts/VENDORING.md</code>: Comprehensive vendoring documentation</li>
+<li>
 <code>.github/workflows/</code>: CI/CD workflows for testing on multiple platforms</li>
+</ul></div>
+<div class="section level2">
+<h2 id="vendoring">Vendoring<a class="anchor" aria-label="anchor" href="#vendoring"></a></h2>
+<p>The duckdb-r package vendors (includes a copy of) the DuckDB C++ core library. Key points:</p>
+<ul><li>
+<strong>Automated Process</strong>: Runs hourly via GitHub Actions, vendors from upstream DuckDB</li>
+<li>
+<strong>Branch Strategy</strong>: <code>main</code> tracks stable <code>v1.3-ossivalis</code>, <code><a href="https://rdrr.io/r/base/Control.html" class="external-link">next</a></code> tracks bleeding-edge <code>main</code>
+</li>
+<li>
+<strong>Never modify <code>src/duckdb/</code> directly</strong> - changes will be overwritten by vendoring</li>
+<li>
+<strong>Patching</strong>: Add files to the <code>patch/</code> directory to apply R-specific modifications to vendored code. Send patches upstream as pull requests every once in a while.</li>
+<li>
+<strong>Manual vendoring</strong>: Use <code>scripts/vendor.sh /path/to/duckdb/repo</code> for testing</li>
+<li>
+<strong>Full documentation</strong>: See <a href="scripts/VENDORING.html">VENDORING.md</a> for complete details</li>
 </ul></div>
 <div class="section level2">
 <h2 id="common-tasks">Common Tasks<a class="anchor" aria-label="anchor" href="#common-tasks"></a></h2>
@@ -148,8 +174,12 @@
 </ul></div>
 <div class="section level2">
 <h2 id="dependencies">Dependencies<a class="anchor" aria-label="anchor" href="#dependencies"></a></h2>
-<p>System requirements already satisfied in typical development environment: - R &gt;= 4.1.0 - build-essential (gcc, g++, make) - Standard R packages: DBI, testthat, methods, utils - Optional: cmake-format for code formatting</p>
-</div>
+<p>System requirements already satisfied in typical development environment:</p>
+<ul><li>R &gt;= 4.1.0</li>
+<li>build-essential (gcc, g++, make)</li>
+<li>Standard R packages: DBI, testthat, methods, utils</li>
+<li>Optional: cmake-format for code formatting</li>
+</ul></div>
 <div class="section level2">
 <h2 id="package-information">Package Information<a class="anchor" aria-label="anchor" href="#package-information"></a></h2>
 <ul><li>
