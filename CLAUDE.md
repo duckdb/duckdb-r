@@ -49,12 +49,23 @@ R package that contains a vendored copy of the DuckDB C++ library and glue code 
 - `src/*.cpp`: C++ glue code (~30 files) - R to DuckDB interface
 - `src/duckdb/`: Vendored DuckDB C++ source code (~1700 C++ files, ~1400 headers) - DO NOT modify except in rare cases
 - `tests/testthat/`: Unit tests (~40 test files) - comprehensive test coverage
-- `scripts/`: Build and maintenance scripts - vendor.sh, format.py, setup-makeflags.R
+- `scripts/`: Build and maintenance scripts - vendor.sh, vendor-one.sh, format.py, setup-makeflags.R
 - `configure`/`configure.win`: Build configuration scripts
 - `DESCRIPTION`: R package metadata and dependencies
 - `README.md`: Main documentation with build instructions
 - `CLAUDE.md`: Operational instructions for AI
+- `VENDORING.md`: Comprehensive vendoring documentation
 - `.github/workflows/`: CI/CD workflows for testing on multiple platforms
+
+## Vendoring
+
+The duckdb-r package vendors (includes a copy of) the DuckDB C++ core library. Key points:
+
+- **Automated Process**: Runs hourly via GitHub Actions, vendors from upstream DuckDB
+- **Branch Strategy**: `main` tracks stable `v1.3-ossivalis`, `next` tracks bleeding-edge `main`
+- **Never modify `src/duckdb/` directly** - changes will be overwritten by vendoring
+- **Manual vendoring**: Use `scripts/vendor.sh /path/to/duckdb/repo` for testing
+- **Full documentation**: See [VENDORING.md](VENDORING.md) for complete details
 
 ## Common Tasks
 

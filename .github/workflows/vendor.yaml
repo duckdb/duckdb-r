@@ -1,3 +1,9 @@
+# Automated vendoring workflow for DuckDB sources
+# Runs hourly to sync with upstream DuckDB repository
+# main branch: vendors from v1.3-ossivalis (stable)
+# next branch: vendors from main (bleeding edge)
+# See VENDORING.md for complete documentation
+
 on:
   push:
     branches:

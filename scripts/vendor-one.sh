@@ -1,4 +1,7 @@
 #!/bin/bash
+# Vendors DuckDB sources commit-by-commit from upstream repository
+# Used by CI automation (.github/workflows/vendor.yaml)
+# See VENDORING.md for complete documentation
 # https://unix.stackexchange.com/a/654932/19205
 # Using bash for -o pipefail
 
