@@ -1,5 +1,34 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.3.2.9021
+
+## Bug fixes
+
+- Fix timezone conversion for invalid timestamps with `tz_out_convert = "force"`.
+
+- Substitute invalid UTF-8 characters in error messages to avoid a failure when reporting the error.
+
+- Fix index calculation for retrieval of arrays (#1473).
+
+## Features
+
+- `dbGetInfo()` gets the version from a hard-coded value and not from a DuckDB query.
+
+- Package uses two cores by default for compilation.
+
+## Chore
+
+- Add AI instructions.
+
+- Build-ignore.
+
+- Add Claude instructions.
+
+## Testing
+
+- Add `local_con()` test fixture for cleaner DuckDB connection management.
+
+
 # duckdb 1.3.2.9020
 
 ## Continuous integration
