@@ -1,21 +1,18 @@
 test_that("parquet reader works on the notorious userdata1 file", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con))
+  con <- local_con()
   res <- dbGetQuery(con, "SELECT * FROM parquet_scan('data/userdata1.parquet')")
   expect_true(TRUE)
 })
 
 test_that("parquet reader works with the binary as string flag", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con))
+  con <- local_con()
 
   res <- dbGetQuery(con, "SELECT typeof(#1) FROM parquet_scan('data/binary_string.parquet',binary_as_string=true) limit 1")
   expect_true(res[1] == "VARCHAR")
 })
 
 test_that("duckdb_write_parquet() works as expected", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con))
+  con <- local_con()
 
   tf <- tempfile()
 
@@ -40,8 +37,7 @@ test_that("duckdb_write_parquet() works as expected", {
 })
 
 test_that("duckdb rel_to_parquet() throws error with no file name", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con))
+  con <- local_con()
 
   # write to parquet
   df_rel <- rel_from_df(con, data.frame(a = 1L))
@@ -49,8 +45,7 @@ test_that("duckdb rel_to_parquet() throws error with no file name", {
 })
 
 test_that("duckdb rel_to_parquet() allows multiple files (#1015)", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con))
+  con <- local_con()
 
   tf1 <- tempfile(fileext = ".parquet")
   rel1 <- rel_from_df(con, data.frame(a = 1))

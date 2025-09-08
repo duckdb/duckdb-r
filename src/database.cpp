@@ -16,7 +16,8 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 	return true;
 }
 
-[[cpp11::register]] duckdb::db_eptr_t rapi_startup(std::string dbdir, bool readonly, cpp11::list configsexp, bool environment_scan) {
+[[cpp11::register]] duckdb::db_eptr_t rapi_startup(std::string dbdir, bool readonly, cpp11::list configsexp,
+                                                   bool environment_scan) {
 	const char *dbdirchar;
 
 	if (dbdir.length() == 0 || dbdir.compare(IN_MEMORY_PATH) == 0) {
@@ -65,8 +66,8 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 		auto &schema = catalog.GetSchema(transaction, DEFAULT_SCHEMA);
 		auto scan_entry = schema.GetEntry(transaction, CatalogType::TABLE_FUNCTION_ENTRY, "arrow_scan");
 		auto &arrow_scan = scan_entry->Cast<TableFunctionCatalogEntry>();
-		for(auto &function : arrow_scan.functions.functions) {
-				function.global_initialization = TableFunctionInitialization::INITIALIZE_ON_SCHEDULE;
+		for (auto &function : arrow_scan.functions.functions) {
+			function.global_initialization = TableFunctionInitialization::INITIALIZE_ON_SCHEDULE;
 		}
 	} catch (std::exception &e) {
 		cpp11::stop("rapi_startup: Failed to open database: %s", e.what());

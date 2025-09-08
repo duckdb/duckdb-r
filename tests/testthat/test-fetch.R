@@ -1,6 +1,5 @@
 test_that("dbFetch() can fetch RETURNING statements (#3875)", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   dbCreateTable(con, "x", list(a = "int"))
 

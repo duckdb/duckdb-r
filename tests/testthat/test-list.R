@@ -1,6 +1,5 @@
 test_that("one-level lists can be read", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   res <- dbGetQuery(con, "SELECT [] a")$a
   expect_equal(res, list(integer(0)))
@@ -31,8 +30,7 @@ test_that("rel_filter() handles LIST logical type", {
   skip_if_not(getRversion() >= "4.3.0")
   skip_if_not_installed("tibble")
 
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   df1 <- tibble::tibble(a = list(1, c(1,2)))
 

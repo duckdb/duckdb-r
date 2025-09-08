@@ -1,8 +1,7 @@
 test_that("maps can be read", {
   skip_if_not_installed("vctrs")
 
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   res <- dbGetQuery(
     con,
@@ -45,8 +44,7 @@ test_that("structs give the same results via Arrow", {
   skip_if_not_installed("tibble")
   skip_if_not_installed("arrow", "13.0.0")
 
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   res <- dbGetQuery(
     con,

@@ -1,8 +1,7 @@
 test_that("structs can be read", {
   skip_if_not_installed("vctrs")
 
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   res <- dbGetQuery(con, "SELECT {'x': 100, 'y': 'hello', 'z': 3.14} AS s")
   expect_equal(res, vctrs::data_frame(
@@ -54,8 +53,7 @@ test_that("structs give the same results via Arrow", {
   skip_if_not_installed("tibble")
   skip_if_not_installed("arrow", "13.0.0")
 
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   res <- dbGetQuery(con, "SELECT {'x': 100, 'y': 'hello', 'z': 3.14::double} AS s", arrow = TRUE)
   expect_equal(res, vctrs::data_frame(
@@ -114,8 +112,7 @@ test_that("nested lists of atomic values can be written", {
 
   skip_if_not_installed("vctrs")
 
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   df <- vctrs::data_frame(a = 1:3, b = list(4:6, 2:3, 1L))
   dbWriteTable(con, "df", df)
@@ -134,8 +131,7 @@ test_that("nested and packed columns work in full", {
 
   skip_if_not_installed("vctrs")
 
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   df <- vctrs::data_frame(
     a = vctrs::data_frame(

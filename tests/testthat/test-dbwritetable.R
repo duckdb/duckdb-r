@@ -1,8 +1,7 @@
 test_that("dbWriteTable can write tables with keyword column names", {
   skip_if_not(TEST_RE2)
 
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   # NB: name is a reserved word, will need to be escaped as part of writing operation
   sample_data <- data.frame(id = 1:3, name = c("cuthbert", "dibble", "grubb"))

@@ -279,7 +279,8 @@ LogicalType RApiTypes::LogicalTypeFromRType(const RType &rtype, bool experimenta
 	case RTypeId::LIST:
 		return LogicalType::LIST(RApiTypes::LogicalTypeFromRType(rtype.GetListChildType(), experimental));
 	case RTypeId::MATRIX:
-		return LogicalType::ARRAY(RApiTypes::LogicalTypeFromRType(rtype.GetMatrixElementType(), experimental), rtype.GetMatrixNcols());
+		return LogicalType::ARRAY(RApiTypes::LogicalTypeFromRType(rtype.GetMatrixElementType(), experimental),
+		                          rtype.GetMatrixNcols());
 	case RTypeId::STRUCT: {
 		child_list_t<LogicalType> children;
 		for (const auto &child : rtype.GetStructChildTypes()) {
@@ -365,7 +366,7 @@ double RDoubleType::Convert(double val) {
 }
 
 date_t RDateType::Convert(double val) {
-	return date_t((int32_t) std::floor(val));
+	return date_t((int32_t)std::floor(val));
 }
 
 timestamp_t RTimestampType::Convert(double val) {

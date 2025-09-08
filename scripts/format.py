@@ -289,11 +289,6 @@ if format_all:
     except:
         pass
     format_directory('src')
-    format_directory('benchmark')
-    format_directory('test')
-    format_directory('tools')
-    format_directory('examples')
-    format_directory('extension')
 
 else:
     for full_path in changed_files:
