@@ -24,6 +24,8 @@
 
 #include "src/main/database.cpp"
 
+#include "src/main/database_file_path_manager.cpp"
+
 #include "src/main/database_path_and_type.cpp"
 
 #include "src/main/database_manager.cpp"
@@ -35,6 +37,8 @@
 #include "src/main/extension.cpp"
 
 #include "src/main/extension_install_info.cpp"
+
+#include "src/main/extension_manager.cpp"
 
 #include "src/main/materialized_query_result.cpp"
 

@@ -113,7 +113,7 @@ struct CSVStates {
 //! The STA indicates the current state of parsing based on both the current and preceding characters.
 //! This reveals whether we are dealing with a Field, a New Line, a Delimiter, and so forth.
 //! The STA's creation depends on the provided quote, character, and delimiter options for that state machine.
-//! The motivation behind implementing an STA is to remove branching in regular CSV Parsing by predicting and detecting
+//! The motivation behind implementing an STA is to remove branching in regular CSV parsing by predicting and detecting
 //! the states. Note: The State Machine is currently utilized solely in the CSV Sniffer.
 class CSVStateMachine {
 public:
@@ -129,14 +129,12 @@ public:
 	}
 
 	void Print() const {
-#ifndef DUCKDB_DISABLE_PRINT
 		std::cout << "State Machine Options" << '\n';
 		std::cout << "Delim: " << state_machine_options.delimiter.GetValue() << '\n';
 		std::cout << "Quote: " << state_machine_options.quote.GetValue() << '\n';
 		std::cout << "Escape: " << state_machine_options.escape.GetValue() << '\n';
 		std::cout << "Comment: " << state_machine_options.comment.GetValue() << '\n';
 		std::cout << "---------------------" << '\n';
-#endif
 	}
 	//! The Transition Array is a Finite State Machine
 	//! It holds the transitions of all states, on all 256 possible different characters

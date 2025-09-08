@@ -24,6 +24,8 @@
 
 #include "src/planner/expression_binder/order_binder.cpp"
 
+#include "src/planner/expression_binder/projection_binder.cpp"
+
 #include "src/planner/expression_binder/relation_binder.cpp"
 
 #include "src/planner/expression_binder/returning_binder.cpp"

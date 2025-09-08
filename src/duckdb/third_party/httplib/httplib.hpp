@@ -15,6 +15,9 @@
 
 #include "duckdb/original/std/memory.hpp"
 #include "duckdb/common/string.hpp"
+#include <exception>
+#include <stdexcept>
+
 
 /*
  * Configuration
@@ -281,6 +284,7 @@ using socket_t = int;
 
 #include <iostream>
 #include <sstream>
+
 
 // Disabled OpenSSL version check for CI
 //#if OPENSSL_VERSION_NUMBER < 0x1010100fL
@@ -2574,7 +2578,7 @@ inline std::string trim_double_quotes_copy(const std::string &s) {
 
 inline void split(const char *b, const char *e, char d,
                   std::function<void(const char *, const char *)> fn) {
-  return split(b, e, d, std::numeric_limits<size_t>::max(), fn);
+  return split(b, e, d, static_cast<size_t>((std::numeric_limits<size_t>::max)()), fn);
 }
 
 inline void split(const char *b, const char *e, char d, size_t m,
@@ -7096,9 +7100,9 @@ inline bool ClientImpl::redirect(Request &req, Response &res, Error &error) {
   if (next_scheme.empty()) { next_scheme = scheme; }
   if (next_host.empty()) { next_host = host_; }
   if (next_path.empty()) { next_path = "/"; }
-
+  
   auto path = detail::decode_url(next_path, true, std::set<char> {'/'}) + next_query;
-
+	
   if (next_scheme == scheme && next_host == host_ && next_port == port_) {
     return detail::redirect(*this, req, res, path, location, error);
   } else {

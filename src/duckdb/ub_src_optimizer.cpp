@@ -14,6 +14,8 @@
 
 #include "src/optimizer/cte_filter_pusher.cpp"
 
+#include "src/optimizer/cte_inlining.cpp"
+
 #include "src/optimizer/deliminator.cpp"
 
 #include "src/optimizer/expression_heuristics.cpp"
