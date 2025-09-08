@@ -75,7 +75,7 @@ It helps if both the duckdb directory and duckdb-r directory are clean.
 
 ## Vendoring
 
-This package includes a vendored copy of the DuckDB C++ library. The vendoring process is automated and runs hourly to synchronize with the upstream DuckDB repository. For detailed information about how vendoring works, the relationship between `main` and `next` branches, and manual vendoring procedures, see [VENDORING.md](scripts/VENDORING.md).
+This package includes a vendored copy of the DuckDB C++ library. The vendoring process is automated and runs hourly to synchronize with the upstream DuckDB repository. For detailed information about how vendoring works, the relationship between `main` and `next` branches, and manual vendoring procedures, see `scripts/VENDORING.md`.
 
 ## Contributors
 
