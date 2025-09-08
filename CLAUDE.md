@@ -36,6 +36,11 @@ R package that contains a vendored copy of the DuckDB C++ library and glue code 
 - `pip3 install cmake-format && export PATH="$HOME/.local/bin:$PATH"` -- installs formatter
 - `make format-check` -- checks code formatting (currently shows formatting differences)
 
+### Markdown Linting
+
+- `npm install -g markdownlint-cli` -- installs markdownlint
+- `markdownlint *.md scripts/*.md` -- checks markdown files for style issues
+
 ## Validation
 
 - ALWAYS run through a complete end-to-end scenario after making changes to ensure DuckDB R package functionality works correctly.
@@ -64,7 +69,7 @@ The duckdb-r package vendors (includes a copy of) the DuckDB C++ core library. K
 - **Automated Process**: Runs hourly via GitHub Actions, vendors from upstream DuckDB
 - **Branch Strategy**: `main` tracks stable `v1.3-ossivalis`, `next` tracks bleeding-edge `main`
 - **Never modify `src/duckdb/` directly** - changes will be overwritten by vendoring
-- **Patching**: Use files in `patch/` directory to apply R-specific modifications to vendored code
+- **Patching**: Add files to the `patch/` directory to apply R-specific modifications to vendored code. Send patches upstream as pull requests every once in a while.
 - **Manual vendoring**: Use `scripts/vendor.sh /path/to/duckdb/repo` for testing
 - **Full documentation**: See [VENDORING.md](scripts/VENDORING.md) for complete details
 
