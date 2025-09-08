@@ -36,6 +36,11 @@ R package that contains a vendored copy of the DuckDB C++ library and glue code 
 - `pip3 install cmake-format && export PATH="$HOME/.local/bin:$PATH"` -- installs formatter
 - `make format-check` -- checks code formatting (currently shows formatting differences)
 
+### Markdown Linting
+
+- `npm install -g markdownlint-cli` -- installs markdownlint
+- `markdownlint *.md scripts/*.md` -- checks markdown files for style issues
+
 ## Validation
 
 - ALWAYS run through a complete end-to-end scenario after making changes to ensure DuckDB R package functionality works correctly.
@@ -49,12 +54,24 @@ R package that contains a vendored copy of the DuckDB C++ library and glue code 
 - `src/*.cpp`: C++ glue code (~30 files) - R to DuckDB interface
 - `src/duckdb/`: Vendored DuckDB C++ source code (~1700 C++ files, ~1400 headers) - DO NOT modify except in rare cases
 - `tests/testthat/`: Unit tests (~40 test files) - comprehensive test coverage
-- `scripts/`: Build and maintenance scripts - vendor.sh, format.py, setup-makeflags.R
+- `scripts/`: Build and maintenance scripts - vendor.sh, vendor-one.sh, format.py, setup-makeflags.R
 - `configure`/`configure.win`: Build configuration scripts
 - `DESCRIPTION`: R package metadata and dependencies
 - `README.md`: Main documentation with build instructions
 - `CLAUDE.md`: Operational instructions for AI
+- `scripts/VENDORING.md`: Comprehensive vendoring documentation
 - `.github/workflows/`: CI/CD workflows for testing on multiple platforms
+
+## Vendoring
+
+The duckdb-r package vendors (includes a copy of) the DuckDB C++ core library. Key points:
+
+- **Automated Process**: Runs hourly via GitHub Actions, vendors from upstream DuckDB
+- **Branch Strategy**: `main` tracks stable `v1.3-ossivalis`, `next` tracks bleeding-edge `main`
+- **Never modify `src/duckdb/` directly** - changes will be overwritten by vendoring
+- **Patching**: Add files to the `patch/` directory to apply R-specific modifications to vendored code. Send patches upstream as pull requests every once in a while.
+- **Manual vendoring**: Use `scripts/vendor.sh /path/to/duckdb/repo` for testing
+- **Full documentation**: See [VENDORING.md](scripts/VENDORING.md) for complete details
 
 ## Common Tasks
 
@@ -103,6 +120,7 @@ R
 ## Dependencies
 
 System requirements already satisfied in typical development environment:
+
 - R >= 4.1.0
 - build-essential (gcc, g++, make)
 - Standard R packages: DBI, testthat, methods, utils
