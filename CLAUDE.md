@@ -64,6 +64,7 @@ The duckdb-r package vendors (includes a copy of) the DuckDB C++ core library. K
 - **Automated Process**: Runs hourly via GitHub Actions, vendors from upstream DuckDB
 - **Branch Strategy**: `main` tracks stable `v1.3-ossivalis`, `next` tracks bleeding-edge `main`
 - **Never modify `src/duckdb/` directly** - changes will be overwritten by vendoring
+- **Patching**: Use files in `patch/` directory to apply R-specific modifications to vendored code
 - **Manual vendoring**: Use `scripts/vendor.sh /path/to/duckdb/repo` for testing
 - **Full documentation**: See [VENDORING.md](scripts/VENDORING.md) for complete details
 
@@ -114,6 +115,7 @@ R
 ## Dependencies
 
 System requirements already satisfied in typical development environment:
+
 - R >= 4.1.0
 - build-essential (gcc, g++, make)
 - Standard R packages: DBI, testthat, methods, utils
