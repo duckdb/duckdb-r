@@ -54,7 +54,7 @@ R package that contains a vendored copy of the DuckDB C++ library and glue code 
 - `DESCRIPTION`: R package metadata and dependencies
 - `README.md`: Main documentation with build instructions
 - `CLAUDE.md`: Operational instructions for AI
-- `VENDORING.md`: Comprehensive vendoring documentation
+- `scripts/VENDORING.md`: Comprehensive vendoring documentation
 - `.github/workflows/`: CI/CD workflows for testing on multiple platforms
 
 ## Vendoring
@@ -65,7 +65,7 @@ The duckdb-r package vendors (includes a copy of) the DuckDB C++ core library. K
 - **Branch Strategy**: `main` tracks stable `v1.3-ossivalis`, `next` tracks bleeding-edge `main`
 - **Never modify `src/duckdb/` directly** - changes will be overwritten by vendoring
 - **Manual vendoring**: Use `scripts/vendor.sh /path/to/duckdb/repo` for testing
-- **Full documentation**: See [VENDORING.md](VENDORING.md) for complete details
+- **Full documentation**: See [VENDORING.md](scripts/VENDORING.md) for complete details
 
 ## Common Tasks
 

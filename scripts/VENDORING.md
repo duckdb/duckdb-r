@@ -19,13 +19,13 @@ The duckdb-r repository maintains two primary branches with different vendoring 
 
 ### Main Branch (`main`)
 - **Purpose**: Stable, production-ready releases
-- **Vendors from**: `v1.3-ossivalis` branch of [duckdb/duckdb](https://github.com/duckdb/duckdb)
+- **Vendors from**: `v1.3-ossivalis` branch of [duckdb/duckdb](https://github.com/duckdb/duckdb) *(at the time of writing)*
 - **Update frequency**: Hourly (if changes are detected)
 - **Target audience**: End users, CRAN releases
 
 ### Next Branch (`next`) 
 - **Purpose**: Development and testing of cutting-edge DuckDB features
-- **Vendors from**: `main` branch of [duckdb/duckdb](https://github.com/duckdb/duckdb)
+- **Vendors from**: `main` branch of [duckdb/duckdb](https://github.com/duckdb/duckdb) *(at the time of writing)*
 - **Update frequency**: Hourly (if changes are detected)  
 - **Target audience**: Developers, early adopters, testing new features
 
@@ -128,9 +128,9 @@ git clone https://github.com/duckdb/duckdb.git /tmp/duckdb-vendor
 
 # 2. Checkout target branch
 cd /tmp/duckdb-vendor
-git checkout v1.3-ossivalis  # for main branch
+git checkout v1.3-ossivalis  # for main branch (at the time of writing)
 # OR
-git checkout main           # for next branch
+git checkout main           # for next branch (at the time of writing)
 
 # 3. Run manual vendor
 cd /path/to/duckdb-r

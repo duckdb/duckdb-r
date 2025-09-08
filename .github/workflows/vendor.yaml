@@ -2,7 +2,10 @@
 # Runs hourly to sync with upstream DuckDB repository
 # main branch: vendors from v1.3-ossivalis (stable)
 # next branch: vendors from main (bleeding edge)
-# See VENDORING.md for complete documentation
+# See scripts/VENDORING.md for complete documentation
+#
+# REMINDER: When changing branch names in the matrix below,
+# update the documentation in scripts/VENDORING.md accordingly
 
 on:
   push:
