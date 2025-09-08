@@ -1,5 +1,16 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.3.2.9022
+
+## Features
+
+- Safeguard against deadlocks when accidentally issuing queries from the progress bar handler or other callbacks.
+
+## Documentation
+
+- Document vendoring process and main/next branch relationship (#1488).
+
+
 # duckdb 1.3.2.9021
 
 ## Bug fixes
