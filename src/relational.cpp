@@ -303,9 +303,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 
 		auto res = rel->rel->Execute();
 
-		if (signal_handler.HandleInterrupt()) {
-			return R_NilValue;
-		}
+		signal_handler.HandleInterrupt();
 
 		out = result_to_df(std::move(res));
 	}
@@ -317,7 +315,12 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 // DuckDB Relations: questioning
 
 [[cpp11::register]] SEXP rapi_rel_sql(duckdb::rel_extptr_t rel, std::string sql) {
+	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
+
 	auto res = rel->rel->Query("_", sql);
+
+	signal_handler.HandleInterrupt();
+
 	if (res->HasError()) {
 		stop("%s", res->GetError().c_str());
 	}
@@ -703,23 +706,43 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 }
 
 [[cpp11::register]] void rapi_rel_to_parquet(duckdb::rel_extptr_t rel, std::string file_name, list options_sexps) {
+	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
+
 	rel->rel->WriteParquet(file_name, ListToVectorOfValue(options_sexps));
+
+	signal_handler.HandleInterrupt();
 }
 
 [[cpp11::register]] void rapi_rel_to_csv(duckdb::rel_extptr_t rel, std::string file_name, list options_sexps) {
+	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
+
 	rel->rel->WriteCSV(file_name, ListToVectorOfValue(options_sexps));
+
+	signal_handler.HandleInterrupt();
 }
 
 [[cpp11::register]] void rapi_rel_to_table(duckdb::rel_extptr_t rel, std::string schema_name, std::string table_name,
                                            bool temporary) {
+	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
+
 	rel->rel->Create(schema_name, table_name, temporary);
+
+	signal_handler.HandleInterrupt();
 }
 
 [[cpp11::register]] void rapi_rel_to_view(duckdb::rel_extptr_t rel, std::string schema_name, std::string view_name,
                                           bool temporary) {
+	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
+
 	rel->rel->CreateView(schema_name, view_name, false, temporary);
+
+	signal_handler.HandleInterrupt();
 }
 
 [[cpp11::register]] void rapi_rel_insert(duckdb::rel_extptr_t rel, std::string schema_name, std::string table_name) {
+	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
+
 	rel->rel->Insert(schema_name, table_name);
+
+	signal_handler.HandleInterrupt();
 }
