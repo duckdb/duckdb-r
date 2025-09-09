@@ -67,8 +67,8 @@ int duckdb_r_typeof(const LogicalType &type, const string &name, const char *cal
 	case LogicalTypeId::ENUM:
 		return INTSXP;
 	default: {
-		std::string error_msg = std::string(caller) + ": Unknown type for column `" + name + "`: " + type.ToString();
-		rapi_error_with_context("duckdb_r_typeof", error_msg);
+		std::string error_msg = "Unknown type for column `" + name + "`: " + type.ToString();
+		rapi_error_with_context(caller, error_msg);
 	}
 	}
 }

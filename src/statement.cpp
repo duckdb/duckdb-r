@@ -118,7 +118,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	auto n_param = stmt->stmt->named_param_map.size();
 
 	if (n_param == 0) {
-		rapi_error_with_context("rapi_bind", "dbBind called but query takes no parameters");
+		rapi_error_with_context("rapi_bind", "`dbBind()` called but query takes no parameters");
 	}
 
 	if (params.size() != R_xlen_t(n_param)) {

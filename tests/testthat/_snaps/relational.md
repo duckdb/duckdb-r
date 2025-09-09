@@ -325,7 +325,7 @@
       nrow(forbid)
     Condition
       Error:
-      ! Materialization is disabled, use collect() or as_tibble() to materialize.
+      ! Materialization is disabled, use `collect()` or `as_tibble()` to materialize.
       ℹ Context: GetQueryResult
 
 ---
@@ -334,7 +334,7 @@
       nrow(forbid)
     Condition
       Error:
-      ! Materialization is disabled, use collect() or as_tibble() to materialize.
+      ! Materialization is disabled, use `collect()` or `as_tibble()` to materialize.
       ℹ Context: GetQueryResult
 
 ---

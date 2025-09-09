@@ -125,7 +125,7 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 
 	if (!mat_result) {
 		if (n_cells == 0) {
-			rapi_error_with_context("GetQueryResult", "Materialization is disabled, use collect() or as_tibble() to materialize.");
+			rapi_error_with_context("GetQueryResult", "Materialization is disabled, use `collect()` or `as_tibble()` to materialize.");
 		}
 
 		auto materialize_callback = Rf_GetOption1(RStrings::get().materialize_callback_sym);

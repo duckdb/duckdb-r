@@ -352,8 +352,8 @@ string RApiTypes::DetectLogicalType(const LogicalType &stype, const char *caller
 		return "unknown";
 
 	default: {
-		std::string error_msg = std::string(caller) + ": Unknown column type for prepare: " + stype.ToString();
-		rapi_error_with_context("LogicalTypeToSexpString", error_msg);
+		std::string error_msg = "Unknown column type for prepare: " + stype.ToString();
+		rapi_error_with_context(caller, error_msg);
 		break;
 	}
 	}

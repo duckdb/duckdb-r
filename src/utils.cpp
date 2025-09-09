@@ -257,7 +257,7 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 		return Value::STRUCT(std::move(child_values));
 	}
 	default:
-		rapi_error_with_context("duckdb_sexp_to_value", "Unsupported type");
+		rapi_error_with_context("duckdb_sexp_to_value", "Unsupported RTypeId");
 		return Value();
 	}
 }
@@ -348,11 +348,11 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 [[noreturn]] void rapi_error_with_context(const std::string &context, const duckdb::ErrorData &error_data) {
 	// Look up R function in duckdb namespace
 	static cpp11::function rapi_error = cpp11::package("duckdb")["rapi_error"];
-	
+
 	// Extract fields from ErrorData
 	std::string message = error_data.Message();
 	std::string raw_message = error_data.RawMessage();
-	
+
 	// Convert ExceptionType to string
 	std::string error_type;
 	switch (error_data.Type()) {
@@ -521,33 +521,25 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 			break;
 		}
 	}
-	
+
 	// Convert extra_info to R list
 	cpp11::writable::list extra_info;
 	const auto &info_map = error_data.ExtraInfo();
-	if (!info_map.empty()) {
-		cpp11::writable::strings names(info_map.size());
-		cpp11::writable::strings values(info_map.size());
-		
-		size_t i = 0;
-		for (const auto &pair : info_map) {
-			names[i] = pair.first;
-			values[i] = pair.second;
-			i++;
-		}
-		
-		extra_info.names() = names;
-		for (size_t j = 0; j < values.size(); j++) {
-			extra_info.push_back(values[j]);
-		}
+
+	cpp11::writable::strings names(info_map.size());
+	cpp11::writable::strings values(info_map.size());
+
+	size_t i = 0;
+	for (const auto &pair : info_map) {
+		names[i] = pair.first;
+		values[i] = pair.second;
+		i++;
 	}
-	
+
+	values.names() = names;
+
 	// Call R function with all parameters
-	if (extra_info.size() > 0) {
-		rapi_error(context, message, error_type, raw_message, extra_info);
-	} else {
-		rapi_error(context, message, error_type, raw_message, R_NilValue);
-	}
+	rapi_error(context, message, error_type, raw_message, extra_info);
 
 	throw InternalException("Unreachable code after rapi_error()");
 }
