@@ -224,6 +224,8 @@ duckdb::conn_eptr_t rapi_connect(duckdb::db_eptr_t);
 
 void rapi_disconnect(duckdb::conn_eptr_t);
 
+bool rapi_connection_valid(duckdb::conn_eptr_t);
+
 cpp11::list rapi_prepare(duckdb::conn_eptr_t, std::string);
 
 cpp11::list rapi_bind(duckdb::stmt_eptr_t, SEXP paramsexp, duckdb::ConvertOpts);

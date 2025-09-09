@@ -1,129 +1,37 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.3.2.9020
+# duckdb 1.3.2.9901
 
-## Continuous integration
+## fledge
 
-- Use reviewdog for external PRs (#1471).
-
-
-# duckdb 1.3.2.9019
-
-## Chore
-
-- Auto-update from GitHub Actions (#1456).
+- CRAN pre-release v1.3.2.9900 (#1489).
 
 
-# duckdb 1.3.2.9018
+# duckdb 1.3.2.9900
 
 ## vendor
 
 - Update vendored sources to duckdb/duckdb@f40ac6e5653dc7bc83fa03a5021d8aa09a938cef (#1404).
 
-
-# duckdb 1.3.2.9017
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@df0a3de74429887333ec4af047e7aac2737e52d8 (#1402).
-
-
-# duckdb 1.3.2.9016
-
-## vendor
 
 - Update vendored sources to duckdb/duckdb@3ed3b4fab80c714c731501cd1cfb738b110da1bd (#1398).
 
-
-# duckdb 1.3.2.9015
-
-## Continuous integration
-
-- Cleanup and fix macOS (#1394).
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@67cbce34e13c7b6c9178d13b3886428b3f6f7485 (#1395).
-
-
-# duckdb 1.3.2.9014
-
-## vendor
 
 - Update vendored sources to duckdb/duckdb@0e258ecaaf50d89eb4e73b5969994f9fb3656681 (#1392).
 
-
-# duckdb 1.3.2.9013
-
-## Continuous integration
-
-- Format with air, check detritus, better handling of `extra-packages` (#1388).
-
-
-# duckdb 1.3.2.9012
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@b84467e28a46562fa244949121c837a08f5c9afc (#1379).
-
-
-# duckdb 1.3.2.9011
-
-## Bug fixes
-
-- Fix retrieval of large enums.
-
-
-# duckdb 1.3.2.9010
-
-## Bug fixes
-
-- Fix compiler error in debug build (@joakimlinde, #1368).
-
-## vendor
 
 - Update vendored sources to duckdb/duckdb@4f243e8c1fe894c06efb252d8ae8c64bcf272906 (#1369).
 
-
-# duckdb 1.3.2.9009
-
-## Continuous integration
-
-- Ignore all extra-packages.
-
-- Syntax.
-
-- Ignore adbcdrivermanager if it cannot be installed.
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@61cf5c71bd6a2aac2e862ceeb5010d3cf396e709 (#1350).
-
-
-# duckdb 1.3.2.9008
-
-## vendor
 
 - Update vendored sources to duckdb/duckdb@c8164851be62bcad38c080e975c577ff951b16be (#1348).
 
-
-# duckdb 1.3.2.9007
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@10fee32d13a75ba5cfe6896cbef69c707067aed8 (#1346).
 
-
-# duckdb 1.3.2.9006
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@35391cb7f32572e45fd202513af4a1a63ae9daa3 (#1344).
-
-
-# duckdb 1.3.2.9005
-
-## vendor
 
 - Update vendored sources to duckdb/duckdb@473fd24cf22e6cf3c3f809977f3d90fe00759c1c (#1342).
 
@@ -135,26 +43,11 @@
 
 - Update vendored sources to duckdb/duckdb@158b1ea4da43fa859f13437e24c1e533b06cebbb (#1338).
 
-
-# duckdb 1.3.2.9004
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@a1283de8cbcaca3aee7cef857cb97a16e3f2239e (#1336).
-
-
-# duckdb 1.3.2.9003
-
-## vendor
 
 - Update vendored sources to duckdb/duckdb@2a7e166a8b71e756f0c2a36e9896e602ceeed290 (#1334).
 
 - Update vendored sources to duckdb/duckdb@433c52483ac435e8183f97c3c5f0db291703fdc5 (#1333).
-
-
-# duckdb 1.3.2.9002
-
-## vendor
 
 - Update vendored sources to duckdb/duckdb@de3e17ed4e25f1f0010a2ae76c1ab7bdc3740e6f (#1331).
 
@@ -162,19 +55,63 @@
 
 - Update vendored sources to duckdb/duckdb@e35d665745d6599237f5b4585b44e67ce4008387 (#1329).
 
-
-# duckdb 1.3.2.9001
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@7f75bfdf3ba36e6925d39f43cbb08f67f0d951d6 (#1327).
-
-
-# duckdb 1.3.2.9000
 
 ## fledge
 
 - CRAN release v1.3.2 (#1324).
+
+## Bug fixes
+
+- Fix timezone conversion for invalid timestamps with `tz_out_convert = "force"`.
+
+- Substitute invalid UTF-8 characters in error messages to avoid a failure when reporting the error.
+
+- Fix index calculation for retrieval of arrays (#1473).
+
+- Fix retrieval of large enums.
+
+- Fix compiler error in debug build (@joakimlinde, #1368).
+
+## Features
+
+- Safeguard against deadlocks when accidentally issuing queries from the progress bar handler or other callbacks.
+
+- `dbGetInfo()` gets the version from a hard-coded value and not from a DuckDB query.
+
+- Package uses two cores by default for compilation.
+
+## Chore
+
+- Add AI instructions.
+
+- Build-ignore.
+
+- Add Claude instructions.
+
+- Auto-update from GitHub Actions (#1456).
+
+## Continuous integration
+
+- Use reviewdog for external PRs (#1471).
+
+- Cleanup and fix macOS (#1394).
+
+- Format with air, check detritus, better handling of `extra-packages` (#1388).
+
+- Ignore all extra-packages.
+
+- Syntax.
+
+- Ignore adbcdrivermanager if it cannot be installed.
+
+## Documentation
+
+- Document vendoring process and main/next branch relationship (#1488).
+
+## Testing
+
+- Add `local_con()` test fixture for cleaner DuckDB connection management.
 
 
 # duckdb 1.3.2

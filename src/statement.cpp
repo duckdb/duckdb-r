@@ -57,6 +57,11 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		rapi_error_with_context("rapi_prepare", "Invalid connection");
 	}
 
+	// Create ScopedInterruptHandler to prevent deadlock when called re-entrantly
+	// during progress bar callbacks. This will throw "ScopedInterruptHandler already active"
+	// if another query is already executing, providing fast failure instead of deadlock.
+	ScopedInterruptHandler signal_handler(conn->conn->context);
+
 	D_ASSERT(conn->db->env == R_NilValue);
 	conn->db->env = (SEXP)env;
 	conn->db->registered_dfs = Rf_cons(R_NilValue, R_NilValue);
@@ -83,6 +88,9 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	// we only return the result of the last statement to the user, unless one of the previous statements fails
 	for (idx_t i = 0; i + 1 < statements.size(); i++) {
 		auto res = conn->conn->Query(std::move(statements[i]));
+
+		signal_handler.HandleInterrupt();
+
 		if (res->HasError()) {
 			ErrorData error(res->GetError());
 			error.ConvertErrorToJSON();
@@ -90,6 +98,11 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		}
 	}
 	auto stmt = conn->conn->Prepare(std::move(statements.back()));
+
+	signal_handler.HandleInterrupt();
+
+	signal_handler.Disable();
+
 	if (stmt->HasError()) {
 		ErrorData error(stmt->error);
 		error.ConvertErrorToJSON();
@@ -296,9 +309,7 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 
 	auto generic_result = stmt->stmt->Execute(stmt->parameters, false);
 
-	if (signal_handler.HandleInterrupt()) {
-		return R_NilValue;
-	}
+	signal_handler.HandleInterrupt();
 
 	signal_handler.Disable();
 

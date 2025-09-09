@@ -1,5 +1,6 @@
 #include "rapi.hpp"
 #include "typesr.hpp"
+#include "signal.hpp"
 
 #include "duckdb/common/arrow/arrow_wrapper.hpp"
 #include "duckdb/planner/table_filter.hpp"
@@ -22,6 +23,9 @@ using namespace duckdb;
 	if (value.ncol() < 1) {
 		rapi_error_with_context("rapi_register_df", "Data frame with at least one column required");
 	}
+
+	ScopedInterruptHandler signal_handler(conn->conn->context);
+
 	try {
 		named_parameter_map_t parameter_map;
 		parameter_map["integer64"] = convert_opts.bigint == ConvertOpts::BigIntType::INTEGER64;
@@ -29,6 +33,9 @@ using namespace duckdb;
 
 		conn->conn->TableFunction("r_dataframe_scan", {Value::POINTER((uintptr_t)value.data())}, parameter_map)
 		    ->CreateView(name, overwrite, true);
+
+		signal_handler.HandleInterrupt();
+
 		static_cast<cpp11::sexp>(conn).attr("_registered_df_" + name) = value;
 	} catch (std::exception &e) {
 		rapi_error_with_context("rapi_register_df", e);
@@ -39,8 +46,14 @@ using namespace duckdb;
 	if (!conn || !conn.get() || !conn->conn) {
 		return;
 	}
+
+	ScopedInterruptHandler signal_handler(conn->conn->context);
+
 	static_cast<cpp11::sexp>(conn).attr("_registered_df_" + name) = R_NilValue;
 	auto res = conn->conn->Query("DROP VIEW IF EXISTS \"" + name + "\"");
+
+	signal_handler.HandleInterrupt();
+
 	if (res->HasError()) {
 		rapi_error_with_context("rapi_unregister_df", res->GetError());
 	}
