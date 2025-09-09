@@ -204,7 +204,7 @@ void AltrepRelationWrapper::Materialize() {
 		auto local_mat_res = (MaterializedQueryResult *)local_res.get();
 		if (local_mat_res->RowCount() > max_rows) {
 			mat_error = duckdb_fmt::format(
-			    "Materialization would result in more than {} rows. Use collect() or as_tibble() to materialize.",
+			    "Materialization would result in more than {} rows. Use `collect()` or `as_tibble()` to materialize.",
 			    max_rows);
 			return;
 		}
