@@ -1,20 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.3.2.9902
-
-## Features
-
-- Add rich ErrorData-based error handling with structured error information (#1479).
-
-
-# duckdb 1.3.2.9901
+# duckdb 1.3.3
 
 ## fledge
 
 - CRAN pre-release v1.3.2.9900 (#1489).
 
-
-# duckdb 1.3.2.9900
+- CRAN release v1.3.2 (#1324).
 
 ## vendor
 
@@ -64,10 +56,6 @@
 
 - Update vendored sources to duckdb/duckdb@7f75bfdf3ba36e6925d39f43cbb08f67f0d951d6 (#1327).
 
-## fledge
-
-- CRAN release v1.3.2 (#1324).
-
 ## Bug fixes
 
 - Fix timezone conversion for invalid timestamps with `tz_out_convert = "force"`.
@@ -81,6 +69,8 @@
 - Fix compiler error in debug build (@joakimlinde, #1368).
 
 ## Features
+
+- Add rich ErrorData-based error handling with structured error information (#1479).
 
 - Safeguard against deadlocks when accidentally issuing queries from the progress bar handler or other callbacks.
 
