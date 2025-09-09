@@ -76,9 +76,8 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	} catch (std::exception &ex) {
 		ErrorData error(ex);
 		error.AddErrorLocation(query);
-		error.ConvertErrorToJSON();
-		// Add context through our helper that will add more context info
-		rapi_error_with_context("rapi_prepare", error.Message());
+		// Pass ErrorData directly to preserve rich error information
+		rapi_error_with_context("rapi_prepare", error);
 	}
 	if (statements.empty()) {
 		// no statements to execute
@@ -93,8 +92,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 
 		if (res->HasError()) {
 			ErrorData error(res->GetError());
-			error.ConvertErrorToJSON();
-			rapi_error_with_context("rapi_prepare", error.Message());
+			rapi_error_with_context("rapi_prepare", error);
 		}
 	}
 	auto stmt = conn->conn->Prepare(std::move(statements.back()));
@@ -105,8 +103,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 
 	if (stmt->HasError()) {
 		ErrorData error(stmt->error);
-		error.ConvertErrorToJSON();
-		rapi_error_with_context("rapi_prepare", error.Message());
+		rapi_error_with_context("rapi_prepare", error);
 	}
 	auto n_param = stmt->named_param_map.size();
 	return construct_retlist(std::move(stmt), query, n_param, conn->db->registered_dfs);
@@ -315,8 +312,7 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 
 	if (generic_result->HasError()) {
 		ErrorData error(generic_result->GetError());
-		error.ConvertErrorToJSON();
-		rapi_error_with_context("rapi_execute", error.Message());
+		rapi_error_with_context("rapi_execute", error);
 	}
 
 	if (convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED) {

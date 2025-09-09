@@ -344,3 +344,210 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 	// Forward to the other overload
 	rapi_error_with_context(context, std::string(e.what()));
 }
+
+[[noreturn]] void rapi_error_with_context(const std::string &context, const duckdb::ErrorData &error_data) {
+	// Look up R function in duckdb namespace
+	static cpp11::function rapi_error = cpp11::package("duckdb")["rapi_error"];
+	
+	// Extract fields from ErrorData
+	std::string message = error_data.Message();
+	std::string raw_message = error_data.RawMessage();
+	
+	// Convert ExceptionType to string
+	std::string error_type;
+	switch (error_data.Type()) {
+		case ExceptionType::INVALID: {
+			error_type = "INVALID";
+			break;
+		}
+		case ExceptionType::OUT_OF_RANGE: {
+			error_type = "OUT_OF_RANGE";
+			break;
+		}
+		case ExceptionType::CONVERSION: {
+			error_type = "CONVERSION";
+			break;
+		}
+		case ExceptionType::UNKNOWN_TYPE: {
+			error_type = "UNKNOWN_TYPE";
+			break;
+		}
+		case ExceptionType::DECIMAL: {
+			error_type = "DECIMAL";
+			break;
+		}
+		case ExceptionType::MISMATCH_TYPE: {
+			error_type = "MISMATCH_TYPE";
+			break;
+		}
+		case ExceptionType::DIVIDE_BY_ZERO: {
+			error_type = "DIVIDE_BY_ZERO";
+			break;
+		}
+		case ExceptionType::OBJECT_SIZE: {
+			error_type = "OBJECT_SIZE";
+			break;
+		}
+		case ExceptionType::INVALID_TYPE: {
+			error_type = "INVALID_TYPE";
+			break;
+		}
+		case ExceptionType::SERIALIZATION: {
+			error_type = "SERIALIZATION";
+			break;
+		}
+		case ExceptionType::TRANSACTION: {
+			error_type = "TRANSACTION";
+			break;
+		}
+		case ExceptionType::NOT_IMPLEMENTED: {
+			error_type = "NOT_IMPLEMENTED";
+			break;
+		}
+		case ExceptionType::EXPRESSION: {
+			error_type = "EXPRESSION";
+			break;
+		}
+		case ExceptionType::CATALOG: {
+			error_type = "CATALOG";
+			break;
+		}
+		case ExceptionType::PARSER: {
+			error_type = "PARSER";
+			break;
+		}
+		case ExceptionType::PLANNER: {
+			error_type = "PLANNER";
+			break;
+		}
+		case ExceptionType::SCHEDULER: {
+			error_type = "SCHEDULER";
+			break;
+		}
+		case ExceptionType::EXECUTOR: {
+			error_type = "EXECUTOR";
+			break;
+		}
+		case ExceptionType::CONSTRAINT: {
+			error_type = "CONSTRAINT";
+			break;
+		}
+		case ExceptionType::INDEX: {
+			error_type = "INDEX";
+			break;
+		}
+		case ExceptionType::STAT: {
+			error_type = "STAT";
+			break;
+		}
+		case ExceptionType::CONNECTION: {
+			error_type = "CONNECTION";
+			break;
+		}
+		case ExceptionType::SYNTAX: {
+			error_type = "SYNTAX";
+			break;
+		}
+		case ExceptionType::SETTINGS: {
+			error_type = "SETTINGS";
+			break;
+		}
+		case ExceptionType::OPTIMIZER: {
+			error_type = "OPTIMIZER";
+			break;
+		}
+		case ExceptionType::NULL_POINTER: {
+			error_type = "NULL_POINTER";
+			break;
+		}
+		case ExceptionType::IO: {
+			error_type = "IO";
+			break;
+		}
+		case ExceptionType::INTERRUPT: {
+			error_type = "INTERRUPT";
+			break;
+		}
+		case ExceptionType::FATAL: {
+			error_type = "FATAL";
+			break;
+		}
+		case ExceptionType::INTERNAL: {
+			error_type = "INTERNAL";
+			break;
+		}
+		case ExceptionType::INVALID_INPUT: {
+			error_type = "INVALID_INPUT";
+			break;
+		}
+		case ExceptionType::OUT_OF_MEMORY: {
+			error_type = "OUT_OF_MEMORY";
+			break;
+		}
+		case ExceptionType::PERMISSION: {
+			error_type = "PERMISSION";
+			break;
+		}
+		case ExceptionType::PARAMETER_NOT_RESOLVED: {
+			error_type = "PARAMETER_NOT_RESOLVED";
+			break;
+		}
+		case ExceptionType::PARAMETER_NOT_ALLOWED: {
+			error_type = "PARAMETER_NOT_ALLOWED";
+			break;
+		}
+		case ExceptionType::DEPENDENCY: {
+			error_type = "DEPENDENCY";
+			break;
+		}
+		case ExceptionType::HTTP: {
+			error_type = "HTTP";
+			break;
+		}
+		case ExceptionType::MISSING_EXTENSION: {
+			error_type = "MISSING_EXTENSION";
+			break;
+		}
+		case ExceptionType::AUTOLOAD: {
+			error_type = "AUTOLOAD";
+			break;
+		}
+		case ExceptionType::SEQUENCE: {
+			error_type = "SEQUENCE";
+			break;
+		}
+		default: {
+			error_type = "UNKNOWN";
+			break;
+		}
+	}
+	
+	// Convert extra_info to R list
+	cpp11::writable::list extra_info;
+	const auto &info_map = error_data.ExtraInfo();
+	if (!info_map.empty()) {
+		cpp11::writable::strings names(info_map.size());
+		cpp11::writable::strings values(info_map.size());
+		
+		size_t i = 0;
+		for (const auto &pair : info_map) {
+			names[i] = pair.first;
+			values[i] = pair.second;
+			i++;
+		}
+		
+		extra_info.names() = names;
+		for (size_t j = 0; j < values.size(); j++) {
+			extra_info.push_back(values[j]);
+		}
+	}
+	
+	// Call R function with all parameters
+	if (extra_info.size() > 0) {
+		rapi_error(context, message, error_type, raw_message, extra_info);
+	} else {
+		rapi_error(context, message, error_type, raw_message, R_NilValue);
+	}
+
+	throw InternalException("Unreachable code after rapi_error()");
+}
