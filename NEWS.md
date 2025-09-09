@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.3.2.9902
+
+## Features
+
+- Add rich ErrorData-based error handling with structured error information (#1479).
+
+
 # duckdb 1.3.2.9901
 
 ## fledge
