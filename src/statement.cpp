@@ -54,7 +54,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 
 [[cpp11::register]] cpp11::list rapi_prepare(duckdb::conn_eptr_t conn, std::string query, cpp11::environment env) {
 	if (!conn || !conn.get() || !conn->conn) {
-		cpp11::stop("rapi_prepare: Invalid connection");
+		rapi_error_with_context("rapi_prepare", "Invalid connection");
 	}
 
 	// Create ScopedInterruptHandler to prevent deadlock when called re-entrantly
@@ -76,11 +76,12 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	} catch (std::exception &ex) {
 		ErrorData error(ex);
 		error.AddErrorLocation(query);
-		cpp11::stop("rapi_prepare: Failed to extract statements:\n%s", error.Message().c_str());
+		// Pass ErrorData directly to preserve rich error information
+		rapi_error_with_context("rapi_prepare", error);
 	}
 	if (statements.empty()) {
 		// no statements to execute
-		cpp11::stop("rapi_prepare: No statements to execute");
+		rapi_error_with_context("rapi_prepare", "No statements to execute");
 	}
 	// if there are multiple statements, we directly execute the statements besides the last one
 	// we only return the result of the last statement to the user, unless one of the previous statements fails
@@ -90,8 +91,8 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		signal_handler.HandleInterrupt();
 
 		if (res->HasError()) {
-			cpp11::stop("rapi_prepare: Failed to execute statement %s\nError: %s", query.c_str(),
-			            res->GetError().c_str());
+			ErrorData error(res->GetError());
+			rapi_error_with_context("rapi_prepare", error);
 		}
 	}
 	auto stmt = conn->conn->Prepare(std::move(statements.back()));
@@ -101,8 +102,8 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	signal_handler.Disable();
 
 	if (stmt->HasError()) {
-		cpp11::stop("rapi_prepare: Failed to prepare query %s\nError: %s", query.c_str(),
-		            stmt->error.Message().c_str());
+		ErrorData error(stmt->error);
+		rapi_error_with_context("rapi_prepare", error);
 	}
 	auto n_param = stmt->named_param_map.size();
 	return construct_retlist(std::move(stmt), query, n_param, conn->db->registered_dfs);
@@ -111,17 +112,18 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 [[cpp11::register]] cpp11::list rapi_bind(duckdb::stmt_eptr_t stmt, cpp11::list params,
                                           duckdb::ConvertOpts convert_opts) {
 	if (!stmt || !stmt.get() || !stmt->stmt) {
-		cpp11::stop("rapi_bind: Invalid statement");
+		rapi_error_with_context("rapi_bind", "Invalid statement");
 	}
 
 	auto n_param = stmt->stmt->named_param_map.size();
 
 	if (n_param == 0) {
-		cpp11::stop("rapi_bind: dbBind called but query takes no parameters");
+		rapi_error_with_context("rapi_bind", "`dbBind()` called but query takes no parameters");
 	}
 
 	if (params.size() != R_xlen_t(n_param)) {
-		cpp11::stop("rapi_bind: Bind parameters need to be a list of length %i", n_param);
+		std::string error_msg = "Bind parameters need to be a list of length " + std::to_string(n_param);
+		rapi_error_with_context("rapi_bind", error_msg);
 	}
 
 	stmt->parameters.clear();
@@ -131,12 +133,12 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 
 	for (auto param = std::next(params.begin()); param != params.end(); ++param) {
 		if (Rf_length(*param) != n_rows) {
-			cpp11::stop("rapi_bind: Bind parameter values need to have the same length");
+			rapi_error_with_context("rapi_bind", "Bind parameter values need to have the same length");
 		}
 	}
 
 	if (n_rows != 1 && convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED) {
-		cpp11::stop("rapi_bind: Bind parameter values need to have length one for arrow queries");
+		rapi_error_with_context("rapi_bind", "Bind parameter values need to have length one for arrow queries");
 	}
 
 	cpp11::writable::list out;
@@ -297,7 +299,7 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 
 [[cpp11::register]] SEXP rapi_execute(duckdb::stmt_eptr_t stmt, duckdb::ConvertOpts convert_opts) {
 	if (!stmt || !stmt.get() || !stmt->stmt) {
-		cpp11::stop("rapi_execute: Invalid statement");
+		rapi_error_with_context("rapi_execute", "Invalid statement");
 	}
 
 	ScopedInterruptHandler signal_handler(stmt->stmt->context);
@@ -309,7 +311,8 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	signal_handler.Disable();
 
 	if (generic_result->HasError()) {
-		cpp11::stop("rapi_execute: Failed to run query\nError: %s", generic_result->GetError().c_str());
+		ErrorData error(generic_result->GetError());
+		rapi_error_with_context("rapi_execute", error);
 	}
 
 	if (convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED) {

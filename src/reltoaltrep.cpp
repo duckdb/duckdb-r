@@ -90,18 +90,18 @@ void RelToAltrep::Initialize(DllInfo *dll) {
 template <class T>
 static T *GetFromExternalPtr(SEXP x) {
 	if (!x) {
-		cpp11::stop("GetFromExternalPtr: need a SEXP pointer");
+		rapi_error_with_context("GetFromExternalPtr", "need a SEXP pointer");
 	}
 	if (!ALTREP(x)) {
-		cpp11::stop("GetFromExternalPtr: not an ALTREP");
+		rapi_error_with_context("GetFromExternalPtr", "not an ALTREP");
 	}
 	auto ptr = R_altrep_data1(x);
 	if (TYPEOF(ptr) != EXTPTRSXP) {
-		cpp11::stop("GetFromExternalPtr: data1 is not an external pointer");
+		rapi_error_with_context("GetFromExternalPtr", "data1 is not an external pointer");
 	}
 	auto wrapper = (T *)R_ExternalPtrAddr(ptr);
 	if (!wrapper) {
-		cpp11::stop("GetFromExternalPtr: This looks like it has been freed");
+		rapi_error_with_context("GetFromExternalPtr", "This looks like it has been freed");
 	}
 	return wrapper;
 }
@@ -120,12 +120,12 @@ bool AltrepRelationWrapper::HasQueryResult() const {
 
 MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 	if (!mat_error.empty()) {
-		cpp11::stop(mat_error);
+		rapi_error_with_context("GetQueryResult", mat_error);
 	}
 
 	if (!mat_result) {
 		if (n_cells == 0) {
-			cpp11::stop("Materialization is disabled, use collect() or as_tibble() to materialize.");
+			rapi_error_with_context("GetQueryResult", "Materialization is disabled, use `collect()` or `as_tibble()` to materialize.");
 		}
 
 		auto materialize_callback = Rf_GetOption1(RStrings::get().materialize_callback_sym);
@@ -153,7 +153,7 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 		Materialize();
 
 		if (!mat_error.empty()) {
-			cpp11::stop(mat_error);
+			rapi_error_with_context("GetQueryResult", mat_error);
 		}
 
 		// FIXME: Use std::experimental::scope_exit
@@ -204,7 +204,7 @@ void AltrepRelationWrapper::Materialize() {
 		auto local_mat_res = (MaterializedQueryResult *)local_res.get();
 		if (local_mat_res->RowCount() > max_rows) {
 			mat_error = duckdb_fmt::format(
-			    "Materialization would result in more than {} rows. Use collect() or as_tibble() to materialize.",
+			    "Materialization would result in more than {} rows. Use `collect()` or `as_tibble()` to materialize.",
 			    max_rows);
 			return;
 		}
@@ -322,7 +322,7 @@ void *RelToAltrep::DoRownamesDataptrGet(SEXP x) {
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
 	auto row_count = rownames_wrapper->rel->GetQueryResult()->RowCount();
 	if (row_count > (idx_t)NumericLimits<int32_t>::Maximum()) {
-		cpp11::stop("Integer overflow for row.names attribute");
+		rapi_error_with_context("altrep_rownames_integer_Elt", "Integer overflow for row.names attribute");
 	}
 	rownames_wrapper->rowlen_data[1] = -row_count;
 	return rownames_wrapper->rowlen_data;
@@ -386,21 +386,21 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type, const d
 #endif
 
 	default:
-		cpp11::stop("LogicalTypeToAltrepType: Column `%s` has no type for altrep: %s", name.c_str(),
-		            type.ToString().c_str());
+		std::string error_msg = "Column `" + name + "` has no type for altrep: " + type.ToString();
+		rapi_error_with_context("LogicalTypeToAltrepType", error_msg);
 	}
 }
 
 size_t DoubleToSize(double d) {
 	if (d < 0) {
-		cpp11::stop("rel_to_altrep: Negative size");
+		rapi_error_with_context("DoubleToSize", "Negative size");
 	}
 	if (!std::isfinite(d)) {
 		// Return maximum size_t for Inf
 		return MAX_SIZE_T;
 	}
 	if (d >= (double)MAX_SIZE_T) {
-		cpp11::stop("rel_to_altrep: Size overflow");
+		rapi_error_with_context("DoubleToSize", "Size overflow");
 	}
 	return (size_t)d;
 }
@@ -462,7 +462,7 @@ size_t DoubleToSize(double d) {
 shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool strict, bool allow_materialized) {
 	if (!Rf_inherits(df, "data.frame")) {
 		if (strict) {
-			cpp11::stop("rapi_rel_from_altrep_df: Not a data.frame");
+			rapi_error_with_context("rapi_rel_from_altrep_df", "Not a data.frame");
 		} else {
 			return nullptr;
 		}
@@ -471,7 +471,7 @@ shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool 
 	auto row_names = get_attrib(df, R_RowNamesSymbol);
 	if (row_names == R_NilValue || !ALTREP(row_names)) {
 		if (strict) {
-			cpp11::stop("rapi_rel_from_altrep_df: Not a 'special' data.frame, row names are not ALTREP");
+			rapi_error_with_context("rapi_rel_from_altrep_df", "Not a 'special' data.frame, row names are not ALTREP");
 		} else {
 			return nullptr;
 		}
@@ -480,7 +480,7 @@ shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool 
 	auto altrep_data = R_altrep_data1(row_names);
 	if (TYPEOF(altrep_data) != EXTPTRSXP) {
 		if (strict) {
-			cpp11::stop("rapi_rel_from_altrep_df: Not our 'special' data.frame, data1 is not external pointer");
+			rapi_error_with_context("rapi_rel_from_altrep_df", "Not our 'special' data.frame, data1 is not external pointer");
 		} else {
 			return nullptr;
 		}
@@ -489,7 +489,7 @@ shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool 
 	auto tag = R_ExternalPtrTag(altrep_data);
 	if (tag != RStrings::get().duckdb_row_names_sym) {
 		if (strict) {
-			cpp11::stop("rapi_rel_from_altrep_df: Not our 'special' data.frame, tag missing");
+			rapi_error_with_context("rapi_rel_from_altrep_df", "Not our 'special' data.frame, tag missing");
 		} else {
 			return nullptr;
 		}

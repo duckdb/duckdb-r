@@ -11,7 +11,7 @@ ConvertOpts::TzOutConvert string_to_tz_out_convert(const std::string &str) {
 		return ConvertOpts::TzOutConvert::WITH;
 	if (str == "force")
 		return ConvertOpts::TzOutConvert::FORCE;
-	cpp11::stop("Invalid tz_out_convert value: %s", str.c_str());
+	rapi_error_with_context("string_to_tz_out_convert", "Invalid tz_out_convert value: " + str);
 }
 
 ConvertOpts::BigIntType string_to_bigint_type(const std::string &str) {
@@ -19,7 +19,7 @@ ConvertOpts::BigIntType string_to_bigint_type(const std::string &str) {
 		return ConvertOpts::BigIntType::NUMERIC;
 	if (str == "integer64")
 		return ConvertOpts::BigIntType::INTEGER64;
-	cpp11::stop("Invalid bigint value: %s", str.c_str());
+	rapi_error_with_context("string_to_bigint_type", "Invalid bigint value: " + str);
 }
 
 ConvertOpts::ArrayConversion string_to_array_conversion(const std::string &str) {
@@ -27,7 +27,7 @@ ConvertOpts::ArrayConversion string_to_array_conversion(const std::string &str) 
 		return ConvertOpts::ArrayConversion::NONE;
 	if (str == "matrix")
 		return ConvertOpts::ArrayConversion::MATRIX;
-	cpp11::stop("Invalid array value: %s", str.c_str());
+	rapi_error_with_context("string_to_array_conversion", "Invalid array value: " + str);
 }
 
 ConvertOpts::ArrowConversion bool_to_arrow_conversion(bool use_arrow) {

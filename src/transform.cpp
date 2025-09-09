@@ -66,8 +66,10 @@ int duckdb_r_typeof(const LogicalType &type, const string &name, const char *cal
 		return VECSXP;
 	case LogicalTypeId::ENUM:
 		return INTSXP;
-	default:
-		cpp11::stop("%s: Unknown type for column `%s`: %s", caller, name.c_str(), type.ToString().c_str());
+	default: {
+		std::string error_msg = "Unknown type for column `" + name + "`: " + type.ToString();
+		rapi_error_with_context(caller, error_msg);
+	}
 	}
 }
 
@@ -78,13 +80,12 @@ SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows, const string &name,
 	switch (type.id()) {
 	case LogicalTypeId::ARRAY: {
 		if (convert_opts.array != ConvertOpts::ArrayConversion::MATRIX)
-			cpp11::stop("Use `dbConnect(array = \"matrix\")` to enable arrays to be returned to R.");
+			rapi_error_with_context("duckdb_r_allocate", "Use `dbConnect(array = \"matrix\")` to enable arrays to be returned to R.");
 		auto array_size = ArrayType::GetSize(type);
 		auto &child_type = ArrayType::GetChildType(type);
 		if (child_type.IsNested())
-			cpp11::stop("Nested arrays cannot be returned to R as column data.");
-		cpp11::sexp varvalue =
-		    duckdb_r_allocate(child_type, (nrows * array_size), name, convert_opts, "LogicalTypeId::ARRAY");
+			rapi_error_with_context("duckdb_r_allocate", "Nested arrays cannot be returned to R as column data.");
+		cpp11::sexp varvalue = duckdb_r_allocate(child_type, (nrows * array_size), name, convert_opts, "LogicalTypeId::ARRAY");
 		return varvalue;
 	}
 	case LogicalTypeId::STRUCT: {
@@ -276,9 +277,11 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 		break;
 	}
 
-	default:
-		cpp11::stop("duckdb_r_decorate: Unknown column type: %s", type.ToString().c_str());
+	default: {
+		std::string error_msg = "Unknown column type: " + type.ToString();
+		rapi_error_with_context("duckdb_r_decorate", error_msg);
 		break;
+	}
 	}
 }
 
@@ -290,7 +293,7 @@ SEXP ToRString(const string_t &input) {
 		has_null_byte += data[c] == 0;
 	}
 	if (has_null_byte) {
-		cpp11::stop("String contains null byte");
+		rapi_error_with_context("string_to_charsexp", "String contains null byte");
 	}
 	return Rf_mkCharLenCE(data, len, CE_UTF8);
 }
@@ -665,8 +668,10 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 			VectorToR<uint32_t, uint32_t>(src_vec, n, INTEGER_POINTER(dest), dest_offset, NA_INTEGER);
 			break;
 
-		default:
-			cpp11::stop("rapi_execute: Unknown enum type for convert: %s", TypeIdToString(physical_type).c_str());
+		default: {
+			std::string error_msg = "Unknown enum type for convert: " + TypeIdToString(physical_type);
+			rapi_error_with_context("duckdb_r_transform", error_msg);
+		}
 		}
 		// increment by one cause R factor offsets start at 1
 		auto dest_ptr = ((int32_t *)INTEGER_POINTER(dest)) + dest_offset;
@@ -702,7 +707,9 @@ void duckdb_r_transform(Vector &src_vec, const SEXP dest, idx_t dest_offset, idx
 		}
 		break;
 	}
-	default:
-		cpp11::stop("duckdb_r_transform: Unknown column type for convert: %s", src_vec.GetType().ToString().c_str());
+	default: {
+		std::string error_msg = "Unknown column type for convert: " + src_vec.GetType().ToString();
+		rapi_error_with_context("duckdb_r_transform", error_msg);
+	}
 	}
 }

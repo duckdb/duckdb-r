@@ -56,11 +56,11 @@ static void SetDefaultConfigArguments(ClientContext &context) {
 
 [[cpp11::register]] duckdb::conn_eptr_t rapi_connect(duckdb::db_eptr_t dual, duckdb::ConvertOpts convert_opts) {
 	if (!dual || !dual.get()) {
-		cpp11::stop("rapi_connect: Invalid database reference");
+		rapi_error_with_context("rapi_connect", "Invalid database reference");
 	}
 	auto db = dual->get();
 	if (!db || !db->db) {
-		cpp11::stop("rapi_connect: Database already closed");
+		rapi_error_with_context("rapi_connect", "Database already closed");
 	}
 
 	auto conn_wrapper = make_uniq<ConnWrapper>(std::move(db), std::move(convert_opts));

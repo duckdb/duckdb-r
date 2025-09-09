@@ -11,12 +11,18 @@
 #include "duckdb/common/unordered_map.hpp"
 #include "duckdb/parser/tableref/table_function_ref.hpp"
 #include "duckdb/common/mutex.hpp"
+#include "duckdb/common/error_data.hpp"
 
 #include "convert.hpp"
 
 #if defined(R_VERSION) && R_VERSION >= R_Version(4, 3, 0)
 #define R_HAS_ALTLIST
 #endif
+
+// Helper functions to communicate errors via R's stop() function with context information
+[[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message);
+[[noreturn]] void rapi_error_with_context(const std::string &context, const std::exception &e);
+[[noreturn]] void rapi_error_with_context(const std::string &context, const duckdb::ErrorData &error_data);
 
 namespace duckdb {
 
@@ -39,7 +45,7 @@ public:
 	}
 	DualWrapper(DualWrapper *dual) : precious_(dual->get()) {
 		if (!precious_) {
-			cpp11::stop("dual is already released");
+			rapi_error_with_context("DualWrapper", "dual is already released");
 		}
 	}
 	~DualWrapper() {

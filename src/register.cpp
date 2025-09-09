@@ -15,13 +15,13 @@ using namespace duckdb;
 [[cpp11::register]] void rapi_register_df(duckdb::conn_eptr_t conn, std::string name, cpp11::data_frame value,
                                           duckdb::ConvertOpts convert_opts, bool overwrite) {
 	if (!conn || !conn.get() || !conn->conn) {
-		cpp11::stop("rapi_register_df: Invalid connection");
+		rapi_error_with_context("rapi_register_df", "Invalid connection");
 	}
 	if (name.empty()) {
-		cpp11::stop("rapi_register_df: Name cannot be empty");
+		rapi_error_with_context("rapi_register_df", "Name cannot be empty");
 	}
 	if (value.ncol() < 1) {
-		cpp11::stop("rapi_register_df: Data frame with at least one column required");
+		rapi_error_with_context("rapi_register_df", "Data frame with at least one column required");
 	}
 
 	ScopedInterruptHandler signal_handler(conn->conn->context);
@@ -38,7 +38,7 @@ using namespace duckdb;
 
 		static_cast<cpp11::sexp>(conn).attr("_registered_df_" + name) = value;
 	} catch (std::exception &e) {
-		cpp11::stop("rapi_register_df: Failed to register data frame: %s", e.what());
+		rapi_error_with_context("rapi_register_df", e);
 	}
 }
 
@@ -55,7 +55,7 @@ using namespace duckdb;
 	signal_handler.HandleInterrupt();
 
 	if (res->HasError()) {
-		cpp11::stop("%s", res->GetError().c_str());
+		rapi_error_with_context("rapi_unregister_df", res->GetError());
 	}
 }
 
@@ -279,10 +279,10 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, Replac
 [[cpp11::register]] void rapi_register_arrow(duckdb::conn_eptr_t conn, std::string name, cpp11::list export_funs,
                                              cpp11::sexp valuesexp) {
 	if (!conn || !conn.get() || !conn->conn) {
-		cpp11::stop("rapi_register_arrow: Invalid connection");
+		rapi_error_with_context("rapi_register_arrow", "Invalid connection");
 	}
 	if (name.empty()) {
-		cpp11::stop("rapi_register_arrow: Name cannot be empty");
+		rapi_error_with_context("rapi_register_arrow", "Name cannot be empty");
 	}
 
 	auto stream_factory =
@@ -297,7 +297,8 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, Replac
 		auto &arrow_scans = conn->db->arrow_scans;
 
 		for (auto e = arrow_scans.find(name); e != arrow_scans.end(); ++e) {
-			cpp11::stop("rapi_register_arrow: Arrow table '%s' already registered", name.c_str());
+			std::string error_msg = "Arrow table '" + name + "' already registered";
+			rapi_error_with_context("rapi_register_arrow", error_msg);
 		}
 
 		arrow_scans[name] = state_list;
