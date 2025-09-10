@@ -145,8 +145,7 @@ test_that("POSIXct with local time zone and existing but empty attribute", {
 })
 
 test_that("tz_out_convert = force handles invalid timestamps during DST transitions", {
-  # For some reason, this doesn't work on CI
-  skip_on_ci()
+  withr::local_timezone("Europe/London")
 
   # This test reproduces the issue where invalid timestamps during DST transitions
   # cause all timestamps to lose their time component when tz_out_convert = "force"
