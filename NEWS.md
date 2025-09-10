@@ -1,116 +1,30 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.3.2.9902
+# duckdb 1.3.3
 
-## Features
-
-- Add rich ErrorData-based error handling with structured error information (#1479).
-
-
-# duckdb 1.3.2.9901
-
-## fledge
-
-- CRAN pre-release v1.3.2.9900 (#1489).
-
-
-# duckdb 1.3.2.9900
-
-## vendor
-
-- Update vendored sources to duckdb/duckdb@f40ac6e5653dc7bc83fa03a5021d8aa09a938cef (#1404).
-
-- Update vendored sources to duckdb/duckdb@df0a3de74429887333ec4af047e7aac2737e52d8 (#1402).
-
-- Update vendored sources to duckdb/duckdb@3ed3b4fab80c714c731501cd1cfb738b110da1bd (#1398).
-
-- Update vendored sources to duckdb/duckdb@67cbce34e13c7b6c9178d13b3886428b3f6f7485 (#1395).
-
-- Update vendored sources to duckdb/duckdb@0e258ecaaf50d89eb4e73b5969994f9fb3656681 (#1392).
-
-- Update vendored sources to duckdb/duckdb@b84467e28a46562fa244949121c837a08f5c9afc (#1379).
-
-- Update vendored sources to duckdb/duckdb@4f243e8c1fe894c06efb252d8ae8c64bcf272906 (#1369).
-
-- Update vendored sources to duckdb/duckdb@61cf5c71bd6a2aac2e862ceeb5010d3cf396e709 (#1350).
-
-- Update vendored sources to duckdb/duckdb@c8164851be62bcad38c080e975c577ff951b16be (#1348).
-
-- Update vendored sources to duckdb/duckdb@10fee32d13a75ba5cfe6896cbef69c707067aed8 (#1346).
-
-- Update vendored sources to duckdb/duckdb@35391cb7f32572e45fd202513af4a1a63ae9daa3 (#1344).
-
-- Update vendored sources to duckdb/duckdb@473fd24cf22e6cf3c3f809977f3d90fe00759c1c (#1342).
-
-- Update vendored sources to duckdb/duckdb@7a3b90679ca17b835d070cf4a51ba38918436987 (#1341).
-
-- Update vendored sources to duckdb/duckdb@c306dc0c55d89904c92a9718e23cae6d644054b5 (#1340).
-
-- Update vendored sources to duckdb/duckdb@463731217f4ff95df63ff1cfbf30323079abebbe (#1339).
-
-- Update vendored sources to duckdb/duckdb@158b1ea4da43fa859f13437e24c1e533b06cebbb (#1338).
-
-- Update vendored sources to duckdb/duckdb@a1283de8cbcaca3aee7cef857cb97a16e3f2239e (#1336).
-
-- Update vendored sources to duckdb/duckdb@2a7e166a8b71e756f0c2a36e9896e602ceeed290 (#1334).
-
-- Update vendored sources to duckdb/duckdb@433c52483ac435e8183f97c3c5f0db291703fdc5 (#1333).
-
-- Update vendored sources to duckdb/duckdb@de3e17ed4e25f1f0010a2ae76c1ab7bdc3740e6f (#1331).
-
-- Update vendored sources to duckdb/duckdb@6966a00ab85ae7e67624354c4df9b68a32fe6c22 (#1330).
-
-- Update vendored sources to duckdb/duckdb@e35d665745d6599237f5b4585b44e67ce4008387 (#1329).
-
-- Update vendored sources to duckdb/duckdb@7f75bfdf3ba36e6925d39f43cbb08f67f0d951d6 (#1327).
-
-## fledge
-
-- CRAN release v1.3.2 (#1324).
+- Update to the current v1.3-ossivalis branch, see <https://github.com/duckdb/duckdb/tree/v1.3-ossivalis> for details.
 
 ## Bug fixes
 
-- Fix timezone conversion for invalid timestamps with `tz_out_convert = "force"`.
+- Fix timezone conversion for invalid timestamps with `tz_out_convert = "force"` (#1474).
 
 - Substitute invalid UTF-8 characters in error messages to avoid a failure when reporting the error.
 
 - Fix index calculation for retrieval of arrays (#1473).
 
-- Fix retrieval of large enums.
+- Fix conversion for retrieval of large enums.
 
 - Fix compiler error in debug build (@joakimlinde, #1368).
 
 ## Features
 
-- Safeguard against deadlocks when accidentally issuing queries from the progress bar handler or other callbacks.
+- Add rich ErrorData-based error handling with structured error information (#1479).
 
-- `dbGetInfo()` gets the version from a hard-coded value and not from a DuckDB query.
+- Safeguard against deadlocks when accidentally issuing queries from the progress bar handler or other callbacks (#1475).
 
-- Package uses two cores by default for compilation.
+- `dbGetInfo()` gets the version from a hard-coded value and not from a DuckDB query (#1481).
 
-## Chore
-
-- Add AI instructions.
-
-- Build-ignore.
-
-- Add Claude instructions.
-
-- Auto-update from GitHub Actions (#1456).
-
-## Continuous integration
-
-- Use reviewdog for external PRs (#1471).
-
-- Cleanup and fix macOS (#1394).
-
-- Format with air, check detritus, better handling of `extra-packages` (#1388).
-
-- Ignore all extra-packages.
-
-- Syntax.
-
-- Ignore adbcdrivermanager if it cannot be installed.
+- Package uses two cores by default for compilation (#1478).
 
 ## Documentation
 
@@ -118,7 +32,7 @@
 
 ## Testing
 
-- Add `local_con()` test fixture for cleaner DuckDB connection management.
+- Add `local_con()` test fixture for cleaner DuckDB connection management (#1476).
 
 
 # duckdb 1.3.2

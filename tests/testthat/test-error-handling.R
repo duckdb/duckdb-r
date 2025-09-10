@@ -1,4 +1,5 @@
 test_that("rapi_error functions accept additional parameters", {
+  skip_if(getRversion() < "4.2", "Error message formatting differs in R 4.1")
   local_edition(3)
   rlang::local_options(cli.num_colors = 1)
 
