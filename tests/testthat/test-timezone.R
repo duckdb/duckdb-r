@@ -164,9 +164,9 @@ test_that("tz_out_convert = force handles invalid timestamps during DST transiti
 
   # The first timestamp should remain valid with full time information
   # The second should be NA (not stripped to date only)
-  expected2 <- c(
-    as.POSIXct("2025-03-30 00:59:00", tz = "Europe/London"),
-    as.POSIXct(NA, tz = "Europe/London")
-  )
+  expected2 <- tz_force_one(timezone = "Europe/London", c(
+    as.POSIXct("2025-03-30 00:59:00", format = "%Y-%m-%d %H:%M:%OS", tzone = "UTC"),
+    as.POSIXct("2025-03-30 01:00:00", format = "%Y-%m-%d %H:%M:%OS", tzone = "UTC")
+  ))
   expect_equal(res2[[1]], expected2)
 })

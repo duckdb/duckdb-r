@@ -112,6 +112,12 @@ Connectivity via the adbcdrivermanager package.
 The associated DuckDB database instance is shut down automatically,
 it is no longer necessary to set \code{shutdown = TRUE} or to call \code{duckdb_shutdown()}.
 }
+\details{
+The behavior of \code{with = "force"} at DST transitions depends on how R handles translation from
+the underlying time representation to a human-readable format.
+If the timestamp is invalid in the target timezone, the resulting value may be \code{NA}
+or an adjusted time.
+}
 \examples{
 \dontshow{if (requireNamespace("adbcdrivermanager", quietly = TRUE)) withAutoprint(\{ # examplesIf}
 library(adbcdrivermanager)
