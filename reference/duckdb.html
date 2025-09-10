@@ -176,6 +176,13 @@ side effect.</p>
 <p>An object of class "adbc_driver"</p>
 <p><code><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">dbConnect()</a></code> returns an object of class <a href="duckdb_connection-class.html">duckdb_connection</a>.</p>
     </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>The behavior of <code>with = "force"</code> at DST transitions depends on how R handles translation from
+the underlying time representation to a human-readable format.
+If the timestamp is invalid in the target timezone, the resulting value may be <code>NA</code>
+or an adjusted time.</p>
+    </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
