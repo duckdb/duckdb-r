@@ -983,6 +983,7 @@ test_that("Handle zero-length lists (#186)", {
 })
 
 test_that("prudence", {
+  skip_if(getRversion() < "4.2", "Error message formatting differs in R 4.1")
   local_edition(3)
   withr::local_envvar(NO_COLOR = "true")
 
