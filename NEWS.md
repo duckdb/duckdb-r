@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.3.3.9000
+
+## fledge
+
+- CRAN release v1.3.3 (#1491).
+
+
 # duckdb 1.3.3
 
 - Update to the current v1.3-ossivalis branch, see <https://github.com/duckdb/duckdb/tree/v1.3-ossivalis> for details.
