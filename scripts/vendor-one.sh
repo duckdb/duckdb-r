@@ -91,6 +91,11 @@ fi
 our_tag=$(git describe --tags --abbrev=0 | sed -r 's/-[0-9]$//')
 upstream_tag=$(git -C "$upstream_dir" describe --tags --abbrev=0)
 
+if [ "$our_tag" = "v1.3.3" ]; then
+  # Inofficial release v1.3.3
+  our_tag="v1.3.2"
+fi
+
 echo "Our tag: $our_tag"
 echo "Upstream tag: $upstream_tag"
 
