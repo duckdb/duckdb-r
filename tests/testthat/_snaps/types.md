@@ -4,7 +4,7 @@
       bad <- c("timestamp_tz", "time_tz", "timestamp_ns", "timestamp_array",
         "timestamptz_array", "bit", "\"union\"", "fixed_nested_int_array",
         "fixed_nested_varchar_array", "fixed_struct_array", "fixed_array_of_int_list",
-        "varint", NULL)
+        "bignum", NULL)
       as.list(dbGetQuery(con, paste0("SELECT * EXCLUDE (", paste(bad, collapse = ", "),
       ") REPLACE(replace(varchar, chr(0), '') AS varchar) FROM test_all_types(use_large_enum=true)")))
     Output

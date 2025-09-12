@@ -329,7 +329,7 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 	if (!db || !db->db) {
 		rapi_error_with_context("rapi_load_rfuns", "Database already closed");
 	}
-	db->db->LoadExtension<RfunsExtension>();
+	db->db->LoadStaticExtension<RfunsExtension>();
 }
 
 // Helper functions to communicate errors via R's stop() function

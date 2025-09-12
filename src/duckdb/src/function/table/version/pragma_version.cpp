@@ -1,17 +1,17 @@
 #ifndef DUCKDB_PATCH_VERSION
-#define DUCKDB_PATCH_VERSION "3-dev231"
+#define DUCKDB_PATCH_VERSION "0-dev3866"
 #endif
 #ifndef DUCKDB_MINOR_VERSION
-#define DUCKDB_MINOR_VERSION 3
+#define DUCKDB_MINOR_VERSION 4
 #endif
 #ifndef DUCKDB_MAJOR_VERSION
 #define DUCKDB_MAJOR_VERSION 1
 #endif
 #ifndef DUCKDB_VERSION
-#define DUCKDB_VERSION "v1.3.3-dev231"
+#define DUCKDB_VERSION "v1.4.0-dev3866"
 #endif
 #ifndef DUCKDB_SOURCE_ID
-#define DUCKDB_SOURCE_ID "f40ac6e565"
+#define DUCKDB_SOURCE_ID "605eaf76be"
 #endif
 #include "duckdb/function/table/system_functions.hpp"
 #include "duckdb/main/database.hpp"
@@ -87,6 +87,9 @@ const char *DuckDB::ReleaseCodename() {
 	}
 	if (StringUtil::StartsWith(DUCKDB_VERSION, "v1.3.")) {
 		return "Ossivalis";
+	}
+	if (StringUtil::StartsWith(DUCKDB_VERSION, "v1.4.")) {
+		return "Andium";
 	}
 	// add new version names here
 

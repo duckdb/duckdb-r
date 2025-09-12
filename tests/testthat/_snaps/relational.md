@@ -121,7 +121,7 @@
       │      Text: data.frame     │
       │       Projections: x      │
       │                           │
-      │          ~1 Rows          │
+      │           ~1 row          │
       └───────────────────────────┘
       
 

@@ -30,7 +30,7 @@
 
 #include "src/function/cast/uuid_casts.cpp"
 
-#include "src/function/cast/varint_casts.cpp"
+#include "src/function/cast/bignum_casts.cpp"
 
 #include "src/function/cast/nested_to_varchar_cast.cpp"
 

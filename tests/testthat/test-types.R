@@ -21,7 +21,7 @@ test_that("test_all_types() output", {
       "fixed_nested_varchar_array",
       "fixed_struct_array",
       "fixed_array_of_int_list",
-      "varint",
+      "bignum",
       NULL
     )
 

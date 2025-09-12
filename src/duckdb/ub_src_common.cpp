@@ -8,6 +8,8 @@
 
 #include "src/common/cgroups.cpp"
 
+#include "src/common/csv_writer.cpp"
+
 #include "src/common/complex_json.cpp"
 
 #include "src/common/compressed_file_system.cpp"
@@ -15,6 +17,10 @@
 #include "src/common/constants.cpp"
 
 #include "src/common/checksum.cpp"
+
+#include "src/common/encryption_functions.cpp"
+
+#include "src/common/encryption_key_manager.cpp"
 
 #include "src/common/encryption_state.cpp"
 
@@ -63,6 +69,8 @@
 #include "src/common/tree_renderer.cpp"
 
 #include "src/common/types.cpp"
+
+#include "src/common/bignum.cpp"
 
 #include "src/common/virtual_file_system.cpp"
 

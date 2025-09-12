@@ -1,0 +1,50 @@
+From 921064df989489684a61e7717f4629f0dcad8691 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Mon, 25 Aug 2025 07:15:12 +0200
+Subject: [PATCH] disable print for bignum
+
+---
+ src/duckdb/src/common/bignum.cpp | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/duckdb/src/common/bignum.cpp b/src/duckdb/src/common/bignum.cpp
+index 2bf228586..24f17c097 100644
+--- a/src/duckdb/src/common/bignum.cpp
++++ b/src/duckdb/src/common/bignum.cpp
+@@ -4,12 +4,15 @@
+ 
+ namespace duckdb {
+ void PrintBits(const char value) {
++#ifndef DUCKDB_DISABLE_PRINT
+ 	for (int i = 7; i >= 0; --i) {
+ 		std::cout << ((value >> i) & 1);
+ 	}
++#endif
+ }
+ 
+ void bignum_t::Print() const {
++#ifndef DUCKDB_DISABLE_PRINT
+ 	auto ptr = data.GetData();
+ 	auto length = data.GetSize();
+ 	for (idx_t i = 0; i < length; ++i) {
+@@ -17,14 +20,17 @@ void bignum_t::Print() const {
+ 		std::cout << "  ";
+ 	}
+ 	std::cout << '\n';
++#endif
+ }
+ 
+ void BignumIntermediate::Print() const {
++#ifndef DUCKDB_DISABLE_PRINT
+ 	for (idx_t i = 0; i < size; ++i) {
+ 		PrintBits(static_cast<char>(data[i]));
+ 		std::cout << "  ";
+ 	}
+ 	std::cout << '\n';
++#endif
+ }
+ 
+ BignumIntermediate::BignumIntermediate(const bignum_t &value) {
+-- 
+2.50.1
+
