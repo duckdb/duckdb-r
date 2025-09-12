@@ -30,7 +30,7 @@ jobs:
         # update the documentation in scripts/VENDORING.md accordingly (see disclaimers section)
         include:
           - branch: main
-            upstream: v1.3-ossivalis
+            upstream: v1.4-andium
           - branch: next
             upstream: main
     outputs:
