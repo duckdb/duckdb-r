@@ -1,5 +1,36 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.3.3.9001
+
+## Bug fixes
+
+- Fix progress display for fractional progress values (#1499, #1505).
+
+## Chore
+
+- Adapt tag.
+
+## Continuous integration
+
+- Adapt branch name for vendoring.
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@b346888f49f6a782675cbc9f6136fbcb31f27a9e (#1510).
+
+- Update vendored sources to duckdb/duckdb@e9c4dc259460a32b4d11834b746a1cb7e94f4f9e (#1509).
+
+- Update vendored sources to duckdb/duckdb@326b453ab2942017228adb7abf30276e8f9528d0 (#1508).
+
+- Update vendored sources to duckdb/duckdb@4f346251d97cfcfee00a1771b3e149046bea9be4 (#1507).
+
+- Update vendored sources to duckdb/duckdb@b505737f9816275a57bd2c6e2baa19685f25c801 (#1506).
+
+## Uncategorized
+
+- Merge commit 'fdff72d0fcf7739d5cb8f1a66a5263a02388a048'.
+
+
 # duckdb 1.3.3.9000
 
 ## fledge
