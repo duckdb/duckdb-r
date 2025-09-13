@@ -34,3 +34,5 @@
 
 #include "src/function/udf_function.cpp"
 
+#include "src/function/copy_blob.cpp"
+
