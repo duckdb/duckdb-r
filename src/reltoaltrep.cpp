@@ -125,7 +125,8 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 
 	if (!mat_result) {
 		if (n_cells == 0) {
-			rapi_error_with_context("GetQueryResult", "Materialization is disabled, use `collect()` or `as_tibble()` to materialize.");
+			rapi_error_with_context("GetQueryResult",
+			                        "Materialization is disabled, use `collect()` or `as_tibble()` to materialize.");
 		}
 
 		auto materialize_callback = Rf_GetOption1(RStrings::get().materialize_callback_sym);
@@ -236,18 +237,44 @@ struct AltrepVectorWrapper {
 		return GetFromExternalPtr<AltrepVectorWrapper>(x);
 	}
 
+	idx_t RowCount() {
+		auto res = rel->GetQueryResult();
+		return res->RowCount();
+	}
+
+	const string &Name() {
+		auto res = rel->GetQueryResult();
+		return res->names[column_index];
+	}
+
+	const string &FullName() {
+		auto res = rel->GetQueryResult();
+		return res->names[column_index];
+	}
+
+	const LogicalType &Type() {
+		auto res = rel->GetQueryResult();
+		return res->types[column_index];
+	}
+
+	ColumnDataChunkIterationHelper Chunks() {
+		auto res = rel->GetQueryResult();
+		return res->Collection().Chunks();
+	}
+
+	const Vector &ChunkData(const DataChunk &chunk) {
+		return chunk.data[column_index];
+	}
+
 	void *Dataptr() {
 		if (transformed_vector.data() == R_NilValue) {
-			auto res = rel->GetQueryResult();
-			const auto &name = res->names[column_index];
+			const auto &convert_opts = rel->rel_eptr->convert_opts;
 
-			transformed_vector =
-			    duckdb_r_allocate(res->types[column_index], res->RowCount(), name, duckdb::ConvertOpts(), "Dataptr");
+			transformed_vector = duckdb_r_allocate(Type(), RowCount(), Name(), convert_opts, "Dataptr");
 			idx_t dest_offset = 0;
-			for (auto &chunk : res->Collection().Chunks()) {
+			for (const auto &chunk : Chunks()) {
 				SEXP dest = transformed_vector.data();
-				duckdb_r_transform(chunk.data[column_index], dest, dest_offset, chunk.size(), duckdb::ConvertOpts(),
-				                   name);
+				duckdb_r_transform(ChunkData(chunk), dest, dest_offset, chunk.size(), convert_opts, FullName());
 				dest_offset += chunk.size();
 			}
 		}
@@ -480,7 +507,8 @@ shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool 
 	auto altrep_data = R_altrep_data1(row_names);
 	if (TYPEOF(altrep_data) != EXTPTRSXP) {
 		if (strict) {
-			rapi_error_with_context("rapi_rel_from_altrep_df", "Not our 'special' data.frame, data1 is not external pointer");
+			rapi_error_with_context("rapi_rel_from_altrep_df",
+			                        "Not our 'special' data.frame, data1 is not external pointer");
 		} else {
 			return nullptr;
 		}
