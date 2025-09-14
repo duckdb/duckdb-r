@@ -281,7 +281,7 @@ struct AltrepVectorWrapper {
 		return const_cast<void *>(DATAPTR_RO(transformed_vector));
 	}
 
-	SEXP Vector() {
+	SEXP RVector() {
 		Dataptr();
 		return transformed_vector;
 	}
@@ -369,7 +369,7 @@ void *RelToAltrep::VectorDataptr(SEXP x, Rboolean writeable) {
 
 SEXP RelToAltrep::VectorStringElt(SEXP x, R_xlen_t i) {
 	BEGIN_CPP11
-	return STRING_ELT(AltrepVectorWrapper::Get(x)->Vector(), i);
+	return STRING_ELT(AltrepVectorWrapper::Get(x)->RVector(), i);
 	END_CPP11
 }
 
@@ -387,7 +387,7 @@ R_xlen_t RelToAltrep::StructLength(SEXP x) {
 
 SEXP RelToAltrep::VectorListElt(SEXP x, R_xlen_t i) {
 	BEGIN_CPP11
-	return VECTOR_ELT(AltrepVectorWrapper::Get(x)->Vector(), i);
+	return VECTOR_ELT(AltrepVectorWrapper::Get(x)->RVector(), i);
 	END_CPP11
 }
 #endif
