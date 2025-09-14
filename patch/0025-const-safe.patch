@@ -1,0 +1,44 @@
+From ca3c08f8c0aaa3c08dcae088b656d9d031ad679b Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Sun, 14 Sep 2025 10:41:25 +0200
+Subject: [PATCH] const-safe
+
+---
+ src/duckdb/src/include/duckdb/common/type_util.hpp    | 2 +-
+ src/duckdb/src/include/duckdb/common/types/vector.hpp | 7 +++++++
+ 2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/duckdb/src/include/duckdb/common/type_util.hpp b/src/duckdb/src/include/duckdb/common/type_util.hpp
+index 40a3eb872..5edf0d13c 100644
+--- a/src/duckdb/src/include/duckdb/common/type_util.hpp
++++ b/src/duckdb/src/include/duckdb/common/type_util.hpp
+@@ -73,7 +73,7 @@ PhysicalType GetTypeId() {
+ 		return PhysicalType::VARCHAR;
+ 	} else if (std::is_same<T, interval_t>()) {
+ 		return PhysicalType::INTERVAL;
+-	} else if (std::is_same<T, list_entry_t>()) {
++	} else if (std::is_same<T, const list_entry_t>() || std::is_same<T, list_entry_t>()) {
+ 		return PhysicalType::LIST;
+ 	} else if (std::is_pointer<T>() || std::is_same<T, uintptr_t>()) {
+ 		if (sizeof(uintptr_t) == sizeof(uint32_t)) {
+diff --git a/src/duckdb/src/include/duckdb/common/types/vector.hpp b/src/duckdb/src/include/duckdb/common/types/vector.hpp
+index 1ab48c056..748ebc436 100644
+--- a/src/duckdb/src/include/duckdb/common/types/vector.hpp
++++ b/src/duckdb/src/include/duckdb/common/types/vector.hpp
+@@ -488,6 +488,13 @@ struct FlatVector {
+ };
+ 
+ struct ListVector {
++	static inline const list_entry_t *GetData(const Vector &v) {
++		if (v.GetVectorType() == VectorType::DICTIONARY_VECTOR) {
++			auto &child = DictionaryVector::Child(v);
++			return GetData(child);
++		}
++		return FlatVector::GetData<const list_entry_t>(v);
++	}
+ 	static inline list_entry_t *GetData(Vector &v) {
+ 		if (v.GetVectorType() == VectorType::DICTIONARY_VECTOR) {
+ 			auto &child = DictionaryVector::Child(v);
+-- 
+2.50.1
+

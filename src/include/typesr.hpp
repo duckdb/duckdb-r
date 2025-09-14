@@ -137,7 +137,7 @@ struct RIntegralType {
 };
 
 template <class T>
-static void RDecimalCastLoop(Vector &src_vec, size_t count, double *dest_ptr, uint8_t scale) {
+static void RDecimalCastLoop(const Vector &src_vec, size_t count, double *dest_ptr, uint8_t scale) {
 	auto src_ptr = FlatVector::GetData<T>(src_vec);
 	auto &mask = FlatVector::Validity(src_vec);
 	double division = std::pow((uint64_t)10, (uint64_t)scale);
