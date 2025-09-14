@@ -229,8 +229,14 @@ struct AltrepRownamesWrapper {
 };
 
 struct AltrepVectorWrapper {
-	AltrepVectorWrapper(duckdb::shared_ptr<AltrepRelationWrapper> rel_p, idx_t column_index_p)
-	    : rel(rel_p), column_index(column_index_p) {
+	// In the absence of nested types, parent_column_index is empty.
+	// For nested types, it contains the sequence of parent indices to reach
+	// the struct that contains this column.
+	// E.g. for a column `a$b$c`, where `a` is column 3, `b` is field 2 of `a`, and `c` is field 1 of `b`,
+	// we have column_index = 1, parent_column_index = {3, 2}.
+	AltrepVectorWrapper(duckdb::shared_ptr<AltrepRelationWrapper> rel_p, idx_t column_index_p,
+	                    std::vector<idx_t> parent_column_index_p)
+	    : rel(rel_p), column_index(column_index_p), parent_column_index(std::move(parent_column_index_p)) {
 	}
 
 	static AltrepVectorWrapper *Get(SEXP x) {
@@ -244,26 +250,71 @@ struct AltrepVectorWrapper {
 
 	const string &Name() {
 		auto res = rel->GetQueryResult();
-		return res->names[column_index];
+
+		if (parent_column_index.empty()) {
+			return res->names[column_index];
+		}
+
+		auto child_type = res->types[parent_column_index[0]];
+		for (idx_t i = 1; i < parent_column_index.size(); i++) {
+			child_type = StructType::GetChildType(child_type, parent_column_index[i]);
+		}
+
+		return StructType::GetChildName(child_type, column_index);
 	}
 
-	const string &FullName() {
+	string FullName() {
 		auto res = rel->GetQueryResult();
-		return res->names[column_index];
+
+		if (parent_column_index.empty()) {
+			return res->names[column_index];
+		}
+
+		string res_name = res->names[parent_column_index[0]];
+		auto child_type = res->types[parent_column_index[0]];
+		for (idx_t i = 1; i < parent_column_index.size(); i++) {
+			res_name += "$" + StructType::GetChildName(child_type, parent_column_index[i]);
+			child_type = StructType::GetChildType(child_type, parent_column_index[i]);
+		}
+		res_name += "$" + StructType::GetChildName(child_type, column_index);
+		return res_name;
 	}
 
 	const LogicalType &Type() {
 		auto res = rel->GetQueryResult();
-		return res->types[column_index];
+
+		if (parent_column_index.empty()) {
+			return res->types[column_index];
+		}
+
+		auto child_type = res->types[parent_column_index[0]];
+		for (idx_t i = 1; i < parent_column_index.size(); i++) {
+			child_type = StructType::GetChildType(child_type, parent_column_index[i]);
+		}
+		return StructType::GetChildType(child_type, column_index);
 	}
 
 	ColumnDataChunkIterationHelper Chunks() {
 		auto res = rel->GetQueryResult();
-		return res->Collection().Chunks();
+
+		if (parent_column_index.empty()) {
+			return res->Collection().Chunks({column_index});
+		} else {
+			return res->Collection().Chunks({parent_column_index[0]});
+		}
 	}
 
 	const Vector &ChunkData(const DataChunk &chunk) {
-		return chunk.data[column_index];
+		if (parent_column_index.empty()) {
+			return chunk.data[0];
+		}
+
+		auto struct_vector = &chunk.data[0];
+		for (idx_t i = 1; i < parent_column_index.size(); i++) {
+			struct_vector = &*StructVector::GetEntries(*struct_vector)[parent_column_index[i]];
+		}
+
+		return *StructVector::GetEntries(*struct_vector)[column_index];
 	}
 
 	void *Dataptr() {
@@ -288,6 +339,7 @@ struct AltrepVectorWrapper {
 
 	duckdb::shared_ptr<AltrepRelationWrapper> rel;
 	idx_t column_index;
+	std::vector<idx_t> parent_column_index;
 	cpp11::sexp transformed_vector;
 };
 
@@ -432,6 +484,10 @@ size_t DoubleToSize(double d) {
 	return (size_t)d;
 }
 
+SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_wrapper, SEXP row_names_sexp,
+                             const child_list_t<LogicalType> &types, const ConvertOpts &convert_opts,
+                             std::vector<idx_t> parent_col_idx = {});
+
 [[cpp11::register]] SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel, double n_rows, double n_cells) {
 	D_ASSERT(rel && rel->rel);
 	auto drel = rel->rel;
@@ -444,27 +500,52 @@ size_t DoubleToSize(double d) {
 	R_SetExternalPtrTag(ptr, RStrings::get().duckdb_row_names_sym);
 	cpp11::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, R_NilValue);
 
-	// Data
-	cpp11::writable::list data_frame;
-	data_frame.reserve(ncols);
-
+	child_list_t<LogicalType> types;
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
 		auto &col = drel->Columns()[col_idx];
 		auto &col_name = col.Name();
 		auto &col_type = col.Type();
-		cpp11::external_pointer<AltrepVectorWrapper> ptr(new AltrepVectorWrapper(relation_wrapper, col_idx));
+
+		types.push_back(make_pair(col_name, col_type));
+	}
+
+	return rapi_rel_to_altrep_impl(relation_wrapper, row_names_sexp, types, rel->convert_opts);
+}
+
+SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_wrapper, SEXP row_names_sexp,
+                             const child_list_t<LogicalType> &types, const ConvertOpts &convert_opts,
+                             std::vector<idx_t> parent_col_idx) {
+	auto ncols = types.size();
+
+	// Data
+	cpp11::writable::list data_frame;
+	data_frame.reserve(ncols);
+
+	cpp11::writable::strings names;
+	names.reserve(ncols);
+
+	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
+		auto &col_name = types[col_idx].first;
+		names.push_back(col_name);
+
+		auto &col_type = types[col_idx].second;
+		cpp11::external_pointer<AltrepVectorWrapper> ptr(
+		    new AltrepVectorWrapper(relation_wrapper, col_idx, parent_col_idx));
 		R_SetExternalPtrTag(ptr, RStrings::get().duckdb_vector_sym);
 
-		cpp11::sexp vector_sexp = R_new_altrep(LogicalTypeToAltrepType(col_type, col_name), ptr, R_NilValue);
-
-		duckdb_r_decorate(col_type, vector_sexp, rel->convert_opts);
+		cpp11::sexp vector_sexp;
 
 		// Special case: Only STRUCTs have a redundant row names attribute
 		// Moving this logic into duckdb_r_decorate() would add too much noise elsewhere
 		if (col_type.id() == LogicalTypeId::STRUCT) {
-			// FIXME: The exact class of nested columns can be a property
-			// of the relation object, determined by the data on input
-			duckdb_r_df_decorate_impl(vector_sexp, row_names_sexp, RStrings::get().dataframe_str);
+			auto &child_types = StructType::GetChildTypes(col_type);
+			std::vector<idx_t> child_col_idx = parent_col_idx;
+			child_col_idx.push_back(col_idx);
+			vector_sexp =
+			    rapi_rel_to_altrep_impl(relation_wrapper, row_names_sexp, child_types, convert_opts, child_col_idx);
+		} else {
+			vector_sexp = R_new_altrep(LogicalTypeToAltrepType(col_type, col_name), ptr, R_NilValue);
+			duckdb_r_decorate(col_type, vector_sexp, convert_opts);
 		}
 
 		data_frame.push_back(vector_sexp);
@@ -474,13 +555,12 @@ size_t DoubleToSize(double d) {
 	(void)(SEXP)data_frame;
 
 	// Names
-	vector<string> names;
-	for (auto &col : drel->Columns()) {
-		names.push_back(col.Name());
-	}
-	SET_NAMES(data_frame, StringsToSexp(names));
+	SET_NAMES(data_frame, names);
 
 	// Class and row names
+	// FIXME: The exact class of nested columns can be a property
+	// of the relation object, determined by the data on input,
+	// or a property of the ConvertOpts.
 	duckdb_r_df_decorate_impl(data_frame, row_names_sexp, RStrings::get().dataframe_str);
 
 	return data_frame;
