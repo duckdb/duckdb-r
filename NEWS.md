@@ -1,5 +1,30 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.3.3.9003
+
+## Bug fixes
+
+- Full support for deep structs for ALTREP (#1545).
+
+## Features
+
+- Use const-safe access for reading results (#1543).
+
+## Chore
+
+- Add reminder to manually check extensions (#1517, #1546).
+
+- Extract methods for `AltrepVectorWrapper` class (#1544).
+
+## Testing
+
+- Add ALTREP struct tests.
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@b3edbac8519f8ed04f58a6f30ec349112bdc7d6c (#1540).
+
+
 # duckdb 1.3.3.9002
 
 ## vendor
