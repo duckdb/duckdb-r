@@ -235,6 +235,8 @@ test_that("packed columns work with ALTREP", {
 })
 
 test_that("nested columns work with ALTREP", {
+  skip_if(getRversion() < "4.3.0", "ALTREP for lists not supported")
+
   con <- local_con()
   df1 <- data.frame(g = c(1, 1, 2), a = 1:3, b = 2:4, c = 3:5)
 
