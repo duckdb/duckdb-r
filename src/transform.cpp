@@ -80,12 +80,14 @@ SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows, const string &name,
 	switch (type.id()) {
 	case LogicalTypeId::ARRAY: {
 		if (convert_opts.array != ConvertOpts::ArrayConversion::MATRIX)
-			rapi_error_with_context("duckdb_r_allocate", "Use `dbConnect(array = \"matrix\")` to enable arrays to be returned to R.");
+			rapi_error_with_context("duckdb_r_allocate",
+			                        "Use `dbConnect(array = \"matrix\")` to enable arrays to be returned to R.");
 		auto array_size = ArrayType::GetSize(type);
 		auto &child_type = ArrayType::GetChildType(type);
 		if (child_type.IsNested())
 			rapi_error_with_context("duckdb_r_allocate", "Nested arrays cannot be returned to R as column data.");
-		cpp11::sexp varvalue = duckdb_r_allocate(child_type, (nrows * array_size), name, convert_opts, "LogicalTypeId::ARRAY");
+		cpp11::sexp varvalue =
+		    duckdb_r_allocate(child_type, (nrows * array_size), name, convert_opts, "LogicalTypeId::ARRAY");
 		return varvalue;
 	}
 	case LogicalTypeId::STRUCT: {
