@@ -119,6 +119,19 @@ test_that("CSV files can be registered with tbl_file() and tbl_function()", {
 })
 
 
+test_that("Files use the default connection", {
+  skip_if_not_installed("dbplyr")
+
+  path <- file.path(tempdir(), "duckdbtest.csv")
+  write.csv(iris, file = path)
+  on.exit(unlink(path))
+
+  tab1 <- tbl_file(path = path)
+  expect_identical(dbplyr::remote_con(tab1), default_conn())
+  expect_true(tab1 %>% dplyr::count() %>% dplyr::collect() == 150)
+})
+
+
 test_that("Other replacement scans or functions can be registered with dplyr::tbl()", {
   skip_if_not(TEST_RE2)
 

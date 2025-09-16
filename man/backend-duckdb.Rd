@@ -7,7 +7,7 @@
 \alias{simulate_duckdb}
 \title{DuckDB SQL backend for dbplyr}
 \usage{
-tbl_file(src, path, ..., cache = FALSE)
+tbl_file(src = NULL, path, ..., cache = FALSE)
 
 tbl_function(src, query, ..., cache = FALSE)
 
@@ -16,7 +16,7 @@ tbl_query(src, query, ...)
 simulate_duckdb(...)
 }
 \arguments{
-\item{src}{A duckdb connection object}
+\item{src}{A duckdb connection object, \code{\link[=default_conn]{default_conn()}} if omitted.}
 
 \item{path}{Path to existing Parquet, CSV or JSON file}
 

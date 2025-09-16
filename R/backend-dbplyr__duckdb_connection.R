@@ -445,12 +445,12 @@ tbl.duckdb_connection <- function(src, from, ..., cache = FALSE) {
 #' It is safer than `dplyr::tbl()` because there is no risk of misinterpreting the request,
 #' and paths with special characters are supported.
 #'
-#' @param src A duckdb connection object
+#' @param src A duckdb connection object, [default_conn()] if omitted.
 #' @param path Path to existing Parquet, CSV or JSON file
 #' @param cache Enable object cache for Parquet files
 #' @export
 #' @rdname backend-duckdb
-tbl_file <- function(src, path, ..., cache = FALSE) {
+tbl_file <- function(src = NULL, path, ..., cache = FALSE) {
   if (...length() > 0) {
     stop("... must be empty.", call. = FALSE)
   }
@@ -459,6 +459,9 @@ tbl_file <- function(src, path, ..., cache = FALSE) {
   }
   if (grepl("'", path)) {
     stop("File '", path, "' contains a single quote, this is not supported", call. = FALSE)
+  }
+  if (is.null(src)) {
+    src <- default_conn()
   }
   tbl_function(src, paste0("'", path, "'"), cache = cache)
 }
