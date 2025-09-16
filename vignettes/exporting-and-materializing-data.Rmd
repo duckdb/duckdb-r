@@ -1,0 +1,147 @@
+---
+title: "Exporting and materializing data"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Exporting and materializing data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+library(DBI)
+library(dplyr)
+library(duckdb)
+devtools::load_all()
+```
+
+## Overview
+
+This vignette demonstrates how to use two utility functions — `export_parquet()` and `create_view()` — from this package and one, `compute()`, from `dbplyr` — to interact efficiently with **DuckDB** using `dplyr`-style workflows:
+
+- `export_parquet()` exports a DuckDB-backed table or query to a Parquet file.
+- `create_view()` creates or replaces a DuckDB **view** from a `dbplyr` lazy table.
+- `compute()` create a table from a `dbplyr` lazy table.
+
+These functions are useful when working with in-database analytics or for building reproducible pipelines that persist intermediate results.
+
+---
+
+## Creating a DuckDB connection
+
+Let’s begin by creating an in-memory DuckDB database and loading some example data.
+
+```{r}
+con <- dbConnect(duckdb())
+dbWriteTable(con, "mtcars", mtcars)
+
+# Reference it with dplyr
+tbl_mtcars <- tbl(con, "mtcars")
+```
+
+---
+
+## Creating a view with `create_view()`
+
+You can define a new **view** using a filtered or transformed version of a table:
+
+```{r}
+tbl_mpg <- tbl_mtcars %>%
+  filter(mpg > 25) %>%
+  select(mpg, cyl, gear)
+
+my_view <- create_view(tbl_mpg, "mtcars_high_mpg")
+my_view
+```
+
+Let’s check that the view now exists:
+
+```{r}
+dbListObjects(con)
+```
+
+You can query it directly as a new `tbl`:
+
+```{r}
+tbl(con, "mtcars_high_mpg")
+```
+
+
+
+---
+
+## Exporting to a Parquet file
+
+You can use `export_parquet()` to persist the result of any DuckDB query or table to disk:
+
+```{r}
+parquet_file <- tempfile(fileext = ".parquet")
+
+export_parquet(
+  tbl_mtcars %>% filter(gear == 4),
+  output = parquet_file,
+  options = list(compression = "zstd", ROW_GROUP_SIZE = 10000),
+  print_sql = TRUE
+)
+
+file.exists(parquet_file)
+```
+
+This file can now be reused elsewhere, even outside of R (e.g., in Python, Apache Arrow, or cloud environments).
+
+---
+
+## Materializing queries in a duckdb table with `compute()`
+
+The [`compute()`](https://dbplyr.tidyverse.org/reference/collapse.tbl_sql.html) function from `dbplyr`  can also be used to materialize a lazy query result into a temporary table. Unlike `create_view()`, which creates a named view, `compute()` generates an anonymous temporary table in the DuckDB backend.
+
+This is useful when you want to persist intermediate results **without naming the object**, or when your workflow involves chained operations that would benefit from reducing the query plan complexity.
+
+```{r}
+materialized_tbl <- tbl_mtcars %>%
+  filter(mpg > 25, gear == 4) %>%
+  compute()
+
+materialized_tbl
+```
+
+By materializing the data, you ensure that heavy transformations (e.g., joins or filters) are computed once and reused efficiently in subsequent steps.
+
+**Note:** The resulting table only lives for the duration of the session and is not accessible by name in the database.
+
+But if you need persistance, you can also create a named non temporary table : 
+
+```{r}
+materialized_tbl <- tbl_mtcars %>%
+  filter(mpg > 25, gear == 4) %>%
+  compute(name = "my_table", temporary = FALSE)
+
+materialized_tbl
+```
+
+You can query it directly as a new `tbl`:
+
+```{r}
+tbl(con, "my_table")
+```
+
+## Cleanup
+
+```{r}
+dbDisconnect(con, shutdown = TRUE)
+```
+
+---
+
+## Summary
+
+These functions allow you to:
+
+- Materialize intermediate SQL logic as DuckDB views with `create_view()`.
+- Export results to efficient Parquet files using `export_parquet()`.
+- Materialize intermediate data as DuckDB table with `compute()`.
+
+They are particularly useful in workflows that rely on lazy evaluation, large datasets, or integration with downstream systems.
