@@ -35,8 +35,6 @@ query <- function(sql, conn = default_conn()) {
   dbGetQuery(conn, sql)
 }
 
-sql <- query
-
 #' @rdname query
 #' @export
 exec <- function(sql, conn = default_conn()) {
