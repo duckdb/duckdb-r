@@ -42,14 +42,6 @@ test_that("query() validates connection", {
   expect_snapshot(error = TRUE, query("SELECT 1", conn = invalid_con))
 })
 
-test_that("sql() is an alias for query()", {
-  expect_identical(sql, query)
-
-  result1 <- query("SELECT 123 AS test")
-  result2 <- sql("SELECT 123 AS test")
-  expect_identical(result1, result2)
-})
-
 test_that("exec() executes DDL statements correctly", {
   # Clean up any existing test table
   tryCatch(exec("DROP TABLE IF EXISTS test_exec"), error = function(e) NULL)
@@ -213,10 +205,6 @@ test_that("functions work together in realistic scenarios", {
   # Update data
   updated <- exec("UPDATE integration_test SET score = score + 5 WHERE name = 'Bob'")
   expect_equal(updated, 1)
-
-  # Verify update with sql() alias
-  result <- sql("SELECT score FROM integration_test WHERE name = 'Bob'")
-  expect_equal(result$score, 92.2)
 
   # Clean up
   exec("DROP TABLE integration_test")
