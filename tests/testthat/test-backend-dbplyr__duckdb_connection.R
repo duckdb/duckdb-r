@@ -9,7 +9,6 @@ test_that("dbplyr generic scalars translated correctly", {
   skip_if_not_installed("dbplyr")
   con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
-  sql <- function(...) dbplyr::sql(...)
 
   expect_equal(translate(as.character(1)), sql(r"{CAST(1.0 AS TEXT)}"))
   expect_equal(translate(as.character(1L)), sql(r"{CAST(1 AS TEXT)}"))
@@ -35,7 +34,6 @@ test_that("duckdb custom scalars translated correctly", {
   skip_if_not_installed("dbplyr")
   con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
-  sql <- function(...) dbplyr::sql(...)
 
   #  expect_equal(translate(as(1,"CHARACTER")), sql(r"{CAST(1.0 AS TEXT}"))        # Not implemented
   expect_equal(translate(as.raw(10)), sql(r"{CAST(10.0 AS VARBINARY)}"))
@@ -71,7 +69,6 @@ test_that("pasting translated correctly", {
   skip_if_not_installed("dbplyr")
   con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
-  sql <- function(...) dbplyr::sql(...)
 
   expect_equal(translate(paste("hi", "bye")), sql(r"{CONCAT_WS(' ', 'hi', 'bye')}"))
   expect_equal(translate(paste("hi", "bye", sep = "-")), sql(r"{CONCAT_WS('-', 'hi', 'bye')}"))
@@ -91,7 +88,6 @@ test_that("custom lubridate functions translated correctly", {
   skip_if_not_installed("dbplyr")
   con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
-  sql <- function(...) dbplyr::sql(...)
 
   expect_equal(translate(yday(x)), sql(r"{EXTRACT(DOY FROM x)}"))
   expect_equal(translate(quarter(x)), sql(r"{EXTRACT(QUARTER FROM x)}"))
@@ -134,7 +130,6 @@ test_that("custom clock functions translated correctly", {
   skip_if_not_installed("cli")
   con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
-  sql <- function(...) dbplyr::sql(...)
 
   m <- 1
   expect_equal(translate(add_days(x, m)), sql(r"{DATE_ADD(x, INTERVAL (m) day)}"))
@@ -202,7 +197,6 @@ test_that("custom stringr functions translated correctly", {
   skip_if_not_installed("dbplyr")
   con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
-  sql <- function(...) dbplyr::sql(...)
 
   expect_equal(translate(str_c(x, y)), sql(r"{CONCAT_WS('', x, y)}"))
   #   expect_error(translate(str_c(x, collapse = "")), "`collapse` not supported")
@@ -227,7 +221,6 @@ test_that("datetime escaping working as in DBI", {
   skip_if_not_installed("dbplyr")
   con <- local_con()
   escape <- function(...) dbplyr::escape(..., con = con)
-  sql <- function(...) dbplyr::sql(...)
 
   test_date <- as.Date("2020-01-01")
   expect_equal(escape(test_date), sql(r"{'2020-01-01'::date}"))
@@ -247,7 +240,6 @@ test_that("aggregators translated correctly", {
   skip_if_not_installed("dbplyr")
   con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
-  sql <- function(...) dbplyr::sql(...)
 
   expect_equal(translate(sum(x, na.rm = TRUE), window = FALSE), sql(r"{SUM(x)}"))
   expect_equal(translate(sum(x, na.rm = TRUE), window = TRUE), sql(r"{SUM(x) OVER ()}"))
@@ -288,7 +280,6 @@ test_that("two variable aggregates are translated correctly", {
   skip_if_not_installed("dbplyr")
   con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
-  sql <- function(...) dbplyr::sql(...)
 
   expect_equal(translate(cor(x, y), window = FALSE), sql(r"{CORR(x, y)}"))
   expect_equal(translate(cor(x, y), window = TRUE), sql(r"{CORR(x, y) OVER ()}"))
