@@ -1,69 +1,16 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.3.3.9005
-
-## Bug fixes
-
-- Bring back `sql()` alias.
-
-## Features
-
-- `tbl_file()` allows omitting the `src` argument, falling back to the default connection.
-
-- New `exec()`, `query()` and `default_conn()` to simplify the most important operations for interactive use (#1564).
-
-- Do not scrub alias from function argument, required for named arguments in duckplyr's `dd$...()` syntax (#1565).
-
-## Chore
-
-- Use hard-coded version info in `dbGetInfo(drv)` (#1563).
-
-## Continuous integration
-
-- Skip test.
+# duckdb 1.3.99.9900
 
 ## vendor
 
 - Update vendored sources (tag v1.4.0) to duckdb/duckdb@b8a06e4a22672e254cd0baa68a3dbed2eb51c56e (#1562).
 
-
-# duckdb 1.3.3.9004
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@d232ee0ccb5abb2ce34a806c7408772957fc9d24 (#1560).
 
 - Update vendored sources to duckdb/duckdb@2d98ac4755564b26359f91512ad4bb6d74818f04 (#1557).
 
-
-# duckdb 1.3.3.9003
-
-## Bug fixes
-
-- Full support for deep structs for ALTREP (#1545).
-
-## Features
-
-- Use const-safe access for reading results (#1543).
-
-## Chore
-
-- Add reminder to manually check extensions (#1517, #1546).
-
-- Extract methods for `AltrepVectorWrapper` class (#1544).
-
-## Testing
-
-- Add ALTREP struct tests.
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@b3edbac8519f8ed04f58a6f30ec349112bdc7d6c (#1540).
-
-
-# duckdb 1.3.3.9002
-
-## vendor
 
 - Update vendored sources to duckdb/duckdb@4659028e3a877f7134cee56d75b2535f053df795 (#1538).
 
@@ -111,23 +58,6 @@
 
 - Update vendored sources to duckdb/duckdb@99e7932f822502a7c66b144202cea43d6b569606 (#1513).
 
-
-# duckdb 1.3.3.9001
-
-## Bug fixes
-
-- Fix progress display for fractional progress values (#1499, #1505).
-
-## Chore
-
-- Adapt tag.
-
-## Continuous integration
-
-- Adapt branch name for vendoring.
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@b346888f49f6a782675cbc9f6136fbcb31f27a9e (#1510).
 
 - Update vendored sources to duckdb/duckdb@e9c4dc259460a32b4d11834b746a1cb7e94f4f9e (#1509).
@@ -138,16 +68,51 @@
 
 - Update vendored sources to duckdb/duckdb@b505737f9816275a57bd2c6e2baa19685f25c801 (#1506).
 
-## Uncategorized
-
-- Merge commit 'fdff72d0fcf7739d5cb8f1a66a5263a02388a048'.
-
-
-# duckdb 1.3.3.9000
-
 ## fledge
 
 - CRAN release v1.3.3 (#1491).
+
+## Bug fixes
+
+- Bring back `sql()` alias.
+
+- Full support for deep structs for ALTREP (#1545).
+
+- Fix progress display for fractional progress values (#1499, #1505).
+
+## Features
+
+- `tbl_file()` allows omitting the `src` argument, falling back to the default connection.
+
+- New `exec()`, `query()` and `default_conn()` to simplify the most important operations for interactive use (#1564).
+
+- Do not scrub alias from function argument, required for named arguments in duckplyr's `dd$...()` syntax (#1565).
+
+- Use const-safe access for reading results (#1543).
+
+## Chore
+
+- Use hard-coded version info in `dbGetInfo(drv)` (#1563).
+
+- Add reminder to manually check extensions (#1517, #1546).
+
+- Extract methods for `AltrepVectorWrapper` class (#1544).
+
+- Adapt tag.
+
+## Continuous integration
+
+- Skip test.
+
+- Adapt branch name for vendoring.
+
+## Testing
+
+- Add ALTREP struct tests.
+
+## Uncategorized
+
+- Merge commit 'fdff72d0fcf7739d5cb8f1a66a5263a02388a048'.
 
 
 # duckdb 1.3.3
