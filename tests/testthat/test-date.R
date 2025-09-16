@@ -8,8 +8,9 @@ test_that("Conversion of sub-dates prior Posix origin is correct", {
   )
 
   duckdb_register(con, "df", df)
+  withr::defer(duckdb_unregister(con, "df"))
 
-  res <- sql("from df", con)
+  res <- dbGetQuery(con, "FROM df")
 
   expect_identical(
     as.character(df$d),
