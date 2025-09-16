@@ -1,5 +1,32 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.3.3.9005
+
+## Bug fixes
+
+- Bring back `sql()` alias.
+
+## Features
+
+- `tbl_file()` allows omitting the `src` argument, falling back to the default connection.
+
+- New `exec()`, `query()` and `default_conn()` to simplify the most important operations for interactive use (#1564).
+
+- Do not scrub alias from function argument, required for named arguments in duckplyr's `dd$...()` syntax (#1565).
+
+## Chore
+
+- Use hard-coded version info in `dbGetInfo(drv)` (#1563).
+
+## Continuous integration
+
+- Skip test.
+
+## vendor
+
+- Update vendored sources (tag v1.4.0) to duckdb/duckdb@b8a06e4a22672e254cd0baa68a3dbed2eb51c56e (#1562).
+
+
 # duckdb 1.3.3.9004
 
 ## vendor
