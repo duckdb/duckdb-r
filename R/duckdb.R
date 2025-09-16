@@ -1,11 +1,3 @@
-## usethis namespace: start
-#' @useDynLib duckdb, .registration = TRUE
-## usethis namespace: end
-#' @name duckdb-package
-#' @keywords internal
-"_PACKAGE"
-NULL
-
 # Internal error function for C++ layer
 rapi_error <- function(context, message, error_type = NULL, raw_message = NULL, extra_info = NULL) {
   if (is.null(error_type) && is.null(raw_message) && is.null(extra_info)) {
