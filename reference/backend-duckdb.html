@@ -80,7 +80,7 @@ to see simulated SQL without opening a DuckDB connection.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">tbl_file</span><span class="op">(</span><span class="va">src</span>, <span class="va">path</span>, <span class="va">...</span>, cache <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">tbl_file</span><span class="op">(</span>src <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">path</span>, <span class="va">...</span>, cache <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">tbl_function</span><span class="op">(</span><span class="va">src</span>, <span class="va">query</span>, <span class="va">...</span>, cache <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
@@ -94,7 +94,7 @@ to see simulated SQL without opening a DuckDB connection.</p>
 
 
 <dl><dt id="arg-src">src<a class="anchor" aria-label="anchor" href="#arg-src"></a></dt>
-<dd><p>A duckdb connection object</p></dd>
+<dd><p>A duckdb connection object, <code><a href="default_conn.html">default_conn()</a></code> if omitted.</p></dd>
 
 
 <dt id="arg-path">path<a class="anchor" aria-label="anchor" href="#arg-path"></a></dt>
