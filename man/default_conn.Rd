@@ -30,5 +30,5 @@ of this connection, so scripts and packages should manage their own connections.
 }
 \examples{
 conn <- default_conn()
-print(duckdb::sql("SELECT 42", conn=conn))
+query("SELECT 42", conn = conn)
 }

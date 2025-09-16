@@ -69,7 +69,7 @@ the <- new.env(parent = emptyenv())
 #' @export
 #' @examples
 #' conn <- default_conn()
-#' print(duckdb::sql("SELECT 42", conn=conn))
+#' query("SELECT 42", conn = conn)
 default_conn <- function() {
   if(!exists("con", the)) {
     con <- DBI::dbConnect(
