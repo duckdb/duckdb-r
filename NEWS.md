@@ -2,117 +2,23 @@
 
 # duckdb 1.3.99.9900
 
-## vendor
-
-- Update vendored sources (tag v1.4.0) to duckdb/duckdb@b8a06e4a22672e254cd0baa68a3dbed2eb51c56e (#1562).
-
-- Update vendored sources to duckdb/duckdb@d232ee0ccb5abb2ce34a806c7408772957fc9d24 (#1560).
-
-- Update vendored sources to duckdb/duckdb@2d98ac4755564b26359f91512ad4bb6d74818f04 (#1557).
-
-- Update vendored sources to duckdb/duckdb@b3edbac8519f8ed04f58a6f30ec349112bdc7d6c (#1540).
-
-- Update vendored sources to duckdb/duckdb@4659028e3a877f7134cee56d75b2535f053df795 (#1538).
-
-- Update vendored sources to duckdb/duckdb@a00499ff6c59fa2186a910a0f2a4fe9d78b26442 (#1537).
-
-- Update vendored sources to duckdb/duckdb@551a5a537b8d6f88f28e32e7abf1a06edd2e90a8 (#1536).
-
-- Update vendored sources to duckdb/duckdb@ab2ff61ad978bc9da668df55bad28d05c1bd1940 (#1535).
-
-- Update vendored sources to duckdb/duckdb@74d990db698caa4b81173f6fa4417d60a2285b02 (#1534).
-
-- Update vendored sources to duckdb/duckdb@9cb1e3d3ca556d6828703a3dbf06b968570125cc (#1533).
-
-- Update vendored sources to duckdb/duckdb@e20e57c8041b21e54cacaf6dc84cff6f33091532 (#1532).
-
-- Update vendored sources to duckdb/duckdb@81141ad556026089a2d29f3c7d7b537caa306934 (#1531).
-
-- Update vendored sources to duckdb/duckdb@a92d9fc9876d81e9d7528f4808a750f31210a463 (#1530).
-
-- Update vendored sources to duckdb/duckdb@e8fb39cc33332e8a283020d382b9955396d23867 (#1529).
-
-- Update vendored sources to duckdb/duckdb@2f603a9c2a6e03231eadd40ed9ca4949db4e9308 (#1528).
-
-- Update vendored sources to duckdb/duckdb@2cba59ad0f55b799e2bc40e89a3caacf07a47580 (#1527).
-
-- Update vendored sources to duckdb/duckdb@e563c99d89abdf7e9e6b42240003206d6a233b06 (#1525).
-
-- Update vendored sources to duckdb/duckdb@eff4bfda68635a5448546c732c54d2613d3710f8 (duckdb/duckdb#18152, #1523).
-
-- Update vendored sources to duckdb/duckdb@c151565eb3a7b010385d155abcc2006256dea2f9 (#1522).
-
-- Update vendored sources to duckdb/duckdb@81547d76b8f47015945f3d7ed16f4bd603ca223a (#1521).
-
-- Update vendored sources to duckdb/duckdb@2718d1db52a3ecf8aed9858d9b7ce9b09b22d114 (#1520).
-
-- Update vendored sources to duckdb/duckdb@c4eec5f674f9ce67ccb323e067732c3933c7cfc9 (#1519).
-
-- Update vendored sources to duckdb/duckdb@be3da3c0d06d7d570cf29e28fc264d3e4eda74b6 (#1518).
-
-- Update vendored sources to duckdb/duckdb@be8f5a72688101d5fba00f2206e3ad4a2059bef5 (#1516).
-
-- Update vendored sources to duckdb/duckdb@fd36bea9393cefafc323996f4adde370fb51e922 (#1515).
-
-- Update vendored sources to duckdb/duckdb@cc70ffa74b01d17e7f4a4674b413fe61f8158f36 (#1514).
-
-- Update vendored sources to duckdb/duckdb@99e7932f822502a7c66b144202cea43d6b569606 (#1513).
-
-- Update vendored sources to duckdb/duckdb@b346888f49f6a782675cbc9f6136fbcb31f27a9e (#1510).
-
-- Update vendored sources to duckdb/duckdb@e9c4dc259460a32b4d11834b746a1cb7e94f4f9e (#1509).
-
-- Update vendored sources to duckdb/duckdb@326b453ab2942017228adb7abf30276e8f9528d0 (#1508).
-
-- Update vendored sources to duckdb/duckdb@4f346251d97cfcfee00a1771b3e149046bea9be4 (#1507).
-
-- Update vendored sources to duckdb/duckdb@b505737f9816275a57bd2c6e2baa19685f25c801 (#1506).
-
-## fledge
-
-- CRAN release v1.3.3 (#1491).
+- Update to duckdb v1.4.0, see <https://github.com/duckdb/duckdb/releases/tag/v1.4.0> for details.
 
 ## Bug fixes
-
-- Bring back `sql()` alias.
-
-- Full support for deep structs for ALTREP (#1545).
 
 - Fix progress display for fractional progress values (#1499, #1505).
 
 ## Features
 
-- `tbl_file()` allows omitting the `src` argument, falling back to the default connection.
-
 - New `exec()`, `query()` and `default_conn()` to simplify the most important operations for interactive use (#1564).
 
-- Do not scrub alias from function argument, required for named arguments in duckplyr's `dd$...()` syntax (#1565).
+- `tbl_file()` allows omitting the `src` argument, falling back to the default connection.
 
-- Use const-safe access for reading results (#1543).
-
-## Chore
-
-- Use hard-coded version info in `dbGetInfo(drv)` (#1563).
-
-- Add reminder to manually check extensions (#1517, #1546).
-
-- Extract methods for `AltrepVectorWrapper` class (#1544).
-
-- Adapt tag.
-
-## Continuous integration
-
-- Skip test.
-
-- Adapt branch name for vendoring.
+- Full support for deep structs for ALTREP (#1545).
 
 ## Testing
 
 - Add ALTREP struct tests.
-
-## Uncategorized
-
-- Merge commit 'fdff72d0fcf7739d5cb8f1a66a5263a02388a048'.
 
 
 # duckdb 1.3.3
@@ -941,7 +847,7 @@ Clients:
 # duckdb 0.1.9
 
 This is a preview release of DuckDB. Binary are listed below. Feedback is very welcome. Major changes:
-New [website](http://duckdb.org/) [woo-ho](https://www.youtube.com/watch?v=H9cmPE88a_0)!
+New [website](https://duckdb.org/) [woo-ho](https://www.youtube.com/watch?v=H9cmPE88a_0)!
 
 Engine
  - #653: Parquet reader integration
