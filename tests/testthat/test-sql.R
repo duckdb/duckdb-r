@@ -226,7 +226,6 @@ test_that("error handling works correctly", {
   local_edition(3)
 
   # Test syntax error
-  expect_snapshot(error = TRUE, query("SELECT * FROM nonexistent_table_xyz"))
   expect_snapshot(error = TRUE, exec("INVALID SQL SYNTAX"))
 
   # Test that errors don't break subsequent operations

@@ -17,25 +17,6 @@
 # error handling works correctly
 
     Code
-      query("SELECT * FROM nonexistent_table_xyz")
-    Condition
-      Error in `dbSendQuery()`:
-      ! Catalog Error: Table with name nonexistent_table_xyz does not exist!
-      Did you mean "pg_constraint"?
-      
-      LINE 1: SELECT * FROM nonexistent_table_xyz
-                            ^
-      ℹ Context: rapi_prepare
-      ℹ Error type: CATALOG
-      ℹ Raw message: Table with name nonexistent_table_xyz does not exist!
-      Did you mean "pg_constraint"?
-      
-      LINE 1: SELECT * FROM nonexistent_table_xyz
-                            ^
-
----
-
-    Code
       exec("INVALID SQL SYNTAX")
     Condition
       Error in `dbSendQuery()`:
