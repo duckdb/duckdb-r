@@ -8,6 +8,7 @@
 <url><loc>https://r.duckdb.org/index.html</loc></url>
 <url><loc>https://r.duckdb.org/news/index.html</loc></url>
 <url><loc>https://r.duckdb.org/reference/backend-duckdb.html</loc></url>
+<url><loc>https://r.duckdb.org/reference/default_conn.html</loc></url>
 <url><loc>https://r.duckdb.org/reference/deprecated.html</loc></url>
 <url><loc>https://r.duckdb.org/reference/duckdb-package.html</loc></url>
 <url><loc>https://r.duckdb.org/reference/duckdb.html</loc></url>
@@ -19,5 +20,6 @@
 <url><loc>https://r.duckdb.org/reference/duckdb_register_arrow.html</loc></url>
 <url><loc>https://r.duckdb.org/reference/duckdb_result-class.html</loc></url>
 <url><loc>https://r.duckdb.org/reference/index.html</loc></url>
+<url><loc>https://r.duckdb.org/reference/query.html</loc></url>
 </urlset>
 
