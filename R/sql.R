@@ -35,7 +35,7 @@ sql_query <- function(sql, conn = default_conn()) {
   dbGetQuery(conn, sql)
 }
 
-#' @rdname query
+#' @rdname sql_query
 #' @export
 sql_exec <- function(sql, conn = default_conn()) {
   stopifnot(dbIsValid(conn))

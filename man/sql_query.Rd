@@ -2,9 +2,12 @@
 % Please edit documentation in R/sql.R
 \name{sql_query}
 \alias{sql_query}
+\alias{sql_exec}
 \title{Run an SQL query or statement}
 \usage{
 sql_query(sql, conn = default_conn())
+
+sql_exec(sql, conn = default_conn())
 }
 \arguments{
 \item{sql}{A SQL string}
