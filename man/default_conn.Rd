@@ -30,5 +30,5 @@ of this connection, so scripts and packages should manage their own connections.
 }
 \examples{
 conn <- default_conn()
-query("SELECT 42", conn = conn)
+sql_query("SELECT 42", conn = conn)
 }

@@ -3,14 +3,14 @@
 #' @description
 #' `r lifecycle::badge('experimental')`
 #'
-#' `query()` runs an arbitrary SQL query using [DBI::dbGetQuery()]
+#' `sql_query()` runs an arbitrary SQL query using [DBI::dbGetQuery()]
 #' and returns a [data.frame] with the query results.
-#' `exec()` runs an arbitrary SQL statement using [DBI::dbExecute()]
+#' `sql_exec()` runs an arbitrary SQL statement using [DBI::dbExecute()]
 #' and returns the number of affected rows.
 #'
 #' These functions are intended as an easy way to interactively run DuckDB
 #' without having to manage connections.
-#' By default, data frame objects are available as tables.
+#' By default, data frame objects are available as views.
 #'
 #' Scripts and packages should manage their own connections
 #' and prefer the DBI methods for more control.
@@ -21,23 +21,23 @@
 #' @export
 #' @examples
 #' # Queries
-#' query("SELECT 42")
+#' sql_query("SELECT 42")
 #'
 #' # Statements with side effects
-#' exec("CREATE TABLE test (a INTEGER, b VARCHAR)")
-#' exec("INSERT INTO test VALUES (1, 'one'), (2, 'two')")
-#' query("FROM test")
+#' sql_exec("CREATE TABLE test (a INTEGER, b VARCHAR)")
+#' sql_exec("INSERT INTO test VALUES (1, 'one'), (2, 'two')")
+#' sql_query("FROM test")
 #'
 #' # Data frames available as views
-#' query("FROM mtcars")
-query <- function(sql, conn = default_conn()) {
+#' sql_query("FROM mtcars")
+sql_query <- function(sql, conn = default_conn()) {
   stopifnot(dbIsValid(conn))
   dbGetQuery(conn, sql)
 }
 
-#' @rdname query
+#' @rdname sql_query
 #' @export
-exec <- function(sql, conn = default_conn()) {
+sql_exec <- function(sql, conn = default_conn()) {
   stopifnot(dbIsValid(conn))
   DBI::dbExecute(conn, sql)
 }
@@ -69,7 +69,7 @@ the <- new.env(parent = emptyenv())
 #' @export
 #' @examples
 #' conn <- default_conn()
-#' query("SELECT 42", conn = conn)
+#' sql_query("SELECT 42", conn = conn)
 default_conn <- function() {
   if(!exists("con", the)) {
     con <- DBI::dbConnect(
