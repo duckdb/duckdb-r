@@ -14,7 +14,7 @@ authors:
 reference:
 - title: Getting started
   contents:
-  - query
+  - sql_query
   - default_conn
 - title: Driver
   contents:
