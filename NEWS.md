@@ -6,7 +6,7 @@
 
 ## Features
 
-- New experimental `query()`, `exec()`, and `default_conn()` to simplify the most important operations for interactive use (#1564).
+- New experimental `sql_query()`, `sql_exec()`, and `default_conn()` to simplify the most important operations for interactive use (#1564).
 
 - `tbl_file()` allows omitting the `src` argument, falling back to the default connection.
 

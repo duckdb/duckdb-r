@@ -1,23 +1,23 @@
-# query() validates connection
+# sql_query() validates connection
 
     Code
-      query("SELECT 1", conn = invalid_con)
+      sql_query("SELECT 1", conn = invalid_con)
     Condition
-      Error in `query()`:
+      Error in `sql_query()`:
       ! dbIsValid(conn) is not TRUE
 
-# exec() validates connection
+# sql_exec() validates connection
 
     Code
-      exec("SELECT 1", conn = invalid_con)
+      sql_exec("SELECT 1", conn = invalid_con)
     Condition
-      Error in `exec()`:
+      Error in `sql_exec()`:
       ! dbIsValid(conn) is not TRUE
 
 # error handling works correctly
 
     Code
-      exec("INVALID SQL SYNTAX")
+      sql_exec("INVALID SQL SYNTAX")
     Condition
       Error in `dbSendQuery()`:
       ! Parser Error: syntax error at or near "INVALID"
