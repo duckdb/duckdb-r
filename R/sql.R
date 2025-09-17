@@ -10,7 +10,7 @@
 #'
 #' These functions are intended as an easy way to interactively run DuckDB
 #' without having to manage connections.
-#' By default, data frame objects are available as tables.
+#' By default, data frame objects are available as views.
 #'
 #' Scripts and packages should manage their own connections
 #' and prefer the DBI methods for more control.
