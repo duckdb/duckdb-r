@@ -1,5 +1,20 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.3.99.9901
+
+## Bug fixes
+
+- Avoid uninitalized warning on GCC.
+
+## Chore
+
+- Format.
+
+## fledge
+
+- CRAN pre-release v1.3.99.9900 (#1568).
+
+
 # duckdb 1.3.99.9900
 
 - Update to duckdb v1.4.0, see <https://github.com/duckdb/duckdb/releases/tag/v1.4.0> for details.
