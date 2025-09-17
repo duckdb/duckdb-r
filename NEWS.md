@@ -1,25 +1,18 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.3.99.9901
-
-## Bug fixes
-
-- Avoid uninitalized warning on GCC.
-
-## Chore
-
-- Format.
+# duckdb 1.4.0
 
 ## fledge
 
 - CRAN pre-release v1.3.99.9900 (#1568).
 
-
-# duckdb 1.3.99.9900
+## 
 
 - Update to duckdb v1.4.0, see <https://github.com/duckdb/duckdb/releases/tag/v1.4.0> for details.
 
 ## Bug fixes
+
+- Avoid uninitalized warning on GCC.
 
 - Fix progress display for fractional progress values (#1499, #1505).
 
@@ -30,6 +23,10 @@
 - `tbl_file()` allows omitting the `src` argument, falling back to the default connection.
 
 - Full support for deep structs for ALTREP (#1545).
+
+## Chore
+
+- Format.
 
 ## Testing
 
