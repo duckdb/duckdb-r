@@ -1,3 +1,5 @@
+local_edition(3)
+
 test_that("sql_query() executes SELECT statements correctly", {
   result <- sql_query("SELECT 42 AS answer")
   expect_s3_class(result, "data.frame")
@@ -34,8 +36,6 @@ test_that("sql_query() works with custom connection", {
 })
 
 test_that("sql_query() validates connection", {
-  local_edition(3)
-
   invalid_con <- dbConnect(duckdb())
   dbDisconnect(invalid_con, shutdown = TRUE)
 
@@ -131,8 +131,6 @@ test_that("sql_exec() works with custom connection", {
 })
 
 test_that("sql_exec() validates connection", {
-  local_edition(3)
-
   invalid_con <- dbConnect(duckdb())
   dbDisconnect(invalid_con, shutdown = TRUE)
 
@@ -211,8 +209,6 @@ test_that("functions work together in realistic scenarios", {
 })
 
 test_that("error handling works correctly", {
-  local_edition(3)
-
   # Test syntax error
   expect_snapshot(error = TRUE, sql_exec("INVALID SQL SYNTAX"))
 

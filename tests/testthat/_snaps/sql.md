@@ -27,9 +27,9 @@
       
       LINE 1: INVALID SQL SYNTAX
               ^
-      ℹ Context: rapi_prepare
-      ℹ Error type: PARSER
-      ℹ Raw message: syntax error at or near "INVALID"
+      i Context: rapi_prepare
+      i Error type: PARSER
+      i Raw message: syntax error at or near "INVALID"
       
       LINE 1: INVALID SQL SYNTAX
               ^
