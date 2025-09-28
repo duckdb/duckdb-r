@@ -77,21 +77,14 @@ duckdb_n_distinct <- function(..., na.rm = FALSE) {
   }
   check_dots_unnamed()
 
+  # https://duckdb.org/docs/sql/data_types/struct.html#creating-structs-with-the-row-function
+  str_struct <- paste0("row(", paste0(list(...), collapse = ", "), ")")
+
   if (!identical(na.rm, FALSE)) {
-    cols <- list(...)
+    str_null_check <- paste0(paste0(list(...), " IS NOT NULL"), collapse = " AND ")
 
-    # check for more than one vector argument: only one vector is supported
-    # Why not use ROW() as well? Because duckdb's FILTER clause does not support
-    # a windowing context as of now: https://duckdb.org/docs/sql/query_syntax/filter.html
-    if (length(cols) > 1) {
-      stop("n_distinct(): Only one vector argument is currently supported when `na.rm = TRUE`.", call. = FALSE)
-    }
-
-    return(sql(paste0("COUNT(DISTINCT ", cols[[1]], ")")))
+    return(sql(paste0("COUNT(DISTINCT ", str_struct, ") FILTER (", str_null_check, ")")))
   } else {
-    # https://duckdb.org/docs/sql/data_types/struct.html#creating-structs-with-the-row-function
-    str_struct <- paste0("row(", paste0(list(...), collapse = ", "), ")")
-
     return(sql(paste0("COUNT(DISTINCT ", str_struct, ")")))
   }
 }
