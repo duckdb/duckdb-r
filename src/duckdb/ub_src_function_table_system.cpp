@@ -1,3 +1,5 @@
+#include "src/function/table/system/duckdb_connection_count.cpp"
+
 #include "src/function/table/system/duckdb_approx_database_count.cpp"
 
 #include "src/function/table/system/duckdb_columns.cpp"

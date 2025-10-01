@@ -50,7 +50,6 @@ public:
 	DUCKDB_API ~Connection();
 
 	shared_ptr<ClientContext> context;
-	warning_callback_t warning_cb;
 
 public:
 	//! Returns query profiling information for the current query
@@ -250,6 +249,10 @@ public:
 		UDFWrapper::RegisterAggrFunction(function, *context);
 	}
 	// NOLINTEND
+
+protected:
+	//! Identified used to uniquely identify connections to the database.
+	connection_t connection_id;
 
 private:
 	unique_ptr<QueryResult> QueryParamsRecursive(const string &query, vector<Value> &values);
