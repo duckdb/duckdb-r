@@ -1,5 +1,52 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.0.9001
+
+## Testing
+
+- Ensure be able to install duckdb extensions on release version (@eitsupi, #1586).
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@3a557fe42ff35c53351daed9e30cd88e2f039efd (#1595).
+
+- Update vendored sources to duckdb/duckdb@3e2383d545ec20024d15f0759d85e6e602e0867d (#1594).
+
+- Update vendored sources to duckdb/duckdb@54de81b2861feee5a663320f28d598948f211fae (#1593).
+
+- Update vendored sources to duckdb/duckdb@cd710fdae35df1869bae78f0263bce10a802caf3 (#1591).
+
+- Update vendored sources to duckdb/duckdb@6f8dbeb4866beb4e0cd4747935b154c970c6ffcd (#1590).
+
+## Uncategorized
+
+- Vendor: Update vendored sources to duckdb/duckdb@81b4ef640b8388ad313329da7443ae6f7656e0d8.
+
+- Vendor: Update vendored sources to duckdb/duckdb@922691fc7fe387fac120b626ee4a90832c709c2e.
+
+- Vendor: Update vendored sources to duckdb/duckdb@ecfa706f804523c103df6e8d498c6607957f963a.
+
+- Vendor: Update vendored sources to duckdb/duckdb@8f570dd861f89d13f7c15322c0072af44509358b.
+
+- Vendor: Update vendored sources to duckdb/duckdb@e3d98ae38e16549b4a9f618a53cad67f31ec56b7.
+
+- Vendor: Update vendored sources to duckdb/duckdb@2e9a46dae30609576af32d4bfb910b87f40b4f50.
+
+- Vendor: Update vendored sources to duckdb/duckdb@eaa28d602f505d0bb6a2704bf6a379573455dccb.
+
+- Vendor: Update vendored sources to duckdb/duckdb@af47f945b01f79fa3becad9c4ed269dba725ef5a.
+
+- Vendor: Update vendored sources to duckdb/duckdb@4039239f1024468b2c6fa38143080ee1a5a9af4e.
+
+- Vendor: Update vendored sources to duckdb/duckdb@93b8281d695253460de528f768639da20cd06bee.
+
+- Vendor: Update vendored sources to duckdb/duckdb@8f5355e1bce0c0f6bd6c7a1174d5a719353ca54a.
+
+- Vendor: Update vendored sources to duckdb/duckdb@e5025153a95572bf8417d59d2b04e2b8f620d6fc.
+
+- Vendor: Update vendored sources to duckdb/duckdb@d19df69e14a4e7bdce94ebe5fd9f398bbbe30c57.
+
+
 # duckdb 1.4.0.9000
 
 ## fledge
