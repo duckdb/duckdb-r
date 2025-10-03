@@ -677,9 +677,7 @@ void PrepareSortData(Vector &result, idx_t size, SortKeyLengthInfo &key_lengths,
 			auto blob_size = key_lengths.variable_lengths[r] + key_lengths.constant_length;
 			result_data[r] = StringVector::EmptyString(result, blob_size);
 			data_pointers[r] = data_ptr_cast(result_data[r].GetDataWriteable());
-#ifdef DEBUG
-			memset(data_pointers[r], 0xFF, blob_size);
-#endif
+			memset(data_pointers[r], 0, blob_size);
 		}
 		break;
 	}
