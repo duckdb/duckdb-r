@@ -1,5 +1,26 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.0.9002
+
+## Continuous integration
+
+- Exclude R 4.1 on Windows.
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@24c295a9dd3f793222fc965f2f41ade148854526 (#1603).
+
+- Update vendored sources to duckdb/duckdb@07effc2ad0deca1fea8fd9abaf7fef679161a08f (#1602).
+
+- Update vendored sources to duckdb/duckdb@45de60480e27fd7d0f2afe86a3910674bca7db9b (#1601).
+
+- Update vendored sources to duckdb/duckdb@40ceab2b33fa7f716947b19442912082c60fa542 (#1600).
+
+- Update vendored sources to duckdb/duckdb@c01b4b543e1c2b005bcfcc896cd3a84bf3d40fcc (#1599).
+
+- Update vendored sources to duckdb/duckdb@9eccb88e54dbed8f9d8059f84acb7ee3ae0ac5e9 (#1596).
+
+
 # duckdb 1.4.0.9001
 
 ## Testing
