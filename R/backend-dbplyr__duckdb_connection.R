@@ -70,29 +70,34 @@ duckdb_grepl <- function(pattern, x, ignore.case = FALSE, perl = FALSE, fixed = 
 
 duckdb_n_distinct <- function(..., na.rm = FALSE) {
   sql <- pkg_method("sql", "dbplyr")
+  glue_sql2 <- pkg_method("glue_sql2", "dbplyr")
+  sql_current_con <- pkg_method("sql_current_con", "dbplyr")
   check_dots_unnamed <- pkg_method("check_dots_unnamed", "rlang")
+
+  con <- sql_current_con()
 
   if (missing(...)) {
     stop("`...` is absent, but must be supplied.")
   }
   check_dots_unnamed()
 
+  # https://duckdb.org/docs/sql/data_types/struct.html#creating-structs-with-the-row-function
   if (!identical(na.rm, FALSE)) {
-    cols <- list(...)
+    if (length(list(...)) == 1L) {
+      # in case of only one column fall back to the "simple" version
+      return(glue_sql2(con, "COUNT(DISTINCT {.col {list(...)}*})"))
+    } else {
+      str_null_check <-
+        sql(paste0(paste0(list(...), " IS NOT NULL"), collapse = " AND "))
 
-    # check for more than one vector argument: only one vector is supported
-    # Why not use ROW() as well? Because duckdb's FILTER clause does not support
-    # a windowing context as of now: https://duckdb.org/docs/sql/query_syntax/filter.html
-    if (length(cols) > 1) {
-      stop("n_distinct(): Only one vector argument is currently supported when `na.rm = TRUE`.", call. = FALSE)
+      return(glue_sql2(
+        con,
+        "COUNT(DISTINCT row({.col {list(...)}*})) FILTER (",
+        str_null_check, ")"
+      ))
     }
-
-    return(sql(paste0("COUNT(DISTINCT ", cols[[1]], ")")))
   } else {
-    # https://duckdb.org/docs/sql/data_types/struct.html#creating-structs-with-the-row-function
-    str_struct <- paste0("row(", paste0(list(...), collapse = ", "), ")")
-
-    return(sql(paste0("COUNT(DISTINCT ", str_struct, ")")))
+    return(glue_sql2(con, "COUNT(DISTINCT row({.col {list(...)}*}))"))
   }
 }
 
