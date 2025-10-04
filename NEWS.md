@@ -1,5 +1,26 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.0.9003
+
+## Bug fixes
+
+- Fix Valgrind error.
+
+- Fix Valgrind error.
+
+## Features
+
+- Add `n_distinct(..., na.rm = TRUE)` support for multiple passed columns (@lschneiderbauer, #1588).
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@8a74cb921213a9674c5f7a05b5c1b9b877b688e0 (#1608).
+
+- Update vendored sources to duckdb/duckdb@2549afa57519be5e8d6970baaf945a9f7fe800e1 (#1607).
+
+- Update vendored sources to duckdb/duckdb@dabebf30c877c5c9665a231211425e9e04a19ceb (#1606).
+
+
 # duckdb 1.4.0.9002
 
 ## Continuous integration
