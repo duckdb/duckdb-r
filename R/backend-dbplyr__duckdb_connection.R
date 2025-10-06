@@ -46,37 +46,16 @@ dbplyr_edition.duckdb_connection <- function(con) {
 db_connection_describe.duckdb_connection <- function(con) {
   info <- DBI::dbGetInfo(con)
   paste0(
-    "DuckDB ",
-    info$db.version,
-    " [",
-    Sys.info()["login"],
-    "@",
-    paste(Sys.info()[c("sysname", "release")], collapse = " "),
-    ":",
-    "R ",
-    R.version$major,
-    ".",
-    R.version$minor,
-    "/",
-    info$dbname,
-    "]"
+    "DuckDB ", info$db.version, " [", Sys.info()["login"], "@",
+    paste(Sys.info()[c("sysname", "release")], collapse = " "), ":",
+    "R ", R.version$major, ".", R.version$minor, "/", info$dbname, "]"
   )
 }
 
-duckdb_grepl <- function(
-  pattern,
-  x,
-  ignore.case = FALSE,
-  perl = FALSE,
-  fixed = FALSE,
-  useBytes = FALSE
-) {
+duckdb_grepl <- function(pattern, x, ignore.case = FALSE, perl = FALSE, fixed = FALSE, useBytes = FALSE) {
   # https://duckdb.org/docs/sql/functions/patternmatching
   if (any(c(perl, fixed, useBytes))) {
-    stop(
-      "Parameters `perl`, `fixed` and `useBytes` in grepl are not currently supported in DuckDB backend",
-      call. = FALSE
-    )
+    stop("Parameters `perl`, `fixed` and `useBytes` in grepl are not currently supported in DuckDB backend", call. = FALSE)
   }
 
   sql_expr <- pkg_method("sql_expr", "dbplyr")
@@ -109,16 +88,12 @@ duckdb_n_distinct <- function(..., na.rm = FALSE) {
       return(glue_sql2(con, "COUNT(DISTINCT {.col {list(...)}*})"))
     } else {
       str_null_check <-
-        sql(paste0(
-          paste0(list(...), " IS NOT NULL"),
-          collapse = " AND "
-        ))
+        sql(paste0(paste0(list(...), " IS NOT NULL"), collapse = " AND "))
 
       return(glue_sql2(
         con,
         "COUNT(DISTINCT row({.col {list(...)}*})) FILTER (",
-        str_null_check,
-        ")"
+        str_null_check, ")"
       ))
     }
   } else {
@@ -146,6 +121,7 @@ sql_translation.duckdb_connection <- function(con) {
   win_current_order <- pkg_method("win_current_order", "dbplyr")
   win_current_group <- pkg_method("win_current_group", "dbplyr")
 
+
   base_scalar <- pkg_method("base_scalar", "dbplyr")
   base_agg <- pkg_method("base_agg", "dbplyr")
   base_win <- pkg_method("base_win", "dbplyr")
@@ -157,33 +133,12 @@ sql_translation.duckdb_connection <- function(con) {
       `%%` = function(a, b) sql_expr(FMOD(!!a, !!b)),
       `%/%` = function(a, b) sql_expr(FDIV(!!a, !!b)),
       `^` = sql_prefix("POW", 2),
-      bitwOr = function(a, b) {
-        sql_expr(
-          (CAST((!!a) %AS% INTEGER)) | (CAST((!!b) %AS% INTEGER))
-        )
-      },
-      bitwAnd = function(a, b) {
-        sql_expr(
-          (CAST((!!a) %AS% INTEGER)) & (CAST((!!b) %AS% INTEGER))
-        )
-      },
-      bitwXor = function(a, b) {
-        sql_expr(XOR(
-          (CAST((!!a) %AS% INTEGER)),
-          (CAST((!!b) %AS% INTEGER))
-        ))
-      },
+      bitwOr = function(a, b) sql_expr((CAST((!!a) %AS% INTEGER)) | (CAST((!!b) %AS% INTEGER))),
+      bitwAnd = function(a, b) sql_expr((CAST((!!a) %AS% INTEGER)) & (CAST((!!b) %AS% INTEGER))),
+      bitwXor = function(a, b) sql_expr(XOR((CAST((!!a) %AS% INTEGER)), (CAST((!!b) %AS% INTEGER)))),
       bitwNot = function(a) sql_expr(~ (CAST((!!a) %AS% INTEGER))),
-      bitwShiftL = function(a, b) {
-        sql_expr(
-          (CAST((!!a) %AS% INTEGER)) %<<% (CAST((!!b) %AS% INTEGER))
-        )
-      },
-      bitwShiftR = function(a, b) {
-        sql_expr(
-          (CAST((!!a) %AS% INTEGER)) %>>% (CAST((!!b) %AS% INTEGER))
-        )
-      },
+      bitwShiftL = function(a, b) sql_expr((CAST((!!a) %AS% INTEGER)) %<<% (CAST((!!b) %AS% INTEGER))),
+      bitwShiftR = function(a, b) sql_expr((CAST((!!a) %AS% INTEGER)) %>>% (CAST((!!b) %AS% INTEGER))),
       log = function(x, base = exp(1)) {
         if (isTRUE(all.equal(base, exp(1)))) {
           sql_expr(LN(!!x))
@@ -207,55 +162,16 @@ sql_translation.duckdb_connection <- function(con) {
       # is.na() 	    FALSE FALSE TRUE 	TRUE
       # https://github.com/duckdb/duckdb/issues/3019
       #      is.na = function(a) build_sql("(", a, " IS NULL OR PRINTF('%f', ", a, ") = 'nan')"),
-      is.nan = function(a) {
-        build_sql(
-          "(",
-          a,
-          " IS NOT NULL AND PRINTF('%f', ",
-          a,
-          ") = 'nan')"
-        )
-      },
-      is.infinite = function(a) {
-        build_sql(
-          "(",
-          a,
-          " IS NOT NULL AND REGEXP_MATCHES(PRINTF('%f', ",
-          a,
-          "), 'inf'))"
-        )
-      },
-      is.finite = function(a) {
-        build_sql(
-          "(NOT (",
-          a,
-          " IS NULL OR REGEXP_MATCHES(PRINTF('%f', ",
-          a,
-          "), 'inf|nan')))"
-        )
-      },
+      is.nan = function(a) build_sql("(", a, " IS NOT NULL AND PRINTF('%f', ", a, ") = 'nan')"),
+      is.infinite = function(a) build_sql("(", a, " IS NOT NULL AND REGEXP_MATCHES(PRINTF('%f', ", a, "), 'inf'))"),
+      is.finite = function(a) build_sql("(NOT (", a, " IS NULL OR REGEXP_MATCHES(PRINTF('%f', ", a, "), 'inf|nan')))"),
       grepl = duckdb_grepl,
 
       # Return index where the first match starts,-1 if no match
       regexpr = function(p, x) {
-        build_sql(
-          "(CASE WHEN REGEXP_MATCHES(",
-          x,
-          ", ",
-          p,
-          ") THEN (LENGTH(LIST_EXTRACT(STRING_SPLIT_REGEX(",
-          x,
-          ", ",
-          p,
-          "), 0))+1) ELSE -1 END)"
-        )
+        build_sql("(CASE WHEN REGEXP_MATCHES(", x, ", ", p, ") THEN (LENGTH(LIST_EXTRACT(STRING_SPLIT_REGEX(", x, ", ", p, "), 0))+1) ELSE -1 END)")
       },
-      round = function(x, digits = 0) {
-        sql_expr(ROUND_EVEN(
-          !!x,
-          CAST(ROUND((!!digits), 0L) %AS% INTEGER)
-        ))
-      },
+      round = function(x, digits = 0) sql_expr(ROUND_EVEN(!!x, CAST(ROUND((!!digits), 0L) %AS% INTEGER))),
       as.Date = sql_cast("DATE"),
       as.POSIXct = sql_cast("TIMESTAMP"),
 
@@ -272,17 +188,9 @@ sql_translation.duckdb_connection <- function(con) {
           }
         }
       },
-      quarter = function(
-        x,
-        type = "quarter",
-        fiscal_start = 1,
-        with_year = identical(type, "year.quarter")
-      ) {
+      quarter = function(x, type = "quarter", fiscal_start = 1, with_year = identical(type, "year.quarter")) {
         if (fiscal_start != 1) {
-          stop(
-            "`fiscal_start` is not yet supported in DuckDB translation. Must be 1.",
-            call. = FALSE
-          )
+          stop("`fiscal_start` is not yet supported in DuckDB translation. Must be 1.", call. = FALSE)
         }
         if (is.logical(type)) {
           type <- if (type) {
@@ -294,55 +202,30 @@ sql_translation.duckdb_connection <- function(con) {
         if (with_year) {
           type <- "year.quarter"
         }
-        switch(
-          type,
+        switch(type,
           quarter = {
             sql_expr(EXTRACT(QUARTER %FROM% !!x))
           },
           year.quarter = {
-            sql_expr(
-              (EXTRACT(YEAR %FROM% !!x) ||
-                "." ||
-                EXTRACT(QUARTER %FROM% !!x))
-            )
+            sql_expr((EXTRACT(YEAR %FROM% !!x) || "." || EXTRACT(QUARTER %FROM% !!x)))
           },
           date_first = {
             sql_expr((CAST(DATE_TRUNC("QUARTER", !!x) %AS% DATE)))
           },
           date_last = {
-            sql_expr(
-              (CAST(
-                (DATE_TRUNC("QUARTER", !!x) +
-                  !!sql("INTERVAL '1 QUARTER'") -
-                    !!sql("INTERVAL '1 DAY'")) %AS%
-                  DATE
-              ))
-            )
+            sql_expr((CAST((DATE_TRUNC("QUARTER", !!x) + !!sql("INTERVAL '1 QUARTER'") - !!sql("INTERVAL '1 DAY'")) %AS% DATE)))
           },
           stop(paste("Unsupported type", type), call. = FALSE)
         )
       },
       qday = function(x) {
-        build_sql(
-          "DATE_DIFF('DAYS', DATE_TRUNC('QUARTER', CAST((",
-          x,
-          ") AS DATE)), (CAST((",
-          x,
-          ") AS DATE) + INTERVAL '1 DAY'))"
-        )
+        build_sql("DATE_DIFF('DAYS', DATE_TRUNC('QUARTER', CAST((", x, ") AS DATE)), (CAST((", x, ") AS DATE) + INTERVAL '1 DAY'))")
       },
       wday = function(x, label = FALSE, abbr = TRUE, week_start = NULL) {
         if (!label) {
-          week_start <- if (!is.null(week_start)) {
-            week_start
-          } else {
-            getOption("lubridate.week.start", 7)
-          }
+          week_start <- if (!is.null(week_start)) week_start else getOption("lubridate.week.start", 7)
           offset <- as.integer(7 - week_start)
-          sql_expr(
-            EXTRACT("dow" %FROM% CAST((!!x) %AS% DATE) + !!offset) +
-              1L
-          )
+          sql_expr(EXTRACT("dow" %FROM% CAST((!!x) %AS% DATE) + !!offset) + 1L)
         } else if (label && !abbr) {
           sql_expr(STRFTIME(!!x, "%A"))
         } else if (label && abbr) {
@@ -381,26 +264,12 @@ sql_translation.duckdb_connection <- function(con) {
       # Week_start algorithm: https://github.com/tidyverse/lubridate/issues/509#issuecomment-287030620
       floor_date = function(x, unit = "seconds", week_start = NULL) {
         if (unit %in% c("week", "weeks")) {
-          week_start <- if (!is.null(week_start)) {
-            week_start
-          } else {
-            getOption("lubridate.week.start", 7)
-          }
+          week_start <- if (!is.null(week_start)) week_start else getOption("lubridate.week.start", 7)
           if (week_start == 1) {
             sql_expr(DATE_TRUNC(!!unit, !!x))
           } else {
             offset <- as.integer(7 - week_start)
-            sql_expr(
-              CAST((!!x) %AS% DATE) -
-                CAST(
-                  EXTRACT(
-                    "dow" %FROM%
-                      CAST((!!x) %AS% DATE) +
-                      !!offset
-                  ) %AS%
-                    INTEGER
-                )
-            )
+            sql_expr(CAST((!!x) %AS% DATE) - CAST(EXTRACT("dow" %FROM% CAST((!!x) %AS% DATE) + !!offset) %AS% INTEGER))
           }
         } else {
           sql_expr(DATE_TRUNC(!!unit, !!x))
@@ -411,10 +280,10 @@ sql_translation.duckdb_connection <- function(con) {
 
       # clock
       add_days = function(x, n, ...) {
-        build_sql("DATE_ADD(", !!x, ", INTERVAL (", n, ") day)")
+        build_sql("DATE_ADD(", !!x, ", INTERVAL (", n ,") day)")
       },
       add_years = function(x, n, ...) {
-        build_sql("DATE_ADD(", !!x, ", INTERVAL (", n, ") year)")
+        build_sql("DATE_ADD(", !!x, ", INTERVAL (", n ,") year)")
       },
       get_year = function(x) {
         build_sql("DATE_PART('year', ", !!x, ")")
@@ -425,20 +294,18 @@ sql_translation.duckdb_connection <- function(con) {
       get_day = function(x) {
         build_sql("DATE_PART('day', ", !!x, ")")
       },
-      date_count_between = function(start, end, precision, ..., n = 1L) {
+      date_count_between = function(start, end, precision, ..., n = 1L){
+
         rlang::check_dots_empty()
         if (precision != "day") {
-          stop(
-            'The only supported value for `precision` on SQL backends is "day"'
-          )
+          stop('The only supported value for `precision` on SQL backends is "day"')
         }
         if (n != 1) {
-          stop(
-            'The only supported value for `n` on SQL backends is "1"'
-          )
+          stop('The only supported value for `n` on SQL backends is "1"')
         }
 
-        build_sql("DATEDIFF('day', ", !!start, ", ", !!end, ")")
+        build_sql("DATEDIFF('day', ", !!start, ", " ,!!end, ")")
+
       },
 
       # stringr functions
@@ -454,12 +321,7 @@ sql_translation.duckdb_connection <- function(con) {
         sql_expr(REGEXP_REPLACE(!!string, !!pattern, !!replacement))
       },
       str_replace_all = function(string, pattern, replacement) {
-        sql_expr(REGEXP_REPLACE(
-          !!string,
-          !!pattern,
-          !!replacement,
-          "g"
-        ))
+        sql_expr(REGEXP_REPLACE(!!string, !!pattern, !!replacement, "g"))
       },
       str_squish = function(string) {
         sql_expr(TRIM(REGEXP_REPLACE(!!string, "\\s+", " ", "g")))
@@ -478,67 +340,21 @@ sql_translation.duckdb_connection <- function(con) {
       },
       # Respect OR (|) operator: https://github.com/tidyverse/stringr/pull/340
       str_starts = function(string, pattern) {
-        build_sql(
-          "REGEXP_MATCHES(",
-          string,
-          ", '^(?:' || ",
-          pattern,
-          " || ')')"
-        )
+        build_sql("REGEXP_MATCHES(", string, ", '^(?:' || ", pattern, " || ')')")
       },
       str_ends = function(string, pattern) {
-        build_sql(
-          "REGEXP_MATCHES(",
-          string,
-          ", '(?:' || ",
-          pattern,
-          " || ')$')"
-        )
+        build_sql("REGEXP_MATCHES(", string, ", '(?:' || ", pattern, " || ')$')")
       },
       # NOTE: GREATEST needed because DuckDB PAD-functions truncate the string if width < length of string
-      str_pad = function(
-        string,
-        width,
-        side = "left",
-        pad = " ",
-        use_length = FALSE
-      ) {
+      str_pad = function(string, width, side = "left", pad = " ", use_length = FALSE) {
         if (side %in% c("left")) {
-          sql_expr(LPAD(
-            !!string,
-            CAST(
-              GREATEST(!!as.integer(width), LENGTH(!!string)) %AS%
-                INTEGER
-            ),
-            !!pad
-          ))
+          sql_expr(LPAD(!!string, CAST(GREATEST(!!as.integer(width), LENGTH(!!string)) %AS% INTEGER), !!pad))
         } else if (side %in% c("right")) {
-          sql_expr(RPAD(
-            !!string,
-            CAST(
-              GREATEST(!!as.integer(width), LENGTH(!!string)) %AS%
-                INTEGER
-            ),
-            !!pad
-          ))
+          sql_expr(RPAD(!!string, CAST(GREATEST(!!as.integer(width), LENGTH(!!string)) %AS% INTEGER), !!pad))
         } else if (side %in% c("both")) {
-          sql_expr(RPAD(
-            REPEAT(
-              !!pad,
-              (!!as.integer(width) - LENGTH(!!string)) / 2L
-            ) %||%
-              !!string,
-            CAST(
-              GREATEST(!!as.integer(width), LENGTH(!!string)) %AS%
-                INTEGER
-            ),
-            !!pad
-          ))
+          sql_expr(RPAD(REPEAT(!!pad, (!!as.integer(width) - LENGTH(!!string)) / 2L) %||% !!string, CAST(GREATEST(!!as.integer(width), LENGTH(!!string)) %AS% INTEGER), !!pad))
         } else {
-          stop(
-            'Argument \'side\' should be "left", "right" or "both"',
-            call. = FALSE
-          )
+          stop('Argument \'side\' should be "left", "right" or "both"', call. = FALSE)
         }
       }
     ),
@@ -552,9 +368,7 @@ sql_translation.duckdb_connection <- function(con) {
       var = sql_aggregate("VARIANCE", "var"),
       all = sql_aggregate("BOOL_AND", "all"),
       any = sql_aggregate("BOOL_OR", "any"),
-      str_flatten = function(x, collapse) {
-        sql_expr(STRING_AGG(!!x, !!collapse))
-      },
+      str_flatten = function(x, collapse) sql_expr(STRING_AGG(!!x, !!collapse)),
       first = sql_prefix("FIRST", 1),
       last = sql_prefix("LAST", 1),
       n_distinct = duckdb_n_distinct
@@ -576,12 +390,13 @@ sql_translation.duckdb_connection <- function(con) {
           order = win_current_order()
         )
       },
-      n_distinct = function(..., na.rm = FALSE) {
-        win_over(
-          duckdb_n_distinct(..., na.rm = na.rm),
-          partition = win_current_group()
-        )
-      }
+      n_distinct =
+        function(..., na.rm = FALSE) {
+          win_over(
+            duckdb_n_distinct(..., na.rm = na.rm),
+            partition = win_current_group()
+          )
+        }
     )
   )
 }
@@ -625,9 +440,7 @@ tbl.duckdb_connection <- function(src, from, ..., cache = FALSE) {
   if (!inherits(from, "sql") && !DBI::dbExistsTable(src, from)) {
     from <- dbplyr::sql(paste0("FROM ", from))
   }
-  if (cache) {
-    DBI::dbExecute(src, "PRAGMA enable_object_cache")
-  }
+  if (cache) DBI::dbExecute(src, "PRAGMA enable_object_cache")
   NextMethod("tbl")
 }
 
@@ -646,14 +459,8 @@ tbl_file <- function(src = NULL, path, ..., cache = FALSE) {
   if (...length() > 0) {
     stop("... must be empty.", call. = FALSE)
   }
-
   if (grepl("'", path)) {
-    stop(
-      "File '",
-      path,
-      "' contains a single quote, this is not supported",
-      call. = FALSE
-    )
+    stop("File '", path, "' contains a single quote, this is not supported", call. = FALSE)
   }
   if (is.null(src)) {
     src <- default_conn()
@@ -676,9 +483,7 @@ tbl_file <- function(src = NULL, path, ..., cache = FALSE) {
 #' @export
 #' @rdname backend-duckdb
 tbl_function <- function(src, query, ..., cache = FALSE) {
-  if (cache) {
-    DBI::dbExecute(src, "PRAGMA enable_object_cache")
-  }
+  if (cache) DBI::dbExecute(src, "PRAGMA enable_object_cache")
   table <- dplyr::sql(paste0("FROM ", query))
   dplyr::tbl(src, table)
 }
@@ -702,60 +507,9 @@ tbl_query <- function(src, query, ...) {
 #' @export
 #' @rdname backend-duckdb
 simulate_duckdb <- function(...) {
-  structure(
-    list(),
-    ...,
-    class = c("duckdb_connection", "TestConnection", "DBIConnection")
-  )
+  structure(list(), ..., class = c("duckdb_connection", "TestConnection", "DBIConnection"))
 }
 
 
 # Needed to suppress the R CHECK notes (due to the use of sql_expr)
-utils::globalVariables(c(
-  "REGEXP_MATCHES",
-  "CAST",
-  "%AS%",
-  "INTEGER",
-  "XOR",
-  "%<<%",
-  "%>>%",
-  "LN",
-  "LOG",
-  "ROUND",
-  "ROUND_EVEN",
-  "EXTRACT",
-  "%FROM%",
-  "MONTH",
-  "STRFTIME",
-  "QUARTER",
-  "YEAR",
-  "DATE_TRUNC",
-  "DATE",
-  "DOY",
-  "TO_SECONDS",
-  "BIGINT",
-  "TO_MINUTES",
-  "TO_HOURS",
-  "TO_DAYS",
-  "TO_WEEKS",
-  "TO_MONTHS",
-  "TO_YEARS",
-  "STRPOS",
-  "NOT",
-  "REGEXP_REPLACE",
-  "TRIM",
-  "LPAD",
-  "RPAD",
-  "%||%",
-  "REPEAT",
-  "LENGTH",
-  "STRING_AGG",
-  "GREATEST",
-  "LIST_EXTRACT",
-  "LOG10",
-  "LOG2",
-  "STRING_SPLIT_REGEX",
-  "FLOOR",
-  "FMOD",
-  "FDIV"
-))
+utils::globalVariables(c("REGEXP_MATCHES", "CAST", "%AS%", "INTEGER", "XOR", "%<<%", "%>>%", "LN", "LOG", "ROUND", "ROUND_EVEN", "EXTRACT", "%FROM%", "MONTH", "STRFTIME", "QUARTER", "YEAR", "DATE_TRUNC", "DATE", "DOY", "TO_SECONDS", "BIGINT", "TO_MINUTES", "TO_HOURS", "TO_DAYS", "TO_WEEKS", "TO_MONTHS", "TO_YEARS", "STRPOS", "NOT", "REGEXP_REPLACE", "TRIM", "LPAD", "RPAD", "%||%", "REPEAT", "LENGTH", "STRING_AGG", "GREATEST", "LIST_EXTRACT", "LOG10", "LOG2", "STRING_SPLIT_REGEX", "FLOOR", "FMOD", "FDIV"))

@@ -8,6 +8,7 @@ test_that("Parquet files can be registered with dplyr::tbl()", {
 
   skip_if_not_installed("dbplyr")
 
+
   tab0 <- dplyr::tbl(con, "data/userdata1.parquet")
   expect_true(inherits(tab0, "tbl_duckdb_connection"))
   expect_true(tab0 %>% dplyr::count() %>% dplyr::collect() == 1000)
@@ -53,25 +54,14 @@ test_that("Object cache can be enabled for parquet files with dplyr::tbl()", {
   # https://github.com/tidyverse/dbplyr/issues/1384
   skip_if(packageVersion("dbplyr") >= "2.4.0")
 
+
   DBI::dbExecute(con, "SET enable_object_cache=False;")
   tab1 <- dplyr::tbl(con, "data/userdata1.parquet", cache = TRUE)
-  expect_true(
-    DBI::dbGetQuery(
-      con,
-      "SELECT value FROM duckdb_settings() WHERE name='enable_object_cache';"
-    ) ==
-      "true"
-  )
+  expect_true(DBI::dbGetQuery(con, "SELECT value FROM duckdb_settings() WHERE name='enable_object_cache';") == "true")
 
   DBI::dbExecute(con, "SET enable_object_cache=False;")
   tab2 <- dplyr::tbl(con, "'data/userdata1.parquet'", cache = FALSE)
-  expect_true(
-    DBI::dbGetQuery(
-      con,
-      "SELECT value FROM duckdb_settings() WHERE name='enable_object_cache';"
-    ) ==
-      "false"
-  )
+  expect_true(DBI::dbGetQuery(con, "SELECT value FROM duckdb_settings() WHERE name='enable_object_cache';") == "false")
 })
 
 test_that("Object cache can be enabled for parquet files with tbl_file() and tbl_function()", {
@@ -79,25 +69,14 @@ test_that("Object cache can be enabled for parquet files with tbl_file() and tbl
   # https://github.com/tidyverse/dbplyr/issues/1384
   skip_if(packageVersion("dbplyr") >= "2.4.0")
 
+
   DBI::dbExecute(con, "SET enable_object_cache=False;")
   tab1 <- tbl_file(con, "data/userdata1.parquet", cache = TRUE)
-  expect_true(
-    DBI::dbGetQuery(
-      con,
-      "SELECT value FROM duckdb_settings() WHERE name='enable_object_cache';"
-    ) ==
-      "true"
-  )
+  expect_true(DBI::dbGetQuery(con, "SELECT value FROM duckdb_settings() WHERE name='enable_object_cache';") == "true")
 
   DBI::dbExecute(con, "SET enable_object_cache=False;")
   tab2 <- tbl_function(con, "'data/userdata1.parquet'", cache = FALSE)
-  expect_true(
-    DBI::dbGetQuery(
-      con,
-      "SELECT value FROM duckdb_settings() WHERE name='enable_object_cache';"
-    ) ==
-      "false"
-  )
+  expect_true(DBI::dbGetQuery(con, "SELECT value FROM duckdb_settings() WHERE name='enable_object_cache';") == "false")
 })
 
 
@@ -158,15 +137,10 @@ test_that("Other replacement scans or functions can be registered with dplyr::tb
 
   skip_if_not_installed("dbplyr")
 
+
   obj <- dplyr::tbl(con, "duckdb_keywords()")
   expect_true(inherits(obj, "tbl_duckdb_connection"))
-  expect_true(
-    obj %>%
-      dplyr::filter(keyword_name == "all") %>%
-      dplyr::count() %>%
-      dplyr::collect() ==
-      1
-  )
+  expect_true(obj %>% dplyr::filter(keyword_name == "all") %>% dplyr::count() %>% dplyr::collect() == 1)
 })
 
 test_that("Other replacement scans or functions can be registered with tbl_function()", {
@@ -176,13 +150,7 @@ test_that("Other replacement scans or functions can be registered with tbl_funct
 
   obj <- tbl_function(con, "duckdb_keywords()")
   expect_true(inherits(obj, "tbl_duckdb_connection"))
-  expect_true(
-    obj %>%
-      dplyr::filter(keyword_name == "all") %>%
-      dplyr::count() %>%
-      dplyr::collect() ==
-      1
-  )
+  expect_true(obj %>% dplyr::filter(keyword_name == "all") %>% dplyr::count() %>% dplyr::collect() == 1)
 })
 
 
