@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.0.9004
+
+## Features
+
+- Fix length of sort keys (#1610).
+
+
 # duckdb 1.4.0.9003
 
 ## Bug fixes
