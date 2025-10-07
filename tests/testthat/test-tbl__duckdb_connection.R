@@ -170,7 +170,7 @@ test_that("tbl_file() errors on erroneous paths and unapplicable wildcard use", 
   con <- local_con()
 
   expect_error(tbl_file(con, "data/userdata2.parquet"))
-  expect_error(tbl_file(con, "data/*.parquet"))
+  expect_error(tbl_file(con, "data/bogus*.parquet"))
 })
 
 try(rm(`%>%`))
