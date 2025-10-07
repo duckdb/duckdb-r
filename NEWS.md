@@ -2,7 +2,7 @@
 
 # duckdb 1.4.1
 
-- Update to DuckDB v1.4.1, see <https://github.com/duckdb/duckdb/releases/tag/v1.4.0> for details.
+- Update to DuckDB v1.4.1, see <https://github.com/duckdb/duckdb/releases/tag/v1.4.1> for details.
 
 ## Features
 
