@@ -459,9 +459,6 @@ tbl_file <- function(src = NULL, path, ..., cache = FALSE) {
   if (...length() > 0) {
     stop("... must be empty.", call. = FALSE)
   }
-  if (!file.exists(path)) {
-    stop("File '", path, "' not found", call. = FALSE)
-  }
   if (grepl("'", path)) {
     stop("File '", path, "' contains a single quote, this is not supported", call. = FALSE)
   }
