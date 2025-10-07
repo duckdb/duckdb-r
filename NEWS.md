@@ -1,51 +1,16 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.4.0.9005
-
-## Chore
-
-- Reminder.
+# duckdb 1.4.1
 
 ## vendor
 
 - Update vendored sources (tag v1.4.1) to duckdb/duckdb@b390a7c3760bd95926fe8aefde20d04b349b472e (#1615).
-
-
-# duckdb 1.4.0.9004
-
-## Features
-
-- Fix length of sort keys (#1610).
-
-
-# duckdb 1.4.0.9003
-
-## Bug fixes
-
-- Fix Valgrind error.
-
-- Fix Valgrind error.
-
-## Features
-
-- Add `n_distinct(..., na.rm = TRUE)` support for multiple passed columns (@lschneiderbauer, #1588).
-
-## vendor
 
 - Update vendored sources to duckdb/duckdb@8a74cb921213a9674c5f7a05b5c1b9b877b688e0 (#1608).
 
 - Update vendored sources to duckdb/duckdb@2549afa57519be5e8d6970baaf945a9f7fe800e1 (#1607).
 
 - Update vendored sources to duckdb/duckdb@dabebf30c877c5c9665a231211425e9e04a19ceb (#1606).
-
-
-# duckdb 1.4.0.9002
-
-## Continuous integration
-
-- Exclude R 4.1 on Windows.
-
-## vendor
 
 - Update vendored sources to duckdb/duckdb@24c295a9dd3f793222fc965f2f41ade148854526 (#1603).
 
@@ -59,15 +24,6 @@
 
 - Update vendored sources to duckdb/duckdb@9eccb88e54dbed8f9d8059f84acb7ee3ae0ac5e9 (#1596).
 
-
-# duckdb 1.4.0.9001
-
-## Testing
-
-- Ensure be able to install duckdb extensions on release version (@eitsupi, #1586).
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@3a557fe42ff35c53351daed9e30cd88e2f039efd (#1595).
 
 - Update vendored sources to duckdb/duckdb@3e2383d545ec20024d15f0759d85e6e602e0867d (#1594).
@@ -77,6 +33,32 @@
 - Update vendored sources to duckdb/duckdb@cd710fdae35df1869bae78f0263bce10a802caf3 (#1591).
 
 - Update vendored sources to duckdb/duckdb@6f8dbeb4866beb4e0cd4747935b154c970c6ffcd (#1590).
+
+## fledge
+
+- CRAN release v1.4.0 (#1570).
+
+## Bug fixes
+
+- Fix Valgrind error.
+
+## Features
+
+- Fix length of sort keys (#1610).
+
+- Add `n_distinct(..., na.rm = TRUE)` support for multiple passed columns (@lschneiderbauer, #1588).
+
+## Chore
+
+- Reminder.
+
+## Continuous integration
+
+- Exclude R 4.1 on Windows.
+
+## Testing
+
+- Ensure be able to install duckdb extensions on release version (@eitsupi, #1586).
 
 ## Uncategorized
 
@@ -105,13 +87,6 @@
 - Vendor: Update vendored sources to duckdb/duckdb@e5025153a95572bf8417d59d2b04e2b8f620d6fc.
 
 - Vendor: Update vendored sources to duckdb/duckdb@d19df69e14a4e7bdce94ebe5fd9f398bbbe30c57.
-
-
-# duckdb 1.4.0.9000
-
-## fledge
-
-- CRAN release v1.4.0 (#1570).
 
 
 # duckdb 1.4.0
