@@ -1,5 +1,16 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.1.9000
+
+## fledge
+
+- CRAN release v1.4.1 (#1616).
+
+## Uncategorized
+
+- Merge pull request #1622 from eddelbuettel/patch-1.
+
+
 # duckdb 1.4.1
 
 - Update to DuckDB v1.4.1, see <https://github.com/duckdb/duckdb/releases/tag/v1.4.1> for details.
