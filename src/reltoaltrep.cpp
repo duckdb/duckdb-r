@@ -218,6 +218,7 @@ struct AltrepRownamesWrapper {
 
 	AltrepRownamesWrapper(duckdb::shared_ptr<AltrepRelationWrapper> rel_p) : rel(rel_p) {
 		rowlen_data[0] = NA_INTEGER;
+		rowlen_data[1] = 0;
 	}
 
 	static AltrepRownamesWrapper *Get(SEXP x) {

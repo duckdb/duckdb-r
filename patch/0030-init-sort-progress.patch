@@ -1,0 +1,27 @@
+From 5f3e4a2015f9898ad7cfc77300b65779640f1fad Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?MVS <m.vargas.sepulveda@gmail.com>
+Date: Sun, 6 Oct 2025 09:30:00 +0200
+Subject: [PATCH] init-sort-progress
+
+Initialize uninitialized member variables in SortGlobalSinkState to fix valgrind warnings.
+
+---
+ src/duckdb/src/common/sorting/sort.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/duckdb/src/common/sorting/sort.cpp b/src/duckdb/src/common/sorting/sort.cpp
+index 2f5463e3f..1a8570451 100644
+--- a/src/duckdb/src/common/sorting/sort.cpp
++++ b/src/duckdb/src/common/sorting/sort.cpp
+@@ -17,7 +17,8 @@ namespace duckdb {
+ class SortGlobalSinkState : public GlobalSinkState {
+ public:
+ 	SortGlobalSinkState(ClientContext &context)
+-	    : table(context, vector<LogicalType>(), CreateInitialSortState()) {
++	    : GlobalSinkState(), table(context, vector<LogicalType>(), CreateInitialSortState()),
++	      sorted_blocks(), sorted_blocks_temp() {
+ 	}
+ 
+ 	void AddLocalState(ExecutionContext &context, LocalSinkState &lstate_p);
+--
+2.34.1
