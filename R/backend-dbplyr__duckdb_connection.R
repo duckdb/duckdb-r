@@ -308,15 +308,14 @@ sql_translation.duckdb_connection <- function(con) {
 
       },
       date_build = function(year, month = 1L, day = 1L, ..., invalid = NULL) {
-        dbplyr:::check_unsupported_arg(invalid, allow_null = TRUE)
+        check_unsupported_arg(invalid, allow_null = TRUE)
         rlang::check_dots_empty()
-        build_sql("MAKE_DATE(CAST(", year, " AS INTEGER), CAST(", month, " AS INTEGER), CAST(", day, " AS INTEGER))")
-
+        dbplyr::sql_expr(MAKE_DATE(!!year, !!month, !!day))
       },
       difftime = function(time1, time2, tz, units = "days") {
-        dbplyr:::check_unsupported_arg(tz)
-        dbplyr:::check_unsupported_arg(units, allowed = "days")
-        build_sql("DATEDIFF('day', ", !!time2, ", " ,!!time1, ")")
+        check_unsupported_arg(tz)
+        check_unsupported_arg(units, allowed = "days")
+        dbplyr::sql_expr(DATEDIFF("day", !!time2, !!time1))
       },
 
       # stringr functions

@@ -152,9 +152,9 @@ test_that("custom clock functions translated correctly", {
                                             precision = "day")),
                sql(r"{DATEDIFF('day', start, end)}"))
 
-  expect_equal(translate(difftime(time1 = "time1", time2 = "time2", units = "days")), sql(r"{DATEDIFF('day', time2, time1)}"))
-  expect_equal(translate(date_build(year = 2000L, month = 8L, day = 8L)), sql(r"{MAKE_DATE(CAST(2000.0 AS INTEGER), CAST(8.0 AS INTEGER), CAST(8.0 AS INTEGER))}"))
-  expect_equal(translate(date_build(year = 2000)), sql(r"{MAKE_DATE(CAST(2000.0 AS INTEGER), CAST(1 AS INTEGER), CAST(1 AS INTEGER))}"))
+  expect_equal(translate(difftime(time1 = "time1", time2 = "time2", units = "days")), sql(r"{DATEDIFF('day', 'time2', 'time1')}"))
+  expect_equal(translate(date_build(year = 2000L, month = 8L, day = 8L)), sql(r"{MAKE_DATE(2000, 8, 8)}"))
+  expect_equal(translate(date_build(year = 2000)), sql(r"{MAKE_DATE(2000.0, 1, 1)}"))
 
   test_data <- data.frame(
     person = 1L,
