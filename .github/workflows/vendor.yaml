@@ -1,3 +1,9 @@
+# Automated vendoring workflow for DuckDB sources
+# Runs hourly to sync with upstream DuckDB repository
+# main branch: vendors from v1.3-ossivalis (stable) - branch name may change with releases
+# next branch: vendors from main (bleeding edge)
+# See scripts/VENDORING.md for complete documentation
+
 on:
   push:
     branches:
@@ -20,9 +26,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
+        # REMINDER: When changing branch names below,
+        # update the documentation in scripts/VENDORING.md accordingly (see disclaimers section)
         include:
           - branch: main
-            upstream: v1.3-ossivalis
+            upstream: v1.4-andium
           - branch: next
             upstream: main
     outputs:

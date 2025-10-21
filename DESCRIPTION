@@ -1,6 +1,6 @@
 Package: duckdb
 Title: DBI Package for the DuckDB Database Management System
-Version: 1.3.1
+Version: 1.4.1.9001
 Authors@R: c(
     person("Hannes", "Mühleisen", , "hannes@cwi.nl", role = "aut",
            comment = c(ORCID = "0000-0001-8552-0029")),
@@ -64,9 +64,11 @@ Config/build/compilation-database: false
 Config/build/never-clean: true
 Config/comment/compilation-database: Generate manually with
     pkgload:::generate_db() for faster pkgload::load_all()
-Config/gha/extra-packages: arrow=?ignore-before-r=4.2.0
+Config/gha/extra-packages: arrow=?ignore-before-r=4.2.0 adbcdrivermanager=?ignore-before-r=4.2.0
+Config/gha/filter: os != "windows-latest" | r != "4.1"
+Config/gha/filter-note: Inexplicable build failures on Windows GHA with R 4.1, works locally
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2.9000
+RoxygenNote: 7.3.3.9000
 SystemRequirements: xz (for building from source)
 Biarch: true

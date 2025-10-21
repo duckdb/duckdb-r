@@ -9,8 +9,7 @@ library("arrow")
 test_that("duckdb_register_arrow() works", {
   skip_if_not(TEST_RE2)
 
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   res <- arrow::read_parquet("data/userdata1.parquet", as_data_frame = FALSE)
   duckdb_register_arrow(con, "myreader", res)
@@ -31,8 +30,7 @@ test_that("duckdb_register_arrow() works", {
 test_that("duckdb_register_arrow() works with record_batch_readers", {
   skip_if_not(TEST_RE2)
 
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   res <- arrow::read_parquet("data/userdata1.parquet", as_data_frame = TRUE)
   res <- arrow::record_batch(res)
@@ -51,8 +49,7 @@ test_that("duckdb_register_arrow() works with record_batch_readers", {
 test_that("duckdb_register_arrow() works with scanner", {
   skip_if_not(TEST_RE2)
 
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   res <- arrow::read_parquet("data/userdata1.parquet", as_data_frame = FALSE)
   res <- arrow::Scanner$create(res)
@@ -70,8 +67,7 @@ test_that("duckdb_register_arrow() works with scanner", {
 
 
 test_that("duckdb_register_arrow() works with datasets", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   # Registering a dataset + aggregation
   ds <- arrow::open_dataset("data/userdata1.parquet")
@@ -88,8 +84,7 @@ test_that("duckdb_register_arrow() works with datasets", {
 
 
 test_that("duckdb_register_arrow() works with datasets and async arrow scanner", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   # Registering a dataset + aggregation
   ds <- arrow::open_dataset("data/userdata1.parquet")
@@ -106,8 +101,7 @@ test_that("duckdb_register_arrow() works with datasets and async arrow scanner",
 
 
 test_that("duckdb_register_arrow() performs projection pushdown", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   # Registering a dataset + aggregation
   ds <- arrow::open_dataset("data/userdata1.parquet")
@@ -124,8 +118,7 @@ test_that("duckdb_register_arrow() performs projection pushdown", {
 })
 
 test_that("duckdb_register_arrow() performs selection pushdown", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   # Registering a dataset + aggregation
   ds <- arrow::open_dataset("data/userdata1.parquet")
@@ -143,8 +136,7 @@ test_that("duckdb_register_arrow() performs selection pushdown", {
 
 
 numeric_operators <- function(data_type) {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   dbExecute(con, paste0("CREATE TABLE test (a ", data_type, ", b ", data_type, ", c ", data_type, ")"))
   dbExecute(con, "INSERT INTO  test VALUES (1,1,1),(10,10,10),(100,10,100),(NULL,NULL,NULL)")
@@ -197,8 +189,7 @@ test_that("duckdb_register_arrow() performs selection pushdown decimal types", {
 })
 
 test_that("duckdb_register_arrow() performs selection pushdown varchar type", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   dbExecute(con, paste0("CREATE TABLE test (a  VARCHAR, b VARCHAR, c VARCHAR)"))
   dbExecute(con, "INSERT INTO  test VALUES ('1','1','1'),('10','10','10'),('100','10','100'),(NULL,NULL,NULL)")
@@ -231,8 +222,7 @@ test_that("duckdb_register_arrow() performs selection pushdown varchar type", {
 })
 
 test_that("duckdb_register_arrow() performs selection pushdown bool type", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   dbExecute(con, paste0("CREATE TABLE test (a  BOOL, b BOOL)"))
   dbExecute(con, "INSERT INTO  test VALUES (TRUE,TRUE),(TRUE,FALSE),(FALSE,TRUE),(NULL,NULL)")
@@ -256,8 +246,7 @@ test_that("duckdb_register_arrow() performs selection pushdown bool type", {
 })
 
 test_that("duckdb_register_arrow() performs selection pushdown time type", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   dbExecute(con, paste0("CREATE TABLE test (a  TIME, b TIME, c TIME)"))
 
@@ -292,8 +281,7 @@ test_that("duckdb_register_arrow() performs selection pushdown time type", {
 })
 
 test_that("duckdb_register_arrow() performs selection pushdown timestamp type", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   dbExecute(con, paste0("CREATE TABLE test (a  TIMESTAMP, b TIMESTAMP, c TIMESTAMP)"))
   dbExecute(con, "INSERT INTO  test VALUES ('2008-01-01 00:00:01','2008-01-01 00:00:01','2008-01-01 00:00:01'),('2010-01-01 10:00:01','2010-01-01 10:00:01','2010-01-01 10:00:01'),('2020-03-01 10:00:01','2010-01-01 10:00:01','2020-03-01 10:00:01'),(NULL,NULL,NULL)")
@@ -326,8 +314,7 @@ test_that("duckdb_register_arrow() performs selection pushdown timestamp type", 
 })
 
 test_that("duckdb_register_arrow() performs selection pushdown timestamptz type", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   dbExecute(con, paste0("CREATE TABLE test (a  TIMESTAMPTZ, b TIMESTAMPTZ, c TIMESTAMPTZ)"))
   dbExecute(con, "INSERT INTO  test VALUES ('2008-01-01 00:00:01','2008-01-01 00:00:01','2008-01-01 00:00:01'),('2010-01-01 10:00:01','2010-01-01 10:00:01','2010-01-01 10:00:01'),('2020-03-01 10:00:01','2010-01-01 10:00:01','2020-03-01 10:00:01'),(NULL,NULL,NULL)")
@@ -360,8 +347,7 @@ test_that("duckdb_register_arrow() performs selection pushdown timestamptz type"
 })
 
 test_that("duckdb_register_arrow() performs selection pushdown date type", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   dbExecute(con, paste0("CREATE TABLE test (a  DATE, b DATE, c DATE)"))
   dbExecute(con, "INSERT INTO  test VALUES ('2000-01-01','2000-01-01','2000-01-01'),('2000-10-01','2000-10-01','2000-10-01'),('2010-01-01','2000-10-01','2010-01-01'),(NULL,NULL,NULL)")
@@ -394,8 +380,7 @@ test_that("duckdb_register_arrow() performs selection pushdown date type", {
 })
 
 test_that("duckdb_register_arrow() under many threads", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   ds <- arrow::InMemoryDataset$create(mtcars)
   duckdb_register_arrow(con, "mtcars_arrow", ds)
@@ -407,8 +392,7 @@ test_that("duckdb_register_arrow() under many threads", {
 })
 
 test_that("we can unregister in finalizers yay", {
-  con <- DBI::dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
   ds <- arrow::InMemoryDataset$create(mtcars)
 
   # Creates an environment that disconnects the database when it's GC'd
@@ -435,8 +419,7 @@ test_that("we can unregister in finalizers yay", {
 
 
 test_that("we can list registered arrow tables", {
-  con <- DBI::dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
   ds <- arrow::InMemoryDataset$create(mtcars)
 
   expect_equal(length(duckdb_list_arrow(con)), 0)
@@ -455,8 +438,7 @@ test_that("we can list registered arrow tables", {
 
 
 test_that("registered tables must be unique", {
-  con <- DBI::dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
   ds1 <- arrow::InMemoryDataset$create(mtcars)
   ds2 <- arrow::InMemoryDataset$create(mtcars)
 
@@ -468,8 +450,7 @@ test_that("registered tables must be unique", {
 
 
 test_that("duckdb can read arrow timestamps", {
-  con <- DBI::dbConnect(duckdb(), timezone_out = "UTC")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(timezone_out = "UTC")
 
   timestamp <- as.POSIXct("2022-01-30 11:59:29", tz = "UTC")
 
@@ -507,8 +488,7 @@ test_that("duckdb can read arrow timestamps", {
 
 test_that("duckdb can read arrow timestamptz", {
   skip("ICU not loaded")
-  con <- DBI::dbConnect(duckdb(), timezone_out = "UTC")
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con(timezone_out = "UTC")
 
   timestamp <- as.POSIXct("2022-01-30 11:59:29")
 

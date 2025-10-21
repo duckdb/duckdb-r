@@ -1,0 +1,26 @@
+From 22a65eb51a0feaf764fc9ece3d6297b14c1c2f6b Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Tue, 16 Sep 2025 18:51:37 -0400
+Subject: [PATCH] uninit
+
+---
+ src/duckdb/src/common/types/vector.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/duckdb/src/common/types/vector.cpp b/src/duckdb/src/common/types/vector.cpp
+index ad27b162d..594658399 100644
+--- a/src/duckdb/src/common/types/vector.cpp
++++ b/src/duckdb/src/common/types/vector.cpp
+@@ -32,7 +32,8 @@ namespace duckdb {
+ UnifiedVectorFormat::UnifiedVectorFormat() : sel(nullptr), data(nullptr), physical_type(PhysicalType::INVALID) {
+ }
+ 
+-UnifiedVectorFormat::UnifiedVectorFormat(UnifiedVectorFormat &&other) noexcept : sel(nullptr), data(nullptr) {
++UnifiedVectorFormat::UnifiedVectorFormat(UnifiedVectorFormat &&other) noexcept
++    : sel(nullptr), data(nullptr), physical_type(PhysicalType::INVALID) {
+ 	bool refers_to_self = other.sel == &other.owned_sel;
+ 	std::swap(sel, other.sel);
+ 	std::swap(data, other.data);
+-- 
+2.50.1
+

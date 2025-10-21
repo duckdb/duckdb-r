@@ -11,12 +11,18 @@
 #include "duckdb/common/unordered_map.hpp"
 #include "duckdb/parser/tableref/table_function_ref.hpp"
 #include "duckdb/common/mutex.hpp"
+#include "duckdb/common/error_data.hpp"
 
 #include "convert.hpp"
 
 #if defined(R_VERSION) && R_VERSION >= R_Version(4, 3, 0)
 #define R_HAS_ALTLIST
 #endif
+
+// Helper functions to communicate errors via R's stop() function with context information
+[[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message);
+[[noreturn]] void rapi_error_with_context(const std::string &context, const std::exception &e);
+[[noreturn]] void rapi_error_with_context(const std::string &context, const duckdb::ErrorData &error_data);
 
 namespace duckdb {
 
@@ -39,7 +45,7 @@ public:
 	}
 	DualWrapper(DualWrapper *dual) : precious_(dual->get()) {
 		if (!precious_) {
-			cpp11::stop("dual is already released");
+			rapi_error_with_context("DualWrapper", "dual is already released");
 		}
 	}
 	~DualWrapper() {
@@ -109,8 +115,7 @@ typedef cpp11::external_pointer<ConnWrapper, ConnDeleter> conn_eptr_t;
 
 struct RStatement {
 	RStatement() = delete;
-	RStatement(duckdb::unique_ptr<PreparedStatement> stmt_p)
-	    : stmt(std::move(stmt_p)) {
+	RStatement(duckdb::unique_ptr<PreparedStatement> stmt_p) : stmt(std::move(stmt_p)) {
 	}
 	duckdb::unique_ptr<PreparedStatement> stmt;
 	vector<Value> parameters;
@@ -120,7 +125,8 @@ typedef cpp11::external_pointer<RStatement> stmt_eptr_t;
 
 struct RelationWrapper {
 	RelationWrapper() = delete;
-	RelationWrapper(duckdb::shared_ptr<Relation> rel_p, ConvertOpts convert_opts) : rel(std::move(rel_p)), convert_opts(std::move(convert_opts)) {
+	RelationWrapper(duckdb::shared_ptr<Relation> rel_p, ConvertOpts convert_opts)
+	    : rel(std::move(rel_p)), convert_opts(std::move(convert_opts)) {
 	}
 	duckdb::shared_ptr<Relation> rel;
 	const ConvertOpts convert_opts;
@@ -219,6 +225,8 @@ duckdb::conn_eptr_t rapi_connect(duckdb::db_eptr_t);
 
 void rapi_disconnect(duckdb::conn_eptr_t);
 
+bool rapi_connection_valid(duckdb::conn_eptr_t);
+
 cpp11::list rapi_prepare(duckdb::conn_eptr_t, std::string);
 
 cpp11::list rapi_bind(duckdb::stmt_eptr_t, SEXP paramsexp, duckdb::ConvertOpts);
@@ -247,8 +255,8 @@ SEXP duckdb_r_allocate(const duckdb::LogicalType &type, duckdb::idx_t nrows, con
 void duckdb_r_df_decorate_impl(SEXP dest, SEXP rownames, SEXP class_);
 void duckdb_r_df_decorate(SEXP dest, duckdb::idx_t nrows, SEXP class_ = R_NilValue);
 void duckdb_r_decorate(const duckdb::LogicalType &type, SEXP dest, const duckdb::ConvertOpts &convert_opts);
-void duckdb_r_transform(duckdb::Vector &src_vec, SEXP dest, duckdb::idx_t dest_offset, duckdb::idx_t n,
-                        const duckdb::ConvertOpts &convert_opts,const duckdb::string &name);
+void duckdb_r_transform(const duckdb::Vector &src_vec, SEXP dest, duckdb::idx_t dest_offset, duckdb::idx_t n,
+                        const duckdb::ConvertOpts &convert_opts, const duckdb::string &name);
 
 SEXP get_attrib(SEXP vec, SEXP name);
 

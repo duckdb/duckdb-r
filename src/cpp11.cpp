@@ -20,6 +20,13 @@ extern "C" SEXP _duckdb_rapi_disconnect(SEXP conn) {
     return R_NilValue;
   END_CPP11
 }
+// connection.cpp
+bool rapi_connection_valid(duckdb::conn_eptr_t conn);
+extern "C" SEXP _duckdb_rapi_connection_valid(SEXP conn) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(rapi_connection_valid(cpp11::as_cpp<cpp11::decay_t<duckdb::conn_eptr_t>>(conn)));
+  END_CPP11
+}
 // database.cpp
 duckdb::db_eptr_t rapi_startup(std::string dbdir, bool readonly, cpp11::list configsexp, bool environment_scan);
 extern "C" SEXP _duckdb_rapi_startup(SEXP dbdir, SEXP readonly, SEXP configsexp, SEXP environment_scan) {
@@ -439,6 +446,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_adbc_init_func",          (DL_FUNC) &_duckdb_rapi_adbc_init_func,           0},
     {"_duckdb_rapi_bind",                    (DL_FUNC) &_duckdb_rapi_bind,                     3},
     {"_duckdb_rapi_connect",                 (DL_FUNC) &_duckdb_rapi_connect,                  2},
+    {"_duckdb_rapi_connection_valid",        (DL_FUNC) &_duckdb_rapi_connection_valid,         1},
     {"_duckdb_rapi_disconnect",              (DL_FUNC) &_duckdb_rapi_disconnect,               1},
     {"_duckdb_rapi_execute",                 (DL_FUNC) &_duckdb_rapi_execute,                  2},
     {"_duckdb_rapi_execute_arrow",           (DL_FUNC) &_duckdb_rapi_execute_arrow,            2},

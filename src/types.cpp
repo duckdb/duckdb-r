@@ -279,7 +279,8 @@ LogicalType RApiTypes::LogicalTypeFromRType(const RType &rtype, bool experimenta
 	case RTypeId::LIST:
 		return LogicalType::LIST(RApiTypes::LogicalTypeFromRType(rtype.GetListChildType(), experimental));
 	case RTypeId::MATRIX:
-		return LogicalType::ARRAY(RApiTypes::LogicalTypeFromRType(rtype.GetMatrixElementType(), experimental), rtype.GetMatrixNcols());
+		return LogicalType::ARRAY(RApiTypes::LogicalTypeFromRType(rtype.GetMatrixElementType(), experimental),
+		                          rtype.GetMatrixNcols());
 	case RTypeId::STRUCT: {
 		child_list_t<LogicalType> children;
 		for (const auto &child : rtype.GetStructChildTypes()) {
@@ -287,13 +288,13 @@ LogicalType RApiTypes::LogicalTypeFromRType(const RType &rtype, bool experimenta
 			    std::make_pair(child.first, RApiTypes::LogicalTypeFromRType(child.second, experimental)));
 		}
 		if (children.size() == 0) {
-			cpp11::stop("rapi_execute: Packed column must have at least one column");
+			rapi_error_with_context("SexpToLogicalType", "Packed column must have at least one column");
 		}
 		return LogicalType::STRUCT(std::move(children));
 	}
 
 	default:
-		cpp11::stop("rapi_execute: Can't convert R type to logical type");
+		rapi_error_with_context("SexpToLogicalType", "Can't convert R type to logical type");
 	}
 }
 
@@ -350,9 +351,11 @@ string RApiTypes::DetectLogicalType(const LogicalType &stype, const char *caller
 	case LogicalTypeId::SQLNULL:
 		return "unknown";
 
-	default:
-		cpp11::stop("%s: Unknown column type for prepare: %s", caller, stype.ToString().c_str());
+	default: {
+		std::string error_msg = "Unknown column type for prepare: " + stype.ToString();
+		rapi_error_with_context(caller, error_msg);
 		break;
+	}
 	}
 }
 
@@ -365,7 +368,7 @@ double RDoubleType::Convert(double val) {
 }
 
 date_t RDateType::Convert(double val) {
-	return date_t((int32_t) std::floor(val));
+	return date_t((int32_t)std::floor(val));
 }
 
 timestamp_t RTimestampType::Convert(double val) {

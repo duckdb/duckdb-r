@@ -1,8 +1,7 @@
 
 # Run this file with testthat::test_local(filter = "^relational$")
 
-con <- dbConnect(duckdb())
-on.exit(dbDisconnect(con, shutdown = TRUE))
+con <- local_con()
 
 test_that("we can create a relation from a df", {
   rel <- rel_from_df(con, data.frame(a = 1))
@@ -984,6 +983,7 @@ test_that("Handle zero-length lists (#186)", {
 })
 
 test_that("prudence", {
+  skip_if(getRversion() < "4.2", "Error message formatting differs in R 4.1")
   local_edition(3)
   withr::local_envvar(NO_COLOR = "true")
 

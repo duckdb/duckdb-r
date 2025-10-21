@@ -1,6 +1,5 @@
 test_that("duckdb_register() works", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   # most basic case
   duckdb_register(con, "my_df1", iris)
@@ -40,7 +39,7 @@ test_that("duckdb_register() works", {
 test_that("various error cases for duckdb_register()", {
   skip_if_not(TEST_RE2)
 
-  con <- dbConnect(duckdb())
+  con <- local_con()
 
   duckdb_register(con, "my_df1", iris)
   duckdb_unregister(con, "my_df1")
@@ -57,8 +56,7 @@ test_that("various error cases for duckdb_register()", {
 
 
 test_that("uppercase data frames are queryable", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   duckdb_register(con, "My_Mtcars", mtcars)
   dbGetQuery(con, "SELECT * FROM \"My_Mtcars\"")
@@ -70,8 +68,7 @@ test_that("uppercase data frames are queryable", {
 })
 
 test_that("experimental string handling works", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
   df <- data.frame(a=c(NA, as.character(1:10000)))
 
   duckdb_register(con, "df", df, experimental=TRUE)
@@ -83,8 +80,7 @@ test_that("experimental string handling works", {
 test_that("can register list of NULL values", {
   skip_if_not_installed("tibble")
 
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
   df <- tibble::tibble(a = 1:2, b = list(NULL))
 
   expect_silent(duckdb_register(con, "df1", df))

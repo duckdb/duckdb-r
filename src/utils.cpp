@@ -1,4 +1,5 @@
 #include "duckdb/common/types/timestamp.hpp"
+#include "duckdb/common/enum_util.hpp"
 #include "rapi.hpp"
 #include "typesr.hpp"
 #include "duckdb/common/adbc/adbc-init.hpp"
@@ -17,7 +18,7 @@ SEXP duckdb::ToUtf8(SEXP string_sexp) {
 
 [[cpp11::register]] cpp11::r_string rapi_ptr_to_str(SEXP extptr) {
 	if (TYPEOF(extptr) != EXTPTRSXP) {
-		cpp11::stop("rapi_ptr_to_str: Need external pointer parameter");
+		rapi_error_with_context("rapi_ptr_to_str", "Need external pointer parameter");
 	}
 
 	void *ptr = R_ExternalPtrAddr(extptr);
@@ -257,7 +258,7 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 		return Value::STRUCT(std::move(child_values));
 	}
 	default:
-		cpp11::stop("duckdb_sexp_to_value: Unsupported type");
+		rapi_error_with_context("duckdb_sexp_to_value", "Unsupported RTypeId");
 		return Value();
 	}
 }
@@ -322,11 +323,58 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 
 [[cpp11::register]] void rapi_load_rfuns(duckdb::db_eptr_t dual) {
 	if (!dual || !dual.get()) {
-		cpp11::stop("rapi_load_rfuns: Invalid database reference");
+		rapi_error_with_context("rapi_load_rfuns", "Invalid database reference");
 	}
 	auto db = dual->get();
 	if (!db || !db->db) {
-		cpp11::stop("rapi_load_rfuns: Database already closed");
+		rapi_error_with_context("rapi_load_rfuns", "Database already closed");
 	}
 	db->db->LoadStaticExtension<RfunsExtension>();
+}
+
+// Helper functions to communicate errors via R's stop() function
+[[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message) {
+	// Look up R function in duckdb namespace
+	static cpp11::function rapi_error = cpp11::package("duckdb")["rapi_error"];
+	rapi_error(context, message);
+
+	throw InternalException("Unreachable code after rapi_error()");
+}
+
+[[noreturn]] void rapi_error_with_context(const std::string &context, const std::exception &e) {
+	// Forward to the other overload
+	rapi_error_with_context(context, std::string(e.what()));
+}
+
+[[noreturn]] void rapi_error_with_context(const std::string &context, const duckdb::ErrorData &error_data) {
+	// Look up R function in duckdb namespace
+	static cpp11::function rapi_error = cpp11::package("duckdb")["rapi_error"];
+
+	// Extract fields from ErrorData
+	std::string message = error_data.Message();
+	std::string raw_message = error_data.RawMessage();
+
+	// Convert ExceptionType to string
+	std::string error_type = EnumUtil::ToChars(error_data.Type());
+
+	// Convert extra_info to R list
+	cpp11::writable::list extra_info;
+	const auto &info_map = error_data.ExtraInfo();
+
+	cpp11::writable::strings names(info_map.size());
+	cpp11::writable::strings values(info_map.size());
+
+	size_t i = 0;
+	for (const auto &pair : info_map) {
+		names[i] = pair.first;
+		values[i] = pair.second;
+		i++;
+	}
+
+	values.names() = names;
+
+	// Call R function with all parameters
+	rapi_error(context, message, error_type, raw_message, extra_info);
+
+	throw InternalException("Unreachable code after rapi_error()");
 }

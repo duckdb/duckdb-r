@@ -119,5 +119,6 @@ tz_force_one <- function(x, timezone) {
   # convert to character in ISO format, stripping the timezone
   ct <- format(x, format = "%Y-%m-%d %H:%M:%OS", usetz = FALSE)
   # recreate the POSIXct with specified timezone
-  as.POSIXct(ct, tz = timezone)
+  # this is the slow part, and it remains slow even if the input is a POSIXlt
+  as.POSIXct(ct, format = "%Y-%m-%d %H:%M:%OS", tz = timezone)
 }

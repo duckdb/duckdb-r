@@ -16,7 +16,8 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 	return true;
 }
 
-[[cpp11::register]] duckdb::db_eptr_t rapi_startup(std::string dbdir, bool readonly, cpp11::list configsexp, bool environment_scan) {
+[[cpp11::register]] duckdb::db_eptr_t rapi_startup(std::string dbdir, bool readonly, cpp11::list configsexp,
+                                                   bool environment_scan) {
 	const char *dbdirchar;
 
 	if (dbdir.length() == 0 || dbdir.compare(IN_MEMORY_PATH) == 0) {
@@ -39,7 +40,7 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 		try {
 			config.SetOptionByName(key, Value(val));
 		} catch (std::exception &e) {
-			cpp11::stop("rapi_startup: Failed to set configuration option: %s", e.what());
+			rapi_error_with_context("rapi_startup", e);
 		}
 	}
 
@@ -65,11 +66,11 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 		auto &schema = catalog.GetSchema(transaction, DEFAULT_SCHEMA);
 		auto scan_entry = schema.GetEntry(transaction, CatalogType::TABLE_FUNCTION_ENTRY, "arrow_scan");
 		auto &arrow_scan = scan_entry->Cast<TableFunctionCatalogEntry>();
-		for(auto &function : arrow_scan.functions.functions) {
-				function.global_initialization = TableFunctionInitialization::INITIALIZE_ON_SCHEDULE;
+		for (auto &function : arrow_scan.functions.functions) {
+			function.global_initialization = TableFunctionInitialization::INITIALIZE_ON_SCHEDULE;
 		}
 	} catch (std::exception &e) {
-		cpp11::stop("rapi_startup: Failed to open database: %s", e.what());
+		rapi_error_with_context("rapi_startup", e);
 	}
 	D_ASSERT(wrapper->db);
 
@@ -97,7 +98,7 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 
 [[cpp11::register]] bool rapi_lock(duckdb::db_eptr_t dual) {
 	if (!dual || !dual.get()) {
-		cpp11::stop("rapi_lock: Invalid database reference");
+		rapi_error_with_context("rapi_lock", "Invalid database reference");
 	}
 	dual->lock();
 	return dual->has();
@@ -105,14 +106,14 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 
 [[cpp11::register]] void rapi_unlock(duckdb::db_eptr_t dual) {
 	if (!dual || !dual.get()) {
-		cpp11::stop("rapi_unlock: Invalid database reference");
+		rapi_error_with_context("rapi_unlock", "Invalid database reference");
 	}
 	dual->unlock();
 }
 
 [[cpp11::register]] bool rapi_is_locked(duckdb::db_eptr_t dual) {
 	if (!dual || !dual.get()) {
-		cpp11::stop("rapi_is_locked: Invalid database reference");
+		rapi_error_with_context("rapi_is_locked", "Invalid database reference");
 	}
 	return dual->is_locked();
 }

@@ -1,8 +1,7 @@
 test_that("structs can be read", {
   skip_if_not_installed("vctrs")
 
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   res <- dbGetQuery(con, "SELECT {'x': 100, 'y': 'hello', 'z': 3.14} AS s")
   expect_equal(res, vctrs::data_frame(
@@ -54,8 +53,7 @@ test_that("structs give the same results via Arrow", {
   skip_if_not_installed("tibble")
   skip_if_not_installed("arrow", "13.0.0")
 
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   res <- dbGetQuery(con, "SELECT {'x': 100, 'y': 'hello', 'z': 3.14::double} AS s", arrow = TRUE)
   expect_equal(res, vctrs::data_frame(
@@ -114,8 +112,7 @@ test_that("nested lists of atomic values can be written", {
 
   skip_if_not_installed("vctrs")
 
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   df <- vctrs::data_frame(a = 1:3, b = list(4:6, 2:3, 1L))
   dbWriteTable(con, "df", df)
@@ -134,8 +131,7 @@ test_that("nested and packed columns work in full", {
 
   skip_if_not_installed("vctrs")
 
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   df <- vctrs::data_frame(
     a = vctrs::data_frame(
@@ -177,4 +173,150 @@ test_that("nested and packed columns work in full", {
 
   duckdb_register(con, "df_reg", df)
   expect_equal(dbReadTable(con, "df_reg"), df)
+})
+
+test_that("packed columns work with ALTREP", {
+  con <- local_con()
+  df1 <- data.frame(g = c(1, 1, 2), a = 1:3, b = 2:4, c = 3:5)
+
+  rel1 <- rel_from_df(con, df1)
+  "mutate"
+  rel2 <- rel_project(
+    rel1,
+    list(
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("c")
+        expr_set_alias(tmp_expr, "c")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_function("struct_pack", list(expr_reference("a"), expr_reference("b")))
+        expr_set_alias(tmp_expr, "d")
+        tmp_expr
+      }
+    )
+  )
+  "mutate"
+  rel3 <- rel_project(
+    rel2,
+    list(
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_function("struct_pack", list(expr_reference("d"), expr_reference("c")))
+        expr_set_alias(tmp_expr, "e")
+        tmp_expr
+      }
+    )
+  )
+
+  expected <- structure(
+    list(
+      g = c(1, 1, 2),
+      e = structure(
+        list(d = data.frame(a = 1:3, b = 2:4), c = 3:5),
+        row.names = c(NA, -3L),
+        class = "data.frame"
+      )
+    ),
+    row.names = c(NA, -3L),
+    class = "data.frame"
+  )
+
+  expect_identical(rel_to_altrep(rel3), expected)
+})
+
+test_that("nested columns work with ALTREP", {
+  skip_if(getRversion() < "4.3.0", "ALTREP for lists not supported")
+
+  con <- local_con()
+  df1 <- data.frame(g = c(1, 1, 2), a = 1:3, b = 2:4, c = 3:5)
+
+  rel1 <- rel_from_df(con, df1)
+  "mutate"
+  rel2 <- rel_project(
+    rel1,
+    list(
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("c")
+        expr_set_alias(tmp_expr, "c")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_function("struct_pack", list(expr_reference("a"), expr_reference("b")))
+        expr_set_alias(tmp_expr, "d")
+        tmp_expr
+      }
+    )
+  )
+  "mutate"
+  rel3 <- rel_project(
+    rel2,
+    list(
+      {
+        tmp_expr <- expr_reference("g")
+        expr_set_alias(tmp_expr, "g")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_reference("d")
+        expr_set_alias(tmp_expr, "d")
+        tmp_expr
+      },
+      {
+        tmp_expr <- expr_function("struct_pack", list(expr_reference("d"), expr_reference("c")))
+        expr_set_alias(tmp_expr, "e")
+        tmp_expr
+      }
+    )
+  )
+  "summarise"
+  rel4 <- rel_aggregate(
+    rel3,
+    groups = list(expr_reference("g")),
+    aggregates = list(
+      {
+        tmp_expr <- expr_function("list", list(expr_reference("e")))
+        expr_set_alias(tmp_expr, "f")
+        tmp_expr
+      }
+    )
+  )
+  "arrange"
+  rel5 <- rel_order(rel4, list(expr_reference("g")))
+
+  expected <- structure(
+    list(
+      g = c(1, 2),
+      f = list(
+        structure(
+          list(d = data.frame(a = 1:2, b = 2:3), c = 3:4),
+          class = "data.frame",
+          row.names = c(NA, -2L)
+        ),
+        structure(
+          list(d = data.frame(a = 3L, b = 4L), c = 5L),
+          class = "data.frame",
+          row.names = c(NA, -1L)
+        )
+      )
+    ),
+    row.names = c(NA, -2L),
+    class = "data.frame"
+  )
+
+  expect_identical(rel_to_altrep(rel5), expected)
 })

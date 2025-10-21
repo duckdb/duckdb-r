@@ -1,0 +1,27 @@
+From 937e6760556272947e6ed4c2293bc14bf8da9f0d Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Fri, 12 Sep 2025 20:28:12 +0200
+Subject: [PATCH] deprecated header This reverts commit
+ ead59262f56a07dc23319e441ac048385d85bc21.
+
+---
+ .../include/core_functions/aggregate/algebraic/stddev.hpp      | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/duckdb/extension/core_functions/include/core_functions/aggregate/algebraic/stddev.hpp b/src/duckdb/extension/core_functions/include/core_functions/aggregate/algebraic/stddev.hpp
+index b2626ee27..e626e117c 100644
+--- a/src/duckdb/extension/core_functions/include/core_functions/aggregate/algebraic/stddev.hpp
++++ b/src/duckdb/extension/core_functions/include/core_functions/aggregate/algebraic/stddev.hpp
+@@ -9,7 +9,8 @@
+ #pragma once
+ 
+ #include "duckdb/function/aggregate_function.hpp"
+-#include <ctgmath>
++#include <complex>
++#include <cmath>
+ 
+ namespace duckdb {
+ 
+-- 
+2.50.1
+

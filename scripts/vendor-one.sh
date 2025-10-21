@@ -1,4 +1,7 @@
 #!/bin/bash
+# Vendors DuckDB sources commit-by-commit from upstream repository
+# Used by CI automation (.github/workflows/vendor.yaml)
+# See scripts/VENDORING.md for complete documentation
 # https://unix.stackexchange.com/a/654932/19205
 # Using bash for -o pipefail
 
@@ -70,7 +73,9 @@ for commit in $original; do
     break
   fi
 
-  if [ "$(git status --porcelain -- ${vendor_base_dir} | wc -l)" -gt 1 ]; then
+  # Expecting two changes even if nothing else changed.
+  # Need at least three changed files to consider it a real update.
+  if [ "$(git status --porcelain -- ${vendor_base_dir} | wc -l)" -gt 2 ]; then
     message="vendor: Update vendored sources to ${repo_org}/${repo_name}@$commit"
     break
   fi
@@ -86,12 +91,17 @@ fi
 our_tag=$(git describe --tags --abbrev=0 | sed -r 's/-[0-9]$//')
 upstream_tag=$(git -C "$upstream_dir" describe --tags --abbrev=0)
 
+if [ "$our_tag" = "v1.3.3" ]; then
+  # Inofficial release v1.3.3
+  our_tag="v1.3.2"
+fi
+
 echo "Our tag: $our_tag"
 echo "Upstream tag: $upstream_tag"
 
 if [ -z "${is_tag}" ] && [ "${our_tag#"$upstream_tag"}" == "$our_tag" ]; then
   echo "Not vendoring because our tag $our_tag does not start with upstream tag $upstream_tag"
-  git checkout -- ${vendor_base_dir}
+  git checkout -- ${vendor_base_dir} R/version.R
   rm -rf "$upstream_dir"
   exit 0
 fi

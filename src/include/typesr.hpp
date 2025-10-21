@@ -49,7 +49,7 @@ enum class RTypeId {
 
 struct RType {
 	RType();
-	RType(RTypeId id); // NOLINT: Allow implicit conversion from `RTypeId`
+	RType(RTypeId id);               // NOLINT: Allow implicit conversion from `RTypeId`
 	RType(RTypeId id, R_len_t size); // NOLINT: Allow implicit conversion from `RTypeId`
 	RType(const RType &other);
 	RType(RType &&other) noexcept;
@@ -137,7 +137,7 @@ struct RIntegralType {
 };
 
 template <class T>
-static void RDecimalCastLoop(Vector &src_vec, size_t count, double *dest_ptr, uint8_t scale) {
+static void RDecimalCastLoop(const Vector &src_vec, size_t count, double *dest_ptr, uint8_t scale) {
 	auto src_ptr = FlatVector::GetData<T>(src_vec);
 	auto &mask = FlatVector::Validity(src_vec);
 	double division = std::pow((uint64_t)10, (uint64_t)scale);

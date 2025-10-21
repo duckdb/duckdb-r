@@ -1,5 +1,6 @@
 #include "rapi.hpp"
 #include "typesr.hpp"
+#include "signal.hpp"
 
 #include "duckdb/common/arrow/arrow_wrapper.hpp"
 #include "duckdb/planner/table_filter.hpp"
@@ -14,14 +15,17 @@ using namespace duckdb;
 [[cpp11::register]] void rapi_register_df(duckdb::conn_eptr_t conn, std::string name, cpp11::data_frame value,
                                           duckdb::ConvertOpts convert_opts, bool overwrite) {
 	if (!conn || !conn.get() || !conn->conn) {
-		cpp11::stop("rapi_register_df: Invalid connection");
+		rapi_error_with_context("rapi_register_df", "Invalid connection");
 	}
 	if (name.empty()) {
-		cpp11::stop("rapi_register_df: Name cannot be empty");
+		rapi_error_with_context("rapi_register_df", "Name cannot be empty");
 	}
 	if (value.ncol() < 1) {
-		cpp11::stop("rapi_register_df: Data frame with at least one column required");
+		rapi_error_with_context("rapi_register_df", "Data frame with at least one column required");
 	}
+
+	ScopedInterruptHandler signal_handler(conn->conn->context);
+
 	try {
 		named_parameter_map_t parameter_map;
 		parameter_map["integer64"] = convert_opts.bigint == ConvertOpts::BigIntType::INTEGER64;
@@ -29,9 +33,12 @@ using namespace duckdb;
 
 		conn->conn->TableFunction("r_dataframe_scan", {Value::POINTER((uintptr_t)value.data())}, parameter_map)
 		    ->CreateView(name, overwrite, true);
+
+		signal_handler.HandleInterrupt();
+
 		static_cast<cpp11::sexp>(conn).attr("_registered_df_" + name) = value;
 	} catch (std::exception &e) {
-		cpp11::stop("rapi_register_df: Failed to register data frame: %s", e.what());
+		rapi_error_with_context("rapi_register_df", e);
 	}
 }
 
@@ -39,16 +46,21 @@ using namespace duckdb;
 	if (!conn || !conn.get() || !conn->conn) {
 		return;
 	}
+
+	ScopedInterruptHandler signal_handler(conn->conn->context);
+
 	static_cast<cpp11::sexp>(conn).attr("_registered_df_" + name) = R_NilValue;
 	auto res = conn->conn->Query("DROP VIEW IF EXISTS \"" + name + "\"");
+
+	signal_handler.HandleInterrupt();
+
 	if (res->HasError()) {
-		cpp11::stop("%s", res->GetError().c_str());
+		rapi_error_with_context("rapi_unregister_df", res->GetError());
 	}
 }
 
-
-
-unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, ReplacementScanInput &input, optional_ptr<ReplacementScanData> data_p) {
+unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, ReplacementScanInput &input,
+                                                        optional_ptr<ReplacementScanData> data_p) {
 	auto &data = (ReplacementDataDBWrapper &)*data_p;
 	auto db_wrapper = data.wrapper;
 
@@ -62,7 +74,7 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 #if defined(R_VERSION) && R_VERSION >= R_Version(4, 5, 0)
 	df = cpp11::safe[R_getVarEx](table_name_symbol, rho, Rboolean::TRUE, R_NilValue);
 #else
-	while(rho != R_EmptyEnv) {
+	while (rho != R_EmptyEnv) {
 		df = cpp11::safe[Rf_findVarInFrame3](rho, table_name_symbol, TRUE);
 		if (df != R_UnboundValue) {
 			break;
@@ -88,7 +100,6 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	table_function->function = make_uniq<FunctionExpression>("r_dataframe_scan", std::move(children));
 	return std::move(table_function);
 }
-
 
 class RArrowTabularStreamFactory {
 public:
@@ -244,9 +255,10 @@ private:
 	}
 };
 
-unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, ReplacementScanInput &input, optional_ptr<ReplacementScanData> data_p) {
-  auto table_name = input.table_name;
-  ReplacementDataDBWrapper& data = static_cast<ReplacementDataDBWrapper&>(*data_p);
+unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, ReplacementScanInput &input,
+                                                  optional_ptr<ReplacementScanData> data_p) {
+	auto table_name = input.table_name;
+	ReplacementDataDBWrapper &data = static_cast<ReplacementDataDBWrapper &>(*data_p);
 	auto db_wrapper = data.wrapper;
 	lock_guard<mutex> arrow_scans_lock(db_wrapper->lock);
 	const auto &arrow_scans = db_wrapper->arrow_scans;
@@ -267,10 +279,10 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, Replac
 [[cpp11::register]] void rapi_register_arrow(duckdb::conn_eptr_t conn, std::string name, cpp11::list export_funs,
                                              cpp11::sexp valuesexp) {
 	if (!conn || !conn.get() || !conn->conn) {
-		cpp11::stop("rapi_register_arrow: Invalid connection");
+		rapi_error_with_context("rapi_register_arrow", "Invalid connection");
 	}
 	if (name.empty()) {
-		cpp11::stop("rapi_register_arrow: Name cannot be empty");
+		rapi_error_with_context("rapi_register_arrow", "Name cannot be empty");
 	}
 
 	auto stream_factory =
@@ -285,7 +297,8 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, Replac
 		auto &arrow_scans = conn->db->arrow_scans;
 
 		for (auto e = arrow_scans.find(name); e != arrow_scans.end(); ++e) {
-			cpp11::stop("rapi_register_arrow: Arrow table '%s' already registered", name.c_str());
+			std::string error_msg = "Arrow table '" + name + "' already registered";
+			rapi_error_with_context("rapi_register_arrow", error_msg);
 		}
 
 		arrow_scans[name] = state_list;

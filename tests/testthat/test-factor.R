@@ -1,8 +1,7 @@
 test_that("factors can be round tripped", {
   skip_if_not(TEST_RE2)
 
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   df0 <- data.frame(
     a = c(1, 2, 3),
@@ -24,8 +23,7 @@ test_that("factors can be round tripped", {
 test_that("iris can be round-tripped", {
   skip_if_not(TEST_RE2)
 
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   duckdb_register(con, "iris", iris)
   df1 <- dbReadTable(con, "iris")
@@ -39,8 +37,7 @@ test_that("iris can be round-tripped", {
 test_that("non-utf things can be read", {
   skip_if_not(TEST_RE2)
 
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   horrid_string <- iconv("Mühleisen", "utf8", "latin1")
   Encoding(horrid_string) <- "latin1"
@@ -68,8 +65,7 @@ test_that("non-utf things can be read", {
 test_that("single value factors round trip correctly, issue 2627", {
   skip_if_not(TEST_RE2)
 
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   df1 <- data.frame(year = as.factor(rep("1998", 5)))
   dbWriteTable(con, "df", df1, field.types = c(year = "VARCHAR"))
@@ -80,8 +76,7 @@ test_that("single value factors round trip correctly, issue 2627", {
 
 
 test_that("huge-cardinality factors do not cause strange crashes, issue 3639", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   set.seed(123)
   df <- data.frame(col1 = factor(sample(5000, 10^6, replace = TRUE)))

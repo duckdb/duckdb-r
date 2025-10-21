@@ -15,7 +15,8 @@ void BaseRAddFunctionInteger(DataChunk &args, ExpressionState &state, Vector &re
 	auto parts = BinaryTypeAssert<LogicalType::INTEGER, LogicalType::INTEGER>(args);
 
 	BinaryExecutor::ExecuteWithNulls<int32_t, int32_t, int32_t>(
-	    parts.lefts, parts.rights, result, args.size(), [&](int32_t left, int32_t right, ValidityMask &mask, idx_t idx) {
+	    parts.lefts, parts.rights, result, args.size(),
+	    [&](int32_t left, int32_t right, ValidityMask &mask, idx_t idx) {
 		    int64_t result = (int64_t)left + right;
 		    if (result > INT_MAX || result < (INT_MIN + 1)) {
 			    // FIXME: Need warning: NAs produced by integer overflow
@@ -50,15 +51,15 @@ double ExecuteBaseRPlusFunctionIntDouble(int32_t left, double right, ValidityMas
 void BaseRAddFunctionIntDouble(DataChunk &args, ExpressionState &state, Vector &result) {
 	auto parts = BinaryTypeAssert<LogicalType::INTEGER, LogicalType::DOUBLE>(args);
 
-	BinaryExecutor::ExecuteWithNulls<int32_t, double, double>(
-	    parts.lefts, parts.rights, result, args.size(), ExecuteBaseRPlusFunctionIntDouble);
+	BinaryExecutor::ExecuteWithNulls<int32_t, double, double>(parts.lefts, parts.rights, result, args.size(),
+	                                                          ExecuteBaseRPlusFunctionIntDouble);
 }
 
 void BaseRAddFunctionDoubleInt(DataChunk &args, ExpressionState &state, Vector &result) {
 	auto parts = BinaryTypeAssert<LogicalType::DOUBLE, LogicalType::INTEGER>(args);
 
-	BinaryExecutor::ExecuteWithNulls<int32_t, double, double>(
-	    parts.rights, parts.lefts, result, args.size(), ExecuteBaseRPlusFunctionIntDouble);
+	BinaryExecutor::ExecuteWithNulls<int32_t, double, double>(parts.rights, parts.lefts, result, args.size(),
+	                                                          ExecuteBaseRPlusFunctionIntDouble);
 }
 
 } // namespace
@@ -97,7 +98,7 @@ namespace {
 
 template <typename T>
 int32_t check_int_range(T value, ValidityMask &mask, idx_t idx) {
-	if (value > std::numeric_limits<int32_t>::max() || value < std::numeric_limits<int32_t>::min() ) {
+	if (value > std::numeric_limits<int32_t>::max() || value < std::numeric_limits<int32_t>::min()) {
 		mask.SetInvalid(idx);
 	}
 
@@ -159,9 +160,8 @@ ScalarFunction AsNumberFunction() {
 	using result_type = typename physical<RESULT_TYPE>::type;
 
 	auto fun = [](DataChunk &args, ExpressionState &state, Vector &result) {
-		UnaryExecutor::ExecuteWithNulls<physical_type, result_type>(
-			args.data[0], result, args.size(), cast<physical_type, result_type>
-		);
+		UnaryExecutor::ExecuteWithNulls<physical_type, result_type>(args.data[0], result, args.size(),
+		                                                            cast<physical_type, result_type>);
 	};
 	return ScalarFunction({TYPE}, RESULT_TYPE, fun);
 }
@@ -170,17 +170,17 @@ template <LogicalTypeId RESULT_TYPE>
 ScalarFunctionSet as_number(std::string name) {
 	ScalarFunctionSet set(name);
 
-	set.AddFunction(AsNumberFunction<LogicalType::BOOLEAN   , RESULT_TYPE>());
-	set.AddFunction(AsNumberFunction<LogicalType::INTEGER   , RESULT_TYPE>());
-	set.AddFunction(AsNumberFunction<LogicalType::DOUBLE    , RESULT_TYPE>());
-	set.AddFunction(AsNumberFunction<LogicalType::VARCHAR   , RESULT_TYPE>());
-	set.AddFunction(AsNumberFunction<LogicalType::DATE      , RESULT_TYPE>());
-	set.AddFunction(AsNumberFunction<LogicalType::TIMESTAMP , RESULT_TYPE>());
+	set.AddFunction(AsNumberFunction<LogicalType::BOOLEAN, RESULT_TYPE>());
+	set.AddFunction(AsNumberFunction<LogicalType::INTEGER, RESULT_TYPE>());
+	set.AddFunction(AsNumberFunction<LogicalType::DOUBLE, RESULT_TYPE>());
+	set.AddFunction(AsNumberFunction<LogicalType::VARCHAR, RESULT_TYPE>());
+	set.AddFunction(AsNumberFunction<LogicalType::DATE, RESULT_TYPE>());
+	set.AddFunction(AsNumberFunction<LogicalType::TIMESTAMP, RESULT_TYPE>());
 
 	return set;
 }
 
-}
+} // namespace
 
 ScalarFunctionSet base_r_as_integer() {
 	return as_number<LogicalTypeId::INTEGER>("r_base::as.integer");
@@ -190,8 +190,8 @@ ScalarFunctionSet base_r_as_numeric() {
 	return as_number<LogicalTypeId::DOUBLE>("r_base::as.numeric");
 }
 
-}
-}
+} // namespace rfuns
+} // namespace duckdb
 #include "rfuns_extension.hpp"
 #include "duckdb/parser/parsed_data/create_scalar_function_info.hpp"
 
@@ -205,23 +205,17 @@ ScalarFunctionSet binary_dispatch(ScalarFunctionSet fn) {
 	ScalarFunctionSet set(StringUtil::Format("dispatch(%s)", fn.name));
 
 	set.AddFunction(ScalarFunction(
-		{LogicalType::ANY, LogicalType::ANY},
-		LogicalType::VARCHAR,
-		[fn](DataChunk &args, ExpressionState &state, Vector &result) {
-			vector<LogicalType> types(args.data.size());
-			types[0] = args.data[0].GetType();
-			types[1] = args.data[1].GetType();
-			auto variant = const_cast<ScalarFunctionSet&>(fn).GetFunctionByArguments(state.GetContext(), types);
+	    {LogicalType::ANY, LogicalType::ANY}, LogicalType::VARCHAR,
+	    [fn](DataChunk &args, ExpressionState &state, Vector &result) {
+		    vector<LogicalType> types(args.data.size());
+		    types[0] = args.data[0].GetType();
+		    types[1] = args.data[1].GetType();
+		    auto variant = const_cast<ScalarFunctionSet &>(fn).GetFunctionByArguments(state.GetContext(), types);
 
-			auto info = StringUtil::Format(
-				"lhs = %s, rhs = %s, signature = %s",
-				EnumUtil::ToChars(types[0].id()),
-				EnumUtil::ToChars(types[1].id()),
-				variant.ToString().c_str()
-			);
-			result.SetValue(0, info);
-		}
-	));
+		    auto info = StringUtil::Format("lhs = %s, rhs = %s, signature = %s", EnumUtil::ToChars(types[0].id()),
+		                                   EnumUtil::ToChars(types[1].id()), variant.ToString().c_str());
+		    result.SetValue(0, info);
+	    }));
 	return set;
 }
 
@@ -238,7 +232,7 @@ ScalarFunctionSet binary_dispatch(ScalarFunctionSet fn) {
 namespace duckdb {
 namespace rfuns {
 
-void isna_double_loop(idx_t count, const double* data, bool* result_data, ValidityMask mask) {
+void isna_double_loop(idx_t count, const double *data, bool *result_data, ValidityMask mask) {
 	idx_t base_idx = 0;
 	auto entry_count = ValidityMask::EntryCount(count);
 	for (idx_t entry_idx = 0; entry_idx < entry_count; entry_idx++) {
@@ -274,48 +268,40 @@ void isna_double(DataChunk &args, ExpressionState &state, Vector &result) {
 	auto count = args.size();
 	auto input = args.data[0];
 
-	switch(input.GetVectorType()) {
-		case VectorType::FLAT_VECTOR: {
-			result.SetVectorType(VectorType::FLAT_VECTOR);
+	switch (input.GetVectorType()) {
+	case VectorType::FLAT_VECTOR: {
+		result.SetVectorType(VectorType::FLAT_VECTOR);
 
-			isna_double_loop(
-				count,
-				FlatVector::GetData<double>(input),
-				FlatVector::GetData<bool>(result),
-				FlatVector::Validity(input)
-			);
+		isna_double_loop(count, FlatVector::GetData<double>(input), FlatVector::GetData<bool>(result),
+		                 FlatVector::Validity(input));
 
-			break;
-		}
+		break;
+	}
 
-		case VectorType::CONSTANT_VECTOR: {
-			result.SetVectorType(VectorType::CONSTANT_VECTOR);
-			auto result_data = ConstantVector::GetData<bool>(result);
-			auto ldata = ConstantVector::GetData<double>(input);
+	case VectorType::CONSTANT_VECTOR: {
+		result.SetVectorType(VectorType::CONSTANT_VECTOR);
+		auto result_data = ConstantVector::GetData<bool>(result);
+		auto ldata = ConstantVector::GetData<double>(input);
 
-			*result_data = ConstantVector::IsNull(input) || std::isnan(*ldata);
+		*result_data = ConstantVector::IsNull(input) || std::isnan(*ldata);
 
-			break;
-		}
+		break;
+	}
 
-		default: {
-			UnifiedVectorFormat vdata;
-			input.ToUnifiedFormat(count, vdata);
-			result.SetVectorType(VectorType::FLAT_VECTOR);
+	default: {
+		UnifiedVectorFormat vdata;
+		input.ToUnifiedFormat(count, vdata);
+		result.SetVectorType(VectorType::FLAT_VECTOR);
 
-			isna_double_loop(
-				count,
-				UnifiedVectorFormat::GetData<double>(vdata),
-				FlatVector::GetData<bool>(result),
-				vdata.validity
-			);
+		isna_double_loop(count, UnifiedVectorFormat::GetData<double>(vdata), FlatVector::GetData<bool>(result),
+		                 vdata.validity);
 
-			break;
-		}
+		break;
+	}
 	}
 }
 
-void isna_any_loop(idx_t count, bool* result_data, ValidityMask mask) {
+void isna_any_loop(idx_t count, bool *result_data, ValidityMask mask) {
 	if (mask.AllValid()) {
 		for (idx_t i = 0; i < count; i++) {
 			result_data[i] = false;
@@ -347,61 +333,50 @@ void isna_any_loop(idx_t count, bool* result_data, ValidityMask mask) {
 			}
 		}
 	}
-
 }
 
 void isna_any(DataChunk &args, ExpressionState &state, Vector &result) {
 	auto count = args.size();
 	auto input = args.data[0];
 
-	switch(input.GetVectorType()) {
-		case VectorType::FLAT_VECTOR: {
-			result.SetVectorType(VectorType::FLAT_VECTOR);
-			isna_any_loop(
-				count,
-				FlatVector::GetData<bool>(result),
-				FlatVector::Validity(input)
-			);
+	switch (input.GetVectorType()) {
+	case VectorType::FLAT_VECTOR: {
+		result.SetVectorType(VectorType::FLAT_VECTOR);
+		isna_any_loop(count, FlatVector::GetData<bool>(result), FlatVector::Validity(input));
 
-			break;
-		}
-
-		case VectorType::CONSTANT_VECTOR: {
-			result.SetVectorType(VectorType::CONSTANT_VECTOR);
-			auto result_data = ConstantVector::GetData<bool>(result);
-			*result_data = ConstantVector::IsNull(input);
-
-			break;
-		}
-
-		default : {
-			UnifiedVectorFormat vdata;
-			input.ToUnifiedFormat(count, vdata);
-			result.SetVectorType(VectorType::FLAT_VECTOR);
-			isna_any_loop(
-				count,
-				FlatVector::GetData<bool>(result),
-				vdata.validity
-			);
-
-			break;
-		}
+		break;
 	}
 
-}
+	case VectorType::CONSTANT_VECTOR: {
+		result.SetVectorType(VectorType::CONSTANT_VECTOR);
+		auto result_data = ConstantVector::GetData<bool>(result);
+		*result_data = ConstantVector::IsNull(input);
 
+		break;
+	}
+
+	default: {
+		UnifiedVectorFormat vdata;
+		input.ToUnifiedFormat(count, vdata);
+		result.SetVectorType(VectorType::FLAT_VECTOR);
+		isna_any_loop(count, FlatVector::GetData<bool>(result), vdata.validity);
+
+		break;
+	}
+	}
+}
 
 ScalarFunctionSet base_r_is_na() {
 	ScalarFunctionSet set("r_base::is.na");
 
 	set.AddFunction(ScalarFunction({LogicalType::DOUBLE}, LogicalType::BOOLEAN, isna_double));
-	set.AddFunction(ScalarFunction({LogicalType::ANY}   , LogicalType::BOOLEAN, isna_any));
+	set.AddFunction(ScalarFunction({LogicalType::ANY}, LogicalType::BOOLEAN, isna_any));
 
 	return set;
 }
 
-}
-}
+} // namespace rfuns
+} // namespace duckdb
 #include "rfuns_extension.hpp"
 
 #include "duckdb/parser/parsed_data/create_aggregate_function_info.hpp"
@@ -435,11 +410,12 @@ struct RMinMaxOperation {
 
 	template <class INPUT_TYPE, class STATE, class OP>
 	static void Operation(STATE &state, const INPUT_TYPE &input, AggregateUnaryInput &unary_input) {
-		if (state.is_null) return;
+		if (state.is_null)
+			return;
 
 		if (!NA_RM && !unary_input.RowIsValid()) {
 			state.is_null = true;
-		} else if (!state.is_set ){
+		} else if (!state.is_set) {
 			state.value = input;
 			state.is_set = true;
 		} else {
@@ -448,12 +424,14 @@ struct RMinMaxOperation {
 	}
 
 	template <class INPUT_TYPE, class STATE, class OP>
-	static void ConstantOperation(STATE &state, const INPUT_TYPE &input, AggregateUnaryInput &unary_input, idx_t count) {
-		if (state.is_null) return;
+	static void ConstantOperation(STATE &state, const INPUT_TYPE &input, AggregateUnaryInput &unary_input,
+	                              idx_t count) {
+		if (state.is_null)
+			return;
 
 		if (!NA_RM && !unary_input.RowIsValid()) {
 			state.is_null = true;
-		} else if (!state.is_set ){
+		} else if (!state.is_set) {
 			state.value = input;
 			state.is_set = true;
 		} else {
@@ -489,7 +467,6 @@ struct RMinOperation {
 			state.value = input;
 		}
 	}
-
 };
 
 struct RMaxOperation {
@@ -502,14 +479,16 @@ struct RMaxOperation {
 };
 
 template <typename OP, typename T, bool NA_RM>
-unique_ptr<FunctionData> BindRMinMax_dispatch(ClientContext &context, AggregateFunction &function, vector<unique_ptr<Expression>> &arguments) {
+unique_ptr<FunctionData> BindRMinMax_dispatch(ClientContext &context, AggregateFunction &function,
+                                              vector<unique_ptr<Expression>> &arguments) {
 	auto type = arguments[0]->return_type;
-	function = AggregateFunction::UnaryAggregate<RMinMaxState<T>, T, T, RMinMaxOperation<OP, NA_RM>>(type, type) ;
+	function = AggregateFunction::UnaryAggregate<RMinMaxState<T>, T, T, RMinMaxOperation<OP, NA_RM>>(type, type);
 	return nullptr;
 }
 
 template <typename OP, typename T>
-unique_ptr<FunctionData> BindRMinMax(ClientContext &context, AggregateFunction &function, vector<unique_ptr<Expression>> &arguments) {
+unique_ptr<FunctionData> BindRMinMax(ClientContext &context, AggregateFunction &function,
+                                     vector<unique_ptr<Expression>> &arguments) {
 	auto na_rm = arguments[1]->ToString() == "true";
 	if (na_rm) {
 		return BindRMinMax_dispatch<OP, T, true>(context, function, arguments);
@@ -519,18 +498,14 @@ unique_ptr<FunctionData> BindRMinMax(ClientContext &context, AggregateFunction &
 }
 
 template <typename OP, LogicalTypeId TYPE>
-void add_RMinMax(AggregateFunctionSet& set) {
-	set.AddFunction(AggregateFunction(
-		{TYPE, LogicalType::BOOLEAN}, TYPE,
-		nullptr, nullptr, nullptr, nullptr, nullptr, FunctionNullHandling::DEFAULT_NULL_HANDLING, nullptr,
-		BindRMinMax<OP, typename physical<TYPE>::type>
-	));
+void add_RMinMax(AggregateFunctionSet &set) {
+	set.AddFunction(AggregateFunction({TYPE, LogicalType::BOOLEAN}, TYPE, nullptr, nullptr, nullptr, nullptr, nullptr,
+	                                  FunctionNullHandling::DEFAULT_NULL_HANDLING, nullptr,
+	                                  BindRMinMax<OP, typename physical<TYPE>::type>));
 
-	set.AddFunction(AggregateFunction(
-		{TYPE}, TYPE,
-		nullptr, nullptr, nullptr, nullptr, nullptr, FunctionNullHandling::DEFAULT_NULL_HANDLING, nullptr,
-		BindRMinMax_dispatch<OP, typename physical<TYPE>::type, false>
-	));
+	set.AddFunction(AggregateFunction({TYPE}, TYPE, nullptr, nullptr, nullptr, nullptr, nullptr,
+	                                  FunctionNullHandling::DEFAULT_NULL_HANDLING, nullptr,
+	                                  BindRMinMax_dispatch<OP, typename physical<TYPE>::type, false>));
 }
 
 template <typename OP>
@@ -554,9 +529,8 @@ AggregateFunctionSet base_r_max() {
 	return base_r_minmax<RMaxOperation>("r_base::max");
 }
 
-
-}
-}
+} // namespace rfuns
+} // namespace duckdb
 #include "rfuns_extension.hpp"
 #include "duckdb/parser/parsed_data/create_scalar_function_info.hpp"
 #include "duckdb/common/operator/string_cast.hpp"
@@ -572,20 +546,12 @@ namespace rfuns {
 
 namespace {
 
-enum Relop {
-	EQ,
-	NEQ,
-	LT,
-	LTE,
-	GT,
-	GTE
-};
+enum Relop { EQ, NEQ, LT, LTE, GT, GTE };
 
 template <typename LHS, typename RHS, Relop OP>
 struct RelopDispatch {
 	inline bool operator()(LHS lhs, RHS rhs);
 };
-
 
 template <typename LHS, typename RHS>
 struct RelopDispatch<LHS, RHS, EQ> {
@@ -635,16 +601,16 @@ inline bool relop(LHS lhs, RHS rhs) {
 }
 
 template <typename LHS, typename RHS>
-struct relop_adds_null : public std::integral_constant<bool, false>{};
+struct relop_adds_null : public std::integral_constant<bool, false> {};
 
 template <typename LHS>
-struct relop_adds_null<LHS, double> : public std::integral_constant<bool, true>{};
+struct relop_adds_null<LHS, double> : public std::integral_constant<bool, true> {};
 
 template <typename RHS>
-struct relop_adds_null<double, RHS> : public std::integral_constant<bool, true>{};
+struct relop_adds_null<double, RHS> : public std::integral_constant<bool, true> {};
 
 template <>
-struct relop_adds_null<double, double> : public std::integral_constant<bool, true>{};
+struct relop_adds_null<double, double> : public std::integral_constant<bool, true> {};
 
 template <typename T>
 bool set_null(T value, ValidityMask &mask, idx_t idx) {
@@ -663,15 +629,18 @@ bool set_null<double>(double value, ValidityMask &mask, idx_t idx) {
 template <LogicalTypeId LHS_LOGICAL, typename LHS_TYPE, LogicalTypeId RHS_LOGICAL, typename RHS_TYPE, Relop OP>
 void RelopExecuteDispatch(DataChunk &args, ExpressionState &state, Vector &result, std::false_type) {
 	auto parts = BinaryTypeAssert<LHS_LOGICAL, RHS_LOGICAL>(args);
-	BinaryExecutor::Execute<LHS_TYPE, RHS_TYPE, bool>(parts.lefts, parts.rights, result, args.size(), relop<LHS_TYPE, RHS_TYPE, OP>);
+	BinaryExecutor::Execute<LHS_TYPE, RHS_TYPE, bool>(parts.lefts, parts.rights, result, args.size(),
+	                                                  relop<LHS_TYPE, RHS_TYPE, OP>);
 }
 
 template <LogicalTypeId LHS_LOGICAL, typename LHS_TYPE, LogicalTypeId RHS_LOGICAL, typename RHS_TYPE, Relop OP>
 void RelopExecuteDispatch(DataChunk &args, ExpressionState &state, Vector &result, std::true_type) {
 	auto parts = BinaryTypeAssert<LHS_LOGICAL, RHS_LOGICAL>(args);
 	auto fun = [&](LHS_TYPE left, RHS_TYPE right, ValidityMask &mask, idx_t idx) {
-		if (set_null<LHS_TYPE>(left, mask, idx)) return false;
-		if (set_null<RHS_TYPE>(right, mask, idx)) return false;
+		if (set_null<LHS_TYPE>(left, mask, idx))
+			return false;
+		if (set_null<RHS_TYPE>(right, mask, idx))
+			return false;
 		return relop<LHS_TYPE, RHS_TYPE, OP>(left, right);
 	};
 	BinaryExecutor::ExecuteWithNulls<LHS_TYPE, RHS_TYPE, bool>(parts.lefts, parts.rights, result, args.size(), fun);
@@ -679,25 +648,25 @@ void RelopExecuteDispatch(DataChunk &args, ExpressionState &state, Vector &resul
 
 template <LogicalTypeId LHS_LOGICAL, typename LHS_TYPE, LogicalTypeId RHS_LOGICAL, typename RHS_TYPE, Relop OP>
 void RelopExecute(DataChunk &args, ExpressionState &state, Vector &result) {
-	RelopExecuteDispatch<LHS_LOGICAL, LHS_TYPE, RHS_LOGICAL, RHS_TYPE, OP>(args, state, result, typename relop_adds_null<LHS_TYPE, RHS_TYPE>::type());
+	RelopExecuteDispatch<LHS_LOGICAL, LHS_TYPE, RHS_LOGICAL, RHS_TYPE, OP>(
+	    args, state, result, typename relop_adds_null<LHS_TYPE, RHS_TYPE>::type());
 }
 
-#define RELOP_VARIANT(__LHS__, __RHS__) ScalarFunction(                      \
-	/* arguments   = */ {LogicalType::__LHS__, LogicalType::__RHS__},        \
-	/* return_type = */ LogicalType::BOOLEAN,                                \
-	/* function    = */ RelopExecute<                                        \
-		LogicalType::__LHS__, typename physical<LogicalType::__LHS__>::type, \
-	    LogicalType::__RHS__, typename physical<LogicalType::__RHS__>::type, \
-	    OP                                                                   \
-	>)
+#define RELOP_VARIANT(__LHS__, __RHS__)                                                                                \
+	ScalarFunction(/* arguments   = */ {LogicalType::__LHS__, LogicalType::__RHS__},                                   \
+	               /* return_type = */ LogicalType::BOOLEAN, /* function    = */                                       \
+	               RelopExecute<LogicalType::__LHS__, typename physical<LogicalType::__LHS__>::type,                   \
+	                            LogicalType::__RHS__, typename physical<LogicalType::__RHS__>::type, OP>)
 
-#define RELOP_VARIANT_BIND_FAIL(__LHS__, __RHS__, __WHY__) ScalarFunction(                \
-	  /* arguments   = */ {LogicalType::__LHS__, LogicalType::__RHS__},                   \
-	  /* return_type = */ LogicalType::BOOLEAN,                                           \
-	  /* function    = */ [](DataChunk &args, ExpressionState &state, Vector &result) {}, \
-	  /* bind        = */ [](ClientContext &context, ScalarFunction &bound_function, vector<duckdb::unique_ptr<Expression>> &arguments) -> unique_ptr<FunctionData> { \
-		throw InvalidInputException("%s : %s <=> %s", __WHY__, EnumUtil::ToChars(LogicalType::__LHS__), EnumUtil::ToChars(LogicalType::__RHS__)); \
-		})
+#define RELOP_VARIANT_BIND_FAIL(__LHS__, __RHS__, __WHY__)                                                             \
+	ScalarFunction(/* arguments   = */                                                                                 \
+	               {LogicalType::__LHS__, LogicalType::__RHS__}, /* return_type = */ LogicalType::BOOLEAN,             \
+	               /* function    = */ [](DataChunk &args, ExpressionState &state, Vector &result) {}, /* bind = */    \
+	               [](ClientContext &context, ScalarFunction &bound_function,                                          \
+	                  vector<duckdb::unique_ptr<Expression>> &arguments) -> unique_ptr<FunctionData> {                 \
+		               throw InvalidInputException("%s : %s <=> %s", __WHY__, EnumUtil::ToChars(LogicalType::__LHS__), \
+		                                           EnumUtil::ToChars(LogicalType::__RHS__));                           \
+	               })
 
 template <Relop OP>
 ScalarFunctionSet base_r_relop(string name) {
@@ -871,51 +840,40 @@ void InExecute(DataChunk &args, ExpressionState &state, Vector &result) {
 		}
 	};
 
-	switch(x.GetVectorType()) {
-		case VectorType::FLAT_VECTOR: {
-			result.SetVectorType(VectorType::FLAT_VECTOR);
+	switch (x.GetVectorType()) {
+	case VectorType::FLAT_VECTOR: {
+		result.SetVectorType(VectorType::FLAT_VECTOR);
 
-			in_loop(
-				count,
-				FlatVector::GetData<LHS_TYPE>(x),
-				FlatVector::GetData<bool>(result),
-				FlatVector::Validity(x)
-			);
+		in_loop(count, FlatVector::GetData<LHS_TYPE>(x), FlatVector::GetData<bool>(result), FlatVector::Validity(x));
 
-			break;
-		}
+		break;
+	}
 
-		case VectorType::CONSTANT_VECTOR: {
-			result.SetVectorType(VectorType::CONSTANT_VECTOR);
-			auto result_data = ConstantVector::GetData<bool>(result);
-			*result_data = is_in_y(*ConstantVector::GetData<LHS_TYPE>(x));
+	case VectorType::CONSTANT_VECTOR: {
+		result.SetVectorType(VectorType::CONSTANT_VECTOR);
+		auto result_data = ConstantVector::GetData<bool>(result);
+		*result_data = is_in_y(*ConstantVector::GetData<LHS_TYPE>(x));
 
-			break;
-		}
+		break;
+	}
 
-		default: {
-			UnifiedVectorFormat vdata;
-			x.ToUnifiedFormat(count, vdata);
-			result.SetVectorType(VectorType::FLAT_VECTOR);
-			in_loop(
-				count,
-				UnifiedVectorFormat::GetData<LHS_TYPE>(vdata),
-				FlatVector::GetData<bool>(result),
-				vdata.validity
-			);
+	default: {
+		UnifiedVectorFormat vdata;
+		x.ToUnifiedFormat(count, vdata);
+		result.SetVectorType(VectorType::FLAT_VECTOR);
+		in_loop(count, UnifiedVectorFormat::GetData<LHS_TYPE>(vdata), FlatVector::GetData<bool>(result),
+		        vdata.validity);
 
-			break;
-		}
+		break;
+	}
 	}
 }
 
-#define IN_VARIANT(__LHS__, __RHS__) ScalarFunction(                                      \
-	/* arguments   = */ {LogicalType::__LHS__, LogicalType::LIST(LogicalType::__RHS__)},  \
-	/* return_type = */ LogicalType::BOOLEAN,                                \
-	/* function    = */ InExecute<                                           \
-		typename physical<LogicalType::__LHS__>::type, \
-	    typename physical<LogicalType::__RHS__>::type  \
-	>)
+#define IN_VARIANT(__LHS__, __RHS__)                                                                                   \
+	ScalarFunction(                                                                                                    \
+	    /* arguments   = */ {LogicalType::__LHS__, LogicalType::LIST(LogicalType::__RHS__)},                           \
+	    /* return_type = */ LogicalType::BOOLEAN, /* function    = */                                                  \
+	    InExecute<typename physical<LogicalType::__LHS__>::type, typename physical<LogicalType::__RHS__>::type>)
 
 } // namespace
 
@@ -939,8 +897,6 @@ ScalarFunctionSet base_r_in() {
 
 	return set;
 }
-
-
 
 } // namespace rfuns
 } // namespace duckdb
@@ -988,7 +944,7 @@ static void register_rfuns(ExtensionLoader &loader) {
 	loader.RegisterFunction(base_r_min());
 	loader.RegisterFunction(base_r_max());
 }
-}  // namespace rfuns
+} // namespace rfuns
 
 static void LoadInternal(ExtensionLoader &loader) {
 	rfuns::register_rfuns(loader);
@@ -1053,7 +1009,8 @@ struct RSumOperation {
 
 	template <class INPUT_TYPE, class STATE, class OP>
 	static void Operation(STATE &state, const INPUT_TYPE &input, AggregateUnaryInput &unary_input) {
-		if (state.is_null) return;
+		if (state.is_null)
+			return;
 		if (!NA_RM && !unary_input.RowIsValid()) {
 			state.is_null = true;
 		} else {
@@ -1065,7 +1022,8 @@ struct RSumOperation {
 	}
 
 	template <class INPUT_TYPE, class STATE, class OP>
-	static void ConstantOperation(STATE &state, const INPUT_TYPE &input, AggregateUnaryInput &unary_input, idx_t count) {
+	static void ConstantOperation(STATE &state, const INPUT_TYPE &input, AggregateUnaryInput &unary_input,
+	                              idx_t count) {
 		if (!NA_RM && !unary_input.RowIsValid()) {
 			state.is_null = true;
 		} else {
@@ -1094,18 +1052,22 @@ struct RSumOperation {
 };
 
 template <bool NA_RM>
-unique_ptr<FunctionData> BindRSum_dispatch(ClientContext &context, AggregateFunction &function, vector<unique_ptr<Expression>> &arguments) {
+unique_ptr<FunctionData> BindRSum_dispatch(ClientContext &context, AggregateFunction &function,
+                                           vector<unique_ptr<Expression>> &arguments) {
 	auto type = arguments[0]->return_type;
 
 	switch (type.id()) {
 	case LogicalTypeId::DOUBLE:
-		function = AggregateFunction::UnaryAggregate<RSumKeepNaState<double>, double, double, RSumOperation<RegularAdd, NA_RM>>(type, type);
+		function = AggregateFunction::UnaryAggregate<RSumKeepNaState<double>, double, double,
+		                                             RSumOperation<RegularAdd, NA_RM>>(type, type);
 		break;
 	case LogicalTypeId::INTEGER:
-		function = AggregateFunction::UnaryAggregate<RSumKeepNaState<double>, int32_t, double, RSumOperation<RegularAdd, NA_RM>>(type, LogicalTypeId::DOUBLE);
+		function = AggregateFunction::UnaryAggregate<RSumKeepNaState<double>, int32_t, double,
+		                                             RSumOperation<RegularAdd, NA_RM>>(type, LogicalTypeId::DOUBLE);
 		break;
 	case LogicalTypeId::BOOLEAN:
-		function = AggregateFunction::UnaryAggregate<RSumKeepNaState<int32_t>, bool, int32_t, RSumOperation<RegularAdd, NA_RM>>(type, LogicalType::INTEGER);
+		function = AggregateFunction::UnaryAggregate<RSumKeepNaState<int32_t>, bool, int32_t,
+		                                             RSumOperation<RegularAdd, NA_RM>>(type, LogicalType::INTEGER);
 		break;
 	default:
 		break;
@@ -1114,7 +1076,8 @@ unique_ptr<FunctionData> BindRSum_dispatch(ClientContext &context, AggregateFunc
 	return nullptr;
 }
 
-unique_ptr<FunctionData> BindRSum(ClientContext &context, AggregateFunction &function, vector<unique_ptr<Expression>> &arguments) {
+unique_ptr<FunctionData> BindRSum(ClientContext &context, AggregateFunction &function,
+                                  vector<unique_ptr<Expression>> &arguments) {
 	auto na_rm = arguments[1]->ToString() == "true";
 	if (na_rm) {
 		return BindRSum_dispatch<true>(context, function, arguments);
@@ -1123,18 +1086,12 @@ unique_ptr<FunctionData> BindRSum(ClientContext &context, AggregateFunction &fun
 	}
 }
 
-void add_RSum(AggregateFunctionSet& set, const LogicalType& type, const LogicalType& return_type) {
-	set.AddFunction(AggregateFunction(
-		{type, LogicalType::BOOLEAN}, return_type,
-		nullptr, nullptr, nullptr, nullptr, nullptr, FunctionNullHandling::DEFAULT_NULL_HANDLING, nullptr,
-		BindRSum
-	));
+void add_RSum(AggregateFunctionSet &set, const LogicalType &type, const LogicalType &return_type) {
+	set.AddFunction(AggregateFunction({type, LogicalType::BOOLEAN}, return_type, nullptr, nullptr, nullptr, nullptr,
+	                                  nullptr, FunctionNullHandling::DEFAULT_NULL_HANDLING, nullptr, BindRSum));
 
-	set.AddFunction(AggregateFunction(
-		{type}, return_type,
-		nullptr, nullptr, nullptr, nullptr, nullptr, FunctionNullHandling::DEFAULT_NULL_HANDLING, nullptr,
-		BindRSum_dispatch<false>
-	));
+	set.AddFunction(AggregateFunction({type}, return_type, nullptr, nullptr, nullptr, nullptr, nullptr,
+	                                  FunctionNullHandling::DEFAULT_NULL_HANDLING, nullptr, BindRSum_dispatch<false>));
 }
 
 AggregateFunctionSet base_r_sum() {
@@ -1147,5 +1104,5 @@ AggregateFunctionSet base_r_sum() {
 	return set;
 }
 
-}
-}
+} // namespace rfuns
+} // namespace duckdb

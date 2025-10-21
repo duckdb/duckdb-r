@@ -56,11 +56,11 @@ static void SetDefaultConfigArguments(ClientContext &context) {
 
 [[cpp11::register]] duckdb::conn_eptr_t rapi_connect(duckdb::db_eptr_t dual, duckdb::ConvertOpts convert_opts) {
 	if (!dual || !dual.get()) {
-		cpp11::stop("rapi_connect: Invalid database reference");
+		rapi_error_with_context("rapi_connect", "Invalid database reference");
 	}
 	auto db = dual->get();
 	if (!db || !db->db) {
-		cpp11::stop("rapi_connect: Database already closed");
+		rapi_error_with_context("rapi_connect", "Database already closed");
 	}
 
 	auto conn_wrapper = make_uniq<ConnWrapper>(std::move(db), std::move(convert_opts));
@@ -83,4 +83,32 @@ static void SetDefaultConfigArguments(ClientContext &context) {
 	if (conn_wrapper) {
 		delete conn_wrapper;
 	}
+}
+
+[[cpp11::register]] bool rapi_connection_valid(duckdb::conn_eptr_t conn) {
+	// Check connection validity without acquiring ClientContext locks
+	// This avoids the "ScopedInterruptHandler already active" issue when
+	// called from progress bar handlers or other contexts that already
+	// have interrupt protection
+	if (!conn || !conn.get()) {
+		return false;
+	}
+
+	auto conn_wrapper = conn.get();
+	if (!conn_wrapper) {
+		return false;
+	}
+
+	// Check if the connection object exists
+	if (!conn_wrapper->conn) {
+		return false;
+	}
+
+	// Check if the database wrapper is still valid
+	if (!conn_wrapper->db || !conn_wrapper->db->db) {
+		return false;
+	}
+
+	// All checks passed - connection appears valid
+	return true;
 }

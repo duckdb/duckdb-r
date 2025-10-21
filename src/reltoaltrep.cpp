@@ -90,18 +90,18 @@ void RelToAltrep::Initialize(DllInfo *dll) {
 template <class T>
 static T *GetFromExternalPtr(SEXP x) {
 	if (!x) {
-		cpp11::stop("GetFromExternalPtr: need a SEXP pointer");
+		rapi_error_with_context("GetFromExternalPtr", "need a SEXP pointer");
 	}
 	if (!ALTREP(x)) {
-		cpp11::stop("GetFromExternalPtr: not an ALTREP");
+		rapi_error_with_context("GetFromExternalPtr", "not an ALTREP");
 	}
 	auto ptr = R_altrep_data1(x);
 	if (TYPEOF(ptr) != EXTPTRSXP) {
-		cpp11::stop("GetFromExternalPtr: data1 is not an external pointer");
+		rapi_error_with_context("GetFromExternalPtr", "data1 is not an external pointer");
 	}
 	auto wrapper = (T *)R_ExternalPtrAddr(ptr);
 	if (!wrapper) {
-		cpp11::stop("GetFromExternalPtr: This looks like it has been freed");
+		rapi_error_with_context("GetFromExternalPtr", "This looks like it has been freed");
 	}
 	return wrapper;
 }
@@ -120,12 +120,13 @@ bool AltrepRelationWrapper::HasQueryResult() const {
 
 MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 	if (!mat_error.empty()) {
-		cpp11::stop(mat_error);
+		rapi_error_with_context("GetQueryResult", mat_error);
 	}
 
 	if (!mat_result) {
 		if (n_cells == 0) {
-			cpp11::stop("Materialization is disabled, use collect() or as_tibble() to materialize.");
+			rapi_error_with_context("GetQueryResult",
+			                        "Materialization is disabled, use `collect()` or `as_tibble()` to materialize.");
 		}
 
 		auto materialize_callback = Rf_GetOption1(RStrings::get().materialize_callback_sym);
@@ -153,7 +154,7 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 		Materialize();
 
 		if (!mat_error.empty()) {
-			cpp11::stop(mat_error);
+			rapi_error_with_context("GetQueryResult", mat_error);
 		}
 
 		// FIXME: Use std::experimental::scope_exit
@@ -164,9 +165,7 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 		rel->context->GetContext()->config.max_expression_depth = old_depth;
 		reset_max_expression_depth.release();
 
-		if (signal_handler.HandleInterrupt()) {
-			cpp11::stop("Query execution was interrupted");
-		}
+		signal_handler.HandleInterrupt();
 
 		signal_handler.Disable();
 	}
@@ -206,7 +205,7 @@ void AltrepRelationWrapper::Materialize() {
 		auto local_mat_res = (MaterializedQueryResult *)local_res.get();
 		if (local_mat_res->RowCount() > max_rows) {
 			mat_error = duckdb_fmt::format(
-			    "Materialization would result in more than {} rows. Use collect() or as_tibble() to materialize.",
+			    "Materialization would result in more than {} rows. Use `collect()` or `as_tibble()` to materialize.",
 			    max_rows);
 			return;
 		}
@@ -230,37 +229,117 @@ struct AltrepRownamesWrapper {
 };
 
 struct AltrepVectorWrapper {
-	AltrepVectorWrapper(duckdb::shared_ptr<AltrepRelationWrapper> rel_p, idx_t column_index_p)
-	    : rel(rel_p), column_index(column_index_p) {
+	// In the absence of nested types, parent_column_index is empty.
+	// For nested types, it contains the sequence of parent indices to reach
+	// the struct that contains this column.
+	// E.g. for a column `a$b$c`, where `a` is column 3, `b` is field 2 of `a`, and `c` is field 1 of `b`,
+	// we have column_index = 1, parent_column_index = {3, 2}.
+	AltrepVectorWrapper(duckdb::shared_ptr<AltrepRelationWrapper> rel_p, idx_t column_index_p,
+	                    std::vector<idx_t> parent_column_index_p)
+	    : rel(rel_p), column_index(column_index_p), parent_column_index(std::move(parent_column_index_p)) {
 	}
 
 	static AltrepVectorWrapper *Get(SEXP x) {
 		return GetFromExternalPtr<AltrepVectorWrapper>(x);
 	}
 
+	idx_t RowCount() {
+		auto res = rel->GetQueryResult();
+		return res->RowCount();
+	}
+
+	const string &Name() {
+		auto res = rel->GetQueryResult();
+
+		if (parent_column_index.empty()) {
+			return res->names[column_index];
+		}
+
+		auto child_type = res->types[parent_column_index[0]];
+		for (idx_t i = 1; i < parent_column_index.size(); i++) {
+			child_type = StructType::GetChildType(child_type, parent_column_index[i]);
+		}
+
+		return StructType::GetChildName(child_type, column_index);
+	}
+
+	string FullName() {
+		auto res = rel->GetQueryResult();
+
+		if (parent_column_index.empty()) {
+			return res->names[column_index];
+		}
+
+		string res_name = res->names[parent_column_index[0]];
+		auto child_type = res->types[parent_column_index[0]];
+		for (idx_t i = 1; i < parent_column_index.size(); i++) {
+			res_name += "$" + StructType::GetChildName(child_type, parent_column_index[i]);
+			child_type = StructType::GetChildType(child_type, parent_column_index[i]);
+		}
+		res_name += "$" + StructType::GetChildName(child_type, column_index);
+		return res_name;
+	}
+
+	const LogicalType &Type() {
+		auto res = rel->GetQueryResult();
+
+		if (parent_column_index.empty()) {
+			return res->types[column_index];
+		}
+
+		auto child_type = res->types[parent_column_index[0]];
+		for (idx_t i = 1; i < parent_column_index.size(); i++) {
+			child_type = StructType::GetChildType(child_type, parent_column_index[i]);
+		}
+		return StructType::GetChildType(child_type, column_index);
+	}
+
+	ColumnDataChunkIterationHelper Chunks() {
+		auto res = rel->GetQueryResult();
+
+		if (parent_column_index.empty()) {
+			return res->Collection().Chunks({column_index});
+		} else {
+			return res->Collection().Chunks({parent_column_index[0]});
+		}
+	}
+
+	const Vector &ChunkData(const DataChunk &chunk) {
+		if (parent_column_index.empty()) {
+			return chunk.data[0];
+		}
+
+		auto struct_vector = &chunk.data[0];
+		for (idx_t i = 1; i < parent_column_index.size(); i++) {
+			struct_vector = &*StructVector::GetEntries(*struct_vector)[parent_column_index[i]];
+		}
+
+		return *StructVector::GetEntries(*struct_vector)[column_index];
+	}
+
 	void *Dataptr() {
 		if (transformed_vector.data() == R_NilValue) {
-			auto res = rel->GetQueryResult();
-			const auto &name = res->names[column_index];
+			const auto &convert_opts = rel->rel_eptr->convert_opts;
 
-			transformed_vector = duckdb_r_allocate(res->types[column_index], res->RowCount(), name, duckdb::ConvertOpts(),"Dataptr");
+			transformed_vector = duckdb_r_allocate(Type(), RowCount(), Name(), convert_opts, "Dataptr");
 			idx_t dest_offset = 0;
-			for (auto &chunk : res->Collection().Chunks()) {
+			for (const auto &chunk : Chunks()) {
 				SEXP dest = transformed_vector.data();
-				duckdb_r_transform(chunk.data[column_index], dest, dest_offset, chunk.size(), duckdb::ConvertOpts(), name);
+				duckdb_r_transform(ChunkData(chunk), dest, dest_offset, chunk.size(), convert_opts, FullName());
 				dest_offset += chunk.size();
 			}
 		}
 		return const_cast<void *>(DATAPTR_RO(transformed_vector));
 	}
 
-	SEXP Vector() {
+	SEXP RVector() {
 		Dataptr();
 		return transformed_vector;
 	}
 
 	duckdb::shared_ptr<AltrepRelationWrapper> rel;
 	idx_t column_index;
+	std::vector<idx_t> parent_column_index;
 	cpp11::sexp transformed_vector;
 };
 
@@ -322,7 +401,7 @@ void *RelToAltrep::DoRownamesDataptrGet(SEXP x) {
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
 	auto row_count = rownames_wrapper->rel->GetQueryResult()->RowCount();
 	if (row_count > (idx_t)NumericLimits<int32_t>::Maximum()) {
-		cpp11::stop("Integer overflow for row.names attribute");
+		rapi_error_with_context("altrep_rownames_integer_Elt", "Integer overflow for row.names attribute");
 	}
 	rownames_wrapper->rowlen_data[1] = -row_count;
 	return rownames_wrapper->rowlen_data;
@@ -342,7 +421,7 @@ void *RelToAltrep::VectorDataptr(SEXP x, Rboolean writeable) {
 
 SEXP RelToAltrep::VectorStringElt(SEXP x, R_xlen_t i) {
 	BEGIN_CPP11
-	return STRING_ELT(AltrepVectorWrapper::Get(x)->Vector(), i);
+	return STRING_ELT(AltrepVectorWrapper::Get(x)->RVector(), i);
 	END_CPP11
 }
 
@@ -360,7 +439,7 @@ R_xlen_t RelToAltrep::StructLength(SEXP x) {
 
 SEXP RelToAltrep::VectorListElt(SEXP x, R_xlen_t i) {
 	BEGIN_CPP11
-	return VECTOR_ELT(AltrepVectorWrapper::Get(x)->Vector(), i);
+	return VECTOR_ELT(AltrepVectorWrapper::Get(x)->RVector(), i);
 	END_CPP11
 }
 #endif
@@ -386,23 +465,28 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type, const d
 #endif
 
 	default:
-		cpp11::stop("LogicalTypeToAltrepType: Column `%s` has no type for altrep: %s", name.c_str(), type.ToString().c_str());
+		std::string error_msg = "Column `" + name + "` has no type for altrep: " + type.ToString();
+		rapi_error_with_context("LogicalTypeToAltrepType", error_msg);
 	}
 }
 
 size_t DoubleToSize(double d) {
 	if (d < 0) {
-		cpp11::stop("rel_to_altrep: Negative size");
+		rapi_error_with_context("DoubleToSize", "Negative size");
 	}
 	if (!std::isfinite(d)) {
 		// Return maximum size_t for Inf
 		return MAX_SIZE_T;
 	}
 	if (d >= (double)MAX_SIZE_T) {
-		cpp11::stop("rel_to_altrep: Size overflow");
+		rapi_error_with_context("DoubleToSize", "Size overflow");
 	}
 	return (size_t)d;
 }
+
+SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_wrapper, SEXP row_names_sexp,
+                             const child_list_t<LogicalType> &types, const ConvertOpts &convert_opts,
+                             std::vector<idx_t> parent_col_idx = {});
 
 [[cpp11::register]] SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel, double n_rows, double n_cells) {
 	D_ASSERT(rel && rel->rel);
@@ -416,27 +500,52 @@ size_t DoubleToSize(double d) {
 	R_SetExternalPtrTag(ptr, RStrings::get().duckdb_row_names_sym);
 	cpp11::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, R_NilValue);
 
-	// Data
-	cpp11::writable::list data_frame;
-	data_frame.reserve(ncols);
-
+	child_list_t<LogicalType> types;
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
 		auto &col = drel->Columns()[col_idx];
 		auto &col_name = col.Name();
 		auto &col_type = col.Type();
-		cpp11::external_pointer<AltrepVectorWrapper> ptr(new AltrepVectorWrapper(relation_wrapper, col_idx));
+
+		types.push_back(make_pair(col_name, col_type));
+	}
+
+	return rapi_rel_to_altrep_impl(relation_wrapper, row_names_sexp, types, rel->convert_opts);
+}
+
+SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_wrapper, SEXP row_names_sexp,
+                             const child_list_t<LogicalType> &types, const ConvertOpts &convert_opts,
+                             std::vector<idx_t> parent_col_idx) {
+	auto ncols = types.size();
+
+	// Data
+	cpp11::writable::list data_frame;
+	data_frame.reserve(ncols);
+
+	cpp11::writable::strings names;
+	names.reserve(ncols);
+
+	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
+		auto &col_name = types[col_idx].first;
+		names.push_back(col_name);
+
+		auto &col_type = types[col_idx].second;
+		cpp11::external_pointer<AltrepVectorWrapper> ptr(
+		    new AltrepVectorWrapper(relation_wrapper, col_idx, parent_col_idx));
 		R_SetExternalPtrTag(ptr, RStrings::get().duckdb_vector_sym);
 
-		cpp11::sexp vector_sexp = R_new_altrep(LogicalTypeToAltrepType(col_type, col_name), ptr, R_NilValue);
-
-		duckdb_r_decorate(col_type, vector_sexp, rel->convert_opts);
+		cpp11::sexp vector_sexp;
 
 		// Special case: Only STRUCTs have a redundant row names attribute
 		// Moving this logic into duckdb_r_decorate() would add too much noise elsewhere
 		if (col_type.id() == LogicalTypeId::STRUCT) {
-			// FIXME: The exact class of nested columns can be a property
-			// of the relation object, determined by the data on input
-			duckdb_r_df_decorate_impl(vector_sexp, row_names_sexp, RStrings::get().dataframe_str);
+			auto &child_types = StructType::GetChildTypes(col_type);
+			std::vector<idx_t> child_col_idx = parent_col_idx;
+			child_col_idx.push_back(col_idx);
+			vector_sexp =
+			    rapi_rel_to_altrep_impl(relation_wrapper, row_names_sexp, child_types, convert_opts, child_col_idx);
+		} else {
+			vector_sexp = R_new_altrep(LogicalTypeToAltrepType(col_type, col_name), ptr, R_NilValue);
+			duckdb_r_decorate(col_type, vector_sexp, convert_opts);
 		}
 
 		data_frame.push_back(vector_sexp);
@@ -446,13 +555,12 @@ size_t DoubleToSize(double d) {
 	(void)(SEXP)data_frame;
 
 	// Names
-	vector<string> names;
-	for (auto &col : drel->Columns()) {
-		names.push_back(col.Name());
-	}
-	SET_NAMES(data_frame, StringsToSexp(names));
+	SET_NAMES(data_frame, names);
 
 	// Class and row names
+	// FIXME: The exact class of nested columns can be a property
+	// of the relation object, determined by the data on input,
+	// or a property of the ConvertOpts.
 	duckdb_r_df_decorate_impl(data_frame, row_names_sexp, RStrings::get().dataframe_str);
 
 	return data_frame;
@@ -461,7 +569,7 @@ size_t DoubleToSize(double d) {
 shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool strict, bool allow_materialized) {
 	if (!Rf_inherits(df, "data.frame")) {
 		if (strict) {
-			cpp11::stop("rapi_rel_from_altrep_df: Not a data.frame");
+			rapi_error_with_context("rapi_rel_from_altrep_df", "Not a data.frame");
 		} else {
 			return nullptr;
 		}
@@ -470,7 +578,7 @@ shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool 
 	auto row_names = get_attrib(df, R_RowNamesSymbol);
 	if (row_names == R_NilValue || !ALTREP(row_names)) {
 		if (strict) {
-			cpp11::stop("rapi_rel_from_altrep_df: Not a 'special' data.frame, row names are not ALTREP");
+			rapi_error_with_context("rapi_rel_from_altrep_df", "Not a 'special' data.frame, row names are not ALTREP");
 		} else {
 			return nullptr;
 		}
@@ -479,7 +587,8 @@ shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool 
 	auto altrep_data = R_altrep_data1(row_names);
 	if (TYPEOF(altrep_data) != EXTPTRSXP) {
 		if (strict) {
-			cpp11::stop("rapi_rel_from_altrep_df: Not our 'special' data.frame, data1 is not external pointer");
+			rapi_error_with_context("rapi_rel_from_altrep_df",
+			                        "Not our 'special' data.frame, data1 is not external pointer");
 		} else {
 			return nullptr;
 		}
@@ -488,7 +597,7 @@ shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool 
 	auto tag = R_ExternalPtrTag(altrep_data);
 	if (tag != RStrings::get().duckdb_row_names_sym) {
 		if (strict) {
-			cpp11::stop("rapi_rel_from_altrep_df: Not our 'special' data.frame, tag missing");
+			rapi_error_with_context("rapi_rel_from_altrep_df", "Not our 'special' data.frame, tag missing");
 		} else {
 			return nullptr;
 		}

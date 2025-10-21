@@ -12,6 +12,10 @@ authors:
     href: "https://krlmlr.info/"
 
 reference:
+- title: Getting started
+  contents:
+  - sql_query
+  - default_conn
 - title: Driver
   contents:
   - duckdb

@@ -7,8 +7,7 @@
 using namespace duckdb;
 using namespace cpp11;
 
-static
-data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
+static data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 	switch (rtype.id()) {
 	case RType::LOGICAL:
 		return (data_ptr_t)LOGICAL_POINTER(coldata);
@@ -39,12 +38,12 @@ data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 		return (data_ptr_t)INTEGER_POINTER(coldata);
 	case RType::DATE:
 		if (!IS_NUMERIC(coldata)) {
-			cpp11::stop("DATE should be of numeric type");
+			rapi_error_with_context("GetColDataPtr", "DATE should be of numeric type");
 		}
 		return (data_ptr_t)NUMERIC_POINTER(coldata);
 	case RType::DATE_INTEGER:
 		if (!IS_INTEGER(coldata)) {
-			cpp11::stop("DATE_INTEGER should be of integer type");
+			rapi_error_with_context("GetColDataPtr", "DATE_INTEGER should be of integer type");
 		}
 		return (data_ptr_t)INTEGER_POINTER(coldata);
 	case RType::LIST_OF_NULLS:
@@ -57,7 +56,7 @@ data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 		// Will bind child columns dynamically. Could also optimize by descending early and recording.
 		return (data_ptr_t)coldata;
 	default:
-		cpp11::stop("GetColDataPtr: Unsupported column type for bind");
+		rapi_error_with_context("GetColDataPtr", "Unsupported column type for bind");
 	}
 }
 
@@ -85,8 +84,8 @@ static void AppendColumnSegment(SRC *source_data, idx_t sexp_offset, Vector &res
 	}
 }
 
-static
-void AppendListColumnSegment(const RType &rtype, SEXP *source_data, idx_t sexp_offset, Vector &result, idx_t count) {
+static void AppendListColumnSegment(const RType &rtype, SEXP *source_data, idx_t sexp_offset, Vector &result,
+                                    idx_t count) {
 	source_data += sexp_offset;
 	auto &result_mask = FlatVector::Validity(result);
 	auto child_rtype = rtype.GetListChildType();
@@ -108,9 +107,8 @@ void AppendListColumnSegment(const RType &rtype, SEXP *source_data, idx_t sexp_o
 }
 
 template <class SRC, class DST, class RTYPE>
-static inline
-void AppendMatrixSegmentAtomic(SRC *src_ptr, int nrows, int ncols, idx_t sexp_offset,
-                               Vector &child_vector, idx_t count) {
+static inline void AppendMatrixSegmentAtomic(SRC *src_ptr, int nrows, int ncols, idx_t sexp_offset,
+                                             Vector &child_vector, idx_t count) {
 	auto child_data = FlatVector::GetData<DST>(child_vector);
 	auto &child_mask = FlatVector::Validity(child_vector);
 	idx_t vector_idx = 0;
@@ -128,61 +126,59 @@ void AppendMatrixSegmentAtomic(SRC *src_ptr, int nrows, int ncols, idx_t sexp_of
 	}
 }
 
-static
-void AppendMatrixColumnSegment(const RType &rtype, bool experimental, SEXP source_data, idx_t sexp_offset, Vector &result, idx_t count) {
+static void AppendMatrixColumnSegment(const RType &rtype, bool experimental, SEXP source_data, idx_t sexp_offset,
+                                      Vector &result, idx_t count) {
 	auto element_rtype = rtype.GetMatrixElementType();
 	auto nrows = Rf_nrows(source_data);
 	auto ncols = Rf_ncols(source_data);
 	auto &child_vector = ArrayVector::GetEntry(result);
 
 	switch (element_rtype.id()) {
-	case RType::LOGICAL: //LGLSXP
-		AppendMatrixSegmentAtomic<int, bool, RBooleanType>(LOGICAL_POINTER(source_data),
-		                                                   nrows, ncols, sexp_offset, child_vector, count);
+	case RType::LOGICAL: // LGLSXP
+		AppendMatrixSegmentAtomic<int, bool, RBooleanType>(LOGICAL_POINTER(source_data), nrows, ncols, sexp_offset,
+		                                                   child_vector, count);
 		break;
 
-	case RType::INTEGER: //INTSXP
-		AppendMatrixSegmentAtomic<int, int, RIntegerType>(INTEGER_POINTER(source_data),
-		                                                  nrows, ncols, sexp_offset, child_vector, count);
+	case RType::INTEGER: // INTSXP
+		AppendMatrixSegmentAtomic<int, int, RIntegerType>(INTEGER_POINTER(source_data), nrows, ncols, sexp_offset,
+		                                                  child_vector, count);
 		break;
 
-	case RType::INTEGER64: //REALSXP
-		AppendMatrixSegmentAtomic<int64_t, int64_t, RInteger64Type>((int64_t *)NUMERIC_POINTER(source_data),
-		                                                            nrows, ncols, sexp_offset, child_vector, count);
+	case RType::INTEGER64: // REALSXP
+		AppendMatrixSegmentAtomic<int64_t, int64_t, RInteger64Type>((int64_t *)NUMERIC_POINTER(source_data), nrows,
+		                                                            ncols, sexp_offset, child_vector, count);
 		break;
 
-	case RType::NUMERIC: //REALSXP
-		AppendMatrixSegmentAtomic<double, double, RDoubleType>(NUMERIC_POINTER(source_data),
-		                                                       nrows, ncols, sexp_offset, child_vector, count);
+	case RType::NUMERIC: // REALSXP
+		AppendMatrixSegmentAtomic<double, double, RDoubleType>(NUMERIC_POINTER(source_data), nrows, ncols, sexp_offset,
+		                                                       child_vector, count);
 		break;
 
 	case RTypeId::BYTE: // RAWSXP
-		cpp11::stop("Matrix of type raw is not supported.");
+		rapi_error_with_context("AppendMatrixColumnSegment", "Matrix of type raw is not supported.");
 		break;
 
-	case RType::STRING: //STRSXP
+	case RType::STRING: // STRSXP
 		if (experimental) {
 			D_ASSERT(result.GetType().id() == LogicalTypeId::POINTER);
-			AppendMatrixSegmentAtomic<SEXP, uintptr_t, DedupPointerEnumType>((SEXP *)DATAPTR_RO(source_data),
-		                                                                     nrows, ncols, sexp_offset, child_vector, count);
+			AppendMatrixSegmentAtomic<SEXP, uintptr_t, DedupPointerEnumType>((SEXP *)DATAPTR_RO(source_data), nrows,
+			                                                                 ncols, sexp_offset, child_vector, count);
 		} else {
-			AppendMatrixSegmentAtomic<SEXP, string_t, RStringSexpType>((SEXP *)DATAPTR_RO(source_data),
-		                                                               nrows, ncols, sexp_offset, child_vector, count);
+			AppendMatrixSegmentAtomic<SEXP, string_t, RStringSexpType>((SEXP *)DATAPTR_RO(source_data), nrows, ncols,
+			                                                           sexp_offset, child_vector, count);
 		}
 		break;
 
 	default:
-		cpp11::stop("AppendMatrixColumnSegment: Unsupported matrix type for scan");
+		rapi_error_with_context("AppendMatrixColumnSegment", "Unsupported matrix type for scan");
 	}
 }
 
-static
-void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_ptr_t coldata_ptr, idx_t sexp_offset, Vector &v,
-                            idx_t this_count);
+static void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_ptr_t coldata_ptr, idx_t sexp_offset,
+                                   Vector &v, idx_t this_count);
 
-static
-void AppendStructColumnSegment(const RType &rtype, bool experimental, SEXP source_data, idx_t sexp_offset,
-                               Vector &result, idx_t count) {
+static void AppendStructColumnSegment(const RType &rtype, bool experimental, SEXP source_data, idx_t sexp_offset,
+                                      Vector &result, idx_t count) {
 	// No NULL values for STRUCTs.
 	auto &child_entries = StructVector::GetEntries(result);
 	auto child_rtypes = rtype.GetStructChildTypes();
@@ -194,9 +190,8 @@ void AppendStructColumnSegment(const RType &rtype, bool experimental, SEXP sourc
 	}
 }
 
-static
-void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_ptr_t coldata_ptr, idx_t sexp_offset, Vector &v,
-                            idx_t this_count) {
+static void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_ptr_t coldata_ptr, idx_t sexp_offset,
+                                   Vector &v, idx_t this_count) {
 	switch (rtype.id()) {
 	case RType::LOGICAL: {
 		auto data_ptr = (int *)coldata_ptr;
@@ -247,8 +242,8 @@ void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_ptr_t co
 			break;
 
 		default:
-			cpp11::stop("AppendAnyColumnSegment: Unknown enum type for scan: %s",
-			            TypeIdToString(v.GetType().InternalType()).c_str());
+			std::string error_msg = "Unknown enum type for scan: " + TypeIdToString(v.GetType().InternalType());
+			rapi_error_with_context("AppendAnyColumnSegment", error_msg);
 		}
 		break;
 	}
@@ -339,7 +334,7 @@ void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_ptr_t co
 		break;
 	}
 	default:
-		cpp11::stop("AppendAnyColumnSegment: Unsupported column type for scan");
+		rapi_error_with_context("AppendAnyColumnSegment", "Unsupported column type for scan");
 	}
 }
 
