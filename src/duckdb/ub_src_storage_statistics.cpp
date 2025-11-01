@@ -16,3 +16,5 @@
 
 #include "src/storage/statistics/struct_stats.cpp"
 
+#include "src/storage/statistics/geometry_stats.cpp"
+
