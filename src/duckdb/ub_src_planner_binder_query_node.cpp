@@ -12,10 +12,6 @@
 
 #include "src/planner/binder/query_node/plan_query_node.cpp"
 
-#include "src/planner/binder/query_node/plan_recursive_cte_node.cpp"
-
-#include "src/planner/binder/query_node/plan_cte_node.cpp"
-
 #include "src/planner/binder/query_node/plan_select_node.cpp"
 
 #include "src/planner/binder/query_node/plan_setop.cpp"
