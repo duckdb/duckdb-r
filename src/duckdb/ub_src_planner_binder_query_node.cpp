@@ -6,6 +6,8 @@
 
 #include "src/planner/binder/query_node/bind_cte_node.cpp"
 
+#include "src/planner/binder/query_node/bind_statement_node.cpp"
+
 #include "src/planner/binder/query_node/bind_table_macro_node.cpp"
 
 #include "src/planner/binder/query_node/plan_query_node.cpp"
