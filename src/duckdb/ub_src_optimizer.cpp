@@ -50,6 +50,8 @@
 
 #include "src/optimizer/topn_optimizer.cpp"
 
+#include "src/optimizer/topn_window_elimination.cpp"
+
 #include "src/optimizer/unnest_rewriter.cpp"
 
 #include "src/optimizer/sampling_pushdown.cpp"
