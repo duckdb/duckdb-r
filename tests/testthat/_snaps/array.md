@@ -34,6 +34,6 @@
       ! Can't convert R type to logical type
       i Context: SexpToLogicalType
       Error in `.local()`:
-      ! std::exception
+      ! {"exception_type":"Invalid","exception_message":"std::exception"}
       i Context: rapi_register_df
 
