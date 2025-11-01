@@ -1324,7 +1324,6 @@ static bool IsSymbolicLink(const string &path) {
 
 static void RecursiveGlobDirectories(FileSystem &fs, const string &path, vector<OpenFileInfo> &result,
                                      bool match_directory, bool join_path) {
-
 	fs.ListFiles(path, [&](OpenFileInfo &info) {
 		if (join_path) {
 			info.path = fs.JoinPath(path, info.path);
