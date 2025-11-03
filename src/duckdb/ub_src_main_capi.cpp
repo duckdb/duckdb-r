@@ -10,6 +10,8 @@
 
 #include "src/main/capi/config_options-c.cpp"
 
+#include "src/main/capi/copy_function-c.cpp"
+
 #include "src/main/capi/data_chunk-c.cpp"
 
 #include "src/main/capi/datetime-c.cpp"
