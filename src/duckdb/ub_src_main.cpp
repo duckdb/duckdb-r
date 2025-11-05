@@ -56,6 +56,8 @@
 
 #include "src/main/query_result.cpp"
 
+#include "src/main/result_set_manager.cpp"
+
 #include "src/main/stream_query_result.cpp"
 
 #include "src/main/valid_checker.cpp"
