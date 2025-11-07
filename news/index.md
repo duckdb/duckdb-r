@@ -1,5 +1,54 @@
 # Changelog
 
+## duckdb 1.4.1.9013
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@6c6af22ea45effc67dc9e76feec3fb73208750bb>
+  ([\#1688](https://github.com/duckdb/duckdb-r/issues/1688)).
+
+- Update vendored sources to
+  <duckdb/duckdb@ecc73b2b4b10beb175968e55e24e69241d00df1b>
+  ([\#1686](https://github.com/duckdb/duckdb-r/issues/1686)).
+
+## duckdb 1.4.1.9012
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@db845b80c76452054e26cf7a2d715769592de925>
+  (duckdb/duckdb#19455,
+  [\#1677](https://github.com/duckdb/duckdb-r/issues/1677)).
+
+## duckdb 1.4.1.9011
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@66100df7aeb321d37f2434416df59dc274948987>
+  ([\#1674](https://github.com/duckdb/duckdb-r/issues/1674)).
+
+- Update vendored sources to
+  <duckdb/duckdb@97fdeddb2bd5c34862afd30177c9184f51f6dccd>
+  ([\#1667](https://github.com/duckdb/duckdb-r/issues/1667)).
+
+## duckdb 1.4.1.9010
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@73c0d0db15621d3d1c2936816becf27e2c41e2ab>
+  ([\#1664](https://github.com/duckdb/duckdb-r/issues/1664)).
+
+- Update vendored sources to
+  <duckdb/duckdb@d643cefe13de6873f6fb0ecc0bca1c14111cde11>
+  ([\#1660](https://github.com/duckdb/duckdb-r/issues/1660)).
+
+### revdep
+
+- No downstream problems.
+
 ## duckdb 1.4.1.9009
 
 ### vendor
