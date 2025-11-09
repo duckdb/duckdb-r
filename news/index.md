@@ -1,5 +1,29 @@
 # Changelog
 
+## duckdb 1.4.1.9015
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@e3d242509e5710314921a0d7debd0bedb4d10a3e>
+  ([\#1705](https://github.com/duckdb/duckdb-r/issues/1705)).
+
+## duckdb 1.4.1.9014
+
+### Continuous integration
+
+- Sync ([\#1691](https://github.com/duckdb/duckdb-r/issues/1691)).
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@7ce99bc04130615dfc3a39dfb79177a8942fefba>
+  ([\#1694](https://github.com/duckdb/duckdb-r/issues/1694)).
+
+- Update vendored sources to
+  <duckdb/duckdb@1555b0488e322998e6fd06cc47e1909c7bb4eba4>
+  ([\#1692](https://github.com/duckdb/duckdb-r/issues/1692)).
+
 ## duckdb 1.4.1.9013
 
 ### vendor
