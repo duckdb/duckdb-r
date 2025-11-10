@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.1.9016
+
+## Continuous integration
+
+- Use workflows for fledge (#1707).
+
+
 # duckdb 1.4.1.9015
 
 ## vendor
