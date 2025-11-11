@@ -1,5 +1,25 @@
 # Changelog
 
+## duckdb 1.4.1.9017
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@3f0ad6958f1952a083bc499fc147f69504a3c6d2>
+  (duckdb/duckdb#19355, duckdb/duckdb#19700,
+  [\#1715](https://github.com/duckdb/duckdb-r/issues/1715)).
+
+- Update vendored sources to
+  <duckdb/duckdb@95fcb8f18819b1a77df079a7fcb753a8c2f52844>
+  ([\#1710](https://github.com/duckdb/duckdb-r/issues/1710)).
+
+## duckdb 1.4.1.9016
+
+### Continuous integration
+
+- Use workflows for fledge
+  ([\#1707](https://github.com/duckdb/duckdb-r/issues/1707)).
+
 ## duckdb 1.4.1.9015
 
 ### vendor
