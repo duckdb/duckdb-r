@@ -1,5 +1,20 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.1.9018
+
+## Continuous integration
+
+- Fix reviewdog and add commenting workflow (#1722).
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@0efe5ccb5ba436fed2269d9b063995cc3990eaa2 (#1721).
+
+- Update vendored sources to duckdb/duckdb@68d7555f68bd25c1a251ccca2e6338949c33986a (#1720).
+
+- Update vendored sources to duckdb/duckdb@7386b4485d23bc99c9f6efab6ce0e33ecc23222b (#1719).
+
+
 # duckdb 1.4.1.9017
 
 ## vendor
