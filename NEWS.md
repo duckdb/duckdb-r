@@ -1,5 +1,16 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.2.9000
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@0efe5ccb5ba436fed2269d9b063995cc3990eaa2 (#1727).
+
+## cran
+
+- Release duckdb 1.4.2 (#1726).
+
+
 # duckdb 1.4.2
 
 - Update to DuckDB v1.4.2, see <https://github.com/duckdb/duckdb/releases/tag/v1.4.2> for details.
