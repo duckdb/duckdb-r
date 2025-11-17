@@ -1,5 +1,20 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.2.9001
+
+## Chore
+
+- Clean deps.
+
+## Continuous integration
+
+- Install binaries from r-universe for dev workflow (#1731).
+
+## revdep
+
+- New problems.
+
+
 # duckdb 1.4.2.9000
 
 ## vendor
