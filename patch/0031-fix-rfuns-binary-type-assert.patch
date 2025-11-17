@@ -1,0 +1,26 @@
+From 6a4e5b3025f9898ad7cfc77300b65779640f1fad Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?MVS <m.vargas.sepulveda@gmail.com>
+Date: Sun, 6 Oct 2025 09:35:00 +0200
+Subject: [PATCH] fix-rfuns-binary-type-assert
+
+Fix BinaryTypeAssert template function to use correct type parameter for right vector validation.
+
+---
+ src/duckdb/extension/core_functions/include/rfuns_extension.hpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/duckdb/extension/core_functions/include/rfuns_extension.hpp b/src/duckdb/extension/core_functions/include/rfuns_extension.hpp
+index 2f5463e3f..1a8570451 100644
+--- a/src/duckdb/extension/core_functions/include/rfuns_extension.hpp
++++ b/src/duckdb/extension/core_functions/include/rfuns_extension.hpp
+@@ -44,7 +44,7 @@ BinaryChunk BinaryTypeAssert(DataChunk &args) {
+ 	D_ASSERT(lefts.GetType() == LHS_LOGICAL_TYPE);
+ 
+ 	auto &rights = args.data[1];
+-	D_ASSERT(rights.GetType() == LHS_LOGICAL_TYPE);
++	D_ASSERT(rights.GetType() == RHS_LOGICAL_TYPE);
+ 
+ 	return {lefts, rights};
+ }
+--
+2.34.1
