@@ -1,5 +1,20 @@
 # Changelog
 
+## duckdb 1.4.2.9001
+
+### Chore
+
+- Clean deps.
+
+### Continuous integration
+
+- Install binaries from r-universe for dev workflow
+  ([\#1731](https://github.com/duckdb/duckdb-r/issues/1731)).
+
+### revdep
+
+- New problems.
+
 ## duckdb 1.4.2.9000
 
 ### vendor
@@ -14,6 +29,8 @@
   ([\#1726](https://github.com/duckdb/duckdb-r/issues/1726)).
 
 ## duckdb 1.4.2
+
+CRAN release: 2025-11-17
 
 - Update to DuckDB v1.4.2, see
   <https://github.com/duckdb/duckdb/releases/tag/v1.4.2> for details.
