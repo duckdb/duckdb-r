@@ -1,11 +1,10 @@
+#include "duckdb/main/extension/extension_loader.hpp"
+#include "duckdb/parser/parsed_data/create_scalar_function_info.hpp"
 #include "rfuns_extension.hpp"
 
-#include "duckdb/parser/parsed_data/create_scalar_function_info.hpp"
-#include "duckdb/main/extension/extension_loader.hpp"
-
-#include <math.h>
 #include <climits>
 #include <cmath>
+#include <math.h>
 
 namespace duckdb {
 namespace rfuns {
@@ -82,14 +81,14 @@ ScalarFunctionSet base_r_add() {
 
 } // namespace rfuns
 } // namespace duckdb
-#include "rfuns_extension.hpp"
-#include "duckdb/parser/parsed_data/create_scalar_function_info.hpp"
 #include "duckdb/common/operator/double_cast_operator.hpp"
+#include "duckdb/parser/parsed_data/create_scalar_function_info.hpp"
+#include "rfuns_extension.hpp"
 
-#include <math.h>
 #include <climits>
-#include <limits>
 #include <cmath>
+#include <limits>
+#include <math.h>
 
 namespace duckdb {
 namespace rfuns {
@@ -192,11 +191,11 @@ ScalarFunctionSet base_r_as_numeric() {
 
 } // namespace rfuns
 } // namespace duckdb
-#include "rfuns_extension.hpp"
 #include "duckdb/parser/parsed_data/create_scalar_function_info.hpp"
+#include "rfuns_extension.hpp"
 
-#include <math.h>
 #include <climits>
+#include <math.h>
 
 namespace duckdb {
 namespace rfuns {
@@ -221,13 +220,13 @@ ScalarFunctionSet binary_dispatch(ScalarFunctionSet fn) {
 
 } // namespace rfuns
 } // namespace duckdb
-#include "rfuns_extension.hpp"
 #include "duckdb/parser/parsed_data/create_scalar_function_info.hpp"
+#include "rfuns_extension.hpp"
 
-#include <math.h>
 #include <climits>
-#include <iostream>
 #include <cmath>
+#include <iostream>
+#include <math.h>
 
 namespace duckdb {
 namespace rfuns {
@@ -377,13 +376,12 @@ ScalarFunctionSet base_r_is_na() {
 
 } // namespace rfuns
 } // namespace duckdb
+#include "duckdb/extension/core_functions/include/core_functions/aggregate/distributive_functions.hpp"
+#include "duckdb/parser/parsed_data/create_aggregate_function_info.hpp"
 #include "rfuns_extension.hpp"
 
-#include "duckdb/parser/parsed_data/create_aggregate_function_info.hpp"
-
-#include <math.h>
 #include <climits>
-#include "duckdb/extension/core_functions/include/core_functions/aggregate/distributive_functions.hpp"
+#include <math.h>
 
 namespace duckdb {
 namespace rfuns {
@@ -531,15 +529,15 @@ AggregateFunctionSet base_r_max() {
 
 } // namespace rfuns
 } // namespace duckdb
-#include "rfuns_extension.hpp"
-#include "duckdb/parser/parsed_data/create_scalar_function_info.hpp"
-#include "duckdb/common/operator/string_cast.hpp"
 #include "duckdb/common/operator/double_cast_operator.hpp"
+#include "duckdb/common/operator/string_cast.hpp"
+#include "duckdb/parser/parsed_data/create_scalar_function_info.hpp"
+#include "rfuns_extension.hpp"
 
-#include <math.h>
 #include <climits>
-#include <iostream>
 #include <cmath>
+#include <iostream>
+#include <math.h>
 
 namespace duckdb {
 namespace rfuns {
@@ -902,14 +900,14 @@ ScalarFunctionSet base_r_in() {
 } // namespace duckdb
 #define DUCKDB_EXTENSION_MAIN
 
-#include "rfuns_extension.hpp"
 #include "duckdb.hpp"
 #include "duckdb/common/exception.hpp"
 #include "duckdb/function/scalar_function.hpp"
 #include "duckdb/parser/parsed_data/create_scalar_function_info.hpp"
+#include "rfuns_extension.hpp"
 
-#include <math.h>
 #include <climits>
+#include <math.h>
 
 namespace duckdb {
 namespace rfuns {
@@ -974,14 +972,13 @@ DUCKDB_EXTENSION_API const char *rfuns_version() {
 #ifndef DUCKDB_EXTENSION_MAIN
 #error DUCKDB_EXTENSION_MAIN not defined
 #endif
+#include "duckdb/extension/core_functions/include/core_functions/aggregate/distributive_functions.hpp"
+#include "duckdb/extension/core_functions/include/core_functions/aggregate/sum_helpers.hpp"
+#include "duckdb/parser/parsed_data/create_aggregate_function_info.hpp"
 #include "rfuns_extension.hpp"
 
-#include "duckdb/parser/parsed_data/create_aggregate_function_info.hpp"
-
-#include <math.h>
 #include <climits>
-#include "duckdb/extension/core_functions/include/core_functions/aggregate/sum_helpers.hpp"
-#include "duckdb/extension/core_functions/include/core_functions/aggregate/distributive_functions.hpp"
+#include <math.h>
 
 namespace duckdb {
 namespace rfuns {

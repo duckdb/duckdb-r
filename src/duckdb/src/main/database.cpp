@@ -285,7 +285,7 @@ void DatabaseInstance::Initialize(const char *database_path, DBConfig *user_conf
 		buffer_manager = make_uniq<StandardBufferManager>(*this, config.options.temporary_directory);
 	}
 
-	log_manager = make_shared_ptr<LogManager>(*this, LogConfig());
+	log_manager = make_uniq<LogManager>(*this, LogConfig());
 	log_manager->Initialize();
 
 	external_file_cache = make_uniq<ExternalFileCache>(*this, config.options.enable_external_file_cache);
@@ -507,12 +507,18 @@ SettingLookupResult DatabaseInstance::TryGetCurrentSetting(const string &key, Va
 	return db_config.TryGetCurrentSetting(key, result);
 }
 
-shared_ptr<EncryptionUtil> DatabaseInstance::GetEncryptionUtil() const {
+shared_ptr<EncryptionUtil> DatabaseInstance::GetEncryptionUtil() {
+	if (!config.encryption_util || !config.encryption_util->SupportsEncryption()) {
+		ExtensionHelper::TryAutoLoadExtension(*this, "httpfs");
+	}
+
 	if (config.encryption_util) {
 		return config.encryption_util;
 	}
 
-	return make_shared_ptr<duckdb_mbedtls::MbedTlsWrapper::AESStateMBEDTLSFactory>();
+	auto result = make_shared_ptr<duckdb_mbedtls::MbedTlsWrapper::AESStateMBEDTLSFactory>();
+
+	return std::move(result);
 }
 
 ValidChecker &DatabaseInstance::GetValidChecker() {

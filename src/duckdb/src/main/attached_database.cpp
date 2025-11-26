@@ -14,8 +14,9 @@
 
 namespace duckdb {
 
-StoredDatabasePath::StoredDatabasePath(DatabaseFilePathManager &manager, string path_p, const string &name)
-    : manager(manager), path(std::move(path_p)) {
+StoredDatabasePath::StoredDatabasePath(DatabaseManager &db_manager, DatabaseFilePathManager &manager, string path_p,
+                                       const string &name)
+    : db_manager(db_manager), manager(manager), path(std::move(path_p)) {
 }
 
 StoredDatabasePath::~StoredDatabasePath() {
@@ -23,7 +24,7 @@ StoredDatabasePath::~StoredDatabasePath() {
 }
 
 void StoredDatabasePath::OnDetach() {
-	manager.DetachDatabase(path);
+	manager.DetachDatabase(db_manager, path);
 }
 
 //===--------------------------------------------------------------------===//
@@ -271,10 +272,6 @@ void AttachedDatabase::Close() {
 	catalog.reset();
 	storage.reset();
 	stored_database_path.reset();
-
-	if (Allocator::SupportsFlush()) {
-		Allocator::FlushAll();
-	}
 }
 
 } // namespace duckdb

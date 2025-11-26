@@ -1,21 +1,34 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.4.1.9001
+# duckdb 1.4.2.9001
+
+## Chore
+
+- Clean deps.
+
+## Continuous integration
+
+- Install binaries from r-universe for dev workflow (#1731).
+
+## revdep
+
+- New problems.
+
+
+# duckdb 1.4.2.9000
 
 ## vendor
 
-- Update vendored sources to duckdb/duckdb@10f8766267b8805f5d96b7ad1a7d54332d2b6ffe (#1624).
+- Update vendored sources to duckdb/duckdb@0efe5ccb5ba436fed2269d9b063995cc3990eaa2 (#1727).
+
+## cran
+
+- Release duckdb 1.4.2 (#1726).
 
 
-# duckdb 1.4.1.9000
+# duckdb 1.4.2
 
-## fledge
-
-- CRAN release v1.4.1 (#1616).
-
-## Uncategorized
-
-- Merge pull request #1622 from eddelbuettel/patch-1.
+- Update to DuckDB v1.4.2, see <https://github.com/duckdb/duckdb/releases/tag/v1.4.2> for details.
 
 
 # duckdb 1.4.1
