@@ -371,7 +371,10 @@ sql_translation.duckdb_connection <- function(con) {
       str_flatten = function(x, collapse) sql_expr(STRING_AGG(!!x, !!collapse)),
       first = sql_prefix("FIRST", 1),
       last = sql_prefix("LAST", 1),
-      n_distinct = duckdb_n_distinct
+      n_distinct = duckdb_n_distinct,
+      quantile = function(x, probs, na.rm = FALSE) {
+        sql_expr(QUANTILE_CONT(!!x, !!probs))
+      }
     ),
     sql_translator(
       .parent = base_win,
@@ -396,7 +399,13 @@ sql_translation.duckdb_connection <- function(con) {
             duckdb_n_distinct(..., na.rm = na.rm),
             partition = win_current_group()
           )
-        }
+        },
+      quantile = function(x, probs, na.rm = FALSE) {
+        win_over(
+          sql_expr(QUANTILE_CONT(!!x, !!probs)),
+          partition = win_current_group()
+        )
+      }
     )
   )
 }
@@ -512,4 +521,4 @@ simulate_duckdb <- function(...) {
 
 
 # Needed to suppress the R CHECK notes (due to the use of sql_expr)
-utils::globalVariables(c("REGEXP_MATCHES", "CAST", "%AS%", "INTEGER", "XOR", "%<<%", "%>>%", "LN", "LOG", "ROUND", "ROUND_EVEN", "EXTRACT", "%FROM%", "MONTH", "STRFTIME", "QUARTER", "YEAR", "DATE_TRUNC", "DATE", "DOY", "TO_SECONDS", "BIGINT", "TO_MINUTES", "TO_HOURS", "TO_DAYS", "TO_WEEKS", "TO_MONTHS", "TO_YEARS", "STRPOS", "NOT", "REGEXP_REPLACE", "TRIM", "LPAD", "RPAD", "%||%", "REPEAT", "LENGTH", "STRING_AGG", "GREATEST", "LIST_EXTRACT", "LOG10", "LOG2", "STRING_SPLIT_REGEX", "FLOOR", "FMOD", "FDIV"))
+utils::globalVariables(c("REGEXP_MATCHES", "CAST", "%AS%", "INTEGER", "XOR", "%<<%", "%>>%", "LN", "LOG", "ROUND", "ROUND_EVEN", "EXTRACT", "%FROM%", "MONTH", "STRFTIME", "QUARTER", "YEAR", "DATE_TRUNC", "DATE", "DOY", "TO_SECONDS", "BIGINT", "TO_MINUTES", "TO_HOURS", "TO_DAYS", "TO_WEEKS", "TO_MONTHS", "TO_YEARS", "STRPOS", "NOT", "REGEXP_REPLACE", "TRIM", "LPAD", "RPAD", "%||%", "REPEAT", "LENGTH", "STRING_AGG", "GREATEST", "LIST_EXTRACT", "LOG10", "LOG2", "STRING_SPLIT_REGEX", "FLOOR", "FMOD", "FDIV", "QUANTILE_CONT"))
