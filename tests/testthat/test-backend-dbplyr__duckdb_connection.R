@@ -283,6 +283,19 @@ test_that("aggregators translated correctly", {
   expect_equal(translate(n_distinct(x, na.rm = TRUE), window = TRUE, vars_group = "y"), sql(r"{COUNT(DISTINCT x) OVER (PARTITION BY y)}"))
 })
 
+test_that("quantile translated correctly", {
+  skip_if_no_R4()
+  skip_if_not_installed("dbplyr")
+  con <- local_con()
+  translate <- function(...) dbplyr::translate_sql(..., con = con)
+  sql <- function(...) dbplyr::sql(...)
+
+  expect_equal(translate(quantile(x, 0.25, na.rm = TRUE), window = FALSE), sql(r"{QUANTILE_CONT(x, 0.25)}"))
+  expect_equal(translate(quantile(x, 0.5, na.rm = TRUE), window = FALSE), sql(r"{QUANTILE_CONT(x, 0.5)}"))
+  expect_equal(translate(quantile(x, 0.25, na.rm = TRUE), window = TRUE), sql(r"{QUANTILE_CONT(x, 0.25) OVER ()}"))
+  expect_equal(translate(quantile(x, 0.25, na.rm = TRUE), window = TRUE, vars_group = "y"), sql(r"{QUANTILE_CONT(x, 0.25) OVER (PARTITION BY y)}"))
+})
+
 test_that("two variable aggregates are translated correctly", {
   skip_if_no_R4()
   skip_if_not_installed("dbplyr")
