@@ -1,117 +1,53 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.4.0.9005
+# duckdb 1.4.2.9001
 
 ## Chore
 
-- Reminder.
+- Clean deps.
+
+## Continuous integration
+
+- Install binaries from r-universe for dev workflow (#1731).
+
+## revdep
+
+- New problems.
+
+
+# duckdb 1.4.2.9000
 
 ## vendor
 
-- Update vendored sources (tag v1.4.1) to duckdb/duckdb@b390a7c3760bd95926fe8aefde20d04b349b472e (#1615).
+- Update vendored sources to duckdb/duckdb@0efe5ccb5ba436fed2269d9b063995cc3990eaa2 (#1727).
+
+## cran
+
+- Release duckdb 1.4.2 (#1726).
 
 
-# duckdb 1.4.0.9004
+# duckdb 1.4.2
+
+- Update to DuckDB v1.4.2, see <https://github.com/duckdb/duckdb/releases/tag/v1.4.2> for details.
+
+
+# duckdb 1.4.1
+
+- Update to DuckDB v1.4.1, see <https://github.com/duckdb/duckdb/releases/tag/v1.4.1> for details.
 
 ## Features
 
-- Fix length of sort keys (#1610).
+- Add support for wildcards in `tbl_file()` paths (#1614, @rplsmn).
 
-
-# duckdb 1.4.0.9003
+- Add `n_distinct(..., na.rm = TRUE)` support for multiple passed columns (@lschneiderbauer, #1588).
 
 ## Bug fixes
 
 - Fix Valgrind error.
 
-- Fix Valgrind error.
-
-## Features
-
-- Add `n_distinct(..., na.rm = TRUE)` support for multiple passed columns (@lschneiderbauer, #1588).
-
-## vendor
-
-- Update vendored sources to duckdb/duckdb@8a74cb921213a9674c5f7a05b5c1b9b877b688e0 (#1608).
-
-- Update vendored sources to duckdb/duckdb@2549afa57519be5e8d6970baaf945a9f7fe800e1 (#1607).
-
-- Update vendored sources to duckdb/duckdb@dabebf30c877c5c9665a231211425e9e04a19ceb (#1606).
-
-
-# duckdb 1.4.0.9002
-
-## Continuous integration
-
-- Exclude R 4.1 on Windows.
-
-## vendor
-
-- Update vendored sources to duckdb/duckdb@24c295a9dd3f793222fc965f2f41ade148854526 (#1603).
-
-- Update vendored sources to duckdb/duckdb@07effc2ad0deca1fea8fd9abaf7fef679161a08f (#1602).
-
-- Update vendored sources to duckdb/duckdb@45de60480e27fd7d0f2afe86a3910674bca7db9b (#1601).
-
-- Update vendored sources to duckdb/duckdb@40ceab2b33fa7f716947b19442912082c60fa542 (#1600).
-
-- Update vendored sources to duckdb/duckdb@c01b4b543e1c2b005bcfcc896cd3a84bf3d40fcc (#1599).
-
-- Update vendored sources to duckdb/duckdb@9eccb88e54dbed8f9d8059f84acb7ee3ae0ac5e9 (#1596).
-
-
-# duckdb 1.4.0.9001
-
 ## Testing
 
 - Ensure be able to install duckdb extensions on release version (@eitsupi, #1586).
-
-## vendor
-
-- Update vendored sources to duckdb/duckdb@3a557fe42ff35c53351daed9e30cd88e2f039efd (#1595).
-
-- Update vendored sources to duckdb/duckdb@3e2383d545ec20024d15f0759d85e6e602e0867d (#1594).
-
-- Update vendored sources to duckdb/duckdb@54de81b2861feee5a663320f28d598948f211fae (#1593).
-
-- Update vendored sources to duckdb/duckdb@cd710fdae35df1869bae78f0263bce10a802caf3 (#1591).
-
-- Update vendored sources to duckdb/duckdb@6f8dbeb4866beb4e0cd4747935b154c970c6ffcd (#1590).
-
-## Uncategorized
-
-- Vendor: Update vendored sources to duckdb/duckdb@81b4ef640b8388ad313329da7443ae6f7656e0d8.
-
-- Vendor: Update vendored sources to duckdb/duckdb@922691fc7fe387fac120b626ee4a90832c709c2e.
-
-- Vendor: Update vendored sources to duckdb/duckdb@ecfa706f804523c103df6e8d498c6607957f963a.
-
-- Vendor: Update vendored sources to duckdb/duckdb@8f570dd861f89d13f7c15322c0072af44509358b.
-
-- Vendor: Update vendored sources to duckdb/duckdb@e3d98ae38e16549b4a9f618a53cad67f31ec56b7.
-
-- Vendor: Update vendored sources to duckdb/duckdb@2e9a46dae30609576af32d4bfb910b87f40b4f50.
-
-- Vendor: Update vendored sources to duckdb/duckdb@eaa28d602f505d0bb6a2704bf6a379573455dccb.
-
-- Vendor: Update vendored sources to duckdb/duckdb@af47f945b01f79fa3becad9c4ed269dba725ef5a.
-
-- Vendor: Update vendored sources to duckdb/duckdb@4039239f1024468b2c6fa38143080ee1a5a9af4e.
-
-- Vendor: Update vendored sources to duckdb/duckdb@93b8281d695253460de528f768639da20cd06bee.
-
-- Vendor: Update vendored sources to duckdb/duckdb@8f5355e1bce0c0f6bd6c7a1174d5a719353ca54a.
-
-- Vendor: Update vendored sources to duckdb/duckdb@e5025153a95572bf8417d59d2b04e2b8f620d6fc.
-
-- Vendor: Update vendored sources to duckdb/duckdb@d19df69e14a4e7bdce94ebe5fd9f398bbbe30c57.
-
-
-# duckdb 1.4.0.9000
-
-## fledge
-
-- CRAN release v1.4.0 (#1570).
 
 
 # duckdb 1.4.0

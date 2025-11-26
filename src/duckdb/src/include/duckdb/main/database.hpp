@@ -69,7 +69,7 @@ public:
 
 	DUCKDB_API SettingLookupResult TryGetCurrentSetting(const string &key, Value &result) const;
 
-	DUCKDB_API shared_ptr<EncryptionUtil> GetEncryptionUtil() const;
+	DUCKDB_API shared_ptr<EncryptionUtil> GetEncryptionUtil();
 
 	shared_ptr<AttachedDatabase> CreateAttachedDatabase(ClientContext &context, AttachInfo &info,
 	                                                    AttachOptions &options);
@@ -90,7 +90,7 @@ private:
 	unique_ptr<ExtensionManager> extension_manager;
 	ValidChecker db_validity;
 	unique_ptr<DatabaseFileSystem> db_file_system;
-	shared_ptr<LogManager> log_manager;
+	unique_ptr<LogManager> log_manager;
 	unique_ptr<ExternalFileCache> external_file_cache;
 
 	duckdb_ext_api_v1 (*create_api_v1)();

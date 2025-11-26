@@ -164,4 +164,13 @@ test_that("Strings tagged as SQL will be handled correctly with dplyr::tbl()", {
   expect_true(rs %>% dplyr::collect() == 1)
 })
 
+test_that("tbl_file() errors on erroneous paths and unapplicable wildcard use", {
+  skip_if_not_installed("dbplyr")
+
+  con <- local_con()
+
+  expect_error(tbl_file(con, "data/userdata2.parquet"))
+  expect_error(tbl_file(con, "data/bogus*.parquet"))
+})
+
 try(rm(`%>%`))
