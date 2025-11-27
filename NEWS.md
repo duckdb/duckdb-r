@@ -1,5 +1,36 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.2.9002
+
+## Bug fixes
+
+- Fix translation of `quantile()` to use DuckDB's native `QUANTILE_CONT()` syntax (#1734, #1735).
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@9b6c56b056cc2567baea00826dce6303450a17b6 (#1748).
+
+- Update vendored sources to duckdb/duckdb@a64eb6ab595f42c3c42acf5016b004dc81078f89 (duckdb/duckdb#19517, #1747).
+
+- Update vendored sources to duckdb/duckdb@dfb67f4945354eada4dc02a2f7909028b4b14821 (#1746).
+
+- Update vendored sources to duckdb/duckdb@a65619811d6a3f70818c8da12f984267b4646380 (#1745).
+
+- Update vendored sources to duckdb/duckdb@a2ae69278e36a919880c521d18789dca9fb6f15a (#1744).
+
+- Update vendored sources to duckdb/duckdb@ff2930fb3061c7a92dadcffd4eb36d543c0bc955 (#1743).
+
+- Update vendored sources to duckdb/duckdb@b878a5db0cbf37ab52361fb0d48e7f28598d5992 (duckdb/duckdb#19575, #1742).
+
+- Update vendored sources to duckdb/duckdb@b1fb733cde86d1af47e15fd52c9ee0660666a592 (#1741).
+
+- Update vendored sources to duckdb/duckdb@da8fad8eff3477aa37638054fadfd718796c2ff3 (#1739).
+
+- Update vendored sources to duckdb/duckdb@f68f1a555b5384a5b467bc466a71e5026adcab03 (#1737).
+
+- Update vendored sources to duckdb/duckdb@5f0c38c5eb4d1cfd7a4eeffae74b6a6c92090013 (#1728).
+
+
 # duckdb 1.4.2.9001
 
 ## Chore
