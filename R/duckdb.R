@@ -6,7 +6,6 @@ rapi_error <- function(context, message, error_type = NULL, raw_message = NULL, 
     extra_text <- paste0(
       " (",
       if (!is.null(error_type)) paste0("error_type: ", error_type, "; ") else "",
-      if (!is.null(raw_message)) paste0("raw_message: ", raw_message, "; ") else "",
       if (!is.null(extra_info)) paste0(paste0(names(extra_info), ": ", extra_info, collapse = "; ")) else "",
       ")"
     )
@@ -30,11 +29,6 @@ rapi_error_rlang <- function(context, message, error_type = NULL, raw_message = 
   # Add error type if available
   if (!is.null(error_type)) {
     error_parts <- c(error_parts, i = paste0("Error type: ", error_type))
-  }
-
-  # Add raw message if different from processed message
-  if (!is.null(raw_message) && raw_message != message) {
-    error_parts <- c(error_parts, i = paste0("Raw message: ", raw_message))
   }
 
   # Add extra info if available
