@@ -1,129 +1,25 @@
 # Changelog
 
-## duckdb 1.4.2.9004
+## duckdb 1.4.1.9001
 
 ### vendor
 
 - Update vendored sources to
-  <duckdb/duckdb@1cdb7e77a28cca9f8ab953103f0ba4ea43461a0c>
-  ([\#1756](https://github.com/duckdb/duckdb-r/issues/1756)).
+  <duckdb/duckdb@10f8766267b8805f5d96b7ad1a7d54332d2b6ffe>
+  ([\#1624](https://github.com/duckdb/duckdb-r/issues/1624)).
 
-- Update vendored sources to
-  <duckdb/duckdb@65ce0885dc47ee2eec68eb9f014b8d307e9bb511>
-  ([\#1755](https://github.com/duckdb/duckdb-r/issues/1755)).
+## duckdb 1.4.1.9000
 
-## duckdb 1.4.2.9003
+### fledge
 
-### vendor
+- CRAN release v1.4.1
+  ([\#1616](https://github.com/duckdb/duckdb-r/issues/1616)).
 
-- Update vendored sources to
-  <duckdb/duckdb@c3fb0e6beb93158cc765d6027da6cf023efd1c40>
-  ([\#1753](https://github.com/duckdb/duckdb-r/issues/1753)).
+### Uncategorized
 
-- Update vendored sources to
-  <duckdb/duckdb@f2512ab31e0e98de0742093e5b6bee360a62c526>
-  ([\#1752](https://github.com/duckdb/duckdb-r/issues/1752)).
-
-- Update vendored sources to
-  <duckdb/duckdb@52b7324da71614aebc37fe73311b12d70f9a7239>
-  ([\#1751](https://github.com/duckdb/duckdb-r/issues/1751)).
-
-- Update vendored sources to
-  <duckdb/duckdb@6b7d108b5b217154534667806331807abf431f98>
-  ([\#1750](https://github.com/duckdb/duckdb-r/issues/1750)).
-
-## duckdb 1.4.2.9002
-
-### Bug fixes
-
-- Fix translation of
-  [`quantile()`](https://rdrr.io/r/stats/quantile.html) to use DuckDB’s
-  native `QUANTILE_CONT()` syntax
-  ([\#1734](https://github.com/duckdb/duckdb-r/issues/1734),
-  [\#1735](https://github.com/duckdb/duckdb-r/issues/1735)).
-
-### vendor
-
-- Update vendored sources to
-  <duckdb/duckdb@9b6c56b056cc2567baea00826dce6303450a17b6>
-  ([\#1748](https://github.com/duckdb/duckdb-r/issues/1748)).
-
-- Update vendored sources to
-  <duckdb/duckdb@a64eb6ab595f42c3c42acf5016b004dc81078f89>
-  (duckdb/duckdb#19517,
-  [\#1747](https://github.com/duckdb/duckdb-r/issues/1747)).
-
-- Update vendored sources to
-  <duckdb/duckdb@dfb67f4945354eada4dc02a2f7909028b4b14821>
-  ([\#1746](https://github.com/duckdb/duckdb-r/issues/1746)).
-
-- Update vendored sources to
-  <duckdb/duckdb@a65619811d6a3f70818c8da12f984267b4646380>
-  ([\#1745](https://github.com/duckdb/duckdb-r/issues/1745)).
-
-- Update vendored sources to
-  <duckdb/duckdb@a2ae69278e36a919880c521d18789dca9fb6f15a>
-  ([\#1744](https://github.com/duckdb/duckdb-r/issues/1744)).
-
-- Update vendored sources to
-  <duckdb/duckdb@ff2930fb3061c7a92dadcffd4eb36d543c0bc955>
-  ([\#1743](https://github.com/duckdb/duckdb-r/issues/1743)).
-
-- Update vendored sources to
-  <duckdb/duckdb@b878a5db0cbf37ab52361fb0d48e7f28598d5992>
-  (duckdb/duckdb#19575,
-  [\#1742](https://github.com/duckdb/duckdb-r/issues/1742)).
-
-- Update vendored sources to
-  <duckdb/duckdb@b1fb733cde86d1af47e15fd52c9ee0660666a592>
-  ([\#1741](https://github.com/duckdb/duckdb-r/issues/1741)).
-
-- Update vendored sources to
-  <duckdb/duckdb@da8fad8eff3477aa37638054fadfd718796c2ff3>
-  ([\#1739](https://github.com/duckdb/duckdb-r/issues/1739)).
-
-- Update vendored sources to
-  <duckdb/duckdb@f68f1a555b5384a5b467bc466a71e5026adcab03>
-  ([\#1737](https://github.com/duckdb/duckdb-r/issues/1737)).
-
-- Update vendored sources to
-  <duckdb/duckdb@5f0c38c5eb4d1cfd7a4eeffae74b6a6c92090013>
-  ([\#1728](https://github.com/duckdb/duckdb-r/issues/1728)).
-
-## duckdb 1.4.2.9001
-
-### Chore
-
-- Clean deps.
-
-### Continuous integration
-
-- Install binaries from r-universe for dev workflow
-  ([\#1731](https://github.com/duckdb/duckdb-r/issues/1731)).
-
-### revdep
-
-- New problems.
-
-## duckdb 1.4.2.9000
-
-### vendor
-
-- Update vendored sources to
-  <duckdb/duckdb@0efe5ccb5ba436fed2269d9b063995cc3990eaa2>
-  ([\#1727](https://github.com/duckdb/duckdb-r/issues/1727)).
-
-### cran
-
-- Release duckdb 1.4.2
-  ([\#1726](https://github.com/duckdb/duckdb-r/issues/1726)).
-
-## duckdb 1.4.2
-
-CRAN release: 2025-11-17
-
-- Update to DuckDB v1.4.2, see
-  <https://github.com/duckdb/duckdb/releases/tag/v1.4.2> for details.
+- Merge pull request
+  [\#1622](https://github.com/duckdb/duckdb-r/issues/1622) from
+  eddelbuettel/patch-1.
 
 ## duckdb 1.4.1
 
