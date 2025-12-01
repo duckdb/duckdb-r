@@ -40,6 +40,8 @@
 
 #include "src/optimizer/optimizer.cpp"
 
+#include "src/optimizer/join_elimination.cpp"
+
 #include "src/optimizer/regex_range_filter.cpp"
 
 #include "src/optimizer/remove_duplicate_groups.cpp"
