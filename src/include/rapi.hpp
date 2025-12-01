@@ -155,8 +155,6 @@ struct ReplacementDataDBWrapper : public ReplacementScanData {
 
 cpp11::strings StringsToSexp(vector<std::string> s);
 
-SEXP ToUtf8(SEXP string_sexp);
-
 static constexpr char R_STRING_TYPE_NAME[] = "r_string";
 
 struct RStringsType {
