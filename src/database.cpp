@@ -1,11 +1,10 @@
-#include "rapi.hpp"
-
+#include "duckdb/catalog/catalog_entry/table_function_catalog_entry.hpp"
+#include "duckdb/common/vector_operations/generic_executor.hpp"
+#include "duckdb/function/cast/cast_function_set.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 #include "duckdb/parser/parsed_data/create_type_info.hpp"
-#include "duckdb/function/cast/cast_function_set.hpp"
-#include "duckdb/common/vector_operations/generic_executor.hpp"
-#include "duckdb/catalog/catalog_entry/table_function_catalog_entry.hpp"
+#include "rapi.hpp"
 
 using namespace duckdb;
 
