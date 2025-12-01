@@ -10,6 +10,8 @@
 
 #include "src/storage/block.cpp"
 
+#include "src/storage/block_allocator.cpp"
+
 #include "src/storage/data_pointer.cpp"
 
 #include "src/storage/data_table.cpp"
