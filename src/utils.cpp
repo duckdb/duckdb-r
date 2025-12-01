@@ -4,7 +4,6 @@
 #include "include/rfuns_extension.hpp"
 #include "rapi.hpp"
 #include "typesr.hpp"
-#include "Rinternals.h"
 
 using namespace duckdb;
 
