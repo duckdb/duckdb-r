@@ -11,11 +11,6 @@ using namespace duckdb;
 	return R_MakeExternalPtrFn((DL_FUNC)duckdb_adbc_init, R_NilValue, R_NilValue);
 }
 
-SEXP duckdb::ToUtf8(SEXP string_sexp) {
-	cpp11::function enc2utf8 = RStrings::get().enc2utf8_sym;
-	return enc2utf8(string_sexp);
-}
-
 [[cpp11::register]] cpp11::r_string rapi_ptr_to_str(SEXP extptr) {
 	if (TYPEOF(extptr) != EXTPTRSXP) {
 		rapi_error_with_context("rapi_ptr_to_str", "Need external pointer parameter");
@@ -151,8 +146,16 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 		}
 	}
 	case RType::STRING: {
-		auto str_val = STRING_ELT(ToUtf8(valsexp), idx);
-		return str_val == NA_STRING ? Value(LogicalType::VARCHAR) : Value(CHAR(str_val));
+		auto str_val = STRING_ELT(valsexp, idx);
+		if (str_val == NA_STRING) {
+			return Value(LogicalType::VARCHAR);
+		}
+
+		auto ce = Rf_getCharCE(str_val);
+		if (ce != CE_UTF8 && ce != CE_NATIVE) {
+			rapi_error_with_context("SexpToValue", "Only UTF-8 encoded strings are supported for the data frame scan.");
+		}
+		return Value(CHAR(str_val));
 	}
 	case RTypeId::FACTOR: {
 		auto int_val = INTEGER_POINTER(valsexp)[idx];
