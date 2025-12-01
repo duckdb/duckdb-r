@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.2.9005
+
+## Bug fixes
+
+- Avoid inclusion of raw error message in the output.
+
+
 # duckdb 1.4.2.9004
 
 ## vendor
