@@ -6,6 +6,8 @@
 
 #include "src/main/capi/cast_function-c.cpp"
 
+#include "src/main/capi/catalog-c.cpp"
+
 #include "src/main/capi/config-c.cpp"
 
 #include "src/main/capi/config_options-c.cpp"
