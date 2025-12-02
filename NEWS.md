@@ -1,5 +1,22 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.2.9006
+
+## Bug fixes
+
+- Fail with non-UTF8-encoded strings during data frame scan instead of attempting to reencode (#1795).
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@61e8c5b06d74802db643c0cea504bf4224c2ae56 (#1798).
+
+- Update vendored sources to duckdb/duckdb@e5552390e9fdc301e16541ddd27d5cbdb67af4ba (#1794).
+
+- Update vendored sources to duckdb/duckdb@52fe0d2bffdc766e7a75a9f966c6db537e3ffdca (#1793).
+
+- Update vendored sources to duckdb/duckdb@35c257bec8e430467b4c73a92e188839fdafb344 (#1780).
+
+
 # duckdb 1.4.2.9005
 
 ## Bug fixes
