@@ -310,6 +310,9 @@ sql_translation.duckdb_connection <- function(con) {
 
       # stringr functions
       str_c = sql_paste(""),
+      str_ilike = function(string, pattern) {
+        sql_expr(!!string %ILIKE% !!pattern)
+      },
       str_detect = function(string, pattern, negate = FALSE) {
         if (negate) {
           sql_expr((NOT(REGEXP_MATCHES(!!string, !!pattern))))
