@@ -1,11 +1,5 @@
-skip_if_no_R4 <- function() {
-  if (R.Version()$major < 4) {
-    skip("R 4.0.0 or newer not available for testing")
-  }
-}
-
 test_that("dbplyr generic scalars translated correctly", {
-  skip_if_no_R4()
+  skip_unless_r(">= 4.0.0")
   skip_if_not_installed("dbplyr")
   con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
@@ -31,7 +25,7 @@ test_that("dbplyr generic scalars translated correctly", {
 })
 
 test_that("duckdb custom scalars translated correctly", {
-  skip_if_no_R4()
+  skip_unless_r(">= 4.0.0")
   skip_if_not_installed("dbplyr")
   con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
@@ -67,7 +61,7 @@ test_that("duckdb custom scalars translated correctly", {
 })
 
 test_that("pasting translated correctly", {
-  skip_if_no_R4()
+  skip_unless_r(">= 4.0.0")
   skip_if_not_installed("dbplyr")
   con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
@@ -87,7 +81,7 @@ test_that("pasting translated correctly", {
 # lubridate functions
 
 test_that("custom lubridate functions translated correctly", {
-  skip_if_no_R4()
+  skip_unless_r(">= 4.0.0")
   skip_if_not_installed("dbplyr")
   con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
@@ -127,7 +121,7 @@ test_that("custom lubridate functions translated correctly", {
 
 # clock functions
 test_that("custom clock functions translated correctly", {
-  skip_if_no_R4()
+  skip_unless_r(">= 4.0.0")
   skip_if_not_installed("dbplyr")
   skip_if_not_installed("clock")
   skip_if_not_installed("rlang")
@@ -198,7 +192,7 @@ test_that("custom clock functions translated correctly", {
 # stringr functions
 
 test_that("custom stringr functions translated correctly", {
-  skip_if_no_R4()
+  skip_unless_r(">= 4.0.0")
   skip_if_not_installed("dbplyr")
   con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
@@ -223,7 +217,7 @@ test_that("custom stringr functions translated correctly", {
 })
 
 test_that("datetime escaping working as in DBI", {
-  skip_if_no_R4()
+  skip_unless_r(">= 4.0.0")
   skip_if_not_installed("dbplyr")
   con <- local_con()
   escape <- function(...) dbplyr::escape(..., con = con)
@@ -243,7 +237,7 @@ test_that("datetime escaping working as in DBI", {
 })
 
 test_that("aggregators translated correctly", {
-  skip_if_no_R4()
+  skip_unless_r(">= 4.0.0")
   skip_if_not_installed("dbplyr")
   con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
@@ -284,7 +278,7 @@ test_that("aggregators translated correctly", {
 })
 
 test_that("quantile translated correctly", {
-  skip_if_no_R4()
+  skip_unless_r(">= 4.0.0")
   skip_if_not_installed("dbplyr")
   con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
@@ -297,7 +291,7 @@ test_that("quantile translated correctly", {
 })
 
 test_that("two variable aggregates are translated correctly", {
-  skip_if_no_R4()
+  skip_unless_r(">= 4.0.0")
   skip_if_not_installed("dbplyr")
   con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
@@ -316,7 +310,7 @@ test_that("two variable aggregates are translated correctly", {
 })
 
 test_that("n_distinct() computations are correct", {
-  skip_if_no_R4()
+  skip_unless_r(">= 4.0.0")
   skip_if_not_installed("dplyr")
   skip_if_not_installed("dbplyr")
   con <- local_con()
@@ -395,7 +389,7 @@ test_that("n_distinct() computations are correct", {
 
 
 test_that("duckdb round() results equal its R version", {
-  skip_if_no_R4()
+  skip_unless_r(">= 4.0.0")
   skip_if_not_installed("dplyr")
   skip_if_not_installed("dbplyr")
 
