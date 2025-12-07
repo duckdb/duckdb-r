@@ -1,5 +1,80 @@
 # Changelog
 
+## duckdb 1.4.2.9010
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@e05f4ff81a8fbed460514f80e457260043ff8e9d>
+  ([\#1813](https://github.com/duckdb/duckdb-r/issues/1813)).
+
+- Update vendored sources to
+  <duckdb/duckdb@e2d4818ce9137ad81d7f3e50859415b28f545c83>
+  ([\#1812](https://github.com/duckdb/duckdb-r/issues/1812)).
+
+## duckdb 1.4.2.9009
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@7f0b18a746b7df524c26ed5b21dd1bad441dbac1>
+  ([\#1808](https://github.com/duckdb/duckdb-r/issues/1808)).
+
+- Update vendored sources to
+  <duckdb/duckdb@8a2fc1d6d5d9b840f8b4829180fabdd7392e3bd2>
+  ([\#1806](https://github.com/duckdb/duckdb-r/issues/1806)).
+
+- Update vendored sources to
+  <duckdb/duckdb@c08cb6c83d9b065f5cc887316b3defef5a1ea737>
+  (duckdb/duckdb#20014,
+  [\#1805](https://github.com/duckdb/duckdb-r/issues/1805)).
+
+## duckdb 1.4.2.9008
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@a86af889de004ec0a8afdec5da81275df7815361>
+  ([\#1803](https://github.com/duckdb/duckdb-r/issues/1803)).
+
+- Update vendored sources to
+  <duckdb/duckdb@e4fa02b24b913bafca100e378478d50092e55566>
+  ([\#1802](https://github.com/duckdb/duckdb-r/issues/1802)).
+
+## duckdb 1.4.2.9007
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@4b056d722eb9bb950aeb51afda4bc70cfcd8b8b8>
+  ([\#1800](https://github.com/duckdb/duckdb-r/issues/1800)).
+
+## duckdb 1.4.2.9006
+
+### Bug fixes
+
+- Fail with non-UTF8-encoded strings during data frame scan instead of
+  attempting to reencode
+  ([\#1795](https://github.com/duckdb/duckdb-r/issues/1795)).
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@61e8c5b06d74802db643c0cea504bf4224c2ae56>
+  ([\#1798](https://github.com/duckdb/duckdb-r/issues/1798)).
+
+- Update vendored sources to
+  <duckdb/duckdb@e5552390e9fdc301e16541ddd27d5cbdb67af4ba>
+  ([\#1794](https://github.com/duckdb/duckdb-r/issues/1794)).
+
+- Update vendored sources to
+  <duckdb/duckdb@52fe0d2bffdc766e7a75a9f966c6db537e3ffdca>
+  ([\#1793](https://github.com/duckdb/duckdb-r/issues/1793)).
+
+- Update vendored sources to
+  <duckdb/duckdb@35c257bec8e430467b4c73a92e188839fdafb344>
+  ([\#1780](https://github.com/duckdb/duckdb-r/issues/1780)).
+
 ## duckdb 1.4.2.9005
 
 ### Bug fixes
