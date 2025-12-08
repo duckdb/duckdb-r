@@ -220,6 +220,8 @@ test_that("custom stringr functions translated correctly", {
   expect_equal(translate(str_pad(x, width = 10, side = "right")), sql(r"{RPAD(x, CAST(GREATEST(10, LENGTH(x)) AS INTEGER), ' ')}"))
   expect_equal(translate(str_pad(x, width = 10, side = "both", pad = "<")), sql(r"{RPAD(REPEAT('<', (10 - LENGTH(x)) / 2) || x, CAST(GREATEST(10, LENGTH(x)) AS INTEGER), '<')}"))
   expect_error(translate(str_pad(x, width = 10, side = "other")))
+  expect_equal(translate(str_like(x, "a")), sql(r"{x LIKE 'a'}"))
+  expect_equal(translate(str_ilike(x, "a")), sql(r"{x ILIKE 'a'}"))
 })
 
 test_that("datetime escaping working as in DBI", {
