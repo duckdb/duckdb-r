@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.2.9011
+
+## Testing
+
+- Remove redundant R version checks from tests (#1815, #1816).
+
+
 # duckdb 1.4.2.9010
 
 ## vendor
