@@ -1,42 +1,14 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.4.2.9013
-
-## Continuous integration
-
-- Problems.
+# duckdb 1.4.3
 
 ## vendor
 
 - Update vendored sources (tag v1.4.3) to duckdb/duckdb@d1dc88f950d456d72493df452dabdcd13aa413dd (#1820).
 
-
-# duckdb 1.4.2.9012
-
-## Features
-
-- Add `str_ilike()` support (@edward-burn, #1810, #1811).
-
-
-# duckdb 1.4.2.9011
-
-## Testing
-
-- Remove redundant R version checks from tests (#1815, #1816).
-
-
-# duckdb 1.4.2.9010
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@e05f4ff81a8fbed460514f80e457260043ff8e9d (#1813).
 
 - Update vendored sources to duckdb/duckdb@e2d4818ce9137ad81d7f3e50859415b28f545c83 (#1812).
-
-
-# duckdb 1.4.2.9009
-
-## vendor
 
 - Update vendored sources to duckdb/duckdb@7f0b18a746b7df524c26ed5b21dd1bad441dbac1 (#1808).
 
@@ -44,30 +16,11 @@
 
 - Update vendored sources to duckdb/duckdb@c08cb6c83d9b065f5cc887316b3defef5a1ea737 (duckdb/duckdb#20014, #1805).
 
-
-# duckdb 1.4.2.9008
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@a86af889de004ec0a8afdec5da81275df7815361 (#1803).
 
 - Update vendored sources to duckdb/duckdb@e4fa02b24b913bafca100e378478d50092e55566 (#1802).
 
-
-# duckdb 1.4.2.9007
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@4b056d722eb9bb950aeb51afda4bc70cfcd8b8b8 (#1800).
-
-
-# duckdb 1.4.2.9006
-
-## Bug fixes
-
-- Fail with non-UTF8-encoded strings during data frame scan instead of attempting to reencode (#1795).
-
-## vendor
 
 - Update vendored sources to duckdb/duckdb@61e8c5b06d74802db643c0cea504bf4224c2ae56 (#1798).
 
@@ -77,26 +30,9 @@
 
 - Update vendored sources to duckdb/duckdb@35c257bec8e430467b4c73a92e188839fdafb344 (#1780).
 
-
-# duckdb 1.4.2.9005
-
-## Bug fixes
-
-- Avoid inclusion of raw error message in the output.
-
-
-# duckdb 1.4.2.9004
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@1cdb7e77a28cca9f8ab953103f0ba4ea43461a0c (#1756).
 
 - Update vendored sources to duckdb/duckdb@65ce0885dc47ee2eec68eb9f014b8d307e9bb511 (#1755).
-
-
-# duckdb 1.4.2.9003
-
-## vendor
 
 - Update vendored sources to duckdb/duckdb@c3fb0e6beb93158cc765d6027da6cf023efd1c40 (#1753).
 
@@ -105,15 +41,6 @@
 - Update vendored sources to duckdb/duckdb@52b7324da71614aebc37fe73311b12d70f9a7239 (#1751).
 
 - Update vendored sources to duckdb/duckdb@6b7d108b5b217154534667806331807abf431f98 (#1750).
-
-
-# duckdb 1.4.2.9002
-
-## Bug fixes
-
-- Fix translation of `quantile()` to use DuckDB's native `QUANTILE_CONT()` syntax (#1734, #1735).
-
-## vendor
 
 - Update vendored sources to duckdb/duckdb@9b6c56b056cc2567baea00826dce6303450a17b6 (#1748).
 
@@ -137,8 +64,27 @@
 
 - Update vendored sources to duckdb/duckdb@5f0c38c5eb4d1cfd7a4eeffae74b6a6c92090013 (#1728).
 
+- Update vendored sources to duckdb/duckdb@0efe5ccb5ba436fed2269d9b063995cc3990eaa2 (#1727).
 
-# duckdb 1.4.2.9001
+## revdep
+
+- New problems.
+
+## cran
+
+- Release duckdb 1.4.2 (#1726).
+
+## Bug fixes
+
+- Fail with non-UTF8-encoded strings during data frame scan instead of attempting to reencode (#1795).
+
+- Avoid inclusion of raw error message in the output.
+
+- Fix translation of `quantile()` to use DuckDB's native `QUANTILE_CONT()` syntax (#1734, #1735).
+
+## Features
+
+- Add `str_ilike()` support (@edward-burn, #1810, #1811).
 
 ## Chore
 
@@ -146,22 +92,13 @@
 
 ## Continuous integration
 
+- Problems.
+
 - Install binaries from r-universe for dev workflow (#1731).
 
-## revdep
+## Testing
 
-- New problems.
-
-
-# duckdb 1.4.2.9000
-
-## vendor
-
-- Update vendored sources to duckdb/duckdb@0efe5ccb5ba436fed2269d9b063995cc3990eaa2 (#1727).
-
-## cran
-
-- Release duckdb 1.4.2 (#1726).
+- Remove redundant R version checks from tests (#1815, #1816).
 
 
 # duckdb 1.4.2
