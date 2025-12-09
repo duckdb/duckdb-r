@@ -1,5 +1,16 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.2.9013
+
+## Continuous integration
+
+- Problems.
+
+## vendor
+
+- Update vendored sources (tag v1.4.3) to duckdb/duckdb@d1dc88f950d456d72493df452dabdcd13aa413dd (#1820).
+
+
 # duckdb 1.4.2.9012
 
 ## Features
