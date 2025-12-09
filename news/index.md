@@ -1,5 +1,14 @@
 # Changelog
 
+## duckdb 1.4.2.9012
+
+### Features
+
+- Add `str_ilike()` support
+  ([@edward-burn](https://github.com/edward-burn),
+  [\#1810](https://github.com/duckdb/duckdb-r/issues/1810),
+  [\#1811](https://github.com/duckdb/duckdb-r/issues/1811)).
+
 ## duckdb 1.4.2.9011
 
 ### Testing
