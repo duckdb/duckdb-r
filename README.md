@@ -40,6 +40,18 @@ Installing the package from GitHub may take up to an hour.
 pak::pak("duckdb/duckdb-r")
 ```
 
+## Installation from the Posit Public Package Manager (Linux)
+
+You can install the binary package on Linux using the [Posit Public Package Manager](https://p3m.dev/).
+
+``` r
+options(HTTPUserAgent = sprintf("R/%s R (%s)",
+    getRversion(),
+    paste(getRversion(), R.version["platform"], R.version["arch"], R.version["os"])
+))
+install.packages("duckdb", repos="https://p3m.dev/cran/__linux__/manylinux_2_28/latest/")
+```
+
 ## User Guide
 
 See the [R API in the DuckDB documentation](https://duckdb.org/docs/api/r).
