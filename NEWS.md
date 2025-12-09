@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.2.9012
+
+## Features
+
+- Add `str_ilike()` support (@edward-burn, #1810, #1811).
+
+
 # duckdb 1.4.2.9011
 
 ## Testing
