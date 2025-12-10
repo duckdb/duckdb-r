@@ -1,167 +1,24 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.4.2.9013
-
-## Continuous integration
-
-- Problems.
-
-## vendor
-
-- Update vendored sources (tag v1.4.3) to duckdb/duckdb@d1dc88f950d456d72493df452dabdcd13aa413dd (#1820).
-
-
-# duckdb 1.4.2.9012
+# duckdb 1.4.3
 
 ## Features
 
+- Update to DuckDB v1.4.3, see <https://github.com/duckdb/duckdb/releases/tag/v1.4.3> for details.
+
 - Add `str_ilike()` support (@edward-burn, #1810, #1811).
-
-
-# duckdb 1.4.2.9011
-
-## Testing
-
-- Remove redundant R version checks from tests (#1815, #1816).
-
-
-# duckdb 1.4.2.9010
-
-## vendor
-
-- Update vendored sources to duckdb/duckdb@e05f4ff81a8fbed460514f80e457260043ff8e9d (#1813).
-
-- Update vendored sources to duckdb/duckdb@e2d4818ce9137ad81d7f3e50859415b28f545c83 (#1812).
-
-
-# duckdb 1.4.2.9009
-
-## vendor
-
-- Update vendored sources to duckdb/duckdb@7f0b18a746b7df524c26ed5b21dd1bad441dbac1 (#1808).
-
-- Update vendored sources to duckdb/duckdb@8a2fc1d6d5d9b840f8b4829180fabdd7392e3bd2 (#1806).
-
-- Update vendored sources to duckdb/duckdb@c08cb6c83d9b065f5cc887316b3defef5a1ea737 (duckdb/duckdb#20014, #1805).
-
-
-# duckdb 1.4.2.9008
-
-## vendor
-
-- Update vendored sources to duckdb/duckdb@a86af889de004ec0a8afdec5da81275df7815361 (#1803).
-
-- Update vendored sources to duckdb/duckdb@e4fa02b24b913bafca100e378478d50092e55566 (#1802).
-
-
-# duckdb 1.4.2.9007
-
-## vendor
-
-- Update vendored sources to duckdb/duckdb@4b056d722eb9bb950aeb51afda4bc70cfcd8b8b8 (#1800).
-
-
-# duckdb 1.4.2.9006
 
 ## Bug fixes
 
 - Fail with non-UTF8-encoded strings during data frame scan instead of attempting to reencode (#1795).
 
-## vendor
-
-- Update vendored sources to duckdb/duckdb@61e8c5b06d74802db643c0cea504bf4224c2ae56 (#1798).
-
-- Update vendored sources to duckdb/duckdb@e5552390e9fdc301e16541ddd27d5cbdb67af4ba (#1794).
-
-- Update vendored sources to duckdb/duckdb@52fe0d2bffdc766e7a75a9f966c6db537e3ffdca (#1793).
-
-- Update vendored sources to duckdb/duckdb@35c257bec8e430467b4c73a92e188839fdafb344 (#1780).
-
-
-# duckdb 1.4.2.9005
-
-## Bug fixes
-
 - Avoid inclusion of raw error message in the output.
-
-
-# duckdb 1.4.2.9004
-
-## vendor
-
-- Update vendored sources to duckdb/duckdb@1cdb7e77a28cca9f8ab953103f0ba4ea43461a0c (#1756).
-
-- Update vendored sources to duckdb/duckdb@65ce0885dc47ee2eec68eb9f014b8d307e9bb511 (#1755).
-
-
-# duckdb 1.4.2.9003
-
-## vendor
-
-- Update vendored sources to duckdb/duckdb@c3fb0e6beb93158cc765d6027da6cf023efd1c40 (#1753).
-
-- Update vendored sources to duckdb/duckdb@f2512ab31e0e98de0742093e5b6bee360a62c526 (#1752).
-
-- Update vendored sources to duckdb/duckdb@52b7324da71614aebc37fe73311b12d70f9a7239 (#1751).
-
-- Update vendored sources to duckdb/duckdb@6b7d108b5b217154534667806331807abf431f98 (#1750).
-
-
-# duckdb 1.4.2.9002
-
-## Bug fixes
 
 - Fix translation of `quantile()` to use DuckDB's native `QUANTILE_CONT()` syntax (#1734, #1735).
 
-## vendor
+## Testing
 
-- Update vendored sources to duckdb/duckdb@9b6c56b056cc2567baea00826dce6303450a17b6 (#1748).
-
-- Update vendored sources to duckdb/duckdb@a64eb6ab595f42c3c42acf5016b004dc81078f89 (duckdb/duckdb#19517, #1747).
-
-- Update vendored sources to duckdb/duckdb@dfb67f4945354eada4dc02a2f7909028b4b14821 (#1746).
-
-- Update vendored sources to duckdb/duckdb@a65619811d6a3f70818c8da12f984267b4646380 (#1745).
-
-- Update vendored sources to duckdb/duckdb@a2ae69278e36a919880c521d18789dca9fb6f15a (#1744).
-
-- Update vendored sources to duckdb/duckdb@ff2930fb3061c7a92dadcffd4eb36d543c0bc955 (#1743).
-
-- Update vendored sources to duckdb/duckdb@b878a5db0cbf37ab52361fb0d48e7f28598d5992 (duckdb/duckdb#19575, #1742).
-
-- Update vendored sources to duckdb/duckdb@b1fb733cde86d1af47e15fd52c9ee0660666a592 (#1741).
-
-- Update vendored sources to duckdb/duckdb@da8fad8eff3477aa37638054fadfd718796c2ff3 (#1739).
-
-- Update vendored sources to duckdb/duckdb@f68f1a555b5384a5b467bc466a71e5026adcab03 (#1737).
-
-- Update vendored sources to duckdb/duckdb@5f0c38c5eb4d1cfd7a4eeffae74b6a6c92090013 (#1728).
-
-
-# duckdb 1.4.2.9001
-
-## Chore
-
-- Clean deps.
-
-## Continuous integration
-
-- Install binaries from r-universe for dev workflow (#1731).
-
-## revdep
-
-- New problems.
-
-
-# duckdb 1.4.2.9000
-
-## vendor
-
-- Update vendored sources to duckdb/duckdb@0efe5ccb5ba436fed2269d9b063995cc3990eaa2 (#1727).
-
-## cran
-
-- Release duckdb 1.4.2 (#1726).
+- Remove redundant R version checks from tests (#1815, #1816).
 
 
 # duckdb 1.4.2
