@@ -158,7 +158,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 
 [[cpp11::register]] SEXP rapi_expr_operator(std::string op, list exprs, std::string alias = "") {
 
-	ExpressionType expr_type; 
+	ExpressionType expr_type;
 
 	if (op == "IN") {
 		expr_type = ExpressionType::COMPARE_IN;
@@ -168,16 +168,12 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 		stop("expr_operator: Invalid operator");
 	}
 
-	vector<unique_ptr<ParsedExpression>> in_list;
-	// unique_ptr<ParsedExpression> left_expr = expr_extptr_t(exprs[0])->Copy();
-
-
-	for (expr_extptr_t expr : exprs) {
+	vector<unique_ptr<ParsedExpression>> parsed_exprs;
+	for (expr_extptr_t expr : parsed_exprs) {
 		in_list.push_back(expr->Copy());
 	}
 
-	auto out = make_external<OperatorExpression>("duckdb_expr", expr_type,
-	                                               std::move(in_list));
+	auto out = make_external<OperatorExpression>("duckdb_expr", parsed_exprs, std::move(in_list));
 	if (alias != "") {
 		out->SetAlias(std::move(alias));
 	}
