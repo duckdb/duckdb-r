@@ -170,10 +170,10 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 
 	vector<unique_ptr<ParsedExpression>> parsed_exprs;
 	for (expr_extptr_t expr : parsed_exprs) {
-		in_list.push_back(expr->Copy());
+		parsed_exprs.push_back(expr->Copy());
 	}
 
-	auto out = make_external<OperatorExpression>("duckdb_expr", parsed_exprs, std::move(in_list));
+	auto out = make_external<OperatorExpression>("duckdb_expr", parsed_exprs, std::move(parsed_exprs));
 	if (alias != "") {
 		out->SetAlias(std::move(alias));
 	}
