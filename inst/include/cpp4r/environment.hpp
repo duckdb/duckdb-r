@@ -1,15 +1,13 @@
-// cpp11 version: 0.5.2
-// vendored on: 2025-03-09
 #pragma once
 
 #include <string>  // for string, basic_string
 
-#include "cpp11/R.hpp"        // for SEXP, SEXPREC, Rf_install, r_env_get...
-#include "cpp11/as.hpp"       // for as_sexp
-#include "cpp11/protect.hpp"  // for protect, protect::function, safe, unwin...
-#include "cpp11/sexp.hpp"     // for sexp
+#include "cpp4r/R.hpp"        // for R’s C interface (e.g., for SEXP)
+#include "cpp4r/as.hpp"       // for as_sexp
+#include "cpp4r/protect.hpp"  // for safe, protect, etc.
+#include "cpp4r/sexp.hpp"     // for sexp
 
-namespace cpp11 {
+namespace cpp4r {
 
 class environment {
  private:
@@ -50,9 +48,9 @@ class environment {
 
   void remove(const char* name) { remove(safe[Rf_install](name)); }
 
-  R_xlen_t size() const { return Rf_xlength(env_); }
+  R_xlen_t size() const noexcept { return Rf_xlength(env_); }
 
-  operator SEXP() const { return env_; }
+  operator SEXP() const noexcept { return env_; }
 };
 
-}  // namespace cpp11
+}  // namespace cpp4r

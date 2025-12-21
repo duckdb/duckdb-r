@@ -1,21 +1,17 @@
-// cpp11 version: 0.5.2
-// vendored on: 2025-03-09
 #pragma once
 
-#include <algorithm>         // for min, tranform
-#include <array>             // for array
-#include <initializer_list>  // for initializer_list
+#include <initializer_list>
 
-#include "R_ext/Arith.h"       // for ISNA
-#include "cpp11/R.hpp"         // for SEXP, SEXPREC, Rf_allocVector, REAL
-#include "cpp11/as.hpp"        // for as_sexp
-#include "cpp11/protect.hpp"   // for safe
-#include "cpp11/r_vector.hpp"  // for vector, vector<>::proxy, vector<>::...
-#include "cpp11/sexp.hpp"      // for sexp
+#include "R_ext/Arith.h"
+#include "cpp4r/R.hpp"
+#include "cpp4r/as.hpp"
+#include "cpp4r/cpp_version.hpp"
+#include "cpp4r/protect.hpp"
+#include "cpp4r/r_bool.hpp"
+#include "cpp4r/r_vector.hpp"
+#include "cpp4r/sexp.hpp"
 
-// Specializations for doubles
-
-namespace cpp11 {
+namespace cpp4r {
 
 template <>
 inline SEXPTYPE r_vector<double>::get_sexptype() {
@@ -25,35 +21,29 @@ inline SEXPTYPE r_vector<double>::get_sexptype() {
 template <>
 inline typename r_vector<double>::underlying_type r_vector<double>::get_elt(SEXP x,
                                                                             R_xlen_t i) {
-  // NOPROTECT: likely too costly to unwind protect every elt
   return REAL_ELT(x, i);
 }
 
 template <>
 inline typename r_vector<double>::underlying_type* r_vector<double>::get_p(bool is_altrep,
                                                                            SEXP data) {
-  if (is_altrep) {
-    return nullptr;
-  } else {
-    return REAL(data);
-  }
+  return REAL(data);
 }
 
 template <>
 inline typename r_vector<double>::underlying_type const* r_vector<double>::get_const_p(
     bool is_altrep, SEXP data) {
-  return REAL_OR_NULL(data);
+  return REAL(data);
 }
 
 template <>
 inline void r_vector<double>::get_region(SEXP x, R_xlen_t i, R_xlen_t n,
                                          typename r_vector::underlying_type* buf) {
-  // NOPROTECT: likely too costly to unwind protect here
   REAL_GET_REGION(x, i, n, buf);
 }
 
 template <>
-inline bool r_vector<double>::const_iterator::use_buf(bool is_altrep) {
+inline bool r_vector<double>::generic_const_iterator::use_buf(bool is_altrep) {
   return is_altrep;
 }
 
@@ -64,7 +54,6 @@ namespace writable {
 template <>
 inline void r_vector<double>::set_elt(SEXP x, R_xlen_t i,
                                       typename r_vector::underlying_type value) {
-  // NOPROTECT: Likely too costly to unwind protect every set elt
   SET_REAL_ELT(x, i, value);
 }
 
@@ -72,24 +61,44 @@ typedef r_vector<double> doubles;
 
 }  // namespace writable
 
+template <>
+inline const double* CPP4R_RESTRICT r_vector<double>::data_ptr() const noexcept {
+  return data_p_;
+}
+
+namespace writable {
+template <>
+inline double* CPP4R_RESTRICT r_vector<double>::data_ptr_writable() noexcept {
+  return data_p_;
+}
+
+template <>
+inline const double* CPP4R_RESTRICT r_vector<double>::data_ptr() const noexcept {
+  return data_p_;
+}
+}  // namespace writable
+
 typedef r_vector<int> integers;
+typedef r_vector<r_bool> logicals;
 
 inline doubles as_doubles(SEXP x) {
-  if (detail::r_typeof(x) == REALSXP) {
-    return doubles(x);
-  }
+  SEXPTYPE type = detail::r_typeof(x);
+  if (type == REALSXP) return doubles(x);
 
-  else if (detail::r_typeof(x) == INTSXP) {
-    integers xn(x);
-    size_t len = xn.size();
+  if (type == INTSXP || type == LGLSXP) {
+    R_xlen_t len = Rf_xlength(x);
     writable::doubles ret(len);
-    std::transform(xn.begin(), xn.end(), ret.begin(), [](int value) {
-      return value == NA_INTEGER ? NA_REAL : static_cast<double>(value);
-    });
+    const int* CPP4R_RESTRICT src = (type == INTSXP) ? INTEGER(x) : LOGICAL(x);
+    double* CPP4R_RESTRICT dst = REAL(ret.data());
+    int na_val = (type == INTSXP) ? NA_INTEGER : NA_LOGICAL;
+
+    for (R_xlen_t i = 0; i < len; ++i) {
+      dst[i] = (src[i] == na_val) ? NA_REAL : static_cast<double>(src[i]);
+    }
     return ret;
   }
 
-  throw type_error(REALSXP, detail::r_typeof(x));
+  throw type_error(REALSXP, type);
 }
 
 template <>
@@ -97,4 +106,4 @@ inline double na() {
   return NA_REAL;
 }
 
-}  // namespace cpp11
+}  // namespace cpp4r

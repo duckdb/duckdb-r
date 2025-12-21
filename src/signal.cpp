@@ -1,9 +1,9 @@
 #include "signal.hpp"
 
-#include "cpp11.hpp"
-#include "cpp11/R.hpp"
-#include "cpp11/function.hpp"
-#include "cpp11/protect.hpp" // for safe
+#include "cpp4r.hpp"
+#include "cpp4r/R.hpp"
+#include "cpp4r/function.hpp"
+#include "cpp4r/protect.hpp" // for safe
 #include "duckdb/common/exception.hpp"
 
 #include <R_ext/GraphicsEngine.h>
@@ -44,13 +44,13 @@ void ScopedInterruptHandler::HandleInterrupt() const {
 	// This seems necessary to work around a specificity with the RStudio IDE on Windows.
 	// Without the message, the interrupt is not available as a catchable condition.
 	// https://github.com/krlmlr/cancel.test/issues/1
-	cpp11::message("");
+	cpp4r::message("");
 
-	// FIXME: Is this equivalent to cpp11::safe[Rf_onintrNoResume](), or worse?
-	cpp11::safe[Rf_onintr]();
+	// FIXME: Is this equivalent to cpp4r::safe[Rf_onintrNoResume](), or worse?
+	cpp4r::safe[Rf_onintr]();
 
 	// Stop execution with an appropriate interruption message
-	cpp11::stop("Query execution was interrupted");
+	cpp4r::stop("Query execution was interrupted");
 }
 
 void ScopedInterruptHandler::Disable() {

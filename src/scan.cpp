@@ -4,7 +4,7 @@
 #include "typesr.hpp"
 
 using namespace duckdb;
-using namespace cpp11;
+using namespace cpp4r;
 
 static data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 	switch (rtype.id()) {
@@ -13,6 +13,7 @@ static data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 	case RType::INTEGER:
 		return (data_ptr_t)INTEGER_POINTER(coldata);
 	case RType::NUMERIC:
+	
 		return (data_ptr_t)NUMERIC_POINTER(coldata);
 	case RType::INTEGER64:
 		return (data_ptr_t)NUMERIC_POINTER(coldata);

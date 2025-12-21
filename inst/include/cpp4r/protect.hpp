@@ -1,5 +1,3 @@
-// cpp11 version: 0.5.2
-// vendored on: 2025-03-09
 #pragma once
 
 #include <csetjmp>    // for longjmp, setjmp, jmp_buf
@@ -8,34 +6,25 @@
 #include <string>     // for string, basic_string
 #include <tuple>      // for tuple, make_tuple
 
-// NB: cpp11/R.hpp must precede R_ext/Error.h to ensure R_NO_REMAP is defined
-#include "cpp11/R.hpp"  // for SEXP, SEXPREC, CDR, R_NilValue, CAR, R_Pres...
+// NB: cpp4r/R.hpp must precede R_ext/Error.h to ensure R_NO_REMAP is defined
+#include "cpp4r/R.hpp"            // for R’s C interface (e.g., for SEXP)
+#include "cpp4r/cpp_version.hpp"  // for CPP4R_ALWAYS_INLINE, CPP4R_LIKELY, etc.
 
 #include "R_ext/Boolean.h"  // for Rboolean
 #include "R_ext/Error.h"    // for Rf_error, Rf_warning
 #include "R_ext/Print.h"    // for REprintf
 #include "R_ext/Utils.h"    // for R_CheckUserInterrupt
 
-// We would like to remove this, since all supported versions of R now support proper
-// unwind protect, but some groups rely on it existing, like arrow and systemfonts
-// https://github.com/r-lib/cpp11/issues/412
-#define HAS_UNWIND_PROTECT
-
-#ifdef CPP11_USE_FMT
-#define FMT_HEADER_ONLY
-#include "fmt/core.h"
-#endif
-
-namespace cpp11 {
+namespace cpp4r {
 class unwind_exception : public std::exception {
  public:
   SEXP token;
   unwind_exception(SEXP token_) : token(token_) {}
 };
 
-/// Unwind Protection from C longjmp's, like those used in R error handling
-///
-/// @param code The code to which needs to be protected, as a nullary callable
+// Unwind Protection from C longjmp's, like those used in R error handling
+//
+// @param code The code to which needs to be protected, as a nullary callable
 template <typename Fun, typename = typename std::enable_if<std::is_same<
                             decltype(std::declval<Fun&&>()()), SEXP>::value>::type>
 SEXP unwind_protect(Fun&& code) {
@@ -158,10 +147,10 @@ struct protect {
     F* ptr_;
   };
 
-  /// May not be applied to a function bearing attributes, which interfere with linkage on
-  /// some compilers; use an appropriately attributed alternative. (For example, Rf_error
-  /// bears the [[noreturn]] attribute and must be protected with safe.noreturn rather
-  /// than safe.operator[]).
+  // May not be applied to a function bearing attributes, which interfere with linkage on
+  // some compilers; use an appropriately attributed alternative. (For example, Rf_error
+  // bears the [[noreturn]] attribute and must be protected with safe.noreturn rather
+  // than safe.operator[]).
   template <typename F>
   constexpr function<F> operator[](F* raw) const {
     return {raw};
@@ -190,27 +179,6 @@ constexpr struct protect safe = {};
 
 inline void check_user_interrupt() { safe[R_CheckUserInterrupt](); }
 
-#ifdef CPP11_USE_FMT
-template <typename... Args>
-void stop [[noreturn]] (const char* fmt_arg, Args&&... args) {
-  std::string msg = fmt::format(fmt_arg, std::forward<Args>(args)...);
-  safe.noreturn(Rf_errorcall)(R_NilValue, "%s", msg.c_str());
-}
-
-template <typename... Args>
-void stop [[noreturn]] (const std::string& fmt_arg, Args&&... args) {
-  std::string msg = fmt::format(fmt_arg, std::forward<Args>(args)...);
-  safe.noreturn(Rf_errorcall)(R_NilValue, "%s", msg.c_str());
-}
-
-// Always making copy of string to avoid weird unwind behavior.
-
-template <typename... Args>
-void warning(const std::string fmt_arg, Args&&... args) {
-  std::string msg = fmt::format(fmt_arg, std::forward<Args>(args)...);
-  safe[Rf_warningcall](R_NilValue, "%s", msg.c_str());
-}
-#else
 template <typename... Args>
 void stop [[noreturn]] (const char* fmt, Args... args) {
   safe.noreturn(Rf_errorcall)(R_NilValue, fmt, args...);
@@ -221,13 +189,15 @@ void stop [[noreturn]] (const std::string& fmt, Args... args) {
   safe.noreturn(Rf_errorcall)(R_NilValue, fmt.c_str(), args...);
 }
 
-// Always making copy of string to avoid weird unwind behavior.
+template <typename... Args>
+void warning(const char* fmt, Args... args) {
+  safe[Rf_warningcall](R_NilValue, fmt, args...);
+}
 
 template <typename... Args>
-void warning(const std::string fmt, Args... args) {
+void warning(const std::string& fmt, Args... args) {
   safe[Rf_warningcall](R_NilValue, fmt.c_str(), args...);
 }
-#endif
 
 namespace detail {
 
@@ -236,7 +206,7 @@ namespace detail {
 //
 // We let R manage the memory of the list itself by calling `R_PreserveObject()` on it.
 //
-// cpp11 being a header only library makes creating a "global" preserve list a bit tricky.
+// cpp4r being a header only library makes creating a "global" preserve list a bit tricky.
 // The trick we use here is that static local variables in inline extern functions are
 // guaranteed by the standard to be unique across the whole program. Inline functions are
 // extern by default, but `static inline` functions are not, so do not change these
@@ -245,88 +215,113 @@ namespace detail {
 // preserve list per package, which seems to work nicely.
 // https://stackoverflow.com/questions/185624/what-happens-to-static-variables-in-inline-functions
 // https://stackoverflow.com/questions/51612866/global-variables-in-header-only-library
-// https://github.com/r-lib/cpp11/issues/330
+// https://github.com/r-lib/cpp4r/issues/330
 //
 // > A static local variable in an extern inline function always refers to the
 //   same object. 7.1.2/4 - C++98/C++14 (n3797)
 namespace store {
 
-inline SEXP init() {
-  SEXP out = Rf_cons(R_NilValue, Rf_cons(R_NilValue, R_NilValue));
-  R_PreserveObject(out);
-  return out;
+inline int& get_counter() {
+  static int counter = 0;
+  return counter;
 }
 
-inline SEXP get() {
-  // Note the `static` local variable in the inline extern function here! Guarantees we
-  // have 1 unique preserve list across all compilation units in the package.
-  static SEXP out = init();
-  return out;
+inline SEXP& get_root() {
+  static SEXP root = []() {
+    // Index 0: Active list head
+    // Index 1: Free list head
+    SEXP r = Rf_allocVector(VECSXP, 2);
+    R_PreserveObject(r);
+    return r;
+  }();
+  return root;
 }
 
-inline R_xlen_t count() {
-  const R_xlen_t head = 1;
-  const R_xlen_t tail = 1;
-  SEXP list = get();
-  return Rf_xlength(list) - head - tail;
-}
-
-inline SEXP insert(SEXP x) {
-  if (x == R_NilValue) {
+CPP4R_ALWAYS_INLINE SEXP insert(SEXP x) {
+  if (CPP4R_UNLIKELY(x == R_NilValue)) {
     return R_NilValue;
   }
 
+  // Protect x because it might be an unprotected result from allocVector
   PROTECT(x);
 
-  SEXP list = get();
+  SEXP root = get_root();
+  SEXP free_head = VECTOR_ELT(root, 1);
+  SEXP node;
 
-  // Get references to the head of the preserve list and the next element
-  // after the head
-  SEXP head = list;
-  SEXP next = CDR(list);
+  if (CPP4R_LIKELY(free_head != R_NilValue)) {
+    node = free_head;
+    // Remove from free list
+    SET_VECTOR_ELT(root, 1, CDR(node));
+  } else {
+    // Node structure: [prev (TAG), data (CAR), next (CDR)]
+    node = Rf_cons(R_NilValue, R_NilValue);
+    SET_TAG(node, R_NilValue);
+  }
 
-  // Add a new cell that points to the current head + next.
-  SEXP cell = PROTECT(Rf_cons(head, next));
-  SET_TAG(cell, x);
+  PROTECT(node);
 
-  // Update the head + next to point at the newly-created cell,
-  // effectively inserting that cell between the current head + next.
-  SETCDR(head, cell);
-  SETCAR(next, cell);
+  SETCAR(node, x);
+
+  SEXP head = VECTOR_ELT(root, 0);
+
+  SETCDR(node, head);  // next = old_head
+  // prev is already R_NilValue (from cons or release)
+
+  if (head != R_NilValue) {
+    SET_TAG(head, node);  // old_head.prev = node
+  }
+
+  SET_VECTOR_ELT(root, 0, node);  // root.head = node
 
   UNPROTECT(2);
 
-  return cell;
+  get_counter()++;
+  return node;
 }
 
-inline void release(SEXP cell) {
-  if (cell == R_NilValue) {
+CPP4R_ALWAYS_INLINE void release(SEXP node) {
+  if (CPP4R_UNLIKELY(node == R_NilValue)) {
     return;
   }
 
-  // Get a reference to the cells before and after the token.
-  SEXP lhs = CAR(cell);
-  SEXP rhs = CDR(cell);
+  // node is [prev (TAG), data (CAR), next (CDR)]
+  SEXP prev = TAG(node);
+  SEXP next = CDR(node);
 
-  // Remove the cell from the preserve list -- effectively, we do this
-  // by updating the 'lhs' and 'rhs' references to point at each-other,
-  // effectively removing any references to the cell in the pairlist.
-  SETCDR(lhs, rhs);
-  SETCAR(rhs, lhs);
-}
-
-inline void print() {
-  SEXP list = get();
-  for (SEXP cell = list; cell != R_NilValue; cell = CDR(cell)) {
-    REprintf("%p CAR: %p CDR: %p TAG: %p\n", reinterpret_cast<void*>(cell),
-             reinterpret_cast<void*>(CAR(cell)), reinterpret_cast<void*>(CDR(cell)),
-             reinterpret_cast<void*>(TAG(cell)));
+  if (CPP4R_LIKELY(prev != R_NilValue)) {
+    SETCDR(prev, next);
+  } else {
+    // node was head
+    SEXP root = get_root();
+    SET_VECTOR_ELT(root, 0, next);
   }
-  REprintf("---\n");
+
+  if (CPP4R_LIKELY(next != R_NilValue)) {
+    SET_TAG(next, prev);
+  }
+
+  // Clear data to allow GC
+  SETCAR(node, R_NilValue);
+  // Clear prev
+  SET_TAG(node, R_NilValue);
+
+  // Add to free list
+  SEXP root = get_root();
+  SEXP free_head = VECTOR_ELT(root, 1);
+
+  SETCDR(node, free_head);        // next = old_free_head
+  SET_VECTOR_ELT(root, 1, node);  // root.free_head = node
+
+  get_counter()--;
 }
+
+inline R_xlen_t count() { return get_counter(); }
+
+inline void print() { REprintf("Preserved objects count: %d\n", get_counter()); }
 
 }  // namespace store
 
 }  // namespace detail
 
-}  // namespace cpp11
+}  // namespace cpp4r

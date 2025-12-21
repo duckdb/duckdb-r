@@ -11,7 +11,7 @@
 
 using namespace duckdb;
 
-[[cpp11::register]] void rapi_register_df(duckdb::conn_eptr_t conn, std::string name, cpp11::data_frame value,
+[[cpp4r::register]] void rapi_register_df(duckdb::conn_eptr_t conn, std::string name, cpp4r::data_frame value,
                                           duckdb::ConvertOpts convert_opts, bool overwrite) {
 	if (!conn || !conn.get() || !conn->conn) {
 		rapi_error_with_context("rapi_register_df", "Invalid connection");
@@ -35,20 +35,20 @@ using namespace duckdb;
 
 		signal_handler.HandleInterrupt();
 
-		static_cast<cpp11::sexp>(conn).attr("_registered_df_" + name) = value;
+		static_cast<cpp4r::sexp>(conn).attr("_registered_df_" + name) = value;
 	} catch (std::exception &e) {
 		rapi_error_with_context("rapi_register_df", e);
 	}
 }
 
-[[cpp11::register]] void rapi_unregister_df(duckdb::conn_eptr_t conn, std::string name) {
+[[cpp4r::register]] void rapi_unregister_df(duckdb::conn_eptr_t conn, std::string name) {
 	if (!conn || !conn.get() || !conn->conn) {
 		return;
 	}
 
 	ScopedInterruptHandler signal_handler(conn->conn->context);
 
-	static_cast<cpp11::sexp>(conn).attr("_registered_df_" + name) = R_NilValue;
+	static_cast<cpp4r::sexp>(conn).attr("_registered_df_" + name) = R_NilValue;
 	auto res = conn->conn->Query("DROP VIEW IF EXISTS \"" + name + "\"");
 
 	signal_handler.HandleInterrupt();
@@ -63,7 +63,7 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	auto &data = (ReplacementDataDBWrapper &)*data_p;
 	auto db_wrapper = data.wrapper;
 
-	auto table_name_symbol = cpp11::safe[Rf_install](input.table_name.c_str());
+	auto table_name_symbol = cpp4r::safe[Rf_install](input.table_name.c_str());
 	SEXP df = R_NilValue;
 	SEXP rho = db_wrapper->env;
 	if (TYPEOF(rho) != ENVSXP) {
@@ -71,17 +71,17 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	}
 
 #if defined(R_VERSION) && R_VERSION >= R_Version(4, 5, 0)
-	df = cpp11::safe[R_getVarEx](table_name_symbol, rho, Rboolean::TRUE, R_NilValue);
+	df = cpp4r::safe[R_getVarEx](table_name_symbol, rho, Rboolean::TRUE, R_NilValue);
 #else
 	while (rho != R_EmptyEnv) {
-		df = cpp11::safe[Rf_findVarInFrame3](rho, table_name_symbol, TRUE);
+		df = cpp4r::safe[Rf_findVarInFrame3](rho, table_name_symbol, TRUE);
 		if (df != R_UnboundValue) {
 			break;
 		}
 		rho = ENCLOS(rho);
 	}
 	if (TYPEOF(df) == PROMSXP) {
-		df = cpp11::safe[Rf_eval](df, rho);
+		df = cpp4r::safe[Rf_eval](df, rho);
 	}
 #endif
 	if (!Rf_inherits(df, "data.frame")) {
@@ -108,10 +108,10 @@ public:
 	static unique_ptr<ArrowArrayStreamWrapper> Produce(uintptr_t factory_p, ArrowStreamParameters &parameters) {
 		auto res = make_uniq<ArrowArrayStreamWrapper>();
 		auto factory = (RArrowTabularStreamFactory *)factory_p;
-		cpp11::sexp stream_ptr_sexp =
+		cpp4r::sexp stream_ptr_sexp =
 		    Rf_ScalarReal(static_cast<double>(reinterpret_cast<uintptr_t>(&res->arrow_array_stream)));
 
-		cpp11::function export_fun = VECTOR_ELT(factory->export_fun, 0);
+		cpp4r::function export_fun = VECTOR_ELT(factory->export_fun, 0);
 
 		auto &column_list = parameters.projected_columns.columns;
 		auto filters = parameters.filters;
@@ -119,8 +119,8 @@ public:
 		if (column_list.empty()) {
 			export_fun(factory->arrow_scannable, stream_ptr_sexp);
 		} else {
-			cpp11::sexp projection_sexp = StringsToSexp(column_list);
-			cpp11::sexp filters_sexp = Rf_ScalarLogical(true);
+			cpp4r::sexp projection_sexp = StringsToSexp(column_list);
+			cpp4r::sexp filters_sexp = Rf_ScalarLogical(true);
 			if (filters && !filters->filters.empty()) {
 				auto timezone_config = factory->config.time_zone;
 				filters_sexp = TransformFilter(*filters, projection_map, factory->export_fun, timezone_config);
@@ -134,10 +134,10 @@ public:
 
 		auto res = make_uniq<ArrowArrayStreamWrapper>();
 		auto factory = (RArrowTabularStreamFactory *)factory_p;
-		cpp11::sexp schema_ptr_sexp =
+		cpp4r::sexp schema_ptr_sexp =
 		    Rf_ScalarReal(static_cast<double>(reinterpret_cast<uintptr_t>(&schema.arrow_schema)));
 
-		cpp11::function export_fun = VECTOR_ELT(factory->export_fun, 4);
+		cpp4r::function export_fun = VECTOR_ELT(factory->export_fun, 4);
 
 		export_fun(factory->arrow_scannable, schema_ptr_sexp);
 	}
@@ -149,14 +149,14 @@ public:
 private:
 	static SEXP TransformFilterExpression(TableFilter &filter, const string &column_name, SEXP functions,
 	                                      string &timezone_config) {
-		cpp11::sexp column_name_sexp = Rf_mkString(column_name.c_str());
-		cpp11::sexp column_name_expr = CreateFieldRef(functions, column_name_sexp);
+		cpp4r::sexp column_name_sexp = Rf_mkString(column_name.c_str());
+		cpp4r::sexp column_name_expr = CreateFieldRef(functions, column_name_sexp);
 
 		switch (filter.filter_type) {
 		case TableFilterType::CONSTANT_COMPARISON: {
 			auto constant_filter = (ConstantFilter &)filter;
-			cpp11::sexp constant_sexp = RApiTypes::ValueToSexp(constant_filter.constant, timezone_config);
-			cpp11::sexp constant_expr = CreateScalar(functions, constant_sexp);
+			cpp4r::sexp constant_sexp = RApiTypes::ValueToSexp(constant_filter.constant, timezone_config);
+			cpp4r::sexp constant_expr = CreateScalar(functions, constant_sexp);
 			switch (constant_filter.comparison_type) {
 			case ExpressionType::COMPARE_EQUAL: {
 				return CreateExpression(functions, "equal", column_name_expr, constant_expr);
@@ -185,7 +185,7 @@ private:
 			return CreateExpression(functions, "is_null", column_name_expr);
 		}
 		case TableFilterType::IS_NOT_NULL: {
-			cpp11::sexp is_null_expr = CreateExpression(functions, "is_null", column_name_expr);
+			cpp4r::sexp is_null_expr = CreateExpression(functions, "is_null", column_name_expr);
 			return CreateExpression(functions, "invert", is_null_expr);
 		}
 		case TableFilterType::CONJUNCTION_AND: {
@@ -208,10 +208,10 @@ private:
 	static SEXP TransformChildFilters(SEXP functions, const string &column_name, const string op,
 	                                  vector<duckdb::unique_ptr<TableFilter>> &filters, string &timezone_config) {
 		auto fit = filters.begin();
-		cpp11::sexp conjunction_sexp = TransformFilterExpression(**fit, column_name, functions, timezone_config);
+		cpp4r::sexp conjunction_sexp = TransformFilterExpression(**fit, column_name, functions, timezone_config);
 		fit++;
 		for (; fit != filters.end(); ++fit) {
-			cpp11::sexp rhs = TransformFilterExpression(**fit, column_name, functions, timezone_config);
+			cpp4r::sexp rhs = TransformFilterExpression(**fit, column_name, functions, timezone_config);
 			conjunction_sexp = CreateExpression(functions, op, conjunction_sexp, rhs);
 		}
 		return conjunction_sexp;
@@ -220,17 +220,17 @@ private:
 	static SEXP TransformFilter(TableFilterSet &filter_collection, unordered_map<idx_t, string> &columns,
 	                            SEXP functions, string &timezone_config) {
 		auto fit = filter_collection.filters.begin();
-		cpp11::sexp res = TransformFilterExpression(*fit->second, columns[fit->first], functions, timezone_config);
+		cpp4r::sexp res = TransformFilterExpression(*fit->second, columns[fit->first], functions, timezone_config);
 		fit++;
 		for (; fit != filter_collection.filters.end(); ++fit) {
-			cpp11::sexp rhs = TransformFilterExpression(*fit->second, columns[fit->first], functions, timezone_config);
+			cpp4r::sexp rhs = TransformFilterExpression(*fit->second, columns[fit->first], functions, timezone_config);
 			res = CreateExpression(functions, "and_kleene", res, rhs);
 		}
 		return res;
 	}
 
 	static SEXP CallArrowFactory(SEXP functions, idx_t idx, SEXP op1, SEXP op2 = R_NilValue, SEXP op3 = R_NilValue) {
-		cpp11::function create_fun = VECTOR_ELT(functions, idx);
+		cpp4r::function create_fun = VECTOR_ELT(functions, idx);
 		if (Rf_isNull(op2)) {
 			return create_fun(op1);
 		} else if (Rf_isNull(op3)) {
@@ -241,7 +241,7 @@ private:
 	}
 
 	static SEXP CreateExpression(SEXP functions, const string name, SEXP op1, SEXP op2 = R_NilValue) {
-		cpp11::sexp name_sexp = Rf_mkString(name.c_str());
+		cpp4r::sexp name_sexp = Rf_mkString(name.c_str());
 		return CallArrowFactory(functions, 1, name_sexp, op1, op2);
 	}
 
@@ -275,8 +275,8 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, Replac
 	return nullptr;
 }
 
-[[cpp11::register]] void rapi_register_arrow(duckdb::conn_eptr_t conn, std::string name, cpp11::list export_funs,
-                                             cpp11::sexp valuesexp) {
+[[cpp4r::register]] void rapi_register_arrow(duckdb::conn_eptr_t conn, std::string name, cpp4r::list export_funs,
+                                             cpp4r::sexp valuesexp) {
 	if (!conn || !conn.get() || !conn->conn) {
 		rapi_error_with_context("rapi_register_arrow", "Invalid connection");
 	}
@@ -287,10 +287,10 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, Replac
 	auto stream_factory =
 	    new RArrowTabularStreamFactory(export_funs, valuesexp, conn->conn->context->GetClientProperties());
 	// make r external ptr object to keep factory around until arrow table is unregistered
-	cpp11::external_pointer<RArrowTabularStreamFactory> factorysexp(stream_factory);
+	cpp4r::external_pointer<RArrowTabularStreamFactory> factorysexp(stream_factory);
 
 	// factorysexp must occur first here, used in ArrowScanReplacement()
-	cpp11::writable::list state_list = {factorysexp, export_funs, valuesexp};
+	cpp4r::writable::list state_list = {factorysexp, export_funs, valuesexp};
 	{
 		lock_guard<mutex> arrow_scans_lock(conn->db->lock);
 		auto &arrow_scans = conn->db->arrow_scans;
@@ -304,7 +304,7 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, Replac
 	}
 }
 
-[[cpp11::register]] void rapi_unregister_arrow(duckdb::conn_eptr_t conn, std::string name) {
+[[cpp4r::register]] void rapi_unregister_arrow(duckdb::conn_eptr_t conn, std::string name) {
 	if (!conn || !conn.get() || !conn->conn) {
 		return; // if the connection is already dead there is probably no point in cleaning this
 	}
@@ -315,11 +315,11 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, Replac
 	}
 }
 
-[[cpp11::register]] cpp11::strings rapi_list_arrow(duckdb::conn_eptr_t conn) {
+[[cpp4r::register]] cpp4r::strings rapi_list_arrow(duckdb::conn_eptr_t conn) {
 	lock_guard<mutex> arrow_scans_lock(conn->db->lock);
 	const auto &arrow_scans = conn->db->arrow_scans;
 
-	cpp11::writable::strings names;
+	cpp4r::writable::strings names;
 	names.reserve(arrow_scans.size());
 
 	for (const auto &e : arrow_scans) {

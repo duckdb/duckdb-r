@@ -43,3 +43,4 @@ _files$
 ^\.clangd$
 ^src/include/deps\.mk$
 ^CLAUDE\.md$
+old-include

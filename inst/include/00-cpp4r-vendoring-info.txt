@@ -1,0 +1,2 @@
+cpp4r version: 0.4.0
+vendored on: 2025-12-17

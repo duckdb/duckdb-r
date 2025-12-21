@@ -1,16 +1,15 @@
-// cpp11 version: 0.5.2
-// vendored on: 2025-03-09
 #pragma once
 
-#include <stddef.h>  // for size_t
+#include <stddef.h>     // for size_t
+#include <string>       // for string, basic_string
+#include <type_traits>  // for enable_if, is_same, decay
 
-#include <string>  // for string, basic_string
+#include "cpp4r/R.hpp"                // for R’s C interface (e.g., for SEXP)
+#include "cpp4r/attribute_proxy.hpp"  // for attribute_proxy
+#include "cpp4r/cpp_version.hpp"      // for CPP4R_HAS_CXX17
+#include "cpp4r/protect.hpp"          // for store
 
-#include "cpp11/R.hpp"                // for SEXP, SEXPREC, REAL_ELT, R_NilV...
-#include "cpp11/attribute_proxy.hpp"  // for attribute_proxy
-#include "cpp11/protect.hpp"          // for store
-
-namespace cpp11 {
+namespace cpp4r {
 
 /// Converting to SEXP
 class sexp {
@@ -19,9 +18,24 @@ class sexp {
   SEXP preserve_token_ = R_NilValue;
 
  public:
-  sexp() = default;
+  sexp() noexcept = default;
 
   sexp(SEXP data) : data_(data), preserve_token_(detail::store::insert(data_)) {}
+
+  // Templated constructor for types with operator SEXP()
+  // This resolves ambiguity in C++14 between sexp(SEXP) and copy/move constructors
+  template <typename T, typename = typename std::enable_if<
+                            !std::is_same<typename std::decay<T>::type, sexp>::value &&
+                            !std::is_same<typename std::decay<T>::type, SEXP>::value &&
+                            std::is_convertible<T, SEXP>::value>::type>
+  sexp(T&& value) {
+#if CPP4R_HAS_CXX17
+    data_ = static_cast<SEXP>(std::forward<T>(value));
+#else
+    data_ = static_cast<SEXP>(value);
+#endif
+    preserve_token_ = detail::store::insert(data_);
+  }
 
   // We maintain our own new `preserve_token_`
   sexp(const sexp& rhs) {
@@ -31,7 +45,7 @@ class sexp {
 
   // We take ownership over the `rhs.preserve_token_`.
   // Importantly we clear it in the `rhs` so it can't release the object upon destruction.
-  sexp(sexp&& rhs) {
+  sexp(sexp&& rhs) noexcept {
     data_ = rhs.data_;
     preserve_token_ = rhs.preserve_token_;
 
@@ -66,8 +80,8 @@ class sexp {
     return attribute_proxy<sexp>(*this, R_NamesSymbol);
   }
 
-  operator SEXP() const { return data_; }
-  SEXP data() const { return data_; }
+  operator SEXP() const noexcept { return data_; }
+  SEXP data() const noexcept { return data_; }
 
   /// DEPRECATED: Do not use this, it will be removed soon.
   operator double() const { return REAL_ELT(data_, 0); }
@@ -77,4 +91,4 @@ class sexp {
   operator bool() const { return LOGICAL_ELT(data_, 0); }
 };
 
-}  // namespace cpp11
+}  // namespace cpp4r
