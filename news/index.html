@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4.1.9001</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -28,31 +28,27 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/next/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.4.3" id="duckdb-143">duckdb 1.4.3<a class="anchor" aria-label="anchor" href="#duckdb-143"></a></h2>
+<h2 class="pkg-version" data-toc-text="1.4.1.9001" id="duckdb-1419001">duckdb 1.4.1.9001<a class="anchor" aria-label="anchor" href="#duckdb-1419001"></a></h2>
 <div class="section level3">
-<h3 id="features-1-4-3">Features<a class="anchor" aria-label="anchor" href="#features-1-4-3"></a></h3>
-<ul><li><p>Update to DuckDB v1.4.3, see <a href="https://github.com/duckdb/duckdb/releases/tag/v1.4.3" class="external-link uri">https://github.com/duckdb/duckdb/releases/tag/v1.4.3</a> for details.</p></li>
-<li><p>Add <code>str_ilike()</code> support (<a href="https://github.com/edward-burn" class="external-link">@edward-burn</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1810" class="external-link">#1810</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1811" class="external-link">#1811</a>).</p></li>
-</ul></div>
-<div class="section level3">
-<h3 id="bug-fixes-1-4-3">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-4-3"></a></h3>
-<ul><li><p>Fail with non-UTF8-encoded strings during data frame scan instead of attempting to reencode (<a href="https://github.com/duckdb/duckdb-r/issues/1795" class="external-link">#1795</a>).</p></li>
-<li><p>Avoid inclusion of raw error message in the output.</p></li>
-<li><p>Fix translation of <code><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile()</a></code> to use DuckDB’s native <code>QUANTILE_CONT()</code> syntax (<a href="https://github.com/duckdb/duckdb-r/issues/1734" class="external-link">#1734</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1735" class="external-link">#1735</a>).</p></li>
-</ul></div>
-<div class="section level3">
-<h3 id="testing-1-4-3">Testing<a class="anchor" aria-label="anchor" href="#testing-1-4-3"></a></h3>
-<ul><li>Remove redundant R version checks from tests (<a href="https://github.com/duckdb/duckdb-r/issues/1815" class="external-link">#1815</a>, <a href="https://github.com/duckdb/duckdb-r/issues/1816" class="external-link">#1816</a>).</li>
+<h3 id="vendor-1-4-1-9001">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-4-1-9001"></a></h3>
+<ul><li>Update vendored sources to <a href="mailto:duckdb/duckdb@10f8766267b8805f5d96b7ad1a7d54332d2b6ffe" class="email">duckdb/duckdb@10f8766267b8805f5d96b7ad1a7d54332d2b6ffe</a> (<a href="https://github.com/duckdb/duckdb-r/issues/1624" class="external-link">#1624</a>).</li>
 </ul></div>
 </div>
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.4.2" id="duckdb-142">duckdb 1.4.2<a class="anchor" aria-label="anchor" href="#duckdb-142"></a></h2><p class="text-muted">CRAN release: 2025-11-17</p>
-<ul><li>Update to DuckDB v1.4.2, see <a href="https://github.com/duckdb/duckdb/releases/tag/v1.4.2" class="external-link uri">https://github.com/duckdb/duckdb/releases/tag/v1.4.2</a> for details.</li>
+<h2 class="pkg-version" data-toc-text="1.4.1.9000" id="duckdb-1419000">duckdb 1.4.1.9000<a class="anchor" aria-label="anchor" href="#duckdb-1419000"></a></h2>
+<div class="section level3">
+<h3 id="fledge-1-4-1-9000">fledge<a class="anchor" aria-label="anchor" href="#fledge-1-4-1-9000"></a></h3>
+<ul><li>CRAN release v1.4.1 (<a href="https://github.com/duckdb/duckdb-r/issues/1616" class="external-link">#1616</a>).</li>
 </ul></div>
+<div class="section level3">
+<h3 id="uncategorized-1-4-1-9000">Uncategorized<a class="anchor" aria-label="anchor" href="#uncategorized-1-4-1-9000"></a></h3>
+<ul><li>Merge pull request <a href="https://github.com/duckdb/duckdb-r/issues/1622" class="external-link">#1622</a> from eddelbuettel/patch-1.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.4.1" id="duckdb-141">duckdb 1.4.1<a class="anchor" aria-label="anchor" href="#duckdb-141"></a></h2><p class="text-muted">CRAN release: 2025-10-16</p>
 <ul><li>Update to DuckDB v1.4.1, see <a href="https://github.com/duckdb/duckdb/releases/tag/v1.4.1" class="external-link uri">https://github.com/duckdb/duckdb/releases/tag/v1.4.1</a> for details.</li>

@@ -1,43 +1,25 @@
 # Changelog
 
-## duckdb 1.4.3
+## duckdb 1.4.1.9001
 
-### Features
+### vendor
 
-- Update to DuckDB v1.4.3, see
-  <https://github.com/duckdb/duckdb/releases/tag/v1.4.3> for details.
+- Update vendored sources to
+  <duckdb/duckdb@10f8766267b8805f5d96b7ad1a7d54332d2b6ffe>
+  ([\#1624](https://github.com/duckdb/duckdb-r/issues/1624)).
 
-- Add `str_ilike()` support
-  ([@edward-burn](https://github.com/edward-burn),
-  [\#1810](https://github.com/duckdb/duckdb-r/issues/1810),
-  [\#1811](https://github.com/duckdb/duckdb-r/issues/1811)).
+## duckdb 1.4.1.9000
 
-### Bug fixes
+### fledge
 
-- Fail with non-UTF8-encoded strings during data frame scan instead of
-  attempting to reencode
-  ([\#1795](https://github.com/duckdb/duckdb-r/issues/1795)).
+- CRAN release v1.4.1
+  ([\#1616](https://github.com/duckdb/duckdb-r/issues/1616)).
 
-- Avoid inclusion of raw error message in the output.
+### Uncategorized
 
-- Fix translation of
-  [`quantile()`](https://rdrr.io/r/stats/quantile.html) to use DuckDB’s
-  native `QUANTILE_CONT()` syntax
-  ([\#1734](https://github.com/duckdb/duckdb-r/issues/1734),
-  [\#1735](https://github.com/duckdb/duckdb-r/issues/1735)).
-
-### Testing
-
-- Remove redundant R version checks from tests
-  ([\#1815](https://github.com/duckdb/duckdb-r/issues/1815),
-  [\#1816](https://github.com/duckdb/duckdb-r/issues/1816)).
-
-## duckdb 1.4.2
-
-CRAN release: 2025-11-17
-
-- Update to DuckDB v1.4.2, see
-  <https://github.com/duckdb/duckdb/releases/tag/v1.4.2> for details.
+- Merge pull request
+  [\#1622](https://github.com/duckdb/duckdb-r/issues/1622) from
+  eddelbuettel/patch-1.
 
 ## duckdb 1.4.1
 
