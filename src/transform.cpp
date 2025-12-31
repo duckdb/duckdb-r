@@ -1,7 +1,7 @@
+#include "duckdb/common/types/uhugeint.hpp"
+#include "duckdb/common/types/uuid.hpp"
 #include "rapi.hpp"
 #include "typesr.hpp"
-#include "duckdb/common/types/uuid.hpp"
-#include "duckdb/common/types/uhugeint.hpp"
 
 using namespace duckdb;
 
