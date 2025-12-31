@@ -1,5 +1,16 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.3.9000
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@e92f41065ffbb8039282fd2397c542db71720a76 (#1823).
+
+## fledge
+
+- CRAN release v1.4.3 (#1822).
+
+
 # duckdb 1.4.3
 
 ## Features
