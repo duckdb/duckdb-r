@@ -24,6 +24,8 @@
 
 #include "src/storage/table/row_group_collection.cpp"
 
+#include "src/storage/table/row_group_reorderer.cpp"
+
 #include "src/storage/table/row_version_manager.cpp"
 
 #include "src/storage/table/scan_state.cpp"

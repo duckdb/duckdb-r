@@ -48,6 +48,8 @@
 
 #include "src/optimizer/remove_unused_columns.cpp"
 
+#include "src/optimizer/row_group_pruner.cpp"
+
 #include "src/optimizer/statistics_propagator.cpp"
 
 #include "src/optimizer/limit_pushdown.cpp"
