@@ -32,6 +32,8 @@
 
 #include "src/main/capi/hugeint-c.cpp"
 
+#include "src/main/capi/logging-c.cpp"
+
 #include "src/main/capi/logical_types-c.cpp"
 
 #include "src/main/capi/pending-c.cpp"
