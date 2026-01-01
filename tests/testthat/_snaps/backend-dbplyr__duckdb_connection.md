@@ -1,3 +1,25 @@
+# two variable aggregates are translated correctly
+
+    Code
+      translate(cor(x, y), window = FALSE)
+    Output
+      <SQL> CORR(x, y)
+    Code
+      translate(cor(x, y), window = TRUE)
+    Output
+      <SQL> CORR(x, y) OVER ()
+
+---
+
+    Code
+      translate(cor(x, y), window = FALSE)
+    Output
+      <SQL> CORR(x, y)
+    Code
+      translate(cor(x, y), window = TRUE)
+    Output
+      <SQL> CORR(x, y) OVER ()
+
 # snapshots of dbplyr generic scalar translation
 
     Code
@@ -398,17 +420,6 @@
       escape("2020-01-01 18:23:45 PST")
     Output
       <SQL> '2020-01-01 18:23:45 PST'
-
-# two variable aggregates are translated correctly
-
-    Code
-      translate(cor(x, y), window = FALSE)
-    Output
-      <SQL> CORR(x, y)
-    Code
-      translate(cor(x, y), window = TRUE)
-    Output
-      <SQL> CORR(x, y) OVER ()
 
 # these should give errors
 
