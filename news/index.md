@@ -1,25 +1,110 @@
 # Changelog
 
-## duckdb 1.4.1.9001
+## duckdb 1.4.3.9001
 
 ### vendor
 
 - Update vendored sources to
-  <duckdb/duckdb@10f8766267b8805f5d96b7ad1a7d54332d2b6ffe>
-  ([\#1624](https://github.com/duckdb/duckdb-r/issues/1624)).
+  <duckdb/duckdb@8b3a7a2a16bd4c0ef84601d1e727e1c9b46b984f>
+  ([\#1865](https://github.com/duckdb/duckdb-r/issues/1865)).
 
-## duckdb 1.4.1.9000
+- Update vendored sources to
+  <duckdb/duckdb@0761d5cc7a033d041ad5514a18642a60cb0cb392>
+  ([\#1861](https://github.com/duckdb/duckdb-r/issues/1861)).
+
+- Update vendored sources to
+  <duckdb/duckdb@117f29f06db0fd911b817ccefc2b6698a82fff55>
+  ([\#1859](https://github.com/duckdb/duckdb-r/issues/1859)).
+
+- Update vendored sources to
+  <duckdb/duckdb@bacda75d6cbd87f303d112f5c611a629b55faeb3>
+  ([\#1856](https://github.com/duckdb/duckdb-r/issues/1856)).
+
+- Update vendored sources to
+  <duckdb/duckdb@410ffa007b9eded40928c1b5d7b8bcb0ebd1ff22>
+  ([\#1852](https://github.com/duckdb/duckdb-r/issues/1852)).
+
+- Update vendored sources to
+  <duckdb/duckdb@51dd95ed809ad50ae03a61ce8151f4ef7edc2843>
+  ([\#1849](https://github.com/duckdb/duckdb-r/issues/1849)).
+
+- Update vendored sources to
+  <duckdb/duckdb@5a334c23dadba0f24322ce609dc0f15bc52c41a8>
+  ([\#1847](https://github.com/duckdb/duckdb-r/issues/1847)).
+
+- Update vendored sources to
+  <duckdb/duckdb@91d691a90831e79381c2b5c457cc6dd70a0d5ea2>
+  ([\#1844](https://github.com/duckdb/duckdb-r/issues/1844)).
+
+- Update vendored sources to
+  <duckdb/duckdb@6e4e3391db59f79bff2138846d3eab391ea32c20>
+  ([\#1840](https://github.com/duckdb/duckdb-r/issues/1840)).
+
+- Update vendored sources to
+  <duckdb/duckdb@42fbf1093eba4cbe4a000b0f888bdf4f012adc3b>
+  ([\#1838](https://github.com/duckdb/duckdb-r/issues/1838)).
+
+- Update vendored sources to
+  <duckdb/duckdb@1c03ec08121a5a3b9aa2e10d9de17dbb144042b5>
+  ([\#1834](https://github.com/duckdb/duckdb-r/issues/1834)).
+
+- Update vendored sources to
+  <duckdb/duckdb@200198b3e08c0373ca32b9496ae325b44e0d16e0>
+  ([\#1824](https://github.com/duckdb/duckdb-r/issues/1824)).
+
+## duckdb 1.4.3.9000
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@e92f41065ffbb8039282fd2397c542db71720a76>
+  ([\#1823](https://github.com/duckdb/duckdb-r/issues/1823)).
 
 ### fledge
 
-- CRAN release v1.4.1
-  ([\#1616](https://github.com/duckdb/duckdb-r/issues/1616)).
+- CRAN release v1.4.3
+  ([\#1822](https://github.com/duckdb/duckdb-r/issues/1822)).
 
-### Uncategorized
+## duckdb 1.4.3
 
-- Merge pull request
-  [\#1622](https://github.com/duckdb/duckdb-r/issues/1622) from
-  eddelbuettel/patch-1.
+CRAN release: 2025-12-10
+
+### Features
+
+- Update to DuckDB v1.4.3, see
+  <https://github.com/duckdb/duckdb/releases/tag/v1.4.3> for details.
+
+- Add `str_ilike()` support
+  ([@edward-burn](https://github.com/edward-burn),
+  [\#1810](https://github.com/duckdb/duckdb-r/issues/1810),
+  [\#1811](https://github.com/duckdb/duckdb-r/issues/1811)).
+
+### Bug fixes
+
+- Fail with non-UTF8-encoded strings during data frame scan instead of
+  attempting to reencode
+  ([\#1795](https://github.com/duckdb/duckdb-r/issues/1795)).
+
+- Avoid inclusion of raw error message in the output.
+
+- Fix translation of
+  [`quantile()`](https://rdrr.io/r/stats/quantile.html) to use DuckDB’s
+  native `QUANTILE_CONT()` syntax
+  ([\#1734](https://github.com/duckdb/duckdb-r/issues/1734),
+  [\#1735](https://github.com/duckdb/duckdb-r/issues/1735)).
+
+### Testing
+
+- Remove redundant R version checks from tests
+  ([\#1815](https://github.com/duckdb/duckdb-r/issues/1815),
+  [\#1816](https://github.com/duckdb/duckdb-r/issues/1816)).
+
+## duckdb 1.4.2
+
+CRAN release: 2025-11-17
+
+- Update to DuckDB v1.4.2, see
+  <https://github.com/duckdb/duckdb/releases/tag/v1.4.2> for details.
 
 ## duckdb 1.4.1
 
