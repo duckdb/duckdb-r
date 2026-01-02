@@ -6,12 +6,12 @@
 #include "duckdb/common/types/timestamp.hpp"
 #include "duckdb/main/chunk_scan_state/query_result.hpp"
 #include "duckdb/parser/statement/relation_statement.hpp"
+#include "httplib.hpp"
 #include "rapi.hpp"
 #include "signal.hpp"
 #include "typesr.hpp"
 
 #include <R_ext/Utils.h>
-#include "httplib.hpp"
 
 using namespace duckdb;
 using namespace cpp11::literals;
