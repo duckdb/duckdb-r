@@ -4,6 +4,8 @@
 
 #include "src/storage/caching_file_system.cpp"
 
+#include "src/storage/caching_file_system_wrapper.cpp"
+
 #include "src/storage/checkpoint_manager.cpp"
 
 #include "src/storage/temporary_memory_manager.cpp"
