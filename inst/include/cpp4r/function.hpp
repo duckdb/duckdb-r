@@ -1,20 +1,18 @@
-// cpp11 version: 0.5.2
-// vendored on: 2025-03-09
 #pragma once
 
-#include <string.h>  // for strcmp
+#include <cstring>  // for std::strcmp (@pachadotdev use std qualifiers)
 
 #include <cstdio>   // for snprintf
 #include <string>   // for string, basic_string
 #include <utility>  // for forward
 
-#include "cpp11/R.hpp"          // for SEXP, SEXPREC, CDR, Rf_install, SETCAR
-#include "cpp11/as.hpp"         // for as_sexp
-#include "cpp11/named_arg.hpp"  // for named_arg
-#include "cpp11/protect.hpp"    // for protect, protect::function, safe
-#include "cpp11/sexp.hpp"       // for sexp
+#include "cpp4r/R.hpp"          // for R’s C interface (e.g., for SEXP)
+#include "cpp4r/as.hpp"         // for as_sexp
+#include "cpp4r/named_arg.hpp"  // for named_arg
+#include "cpp4r/protect.hpp"    // for safe, protect, etc.
+#include "cpp4r/sexp.hpp"       // for sexp
 
-namespace cpp11 {
+namespace cpp4r {
 
 class function {
  public:
@@ -85,7 +83,7 @@ namespace detail {
 // - Holds a `static SEXP` for the `base::message` function protected with
 // `R_PreserveObject()`
 //
-// We don't use a `static cpp11::function` because that will infinitely retain a cell in
+// We don't use a `static cpp4r::function` because that will infinitely retain a cell in
 // our preserve list, which can throw off our counts in the preserve list tests.
 inline void r_message(const char* x) {
   static SEXP fn = NULL;
@@ -108,32 +106,20 @@ inline void r_message(const char* x) {
 }  // namespace detail
 
 inline void message(const char* fmt_arg) {
-#ifdef CPP11_USE_FMT
-  std::string msg = fmt::format(fmt_arg);
-  safe[detail::r_message](msg.c_str());
-#else
   char buff[1024];
-  int msg;
-  msg = std::snprintf(buff, 1024, "%s", fmt_arg);
+  int msg = std::snprintf(buff, 1024, "%s", fmt_arg);
   if (msg >= 0 && msg < 1024) {
     safe[detail::r_message](buff);
   }
-#endif
 }
 
 template <typename... Args>
 void message(const char* fmt_arg, Args... args) {
-#ifdef CPP11_USE_FMT
-  std::string msg = fmt::format(fmt_arg, args...);
-  safe[detail::r_message](msg.c_str());
-#else
   char buff[1024];
-  int msg;
-  msg = std::snprintf(buff, 1024, fmt_arg, args...);
+  int msg = std::snprintf(buff, 1024, fmt_arg, args...);
   if (msg >= 0 && msg < 1024) {
     safe[detail::r_message](buff);
   }
-#endif
 }
 
 inline void message(const std::string& fmt_arg) { message(fmt_arg.c_str()); }
@@ -143,4 +129,4 @@ void message(const std::string& fmt_arg, Args... args) {
   message(fmt_arg.c_str(), args...);
 }
 
-}  // namespace cpp11
+}  // namespace cpp4r

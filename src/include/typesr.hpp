@@ -98,7 +98,7 @@ struct RType {
 	static constexpr const RTypeId LIST_OF_NULLS = RTypeId::LIST_OF_NULLS;
 	static constexpr const RTypeId BLOB = RTypeId::BLOB;
 
-	static RType FACTOR(cpp11::strings levels);
+	static RType FACTOR(cpp4r::strings levels);
 	Vector GetFactorLevels() const;
 	size_t GetFactorLevelsCount() const;
 	Value GetFactorValue(int r_value) const;
@@ -216,4 +216,4 @@ struct RRawSexpType : public RSexpType {
 
 } // namespace duckdb
 
-duckdb::case_insensitive_map_t<duckdb::vector<duckdb::Value>> ListToVectorOfValue(cpp11::list input_sexps);
+duckdb::case_insensitive_map_t<duckdb::vector<duckdb::Value>> ListToVectorOfValue(cpp4r::list input_sexps);

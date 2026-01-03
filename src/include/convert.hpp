@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cpp11/list.hpp"
+#include "cpp4r/list.hpp"
 #include "duckdb/common/string.hpp"
 
 namespace duckdb {
@@ -31,7 +31,7 @@ struct ConvertOpts {
 	// Constructor with defaults
 	ConvertOpts() = default;
 
-	explicit ConvertOpts(cpp11::sexp options_nullable);
+	explicit ConvertOpts(cpp4r::sexp options_nullable);
 
 	// Constructor with parameters
 	ConvertOpts(std::string timezone_out_p, TzOutConvert tz_out_convert_p, BigIntType bigint_p, ArrayConversion array_p,

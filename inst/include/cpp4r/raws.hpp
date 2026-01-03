@@ -1,22 +1,15 @@
-// cpp11 version: 0.5.2
-// vendored on: 2025-03-09
 #pragma once
 
-#include <algorithm>         // for min
-#include <array>             // for array
-#include <cstdint>           // for uint8_t
-#include <initializer_list>  // for initializer_list
+#include <cstdint>
+#include <initializer_list>
 
 #include "Rversion.h"
-#include "cpp11/R.hpp"                // for RAW, SEXP, SEXPREC, Rf_allocVector
-#include "cpp11/attribute_proxy.hpp"  // for attribute_proxy
-#include "cpp11/protect.hpp"          // for safe
-#include "cpp11/r_vector.hpp"         // for r_vector, r_vector<>::proxy
-#include "cpp11/sexp.hpp"             // for sexp
+#include "cpp4r/R.hpp"
+#include "cpp4r/protect.hpp"
+#include "cpp4r/r_vector.hpp"
+#include "cpp4r/sexp.hpp"
 
-// Specializations for raws
-
-namespace cpp11 {
+namespace cpp4r {
 
 namespace traits {
 template <>
@@ -33,7 +26,6 @@ inline SEXPTYPE r_vector<uint8_t>::get_sexptype() {
 template <>
 inline typename r_vector<uint8_t>::underlying_type r_vector<uint8_t>::get_elt(
     SEXP x, R_xlen_t i) {
-  // NOPROTECT: likely too costly to unwind protect every elt
   return RAW_ELT(x, i);
 }
 
@@ -46,17 +38,12 @@ inline typename r_vector<uint8_t>::underlying_type const* r_vector<uint8_t>::get
 template <>
 inline typename r_vector<uint8_t>::underlying_type* r_vector<uint8_t>::get_p(
     bool is_altrep, SEXP data) {
-  if (is_altrep) {
-    return nullptr;
-  } else {
-    return RAW(data);
-  }
+  return is_altrep ? nullptr : RAW(data);
 }
 
 template <>
 inline void r_vector<uint8_t>::get_region(SEXP x, R_xlen_t i, R_xlen_t n,
                                           typename r_vector::underlying_type* buf) {
-  // NOPROTECT: likely too costly to unwind protect here
   RAW_GET_REGION(x, i, n, buf);
 }
 
@@ -72,7 +59,6 @@ namespace writable {
 template <>
 inline void r_vector<uint8_t>::set_elt(SEXP x, R_xlen_t i,
                                        typename r_vector::underlying_type value) {
-  // NOPROTECT: Likely too costly to unwind protect every set elt
 #if R_VERSION >= R_Version(4, 2, 0)
   SET_RAW_ELT(x, i, value);
 #else
@@ -84,4 +70,4 @@ typedef r_vector<uint8_t> raws;
 
 }  // namespace writable
 
-}  // namespace cpp11
+}  // namespace cpp4r
