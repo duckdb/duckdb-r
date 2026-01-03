@@ -1,5 +1,16 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.3.9002
+
+## Testing
+
+- Snapshot updates for R-CMD-check-dev ({"package":"dbplyr"}) (#1826).
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@a5c128a833f0842f276751130c5743be43f3a345 (#1951).
+
+
 # duckdb 1.4.3.9001
 
 ## vendor
