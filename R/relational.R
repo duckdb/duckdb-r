@@ -64,6 +64,30 @@ expr_constant <- function(
   rethrow_rapi_expr_constant(val, alias, convert_opts)
 }
 
+#' Create a operator expression
+#' @param exprs a vector
+#' @param op the operator
+#' @return a operator expression
+#' @noRd
+#' @examples
+#' op_expr <- expr_operator("IN", list(expr_reference(col), expr_constant(-42), expr_constant(42)))
+expr_operator <- function(
+  op,
+  exprs,
+  ...,
+  alias = NULL
+) {
+  if (...length() > 0) {
+    stop("... must be empty")
+  }
+
+  if (is.null(alias)) {
+    alias <- ""
+  }
+
+  rethrow_rapi_expr_operator(op, exprs, alias)
+}
+
 #' Create a comparison expression
 #' @param exprs a vector of size two, the expressions to compare
 #' @param cmp_op the comparison operators
