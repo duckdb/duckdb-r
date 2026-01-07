@@ -1,19 +1,21 @@
-// cpp11 version: 0.5.2
-// vendored on: 2025-03-09
 #pragma once
 
 #include <stddef.h>  // for size_t
 
 #include <initializer_list>  // for initializer_list
 
-#include "cpp11/R.hpp"     // for SEXP, SEXPREC, literals
-#include "cpp11/as.hpp"    // for as_sexp
-#include "cpp11/sexp.hpp"  // for sexp
+#include "cpp4r/R.hpp"     // for SEXP, SEXPREC, literals
+#include "cpp4r/as.hpp"    // for as_sexp
+#include "cpp4r/sexp.hpp"  // for sexp
 
-namespace cpp11 {
+namespace cpp4r {
 class named_arg {
  public:
   explicit named_arg(const char* name) : name_(name), value_(R_NilValue) {}
+
+  template <typename T>
+  explicit named_arg(const char* name, T value) : name_(name), value_(as_sexp(value)) {}
+
   named_arg& operator=(std::initializer_list<int> il) {
     value_ = as_sexp(il);
     return *this;
@@ -31,8 +33,8 @@ class named_arg {
     return *this;
   }
 
-  const char* name() const { return name_; }
-  SEXP value() const { return value_; }
+  const char* name() const noexcept { return name_; }
+  SEXP value() const noexcept { return value_; }
 
  private:
   const char* name_;
@@ -47,4 +49,4 @@ inline named_arg operator""_nm(const char* name, std::size_t) { return named_arg
 
 using namespace literals;
 
-}  // namespace cpp11
+}  // namespace cpp4r

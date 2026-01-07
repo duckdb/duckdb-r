@@ -7,10 +7,10 @@ namespace duckdb {
 
 class AltrepDataFrameRelation final : public Relation {
 public:
-	AltrepDataFrameRelation(duckdb::shared_ptr<Relation> p, cpp11::list df,
+	AltrepDataFrameRelation(duckdb::shared_ptr<Relation> p, cpp4r::list df,
 	                        duckdb::shared_ptr<AltrepRelationWrapper> altrep);
 
-	cpp11::list dataframe;
+	cpp4r::list dataframe;
 	duckdb::shared_ptr<AltrepRelationWrapper> altrep;
 	duckdb::shared_ptr<Relation> parent;
 

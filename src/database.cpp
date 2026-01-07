@@ -15,7 +15,7 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 	return true;
 }
 
-[[cpp11::register]] duckdb::db_eptr_t rapi_startup(std::string dbdir, bool readonly, cpp11::list configsexp,
+[[cpp4r::register]] duckdb::db_eptr_t rapi_startup(std::string dbdir, bool readonly, cpp4r::list configsexp,
                                                    bool environment_scan) {
 	const char *dbdirchar;
 
@@ -35,7 +35,7 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 
 	for (auto it = confignames.begin(); it != confignames.end(); ++it) {
 		std::string key = *it;
-		std::string val = cpp11::as_cpp<std::string>(configsexp[key]);
+		std::string val = cpp4r::as_cpp<std::string>(configsexp[key]);
 		try {
 			config.SetOptionByName(key, Value(val));
 		} catch (std::exception &e) {
@@ -95,7 +95,7 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 	return db_eptr_t(dual);
 }
 
-[[cpp11::register]] bool rapi_lock(duckdb::db_eptr_t dual) {
+[[cpp4r::register]] bool rapi_lock(duckdb::db_eptr_t dual) {
 	if (!dual || !dual.get()) {
 		rapi_error_with_context("rapi_lock", "Invalid database reference");
 	}
@@ -103,21 +103,21 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 	return dual->has();
 }
 
-[[cpp11::register]] void rapi_unlock(duckdb::db_eptr_t dual) {
+[[cpp4r::register]] void rapi_unlock(duckdb::db_eptr_t dual) {
 	if (!dual || !dual.get()) {
 		rapi_error_with_context("rapi_unlock", "Invalid database reference");
 	}
 	dual->unlock();
 }
 
-[[cpp11::register]] bool rapi_is_locked(duckdb::db_eptr_t dual) {
+[[cpp4r::register]] bool rapi_is_locked(duckdb::db_eptr_t dual) {
 	if (!dual || !dual.get()) {
 		rapi_error_with_context("rapi_is_locked", "Invalid database reference");
 	}
 	return dual->is_locked();
 }
 
-[[cpp11::register]] void rapi_shutdown(duckdb::db_eptr_t dbsexp) {
+[[cpp4r::register]] void rapi_shutdown(duckdb::db_eptr_t dbsexp) {
 	auto db_wrapper = dbsexp.release();
 	if (db_wrapper) {
 		db_wrapper->reset();

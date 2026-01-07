@@ -1,11 +1,9 @@
-altrepdataframe_relation.o: \
-  altrepdataframe_relation.cpp \
-  include/altrepdataframe_relation.hpp \
+cpp4r.o: \
+  cpp4r.cpp \
   include/rapi.hpp \
-  include/reltoaltrep.hpp \
  ../inst/include/cpp4r.hpp \
- ../inst/include/cpp4r/as.hpp \
  ../inst/include/cpp4r/complexes.hpp \
+ ../inst/include/cpp4r/cpp_version.hpp \
  ../inst/include/cpp4r/data_frame.hpp \
  ../inst/include/cpp4r/doubles.hpp \
  ../inst/include/cpp4r/environment.hpp \
@@ -19,26 +17,29 @@ altrepdataframe_relation.o: \
  ../inst/include/cpp4r/r_vector_impl.hpp \
  ../inst/include/cpp4r/r_vector_writable_impl.hpp \
  ../inst/include/cpp4r/sexp.hpp \
- ../inst/include/cpp4r/strings.hpp \
+ ../inst/include/duckdb_types.hpp \
+ /usr/include/R/R_ext/Altrep.h \
  /usr/include/R/R_ext/Boolean.h \
  /usr/include/R/R_ext/Error.h \
- /usr/include/R/R_ext/RS.h \
  /usr/include/R/R_ext/Utils.h \
+ /usr/include/R/R_ext/Visibility.h \
  /usr/include/R/R_ext/libextern.h \
+ /usr/include/R/Rdefines.h \
  /usr/include/R/Rinternals.h \
  /usr/include/R/Rversion.h \
- /usr/include/alloca.h \
  /usr/include/asm-generic/bitsperlong.h \
  /usr/include/asm-generic/errno.h \
  /usr/include/asm-generic/int-ll64.h \
  /usr/include/asm/posix_types_64.h \
  /usr/include/asm/types.h \
  /usr/include/bits/atomic_wide_counter.h \
- /usr/include/bits/endianness.h \
- /usr/include/bits/floatn.h \
+ /usr/include/bits/byteswap.h \
+ /usr/include/bits/endian.h \
+ /usr/include/bits/floatn-common.h \
  /usr/include/bits/flt-eval-method.h \
  /usr/include/bits/fp-fast.h \
  /usr/include/bits/iscanonical.h \
+ /usr/include/bits/libc-header-start.h \
  /usr/include/bits/local_lim.h \
  /usr/include/bits/locale.h \
  /usr/include/bits/math-vector.h \
@@ -48,35 +49,33 @@ altrepdataframe_relation.o: \
  /usr/include/bits/pthread_stack_min-dynamic.h \
  /usr/include/bits/pthreadtypes-arch.h \
  /usr/include/bits/pthreadtypes.h \
- /usr/include/bits/select.h \
+ /usr/include/bits/stdint-intn.h \
  /usr/include/bits/stdint-least.h \
  /usr/include/bits/stdio_lim.h \
+ /usr/include/bits/stdlib-float.h \
  /usr/include/bits/struct_rwlock.h \
+ /usr/include/bits/time64.h \
+ /usr/include/bits/types.h \
  /usr/include/bits/types/FILE.h \
  /usr/include/bits/types/__fpos64_t.h \
  /usr/include/bits/types/__locale_t.h \
  /usr/include/bits/types/__mbstate_t.h \
- /usr/include/bits/types/__sigset_t.h \
  /usr/include/bits/types/clock_t.h \
- /usr/include/bits/types/clockid_t.h \
  /usr/include/bits/types/cookie_io_functions_t.h \
  /usr/include/bits/types/error_t.h \
- /usr/include/bits/types/mbstate_t.h \
- /usr/include/bits/types/struct_FILE.h \
+ /usr/include/bits/types/sigset_t.h \
  /usr/include/bits/types/struct___jmp_buf_tag.h \
  /usr/include/bits/types/struct_itimerspec.h \
  /usr/include/bits/types/struct_sched_param.h \
  /usr/include/bits/types/struct_timespec.h \
  /usr/include/bits/types/struct_timeval.h \
+ /usr/include/bits/types/struct_tm.h \
  /usr/include/bits/types/time_t.h \
- /usr/include/bits/typesizes.h \
- /usr/include/bits/uintn-identity.h \
+ /usr/include/bits/types/wint_t.h \
  /usr/include/bits/uio_lim.h \
- /usr/include/bits/waitflags.h \
- /usr/include/bits/wchar.h \
+ /usr/include/bits/waitstatus.h \
  /usr/include/bits/wctype-wchar.h \
  /usr/include/bits/wordsize.h \
- /usr/include/c++/15.2.1/algorithm \
  /usr/include/c++/15.2.1/array \
  /usr/include/c++/15.2.1/atomic \
  /usr/include/c++/15.2.1/backward/auto_ptr.h \
@@ -86,13 +85,13 @@ altrepdataframe_relation.o: \
  /usr/include/c++/15.2.1/bits/align.h \
  /usr/include/c++/15.2.1/bits/alloc_traits.h \
  /usr/include/c++/15.2.1/bits/allocated_ptr.h \
- /usr/include/c++/15.2.1/bits/allocator.h \
  /usr/include/c++/15.2.1/bits/atomic_base.h \
  /usr/include/c++/15.2.1/bits/atomic_lockfree_defines.h \
  /usr/include/c++/15.2.1/bits/basic_ios.h \
  /usr/include/c++/15.2.1/bits/basic_ios.tcc \
  /usr/include/c++/15.2.1/bits/basic_string.h \
  /usr/include/c++/15.2.1/bits/basic_string.tcc \
+ /usr/include/c++/15.2.1/bits/char_traits.h \
  /usr/include/c++/15.2.1/bits/charconv.h \
  /usr/include/c++/15.2.1/bits/chrono.h \
  /usr/include/c++/15.2.1/bits/concept_check.h \
@@ -121,6 +120,7 @@ altrepdataframe_relation.o: \
  /usr/include/c++/15.2.1/bits/locale_facets_nonio.tcc \
  /usr/include/c++/15.2.1/bits/localefwd.h \
  /usr/include/c++/15.2.1/bits/memory_resource.h \
+ /usr/include/c++/15.2.1/bits/memoryfwd.h \
  /usr/include/c++/15.2.1/bits/move.h \
  /usr/include/c++/15.2.1/bits/nested_exception.h \
  /usr/include/c++/15.2.1/bits/new_allocator.h \
@@ -139,7 +139,6 @@ altrepdataframe_relation.o: \
  /usr/include/c++/15.2.1/bits/shared_ptr_atomic.h \
  /usr/include/c++/15.2.1/bits/shared_ptr_base.h \
  /usr/include/c++/15.2.1/bits/sstream.tcc \
- /usr/include/c++/15.2.1/bits/std_abs.h \
  /usr/include/c++/15.2.1/bits/std_function.h \
  /usr/include/c++/15.2.1/bits/std_mutex.h \
  /usr/include/c++/15.2.1/bits/stl_algo.h \
@@ -164,12 +163,10 @@ altrepdataframe_relation.o: \
  /usr/include/c++/15.2.1/bits/stl_tempbuf.h \
  /usr/include/c++/15.2.1/bits/stl_tree.h \
  /usr/include/c++/15.2.1/bits/stl_uninitialized.h \
- /usr/include/c++/15.2.1/bits/stl_vector.h \
  /usr/include/c++/15.2.1/bits/stream_iterator.h \
  /usr/include/c++/15.2.1/bits/streambuf.tcc \
  /usr/include/c++/15.2.1/bits/streambuf_iterator.h \
  /usr/include/c++/15.2.1/bits/string_view.tcc \
- /usr/include/c++/15.2.1/bits/stringfwd.h \
  /usr/include/c++/15.2.1/bits/uniform_int_dist.h \
  /usr/include/c++/15.2.1/bits/unique_lock.h \
  /usr/include/c++/15.2.1/bits/unique_ptr.h \
@@ -184,9 +181,9 @@ altrepdataframe_relation.o: \
  /usr/include/c++/15.2.1/chrono \
  /usr/include/c++/15.2.1/clocale \
  /usr/include/c++/15.2.1/cmath \
+ /usr/include/c++/15.2.1/complex \
  /usr/include/c++/15.2.1/condition_variable \
  /usr/include/c++/15.2.1/cstdarg \
- /usr/include/c++/15.2.1/cstddef \
  /usr/include/c++/15.2.1/cstdint \
  /usr/include/c++/15.2.1/cstdlib \
  /usr/include/c++/15.2.1/cstring \
@@ -202,11 +199,13 @@ altrepdataframe_relation.o: \
  /usr/include/c++/15.2.1/ext/numeric_traits.h \
  /usr/include/c++/15.2.1/ext/string_conversions.h \
  /usr/include/c++/15.2.1/ext/type_traits.h \
+ /usr/include/c++/15.2.1/functional \
  /usr/include/c++/15.2.1/initializer_list \
- /usr/include/c++/15.2.1/ios \
+ /usr/include/c++/15.2.1/iosfwd \
  /usr/include/c++/15.2.1/iostream \
+ /usr/include/c++/15.2.1/istream \
  /usr/include/c++/15.2.1/limits \
- /usr/include/c++/15.2.1/memory \
+ /usr/include/c++/15.2.1/locale \
  /usr/include/c++/15.2.1/ostream \
  /usr/include/c++/15.2.1/pstl/execution_defs.h \
  /usr/include/c++/15.2.1/pstl/glue_algorithm_defs.h \
@@ -214,7 +213,6 @@ altrepdataframe_relation.o: \
  /usr/include/c++/15.2.1/pstl/glue_numeric_defs.h \
  /usr/include/c++/15.2.1/pstl/pstl_config.h \
  /usr/include/c++/15.2.1/random \
- /usr/include/c++/15.2.1/sstream \
  /usr/include/c++/15.2.1/stack \
  /usr/include/c++/15.2.1/stdexcept \
  /usr/include/c++/15.2.1/string \
@@ -224,7 +222,6 @@ altrepdataframe_relation.o: \
  /usr/include/c++/15.2.1/tr1/beta_function.tcc \
  /usr/include/c++/15.2.1/tr1/ell_integral.tcc \
  /usr/include/c++/15.2.1/tr1/exp_integral.tcc \
- /usr/include/c++/15.2.1/tr1/gamma.tcc \
  /usr/include/c++/15.2.1/tr1/hypergeometric.tcc \
  /usr/include/c++/15.2.1/tr1/legendre_function.tcc \
  /usr/include/c++/15.2.1/tr1/modified_bessel_func.tcc \
@@ -232,10 +229,12 @@ altrepdataframe_relation.o: \
  /usr/include/c++/15.2.1/tr1/poly_laguerre.tcc \
  /usr/include/c++/15.2.1/tr1/riemann_zeta.tcc \
  /usr/include/c++/15.2.1/tr1/special_function_util.h \
+ /usr/include/c++/15.2.1/tuple \
  /usr/include/c++/15.2.1/typeinfo \
  /usr/include/c++/15.2.1/unordered_map \
  /usr/include/c++/15.2.1/unordered_set \
  /usr/include/c++/15.2.1/utility \
+ /usr/include/c++/15.2.1/vector \
  /usr/include/c++/15.2.1/x86_64-pc-linux-gnu/bits/atomic_word.h \
  /usr/include/c++/15.2.1/x86_64-pc-linux-gnu/bits/c++allocator.h \
  /usr/include/c++/15.2.1/x86_64-pc-linux-gnu/bits/c++config.h \
@@ -251,7 +250,6 @@ altrepdataframe_relation.o: \
  /usr/include/c++/15.2.1/x86_64-pc-linux-gnu/bits/os_defines.h \
  /usr/include/c++/15.2.1/x86_64-pc-linux-gnu/bits/time_members.h \
  /usr/include/ctype.h \
- /usr/include/endian.h \
  /usr/include/errno.h \
  /usr/include/features.h \
  /usr/include/gnu/stubs.h \
@@ -262,13 +260,12 @@ altrepdataframe_relation.o: \
  /usr/include/linux/stddef.h \
  /usr/include/pthread.h \
  /usr/include/setjmp.h \
- /usr/include/stdc-predef.h \
  /usr/include/stdint.h \
- /usr/include/stdio.h \
- /usr/include/string.h \
+ /usr/include/stdlib.h \
+ /usr/include/strings.h \
  /usr/include/sys/cdefs.h \
+ /usr/include/sys/select.h \
  /usr/include/sys/single_threaded.h \
- /usr/include/sys/types.h \
  /usr/include/time.h \
  /usr/include/wchar.h \
  /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/limits.h \
@@ -278,7 +275,6 @@ altrepdataframe_relation.o: \
  /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/stdint.h \
  /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/syslimits.h \
  duckdb/src/include/duckdb.h \
- duckdb/src/include/duckdb.hpp \
  duckdb/src/include/duckdb/catalog/catalog.hpp \
  duckdb/src/include/duckdb/catalog/catalog_entry.hpp \
  duckdb/src/include/duckdb/catalog/catalog_entry/schema_catalog_entry.hpp \
@@ -532,7 +528,6 @@ altrepdataframe_relation.o: \
  duckdb/src/include/duckdb/main/query_profiler.hpp \
  duckdb/src/include/duckdb/main/query_result.hpp \
  duckdb/src/include/duckdb/main/relation.hpp \
- duckdb/src/include/duckdb/main/relation/table_function_relation.hpp \
  duckdb/src/include/duckdb/main/secret/secret.hpp \
  duckdb/src/include/duckdb/main/setting_info.hpp \
  duckdb/src/include/duckdb/main/stream_query_result.hpp \

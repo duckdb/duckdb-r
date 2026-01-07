@@ -1,15 +1,13 @@
-// cpp11 version: 0.5.2
-// vendored on: 2025-03-09
 #pragma once
 
 #include <initializer_list>  // for initializer_list
 #include <string>            // for string, basic_string
 
-#include "cpp11/R.hpp"        // for SEXP, SEXPREC, Rf_install, PROTECT, Rf_...
-#include "cpp11/as.hpp"       // for as_sexp
-#include "cpp11/protect.hpp"  // for protect, safe, protect::function
+#include "cpp4r/R.hpp"        // for R’s C interface (e.g., for SEXP)
+#include "cpp4r/as.hpp"       // for as_sexp
+#include "cpp4r/protect.hpp"  // for protect, safe, protect::function
 
-namespace cpp11 {
+namespace cpp4r {
 
 class sexp;
 
@@ -47,4 +45,4 @@ class attribute_proxy {
   operator SEXP() const { return safe[Rf_getAttrib](parent_.data(), symbol_); }
 };
 
-}  // namespace cpp11
+}  // namespace cpp4r
