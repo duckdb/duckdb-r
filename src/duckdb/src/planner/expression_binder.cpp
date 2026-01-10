@@ -311,7 +311,7 @@ bool ExpressionBinder::ContainsNullType(const LogicalType &type) {
 }
 
 LogicalType ExpressionBinder::ExchangeNullType(const LogicalType &type) {
-	return ExchangeType(type, LogicalTypeId::SQLNULL, LogicalType::INTEGER);
+	return ExchangeType(type, LogicalTypeId::SQLNULL, LogicalType::BOOLEAN);
 }
 
 unique_ptr<Expression> ExpressionBinder::Bind(unique_ptr<ParsedExpression> &expr, optional_ptr<LogicalType> result_type,
