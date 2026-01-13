@@ -65,13 +65,13 @@ Source:
 [`DESCRIPTION`](https://github.com/duckdb/duckdb-r/blob/main/DESCRIPTION)
 
 Mühleisen H, Raasveldt M (2026). *duckdb: DBI Package for the DuckDB
-Database Management System*. R package version 1.4.3.9001,
+Database Management System*. R package version 1.4.3.9007,
 <https://r.duckdb.org/>.
 
     @Manual{,
       title = {duckdb: DBI Package for the DuckDB Database Management System},
       author = {Hannes Mühleisen and Mark Raasveldt},
       year = {2026},
-      note = {R package version 1.4.3.9001},
+      note = {R package version 1.4.3.9007},
       url = {https://r.duckdb.org/},
     }

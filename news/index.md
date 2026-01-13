@@ -1,5 +1,75 @@
 # Changelog
 
+## duckdb 1.4.3.9007
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@dfded73acdeb3cce0e4ce8eaba30f26f330c3a82>
+  ([\#1996](https://github.com/duckdb/duckdb-r/issues/1996)).
+
+## duckdb 1.4.3.9006
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@a56ccd8040339c1fcb688122dbe494a482354a01>
+  ([\#1994](https://github.com/duckdb/duckdb-r/issues/1994)).
+
+## duckdb 1.4.3.9005
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@23dcc0f1f6d8a47649731d66ec9c10f5e887173b>
+  (duckdb/duckdb#20410,
+  [\#1992](https://github.com/duckdb/duckdb-r/issues/1992)).
+
+## duckdb 1.4.3.9004
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@908d3eb2815c8d96a5a6e7d8f8b7aafcb52a76ad>
+  ([\#1990](https://github.com/duckdb/duckdb-r/issues/1990)).
+
+- Update vendored sources to
+  <duckdb/duckdb@959c9c71eadff96d06f669bcadde7b014bee049d>
+  ([\#1989](https://github.com/duckdb/duckdb-r/issues/1989)).
+
+- Update vendored sources to
+  <duckdb/duckdb@f290335b8d1a7584dc186af5f006f61cbe13bbba>
+  ([\#1988](https://github.com/duckdb/duckdb-r/issues/1988)).
+
+- Update vendored sources to
+  <duckdb/duckdb@a2e864c193d6fcf0974b0f741d0a373e0ab26930>
+  ([\#1987](https://github.com/duckdb/duckdb-r/issues/1987)).
+
+## duckdb 1.4.3.9003
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@acc36fbe6e1417df3968c00ec35aaf01821467e2>
+  ([\#1985](https://github.com/duckdb/duckdb-r/issues/1985)).
+
+- Update vendored sources to
+  <duckdb/duckdb@e15d00881a638cd355a67875f9f9c4916ce99c01>
+  ([\#1984](https://github.com/duckdb/duckdb-r/issues/1984)).
+
+## duckdb 1.4.3.9002
+
+### Testing
+
+- Snapshot updates for R-CMD-check-dev ({“package”:“dbplyr”})
+  ([\#1826](https://github.com/duckdb/duckdb-r/issues/1826)).
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@a5c128a833f0842f276751130c5743be43f3a345>
+  ([\#1951](https://github.com/duckdb/duckdb-r/issues/1951)).
+
 ## duckdb 1.4.3.9001
 
 ### vendor
