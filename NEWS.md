@@ -1,5 +1,22 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.3.9008
+
+## Continuous integration
+
+- Fix comment (#2001).
+
+- Tweaks (#2000).
+
+- Test all R versions on branches that start with cran- (#1999).
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@6ef04d6ec477cd8fb0c6c65018d44987c2aa7869 (#2005).
+
+- Update vendored sources to duckdb/duckdb@6f3381c403d4a8c8069ddffb04c59fd0df361832 (#2004).
+
+
 # duckdb 1.4.3.9007
 
 ## vendor
