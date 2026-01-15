@@ -7,11 +7,11 @@
 
 using namespace duckdb;
 
-[[cpp11::register]] SEXP rapi_adbc_init_func() {
+[[cpp4r::register]] SEXP rapi_adbc_init_func() {
 	return R_MakeExternalPtrFn((DL_FUNC)duckdb_adbc_init, R_NilValue, R_NilValue);
 }
 
-[[cpp11::register]] cpp11::r_string rapi_ptr_to_str(SEXP extptr) {
+[[cpp4r::register]] cpp4r::r_string rapi_ptr_to_str(SEXP extptr) {
 	if (TYPEOF(extptr) != EXTPTRSXP) {
 		rapi_error_with_context("rapi_ptr_to_str", "Need external pointer parameter");
 	}
@@ -20,9 +20,9 @@ using namespace duckdb;
 	if (ptr != NULL) {
 		char buf[100];
 		snprintf(buf, 100, "%p", ptr);
-		return cpp11::r_string(buf);
+		return cpp4r::r_string(buf);
 	} else {
-		return cpp11::r_string(NA_STRING);
+		return cpp4r::r_string(NA_STRING);
 	}
 }
 
@@ -34,8 +34,8 @@ static SEXP cpp_str_to_charsexp(string s) {
 	return cstr_to_charsexp(s.c_str());
 }
 
-cpp11::strings duckdb::StringsToSexp(vector<string> s) {
-	cpp11::writable::strings retsexp(s.size());
+cpp4r::strings duckdb::StringsToSexp(vector<string> s) {
+	cpp4r::writable::strings retsexp(s.size());
 	for (idx_t i = 0; i < s.size(); i++) {
 		SET_STRING_ELT(retsexp, i, cpp_str_to_charsexp(s[i]));
 	}
@@ -44,7 +44,7 @@ cpp11::strings duckdb::StringsToSexp(vector<string> s) {
 
 RStrings::RStrings() {
 	// allocate strings once
-	cpp11::sexp strings = Rf_allocVector(STRSXP, 5);
+	cpp4r::sexp strings = Rf_allocVector(STRSXP, 5);
 	SET_STRING_ELT(strings, 0, secs = Rf_mkChar("secs"));
 	SET_STRING_ELT(strings, 1, mins = Rf_mkChar("mins"));
 	SET_STRING_ELT(strings, 2, hours = Rf_mkChar("hours"));
@@ -53,7 +53,7 @@ RStrings::RStrings() {
 	R_PreserveObject(strings);
 	MARK_NOT_MUTABLE(strings);
 
-	cpp11::sexp chars = Rf_allocVector(VECSXP, 11);
+	cpp4r::sexp chars = Rf_allocVector(VECSXP, 11);
 	SET_VECTOR_ELT(chars, 0, UTC_str = Rf_mkString("UTC"));
 	SET_VECTOR_ELT(chars, 1, Date_str = Rf_mkString("Date"));
 	SET_VECTOR_ELT(chars, 2, difftime_str = Rf_mkString("difftime"));
@@ -273,24 +273,24 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 
 	switch (val.type().id()) {
 	case LogicalTypeId::BOOLEAN:
-		return cpp11::logicals({val.GetValue<bool>()});
+		return cpp4r::logicals({val.GetValue<bool>()});
 	case LogicalTypeId::TINYINT:
 	case LogicalTypeId::SMALLINT:
 	case LogicalTypeId::INTEGER:
 	case LogicalTypeId::UTINYINT:
 	case LogicalTypeId::USMALLINT:
 	case LogicalTypeId::UINTEGER:
-		return cpp11::integers({val.GetValue<int32_t>()});
+		return cpp4r::integers({val.GetValue<int32_t>()});
 	case LogicalTypeId::BIGINT:
 	case LogicalTypeId::UBIGINT:
 	case LogicalTypeId::FLOAT:
 	case LogicalTypeId::DOUBLE:
 	case LogicalTypeId::DECIMAL:
-		return cpp11::doubles({val.GetValue<double>()});
+		return cpp4r::doubles({val.GetValue<double>()});
 	case LogicalTypeId::VARCHAR:
 		return StringsToSexp({val.ToString()});
 	case LogicalTypeId::TIMESTAMP: {
-		cpp11::doubles res({(double)Timestamp::GetEpochSeconds(val.GetValue<timestamp_t>())});
+		cpp4r::doubles res({(double)Timestamp::GetEpochSeconds(val.GetValue<timestamp_t>())});
 		// TODO bit of duplication here with statement.cpp, fix this
 		// some dresssup for R
 		SET_CLASS(res, RStrings::get().POSIXct_POSIXt_str);
@@ -298,13 +298,13 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 		return res;
 	}
 	case LogicalTypeId::TIMESTAMP_TZ: {
-		cpp11::doubles res({(double)Timestamp::GetEpochSeconds(val.GetValue<timestamp_tz_t>())});
+		cpp4r::doubles res({(double)Timestamp::GetEpochSeconds(val.GetValue<timestamp_tz_t>())});
 		SET_CLASS(res, RStrings::get().POSIXct_POSIXt_str);
 		Rf_setAttrib(res, RStrings::get().tzone_sym, StringsToSexp({timezone_config}));
 		return res;
 	}
 	case LogicalTypeId::TIME: {
-		cpp11::doubles res({(double)val.GetValue<dtime_t>().micros / Interval::MICROS_PER_SEC});
+		cpp4r::doubles res({(double)val.GetValue<dtime_t>().micros / Interval::MICROS_PER_SEC});
 		// some dresssup for R
 		SET_CLASS(res, RStrings::get().difftime_str);
 		// we always return difftime as "seconds"
@@ -313,7 +313,7 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 	}
 
 	case LogicalTypeId::DATE: {
-		cpp11::doubles res({(double)int32_t(val.GetValue<date_t>())});
+		cpp4r::doubles res({(double)int32_t(val.GetValue<date_t>())});
 		// some dresssup for R
 		SET_CLASS(res, RStrings::get().Date_str);
 		return res;
@@ -324,7 +324,7 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 	}
 }
 
-[[cpp11::register]] void rapi_load_rfuns(duckdb::db_eptr_t dual) {
+[[cpp4r::register]] void rapi_load_rfuns(duckdb::db_eptr_t dual) {
 	if (!dual || !dual.get()) {
 		rapi_error_with_context("rapi_load_rfuns", "Invalid database reference");
 	}
@@ -338,7 +338,7 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 // Helper functions to communicate errors via R's stop() function
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message) {
 	// Look up R function in duckdb namespace
-	static cpp11::function rapi_error = cpp11::package("duckdb")["rapi_error"];
+	static cpp4r::function rapi_error = cpp4r::package("duckdb")["rapi_error"];
 	rapi_error(context, message);
 
 	throw InternalException("Unreachable code after rapi_error()");
@@ -351,7 +351,7 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 
 [[noreturn]] void rapi_error_with_context(const std::string &context, const duckdb::ErrorData &error_data) {
 	// Look up R function in duckdb namespace
-	static cpp11::function rapi_error = cpp11::package("duckdb")["rapi_error"];
+	static cpp4r::function rapi_error = cpp4r::package("duckdb")["rapi_error"];
 
 	// Extract fields from ErrorData
 	std::string message = error_data.Message();
@@ -361,11 +361,11 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 	std::string error_type = EnumUtil::ToChars(error_data.Type());
 
 	// Convert extra_info to R list
-	cpp11::writable::list extra_info;
+	cpp4r::writable::list extra_info;
 	const auto &info_map = error_data.ExtraInfo();
 
-	cpp11::writable::strings names(info_map.size());
-	cpp11::writable::strings values(info_map.size());
+	cpp4r::writable::strings names(info_map.size());
+	cpp4r::writable::strings values(info_map.size());
 
 	size_t i = 0;
 	for (const auto &pair : info_map) {

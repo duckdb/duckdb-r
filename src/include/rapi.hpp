@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cpp11.hpp"
+#include "cpp4r.hpp"
 
 #include <Rdefines.h>
 #include <R_ext/Altrep.h>
@@ -26,14 +26,14 @@
 
 namespace duckdb {
 
-typedef unordered_map<std::string, cpp11::list> arrow_scans_t;
+typedef unordered_map<std::string, cpp4r::list> arrow_scans_t;
 
 struct DBWrapper {
 	duckdb::unique_ptr<DuckDB> db;
 	arrow_scans_t arrow_scans;
 	mutex lock;
-	cpp11::sexp env;
-	cpp11::sexp registered_dfs;
+	cpp4r::sexp env;
+	cpp4r::sexp registered_dfs;
 };
 
 template <class T>
@@ -50,7 +50,7 @@ public:
 	}
 	~DualWrapper() {
 		if (has()) {
-			cpp11::warning("Database is garbage-collected, use dbConnect(duckdb()) with dbDisconnect(), or "
+			cpp4r::warning("Database is garbage-collected, use dbConnect(duckdb()) with dbDisconnect(), or "
 			               "duckdb::duckdb_shutdown(drv) to avoid this.");
 		}
 	}
@@ -97,7 +97,7 @@ private:
 
 typedef DualWrapper<DBWrapper> DBWrapperDual;
 
-typedef cpp11::external_pointer<DBWrapperDual> db_eptr_t;
+typedef cpp4r::external_pointer<DBWrapperDual> db_eptr_t;
 
 struct ConnWrapper {
 	ConnWrapper() = delete;
@@ -111,7 +111,7 @@ struct ConnWrapper {
 };
 
 void ConnDeleter(ConnWrapper *);
-typedef cpp11::external_pointer<ConnWrapper, ConnDeleter> conn_eptr_t;
+typedef cpp4r::external_pointer<ConnWrapper, ConnDeleter> conn_eptr_t;
 
 struct RStatement {
 	RStatement() = delete;
@@ -121,7 +121,7 @@ struct RStatement {
 	vector<Value> parameters;
 };
 
-typedef cpp11::external_pointer<RStatement> stmt_eptr_t;
+typedef cpp4r::external_pointer<RStatement> stmt_eptr_t;
 
 struct RelationWrapper {
 	RelationWrapper() = delete;
@@ -132,15 +132,15 @@ struct RelationWrapper {
 	const ConvertOpts convert_opts;
 };
 
-typedef cpp11::external_pointer<RelationWrapper> rel_extptr_t;
+typedef cpp4r::external_pointer<RelationWrapper> rel_extptr_t;
 
-typedef cpp11::external_pointer<ParsedExpression> expr_extptr_t;
+typedef cpp4r::external_pointer<ParsedExpression> expr_extptr_t;
 
 struct RQueryResult {
 	duckdb::unique_ptr<QueryResult> result;
 };
 
-typedef cpp11::external_pointer<RQueryResult> rqry_eptr_t;
+typedef cpp4r::external_pointer<RQueryResult> rqry_eptr_t;
 
 // internal
 unique_ptr<TableRef> ArrowScanReplacement(ClientContext &context, ReplacementScanInput &input,
@@ -153,7 +153,7 @@ struct ReplacementDataDBWrapper : public ReplacementScanData {
 	DBWrapper *wrapper;
 };
 
-cpp11::strings StringsToSexp(vector<std::string> s);
+cpp4r::strings StringsToSexp(vector<std::string> s);
 
 static constexpr char R_STRING_TYPE_NAME[] = "r_string";
 
@@ -213,9 +213,9 @@ SEXP duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb::Conver
 
 } // namespace duckdb
 
-// moved out of duckdb namespace for the time being (r-lib/cpp11#262)
+// moved out of duckdb namespace for the time being (r-lib/cpp4r#262)
 
-duckdb::db_eptr_t rapi_startup(std::string, bool, cpp11::list);
+duckdb::db_eptr_t rapi_startup(std::string, bool, cpp4r::list);
 
 void rapi_shutdown(duckdb::db_eptr_t);
 
@@ -225,15 +225,15 @@ void rapi_disconnect(duckdb::conn_eptr_t);
 
 bool rapi_connection_valid(duckdb::conn_eptr_t);
 
-cpp11::list rapi_prepare(duckdb::conn_eptr_t, std::string);
+cpp4r::list rapi_prepare(duckdb::conn_eptr_t, std::string);
 
-cpp11::list rapi_bind(duckdb::stmt_eptr_t, SEXP paramsexp, duckdb::ConvertOpts);
+cpp4r::list rapi_bind(duckdb::stmt_eptr_t, SEXP paramsexp, duckdb::ConvertOpts);
 
 SEXP rapi_execute(duckdb::stmt_eptr_t, duckdb::ConvertOpts);
 
 void rapi_release(duckdb::stmt_eptr_t);
 
-void rapi_register_df(duckdb::conn_eptr_t, std::string, cpp11::data_frame, duckdb::ConvertOpts);
+void rapi_register_df(duckdb::conn_eptr_t, std::string, cpp4r::data_frame, duckdb::ConvertOpts);
 
 void rapi_unregister_df(duckdb::conn_eptr_t, std::string);
 
@@ -245,7 +245,7 @@ SEXP rapi_execute_arrow(duckdb::rqry_eptr_t, int);
 
 SEXP rapi_record_batch(duckdb::rqry_eptr_t, int);
 
-cpp11::r_string rapi_ptr_to_str(SEXP extptr);
+cpp4r::r_string rapi_ptr_to_str(SEXP extptr);
 
 int duckdb_r_typeof(const duckdb::LogicalType &type, const duckdb::string &name, const char *caller);
 SEXP duckdb_r_allocate(const duckdb::LogicalType &type, duckdb::idx_t nrows, const duckdb::string &name,
@@ -259,15 +259,15 @@ void duckdb_r_transform(const duckdb::Vector &src_vec, SEXP dest, duckdb::idx_t 
 SEXP get_attrib(SEXP vec, SEXP name);
 
 template <typename T, typename... ARGS>
-cpp11::external_pointer<T> make_external(const std::string &rclass, ARGS &&... args) {
-	auto extptr = cpp11::external_pointer<T>(new T(std::forward<ARGS>(args)...));
-	((cpp11::sexp)extptr).attr("class") = rclass;
+cpp4r::external_pointer<T> make_external(const std::string &rclass, ARGS &&... args) {
+	auto extptr = cpp4r::external_pointer<T>(new T(std::forward<ARGS>(args)...));
+	((cpp4r::sexp)extptr).attr("class") = rclass;
 	return extptr;
 }
 
 template <typename T, typename... ARGS>
-cpp11::external_pointer<T> make_external_prot(const std::string &rclass, SEXP prot, ARGS &&... args) {
-	auto extptr = cpp11::external_pointer<T>(new T(std::forward<ARGS>(args)...), true, true, prot);
-	((cpp11::sexp)extptr).attr("class") = rclass;
+cpp4r::external_pointer<T> make_external_prot(const std::string &rclass, SEXP prot, ARGS &&... args) {
+	auto extptr = cpp4r::external_pointer<T>(new T(std::forward<ARGS>(args)...), true, true, prot);
+	((cpp4r::sexp)extptr).attr("class") = rclass;
 	return extptr;
 }

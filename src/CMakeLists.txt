@@ -5,7 +5,7 @@
 add_library(
   duckdb
   connection.cpp
-  cpp11.cpp
+  cpp4r.cpp
   database.cpp
   register.cpp
   relational.cpp

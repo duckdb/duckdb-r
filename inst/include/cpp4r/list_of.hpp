@@ -1,13 +1,11 @@
-// cpp11 version: 0.5.2
-// vendored on: 2025-03-09
 #pragma once
 
 #include <string>  // for string, basic_string
 
-#include "cpp11/R.hpp"     // for R_xlen_t, SEXP, SEXPREC, LONG_VECTOR_SUPPORT
-#include "cpp11/list.hpp"  // for list
+#include "cpp4r/R.hpp"     // for R_xlen_t, SEXP, SEXPREC, LONG_VECTOR_SUPPORT
+#include "cpp4r/list.hpp"  // for list
 
-namespace cpp11 {
+namespace cpp4r {
 
 template <typename T>
 class list_of : public list {
@@ -42,11 +40,15 @@ class list_of : public writable::list {
     operator T() const { return static_cast<SEXP>(*this); }
     operator SEXP() const { return static_cast<SEXP>(data_); }
 #ifdef LONG_VECTOR_SUPPORT
-    typename T::proxy operator[](int pos) { return static_cast<T>(data_)[pos]; }
+    typename T::reference operator[](int pos) { return static_cast<T>(data_)[pos]; }
 #endif
-    typename T::proxy operator[](R_xlen_t pos) { return static_cast<T>(data_)[pos]; }
-    proxy operator[](const char* pos) { static_cast<T>(data_)[pos]; }
-    proxy operator[](const std::string& pos) { return static_cast<T>(data_)[pos]; }
+    typename T::reference operator[](R_xlen_t pos) { return static_cast<T>(data_)[pos]; }
+    typename T::reference operator[](const char* pos) {
+      return static_cast<T>(data_)[pos];
+    }
+    typename T::reference operator[](const std::string& pos) {
+      return static_cast<T>(data_)[pos];
+    }
     proxy& operator=(const T& rhs) {
       data_ = rhs;
 
@@ -70,4 +72,4 @@ class list_of : public writable::list {
 };
 }  // namespace writable
 
-}  // namespace cpp11
+}  // namespace cpp4r

@@ -86,19 +86,19 @@ SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows, const string &name,
 		auto &child_type = ArrayType::GetChildType(type);
 		if (child_type.IsNested())
 			rapi_error_with_context("duckdb_r_allocate", "Nested arrays cannot be returned to R as column data.");
-		cpp11::sexp varvalue =
+		cpp4r::sexp varvalue =
 		    duckdb_r_allocate(child_type, (nrows * array_size), name, convert_opts, "LogicalTypeId::ARRAY");
 		return varvalue;
 	}
 	case LogicalTypeId::STRUCT: {
-		cpp11::writable::list dest_list;
+		cpp4r::writable::list dest_list;
 		dest_list.reserve(StructType::GetChildTypes(type).size());
 
 		for (const auto &child : StructType::GetChildTypes(type)) {
 			const auto &child_name = child.first;
 			const auto &child_type = child.second;
 
-			cpp11::sexp dest_child =
+			cpp4r::sexp dest_child =
 			    duckdb_r_allocate(child_type, nrows, name + "$" + child_name, convert_opts, "LogicalTypeId::STRUCT");
 			dest_list.push_back(std::move(dest_child));
 		}
@@ -136,7 +136,7 @@ void duckdb_r_df_decorate(SEXP dest, idx_t nrows, SEXP class_) {
 	if (class_ == R_NilValue) {
 		class_ = RStrings::get().dataframe_str;
 	}
-	duckdb_r_df_decorate_impl(dest, cpp11::writable::integers({NA_INTEGER, -static_cast<int>(nrows)}), class_);
+	duckdb_r_df_decorate_impl(dest, cpp4r::writable::integers({NA_INTEGER, -static_cast<int>(nrows)}), class_);
 }
 
 // Convert DuckDB's timestamp to R's timestamp (POSIXct). This is a represented as the number of seconds since the
@@ -213,7 +213,7 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 		// the dim attribute so we don't set the class attribute.
 		// See: https://svn.r-project.org/R/trunk/src/main/attrib.c:656
 		// SET_CLASS(dest, RStrings::get().matrix_array_str);
-		cpp11::sexp dims = NEW_INTEGER(2);
+		cpp4r::sexp dims = NEW_INTEGER(2);
 		INTEGER(dims)[0] = (Rf_xlength(dest) / array_size);
 		INTEGER(dims)[1] = array_size;
 		Rf_setAttrib(dest, RStrings::get().dim_sym, dims);
@@ -251,7 +251,7 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 		break;
 	case LogicalTypeId::STRUCT: {
 		const auto &child_types = StructType::GetChildTypes(type);
-		cpp11::writable::strings names;
+		cpp4r::writable::strings names;
 		names.reserve(child_types.size());
 
 		for (size_t i = 0; i < child_types.size(); i++) {
@@ -306,7 +306,7 @@ static void TransformArrayVector(const Vector &src_vec, const SEXP dest, idx_t d
 	auto &child_type = ArrayType::GetChildType(src_vec.GetType());
 	Vector child_vector(child_type, nullptr);
 
-	cpp11::sexp buffer = duckdb_r_allocate(child_type, array_size, name, convert_opts, "TransformArrayVector");
+	cpp4r::sexp buffer = duckdb_r_allocate(child_type, array_size, name, convert_opts, "TransformArrayVector");
 
 	// Calculate total number of rows in the final matrix from the length of dest
 	// The dest length should be total_rows * array_size
@@ -560,7 +560,7 @@ void duckdb_r_transform(const Vector &src_vec, const SEXP dest, idx_t dest_offse
 				child_vector.Slice(ListVector::GetEntry(src_vec), src_data[row_idx].offset, end);
 
 				// transform the list child vector to a single R SEXP
-				cpp11::sexp list_element =
+				cpp4r::sexp list_element =
 				    duckdb_r_allocate(child_type, src_data[row_idx].length, name, convert_opts, "LogicalTypeId::LIST");
 				duckdb_r_decorate(child_type, list_element, convert_opts);
 				duckdb_r_transform(child_vector, list_element, 0, src_data[row_idx].length, convert_opts, name);
@@ -607,8 +607,8 @@ void duckdb_r_transform(const Vector &src_vec, const SEXP dest, idx_t dest_offse
 				key_child.Slice(MapVector::GetKeys(src_vec), offset, end);
 				value_child.Slice(MapVector::GetValues(src_vec), offset, end);
 
-				cpp11::sexp key_sexp = duckdb_r_allocate(key_type, length, name, convert_opts, "LogicalTypeId::MAP");
-				cpp11::sexp value_sexp =
+				cpp4r::sexp key_sexp = duckdb_r_allocate(key_type, length, name, convert_opts, "LogicalTypeId::MAP");
+				cpp4r::sexp value_sexp =
 				    duckdb_r_allocate(value_type, length, name, convert_opts, "LogicalTypeId::MAP");
 
 				duckdb_r_decorate(key_type, key_sexp, convert_opts);
@@ -617,16 +617,16 @@ void duckdb_r_transform(const Vector &src_vec, const SEXP dest, idx_t dest_offse
 				duckdb_r_transform(key_child, key_sexp, 0, length, convert_opts, name);
 				duckdb_r_transform(value_child, value_sexp, 0, length, convert_opts, name);
 
-				cpp11::writable::list dest_list;
+				cpp4r::writable::list dest_list;
 				dest_list.reserve(2);
 
-				dest_list.push_back(cpp11::named_arg("key") = std::move(key_sexp));
-				dest_list.push_back(cpp11::named_arg("value") = std::move(value_sexp));
+				dest_list.push_back(cpp4r::named_arg("key") = std::move(key_sexp));
+				dest_list.push_back(cpp4r::named_arg("value") = std::move(value_sexp));
 
 				// convert to SEXP, with potential side effect of truncation
 				(void)(SEXP)dest_list;
 
-				// Note we cannot use cpp11's data frame here as it tries to calculate the number of rows itself,
+				// Note we cannot use cpp4r's data frame here as it tries to calculate the number of rows itself,
 				// but gives the wrong answer if the first column is another data frame or the struct is empty.
 				duckdb_r_df_decorate(dest_list, length);
 

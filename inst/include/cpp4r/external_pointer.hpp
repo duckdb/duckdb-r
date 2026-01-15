@@ -1,18 +1,16 @@
-// cpp11 version: 0.5.2
-// vendored on: 2025-03-09
 #pragma once
 
 #include <cstddef>      // for nullptr_t, NULL
 #include <memory>       // for bad_weak_ptr
 #include <type_traits>  // for add_lvalue_reference
 
-#include "cpp11/R.hpp"         // for SEXP, SEXPREC, R_NilValue
-#include "cpp11/protect.hpp"   // for protect, safe, protect::function
-#include "cpp11/r_bool.hpp"    // for r_bool
-#include "cpp11/r_vector.hpp"  // for type_error
-#include "cpp11/sexp.hpp"      // for sexp
+#include "cpp4r/R.hpp"         // for SEXP, SEXPREC, R_NilValue
+#include "cpp4r/protect.hpp"   // for protect, safe, protect::function
+#include "cpp4r/r_bool.hpp"    // for r_bool
+#include "cpp4r/r_vector.hpp"  // for type_error
+#include "cpp4r/sexp.hpp"      // for sexp
 
-namespace cpp11 {
+namespace cpp4r {
 
 template <typename T>
 void default_deleter(T* obj) {
@@ -25,8 +23,9 @@ class external_pointer {
   sexp data_ = R_NilValue;
 
   static SEXP valid_type(SEXP data) {
-    if (data == nullptr) {
-      throw type_error(EXTPTRSXP, NILSXP);
+    // Pacha: Allow nullable external_pointer (#312)
+    if (data == R_NilValue) {
+      return data;
     }
     if (detail::r_typeof(data) != EXTPTRSXP) {
       throw type_error(EXTPTRSXP, detail::r_typeof(data));
@@ -40,7 +39,7 @@ class external_pointer {
 
     T* ptr = static_cast<T*>(R_ExternalPtrAddr(p));
 
-    if (ptr == NULL) {
+    if (ptr == nullptr) {
       return;
     }
 
@@ -69,15 +68,9 @@ class external_pointer {
     data_ = safe[Rf_shallow_duplicate](rhs.data_);
   }
 
-  external_pointer(external_pointer&& rhs) {
-    data_ = rhs.data_;
-    rhs.data_ = R_NilValue;
-  }
+  external_pointer(external_pointer&& rhs) { reset(rhs.release()); }
 
-  external_pointer& operator=(external_pointer&& rhs) noexcept {
-    data_ = rhs.data_;
-    rhs.data_ = R_NilValue;
-  }
+  external_pointer& operator=(external_pointer&& rhs) noexcept { reset(rhs.release()); }
 
   external_pointer& operator=(std::nullptr_t) noexcept { reset(); };
 
@@ -129,7 +122,8 @@ class external_pointer {
     data_ = tmp;
   }
 
-  operator bool() noexcept { return data_ != nullptr; }
+  // Pacha: Support nullable external_pointer (#312)
+  operator bool() const noexcept { return data_ != R_NilValue; }
 };
 
 template <class T, void Deleter(T*)>
@@ -173,4 +167,4 @@ bool operator>=(const external_pointer<T, Deleter>& x,
   return x.data_ >= y.data_;
 }
 
-}  // namespace cpp11
+}  // namespace cpp4r

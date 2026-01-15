@@ -1,18 +1,20 @@
-// cpp11 version: 0.5.2
-// vendored on: 2025-03-09
 #pragma once
 
-#include <cmath>             // for modf
+#include <cmath>  // for modf
+#include <complex>
 #include <initializer_list>  // for initializer_list
+#include <map>               // for std::map
 #include <memory>            // for std::shared_ptr, std::weak_ptr, std::unique_ptr
 #include <stdexcept>
-#include <string>       // for string, basic_string
-#include <type_traits>  // for decay, enable_if, is_same, is_convertible
+#include <string>         // for string, basic_string
+#include <type_traits>    // for decay, enable_if, is_same, is_convertible
+#include <unordered_map>  // for std::unordered_map
+#include <vector>         // for std::vector
 
-#include "cpp11/R.hpp"        // for SEXP, SEXPREC, Rf_xlength, R_xlen_t
-#include "cpp11/protect.hpp"  // for stop, protect, safe, protect::function
+#include "cpp4r/R.hpp"        // for SEXP, SEXPREC, Rf_xlength, R_xlen_t
+#include "cpp4r/protect.hpp"  // for stop, protect, safe, protect::function
 
-namespace cpp11 {
+namespace cpp4r {
 
 template <bool C, typename R = void>
 using enable_if_t = typename std::enable_if<C, R>::type;
@@ -72,6 +74,14 @@ using enable_if_std_string = enable_if_t<std::is_same<T, std::string>::value, R>
 
 template <typename T, typename R = void>
 using enable_if_c_string = enable_if_t<std::is_same<T, const char*>::value, R>;
+
+// Detect std::complex types to avoid treating them as containers in generic
+// container overloads.
+template <typename>
+struct is_std_complex : std::false_type {};
+
+template <typename T>
+struct is_std_complex<std::complex<T>> : std::true_type {};
 
 // https://stackoverflow.com/a/1521682/2055486
 //
@@ -171,6 +181,15 @@ enable_if_floating_point<T, T> as_cpp(SEXP from) {
   throw std::length_error("Expected single double value");
 }
 
+// Definition for converting SEXP to std::complex<double>
+inline std::complex<double> as_cpp(SEXP x) {
+  if (TYPEOF(x) != CPLXSXP || Rf_length(x) != 1) {
+    throw std::invalid_argument("Expected a single complex number.");
+  }
+  Rcomplex c = COMPLEX(x)[0];
+  return {c.r, c.i};
+}
+
 template <typename T>
 enable_if_char<T, T> as_cpp(SEXP from) {
   if (Rf_isString(from)) {
@@ -186,8 +205,14 @@ template <typename T>
 enable_if_c_string<T, T> as_cpp(SEXP from) {
   if (Rf_isString(from)) {
     if (Rf_xlength(from) == 1) {
-      // TODO: use vmaxget / vmaxset here?
-      return {unwind_protect([&] { return Rf_translateCharUTF8(STRING_ELT(from, 0)); })};
+      void* vmax = vmaxget();
+
+      const char* result =
+          unwind_protect([&] { return Rf_translateCharUTF8(STRING_ELT(from, 0)); });
+
+      vmaxset(vmax);
+
+      return {result};
     }
   }
 
@@ -199,7 +224,7 @@ enable_if_std_string<T, T> as_cpp(SEXP from) {
   return {as_cpp<const char*>(from)};
 }
 
-/// Temporary workaround for compatibility with cpp11 0.1.0
+// Temporary workaround for compatibility with cpp4r 0.1.0
 template <typename T>
 enable_if_t<!std::is_same<decay_t<T>, T>::value, decay_t<T>> as_cpp(SEXP from) {
   return as_cpp<decay_t<T>>(from);
@@ -213,6 +238,15 @@ enable_if_integral<T, SEXP> as_sexp(T from) {
 template <typename T>
 enable_if_floating_point<T, SEXP> as_sexp(T from) {
   return safe[Rf_ScalarReal](from);
+}
+
+// Specialization for converting std::complex<double> to SEXP
+inline SEXP as_sexp(const std::complex<double>& x) {
+  SEXP result = PROTECT(Rf_allocVector(CPLXSXP, 1));
+  COMPLEX(result)[0].r = x.real();
+  COMPLEX(result)[0].i = x.imag();
+  UNPROTECT(1);
+  return result;
 }
 
 template <typename T>
@@ -231,7 +265,8 @@ enable_if_std_string<T, SEXP> as_sexp(const T& from) {
 }
 
 template <typename Container, typename T = typename Container::value_type,
-          typename = disable_if_convertible_to_sexp<Container>>
+          typename = disable_if_convertible_to_sexp<Container>,
+          typename = enable_if_t<!is_std_complex<Container>::value>>
 enable_if_integral<T, SEXP> as_sexp(const Container& from) {
   R_xlen_t size = from.size();
   SEXP data = safe[Rf_allocVector](INTSXP, size);
@@ -245,11 +280,12 @@ enable_if_integral<T, SEXP> as_sexp(const Container& from) {
 }
 
 inline SEXP as_sexp(std::initializer_list<int> from) {
-  return as_sexp<std::initializer_list<int>>(from);
+  return as_sexp(std::vector<int>(from));
 }
 
 template <typename Container, typename T = typename Container::value_type,
-          typename = disable_if_convertible_to_sexp<Container>>
+          typename = disable_if_convertible_to_sexp<Container>,
+          typename = enable_if_t<!is_std_complex<Container>::value>>
 enable_if_floating_point<T, SEXP> as_sexp(const Container& from) {
   R_xlen_t size = from.size();
   SEXP data = safe[Rf_allocVector](REALSXP, size);
@@ -263,11 +299,12 @@ enable_if_floating_point<T, SEXP> as_sexp(const Container& from) {
 }
 
 inline SEXP as_sexp(std::initializer_list<double> from) {
-  return as_sexp<std::initializer_list<double>>(from);
+  return as_sexp(std::vector<double>(from));
 }
 
 template <typename Container, typename T = typename Container::value_type,
-          typename = disable_if_convertible_to_sexp<Container>>
+          typename = disable_if_convertible_to_sexp<Container>,
+          typename = enable_if_t<!is_std_complex<Container>::value>>
 enable_if_bool<T, SEXP> as_sexp(const Container& from) {
   R_xlen_t size = from.size();
   SEXP data = safe[Rf_allocVector](LGLSXP, size);
@@ -281,7 +318,7 @@ enable_if_bool<T, SEXP> as_sexp(const Container& from) {
 }
 
 inline SEXP as_sexp(std::initializer_list<bool> from) {
-  return as_sexp<std::initializer_list<bool>>(from);
+  return as_sexp(std::vector<bool>(from));
 }
 
 namespace detail {
@@ -289,18 +326,14 @@ template <typename Container, typename AsCstring>
 SEXP as_sexp_strings(const Container& from, AsCstring&& c_str) {
   R_xlen_t size = from.size();
 
-  SEXP data;
-  try {
-    data = PROTECT(safe[Rf_allocVector](STRSXP, size));
+  SEXP data = PROTECT(safe[Rf_allocVector](STRSXP, size));
 
+  unwind_protect([&] {
     auto it = from.begin();
     for (R_xlen_t i = 0; i < size; ++i, ++it) {
-      SET_STRING_ELT(data, i, safe[Rf_mkCharCE](c_str(*it), CE_UTF8));
+      SET_STRING_ELT(data, i, Rf_mkCharCE(c_str(*it), CE_UTF8));
     }
-  } catch (const unwind_exception& e) {
-    UNPROTECT(1);
-    throw e;
-  }
+  });
 
   UNPROTECT(1);
   return data;
@@ -310,7 +343,7 @@ SEXP as_sexp_strings(const Container& from, AsCstring&& c_str) {
 class r_string;
 
 template <typename T, typename R = void>
-using disable_if_r_string = enable_if_t<!std::is_same<T, cpp11::r_string>::value, R>;
+using disable_if_r_string = enable_if_t<!std::is_same<T, cpp4r::r_string>::value, R>;
 
 template <typename Container, typename T = typename Container::value_type,
           typename = disable_if_r_string<T>>
@@ -327,7 +360,7 @@ enable_if_c_string<T, SEXP> as_sexp(const Container& from) {
 }
 
 inline SEXP as_sexp(std::initializer_list<const char*> from) {
-  return as_sexp<std::initializer_list<const char*>>(from);
+  return as_sexp(std::vector<const char*>(from));
 }
 
 template <typename T, typename = disable_if_r_string<T>>
@@ -335,4 +368,73 @@ enable_if_convertible_to_sexp<T, SEXP> as_sexp(const T& from) {
   return from;
 }
 
-}  // namespace cpp11
+// Pacha: Specialization for std::map
+// NOTE: I did not use templates to avoid clashes with doubles/function/etc.
+inline SEXP as_sexp(const std::map<std::string, SEXP>& map) {
+  R_xlen_t size = map.size();
+  SEXP result = PROTECT(Rf_allocVector(VECSXP, size));
+  SEXP names = PROTECT(Rf_allocVector(STRSXP, size));
+
+  auto it = map.begin();
+  for (R_xlen_t i = 0; i < size; ++i, ++it) {
+    SET_VECTOR_ELT(result, i, it->second);
+    SET_STRING_ELT(names, i, Rf_mkCharCE(it->first.c_str(), CE_UTF8));
+  }
+
+  Rf_setAttrib(result, R_NamesSymbol, names);
+  UNPROTECT(2);
+  return result;
+}
+
+// Specialization for std::map<double, int>
+inline SEXP as_sexp(const std::map<double, int>& map) {
+  R_xlen_t size = map.size();
+  SEXP result = PROTECT(Rf_allocVector(VECSXP, size));
+  SEXP names = PROTECT(Rf_allocVector(REALSXP, size));
+
+  auto it = map.begin();
+  for (R_xlen_t i = 0; i < size; ++i, ++it) {
+    SET_VECTOR_ELT(result, i, Rf_ScalarInteger(it->second));
+    REAL(names)[i] = it->first;
+  }
+
+  Rf_setAttrib(result, R_NamesSymbol, names);
+  UNPROTECT(2);
+  return result;
+}
+
+// Pacha: Specialization for std::unordered_map
+inline SEXP as_sexp(const std::unordered_map<std::string, SEXP>& map) {
+  R_xlen_t size = map.size();
+  SEXP result = PROTECT(Rf_allocVector(VECSXP, size));
+  SEXP names = PROTECT(Rf_allocVector(STRSXP, size));
+
+  auto it = map.begin();
+  for (R_xlen_t i = 0; i < size; ++i, ++it) {
+    SET_VECTOR_ELT(result, i, it->second);
+    SET_STRING_ELT(names, i, Rf_mkCharCE(it->first.c_str(), CE_UTF8));
+  }
+
+  Rf_setAttrib(result, R_NamesSymbol, names);
+  UNPROTECT(2);
+  return result;
+}
+
+// Specialization for std::unordered_map<double, int>
+inline SEXP as_sexp(const std::unordered_map<double, int>& map) {
+  R_xlen_t size = map.size();
+  SEXP result = PROTECT(Rf_allocVector(VECSXP, size));
+  SEXP names = PROTECT(Rf_allocVector(REALSXP, size));
+
+  auto it = map.begin();
+  for (R_xlen_t i = 0; i < size; ++i, ++it) {
+    SET_VECTOR_ELT(result, i, Rf_ScalarInteger(it->second));
+    REAL(names)[i] = it->first;
+  }
+
+  Rf_setAttrib(result, R_NamesSymbol, names);
+  UNPROTECT(2);
+  return result;
+}
+
+}  // namespace cpp4r
