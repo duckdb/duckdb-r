@@ -60,6 +60,10 @@ rapi_expr_constant <- function(val, alias, convert_opts) {
   .Call(`_duckdb_rapi_expr_constant`, val, alias, convert_opts)
 }
 
+rapi_expr_operator <- function(op, exprs, alias) {
+  .Call(`_duckdb_rapi_expr_operator`, op, exprs, alias)
+}
+
 rapi_expr_comparison <- function(cmp_op, exprs, alias) {
   .Call(`_duckdb_rapi_expr_comparison`, cmp_op, exprs, alias)
 }
