@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.3.9011
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@e3b14d4d3b9852fb1ea3b77253e9a7ef960a7571 (#2012).
+
+
 # duckdb 1.4.3.9010
 
 ## vendor
