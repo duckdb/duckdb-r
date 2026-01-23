@@ -75,8 +75,12 @@ class external_pointer {
   }
 
   external_pointer& operator=(external_pointer&& rhs) noexcept {
+    // This works even if `this == &rhs` because `data_` (a `cpp11::sexp`) handles
+    // the underlying resource.
     data_ = rhs.data_;
+    // Order matters: first assign, then clear the RHS.
     rhs.data_ = R_NilValue;
+    return *this;
   }
 
   external_pointer& operator=(std::nullptr_t) noexcept { reset(); };
