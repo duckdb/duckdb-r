@@ -3,7 +3,7 @@
 #include "reltoaltrep.hpp"
 
 #include "altrepdataframe_relation.hpp"
-#include "cpp11/declarations.hpp"
+#include "cpp4r/declarations.hpp"
 #include "duckdb/common/unique_ptr.hpp"
 #include "duckdb/main/materialized_query_result.hpp"
 #include "duckdb/main/query_result.hpp"
@@ -339,25 +339,25 @@ struct AltrepVectorWrapper {
 	duckdb::shared_ptr<AltrepRelationWrapper> rel;
 	idx_t column_index;
 	std::vector<idx_t> parent_column_index;
-	cpp11::sexp transformed_vector;
+	cpp4r::sexp transformed_vector;
 };
 
 Rboolean RelToAltrep::RownamesInspect(SEXP x, int pre, int deep, int pvec,
                                       void (*inspect_subtree)(SEXP, int, int, int)) {
-	BEGIN_CPP11
+	BEGIN_CPP4R
 	AltrepRownamesWrapper::Get(x); // make sure this is alive
 	Rprintf("DUCKDB_ALTREP_REL_ROWNAMES\n");
 	return TRUE;
-	END_CPP11_EX(Rboolean::FALSE)
+	END_CPP4R_EX(Rboolean::FALSE)
 }
 
 Rboolean RelToAltrep::RelInspect(SEXP x, int pre, int deep, int pvec, void (*inspect_subtree)(SEXP, int, int, int)) {
-	BEGIN_CPP11
+	BEGIN_CPP4R
 	auto wrapper = AltrepVectorWrapper::Get(x); // make sure this is alive
 	auto &col = wrapper->rel->rel->Columns()[wrapper->column_index];
 	Rprintf("DUCKDB_ALTREP_REL_VECTOR %s (%s)\n", col.Name().c_str(), col.Type().ToString().c_str());
 	return TRUE;
-	END_CPP11_EX(Rboolean::FALSE)
+	END_CPP4R_EX(Rboolean::FALSE)
 }
 
 SEXP get_attrib(SEXP vec, SEXP name) {
@@ -371,29 +371,29 @@ SEXP get_attrib(SEXP vec, SEXP name) {
 }
 
 R_xlen_t RelToAltrep::RownamesLength(SEXP x) {
-	// The BEGIN_CPP11 isn't strictly necessary here, but should be optimized away.
+	// The BEGIN_CPP4R isn't strictly necessary here, but should be optimized away.
 	// It will become important if we ever support row names.
-	BEGIN_CPP11
+	BEGIN_CPP4R
 	// row.names vector has length 2 in the "compact" case which we're using
 	// see https://stat.ethz.ch/R-manual/R-devel/library/base/html/row.names.html
 	return 2;
-	END_CPP11_EX(0)
+	END_CPP4R_EX(0)
 }
 
 void *RelToAltrep::RownamesDataptr(SEXP x, Rboolean writeable) {
-	BEGIN_CPP11
+	BEGIN_CPP4R
 	return DoRownamesDataptrGet(x);
-	END_CPP11
+	END_CPP4R
 }
 
 const void *RelToAltrep::RownamesDataptrOrNull(SEXP x) {
-	BEGIN_CPP11
+	BEGIN_CPP4R
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
 	if (!rownames_wrapper->rel->HasQueryResult()) {
 		return nullptr;
 	}
 	return DoRownamesDataptrGet(x);
-	END_CPP11
+	END_CPP4R
 }
 
 void *RelToAltrep::DoRownamesDataptrGet(SEXP x) {
@@ -407,39 +407,39 @@ void *RelToAltrep::DoRownamesDataptrGet(SEXP x) {
 }
 
 R_xlen_t RelToAltrep::VectorLength(SEXP x) {
-	BEGIN_CPP11
+	BEGIN_CPP4R
 	return AltrepVectorWrapper::Get(x)->rel->GetQueryResult()->RowCount();
-	END_CPP11_EX(0)
+	END_CPP4R_EX(0)
 }
 
 void *RelToAltrep::VectorDataptr(SEXP x, Rboolean writeable) {
-	BEGIN_CPP11
+	BEGIN_CPP4R
 	return AltrepVectorWrapper::Get(x)->Dataptr();
-	END_CPP11
+	END_CPP4R
 }
 
 SEXP RelToAltrep::VectorStringElt(SEXP x, R_xlen_t i) {
-	BEGIN_CPP11
+	BEGIN_CPP4R
 	return STRING_ELT(AltrepVectorWrapper::Get(x)->RVector(), i);
-	END_CPP11
+	END_CPP4R
 }
 
 #if defined(R_HAS_ALTLIST)
 R_xlen_t RelToAltrep::StructLength(SEXP x) {
-	BEGIN_CPP11
+	BEGIN_CPP4R
 	auto const *wrapper = AltrepVectorWrapper::Get(x);
 	auto const column_index = wrapper->column_index;
 	auto const &res = wrapper->rel->GetQueryResult();
 	auto const &type = res->types[column_index];
 
 	return static_cast<R_xlen_t>(StructType::GetChildTypes(type).size());
-	END_CPP11_EX(0)
+	END_CPP4R_EX(0)
 }
 
 SEXP RelToAltrep::VectorListElt(SEXP x, R_xlen_t i) {
-	BEGIN_CPP11
+	BEGIN_CPP4R
 	return VECTOR_ELT(AltrepVectorWrapper::Get(x)->RVector(), i);
-	END_CPP11
+	END_CPP4R
 }
 #endif
 
@@ -487,7 +487,7 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
                              const child_list_t<LogicalType> &types, const ConvertOpts &convert_opts,
                              std::vector<idx_t> parent_col_idx = {});
 
-[[cpp11::register]] SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel, double n_rows, double n_cells) {
+[[cpp4r::register]] SEXP rapi_rel_to_altrep(duckdb::rel_extptr_t rel, double n_rows, double n_cells) {
 	D_ASSERT(rel && rel->rel);
 	auto drel = rel->rel;
 	auto ncols = drel->Columns().size();
@@ -495,9 +495,9 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
 	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, DoubleToSize(n_rows), DoubleToSize(n_cells));
 
 	// Row names
-	cpp11::external_pointer<AltrepRownamesWrapper> ptr(new AltrepRownamesWrapper(relation_wrapper));
+	cpp4r::external_pointer<AltrepRownamesWrapper> ptr(new AltrepRownamesWrapper(relation_wrapper));
 	R_SetExternalPtrTag(ptr, RStrings::get().duckdb_row_names_sym);
-	cpp11::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, R_NilValue);
+	cpp4r::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, R_NilValue);
 
 	child_list_t<LogicalType> types;
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
@@ -517,10 +517,10 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
 	auto ncols = types.size();
 
 	// Data
-	cpp11::writable::list data_frame;
+	cpp4r::writable::list data_frame;
 	data_frame.reserve(ncols);
 
-	cpp11::writable::strings names;
+	cpp4r::writable::strings names;
 	names.reserve(ncols);
 
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
@@ -528,11 +528,11 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
 		names.push_back(col_name);
 
 		auto &col_type = types[col_idx].second;
-		cpp11::external_pointer<AltrepVectorWrapper> ptr(
+		cpp4r::external_pointer<AltrepVectorWrapper> ptr(
 		    new AltrepVectorWrapper(relation_wrapper, col_idx, parent_col_idx));
 		R_SetExternalPtrTag(ptr, RStrings::get().duckdb_vector_sym);
 
-		cpp11::sexp vector_sexp;
+		cpp4r::sexp vector_sexp;
 
 		// Special case: Only STRUCTs have a redundant row names attribute
 		// Moving this logic into duckdb_r_decorate() would add too much noise elsewhere
@@ -614,7 +614,7 @@ shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool 
 	return wrapper->rel;
 }
 
-[[cpp11::register]] SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized, bool wrap) {
+[[cpp4r::register]] SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized, bool wrap) {
 	auto wrapper = rapi_rel_wrapper_from_altrep_df(df, strict, allow_materialized);
 	if (!wrapper) {
 		return R_NilValue;
@@ -629,7 +629,7 @@ shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool 
 
 // exception required as long as r-lib/decor#6 remains
 // clang-format off
-[[cpp11::init]] void RelToAltrep_Initialize(DllInfo* dll) {
+[[cpp4r::init]] void RelToAltrep_Initialize(DllInfo* dll) {
 	// clang-format on
 	RelToAltrep::Initialize(dll);
 }

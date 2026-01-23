@@ -4,7 +4,7 @@
 
 namespace duckdb {
 
-AltrepDataFrameRelation::AltrepDataFrameRelation(duckdb::shared_ptr<Relation> p, cpp11::list df,
+AltrepDataFrameRelation::AltrepDataFrameRelation(duckdb::shared_ptr<Relation> p, cpp4r::list df,
                                                  duckdb::shared_ptr<AltrepRelationWrapper> altrep)
     : Relation(p->context, RelationType::EXTENSION_RELATION), dataframe(df), altrep(std::move(altrep)),
       parent(std::move(p)) {

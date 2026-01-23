@@ -1,10 +1,8 @@
-// cpp11 version: 0.5.2
-// vendored on: 2025-03-09
 #pragma once
 
 #ifdef R_INTERNALS_H_
 #if !(defined(R_NO_REMAP) && defined(STRICT_R_HEADERS))
-#error R headers were included before cpp11 headers \
+#error R headers were included before cpp4r headers \
   and at least one of R_NO_REMAP or STRICT_R_HEADERS \
   was not defined.
 #endif
@@ -35,23 +33,24 @@
 // clang-format on
 
 #include <type_traits>
+#include "cpp4r/cpp_version.hpp"  // for CPP4R optimization macros
 
 #if defined(R_VERSION) && R_VERSION >= R_Version(4, 4, 0)
 // Use R's new macro
-#define CPP11_PRIdXLEN_T R_PRIdXLEN_T
+#define CPP4R_PRIdXLEN_T R_PRIdXLEN_T
 #else
 // Recreate what new R does
 #ifdef LONG_VECTOR_SUPPORT
-#define CPP11_PRIdXLEN_T "td"
+#define CPP4R_PRIdXLEN_T "td"
 #else
-#define CPP11_PRIdXLEN_T "d"
+#define CPP4R_PRIdXLEN_T "d"
 #endif
 #endif
 
-namespace cpp11 {
+namespace cpp4r {
 namespace literals {
 
-constexpr R_xlen_t operator""_xl(unsigned long long int value) { return value; }
+constexpr R_xlen_t operator""_xl(unsigned long long int value) noexcept { return value; }
 
 }  // namespace literals
 
@@ -66,12 +65,12 @@ namespace detail {
 
 // Annoyingly, `TYPEOF()` returns an `int` rather than a `SEXPTYPE`,
 // which can throw warnings with `-Wsign-compare` on Windows.
-inline SEXPTYPE r_typeof(SEXP x) { return static_cast<SEXPTYPE>(TYPEOF(x)); }
+inline SEXPTYPE r_typeof(SEXP x) noexcept { return static_cast<SEXPTYPE>(TYPEOF(x)); }
 
-/// Get an object from an environment
-///
-/// SAFETY: Keep as a pure C function. Call like an R API function, i.e. wrap in `safe[]`
-/// as required.
+// Get an object from an environment
+//
+// SAFETY: Keep as a pure C function. Call like an R API function, i.e. wrap in `safe[]`
+// as required.
 inline SEXP r_env_get(SEXP env, SEXP sym) {
 #if defined(R_VERSION) && R_VERSION >= R_Version(4, 5, 0)
   const Rboolean inherits = FALSE;
@@ -103,10 +102,10 @@ inline SEXP r_env_get(SEXP env, SEXP sym) {
 #endif
 }
 
-/// Check if an object exists in an environment
-///
-/// SAFETY: Keep as a pure C function. Call like an R API function, i.e. wrap in `safe[]`
-/// as required.
+// Check if an object exists in an environment
+//
+// SAFETY: Keep as a pure C function. Call like an R API function, i.e. wrap in `safe[]`
+// as required.
 inline bool r_env_has(SEXP env, SEXP sym) {
 #if R_VERSION >= R_Version(4, 2, 0)
   return R_existsVarInFrame(env, sym);
@@ -120,18 +119,37 @@ inline bool r_env_has(SEXP env, SEXP sym) {
 template <typename T>
 inline T na();
 
+// Progressive C++ optimization: Use if constexpr in C++17+ for zero-overhead type
+// dispatch
+#if CPP4R_HAS_CXX17
 template <typename T>
-inline typename std::enable_if<!std::is_same<typename std::decay<T>::type, double>::value,
-                               bool>::type
-is_na(const T& value) {
+CPP4R_HOT inline bool is_na(const T& value) {
+  // C++17+: Use if constexpr - compiler only compiles the taken branch
+  if constexpr (std::is_same<typename std::decay<T>::type, double>::value) {
+    return ISNA(value);  // Fast R macro for doubles
+  } else if constexpr (std::is_same<typename std::decay<T>::type, int>::value) {
+    return value == NA_INTEGER;  // Direct comparison for integers
+  } else {
+    return value == na<T>();  // Generic fallback
+  }
+}
+#else
+// C++11/14: Use SFINAE (slower compilation, same runtime performance)
+template <typename T>
+CPP4R_HOT inline
+    typename std::enable_if<!std::is_same<typename std::decay<T>::type, double>::value,
+                            bool>::type
+    is_na(const T& value) {
   return value == na<T>();
 }
 
 template <typename T>
-inline typename std::enable_if<std::is_same<typename std::decay<T>::type, double>::value,
-                               bool>::type
-is_na(const T& value) {
+CPP4R_HOT inline
+    typename std::enable_if<std::is_same<typename std::decay<T>::type, double>::value,
+                            bool>::type
+    is_na(const T& value) {
   return ISNA(value);
 }
+#endif
 
-}  // namespace cpp11
+}  // namespace cpp4r

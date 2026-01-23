@@ -14,27 +14,27 @@
 #include <R_ext/Utils.h>
 
 using namespace duckdb;
-using namespace cpp11::literals;
+using namespace cpp4r::literals;
 
-[[cpp11::register]] void rapi_release(duckdb::stmt_eptr_t stmt) {
+[[cpp4r::register]] void rapi_release(duckdb::stmt_eptr_t stmt) {
 	auto stmt_ptr = stmt.release();
 	if (stmt_ptr) {
 		delete stmt_ptr;
 	}
 }
 
-static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt, const string &query, idx_t n_param,
+static cpp4r::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt, const string &query, idx_t n_param,
                                      SEXP registered_dfs = R_NilValue) {
-	cpp11::writable::list retlist;
+	cpp4r::writable::list retlist;
 	retlist.reserve(8);
 	retlist.push_back({"str"_nm = query});
 
 	auto stmtholder = make_uniq<RStatement>(std::move(stmt));
 
 	retlist.push_back({"type"_nm = StatementTypeToString(stmtholder->stmt->GetStatementType())});
-	retlist.push_back({"names"_nm = cpp11::as_sexp(stmtholder->stmt->GetNames())});
+	retlist.push_back({"names"_nm = cpp4r::as_sexp(stmtholder->stmt->GetNames())});
 
-	cpp11::writable::strings rtypes;
+	cpp4r::writable::strings rtypes;
 	rtypes.reserve(stmtholder->stmt->GetTypes().size());
 
 	for (auto &stype : stmtholder->stmt->GetTypes()) {
@@ -52,7 +52,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	return retlist;
 }
 
-[[cpp11::register]] cpp11::list rapi_prepare(duckdb::conn_eptr_t conn, std::string query, cpp11::environment env) {
+[[cpp4r::register]] cpp4r::list rapi_prepare(duckdb::conn_eptr_t conn, std::string query, cpp4r::environment env) {
 	if (!conn || !conn.get() || !conn->conn) {
 		rapi_error_with_context("rapi_prepare", "Invalid connection");
 	}
@@ -109,7 +109,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	return construct_retlist(std::move(stmt), query, n_param, conn->db->registered_dfs);
 }
 
-[[cpp11::register]] cpp11::list rapi_bind(duckdb::stmt_eptr_t stmt, cpp11::list params,
+[[cpp4r::register]] cpp4r::list rapi_bind(duckdb::stmt_eptr_t stmt, cpp4r::list params,
                                           duckdb::ConvertOpts convert_opts) {
 	if (!stmt || !stmt.get() || !stmt->stmt) {
 		rapi_error_with_context("rapi_bind", "Invalid statement");
@@ -141,7 +141,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		rapi_error_with_context("rapi_bind", "Bind parameter values need to have length one for arrow queries");
 	}
 
-	cpp11::writable::list out;
+	cpp4r::writable::list out;
 	out.reserve(n_rows);
 
 	for (idx_t row_idx = 0; row_idx < (size_t)n_rows; ++row_idx) {
@@ -152,7 +152,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		}
 
 		// Protection error is flagged by rchk
-		cpp11::sexp res = rapi_execute(stmt, convert_opts);
+		cpp4r::sexp res = rapi_execute(stmt, convert_opts);
 		out.push_back(res);
 	}
 
@@ -169,14 +169,14 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 
 	auto nrows = result->RowCount();
 
-	// Note we cannot use cpp11's data frame here as it tries to calculate the number of rows itself,
+	// Note we cannot use cpp4r's data frame here as it tries to calculate the number of rows itself,
 	// but gives the wrong answer if the first column is another data frame. So we set the necessary
 	// attributes manually.
-	cpp11::writable::list data_frame;
+	cpp4r::writable::list data_frame;
 	data_frame.reserve(ncols);
 
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
-		cpp11::sexp varvalue = duckdb_r_allocate(result->types[col_idx], nrows, result->names[col_idx], convert_opts,
+		cpp4r::sexp varvalue = duckdb_r_allocate(result->types[col_idx], nrows, result->names[col_idx], convert_opts,
 		                                         "duckdb_execute_R_impl");
 		duckdb_r_decorate(result->types[col_idx], varvalue, convert_opts);
 		data_frame.push_back(varvalue);
@@ -214,7 +214,7 @@ struct AppendableRList {
 	void PrepAppend() {
 		if (size >= capacity) {
 			capacity = capacity * 2;
-			cpp11::sexp new_list = NEW_LIST(capacity);
+			cpp4r::sexp new_list = NEW_LIST(capacity);
 			D_ASSERT(new_list);
 			for (idx_t i = 0; i < size; i++) {
 				SET_VECTOR_ELT(new_list, i, VECTOR_ELT(the_list, i));
@@ -228,7 +228,7 @@ struct AppendableRList {
 		D_ASSERT(the_list != R_NilValue);
 		SET_VECTOR_ELT(the_list, size++, val);
 	}
-	cpp11::sexp the_list;
+	cpp4r::sexp the_list;
 	idx_t capacity = 1000;
 	idx_t size = 0;
 };
@@ -244,26 +244,26 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	}
 	ArrowConverter::ToArrowSchema(&arrow_schema, scan_state.Types(), scan_state.Names(), options);
 	batches_list.PrepAppend();
-	batches_list.Append(cpp11::safe[Rf_eval](batch_import_from_c, arrow_namespace));
+	batches_list.Append(cpp4r::safe[Rf_eval](batch_import_from_c, arrow_namespace));
 	return true;
 }
 
 // Turn a DuckDB result set into an Arrow Table
-[[cpp11::register]] SEXP rapi_execute_arrow(duckdb::rqry_eptr_t qry_res, int chunk_size) {
+[[cpp4r::register]] SEXP rapi_execute_arrow(duckdb::rqry_eptr_t qry_res, int chunk_size) {
 	auto result = qry_res->result.get();
 	// somewhat dark magic below
-	cpp11::function getNamespace = RStrings::get().getNamespace_sym;
-	cpp11::sexp arrow_namespace(getNamespace(RStrings::get().arrow_str));
+	cpp4r::function getNamespace = RStrings::get().getNamespace_sym;
+	cpp4r::sexp arrow_namespace(getNamespace(RStrings::get().arrow_str));
 
 	// export schema setup
 	ArrowSchema arrow_schema;
-	cpp11::doubles schema_ptr_sexp(Rf_ScalarReal(static_cast<double>(reinterpret_cast<uintptr_t>(&arrow_schema))));
-	cpp11::sexp schema_import_from_c(Rf_lang2(RStrings::get().ImportSchema_sym, schema_ptr_sexp));
+	cpp4r::doubles schema_ptr_sexp(Rf_ScalarReal(static_cast<double>(reinterpret_cast<uintptr_t>(&arrow_schema))));
+	cpp4r::sexp schema_import_from_c(Rf_lang2(RStrings::get().ImportSchema_sym, schema_ptr_sexp));
 
 	// export data setup
 	ArrowArray arrow_data;
-	cpp11::doubles data_ptr_sexp(Rf_ScalarReal(static_cast<double>(reinterpret_cast<uintptr_t>(&arrow_data))));
-	cpp11::sexp batch_import_from_c(Rf_lang3(RStrings::get().ImportRecordBatch_sym, data_ptr_sexp, schema_ptr_sexp));
+	cpp4r::doubles data_ptr_sexp(Rf_ScalarReal(static_cast<double>(reinterpret_cast<uintptr_t>(&arrow_data))));
+	cpp4r::sexp batch_import_from_c(Rf_lang3(RStrings::get().ImportRecordBatch_sym, data_ptr_sexp, schema_ptr_sexp));
 	// create data batches
 	AppendableRList batches_list;
 
@@ -274,30 +274,30 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 
 	SET_LENGTH(batches_list.the_list, batches_list.size);
 	ArrowConverter::ToArrowSchema(&arrow_schema, result->types, result->names, result->client_properties);
-	cpp11::sexp schema_arrow_obj(cpp11::safe[Rf_eval](schema_import_from_c, arrow_namespace));
+	cpp4r::sexp schema_arrow_obj(cpp4r::safe[Rf_eval](schema_import_from_c, arrow_namespace));
 
 	// create arrow::Table
-	cpp11::sexp from_record_batches(
+	cpp4r::sexp from_record_batches(
 	    Rf_lang3(RStrings::get().Table__from_record_batches_sym, batches_list.the_list, schema_arrow_obj));
-	return cpp11::safe[Rf_eval](from_record_batches, arrow_namespace);
+	return cpp4r::safe[Rf_eval](from_record_batches, arrow_namespace);
 }
 
 // Turn a DuckDB result set into an RecordBatchReader
-[[cpp11::register]] SEXP rapi_record_batch(duckdb::rqry_eptr_t qry_res, int chunk_size) {
+[[cpp4r::register]] SEXP rapi_record_batch(duckdb::rqry_eptr_t qry_res, int chunk_size) {
 	// somewhat dark magic below
-	cpp11::function getNamespace = RStrings::get().getNamespace_sym;
-	cpp11::sexp arrow_namespace(getNamespace(RStrings::get().arrow_str));
+	cpp4r::function getNamespace = RStrings::get().getNamespace_sym;
+	cpp4r::sexp arrow_namespace(getNamespace(RStrings::get().arrow_str));
 
 	// FIXME: This is a memory leak, need better lifecycle management
 	auto result_stream = new ResultArrowArrayStreamWrapper(std::move(qry_res->result), chunk_size);
 
-	cpp11::sexp stream_ptr_sexp(
+	cpp4r::sexp stream_ptr_sexp(
 	    Rf_ScalarReal(static_cast<double>(reinterpret_cast<uintptr_t>(&result_stream->stream))));
-	cpp11::sexp record_batch_reader(Rf_lang2(RStrings::get().ImportRecordBatchReader_sym, stream_ptr_sexp));
-	return cpp11::safe[Rf_eval](record_batch_reader, arrow_namespace);
+	cpp4r::sexp record_batch_reader(Rf_lang2(RStrings::get().ImportRecordBatchReader_sym, stream_ptr_sexp));
+	return cpp4r::safe[Rf_eval](record_batch_reader, arrow_namespace);
 }
 
-[[cpp11::register]] SEXP rapi_execute(duckdb::stmt_eptr_t stmt, duckdb::ConvertOpts convert_opts) {
+[[cpp4r::register]] SEXP rapi_execute(duckdb::stmt_eptr_t stmt, duckdb::ConvertOpts convert_opts) {
 	if (!stmt || !stmt.get() || !stmt->stmt) {
 		rapi_error_with_context("rapi_execute", "Invalid statement");
 	}
@@ -325,7 +325,7 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 		auto result = (MaterializedQueryResult *)generic_result.get();
 
 		// Avoid rchk warning, it sees QueryResult::~QueryResult() as an allocating function
-		cpp11::sexp out = duckdb_execute_R_impl(result, convert_opts, RStrings::get().dataframe_str);
+		cpp4r::sexp out = duckdb_execute_R_impl(result, convert_opts, RStrings::get().dataframe_str);
 		return out;
 	}
 }

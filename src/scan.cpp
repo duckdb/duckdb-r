@@ -4,7 +4,7 @@
 #include "typesr.hpp"
 
 using namespace duckdb;
-using namespace cpp11;
+using namespace cpp4r;
 
 static data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 	switch (rtype.id()) {

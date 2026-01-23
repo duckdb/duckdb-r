@@ -31,7 +31,7 @@ bool RType::operator==(const RType &rhs) const {
 	return id_ == rhs.id_ && size_ == rhs.size_ && aux_ == rhs.aux_;
 }
 
-RType RType::FACTOR(cpp11::strings levels) {
+RType RType::FACTOR(cpp4r::strings levels) {
 	RType out = RType(RTypeId::FACTOR);
 	for (R_xlen_t level_idx = 0; level_idx < levels.size(); level_idx++) {
 		out.aux_.push_back(std::make_pair(levels[level_idx], RType()));
@@ -187,7 +187,7 @@ RType RApiTypes::DetectRType(SEXP v, bool integer64) {
 			child_list_t<RType> child_types;
 			R_xlen_t ncol = Rf_length(v);
 
-			cpp11::strings names = GET_NAMES(v);
+			cpp4r::strings names = GET_NAMES(v);
 			for (R_xlen_t i = 0; i < ncol; ++i) {
 				RType child = DetectRType(VECTOR_ELT(v, i), integer64);
 				if (child == RType::UNKNOWN) {
