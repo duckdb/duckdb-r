@@ -13,6 +13,8 @@
 #include "duckdb/common/adbc/single_batch_array_stream.hpp"
 #include "duckdb/function/table/arrow.hpp"
 #include "duckdb/common/adbc/wrappers.hpp"
+#include <algorithm>
+#include <cstring>
 #include <stdlib.h>
 #include <string.h>
 
@@ -862,6 +864,22 @@ AdbcStatusCode StatementExecuteQuery(struct AdbcStatement *statement, struct Arr
 	if (has_stream && to_table) {
 		return IngestToTableFromBoundStream(wrapper, error);
 	}
+
+	if (!wrapper->statement) {
+		if (out) {
+			out->private_data = nullptr;
+			out->get_schema = nullptr;
+			out->get_next = nullptr;
+			out->release = nullptr;
+			out->get_last_error = nullptr;
+		}
+
+		if (rows_affected) {
+			*rows_affected = 0;
+		}
+		return ADBC_STATUS_OK;
+	}
+
 	auto stream_wrapper = static_cast<DuckDBAdbcStreamWrapper *>(malloc(sizeof(DuckDBAdbcStreamWrapper)));
 	if (has_stream) {
 		// A stream was bound to the statement, use that to bind parameters
@@ -987,6 +1005,12 @@ AdbcStatusCode StatementSetSqlQuery(struct AdbcStatement *statement, const char 
 		return ADBC_STATUS_INVALID_ARGUMENT;
 	}
 
+	auto query_len = strlen(query);
+	if (std::all_of(query, query + query_len, duckdb::StringUtil::CharacterIsSpace)) {
+		SetError(error, "No statements found");
+		return ADBC_STATUS_INVALID_ARGUMENT;
+	}
+
 	auto wrapper = static_cast<DuckDBAdbcStatementWrapper *>(statement->private_data);
 	if (wrapper->ingestion_stream.release) {
 		// Release any resources currently held by the ingestion stream before we overwrite it
@@ -1006,6 +1030,13 @@ AdbcStatusCode StatementSetSqlQuery(struct AdbcStatement *statement, const char 
 		duckdb_destroy_extracted(&extracted_statements);
 		return ADBC_STATUS_INTERNAL;
 	}
+
+	if (extract_statements_size == 0) {
+		// Query is non-empty, but there are no actual statements.
+		duckdb_destroy_extracted(&extracted_statements);
+		return ADBC_STATUS_OK;
+	}
+
 	// Now lets loop over the statements, and execute every one
 	for (idx_t i = 0; i < extract_statements_size - 1; i++) {
 		duckdb_prepared_statement statement_internal = nullptr;
@@ -1161,12 +1192,21 @@ AdbcStatusCode StatementSetOption(struct AdbcStatement *statement, const char *k
 	return ADBC_STATUS_INVALID_ARGUMENT;
 }
 
+std::string createFilter(const char *input) {
+	if (input) {
+		auto quoted = duckdb::KeywordHelper::WriteQuoted(input, '\'');
+		return quoted;
+	}
+	return "'%'";
+}
+
 AdbcStatusCode ConnectionGetObjects(struct AdbcConnection *connection, int depth, const char *catalog,
                                     const char *db_schema, const char *table_name, const char **table_type,
                                     const char *column_name, struct ArrowArrayStream *out, struct AdbcError *error) {
-	std::string catalog_filter = catalog ? catalog : "%";
-	std::string db_schema_filter = db_schema ? db_schema : "%";
-	std::string table_name_filter = table_name ? table_name : "%";
+	std::string catalog_filter = createFilter(catalog);
+	std::string db_schema_filter = createFilter(db_schema);
+	std::string table_name_filter = createFilter(table_name);
+	std::string column_name_filter = createFilter(column_name);
 	std::string table_type_condition = "";
 	if (table_type && table_type[0]) {
 		table_type_condition = " AND table_type IN (";
@@ -1182,13 +1222,10 @@ AdbcStatusCode ConnectionGetObjects(struct AdbcConnection *connection, int depth
 			if (i > 0) {
 				table_type_condition += ", ";
 			}
-			table_type_condition += "'";
-			table_type_condition += table_type[i];
-			table_type_condition += "'";
+			table_type_condition += createFilter(table_type[i]);
 		}
 		table_type_condition += ")";
 	}
-	std::string column_name_filter = column_name ? column_name : "%";
 
 	std::string query;
 	switch (depth) {
@@ -1233,7 +1270,7 @@ AdbcStatusCode ConnectionGetObjects(struct AdbcConnection *connection, int depth
 					)[] catalog_db_schemas
 				FROM
 					information_schema.schemata
-				WHERE catalog_name LIKE '%s'
+				WHERE catalog_name LIKE %s
 				GROUP BY catalog_name
 				)",
 		                                   catalog_filter);
@@ -1246,7 +1283,7 @@ AdbcStatusCode ConnectionGetObjects(struct AdbcConnection *connection, int depth
 						catalog_name,
 						schema_name,
 					FROM information_schema.schemata
-					WHERE schema_name LIKE '%s'
+					WHERE schema_name LIKE %s
 				)
 
 				SELECT
@@ -1289,7 +1326,7 @@ AdbcStatusCode ConnectionGetObjects(struct AdbcConnection *connection, int depth
 					information_schema.schemata
 				LEFT JOIN db_schemas dbs
 				USING (catalog_name, schema_name)
-				WHERE catalog_name LIKE '%s'
+				WHERE catalog_name LIKE %s
 				GROUP BY catalog_name
 				)",
 		                                   db_schema_filter, catalog_filter);
@@ -1333,7 +1370,7 @@ AdbcStatusCode ConnectionGetObjects(struct AdbcConnection *connection, int depth
 							)[],
 						}) db_schema_tables
 					FROM information_schema.tables
-					WHERE table_name LIKE '%s'%s
+					WHERE table_name LIKE %s%s
 					GROUP BY table_catalog, table_schema
 				),
 				db_schemas AS (
@@ -1344,7 +1381,7 @@ AdbcStatusCode ConnectionGetObjects(struct AdbcConnection *connection, int depth
 					FROM information_schema.schemata
 					LEFT JOIN tables
 					USING (catalog_name, schema_name)
-					WHERE schema_name LIKE '%s'
+					WHERE schema_name LIKE %s
 				)
 
 				SELECT
@@ -1357,7 +1394,7 @@ AdbcStatusCode ConnectionGetObjects(struct AdbcConnection *connection, int depth
 					information_schema.schemata
 				LEFT JOIN db_schemas dbs
 				USING (catalog_name, schema_name)
-				WHERE catalog_name LIKE '%s'
+				WHERE catalog_name LIKE %s
 				GROUP BY catalog_name
 				)",
 		                                   table_name_filter, table_type_condition, db_schema_filter, catalog_filter);
@@ -1392,7 +1429,7 @@ AdbcStatusCode ConnectionGetObjects(struct AdbcConnection *connection, int depth
 							xdbc_is_generatedcolumn: NULL::BOOLEAN,
 						}) table_columns
 					FROM information_schema.columns
-					WHERE column_name LIKE '%s'
+					WHERE column_name LIKE %s
 					GROUP BY table_catalog, table_schema, table_name
 				),
 				constraints AS (
@@ -1421,7 +1458,7 @@ AdbcStatusCode ConnectionGetObjects(struct AdbcConnection *connection, int depth
 							constraint_column_names,
 							list_filter(
 								constraint_column_names,
-								lambda name: name LIKE '%s'
+								lambda name: name LIKE %s
 							)
 						)
 					GROUP BY database_name, schema_name, table_name
@@ -1441,7 +1478,7 @@ AdbcStatusCode ConnectionGetObjects(struct AdbcConnection *connection, int depth
 					USING (table_catalog, table_schema, table_name)
 					LEFT JOIN constraints
 					USING (table_catalog, table_schema, table_name)
-					WHERE table_name LIKE '%s'%s
+					WHERE table_name LIKE %s%s
 					GROUP BY table_catalog, table_schema
 				),
 				db_schemas AS (
@@ -1452,7 +1489,7 @@ AdbcStatusCode ConnectionGetObjects(struct AdbcConnection *connection, int depth
 					FROM information_schema.schemata
 					LEFT JOIN tables
 					USING (catalog_name, schema_name)
-					WHERE schema_name LIKE '%s'
+					WHERE schema_name LIKE %s
 				)
 
 				SELECT
@@ -1465,7 +1502,7 @@ AdbcStatusCode ConnectionGetObjects(struct AdbcConnection *connection, int depth
 					information_schema.schemata
 				LEFT JOIN db_schemas dbs
 				USING (catalog_name, schema_name)
-				WHERE catalog_name LIKE '%s'
+				WHERE catalog_name LIKE %s
 				GROUP BY catalog_name
 				)",
 		                                   column_name_filter, column_name_filter, table_name_filter,
