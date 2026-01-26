@@ -1,5 +1,64 @@
 # Changelog
 
+## duckdb 1.4.3.9012
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@6ddac802ffa9bcfbcc3f5f0d71de5dff9b0bc250>
+  ([\#2014](https://github.com/duckdb/duckdb-r/issues/2014)).
+
+## duckdb 1.4.3.9011
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@e3b14d4d3b9852fb1ea3b77253e9a7ef960a7571>
+  ([\#2012](https://github.com/duckdb/duckdb-r/issues/2012)).
+
+## duckdb 1.4.3.9010
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@d444fad42d176617b7d80201a1ca2837ebf21d0f>
+  ([\#2010](https://github.com/duckdb/duckdb-r/issues/2010)).
+
+## duckdb 1.4.3.9009
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@94abfa5a67290eaaeb53827689bf4fd246a4e7c2>
+  ([\#2008](https://github.com/duckdb/duckdb-r/issues/2008)).
+
+- Update vendored sources to
+  <duckdb/duckdb@33c31ac5b4a03f675d1598939222485af1e6ebf9>
+  (duckdb/duckdb#20324,
+  [\#2007](https://github.com/duckdb/duckdb-r/issues/2007)).
+
+## duckdb 1.4.3.9008
+
+### Continuous integration
+
+- Fix comment
+  ([\#2001](https://github.com/duckdb/duckdb-r/issues/2001)).
+
+- Tweaks ([\#2000](https://github.com/duckdb/duckdb-r/issues/2000)).
+
+- Test all R versions on branches that start with cran-
+  ([\#1999](https://github.com/duckdb/duckdb-r/issues/1999)).
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@6ef04d6ec477cd8fb0c6c65018d44987c2aa7869>
+  ([\#2005](https://github.com/duckdb/duckdb-r/issues/2005)).
+
+- Update vendored sources to
+  <duckdb/duckdb@6f3381c403d4a8c8069ddffb04c59fd0df361832>
+  ([\#2004](https://github.com/duckdb/duckdb-r/issues/2004)).
+
 ## duckdb 1.4.3.9007
 
 ### vendor
