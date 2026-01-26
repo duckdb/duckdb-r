@@ -135,6 +135,15 @@ rethrow_rapi_expr_constant <- function(val, alias, convert_opts, call = parent.f
   )
 }
 
+rethrow_rapi_expr_operator <- function(op, exprs, alias, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_expr_operator(op, exprs, alias),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
 rethrow_rapi_expr_comparison <- function(cmp_op, exprs, alias, call = parent.frame(2)) {
   rlang::try_fetch(
     rapi_expr_comparison(cmp_op, exprs, alias),
@@ -556,6 +565,7 @@ rethrow_restore <- function() {
   rethrow_rapi_list_arrow <<- rapi_list_arrow
   rethrow_rapi_expr_reference <<- rapi_expr_reference
   rethrow_rapi_expr_constant <<- rapi_expr_constant
+  rethrow_rapi_expr_operator <<- rapi_expr_operator
   rethrow_rapi_expr_comparison <<- rapi_expr_comparison
   rethrow_rapi_expr_function <<- rapi_expr_function
   rethrow_rapi_expr_set_alias <<- rapi_expr_set_alias

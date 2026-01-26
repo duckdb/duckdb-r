@@ -64,6 +64,31 @@
       Error:
       ! expr_comparison: Invalid comparison operator
 
+# we can create operator expressions
+
+    Code
+      expr_operator("IN", list(expr_reference("some_column"), expr_constant(-42),
+      expr_constant(42)))
+    Message
+      DuckDB Expression: (some_column IN (-42.0, 42.0))
+
+---
+
+    Code
+      expr_operator("NOT IN", list(expr_reference("some_column"), expr_constant(-42),
+      expr_constant(42)))
+    Message
+      DuckDB Expression: (some_column NOT IN (-42.0, 42.0))
+
+---
+
+    Code
+      expr_operator("BOGUS", list(expr_reference("some_column"), expr_constant(-42),
+      expr_constant(42)))
+    Condition
+      Error:
+      ! expr_operator: Invalid operator
+
 # the altrep-conversion for relations works
 
     Code

@@ -15,6 +15,7 @@
 #include "duckdb/parser/expression/conjunction_expression.hpp"
 #include "duckdb/parser/expression/constant_expression.hpp"
 #include "duckdb/parser/expression/function_expression.hpp"
+#include "duckdb/parser/expression/operator_expression.hpp"
 #include "duckdb/parser/expression/window_expression.hpp"
 #include "rapi.hpp"
 #include "reltoaltrep.hpp"
@@ -149,6 +150,30 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 	check_column_validity(val, "val", convert_opts.strict_relational, convert_opts.timezone_out);
 	auto const_value = RApiTypes::SexpToValue(val, 0, false);
 	auto out = make_external<ConstantExpression>("duckdb_expr", const_value);
+	if (alias != "") {
+		out->SetAlias(std::move(alias));
+	}
+	return out;
+}
+
+[[cpp11::register]] SEXP rapi_expr_operator(std::string op, list exprs, std::string alias = "") {
+
+	ExpressionType expr_type;
+
+	if (op == "IN") {
+		expr_type = ExpressionType::COMPARE_IN;
+	} else if (op == "NOT IN") {
+		expr_type = ExpressionType::COMPARE_NOT_IN;
+	} else {
+		stop("expr_operator: Invalid operator");
+	}
+
+	vector<unique_ptr<ParsedExpression>> parsed_exprs;
+	for (expr_extptr_t expr : exprs) {
+		parsed_exprs.push_back(expr->Copy());
+	}
+
+	auto out = make_external<OperatorExpression>("duckdb_expr", expr_type, std::move(parsed_exprs));
 	if (alias != "") {
 		out->SetAlias(std::move(alias));
 	}
