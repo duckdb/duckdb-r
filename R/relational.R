@@ -64,13 +64,13 @@ expr_constant <- function(
   rethrow_rapi_expr_constant(val, alias, convert_opts)
 }
 
-#' Create a operator expression
-#' @param exprs a vector
+#' Create an operator expression
 #' @param op the operator
-#' @return a operator expression
+#' @param exprs a list of expressions
+#' @return an operator expression
 #' @noRd
 #' @examples
-#' op_expr <- expr_operator("IN", list(expr_reference(col), expr_constant(-42), expr_constant(42)))
+#' op_expr <- expr_operator("IN", list(expr_reference("some_column_name"), expr_constant(-42), expr_constant(42)))
 expr_operator <- function(
   op,
   exprs,
