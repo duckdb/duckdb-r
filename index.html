@@ -64,24 +64,36 @@
 <div class="section level2">
 <h2 id="installation-from-cran">Installation from CRAN<a class="anchor" aria-label="anchor" href="#installation-from-cran"></a>
 </h2>
-<p>Installing the package from source may take up to an hour. Consider using binary Windows/macOS packages from CRAN for recent R versions, or <a href="https://p3m.dev/" class="external-link">Posit Package Manager</a> for various flavors of Linux or older R versions.</p>
+<p>This is the recommended method for recent R versions on Windows or macOS which have binaries available on CRAN.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"duckdb"</span><span class="op">)</span></span></code></pre></div>
+<p>For Linux or older R versions, installing the package from source may take up to an hour. Consider the <a href="https://p3m.dev/" class="external-link">Posit Public Package Manager</a> for binary installs (see the next section).</p>
+</div>
+<div class="section level2">
+<h2 id="installation-from-the-posit-public-package-manager">Installation from the Posit Public Package Manager<a class="anchor" aria-label="anchor" href="#installation-from-the-posit-public-package-manager"></a>
+</h2>
+<p>This repository serves binary builds of CRAN packages for a wide variety of platforms. Follow setup instructions from <a href="https://p3m.dev/client/#/repos/cran/setup" class="external-link uri">https://p3m.dev/client/#/repos/cran/setup</a>. For example, to install the ManyLinux version of duckdb that is likely to work on your Linux, use:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"duckdb"</span>, repos <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span></span>
+<span>  <span class="st">"https://p3m.dev/cran/latest/bin/linux/manylinux_2_28-%s/%s"</span>, <span class="va">R.version</span><span class="op">[</span><span class="st">"arch"</span><span class="op">]</span>, <span class="fu"><a href="https://rdrr.io/r/base/substr.html" class="external-link">substr</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/numeric_version.html" class="external-link">getRversion</a></span><span class="op">(</span><span class="op">)</span>, <span class="fl">1</span>, <span class="fl">3</span><span class="op">)</span></span>
+<span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p>To check the availability of binaries for your platform, navigate to the <a href="https://p3m.dev/client/#/repos/cran/packages/overview?search=duckdb" class="external-link">duckdb search page</a>.</p>
 </div>
 <div class="section level2">
 <h2 id="installation-from-r-universe">Installation from r-universe<a class="anchor" aria-label="anchor" href="#installation-from-r-universe"></a>
 </h2>
-<p>Installing the package from source may take up to an hour. Binaries are available for recent versions of R. Review <a href="https://docs.r-universe.dev/install/binaries.html" class="external-link uri">https://docs.r-universe.dev/install/binaries.html</a> for configuring installation of binary packages on Linux.</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<p>This repository serves development versions. Binaries are available for recent versions of R and for some platforms. Review <a href="https://docs.r-universe.dev/install/binaries.html" class="external-link uri">https://docs.r-universe.dev/install/binaries.html</a> for configuring installation of binary packages on Linux.</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"duckdb"</span>, repos <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"https://duckdb.r-universe.dev"</span>, <span class="st">"https://cloud.r-project.org"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p>Installing the package from source may take up to an hour.</p>
 </div>
 <div class="section level2">
 <h2 id="installation-from-github">Installation from GitHub<a class="anchor" aria-label="anchor" href="#installation-from-github"></a>
 </h2>
-<p>Installing the package from GitHub may take up to an hour.</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("pak", repos = sprintf("https://r-lib.github.io/p/pak/stable/%s/%s/%s", .Platform$pkgType, R.Version()$os, R.Version()$arch))</span></span>
 <span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"duckdb/duckdb-r"</span><span class="op">)</span></span></code></pre></div>
+<p>Installing the package from GitHub may take up to an hour.</p>
 </div>
 <div class="section level2">
 <h2 id="user-guide">User Guide<a class="anchor" aria-label="anchor" href="#user-guide"></a>
@@ -92,16 +104,16 @@
 <h2 id="building">Building<a class="anchor" aria-label="anchor" href="#building"></a>
 </h2>
 <p>To build the R package, you first need to clone this repository and install the dependencies:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("pak", repos = sprintf("https://r-lib.github.io/p/pak/stable/%s/%s/%s", .Platform$pkgType, R.Version()$os, R.Version()$arch))</span></span>
 <span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p>Then, install:</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="ex">~duckdb-r:</span> R CMD INSTALL .</span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="ex">~duckdb-r:</span> R CMD INSTALL .</span></code></pre></div>
 <p>Set the <code>MAKEFLAGS</code> environment variable to <code>-j8</code> or similar for parallel builds. Configure <code>ccache</code> for faster repeated builds.</p>
 <p>If you wish to test new DuckDB functionality with duckdb-r, make sure your clone of <code>duckdb-r</code> is one level deeper than your clone of <code>duckdb</code> (e.g. <code>R/duckdb-r</code> and <code>duckdb</code>). Then run the following commands:</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> duckdb <span class="kw">&amp;&amp;</span> <span class="fu">git</span> checkout {{desired_branch}}<span class="kw">)</span></span>
-<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> R/duckdb-r <span class="kw">&amp;&amp;</span> <span class="ex">scripts/vendor.sh</span><span class="kw">)</span></span>
-<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> R/duckdb-r <span class="kw">&amp;&amp;</span> <span class="ex">R</span> CMD INSTALL .<span class="kw">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> duckdb <span class="kw">&amp;&amp;</span> <span class="fu">git</span> checkout {{desired_branch}}<span class="kw">)</span></span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> R/duckdb-r <span class="kw">&amp;&amp;</span> <span class="ex">scripts/vendor.sh</span><span class="kw">)</span></span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> R/duckdb-r <span class="kw">&amp;&amp;</span> <span class="ex">R</span> CMD INSTALL .<span class="kw">)</span></span></code></pre></div>
 <p>It helps if both the duckdb directory and duckdb-r directory are clean.</p>
 </div>
 <div class="section level2">
