@@ -13,44 +13,49 @@ It is designed to support analytical query workloads and is optimized for fast q
 This repository contains the R bindings for DuckDB.
 
 ## Installation from CRAN
-
-Installing the package from source may take up to an hour.
-Consider using binary Windows/macOS packages from CRAN for recent R versions, or [Posit Package Manager](https://p3m.dev/) for various flavors of Linux or older R versions.
+This is the recommended method for recent R versions on Windows or macOS which have binaries available on CRAN.
 
 ``` r
 install.packages("duckdb")
 ```
 
+For Linux or older R versions, installing the package from source may take up to an hour.
+Consider the [Posit Public Package Manager](https://p3m.dev/) for binary installs (see the next section).
+
+## Installation from the Posit Public Package Manager
+
+This repository serves binary builds of CRAN packages for a wide variety of platforms.
+Follow setup instructions from <https://p3m.dev/client/#/repos/cran/setup>.
+For example, to install the ManyLinux version of duckdb that is likely to work on your Linux, use:
+
+``` r
+install.packages("duckdb", repos = sprintf(
+  "https://p3m.dev/cran/latest/bin/linux/manylinux_2_28-%s/%s", R.version["arch"], substr(getRversion(), 1, 3)
+))
+```
+
+To check the availability of binaries for your platform, navigate to the [duckdb search page](https://p3m.dev/client/#/repos/cran/packages/overview?search=duckdb).
+
 ## Installation from r-universe
 
-Installing the package from source may take up to an hour.
-Binaries are available for recent versions of R.
+This repository serves development versions.
+Binaries are available for recent versions of R and for some platforms.
 Review <https://docs.r-universe.dev/install/binaries.html> for configuring installation of binary packages on Linux.
 
 ``` r
 install.packages("duckdb", repos = c("https://duckdb.r-universe.dev", "https://cloud.r-project.org"))
 ```
 
-## Installation from GitHub
+Installing the package from source may take up to an hour.
 
-Installing the package from GitHub may take up to an hour.
+## Installation from GitHub
 
 ``` r
 # install.packages("pak", repos = sprintf("https://r-lib.github.io/p/pak/stable/%s/%s/%s", .Platform$pkgType, R.Version()$os, R.Version()$arch))
 pak::pak("duckdb/duckdb-r")
 ```
 
-## Installation from the Posit Public Package Manager (Linux)
-
-You can install the binary package on Linux using the [Posit Public Package Manager](https://p3m.dev/).
-
-``` r
-options(HTTPUserAgent = sprintf("R/%s R (%s)",
-    getRversion(),
-    paste(getRversion(), R.version["platform"], R.version["arch"], R.version["os"])
-))
-install.packages("duckdb", repos="https://p3m.dev/cran/__linux__/manylinux_2_28/latest/")
-```
+Installing the package from GitHub may take up to an hour.
 
 ## User Guide
 
