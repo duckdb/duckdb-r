@@ -145,6 +145,10 @@
 
 ### Chore
 
+- Update dates and versions for cpp11.
+
+- Bump cpp11.
+
 - Add `return` to assignment operator for `external_pointer`.
 
 ### Continuous integration
