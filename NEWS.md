@@ -1,5 +1,14 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.3.9015
+
+## Chore
+
+- Update dates and versions for cpp11.
+
+- Bump cpp11.
+
+
 # duckdb 1.4.3.9014
 
 ## Bug fixes
