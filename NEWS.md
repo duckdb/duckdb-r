@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.3.9014
+
+## Bug fixes
+
+- Fix uninitialized `connection_id` in move constructor.
+
+
 # duckdb 1.4.3.9013
 
 ## Features
