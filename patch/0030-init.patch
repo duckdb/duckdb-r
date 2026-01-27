@@ -1,0 +1,39 @@
+From 3e137b693f74957c7f7844d166352616bdad7528 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Tue, 27 Jan 2026 12:29:19 +0100
+Subject: [PATCH] init
+
+---
+ src/duckdb/src/include/duckdb/main/connection.hpp | 2 --
+ src/duckdb/src/main/connection.cpp                | 2 +-
+ 2 files changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/duckdb/src/include/duckdb/main/connection.hpp b/src/duckdb/src/include/duckdb/main/connection.hpp
+index 72c61209c..1a741f017 100644
+--- a/src/duckdb/src/include/duckdb/main/connection.hpp
++++ b/src/duckdb/src/include/duckdb/main/connection.hpp
+@@ -33,8 +33,6 @@ class LogicalOperator;
+ class SelectStatement;
+ struct CSVReaderOptions;
+ 
+-typedef void (*warning_callback_t)(std::string);
+-
+ //! A connection to a database. This represents a (client) connection that can
+ //! be used to query the database.
+ class Connection {
+diff --git a/src/duckdb/src/main/connection.cpp b/src/duckdb/src/main/connection.cpp
+index 1e107650a..0e1b40e72 100644
+--- a/src/duckdb/src/main/connection.cpp
++++ b/src/duckdb/src/main/connection.cpp
+@@ -28,7 +28,7 @@ Connection::Connection(DatabaseInstance &database)
+ Connection::Connection(DuckDB &database) : Connection(*database.instance) {
+ }
+ 
+-Connection::Connection(Connection &&other) noexcept {
++Connection::Connection(Connection &&other) noexcept : connection_id(-1) {
+ 	std::swap(context, other.context);
+ 	std::swap(connection_id, other.connection_id);
+ }
+-- 
+2.52.0
+

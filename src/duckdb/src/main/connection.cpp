@@ -28,7 +28,7 @@ Connection::Connection(DatabaseInstance &database)
 Connection::Connection(DuckDB &database) : Connection(*database.instance) {
 }
 
-Connection::Connection(Connection &&other) noexcept {
+Connection::Connection(Connection &&other) noexcept : connection_id(-1) {
 	std::swap(context, other.context);
 	std::swap(connection_id, other.connection_id);
 }
