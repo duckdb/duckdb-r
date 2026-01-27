@@ -62,7 +62,7 @@
 ## Citation
 
 Source:
-[`DESCRIPTION`](https://github.com/duckdb/duckdb-r/blob/main/DESCRIPTION)
+[`DESCRIPTION`](https://github.com/duckdb/duckdb-r/blob/cran-1.4.4/DESCRIPTION)
 
 Mühleisen H, Raasveldt M (2026). *duckdb: DBI Package for the DuckDB
 Database Management System*. R package version 1.4.4,
