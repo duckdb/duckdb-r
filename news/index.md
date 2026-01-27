@@ -1,5 +1,31 @@
 # Changelog
 
+## duckdb 1.4.3.9013
+
+### Features
+
+- Add operator expressions ([@toppyy](https://github.com/toppyy),
+  [\#1828](https://github.com/duckdb/duckdb-r/issues/1828)).
+
+### Chore
+
+- Add `return` to assignment operator for `external_pointer`.
+
+### Continuous integration
+
+- Fix checks for R \< 4.3.
+
+### Documentation
+
+- Add alternative installation method to README
+  ([@szarnyasg](https://github.com/szarnyasg),
+  [\#1819](https://github.com/duckdb/duckdb-r/issues/1819)).
+
+### vendor
+
+- Update vendored sources (tag v1.4.4) to
+  <duckdb/duckdb@6ddac802ffa9bcfbcc3f5f0d71de5dff9b0bc250>.
+
 ## duckdb 1.4.3.9012
 
 ### vendor
