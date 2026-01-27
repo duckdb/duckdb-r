@@ -2,7 +2,7 @@
 // vendored on: 2025-03-09
 #pragma once
 
-#include <stddef.h>  // for size_t
+#include <cstddef>  // for size_t
 
 #include <initializer_list>  // for initializer_list
 

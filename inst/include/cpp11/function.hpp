@@ -2,9 +2,8 @@
 // vendored on: 2025-03-09
 #pragma once
 
-#include <string.h>  // for strcmp
-
 #include <cstdio>   // for snprintf
+#include <cstring>  // for strcmp
 #include <string>   // for string, basic_string
 #include <utility>  // for forward
 
