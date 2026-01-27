@@ -1,106 +1,30 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.4.3.9014
-
-## Bug fixes
-
-- Fix uninitialized `connection_id` in move constructor.
-
-
-# duckdb 1.4.3.9013
-
-## Features
-
-- Add operator expressions (@toppyy, #1828).
-
-## Chore
-
-- Add `return` to assignment operator for `external_pointer`.
-
-## Continuous integration
-
-- Fix checks for R \< 4.3.
-
-## Documentation
-
-- Add alternative installation method to README (@szarnyasg, #1819).
+# duckdb 1.4.4
 
 ## vendor
 
 - Update vendored sources (tag v1.4.4) to duckdb/duckdb@6ddac802ffa9bcfbcc3f5f0d71de5dff9b0bc250.
 
-
-# duckdb 1.4.3.9012
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@6ddac802ffa9bcfbcc3f5f0d71de5dff9b0bc250 (#2014).
-
-
-# duckdb 1.4.3.9011
-
-## vendor
 
 - Update vendored sources to duckdb/duckdb@e3b14d4d3b9852fb1ea3b77253e9a7ef960a7571 (#2012).
 
-
-# duckdb 1.4.3.9010
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@d444fad42d176617b7d80201a1ca2837ebf21d0f (#2010).
-
-
-# duckdb 1.4.3.9009
-
-## vendor
 
 - Update vendored sources to duckdb/duckdb@94abfa5a67290eaaeb53827689bf4fd246a4e7c2 (#2008).
 
 - Update vendored sources to duckdb/duckdb@33c31ac5b4a03f675d1598939222485af1e6ebf9 (duckdb/duckdb#20324, #2007).
 
-
-# duckdb 1.4.3.9008
-
-## Continuous integration
-
-- Fix comment (#2001).
-
-- Tweaks (#2000).
-
-- Test all R versions on branches that start with cran- (#1999).
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@6ef04d6ec477cd8fb0c6c65018d44987c2aa7869 (#2005).
 
 - Update vendored sources to duckdb/duckdb@6f3381c403d4a8c8069ddffb04c59fd0df361832 (#2004).
 
-
-# duckdb 1.4.3.9007
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@dfded73acdeb3cce0e4ce8eaba30f26f330c3a82 (#1996).
-
-
-# duckdb 1.4.3.9006
-
-## vendor
 
 - Update vendored sources to duckdb/duckdb@a56ccd8040339c1fcb688122dbe494a482354a01 (#1994).
 
-
-# duckdb 1.4.3.9005
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@23dcc0f1f6d8a47649731d66ec9c10f5e887173b (duckdb/duckdb#20410, #1992).
-
-
-# duckdb 1.4.3.9004
-
-## vendor
 
 - Update vendored sources to duckdb/duckdb@908d3eb2815c8d96a5a6e7d8f8b7aafcb52a76ad (#1990).
 
@@ -110,30 +34,11 @@
 
 - Update vendored sources to duckdb/duckdb@a2e864c193d6fcf0974b0f741d0a373e0ab26930 (#1987).
 
-
-# duckdb 1.4.3.9003
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@acc36fbe6e1417df3968c00ec35aaf01821467e2 (#1985).
 
 - Update vendored sources to duckdb/duckdb@e15d00881a638cd355a67875f9f9c4916ce99c01 (#1984).
 
-
-# duckdb 1.4.3.9002
-
-## Testing
-
-- Snapshot updates for R-CMD-check-dev ({"package":"dbplyr"}) (#1826).
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@a5c128a833f0842f276751130c5743be43f3a345 (#1951).
-
-
-# duckdb 1.4.3.9001
-
-## vendor
 
 - Update vendored sources to duckdb/duckdb@8b3a7a2a16bd4c0ef84601d1e727e1c9b46b984f (#1865).
 
@@ -159,16 +64,41 @@
 
 - Update vendored sources to duckdb/duckdb@200198b3e08c0373ca32b9496ae325b44e0d16e0 (#1824).
 
-
-# duckdb 1.4.3.9000
-
-## vendor
-
 - Update vendored sources to duckdb/duckdb@e92f41065ffbb8039282fd2397c542db71720a76 (#1823).
 
 ## fledge
 
 - CRAN release v1.4.3 (#1822).
+
+## Bug fixes
+
+- Fix uninitialized `connection_id` in move constructor.
+
+## Features
+
+- Add operator expressions (@toppyy, #1828).
+
+## Chore
+
+- Add `return` to assignment operator for `external_pointer`.
+
+## Continuous integration
+
+- Fix checks for R \< 4.3.
+
+- Fix comment (#2001).
+
+- Tweaks (#2000).
+
+- Test all R versions on branches that start with cran- (#1999).
+
+## Documentation
+
+- Add alternative installation method to README (@szarnyasg, #1819).
+
+## Testing
+
+- Snapshot updates for R-CMD-check-dev ({"package":"dbplyr"}) (#1826).
 
 
 # duckdb 1.4.3
