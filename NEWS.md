@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.4.9000
+
+## fledge
+
+- CRAN release v1.4.4 (#2018).
+
+
 # duckdb 1.4.4
 
 ## Features
