@@ -1,6 +1,0 @@
-utils.o: \
-  include/convert.hpp \
-  include/rapi.hpp \
-  include/rfuns_extension.hpp \
-  include/typesr.hpp \
-  utils.cpp \

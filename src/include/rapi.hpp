@@ -19,6 +19,21 @@
 #define R_HAS_ALTLIST
 #endif
 
+// Guard for ALTREP methods - calling into R from ALTREP methods is unsafe
+// This guard is activated when entering ALTREP methods and causes rapi_error_with_context
+// to throw a C++ exception instead of calling into R
+class AltrepGuard {
+public:
+	AltrepGuard();
+	~AltrepGuard();
+	AltrepGuard(const AltrepGuard &) = delete;
+	AltrepGuard &operator=(const AltrepGuard &) = delete;
+	static bool IsActive();
+
+private:
+	static thread_local int depth;
+};
+
 // Helper functions to communicate errors via R's stop() function with context information
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message);
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::exception &e);

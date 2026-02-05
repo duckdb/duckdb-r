@@ -1,8 +1,0 @@
-reltoaltrep.o: \
-  include/altrepdataframe_relation.hpp \
-  include/convert.hpp \
-  include/rapi.hpp \
-  include/reltoaltrep.hpp \
-  include/signal.hpp \
-  include/typesr.hpp \
-  reltoaltrep.cpp \
