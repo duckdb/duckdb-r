@@ -85,24 +85,26 @@ duckdb_n_distinct <- function(..., na.rm = FALSE) {
   cols <- list(...)
   
   # Build comma-separated column list for row()
-  # Insert ", " between each column
-  col_parts <- list()
+  # Pre-allocate list for efficiency
+  n_cols <- length(cols)
+  col_parts <- vector("list", n_cols * 2L - 1L)
   for (i in seq_along(cols)) {
-    col_parts[[length(col_parts) + 1]] <- cols[[i]]
-    if (i < length(cols)) {
-      col_parts[[length(col_parts) + 1]] <- ", "
+    col_parts[[i * 2L - 1L]] <- cols[[i]]
+    if (i < n_cols) {
+      col_parts[[i * 2L]] <- ", "
     }
   }
   col_sql <- do.call(build_sql, c(list(con = con), col_parts))
 
   # https://duckdb.org/docs/sql/data_types/struct.html#creating-structs-with-the-row-function
   if (!identical(na.rm, FALSE)) {
-    if (length(cols) == 1L) {
+    if (n_cols == 1L) {
       # in case of only one column fall back to the "simple" version
       return(build_sql(con = con, "COUNT(DISTINCT ", cols[[1]], ")"))
     } else {
-      str_null_check <-
-        sql(paste0(paste0(cols, " IS NOT NULL"), collapse = " AND "))
+      # Build NULL check clause
+      null_checks <- paste0(cols, " IS NOT NULL")
+      str_null_check <- sql(paste(null_checks, collapse = " AND "))
 
       return(build_sql(
         con = con,
