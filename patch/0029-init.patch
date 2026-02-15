@@ -1,0 +1,53 @@
+From 55345f209f2394cf79236cad0e76bb81ce26a2ff Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Tue, 9 Dec 2025 17:10:06 +0100
+Subject: [PATCH] init
+
+---
+ src/duckdb/src/main/connection.cpp                             | 2 +-
+ src/duckdb/src/planner/binder/tableref/bind_table_function.cpp | 2 +-
+ src/duckdb/src/storage/metadata/metadata_manager.cpp           | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/duckdb/src/main/connection.cpp b/src/duckdb/src/main/connection.cpp
+index ccb2775bc..1e107650a 100644
+--- a/src/duckdb/src/main/connection.cpp
++++ b/src/duckdb/src/main/connection.cpp
+@@ -19,7 +19,7 @@
+ namespace duckdb {
+ 
+ Connection::Connection(DatabaseInstance &database)
+-    : context(make_shared_ptr<ClientContext>(database.shared_from_this())) {
++    : context(make_shared_ptr<ClientContext>(database.shared_from_this())), connection_id(-1) {
+ 	auto &connection_manager = ConnectionManager::Get(database);
+ 	connection_manager.AddConnection(*context);
+ 	connection_manager.AssignConnectionId(*this);
+diff --git a/src/duckdb/src/planner/binder/tableref/bind_table_function.cpp b/src/duckdb/src/planner/binder/tableref/bind_table_function.cpp
+index f06e9e1ad..5d2a09cf2 100644
+--- a/src/duckdb/src/planner/binder/tableref/bind_table_function.cpp
++++ b/src/duckdb/src/planner/binder/tableref/bind_table_function.cpp
+@@ -202,7 +202,7 @@ unique_ptr<LogicalOperator> Binder::BindTableFunctionInternal(TableFunction &tab
+ 	vector<string> return_names;
+ 	auto constexpr ordinality_name = "ordinality";
+ 	string ordinality_column_name = ordinality_name;
+-	idx_t ordinality_column_id;
++	idx_t ordinality_column_id = -1;
+ 	if (table_function.bind || table_function.bind_replace || table_function.bind_operator) {
+ 		TableFunctionBindInput bind_input(parameters, named_parameters, input_table_types, input_table_names,
+ 		                                  table_function.function_info.get(), this, table_function, ref);
+diff --git a/src/duckdb/src/storage/metadata/metadata_manager.cpp b/src/duckdb/src/storage/metadata/metadata_manager.cpp
+index 0c67bb9ca..ba4ec04ed 100644
+--- a/src/duckdb/src/storage/metadata/metadata_manager.cpp
++++ b/src/duckdb/src/storage/metadata/metadata_manager.cpp
+@@ -12,7 +12,7 @@ namespace duckdb {
+ MetadataBlock::MetadataBlock() : block_id(INVALID_BLOCK), dirty(false) {
+ }
+ 
+-MetadataBlock::MetadataBlock(MetadataBlock &&other) noexcept : dirty(false) {
++MetadataBlock::MetadataBlock(MetadataBlock &&other) noexcept : block_id(INVALID_BLOCK), dirty(false) {
+ 	std::swap(block, other.block);
+ 	std::swap(block_id, other.block_id);
+ 	std::swap(free_blocks, other.free_blocks);
+-- 
+2.50.1
+

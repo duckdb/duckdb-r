@@ -1,6 +1,27 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.4.1.9001
+# duckdb 1.4.3
+
+## Features
+
+- Update to DuckDB v1.4.3, see <https://github.com/duckdb/duckdb/releases/tag/v1.4.3> for details.
+
+- Add `str_ilike()` support (@edward-burn, #1810, #1811).
+
+## Bug fixes
+
+- Fail with non-UTF8-encoded strings during data frame scan instead of attempting to reencode (#1795).
+
+- Avoid inclusion of raw error message in the output.
+
+- Fix translation of `quantile()` to use DuckDB's native `QUANTILE_CONT()` syntax (#1734, #1735).
+
+## Testing
+
+- Remove redundant R version checks from tests (#1815, #1816).
+
+
+# duckdb 1.4.2
 
 ## vendor
 
