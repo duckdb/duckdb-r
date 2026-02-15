@@ -68,9 +68,38 @@ duckdb_grepl <- function(pattern, x, ignore.case = FALSE, perl = FALSE, fixed = 
   }
 }
 
+# Memoised check for dbplyr::sql_glue() availability
+# Provides a clear error message if dbplyr is too old
+check_sql_glue <- local({
+  result <- NULL
+  function() {
+    if (is.null(result)) {
+      result <<- tryCatch({
+        if (!requireNamespace("dbplyr", quietly = TRUE)) {
+          stop("Package 'dbplyr' is required but not installed.", call. = FALSE)
+        }
+        if (!"sql_glue" %in% getNamespaceExports("dbplyr")) {
+          stop(
+            "This version of duckdb requires dbplyr >= 2.5.2.\n",
+            "Please update dbplyr: install.packages('dbplyr')",
+            call. = FALSE
+          )
+        }
+        TRUE
+      }, error = function(e) {
+        e
+      })
+    }
+    if (inherits(result, "error")) {
+      stop(result)
+    }
+    invisible(NULL)
+  }
+})
+
 duckdb_n_distinct <- function(..., na.rm = FALSE) {
-  sql <- pkg_method("sql", "dbplyr")
-  glue_sql2 <- pkg_method("glue_sql2", "dbplyr")
+  check_sql_glue()
+  
   sql_current_con <- pkg_method("sql_current_con", "dbplyr")
   check_dots_unnamed <- pkg_method("check_dots_unnamed", "rlang")
 
@@ -82,22 +111,23 @@ duckdb_n_distinct <- function(..., na.rm = FALSE) {
   check_dots_unnamed()
 
   # https://duckdb.org/docs/sql/data_types/struct.html#creating-structs-with-the-row-function
+  # Requires dbplyr >= 2.5.2 with exported sql_glue()
   if (!identical(na.rm, FALSE)) {
     if (length(list(...)) == 1L) {
       # in case of only one column fall back to the "simple" version
-      return(glue_sql2(con, "COUNT(DISTINCT {.col {list(...)}*})"))
+      return(dbplyr::sql_glue(con, "COUNT(DISTINCT {.col {list(...)}*})"))
     } else {
       str_null_check <-
-        sql(paste0(paste0(list(...), " IS NOT NULL"), collapse = " AND "))
+        dbplyr::sql(paste0(paste0(list(...), " IS NOT NULL"), collapse = " AND "))
 
-      return(glue_sql2(
+      return(dbplyr::sql_glue(
         con,
         "COUNT(DISTINCT row({.col {list(...)}*})) FILTER (",
         str_null_check, ")"
       ))
     }
   } else {
-    return(glue_sql2(con, "COUNT(DISTINCT row({.col {list(...)}*}))"))
+    return(dbplyr::sql_glue(con, "COUNT(DISTINCT row({.col {list(...)}*}))"))
   }
 }
 
