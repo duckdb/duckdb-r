@@ -68,7 +68,38 @@ duckdb_grepl <- function(pattern, x, ignore.case = FALSE, perl = FALSE, fixed = 
   }
 }
 
+# Memoised check for dbplyr::sql_glue() availability
+# Provides a clear error message if dbplyr is too old
+check_sql_glue <- local({
+  result <- NULL
+  function() {
+    if (is.null(result)) {
+      result <<- tryCatch({
+        if (!requireNamespace("dbplyr", quietly = TRUE)) {
+          stop("Package 'dbplyr' is required but not installed.", call. = FALSE)
+        }
+        if (!"sql_glue" %in% getNamespaceExports("dbplyr")) {
+          stop(
+            "This version of duckdb requires dbplyr >= 2.5.2.\n",
+            "Please update dbplyr: install.packages('dbplyr')",
+            call. = FALSE
+          )
+        }
+        TRUE
+      }, error = function(e) {
+        e
+      })
+    }
+    if (inherits(result, "error")) {
+      stop(result)
+    }
+    invisible(NULL)
+  }
+})
+
 duckdb_n_distinct <- function(..., na.rm = FALSE) {
+  check_sql_glue()
+  
   sql_current_con <- pkg_method("sql_current_con", "dbplyr")
   check_dots_unnamed <- pkg_method("check_dots_unnamed", "rlang")
 
