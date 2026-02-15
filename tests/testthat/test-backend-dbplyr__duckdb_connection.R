@@ -6,8 +6,8 @@ test_that("dbplyr generic scalars translated correctly", {
 
   expect_equal(translate(as.character(1)), sql(r"{CAST(1.0 AS TEXT)}"))
   expect_equal(translate(as.character(1L)), sql(r"{CAST(1 AS TEXT)}"))
-  expect_equal(translate(as.numeric(1)), sql(r"{CAST(1.0 AS NUMERIC)}"))
-  expect_equal(translate(as.double(1.2)), sql(r"{CAST(1.2 AS NUMERIC)}"))
+  expect_equal(translate(as.numeric(1)), sql(r"{CAST(1.0 AS DOUBLE)}"))
+  expect_equal(translate(as.double(1.2)), sql(r"{CAST(1.2 AS DOUBLE)}"))
   expect_equal(translate(as.integer(1.2)), sql(r"{CAST(1.2 AS INTEGER)}"))
   expect_equal(translate(as.integer64(1.2)), sql(r"{CAST(1.2 AS BIGINT)}"))
   expect_equal(translate(as.logical("TRUE")), sql(r"{CAST('TRUE' AS BOOLEAN)}"))
