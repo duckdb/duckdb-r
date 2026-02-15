@@ -216,14 +216,23 @@ void AltrepRelationWrapper::Materialize() {
 struct AltrepRownamesWrapper {
 
 	AltrepRownamesWrapper(duckdb::shared_ptr<AltrepRelationWrapper> rel_p) : rel(rel_p) {
-		rowlen_data[0] = NA_INTEGER;
 	}
 
 	static AltrepRownamesWrapper *Get(SEXP x) {
 		return GetFromExternalPtr<AltrepRownamesWrapper>(x);
 	}
 
-	int32_t rowlen_data[2];
+	int32_t *GetRownames(idx_t row_count) {
+		if (rownames_data.empty()) {
+			rownames_data.resize(row_count);
+			for (idx_t i = 0; i < row_count; i++) {
+				rownames_data[i] = static_cast<int32_t>(i + 1);
+			}
+		}
+		return rownames_data.data();
+	}
+
+	std::vector<int32_t> rownames_data;
 	duckdb::shared_ptr<AltrepRelationWrapper> rel;
 };
 
@@ -371,12 +380,9 @@ SEXP get_attrib(SEXP vec, SEXP name) {
 }
 
 R_xlen_t RelToAltrep::RownamesLength(SEXP x) {
-	// The BEGIN_CPP11 isn't strictly necessary here, but should be optimized away.
-	// It will become important if we ever support row names.
 	BEGIN_CPP11
-	// row.names vector has length 2 in the "compact" case which we're using
-	// see https://stat.ethz.ch/R-manual/R-devel/library/base/html/row.names.html
-	return 2;
+	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
+	return rownames_wrapper->rel->GetQueryResult()->RowCount();
 	END_CPP11_EX(0)
 }
 
@@ -402,8 +408,7 @@ void *RelToAltrep::DoRownamesDataptrGet(SEXP x) {
 	if (row_count > (idx_t)NumericLimits<int32_t>::Maximum()) {
 		rapi_error_with_context("altrep_rownames_integer_Elt", "Integer overflow for row.names attribute");
 	}
-	rownames_wrapper->rowlen_data[1] = -row_count;
-	return rownames_wrapper->rowlen_data;
+	return rownames_wrapper->GetRownames(row_count);
 }
 
 R_xlen_t RelToAltrep::VectorLength(SEXP x) {
