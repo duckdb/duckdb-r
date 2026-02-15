@@ -70,7 +70,7 @@ duckdb_grepl <- function(pattern, x, ignore.case = FALSE, perl = FALSE, fixed = 
 
 duckdb_n_distinct <- function(..., na.rm = FALSE) {
   sql <- pkg_method("sql", "dbplyr")
-  glue_sql2 <- pkg_method("glue_sql2", "dbplyr")
+  build_sql <- pkg_method("build_sql", "dbplyr")
   sql_current_con <- pkg_method("sql_current_con", "dbplyr")
   check_dots_unnamed <- pkg_method("check_dots_unnamed", "rlang")
 
@@ -81,23 +81,37 @@ duckdb_n_distinct <- function(..., na.rm = FALSE) {
   }
   check_dots_unnamed()
 
+  # Get the list of columns
+  cols <- list(...)
+  
+  # Build comma-separated column list for row()
+  # Insert ", " between each column
+  col_parts <- list()
+  for (i in seq_along(cols)) {
+    col_parts[[length(col_parts) + 1]] <- cols[[i]]
+    if (i < length(cols)) {
+      col_parts[[length(col_parts) + 1]] <- ", "
+    }
+  }
+  col_sql <- do.call(build_sql, c(list(con = con), col_parts))
+
   # https://duckdb.org/docs/sql/data_types/struct.html#creating-structs-with-the-row-function
   if (!identical(na.rm, FALSE)) {
-    if (length(list(...)) == 1L) {
+    if (length(cols) == 1L) {
       # in case of only one column fall back to the "simple" version
-      return(glue_sql2(con, "COUNT(DISTINCT {.col {list(...)}*})"))
+      return(build_sql(con = con, "COUNT(DISTINCT ", cols[[1]], ")"))
     } else {
       str_null_check <-
-        sql(paste0(paste0(list(...), " IS NOT NULL"), collapse = " AND "))
+        sql(paste0(paste0(cols, " IS NOT NULL"), collapse = " AND "))
 
-      return(glue_sql2(
-        con,
-        "COUNT(DISTINCT row({.col {list(...)}*})) FILTER (",
+      return(build_sql(
+        con = con,
+        "COUNT(DISTINCT row(", col_sql, ")) FILTER (",
         str_null_check, ")"
       ))
     }
   } else {
-    return(glue_sql2(con, "COUNT(DISTINCT row({.col {list(...)}*}))"))
+    return(build_sql(con = con, "COUNT(DISTINCT row(", col_sql, "))"))
   }
 }
 
