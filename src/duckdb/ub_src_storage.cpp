@@ -20,6 +20,8 @@
 
 #include "src/storage/external_file_cache.cpp"
 
+#include "src/storage/external_file_cache_util.cpp"
+
 #include "src/storage/index.cpp"
 
 #include "src/storage/local_storage.cpp"
