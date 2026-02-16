@@ -20,6 +20,17 @@
     Output
       <SQL> CORR(x, y) OVER ()
 
+---
+
+    Code
+      translate(cor(x, y), window = FALSE)
+    Output
+      <SQL> CORR(x, y)
+    Code
+      translate(cor(x, y), window = TRUE)
+    Output
+      <SQL> CORR(x, y) OVER ()
+
 # snapshots of dbplyr generic scalar translation
 
     Code
