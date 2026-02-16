@@ -1,39 +1,3 @@
-<<<<<<< HEAD
-# two variable aggregates are translated correctly
-
-    Code
-      translate(cor(x, y), window = FALSE)
-    Output
-      <SQL> CORR(x, y)
-    Code
-      translate(cor(x, y), window = TRUE)
-    Output
-      <SQL> CORR(x, y) OVER ()
-
----
-
-    Code
-      translate(cor(x, y), window = FALSE)
-    Output
-      <SQL> CORR(x, y)
-    Code
-      translate(cor(x, y), window = TRUE)
-    Output
-      <SQL> CORR(x, y) OVER ()
-
----
-
-    Code
-      translate(cor(x, y), window = FALSE)
-    Output
-      <SQL> CORR(x, y)
-    Code
-      translate(cor(x, y), window = TRUE)
-    Output
-      <SQL> CORR(x, y) OVER ()
-
-=======
->>>>>>> 6fabed5 (Support both dbplyr < 2.6.0 (glue_sql2) and >= 2.6.0 (sql_glue))
 # snapshots of dbplyr generic scalar translation
 
     Code
