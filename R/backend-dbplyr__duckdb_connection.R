@@ -69,37 +69,21 @@ duckdb_grepl <- function(pattern, x, ignore.case = FALSE, perl = FALSE, fixed = 
 }
 
 # Memoised check for dbplyr::sql_glue() availability
-# Provides a clear error message if dbplyr is too old
-check_sql_glue <- local({
+# Returns TRUE if sql_glue is available (dbplyr >= 2.6.0), FALSE otherwise
+# TODO(2031): Remove this compatibility check and always use sql_glue
+has_sql_glue <- local({
   result <- NULL
   function() {
     if (is.null(result)) {
-      result <<- tryCatch({
-        if (!requireNamespace("dbplyr", quietly = TRUE)) {
-          stop("Package 'dbplyr' is required but not installed.", call. = FALSE)
-        }
-        if (!"sql_glue" %in% getNamespaceExports("dbplyr")) {
-          stop(
-            "This version of duckdb requires dbplyr >= 2.5.2.\n",
-            "Please update dbplyr: install.packages('dbplyr')",
-            call. = FALSE
-          )
-        }
-        TRUE
-      }, error = function(e) {
-        e
-      })
+      result <<- requireNamespace("dbplyr", quietly = TRUE) &&
+        "sql_glue" %in% getNamespaceExports("dbplyr")
     }
-    if (inherits(result, "error")) {
-      stop(result)
-    }
-    invisible(NULL)
+    result
   }
 })
 
+# TODO(2031): Remove this function and always use dbplyr::sql_glue
 duckdb_n_distinct <- function(..., na.rm = FALSE) {
-  check_sql_glue()
-  
   sql_current_con <- pkg_method("sql_current_con", "dbplyr")
   check_dots_unnamed <- pkg_method("check_dots_unnamed", "rlang")
 
@@ -111,23 +95,48 @@ duckdb_n_distinct <- function(..., na.rm = FALSE) {
   check_dots_unnamed()
 
   # https://duckdb.org/docs/sql/data_types/struct.html#creating-structs-with-the-row-function
-  # Requires dbplyr >= 2.5.2 with exported sql_glue()
-  if (!identical(na.rm, FALSE)) {
-    if (length(list(...)) == 1L) {
-      # in case of only one column fall back to the "simple" version
-      return(dbplyr::sql_glue(con, "COUNT(DISTINCT {.col {list(...)}*})"))
-    } else {
-      str_null_check <-
-        dbplyr::sql(paste0(paste0(list(...), " IS NOT NULL"), collapse = " AND "))
+  # Use sql_glue (dbplyr >= 2.6.0) or fall back to glue_sql2 (older versions)
+  if (has_sql_glue()) {
+    # dbplyr >= 2.6.0: use exported sql_glue()
+    if (!identical(na.rm, FALSE)) {
+      if (length(list(...)) == 1L) {
+        # in case of only one column fall back to the "simple" version
+        return(dbplyr::sql_glue(con, "COUNT(DISTINCT {.col {list(...)}*})"))
+      } else {
+        str_null_check <-
+          dbplyr::sql(paste0(paste0(list(...), " IS NOT NULL"), collapse = " AND "))
 
-      return(dbplyr::sql_glue(
-        con,
-        "COUNT(DISTINCT row({.col {list(...)}*})) FILTER (",
-        str_null_check, ")"
-      ))
+        return(dbplyr::sql_glue(
+          con,
+          "COUNT(DISTINCT row({.col {list(...)}*})) FILTER (",
+          str_null_check, ")"
+        ))
+      }
+    } else {
+      return(dbplyr::sql_glue(con, "COUNT(DISTINCT row({.col {list(...)}*}))"))
     }
   } else {
-    return(dbplyr::sql_glue(con, "COUNT(DISTINCT row({.col {list(...)}*}))"))
+    # dbplyr < 2.6.0: use glue_sql2()
+    sql <- pkg_method("sql", "dbplyr")
+    glue_sql2 <- pkg_method("glue_sql2", "dbplyr")
+    
+    if (!identical(na.rm, FALSE)) {
+      if (length(list(...)) == 1L) {
+        # in case of only one column fall back to the "simple" version
+        return(glue_sql2(con, "COUNT(DISTINCT {.col {list(...)}*})"))
+      } else {
+        str_null_check <-
+          sql(paste0(paste0(list(...), " IS NOT NULL"), collapse = " AND "))
+
+        return(glue_sql2(
+          con,
+          "COUNT(DISTINCT row({.col {list(...)}*})) FILTER (",
+          str_null_check, ")"
+        ))
+      }
+    } else {
+      return(glue_sql2(con, "COUNT(DISTINCT row({.col {list(...)}*}))"))
+    }
   }
 }
 

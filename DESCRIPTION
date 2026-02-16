@@ -53,7 +53,7 @@ Suggests:
     callr,
     clock,
     DBItest,
-    dbplyr (>= 2.5.2),
+    dbplyr,
     dplyr,
     rlang,
     testthat,
