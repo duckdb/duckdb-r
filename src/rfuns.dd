@@ -1,3 +1,0 @@
-rfuns.o: \
-  include/rfuns_extension.hpp \
-  rfuns.cpp \

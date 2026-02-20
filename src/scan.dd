@@ -1,5 +1,0 @@
-scan.o: \
-  include/convert.hpp \
-  include/rapi.hpp \
-  include/typesr.hpp \
-  scan.cpp \

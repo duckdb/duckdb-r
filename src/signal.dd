@@ -1,3 +1,0 @@
-signal.o: \
-  include/signal.hpp \
-  signal.cpp \
