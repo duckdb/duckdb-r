@@ -447,7 +447,7 @@ SEXP RelToAltrep::RownamesMin(SEXP x, Rboolean na_rm) {
 	auto n = rownames_wrapper->RowCount();
 	if (n == 0) {
 		Rf_warning("no non-missing arguments to min; returning Inf");
-		return Rf_ScalarInteger(NA_INTEGER);
+		return Rf_ScalarReal(R_PosInf);
 	}
 	return Rf_ScalarInteger(1);
 	END_CPP11
@@ -459,7 +459,7 @@ SEXP RelToAltrep::RownamesMax(SEXP x, Rboolean na_rm) {
 	auto n = rownames_wrapper->RowCount();
 	if (n == 0) {
 		Rf_warning("no non-missing arguments to max; returning -Inf");
-		return Rf_ScalarInteger(NA_INTEGER);
+		return Rf_ScalarReal(R_NegInf);
 	}
 	if (n > (idx_t)NumericLimits<int32_t>::Maximum()) {
 		rapi_error_with_context("altrep_rownames_Max", "Integer overflow for row.names attribute");
