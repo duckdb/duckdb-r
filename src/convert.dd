@@ -1,0 +1,4 @@
+convert.o: \
+  convert.cpp \
+  include/convert.hpp \
+  include/rapi.hpp \
