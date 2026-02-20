@@ -61,6 +61,8 @@ void RelToAltrep::Initialize(DllInfo *dll) {
 	R_set_altrep_Length_method(real_class, VectorLength);
 	R_set_altrep_Length_method(string_class, VectorLength);
 
+	R_set_altrep_Duplicate_method(rownames_class, RownamesDuplicate);
+
 	R_set_altvec_Dataptr_method(rownames_class, RownamesDataptr);
 	R_set_altvec_Dataptr_method(logical_class, VectorDataptr);
 	R_set_altvec_Dataptr_method(int_class, VectorDataptr);
@@ -68,6 +70,14 @@ void RelToAltrep::Initialize(DllInfo *dll) {
 	R_set_altvec_Dataptr_method(string_class, VectorDataptr);
 
 	R_set_altvec_Dataptr_or_null_method(rownames_class, RownamesDataptrOrNull);
+
+	R_set_altinteger_Elt_method(rownames_class, RownamesElt);
+	R_set_altinteger_Get_region_method(rownames_class, RownamesGetRegion);
+	R_set_altinteger_Is_sorted_method(rownames_class, RownamesIsSorted);
+	R_set_altinteger_No_NA_method(rownames_class, RownamesNoNA);
+	R_set_altinteger_Sum_method(rownames_class, RownamesSum);
+	R_set_altinteger_Min_method(rownames_class, RownamesMin);
+	R_set_altinteger_Max_method(rownames_class, RownamesMax);
 
 	R_set_altstring_Elt_method(string_class, VectorStringElt);
 
@@ -222,7 +232,11 @@ struct AltrepRownamesWrapper {
 		return GetFromExternalPtr<AltrepRownamesWrapper>(x);
 	}
 
-	int32_t *GetRownames(idx_t row_count) {
+	idx_t RowCount() {
+		return rel->GetQueryResult()->RowCount();
+	}
+
+	int32_t *Materialize(idx_t row_count) {
 		if (rownames_data.empty()) {
 			rownames_data.resize(row_count);
 			for (idx_t i = 0; i < row_count; i++) {
@@ -382,8 +396,93 @@ SEXP get_attrib(SEXP vec, SEXP name) {
 R_xlen_t RelToAltrep::RownamesLength(SEXP x) {
 	BEGIN_CPP11
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
-	return rownames_wrapper->rel->GetQueryResult()->RowCount();
+	return rownames_wrapper->RowCount();
 	END_CPP11_EX(0)
+}
+
+int RelToAltrep::RownamesElt(SEXP x, R_xlen_t i) {
+	BEGIN_CPP11
+	return static_cast<int>(i + 1);
+	END_CPP11_EX(NA_INTEGER)
+}
+
+R_xlen_t RelToAltrep::RownamesGetRegion(SEXP x, R_xlen_t start, R_xlen_t size, int *out) {
+	BEGIN_CPP11
+	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
+	auto row_count = static_cast<R_xlen_t>(rownames_wrapper->RowCount());
+	R_xlen_t n = row_count - start;
+	if (n > size) {
+		n = size;
+	}
+	if (n <= 0) {
+		return 0;
+	}
+	for (R_xlen_t i = 0; i < n; i++) {
+		out[i] = static_cast<int>(start + i + 1);
+	}
+	return n;
+	END_CPP11_EX(0)
+}
+
+int RelToAltrep::RownamesIsSorted(SEXP x) {
+	return SORTED_INCR;
+}
+
+int RelToAltrep::RownamesNoNA(SEXP x) {
+	return TRUE;
+}
+
+SEXP RelToAltrep::RownamesSum(SEXP x, Rboolean na_rm) {
+	BEGIN_CPP11
+	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
+	auto n = rownames_wrapper->RowCount();
+	double sum = (static_cast<double>(n) * (static_cast<double>(n) + 1.0)) / 2.0;
+	return Rf_ScalarReal(sum);
+	END_CPP11
+}
+
+SEXP RelToAltrep::RownamesMin(SEXP x, Rboolean na_rm) {
+	BEGIN_CPP11
+	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
+	auto n = rownames_wrapper->RowCount();
+	if (n == 0) {
+		Rf_warning("no non-missing arguments to min; returning Inf");
+		return Rf_ScalarInteger(NA_INTEGER);
+	}
+	return Rf_ScalarInteger(1);
+	END_CPP11
+}
+
+SEXP RelToAltrep::RownamesMax(SEXP x, Rboolean na_rm) {
+	BEGIN_CPP11
+	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
+	auto n = rownames_wrapper->RowCount();
+	if (n == 0) {
+		Rf_warning("no non-missing arguments to max; returning -Inf");
+		return Rf_ScalarInteger(NA_INTEGER);
+	}
+	if (n > (idx_t)NumericLimits<int32_t>::Maximum()) {
+		rapi_error_with_context("altrep_rownames_Max", "Integer overflow for row.names attribute");
+	}
+	return Rf_ScalarInteger(static_cast<int>(n));
+	END_CPP11
+}
+
+SEXP RelToAltrep::RownamesDuplicate(SEXP x, Rboolean deep) {
+	BEGIN_CPP11
+	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
+	auto n = rownames_wrapper->RowCount();
+	if (n > (idx_t)NumericLimits<int32_t>::Maximum()) {
+		rapi_error_with_context("altrep_rownames_Duplicate", "Integer overflow for row.names attribute");
+	}
+	SEXP result = PROTECT(Rf_allocVector(INTSXP, n));
+	int *data = INTEGER(result);
+	for (idx_t i = 0; i < n; i++) {
+		data[i] = static_cast<int>(i + 1);
+	}
+	UNPROTECT(1);
+	return result;
+	END_CPP11
 }
 
 void *RelToAltrep::RownamesDataptr(SEXP x, Rboolean writeable) {
@@ -395,20 +494,20 @@ void *RelToAltrep::RownamesDataptr(SEXP x, Rboolean writeable) {
 const void *RelToAltrep::RownamesDataptrOrNull(SEXP x) {
 	BEGIN_CPP11
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
-	if (!rownames_wrapper->rel->HasQueryResult()) {
+	if (rownames_wrapper->rownames_data.empty()) {
 		return nullptr;
 	}
-	return DoRownamesDataptrGet(x);
+	return rownames_wrapper->rownames_data.data();
 	END_CPP11
 }
 
 void *RelToAltrep::DoRownamesDataptrGet(SEXP x) {
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
-	auto row_count = rownames_wrapper->rel->GetQueryResult()->RowCount();
+	auto row_count = rownames_wrapper->RowCount();
 	if (row_count > (idx_t)NumericLimits<int32_t>::Maximum()) {
-		rapi_error_with_context("altrep_rownames_integer_Elt", "Integer overflow for row.names attribute");
+		rapi_error_with_context("altrep_rownames_Dataptr", "Integer overflow for row.names attribute");
 	}
-	return rownames_wrapper->GetRownames(row_count);
+	return rownames_wrapper->Materialize(row_count);
 }
 
 R_xlen_t RelToAltrep::VectorLength(SEXP x) {
