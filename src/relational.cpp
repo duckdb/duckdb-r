@@ -277,15 +277,13 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 				stop("rel_from_df: Need data frame without row names to convert to relational, got custom ALTREP "
 				     "row names.");
 			}
-		} else if (length != 2 || INTEGER(row_names)[0] != NA_INTEGER) {
-			// Non-ALTREP: must be compact form c(NA, -n) with length 2
-			if (length != 2) {
-				stop("rel_from_df: Need data frame without row names to convert to relational, got numeric row "
-				     "names of length %d.",
-				     length);
-			}
-			stop("rel_from_df: Need data frame without row names to convert to relational, got numeric row names "
-			     "with first element not NA.");
+		} else if (length != 2) {
+			stop("rel_from_df: Need data frame without row names to convert to relational, got numeric row names of "
+			     "length %d.",
+			     length);
+		} else if (INTEGER(row_names)[0] != NA_INTEGER) {
+			stop("rel_from_df: Need data frame without row names to convert to relational, got numeric row names with "
+			     "first element not NA.");
 		}
 	}
 
