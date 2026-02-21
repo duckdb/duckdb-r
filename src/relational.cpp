@@ -270,13 +270,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 	auto length = Rf_xlength(row_names);
 	if (length != 0) {
 		if (ALTREP(row_names)) {
-			// ALTREP row names: either our duckdb 1:n sequence
-			// or R's compact intrange from Rf_getAttrib() (R >= 4.6)
-			// Verify first element is 1 (automatic row names)
-			if (INTEGER_ELT(row_names, 0) != 1) {
-				stop("rel_from_df: Need data frame without row names to convert to relational, got custom ALTREP "
-				     "row names.");
-			}
+			// ALTREP row names are always accepted without materialization
 		} else if (length != 2) {
 			stop("rel_from_df: Need data frame without row names to convert to relational, got numeric row names of "
 			     "length %d.",
