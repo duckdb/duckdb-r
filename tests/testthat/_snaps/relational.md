@@ -116,7 +116,7 @@
       writeLines(rel_explain_df(proj)[[2]])
     Output
       ┌───────────────────────────┐
-      │     R_DATAFRAME_SCAN      │
+      │      R_DATAFRAME_SCAN     │
       │    ────────────────────   │
       │      Text: data.frame     │
       │       Projections: x      │
@@ -139,7 +139,7 @@
     Output
       [
           {
-              "name": "R_DATAFRAME_SCAN ",
+              "name": "R_DATAFRAME_SCAN",
               "children": [],
               "extra_info": {
                   "Text": "data.frame",
@@ -264,7 +264,7 @@
           <div class="tf-tree">
               <ul><li>
               <div class="tf-nc">
-                  <div class="title">R_DATAFRAME_SCAN </div>
+                  <div class="title">R_DATAFRAME_SCAN</div>
                   <div class="content">
                       <div class="sub-title">Text</div>
                       <div class="value">data.frame</div>
@@ -307,7 +307,7 @@
       
       digraph G {
           node [shape=box, style=rounded, fontname="Courier New", fontsize=10];
-          node_0_0 [label="R_DATAFRAME_SCAN \n───\nText:\ndata.frame\n───\nProjections:\nx\n───\nEstimated Cardinality:\n1"];
+          node_0_0 [label="R_DATAFRAME_SCAN\n───\nText:\ndata.frame\n───\nProjections:\nx\n───\nEstimated Cardinality:\n1"];
       
       }
       	
