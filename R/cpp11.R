@@ -120,12 +120,12 @@ rapi_rel_aggregate <- function(rel, groups, aggregates) {
   .Call(`_duckdb_rapi_rel_aggregate`, rel, groups, aggregates)
 }
 
-rapi_rel_order <- function(rel, orders, ascending) {
-  .Call(`_duckdb_rapi_rel_order`, rel, orders, ascending)
+rapi_rel_order <- function(rel, orders, ascending, nulls_first) {
+  .Call(`_duckdb_rapi_rel_order`, rel, orders, ascending, nulls_first)
 }
 
-rapi_expr_window <- function(window_function, partitions, order_bys, window_boundary_start, window_boundary_end, start_expr, end_expr, offset_expr, default_expr, alias) {
-  .Call(`_duckdb_rapi_expr_window`, window_function, partitions, order_bys, window_boundary_start, window_boundary_end, start_expr, end_expr, offset_expr, default_expr, alias)
+rapi_expr_window <- function(window_function, partitions, order_bys, window_boundary_start, window_boundary_end, start_expr, end_expr, offset_expr, default_expr, alias, ascending, nulls_first) {
+  .Call(`_duckdb_rapi_expr_window`, window_function, partitions, order_bys, window_boundary_start, window_boundary_end, start_expr, end_expr, offset_expr, default_expr, alias, ascending, nulls_first)
 }
 
 rapi_rel_join <- function(left, right, conds, join, join_ref_type) {
