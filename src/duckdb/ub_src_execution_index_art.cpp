@@ -2,6 +2,8 @@
 
 #include "src/execution/index/art/art.cpp"
 
+#include "src/execution/index/art/art_index.cpp"
+
 #include "src/execution/index/art/art_key.cpp"
 
 #include "src/execution/index/art/art_merger.cpp"
@@ -21,8 +23,6 @@
 #include "src/execution/index/art/node256_leaf.cpp"
 
 #include "src/execution/index/art/node48.cpp"
-
-#include "src/execution/index/art/plan_art.cpp"
 
 #include "src/execution/index/art/prefix.cpp"
 
