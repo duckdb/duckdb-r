@@ -492,8 +492,7 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
                                           std::string window_boundary_start, std::string window_boundary_end,
                                           duckdb::expr_extptr_t start_expr, duckdb::expr_extptr_t end_expr,
                                           duckdb::expr_extptr_t offset_expr, duckdb::expr_extptr_t default_expr,
-                                          std::string alias, r_vector<r_bool> ascending,
-                                          r_vector<r_bool> nulls_first) {
+                                          std::string alias, r_vector<r_bool> ascending, r_vector<r_bool> nulls_first) {
 
 	if (!window_function || window_function->type != ExpressionType::FUNCTION) {
 		stop("expected function expression");
