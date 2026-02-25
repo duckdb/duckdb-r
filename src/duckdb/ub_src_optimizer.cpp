@@ -12,8 +12,6 @@
 
 #include "src/optimizer/compressed_materialization.cpp"
 
-#include "src/optimizer/count_window_elimination.cpp"
-
 #include "src/optimizer/cse_optimizer.cpp"
 
 #include "src/optimizer/cte_filter_pusher.cpp"
@@ -61,6 +59,8 @@
 #include "src/optimizer/topn_window_elimination.cpp"
 
 #include "src/optimizer/unnest_rewriter.cpp"
+
+#include "src/optimizer/window_self_join.cpp"
 
 #include "src/optimizer/sampling_pushdown.cpp"
 
