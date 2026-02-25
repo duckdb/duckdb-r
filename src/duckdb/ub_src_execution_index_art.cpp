@@ -26,3 +26,7 @@
 
 #include "src/execution/index/art/prefix.cpp"
 
+#include "src/execution/index/art/prefix_handle.cpp"
+
+#include "src/execution/index/art/const_prefix_handle.cpp"
+
