@@ -1,23 +1,22 @@
 #define __STDC_FORMAT_MACROS
 
-#include "rapi.hpp"
-#include "typesr.hpp"
 #include "reltoaltrep.hpp"
-#include "signal.hpp"
-#include "cpp11/declarations.hpp"
+
 #include "altrepdataframe_relation.hpp"
-
-#include "httplib.hpp"
-#include <cinttypes>
-#include <cmath>
-#include <cstddef>
-
+#include "cpp11/declarations.hpp"
 #include "duckdb/common/unique_ptr.hpp"
 #include "duckdb/main/materialized_query_result.hpp"
 #include "duckdb/main/query_result.hpp"
 #include "duckdb/main/relation/limit_relation.hpp"
-
 #include "fmt/format.h"
+#include "httplib.hpp"
+#include "rapi.hpp"
+#include "signal.hpp"
+#include "typesr.hpp"
+
+#include <cinttypes>
+#include <cmath>
+#include <cstddef>
 
 #ifdef TRUE
 #undef TRUE
