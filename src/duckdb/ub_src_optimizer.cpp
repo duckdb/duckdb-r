@@ -12,6 +12,8 @@
 
 #include "src/optimizer/compressed_materialization.cpp"
 
+#include "src/optimizer/count_window_elimination.cpp"
+
 #include "src/optimizer/cse_optimizer.cpp"
 
 #include "src/optimizer/cte_filter_pusher.cpp"
