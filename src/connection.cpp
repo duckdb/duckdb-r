@@ -1,7 +1,7 @@
 #include "cpp11/environment.hpp"
-#include "rapi.hpp"
-#include "r_progress_bar_display.hpp"
 #include "duckdb/main/client_context.hpp"
+#include "r_progress_bar_display.hpp"
+#include "rapi.hpp"
 
 using namespace duckdb;
 
