@@ -56,3 +56,5 @@
 
 #include "src/common/types/geometry.cpp"
 
+#include "src/common/types/geometry_crs.cpp"
+
