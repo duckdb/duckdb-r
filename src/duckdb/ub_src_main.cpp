@@ -62,5 +62,7 @@
 
 #include "src/main/stream_query_result.cpp"
 
+#include "src/main/user_settings.cpp"
+
 #include "src/main/valid_checker.cpp"
 
