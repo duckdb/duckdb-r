@@ -270,18 +270,18 @@ rethrow_rapi_rel_aggregate <- function(rel, groups, aggregates, call = parent.fr
   )
 }
 
-rethrow_rapi_rel_order <- function(rel, orders, ascending, call = parent.frame(2)) {
+rethrow_rapi_rel_order <- function(rel, orders, ascending, nulls_first, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_rel_order(rel, orders, ascending),
+    rapi_rel_order(rel, orders, ascending, nulls_first),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
   )
 }
 
-rethrow_rapi_expr_window <- function(window_function, partitions, order_bys, window_boundary_start, window_boundary_end, start_expr, end_expr, offset_expr, default_expr, alias, call = parent.frame(2)) {
+rethrow_rapi_expr_window <- function(window_function, partitions, order_bys, window_boundary_start, window_boundary_end, start_expr, end_expr, offset_expr, default_expr, alias, ascending, nulls_first, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_expr_window(window_function, partitions, order_bys, window_boundary_start, window_boundary_end, start_expr, end_expr, offset_expr, default_expr, alias),
+    rapi_expr_window(window_function, partitions, order_bys, window_boundary_start, window_boundary_end, start_expr, end_expr, offset_expr, default_expr, alias, ascending, nulls_first),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
