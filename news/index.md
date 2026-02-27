@@ -1,5 +1,64 @@
 # Changelog
 
+## duckdb 1.4.4.9004
+
+### Continuous integration
+
+- Create PR against correct branch.
+
+## duckdb 1.4.4.9003
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@7fba13fbe1087611a2a65e5e8013d026b8597174>
+  ([\#2027](https://github.com/duckdb/duckdb-r/issues/2027)).
+
+## duckdb 1.4.4.9002
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@123e15dc2d13eeb68287902831d21819afed5ce4>
+  ([\#2024](https://github.com/duckdb/duckdb-r/issues/2024)).
+
+## duckdb 1.4.4.9001
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@b6fbc09f79ab877f6abfbfbbf8107b81f4c9a1da>
+  ([\#2020](https://github.com/duckdb/duckdb-r/issues/2020)).
+
+## duckdb 1.4.4.9000
+
+### fledge
+
+- CRAN release v1.4.4
+  ([\#2018](https://github.com/duckdb/duckdb-r/issues/2018)).
+
+## duckdb 1.4.4
+
+CRAN release: 2026-01-28
+
+### Features
+
+- Update to DuckDB v1.4.4, see
+  <https://github.com/duckdb/duckdb/releases/tag/v1.4.4> for details.
+
+- Add operator expressions ([@toppyy](https://github.com/toppyy),
+  [\#1828](https://github.com/duckdb/duckdb-r/issues/1828)).
+
+### Chore
+
+- Bump vendored cpp11 to v0.5.3.
+
+### Documentation
+
+- Add alternative installation method to README
+  ([@szarnyasg](https://github.com/szarnyasg),
+  [\#1819](https://github.com/duckdb/duckdb-r/issues/1819)).
+
 ## duckdb 1.4.3
 
 CRAN release: 2025-12-10
@@ -38,24 +97,8 @@ CRAN release: 2025-12-10
 
 CRAN release: 2025-11-17
 
-### vendor
-
-- Update vendored sources to
-  <duckdb/duckdb@10f8766267b8805f5d96b7ad1a7d54332d2b6ffe>
-  ([\#1624](https://github.com/duckdb/duckdb-r/issues/1624)).
-
-## duckdb 1.4.1.9000
-
-### fledge
-
-- CRAN release v1.4.1
-  ([\#1616](https://github.com/duckdb/duckdb-r/issues/1616)).
-
-### Uncategorized
-
-- Merge pull request
-  [\#1622](https://github.com/duckdb/duckdb-r/issues/1622) from
-  eddelbuettel/patch-1.
+- Update to DuckDB v1.4.2, see
+  <https://github.com/duckdb/duckdb/releases/tag/v1.4.2> for details.
 
 ## duckdb 1.4.1
 
