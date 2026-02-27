@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.4.9004
+
+## Continuous integration
+
+- Create PR against correct branch.
+
+
 # duckdb 1.4.4.9003
 
 ## vendor
