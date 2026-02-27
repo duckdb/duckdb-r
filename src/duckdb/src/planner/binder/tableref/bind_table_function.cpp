@@ -202,7 +202,7 @@ unique_ptr<LogicalOperator> Binder::BindTableFunctionInternal(TableFunction &tab
 	vector<string> return_names;
 	auto constexpr ordinality_name = "ordinality";
 	string ordinality_column_name = ordinality_name;
-	idx_t ordinality_column_id;
+	idx_t ordinality_column_id = -1;
 	if (table_function.bind || table_function.bind_replace || table_function.bind_operator) {
 		TableFunctionBindInput bind_input(parameters, named_parameters, input_table_types, input_table_names,
 		                                  table_function.function_info.get(), this, table_function, ref);

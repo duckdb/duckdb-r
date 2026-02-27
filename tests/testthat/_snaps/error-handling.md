@@ -26,7 +26,6 @@
       ! test message
       ℹ Context: test_context
       ℹ Error type: PARSER
-      ℹ Raw message: raw message
 
 ---
 
@@ -37,6 +36,5 @@
       ! test message
       ℹ Context: test_context
       ℹ Error type: PARSER
-      ℹ Raw message: raw message
       ℹ key: value
 

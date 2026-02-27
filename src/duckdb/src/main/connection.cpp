@@ -19,21 +19,16 @@
 namespace duckdb {
 
 Connection::Connection(DatabaseInstance &database)
-    : context(make_shared_ptr<ClientContext>(database.shared_from_this())) {
+    : context(make_shared_ptr<ClientContext>(database.shared_from_this())), connection_id(-1) {
 	auto &connection_manager = ConnectionManager::Get(database);
 	connection_manager.AddConnection(*context);
 	connection_manager.AssignConnectionId(*this);
-
-#ifdef DEBUG
-	EnableProfiling();
-	context->config.emit_profiler_output = false;
-#endif
 }
 
 Connection::Connection(DuckDB &database) : Connection(*database.instance) {
 }
 
-Connection::Connection(Connection &&other) noexcept {
+Connection::Connection(Connection &&other) noexcept : connection_id(-1) {
 	std::swap(context, other.context);
 	std::swap(connection_id, other.connection_id);
 }

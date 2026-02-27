@@ -64,6 +64,30 @@ expr_constant <- function(
   rethrow_rapi_expr_constant(val, alias, convert_opts)
 }
 
+#' Create an operator expression
+#' @param op the operator
+#' @param exprs a list of expressions
+#' @return an operator expression
+#' @noRd
+#' @examples
+#' op_expr <- expr_operator("IN", list(expr_reference("some_column_name"), expr_constant(-42), expr_constant(42)))
+expr_operator <- function(
+  op,
+  exprs,
+  ...,
+  alias = NULL
+) {
+  if (...length() > 0) {
+    stop("... must be empty")
+  }
+
+  if (is.null(alias)) {
+    alias <- ""
+  }
+
+  rethrow_rapi_expr_operator(op, exprs, alias)
+}
+
 #' Create a comparison expression
 #' @param exprs a vector of size two, the expressions to compare
 #' @param cmp_op the comparison operators
@@ -266,7 +290,7 @@ rel_aggregate <- function(rel, groups, aggregates) {
 #' con <- DBI::dbConnect(duckdb())
 #' rel <- rel_from_df(con, mtcars)
 #' rel2 <- rel_order(rel, list(expr_reference("hp")))
-rel_order <- function(rel, orders, ascending = NULL) {
+rel_order <- function(rel, orders, ascending = NULL, nulls_first = NULL) {
   if (is.null(ascending)) {
     ascending <- rep(TRUE, length(orders))
   }
@@ -275,7 +299,15 @@ rel_order <- function(rel, orders, ascending = NULL) {
     stop("length of ascending must equal length of orders")
   }
 
-  return(rethrow_rapi_rel_order(rel, orders, ascending))
+  if (is.null(nulls_first)) {
+    nulls_first <- rep(FALSE, length(orders))
+  }
+
+  if (length(orders) != length(nulls_first)) {
+    stop("length of nulls_first must equal length of orders")
+  }
+
+  return(rethrow_rapi_rel_order(rel, orders, ascending, nulls_first))
 }
 
 #' Get an external pointer pointing to NULL
@@ -296,7 +328,9 @@ expr_window <- function(
   end_expr = NULL,
   offset_expr = NULL,
   default_expr = NULL,
-  alias = NULL
+  alias = NULL,
+  ascending = NULL,
+  nulls_first = NULL
 ) {
   null_ptr <- sexp_null_ptr()
   if (is.null(start_expr)) {
@@ -314,6 +348,18 @@ expr_window <- function(
   if (is.null(alias)) {
     alias <- ""
   }
+  if (is.null(ascending)) {
+    ascending <- rep(TRUE, length(order_bys))
+  }
+  if (length(order_bys) != length(ascending)) {
+    stop("length of ascending must equal length of order_bys")
+  }
+  if (is.null(nulls_first)) {
+    nulls_first <- rep(FALSE, length(order_bys))
+  }
+  if (length(order_bys) != length(nulls_first)) {
+    stop("length of nulls_first must equal length of order_bys")
+  }
 
   expr_window_(
     window_function,
@@ -325,7 +371,9 @@ expr_window <- function(
     end_expr,
     offset_expr,
     default_expr,
-    alias
+    alias,
+    ascending,
+    nulls_first
   )
 }
 
@@ -347,7 +395,9 @@ expr_window_ <- function(
   end_expr = list(),
   offset_expr = list(),
   default_expr = list(),
-  alias = ""
+  alias = "",
+  ascending = logical(0),
+  nulls_first = logical(0)
 ) {
   window_boundary_start <- match.arg(window_boundary_start)
   window_boundary_end <- match.arg(window_boundary_end)
@@ -361,7 +411,9 @@ expr_window_ <- function(
     end_expr,
     offset_expr,
     default_expr,
-    alias
+    alias,
+    ascending,
+    nulls_first
   )
 }
 

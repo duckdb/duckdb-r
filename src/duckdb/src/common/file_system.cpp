@@ -63,6 +63,7 @@ constexpr FileOpenFlags FileFlags::FILE_FLAGS_EXCLUSIVE_CREATE;
 constexpr FileOpenFlags FileFlags::FILE_FLAGS_NULL_IF_EXISTS;
 constexpr FileOpenFlags FileFlags::FILE_FLAGS_MULTI_CLIENT_ACCESS;
 constexpr FileOpenFlags FileFlags::FILE_FLAGS_DISABLE_LOGGING;
+constexpr FileOpenFlags FileFlags::FILE_FLAGS_ENABLE_EXTENSION_INSTALL;
 
 void FileOpenFlags::Verify() {
 #ifdef DEBUG
@@ -705,6 +706,14 @@ bool FileHandle::Trim(idx_t offset_bytes, idx_t length_bytes) {
 }
 
 int64_t FileHandle::Write(void *buffer, idx_t nr_bytes) {
+	return file_system.Write(*this, buffer, UnsafeNumericCast<int64_t>(nr_bytes));
+}
+
+int64_t FileHandle::Write(QueryContext context, void *buffer, idx_t nr_bytes) {
+	if (context.GetClientContext() != nullptr) {
+		context.GetClientContext()->client_data->profiler->AddBytesWritten(nr_bytes);
+	}
+
 	return file_system.Write(*this, buffer, UnsafeNumericCast<int64_t>(nr_bytes));
 }
 

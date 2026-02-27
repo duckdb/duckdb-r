@@ -1,10 +1,9 @@
-// cpp11 version: 0.5.2
-// vendored on: 2025-03-09
+// cpp11 version: 0.5.3.9000
+// vendored on: 2026-01-27
 #pragma once
 
-#include <stddef.h>  // for size_t
-
-#include <string>  // for string, basic_string
+#include <cstddef>  // for size_t
+#include <string>   // for string, basic_string
 
 #include "cpp11/R.hpp"                // for SEXP, SEXPREC, REAL_ELT, R_NilV...
 #include "cpp11/attribute_proxy.hpp"  // for attribute_proxy

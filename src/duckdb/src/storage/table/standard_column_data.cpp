@@ -156,11 +156,8 @@ void StandardColumnData::Update(TransactionData transaction, DataTable &data_tab
                                 Vector &update_vector, row_t *row_ids, idx_t update_count) {
 	ColumnScanState standard_state, validity_state;
 	Vector base_vector(type);
-	auto standard_fetch = FetchUpdateData(standard_state, row_ids, base_vector);
-	auto validity_fetch = validity.FetchUpdateData(validity_state, row_ids, base_vector);
-	if (standard_fetch != validity_fetch) {
-		throw InternalException("Unaligned fetch in validity and main column data for update");
-	}
+	FetchUpdateData(standard_state, row_ids, base_vector);
+	validity.FetchUpdateData(validity_state, row_ids, base_vector);
 
 	UpdateInternal(transaction, data_table, column_index, update_vector, row_ids, update_count, base_vector);
 	validity.UpdateInternal(transaction, data_table, column_index, update_vector, row_ids, update_count, base_vector);
@@ -170,12 +167,12 @@ void StandardColumnData::UpdateColumn(TransactionData transaction, DataTable &da
                                       const vector<column_t> &column_path, Vector &update_vector, row_t *row_ids,
                                       idx_t update_count, idx_t depth) {
 	if (depth >= column_path.size()) {
-		// update this column
+		// Update the column.
 		ColumnData::Update(transaction, data_table, column_path[0], update_vector, row_ids, update_count);
-	} else {
-		// update the child column (i.e. the validity column)
-		validity.UpdateColumn(transaction, data_table, column_path, update_vector, row_ids, update_count, depth + 1);
+		return;
 	}
+	// Update the child column, which is the validity column.
+	validity.UpdateWithBase(transaction, data_table, column_path[0], update_vector, row_ids, update_count, *this);
 }
 
 unique_ptr<BaseStatistics> StandardColumnData::GetUpdateStatistics() {
@@ -200,8 +197,8 @@ void StandardColumnData::FetchRow(TransactionData transaction, ColumnFetchState 
 		auto child_state = make_uniq<ColumnFetchState>();
 		state.child_states.push_back(std::move(child_state));
 	}
-	validity.FetchRow(transaction, *state.child_states[0], row_id, result, result_idx);
 	ColumnData::FetchRow(transaction, state, row_id, result, result_idx);
+	validity.FetchRow(transaction, *state.child_states[0], row_id, result, result_idx);
 }
 
 void StandardColumnData::CommitDropColumn() {

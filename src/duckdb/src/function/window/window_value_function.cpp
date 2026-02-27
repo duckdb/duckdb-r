@@ -468,7 +468,11 @@ void WindowFirstValueExecutor::EvaluateInternal(ExecutionContext &context, DataC
 			if (frame_width) {
 				const auto first_idx = gvstate.value_tree->SelectNth(frames, 0);
 				D_ASSERT(first_idx.second == 0);
-				cursor.CopyCell(0, first_idx.first, result, i);
+				if (first_idx.first < cursor.Count()) {
+					cursor.CopyCell(0, first_idx.first, result, i);
+				} else {
+					FlatVector::SetNull(result, i, true);
+				}
 			} else {
 				FlatVector::SetNull(result, i, true);
 			}
@@ -522,7 +526,7 @@ void WindowLastValueExecutor::EvaluateInternal(ExecutionContext &context, DataCh
 					n -= last_idx.second;
 					last_idx = gvstate.value_tree->SelectNth(frames, n);
 				}
-				if (last_idx.second) {
+				if (last_idx.second || last_idx.first >= cursor.Count()) {
 					//	No last value - give up.
 					FlatVector::SetNull(result, i, true);
 				} else {
@@ -592,7 +596,7 @@ void WindowNthValueExecutor::EvaluateInternal(ExecutionContext &context, DataChu
 
 			if (n < frame_width) {
 				const auto nth_index = gvstate.value_tree->SelectNth(frames, n - 1);
-				if (nth_index.second) {
+				if (nth_index.second || nth_index.first >= cursor.Count()) {
 					// Past end of frame
 					FlatVector::SetNull(result, i, true);
 				} else {
@@ -1008,6 +1012,9 @@ void WindowFillExecutor::EvaluateInternal(ExecutionContext &context, DataChunk &
 			if (prev_valid == DConstants::INVALID_INDEX) {
 				//	Skip to the next partition
 				i += partition_end[i] - row_idx - 1;
+				if (i >= count) {
+					return;
+				}
 				row_idx = partition_end[i] - 1;
 				continue;
 			}
@@ -1117,6 +1124,9 @@ void WindowFillExecutor::EvaluateInternal(ExecutionContext &context, DataChunk &
 		if (prev_valid == DConstants::INVALID_INDEX) {
 			//	Skip to the next partition
 			i += partition_end[i] - row_idx - 1;
+			if (i >= count) {
+				break;
+			}
 			row_idx = partition_end[i] - 1;
 			continue;
 		}

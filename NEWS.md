@@ -1,29 +1,76 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.4.2.9001
-
-## Chore
-
-- Clean deps.
+# duckdb 1.4.4.9004
 
 ## Continuous integration
 
-- Install binaries from r-universe for dev workflow (#1731).
-
-## revdep
-
-- New problems.
+- Create PR against correct branch.
 
 
-# duckdb 1.4.2.9000
+# duckdb 1.4.4.9003
 
 ## vendor
 
-- Update vendored sources to duckdb/duckdb@0efe5ccb5ba436fed2269d9b063995cc3990eaa2 (#1727).
+- Update vendored sources to duckdb/duckdb@7fba13fbe1087611a2a65e5e8013d026b8597174 (#2027).
 
-## cran
 
-- Release duckdb 1.4.2 (#1726).
+# duckdb 1.4.4.9002
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@123e15dc2d13eeb68287902831d21819afed5ce4 (#2024).
+
+
+# duckdb 1.4.4.9001
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@b6fbc09f79ab877f6abfbfbbf8107b81f4c9a1da (#2020).
+
+
+# duckdb 1.4.4.9000
+
+## fledge
+
+- CRAN release v1.4.4 (#2018).
+
+
+# duckdb 1.4.4
+
+## Features
+
+- Update to DuckDB v1.4.4, see <https://github.com/duckdb/duckdb/releases/tag/v1.4.4> for details.
+
+- Add operator expressions (@toppyy, #1828).
+
+## Chore
+
+- Bump vendored cpp11 to v0.5.3.
+
+## Documentation
+
+- Add alternative installation method to README (@szarnyasg, #1819).
+
+
+# duckdb 1.4.3
+
+## Features
+
+- Update to DuckDB v1.4.3, see <https://github.com/duckdb/duckdb/releases/tag/v1.4.3> for details.
+
+- Add `str_ilike()` support (@edward-burn, #1810, #1811).
+
+## Bug fixes
+
+- Fail with non-UTF8-encoded strings during data frame scan instead of attempting to reencode (#1795).
+
+- Avoid inclusion of raw error message in the output.
+
+- Fix translation of `quantile()` to use DuckDB's native `QUANTILE_CONT()` syntax (#1734, #1735).
+
+## Testing
+
+- Remove redundant R version checks from tests (#1815, #1816).
 
 
 # duckdb 1.4.2
