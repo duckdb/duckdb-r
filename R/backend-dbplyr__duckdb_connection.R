@@ -129,6 +129,8 @@ sql_translation.duckdb_connection <- function(con) {
   sql_variant(
     sql_translator(
       .parent = base_scalar,
+      as.numeric = sql_cast("DOUBLE"),
+      as.double = sql_cast("DOUBLE"),
       as.raw = sql_cast("VARBINARY"),
       `%%` = function(a, b) sql_expr(FMOD(!!a, !!b)),
       `%/%` = function(a, b) sql_expr(FDIV(!!a, !!b)),
