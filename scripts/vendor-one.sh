@@ -24,21 +24,11 @@ else
   upstream_basedir="$1"
 fi
 
-# Number of commits to vendor (default: 1)
-if [ -z "$2" ]; then
-  num_commits=1
-else
-  num_commits="$2"
-fi
-
 upstream_dir=.git/${project}
 
-# Clone the repo only once if it doesn't exist
-if [ ! -d "$upstream_dir" ]; then
+if [ "$upstream_basedir" != "$upstream_dir" ]; then
+  rm -rf "$upstream_dir"
   git clone "$upstream_basedir" "$upstream_dir"
-elif [ "$upstream_basedir" != "$upstream_dir" ]; then
-  # Update existing clone
-  git -C "$upstream_dir" fetch origin
 fi
 
 if [ -n "$(git status --porcelain)" ]; then
@@ -50,111 +40,82 @@ if [ -n "$(git -C "$upstream_dir" status --porcelain)" ]; then
   echo "Warning: working directory $upstream_dir not clean"
 fi
 
-# Loop for the specified number of commits
-commits_vendored=0
+base=$(git log -n 10 --format="%s" -- ${vendor_dir} | tee /dev/stderr | sed -nr '/^.*'${repo_org}.${repo_name}'@([0-9a-f]+)( .*)?$/{s//\1/;p;}' | head -n 1)
 
-while [ $commits_vendored -lt $num_commits ]; do
-  echo "=== Vendoring commit $((commits_vendored + 1)) of $num_commits ==="
+original=$(git -C "$upstream_dir" log --first-parent --reverse --format="%H" "${base}"..HEAD)
 
-  base=$(git log -n 10 --format="%s" -- ${vendor_dir} | tee /dev/stderr | sed -nr '/^.*'${repo_org}.${repo_name}'@([0-9a-f]+)( .*)?$/{s//\1/;p;}' | head -n 1)
+message=
+is_tag=
 
-  original=$(git -C "$upstream_dir" log --first-parent --reverse --format="%H" "${base}"..HEAD)
+for commit in $original; do
+  echo "Importing commit $commit"
 
-  if [ -z "$original" ]; then
-    echo "No more commits to vendor. Done."
-    exit 0
-  fi
+  git -C "$upstream_dir" checkout "$commit"
 
-  message=
-  is_tag=
+  rm -rf ${vendor_dir}
 
-  for commit in $original; do
-    echo "Importing commit $commit"
+  echo "R: configure"
+  DUCKDB_PATH="$upstream_dir" python3 scripts/rconfigure.py
 
-    git -C "$upstream_dir" checkout "$commit" || {
-      echo "Error: Failed to checkout commit $commit"
-      exit 1
-    }
-
-    rm -rf ${vendor_dir}
-
-    echo "R: configure"
-    DUCKDB_PATH="$upstream_dir" python3 scripts/rconfigure.py || {
-      echo "Error: Failed to configure"
-      exit 1
-    }
-
-    for f in patch/*.patch; do
-      if patch -i "$f" -p1 --forward --dry-run; then
-        patch -i "$f" -p1 --forward --no-backup-if-mismatch
-      else
-        echo "Removing patch $f"
-        rm "$f"
-      fi
-    done
-
-    # Always vendor tags
-    if [ "$(git -C "$upstream_dir" describe --tags "$commit" | grep -c -- -)" -eq 0 ]; then
-      message="vendor: Update vendored sources (tag $(git -C "$upstream_dir" describe --tags "$commit")) to ${repo_org}/${repo_name}@$commit"
-      is_tag=true
-      break
-    fi
-
-    # Expecting two changes even if nothing else changed.
-    # Need at least three changed files to consider it a real update.
-    if [ "$(git status --porcelain -- ${vendor_base_dir} | wc -l)" -gt 2 ]; then
-      message="vendor: Update vendored sources to ${repo_org}/${repo_name}@$commit"
-      break
+  for f in patch/*.patch; do
+    if patch -i "$f" -p1 --forward --dry-run; then
+      patch -i "$f" -p1 --forward --no-backup-if-mismatch
+    else
+      echo "Removing patch $f"
+      rm "$f"
     fi
   done
 
-  if [ "$message" = "" ]; then
-    echo "No changes found. Done."
-    git checkout -- ${vendor_base_dir}
-    exit 0
+  # Always vendor tags
+  if [ "$(git -C "$upstream_dir" describe --tags "$commit" | grep -c -- -)" -eq 0 ]; then
+    message="vendor: Update vendored sources (tag $(git -C "$upstream_dir" describe --tags "$commit")) to ${repo_org}/${repo_name}@$commit"
+    is_tag=true
+    break
   fi
 
-  our_tag=$(git describe --tags --abbrev=0 | sed -r 's/-[0-9]$//')
-  upstream_tag=$(git -C "$upstream_dir" describe --tags --abbrev=0)
-
-  if [ "$our_tag" = "v1.3.3" ]; then
-    # Inofficial release v1.3.3
-    our_tag="v1.3.2"
-  fi
-
-  echo "Our tag: $our_tag"
-  echo "Upstream tag: $upstream_tag"
-
-  if [ -z "${is_tag}" ] && [ "${our_tag#"$upstream_tag"}" == "$our_tag" ]; then
-    echo "Not vendoring because our tag $our_tag does not start with upstream tag $upstream_tag"
-    git checkout -- ${vendor_base_dir} R/version.R
-    exit 0
-  fi
-
-  git add .
-
-  (
-    echo "$message"
-    echo
-    git -C "$upstream_dir" log -1 --format="Date: %ai" "${commit}"
-    echo
-    git -C "$upstream_dir" log --first-parent --format="%s" "${base}".."${commit}" |
-      tee /dev/stderr |
-      sed -r 's%(#[0-9]+)%'${repo_org}/${repo_name}'\1%g'
-  ) | git commit --file /dev/stdin || {
-    echo "Error: Failed to commit changes"
-    exit 1
-  }
-
-  commits_vendored=$((commits_vendored + 1))
-
-  echo "Successfully vendored commit $commits_vendored"
-
-  # If we just vendored a tag, stop here
-  if [ -n "${is_tag}" ]; then
-    echo "Vendored a tag. Stopping."
-    exit 0
+  # Expecting two changes even if nothing else changed.
+  # Need at least three changed files to consider it a real update.
+  if [ "$(git status --porcelain -- ${vendor_base_dir} | wc -l)" -gt 2 ]; then
+    message="vendor: Update vendored sources to ${repo_org}/${repo_name}@$commit"
+    break
   fi
 done
 
-echo "Successfully vendored $commits_vendored commit(s)"
+if [ "$message" = "" ]; then
+  echo "No changes."
+  git checkout -- ${vendor_base_dir}
+  rm -rf "$upstream_dir"
+  exit 0
+fi
+
+our_tag=$(git describe --tags --abbrev=0 | sed -r 's/-[0-9]$//')
+upstream_tag=$(git -C "$upstream_dir" describe --tags --abbrev=0)
+
+if [ "$our_tag" = "v1.3.3" ]; then
+  # Inofficial release v1.3.3
+  our_tag="v1.3.2"
+fi
+
+echo "Our tag: $our_tag"
+echo "Upstream tag: $upstream_tag"
+
+if [ -z "${is_tag}" ] && [ "${our_tag#"$upstream_tag"}" == "$our_tag" ]; then
+  echo "Not vendoring because our tag $our_tag does not start with upstream tag $upstream_tag"
+  git checkout -- ${vendor_base_dir} R/version.R
+  rm -rf "$upstream_dir"
+  exit 0
+fi
+
+git add .
+
+(
+  echo "$message"
+  echo
+  git -C "$upstream_dir" log -1 --format="Date: %ai" "${commit}"
+  echo
+  git -C "$upstream_dir" log --first-parent --format="%s" "${base}".."${commit}" |
+    tee /dev/stderr |
+    sed -r 's%(#[0-9]+)%'${repo_org}/${repo_name}'\1%g'
+) | git commit --file /dev/stdin
+
+rm -rf "$upstream_dir"
