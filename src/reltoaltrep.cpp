@@ -1,25 +1,24 @@
 #define __STDC_FORMAT_MACROS
 
-#include "rapi.hpp"
-#include "typesr.hpp"
 #include "reltoaltrep.hpp"
-#include "signal.hpp"
-#include "cpp11/declarations.hpp"
+
 #include "altrepdataframe_relation.hpp"
-
-#include "httplib.hpp"
-#include <cinttypes>
-#include <cmath>
-#include <cstddef>
-
+#include "cpp11/declarations.hpp"
 #include "duckdb/common/unique_ptr.hpp"
-#include "duckdb/main/settings.hpp"
+#include "duckdb/main/client_config.hpp"
 #include "duckdb/main/materialized_query_result.hpp"
 #include "duckdb/main/query_result.hpp"
 #include "duckdb/main/relation/limit_relation.hpp"
-#include "duckdb/main/client_config.hpp"
-
+#include "duckdb/main/settings.hpp"
 #include "fmt/format.h"
+#include "httplib.hpp"
+#include "rapi.hpp"
+#include "signal.hpp"
+#include "typesr.hpp"
+
+#include <cinttypes>
+#include <cmath>
+#include <cstddef>
 
 #ifdef TRUE
 #undef TRUE
@@ -148,12 +147,15 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 
 		// We need to temporarily allow a deeper execution stack
 		// https://github.com/duckdb/duckdb-r/issues/101
-		auto& context = *rel->context->GetContext();
+		auto &context = *rel->context->GetContext();
 		auto old_depth = Settings::Get<MaxExpressionDepthSetting>(context);
 		auto &client_config = ClientConfig::GetConfig(*rel->context->GetContext());
-		client_config.GetConfig(context).user_settings.SetUserSetting(MaxExpressionDepthSetting::SettingIndex, Value::UBIGINT(old_depth * 2));
-		duckdb_httplib::detail::scope_exit reset_max_expression_depth(
-		    [&]() { client_config.user_settings.SetUserSetting(MaxExpressionDepthSetting::SettingIndex, Value::UBIGINT(old_depth)); });
+		client_config.GetConfig(context).user_settings.SetUserSetting(MaxExpressionDepthSetting::SettingIndex,
+		                                                              Value::UBIGINT(old_depth * 2));
+		duckdb_httplib::detail::scope_exit reset_max_expression_depth([&]() {
+			client_config.user_settings.SetUserSetting(MaxExpressionDepthSetting::SettingIndex,
+			                                           Value::UBIGINT(old_depth));
+		});
 
 		Materialize();
 
