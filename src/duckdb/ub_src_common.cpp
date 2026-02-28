@@ -24,6 +24,8 @@
 
 #include "src/common/encryption_state.cpp"
 
+#include "src/common/encryption_types.cpp"
+
 #include "src/common/exception.cpp"
 
 #include "src/common/exception_format_value.cpp"
