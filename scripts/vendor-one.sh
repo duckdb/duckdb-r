@@ -111,6 +111,8 @@ git add .
 (
   echo "$message"
   echo
+  git -C "$upstream_dir" log -1 --format="Date: %ai" "${commit}"
+  echo
   git -C "$upstream_dir" log --first-parent --format="%s" "${base}".."${commit}" |
     tee /dev/stderr |
     sed -r 's%(#[0-9]+)%'${repo_org}/${repo_name}'\1%g'
