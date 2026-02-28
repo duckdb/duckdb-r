@@ -46,6 +46,8 @@
 
 #include "src/storage/single_file_block_manager.cpp"
 
+#include "src/storage/storage_index.cpp"
+
 #include "src/storage/storage_info.cpp"
 
 #include "src/storage/storage_lock.cpp"
