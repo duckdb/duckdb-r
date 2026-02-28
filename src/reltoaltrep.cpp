@@ -13,9 +13,11 @@
 #include <cstddef>
 
 #include "duckdb/common/unique_ptr.hpp"
+#include "duckdb/main/settings.hpp"
 #include "duckdb/main/materialized_query_result.hpp"
 #include "duckdb/main/query_result.hpp"
 #include "duckdb/main/relation/limit_relation.hpp"
+#include "duckdb/main/client_config.hpp"
 
 #include "fmt/format.h"
 
@@ -146,10 +148,12 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 
 		// We need to temporarily allow a deeper execution stack
 		// https://github.com/duckdb/duckdb-r/issues/101
-		auto old_depth = rel->context->GetContext()->config.max_expression_depth;
-		rel->context->GetContext()->config.max_expression_depth = old_depth * 2;
+		auto& context = *rel->context->GetContext();
+		auto old_depth = Settings::Get<MaxExpressionDepthSetting>(context);
+		auto &client_config = ClientConfig::GetConfig(*rel->context->GetContext());
+		client_config.GetConfig(context).user_settings.SetUserSetting(MaxExpressionDepthSetting::SettingIndex, Value::UBIGINT(old_depth * 2));
 		duckdb_httplib::detail::scope_exit reset_max_expression_depth(
-		    [&]() { rel->context->GetContext()->config.max_expression_depth = old_depth; });
+		    [&]() { client_config.user_settings.SetUserSetting(MaxExpressionDepthSetting::SettingIndex, Value::UBIGINT(old_depth)); });
 
 		Materialize();
 
@@ -158,11 +162,12 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 		}
 
 		// FIXME: Use std::experimental::scope_exit
-		if (rel->context->GetContext()->config.max_expression_depth != old_depth * 2) {
+		auto current_depth = Settings::Get<MaxExpressionDepthSetting>(context);
+		if (current_depth != old_depth * 2) {
 			Rprintf("Internal error: max_expression_depth was changed from %" PRIu64 " to %" PRIu64 "\n", old_depth * 2,
-			        rel->context->GetContext()->config.max_expression_depth);
+			        current_depth);
 		}
-		rel->context->GetContext()->config.max_expression_depth = old_depth;
+		client_config.user_settings.SetUserSetting(MaxExpressionDepthSetting::SettingIndex, Value::UBIGINT(old_depth));
 		reset_max_expression_depth.release();
 
 		signal_handler.HandleInterrupt();
