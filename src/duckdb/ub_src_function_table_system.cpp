@@ -6,6 +6,8 @@
 
 #include "src/function/table/system/duckdb_constraints.cpp"
 
+#include "src/function/table/system/duckdb_coordinate_systems.cpp"
+
 #include "src/function/table/system/duckdb_databases.cpp"
 
 #include "src/function/table/system/duckdb_dependencies.cpp"
