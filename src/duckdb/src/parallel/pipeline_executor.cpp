@@ -192,7 +192,9 @@ PipelineExecuteResult PipelineExecutor::Execute(idx_t max_chunks) {
 	auto &source_chunk = pipeline.operators.empty() ? final_chunk : *intermediate_chunks[0];
 	ExecutionBudget chunk_budget(max_chunks);
 	do {
-		context.client.InterruptCheck();
+		if (context.client.interrupted) {
+			throw InterruptException();
+		}
 
 		OperatorResultType result;
 		if (exhausted_pipeline && done_flushing && !remaining_sink_chunk && !next_batch_blocked &&
@@ -419,7 +421,9 @@ OperatorResultType PipelineExecutor::Execute(DataChunk &input, DataChunk &result
 		return OperatorResultType::NEED_MORE_INPUT;
 	}
 	while (true) {
-		context.client.InterruptCheck();
+		if (context.client.interrupted) {
+			throw InterruptException();
+		}
 		// now figure out where to put the chunk
 		// if current_idx is the last possible index (>= operators.size()) we write to the result
 		// otherwise we write to an intermediate chunk
@@ -544,7 +548,9 @@ void PipelineExecutor::InitializeChunk(DataChunk &chunk) {
 }
 
 void PipelineExecutor::StartOperator(PhysicalOperator &op) {
-	context.client.InterruptCheck();
+	if (context.client.interrupted) {
+		throw InterruptException();
+	}
 	context.thread.profiler.StartOperator(&op);
 }
 

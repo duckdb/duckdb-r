@@ -266,20 +266,12 @@ AggregateFunction GetAverageAggregate(PhysicalType type) {
 	}
 }
 
-LogicalType GetAvgStateType(const AggregateFunction &function) {
-	child_list_t<LogicalType> children;
-	children.emplace_back("count", LogicalType::UBIGINT);
-	children.emplace_back("value", function.arguments[0]);
-	return LogicalType::STRUCT(std::move(children));
-}
-
 unique_ptr<FunctionData> BindDecimalAvg(ClientContext &context, AggregateFunction &function,
                                         vector<unique_ptr<Expression>> &arguments) {
 	auto decimal_type = arguments[0]->return_type;
 	function = GetAverageAggregate(decimal_type.InternalType());
 	function.name = "avg";
 	function.arguments[0] = decimal_type;
-	function.get_state_type = GetAvgStateType;
 	function.SetReturnType(LogicalType::DOUBLE);
 	return make_uniq<AverageDecimalBindData>(
 	    Hugeint::Cast<double>(Hugeint::POWERS_OF_TEN[DecimalType::GetScale(decimal_type)]));
@@ -311,18 +303,12 @@ AggregateFunctionSet AvgFun::GetFunctions() {
 	    AggregateFunction::UnaryAggregate<AvgState<hugeint_t>, dtime_tz_t, dtime_tz_t, TimeTZAverageOperation>(
 	        LogicalType::TIME_TZ, LogicalType::TIME_TZ));
 
-	for (auto &function : avg.functions) {
-		function.get_state_type = GetAvgStateType;
-	}
-
 	return avg;
 }
 
 AggregateFunction FAvgFun::GetFunction() {
-	auto function = AggregateFunction::UnaryAggregate<KahanAvgState, double, double, KahanAverageOperation>(
-	    LogicalType::DOUBLE, LogicalType::DOUBLE);
-	function.get_state_type = GetAvgStateType;
-	return function;
+	return AggregateFunction::UnaryAggregate<KahanAvgState, double, double, KahanAverageOperation>(LogicalType::DOUBLE,
+	                                                                                               LogicalType::DOUBLE);
 }
 
 } // namespace duckdb

@@ -90,8 +90,6 @@ typedef void (*aggregate_serialize_t)(Serializer &serializer, const optional_ptr
                                       const AggregateFunction &function);
 typedef unique_ptr<FunctionData> (*aggregate_deserialize_t)(Deserializer &deserializer, AggregateFunction &function);
 
-typedef LogicalType (*aggregate_get_state_type_t)(const AggregateFunction &function);
-
 struct AggregateFunctionInfo {
 	DUCKDB_API virtual ~AggregateFunctionInfo();
 
@@ -272,8 +270,6 @@ public:
 	//! Whether or not the aggregate is affect by distinct modifiers
 	AggregateDistinctDependent distinct_dependent;
 
-	aggregate_get_state_type_t get_state_type = nullptr;
-
 	AggregateOrderDependent GetOrderDependent() const {
 		return order_dependent;
 	}
@@ -285,15 +281,6 @@ public:
 	}
 	void SetDistinctDependent(AggregateDistinctDependent value) {
 		distinct_dependent = value;
-	}
-
-	bool HasGetStateTypeCallback() const {
-		return get_state_type != nullptr;
-	}
-
-	LogicalType GetStateType() const {
-		D_ASSERT(get_state_type);
-		return get_state_type(*this);
 	}
 
 	//! Additional function info, passed to the bind
