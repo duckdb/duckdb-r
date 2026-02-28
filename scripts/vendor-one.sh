@@ -58,10 +58,11 @@ while [ $commits_vendored -lt $num_commits ]; do
 
   base=$(git log -n 10 --format="%s" -- ${vendor_dir} | tee /dev/stderr | sed -nr '/^.*'${repo_org}.${repo_name}'@([0-9a-f]+)( .*)?$/{s//\1/;p;}' | head -n 1)
 
-  original=$(git -C "$upstream_dir" log --first-parent --reverse --format="%H" "${base}"..HEAD)
+  original=$(git -C "$upstream_dir" log --first-parent --reverse --format="%H" "${base}"..origin/HEAD)
 
   if [ -z "$original" ]; then
     echo "No more commits to vendor. Done."
+    rm -rf "$upstream_dir"
     exit 0
   fi
 
@@ -73,6 +74,7 @@ while [ $commits_vendored -lt $num_commits ]; do
 
     git -C "$upstream_dir" checkout "$commit" || {
       echo "Error: Failed to checkout commit $commit"
+      rm -rf "$upstream_dir"
       exit 1
     }
 
@@ -81,6 +83,7 @@ while [ $commits_vendored -lt $num_commits ]; do
     echo "R: configure"
     DUCKDB_PATH="$upstream_dir" python3 scripts/rconfigure.py || {
       echo "Error: Failed to configure"
+      rm -rf "$upstream_dir"
       exit 1
     }
 
@@ -111,6 +114,7 @@ while [ $commits_vendored -lt $num_commits ]; do
   if [ "$message" = "" ]; then
     echo "No changes found. Done."
     git checkout -- ${vendor_base_dir}
+    rm -rf "$upstream_dir"
     exit 0
   fi
 
@@ -128,6 +132,7 @@ while [ $commits_vendored -lt $num_commits ]; do
   if [ -z "${is_tag}" ] && [ "${our_tag#"$upstream_tag"}" == "$our_tag" ]; then
     echo "Not vendoring because our tag $our_tag does not start with upstream tag $upstream_tag"
     git checkout -- ${vendor_base_dir} R/version.R
+    rm -rf "$upstream_dir"
     exit 0
   fi
 
@@ -143,6 +148,7 @@ while [ $commits_vendored -lt $num_commits ]; do
       sed -r 's%(#[0-9]+)%'${repo_org}/${repo_name}'\1%g'
   ) | git commit --file /dev/stdin || {
     echo "Error: Failed to commit changes"
+    rm -rf "$upstream_dir"
     exit 1
   }
 
@@ -153,8 +159,10 @@ while [ $commits_vendored -lt $num_commits ]; do
   # If we just vendored a tag, stop here
   if [ -n "${is_tag}" ]; then
     echo "Vendored a tag. Stopping."
+    rm -rf "$upstream_dir"
     exit 0
   fi
 done
 
 echo "Successfully vendored $commits_vendored commit(s)"
+rm -rf "$upstream_dir"
