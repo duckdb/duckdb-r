@@ -1,30 +1,25 @@
-#include "rapi.hpp"
-#include "signal.hpp"
-#include "typesr.hpp"
-#include "reltoaltrep.hpp"
-
 #include "R_ext/Random.h"
-
-#include "duckdb/parser/expression/columnref_expression.hpp"
-#include "duckdb/parser/expression/constant_expression.hpp"
-#include "duckdb/parser/expression/comparison_expression.hpp"
-#include "duckdb/parser/expression/function_expression.hpp"
-#include "duckdb/parser/expression/comparison_expression.hpp"
-#include "duckdb/parser/expression/conjunction_expression.hpp"
-#include "duckdb/parser/expression/window_expression.hpp"
-
-#include "duckdb/main/relation/filter_relation.hpp"
-#include "duckdb/main/relation/projection_relation.hpp"
-#include "duckdb/main/relation/aggregate_relation.hpp"
-#include "duckdb/main/relation/order_relation.hpp"
-#include "duckdb/main/relation/join_relation.hpp"
-#include "duckdb/main/relation/cross_product_relation.hpp"
-#include "duckdb/main/relation/setop_relation.hpp"
-#include "duckdb/main/relation/limit_relation.hpp"
-#include "duckdb/main/relation/distinct_relation.hpp"
-
 #include "duckdb/common/enum_util.hpp"
 #include "duckdb/common/enums/joinref_type.hpp"
+#include "duckdb/main/relation/aggregate_relation.hpp"
+#include "duckdb/main/relation/cross_product_relation.hpp"
+#include "duckdb/main/relation/distinct_relation.hpp"
+#include "duckdb/main/relation/filter_relation.hpp"
+#include "duckdb/main/relation/join_relation.hpp"
+#include "duckdb/main/relation/limit_relation.hpp"
+#include "duckdb/main/relation/order_relation.hpp"
+#include "duckdb/main/relation/projection_relation.hpp"
+#include "duckdb/main/relation/setop_relation.hpp"
+#include "duckdb/parser/expression/columnref_expression.hpp"
+#include "duckdb/parser/expression/comparison_expression.hpp"
+#include "duckdb/parser/expression/conjunction_expression.hpp"
+#include "duckdb/parser/expression/constant_expression.hpp"
+#include "duckdb/parser/expression/function_expression.hpp"
+#include "duckdb/parser/expression/window_expression.hpp"
+#include "rapi.hpp"
+#include "reltoaltrep.hpp"
+#include "signal.hpp"
+#include "typesr.hpp"
 
 using namespace duckdb;
 using namespace cpp11;
@@ -154,6 +149,30 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 	check_column_validity(val, "val", convert_opts.strict_relational, convert_opts.timezone_out);
 	auto const_value = RApiTypes::SexpToValue(val, 0, false);
 	auto out = make_external<ConstantExpression>("duckdb_expr", const_value);
+	if (alias != "") {
+		out->SetAlias(std::move(alias));
+	}
+	return out;
+}
+
+[[cpp11::register]] SEXP rapi_expr_operator(std::string op, list exprs, std::string alias = "") {
+
+	ExpressionType expr_type;
+
+	if (op == "IN") {
+		expr_type = ExpressionType::COMPARE_IN;
+	} else if (op == "NOT IN") {
+		expr_type = ExpressionType::COMPARE_NOT_IN;
+	} else {
+		stop("expr_operator: Invalid operator");
+	}
+
+	vector<unique_ptr<ParsedExpression>> parsed_exprs;
+	for (expr_extptr_t expr : exprs) {
+		parsed_exprs.push_back(expr->Copy());
+	}
+
+	auto out = make_external<OperatorExpression>("duckdb_expr", expr_type, std::move(parsed_exprs));
 	if (alias != "") {
 		out->SetAlias(std::move(alias));
 	}

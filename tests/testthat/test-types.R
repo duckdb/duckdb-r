@@ -1,5 +1,6 @@
 test_that("test_all_types() output", {
   skip_on_os("windows")
+  skip_if_not(getRversion() >= "4.3")
 
   con <- local_con(array = "matrix")
 

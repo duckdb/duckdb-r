@@ -33,8 +33,6 @@ class LogicalOperator;
 class SelectStatement;
 struct CSVReaderOptions;
 
-typedef void (*warning_callback_t)(std::string);
-
 //! A connection to a database. This represents a (client) connection that can
 //! be used to query the database.
 class Connection {

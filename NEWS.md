@@ -1,5 +1,22 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.4
+
+## Features
+
+- Update to DuckDB v1.4.4, see <https://github.com/duckdb/duckdb/releases/tag/v1.4.4> for details.
+
+- Add operator expressions (@toppyy, #1828).
+
+## Chore
+
+- Bump vendored cpp11 to v0.5.3.
+
+## Documentation
+
+- Add alternative installation method to README (@szarnyasg, #1819).
+
+
 # duckdb 1.4.3
 
 ## Features

@@ -116,6 +116,60 @@ test_that("we cannot create comparison expressions with inappropriate operators"
   })
 })
 
+test_that("we can create operator expressions", {
+  local_edition(3)
+  withr::local_envvar(NO_COLOR = "true")
+
+  # IN operator with multiple values
+  expect_snapshot({
+    expr_operator("IN", list(expr_reference("some_column"), expr_constant(-42), expr_constant(42)))
+  })
+
+  # NOT IN operator with multiple values
+  expect_snapshot({
+    expr_operator("NOT IN", list(expr_reference("some_column"), expr_constant(-42), expr_constant(42)))
+  })
+
+  # BOGUS operator
+  expect_snapshot(error = TRUE, {
+    expr_operator("BOGUS", list(expr_reference("some_column"), expr_constant(-42), expr_constant(42)))
+  })
+})
+
+test_that("we can use operator expressions in relations", {
+  df <- data.frame(
+    id = 1:5,
+    value = c(10, 20, 30, 40, 50)
+  )
+
+  rel <- rel_from_df(con, df)
+
+  # Filter using IN operator
+  rel_filtered <- rel_filter(
+    rel,
+    list(expr_operator("IN", list(expr_reference("id"), expr_constant(2L), expr_constant(4L))))
+  )
+  result <- as.data.frame(rel_filtered)
+  expect_equal(result$id, c(2L, 4L))
+  expect_equal(result$value, c(20, 40))
+
+  # Filter using NOT IN operator
+  rel_filtered <- rel_filter(
+    rel,
+    list(expr_operator("NOT IN", list(expr_reference("id"), expr_constant(2L), expr_constant(4L), expr_constant(5L))))
+  )
+  result <- as.data.frame(rel_filtered)
+  expect_equal(result$id, c(1L, 3L))
+  expect_equal(result$value, c(10, 30))
+})
+
+test_that("expr_operator validates ... parameter", {
+  expect_error(
+    expr_operator("IN", list(expr_reference("col")), extra_param = "value"),
+    "... must be empty"
+  )
+})
+
 
 # TODO should maybe be a different file, test_enum_strings.R
 

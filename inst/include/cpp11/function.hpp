@@ -1,10 +1,9 @@
-// cpp11 version: 0.5.2
-// vendored on: 2025-03-09
+// cpp11 version: 0.5.3.9000
+// vendored on: 2026-01-27
 #pragma once
 
-#include <string.h>  // for strcmp
-
 #include <cstdio>   // for snprintf
+#include <cstring>  // for strcmp
 #include <string>   // for string, basic_string
 #include <utility>  // for forward
 
