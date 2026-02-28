@@ -1,5 +1,16 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.4.9005
+
+## Bug fixes
+
+- The dbplyr translation of `as.numeric()` and `as.double()` uses `DOUBLE` instead of `NUMERIC` (#2023, #2031).
+
+## Features
+
+- Support `descending` and `nulls_first` in `expr_window()` and `rel_order()` (#2074, #2075).
+
+
 # duckdb 1.4.4.9004
 
 ## Continuous integration
