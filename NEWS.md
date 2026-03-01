@@ -1,5 +1,14 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.4.9006
+
+## Chore
+
+- Add count arg to `vendor-one.sh`.
+
+- Add upstream commit date to log message.
+
+
 # duckdb 1.4.4.9005
 
 ## Bug fixes
