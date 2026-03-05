@@ -32,7 +32,7 @@ jobs:
           - branch: main
             upstream: v1.4-andium
           - branch: next
-            upstream: main
+            upstream: v1.5-variegata
     outputs:
       sha: ${{ steps.commit.outputs.sha }}
 
