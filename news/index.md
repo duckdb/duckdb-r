@@ -1,80 +1,5 @@
 # Changelog
 
-## duckdb 1.4.4.9007
-
-### Continuous integration
-
-- Fix source branch.
-
-### vendor
-
-- Update vendored sources to
-  <duckdb/duckdb@72a5d755e1cfe6463b8e8241848c8603d7c754d1>
-  ([\#2191](https://github.com/duckdb/duckdb-r/issues/2191)).
-
-## duckdb 1.4.4.9006
-
-### Chore
-
-- Add count arg to `vendor-one.sh`.
-
-- Add upstream commit date to log message.
-
-## duckdb 1.4.4.9005
-
-### Bug fixes
-
-- The dbplyr translation of
-  [`as.numeric()`](https://rdrr.io/r/base/numeric.html) and
-  [`as.double()`](https://rdrr.io/r/base/double.html) uses `DOUBLE`
-  instead of `NUMERIC`
-  ([\#2023](https://github.com/duckdb/duckdb-r/issues/2023),
-  [\#2031](https://github.com/duckdb/duckdb-r/issues/2031)).
-
-### Features
-
-- Support `descending` and `nulls_first` in `expr_window()` and
-  `rel_order()`
-  ([\#2074](https://github.com/duckdb/duckdb-r/issues/2074),
-  [\#2075](https://github.com/duckdb/duckdb-r/issues/2075)).
-
-## duckdb 1.4.4.9004
-
-### Continuous integration
-
-- Create PR against correct branch.
-
-## duckdb 1.4.4.9003
-
-### vendor
-
-- Update vendored sources to
-  <duckdb/duckdb@7fba13fbe1087611a2a65e5e8013d026b8597174>
-  ([\#2027](https://github.com/duckdb/duckdb-r/issues/2027)).
-
-## duckdb 1.4.4.9002
-
-### vendor
-
-- Update vendored sources to
-  <duckdb/duckdb@123e15dc2d13eeb68287902831d21819afed5ce4>
-  ([\#2024](https://github.com/duckdb/duckdb-r/issues/2024)).
-
-## duckdb 1.4.4.9001
-
-### vendor
-
-- Update vendored sources to
-  <duckdb/duckdb@b6fbc09f79ab877f6abfbfbbf8107b81f4c9a1da>
-  ([\#2020](https://github.com/duckdb/duckdb-r/issues/2020)).
-
-## duckdb 1.4.4.9000
-
-### fledge
-
-- CRAN release v1.4.4
-  ([\#2018](https://github.com/duckdb/duckdb-r/issues/2018)).
-
 ## duckdb 1.4.4
 
 CRAN release: 2026-01-28
@@ -135,8 +60,24 @@ CRAN release: 2025-12-10
 
 CRAN release: 2025-11-17
 
-- Update to DuckDB v1.4.2, see
-  <https://github.com/duckdb/duckdb/releases/tag/v1.4.2> for details.
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@10f8766267b8805f5d96b7ad1a7d54332d2b6ffe>
+  ([\#1624](https://github.com/duckdb/duckdb-r/issues/1624)).
+
+## duckdb 1.4.1.9000
+
+### fledge
+
+- CRAN release v1.4.1
+  ([\#1616](https://github.com/duckdb/duckdb-r/issues/1616)).
+
+### Uncategorized
+
+- Merge pull request
+  [\#1622](https://github.com/duckdb/duckdb-r/issues/1622) from
+  eddelbuettel/patch-1.
 
 ## duckdb 1.4.1
 
