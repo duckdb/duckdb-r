@@ -1,7 +1,7 @@
 # DuckDB driver class
 
 Implements
-[DBI::DBIDriver](https://dbi.r-dbi.org/reference/DBIDriver-class.html).
+[DBIDriver](https://dbi.r-dbi.org/reference/DBIDriver-class.html).
 
 ## Usage
 

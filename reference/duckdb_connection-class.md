@@ -1,7 +1,7 @@
 # DuckDB connection class
 
 Implements
-[DBI::DBIConnection](https://dbi.r-dbi.org/reference/DBIConnection-class.html).
+[DBIConnection](https://dbi.r-dbi.org/reference/DBIConnection-class.html).
 
 ## Usage
 

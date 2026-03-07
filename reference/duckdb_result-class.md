@@ -2,7 +2,7 @@
 
 Methods for accessing result sets for queries on DuckDB connections.
 Implements
-[DBI::DBIResult](https://dbi.r-dbi.org/reference/DBIResult-class.html).
+[DBIResult](https://dbi.r-dbi.org/reference/DBIResult-class.html).
 
 ## Usage
 
