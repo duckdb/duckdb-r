@@ -1,5 +1,14 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.4.9008
+
+## Chore
+
+- Add count arg to `vendor-one.sh`.
+
+- Auto-update from GitHub Actions (#2193).
+
+
 # duckdb 1.4.4.9007
 
 ## Continuous integration
