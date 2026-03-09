@@ -300,6 +300,25 @@ void DuckTransactionManager::CleanupTransactions() {
 	}
 }
 
+void DuckTransactionManager::CleanupTransactions() {
+	lock_guard<mutex> c_lock(cleanup_lock);
+	while (true) {
+		unique_ptr<DuckCleanupInfo> top_cleanup_info;
+		{
+			lock_guard<mutex> q_lock(cleanup_queue_lock);
+			if (cleanup_queue.empty()) {
+				// all transactions have been cleaned up - done
+				return;
+			}
+			top_cleanup_info = std::move(cleanup_queue.front());
+			cleanup_queue.pop();
+		}
+		if (top_cleanup_info) {
+			top_cleanup_info->Cleanup();
+		}
+	}
+}
+
 ErrorData DuckTransactionManager::CommitTransaction(ClientContext &context, Transaction &transaction_p) {
 	auto &transaction = transaction_p.Cast<DuckTransaction>();
 	unique_lock<mutex> t_lock(transaction_lock);

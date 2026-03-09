@@ -438,16 +438,19 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 	return make_external_prot<RelationWrapper>("duckdb_relation", prot, res, rel->convert_opts);
 }
 
-[[cpp11::register]] SEXP rapi_rel_order(duckdb::rel_extptr_t rel, list orders, r_vector<r_bool> ascending) {
+[[cpp11::register]] SEXP rapi_rel_order(duckdb::rel_extptr_t rel, list orders, r_vector<r_bool> ascending,
+                                        r_vector<r_bool> nulls_first) {
 	vector<OrderByNode> res_orders;
 
 	OrderType order_type;
+	OrderByNullType null_type;
 	size_t i = 0;
 
 	for (expr_extptr_t expr : orders) {
 		order_type = ascending[i] ? OrderType::ASCENDING : OrderType::DESCENDING;
+		null_type = nulls_first[i] ? OrderByNullType::NULLS_FIRST : OrderByNullType::NULLS_LAST;
 		i++;
-		res_orders.emplace_back(order_type, OrderByNullType::NULLS_LAST, expr->Copy());
+		res_orders.emplace_back(order_type, null_type, expr->Copy());
 	}
 
 	auto res = make_shared_ptr<OrderRelation>(rel->rel, std::move(res_orders));
@@ -489,7 +492,7 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
                                           std::string window_boundary_start, std::string window_boundary_end,
                                           duckdb::expr_extptr_t start_expr, duckdb::expr_extptr_t end_expr,
                                           duckdb::expr_extptr_t offset_expr, duckdb::expr_extptr_t default_expr,
-                                          std::string alias = "") {
+                                          std::string alias, r_vector<r_bool> ascending, r_vector<r_bool> nulls_first) {
 
 	if (!window_function || window_function->type != ExpressionType::FUNCTION) {
 		stop("expected function expression");
@@ -499,8 +502,12 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 	auto window_type = WindowExpression::WindowToExpressionType(function.function_name);
 	auto window_expr = make_external<WindowExpression>("duckdb_expr", window_type, "", "", function.function_name);
 
+	size_t i = 0;
 	for (expr_extptr_t expr : order_bys) {
-		window_expr->orders.emplace_back(OrderType::ASCENDING, OrderByNullType::NULLS_LAST, expr->Copy());
+		OrderType order_type = ascending[i] ? OrderType::ASCENDING : OrderType::DESCENDING;
+		OrderByNullType null_type = nulls_first[i] ? OrderByNullType::NULLS_FIRST : OrderByNullType::NULLS_LAST;
+		window_expr->orders.emplace_back(order_type, null_type, expr->Copy());
+		i++;
 	}
 
 	if (function.filter) {

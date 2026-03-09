@@ -1246,3 +1246,76 @@ test_that("POSIXct", {
 
   expect_error(rel_from_df(con, df2), "convert")
 })
+
+test_that("rel_order() supports descending order", {
+  test_df <- rel_from_df(con, data.frame(a = c(1:3)))
+  orders <- list(expr_reference("a"))
+  rel <- rel_order(test_df, orders, ascending = FALSE)
+  expected_result <- data.frame(a = c(3L, 2L, 1L))
+  expect_equal(rel_to_altrep(rel), expected_result)
+})
+
+test_that("rel_order() supports nulls_first", {
+  test_df <- rel_from_df(con, data.frame(a = c(NA, 1:3)))
+  orders <- list(expr_reference("a"))
+  rel <- rel_order(test_df, orders, nulls_first = TRUE)
+  expected_result <- data.frame(a = c(NA, 1L, 2L, 3L))
+  expect_equal(rel_to_altrep(rel), expected_result)
+})
+
+test_that("rel_order() nulls_first error checking works", {
+  test_df <- rel_from_df(con, data.frame(a = c(1:3)))
+  orders <- list(expr_reference("a"), expr_reference("a"))
+  expect_error(rel_order(test_df, orders, nulls_first = c(TRUE, FALSE, TRUE)), "length of nulls_first")
+})
+
+test_that("expr_window() supports descending order_bys", {
+  # rank() OVER (ORDER BY a DESC) should give reverse ranks
+  rel_a <- rel_from_df(con, data.frame(a = c(1, 2, 3)))
+  rank_func <- expr_function("rank", list())
+  rank_window <- expr_window(rank_func,
+    order_bys = list(expr_reference("a")),
+    ascending = FALSE
+  )
+  expr_set_alias(rank_window, "rank_desc")
+  window_proj <- rel_project(rel_a, list(expr_reference("a"), rank_window))
+  proj_order <- rel_order(window_proj, list(expr_reference("a")))
+  res <- rel_to_altrep(proj_order)
+  expected_result <- data.frame(a = c(1, 2, 3), rank_desc = c(3L, 2L, 1L))
+  expect_equal(res, expected_result)
+})
+
+test_that("expr_window() supports nulls_first in order_bys", {
+  # rank() OVER (ORDER BY a NULLS FIRST) - NULLs should get rank 1
+  rel_a <- rel_from_df(con, data.frame(a = c(1, 2, NA)))
+  rank_func <- expr_function("rank", list())
+  rank_window <- expr_window(rank_func,
+    order_bys = list(expr_reference("a")),
+    nulls_first = TRUE
+  )
+  expr_set_alias(rank_window, "rank_nulls_first")
+  window_proj <- rel_project(rel_a, list(expr_reference("a"), rank_window))
+  proj_order <- rel_order(window_proj, list(expr_reference("a")))
+  res <- rel_to_altrep(proj_order)
+  # With NULLS FIRST: NULL gets rank 1, 1 gets rank 2, 2 gets rank 3
+  expected_result <- data.frame(a = c(1, 2, NA), rank_nulls_first = c(2L, 3L, 1L))
+  expect_equal(res, expected_result)
+})
+
+test_that("expr_window() ascending/nulls_first error checking works", {
+  rank_func <- expr_function("rank", list())
+  expect_error(
+    expr_window(rank_func,
+      order_bys = list(expr_reference("a")),
+      ascending = c(TRUE, FALSE)
+    ),
+    "length of ascending"
+  )
+  expect_error(
+    expr_window(rank_func,
+      order_bys = list(expr_reference("a")),
+      nulls_first = c(TRUE, FALSE)
+    ),
+    "length of nulls_first"
+  )
+})
