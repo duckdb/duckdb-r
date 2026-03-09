@@ -38,6 +38,8 @@
 
 #include "src/common/types/timestamp.cpp"
 
+#include "src/common/types/type_manager.cpp"
+
 #include "src/common/types/time.cpp"
 
 #include "src/common/types/validity_mask.cpp"
@@ -53,4 +55,8 @@
 #include "src/common/types/vector_cache.cpp"
 
 #include "src/common/types/vector_constants.cpp"
+
+#include "src/common/types/geometry.cpp"
+
+#include "src/common/types/geometry_crs.cpp"
 

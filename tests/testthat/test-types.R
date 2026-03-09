@@ -23,6 +23,7 @@ test_that("test_all_types() output", {
       "fixed_struct_array",
       "fixed_array_of_int_list",
       "bignum",
+      "time_ns",
       NULL
     )
 

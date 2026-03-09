@@ -24,6 +24,8 @@
 
 #include "src/common/encryption_state.cpp"
 
+#include "src/common/encryption_types.cpp"
+
 #include "src/common/exception.cpp"
 
 #include "src/common/exception_format_value.cpp"
@@ -65,6 +67,8 @@
 #include "src/common/enum_util.cpp"
 
 #include "src/common/render_tree.cpp"
+
+#include "src/common/thread_util.cpp"
 
 #include "src/common/tree_renderer.cpp"
 

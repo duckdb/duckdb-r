@@ -1,17 +1,17 @@
 #ifndef DUCKDB_PATCH_VERSION
-#define DUCKDB_PATCH_VERSION "5-dev31"
+#define DUCKDB_PATCH_VERSION "0"
 #endif
 #ifndef DUCKDB_MINOR_VERSION
-#define DUCKDB_MINOR_VERSION 4
+#define DUCKDB_MINOR_VERSION 5
 #endif
 #ifndef DUCKDB_MAJOR_VERSION
 #define DUCKDB_MAJOR_VERSION 1
 #endif
 #ifndef DUCKDB_VERSION
-#define DUCKDB_VERSION "v1.4.5-dev31"
+#define DUCKDB_VERSION "v1.5.0"
 #endif
 #ifndef DUCKDB_SOURCE_ID
-#define DUCKDB_SOURCE_ID "7a3a63c5c0"
+#define DUCKDB_SOURCE_ID "3a3967aa819"
 #endif
 #include "duckdb/function/table/system_functions.hpp"
 #include "duckdb/main/database.hpp"
@@ -90,6 +90,9 @@ const char *DuckDB::ReleaseCodename() {
 	}
 	if (StringUtil::StartsWith(DUCKDB_VERSION, "v1.4.")) {
 		return "Andium";
+	}
+	if (StringUtil::StartsWith(DUCKDB_VERSION, "v1.5.")) {
+		return "Variegata";
 	}
 	// add new version names here
 
