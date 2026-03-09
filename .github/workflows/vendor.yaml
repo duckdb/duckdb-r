@@ -29,7 +29,7 @@ jobs:
         # REMINDER: When changing branch names below,
         # update the documentation in scripts/VENDORING.md accordingly (see disclaimers section)
         include:
-          - branch: main
+          - branch: v1.4-andium
             upstream: v1.4-andium
           - branch: next
             upstream: v1.5-variegata
