@@ -331,11 +331,11 @@ test_that("n_distinct() computations are correct", {
   )
   expect_equal(
     pull(summarize(df_duckdb, n = n_distinct(x, y, na.rm = TRUE)), n),
-    pull(summarize(df, n = n_distinct(x, y, na.rm = TRUE)), n),
+    pull(summarize(df, n = n_distinct(x, y, na.rm = TRUE)), n)
   )
   expect_equal(
     pull(summarize(df_na_duckdb, n = n_distinct(x, y, na.rm = TRUE)), n),
-    pull(summarize(df_na, n = n_distinct(x, y, na.rm = TRUE)), n),
+    pull(summarize(df_na, n = n_distinct(x, y, na.rm = TRUE)), n)
   )
 
   # single column is working as usual
@@ -374,7 +374,7 @@ test_that("n_distinct() computations are correct", {
 
   expect_equal(
     pull(arrange(mutate(df_duckdb, n = n_distinct(x), .by = y), x, y), n),
-    pull(arrange(mutate(df, n = n_distinct(x), .by = y), x, y), n),
+    pull(arrange(mutate(df, n = n_distinct(x), .by = y), x, y), n)
   )
 })
 
