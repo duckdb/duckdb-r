@@ -28,9 +28,10 @@ test_that("we won't crash when creating a relation from odd things", {
 })
 
 test_that("we can round-trip a data frame", {
-  expect_equivalent(
+  expect_equal(
     data.frame(a = 1:3, b = letters[1:3]),
-    as.data.frame.duckdb_relation(rel_from_df(con, data.frame(a = 1:3, b = letters[1:3])))
+    as.data.frame.duckdb_relation(rel_from_df(con, data.frame(a = 1:3, b = letters[1:3]))),
+    ignore_attr = TRUE
   )
 })
 
@@ -48,8 +49,11 @@ test_that("we can recognize if a df is materialized", {
 
 
 test_that("we can create various expressions and don't crash", {
-  ref <- expr_reference("asdf")
-  print(ref)
+  expect_snapshot({
+    expr_reference("asdf")
+    expr_constant("asdf")
+  })
+
   expect_error(expr_reference(NA))
   #  expect_error(expr_reference(as.character(NA)))
   expect_error(expr_reference(""))
@@ -60,8 +64,6 @@ test_that("we can create various expressions and don't crash", {
   expr_constant(NA)
   expr_constant(42L)
   expr_constant(42)
-  const <- expr_constant("asdf")
-  print(const)
 
   expect_error(expr_constant(NULL))
   expect_error(expr_constant())
@@ -184,13 +186,13 @@ test_that("we can cast R strings to DuckDB strings", {
   test_string_vec <- c(vapply(1:n, gen_rand_string, "character", max_len), NA, NA, NA, NA, NA, NA, NA, NA) # batman
 
   df <- data.frame(s = test_string_vec, stringsAsFactors = FALSE)
-  expect_equivalent(df, as.data.frame.duckdb_relation(rel_from_df(con, df)))
+  expect_equal(df, as.data.frame.duckdb_relation(rel_from_df(con, df)), ignore_attr = TRUE)
 
   res <- rel_sql(
     rel_from_df(con, df),
     "SELECT s::string FROM _"
   )
-  expect_equivalent(df, res)
+  expect_equal(df, res, ignore_attr = TRUE)
 
   res <- rel_sql(
     rel_from_df(con, df),
@@ -202,7 +204,7 @@ test_that("we can cast R strings to DuckDB strings", {
   df2 <- df
   for (i in 1:10) {
     df2 <- as.data.frame.duckdb_relation(rel_from_df(con, df2))
-    expect_equivalent(df, df2)
+    expect_equal(df, df2, ignore_attr = TRUE)
   }
 
   df2 <- df
@@ -213,7 +215,7 @@ test_that("we can cast R strings to DuckDB strings", {
         "SELECT s::string s FROM _"
       )
     )
-    expect_equivalent(df, df2)
+    expect_equal(df, df2, ignore_attr = TRUE)
   }
 })
 
