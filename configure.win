@@ -7,7 +7,7 @@ cd "$(dirname "$0")"
 if [ -z "${MAKEFLAGS}" ]; then
   makeflags_value=$(Rscript scripts/setup-makeflags.R 2>/dev/null || echo "")
   if [ -n "${makeflags_value}" ]; then
-    export MAKEFLAGS="${makeflags_value}"
+    export MAKEFLAGS="${makeflags_value} -k"
     echo "Setting MAKEFLAGS=${makeflags_value} for parallel compilation"
   fi
 else

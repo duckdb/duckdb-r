@@ -6,8 +6,8 @@ test_that("dbplyr generic scalars translated correctly", {
 
   expect_equal(translate(as.character(1)), sql(r"{CAST(1.0 AS TEXT)}"))
   expect_equal(translate(as.character(1L)), sql(r"{CAST(1 AS TEXT)}"))
-  expect_equal(translate(as.numeric(1)), sql(r"{CAST(1.0 AS NUMERIC)}"))
-  expect_equal(translate(as.double(1.2)), sql(r"{CAST(1.2 AS NUMERIC)}"))
+  expect_equal(translate(as.numeric(1)), sql(r"{CAST(1.0 AS DOUBLE)}"))
+  expect_equal(translate(as.double(1.2)), sql(r"{CAST(1.2 AS DOUBLE)}"))
   expect_equal(translate(as.integer(1.2)), sql(r"{CAST(1.2 AS INTEGER)}"))
   expect_equal(translate(as.integer64(1.2)), sql(r"{CAST(1.2 AS BIGINT)}"))
   expect_equal(translate(as.logical("TRUE")), sql(r"{CAST('TRUE' AS BOOLEAN)}"))
@@ -331,11 +331,11 @@ test_that("n_distinct() computations are correct", {
   )
   expect_equal(
     pull(summarize(df_duckdb, n = n_distinct(x, y, na.rm = TRUE)), n),
-    pull(summarize(df, n = n_distinct(x, y, na.rm = TRUE)), n),
+    pull(summarize(df, n = n_distinct(x, y, na.rm = TRUE)), n)
   )
   expect_equal(
     pull(summarize(df_na_duckdb, n = n_distinct(x, y, na.rm = TRUE)), n),
-    pull(summarize(df_na, n = n_distinct(x, y, na.rm = TRUE)), n),
+    pull(summarize(df_na, n = n_distinct(x, y, na.rm = TRUE)), n)
   )
 
   # single column is working as usual
@@ -374,7 +374,7 @@ test_that("n_distinct() computations are correct", {
 
   expect_equal(
     pull(arrange(mutate(df_duckdb, n = n_distinct(x), .by = y), x, y), n),
-    pull(arrange(mutate(df, n = n_distinct(x), .by = y), x, y), n),
+    pull(arrange(mutate(df, n = n_distinct(x), .by = y), x, y), n)
   )
 })
 

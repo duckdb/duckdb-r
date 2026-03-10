@@ -1,38 +1,20 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.4.4.9004
+# duckdb 1.5.0
 
-## Continuous integration
+## Features
 
-- Create PR against correct branch.
+- Update to DuckDB v1.5.0, see <https://github.com/duckdb/duckdb/releases/tag/v1.5.0> for details.
 
+- Support `descending` and `nulls_first` in `expr_window()` and `rel_order()` (#2074, #2075).
 
-# duckdb 1.4.4.9003
+## Bug fixes
 
-## vendor
+- The dbplyr translation of `as.numeric()` and `as.double()` uses `DOUBLE` instead of `NUMERIC` (#2023, #2031).
 
-- Update vendored sources to duckdb/duckdb@7fba13fbe1087611a2a65e5e8013d026b8597174 (#2027).
+## Testing
 
-
-# duckdb 1.4.4.9002
-
-## vendor
-
-- Update vendored sources to duckdb/duckdb@123e15dc2d13eeb68287902831d21819afed5ce4 (#2024).
-
-
-# duckdb 1.4.4.9001
-
-## vendor
-
-- Update vendored sources to duckdb/duckdb@b6fbc09f79ab877f6abfbfbbf8107b81f4c9a1da (#2020).
-
-
-# duckdb 1.4.4.9000
-
-## fledge
-
-- CRAN release v1.4.4 (#2018).
+- Update to testthat edition 3.
 
 
 # duckdb 1.4.4

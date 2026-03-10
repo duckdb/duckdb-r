@@ -11,11 +11,11 @@
     Code
       translate(as.numeric(1))
     Output
-      <SQL> CAST(1.0 AS NUMERIC)
+      <SQL> CAST(1.0 AS DOUBLE)
     Code
       translate(as.double(1.2))
     Output
-      <SQL> CAST(1.2 AS NUMERIC)
+      <SQL> CAST(1.2 AS DOUBLE)
     Code
       translate(as.integer(1.2))
     Output
