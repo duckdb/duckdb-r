@@ -137,29 +137,29 @@ private:
 	//! Structs are a recursive TupleDataLayout
 	unique_ptr<unordered_map<idx_t, TupleDataLayout>> struct_layouts;
 	//! The width of the validity header
-	idx_t flag_width;
+	idx_t flag_width = 0;
 	//! The width of the data portion
-	idx_t data_width;
+	idx_t data_width = 0;
 	//! The width of the aggregate state portion
-	idx_t aggr_width;
+	idx_t aggr_width = 0;
 	//! The width of the sort key
-	idx_t sort_width;
+	idx_t sort_width = 0;
 	//! Bytes that are skippable during sorting
 	vector<idx_t> sort_skippable_bytes;
 	//! The width of the entire row
-	idx_t row_width;
+	idx_t row_width = 0;
 	//! The offsets to the columns and aggregate data in each row
 	vector<idx_t> offsets;
 	//! Whether all columns in this layout are constant size
-	bool all_constant;
+	bool all_constant = true;
 	//! Indices of the variable columns
 	vector<idx_t> variable_columns;
 	//! Offset to the heap size of every row
-	idx_t heap_size_offset;
+	idx_t heap_size_offset = 0;
 	//! Indices of aggregate functions that have a destructor
 	vector<idx_t> aggr_destructor_idxs;
 	//! Whether none of the columns have NULLs
-	TupleDataValidityType validity_type;
+	TupleDataValidityType validity_type = TupleDataValidityType::CAN_HAVE_NULL_VALUES;
 };
 
 } // namespace duckdb

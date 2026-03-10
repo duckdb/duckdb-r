@@ -137,11 +137,11 @@ public:
 private:
 	struct Entry {
 		shared_ptr<Val> value;
-		idx_t memory;
+		idx_t memory = 0;
 		typename list<Key>::iterator lru_iterator;
 		// Record payload weight, which is used for global weight control.
 		unique_ptr<Payload> payload;
-		idx_t payload_weight;
+		idx_t payload_weight = 0;
 	};
 
 	using EntryMap = unordered_map<Key, Entry, KeyHash, KeyEqual>;
