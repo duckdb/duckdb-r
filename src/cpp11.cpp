@@ -449,9 +449,6 @@ extern "C" SEXP _duckdb_1_4_rapi_load_rfuns(SEXP dual) {
 }
 
 extern "C" {
-/* .Call calls */
-extern SEXP _duckdb_rapi_rel_to_altrep(SEXP, SEXP, SEXP);
-
 static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_1_4_rapi_adbc_init_func",          (DL_FUNC) &_duckdb_1_4_rapi_adbc_init_func,           0},
     {"_duckdb_1_4_rapi_bind",                    (DL_FUNC) &_duckdb_1_4_rapi_bind,                     3},
@@ -514,7 +511,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_1_4_rapi_unlock",                  (DL_FUNC) &_duckdb_1_4_rapi_unlock,                   1},
     {"_duckdb_1_4_rapi_unregister_arrow",        (DL_FUNC) &_duckdb_1_4_rapi_unregister_arrow,         2},
     {"_duckdb_1_4_rapi_unregister_df",           (DL_FUNC) &_duckdb_1_4_rapi_unregister_df,            2},
-    {"_duckdb_rapi_rel_to_altrep",               (DL_FUNC) &_duckdb_rapi_rel_to_altrep,                3},
     {NULL, NULL, 0}
 };
 }
