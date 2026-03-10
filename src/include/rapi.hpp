@@ -19,7 +19,7 @@
 #define R_HAS_ALTLIST
 #endif
 
-#define DUCKDB_PACKAGE_NAME "duckdb"
+#define DUCKDB_PACKAGE_NAME "duckdb.1.4"
 
 // Helper functions to communicate errors via R's stop() function with context information
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message);
