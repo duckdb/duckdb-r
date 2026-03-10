@@ -1,5 +1,30 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.4.9009
+
+## Features
+
+- Sync with DuckDB 1.5.0 (#2212).
+
+## Chore
+
+- Simplify deps.
+
+- Fix `.dd` files.
+
+## Continuous integration
+
+- Align branches.
+
+## Testing
+
+- Update to testthat edition 3.
+
+## vendor
+
+- Update vendored sources to duckdb/duckdb@7a3a63c5c04ed6f1635ddb53a485d8bf5738096e (#2203).
+
+
 # duckdb 1.4.4.9008
 
 ## Chore
