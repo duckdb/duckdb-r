@@ -1,110 +1,20 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.4.4.9010
-
-## Chore
-
-- Add back clang-format.
-
-
-# duckdb 1.4.4.9009
+# duckdb 1.5.0
 
 ## Features
 
-- Sync with DuckDB 1.5.0 (#2212).
+- Update to DuckDB v1.5.0, see <https://github.com/duckdb/duckdb/releases/tag/v1.5.0> for details.
 
-## Chore
-
-- Simplify deps.
-
-- Fix `.dd` files.
-
-## Continuous integration
-
-- Align branches.
-
-## Testing
-
-- Update to testthat edition 3.
-
-## vendor
-
-- Update vendored sources to duckdb/duckdb@7a3a63c5c04ed6f1635ddb53a485d8bf5738096e (#2203).
-
-
-# duckdb 1.4.4.9008
-
-## Chore
-
-- Add count arg to `vendor-one.sh`.
-
-- Auto-update from GitHub Actions (#2193).
-
-
-# duckdb 1.4.4.9007
-
-## Continuous integration
-
-- Fix source branch.
-
-## vendor
-
-- Update vendored sources to duckdb/duckdb@72a5d755e1cfe6463b8e8241848c8603d7c754d1 (#2191).
-
-
-# duckdb 1.4.4.9006
-
-## Chore
-
-- Add count arg to `vendor-one.sh`.
-
-- Add upstream commit date to log message.
-
-
-# duckdb 1.4.4.9005
+- Support `descending` and `nulls_first` in `expr_window()` and `rel_order()` (#2074, #2075).
 
 ## Bug fixes
 
 - The dbplyr translation of `as.numeric()` and `as.double()` uses `DOUBLE` instead of `NUMERIC` (#2023, #2031).
 
-## Features
+## Testing
 
-- Support `descending` and `nulls_first` in `expr_window()` and `rel_order()` (#2074, #2075).
-
-
-# duckdb 1.4.4.9004
-
-## Continuous integration
-
-- Create PR against correct branch.
-
-
-# duckdb 1.4.4.9003
-
-## vendor
-
-- Update vendored sources to duckdb/duckdb@7fba13fbe1087611a2a65e5e8013d026b8597174 (#2027).
-
-
-# duckdb 1.4.4.9002
-
-## vendor
-
-- Update vendored sources to duckdb/duckdb@123e15dc2d13eeb68287902831d21819afed5ce4 (#2024).
-
-
-# duckdb 1.4.4.9001
-
-## vendor
-
-- Update vendored sources to duckdb/duckdb@b6fbc09f79ab877f6abfbfbbf8107b81f4c9a1da (#2020).
-
-
-# duckdb 1.4.4.9000
-
-## fledge
-
-- CRAN release v1.4.4 (#2018).
+- Update to testthat edition 3.
 
 
 # duckdb 1.4.4
