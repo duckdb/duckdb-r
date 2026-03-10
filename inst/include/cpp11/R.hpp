@@ -74,7 +74,7 @@ inline SEXPTYPE r_typeof(SEXP x) { return static_cast<SEXPTYPE>(TYPEOF(x)); }
 /// as required.
 inline SEXP r_env_get(SEXP env, SEXP sym) {
 #if defined(R_VERSION) && R_VERSION >= R_Version(4, 5, 0)
-  const Rboolean inherits = FALSE;
+  const Rboolean inherits = static_cast<Rboolean>(FALSE);
   return R_getVar(sym, env, inherits);
 #else
   SEXP out = Rf_findVarInFrame3(env, sym, TRUE);

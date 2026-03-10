@@ -34,7 +34,7 @@ class r_bool {
 
   operator bool() const { return value_ == TRUE; }
   operator int() const { return value_; }
-  operator Rboolean() const { return value_ ? TRUE : FALSE; }
+  operator Rboolean() const { return static_cast<Rboolean>(value_ ? TRUE : FALSE); }
 
   bool operator==(r_bool rhs) const { return value_ == rhs.value_; }
   bool operator==(bool rhs) const { return operator==(r_bool(rhs)); }
