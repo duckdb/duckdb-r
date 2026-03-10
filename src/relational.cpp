@@ -275,6 +275,8 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 	if (length != 0) {
 		if (ALTREP(row_names)) {
 			// ALTREP row names are always accepted without materialization
+		} else if (length == 1) {
+			// A single positive integer is a valid compact representation of sequential row names 1..n
 		} else if (length != 2) {
 			stop("rel_from_df: Need data frame without row names to convert to relational, got numeric row names of "
 			     "length %d.",
