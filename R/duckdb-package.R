@@ -1,5 +1,5 @@
 ## usethis namespace: start
-#' @useDynLib duckdb, .registration = TRUE
+#' @useDynLib duckdb.1.4, .registration = TRUE
 ## usethis namespace: end
 #' @name duckdb-package
 #' @keywords internal
