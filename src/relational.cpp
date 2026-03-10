@@ -22,6 +22,10 @@
 #include "signal.hpp"
 #include "typesr.hpp"
 
+// Avoid clash with TRUE and FALSE macros in older rtools
+#undef TRUE
+#undef FALSE
+
 using namespace duckdb;
 using namespace cpp11;
 

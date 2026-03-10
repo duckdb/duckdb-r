@@ -8,6 +8,10 @@
 
 #include <R_ext/GraphicsEngine.h>
 
+// Avoid clash with TRUE and FALSE macros in older rtools
+#undef TRUE
+#undef FALSE
+
 // Toy repo: https://github.com/krlmlr/cancel.test
 
 namespace duckdb {

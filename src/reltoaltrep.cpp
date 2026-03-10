@@ -28,6 +28,10 @@
 #undef FALSE
 #endif
 
+// Avoid clash with TRUE and FALSE macros in older rtools
+#undef TRUE
+#undef FALSE
+
 using namespace duckdb;
 
 R_altrep_class_t RelToAltrep::rownames_class;
