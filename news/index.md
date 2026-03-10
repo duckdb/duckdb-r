@@ -2,15 +2,32 @@
 
 ## duckdb 1.5.0
 
-### Features
+### vendor
 
-- Update to DuckDB v1.5.0, see
-  <https://github.com/duckdb/duckdb/releases/tag/v1.5.0> for details.
+- Update vendored sources to
+  <duckdb/duckdb@7a3a63c5c04ed6f1635ddb53a485d8bf5738096e>
+  ([\#2203](https://github.com/duckdb/duckdb-r/issues/2203)).
 
-- Support `descending` and `nulls_first` in `expr_window()` and
-  `rel_order()`
-  ([\#2074](https://github.com/duckdb/duckdb-r/issues/2074),
-  [\#2075](https://github.com/duckdb/duckdb-r/issues/2075)).
+- Update vendored sources to
+  <duckdb/duckdb@72a5d755e1cfe6463b8e8241848c8603d7c754d1>
+  ([\#2191](https://github.com/duckdb/duckdb-r/issues/2191)).
+
+- Update vendored sources to
+  <duckdb/duckdb@7fba13fbe1087611a2a65e5e8013d026b8597174>
+  ([\#2027](https://github.com/duckdb/duckdb-r/issues/2027)).
+
+- Update vendored sources to
+  <duckdb/duckdb@123e15dc2d13eeb68287902831d21819afed5ce4>
+  ([\#2024](https://github.com/duckdb/duckdb-r/issues/2024)).
+
+- Update vendored sources to
+  <duckdb/duckdb@b6fbc09f79ab877f6abfbfbbf8107b81f4c9a1da>
+  ([\#2020](https://github.com/duckdb/duckdb-r/issues/2020)).
+
+### fledge
+
+- CRAN release v1.4.4
+  ([\#2018](https://github.com/duckdb/duckdb-r/issues/2018)).
 
 ### Bug fixes
 
@@ -20,6 +37,39 @@
   instead of `NUMERIC`
   ([\#2023](https://github.com/duckdb/duckdb-r/issues/2023),
   [\#2031](https://github.com/duckdb/duckdb-r/issues/2031)).
+
+### Features
+
+- Sync with DuckDB 1.5.0
+  ([\#2212](https://github.com/duckdb/duckdb-r/issues/2212)).
+
+- Support `descending` and `nulls_first` in `expr_window()` and
+  `rel_order()`
+  ([\#2074](https://github.com/duckdb/duckdb-r/issues/2074),
+  [\#2075](https://github.com/duckdb/duckdb-r/issues/2075)).
+
+### Chore
+
+- Add back clang-format.
+
+- Simplify deps.
+
+- Fix `.dd` files.
+
+- Add count arg to `vendor-one.sh`.
+
+- Auto-update from GitHub Actions
+  ([\#2193](https://github.com/duckdb/duckdb-r/issues/2193)).
+
+- Add upstream commit date to log message.
+
+### Continuous integration
+
+- Align branches.
+
+- Fix source branch.
+
+- Create PR against correct branch.
 
 ### Testing
 
