@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.4.4.9010
+
+## Chore
+
+- Add back clang-format.
+
+
 # duckdb 1.4.4.9009
 
 ## Features
