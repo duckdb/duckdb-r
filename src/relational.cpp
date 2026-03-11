@@ -270,18 +270,18 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 		stop("rel_from_df: Need data frame without row names to convert to relational, got character row names.");
 	}
 
-	// Check if row names are not empty or automatic
-	auto length = Rf_xlength(row_names);
-	if (length != 0) {
-		if (ALTREP(row_names)) {
-			// ALTREP row names are always accepted without materialization
-		} else if (length == 1) {
-			// A single positive integer is a valid compact representation of sequential row names 1..n
-		} else if (length != 2) {
+	// ALTREP row names are always accepted without materialization
+	if (!ALTREP(row_names)) {
+		// Check if row names are not empty or automatic
+		auto length = Rf_xlength(row_names);
+
+		if (length > 2) {
 			stop("rel_from_df: Need data frame without row names to convert to relational, got numeric row names of "
 			     "length %d.",
 			     length);
-		} else if (INTEGER(row_names)[0] != NA_INTEGER) {
+		}
+
+		if (length == 2 && INTEGER(row_names)[0] != NA_INTEGER) {
 			stop("rel_from_df: Need data frame without row names to convert to relational, got numeric row names with "
 			     "first element not NA.");
 		}
