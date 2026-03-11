@@ -373,6 +373,9 @@ Rboolean RelToAltrep::RelInspect(SEXP x, int pre, int deep, int pvec, void (*ins
 }
 
 SEXP get_attrib(SEXP vec, SEXP name) {
+#if defined(R_VERSION) && R_VERSION >= R_Version(4, 6, 0)
+	return Rf_getAttrib(vec, name);
+#else
 	for (SEXP attrib = ATTRIB(vec); attrib != R_NilValue; attrib = CDR(attrib)) {
 		if (TAG(attrib) == name) {
 			return CAR(attrib);
@@ -380,6 +383,7 @@ SEXP get_attrib(SEXP vec, SEXP name) {
 	}
 
 	return R_NilValue;
+#endif
 }
 
 R_xlen_t RelToAltrep::RownamesLength(SEXP x) {
