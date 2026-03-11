@@ -124,15 +124,20 @@ SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows, const string &name,
 
 // this allows us to set row names on a data frame with an int argument without calling INTPTR on it
 void install_new_attrib(SEXP vec, SEXP name, SEXP val) {
+	Rf_PrintValue(Rf_ScalarInteger(80));
 	Rf_setAttrib(vec, name, R_NilValue);
+	Rf_PrintValue(Rf_ScalarInteger(81));
 #if defined(R_VERSION) && R_VERSION >= R_Version(4, 6, 0)
+	Rf_PrintValue(Rf_ScalarInteger(82));
 	Rf_setAttrib(vec, name, val);
+	Rf_PrintValue(Rf_ScalarInteger(83));
 #else
 	SEXP attrib_vec = ATTRIB(vec);
 	SEXP attrib_cell = Rf_cons(val, CDR(attrib_vec));
 	SET_TAG(attrib_cell, name);
 	SETCDR(attrib_vec, attrib_cell);
 #endif
+	Rf_PrintValue(Rf_ScalarInteger(84));
 }
 
 void duckdb_r_df_decorate_impl(SEXP dest, SEXP rownames, SEXP class_) {
