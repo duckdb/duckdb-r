@@ -508,12 +508,24 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
 	auto drel = rel->rel;
 	auto ncols = drel->Columns().size();
 
+	Rf_PrintValue(Rf_ScalarInteger(1));
+
 	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, DoubleToSize(n_rows), DoubleToSize(n_cells));
+
+	Rf_PrintValue(Rf_ScalarInteger(2));
 
 	// Row names
 	cpp11::external_pointer<AltrepRownamesWrapper> ptr(new AltrepRownamesWrapper(relation_wrapper));
+
+	Rf_PrintValue(Rf_ScalarInteger(3));
+
 	R_SetExternalPtrTag(ptr, RStrings::get().duckdb_row_names_sym);
+
+	Rf_PrintValue(Rf_ScalarInteger(4));
+
 	cpp11::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, R_NilValue);
+
+	Rf_PrintValue(Rf_ScalarInteger(5));
 
 	child_list_t<LogicalType> types;
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
@@ -524,6 +536,8 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
 		types.push_back(make_pair(col_name, col_type));
 	}
 
+	Rf_PrintValue(Rf_ScalarInteger(6));
+
 	return rapi_rel_to_altrep_impl(relation_wrapper, row_names_sexp, types, rel->convert_opts);
 }
 
@@ -531,6 +545,8 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
                              const child_list_t<LogicalType> &types, const ConvertOpts &convert_opts,
                              std::vector<idx_t> parent_col_idx) {
 	auto ncols = types.size();
+
+	Rf_PrintValue(Rf_ScalarInteger(7));
 
 	// Data
 	cpp11::writable::list data_frame;
@@ -566,17 +582,25 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
 		data_frame.push_back(vector_sexp);
 	}
 
+	Rf_PrintValue(Rf_ScalarInteger(8));
+
 	// convert to SEXP, with potential side effect of truncation and removal of attributes
 	(void)(SEXP)data_frame;
 
+	Rf_PrintValue(Rf_ScalarInteger(9));
+
 	// Names
 	SET_NAMES(data_frame, names);
+
+	Rf_PrintValue(Rf_ScalarInteger(10));
 
 	// Class and row names
 	// FIXME: The exact class of nested columns can be a property
 	// of the relation object, determined by the data on input,
 	// or a property of the ConvertOpts.
 	duckdb_r_df_decorate_impl(data_frame, row_names_sexp, RStrings::get().dataframe_str);
+
+	Rf_PrintValue(Rf_ScalarInteger(11));
 
 	return data_frame;
 }
