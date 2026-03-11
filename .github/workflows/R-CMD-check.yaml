@@ -12,6 +12,7 @@ on:
       - release
       - next
       - cran-*
+      - v?.*-*
   pull_request:
     branches:
       - main
@@ -354,8 +355,8 @@ jobs:
 
     if: ${{ needs.rcc-smoke.outputs.dep-suggests-matrix != '' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run-rcc-suggests)) }}
 
-    name: Without ${{ matrix.package }}
 
+    name: Without ${{ matrix.package }}
     # Begin custom: services
     # End custom: services
 
