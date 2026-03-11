@@ -265,25 +265,27 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 	// Get row names info directly
 	SEXP row_names = get_attrib(df, R_RowNamesSymbol);
 
-	// FIXME: Check if ALTREP here?
-
 	// Check if row names are character
 	if (TYPEOF(row_names) == STRSXP) {
 		stop("rel_from_df: Need data frame without row names to convert to relational, got character row names.");
 	}
 
-	// Check if row names are not empty or automatic
-	auto length = Rf_xlength(row_names);
-	if (length != 0) {
-		if (length != 2) {
+	if (!ALTREP(row_names)) {
+
+		// Check if row names are not empty or automatic
+		auto length = Rf_xlength(row_names);
+		if (length > 2) {
 			stop("rel_from_df: Need data frame without row names to convert to relational, got numeric row names of "
 			     "length %d.",
 			     length);
 		}
-		auto first = INTEGER(row_names)[0];
-		if (first != NA_INTEGER) {
-			stop("rel_from_df: Need data frame without row names to convert to relational, got numeric row names with "
-			     "first element not NA.");
+
+		if (length == 2) {
+			auto first = INTEGER(row_names)[0];
+			if (first != NA_INTEGER) {
+				stop("rel_from_df: Need data frame without row names to convert to relational, got numeric row names with "
+					"first element not NA.");
+			}
 		}
 	}
 
