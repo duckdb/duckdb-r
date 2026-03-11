@@ -601,12 +601,17 @@ shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool 
 
 	auto altrep_data = R_altrep_data1(row_names);
 	if (TYPEOF(altrep_data) != EXTPTRSXP) {
+#if defined(R_VERSION) && R_VERSION >= R_Version(4, 6, 0)
+		// Can happen for R's intseq row names
+		return nullptr;
+#else
 		if (strict) {
 			rapi_error_with_context("rapi_rel_from_altrep_df",
 			                        "Not our 'special' data.frame, data1 is not external pointer");
 		} else {
 			return nullptr;
 		}
+#endif
 	}
 
 	auto tag = R_ExternalPtrTag(altrep_data);
