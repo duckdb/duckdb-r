@@ -151,7 +151,7 @@ public:
 
 private:
 	optional_ptr<QueryMetrics> query_metrics;
-	MetricType metric;
+	MetricType metric = MetricType::EXTRA_INFO;
 	Profiler profiler;
 	bool is_active;
 };
