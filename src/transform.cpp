@@ -3,6 +3,10 @@
 #include "rapi.hpp"
 #include "typesr.hpp"
 
+// Avoid clash with TRUE and FALSE macros in older rtools
+#undef TRUE
+#undef FALSE
+
 using namespace duckdb;
 
 // converter for primitive types
@@ -120,11 +124,15 @@ SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows, const string &name,
 
 // this allows us to set row names on a data frame with an int argument without calling INTPTR on it
 void install_new_attrib(SEXP vec, SEXP name, SEXP val) {
+#if defined(R_VERSION) && R_VERSION >= R_Version(4, 6, 0)
+	Rf_setAttrib(vec, name, val);
+#else
 	Rf_setAttrib(vec, name, R_NilValue);
 	SEXP attrib_vec = ATTRIB(vec);
 	SEXP attrib_cell = Rf_cons(val, CDR(attrib_vec));
 	SET_TAG(attrib_cell, name);
 	SETCDR(attrib_vec, attrib_cell);
+#endif
 }
 
 void duckdb_r_df_decorate_impl(SEXP dest, SEXP rownames, SEXP class_) {
