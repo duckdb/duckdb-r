@@ -518,24 +518,26 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
 	auto drel = rel->rel;
 	auto ncols = drel->Columns().size();
 
-	Rf_PrintValue(Rf_ScalarInteger(1));
+	Rf_PrintValue(Rf_ScalarInteger(11));
 
 	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, DoubleToSize(n_rows), DoubleToSize(n_cells));
 
-	Rf_PrintValue(Rf_ScalarInteger(2));
+	Rf_PrintValue(Rf_ScalarInteger(12));
 
 	// Row names
 	cpp11::external_pointer<AltrepRownamesWrapper> ptr(new AltrepRownamesWrapper(relation_wrapper));
 
-	Rf_PrintValue(Rf_ScalarInteger(3));
+	Rf_PrintValue(Rf_ScalarInteger(13));
 
 	R_SetExternalPtrTag(ptr, RStrings::get().duckdb_row_names_sym);
 
-	Rf_PrintValue(Rf_ScalarInteger(4));
+	Rf_PrintValue(Rf_ScalarInteger(14));
 
 	cpp11::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, R_NilValue);
 
-	Rf_PrintValue(Rf_ScalarInteger(5));
+	Rf_PrintValue(Rf_ScalarInteger(MAYBE_REFERENCED(row_names_sexp)));
+
+	Rf_PrintValue(Rf_ScalarInteger(15));
 
 	child_list_t<LogicalType> types;
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
@@ -546,7 +548,9 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
 		types.push_back(make_pair(col_name, col_type));
 	}
 
-	Rf_PrintValue(Rf_ScalarInteger(6));
+	Rf_PrintValue(Rf_ScalarInteger(MAYBE_REFERENCED(row_names_sexp)));
+
+	Rf_PrintValue(Rf_ScalarInteger(16));
 
 	return rapi_rel_to_altrep_impl(relation_wrapper, row_names_sexp, types, rel->convert_opts);
 }
@@ -556,7 +560,7 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
                              std::vector<idx_t> parent_col_idx) {
 	auto ncols = types.size();
 
-	Rf_PrintValue(Rf_ScalarInteger(7));
+	Rf_PrintValue(Rf_ScalarInteger(17));
 
 	// Data
 	cpp11::writable::list data_frame;
@@ -592,17 +596,19 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
 		data_frame.push_back(vector_sexp);
 	}
 
-	Rf_PrintValue(Rf_ScalarInteger(8));
+	Rf_PrintValue(Rf_ScalarInteger(18));
 
 	// convert to SEXP, with potential side effect of truncation and removal of attributes
 	(void)(SEXP)data_frame;
 
-	Rf_PrintValue(Rf_ScalarInteger(9));
+	Rf_PrintValue(Rf_ScalarInteger(19));
 
 	// Names
 	SET_NAMES(data_frame, names);
 
-	Rf_PrintValue(Rf_ScalarInteger(10));
+	Rf_PrintValue(Rf_ScalarInteger(20));
+
+	Rf_PrintValue(Rf_ScalarInteger(MAYBE_REFERENCED(row_names_sexp)));
 
 	// Class and row names
 	// FIXME: The exact class of nested columns can be a property
@@ -610,7 +616,7 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
 	// or a property of the ConvertOpts.
 	duckdb_r_df_decorate_impl(data_frame, row_names_sexp, RStrings::get().dataframe_str);
 
-	Rf_PrintValue(Rf_ScalarInteger(11));
+	Rf_PrintValue(Rf_ScalarInteger(21));
 
 	return data_frame;
 }
