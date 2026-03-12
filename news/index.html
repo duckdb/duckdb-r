@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.0.9001</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -28,23 +28,9 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/cran-1.5.0/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.0.9001" id="duckdb-1509001">duckdb 1.5.0.9001<a class="anchor" aria-label="anchor" href="#duckdb-1509001"></a></h2>
-<div class="section level3">
-<h3 id="chore-1-5-0-9001">Chore<a class="anchor" aria-label="anchor" href="#chore-1-5-0-9001"></a></h3>
-<ul><li>Initialize to avoid CRAN warnings.</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.0.9000" id="duckdb-1509000">duckdb 1.5.0.9000<a class="anchor" aria-label="anchor" href="#duckdb-1509000"></a></h2>
-<div class="section level3">
-<h3 id="chore-1-5-0-9000">Chore<a class="anchor" aria-label="anchor" href="#chore-1-5-0-9000"></a></h3>
-<ul><li>Auto-update from GitHub Actions (<a href="https://github.com/duckdb/duckdb-r/issues/2218" class="external-link">#2218</a>).</li>
-</ul></div>
-</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.5.0" id="duckdb-150">duckdb 1.5.0<a class="anchor" aria-label="anchor" href="#duckdb-150"></a></h2>
 <div class="section level3">
@@ -59,6 +45,10 @@
 <div class="section level3">
 <h3 id="testing-1-5-0">Testing<a class="anchor" aria-label="anchor" href="#testing-1-5-0"></a></h3>
 <ul><li>Update to testthat edition 3.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="internal-1-5-0">Internal<a class="anchor" aria-label="anchor" href="#internal-1-5-0"></a></h3>
+<ul><li>Avoid <code>ATTRIB()</code> for compatibility with R 4.6, materialize ALTREP row names to integer sequence with full ALTREP methods (<a href="https://github.com/duckdb/duckdb-r/issues/2034" class="external-link">#2034</a>).</li>
 </ul></div>
 </div>
     <div class="section level2">

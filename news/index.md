@@ -1,18 +1,5 @@
 # Changelog
 
-## duckdb 1.5.0.9001
-
-### Chore
-
-- Initialize to avoid CRAN warnings.
-
-## duckdb 1.5.0.9000
-
-### Chore
-
-- Auto-update from GitHub Actions
-  ([\#2218](https://github.com/duckdb/duckdb-r/issues/2218)).
-
 ## duckdb 1.5.0
 
 ### Features
@@ -37,6 +24,12 @@
 ### Testing
 
 - Update to testthat edition 3.
+
+### Internal
+
+- Avoid `ATTRIB()` for compatibility with R 4.6, materialize ALTREP row
+  names to integer sequence with full ALTREP methods
+  ([\#2034](https://github.com/duckdb/duckdb-r/issues/2034)).
 
 ## duckdb 1.4.4
 
