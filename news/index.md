@@ -1,5 +1,11 @@
 # Changelog
 
+## duckdb 1.5.0.9001
+
+### Chore
+
+- Initialize to avoid CRAN warnings.
+
 ## duckdb 1.5.0.9000
 
 ### Chore
