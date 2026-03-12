@@ -6,6 +6,10 @@
 #include "duckdb/parser/parsed_data/create_type_info.hpp"
 #include "rapi.hpp"
 
+// Avoid clash with TRUE and FALSE macros in older rtools
+#undef TRUE
+#undef FALSE
+
 using namespace duckdb;
 
 static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, CastParameters &parameters) {

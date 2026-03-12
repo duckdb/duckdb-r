@@ -247,6 +247,15 @@ test_that("the altrep-conversion for relations works", {
   expect_equal(iris, df)
 })
 
+test_that("ALTREP row names are materialized as integer sequence", {
+  df <- data.frame(a = 1:5, b = letters[1:5])
+  rel <- rel_from_df(con, df)
+  altrep_df <- rel_to_altrep(rel)
+
+  rn <- attr(altrep_df, "row.names")
+  expect_identical(rn, 1:5)
+})
+
 test_that("the altrep-conversion for relations work for weirdo types for strict = FALSE", {
   test_df <- data.frame(
     col_date = as.Date("2019-11-26"),
