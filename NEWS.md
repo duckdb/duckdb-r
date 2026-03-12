@@ -30,6 +30,10 @@
 
 - Update to testthat edition 3.
 
+## Internal
+
+- Avoid `ATTRIB()` for compatibility with R 4.6, materialize ALTREP row names to integer sequence with full ALTREP methods (#2034).
+
 
 # duckdb 1.4.4
 
