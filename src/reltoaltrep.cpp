@@ -255,11 +255,13 @@ struct AltrepVectorWrapper {
 	}
 
 	idx_t RowCount() {
+		Rf_PrintValue(Rf_ScalarInteger(101));
 		auto res = rel->GetQueryResult();
 		return res->RowCount();
 	}
 
 	const string &Name() {
+		Rf_PrintValue(Rf_ScalarInteger(102));
 		auto res = rel->GetQueryResult();
 
 		if (parent_column_index.empty()) {
@@ -275,6 +277,7 @@ struct AltrepVectorWrapper {
 	}
 
 	string FullName() {
+		Rf_PrintValue(Rf_ScalarInteger(103));
 		auto res = rel->GetQueryResult();
 
 		if (parent_column_index.empty()) {
@@ -292,6 +295,7 @@ struct AltrepVectorWrapper {
 	}
 
 	const LogicalType &Type() {
+		Rf_PrintValue(Rf_ScalarInteger(104));
 		auto res = rel->GetQueryResult();
 
 		if (parent_column_index.empty()) {
@@ -306,6 +310,7 @@ struct AltrepVectorWrapper {
 	}
 
 	ColumnDataChunkIterationHelper Chunks() {
+		Rf_PrintValue(Rf_ScalarInteger(105));
 		auto res = rel->GetQueryResult();
 
 		if (parent_column_index.empty()) {
@@ -413,6 +418,7 @@ const void *RelToAltrep::RownamesDataptrOrNull(SEXP x) {
 }
 
 void *RelToAltrep::DoRownamesDataptrGet(SEXP x) {
+	Rf_PrintValue(Rf_ScalarInteger(106));
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
 	auto row_count = rownames_wrapper->rel->GetQueryResult()->RowCount();
 	if (row_count > (idx_t)NumericLimits<int32_t>::Maximum()) {
@@ -424,6 +430,7 @@ void *RelToAltrep::DoRownamesDataptrGet(SEXP x) {
 
 R_xlen_t RelToAltrep::VectorLength(SEXP x) {
 	BEGIN_CPP11
+	Rf_PrintValue(Rf_ScalarInteger(107));
 	return AltrepVectorWrapper::Get(x)->rel->GetQueryResult()->RowCount();
 	END_CPP11_EX(0)
 }
@@ -443,6 +450,7 @@ SEXP RelToAltrep::VectorStringElt(SEXP x, R_xlen_t i) {
 #if defined(R_HAS_ALTLIST)
 R_xlen_t RelToAltrep::StructLength(SEXP x) {
 	BEGIN_CPP11
+	Rf_PrintValue(Rf_ScalarInteger(108));
 	auto const *wrapper = AltrepVectorWrapper::Get(x);
 	auto const column_index = wrapper->column_index;
 	auto const &res = wrapper->rel->GetQueryResult();
