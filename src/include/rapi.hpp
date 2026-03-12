@@ -1,5 +1,9 @@
 #pragma once
 
+// Avoid clash with TRUE and FALSE macros in older rtools
+#undef TRUE
+#undef FALSE
+
 #include "cpp11.hpp"
 
 #include <Rdefines.h>
@@ -14,6 +18,10 @@
 #include "duckdb/common/error_data.hpp"
 
 #include "convert.hpp"
+
+// Avoid clash with TRUE and FALSE macros in older rtools
+#undef TRUE
+#undef FALSE
 
 #if defined(R_VERSION) && R_VERSION >= R_Version(4, 3, 0)
 #define R_HAS_ALTLIST
