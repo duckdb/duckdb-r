@@ -403,12 +403,14 @@ R_xlen_t RelToAltrep::RownamesLength(SEXP x) {
 
 void *RelToAltrep::RownamesDataptr(SEXP x, Rboolean writeable) {
 	BEGIN_CPP11
+	Rf_PrintValue(Rf_ScalarInteger(1001));
 	return DoRownamesDataptrGet(x);
 	END_CPP11
 }
 
 const void *RelToAltrep::RownamesDataptrOrNull(SEXP x) {
 	BEGIN_CPP11
+	Rf_PrintValue(Rf_ScalarInteger(1002));
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
 	if (!rownames_wrapper->rel->HasQueryResult()) {
 		return nullptr;
