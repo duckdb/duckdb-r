@@ -129,6 +129,8 @@ void install_new_attrib(SEXP vec, SEXP name, SEXP val) {
 	Rf_PrintValue(Rf_ScalarInteger(81));
 #if defined(R_VERSION) && R_VERSION >= R_Version(4, 6, 0)
 	Rf_PrintValue(Rf_ScalarInteger(82));
+	Rf_PrintValue(Rf_ScalarInteger(MAYBE_REFERENCED(val)));
+	Rf_PrintValue(Rf_ScalarInteger(820));
 	Rf_setAttrib(vec, name, val);
 	Rf_PrintValue(Rf_ScalarInteger(83));
 #else
