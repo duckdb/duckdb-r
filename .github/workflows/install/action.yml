@@ -151,6 +151,17 @@ runs:
         echo 'CXX11   :=  ccache $(CXX11)' >> ~/.R/Makevars
         echo 'CXX14   :=  ccache $(CXX14)' >> ~/.R/Makevars
         echo 'CXX17   :=  ccache $(CXX17)' >> ~/.R/Makevars
+        echo 'CXX1X   :=  ccache $(CXX1X)' >> ~/.R/Makevars
+        echo 'CXX20   :=  ccache $(CXX20)' >> ~/.R/Makevars
+        echo 'CXX23   :=  ccache $(CXX23)' >> ~/.R/Makevars
+        echo 'CXXFLAGS := $(CXXFLAGS) -O2 -Wall' >> ~/.R/Makevars
+        echo 'CFLAGS := $(CFLAGS) -O2 -Wall' >> ~/.R/Makevars
+        echo 'CXX11FLAGS := $(CXX11FLAGS) -O2 -Wall' >> ~/.R/Makevars
+        echo 'CXX14FLAGS := $(CXX14FLAGS) -O2 -Wall' >> ~/.R/Makevars
+        echo 'CXX17FLAGS := $(CXX17FLAGS) -O2 -Wall' >> ~/.R/Makevars
+        echo 'CXX1XFLAGS := $(CXX1XFLAGS) -O2 -Wall' >> ~/.R/Makevars
+        echo 'CXX20FLAGS := $(CXX20FLAGS) -O2 -Wall' >> ~/.R/Makevars
+        echo 'CXX23FLAGS := $(CXX23FLAGS) -O2 -Wall' >> ~/.R/Makevars
         echo 'MAKEFLAGS = -j2' >> ~/.R/Makevars
         cat ~/.R/Makevars
 
