@@ -50,5 +50,7 @@ fi
 # This happens in the cleanup script.
 
 if [ -f duckdb.tar.xz ]; then
-  tar xJf duckdb.tar.xz
+  # Use gtar if available (e.g., on macOS via Homebrew), otherwise tar.
+  TAR="$(which gtar 2>/dev/null || which tar)"
+  $TAR xJf duckdb.tar.xz
 fi
