@@ -7,7 +7,7 @@ cd "$(dirname "$0")"
 if [ -z "${MAKEFLAGS}" ]; then
   makeflags_value=$(Rscript scripts/setup-makeflags.R 2>/dev/null || echo "")
   if [ -n "${makeflags_value}" ]; then
-    export MAKEFLAGS="${makeflags_value} -k"
+    export MAKEFLAGS="${makeflags_value}"
     echo "Setting MAKEFLAGS=${makeflags_value} for parallel compilation"
   fi
 else
@@ -57,5 +57,7 @@ fi
 # This happens in the cleanup script.
 
 if [ -f duckdb.tar.xz ]; then
-  tar xJf duckdb.tar.xz
+  # Use gtar if available (e.g., on macOS via Homebrew), otherwise tar.
+  TAR="$(which gtar 2>/dev/null || which tar)"
+  $TAR xJf duckdb.tar.xz
 fi

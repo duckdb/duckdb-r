@@ -25,7 +25,7 @@
 \S4method{show}{duckdb_driver}(object)
 }
 \arguments{
-\item{dbObj}{An object inheriting from class \linkS4class{duckdb_driver}.}
+\item{dbObj}{An object inheriting from class \link[=duckdb_driver-class]{duckdb_driver}.}
 
 \item{...}{Other arguments to methods.}
 

@@ -89,14 +89,14 @@ If \code{"matrix"} is selected, arrays are returned as a column matrix. Each arr
 \item{shutdown}{Unused. The database instance is shut down automatically.}
 }
 \value{
-\code{duckdb()} returns an object of class \linkS4class{duckdb_driver}.
+\code{duckdb()} returns an object of class \link[=duckdb_driver-class]{duckdb_driver}.
 
 \code{dbDisconnect()} and \code{duckdb_shutdown()} are called for their
 side effect.
 
 An object of class "adbc_driver"
 
-\code{dbConnect()} returns an object of class \linkS4class{duckdb_connection}.
+\code{dbConnect()} returns an object of class \link[=duckdb_connection-class]{duckdb_connection}.
 }
 \description{
 \code{duckdb()} creates or reuses a database instance.

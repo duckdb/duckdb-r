@@ -1,5 +1,37 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.0.9002
+
+## Bug fixes
+
+- Avoid `ATTRIB()` for compatibility with R 4.6, materialize ALTREP row names to integer sequence with full ALTREP methods (#2033, #2034).
+
+## Chore
+
+- Auto-update from GitHub Actions (#2224).
+
+## Uncategorized
+
+- Merge tag 'v1.5.0'.
+
+- Update to DuckDB v1.5.0, see <https://github.com/duckdb/duckdb/releases/tag/v1.5.0> for details.
+
+- Support `descending` and `nulls_first` in `expr_window()` and `rel_order()` (#2074, #2075).
+
+- The dbplyr translation of `as.numeric()` and `as.double()` uses `DOUBLE` instead of `NUMERIC` (#2023, #2031).
+
+- Update to testthat edition 3.
+
+- Avoid `ATTRIB()` for compatibility with R 4.6, materialize ALTREP row names to integer sequence with full ALTREP methods (#2034).
+
+
+# duckdb 1.5.0.9001
+
+## Chore
+
+- Initialize to avoid CRAN warnings.
+
+
 # duckdb 1.5.0.9000
 
 ## Chore
@@ -22,6 +54,10 @@
 ## Testing
 
 - Update to testthat edition 3.
+
+## Internal
+
+- Avoid `ATTRIB()` for compatibility with R 4.6, materialize ALTREP row names to integer sequence with full ALTREP methods (#2034).
 
 
 # duckdb 1.4.4
