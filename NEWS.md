@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.0.9003
+
+## Chore
+
+- Use `gtar` when available to suppress Apple extended attribute warnings on Linux (#2227, #2228).
+
+
 # duckdb 1.5.0.9002
 
 ## Bug fixes
