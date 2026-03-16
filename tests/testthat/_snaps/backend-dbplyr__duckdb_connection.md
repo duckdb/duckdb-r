@@ -3,31 +3,31 @@
     Code
       translate(as.character(1))
     Output
-      <SQL> CAST(1.0 AS TEXT)
+      <SQL> TRY_CAST(1.0 AS TEXT)
     Code
       translate(as.character(1L))
     Output
-      <SQL> CAST(1 AS TEXT)
+      <SQL> TRY_CAST(1 AS TEXT)
     Code
       translate(as.numeric(1))
     Output
-      <SQL> CAST(1.0 AS DOUBLE)
+      <SQL> TRY_CAST(1.0 AS DOUBLE)
     Code
       translate(as.double(1.2))
     Output
-      <SQL> CAST(1.2 AS DOUBLE)
+      <SQL> TRY_CAST(1.2 AS DOUBLE)
     Code
       translate(as.integer(1.2))
     Output
-      <SQL> CAST(1.2 AS INTEGER)
+      <SQL> TRY_CAST(1.2 AS INTEGER)
     Code
       translate(as.integer64(1.2))
     Output
-      <SQL> CAST(1.2 AS BIGINT)
+      <SQL> TRY_CAST(1.2 AS BIGINT)
     Code
       translate(as.logical("TRUE"))
     Output
-      <SQL> CAST('TRUE' AS BOOLEAN)
+      <SQL> TRY_CAST('TRUE' AS BOOLEAN)
     Code
       translate(tolower("HELLO"))
     Output
@@ -47,7 +47,7 @@
     Code
       translate(as.character("2020-01-01"))
     Output
-      <SQL> CAST('2020-01-01' AS TEXT)
+      <SQL> TRY_CAST('2020-01-01' AS TEXT)
     Code
       translate(c("2020-01-01", "2020-13-02"))
     Output
@@ -74,7 +74,7 @@
     Code
       translate(as.raw(10))
     Output
-      <SQL> CAST(10.0 AS VARBINARY)
+      <SQL> TRY_CAST(10.0 AS VARBINARY)
     Code
       translate(13 %% 5)
     Output
@@ -166,11 +166,11 @@
     Code
       translate(as.Date("2019-01-01"))
     Output
-      <SQL> CAST('2019-01-01' AS DATE)
+      <SQL> TRY_CAST('2019-01-01' AS DATE)
     Code
       translate(as.POSIXct("2019-01-01 01:01:01"))
     Output
-      <SQL> CAST('2019-01-01 01:01:01' AS TIMESTAMP)
+      <SQL> TRY_CAST('2019-01-01 01:01:01' AS TIMESTAMP)
 
 # snapshot tests for pasting translate
 
