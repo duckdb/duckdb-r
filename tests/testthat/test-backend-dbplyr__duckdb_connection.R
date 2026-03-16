@@ -4,18 +4,18 @@ test_that("dbplyr generic scalars translated correctly", {
   translate <- function(...) dbplyr::translate_sql(..., con = con)
   sql <- function(...) dbplyr::sql(...)
 
-  expect_equal(translate(as.character(1)), sql(r"{CAST(1.0 AS TEXT)}"))
-  expect_equal(translate(as.character(1L)), sql(r"{CAST(1 AS TEXT)}"))
-  expect_equal(translate(as.numeric(1)), sql(r"{CAST(1.0 AS DOUBLE)}"))
-  expect_equal(translate(as.double(1.2)), sql(r"{CAST(1.2 AS DOUBLE)}"))
-  expect_equal(translate(as.integer(1.2)), sql(r"{CAST(1.2 AS INTEGER)}"))
-  expect_equal(translate(as.integer64(1.2)), sql(r"{CAST(1.2 AS BIGINT)}"))
-  expect_equal(translate(as.logical("TRUE")), sql(r"{CAST('TRUE' AS BOOLEAN)}"))
+  expect_equal(translate(as.character(1)), sql(r"{TRY_CAST(1.0 AS TEXT)}"))
+  expect_equal(translate(as.character(1L)), sql(r"{TRY_CAST(1 AS TEXT)}"))
+  expect_equal(translate(as.numeric(1)), sql(r"{TRY_CAST(1.0 AS DOUBLE)}"))
+  expect_equal(translate(as.double(1.2)), sql(r"{TRY_CAST(1.2 AS DOUBLE)}"))
+  expect_equal(translate(as.integer(1.2)), sql(r"{TRY_CAST(1.2 AS INTEGER)}"))
+  expect_equal(translate(as.integer64(1.2)), sql(r"{TRY_CAST(1.2 AS BIGINT)}"))
+  expect_equal(translate(as.logical("TRUE")), sql(r"{TRY_CAST('TRUE' AS BOOLEAN)}"))
   expect_equal(translate(tolower("HELLO")), sql(r"{LOWER('HELLO')}"))
   expect_equal(translate(toupper("hello")), sql(r"{UPPER('hello')}"))
   expect_equal(translate(pmax(1, 2, na.rm = TRUE)), sql(r"{GREATEST(1.0, 2.0)}"))
   expect_equal(translate(pmin(1, 2, na.rm = TRUE)), sql(r"{LEAST(1.0, 2.0)}"))
-  expect_equal(translate(as.character("2020-01-01")), sql(r"{CAST('2020-01-01' AS TEXT)}"))
+  expect_equal(translate(as.character("2020-01-01")), sql(r"{TRY_CAST('2020-01-01' AS TEXT)}"))
   expect_equal(translate(c("2020-01-01", "2020-13-02")), sql(r"{('2020-01-01', '2020-13-02')}"))
   expect_equal(translate(iris[["sepal_length"]]), sql(r"{iris.sepal_length}"))
   expect_equal(translate(iris[[1]]), sql(r"{iris[1]}"))
@@ -29,8 +29,8 @@ test_that("duckdb custom scalars translated correctly", {
   translate <- function(...) dbplyr::translate_sql(..., con = con)
   sql <- function(...) dbplyr::sql(...)
 
-  #  expect_equal(translate(as(1,"CHARACTER")), sql(r"{CAST(1.0 AS TEXT}"))        # Not implemented
-  expect_equal(translate(as.raw(10)), sql(r"{CAST(10.0 AS VARBINARY)}"))
+  #  expect_equal(translate(as(1,"CHARACTER")), sql(r"{TRY_CAST(1.0 AS TEXT}"))        # Not implemented
+  expect_equal(translate(as.raw(10)), sql(r"{TRY_CAST(10.0 AS VARBINARY)}"))
   expect_equal(translate(13 %% 5), sql(r"{FMOD(13.0, 5.0)}"))
   expect_equal(translate(35.8 %/% 4), sql(r"{FDIV(35.8, 4.0)}"))
   expect_equal(translate(35.8^2.51), sql(r"{POW(35.8, 2.51)}"))
@@ -54,8 +54,8 @@ test_that("duckdb custom scalars translated correctly", {
   expect_error(translate(grepl("dummy", txt, perl = TRUE)))
   expect_equal(translate(regexpr("pattern", text)), sql(r"{(CASE WHEN REGEXP_MATCHES("text", 'pattern') THEN (LENGTH(LIST_EXTRACT(STRING_SPLIT_REGEX("text", 'pattern'), 0))+1) ELSE -1 END)}"))
   expect_equal(translate(round(x, digits = 1.1)), sql(r"{ROUND_EVEN(x, CAST(ROUND(1.1, 0) AS INTEGER))}"))
-  expect_equal(translate(as.Date("2019-01-01")), sql(r"{CAST('2019-01-01' AS DATE)}"))
-  expect_equal(translate(as.POSIXct("2019-01-01 01:01:01")), sql(r"{CAST('2019-01-01 01:01:01' AS TIMESTAMP)}"))
+  expect_equal(translate(as.Date("2019-01-01")), sql(r"{TRY_CAST('2019-01-01' AS DATE)}"))
+  expect_equal(translate(as.POSIXct("2019-01-01 01:01:01")), sql(r"{TRY_CAST('2019-01-01 01:01:01' AS TIMESTAMP)}"))
 })
 
 test_that("pasting translated correctly", {
