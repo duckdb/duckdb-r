@@ -1,5 +1,14 @@
 # Changelog
 
+## duckdb 1.5.0.9004
+
+### Features
+
+- Use `TRY_CAST()` instead of `CAST()` in dplyr SQL translation for type
+  conversion functions
+  ([\#2230](https://github.com/duckdb/duckdb-r/issues/2230),
+  [\#2231](https://github.com/duckdb/duckdb-r/issues/2231)).
+
 ## duckdb 1.5.0.9003
 
 ### Chore
