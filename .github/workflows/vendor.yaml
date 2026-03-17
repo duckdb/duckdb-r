@@ -31,8 +31,10 @@ jobs:
         include:
           - branch: v1.4-andium
             upstream: v1.4-andium
-          - branch: next
+          - branch: v1.5-variegata
             upstream: v1.5-variegata
+          - branch: main
+            upstream: main
     outputs:
       sha: ${{ steps.commit.outputs.sha }}
 
