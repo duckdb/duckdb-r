@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.0.9005
+
+## Continuous integration
+
+- Fix vendoring.
+
+
 # duckdb 1.5.0.9004
 
 ## Features
