@@ -14,6 +14,11 @@ test_that("geometry columns can be read as blob (default)", {
   expect_true(is.raw(res$geom[[1]]))
   expect_true(is.raw(res$geom[[2]]))
   expect_null(res$geom[[3]])
+
+  # WKB: byte order (01=LE) + type (01000000=Point) + x + y
+  wkb <- res$geom[[1]]
+  expect_equal(wkb[1], as.raw(0x01)) # little-endian
+  expect_equal(wkb[2:5], as.raw(c(0x01, 0x00, 0x00, 0x00))) # Point type
 })
 
 test_that("geometry columns can be read inline", {
@@ -51,6 +56,16 @@ test_that("geometry = 'sf' returns sfc objects", {
   expect_equal(nrow(res), 3)
   expect_s3_class(res$geom, "sfc")
   expect_equal(length(res$geom), 3)
+
+  # Validate coordinates
+  coords <- sf::st_coordinates(res$geom[1:2])
+  expect_equal(unname(coords[1, "X"]), 1)
+  expect_equal(unname(coords[1, "Y"]), 2)
+  expect_equal(unname(coords[2, "X"]), 3)
+  expect_equal(unname(coords[2, "Y"]), 4)
+
+  # NULL becomes empty geometry
+  expect_true(sf::st_is_empty(res$geom[3]))
 })
 
 test_that("invalid geometry option is rejected", {
