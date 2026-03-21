@@ -103,7 +103,6 @@ $RECYCLE.BIN/
 *.tgz
 src/**/*.o
 src/*.d
-src/*.dd
 src/*.so
 src/*.dll
 /scripts/__pycache__

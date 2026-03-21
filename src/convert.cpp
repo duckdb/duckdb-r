@@ -38,8 +38,8 @@ ConvertOpts::ArrayConversion string_to_array_conversion(const std::string &str) 
 ConvertOpts::GeometryConversion string_to_geometry_conversion(const std::string &str) {
 	if (str == "blob")
 		return ConvertOpts::GeometryConversion::BLOB;
-	if (str == "sf")
-		return ConvertOpts::GeometryConversion::SF;
+	if (str == "wk")
+		return ConvertOpts::GeometryConversion::WK;
 	rapi_error_with_context("string_to_geometry_conversion", "Invalid geometry value: " + str);
 }
 

@@ -31,9 +31,10 @@
 #' @param array How arrays should be returned. There are two options: `"none"` and `"matrix"`.
 #'   If `"none"` is selected, arrays are not returned. Instead an error is generated.
 #'   If `"matrix"` is selected, arrays are returned as a column matrix. Each array is one row in the matrix.
-#' @param geometry How geometry columns should be returned. There are two options: `"blob"` and `"sf"`.
+#' @param geometry How geometry columns should be returned. There are two options: `"blob"` and `"wk"`.
 #'   If `"blob"` is selected, geometry columns are returned as a list of raw vectors containing WKB data.
-#'   If `"sf"` is selected, geometry columns are returned as \pkg{sf} geometry columns (`sfc` objects).
+#'   If `"wk"` is selected, geometry columns are returned as \pkg{wk} `wk_wkb` vectors.
+#'   Use [wk::wk_handle()] or [sf::st_as_sfc()] to convert to other geometry formats.
 #'
 #' @return `dbConnect()` returns an object of class [duckdb_connection-class].
 #'

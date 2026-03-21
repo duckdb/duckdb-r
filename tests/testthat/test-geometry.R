@@ -41,10 +41,10 @@ test_that("geometry = 'blob' returns raw vectors", {
   expect_true(is.raw(res$geom[[1]]))
 })
 
-test_that("geometry = 'sf' returns sfc objects", {
-  skip_if_not_installed("sf")
+test_that("geometry = 'wk' returns wk_wkb objects", {
+  skip_if_not_installed("wk")
 
-  con <- local_con(geometry = "sf")
+  con <- local_con(geometry = "wk")
 
   dbExecute(con, "CREATE TABLE test_geom (id INTEGER, geom GEOMETRY)")
   dbExecute(con, "INSERT INTO test_geom VALUES (1, 'POINT (1 2)'::GEOMETRY)")
@@ -54,18 +54,48 @@ test_that("geometry = 'sf' returns sfc objects", {
   res <- dbGetQuery(con, "SELECT * FROM test_geom ORDER BY id")
 
   expect_equal(nrow(res), 3)
-  expect_s3_class(res$geom, "sfc")
+  expect_s3_class(res$geom, "wk_wkb")
   expect_equal(length(res$geom), 3)
 
-  # Validate coordinates
-  coords <- sf::st_coordinates(res$geom[1:2])
+  # Validate coordinates via wk
+  coords <- wk::wk_coords(res$geom)
+  expect_equal(coords$x[1], 1)
+  expect_equal(coords$y[1], 2)
+  expect_equal(coords$x[2], 3)
+  expect_equal(coords$y[2], 4)
+
+  # NULL becomes NA in wk
+  expect_true(is.na(res$geom[3]))
+})
+
+test_that("geometry = 'wk' works end-to-end with sf", {
+  skip_if_not_installed("wk")
+  skip_if_not_installed("sf")
+
+  con <- local_con(geometry = "wk")
+
+  dbExecute(con, "CREATE TABLE test_geom (id INTEGER, geom GEOMETRY)")
+  dbExecute(con, "INSERT INTO test_geom VALUES (1, 'POINT (1 2)'::GEOMETRY)")
+  dbExecute(con, "INSERT INTO test_geom VALUES (2, 'POINT (3 4)'::GEOMETRY)")
+  dbExecute(con, "INSERT INTO test_geom VALUES (3, NULL)")
+
+  res <- dbGetQuery(con, "SELECT * FROM test_geom ORDER BY id")
+
+  # Convert wk_wkb to sfc
+  sfc <- sf::st_as_sfc(res$geom)
+
+  expect_s3_class(sfc, "sfc")
+  expect_equal(length(sfc), 3)
+
+  # Validate coordinates via sf
+  coords <- sf::st_coordinates(sfc[1:2])
   expect_equal(unname(coords[1, "X"]), 1)
   expect_equal(unname(coords[1, "Y"]), 2)
   expect_equal(unname(coords[2, "X"]), 3)
   expect_equal(unname(coords[2, "Y"]), 4)
 
-  # NULL becomes empty geometry
-  expect_true(sf::st_is_empty(res$geom[3]))
+  # NULL becomes empty geometry in sf
+  expect_true(sf::st_is_empty(sfc[3]))
 })
 
 test_that("invalid geometry option is rejected", {

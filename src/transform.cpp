@@ -216,11 +216,11 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 	case LogicalTypeId::MAP:
 		break; // no extra decoration required, do nothing
 	case LogicalTypeId::GEOMETRY:
-		if (convert_opts.geometry == ConvertOpts::GeometryConversion::SF) {
-			SET_CLASS(dest, StringsToSexp({"duckdb_sfc_wkb"}));
+		if (convert_opts.geometry == ConvertOpts::GeometryConversion::WK) {
+			SET_CLASS(dest, StringsToSexp({"wk_wkb", "wk_vctr"}));
 			if (GeoType::HasCRS(type)) {
 				auto &crs = GeoType::GetCRS(type);
-				Rf_setAttrib(dest, Rf_install("crs_definition"), Rf_mkString(crs.GetDefinition().c_str()));
+				Rf_setAttrib(dest, Rf_install("crs"), Rf_mkString(crs.GetDefinition().c_str()));
 			}
 		}
 		break;

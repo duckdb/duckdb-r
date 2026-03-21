@@ -13,7 +13,7 @@ struct ConvertOpts {
 
 	enum class ArrayConversion { NONE, MATRIX };
 
-	enum class GeometryConversion { BLOB, SF };
+	enum class GeometryConversion { BLOB, WK };
 
 	enum class ArrowConversion { DISABLED, ENABLED };
 

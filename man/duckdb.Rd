@@ -85,9 +85,10 @@ time as the timestamp in the database, but with the new time zone.}
 If \code{"none"} is selected, arrays are not returned. Instead an error is generated.
 If \code{"matrix"} is selected, arrays are returned as a column matrix. Each array is one row in the matrix.}
 
-\item{geometry}{How geometry columns should be returned. There are two options: \code{"blob"} and \code{"sf"}.
+\item{geometry}{How geometry columns should be returned. There are two options: \code{"blob"} and \code{"wk"}.
 If \code{"blob"} is selected, geometry columns are returned as a list of raw vectors containing WKB data.
-If \code{"sf"} is selected, geometry columns are returned as \pkg{sf} geometry columns (\code{sfc} objects).}
+If \code{"wk"} is selected, geometry columns are returned as \pkg{wk} \code{wk_wkb} vectors.
+Use \code{\link[wk:wk_handle]{wk::wk_handle()}} or \code{\link[sf:st_as_sfc]{sf::st_as_sfc()}} to convert to other geometry formats.}
 
 \item{conn}{A \code{duckdb_connection} object}
 

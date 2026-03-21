@@ -17,9 +17,9 @@ duckdb_convert_opts <- function(
     stop(paste0("Unsupported bigint configuration: ", bigint))
   }
 
-  if (geometry == "sf") {
-    if (!is_installed("sf")) {
-      stop("sf package is required for geometry = \"sf\" support")
+  if (geometry == "wk") {
+    if (!is_installed("wk")) {
+      stop("wk package is required for geometry = \"wk\" support")
     }
   } else if (geometry != "blob") {
     stop(paste0("Unsupported geometry configuration: ", geometry))
