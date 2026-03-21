@@ -66,9 +66,10 @@ replace_in_file <- function(path, pattern, replacement) {
   }
 }
 
-# Escape for use in fixed-string regex patterns
-esc <- function(x) gsub("([.\\|(){}^$*+?\\[\\]])", "\\\\\\1", x)
-old_esc <- esc(old_name)
+# Escape special regex characters (e.g., dots in "duckdb.1.4") so they
+# match literally when used in gsub() patterns.
+escape_regex <- function(x) gsub("([.\\|(){}^$*+?\\[\\]])", "\\\\\\1", x)
+old_esc <- escape_regex(old_name)
 new_esc <- new_name
 
 # 1. DESCRIPTION: Package: field
