@@ -34,7 +34,8 @@ duckdb_adbc()
   tz_out_convert = c("with", "force"),
   config = list(),
   bigint = "numeric",
-  array = "none"
+  array = "none",
+  geometry = "blob"
 )
 
 \S4method{dbDisconnect}{duckdb_connection}(conn, ..., shutdown = TRUE)
@@ -83,6 +84,10 @@ time as the timestamp in the database, but with the new time zone.}
 \item{array}{How arrays should be returned. There are two options: \code{"none"} and \code{"matrix"}.
 If \code{"none"} is selected, arrays are not returned. Instead an error is generated.
 If \code{"matrix"} is selected, arrays are returned as a column matrix. Each array is one row in the matrix.}
+
+\item{geometry}{How geometry columns should be returned. There are two options: \code{"blob"} and \code{"sf"}.
+If \code{"blob"} is selected, geometry columns are returned as a list of raw vectors containing WKB data.
+If \code{"sf"} is selected, geometry columns are returned as \pkg{sf} geometry columns (\code{sfc} objects).}
 
 \item{conn}{A \code{duckdb_connection} object}
 

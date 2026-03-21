@@ -1,6 +1,6 @@
+#include "duckdb/common/types/geometry_crs.hpp"
 #include "duckdb/common/types/uhugeint.hpp"
 #include "duckdb/common/types/uuid.hpp"
-#include "duckdb/common/types/geometry_crs.hpp"
 #include "rapi.hpp"
 #include "typesr.hpp"
 
