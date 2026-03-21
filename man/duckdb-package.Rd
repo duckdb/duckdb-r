@@ -2,8 +2,10 @@
 % Please edit documentation in R/duckdb-package.R
 \docType{package}
 \name{duckdb-package}
+\alias{duckdb.1.4}
+\alias{duckdb.1.4-package}
 \alias{duckdb-package}
-\title{duckdb: DBI Package for the DuckDB Database Management System}
+\title{duckdb.1.4: DBI Package for the DuckDB Database Management System}
 \description{
 \if{html}{\figure{logo.png}{options: style='float: right' alt='logo' width='120'}}
 
