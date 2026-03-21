@@ -67,6 +67,7 @@ int duckdb_r_typeof(const LogicalType &type, const string &name, const char *cal
 	case LogicalTypeId::UUID:
 		return STRSXP;
 	case LogicalTypeId::BLOB:
+	case LogicalTypeId::GEOMETRY:
 		return VECSXP;
 	case LogicalTypeId::ENUM:
 		return INTSXP;
@@ -209,6 +210,7 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 	case LogicalTypeId::DOUBLE:
 	case LogicalTypeId::VARCHAR:
 	case LogicalTypeId::BLOB:
+	case LogicalTypeId::GEOMETRY:
 	case LogicalTypeId::UUID:
 	case LogicalTypeId::LIST:
 	case LogicalTypeId::MAP:
@@ -645,7 +647,8 @@ void duckdb_r_transform(const Vector &src_vec, const SEXP dest, idx_t dest_offse
 		break;
 	}
 
-	case LogicalTypeId::BLOB: {
+	case LogicalTypeId::BLOB:
+	case LogicalTypeId::GEOMETRY: {
 		auto src_ptr = FlatVector::GetData<string_t>(src_vec);
 		auto &mask = FlatVector::Validity(src_vec);
 		for (size_t row_idx = 0; row_idx < n; row_idx++) {
