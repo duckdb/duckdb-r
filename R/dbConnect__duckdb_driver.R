@@ -31,6 +31,9 @@
 #' @param array How arrays should be returned. There are two options: `"none"` and `"matrix"`.
 #'   If `"none"` is selected, arrays are not returned. Instead an error is generated.
 #'   If `"matrix"` is selected, arrays are returned as a column matrix. Each array is one row in the matrix.
+#' @param geometry How geometry columns should be returned. There are two options: `"blob"` and `"sf"`.
+#'   If `"blob"` is selected, geometry columns are returned as a list of raw vectors containing WKB data.
+#'   If `"sf"` is selected, geometry columns are returned as \pkg{sf} geometry columns (`sfc` objects).
 #'
 #' @return `dbConnect()` returns an object of class [duckdb_connection-class].
 #'
@@ -65,7 +68,8 @@ dbConnect__duckdb_driver <- function(
   tz_out_convert = c("with", "force"),
   config = list(),
   bigint = "numeric",
-  array = "none"
+  array = "none",
+  geometry = "blob"
 ) {
   check_flag(debug)
   timezone_out <- check_tz(timezone_out)
@@ -89,7 +93,8 @@ dbConnect__duckdb_driver <- function(
     timezone_out = timezone_out,
     tz_out_convert = tz_out_convert,
     bigint = bigint,
-    array = array
+    array = array,
+    geometry = geometry
   )
 
   config <- utils::modifyList(drv@config, config)

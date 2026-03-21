@@ -70,6 +70,8 @@ duckdb_post_execute <- function(res, out) {
     out <- tz_force(out, res@connection@timezone_out)
   }
 
+  out <- geometry_to_sf(out)
+
   res@env$resultset <- out
 
   out
@@ -121,4 +123,38 @@ tz_force_one <- function(x, timezone) {
   # recreate the POSIXct with specified timezone
   # this is the slow part, and it remains slow even if the input is a POSIXlt
   as.POSIXct(ct, format = "%Y-%m-%d %H:%M:%OS", tz = timezone)
+}
+
+geometry_to_sf <- function(x) {
+  is_geometry <- which(vapply(x, inherits, "duckdb_sfc_wkb", FUN.VALUE = logical(1)))
+
+  if (length(is_geometry) > 0) {
+    x[is_geometry] <- lapply(is_geometry, function(i) {
+      col <- x[[i]]
+      crs_def <- attr(col, "crs_definition")
+      attr(col, "crs_definition") <- NULL
+      class(col) <- NULL
+
+      crs <- if (!is.null(crs_def)) sf::st_crs(crs_def) else sf::NA_crs_
+
+      is_null <- vapply(col, is.null, logical(1))
+      if (all(is_null)) {
+        # All NULL: create empty sfc
+        return(sf::st_sfc(lapply(seq_along(col), function(j) sf::st_point()), crs = crs))
+      }
+
+      if (any(is_null)) {
+        # Convert non-null entries, then fill in empty geometries for NULLs
+        non_null <- col[!is_null]
+        sfc_non_null <- sf::st_as_sfc(non_null, crs = crs)
+        result <- vector("list", length(col))
+        result[!is_null] <- sfc_non_null
+        result[is_null] <- list(sf::st_point())
+        return(sf::st_sfc(result, crs = crs))
+      }
+
+      sf::st_as_sfc(col, crs = crs)
+    })
+  }
+  x
 }

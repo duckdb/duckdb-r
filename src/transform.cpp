@@ -1,5 +1,6 @@
 #include "duckdb/common/types/uhugeint.hpp"
 #include "duckdb/common/types/uuid.hpp"
+#include "duckdb/common/types/geometry_crs.hpp"
 #include "rapi.hpp"
 #include "typesr.hpp"
 
@@ -210,11 +211,19 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 	case LogicalTypeId::DOUBLE:
 	case LogicalTypeId::VARCHAR:
 	case LogicalTypeId::BLOB:
-	case LogicalTypeId::GEOMETRY:
 	case LogicalTypeId::UUID:
 	case LogicalTypeId::LIST:
 	case LogicalTypeId::MAP:
 		break; // no extra decoration required, do nothing
+	case LogicalTypeId::GEOMETRY:
+		if (convert_opts.geometry == ConvertOpts::GeometryConversion::SF) {
+			SET_CLASS(dest, StringsToSexp({"duckdb_sfc_wkb"}));
+			if (GeoType::HasCRS(type)) {
+				auto &crs = GeoType::GetCRS(type);
+				Rf_setAttrib(dest, Rf_install("crs_definition"), Rf_mkString(crs.GetDefinition().c_str()));
+			}
+		}
+		break;
 	case LogicalTypeId::ARRAY: {
 		auto array_size = ArrayType::GetSize(type);
 		auto &child_type = ArrayType::GetChildType(type);
