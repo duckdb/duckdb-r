@@ -1,5 +1,11 @@
 # Changelog
 
+## duckdb 1.5.0.9006
+
+### Continuous integration
+
+- Add more branches.
+
 ## duckdb 1.5.0.9005
 
 ### Continuous integration
