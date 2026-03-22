@@ -10,6 +10,11 @@ on:
       - each-*
       - '*-dev'
   workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch ref to trigger rcc for (e.g. refs/heads/main-dev)"
+        required: true
+        type: string
   workflow_call:
     inputs:
       branch:
