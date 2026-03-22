@@ -1,3 +1,4 @@
+#include "duckdb/common/types/geometry_crs.hpp"
 #include "duckdb/common/types/uhugeint.hpp"
 #include "duckdb/common/types/uuid.hpp"
 #include "rapi.hpp"
@@ -67,6 +68,7 @@ int duckdb_r_typeof(const LogicalType &type, const string &name, const char *cal
 	case LogicalTypeId::UUID:
 		return STRSXP;
 	case LogicalTypeId::BLOB:
+	case LogicalTypeId::GEOMETRY:
 		return VECSXP;
 	case LogicalTypeId::ENUM:
 		return INTSXP;
@@ -213,6 +215,15 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 	case LogicalTypeId::LIST:
 	case LogicalTypeId::MAP:
 		break; // no extra decoration required, do nothing
+	case LogicalTypeId::GEOMETRY:
+		if (convert_opts.geometry == ConvertOpts::GeometryConversion::WK) {
+			SET_CLASS(dest, RStrings::get().wk_wkb_wk_vctr_str);
+			if (GeoType::HasCRS(type)) {
+				auto &crs = GeoType::GetCRS(type);
+				Rf_setAttrib(dest, RStrings::get().crs_sym, Rf_mkString(crs.GetDefinition().c_str()));
+			}
+		}
+		break;
 	case LogicalTypeId::ARRAY: {
 		auto array_size = ArrayType::GetSize(type);
 		auto &child_type = ArrayType::GetChildType(type);
@@ -645,7 +656,8 @@ void duckdb_r_transform(const Vector &src_vec, const SEXP dest, idx_t dest_offse
 		break;
 	}
 
-	case LogicalTypeId::BLOB: {
+	case LogicalTypeId::BLOB:
+	case LogicalTypeId::GEOMETRY: {
 		auto src_ptr = FlatVector::GetData<string_t>(src_vec);
 		auto &mask = FlatVector::Validity(src_vec);
 		for (size_t row_idx = 0; row_idx < n; row_idx++) {
