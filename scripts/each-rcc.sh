@@ -28,10 +28,7 @@ REF="${1:-${GITHUB_REF:-$(git symbolic-ref HEAD)}}"
 MAX_COMMITS="${MAX_COMMITS:-100}"
 MAX_RUNS="${MAX_RUNS:-100}"
 
-if [[ -z "${GH_TOKEN:-}" ]]; then
-  echo "ERROR: GH_TOKEN is not set" >&2
-  exit 1
-fi
+gh auth status
 
 echo "Branch ref: ${REF}"
 echo "Scanning up to ${MAX_COMMITS} commits, scheduling up to ${MAX_RUNS} runs"
