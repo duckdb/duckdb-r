@@ -71,8 +71,10 @@ jobs:
             echo "vendor=ok" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Trigger each-rcc for vendored commits
-        if: steps.vendor.outputs.vendor != ''
-        uses: ./.github/workflows/each.yaml
-        with:
-          branch: refs/heads/${{ matrix.branch }}
+  each:
+    needs: vendor
+    if: needs.vendor.steps.vendor.outputs.vendor != ''
+    name: Trigger each-rcc for vendored commits
+    uses: ./.github/workflows/each.yaml
+    with:
+      branch: refs/heads/${{ matrix.branch }}
