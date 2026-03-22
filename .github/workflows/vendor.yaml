@@ -72,8 +72,25 @@ jobs:
             echo "vendor=ok" >> "$GITHUB_OUTPUT"
           fi
 
+  debug-output:
+    needs: vendor
+    runs-on: ubuntu-latest
+    name: Debug output
+    steps:
+      - name: Print outputs
+        run: |
+          echo "vendor:"
+          cat <<EOF
+          ${{ needs.vendor.outputs.vendor }}
+          EOF
+          echo "branch:"
+          cat <<EOF
+          ${{ needs.vendor.outputs.branch }}
+          EOF
+
   each:
     needs: vendor
+    runs-on: ubuntu-latest
     if: needs.vendor.outputs.vendor != ''
     name: Trigger each-rcc for vendored commits
     uses: ./.github/workflows/each.yaml
