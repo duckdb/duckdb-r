@@ -90,7 +90,6 @@ jobs:
 
   each:
     needs: vendor
-    runs-on: ubuntu-latest
     if: needs.vendor.outputs.vendor != ''
     name: Trigger each-rcc for vendored commits
     uses: ./.github/workflows/each.yaml
