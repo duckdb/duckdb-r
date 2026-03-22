@@ -340,6 +340,7 @@ string RApiTypes::DetectLogicalType(const LogicalType &stype, const char *caller
 	case LogicalTypeId::UUID:
 		return "character";
 	case LogicalTypeId::BLOB:
+	case LogicalTypeId::GEOMETRY:
 		return "raw";
 	case LogicalTypeId::LIST:
 		return "list";
