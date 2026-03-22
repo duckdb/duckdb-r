@@ -28,16 +28,18 @@ jobs:
 
       - name: Fast-forward main from duckdb/duckdb-r
         run: |
-          # Get the current HEAD SHA of our main branch.
-          HEAD=$(git rev-parse HEAD)
+          set -x
 
           # Shallow clone duckdb/duckdb-r, excluding commits already reachable from our
           # HEAD (assuming it exists there). Fail if HEAD is not found in the upstream history.
-          git clone --shallow-exclude="${HEAD}" https://github.com/duckdb/duckdb-r.git /tmp/upstream
+          git clone --depth=100 --single-branch https://github.com/duckdb/duckdb-r.git /tmp/upstream
 
           # Add the cloned upstream as a local remote and fetch its main branch.
           git remote add upstream /tmp/upstream
           git fetch upstream main
+
+          # Get the current HEAD SHA of our main branch.
+          HEAD=$(git rev-parse HEAD)
 
           # Fast-forward our main to upstream/main.
           git merge --ff-only upstream/main
