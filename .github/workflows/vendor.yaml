@@ -43,12 +43,12 @@ jobs:
     name: "Update vendored sources (${{ matrix.branch }})"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref: ${{ matrix.branch }}
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           repository: duckdb/duckdb
           path: .git/duckdb

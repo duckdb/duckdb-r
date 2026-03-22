@@ -38,7 +38,7 @@ jobs:
     # End custom: services
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.branch || github.ref }}
           fetch-depth: 0
