@@ -68,7 +68,8 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	auto db_wrapper = data.wrapper;
 
 	auto table_name_symbol = cpp11::safe[Rf_install](input.table_name.c_str());
-	SEXP df = R_NilValue;
+	// Use sexp instead of SEXP for protection against GC.
+	cpp11::sexp df = R_NilValue;
 	SEXP rho = db_wrapper->env;
 	if (TYPEOF(rho) != ENVSXP) {
 		return nullptr;
