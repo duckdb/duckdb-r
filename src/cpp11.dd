@@ -1,4 +1,4 @@
 cpp11.o: \
   cpp11.cpp \
-  include/convert.hpp \
   include/rapi.hpp \
+ include/convert.hpp \
