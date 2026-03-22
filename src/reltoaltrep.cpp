@@ -487,17 +487,9 @@ SEXP RelToAltrep::RownamesMax(SEXP x, Rboolean na_rm) {
 SEXP RelToAltrep::RownamesDuplicate(SEXP x, Rboolean deep) {
 	BEGIN_CPP11
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
-	auto n = rownames_wrapper->RowCount();
-	if (n > (idx_t)NumericLimits<int32_t>::Maximum()) {
-		rapi_error_with_context("altrep_rownames_Duplicate", "Integer overflow for row.names attribute");
-	}
-	SEXP result = PROTECT(Rf_allocVector(INTSXP, n));
-	int *data = INTEGER(result);
-	for (idx_t i = 0; i < n; i++) {
-		data[i] = static_cast<int>(i + 1);
-	}
-	UNPROTECT(1);
-	return result;
+	cpp11::external_pointer<AltrepRownamesWrapper> ptr(new AltrepRownamesWrapper(rownames_wrapper->rel));
+	R_SetExternalPtrTag(ptr, RStrings::get().duckdb_row_names_sym);
+	return R_new_altrep(RelToAltrep::rownames_class, ptr, R_NilValue);
 	END_CPP11
 }
 
