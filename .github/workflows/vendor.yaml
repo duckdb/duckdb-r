@@ -31,12 +31,12 @@ jobs:
         # REMINDER: When changing branch names below,
         # update the documentation in scripts/VENDORING.md accordingly (see disclaimers section)
         include:
-          - branch: v1.4-andium-dev
-            upstream: v1.4-andium
+          # - branch: v1.4-andium-dev
+          #   upstream: v1.4-andium
           - branch: v1.5-variegata-dev
             upstream: v1.5-variegata
-          - branch: main-dev
-            upstream: main
+          # - branch: main-dev
+          #   upstream: main
     outputs:
       sha: ${{ steps.commit.outputs.sha }}
 
