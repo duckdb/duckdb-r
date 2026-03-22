@@ -37,9 +37,6 @@ jobs:
             upstream: v1.5-variegata
           - branch: main-dev
             upstream: main
-    outputs:
-      branch: ${{ matrix.branch }}
-      vendor: ${{ steps.vendor.outputs.vendor }}
 
     name: "Update vendored sources (${{ matrix.branch }})"
 
@@ -72,26 +69,9 @@ jobs:
             echo "vendor=ok" >> "$GITHUB_OUTPUT"
           fi
 
-  debug-output:
-    needs: vendor
-    runs-on: ubuntu-latest
-    name: Debug output
-    steps:
-      - name: Print outputs
-        run: |
-          echo "vendor:"
-          cat <<EOF
-          ${{ needs.vendor.outputs.vendor }}
-          EOF
-          echo "branch:"
-          cat <<EOF
-          ${{ needs.vendor.outputs.branch }}
-          EOF
-
-  each:
-    needs: vendor
-    if: needs.vendor.outputs.vendor != ''
-    name: Trigger each-rcc for vendored commits
-    uses: ./.github/workflows/each.yaml
-    with:
-      branch: refs/heads/${{ needs.vendor.outputs.branch }}
+      - name: Enumerate commits and trigger rcc workflow
+        # if: steps.vendor.outputs.vendor == 'ok'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/each-rcc.sh
+        shell: bash
