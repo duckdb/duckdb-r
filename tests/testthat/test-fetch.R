@@ -7,7 +7,7 @@ test_that("dbFetch() can fetch RETURNING statements (#3875)", {
   expect_equal(out, data.frame(a = 1L))
 })
 
-test_that("dbSendQuery does not populate resultset immediately", {
+test_that("dbSendQuery defers execution until dbFetch", {
   con <- local_con()
   dbWriteTable(con, "mt", mtcars)
 
@@ -26,7 +26,7 @@ test_that("dbSendQuery does not populate resultset immediately", {
   dbClearResult(rs)
 })
 
-test_that("dbBind does not populate resultset immediately", {
+test_that("dbBind defers execution until dbFetch", {
   con <- local_con()
   dbWriteTable(con, "mt", mtcars)
 
