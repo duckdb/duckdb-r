@@ -42,7 +42,7 @@ if [ -z "$upstream_basedir" ]; then
   upstream_basedir=../../../${project}
 fi
 
-upstream_dir=.git/${project}
+upstream_dir=${project}
 
 # Clone the repo only once if it doesn't exist
 if [ ! -d "$upstream_dir" ]; then
@@ -139,13 +139,6 @@ while [ $commits_vendored -lt $num_commits ]; do
 
   echo "Our tag: $our_tag"
   echo "Upstream tag: $upstream_tag"
-
-  if [ -z "${is_tag}" ] && [ "${our_tag#"$upstream_tag"}" == "$our_tag" ]; then
-    echo "Not vendoring because our tag $our_tag does not start with upstream tag $upstream_tag"
-    git checkout -- ${vendor_base_dir} R/version.R
-    rm -rf "$upstream_dir"
-    exit 0
-  fi
 
   git add .
 

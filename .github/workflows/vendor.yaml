@@ -31,14 +31,12 @@ jobs:
         # REMINDER: When changing branch names below,
         # update the documentation in scripts/VENDORING.md accordingly (see disclaimers section)
         include:
-          # - branch: v1.4-andium-dev
-          #   upstream: v1.4-andium
+          - branch: v1.4-andium-dev
+            upstream: v1.4-andium
           - branch: v1.5-variegata-dev
             upstream: v1.5-variegata
-          # - branch: main-dev
-          #   upstream: main
-    outputs:
-      sha: ${{ steps.commit.outputs.sha }}
+          - branch: main-dev
+            upstream: main
 
     name: "Update vendored sources (${{ matrix.branch }})"
 
@@ -71,8 +69,9 @@ jobs:
             echo "vendor=ok" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Trigger each-rcc for vendored commits
-        if: steps.vendor.outputs.vendor != ''
-        uses: ./.github/workflows/each.yaml
-        with:
-          branch: refs/heads/${{ matrix.branch }}
+      - name: Enumerate commits and trigger rcc workflow
+        # if: steps.vendor.outputs.vendor == 'ok'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/each-rcc.sh
+        shell: bash
