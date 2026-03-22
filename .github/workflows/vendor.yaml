@@ -21,22 +21,23 @@ concurrency:
 
 name: vendor
 
+strategy:
+  matrix:
+    # REMINDER: When changing branch names below,
+    # update the documentation in scripts/VENDORING.md accordingly (see disclaimers section)
+    include:
+      - branch: v1.4-andium-dev
+        upstream: v1.4-andium
+      - branch: v1.5-variegata-dev
+        upstream: v1.5-variegata
+      - branch: main-dev
+        upstream: main
+
 jobs:
   vendor:
     runs-on: ubuntu-latest
     # Only run in the vendoring repository
     if: github.repository == 'krlmlr/duckdb-r'
-    strategy:
-      matrix:
-        # REMINDER: When changing branch names below,
-        # update the documentation in scripts/VENDORING.md accordingly (see disclaimers section)
-        include:
-          - branch: v1.4-andium-dev
-            upstream: v1.4-andium
-          - branch: v1.5-variegata-dev
-            upstream: v1.5-variegata
-          - branch: main-dev
-            upstream: main
     outputs:
       sha: ${{ steps.commit.outputs.sha }}
 
