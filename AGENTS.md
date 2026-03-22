@@ -122,6 +122,11 @@ R
 - Ensure proper code formatting and consistent indentation
 - Follow R package development best practices
 
+## C++ Glue Code Conventions
+
+- R string constants and symbols (SEXP) used in C++ glue code are defined in `src/utils.cpp` (in `RStrings::RStrings()`) and declared in `src/include/rapi.hpp` (in `struct RStrings`).
+- Always add new string constants and `Rf_install()` symbols to `RStrings` rather than using inline `StringsToSexp()`, `Rf_mkString()`, or `Rf_install()` calls in hot paths.
+
 ## Dependencies
 
 System requirements already satisfied in typical development environment:
