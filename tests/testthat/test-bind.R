@@ -96,12 +96,16 @@ test_that("various error cases for dbBind()", {
 
   expect_error(dbBind(q, list()))
   expect_error(dbBind(q, list(1, 2)))
-  expect_error(dbBind(q, list("asdf")))
+  # Type errors are detected at execution time (dbFetch), not bind time
+  dbBind(q, list("asdf"))
+  expect_error(dbFetch(q))
   expect_error(dbBind(q, list("asdf", "asdf")))
 
   expect_error(dbBind(q))
 
-  expect_error(dbBind(q, "asdf"))
+  # Type errors are detected at execution time (dbFetch), not bind time
+  dbBind(q, "asdf")
+  expect_error(dbFetch(q))
 
   dbClearResult(q)
 

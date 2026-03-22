@@ -14,8 +14,17 @@ dbFetch__duckdb_result <- function(res, n = -1, ...) {
     return(as.data.frame(duckdb_fetch_arrow(res)))
   }
 
+  # Handle deferred execution
   if (is.null(res@env$resultset)) {
-    stop("Need to call `dbBind()` before `dbFetch()`")
+    if (!is.null(res@env$pending_params)) {
+      # Deferred bind+execute (parameterized query)
+      duckdb_execute_pending_bind(res)
+    } else if (res@stmt_lst$n_param == 0) {
+      # Deferred execute (no params)
+      duckdb_execute(res)
+    } else {
+      stop("Need to call `dbBind()` before `dbFetch()`")
+    }
   }
   if (res@stmt_lst$type == "EXPLAIN") {
     df <- res@env$resultset

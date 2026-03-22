@@ -37,6 +37,9 @@ duckdb_result <- function(connection, stmt_lst, arrow) {
         query_result = query_result
       )
       return(new_res)
+    } else if (stmt_lst$type %in% c("SELECT", "EXPLAIN", "RELATION") ||
+      stmt_lst$return_type == "QUERY_RESULT") {
+      # Defer execution to dbFetch() for data-returning queries
     } else {
       duckdb_execute(res)
     }
@@ -51,6 +54,23 @@ duckdb_execute <- function(res) {
     duckdb_convert_opts_impl(res@connection@convert_opts, arrow = res@arrow)
   )
   duckdb_post_execute(res, out)
+}
+
+duckdb_execute_pending_bind <- function(res) {
+  out <- rethrow_rapi_bind(
+    res@stmt_lst$ref,
+    res@env$pending_params,
+    duckdb_convert_opts_impl(res@connection@convert_opts, arrow = res@arrow)
+  )
+  if (length(out) == 1) {
+    out <- out[[1]]
+  } else if (length(out) == 0) {
+    out <- data.frame()
+  } else {
+    out <- do.call(rbind, out)
+  }
+  duckdb_post_execute(res, out)
+  res@env$pending_params <- NULL
 }
 
 duckdb_post_execute <- function(res, out) {
