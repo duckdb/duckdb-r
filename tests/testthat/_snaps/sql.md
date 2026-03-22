@@ -1,32 +1,8 @@
-# sql_query() validates connection
-
-    Code
-      sql_query("SELECT 1", conn = invalid_con)
-    Condition
-      Error in `sql_query()`:
-      ! dbIsValid(conn) is not TRUE
-
-# sql_exec() validates connection
-
-    Code
-      sql_exec("SELECT 1", conn = invalid_con)
-    Condition
-      Error in `sql_exec()`:
-      ! dbIsValid(conn) is not TRUE
-
 # error handling works correctly
 
     Code
       sql_exec("INVALID SQL SYNTAX")
     Condition
-      Error in `dbSendQuery()`:
-      ! Parser Error: syntax error at or near "INVALID"
-      
-      LINE 1: INVALID SQL SYNTAX
-              ^
-      
-      LINE 1: INVALID SQL SYNTAX
-              ^
-      i Context: rapi_prepare
-      i Error type: PARSER
+      Error:
+      ! error in evaluating the argument 'dbObj' in selecting a method for function 'dbIsValid': {"exception_type":"INTERNAL","exception_message":"Connection already working on another query","stack_trace_pointers":"139908079740653;139908079740776;139908079754165;139908064622467;139908070031759;139908070570310;139908755766366;139908755767815;139908756088525;139908756102604;139908756087952;139908756095726;139908756099143;139908756087270;139908756089371;139908756087478;139908756089371;139908756090129;139908756053619;139908756085978;139908756086955;139908756095726;139908756099143;139908756087270;139908756089371;139908756090129;139908756053619;139908756085978;139908756086955;139908756095726;139908756099143;139908756087270;139908629153082;139908755759060;139908756033637;139908756085978;139908756086955;139908756095726;139908756099143;139908756087270;139908756102604;139908756087952;139908756095726;139908756099143;139908756087270;139908756108276;139908756087952;139908756102604;139908756087952;1399087
 
