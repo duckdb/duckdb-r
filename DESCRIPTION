@@ -56,9 +56,11 @@ Suggests:
     dbplyr,
     dplyr,
     rlang,
+    sf,
     testthat (>= 3.0.0),
     tibble,
     vctrs,
+    wk,
     withr
 Biarch: true
 Config/build/compilation-database: false

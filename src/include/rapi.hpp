@@ -192,6 +192,7 @@ struct RStrings {
 	SEXP POSIXct_POSIXt_str;
 	SEXP integer64_str;
 	SEXP tbl_df_tbl_dataframe_str;
+	SEXP wk_wkb_wk_vctr_str;
 	SEXP enc2utf8_sym; // Rf_install
 	SEXP tzone_sym;
 	SEXP units_sym;
@@ -206,6 +207,7 @@ struct RStrings {
 	SEXP get_progress_display_sym;
 	SEXP duckdb_row_names_sym;
 	SEXP duckdb_vector_sym;
+	SEXP crs_sym;
 
 	static const RStrings &get() {
 		// On demand
