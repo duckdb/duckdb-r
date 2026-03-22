@@ -18,17 +18,28 @@ repo_org=${project}
 repo_name=${project}
 
 
-if [ -z "$1" ]; then
-  upstream_basedir=../../../${project}
-else
-  upstream_basedir="$1"
-fi
+upstream_basedir=""
+num_commits=1
 
-# Number of commits to vendor (default: 1)
-if [ -z "$2" ]; then
-  num_commits=1
-else
-  num_commits="$2"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --commits|-c)
+      num_commits="$2"
+      shift 2
+      ;;
+    -*)
+      echo "Unknown option: $1" >&2
+      exit 1
+      ;;
+    *)
+      upstream_basedir="$1"
+      shift
+      ;;
+  esac
+done
+
+if [ -z "$upstream_basedir" ]; then
+  upstream_basedir=../../../${project}
 fi
 
 upstream_dir=.git/${project}

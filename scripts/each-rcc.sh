@@ -1,77 +1,64 @@
 #!/bin/bash
 # Trigger rcc workflow runs for commits on a branch that don't yet have a build status.
 #
-# Walks the first-parent history from HEAD (up to MAX_COMMITS commits) and collects
-# commits with no rcc status, stopping at the first commit that has any status
-# (success, failure, or running/pending).  Builds are then triggered in chronological
-# order (oldest first), up to MAX_RUNS.
+# Considers all commits on or after 2026-01-01 in the first-parent history from HEAD.
+# For each such commit, checks for an existing rcc build status (success, failure, or
+# running/pending).  Commits without any status are triggered in chronological order
+# (oldest first).  All qualifying commits are always inspected and all pending ones
+# are always triggered — there is no cap.
 #
 # To re-trigger builds for specific commits: rebase those commits above the boundary
 # commit and force-push.  The script will then pick them up on the next run.
 #
 # Usage:
-#   GH_TOKEN=<token> scripts/each-rcc.sh <ref>
-#   GH_TOKEN=<token> scripts/each-rcc.sh   # defaults to current HEAD branch
+#   GH_TOKEN=<token> scripts/each-rcc.sh
 #
-# Local testing example:
-#   GH_TOKEN=$(gh auth token) scripts/each-rcc.sh refs/heads/my-feature-dev
+# Local testing example (check out the branch first, then run):
+#   git checkout my-feature-dev
+#   GH_TOKEN=$(gh auth token) scripts/each-rcc.sh
 #
 # Environment variables:
-#   GH_TOKEN   - GitHub token with statuses:read and actions:write (required)
-#   MAX_COMMITS - maximum number of commits to inspect (default: 100)
-#   MAX_RUNS    - maximum number of workflow runs to schedule (default: 100)
-#   DRY_RUN     - if non-empty, print what would be triggered without actually running
+#   GH_TOKEN  - GitHub token with statuses:read and actions:write (required)
+#   SINCE     - earliest commit date to consider, ISO 8601 (default: 2026-01-01)
+#   DRY_RUN   - if non-empty, print what would be triggered without actually running
 
 set -euo pipefail
 
-REF="${1:-${GITHUB_REF:-$(git symbolic-ref HEAD)}}"
-MAX_COMMITS="${MAX_COMMITS:-100}"
-MAX_RUNS="${MAX_RUNS:-100}"
+REF="$(git symbolic-ref HEAD)"
+SINCE="${SINCE:-2026-01-01}"
 
 gh auth status
 
 echo "Branch ref: ${REF}"
-echo "Scanning up to ${MAX_COMMITS} commits, scheduling up to ${MAX_RUNS} runs"
+echo "Scanning all commits on or after ${SINCE}"
 
 commits_to_run=()
-count=0
 
 while IFS= read -r commit; do
-  count=$(( count + 1 ))
-  if (( count > MAX_COMMITS )); then
-    echo "Reached MAX_COMMITS limit (${MAX_COMMITS}), stopping"
-    break
-  fi
-
   # Look for any rcc status on this commit (success, failure, pending/running)
   status=$(gh api "repos/{owner}/{repo}/commits/${commit}/statuses" \
     | jq -r '.[] | select(.context == "rcc") | .state' \
     | head -n 1)
 
   if [[ -n "$status" ]]; then
-    echo "Boundary: ${commit} (status: ${status}), stopping"
-    break
+    echo "${commit}: already has status '${status}', skipping"
+  else
+    echo "${commit}: no status, queuing"
+    commits_to_run+=("$commit")
   fi
-
-  commits_to_run+=("$commit")
-done < <(git log --first-parent --pretty=format:"%H" --)
+done < <(git log --first-parent --pretty=format:"%H" --after="${SINCE}" --)
 
 total="${#commits_to_run[@]}"
-echo "Commits without rcc status: ${total}"
+echo "Commits to trigger rcc for: ${total}"
 
 if (( total == 0 )); then
   echo "Nothing to do"
   exit 0
 fi
 
-# Trigger in chronological order (oldest first), capped at MAX_RUNS
+# Trigger in chronological order (oldest first)
 scheduled=0
 for (( i=total-1; i>=0; i-- )); do
-  if (( scheduled >= MAX_RUNS )); then
-    echo "Reached MAX_RUNS limit (${MAX_RUNS}), stopping"
-    break
-  fi
-
   commit="${commits_to_run[$i]}"
   if [[ -n "${DRY_RUN:-}" ]]; then
     echo "[dry-run] Would trigger rcc for commit ${commit}"
