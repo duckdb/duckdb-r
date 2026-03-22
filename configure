@@ -51,6 +51,10 @@ fi
 
 if [ -f duckdb.tar.xz ]; then
   # Use gtar if available (e.g., on macOS via Homebrew), otherwise tar.
-  TAR="$(which gtar 2>/dev/null || which tar)"
+  if command -v gtar >/dev/null 2>&1 && command -v xz >/dev/null 2>&1; then
+    TAR=gtar
+  else
+    TAR=tar
+  fi
   $TAR xJf duckdb.tar.xz
 fi
