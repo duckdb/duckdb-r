@@ -484,12 +484,16 @@ SEXP RelToAltrep::RownamesMax(SEXP x, Rboolean na_rm) {
 	END_CPP11
 }
 
+SEXP RelToAltrep::MakeRowNamesSexp(duckdb::shared_ptr<AltrepRelationWrapper> rel) {
+	cpp11::external_pointer<AltrepRownamesWrapper> ptr(new AltrepRownamesWrapper(rel));
+	R_SetExternalPtrTag(ptr, RStrings::get().duckdb_row_names_sym);
+	return R_new_altrep(RelToAltrep::rownames_class, ptr, R_NilValue);
+}
+
 SEXP RelToAltrep::RownamesDuplicate(SEXP x, Rboolean deep) {
 	BEGIN_CPP11
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
-	cpp11::external_pointer<AltrepRownamesWrapper> ptr(new AltrepRownamesWrapper(rownames_wrapper->rel));
-	R_SetExternalPtrTag(ptr, RStrings::get().duckdb_row_names_sym);
-	return R_new_altrep(RelToAltrep::rownames_class, ptr, R_NilValue);
+	return MakeRowNamesSexp(rownames_wrapper->rel);
 	END_CPP11
 }
 
@@ -607,9 +611,7 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
 	auto relation_wrapper = make_shared_ptr<AltrepRelationWrapper>(rel, DoubleToSize(n_rows), DoubleToSize(n_cells));
 
 	// Row names
-	cpp11::external_pointer<AltrepRownamesWrapper> ptr(new AltrepRownamesWrapper(relation_wrapper));
-	R_SetExternalPtrTag(ptr, RStrings::get().duckdb_row_names_sym);
-	cpp11::sexp row_names_sexp = R_new_altrep(RelToAltrep::rownames_class, ptr, R_NilValue);
+	cpp11::sexp row_names_sexp = RelToAltrep::MakeRowNamesSexp(relation_wrapper);
 
 	child_list_t<LogicalType> types;
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
