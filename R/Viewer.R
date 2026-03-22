@@ -167,7 +167,7 @@ rs_on_connection_opened <- function(connection, code = "") {
     host = connection@driver@dbdir,
 
     # icon for connection
-    icon = system.file("icons/duckdb.png", package = "duckdb"),
+    icon = system.file("icons/duckdb.png", package = get_package_name()),
 
     # connection code
     connectCode = code,
