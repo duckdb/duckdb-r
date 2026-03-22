@@ -3,5 +3,5 @@ relational.o: \
   include/signal.hpp \
   include/typesr.hpp \
   relational.cpp \
- include/convert.hpp \
- include/rapi.hpp \
+  include/convert.hpp \
+  include/rapi.hpp \

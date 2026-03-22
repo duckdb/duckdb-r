@@ -2,5 +2,5 @@ register.o: \
   include/signal.hpp \
   include/typesr.hpp \
   register.cpp \
- include/convert.hpp \
- include/rapi.hpp \
+  include/convert.hpp \
+  include/rapi.hpp \

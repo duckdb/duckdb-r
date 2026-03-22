@@ -3,4 +3,4 @@ altrepdataframe_relation.o: \
   include/altrepdataframe_relation.hpp \
   include/rapi.hpp \
   include/reltoaltrep.hpp \
- include/convert.hpp \
+  include/convert.hpp \

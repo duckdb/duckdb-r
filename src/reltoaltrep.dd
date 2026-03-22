@@ -3,6 +3,6 @@ reltoaltrep.o: \
   include/rapi.hpp \
   include/signal.hpp \
   reltoaltrep.cpp \
- include/convert.hpp \
- include/reltoaltrep.hpp \
- include/typesr.hpp \
+  include/convert.hpp \
+  include/reltoaltrep.hpp \
+  include/typesr.hpp \
