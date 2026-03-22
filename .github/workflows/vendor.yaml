@@ -24,6 +24,8 @@ name: vendor
 jobs:
   vendor:
     runs-on: ubuntu-latest
+    # Only run in the vendoring repository
+    if: github.repository == 'krlmlr/duckdb-r'
     strategy:
       matrix:
         # REMINDER: When changing branch names below,
