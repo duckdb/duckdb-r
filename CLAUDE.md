@@ -84,6 +84,11 @@ The following are validated commands and their typical execution times:
 UserNM=true R CMD INSTALL . --no-byte-compile
 ```
 
+IMPORTANT: `.dd` files in `src/` are dependency tracking files for development (source files that need rebuilding when a header file changes) and should be kept in version control.
+The logic to modify these files is brittle: expecting these files to change only if new includes are added.
+Ensure to revert any unintended changes before committing.
+Do not add `*.dd` to `.gitignore` or remove these files.
+
 ## Running Tests
 
 ```bash
