@@ -1,9 +1,13 @@
 # GitHub Copilot Instructions for duckdb Package
 
 Read and follow the development guidelines outlined in
-[CLAUDE.md](https://r.duckdb.org/CLAUDE.md).
+[AGENTS.md](https://r.duckdb.org/AGENTS.md).
 
 ## Working Effectively
+
+The agent’s environment should already contain the necessary tools. If
+tools are missing, adapt `.github/workflows/copilot-setup-steps.yaml` in
+addition to these instructions.
 
 ### Bootstrap, Build, and Test the Repository
 
