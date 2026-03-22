@@ -63,7 +63,7 @@ RStrings::RStrings() {
 	SET_VECTOR_ELT(chars, 2, difftime_str = Rf_mkString("difftime"));
 	SET_VECTOR_ELT(chars, 3, secs_str = Rf_mkString("secs"));
 	SET_VECTOR_ELT(chars, 4, arrow_str = Rf_mkString("arrow"));
-	SET_VECTOR_ELT(chars, 5, duckdb_str = Rf_mkString("duckdb"));
+	SET_VECTOR_ELT(chars, 5, duckdb_str = Rf_mkString(DUCKDB_PACKAGE_NAME));
 	SET_VECTOR_ELT(chars, 6, POSIXct_POSIXt_str = StringsToSexp({"POSIXct", "POSIXt"}));
 	SET_VECTOR_ELT(chars, 7, factor_str = Rf_mkString("factor"));
 	SET_VECTOR_ELT(chars, 8, dataframe_str = Rf_mkString("data.frame"));
@@ -344,7 +344,7 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 // Helper functions to communicate errors via R's stop() function
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message) {
 	// Look up R function in duckdb namespace
-	static cpp11::function rapi_error = cpp11::package("duckdb")["rapi_error"];
+	static cpp11::function rapi_error = cpp11::package(DUCKDB_PACKAGE_NAME)["rapi_error"];
 	rapi_error(context, message);
 
 	throw InternalException("Unreachable code after rapi_error()");
@@ -357,7 +357,7 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 
 [[noreturn]] void rapi_error_with_context(const std::string &context, const duckdb::ErrorData &error_data) {
 	// Look up R function in duckdb namespace
-	static cpp11::function rapi_error = cpp11::package("duckdb")["rapi_error"];
+	static cpp11::function rapi_error = cpp11::package(DUCKDB_PACKAGE_NAME)["rapi_error"];
 
 	// Extract fields from ErrorData
 	std::string message = error_data.Message();
