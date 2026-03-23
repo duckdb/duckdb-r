@@ -1,4 +1,5 @@
 skip_on_cran()
+
 if (rlang::is_installed("dbplyr")) {
   `%>%` <- dplyr::`%>%`
 }
@@ -173,4 +174,6 @@ test_that("tbl_file() errors on erroneous paths and unapplicable wildcard use", 
   expect_error(tbl_file(con, "data/bogus*.parquet"))
 })
 
-try(rm(`%>%`))
+if (rlang::is_installed("dbplyr")) {
+  rm(`%>%`)
+}
