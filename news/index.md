@@ -1,5 +1,29 @@
 # Changelog
 
+## duckdb 1.5.0.9008
+
+### Bug fixes
+
+- Fix protection buglet
+  ([\#2294](https://github.com/duckdb/duckdb-r/issues/2294)).
+
+### Chore
+
+- Fix `-Wdeprecated` compiler warnings
+  ([\#2295](https://github.com/duckdb/duckdb-r/issues/2295),
+  [\#2296](https://github.com/duckdb/duckdb-r/issues/2296)).
+
+### Continuous integration
+
+- Fix checks without dbplyr.
+
+### vendor
+
+- Update vendored sources (tag v1.5.1) to
+  <duckdb/duckdb@7dbb2e646fea939a89f10a55aa98c474cbb0c098>.
+
+  Date: 2026-03-19 16:37:33 +0100
+
 ## duckdb 1.5.0.9007
 
 ### Bug fixes
