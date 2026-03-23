@@ -1,21 +1,6 @@
 # Changelog
 
-## duckdb 1.5.0.9008
-
-### Bug fixes
-
-- Fix protection buglet
-  ([\#2294](https://github.com/duckdb/duckdb-r/issues/2294)).
-
-### Chore
-
-- Fix `-Wdeprecated` compiler warnings
-  ([\#2295](https://github.com/duckdb/duckdb-r/issues/2295),
-  [\#2296](https://github.com/duckdb/duckdb-r/issues/2296)).
-
-### Continuous integration
-
-- Fix checks without dbplyr.
+## duckdb 1.5.1
 
 ### vendor
 
@@ -23,79 +8,6 @@
   <duckdb/duckdb@7dbb2e646fea939a89f10a55aa98c474cbb0c098>.
 
   Date: 2026-03-19 16:37:33 +0100
-
-## duckdb 1.5.0.9007
-
-### Bug fixes
-
-- Fix configure script.
-
-### Features
-
-- `GEOMETRY` columns can be returned, either as BLOBs (default) or as wk
-  objects (via the wk package) using `dbConnect(geometry = "wk")`
-  ([\#2278](https://github.com/duckdb/duckdb-r/issues/2278),
-  [\#2279](https://github.com/duckdb/duckdb-r/issues/2279)).
-
-### Chore
-
-- Vendoring compatible with worktrees.
-
-- Minimize difference with flavors.
-
-- Clean up user directory on CRAN after finishing tests
-  ([\#2289](https://github.com/duckdb/duckdb-r/issues/2289)).
-
-- Rename.
-
-- Describe `.dd` files.
-
-- Use `gtar` only if `xz` is also available.
-
-- Auto-update from GitHub Actions
-  ([\#2277](https://github.com/duckdb/duckdb-r/issues/2277)).
-
-### Continuous integration
-
-- Fix multi-commit vendoring.
-
-- Call script instead of workflow.
-
-- Fix.
-
-- Debug.
-
-- Explicit output.
-
-- Try passthrough matrix.
-
-- Overarching matrix.
-
-- Call workflow, not action.
-
-- Reenable full vendoring.
-
-- Simpler shallow clone.
-
-- Can pick branch, only on krlmlr.
-
-- Add arg for dispatch.
-
-- Focus on v1.5 for now for vendoring.
-
-- Bump checkout action.
-
-- Tweaks.
-
-- Use better check for GitHub token.
-
-- Tweak each- workflow to look for successful build statuses.
-
-- Add sync workflow.
-
-- Run vendoring only for krlmlr repo.
-
-### vendor
 
 - Update vendored sources to
   <duckdb/duckdb@710adf3d0587022701c56f0b83fc60011f57efff>
@@ -277,49 +189,110 @@
   <duckdb/duckdb@1bb1133b1f8499b6897fd36712752a297bf39eec>
   ([\#2235](https://github.com/duckdb/duckdb-r/issues/2235)).
 
-## duckdb 1.5.0.9006
-
-### Continuous integration
-
-- Add more branches.
-
-## duckdb 1.5.0.9005
-
-### Continuous integration
-
-- Fix vendoring.
-
-## duckdb 1.5.0.9004
-
-### Features
-
-- Use `TRY_CAST()` instead of `CAST()` in dplyr SQL translation for type
-  conversion functions
-  ([\#2230](https://github.com/duckdb/duckdb-r/issues/2230),
-  [\#2231](https://github.com/duckdb/duckdb-r/issues/2231)).
-
-## duckdb 1.5.0.9003
-
-### Chore
-
-- Use `gtar` when available to suppress Apple extended attribute
-  warnings on Linux
-  ([\#2227](https://github.com/duckdb/duckdb-r/issues/2227),
-  [\#2228](https://github.com/duckdb/duckdb-r/issues/2228)).
-
-## duckdb 1.5.0.9002
-
 ### Bug fixes
+
+- Fix protection buglet
+  ([\#2294](https://github.com/duckdb/duckdb-r/issues/2294)).
+
+- Fix configure script.
 
 - Avoid `ATTRIB()` for compatibility with R 4.6, materialize ALTREP row
   names to integer sequence with full ALTREP methods
   ([\#2033](https://github.com/duckdb/duckdb-r/issues/2033),
   [\#2034](https://github.com/duckdb/duckdb-r/issues/2034)).
 
+### Features
+
+- `GEOMETRY` columns can be returned, either as BLOBs (default) or as wk
+  objects (via the wk package) using `dbConnect(geometry = "wk")`
+  ([\#2278](https://github.com/duckdb/duckdb-r/issues/2278),
+  [\#2279](https://github.com/duckdb/duckdb-r/issues/2279)).
+
+- Use `TRY_CAST()` instead of `CAST()` in dplyr SQL translation for type
+  conversion functions
+  ([\#2230](https://github.com/duckdb/duckdb-r/issues/2230),
+  [\#2231](https://github.com/duckdb/duckdb-r/issues/2231)).
+
 ### Chore
+
+- Fix `-Wdeprecated` compiler warnings
+  ([\#2295](https://github.com/duckdb/duckdb-r/issues/2295),
+  [\#2296](https://github.com/duckdb/duckdb-r/issues/2296)).
+
+- Vendoring compatible with worktrees.
+
+- Minimize difference with flavors.
+
+- Clean up user directory on CRAN after finishing tests
+  ([\#2289](https://github.com/duckdb/duckdb-r/issues/2289)).
+
+- Rename.
+
+- Describe `.dd` files.
+
+- Use `gtar` only if `xz` is also available.
+
+- Auto-update from GitHub Actions
+  ([\#2277](https://github.com/duckdb/duckdb-r/issues/2277)).
+
+- Use `gtar` when available to suppress Apple extended attribute
+  warnings on Linux
+  ([\#2227](https://github.com/duckdb/duckdb-r/issues/2227),
+  [\#2228](https://github.com/duckdb/duckdb-r/issues/2228)).
 
 - Auto-update from GitHub Actions
   ([\#2224](https://github.com/duckdb/duckdb-r/issues/2224)).
+
+- Initialize to avoid CRAN warnings.
+
+- Auto-update from GitHub Actions
+  ([\#2218](https://github.com/duckdb/duckdb-r/issues/2218)).
+
+### Continuous integration
+
+- Fix checks without dbplyr.
+
+- Fix multi-commit vendoring.
+
+- Call script instead of workflow.
+
+- Fix.
+
+- Debug.
+
+- Explicit output.
+
+- Try passthrough matrix.
+
+- Overarching matrix.
+
+- Call workflow, not action.
+
+- Reenable full vendoring.
+
+- Simpler shallow clone.
+
+- Can pick branch, only on krlmlr.
+
+- Add arg for dispatch.
+
+- Focus on v1.5 for now for vendoring.
+
+- Bump checkout action.
+
+- Tweaks.
+
+- Use better check for GitHub token.
+
+- Tweak each- workflow to look for successful build statuses.
+
+- Add sync workflow.
+
+- Run vendoring only for krlmlr repo.
+
+- Add more branches.
+
+- Fix vendoring.
 
 ### Uncategorized
 
@@ -345,19 +318,6 @@
 - Avoid `ATTRIB()` for compatibility with R 4.6, materialize ALTREP row
   names to integer sequence with full ALTREP methods
   ([\#2034](https://github.com/duckdb/duckdb-r/issues/2034)).
-
-## duckdb 1.5.0.9001
-
-### Chore
-
-- Initialize to avoid CRAN warnings.
-
-## duckdb 1.5.0.9000
-
-### Chore
-
-- Auto-update from GitHub Actions
-  ([\#2218](https://github.com/duckdb/duckdb-r/issues/2218)).
 
 ## duckdb 1.5.0
 
