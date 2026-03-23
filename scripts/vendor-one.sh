@@ -18,20 +18,31 @@ repo_org=${project}
 repo_name=${project}
 
 
-if [ -z "$1" ]; then
+upstream_basedir=""
+num_commits=1
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --commits|-c)
+      num_commits="$2"
+      shift 2
+      ;;
+    -*)
+      echo "Unknown option: $1" >&2
+      exit 1
+      ;;
+    *)
+      upstream_basedir="$1"
+      shift
+      ;;
+  esac
+done
+
+if [ -z "$upstream_basedir" ]; then
   upstream_basedir=../../../${project}
-else
-  upstream_basedir="$1"
 fi
 
-# Number of commits to vendor (default: 1)
-if [ -z "$2" ]; then
-  num_commits=1
-else
-  num_commits="$2"
-fi
-
-upstream_dir=.git/${project}
+upstream_dir=${project}
 
 # Clone the repo only once if it doesn't exist
 if [ ! -d "$upstream_dir" ]; then
@@ -50,6 +61,8 @@ if [ -n "$(git -C "$upstream_dir" status --porcelain)" ]; then
   echo "Warning: working directory $upstream_dir not clean"
 fi
 
+start=$(git -C "$upstream_dir" rev-parse --verify HEAD)
+
 # Loop for the specified number of commits
 commits_vendored=0
 
@@ -58,7 +71,7 @@ while [ $commits_vendored -lt $num_commits ]; do
 
   base=$(git log -n 10 --format="%s" -- ${vendor_dir} | tee /dev/stderr | sed -nr '/^.*'${repo_org}.${repo_name}'@([0-9a-f]+)( .*)?$/{s//\1/;p;}' | head -n 1)
 
-  original=$(git -C "$upstream_dir" log --first-parent --reverse --format="%H" "${base}".. --)
+  original=$(git -C "$upstream_dir" log --first-parent --reverse --format="%H" "${base}".."${start}" --)
 
   if [ -z "$original" ]; then
     echo "No more commits to vendor. Done."
@@ -128,13 +141,6 @@ while [ $commits_vendored -lt $num_commits ]; do
 
   echo "Our tag: $our_tag"
   echo "Upstream tag: $upstream_tag"
-
-  if [ -z "${is_tag}" ] && [ "${our_tag#"$upstream_tag"}" == "$our_tag" ]; then
-    echo "Not vendoring because our tag $our_tag does not start with upstream tag $upstream_tag"
-    git checkout -- ${vendor_base_dir} R/version.R
-    rm -rf "$upstream_dir"
-    exit 0
-  fi
 
   git add .
 
