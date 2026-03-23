@@ -1,5 +1,258 @@
 # Changelog
 
+## duckdb 1.5.0.9007
+
+### Bug fixes
+
+- Fix configure script.
+
+### Features
+
+- `GEOMETRY` columns can be returned, either as BLOBs (default) or as wk
+  objects (via the wk package) using `dbConnect(geometry = "wk")`
+  ([\#2278](https://github.com/duckdb/duckdb-r/issues/2278),
+  [\#2279](https://github.com/duckdb/duckdb-r/issues/2279)).
+
+### Chore
+
+- Vendoring compatible with worktrees.
+
+- Minimize difference with flavors.
+
+- Clean up user directory on CRAN after finishing tests
+  ([\#2289](https://github.com/duckdb/duckdb-r/issues/2289)).
+
+- Rename.
+
+- Describe `.dd` files.
+
+- Use `gtar` only if `xz` is also available.
+
+- Auto-update from GitHub Actions
+  ([\#2277](https://github.com/duckdb/duckdb-r/issues/2277)).
+
+### Continuous integration
+
+- Fix multi-commit vendoring.
+
+- Call script instead of workflow.
+
+- Fix.
+
+- Debug.
+
+- Explicit output.
+
+- Try passthrough matrix.
+
+- Overarching matrix.
+
+- Call workflow, not action.
+
+- Reenable full vendoring.
+
+- Simpler shallow clone.
+
+- Can pick branch, only on krlmlr.
+
+- Add arg for dispatch.
+
+- Focus on v1.5 for now for vendoring.
+
+- Bump checkout action.
+
+- Tweaks.
+
+- Use better check for GitHub token.
+
+- Tweak each- workflow to look for successful build statuses.
+
+- Add sync workflow.
+
+- Run vendoring only for krlmlr repo.
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@710adf3d0587022701c56f0b83fc60011f57efff>
+  ([\#2287](https://github.com/duckdb/duckdb-r/issues/2287)).
+
+- Update vendored sources to
+  <duckdb/duckdb@6ff3b4f26cc9a916896f89167922704296ef9b6a>
+  ([\#2286](https://github.com/duckdb/duckdb-r/issues/2286)).
+
+- Update vendored sources to
+  <duckdb/duckdb@4c959e279e1964d2b83ee518e3b92d030a13f2bb>
+  ([\#2285](https://github.com/duckdb/duckdb-r/issues/2285)).
+
+- Update vendored sources to
+  <duckdb/duckdb@0bc00ee4ee8a4b38cfcce75d10c8ca7b3ea79de0>
+  ([\#2284](https://github.com/duckdb/duckdb-r/issues/2284)).
+
+- Update vendored sources to
+  <duckdb/duckdb@31ea662805538434b10bb4b914f3343793359265>
+  ([\#2283](https://github.com/duckdb/duckdb-r/issues/2283)).
+
+- Update vendored sources to
+  <duckdb/duckdb@8c356ee3b845a3ba104cd610ebf54fda4bd050e9>
+  ([\#2282](https://github.com/duckdb/duckdb-r/issues/2282)).
+
+- Update vendored sources to
+  <duckdb/duckdb@84b786bf5cb54b06e4da4d96d25692b74b9a9946>
+  ([\#2275](https://github.com/duckdb/duckdb-r/issues/2275)).
+
+- Update vendored sources to
+  <duckdb/duckdb@58d30505e4e6c7c0a1900c589fc8c1fe23906aa1>
+  ([\#2274](https://github.com/duckdb/duckdb-r/issues/2274)).
+
+- Update vendored sources to
+  <duckdb/duckdb@496fd155a848c4136d7d8292bc7e7dc1c31a5446>
+  ([\#2273](https://github.com/duckdb/duckdb-r/issues/2273)).
+
+- Update vendored sources to
+  <duckdb/duckdb@52ae55817722faea564799ec41c13f887e207d19>
+  ([\#2272](https://github.com/duckdb/duckdb-r/issues/2272)).
+
+- Update vendored sources to
+  <duckdb/duckdb@2fb8b23749c740dc65380668275f2b3507eebcac>
+  ([\#2271](https://github.com/duckdb/duckdb-r/issues/2271)).
+
+- Update vendored sources to
+  <duckdb/duckdb@beb433b63b59839e4845c303cd5544208c4f0395>
+  ([\#2270](https://github.com/duckdb/duckdb-r/issues/2270)).
+
+- Update vendored sources to
+  <duckdb/duckdb@d8cf64cfdfa5158370f60bb4360f40fdfa08faa4>
+  ([\#2269](https://github.com/duckdb/duckdb-r/issues/2269)).
+
+- Update vendored sources to
+  <duckdb/duckdb@c6a398eea4d2ef6b26ac4a8e7b61f09c31ad56b8>
+  ([\#2268](https://github.com/duckdb/duckdb-r/issues/2268)).
+
+- Update vendored sources to
+  <duckdb/duckdb@5467da56c41129a057b6588c4a333fad02d0e9d7>
+  ([\#2267](https://github.com/duckdb/duckdb-r/issues/2267)).
+
+- Update vendored sources to
+  <duckdb/duckdb@0b84cef194ac3da1ab440b79f7a194a3f25e0812>
+  ([\#2266](https://github.com/duckdb/duckdb-r/issues/2266)).
+
+- Update vendored sources to
+  <duckdb/duckdb@8a4abd8468a72b3beb6b519663c9323f6e3210da>
+  ([\#2265](https://github.com/duckdb/duckdb-r/issues/2265)).
+
+- Update vendored sources to
+  <duckdb/duckdb@73ed005ad78d9244ffa7fe039f13829b9c7dad9d>
+  ([\#2264](https://github.com/duckdb/duckdb-r/issues/2264)).
+
+- Update vendored sources to
+  <duckdb/duckdb@728343d282176abb91b2fc4e8cb8c47ca0484934>
+  ([\#2263](https://github.com/duckdb/duckdb-r/issues/2263)).
+
+- Update vendored sources to
+  <duckdb/duckdb@ddb7cd94daebf897d0a7c022a127a66347b00c1b>
+  ([\#2262](https://github.com/duckdb/duckdb-r/issues/2262)).
+
+- Update vendored sources to
+  <duckdb/duckdb@0b4f52552eb46012910eece8ee225a9a287ed6e1>
+  ([\#2261](https://github.com/duckdb/duckdb-r/issues/2261)).
+
+- Update vendored sources to
+  <duckdb/duckdb@a641c019096170760989d85bd8014b7988605392>
+  ([\#2260](https://github.com/duckdb/duckdb-r/issues/2260)).
+
+- Update vendored sources to
+  <duckdb/duckdb@ba60b17ceabb3a7353ef409f630e03cb751a25fb>
+  ([\#2259](https://github.com/duckdb/duckdb-r/issues/2259)).
+
+- Update vendored sources to
+  <duckdb/duckdb@5dcda9fd79a9346963191518e35c103135f72845>
+  ([\#2257](https://github.com/duckdb/duckdb-r/issues/2257)).
+
+- Update vendored sources to
+  <duckdb/duckdb@66a910f5cbda95a64e78cdc701b2313d37b6811e>
+  ([\#2256](https://github.com/duckdb/duckdb-r/issues/2256)).
+
+- Update vendored sources to
+  <duckdb/duckdb@3f139372c8c756b5c12e3cf7d985e7b43eb6c9db>
+  ([\#2255](https://github.com/duckdb/duckdb-r/issues/2255)).
+
+- Update vendored sources to
+  <duckdb/duckdb@a73b64c1c5b8d828173d9ab654ea405280188381>
+  ([\#2254](https://github.com/duckdb/duckdb-r/issues/2254)).
+
+- Update vendored sources to
+  <duckdb/duckdb@95c81316b02c1615ee737cfe520c649a2d037916>
+  ([\#2253](https://github.com/duckdb/duckdb-r/issues/2253)).
+
+- Update vendored sources to
+  <duckdb/duckdb@2e0afa39a7495a3e102438c1e29d4a3af8cb26f1>
+  ([\#2252](https://github.com/duckdb/duckdb-r/issues/2252)).
+
+- Update vendored sources to
+  <duckdb/duckdb@feec4c5da208a4ae00412538ae384186ccf35760>
+  ([\#2251](https://github.com/duckdb/duckdb-r/issues/2251)).
+
+- Update vendored sources to
+  <duckdb/duckdb@f56a389be388aca502bf28bbd61e202052efbdea>
+  ([\#2250](https://github.com/duckdb/duckdb-r/issues/2250)).
+
+- Update vendored sources to
+  <duckdb/duckdb@b848852ba37130f11315163271310b88a645c689>
+  ([\#2249](https://github.com/duckdb/duckdb-r/issues/2249)).
+
+- Update vendored sources to
+  <duckdb/duckdb@1fb46ce492cdb6ff82014c18e91ac83220535fa8>
+  ([\#2248](https://github.com/duckdb/duckdb-r/issues/2248)).
+
+- Update vendored sources to
+  <duckdb/duckdb@fc2775bd3a31d2090fb55f2b6ac13d266b5da335>
+  ([\#2247](https://github.com/duckdb/duckdb-r/issues/2247)).
+
+- Update vendored sources to
+  <duckdb/duckdb@b80fb7710da9731d74a51cfb5b0b60b7ea40a0b7>
+  ([\#2246](https://github.com/duckdb/duckdb-r/issues/2246)).
+
+- Update vendored sources to
+  <duckdb/duckdb@47072f0b19fe2d474aa71e5cb071a762ed3ab097>
+  ([\#2245](https://github.com/duckdb/duckdb-r/issues/2245)).
+
+- Update vendored sources to
+  <duckdb/duckdb@1d5b25613c4bae5f72e5db9c0c22358e43e43c1c>
+  ([\#2244](https://github.com/duckdb/duckdb-r/issues/2244)).
+
+- Update vendored sources to
+  <duckdb/duckdb@c2890df019ea9de091b5e5af5f8a54e751f13c88>
+  ([\#2243](https://github.com/duckdb/duckdb-r/issues/2243)).
+
+- Update vendored sources to
+  <duckdb/duckdb@180aa69cc0e759245612aec97e4cc3d5784c28cc>
+  ([\#2242](https://github.com/duckdb/duckdb-r/issues/2242)).
+
+- Update vendored sources to
+  <duckdb/duckdb@718f2f15663a70027c3240596dd3d25755c71674>
+  ([\#2240](https://github.com/duckdb/duckdb-r/issues/2240)).
+
+- Update vendored sources to
+  <duckdb/duckdb@d51d4066eb4e9c0d4b7e9c01e3b967a61329ad70>
+  ([\#2239](https://github.com/duckdb/duckdb-r/issues/2239)).
+
+- Update vendored sources to
+  <duckdb/duckdb@5bb2658ebd5d336f9ef7c60cd21ceb001683321c>
+  ([\#2238](https://github.com/duckdb/duckdb-r/issues/2238)).
+
+- Update vendored sources to
+  <duckdb/duckdb@4b24a74a12530f2c6459f2c26fe2183704deecc5>
+  ([\#2237](https://github.com/duckdb/duckdb-r/issues/2237)).
+
+- Update vendored sources to
+  <duckdb/duckdb@c1a75bc712ab8647ee538d90f139be587506d333>
+  ([\#2236](https://github.com/duckdb/duckdb-r/issues/2236)).
+
+- Update vendored sources to
+  <duckdb/duckdb@1bb1133b1f8499b6897fd36712752a297bf39eec>
+  ([\#2235](https://github.com/duckdb/duckdb-r/issues/2235)).
+
 ## duckdb 1.5.0.9006
 
 ### Continuous integration
