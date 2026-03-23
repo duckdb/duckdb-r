@@ -1,6 +1,6 @@
 register.o: \
-  include/convert.hpp \
-  include/rapi.hpp \
   include/signal.hpp \
   include/typesr.hpp \
   register.cpp \
+  include/convert.hpp \
+  include/rapi.hpp \
