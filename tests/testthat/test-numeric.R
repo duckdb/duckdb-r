@@ -1,5 +1,6 @@
 test_that("as.numeric treats values as doubles", {
   skip_if_not_installed("dplyr")
+  skip_if_not_installed("dbplyr")
 
   con <- local_con()
   df <- data.frame(value = 1.23456789123)
