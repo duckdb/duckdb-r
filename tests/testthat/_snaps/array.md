@@ -3,7 +3,7 @@
     Code
       dbGetQuery(con, "FROM tbl")
     Condition
-      Error in `duckdb_result()`:
+      Error in `dbFetch()`:
       ! Nested arrays cannot be returned to R as column data.
       i Context: duckdb_r_allocate
 
@@ -12,7 +12,7 @@
     Code
       dbGetQuery(con, "FROM tbl")
     Condition
-      Error in `duckdb_result()`:
+      Error in `dbFetch()`:
       ! Use `dbConnect(array = "matrix")` to enable arrays to be returned to R.
       i Context: duckdb_r_allocate
 
@@ -21,7 +21,7 @@
     Code
       dbGetQuery(con, "FROM tbl")
     Condition
-      Error in `duckdb_result()`:
+      Error in `dbFetch()`:
       ! Use `dbConnect(array = "matrix")` to enable arrays to be returned to R.
       i Context: duckdb_r_allocate
 
