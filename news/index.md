@@ -14,11 +14,6 @@
   ([\#2278](https://github.com/duckdb/duckdb-r/issues/2278),
   [\#2279](https://github.com/duckdb/duckdb-r/issues/2279)).
 
-- Use `TRY_CAST()` instead of `CAST()` in dplyr SQL translation for type
-  conversion functions
-  ([\#2230](https://github.com/duckdb/duckdb-r/issues/2230),
-  [\#2231](https://github.com/duckdb/duckdb-r/issues/2231)).
-
 ### Chore
 
 - Fix `-Wdeprecated` compiler warnings
