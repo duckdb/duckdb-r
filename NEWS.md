@@ -10,8 +10,6 @@
 
 - `GEOMETRY` columns can be returned, either as BLOBs (default) or as wk objects (via the wk package) using `dbConnect(geometry = "wk")` (#2278, #2279).
 
-- Use `TRY_CAST()` instead of `CAST()` in dplyr SQL translation for type conversion functions (#2230, #2231).
-
 ## Chore
 
 - Fix `-Wdeprecated` compiler warnings (#2295, #2296) and protection buglet (#2294).
