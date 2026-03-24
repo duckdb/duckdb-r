@@ -111,7 +111,7 @@ sql_translation.duckdb_connection <- function(con) {
   build_sql <- pkg_method("build_sql", "dbplyr")
   sql_expr <- pkg_method("sql_expr", "dbplyr")
   sql_prefix <- pkg_method("sql_prefix", "dbplyr")
-  sql_try_cast <- pkg_method("sql_try_cast", "dbplyr")
+  sql_cast <- pkg_method("sql_cast", "dbplyr")
   sql_paste <- pkg_method("sql_paste", "dbplyr")
   sql_aggregate <- pkg_method("sql_aggregate", "dbplyr")
   sql_aggregate_2 <- pkg_method("sql_aggregate_2", "dbplyr")
@@ -129,17 +129,9 @@ sql_translation.duckdb_connection <- function(con) {
   sql_variant(
     sql_translator(
       .parent = base_scalar,
-      as.numeric = sql_try_cast("DOUBLE"),
-      as.double = sql_try_cast("DOUBLE"),
-      as.integer = sql_try_cast("INTEGER"),
-      as.character = sql_try_cast("TEXT"),
-      as.logical = sql_try_cast("BOOLEAN"),
-      as.raw = sql_try_cast("VARBINARY"),
-      as.Date = sql_try_cast("DATE"),
-      as.POSIXct = sql_try_cast("TIMESTAMP"),
-      as.integer64 = sql_try_cast("BIGINT"),
-      as_date = sql_try_cast("DATE"),
-      as_datetime = sql_try_cast("TIMESTAMP"),
+      as.numeric = sql_cast("DOUBLE"),
+      as.double = sql_cast("DOUBLE"),
+      as.raw = sql_cast("VARBINARY"),
       `%%` = function(a, b) sql_expr(FMOD(!!a, !!b)),
       `%/%` = function(a, b) sql_expr(FDIV(!!a, !!b)),
       `^` = sql_prefix("POW", 2),
@@ -182,6 +174,8 @@ sql_translation.duckdb_connection <- function(con) {
         build_sql("(CASE WHEN REGEXP_MATCHES(", x, ", ", p, ") THEN (LENGTH(LIST_EXTRACT(STRING_SPLIT_REGEX(", x, ", ", p, "), 0))+1) ELSE -1 END)")
       },
       round = function(x, digits = 0) sql_expr(ROUND_EVEN(!!x, CAST(ROUND((!!digits), 0L) %AS% INTEGER))),
+      as.Date = sql_cast("DATE"),
+      as.POSIXct = sql_cast("TIMESTAMP"),
 
       # lubridate functions
 
@@ -532,4 +526,4 @@ simulate_duckdb <- function(...) {
 
 
 # Needed to suppress the R CHECK notes (due to the use of sql_expr)
-utils::globalVariables(c("REGEXP_MATCHES", "CAST", "TRY_CAST", "%AS%", "%ILIKE%", "INTEGER", "XOR", "%<<%", "%>>%", "LN", "LOG", "ROUND", "ROUND_EVEN", "EXTRACT", "%FROM%", "MONTH", "STRFTIME", "QUARTER", "YEAR", "DATE_TRUNC", "DATE", "DOY", "TO_SECONDS", "BIGINT", "TO_MINUTES", "TO_HOURS", "TO_DAYS", "TO_WEEKS", "TO_MONTHS", "TO_YEARS", "STRPOS", "NOT", "REGEXP_REPLACE", "TRIM", "LPAD", "RPAD", "%||%", "REPEAT", "LENGTH", "STRING_AGG", "GREATEST", "LIST_EXTRACT", "LOG10", "LOG2", "STRING_SPLIT_REGEX", "FLOOR", "FMOD", "FDIV", "QUANTILE_CONT"))
+utils::globalVariables(c("REGEXP_MATCHES", "CAST", "%AS%", "%ILIKE%", "INTEGER", "XOR", "%<<%", "%>>%", "LN", "LOG", "ROUND", "ROUND_EVEN", "EXTRACT", "%FROM%", "MONTH", "STRFTIME", "QUARTER", "YEAR", "DATE_TRUNC", "DATE", "DOY", "TO_SECONDS", "BIGINT", "TO_MINUTES", "TO_HOURS", "TO_DAYS", "TO_WEEKS", "TO_MONTHS", "TO_YEARS", "STRPOS", "NOT", "REGEXP_REPLACE", "TRIM", "LPAD", "RPAD", "%||%", "REPEAT", "LENGTH", "STRING_AGG", "GREATEST", "LIST_EXTRACT", "LOG10", "LOG2", "STRING_SPLIT_REGEX", "FLOOR", "FMOD", "FDIV", "QUANTILE_CONT"))
