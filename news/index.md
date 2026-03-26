@@ -2,6 +2,8 @@
 
 ## duckdb 1.5.1
 
+CRAN release: 2026-03-26
+
 ### Bug fixes
 
 - Update to DuckDB v1.5.1, see
