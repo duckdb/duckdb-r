@@ -1,0 +1,54 @@
+# Fast-forward sync: updates the main branch in krlmlr/duckdb-r from duckdb/duckdb-r.
+# Runs hourly and on manual dispatch.
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+name: sync
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    if: github.repository == 'krlmlr/duckdb-r'
+
+    name: "Fast-forward main from duckdb/duckdb-r"
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: ./.github/workflows/git-identity
+
+      - name: Fast-forward main from duckdb/duckdb-r
+        run: |
+          set -x
+
+          # Shallow clone duckdb/duckdb-r, excluding commits already reachable from our
+          # HEAD (assuming it exists there). Fail if HEAD is not found in the upstream history.
+          git clone --depth=100 --single-branch https://github.com/duckdb/duckdb-r.git /tmp/upstream
+
+          # Add the cloned upstream as a local remote and fetch its main branch.
+          git remote add upstream /tmp/upstream
+          git fetch upstream main
+
+          # Get the current HEAD SHA of our main branch.
+          HEAD=$(git rev-parse HEAD)
+
+          # Fast-forward our main to upstream/main.
+          git merge --ff-only upstream/main
+
+          NEW_HEAD=$(git rev-parse HEAD)
+          if [ "${HEAD}" != "${NEW_HEAD}" ]; then
+            echo "Pushing fast-forward from ${HEAD} to ${NEW_HEAD}"
+            git push
+          else
+            echo "Already up to date"
+          fi
+        shell: bash
