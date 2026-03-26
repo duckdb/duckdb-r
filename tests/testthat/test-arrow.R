@@ -95,7 +95,10 @@ test_that("to_duckdb then to_arrow", {
   )
 
   # And we can continue the pipeline
-  ds_rt <- ds_rt %>%
+  ds_rt <- ds %>%
+    arrow::to_duckdb() %>%
+    # factors don't roundtrip https://github.com/duckdb/duckdb/issues/1879
+    dplyr::select(-fct) %>%
     dplyr::filter(int > 5)
 
   expect_identical(
@@ -118,7 +121,7 @@ test_that("to_duckdb then to_arrow", {
   # alter the class of ds_rt's connection to simulate some other database
   class(ds_rt$src$con) <- "some_other_connection"
 
-  skip_if_not_installed("dbplyr", "2.5.1.9000")
+  skip_if_not_installed("dbplyr", "2.5.2.9000")
 
   ds_rt_arrow <- ds_rt %>%
     arrow::to_arrow()
