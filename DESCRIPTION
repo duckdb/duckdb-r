@@ -1,6 +1,6 @@
 Package: duckdb
 Title: DBI Package for the DuckDB Database Management System
-Version: 1.5.0.9006
+Version: 1.5.1
 Authors@R: c(
     person("Hannes", "Mühleisen", , "hannes@cwi.nl", role = "aut",
            comment = c(ORCID = "0000-0001-8552-0029")),
@@ -56,9 +56,11 @@ Suggests:
     dbplyr,
     dplyr,
     rlang,
+    sf,
     testthat (>= 3.0.0),
     tibble,
     vctrs,
+    wk,
     withr
 Biarch: true
 Config/build/compilation-database: false
