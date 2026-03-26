@@ -4,8 +4,6 @@ skip_if_not_installed("arrow", "5.0.0")
 # Skip if parquet is not a capability as an indicator that Arrow is fully installed.
 skip_if_not(arrow::arrow_with_parquet(), message = "The installed Arrow is not fully featured, skipping Arrow integration tests")
 
-library("arrow")
-
 test_that("duckdb_register_arrow() works", {
   skip_if_not(TEST_RE2)
 
