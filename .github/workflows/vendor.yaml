@@ -24,29 +24,29 @@ name: vendor
 jobs:
   vendor:
     runs-on: ubuntu-latest
+    # Only run in the vendoring repository
+    if: github.repository == 'krlmlr/duckdb-r'
     strategy:
       matrix:
         # REMINDER: When changing branch names below,
         # update the documentation in scripts/VENDORING.md accordingly (see disclaimers section)
         include:
-          - branch: v1.4-andium
+          - branch: v1.4-andium-dev
             upstream: v1.4-andium
-          - branch: v1.5-variegata
+          - branch: v1.5-variegata-dev
             upstream: v1.5-variegata
-          - branch: main
+          - branch: main-dev
             upstream: main
-    outputs:
-      sha: ${{ steps.commit.outputs.sha }}
 
     name: "Update vendored sources (${{ matrix.branch }})"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref: ${{ matrix.branch }}
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           repository: duckdb/duckdb
           path: .git/duckdb
@@ -59,25 +59,19 @@ jobs:
         id: vendor
         run: |
           git pull --rebase
-          scripts/vendor-one.sh .git/duckdb
+          scripts/vendor-one.sh .git/duckdb --commits 30
           rm -rf .git/duckdb
-          git push --dry-run
           # Check if ahead of upstream branch
-          # If yes, set a step output
+          # If yes, set a step output and push directly
           if [ $(git rev-list HEAD...origin/${{ matrix.branch }} --count) -gt 0 ]; then
+            git push
             # Avoid set-output, it's deprecated
             echo "vendor=ok" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Create PR
-        if: steps.vendor.outputs.vendor != ''
+      - name: Enumerate commits and trigger rcc workflow
+        # if: steps.vendor.outputs.vendor == 'ok'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -x
-          git checkout -b vendor-${{ matrix.branch }}
-          if git push -u origin HEAD; then
-            gh pr create --base ${{ matrix.branch }} --fill-first
-            gh workflow run rcc -f ref=vendor-${{ matrix.branch }}
-            gh pr merge --auto --squash
-          fi
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/each-rcc.sh
+        shell: bash
