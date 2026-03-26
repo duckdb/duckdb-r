@@ -163,6 +163,21 @@ R
 - Ensure proper code formatting and consistent indentation
 - Follow R package development best practices
 
+## C++ Warning Policy
+
+- **Do not suppress warnings with `#pragma clang diagnostic ignored` or
+  similar.** CRAN rejects packages that silence warnings rather than
+  fixing the underlying issue.
+- Fix the root cause instead. For vendored code in `src/duckdb/`, add a
+  patch file in `patch/` that corrects the source of the warning
+  (e.g. by changing template definitions to avoid instantiating
+  deprecated types).
+- Example: `-Wdeprecated-declarations` from `char_traits<T>` for
+  non-char `T` in libc++ was fixed by changing the `std_string_view`
+  alias in `src/duckdb/third_party/fmt/include/fmt/core.h` to a struct
+  that only provides `std::basic_string_view<Char>` for standard char
+  types.
+
 ## C++ Glue Code Conventions
 
 - R string constants and symbols (SEXP) used in C++ glue code are
