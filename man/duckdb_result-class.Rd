@@ -78,12 +78,12 @@ or \code{n = Inf}
 to retrieve all pending records.  Some implementations may recognize other
 special values.}
 
-\item{dbObj}{An object inheriting from class \linkS4class{duckdb_result}.}
+\item{dbObj}{An object inheriting from class \link[=duckdb_result-class]{duckdb_result}.}
 
 \item{object}{Any R object}
 }
 \description{
 Methods for accessing result sets for queries on DuckDB connections.
-Implements \link[DBI:DBIResult-class]{DBI::DBIResult}.
+Implements \link[DBI:DBIResult-class]{DBIResult}.
 }
 \keyword{internal}
