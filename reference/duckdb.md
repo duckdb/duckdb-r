@@ -44,8 +44,7 @@ dbConnect(
   tz_out_convert = c("with", "force"),
   config = list(),
   bigint = "numeric",
-  array = "none",
-  geometry = "blob"
+  array = "none"
 )
 
 # S4 method for class 'duckdb_connection'
@@ -123,17 +122,6 @@ dbDisconnect(conn, ..., shutdown = TRUE)
   `"matrix"`. If `"none"` is selected, arrays are not returned. Instead
   an error is generated. If `"matrix"` is selected, arrays are returned
   as a column matrix. Each array is one row in the matrix.
-
-- geometry:
-
-  How geometry columns should be returned. There are two options:
-  `"blob"` and `"wk"`. If `"blob"` is selected, geometry columns are
-  returned as a list of raw vectors containing WKB data. If `"wk"` is
-  selected, geometry columns are returned as wk `wk_wkb` vectors. Use
-  [`wk::wk_handle()`](https://paleolimbot.github.io/wk/reference/wk_handle.html)
-  or
-  [`sf::st_as_sfc()`](https://r-spatial.github.io/sf/reference/st_as_sfc.html)
-  to convert to other geometry formats.
 
 - conn:
 
