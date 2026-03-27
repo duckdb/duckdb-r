@@ -70,16 +70,18 @@ simulate_duckdb(...)
 ``` r
 library(dplyr, warn.conflicts = FALSE)
 con <- DBI::dbConnect(duckdb(), path = ":memory:")
-#> Error in (function (cond) .Internal(C_tryCatchHelper(addr, 1L, cond)))(structure(list(message = "{\"exception_type\":\"IO\",\"exception_message\":\"Input is not a GZIP stream: /proc/self/cgroup\"}\n\033[34mℹ\033[39m Context: rapi_startup",     trace = structure(list(call = list(DBI::dbConnect(duckdb(),         path = ":memory:"), duckdb(), new("duckdb_driver", config = config,         database_ref = rethrow_rapi_startup(dbdir, read_only,             config, environment_scan), dbdir = dbdir, read_only = read_only,         convert_opts = convert_opts, bigint = convert_opts$bigint),         initialize(value, ...), initialize(value, ...), rethrow_rapi_startup(dbdir,             read_only, config, environment_scan), rlang::try_fetch(rapi_startup(dbdir,             readonly, configsexp, environment_scan), error = function(e) {            rethrow_error_from_rapi(e, call)        }), tryCatch(withCallingHandlers(expr, condition = function(cnd) {            {                .__handler_frame__. <- TRUE                .__setup_frame__. <- frame                if (inherits(cnd, "message")) {                  except <- c("warning", "error")                }                else if (inherits(cnd, "warning")) {                  except <- "error"                }                else {                  except <- ""                }            }            while (!is_null(cnd)) {                if (inherits(cnd, "error")) {                  out <- handlers[[1L]](cnd)                  if (!inherits(out, "rlang_zap"))                     throw(out)                }                inherit <- .subset2(.subset2(cnd, "rlang"), "inherit")                if (is_false(inherit)) {                  return()                }                cnd <- .subset2(cnd, "parent")            }        }), stackOverflowError = handlers[[1L]]), tryCatchList(expr,             classes, parentenv, handlers), tryCatchOne(expr,             names, parentenv, handlers[[1L]]), doTryCatch(return(expr),             name, parentenv, handler), withCallingHandlers(expr,             condition = function(cnd) {                {                  .__handler_frame__. <- TRUE                  .__setup_frame__. <- frame                  if (inherits(cnd, "message")) {                    except <- c("warning", "error")                  }                  else if (inherits(cnd, "warning")) {                    except <- "error"                  }                  else {                    except <- ""                  }                }                while (!is_null(cnd)) {                  if (inherits(cnd, "error")) {                    out <- handlers[[1L]](cnd)                    if (!inherits(out, "rlang_zap"))                       throw(out)                  }                  inherit <- .subset2(.subset2(cnd, "rlang"),                     "inherit")                  if (is_false(inherit)) {                    return()                  }                  cnd <- .subset2(cnd, "parent")                }            }), rapi_startup(dbdir, readonly, configsexp, environment_scan),         `<fn>`("rapi_startup", "{\"exception_type\":\"IO\",\"exception_message\":\"Input is not a GZIP stream: /proc/self/cgroup\"}"),         rlang::abort(error_parts, class = "duckdb_error", !!!fields),         signal_abort(cnd, .file), signalCondition(cnd), `<fn>`(`<dckdb_rr>`),         handlers[[1L]](cnd), rethrow_error_from_rapi(e, call),         rlang::abort(msg, call = call)), parent = c(0L, 0L, 2L,     3L, 3L, 2L, 6L, 7L, 8L, 9L, 10L, 7L, 6L, 0L, 14L, 15L, 16L,     0L, 18L, 19L, 20L), visible = c(FALSE, FALSE, FALSE, FALSE,     FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,     FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE),         namespace = c("DBI", "duckdb.1.4", "methods", "methods",         "methods", "duckdb.1.4", "rlang", "base", "base", "base",         "base", "base", "duckdb.1.4", "duckdb.1.4", "rlang",         "rlang", "base", "rlang", NA, "duckdb.1.4", "rlang"),         scope = c("::", "::", "::", "::", "::", ":::", "::",         "::", "local", "local", "local", "::", ":::", "local",         "::", ":::", "::", "local", NA, ":::", "::"), error_frame = c(FALSE,         FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,         FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,         FALSE, FALSE, FALSE, FALSE)), row.names = c(NA, -21L), version = 2L, class = c("rlang_trace",     "rlib_trace", "tbl", "data.frame")), parent = NULL, rlang = list(        inherit = TRUE), call = eval(expr, envir)), class = c("rlang_error", "error", "condition"))): error in evaluating the argument 'drv' in selecting a method for function 'dbConnect': {"exception_type":"IO","exception_message":"Input is not a GZIP stream: /proc/self/cgroup"}
-#> ℹ Context: rapi_startup
 
 db <- copy_to(con, data.frame(a = 1:3, b = letters[2:4]))
-#> Error: object 'con' not found
 
 db %>%
   filter(a > 1) %>%
   select(b)
-#> Error: object 'db' not found
+#> # Source:   SQL [?? x 1]
+#> # Database: DuckDB 1.5.1 [unknown@Linux 6.17.0-1008-azure:R 4.5.3/:memory:]
+#>   b    
+#>   <chr>
+#> 1 c    
+#> 2 d    
 
 path <- tempfile(fileext = ".csv")
 write.csv(data.frame(a = 1:3, b = letters[2:4]))
@@ -89,17 +91,31 @@ write.csv(data.frame(a = 1:3, b = letters[2:4]))
 #> "3",3,"d"
 
 db_csv <- tbl_file(con, path)
-#> Error: object 'con' not found
+#> Error in db_query_fields.DBIConnection(con, ...): Can't query fields.
+#> ℹ Using SQL: SELECT * FROM (FROM '/tmp/Rtmpk6Fiue/file4d0d5ee9bb47.csv') q01
+#>   WHERE (0 = 1)
+#> Caused by error in `dbSendQuery()`:
+#> ! IO Error: No files found that match the pattern "/tmp/Rtmpk6Fiue/file4d0d5ee9bb47.csv"
+#> ℹ Context: rapi_prepare
+#> ℹ Error type: IO
 db_csv %>%
   summarize(sum_a = sum(a))
 #> Error: object 'db_csv' not found
 
 db_csv_fun <- tbl_function(con, paste0("read_csv_auto('", path, "')"))
-#> Error: object 'con' not found
+#> Error in db_query_fields.DBIConnection(con, ...): Can't query fields.
+#> ℹ Using SQL: SELECT * FROM (FROM
+#>   read_csv_auto('/tmp/Rtmpk6Fiue/file4d0d5ee9bb47.csv')) q02 WHERE (0 = 1)
+#> Caused by error in `dbSendQuery()`:
+#> ! IO Error: No files found that match the pattern "/tmp/Rtmpk6Fiue/file4d0d5ee9bb47.csv"
+#> 
+#> LINE 2: FROM (FROM read_csv_auto('/tmp/Rtmpk6Fiue/file4d0d5ee9bb47.csv')) q02
+#>                    ^
+#> ℹ Context: rapi_prepare
+#> ℹ Error type: IO
 db_csv %>%
   count()
 #> Error: object 'db_csv' not found
 
 DBI::dbDisconnect(con, shutdown = TRUE)
-#> Error in h(simpleError(msg, call)): error in evaluating the argument 'conn' in selecting a method for function 'dbDisconnect': object 'con' not found
 ```

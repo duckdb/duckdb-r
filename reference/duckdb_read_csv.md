@@ -107,8 +107,6 @@ Otherwise the table is created.
 
 ``` r
 con <- dbConnect(duckdb())
-#> Error in (function (cond) .Internal(C_tryCatchHelper(addr, 1L, cond)))(structure(list(message = "{\"exception_type\":\"IO\",\"exception_message\":\"Input is not a GZIP stream: /proc/self/cgroup\"}\n\033[34mℹ\033[39m Context: rapi_startup",     trace = structure(list(call = list(pkgdown::deploy_to_branch(new_process = FALSE),         build_site_github_pages(pkg, ..., clean = clean), build_site(pkg,             preview = FALSE, install = install, new_process = new_process,             ...), build_site_local(pkg = pkg, examples = examples,             run_dont_run = run_dont_run, seed = seed, lazy = lazy,             override = override, preview = preview, devel = devel,             quiet = quiet), build_reference(pkg, lazy = lazy,             examples = examples, run_dont_run = run_dont_run,             seed = seed, override = override, preview = FALSE,             devel = devel), unwrap_purrr_error(purrr::map(topics,             build_reference_topic, pkg = pkg, lazy = lazy, examples_env = examples_env,             run_dont_run = run_dont_run)), withCallingHandlers(code,             purrr_error_indexed = function(err) {                cnd_signal(err$parent)            }), purrr::map(topics, build_reference_topic, pkg = pkg,             lazy = lazy, examples_env = examples_env, run_dont_run = run_dont_run),         map_("list", .x, .f, ..., .progress = .progress), with_indexed_errors(i = i,             names = names, error_call = .purrr_error_call, call_with_cleanup(map_impl,                 environment(), .type, .progress, n, names, i)),         withCallingHandlers(expr, error = function(cnd) {            if (i == 0L) {            }            else {                message <- c(i = "In index: {i}.")                if (!is.null(names) && !is.na(names[[i]]) &&                   names[[i]] != "") {                  name <- names[[i]]                  message <- c(message, i = "With name: {name}.")                }                else {                  name <- NULL                }                cli::cli_abort(message, location = i, name = name,                   parent = cnd, call = error_call, class = "purrr_error_indexed")            }        }), call_with_cleanup(map_impl, environment(), .type,             .progress, n, names, i), .f(.x[[i]], ...), withCallingHandlers(data_reference_topic(topic,             pkg, examples_env = examples_env, run_dont_run = run_dont_run),             error = function(err) {                cli::cli_abort("Failed to parse Rd in {.file {topic$file_in}}",                   parent = err, call = quote(build_reference()))            }), data_reference_topic(topic, pkg, examples_env = examples_env,             run_dont_run = run_dont_run), run_examples(tags$tag_examples[[1]],             env = if (is.null(examples_env)) NULL else new.env(parent = examples_env),             topic = tools::file_path_sans_ext(topic$file_in),             run_dont_run = run_dont_run), highlight_examples(code,             topic, env = env), downlit::evaluate_and_highlight(code,             fig_save = fig_save_topic, env = eval_env, output_handler = handler),         evaluate::evaluate(code, child_env(env), new_device = TRUE,             output_handler = output_handler), withRestarts(with_handlers({            for (expr in tle$exprs) {                ev <- withVisible(eval(expr, envir))                watcher$capture_plot_and_output()                watcher$print_value(ev$value, ev$visible, envir)            }            TRUE        }, handlers), eval_continue = function() TRUE, eval_stop = function() FALSE),         withRestartList(expr, restarts), withOneRestart(withRestartList(expr,             restarts[-nr]), restarts[[nr]]), doWithOneRestart(return(expr),             restart), withRestartList(expr, restarts[-nr]), withOneRestart(expr,             restarts[[1L]]), doWithOneRestart(return(expr), restart),         with_handlers({            for (expr in tle$exprs) {                ev <- withVisible(eval(expr, envir))                watcher$capture_plot_and_output()                watcher$print_value(ev$value, ev$visible, envir)            }            TRUE        }, handlers), eval(call), eval(call), withCallingHandlers(code,             message = `<fn>`, warning = `<fn>`, error = `<fn>`),         withVisible(eval(expr, envir)), eval(expr, envir), eval(expr,             envir), dbConnect(duckdb()), duckdb(), new("duckdb_driver",             config = config, database_ref = rethrow_rapi_startup(dbdir,                 read_only, config, environment_scan), dbdir = dbdir,             read_only = read_only, convert_opts = convert_opts,             bigint = convert_opts$bigint), initialize(value,             ...), initialize(value, ...), rethrow_rapi_startup(dbdir,             read_only, config, environment_scan), rlang::try_fetch(rapi_startup(dbdir,             readonly, configsexp, environment_scan), error = function(e) {            rethrow_error_from_rapi(e, call)        }), tryCatch(withCallingHandlers(expr, condition = function(cnd) {            {                .__handler_frame__. <- TRUE                .__setup_frame__. <- frame                if (inherits(cnd, "message")) {                  except <- c("warning", "error")                }                else if (inherits(cnd, "warning")) {                  except <- "error"                }                else {                  except <- ""                }            }            while (!is_null(cnd)) {                if (inherits(cnd, "error")) {                  out <- handlers[[1L]](cnd)                  if (!inherits(out, "rlang_zap"))                     throw(out)                }                inherit <- .subset2(.subset2(cnd, "rlang"), "inherit")                if (is_false(inherit)) {                  return()                }                cnd <- .subset2(cnd, "parent")            }        }), stackOverflowError = handlers[[1L]]), tryCatchList(expr,             classes, parentenv, handlers), tryCatchOne(expr,             names, parentenv, handlers[[1L]]), doTryCatch(return(expr),             name, parentenv, handler), withCallingHandlers(expr,             condition = function(cnd) {                {                  .__handler_frame__. <- TRUE                  .__setup_frame__. <- frame                  if (inherits(cnd, "message")) {                    except <- c("warning", "error")                  }                  else if (inherits(cnd, "warning")) {                    except <- "error"                  }                  else {                    except <- ""                  }                }                while (!is_null(cnd)) {                  if (inherits(cnd, "error")) {                    out <- handlers[[1L]](cnd)                    if (!inherits(out, "rlang_zap"))                       throw(out)                  }                  inherit <- .subset2(.subset2(cnd, "rlang"),                     "inherit")                  if (is_false(inherit)) {                    return()                  }                  cnd <- .subset2(cnd, "parent")                }            }), rapi_startup(dbdir, readonly, configsexp, environment_scan),         `<fn>`("rapi_startup", "{\"exception_type\":\"IO\",\"exception_message\":\"Input is not a GZIP stream: /proc/self/cgroup\"}"),         rlang::abort(error_parts, class = "duckdb_error", !!!fields),         signal_abort(cnd, .file), signalCondition(cnd), `<fn>`(`<dckdb_rr>`),         handlers[[1L]](cnd), rethrow_error_from_rapi(e, call),         rlang::abort(msg, call = call)), parent = c(0L, 1L, 2L,     3L, 4L, 5L, 6L, 5L, 8L, 9L, 10L, 9L, 9L, 13L, 13L, 15L, 16L,     17L, 18L, 19L, 20L, 21L, 22L, 21L, 24L, 25L, 19L, 27L, 28L,     27L, 19L, 19L, 32L, 33L, 33L, 35L, 36L, 36L, 35L, 39L, 40L,     41L, 42L, 43L, 40L, 39L, 0L, 47L, 48L, 49L, 0L, 51L, 52L,     53L), visible = c(TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE,     TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE,     TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE,     TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE,     FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,     FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE    ), namespace = c("pkgdown", "pkgdown", "pkgdown", "pkgdown",     "pkgdown", "pkgdown", "base", "purrr", "purrr", "purrr",     "base", "purrr", "pkgdown", "base", "pkgdown", "pkgdown",     "pkgdown", "downlit", "evaluate", "base", "base", "base",     "base", "base", "base", "base", "evaluate", "base", "base",     "base", "base", "base", "base", "DBI", "duckdb.1.4", "methods",     "methods", "methods", "duckdb.1.4", "rlang", "base", "base",     "base", "base", "base", "duckdb.1.4", "duckdb.1.4", "rlang",     "rlang", "base", "rlang", NA, "duckdb.1.4", "rlang"), scope = c("::",     "::", "::", ":::", "::", ":::", "::", "::", ":::", ":::",     "::", ":::", "local", "::", ":::", ":::", ":::", "::", "::",     "::", "local", "local", "local", "local", "local", "local",     ":::", "::", "::", "::", "::", "::", "::", "::", "::", "::",     "::", "::", ":::", "::", "::", "local", "local", "local",     "::", ":::", "local", "::", ":::", "::", "local", NA, ":::",     "::"), error_frame = c(FALSE, FALSE, FALSE, FALSE, FALSE,     FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,     FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,     FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,     TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,     FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,     FALSE, FALSE, FALSE, FALSE)), row.names = c(NA, -54L), version = 2L, class = c("rlang_trace",     "rlib_trace", "tbl", "data.frame")), parent = NULL, rlang = list(        inherit = TRUE), call = eval(expr, envir)), class = c("rlang_error", "error", "condition"))): error in evaluating the argument 'drv' in selecting a method for function 'dbConnect': {"exception_type":"IO","exception_message":"Input is not a GZIP stream: /proc/self/cgroup"}
-#> ℹ Context: rapi_startup
 
 data <- data.frame(a = 1:3, b = letters[1:3])
 path <- tempfile(fileext = ".csv")
@@ -116,12 +114,13 @@ path <- tempfile(fileext = ".csv")
 write.csv(data, path, row.names = FALSE)
 
 duckdb_read_csv(con, "data", path)
-#> Error in h(simpleError(msg, call)): error in evaluating the argument 'conn' in selecting a method for function 'dbBegin': object 'con' not found
 dbReadTable(con, "data")
-#> Error in h(simpleError(msg, call)): error in evaluating the argument 'conn' in selecting a method for function 'dbReadTable': object 'con' not found
+#>   a b
+#> 1 1 a
+#> 2 2 b
+#> 3 3 c
 
 dbDisconnect(con)
-#> Error in h(simpleError(msg, call)): error in evaluating the argument 'conn' in selecting a method for function 'dbDisconnect': object 'con' not found
 
 
 # Providing data types for columns
@@ -129,8 +128,6 @@ path <- tempfile(fileext = ".csv")
 write.csv(iris, path, row.names = FALSE)
 
 con <- dbConnect(duckdb())
-#> Error in (function (cond) .Internal(C_tryCatchHelper(addr, 1L, cond)))(structure(list(message = "{\"exception_type\":\"IO\",\"exception_message\":\"Input is not a GZIP stream: /proc/self/cgroup\"}\n\033[34mℹ\033[39m Context: rapi_startup",     trace = structure(list(call = list(pkgdown::deploy_to_branch(new_process = FALSE),         build_site_github_pages(pkg, ..., clean = clean), build_site(pkg,             preview = FALSE, install = install, new_process = new_process,             ...), build_site_local(pkg = pkg, examples = examples,             run_dont_run = run_dont_run, seed = seed, lazy = lazy,             override = override, preview = preview, devel = devel,             quiet = quiet), build_reference(pkg, lazy = lazy,             examples = examples, run_dont_run = run_dont_run,             seed = seed, override = override, preview = FALSE,             devel = devel), unwrap_purrr_error(purrr::map(topics,             build_reference_topic, pkg = pkg, lazy = lazy, examples_env = examples_env,             run_dont_run = run_dont_run)), withCallingHandlers(code,             purrr_error_indexed = function(err) {                cnd_signal(err$parent)            }), purrr::map(topics, build_reference_topic, pkg = pkg,             lazy = lazy, examples_env = examples_env, run_dont_run = run_dont_run),         map_("list", .x, .f, ..., .progress = .progress), with_indexed_errors(i = i,             names = names, error_call = .purrr_error_call, call_with_cleanup(map_impl,                 environment(), .type, .progress, n, names, i)),         withCallingHandlers(expr, error = function(cnd) {            if (i == 0L) {            }            else {                message <- c(i = "In index: {i}.")                if (!is.null(names) && !is.na(names[[i]]) &&                   names[[i]] != "") {                  name <- names[[i]]                  message <- c(message, i = "With name: {name}.")                }                else {                  name <- NULL                }                cli::cli_abort(message, location = i, name = name,                   parent = cnd, call = error_call, class = "purrr_error_indexed")            }        }), call_with_cleanup(map_impl, environment(), .type,             .progress, n, names, i), .f(.x[[i]], ...), withCallingHandlers(data_reference_topic(topic,             pkg, examples_env = examples_env, run_dont_run = run_dont_run),             error = function(err) {                cli::cli_abort("Failed to parse Rd in {.file {topic$file_in}}",                   parent = err, call = quote(build_reference()))            }), data_reference_topic(topic, pkg, examples_env = examples_env,             run_dont_run = run_dont_run), run_examples(tags$tag_examples[[1]],             env = if (is.null(examples_env)) NULL else new.env(parent = examples_env),             topic = tools::file_path_sans_ext(topic$file_in),             run_dont_run = run_dont_run), highlight_examples(code,             topic, env = env), downlit::evaluate_and_highlight(code,             fig_save = fig_save_topic, env = eval_env, output_handler = handler),         evaluate::evaluate(code, child_env(env), new_device = TRUE,             output_handler = output_handler), withRestarts(with_handlers({            for (expr in tle$exprs) {                ev <- withVisible(eval(expr, envir))                watcher$capture_plot_and_output()                watcher$print_value(ev$value, ev$visible, envir)            }            TRUE        }, handlers), eval_continue = function() TRUE, eval_stop = function() FALSE),         withRestartList(expr, restarts), withOneRestart(withRestartList(expr,             restarts[-nr]), restarts[[nr]]), doWithOneRestart(return(expr),             restart), withRestartList(expr, restarts[-nr]), withOneRestart(expr,             restarts[[1L]]), doWithOneRestart(return(expr), restart),         with_handlers({            for (expr in tle$exprs) {                ev <- withVisible(eval(expr, envir))                watcher$capture_plot_and_output()                watcher$print_value(ev$value, ev$visible, envir)            }            TRUE        }, handlers), eval(call), eval(call), withCallingHandlers(code,             message = `<fn>`, warning = `<fn>`, error = `<fn>`),         withVisible(eval(expr, envir)), eval(expr, envir), eval(expr,             envir), dbConnect(duckdb()), duckdb(), new("duckdb_driver",             config = config, database_ref = rethrow_rapi_startup(dbdir,                 read_only, config, environment_scan), dbdir = dbdir,             read_only = read_only, convert_opts = convert_opts,             bigint = convert_opts$bigint), initialize(value,             ...), initialize(value, ...), rethrow_rapi_startup(dbdir,             read_only, config, environment_scan), rlang::try_fetch(rapi_startup(dbdir,             readonly, configsexp, environment_scan), error = function(e) {            rethrow_error_from_rapi(e, call)        }), tryCatch(withCallingHandlers(expr, condition = function(cnd) {            {                .__handler_frame__. <- TRUE                .__setup_frame__. <- frame                if (inherits(cnd, "message")) {                  except <- c("warning", "error")                }                else if (inherits(cnd, "warning")) {                  except <- "error"                }                else {                  except <- ""                }            }            while (!is_null(cnd)) {                if (inherits(cnd, "error")) {                  out <- handlers[[1L]](cnd)                  if (!inherits(out, "rlang_zap"))                     throw(out)                }                inherit <- .subset2(.subset2(cnd, "rlang"), "inherit")                if (is_false(inherit)) {                  return()                }                cnd <- .subset2(cnd, "parent")            }        }), stackOverflowError = handlers[[1L]]), tryCatchList(expr,             classes, parentenv, handlers), tryCatchOne(expr,             names, parentenv, handlers[[1L]]), doTryCatch(return(expr),             name, parentenv, handler), withCallingHandlers(expr,             condition = function(cnd) {                {                  .__handler_frame__. <- TRUE                  .__setup_frame__. <- frame                  if (inherits(cnd, "message")) {                    except <- c("warning", "error")                  }                  else if (inherits(cnd, "warning")) {                    except <- "error"                  }                  else {                    except <- ""                  }                }                while (!is_null(cnd)) {                  if (inherits(cnd, "error")) {                    out <- handlers[[1L]](cnd)                    if (!inherits(out, "rlang_zap"))                       throw(out)                  }                  inherit <- .subset2(.subset2(cnd, "rlang"),                     "inherit")                  if (is_false(inherit)) {                    return()                  }                  cnd <- .subset2(cnd, "parent")                }            }), rapi_startup(dbdir, readonly, configsexp, environment_scan),         `<fn>`("rapi_startup", "{\"exception_type\":\"IO\",\"exception_message\":\"Input is not a GZIP stream: /proc/self/cgroup\"}"),         rlang::abort(error_parts, class = "duckdb_error", !!!fields),         signal_abort(cnd, .file), signalCondition(cnd), `<fn>`(`<dckdb_rr>`),         handlers[[1L]](cnd), rethrow_error_from_rapi(e, call),         rlang::abort(msg, call = call)), parent = c(0L, 1L, 2L,     3L, 4L, 5L, 6L, 5L, 8L, 9L, 10L, 9L, 9L, 13L, 13L, 15L, 16L,     17L, 18L, 19L, 20L, 21L, 22L, 21L, 24L, 25L, 19L, 27L, 28L,     27L, 19L, 19L, 32L, 33L, 33L, 35L, 36L, 36L, 35L, 39L, 40L,     41L, 42L, 43L, 40L, 39L, 0L, 47L, 48L, 49L, 0L, 51L, 52L,     53L), visible = c(TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE,     TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE,     TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE,     TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE,     FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,     FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE    ), namespace = c("pkgdown", "pkgdown", "pkgdown", "pkgdown",     "pkgdown", "pkgdown", "base", "purrr", "purrr", "purrr",     "base", "purrr", "pkgdown", "base", "pkgdown", "pkgdown",     "pkgdown", "downlit", "evaluate", "base", "base", "base",     "base", "base", "base", "base", "evaluate", "base", "base",     "base", "base", "base", "base", "DBI", "duckdb.1.4", "methods",     "methods", "methods", "duckdb.1.4", "rlang", "base", "base",     "base", "base", "base", "duckdb.1.4", "duckdb.1.4", "rlang",     "rlang", "base", "rlang", NA, "duckdb.1.4", "rlang"), scope = c("::",     "::", "::", ":::", "::", ":::", "::", "::", ":::", ":::",     "::", ":::", "local", "::", ":::", ":::", ":::", "::", "::",     "::", "local", "local", "local", "local", "local", "local",     ":::", "::", "::", "::", "::", "::", "::", "::", "::", "::",     "::", "::", ":::", "::", "::", "local", "local", "local",     "::", ":::", "local", "::", ":::", "::", "local", NA, ":::",     "::"), error_frame = c(FALSE, FALSE, FALSE, FALSE, FALSE,     FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,     FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,     FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,     TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,     FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,     FALSE, FALSE, FALSE, FALSE)), row.names = c(NA, -54L), version = 2L, class = c("rlang_trace",     "rlib_trace", "tbl", "data.frame")), parent = NULL, rlang = list(        inherit = TRUE), call = eval(expr, envir)), class = c("rlang_error", "error", "condition"))): error in evaluating the argument 'drv' in selecting a method for function 'dbConnect': {"exception_type":"IO","exception_message":"Input is not a GZIP stream: /proc/self/cgroup"}
-#> ℹ Context: rapi_startup
 duckdb_read_csv(con, "iris", path,
   col.types = c(
     Sepal.Length = "DOUBLE",
@@ -140,9 +137,157 @@ duckdb_read_csv(con, "iris", path,
     Species = "VARCHAR"
   )
 )
-#> Error in h(simpleError(msg, call)): error in evaluating the argument 'conn' in selecting a method for function 'dbBegin': object 'con' not found
 dbReadTable(con, "iris")
-#> Error in h(simpleError(msg, call)): error in evaluating the argument 'conn' in selecting a method for function 'dbReadTable': object 'con' not found
+#>     Sepal.Length Sepal.Width Petal.Length Petal.Width    Species
+#> 1            5.1         3.5          1.4         0.2     setosa
+#> 2            4.9         3.0          1.4         0.2     setosa
+#> 3            4.7         3.2          1.3         0.2     setosa
+#> 4            4.6         3.1          1.5         0.2     setosa
+#> 5            5.0         3.6          1.4         0.2     setosa
+#> 6            5.4         3.9          1.7         0.4     setosa
+#> 7            4.6         3.4          1.4         0.3     setosa
+#> 8            5.0         3.4          1.5         0.2     setosa
+#> 9            4.4         2.9          1.4         0.2     setosa
+#> 10           4.9         3.1          1.5         0.1     setosa
+#> 11           5.4         3.7          1.5         0.2     setosa
+#> 12           4.8         3.4          1.6         0.2     setosa
+#> 13           4.8         3.0          1.4         0.1     setosa
+#> 14           4.3         3.0          1.1         0.1     setosa
+#> 15           5.8         4.0          1.2         0.2     setosa
+#> 16           5.7         4.4          1.5         0.4     setosa
+#> 17           5.4         3.9          1.3         0.4     setosa
+#> 18           5.1         3.5          1.4         0.3     setosa
+#> 19           5.7         3.8          1.7         0.3     setosa
+#> 20           5.1         3.8          1.5         0.3     setosa
+#> 21           5.4         3.4          1.7         0.2     setosa
+#> 22           5.1         3.7          1.5         0.4     setosa
+#> 23           4.6         3.6          1.0         0.2     setosa
+#> 24           5.1         3.3          1.7         0.5     setosa
+#> 25           4.8         3.4          1.9         0.2     setosa
+#> 26           5.0         3.0          1.6         0.2     setosa
+#> 27           5.0         3.4          1.6         0.4     setosa
+#> 28           5.2         3.5          1.5         0.2     setosa
+#> 29           5.2         3.4          1.4         0.2     setosa
+#> 30           4.7         3.2          1.6         0.2     setosa
+#> 31           4.8         3.1          1.6         0.2     setosa
+#> 32           5.4         3.4          1.5         0.4     setosa
+#> 33           5.2         4.1          1.5         0.1     setosa
+#> 34           5.5         4.2          1.4         0.2     setosa
+#> 35           4.9         3.1          1.5         0.2     setosa
+#> 36           5.0         3.2          1.2         0.2     setosa
+#> 37           5.5         3.5          1.3         0.2     setosa
+#> 38           4.9         3.6          1.4         0.1     setosa
+#> 39           4.4         3.0          1.3         0.2     setosa
+#> 40           5.1         3.4          1.5         0.2     setosa
+#> 41           5.0         3.5          1.3         0.3     setosa
+#> 42           4.5         2.3          1.3         0.3     setosa
+#> 43           4.4         3.2          1.3         0.2     setosa
+#> 44           5.0         3.5          1.6         0.6     setosa
+#> 45           5.1         3.8          1.9         0.4     setosa
+#> 46           4.8         3.0          1.4         0.3     setosa
+#> 47           5.1         3.8          1.6         0.2     setosa
+#> 48           4.6         3.2          1.4         0.2     setosa
+#> 49           5.3         3.7          1.5         0.2     setosa
+#> 50           5.0         3.3          1.4         0.2     setosa
+#> 51           7.0         3.2          4.7         1.4 versicolor
+#> 52           6.4         3.2          4.5         1.5 versicolor
+#> 53           6.9         3.1          4.9         1.5 versicolor
+#> 54           5.5         2.3          4.0         1.3 versicolor
+#> 55           6.5         2.8          4.6         1.5 versicolor
+#> 56           5.7         2.8          4.5         1.3 versicolor
+#> 57           6.3         3.3          4.7         1.6 versicolor
+#> 58           4.9         2.4          3.3         1.0 versicolor
+#> 59           6.6         2.9          4.6         1.3 versicolor
+#> 60           5.2         2.7          3.9         1.4 versicolor
+#> 61           5.0         2.0          3.5         1.0 versicolor
+#> 62           5.9         3.0          4.2         1.5 versicolor
+#> 63           6.0         2.2          4.0         1.0 versicolor
+#> 64           6.1         2.9          4.7         1.4 versicolor
+#> 65           5.6         2.9          3.6         1.3 versicolor
+#> 66           6.7         3.1          4.4         1.4 versicolor
+#> 67           5.6         3.0          4.5         1.5 versicolor
+#> 68           5.8         2.7          4.1         1.0 versicolor
+#> 69           6.2         2.2          4.5         1.5 versicolor
+#> 70           5.6         2.5          3.9         1.1 versicolor
+#> 71           5.9         3.2          4.8         1.8 versicolor
+#> 72           6.1         2.8          4.0         1.3 versicolor
+#> 73           6.3         2.5          4.9         1.5 versicolor
+#> 74           6.1         2.8          4.7         1.2 versicolor
+#> 75           6.4         2.9          4.3         1.3 versicolor
+#> 76           6.6         3.0          4.4         1.4 versicolor
+#> 77           6.8         2.8          4.8         1.4 versicolor
+#> 78           6.7         3.0          5.0         1.7 versicolor
+#> 79           6.0         2.9          4.5         1.5 versicolor
+#> 80           5.7         2.6          3.5         1.0 versicolor
+#> 81           5.5         2.4          3.8         1.1 versicolor
+#> 82           5.5         2.4          3.7         1.0 versicolor
+#> 83           5.8         2.7          3.9         1.2 versicolor
+#> 84           6.0         2.7          5.1         1.6 versicolor
+#> 85           5.4         3.0          4.5         1.5 versicolor
+#> 86           6.0         3.4          4.5         1.6 versicolor
+#> 87           6.7         3.1          4.7         1.5 versicolor
+#> 88           6.3         2.3          4.4         1.3 versicolor
+#> 89           5.6         3.0          4.1         1.3 versicolor
+#> 90           5.5         2.5          4.0         1.3 versicolor
+#> 91           5.5         2.6          4.4         1.2 versicolor
+#> 92           6.1         3.0          4.6         1.4 versicolor
+#> 93           5.8         2.6          4.0         1.2 versicolor
+#> 94           5.0         2.3          3.3         1.0 versicolor
+#> 95           5.6         2.7          4.2         1.3 versicolor
+#> 96           5.7         3.0          4.2         1.2 versicolor
+#> 97           5.7         2.9          4.2         1.3 versicolor
+#> 98           6.2         2.9          4.3         1.3 versicolor
+#> 99           5.1         2.5          3.0         1.1 versicolor
+#> 100          5.7         2.8          4.1         1.3 versicolor
+#> 101          6.3         3.3          6.0         2.5  virginica
+#> 102          5.8         2.7          5.1         1.9  virginica
+#> 103          7.1         3.0          5.9         2.1  virginica
+#> 104          6.3         2.9          5.6         1.8  virginica
+#> 105          6.5         3.0          5.8         2.2  virginica
+#> 106          7.6         3.0          6.6         2.1  virginica
+#> 107          4.9         2.5          4.5         1.7  virginica
+#> 108          7.3         2.9          6.3         1.8  virginica
+#> 109          6.7         2.5          5.8         1.8  virginica
+#> 110          7.2         3.6          6.1         2.5  virginica
+#> 111          6.5         3.2          5.1         2.0  virginica
+#> 112          6.4         2.7          5.3         1.9  virginica
+#> 113          6.8         3.0          5.5         2.1  virginica
+#> 114          5.7         2.5          5.0         2.0  virginica
+#> 115          5.8         2.8          5.1         2.4  virginica
+#> 116          6.4         3.2          5.3         2.3  virginica
+#> 117          6.5         3.0          5.5         1.8  virginica
+#> 118          7.7         3.8          6.7         2.2  virginica
+#> 119          7.7         2.6          6.9         2.3  virginica
+#> 120          6.0         2.2          5.0         1.5  virginica
+#> 121          6.9         3.2          5.7         2.3  virginica
+#> 122          5.6         2.8          4.9         2.0  virginica
+#> 123          7.7         2.8          6.7         2.0  virginica
+#> 124          6.3         2.7          4.9         1.8  virginica
+#> 125          6.7         3.3          5.7         2.1  virginica
+#> 126          7.2         3.2          6.0         1.8  virginica
+#> 127          6.2         2.8          4.8         1.8  virginica
+#> 128          6.1         3.0          4.9         1.8  virginica
+#> 129          6.4         2.8          5.6         2.1  virginica
+#> 130          7.2         3.0          5.8         1.6  virginica
+#> 131          7.4         2.8          6.1         1.9  virginica
+#> 132          7.9         3.8          6.4         2.0  virginica
+#> 133          6.4         2.8          5.6         2.2  virginica
+#> 134          6.3         2.8          5.1         1.5  virginica
+#> 135          6.1         2.6          5.6         1.4  virginica
+#> 136          7.7         3.0          6.1         2.3  virginica
+#> 137          6.3         3.4          5.6         2.4  virginica
+#> 138          6.4         3.1          5.5         1.8  virginica
+#> 139          6.0         3.0          4.8         1.8  virginica
+#> 140          6.9         3.1          5.4         2.1  virginica
+#> 141          6.7         3.1          5.6         2.4  virginica
+#> 142          6.9         3.1          5.1         2.3  virginica
+#> 143          5.8         2.7          5.1         1.9  virginica
+#> 144          6.8         3.2          5.9         2.3  virginica
+#> 145          6.7         3.3          5.7         2.5  virginica
+#> 146          6.7         3.0          5.2         2.3  virginica
+#> 147          6.3         2.5          5.0         1.9  virginica
+#> 148          6.5         3.0          5.2         2.0  virginica
+#> 149          6.2         3.4          5.4         2.3  virginica
+#> 150          5.9         3.0          5.1         1.8  virginica
 dbDisconnect(con)
-#> Error in h(simpleError(msg, call)): error in evaluating the argument 'conn' in selecting a method for function 'dbDisconnect': object 'con' not found
 ```
