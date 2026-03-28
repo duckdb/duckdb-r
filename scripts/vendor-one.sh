@@ -142,6 +142,25 @@ while [ $commits_vendored -lt $num_commits ]; do
   echo "Our tag: $our_tag"
   echo "Upstream tag: $upstream_tag"
 
+  # Increase fifth version component by one
+  # Set to one if missing
+  # Set intermediate components to zero if missing
+  # 1.2.3 -> 1.2.3.0.1
+  # 1.2.3.9000 -> 1.2.3.9000.1
+  # 1.2.3.9000.4 -> 1.2.3.9000.5
+  version=$(sed -r -n '/^Version: (.*)$/ s//\1/p' DESCRIPTION)
+  version_array=(${version//./ })
+  for i in {0..4}; do
+    if [ -z "${version_array[i]}" ]; then
+      version_array[i]=0
+    fi
+  done
+  version_array[4]=$((version_array[4] + 1))
+  new_version=$(IFS=.; echo "${version_array[*]}")
+
+  echo "Updating version from $version to $new_version"
+  sed -i "" -r 's/^(Version: ).*$/\1'"$new_version"'/' DESCRIPTION
+
   git add .
 
   (
