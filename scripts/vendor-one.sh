@@ -159,7 +159,8 @@ while [ $commits_vendored -lt $num_commits ]; do
   new_version=$(IFS=.; echo "${version_array[*]}")
 
   echo "Updating version from $version to $new_version"
-  sed -i "" -r 's/^(Version: ).*$/\1'"$new_version"'/' DESCRIPTION
+  sed -i.bak -r 's/^(Version: ).*$/\1'"$new_version"'/' DESCRIPTION
+  rm DESCRIPTION.bak
 
   git add .
 
