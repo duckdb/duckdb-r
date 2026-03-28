@@ -1,5 +1,42 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.1.9000
+
+## Bug fixes
+
+- Fix compiler warning on recent clang on macOS.
+
+## Features
+
+- Use `TRY_CAST()` instead of `CAST()` in dplyr SQL translation for type conversion functions (#2230, #2231).
+
+## Chore
+
+- Record preference.
+
+- Format.
+
+## Continuous integration
+
+- Fix fledge workflow.
+
+- Fix fledge workflow.
+
+- Fix vendoring.
+
+- Do not run fledge on duckdb non-fork.
+
+## Testing
+
+- Skip arrow tests for flavors.
+
+- Arrow tests need duckdb package, not a flavor.
+
+- Use explicit default duckdb connection for arrow tests (#2301).
+
+- Rework arrow tests, prepare for compatibility with dbplyr 2.6.0 (#2300).
+
+
 # duckdb 1.5.1
 
 ## Bug fixes
