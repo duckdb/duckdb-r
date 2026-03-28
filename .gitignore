@@ -17,12 +17,10 @@
 # RStudio files
 .Rproj.user/
 # produced vignettes
-vignettes/*.html
-vignettes/*.pdf
+/vignettes/*.html
+/vignettes/*.pdf
 # OAuth2 token, see https://github.com/hadley/httr/releases/tag/v0.3
-.httr-oauth
-# knitr and R markdown default cache directories
-*_cache/
+/.httr-oauth
 /cache/
 # Temporary files created by R markdown
 *.utf8.md
@@ -33,7 +31,8 @@ vignettes/*.pdf
 # R package: bookdown caching files
 /*_files/
 # End of https://www.toptal.com/developers/gitignore/api/r
-docs/
+
+/docs/
 # Created by https://www.toptal.com/developers/gitignore/api/visualstudiocode
 # Edit at https://www.toptal.com/developers/gitignore?templates=visualstudiocode
 ### VisualStudioCode ###
@@ -101,10 +100,10 @@ $RECYCLE.BIN/
 /build
 *.tar.gz
 *.tgz
-src/**/*.o
-src/*.d
-src/*.so
-src/*.dll
+/src/**/*.o
+/src/*.d
+/src/*.so
+/src/*.dll
 /scripts/__pycache__
 /duckdb
 /src/Makevars.duckdb
@@ -115,5 +114,5 @@ src/*.dll
 /vscode-*/
 .idea
 cmake-build-debug
-compile_commands.json
-.cache
+/compile_commands.json
+/.cache
