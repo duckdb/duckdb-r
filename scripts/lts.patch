@@ -2,12 +2,10 @@ diff --git a/DESCRIPTION b/DESCRIPTION
 index 1894dce7d..049004706 100644
 --- a/DESCRIPTION
 +++ b/DESCRIPTION
-@@ -1,4 +1,4 @@
+@@ -1,2 +1,2 @@
 -Package: duckdb
 +Package: duckdb.1.4
  Title: DBI Package for the DuckDB Database Management System
- Version: 1.4.4
- Authors@R: c(
 diff --git a/R/duckdb-package.R b/R/duckdb-package.R
 index 2ee2528d0..7982715b8 100644
 --- a/R/duckdb-package.R
@@ -29,7 +27,7 @@ index 9087bd425..11c8677ac 100644
 @@ -12,29 +12,7 @@
  It is designed to support analytical query workloads and is optimized for fast query execution.
  This repository contains the R bindings for DuckDB.
- 
+
 -## Installation from CRAN
 -This is the recommended method for recent R versions on Windows or macOS which have binaries available on CRAN.
 -
@@ -54,9 +52,9 @@ index 9087bd425..11c8677ac 100644
 -
 -To check the availability of binaries for your platform, navigate to the [duckdb search page](https://p3m.dev/client/#/repos/cran/packages/overview?search=duckdb).
 +This package contains the LTS version 1.4 of DuckDB, and is only available from GitHub and r-universe.
- 
+
  ## Installation from r-universe
- 
+
 diff --git a/inst/include/duckdb_types.hpp b/inst/include/duckdb_1_4_types.hpp
 similarity index 100%
 rename from inst/include/duckdb_types.hpp
@@ -68,10 +66,10 @@ index 4acc10425..572dd36e6 100644
 @@ -27,7 +27,7 @@
  #define R_HAS_ALTLIST
  #endif
- 
+
 -#define DUCKDB_PACKAGE_NAME "duckdb"
 +#define DUCKDB_PACKAGE_NAME "duckdb.1.4"
- 
+
  // Helper functions to communicate errors via R's stop() function with context information
  [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message);
 diff --git a/tests/testthat.R b/tests/testthat.R
@@ -80,11 +78,11 @@ index 1097d5cd5..7c6fea199 100644
 +++ b/tests/testthat.R
 @@ -7,6 +7,6 @@
  # * https://testthat.r-lib.org/articles/special-files.html
- 
+
  library(testthat)
 -library(duckdb)
 +library(duckdb.1.4)
- 
+
 -test_check("duckdb")
 +test_check("duckdb.1.4")
 diff --git a/tests/testthat/helper-DBItest.R b/tests/testthat/helper-DBItest.R
@@ -104,7 +102,7 @@ index 433002c44..669eec6f3 100644
 +++ b/tests/testthat/test-readonly.R
 @@ -6,11 +6,11 @@ test_that("read_only flag and shutdown works as expected", {
    # 1st: create a db and write some tables
- 
+
    callr::r(function(dbdir) {
 -    con <- DBI::dbConnect(duckdb::duckdb(), dbdir, read_only = FALSE) # FALSE is the default
 +    con <- DBI::dbConnect(duckdb.1.4::duckdb(), dbdir, read_only = FALSE) # FALSE is the default
@@ -114,10 +112,10 @@ index 433002c44..669eec6f3 100644
 -    duckdb::duckdb_shutdown(con@driver)
 +    duckdb.1.4::duckdb_shutdown(con@driver)
    }, args = list(dbdir))
- 
- 
+
+
 @@ -27,7 +27,7 @@ test_that("read_only flag and shutdown works as expected", {
- 
+
    # con is still alive
    callr::r(function(dbdir) {
 -    con <- DBI::dbConnect(duckdb::duckdb(), dbdir, read_only = TRUE)
@@ -139,7 +137,7 @@ index 4c7822998..7591aaea7 100644
 --- a/tests/testthat/test-shutdown.R
 +++ b/tests/testthat/test-shutdown.R
 @@ -10,7 +10,7 @@ test_that("disconnect releases database file", {
- 
+
    session_1$run(
      function(db_path) {
 -      .GlobalEnv$con <- DBI::dbConnect(duckdb::duckdb(), db_path)
@@ -148,7 +146,7 @@ index 4c7822998..7591aaea7 100644
      },
      list(db_path = db_path)
 @@ -18,7 +18,7 @@ test_that("disconnect releases database file", {
- 
+
    expect_error(session_2$run(
      function(db_path) {
 -      .GlobalEnv$con <- DBI::dbConnect(duckdb::duckdb(), db_path)
@@ -157,7 +155,7 @@ index 4c7822998..7591aaea7 100644
      list(db_path = db_path)
    ))
 @@ -29,7 +29,7 @@ test_that("disconnect releases database file", {
- 
+
    session_2$run(
      function(db_path) {
 -      .GlobalEnv$con <- DBI::dbConnect(duckdb::duckdb(), db_path)
@@ -171,10 +169,42 @@ index 900f0726e..6f0137e7d 100644
 +++ b/tests/testthat/test-signal.R
 @@ -8,7 +8,7 @@ test_that("long-running queries can be cancelled", {
    r_session <- callr::r_session$new()
- 
+
    r_session$run(function() {
 -    .GlobalEnv$con <- DBI::dbConnect(duckdb::duckdb())
 +    .GlobalEnv$con <- DBI::dbConnect(duckdb.1.4::duckdb())
      DBI::dbExecute(.GlobalEnv$con, "CREATE TABLE data AS SELECT unnest(generate_series(1, 100000)) AS a")
    })
- 
+
+commit 40f40e28d7566dff2e930c26af52358222cf6f26
+Author: Kirill Müller <kirill@cynkra.com>
+Date:   Thu Mar 26 19:57:16 2026 +0100
+
+    chore: Rename package
+
+diff --git a/NAMESPACE b/NAMESPACE
+index 05d0c9090..3436b38d7 100644
+--- a/NAMESPACE
++++ b/NAMESPACE
+@@ -60,2 +60,2 @@ exportMethods(show)
+ importFrom(utils,head)
+-useDynLib(duckdb, .registration = TRUE)
++useDynLib(duckdb.1.4, .registration = TRUE)
+diff --git a/man/duckdb-package.Rd b/man/duckdb.1.4-package.Rd
+similarity index 93%
+rename from man/duckdb-package.Rd
+rename to man/duckdb.1.4-package.Rd
+index 1ca9656e4..b1b162348 100644
+--- a/man/duckdb-package.Rd
++++ b/man/duckdb.1.4-package.Rd
+@@ -3,6 +3,7 @@
+ \docType{package}
+-\name{duckdb-package}
+-\alias{duckdb-package}
+-\title{duckdb: DBI Package for the DuckDB Database Management System}
++\name{duckdb.1.4-package}
++\alias{duckdb.1.4}
++\alias{duckdb.1.4-package}
++\title{duckdb.1.4: DBI Package for the DuckDB Database Management System}
+ \description{
+

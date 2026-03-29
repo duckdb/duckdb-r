@@ -94,7 +94,7 @@ git add .
   echo
   git -C "$upstream_dir" log --first-parent --format="%s" "${base}".."${commit}" |
     tee /dev/stderr |
-    sed -r 's%(#[0-9]+)%'${repo_org}/${repo_name}'\1%g'
+    sed -r 's%#([0-9]+)%https://redirect.github.com/'${repo_org}/${repo_name}'/pull/\1%g'
 ) | git commit --file /dev/stdin
 
 rm -rf "$upstream_dir"
