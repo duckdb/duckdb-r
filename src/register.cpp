@@ -68,11 +68,12 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	auto db_wrapper = data.wrapper;
 
 	auto table_name_symbol = cpp11::safe[Rf_install](input.table_name.c_str());
-	SEXP df = R_NilValue;
 	SEXP rho = db_wrapper->env;
 	if (TYPEOF(rho) != ENVSXP) {
 		return nullptr;
 	}
+
+	SEXP df = R_NilValue;
 
 #if defined(R_VERSION) && R_VERSION >= R_Version(4, 5, 0)
 	df = cpp11::safe[R_getVarEx](table_name_symbol, rho, Rboolean::TRUE, R_NilValue);
@@ -88,13 +89,18 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 		df = cpp11::safe[Rf_eval](df, rho);
 	}
 #endif
+
+	PROTECT(df);
 	if (!Rf_inherits(df, "data.frame")) {
+		UNPROTECT(1);
 		return nullptr;
 	}
 
 	// Avoid garbage collection of data frame
 	SEXP node = Rf_cons(df, CDR(db_wrapper->registered_dfs));
 	SETCDR(db_wrapper->registered_dfs, node);
+
+	UNPROTECT(1);
 
 	// TODO: do utf conversion
 	auto table_function = make_uniq<TableFunctionRef>();

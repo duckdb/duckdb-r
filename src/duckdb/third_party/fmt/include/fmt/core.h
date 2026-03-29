@@ -226,7 +226,20 @@ template <typename... Ts> struct void_t_impl { using type = void; };
 #endif
 
 #if defined(FMT_USE_STRING_VIEW)
-template <typename Char> using std_string_view = std::basic_string_view<Char>;
+// Use a struct rather than a plain alias so that SFINAE with non-standard char
+// types (e.g. arg_formatter) does not instantiate
+// std::basic_string_view<T>, which triggers a deprecated char_traits<T>
+// warning in libc++ when T is not one of char/wchar_t/char16_t/char32_t.
+template <typename Char, bool = std::is_same<Char, char>::value ||
+                                std::is_same<Char, wchar_t>::value ||
+                                std::is_same<Char, char16_t>::value ||
+                                std::is_same<Char, char32_t>::value>
+struct std_string_view_base {};
+template <typename Char>
+struct std_string_view_base<Char, true> : std::basic_string_view<Char> {
+  using std::basic_string_view<Char>::basic_string_view;
+};
+template <typename Char> using std_string_view = std_string_view_base<Char>;
 #elif defined(FMT_USE_EXPERIMENTAL_STRING_VIEW)
 template <typename Char>
 using std_string_view = std::experimental::basic_string_view<Char>;
