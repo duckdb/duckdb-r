@@ -8,35 +8,8 @@ management system. It is designed to support analytical query workloads
 and is optimized for fast query execution. This repository contains the
 R bindings for DuckDB.
 
-## Installation from CRAN
-
-This is the recommended method for recent R versions on Windows or macOS
-which have binaries available on CRAN.
-
-``` r
-install.packages("duckdb")
-```
-
-For Linux or older R versions, installing the package from source may
-take up to an hour. Consider the [Posit Public Package
-Manager](https://p3m.dev/) for binary installs (see the next section).
-
-## Installation from the Posit Public Package Manager
-
-This repository serves binary builds of CRAN packages for a wide variety
-of platforms. Follow setup instructions from
-<https://p3m.dev/client/#/repos/cran/setup>. For example, to install the
-ManyLinux version of duckdb that is likely to work on your Linux, use:
-
-``` r
-install.packages("duckdb", repos = sprintf(
-  "https://p3m.dev/cran/latest/bin/linux/manylinux_2_28-%s/%s", R.version["arch"], substr(getRversion(), 1, 3)
-))
-```
-
-To check the availability of binaries for your platform, navigate to the
-[duckdb search
-page](https://p3m.dev/client/#/repos/cran/packages/overview?search=duckdb).
+This package contains the LTS version 1.4 of DuckDB, and is only
+available from GitHub and r-universe.
 
 ## Installation from r-universe
 

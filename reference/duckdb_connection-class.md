@@ -116,11 +116,9 @@ show(object)
 
 - params:
 
-  For [`dbBind()`](https://dbi.r-dbi.org/reference/dbBind.html), a list
-  of values, named or unnamed, or a data frame, with one element/column
-  per query parameter. For
-  [`dbBindArrow()`](https://dbi.r-dbi.org/reference/dbBind.html), values
-  as a nanoarrow stream, with one column per query parameter.
+  For `dbBind()`, a list of values, named or unnamed, or a data frame,
+  with one element/column per query parameter. For `dbBindArrow()`,
+  values as a nanoarrow stream, with one column per query parameter.
 
 - arrow:
 
