@@ -4,7 +4,7 @@ index 1894dce7d..049004706 100644
 +++ b/DESCRIPTION
 @@ -1,2 +1,2 @@
 -Package: duckdb
-+Package: duckdb.1.4
++Package: duckdb.1.5.dev
  Title: DBI Package for the DuckDB Database Management System
 diff --git a/R/duckdb-package.R b/R/duckdb-package.R
 index 2ee2528d0..7982715b8 100644
@@ -13,10 +13,10 @@ index 2ee2528d0..7982715b8 100644
 @@ -1,7 +1,7 @@
  ## usethis namespace: start
 -#' @useDynLib duckdb, .registration = TRUE
-+#' @useDynLib duckdb.1.4, .registration = TRUE
++#' @useDynLib duckdb.1.5.dev, .registration = TRUE
  ## usethis namespace: end
 -#' @name duckdb-package
-+#' @name duckdb.1.4-package
++#' @name duckdb.1.5.dev-package
  #' @keywords internal
  "_PACKAGE"
  NULL
@@ -55,10 +55,10 @@ index 9087bd425..11c8677ac 100644
 
  ## Installation from r-universe
 
-diff --git a/inst/include/duckdb_types.hpp b/inst/include/duckdb_1_4_types.hpp
+diff --git a/inst/include/duckdb_types.hpp b/inst/include/duckdb_1_5_dev_types.hpp
 similarity index 100%
 rename from inst/include/duckdb_types.hpp
-rename to inst/include/duckdb_1_4_types.hpp
+rename to inst/include/duckdb_1_5_dev_types.hpp
 diff --git a/src/include/rapi.hpp b/src/include/rapi.hpp
 index 4acc10425..572dd36e6 100644
 --- a/src/include/rapi.hpp
@@ -68,7 +68,7 @@ index 4acc10425..572dd36e6 100644
  #endif
 
 -#define DUCKDB_PACKAGE_NAME "duckdb"
-+#define DUCKDB_PACKAGE_NAME "duckdb.1.4"
++#define DUCKDB_PACKAGE_NAME "duckdb.1.5.dev"
 
  // Helper functions to communicate errors via R's stop() function with context information
  [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message);
@@ -81,10 +81,10 @@ index 1097d5cd5..7c6fea199 100644
 
  library(testthat)
 -library(duckdb)
-+library(duckdb.1.4)
++library(duckdb.1.5.dev)
 
 -test_check("duckdb")
-+test_check("duckdb.1.4")
++test_check("duckdb.1.5.dev")
 diff --git a/tests/testthat/helper-DBItest.R b/tests/testthat/helper-DBItest.R
 index d538f8f7a..888135891 100644
 --- a/tests/testthat/helper-DBItest.R
@@ -94,7 +94,7 @@ index d538f8f7a..888135891 100644
      blob_cast = function(x) sprintf("%s::BLOB", x)
    ),
 -  name = "duckdb"
-+  name = "duckdb.1.4"
++  name = "duckdb.1.5.dev"
  )
 diff --git a/tests/testthat/test-readonly.R b/tests/testthat/test-readonly.R
 index 433002c44..669eec6f3 100644
@@ -105,12 +105,12 @@ index 433002c44..669eec6f3 100644
 
    callr::r(function(dbdir) {
 -    con <- DBI::dbConnect(duckdb::duckdb(), dbdir, read_only = FALSE) # FALSE is the default
-+    con <- DBI::dbConnect(duckdb.1.4::duckdb(), dbdir, read_only = FALSE) # FALSE is the default
++    con <- DBI::dbConnect(duckdb.1.5.dev::duckdb(), dbdir, read_only = FALSE) # FALSE is the default
      print(con)
      res <- DBI::dbWriteTable(con, "iris", iris)
      DBI::dbDisconnect(con)
 -    duckdb::duckdb_shutdown(con@driver)
-+    duckdb.1.4::duckdb_shutdown(con@driver)
++    duckdb.1.5.dev::duckdb_shutdown(con@driver)
    }, args = list(dbdir))
 
 
@@ -119,7 +119,7 @@ index 433002c44..669eec6f3 100644
    # con is still alive
    callr::r(function(dbdir) {
 -    con <- DBI::dbConnect(duckdb::duckdb(), dbdir, read_only = TRUE)
-+    con <- DBI::dbConnect(duckdb.1.4::duckdb(), dbdir, read_only = TRUE)
++    con <- DBI::dbConnect(duckdb.1.5.dev::duckdb(), dbdir, read_only = TRUE)
      res <- DBI::dbReadTable(con, "iris")
      DBI::dbDisconnect(con, shutdown = TRUE)
    }, args = list(dbdir))
@@ -128,7 +128,7 @@ index 433002c44..669eec6f3 100644
    # TODO shutdown
    callr::r(function(dbdir) {
 -    con <- DBI::dbConnect(duckdb::duckdb(), dbdir, read_only = FALSE) # FALSE is the default
-+    con <- DBI::dbConnect(duckdb.1.4::duckdb(), dbdir, read_only = FALSE) # FALSE is the default
++    con <- DBI::dbConnect(duckdb.1.5.dev::duckdb(), dbdir, read_only = FALSE) # FALSE is the default
      res <- DBI::dbWriteTable(con, "iris2", iris)
      DBI::dbDisconnect(con)
    }, args = list(dbdir))
@@ -141,7 +141,7 @@ index 4c7822998..7591aaea7 100644
    session_1$run(
      function(db_path) {
 -      .GlobalEnv$con <- DBI::dbConnect(duckdb::duckdb(), db_path)
-+      .GlobalEnv$con <- DBI::dbConnect(duckdb.1.4::duckdb(), db_path)
++      .GlobalEnv$con <- DBI::dbConnect(duckdb.1.5.dev::duckdb(), db_path)
        DBI::dbWriteTable(con, "test", data.frame(a = 1))
      },
      list(db_path = db_path)
@@ -150,7 +150,7 @@ index 4c7822998..7591aaea7 100644
    expect_error(session_2$run(
      function(db_path) {
 -      .GlobalEnv$con <- DBI::dbConnect(duckdb::duckdb(), db_path)
-+      .GlobalEnv$con <- DBI::dbConnect(duckdb.1.4::duckdb(), db_path)
++      .GlobalEnv$con <- DBI::dbConnect(duckdb.1.5.dev::duckdb(), db_path)
      },
      list(db_path = db_path)
    ))
@@ -159,7 +159,7 @@ index 4c7822998..7591aaea7 100644
    session_2$run(
      function(db_path) {
 -      .GlobalEnv$con <- DBI::dbConnect(duckdb::duckdb(), db_path)
-+      .GlobalEnv$con <- DBI::dbConnect(duckdb.1.4::duckdb(), db_path)
++      .GlobalEnv$con <- DBI::dbConnect(duckdb.1.5.dev::duckdb(), db_path)
        DBI::dbDisconnect(con, shutdown = TRUE)
      },
      list(db_path = db_path)
@@ -172,7 +172,7 @@ index 900f0726e..6f0137e7d 100644
 
    r_session$run(function() {
 -    .GlobalEnv$con <- DBI::dbConnect(duckdb::duckdb())
-+    .GlobalEnv$con <- DBI::dbConnect(duckdb.1.4::duckdb())
++    .GlobalEnv$con <- DBI::dbConnect(duckdb.1.5.dev::duckdb())
      DBI::dbExecute(.GlobalEnv$con, "CREATE TABLE data AS SELECT unnest(generate_series(1, 100000)) AS a")
    })
 
@@ -189,22 +189,22 @@ index 05d0c9090..3436b38d7 100644
 @@ -60,2 +60,2 @@ exportMethods(show)
  importFrom(utils,head)
 -useDynLib(duckdb, .registration = TRUE)
-+useDynLib(duckdb.1.4, .registration = TRUE)
-diff --git a/man/duckdb-package.Rd b/man/duckdb.1.4-package.Rd
++useDynLib(duckdb.1.5.dev, .registration = TRUE)
+diff --git a/man/duckdb-package.Rd b/man/duckdb.1.5.dev-package.Rd
 similarity index 93%
 rename from man/duckdb-package.Rd
-rename to man/duckdb.1.4-package.Rd
+rename to man/duckdb.1.5.dev-package.Rd
 index 1ca9656e4..b1b162348 100644
 --- a/man/duckdb-package.Rd
-+++ b/man/duckdb.1.4-package.Rd
++++ b/man/duckdb.1.5.dev-package.Rd
 @@ -3,6 +3,7 @@
  \docType{package}
 -\name{duckdb-package}
 -\alias{duckdb-package}
 -\title{duckdb: DBI Package for the DuckDB Database Management System}
-+\name{duckdb.1.4-package}
-+\alias{duckdb.1.4}
-+\alias{duckdb.1.4-package}
-+\title{duckdb.1.4: DBI Package for the DuckDB Database Management System}
++\name{duckdb.1.5.dev-package}
++\alias{duckdb.1.5.dev}
++\alias{duckdb.1.5.dev-package}
++\title{duckdb.1.5.dev: DBI Package for the DuckDB Database Management System}
  \description{
 
