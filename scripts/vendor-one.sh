@@ -116,9 +116,9 @@ while [ $commits_vendored -lt $num_commits ]; do
       break
     fi
 
-    # Expecting two changes even if nothing else changed.
+    # Expecting one change under ${vendor_base_dir} (and other changes) even if nothing else changed.
     # Need at least three changed files to consider it a real update.
-    if [ "$(git status --porcelain -- ${vendor_base_dir} | wc -l)" -gt 2 ]; then
+    if [ "$(git status --porcelain -- ${vendor_base_dir} | wc -l)" -gt 1 ]; then
       message="vendor: Update vendored sources to ${repo_org}/${repo_name}@$commit"
       break
     fi
@@ -142,6 +142,26 @@ while [ $commits_vendored -lt $num_commits ]; do
   echo "Our tag: $our_tag"
   echo "Upstream tag: $upstream_tag"
 
+  # Increase fifth version component by one
+  # Set to one if missing
+  # Set intermediate components to zero if missing
+  # 1.2.3 -> 1.2.3.0.1
+  # 1.2.3.9000 -> 1.2.3.9000.1
+  # 1.2.3.9000.4 -> 1.2.3.9000.5
+  version=$(sed -r -n '/^Version: (.*)$/ s//\1/p' DESCRIPTION)
+  version_array=(${version//./ })
+  for i in {0..4}; do
+    if [ -z "${version_array[i]}" ]; then
+      version_array[i]=0
+    fi
+  done
+  version_array[4]=$((version_array[4] + 1))
+  new_version=$(IFS=.; echo "${version_array[*]}")
+
+  echo "Updating version from $version to $new_version"
+  sed -i.bak -r 's/^(Version: ).*$/\1'"$new_version"'/' DESCRIPTION
+  rm DESCRIPTION.bak
+
   git add .
 
   (
@@ -151,7 +171,7 @@ while [ $commits_vendored -lt $num_commits ]; do
     echo
     git -C "$upstream_dir" log --first-parent --format="%s" "${base}".."${commit}" |
       tee /dev/stderr |
-      sed -r 's%(#[0-9]+)%'${repo_org}/${repo_name}'\1%g'
+      sed -r 's%#([0-9]+)%https://redirect.github.com/'${repo_org}/${repo_name}'/pull/\1%g'
   ) | git commit --file /dev/stdin || {
     echo "Error: Failed to commit changes"
     rm -rf "$upstream_dir"

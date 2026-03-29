@@ -41,8 +41,7 @@ struct ConvertOpts {
 	            GeometryConversion geometry_p, ArrowConversion arrow_p, ExperimentalFeatures experimental_p,
 	            StrictRelational strict_relational_p)
 	    : timezone_out(std::move(timezone_out_p)), tz_out_convert(tz_out_convert_p), bigint(bigint_p), array(array_p),
-	      geometry(geometry_p), arrow(arrow_p), experimental(experimental_p),
-	      strict_relational(strict_relational_p) {
+	      geometry(geometry_p), arrow(arrow_p), experimental(experimental_p), strict_relational(strict_relational_p) {
 	}
 };
 
