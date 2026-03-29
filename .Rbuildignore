@@ -43,4 +43,3 @@ _files$
 ^\.clangd$
 ^src/include/deps\.mk$
 ^AGENTS\.md$
-^BRANCHES\.md$
