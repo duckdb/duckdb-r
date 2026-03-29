@@ -9,11 +9,13 @@ Return an
 for use with Arrow Database Connectivity via the adbcdrivermanager
 package.
 
-`dbConnect()` connects to a database instance.
+[`dbConnect()`](https://dbi.r-dbi.org/reference/dbConnect.html) connects
+to a database instance.
 
-`dbDisconnect()` closes a DuckDB database connection. The associated
-DuckDB database instance is shut down automatically, it is no longer
-necessary to set `shutdown = TRUE` or to call `duckdb_shutdown()`.
+[`dbDisconnect()`](https://dbi.r-dbi.org/reference/dbDisconnect.html)
+closes a DuckDB database connection. The associated DuckDB database
+instance is shut down automatically, it is no longer necessary to set
+`shutdown = TRUE` or to call `duckdb_shutdown()`.
 
 ## Usage
 
@@ -134,12 +136,13 @@ dbDisconnect(conn, ..., shutdown = TRUE)
 `duckdb()` returns an object of class
 [duckdb_driver](https://r.duckdb.org/reference/duckdb_driver-class.md).
 
-`dbDisconnect()` and `duckdb_shutdown()` are called for their side
-effect.
+[`dbDisconnect()`](https://dbi.r-dbi.org/reference/dbDisconnect.html)
+and `duckdb_shutdown()` are called for their side effect.
 
 An object of class "adbc_driver"
 
-`dbConnect()` returns an object of class
+[`dbConnect()`](https://dbi.r-dbi.org/reference/dbConnect.html) returns
+an object of class
 [duckdb_connection](https://r.duckdb.org/reference/duckdb_connection-class.md).
 
 ## Details

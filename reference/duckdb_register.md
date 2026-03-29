@@ -15,7 +15,8 @@ duckdb_unregister(conn, name)
 
 - conn:
 
-  A DuckDB connection, created by `dbConnect()`.
+  A DuckDB connection, created by
+  [`dbConnect()`](https://dbi.r-dbi.org/reference/dbConnect.html).
 
 - name:
 
