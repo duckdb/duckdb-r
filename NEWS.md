@@ -1,5 +1,22 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.1.9001
+
+## Chore
+
+- More precise ignore rules to avoid vendoring error.
+
+## Continuous integration
+
+- Fix sed usage.
+
+- Stabilize dev version test.
+
+- Bump versions during vendoring.
+
+- Use links that do not trigger a backlink.
+
+
 # duckdb 1.5.1.9000
 
 ## Bug fixes
