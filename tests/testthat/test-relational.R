@@ -258,6 +258,29 @@ test_that("ALTREP row names are materialized as integer sequence", {
   expect_identical(rn, 1:5)
 })
 
+test_that("ALTREP row names remain ALTREP after duplication", {
+  df <- data.frame(a = 1:5, b = letters[1:5])
+  rel <- rel_from_df(con, df)
+  altrep_df <- rel_to_altrep(rel)
+
+  rn <- attr(altrep_df, "row.names")
+
+  # Check that the row names are ALTREP before duplication
+  inspect_before <- capture.output(.Internal(inspect(rn)))
+  expect_true(any(grepl("DUCKDB_ALTREP_REL_ROWNAMES", inspect_before, fixed = TRUE)))
+
+  # Trigger duplication by modifying a copy (copy-on-modify semantics)
+  rn_dup <- rn
+  rn_dup[1L] <- rn_dup[1L]
+
+  # Check that the duplicated row names are still ALTREP
+  inspect_after <- capture.output(.Internal(inspect(rn_dup)))
+  expect_true(any(grepl("DUCKDB_ALTREP_REL_ROWNAMES", inspect_after, fixed = TRUE)))
+
+  # Verify the values are correct after duplication
+  expect_identical(rn_dup, 1:5)
+})
+
 test_that("the altrep-conversion for relations work for weirdo types for strict = FALSE", {
   test_df <- data.frame(
     col_date = as.Date("2019-11-26"),
