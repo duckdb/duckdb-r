@@ -1,5 +1,26 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.1.9002
+
+## Chore
+
+- Further minimize difference with flavors.
+
+- Avoid spurious changes in `.dd` files.
+
+## Continuous integration
+
+- Copy LTS infrastructure.
+
+## Documentation
+
+- Describe branching strategy (#2280, #2281).
+
+- Describe branching strategy (#2280, #2281).
+
+- Describe branching strategy (#2280, #2281).
+
+
 # duckdb 1.5.1.9001
 
 ## Chore
