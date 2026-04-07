@@ -1,6 +1,6 @@
 Package: duckdb.1.5.dev
 Title: DBI Package for the DuckDB Database Management System
-Version: 1.5.1.9001.64
+Version: 1.5.1.9001.65
 Authors@R: c(
     person("Hannes", "Mühleisen", , "hannes@cwi.nl", role = "aut",
            comment = c(ORCID = "0000-0001-8552-0029")),
