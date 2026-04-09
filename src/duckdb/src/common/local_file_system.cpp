@@ -703,9 +703,9 @@ void LocalFileSystem::RemoveFile(const string &filename, optional_ptr<FileOpener
 string GetPosixVersionTag(struct stat s) {
 	// dev/ino should be enough, but to guard against in-place writes we also add file size and modification time
 	uint64_t version_tag[4];
-	Store(NumericCast<uint64_t>(s.st_dev), data_ptr_cast(&version_tag[0]));
-	Store(NumericCast<uint64_t>(s.st_ino), data_ptr_cast(&version_tag[1]));
-	Store(NumericCast<uint64_t>(s.st_size), data_ptr_cast(&version_tag[2]));
+	Store(UnsafeNumericCast<uint64_t>(s.st_dev), data_ptr_cast(&version_tag[0]));
+	Store(UnsafeNumericCast<uint64_t>(s.st_ino), data_ptr_cast(&version_tag[1]));
+	Store(UnsafeNumericCast<uint64_t>(s.st_size), data_ptr_cast(&version_tag[2]));
 	Store(Timestamp::FromEpochSeconds(s.st_mtime).value, data_ptr_cast(&version_tag[3]));
 
 	return string(char_ptr_cast(version_tag), sizeof(uint64_t) * 4);
@@ -837,6 +837,9 @@ string LocalFileSystem::MakePathAbsolute(const string &path_p, optional_ptr<File
 #else
 
 constexpr char PIPE_PREFIX[] = "\\\\.\\pipe\\";
+
+static const std::wstring WINDOWS_LOCAL_LONG_PATH_PREFIX = L"\\\\?\\";
+static const std::wstring WINDOWS_UNC_LONG_PATH_PREFIX = L"\\\\?\\UNC\\";
 
 // Returns the last Win32 error, in string format. Returns an empty string if there is no error.
 std::string LocalFileSystem::GetLastErrorAsString() {
@@ -1378,10 +1381,19 @@ bool LocalFileSystem::TryCanonicalizeExistingPath(string &input) {
 	DWORD len = GetFinalPathNameByHandleW(handle, resolved, MAX_PATH, FILE_NAME_NORMALIZED);
 	CloseHandle(handle);
 
-	if (len < 0 && len >= MAX_PATH) {
+	if (len == 0 || len >= MAX_PATH) {
 		return false;
 	}
-	input = WindowsUtil::UnicodeToUTF8(resolved);
+
+	std::wstring resolved_wstr(resolved, static_cast<size_t>(len));
+
+	if (resolved_wstr.find(WINDOWS_UNC_LONG_PATH_PREFIX) == 0) {
+		resolved_wstr = L"\\\\" + resolved_wstr.substr(WINDOWS_UNC_LONG_PATH_PREFIX.length());
+	} else if (resolved_wstr.find(WINDOWS_LOCAL_LONG_PATH_PREFIX) == 0) {
+		resolved_wstr = resolved_wstr.substr(WINDOWS_LOCAL_LONG_PATH_PREFIX.length());
+	}
+
+	input = WindowsUtil::UnicodeToUTF8(resolved_wstr.c_str());
 	return true;
 }
 

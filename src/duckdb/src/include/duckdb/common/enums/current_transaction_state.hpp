@@ -1,17 +1,15 @@
 //===----------------------------------------------------------------------===//
 //                         DuckDB
 //
-// duckdb/common/enums/allow_parser_override.hpp
+// duckdb/common/enums/current_transaction_state.hpp
 //
 //
 //===----------------------------------------------------------------------===//
 
 #pragma once
 
-#include "duckdb/common/constants.hpp"
-
 namespace duckdb {
 
-enum class AllowParserOverride : uint8_t { DEFAULT_OVERRIDE, FALLBACK_OVERRIDE, STRICT_OVERRIDE };
+enum CurrentTransactionState { IN_ACTIVE_TRANSACTION, NOT_IN_ACTIVE_TRANSACTION };
 
 } // namespace duckdb

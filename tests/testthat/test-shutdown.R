@@ -10,7 +10,7 @@ test_that("disconnect releases database file", {
 
   session_1$run(
     function(db_path) {
-      .GlobalEnv$con <- DBI::dbConnect(duckdb::duckdb(), db_path)
+      .GlobalEnv$con <- DBI::dbConnect(duckdb.1.5.dev::duckdb(), db_path)
       DBI::dbWriteTable(con, "test", data.frame(a = 1))
     },
     list(db_path = db_path)
@@ -18,7 +18,7 @@ test_that("disconnect releases database file", {
 
   expect_error(session_2$run(
     function(db_path) {
-      .GlobalEnv$con <- DBI::dbConnect(duckdb::duckdb(), db_path)
+      .GlobalEnv$con <- DBI::dbConnect(duckdb.1.5.dev::duckdb(), db_path)
     },
     list(db_path = db_path)
   ))
@@ -29,7 +29,7 @@ test_that("disconnect releases database file", {
 
   session_2$run(
     function(db_path) {
-      .GlobalEnv$con <- DBI::dbConnect(duckdb::duckdb(), db_path)
+      .GlobalEnv$con <- DBI::dbConnect(duckdb.1.5.dev::duckdb(), db_path)
       DBI::dbDisconnect(con, shutdown = TRUE)
     },
     list(db_path = db_path)
