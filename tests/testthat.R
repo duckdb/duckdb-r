@@ -7,6 +7,6 @@
 # * https://testthat.r-lib.org/articles/special-files.html
 
 library(testthat)
-library(duckdb.1.5.dev)
+library(duckdb)
 
-test_check("duckdb.1.5.dev")
+test_check("duckdb")
