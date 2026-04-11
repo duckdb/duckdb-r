@@ -1,5 +1,33 @@
 # Changelog
 
+## duckdb 1.5.1.9003
+
+### Chore
+
+- Use R_getRegisteredNamespace() in R 4.6.
+
+- Further minimize difference with flavors.
+
+- Avoid spurious changes in `.dd` files.
+
+### Continuous integration
+
+- Copy LTS infrastructure.
+
+### Documentation
+
+- Describe branching strategy
+  ([\#2280](https://github.com/duckdb/duckdb-r/issues/2280),
+  [\#2281](https://github.com/duckdb/duckdb-r/issues/2281)).
+
+- Describe branching strategy
+  ([\#2280](https://github.com/duckdb/duckdb-r/issues/2280),
+  [\#2281](https://github.com/duckdb/duckdb-r/issues/2281)).
+
+- Describe branching strategy
+  ([\#2280](https://github.com/duckdb/duckdb-r/issues/2280),
+  [\#2281](https://github.com/duckdb/duckdb-r/issues/2281)).
+
 ## duckdb 1.5.1.9002
 
 ### Chore
