@@ -8,12 +8,11 @@ on:
 
 name: sync
 
-# Only run in the vendoring repository
-if: github.repository == 'krlmlr/duckdb-r'
-
 jobs:
   sync:
     runs-on: ubuntu-24.04
+    if: github.repository == 'krlmlr/duckdb-r'
+
     name: "Fast-forward main from duckdb/duckdb-r"
 
     permissions:
