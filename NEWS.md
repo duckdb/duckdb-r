@@ -1,5 +1,16 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.1.9004
+
+## Continuous integration
+
+- Explicit permissions.
+
+- Avoid starting workflows targeting the fork.
+
+- Align vendoring with igraph.
+
+
 # duckdb 1.5.1.9003
 
 ## Chore
