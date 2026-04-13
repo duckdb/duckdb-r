@@ -1,11 +1,88 @@
 # Changelog
 
-## duckdb 1.5.2
+## duckdb 1.5.1.9004
+
+### Continuous integration
+
+- Explicit permissions.
+
+- Avoid starting workflows targeting the fork.
+
+- Align vendoring with igraph.
+
+## duckdb 1.5.1.9003
+
+### Chore
+
+- Use R_getRegisteredNamespace() in R 4.6.
+
+- Further minimize difference with flavors.
+
+- Avoid spurious changes in `.dd` files.
+
+### Continuous integration
+
+- Copy LTS infrastructure.
+
+### Documentation
+
+- Describe branching strategy
+  ([\#2280](https://github.com/duckdb/duckdb-r/issues/2280),
+  [\#2281](https://github.com/duckdb/duckdb-r/issues/2281)).
+
+- Describe branching strategy
+  ([\#2280](https://github.com/duckdb/duckdb-r/issues/2280),
+  [\#2281](https://github.com/duckdb/duckdb-r/issues/2281)).
+
+- Describe branching strategy
+  ([\#2280](https://github.com/duckdb/duckdb-r/issues/2280),
+  [\#2281](https://github.com/duckdb/duckdb-r/issues/2281)).
+
+## duckdb 1.5.1.9002
+
+### Chore
+
+- Further minimize difference with flavors.
+
+- Avoid spurious changes in `.dd` files.
+
+### Continuous integration
+
+- Copy LTS infrastructure.
+
+### Documentation
+
+- Describe branching strategy
+  ([\#2280](https://github.com/duckdb/duckdb-r/issues/2280),
+  [\#2281](https://github.com/duckdb/duckdb-r/issues/2281)).
+
+- Describe branching strategy
+  ([\#2280](https://github.com/duckdb/duckdb-r/issues/2280),
+  [\#2281](https://github.com/duckdb/duckdb-r/issues/2281)).
+
+- Describe branching strategy
+  ([\#2280](https://github.com/duckdb/duckdb-r/issues/2280),
+  [\#2281](https://github.com/duckdb/duckdb-r/issues/2281)).
+
+## duckdb 1.5.1.9001
+
+### Chore
+
+- More precise ignore rules to avoid vendoring error.
+
+### Continuous integration
+
+- Fix sed usage.
+
+- Stabilize dev version test.
+
+- Bump versions during vendoring.
+
+- Use links that do not trigger a backlink.
+
+## duckdb 1.5.1.9000
 
 ### Bug fixes
-
-- Update to DuckDB v1.5.2, see
-  <https://github.com/duckdb/duckdb/releases/tag/v1.5.2> for details.
 
 - Fix compiler warning on recent clang on macOS.
 
@@ -18,15 +95,25 @@
 
 ### Chore
 
-- Use `R_getRegisteredNamespace()` in R 4.6.
+- Record preference.
 
-### Documentation
+- Format.
 
-- Describe branching strategy
-  ([\#2280](https://github.com/duckdb/duckdb-r/issues/2280),
-  [\#2281](https://github.com/duckdb/duckdb-r/issues/2281)).
+### Continuous integration
+
+- Fix fledge workflow.
+
+- Fix fledge workflow.
+
+- Fix vendoring.
+
+- Do not run fledge on duckdb non-fork.
 
 ### Testing
+
+- Skip arrow tests for flavors.
+
+- Arrow tests need duckdb package, not a flavor.
 
 - Use explicit default duckdb connection for arrow tests
   ([\#2301](https://github.com/duckdb/duckdb-r/issues/2301)).
