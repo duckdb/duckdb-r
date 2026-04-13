@@ -272,61 +272,49 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 	}
 }
 
-SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
+SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 	if (val.IsNull()) {
 		return R_NilValue;
 	}
 
-	switch (val.type().id()) {
-	case LogicalTypeId::BOOLEAN:
-		return cpp11::logicals({val.GetValue<bool>()});
-	case LogicalTypeId::TINYINT:
-	case LogicalTypeId::SMALLINT:
-	case LogicalTypeId::INTEGER:
-	case LogicalTypeId::UTINYINT:
-	case LogicalTypeId::USMALLINT:
-	case LogicalTypeId::UINTEGER:
-		return cpp11::integers({val.GetValue<int32_t>()});
-	case LogicalTypeId::BIGINT:
-	case LogicalTypeId::UBIGINT:
-	case LogicalTypeId::FLOAT:
-	case LogicalTypeId::DOUBLE:
-	case LogicalTypeId::DECIMAL:
-		return cpp11::doubles({val.GetValue<double>()});
-	case LogicalTypeId::VARCHAR:
-		return StringsToSexp({val.ToString()});
-	case LogicalTypeId::TIMESTAMP: {
-		cpp11::doubles res({(double)Timestamp::GetEpochSeconds(val.GetValue<timestamp_t>())});
-		// TODO bit of duplication here with statement.cpp, fix this
-		// some dresssup for R
-		SET_CLASS(res, RStrings::get().POSIXct_POSIXt_str);
-		Rf_setAttrib(res, RStrings::get().tzone_sym, StringsToSexp({""}));
-		return res;
-	}
-	case LogicalTypeId::TIMESTAMP_TZ: {
-		cpp11::doubles res({(double)Timestamp::GetEpochSeconds(val.GetValue<timestamp_tz_t>())});
-		SET_CLASS(res, RStrings::get().POSIXct_POSIXt_str);
-		Rf_setAttrib(res, RStrings::get().tzone_sym, StringsToSexp({timezone_config}));
-		return res;
-	}
-	case LogicalTypeId::TIME: {
-		cpp11::doubles res({(double)val.GetValue<dtime_t>().micros / Interval::MICROS_PER_SEC});
-		// some dresssup for R
-		SET_CLASS(res, RStrings::get().difftime_str);
-		// we always return difftime as "seconds"
-		Rf_setAttrib(res, RStrings::get().units_sym, RStrings::get().secs_str);
-		return res;
+	auto &type = val.type();
+
+	// UNION: unwrap and recurse with the active member's value
+	if (type.id() == LogicalTypeId::UNION) {
+		auto &val_ref = UnionValue::GetValue(val);
+		return ValueToSexp(val_ref, convert_opts);
 	}
 
-	case LogicalTypeId::DATE: {
-		cpp11::doubles res({(double)int32_t(val.GetValue<date_t>())});
-		// some dresssup for R
-		SET_CLASS(res, RStrings::get().Date_str);
-		return res;
+	// Enable array conversion for values inside VARIANT
+	ConvertOpts opts = convert_opts;
+	if (type.id() == LogicalTypeId::ARRAY) {
+		opts.array = ConvertOpts::ArrayConversion::MATRIX;
 	}
 
+	// Create a single-element Vector and reuse the existing transform pipeline
+	Vector vec(type, 1);
+	vec.SetValue(0, val);
+
+	SEXP dest = duckdb_r_allocate(type, 1, "variant", opts, "ValueToSexp");
+	duckdb_r_decorate(type, dest, opts);
+	duckdb_r_transform(vec, dest, 0, 1, opts, "variant");
+
+	// Scalar TIMESTAMP (no TZ) must have tzone="" for Arrow pushdown compatibility
+	if (type.id() == LogicalTypeId::TIMESTAMP && TYPEOF(dest) == REALSXP) {
+		Rf_setAttrib(dest, RStrings::get().tzone_sym, StringsToSexp({""}));
+	}
+
+	// Types stored as per-row VECSXP elements: extract element 0
+	// STRUCT returns a 1-row data frame: return as-is
+	// Scalars return a length-1 vector: return as-is
+	switch (type.id()) {
+	case LogicalTypeId::LIST:
+	case LogicalTypeId::MAP:
+	case LogicalTypeId::BLOB:
+	case LogicalTypeId::GEOMETRY:
+		return VECTOR_ELT(dest, 0);
 	default:
-		throw NotImplementedException("Can't convert %s of type %s", val.ToString(), val.type().ToString());
+		return dest;
 	}
 }
 
