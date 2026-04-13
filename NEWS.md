@@ -1,12 +1,6 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.5.1.9005
-
-## Continuous integration
-
-- Results from revdepchecks.
-
-- Add more permissions to repo.
+# duckdb 1.5.2
 
 ## vendor
 
@@ -15,8 +9,6 @@
   Date: 2026-04-10 14:33:51 +0200
 
 - Update vendored sources to duckdb/duckdb@8a5851971fae891f292c2714d86046ee018e9737.
-
-  Date: 2026-04-10 14:33:51 +0200
 
   Revert "Run ArrowConverter::ToArrowSchema in a transaction" (https://redirect.github.com/duckdb/duckdb/pull/22007)
   Bump httpfs, now with implemented httpfs_connection_caching (opt-in) (https://redirect.github.com/duckdb/duckdb/pull/21982)
@@ -585,81 +577,6 @@
 
   Correctly revert dictionary size when reverting string appends (https://redirect.github.com/duckdb/duckdb/pull/21489)
 
-
-# duckdb 1.5.1.9004
-
-## Continuous integration
-
-- Explicit permissions.
-
-- Avoid starting workflows targeting the fork.
-
-- Align vendoring with igraph.
-
-
-# duckdb 1.5.1.9003
-
-## Chore
-
-- Use R_getRegisteredNamespace() in R 4.6.
-
-- Further minimize difference with flavors.
-
-- Avoid spurious changes in `.dd` files.
-
-## Continuous integration
-
-- Copy LTS infrastructure.
-
-## Documentation
-
-- Describe branching strategy (#2280, #2281).
-
-- Describe branching strategy (#2280, #2281).
-
-- Describe branching strategy (#2280, #2281).
-
-
-# duckdb 1.5.1.9002
-
-## Chore
-
-- Further minimize difference with flavors.
-
-- Avoid spurious changes in `.dd` files.
-
-## Continuous integration
-
-- Copy LTS infrastructure.
-
-## Documentation
-
-- Describe branching strategy (#2280, #2281).
-
-- Describe branching strategy (#2280, #2281).
-
-- Describe branching strategy (#2280, #2281).
-
-
-# duckdb 1.5.1.9001
-
-## Chore
-
-- More precise ignore rules to avoid vendoring error.
-
-## Continuous integration
-
-- Fix sed usage.
-
-- Stabilize dev version test.
-
-- Bump versions during vendoring.
-
-- Use links that do not trigger a backlink.
-
-
-# duckdb 1.5.1.9000
-
 ## Bug fixes
 
 - Fix compiler warning on recent clang on macOS.
@@ -670,19 +587,49 @@
 
 ## Chore
 
+- Use R_getRegisteredNamespace() in R 4.6.
+
+- Further minimize difference with flavors.
+
+- Avoid spurious changes in `.dd` files.
+
+- More precise ignore rules to avoid vendoring error.
+
 - Record preference.
 
 - Format.
 
 ## Continuous integration
 
-- Fix fledge workflow.
+- Results from revdepchecks.
+
+- Add more permissions to repo.
+
+- Explicit permissions.
+
+- Avoid starting workflows targeting the fork.
+
+- Align vendoring with igraph.
+
+- Copy LTS infrastructure.
+
+- Fix sed usage.
+
+- Stabilize dev version test.
+
+- Bump versions during vendoring.
+
+- Use links that do not trigger a backlink.
 
 - Fix fledge workflow.
 
 - Fix vendoring.
 
 - Do not run fledge on duckdb non-fork.
+
+## Documentation
+
+- Describe branching strategy (#2280, #2281).
 
 ## Testing
 
