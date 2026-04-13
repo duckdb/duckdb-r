@@ -145,3 +145,48 @@ test_that("VARIANT inside a LIST column", {
   expect_equal(vs[[1]], 42)
   expect_equal(vs[[2]], "hello")
 })
+
+test_that("VARIANT handles UNION types", {
+  con <- local_con()
+
+  res <- dbGetQuery(con, "SELECT union_value(num := 42)::VARIANT AS v")
+  expect_equal(res$v[[1]], 42)
+
+  res2 <- dbGetQuery(con, "SELECT union_value(str := 'hello')::VARIANT AS v")
+  expect_equal(res2$v[[1]], "hello")
+})
+
+test_that("VARIANT handles ARRAY types", {
+  con <- local_con(array = "matrix")
+
+  # 1D array should come back as a matrix if the Matrix flag is set 
+  # (though standard DuckDB-R setup often prefers vectors for 1D, 
+  # the matrix flag in our code ensures we trigger that path).
+  res <- dbGetQuery(con, "SELECT [1, 2, 3]::INTEGER[3]::VARIANT AS v")
+  v <- res$v[[1]]
+  expect_true(is.matrix(v) || is.vector(v))
+  expect_equal(as.vector(v), c(1, 2, 3))
+})
+
+test_that("VARIANT handles BLOBs", {
+  con <- local_con()
+
+  res <- dbGetQuery(con, "SELECT 'hello'::BLOB::VARIANT AS v")
+  v <- res$v[[1]]
+
+  expect_type(v, "raw")
+  expect_equal(v, charToRaw("hello"))
+})
+
+
+test_that("VARIANT handles MAPs with data", {
+  con <- local_con()
+
+  res <- dbGetQuery(con, "SELECT MAP(['key1', 'key2'], [10, 20])::VARIANT AS v")
+  v <- res$v[[1]]
+
+  expect_s3_class(v, "data.frame")
+  expect_equal(v$key, c("key1", "key2"))
+  expect_equal(v$value, c(10, 20))
+})
+
