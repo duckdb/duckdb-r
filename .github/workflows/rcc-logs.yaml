@@ -11,6 +11,10 @@ on:
     # - cron: "5 */6 * * *"
     # Every hour at 5 minutes past the hour (UTC): 00:05, 01:05, ..., 23:05.
     - cron: "5 * * * *"
+  push:
+    paths:
+      - '.github/workflows/rcc-logs.yaml'
+      - 'scripts/rcc-logs.sh'
   workflow_dispatch:
 
 name: rcc-logs
