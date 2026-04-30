@@ -68,23 +68,29 @@ End-to-end workflow.
 Environment assumptions (current).
   * R 4.x and standard development tooling (gcc/g++, make, git, `curl`,
     `jq`) are pre-installed.
-  * The `gh` CLI is NOT installed and GitHub Actions build logs are NOT
-    accessible from this environment. Failures must be reproduced locally —
-    there is no shortcut by reading a CI log.
+  * The `gh` CLI is NOT installed in this environment.
+  * GitHub Actions build logs for the `rcc / Smoke test: stock R` job are
+    available on the **orphan branch `rcc`** in `krlmlr/duckdb-r`. Fetch
+    them before starting a local rebuild — most diagnostics point straight
+    at the file and line (see Step 4b for exact fetch commands).
   * GitHub commit-status lookups should use a GitHub MCP tool when the
     skill is invoked by an agent that has one. As a portable fallback, hit
     `GET /repos/{owner}/{repo}/commits/{sha}/statuses` with `curl` and a
     `GITHUB_TOKEN` (see Step 3); filter for `context == "rcc"`.
 
-When CI build logs become available (forward-looking).
-  Once the harness can fetch GitHub Actions logs, augment Step 4b: before
-  the local rebuild, fetch the failed `rcc / Smoke test: stock R` run for
-  `<sha>` and read the tail. Most diagnostics point straight at the file
-  and line, allowing the agent to draft a targeted fix and skip the slow
-  initial full `R CMD INSTALL` of `src/duckdb/`. The local install +
-  `testthat::test_local()` + `rcmdcheck::rcmdcheck()` cycle remains the
-  authoritative final gate — logs only short-circuit triage, they do not
-  replace verification.
+Fetching CI build logs from the `rcc` orphan branch.
+  The harness (`scripts/rcc-logs.sh`) stores GitHub Actions results and
+  logs on the `rcc` orphan branch of `krlmlr/duckdb-r`. Layout:
+  `runs.ndjson` maps commit SHA → run id (one record per line:
+  `{id, commit, state}`); `logs/<id>.log` holds the last 10 000 lines of
+  the combined run log for each failed run. Before running a slow local
+  `R CMD INSTALL`, look up the run id for `<sha>` in `runs.ndjson` and
+  read the log tail (see Step 4b). Most diagnostics point straight at the
+  file and line, allowing the agent to draft a targeted fix and
+  potentially skip the 10–15 min cold-cache C++ rebuild. The local
+  install + `testthat::test_local()` + `rcmdcheck::rcmdcheck()` cycle
+  remains the authoritative final gate — logs only short-circuit triage,
+  they do not replace verification.
 -->
 
 ---
@@ -198,7 +204,39 @@ git checkout -B "$FIX_BRANCH" "$SHA"
 IMPORTANT: Keep the `-dev` suffix in the fix branch name. It ensures that each
 intermediate commit is checked on CI/CD via `each.yaml`.
 
-### 4b. Install and run tests; collect failures
+### 4b. Fetch CI log, then install and run tests; collect failures
+
+**First**, fetch the build log from the `rcc` orphan branch. This is fast
+and usually pinpoints the failure before any local compilation.
+
+The orphan branch layout (produced by `scripts/rcc-logs.sh`) is:
+
+```
+runs.json        – array of all known runs, newest-first (full metadata)
+runs.ndjson      – one {id, commit, state} record per line (fast lookup)
+logs/<id>.log    – last 10 000 lines of the combined run log,
+                   only for runs with a failure conclusion
+```
+
+```bash
+# Fetch the rcc orphan branch (do this once; re-use across multiple SHAs)
+git fetch krlmlr rcc
+
+# Resolve the run ID for the failing SHA
+RUN_ID=$(git show krlmlr/rcc:runs.ndjson \
+  | jq -r --arg sha "$SHA" 'select(.commit == $sha) | .id' \
+  | head -1)
+
+echo "Run ID: $RUN_ID"
+
+# Show the tail of the failure log
+git show "krlmlr/rcc:logs/${RUN_ID}.log" 2>/dev/null | tail -60
+```
+
+If the log identifies the root cause clearly (compiler error, link error,
+failing test + message), draft the targeted fix and proceed to Step 4c
+directly, skipping the slow `R CMD INSTALL` of `src/duckdb/`. If the log
+is absent or inconclusive, fall back to a full local build:
 
 ```bash
 set -o pipefail
@@ -417,10 +455,13 @@ No failure found: v1.4-andium-dev
 - **Branch scope**: only branches matching `\-dev$`.
 - Branches being force-pushed to: always use the freshly-fetched
   `krlmlr/*` ref; never rely on any previously-checked-out state.
-- **Reproduce locally, do not guess.** GitHub Actions logs are not
-  reachable from this environment yet, so every fix must be validated by a
+- **Triage with CI logs, confirm locally.** GitHub Actions results and
+  logs are available on the `rcc` orphan branch of `krlmlr/duckdb-r`
+  (see Step 4b for fetch commands). Use these to triage failures before
+  starting a slow local build. Every fix must still be validated by a
   local `R CMD INSTALL` + `testthat::test_local()` +
-  `rcmdcheck::rcmdcheck()` cycle. The first `R CMD INSTALL` is slow
+  `rcmdcheck::rcmdcheck()` cycle — logs short-circuit triage but do not
+  replace verification. The first cold-cache `R CMD INSTALL` is slow
   (10–15 min); do not abort it.
 - **Tooling fallback**: if `gh` is not installed, query the
   `/repos/<owner>/<repo>/commits/<sha>/statuses` endpoint via `curl` with
