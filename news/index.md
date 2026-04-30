@@ -1,5 +1,12 @@
 # Changelog
 
+## duckdb 1.5.2.9000
+
+### fledge
+
+- CRAN release v1.5.2
+  ([\#2312](https://github.com/duckdb/duckdb-r/issues/2312)).
+
 ## duckdb 1.5.2
 
 CRAN release: 2026-04-13
