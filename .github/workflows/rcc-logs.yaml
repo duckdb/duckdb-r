@@ -9,8 +9,8 @@ on:
   schedule:
     # # Four times per day, evenly spaced (UTC): 00:05, 06:05, 12:05, 18:05.
     # - cron: "5 */6 * * *"
-    # Every hour at 5 minutes past the hour (UTC): 00:05, 01:05, ..., 23:05.
-    - cron: "5 * * * *"
+    # Every 5 minutes for initial collection
+    - cron: "*/5 * * * *"
   push:
     paths:
       - '.github/workflows/rcc-logs.yaml'

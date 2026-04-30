@@ -26,7 +26,7 @@
 #   LOG_TAIL  - number of trailing log lines to keep per failed run
 #               (default: 10000)
 #   PER_PAGE  - API page size (default: 100)
-#   MAX_NEW   - cap on new runs processed per invocation (default: 100)
+#   MAX_NEW   - cap on new runs processed per invocation (default: 400)
 #
 # Requires: gh, jq, unzip. Portable to bash on Linux and macOS.
 
@@ -36,7 +36,7 @@ OUT_DIR="${OUT_DIR:-runs}"
 WORKFLOW="${WORKFLOW:-R-CMD-check.yaml}"
 LOG_TAIL="${LOG_TAIL:-10000}"
 PER_PAGE="${PER_PAGE:-100}"
-MAX_NEW="${MAX_NEW:-100}"
+MAX_NEW="${MAX_NEW:-400}"
 
 mkdir -p "${OUT_DIR}/logs"
 
@@ -132,11 +132,13 @@ while IFS= read -r run; do
   id="$(jq -r '.id' <<<"${run}")"
   conclusion="$(jq -r '.conclusion // ""' <<<"${run}")"
   if ! is_failure_conclusion "${conclusion}"; then
+    echo "Run ${id} conclusion is ${conclusion}, skipping logs"
     continue
   fi
 
   logfile="${OUT_DIR}/logs/${id}.log"
   if [ -f "${logfile}" ]; then
+    echo "Log for run ${id} already exists, skipping fetch"
     continue
   fi
 
