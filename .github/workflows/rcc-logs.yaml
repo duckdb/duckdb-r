@@ -13,8 +13,8 @@ on:
     - cron: "*/5 * * * *"
   push:
     paths:
-      - '.github/workflows/rcc-logs.yaml'
-      - 'scripts/rcc-logs.sh'
+      - ".github/workflows/rcc-logs.yaml"
+      - "scripts/rcc-logs.sh"
   workflow_dispatch:
 
 name: rcc-logs
