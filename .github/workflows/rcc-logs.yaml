@@ -1,0 +1,75 @@
+# Periodically collect results and failure logs for completed runs of the
+# "rcc" workflow and store them on the orphan branch "rcc".
+#
+# The orphan branch holds only the collected data
+# (runs.json, runs.ndjson, logs/<id>.log) and shares no history with the
+# default branch.
+
+on:
+  schedule:
+    # # Four times per day, evenly spaced (UTC): 00:05, 06:05, 12:05, 18:05.
+    # - cron: "5 */6 * * *"
+    # Every hour at 5 minutes past the hour (UTC): 00:05, 01:05, ..., 23:05.
+    - cron: "5 * * * *"
+  workflow_dispatch:
+
+name: rcc-logs
+
+concurrency:
+  group: rcc-logs
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    if: github.repository == 'krlmlr/duckdb-r'
+    runs-on: ubuntu-24.04
+
+    name: "Collect rcc workflow logs"
+
+    permissions:
+      contents: write
+      actions: read
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Add rcc worktree at runs/
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --heads origin rcc >/dev/null 2>&1; then
+            echo "Existing rcc branch found; checking it out as a worktree."
+            git fetch origin rcc:rcc
+            git worktree add runs rcc
+          else
+            echo "rcc branch does not exist yet; creating an orphan worktree."
+            git worktree add --orphan -b rcc runs
+          fi
+
+      - name: Collect rcc workflow runs and failure logs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/rcc-logs.sh
+
+      - name: Commit and push to rcc branch
+        working-directory: runs
+        run: |
+          set -euo pipefail
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes; nothing to commit."
+            exit 0
+          fi
+          git commit -m "rcc-logs: refresh $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          for attempt in 1 2 3 4; do
+            if git push origin rcc; then
+              exit 0
+            fi
+            sleep $(( 2 ** attempt ))
+          done
+          echo "git push failed after retries"
+          exit 1
