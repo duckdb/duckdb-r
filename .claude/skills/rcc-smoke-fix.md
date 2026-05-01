@@ -68,15 +68,14 @@ End-to-end workflow.
 Environment assumptions (current).
   * R 4.x and standard development tooling (gcc/g++, make, git, `curl`,
     `jq`) are pre-installed.
-  * The `gh` CLI is NOT installed in this environment.
-  * GitHub Actions build logs for the `rcc / Smoke test: stock R` job are
-    available on the **orphan branch `rcc`** in `krlmlr/duckdb-r`. Fetch
-    them before starting a local rebuild — most diagnostics point straight
-    at the file and line (see Step 4b for exact fetch commands).
-  * GitHub commit-status lookups should use a GitHub MCP tool when the
-    skill is invoked by an agent that has one. As a portable fallback, hit
-    `GET /repos/{owner}/{repo}/commits/{sha}/statuses` with `curl` and a
-    `GITHUB_TOKEN` (see Step 3); filter for `context == "rcc"`.
+  * GitHub Actions build logs and run results are available on the
+    **orphan branch `rcc`** in `krlmlr/duckdb-r` — no token required.
+    Fetch them before starting a local rebuild (see Step 4b).
+  * When the orphan branch index does not cover a SHA, fall back to `gh`
+    (run `gh auth status` first; skip the fallback if it fails). Do not
+    use `curl` or read environment variables to check authentication.
+  * A GitHub MCP tool may also be used for commit-status lookups when the
+    agent provides one.
 
 Fetching CI build logs from the `rcc` orphan branch.
   The harness (`scripts/rcc-logs.sh`) stores GitHub Actions results and
@@ -136,31 +135,48 @@ COMMITS_OLDEST_FIRST=$(git log "krlmlr/$BRANCH" \
   --first-parent --since="$SINCE" --format="%H" --reverse)
 ```
 
-Define a concrete `lookup_rcc_status` helper. The default below uses `curl`
-+ `jq` so it works without `gh` (CC Web does not ship `gh`); pick whichever
-of the alternatives matches the host environment:
+Cache the orphan-branch run index once (no token required):
 
 ```bash
-# Default: portable HTTPS, no `gh` needed. Requires `curl` and `jq`.
-lookup_rcc_status() {
-  local sha="$1"
-  curl -fsSL \
-    -H "Accept: application/vnd.github+json" \
-    -H "Authorization: Bearer $GITHUB_TOKEN" \
-    "https://api.github.com/repos/$REPO/commits/$sha/statuses" \
-    | jq -r '[.[] | select(.context == "rcc")] | first | .state // "none"'
-}
-
-# Alternative when `gh` is installed (also requires `jq`):
-#   gh api "repos/$REPO/commits/$sha/statuses" \
-#     | jq -r '[.[] | select(.context == "rcc")] | first | .state // "none"'
-#
-# Alternative when invoked by an agent that exposes a GitHub MCP:
-#   call the commit-statuses endpoint for $REPO at $sha, then pick the
-#   entry whose `context == "rcc"`. No `jq` needed in this path.
+RCC_NDJSON=$(git show krlmlr/rcc:runs.ndjson 2>/dev/null || true)
 ```
 
-Walk the commits oldest-first, stop at the first `failure`. Use `pipefail`
+Define helpers. `lookup_rcc_status` reads from the cached `$RCC_NDJSON`
+first; falls back to `gh` only when the SHA is absent and `gh auth status`
+succeeds. Do not use `curl` or check environment variables.
+
+```bash
+is_rcc_failure() {
+  case "$1" in
+    failure|timed_out|startup_failure|action_required) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Check once whether `gh` is usable; cache the result.
+GH_OK=0
+gh auth status &>/dev/null && GH_OK=1
+
+lookup_rcc_status() {
+  local sha="$1"
+  # Primary: orphan branch index (instant, no auth needed)
+  local state
+  state=$(jq -r --arg sha "$sha" \
+    'select(.commit == $sha) | .state' \
+    <<< "$RCC_NDJSON" | head -1)
+  [[ -n "$state" ]] && { echo "$state"; return; }
+
+  # Fallback: gh CLI (only when authenticated)
+  if [[ "$GH_OK" == "1" ]]; then
+    gh api "repos/$REPO/commits/$sha/statuses" \
+      | jq -r '[.[] | select(.context == "rcc")] | first | .state // "none"'
+  else
+    echo "none"
+  fi
+}
+```
+
+Walk the commits oldest-first, stop at the first failure. Use `pipefail`
 so a failed status lookup is not silently swallowed:
 
 ```bash
@@ -170,7 +186,7 @@ FIRST_FAIL=""
 while IFS= read -r SHA; do
   STATUS=$(lookup_rcc_status "$SHA")
   echo "$BRANCH  ${SHA}  $STATUS"
-  if [[ "$STATUS" == "failure" ]]; then
+  if is_rcc_failure "$STATUS"; then
     FIRST_FAIL="$SHA"
     break
   fi
@@ -463,6 +479,9 @@ No failure found: v1.4-andium-dev
   `rcmdcheck::rcmdcheck()` cycle — logs short-circuit triage but do not
   replace verification. The first cold-cache `R CMD INSTALL` is slow
   (10–15 min); do not abort it.
-- **Tooling fallback**: if `gh` is not installed, query the
-  `/repos/<owner>/<repo>/commits/<sha>/statuses` endpoint via `curl` with
-  `GITHUB_TOKEN`, or via a GitHub MCP tool when the agent provides one.
+- **Tooling**: prefer the `rcc` orphan branch (`runs.ndjson`) for all
+  status lookups — no auth needed. Fall back to `gh` only when a SHA is
+  absent from `runs.ndjson`; always gate that fallback on
+  `gh auth status` succeeding. Do not use `curl` for API calls and do not
+  inspect environment variables to decide whether to authenticate.
+  A GitHub MCP tool may be used when the agent provides one.
