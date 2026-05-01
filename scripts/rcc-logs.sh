@@ -163,6 +163,7 @@ while IFS= read -r sha; do
 
   conclusion="$(jq -r '.conclusion // ""' <<<"${run_json}")"
   if ! is_failure_conclusion "${conclusion}"; then
+    echo "Commit ${sha}: run ${run_id} conclusion is ${conclusion}, skipping logs"
     continue
   fi
 
