@@ -1,0 +1,60 @@
+name: cancel-rcc-dispatch
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cancel:
+    if: github.repository == 'krlmlr/duckdb-r'
+    runs-on: ubuntu-24.04
+
+    name: "Cancel pending workflow_dispatch runs of rcc"
+
+    permissions:
+      actions: write
+
+    steps:
+      - name: Cancel pending workflow_dispatch runs of rcc
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          echo "Fetching workflow_dispatch runs of rcc with status in_progress or queued..."
+
+          workflow_id=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "repos/${{ github.repository }}/actions/workflows" \
+            --jq '.workflows[] | select(.name == "rcc") | .id')
+
+          echo "rcc workflow ID: ${workflow_id}"
+
+          for status in queued in_progress; do
+            echo ""
+            echo "--- ${status} ---"
+            run_ids=$(gh api \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "repos/${{ github.repository }}/actions/workflows/${workflow_id}/runs?event=workflow_dispatch&status=${status}&per_page=100" \
+              --jq '.workflow_runs[] | .id')
+
+            if [ -z "${run_ids}" ]; then
+              echo "No ${status} workflow_dispatch runs found."
+              continue
+            fi
+
+            for run_id in ${run_ids}; do
+              echo "Cancelling run ${run_id}..."
+              gh api \
+                --method POST \
+                -H "Accept: application/vnd.github+json" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "repos/${{ github.repository }}/actions/runs/${run_id}/cancel"
+              echo "Cancelled run ${run_id}."
+            done
+          done
+
+          echo ""
+          echo "Done."
+        shell: bash
