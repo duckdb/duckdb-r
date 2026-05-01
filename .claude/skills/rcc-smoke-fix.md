@@ -19,13 +19,17 @@ Why this skill exists.
   `main-dev`, `v1.5-variegata` for `v1.5-variegata-dev`, `v1.4-andium` for
   `v1.4-andium-dev`). A vendor commit can break R-side glue (`src/*.cpp`,
   `src/include/`), R code (`R/`), or test snapshots
-  (`tests/testthat/_snaps/`). We do not rewrite the vendor commit; instead
-  we author a parallel `broken-<sha>-dev` branch that starts at the failing
-  commit, layers on the necessary R-side fix, and re-applies all later
-  commits from the original `*-dev` branch on top. Promoting the green tip
-  back into the parent `*-dev` branch is a manual step performed outside
-  this skill (today there is no CI/CD that does it automatically; this may
-  be automated in the future).
+  (`tests/testthat/_snaps/`). We do not rewrite the upstream vendor commit;
+  instead we author a parallel `broken-<sha>-dev` branch whose first commit
+  is an **amended replacement** of the failing `<sha>` (same parent;
+  original vendor message kept verbatim and a short R-side fix note
+  appended; vendor diff plus R-side fix folded in). All later commits from
+  the original `*-dev` branch are then cherry-picked on top. The result is
+  a continuous "vendor + repair" history with no extra fix commit, which
+  preserves continuity and keeps cherry-picks clean. Promoting the green
+  tip back into the parent `*-dev` branch is a manual step performed
+  outside this skill (today there is no CI/CD that does it automatically;
+  this may be automated in the future).
 
 End-to-end workflow.
   1. Refresh `krlmlr/*` remote-tracking refs from scratch — the dev
@@ -283,6 +287,16 @@ Note: spurious changes to `src/*.dd` (dependency-tracking files) caused by a
 Makefile bug should be discarded with `git checkout -- src/*.dd` rather than
 fixed; see `AGENTS.md` for the root cause.
 
+When a failure is in a test gated by `requireNamespace()` (e.g. `arrow`,
+`DBItest`, `dbplyr`) and that Suggests dependency is missing from the local
+library, install it with `install.packages("foo")` — leave `repos=` unset
+first, so the env-configured default (Posit P3M binary builds for the
+current Linux release) is used; that's much faster than a CRAN source
+compile. If the default repo can't serve the package (404, mirror down,
+unsupported R version), fall back to an explicit `repos=` (e.g.
+`"https://cloud.r-project.org"`) and retry — but only after the default
+has actually failed.
+
 ### 4c. Fix issues — allowed modifications and priority order
 
 **Never edit by hand** any of the following vendored / auto-generated paths:
@@ -373,23 +387,49 @@ Rscript -e 'rcmdcheck::rcmdcheck(args = c("--no-manual", "--as-cran"), error_on 
 Must show `Status: OK` or at most `1 NOTE` (pre-existing CRAN notes are
 fine). Fix any new ERRORs or new WARNINGs.
 
-### 4e. Commit the fix
+### 4e. Fold the fix into the failing commit (amend, do not add)
+
+The fix must be **amended into the failing commit itself**, so the tip of
+`broken-<sha>-dev` is a single-commit-deep replacement of `<sha>` (same
+parent, vendor diff + R-side fix) rather than a two-commit chain.
+Cherry-picks then layer cleanly on top, and the branch keeps a
+continuous "vendor + repair" history without an explicit "fix" commit.
+
+The amended commit message **keeps the original vendor message intact**
+and **appends** a short note documenting the R-side finding (what broke,
+why, what was changed). Append-only: do not rewrite or shorten the
+upstream-authored portion.
 
 ```bash
-SHORT=$(git rev-parse --short=12 "$SHA")
 git add -- R/ tests/ man/ NAMESPACE src/*.cpp src/include/ src/*.dd patch/
 # Also stage `src/duckdb/` if (and only if) you modified `patch/` and the
 # patch was applied to the vendored tree:
 git diff --cached --name-only -- patch/ | grep -q . && \
   git add -- src/duckdb/
-# Only if there are staged changes:
+# Only if there are staged changes: amend, preserving the original
+# vendor message and appending a short fix note. Replace <DETAILS>
+# with 1-5 lines describing the upstream API change and the R-side
+# adaptation (e.g. "Handle new EXPRESSION_FILTER kind in
+# TransformFilterExpression — upstream PR #22005 unified
+# ConstantFilter into ExpressionFilter.").
+ORIG_MSG=$(git log -1 --format=%B)
 git diff --cached --quiet || \
-  git commit -m "fix: R-side fix for failing rcc at ${SHORT}"
+  git commit --amend -m "${ORIG_MSG}
+
+R-side fix
+----------
+<DETAILS>"
 ```
 
+This rewrites the local `broken-<sha>-dev` HEAD only — the original
+`<sha>` on `krlmlr/main-dev` (or whichever upstream) is untouched, so the
+"never amend pushed commits" rule still holds: the amend produces a new
+commit on a new, never-before-pushed branch.
+
 Never `git add` paths under `inst/include/cpp11/` or any flavor file
-managed by `scripts/lts.sh`. `src/duckdb/` should only appear in a fix
-commit when it carries the downstream effect of a `patch/` change.
+managed by `scripts/lts.sh`. `src/duckdb/` should only appear in the
+amended commit when it carries the downstream effect of a `patch/`
+change.
 
 ### 4f. Cherry-pick all remaining commits from `*-dev`
 
@@ -470,7 +510,10 @@ No failure found: v1.4-andium-dev
 - **Never** suppress C++ warnings via `#pragma clang diagnostic ignored` or
   similar. Add a `patch/` file that fixes the underlying issue (see
   `AGENTS.md`). CRAN rejects packages that silence warnings.
-- **Never** amend commits that have already been pushed.
+- **Never** amend commits that have already been pushed. Step 4e amends
+  the failing `<sha>` only on the freshly-created local `broken-<sha>-dev`
+  branch (which has not been pushed); the original `<sha>` on the upstream
+  `*-dev` branch is left alone.
 - **Commit status to check**: context `rcc` (not the full check-run name).
 - **Branch target**: all pushes go to the `krlmlr` remote
   (`krlmlr/duckdb-r`) to a branch named `broken-<sha>-dev` (full 40-char
