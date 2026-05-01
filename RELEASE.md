@@ -24,6 +24,7 @@ package authors “well beforehand”. If things fail in this check, you
 should contact the package authors.
 
 ``` r
+
 remotes::install_github("r-lib/revdepcheck") # once
 revdepcheck::revdep_check(num_workers = 8, env=c(`MAKEVARS`="-j8"))
 ```

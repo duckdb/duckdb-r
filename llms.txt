@@ -14,6 +14,7 @@ This is the recommended method for recent R versions on Windows or macOS
 which have binaries available on CRAN.
 
 ``` r
+
 install.packages("duckdb")
 ```
 
@@ -29,6 +30,7 @@ of platforms. Follow setup instructions from
 ManyLinux version of duckdb that is likely to work on your Linux, use:
 
 ``` r
+
 install.packages("duckdb", repos = sprintf(
   "https://p3m.dev/cran/latest/bin/linux/manylinux_2_28-%s/%s", R.version["arch"], substr(getRversion(), 1, 3)
 ))
@@ -46,6 +48,7 @@ recent versions of R and for some platforms. Review
 installation of binary packages on Linux.
 
 ``` r
+
 install.packages("duckdb", repos = c("https://duckdb.r-universe.dev", "https://cloud.r-project.org"))
 ```
 
@@ -54,6 +57,7 @@ Installing the package from source may take up to an hour.
 ## Installation from GitHub
 
 ``` r
+
 # install.packages("pak", repos = sprintf("https://r-lib.github.io/p/pak/stable/%s/%s/%s", .Platform$pkgType, R.Version()$os, R.Version()$arch))
 pak::pak("duckdb/duckdb-r")
 ```
@@ -71,6 +75,7 @@ To build the R package, you first need to clone this repository and
 install the dependencies:
 
 ``` r
+
 # install.packages("pak", repos = sprintf("https://r-lib.github.io/p/pak/stable/%s/%s/%s", .Platform$pkgType, R.Version()$os, R.Version()$arch))
 pak::pak()
 ```

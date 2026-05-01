@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.2.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.2.9001</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -31,6 +31,28 @@
       <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.5.2.9001" id="duckdb-1529001">duckdb 1.5.2.9001<a class="anchor" aria-label="anchor" href="#duckdb-1529001"></a></h2>
+<ul><li><p>Add RCC smoke test fix skill documentation (<a href="https://github.com/duckdb/duckdb-r/issues/22" class="external-link">#22</a>).</p></li>
+<li><p>Docs(skill): add rcc-smoke-fix skill modeled on rigraph.</p></li>
+<li><p>Iterate over multiple *-dev branches (main-dev, v1.5-variegata-dev,.</p></li>
+<li><p>Forbid edits to vendored sources (src/duckdb/, inst/include/cpp11/,.</p></li>
+<li><p>Document longer build times (10-15 min cold) and the .dd.</p></li>
+<li><p>Include the same operation-essence preamble, no-log-access caveat,.</p></li>
+<li><p>Docs(skill): correct claim about CI promoting fixes to *-dev.</p></li>
+<li><p>Docs(skill): address review feedback on rcc-smoke-fix.</p></li>
+<li><p>Replace placeholder status-lookup pseudocode with a concrete.</p></li>
+<li><p>Enable <code>set -o pipefail</code> around <code>... | tail -N</code> so failing.</p></li>
+<li><p>Use <code><a href="http://r-lib.github.io/rcmdcheck/reference/rcmdcheck.html" class="external-link">rcmdcheck::rcmdcheck()</a></code> instead of <code>R CMD check .</code> (which is.</p></li>
+<li><p>Build-ignore.</p></li>
+<li><p>Fix: remove all R CMD check . references from skill.</p></li>
+<li><p>Docs(skill): spell out patch/ → vendored cascade; drop transient branches.</p></li>
+<li><p>Note that editing <code>patch/</code> is expected to produce committable changes.</p></li>
+<li><p>Apply-patch instruction added to priority 1.</p></li>
+<li><p>Commit step conditionally adds <code>src/duckdb/</code> only when <code>patch/</code> changed.</p></li>
+<li><p>Cherry-pick conflict on <code>src/duckdb/</code> softened: rare but possible from.</p></li>
+<li><p>Removed all references to out-of-scope transient branches.</p></li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.5.2.9000" id="duckdb-1529000">duckdb 1.5.2.9000<a class="anchor" aria-label="anchor" href="#duckdb-1529000"></a></h2>
 <div class="section level3">

@@ -1,5 +1,51 @@
 # Changelog
 
+## duckdb 1.5.2.9001
+
+- Add RCC smoke test fix skill documentation
+  ([\#22](https://github.com/duckdb/duckdb-r/issues/22)).
+
+- Docs(skill): add rcc-smoke-fix skill modeled on rigraph.
+
+- Iterate over multiple \*-dev branches (main-dev, v1.5-variegata-dev,.
+
+- Forbid edits to vendored sources (src/duckdb/, inst/include/cpp11/,.
+
+- Document longer build times (10-15 min cold) and the .dd.
+
+- Include the same operation-essence preamble, no-log-access caveat,.
+
+- Docs(skill): correct claim about CI promoting fixes to \*-dev.
+
+- Docs(skill): address review feedback on rcc-smoke-fix.
+
+- Replace placeholder status-lookup pseudocode with a concrete.
+
+- Enable `set -o pipefail` around `... | tail -N` so failing.
+
+- Use
+  [`rcmdcheck::rcmdcheck()`](http://r-lib.github.io/rcmdcheck/reference/rcmdcheck.md)
+  instead of `R CMD check .` (which is.
+
+- Build-ignore.
+
+- Fix: remove all R CMD check . references from skill.
+
+- Docs(skill): spell out patch/ → vendored cascade; drop transient
+  branches.
+
+- Note that editing `patch/` is expected to produce committable changes.
+
+- Apply-patch instruction added to priority 1.
+
+- Commit step conditionally adds `src/duckdb/` only when `patch/`
+  changed.
+
+- Cherry-pick conflict on `src/duckdb/` softened: rare but possible
+  from.
+
+- Removed all references to out-of-scope transient branches.
+
 ## duckdb 1.5.2.9000
 
 ### fledge

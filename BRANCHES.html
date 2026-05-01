@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.2.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.2.9001</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -129,41 +129,41 @@
 <div class="section level2">
 <h2 id="r-package-flavors">R Package Flavors<a class="anchor" aria-label="anchor" href="#r-package-flavors"></a></h2>
 <p>Several packages are published, organised into three release lines:</p>
-<table class="table"><colgroup><col width="13%"><col width="12%"><col width="32%"><col width="41%"></colgroup><thead><tr class="header"><th>Package</th>
+<table class="table"><colgroup><col width="13%"><col width="12%"><col width="32%"><col width="41%"></colgroup><thead><tr><th>Package</th>
 <th>Install from</th>
 <th>Branch (repo)</th>
 <th>Description</th>
-</tr></thead><tbody><tr class="odd"><td><code>duckdb</code></td>
+</tr></thead><tbody><tr><td><code>duckdb</code></td>
 <td>CRAN</td>
 <td>
 <code>main</code> (<code>duckdb/duckdb-r</code>)</td>
 <td><strong>Current stable release.</strong></td>
-</tr><tr class="even"><td><code>duckdb</code></td>
+</tr><tr><td><code>duckdb</code></td>
 <td>r-universe</td>
 <td>
 <code>main</code> (<code>duckdb/duckdb-r</code>)</td>
 <td>Current or upcoming release.</td>
-</tr><tr class="odd"><td><code>duckdb.1.5</code></td>
+</tr><tr><td><code>duckdb.1.5</code></td>
 <td>Does not exist</td>
 <td></td>
 <td>v1.5 is not an LTS version.</td>
-</tr><tr class="even"><td><code>duckdb.1.4</code></td>
+</tr><tr><td><code>duckdb.1.4</code></td>
 <td>r-universe</td>
 <td>
 <code>v1.4-andium-lts</code> (<code>duckdb/duckdb-r</code>)</td>
 <td>
 <strong>LTS — v1.4.</strong> Receives only bug fixes.</td>
-</tr><tr class="odd"><td><code>duckdb.dev</code></td>
+</tr><tr><td><code>duckdb.dev</code></td>
 <td>r-universe</td>
 <td>
 <code>main-dev</code> (<code>krlmlr/duckdb-r</code>)</td>
 <td>Bleeding-edge build of the next major/minor version.</td>
-</tr><tr class="even"><td><code>duckdb.1.5.dev</code></td>
+</tr><tr><td><code>duckdb.1.5.dev</code></td>
 <td>r-universe</td>
 <td>
 <code>v1.5-variegata-dev</code> (<code>krlmlr/duckdb-r</code>)</td>
 <td>Bleeding-edge build on the v1.5 upstream.</td>
-</tr><tr class="odd"><td><code>duckdb.1.4.dev</code></td>
+</tr><tr><td><code>duckdb.1.4.dev</code></td>
 <td>r-universe</td>
 <td>
 <code>v1.4-andium-dev</code> (<code>krlmlr/duckdb-r</code>)</td>
@@ -204,54 +204,54 @@
 <div class="section level2">
 <h2 id="branch-overview">Branch Overview<a class="anchor" aria-label="anchor" href="#branch-overview"></a></h2>
 <p>Each supported DuckDB minor version has a <strong>series of four branches</strong> organised into two repos. The table below shows the complete set at the time of writing:</p>
-<table class="table"><colgroup><col width="21%"><col width="15%"><col width="14%"><col width="48%"></colgroup><thead><tr class="header"><th>Branch</th>
+<table class="table"><colgroup><col width="21%"><col width="15%"><col width="14%"><col width="48%"></colgroup><thead><tr><th>Branch</th>
 <th>Repo</th>
 <th><code>Package:</code></th>
 <th>Purpose</th>
-</tr></thead><tbody><tr class="odd"><td><code>main</code></td>
+</tr></thead><tbody><tr><td><code>main</code></td>
 <td><code>duckdb/duckdb-r</code></td>
 <td><code>duckdb</code></td>
 <td>Source of truth for glue code, R code, tests, CI/CD, cpp11</td>
-</tr><tr class="even"><td><code>main-dev</code></td>
+</tr><tr><td><code>main-dev</code></td>
 <td><code>krlmlr/duckdb-r</code></td>
 <td><code>duckdb</code></td>
 <td>Vendored dev (upstream <code>main</code>); published as <code>duckdb.dev</code>
 </td>
-</tr><tr class="odd"><td><code>main-dev-base</code></td>
+</tr><tr><td><code>main-dev-base</code></td>
 <td><code>krlmlr/duckdb-r</code></td>
 <td><code>duckdb</code></td>
 <td>Stable base for <code>main-dev</code>; marks the last reviewed point</td>
-</tr><tr class="even"><td><code>v1.5-variegata</code></td>
+</tr><tr><td><code>v1.5-variegata</code></td>
 <td><code>duckdb/duckdb-r</code></td>
 <td><code>duckdb</code></td>
 <td>Stable baseline for current release</td>
-</tr><tr class="odd"><td><code>v1.5-variegata-lts</code></td>
+</tr><tr><td><code>v1.5-variegata-lts</code></td>
 <td></td>
 <td></td>
 <td>Does not exist, v1.5 is not an LTS</td>
-</tr><tr class="even"><td><code>v1.5-variegata-dev</code></td>
+</tr><tr><td><code>v1.5-variegata-dev</code></td>
 <td><code>krlmlr/duckdb-r</code></td>
 <td><code>duckdb.1.5.dev</code></td>
 <td>Bleeding edge on v1.5 upstream</td>
-</tr><tr class="odd"><td><code>v1.5-variegata-dev-base</code></td>
+</tr><tr><td><code>v1.5-variegata-dev-base</code></td>
 <td><code>krlmlr/duckdb-r</code></td>
 <td><code>duckdb.1.5.dev</code></td>
 <td>Stable base for <code>v1.5-variegata-dev</code>
 </td>
-</tr><tr class="even"><td><code>v1.4-andium</code></td>
+</tr><tr><td><code>v1.4-andium</code></td>
 <td><code>duckdb/duckdb-r</code></td>
 <td><code>duckdb</code></td>
 <td>Stable baseline for LTS release</td>
-</tr><tr class="odd"><td><code>v1.4-andium-lts</code></td>
+</tr><tr><td><code>v1.4-andium-lts</code></td>
 <td><code>duckdb/duckdb-r</code></td>
 <td><code>duckdb.1.4</code></td>
 <td>
 <code>v1.4-andium</code> + one rename commit; published to r-universe</td>
-</tr><tr class="even"><td><code>v1.4-andium-dev</code></td>
+</tr><tr><td><code>v1.4-andium-dev</code></td>
 <td><code>krlmlr/duckdb-r</code></td>
 <td><code>duckdb.1.4.dev</code></td>
 <td>Bleeding edge on v1.4 upstream</td>
-</tr><tr class="odd"><td><code>v1.4-andium-dev-base</code></td>
+</tr><tr><td><code>v1.4-andium-dev-base</code></td>
 <td><code>krlmlr/duckdb-r</code></td>
 <td><code>duckdb.1.4.dev</code></td>
 <td>Stable base for <code>v1.4-andium-dev</code>
@@ -286,29 +286,29 @@ v1.4-andium-lts                         Package: duckdb.1.4.dev
 <div class="section level2">
 <h2 id="source-of-truth">Source of Truth<a class="anchor" aria-label="anchor" href="#source-of-truth"></a></h2>
 <p><code>main</code> in <code>duckdb/duckdb-r</code> is the <strong>source of truth</strong> for four of the seven components:</p>
-<table class="table"><colgroup><col width="23%"><col width="31%"><col width="45%"></colgroup><thead><tr class="header"><th>Component</th>
+<table class="table"><colgroup><col width="23%"><col width="31%"><col width="45%"></colgroup><thead><tr><th>Component</th>
 <th>Source of truth</th>
 <th>Notes</th>
-</tr></thead><tbody><tr class="odd"><td>DuckDB core</td>
+</tr></thead><tbody><tr><td>DuckDB core</td>
 <td>
 <code>duckdb/duckdb</code> upstream</td>
 <td>Vendored independently into each branch</td>
-</tr><tr class="even"><td>Flavor</td>
+</tr><tr><td>Flavor</td>
 <td>Per-branch (via <code>lts.sh</code>)</td>
 <td>Applied mechanically on top of the baseline</td>
-</tr><tr class="odd"><td><strong>Glue code</strong></td>
+</tr><tr><td><strong>Glue code</strong></td>
 <td><strong><code>main</code></strong></td>
 <td>Forward-ported to all <code>-andium</code> / <code>-dev</code> branches</td>
-</tr><tr class="even"><td><strong>R code and tests</strong></td>
+</tr><tr><td><strong>R code and tests</strong></td>
 <td><strong><code>main</code></strong></td>
 <td>Forward-ported to all <code>-andium</code> / <code>-dev</code> branches</td>
-</tr><tr class="odd"><td><strong>CI/CD infrastructure</strong></td>
+</tr><tr><td><strong>CI/CD infrastructure</strong></td>
 <td><strong><code>main</code></strong></td>
 <td>Forward-ported to all <code>-andium</code> / <code>-dev</code> branches</td>
-</tr><tr class="even"><td><strong>cpp11</strong></td>
+</tr><tr><td><strong>cpp11</strong></td>
 <td><strong><code>main</code></strong></td>
 <td>Forward-ported to all <code>-andium</code> / <code>-dev</code> branches</td>
-</tr><tr class="odd"><td>R core</td>
+</tr><tr><td>R core</td>
 <td>External (<code>r-devel</code>, CRAN policy)</td>
 <td>Monitored; fixes land in <code>main</code> first</td>
 </tr></tbody></table><div class="section level3">
@@ -470,26 +470,26 @@ krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
 <h2 id="tooling">Tooling<a class="anchor" aria-label="anchor" href="#tooling"></a></h2>
 <div class="section level3">
 <h3 id="existing-tooling">Existing tooling<a class="anchor" aria-label="anchor" href="#existing-tooling"></a></h3>
-<table class="table"><colgroup><col width="23%"><col width="76%"></colgroup><thead><tr class="header"><th>Script / Workflow</th>
+<table class="table"><colgroup><col width="23%"><col width="76%"></colgroup><thead><tr><th>Script / Workflow</th>
 <th>Purpose</th>
-</tr></thead><tbody><tr class="odd"><td><code>scripts/vendor.sh</code></td>
+</tr></thead><tbody><tr><td><code>scripts/vendor.sh</code></td>
 <td>Local manual vendoring from a cloned upstream repo</td>
-</tr><tr class="even"><td><code>scripts/vendor-one.sh</code></td>
+</tr><tr><td><code>scripts/vendor-one.sh</code></td>
 <td>CI commit-by-commit vendoring (called by <code>vendor.yaml</code>)</td>
-</tr><tr class="odd"><td><code>scripts/lts.sh &lt;flavor&gt;</code></td>
+</tr><tr><td><code>scripts/lts.sh &lt;flavor&gt;</code></td>
 <td>Applies the flavor rename (updates <code>lts.patch</code>, then applies it and re-runs <code><a href="https://cpp11.r-lib.org/reference/cpp_register.html" class="external-link">cpp11::cpp_register()</a></code>)</td>
-</tr><tr class="even"><td><code>scripts/lts.patch</code></td>
+</tr><tr><td><code>scripts/lts.patch</code></td>
 <td>Patch template used by <code>lts.sh</code>; contains <code>1.4</code> as placeholder version (replaced by <code>lts.sh</code>)</td>
-</tr><tr class="odd"><td><code>scripts/each-rcc.sh</code></td>
+</tr><tr><td><code>scripts/each-rcc.sh</code></td>
 <td>Identifies commits in the first-parent history without a build status and triggers an <code>rcc</code> run for each</td>
-</tr><tr class="even"><td><code>.github/workflows/vendor.yaml</code></td>
+</tr><tr><td><code>.github/workflows/vendor.yaml</code></td>
 <td>Hourly vendoring for all active dev branches (matrix: <code>v1.4-andium-dev</code>, <code>v1.5-variegata-dev</code>, <code>main-dev</code>)</td>
-</tr><tr class="odd"><td><code>.github/workflows/sync.yaml</code></td>
+</tr><tr><td><code>.github/workflows/sync.yaml</code></td>
 <td>Hourly fast-forward of <code>krlmlr/main</code> from <code>duckdb/main</code>
 </td>
-</tr><tr class="even"><td><code>.github/workflows/each.yaml</code></td>
+</tr><tr><td><code>.github/workflows/each.yaml</code></td>
 <td>Dispatches <code>rcc</code> per-commit on push to <code>*-dev</code> branches</td>
-</tr><tr class="odd"><td><code>.github/workflows/fledge.yaml</code></td>
+</tr><tr><td><code>.github/workflows/fledge.yaml</code></td>
 <td>Daily version-bump PRs via <code>fledge</code>
 </td>
 </tr></tbody></table></div>

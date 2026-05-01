@@ -35,7 +35,7 @@ to see simulated SQL without opening a DuckDB connection."><meta property="og:im
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.2.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.2.9001</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -140,10 +140,10 @@ to see simulated SQL without opening a DuckDB connection.</p>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="va">db_csv</span> <span class="op">&lt;-</span> <span class="fu">tbl_file</span><span class="op">(</span><span class="va">con</span>, <span class="va">path</span><span class="op">)</span></span></span>
 <span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in db_query_fields.DBIConnection(con, ...):</span> Can't query fields.</span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Using SQL: SELECT * FROM (FROM '/tmp/RtmpkRK9XR/file4b9651c71402.csv') q01</span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Using SQL: SELECT * FROM (FROM '/tmp/RtmpTTvqlM/file4b17c160cc0.csv') q01</span>
 <span class="r-err co"><span class="r-pr">#&gt;</span>   WHERE (0 = 1)</span>
 <span class="r-err co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Caused by error in `dbSendQuery()`:</span></span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span style="color: #BBBB00;">!</span> IO Error: No files found that match the pattern "/tmp/RtmpkRK9XR/file4b9651c71402.csv"</span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span style="color: #BBBB00;">!</span> IO Error: No files found that match the pattern "/tmp/RtmpTTvqlM/file4b17c160cc0.csv"</span>
 <span class="r-err co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> Context: rapi_prepare</span>
 <span class="r-err co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> Error type: IO</span>
 <span class="r-in"><span><span class="va">db_csv</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span></span>
@@ -153,11 +153,11 @@ to see simulated SQL without opening a DuckDB connection.</p>
 <span class="r-in"><span><span class="va">db_csv_fun</span> <span class="op">&lt;-</span> <span class="fu">tbl_function</span><span class="op">(</span><span class="va">con</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"read_csv_auto('"</span>, <span class="va">path</span>, <span class="st">"')"</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in db_query_fields.DBIConnection(con, ...):</span> Can't query fields.</span>
 <span class="r-err co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Using SQL: SELECT * FROM (FROM</span>
-<span class="r-err co"><span class="r-pr">#&gt;</span>   read_csv_auto('/tmp/RtmpkRK9XR/file4b9651c71402.csv')) q02 WHERE (0 = 1)</span>
+<span class="r-err co"><span class="r-pr">#&gt;</span>   read_csv_auto('/tmp/RtmpTTvqlM/file4b17c160cc0.csv')) q02 WHERE (0 = 1)</span>
 <span class="r-err co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Caused by error in `dbSendQuery()`:</span></span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span style="color: #BBBB00;">!</span> IO Error: No files found that match the pattern "/tmp/RtmpkRK9XR/file4b9651c71402.csv"</span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span style="color: #BBBB00;">!</span> IO Error: No files found that match the pattern "/tmp/RtmpTTvqlM/file4b17c160cc0.csv"</span>
 <span class="r-err co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> LINE 2: FROM (FROM read_csv_auto('/tmp/RtmpkRK9XR/file4b9651c71402.csv')) q02</span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> LINE 2: FROM (FROM read_csv_auto('/tmp/RtmpTTvqlM/file4b17c160cc0.csv')) q02</span>
 <span class="r-err co"><span class="r-pr">#&gt;</span>                    ^</span>
 <span class="r-err co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> Context: rapi_prepare</span>
 <span class="r-err co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> Error type: IO</span>

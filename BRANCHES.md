@@ -140,15 +140,15 @@ for CRAN.
 
 Several packages are published, organised into three release lines:
 
-| Package          | Install from   | Branch (repo)                            | Description                                          |
-|------------------|----------------|------------------------------------------|------------------------------------------------------|
-| `duckdb`         | CRAN           | `main` (`duckdb/duckdb-r`)               | **Current stable release.**                          |
-| `duckdb`         | r-universe     | `main` (`duckdb/duckdb-r`)               | Current or upcoming release.                         |
-| `duckdb.1.5`     | Does not exist |                                          | v1.5 is not an LTS version.                          |
-| `duckdb.1.4`     | r-universe     | `v1.4-andium-lts` (`duckdb/duckdb-r`)    | **LTS — v1.4.** Receives only bug fixes.             |
-| `duckdb.dev`     | r-universe     | `main-dev` (`krlmlr/duckdb-r`)           | Bleeding-edge build of the next major/minor version. |
-| `duckdb.1.5.dev` | r-universe     | `v1.5-variegata-dev` (`krlmlr/duckdb-r`) | Bleeding-edge build on the v1.5 upstream.            |
-| `duckdb.1.4.dev` | r-universe     | `v1.4-andium-dev` (`krlmlr/duckdb-r`)    | Bleeding-edge build on the v1.4 upstream.            |
+| Package | Install from | Branch (repo) | Description |
+|----|----|----|----|
+| `duckdb` | CRAN | `main` (`duckdb/duckdb-r`) | **Current stable release.** |
+| `duckdb` | r-universe | `main` (`duckdb/duckdb-r`) | Current or upcoming release. |
+| `duckdb.1.5` | Does not exist |  | v1.5 is not an LTS version. |
+| `duckdb.1.4` | r-universe | `v1.4-andium-lts` (`duckdb/duckdb-r`) | **LTS — v1.4.** Receives only bug fixes. |
+| `duckdb.dev` | r-universe | `main-dev` (`krlmlr/duckdb-r`) | Bleeding-edge build of the next major/minor version. |
+| `duckdb.1.5.dev` | r-universe | `v1.5-variegata-dev` (`krlmlr/duckdb-r`) | Bleeding-edge build on the v1.5 upstream. |
+| `duckdb.1.4.dev` | r-universe | `v1.4-andium-dev` (`krlmlr/duckdb-r`) | Bleeding-edge build on the v1.4 upstream. |
 
 Use `duckdb` unless you need to pin to a specific minor version (LTS) or
 want to test unreleased functionality (`.dev`).
@@ -203,19 +203,19 @@ Each supported DuckDB minor version has a **series of four branches**
 organised into two repos. The table below shows the complete set at the
 time of writing:
 
-| Branch                    | Repo              | `Package:`       | Purpose                                                    |
-|---------------------------|-------------------|------------------|------------------------------------------------------------|
-| `main`                    | `duckdb/duckdb-r` | `duckdb`         | Source of truth for glue code, R code, tests, CI/CD, cpp11 |
-| `main-dev`                | `krlmlr/duckdb-r` | `duckdb`         | Vendored dev (upstream `main`); published as `duckdb.dev`  |
-| `main-dev-base`           | `krlmlr/duckdb-r` | `duckdb`         | Stable base for `main-dev`; marks the last reviewed point  |
-| `v1.5-variegata`          | `duckdb/duckdb-r` | `duckdb`         | Stable baseline for current release                        |
-| `v1.5-variegata-lts`      |                   |                  | Does not exist, v1.5 is not an LTS                         |
-| `v1.5-variegata-dev`      | `krlmlr/duckdb-r` | `duckdb.1.5.dev` | Bleeding edge on v1.5 upstream                             |
-| `v1.5-variegata-dev-base` | `krlmlr/duckdb-r` | `duckdb.1.5.dev` | Stable base for `v1.5-variegata-dev`                       |
-| `v1.4-andium`             | `duckdb/duckdb-r` | `duckdb`         | Stable baseline for LTS release                            |
-| `v1.4-andium-lts`         | `duckdb/duckdb-r` | `duckdb.1.4`     | `v1.4-andium` + one rename commit; published to r-universe |
-| `v1.4-andium-dev`         | `krlmlr/duckdb-r` | `duckdb.1.4.dev` | Bleeding edge on v1.4 upstream                             |
-| `v1.4-andium-dev-base`    | `krlmlr/duckdb-r` | `duckdb.1.4.dev` | Stable base for `v1.4-andium-dev`                          |
+| Branch | Repo | `Package:` | Purpose |
+|----|----|----|----|
+| `main` | `duckdb/duckdb-r` | `duckdb` | Source of truth for glue code, R code, tests, CI/CD, cpp11 |
+| `main-dev` | `krlmlr/duckdb-r` | `duckdb` | Vendored dev (upstream `main`); published as `duckdb.dev` |
+| `main-dev-base` | `krlmlr/duckdb-r` | `duckdb` | Stable base for `main-dev`; marks the last reviewed point |
+| `v1.5-variegata` | `duckdb/duckdb-r` | `duckdb` | Stable baseline for current release |
+| `v1.5-variegata-lts` |  |  | Does not exist, v1.5 is not an LTS |
+| `v1.5-variegata-dev` | `krlmlr/duckdb-r` | `duckdb.1.5.dev` | Bleeding edge on v1.5 upstream |
+| `v1.5-variegata-dev-base` | `krlmlr/duckdb-r` | `duckdb.1.5.dev` | Stable base for `v1.5-variegata-dev` |
+| `v1.4-andium` | `duckdb/duckdb-r` | `duckdb` | Stable baseline for LTS release |
+| `v1.4-andium-lts` | `duckdb/duckdb-r` | `duckdb.1.4` | `v1.4-andium` + one rename commit; published to r-universe |
+| `v1.4-andium-dev` | `krlmlr/duckdb-r` | `duckdb.1.4.dev` | Bleeding edge on v1.4 upstream |
+| `v1.4-andium-dev-base` | `krlmlr/duckdb-r` | `duckdb.1.4.dev` | Stable base for `v1.4-andium-dev` |
 
 ### Branch series structure
 
@@ -261,15 +261,15 @@ corresponding bleeding-edge upstream branches and are published as
 `main` in `duckdb/duckdb-r` is the **source of truth** for four of the
 seven components:
 
-| Component                | Source of truth                   | Notes                                             |
-|--------------------------|-----------------------------------|---------------------------------------------------|
-| DuckDB core              | `duckdb/duckdb` upstream          | Vendored independently into each branch           |
-| Flavor                   | Per-branch (via `lts.sh`)         | Applied mechanically on top of the baseline       |
-| **Glue code**            | **`main`**                        | Forward-ported to all `-andium` / `-dev` branches |
-| **R code and tests**     | **`main`**                        | Forward-ported to all `-andium` / `-dev` branches |
-| **CI/CD infrastructure** | **`main`**                        | Forward-ported to all `-andium` / `-dev` branches |
-| **cpp11**                | **`main`**                        | Forward-ported to all `-andium` / `-dev` branches |
-| R core                   | External (`r-devel`, CRAN policy) | Monitored; fixes land in `main` first             |
+| Component | Source of truth | Notes |
+|----|----|----|
+| DuckDB core | `duckdb/duckdb` upstream | Vendored independently into each branch |
+| Flavor | Per-branch (via `lts.sh`) | Applied mechanically on top of the baseline |
+| **Glue code** | **`main`** | Forward-ported to all `-andium` / `-dev` branches |
+| **R code and tests** | **`main`** | Forward-ported to all `-andium` / `-dev` branches |
+| **CI/CD infrastructure** | **`main`** | Forward-ported to all `-andium` / `-dev` branches |
+| **cpp11** | **`main`** | Forward-ported to all `-andium` / `-dev` branches |
+| R core | External (`r-devel`, CRAN policy) | Monitored; fixes land in `main` first |
 
 ### Keeping derived branches in sync with main
 
@@ -454,6 +454,7 @@ merge when green.
 In the `v1.4-andium` worktree, bump the version to `1.4.5`:
 
 ``` r
+
 fledge::bump_version("1.4.5")
 ```
 
@@ -577,17 +578,17 @@ vendoring.
 
 ### Existing tooling
 
-| Script / Workflow               | Purpose                                                                                                                                                     |
-|---------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `scripts/vendor.sh`             | Local manual vendoring from a cloned upstream repo                                                                                                          |
-| `scripts/vendor-one.sh`         | CI commit-by-commit vendoring (called by `vendor.yaml`)                                                                                                     |
-| `scripts/lts.sh <flavor>`       | Applies the flavor rename (updates `lts.patch`, then applies it and re-runs [`cpp11::cpp_register()`](https://cpp11.r-lib.org/reference/cpp_register.html)) |
-| `scripts/lts.patch`             | Patch template used by `lts.sh`; contains `1.4` as placeholder version (replaced by `lts.sh`)                                                               |
-| `scripts/each-rcc.sh`           | Identifies commits in the first-parent history without a build status and triggers an `rcc` run for each                                                    |
-| `.github/workflows/vendor.yaml` | Hourly vendoring for all active dev branches (matrix: `v1.4-andium-dev`, `v1.5-variegata-dev`, `main-dev`)                                                  |
-| `.github/workflows/sync.yaml`   | Hourly fast-forward of `krlmlr/main` from `duckdb/main`                                                                                                     |
-| `.github/workflows/each.yaml`   | Dispatches `rcc` per-commit on push to `*-dev` branches                                                                                                     |
-| `.github/workflows/fledge.yaml` | Daily version-bump PRs via `fledge`                                                                                                                         |
+| Script / Workflow | Purpose |
+|----|----|
+| `scripts/vendor.sh` | Local manual vendoring from a cloned upstream repo |
+| `scripts/vendor-one.sh` | CI commit-by-commit vendoring (called by `vendor.yaml`) |
+| `scripts/lts.sh <flavor>` | Applies the flavor rename (updates `lts.patch`, then applies it and re-runs [`cpp11::cpp_register()`](https://cpp11.r-lib.org/reference/cpp_register.html)) |
+| `scripts/lts.patch` | Patch template used by `lts.sh`; contains `1.4` as placeholder version (replaced by `lts.sh`) |
+| `scripts/each-rcc.sh` | Identifies commits in the first-parent history without a build status and triggers an `rcc` run for each |
+| `.github/workflows/vendor.yaml` | Hourly vendoring for all active dev branches (matrix: `v1.4-andium-dev`, `v1.5-variegata-dev`, `main-dev`) |
+| `.github/workflows/sync.yaml` | Hourly fast-forward of `krlmlr/main` from `duckdb/main` |
+| `.github/workflows/each.yaml` | Dispatches `rcc` per-commit on push to `*-dev` branches |
+| `.github/workflows/fledge.yaml` | Daily version-bump PRs via `fledge` |
 
 ### Proposed tooling
 

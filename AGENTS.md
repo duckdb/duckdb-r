@@ -31,6 +31,7 @@ glue code for R, including a DBI and a relational interface.
 - Test connection, table creation, data insertion, and querying:
 
   ``` r
+
   library(duckdb)
   con <- dbConnect(duckdb())
   dbExecute(con, "CREATE TABLE test (id INTEGER, name VARCHAR)")
