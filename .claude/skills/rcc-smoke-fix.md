@@ -387,7 +387,31 @@ Rscript -e 'rcmdcheck::rcmdcheck(args = c("--no-manual", "--as-cran"), error_on 
 Must show `Status: OK` or at most `1 NOTE` (pre-existing CRAN notes are
 fine). Fix any new ERRORs or new WARNINGs.
 
-### 4e. Fold the fix into the failing commit (amend, do not add)
+### 4e. Format edited sources
+
+Mirror the `format-suggest.yaml` GHA workflow (`.github/workflows/style/`):
+auto-format any C/C++ and R sources before committing, gated on the
+presence of the corresponding config file in the repo.
+
+```bash
+# C/C++: clang-format if .clang-format exists in repo root
+if [ -f .clang-format ]; then
+  shopt -s nullglob
+  clang-format -i src/*.{c,cc,cpp,h,hpp}
+  shopt -u nullglob
+fi
+
+# R: Posit Air if air.toml exists in repo root
+if [ -f air.toml ]; then
+  air format .
+fi
+```
+
+`clang-format` and `air` are preinstalled.
+
+Re-run `R CMD INSTALL` after formatting.
+
+### 4f. Fold the fix into the failing commit (amend)
 
 The fix must be **amended into the failing commit itself**, so the tip of
 `broken-<sha>-dev` is a single-commit-deep replacement of `<sha>` (same
@@ -431,7 +455,7 @@ managed by `scripts/lts.sh`. `src/duckdb/` should only appear in the
 amended commit when it carries the downstream effect of a `patch/`
 change.
 
-### 4f. Cherry-pick all remaining commits from `*-dev`
+### 4g. Cherry-pick all remaining commits from `*-dev`
 
 ```bash
 # Commits on the *-dev branch that come *after* the failing commit
@@ -475,7 +499,7 @@ Rscript -e 'rcmdcheck::rcmdcheck(args = c("--no-manual", "--as-cran"), error_on 
 
 to confirm the fully-assembled branch is clean.
 
-### 4g. Push the fix branch
+### 4h. Push the fix branch
 
 ```bash
 git push krlmlr "$FIX_BRANCH" --force-with-lease
@@ -510,7 +534,7 @@ No failure found: v1.4-andium-dev
 - **Never** suppress C++ warnings via `#pragma clang diagnostic ignored` or
   similar. Add a `patch/` file that fixes the underlying issue (see
   `AGENTS.md`). CRAN rejects packages that silence warnings.
-- **Never** amend commits that have already been pushed. Step 4e amends
+- **Never** amend commits that have already been pushed. Step 4f amends
   the failing `<sha>` only on the freshly-created local `broken-<sha>-dev`
   branch (which has not been pushed); the original `<sha>` on the upstream
   `*-dev` branch is left alone.
