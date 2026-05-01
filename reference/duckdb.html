@@ -21,7 +21,7 @@ it is no longer necessary to set shutdown = TRUE or to call duckdb_shutdown().">
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.2.9001</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,7 +42,7 @@ it is no longer necessary to set shutdown = TRUE or to call duckdb_shutdown().">
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Connect to a DuckDB database instance</h1>
-      <small class="dont-index">Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/R/Driver.R" class="external-link"><code>R/Driver.R</code></a>, <a href="https://github.com/duckdb/duckdb-r/blob/main/R/dbConnect__duckdb_driver.R" class="external-link"><code>R/dbConnect__duckdb_driver.R</code></a>, <a href="https://github.com/duckdb/duckdb-r/blob/main/R/dbDisconnect__duckdb_connection.R" class="external-link"><code>R/dbDisconnect__duckdb_connection.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/duckdb/duckdb-r/blob/v1.4-andium/R/Driver.R" class="external-link"><code>R/Driver.R</code></a>, <a href="https://github.com/duckdb/duckdb-r/blob/v1.4-andium/R/dbConnect__duckdb_driver.R" class="external-link"><code>R/dbConnect__duckdb_driver.R</code></a>, <a href="https://github.com/duckdb/duckdb-r/blob/v1.4-andium/R/dbDisconnect__duckdb_connection.R" class="external-link"><code>R/dbDisconnect__duckdb_connection.R</code></a></small>
       <div class="d-none name"><code>duckdb.Rd</code></div>
     </div>
 
@@ -83,8 +83,7 @@ it is no longer necessary to set <code>shutdown = TRUE</code> or to call <code>d
 <span>  tz_out_convert <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"with"</span>, <span class="st">"force"</span><span class="op">)</span>,</span>
 <span>  config <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  bigint <span class="op">=</span> <span class="st">"numeric"</span>,</span>
-<span>  array <span class="op">=</span> <span class="st">"none"</span>,</span>
-<span>  geometry <span class="op">=</span> <span class="st">"blob"</span></span>
+<span>  array <span class="op">=</span> <span class="st">"none"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for class 'duckdb_connection'</span></span>
@@ -159,13 +158,6 @@ time as the timestamp in the database, but with the new time zone.</p></dd>
 <dd><p>How arrays should be returned. There are two options: <code>"none"</code> and <code>"matrix"</code>.
 If <code>"none"</code> is selected, arrays are not returned. Instead an error is generated.
 If <code>"matrix"</code> is selected, arrays are returned as a column matrix. Each array is one row in the matrix.</p></dd>
-
-
-<dt id="arg-geometry">geometry<a class="anchor" aria-label="anchor" href="#arg-geometry"></a></dt>
-<dd><p>How geometry columns should be returned. There are two options: <code>"blob"</code> and <code>"wk"</code>.
-If <code>"blob"</code> is selected, geometry columns are returned as a list of raw vectors containing WKB data.
-If <code>"wk"</code> is selected, geometry columns are returned as <span class="pkg">wk</span> <code>wk_wkb</code> vectors.
-Use <code><a href="https://paleolimbot.github.io/wk/reference/wk_handle.html" class="external-link">wk::wk_handle()</a></code> or <code><a href="https://r-spatial.github.io/sf/reference/st_as_sfc.html" class="external-link">sf::st_as_sfc()</a></code> to convert to other geometry formats.</p></dd>
 
 
 <dt id="arg-conn">conn<a class="anchor" aria-label="anchor" href="#arg-conn"></a></dt>
