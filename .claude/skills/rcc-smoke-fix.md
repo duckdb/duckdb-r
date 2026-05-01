@@ -80,16 +80,17 @@ Environment assumptions (current).
 Fetching CI build logs from the `rcc` orphan branch.
   The harness (`scripts/rcc-logs.sh`) stores GitHub Actions results and
   logs on the `rcc` orphan branch of `krlmlr/duckdb-r`. Layout:
-  `runs.ndjson` maps commit SHA → run id (one record per line:
-  `{id, commit, state}`); `logs/<id>.log` holds the last 10 000 lines of
-  the combined run log for each failed run. Before running a slow local
-  `R CMD INSTALL`, look up the run id for `<sha>` in `runs.ndjson` and
-  read the log tail (see Step 4b). Most diagnostics point straight at the
-  file and line, allowing the agent to draft a targeted fix and
-  potentially skip the 10–15 min cold-cache C++ rebuild. The local
-  install + `testthat::test_local()` + `rcmdcheck::rcmdcheck()` cycle
-  remains the authoritative final gate — logs only short-circuit triage,
-  they do not replace verification.
+  `runs2.ndjson` holds one `{commit, status, run}` record per line keyed
+  by commit SHA (only `completed` runs are recorded; pending commits are
+  skipped and retried next harness run); `logs2/<sha>.log` holds the
+  last 10 000 lines of the combined run log for each failed run. Before
+  running a slow local `R CMD INSTALL`, read `logs2/<sha>.log` directly
+  (see Step 4b). Most diagnostics point straight at the file and line,
+  allowing the agent to draft a targeted fix and potentially skip the
+  10–15 min cold-cache C++ rebuild. The local install +
+  `testthat::test_local()` + `rcmdcheck::rcmdcheck()` cycle remains the
+  authoritative final gate — logs only short-circuit triage, they do
+  not replace verification.
 -->
 
 ---
@@ -138,7 +139,7 @@ COMMITS_OLDEST_FIRST=$(git log "krlmlr/$BRANCH" \
 Cache the orphan-branch run index once (no token required):
 
 ```bash
-RCC_NDJSON=$(git show krlmlr/rcc:runs.ndjson 2>/dev/null || true)
+RCC_NDJSON=$(git show krlmlr/rcc:runs2.ndjson 2>/dev/null || true)
 ```
 
 Define helpers. `lookup_rcc_status` reads from the cached `$RCC_NDJSON`
@@ -159,14 +160,18 @@ gh auth status &>/dev/null && GH_OK=1
 
 lookup_rcc_status() {
   local sha="$1"
-  # Primary: orphan branch index (instant, no auth needed)
-  local state
-  state=$(jq -r --arg sha "$sha" \
-    'select(.commit == $sha) | .state' \
+  # Primary: orphan branch index (instant, no auth needed).
+  # runs2.ndjson is keyed by commit SHA and only contains completed runs;
+  # use the run conclusion so it lines up with is_rcc_failure().
+  local conclusion
+  conclusion=$(jq -r --arg sha "$sha" \
+    'select(.commit == $sha) | .run.conclusion // empty' \
     <<< "$RCC_NDJSON" | head -1)
-  [[ -n "$state" ]] && { echo "$state"; return; }
+  [[ -n "$conclusion" ]] && { echo "$conclusion"; return; }
 
-  # Fallback: gh CLI (only when authenticated)
+  # Fallback: gh CLI (only when authenticated). Returns the commit-status
+  # state, which uses a smaller vocabulary (success|failure|pending|error)
+  # but still triggers is_rcc_failure() on "failure".
   if [[ "$GH_OK" == "1" ]]; then
     gh api "repos/$REPO/commits/$sha/statuses" \
       | jq -r '[.[] | select(.context == "rcc")] | first | .state // "none"'
@@ -228,9 +233,10 @@ and usually pinpoints the failure before any local compilation.
 The orphan branch layout (produced by `scripts/rcc-logs.sh`) is:
 
 ```
-runs.json        – array of all known runs, newest-first (full metadata)
-runs.ndjson      – one {id, commit, state} record per line (fast lookup)
-logs/<id>.log    – last 10 000 lines of the combined run log,
+runs2.ndjson     – one {commit, status, run} record per line, keyed by
+                   commit SHA (only completed runs; pending commits are
+                   absent and retried on the next harness invocation)
+logs2/<sha>.log  – last 10 000 lines of the combined run log,
                    only for runs with a failure conclusion
 ```
 
@@ -238,15 +244,17 @@ logs/<id>.log    – last 10 000 lines of the combined run log,
 # Fetch the rcc orphan branch (do this once; re-use across multiple SHAs)
 git fetch krlmlr rcc
 
-# Resolve the run ID for the failing SHA
-RUN_ID=$(git show krlmlr/rcc:runs.ndjson \
-  | jq -r --arg sha "$SHA" 'select(.commit == $sha) | .id' \
-  | head -1)
+# Show the tail of the failure log (logs are keyed by full commit SHA;
+# no run-id intermediate)
+git show "krlmlr/rcc:logs2/${SHA}.log" 2>/dev/null | tail -60
+```
 
-echo "Run ID: $RUN_ID"
+If you also want the run metadata (run id, html_url, conclusion, etc.):
 
-# Show the tail of the failure log
-git show "krlmlr/rcc:logs/${RUN_ID}.log" 2>/dev/null | tail -60
+```bash
+git show krlmlr/rcc:runs2.ndjson \
+  | jq -c --arg sha "$SHA" 'select(.commit == $sha) | .run' \
+  | head -1
 ```
 
 If the log identifies the root cause clearly (compiler error, link error,
@@ -479,9 +487,10 @@ No failure found: v1.4-andium-dev
   `rcmdcheck::rcmdcheck()` cycle — logs short-circuit triage but do not
   replace verification. The first cold-cache `R CMD INSTALL` is slow
   (10–15 min); do not abort it.
-- **Tooling**: prefer the `rcc` orphan branch (`runs.ndjson`) for all
-  status lookups — no auth needed. Fall back to `gh` only when a SHA is
-  absent from `runs.ndjson`; always gate that fallback on
-  `gh auth status` succeeding. Do not use `curl` for API calls and do not
-  inspect environment variables to decide whether to authenticate.
-  A GitHub MCP tool may be used when the agent provides one.
+- **Tooling**: prefer the `rcc` orphan branch (`runs2.ndjson` for status
+  metadata, `logs2/<sha>.log` for failure log tails) — no auth needed.
+  Fall back to `gh` only when a SHA is absent from `runs2.ndjson`;
+  always gate that fallback on `gh auth status` succeeding. Do not use
+  `curl` for API calls and do not inspect environment variables to
+  decide whether to authenticate. A GitHub MCP tool may be used when
+  the agent provides one.
