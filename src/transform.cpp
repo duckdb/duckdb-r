@@ -1,6 +1,7 @@
 #include "duckdb/common/types/geometry_crs.hpp"
 #include "duckdb/common/types/uhugeint.hpp"
 #include "duckdb/common/types/uuid.hpp"
+#include "duckdb/function/scalar/variant_utils.hpp"
 #include "rapi.hpp"
 #include "typesr.hpp"
 
@@ -57,6 +58,7 @@ int duckdb_r_typeof(const LogicalType &type, const string &name, const char *cal
 		return REALSXP;
 	case LogicalTypeId::LIST:
 	case LogicalTypeId::MAP:
+	case LogicalTypeId::VARIANT:
 		return VECSXP;
 	case LogicalTypeId::ARRAY: {
 		auto &child_type = ArrayType::GetChildType(type);
@@ -214,6 +216,7 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 	case LogicalTypeId::UUID:
 	case LogicalTypeId::LIST:
 	case LogicalTypeId::MAP:
+	case LogicalTypeId::VARIANT:
 		break; // no extra decoration required, do nothing
 	case LogicalTypeId::GEOMETRY:
 		if (convert_opts.geometry == ConvertOpts::GeometryConversion::WK) {
@@ -652,6 +655,22 @@ void duckdb_r_transform(const Vector &src_vec, const SEXP dest, idx_t dest_offse
 				// call R's own assign subset method
 				SET_ELEMENT(dest, dest_offset + row_idx, dest_list);
 			}
+		}
+		break;
+	}
+
+	case LogicalTypeId::VARIANT: {
+		RecursiveUnifiedVectorFormat format;
+		Vector::RecursiveToUnifiedFormat(const_cast<Vector &>(src_vec), n, format);
+		UnifiedVariantVectorData variant_data(format);
+
+		for (idx_t row_idx = 0; row_idx < n; row_idx++) {
+			if (!format.unified.validity.RowIsValid(format.unified.sel->get_index(row_idx))) {
+				SET_VECTOR_ELT(dest, dest_offset + row_idx, R_NilValue);
+				continue;
+			}
+			Value val = VariantUtils::ConvertVariantToValue(variant_data, row_idx, 0);
+			SET_VECTOR_ELT(dest, dest_offset + row_idx, RApiTypes::ValueToSexp(val, convert_opts));
 		}
 		break;
 	}
