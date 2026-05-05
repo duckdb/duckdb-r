@@ -1,5 +1,39 @@
 # Changelog
 
+## duckdb 1.5.2.9002
+
+### Chore
+
+- Auto-update from GitHub Actions
+  ([\#2319](https://github.com/duckdb/duckdb-r/issues/2319)).
+
+- Next skill iteration.
+
+- Fetch logs from orphan branch.
+
+### Continuous integration
+
+- Success message.
+
+- Fetch all.
+
+- Refine.
+
+- Tweak skill.
+
+- 4x per day.
+
+- Trigger.
+
+- Refine.
+
+- On push.
+
+### Uncategorized
+
+- Add workflow to cancel pending RCC dispatch runs
+  ([\#24](https://github.com/duckdb/duckdb-r/issues/24)).
+
 ## duckdb 1.5.2.9001
 
 - Add RCC smoke test fix skill documentation
