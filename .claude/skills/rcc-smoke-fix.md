@@ -3,10 +3,16 @@ Scheduled job: scan all `*-dev` branches (including `broken-*-dev`) in
 commit-status (set by the "Smoke test: stock R" job in the `rcc` workflow) is
 `failure` since 2026-04-11. For each such branch, if no `broken-<sha>-dev`
 branch exists yet (full 40-char SHA), create it, fix `testthat::test_local()` and
-`rcmdcheck::rcmdcheck()`, update snapshots, then cherry-pick all later commits from the
-`*-dev` branch and push. Never edit vendored sources (`src/duckdb/`,
-`inst/include/cpp11/`, `inst/include/cpp11.hpp`) by hand; editing `patch/`
-will produce expected, committable changes under `src/duckdb/`.
+`rcmdcheck::rcmdcheck()`, update snapshots, then cherry-pick all later commits
+from the `*-dev` branch **one at a time**, validating each with a clean
+(ccache-backed) `R CMD INSTALL --preclean` + full `rcmdcheck::rcmdcheck()` and
+pushing `broken-<sha>-dev` after every step. Expect ~5 min per cherry-pick
+round on average; do not abort long runs. Cherry-pick conflicts are not
+generally expected, but new patches may need to be introduced because the
+upstream vendoring process **deletes `patch/*.patch` files that no longer
+apply**. Never edit vendored sources (`src/duckdb/`, `inst/include/cpp11/`,
+`inst/include/cpp11.hpp`) by hand; editing `patch/` will produce expected,
+committable changes under `src/duckdb/`.
 
 ---
 
@@ -61,13 +67,23 @@ End-to-end workflow.
      d. `rcmdcheck::rcmdcheck()` until clean (`Status: OK` or only
         pre-existing NOTE).
      e. Cherry-pick every remaining commit from the upstream `*-dev`
-        branch on top of the fix. Vendor commits apply cleanly by
-        construction; non-vendor commits (forward-ports from `main`,
-        glue-code repairs already pushed to `*-dev`) must be carried
-        forward and may legitimately conflict with our own fix —
-        resolve, do not skip.
-     f. Push `broken-<sha>-dev` to `krlmlr` with `--force-with-lease`
-        and move on to the next pair.
+        branch on top of the fix, **one at a time**. After each
+        cherry-pick, run a clean (ccache-backed) `R CMD INSTALL
+        --preclean` and full `rcmdcheck::rcmdcheck()`; ccache keeps
+        recompiles fast despite `--preclean`, so the typical round is
+        ~5 minutes (long runs are expected — do not abort them).
+        Conflicts are not generally expected. The most common failure
+        is a previously-added `patch/*.patch` file that the vendoring
+        process **deleted** in this commit because it no longer
+        applied: restore an updated version of the dropped patch, or
+        write a new one (next available number; keep existing numbers
+        stable), apply it with `patch -p1 -i patch/<file>.patch`, and
+        amend the cherry-picked commit (append a short R-side fix note
+        to its message). Push `broken-<sha>-dev` to `krlmlr` with
+        `--force-with-lease` after every commit, then proceed to the
+        next.
+     f. When the loop is done the branch is already fully published;
+        move on to the next pair.
 
 Environment assumptions (current).
   * R 4.x and standard development tooling (gcc/g++, make, git, `curl`,
@@ -455,55 +471,113 @@ managed by `scripts/lts.sh`. `src/duckdb/` should only appear in the
 amended commit when it carries the downstream effect of a `patch/`
 change.
 
-### 4g. Cherry-pick all remaining commits from `*-dev`
+### 4g. Cherry-pick remaining commits one by one — verify, fix, push
+
+Layer every later commit from `krlmlr/$BRANCH` on top of the amended
+fix commit, **one at a time**. After each cherry-pick: clean rebuild
+(ccache-backed), full `rcmdcheck::rcmdcheck()`, fix any new breakage,
+push. Each round averages ~5 minutes; long runs are expected — do not
+abort them.
 
 ```bash
 # Commits on the *-dev branch that come *after* the failing commit
 REMAINING=$(git log "${SHA}..krlmlr/${BRANCH}" \
   --first-parent --format="%H" --reverse)
-
-for C in $REMAINING; do
-  git cherry-pick "$C" --allow-empty
-done
 ```
 
-Most of these commits are vendor-only and apply cleanly. However, the range
-**may include non-vendor commits**: forward-ports from `duckdb/duckdb-r@main`
-(glue, R code, CI/CD, cpp11), or later glue-code repairs that were pushed
-directly to the `*-dev` branch. That is expected and correct — those
-fixes address *subsequent* breakages that were introduced after our fix
-point and must be carried forward.
+Per-commit cycle for each `$C` in `$REMAINING`:
 
-Conflict handling:
+1. **Cherry-pick.**
+
+   ```bash
+   git cherry-pick "$C" --allow-empty
+   ```
+
+   Conflicts are not generally expected. If one occurs, resolve as
+   below — never `--skip` unless the commit is genuinely a no-op
+   after our fix.
+
+2. **Clean rebuild + full check.** `--preclean` forces a full
+   reinstall; ccache keeps the C++ recompile fast.
+
+   ```bash
+   set -o pipefail
+   export MAKEFLAGS="-j$(nproc)"
+   _R_SHLIB_STRIP_=true R CMD INSTALL --preclean . 2>&1 | tail -20
+   Rscript -e 'rcmdcheck::rcmdcheck(args = c("--no-manual", "--as-cran"), error_on = "warning")' 2>&1 | tail -20
+   ```
+
+   Must end with `Status: OK` (or at most a pre-existing NOTE).
+
+3. **Fix any new breakage.** The dominant failure mode here is **not**
+   a cherry-pick conflict but a `patch/*.patch` file that the
+   upstream vendoring script **deleted in this commit because it no
+   longer applied** to the new vendored sources. The original problem
+   the patch addressed is therefore back. Either:
+
+   - restore the patch with an updated diff that does apply to the new
+     code, or
+   - write a new patch (next available number; do not renumber
+     existing patches),
+
+   then apply it so `src/duckdb/` reflects the patched state:
+
+   ```bash
+   patch -p1 -i patch/<file>.patch
+   ```
+
+   Other failure modes (glue, R, snapshots) follow the priority order
+   in Step 4c.
+
+4. **Amend the cherry-picked commit** with the fix, preserving the
+   upstream-authored message and appending a short R-side fix note.
+   Stage `patch/` and the resulting `src/duckdb/` changes (plus any
+   glue/R/test changes), then amend:
+
+   ```bash
+   if ! git diff --quiet || ! git diff --cached --quiet; then
+     git add -- patch/ R/ tests/ man/ NAMESPACE \
+                src/*.cpp src/include/ src/*.dd 2>/dev/null || true
+     # Stage src/duckdb/ only when patch/ was touched (downstream effect)
+     git diff --cached --name-only -- patch/ | grep -q . && \
+       git add -- src/duckdb/
+     ORIG_MSG=$(git log -1 --format=%B)
+     git commit --amend -m "${ORIG_MSG}
+
+   R-side fix
+   ----------
+   <DETAILS>"
+     # Re-verify after the amend
+     _R_SHLIB_STRIP_=true R CMD INSTALL --preclean . 2>&1 | tail -20
+     Rscript -e 'rcmdcheck::rcmdcheck(args = c("--no-manual", "--as-cran"), error_on = "warning")' 2>&1 | tail -20
+   fi
+   ```
+
+5. **Push.** Every commit is published immediately so per-commit CI
+   on `each.yaml` runs in parallel with the next round of work:
+
+   ```bash
+   git push krlmlr "$FIX_BRANCH" --force-with-lease
+   ```
+
+Conflict handling (rare; reproduced from the previous skill version
+for completeness):
 
 - Conflict on `inst/include/cpp11/` or `inst/include/cpp11.hpp`: should
   never happen; stop and report.
-- Conflict on `src/duckdb/`: rare; usually means our `patch/` change
-  overlaps with a later vendor commit. Take the cherry-picked version
+- Conflict on `src/duckdb/`: usually means our `patch/` change overlaps
+  with a later vendor commit. Take the cherry-picked version
   (`git checkout --theirs src/duckdb/`), re-apply our patch
   (`patch -p1 -i patch/<file>.patch`), then `git add src/duckdb/` and
   `git cherry-pick --continue`.
-- Conflict on any other file (glue, `patch/`, `R/`, tests, snapshots): the
-  cherry-picked commit is a fix commit whose change overlaps with our own
-  fix. Resolve by accepting the cherry-picked version
-  (`git checkout --theirs`) or by merging manually, then
-  `git cherry-pick --continue`. Do **not** use `--skip` unless the commit
-  is genuinely a no-op after our fix.
+- Conflict on any other file (glue, `patch/`, `R/`, tests, snapshots):
+  the cherry-picked commit is itself a fix commit whose change
+  overlaps with our own fix. Resolve by accepting the cherry-picked
+  version (`git checkout --theirs`) or by merging manually, then
+  `git cherry-pick --continue`.
 
-After all cherry-picks, re-run the final check (same form as Step 4d):
-
-```bash
-set -o pipefail
-Rscript -e 'rcmdcheck::rcmdcheck(args = c("--no-manual", "--as-cran"), error_on = "warning")' 2>&1 | tail -20
-```
-
-to confirm the fully-assembled branch is clean.
-
-### 4h. Push the fix branch
-
-```bash
-git push krlmlr "$FIX_BRANCH" --force-with-lease
-```
+After the loop completes the branch is fully verified commit-by-commit
+on `krlmlr` — no separate final-check or final-push step is needed.
 
 ## Step 5 — Continue
 
