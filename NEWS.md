@@ -1,5 +1,34 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.2.9003
+
+## Chore
+
+- Auto-update from GitHub Actions.
+
+  Run: https://github.com/krlmlr/duckdb-r/actions/runs/25267064493
+
+## Continuous integration
+
+- Align.
+
+- Cosmetics.
+
+- Bump action versions.
+
+- Install clang-format-21.
+
+- Align fledge workflow.
+
+- Harmonize.
+
+## Uncategorized
+
+- Refine RCC smoke-fix workflow: per-commit validation and push (#25).
+
+- Merge branch 'main' into krlmlr-main.
+
+
 # duckdb 1.5.2.9002
 
 ## Chore
