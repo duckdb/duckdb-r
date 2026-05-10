@@ -1,5 +1,11 @@
 # Changelog
 
+## duckdb 1.5.2.9004
+
+### Continuous integration
+
+- Tweak fledge workflow and ccache action.
+
 ## duckdb 1.5.2.9003
 
 ### Chore
