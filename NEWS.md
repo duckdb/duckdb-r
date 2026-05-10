@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.2.9005
+
+## Continuous integration
+
+- Only run fledge on pushes to main.
+
+
 # duckdb 1.5.2.9004
 
 ## Continuous integration
