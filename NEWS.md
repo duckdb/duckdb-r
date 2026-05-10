@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.2.9004
+
+## Continuous integration
+
+- Tweak fledge workflow and ccache action.
+
+
 # duckdb 1.5.2.9003
 
 ## Chore
