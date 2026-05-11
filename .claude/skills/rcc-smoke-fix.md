@@ -3,8 +3,19 @@ Scheduled job: scan all `*-dev` branches (including `broken-*-dev`) in
 commit-status (set by the "Smoke test: stock R" job in the `rcc` workflow) is
 `failure` since 2026-04-11. For each such branch, if no `broken-<sha>-dev`
 branch exists yet (full 40-char SHA), create it, fix `testthat::test_local()` and
-`rcmdcheck::rcmdcheck()`, update snapshots, then cherry-pick all later commits from the
-`*-dev` branch and push. Cherry-pick conflicts are not
+`rcmdcheck::rcmdcheck()`, update snapshots, then cherry-pick all later commits from
+the `*-dev` branch and push.
+
+`broken-*-dev` branches are NOT terminal: a `broken-<X>-dev` branch is itself
+a `*-dev` branch and is scanned the same way. Its existence means only that
+`<X>` on the parent `*-dev` was repaired at one point — every later
+cherry-picked commit on `broken-<X>-dev` is still subject to `rcc` and can
+re-break. When a new failure appears in the cherry-picked region of
+`broken-<X>-dev`, derive a fresh `broken-<newsha>-dev` from that failing
+commit. The "skip if `broken-<sha>-dev` exists" check applies to the failing
+SHA, not to the branch being scanned.
+
+Cherry-pick conflicts are not
 generally expected, but new patches may need to be introduced because the
 upstream vendoring process **deletes `patch/*.patch` files that no longer
 apply**. Never edit vendored sources (`src/duckdb/`, `inst/include/cpp11/`,
@@ -126,7 +137,9 @@ git fetch krlmlr --force --prune --tags
 ## Step 2 — Collect all branches and existing `broken-*` branches in one pass
 
 ```bash
-# All krlmlr remote-tracking branches that end in -dev
+# All krlmlr remote-tracking branches that end in -dev. Deliberately INCLUDES
+# broken-*-dev branches — they are scanned for later failures in their
+# cherry-picked region and treated identically to upstream *-dev branches.
 DEV_BRANCHES=$(git branch -r \
   | grep -oP 'krlmlr/\K\S+' \
   | grep -E '\-dev$' \
