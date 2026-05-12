@@ -1,5 +1,14 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.2.9006
+
+## Continuous integration
+
+- Clarify handling of broken-\*-dev branches.
+
+- Simplify again.
+
+
 # duckdb 1.5.2.9005
 
 ## Continuous integration
