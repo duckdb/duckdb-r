@@ -24,6 +24,8 @@
 
 #include "src/main/database.cpp"
 
+#include "src/main/database_file_path_manager.cpp"
+
 #include "src/main/database_path_and_type.cpp"
 
 #include "src/main/database_manager.cpp"
@@ -34,7 +36,11 @@
 
 #include "src/main/extension.cpp"
 
+#include "src/main/extension_callback_manager.cpp"
+
 #include "src/main/extension_install_info.cpp"
+
+#include "src/main/extension_manager.cpp"
 
 #include "src/main/materialized_query_result.cpp"
 
@@ -46,13 +52,19 @@
 
 #include "src/main/profiling_info.cpp"
 
+#include "src/main/profiling_utils.cpp"
+
 #include "src/main/relation.cpp"
 
 #include "src/main/query_profiler.cpp"
 
 #include "src/main/query_result.cpp"
 
+#include "src/main/result_set_manager.cpp"
+
 #include "src/main/stream_query_result.cpp"
+
+#include "src/main/user_settings.cpp"
 
 #include "src/main/valid_checker.cpp"
 

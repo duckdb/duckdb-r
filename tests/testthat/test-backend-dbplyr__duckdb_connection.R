@@ -1,29 +1,21 @@
-skip_if_no_R4 <- function() {
-  if (R.Version()$major < 4) {
-    skip("R 4.0.0 or newer not available for testing")
-  }
-}
-
 test_that("dbplyr generic scalars translated correctly", {
-  skip_if_no_R4()
   skip_if_not_installed("dbplyr")
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
   sql <- function(...) dbplyr::sql(...)
 
-  expect_equal(translate(as.character(1)), sql(r"{CAST(1.0 AS TEXT)}"))
-  expect_equal(translate(as.character(1L)), sql(r"{CAST(1 AS TEXT)}"))
-  expect_equal(translate(as.numeric(1)), sql(r"{CAST(1.0 AS NUMERIC)}"))
-  expect_equal(translate(as.double(1.2)), sql(r"{CAST(1.2 AS NUMERIC)}"))
-  expect_equal(translate(as.integer(1.2)), sql(r"{CAST(1.2 AS INTEGER)}"))
-  expect_equal(translate(as.integer64(1.2)), sql(r"{CAST(1.2 AS BIGINT)}"))
-  expect_equal(translate(as.logical("TRUE")), sql(r"{CAST('TRUE' AS BOOLEAN)}"))
+  expect_equal(translate(as.character(1)), sql(r"{TRY_CAST(1.0 AS TEXT)}"))
+  expect_equal(translate(as.character(1L)), sql(r"{TRY_CAST(1 AS TEXT)}"))
+  expect_equal(translate(as.numeric(1)), sql(r"{TRY_CAST(1.0 AS DOUBLE)}"))
+  expect_equal(translate(as.double(1.2)), sql(r"{TRY_CAST(1.2 AS DOUBLE)}"))
+  expect_equal(translate(as.integer(1.2)), sql(r"{TRY_CAST(1.2 AS INTEGER)}"))
+  expect_equal(translate(as.integer64(1.2)), sql(r"{TRY_CAST(1.2 AS BIGINT)}"))
+  expect_equal(translate(as.logical("TRUE")), sql(r"{TRY_CAST('TRUE' AS BOOLEAN)}"))
   expect_equal(translate(tolower("HELLO")), sql(r"{LOWER('HELLO')}"))
   expect_equal(translate(toupper("hello")), sql(r"{UPPER('hello')}"))
   expect_equal(translate(pmax(1, 2, na.rm = TRUE)), sql(r"{GREATEST(1.0, 2.0)}"))
   expect_equal(translate(pmin(1, 2, na.rm = TRUE)), sql(r"{LEAST(1.0, 2.0)}"))
-  expect_equal(translate(as.character("2020-01-01")), sql(r"{CAST('2020-01-01' AS TEXT)}"))
+  expect_equal(translate(as.character("2020-01-01")), sql(r"{TRY_CAST('2020-01-01' AS TEXT)}"))
   expect_equal(translate(c("2020-01-01", "2020-13-02")), sql(r"{('2020-01-01', '2020-13-02')}"))
   expect_equal(translate(iris[["sepal_length"]]), sql(r"{iris.sepal_length}"))
   expect_equal(translate(iris[[1]]), sql(r"{iris[1]}"))
@@ -32,15 +24,13 @@ test_that("dbplyr generic scalars translated correctly", {
 })
 
 test_that("duckdb custom scalars translated correctly", {
-  skip_if_no_R4()
   skip_if_not_installed("dbplyr")
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
   sql <- function(...) dbplyr::sql(...)
 
-  #  expect_equal(translate(as(1,"CHARACTER")), sql(r"{CAST(1.0 AS TEXT}"))        # Not implemented
-  expect_equal(translate(as.raw(10)), sql(r"{CAST(10.0 AS VARBINARY)}"))
+  #  expect_equal(translate(as(1,"CHARACTER")), sql(r"{TRY_CAST(1.0 AS TEXT}"))        # Not implemented
+  expect_equal(translate(as.raw(10)), sql(r"{TRY_CAST(10.0 AS VARBINARY)}"))
   expect_equal(translate(13 %% 5), sql(r"{FMOD(13.0, 5.0)}"))
   expect_equal(translate(35.8 %/% 4), sql(r"{FDIV(35.8, 4.0)}"))
   expect_equal(translate(35.8^2.51), sql(r"{POW(35.8, 2.51)}"))
@@ -64,15 +54,13 @@ test_that("duckdb custom scalars translated correctly", {
   expect_error(translate(grepl("dummy", txt, perl = TRUE)))
   expect_equal(translate(regexpr("pattern", text)), sql(r"{(CASE WHEN REGEXP_MATCHES("text", 'pattern') THEN (LENGTH(LIST_EXTRACT(STRING_SPLIT_REGEX("text", 'pattern'), 0))+1) ELSE -1 END)}"))
   expect_equal(translate(round(x, digits = 1.1)), sql(r"{ROUND_EVEN(x, CAST(ROUND(1.1, 0) AS INTEGER))}"))
-  expect_equal(translate(as.Date("2019-01-01")), sql(r"{CAST('2019-01-01' AS DATE)}"))
-  expect_equal(translate(as.POSIXct("2019-01-01 01:01:01")), sql(r"{CAST('2019-01-01 01:01:01' AS TIMESTAMP)}"))
+  expect_equal(translate(as.Date("2019-01-01")), sql(r"{TRY_CAST('2019-01-01' AS DATE)}"))
+  expect_equal(translate(as.POSIXct("2019-01-01 01:01:01")), sql(r"{TRY_CAST('2019-01-01 01:01:01' AS TIMESTAMP)}"))
 })
 
 test_that("pasting translated correctly", {
-  skip_if_no_R4()
   skip_if_not_installed("dbplyr")
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
   sql <- function(...) dbplyr::sql(...)
 
@@ -90,10 +78,8 @@ test_that("pasting translated correctly", {
 # lubridate functions
 
 test_that("custom lubridate functions translated correctly", {
-  skip_if_no_R4()
   skip_if_not_installed("dbplyr")
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
   sql <- function(...) dbplyr::sql(...)
 
@@ -131,13 +117,11 @@ test_that("custom lubridate functions translated correctly", {
 
 # clock functions
 test_that("custom clock functions translated correctly", {
-  skip_if_no_R4()
   skip_if_not_installed("dbplyr")
   skip_if_not_installed("clock")
   skip_if_not_installed("rlang")
   skip_if_not_installed("cli")
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
   sql <- function(...) dbplyr::sql(...)
 
@@ -203,10 +187,8 @@ test_that("custom clock functions translated correctly", {
 # stringr functions
 
 test_that("custom stringr functions translated correctly", {
-  skip_if_no_R4()
   skip_if_not_installed("dbplyr")
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
   sql <- function(...) dbplyr::sql(...)
 
@@ -220,19 +202,19 @@ test_that("custom stringr functions translated correctly", {
   expect_equal(translate(str_remove(x, y)), sql(r"{REGEXP_REPLACE(x, y, '')}"))
   expect_equal(translate(str_remove_all(x, y)), sql(r"{REGEXP_REPLACE(x, y, '', 'g')}"))
   expect_equal(translate(str_to_sentence(x)), sql(r"{(UPPER(x[0]) || x[1:NULL])}"))
-  expect_equal(translate(str_starts(x, y)), sql(r"{REGEXP_MATCHES(x,'^(?:'||y))}"))
-  expect_equal(translate(str_ends(x, y)), sql(r"{REGEXP_MATCHES((?:x,y||')$')}"))
+  expect_equal(translate(str_starts(x, y)), sql(r"{REGEXP_MATCHES(x, '^(?:' || y || ')')}"))
+  expect_equal(translate(str_ends(x, y)), sql(r"{REGEXP_MATCHES(x, '(?:' || y || ')$')}"))
   expect_equal(translate(str_pad(x, width = 10)), sql(r"{LPAD(x, CAST(GREATEST(10, LENGTH(x)) AS INTEGER), ' ')}"))
   expect_equal(translate(str_pad(x, width = 10, side = "right")), sql(r"{RPAD(x, CAST(GREATEST(10, LENGTH(x)) AS INTEGER), ' ')}"))
   expect_equal(translate(str_pad(x, width = 10, side = "both", pad = "<")), sql(r"{RPAD(REPEAT('<', (10 - LENGTH(x)) / 2) || x, CAST(GREATEST(10, LENGTH(x)) AS INTEGER), '<')}"))
   expect_error(translate(str_pad(x, width = 10, side = "other")))
+  expect_equal(translate(str_like(x, "a")), sql(r"{x LIKE 'a'}"))
+  expect_equal(translate(str_ilike(x, "a")), sql(r"{x ILIKE 'a'}"))
 })
 
 test_that("datetime escaping working as in DBI", {
-  skip_if_no_R4()
   skip_if_not_installed("dbplyr")
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
   escape <- function(...) dbplyr::escape(..., con = con)
   sql <- function(...) dbplyr::sql(...)
 
@@ -250,10 +232,8 @@ test_that("datetime escaping working as in DBI", {
 })
 
 test_that("aggregators translated correctly", {
-  skip_if_no_R4()
   skip_if_not_installed("dbplyr")
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
   sql <- function(...) dbplyr::sql(...)
 
@@ -291,11 +271,21 @@ test_that("aggregators translated correctly", {
   expect_equal(translate(n_distinct(x, na.rm = TRUE), window = TRUE, vars_group = "y"), sql(r"{COUNT(DISTINCT x) OVER (PARTITION BY y)}"))
 })
 
-test_that("two variable aggregates are translated correctly", {
-  skip_if_no_R4()
+test_that("quantile translated correctly", {
   skip_if_not_installed("dbplyr")
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
+  translate <- function(...) dbplyr::translate_sql(..., con = con)
+  sql <- function(...) dbplyr::sql(...)
+
+  expect_equal(translate(quantile(x, 0.25, na.rm = TRUE), window = FALSE), sql(r"{QUANTILE_CONT(x, 0.25)}"))
+  expect_equal(translate(quantile(x, 0.5, na.rm = TRUE), window = FALSE), sql(r"{QUANTILE_CONT(x, 0.5)}"))
+  expect_equal(translate(quantile(x, 0.25, na.rm = TRUE), window = TRUE), sql(r"{QUANTILE_CONT(x, 0.25) OVER ()}"))
+  expect_equal(translate(quantile(x, 0.25, na.rm = TRUE), window = TRUE, vars_group = "y"), sql(r"{QUANTILE_CONT(x, 0.25) OVER (PARTITION BY y)}"))
+})
+
+test_that("two variable aggregates are translated correctly", {
+  skip_if_not_installed("dbplyr")
+  con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
   sql <- function(...) dbplyr::sql(...)
 
@@ -305,82 +295,95 @@ test_that("two variable aggregates are translated correctly", {
   expect_equal(translate(n_distinct(x, y), window = FALSE), sql(r"{COUNT(DISTINCT row(x, y))}"))
   expect_equal(translate(n_distinct(x, y), window = TRUE), sql(r"{COUNT(DISTINCT row(x, y)) OVER ()}"))
   expect_equal(translate(n_distinct(x, y), window = TRUE, vars_group = "y"), sql(r"{COUNT(DISTINCT row(x, y)) OVER (PARTITION BY y)}"))
+
+  expect_equal(translate(n_distinct(x, y, na.rm = TRUE), window = FALSE), sql(r"{COUNT(DISTINCT row(x, y)) FILTER (x IS NOT NULL AND y IS NOT NULL)}"))
+  expect_equal(translate(n_distinct(x, y, na.rm = TRUE), window = TRUE), sql(r"{COUNT(DISTINCT row(x, y)) FILTER (x IS NOT NULL AND y IS NOT NULL) OVER ()}"))
+  expect_equal(translate(n_distinct(x, y, na.rm = TRUE), window = TRUE, vars_group = "y"), sql(r"{COUNT(DISTINCT row(x, y)) FILTER (x IS NOT NULL AND y IS NOT NULL) OVER (PARTITION BY y)}"))
 })
 
 test_that("n_distinct() computations are correct", {
-  skip_if_no_R4()
   skip_if_not_installed("dplyr")
   skip_if_not_installed("dbplyr")
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
   tbl <- dplyr::tbl
   summarize <- dplyr::summarize
   mutate <- dplyr::mutate
   arrange <- dplyr::arrange
   pull <- dplyr::pull
+  n_distinct <- dplyr::n_distinct
 
-  duckdb_register(con, "df", data.frame(x = c(1, 1, 2, 2), y = c(1, 2, 2, 2)))
-  duckdb_register(con, "df_na", data.frame(x = c(1, 1, 2, NA, NA), y = c(1, 2, NA, 2, NA)))
+  df <- data.frame(x = c(1, 1, 2, 2), y = c(1, 2, 2, 2))
+  df_na <- data.frame(x = c(1, 1, 2, NA, NA), y = c(1, 2, NA, 2, NA))
 
-  df <- tbl(con, "df")
-  df_na <- tbl(con, "df_na")
+  duckdb_register(con, "df", df)
+  duckdb_register(con, "df_na", df_na)
+
+  df_duckdb <- tbl(con, "df")
+  df_na_duckdb <- tbl(con, "df_na")
 
   expect_equal(
-    pull(summarize(df, n = n_distinct(x, na.rm = TRUE)), n),
-    2
+    pull(summarize(df_duckdb, n = n_distinct(x, na.rm = TRUE)), n),
+    pull(summarize(df, n = n_distinct(x, na.rm = TRUE)), n)
   )
   expect_equal(
-    pull(summarize(df_na, n = n_distinct(x, na.rm = TRUE)), n),
-    2
+    pull(summarize(df_na_duckdb, n = n_distinct(x, na.rm = TRUE)), n),
+    pull(summarize(df_na, n = n_distinct(x, na.rm = TRUE)), n)
   )
-
-  expect_error(
+  expect_equal(
+    pull(summarize(df_duckdb, n = n_distinct(x, y, na.rm = TRUE)), n),
     pull(summarize(df, n = n_distinct(x, y, na.rm = TRUE)), n)
+  )
+  expect_equal(
+    pull(summarize(df_na_duckdb, n = n_distinct(x, y, na.rm = TRUE)), n),
+    pull(summarize(df_na, n = n_distinct(x, y, na.rm = TRUE)), n)
   )
 
   # single column is working as usual
   expect_equal(
     pull(summarize(df, n = n_distinct(x)), n),
-    2
+    pull(summarize(df_duckdb, n = n_distinct(x)), n)
   )
 
   expect_equal(
-    pull(summarize(df_na, n = n_distinct(x)), n),
-    3
+    pull(summarize(df_na_duckdb, n = n_distinct(x)), n),
+    pull(summarize(df_na, n = n_distinct(x)), n)
   )
 
   # two columns return correct results
   expect_equal(
-    pull(summarize(df, n = n_distinct(x, y)), n),
-    3
+    pull(summarize(df_duckdb, n = n_distinct(x, y)), n),
+    pull(summarize(df, n = n_distinct(x, y)), n)
   )
 
   # two columns containing NAs return correct results
   expect_equal(
-    pull(summarize(df_na, n = n_distinct(x, y)), n),
-    5
+    pull(summarize(df_na_duckdb, n = n_distinct(x, y)), n),
+    pull(summarize(df_na, n = n_distinct(x, y)), n)
   )
 
   # window functions are working
   expect_equal(
-    pull(mutate(df_na, n = n_distinct(x, y)), n),
-    rep(5, 5)
+    pull(mutate(df_na_duckdb, n = n_distinct(x, y)), n),
+    pull(mutate(df_na, n = n_distinct(x, y)), n)
   )
 
   expect_equal(
-    pull(arrange(mutate(df, n = n_distinct(x), .by = y), x, y), n),
-    c(1, 2, 2, 2)
+    pull(mutate(df_na_duckdb, n = n_distinct(x, y, na.rm = TRUE)), n),
+    pull(mutate(df_na, n = n_distinct(x, y, na.rm = TRUE)), n)
+  )
+
+  expect_equal(
+    pull(arrange(mutate(df_duckdb, n = n_distinct(x), .by = y), x, y), n),
+    pull(arrange(mutate(df, n = n_distinct(x), .by = y), x, y), n)
   )
 })
 
 
 test_that("duckdb round() results equal its R version", {
-  skip_if_no_R4()
   skip_if_not_installed("dplyr")
   skip_if_not_installed("dbplyr")
 
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
   mutate <- dplyr::mutate
   pull <- dplyr::pull
 
@@ -401,8 +404,7 @@ test_that("duckdb round() results equal its R version", {
 test_that("snapshots of dbplyr generic scalar translation", {
   skip_on_cran()
   skip_if_not_installed("dbplyr")
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
   local_edition(3)
   translate <- function(...) dbplyr::translate_sql(..., con = con)
 
@@ -433,8 +435,7 @@ test_that("snapshots of dbplyr generic scalar translation", {
 test_that("snapshots of duckdb custom scalars translations", {
   skip_on_cran()
   skip_if_not_installed("dbplyr")
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
   local_edition(3)
   translate <- function(...) dbplyr::translate_sql(..., con = con)
 
@@ -476,8 +477,7 @@ test_that("snapshots of duckdb custom scalars translations", {
 test_that("snapshot tests for pasting translate", {
   skip_on_cran()
   skip_if_not_installed("dbplyr")
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
   local_edition(3)
   translate <- function(...) dbplyr::translate_sql(..., con = con)
 
@@ -501,8 +501,7 @@ test_that("snapshot tests for pasting translate", {
 test_that("snapshots for custom lubridate functions translated correctly", {
   skip_on_cran()
   skip_if_not_installed("dbplyr")
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
   local_edition(3)
   translate <- function(...) dbplyr::translate_sql(..., con = con)
 
@@ -547,8 +546,7 @@ test_that("snapshots for custom lubridate functions translated correctly", {
 test_that("snapshots for custom stringr functions translated correctly", {
   skip_on_cran()
   skip_if_not_installed("dbplyr")
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
   local_edition(3)
   translate <- function(...) dbplyr::translate_sql(..., con = con)
 
@@ -577,8 +575,7 @@ test_that("snapshots for custom stringr functions translated correctly", {
 test_that("snapshots datetime escaping working as in DBI", {
   skip_on_cran()
   skip_if_not_installed("dbplyr")
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
   local_edition(3)
   escape <- function(...) dbplyr::escape(..., con = con)
 
@@ -602,8 +599,7 @@ test_that("snapshots datetime escaping working as in DBI", {
 test_that("two variable aggregates are translated correctly", {
   skip_on_cran()
   skip_if_not_installed("dbplyr")
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
   local_edition(3)
   translate <- function(...) dbplyr::translate_sql(..., con = con)
 
@@ -618,8 +614,7 @@ test_that("two variable aggregates are translated correctly", {
 test_that("these should give errors", {
   skip_on_cran()
   skip_if_not_installed("dbplyr")
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
   local_edition(3)
   translate <- function(...) dbplyr::translate_sql(..., con = con)
 

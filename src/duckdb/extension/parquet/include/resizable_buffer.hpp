@@ -9,9 +9,7 @@
 #pragma once
 
 #include "duckdb.hpp"
-#ifndef DUCKDB_AMALGAMATION
 #include "duckdb/common/allocator.hpp"
-#endif
 
 #include <exception>
 
@@ -102,6 +100,10 @@ public:
 			allocated_data = allocator.Allocate(alloc_len);
 			ptr = allocated_data.get();
 		}
+	}
+	void reset() {
+		ptr = allocated_data.get();
+		len = alloc_len;
 	}
 
 private:

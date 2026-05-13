@@ -16,6 +16,8 @@
 
 #include "src/optimizer/pushdown/pushdown_mark_join.cpp"
 
+#include "src/optimizer/pushdown/pushdown_outer_join.cpp"
+
 #include "src/optimizer/pushdown/pushdown_projection.cpp"
 
 #include "src/optimizer/pushdown/pushdown_semi_anti_join.cpp"

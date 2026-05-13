@@ -91,7 +91,7 @@ struct RLEAnalyzeState : public AnalyzeState {
 
 template <class T>
 unique_ptr<AnalyzeState> RLEInitAnalyze(ColumnData &col_data, PhysicalType type) {
-	CompressionInfo info(col_data.GetBlockManager().GetBlockSize());
+	CompressionInfo info(col_data.GetBlockManager());
 	return make_uniq<RLEAnalyzeState<T>>(info);
 }
 
@@ -134,24 +134,24 @@ struct RLECompressState : public CompressionState {
 
 	idx_t MaxRLECount() {
 		auto entry_size = sizeof(T) + sizeof(rle_count_t);
-		return (info.GetBlockSize() - RLEConstants::RLE_HEADER_SIZE) / entry_size;
+		return AlignValueFloor((info.GetBlockSize() - RLEConstants::RLE_HEADER_SIZE) / entry_size);
 	}
 
 	RLECompressState(ColumnDataCheckpointData &checkpoint_data_p, const CompressionInfo &info)
 	    : CompressionState(info), checkpoint_data(checkpoint_data_p),
 	      function(checkpoint_data.GetCompressionFunction(CompressionType::COMPRESSION_RLE)) {
-		CreateEmptySegment(checkpoint_data.GetRowGroup().start);
+		CreateEmptySegment();
 
 		state.dataptr = (void *)this;
 		max_rle_count = MaxRLECount();
 	}
 
-	void CreateEmptySegment(idx_t row_start) {
+	void CreateEmptySegment() {
 		auto &db = checkpoint_data.GetDatabase();
 		auto &type = checkpoint_data.GetType();
 
-		auto column_segment = ColumnSegment::CreateTransientSegment(db, function, type, row_start, info.GetBlockSize(),
-		                                                            info.GetBlockSize());
+		auto column_segment =
+		    ColumnSegment::CreateTransientSegment(db, function, type, info.GetBlockSize(), info.GetBlockManager());
 		current_segment = std::move(column_segment);
 
 		auto &buffer_manager = BufferManager::GetBufferManager(db);
@@ -176,16 +176,20 @@ struct RLECompressState : public CompressionState {
 		entry_count++;
 
 		// update meta data
-		if (WRITE_STATISTICS && !is_null) {
-			current_segment->stats.statistics.UpdateNumericStats<T>(value);
+		if (WRITE_STATISTICS) {
+			if (!is_null) {
+				current_segment->stats.statistics.SetHasNoNullFast();
+				current_segment->stats.statistics.UpdateNumericStats<T>(value);
+			} else {
+				current_segment->stats.statistics.SetHasNullFast();
+			}
 		}
 		current_segment->count += count;
 
 		if (entry_count == max_rle_count) {
 			// we have finished writing this segment: flush it and create a new segment
-			auto row_start = current_segment->start + current_segment->count;
 			FlushSegment();
-			CreateEmptySegment(row_start);
+			CreateEmptySegment();
 			entry_count = 0;
 		}
 	}
@@ -219,7 +223,7 @@ struct RLECompressState : public CompressionState {
 	}
 
 	ColumnDataCheckpointData &checkpoint_data;
-	CompressionFunction &function;
+	const CompressionFunction &function;
 	unique_ptr<ColumnSegment> current_segment;
 	BufferHandle handle;
 
@@ -260,7 +264,7 @@ struct RLEScanState : public SegmentScanState {
 		entry_pos = 0;
 		position_in_entry = 0;
 		rle_count_offset = UnsafeNumericCast<uint32_t>(Load<uint64_t>(handle.Ptr() + segment.GetBlockOffset()));
-		D_ASSERT(rle_count_offset <= segment.GetBlockManager().GetBlockSize());
+		D_ASSERT(rle_count_offset <= segment.GetBlockSize());
 	}
 
 	inline void SkipInternal(rle_count_t *index_pointer, idx_t skip_count) {
@@ -303,7 +307,7 @@ struct RLEScanState : public SegmentScanState {
 };
 
 template <class T>
-unique_ptr<SegmentScanState> RLEInitScan(ColumnSegment &segment) {
+unique_ptr<SegmentScanState> RLEInitScan(const QueryContext &context, ColumnSegment &segment) {
 	auto result = make_uniq<RLEScanState<T>>(segment);
 	return std::move(result);
 }
@@ -442,7 +446,7 @@ void RLESelect(ColumnSegment &segment, ColumnScanState &state, idx_t vector_coun
 //===--------------------------------------------------------------------===//
 template <class T>
 void RLEFilter(ColumnSegment &segment, ColumnScanState &state, idx_t vector_count, Vector &result, SelectionVector &sel,
-               idx_t &sel_count, const TableFilter &filter) {
+               idx_t &sel_count, const TableFilter &filter, TableFilterState &filter_state) {
 	auto &scan_state = state.scan_state->Cast<RLEScanState<T>>();
 
 	auto data = scan_state.handle.Ptr() + segment.GetBlockOffset();
@@ -466,7 +470,7 @@ void RLEFilter(ColumnSegment &segment, ColumnScanState &state, idx_t vector_coun
 
 		SelectionVector run_matches;
 		scan_state.matching_run_count = total_run_count;
-		ColumnSegment::FilterSelection(run_matches, run_vector, run_format, filter, total_run_count,
+		ColumnSegment::FilterSelection(run_matches, run_vector, run_format, filter, filter_state, total_run_count,
 		                               scan_state.matching_run_count);
 
 		// for any runs that pass the filter - set the matches to true

@@ -2,36 +2,29 @@
 
 namespace duckdb {
 
-EncryptionState::EncryptionState() {
-	// abstract class, no implementation needed
+EncryptionState::EncryptionState(unique_ptr<EncryptionStateMetadata> metadata_p) : metadata(std::move(metadata_p)) {
 }
 
 EncryptionState::~EncryptionState() {
 }
 
-bool EncryptionState::IsOpenSSL() {
+void EncryptionState::InitializeEncryption(EncryptionNonce &nonce, const_data_ptr_t, const_data_ptr_t, idx_t) {
 	throw NotImplementedException("EncryptionState Abstract Class is called");
 }
 
-void EncryptionState::InitializeEncryption(duckdb::const_data_ptr_t iv, duckdb::idx_t iv_len, const std::string *key) {
+void EncryptionState::InitializeDecryption(EncryptionNonce &nonce, const_data_ptr_t, const_data_ptr_t, idx_t) {
 	throw NotImplementedException("EncryptionState Abstract Class is called");
 }
 
-void EncryptionState::InitializeDecryption(duckdb::const_data_ptr_t iv, duckdb::idx_t iv_len, const std::string *key) {
+size_t EncryptionState::Process(const_data_ptr_t, idx_t, data_ptr_t, idx_t) {
 	throw NotImplementedException("EncryptionState Abstract Class is called");
 }
 
-size_t EncryptionState::Process(duckdb::const_data_ptr_t in, duckdb::idx_t in_len, duckdb::data_ptr_t out,
-                                duckdb::idx_t out_len) {
+size_t EncryptionState::Finalize(data_ptr_t, idx_t, data_ptr_t, idx_t) {
 	throw NotImplementedException("EncryptionState Abstract Class is called");
 }
 
-size_t EncryptionState::Finalize(duckdb::data_ptr_t out, duckdb::idx_t out_len, duckdb::data_ptr_t tag,
-                                 duckdb::idx_t tag_len) {
-	throw NotImplementedException("EncryptionState Abstract Class is called");
-}
-
-void EncryptionState::GenerateRandomData(duckdb::data_ptr_t data, duckdb::idx_t len) {
+void EncryptionState::GenerateRandomData(data_ptr_t, idx_t) {
 	throw NotImplementedException("EncryptionState Abstract Class is called");
 }
 

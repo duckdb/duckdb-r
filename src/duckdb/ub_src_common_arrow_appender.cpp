@@ -8,3 +8,5 @@
 
 #include "src/common/arrow/appender/union_data.cpp"
 
+#include "src/common/arrow/appender/append_data.cpp"
+

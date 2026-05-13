@@ -7,7 +7,7 @@
 #'
 #' @name backend-duckdb
 #' @aliases NULL
-#' @examplesIf duckdb:::TEST_RE2 && rlang::is_installed("dbplyr")
+#' @examplesIf identical(Sys.getenv("IN_PKGDOWN"), "true") && rlang::is_installed("dbplyr")
 #' library(dplyr, warn.conflicts = FALSE)
 #' con <- DBI::dbConnect(duckdb(), path = ":memory:")
 #'
@@ -70,29 +70,34 @@ duckdb_grepl <- function(pattern, x, ignore.case = FALSE, perl = FALSE, fixed = 
 
 duckdb_n_distinct <- function(..., na.rm = FALSE) {
   sql <- pkg_method("sql", "dbplyr")
+  glue_sql2 <- pkg_method("glue_sql2", "dbplyr")
+  sql_current_con <- pkg_method("sql_current_con", "dbplyr")
   check_dots_unnamed <- pkg_method("check_dots_unnamed", "rlang")
+
+  con <- sql_current_con()
 
   if (missing(...)) {
     stop("`...` is absent, but must be supplied.")
   }
   check_dots_unnamed()
 
+  # https://duckdb.org/docs/sql/data_types/struct.html#creating-structs-with-the-row-function
   if (!identical(na.rm, FALSE)) {
-    cols <- list(...)
+    if (length(list(...)) == 1L) {
+      # in case of only one column fall back to the "simple" version
+      return(glue_sql2(con, "COUNT(DISTINCT {.col {list(...)}*})"))
+    } else {
+      str_null_check <-
+        sql(paste0(paste0(list(...), " IS NOT NULL"), collapse = " AND "))
 
-    # check for more than one vector argument: only one vector is supported
-    # Why not use ROW() as well? Because duckdb's FILTER clause does not support
-    # a windowing context as of now: https://duckdb.org/docs/sql/query_syntax/filter.html
-    if (length(cols) > 1) {
-      stop("n_distinct(): Only one vector argument is currently supported when `na.rm = TRUE`.", call. = FALSE)
+      return(glue_sql2(
+        con,
+        "COUNT(DISTINCT row({.col {list(...)}*})) FILTER (",
+        str_null_check, ")"
+      ))
     }
-
-    return(sql(paste0("COUNT(DISTINCT ", cols[[1]], ")")))
   } else {
-    # https://duckdb.org/docs/sql/data_types/struct.html#creating-structs-with-the-row-function
-    str_struct <- paste0("row(", paste0(list(...), collapse = ", "), ")")
-
-    return(sql(paste0("COUNT(DISTINCT ", str_struct, ")")))
+    return(glue_sql2(con, "COUNT(DISTINCT row({.col {list(...)}*}))"))
   }
 }
 
@@ -106,7 +111,7 @@ sql_translation.duckdb_connection <- function(con) {
   build_sql <- pkg_method("build_sql", "dbplyr")
   sql_expr <- pkg_method("sql_expr", "dbplyr")
   sql_prefix <- pkg_method("sql_prefix", "dbplyr")
-  sql_cast <- pkg_method("sql_cast", "dbplyr")
+  sql_try_cast <- pkg_method("sql_try_cast", "dbplyr")
   sql_paste <- pkg_method("sql_paste", "dbplyr")
   sql_aggregate <- pkg_method("sql_aggregate", "dbplyr")
   sql_aggregate_2 <- pkg_method("sql_aggregate_2", "dbplyr")
@@ -124,7 +129,17 @@ sql_translation.duckdb_connection <- function(con) {
   sql_variant(
     sql_translator(
       .parent = base_scalar,
-      as.raw = sql_cast("VARBINARY"),
+      as.numeric = sql_try_cast("DOUBLE"),
+      as.double = sql_try_cast("DOUBLE"),
+      as.integer = sql_try_cast("INTEGER"),
+      as.character = sql_try_cast("TEXT"),
+      as.logical = sql_try_cast("BOOLEAN"),
+      as.raw = sql_try_cast("VARBINARY"),
+      as.Date = sql_try_cast("DATE"),
+      as.POSIXct = sql_try_cast("TIMESTAMP"),
+      as.integer64 = sql_try_cast("BIGINT"),
+      as_date = sql_try_cast("DATE"),
+      as_datetime = sql_try_cast("TIMESTAMP"),
       `%%` = function(a, b) sql_expr(FMOD(!!a, !!b)),
       `%/%` = function(a, b) sql_expr(FDIV(!!a, !!b)),
       `^` = sql_prefix("POW", 2),
@@ -167,8 +182,6 @@ sql_translation.duckdb_connection <- function(con) {
         build_sql("(CASE WHEN REGEXP_MATCHES(", x, ", ", p, ") THEN (LENGTH(LIST_EXTRACT(STRING_SPLIT_REGEX(", x, ", ", p, "), 0))+1) ELSE -1 END)")
       },
       round = function(x, digits = 0) sql_expr(ROUND_EVEN(!!x, CAST(ROUND((!!digits), 0L) %AS% INTEGER))),
-      as.Date = sql_cast("DATE"),
-      as.POSIXct = sql_cast("TIMESTAMP"),
 
       # lubridate functions
 
@@ -305,6 +318,9 @@ sql_translation.duckdb_connection <- function(con) {
 
       # stringr functions
       str_c = sql_paste(""),
+      str_ilike = function(string, pattern) {
+        sql_expr(!!string %ILIKE% !!pattern)
+      },
       str_detect = function(string, pattern, negate = FALSE) {
         if (negate) {
           sql_expr((NOT(REGEXP_MATCHES(!!string, !!pattern))))
@@ -335,10 +351,10 @@ sql_translation.duckdb_connection <- function(con) {
       },
       # Respect OR (|) operator: https://github.com/tidyverse/stringr/pull/340
       str_starts = function(string, pattern) {
-        build_sql("REGEXP_MATCHES(", string, ",'^(?:'||", pattern, "))")
+        build_sql("REGEXP_MATCHES(", string, ", '^(?:' || ", pattern, " || ')')")
       },
       str_ends = function(string, pattern) {
-        build_sql("REGEXP_MATCHES((?:", string, ",", pattern, "||')$')")
+        build_sql("REGEXP_MATCHES(", string, ", '(?:' || ", pattern, " || ')$')")
       },
       # NOTE: GREATEST needed because DuckDB PAD-functions truncate the string if width < length of string
       str_pad = function(string, width, side = "left", pad = " ", use_length = FALSE) {
@@ -366,7 +382,10 @@ sql_translation.duckdb_connection <- function(con) {
       str_flatten = function(x, collapse) sql_expr(STRING_AGG(!!x, !!collapse)),
       first = sql_prefix("FIRST", 1),
       last = sql_prefix("LAST", 1),
-      n_distinct = duckdb_n_distinct
+      n_distinct = duckdb_n_distinct,
+      quantile = function(x, probs, na.rm = FALSE) {
+        sql_expr(QUANTILE_CONT(!!x, !!probs))
+      }
     ),
     sql_translator(
       .parent = base_win,
@@ -391,7 +410,13 @@ sql_translation.duckdb_connection <- function(con) {
             duckdb_n_distinct(..., na.rm = na.rm),
             partition = win_current_group()
           )
-        }
+        },
+      quantile = function(x, probs, na.rm = FALSE) {
+        win_over(
+          sql_expr(QUANTILE_CONT(!!x, !!probs)),
+          partition = win_current_group()
+        )
+      }
     )
   )
 }
@@ -445,20 +470,20 @@ tbl.duckdb_connection <- function(src, from, ..., cache = FALSE) {
 #' It is safer than `dplyr::tbl()` because there is no risk of misinterpreting the request,
 #' and paths with special characters are supported.
 #'
-#' @param src A duckdb connection object
+#' @param src A duckdb connection object, [default_conn()] if omitted.
 #' @param path Path to existing Parquet, CSV or JSON file
 #' @param cache Enable object cache for Parquet files
 #' @export
 #' @rdname backend-duckdb
-tbl_file <- function(src, path, ..., cache = FALSE) {
+tbl_file <- function(src = NULL, path, ..., cache = FALSE) {
   if (...length() > 0) {
     stop("... must be empty.", call. = FALSE)
   }
-  if (!file.exists(path)) {
-    stop("File '", path, "' not found", call. = FALSE)
-  }
   if (grepl("'", path)) {
     stop("File '", path, "' contains a single quote, this is not supported", call. = FALSE)
+  }
+  if (is.null(src)) {
+    src <- default_conn()
   }
   tbl_function(src, paste0("'", path, "'"), cache = cache)
 }
@@ -507,4 +532,4 @@ simulate_duckdb <- function(...) {
 
 
 # Needed to suppress the R CHECK notes (due to the use of sql_expr)
-utils::globalVariables(c("REGEXP_MATCHES", "CAST", "%AS%", "INTEGER", "XOR", "%<<%", "%>>%", "LN", "LOG", "ROUND", "ROUND_EVEN", "EXTRACT", "%FROM%", "MONTH", "STRFTIME", "QUARTER", "YEAR", "DATE_TRUNC", "DATE", "DOY", "TO_SECONDS", "BIGINT", "TO_MINUTES", "TO_HOURS", "TO_DAYS", "TO_WEEKS", "TO_MONTHS", "TO_YEARS", "STRPOS", "NOT", "REGEXP_REPLACE", "TRIM", "LPAD", "RPAD", "%||%", "REPEAT", "LENGTH", "STRING_AGG", "GREATEST", "LIST_EXTRACT", "LOG10", "LOG2", "STRING_SPLIT_REGEX", "FLOOR", "FMOD", "FDIV"))
+utils::globalVariables(c("REGEXP_MATCHES", "CAST", "TRY_CAST", "%AS%", "%ILIKE%", "INTEGER", "XOR", "%<<%", "%>>%", "LN", "LOG", "ROUND", "ROUND_EVEN", "EXTRACT", "%FROM%", "MONTH", "STRFTIME", "QUARTER", "YEAR", "DATE_TRUNC", "DATE", "DOY", "TO_SECONDS", "BIGINT", "TO_MINUTES", "TO_HOURS", "TO_DAYS", "TO_WEEKS", "TO_MONTHS", "TO_YEARS", "STRPOS", "NOT", "REGEXP_REPLACE", "TRIM", "LPAD", "RPAD", "%||%", "REPEAT", "LENGTH", "STRING_AGG", "GREATEST", "LIST_EXTRACT", "LOG10", "LOG2", "STRING_SPLIT_REGEX", "FLOOR", "FMOD", "FDIV", "QUANTILE_CONT"))

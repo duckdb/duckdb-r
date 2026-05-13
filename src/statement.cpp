@@ -6,12 +6,16 @@
 #include "duckdb/common/types/timestamp.hpp"
 #include "duckdb/main/chunk_scan_state/query_result.hpp"
 #include "duckdb/parser/statement/relation_statement.hpp"
+#include "httplib.hpp"
 #include "rapi.hpp"
 #include "signal.hpp"
 #include "typesr.hpp"
 
 #include <R_ext/Utils.h>
-#include "httplib.hpp"
+
+// Avoid clash with TRUE and FALSE macros in older rtools
+#undef TRUE
+#undef FALSE
 
 using namespace duckdb;
 using namespace cpp11::literals;
@@ -23,14 +27,14 @@ using namespace cpp11::literals;
 	}
 }
 
-static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt, const string &query, idx_t n_param, SEXP registered_dfs = R_NilValue) {
+static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt, const string &query, idx_t n_param,
+                                     SEXP registered_dfs = R_NilValue) {
 	cpp11::writable::list retlist;
 	retlist.reserve(8);
 	retlist.push_back({"str"_nm = query});
 
-	auto stmtholder = new RStatement(std::move(stmt));
+	auto stmtholder = make_uniq<RStatement>(std::move(stmt));
 
-	retlist.push_back({"ref"_nm = stmt_eptr_t(stmtholder)});
 	retlist.push_back({"type"_nm = StatementTypeToString(stmtholder->stmt->GetStatementType())});
 	retlist.push_back({"names"_nm = cpp11::as_sexp(stmtholder->stmt->GetNames())});
 
@@ -47,14 +51,20 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	retlist.push_back(
 	    {"return_type"_nm = StatementReturnTypeToString(stmtholder->stmt->GetStatementProperties().return_type)});
 	retlist.push_back({"registered_dfs"_nm = registered_dfs});
+	retlist.push_back({"ref"_nm = stmt_eptr_t(stmtholder.release())});
 
 	return retlist;
 }
 
 [[cpp11::register]] cpp11::list rapi_prepare(duckdb::conn_eptr_t conn, std::string query, cpp11::environment env) {
 	if (!conn || !conn.get() || !conn->conn) {
-		cpp11::stop("rapi_prepare: Invalid connection");
+		rapi_error_with_context("rapi_prepare", "Invalid connection");
 	}
+
+	// Create ScopedInterruptHandler to prevent deadlock when called re-entrantly
+	// during progress bar callbacks. This will throw "ScopedInterruptHandler already active"
+	// if another query is already executing, providing fast failure instead of deadlock.
+	ScopedInterruptHandler signal_handler(conn->conn->context);
 
 	D_ASSERT(conn->db->env == R_NilValue);
 	conn->db->env = (SEXP)env;
@@ -70,43 +80,54 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	} catch (std::exception &ex) {
 		ErrorData error(ex);
 		error.AddErrorLocation(query);
-		cpp11::stop("rapi_prepare: Failed to extract statements:\n%s", error.Message().c_str());
+		// Pass ErrorData directly to preserve rich error information
+		rapi_error_with_context("rapi_prepare", error);
 	}
 	if (statements.empty()) {
 		// no statements to execute
-		cpp11::stop("rapi_prepare: No statements to execute");
+		rapi_error_with_context("rapi_prepare", "No statements to execute");
 	}
 	// if there are multiple statements, we directly execute the statements besides the last one
 	// we only return the result of the last statement to the user, unless one of the previous statements fails
 	for (idx_t i = 0; i + 1 < statements.size(); i++) {
 		auto res = conn->conn->Query(std::move(statements[i]));
+
+		signal_handler.HandleInterrupt();
+
 		if (res->HasError()) {
-			cpp11::stop("rapi_prepare: Failed to execute statement %s\nError: %s", query.c_str(),
-			            res->GetError().c_str());
+			ErrorData error(res->GetError());
+			rapi_error_with_context("rapi_prepare", error);
 		}
 	}
 	auto stmt = conn->conn->Prepare(std::move(statements.back()));
+
+	signal_handler.HandleInterrupt();
+
+	signal_handler.Disable();
+
 	if (stmt->HasError()) {
-		cpp11::stop("rapi_prepare: Failed to prepare query %s\nError: %s", query.c_str(),
-		            stmt->error.Message().c_str());
+		ErrorData error(stmt->error);
+		rapi_error_with_context("rapi_prepare", error);
 	}
 	auto n_param = stmt->named_param_map.size();
 	return construct_retlist(std::move(stmt), query, n_param, conn->db->registered_dfs);
 }
 
-[[cpp11::register]] cpp11::list rapi_bind(duckdb::stmt_eptr_t stmt, cpp11::list params, duckdb::ConvertOpts convert_opts) {
+[[cpp11::register]] cpp11::list rapi_bind(duckdb::stmt_eptr_t stmt, cpp11::list params,
+                                          duckdb::ConvertOpts convert_opts) {
 	if (!stmt || !stmt.get() || !stmt->stmt) {
-		cpp11::stop("rapi_bind: Invalid statement");
+		rapi_error_with_context("rapi_bind", "Invalid statement");
 	}
 
 	auto n_param = stmt->stmt->named_param_map.size();
 
 	if (n_param == 0) {
-		cpp11::stop("rapi_bind: dbBind called but query takes no parameters");
+		rapi_error_with_context("rapi_bind", "`dbBind()` called but query takes no parameters");
 	}
 
 	if (params.size() != R_xlen_t(n_param)) {
-		cpp11::stop("rapi_bind: Bind parameters need to be a list of length %i", n_param);
+		std::string error_msg = "Bind parameters need to be a list of length " + std::to_string(n_param);
+		rapi_error_with_context("rapi_bind", error_msg);
 	}
 
 	stmt->parameters.clear();
@@ -116,12 +137,12 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 
 	for (auto param = std::next(params.begin()); param != params.end(); ++param) {
 		if (Rf_length(*param) != n_rows) {
-			cpp11::stop("rapi_bind: Bind parameter values need to have the same length");
+			rapi_error_with_context("rapi_bind", "Bind parameter values need to have the same length");
 		}
 	}
 
 	if (n_rows != 1 && convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED) {
-		cpp11::stop("rapi_bind: Bind parameter values need to have length one for arrow queries");
+		rapi_error_with_context("rapi_bind", "Bind parameter values need to have length one for arrow queries");
 	}
 
 	cpp11::writable::list out;
@@ -142,14 +163,15 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	return out;
 }
 
-SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb::ConvertOpts &convert_opts, SEXP class_) {
+SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb::ConvertOpts &convert_opts,
+                                   SEXP class_) {
 	// step 2: create result data frame and allocate columns
 	auto ncols = result->types.size();
 	if (ncols == 0) {
 		return Rf_ScalarReal(0); // no need for protection because no allocation can happen afterwards
 	}
 
-	auto rows = result->RowCount();
+	auto nrows = result->RowCount();
 
 	// Note we cannot use cpp11's data frame here as it tries to calculate the number of rows itself,
 	// but gives the wrong answer if the first column is another data frame. So we set the necessary
@@ -158,8 +180,8 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 	data_frame.reserve(ncols);
 
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
-		cpp11::sexp varvalue =
-		    duckdb_r_allocate(result->types[col_idx], rows, result->names[col_idx], convert_opts, "duckdb_execute_R_impl");
+		cpp11::sexp varvalue = duckdb_r_allocate(result->types[col_idx], nrows, result->names[col_idx], convert_opts,
+		                                         "duckdb_execute_R_impl");
 		duckdb_r_decorate(result->types[col_idx], varvalue, convert_opts);
 		data_frame.push_back(varvalue);
 	}
@@ -170,7 +192,8 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 		D_ASSERT(chunk.ColumnCount() == ncols);
 		D_ASSERT(chunk.ColumnCount() == (idx_t)Rf_length(data_frame));
 		for (size_t col_idx = 0; col_idx < chunk.ColumnCount(); col_idx++) {
-			duckdb_r_transform(chunk.data[col_idx], data_frame[col_idx], dest_offset, chunk.size(), convert_opts, result->names[col_idx]);
+			duckdb_r_transform(chunk.data[col_idx], data_frame[col_idx], dest_offset, chunk.size(), convert_opts,
+			                   result->names[col_idx]);
 		}
 		dest_offset += chunk.size();
 	}
@@ -181,7 +204,7 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 	(void)(SEXP)data_frame;
 
 	SET_NAMES(data_frame, StringsToSexp(result->names));
-	duckdb_r_df_decorate(data_frame, rows, class_);
+	duckdb_r_df_decorate(data_frame, nrows, class_);
 
 	// at this point data_frame is fully allocated and the only protected SEXP
 
@@ -196,7 +219,7 @@ struct AppendableRList {
 		if (size >= capacity) {
 			capacity = capacity * 2;
 			cpp11::sexp new_list = NEW_LIST(capacity);
-			D_ASSERT(new_list);
+			D_ASSERT(new_list != R_NilValue);
 			for (idx_t i = 0; i < size; i++) {
 				SET_VECTOR_ELT(new_list, i, VECTOR_ELT(the_list, i));
 			}
@@ -217,7 +240,9 @@ struct AppendableRList {
 bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, AppendableRList &batches_list,
                      ArrowArray &arrow_data, ArrowSchema &arrow_schema, SEXP batch_import_from_c, SEXP arrow_namespace,
                      idx_t chunk_size) {
-	auto count = ArrowUtil::FetchChunk(scan_state, options, chunk_size, &arrow_data, ArrowTypeExtensionData::GetExtensionTypes(*options.client_context, scan_state.Types()));
+	auto count =
+	    ArrowUtil::FetchChunk(scan_state, options, chunk_size, &arrow_data,
+	                          ArrowTypeExtensionData::GetExtensionTypes(*options.client_context, scan_state.Types()));
 	if (count == 0) {
 		return false;
 	}
@@ -267,7 +292,9 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	cpp11::function getNamespace = RStrings::get().getNamespace_sym;
 	cpp11::sexp arrow_namespace(getNamespace(RStrings::get().arrow_str));
 
+	// FIXME: This is a memory leak, need better lifecycle management
 	auto result_stream = new ResultArrowArrayStreamWrapper(std::move(qry_res->result), chunk_size);
+
 	cpp11::sexp stream_ptr_sexp(
 	    Rf_ScalarReal(static_cast<double>(reinterpret_cast<uintptr_t>(&result_stream->stream))));
 	cpp11::sexp record_batch_reader(Rf_lang2(RStrings::get().ImportRecordBatchReader_sym, stream_ptr_sexp));
@@ -276,27 +303,26 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 
 [[cpp11::register]] SEXP rapi_execute(duckdb::stmt_eptr_t stmt, duckdb::ConvertOpts convert_opts) {
 	if (!stmt || !stmt.get() || !stmt->stmt) {
-		cpp11::stop("rapi_execute: Invalid statement");
+		rapi_error_with_context("rapi_execute", "Invalid statement");
 	}
 
 	ScopedInterruptHandler signal_handler(stmt->stmt->context);
 
 	auto generic_result = stmt->stmt->Execute(stmt->parameters, false);
 
-	if (signal_handler.HandleInterrupt()) {
-		return R_NilValue;
-	}
+	signal_handler.HandleInterrupt();
 
 	signal_handler.Disable();
 
 	if (generic_result->HasError()) {
-		cpp11::stop("rapi_execute: Failed to run query\nError: %s", generic_result->GetError().c_str());
+		ErrorData error(generic_result->GetError());
+		rapi_error_with_context("rapi_execute", error);
 	}
 
 	if (convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED) {
-		auto query_result = new RQueryResult();
+		auto query_result = make_uniq<RQueryResult>();
 		query_result->result = std::move(generic_result);
-		rqry_eptr_t query_resultsexp(query_result);
+		rqry_eptr_t query_resultsexp(query_result.release());
 		return query_resultsexp;
 	} else {
 		D_ASSERT(generic_result->type == QueryResultType::MATERIALIZED_RESULT);

@@ -9,7 +9,6 @@
 #pragma once
 
 #include "duckdb/parser/parsed_data/create_info.hpp"
-#include "duckdb/function/function.hpp"
 
 namespace duckdb {
 
@@ -22,6 +21,8 @@ struct FunctionDescription {
 	string description;
 	//! Examples (if any)
 	vector<string> examples;
+	//! Categories (if any)
+	vector<string> categories;
 };
 
 struct CreateFunctionInfo : public CreateInfo {
@@ -29,6 +30,8 @@ struct CreateFunctionInfo : public CreateInfo {
 
 	//! Function name
 	string name;
+	//! The function name of which this function is an alias
+	string alias_of;
 	//! Function description
 	vector<FunctionDescription> descriptions;
 

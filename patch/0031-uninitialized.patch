@@ -1,0 +1,120 @@
+From 3fc34a7fd9daa3b8e344a8e802b46bc54d6c7125 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Tue, 10 Mar 2026 19:17:15 +0100
+Subject: [PATCH] uninitialized
+
+---
+ .../parquet/include/parquet_field_id.hpp         |  4 ++--
+ .../src/include/duckdb/common/lru_cache.hpp      |  4 ++--
+ .../types/column/column_data_scan_states.hpp     | 12 ++++++------
+ .../common/types/row/tuple_data_layout.hpp       | 16 ++++++++--------
+ 4 files changed, 18 insertions(+), 18 deletions(-)
+
+diff --git a/src/duckdb/extension/parquet/include/parquet_field_id.hpp b/src/duckdb/extension/parquet/include/parquet_field_id.hpp
+index 9d5dd754c..8be4a1509 100644
+--- a/src/duckdb/extension/parquet/include/parquet_field_id.hpp
++++ b/src/duckdb/extension/parquet/include/parquet_field_id.hpp
+@@ -21,8 +21,8 @@ public:
+ 	FieldID();
+ 	explicit FieldID(int32_t field_id);
+ 	FieldID Copy() const;
+-	bool set;
+-	int32_t field_id;
++	bool set = false;
++	int32_t field_id = 0;
+ 	ChildFieldIDs child_field_ids;
+ 
+ 	void Serialize(Serializer &serializer) const;
+diff --git a/src/duckdb/src/include/duckdb/common/lru_cache.hpp b/src/duckdb/src/include/duckdb/common/lru_cache.hpp
+index 8fdca548f..5b2998250 100644
+--- a/src/duckdb/src/include/duckdb/common/lru_cache.hpp
++++ b/src/duckdb/src/include/duckdb/common/lru_cache.hpp
+@@ -137,11 +137,11 @@ public:
+ private:
+ 	struct Entry {
+ 		shared_ptr<Val> value;
+-		idx_t memory;
++		idx_t memory = 0;
+ 		typename list<Key>::iterator lru_iterator;
+ 		// Record payload weight, which is used for global weight control.
+ 		unique_ptr<Payload> payload;
+-		idx_t payload_weight;
++		idx_t payload_weight = 0;
+ 	};
+ 
+ 	using EntryMap = unordered_map<Key, Entry, KeyHash, KeyEqual>;
+diff --git a/src/duckdb/src/include/duckdb/common/types/column/column_data_scan_states.hpp b/src/duckdb/src/include/duckdb/common/types/column/column_data_scan_states.hpp
+index d544db851..10dd28a48 100644
+--- a/src/duckdb/src/include/duckdb/common/types/column/column_data_scan_states.hpp
++++ b/src/duckdb/src/include/duckdb/common/types/column/column_data_scan_states.hpp
+@@ -58,11 +58,11 @@ struct ColumnDataScanState {
+ 	shared_ptr<DatabaseInstance> db;
+ 
+ 	ChunkManagementState current_chunk_state;
+-	idx_t segment_index;
+-	idx_t chunk_index;
+-	idx_t current_row_index;
+-	idx_t next_row_index;
+-	ColumnDataScanProperties properties;
++	idx_t segment_index = 0;
++	idx_t chunk_index = 0;
++	idx_t current_row_index = 0;
++	idx_t next_row_index = 0;
++	ColumnDataScanProperties properties = ColumnDataScanProperties::INVALID;
+ 	vector<column_t> column_ids;
+ };
+ 
+@@ -74,7 +74,7 @@ struct ColumnDataParallelScanState {
+ struct ColumnDataLocalScanState {
+ 	ChunkManagementState current_chunk_state;
+ 	idx_t current_segment_index = DConstants::INVALID_INDEX;
+-	idx_t current_row_index;
++	idx_t current_row_index = 0;
+ };
+ 
+ class ColumnDataRow {
+diff --git a/src/duckdb/src/include/duckdb/common/types/row/tuple_data_layout.hpp b/src/duckdb/src/include/duckdb/common/types/row/tuple_data_layout.hpp
+index c8687c9f5..de1f0566b 100644
+--- a/src/duckdb/src/include/duckdb/common/types/row/tuple_data_layout.hpp
++++ b/src/duckdb/src/include/duckdb/common/types/row/tuple_data_layout.hpp
+@@ -137,29 +137,29 @@ private:
+ 	//! Structs are a recursive TupleDataLayout
+ 	unique_ptr<unordered_map<idx_t, TupleDataLayout>> struct_layouts;
+ 	//! The width of the validity header
+-	idx_t flag_width;
++	idx_t flag_width = 0;
+ 	//! The width of the data portion
+-	idx_t data_width;
++	idx_t data_width = 0;
+ 	//! The width of the aggregate state portion
+-	idx_t aggr_width;
++	idx_t aggr_width = 0;
+ 	//! The width of the sort key
+-	idx_t sort_width;
++	idx_t sort_width = 0;
+ 	//! Bytes that are skippable during sorting
+ 	vector<idx_t> sort_skippable_bytes;
+ 	//! The width of the entire row
+-	idx_t row_width;
++	idx_t row_width = 0;
+ 	//! The offsets to the columns and aggregate data in each row
+ 	vector<idx_t> offsets;
+ 	//! Whether all columns in this layout are constant size
+-	bool all_constant;
++	bool all_constant = true;
+ 	//! Indices of the variable columns
+ 	vector<idx_t> variable_columns;
+ 	//! Offset to the heap size of every row
+-	idx_t heap_size_offset;
++	idx_t heap_size_offset = 0;
+ 	//! Indices of aggregate functions that have a destructor
+ 	vector<idx_t> aggr_destructor_idxs;
+ 	//! Whether none of the columns have NULLs
+-	TupleDataValidityType validity_type;
++	TupleDataValidityType validity_type = TupleDataValidityType::CAN_HAVE_NULL_VALUES;
+ };
+ 
+ } // namespace duckdb
+-- 
+2.52.0
+

@@ -85,16 +85,18 @@ public:
 	void ThrowIfInvalid() const;
 
 	static unique_ptr<ArrowType> GetTypeFromFormat(string &format);
-	static unique_ptr<ArrowType> GetTypeFromFormat(DBConfig &config, ArrowSchema &schema, string &format);
+	static unique_ptr<ArrowType> GetTypeFromFormat(ClientContext &context, ArrowSchema &schema, string &format);
 
-	static unique_ptr<ArrowType> GetTypeFromSchema(DBConfig &config, ArrowSchema &schema);
+	static unique_ptr<ArrowType> GetTypeFromSchema(ClientContext &context, ArrowSchema &schema);
 
-	static unique_ptr<ArrowType> CreateListType(DBConfig &config, ArrowSchema &child, ArrowVariableSizeType size_type,
-	                                            bool view);
+	static unique_ptr<ArrowType> CreateListType(ClientContext &context, ArrowSchema &child,
+	                                            ArrowVariableSizeType size_type, bool view);
 
-	static unique_ptr<ArrowType> GetArrowLogicalType(DBConfig &config, ArrowSchema &schema);
+	static unique_ptr<ArrowType> GetArrowLogicalType(ClientContext &context, ArrowSchema &schema);
 
 	bool HasExtension() const;
+
+	ArrowArrayPhysicalType GetPhysicalType() const;
 
 	//! The Arrow Type Extension data, if any
 	shared_ptr<ArrowTypeExtensionData> extension_data;
@@ -114,13 +116,17 @@ protected:
 
 using arrow_column_map_t = unordered_map<idx_t, shared_ptr<ArrowType>>;
 
-struct ArrowTableType {
+struct ArrowTableSchema {
 public:
-	void AddColumn(idx_t index, shared_ptr<ArrowType> type);
+	void AddColumn(idx_t index, shared_ptr<ArrowType> type, const string &name);
 	const arrow_column_map_t &GetColumns() const;
+	vector<LogicalType> &GetTypes();
+	vector<string> &GetNames();
 
 private:
 	arrow_column_map_t arrow_convert_data;
+	vector<LogicalType> types;
+	vector<string> column_names;
 };
 
 } // namespace duckdb

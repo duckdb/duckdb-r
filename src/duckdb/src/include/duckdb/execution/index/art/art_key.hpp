@@ -50,7 +50,13 @@ public:
 		key.len = sizeof(value);
 	}
 
-	static ARTKey CreateKey(ArenaAllocator &allocator, PhysicalType type, Value &value);
+	static inline ARTKey CreateARTKeyFromBytes(ArenaAllocator &allocator, const_data_ptr_t data, idx_t len) {
+		auto new_data = allocator.Allocate(len);
+		memcpy(new_data, data, len);
+		return ARTKey(new_data, len);
+	}
+
+	static ARTKey CreateKey(ArenaAllocator &allocator, Value &value, optional_idx storage_version);
 
 public:
 	data_t &operator[](idx_t i) {
@@ -73,7 +79,6 @@ public:
 	void Concat(ArenaAllocator &allocator, const ARTKey &other);
 	row_t GetRowId() const;
 	idx_t GetMismatchPos(const ARTKey &other, const idx_t start) const;
-	void VerifyKeyLength(const idx_t max_len) const;
 
 private:
 	template <class T>
@@ -91,17 +96,4 @@ ARTKey ARTKey::CreateARTKey(ArenaAllocator &allocator, const char *value);
 template <>
 void ARTKey::CreateARTKey(ArenaAllocator &allocator, ARTKey &key, string_t value);
 
-class ARTKeySection {
-public:
-	ARTKeySection(idx_t start, idx_t end, idx_t depth, data_t byte);
-	ARTKeySection(idx_t start, idx_t end, const unsafe_vector<ARTKey> &keys, const ARTKeySection &section);
-
-	idx_t start;
-	idx_t end;
-	idx_t depth;
-	data_t key_byte;
-
-public:
-	void GetChildSections(unsafe_vector<ARTKeySection> &sections, const unsafe_vector<ARTKey> &keys);
-};
 } // namespace duckdb

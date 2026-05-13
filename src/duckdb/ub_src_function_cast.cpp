@@ -12,6 +12,8 @@
 
 #include "src/function/cast/enum_casts.cpp"
 
+#include "src/function/cast/geo_casts.cpp"
+
 #include "src/function/cast/list_casts.cpp"
 
 #include "src/function/cast/map_cast.cpp"
@@ -26,11 +28,15 @@
 
 #include "src/function/cast/time_casts.cpp"
 
+#include "src/function/cast/type_cast.cpp"
+
 #include "src/function/cast/union_casts.cpp"
 
 #include "src/function/cast/uuid_casts.cpp"
 
-#include "src/function/cast/varint_casts.cpp"
+#include "src/function/cast/bignum_casts.cpp"
+
+#include "src/function/cast/nested_to_varchar_cast.cpp"
 
 #include "src/function/cast/vector_cast_helpers.cpp"
 

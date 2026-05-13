@@ -1,8 +1,13 @@
+#include "duckdb/common/adbc/adbc-init.hpp"
+#include "duckdb/common/enum_util.hpp"
 #include "duckdb/common/types/timestamp.hpp"
+#include "include/rfuns_extension.hpp"
 #include "rapi.hpp"
 #include "typesr.hpp"
-#include "duckdb/common/adbc/adbc-init.hpp"
-#include "include/rfuns_extension.hpp"
+
+// Avoid clash with TRUE and FALSE macros in older rtools
+#undef TRUE
+#undef FALSE
 
 using namespace duckdb;
 
@@ -10,14 +15,9 @@ using namespace duckdb;
 	return R_MakeExternalPtrFn((DL_FUNC)duckdb_adbc_init, R_NilValue, R_NilValue);
 }
 
-SEXP duckdb::ToUtf8(SEXP string_sexp) {
-	cpp11::function enc2utf8 = RStrings::get().enc2utf8_sym;
-	return enc2utf8(string_sexp);
-}
-
 [[cpp11::register]] cpp11::r_string rapi_ptr_to_str(SEXP extptr) {
 	if (TYPEOF(extptr) != EXTPTRSXP) {
-		cpp11::stop("rapi_ptr_to_str: Need external pointer parameter");
+		rapi_error_with_context("rapi_ptr_to_str", "Need external pointer parameter");
 	}
 
 	void *ptr = R_ExternalPtrAddr(extptr);
@@ -57,18 +57,19 @@ RStrings::RStrings() {
 	R_PreserveObject(strings);
 	MARK_NOT_MUTABLE(strings);
 
-	cpp11::sexp chars = Rf_allocVector(VECSXP, 11);
+	cpp11::sexp chars = Rf_allocVector(VECSXP, 12);
 	SET_VECTOR_ELT(chars, 0, UTC_str = Rf_mkString("UTC"));
 	SET_VECTOR_ELT(chars, 1, Date_str = Rf_mkString("Date"));
 	SET_VECTOR_ELT(chars, 2, difftime_str = Rf_mkString("difftime"));
 	SET_VECTOR_ELT(chars, 3, secs_str = Rf_mkString("secs"));
 	SET_VECTOR_ELT(chars, 4, arrow_str = Rf_mkString("arrow"));
-	SET_VECTOR_ELT(chars, 5, duckdb_str = Rf_mkString("duckdb"));
+	SET_VECTOR_ELT(chars, 5, duckdb_str = Rf_mkString(DUCKDB_PACKAGE_NAME));
 	SET_VECTOR_ELT(chars, 6, POSIXct_POSIXt_str = StringsToSexp({"POSIXct", "POSIXt"}));
 	SET_VECTOR_ELT(chars, 7, factor_str = Rf_mkString("factor"));
 	SET_VECTOR_ELT(chars, 8, dataframe_str = Rf_mkString("data.frame"));
 	SET_VECTOR_ELT(chars, 9, integer64_str = Rf_mkString("integer64"));
 	SET_VECTOR_ELT(chars, 10, tbl_df_tbl_dataframe_str = StringsToSexp({"tbl_df", "tbl", "data.frame"}));
+	SET_VECTOR_ELT(chars, 11, wk_wkb_wk_vctr_str = StringsToSexp({"wk_wkb", "wk_vctr"}));
 
 	R_PreserveObject(chars);
 	MARK_NOT_MUTABLE(chars);
@@ -88,6 +89,7 @@ RStrings::RStrings() {
 	get_progress_display_sym = Rf_install("get_progress_display");
 	duckdb_row_names_sym = Rf_install("duckdb_row_names");
 	duckdb_vector_sym = Rf_install("duckdb_vector");
+	crs_sym = Rf_install("crs");
 }
 
 LogicalType RStringsType::Get() {
@@ -115,6 +117,9 @@ R_len_t RApiTypes::GetVecSize(RType rtype, SEXP coldata) {
 		rtype = rtype.GetStructChildTypes()[0].second;
 		D_ASSERT(TYPEOF(coldata) == VECSXP);
 		coldata = VECTOR_ELT(coldata, 0);
+	}
+	if (rtype.id() == RTypeId::MATRIX) {
+		return Rf_nrows(coldata);
 	}
 	// This still isn't quite accurate, but good enough for the types we support.
 	return Rf_length(coldata);
@@ -147,8 +152,16 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 		}
 	}
 	case RType::STRING: {
-		auto str_val = STRING_ELT(ToUtf8(valsexp), idx);
-		return str_val == NA_STRING ? Value(LogicalType::VARCHAR) : Value(CHAR(str_val));
+		auto str_val = STRING_ELT(valsexp, idx);
+		if (str_val == NA_STRING) {
+			return Value(LogicalType::VARCHAR);
+		}
+
+		auto ce = Rf_getCharCE(str_val);
+		if (ce != CE_UTF8 && ce != CE_NATIVE) {
+			rapi_error_with_context("SexpToValue", "Only UTF-8 encoded strings are supported for the data frame scan.");
+		}
+		return Value(CHAR(str_val));
 	}
 	case RTypeId::FACTOR: {
 		auto int_val = INTEGER_POINTER(valsexp)[idx];
@@ -254,7 +267,7 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 		return Value::STRUCT(std::move(child_values));
 	}
 	default:
-		cpp11::stop("duckdb_sexp_to_value: Unsupported type");
+		rapi_error_with_context("duckdb_sexp_to_value", "Unsupported RTypeId");
 		return Value();
 	}
 }
@@ -319,11 +332,58 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 
 [[cpp11::register]] void rapi_load_rfuns(duckdb::db_eptr_t dual) {
 	if (!dual || !dual.get()) {
-		cpp11::stop("rapi_load_rfuns: Invalid database reference");
+		rapi_error_with_context("rapi_load_rfuns", "Invalid database reference");
 	}
 	auto db = dual->get();
 	if (!db || !db->db) {
-		cpp11::stop("rapi_load_rfuns: Database already closed");
+		rapi_error_with_context("rapi_load_rfuns", "Database already closed");
 	}
-	db->db->LoadExtension<RfunsExtension>();
+	db->db->LoadStaticExtension<RfunsExtension>();
+}
+
+// Helper functions to communicate errors via R's stop() function
+[[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message) {
+	// Look up R function in duckdb namespace
+	static cpp11::function rapi_error = cpp11::package(DUCKDB_PACKAGE_NAME)["rapi_error"];
+	rapi_error(context, message);
+
+	throw InternalException("Unreachable code after rapi_error()");
+}
+
+[[noreturn]] void rapi_error_with_context(const std::string &context, const std::exception &e) {
+	// Forward to the other overload
+	rapi_error_with_context(context, std::string(e.what()));
+}
+
+[[noreturn]] void rapi_error_with_context(const std::string &context, const duckdb::ErrorData &error_data) {
+	// Look up R function in duckdb namespace
+	static cpp11::function rapi_error = cpp11::package(DUCKDB_PACKAGE_NAME)["rapi_error"];
+
+	// Extract fields from ErrorData
+	std::string message = error_data.Message();
+	std::string raw_message = error_data.RawMessage();
+
+	// Convert ExceptionType to string
+	std::string error_type = EnumUtil::ToChars(error_data.Type());
+
+	// Convert extra_info to R list
+	cpp11::writable::list extra_info;
+	const auto &info_map = error_data.ExtraInfo();
+
+	cpp11::writable::strings names(info_map.size());
+	cpp11::writable::strings values(info_map.size());
+
+	size_t i = 0;
+	for (const auto &pair : info_map) {
+		names[i] = pair.first;
+		values[i] = pair.second;
+		i++;
+	}
+
+	values.names() = names;
+
+	// Call R function with all parameters
+	rapi_error(context, message, error_type, raw_message, extra_info);
+
+	throw InternalException("Unreachable code after rapi_error()");
 }

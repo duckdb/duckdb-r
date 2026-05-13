@@ -43,12 +43,14 @@ enum class RTypeId {
 	// No RType equivalent
 	BYTE,
 	LIST,
+	MATRIX,
 	STRUCT,
 };
 
 struct RType {
 	RType();
-	RType(RTypeId id); // NOLINT: Allow implicit conversion from `RTypeId`
+	RType(RTypeId id);               // NOLINT: Allow implicit conversion from `RTypeId`
+	RType(RTypeId id, R_len_t size); // NOLINT: Allow implicit conversion from `RTypeId`
 	RType(const RType &other);
 	RType(RType &&other) noexcept;
 
@@ -57,12 +59,14 @@ struct RType {
 	// copy assignment
 	inline RType &operator=(const RType &other) {
 		id_ = other.id_;
+		size_ = other.size_;
 		aux_ = other.aux_;
 		return *this;
 	}
 	// move assignment
 	inline RType &operator=(RType &&other) noexcept {
 		id_ = other.id_;
+		size_ = other.size_;
 		std::swap(aux_, other.aux_);
 		return *this;
 	}
@@ -105,8 +109,13 @@ struct RType {
 	static RType STRUCT(child_list_t<RType> &&children);
 	child_list_t<RType> GetStructChildTypes() const;
 
+	static RType MATRIX(const RType &child, R_len_t ncols);
+	RType GetMatrixElementType() const;
+	R_len_t GetMatrixNcols() const;
+
 private:
 	RTypeId id_;
+	R_len_t size_;
 	child_list_t<RType> aux_;
 };
 
@@ -128,7 +137,7 @@ struct RIntegralType {
 };
 
 template <class T>
-static void RDecimalCastLoop(Vector &src_vec, size_t count, double *dest_ptr, uint8_t scale) {
+static void RDecimalCastLoop(const Vector &src_vec, size_t count, double *dest_ptr, uint8_t scale) {
 	auto src_ptr = FlatVector::GetData<T>(src_vec);
 	auto &mask = FlatVector::Validity(src_vec);
 	double division = std::pow((uint64_t)10, (uint64_t)scale);

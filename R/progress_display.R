@@ -12,7 +12,7 @@ duckdb_progress_display <- function(x) {
   }
 
   if (x < 100) {
-    cat(sprintf("\rDuckDB progress: %3d%%", x))
+    cat(sprintf("\rDuckDB progress: %3d%%", trunc(x)))
   } else {
     cat("\r                     \r")
     duckdb_progress_env$last_time <- NULL

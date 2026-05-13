@@ -76,6 +76,7 @@ typedef struct PGRangeVar {
 	bool inh;            /* expand rel by inheritance? recursively act
 								 * on children? */
 	char relpersistence; /* see RELPERSISTENCE_* in pg_class.h */
+	PGNode *at_clause;   /* version of the table to read */
 	PGAlias *alias;      /* table alias & optional column aliases */
 	int location;        /* token location, or -1 if unknown */
 	PGNode *sample;      /* sample, if any */
@@ -115,6 +116,8 @@ typedef struct PGIntoClause {
 	PGRangeVar *rel;           /* target relation name */
 	PGList *colNames;          /* column names to assign, or NIL */
 	PGList *options;           /* options from WITH clause */
+	PGList *partition_list;		/* e.g. expression list for partitioned by */
+	PGList *sort_list;			/* e.g. expression list for sort by */
 	PGOnCommitAction onCommit; /* what do we do at COMMIT? */
 	char *tableSpaceName;      /* table space to use, or NULL */
 	PGNode *viewQuery;         /* materialized view's SELECT query */
@@ -1397,5 +1400,15 @@ typedef struct PGOnConflictExpr {
 	int exclRelIndex;        /* RT index of 'excluded' relation */
 	PGList *exclRelTlist;    /* tlist of the EXCLUDED pseudo relation */
 } PGOnConflictExpr;
+
+
+/*
+ * PGAtClause - AT clause in FROM tables - e.g. "AT (TIMESTAMP => NOW())
+ */
+typedef struct PGAtClause {
+	PGNodeTag type;
+	const char *unit;   /* the unit (e.g. TIMESTAMP/VERSION) */
+	PGNode *expr;       /* the expression */
+} PGAtClause;
 
 }

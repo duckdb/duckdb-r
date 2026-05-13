@@ -42,3 +42,6 @@ _files$
 ^\.Rprofile$
 ^\.clangd$
 ^src/include/deps\.mk$
+^AGENTS\.md$
+^BRANCHES\.md$
+^\.claude$

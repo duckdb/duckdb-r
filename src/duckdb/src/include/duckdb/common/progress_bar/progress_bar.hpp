@@ -17,7 +17,7 @@
 namespace duckdb {
 
 struct ClientConfig;
-typedef unique_ptr<ProgressBarDisplay> (*progress_bar_display_create_func_t)();
+typedef std::function<unique_ptr<ProgressBarDisplay>()> progress_bar_display_create_func_t;
 
 struct QueryProgress {
 	friend class ProgressBar;
@@ -52,7 +52,7 @@ public:
 	//! Updates the progress bar and prints it to the screen
 	void Update(bool final);
 	QueryProgress GetDetailedQueryProgress();
-	void PrintProgress(int percentage);
+	void PrintProgress(double percentage);
 	void FinishProgressBarPrint();
 	bool ShouldPrint(bool final) const;
 	bool PrintEnabled() const;

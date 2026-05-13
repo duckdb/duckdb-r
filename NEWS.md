@@ -1,231 +1,393 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.2.1.9901
+# duckdb 1.5.2.9006
+
+## Continuous integration
+
+- Clarify handling of broken-\*-dev branches.
+
+- Simplify again.
+
+
+# duckdb 1.5.2.9005
+
+## Continuous integration
+
+- Only run fledge on pushes to main.
+
+
+# duckdb 1.5.2.9004
+
+## Continuous integration
+
+- Tweak fledge workflow and ccache action.
+
+
+# duckdb 1.5.2.9003
+
+## Chore
+
+- Auto-update from GitHub Actions.
+
+  Run: https://github.com/krlmlr/duckdb-r/actions/runs/25267064493
+
+## Continuous integration
+
+- Align.
+
+- Cosmetics.
+
+- Bump action versions.
+
+- Install clang-format-21.
+
+- Align fledge workflow.
+
+- Harmonize.
+
+## Uncategorized
+
+- Refine RCC smoke-fix workflow: per-commit validation and push (#25).
+
+- Merge branch 'main' into krlmlr-main.
+
+
+# duckdb 1.5.2.9002
+
+## Chore
+
+- Auto-update from GitHub Actions (#2319).
+
+- Next skill iteration.
+
+- Fetch logs from orphan branch.
+
+## Continuous integration
+
+- Success message.
+
+- Fetch all.
+
+- Refine.
+
+- Tweak skill.
+
+- 4x per day.
+
+- Trigger.
+
+- Refine.
+
+- On push.
+
+## Uncategorized
+
+- Add workflow to cancel pending RCC dispatch runs (#24).
+
+
+# duckdb 1.5.2.9001
+
+- Add RCC smoke test fix skill documentation (#22).
+
+- Docs(skill): add rcc-smoke-fix skill modeled on rigraph.
+
+- Iterate over multiple \*-dev branches (main-dev, v1.5-variegata-dev,.
+
+- Forbid edits to vendored sources (src/duckdb/, inst/include/cpp11/,.
+
+- Document longer build times (10-15 min cold) and the .dd.
+
+- Include the same operation-essence preamble, no-log-access caveat,.
+
+- Docs(skill): correct claim about CI promoting fixes to \*-dev.
+
+- Docs(skill): address review feedback on rcc-smoke-fix.
+
+- Replace placeholder status-lookup pseudocode with a concrete.
+
+- Enable `set -o pipefail` around `... | tail -N` so failing.
+
+- Use `rcmdcheck::rcmdcheck()` instead of `R CMD check .` (which is.
+
+- Build-ignore.
+
+- Fix: remove all R CMD check . references from skill.
+
+- Docs(skill): spell out patch/ → vendored cascade; drop transient branches.
+
+- Note that editing `patch/` is expected to produce committable changes.
+
+- Apply-patch instruction added to priority 1.
+
+- Commit step conditionally adds `src/duckdb/` only when `patch/` changed.
+
+- Cherry-pick conflict on `src/duckdb/` softened: rare but possible from.
+
+- Removed all references to out-of-scope transient branches.
+
+
+# duckdb 1.5.2.9000
+
+## fledge
+
+- CRAN release v1.5.2 (#2312).
+
+
+# duckdb 1.5.2
 
 ## Bug fixes
 
-- Avoid setting empty tzone attribute.
+- Update to DuckDB v1.5.2, see <https://github.com/duckdb/duckdb/releases/tag/v1.5.2> for details.
 
-- Correctly check unclassed vectors.
-
-- Use vctrs to construct funny data frames.
-
-- Windows builds.
+- Fix compiler warning on recent clang on macOS.
 
 ## Features
 
+- Use `TRY_CAST()` instead of `CAST()` in dplyr SQL translation for type conversion functions (#2230, #2231).
+
+## Chore
+
+- Use `R_getRegisteredNamespace()` in R 4.6.
+
+## Documentation
+
+- Describe branching strategy (#2280, #2281).
+
+## Testing
+
+- Use explicit default duckdb connection for arrow tests (#2301).
+
+- Rework arrow tests, prepare for compatibility with dbplyr 2.6.0 (#2300).
+
+
+# duckdb 1.5.1
+
+## Bug fixes
+
+- Update to DuckDB v1.5.1, see <https://github.com/duckdb/duckdb/releases/tag/v1.5.1> for details.
+
+## Features
+
+- `GEOMETRY` columns can be returned, either as BLOBs (default) or as wk objects (via the wk package) using `dbConnect(geometry = "wk")` (#2278, #2279).
+
+## Chore
+
+- Fix `-Wdeprecated` compiler warnings (#2295, #2296) and protection buglet (#2294).
+
+- Use `gtar` when available to suppress Apple extended attribute warnings on Linux (#2227, #2228).
+
+
+# duckdb 1.5.0
+
+## Features
+
+- Update to DuckDB v1.5.0, see <https://github.com/duckdb/duckdb/releases/tag/v1.5.0> for details.
+
+- Support `descending` and `nulls_first` in `expr_window()` and `rel_order()` (#2074, #2075).
+
+## Bug fixes
+
+- The dbplyr translation of `as.numeric()` and `as.double()` uses `DOUBLE` instead of `NUMERIC` (#2023, #2031).
+
+## Testing
+
+- Update to testthat edition 3.
+
+## Internal
+
+- Avoid `ATTRIB()` for compatibility with R 4.6, materialize ALTREP row names to integer sequence with full ALTREP methods (#2034).
+
+
+# duckdb 1.4.4
+
+## Features
+
+- Update to DuckDB v1.4.4, see <https://github.com/duckdb/duckdb/releases/tag/v1.4.4> for details.
+
+- Add operator expressions (@toppyy, #1828).
+
+## Chore
+
+- Bump vendored cpp11 to v0.5.3.
+
+## Documentation
+
+- Add alternative installation method to README (@szarnyasg, #1819).
+
+
+# duckdb 1.4.3
+
+## Features
+
+- Update to DuckDB v1.4.3, see <https://github.com/duckdb/duckdb/releases/tag/v1.4.3> for details.
+
+- Add `str_ilike()` support (@edward-burn, #1810, #1811).
+
+## Bug fixes
+
+- Fail with non-UTF8-encoded strings during data frame scan instead of attempting to reencode (#1795).
+
+- Avoid inclusion of raw error message in the output.
+
+- Fix translation of `quantile()` to use DuckDB's native `QUANTILE_CONT()` syntax (#1734, #1735).
+
+## Testing
+
+- Remove redundant R version checks from tests (#1815, #1816).
+
+
+# duckdb 1.4.2
+
+- Update to DuckDB v1.4.2, see <https://github.com/duckdb/duckdb/releases/tag/v1.4.2> for details.
+
+
+# duckdb 1.4.1
+
+- Update to DuckDB v1.4.1, see <https://github.com/duckdb/duckdb/releases/tag/v1.4.1> for details.
+
+## Features
+
+- Add support for wildcards in `tbl_file()` paths (#1614, @rplsmn).
+
+- Add `n_distinct(..., na.rm = TRUE)` support for multiple passed columns (@lschneiderbauer, #1588).
+
+## Bug fixes
+
+- Fix Valgrind error.
+
+## Testing
+
+- Ensure be able to install duckdb extensions on release version (@eitsupi, #1586).
+
+
+# duckdb 1.4.0
+
+- Update to DuckDB v1.4.0, see <https://github.com/duckdb/duckdb/releases/tag/v1.4.0> for details.
+
+## Features
+
+- New experimental `sql_query()`, `sql_exec()`, and `default_conn()` to simplify the most important operations for interactive use (#1564).
+
+- `tbl_file()` allows omitting the `src` argument, falling back to the default connection.
+
+- Full support for deep structs generated by `struct_pack()` for ALTREP (#1545).
+
+## Bug fixes
+
+- Fix progress display for fractional progress values (#1499, #1505).
+
+- Extensions can be installed again.
+
+
+# duckdb 1.3.3
+
+- Update to the current v1.3-ossivalis branch, see <https://github.com/duckdb/duckdb/tree/v1.3-ossivalis> for details.
+
+## Bug fixes
+
+- Fix timezone conversion for invalid timestamps with `tz_out_convert = "force"` (#1474).
+
+- Substitute invalid UTF-8 characters in error messages to avoid a failure when reporting the error.
+
+- Fix index calculation for retrieval of arrays (#1473).
+
+- Fix conversion for retrieval of large enums.
+
+- Fix compiler error in debug build (@joakimlinde, #1368).
+
+## Features
+
+- Add rich ErrorData-based error handling with structured error information (#1479).
+
+- Safeguard against deadlocks when accidentally issuing queries from the progress bar handler or other callbacks (#1475).
+
+- `dbGetInfo()` gets the version from a hard-coded value and not from a DuckDB query (#1481).
+
+- Package uses two cores by default for compilation (#1478).
+
+## Documentation
+
+- Document vendoring process and main/next branch relationship (#1488).
+
+## Testing
+
+- Add `local_con()` test fixture for cleaner DuckDB connection management (#1476).
+
+
+# duckdb 1.3.2
+
+## Features
+
+- Update to duckdb v1.3.2, see <https://github.com/duckdb/duckdb/releases/tag/v1.3.2> for details.
+
+
+# duckdb 1.3.1
+
+## Features
+
+- Update to duckdb v1.3.1, see <https://github.com/duckdb/duckdb/releases/tag/v1.3.1> for details.
+
+## Bug fixes
+
+- Correct dbplyr translations for `str_starts()` and `str_ends()` (#1182, #1247).
+
+- Fix multiarch build on R 4.1 for Windows.
+
+
+# duckdb 1.3.0
+
+## Features
+
+- Update to duckdb v1.3.0, see <https://github.com/duckdb/duckdb/releases/tag/v1.3.0> for details.
+
+- Add ingestion of matrices (@joakimlinde, #1150).
+
+## Chore
+
+- Fix rchk (#1173).
+
+- Fix compiler warning (@joakimlinde, #1172).
+
+## Testing
+
+- Skip timing tests on CRAN.
+
+
+# duckdb 1.2.2
+
+## Features
+
+- Update to duckdb v1.2.2, see <https://github.com/duckdb/duckdb/releases/tag/v1.2.2> for details.
+
+- Add support for duckdb arrays in R (@joakimlinde, #102, #1090). To enable, connect with `dbConnect(duckdb(), array = "matrix")` (@joakimlinde, #1125).
+
+- Support fractional seconds in `TIME` and `INTERVAL` data (#1109).
+
 - The `autoload_known_extensions` configuration option is now enabled by default (#582, #1084, #1134).
 
-- Support `STRUCT` in ALTREP data frames.
-
-- Add `dbConnect(array = "none")`, pass `array = "matrix"` to enable conversion of array columns (@joakimlinde, #1125).
+- Mention column name for conversion errors (#1108).
 
 ## Chore
 
 - Require R \>= 4.1 (#1087, #1133).
 
-- Move naming of structs to `duckdb_r_decorate()`.
-
-- `duckdb_r_df_decorate()`.
-
-- Move computation of row names.
-
-- `get_attrib()`.
-
-- Perform time zone conversion in the C++ layer where possible, to support ALTREP (#1130).
-
-- Fix `pkgload::load_all()` (#1128).
-
-- Fix build.
-
-## Continuous integration
-
-- Allow NOTEs if suggested packages are missing.
-
-- Only fail covr builds if token is given (#1131).
-
-- Tweak permissions.
-
-- Lints.
-
-- Always use `_R_CHECK_FORCE_SUGGESTS_=false` (#1129).
-
-- Correct installation of xml2 (#1123).
-
-- Explain (#1121).
-
-- Add xml2 for covr, print testthat results (#1120).
-
-- Sync (#1119).
-
-## Testing
-
-- Support relational datetime with time zones.
-
-- Skip tests using `grep()` or `sub()` on CRAN.
-
-- Skip test if vctrs not installed.
-
-- Skip ALTVEC for old R versions.
-
-- Skip ALTVEC for old R versions.
-
-- Add tests.
-
-- Sync tests.
-
-
-# duckdb 1.2.1.9900
-
-## Bug fixes
-
-- Support fractional seconds in `TIME` and `INTERVAL` data (#1109).
-
-## Features
+- Types exposed through ALTREP are the same as through DBI (#1111), including `STRUCT`. This enables support more types in upcoming duckplyr versions.
 
 - Perform optional checks for ALTREP compatibility in `rel_from_df()` and `expr_constant()` (#1117).
 
-- Types exposed through ALTREP are the same as through DBI (#1111).
+- Perform time zone conversion in the C++ layer where possible, to support ALTREP (#1130).
 
-- Mention column name for conversion errors (#1108).
+- Improve developer experience: `pkgload::load_all()` now works, source files are rebuilt if header files change, configure clangd (#1128).
 
-- Rework data frame creation (#1103).
-
-- Add optional alias argument to all functions returning an expression (#1100).
-
-- Add support for duckdb arrays in R (@joakimlinde, #102, #1090).
-
-## Chore
-
-- Backticks in error message.
-
-- Remove lints (#1116).
-
-- Add dots (#1115).
-
-- Adapt tests to use data frames without row names (#1113).
-
-- Satisfy lintr.
-
-- `ConvertOpts` is a struct (#1110).
-
-- Configure clangd.
-
-- Avoid passing bitmask through data frame scan function (#1105).
+- Add dots with checks to unexported functions (#1115).
 
 - Clean up edge case for fetching zero rows (#1104).
 
-- Remove unused attribute.
-
 - Avoid test for timings on CRAN (#1101).
 
-- Fix path.
+## Documentation
 
-- Move scripts.
-
-- Reorganize scripts.
-
-- Increase window.
-
-## Continuous integration
-
-- More accurate determination if no-suggests tests need to run.
-
-- Ignore arrow for R \< 4.2.
-
-- Fix script location.
-
-## Uncategorized
-
-- Vendor: Update vendored sources (tag v1.2.2) to duckdb/duckdb@7c039464e452ddc3330e2691d3fa6d305521d09b.
-
-- Vendor: Update vendored sources to duckdb/duckdb@4d7180d13e8988c73d565f97a29855ff425ed340.
-
-- Vendor: Update vendored sources to duckdb/duckdb@4de79a0fcb1e260ce2543fb40d1a6977d7c1750a.
-
-- Vendor: Update vendored sources to duckdb/duckdb@5e26d7ad8277e48248f75181c5e79b44a6e178ad.
-
-- Vendor: Update vendored sources to duckdb/duckdb@099fba2a4b5563dd40b5a462fd6fac0594560a4c.
-
-- Vendor: Update vendored sources to duckdb/duckdb@78379ad797f8e5aa4b10f4ff0a95be3f13b4b47a.
-
-- Vendor: Update vendored sources to duckdb/duckdb@929daf42d9425720c658e64e5d6bd8d3c55c9509.
-
-- Vendor: Update vendored sources to duckdb/duckdb@c11e85537e5b9f296e976fcf0762c0c27dbc189d.
-
-- Vendor: Update vendored sources to duckdb/duckdb@40c13c407044b6be8cbac4f0e78670a9fdb8721e.
-
-- Vendor: Update vendored sources to duckdb/duckdb@c26196e7141699beddeacf51214f36f25a49485d.
-
-- Vendor: Update vendored sources to duckdb/duckdb@5920da2406ffa651d7c79493c9188518de5229f4.
-
-- Vendor: Update vendored sources to duckdb/duckdb@c353171bc5e06f217a96ae4eb515847bd9ca3a52.
-
-- Vendor: Update vendored sources to duckdb/duckdb@21301415e58c8a18110c80b0cc7f8d3aa4e56c16.
-
-- Vendor: Update vendored sources to duckdb/duckdb@a4380e7c0895ebdb879bf1c32616004643834ff8.
-
-- Vendor: Update vendored sources to duckdb/duckdb@ca8f3a76699dde5b03bd56a2ab737edb066d955f.
-
-- Vendor: Update vendored sources to duckdb/duckdb@72cf6467725a4eaeb39c02c115a5952f800eea7d.
-
-- Vendor: Update vendored sources to duckdb/duckdb@882980aa420dd52fead9c23c2bc82f9c8bea043c.
-
-- Vendor: Update vendored sources to duckdb/duckdb@3c9d9ddc6056a565d4320024b6ca0221854cb6be.
-
-- Vendor: Update vendored sources to duckdb/duckdb@3fa4b872b3936ff4e373d0b4aaf1434dcc79bfa8.
-
-- Vendor: Update vendored sources to duckdb/duckdb@91e67a22bf4533afb7abf9636aa8d369a4555d45.
-
-- Vendor: Update vendored sources to duckdb/duckdb@75fb0d7cdf0c1f7fdcce1058b84c83affa0c7185.
-
-- Vendor: Update vendored sources to duckdb/duckdb@0c09b40666abb58df1ac1ae601af17eb14f5ff59.
-
-- Vendor: Update vendored sources to duckdb/duckdb@d0ac2f2929e7230ac168de568d35dcde94b089c4.
-
-- Vendor: Update vendored sources to duckdb/duckdb@ede55e1564fbfb10e10058810681cb5972fa534e.
-
-- Vendor: Update vendored sources to duckdb/duckdb@249a4218be632ce96008568608c347b97c3d45bb.
-
-- Vendor: Update vendored sources to duckdb/duckdb@0d2f28c10415550b0b1aaba0aa55618856be1d22.
-
-- Vendor: Update vendored sources to duckdb/duckdb@09bf1d736d031fb7c49a56201a436a390545c16e.
-
-- Vendor: Update vendored sources to duckdb/duckdb@7b5e2b7373c2be02affb1771f45a606ed8e711b3.
-
-- Vendor: Update vendored sources to duckdb/duckdb@40eac1c115ed8b70145375687c80cedf88590b76.
-
-- Vendor: Update vendored sources to duckdb/duckdb@6610bc9122f0b091bf0ff074fd8854091b33cc24.
-
-- Vendor: Update vendored sources to duckdb/duckdb@745bc7877ffe5b9b1eae9ee4c4cb31784b201820.
-
-- Vendor: Update vendored sources to duckdb/duckdb@1378dccaf052255dd37e4076e8adf84249fca12f.
-
-- Vendor: Update vendored sources to duckdb/duckdb@1f7c2c958097612d506f08e8e9e96554341bec42.
-
-- Vendor: Update vendored sources to duckdb/duckdb@d76de45caa58c69f04ff8a2e16270d324ecf3559.
-
-- Vendor: Update vendored sources to duckdb/duckdb@2243dd860b990bb1947dd46e87513c497ff627ca.
-
-- Vendor: Update vendored sources to duckdb/duckdb@64351c2bba6e905892711998101a8bcf00218467.
-
-- Vendor: Update vendored sources to duckdb/duckdb@ba4a4482d3b1854d20ca1749f6d0fc46c96aaab2.
-
-- Vendor: Update vendored sources to duckdb/duckdb@65061f58d439cc021db4c1a74218f118886a2fd4.
-
-- Vendor: Update vendored sources to duckdb/duckdb@ce38435fe300aae35a142838b6d64318275a5a0b.
-
-- Vendor: Update vendored sources to duckdb/duckdb@7d9d4fc60d1b51e1f18763f4f8f4e3c91112bb37.
-
-- Vendor: Update vendored sources to duckdb/duckdb@34b9403c4def6a88c87410741e7071a84177f220.
-
-- Vendor: Update vendored sources to duckdb/duckdb@c577724b2c1a21ac0f5d67a447f9e69956457ba8.
-
-- Vendor: Update vendored sources to duckdb/duckdb@52a9e8faee041ec226c4720b853b777bb08dd914.
-
-- Same as previous version.
-
-- Switching to development version.
+- Tweak README.
 
 
 # duckdb 1.2.1
@@ -943,7 +1105,7 @@ Clients:
 # duckdb 0.1.9
 
 This is a preview release of DuckDB. Binary are listed below. Feedback is very welcome. Major changes:
-New [website](http://duckdb.org/) [woo-ho](https://www.youtube.com/watch?v=H9cmPE88a_0)!
+New [website](https://duckdb.org/) [woo-ho](https://www.youtube.com/watch?v=H9cmPE88a_0)!
 
 Engine
  - #653: Parquet reader integration

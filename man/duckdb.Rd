@@ -34,7 +34,8 @@ duckdb_adbc()
   tz_out_convert = c("with", "force"),
   config = list(),
   bigint = "numeric",
-  array = "none"
+  array = "none",
+  geometry = "blob"
 )
 
 \S4method{dbDisconnect}{duckdb_connection}(conn, ..., shutdown = TRUE)
@@ -84,26 +85,31 @@ time as the timestamp in the database, but with the new time zone.}
 If \code{"none"} is selected, arrays are not returned. Instead an error is generated.
 If \code{"matrix"} is selected, arrays are returned as a column matrix. Each array is one row in the matrix.}
 
+\item{geometry}{How geometry columns should be returned. There are two options: \code{"blob"} and \code{"wk"}.
+If \code{"blob"} is selected, geometry columns are returned as a list of raw vectors containing WKB data.
+If \code{"wk"} is selected, geometry columns are returned as \pkg{wk} \code{wk_wkb} vectors.
+Use \code{\link[wk:wk_handle]{wk::wk_handle()}} or \code{\link[sf:st_as_sfc]{sf::st_as_sfc()}} to convert to other geometry formats.}
+
 \item{conn}{A \code{duckdb_connection} object}
 
 \item{shutdown}{Unused. The database instance is shut down automatically.}
 }
 \value{
-\code{duckdb()} returns an object of class \linkS4class{duckdb_driver}.
+\code{duckdb()} returns an object of class \link[=duckdb_driver-class]{duckdb_driver}.
 
 \code{dbDisconnect()} and \code{duckdb_shutdown()} are called for their
 side effect.
 
 An object of class "adbc_driver"
 
-\code{dbConnect()} returns an object of class \linkS4class{duckdb_connection}.
+\code{dbConnect()} returns an object of class \link[=duckdb_connection-class]{duckdb_connection}.
 }
 \description{
 \code{duckdb()} creates or reuses a database instance.
 
 \code{duckdb_shutdown()} shuts down a database instance.
 
-Return an \code{\link[adbcdrivermanager:adbc_driver_void]{adbcdrivermanager::adbc_driver()}} for use with Arrow Database
+Return an \code{\link[adbcdrivermanager:adbc_driver]{adbcdrivermanager::adbc_driver()}} for use with Arrow Database
 Connectivity via the adbcdrivermanager package.
 
 \code{dbConnect()} connects to a database instance.
@@ -111,6 +117,12 @@ Connectivity via the adbcdrivermanager package.
 \code{dbDisconnect()} closes a DuckDB database connection.
 The associated DuckDB database instance is shut down automatically,
 it is no longer necessary to set \code{shutdown = TRUE} or to call \code{duckdb_shutdown()}.
+}
+\details{
+The behavior of \code{with = "force"} at DST transitions depends on how R handles translation from
+the underlying time representation to a human-readable format.
+If the timestamp is invalid in the target timezone, the resulting value may be \code{NA}
+or an adjusted time.
 }
 \examples{
 \dontshow{if (requireNamespace("adbcdrivermanager", quietly = TRUE)) withAutoprint(\{ # examplesIf}

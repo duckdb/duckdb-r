@@ -1,8 +1,7 @@
 
 # Run this file with testthat::test_local(filter = "^relational$")
 
-con <- dbConnect(duckdb())
-on.exit(dbDisconnect(con, shutdown = TRUE))
+con <- local_con()
 
 test_that("we can create a relation from a df", {
   rel <- rel_from_df(con, data.frame(a = 1))
@@ -29,9 +28,10 @@ test_that("we won't crash when creating a relation from odd things", {
 })
 
 test_that("we can round-trip a data frame", {
-  expect_equivalent(
+  expect_equal(
     data.frame(a = 1:3, b = letters[1:3]),
-    as.data.frame.duckdb_relation(rel_from_df(con, data.frame(a = 1:3, b = letters[1:3])))
+    as.data.frame.duckdb_relation(rel_from_df(con, data.frame(a = 1:3, b = letters[1:3]))),
+    ignore_attr = TRUE
   )
 })
 
@@ -49,8 +49,11 @@ test_that("we can recognize if a df is materialized", {
 
 
 test_that("we can create various expressions and don't crash", {
-  ref <- expr_reference("asdf")
-  print(ref)
+  expect_snapshot({
+    expr_reference("asdf")
+    expr_constant("asdf")
+  })
+
   expect_error(expr_reference(NA))
   #  expect_error(expr_reference(as.character(NA)))
   expect_error(expr_reference(""))
@@ -61,8 +64,6 @@ test_that("we can create various expressions and don't crash", {
   expr_constant(NA)
   expr_constant(42L)
   expr_constant(42)
-  const <- expr_constant("asdf")
-  print(const)
 
   expect_error(expr_constant(NULL))
   expect_error(expr_constant())
@@ -117,6 +118,60 @@ test_that("we cannot create comparison expressions with inappropriate operators"
   })
 })
 
+test_that("we can create operator expressions", {
+  local_edition(3)
+  withr::local_envvar(NO_COLOR = "true")
+
+  # IN operator with multiple values
+  expect_snapshot({
+    expr_operator("IN", list(expr_reference("some_column"), expr_constant(-42), expr_constant(42)))
+  })
+
+  # NOT IN operator with multiple values
+  expect_snapshot({
+    expr_operator("NOT IN", list(expr_reference("some_column"), expr_constant(-42), expr_constant(42)))
+  })
+
+  # BOGUS operator
+  expect_snapshot(error = TRUE, {
+    expr_operator("BOGUS", list(expr_reference("some_column"), expr_constant(-42), expr_constant(42)))
+  })
+})
+
+test_that("we can use operator expressions in relations", {
+  df <- data.frame(
+    id = 1:5,
+    value = c(10, 20, 30, 40, 50)
+  )
+
+  rel <- rel_from_df(con, df)
+
+  # Filter using IN operator
+  rel_filtered <- rel_filter(
+    rel,
+    list(expr_operator("IN", list(expr_reference("id"), expr_constant(2L), expr_constant(4L))))
+  )
+  result <- as.data.frame(rel_filtered)
+  expect_equal(result$id, c(2L, 4L))
+  expect_equal(result$value, c(20, 40))
+
+  # Filter using NOT IN operator
+  rel_filtered <- rel_filter(
+    rel,
+    list(expr_operator("NOT IN", list(expr_reference("id"), expr_constant(2L), expr_constant(4L), expr_constant(5L))))
+  )
+  result <- as.data.frame(rel_filtered)
+  expect_equal(result$id, c(1L, 3L))
+  expect_equal(result$value, c(10, 30))
+})
+
+test_that("expr_operator validates ... parameter", {
+  expect_error(
+    expr_operator("IN", list(expr_reference("col")), extra_param = "value"),
+    "... must be empty"
+  )
+})
+
 
 # TODO should maybe be a different file, test_enum_strings.R
 
@@ -131,13 +186,13 @@ test_that("we can cast R strings to DuckDB strings", {
   test_string_vec <- c(vapply(1:n, gen_rand_string, "character", max_len), NA, NA, NA, NA, NA, NA, NA, NA) # batman
 
   df <- data.frame(s = test_string_vec, stringsAsFactors = FALSE)
-  expect_equivalent(df, as.data.frame.duckdb_relation(rel_from_df(con, df)))
+  expect_equal(df, as.data.frame.duckdb_relation(rel_from_df(con, df)), ignore_attr = TRUE)
 
   res <- rel_sql(
     rel_from_df(con, df),
     "SELECT s::string FROM _"
   )
-  expect_equivalent(df, res)
+  expect_equal(df, res, ignore_attr = TRUE)
 
   res <- rel_sql(
     rel_from_df(con, df),
@@ -149,7 +204,7 @@ test_that("we can cast R strings to DuckDB strings", {
   df2 <- df
   for (i in 1:10) {
     df2 <- as.data.frame.duckdb_relation(rel_from_df(con, df2))
-    expect_equivalent(df, df2)
+    expect_equal(df, df2, ignore_attr = TRUE)
   }
 
   df2 <- df
@@ -160,7 +215,7 @@ test_that("we can cast R strings to DuckDB strings", {
         "SELECT s::string s FROM _"
       )
     )
-    expect_equivalent(df, df2)
+    expect_equal(df, df2, ignore_attr = TRUE)
   }
 })
 
@@ -192,6 +247,15 @@ test_that("the altrep-conversion for relations works", {
 
   expect_equal(n_callback, 1)
   expect_equal(iris, df)
+})
+
+test_that("ALTREP row names are materialized as integer sequence", {
+  df <- data.frame(a = 1:5, b = letters[1:5])
+  rel <- rel_from_df(con, df)
+  altrep_df <- rel_to_altrep(rel)
+
+  rn <- attr(altrep_df, "row.names")
+  expect_identical(rn, 1:5)
 })
 
 test_that("the altrep-conversion for relations work for weirdo types for strict = FALSE", {
@@ -984,6 +1048,7 @@ test_that("Handle zero-length lists (#186)", {
 })
 
 test_that("prudence", {
+  skip_if(getRversion() < "4.2", "Error message formatting differs in R 4.1")
   local_edition(3)
   withr::local_envvar(NO_COLOR = "true")
 
@@ -1189,4 +1254,77 @@ test_that("POSIXct", {
   expect_equal(rel_to_altrep(rel), df1)
 
   expect_error(rel_from_df(con, df2), "convert")
+})
+
+test_that("rel_order() supports descending order", {
+  test_df <- rel_from_df(con, data.frame(a = c(1:3)))
+  orders <- list(expr_reference("a"))
+  rel <- rel_order(test_df, orders, ascending = FALSE)
+  expected_result <- data.frame(a = c(3L, 2L, 1L))
+  expect_equal(rel_to_altrep(rel), expected_result)
+})
+
+test_that("rel_order() supports nulls_first", {
+  test_df <- rel_from_df(con, data.frame(a = c(NA, 1:3)))
+  orders <- list(expr_reference("a"))
+  rel <- rel_order(test_df, orders, nulls_first = TRUE)
+  expected_result <- data.frame(a = c(NA, 1L, 2L, 3L))
+  expect_equal(rel_to_altrep(rel), expected_result)
+})
+
+test_that("rel_order() nulls_first error checking works", {
+  test_df <- rel_from_df(con, data.frame(a = c(1:3)))
+  orders <- list(expr_reference("a"), expr_reference("a"))
+  expect_error(rel_order(test_df, orders, nulls_first = c(TRUE, FALSE, TRUE)), "length of nulls_first")
+})
+
+test_that("expr_window() supports descending order_bys", {
+  # rank() OVER (ORDER BY a DESC) should give reverse ranks
+  rel_a <- rel_from_df(con, data.frame(a = c(1, 2, 3)))
+  rank_func <- expr_function("rank", list())
+  rank_window <- expr_window(rank_func,
+    order_bys = list(expr_reference("a")),
+    ascending = FALSE
+  )
+  expr_set_alias(rank_window, "rank_desc")
+  window_proj <- rel_project(rel_a, list(expr_reference("a"), rank_window))
+  proj_order <- rel_order(window_proj, list(expr_reference("a")))
+  res <- rel_to_altrep(proj_order)
+  expected_result <- data.frame(a = c(1, 2, 3), rank_desc = c(3L, 2L, 1L))
+  expect_equal(res, expected_result)
+})
+
+test_that("expr_window() supports nulls_first in order_bys", {
+  # rank() OVER (ORDER BY a NULLS FIRST) - NULLs should get rank 1
+  rel_a <- rel_from_df(con, data.frame(a = c(1, 2, NA)))
+  rank_func <- expr_function("rank", list())
+  rank_window <- expr_window(rank_func,
+    order_bys = list(expr_reference("a")),
+    nulls_first = TRUE
+  )
+  expr_set_alias(rank_window, "rank_nulls_first")
+  window_proj <- rel_project(rel_a, list(expr_reference("a"), rank_window))
+  proj_order <- rel_order(window_proj, list(expr_reference("a")))
+  res <- rel_to_altrep(proj_order)
+  # With NULLS FIRST: NULL gets rank 1, 1 gets rank 2, 2 gets rank 3
+  expected_result <- data.frame(a = c(1, 2, NA), rank_nulls_first = c(2L, 3L, 1L))
+  expect_equal(res, expected_result)
+})
+
+test_that("expr_window() ascending/nulls_first error checking works", {
+  rank_func <- expr_function("rank", list())
+  expect_error(
+    expr_window(rank_func,
+      order_bys = list(expr_reference("a")),
+      ascending = c(TRUE, FALSE)
+    ),
+    "length of ascending"
+  )
+  expect_error(
+    expr_window(rank_func,
+      order_bys = list(expr_reference("a")),
+      nulls_first = c(TRUE, FALSE)
+    ),
+    "length of nulls_first"
+  )
 })

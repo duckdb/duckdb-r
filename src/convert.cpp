@@ -1,5 +1,10 @@
 #include "include/rapi.hpp"
+
 #include <cpp11.hpp>
+
+// Avoid clash with TRUE and FALSE macros in older rtools
+#undef TRUE
+#undef FALSE
 
 using namespace cpp11;
 
@@ -11,7 +16,7 @@ ConvertOpts::TzOutConvert string_to_tz_out_convert(const std::string &str) {
 		return ConvertOpts::TzOutConvert::WITH;
 	if (str == "force")
 		return ConvertOpts::TzOutConvert::FORCE;
-	cpp11::stop("Invalid tz_out_convert value: %s", str.c_str());
+	rapi_error_with_context("string_to_tz_out_convert", "Invalid tz_out_convert value: " + str);
 }
 
 ConvertOpts::BigIntType string_to_bigint_type(const std::string &str) {
@@ -19,7 +24,7 @@ ConvertOpts::BigIntType string_to_bigint_type(const std::string &str) {
 		return ConvertOpts::BigIntType::NUMERIC;
 	if (str == "integer64")
 		return ConvertOpts::BigIntType::INTEGER64;
-	cpp11::stop("Invalid bigint value: %s", str.c_str());
+	rapi_error_with_context("string_to_bigint_type", "Invalid bigint value: " + str);
 }
 
 ConvertOpts::ArrayConversion string_to_array_conversion(const std::string &str) {
@@ -27,7 +32,15 @@ ConvertOpts::ArrayConversion string_to_array_conversion(const std::string &str) 
 		return ConvertOpts::ArrayConversion::NONE;
 	if (str == "matrix")
 		return ConvertOpts::ArrayConversion::MATRIX;
-	cpp11::stop("Invalid array value: %s", str.c_str());
+	rapi_error_with_context("string_to_array_conversion", "Invalid array value: " + str);
+}
+
+ConvertOpts::GeometryConversion string_to_geometry_conversion(const std::string &str) {
+	if (str == "blob")
+		return ConvertOpts::GeometryConversion::BLOB;
+	if (str == "wk")
+		return ConvertOpts::GeometryConversion::WK;
+	rapi_error_with_context("string_to_geometry_conversion", "Invalid geometry value: " + str);
 }
 
 ConvertOpts::ArrowConversion bool_to_arrow_conversion(bool use_arrow) {
@@ -60,6 +73,9 @@ ConvertOpts::ConvertOpts(cpp11::sexp options_nullable) {
 
 	// Extract array
 	array = string_to_array_conversion(as_cpp<std::string>(options["array"]));
+
+	// Extract geometry
+	geometry = string_to_geometry_conversion(as_cpp<std::string>(options["geometry"]));
 
 	// Extract arrow
 	arrow = bool_to_arrow_conversion(as_cpp<bool>(options["arrow"]));

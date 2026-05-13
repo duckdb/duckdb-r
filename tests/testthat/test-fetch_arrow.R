@@ -5,8 +5,7 @@ skip_if_not_installed("arrow", "5.0.0")
 skip_if_not(arrow::arrow_with_parquet(), message = "The installed Arrow is not fully featured, skipping Arrow integration tests")
 
 test_that("duckdb_fetch_arrow() test table over vector size", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   dbExecute(con, paste0("CREATE table test as select range a from range(10000);"))
   dbExecute(con, "INSERT INTO  test VALUES(NULL);")
@@ -19,8 +18,7 @@ test_that("duckdb_fetch_arrow() test table over vector size", {
 })
 
 test_that("duckdb_fetch_arrow() empty table", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   dbExecute(con, paste0("CREATE TABLE test (a  INTEGER)"))
 
@@ -33,8 +31,7 @@ test_that("duckdb_fetch_arrow() empty table", {
 })
 
 test_that("duckdb_fetch_arrow() table with only nulls", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   dbExecute(con, paste0("CREATE TABLE test (a  INTEGER)"))
 
@@ -48,8 +45,7 @@ test_that("duckdb_fetch_arrow() table with only nulls", {
 })
 
 test_that("duckdb_fetch_arrow() table with prepared statement", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   dbExecute(con, paste0("CREATE TABLE test (a  INTEGER)"))
   dbExecute(con, paste0("PREPARE s1 AS INSERT INTO test VALUES ($1), ($2 / 2)"))
@@ -67,8 +63,7 @@ test_that("duckdb_fetch_arrow() table with prepared statement", {
 
 test_that("duckdb_fetch_arrow() record_batch_reader ", {
   skip_if_not_installed("arrow", "4.0.1")
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   dbExecute(con, paste0("CREATE table t as select range a from range(3000);"))
   res <- dbSendQuery(con, "SELECT * FROM t", arrow = TRUE)
@@ -88,7 +83,7 @@ test_that("duckdb_fetch_arrow() record_batch_reader ", {
 
 test_that("duckdb_fetch_arrow() record_batch_reader multiple vectors per chunk", {
   skip_if_not_installed("arrow", "4.0.1")
-  con <- dbConnect(duckdb())
+  con <- local_con()
   dbExecute(con, paste0("CREATE table t as select range a from range(5000);"))
   res <- dbSendQuery(con, "SELECT * FROM t", arrow = TRUE)
   record_batch_reader <- duckdb_fetch_record_batch(res, 2048)
@@ -102,25 +97,21 @@ test_that("duckdb_fetch_arrow() record_batch_reader multiple vectors per chunk",
   expect_equal(904, cur_batch$num_rows)
 
   record_batch_reader$read_next_batch()
-
-  dbDisconnect(con, shutdown = T)
 })
 
 test_that("record_batch_reader and table error", {
   skip_if_not_installed("arrow", "4.0.1")
-  con <- dbConnect(duckdb())
+  con <- local_con()
   dbExecute(con, paste0("CREATE table t as select range a from range(5000);"))
   res <- dbSendQuery(con, "SELECT * FROM t", arrow = TRUE)
   expect_error(duckdb_fetch_record_batch(res, 0))
   expect_error(duckdb_fetch_arrow(dbSendQuery(con, "SELECT * FROM test", arrow = TRUE), 0))
-
-  dbDisconnect(con, shutdown = T)
 })
 
 
 test_that("duckdb_fetch_arrow() record_batch_reader defaultparamenter", {
   skip_if_not_installed("arrow", "4.0.1")
-  con <- dbConnect(duckdb())
+  con <- local_con()
   dbExecute(con, paste0("CREATE table t as select range a from range(5000);"))
   res <- dbSendQuery(con, "SELECT * FROM t", arrow = TRUE)
   record_batch_reader <- duckdb_fetch_record_batch(res)
@@ -128,14 +119,11 @@ test_that("duckdb_fetch_arrow() record_batch_reader defaultparamenter", {
   expect_equal(5000, cur_batch$num_rows)
 
   record_batch_reader$read_next_batch()
-
-  dbDisconnect(con, shutdown = T)
 })
 
 test_that("duckdb_fetch_arrow() record_batch_reader Read Table", {
   skip_if_not_installed("arrow", "4.0.1")
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   dbExecute(con, paste0("CREATE table t as select range a from range(3000);"))
   res <- dbSendQuery(con, "SELECT * FROM t", arrow = TRUE)

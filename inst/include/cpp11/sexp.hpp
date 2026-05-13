@@ -1,10 +1,9 @@
-// cpp11 version: 0.5.2
-// vendored on: 2025-03-09
+// cpp11 version: 0.5.3.9000
+// vendored on: 2026-01-27
 #pragma once
 
-#include <stddef.h>  // for size_t
-
-#include <string>  // for string, basic_string
+#include <cstddef>  // for size_t
+#include <string>   // for string, basic_string
 
 #include "cpp11/R.hpp"                // for SEXP, SEXPREC, REAL_ELT, R_NilV...
 #include "cpp11/attribute_proxy.hpp"  // for attribute_proxy
@@ -70,11 +69,11 @@ class sexp {
   SEXP data() const { return data_; }
 
   /// DEPRECATED: Do not use this, it will be removed soon.
-  operator double() const { return REAL_ELT(data_, 0); }
+  [[deprecated("Implicit conversion from cpp11::sexp to double is deprecated")]] operator double() const { return REAL_ELT(data_, 0); }
   /// DEPRECATED: Do not use this, it will be removed soon.
-  operator size_t() const { return REAL_ELT(data_, 0); }
+  [[deprecated("Implicit conversion from cpp11::sexp to size_t is deprecated")]] operator size_t() const { return REAL_ELT(data_, 0); }
   /// DEPRECATED: Do not use this, it will be removed soon.
-  operator bool() const { return LOGICAL_ELT(data_, 0); }
+  [[deprecated("Implicit conversion from cpp11::sexp to bool is deprecated")]] operator bool() const { return LOGICAL_ELT(data_, 0); }
 };
 
 }  // namespace cpp11

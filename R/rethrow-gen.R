@@ -18,6 +18,15 @@ rethrow_rapi_disconnect <- function(conn, call = parent.frame(2)) {
   )
 }
 
+rethrow_rapi_connection_valid <- function(conn, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_connection_valid(conn),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
 rethrow_rapi_startup <- function(dbdir, readonly, configsexp, environment_scan, call = parent.frame(2)) {
   rlang::try_fetch(
     rapi_startup(dbdir, readonly, configsexp, environment_scan),
@@ -120,6 +129,15 @@ rethrow_rapi_expr_reference <- function(rnames, alias, call = parent.frame(2)) {
 rethrow_rapi_expr_constant <- function(val, alias, convert_opts, call = parent.frame(2)) {
   rlang::try_fetch(
     rapi_expr_constant(val, alias, convert_opts),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
+rethrow_rapi_expr_operator <- function(op, exprs, alias, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_expr_operator(op, exprs, alias),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
@@ -252,18 +270,18 @@ rethrow_rapi_rel_aggregate <- function(rel, groups, aggregates, call = parent.fr
   )
 }
 
-rethrow_rapi_rel_order <- function(rel, orders, ascending, call = parent.frame(2)) {
+rethrow_rapi_rel_order <- function(rel, orders, ascending, nulls_first, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_rel_order(rel, orders, ascending),
+    rapi_rel_order(rel, orders, ascending, nulls_first),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
   )
 }
 
-rethrow_rapi_expr_window <- function(window_function, partitions, order_bys, window_boundary_start, window_boundary_end, start_expr, end_expr, offset_expr, default_expr, alias, call = parent.frame(2)) {
+rethrow_rapi_expr_window <- function(window_function, partitions, order_bys, window_boundary_start, window_boundary_end, start_expr, end_expr, offset_expr, default_expr, alias, ascending, nulls_first, call = parent.frame(2)) {
   rlang::try_fetch(
-    rapi_expr_window(window_function, partitions, order_bys, window_boundary_start, window_boundary_end, start_expr, end_expr, offset_expr, default_expr, alias),
+    rapi_expr_window(window_function, partitions, order_bys, window_boundary_start, window_boundary_end, start_expr, end_expr, offset_expr, default_expr, alias, ascending, nulls_first),
     error = function(e) {
       rethrow_error_from_rapi(e, call)
     }
@@ -534,6 +552,7 @@ rethrow_rapi_load_rfuns <- function(dual, call = parent.frame(2)) {
 rethrow_restore <- function() {
   rethrow_rapi_connect <<- rapi_connect
   rethrow_rapi_disconnect <<- rapi_disconnect
+  rethrow_rapi_connection_valid <<- rapi_connection_valid
   rethrow_rapi_startup <<- rapi_startup
   rethrow_rapi_lock <<- rapi_lock
   rethrow_rapi_unlock <<- rapi_unlock
@@ -546,6 +565,7 @@ rethrow_restore <- function() {
   rethrow_rapi_list_arrow <<- rapi_list_arrow
   rethrow_rapi_expr_reference <<- rapi_expr_reference
   rethrow_rapi_expr_constant <<- rapi_expr_constant
+  rethrow_rapi_expr_operator <<- rapi_expr_operator
   rethrow_rapi_expr_comparison <<- rapi_expr_comparison
   rethrow_rapi_expr_function <<- rapi_expr_function
   rethrow_rapi_expr_set_alias <<- rapi_expr_set_alias

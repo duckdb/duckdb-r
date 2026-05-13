@@ -10,6 +10,7 @@
 
 #include "duckdb/common/common.hpp"
 #include "duckdb/common/enums/file_compression_type.hpp"
+#include "duckdb/storage/caching_mode.hpp"
 
 namespace duckdb {
 
@@ -28,6 +29,9 @@ public:
 	static constexpr idx_t FILE_FLAGS_PARALLEL_ACCESS = idx_t(1 << 8);
 	static constexpr idx_t FILE_FLAGS_EXCLUSIVE_CREATE = idx_t(1 << 9);
 	static constexpr idx_t FILE_FLAGS_NULL_IF_EXISTS = idx_t(1 << 10);
+	static constexpr idx_t FILE_FLAGS_MULTI_CLIENT_ACCESS = idx_t(1 << 11);
+	static constexpr idx_t FILE_FLAGS_DISABLE_LOGGING = idx_t(1 << 12);
+	static constexpr idx_t FILE_FLAGS_ENABLE_EXTENSION_INSTALL = idx_t(1 << 13);
 
 public:
 	FileOpenFlags() = default;
@@ -50,6 +54,10 @@ public:
 		return a == FileCompressionType::UNCOMPRESSED ? b : a;
 	}
 
+	static constexpr CachingMode MergeCachingMode(CachingMode a, CachingMode b) {
+		return a == CachingMode::NO_CACHING ? b : a;
+	}
+
 	inline constexpr FileOpenFlags operator|(FileOpenFlags b) const {
 		return FileOpenFlags(flags | b.flags, MergeLock(lock, b.lock), MergeCompression(compression, b.compression));
 	}
@@ -57,6 +65,7 @@ public:
 		flags |= b.flags;
 		lock = MergeLock(lock, b.lock);
 		compression = MergeCompression(compression, b.compression);
+		caching_mode = MergeCachingMode(caching_mode, b.caching_mode);
 		return *this;
 	}
 
@@ -70,6 +79,13 @@ public:
 
 	void SetCompression(FileCompressionType new_compression) {
 		compression = new_compression;
+	}
+
+	CachingMode GetCachingMode() {
+		return caching_mode;
+	}
+	void SetCachingMode(CachingMode new_caching_mode) {
+		caching_mode = new_caching_mode;
 	}
 
 	void Verify();
@@ -107,6 +123,15 @@ public:
 	inline bool ReturnNullIfExists() const {
 		return flags & FILE_FLAGS_NULL_IF_EXISTS;
 	}
+	inline bool MultiClientAccess() const {
+		return flags & FILE_FLAGS_MULTI_CLIENT_ACCESS;
+	}
+	inline bool DisableLogging() const {
+		return flags & FILE_FLAGS_DISABLE_LOGGING;
+	}
+	inline bool EnableExtensionInstall() const {
+		return flags & FILE_FLAGS_ENABLE_EXTENSION_INSTALL;
+	}
 	inline idx_t GetFlagsInternal() const {
 		return flags;
 	}
@@ -114,6 +139,7 @@ public:
 private:
 	idx_t flags = 0;
 	FileLockType lock = FileLockType::NO_LOCK;
+	CachingMode caching_mode = CachingMode::NO_CACHING;
 	FileCompressionType compression = FileCompressionType::UNCOMPRESSED;
 };
 
@@ -145,6 +171,15 @@ public:
 	    FileOpenFlags(FileOpenFlags::FILE_FLAGS_EXCLUSIVE_CREATE);
 	//!  Return NULL if the file exist instead of throwing an error
 	static constexpr FileOpenFlags FILE_FLAGS_NULL_IF_EXISTS = FileOpenFlags(FileOpenFlags::FILE_FLAGS_NULL_IF_EXISTS);
+	//! Multiple clients may access the file at the same time
+	static constexpr FileOpenFlags FILE_FLAGS_MULTI_CLIENT_ACCESS =
+	    FileOpenFlags(FileOpenFlags::FILE_FLAGS_MULTI_CLIENT_ACCESS);
+	//! Disables logging to avoid infinite loops when using FileHandle-backed log storage
+	static constexpr FileOpenFlags FILE_FLAGS_DISABLE_LOGGING =
+	    FileOpenFlags(FileOpenFlags::FILE_FLAGS_DISABLE_LOGGING);
+	//! Opened file is allowed to be a duckdb_extension
+	static constexpr FileOpenFlags FILE_FLAGS_ENABLE_EXTENSION_INSTALL =
+	    FileOpenFlags(FileOpenFlags::FILE_FLAGS_ENABLE_EXTENSION_INSTALL);
 };
 
 } // namespace duckdb

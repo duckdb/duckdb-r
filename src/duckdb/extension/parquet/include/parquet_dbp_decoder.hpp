@@ -18,7 +18,7 @@ public:
 	    : buffer_(buffer, buffer_len),
 	      //<block size in values> <number of miniblocks in a block> <total value count> <first value>
 	      block_size_in_values(ParquetDecodeUtils::VarintDecode<uint64_t>(buffer_)),
-	      number_of_miniblocks_per_block(ParquetDecodeUtils::VarintDecode<uint64_t>(buffer_)),
+	      number_of_miniblocks_per_block(DecodeNumberOfMiniblocksPerBlock(buffer_)),
 	      number_of_values_in_a_miniblock(block_size_in_values / number_of_miniblocks_per_block),
 	      total_value_count(ParquetDecodeUtils::VarintDecode<uint64_t>(buffer_)),
 	      previous_value(ParquetDecodeUtils::ZigzagToInt(ParquetDecodeUtils::VarintDecode<uint64_t>(buffer_))),
@@ -31,7 +31,7 @@ public:
 		      number_of_values_in_a_miniblock % BitpackingPrimitives::BITPACKING_ALGORITHM_GROUP_SIZE == 0)) {
 			throw InvalidInputException("Parquet file has invalid block sizes for DELTA_BINARY_PACKED");
 		}
-	};
+	}
 
 	ByteBuffer BufferPtr() const {
 		return buffer_;
@@ -50,6 +50,15 @@ public:
 		GetBatchInternal<T>(target_values_ptr, batch_size);
 	}
 
+	template <class T>
+	void Skip(idx_t skip_count) {
+		if (read_values + skip_count > total_value_count) {
+			throw std::runtime_error("DBP decode did not find enough values");
+		}
+		read_values += skip_count;
+		GetBatchInternal<T, true>(nullptr, skip_count);
+	}
+
 	void Finalize() {
 		if (miniblock_offset == number_of_values_in_a_miniblock) {
 			return;
@@ -59,16 +68,31 @@ public:
 	}
 
 private:
-	template <typename T>
+	static idx_t DecodeNumberOfMiniblocksPerBlock(ByteBuffer &buffer) {
+		auto res = ParquetDecodeUtils::VarintDecode<uint64_t>(buffer);
+		if (res == 0) {
+			throw InvalidInputException(
+			    "Parquet file has invalid number of miniblocks per block for DELTA_BINARY_PACKED");
+		}
+		return res;
+	}
+
+	template <typename T, bool SKIP_READ = false>
 	void GetBatchInternal(const data_ptr_t target_values_ptr, const idx_t batch_size) {
 		if (batch_size == 0) {
 			return;
 		}
+		D_ASSERT(target_values_ptr || SKIP_READ);
 
-		auto target_values = reinterpret_cast<T *>(target_values_ptr);
+		T *target_values = nullptr;
+		if (!SKIP_READ) {
+			target_values = reinterpret_cast<T *>(target_values_ptr);
+		}
 		idx_t target_values_offset = 0;
 		if (is_first_value) {
-			target_values[0] = static_cast<T>(previous_value);
+			if (!SKIP_READ) {
+				target_values[0] = static_cast<T>(previous_value);
+			}
 			target_values_offset++;
 			is_first_value = false;
 		}
@@ -79,11 +103,13 @@ private:
 			                            BitpackingPrimitives::BITPACKING_ALGORITHM_GROUP_SIZE - unpacked_data_offset);
 			if (next != 0) {
 				for (idx_t i = 0; i < next; i++) {
-					auto &target = target_values[target_values_offset + i];
 					const auto &unpacked_value = unpacked_data[unpacked_data_offset + i];
-					target = static_cast<T>(static_cast<uint64_t>(previous_value) + static_cast<uint64_t>(min_delta) +
-					                        unpacked_value);
-					previous_value = static_cast<int64_t>(target);
+					auto current_value = static_cast<T>(static_cast<uint64_t>(previous_value) +
+					                                    static_cast<uint64_t>(min_delta) + unpacked_value);
+					if (!SKIP_READ) {
+						target_values[target_values_offset + i] = current_value;
+					}
+					previous_value = static_cast<int64_t>(current_value);
 				}
 				target_values_offset += next;
 				unpacked_data_offset += next;

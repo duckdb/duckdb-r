@@ -3,9 +3,10 @@
 
 namespace duckdb {
 
-PhysicalStreamingLimit::PhysicalStreamingLimit(vector<LogicalType> types, BoundLimitNode limit_val_p,
-                                               BoundLimitNode offset_val_p, idx_t estimated_cardinality, bool parallel)
-    : PhysicalOperator(PhysicalOperatorType::STREAMING_LIMIT, std::move(types), estimated_cardinality),
+PhysicalStreamingLimit::PhysicalStreamingLimit(PhysicalPlan &physical_plan, vector<LogicalType> types,
+                                               BoundLimitNode limit_val_p, BoundLimitNode offset_val_p,
+                                               idx_t estimated_cardinality, bool parallel)
+    : PhysicalOperator(physical_plan, PhysicalOperatorType::STREAMING_LIMIT, std::move(types), estimated_cardinality),
       limit_val(std::move(limit_val_p)), offset_val(std::move(offset_val_p)), parallel(parallel) {
 }
 
@@ -52,6 +53,9 @@ OperatorResultType PhysicalStreamingLimit::Execute(ExecutionContext &context, Da
 	}
 	if (PhysicalLimit::HandleOffset(input, current_offset, offset.GetIndex(), limit.GetIndex())) {
 		chunk.Reference(input);
+	}
+	if (current_offset >= limit.GetIndex() + offset.GetIndex()) {
+		return chunk.size() == 0 ? OperatorResultType::FINISHED : OperatorResultType::HAVE_MORE_OUTPUT;
 	}
 	return OperatorResultType::NEED_MORE_INPUT;
 }

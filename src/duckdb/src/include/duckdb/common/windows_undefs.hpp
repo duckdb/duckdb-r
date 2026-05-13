@@ -43,4 +43,12 @@
 #undef UUID
 #endif
 
+#ifdef interface
+#undef interface
+#endif
+
+#ifdef DELETE
+#undef DELETE
+#endif
+
 #endif

@@ -2,6 +2,7 @@
 #include "utf8proc.hpp"
 #include "duckdb/common/assert.hpp"
 #include "duckdb/common/exception.hpp"
+#include "duckdb/common/helper.hpp"
 
 using namespace std;
 
@@ -68,39 +69,49 @@ static inline UnicodeType UTF8ExtraByteLoop(const int first_pos_seq, int utf8cha
 		AssignInvalidUTF8Reason(invalid_reason, invalid_pos, first_pos_seq, UnicodeInvalidReason::INVALID_UNICODE);
 		return UnicodeType::INVALID;
 	}
-	return UnicodeType::UNICODE;
+	return UnicodeType::UTF8;
 }
 
 UnicodeType Utf8Proc::Analyze(const char *s, size_t len, UnicodeInvalidReason *invalid_reason, size_t *invalid_pos) {
 	UnicodeType type = UnicodeType::ASCII;
 
-	for (size_t i = 0; i < len; i++) {
-		int c = (int)s[i];
-
-		if ((c & 0x80) == 0) {
-			continue;
+	static constexpr uint64_t MASK = 0x8080808080808080U;
+	for (size_t i = 0; i < len;) {
+		// Check 8 bytes at a time until we hit non-ASCII
+		for (; i + sizeof(uint64_t) <= len; i += sizeof(uint64_t)) {
+			if (Load<uint64_t>(const_data_ptr_cast(s + i)) & MASK) {
+				break; // Non-ASCII in the next 8 bytes
+			}
 		}
-		int first_pos_seq = i;
+		// Check 1 byte at a time for the next 8 bytes
+		const auto end = MinValue(i + sizeof(uint64_t), len);
+		for (; i < end; i++) {
+			int c = (int)s[i];
+			if ((c & 0x80) == 0) {
+				continue;
+			}
+			int first_pos_seq = i;
 
-		if ((c & 0xE0) == 0xC0) {
-			/* 2 byte sequence */
-			int utf8char = c & 0x1F;
-			type = UTF8ExtraByteLoop<1, 0x000780>(first_pos_seq, utf8char, i, s, len, invalid_reason, invalid_pos);
-		} else if ((c & 0xF0) == 0xE0) {
-			/* 3 byte sequence */
-			int utf8char = c & 0x0F;
-			type = UTF8ExtraByteLoop<2, 0x00F800>(first_pos_seq, utf8char, i, s, len, invalid_reason, invalid_pos);
-		} else if ((c & 0xF8) == 0xF0) {
-			/* 4 byte sequence */
-			int utf8char = c & 0x07;
-			type = UTF8ExtraByteLoop<3, 0x1F0000>(first_pos_seq, utf8char, i, s, len, invalid_reason, invalid_pos);
-		} else {
-			/* invalid UTF-8 start byte */
-			AssignInvalidUTF8Reason(invalid_reason, invalid_pos, i, UnicodeInvalidReason::BYTE_MISMATCH);
-			return UnicodeType::INVALID;
-		}
-		if (type == UnicodeType::INVALID) {
-			return type;
+			if ((c & 0xE0) == 0xC0) {
+				/* 2 byte sequence */
+				int utf8char = c & 0x1F;
+				type = UTF8ExtraByteLoop<1, 0x000780>(first_pos_seq, utf8char, i, s, len, invalid_reason, invalid_pos);
+			} else if ((c & 0xF0) == 0xE0) {
+				/* 3 byte sequence */
+				int utf8char = c & 0x0F;
+				type = UTF8ExtraByteLoop<2, 0x00F800>(first_pos_seq, utf8char, i, s, len, invalid_reason, invalid_pos);
+			} else if ((c & 0xF8) == 0xF0) {
+				/* 4 byte sequence */
+				int utf8char = c & 0x07;
+				type = UTF8ExtraByteLoop<3, 0x1F0000>(first_pos_seq, utf8char, i, s, len, invalid_reason, invalid_pos);
+			} else {
+				/* invalid UTF-8 start byte */
+				AssignInvalidUTF8Reason(invalid_reason, invalid_pos, i, UnicodeInvalidReason::BYTE_MISMATCH);
+				return UnicodeType::INVALID;
+			}
+			if (type == UnicodeType::INVALID) {
+				return type;
+			}
 		}
 	}
 	return type;
@@ -149,6 +160,46 @@ char *Utf8Proc::Normalize(const char *s, size_t len) {
 
 bool Utf8Proc::IsValid(const char *s, size_t len) {
 	return Utf8Proc::Analyze(s, len) != UnicodeType::INVALID;
+}
+
+std::string Utf8Proc::RemoveInvalid(const char *s, size_t len) {
+	std::string result;
+	result.reserve(len); // Reserve the maximum possible size
+
+	for (size_t i = 0; i < len; i++) {
+		int c = (int)s[i];
+		if ((c & 0x80) == 0) {
+			// ASCII character - always valid
+			result.push_back(s[i]);
+			continue;
+		}
+
+		int first_pos_seq = i;
+		if ((c & 0xE0) == 0xC0) {
+			/* 2 byte sequence */
+			int utf8char = c & 0x1F;
+			UTF8ExtraByteLoop<1, 0x000780>(first_pos_seq, utf8char, i, s, len, nullptr, nullptr);
+		} else if ((c & 0xF0) == 0xE0) {
+			/* 3 byte sequence */
+			int utf8char = c & 0x0F;
+			UTF8ExtraByteLoop<2, 0x00F800>(first_pos_seq, utf8char, i, s, len, nullptr, nullptr);
+		} else if ((c & 0xF8) == 0xF0) {
+			/* 4 byte sequence */
+			int utf8char = c & 0x07;
+			UTF8ExtraByteLoop<3, 0x1F0000>(first_pos_seq, utf8char, i, s, len, nullptr, nullptr);
+		} else {
+			// invalid, do not write to output
+			continue;
+		}
+
+		// If we get here, the sequence is valid, so add all bytes of the sequence to result
+		for (size_t j = first_pos_seq; j <= i; j++) {
+			result.push_back(s[j]);
+		}
+	}
+
+	D_ASSERT(Utf8Proc::IsValid(result.c_str(), result.size()));
+	return result;
 }
 
 size_t Utf8Proc::NextGraphemeCluster(const char *s, size_t len, size_t cpos) {
@@ -292,16 +343,20 @@ bool Utf8Proc::CodepointToUtf8(int cp, int &sz, char *c) {
 int Utf8Proc::CodepointLength(int cp) {
 	if (cp <= 0x7F) {
 		return 1;
-	} else if (cp <= 0x7FF) {
+	}
+	 if (cp <= 0x7FF) {
 		return 2;
-	} else if (0xd800 <= cp && cp <= 0xdfff) {
-		return -1;
-	} else if (cp <= 0xFFFF) {
+	}
+	 if (0xd800 <= cp && cp <= 0xdfff) {
+	 	throw InternalException("invalid code point detected in Utf8Proc::CodepointLength (0xd800 to 0xdfff), likely due to invalid UTF-8");
+	}
+	 if (cp <= 0xFFFF) {
 		return 3;
-	} else if (cp <= 0x10FFFF) {
+	}
+	 if (cp <= 0x10FFFF) {
 		return 4;
 	}
-	return -1;
+	throw InternalException("invalid code point detected in Utf8Proc::CodepointLength, likely due to invalid UTF-8");
 }
 
 int32_t Utf8Proc::UTF8ToCodepoint(const char *u_input, int &sz) {
@@ -318,7 +373,7 @@ int32_t Utf8Proc::UTF8ToCodepoint(const char *u_input, int &sz) {
 		return (u0 - 192) * 64 + (u1 - 128);
 	}
 	if (u[0] == 0xed && (u[1] & 0xa0) == 0xa0) {
-		return -1; // code points, 0xd800 to 0xdfff
+		throw InternalException("invalid code point detected in Utf8Proc::UTF8ToCodepoint (0xd800 to 0xdfff), likely due to invalid UTF-8");
 	}
 	unsigned char u2 = u[2];
 	if (u0 >= 224 && u0 <= 239) {
@@ -330,7 +385,7 @@ int32_t Utf8Proc::UTF8ToCodepoint(const char *u_input, int &sz) {
 		sz = 4;
 		return (u0 - 240) * 262144 + (u1 - 128) * 4096 + (u2 - 128) * 64 + (u3 - 128);
 	}
-	return -1;
+	throw InternalException("invalid code point detected in Utf8Proc::UTF8ToCodepoint, likely due to invalid UTF-8");
 }
 
 size_t Utf8Proc::RenderWidth(const char *s, size_t len, size_t pos) {
@@ -342,13 +397,12 @@ size_t Utf8Proc::RenderWidth(const char *s, size_t len, size_t pos) {
 
 size_t Utf8Proc::RenderWidth(const std::string &str) {
 	size_t render_width = 0;
-	size_t pos = 0;
-	while (pos < str.size()) {
-		int sz;
-		auto codepoint = Utf8Proc::UTF8ToCodepoint(str.c_str() + pos, sz);
-		auto properties = duckdb::utf8proc_get_property(codepoint);
-		render_width += properties->charwidth;
-		pos += sz;
+	for (auto cluster : Utf8Proc::GraphemeClusters(str.c_str(), str.size())) {
+		// use the width of the first codepoint in the grapheme cluster
+		// combining marks, ZWJ, variation selectors, etc. have charwidth 0
+		// and multi-codepoint clusters (e.g. ZWJ emoji sequences) should only
+		// count the base character's width, not the sum of all codepoints
+		render_width += Utf8Proc::RenderWidth(str.c_str(), str.size(), cluster.start);
 	}
 	return render_width;
 }

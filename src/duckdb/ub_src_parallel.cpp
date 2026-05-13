@@ -1,3 +1,5 @@
+#include "src/parallel/async_result.cpp"
+
 #include "src/parallel/base_pipeline_event.cpp"
 
 #include "src/parallel/meta_pipeline.cpp"

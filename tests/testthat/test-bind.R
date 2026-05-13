@@ -26,8 +26,7 @@ test_convert <- function(con, type, val) {
 }
 
 test_that("dbBind() works as expected for all types", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   test_convert(con, "BOOLEAN", TRUE)
   test_convert(con, "BOOLEAN", FALSE)
@@ -48,8 +47,7 @@ test_that("dbBind() works as expected for all types", {
 })
 
 test_that("dbBind() is called from dbGetQuery and dbExecute", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   res <- dbGetQuery(con, "SELECT CAST (? AS INTEGER), CAST(? AS STRING)", params = list(42, "Hello"))
 
@@ -83,16 +81,14 @@ test_that("dbBind() is called from dbGetQuery and dbExecute", {
 })
 
 test_that("test blobs", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   res <- dbGetQuery(con, "SELECT BLOB 'hello'")
   expect_equal(res[[1]][[1]], charToRaw("hello"))
 })
 
 test_that("various error cases for dbBind()", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   q <- dbSendQuery(con, "SELECT CAST (? AS INTEGER)")
 

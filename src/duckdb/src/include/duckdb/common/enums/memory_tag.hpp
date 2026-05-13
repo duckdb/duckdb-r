@@ -25,9 +25,14 @@ enum class MemoryTag : uint8_t {
 	IN_MEMORY_TABLE = 9,
 	ALLOCATOR = 10,
 	EXTENSION = 11,
-	TRANSACTION = 12
+	TRANSACTION = 12,
+	EXTERNAL_FILE_CACHE = 13,
+	WINDOW = 14,
+	OBJECT_CACHE = 15,
+	// Intentionally left as the end, used to indicate memory tag type count.
+	UNKNOWN = 16,
 };
 
-static constexpr const idx_t MEMORY_TAG_COUNT = 13;
+static constexpr const idx_t MEMORY_TAG_COUNT = static_cast<idx_t>(MemoryTag::UNKNOWN);
 
 } // namespace duckdb

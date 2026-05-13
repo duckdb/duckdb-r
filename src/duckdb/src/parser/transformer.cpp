@@ -2,9 +2,7 @@
 
 #include "duckdb/parser/expression/list.hpp"
 #include "duckdb/parser/statement/list.hpp"
-#include "duckdb/parser/tableref/emptytableref.hpp"
 #include "duckdb/parser/query_node/select_node.hpp"
-#include "duckdb/parser/query_node/cte_node.hpp"
 #include "duckdb/parser/parser_options.hpp"
 
 namespace duckdb {
@@ -173,6 +171,8 @@ unique_ptr<SQLStatement> Transformer::TransformStatementInternal(duckdb_libpgque
 		return TransformCreateIndex(PGCast<duckdb_libpgquery::PGIndexStmt>(stmt));
 	case duckdb_libpgquery::T_PGAlterTableStmt:
 		return TransformAlter(PGCast<duckdb_libpgquery::PGAlterTableStmt>(stmt));
+	case duckdb_libpgquery::T_PGAlterDatabaseStmt:
+		return TransformAlterDatabase(PGCast<duckdb_libpgquery::PGAlterDatabaseStmt>(stmt));
 	case duckdb_libpgquery::T_PGRenameStmt:
 		return TransformRename(PGCast<duckdb_libpgquery::PGRenameStmt>(stmt));
 	case duckdb_libpgquery::T_PGPrepareStmt:
@@ -223,36 +223,11 @@ unique_ptr<SQLStatement> Transformer::TransformStatementInternal(duckdb_libpgque
 		return TransformDropSecret(PGCast<duckdb_libpgquery::PGDropSecretStmt>(stmt));
 	case duckdb_libpgquery::T_PGCommentOnStmt:
 		return TransformCommentOn(PGCast<duckdb_libpgquery::PGCommentOnStmt>(stmt));
+	case duckdb_libpgquery::T_PGMergeIntoStmt:
+		return TransformMergeInto(PGCast<duckdb_libpgquery::PGMergeIntoStmt>(stmt));
 	default:
 		throw NotImplementedException(NodetypeToString(stmt.type));
 	}
-}
-
-unique_ptr<QueryNode> Transformer::TransformMaterializedCTE(unique_ptr<QueryNode> root) {
-	// Extract materialized CTEs from cte_map
-	vector<unique_ptr<CTENode>> materialized_ctes;
-
-	for (auto &cte : root->cte_map.map) {
-		auto &cte_entry = cte.second;
-		if (cte_entry->materialized == CTEMaterialize::CTE_MATERIALIZE_ALWAYS) {
-			auto mat_cte = make_uniq<CTENode>();
-			mat_cte->ctename = cte.first;
-			mat_cte->query = cte_entry->query->node->Copy();
-			mat_cte->aliases = cte_entry->aliases;
-			materialized_ctes.push_back(std::move(mat_cte));
-		}
-	}
-
-	while (!materialized_ctes.empty()) {
-		unique_ptr<CTENode> node_result;
-		node_result = std::move(materialized_ctes.back());
-		node_result->cte_map = root->cte_map.Copy();
-		node_result->child = std::move(root);
-		root = std::move(node_result);
-		materialized_ctes.pop_back();
-	}
-
-	return root;
 }
 
 void Transformer::SetQueryLocation(ParsedExpression &expr, int query_location) {
@@ -267,6 +242,31 @@ void Transformer::SetQueryLocation(TableRef &ref, int query_location) {
 		return;
 	}
 	ref.query_location = optional_idx(static_cast<idx_t>(query_location));
+}
+
+void Transformer::TransformTableOptions(case_insensitive_map_t<unique_ptr<ParsedExpression>> &options,
+                                        optional_ptr<duckdb_libpgquery::PGList> pg_options, bool throw_if_value) {
+	if (!pg_options) {
+		return;
+	}
+
+	duckdb_libpgquery::PGListCell *cell;
+	for_each_cell(cell, pg_options->head) {
+		auto def_elem = PGPointerCast<duckdb_libpgquery::PGDefElem>(cell->data.ptr_value);
+		auto lower_name = StringUtil::Lower(def_elem->defname);
+		if (options.find(lower_name) != options.end()) {
+			throw ParserException("Duplicate table property \"%s\"", lower_name);
+		}
+		if (!def_elem->arg) {
+			options.emplace(lower_name, make_uniq<ConstantExpression>(Value()));
+			continue;
+		}
+		auto expr = TransformExpression(def_elem->arg);
+		if (throw_if_value) {
+			throw ParserException("\"%s\"", expr->ToString());
+		}
+		options.emplace(lower_name, std::move(expr));
+	}
 }
 
 } // namespace duckdb

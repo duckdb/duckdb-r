@@ -13,8 +13,10 @@
   if (requireNamespace("rlang", quietly = TRUE)) {
     is_interactive <<- rlang::is_interactive
     local_interactive <<- rlang::local_interactive
+    rapi_error <<- rapi_error_rlang
   } else {
     rethrow_restore()
+    # Overwrite rapi_error with base version when rlang is not available
   }
 
   invisible()

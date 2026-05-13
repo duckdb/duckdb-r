@@ -83,8 +83,8 @@ static unique_ptr<FunctionData> StructExtractBind(ClientContext &context, Scalar
 		throw BinderException("Could not find key \"%s\" in struct\n%s", key, message);
 	}
 
-	bound_function.return_type = std::move(return_type);
-	return GetBindData(key_index);
+	bound_function.SetReturnType(std::move(return_type));
+	return StructExtractAtFun::GetBindData(key_index);
 }
 
 static unique_ptr<FunctionData> StructExtractBindInternal(ClientContext &context, ScalarFunction &bound_function,
@@ -120,8 +120,8 @@ static unique_ptr<FunctionData> StructExtractBindInternal(ClientContext &context
 		throw BinderException("Key index %lld for struct_extract out of range - expected an index between 1 and %llu",
 		                      index, struct_children.size());
 	}
-	bound_function.return_type = struct_children[NumericCast<idx_t>(index - 1)].second;
-	return GetBindData(NumericCast<idx_t>(index - 1));
+	bound_function.SetReturnType(struct_children[NumericCast<idx_t>(index - 1)].second);
+	return StructExtractAtFun::GetBindData(NumericCast<idx_t>(index - 1));
 }
 
 static unique_ptr<FunctionData> StructExtractBindIndex(ClientContext &context, ScalarFunction &bound_function,
@@ -143,7 +143,7 @@ static unique_ptr<BaseStatistics> PropagateStructExtractStats(ClientContext &con
 	return struct_child_stats[info.index].ToUnique();
 }
 
-unique_ptr<FunctionData> GetBindData(idx_t index) {
+unique_ptr<FunctionData> StructExtractAtFun::GetBindData(idx_t index) {
 	return make_uniq<StructExtractBindData>(index);
 }
 
@@ -170,10 +170,8 @@ ScalarFunctionSet StructExtractFun::GetFunctions() {
 	return struct_extract_set;
 }
 
-ScalarFunctionSet StructExtractAtFun::GetFunctions() {
-	ScalarFunctionSet struct_extractat_set("struct_extract_at");
-	struct_extractat_set.AddFunction(GetExtractAtFunction());
-	return struct_extractat_set;
+ScalarFunction StructExtractAtFun::GetFunction() {
+	return GetExtractAtFunction();
 }
 
 } // namespace duckdb

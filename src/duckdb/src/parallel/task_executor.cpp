@@ -63,16 +63,16 @@ BaseExecutorTask::BaseExecutorTask(TaskExecutor &executor) : executor(executor) 
 }
 
 TaskExecutionResult BaseExecutorTask::Execute(TaskExecutionMode mode) {
-	(void)mode;
-	D_ASSERT(mode == TaskExecutionMode::PROCESS_ALL);
 	if (executor.HasError()) {
 		// another task encountered an error - bailout
 		executor.FinishTask();
 		return TaskExecutionResult::TASK_FINISHED;
 	}
 	try {
-		TaskNotifier task_notifier {executor.context};
-		ExecuteTask();
+		{
+			TaskNotifier task_notifier {executor.context};
+			ExecuteTask();
+		}
 		executor.FinishTask();
 		return TaskExecutionResult::TASK_FINISHED;
 	} catch (std::exception &ex) {
