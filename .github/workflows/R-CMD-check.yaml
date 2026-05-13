@@ -12,7 +12,6 @@ on:
       - release
       - next
       - cran-*
-      - v*.*-*
   pull_request:
     branches:
       - main
