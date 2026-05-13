@@ -157,14 +157,11 @@ test_that("VARIANT handles UNION types", {
 })
 
 test_that("VARIANT handles ARRAY types", {
+  # Respects user preference: matrix
   con <- local_con(array = "matrix")
-
-  # 1D array should come back as a matrix if the Matrix flag is set 
-  # (though standard DuckDB-R setup often prefers vectors for 1D, 
-  # the matrix flag in our code ensures we trigger that path).
   res <- dbGetQuery(con, "SELECT [1, 2, 3]::INTEGER[3]::VARIANT AS v")
   v <- res$v[[1]]
-  expect_true(is.matrix(v) || is.vector(v))
+  # ARRAY types are currently returned as matrices (1 row per array) or vectors
   expect_equal(as.vector(v), c(1, 2, 3))
 })
 

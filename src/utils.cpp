@@ -285,19 +285,13 @@ SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 		return ValueToSexp(val_ref, convert_opts);
 	}
 
-	// Enable array conversion for values inside VARIANT
-	ConvertOpts opts = convert_opts;
-	if (type.id() == LogicalTypeId::ARRAY) {
-		opts.array = ConvertOpts::ArrayConversion::MATRIX;
-	}
-
 	// Create a single-element Vector and reuse the existing transform pipeline
 	Vector vec(type, 1);
 	vec.SetValue(0, val);
 
-	SEXP dest = duckdb_r_allocate(type, 1, "variant", opts, "ValueToSexp");
-	duckdb_r_decorate(type, dest, opts);
-	duckdb_r_transform(vec, dest, 0, 1, opts, "variant");
+	SEXP dest = duckdb_r_allocate(type, 1, "variant", convert_opts, "ValueToSexp");
+	duckdb_r_decorate(type, dest, convert_opts);
+	duckdb_r_transform(vec, dest, 0, 1, convert_opts, "variant");
 
 	// Scalar TIMESTAMP (no TZ) must have tzone="" for Arrow pushdown compatibility
 	if (type.id() == LogicalTypeId::TIMESTAMP && TYPEOF(dest) == REALSXP) {
