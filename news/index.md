@@ -1,5 +1,606 @@
 # Changelog
 
+## duckdb 1.5.2.9007
+
+### Chore
+
+- Add ccache to `.gitignore` and `.Rbuildignore`.
+
+- Revdepcheck results.
+
+### Continuous integration
+
+- Clarify rationale for not deploying on schedule.
+
+- Add reference to `/apply-patch` workflow in commit message.
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@fe0954a4753cf93be69dbdf80a0e826e9193f241>.
+
+  Date: 2026-05-12 15:38:16 +0200
+
+  Move Jemalloc into core
+  (<https://redirect.github.com/duckdb/duckdb/pull/22558>)
+
+- Update vendored sources to
+  <duckdb/duckdb@e0cd083dd54312fc1baba09d512fdfd457ee8980>.
+
+  Date: 2026-05-12 14:42:16 +0200
+
+  Fix incorrect profiling results when using `LIMIT`
+  (<https://redirect.github.com/duckdb/duckdb/pull/22561>)
+
+- Update vendored sources to
+  <duckdb/duckdb@b5614c8f445f1f079d9dd316a0763e747cc36dc8>.
+
+  Date: 2026-05-12 09:39:58 +0200
+
+  Fix for SIGABRT in setting size on zero-capacity vector
+  (<https://redirect.github.com/duckdb/duckdb/pull/22571>)
+
+- Update vendored sources to
+  <duckdb/duckdb@e1ea8bd3dff8bfbcb218229f1ca2150952bbb819>.
+
+  Date: 2026-05-12 09:37:08 +0200
+
+  Fix variant selection vector index
+  (<https://redirect.github.com/duckdb/duckdb/pull/22573>)
+
+- Update vendored sources to
+  <duckdb/duckdb@a42060bbab6e86c9889f9185c079d23ad4a8c803>.
+
+  Date: 2026-05-12 09:34:57 +0200
+
+  Bump avro, azure, delta, ducklake, spatial, unity_catalog and vortex
+  (<https://redirect.github.com/duckdb/duckdb/pull/22554>)
+
+- Update vendored sources to
+  <duckdb/duckdb@cf73ab40ac218ca992c9ae71703a7f5101890e46>.
+
+  Date: 2026-05-12 09:34:14 +0200
+
+  Bump Postgres, MySQL and ODBC
+  (<https://redirect.github.com/duckdb/duckdb/pull/22579>) Bump httpfs
+  and remove patches
+  (<https://redirect.github.com/duckdb/duckdb/pull/22556>)
+
+- Update vendored sources to
+  <duckdb/duckdb@46a672fe7634c694758bbef681e124c593c1e078>.
+
+  Date: 2026-05-11 15:41:34 +0200
+
+  Move http_proxy setting to global setting, and use
+  GetEnvVariable(‘HTTP_PROXY’) as default
+  (<https://redirect.github.com/duckdb/duckdb/pull/22541>)
+
+- Update vendored sources to
+  <duckdb/duckdb@497026f559ac41d17804596ca45ef6432cfd6fc1>.
+
+  Date: 2026-05-11 14:25:40 +0200
+
+  Fix variant write small decimal
+  (<https://redirect.github.com/duckdb/duckdb/pull/22544>)
+
+- Update vendored sources to
+  <duckdb/duckdb@407ba676d9182701a02fe85efb3f1e33b6cbc3be>.
+
+  Date: 2026-05-11 12:58:18 +0200
+
+  ExtensionInstall: Remove use of IsHTTP to IsRemoteFile
+  (<https://redirect.github.com/duckdb/duckdb/pull/21900>)
+
+- Update vendored sources to
+  <duckdb/duckdb@926cc3e52016cc872f128b659bbb6b45a1b7299e>.
+
+  Date: 2026-05-11 08:48:59 +0200
+
+  Fix parquet metadata cache validation
+  (<https://redirect.github.com/duckdb/duckdb/pull/22547>)
+
+- Update vendored sources to
+  <duckdb/duckdb@f0e766afcbcaaa3294ac689b2ba2ebd3f226f363>.
+
+  Date: 2026-05-11 08:48:33 +0200
+
+  Fix bare numeric interval parsing at end of string on v1.5
+  (<https://redirect.github.com/duckdb/duckdb/pull/22534>) Test runner:
+  avoid running clean-up routine if there is no database to run it in
+  (<https://redirect.github.com/duckdb/duckdb/pull/22540>)
+
+- Update vendored sources to
+  <duckdb/duckdb@a403fd8acf84f2a2ebcc2b61dd17f725959ca2f2>.
+
+  Date: 2026-05-10 08:34:57 +0200
+
+  Fix duck fuzz <https://redirect.github.com/duckdb/duckdb/pull/4430>
+  (<https://redirect.github.com/duckdb/duckdb/pull/22435>)
+
+- Update vendored sources to
+  <duckdb/duckdb@19678b66e7d2f9b3a471fbaff9c7c78cf06562ae>.
+
+  Date: 2026-05-10 08:29:52 +0200
+
+  Patch httplib by making ThreadPool constructor more solid on
+  pthread_create failures
+  (<https://redirect.github.com/duckdb/duckdb/pull/22516>)
+
+- Update vendored sources to
+  <duckdb/duckdb@6b8d5bc3b05b2a0360e5cb1a67a888c69d401a3c>.
+
+  Date: 2026-05-09 11:29:30 +0200
+
+  Fix BlockAllocator invalid memory access
+  (<https://redirect.github.com/duckdb/duckdb/pull/22503>)
+
+- Update vendored sources to
+  <duckdb/duckdb@e1649edb0e0aad006330fb01121de1e900c138eb>.
+
+  Date: 2026-05-08 13:22:05 +0200
+
+  Fix RESET my_global_extension_setting to actually be GLOBAL
+  (<https://redirect.github.com/duckdb/duckdb/pull/22520>)
+
+- Update vendored sources to
+  <duckdb/duckdb@c5b5b98e4a7eb63e99bb388989a2d597cd14d232>.
+
+  Date: 2026-05-08 10:49:56 +0200
+
+  Avoid 3 instances of idx_t - idx_t \> 0, and avoid unnecessary check
+  on zLine (<https://redirect.github.com/duckdb/duckdb/pull/22518>)
+
+- Update vendored sources to
+  <duckdb/duckdb@8c4336c767fb7011262da76d14865ae0176f8395>.
+
+  Date: 2026-05-08 08:29:27 +0200
+
+  Fix enable_logging() silently resetting logging_storage
+  (<https://redirect.github.com/duckdb/duckdb/pull/22475>)
+
+- Update vendored sources to
+  <duckdb/duckdb@2a172f10f417db21cc1b630f45b4615e268b2c7f>.
+
+  Date: 2026-05-04 08:46:17 +0200
+
+  Fix eviction size metrics report
+  (<https://redirect.github.com/duckdb/duckdb/pull/22452>)
+
+  R-side fix
+
+- Update vendored sources to
+  <duckdb/duckdb@2b52d7e8426379244bfa26abe952f19d7b41050b>.
+
+  Date: 2026-05-01 16:26:54 +0200
+
+  PostgreSQL compatability: in `pg_catalog.pg_database` simulate columns
+  datallowconn, datistemplate
+  (<https://redirect.github.com/duckdb/duckdb/pull/22302>)
+
+- Update vendored sources to
+  <duckdb/duckdb@a34c90c22926670a6e0a9fa9c483b8b137080768>.
+
+  Date: 2026-05-01 10:52:07 +0200
+
+  RowGroup Operator metrics: sequentially scanned row groups + total row
+  groups + cumulative counterparts
+  (<https://redirect.github.com/duckdb/duckdb/pull/22339>)
+
+- Update vendored sources to
+  <duckdb/duckdb@3668a8b7d8e04eadb3b97bf50ec03dda26594cbc>.
+
+  Date: 2026-05-01 07:55:45 +0200
+
+  Fix double decrement of evicted_data_per_tag in .block read-back
+  (<https://redirect.github.com/duckdb/duckdb/pull/22394>)
+
+- Update vendored sources to
+  <duckdb/duckdb@f34fc4e707488546668b7e1a2045f40a9b2253d3>.
+
+  Date: 2026-04-30 17:27:13 +0200
+
+  GetLocalFileSystem improvements
+  (<https://redirect.github.com/duckdb/duckdb/pull/21983>)
+
+- Update vendored sources to
+  <duckdb/duckdb@6aa4a592ed65e39b681440a31ab051f4f9c4edab>.
+
+  Date: 2026-04-30 15:43:16 +0200
+
+  Downcasting decimal fix incorrect out of range error
+  (<https://redirect.github.com/duckdb/duckdb/pull/22386>)
+
+- Update vendored sources to
+  <duckdb/duckdb@045e1c237c2b05ee696f2983be3b01f76899268a>.
+
+  Date: 2026-04-30 08:39:16 +0200
+
+  Internal <https://redirect.github.com/duckdb/duckdb/pull/9003>: TIMETZ
+  Parsing Limit (<https://redirect.github.com/duckdb/duckdb/pull/22378>)
+  Enable windows_amd64 for lance extension
+  (<https://redirect.github.com/duckdb/duckdb/pull/22367>)
+
+- Update vendored sources to
+  <duckdb/duckdb@ebe47ec0c7c1ef341012ac363cfc8282f5dbf3d9>.
+
+  Date: 2026-04-29 13:09:20 +0200
+
+  Node Handle Scoping fix
+  (<https://redirect.github.com/duckdb/duckdb/pull/22344>)
+
+- Update vendored sources to
+  <duckdb/duckdb@81d70e84d27042d31e31c0223120747702773639>.
+
+  Date: 2026-04-28 22:23:39 +0200
+
+  First initialize system, then load extensions (to peek at file to be
+  opened) (<https://redirect.github.com/duckdb/duckdb/pull/22341>)
+
+- Update vendored sources to
+  <duckdb/duckdb@a3365e21c7cf8853cf6e25d9fd2efe0506e0475f>.
+
+  Date: 2026-04-28 17:59:14 +0200
+
+  Also redacting bearer token for HTTP secrets
+  (<https://redirect.github.com/duckdb/duckdb/pull/22323>)
+
+- Update vendored sources to
+  <duckdb/duckdb@a595c8108a556914ff1fbbde369ae2df4fd68387>.
+
+  Date: 2026-04-28 17:40:23 +0200
+
+  Use batch limit for table scans with filters
+  (<https://redirect.github.com/duckdb/duckdb/pull/22315>)
+
+- Update vendored sources to
+  <duckdb/duckdb@3226146c2c25df5a1f13d58895ac9e70772f67ab>.
+
+  Date: 2026-04-28 14:26:14 +0200
+
+  Skip schema analysis even if no shredding for rowgroup
+  (<https://redirect.github.com/duckdb/duckdb/pull/21937>)
+
+- Update vendored sources to
+  <duckdb/duckdb@bfd3b60f833e45974aba237b2d18b41c0d0e3de9>.
+
+  Date: 2026-04-28 14:25:25 +0200
+
+  Exception format: accept string literals
+  (<https://redirect.github.com/duckdb/duckdb/pull/22314>)
+
+- Update vendored sources to
+  <duckdb/duckdb@54285de033e4abe200354465e4bdd6c3dcd7c8bb>.
+
+  Date: 2026-04-28 11:44:16 +0200
+
+  Bump httpfs (<https://redirect.github.com/duckdb/duckdb/pull/22312>)
+  Fix UTC+HHMM time zone was parsed incorrectly
+  (<https://redirect.github.com/duckdb/duckdb/pull/22297>)
+
+- Update vendored sources to
+  <duckdb/duckdb@4337c06de543a904b98b891dcfb821e9d8141b4d>.
+
+  Date: 2026-04-28 09:08:09 +0200
+
+  Allow package builds to choose linked extensions
+  (<https://redirect.github.com/duckdb/duckdb/pull/22305>)
+
+- Update vendored sources to
+  <duckdb/duckdb@ca12adf671f9ff7c292e6bee7608a6e70fef295a>.
+
+  Date: 2026-04-26 09:08:41 +0200
+
+  \[v1.5\] Backport ADBC memleak fix on error path
+  (<https://redirect.github.com/duckdb/duckdb/pull/22216>)
+
+- Update vendored sources to
+  <duckdb/duckdb@5909259229afa28a33cee6075dc37fa602477325>.
+
+  Date: 2026-04-26 09:08:16 +0200
+
+  Defer Bloom Filter Pushdown until it’s done
+  (<https://redirect.github.com/duckdb/duckdb/pull/22218>)
+
+- Update vendored sources to
+  <duckdb/duckdb@f0413bfa84f07975a199013cd87ea04b76eb5fb9>.
+
+  Date: 2026-04-25 15:20:22 +0200
+
+  Fix UTC±NN00 cannot be parsed in SQL
+  (<https://redirect.github.com/duckdb/duckdb/pull/22244>)
+
+- Update vendored sources to
+  <duckdb/duckdb@e5cda4269e90eb78f588d84be65d3b4c1267a468>.
+
+  Date: 2026-04-24 14:15:45 +0200
+
+  Fix: release ParquetReader when a file is marked SKIPPED in multi-file
+  scan (<https://redirect.github.com/duckdb/duckdb/pull/22261>)
+
+- Update vendored sources to
+  <duckdb/duckdb@327cde95f8851c4c35819705f077ac94d42d9f5e>.
+
+  Date: 2026-04-24 07:09:56 +0200
+
+  Correctly use new row group when checkpointing, and avoid incorrectly
+  re-using metadata when targeting older storage versions and row ids
+  have changed (<https://redirect.github.com/duckdb/duckdb/pull/22253>)
+  Bump httpfs to 3139e40a
+  (<https://redirect.github.com/duckdb/duckdb/pull/22248>)
+
+- Update vendored sources to
+  <duckdb/duckdb@c7d9746e53f65141c4a90333b127d3204be344e3>.
+
+  Date: 2026-04-23 19:30:34 +0200
+
+  \[Bugfix\] Reset pg_err_pos in pg_parser_init to prevent stale error
+  position leaking
+  (<https://redirect.github.com/duckdb/duckdb/pull/22239>)
+
+- Update vendored sources to
+  <duckdb/duckdb@c5a6bd6a959007c085ae59a169cb631f5672e138>.
+
+  Date: 2026-04-22 18:46:00 +0200
+
+  ISSUE-22061: Fix JSON shell output: emit BOOLEAN as true/false, not
+  strings (<https://redirect.github.com/duckdb/duckdb/pull/22073>)
+
+- Update vendored sources to
+  <duckdb/duckdb@0cdd742a2dd18653e6c269e4e2e5d3b7efe074d3>.
+
+  Date: 2026-04-22 18:45:26 +0200
+
+  CompressedFile::Close -\> calls Close on its child_handle
+  (<https://redirect.github.com/duckdb/duckdb/pull/22149>)
+
+- Update vendored sources to
+  <duckdb/duckdb@e9ed5ba311172f7bba3bd52601e31269d75c379e>.
+
+  Date: 2026-04-22 13:51:44 +0200
+
+  Fix bignum sum Combine to correctly take over memory ownership of
+  state (<https://redirect.github.com/duckdb/duckdb/pull/22209>)
+
+- Update vendored sources to
+  <duckdb/duckdb@62e7f0dddf75559584c862430c642efbdeb1c161>.
+
+  Date: 2026-04-22 11:03:11 +0200
+
+  User-facing `enable_caching_operators` setting
+  (<https://redirect.github.com/duckdb/duckdb/pull/22191>)
+
+- Update vendored sources to
+  <duckdb/duckdb@a1fc7abe20d48df3e860d9e895b694ebd902b0cc>.
+
+  Date: 2026-04-21 15:23:09 +0200
+
+  Fix union_by_name remap for non-nested parquet columns
+  (<https://redirect.github.com/duckdb/duckdb/pull/22177>)
+
+- Update vendored sources to
+  <duckdb/duckdb@a04d20515f80050ff44d1d6f5f968fa0b07f957d>.
+
+  Date: 2026-04-21 10:52:00 +0200
+
+  Fix CSV escape
+  (<https://redirect.github.com/duckdb/duckdb/pull/22176>)
+
+- Update vendored sources to
+  <duckdb/duckdb@12002785c2ddb503b5984dca2521c06a75de0eb5>.
+
+  Date: 2026-04-21 10:11:14 +0200
+
+  Fix: Add pg_catalog.pg_collation compatibility view for SQLAlchemy
+  2.0.45 reflection
+  (<https://redirect.github.com/duckdb/duckdb/pull/22160>)
+
+- Update vendored sources to
+  <duckdb/duckdb@84ada11a172b49f7089a038e262351c35a8419f2>.
+
+  Date: 2026-04-21 10:08:28 +0200
+
+  Use the latest storage version for temp storage
+  (<https://redirect.github.com/duckdb/duckdb/pull/22169>)
+
+- Update vendored sources to
+  <duckdb/duckdb@a69c5db54d7859a1f4275b3d5bb95c27efe9e633>.
+
+  Date: 2026-04-21 09:43:20 +0200
+
+  Account for ROW_GROUP_SIZE when deciding whether to append to an
+  existing row group
+  (<https://redirect.github.com/duckdb/duckdb/pull/22109>)
+
+- Update vendored sources to
+  <duckdb/duckdb@f0a077649b1d6a881e56f25d1c05ca232b48c868>.
+
+  Date: 2026-04-20 21:37:24 +0200
+
+  Fix window self join optimizer
+  (<https://redirect.github.com/duckdb/duckdb/pull/22164>)
+
+- Update vendored sources to
+  <duckdb/duckdb@bfbe1fb8f736fd2f98389a5b42a04f68c0d523a8>.
+
+  Date: 2026-04-20 15:46:52 +0200
+
+  Also execute auto-rollback on CLI ClientContext::Query() query
+  (<https://redirect.github.com/duckdb/duckdb/pull/22159>)
+
+- Update vendored sources to
+  <duckdb/duckdb@b7ca2c99e5d62c9f39aee5b9e39e844c72c79e69>.
+
+  Date: 2026-04-20 14:22:55 +0200
+
+  \[v1.5 patch\] Attempt to fix cache read
+  (<https://redirect.github.com/duckdb/duckdb/pull/22126>)
+
+- Update vendored sources to
+  <duckdb/duckdb@1f4fa8d125e8500c4d5d6fcc396bff6e62acceeb>.
+
+  Date: 2026-04-20 09:24:18 +0200
+
+  fix(adbc): report the table name if the table doesn’t exist when
+  appending (<https://redirect.github.com/duckdb/duckdb/pull/22146>)
+
+- Update vendored sources to
+  <duckdb/duckdb@d7662bfbac3c52748781d3432b99bddb2d728e0b>.
+
+  Date: 2026-04-20 09:23:24 +0200
+
+  Correctly skip preprocessing PIVOT MultiStatements
+  (<https://redirect.github.com/duckdb/duckdb/pull/22141>)
+
+- Update vendored sources to
+  <duckdb/duckdb@fd11c808ae66f6515cc9b977330d607765907a56>.
+
+  Date: 2026-04-20 09:19:50 +0200
+
+  Fix Row Group Pruner Distinct Bug
+  (<https://redirect.github.com/duckdb/duckdb/pull/22132>) Only build
+  plan_serializer when building the main DuckDB library
+  (<https://redirect.github.com/duckdb/duckdb/pull/22100>)
+
+- Update vendored sources to
+  <duckdb/duckdb@fb72e45f6256d96b5f064242795284cf46357072>.
+
+  Date: 2026-04-20 08:55:39 +0200
+
+  Internal <https://redirect.github.com/duckdb/duckdb/pull/8812>: From
+  TIMESTAMPTZ Casts
+  (<https://redirect.github.com/duckdb/duckdb/pull/22000>)
+
+- Update vendored sources to
+  <duckdb/duckdb@00beb59aed8adeb10212d2297942db6162891bc5>.
+
+  Date: 2026-04-17 13:29:30 +0200
+
+  fix commit iteration offset bug + relax RemoveFromIndexes assertion
+  (<https://redirect.github.com/duckdb/duckdb/pull/22094>) Bump Julia to
+  v1.5.2 (<https://redirect.github.com/duckdb/duckdb/pull/22121>)
+
+- Update vendored sources to
+  <duckdb/duckdb@a343d23a963ade56acdcd52df1c556dc78e8bce2>.
+
+  Date: 2026-04-16 18:50:31 +0200
+
+  Add support for reading `VARIANT` using C API
+  (<https://redirect.github.com/duckdb/duckdb/pull/22065>)
+
+- Update vendored sources to
+  <duckdb/duckdb@8cc999c7b9e1535009934e65365208ecb41ed2f8>.
+
+  Date: 2026-04-16 15:52:29 +0200
+
+  Issue <https://redirect.github.com/duckdb/duckdb/pull/22096>: TopN
+  Window Casts (<https://redirect.github.com/duckdb/duckdb/pull/22098>)
+
+- Update vendored sources to
+  <duckdb/duckdb@ae80e871fa040e1a38600efe01c4d90f86240ceb>.
+
+  Date: 2026-04-16 15:10:58 +0200
+
+  Fix empty parquet child schema
+  (<https://redirect.github.com/duckdb/duckdb/pull/22105>)
+
+- Update vendored sources to
+  <duckdb/duckdb@f35db8881aa90254aa92e1e9d5291c89b0a831eb>.
+
+  Date: 2026-04-16 09:17:31 +0200
+
+  Row group append
+  (<https://redirect.github.com/duckdb/duckdb/pull/22060>)
+
+- Update vendored sources to
+  <duckdb/duckdb@67fe1eed4f8111d8d7c81541fe8770ab9ce614bd>.
+
+  Date: 2026-04-16 09:08:36 +0200
+
+  Coorporative tasks might lead to busy spinning in
+  `TaskExecutor::WorkOnTasks`
+  (<https://redirect.github.com/duckdb/duckdb/pull/22092>)
+
+- Update vendored sources to
+  <duckdb/duckdb@038fb6b79cda3fdb86b67170dca53ab8f375677f>.
+
+  Date: 2026-04-15 14:18:14 +0200
+
+  Set `query` field for statements in
+  `ALTER TABLE ... ADD COLUMN ... DEFAULT ...` workaround
+  (<https://redirect.github.com/duckdb/duckdb/pull/22057>)
+
+- Update vendored sources to
+  <duckdb/duckdb@48f850fde1eb1e1e710dce9e08713534e34fd6f6>.
+
+  Date: 2026-04-15 08:39:36 +0200
+
+  Add `DISABLE_BUILTIN_HTTPLIB` option
+  (<https://redirect.github.com/duckdb/duckdb/pull/22054>) Avoid
+  handling Ctrl+C during shutdown (state might be already gone)
+  (<https://redirect.github.com/duckdb/duckdb/pull/22059>)
+
+- Update vendored sources to
+  <duckdb/duckdb@6bc307847b51c5571859e2361c610b2a41099300>.
+
+  Date: 2026-04-14 15:25:06 +0200
+
+  Fix constant struct args in lateral table in-out functions
+  (<https://redirect.github.com/duckdb/duckdb/pull/21827>) Git-ignore
+  generated extension loader
+  (<https://redirect.github.com/duckdb/duckdb/pull/22056>)
+
+- Update vendored sources to
+  <duckdb/duckdb@531f5f2dd93b32c42f89808f6d6e737d9893684c>.
+
+  Date: 2026-04-14 14:54:33 +0200
+
+  Fix `INSERT OR REPLACE BY NAME` regression by excluding conflict
+  columns from `SET` list
+  (<https://redirect.github.com/duckdb/duckdb/pull/22049>)
+
+- Update vendored sources to
+  <duckdb/duckdb@a0a08d511d82b20e5855f8e9e6b01d81d70025b5>.
+
+  Date: 2026-04-13 22:24:17 +0200
+
+  Fix DISABLE_EXTENSION_LOAD
+  (<https://redirect.github.com/duckdb/duckdb/pull/22019>)
+
+- Update vendored sources to
+  <duckdb/duckdb@0e8047bc28ae45dc7cc44f9210eff26e82fc8b7c>.
+
+  Date: 2026-04-13 22:20:27 +0200
+
+  Add iceberg copy function autoload
+  (<https://redirect.github.com/duckdb/duckdb/pull/22037>)
+
+- Update vendored sources to
+  <duckdb/duckdb@fbe304454a70bdc6a5f70ac2ee0e2a7ad321c7b5>.
+
+  Date: 2026-04-13 15:44:00 +0200
+
+  Provide BWC support for join filter pushdowns
+  (<https://redirect.github.com/duckdb/duckdb/pull/22029>)
+
+- Update vendored sources to
+  <duckdb/duckdb@ad406b8695ec4e7c3336ed6b537f32ef5e4ee84f>.
+
+  Date: 2026-04-13 14:46:35 +0200
+
+  Fix TIMESTAMPFORMAT being ignored for TIMESTAMPTZ columns in copy to
+  json (<https://redirect.github.com/duckdb/duckdb/pull/21992>)
+
+- Update vendored sources to
+  <duckdb/duckdb@c35abace2fffcc18c8bc8e409c678ab21f40f545>.
+
+  Date: 2026-04-13 12:33:55 +0200
+
+  fix: resolve current catalog in ADBC Ingest to avoid temp table
+  shadowing (<https://redirect.github.com/duckdb/duckdb/pull/22020>)
+  DuckLake Bump (<https://redirect.github.com/duckdb/duckdb/pull/22014>)
+  Use DB serialization compatibility for json_serialize_sql
+  (<https://redirect.github.com/duckdb/duckdb/pull/22004>)
+
 ## duckdb 1.5.2.9006
 
 ### Continuous integration
