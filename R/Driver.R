@@ -70,10 +70,10 @@ duckdb <- function(
   # This is deliberately kept under the "duckdb" directory
   # because extensions and secrets are shared across variants
   # (duckdb.1.4, duckdb.dev, ...).
-  # The extension cache is additionally partitioned per C++ runtime, see
-  # detect_cxx_runtime(), so that R installations linking against different
-  # C++ standard libraries on the same machine do not load each other's
-  # ABI-incompatible binaries.
+  # The extension cache is additionally partitioned per C++ runtime
+  # (detected by ./configure, baked into R/cxx_runtime.R), so that R
+  # installations linking against different C++ standard libraries on the
+  # same machine do not load each other's ABI-incompatible binaries.
   if (!("extension_directory" %in% names(config))) {
     config["extension_directory"] <- default_extension_directory()
   }

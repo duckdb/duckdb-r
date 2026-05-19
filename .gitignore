@@ -108,6 +108,7 @@ $RECYCLE.BIN/
 /duckdb
 /src/Makevars.duckdb
 /src/Makevars.rstrtmgr
+/R/cxx_runtime.R
 /.ccache
 /src/symbols.rds
 /docs/

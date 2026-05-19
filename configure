@@ -15,6 +15,42 @@ else
   echo "MAKEFLAGS already set to: ${MAKEFLAGS}"
 fi
 
+# DuckDB-provided extension binaries are ABI-tied to the C++ standard library
+# (libstdc++ vs libc++). When several R installations on one machine link
+# against different runtimes, sharing a single extension cache makes the
+# loader pick up a binary built for the wrong ABI (reported by Brian Ripley
+# for the duckspatial CRAN checks). Detect the runtime here so R can
+# partition the cache per ABI; see R/cxx_runtime.R below and
+# default_extension_directory() in R/extensions.R.
+rm -f R/cxx_runtime.R
+if [ -z "${R_HOME}" ]; then
+  R_HOME=$(R RHOME 2>/dev/null) || R_HOME=""
+fi
+CXX17=""
+CXX17STD=""
+if [ -n "${R_HOME}" ]; then
+  CXX17=$("${R_HOME}/bin/R" CMD config CXX17 2>/dev/null || true)
+  CXX17STD=$("${R_HOME}/bin/R" CMD config CXX17STD 2>/dev/null || true)
+fi
+CXX_RUNTIME=""
+if [ -n "${CXX17}" ]; then
+  CXX_RUNTIME_TMP=$(mktemp -d)
+  cat > "${CXX_RUNTIME_TMP}/probe.cpp" <<'EOF'
+#include <ciso646>
+#if defined(_LIBCPP_VERSION)
+__duckdb_cxx_runtime_marker__ libcxx
+#elif defined(__GLIBCXX__)
+__duckdb_cxx_runtime_marker__ libstdcxx
+#endif
+EOF
+  CXX_RUNTIME=$(${CXX17} ${CXX17STD} -E "${CXX_RUNTIME_TMP}/probe.cpp" 2>/dev/null \
+    | grep '^__duckdb_cxx_runtime_marker__' \
+    | head -n 1 \
+    | awk '{print $2}')
+  rm -rf "${CXX_RUNTIME_TMP}"
+fi
+printf '.duckdb_cxx_runtime <- "%s"\n' "${CXX_RUNTIME}" > R/cxx_runtime.R
+
 cd "$(dirname "$0")/src"
 
 # Not used on Linux, for completeness.
