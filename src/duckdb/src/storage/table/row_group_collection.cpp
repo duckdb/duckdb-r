@@ -4,6 +4,8 @@
 #include "duckdb/execution/expression_executor.hpp"
 #include "duckdb/execution/index/bound_index.hpp"
 #include "duckdb/main/client_context.hpp"
+#include "duckdb/main/profiling_utils.hpp"
+#include "duckdb/main/query_profiler.hpp"
 #include "duckdb/parallel/task_executor.hpp"
 #include "duckdb/planner/constraints/bound_not_null_constraint.hpp"
 #include "duckdb/storage/checkpoint/table_data_writer.hpp"
@@ -18,6 +20,7 @@
 #include "duckdb/storage/table_storage_info.hpp"
 #include "duckdb/main/settings.hpp"
 #include "duckdb/execution/index/art/art.hpp"
+#include "duckdb/common/type_visitor.hpp"
 
 namespace duckdb {
 
@@ -67,7 +70,15 @@ RowGroupCollection::RowGroupCollection(shared_ptr<DataTableInfo> info_p, BlockMa
                                        idx_t row_group_size_p)
     : block_manager(block_manager), row_group_size(row_group_size_p), total_rows(total_rows_p), info(std::move(info_p)),
       types(std::move(types_p)), owned_row_groups(make_shared_ptr<RowGroupSegmentTree>(*this, row_start)),
-      allocation_size(0), requires_new_row_group(false) {
+      allocation_size(0), row_group_append_mode(RowGroupAppendMode::APPEND_TO_EXISTING) {
+	// If the table contains shredded types (variant / geometry) then we can't append to an existing row group
+	for (auto &type : types) {
+		if (TypeVisitor::Contains(type, LogicalTypeId::VARIANT) ||
+		    TypeVisitor::Contains(type, LogicalTypeId::GEOMETRY)) {
+			row_group_append_mode = RowGroupAppendMode::REQUIRE_NEW;
+			break;
+		}
+	}
 }
 
 idx_t RowGroupCollection::GetTotalRows() const {
@@ -135,8 +146,11 @@ void RowGroupCollection::Initialize(PersistentCollectionData &data) {
 	}
 }
 
-void RowGroupCollection::SetAppendRequiresNewRowGroup() {
-	requires_new_row_group = true;
+void RowGroupCollection::SetRowGroupAppendMode(RowGroupAppendMode mode) {
+	if (mode > row_group_append_mode) {
+		// We never downgrade the mode, i.e. if REQUIRE_NEW was already set then we do not set it back to SUGGEST_NEW
+		row_group_append_mode = mode;
+	}
 }
 
 void RowGroupCollection::InitializeEmpty() {
@@ -157,7 +171,7 @@ void RowGroupCollection::AppendRowGroup(SegmentLock &l, idx_t start_row) {
 	auto new_row_group = make_uniq<RowGroup>(*this, 0U);
 	new_row_group->InitializeEmpty(types, GetColumnDataType(start_row));
 	owned_row_groups->AppendSegment(l, std::move(new_row_group), start_row);
-	requires_new_row_group = false;
+	row_group_append_mode = RowGroupAppendMode::APPEND_TO_EXISTING;
 }
 
 optional_ptr<RowGroup> RowGroupCollection::GetRowGroup(int64_t index) {
@@ -470,8 +484,20 @@ void RowGroupCollection::InitializeAppend(TransactionData transaction, TableAppe
 	// start writing to the row_groups
 	state.row_groups = GetRowGroups();
 	auto l = state.row_groups->Lock();
-	if (state.row_groups->IsEmpty(l) || requires_new_row_group) {
-		// empty row group collection: empty first row group
+	// We need a new row group if there are none yet or the append mode forces us to create a new row group
+	bool needs_new_row_group = state.row_groups->IsEmpty(l) || row_group_append_mode == RowGroupAppendMode::REQUIRE_NEW;
+	// Otherwise we evaluate the row_group_append_mode
+	if (!needs_new_row_group) {
+		if (info->GetIndexes().Empty()) {
+			// We honor SUGGEST_NEW unless the table has indexes because there is no vacuuming for indexed tables...
+			needs_new_row_group = row_group_append_mode == RowGroupAppendMode::SUGGEST_NEW;
+		} else {
+			// ... and if it has indexes we will ignore row_group_append_mode and try to append, unless the last row
+			// group is full already.
+			needs_new_row_group = row_group_size < state.row_groups->GetLastSegment(l)->GetNode().count;
+		}
+	}
+	if (needs_new_row_group) {
 		AppendRowGroup(l, state.row_groups->GetBaseRowId() + total_rows);
 	}
 	state.start_row_group = state.row_groups->GetLastSegment(l);
@@ -718,7 +744,7 @@ void RowGroupCollection::MergeStorage(RowGroupCollection &data, optional_ptr<Dat
 	stats.MergeStats(data.stats);
 	total_rows += data.total_rows.load();
 	if (is_persistent) {
-		SetAppendRequiresNewRowGroup();
+		SetRowGroupAppendMode(RowGroupAppendMode::SUGGEST_NEW);
 	}
 }
 
@@ -1174,9 +1200,16 @@ public:
 	}
 
 	void ExecuteTask() override {
+		ActiveTimer timer;
+		auto context = checkpoint_state.writer.TryGetClientContext();
+		if (context) {
+			timer = QueryProfiler::Get(*context).StartTimer(MetricType::CUMULATIVE_VACUUM_TIME);
+		}
+
 		auto &collection = checkpoint_state.collection;
 		const idx_t row_group_size = collection.GetRowGroupSize();
 		auto &types = collection.GetTypes();
+
 		// create the new set of target row groups (initially empty)
 		vector<unique_ptr<RowGroup>> new_row_groups;
 		vector<idx_t> append_counts;
@@ -1187,7 +1220,6 @@ public:
 			new_row_group->InitializeEmpty(types, ColumnDataType::MAIN_TABLE);
 			new_row_groups.push_back(std::move(new_row_group));
 			append_counts.push_back(0);
-
 			row_group_rows -= current_row_group_rows;
 		}
 
@@ -1270,6 +1302,10 @@ public:
 			    "Mismatch in row group count %d vs verify count %d in RowGroupCollection::Checkpoint", merge_rows,
 			    total_append_count);
 		}
+
+		// Explicitly end the timer for the vacuum tasks here.
+		timer.EndTimer();
+
 		// merging is complete - execute checkpoint tasks of the target row groups
 		for (idx_t i = 0; i < target_count; i++) {
 			auto checkpoint_task = collection.GetCheckpointTask(checkpoint_state, segment_idx + i);
@@ -1491,6 +1527,9 @@ void RowGroupCollection::Checkpoint(TableDataWriter &writer, TableStatistics &gl
 
 	VacuumState vacuum_state;
 	InitializeVacuumState(checkpoint_state, vacuum_state, writer.GetRowGroupCount());
+	if (vacuum_state.row_ids_changed) {
+		writer.SetRowIdsChanged();
+	}
 
 	try {
 		// schedule tasks
@@ -1503,6 +1542,7 @@ void RowGroupCollection::Checkpoint(TableDataWriter &writer, TableStatistics &gl
 				// vacuum tasks were scheduled - don't schedule a checkpoint task yet
 				total_vacuum_tasks++;
 				vacuum_state.row_ids_changed = true;
+				writer.SetRowIdsChanged();
 				continue;
 			}
 			if (checkpoint_state.SegmentIsDropped(segment_idx)) {
@@ -1592,16 +1632,18 @@ void RowGroupCollection::Checkpoint(TableDataWriter &writer, TableStatistics &gl
 			D_ASSERT(checkpoint_state.SegmentIsDropped(segment_idx));
 			continue;
 		}
-		auto &row_group = entry->GetNode();
+		auto &existing_row_group = entry->GetNode();
 		auto &row_group_writer = checkpoint_state.writers[segment_idx];
 		if (!row_group_writer) {
 			// row group was not checkpointed - this can happen if compressing is disabled for in-memory tables
 			new_row_groups->AppendSegment(l, entry->ReferenceNode());
-			new_total_rows += row_group.count;
+			new_total_rows += existing_row_group.count;
 
 			auto lock = global_stats.GetLock();
-			for (idx_t column_idx = 0; column_idx < row_group.GetColumnCount(); column_idx++) {
-				global_stats.GetStats(*lock, column_idx).Statistics().Merge(*row_group.GetStatistics(column_idx));
+			for (idx_t column_idx = 0; column_idx < existing_row_group.GetColumnCount(); column_idx++) {
+				global_stats.GetStats(*lock, column_idx)
+				    .Statistics()
+				    .Merge(*existing_row_group.GetStatistics(column_idx));
 			}
 			continue;
 		}
@@ -1613,6 +1655,7 @@ void RowGroupCollection::Checkpoint(TableDataWriter &writer, TableStatistics &gl
 			// row group was unchanged - emit previous row group
 			new_row_group = entry->ReferenceNode();
 		}
+		auto &row_group = *new_row_group;
 		RowGroupPointer pointer_copy;
 		auto debug_verify_blocks = Settings::Get<DebugVerifyBlocksSetting>(GetAttached().GetDatabase()) &&
 		                           dynamic_cast<SingleFileTableDataWriter *>(&checkpoint_state.writer) != nullptr;
@@ -1631,8 +1674,8 @@ void RowGroupCollection::Checkpoint(TableDataWriter &writer, TableStatistics &gl
 		}
 
 		writer.AddRowGroup(std::move(pointer), std::move(row_group_writer));
-		new_row_groups->AppendSegment(l, std::move(new_row_group));
 		new_total_rows += row_group.count;
+		new_row_groups->AppendSegment(l, std::move(new_row_group));
 
 		if (debug_verify_blocks) {
 			if (!pointer_copy.has_metadata_blocks) {
@@ -1693,21 +1736,18 @@ void RowGroupCollection::Checkpoint(TableDataWriter &writer, TableStatistics &gl
 			if (all_written_block_ids != all_quick_read_block_ids ||
 			    all_quick_read_block_ids != all_full_read_block_ids) {
 				std::stringstream oss;
-				oss << "Written: ";
+				oss << "\nWritten: ";
 				for (auto &block : all_written_blocks) {
 					oss << block << ", ";
 				}
-				oss << "\n";
-				oss << "Quick read: ";
+				oss << "\nQuick read: ";
 				for (auto &block : all_quick_read_blocks) {
 					oss << block << ", ";
 				}
-				oss << "\n";
-				oss << "Full read: ";
+				oss << "\nFull read: ";
 				for (auto &block : all_full_read_blocks) {
 					oss << block << ", ";
 				}
-				oss << "\n";
 
 				throw InternalException("Reloading blocks just written does not yield same blocks: " + oss.str());
 			}

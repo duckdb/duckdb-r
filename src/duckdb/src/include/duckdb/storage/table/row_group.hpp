@@ -167,6 +167,7 @@ public:
 	RowGroupWriteData WriteToDisk(RowGroupWriteInfo &info) const;
 	//! Returns the number of committed rows (count - committed deletes)
 	idx_t GetCommittedRowCount();
+	bool CanReuseMetadata(RowGroupWriter &writer) const;
 	RowGroupWriteData WriteToDisk(RowGroupWriter &writer);
 	RowGroupPointer Checkpoint(RowGroupWriteData write_data, RowGroupWriter &writer, TableStatistics &global_stats,
 	                           idx_t row_group_start);
@@ -213,6 +214,10 @@ public:
 	idx_t GetColumnCount() const;
 
 	vector<MetaBlockPointer> CheckpointDeletes(RowGroupWriter &writer);
+
+	//! Direct accessors, fall outside of general use but can be useful to some extensions
+	ColumnData &GetRawColumnData(const StorageIndex &c) const;
+	ColumnData &GetRawColumnData(storage_t c) const;
 
 private:
 	optional_ptr<RowVersionManager> GetVersionInfo();

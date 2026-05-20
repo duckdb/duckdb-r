@@ -138,6 +138,38 @@ struct DuckDBAdbcStreamWrapper {
 	duckdb::DuckDBAdbcConnectionWrapper *conn_wrapper;
 };
 
+class DuckDBAdbcStreamWrapperGuard {
+public:
+	explicit DuckDBAdbcStreamWrapperGuard(DuckDBAdbcStreamWrapper *ptr_p) : ptr(ptr_p) {
+	}
+	DuckDBAdbcStreamWrapperGuard(const DuckDBAdbcStreamWrapperGuard &) = delete;
+	DuckDBAdbcStreamWrapperGuard &operator=(const DuckDBAdbcStreamWrapperGuard &) = delete;
+
+	~DuckDBAdbcStreamWrapperGuard() {
+		if (ptr) {
+			duckdb_destroy_result(&ptr->result);
+			free(ptr);
+		}
+	}
+
+	DuckDBAdbcStreamWrapper *release() {
+		auto tmp = ptr;
+		ptr = nullptr;
+		return tmp;
+	}
+
+	DuckDBAdbcStreamWrapper *get() const {
+		return ptr;
+	}
+
+	DuckDBAdbcStreamWrapper *operator->() const {
+		return ptr;
+	}
+
+private:
+	DuckDBAdbcStreamWrapper *ptr;
+};
+
 static bool IsInterruptError(const char *message) {
 	if (!message) {
 		return false;
@@ -1194,6 +1226,14 @@ AdbcStatusCode Ingest(duckdb_connection connection, const char *catalog, const c
 		SetError(error, "Missing database object name");
 		return ADBC_STATUS_INVALID_ARGUMENT;
 	}
+	const auto missing_table_error = std::string("Table \"") + table_name + "\" does not exist";
+	auto set_ingest_error = [&](const std::string &msg) {
+		if (msg.find("could not be found") != std::string::npos) {
+			SetError(error, missing_table_error);
+		} else {
+			SetError(error, msg);
+		}
+	};
 	if (schema && temporary) {
 		// Temporary option is not supported with ADBC_INGEST_OPTION_TARGET_DB_SCHEMA
 		SetError(error, "Temporary option is not supported with schema");
@@ -1210,6 +1250,7 @@ AdbcStatusCode Ingest(duckdb_connection connection, const char *catalog, const c
 	// Prefer explicit three-part names; two-part names can be ambiguous.
 	const char *effective_catalog = catalog;
 	const char *effective_schema = schema;
+	std::string resolved_catalog;
 	if (temporary) {
 		// Temporary tables live in the special "temp" catalog.
 		// "CREATE TEMP TABLE" automatically places tables in temp.main.
@@ -1220,6 +1261,26 @@ AdbcStatusCode Ingest(duckdb_connection connection, const char *catalog, const c
 		// Default schema for attached catalogs (DEFAULT_SCHEMA).
 		// Use catalog.main.table to avoid catalog/schema name ambiguity.
 		effective_schema = "main";
+	} else if (!catalog) {
+		// DuckDB's name resolution prioritizes the "temp" catalog, so without an explicit
+		// catalog a same-named temp table would shadow the persistent target. Resolve the
+		// current catalog explicitly to avoid that. Fallback "memory" may not match the
+		// actual catalog for file-based databases.
+		duckdb_result cat_result = {};
+		if (duckdb_query(connection, "SELECT current_catalog()", &cat_result) == DuckDBSuccess) {
+			char *val = duckdb_value_varchar(&cat_result, 0, 0);
+			if (val) {
+				resolved_catalog = val;
+				duckdb_free(val);
+			}
+			effective_catalog = !resolved_catalog.empty() ? resolved_catalog.c_str() : "memory";
+		} else {
+			effective_catalog = "memory";
+		}
+		duckdb_destroy_result(&cat_result);
+		if (!schema) {
+			effective_schema = "main";
+		}
 	}
 
 	duckdb::ArrowSchemaWrapper arrow_schema_wrapper;
@@ -1296,6 +1357,11 @@ AdbcStatusCode Ingest(duckdb_connection connection, const char *catalog, const c
 	}
 	AppenderWrapper appender(connection, effective_catalog, effective_schema, table_name);
 	if (!appender.Valid()) {
+		if (!appender.CreateError().empty()) {
+			set_ingest_error(appender.CreateError());
+		} else {
+			SetError(error, missing_table_error);
+		}
 		return ADBC_STATUS_INTERNAL;
 	}
 	duckdb::ArrowArrayWrapper arrow_array_wrapper;
@@ -1320,7 +1386,11 @@ AdbcStatusCode Ingest(duckdb_connection connection, const char *catalog, const c
 		if (duckdb_append_data_chunk(appender.Get(), out_chunk.chunk) != DuckDBSuccess) {
 			auto error_data = duckdb_appender_error_data(appender.Get());
 			auto err = duckdb_error_data_message(error_data);
-			SetError(error, err);
+			if (err && err[0] != '\0') {
+				set_ingest_error(err);
+			} else {
+				SetError(error, missing_table_error);
+			}
 			bool interrupted = IsInterruptError(err);
 			duckdb_destroy_error_data(&error_data);
 			return interrupted ? ADBC_STATUS_CANCELLED : ADBC_STATUS_INTERNAL;
@@ -1545,17 +1615,18 @@ AdbcStatusCode StatementExecuteQuery(struct AdbcStatement *statement, struct Arr
 		return ADBC_STATUS_OK;
 	}
 
-	auto stream_wrapper = static_cast<DuckDBAdbcStreamWrapper *>(malloc(sizeof(DuckDBAdbcStreamWrapper)));
-	if (!stream_wrapper) {
+	auto *raw_stream_wrapper = static_cast<DuckDBAdbcStreamWrapper *>(malloc(sizeof(DuckDBAdbcStreamWrapper)));
+	if (!raw_stream_wrapper) {
 		SetError(error, "Allocation error");
 		return ADBC_STATUS_INVALID_ARGUMENT;
 	}
-	stream_wrapper->last_error = nullptr;
-	stream_wrapper->status_code = ADBC_STATUS_OK;
-	stream_wrapper->materialized = nullptr;
-	stream_wrapper->conn_wrapper = wrapper->conn_wrapper;
-	std::memset(&stream_wrapper->adbc_error, 0, sizeof(stream_wrapper->adbc_error));
-	std::memset(&stream_wrapper->result, 0, sizeof(stream_wrapper->result));
+	raw_stream_wrapper->last_error = nullptr;
+	raw_stream_wrapper->status_code = ADBC_STATUS_OK;
+	raw_stream_wrapper->materialized = nullptr;
+	raw_stream_wrapper->conn_wrapper = wrapper->conn_wrapper;
+	std::memset(&raw_stream_wrapper->adbc_error, 0, sizeof(raw_stream_wrapper->adbc_error));
+	std::memset(&raw_stream_wrapper->result, 0, sizeof(raw_stream_wrapper->result));
+	DuckDBAdbcStreamWrapperGuard stream_wrapper(raw_stream_wrapper);
 	// Only process the stream if there are parameters to bind
 	auto prepared_statement_params = reinterpret_cast<duckdb::PreparedStatementWrapper *>(wrapper->statement)
 	                                     ->statement->data->properties.parameter_count;
@@ -1571,9 +1642,9 @@ AdbcStatusCode StatementExecuteQuery(struct AdbcStatement *statement, struct Arr
 			if (res) {
 				SetError(error, duckdb_error_data_message(res));
 				duckdb_destroy_error_data(&res);
+				return ADBC_STATUS_INVALID_ARGUMENT;
 			}
 		} catch (...) {
-			free(stream_wrapper);
 			return ADBC_STATUS_INTERNAL;
 		}
 
@@ -1593,24 +1664,20 @@ AdbcStatusCode StatementExecuteQuery(struct AdbcStatement *statement, struct Arr
 			}
 			if (!out_chunk.chunk) {
 				SetError(error, "Please provide a non-empty chunk to be bound");
-				free(stream_wrapper);
 				return ADBC_STATUS_INVALID_ARGUMENT;
 			}
 			auto chunk = reinterpret_cast<duckdb::DataChunk *>(out_chunk.chunk);
 			if (chunk->size() == 0) {
 				SetError(error, "Please provide a non-empty chunk to be bound");
-				free(stream_wrapper);
 				return ADBC_STATUS_INVALID_ARGUMENT;
 			}
 			if (chunk->size() != 1) {
 				// TODO: add support for binding multiple rows
 				SetError(error, "Binding multiple rows at once is not supported yet");
-				free(stream_wrapper);
 				return ADBC_STATUS_NOT_IMPLEMENTED;
 			}
 			if (chunk->ColumnCount() > prepared_statement_params) {
 				SetError(error, "Input data has more column than prepared statement has parameters");
-				free(stream_wrapper);
 				return ADBC_STATUS_INVALID_ARGUMENT;
 			}
 			duckdb_clear_bindings(wrapper->statement);
@@ -1620,7 +1687,6 @@ AdbcStatusCode StatementExecuteQuery(struct AdbcStatement *statement, struct Arr
 				auto res = duckdb_bind_value(wrapper->statement, 1 + col_idx, duck_val);
 				if (res != DuckDBSuccess) {
 					SetError(error, duckdb_prepare_error(wrapper->statement));
-					free(stream_wrapper);
 					return ADBC_STATUS_INVALID_ARGUMENT;
 				}
 			}
@@ -1631,8 +1697,6 @@ AdbcStatusCode StatementExecuteQuery(struct AdbcStatement *statement, struct Arr
 				auto err = duckdb_result_error(&stream_wrapper->result);
 				SetError(error, err);
 				bool interrupted = IsInterruptError(err);
-				duckdb_destroy_result(&stream_wrapper->result);
-				free(stream_wrapper);
 				return interrupted ? ADBC_STATUS_CANCELLED : ADBC_STATUS_INVALID_ARGUMENT;
 			}
 			// Recreate wrappers for next iteration
@@ -1645,8 +1709,6 @@ AdbcStatusCode StatementExecuteQuery(struct AdbcStatement *statement, struct Arr
 			auto err = duckdb_result_error(&stream_wrapper->result);
 			SetError(error, err);
 			bool interrupted = IsInterruptError(err);
-			duckdb_destroy_result(&stream_wrapper->result);
-			free(stream_wrapper);
 			return interrupted ? ADBC_STATUS_CANCELLED : ADBC_STATUS_INVALID_ARGUMENT;
 		}
 	}
@@ -1667,20 +1729,16 @@ AdbcStatusCode StatementExecuteQuery(struct AdbcStatement *statement, struct Arr
 	}
 
 	if (out) {
-		// We pass ownership of the statement private data to our stream
-		out->private_data = stream_wrapper;
+		auto *released = stream_wrapper.release();
+		out->private_data = released;
 		out->get_schema = get_schema;
 		out->get_next = get_next;
 		out->release = release;
 		out->get_last_error = get_last_error;
 		// Register this stream wrapper so it can be materialized if another query runs
 		if (wrapper->conn_wrapper) {
-			wrapper->conn_wrapper->RegisterStream(stream_wrapper);
+			wrapper->conn_wrapper->RegisterStream(released);
 		}
-	} else {
-		// Caller didn't request a stream; clean up resources
-		duckdb_destroy_result(&stream_wrapper->result);
-		free(stream_wrapper);
 	}
 
 	return ADBC_STATUS_OK;

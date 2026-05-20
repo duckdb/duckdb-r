@@ -11,6 +11,8 @@
 #include "duckdb/execution/index/unbound_index.hpp"
 #include "duckdb/main/attached_database.hpp"
 #include "duckdb/main/client_context.hpp"
+#include "duckdb/main/profiling_utils.hpp"
+#include "duckdb/main/query_profiler.hpp"
 #include "duckdb/parser/constraints/list.hpp"
 #include "duckdb/planner/constraints/list.hpp"
 #include "duckdb/planner/expression/bound_constant_expression.hpp"
@@ -68,7 +70,7 @@ DataTable::DataTable(AttachedDatabase &db, shared_ptr<TableIOManager> table_io_m
 	this->row_groups = make_shared_ptr<RowGroupCollection>(info, io_manager, types, 0);
 	if (data && data->row_group_count > 0) {
 		this->row_groups->Initialize(*data);
-		row_groups->SetAppendRequiresNewRowGroup();
+		row_groups->SetRowGroupAppendMode(RowGroupAppendMode::SUGGEST_NEW);
 	} else {
 		this->row_groups->InitializeEmpty();
 		D_ASSERT(row_groups->GetTotalRows() == 0);
@@ -1156,7 +1158,7 @@ void DataTable::AppendLock(DuckTransaction &transaction, TableAppendState &state
 		// there is a checkpoint active while we are appending
 		// in this case we cannot just blindly append to the last row group, because we need to checkpoint that
 		// always start a new row group in this case
-		row_groups->SetAppendRequiresNewRowGroup();
+		row_groups->SetRowGroupAppendMode(RowGroupAppendMode::REQUIRE_NEW);
 	}
 }
 
@@ -1484,7 +1486,8 @@ void DataTable::RevertIndexAppend(TableAppendState &state, DataChunk &chunk, Vec
 
 void DataTable::RemoveFromIndexes(const QueryContext &context, Vector &row_identifiers, idx_t count,
                                   IndexRemovalType removal_type, optional_idx active_checkpoint) {
-	D_ASSERT(IsMainTable());
+	D_ASSERT(IsMainTable() || removal_type == IndexRemovalType::REVERT_MAIN_INDEX ||
+	         removal_type == IndexRemovalType::REVERT_MAIN_INDEX_ONLY);
 	row_groups->RemoveFromIndexes(context, info->indexes, row_identifiers, count, removal_type, active_checkpoint);
 }
 
@@ -1816,9 +1819,15 @@ void DataTable::Checkpoint(TableDataWriter &writer, Serializer &serializer) {
 	// checkpoint each individual row group
 	TableStatistics global_stats;
 	row_groups->Checkpoint(writer, global_stats);
-	row_groups->SetAppendRequiresNewRowGroup();
+	row_groups->SetRowGroupAppendMode(RowGroupAppendMode::SUGGEST_NEW);
 	if (writer.GetRebuildIndexes()) {
+		ActiveTimer timer;
+		auto context = writer.TryGetClientContext();
+		if (context) {
+			timer = QueryProfiler::Get(*context).StartTimer(MetricType::CUMULATIVE_VACUUM_TIME);
+		}
 		RebuildIndexes();
+		timer.EndTimer();
 	}
 	// The row group payload data has been written. Now write:
 	//   sample
@@ -1844,6 +1853,19 @@ idx_t DataTable::ColumnCount() const {
 
 idx_t DataTable::GetTotalRows() const {
 	return row_groups->GetTotalRows();
+}
+
+idx_t DataTable::GetRowGroupCount() const {
+	return row_groups->GetRowGroupCount();
+}
+
+idx_t DataTable::GetRowGroupCountWithLocalStorage(ClientContext &context) {
+	auto &local_storage = LocalStorage::Get(context, db);
+	auto storage = local_storage.GetStorage(*this);
+	if (!storage) {
+		return GetRowGroupCount();
+	}
+	return GetRowGroupCount() + storage->GetCollection().GetRowGroupCount();
 }
 
 void DataTable::CommitDropTable() {
