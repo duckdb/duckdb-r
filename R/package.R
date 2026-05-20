@@ -3,7 +3,7 @@ get_package_name <- function() {
 }
 
 system_file_path <- function(...) {
-  file.path(..., system.file(package = get_package_name()))
+  file.path(system.file(package = get_package_name()), ...)
 }
 
 get_package_spec <- function() {
