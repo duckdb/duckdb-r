@@ -24,7 +24,7 @@ default_user_directory <- function() {
 #   Windows, user library :
 #     %LOCALAPPDATA%\R\win-library\4.5\duckdb\extensions\v1.5.3\windows_amd64_mingw\spatial.duckdb_extension
 default_extension_directory <- function() {
-  file.path(system.file(package = "duckdb"), "extensions")
+  system_file_path("extensions")
 }
 
 default_secret_directory <- function() {
