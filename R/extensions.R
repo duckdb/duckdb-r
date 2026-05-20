@@ -2,34 +2,29 @@ default_user_directory <- function() {
   tools::R_user_dir("duckdb", "data")
 }
 
-# Extension binaries are downloaded to:
+# Extension binaries are stored inside the duckdb package's installed
+# library directory:
 #
-#   <user_dir>/extensions/<runtime>/v<version>/<duckdb_platform>/<ext>.duckdb_extension
+#   <system.file(package = "duckdb")>/extensions/v<version>/<duckdb_platform>/<ext>.duckdb_extension
 #
-# The <runtime> segment partitions the cache by C++ standard library so that
-# co-existing R installations on one machine never load each other's
-# ABI-incompatible binaries. Example layouts for the spatial extension:
+# Co-locating the cache with the package install guarantees that downloaded
+# extensions are paired with the exact toolchain that built duckdb itself,
+# regardless of C++ standard library, compiler version, or other ABI-relevant
+# settings. When the package is reinstalled (upgrade, downgrade, fresh
+# install on a new R), the install directory is replaced and the cache is
+# wiped together with the old binaries, so the next download picks up
+# extensions matching the new build.
 #
-#   Linux,   GCC / libstdc++ :
-#     ~/.local/share/R/duckdb/extensions/libstdcxx/v1.5.3/linux_amd64/spatial.duckdb_extension
-#   Linux,   Clang / libc++  :
-#     ~/.local/share/R/duckdb/extensions/libcxx/v1.5.3/linux_amd64/spatial.duckdb_extension
-#   macOS,   Clang / libc++  :
-#     ~/Library/Application Support/org.R-project.R/R/duckdb/extensions/libcxx/v1.5.3/osx_arm64/spatial.duckdb_extension
-#   Windows, Rtools / MinGW  :
-#     %LOCALAPPDATA%\R\data\R\duckdb\extensions\libstdcxx\v1.5.3\windows_amd64_mingw\spatial.duckdb_extension
+# Example layouts for the spatial extension:
 #
-# When runtime detection fails (or the package is loaded without going
-# through ./configure), the <runtime> segment is omitted and the legacy
-# unpartitioned path is used.
+#   Linux,   user library :
+#     ~/R/x86_64-pc-linux-gnu-library/4.5/duckdb/extensions/v1.5.3/linux_amd64/spatial.duckdb_extension
+#   macOS,   user library :
+#     ~/Library/R/arm64/4.5/library/duckdb/extensions/v1.5.3/osx_arm64/spatial.duckdb_extension
+#   Windows, user library :
+#     %LOCALAPPDATA%\R\win-library\4.5\duckdb\extensions\v1.5.3\windows_amd64_mingw\spatial.duckdb_extension
 default_extension_directory <- function() {
-  base <- file.path(default_user_directory(), "extensions")
-  runtime <- the$cxx_runtime
-  if (is.null(runtime) || !nzchar(runtime)) {
-    base
-  } else {
-    file.path(base, runtime)
-  }
+  file.path(system.file(package = "duckdb"), "extensions")
 }
 
 default_secret_directory <- function() {
@@ -41,19 +36,11 @@ cleanup_user_directory <- function() {
   if (!dir.exists(user_directory)) {
     return()
   }
-  user_files <- setdiff(list.files(user_directory), c("extensions", "stored_secrets"))
+  # Extensions are no longer kept under R_user_dir; drop any leftovers from
+  # earlier versions while preserving stored_secrets which still lives here.
+  user_files <- setdiff(list.files(user_directory), "stored_secrets")
   if (length(user_files) > 0) {
     message("Deleting files in duckdb user directory: ", paste(user_files, collapse = ", "))
     unlink(file.path(user_directory, user_files), recursive = TRUE)
-  }
-
-  extension_directory <- default_extension_directory()
-  if (!dir.exists(extension_directory)) {
-    return()
-  }
-  extension_files <- setdiff(list.files(extension_directory), paste0("v", get_package_version()))
-  if (length(extension_files) > 0) {
-    message("Deleting files in duckdb extension directory: ", paste(extension_files, collapse = ", "))
-    unlink(file.path(extension_directory, extension_files), recursive = TRUE)
   }
 }

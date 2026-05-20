@@ -66,14 +66,11 @@ duckdb <- function(
     }
   }
 
-  # R packages are not allowed to write extensions into home directory, so use R_user_dir instead
-  # This is deliberately kept under the "duckdb" directory
-  # because extensions and secrets are shared across variants
-  # (duckdb.1.4, duckdb.dev, ...).
-  # The extension cache is additionally partitioned per C++ runtime
-  # (detected by ./configure, baked into R/cxx_runtime.R), so that R
-  # installations linking against different C++ standard libraries on the
-  # same machine do not load each other's ABI-incompatible binaries.
+  # Extensions are cached inside the duckdb package's installed library
+  # directory (see default_extension_directory()), which keeps the binaries
+  # paired with the C++ toolchain that built duckdb. Secrets continue to
+  # live under R_user_dir(), shared across duckdb variants
+  # (duckdb.1.4, duckdb.dev, ...), so they survive a package upgrade.
   if (!("extension_directory" %in% names(config))) {
     config["extension_directory"] <- default_extension_directory()
   }
