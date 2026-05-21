@@ -1,5 +1,5 @@
-duckdb 1.5.2
+duckdb 1.5.3
 
 ## Cran Repository Policy
 
-- [x] Reviewed CRP last edited 2026-02-20.
+- [x] Reviewed CRP last edited 2026-04-21.
