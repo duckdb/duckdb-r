@@ -281,6 +281,60 @@ test_that("ALTREP row names remain ALTREP after duplication", {
   expect_identical(rn_dup, 1:5)
 })
 
+test_that("Duplicated ALTREP row names stay ALTREP after a value-changing edit", {
+  df <- data.frame(a = 1:5, b = letters[1:5])
+  rel <- rel_from_df(con, df)
+  altrep_df <- rel_to_altrep(rel)
+
+  rn <- attr(altrep_df, "row.names")
+  rn_dup <- rn
+  rn_dup[1L] <- 999L
+
+  inspect_after <- capture.output(.Internal(inspect(rn_dup)))
+  expect_true(any(grepl("DUCKDB_ALTREP_REL_ROWNAMES", inspect_after, fixed = TRUE)))
+
+  expect_identical(rn_dup, c(999L, 2L, 3L, 4L, 5L))
+  expect_identical(rn, 1:5)
+})
+
+test_that("ALTREP row names survive repeated duplications", {
+  df <- data.frame(a = 1:5)
+  rel <- rel_from_df(con, df)
+  altrep_df <- rel_to_altrep(rel)
+
+  rn <- attr(altrep_df, "row.names")
+
+  rn_dup1 <- rn
+  rn_dup1[1L] <- rn_dup1[1L]
+
+  rn_dup2 <- rn_dup1
+  rn_dup2[1L] <- rn_dup2[1L]
+
+  inspect_out1 <- capture.output(.Internal(inspect(rn_dup1)))
+  expect_true(any(grepl("DUCKDB_ALTREP_REL_ROWNAMES", inspect_out1, fixed = TRUE)))
+
+  inspect_out2 <- capture.output(.Internal(inspect(rn_dup2)))
+  expect_true(any(grepl("DUCKDB_ALTREP_REL_ROWNAMES", inspect_out2, fixed = TRUE)))
+
+  expect_identical(rn_dup1, 1:5)
+  expect_identical(rn_dup2, 1:5)
+})
+
+test_that("ALTREP row names of larger relations remain ALTREP after duplication", {
+  df <- data.frame(a = 1:1000)
+  rel <- rel_from_df(con, df)
+  altrep_df <- rel_to_altrep(rel)
+
+  rn <- attr(altrep_df, "row.names")
+  rn_dup <- rn
+  rn_dup[1L] <- rn_dup[1L]
+
+  inspect_out <- capture.output(.Internal(inspect(rn_dup)))
+  expect_true(any(grepl("DUCKDB_ALTREP_REL_ROWNAMES", inspect_out, fixed = TRUE)))
+
+  expect_identical(rn_dup, 1:1000)
+})
+
 test_that("the altrep-conversion for relations work for weirdo types for strict = FALSE", {
   test_df <- data.frame(
     col_date = as.Date("2019-11-26"),
