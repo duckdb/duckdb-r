@@ -74,7 +74,13 @@ dbWriteTable__duckdb_connection_character_data.frame <- function(conn,
     col_idx <- 1
     for (name in col_names) {
       if (name %in% names(field.types)) {
-        cols <- c(cols, sprintf("#%d::%s %s", col_idx, field.types[name], dbQuoteIdentifier(conn, name)))
+        if (duckdb_is_map_type(field.types[[name]])) {
+          # `map_from_entries()` builds a MAP from a LIST(STRUCT(key, value))
+          # representation, which matches how MAPs are read back into R.
+          cols <- c(cols, sprintf("map_from_entries(#%d)::%s %s", col_idx, field.types[name], dbQuoteIdentifier(conn, name)))
+        } else {
+          cols <- c(cols, sprintf("#%d::%s %s", col_idx, field.types[name], dbQuoteIdentifier(conn, name)))
+        }
       } else {
         cols <- c(cols, sprintf("#%d", col_idx))
       }
