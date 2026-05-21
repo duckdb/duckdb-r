@@ -2,6 +2,10 @@
 
 #include <cpp11.hpp>
 
+// Avoid clash with TRUE and FALSE macros in older rtools
+#undef TRUE
+#undef FALSE
+
 using namespace cpp11;
 
 namespace duckdb {
@@ -29,6 +33,14 @@ ConvertOpts::ArrayConversion string_to_array_conversion(const std::string &str) 
 	if (str == "matrix")
 		return ConvertOpts::ArrayConversion::MATRIX;
 	rapi_error_with_context("string_to_array_conversion", "Invalid array value: " + str);
+}
+
+ConvertOpts::GeometryConversion string_to_geometry_conversion(const std::string &str) {
+	if (str == "blob")
+		return ConvertOpts::GeometryConversion::BLOB;
+	if (str == "wk")
+		return ConvertOpts::GeometryConversion::WK;
+	rapi_error_with_context("string_to_geometry_conversion", "Invalid geometry value: " + str);
 }
 
 ConvertOpts::ArrowConversion bool_to_arrow_conversion(bool use_arrow) {
@@ -61,6 +73,9 @@ ConvertOpts::ConvertOpts(cpp11::sexp options_nullable) {
 
 	// Extract array
 	array = string_to_array_conversion(as_cpp<std::string>(options["array"]));
+
+	// Extract geometry
+	geometry = string_to_geometry_conversion(as_cpp<std::string>(options["geometry"]));
 
 	// Extract arrow
 	arrow = bool_to_arrow_conversion(as_cpp<bool>(options["arrow"]));

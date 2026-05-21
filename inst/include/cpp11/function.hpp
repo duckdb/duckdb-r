@@ -1,10 +1,9 @@
-// cpp11 version: 0.5.2
-// vendored on: 2025-03-09
+// cpp11 version: 0.5.3.9000
+// vendored on: 2026-01-27
 #pragma once
 
-#include <string.h>  // for strcmp
-
 #include <cstdio>   // for snprintf
+#include <cstring>  // for strcmp
 #include <string>   // for string, basic_string
 #include <utility>  // for forward
 
@@ -69,8 +68,12 @@ class package {
     if (strcmp(name, "base") == 0) {
       return R_BaseEnv;
     }
+#if defined(R_VERSION) && R_VERSION >= R_Version(4, 6, 0)
+    return R_getRegisteredNamespace(name);
+#else
     sexp name_sexp = safe[Rf_install](name);
     return safe[detail::r_env_get](R_NamespaceRegistry, name_sexp);
+#endif
   }
 
   // Either base env or in namespace registry, so no protection needed

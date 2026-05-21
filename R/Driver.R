@@ -66,12 +66,16 @@ duckdb <- function(
     }
   }
 
-  # R packages are not allowed to write extensions into home directory, so use R_user_dir instead
+  # Extensions are cached inside the duckdb package's installed library
+  # directory (see default_extension_directory()), which keeps the binaries
+  # paired with the C++ toolchain that built duckdb. Secrets continue to
+  # live under R_user_dir(), shared across duckdb variants
+  # (duckdb.1.4, duckdb.dev, ...), so they survive a package upgrade.
   if (!("extension_directory" %in% names(config))) {
-    config["extension_directory"] <- file.path(tools::R_user_dir("duckdb", "data"), "extensions")
+    config["extension_directory"] <- default_extension_directory()
   }
   if (!("secret_directory" %in% names(config))) {
-    config["secret_directory"] <- file.path(tools::R_user_dir("duckdb", "data"), "stored_secrets")
+    config["secret_directory"] <- default_secret_directory()
   }
 
   # Always create new database for in-memory,

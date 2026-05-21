@@ -1,5 +1,3 @@
-#include "src/common/allocator.cpp"
-
 #include "src/common/assert.cpp"
 
 #include "src/common/bind_helpers.cpp"
@@ -24,6 +22,8 @@
 
 #include "src/common/encryption_state.cpp"
 
+#include "src/common/encryption_types.cpp"
+
 #include "src/common/exception.cpp"
 
 #include "src/common/exception_format_value.cpp"
@@ -35,6 +35,8 @@
 #include "src/common/file_system.cpp"
 
 #include "src/common/filename_pattern.cpp"
+
+#include "src/common/path.cpp"
 
 #include "src/common/fsst.cpp"
 
@@ -65,6 +67,8 @@
 #include "src/common/enum_util.cpp"
 
 #include "src/common/render_tree.cpp"
+
+#include "src/common/thread_util.cpp"
 
 #include "src/common/tree_renderer.cpp"
 

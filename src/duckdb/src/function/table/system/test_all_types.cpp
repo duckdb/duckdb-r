@@ -69,8 +69,10 @@ vector<TestType> TestAllTypesFun::GetTestTypes(const bool use_large_enum, const 
 	result.emplace_back(LogicalType::TIMESTAMP_TZ, "timestamp_tz");
 
 	// More complex numeric types.
-	result.emplace_back(LogicalType::FLOAT, "float");
-	result.emplace_back(LogicalType::DOUBLE, "double");
+	result.emplace_back(LogicalType::FLOAT, "float", Value::FLOAT(std::numeric_limits<float>::lowest()),
+	                    Value::FLOAT(std::numeric_limits<float>::max()));
+	result.emplace_back(LogicalType::DOUBLE, "double", Value::DOUBLE(std::numeric_limits<double>::lowest()),
+	                    Value::DOUBLE(std::numeric_limits<double>::max()));
 	result.emplace_back(LogicalType::DECIMAL(4, 1), "dec_4_1");
 	result.emplace_back(LogicalType::DECIMAL(9, 4), "dec_9_4");
 	result.emplace_back(LogicalType::DECIMAL(18, 6), "dec_18_6");
@@ -316,6 +318,51 @@ vector<TestType> TestAllTypesFun::GetTestTypes(const bool use_large_enum, const 
 	result.emplace_back(list_of_fixed_array_of_int_type, "list_of_fixed_int_array",
 	                    list_of_fixed_array_of_int_min_value, list_of_fixed_array_of_int_max_value);
 
+	result.emplace_back(LogicalType::TIME_NS, "time_ns");
+
+	// GEOMETRY
+	// - For min, use a regular empty point
+	// - For max, use some complicated nested geometry collection with a variety of empty and non-empty geometries,
+	// to cover as many code paths as possible
+
+	constexpr auto big_geom_wkt = R"WKT_LITERAL(
+		GEOMETRYCOLLECTION (
+			POINT (1 2),
+			POINT EMPTY,
+			LINESTRING (0 0, 1 1),
+			LINESTRING EMPTY,
+			POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0)),
+			POLYGON EMPTY,
+	        MULTIPOINT (
+				5 6,
+				EMPTY
+			),
+			MULTILINESTRING (
+				(0 0, 1 1),
+				EMPTY,
+				(2 2, 3 3),
+				EMPTY
+			),
+			MULTILINESTRING EMPTY,
+			MULTIPOLYGON (
+				((0 0, 0 1, 1 1, 1 0, 0 0)),
+				EMPTY,
+				((0 0, 0 2, 2 2, 2 0, 0 0)),
+				EMPTY
+			),
+			MULTIPOLYGON EMPTY,
+			GEOMETRYCOLLECTION (
+				POINT (5 6)
+			),
+			GEOMETRYCOLLECTION EMPTY
+		)
+	)WKT_LITERAL";
+
+	auto min_geometry = Value("POINT EMPTY").DefaultCastAs(LogicalType::GEOMETRY());
+	auto max_geometry = Value(big_geom_wkt).DefaultCastAs(LogicalType::GEOMETRY());
+
+	result.emplace_back(LogicalType::GEOMETRY(), "geometry", min_geometry, max_geometry);
+
 	return result;
 }
 
@@ -330,10 +377,16 @@ static unique_ptr<FunctionData> TestAllTypesBind(ClientContext &context, TableFu
 	bool use_large_bignum = false;
 	auto entry = input.named_parameters.find("use_large_enum");
 	if (entry != input.named_parameters.end()) {
+		if (entry->second.IsNull()) {
+			throw InvalidInputException("Cannot use NULL as argument for use_large_enum");
+		}
 		use_large_enum = BooleanValue::Get(entry->second);
 	}
 	entry = input.named_parameters.find("use_large_bignum");
 	if (entry != input.named_parameters.end()) {
+		if (entry->second.IsNull()) {
+			throw InvalidInputException("Cannot use NULL as argument for use_large_bignum");
+		}
 		use_large_bignum = BooleanValue::Get(entry->second);
 	}
 	result->test_types = TestAllTypesFun::GetTestTypes(use_large_enum, use_large_bignum);
@@ -344,7 +397,7 @@ static unique_ptr<FunctionData> TestAllTypesBind(ClientContext &context, TableFu
 	return std::move(result);
 }
 
-unique_ptr<GlobalTableFunctionState> TestAllTypesInit(ClientContext &context, TableFunctionInitInput &input) {
+static unique_ptr<GlobalTableFunctionState> TestAllTypesInit(ClientContext &context, TableFunctionInitInput &input) {
 	auto &bind_data = input.bind_data->Cast<TestAllTypesBindData>();
 	auto result = make_uniq<TestAllTypesData>();
 	// 3 rows: min, max and NULL
@@ -358,7 +411,7 @@ unique_ptr<GlobalTableFunctionState> TestAllTypesInit(ClientContext &context, Ta
 	return std::move(result);
 }
 
-void TestAllTypesFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
+static void TestAllTypesFunction(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
 	auto &data = data_p.global_state->Cast<TestAllTypesData>();
 	if (data.offset >= data.entries.size()) {
 		// finished returning values

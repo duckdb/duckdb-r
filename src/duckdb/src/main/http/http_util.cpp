@@ -8,12 +8,19 @@
 #include "duckdb/main/client_data.hpp"
 #include "duckdb/main/database.hpp"
 #include "duckdb/main/database_file_opener.hpp"
+#include "duckdb/main/settings.hpp"
 
-#ifndef DISABLE_DUCKDB_REMOTE_INSTALL
-#ifndef DUCKDB_DISABLE_EXTENSION_LOAD
+#ifdef DISABLE_DUCKDB_REMOTE_INSTALL
+#define DUCKDB_DISABLE_BUILTIN_HTTPLIB
+#endif
+#ifdef DUCKDB_DISABLE_EXTENSION_LOAD
+#define DUCKDB_DISABLE_BUILTIN_HTTPLIB
+#endif
+
+#ifndef DUCKDB_DISABLE_BUILTIN_HTTPLIB
 #include "httplib.hpp"
 #endif
-#endif
+
 #ifndef DUCKDB_NO_THREADS
 #include <chrono>
 #include <thread>
@@ -44,6 +51,7 @@ string HTTPHeaders::GetHeaderValue(const string &key) const {
 	return entry->second;
 }
 
+#ifndef DUCKDB_DISABLE_BUILTIN_HTTPLIB
 unique_ptr<HTTPResponse> TransformResponse(duckdb_httplib::Result &res) {
 	auto status_code = HTTPUtil::ToStatusCode(res ? res->status : 0);
 	auto result = make_uniq<HTTPResponse>(status_code);
@@ -59,6 +67,7 @@ unique_ptr<HTTPResponse> TransformResponse(duckdb_httplib::Result &res) {
 	}
 	return result;
 }
+#endif
 
 HTTPResponse::HTTPResponse(HTTPStatusCode code) : status(code) {
 }
@@ -87,8 +96,11 @@ const string &HTTPResponse::GetError() const {
 	return request_error.empty() ? reason : request_error;
 }
 
+HTTPUtil::HTTPUtil() {
+}
+
 HTTPUtil &HTTPUtil::Get(DatabaseInstance &db) {
-	return *db.config.http_util;
+	return db.config.GetHTTPUtil();
 }
 
 string HTTPUtil::GetName() const {
@@ -123,13 +135,14 @@ unique_ptr<HTTPResponse> HTTPUtil::Request(BaseRequest &request, unique_ptr<HTTP
 }
 
 BaseRequest::BaseRequest(RequestType type, const string &url, const HTTPHeaders &headers, HTTPParams &params)
-    : type(type), url(url), headers(headers), params(params) {
+    : type(type), url(url), headers(MergeHeaders(headers, params)), params(params) {
 	HTTPUtil::DecomposeURL(url, path, proto_host_port);
 }
 
+#ifndef DUCKDB_DISABLE_BUILTIN_HTTPLIB
 class HTTPLibClient : public HTTPClient {
 public:
-	HTTPLibClient(HTTPParams &http_params, const string &proto_host_port) {
+	HTTPLibClient(HTTPParams &http_params, const string &proto_host_port) : HTTPClient(proto_host_port) {
 		client = make_uniq<duckdb_httplib::Client>(proto_host_port);
 		Initialize(http_params);
 	}
@@ -191,9 +204,6 @@ private:
 		for (auto &entry : header_map) {
 			headers.insert(entry);
 		}
-		for (auto &entry : params.extra_headers) {
-			headers.insert(entry);
-		}
 		return headers;
 	}
 
@@ -219,14 +229,27 @@ private:
 		}
 	}
 };
+#endif
 
 unique_ptr<HTTPClient> HTTPUtil::InitializeClient(HTTPParams &http_params, const string &proto_host_port) {
+#ifndef DUCKDB_DISABLE_BUILTIN_HTTPLIB
 	return make_uniq<HTTPLibClient>(http_params, proto_host_port);
+#else
+	return nullptr;
+#endif
+}
+
+void HTTPUtil::CloseClient(unique_ptr<HTTPClient> &&) {
+	// default: no-op, client is destroyed
 }
 
 unique_ptr<HTTPResponse> HTTPUtil::SendRequest(BaseRequest &request, unique_ptr<HTTPClient> &client) {
 	if (!client) {
 		client = InitializeClient(request.params, request.proto_host_port);
+		if (!client) {
+			throw InvalidConfigurationException(
+			    "HTTPClient is not been setup yet (possibly due to configuration), no HTTP request can be performed");
+		}
 	}
 
 	std::function<unique_ptr<HTTPResponse>(void)> on_request([&]() {
@@ -459,16 +482,16 @@ HTTPUtil::RunRequestWithRetry(const std::function<unique_ptr<HTTPResponse>(void)
 void HTTPParams::Initialize(optional_ptr<FileOpener> opener) {
 	auto db = FileOpener::TryGetDatabase(opener);
 	if (db) {
-		auto &config = db->config;
-		if (!config.options.http_proxy.empty()) {
+		auto &http_proxy_setting = db->config.options.http_proxy;
+		if (!http_proxy_setting.empty()) {
 			idx_t port;
 			string host;
-			HTTPUtil::ParseHTTPProxyHost(config.options.http_proxy, host, port);
+			HTTPUtil::ParseHTTPProxyHost(http_proxy_setting, host, port);
 			http_proxy = host;
 			http_proxy_port = port;
 		}
-		http_proxy_username = config.options.http_proxy_username;
-		http_proxy_password = config.options.http_proxy_password;
+		http_proxy_username = Settings::Get<HTTPProxyUsernameSetting>(*db);
+		http_proxy_password = Settings::Get<HTTPProxyPasswordSetting>(*db);
 	}
 
 	auto client_context = FileOpener::TryGetClientContext(opener);
@@ -515,6 +538,15 @@ unique_ptr<HTTPResponse> HTTPClient::Request(BaseRequest &request) {
 		return Post(request.Cast<PostRequestInfo>());
 	default:
 		throw InternalException("Unsupported request type");
+	}
+}
+
+bool HTTPUtil::IsHTTPProtocol(const string &url) {
+	return StringUtil::StartsWith(url, "http://");
+}
+void HTTPUtil::BumpToSecureProtocol(string &url) {
+	if (IsHTTPProtocol(url)) {
+		url = "https://" + url.substr(7);
 	}
 }
 

@@ -73,7 +73,7 @@ the <- new.env(parent = emptyenv())
 default_conn <- function() {
   if(!exists("con", the)) {
     con <- DBI::dbConnect(
-      duckdb::duckdb(environment_scan = TRUE),
+      duckdb(environment_scan = TRUE),
       timezone_out = "",
       array = "matrix"
     )

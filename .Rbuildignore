@@ -42,4 +42,7 @@ _files$
 ^\.Rprofile$
 ^\.clangd$
 ^src/include/deps\.mk$
-^CLAUDE\.md$
+^AGENTS\.md$
+^BRANCHES\.md$
+^\.claude$
+^extensions$

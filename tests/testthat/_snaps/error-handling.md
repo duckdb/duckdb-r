@@ -5,7 +5,7 @@
     Condition
       Error in `rapi_error()`:
       ! test message
-      ℹ Context: test_context
+      i Context: test_context
 
 ---
 
@@ -14,8 +14,8 @@
     Condition
       Error in `rapi_error()`:
       ! test message
-      ℹ Context: test_context
-      ℹ Error type: PARSER
+      i Context: test_context
+      i Error type: PARSER
 
 ---
 
@@ -24,8 +24,8 @@
     Condition
       Error in `rapi_error()`:
       ! test message
-      ℹ Context: test_context
-      ℹ Error type: PARSER
+      i Context: test_context
+      i Error type: PARSER
 
 ---
 
@@ -34,7 +34,7 @@
     Condition
       Error in `rapi_error()`:
       ! test message
-      ℹ Context: test_context
-      ℹ Error type: PARSER
-      ℹ key: value
+      i Context: test_context
+      i Error type: PARSER
+      i key: value
 

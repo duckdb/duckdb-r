@@ -1,5 +1,6 @@
 test_that("test_all_types() output", {
   skip_on_os("windows")
+  skip_if_not(getRversion() >= "4.3")
 
   con <- local_con(array = "matrix")
 
@@ -22,6 +23,8 @@ test_that("test_all_types() output", {
       "fixed_struct_array",
       "fixed_array_of_int_list",
       "bignum",
+      "time_ns",
+      "geometry",
       NULL
     )
 

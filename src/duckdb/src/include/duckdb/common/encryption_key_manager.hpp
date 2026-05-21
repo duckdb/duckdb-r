@@ -17,7 +17,6 @@
 namespace duckdb {
 
 class EncryptionKey {
-
 public:
 	explicit EncryptionKey(data_ptr_t encryption_key);
 	~EncryptionKey();
@@ -33,6 +32,10 @@ public:
 		return key;
 	}
 
+	data_ptr_t GetData() {
+		return key;
+	}
+
 public:
 	static void LockEncryptionKey(data_ptr_t key, idx_t key_len = MainHeader::DEFAULT_ENCRYPTION_KEY_LENGTH);
 	static void UnlockEncryptionKey(data_ptr_t key, idx_t key_len = MainHeader::DEFAULT_ENCRYPTION_KEY_LENGTH);
@@ -42,7 +45,6 @@ private:
 };
 
 class EncryptionKeyManager : public ObjectCacheEntry {
-
 public:
 	static EncryptionKeyManager &GetInternal(ObjectCache &cache);
 	static EncryptionKeyManager &Get(ClientContext &context);
@@ -52,11 +54,16 @@ public:
 	void AddKey(const string &key_name, data_ptr_t key);
 	bool HasKey(const string &key_name) const;
 	void DeleteKey(const string &key_name);
+	void ClearKey(const string &key_name);
+	void EraseKey(const string &key_name);
 	const_data_ptr_t GetKey(const string &key_name) const;
 
 public:
 	static string ObjectType();
 	string GetObjectType() override;
+	optional_idx GetEstimatedCacheMemory() const override {
+		return optional_idx {};
+	}
 
 public:
 public:

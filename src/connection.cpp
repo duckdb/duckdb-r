@@ -3,6 +3,10 @@
 #include "r_progress_bar_display.hpp"
 #include "rapi.hpp"
 
+// Avoid clash with TRUE and FALSE macros in older rtools
+#undef TRUE
+#undef FALSE
+
 using namespace duckdb;
 
 void duckdb::ConnDeleter(ConnWrapper *conn) {

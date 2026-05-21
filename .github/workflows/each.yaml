@@ -1,14 +1,27 @@
 # Helper workflow to trigger rcc for each commit on a branch
+# Triggers rcc for commits after the first commit in the first-parent history
+#   that already has an rcc build status.
+#   The user can always rebase and force-push to move commits past the boundary and
+#   re-trigger builds for specific commits.
 
 on:
   push:
     branches:
       - each-*
+      - '*-dev'
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      branch:
+        description: "Branch ref to trigger rcc for (e.g. refs/heads/main-dev)"
+        required: true
+        type: string
 
 name: each-rcc
 
 jobs:
   each-rcc:
+    if: github.repository == 'krlmlr/duckdb-r'
     runs-on: ubuntu-24.04
     outputs:
       sha: ${{ steps.commit.outputs.sha }}
@@ -26,29 +39,13 @@ jobs:
     # End custom: services
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ inputs.branch || github.ref }}
           fetch-depth: 0
 
-      - name: Enumerate all commits from the repository's main branch
+      - name: Enumerate commits and trigger rcc workflow
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          # Get name of corresponding base branch by stripping the "each-" prefix
-          base_branch=${GITHUB_REF#refs/heads/each-}
-          commits=$(git log --reverse --pretty=format:"%H" origin/${base_branch}.. --)
-          echo $commits
-
-          # Run workflow for each commit where the status of the rcc workflow isn't "pending" or "success"
-          for commit in $commits; do
-            echo $commit
-            # Get first status of the workflow with the name "rcc"
-            status=$(gh api repos/{owner}/{repo}/commits/${commit}/statuses | jq -r '.[] | select(.context == "rcc") | .state' | head -n 1)
-            echo $status
-            if [[ "$status" != "pending" && "$status" != "success" ]]; then
-              echo "Running rcc for commit $commit"
-              gh workflow run rcc -f ref=$commit -r ${{ github.ref }}
-            fi
-          done
+        run: scripts/each-rcc.sh
         shell: bash

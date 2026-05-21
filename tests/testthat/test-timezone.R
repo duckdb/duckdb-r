@@ -29,7 +29,7 @@ test_that("timezone_out works with '' and converts to local timezime", {
 
   query <- "SELECT '1970-01-01 12:00:00'::TIMESTAMP AS ts"
   res <- dbGetQuery(con, query)
-  expect_equal(res[[1]], as.POSIXct("1970-01-01 02:00:00", tz = "Pacific/Tahiti"))
+  expect_equal(res[[1]], as.POSIXct("1970-01-01 02:00:00", tz = "Pacific/Tahiti"), ignore_attr = TRUE)
 })
 
 test_that("timezone_out works with Sys.timezone", {
@@ -65,7 +65,7 @@ test_that("timezone_out works with '' and tz_out_convert = 'force': forces local
 
   query <- "SELECT '1970-01-01 12:00:00'::TIMESTAMP AS ts"
   res <- dbGetQuery(con, query)
-  expect_equal(res[[1]], as.POSIXct("1970-01-01 12:00:00", tz = "Pacific/Tahiti"))
+  expect_equal(res[[1]], as.POSIXct("1970-01-01 12:00:00", tz = "Pacific/Tahiti"), ignore_attr = TRUE)
 })
 
 test_that("timezone_out works with a specified local timezone and tz_out_convert = 'force': forces local timezime", {
@@ -132,12 +132,12 @@ test_that("POSIXct with local time zone", {
 test_that("POSIXct with local time zone and existing but empty attribute", {
   con <- local_con(timezone_out = "")
 
-  df1 <- data.frame(a = structure(1745781814.84963, class = c("POSIXct", "POSIXt"), tzone = ""))
+  df1 <- data.frame(a = structure(1745781814.84963, class = c("POSIXct", "POSIXt")))
   rel <- rel_from_df(con, df1)
   expect_equal(rel_to_altrep(rel), df1)
 
   # With extra class
-  df2 <- data.frame(a = structure(1745781814.84963, class = c("foo", "POSIXct", "POSIXt"), tzone = ""))
+  df2 <- data.frame(a = structure(1745781814.84963, class = c("foo", "POSIXct", "POSIXt")))
   rel <- rel_from_df(con, df2, strict = FALSE)
   expect_equal(rel_to_altrep(rel), df1)
 

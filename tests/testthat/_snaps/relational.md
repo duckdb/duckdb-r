@@ -1,3 +1,14 @@
+# we can create various expressions and don't crash
+
+    Code
+      expr_reference("asdf")
+    Message
+      DuckDB Expression: asdf
+    Code
+      expr_constant("asdf")
+    Message
+      DuckDB Expression: 'asdf'
+
 # we can create comparison expressions with appropriate operators
 
     Code
@@ -64,6 +75,31 @@
       Error:
       ! expr_comparison: Invalid comparison operator
 
+# we can create operator expressions
+
+    Code
+      expr_operator("IN", list(expr_reference("some_column"), expr_constant(-42),
+      expr_constant(42)))
+    Message
+      DuckDB Expression: (some_column IN (-42.0, 42.0))
+
+---
+
+    Code
+      expr_operator("NOT IN", list(expr_reference("some_column"), expr_constant(-42),
+      expr_constant(42)))
+    Message
+      DuckDB Expression: (some_column NOT IN (-42.0, 42.0))
+
+---
+
+    Code
+      expr_operator("BOGUS", list(expr_reference("some_column"), expr_constant(-42),
+      expr_constant(42)))
+    Condition
+      Error:
+      ! expr_operator: Invalid operator
+
 # the altrep-conversion for relations works
 
     Code
@@ -116,7 +152,7 @@
       writeLines(rel_explain_df(proj)[[2]])
     Output
       ┌───────────────────────────┐
-      │     R_DATAFRAME_SCAN      │
+      │      R_DATAFRAME_SCAN     │
       │    ────────────────────   │
       │      Text: data.frame     │
       │       Projections: x      │
@@ -139,7 +175,7 @@
     Output
       [
           {
-              "name": "R_DATAFRAME_SCAN ",
+              "name": "R_DATAFRAME_SCAN",
               "children": [],
               "extra_info": {
                   "Text": "data.frame",
@@ -264,7 +300,7 @@
           <div class="tf-tree">
               <ul><li>
               <div class="tf-nc">
-                  <div class="title">R_DATAFRAME_SCAN </div>
+                  <div class="title">R_DATAFRAME_SCAN</div>
                   <div class="content">
                       <div class="sub-title">Text</div>
                       <div class="value">data.frame</div>
@@ -307,7 +343,7 @@
       
       digraph G {
           node [shape=box, style=rounded, fontname="Courier New", fontsize=10];
-          node_0_0 [label="R_DATAFRAME_SCAN \n───\nText:\ndata.frame\n───\nProjections:\nx\n───\nEstimated Cardinality:\n1"];
+          node_0_0 [label="R_DATAFRAME_SCAN\n───\nText:\ndata.frame\n───\nProjections:\nx\n───\nEstimated Cardinality:\n1"];
       
       }
       	
@@ -366,4 +402,20 @@
     Condition
       Error:
       ! GetQueryResult: Materialization would result in more than 4 rows. Use `collect()` or `as_tibble()` to materialize.
+
+---
+
+    Code
+      length(forbid_col$a)
+    Condition
+      Error:
+      ! GetQueryResult: Materialization is disabled, use `collect()` or `as_tibble()` to materialize.
+
+---
+
+    Code
+      forbid_col$a[1]
+    Condition
+      Error:
+      ! GetQueryResult: Materialization is disabled, use `collect()` or `as_tibble()` to materialize.
 

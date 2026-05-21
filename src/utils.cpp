@@ -5,15 +5,14 @@
 #include "rapi.hpp"
 #include "typesr.hpp"
 
+// Avoid clash with TRUE and FALSE macros in older rtools
+#undef TRUE
+#undef FALSE
+
 using namespace duckdb;
 
 [[cpp11::register]] SEXP rapi_adbc_init_func() {
 	return R_MakeExternalPtrFn((DL_FUNC)duckdb_adbc_init, R_NilValue, R_NilValue);
-}
-
-SEXP duckdb::ToUtf8(SEXP string_sexp) {
-	cpp11::function enc2utf8 = RStrings::get().enc2utf8_sym;
-	return enc2utf8(string_sexp);
 }
 
 [[cpp11::register]] cpp11::r_string rapi_ptr_to_str(SEXP extptr) {
@@ -58,18 +57,19 @@ RStrings::RStrings() {
 	R_PreserveObject(strings);
 	MARK_NOT_MUTABLE(strings);
 
-	cpp11::sexp chars = Rf_allocVector(VECSXP, 11);
+	cpp11::sexp chars = Rf_allocVector(VECSXP, 12);
 	SET_VECTOR_ELT(chars, 0, UTC_str = Rf_mkString("UTC"));
 	SET_VECTOR_ELT(chars, 1, Date_str = Rf_mkString("Date"));
 	SET_VECTOR_ELT(chars, 2, difftime_str = Rf_mkString("difftime"));
 	SET_VECTOR_ELT(chars, 3, secs_str = Rf_mkString("secs"));
 	SET_VECTOR_ELT(chars, 4, arrow_str = Rf_mkString("arrow"));
-	SET_VECTOR_ELT(chars, 5, duckdb_str = Rf_mkString("duckdb"));
+	SET_VECTOR_ELT(chars, 5, duckdb_str = Rf_mkString(DUCKDB_PACKAGE_NAME));
 	SET_VECTOR_ELT(chars, 6, POSIXct_POSIXt_str = StringsToSexp({"POSIXct", "POSIXt"}));
 	SET_VECTOR_ELT(chars, 7, factor_str = Rf_mkString("factor"));
 	SET_VECTOR_ELT(chars, 8, dataframe_str = Rf_mkString("data.frame"));
 	SET_VECTOR_ELT(chars, 9, integer64_str = Rf_mkString("integer64"));
 	SET_VECTOR_ELT(chars, 10, tbl_df_tbl_dataframe_str = StringsToSexp({"tbl_df", "tbl", "data.frame"}));
+	SET_VECTOR_ELT(chars, 11, wk_wkb_wk_vctr_str = StringsToSexp({"wk_wkb", "wk_vctr"}));
 
 	R_PreserveObject(chars);
 	MARK_NOT_MUTABLE(chars);
@@ -89,6 +89,7 @@ RStrings::RStrings() {
 	get_progress_display_sym = Rf_install("get_progress_display");
 	duckdb_row_names_sym = Rf_install("duckdb_row_names");
 	duckdb_vector_sym = Rf_install("duckdb_vector");
+	crs_sym = Rf_install("crs");
 }
 
 LogicalType RStringsType::Get() {
@@ -151,8 +152,16 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 		}
 	}
 	case RType::STRING: {
-		auto str_val = STRING_ELT(ToUtf8(valsexp), idx);
-		return str_val == NA_STRING ? Value(LogicalType::VARCHAR) : Value(CHAR(str_val));
+		auto str_val = STRING_ELT(valsexp, idx);
+		if (str_val == NA_STRING) {
+			return Value(LogicalType::VARCHAR);
+		}
+
+		auto ce = Rf_getCharCE(str_val);
+		if (ce != CE_UTF8 && ce != CE_NATIVE) {
+			rapi_error_with_context("SexpToValue", "Only UTF-8 encoded strings are supported for the data frame scan.");
+		}
+		return Value(CHAR(str_val));
 	}
 	case RTypeId::FACTOR: {
 		auto int_val = INTEGER_POINTER(valsexp)[idx];
@@ -263,61 +272,38 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 	}
 }
 
-SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
+SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 	if (val.IsNull()) {
 		return R_NilValue;
 	}
 
-	switch (val.type().id()) {
-	case LogicalTypeId::BOOLEAN:
-		return cpp11::logicals({val.GetValue<bool>()});
-	case LogicalTypeId::TINYINT:
-	case LogicalTypeId::SMALLINT:
-	case LogicalTypeId::INTEGER:
-	case LogicalTypeId::UTINYINT:
-	case LogicalTypeId::USMALLINT:
-	case LogicalTypeId::UINTEGER:
-		return cpp11::integers({val.GetValue<int32_t>()});
-	case LogicalTypeId::BIGINT:
-	case LogicalTypeId::UBIGINT:
-	case LogicalTypeId::FLOAT:
-	case LogicalTypeId::DOUBLE:
-	case LogicalTypeId::DECIMAL:
-		return cpp11::doubles({val.GetValue<double>()});
-	case LogicalTypeId::VARCHAR:
-		return StringsToSexp({val.ToString()});
-	case LogicalTypeId::TIMESTAMP: {
-		cpp11::doubles res({(double)Timestamp::GetEpochSeconds(val.GetValue<timestamp_t>())});
-		// TODO bit of duplication here with statement.cpp, fix this
-		// some dresssup for R
-		SET_CLASS(res, RStrings::get().POSIXct_POSIXt_str);
-		Rf_setAttrib(res, RStrings::get().tzone_sym, StringsToSexp({""}));
-		return res;
-	}
-	case LogicalTypeId::TIMESTAMP_TZ: {
-		cpp11::doubles res({(double)Timestamp::GetEpochSeconds(val.GetValue<timestamp_tz_t>())});
-		SET_CLASS(res, RStrings::get().POSIXct_POSIXt_str);
-		Rf_setAttrib(res, RStrings::get().tzone_sym, StringsToSexp({timezone_config}));
-		return res;
-	}
-	case LogicalTypeId::TIME: {
-		cpp11::doubles res({(double)val.GetValue<dtime_t>().micros / Interval::MICROS_PER_SEC});
-		// some dresssup for R
-		SET_CLASS(res, RStrings::get().difftime_str);
-		// we always return difftime as "seconds"
-		Rf_setAttrib(res, RStrings::get().units_sym, RStrings::get().secs_str);
-		return res;
+	auto &type = val.type();
+
+	// UNION: unwrap and recurse with the active member's value
+	if (type.id() == LogicalTypeId::UNION) {
+		auto &val_ref = UnionValue::GetValue(val);
+		return ValueToSexp(val_ref, convert_opts);
 	}
 
-	case LogicalTypeId::DATE: {
-		cpp11::doubles res({(double)int32_t(val.GetValue<date_t>())});
-		// some dresssup for R
-		SET_CLASS(res, RStrings::get().Date_str);
-		return res;
-	}
+	// Create a single-element Vector and reuse the existing transform pipeline
+	Vector vec(type, 1);
+	vec.SetValue(0, val);
 
+	SEXP dest = duckdb_r_allocate(type, 1, "variant", convert_opts, "ValueToSexp");
+	duckdb_r_decorate(type, dest, convert_opts);
+	duckdb_r_transform(vec, dest, 0, 1, convert_opts, "variant");
+
+	// Types stored as per-row VECSXP elements: extract element 0
+	// STRUCT returns a 1-row data frame: return as-is
+	// Scalars return a length-1 vector: return as-is
+	switch (type.id()) {
+	case LogicalTypeId::LIST:
+	case LogicalTypeId::MAP:
+	case LogicalTypeId::BLOB:
+	case LogicalTypeId::GEOMETRY:
+		return VECTOR_ELT(dest, 0);
 	default:
-		throw NotImplementedException("Can't convert %s of type %s", val.ToString(), val.type().ToString());
+		return dest;
 	}
 }
 
@@ -332,7 +318,8 @@ SEXP RApiTypes::ValueToSexp(Value &val, string &timezone_config) {
 	db->db->LoadStaticExtension<RfunsExtension>();
 }
 
-// ALTREP guard implementation - uses thread-local depth counter
+// ALTREP guard implementation - thread-local depth counter.
+// Incremented when entering an ALTREP method, decremented when leaving.
 thread_local int AltrepGuard::depth = 0;
 
 AltrepGuard::AltrepGuard() {
@@ -349,14 +336,16 @@ bool AltrepGuard::IsActive() {
 
 // Helper functions to communicate errors via R's stop() function
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message) {
-	// If we're inside an ALTREP method, throw a C++ exception instead of calling R
-	// Calling into R from ALTREP methods is unsafe and can cause stack overflows
+	// Inside an ALTREP method, calling back into R via cpp11::function is
+	// unsafe: the R function calls stop() which long-jmps out of the ALTREP
+	// method without unwinding C++ frames. Throw a regular C++ exception so
+	// BEGIN_CPP11/END_CPP11 can catch it and surface a clean R error.
 	if (AltrepGuard::IsActive()) {
 		throw std::runtime_error(context + ": " + message);
 	}
 
 	// Look up R function in duckdb namespace
-	static cpp11::function rapi_error = cpp11::package("duckdb")["rapi_error"];
+	static cpp11::function rapi_error = cpp11::package(DUCKDB_PACKAGE_NAME)["rapi_error"];
 	rapi_error(context, message);
 
 	throw InternalException("Unreachable code after rapi_error()");
@@ -368,14 +357,13 @@ bool AltrepGuard::IsActive() {
 }
 
 [[noreturn]] void rapi_error_with_context(const std::string &context, const duckdb::ErrorData &error_data) {
-	// If we're inside an ALTREP method, throw a C++ exception instead of calling R
-	// Calling into R from ALTREP methods is unsafe and can cause stack overflows
+	// Inside an ALTREP method, see comment in the string overload above.
 	if (AltrepGuard::IsActive()) {
 		throw std::runtime_error(context + ": " + error_data.Message());
 	}
 
 	// Look up R function in duckdb namespace
-	static cpp11::function rapi_error = cpp11::package("duckdb")["rapi_error"];
+	static cpp11::function rapi_error = cpp11::package(DUCKDB_PACKAGE_NAME)["rapi_error"];
 
 	// Extract fields from ErrorData
 	std::string message = error_data.Message();

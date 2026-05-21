@@ -13,6 +13,10 @@
 
 #include <R_ext/Utils.h>
 
+// Avoid clash with TRUE and FALSE macros in older rtools
+#undef TRUE
+#undef FALSE
+
 using namespace duckdb;
 using namespace cpp11::literals;
 
@@ -215,7 +219,7 @@ struct AppendableRList {
 		if (size >= capacity) {
 			capacity = capacity * 2;
 			cpp11::sexp new_list = NEW_LIST(capacity);
-			D_ASSERT(new_list);
+			D_ASSERT(new_list != R_NilValue);
 			for (idx_t i = 0; i < size; i++) {
 				SET_VECTOR_ELT(new_list, i, VECTOR_ELT(the_list, i));
 			}

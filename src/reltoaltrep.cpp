@@ -5,9 +5,11 @@
 #include "altrepdataframe_relation.hpp"
 #include "cpp11/declarations.hpp"
 #include "duckdb/common/unique_ptr.hpp"
+#include "duckdb/main/client_config.hpp"
 #include "duckdb/main/materialized_query_result.hpp"
 #include "duckdb/main/query_result.hpp"
 #include "duckdb/main/relation/limit_relation.hpp"
+#include "duckdb/main/settings.hpp"
 #include "fmt/format.h"
 #include "httplib.hpp"
 #include "rapi.hpp"
@@ -26,6 +28,10 @@
 #undef FALSE
 #endif
 
+// Avoid clash with TRUE and FALSE macros in older rtools
+#undef TRUE
+#undef FALSE
+
 using namespace duckdb;
 
 R_altrep_class_t RelToAltrep::rownames_class;
@@ -43,11 +49,11 @@ const size_t MAX_SIZE_T = std::numeric_limits<size_t>::max();
 
 void RelToAltrep::Initialize(DllInfo *dll) {
 	// this is a string so setting row names will not lead to materialization
-	rownames_class = R_make_altinteger_class("reltoaltrep_rownames_class", "duckdb", dll);
-	logical_class = R_make_altlogical_class("reltoaltrep_logical_class", "duckdb", dll);
-	int_class = R_make_altinteger_class("reltoaltrep_int_class", "duckdb", dll);
-	real_class = R_make_altreal_class("reltoaltrep_real_class", "duckdb", dll);
-	string_class = R_make_altstring_class("reltoaltrep_string_class", "duckdb", dll);
+	rownames_class = R_make_altinteger_class("reltoaltrep_rownames_class", DUCKDB_PACKAGE_NAME, dll);
+	logical_class = R_make_altlogical_class("reltoaltrep_logical_class", DUCKDB_PACKAGE_NAME, dll);
+	int_class = R_make_altinteger_class("reltoaltrep_int_class", DUCKDB_PACKAGE_NAME, dll);
+	real_class = R_make_altreal_class("reltoaltrep_real_class", DUCKDB_PACKAGE_NAME, dll);
+	string_class = R_make_altstring_class("reltoaltrep_string_class", DUCKDB_PACKAGE_NAME, dll);
 
 	R_set_altrep_Inspect_method(rownames_class, RownamesInspect);
 	R_set_altrep_Inspect_method(logical_class, RelInspect);
@@ -61,6 +67,8 @@ void RelToAltrep::Initialize(DllInfo *dll) {
 	R_set_altrep_Length_method(real_class, VectorLength);
 	R_set_altrep_Length_method(string_class, VectorLength);
 
+	R_set_altrep_Duplicate_method(rownames_class, RownamesDuplicate);
+
 	R_set_altvec_Dataptr_method(rownames_class, RownamesDataptr);
 	R_set_altvec_Dataptr_method(logical_class, VectorDataptr);
 	R_set_altvec_Dataptr_method(int_class, VectorDataptr);
@@ -69,16 +77,24 @@ void RelToAltrep::Initialize(DllInfo *dll) {
 
 	R_set_altvec_Dataptr_or_null_method(rownames_class, RownamesDataptrOrNull);
 
+	R_set_altinteger_Elt_method(rownames_class, RownamesElt);
+	R_set_altinteger_Get_region_method(rownames_class, RownamesGetRegion);
+	R_set_altinteger_Is_sorted_method(rownames_class, RownamesIsSorted);
+	R_set_altinteger_No_NA_method(rownames_class, RownamesNoNA);
+	R_set_altinteger_Sum_method(rownames_class, RownamesSum);
+	R_set_altinteger_Min_method(rownames_class, RownamesMin);
+	R_set_altinteger_Max_method(rownames_class, RownamesMax);
+
 	R_set_altstring_Elt_method(string_class, VectorStringElt);
 
 #if defined(R_HAS_ALTLIST)
-	list_class = R_make_altlist_class("reltoaltrep_list_class", "duckdb", dll);
+	list_class = R_make_altlist_class("reltoaltrep_list_class", DUCKDB_PACKAGE_NAME, dll);
 	R_set_altrep_Inspect_method(list_class, RelInspect);
 	R_set_altrep_Length_method(list_class, VectorLength);
 	R_set_altvec_Dataptr_method(list_class, VectorDataptr);
 	R_set_altlist_Elt_method(list_class, VectorListElt);
 
-	struct_class = R_make_altlist_class("reltoaltrep_struct_class", "duckdb", dll);
+	struct_class = R_make_altlist_class("reltoaltrep_struct_class", DUCKDB_PACKAGE_NAME, dll);
 	R_set_altrep_Inspect_method(struct_class, RelInspect);
 	R_set_altrep_Length_method(struct_class, StructLength);
 	R_set_altvec_Dataptr_method(struct_class, VectorDataptr);
@@ -145,10 +161,15 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 
 		// We need to temporarily allow a deeper execution stack
 		// https://github.com/duckdb/duckdb-r/issues/101
-		auto old_depth = rel->context->GetContext()->config.max_expression_depth;
-		rel->context->GetContext()->config.max_expression_depth = old_depth * 2;
-		duckdb_httplib::detail::scope_exit reset_max_expression_depth(
-		    [&]() { rel->context->GetContext()->config.max_expression_depth = old_depth; });
+		auto &context = *rel->context->GetContext();
+		auto old_depth = Settings::Get<MaxExpressionDepthSetting>(context);
+		auto &client_config = ClientConfig::GetConfig(*rel->context->GetContext());
+		client_config.GetConfig(context).user_settings.SetUserSetting(MaxExpressionDepthSetting::SettingIndex,
+		                                                              Value::UBIGINT(old_depth * 2));
+		duckdb_httplib::detail::scope_exit reset_max_expression_depth([&]() {
+			client_config.user_settings.SetUserSetting(MaxExpressionDepthSetting::SettingIndex,
+			                                           Value::UBIGINT(old_depth));
+		});
 
 		Materialize();
 
@@ -157,11 +178,12 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 		}
 
 		// FIXME: Use std::experimental::scope_exit
-		if (rel->context->GetContext()->config.max_expression_depth != old_depth * 2) {
+		auto current_depth = Settings::Get<MaxExpressionDepthSetting>(context);
+		if (current_depth != old_depth * 2) {
 			Rprintf("Internal error: max_expression_depth was changed from %" PRIu64 " to %" PRIu64 "\n", old_depth * 2,
-			        rel->context->GetContext()->config.max_expression_depth);
+			        current_depth);
 		}
-		rel->context->GetContext()->config.max_expression_depth = old_depth;
+		client_config.user_settings.SetUserSetting(MaxExpressionDepthSetting::SettingIndex, Value::UBIGINT(old_depth));
 		reset_max_expression_depth.release();
 
 		signal_handler.HandleInterrupt();
@@ -216,14 +238,27 @@ void AltrepRelationWrapper::Materialize() {
 struct AltrepRownamesWrapper {
 
 	AltrepRownamesWrapper(duckdb::shared_ptr<AltrepRelationWrapper> rel_p) : rel(rel_p) {
-		rowlen_data[0] = NA_INTEGER;
 	}
 
 	static AltrepRownamesWrapper *Get(SEXP x) {
 		return GetFromExternalPtr<AltrepRownamesWrapper>(x);
 	}
 
-	int32_t rowlen_data[2];
+	idx_t RowCount() {
+		return rel->GetQueryResult()->RowCount();
+	}
+
+	int32_t *Materialize(idx_t row_count) {
+		if (rownames_data.empty()) {
+			rownames_data.resize(row_count);
+			for (idx_t i = 0; i < row_count; i++) {
+				rownames_data[i] = static_cast<int32_t>(i + 1);
+			}
+		}
+		return rownames_data.data();
+	}
+
+	std::vector<int32_t> rownames_data;
 	duckdb::shared_ptr<AltrepRelationWrapper> rel;
 };
 
@@ -363,6 +398,9 @@ Rboolean RelToAltrep::RelInspect(SEXP x, int pre, int deep, int pvec, void (*ins
 }
 
 SEXP get_attrib(SEXP vec, SEXP name) {
+#if defined(R_VERSION) && R_VERSION >= R_Version(4, 6, 0)
+	return Rf_getAttrib(vec, name);
+#else
 	for (SEXP attrib = ATTRIB(vec); attrib != R_NilValue; attrib = CDR(attrib)) {
 		if (TAG(attrib) == name) {
 			return CAR(attrib);
@@ -370,17 +408,106 @@ SEXP get_attrib(SEXP vec, SEXP name) {
 	}
 
 	return R_NilValue;
+#endif
 }
 
 R_xlen_t RelToAltrep::RownamesLength(SEXP x) {
-	// The BEGIN_CPP11 isn't strictly necessary here, but should be optimized away.
-	// It will become important if we ever support row names.
 	BEGIN_CPP11
 	AltrepGuard guard;
-	// row.names vector has length 2 in the "compact" case which we're using
-	// see https://stat.ethz.ch/R-manual/R-devel/library/base/html/row.names.html
-	return 2;
+	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
+	return rownames_wrapper->RowCount();
 	END_CPP11_EX(0)
+}
+
+int RelToAltrep::RownamesElt(SEXP x, R_xlen_t i) {
+	BEGIN_CPP11
+	AltrepGuard guard;
+	return static_cast<int>(i + 1);
+	END_CPP11_EX(NA_INTEGER)
+}
+
+R_xlen_t RelToAltrep::RownamesGetRegion(SEXP x, R_xlen_t start, R_xlen_t size, int *out) {
+	BEGIN_CPP11
+	AltrepGuard guard;
+	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
+	auto row_count = static_cast<R_xlen_t>(rownames_wrapper->RowCount());
+	R_xlen_t n = row_count - start;
+	if (n > size) {
+		n = size;
+	}
+	if (n <= 0) {
+		return 0;
+	}
+	for (R_xlen_t i = 0; i < n; i++) {
+		out[i] = static_cast<int>(start + i + 1);
+	}
+	return n;
+	END_CPP11_EX(0)
+}
+
+int RelToAltrep::RownamesIsSorted(SEXP x) {
+	return SORTED_INCR;
+}
+
+int RelToAltrep::RownamesNoNA(SEXP x) {
+	return TRUE;
+}
+
+SEXP RelToAltrep::RownamesSum(SEXP x, Rboolean na_rm) {
+	BEGIN_CPP11
+	AltrepGuard guard;
+	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
+	auto n = rownames_wrapper->RowCount();
+	double sum = (static_cast<double>(n) * (static_cast<double>(n) + 1.0)) / 2.0;
+	return Rf_ScalarReal(sum);
+	END_CPP11
+}
+
+SEXP RelToAltrep::RownamesMin(SEXP x, Rboolean na_rm) {
+	BEGIN_CPP11
+	AltrepGuard guard;
+	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
+	auto n = rownames_wrapper->RowCount();
+	if (n == 0) {
+		Rf_warning("no non-missing arguments to min; returning Inf");
+		return Rf_ScalarReal(R_PosInf);
+	}
+	return Rf_ScalarInteger(1);
+	END_CPP11
+}
+
+SEXP RelToAltrep::RownamesMax(SEXP x, Rboolean na_rm) {
+	BEGIN_CPP11
+	AltrepGuard guard;
+	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
+	auto n = rownames_wrapper->RowCount();
+	if (n == 0) {
+		Rf_warning("no non-missing arguments to max; returning -Inf");
+		return Rf_ScalarReal(R_NegInf);
+	}
+	if (n > (idx_t)NumericLimits<int32_t>::Maximum()) {
+		rapi_error_with_context("altrep_rownames_Max", "Integer overflow for row.names attribute");
+	}
+	return Rf_ScalarInteger(static_cast<int>(n));
+	END_CPP11
+}
+
+SEXP RelToAltrep::RownamesDuplicate(SEXP x, Rboolean deep) {
+	BEGIN_CPP11
+	AltrepGuard guard;
+	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
+	auto n = rownames_wrapper->RowCount();
+	if (n > (idx_t)NumericLimits<int32_t>::Maximum()) {
+		rapi_error_with_context("altrep_rownames_Duplicate", "Integer overflow for row.names attribute");
+	}
+	SEXP result = PROTECT(Rf_allocVector(INTSXP, n));
+	int *data = INTEGER(result);
+	for (idx_t i = 0; i < n; i++) {
+		data[i] = static_cast<int>(i + 1);
+	}
+	UNPROTECT(1);
+	return result;
+	END_CPP11
 }
 
 void *RelToAltrep::RownamesDataptr(SEXP x, Rboolean writeable) {
@@ -394,21 +521,20 @@ const void *RelToAltrep::RownamesDataptrOrNull(SEXP x) {
 	BEGIN_CPP11
 	AltrepGuard guard;
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
-	if (!rownames_wrapper->rel->HasQueryResult()) {
+	if (rownames_wrapper->rownames_data.empty()) {
 		return nullptr;
 	}
-	return DoRownamesDataptrGet(x);
+	return rownames_wrapper->rownames_data.data();
 	END_CPP11
 }
 
 void *RelToAltrep::DoRownamesDataptrGet(SEXP x) {
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
-	auto row_count = rownames_wrapper->rel->GetQueryResult()->RowCount();
+	auto row_count = rownames_wrapper->RowCount();
 	if (row_count > (idx_t)NumericLimits<int32_t>::Maximum()) {
-		rapi_error_with_context("altrep_rownames_integer_Elt", "Integer overflow for row.names attribute");
+		rapi_error_with_context("altrep_rownames_Dataptr", "Integer overflow for row.names attribute");
 	}
-	rownames_wrapper->rowlen_data[1] = -row_count;
-	return rownames_wrapper->rowlen_data;
+	return rownames_wrapper->Materialize(row_count);
 }
 
 R_xlen_t RelToAltrep::VectorLength(SEXP x) {

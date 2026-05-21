@@ -1,5 +1,9 @@
 #pragma once
 
+// Avoid clash with TRUE and FALSE macros in older rtools
+#undef TRUE
+#undef FALSE
+
 #include "cpp11.hpp"
 
 #include <Rdefines.h>
@@ -15,13 +19,21 @@
 
 #include "convert.hpp"
 
+// Avoid clash with TRUE and FALSE macros in older rtools
+#undef TRUE
+#undef FALSE
+
 #if defined(R_VERSION) && R_VERSION >= R_Version(4, 3, 0)
 #define R_HAS_ALTLIST
 #endif
 
-// Guard for ALTREP methods - calling into R from ALTREP methods is unsafe
-// This guard is activated when entering ALTREP methods and causes rapi_error_with_context
-// to throw a C++ exception instead of calling into R
+#define DUCKDB_PACKAGE_NAME "duckdb"
+
+// Guard for ALTREP methods - calling into R from ALTREP methods is unsafe.
+// When an AltrepGuard is on the stack, rapi_error_with_context() throws a
+// C++ exception (caught by BEGIN_CPP11/END_CPP11) instead of invoking the
+// duckdb::rapi_error R function, which would trigger a long-jmp out of the
+// ALTREP method and leave R in an inconsistent state.
 class AltrepGuard {
 public:
 	AltrepGuard();
@@ -170,8 +182,6 @@ struct ReplacementDataDBWrapper : public ReplacementScanData {
 
 cpp11::strings StringsToSexp(vector<std::string> s);
 
-SEXP ToUtf8(SEXP string_sexp);
-
 static constexpr char R_STRING_TYPE_NAME[] = "r_string";
 
 struct RStringsType {
@@ -201,6 +211,7 @@ struct RStrings {
 	SEXP POSIXct_POSIXt_str;
 	SEXP integer64_str;
 	SEXP tbl_df_tbl_dataframe_str;
+	SEXP wk_wkb_wk_vctr_str;
 	SEXP enc2utf8_sym; // Rf_install
 	SEXP tzone_sym;
 	SEXP units_sym;
@@ -215,6 +226,7 @@ struct RStrings {
 	SEXP get_progress_display_sym;
 	SEXP duckdb_row_names_sym;
 	SEXP duckdb_vector_sym;
+	SEXP crs_sym;
 
 	static const RStrings &get() {
 		// On demand

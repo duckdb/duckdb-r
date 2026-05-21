@@ -1,28 +1,21 @@
-skip_if_no_R4 <- function() {
-  if (R.Version()$major < 4) {
-    skip("R 4.0.0 or newer not available for testing")
-  }
-}
-
 test_that("dbplyr generic scalars translated correctly", {
-  skip_if_no_R4()
   skip_if_not_installed("dbplyr")
   con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
   sql <- function(...) dbplyr::sql(...)
 
-  expect_equal(translate(as.character(1)), sql(r"{CAST(1.0 AS TEXT)}"))
-  expect_equal(translate(as.character(1L)), sql(r"{CAST(1 AS TEXT)}"))
-  expect_equal(translate(as.numeric(1)), sql(r"{CAST(1.0 AS NUMERIC)}"))
-  expect_equal(translate(as.double(1.2)), sql(r"{CAST(1.2 AS NUMERIC)}"))
-  expect_equal(translate(as.integer(1.2)), sql(r"{CAST(1.2 AS INTEGER)}"))
-  expect_equal(translate(as.integer64(1.2)), sql(r"{CAST(1.2 AS BIGINT)}"))
-  expect_equal(translate(as.logical("TRUE")), sql(r"{CAST('TRUE' AS BOOLEAN)}"))
+  expect_equal(translate(as.character(1)), sql(r"{TRY_CAST(1.0 AS TEXT)}"))
+  expect_equal(translate(as.character(1L)), sql(r"{TRY_CAST(1 AS TEXT)}"))
+  expect_equal(translate(as.numeric(1)), sql(r"{TRY_CAST(1.0 AS DOUBLE)}"))
+  expect_equal(translate(as.double(1.2)), sql(r"{TRY_CAST(1.2 AS DOUBLE)}"))
+  expect_equal(translate(as.integer(1.2)), sql(r"{TRY_CAST(1.2 AS INTEGER)}"))
+  expect_equal(translate(as.integer64(1.2)), sql(r"{TRY_CAST(1.2 AS BIGINT)}"))
+  expect_equal(translate(as.logical("TRUE")), sql(r"{TRY_CAST('TRUE' AS BOOLEAN)}"))
   expect_equal(translate(tolower("HELLO")), sql(r"{LOWER('HELLO')}"))
   expect_equal(translate(toupper("hello")), sql(r"{UPPER('hello')}"))
   expect_equal(translate(pmax(1, 2, na.rm = TRUE)), sql(r"{GREATEST(1.0, 2.0)}"))
   expect_equal(translate(pmin(1, 2, na.rm = TRUE)), sql(r"{LEAST(1.0, 2.0)}"))
-  expect_equal(translate(as.character("2020-01-01")), sql(r"{CAST('2020-01-01' AS TEXT)}"))
+  expect_equal(translate(as.character("2020-01-01")), sql(r"{TRY_CAST('2020-01-01' AS TEXT)}"))
   expect_equal(translate(c("2020-01-01", "2020-13-02")), sql(r"{('2020-01-01', '2020-13-02')}"))
   expect_equal(translate(iris[["sepal_length"]]), sql(r"{iris.sepal_length}"))
   expect_equal(translate(iris[[1]]), sql(r"{iris[1]}"))
@@ -31,14 +24,13 @@ test_that("dbplyr generic scalars translated correctly", {
 })
 
 test_that("duckdb custom scalars translated correctly", {
-  skip_if_no_R4()
   skip_if_not_installed("dbplyr")
   con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
   sql <- function(...) dbplyr::sql(...)
 
-  #  expect_equal(translate(as(1,"CHARACTER")), sql(r"{CAST(1.0 AS TEXT}"))        # Not implemented
-  expect_equal(translate(as.raw(10)), sql(r"{CAST(10.0 AS VARBINARY)}"))
+  #  expect_equal(translate(as(1,"CHARACTER")), sql(r"{TRY_CAST(1.0 AS TEXT}"))        # Not implemented
+  expect_equal(translate(as.raw(10)), sql(r"{TRY_CAST(10.0 AS VARBINARY)}"))
   expect_equal(translate(13 %% 5), sql(r"{FMOD(13.0, 5.0)}"))
   expect_equal(translate(35.8 %/% 4), sql(r"{FDIV(35.8, 4.0)}"))
   expect_equal(translate(35.8^2.51), sql(r"{POW(35.8, 2.51)}"))
@@ -62,12 +54,11 @@ test_that("duckdb custom scalars translated correctly", {
   expect_error(translate(grepl("dummy", txt, perl = TRUE)))
   expect_equal(translate(regexpr("pattern", text)), sql(r"{(CASE WHEN REGEXP_MATCHES("text", 'pattern') THEN (LENGTH(LIST_EXTRACT(STRING_SPLIT_REGEX("text", 'pattern'), 0))+1) ELSE -1 END)}"))
   expect_equal(translate(round(x, digits = 1.1)), sql(r"{ROUND_EVEN(x, CAST(ROUND(1.1, 0) AS INTEGER))}"))
-  expect_equal(translate(as.Date("2019-01-01")), sql(r"{CAST('2019-01-01' AS DATE)}"))
-  expect_equal(translate(as.POSIXct("2019-01-01 01:01:01")), sql(r"{CAST('2019-01-01 01:01:01' AS TIMESTAMP)}"))
+  expect_equal(translate(as.Date("2019-01-01")), sql(r"{TRY_CAST('2019-01-01' AS DATE)}"))
+  expect_equal(translate(as.POSIXct("2019-01-01 01:01:01")), sql(r"{TRY_CAST('2019-01-01 01:01:01' AS TIMESTAMP)}"))
 })
 
 test_that("pasting translated correctly", {
-  skip_if_no_R4()
   skip_if_not_installed("dbplyr")
   con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
@@ -87,7 +78,6 @@ test_that("pasting translated correctly", {
 # lubridate functions
 
 test_that("custom lubridate functions translated correctly", {
-  skip_if_no_R4()
   skip_if_not_installed("dbplyr")
   con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
@@ -127,7 +117,6 @@ test_that("custom lubridate functions translated correctly", {
 
 # clock functions
 test_that("custom clock functions translated correctly", {
-  skip_if_no_R4()
   skip_if_not_installed("dbplyr")
   skip_if_not_installed("clock")
   skip_if_not_installed("rlang")
@@ -198,7 +187,6 @@ test_that("custom clock functions translated correctly", {
 # stringr functions
 
 test_that("custom stringr functions translated correctly", {
-  skip_if_no_R4()
   skip_if_not_installed("dbplyr")
   con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
@@ -220,10 +208,69 @@ test_that("custom stringr functions translated correctly", {
   expect_equal(translate(str_pad(x, width = 10, side = "right")), sql(r"{RPAD(x, CAST(GREATEST(10, LENGTH(x)) AS INTEGER), ' ')}"))
   expect_equal(translate(str_pad(x, width = 10, side = "both", pad = "<")), sql(r"{RPAD(REPEAT('<', (10 - LENGTH(x)) / 2) || x, CAST(GREATEST(10, LENGTH(x)) AS INTEGER), '<')}"))
   expect_error(translate(str_pad(x, width = 10, side = "other")))
+  expect_equal(translate(str_like(x, "a")), sql(r"{x LIKE 'a'}"))
+  expect_equal(translate(str_ilike(x, "a")), sql(r"{x ILIKE 'a'}"))
+})
+
+test_that("is_distinct_from and is_not_distinct_from translated correctly", {
+  skip_if_not_installed("dbplyr", "2.5.2.9000")
+  con <- local_con()
+  translate <- function(...) dbplyr::translate_sql(..., con = con)
+  sql <- function(...) dbplyr::sql(...)
+
+  expect_equal(
+    translate(is_distinct_from(x, y)),
+    sql(r"{(x) IS DISTINCT FROM (y)}")
+  )
+  expect_equal(
+    translate(is_not_distinct_from(x, y)),
+    sql(r"{(x) IS NOT DISTINCT FROM (y)}")
+  )
+})
+
+test_that("is_distinct_from and is_not_distinct_from produce correct results", {
+  skip_if_not_installed("dbplyr", "2.5.2.9000")
+  skip_if_not_installed("dplyr")
+
+  con <- local_con()
+  df <- data.frame(x = c(1, NA, 2, NA), y = c(1, 2, NA, NA))
+  duckdb_register(con, "df", df)
+  df_duckdb <- dplyr::tbl(con, "df")
+
+  expect_equal(
+    dplyr::pull(dplyr::mutate(df_duckdb, r = is_distinct_from(x, y)), r),
+    c(FALSE, TRUE, TRUE, FALSE)
+  )
+  expect_equal(
+    dplyr::pull(dplyr::mutate(df_duckdb, r = is_not_distinct_from(x, y)), r),
+    c(TRUE, FALSE, FALSE, TRUE)
+  )
+})
+
+test_that("filter() and filter_out() produce correct results", {
+  skip_if_not_installed("dbplyr", "2.5.2.9000")
+  skip_if_not_installed("dplyr", "1.2.0")
+
+  con <- local_con()
+  df <- data.frame(id = 1:4, x = c(1, 2, NA, 3))
+  duckdb_register(con, "df", df)
+  df_duckdb <- dplyr::tbl(con, "df")
+
+  # filter drops rows where the predicate is FALSE or NA
+  expect_equal(
+    dplyr::pull(dplyr::arrange(dplyr::filter(df_duckdb, x > 1), id), id),
+    c(2L, 4L)
+  )
+
+  # filter_out drops rows where the predicate is TRUE; NA rows are kept
+  # because dbplyr translates the condition through is_distinct_from(., TRUE)
+  expect_equal(
+    dplyr::pull(dplyr::arrange(dplyr::filter_out(df_duckdb, x > 1), id), id),
+    c(1L, 3L)
+  )
 })
 
 test_that("datetime escaping working as in DBI", {
-  skip_if_no_R4()
   skip_if_not_installed("dbplyr")
   con <- local_con()
   escape <- function(...) dbplyr::escape(..., con = con)
@@ -243,7 +290,6 @@ test_that("datetime escaping working as in DBI", {
 })
 
 test_that("aggregators translated correctly", {
-  skip_if_no_R4()
   skip_if_not_installed("dbplyr")
   con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
@@ -284,7 +330,6 @@ test_that("aggregators translated correctly", {
 })
 
 test_that("quantile translated correctly", {
-  skip_if_no_R4()
   skip_if_not_installed("dbplyr")
   con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
@@ -297,7 +342,6 @@ test_that("quantile translated correctly", {
 })
 
 test_that("two variable aggregates are translated correctly", {
-  skip_if_no_R4()
   skip_if_not_installed("dbplyr")
   con <- local_con()
   translate <- function(...) dbplyr::translate_sql(..., con = con)
@@ -316,7 +360,6 @@ test_that("two variable aggregates are translated correctly", {
 })
 
 test_that("n_distinct() computations are correct", {
-  skip_if_no_R4()
   skip_if_not_installed("dplyr")
   skip_if_not_installed("dbplyr")
   con <- local_con()
@@ -346,11 +389,11 @@ test_that("n_distinct() computations are correct", {
   )
   expect_equal(
     pull(summarize(df_duckdb, n = n_distinct(x, y, na.rm = TRUE)), n),
-    pull(summarize(df, n = n_distinct(x, y, na.rm = TRUE)), n),
+    pull(summarize(df, n = n_distinct(x, y, na.rm = TRUE)), n)
   )
   expect_equal(
     pull(summarize(df_na_duckdb, n = n_distinct(x, y, na.rm = TRUE)), n),
-    pull(summarize(df_na, n = n_distinct(x, y, na.rm = TRUE)), n),
+    pull(summarize(df_na, n = n_distinct(x, y, na.rm = TRUE)), n)
   )
 
   # single column is working as usual
@@ -389,13 +432,12 @@ test_that("n_distinct() computations are correct", {
 
   expect_equal(
     pull(arrange(mutate(df_duckdb, n = n_distinct(x), .by = y), x, y), n),
-    pull(arrange(mutate(df, n = n_distinct(x), .by = y), x, y), n),
+    pull(arrange(mutate(df, n = n_distinct(x), .by = y), x, y), n)
   )
 })
 
 
 test_that("duckdb round() results equal its R version", {
-  skip_if_no_R4()
   skip_if_not_installed("dplyr")
   skip_if_not_installed("dbplyr")
 

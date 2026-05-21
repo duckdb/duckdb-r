@@ -6,6 +6,10 @@
 #include <cmath>
 #include <math.h>
 
+// Avoid clash with TRUE and FALSE macros in older rtools
+#undef TRUE
+#undef FALSE
+
 namespace duckdb {
 namespace rfuns {
 

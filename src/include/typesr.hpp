@@ -2,6 +2,8 @@
 
 namespace duckdb {
 
+struct ConvertOpts;
+
 struct DuckDBAltrepStringWrapper {
 	duckdb::unsafe_unique_array<string_t> string_data;
 	duckdb::unsafe_unique_array<bool> mask_data;
@@ -126,7 +128,7 @@ struct RApiTypes {
 	static R_len_t GetVecSize(RType rtype, SEXP coldata);
 	static R_len_t GetVecSize(SEXP coldata, bool integer64 = false);
 	static Value SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null = true);
-	static SEXP ValueToSexp(Value &val, string &timezone_config);
+	static SEXP ValueToSexp(const Value &val, const ConvertOpts &convert_opts);
 };
 
 struct RIntegralType {

@@ -62,7 +62,7 @@ test_that("read_only flag does not throw error when rel_sql is called", {
   rel <- rel_from_df(con, data.frame(a = 1:2, b = 2:3, c = 4:5))
   ans <- data.frame(a = 1L, b = 2L)
   expect_rel2 <- rel_sql(rel, "SELECT a, b FROM _ where c = 4")
-  expect_equivalent(expect_rel2, ans)
+  expect_equal(expect_rel2, ans, ignore_attr = TRUE)
   dbDisconnect(con)
 })
 

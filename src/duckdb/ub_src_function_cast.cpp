@@ -12,6 +12,8 @@
 
 #include "src/function/cast/enum_casts.cpp"
 
+#include "src/function/cast/geo_casts.cpp"
+
 #include "src/function/cast/list_casts.cpp"
 
 #include "src/function/cast/map_cast.cpp"
@@ -25,6 +27,8 @@
 #include "src/function/cast/struct_cast.cpp"
 
 #include "src/function/cast/time_casts.cpp"
+
+#include "src/function/cast/type_cast.cpp"
 
 #include "src/function/cast/union_casts.cpp"
 
