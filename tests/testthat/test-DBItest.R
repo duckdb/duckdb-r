@@ -154,6 +154,15 @@ if (rlang::is_installed("DBItest")) DBItest::test_all(c(
     "arrow_write_table_arrow_roundtrip_factor",
     "arrow_write_table_arrow_roundtrip_blob",
     "arrow_write_table_arrow_roundtrip_timestamp",
+    # 1.8.2: upstream switched to purrr::map_chr() which strips the difftime
+    # class, so the generated SQL literals become integers and DuckDB infers
+    # the placeholder type as INTEGER, failing to cast from INTERVAL.
+    "bind_time_seconds",
+    "bind_time_hours",
+    "bind_time_minutes_integer",
+    "arrow_bind_time_seconds",
+    "arrow_bind_time_hours",
+    "arrow_bind_time_minutes_integer",
     NULL
   ),
 
