@@ -12,10 +12,14 @@
 #'   For file-based databases, this is only applied when the database file is opened for the first time.
 #'   Subsequent connections (via the same `drv` object or a `drv` object pointing to the same path)
 #'   will silently ignore this flag.
-#' @param timezone_out The time zone returned to R, defaults to `"UTC"`, which
-#'   is currently the only timezone supported by duckdb.
+#' @param timezone_out The time zone in which plain `TIMESTAMP` columns
+#'   (without time zone) are returned to R, defaults to `"UTC"`.
 #'   If you want to display datetime values in the local timezone,
 #'   set to [Sys.timezone()] or `""`.
+#'   `TIMESTAMP WITH TIME ZONE` columns (`TIMESTAMPTZ`) ignore this argument:
+#'   their tzone attribute follows DuckDB's session `TimeZone` setting, so an
+#'   explicit `SET TimeZone = '...'` (e.g. with the ICU extension loaded)
+#'   automatically applies on the R side too.
 #' @param tz_out_convert How to convert timestamp columns to the timezone specified
 #'   in `timezone_out`. There are two options: `"with"`, and `"force"`. If `"with"`
 #'   is chosen, the timestamp will be returned as it would appear in the specified time zone.

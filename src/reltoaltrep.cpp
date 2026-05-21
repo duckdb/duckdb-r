@@ -622,7 +622,15 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
 		types.push_back(make_pair(col_name, col_type));
 	}
 
-	return rapi_rel_to_altrep_impl(relation_wrapper, row_names_sexp, types, rel->convert_opts);
+	// Capture the session's TimeZone setting so TIMESTAMP WITH TIME ZONE columns
+	// can be decorated with the matching `tzone` attribute. The session settings
+	// can only be queried while the connection is live, which it is here.
+	ConvertOpts local_convert_opts = rel->convert_opts;
+	if (drel->context) {
+		local_convert_opts.session_time_zone = drel->context->GetContext()->GetClientProperties().time_zone;
+	}
+
+	return rapi_rel_to_altrep_impl(relation_wrapper, row_names_sexp, types, local_convert_opts);
 }
 
 SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_wrapper, SEXP row_names_sexp,
