@@ -596,6 +596,78 @@ test_that("`map = \"list_of\"` round-trips a MAP column through dbWriteTable (#2
   }
 })
 
+# Named-list scan (map = "list_of") ---------------------------------------
+
+test_that("`map = \"list_of\"` scans named-list cells as MAP entries", {
+  con <- local_con(map = "list_of")
+
+  dbExecute(con, "CREATE TABLE t (mp MAP(VARCHAR, INTEGER))")
+  df <- data.frame(id = 1:3)
+  df$mp <- list(list(a = 1L, b = 2L), NULL, list(c = 3L))
+  dbAppendTable(con, "t", df[, "mp", drop = FALSE])
+
+  out <- dbReadTable(con, "t")
+  expect_equal(length(out$mp), 3L)
+  expect_equal(
+    as.data.frame(out$mp[[1]]),
+    data.frame(key = c("a", "b"), value = 1:2, stringsAsFactors = FALSE)
+  )
+  expect_null(out$mp[[2]])
+  expect_equal(
+    as.data.frame(out$mp[[3]]),
+    data.frame(key = "c", value = 3L, stringsAsFactors = FALSE)
+  )
+})
+
+test_that("`map = \"list_of\"` scan ignores unnamed list columns", {
+  con <- local_con(map = "list_of")
+
+  df <- data.frame(id = 1L)
+  df$m <- list(list(1L, 2L))  # not named
+  duckdb_register(con, "v", df)
+  ctype <- dbGetQuery(con, "DESCRIBE v")[2, "column_type"]
+  expect_false(grepl("STRUCT", ctype, fixed = TRUE))
+})
+
+test_that("`map = \"list_of\"` scan does not promote partly-unnamed lists", {
+  con <- local_con(map = "list_of")
+
+  # Some entries have an empty name -> the detector bails out and the
+  # column scans via the existing LIST path.
+  df <- data.frame(id = 1L)
+  df$m <- list(list(a = 1L, 2L))  # second name is ""
+  duckdb_register(con, "v", df)
+  ctype <- dbGetQuery(con, "DESCRIBE v")[2, "column_type"]
+  expect_false(grepl("STRUCT", ctype, fixed = TRUE))
+})
+
+test_that("`map = \"list_of\"` scan keeps data.frame(key, value) cells working", {
+  con <- local_con(map = "list_of")
+
+  dbExecute(con, "CREATE TABLE t (mp MAP(VARCHAR, INTEGER))")
+  df <- data.frame(id = 1L)
+  df$mp <- list(data.frame(key = c("a", "b"), value = 1:2, stringsAsFactors = FALSE))
+  dbAppendTable(con, "t", df[, "mp", drop = FALSE])
+
+  out <- dbReadTable(con, "t")
+  expect_equal(
+    as.data.frame(out$mp[[1]]),
+    data.frame(key = c("a", "b"), value = 1:2, stringsAsFactors = FALSE)
+  )
+})
+
+test_that("default `map` does not interpret named lists as MAP entries", {
+  con <- local_con()
+
+  # Without opt-in, a named-list column scans via the existing path
+  # (no STRUCT(key, value) override is applied).
+  df <- data.frame(id = 1L)
+  df$m <- list(list(a = 1L, b = 2L))
+  duckdb_register(con, "v", df)
+  ctype <- dbGetQuery(con, "DESCRIBE v")[2, "column_type"]
+  expect_false(grepl("STRUCT", ctype, fixed = TRUE))
+})
+
 # Writing -----------------------------------------------------------------
 #
 # Tracks the behavior described in
