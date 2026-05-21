@@ -59,13 +59,19 @@ jobs:
       versions-matrix: ${{ steps.versions-matrix.outputs.matrix }}
       dep-suggests-matrix: ${{ steps.dep-suggests-matrix.outputs.matrix }}
 
-    name: "Smoke test: stock R"
+    name: "Smoke test: stock R (system libduckdb)"
 
     permissions:
       contents: write
       statuses: write
       pull-requests: write
       actions: write
+
+    # Link against a system-installed libduckdb instead of compiling the
+    # vendored sources. Drops the smoke build from minutes to seconds.
+    # The source-build path is still exercised by the rcc-full matrix.
+    env:
+      DUCKDB_R_USE_SYSTEM_LIB: "1"
 
     # Begin custom: services
     # End custom: services

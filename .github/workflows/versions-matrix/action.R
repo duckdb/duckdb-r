@@ -25,8 +25,12 @@ windows <- data.frame(os = "windows-latest", r = r_versions[1:3])
 linux_devel <- data.frame(os = "ubuntu-24.04", r = r_versions[1], `http-user-agent` = "release", check.names = FALSE)
 linux <- data.frame(os = "ubuntu-24.04", r = r_versions[-1])
 covr <- data.frame(os = "ubuntu-24.04", r = r_versions[2], covr = "true", desc = "with covr")
+# rcc-smoke now links against system libduckdb. Keep a source-build row on
+# ubuntu-24.04 / release here so the vendored compile path is still
+# exercised on every matrix run.
+linux_source <- data.frame(os = "ubuntu-24.04", r = r_versions[2], desc = "source build")
 
-include_list <- list(macos, windows, linux_devel, linux, covr)
+include_list <- list(macos, windows, linux_devel, linux, linux_source, covr)
 
 if (file.exists(".github/versions-matrix.R")) {
   custom <- source(".github/versions-matrix.R")$value

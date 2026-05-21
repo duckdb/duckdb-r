@@ -7,3 +7,16 @@ runs:
       run: |
         echo '_R_CHECK_PKG_SIZES_=FALSE' | tee -a $GITHUB_ENV
       shell: bash
+
+    # Install libduckdb so that the R package can link against it instead of
+    # rebuilding the vendored sources. Gated on DUCKDB_R_USE_SYSTEM_LIB=1 so
+    # that source-build jobs are unaffected. Linux and macOS only.
+    - name: Install libduckdb (system-lib mode)
+      if: env.DUCKDB_R_USE_SYSTEM_LIB == '1' && runner.os != 'Windows'
+      run: |
+        if [ "${RUNNER_OS}" = "Linux" ]; then
+          sudo scripts/install-libduckdb.sh --prefix /usr/local
+        else
+          scripts/install-libduckdb.sh --prefix /usr/local
+        fi
+      shell: bash
