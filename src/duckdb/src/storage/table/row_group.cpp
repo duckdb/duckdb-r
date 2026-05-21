@@ -133,6 +133,14 @@ ColumnData &RowGroup::GetColumn(storage_t c) const {
 	return c == COLUMN_IDENTIFIER_ROW_ID ? *row_id_column_data : *columns[c];
 }
 
+ColumnData &RowGroup::GetRawColumnData(const StorageIndex &c) const {
+	return GetColumn(c);
+}
+
+ColumnData &RowGroup::GetRawColumnData(storage_t c) const {
+	return GetColumn(c);
+}
+
 void RowGroup::LoadColumn(storage_t c) const {
 	if (c == COLUMN_IDENTIFIER_ROW_ID) {
 		LoadRowIdColumnData();
@@ -625,6 +633,8 @@ void RowGroup::Scan(ScanOptions options, CollectionScanState &state, DataChunk &
 			NextVector(state);
 			continue;
 		}
+		state.rows_scanned += count;
+
 		auto &block_manager = GetBlockManager();
 		if (block_manager.Prefetch()) {
 			PrefetchState prefetch_state;
@@ -820,19 +830,6 @@ optional_ptr<RowVersionManager> RowGroup::GetVersionInfoIfLoaded() const {
 		return version_info;
 	}
 	return nullptr;
-}
-
-bool RowGroup::ShouldCheckpointRowGroup(transaction_t checkpoint_id) const {
-	if (checkpoint_id == MAX_TRANSACTION_ID) {
-		// no id specified - checkpoint all committed data
-		return true;
-	}
-	// check if this row group was committed as of the current checkpoint id
-	auto vinfo = GetVersionInfoIfLoaded();
-	if (!vinfo) {
-		return true;
-	}
-	return vinfo->ShouldCheckpointRowGroup(checkpoint_id, count);
 }
 
 idx_t RowGroup::GetSelVector(ScanOptions options, idx_t vector_idx, SelectionVector &sel_vector, idx_t max_count) {
@@ -1061,7 +1058,6 @@ vector<RowGroupWriteData> RowGroup::WriteToDisk(RowGroupWriteInfo &info,
 		RowGroupWriteData write_data;
 		write_data.states.reserve(column_count);
 		write_data.statistics.reserve(column_count);
-		write_data.should_checkpoint = row_group.get().ShouldCheckpointRowGroup(info.options.transaction_id);
 		result.push_back(std::move(write_data));
 	}
 
@@ -1083,10 +1079,6 @@ vector<RowGroupWriteData> RowGroup::WriteToDisk(RowGroupWriteInfo &info,
 		for (idx_t row_group_idx = 0; row_group_idx < row_groups.size(); row_group_idx++) {
 			auto &row_group = row_groups[row_group_idx].get();
 			auto &row_group_write_data = result[row_group_idx];
-			if (!row_group_write_data.should_checkpoint) {
-				// row group should not be checkpointed - skip
-				continue;
-			}
 			auto &column = row_group.GetColumn(column_idx);
 			ColumnCheckpointInfo checkpoint_info(info, column_idx);
 			auto checkpoint_state = column.Checkpoint(row_group, checkpoint_info);
@@ -1107,10 +1099,6 @@ vector<RowGroupWriteData> RowGroup::WriteToDisk(RowGroupWriteInfo &info,
 	for (idx_t row_group_idx = 0; row_group_idx < row_groups.size(); row_group_idx++) {
 		auto &row_group_write_data = result[row_group_idx];
 		auto &row_group = row_groups[row_group_idx].get();
-		if (!row_group_write_data.should_checkpoint) {
-			// row group should not be checkpointed - skip
-			continue;
-		}
 		auto result_row_group = make_shared_ptr<RowGroup>(row_group.GetCollection(), row_group.count);
 		result_row_group->columns = std::move(result_columns[row_group_idx]);
 		result_row_group->version_info = row_group.version_info.load();
@@ -1186,9 +1174,29 @@ const vector<MetaBlockPointer> &RowGroup::GetColumnStartPointers() const {
 	return column_pointers;
 }
 
+bool RowGroup::CanReuseMetadata(RowGroupWriter &writer) const {
+	if (!Settings::Get<ExperimentalMetadataReuseSetting>(writer.GetDatabase())) {
+		// disabled by configuration
+		return false;
+	}
+	if (column_pointers.empty()) {
+		// no existing metadata on disk - cannot re-use
+		return false;
+	}
+	if (HasChanges()) {
+		// we have changes - need to rewrite
+		return false;
+	}
+	auto &table_writer = writer.GetTableWriter();
+	if (table_writer.RequireLegacyStartRow() && table_writer.RowIdsChanged()) {
+		// row-ids changed and we are targeting an old storage version that requires "start_row" - cannot re-use
+		return false;
+	}
+	return true;
+}
+
 RowGroupWriteData RowGroup::WriteToDisk(RowGroupWriter &writer) {
-	if (Settings::Get<ExperimentalMetadataReuseSetting>(writer.GetDatabase()) && !column_pointers.empty() &&
-	    !HasChanges()) {
+	if (CanReuseMetadata(writer)) {
 		// we have existing metadata and the row group has not been changed
 		// re-use previous metadata
 		RowGroupWriteData result;
@@ -1234,8 +1242,9 @@ RowGroupPointer RowGroup::Checkpoint(RowGroupWriteData write_data, RowGroupWrite
 		row_group_pointer.data_pointers = column_pointers;
 		row_group_pointer.has_metadata_blocks = true;
 		row_group_pointer.extra_metadata_blocks = write_data.existing_extra_metadata_blocks;
-		row_group_pointer.deletes_pointers = CheckpointDeletes(writer);
 		if (metadata_manager) {
+			row_group_pointer.deletes_pointers = CheckpointDeletes(writer);
+
 			vector<MetaBlockPointer> extra_metadata_block_pointers;
 			extra_metadata_block_pointers.reserve(write_data.existing_extra_metadata_blocks.size());
 			for (auto &block_pointer : write_data.existing_extra_metadata_blocks) {

@@ -70,9 +70,9 @@ for commit in $original; do
     break
   fi
 
-  # Expecting two changes even if nothing else changed.
+  # Expecting one change under ${vendor_base_dir} (and other changes) even if nothing else changed.
   # Need at least three changed files to consider it a real update.
-  if [ "$(git status --porcelain -- ${vendor_base_dir} | wc -l)" -gt 2 ]; then
+  if [ "$(git status --porcelain -- ${vendor_base_dir} | wc -l)" -gt 1 ]; then
     message="vendor: Update vendored sources to ${repo_org}/${repo_name}@$commit"
     break
   fi
@@ -94,7 +94,7 @@ git add .
   echo
   git -C "$upstream_dir" log --first-parent --format="%s" "${base}".."${commit}" |
     tee /dev/stderr |
-    sed -r 's%(#[0-9]+)%'${repo_org}/${repo_name}'\1%g'
+    sed -r 's%#([0-9]+)%https://redirect.github.com/'${repo_org}/${repo_name}'/pull/\1%g'
 ) | git commit --file /dev/stdin
 
 rm -rf "$upstream_dir"

@@ -15,6 +15,7 @@
 #include "duckdb/common/enum_util.hpp"
 #include "duckdb/catalog/catalog_search_path.hpp"
 #include "duckdb/common/string_util.hpp"
+#include "duckdb/common/file_system.hpp"
 #include "duckdb/common/operator/double_cast_operator.hpp"
 #include "duckdb/main/attached_database.hpp"
 #include "duckdb/main/client_context.hpp"
@@ -106,6 +107,22 @@ void AllocatorBulkDeallocationFlushThresholdSetting::ResetGlobal(DatabaseInstanc
 Value AllocatorBulkDeallocationFlushThresholdSetting::GetSetting(const ClientContext &context) {
 	auto &config = DBConfig::GetConfig(context);
 	return Value(StringUtil::BytesToHumanReadableString(config.options.allocator_bulk_deallocation_flush_threshold));
+}
+
+//===----------------------------------------------------------------------===//
+// Delta Only Variant Legacy Encoding
+//===----------------------------------------------------------------------===//
+void DeltaOnlyVariantEncodingEnabledSetting::SetGlobal(DatabaseInstance *db, DBConfig &config, const Value &input) {
+	throw InvalidInputException("This setting is not adjustable by a user");
+}
+
+void DeltaOnlyVariantEncodingEnabledSetting::ResetGlobal(DatabaseInstance *db, DBConfig &config) {
+	throw InvalidInputException("This setting is not adjustable by a user");
+}
+
+Value DeltaOnlyVariantEncodingEnabledSetting::GetSetting(const ClientContext &context) {
+	auto &config = DBConfig::GetConfig(context);
+	return Value::BOOLEAN(config.options.variant_legacy_encoding);
 }
 
 //===----------------------------------------------------------------------===//
@@ -713,6 +730,15 @@ void DuckDBAPISetting::OnSet(SettingCallbackInfo &info, Value &input) {
 }
 
 //===----------------------------------------------------------------------===//
+// Vacuum Rebuild Indexes
+//===----------------------------------------------------------------------===//
+void VacuumRebuildIndexesSetting::OnSet(SettingCallbackInfo &info, Value &input) {
+	if (info.db || info.context) {
+		throw InvalidInputException("Cannot change vacuum_rebuild_indexes setting while database is running");
+	}
+}
+
+//===----------------------------------------------------------------------===//
 // Enable External Access
 //===----------------------------------------------------------------------===//
 void EnableExternalAccessSetting::OnSet(SettingCallbackInfo &info, Value &input) {
@@ -1237,6 +1263,17 @@ Value HTTPLoggingOutputSetting::GetSetting(const ClientContext &context) {
 }
 
 //===----------------------------------------------------------------------===//
+// HTTP Proxy
+//===----------------------------------------------------------------------===//
+void HTTPProxySetting::SetGlobal(DatabaseInstance *, DBConfig &config, const Value &input) {
+	config.options.http_proxy = input.GetValue<string>();
+}
+
+void HTTPProxySetting::ResetGlobal(DatabaseInstance *, DBConfig &config) {
+	config.options.http_proxy = FileSystem::GetEnvVariable("HTTP_PROXY");
+}
+
+//===----------------------------------------------------------------------===//
 // Index Scan Percentage
 //===----------------------------------------------------------------------===//
 void IndexScanPercentageSetting::OnSet(SettingCallbackInfo &, Value &input) {
@@ -1662,4 +1699,38 @@ void WarningsAsErrorsSetting::OnSet(SettingCallbackInfo &info, Value &input) {
 	}
 }
 
+//===----------------------------------------------------------------------===//
+// Streaming Buffer Size
+//===----------------------------------------------------------------------===//
+void WriteBufferRowGroupMemoryLimitSetting::SetGlobal(DatabaseInstance *db, DBConfig &config, const Value &input) {
+	if (input.IsNull() || input.ToString().empty()) {
+		config.options.write_buffer_row_group_memory_limit = optional_idx();
+	} else {
+		config.options.write_buffer_row_group_memory_limit = DBConfig::ParseMemoryLimit(input.ToString());
+	}
+}
+
+void WriteBufferRowGroupMemoryLimitSetting::ResetGlobal(DatabaseInstance *db, DBConfig &config) {
+	config.options.write_buffer_row_group_memory_limit = optional_idx();
+}
+
+Value WriteBufferRowGroupMemoryLimitSetting::GetSetting(const ClientContext &context) {
+	auto &config = DBConfig::GetConfig(context);
+	idx_t bytes = 0;
+	if (config.options.write_buffer_row_group_memory_limit.IsValid()) {
+		bytes = config.options.write_buffer_row_group_memory_limit.GetIndex();
+	} else {
+		bytes = config.options.maximum_memory / 5 / (config.options.maximum_threads + 1);
+	}
+	return Value(StringUtil::BytesToHumanReadableString(bytes));
+}
+
+void CurrentTransactionInvalidationPolicySetting::OnSet(SettingCallbackInfo &info, Value &input) {
+	if (!info.context) {
+		throw InvalidInputException(
+		    "current_transaction_invalidaton_policy can only be set when there is an active client context");
+	}
+	info.context->transaction.SetInvalidationPolicy(
+	    EnumUtil::FromString<TransactionInvalidationPolicy>(input.GetValue<string>()));
+}
 } // namespace duckdb

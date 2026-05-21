@@ -107,6 +107,7 @@ struct ParquetOptions {
 	explicit ParquetOptions(ClientContext &context);
 
 	bool binary_as_string = false;
+	bool variant_legacy_encoding = false;
 	bool file_row_number = false;
 	shared_ptr<ParquetEncryptionConfig> encryption_config;
 
@@ -155,7 +156,7 @@ public:
 	unique_ptr<ParquetColumnSchema> root_schema;
 	shared_ptr<EncryptionUtil> encryption_util;
 	//! How many rows have been read from this file
-	atomic<idx_t> rows_read;
+	atomic<idx_t> rows_read {0};
 
 public:
 	string GetReaderType() const override {

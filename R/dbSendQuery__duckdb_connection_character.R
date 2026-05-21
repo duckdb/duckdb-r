@@ -34,7 +34,7 @@ find_caller <- function() {
 
   while (!identical(env, emptyenv())) {
     env_name <- environmentName(parent.env(env))
-    if (!(env_name %in% c("duckdb", "DBI"))) {
+    if (!(env_name %in% c(get_package_name(), "DBI"))) {
       return(env)
     }
     i <- i + 1L

@@ -78,7 +78,6 @@ struct RowGroupWriteData {
 	vector<unique_ptr<ColumnCheckpointState>> states;
 	vector<BaseStatistics> statistics;
 	bool reuse_existing_metadata_blocks = false;
-	bool should_checkpoint = true;
 	vector<idx_t> existing_extra_metadata_blocks;
 	optional_idx write_count;
 };
@@ -141,8 +140,6 @@ public:
 	void Scan(ScanOptions options, CollectionScanState &state, DataChunk &result);
 	void Scan(CollectionScanState &state, DataChunk &result, TableScanType type);
 
-	//! Whether or not this RowGroup should be
-	bool ShouldCheckpointRowGroup(transaction_t checkpoint_id) const;
 	idx_t GetSelVector(ScanOptions options, idx_t vector_idx, SelectionVector &sel_vector, idx_t max_count);
 
 	//! For a specific row, returns true if it should be used for the transaction and false otherwise.
@@ -170,6 +167,7 @@ public:
 	RowGroupWriteData WriteToDisk(RowGroupWriteInfo &info) const;
 	//! Returns the number of committed rows (count - committed deletes)
 	idx_t GetCommittedRowCount();
+	bool CanReuseMetadata(RowGroupWriter &writer) const;
 	RowGroupWriteData WriteToDisk(RowGroupWriter &writer);
 	RowGroupPointer Checkpoint(RowGroupWriteData write_data, RowGroupWriter &writer, TableStatistics &global_stats,
 	                           idx_t row_group_start);
@@ -216,6 +214,10 @@ public:
 	idx_t GetColumnCount() const;
 
 	vector<MetaBlockPointer> CheckpointDeletes(RowGroupWriter &writer);
+
+	//! Direct accessors, fall outside of general use but can be useful to some extensions
+	ColumnData &GetRawColumnData(const StorageIndex &c) const;
+	ColumnData &GetRawColumnData(storage_t c) const;
 
 private:
 	optional_ptr<RowVersionManager> GetVersionInfo();
