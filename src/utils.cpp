@@ -293,11 +293,6 @@ SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 	duckdb_r_decorate(type, dest, convert_opts);
 	duckdb_r_transform(vec, dest, 0, 1, convert_opts, "variant");
 
-	// Scalar TIMESTAMP (no TZ) must have tzone="" for Arrow pushdown compatibility
-	if (type.id() == LogicalTypeId::TIMESTAMP && TYPEOF(dest) == REALSXP) {
-		Rf_setAttrib(dest, RStrings::get().tzone_sym, StringsToSexp({""}));
-	}
-
 	// Types stored as per-row VECSXP elements: extract element 0
 	// STRUCT returns a 1-row data frame: return as-is
 	// Scalars return a length-1 vector: return as-is

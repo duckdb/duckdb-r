@@ -132,8 +132,7 @@ public:
 			cpp11::sexp projection_sexp = StringsToSexp(column_list);
 			cpp11::sexp filters_sexp = Rf_ScalarLogical(true);
 			if (filters && !filters->filters.empty()) {
-				auto timezone_config = factory->config.time_zone;
-				filters_sexp = TransformFilter(*filters, projection_map, factory->export_fun, timezone_config);
+				filters_sexp = TransformFilter(*filters, projection_map, factory->export_fun);
 			}
 			export_fun(factory->arrow_scannable, stream_ptr_sexp, projection_sexp, filters_sexp);
 		}
@@ -157,8 +156,7 @@ public:
 	ClientProperties config;
 
 private:
-	static SEXP TransformFilterExpression(TableFilter &filter, const string &column_name, SEXP functions,
-	                                      string &timezone_config) {
+	static SEXP TransformFilterExpression(TableFilter &filter, const string &column_name, SEXP functions) {
 		cpp11::sexp column_name_sexp = Rf_mkString(column_name.c_str());
 		cpp11::sexp column_name_expr = CreateFieldRef(functions, column_name_sexp);
 
@@ -166,8 +164,13 @@ private:
 		case TableFilterType::CONSTANT_COMPARISON: {
 			auto constant_filter = (ConstantFilter &)filter;
 			ConvertOpts filter_opts;
-			filter_opts.timezone_out = timezone_config;
 			cpp11::sexp constant_sexp = RApiTypes::ValueToSexp(constant_filter.constant, filter_opts);
+
+			// Scalar TIMESTAMP (no TZ) must have tzone="" for Arrow pushdown compatibility
+			if (constant_filter.constant.type().id() == LogicalTypeId::TIMESTAMP && TYPEOF(constant_sexp) == REALSXP) {
+			    Rf_setAttrib(constant_sexp, RStrings::get().tzone_sym, StringsToSexp({""}));
+			}
+
 			cpp11::sexp constant_expr = CreateScalar(functions, constant_sexp);
 			switch (constant_filter.comparison_type) {
 			case ExpressionType::COMPARE_EQUAL: {
@@ -202,13 +205,11 @@ private:
 		}
 		case TableFilterType::CONJUNCTION_AND: {
 			auto &and_filter = (ConjunctionAndFilter &)filter;
-			return TransformChildFilters(functions, column_name, "and_kleene", and_filter.child_filters,
-			                             timezone_config);
+			return TransformChildFilters(functions, column_name, "and_kleene", and_filter.child_filters);
 		}
 		case TableFilterType::CONJUNCTION_OR: {
 			auto &and_filter = (ConjunctionAndFilter &)filter;
-			return TransformChildFilters(functions, column_name, "or_kleene", and_filter.child_filters,
-			                             timezone_config);
+			return TransformChildFilters(functions, column_name, "or_kleene", and_filter.child_filters);
 		}
 
 		default:
@@ -218,24 +219,24 @@ private:
 	}
 
 	static SEXP TransformChildFilters(SEXP functions, const string &column_name, const string op,
-	                                  vector<duckdb::unique_ptr<TableFilter>> &filters, string &timezone_config) {
+	                                  vector<duckdb::unique_ptr<TableFilter>> &filters) {
 		auto fit = filters.begin();
-		cpp11::sexp conjunction_sexp = TransformFilterExpression(**fit, column_name, functions, timezone_config);
+		cpp11::sexp conjunction_sexp = TransformFilterExpression(**fit, column_name, functions);
 		fit++;
 		for (; fit != filters.end(); ++fit) {
-			cpp11::sexp rhs = TransformFilterExpression(**fit, column_name, functions, timezone_config);
+			cpp11::sexp rhs = TransformFilterExpression(**fit, column_name, functions);
 			conjunction_sexp = CreateExpression(functions, op, conjunction_sexp, rhs);
 		}
 		return conjunction_sexp;
 	}
 
 	static SEXP TransformFilter(TableFilterSet &filter_collection, unordered_map<idx_t, string> &columns,
-	                            SEXP functions, string &timezone_config) {
+	                            SEXP functions) {
 		auto fit = filter_collection.filters.begin();
-		cpp11::sexp res = TransformFilterExpression(*fit->second, columns[fit->first], functions, timezone_config);
+		cpp11::sexp res = TransformFilterExpression(*fit->second, columns[fit->first], functions);
 		fit++;
 		for (; fit != filter_collection.filters.end(); ++fit) {
-			cpp11::sexp rhs = TransformFilterExpression(*fit->second, columns[fit->first], functions, timezone_config);
+			cpp11::sexp rhs = TransformFilterExpression(*fit->second, columns[fit->first], functions);
 			res = CreateExpression(functions, "and_kleene", res, rhs);
 		}
 		return res;
