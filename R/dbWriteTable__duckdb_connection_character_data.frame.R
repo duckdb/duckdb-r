@@ -70,6 +70,11 @@ dbWriteTable__duckdb_connection_character_data.frame <- function(conn,
       "DESCRIBE %s", view_name
     )))$column_name
 
+    # Auto-fill MAP column types from `dbDataType()`, so that
+    # `vctrs::list_of`-tagged columns produced by
+    # `dbConnect(map = "list_of")` round-trip back into MAP columns.
+    field.types <- duckdb_augment_field_types_for_map(conn, value, field.types)
+
     cols <- character()
     col_idx <- 1
     for (name in col_names) {
@@ -92,6 +97,23 @@ dbWriteTable__duckdb_connection_character_data.frame <- function(conn,
     dbAppendTable(conn, name, value)
   }
   invisible(TRUE)
+}
+
+# Adds MAP types inferred from `dbDataType()` to `field.types`, but only for
+# columns the user has not already provided a type for. Other types are left
+# to the existing `CREATE TABLE AS SELECT` flow, which avoids unnecessary
+# casts and matches DuckDB's own type inference.
+duckdb_augment_field_types_for_map <- function(conn, value, field.types) {
+  for (col_name in names(value)) {
+    if (col_name %in% names(field.types)) {
+      next
+    }
+    inferred <- dbDataType(conn, value[[col_name]])
+    if (duckdb_is_map_type(inferred)) {
+      field.types[[col_name]] <- inferred
+    }
+  }
+  field.types
 }
 
 #' @rdname duckdb_connection-class

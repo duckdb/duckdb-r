@@ -531,6 +531,71 @@ test_that("dbCreateTable on a list_of column creates a MAP column", {
   )
 })
 
+test_that("dbWriteTable on a list_of column creates and populates a MAP column", {
+  skip_if_not_installed("vctrs")
+
+  con <- local_con()
+
+  m <- vctrs::new_list_of(
+    list(
+      data.frame(key = c("a", "b"), value = 1:2, stringsAsFactors = FALSE),
+      NULL,
+      data.frame(key = "c", value = 3L, stringsAsFactors = FALSE)
+    ),
+    ptype = data.frame(key = character(), value = integer(), stringsAsFactors = FALSE)
+  )
+  df <- data.frame(id = 1:3)
+  df$m <- m
+  dbWriteTable(con, "t", df)
+  expect_equal(
+    dbGetQuery(con, "DESCRIBE t")$column_type,
+    c("INTEGER", "MAP(VARCHAR, INTEGER)")
+  )
+  out <- dbReadTable(con, "t")
+  expect_equal(out$id, 1:3)
+  expect_equal(
+    as.data.frame(out$m[[1]]),
+    data.frame(key = c("a", "b"), value = 1:2, stringsAsFactors = FALSE)
+  )
+  expect_null(out$m[[2]])
+  expect_equal(
+    as.data.frame(out$m[[3]]),
+    data.frame(key = "c", value = 3L, stringsAsFactors = FALSE)
+  )
+})
+
+test_that("`map = \"list_of\"` round-trips a MAP column through dbWriteTable (#200)", {
+  skip_if_not_installed("vctrs")
+
+  con <- local_con(map = "list_of")
+
+  dbExecute(con, "CREATE TABLE src (id INTEGER, m MAP(VARCHAR, INTEGER))")
+  dbExecute(con, "INSERT INTO src VALUES
+    (1, MAP {'a': 1, 'b': 2}),
+    (2, NULL),
+    (3, MAP {'c': 3})")
+
+  df <- dbReadTable(con, "src")
+  expect_s3_class(df$m, "vctrs_list_of")
+
+  dbWriteTable(con, "dst", df)
+  expect_equal(
+    dbGetQuery(con, "DESCRIBE dst")$column_type,
+    c("INTEGER", "MAP(VARCHAR, INTEGER)")
+  )
+
+  back <- dbReadTable(con, "dst")
+  expect_s3_class(back$m, "vctrs_list_of")
+  expect_equal(back$id, df$id)
+  for (i in seq_along(df$m)) {
+    if (is.null(df$m[[i]])) {
+      expect_null(back$m[[i]])
+    } else {
+      expect_equal(as.data.frame(back$m[[i]]), as.data.frame(df$m[[i]]))
+    }
+  }
+})
+
 # Writing -----------------------------------------------------------------
 #
 # Tracks the behavior described in
