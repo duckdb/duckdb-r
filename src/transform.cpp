@@ -215,9 +215,31 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 	case LogicalTypeId::BLOB:
 	case LogicalTypeId::UUID:
 	case LogicalTypeId::LIST:
-	case LogicalTypeId::MAP:
 	case LogicalTypeId::VARIANT:
 		break; // no extra decoration required, do nothing
+	case LogicalTypeId::MAP:
+		if (convert_opts.map == ConvertOpts::MapShape::LIST_OF) {
+			// Build the empty data.frame(key = <K>, value = <V>) prototype.
+			auto &key_type = MapType::KeyType(type);
+			auto &value_type = MapType::ValueType(type);
+
+			cpp11::sexp key_proto = duckdb_r_allocate(key_type, 0, "MAP ptype key", convert_opts, "duckdb_r_decorate MAP");
+			duckdb_r_decorate(key_type, key_proto, convert_opts);
+			cpp11::sexp value_proto =
+			    duckdb_r_allocate(value_type, 0, "MAP ptype value", convert_opts, "duckdb_r_decorate MAP");
+			duckdb_r_decorate(value_type, value_proto, convert_opts);
+
+			cpp11::writable::list ptype;
+			ptype.push_back(cpp11::named_arg("key") = std::move(key_proto));
+			ptype.push_back(cpp11::named_arg("value") = std::move(value_proto));
+			(void)(SEXP)ptype; // realize any AsIs / cpp11 finalization
+
+			duckdb_r_df_decorate(ptype, 0);
+
+			SET_CLASS(dest, RStrings::get().vctrs_list_of_str);
+			Rf_setAttrib(dest, RStrings::get().ptype_sym, ptype);
+		}
+		break;
 	case LogicalTypeId::GEOMETRY:
 		if (convert_opts.geometry == ConvertOpts::GeometryConversion::WK) {
 			SET_CLASS(dest, RStrings::get().wk_wkb_wk_vctr_str);

@@ -195,7 +195,9 @@ struct RStrings {
 	SEXP integer64_str;
 	SEXP tbl_df_tbl_dataframe_str;
 	SEXP wk_wkb_wk_vctr_str;
+	SEXP vctrs_list_of_str;
 	SEXP enc2utf8_sym; // Rf_install
+	SEXP ptype_sym;
 	SEXP tzone_sym;
 	SEXP units_sym;
 	SEXP dim_sym;

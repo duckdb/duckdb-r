@@ -410,6 +410,74 @@ test_that("duplicate map keys are rejected by DuckDB", {
   )
 })
 
+# Reading with map = "list_of" ---------------------------------------------
+
+test_that("dbConnect(map = \"list_of\") returns vctrs::list_of for MAP columns", {
+  skip_if_not_installed("vctrs")
+
+  con <- local_con(map = "list_of")
+
+  res <- dbGetQuery(con, "SELECT MAP {'a': 1, 'b': 2} AS m")
+  expect_s3_class(res$m, "vctrs_list_of")
+  expect_equal(
+    vctrs::vec_ptype(attr(res$m, "ptype")),
+    vctrs::vec_ptype(data.frame(key = character(), value = integer()))
+  )
+  expect_equal(
+    as.data.frame(res$m[[1]]),
+    data.frame(key = c("a", "b"), value = 1:2, stringsAsFactors = FALSE)
+  )
+})
+
+test_that("dbConnect(map = \"list_of\") preserves NULL and empty MAP cells", {
+  skip_if_not_installed("vctrs")
+
+  con <- local_con(map = "list_of")
+
+  res <- dbGetQuery(
+    con,
+    "SELECT 1 AS i, MAP {'a': 1} AS m UNION ALL
+     SELECT 2, NULL UNION ALL
+     SELECT 3, MAP([]::VARCHAR[], []::INTEGER[]) ORDER BY i"
+  )
+  expect_s3_class(res$m, "vctrs_list_of")
+  expect_equal(
+    as.data.frame(res$m[[1]]),
+    data.frame(key = "a", value = 1L, stringsAsFactors = FALSE)
+  )
+  expect_null(res$m[[2]])
+  expect_equal(nrow(as.data.frame(res$m[[3]])), 0L)
+})
+
+test_that("dbConnect default `map` keeps MAP columns as plain data.frame lists", {
+  skip_if_not_installed("vctrs")
+
+  con <- local_con()
+
+  res <- dbGetQuery(con, "SELECT MAP {'a': 1} AS m")
+  expect_false(inherits(res$m, "vctrs_list_of"))
+  expect_type(res$m, "list")
+})
+
+test_that("dbConnect(map = \"list_of\") works with nested key/value types", {
+  skip_if_not_installed("vctrs")
+
+  con <- local_con(map = "list_of")
+
+  res <- dbGetQuery(
+    con,
+    "SELECT MAP([DATE '2024-01-01'], ['x']) AS m"
+  )
+  expect_s3_class(res$m, "vctrs_list_of")
+  ptype <- attr(res$m, "ptype")
+  expect_s3_class(ptype$key, "Date")
+  expect_type(ptype$value, "character")
+})
+
+test_that("dbConnect(map = ...) rejects unknown values", {
+  expect_error(local_con(map = "wat"), "Unsupported map configuration")
+})
+
 # Writing -----------------------------------------------------------------
 #
 # Tracks the behavior described in

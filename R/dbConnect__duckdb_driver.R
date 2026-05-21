@@ -35,6 +35,13 @@
 #'   If `"blob"` is selected, geometry columns are returned as a list of raw vectors containing WKB data.
 #'   If `"wk"` is selected, geometry columns are returned as \pkg{wk} `wk_wkb` vectors.
 #'   Use [wk::wk_handle()] or [sf::st_as_sfc()] to convert to other geometry formats.
+#' @param map How `MAP` columns should be returned. There are two options: `"data.frame"` and `"list_of"`.
+#'   If `"data.frame"` is selected (the default), `MAP` columns are returned as a list of data frames with
+#'   `key` and `value` columns.
+#'   If `"list_of"` is selected, `MAP` columns are returned as a [vctrs::list_of()] whose `ptype` is a
+#'   `data.frame(key = <K>, value = <V>)` that records the SQL key/value types. This enables MAP columns
+#'   to round-trip through [dbWriteTable()] / [dbCreateTable()] without specifying `field.types`,
+#'   and lets scans accept named-list cells as MAP entries.
 #'
 #' @return `dbConnect()` returns an object of class [duckdb_connection-class].
 #'
@@ -70,7 +77,8 @@ dbConnect__duckdb_driver <- function(
   config = list(),
   bigint = "numeric",
   array = "none",
-  geometry = "blob"
+  geometry = "blob",
+  map = "data.frame"
 ) {
   check_flag(debug)
   timezone_out <- check_tz(timezone_out)
@@ -95,7 +103,8 @@ dbConnect__duckdb_driver <- function(
     tz_out_convert = tz_out_convert,
     bigint = bigint,
     array = array,
-    geometry = geometry
+    geometry = geometry,
+    map = map
   )
 
   config <- utils::modifyList(drv@config, config)
