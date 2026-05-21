@@ -22,13 +22,11 @@ dbBind__duckdb_result <- function(res, params, ...) {
 
   res@env$rows_fetched <- 0
   res@env$resultset <- NULL
+  res@env$pending_params <- NULL
 
   params <- encode_values(params)
 
-  is_data_query <- res@stmt_lst$type %in% c("SELECT", "EXPLAIN", "RELATION") ||
-    res@stmt_lst$return_type == "QUERY_RESULT"
-
-  if (is_data_query && !res@arrow) {
+  if (is_data_query(res@stmt_lst) && !res@arrow) {
     # Defer execution to dbFetch() for data-returning queries
     res@env$pending_params <- params
   } else {

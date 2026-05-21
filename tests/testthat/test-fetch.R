@@ -52,3 +52,27 @@ test_that("dbBind defers execution until dbFetch", {
 
   dbClearResult(rs)
 })
+
+test_that("dbGetRowsAffected returns 0 for deferred SELECT queries", {
+  con <- local_con()
+  dbWriteTable(con, "mt", mtcars)
+
+  # No-param SELECT: deferred, not yet executed -> 0, not NA
+  rs <- dbSendQuery(con, "SELECT * FROM mt")
+  expect_identical(dbGetRowsAffected(rs), 0)
+  dbFetch(rs)
+  expect_identical(dbGetRowsAffected(rs), 0)
+  dbClearResult(rs)
+
+  # Parameterized SELECT before dbBind(): params required -> NA
+  rs <- dbSendQuery(con, "SELECT * FROM mt WHERE cyl = ?")
+  expect_identical(dbGetRowsAffected(rs), NA_integer_)
+
+  # After dbBind() but before dbFetch(): execution is pending -> 0
+  dbBind(rs, list(6L))
+  expect_identical(dbGetRowsAffected(rs), 0)
+
+  dbFetch(rs)
+  expect_identical(dbGetRowsAffected(rs), 0)
+  dbClearResult(rs)
+})
