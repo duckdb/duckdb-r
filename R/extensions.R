@@ -60,9 +60,13 @@ resolve_secret_directory <- function() {
 
 #' Consolidate DuckDB secrets into the configured secret directory
 #'
+#' @description
+#' `r lifecycle::badge('experimental')`
+#'
 #' Consolidates DuckDB stored secrets from up to three source directories into
 #' the directory currently configured as the target for this R session.
 #'
+#' @details
 #' The target directory is the one DuckDB would write to on the next
 #' connection, determined by:
 #'

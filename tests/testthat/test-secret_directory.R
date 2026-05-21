@@ -1,3 +1,5 @@
+skip_on_cran()
+
 local_secret_dirs <- function(.local_envir = parent.frame()) {
   root <- withr::local_tempdir(.local_envir = .local_envir)
   r_dir <- file.path(root, "rdir")

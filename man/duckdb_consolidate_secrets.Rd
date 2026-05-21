@@ -21,6 +21,8 @@ plan before executing it.}
 The target directory, invisibly.
 }
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
 Consolidates DuckDB stored secrets from up to three source directories into
 the directory currently configured as the target for this R session.
 }
