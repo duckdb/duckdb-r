@@ -308,7 +308,8 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 
 	ScopedInterruptHandler signal_handler(stmt->stmt->context);
 
-	auto generic_result = stmt->stmt->Execute(stmt->parameters, false);
+	bool allow_stream_result = convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED;
+	auto generic_result = stmt->stmt->Execute(stmt->parameters, allow_stream_result);
 
 	signal_handler.HandleInterrupt();
 
