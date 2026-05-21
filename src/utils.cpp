@@ -318,8 +318,32 @@ SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 	db->db->LoadStaticExtension<RfunsExtension>();
 }
 
+// ALTREP guard implementation - thread-local depth counter.
+// Incremented when entering an ALTREP method, decremented when leaving.
+thread_local int AltrepGuard::depth = 0;
+
+AltrepGuard::AltrepGuard() {
+	++depth;
+}
+
+AltrepGuard::~AltrepGuard() {
+	--depth;
+}
+
+bool AltrepGuard::IsActive() {
+	return depth > 0;
+}
+
 // Helper functions to communicate errors via R's stop() function
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message) {
+	// Inside an ALTREP method, calling back into R via cpp11::function is
+	// unsafe: the R function calls stop() which long-jmps out of the ALTREP
+	// method without unwinding C++ frames. Throw a regular C++ exception so
+	// BEGIN_CPP11/END_CPP11 can catch it and surface a clean R error.
+	if (AltrepGuard::IsActive()) {
+		throw std::runtime_error(context + ": " + message);
+	}
+
 	// Look up R function in duckdb namespace
 	static cpp11::function rapi_error = cpp11::package(DUCKDB_PACKAGE_NAME)["rapi_error"];
 	rapi_error(context, message);
@@ -333,6 +357,11 @@ SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 }
 
 [[noreturn]] void rapi_error_with_context(const std::string &context, const duckdb::ErrorData &error_data) {
+	// Inside an ALTREP method, see comment in the string overload above.
+	if (AltrepGuard::IsActive()) {
+		throw std::runtime_error(context + ": " + error_data.Message());
+	}
+
 	// Look up R function in duckdb namespace
 	static cpp11::function rapi_error = cpp11::package(DUCKDB_PACKAGE_NAME)["rapi_error"];
 
