@@ -43,6 +43,7 @@ struct RelToAltrep {
 	static SEXP RownamesMin(SEXP x, Rboolean na_rm);
 	static SEXP RownamesMax(SEXP x, Rboolean na_rm);
 	static SEXP RownamesDuplicate(SEXP x, Rboolean deep);
+	static SEXP MakeRowNamesSexp(duckdb::shared_ptr<duckdb::AltrepRelationWrapper> rel);
 
 	static R_xlen_t VectorLength(SEXP x);
 	static void *VectorDataptr(SEXP x, Rboolean writeable);
