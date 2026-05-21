@@ -51,6 +51,38 @@
 #define DUCKDB_R_POISON_GUARD() ((void)0)
 #endif
 
+// ALTREP re-entrancy guard.
+//
+// R calls ALTREP methods from arbitrary points inside the interpreter, and
+// evaluating R code from there is not supported: the evaluation allocates,
+// can garbage-collect, runs condition handlers, and can re-enter the very
+// ALTREP object whose method is on the stack. A method that reports its
+// failure by calling an R function therefore turns one error into unbounded
+// recursion (duckdb/duckdb-r#1796).
+//
+// rapi_error_with_context() normally reports errors by calling the
+// duckdb::rapi_error() R function. While an AltrepGuard is on the stack it
+// throws std::runtime_error instead; BEGIN_CPP11/END_CPP11 catches that,
+// unwinds the C++ frames, and only then raises the error with
+// Rf_errorcall() -- the interface R sanctions for C code.
+//
+// The guard nests and is per-thread. It relies on its destructor running,
+// so every call into R made below an active guard must go through
+// cpp11::safe[] (which converts a long-jmp into a C++ exception) rather
+// than calling the R API directly; a raw long-jmp past the guard would
+// leave the depth counter stuck and silently degrade every later error.
+class AltrepGuard {
+public:
+	AltrepGuard();
+	~AltrepGuard();
+	AltrepGuard(const AltrepGuard &) = delete;
+	AltrepGuard &operator=(const AltrepGuard &) = delete;
+	static bool IsActive();
+
+private:
+	static thread_local int depth;
+};
+
 // Helper functions to communicate errors via R's stop() function with context information
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message);
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::exception &e);

@@ -1184,6 +1184,18 @@ test_that("prudence", {
   expect_snapshot(error = TRUE, {
     nrow(bad_cells)
   })
+
+  # Materialization errors triggered via column-data ALTREP methods
+  # (VectorLength / VectorDataptr) should also produce a clean error,
+  # matching the rownames path; verifies the AltrepGuard is active in
+  # those entrypoints too.
+  forbid_col <- rel_to_altrep(rel2, allow_materialization = FALSE)
+  expect_snapshot(error = TRUE, {
+    length(forbid_col$a)
+  })
+  expect_snapshot(error = TRUE, {
+    forbid_col$a[1]
+  })
 })
 
 test_that("rel_to_view()", {
