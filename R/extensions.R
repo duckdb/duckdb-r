@@ -187,7 +187,7 @@ duckdb_join_secrets <- function(
   }
 
   if (ask) {
-    answer <- readline("Proceed? [y/N] ")
+    answer <- prompt_proceed("Proceed? [y/N] ")
     if (!nzchar(answer) || !tolower(substr(answer, 1L, 1L)) %in% "y") {
       message("Aborted; no files were moved.")
       return(invisible(target))
@@ -265,6 +265,11 @@ maybe_secret_directory_message <- function() {
 has_secret_files <- function(path) {
   dir.exists(path) &&
     length(list.files(path, all.files = FALSE)) > 0L
+}
+
+# Indirection over `readline()` so tests can mock the prompt.
+prompt_proceed <- function(prompt) {
+  readline(prompt)
 }
 
 cleanup_user_directory <- function() {
