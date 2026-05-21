@@ -212,6 +212,41 @@ test_that("custom stringr functions translated correctly", {
   expect_equal(translate(str_ilike(x, "a")), sql(r"{x ILIKE 'a'}"))
 })
 
+test_that("is_distinct_from and is_not_distinct_from translated correctly", {
+  skip_if_not_installed("dbplyr", "2.5.2.9000")
+  con <- local_con()
+  translate <- function(...) dbplyr::translate_sql(..., con = con)
+  sql <- function(...) dbplyr::sql(...)
+
+  expect_equal(
+    translate(is_distinct_from(x, y)),
+    sql(r"{(x) IS DISTINCT FROM (y)}")
+  )
+  expect_equal(
+    translate(is_not_distinct_from(x, y)),
+    sql(r"{(x) IS NOT DISTINCT FROM (y)}")
+  )
+})
+
+test_that("is_distinct_from and is_not_distinct_from produce correct results", {
+  skip_if_not_installed("dbplyr", "2.5.2.9000")
+  skip_if_not_installed("dplyr")
+
+  con <- local_con()
+  df <- data.frame(x = c(1, NA, 2, NA), y = c(1, 2, NA, NA))
+  duckdb_register(con, "df", df)
+  df_duckdb <- dplyr::tbl(con, "df")
+
+  expect_equal(
+    dplyr::pull(dplyr::mutate(df_duckdb, r = is_distinct_from(x, y)), r),
+    c(FALSE, TRUE, TRUE, FALSE)
+  )
+  expect_equal(
+    dplyr::pull(dplyr::mutate(df_duckdb, r = is_not_distinct_from(x, y)), r),
+    c(TRUE, FALSE, FALSE, TRUE)
+  )
+})
+
 test_that("datetime escaping working as in DBI", {
   skip_if_not_installed("dbplyr")
   con <- local_con()
