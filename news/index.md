@@ -1,5 +1,19 @@
 # Changelog
 
+## duckdb 1.5.2.9901
+
+### Features
+
+- Add secret directory configuration, package startup message, and
+  consolidation support via new experimental
+  [`duckdb_consolidate_secrets()`](https://r.duckdb.org/reference/duckdb_consolidate_secrets.md)
+  ([\#2305](https://github.com/duckdb/duckdb-r/issues/2305),
+  [\#2340](https://github.com/duckdb/duckdb-r/issues/2340)).
+
+- New `env` argument to `rel_from_sql()`
+  ([\#645](https://github.com/duckdb/duckdb-r/issues/645),
+  [\#1077](https://github.com/duckdb/duckdb-r/issues/1077)).
+
 ## duckdb 1.5.2.9900
 
 ### Bug fixes
