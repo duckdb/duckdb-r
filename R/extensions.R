@@ -87,9 +87,10 @@ resolve_secret_directory <- function() {
 #' \preformatted{DUCKDB_SECRET_DIRECTORY=~/.duckdb/stored_secrets}
 #'
 #' The package emits a startup message when secret files exist in both
-#' the R-default and common locations. Suppress it with
-#' `options(duckdb.secret_directory_message = FALSE)` or by setting the
-#' `DUCKDB_SECRET_DIRECTORY_MESSAGE` environment variable to `false`.
+#' the R-default and common locations and `DUCKDB_SECRET_DIRECTORY` (or the
+#' equivalent `options(duckdb.secret_directory)`) is unset. Pointing the
+#' setting at either location both configures the resolver and silences
+#' the message.
 #'
 #' @param from Optional path to an additional source directory to merge in,
 #'   or `NULL` (the default) for none.
@@ -216,25 +217,23 @@ duckdb_join_secrets <- function(
   invisible(target)
 }
 
-# Logical evaluation of the `DUCKDB_SECRET_DIRECTORY_MESSAGE` env var.
-# Empty / unset means "not configured"; anything else is parsed as a
-# boolean with sensible defaults.
-secret_directory_message_enabled <- function() {
-  opt <- getOption("duckdb.secret_directory_message")
-  if (!is.null(opt)) {
-    return(isTRUE(opt))
-  }
-  env <- Sys.getenv("DUCKDB_SECRET_DIRECTORY_MESSAGE", unset = "")
-  if (!nzchar(env)) {
+# True if the user has explicitly pointed at a secret directory via the
+# R option or env var (regardless of which path they picked).
+secret_directory_is_configured <- function() {
+  opt <- getOption("duckdb.secret_directory")
+  if (!is.null(opt) && is.character(opt) && length(opt) == 1L && nzchar(opt)) {
     return(TRUE)
   }
-  !tolower(env) %in% c("false", "0", "no", "off")
+  nzchar(Sys.getenv("DUCKDB_SECRET_DIRECTORY", unset = ""))
 }
 
-# Show a one-time package startup hint when both the R-default and the
-# common secret stores contain files.
+# Show a package startup hint when both the R-default and the common
+# secret stores contain files and the user has not yet picked one.
+# Pointing `DUCKDB_SECRET_DIRECTORY` (or `options(duckdb.secret_directory)`)
+# at either location both configures the resolver and silences this
+# message.
 maybe_secret_directory_message <- function() {
-  if (!secret_directory_message_enabled()) {
+  if (secret_directory_is_configured()) {
     return(invisible())
   }
   r_dir <- default_secret_directory()
@@ -250,13 +249,15 @@ maybe_secret_directory_message <- function() {
     "  - ",
     common_dir,
     " (shared with DuckDB CLI / Python)\n",
-    "To use the shared location in R, set the `DUCKDB_SECRET_DIRECTORY` env var, e.g.\n",
-    "  DUCKDB_SECRET_DIRECTORY=~/.duckdb/stored_secrets\n",
-    "in `~/.Renviron` (open it with `usethis::edit_r_environ()` if available),\n",
-    "or call `options(duckdb.secret_directory = \"~/.duckdb/stored_secrets\")`.\n",
+    "Set `DUCKDB_SECRET_DIRECTORY` to the location you want to use, e.g. in\n",
+    "`~/.Renviron` (open it with `usethis::edit_r_environ()` if available):\n",
+    "  DUCKDB_SECRET_DIRECTORY=~/.duckdb/stored_secrets   # shared with CLI/Python\n",
+    "  DUCKDB_SECRET_DIRECTORY=",
+    r_dir,
+    "   # keep R-only\n",
     "Then call `duckdb::duckdb_join_secrets()` to consolidate existing secrets.\n",
-    "Silence this message with `options(duckdb.secret_directory_message = FALSE)`\n",
-    "or `DUCKDB_SECRET_DIRECTORY_MESSAGE=false`."
+    "Setting either value (or `options(duckdb.secret_directory = ...)`) also\n",
+    "silences this message."
   )
   invisible()
 }

@@ -53,7 +53,8 @@ set the \code{DUCKDB_SECRET_DIRECTORY} environment variable, e.g.\ via
 \preformatted{DUCKDB_SECRET_DIRECTORY=~/.duckdb/stored_secrets}
 
 The package emits a startup message when secret files exist in both
-the R-default and common locations. Suppress it with
-\code{options(duckdb.secret_directory_message = FALSE)} or by setting the
-\code{DUCKDB_SECRET_DIRECTORY_MESSAGE} environment variable to \code{false}.
+the R-default and common locations and \code{DUCKDB_SECRET_DIRECTORY} (or the
+equivalent \code{options(duckdb.secret_directory)}) is unset. Pointing the
+setting at either location both configures the resolver and silences
+the message.
 }
