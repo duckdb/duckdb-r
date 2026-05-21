@@ -1,5 +1,6 @@
 #include "duckdb/common/arrow/arrow_wrapper.hpp"
 #include "duckdb/function/table/arrow.hpp"
+#include "duckdb/main/external_dependencies.hpp"
 #include "duckdb/parser/expression/constant_expression.hpp"
 #include "duckdb/parser/expression/function_expression.hpp"
 #include "duckdb/planner/filter/conjunction_filter.hpp"
@@ -107,6 +108,14 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	vector<duckdb::unique_ptr<ParsedExpression>> children;
 	children.push_back(make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)df)));
 	table_function->function = make_uniq<FunctionExpression>("r_dataframe_scan", std::move(children));
+
+	// Signal that this table reference depends on external state (the R data
+	// frame found via environment scan). For relations created via
+	// rel_from_sql(), this causes QueryRelation::Bind() to wrap the original
+	// query in a CTE that materializes the data frame pointer, so subsequent
+	// binds (e.g. during rel_to_altrep()) do not need to look up the data
+	// frame from the environment again.
+	table_function->external_dependency = make_shared_ptr<ExternalDependency>();
 	return std::move(table_function);
 }
 

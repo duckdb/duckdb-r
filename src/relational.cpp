@@ -17,6 +17,7 @@
 #include "duckdb/parser/expression/function_expression.hpp"
 #include "duckdb/parser/expression/operator_expression.hpp"
 #include "duckdb/parser/expression/window_expression.hpp"
+#include "httplib.hpp"
 #include "rapi.hpp"
 #include "reltoaltrep.hpp"
 #include "signal.hpp"
@@ -660,12 +661,30 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 //
 // DuckDB Relations: conversion
 
-[[cpp11::register]] SEXP rapi_rel_from_sql(duckdb::conn_eptr_t con, const std::string sql) {
+[[cpp11::register]] SEXP rapi_rel_from_sql(duckdb::conn_eptr_t con, const std::string sql, SEXP env) {
 	if (!con || !con.get() || !con->conn) {
-		stop("rel_from_table: Invalid connection");
+		stop("rel_from_sql: Invalid connection");
 	}
+
+	// Expose `env` to the environment scan replacement during the initial
+	// bind that happens inside RelationFromQuery(). Any data frame found
+	// there is appended to `registered_dfs`; we then attach that list to the
+	// relation's protection list so the SEXPs survive for the lifetime of
+	// the relation. EnvironmentScanReplacement marks the returned table
+	// reference as an external dependency, which causes QueryRelation::Bind()
+	// to wrap the query in a CTE that bakes in the data frame pointer, so
+	// subsequent binds (e.g. during materialization) do not need to look up
+	// the data frame from the environment again.
+	D_ASSERT(con->db->env == R_NilValue);
+	con->db->env = (SEXP)env;
+	con->db->registered_dfs = Rf_cons(R_NilValue, R_NilValue);
+	duckdb_httplib::detail::scope_exit reset_db_env([&]() {
+		con->db->env = R_NilValue;
+		con->db->registered_dfs = R_NilValue;
+	});
+
 	auto rel = con->conn->RelationFromQuery(sql);
-	cpp11::writable::list prot = {};
+	cpp11::writable::list prot = {con->db->registered_dfs};
 	return make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(rel), con->convert_opts);
 }
 

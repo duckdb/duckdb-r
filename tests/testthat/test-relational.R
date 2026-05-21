@@ -1328,3 +1328,92 @@ test_that("expr_window() ascending/nulls_first error checking works", {
     "length of nulls_first"
   )
 })
+
+test_that("rel_from_sql() works with registered tables", {
+  con <- local_con()
+  DBI::dbWriteTable(con, "mtcars_t", mtcars)
+  rel <- rel_from_sql(con, "SELECT cyl, mpg FROM mtcars_t")
+  expect_s3_class(rel, "duckdb_relation")
+  df <- as.data.frame(rel)
+  expect_equal(df$mpg, mtcars$mpg)
+  expect_equal(df$cyl, mtcars$cyl)
+})
+
+test_that("rel_from_sql() surfaces parser errors", {
+  con <- local_con()
+  expect_error(rel_from_sql(con, "SELECT FROM"))
+})
+
+test_that("rel_from_sql() scans data frames from the caller env by default", {
+  con <- local_con(drv = duckdb(environment_scan = TRUE))
+
+  df_local <- data.frame(a = 1:3, b = letters[1:3])
+  rel <- rel_from_sql(con, "FROM df_local")
+  expect_s3_class(rel, "duckdb_relation")
+  expect_setequal(names(rel), c("a", "b"))
+})
+
+test_that("rel_from_sql() honours an explicit env argument", {
+  con <- local_con(drv = duckdb(environment_scan = TRUE))
+
+  scan_env <- new.env(parent = emptyenv())
+  scan_env$df_env <- data.frame(a = 1L, b = 2L)
+
+  rel <- rel_from_sql(con, "FROM df_env", env = scan_env)
+  expect_s3_class(rel, "duckdb_relation")
+  expect_setequal(names(rel), c("a", "b"))
+})
+
+test_that("rel_from_sql() does not scan with environment_scan = FALSE", {
+  con <- local_con()
+
+  df_local <- data.frame(a = 1L)
+  expect_error(rel_from_sql(con, "FROM df_local"))
+})
+
+test_that("rel_from_sql() rejects non-environment env", {
+  con <- local_con()
+  expect_error(
+    rel_from_sql(con, "SELECT 1", env = list()),
+    "env.*environment"
+  )
+})
+
+test_that("rel_from_sql() falls back to the database catalog", {
+  # Even with env scanning off, plain table references must still resolve.
+  con <- local_con()
+  DBI::dbWriteTable(con, "cat_tbl", data.frame(a = 1L))
+
+  rel <- rel_from_sql(con, "SELECT a FROM cat_tbl")
+  expect_equal(as.data.frame(rel), data.frame(a = 1L), ignore_attr = TRUE)
+})
+
+test_that("rel_from_sql() relations can be materialized after the env is gone", {
+  con <- local_con(drv = duckdb(environment_scan = TRUE))
+
+  create_rel <- function() {
+    df <- data.frame(a = 1:3)
+    rel_from_sql(con, "FROM df")
+  }
+
+  rel <- create_rel()
+
+  # The data frame is no longer reachable from the calling R code, but it
+  # is kept alive by the relation's protection list.
+  gc(); gc()
+
+  expect_equal(as.data.frame(rel), data.frame(a = 1:3), ignore_attr = TRUE)
+})
+
+test_that("rel_from_sql() relations can be used in further relational ops", {
+  con <- local_con(drv = duckdb(environment_scan = TRUE))
+
+  df <- data.frame(a = 1:5, b = c(2, 2, 3, 3, 4))
+  rel <- rel_from_sql(con, "FROM df")
+  rel2 <- rel_filter(rel, list(
+    expr_comparison("=", list(expr_reference("b"), expr_constant(3)))
+  ))
+
+  out <- as.data.frame(rel2)
+  expect_equal(out$a, c(3L, 4L), ignore_attr = TRUE)
+})
