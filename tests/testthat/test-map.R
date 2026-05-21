@@ -478,6 +478,59 @@ test_that("dbConnect(map = ...) rejects unknown values", {
   expect_error(local_con(map = "wat"), "Unsupported map configuration")
 })
 
+# Auto-detection in dbDataType --------------------------------------------
+
+test_that("dbDataType reports MAP for vctrs::list_of with key/value ptype", {
+  skip_if_not_installed("vctrs")
+
+  con <- local_con()
+
+  col <- vctrs::new_list_of(
+    list(data.frame(key = c("a", "b"), value = 1:2, stringsAsFactors = FALSE)),
+    ptype = data.frame(key = character(), value = integer(), stringsAsFactors = FALSE)
+  )
+  expect_equal(dbDataType(con, col), "MAP(STRING, INTEGER)")
+
+  col2 <- vctrs::new_list_of(
+    list(data.frame(key = as.Date("2024-01-01"), value = "v", stringsAsFactors = FALSE)),
+    ptype = data.frame(key = as.Date(character()), value = character(), stringsAsFactors = FALSE)
+  )
+  expect_equal(dbDataType(con, col2), "MAP(DATE, STRING)")
+})
+
+test_that("dbDataType ignores vctrs::list_of without key/value ptype", {
+  skip_if_not_installed("vctrs")
+
+  con <- local_con()
+
+  col <- vctrs::list_of(1L, 2L)
+  expect_equal(dbDataType(con, col), "STRING")
+
+  col2 <- vctrs::new_list_of(
+    list(data.frame(a = 1L, b = 2L)),
+    ptype = data.frame(a = integer(), b = integer())
+  )
+  expect_equal(dbDataType(con, col2), "STRING")
+})
+
+test_that("dbCreateTable on a list_of column creates a MAP column", {
+  skip_if_not_installed("vctrs")
+
+  con <- local_con()
+
+  m <- vctrs::new_list_of(
+    list(data.frame(key = "k", value = 1L, stringsAsFactors = FALSE)),
+    ptype = data.frame(key = character(), value = integer(), stringsAsFactors = FALSE)
+  )
+  df <- data.frame(id = 1L)
+  df$m <- m
+  dbCreateTable(con, "t", df)
+  expect_equal(
+    dbGetQuery(con, "DESCRIBE t")$column_type,
+    c("INTEGER", "MAP(VARCHAR, INTEGER)")
+  )
+})
+
 # Writing -----------------------------------------------------------------
 #
 # Tracks the behavior described in
