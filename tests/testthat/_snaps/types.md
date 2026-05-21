@@ -1,10 +1,10 @@
 # test_all_types() output
 
     Code
-      bad <- c("timestamp_tz", "time_tz", "timestamp_ns", "timestamp_array",
-        "timestamptz_array", "bit", "\"union\"", "fixed_nested_int_array",
-        "fixed_nested_varchar_array", "fixed_struct_array", "fixed_array_of_int_list",
-        "bignum", "time_ns", "geometry", NULL)
+      bad <- c("timestamp_tz", "timestamp_ns", "timestamp_array", "timestamptz_array",
+        "bit", "\"union\"", "fixed_nested_int_array", "fixed_nested_varchar_array",
+        "fixed_struct_array", "fixed_array_of_int_list", "bignum", "time_ns",
+        "geometry", NULL)
       as.list(dbGetQuery(con, paste0("SELECT * EXCLUDE (", paste(bad, collapse = ", "),
       ") REPLACE(replace(varchar, chr(0), '') AS varchar) FROM test_all_types(use_large_enum=true)")))
     Output
@@ -59,6 +59,10 @@
       $timestamp_ms
       [1] "-290308-12-22 00:00:00.00000 UTC" "294247-01-10 04:00:54.77539 UTC" 
       [3] NA                                
+      
+      $time_tz
+      Time differences in secs
+      [1]     0 86400    NA
       
       $float
       [1] -3.402823e+38  3.402823e+38            NA

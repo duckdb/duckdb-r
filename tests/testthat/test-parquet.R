@@ -11,6 +11,27 @@ test_that("parquet reader works with the binary as string flag", {
   expect_true(res[1] == "VARCHAR")
 })
 
+# Fixture data/time_tz.parquet was created with:
+#   con <- duckdb::dbConnect(duckdb::duckdb())
+#   DBI::dbExecute(con, "COPY (
+#     SELECT * FROM (VALUES
+#       (TIMETZ '01:02:03.45+05:00'),
+#       (TIMETZ '01:02:03.45-05:00'),
+#       (TIMETZ '00:00:00+00:00'),
+#       (CAST(NULL AS TIMETZ))
+#     ) t(t)
+#   ) TO 'tests/testthat/data/time_tz.parquet' (FORMAT PARQUET)")
+test_that("parquet reader handles TIME WITH TIME ZONE columns (#1807)", {
+  con <- local_con()
+
+  res <- dbGetQuery(con, "SELECT typeof(t) AS type, t FROM read_parquet('data/time_tz.parquet')")
+  expect_equal(res$type, rep("TIME WITH TIME ZONE", 4))
+  expect_equal(
+    res$t,
+    structure(c(3723.45, 3723.45, 0, NA_real_), class = "difftime", units = "secs")
+  )
+})
+
 test_that("duckdb_write_parquet() works as expected", {
   con <- local_con()
 
