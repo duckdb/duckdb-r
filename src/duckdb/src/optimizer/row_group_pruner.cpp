@@ -52,7 +52,8 @@ bool RowGroupPruner::TryOptimize(LogicalOperator &op) const {
 			return false;
 		}
 		if (op_type == LogicalOperatorType::LOGICAL_FILTER ||
-		    op_type == LogicalOperatorType::LOGICAL_AGGREGATE_AND_GROUP_BY) {
+		    op_type == LogicalOperatorType::LOGICAL_AGGREGATE_AND_GROUP_BY ||
+		    op_type == LogicalOperatorType::LOGICAL_DISTINCT) {
 			row_limit.SetInvalid();
 			row_offset.SetInvalid();
 		}
@@ -89,10 +90,9 @@ bool RowGroupPruner::TryOptimize(LogicalOperator &op) const {
 
 void RowGroupPruner::GetLimitAndOffset(const LogicalLimit &logical_limit, optional_idx &row_limit,
                                        optional_idx &row_offset) const {
+	// UNSET = no LIMIT = unbounded; leave row_limit invalid.
 	if (logical_limit.limit_val.Type() == LimitNodeType::CONSTANT_VALUE) {
 		row_limit = logical_limit.limit_val.GetConstantValue();
-	} else if (logical_limit.limit_val.Type() == LimitNodeType::UNSET) {
-		row_limit = 0;
 	}
 
 	if (logical_limit.offset_val.Type() == LimitNodeType::CONSTANT_VALUE) {

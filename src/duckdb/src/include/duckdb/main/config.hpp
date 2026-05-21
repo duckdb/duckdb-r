@@ -149,8 +149,12 @@ struct DBConfigOptions {
 	idx_t allocator_flush_threshold = 134217728ULL;
 	//! If bulk deallocation larger than this occurs, flush outstanding allocations (1 << 30, ~1GB)
 	idx_t allocator_bulk_deallocation_flush_threshold = 536870912ULL;
+	//! Delta Only! - Fall back to recognizing Variant columns structurally
+	bool variant_legacy_encoding = false;
 	//! Metadata from DuckDB callers
 	string custom_user_agent;
+	//! HTTP proxy host (defaults to the HTTP_PROXY environment variable when unset)
+	string http_proxy;
 	//! The default block header size for new duckdb database files.
 	idx_t default_block_header_size = DEFAULT_BLOCK_HEADER_STORAGE_SIZE;
 	//!  Whether or not to abort if a serialization exception is thrown during WAL playback (when reading truncated WAL)
@@ -165,6 +169,9 @@ struct DBConfigOptions {
 	LogConfig log_config = LogConfig();
 	//! Physical memory that the block allocator is allowed to use (this memory is never freed and cannot be reduced)
 	idx_t block_allocator_size = 0;
+	//! The maximum data to buffer in row groups (in bytes) to buffer prior to flushing.
+	//! When inserting large chunks of data we
+	optional_idx write_buffer_row_group_memory_limit;
 
 	bool operator==(const DBConfigOptions &other) const;
 };

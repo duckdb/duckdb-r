@@ -4,6 +4,7 @@
 #include "duckdb/catalog/catalog_entry/table_catalog_entry.hpp"
 #include "duckdb/common/serializer/binary_deserializer.hpp"
 #include "duckdb/common/serializer/binary_serializer.hpp"
+#include "duckdb/main/client_context.hpp"
 #include "duckdb/main/database.hpp"
 #include "duckdb/main/settings.hpp"
 #include "duckdb/parallel/task_scheduler.hpp"
@@ -18,6 +19,13 @@ namespace duckdb {
 TableDataWriter::TableDataWriter(TableCatalogEntry &table_p, QueryContext context)
     : table(table_p.Cast<DuckTableEntry>()), context(context.GetClientContext()) {
 	D_ASSERT(table_p.IsDuckTable());
+
+	auto serialization_version = SerializationCompatibility::FromDatabase(table_p.ParentCatalog().GetAttached());
+	if (serialization_version.serialization_version <
+	    SerializationCompatibility::FromString("v1.4.4").serialization_version) {
+		// older storage versions require legacy start row to be written
+		require_legacy_start_row = true;
+	}
 }
 
 TableDataWriter::~TableDataWriter() {
@@ -32,6 +40,10 @@ void TableDataWriter::AddRowGroup(RowGroupPointer &&row_group_pointer, unique_pt
 	row_group_pointers.push_back(std::move(row_group_pointer));
 }
 
+AttachedDatabase &TableDataWriter::GetAttached() {
+	return table.ParentCatalog().GetAttached();
+}
+
 DatabaseInstance &TableDataWriter::GetDatabase() {
 	return table.ParentCatalog().GetDatabase();
 }
@@ -41,6 +53,10 @@ unique_ptr<TaskExecutor> TableDataWriter::CreateTaskExecutor() {
 		return make_uniq<TaskExecutor>(*context);
 	}
 	return make_uniq<TaskExecutor>(TaskScheduler::GetScheduler(GetDatabase()));
+}
+
+optional_ptr<ClientContext> TableDataWriter::TryGetClientContext() const {
+	return context;
 }
 
 SingleFileTableDataWriter::SingleFileTableDataWriter(SingleFileCheckpointWriter &checkpoint_manager,

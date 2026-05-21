@@ -1,6 +1,8 @@
 # DuckDB R Package Vendoring
 
-This document explains the vendoring process used in the duckdb-r package and the relationship between the `main` and `next` branches.
+This document covers the mechanics of vendoring (running the scripts, troubleshooting failures).
+For the branch strategy, the complete list of active branches, and the release process, see
+[BRANCHES.md](../BRANCHES.md), which is the authoritative source.
 
 ## What is Vendoring?
 
@@ -13,23 +15,17 @@ Vendoring is the practice of including a copy of external dependencies directly 
 - **CRAN compliance**: Meets CRAN requirements for packages to be self-contained
 - **Reproducible builds**: Eliminates dependency on external DuckDB installations
 
-## Branch Strategy and Relationship
+## Active Dev Branches
 
-The duckdb-r repository maintains two primary branches with different vendoring strategies:
+The `vendor.yaml` workflow vendors into three dev branches (see `BRANCHES.md` for the full branch list):
 
-### Main Branch (`main`)
+| Dev branch           | Vendors from upstream |
+|----------------------|-----------------------|
+| `v1.4-andium-dev`    | `v1.4-andium`         |
+| `v1.5-variegata-dev` | `v1.5-variegata`      |
+| `main-dev`           | `main`                |
 
-- **Purpose**: Stable, production-ready releases
-- **Vendors from**: `v1.3-ossivalis` branch of [duckdb/duckdb](https://github.com/duckdb/duckdb) *(at the time of writing)*
-- **Update frequency**: Hourly (if changes are detected)
-- **Target audience**: End users, CRAN releases
-
-### Next Branch (`next`)
-
-- **Purpose**: Development and testing of cutting-edge DuckDB features
-- **Vendors from**: Always from `main` branch of [duckdb/duckdb](https://github.com/duckdb/duckdb)
-- **Update frequency**: Hourly (if changes are detected)  
-- **Target audience**: Developers, early adopters, testing new features
+To add or change a branch, update the matrix in `.github/workflows/vendor.yaml`.
 
 ## Automated Vendoring Process
 
@@ -48,22 +44,11 @@ The automation uses `scripts/vendor-one.sh` which:
 1. **Clones the upstream DuckDB repository** to `.git/duckdb`
 2. **Checks for new commits** since the last vendor commit
 3. **Processes commits sequentially** from the last vendored commit
-4. **Applies R-specific configuration** via `scripts/rconfigure.py`
-5. **Applies patches** from the `patch/` directory
-6. **Makes intelligent decisions**:
+4. **Applies R-specific patches** from the `patch/` directory
+5. **Makes intelligent decisions**:
    - Always vendors Git tags (releases)
-   - Only vendors commits with substantial changes (>2 files changed)
+   - Only vendors commits with substantial changes (at least one file changed)
    - Preserves version compatibility (won't vendor if tags are incompatible)
-
-### Automatic PR Creation
-
-When vendoring detects changes:
-
-1. Creates a new branch named `vendor-{main|next}`
-2. Commits the vendored changes with descriptive messages
-3. Creates a Pull Request to the target branch
-4. Triggers R CMD check workflow
-5. Auto-merges if checks pass
 
 ## Manual Vendoring
 
@@ -142,9 +127,7 @@ git clone https://github.com/duckdb/duckdb.git /tmp/duckdb-vendor
 
 # 2. Checkout target branch
 cd /tmp/duckdb-vendor
-git checkout v1.3-ossivalis  # for main branch (at the time of writing)
-# OR
-git checkout main           # for next branch (at the time of writing)
+git checkout v1.4-andium   # adjust to target series
 
 # 3. Run manual vendor
 cd /path/to/duckdb-r
@@ -160,7 +143,7 @@ R CMD INSTALL .
 **Solution**: Commit or stash all changes before vendoring
 
 **Issue**: Patch files failing to apply
-**Solution**: Patches in `patch/*.patch` may need updating for new DuckDB versions
+**Solution**: Patches in `patch/*.patch` may need updating for new DuckDB versions. See [Patch Stack](../BRANCHES.md#patch-stack) in BRANCHES.md.
 
 **Issue**: Build failures after vendoring
 **Solution**: Check if R-specific configuration in `scripts/rconfigure.py` needs updates
@@ -197,7 +180,7 @@ git log --oneline -1 --grep="vendor:"
 - `scripts/vendor-one.sh` - CI vendoring script (commit-by-commit)
 - `scripts/rconfigure.py` - R-specific DuckDB configuration
 - `.github/workflows/vendor.yaml` - Automated vendoring workflow
-- `patch/*.patch` - R-specific patches applied to DuckDB code
+- `patch/*.patch` - R-specific patches applied to DuckDB code (see [Patch Stack](../BRANCHES.md#patch-stack))
 
 ### Vendored Content
 
