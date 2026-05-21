@@ -459,10 +459,13 @@ sql_escape_datetime.duckdb_connection <- function(con, x) {
 # Customized escape translation for double values, so that Inf, -Inf and NaN
 # are cast to DOUBLE in DuckDB instead of being interpreted as plain strings.
 # https://github.com/duckdb/duckdb-r/issues/1585
-# Registered as an S3 method for dbplyr's `escape` generic in .onLoad();
-# the default branch reproduces dbplyr's own behaviour so other backends are
-# unaffected.
-escape.double <- function(x, parens = NA, collapse = ", ", con = NULL) {
+#
+# Installed in dbplyr's namespace via `patch_dbplyr_escape_double()` because
+# dbplyr's `escape` generic resolves `escape.double` lexically inside its
+# own namespace, so a `registerS3method()` entry alone is ignored.
+# The non-DuckDB branch reproduces dbplyr's own behaviour so other backends
+# are unaffected.
+escape_double <- function(x, parens = NA, collapse = ", ", con = NULL) {
   sql_vector <- pkg_method("sql_vector", "dbplyr")
   is_whole_number <- pkg_method("is_whole_number", "dbplyr")
 
@@ -480,6 +483,32 @@ escape.double <- function(x, parens = NA, collapse = ", ", con = NULL) {
   }
 
   sql_vector(out, parens, collapse, con = con)
+}
+
+patch_dbplyr_escape_double <- function() {
+  install <- function(...) {
+    if (!isNamespaceLoaded("dbplyr")) return(invisible())
+    ns <- asNamespace("dbplyr")
+    if (!exists("escape.double", envir = ns, inherits = FALSE)) return(invisible())
+    # Register in the S3 method table so direct calls via `dbplyr::escape()` use
+    # our version.
+    registerS3method("escape", "double", escape_double, envir = ns)
+    # Also replace the local binding because `UseMethod()` resolves it
+    # lexically when `escape()` is called from inside dbplyr (e.g. in
+    # `translate_sql_()`), bypassing the S3 method table.
+    if (identical(get("escape.double", envir = ns, inherits = FALSE), escape_double)) {
+      return(invisible())
+    }
+    locked <- environmentIsLocked(ns) &&
+      bindingIsLocked("escape.double", ns)
+    if (locked) unlockBinding("escape.double", ns)
+    assign("escape.double", escape_double, envir = ns)
+    if (locked) lockBinding("escape.double", ns)
+    invisible()
+  }
+
+  setHook(packageEvent("dbplyr", "onLoad"), install)
+  install()
 }
 
 # Customized handling for tbl() to allow the use of replacement scans
