@@ -13,11 +13,12 @@
       Pick one and set it via the `duckdb.secret_directory` option, e.g.:
         options(duckdb.secret_directory = "~/.duckdb/stored_secrets")   # shared with CLI/Python
         options(duckdb.secret_directory = "<R-DEFAULT>")   # keep R-only
-      For a persistent setting, add the line to `~/.Rprofile`, or set the
+      For a persistent setting, add the line to `~/.Rprofile`(e.g., via `usethis::edit_r_profile()`), or set the
       `DUCKDB_SECRET_DIRECTORY` env var in `~/.Renviron` (e.g. via
-      `usethis::edit_r_environ()`). Then call `duckdb_consolidate_secrets()`
-      to move existing secrets into the chosen location. Configuring the
-      directory also silences this message.
+      `usethis::edit_r_environ()`), and restart R. Then call
+      `duckdb_consolidate_secrets()` to move existing secrets
+      into the chosen location. Configuring the directory also
+      silences this message.
 
 # duckdb_consolidate_secrets reports when there is nothing to do
 

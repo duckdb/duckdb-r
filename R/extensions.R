@@ -44,8 +44,12 @@ common_secret_directory <- function() {
 #   3. `default_secret_directory()` (CRAN-safe fallback)
 resolve_secret_directory <- function() {
   opt <- getOption("duckdb.secret_directory")
-  if (!is.null(opt) && is.character(opt) && length(opt) == 1L && nzchar(opt)) {
-    return(path.expand(opt))
+  if (!is.null(opt)) {
+    if (is.character(opt) && length(opt) == 1L && nzchar(opt)) {
+      return(path.expand(opt))
+    }
+    message('`getOption("duckdb.secret_directory")` is not a non-empty string.')
+    options(duckdb.secret_directory = NULL)
   }
   env <- Sys.getenv("DUCKDB_SECRET_DIRECTORY", unset = "")
   if (nzchar(env)) {
@@ -257,11 +261,13 @@ maybe_secret_directory_message <- function() {
     "  options(duckdb.secret_directory = \"",
     r_dir,
     "\")   # keep R-only\n",
-    "For a persistent setting, add the line to `~/.Rprofile`, or set the\n",
+    "For a persistent setting, add the line to `~/.Rprofile`",
+    "(e.g., via `usethis::edit_r_profile()`), or set the\n",
     "`DUCKDB_SECRET_DIRECTORY` env var in `~/.Renviron` (e.g. via\n",
-    "`usethis::edit_r_environ()`). Then call `duckdb_consolidate_secrets()`\n",
-    "to move existing secrets into the chosen location. Configuring the\n",
-    "directory also silences this message."
+    "`usethis::edit_r_environ()`), and restart R. Then call\n",
+    "`duckdb_consolidate_secrets()` to move existing secrets\n",
+    "into the chosen location. Configuring the directory also\n",
+    "silences this message."
   )
   invisible()
 }

@@ -44,11 +44,11 @@ test_that("resolve_secret_directory expands `~` and rejects bad option values", 
 
   withr::local_options(duckdb.secret_directory = "")
   withr::local_envvar(DUCKDB_SECRET_DIRECTORY = "~/env")
-  expect_equal(resolve_secret_directory(), path.expand("~/env"))
+  expect_message(expect_equal(resolve_secret_directory(), path.expand("~/env")))
 
   withr::local_options(duckdb.secret_directory = c("a", "b"))
   withr::local_envvar(DUCKDB_SECRET_DIRECTORY = NA)
-  expect_equal(resolve_secret_directory(), default_secret_directory())
+  expect_message(expect_equal(resolve_secret_directory(), default_secret_directory()))
 })
 
 test_that("secret_directory_is_configured reflects option/env var", {
