@@ -1,8 +1,8 @@
-// cpp11 version: 0.5.2
-// vendored on: 2025-03-09
+// cpp11 version: 0.5.3.9000
+// vendored on: 2026-01-27
 #pragma once
 
-#include <stddef.h>  // for size_t
+#include <cstddef>  // for size_t
 
 #include <initializer_list>  // for initializer_list
 

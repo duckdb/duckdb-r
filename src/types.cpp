@@ -1,24 +1,30 @@
+#include "duckdb/common/types/date.hpp"
+#include "duckdb/common/types/hugeint.hpp"
+#include "duckdb/common/types/interval.hpp"
+#include "duckdb/common/types/timestamp.hpp"
+#include "duckdb/common/types/uhugeint.hpp"
 #include "rapi.hpp"
 #include "typesr.hpp"
 
-#include "duckdb/common/types/date.hpp"
-#include "duckdb/common/types/hugeint.hpp"
-#include "duckdb/common/types/uhugeint.hpp"
-#include "duckdb/common/types/interval.hpp"
-#include "duckdb/common/types/timestamp.hpp"
+// Avoid clash with TRUE and FALSE macros in older rtools
+#undef TRUE
+#undef FALSE
 
 using namespace duckdb;
 
-RType::RType() : id_(RTypeId::UNKNOWN) {
+RType::RType() : id_(RTypeId::UNKNOWN), size_(0) {
 }
 
-RType::RType(RTypeId id) : id_(id) {
+RType::RType(RTypeId id) : id_(id), size_(0) {
 }
 
-RType::RType(const RType &other) : id_(other.id_), aux_(other.aux_) {
+RType::RType(RTypeId id, R_len_t size) : id_(id), size_(size) {
 }
 
-RType::RType(RType &&other) noexcept : id_(other.id_), aux_(std::move(other.aux_)) {
+RType::RType(const RType &other) : id_(other.id_), size_(other.size_), aux_(other.aux_) {
+}
+
+RType::RType(RType &&other) noexcept : id_(other.id_), size_(other.size_), aux_(std::move(other.aux_)) {
 }
 
 RTypeId RType::id() const {
@@ -26,7 +32,7 @@ RTypeId RType::id() const {
 }
 
 bool RType::operator==(const RType &rhs) const {
-	return id_ == rhs.id_ && aux_ == rhs.aux_;
+	return id_ == rhs.id_ && size_ == rhs.size_ && aux_ == rhs.aux_;
 }
 
 RType RType::FACTOR(cpp11::strings levels) {
@@ -72,6 +78,22 @@ RType RType::LIST(const RType &child) {
 RType RType::GetListChildType() const {
 	D_ASSERT(id_ == RTypeId::LIST);
 	return aux_.front().second;
+}
+
+RType RType::MATRIX(const RType &child, R_len_t ncols) {
+	RType out = RType(RTypeId::MATRIX, ncols);
+	out.aux_.push_back(std::make_pair("", child));
+	return out;
+}
+
+RType RType::GetMatrixElementType() const {
+	D_ASSERT(id_ == RTypeId::MATRIX);
+	return aux_.front().second;
+}
+
+R_len_t RType::GetMatrixNcols() const {
+	D_ASSERT(id_ == RTypeId::MATRIX);
+	return size_;
 }
 
 RType RType::STRUCT(child_list_t<RType> &&children) {
@@ -132,6 +154,21 @@ RType RApiTypes::DetectRType(SEXP v, bool integer64) {
 		}
 	} else if (Rf_isFactor(v) && TYPEOF(v) == INTSXP) {
 		return RType::FACTOR(GET_LEVELS(v));
+	} else if (Rf_isMatrix(v)) {
+		if (TYPEOF(v) == LGLSXP) {
+			return RType::MATRIX(RType::LOGICAL, Rf_ncols(v));
+		} else if (TYPEOF(v) == INTSXP) {
+			return RType::MATRIX(RType::INTEGER, Rf_ncols(v));
+		} else if (TYPEOF(v) == REALSXP) {
+			if (integer64 && Rf_inherits(v, "integer64")) {
+				return RType::MATRIX(RType::INTEGER64, Rf_ncols(v));
+			}
+			return RType::MATRIX(RType::NUMERIC, Rf_ncols(v));
+		} else if (TYPEOF(v) == STRSXP) {
+			return RType::MATRIX(RType::STRING, Rf_ncols(v));
+		} else {
+			return RType::UNKNOWN;
+		}
 	} else if (TYPEOF(v) == LGLSXP) {
 		return RType::LOGICAL;
 	} else if (TYPEOF(v) == INTSXP) {
@@ -244,6 +281,9 @@ LogicalType RApiTypes::LogicalTypeFromRType(const RType &rtype, bool experimenta
 		return LogicalType::BLOB;
 	case RTypeId::LIST:
 		return LogicalType::LIST(RApiTypes::LogicalTypeFromRType(rtype.GetListChildType(), experimental));
+	case RTypeId::MATRIX:
+		return LogicalType::ARRAY(RApiTypes::LogicalTypeFromRType(rtype.GetMatrixElementType(), experimental),
+		                          rtype.GetMatrixNcols());
 	case RTypeId::STRUCT: {
 		child_list_t<LogicalType> children;
 		for (const auto &child : rtype.GetStructChildTypes()) {
@@ -251,13 +291,13 @@ LogicalType RApiTypes::LogicalTypeFromRType(const RType &rtype, bool experimenta
 			    std::make_pair(child.first, RApiTypes::LogicalTypeFromRType(child.second, experimental)));
 		}
 		if (children.size() == 0) {
-			cpp11::stop("rapi_execute: Packed column must have at least one column");
+			rapi_error_with_context("SexpToLogicalType", "Packed column must have at least one column");
 		}
 		return LogicalType::STRUCT(std::move(children));
 	}
 
 	default:
-		cpp11::stop("rapi_execute: Can't convert R type to logical type");
+		rapi_error_with_context("SexpToLogicalType", "Can't convert R type to logical type");
 	}
 }
 
@@ -300,12 +340,15 @@ string RApiTypes::DetectLogicalType(const LogicalType &stype, const char *caller
 	case LogicalTypeId::UUID:
 		return "character";
 	case LogicalTypeId::BLOB:
+	case LogicalTypeId::GEOMETRY:
 		return "raw";
 	case LogicalTypeId::LIST:
+	case LogicalTypeId::VARIANT:
 		return "list";
+	case LogicalTypeId::ARRAY:
+		return "matrix";
 	case LogicalTypeId::STRUCT:
 	case LogicalTypeId::MAP:
-		return "data.frame";
 		return "data.frame";
 	case LogicalTypeId::ENUM:
 		return "factor";
@@ -313,9 +356,11 @@ string RApiTypes::DetectLogicalType(const LogicalType &stype, const char *caller
 	case LogicalTypeId::SQLNULL:
 		return "unknown";
 
-	default:
-		cpp11::stop("%s: Unknown column type for prepare: %s", caller, stype.ToString().c_str());
+	default: {
+		std::string error_msg = "Unknown column type for prepare: " + stype.ToString();
+		rapi_error_with_context(caller, error_msg);
 		break;
+	}
 	}
 }
 
@@ -328,7 +373,7 @@ double RDoubleType::Convert(double val) {
 }
 
 date_t RDateType::Convert(double val) {
-	return date_t((int32_t) std::floor(val));
+	return date_t((int32_t)std::floor(val));
 }
 
 timestamp_t RTimestampType::Convert(double val) {

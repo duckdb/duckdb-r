@@ -57,7 +57,7 @@ unique_ptr<ProgressBarDisplay> ProgressBar::DefaultProgressBarDisplay() {
 }
 
 ProgressBar::ProgressBar(Executor &executor, idx_t show_progress_after,
-                         progress_bar_display_create_func_t create_display_func)
+                         const progress_bar_display_create_func_t &create_display_func)
     : executor(executor), show_progress_after(show_progress_after) {
 	if (create_display_func) {
 		display = create_display_func();
@@ -133,12 +133,12 @@ void ProgressBar::Update(bool final) {
 		if (final) {
 			FinishProgressBarPrint();
 		} else {
-			PrintProgress(LossyNumericCast<int>(query_progress.percentage.load()));
+			PrintProgress(query_progress.percentage.load());
 		}
 	}
 }
 
-void ProgressBar::PrintProgress(int current_percentage_p) {
+void ProgressBar::PrintProgress(double current_percentage_p) {
 	D_ASSERT(display);
 	display->Update(current_percentage_p);
 }

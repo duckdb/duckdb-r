@@ -35,6 +35,14 @@ struct RelToAltrep {
 	static const void *RownamesDataptrOrNull(SEXP x);
 	static void *DoRownamesDataptrGet(SEXP x);
 	static Rboolean RownamesInspect(SEXP x, int pre, int deep, int pvec, void (*inspect_subtree)(SEXP, int, int, int));
+	static int RownamesElt(SEXP x, R_xlen_t i);
+	static R_xlen_t RownamesGetRegion(SEXP x, R_xlen_t start, R_xlen_t size, int *buf);
+	static int RownamesIsSorted(SEXP x);
+	static int RownamesNoNA(SEXP x);
+	static SEXP RownamesSum(SEXP x, Rboolean na_rm);
+	static SEXP RownamesMin(SEXP x, Rboolean na_rm);
+	static SEXP RownamesMax(SEXP x, Rboolean na_rm);
+	static SEXP RownamesDuplicate(SEXP x, Rboolean deep);
 
 	static R_xlen_t VectorLength(SEXP x);
 	static void *VectorDataptr(SEXP x, Rboolean writeable);
@@ -49,9 +57,9 @@ struct RelToAltrep {
 	static R_altrep_class_t string_class;
 
 #if defined(R_HAS_ALTLIST)
+	static R_xlen_t StructLength(SEXP x);
 	static SEXP VectorListElt(SEXP x, R_xlen_t i);
 	static R_altrep_class_t list_class;
+	static R_altrep_class_t struct_class;
 #endif
 };
-
-SEXP result_to_df(duckdb::unique_ptr<duckdb::QueryResult> res);

@@ -8,6 +8,9 @@
 #include "duckdb/planner/expression/bound_operator_expression.hpp"
 #include "duckdb/planner/expression/bound_parameter_expression.hpp"
 #include "duckdb/planner/expression_binder.hpp"
+#include "duckdb/planner/expression_binder/try_operator_binder.hpp"
+#include "duckdb/planner/expression/bound_function_expression.hpp"
+#include "duckdb/planner/expression_iterator.hpp"
 
 namespace duckdb {
 
@@ -75,6 +78,9 @@ LogicalType ExpressionBinder::ResolveOperatorType(OperatorExpression &op, vector
 	case ExpressionType::OPERATOR_COALESCE: {
 		return ResolveCoalesceType(op, children);
 	}
+	case ExpressionType::OPERATOR_TRY: {
+		return children[0]->return_type;
+	}
 	case ExpressionType::OPERATOR_NOT:
 		return ResolveNotType(op, children);
 	default:
@@ -87,16 +93,25 @@ BindResult ExpressionBinder::BindGroupingFunction(OperatorExpression &op, idx_t 
 }
 
 BindResult ExpressionBinder::BindExpression(OperatorExpression &op, idx_t depth) {
-	if (op.GetExpressionType() == ExpressionType::GROUPING_FUNCTION) {
+	auto operator_type = op.GetExpressionType();
+	if (operator_type == ExpressionType::GROUPING_FUNCTION) {
 		return BindGroupingFunction(op, depth);
 	}
 
 	// Bind the children of the operator expression. We already create bound expressions.
 	// Only those children that trigger an error are not yet bound.
 	ErrorData error;
-	for (idx_t i = 0; i < op.children.size(); i++) {
-		BindChild(op.children[i], depth, error);
+	if (operator_type == ExpressionType::OPERATOR_TRY) {
+		D_ASSERT(op.children.size() == 1);
+		//! This binder is used to throw when the child expression is of a type that is not allowed.
+		TryOperatorBinder try_operator_binder(binder, context);
+		try_operator_binder.BindChild(op.children[0], depth, error);
+	} else {
+		for (idx_t i = 0; i < op.children.size(); i++) {
+			BindChild(op.children[i], depth, error);
+		}
 	}
+
 	if (error.HasError()) {
 		return BindResult(std::move(error));
 	}
@@ -104,6 +119,8 @@ BindResult ExpressionBinder::BindExpression(OperatorExpression &op, idx_t depth)
 	// all children bound successfully
 	string function_name;
 	switch (op.GetExpressionType()) {
+	case ExpressionType::OPERATOR_UNPACK:
+		return BindResult("UNPACK not allowed here, should have been resolved earlier");
 	case ExpressionType::ARRAY_EXTRACT: {
 		D_ASSERT(op.children[0]->GetExpressionClass() == ExpressionClass::BOUND_EXPRESSION);
 		auto &b_exp = BoundExpression::GetExpression(*op.children[0]);
@@ -114,11 +131,28 @@ BindResult ExpressionBinder::BindExpression(OperatorExpression &op, idx_t depth)
 			function_name = "json_extract";
 			// Make sure we only extract array elements, not fields, by adding the $[] syntax
 			auto &i_exp = BoundExpression::GetExpression(*op.children[1]);
+			if (i_exp->GetExpressionClass() == ExpressionClass::BOUND_CONSTANT &&
+			    !i_exp->Cast<BoundConstantExpression>().value.IsNull()) {
+				auto &const_exp = i_exp->Cast<BoundConstantExpression>();
+				if (const_exp.value.TryCastAs(context, LogicalType::UINTEGER)) {
+					// Array extraction: if the cast fails it's definitely out-of-bounds for a JSON array
+					auto index = UIntegerValue::Get(const_exp.value);
+					const_exp.value = StringUtil::Format("$[%lld]", index);
+					const_exp.return_type = LogicalType::VARCHAR;
+				} else if (const_exp.return_type.id() == LogicalType::VARCHAR) {
+					// Field extraction
+					const_exp.value = StringUtil::Format("$.\"%s\"", const_exp.value.ToString());
+					const_exp.return_type = LogicalType::VARCHAR;
+				}
+			}
+		} else if (b_exp_type.id() == LogicalTypeId::VARIANT && op.children.size() == 2) {
+			function_name = "variant_extract";
+			auto &i_exp = BoundExpression::GetExpression(*op.children[1]);
 			if (i_exp->GetExpressionClass() == ExpressionClass::BOUND_CONSTANT) {
 				auto &const_exp = i_exp->Cast<BoundConstantExpression>();
-				if (!const_exp.value.IsNull()) {
-					const_exp.value = StringUtil::Format("$[%s]", const_exp.value.ToString());
-					const_exp.return_type = LogicalType::VARCHAR;
+				if (!const_exp.value.IsNull() && const_exp.return_type.IsNumeric()) {
+					const_exp.value = const_exp.value.DefaultCastAs(LogicalType::UINTEGER, true);
+					const_exp.return_type = LogicalType::UINTEGER;
 				}
 			}
 		} else {
@@ -141,7 +175,7 @@ BindResult ExpressionBinder::BindExpression(OperatorExpression &op, idx_t depth)
 		const auto &extract_expr_type = extract_exp->return_type;
 		if (extract_expr_type.id() != LogicalTypeId::STRUCT && extract_expr_type.id() != LogicalTypeId::UNION &&
 		    extract_expr_type.id() != LogicalTypeId::MAP && extract_expr_type.id() != LogicalTypeId::SQLNULL &&
-		    !extract_expr_type.IsJSONType()) {
+		    !extract_expr_type.IsJSONType() && extract_expr_type.id() != LogicalTypeId::VARIANT) {
 			return BindResult(StringUtil::Format(
 			    "Cannot extract field %s from expression \"%s\" because it is not a struct, union, map, or json",
 			    name_exp->ToString(), extract_exp->ToString()));
@@ -150,6 +184,16 @@ BindResult ExpressionBinder::BindExpression(OperatorExpression &op, idx_t depth)
 			function_name = "union_extract";
 		} else if (extract_expr_type.id() == LogicalTypeId::MAP) {
 			function_name = "map_extract_value";
+		} else if (extract_expr_type.id() == LogicalTypeId::VARIANT) {
+			function_name = "variant_extract";
+			auto &i_exp = BoundExpression::GetExpression(*op.children[1]);
+			if (i_exp->GetExpressionClass() == ExpressionClass::BOUND_CONSTANT) {
+				auto &const_exp = i_exp->Cast<BoundConstantExpression>();
+				if (!const_exp.value.IsNull()) {
+					const_exp.value = StringUtil::Format("%s", const_exp.value.ToString());
+					const_exp.return_type = LogicalType::VARCHAR;
+				}
+			}
 		} else if (extract_expr_type.IsJSONType()) {
 			function_name = "json_extract";
 			// Make sure we only extract fields, not array elements, by adding $. syntax
@@ -171,6 +215,16 @@ BindResult ExpressionBinder::BindExpression(OperatorExpression &op, idx_t depth)
 	case ExpressionType::ARROW:
 		function_name = "json_extract";
 		break;
+	case ExpressionType::OPERATOR_TRY: {
+		auto &expr = BoundExpression::GetExpression(*op.children[0]);
+		if (expr->HasSubquery()) {
+			throw BinderException("TRY can not be used in combination with a scalar subquery");
+		}
+		if (expr->IsVolatile()) {
+			throw BinderException("TRY can not be used in combination with a volatile function");
+		}
+		break;
+	}
 	default:
 		break;
 	}

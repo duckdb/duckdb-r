@@ -3,6 +3,7 @@
 #include "duckdb/catalog/catalog_entry.hpp"
 #include "duckdb/common/common.hpp"
 #include "duckdb/common/file_system.hpp"
+#include "duckdb/main/database_file_opener.hpp"
 #include "duckdb/common/local_file_system.hpp"
 #include "duckdb/common/mutex.hpp"
 #include "duckdb/common/serializer/binary_deserializer.hpp"
@@ -43,13 +44,16 @@ void SecretManager::Initialize(DatabaseInstance &db) {
 	lock_guard<mutex> lck(manager_lock);
 
 	// Construct default path
-	LocalFileSystem fs;
+	auto &fs = FileSystem::GetLocal(db);
 	config.default_secret_path = fs.GetHomeDirectory();
 	vector<string> path_components = {".duckdb", "stored_secrets"};
 	for (auto &path_ele : path_components) {
 		config.default_secret_path = fs.JoinPath(config.default_secret_path, path_ele);
 	}
-	config.secret_path = config.default_secret_path;
+	// Use default path if none has been specified by the user configuration
+	if (config.secret_path.empty()) {
+		config.secret_path = config.default_secret_path;
+	}
 
 	// Set the defaults for persistent storage
 	config.default_persistent_storage = LOCAL_FILE_STORAGE_NAME;
@@ -75,14 +79,15 @@ void SecretManager::LoadSecretStorage(unique_ptr<SecretStorage> storage) {
 
 void SecretManager::LoadSecretStorageInternal(unique_ptr<SecretStorage> storage) {
 	if (secret_storages.find(storage->GetName()) != secret_storages.end()) {
-		throw InternalException("Secret Storage with name '%s' already registered!", storage->GetName());
+		throw InvalidConfigurationException("Secret Storage with name '%s' already registered!", storage->GetName());
 	}
 
 	// Check for tie-break offset collisions to ensure we can always tie-break cleanly
 	for (const auto &storage_ptr : secret_storages) {
 		if (storage_ptr.second->tie_break_offset == storage->tie_break_offset) {
-			throw InternalException("Failed to load secret storage '%s', tie break score collides with '%s'",
-			                        storage->GetName(), storage_ptr.second->GetName());
+			throw InvalidConfigurationException(
+			    "Failed to load secret storage '%s', tie break score collides with '%s'", storage->GetName(),
+			    storage_ptr.second->GetName());
 		}
 	}
 
@@ -97,8 +102,8 @@ unique_ptr<BaseSecret> SecretManager::DeserializeSecret(Deserializer &deserializ
 	vector<string> scope;
 	deserializer.ReadList(103, "scope",
 	                      [&](Deserializer::List &list, idx_t i) { scope.push_back(list.ReadElement<string>()); });
-	auto serialization_type =
-	    deserializer.ReadPropertyWithExplicitDefault(104, "serialization_type", SecretSerializationType::CUSTOM);
+	auto serialization_type = deserializer.ReadPropertyWithExplicitDefault(104, "serialization_type",
+	                                                                       SecretSerializationType::KEY_VALUE_SECRET);
 
 	switch (serialization_type) {
 	// This allows us to skip looking up the secret type for deserialization altogether
@@ -118,7 +123,7 @@ unique_ptr<BaseSecret> SecretManager::DeserializeSecret(Deserializer &deserializ
 	}
 
 	if (!deserialized_type.deserializer) {
-		throw InternalException(
+		throw InvalidConfigurationException(
 		    "Attempted to deserialize secret type '%s' which does not have a deserialization method", type);
 	}
 
@@ -225,13 +230,13 @@ optional_ptr<CreateSecretFunction> SecretManager::LookupFunctionInternal(const s
 	return nullptr;
 }
 
-unique_ptr<SecretEntry> SecretManager::CreateSecret(ClientContext &context, const CreateSecretInfo &info) {
+unique_ptr<SecretEntry> SecretManager::CreateSecret(ClientContext &context, const CreateSecretInput &input) {
 	// Note that a context is required for CreateSecret, as the CreateSecretFunction expects one
 	auto transaction = CatalogTransaction::GetSystemCatalogTransaction(context);
 	InitializeSecrets(transaction);
 
 	// Make a copy to set the provider to default if necessary
-	CreateSecretInput function_input {info.type, info.provider, info.storage_type, info.name, info.scope, info.options};
+	auto function_input = input;
 	if (function_input.provider.empty()) {
 		auto secret_type = LookupTypeInternal(function_input.type);
 		function_input.provider = secret_type.default_provider;
@@ -240,7 +245,7 @@ unique_ptr<SecretEntry> SecretManager::CreateSecret(ClientContext &context, cons
 	// Lookup function
 	auto function_lookup = LookupFunctionInternal(function_input.type, function_input.provider);
 	if (!function_lookup) {
-		ThrowProviderNotFoundError(info.type, info.provider);
+		ThrowProviderNotFoundError(input.type, input.provider);
 	}
 
 	// Call the function
@@ -248,15 +253,15 @@ unique_ptr<SecretEntry> SecretManager::CreateSecret(ClientContext &context, cons
 
 	if (!secret) {
 		throw InternalException("CreateSecretFunction for type: '%s' and provider: '%s' did not return a secret!",
-		                        info.type, info.provider);
+		                        input.type, input.provider);
 	}
 
 	// Register the secret at the secret_manager
-	return RegisterSecretInternal(transaction, std::move(secret), info.on_conflict, info.persist_type,
-	                              info.storage_type);
+	return RegisterSecretInternal(transaction, std::move(secret), input.on_conflict, input.persist_type,
+	                              input.storage_type);
 }
 
-BoundStatement SecretManager::BindCreateSecret(CatalogTransaction transaction, CreateSecretInfo &info) {
+BoundStatement SecretManager::BindCreateSecret(CatalogTransaction transaction, CreateSecretInput &info) {
 	InitializeSecrets(transaction);
 
 	auto type = info.type;
@@ -351,7 +356,7 @@ unique_ptr<SecretEntry> SecretManager::GetSecretByName(CatalogTransaction transa
 		auto lookup = storage_ref.get().GetSecretByName(name, &transaction);
 		if (lookup) {
 			if (found) {
-				throw InternalException(
+				throw InvalidConfigurationException(
 				    "Ambiguity detected for secret name '%s', secret occurs in multiple storage backends.", name);
 			}
 
@@ -646,12 +651,13 @@ DefaultSecretGenerator::DefaultSecretGenerator(Catalog &catalog, SecretManager &
 }
 
 unique_ptr<CatalogEntry> DefaultSecretGenerator::CreateDefaultEntryInternal(const string &entry_name) {
+	lock_guard<mutex> guard(lock);
 	auto secret_lu = persistent_secrets.find(entry_name);
 	if (secret_lu == persistent_secrets.end()) {
 		return nullptr;
 	}
 
-	LocalFileSystem fs;
+	auto &fs = FileSystem::GetLocal(catalog.GetDatabase());
 
 	string base_secret_path = secret_manager.PersistentSecretPath();
 	string secret_path = fs.JoinPath(base_secret_path, entry_name + ".duckdb_secret");
@@ -718,6 +724,7 @@ unique_ptr<CatalogEntry> DefaultSecretGenerator::CreateDefaultEntry(ClientContex
 vector<string> DefaultSecretGenerator::GetDefaultEntries() {
 	vector<string> ret;
 
+	lock_guard<mutex> guard(lock);
 	for (const auto &res : persistent_secrets) {
 		ret.push_back(res);
 	}

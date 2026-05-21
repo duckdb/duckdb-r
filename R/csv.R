@@ -23,7 +23,7 @@
 #' @param temporary Set to `TRUE` to create a temporary table
 #' @return The number of rows in the resulted table, invisibly.
 #' @export
-#' @examplesIf duckdb:::TEST_RE2
+#' @examplesIf identical(Sys.getenv("IN_PKGDOWN"), "true")
 #' con <- dbConnect(duckdb())
 #'
 #' data <- data.frame(a = 1:3, b = letters[1:3])

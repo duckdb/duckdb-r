@@ -1,11 +1,10 @@
 
 # Run this file with testthat::test_local(filter = "^relational$")
 
-con <- dbConnect(duckdb())
-on.exit(dbDisconnect(con, shutdown = TRUE))
+con <- local_con()
 
 test_that("we can create a relation from a df", {
-  rel <- rel_from_df(con, mtcars)
+  rel <- rel_from_df(con, data.frame(a = 1))
   expect_type(rel, "externalptr")
   expect_s3_class(rel, "duckdb_relation")
 })
@@ -29,8 +28,11 @@ test_that("we won't crash when creating a relation from odd things", {
 })
 
 test_that("we can round-trip a data frame", {
-  expect_equivalent(mtcars, as.data.frame.duckdb_relation(rel_from_df(con, mtcars)))
-  expect_equivalent(iris, as.data.frame.duckdb_relation(rel_from_df(con, iris)))
+  expect_equal(
+    data.frame(a = 1:3, b = letters[1:3]),
+    as.data.frame.duckdb_relation(rel_from_df(con, data.frame(a = 1:3, b = letters[1:3]))),
+    ignore_attr = TRUE
+  )
 })
 
 test_that("we can recognize if a df is materialized", {
@@ -47,8 +49,11 @@ test_that("we can recognize if a df is materialized", {
 
 
 test_that("we can create various expressions and don't crash", {
-  ref <- expr_reference("asdf")
-  print(ref)
+  expect_snapshot({
+    expr_reference("asdf")
+    expr_constant("asdf")
+  })
+
   expect_error(expr_reference(NA))
   #  expect_error(expr_reference(as.character(NA)))
   expect_error(expr_reference(""))
@@ -59,8 +64,6 @@ test_that("we can create various expressions and don't crash", {
   expr_constant(NA)
   expr_constant(42L)
   expr_constant(42)
-  const <- expr_constant("asdf")
-  print(const)
 
   expect_error(expr_constant(NULL))
   expect_error(expr_constant())
@@ -115,6 +118,60 @@ test_that("we cannot create comparison expressions with inappropriate operators"
   })
 })
 
+test_that("we can create operator expressions", {
+  local_edition(3)
+  withr::local_envvar(NO_COLOR = "true")
+
+  # IN operator with multiple values
+  expect_snapshot({
+    expr_operator("IN", list(expr_reference("some_column"), expr_constant(-42), expr_constant(42)))
+  })
+
+  # NOT IN operator with multiple values
+  expect_snapshot({
+    expr_operator("NOT IN", list(expr_reference("some_column"), expr_constant(-42), expr_constant(42)))
+  })
+
+  # BOGUS operator
+  expect_snapshot(error = TRUE, {
+    expr_operator("BOGUS", list(expr_reference("some_column"), expr_constant(-42), expr_constant(42)))
+  })
+})
+
+test_that("we can use operator expressions in relations", {
+  df <- data.frame(
+    id = 1:5,
+    value = c(10, 20, 30, 40, 50)
+  )
+
+  rel <- rel_from_df(con, df)
+
+  # Filter using IN operator
+  rel_filtered <- rel_filter(
+    rel,
+    list(expr_operator("IN", list(expr_reference("id"), expr_constant(2L), expr_constant(4L))))
+  )
+  result <- as.data.frame(rel_filtered)
+  expect_equal(result$id, c(2L, 4L))
+  expect_equal(result$value, c(20, 40))
+
+  # Filter using NOT IN operator
+  rel_filtered <- rel_filter(
+    rel,
+    list(expr_operator("NOT IN", list(expr_reference("id"), expr_constant(2L), expr_constant(4L), expr_constant(5L))))
+  )
+  result <- as.data.frame(rel_filtered)
+  expect_equal(result$id, c(1L, 3L))
+  expect_equal(result$value, c(10, 30))
+})
+
+test_that("expr_operator validates ... parameter", {
+  expect_error(
+    expr_operator("IN", list(expr_reference("col")), extra_param = "value"),
+    "... must be empty"
+  )
+})
+
 
 # TODO should maybe be a different file, test_enum_strings.R
 
@@ -129,13 +186,13 @@ test_that("we can cast R strings to DuckDB strings", {
   test_string_vec <- c(vapply(1:n, gen_rand_string, "character", max_len), NA, NA, NA, NA, NA, NA, NA, NA) # batman
 
   df <- data.frame(s = test_string_vec, stringsAsFactors = FALSE)
-  expect_equivalent(df, as.data.frame.duckdb_relation(rel_from_df(con, df)))
+  expect_equal(df, as.data.frame.duckdb_relation(rel_from_df(con, df)), ignore_attr = TRUE)
 
   res <- rel_sql(
     rel_from_df(con, df),
     "SELECT s::string FROM _"
   )
-  expect_equivalent(df, res)
+  expect_equal(df, res, ignore_attr = TRUE)
 
   res <- rel_sql(
     rel_from_df(con, df),
@@ -147,7 +204,7 @@ test_that("we can cast R strings to DuckDB strings", {
   df2 <- df
   for (i in 1:10) {
     df2 <- as.data.frame.duckdb_relation(rel_from_df(con, df2))
-    expect_equivalent(df, df2)
+    expect_equal(df, df2, ignore_attr = TRUE)
   }
 
   df2 <- df
@@ -158,7 +215,7 @@ test_that("we can cast R strings to DuckDB strings", {
         "SELECT s::string s FROM _"
       )
     )
-    expect_equivalent(df, df2)
+    expect_equal(df, df2, ignore_attr = TRUE)
   }
 })
 
@@ -192,9 +249,22 @@ test_that("the altrep-conversion for relations works", {
   expect_equal(iris, df)
 })
 
-test_that("the altrep-conversion for relations work for weirdo types", {
-  test_df <- data.frame(col_date = as.Date("2019-11-26"), col_ts = as.POSIXct("2019-11-26 21:11Z", "UTC"), col_factor = factor(c("a")))
-  rel <- rel_from_df(con, test_df)
+test_that("ALTREP row names are materialized as integer sequence", {
+  df <- data.frame(a = 1:5, b = letters[1:5])
+  rel <- rel_from_df(con, df)
+  altrep_df <- rel_to_altrep(rel)
+
+  rn <- attr(altrep_df, "row.names")
+  expect_identical(rn, 1:5)
+})
+
+test_that("the altrep-conversion for relations work for weirdo types for strict = FALSE", {
+  test_df <- data.frame(
+    col_date = as.Date("2019-11-26"),
+    col_ts = as.POSIXct("2019-11-26 21:11Z", tz = "UTC"),
+    col_factor = factor(c("a"))
+  )
+  rel <- rel_from_df(con, test_df, strict = FALSE)
   df <- rel_to_altrep(rel)
   expect_false(df_is_materialized(df))
   expect_equal(test_df, df)
@@ -978,6 +1048,7 @@ test_that("Handle zero-length lists (#186)", {
 })
 
 test_that("prudence", {
+  skip_if(getRversion() < "4.2", "Error message formatting differs in R 4.1")
   local_edition(3)
   withr::local_envvar(NO_COLOR = "true")
 
@@ -1045,4 +1116,304 @@ test_that("rel_to_view()", {
 
   expect_equal(dbGetQuery(con, "SELECT * FROM test_view"), df1)
   expect_error(dbExecute(con, "DROP VIEW test_view"), NA)
+})
+
+test_that("logical", {
+  df1 <- data.frame(a = c(TRUE, FALSE, NA))
+  rel <- rel_from_df(con, df1)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  skip_if_not_installed("vctrs")
+
+  df2 <- vctrs::new_data_frame(list(a = structure(c(TRUE, FALSE, NA), class = "foo")))
+  rel <- rel_from_df(con, df2, strict = FALSE)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  expect_error(rel_from_df(con, df2), "convert")
+})
+
+test_that("integer", {
+  df1 <- data.frame(a = c(1L, 2L, NA))
+  rel <- rel_from_df(con, df1)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  skip_if_not_installed("vctrs")
+
+  df2 <- vctrs::new_data_frame(list(a = structure(c(1L, 2L, NA), class = "foo")))
+  rel <- rel_from_df(con, df2, strict = FALSE)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  expect_error(rel_from_df(con, df2), "convert")
+})
+
+test_that("numeric", {
+  df1 <- data.frame(a = c(1, 2, NA))
+  rel <- rel_from_df(con, df1)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  skip_if_not_installed("vctrs")
+
+  df2 <- vctrs::new_data_frame(list(a = structure(c(1, 2, NA), class = "foo")))
+  rel <- rel_from_df(con, df2, strict = FALSE)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  expect_error(rel_from_df(con, df2), "convert")
+})
+
+test_that("list", {
+  skip_if_not_installed("vctrs")
+  skip_if(getRversion() < "4.3")
+
+  df1 <- vctrs::new_data_frame(list(a = list(1L, 2:3, NULL, 4:6)))
+  rel <- rel_from_df(con, df1)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  df2 <- vctrs::new_data_frame(list(a = structure(list(1L, 2:3, NULL, 4:6), class = "foo")), n = 4L)
+  rel <- rel_from_df(con, df2, strict = FALSE)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  expect_error(rel_from_df(con, df2), "convert")
+})
+
+test_that("Date", {
+  df1 <- data.frame(a = as.Date(c("2020-01-01", "2020-01-02", NA)))
+  rel <- rel_from_df(con, df1)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  skip_if_not_installed("vctrs")
+
+  df2 <- vctrs::new_data_frame(list(a = structure(as.Date(c("2020-01-01", "2020-01-02", NA)), class = c("foo", "Date"))))
+  rel <- rel_from_df(con, df2, strict = FALSE)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  expect_error(rel_from_df(con, df2), "convert")
+})
+
+test_that("difftime", {
+  df1 <- data.frame(a = as.difftime(c(1, 2, NA), units = "secs"))
+  rel <- rel_from_df(con, df1)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  skip_if_not_installed("vctrs")
+
+  df2 <- vctrs::new_data_frame(list(a = structure(as.difftime(c(1, 2, NA), units = "secs"), class = c("foo", "difftime"))))
+  rel <- rel_from_df(con, df2, strict = FALSE)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  expect_error(rel_from_df(con, df2), "convert")
+})
+
+test_that("factor", {
+  df1 <- data.frame(a = factor(c("a", "b", NA)))
+  rel <- rel_from_df(con, df1)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  df2 <- data.frame(a = ordered(c("a", "b", NA)))
+  rel <- rel_from_df(con, df2, strict = FALSE)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  expect_error(rel_from_df(con, df2), "convert")
+})
+
+test_that("data.frame", {
+  skip_if_not_installed("vctrs")
+  skip_if(getRversion() < "4.3")
+
+  df1 <- vctrs::new_data_frame(list(a = data.frame(b = 1:3, c = 4:6)))
+  rel <- rel_from_df(con, df1)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  df2 <- vctrs::new_data_frame(list(a = structure(data.frame(b = 1:3, c = 4:6), class = c("foo", "data.frame"))))
+  rel <- rel_from_df(con, df2, strict = FALSE)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  expect_error(rel_from_df(con, df2), "convert")
+})
+
+test_that("POSIXct", {
+  df1 <- data.frame(a = structure(1745781814.84963, class = c("POSIXct", "POSIXt"), tzone = "UTC"))
+  rel <- rel_from_df(con, df1)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  df2 <- data.frame(a = structure(1745781814.84963, class = c("foo", "POSIXct", "POSIXt")))
+  rel <- rel_from_df(con, df2, strict = FALSE)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  expect_error(rel_from_df(con, df2), "convert")
+
+  df2 <- data.frame(a = structure(1745781814.84963, class = c("foo", "POSIXct", "POSIXt"), tzone = ""))
+  rel <- rel_from_df(con, df2, strict = FALSE)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  expect_error(rel_from_df(con, df2), "convert")
+
+  skip_if_not_installed("vctrs")
+
+  df2 <- data.frame(a = structure(1745781814.84963, class = c("foo", "POSIXct", "POSIXt"), tzone = "UTC"))
+  rel <- rel_from_df(con, df2, strict = FALSE)
+  expect_equal(rel_to_altrep(rel), df1)
+
+  expect_error(rel_from_df(con, df2), "convert")
+})
+
+test_that("rel_order() supports descending order", {
+  test_df <- rel_from_df(con, data.frame(a = c(1:3)))
+  orders <- list(expr_reference("a"))
+  rel <- rel_order(test_df, orders, ascending = FALSE)
+  expected_result <- data.frame(a = c(3L, 2L, 1L))
+  expect_equal(rel_to_altrep(rel), expected_result)
+})
+
+test_that("rel_order() supports nulls_first", {
+  test_df <- rel_from_df(con, data.frame(a = c(NA, 1:3)))
+  orders <- list(expr_reference("a"))
+  rel <- rel_order(test_df, orders, nulls_first = TRUE)
+  expected_result <- data.frame(a = c(NA, 1L, 2L, 3L))
+  expect_equal(rel_to_altrep(rel), expected_result)
+})
+
+test_that("rel_order() nulls_first error checking works", {
+  test_df <- rel_from_df(con, data.frame(a = c(1:3)))
+  orders <- list(expr_reference("a"), expr_reference("a"))
+  expect_error(rel_order(test_df, orders, nulls_first = c(TRUE, FALSE, TRUE)), "length of nulls_first")
+})
+
+test_that("expr_window() supports descending order_bys", {
+  # rank() OVER (ORDER BY a DESC) should give reverse ranks
+  rel_a <- rel_from_df(con, data.frame(a = c(1, 2, 3)))
+  rank_func <- expr_function("rank", list())
+  rank_window <- expr_window(rank_func,
+    order_bys = list(expr_reference("a")),
+    ascending = FALSE
+  )
+  expr_set_alias(rank_window, "rank_desc")
+  window_proj <- rel_project(rel_a, list(expr_reference("a"), rank_window))
+  proj_order <- rel_order(window_proj, list(expr_reference("a")))
+  res <- rel_to_altrep(proj_order)
+  expected_result <- data.frame(a = c(1, 2, 3), rank_desc = c(3L, 2L, 1L))
+  expect_equal(res, expected_result)
+})
+
+test_that("expr_window() supports nulls_first in order_bys", {
+  # rank() OVER (ORDER BY a NULLS FIRST) - NULLs should get rank 1
+  rel_a <- rel_from_df(con, data.frame(a = c(1, 2, NA)))
+  rank_func <- expr_function("rank", list())
+  rank_window <- expr_window(rank_func,
+    order_bys = list(expr_reference("a")),
+    nulls_first = TRUE
+  )
+  expr_set_alias(rank_window, "rank_nulls_first")
+  window_proj <- rel_project(rel_a, list(expr_reference("a"), rank_window))
+  proj_order <- rel_order(window_proj, list(expr_reference("a")))
+  res <- rel_to_altrep(proj_order)
+  # With NULLS FIRST: NULL gets rank 1, 1 gets rank 2, 2 gets rank 3
+  expected_result <- data.frame(a = c(1, 2, NA), rank_nulls_first = c(2L, 3L, 1L))
+  expect_equal(res, expected_result)
+})
+
+test_that("expr_window() ascending/nulls_first error checking works", {
+  rank_func <- expr_function("rank", list())
+  expect_error(
+    expr_window(rank_func,
+      order_bys = list(expr_reference("a")),
+      ascending = c(TRUE, FALSE)
+    ),
+    "length of ascending"
+  )
+  expect_error(
+    expr_window(rank_func,
+      order_bys = list(expr_reference("a")),
+      nulls_first = c(TRUE, FALSE)
+    ),
+    "length of nulls_first"
+  )
+})
+
+test_that("rel_from_sql() works with registered tables", {
+  con <- local_con()
+  DBI::dbWriteTable(con, "mtcars_t", mtcars)
+  rel <- rel_from_sql(con, "SELECT cyl, mpg FROM mtcars_t")
+  expect_s3_class(rel, "duckdb_relation")
+  df <- as.data.frame(rel)
+  expect_equal(df$mpg, mtcars$mpg)
+  expect_equal(df$cyl, mtcars$cyl)
+})
+
+test_that("rel_from_sql() surfaces parser errors", {
+  con <- local_con()
+  expect_error(rel_from_sql(con, "SELECT FROM"))
+})
+
+test_that("rel_from_sql() scans data frames from the caller env by default", {
+  con <- local_con(drv = duckdb(environment_scan = TRUE))
+
+  df_local <- data.frame(a = 1:3, b = letters[1:3])
+  rel <- rel_from_sql(con, "FROM df_local")
+  expect_s3_class(rel, "duckdb_relation")
+  expect_setequal(names(rel), c("a", "b"))
+})
+
+test_that("rel_from_sql() honours an explicit env argument", {
+  con <- local_con(drv = duckdb(environment_scan = TRUE))
+
+  scan_env <- new.env(parent = emptyenv())
+  scan_env$df_env <- data.frame(a = 1L, b = 2L)
+
+  rel <- rel_from_sql(con, "FROM df_env", env = scan_env)
+  expect_s3_class(rel, "duckdb_relation")
+  expect_setequal(names(rel), c("a", "b"))
+})
+
+test_that("rel_from_sql() does not scan with environment_scan = FALSE", {
+  con <- local_con()
+
+  df_local <- data.frame(a = 1L)
+  expect_error(rel_from_sql(con, "FROM df_local"))
+})
+
+test_that("rel_from_sql() rejects non-environment env", {
+  con <- local_con()
+  expect_error(
+    rel_from_sql(con, "SELECT 1", env = list()),
+    "env.*environment"
+  )
+})
+
+test_that("rel_from_sql() falls back to the database catalog", {
+  # Even with env scanning off, plain table references must still resolve.
+  con <- local_con()
+  DBI::dbWriteTable(con, "cat_tbl", data.frame(a = 1L))
+
+  rel <- rel_from_sql(con, "SELECT a FROM cat_tbl")
+  expect_equal(as.data.frame(rel), data.frame(a = 1L), ignore_attr = TRUE)
+})
+
+test_that("rel_from_sql() relations can be materialized after the env is gone", {
+  con <- local_con(drv = duckdb(environment_scan = TRUE))
+
+  create_rel <- function() {
+    df <- data.frame(a = 1:3)
+    rel_from_sql(con, "FROM df")
+  }
+
+  rel <- create_rel()
+
+  # The data frame is no longer reachable from the calling R code, but it
+  # is kept alive by the relation's protection list.
+  gc(); gc()
+
+  expect_equal(as.data.frame(rel), data.frame(a = 1:3), ignore_attr = TRUE)
+})
+
+test_that("rel_from_sql() relations can be used in further relational ops", {
+  con <- local_con(drv = duckdb(environment_scan = TRUE))
+
+  df <- data.frame(a = 1:5, b = c(2, 2, 3, 3, 4))
+  rel <- rel_from_sql(con, "FROM df")
+  rel2 <- rel_filter(rel, list(
+    expr_comparison("=", list(expr_reference("b"), expr_constant(3)))
+  ))
+
+  out <- as.data.frame(rel2)
+  expect_equal(out$a, c(3L, 4L), ignore_attr = TRUE)
 })

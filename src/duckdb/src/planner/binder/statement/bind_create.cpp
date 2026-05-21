@@ -30,6 +30,7 @@
 #include "duckdb/planner/bound_query_node.hpp"
 #include "duckdb/planner/expression/bound_cast_expression.hpp"
 #include "duckdb/planner/expression/bound_columnref_expression.hpp"
+#include "duckdb/planner/expression_binder/constant_binder.hpp"
 #include "duckdb/planner/expression_binder/index_binder.hpp"
 #include "duckdb/planner/expression_binder/select_binder.hpp"
 #include "duckdb/planner/operator/logical_create.hpp"
@@ -38,44 +39,57 @@
 #include "duckdb/planner/operator/logical_projection.hpp"
 #include "duckdb/planner/parsed_data/bound_create_table_info.hpp"
 #include "duckdb/planner/query_node/bound_select_node.hpp"
-#include "duckdb/planner/tableref/bound_basetableref.hpp"
 #include "duckdb/storage/storage_extension.hpp"
 #include "duckdb/common/extension_type_info.hpp"
 #include "duckdb/common/type_visitor.hpp"
+#include "duckdb/function/table_macro_function.hpp"
+#include "duckdb/main/settings.hpp"
+#include "duckdb/parser/expression/type_expression.hpp"
+#include "duckdb/planner/expression/bound_constant_expression.hpp"
 
 namespace duckdb {
 
-void Binder::BindSchemaOrCatalog(ClientContext &context, string &catalog, string &schema) {
-	CatalogEntryRetriever retriever(context);
-	if (catalog.empty() && !schema.empty()) {
-		// schema is specified - but catalog is not
-		// try searching for the catalog instead
-		auto &db_manager = DatabaseManager::Get(context);
-		auto database = db_manager.GetDatabase(context, schema);
-		if (database) {
-			// we have a database with this name
-			// check if there is a schema
-			auto &search_path = *context.client_data->catalog_search_path;
-			auto catalog_names = search_path.GetCatalogsForSchema(schema);
-			if (catalog_names.empty()) {
-				catalog_names.push_back(DatabaseManager::GetDefaultDatabase(context));
-			}
-			for (auto &catalog_name : catalog_names) {
-				auto catalog = Catalog::GetCatalogEntry(retriever, catalog_name);
-				if (!catalog) {
-					continue;
-				}
-				if (catalog->CheckAmbiguousCatalogOrSchema(context, schema)) {
-
-					throw BinderException(
-					    "Ambiguous reference to catalog or schema \"%s\" - use a fully qualified path like \"%s.%s\"",
-					    schema, catalog_name, schema);
-				}
-			}
-			catalog = schema;
-			schema = string();
+void Binder::BindSchemaOrCatalog(CatalogEntryRetriever &retriever, string &catalog, string &schema) {
+	auto &context = retriever.GetContext();
+	if (schema.empty()) {
+		return;
+	}
+	if (!catalog.empty()) {
+		return;
+	}
+	// schema is specified - but catalog is not
+	// try searching for the catalog instead
+	auto &db_manager = DatabaseManager::Get(context);
+	auto database = db_manager.GetDatabase(context, schema);
+	if (!database) {
+		//! No database by that name was found
+		return;
+	}
+	// we have a database with this name
+	// check if there is a schema
+	auto &search_path = retriever.GetSearchPath();
+	auto catalog_names = search_path.GetCatalogsForSchema(schema);
+	if (catalog_names.empty()) {
+		catalog_names.push_back(DatabaseManager::GetDefaultDatabase(context));
+	}
+	for (auto &catalog_name : catalog_names) {
+		auto catalog_ptr = Catalog::GetCatalogEntry(retriever, catalog_name);
+		if (!catalog_ptr) {
+			continue;
+		}
+		if (catalog_ptr->CheckAmbiguousCatalogOrSchema(context, schema)) {
+			throw BinderException(
+			    "Ambiguous reference to catalog or schema \"%s\" - use a fully qualified path like \"%s.%s\"", schema,
+			    catalog_name, schema);
 		}
 	}
+	catalog = schema;
+	schema = string();
+}
+
+void Binder::BindSchemaOrCatalog(ClientContext &context, string &catalog, string &schema) {
+	CatalogEntryRetriever retriever(context);
+	BindSchemaOrCatalog(retriever, catalog, schema);
 }
 
 void Binder::BindSchemaOrCatalog(string &catalog, string &schema) {
@@ -92,7 +106,7 @@ const string Binder::BindCatalog(string &catalog) {
 	}
 }
 
-SchemaCatalogEntry &Binder::BindSchema(CreateInfo &info) {
+void Binder::SearchSchema(CreateInfo &info) {
 	BindSchemaOrCatalog(info.catalog, info.schema);
 	if (IsInvalidCatalog(info.catalog) && info.temporary) {
 		info.catalog = TEMP_CATALOG;
@@ -120,13 +134,17 @@ SchemaCatalogEntry &Binder::BindSchema(CreateInfo &info) {
 			throw ParserException("TEMPORARY table names can *only* use the \"%s\" catalog", TEMP_CATALOG);
 		}
 	}
+}
+
+SchemaCatalogEntry &Binder::BindSchema(CreateInfo &info) {
+	SearchSchema(info);
 	// fetch the schema in which we want to create the object
 	auto &schema_obj = Catalog::GetSchema(context, info.catalog, info.schema);
 	D_ASSERT(schema_obj.type == CatalogType::SCHEMA_ENTRY);
 	info.schema = schema_obj.name;
 	if (!info.temporary) {
 		auto &properties = GetStatementProperties();
-		properties.RegisterDBModify(schema_obj.catalog, context);
+		properties.RegisterDBModify(schema_obj.catalog, context, DatabaseModificationType::CREATE_CATALOG_ENTRY);
 	}
 	return schema_obj;
 }
@@ -143,109 +161,233 @@ void Binder::SetCatalogLookupCallback(catalog_entry_callback_t callback) {
 	entry_retriever.SetCallback(std::move(callback));
 }
 
-void Binder::BindCreateViewInfo(CreateViewInfo &base) {
-	// bind the view as if it were a query so we can catch errors
-	// note that we bind the original, and replace the original with a copy
+void Binder::BindView(ClientContext &context, const SelectStatement &stmt, const string &catalog_name,
+                      const string &schema_name, optional_ptr<LogicalDependencyList> dependencies,
+                      const vector<string> &aliases, vector<LogicalType> &result_types, vector<string> &result_names) {
 	auto view_binder = Binder::CreateBinder(context);
-	auto &dependencies = base.dependencies;
-	auto &catalog = Catalog::GetCatalog(context, base.catalog);
+	auto &catalog = Catalog::GetCatalog(context, catalog_name);
 
-	auto &db_config = DBConfig::GetConfig(context);
-	bool should_create_dependencies = db_config.GetSetting<EnableViewDependenciesSetting>(context);
-	if (should_create_dependencies) {
+	if (dependencies) {
 		view_binder->SetCatalogLookupCallback([&dependencies, &catalog](CatalogEntry &entry) {
 			if (&catalog != &entry.ParentCatalog()) {
 				// Don't register dependencies between catalogs
 				return;
 			}
-			dependencies.AddDependency(entry);
+			dependencies->AddDependency(entry);
 		});
 	}
 	view_binder->can_contain_nulls = true;
 
-	auto view_search_path = GetSearchPath(catalog, base.schema);
+	auto view_search_path = view_binder->GetSearchPath(catalog, schema_name);
 	view_binder->entry_retriever.SetSearchPath(std::move(view_search_path));
 
-	auto copy = base.query->Copy();
-	auto query_node = view_binder->Bind(*base.query);
-	base.query = unique_ptr_cast<SQLStatement, SelectStatement>(std::move(copy));
-	if (base.aliases.size() > query_node.names.size()) {
+	auto copy = stmt.Copy();
+	auto query_node = view_binder->Bind(*copy);
+	if (aliases.size() > query_node.names.size()) {
 		throw BinderException("More VIEW aliases than columns in query result");
 	}
-	base.types = query_node.types;
-	base.names = query_node.names;
+	result_types = query_node.types;
+	result_names = query_node.names;
+}
+
+void Binder::BindCreateViewInfo(CreateViewInfo &base) {
+	optional_ptr<LogicalDependencyList> dependencies;
+	if (Settings::Get<EnableViewDependenciesSetting>(context)) {
+		dependencies = base.dependencies;
+	}
+	BindView(context, *base.query, base.catalog, base.schema, dependencies, base.aliases, base.types, base.names);
 }
 
 SchemaCatalogEntry &Binder::BindCreateFunctionInfo(CreateInfo &info) {
-	auto &base = info.Cast<CreateMacroInfo>();
-
-	auto &dependencies = base.dependencies;
-	auto &catalog = Catalog::GetCatalog(context, info.catalog);
-	auto &db_config = DBConfig::GetConfig(context);
-	// try to bind each of the included functions
-	unordered_set<idx_t> positional_parameters;
-	for (auto &function : base.macros) {
-		auto &scalar_function = function->Cast<ScalarMacroFunction>();
-		if (scalar_function.expression->HasParameter()) {
-			throw BinderException("Parameter expressions within macro's are not supported!");
+	//! Set to identify exact matches in macro overloads
+	struct VectorOfLogicalTypeHash {
+		std::size_t operator()(const vector<LogicalType> &k) const {
+			auto hash = std::hash<size_t>()(k.size());
+			for (auto &type : k) {
+				hash = CombineHash(hash, type.Hash());
+			}
+			return hash;
 		}
+	};
+
+	struct VectorOfLogicalTypeEquality {
+		bool operator()(const vector<LogicalType> &a, const vector<LogicalType> &b) const {
+			if (a.size() != b.size()) {
+				return false;
+			}
+			for (idx_t i = 0; i < a.size(); i++) {
+				if (a[i] != b[i]) {
+					return false;
+				}
+			}
+			return true;
+		}
+	};
+
+	using vector_of_logical_type_set_t =
+	    unordered_set<vector<LogicalType>, VectorOfLogicalTypeHash, VectorOfLogicalTypeEquality>;
+
+	// Bind the catalog/schema
+	SearchSchema(info);
+	auto &catalog = Catalog::GetCatalog(context, info.catalog);
+
+	// Figure out if we can store typed macro parameters
+	auto &attached = catalog.GetAttached();
+	auto store_types = true;
+	if (attached.HasStorageManager()) {
+		// If DuckDB is used as a storage, we must check the version.
+		auto &storage_manager = attached.GetStorageManager();
+		const auto since = SerializationCompatibility::FromString("v1.4.0").serialization_version;
+		store_types = info.temporary || attached.IsTemporary() || storage_manager.InMemory() ||
+		              storage_manager.GetStorageVersion() >= since;
+	}
+	// try to bind each of the included functions
+	vector_of_logical_type_set_t type_overloads;
+	auto &base = info.Cast<CreateMacroInfo>();
+	for (auto &function : base.macros) {
+		if (!store_types) {
+			for (const auto &type : function->types) {
+				if (type.id() != LogicalTypeId::UNKNOWN) {
+					string msg = "Typed macro parameters are only supported for storage versions v1.4.0 and higher.\n";
+					msg += "Use an in-memory database, ATTACH with (STORAGE_VERSION v1.4.0), or create a TEMP macro";
+					throw BinderException(msg);
+				}
+			}
+		}
+
+		if (info.type == CatalogType::MACRO_ENTRY) {
+			auto &scalar_function = function->Cast<ScalarMacroFunction>();
+			if (scalar_function.expression->HasParameter()) {
+				throw BinderException("Parameter expressions within macro's are not supported!");
+			}
+		} else {
+			D_ASSERT(info.type == CatalogType::TABLE_MACRO_ENTRY);
+			auto &table_function = function->Cast<TableMacroFunction>();
+			ParsedExpressionIterator::EnumerateQueryNodeChildren(
+			    *table_function.query_node, [](unique_ptr<ParsedExpression> &child) {
+				    if (child->HasParameter()) {
+					    throw BinderException("Parameter expressions within macro's are not supported!");
+				    }
+			    });
+		}
+
+		// Constant-fold all default parameter expressions
+		for (auto &it : function->default_parameters) {
+			auto &param_name = it.first;
+			auto &param_expr = it.second;
+
+			if (param_expr->type == ExpressionType::VALUE_CONSTANT) {
+				continue;
+			}
+
+			ConstantBinder binder(*this, context, StringUtil::Format("Default value for parameter '%s'", param_name));
+			auto default_expr = param_expr->Copy();
+			auto bound_default = binder.Bind(default_expr);
+			if (!bound_default->IsFoldable()) {
+				auto msg = StringUtil::Format("Default value '%s' for parameter '%s' is not a constant expression.",
+				                              param_expr->ToString(), param_name);
+				throw BinderException(msg);
+			}
+
+			auto default_val = ExpressionExecutor::EvaluateScalar(context, *bound_default);
+
+			// Save this back as a constant expression
+			auto const_expr = make_uniq<ConstantExpression>(default_val);
+			const_expr->alias = param_name;
+			it.second = std::move(const_expr);
+		}
+
+		// Resolve any user type arguments
+		for (idx_t param_idx = 0; param_idx < function->types.size(); param_idx++) {
+			auto &type = function->types[param_idx];
+			if (type.id() == LogicalTypeId::UNKNOWN) {
+				continue;
+			}
+			if (type.id() == LogicalTypeId::UNBOUND) {
+				BindLogicalType(type);
+			}
+			const auto &param_name = function->parameters[param_idx]->Cast<ColumnRefExpression>().GetColumnName();
+			auto it = function->default_parameters.find(param_name);
+			if (it != function->default_parameters.end()) {
+				const auto &val_type = it->second->Cast<ConstantExpression>().value.type();
+				if (CastFunctionSet::ImplicitCastCost(context, val_type, type) < 0) {
+					auto msg =
+					    StringUtil::Format("Default value '%s' for parameter '%s' cannot be implicitly cast to '%s'.",
+					                       it->second->ToString(), param_name, type.ToString());
+					throw BinderException(msg + " Please add an explicit type cast.");
+				}
+			}
+		}
+
 		vector<LogicalType> dummy_types;
 		vector<string> dummy_names;
-		auto parameter_count = function->parameters.size();
-		if (positional_parameters.find(parameter_count) != positional_parameters.end()) {
-			throw BinderException(
-			    "Ambiguity in macro overloads - macro \"%s\" has multiple definitions with %llu parameters", base.name,
-			    parameter_count);
-		}
-		positional_parameters.insert(parameter_count);
-
 		// positional parameters
-		for (auto &param_expr : function->parameters) {
-			auto param = param_expr->Cast<ColumnRefExpression>();
-			if (param.IsQualified()) {
-				throw BinderException("Invalid parameter name '%s': must be unqualified", param.ToString());
-			}
-			dummy_types.emplace_back(LogicalType::UNKNOWN);
-			dummy_names.push_back(param.GetColumnName());
+		for (idx_t param_idx = 0; param_idx < function->parameters.size(); param_idx++) {
+			dummy_types.emplace_back(function->types.empty() ? LogicalType::UNKNOWN : function->types[param_idx]);
+			dummy_names.push_back(function->parameters[param_idx]->Cast<ColumnRefExpression>().GetColumnName());
 		}
-		// default parameters
-		for (auto &entry : function->default_parameters) {
-			auto &val = entry.second->Cast<ConstantExpression>();
-			dummy_types.push_back(val.value.type());
-			dummy_names.push_back(entry.first);
+
+		if (!type_overloads.insert(dummy_types).second) {
+			throw BinderException(
+			    "Ambiguity in macro overloads - macro %s() has multiple definitions with the same parameters",
+			    base.name);
 		}
+
 		auto this_macro_binding = make_uniq<DummyBinding>(dummy_types, dummy_names, base.name);
 		macro_binding = this_macro_binding.get();
 
-		// create a copy of the expression because we do not want to alter the original
-		auto expression = scalar_function.expression->Copy();
-		ExpressionBinder::QualifyColumnNames(*this, expression);
+		auto &dependencies = base.dependencies;
+		const auto should_create_dependencies = Settings::Get<EnableMacroDependenciesSetting>(context);
+		const auto binder_callback = [&dependencies, &catalog](CatalogEntry &entry) {
+			if (&catalog != &entry.ParentCatalog()) {
+				// Don't register any cross-catalog dependencies
+				return;
+			}
+			// Register any catalog entry required to bind the macro function
+			dependencies.AddDependency(entry);
+		};
 
 		// bind it to verify the function was defined correctly
-		BoundSelectNode sel_node;
-		BoundGroupInformation group_info;
-		SelectBinder binder(*this, context, sel_node, group_info);
-		bool should_create_dependencies = db_config.GetSetting<EnableMacroDependenciesSetting>(context);
-
-		if (should_create_dependencies) {
-			binder.SetCatalogLookupCallback([&dependencies, &catalog](CatalogEntry &entry) {
-				if (&catalog != &entry.ParentCatalog()) {
-					// Don't register any cross-catalog dependencies
-					return;
-				}
-				// Register any catalog entry required to bind the macro function
-				dependencies.AddDependency(entry);
-			});
-		}
 		ErrorData error;
-		try {
-			error = binder.Bind(expression, 0, false);
-			if (error.HasError()) {
-				error.Throw();
+		if (info.type == CatalogType::MACRO_ENTRY) {
+			BoundSelectNode sel_node;
+			BoundGroupInformation group_info;
+			SelectBinder binder(*this, context, sel_node, group_info);
+			if (should_create_dependencies) {
+				binder.SetCatalogLookupCallback(binder_callback);
 			}
-		} catch (const std::exception &ex) {
-			error = ErrorData(ex);
+
+			// create a copy of the expression because we do not want to alter the original
+			auto expression = function->Cast<ScalarMacroFunction>().expression->Copy();
+			ExpressionBinder::QualifyColumnNames(*this, expression);
+			try {
+				error = binder.Bind(expression, 0, false);
+				if (error.HasError()) {
+					error.Throw();
+				}
+			} catch (const std::exception &ex) {
+				error = ErrorData(ex);
+			}
+		} else {
+			D_ASSERT(info.type == CatalogType::TABLE_MACRO_ENTRY);
+			auto dummy_binder = CreateBinder(context, this);
+			if (should_create_dependencies) {
+				dummy_binder->SetCatalogLookupCallback(binder_callback);
+			}
+
+			// create a copy of the query node because we do not want to alter the original
+			auto query_node = function->Cast<TableMacroFunction>().query_node->Copy();
+			ParsedExpressionIterator::EnumerateQueryNodeChildren(
+			    *query_node, [&dummy_binder](unique_ptr<ParsedExpression> &child) {
+				    ExpressionBinder::QualifyColumnNames(*dummy_binder, child);
+			    });
+			try {
+				dummy_binder->Bind(*query_node);
+			} catch (const std::exception &ex) {
+				error = ErrorData(ex);
+			}
 		}
+
 		// if we cannot resolve parameters we postpone binding until the macro function is used
 		if (error.HasError() && error.Type() != ExceptionType::PARAMETER_NOT_RESOLVED) {
 			error.Throw();
@@ -255,134 +397,49 @@ SchemaCatalogEntry &Binder::BindCreateFunctionInfo(CreateInfo &info) {
 	return BindCreateSchema(info);
 }
 
-static bool IsValidUserType(optional_ptr<CatalogEntry> entry) {
-	if (!entry) {
-		return false;
+LogicalType Binder::BindLogicalTypeInternal(const unique_ptr<ParsedExpression> &type_expr) {
+	ConstantBinder binder(*this, context, "Type binding");
+	auto copy = type_expr->Copy();
+	auto expr = binder.Bind(copy);
+
+	if (!expr->IsFoldable()) {
+		throw BinderException(*type_expr, "Type expression is not constant");
 	}
-	return entry->Cast<TypeCatalogEntry>().user_type.id() != LogicalTypeId::INVALID;
+
+	if (expr->return_type != LogicalTypeId::TYPE) {
+		throw BinderException(*type_expr, "Expected a type returning expression, but got expression of type '%s'",
+		                      expr->return_type.ToString());
+	}
+
+	// Shortcut for constant expressions
+	if (expr->GetExpressionClass() == ExpressionClass::BOUND_CONSTANT) {
+		auto &const_expr = expr->Cast<BoundConstantExpression>();
+		return TypeValue::GetType(const_expr.value);
+	}
+
+	// Else, evaluate the type expression
+	auto type_value = ExpressionExecutor::EvaluateScalar(context, *expr);
+	D_ASSERT(type_value.type().id() == LogicalTypeId::TYPE);
+	return TypeValue::GetType(type_value);
 }
 
-LogicalType Binder::BindLogicalTypeInternal(const LogicalType &type, optional_ptr<Catalog> catalog,
-                                            const string &schema) {
-	if (type.id() != LogicalTypeId::USER) {
-		// Nested type, make sure to bind any nested user types recursively
-		LogicalType result;
-		switch (type.id()) {
-		case LogicalTypeId::LIST: {
-			auto child_type = BindLogicalTypeInternal(ListType::GetChildType(type), catalog, schema);
-			result = LogicalType::LIST(child_type);
-			break;
-		}
-		case LogicalTypeId::MAP: {
-			auto key_type = BindLogicalTypeInternal(MapType::KeyType(type), catalog, schema);
-			auto value_type = BindLogicalTypeInternal(MapType::ValueType(type), catalog, schema);
-			result = LogicalType::MAP(std::move(key_type), std::move(value_type));
-			break;
-		}
-		case LogicalTypeId::ARRAY: {
-			auto child_type = BindLogicalTypeInternal(ArrayType::GetChildType(type), catalog, schema);
-			auto array_size = ArrayType::GetSize(type);
-			result = LogicalType::ARRAY(child_type, array_size);
-			break;
-		}
-		case LogicalTypeId::STRUCT: {
-			auto child_types = StructType::GetChildTypes(type);
-			child_list_t<LogicalType> new_child_types;
-			for (auto &entry : child_types) {
-				new_child_types.emplace_back(entry.first, BindLogicalTypeInternal(entry.second, catalog, schema));
-			}
-			result = LogicalType::STRUCT(std::move(new_child_types));
-			break;
-		}
-		case LogicalTypeId::UNION: {
-			child_list_t<LogicalType> member_types;
-			for (idx_t i = 0; i < UnionType::GetMemberCount(type); i++) {
-				auto child_type = BindLogicalTypeInternal(UnionType::GetMemberType(type, i), catalog, schema);
-				member_types.emplace_back(UnionType::GetMemberName(type, i), std::move(child_type));
-			}
-			result = LogicalType::UNION(std::move(member_types));
-			break;
-		}
-		default:
-			return type;
-		}
-
-		// Set the alias and extension info back
-		result.SetAlias(type.GetAlias());
-		auto ext_info = type.HasExtensionInfo() ? make_uniq<ExtensionTypeInfo>(*type.GetExtensionInfo()) : nullptr;
-		result.SetExtensionInfo(std::move(ext_info));
-		return result;
-	}
-
-	// User type, bind the user type
-	auto user_type_name = UserType::GetTypeName(type);
-	auto user_type_schema = UserType::GetSchema(type);
-	auto user_type_mods = UserType::GetTypeModifiers(type);
-
-	bind_logical_type_function_t user_bind_modifiers_func = nullptr;
-
-	LogicalType result;
-	if (catalog) {
-		// The search order is:
-		// 1) In the explicitly set schema (my_schema.my_type)
-		// 2) In the same schema as the table
-		// 3) In the same catalog
-		// 4) System catalog
-
-		optional_ptr<CatalogEntry> entry = nullptr;
-		if (!user_type_schema.empty()) {
-			entry = entry_retriever.GetEntry(CatalogType::TYPE_ENTRY, *catalog, user_type_schema, user_type_name,
-			                                 OnEntryNotFound::RETURN_NULL);
-		}
-		if (!IsValidUserType(entry)) {
-			entry = entry_retriever.GetEntry(CatalogType::TYPE_ENTRY, *catalog, schema, user_type_name,
-			                                 OnEntryNotFound::RETURN_NULL);
-		}
-		if (!IsValidUserType(entry)) {
-			entry = entry_retriever.GetEntry(CatalogType::TYPE_ENTRY, *catalog, INVALID_SCHEMA, user_type_name,
-			                                 OnEntryNotFound::RETURN_NULL);
-		}
-		if (!IsValidUserType(entry)) {
-			entry = entry_retriever.GetEntry(CatalogType::TYPE_ENTRY, INVALID_CATALOG, INVALID_SCHEMA, user_type_name,
-			                                 OnEntryNotFound::THROW_EXCEPTION);
-		}
-		auto &type_entry = entry->Cast<TypeCatalogEntry>();
-		result = type_entry.user_type;
-		user_bind_modifiers_func = type_entry.bind_function;
-	} else {
-		string type_catalog = UserType::GetCatalog(type);
-		string type_schema = UserType::GetSchema(type);
-
-		BindSchemaOrCatalog(context, type_catalog, type_schema);
-		auto entry = entry_retriever.GetEntry(CatalogType::TYPE_ENTRY, type_catalog, type_schema, user_type_name);
-		auto &type_entry = entry->Cast<TypeCatalogEntry>();
-		result = type_entry.user_type;
-		user_bind_modifiers_func = type_entry.bind_function;
-	}
-
-	// Now we bind the inner user type
-	BindLogicalType(result, catalog, schema);
-
-	// Apply the type modifiers (if any)
-	if (user_bind_modifiers_func) {
-		// If an explicit bind_modifiers function was provided, use that to construct the type
-
-		BindLogicalTypeInput input {context, result, user_type_mods};
-		result = user_bind_modifiers_func(input);
-	} else {
-		if (!user_type_mods.empty()) {
-			throw BinderException("Type '%s' does not take any type modifiers", user_type_name);
-		}
-	}
-	return result;
-}
-
-void Binder::BindLogicalType(LogicalType &type, optional_ptr<Catalog> catalog, const string &schema) {
-	// check if we need to bind this type at all
-	if (!TypeVisitor::Contains(type, LogicalTypeId::USER)) {
+void Binder::BindLogicalType(LogicalType &type) {
+	// Check if we need to bind this type at all
+	if (!TypeVisitor::Contains(type, LogicalTypeId::UNBOUND)) {
 		return;
 	}
-	type = BindLogicalTypeInternal(type, catalog, schema);
+
+	// Replace all unbound types within the type
+	//   Normally, the unbound type is the root type, but it can also be nested within other types if we e.g.
+	//   alter-table and change a struct field.
+	type = TypeVisitor::VisitReplace(type, [&](const LogicalType &ty) {
+		if (ty.id() == LogicalTypeId::UNBOUND) {
+			auto &type_expr = UnboundType::GetTypeExpression(ty);
+			return BindLogicalTypeInternal(type_expr);
+		}
+
+		return ty;
+	});
 }
 
 unique_ptr<LogicalOperator> DuckCatalog::BindCreateIndex(Binder &binder, CreateStatement &stmt,
@@ -404,7 +461,8 @@ BoundStatement Binder::Bind(CreateStatement &stmt) {
 	case CatalogType::SCHEMA_ENTRY: {
 		auto &base = stmt.info->Cast<CreateInfo>();
 		auto catalog = BindCatalog(base.catalog);
-		properties.RegisterDBModify(Catalog::GetCatalog(context, catalog), context);
+		properties.RegisterDBModify(Catalog::GetCatalog(context, catalog), context,
+		                            DatabaseModificationType::CREATE_CATALOG_ENTRY);
 		result.plan = make_uniq<LogicalCreate>(LogicalOperatorType::LOGICAL_CREATE_SCHEMA, std::move(stmt.info));
 		break;
 	}
@@ -423,7 +481,7 @@ BoundStatement Binder::Bind(CreateStatement &stmt) {
 		break;
 	}
 	case CatalogType::TABLE_MACRO_ENTRY: {
-		auto &schema = BindCreateSchema(*stmt.info);
+		auto &schema = BindCreateFunctionInfo(*stmt.info);
 		result.plan =
 		    make_uniq<LogicalCreate>(LogicalOperatorType::LOGICAL_CREATE_MACRO, std::move(stmt.info), &schema);
 		break;
@@ -443,23 +501,21 @@ BoundStatement Binder::Bind(CreateStatement &stmt) {
 		                                   create_index_info.table);
 		auto table_ref = make_uniq<BaseTableRef>(table_description);
 		auto bound_table = Bind(*table_ref);
-		if (bound_table->type != TableReferenceType::BASE_TABLE) {
+		auto plan = std::move(bound_table.plan);
+		if (plan->type != LogicalOperatorType::LOGICAL_GET) {
+			throw BinderException("can only create an index on a base table");
+		}
+		auto &get = plan->Cast<LogicalGet>();
+		auto table_ptr = get.GetTable();
+		if (!table_ptr) {
 			throw BinderException("can only create an index on a base table");
 		}
 
-		auto &table_binding = bound_table->Cast<BoundBaseTableRef>();
-		auto &table = table_binding.table;
+		auto &table = *table_ptr;
 		if (table.temporary) {
 			stmt.info->temporary = true;
 		}
-		properties.RegisterDBModify(table.catalog, context);
-
-		// create a plan over the bound table
-		auto plan = CreatePlan(*bound_table);
-		if (plan->type != LogicalOperatorType::LOGICAL_GET) {
-			throw BinderException("Cannot create index on a view!");
-		}
-
+		properties.RegisterDBModify(table.catalog, context, DatabaseModificationType::CREATE_INDEX);
 		result.plan = table.catalog.BindCreateIndex(*this, stmt, table, std::move(plan));
 		break;
 	}
@@ -515,38 +571,89 @@ BoundStatement Binder::Bind(CreateStatement &stmt) {
 			}
 
 			result.plan->AddChild(std::move(query));
-		} else if (create_type_info.type.id() == LogicalTypeId::USER) {
-			SetCatalogLookupCallback(dependency_callback);
-			// two cases:
-			// 1: create a type with a non-existent type as source, Binder::BindLogicalType(...) will throw exception.
-			// 2: create a type alias with a custom type.
-			// eg. CREATE TYPE a AS INT; CREATE TYPE b AS a;
-			// We set b to be an alias for the underlying type of a
-			auto type_entry_p = entry_retriever.GetEntry(CatalogType::TYPE_ENTRY, schema.catalog.GetName(), schema.name,
-			                                             UserType::GetTypeName(create_type_info.type));
-			D_ASSERT(type_entry_p);
-			auto &type_entry = type_entry_p->Cast<TypeCatalogEntry>();
-			create_type_info.type = type_entry.user_type;
 		} else {
 			SetCatalogLookupCallback(dependency_callback);
-			// This is done so that if the type contains a USER type,
-			// we register this dependency
-			auto preserved_type = create_type_info.type;
+			// Bind the underlying type
 			BindLogicalType(create_type_info.type);
-			create_type_info.type = preserved_type;
 		}
 		break;
 	}
 	case CatalogType::SECRET_ENTRY: {
 		CatalogTransaction transaction = CatalogTransaction(Catalog::GetSystemCatalog(context), context);
 		properties.return_type = StatementReturnType::QUERY_RESULT;
-		return SecretManager::Get(context).BindCreateSecret(transaction, stmt.info->Cast<CreateSecretInfo>());
+
+		auto &info = stmt.info->Cast<CreateSecretInfo>();
+
+		// We need to execute all expressions in the CreateSecretInfo to construct a CreateSecretInput
+		ConstantBinder default_binder(*this, context, "Secret Parameter");
+
+		string provider_string, type_string;
+		vector<string> scope_strings;
+
+		if (info.provider) {
+			auto bound_provider = default_binder.Bind(info.provider);
+			if (bound_provider->HasParameter()) {
+				throw InvalidInputException("Create Secret expressions can not have parameters!");
+			}
+			provider_string =
+			    StringUtil::Lower(ExpressionExecutor::EvaluateScalar(context, *bound_provider, true).ToString());
+		}
+		if (info.type) {
+			auto bound_type = default_binder.Bind(info.type);
+			if (bound_type->HasParameter()) {
+				throw InvalidInputException("Create Secret expressions can not have parameters!");
+			}
+			type_string = StringUtil::Lower(ExpressionExecutor::EvaluateScalar(context, *bound_type, true).ToString());
+		}
+		if (info.scope) {
+			auto bound_scope = default_binder.Bind(info.scope);
+			if (bound_scope->HasParameter()) {
+				throw InvalidInputException("Create Secret expressions can not have parameters!");
+			}
+			// Execute all scope expressions
+			Value scope = ExpressionExecutor::EvaluateScalar(context, *bound_scope, true);
+			if (scope.type() == LogicalType::VARCHAR) {
+				scope_strings.push_back(scope.ToString());
+			} else if (scope.type() == LogicalType::LIST(LogicalType::VARCHAR)) {
+				for (const auto &item : ListValue::GetChildren(scope)) {
+					scope_strings.push_back(item.GetValue<string>());
+				}
+			} else if (scope.type().InternalType() == PhysicalType::STRUCT) {
+				// struct expression with empty keys is also allowed for backwards compatibility to when the create
+				// secret statement would be parsed differently: this allows CREATE SECRET (TYPE x, SCOPE ('bla',
+				// 'bloe'))
+				for (const auto &child : StructValue::GetChildren(scope)) {
+					if (child.type() != LogicalType::VARCHAR) {
+						throw InvalidInputException(
+						    "Invalid input to scope parameter of create secret: only struct of VARCHARs is allowed");
+					}
+					scope_strings.push_back(child.GetValue<string>());
+				}
+			} else {
+				throw InvalidInputException("Create Secret scope must be of type VARCHAR or LIST(VARCHAR)");
+			}
+		}
+
+		// Execute all options expressions
+		case_insensitive_map_t<Value> bound_options;
+		for (auto &option : info.options) {
+			auto bound_value = default_binder.Bind(option.second);
+			if (bound_value->HasParameter()) {
+				throw InvalidInputException("Create Secret expressions can not have parameters!");
+			}
+			bound_options.insert({option.first, ExpressionExecutor::EvaluateScalar(context, *bound_value, true)});
+		}
+
+		CreateSecretInput create_secret_input {type_string,   provider_string, info.storage_type, info.name,
+		                                       scope_strings, bound_options,   info.on_conflict,  info.persist_type};
+
+		return SecretManager::Get(context).BindCreateSecret(transaction, create_secret_input);
 	}
 	default:
 		throw InternalException("Unrecognized type!");
 	}
 	properties.return_type = StatementReturnType::NOTHING;
-	properties.allow_stream_result = false;
+	properties.output_type = QueryResultOutputType::FORCE_MATERIALIZED;
 	return result;
 }
 

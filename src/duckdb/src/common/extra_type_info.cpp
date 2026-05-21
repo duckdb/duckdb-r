@@ -6,6 +6,8 @@
 #include "duckdb/common/serializer/serializer.hpp"
 #include "duckdb/catalog/catalog_entry/schema_catalog_entry.hpp"
 #include "duckdb/common/string_map_set.hpp"
+#include "duckdb/parser/expression/constant_expression.hpp"
+#include "duckdb/parser/expression/type_expression.hpp"
 
 namespace duckdb {
 
@@ -101,6 +103,10 @@ ExtraTypeInfo &ExtraTypeInfo::operator=(const ExtraTypeInfo &other) {
 
 shared_ptr<ExtraTypeInfo> ExtraTypeInfo::Copy() const {
 	return shared_ptr<ExtraTypeInfo>(new ExtraTypeInfo(*this));
+}
+
+shared_ptr<ExtraTypeInfo> ExtraTypeInfo::DeepCopy() const {
+	return Copy();
 }
 
 bool ExtraTypeInfo::Equals(ExtraTypeInfo *other_p) const {
@@ -202,6 +208,10 @@ shared_ptr<ExtraTypeInfo> ListTypeInfo::Copy() const {
 	return make_shared_ptr<ListTypeInfo>(*this);
 }
 
+shared_ptr<ExtraTypeInfo> ListTypeInfo::DeepCopy() const {
+	return make_shared_ptr<ListTypeInfo>(child_type.DeepCopy());
+}
+
 //===--------------------------------------------------------------------===//
 // Struct Type Info
 //===--------------------------------------------------------------------===//
@@ -219,6 +229,14 @@ bool StructTypeInfo::EqualsInternal(ExtraTypeInfo *other_p) const {
 
 shared_ptr<ExtraTypeInfo> StructTypeInfo::Copy() const {
 	return make_shared_ptr<StructTypeInfo>(*this);
+}
+
+shared_ptr<ExtraTypeInfo> StructTypeInfo::DeepCopy() const {
+	child_list_t<LogicalType> copied_child_types;
+	for (const auto &child_type : child_types) {
+		copied_child_types.emplace_back(child_type.first, child_type.second.DeepCopy());
+	}
+	return make_shared_ptr<StructTypeInfo>(std::move(copied_child_types));
 }
 
 //===--------------------------------------------------------------------===//
@@ -245,30 +263,66 @@ shared_ptr<ExtraTypeInfo> AggregateStateTypeInfo::Copy() const {
 //===--------------------------------------------------------------------===//
 // User Type Info
 //===--------------------------------------------------------------------===//
-UserTypeInfo::UserTypeInfo() : ExtraTypeInfo(ExtraTypeInfoType::USER_TYPE_INFO) {
+void UnboundTypeInfo::Serialize(Serializer &serializer) const {
+	ExtraTypeInfo::Serialize(serializer);
+
+	if (serializer.ShouldSerialize(7)) {
+		serializer.WritePropertyWithDefault<unique_ptr<ParsedExpression>>(204, "expr", expr);
+		return;
+	}
+
+	// Try to write this as an old "USER" type, if possible
+	if (expr->type != ExpressionType::TYPE) {
+		throw SerializationException(
+		    "Cannot serialize non-type type expression when targeting database storage version '%s'",
+		    serializer.GetOptions().serialization_compatibility.duckdb_version);
+	}
+
+	auto &type_expr = expr->Cast<TypeExpression>();
+	serializer.WritePropertyWithDefault<string>(200, "name", type_expr.GetTypeName());
+	serializer.WritePropertyWithDefault<string>(201, "catalog", type_expr.GetCatalog());
+	serializer.WritePropertyWithDefault<string>(202, "schema", type_expr.GetSchema());
+
+	// Try to write the user type mods too
+	vector<Value> user_type_mods;
+	for (auto &param : type_expr.GetChildren()) {
+		if (param->type != ExpressionType::VALUE_CONSTANT) {
+			throw SerializationException(
+			    "Cannot serialize non-constant type parameter when targeting serialization version %s",
+			    serializer.GetOptions().serialization_compatibility.duckdb_version);
+		}
+
+		auto &const_expr = param->Cast<ConstantExpression>();
+		user_type_mods.push_back(const_expr.value);
+	}
+
+	serializer.WritePropertyWithDefault<vector<Value>>(203, "user_type_modifiers", user_type_mods);
 }
 
-UserTypeInfo::UserTypeInfo(string name_p)
-    : ExtraTypeInfo(ExtraTypeInfoType::USER_TYPE_INFO), user_type_name(std::move(name_p)) {
-}
+shared_ptr<ExtraTypeInfo> UnboundTypeInfo::Deserialize(Deserializer &deserializer) {
+	auto result = duckdb::shared_ptr<UnboundTypeInfo>(new UnboundTypeInfo());
 
-UserTypeInfo::UserTypeInfo(string name_p, vector<Value> modifiers_p)
-    : ExtraTypeInfo(ExtraTypeInfoType::USER_TYPE_INFO), user_type_name(std::move(name_p)),
-      user_type_modifiers(std::move(modifiers_p)) {
-}
+	deserializer.ReadPropertyWithDefault<unique_ptr<ParsedExpression>>(204, "expr", result->expr);
 
-UserTypeInfo::UserTypeInfo(string catalog_p, string schema_p, string name_p, vector<Value> modifiers_p)
-    : ExtraTypeInfo(ExtraTypeInfoType::USER_TYPE_INFO), catalog(std::move(catalog_p)), schema(std::move(schema_p)),
-      user_type_name(std::move(name_p)), user_type_modifiers(std::move(modifiers_p)) {
-}
+	if (!result->expr) {
+		// This is a legacy "USER" type
+		string name;
+		deserializer.ReadPropertyWithDefault<string>(200, "name", name);
+		string catalog;
+		deserializer.ReadPropertyWithDefault<string>(201, "catalog", catalog);
+		string schema;
+		deserializer.ReadPropertyWithDefault<string>(202, "schema", schema);
 
-bool UserTypeInfo::EqualsInternal(ExtraTypeInfo *other_p) const {
-	auto &other = other_p->Cast<UserTypeInfo>();
-	return other.user_type_name == user_type_name;
-}
+		vector<unique_ptr<ParsedExpression>> user_type_mods;
+		auto mods = deserializer.ReadPropertyWithDefault<vector<Value>>(203, "user_type_modifiers");
+		for (auto &mod : mods) {
+			user_type_mods.push_back(make_uniq_base<ParsedExpression, ConstantExpression>(mod));
+		}
 
-shared_ptr<ExtraTypeInfo> UserTypeInfo::Copy() const {
-	return make_shared_ptr<UserTypeInfo>(*this);
+		result->expr = make_uniq<TypeExpression>(catalog, schema, name, std::move(user_type_mods));
+	}
+
+	return std::move(result);
 }
 
 //===--------------------------------------------------------------------===//
@@ -423,6 +477,10 @@ shared_ptr<ExtraTypeInfo> ArrayTypeInfo::Copy() const {
 	return make_shared_ptr<ArrayTypeInfo>(*this);
 }
 
+shared_ptr<ExtraTypeInfo> ArrayTypeInfo::DeepCopy() const {
+	return make_shared_ptr<ArrayTypeInfo>(child_type.DeepCopy(), size);
+}
+
 //===--------------------------------------------------------------------===//
 // Any Type Info
 //===--------------------------------------------------------------------===//
@@ -440,6 +498,10 @@ bool AnyTypeInfo::EqualsInternal(ExtraTypeInfo *other_p) const {
 
 shared_ptr<ExtraTypeInfo> AnyTypeInfo::Copy() const {
 	return make_shared_ptr<AnyTypeInfo>(*this);
+}
+
+shared_ptr<ExtraTypeInfo> AnyTypeInfo::DeepCopy() const {
+	return make_shared_ptr<AnyTypeInfo>(target_type.DeepCopy(), cast_score);
 }
 
 //===--------------------------------------------------------------------===//
@@ -462,6 +524,63 @@ bool IntegerLiteralTypeInfo::EqualsInternal(ExtraTypeInfo *other_p) const {
 
 shared_ptr<ExtraTypeInfo> IntegerLiteralTypeInfo::Copy() const {
 	return make_shared_ptr<IntegerLiteralTypeInfo>(*this);
+}
+
+//===--------------------------------------------------------------------===//
+// Template Type Info
+//===--------------------------------------------------------------------===//
+TemplateTypeInfo::TemplateTypeInfo() : ExtraTypeInfo(ExtraTypeInfoType::TEMPLATE_TYPE_INFO) {
+}
+
+TemplateTypeInfo::TemplateTypeInfo(string name_p)
+    : ExtraTypeInfo(ExtraTypeInfoType::TEMPLATE_TYPE_INFO), name(std::move(name_p)) {
+}
+
+bool TemplateTypeInfo::EqualsInternal(ExtraTypeInfo *other_p) const {
+	auto &other = other_p->Cast<TemplateTypeInfo>();
+	return name == other.name;
+}
+
+shared_ptr<ExtraTypeInfo> TemplateTypeInfo::Copy() const {
+	return make_shared_ptr<TemplateTypeInfo>(*this);
+}
+
+//===--------------------------------------------------------------------===//
+// Geo Type Info
+//===--------------------------------------------------------------------===//
+GeoTypeInfo::GeoTypeInfo() : ExtraTypeInfo(ExtraTypeInfoType::GEO_TYPE_INFO) {
+}
+
+bool GeoTypeInfo::EqualsInternal(ExtraTypeInfo *other_p) const {
+	// No additional info to compare
+	const auto &other = other_p->Cast<GeoTypeInfo>();
+	return other.crs.Equals(crs);
+}
+
+shared_ptr<ExtraTypeInfo> GeoTypeInfo::Copy() const {
+	return make_shared_ptr<GeoTypeInfo>(*this);
+}
+
+//===--------------------------------------------------------------------===//
+// Unbound Type Info
+//===--------------------------------------------------------------------===//
+UnboundTypeInfo::UnboundTypeInfo() : ExtraTypeInfo(ExtraTypeInfoType::UNBOUND_TYPE_INFO) {
+}
+
+UnboundTypeInfo::UnboundTypeInfo(unique_ptr<ParsedExpression> expr_p)
+    : ExtraTypeInfo(ExtraTypeInfoType::UNBOUND_TYPE_INFO), expr(std::move(expr_p)) {
+}
+
+bool UnboundTypeInfo::EqualsInternal(ExtraTypeInfo *other_p) const {
+	auto &other = other_p->Cast<UnboundTypeInfo>();
+	if (!expr->Equals(*other.expr)) {
+		return false;
+	}
+	return true;
+}
+
+shared_ptr<ExtraTypeInfo> UnboundTypeInfo::Copy() const {
+	return make_shared_ptr<UnboundTypeInfo>(expr->Copy());
 }
 
 } // namespace duckdb

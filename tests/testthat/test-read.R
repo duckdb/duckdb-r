@@ -1,7 +1,7 @@
 test_that("duckdb_read_csv() works as expected", {
   skip_if_not(TEST_RE2)
 
-  con <- dbConnect(duckdb())
+  con <- local_con()
 
   tf <- tempfile()
   tf2 <- tempfile()
@@ -130,12 +130,12 @@ test_that("duckdb_read_csv() works as expected", {
   # temporary table
   # see https://github.com/duckdb/duckdb-r/issues/142
   db <- tempfile()
-  con2 <- dbConnect(duckdb(), dbdir = db)
+  con2 <- local_con(dbdir = db)
   duckdb_read_csv(con2, "iris", tf, temporary = TRUE)
   expect_true(length(dbListTables(con2)) == 1)
   dbDisconnect(con2)
 
-  con2 <- dbConnect(duckdb(), dbdir = db)
+  con2 <- local_con(dbdir = db)
   expect_true(length(dbListTables(con2)) == 0)
   dbDisconnect(con2)
 
@@ -146,7 +146,7 @@ describe("duckdb_read_csv", {
 
   skip_if_not(TEST_RE2)
   tf <- tempfile()
-  con <- dbConnect(duckdb())
+  con <- local_con()
 
   it("col.types arg works with vector of types and inferred colnames", {
 

@@ -3,12 +3,16 @@
 #include "duckdb/catalog/catalog_entry/table_catalog_entry.hpp"
 #include "duckdb/main/config.hpp"
 #include "duckdb/parser/parsed_data/create_table_info.hpp"
+#include "duckdb/planner/binder.hpp"
 
 namespace duckdb {
 
+BoundOnConflictInfo::BoundOnConflictInfo() : action_type(OnConflictAction::THROW), update_is_del_and_insert(false) {
+}
+
 LogicalInsert::LogicalInsert(TableCatalogEntry &table, idx_t table_index)
-    : LogicalOperator(LogicalOperatorType::LOGICAL_INSERT), table(table), table_index(table_index), return_chunk(false),
-      action_type(OnConflictAction::THROW), update_is_del_and_insert(false) {
+    : LogicalOperator(LogicalOperatorType::LOGICAL_INSERT), table(table), table_index(table_index),
+      return_chunk(false) {
 }
 
 LogicalInsert::LogicalInsert(ClientContext &context, const unique_ptr<CreateInfo> table_info)

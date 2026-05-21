@@ -1,0 +1,7 @@
+relational.o: \
+  include/convert.hpp \
+  include/rapi.hpp \
+  include/reltoaltrep.hpp \
+  include/signal.hpp \
+  include/typesr.hpp \
+  relational.cpp \

@@ -6,3 +6,5 @@
 
 #include "src/parser/query_node/set_operation_node.cpp"
 
+#include "src/parser/query_node/statement_node.cpp"
+

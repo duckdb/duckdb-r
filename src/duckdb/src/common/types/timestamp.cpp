@@ -10,7 +10,7 @@
 #include "duckdb/common/operator/multiply.hpp"
 #include "duckdb/common/operator/subtract.hpp"
 #include "duckdb/common/exception/conversion_exception.hpp"
-#include "duckdb/common/limits.hpp"
+#include "duckdb/common/windows.hpp"
 #include <ctime>
 
 namespace duckdb {
@@ -18,7 +18,7 @@ namespace duckdb {
 static_assert(sizeof(timestamp_t) == sizeof(int64_t), "timestamp_t was padded");
 
 // Temporal values need to round down when changing precision,
-// but C/C++ rounds towrds 0 when you simply divide.
+// but C/C++ rounds towards 0 when you simply divide.
 // This piece of bit banging solves that problem.
 template <typename T>
 static inline T TemporalRound(T value, T scale) {
@@ -64,8 +64,8 @@ timestamp_t &timestamp_t::operator-=(const int64_t &delta) {
 	return *this;
 }
 
-TimestampCastResult Timestamp::TryConvertTimestampTZ(const char *str, idx_t len, timestamp_t &result, bool &has_offset,
-                                                     string_t &tz, optional_ptr<int32_t> nanos) {
+TimestampCastResult Timestamp::TryConvertTimestampTZ(const char *str, idx_t len, timestamp_t &result, bool use_offset,
+                                                     bool &has_offset, string_t &tz, optional_ptr<int32_t> nanos) {
 	idx_t pos;
 	date_t date;
 	dtime_t time;
@@ -111,13 +111,14 @@ TimestampCastResult Timestamp::TryConvertTimestampTZ(const char *str, idx_t len,
 	}
 	if (pos < len) {
 		// skip a "Z" at the end (as per the ISO8601 specs)
-		int hour_offset, minute_offset;
+		int hh, mm, ss;
 		if (str[pos] == 'Z') {
 			pos++;
 			has_offset = true;
-		} else if (Timestamp::TryParseUTCOffset(str, pos, len, hour_offset, minute_offset)) {
-			const int64_t delta = hour_offset * Interval::MICROS_PER_HOUR + minute_offset * Interval::MICROS_PER_MINUTE;
-			if (!TrySubtractOperator::Operation(result.value, delta, result.value)) {
+		} else if (Timestamp::TryParseUTCOffset(str, pos, len, hh, mm, ss)) {
+			const int64_t delta =
+			    hh * Interval::MICROS_PER_HOUR + mm * Interval::MICROS_PER_MINUTE + ss * Interval::MICROS_PER_SEC;
+			if (use_offset && !TrySubtractOperator::Operation(result.value, delta, result.value)) {
 				return TimestampCastResult::ERROR_RANGE;
 			}
 			has_offset = true;
@@ -148,17 +149,20 @@ TimestampCastResult Timestamp::TryConvertTimestampTZ(const char *str, idx_t len,
 	return TimestampCastResult::SUCCESS;
 }
 
-TimestampCastResult Timestamp::TryConvertTimestamp(const char *str, idx_t len, timestamp_t &result,
-                                                   optional_ptr<int32_t> nanos) {
+TimestampCastResult Timestamp::TryConvertTimestamp(const char *str, idx_t len, timestamp_t &result, bool use_offset,
+                                                   optional_ptr<int32_t> nanos, bool strict) {
 	string_t tz(nullptr, 0);
 	bool has_offset = false;
 	// We don't understand TZ without an extension, so fail if one was provided.
-	auto success = TryConvertTimestampTZ(str, len, result, has_offset, tz, nanos);
+	auto success = TryConvertTimestampTZ(str, len, result, use_offset, has_offset, tz, nanos);
 	if (success != TimestampCastResult::SUCCESS) {
 		return success;
 	}
 	if (tz.GetSize() == 0) {
 		// no timezone provided - success!
+		if (strict && has_offset) {
+			return TimestampCastResult::STRICT_UTC;
+		}
 		return TimestampCastResult::SUCCESS;
 	}
 	if (tz.GetSize() == 3) {
@@ -166,6 +170,9 @@ TimestampCastResult Timestamp::TryConvertTimestamp(const char *str, idx_t len, t
 		auto tz_ptr = tz.GetData();
 		if ((tz_ptr[0] == 'u' || tz_ptr[0] == 'U') && (tz_ptr[1] == 't' || tz_ptr[1] == 'T') &&
 		    (tz_ptr[2] == 'c' || tz_ptr[2] == 'C')) {
+			if (strict && has_offset) {
+				return TimestampCastResult::STRICT_UTC;
+			}
 			return TimestampCastResult::SUCCESS;
 		}
 	}
@@ -191,7 +198,7 @@ bool Timestamp::TryFromTimestampNanos(timestamp_t input, int32_t nanos, timestam
 
 TimestampCastResult Timestamp::TryConvertTimestamp(const char *str, idx_t len, timestamp_ns_t &result) {
 	int32_t nanos = 0;
-	auto success = TryConvertTimestamp(str, len, result, &nanos);
+	auto success = TryConvertTimestamp(str, len, result, true, &nanos);
 	if (success != TimestampCastResult::SUCCESS) {
 		return success;
 	}
@@ -203,7 +210,7 @@ TimestampCastResult Timestamp::TryConvertTimestamp(const char *str, idx_t len, t
 
 string Timestamp::FormatError(const string &str) {
 	return StringUtil::Format("invalid timestamp field format: \"%s\", "
-	                          "expected format is (YYYY-MM-DD HH:MM:SS[.US][±HH:MM| ZONE])",
+	                          "expected format is (YYYY-MM-DD HH:MM:SS[.US][±HH[:MM[:SS]]| ZONE])",
 	                          str);
 }
 
@@ -229,10 +236,11 @@ string Timestamp::RangeError(string_t str) {
 	return Timestamp::RangeError(str.GetString());
 }
 
-timestamp_t Timestamp::FromCString(const char *str, idx_t len, optional_ptr<int32_t> nanos) {
+timestamp_t Timestamp::FromCString(const char *str, idx_t len, bool use_offset, optional_ptr<int32_t> nanos) {
 	timestamp_t result;
-	switch (Timestamp::TryConvertTimestamp(str, len, result, nanos)) {
+	switch (Timestamp::TryConvertTimestamp(str, len, result, use_offset, nanos)) {
 	case TimestampCastResult::SUCCESS:
+	case TimestampCastResult::STRICT_UTC:
 		break;
 	case TimestampCastResult::ERROR_NON_UTC_TIMEZONE:
 		throw ConversionException(UnsupportedTimezoneError(string(str, len)));
@@ -244,8 +252,9 @@ timestamp_t Timestamp::FromCString(const char *str, idx_t len, optional_ptr<int3
 	return result;
 }
 
-bool Timestamp::TryParseUTCOffset(const char *str, idx_t &pos, idx_t len, int &hour_offset, int &minute_offset) {
-	minute_offset = 0;
+bool Timestamp::TryParseUTCOffset(const char *str, idx_t &pos, idx_t len, int &hh, int &mm, int &ss) {
+	mm = 0;
+	ss = 0;
 	idx_t curpos = pos;
 	// parse the next 3 characters
 	if (curpos + 3 > len) {
@@ -262,9 +271,9 @@ bool Timestamp::TryParseUTCOffset(const char *str, idx_t &pos, idx_t len, int &h
 		// expected +HH or -HH
 		return false;
 	}
-	hour_offset = (str[curpos] - '0') * 10 + (str[curpos + 1] - '0');
+	hh = (str[curpos] - '0') * 10 + (str[curpos + 1] - '0');
 	if (sign_char == '-') {
-		hour_offset = -hour_offset;
+		hh = -hh;
 	}
 	curpos += 2;
 
@@ -274,7 +283,8 @@ bool Timestamp::TryParseUTCOffset(const char *str, idx_t &pos, idx_t len, int &h
 		pos = curpos;
 		return true;
 	}
-	if (str[curpos] == ':') {
+	const bool colons_used = (str[curpos] == ':');
+	if (colons_used) {
 		curpos++;
 	}
 	if (curpos + 2 > len || !StringUtil::CharacterIsDigit(str[curpos]) ||
@@ -284,24 +294,46 @@ bool Timestamp::TryParseUTCOffset(const char *str, idx_t &pos, idx_t len, int &h
 		return true;
 	}
 	// we have an MM specifier: parse it
-	minute_offset = (str[curpos] - '0') * 10 + (str[curpos + 1] - '0');
+	mm = (str[curpos] - '0') * 10 + (str[curpos + 1] - '0');
 	if (sign_char == '-') {
-		minute_offset = -minute_offset;
+		mm = -mm;
+	}
+	curpos += 2;
+
+	// optional seconds specifier: must be ":SS"
+	if (curpos >= len || !colons_used || (str[curpos] != ':')) {
+		// done, nothing left
+		pos = curpos;
+		return true;
+	}
+	// Skip colon and read seconds
+	curpos++;
+	if (curpos + 2 > len || !StringUtil::CharacterIsDigit(str[curpos]) ||
+	    !StringUtil::CharacterIsDigit(str[curpos + 1])) {
+		// no SS specifier
+		pos = curpos;
+		return true;
+	}
+	// we have an SS specifier: parse it
+	ss = (str[curpos] - '0') * 10 + (str[curpos + 1] - '0');
+	if (sign_char == '-') {
+		ss = -ss;
 	}
 	pos = curpos + 2;
+
 	return true;
 }
 
-timestamp_t Timestamp::FromString(const string &str) {
-	return Timestamp::FromCString(str.c_str(), str.size());
+timestamp_t Timestamp::FromString(const string &str, bool use_offset) {
+	return Timestamp::FromCString(str.c_str(), str.size(), use_offset);
 }
 
 string Timestamp::ToString(timestamp_t timestamp) {
 	if (timestamp == timestamp_t::infinity()) {
-		return Date::PINF;
+		return Date::PINF.str;
 	}
 	if (timestamp == timestamp_t::ninfinity()) {
-		return Date::NINF;
+		return Date::NINF.str;
 	}
 
 	date_t date;
@@ -327,6 +359,18 @@ dtime_t Timestamp::GetTime(timestamp_t timestamp) {
 	}
 	date_t date = Timestamp::GetDate(timestamp);
 	return dtime_t(timestamp.value - (int64_t(date.days) * int64_t(Interval::MICROS_PER_DAY)));
+}
+
+dtime_ns_t Timestamp::GetTimeNs(timestamp_ns_t input) {
+	if (!IsFinite(input)) {
+		throw ConversionException("Can't get TIME_NS of infinite TIMESTAMP");
+	}
+	date_t date = Timestamp::GetDate(Timestamp::FromEpochNanoSeconds(input.value));
+	int64_t nanos;
+	if (!TryMultiplyOperator::Operation<int64_t, int64_t, int64_t>(date.days, Interval::NANOS_PER_DAY, nanos)) {
+		throw ConversionException("Overflow extracting TIME_NS of TIMESTAMP");
+	}
+	return dtime_ns_t(input.value - nanos);
 }
 
 bool Timestamp::TryFromDatetime(date_t date, dtime_t time, timestamp_t &result) {
@@ -385,8 +429,8 @@ void Timestamp::Convert(timestamp_ns_t input, date_t &out_date, dtime_t &out_tim
 
 timestamp_t Timestamp::GetCurrentTimestamp() {
 	auto now = system_clock::now();
-	auto epoch_ms = duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
-	return Timestamp::FromEpochMs(epoch_ms);
+	auto epoch_micros = duration_cast<microseconds>(now.time_since_epoch()).count();
+	return FromEpochMicroSeconds(epoch_micros);
 }
 
 timestamp_t Timestamp::FromEpochSecondsPossiblyInfinite(int64_t sec) {
@@ -502,6 +546,54 @@ double Timestamp::GetJulianDay(timestamp_t timestamp) {
 	result /= Interval::MICROS_PER_DAY;
 	result += double(Date::ExtractJulianDay(Timestamp::GetDate(timestamp)));
 	return result;
+}
+
+TimestampComponents Timestamp::GetComponents(timestamp_t timestamp) {
+	date_t date;
+	dtime_t time;
+
+	Convert(timestamp, date, time);
+
+	TimestampComponents result;
+	Date::Convert(date, result.year, result.month, result.day);
+	Time::Convert(time, result.hour, result.minute, result.second, result.microsecond);
+	return result;
+}
+
+time_t Timestamp::ToTimeT(timestamp_t timestamp) {
+	auto components = Timestamp::GetComponents(timestamp);
+	struct tm tm {};
+	tm.tm_year = components.year - 1900;
+	tm.tm_mon = components.month - 1;
+	tm.tm_mday = components.day;
+	tm.tm_hour = components.hour;
+	tm.tm_min = components.minute;
+	tm.tm_sec = components.second;
+	tm.tm_isdst = 0;
+	return mktime(&tm);
+}
+
+timestamp_t Timestamp::FromTimeT(time_t time) {
+#ifdef DUCKDB_WINDOWS
+	auto tm = localtime(&time);
+#else
+	struct tm tm_storage {};
+	auto tm = localtime_r(&time, &tm_storage);
+#endif
+	if (!tm) {
+		throw InternalException("FromTimeT failed: null pointer returned");
+	}
+
+	int32_t year = tm->tm_year + 1900;
+	int32_t month = tm->tm_mon + 1;
+	int32_t day = tm->tm_mday;
+	int32_t hour = tm->tm_hour;
+	int32_t min = tm->tm_min;
+	int32_t sec = tm->tm_sec;
+
+	auto dt = Date::FromDate(year, month, day);
+	auto t = Time::FromTime(hour, min, sec, 0);
+	return FromDatetime(dt, t);
 }
 
 } // namespace duckdb

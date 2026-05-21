@@ -38,13 +38,15 @@
 
 #include "src/common/types/timestamp.cpp"
 
+#include "src/common/types/type_manager.cpp"
+
 #include "src/common/types/time.cpp"
 
 #include "src/common/types/validity_mask.cpp"
 
 #include "src/common/types/value.cpp"
 
-#include "src/common/types/varint.cpp"
+#include "src/common/types/bignum.cpp"
 
 #include "src/common/types/vector_buffer.cpp"
 
@@ -53,4 +55,8 @@
 #include "src/common/types/vector_cache.cpp"
 
 #include "src/common/types/vector_constants.cpp"
+
+#include "src/common/types/geometry.cpp"
+
+#include "src/common/types/geometry_crs.cpp"
 

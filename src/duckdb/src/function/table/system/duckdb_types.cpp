@@ -142,6 +142,7 @@ void DuckDBTypesFunction(ClientContext &context, TableFunctionInput &data_p, Dat
 			break;
 		case LogicalTypeId::DATE:
 		case LogicalTypeId::TIME:
+		case LogicalTypeId::TIME_NS:
 		case LogicalTypeId::TIMESTAMP_SEC:
 		case LogicalTypeId::TIMESTAMP_MS:
 		case LogicalTypeId::TIMESTAMP:
@@ -160,9 +161,13 @@ void DuckDBTypesFunction(ClientContext &context, TableFunctionInput &data_p, Dat
 			break;
 		case LogicalTypeId::STRUCT:
 		case LogicalTypeId::LIST:
+		case LogicalTypeId::ARRAY:
 		case LogicalTypeId::MAP:
 		case LogicalTypeId::UNION:
 			category = "COMPOSITE";
+			break;
+		case LogicalTypeId::VARIANT:
+			category = "VARIANT";
 			break;
 		default:
 			break;

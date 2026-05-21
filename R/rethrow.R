@@ -6,5 +6,13 @@ rethrow_error_from_rapi <- function(e, call) {
   # the caller.
 
   msg <- conditionMessage(e)
+  tryCatch(
+    # Called for side effect, rlang::abort() eventually calls nchar()
+    nchar(msg),
+    error = function(e) {
+      msg <<- iconv(msg, from = "UTF-8", to = "UTF-8", sub = "?")
+    }
+  )
+
   rlang::abort(msg, call = call)
 }

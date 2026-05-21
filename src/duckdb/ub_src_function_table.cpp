@@ -4,6 +4,8 @@
 
 #include "src/function/table/checkpoint.cpp"
 
+#include "src/function/table/direct_file_reader.cpp"
+
 #include "src/function/table/glob.cpp"
 
 #include "src/function/table/query_function.cpp"
@@ -17,6 +19,8 @@
 #include "src/function/table/copy_csv.cpp"
 
 #include "src/function/table/read_csv.cpp"
+
+#include "src/function/table/read_duckdb.cpp"
 
 #include "src/function/table/sniff_csv.cpp"
 

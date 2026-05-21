@@ -10,7 +10,6 @@
 
 #include "duckdb/parser/parsed_expression.hpp"
 #include "duckdb/parser/query_node.hpp"
-#include "duckdb/parser/sql_statement.hpp"
 
 namespace duckdb {
 
@@ -30,10 +29,8 @@ public:
 	unique_ptr<QueryNode> right;
 	//! Aliases of the recursive CTE node
 	vector<string> aliases;
-
-	const vector<unique_ptr<ParsedExpression>> &GetSelectList() const override {
-		return left->GetSelectList();
-	}
+	//! targets for key variants
+	vector<unique_ptr<ParsedExpression>> key_targets;
 
 public:
 	//! Convert the query node to a string

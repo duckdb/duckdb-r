@@ -1,6 +1,5 @@
 test_that("Test ambiguous prepare statements", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   res <- dbGetQuery(con, "select ?", 42)
   expect_identical(res[[1]], 42)

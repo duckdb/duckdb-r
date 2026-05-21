@@ -11,8 +11,6 @@
 #include "duckdb/parser/parsed_expression.hpp"
 #include "duckdb/common/vector.hpp"
 #include "duckdb/common/string_util.hpp"
-#include "duckdb/parser/qualified_name.hpp"
-#include "duckdb/parser/expression/constant_expression.hpp"
 
 namespace duckdb {
 //! Represents a built-in operator expression
@@ -60,6 +58,12 @@ public:
 			}
 			child_list += ")";
 			return "(" + in_child + op_type + child_list + ")";
+		}
+		case ExpressionType::OPERATOR_UNPACK: {
+			return StringUtil::Format("UNPACK(%s)", entry.children[0]->ToString());
+		}
+		case ExpressionType::OPERATOR_TRY: {
+			return StringUtil::Format("TRY(%s)", entry.children[0]->ToString());
 		}
 		case ExpressionType::OPERATOR_NOT: {
 			string result = "(";

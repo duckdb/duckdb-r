@@ -1,5 +1,6 @@
 #include "duckdb/common/compressed_file_system.hpp"
 #include "duckdb/common/numeric_utils.hpp"
+#include "duckdb/main/client_context.hpp"
 
 namespace duckdb {
 
@@ -12,14 +13,25 @@ CompressedFile::CompressedFile(CompressedFileSystem &fs, unique_ptr<FileHandle> 
 
 CompressedFile::~CompressedFile() {
 	try {
-		// stream_wrapper->Close() might throw
-		CompressedFile::Close();
-	} catch (...) { // NOLINT - cannot throw in exception
+		Close();
+	} catch (std::exception &ex) {
+		if (child_handle) {
+			// FIXME: Make any log context available here.
+			ErrorData data(ex);
+			try {
+				const auto logger = child_handle->logger;
+				if (logger) {
+					DUCKDB_LOG_ERROR(logger, "CompressedFile::~CompressedFile()\t\t" + data.Message());
+				}
+			} catch (...) { // NOLINT
+			}
+		}
+	} catch (...) { // NOLINT
 	}
 }
 
-void CompressedFile::Initialize(bool write) {
-	Close();
+void CompressedFile::Initialize(QueryContext context, bool write) {
+	Clear();
 
 	this->write = write;
 	stream_data.in_buf_size = compressed_fs.InBufferSize();
@@ -34,7 +46,7 @@ void CompressedFile::Initialize(bool write) {
 	current_position = 0;
 
 	stream_wrapper = compressed_fs.CreateStream();
-	stream_wrapper->Initialize(*this, write);
+	stream_wrapper->Initialize(context, *this, write);
 }
 
 idx_t CompressedFile::GetProgress() {
@@ -78,7 +90,7 @@ int64_t CompressedFile::ReadData(void *buffer, int64_t remaining) {
 			memmove(stream_data.in_buff.get(), stream_data.in_buff_start, UnsafeNumericCast<size_t>(bufrem));
 			stream_data.in_buff_start = stream_data.in_buff.get();
 			// refill the rest of input buffer
-			auto sz = child_handle->Read(stream_data.in_buff_start + bufrem,
+			auto sz = child_handle->Read(QueryContext(), stream_data.in_buff_start + bufrem,
 			                             stream_data.in_buf_size - UnsafeNumericCast<idx_t>(bufrem));
 			stream_data.in_buff_end = stream_data.in_buff_start + bufrem + sz;
 			if (sz <= 0) {
@@ -92,7 +104,7 @@ int64_t CompressedFile::ReadData(void *buffer, int64_t remaining) {
 			// empty input buffer: refill from the start
 			stream_data.in_buff_start = stream_data.in_buff.get();
 			stream_data.in_buff_end = stream_data.in_buff_start;
-			auto sz = child_handle->Read(stream_data.in_buff.get(), stream_data.in_buf_size);
+			auto sz = child_handle->Read(QueryContext(), stream_data.in_buff.get(), stream_data.in_buf_size);
 			if (sz <= 0) {
 				stream_wrapper.reset();
 				break;
@@ -113,11 +125,15 @@ int64_t CompressedFile::WriteData(data_ptr_t buffer, int64_t nr_bytes) {
 	return nr_bytes;
 }
 
-void CompressedFile::Close() {
+// Clear does most of the heavy lifting of a close, but leaves the child_handle intact. Specifically it is separated out
+// to support upstream Reset() calls from the FileSystem, which should tear down / reset ephemeral state but leave
+// persisent state (child_handle) intact.
+void CompressedFile::Clear() {
 	if (stream_wrapper) {
 		stream_wrapper->Close();
 		stream_wrapper.reset();
 	}
+
 	stream_data.in_buff.reset();
 	stream_data.out_buff.reset();
 	stream_data.out_buff_start = nullptr;
@@ -127,6 +143,18 @@ void CompressedFile::Close() {
 	stream_data.in_buf_size = 0;
 	stream_data.out_buf_size = 0;
 	stream_data.refresh = false;
+}
+
+void CompressedFile::Close() {
+	// This can throw and halt close leaving child_handle dangling until destruction. Given the alternative of writing
+	// corrupted data that seems better than flushing data in an unknown state.
+	Clear();
+
+	// Then close out child_handle itself.
+	if (child_handle) {
+		child_handle->Close();
+		child_handle.reset();
+	}
 }
 
 int64_t CompressedFileSystem::Read(FileHandle &handle, void *buffer, int64_t nr_bytes) {
@@ -142,7 +170,7 @@ int64_t CompressedFileSystem::Write(FileHandle &handle, void *buffer, int64_t nr
 void CompressedFileSystem::Reset(FileHandle &handle) {
 	auto &compressed_file = handle.Cast<CompressedFile>();
 	compressed_file.child_handle->Reset();
-	compressed_file.Initialize(compressed_file.write);
+	compressed_file.Initialize(QueryContext(), compressed_file.write);
 }
 
 int64_t CompressedFileSystem::GetFileSize(FileHandle &handle) {

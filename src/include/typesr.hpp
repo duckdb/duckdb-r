@@ -2,6 +2,8 @@
 
 namespace duckdb {
 
+struct ConvertOpts;
+
 struct DuckDBAltrepStringWrapper {
 	duckdb::unsafe_unique_array<string_t> string_data;
 	duckdb::unsafe_unique_array<bool> mask_data;
@@ -43,12 +45,14 @@ enum class RTypeId {
 	// No RType equivalent
 	BYTE,
 	LIST,
+	MATRIX,
 	STRUCT,
 };
 
 struct RType {
 	RType();
-	RType(RTypeId id); // NOLINT: Allow implicit conversion from `RTypeId`
+	RType(RTypeId id);               // NOLINT: Allow implicit conversion from `RTypeId`
+	RType(RTypeId id, R_len_t size); // NOLINT: Allow implicit conversion from `RTypeId`
 	RType(const RType &other);
 	RType(RType &&other) noexcept;
 
@@ -57,12 +61,14 @@ struct RType {
 	// copy assignment
 	inline RType &operator=(const RType &other) {
 		id_ = other.id_;
+		size_ = other.size_;
 		aux_ = other.aux_;
 		return *this;
 	}
 	// move assignment
 	inline RType &operator=(RType &&other) noexcept {
 		id_ = other.id_;
+		size_ = other.size_;
 		std::swap(aux_, other.aux_);
 		return *this;
 	}
@@ -105,8 +111,13 @@ struct RType {
 	static RType STRUCT(child_list_t<RType> &&children);
 	child_list_t<RType> GetStructChildTypes() const;
 
+	static RType MATRIX(const RType &child, R_len_t ncols);
+	RType GetMatrixElementType() const;
+	R_len_t GetMatrixNcols() const;
+
 private:
 	RTypeId id_;
+	R_len_t size_;
 	child_list_t<RType> aux_;
 };
 
@@ -117,7 +128,7 @@ struct RApiTypes {
 	static R_len_t GetVecSize(RType rtype, SEXP coldata);
 	static R_len_t GetVecSize(SEXP coldata, bool integer64 = false);
 	static Value SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null = true);
-	static SEXP ValueToSexp(Value &val, string &timezone_config);
+	static SEXP ValueToSexp(const Value &val, const ConvertOpts &convert_opts);
 };
 
 struct RIntegralType {
@@ -128,7 +139,7 @@ struct RIntegralType {
 };
 
 template <class T>
-static void RDecimalCastLoop(Vector &src_vec, size_t count, double *dest_ptr, uint8_t scale) {
+static void RDecimalCastLoop(const Vector &src_vec, size_t count, double *dest_ptr, uint8_t scale) {
 	auto src_ptr = FlatVector::GetData<T>(src_vec);
 	auto &mask = FlatVector::Validity(src_vec);
 	double division = std::pow((uint64_t)10, (uint64_t)scale);

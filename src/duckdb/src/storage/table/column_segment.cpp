@@ -4,15 +4,15 @@
 #include "duckdb/common/types/null_value.hpp"
 #include "duckdb/common/types/vector.hpp"
 #include "duckdb/main/config.hpp"
-#include "duckdb/main/database.hpp"
 #include "duckdb/planner/filter/conjunction_filter.hpp"
 #include "duckdb/planner/filter/constant_filter.hpp"
 #include "duckdb/planner/filter/struct_filter.hpp"
 #include "duckdb/storage/data_pointer.hpp"
-#include "duckdb/storage/storage_manager.hpp"
 #include "duckdb/storage/table/append_state.hpp"
 #include "duckdb/storage/table/scan_state.hpp"
-#include "duckdb/storage/table/update_segment.hpp"
+#include "duckdb/planner/table_filter_state.hpp"
+#include "duckdb/planner/filter/bloom_filter.hpp"
+#include "duckdb/planner/filter/selectivity_optional_filter.hpp"
 
 #include <cstring>
 
@@ -24,36 +24,33 @@ namespace duckdb {
 
 unique_ptr<ColumnSegment> ColumnSegment::CreatePersistentSegment(DatabaseInstance &db, BlockManager &block_manager,
                                                                  block_id_t block_id, idx_t offset,
-                                                                 const LogicalType &type, idx_t start, idx_t count,
+                                                                 const LogicalType &type, idx_t count,
                                                                  CompressionType compression_type,
                                                                  BaseStatistics statistics,
                                                                  unique_ptr<ColumnSegmentState> segment_state) {
-
 	auto &config = DBConfig::GetConfig(db);
-	optional_ptr<CompressionFunction> function;
 	shared_ptr<BlockHandle> block;
 
-	if (block_id == INVALID_BLOCK) {
-		function = config.GetCompressionFunction(CompressionType::COMPRESSION_CONSTANT, type.InternalType());
-	} else {
-		function = config.GetCompressionFunction(compression_type, type.InternalType());
+	auto function = config.GetCompressionFunction(compression_type, type.InternalType());
+	if (block_id != INVALID_BLOCK) {
 		block = block_manager.RegisterBlock(block_id);
 	}
 
 	auto segment_size = block_manager.GetBlockSize();
-	return make_uniq<ColumnSegment>(db, std::move(block), type, ColumnSegmentType::PERSISTENT, start, count, *function,
+	return make_uniq<ColumnSegment>(db, std::move(block), type, ColumnSegmentType::PERSISTENT, count, function,
 	                                std::move(statistics), block_id, offset, segment_size, std::move(segment_state));
 }
 
-unique_ptr<ColumnSegment> ColumnSegment::CreateTransientSegment(DatabaseInstance &db, CompressionFunction &function,
-                                                                const LogicalType &type, const idx_t start,
-                                                                const idx_t segment_size, const idx_t block_size) {
-
+unique_ptr<ColumnSegment> ColumnSegment::CreateTransientSegment(DatabaseInstance &db,
+                                                                const CompressionFunction &function,
+                                                                const LogicalType &type, const idx_t segment_size,
+                                                                BlockManager &block_manager) {
 	// Allocate a buffer for the uncompressed segment.
 	auto &buffer_manager = BufferManager::GetBufferManager(db);
-	auto block = buffer_manager.RegisterTransientMemory(segment_size, block_size);
+	D_ASSERT(&buffer_manager == &block_manager.buffer_manager);
+	auto block = buffer_manager.RegisterTransientMemory(segment_size, block_manager);
 
-	return make_uniq<ColumnSegment>(db, std::move(block), type, ColumnSegmentType::TRANSIENT, start, 0U, function,
+	return make_uniq<ColumnSegment>(db, std::move(block), type, ColumnSegmentType::TRANSIENT, 0U, function,
 	                                BaseStatistics::CreateEmpty(type), INVALID_BLOCK, 0U, segment_size);
 }
 
@@ -61,32 +58,29 @@ unique_ptr<ColumnSegment> ColumnSegment::CreateTransientSegment(DatabaseInstance
 // Construct/Destruct
 //===--------------------------------------------------------------------===//
 ColumnSegment::ColumnSegment(DatabaseInstance &db, shared_ptr<BlockHandle> block_p, const LogicalType &type,
-                             const ColumnSegmentType segment_type, const idx_t start, const idx_t count,
-                             CompressionFunction &function_p, BaseStatistics statistics, const block_id_t block_id_p,
-                             const idx_t offset, const idx_t segment_size_p,
+                             const ColumnSegmentType segment_type, const idx_t count,
+                             const CompressionFunction &function_p, BaseStatistics statistics,
+                             const block_id_t block_id_p, const idx_t offset, const idx_t segment_size_p,
                              const unique_ptr<ColumnSegmentState> segment_state_p)
 
-    : SegmentBase<ColumnSegment>(start, count), db(db), type(type), type_size(GetTypeIdSize(type.InternalType())),
+    : SegmentBase<ColumnSegment>(count), db(db), type(type), type_size(GetTypeIdSize(type.InternalType())),
       segment_type(segment_type), stats(std::move(statistics)), block(std::move(block_p)), function(function_p),
       block_id(block_id_p), offset(offset), segment_size(segment_size_p) {
-
 	if (function.get().init_segment) {
 		segment_state = function.get().init_segment(*this, block_id, segment_state_p.get());
 	}
 
 	// For constant segments (CompressionType::COMPRESSION_CONSTANT) the block is a nullptr.
-	D_ASSERT(!block || segment_size <= GetBlockManager().GetBlockSize());
+	D_ASSERT(!block || segment_size <= GetBlockSize());
 }
 
-ColumnSegment::ColumnSegment(ColumnSegment &other, const idx_t start)
-
-    : SegmentBase<ColumnSegment>(start, other.count.load()), db(other.db), type(std::move(other.type)),
+ColumnSegment::ColumnSegment(ColumnSegment &other)
+    : SegmentBase<ColumnSegment>(other.count.load()), db(other.db), type(std::move(other.type)),
       type_size(other.type_size), segment_type(other.segment_type), stats(std::move(other.stats)),
       block(std::move(other.block)), function(other.function), block_id(other.block_id), offset(other.offset),
       segment_size(other.segment_size), segment_state(std::move(other.segment_state)) {
-
 	// For constant segments (CompressionType::COMPRESSION_CONSTANT) the block is a nullptr.
-	D_ASSERT(!block || segment_size <= GetBlockManager().GetBlockSize());
+	D_ASSERT(!block || segment_size <= GetBlockSize());
 }
 
 ColumnSegment::~ColumnSegment() {
@@ -108,7 +102,7 @@ void ColumnSegment::InitializePrefetch(PrefetchState &prefetch_state, ColumnScan
 }
 
 void ColumnSegment::InitializeScan(ColumnScanState &state) {
-	state.scan_state = function.get().init_scan(*this);
+	state.scan_state = function.get().init_scan(state.context, *this);
 }
 
 void ColumnSegment::Scan(ColumnScanState &state, idx_t scan_count, Vector &result, idx_t result_offset,
@@ -132,16 +126,16 @@ void ColumnSegment::Select(ColumnScanState &state, idx_t scan_count, Vector &res
 }
 
 void ColumnSegment::Filter(ColumnScanState &state, idx_t scan_count, Vector &result, SelectionVector &sel,
-                           idx_t &sel_count, const TableFilter &filter) {
+                           idx_t &sel_count, const TableFilter &filter, TableFilterState &filter_state) {
 	if (!function.get().filter) {
 		throw InternalException("ColumnSegment::Filter not implemented for this compression method");
 	}
-	function.get().filter(*this, state, scan_count, result, sel, sel_count, filter);
+	function.get().filter(*this, state, scan_count, result, sel, sel_count, filter, filter_state);
 }
 
 void ColumnSegment::Skip(ColumnScanState &state) {
-	function.get().skip(*this, state, state.row_index - state.internal_index);
-	state.internal_index = state.row_index;
+	function.get().skip(*this, state, state.offset_in_column - state.internal_index);
+	state.internal_index = state.offset_in_column;
 }
 
 void ColumnSegment::Scan(ColumnScanState &state, idx_t scan_count, Vector &result) {
@@ -156,8 +150,10 @@ void ColumnSegment::ScanPartial(ColumnScanState &state, idx_t scan_count, Vector
 // Fetch
 //===--------------------------------------------------------------------===//
 void ColumnSegment::FetchRow(ColumnFetchState &state, row_t row_id, Vector &result, idx_t result_idx) {
-	function.get().fetch_row(*this, state, UnsafeNumericCast<int64_t>(UnsafeNumericCast<idx_t>(row_id) - this->start),
-	                         result, result_idx);
+	if (UnsafeNumericCast<idx_t>(row_id) > count) {
+		throw InternalException("ColumnSegment::FetchRow - row_id out of range for segment");
+	}
+	function.get().fetch_row(*this, state, row_id, result, result_idx);
 }
 
 //===--------------------------------------------------------------------===//
@@ -170,7 +166,7 @@ idx_t ColumnSegment::SegmentSize() const {
 void ColumnSegment::Resize(idx_t new_size) {
 	D_ASSERT(new_size > segment_size);
 	D_ASSERT(offset == 0);
-	D_ASSERT(block && new_size <= GetBlockManager().GetBlockSize());
+	D_ASSERT(block && new_size <= GetBlockSize());
 
 	auto &buffer_manager = BufferManager::GetBufferManager(db);
 	auto old_handle = buffer_manager.Pin(block);
@@ -209,51 +205,55 @@ idx_t ColumnSegment::FinalizeAppend(ColumnAppendState &state) {
 	return result_count;
 }
 
-void ColumnSegment::RevertAppend(idx_t start_row) {
+void ColumnSegment::RevertAppend(idx_t new_count) {
 	D_ASSERT(segment_type == ColumnSegmentType::TRANSIENT);
 	if (function.get().revert_append) {
-		function.get().revert_append(*this, start_row);
+		function.get().revert_append(*this, new_count);
 	}
-	this->count = start_row - this->start;
+	this->count = new_count;
 }
 
 //===--------------------------------------------------------------------===//
 // Convert To Persistent
 //===--------------------------------------------------------------------===//
-void ColumnSegment::ConvertToPersistent(optional_ptr<BlockManager> block_manager, block_id_t block_id_p) {
+void ColumnSegment::ConvertToPersistent(QueryContext context, optional_ptr<BlockManager> block_manager,
+                                        const block_id_t block_id_p) {
 	D_ASSERT(segment_type == ColumnSegmentType::TRANSIENT);
 	segment_type = ColumnSegmentType::PERSISTENT;
-
 	block_id = block_id_p;
 	offset = 0;
 
-	if (block_id == INVALID_BLOCK) {
-		// constant block: no need to write anything to disk besides the stats
-		// set up the compression function to constant
-		D_ASSERT(stats.statistics.IsConstant());
-		auto &config = DBConfig::GetConfig(db);
-		function = *config.GetCompressionFunction(CompressionType::COMPRESSION_CONSTANT, type.InternalType());
-		// reset the block buffer
-		block.reset();
-	} else {
+	if (block_id != INVALID_BLOCK) {
 		D_ASSERT(!stats.statistics.IsConstant());
-		// non-constant block: write the block to disk
-		// the data for the block already exists in-memory of our block
-		// instead of copying the data we alter some metadata so the buffer points to an on-disk block
-		block = block_manager->ConvertToPersistent(block_id, std::move(block));
+		// Non-constant block: write the block to disk.
+		// The block data already exists in memory, so we alter the metadata,
+		// which ensures that the buffer points to an on-disk block.
+		block = block_manager->ConvertToPersistent(context, block_id, std::move(block));
+		return;
 	}
+
+	// Constant block: no need to write anything to disk besides the stats (metadata).
+	// I.e., we do not need to write an actual block.
+	// Thus, we set the compression function to constant and reset the block buffer.
+	D_ASSERT(stats.statistics.IsConstant());
+	auto &config = DBConfig::GetConfig(db);
+	function = config.GetCompressionFunction(CompressionType::COMPRESSION_CONSTANT, type.InternalType());
+	block.reset();
 }
 
 void ColumnSegment::MarkAsPersistent(shared_ptr<BlockHandle> block_p, uint32_t offset_p) {
 	D_ASSERT(segment_type == ColumnSegmentType::TRANSIENT);
-	segment_type = ColumnSegmentType::PERSISTENT;
-
 	block_id = block_p->BlockId();
+	SetBlock(std::move(block_p), offset_p);
+}
+
+void ColumnSegment::SetBlock(shared_ptr<BlockHandle> block_p, uint32_t offset_p) {
+	segment_type = ColumnSegmentType::PERSISTENT;
 	offset = offset_p;
 	block = std::move(block_p);
 }
 
-DataPointer ColumnSegment::GetDataPointer() {
+DataPointer ColumnSegment::GetDataPointer(idx_t row_start) {
 	if (segment_type != ColumnSegmentType::PERSISTENT) {
 		throw InternalException("Attempting to call ColumnSegment::GetDataPointer on a transient segment");
 	}
@@ -261,7 +261,7 @@ DataPointer ColumnSegment::GetDataPointer() {
 	DataPointer pointer(stats.statistics.Copy());
 	pointer.block_pointer.block_id = GetBlockId();
 	pointer.block_pointer.offset = NumericCast<uint32_t>(GetBlockOffset());
-	pointer.row_start = start;
+	pointer.row_start = row_start;
 	pointer.tuple_count = count;
 	pointer.compression_type = function.get().type;
 	if (function.get().serialize_state) {
@@ -273,16 +273,12 @@ DataPointer ColumnSegment::GetDataPointer() {
 //===--------------------------------------------------------------------===//
 // Drop Segment
 //===--------------------------------------------------------------------===//
-void ColumnSegment::CommitDropSegment() {
-	if (segment_type != ColumnSegmentType::PERSISTENT) {
-		// not persistent
-		return;
-	}
+void ColumnSegment::VisitBlockIds(BlockIdVisitor &visitor) const {
 	if (block_id != INVALID_BLOCK) {
-		GetBlockManager().MarkBlockAsModified(block_id);
+		visitor.Visit(block_id);
 	}
-	if (function.get().cleanup_state) {
-		function.get().cleanup_state(*this);
+	if (function.get().visit_block_ids) {
+		function.get().visit_block_ids(*this, visitor);
 	}
 }
 
@@ -407,21 +403,26 @@ static idx_t TemplatedNullSelection(UnifiedVectorFormat &vdata, SelectionVector 
 }
 
 idx_t ColumnSegment::FilterSelection(SelectionVector &sel, Vector &vector, UnifiedVectorFormat &vdata,
-                                     const TableFilter &filter, idx_t scan_count, idx_t &approved_tuple_count) {
+                                     const TableFilter &filter, TableFilterState &filter_state, idx_t scan_count,
+                                     idx_t &approved_tuple_count) {
 	switch (filter.filter_type) {
 	case TableFilterType::OPTIONAL_FILTER: {
-		return scan_count;
+		auto &opt_filter = filter.Cast<OptionalFilter>();
+		return opt_filter.FilterSelection(sel, vector, vdata, filter_state, scan_count, approved_tuple_count);
 	}
 	case TableFilterType::CONJUNCTION_OR: {
 		// similar to the CONJUNCTION_AND, but we need to take care of the SelectionVectors (OR all of them)
+		auto &state = filter_state.Cast<ConjunctionOrFilterState>();
 		idx_t count_total = 0;
 		SelectionVector result_sel(approved_tuple_count);
 		auto &conjunction_or = filter.Cast<ConjunctionOrFilter>();
-		for (auto &child_filter : conjunction_or.child_filters) {
+		for (idx_t child_idx = 0; child_idx < conjunction_or.child_filters.size(); child_idx++) {
+			auto &child_filter = *conjunction_or.child_filters[child_idx];
 			SelectionVector temp_sel;
 			temp_sel.Initialize(sel);
 			idx_t temp_tuple_count = approved_tuple_count;
-			idx_t temp_count = FilterSelection(temp_sel, vector, vdata, *child_filter, scan_count, temp_tuple_count);
+			idx_t temp_count = FilterSelection(temp_sel, vector, vdata, child_filter, *state.child_states[child_idx],
+			                                   scan_count, temp_tuple_count);
 			// tuples passed, move them into the actual result vector
 			for (idx_t i = 0; i < temp_count; i++) {
 				auto new_idx = temp_sel.get_index(i);
@@ -443,8 +444,11 @@ idx_t ColumnSegment::FilterSelection(SelectionVector &sel, Vector &vector, Unifi
 	}
 	case TableFilterType::CONJUNCTION_AND: {
 		auto &conjunction_and = filter.Cast<ConjunctionAndFilter>();
-		for (auto &child_filter : conjunction_and.child_filters) {
-			FilterSelection(sel, vector, vdata, *child_filter, scan_count, approved_tuple_count);
+		auto &state = filter_state.Cast<ConjunctionAndFilterState>();
+		for (idx_t child_idx = 0; child_idx < conjunction_and.child_filters.size(); child_idx++) {
+			auto &child_filter = *conjunction_and.child_filters[child_idx];
+			FilterSelection(sel, vector, vdata, child_filter, *state.child_states[child_idx], scan_count,
+			                approved_tuple_count);
 		}
 		return approved_tuple_count;
 	}
@@ -536,18 +540,81 @@ idx_t ColumnSegment::FilterSelection(SelectionVector &sel, Vector &vector, Unifi
 		}
 		return approved_tuple_count;
 	}
-	case TableFilterType::IS_NULL:
+	case TableFilterType::IS_NULL: {
 		return TemplatedNullSelection<true>(vdata, sel, approved_tuple_count);
-	case TableFilterType::IS_NOT_NULL:
+	}
+	case TableFilterType::IS_NOT_NULL: {
 		return TemplatedNullSelection<false>(vdata, sel, approved_tuple_count);
+	}
 	case TableFilterType::STRUCT_EXTRACT: {
 		auto &struct_filter = filter.Cast<StructFilter>();
 		// Apply the filter on the child vector
 		auto &child_vec = StructVector::GetEntries(vector)[struct_filter.child_idx];
 		UnifiedVectorFormat child_data;
 		child_vec->ToUnifiedFormat(scan_count, child_data);
-		return FilterSelection(sel, *child_vec, child_data, *struct_filter.child_filter, scan_count,
+		return FilterSelection(sel, *child_vec, child_data, *struct_filter.child_filter, filter_state, scan_count,
 		                       approved_tuple_count);
+	}
+	case TableFilterType::BLOOM_FILTER: {
+		auto &bloom_filter = filter.Cast<BFTableFilter>();
+		auto &state = filter_state.Cast<BFTableFilterState>();
+		return bloom_filter.Filter(vector, sel, approved_tuple_count, state);
+	}
+	case TableFilterType::EXPRESSION_FILTER: {
+		auto &state = filter_state.Cast<ExpressionFilterState>();
+		SelectionVector result_sel(approved_tuple_count);
+		if (scan_count > STANDARD_VECTOR_SIZE) {
+			// scan count is > vector size - split up the vector into multiple chunks
+			idx_t offset = 0;
+			idx_t result_offset = 0;
+			idx_t current_sel_offset = 0;
+			SelectionVector current_sel(approved_tuple_count);
+			while (offset < scan_count) {
+				idx_t chunk_count = MinValue<idx_t>(STANDARD_VECTOR_SIZE, scan_count - offset);
+				idx_t chunk_end = offset + chunk_count;
+				DataChunk chunk;
+				chunk.data.emplace_back(vector, offset, chunk_end);
+				chunk.SetCardinality(chunk_count);
+
+				// construct the relevant selection vector for the current chunk (offset ... offset + chunk_count)
+				idx_t current_count = 0;
+				for (; current_sel_offset < approved_tuple_count; current_sel_offset++) {
+					auto sel_index = sel.get_index(current_sel_offset);
+					if (sel_index >= chunk_end) {
+						// exhausted the chunk
+						break;
+					}
+					if (sel_index < offset) {
+						throw InternalException("sel_index < offset in expression filter");
+					}
+					current_sel.set_index(current_count++, sel_index - offset);
+				}
+				if (current_count == 0) {
+					// no matching tuples in this chunk
+					offset += chunk_count;
+					continue;
+				}
+				auto current_result_data = result_sel.data() + result_offset;
+				SelectionVector current_result_sel(current_result_data);
+				idx_t new_matches =
+				    state.executor.SelectExpression(chunk, current_result_sel, current_sel, current_count);
+				// increment all matches by the offset
+				for (idx_t i = 0; i < new_matches; i++) {
+					current_result_data[i] += offset;
+				}
+				result_offset += new_matches;
+				offset += chunk_count;
+			}
+			approved_tuple_count = result_offset;
+		} else {
+			// standard case: we can handle everything at once - run the expression once
+			DataChunk chunk;
+			chunk.data.emplace_back(vector);
+			chunk.SetCardinality(scan_count);
+			approved_tuple_count = state.executor.SelectExpression(chunk, result_sel, sel, approved_tuple_count);
+		}
+		sel.Initialize(result_sel);
+		return approved_tuple_count;
 	}
 	default:
 		throw InternalException("FIXME: unsupported type for filter selection");

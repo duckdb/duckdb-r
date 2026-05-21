@@ -1,0 +1,5 @@
+connection.o: \
+  connection.cpp \
+  include/convert.hpp \
+  include/r_progress_bar_display.hpp \
+  include/rapi.hpp \

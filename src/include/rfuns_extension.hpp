@@ -6,7 +6,7 @@ namespace duckdb {
 namespace rfuns {
 
 template <LogicalTypeId LOGICAL_TYPE>
-struct physical ;
+struct physical;
 
 template <>
 struct physical<LogicalType::BOOLEAN> {
@@ -70,13 +70,13 @@ AggregateFunctionSet base_r_sum();
 AggregateFunctionSet base_r_min();
 AggregateFunctionSet base_r_max();
 
-ScalarFunctionSet binary_dispatch(ScalarFunctionSet fn) ;
+ScalarFunctionSet binary_dispatch(ScalarFunctionSet fn);
 
 } // namespace rfuns
 
 class RfunsExtension : public Extension {
 public:
-	void Load(DuckDB &db) override;
+	void Load(ExtensionLoader &db) override;
 	std::string Name() override;
 };
 

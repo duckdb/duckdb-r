@@ -73,12 +73,12 @@ static bool StartsWithNumericDate(string &separator, const string_t &value) {
 
 string GenerateDateFormat(const string &separator, const char *format_template) {
 	string format_specifier = format_template;
-	auto amount_of_dashes = NumericCast<idx_t>(std::count(format_specifier.begin(), format_specifier.end(), '-'));
+	const auto amount_of_dashes = NumericCast<idx_t>(std::count(format_specifier.begin(), format_specifier.end(), '-'));
 	// All our date formats must have at least one -
 	D_ASSERT(amount_of_dashes);
 	string result;
 	result.reserve(format_specifier.size() - amount_of_dashes + (amount_of_dashes * separator.size()));
-	for (auto &character : format_specifier) {
+	for (const auto &character : format_specifier) {
 		if (character == '-') {
 			result += separator;
 		} else {
@@ -104,12 +104,20 @@ bool CSVSniffer::EmptyOrOnlyHeader() const {
 }
 
 bool CSVSniffer::CanYouCastIt(ClientContext &context, const string_t value, const LogicalType &type,
-                              const DialectOptions &dialect_options, const bool is_null, const char decimal_separator) {
+                              const DialectOptions &dialect_options, const bool is_null, const char decimal_separator,
+                              const char thousands_separator) {
 	if (is_null) {
 		return true;
 	}
 	auto value_ptr = value.GetData();
 	auto value_size = value.GetSize();
+	string strip_thousands;
+	if (type.IsNumeric() && thousands_separator != '\0') {
+		// If we have a thousands separator we should try to use that
+		strip_thousands = BaseScanner::RemoveSeparator(value_ptr, value_size, thousands_separator);
+		value_ptr = strip_thousands.c_str();
+		value_size = strip_thousands.size();
+	}
 	switch (type.id()) {
 	case LogicalTypeId::BOOLEAN: {
 		bool dummy_value;
@@ -176,7 +184,8 @@ bool CSVSniffer::CanYouCastIt(ClientContext &context, const string_t value, cons
 			    ->second.GetValue()
 			    .TryParseTimestamp(value, dummy_value, error_message);
 		}
-		return Timestamp::TryConvertTimestamp(value_ptr, value_size, dummy_value) == TimestampCastResult::SUCCESS;
+		return Timestamp::TryConvertTimestamp(value_ptr, value_size, dummy_value, false, nullptr, true) ==
+		       TimestampCastResult::SUCCESS;
 	}
 	case LogicalTypeId::TIME: {
 		idx_t pos;
@@ -249,7 +258,8 @@ bool CSVSniffer::CanYouCastIt(ClientContext &context, const string_t value, cons
 		Value new_value;
 		string error_message;
 		Value str_value(value);
-		return str_value.TryCastAs(context, type, new_value, &error_message, true);
+		bool success = str_value.TryCastAs(context, type, new_value, &error_message, true);
+		return success && error_message.empty();
 	}
 	}
 }
@@ -371,13 +381,17 @@ void CSVSniffer::SniffTypes(DataChunk &data_chunk, CSVStateMachine &state_machin
 					continue;
 				}
 				if (CanYouCastIt(buffer_manager->context, vector_data[row_idx], sql_type, state_machine.dialect_options,
-				                 !null_mask.RowIsValid(row_idx), state_machine.options.decimal_separator[0])) {
+				                 !null_mask.RowIsValid(row_idx), state_machine.options.decimal_separator[0],
+				                 state_machine.options.thousands_separator)) {
 					break;
 				}
-
+				D_ASSERT(cur_top_candidate.id() == LogicalTypeId::VARCHAR || col_type_candidates.size() > 1);
 				if (row_idx != start_idx_detection &&
 				    (cur_top_candidate == LogicalType::BOOLEAN || cur_top_candidate == LogicalType::DATE ||
-				     cur_top_candidate == LogicalType::TIME || cur_top_candidate == LogicalType::TIMESTAMP)) {
+				     cur_top_candidate == LogicalType::TIME ||
+				     (cur_top_candidate == LogicalType::TIMESTAMP &&
+				      col_type_candidates[col_type_candidates.size() - 2] != LogicalType::TIMESTAMP_TZ) ||
+				     cur_top_candidate == LogicalType::TIMESTAMP_TZ)) {
 					// If we thought this was a boolean value (i.e., T,F, True, False) and it is not, we
 					// immediately pop to varchar.
 					while (col_type_candidates.back() != LogicalType::VARCHAR) {
@@ -411,7 +425,7 @@ void CSVSniffer::DetectTypes() {
 	idx_t min_varchar_cols = max_columns_found + 1;
 	idx_t min_errors = NumericLimits<idx_t>::Maximum();
 	vector<LogicalType> return_types;
-	// check which info candidate leads to minimum amount of non-varchar columns...
+	// check which info candidate leads to the minimum number of non-varchar columns...
 	for (auto &candidate_cc : candidates) {
 		auto &sniffing_state_machine = candidate_cc->GetStateMachine();
 		unordered_map<idx_t, vector<LogicalType>> info_sql_types_candidates;
@@ -427,7 +441,7 @@ void CSVSniffer::DetectTypes() {
 		// Reset candidate for parsing
 		auto candidate = candidate_cc->UpgradeToStringValueScanner();
 		SetUserDefinedDateTimeFormat(*candidate->state_machine);
-		// Parse chunk and read csv with info candidate
+		// Parse chunk and read csv with info-candidate
 		auto &data_chunk = candidate->ParseChunk().ToChunk();
 		if (candidate->error_handler->AnyErrors() && !candidate->error_handler->HasError(MAXIMUM_LINE_SIZE) &&
 		    !candidate->state_machine->options.ignore_errors.GetValue()) {
@@ -448,24 +462,30 @@ void CSVSniffer::DetectTypes() {
 		idx_t varchar_cols = 0;
 		for (idx_t col = 0; col < info_sql_types_candidates.size(); col++) {
 			auto &col_type_candidates = info_sql_types_candidates[col];
-			// check number of varchar columns
+			// check the number of varchar columns
 			const auto &col_type = col_type_candidates.back();
 			if (col_type == LogicalType::VARCHAR) {
 				varchar_cols++;
 			}
 		}
 
-		// it's good if the dialect creates more non-varchar columns, but only if we sacrifice < 30% of
-		// best_num_cols.
+		// it's good if the dialect creates more non-varchar columns
+		const bool has_less_varchar_cols = varchar_cols < min_varchar_cols;
+		// but only if we sacrifice < 30% of best_num_cols.
+		const bool acceptable_best_num_cols =
+		    static_cast<double>(info_sql_types_candidates.size()) > static_cast<double>(max_columns_found) * 0.7;
 		const idx_t number_of_errors = candidate->error_handler->GetSize();
-		if (!best_candidate || (varchar_cols<min_varchar_cols &&static_cast<double>(info_sql_types_candidates.size())>(
-		                            static_cast<double>(max_columns_found) * 0.7) &&
-		                        (!options.ignore_errors.GetValue() || number_of_errors < min_errors))) {
+		const bool better_strictness = best_candidate_is_strict ? !candidate->used_unstrictness : true;
+		const bool acceptable_candidate = has_less_varchar_cols && acceptable_best_num_cols && better_strictness;
+		// If we escaped an unquoted character when strict is false.
+		if (!best_candidate ||
+		    (acceptable_candidate && (!options.ignore_errors.GetValue() || number_of_errors < min_errors))) {
 			min_errors = number_of_errors;
 			best_header_row.clear();
 			// we have a new best_options candidate
 			best_candidate = std::move(candidate);
 			min_varchar_cols = varchar_cols;
+			best_candidate_is_strict = !best_candidate->used_unstrictness;
 			best_sql_types_candidates_per_column_idx = info_sql_types_candidates;
 			for (auto &format_candidate : format_candidates) {
 				best_format_candidates[format_candidate.first] = format_candidate.second.format;
@@ -488,7 +508,7 @@ void CSVSniffer::DetectTypes() {
 	}
 	if (!best_candidate) {
 		DialectCandidates dialect_candidates(options.dialect_options.state_machine_options);
-		auto error = CSVError::SniffingError(options, dialect_candidates.Print());
+		auto error = CSVError::SniffingError(options, dialect_candidates.Print(), max_columns_found, set_columns, true);
 		error_handler->Error(error, true);
 	}
 	// Assert that it's all good at this point.

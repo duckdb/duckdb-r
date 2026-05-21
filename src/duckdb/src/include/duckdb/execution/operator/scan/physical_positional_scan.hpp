@@ -22,11 +22,11 @@ public:
 
 public:
 	//! Regular Table Scan
-	PhysicalPositionalScan(vector<LogicalType> types, unique_ptr<PhysicalOperator> left,
-	                       unique_ptr<PhysicalOperator> right);
+	PhysicalPositionalScan(PhysicalPlan &physical_plan, vector<LogicalType> types, PhysicalOperator &left,
+	                       PhysicalOperator &right);
 
 	//! The child table functions
-	vector<unique_ptr<PhysicalOperator>> child_tables;
+	vector<reference<PhysicalOperator>> child_tables;
 
 public:
 	bool Equals(const PhysicalOperator &other) const override;
@@ -36,7 +36,8 @@ public:
 	unique_ptr<LocalSourceState> GetLocalSourceState(ExecutionContext &context,
 	                                                 GlobalSourceState &gstate) const override;
 	unique_ptr<GlobalSourceState> GetGlobalSourceState(ClientContext &context) const override;
-	SourceResultType GetData(ExecutionContext &context, DataChunk &chunk, OperatorSourceInput &input) const override;
+	SourceResultType GetDataInternal(ExecutionContext &context, DataChunk &chunk,
+	                                 OperatorSourceInput &input) const override;
 
 	ProgressData GetProgress(ClientContext &context, GlobalSourceState &gstate) const override;
 

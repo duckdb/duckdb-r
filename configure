@@ -2,7 +2,25 @@
 
 set -ex
 
-cd $(dirname $0)/src
+# Setup parallel compilation if MAKEFLAGS not already set
+cd "$(dirname "$0")"
+if [ -z "${MAKEFLAGS}" ]; then
+  makeflags_value=$(Rscript scripts/setup-makeflags.R 2>/dev/null || echo "")
+  if [ -n "${makeflags_value}" ]; then
+    export MAKEFLAGS="${makeflags_value}"
+    echo "Setting MAKEFLAGS=${makeflags_value} for parallel compilation"
+    echo "Set NOT_CRAN or MAKEFLAGS to override"
+  fi
+else
+  echo "MAKEFLAGS already set to: ${MAKEFLAGS}"
+fi
+
+cd "$(dirname "$0")/src"
+
+# Not used on Linux, for completeness.
+echo DUCKDB_RSTRTMGR=1 > Makevars.rstrtmgr
+echo DUCKDB_RSTRTMGR_LIB= >> Makevars.rstrtmgr
+
 
 # The purpose of this is to avoid rebuilding duckdb in every CI/CD run.
 # We set the DUCKDB_R_PREBUILT_ARCHIVE environment variable to a file path
@@ -22,7 +40,7 @@ cd $(dirname $0)/src
 # This logic is identical for Windows or non-Windows builds,
 # only that we need to-tar-win.mk instead of to-tar.mk on Windows.
 
-if [ -f "${DUCKDB_R_PREBUILT_ARCHIVE}" ] && tar -xm -f ${DUCKDB_R_PREBUILT_ARCHIVE}; then
+if [ -f "${DUCKDB_R_PREBUILT_ARCHIVE}" ] && tar -xm -f "${DUCKDB_R_PREBUILT_ARCHIVE}"; then
   cp include/from-tar.mk Makevars.duckdb
 else
   cp include/to-tar.mk Makevars.duckdb
@@ -32,5 +50,11 @@ fi
 # This happens in the cleanup script.
 
 if [ -f duckdb.tar.xz ]; then
-  tar xJf duckdb.tar.xz
+  # Use gtar if available (e.g., on macOS via Homebrew), otherwise tar.
+  if command -v gtar >/dev/null 2>&1 && command -v xz >/dev/null 2>&1; then
+    TAR=gtar
+  else
+    TAR=tar
+  fi
+  $TAR xJf duckdb.tar.xz
 fi
