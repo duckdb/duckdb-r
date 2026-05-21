@@ -8,9 +8,16 @@ runs:
         echo '_R_CHECK_PKG_SIZES_=FALSE' | tee -a $GITHUB_ENV
       shell: bash
 
-    # Install libduckdb so that the R package can link against it instead of
-    # rebuilding the vendored sources. Gated on DUCKDB_R_USE_SYSTEM_LIB=1 so
-    # that source-build jobs are unaffected. Linux and macOS only.
+    # Opt into the system-libduckdb fast build for the smoke job, except
+    # on the krlmlr/duckdb-r fork, which hosts the vendoring pipeline and
+    # must keep exercising a full source build. Subsequent steps and
+    # `configure` pick up the env var from $GITHUB_ENV.
+    - name: Enable system libduckdb (non-vendoring repos only)
+      if: github.repository != 'krlmlr/duckdb-r' && runner.os != 'Windows'
+      run: |
+        echo 'DUCKDB_R_USE_SYSTEM_LIB=1' | tee -a $GITHUB_ENV
+      shell: bash
+
     - name: Install libduckdb (system-lib mode)
       if: env.DUCKDB_R_USE_SYSTEM_LIB == '1' && runner.os != 'Windows'
       run: |

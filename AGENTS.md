@@ -105,6 +105,11 @@ the resulting installation depends on libduckdb being present at runtime.
 The installed `duckdb.so` carries an rpath pointing at the libduckdb
 directory; do not move libduckdb after installing.
 
+In CI, the smoke job switches to the fast path automatically on every
+fork except `krlmlr/duckdb-r` (which hosts the vendoring pipeline and
+must keep building from source). The toggle lives in
+`.github/workflows/custom/before-install/action.yml`.
+
 If the vendored DuckDB commit and the installed libduckdb commit do not
 match exactly, `configure` aborts with a clear error — the glue code uses
 internal C++ headers and requires ABI-level alignment. Re-run
