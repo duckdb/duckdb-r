@@ -1,5 +1,176 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.2.9008
+
+## Chore
+
+- Add out-of-line `SelectionData` destructor to fix GCC warnings (#2329).
+
+- Initialize `ParquetReader::rows_read` atomic variable (#2328).
+
+## vendor
+
+- Update vendored sources (tag v1.5.3) to duckdb/duckdb@14eca11bd9d4a0de2ea0f078be588a9c1c5b279c.
+
+  Date: 2026-05-19 12:31:49 +0200
+
+- Update vendored sources to duckdb/duckdb@14eca11bd9d4a0de2ea0f078be588a9c1c5b279c.
+
+  Date: 2026-05-19 12:31:49 +0200
+
+  Return an error if a negative number is passed to the factorial function (https://redirect.github.com/duckdb/duckdb/pull/22731)
+
+- Update vendored sources to duckdb/duckdb@67af30b260d7f0d8ad33092fc8e45a2ee87946c0.
+
+  Date: 2026-05-19 12:31:10 +0200
+
+  RowGroupPruner: treat UNSET LIMIT as unbounded (https://redirect.github.com/duckdb/duckdb/pull/22744)
+  Revert "Enable jemalloc heap profiling with the libgcc unwinder" (https://redirect.github.com/duckdb/duckdb/pull/22740)
+  Fix .sanitizer-thread-suppressions.txt jemalloc ref (https://redirect.github.com/duckdb/duckdb/pull/22736)
+
+- Update vendored sources to duckdb/duckdb@86b213eedc34a381b04f283688c2caa8f5f194b1.
+
+  Date: 2026-05-18 15:42:53 +0200
+
+  fix: list_zip SEGFAULT with empty / NULL argument (https://redirect.github.com/duckdb/duckdb/pull/22726)
+
+- Update vendored sources to duckdb/duckdb@e7f11df43904c7b53923f66ca3afa0fd86032ba9.
+
+  Date: 2026-05-18 14:56:17 +0200
+
+  bump iceberg again (https://redirect.github.com/duckdb/duckdb/pull/22723)
+  Bump quack, fixes quack_serve on wasm (https://redirect.github.com/duckdb/duckdb/pull/22722)
+
+- Update vendored sources to duckdb/duckdb@0a1b8db835b6ac48227d30c56d1aba6af510bb8f.
+
+  Date: 2026-05-18 14:55:37 +0200
+
+  Fix iterator invalidation in ConnectionManager::GetConnectionList (https://redirect.github.com/duckdb/duckdb/pull/22719)
+  Fix GCC jemalloc symbol leakage CI failure (https://redirect.github.com/duckdb/duckdb/pull/22729)
+
+- Update vendored sources to duckdb/duckdb@7e8efa63076c87291e8db3dadc2b65663bae4548.
+
+  Date: 2026-05-18 09:20:03 +0200
+
+  Make several storage internals public (https://redirect.github.com/duckdb/duckdb/pull/22718)
+
+- Update vendored sources to duckdb/duckdb@a3e42622fa6c742d5774c4019a543e64e9818a6d.
+
+  Date: 2026-05-18 09:00:52 +0200
+
+  Fix jemalloc thread flush threshold check (https://redirect.github.com/duckdb/duckdb/pull/22670)
+  Enable jemalloc heap profiling with the libgcc unwinder (https://redirect.github.com/duckdb/duckdb/pull/22630)
+
+- Update vendored sources to duckdb/duckdb@b25ebaadb665ee38f74b5bbbb309fadc59e096d8.
+
+  Date: 2026-05-17 18:46:55 +0200
+
+  Fix timer lifetime/timing issues (https://redirect.github.com/duckdb/duckdb/pull/22697)
+  Bump DuckLake (https://redirect.github.com/duckdb/duckdb/pull/22698)
+
+- Update vendored sources to duckdb/duckdb@54d39a64e8ebc576643dbd8e89917408f29720e6.
+
+  Date: 2026-05-15 22:53:09 +0200
+
+  Fix new jemalloc plumbing (https://redirect.github.com/duckdb/duckdb/pull/22628)
+
+- Update vendored sources to duckdb/duckdb@12b465c3a56adee7f7ccad18e60d8c8c58ea5e54.
+
+  Date: 2026-05-15 18:17:15 +0200
+
+  Fix max file row number (https://redirect.github.com/duckdb/duckdb/pull/22688)
+
+- Update vendored sources to duckdb/duckdb@a5f098cbd7520060d8994e692b18ac49c0a640a1.
+
+  Date: 2026-05-15 14:56:25 +0200
+
+  Add `write_buffer_row_group_memory_limit` setting which controls when to flush row groups based on memory instead of only based on row group count (https://redirect.github.com/duckdb/duckdb/pull/22666)
+
+- Update vendored sources to duckdb/duckdb@fafb148e3bb7decd91e39fcaea80ad84c23e4f35.
+
+  Date: 2026-05-15 09:32:41 +0200
+
+  Fix enum type write to parquet (https://redirect.github.com/duckdb/duckdb/pull/22677)
+
+- Update vendored sources to duckdb/duckdb@2b0cf017e25efd4fe434dddba4eeed5787f477d1.
+
+  Date: 2026-05-15 09:32:16 +0200
+
+  Fix invalid access for file row number (https://redirect.github.com/duckdb/duckdb/pull/22662)
+  Bump quack (https://redirect.github.com/duckdb/duckdb/pull/22659)
+  Add dummy cmake target for jemalloc (https://redirect.github.com/duckdb/duckdb/pull/22632)
+
+- Update vendored sources to duckdb/duckdb@5066a05e8615c1ac06de018a65043687571d2395.
+
+  Date: 2026-05-14 10:43:02 +0200
+
+  Fix free block for temporary file manageer (https://redirect.github.com/duckdb/duckdb/pull/22616)
+  Bump sqlsmith, remove patch (https://redirect.github.com/duckdb/duckdb/pull/22622)
+  Bump excel / remove patch (https://redirect.github.com/duckdb/duckdb/pull/22633)
+
+- Update vendored sources to duckdb/duckdb@5c05c5552bb0faa1eebac70d568ee6f4edc6b3d7.
+
+  Date: 2026-05-14 08:27:30 +0200
+
+  optimizer: don't return truncated VARCHAR MIN/MAX from statistics (https://redirect.github.com/duckdb/duckdb/pull/22538)
+  bump avro+iceberg+vcpkg-duckdb-ports (https://redirect.github.com/duckdb/duckdb/pull/22621)
+  bump aws extension (https://redirect.github.com/duckdb/duckdb/pull/22623)
+
+- Update vendored sources to duckdb/duckdb@885f55812deae3b5b6773fa221b650fb61954e20.
+
+  Date: 2026-05-14 08:26:00 +0200
+
+  Add quack autoloading (https://redirect.github.com/duckdb/duckdb/pull/22631)
+
+- Update vendored sources to duckdb/duckdb@02d05e56481b8f52c2cdad8241c13196fd891011.
+
+  Date: 2026-05-14 08:25:02 +0200
+
+  Add storage informations for v1.5.3 (https://redirect.github.com/duckdb/duckdb/pull/22638)
+  Bump lance to 533e0ee6cf419e4be2af3af56182fb04b87978e1 (https://redirect.github.com/duckdb/duckdb/pull/22640)
+  Bump DuckLake for release (https://redirect.github.com/duckdb/duckdb/pull/22651)
+  parser_tools is apparently now a dependency for postgres (https://redirect.github.com/duckdb/duckdb/pull/22619)
+
+- Update vendored sources to duckdb/duckdb@bcb51f03da803b73ee9822f6c0894ce3dd540946.
+
+  Date: 2026-05-13 11:00:33 +0200
+
+  CUMULATIVE_VACUUM_TIME metric (https://redirect.github.com/duckdb/duckdb/pull/22425)
+
+- Update vendored sources to duckdb/duckdb@41ba031f28d26f320d76b8c2304f4da81e1baca3.
+
+  Date: 2026-05-13 08:52:56 +0200
+
+  bump iceberg (https://redirect.github.com/duckdb/duckdb/pull/22608)
+
+- Update vendored sources to duckdb/duckdb@10296ce48b99eca522ffbea02b44f99997793c1c.
+
+  Date: 2026-05-13 08:52:43 +0200
+
+  Jemalloc is not an extension anymore (https://redirect.github.com/duckdb/duckdb/pull/22603)
+
+- Update vendored sources to duckdb/duckdb@6b290ddbed2d233d35b0b9d1a5ac5ea3f3f30c8b.
+
+  Date: 2026-05-13 08:52:32 +0200
+
+  bump spatial again (https://redirect.github.com/duckdb/duckdb/pull/22602)
+
+- Update vendored sources to duckdb/duckdb@1d9b65aa6c2dcde6fcb842242f12f6eed4dbbe21.
+
+  Date: 2026-05-13 08:52:13 +0200
+
+  Bump AWS extension (https://redirect.github.com/duckdb/duckdb/pull/22600)
+  Enable/disable jemalloc linking through BUILD/SKIP_EXTENSIONS (https://redirect.github.com/duckdb/duckdb/pull/22594)
+
+- Update vendored sources to duckdb/duckdb@6af901ce9e94e537ca13e90a801a2deaac8271ba.
+
+  Date: 2026-05-13 08:51:43 +0200
+
+  ARTOperator::Delete return false if rowid not found in nested ART leaf (https://redirect.github.com/duckdb/duckdb/pull/22591)
+  Limit parallel linker jobs to avoid out-of-memory errors (https://redirect.github.com/duckdb/duckdb/pull/22588)
+  Allow json ts format variation across columns - issue 22103 (https://redirect.github.com/duckdb/duckdb/pull/22559)
+
+
 # duckdb 1.5.2.9007
 
 ## Chore
