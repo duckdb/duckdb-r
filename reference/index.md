@@ -79,3 +79,9 @@
   [`duckdb_explain`](https://r.duckdb.org/reference/duckdb_explain-class.md)
   [`print.duckdb_explain`](https://r.duckdb.org/reference/duckdb_explain-class.md)
   : DuckDB EXPLAIN query tree
+
+## Secrets
+
+- [`duckdb_consolidate_secrets()`](https://r.duckdb.org/reference/duckdb_consolidate_secrets.md)
+  **\[experimental\]** : Consolidate DuckDB secrets into the configured
+  secret directory

@@ -14,6 +14,7 @@
 <url><loc>https://r.duckdb.org/reference/duckdb-package.html</loc></url>
 <url><loc>https://r.duckdb.org/reference/duckdb.html</loc></url>
 <url><loc>https://r.duckdb.org/reference/duckdb_connection-class.html</loc></url>
+<url><loc>https://r.duckdb.org/reference/duckdb_consolidate_secrets.html</loc></url>
 <url><loc>https://r.duckdb.org/reference/duckdb_driver-class.html</loc></url>
 <url><loc>https://r.duckdb.org/reference/duckdb_explain-class.html</loc></url>
 <url><loc>https://r.duckdb.org/reference/duckdb_read_csv.html</loc></url>
