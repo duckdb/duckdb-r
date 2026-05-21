@@ -54,7 +54,7 @@ resolve_secret_directory <- function() {
   default_secret_directory()
 }
 
-#' Join DuckDB secrets into the configured secret directory
+#' Consolidate DuckDB secrets into the configured secret directory
 #'
 #' Consolidates DuckDB stored secrets from up to three source directories into
 #' the directory currently configured as the target for this R session.
@@ -102,7 +102,7 @@ resolve_secret_directory <- function() {
 #'
 #' @return The target directory, invisibly.
 #' @export
-duckdb_join_secrets <- function(
+duckdb_consolidate_secrets <- function(
   from = NULL,
   overwrite = FALSE,
   ask = interactive()
@@ -135,7 +135,7 @@ duckdb_join_secrets <- function(
   source_dirs <- source_dirs[vapply(source_dirs, dir.exists, logical(1))]
 
   if (length(source_dirs) == 0L) {
-    message("No source secrets to join. Target: ", target)
+    message("No source secrets to consolidate. Target: ", target)
     return(invisible(target))
   }
 
@@ -160,11 +160,11 @@ duckdb_join_secrets <- function(
   }
 
   if (length(plan) == 0L) {
-    message("No secret files to join. Target: ", target)
+    message("No secret files to consolidate. Target: ", target)
     return(invisible(target))
   }
 
-  message("Joining secrets into: ", target)
+  message("Consolidating secrets into: ", target)
   for (entry in plan) {
     if (isTRUE(entry$overwrite)) {
       message("  ! overwrite ", entry$dst, " <- ", entry$src)
@@ -213,7 +213,7 @@ duckdb_join_secrets <- function(
     }
   }
 
-  message("Joined ", length(plan), " secret file(s) into ", target, ".")
+  message("Consolidated ", length(plan), " secret file(s) into ", target, ".")
   invisible(target)
 }
 
@@ -255,7 +255,7 @@ maybe_secret_directory_message <- function() {
     "  DUCKDB_SECRET_DIRECTORY=",
     r_dir,
     "   # keep R-only\n",
-    "Then call `duckdb::duckdb_join_secrets()` to consolidate existing secrets.\n",
+    "Then call `duckdb::duckdb_consolidate_secrets()` to consolidate existing secrets.\n",
     "Setting either value (or `options(duckdb.secret_directory = ...)`) also\n",
     "silences this message."
   )

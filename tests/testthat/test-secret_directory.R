@@ -120,7 +120,7 @@ test_that("maybe_secret_directory_message text is stable", {
   )
 })
 
-test_that("duckdb_join_secrets reports when there is nothing to do", {
+test_that("duckdb_consolidate_secrets reports when there is nothing to do", {
   dirs <- local_secret_dirs()
   target <- file.path(dirs$root, "target")
   withr::local_options(duckdb.secret_directory = target)
@@ -128,7 +128,7 @@ test_that("duckdb_join_secrets reports when there is nothing to do", {
   expect_snapshot(
     transform = function(x) redact_paths(x, dirs),
     {
-      duckdb_join_secrets(ask = FALSE)
+      duckdb_consolidate_secrets(ask = FALSE)
     }
   )
 
@@ -137,12 +137,12 @@ test_that("duckdb_join_secrets reports when there is nothing to do", {
   expect_snapshot(
     transform = function(x) redact_paths(x, dirs),
     {
-      duckdb_join_secrets(ask = FALSE)
+      duckdb_consolidate_secrets(ask = FALSE)
     }
   )
 })
 
-test_that("duckdb_join_secrets moves files from common and R-default sources", {
+test_that("duckdb_consolidate_secrets moves files from common and R-default sources", {
   dirs <- local_secret_dirs()
   target <- file.path(dirs$root, "target")
   withr::local_options(duckdb.secret_directory = target)
@@ -153,7 +153,7 @@ test_that("duckdb_join_secrets moves files from common and R-default sources", {
   expect_snapshot(
     transform = function(x) redact_paths(x, dirs),
     {
-      out <- duckdb_join_secrets(ask = FALSE)
+      out <- duckdb_consolidate_secrets(ask = FALSE)
       cat("returned:", redact_paths(out, dirs), "\n")
     }
   )
@@ -163,7 +163,7 @@ test_that("duckdb_join_secrets moves files from common and R-default sources", {
   expect_length(list.files(dirs$c_dir), 0)
 })
 
-test_that("duckdb_join_secrets accepts an additional `from` directory", {
+test_that("duckdb_consolidate_secrets accepts an additional `from` directory", {
   dirs <- local_secret_dirs()
   extra <- file.path(dirs$root, "extra")
   dir.create(extra)
@@ -171,12 +171,12 @@ test_that("duckdb_join_secrets accepts an additional `from` directory", {
   target <- file.path(dirs$root, "target")
   withr::local_options(duckdb.secret_directory = target)
 
-  expect_message(duckdb_join_secrets(from = extra, ask = FALSE), "gamma")
+  expect_message(duckdb_consolidate_secrets(from = extra, ask = FALSE), "gamma")
   expect_setequal(list.files(target), "gamma")
   expect_length(list.files(extra), 0)
 })
 
-test_that("duckdb_join_secrets aborts on collisions unless overwrite = TRUE", {
+test_that("duckdb_consolidate_secrets aborts on collisions unless overwrite = TRUE", {
   dirs <- local_secret_dirs()
   target <- file.path(dirs$root, "target")
   withr::local_options(duckdb.secret_directory = target)
@@ -187,7 +187,7 @@ test_that("duckdb_join_secrets aborts on collisions unless overwrite = TRUE", {
     error = TRUE,
     transform = function(x) redact_paths(x, dirs),
     {
-      duckdb_join_secrets(ask = FALSE)
+      duckdb_consolidate_secrets(ask = FALSE)
     }
   )
 
@@ -195,11 +195,11 @@ test_that("duckdb_join_secrets aborts on collisions unless overwrite = TRUE", {
   expect_true(file.exists(file.path(dirs$c_dir, "shared")))
   expect_true(file.exists(file.path(dirs$r_dir, "shared")))
 
-  duckdb_join_secrets(ask = FALSE, overwrite = TRUE)
+  duckdb_consolidate_secrets(ask = FALSE, overwrite = TRUE)
   expect_setequal(list.files(target), "shared")
 })
 
-test_that("duckdb_join_secrets skips a source that equals the target", {
+test_that("duckdb_consolidate_secrets skips a source that equals the target", {
   dirs <- local_secret_dirs()
   withr::local_options(duckdb.secret_directory = dirs$c_dir)
   writeLines("c1", file.path(dirs$c_dir, "stay"))
@@ -209,36 +209,39 @@ test_that("duckdb_join_secrets skips a source that equals the target", {
     error = TRUE,
     transform = function(x) redact_paths(x, dirs),
     {
-      duckdb_join_secrets(ask = FALSE)
+      duckdb_consolidate_secrets(ask = FALSE)
     }
   )
 
-  duckdb_join_secrets(ask = FALSE, overwrite = TRUE)
+  duckdb_consolidate_secrets(ask = FALSE, overwrite = TRUE)
   expect_setequal(list.files(dirs$c_dir), "stay")
 })
 
-test_that("duckdb_join_secrets respects interactive ask = TRUE", {
+test_that("duckdb_consolidate_secrets respects interactive ask = TRUE", {
   dirs <- local_secret_dirs()
   target <- file.path(dirs$root, "target")
   withr::local_options(duckdb.secret_directory = target)
   writeLines("c1", file.path(dirs$c_dir, "a"))
 
   local_mocked_bindings(prompt_proceed = function(prompt) "n")
-  expect_message(duckdb_join_secrets(ask = TRUE), "Aborted")
+  expect_message(duckdb_consolidate_secrets(ask = TRUE), "Aborted")
   expect_true(file.exists(file.path(dirs$c_dir, "a")))
   expect_false(dir.exists(target))
 
   local_mocked_bindings(prompt_proceed = function(prompt) "y")
-  expect_message(duckdb_join_secrets(ask = TRUE), "Joined 1 secret")
+  expect_message(
+    duckdb_consolidate_secrets(ask = TRUE),
+    "Consolidated 1 secret"
+  )
   expect_setequal(list.files(target), "a")
 })
 
-test_that("duckdb_join_secrets validates its arguments", {
+test_that("duckdb_consolidate_secrets validates its arguments", {
   local_secret_dirs()
-  expect_error(duckdb_join_secrets(overwrite = NA))
-  expect_error(duckdb_join_secrets(overwrite = c(TRUE, FALSE)))
-  expect_error(duckdb_join_secrets(overwrite = "yes"))
-  expect_error(duckdb_join_secrets(ask = NA))
-  expect_error(duckdb_join_secrets(from = c("a", "b")))
-  expect_error(duckdb_join_secrets(from = 1L))
+  expect_error(duckdb_consolidate_secrets(overwrite = NA))
+  expect_error(duckdb_consolidate_secrets(overwrite = c(TRUE, FALSE)))
+  expect_error(duckdb_consolidate_secrets(overwrite = "yes"))
+  expect_error(duckdb_consolidate_secrets(ask = NA))
+  expect_error(duckdb_consolidate_secrets(from = c("a", "b")))
+  expect_error(duckdb_consolidate_secrets(from = 1L))
 })

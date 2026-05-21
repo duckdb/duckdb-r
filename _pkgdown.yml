@@ -35,4 +35,4 @@ reference:
   - duckdb_explain-class
 - title: Secrets
   contents:
-  - duckdb_join_secrets
+  - duckdb_consolidate_secrets
