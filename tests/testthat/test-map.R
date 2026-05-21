@@ -412,21 +412,26 @@ test_that("duplicate map keys are rejected by DuckDB", {
 
 # Writing -----------------------------------------------------------------
 #
-# Tracks the limitations described in
+# Tracks the behavior described in
 # https://github.com/duckdb/duckdb-r/issues/200.
-# When the underlying cast STRUCT(key, value)[] -> MAP(..., ...) becomes
-# supported, the error snapshots below will need updating.
 
-test_that("dbAppendTable cannot write to a MAP column (issue #200)", {
+test_that("dbAppendTable can write to a MAP column (issue #200)", {
   con <- local_con()
 
   dbExecute(con, "CREATE TABLE tbl (mp MAP(VARCHAR, VARCHAR))")
   dbExecute(con, "INSERT INTO tbl VALUES (MAP {'a': 'b'})")
 
   df <- data.frame(
-    mp = I(list(data.frame(key = "page", value = "1")))
+    mp = I(list(data.frame(key = "page", value = "1", stringsAsFactors = FALSE)))
   )
-  expect_snapshot(error = TRUE, dbAppendTable(con, "tbl", df))
+  dbAppendTable(con, "tbl", df)
+
+  out <- dbReadTable(con, "tbl")
+  expect_equal(nrow(out), 2L)
+  expect_equal(
+    as.data.frame(out$mp[[2]]),
+    data.frame(key = "page", value = "1", stringsAsFactors = FALSE)
+  )
 })
 
 test_that("dbWriteTable of a MAP-shaped data frame creates STRUCT[], not MAP", {
