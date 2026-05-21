@@ -247,6 +247,29 @@ test_that("is_distinct_from and is_not_distinct_from produce correct results", {
   )
 })
 
+test_that("filter() and filter_out() produce correct results", {
+  skip_if_not_installed("dbplyr", "2.5.2.9000")
+  skip_if_not_installed("dplyr", "1.2.0")
+
+  con <- local_con()
+  df <- data.frame(id = 1:4, x = c(1, 2, NA, 3))
+  duckdb_register(con, "df", df)
+  df_duckdb <- dplyr::tbl(con, "df")
+
+  # filter drops rows where the predicate is FALSE or NA
+  expect_equal(
+    dplyr::pull(dplyr::arrange(dplyr::filter(df_duckdb, x > 1), id), id),
+    c(2L, 4L)
+  )
+
+  # filter_out drops rows where the predicate is TRUE; NA rows are kept
+  # because dbplyr translates the condition through is_distinct_from(., TRUE)
+  expect_equal(
+    dplyr::pull(dplyr::arrange(dplyr::filter_out(df_duckdb, x > 1), id), id),
+    c(1L, 3L)
+  )
+})
+
 test_that("datetime escaping working as in DBI", {
   skip_if_not_installed("dbplyr")
   con <- local_con()
