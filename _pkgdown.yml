@@ -33,3 +33,6 @@ reference:
   - duckdb_register_arrow
   - duckdb_read_csv
   - duckdb_explain-class
+- title: Secrets
+  contents:
+  - duckdb_join_secrets
