@@ -1,396 +1,299 @@
-# duckspatial
+# duckh3 (0.1.0)
 
-<details>
+* GitHub: <https://github.com/Cidree/duckh3>
+* Email: <mailto:adrian.cidre@gmail.com>
+* GitHub mirror: <https://github.com/cran/duckh3>
 
-* Version: 0.2.0
-* GitHub: https://github.com/Cidree/duckspatial
-* Source code: https://github.com/cran/duckspatial
-* Date/Publication: 2025-04-29 18:40:02 UTC
-* Number of recursive dependencies: 16
-
-Run `revdepcheck::cloud_details(, "duckspatial")` for more info
-
-</details>
+Run `revdepcheck::cloud_details(, "duckh3")` for more info
 
 ## Newly broken
 
 *   checking examples ... ERROR
-    ```
-    Running examples in ‘duckspatial-Ex.R’ failed
-    The error most likely occurred in:
-    
-    > ### Name: ddbs_install
-    > ### Title: Checks and installs the Spatial extension
-    > ### Aliases: ddbs_install
-    > 
-    > ### ** Examples
-    > 
-    > ## load packages
-    > library(duckdb)
-    Loading required package: DBI
-    > library(duckspatial)
-    > 
-    > ## connect to in memory database
-    > conn <- dbConnect(duckdb::duckdb())
-    > 
-    > ## install the spatial exntesion
-    > ddbs_install(conn)
-    Error: rapi_execute: Invalid Error: HTTP Error: Failed to download extension "spatial" at URL "http://extensions.duckdb.org/a86af889de/linux_amd64/spatial.duckdb_extension.gz" (HTTP 404)
-    Extension "spatial" is an existing extension.
-    
-    For more info, visit https://duckdb.org/docs/stable/extensions/troubleshooting?version=a86af889de&platform=linux_amd64&extension=spatial (error_type: INVALID; : )
-    Execution halted
-    ```
+     ```
+     ...
+     The following objects are masked from ‘package:stats’:
+     
+         filter, lag
+     
+     The following objects are masked from ‘package:base’:
+     
+         intersect, setdiff, setequal, union
+     
+     > 
+     > ## Setup the default connection with h3 and spatial extensions
+     > ## This is a mandatory step to use duckh3 functions
+     > ddbh3_default_conn(threads = 1)
+     Error in `ddbs_install()`:
+     ! Failed to install the spatial extension.
+     ℹ It could not be found in the core or community repositories.
+     ℹ Check that the extension name is correct:
+       <https://duckdb.org/docs/extensions/overview>
+     Backtrace:
+         ▆
+      1. └─duckh3::ddbh3_default_conn(threads = 1)
+      2.   └─duckspatial::ddbs_create_conn(...)
+      3.     └─duckspatial::ddbs_install(conn, upgrade = FALSE, quiet = TRUE)
+      4.       └─cli::cli_abort(...)
+      5.         └─rlang::abort(...)
+     Execution halted
+     ```
 
-# motherduck
+*   checking tests ... ERROR
+     ```
+     ...
+       ! Failed to install the spatial extension.
+       ℹ It could not be found in the core or community repositories.
+       ℹ Check that the extension name is correct:
+         <https://duckdb.org/docs/extensions/overview>
+       Backtrace:
+            ▆
+         1. └─testthat::test_check("duckh3")
+         2.   └─testthat::test_dir(...)
+         3.     └─testthat:::test_files(...)
+         4.       └─testthat:::test_files_serial(...)
+         5.         └─testthat:::test_files_setup_state(...)
+         6.           └─testthat::source_test_setup(".", env)
+         7.             └─testthat::source_dir(path, "^setup.*\\.[rR]$", env = env, wrap = FALSE)
+         8.               └─base::lapply(...)
+         9.                 └─testthat (local) FUN(X[[i]], ...)
+        10.                   └─testthat::source_file(...)
+        11.                     ├─base::withCallingHandlers(...)
+        12.                     └─base::eval(exprs, env)
+        13.                       └─base::eval(exprs, env)
+        14.                         └─duckh3::ddbh3_default_conn() at ./setup.R:12:1
+        15.                           └─duckspatial::ddbs_create_conn(...)
+        16.                             └─duckspatial::ddbs_install(conn, upgrade = FALSE, quiet = TRUE)
+        17.                               └─cli::cli_abort(...)
+        18.                                 └─rlang::abort(...)
+       Execution halted
+     ```
 
-<details>
+# duckspatial (1.0.0)
 
-* Version: 0.2.0
-* GitHub: NA
-* Source code: https://github.com/cran/motherduck
-* Date/Publication: 2025-12-02 14:40:02 UTC
-* Number of recursive dependencies: 76
+* GitHub: <https://github.com/Cidree/duckspatial>
+* Email: <mailto:adrian.cidre@gmail.com>
+* GitHub mirror: <https://github.com/cran/duckspatial>
+
+Run `revdepcheck::cloud_details(, "duckspatial")` for more info
+
+## Newly broken
+
+*   checking examples ... ERROR
+     ```
+     ...
+     > ### Aliases: ddbs_install
+     > 
+     > ### ** Examples
+     > 
+     > ## load packages
+     > library(duckspatial)
+     > library(duckdb)
+     Loading required package: DBI
+     > 
+     > # connect to in memory database
+     > conn <- duckdb::dbConnect(duckdb::duckdb())
+     > 
+     > # install the spatial extension
+     > ddbs_install(conn)
+     Error in `ddbs_install()`:
+     ! Failed to install the spatial extension.
+     ℹ It could not be found in the core or community repositories.
+     ℹ Check that the extension name is correct:
+       <https://duckdb.org/docs/extensions/overview>
+     Backtrace:
+         ▆
+      1. └─duckspatial::ddbs_install(conn)
+      2.   └─cli::cli_abort(...)
+      3.     └─rlang::abort(...)
+     Execution halted
+     ```
+
+*   checking tests ... ERROR
+     ```
+     ...
+       ℹ Check that the extension name is correct:
+         <https://duckdb.org/docs/extensions/overview>
+       Backtrace:
+            ▆
+         1. └─testthat::test_check("duckspatial")
+         2.   └─testthat::test_dir(...)
+         3.     └─testthat:::test_files(...)
+         4.       └─testthat:::test_files_serial(...)
+         5.         └─testthat:::test_files_setup_state(...)
+         6.           └─testthat::source_test_setup(".", env)
+         7.             └─testthat::source_dir(path, "^setup.*\\.[rR]$", env = env, wrap = FALSE)
+         8.               └─base::lapply(...)
+         9.                 └─testthat (local) FUN(X[[i]], ...)
+        10.                   └─testthat::source_file(...)
+        11.                     ├─base::withCallingHandlers(...)
+        12.                     └─base::eval(exprs, env)
+        13.                       └─base::eval(exprs, env)
+        14.                         ├─duckspatial::as_duckspatial_df(argentina_sf) at ./setup.R:15:1
+        15.                         └─duckspatial:::as_duckspatial_df.sf(argentina_sf)
+        16.                           └─duckspatial:::ddbs_default_conn()
+        17.                             └─duckspatial::ddbs_create_conn(dbdir = "memory", ...)
+        18.                               └─duckspatial::ddbs_install(conn, upgrade = FALSE, quiet = TRUE)
+        19.                                 └─cli::cli_abort(...)
+        20.                                   └─rlang::abort(...)
+       Execution halted
+     ```
+
+# EpiStandard (0.2.0)
+
+* GitHub: <https://github.com/oxford-pharmacoepi/EpiStandard>
+* Email: <mailto:elin.rowlands@ndorms.ox.ac.uk>
+* GitHub mirror: <https://github.com/cran/EpiStandard>
+
+Run `revdepcheck::cloud_details(, "EpiStandard")` for more info
+
+## Newly broken
+
+*   checking re-building of vignette outputs ... ERROR
+     ```
+     ...
+      15.     ├─dbplyr::db_collect(...)
+      16.     └─dbplyr:::db_collect.DBIConnection(...)
+      17.       ├─DBI::dbSendQuery(con, sql)
+      18.       └─duckdb::dbSendQuery(con, sql)
+     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     
+     Error: processing vignette 'omop.Rmd' failed with diagnostics:
+     ℹ In index: 1.
+     ℹ With name: 1.
+     Caused by error in `dplyr::collect()`:
+     ! Failed to collect lazy table.
+     Caused by error in `dbSendQuery()`:
+     ! Invalid Error: unordered_map::at
+     ℹ Context: rapi_prepare
+     ℹ Error type: INVALID
+     --- failed re-building ‘omop.Rmd’
+     
+     --- re-building ‘standardPopulation.Rmd’ using rmarkdown
+     --- finished re-building ‘standardPopulation.Rmd’
+     
+     SUMMARY: processing the following file failed:
+       ‘omop.Rmd’
+     
+     Error: Vignette re-building failed.
+     Execution halted
+     ```
+
+# IncidencePrevalence (1.2.1)
+
+* GitHub: <https://github.com/darwin-eu/IncidencePrevalence>
+* Email: <mailto:edward.burn@ndorms.ox.ac.uk>
+* GitHub mirror: <https://github.com/cran/IncidencePrevalence>
+
+Run `revdepcheck::cloud_details(, "IncidencePrevalence")` for more info
+
+## Newly broken
+
+*   checking re-building of vignette outputs ... ERROR
+     ```
+     ...
+     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     
+     Error: processing vignette 'a05_Calculating_incidence.Rmd' failed with diagnostics:
+     ℹ In index: 1.
+     ℹ With name: 1.
+     Caused by error in `dplyr::collect()`:
+     ! Failed to collect lazy table.
+     Caused by error in `dbSendQuery()`:
+     ! Invalid Error: unordered_map::at
+     ℹ Context: rapi_prepare
+     ℹ Error type: INVALID
+     --- failed re-building ‘a05_Calculating_incidence.Rmd’
+     
+     --- re-building ‘a06_Working_with_IncidencePrevalence_Results.Rmd’ using rmarkdown
+     --- finished re-building ‘a06_Working_with_IncidencePrevalence_Results.Rmd’
+     
+     --- re-building ‘a07_benchmark.Rmd’ using rmarkdown
+     --- finished re-building ‘a07_benchmark.Rmd’
+     
+     SUMMARY: processing the following files failed:
+       ‘a01_Introduction_to_IncidencePrevalence.Rmd’
+       ‘a05_Calculating_incidence.Rmd’
+     
+     Error: Vignette re-building failed.
+     Execution halted
+     ```
+
+# motherduck (0.2.1)
+
+* Email: <mailto:alejandro.hagan@outlook.com>
+* GitHub mirror: <https://github.com/cran/motherduck>
 
 Run `revdepcheck::cloud_details(, "motherduck")` for more info
-
-</details>
 
 ## Newly broken
 
 *   checking tests ... ERROR
-    ```
-      Running ‘testthat.R’
-    Running the tests in ‘tests/testthat.R’ failed.
-    Complete output:
-      > # This file is part of the standard setup for testthat.
-      > # It is recommended that you do not modify it.
-      > #
-      > # Where should you do additional test configuration?
-      > # Learn more about the roles of various files in:
-      > # * https://r-pkgs.org/testing-design.html#sec-tests-files-overview
-      > # * https://testthat.r-lib.org/articles/special-files.html
-      > 
-      > library(testthat)
-      > library(motherduck)
-      > library(DBI)
-      > library(openxlsx)
-      > 
-      > test_check("motherduck")
-      
-      -- Status: ---------------------------------------------------------------------
-      
-      -- Connection Status Report: --
-      
-      ! You are not connected to MotherDuck
-      
-      -- User Report: --
-      
-      * User Name: "duckdb"
-      * Role: "duckdb"
-      
-      -- Catalog Report: --
-      
-      * Current Database: "memory"
-      * Current Schema: "main"
-      * # Total Catalogs you have access to: 3
-      * # Total Tables you have access to: 0
-      * # Total Shares you have access to: 0
-      * # Tables in this catalog you have access to: 0
-      * # Tables in this catalog & schema you have access to: 0
-      
-      -- Action Report: --
-      
-      v Inserted into existing database "memory"
-      v Created new schema "test_schema"
-      > Current role: `duckdb`
-      
-      -- Status: ---------------------------------------------------------------------
-      
-      -- User Report: --
-      
-      * User Name: "duckdb"
-      * Role: "duckdb"
-      
-      -- Catalog Report: --
-      
-      * Current Database: "memory"
-      * Current Schema: "test_schema"
-      * # Total Catalogs you have access to: 3
-      * # Total Tables you have access to: 0
-      * # Total Shares you have access to: 0
-      * # Tables in this catalog you have access to: 0
-      * # Tables in this catalog & schema you have access to: 0
-      > Current role: `duckdb`
-      > Current role: `duckdb`
-      > Current role: `duckdb`
-      
-      -- Status: ---------------------------------------------------------------------
-      
-      -- Connection Status Report: --
-      
-      ! You are not connected to MotherDuck
-      
-      -- User Report: --
-      
-      * User Name: "duckdb"
-      * Role: "duckdb"
-      
-      -- Catalog Report: --
-      
-      * Current Database: "memory"
-      * Current Schema: "main"
-      * # Total Catalogs you have access to: 3
-      * # Total Tables you have access to: 1
-      * # Total Shares you have access to: 0
-      * # Tables in this catalog you have access to: 1
-      * # Tables in this catalog & schema you have access to: 1
-      
-      -- Action Report: --
-      
-      v Inserted into existing database "memory"
-      v Using existing schema "main"
-      
-      -- Status: ---------------------------------------------------------------------
-      
-      -- Connection Status Report: --
-      
-      ! You are not connected to MotherDuck
-      
-      -- User Report: --
-      
-      * User Name: "duckdb"
-      * Role: "duckdb"
-      
-      -- Catalog Report: --
-      
-      * Current Database: "memory"
-      * Current Schema: "main"
-      * # Total Catalogs you have access to: 3
-      * # Total Tables you have access to: 1
-      * # Total Shares you have access to: 0
-      * # Tables in this catalog you have access to: 1
-      * # Tables in this catalog & schema you have access to: 1
-      
-      -- Action Report: --
-      
-      v Inserted into existing database "memory"
-      v Using existing schema "main"
-      
-      -- Status: ---------------------------------------------------------------------
-      
-      -- Connection Status Report: --
-      
-      ! You are not connected to MotherDuck
-      
-      -- User Report: --
-      
-      * User Name: "duckdb"
-      * Role: "duckdb"
-      
-      -- Catalog Report: --
-      
-      * Current Database: "memory"
-      * Current Schema: "main"
-      * # Total Catalogs you have access to: 3
-      * # Total Tables you have access to: 1
-      * # Total Shares you have access to: 0
-      * # Tables in this catalog you have access to: 1
-      * # Tables in this catalog & schema you have access to: 1
-      
-      -- Action Report: --
-      
-      v Inserted into existing database "memory"
-      v Using existing schema "main"
-      
-      -- Status: ---------------------------------------------------------------------
-      
-      -- Connection Status Report: --
-      
-      ! You are not connected to MotherDuck
-      
-      -- User Report: --
-      
-      * User Name: "duckdb"
-      * Role: "duckdb"
-      
-      -- Catalog Report: --
-      
-      * Current Database: "memory"
-      * Current Schema: "main"
-      * # Total Catalogs you have access to: 3
-      * # Total Tables you have access to: 3
-      * # Total Shares you have access to: 0
-      * # Tables in this catalog you have access to: 3
-      * # Tables in this catalog & schema you have access to: 3
-      
-      -- Action Report: --
-      
-      v Inserted into existing database "memory"
-      v Using existing schema "main"
-      
-      -- Status: ---------------------------------------------------------------------
-      
-      -- Connection Status Report: --
-      
-      ! You are not connected to MotherDuck
-      
-      -- User Report: --
-      
-      * User Name: "duckdb"
-      * Role: "duckdb"
-      
-      -- Catalog Report: --
-      
-      * Current Database: "memory"
-      * Current Schema: "main"
-      * # Total Catalogs you have access to: 3
-      * # Total Tables you have access to: 3
-      * # Total Shares you have access to: 0
-      * # Tables in this catalog you have access to: 3
-      * # Tables in this catalog & schema you have access to: 3
-      
-      -- Action Report: --
-      
-      v Inserted into existing database "memory"
-      v Using existing schema "main"
-      Note: method with signature 'DBIConnection#Id' chosen for function 'dbExistsTable',
-       target signature 'duckdb_connection#Id'.
-       "duckdb_connection#ANY" would also be valid
-      
-      -- Status: ---------------------------------------------------------------------
-      
-      -- Connection Status Report: --
-      
-      ! You are not connected to MotherDuck
-      
-      -- User Report: --
-      
-      * User Name: "duckdb"
-      * Role: "duckdb"
-      
-      -- Catalog Report: --
-      
-      * Current Database: "memory"
-      * Current Schema: "main"
-      * # Total Catalogs you have access to: 3
-      * # Total Tables you have access to: 0
-      * # Total Shares you have access to: 0
-      * # Tables in this catalog you have access to: 0
-      * # Tables in this catalog & schema you have access to: 0
-      
-      -- Action Report: 
-      * Deleted "delete_table" from "[database_name]" in "main"
-      
-      -- Status: ---------------------------------------------------------------------
-      
-      -- Connection Status Report: --
-      
-      ! You are not connected to MotherDuck
-      
-      -- User Report: --
-      
-      * User Name: "duckdb"
-      * Role: "duckdb"
-      
-      -- Catalog Report: --
-      
-      * Current Database: "memory"
-      * Current Schema: "main"
-      * # Total Catalogs you have access to: 3
-      * # Total Tables you have access to: 0
-      * # Total Shares you have access to: 0
-      * # Tables in this catalog you have access to: 0
-      * # Tables in this catalog & schema you have access to: 0
-      
-      -- Action Report: --
-      
-      v Inserted into existing database "memory"
-      v Created new schema "test_schema"
-      
-      -- Status: ---------------------------------------------------------------------
-      
-      -- Connection Status Report: --
-      
-      ! You are not connected to MotherDuck
-      
-      -- User Report: --
-      
-      * User Name: "duckdb"
-      * Role: "duckdb"
-      
-      -- Catalog Report: --
-      
-      * Current Database: "memory"
-      * Current Schema: "main"
-      * # Total Catalogs you have access to: 3
-      * # Total Tables you have access to: 1
-      * # Total Shares you have access to: 0
-      * # Tables in this catalog you have access to: 1
-      * # Tables in this catalog & schema you have access to: 0
-      
-      -- Action Report: --
-      
-      * Deleted "test_schema" schema and 1 tables
-      
-      -- Status: ---------------------------------------------------------------------
-      
-      -- Connection Status Report: --
-      
-      ! You are not connected to MotherDuck
-      
-      -- User Report: --
-      
-      * User Name: "duckdb"
-      * Role: "duckdb"
-      
-      -- Catalog Report: --
-      
-      * Current Database: "memory"
-      * Current Schema: "main"
-      * # Total Catalogs you have access to: 3
-      * # Total Tables you have access to: 0
-      * # Total Shares you have access to: 0
-      * # Tables in this catalog you have access to: 0
-      * # Tables in this catalog & schema you have access to: 0
-      
-      -- Action Report: --
-      
-      * Deleted "test_schema" schema and 1 tables
-      
-      -- Action Report: --
-      
-      v Inserted into existing database "memory"
-      v Using existing schema "main"
-      v Overwrite existing table "mtcars_csv"
-      Saving _problems/test-motherduck-405.R
-      [ FAIL 1 | WARN 0 | SKIP 1 | PASS 22 ]
-      
-      ══ Skipped tests (1) ═══════════════════════════════════════════════════════════
-      • empty test (1): 'test-motherduck.R:259:3'
-      
-      ══ Failed tests ════════════════════════════════════════════════════════════════
-      ── Error ('test-motherduck.R:405:7'): read_excel / successfully reads a excel and copies table to database ──
-      <purrr_error_indexed/rlang_error/error/condition>
-      Error in `purrr::map(ext_lst$valid_ext, function(x) DBI::dbExecute(.con, glue::glue("INSTALL {x};")))`: i In index: 1.
-      Caused by error in `duckdb_result()`:
-      ! Invalid Error: HTTP Error: Failed to download extension "excel" at URL "http://extensions.duckdb.org/a86af889de/linux_amd64/excel.duckdb_extension.gz" (HTTP 404)
-      Extension "excel" is an existing extension.
-      
-      For more info, visit https://duckdb.org/docs/stable/extensions/troubleshooting?version=a86af889de&platform=linux_amd64&extension=excel
-      i Context: rapi_execute
-      i Error type: INVALID
-      
-      [ FAIL 1 | WARN 0 | SKIP 1 | PASS 22 ]
-      Error:
-      ! Test failures.
-      Execution halted
-    ```
+     ```
+     ...
+       v Inserted into existing database "memory"
+       v Using existing schema "main"
+       v Overwrite existing table "mtcars_csv"
+       Saving _problems/test-motherduck-405.R
+       [ FAIL 1 | WARN 0 | SKIP 1 | PASS 22 ]
+       
+       ══ Skipped tests (1) ═══════════════════════════════════════════════════════════
+       • empty test (1): 'test-motherduck.R:259:3'
+       
+       ══ Failed tests ════════════════════════════════════════════════════════════════
+       ── Error ('test-motherduck.R:405:7'): read_excel / successfully reads a excel and copies table to database ──
+       <purrr_error_indexed/rlang_error/error/condition>
+       Error in `purrr::map(ext_lst$valid_ext, function(x) DBI::dbExecute(.con, glue::glue("INSTALL {x};")))`: i In index: 1.
+       Caused by error in `duckdb_result()`:
+       ! Invalid Error: HTTP Error: Failed to download extension "excel" at URL "http://extensions.duckdb.org/a403fd8acf/linux_amd64/excel.duckdb_extension.gz" (HTTP 404)
+       Extension "excel" is an existing extension.
+       
+       For more info, visit https://duckdb.org/docs/stable/extensions/troubleshooting?version=a403fd8acf&platform=linux_amd64&extension=excel
+       i Context: rapi_execute
+       i Error type: INVALID
+       
+       [ FAIL 1 | WARN 0 | SKIP 1 | PASS 22 ]
+       Error:
+       ! Test failures.
+       Execution halted
+     ```
 
-## In both
+# rcdf (0.1.5)
 
-*   checking data for non-ASCII characters ... NOTE
-    ```
-      Note: found 2 marked UTF-8 strings
-    ```
+* GitHub: <https://github.com/yng-me/rcdf>
+* Email: <mailto:aeabdulsamad@gmail.com>
+* GitHub mirror: <https://github.com/cran/rcdf>
+
+Run `revdepcheck::cloud_details(, "rcdf")` for more info
+
+## Newly broken
+
+*   checking tests ... ERROR
+     ```
+     ...
+         9. │         └─duckdb::dbSendQuery(conn, statement, ...)
+        10. │           └─duckdb (local) .local(conn, statement, ...)
+        11. │             └─duckdb:::duckdb_result(connection = conn, stmt_lst = stmt_lst, arrow = arrow)
+        12. │               └─duckdb:::duckdb_execute(res)
+        13. │                 └─duckdb:::rethrow_rapi_execute(...)
+        14. │                   ├─rlang::try_fetch(...)
+        15. │                   │ ├─base::tryCatch(...)
+        16. │                   │ │ └─base (local) tryCatchList(expr, classes, parentenv, handlers)
+        17. │                   │ │   └─base (local) tryCatchOne(expr, names, parentenv, handlers[[1L]])
+        18. │                   │ │     └─base (local) doTryCatch(return(expr), name, parentenv, handler)
+        19. │                   │ └─base::withCallingHandlers(...)
+        20. │                   └─duckdb:::rapi_execute(stmt, convert_opts)
+        21. ├─duckdb (local) `<fn>`(...)
+        22. │ └─rlang::abort(error_parts, class = "duckdb_error", !!!fields)
+        23. │   └─rlang:::signal_abort(cnd, .file)
+        24. │     └─base::signalCondition(cnd)
+        25. └─rlang (local) `<fn>`(`<dckdb_rr>`)
+        26.   └─handlers[[1L]](cnd)
+        27.     └─duckdb:::rethrow_error_from_rapi(e, call)
+        28.       └─rlang::abort(msg, call = call)
+       
+       [ FAIL 9 | WARN 0 | SKIP 0 | PASS 52 ]
+       Error:
+       ! Test failures.
+       Execution halted
+     ```
 

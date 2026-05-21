@@ -11,6 +11,7 @@
 #include "duckdb/storage/storage_extension.hpp"
 #include "duckdb/common/serializer/serializer.hpp"
 #include "duckdb/common/exception/parser_exception.hpp"
+#include "duckdb/common/path.hpp"
 
 #ifndef DUCKDB_NO_THREADS
 #include "duckdb/common/thread.hpp"
@@ -64,6 +65,7 @@ bool DBConfigOptions::debug_print_bindings = false;
 
 static const ConfigurationOption internal_options[] = {
 
+    DUCKDB_GLOBAL(DeltaOnlyVariantEncodingEnabledSetting),
     DUCKDB_GLOBAL(AccessModeSetting),
     DUCKDB_SETTING_CALLBACK(AllocatorBackgroundThreadsSetting),
     DUCKDB_GLOBAL(AllocatorBulkDeallocationFlushThresholdSetting),
@@ -89,6 +91,7 @@ static const ConfigurationOption internal_options[] = {
     DUCKDB_GLOBAL(BlockAllocatorMemorySetting),
     DUCKDB_SETTING(CatalogErrorMaxSchemasSetting),
     DUCKDB_GLOBAL(CheckpointThresholdSetting),
+    DUCKDB_SETTING_CALLBACK(CurrentTransactionInvalidationPolicySetting),
     DUCKDB_SETTING(CustomExtensionRepositorySetting),
     DUCKDB_LOCAL(CustomProfilingSettingsSetting),
     DUCKDB_GLOBAL(CustomUserAgentSetting),
@@ -117,6 +120,7 @@ static const ConfigurationOption internal_options[] = {
     DUCKDB_GLOBAL(DisabledOptimizersSetting),
     DUCKDB_SETTING_CALLBACK(DuckDBAPISetting),
     DUCKDB_SETTING(DynamicOrFilterThresholdSetting),
+    DUCKDB_LOCAL(EnableCachingOperatorsSetting),
     DUCKDB_SETTING_CALLBACK(EnableExternalAccessSetting),
     DUCKDB_SETTING_CALLBACK(EnableExternalFileCacheSetting),
     DUCKDB_SETTING(EnableFSSTVectorsSetting),
@@ -144,7 +148,7 @@ static const ConfigurationOption internal_options[] = {
     DUCKDB_SETTING(GeometryMinimumShreddingSize),
     DUCKDB_SETTING_CALLBACK(HomeDirectorySetting),
     DUCKDB_LOCAL(HTTPLoggingOutputSetting),
-    DUCKDB_SETTING(HTTPProxySetting),
+    DUCKDB_GLOBAL(HTTPProxySetting),
     DUCKDB_SETTING(HTTPProxyPasswordSetting),
     DUCKDB_SETTING(HTTPProxyUsernameSetting),
     DUCKDB_SETTING(IeeeFloatingPointOpsSetting),
@@ -196,20 +200,22 @@ static const ConfigurationOption internal_options[] = {
     DUCKDB_SETTING_CALLBACK(TempFileEncryptionSetting),
     DUCKDB_GLOBAL(ThreadsSetting),
     DUCKDB_SETTING(UsernameSetting),
+    DUCKDB_SETTING_CALLBACK(VacuumRebuildIndexesSetting),
     DUCKDB_SETTING_CALLBACK(ValidateExternalFileCacheSetting),
     DUCKDB_SETTING(VariantMinimumShreddingSizeSetting),
     DUCKDB_SETTING(WalAutocheckpointEntriesSetting),
     DUCKDB_SETTING_CALLBACK(WarningsAsErrorsSetting),
     DUCKDB_SETTING(WriteBufferRowGroupCountSetting),
+    DUCKDB_GLOBAL(WriteBufferRowGroupMemoryLimitSetting),
     DUCKDB_SETTING(ZstdMinStringLengthSetting),
     FINAL_SETTING};
 
-static const ConfigurationAlias setting_aliases[] = {DUCKDB_SETTING_ALIAS("memory_limit", 97),
-                                                     DUCKDB_SETTING_ALIAS("null_order", 41),
-                                                     DUCKDB_SETTING_ALIAS("profiling_output", 116),
-                                                     DUCKDB_SETTING_ALIAS("user", 131),
-                                                     DUCKDB_SETTING_ALIAS("wal_autocheckpoint", 24),
-                                                     DUCKDB_SETTING_ALIAS("worker_threads", 130),
+static const ConfigurationAlias setting_aliases[] = {DUCKDB_SETTING_ALIAS("memory_limit", 100),
+                                                     DUCKDB_SETTING_ALIAS("null_order", 43),
+                                                     DUCKDB_SETTING_ALIAS("profiling_output", 119),
+                                                     DUCKDB_SETTING_ALIAS("user", 134),
+                                                     DUCKDB_SETTING_ALIAS("wal_autocheckpoint", 25),
+                                                     DUCKDB_SETTING_ALIAS("worker_threads", 133),
                                                      FINAL_ALIAS};
 
 vector<ConfigurationOption> DBConfig::GetOptions() {
@@ -546,10 +552,8 @@ void DBConfig::SetDefaultTempDirectory() {
 		options.temporary_directory = string();
 	} else if (DBConfig::IsInMemoryDatabase(options.database_path.c_str())) {
 		options.temporary_directory = ".tmp";
-	} else if (StringUtil::Contains(options.database_path, "?")) {
-		options.temporary_directory = StringUtil::Split(options.database_path, "?")[0] + ".tmp";
 	} else {
-		options.temporary_directory = options.database_path + ".tmp";
+		options.temporary_directory = Path::AddSuffixToPath(options.database_path, ".tmp");
 	}
 }
 

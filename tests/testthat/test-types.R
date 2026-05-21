@@ -24,6 +24,7 @@ test_that("test_all_types() output", {
       "fixed_array_of_int_list",
       "bignum",
       "time_ns",
+      "geometry",
       NULL
     )
 

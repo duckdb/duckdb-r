@@ -1,5 +1,3 @@
-#include "src/common/allocator.cpp"
-
 #include "src/common/assert.cpp"
 
 #include "src/common/bind_helpers.cpp"

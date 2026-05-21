@@ -49,11 +49,11 @@ const size_t MAX_SIZE_T = std::numeric_limits<size_t>::max();
 
 void RelToAltrep::Initialize(DllInfo *dll) {
 	// this is a string so setting row names will not lead to materialization
-	rownames_class = R_make_altinteger_class("reltoaltrep_rownames_class", "duckdb", dll);
-	logical_class = R_make_altlogical_class("reltoaltrep_logical_class", "duckdb", dll);
-	int_class = R_make_altinteger_class("reltoaltrep_int_class", "duckdb", dll);
-	real_class = R_make_altreal_class("reltoaltrep_real_class", "duckdb", dll);
-	string_class = R_make_altstring_class("reltoaltrep_string_class", "duckdb", dll);
+	rownames_class = R_make_altinteger_class("reltoaltrep_rownames_class", DUCKDB_PACKAGE_NAME, dll);
+	logical_class = R_make_altlogical_class("reltoaltrep_logical_class", DUCKDB_PACKAGE_NAME, dll);
+	int_class = R_make_altinteger_class("reltoaltrep_int_class", DUCKDB_PACKAGE_NAME, dll);
+	real_class = R_make_altreal_class("reltoaltrep_real_class", DUCKDB_PACKAGE_NAME, dll);
+	string_class = R_make_altstring_class("reltoaltrep_string_class", DUCKDB_PACKAGE_NAME, dll);
 
 	R_set_altrep_Inspect_method(rownames_class, RownamesInspect);
 	R_set_altrep_Inspect_method(logical_class, RelInspect);
@@ -88,13 +88,13 @@ void RelToAltrep::Initialize(DllInfo *dll) {
 	R_set_altstring_Elt_method(string_class, VectorStringElt);
 
 #if defined(R_HAS_ALTLIST)
-	list_class = R_make_altlist_class("reltoaltrep_list_class", "duckdb", dll);
+	list_class = R_make_altlist_class("reltoaltrep_list_class", DUCKDB_PACKAGE_NAME, dll);
 	R_set_altrep_Inspect_method(list_class, RelInspect);
 	R_set_altrep_Length_method(list_class, VectorLength);
 	R_set_altvec_Dataptr_method(list_class, VectorDataptr);
 	R_set_altlist_Elt_method(list_class, VectorListElt);
 
-	struct_class = R_make_altlist_class("reltoaltrep_struct_class", "duckdb", dll);
+	struct_class = R_make_altlist_class("reltoaltrep_struct_class", DUCKDB_PACKAGE_NAME, dll);
 	R_set_altrep_Inspect_method(struct_class, RelInspect);
 	R_set_altrep_Length_method(struct_class, StructLength);
 	R_set_altvec_Dataptr_method(struct_class, VectorDataptr);

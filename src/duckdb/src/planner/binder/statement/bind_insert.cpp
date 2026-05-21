@@ -262,6 +262,25 @@ void Binder::BindInsertColumnList(TableCatalogEntry &table, vector<string> &colu
 	}
 }
 
+static unordered_set<string> GetConflictColumnNames(const TableStorageInfo &storage_info, TableCatalogEntry &table) {
+	unordered_set<column_t> conflict_column_ids;
+	for (auto &index : storage_info.index_info) {
+		if (!index.is_unique) {
+			continue;
+		}
+		for (auto &col_id : index.column_set) {
+			conflict_column_ids.insert(col_id);
+		}
+	}
+	unordered_set<string> conflict_column_names;
+	for (auto &col : table.GetColumns().Physical()) {
+		if (conflict_column_ids.count(col.Physical().index)) {
+			conflict_column_names.insert(col.Name());
+		}
+	}
+	return conflict_column_names;
+}
+
 unique_ptr<MergeIntoStatement> Binder::GenerateMergeInto(InsertStatement &stmt, TableCatalogEntry &table) {
 	D_ASSERT(stmt.on_conflict_info);
 
@@ -485,6 +504,7 @@ unique_ptr<MergeIntoStatement> Binder::GenerateMergeInto(InsertStatement &stmt, 
 	if (on_conflict_info.action_type == OnConflictAction::UPDATE) {
 		// when doing UPDATE set up the when matched action
 		auto update_action = make_uniq<MergeIntoAction>();
+		update_action->exclude_columns = GetConflictColumnNames(storage_info, table);
 		update_action->action_type = MergeActionType::MERGE_UPDATE;
 		update_action->column_order = stmt.column_order;
 		if (on_conflict_info.set_info) {
@@ -521,11 +541,13 @@ BoundStatement Binder::Bind(InsertStatement &stmt) {
 		auto merge_into = GenerateMergeInto(stmt, table);
 		return Bind(*merge_into);
 	}
-	if (!table.temporary) {
+	if (table.temporary) {
+		// Temporary inserts still need a catalog dependency so prepared statements are rebound if the table is dropped.
+		GetStatementProperties().RegisterDBRead(table.catalog, context);
+	} else {
 		// inserting into a non-temporary table: alters underlying database
-		auto &properties = GetStatementProperties();
 		DatabaseModificationType modification_type = DatabaseModificationType::INSERT_DATA;
-		properties.RegisterDBModify(table.catalog, context, modification_type);
+		GetStatementProperties().RegisterDBModify(table.catalog, context, modification_type);
 	}
 
 	auto insert = make_uniq<LogicalInsert>(table, GenerateTableIndex());
