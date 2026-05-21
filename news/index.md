@@ -2,16 +2,10 @@
 
 ## duckdb 1.5.3
 
-### Bug fixes
+### Features
 
 - Update to DuckDB v1.5.3, see
   <https://github.com/duckdb/duckdb/releases/tag/v1.5.3> for details.
-
-- Avoid rchk error in `RownamesDuplicate()`
-  ([\#2290](https://github.com/duckdb/duckdb-r/issues/2290),
-  [\#2291](https://github.com/duckdb/duckdb-r/issues/2291)).
-
-### Features
 
 - Add secret directory configuration, package startup message, and
   consolidation support via new experimental
@@ -19,31 +13,32 @@
   ([\#2305](https://github.com/duckdb/duckdb-r/issues/2305),
   [\#2340](https://github.com/duckdb/duckdb-r/issues/2340)).
 
-- New `env` argument to `rel_from_sql()`
-  ([\#645](https://github.com/duckdb/duckdb-r/issues/645),
-  [\#1077](https://github.com/duckdb/duckdb-r/issues/1077)).
-
-- Add support for `TIME WITH TIME ZONE` type in R bindings
+- Add native `VARIANT` ([@thohan88](https://github.com/thohan88),
+  [\#2313](https://github.com/duckdb/duckdb-r/issues/2313)) and
+  `TIME WITH TIME ZONE`
   ([\#1807](https://github.com/duckdb/duckdb-r/issues/1807),
-  [\#2336](https://github.com/duckdb/duckdb-r/issues/2336)).
-
-- Store downloaded extensions inside the duckdb package install
-  directory ([\#2327](https://github.com/duckdb/duckdb-r/issues/2327)).
-
-- Add native `VARIANT` data type support
-  ([@thohan88](https://github.com/thohan88),
-  [\#2313](https://github.com/duckdb/duckdb-r/issues/2313)).
+  [\#2336](https://github.com/duckdb/duckdb-r/issues/2336)) data type
+  support.
 
 - Add `is_distinct_from()` / `is_not_distinct_from()` dbplyr
-  translations for compatibility with dbplyr 2.6.0
+  translations for compatibility with upcoming dbplyr 2.6.0
   ([\#2326](https://github.com/duckdb/duckdb-r/issues/2326),
   [\#2332](https://github.com/duckdb/duckdb-r/issues/2332)).
+
+### Bug fixes
+
+- Avoid rchk error in `RownamesDuplicate()`
+  ([\#2290](https://github.com/duckdb/duckdb-r/issues/2290),
+  [\#2291](https://github.com/duckdb/duckdb-r/issues/2291)).
 
 ### Chore
 
 - Bump minimum R version requirement to 4.2.0
   ([\#2233](https://github.com/duckdb/duckdb-r/issues/2233),
   [\#2334](https://github.com/duckdb/duckdb-r/issues/2334)).
+
+- Store downloaded extensions inside the duckdb package install
+  directory ([\#2327](https://github.com/duckdb/duckdb-r/issues/2327)).
 
 ### Testing
 
