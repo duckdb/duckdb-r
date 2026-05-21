@@ -11,5 +11,4 @@ include $(GLUE:.o=.dd)
 # to avoid spurious sort-order changes caused by mixing 1-space (compiler) and
 # 2-space (first sed) indented lines.
 %.dd: %.d
-	cp $< $<.bak
 	sed -r 's/([^ ]) ([^ \\])/\1 \\\n  \2/g' $< | sed -r '/^ +([/]|duckdb|[.][.])/D;s/^ +/  /;$$s/([^\\])$$/\1 \\/' | { read -r header; printf '%s\n' "$$header"; LOCALE=C sort; } > $@
