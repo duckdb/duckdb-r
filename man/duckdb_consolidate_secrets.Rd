@@ -47,14 +47,17 @@ directory may be supplied via \code{from}. Source files are moved into the
 target (copied and then removed).
 
 To consistently share secrets with the DuckDB CLI and Python client,
-set the \code{DUCKDB_SECRET_DIRECTORY} environment variable, e.g.\ via
-\code{usethis::edit_r_environ()} or by editing \code{~/.Renviron} directly:
+set the \code{duckdb.secret_directory} R option, typically in \code{~/.Rprofile}:
 
-\preformatted{DUCKDB_SECRET_DIRECTORY=~/.duckdb/stored_secrets}
+\preformatted{options(duckdb.secret_directory = "~/.duckdb/stored_secrets")}
+
+Alternatively, set the \code{DUCKDB_SECRET_DIRECTORY} environment variable in
+\code{~/.Renviron} (e.g.\ via \code{usethis::edit_r_environ()}). Either way, then
+call \code{duckdb_consolidate_secrets()} to move existing secrets into the
+chosen location.
 
 The package emits a startup message when secret files exist in both
-the R-default and common locations and \code{DUCKDB_SECRET_DIRECTORY} (or the
-equivalent \code{options(duckdb.secret_directory)}) is unset. Pointing the
-setting at either location both configures the resolver and silences
-the message.
+the R-default and common locations and neither \code{duckdb.secret_directory}
+nor \code{DUCKDB_SECRET_DIRECTORY} is set. Pointing either at any location
+both configures the resolver and silences the message.
 }

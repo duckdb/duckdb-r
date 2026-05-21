@@ -81,16 +81,19 @@ resolve_secret_directory <- function() {
 #' target (copied and then removed).
 #'
 #' To consistently share secrets with the DuckDB CLI and Python client,
-#' set the `DUCKDB_SECRET_DIRECTORY` environment variable, e.g.\ via
-#' `usethis::edit_r_environ()` or by editing `~/.Renviron` directly:
+#' set the `duckdb.secret_directory` R option, typically in `~/.Rprofile`:
 #'
-#' \preformatted{DUCKDB_SECRET_DIRECTORY=~/.duckdb/stored_secrets}
+#' \preformatted{options(duckdb.secret_directory = "~/.duckdb/stored_secrets")}
+#'
+#' Alternatively, set the `DUCKDB_SECRET_DIRECTORY` environment variable in
+#' `~/.Renviron` (e.g.\ via `usethis::edit_r_environ()`). Either way, then
+#' call `duckdb_consolidate_secrets()` to move existing secrets into the
+#' chosen location.
 #'
 #' The package emits a startup message when secret files exist in both
-#' the R-default and common locations and `DUCKDB_SECRET_DIRECTORY` (or the
-#' equivalent `options(duckdb.secret_directory)`) is unset. Pointing the
-#' setting at either location both configures the resolver and silences
-#' the message.
+#' the R-default and common locations and neither `duckdb.secret_directory`
+#' nor `DUCKDB_SECRET_DIRECTORY` is set. Pointing either at any location
+#' both configures the resolver and silences the message.
 #'
 #' @param from Optional path to an additional source directory to merge in,
 #'   or `NULL` (the default) for none.
@@ -249,15 +252,16 @@ maybe_secret_directory_message <- function() {
     "  - ",
     common_dir,
     " (shared with DuckDB CLI / Python)\n",
-    "Set `DUCKDB_SECRET_DIRECTORY` to the location you want to use, e.g. in\n",
-    "`~/.Renviron` (open it with `usethis::edit_r_environ()` if available):\n",
-    "  DUCKDB_SECRET_DIRECTORY=~/.duckdb/stored_secrets   # shared with CLI/Python\n",
-    "  DUCKDB_SECRET_DIRECTORY=",
+    "Pick one and set it via the `duckdb.secret_directory` option, e.g.:\n",
+    "  options(duckdb.secret_directory = \"~/.duckdb/stored_secrets\")   # shared with CLI/Python\n",
+    "  options(duckdb.secret_directory = \"",
     r_dir,
-    "   # keep R-only\n",
-    "Then call `duckdb::duckdb_consolidate_secrets()` to consolidate existing secrets.\n",
-    "Setting either value (or `options(duckdb.secret_directory = ...)`) also\n",
-    "silences this message."
+    "\")   # keep R-only\n",
+    "For a persistent setting, add the line to `~/.Rprofile`, or set the\n",
+    "`DUCKDB_SECRET_DIRECTORY` env var in `~/.Renviron` (e.g. via\n",
+    "`usethis::edit_r_environ()`). Then call `duckdb_consolidate_secrets()`\n",
+    "to move existing secrets into the chosen location. Configuring the\n",
+    "directory also silences this message."
   )
   invisible()
 }
