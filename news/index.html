@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.2.9009</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.2.9900</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -28,49 +28,19 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/cran-1.5.2.9900/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.2.9009" id="duckdb-1529009">duckdb 1.5.2.9009<a class="anchor" aria-label="anchor" href="#duckdb-1529009"></a></h2>
+<h2 class="pkg-version" data-toc-text="1.5.2.9900" id="duckdb-1529900">duckdb 1.5.2.9900<a class="anchor" aria-label="anchor" href="#duckdb-1529900"></a></h2>
 <div class="section level3">
-<h3 id="bug-fixes-1-5-2-9009">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5-2-9009"></a></h3>
-<ul><li>Avoid rchk error in <code>RownamesDuplicate()</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2290" class="external-link">#2290</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2291" class="external-link">#2291</a>).</li>
-</ul></div>
-<div class="section level3">
-<h3 id="features-1-5-2-9009">Features<a class="anchor" aria-label="anchor" href="#features-1-5-2-9009"></a></h3>
-<ul><li><p>Add support for <code>TIME WITH TIME ZONE</code> type in R bindings (<a href="https://github.com/duckdb/duckdb-r/issues/1807" class="external-link">#1807</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2336" class="external-link">#2336</a>).</p></li>
-<li><p>Store downloaded extensions inside the duckdb package install directory (<a href="https://github.com/duckdb/duckdb-r/issues/2327" class="external-link">#2327</a>).</p></li>
-<li><p>Add native VARIANT data type support (<a href="https://github.com/thohan88" class="external-link">@thohan88</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2313" class="external-link">#2313</a>).</p></li>
-<li><p>Add <code>is_distinct_from()</code> / <code>is_not_distinct_from()</code> dbplyr translations for compatibility with dbplyr 2.6.0 (<a href="https://github.com/duckdb/duckdb-r/issues/2326" class="external-link">#2326</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2332" class="external-link">#2332</a>).</p></li>
-</ul></div>
-<div class="section level3">
-<h3 id="chore-1-5-2-9009">Chore<a class="anchor" aria-label="anchor" href="#chore-1-5-2-9009"></a></h3>
-<ul><li><p>Bump minimum R version requirement to 4.2.0 (<a href="https://github.com/duckdb/duckdb-r/issues/2233" class="external-link">#2233</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2334" class="external-link">#2334</a>).</p></li>
-<li><p>Simplify <code>ValueToSexp()</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2333" class="external-link">#2333</a>).</p></li>
-<li><p>Remove unneeded <code>.d</code> file backup.</p></li>
-</ul></div>
-<div class="section level3">
-<h3 id="testing-1-5-2-9009">Testing<a class="anchor" aria-label="anchor" href="#testing-1-5-2-9009"></a></h3>
-<ul><li>Add comprehensive test coverage for MAP type reading (<a href="https://github.com/duckdb/duckdb-r/issues/2342" class="external-link">#2342</a>).</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.2.9008" id="duckdb-1529008">duckdb 1.5.2.9008<a class="anchor" aria-label="anchor" href="#duckdb-1529008"></a></h2>
-<div class="section level3">
-<h3 id="chore-1-5-2-9008">Chore<a class="anchor" aria-label="anchor" href="#chore-1-5-2-9008"></a></h3>
-<ul><li><p>Add out-of-line <code>SelectionData</code> destructor to fix GCC warnings (<a href="https://github.com/duckdb/duckdb-r/issues/2329" class="external-link">#2329</a>).</p></li>
-<li><p>Initialize <code>ParquetReader::rows_read</code> atomic variable (<a href="https://github.com/duckdb/duckdb-r/issues/2328" class="external-link">#2328</a>).</p></li>
-</ul></div>
-<div class="section level3">
-<h3 id="vendor-1-5-2-9008">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-5-2-9008"></a></h3>
+<h3 id="vendor-1-5-2-9900">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-5-2-9900"></a></h3>
 <ul><li>
 <p>Update vendored sources (tag v1.5.3) to <a href="mailto:duckdb/duckdb@14eca11bd9d4a0de2ea0f078be588a9c1c5b279c" class="email">duckdb/duckdb@14eca11bd9d4a0de2ea0f078be588a9c1c5b279c</a>.</p>
 <p>Date: 2026-05-19 12:31:49 +0200</p>
 </li>
 <li>
 <p>Update vendored sources to <a href="mailto:duckdb/duckdb@14eca11bd9d4a0de2ea0f078be588a9c1c5b279c" class="email">duckdb/duckdb@14eca11bd9d4a0de2ea0f078be588a9c1c5b279c</a>.</p>
-<p>Date: 2026-05-19 12:31:49 +0200</p>
 <p>Return an error if a negative number is passed to the factorial function (<a href="https://redirect.github.com/duckdb/duckdb/pull/22731" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/22731</a>)</p>
 </li>
 <li>
@@ -183,23 +153,7 @@
 <p>Date: 2026-05-13 08:51:43 +0200</p>
 <p>ARTOperator::Delete return false if rowid not found in nested ART leaf (<a href="https://redirect.github.com/duckdb/duckdb/pull/22591" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/22591</a>) Limit parallel linker jobs to avoid out-of-memory errors (<a href="https://redirect.github.com/duckdb/duckdb/pull/22588" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/22588</a>) Allow json ts format variation across columns - issue 22103 (<a href="https://redirect.github.com/duckdb/duckdb/pull/22559" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/22559</a>)</p>
 </li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.2.9007" id="duckdb-1529007">duckdb 1.5.2.9007<a class="anchor" aria-label="anchor" href="#duckdb-1529007"></a></h2>
-<div class="section level3">
-<h3 id="chore-1-5-2-9007">Chore<a class="anchor" aria-label="anchor" href="#chore-1-5-2-9007"></a></h3>
-<ul><li><p>Add ccache to <code>.gitignore</code> and <code>.Rbuildignore</code>.</p></li>
-<li><p>Revdepcheck results.</p></li>
-</ul></div>
-<div class="section level3">
-<h3 id="continuous-integration-1-5-2-9007">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-5-2-9007"></a></h3>
-<ul><li><p>Clarify rationale for not deploying on schedule.</p></li>
-<li><p>Add reference to <code>/apply-patch</code> workflow in commit message.</p></li>
-</ul></div>
-<div class="section level3">
-<h3 id="vendor-1-5-2-9007">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-5-2-9007"></a></h3>
-<ul><li>
+<li>
 <p>Update vendored sources to <a href="mailto:duckdb/duckdb@fe0954a4753cf93be69dbdf80a0e826e9193f241" class="email">duckdb/duckdb@fe0954a4753cf93be69dbdf80a0e826e9193f241</a>.</p>
 <p>Date: 2026-05-12 15:38:16 +0200</p>
 <p>Move Jemalloc into core (<a href="https://redirect.github.com/duckdb/duckdb/pull/22558" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/22558</a>)</p>
@@ -546,80 +500,70 @@
 <p>fix: resolve current catalog in ADBC Ingest to avoid temp table shadowing (<a href="https://redirect.github.com/duckdb/duckdb/pull/22020" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/22020</a>) DuckLake Bump (<a href="https://redirect.github.com/duckdb/duckdb/pull/22014" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/22014</a>) Use DB serialization compatibility for json_serialize_sql (<a href="https://redirect.github.com/duckdb/duckdb/pull/22004" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/22004</a>)</p>
 </li>
 </ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.2.9006" id="duckdb-1529006">duckdb 1.5.2.9006<a class="anchor" aria-label="anchor" href="#duckdb-1529006"></a></h2>
 <div class="section level3">
-<h3 id="continuous-integration-1-5-2-9006">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-5-2-9006"></a></h3>
-<ul><li><p>Clarify handling of broken-*-dev branches.</p></li>
-<li><p>Simplify again.</p></li>
+<h3 id="fledge-1-5-2-9900">fledge<a class="anchor" aria-label="anchor" href="#fledge-1-5-2-9900"></a></h3>
+<ul><li>CRAN release v1.5.2 (<a href="https://github.com/duckdb/duckdb-r/issues/2312" class="external-link">#2312</a>).</li>
 </ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.2.9005" id="duckdb-1529005">duckdb 1.5.2.9005<a class="anchor" aria-label="anchor" href="#duckdb-1529005"></a></h2>
 <div class="section level3">
-<h3 id="continuous-integration-1-5-2-9005">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-5-2-9005"></a></h3>
-<ul><li>Only run fledge on pushes to main.</li>
+<h3 id="bug-fixes-1-5-2-9900">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5-2-9900"></a></h3>
+<ul><li>Avoid rchk error in <code>RownamesDuplicate()</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2290" class="external-link">#2290</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2291" class="external-link">#2291</a>).</li>
 </ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.2.9004" id="duckdb-1529004">duckdb 1.5.2.9004<a class="anchor" aria-label="anchor" href="#duckdb-1529004"></a></h2>
 <div class="section level3">
-<h3 id="continuous-integration-1-5-2-9004">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-5-2-9004"></a></h3>
-<ul><li>Tweak fledge workflow and ccache action.</li>
+<h3 id="features-1-5-2-9900">Features<a class="anchor" aria-label="anchor" href="#features-1-5-2-9900"></a></h3>
+<ul><li><p>Add support for <code>TIME WITH TIME ZONE</code> type in R bindings (<a href="https://github.com/duckdb/duckdb-r/issues/1807" class="external-link">#1807</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2336" class="external-link">#2336</a>).</p></li>
+<li><p>Store downloaded extensions inside the duckdb package install directory (<a href="https://github.com/duckdb/duckdb-r/issues/2327" class="external-link">#2327</a>).</p></li>
+<li><p>Add native VARIANT data type support (<a href="https://github.com/thohan88" class="external-link">@thohan88</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2313" class="external-link">#2313</a>).</p></li>
+<li><p>Add <code>is_distinct_from()</code> / <code>is_not_distinct_from()</code> dbplyr translations for compatibility with dbplyr 2.6.0 (<a href="https://github.com/duckdb/duckdb-r/issues/2326" class="external-link">#2326</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2332" class="external-link">#2332</a>).</p></li>
 </ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.2.9003" id="duckdb-1529003">duckdb 1.5.2.9003<a class="anchor" aria-label="anchor" href="#duckdb-1529003"></a></h2>
 <div class="section level3">
-<h3 id="chore-1-5-2-9003">Chore<a class="anchor" aria-label="anchor" href="#chore-1-5-2-9003"></a></h3>
-<ul><li>
+<h3 id="chore-1-5-2-9900">Chore<a class="anchor" aria-label="anchor" href="#chore-1-5-2-9900"></a></h3>
+<ul><li><p>Bump minimum R version requirement to 4.2.0 (<a href="https://github.com/duckdb/duckdb-r/issues/2233" class="external-link">#2233</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2334" class="external-link">#2334</a>).</p></li>
+<li><p>Simplify <code>ValueToSexp()</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2333" class="external-link">#2333</a>).</p></li>
+<li><p>Remove unneeded <code>.d</code> file backup.</p></li>
+<li><p>Add out-of-line <code>SelectionData</code> destructor to fix GCC warnings (<a href="https://github.com/duckdb/duckdb-r/issues/2329" class="external-link">#2329</a>).</p></li>
+<li><p>Initialize <code>ParquetReader::rows_read</code> atomic variable (<a href="https://github.com/duckdb/duckdb-r/issues/2328" class="external-link">#2328</a>).</p></li>
+<li><p>Add ccache to <code>.gitignore</code> and <code>.Rbuildignore</code>.</p></li>
+<li><p>Revdepcheck results.</p></li>
+<li>
 <p>Auto-update from GitHub Actions.</p>
 <p>Run: <a href="https://github.com/krlmlr/duckdb-r/actions/runs/25267064493" class="external-link uri">https://github.com/krlmlr/duckdb-r/actions/runs/25267064493</a></p>
 </li>
+<li><p>Auto-update from GitHub Actions (<a href="https://github.com/duckdb/duckdb-r/issues/2319" class="external-link">#2319</a>).</p></li>
+<li><p>Next skill iteration.</p></li>
+<li><p>Fetch logs from orphan branch.</p></li>
 </ul></div>
 <div class="section level3">
-<h3 id="continuous-integration-1-5-2-9003">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-5-2-9003"></a></h3>
-<ul><li><p>Align.</p></li>
+<h3 id="continuous-integration-1-5-2-9900">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-5-2-9900"></a></h3>
+<ul><li><p>Clarify rationale for not deploying on schedule.</p></li>
+<li><p>Add reference to <code>/apply-patch</code> workflow in commit message.</p></li>
+<li><p>Clarify handling of broken-*-dev branches.</p></li>
+<li><p>Simplify again.</p></li>
+<li><p>Only run fledge on pushes to main.</p></li>
+<li><p>Tweak fledge workflow and ccache action.</p></li>
+<li><p>Align.</p></li>
 <li><p>Cosmetics.</p></li>
 <li><p>Bump action versions.</p></li>
 <li><p>Install clang-format-21.</p></li>
 <li><p>Align fledge workflow.</p></li>
 <li><p>Harmonize.</p></li>
-</ul></div>
-<div class="section level3">
-<h3 id="uncategorized-1-5-2-9003">Uncategorized<a class="anchor" aria-label="anchor" href="#uncategorized-1-5-2-9003"></a></h3>
-<ul><li><p>Refine RCC smoke-fix workflow: per-commit validation and push (<a href="https://github.com/duckdb/duckdb-r/issues/25" class="external-link">#25</a>).</p></li>
-<li><p>Merge branch ‘main’ into krlmlr-main.</p></li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.2.9002" id="duckdb-1529002">duckdb 1.5.2.9002<a class="anchor" aria-label="anchor" href="#duckdb-1529002"></a></h2>
-<div class="section level3">
-<h3 id="chore-1-5-2-9002">Chore<a class="anchor" aria-label="anchor" href="#chore-1-5-2-9002"></a></h3>
-<ul><li><p>Auto-update from GitHub Actions (<a href="https://github.com/duckdb/duckdb-r/issues/2319" class="external-link">#2319</a>).</p></li>
-<li><p>Next skill iteration.</p></li>
-<li><p>Fetch logs from orphan branch.</p></li>
-</ul></div>
-<div class="section level3">
-<h3 id="continuous-integration-1-5-2-9002">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-5-2-9002"></a></h3>
-<ul><li><p>Success message.</p></li>
+<li><p>Success message.</p></li>
 <li><p>Fetch all.</p></li>
 <li><p>Refine.</p></li>
 <li><p>Tweak skill.</p></li>
 <li><p>4x per day.</p></li>
 <li><p>Trigger.</p></li>
-<li><p>Refine.</p></li>
 <li><p>On push.</p></li>
 </ul></div>
 <div class="section level3">
-<h3 id="uncategorized-1-5-2-9002">Uncategorized<a class="anchor" aria-label="anchor" href="#uncategorized-1-5-2-9002"></a></h3>
-<ul><li>Add workflow to cancel pending RCC dispatch runs (<a href="https://github.com/duckdb/duckdb-r/issues/24" class="external-link">#24</a>).</li>
+<h3 id="testing-1-5-2-9900">Testing<a class="anchor" aria-label="anchor" href="#testing-1-5-2-9900"></a></h3>
+<ul><li>Add comprehensive test coverage for MAP type reading (<a href="https://github.com/duckdb/duckdb-r/issues/2342" class="external-link">#2342</a>).</li>
 </ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.2.9001" id="duckdb-1529001">duckdb 1.5.2.9001<a class="anchor" aria-label="anchor" href="#duckdb-1529001"></a></h2>
-<ul><li><p>Add RCC smoke test fix skill documentation (<a href="https://github.com/duckdb/duckdb-r/issues/22" class="external-link">#22</a>).</p></li>
+<div class="section level3">
+<h3 id="uncategorized-1-5-2-9900">Uncategorized<a class="anchor" aria-label="anchor" href="#uncategorized-1-5-2-9900"></a></h3>
+<ul><li><p>Refine RCC smoke-fix workflow: per-commit validation and push (<a href="https://github.com/duckdb/duckdb-r/issues/25" class="external-link">#25</a>).</p></li>
+<li><p>Merge branch ‘main’ into krlmlr-main.</p></li>
+<li><p>Add workflow to cancel pending RCC dispatch runs (<a href="https://github.com/duckdb/duckdb-r/issues/24" class="external-link">#24</a>).</p></li>
+<li><p>Add RCC smoke test fix skill documentation (<a href="https://github.com/duckdb/duckdb-r/issues/22" class="external-link">#22</a>).</p></li>
 <li><p>Docs(skill): add rcc-smoke-fix skill modeled on rigraph.</p></li>
 <li><p>Iterate over multiple *-dev branches (main-dev, v1.5-variegata-dev,.</p></li>
 <li><p>Forbid edits to vendored sources (src/duckdb/, inst/include/cpp11/,.</p></li>
@@ -638,12 +582,6 @@
 <li><p>Commit step conditionally adds <code>src/duckdb/</code> only when <code>patch/</code> changed.</p></li>
 <li><p>Cherry-pick conflict on <code>src/duckdb/</code> softened: rare but possible from.</p></li>
 <li><p>Removed all references to out-of-scope transient branches.</p></li>
-</ul></div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.2.9000" id="duckdb-1529000">duckdb 1.5.2.9000<a class="anchor" aria-label="anchor" href="#duckdb-1529000"></a></h2>
-<div class="section level3">
-<h3 id="fledge-1-5-2-9000">fledge<a class="anchor" aria-label="anchor" href="#fledge-1-5-2-9000"></a></h3>
-<ul><li>CRAN release v1.5.2 (<a href="https://github.com/duckdb/duckdb-r/issues/2312" class="external-link">#2312</a>).</li>
 </ul></div>
 </div>
     <div class="section level2">

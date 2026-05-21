@@ -1,56 +1,6 @@
 # Changelog
 
-## duckdb 1.5.2.9009
-
-### Bug fixes
-
-- Avoid rchk error in `RownamesDuplicate()`
-  ([\#2290](https://github.com/duckdb/duckdb-r/issues/2290),
-  [\#2291](https://github.com/duckdb/duckdb-r/issues/2291)).
-
-### Features
-
-- Add support for `TIME WITH TIME ZONE` type in R bindings
-  ([\#1807](https://github.com/duckdb/duckdb-r/issues/1807),
-  [\#2336](https://github.com/duckdb/duckdb-r/issues/2336)).
-
-- Store downloaded extensions inside the duckdb package install
-  directory ([\#2327](https://github.com/duckdb/duckdb-r/issues/2327)).
-
-- Add native VARIANT data type support
-  ([@thohan88](https://github.com/thohan88),
-  [\#2313](https://github.com/duckdb/duckdb-r/issues/2313)).
-
-- Add `is_distinct_from()` / `is_not_distinct_from()` dbplyr
-  translations for compatibility with dbplyr 2.6.0
-  ([\#2326](https://github.com/duckdb/duckdb-r/issues/2326),
-  [\#2332](https://github.com/duckdb/duckdb-r/issues/2332)).
-
-### Chore
-
-- Bump minimum R version requirement to 4.2.0
-  ([\#2233](https://github.com/duckdb/duckdb-r/issues/2233),
-  [\#2334](https://github.com/duckdb/duckdb-r/issues/2334)).
-
-- Simplify `ValueToSexp()`
-  ([\#2333](https://github.com/duckdb/duckdb-r/issues/2333)).
-
-- Remove unneeded `.d` file backup.
-
-### Testing
-
-- Add comprehensive test coverage for MAP type reading
-  ([\#2342](https://github.com/duckdb/duckdb-r/issues/2342)).
-
-## duckdb 1.5.2.9008
-
-### Chore
-
-- Add out-of-line `SelectionData` destructor to fix GCC warnings
-  ([\#2329](https://github.com/duckdb/duckdb-r/issues/2329)).
-
-- Initialize `ParquetReader::rows_read` atomic variable
-  ([\#2328](https://github.com/duckdb/duckdb-r/issues/2328)).
+## duckdb 1.5.2.9900
 
 ### vendor
 
@@ -61,8 +11,6 @@
 
 - Update vendored sources to
   <duckdb/duckdb@14eca11bd9d4a0de2ea0f078be588a9c1c5b279c>.
-
-  Date: 2026-05-19 12:31:49 +0200
 
   Return an error if a negative number is passed to the factorial
   function (<https://redirect.github.com/duckdb/duckdb/pull/22731>)
@@ -273,22 +221,6 @@
   (<https://redirect.github.com/duckdb/duckdb/pull/22588>) Allow json ts
   format variation across columns - issue 22103
   (<https://redirect.github.com/duckdb/duckdb/pull/22559>)
-
-## duckdb 1.5.2.9007
-
-### Chore
-
-- Add ccache to `.gitignore` and `.Rbuildignore`.
-
-- Revdepcheck results.
-
-### Continuous integration
-
-- Clarify rationale for not deploying on schedule.
-
-- Add reference to `/apply-patch` workflow in commit message.
-
-### vendor
 
 - Update vendored sources to
   <duckdb/duckdb@fe0954a4753cf93be69dbdf80a0e826e9193f241>.
@@ -875,35 +807,80 @@
   Use DB serialization compatibility for json_serialize_sql
   (<https://redirect.github.com/duckdb/duckdb/pull/22004>)
 
-## duckdb 1.5.2.9006
+### fledge
 
-### Continuous integration
+- CRAN release v1.5.2
+  ([\#2312](https://github.com/duckdb/duckdb-r/issues/2312)).
 
-- Clarify handling of broken-\*-dev branches.
+### Bug fixes
 
-- Simplify again.
+- Avoid rchk error in `RownamesDuplicate()`
+  ([\#2290](https://github.com/duckdb/duckdb-r/issues/2290),
+  [\#2291](https://github.com/duckdb/duckdb-r/issues/2291)).
 
-## duckdb 1.5.2.9005
+### Features
 
-### Continuous integration
+- Add support for `TIME WITH TIME ZONE` type in R bindings
+  ([\#1807](https://github.com/duckdb/duckdb-r/issues/1807),
+  [\#2336](https://github.com/duckdb/duckdb-r/issues/2336)).
 
-- Only run fledge on pushes to main.
+- Store downloaded extensions inside the duckdb package install
+  directory ([\#2327](https://github.com/duckdb/duckdb-r/issues/2327)).
 
-## duckdb 1.5.2.9004
+- Add native VARIANT data type support
+  ([@thohan88](https://github.com/thohan88),
+  [\#2313](https://github.com/duckdb/duckdb-r/issues/2313)).
 
-### Continuous integration
-
-- Tweak fledge workflow and ccache action.
-
-## duckdb 1.5.2.9003
+- Add `is_distinct_from()` / `is_not_distinct_from()` dbplyr
+  translations for compatibility with dbplyr 2.6.0
+  ([\#2326](https://github.com/duckdb/duckdb-r/issues/2326),
+  [\#2332](https://github.com/duckdb/duckdb-r/issues/2332)).
 
 ### Chore
+
+- Bump minimum R version requirement to 4.2.0
+  ([\#2233](https://github.com/duckdb/duckdb-r/issues/2233),
+  [\#2334](https://github.com/duckdb/duckdb-r/issues/2334)).
+
+- Simplify `ValueToSexp()`
+  ([\#2333](https://github.com/duckdb/duckdb-r/issues/2333)).
+
+- Remove unneeded `.d` file backup.
+
+- Add out-of-line `SelectionData` destructor to fix GCC warnings
+  ([\#2329](https://github.com/duckdb/duckdb-r/issues/2329)).
+
+- Initialize `ParquetReader::rows_read` atomic variable
+  ([\#2328](https://github.com/duckdb/duckdb-r/issues/2328)).
+
+- Add ccache to `.gitignore` and `.Rbuildignore`.
+
+- Revdepcheck results.
 
 - Auto-update from GitHub Actions.
 
   Run: <https://github.com/krlmlr/duckdb-r/actions/runs/25267064493>
 
+- Auto-update from GitHub Actions
+  ([\#2319](https://github.com/duckdb/duckdb-r/issues/2319)).
+
+- Next skill iteration.
+
+- Fetch logs from orphan branch.
+
 ### Continuous integration
+
+- Clarify rationale for not deploying on schedule.
+
+- Add reference to `/apply-patch` workflow in commit message.
+
+- Clarify handling of broken-\*-dev branches.
+
+- Simplify again.
+
+- Only run fledge on pushes to main.
+
+- Tweak fledge workflow and ccache action.
 
 - Align.
 
@@ -917,26 +894,6 @@
 
 - Harmonize.
 
-### Uncategorized
-
-- Refine RCC smoke-fix workflow: per-commit validation and push
-  ([\#25](https://github.com/duckdb/duckdb-r/issues/25)).
-
-- Merge branch ‘main’ into krlmlr-main.
-
-## duckdb 1.5.2.9002
-
-### Chore
-
-- Auto-update from GitHub Actions
-  ([\#2319](https://github.com/duckdb/duckdb-r/issues/2319)).
-
-- Next skill iteration.
-
-- Fetch logs from orphan branch.
-
-### Continuous integration
-
 - Success message.
 
 - Fetch all.
@@ -949,16 +906,22 @@
 
 - Trigger.
 
-- Refine.
-
 - On push.
+
+### Testing
+
+- Add comprehensive test coverage for MAP type reading
+  ([\#2342](https://github.com/duckdb/duckdb-r/issues/2342)).
 
 ### Uncategorized
 
+- Refine RCC smoke-fix workflow: per-commit validation and push
+  ([\#25](https://github.com/duckdb/duckdb-r/issues/25)).
+
+- Merge branch ‘main’ into krlmlr-main.
+
 - Add workflow to cancel pending RCC dispatch runs
   ([\#24](https://github.com/duckdb/duckdb-r/issues/24)).
-
-## duckdb 1.5.2.9001
 
 - Add RCC smoke test fix skill documentation
   ([\#22](https://github.com/duckdb/duckdb-r/issues/22)).
@@ -1003,13 +966,6 @@
   from.
 
 - Removed all references to out-of-scope transient branches.
-
-## duckdb 1.5.2.9000
-
-### fledge
-
-- CRAN release v1.5.2
-  ([\#2312](https://github.com/duckdb/duckdb-r/issues/2312)).
 
 ## duckdb 1.5.2
 
