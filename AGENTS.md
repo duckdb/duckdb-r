@@ -138,7 +138,7 @@ R
 
 System requirements already satisfied in typical development environment:
 
-- R >= 4.1.0
+- R >= 4.2.0
 - build-essential (gcc, g++, make)
 - Standard R packages: DBI, testthat, methods, utils
 - Optional: cmake-format for code formatting
