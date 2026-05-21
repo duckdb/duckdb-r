@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.2.9008</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.2.9009</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -31,6 +31,30 @@
       <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.5.2.9009" id="duckdb-1529009">duckdb 1.5.2.9009<a class="anchor" aria-label="anchor" href="#duckdb-1529009"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-1-5-2-9009">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5-2-9009"></a></h3>
+<ul><li>Avoid rchk error in <code>RownamesDuplicate()</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2290" class="external-link">#2290</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2291" class="external-link">#2291</a>).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="features-1-5-2-9009">Features<a class="anchor" aria-label="anchor" href="#features-1-5-2-9009"></a></h3>
+<ul><li><p>Add support for <code>TIME WITH TIME ZONE</code> type in R bindings (<a href="https://github.com/duckdb/duckdb-r/issues/1807" class="external-link">#1807</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2336" class="external-link">#2336</a>).</p></li>
+<li><p>Store downloaded extensions inside the duckdb package install directory (<a href="https://github.com/duckdb/duckdb-r/issues/2327" class="external-link">#2327</a>).</p></li>
+<li><p>Add native VARIANT data type support (<a href="https://github.com/thohan88" class="external-link">@thohan88</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2313" class="external-link">#2313</a>).</p></li>
+<li><p>Add <code>is_distinct_from()</code> / <code>is_not_distinct_from()</code> dbplyr translations for compatibility with dbplyr 2.6.0 (<a href="https://github.com/duckdb/duckdb-r/issues/2326" class="external-link">#2326</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2332" class="external-link">#2332</a>).</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="chore-1-5-2-9009">Chore<a class="anchor" aria-label="anchor" href="#chore-1-5-2-9009"></a></h3>
+<ul><li><p>Bump minimum R version requirement to 4.2.0 (<a href="https://github.com/duckdb/duckdb-r/issues/2233" class="external-link">#2233</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2334" class="external-link">#2334</a>).</p></li>
+<li><p>Simplify <code>ValueToSexp()</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2333" class="external-link">#2333</a>).</p></li>
+<li><p>Remove unneeded <code>.d</code> file backup.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="testing-1-5-2-9009">Testing<a class="anchor" aria-label="anchor" href="#testing-1-5-2-9009"></a></h3>
+<ul><li>Add comprehensive test coverage for MAP type reading (<a href="https://github.com/duckdb/duckdb-r/issues/2342" class="external-link">#2342</a>).</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.5.2.9008" id="duckdb-1529008">duckdb 1.5.2.9008<a class="anchor" aria-label="anchor" href="#duckdb-1529008"></a></h2>
 <div class="section level3">

@@ -1,5 +1,47 @@
 # Changelog
 
+## duckdb 1.5.2.9009
+
+### Bug fixes
+
+- Avoid rchk error in `RownamesDuplicate()`
+  ([\#2290](https://github.com/duckdb/duckdb-r/issues/2290),
+  [\#2291](https://github.com/duckdb/duckdb-r/issues/2291)).
+
+### Features
+
+- Add support for `TIME WITH TIME ZONE` type in R bindings
+  ([\#1807](https://github.com/duckdb/duckdb-r/issues/1807),
+  [\#2336](https://github.com/duckdb/duckdb-r/issues/2336)).
+
+- Store downloaded extensions inside the duckdb package install
+  directory ([\#2327](https://github.com/duckdb/duckdb-r/issues/2327)).
+
+- Add native VARIANT data type support
+  ([@thohan88](https://github.com/thohan88),
+  [\#2313](https://github.com/duckdb/duckdb-r/issues/2313)).
+
+- Add `is_distinct_from()` / `is_not_distinct_from()` dbplyr
+  translations for compatibility with dbplyr 2.6.0
+  ([\#2326](https://github.com/duckdb/duckdb-r/issues/2326),
+  [\#2332](https://github.com/duckdb/duckdb-r/issues/2332)).
+
+### Chore
+
+- Bump minimum R version requirement to 4.2.0
+  ([\#2233](https://github.com/duckdb/duckdb-r/issues/2233),
+  [\#2334](https://github.com/duckdb/duckdb-r/issues/2334)).
+
+- Simplify `ValueToSexp()`
+  ([\#2333](https://github.com/duckdb/duckdb-r/issues/2333)).
+
+- Remove unneeded `.d` file backup.
+
+### Testing
+
+- Add comprehensive test coverage for MAP type reading
+  ([\#2342](https://github.com/duckdb/duckdb-r/issues/2342)).
+
 ## duckdb 1.5.2.9008
 
 ### Chore
