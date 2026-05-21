@@ -165,7 +165,14 @@ private:
 		switch (filter.filter_type) {
 		case TableFilterType::CONSTANT_COMPARISON: {
 			auto constant_filter = (ConstantFilter &)filter;
-			cpp11::sexp constant_sexp = RApiTypes::ValueToSexp(constant_filter.constant, timezone_config);
+			ConvertOpts filter_opts;
+			cpp11::sexp constant_sexp = RApiTypes::ValueToSexp(constant_filter.constant, filter_opts);
+
+			// Scalar TIMESTAMP (no TZ) must have tzone="" for Arrow pushdown compatibility
+			if (constant_filter.constant.type().id() == LogicalTypeId::TIMESTAMP && TYPEOF(constant_sexp) == REALSXP) {
+				Rf_setAttrib(constant_sexp, RStrings::get().tzone_sym, StringsToSexp({""}));
+			}
+
 			cpp11::sexp constant_expr = CreateScalar(functions, constant_sexp);
 			switch (constant_filter.comparison_type) {
 			case ExpressionType::COMPARE_EQUAL: {
