@@ -456,6 +456,32 @@ sql_escape_datetime.duckdb_connection <- function(con, x) {
   dbQLit(con, x)
 }
 
+# Customized escape translation for double values, so that Inf, -Inf and NaN
+# are cast to DOUBLE in DuckDB instead of being interpreted as plain strings.
+# https://github.com/duckdb/duckdb-r/issues/1585
+# Registered as an S3 method for dbplyr's `escape` generic in .onLoad();
+# the default branch reproduces dbplyr's own behaviour so other backends are
+# unaffected.
+escape.double <- function(x, parens = NA, collapse = ", ", con = NULL) {
+  sql_vector <- pkg_method("sql_vector", "dbplyr")
+  is_whole_number <- pkg_method("is_whole_number", "dbplyr")
+
+  out <- ifelse(is_whole_number(x), sprintf("%.1f", x), as.character(x))
+  out[is.na(x)] <- "NULL"
+  inf <- is.infinite(x)
+
+  if (inherits(con, "duckdb_connection")) {
+    out[inf & x > 0] <- "'Infinity'::DOUBLE"
+    out[inf & x < 0] <- "'-Infinity'::DOUBLE"
+    out[is.nan(x)] <- "'NaN'::DOUBLE"
+  } else {
+    out[inf & x > 0] <- "'Infinity'"
+    out[inf & x < 0] <- "'-Infinity'"
+  }
+
+  sql_vector(out, parens, collapse, con = con)
+}
+
 # Customized handling for tbl() to allow the use of replacement scans
 # @param src .con A \code{\link{dbConnect}} object, as returned by \code{dbConnect()}
 # @param from Table or parquet/csv -files to be registered
