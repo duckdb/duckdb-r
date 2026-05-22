@@ -92,10 +92,10 @@ write.csv(data.frame(a = 1:3, b = letters[2:4]))
 
 db_csv <- tbl_file(con, path)
 #> Error in db_query_fields.DBIConnection(con, ...): Can't query fields.
-#> ℹ Using SQL: SELECT * FROM (FROM '/tmp/Rtmpuojk21/file5f252172d5ab.csv') q01
+#> ℹ Using SQL: SELECT * FROM (FROM '/tmp/Rtmpq7SXzC/file3a547228cc38.csv') q01
 #>   WHERE (0 = 1)
 #> Caused by error in `dbSendQuery()`:
-#> ! IO Error: No files found that match the pattern "/tmp/Rtmpuojk21/file5f252172d5ab.csv"
+#> ! IO Error: No files found that match the pattern "/tmp/Rtmpq7SXzC/file3a547228cc38.csv"
 #> ℹ Context: rapi_prepare
 #> ℹ Error type: IO
 db_csv %>%
@@ -105,11 +105,11 @@ db_csv %>%
 db_csv_fun <- tbl_function(con, paste0("read_csv_auto('", path, "')"))
 #> Error in db_query_fields.DBIConnection(con, ...): Can't query fields.
 #> ℹ Using SQL: SELECT * FROM (FROM
-#>   read_csv_auto('/tmp/Rtmpuojk21/file5f252172d5ab.csv')) q02 WHERE (0 = 1)
+#>   read_csv_auto('/tmp/Rtmpq7SXzC/file3a547228cc38.csv')) q02 WHERE (0 = 1)
 #> Caused by error in `dbSendQuery()`:
-#> ! IO Error: No files found that match the pattern "/tmp/Rtmpuojk21/file5f252172d5ab.csv"
+#> ! IO Error: No files found that match the pattern "/tmp/Rtmpq7SXzC/file3a547228cc38.csv"
 #> 
-#> LINE 2: FROM (FROM read_csv_auto('/tmp/Rtmpuojk21/file5f252172d5ab.csv')) q02
+#> LINE 2: FROM (FROM read_csv_auto('/tmp/Rtmpq7SXzC/file3a547228cc38.csv')) q02
 #>                    ^
 #> ℹ Context: rapi_prepare
 #> ℹ Error type: IO
