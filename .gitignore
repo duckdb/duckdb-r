@@ -100,6 +100,7 @@ $RECYCLE.BIN/
 /build
 *.tar.gz
 *.tgz
+/src/duckdb.tar.xz
 /src/**/*.o
 /src/*.d
 /src/*.so
