@@ -102,7 +102,20 @@ if [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "1" ] || [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "t
     echo "PKG_LIBS=-L${duckdb_lib_dir} -lduckdb -Wl,-rpath,${duckdb_lib_dir}"
   } >> Makevars.duckdb
 
-  # Skip the prebuilt-archive logic and duckdb.tar.xz extraction below.
+  # The vendored headers are still required: the R glue code includes
+  # internal DuckDB C++ headers from duckdb/src/include/. After
+  # `R CMD build` runs the cleanup script, those headers live inside
+  # src/duckdb.tar.xz and must be extracted before compilation.
+  if [ -f duckdb.tar.xz ]; then
+    if command -v gtar >/dev/null 2>&1 && command -v xz >/dev/null 2>&1; then
+      TAR=gtar
+    else
+      TAR=tar
+    fi
+    $TAR xJf duckdb.tar.xz
+  fi
+
+  # Skip the prebuilt-archive logic below; we have nothing to compile.
   exit 0
 fi
 
