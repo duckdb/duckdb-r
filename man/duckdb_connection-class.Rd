@@ -10,6 +10,7 @@
 %   R/dbQuoteLiteral__duckdb_connection.R,
 %   R/dbRemoveTable__duckdb_connection_character.R,
 %   R/dbRollback__duckdb_connection.R,
+%   R/dbSendQueryArrow__duckdb_connection_character.R,
 %   R/dbSendQuery__duckdb_connection_character.R,
 %   R/dbWriteTable__duckdb_connection_character_data.frame.R,
 %   R/show__duckdb_connection.R
@@ -45,6 +46,8 @@
 \alias{dbRemoveTable,duckdb_connection,character-method}
 \alias{dbRollback__duckdb_connection}
 \alias{dbRollback,duckdb_connection-method}
+\alias{dbSendQueryArrow__duckdb_connection_character}
+\alias{dbSendQueryArrow,duckdb_connection,character-method}
 \alias{dbSendQuery__duckdb_connection_character}
 \alias{dbSendQuery,duckdb_connection,character-method}
 \alias{dbWriteTable__duckdb_connection_character_data.frame}
@@ -78,6 +81,8 @@
 \S4method{dbRemoveTable}{duckdb_connection,character}(conn, name, ..., fail_if_missing = TRUE)
 
 \S4method{dbRollback}{duckdb_connection}(conn, ...)
+
+\S4method{dbSendQueryArrow}{duckdb_connection,character}(conn, statement, params = NULL, ...)
 
 \S4method{dbSendQuery}{duckdb_connection,character}(conn, statement, params = NULL, ..., arrow = FALSE)
 

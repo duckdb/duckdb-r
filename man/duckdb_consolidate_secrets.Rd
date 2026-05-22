@@ -33,15 +33,15 @@ connection, determined by:
 \enumerate{
 \item \code{getOption("duckdb.secret_directory")},
 \item the \code{DUCKDB_SECRET_DIRECTORY} environment variable,
-\item the R-specific default returned by \code{\link[tools:userdir]{tools::R_user_dir()}}.
+\item the R-specific default returned by \code{\link[tools:R_user_dir]{tools::R_user_dir()}}.
 }
 
 Two source directories are considered automatically:
 
 \itemize{
 \item the location shared with the DuckDB CLI and Python client
-(\code{~/.duckdb/stored_secrets}), and
-\item the R-specific default location under \code{\link[tools:userdir]{tools::R_user_dir()}}.
+(\verb{~/.duckdb/stored_secrets}), and
+\item the R-specific default location under \code{\link[tools:R_user_dir]{tools::R_user_dir()}}.
 }
 
 Whichever of these equals the target is skipped. An additional source
@@ -49,12 +49,12 @@ directory may be supplied via \code{from}. Source files are moved into the
 target (copied and then removed).
 
 To consistently share secrets with the DuckDB CLI and Python client,
-set the \code{duckdb.secret_directory} R option, typically in \code{~/.Rprofile}:
+set the \code{duckdb.secret_directory} R option, typically in \verb{~/.Rprofile}:
 
 \preformatted{options(duckdb.secret_directory = "~/.duckdb/stored_secrets")}
 
 Alternatively, set the \code{DUCKDB_SECRET_DIRECTORY} environment variable in
-\code{~/.Renviron} (e.g.\ via \code{usethis::edit_r_environ()}). Either way, then
+\verb{~/.Renviron} (e.g.\ via \code{usethis::edit_r_environ()}). Either way, then
 call \code{duckdb_consolidate_secrets()} to move existing secrets into the
 chosen location.
 
