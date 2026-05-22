@@ -23,17 +23,30 @@ echo DUCKDB_RSTRTMGR=1 > Makevars.rstrtmgr
 echo DUCKDB_RSTRTMGR_LIB= >> Makevars.rstrtmgr
 
 
-# Opt-in mode: link the R package against a system-installed libduckdb
-# (the shared object shipped by the DuckDB project) instead of compiling
-# the ~1700 vendored .cpp files. This shrinks `R CMD INSTALL .` from
-# minutes to seconds and is intended for local development, CI/CD smoke
-# tests, and coding-agent iteration. Not for `R CMD build` / CRAN-style
-# tarballs: the resulting installation depends on libduckdb being
-# present at runtime.
+# Opt-in mode: skip compilation of the ~1700 vendored .cpp files and
+# link the R package against a system-installed libduckdb instead.
+# Shrinks `R CMD INSTALL .` from minutes to seconds. Intended for local
+# development, CI smoke tests, and coding-agent iteration. Not for
+# `R CMD build` / CRAN-style tarballs: the resulting installation
+# depends on libduckdb being present at runtime.
 #
-# Linux and macOS only. The vendored headers under src/duckdb/src/include
-# are still used; the glue code reaches into internal C++ APIs that the
-# upstream libduckdb.so / .dylib exports.
+# Linux and macOS only.
+#
+# How this works:
+#   * The R glue code uses ~71 internal DuckDB C++ headers (templates,
+#     extension internals, Arrow integration) that are NOT in the
+#     amalgamated duckdb.hpp shipped with libduckdb releases. So we
+#     keep using the vendored header tree in src/duckdb/src/include/
+#     for the *headers*, and only swap the *implementation* for the
+#     system libduckdb.
+#   * That is only safe if the vendored sources and the system library
+#     were built from the same commit. We hard-fail otherwise, by
+#     checking that the DUCKDB_SOURCE_ID string in the vendored
+#     pragma_version.cpp is embedded in libduckdb.{so,dylib}.
+#   * Under `R CMD check`, the package is first tarballed by `R CMD
+#     build`, which runs cleanup and compresses src/duckdb/ into
+#     src/duckdb.tar.xz. We extract that tarball below so the headers
+#     are available for compilation of the glue code.
 if [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "1" ] || [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "true" ]; then
   uname_s=$(uname -s)
   case "${uname_s}" in
@@ -67,29 +80,33 @@ if [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "1" ] || [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "t
   fi
   echo "Using system libduckdb from: ${duckdb_lib_dir}/libduckdb.${lib_ext}"
 
-  # Hard-fail if the system libduckdb does not match the vendored sources.
-  # The vendored header layout (private C++ APIs) only matches the
-  # upstream library if both were built from the same commit. We check
-  # the embedded DUCKDB_VERSION and DUCKDB_SOURCE_ID strings.
+  # Hard-fail unless the system libduckdb was built from the same upstream
+  # commit as the vendored sources. The glue compiles against the vendored
+  # internal headers; the only thing that guarantees the layout matches
+  # the loaded library is an exact-commit match. We check the embedded
+  # DUCKDB_SOURCE_ID string in the .so/.dylib.
   version_file=duckdb/src/function/table/version/pragma_version.cpp
   if [ -f "${version_file}" ]; then
     vendored_version=$(sed -n 's/^#define DUCKDB_VERSION "\(.*\)"$/\1/p' "${version_file}")
     vendored_source_id=$(sed -n 's/^#define DUCKDB_SOURCE_ID "\(.*\)"$/\1/p' "${version_file}")
-    echo "Vendored DuckDB version: ${vendored_version} (source id: ${vendored_source_id})"
+    echo "Vendored DuckDB headers: ${vendored_version} (commit ${vendored_source_id})"
 
     if ! command -v strings >/dev/null 2>&1; then
-      echo "Cannot find 'strings' to verify libduckdb version. Install binutils." >&2
+      echo "Cannot find 'strings' to verify libduckdb commit. Install binutils." >&2
       exit 1
     fi
 
-    lib_strings=$(strings "${duckdb_lib_dir}/libduckdb.${lib_ext}")
-    if [ -n "${vendored_source_id}" ] && ! printf '%s\n' "${lib_strings}" | grep -qxF "${vendored_source_id}"; then
+    if [ -n "${vendored_source_id}" ] && ! strings "${duckdb_lib_dir}/libduckdb.${lib_ext}" | grep -qxF "${vendored_source_id}"; then
+      installed_source_id=$(strings "${duckdb_lib_dir}/libduckdb.${lib_ext}" | grep -E '^[0-9a-f]{10}$' | head -n 1)
       echo "" >&2
-      echo "ERROR: libduckdb.${lib_ext} does not contain the vendored DUCKDB_SOURCE_ID '${vendored_source_id}'." >&2
-      echo "Vendored DuckDB ${vendored_version} (commit ${vendored_source_id}) does not match the system library." >&2
-      echo "The R glue code uses internal C++ headers and requires an exact-commit match." >&2
-      echo "Run scripts/install-libduckdb.sh to install a matching build, or" >&2
-      echo "unset DUCKDB_R_USE_SYSTEM_LIB to compile the vendored sources." >&2
+      echo "ERROR: vendored headers and system libduckdb were built from different commits." >&2
+      echo "  vendored headers expect commit: ${vendored_source_id} (${vendored_version})" >&2
+      echo "  ${duckdb_lib_dir}/libduckdb.${lib_ext} reports commit: ${installed_source_id:-<not found>}" >&2
+      echo "" >&2
+      echo "The R glue includes internal DuckDB C++ headers; these are only" >&2
+      echo "ABI-compatible with the matching commit's libduckdb. Either:" >&2
+      echo "  * run scripts/install-libduckdb.sh to install a matching build, or" >&2
+      echo "  * unset DUCKDB_R_USE_SYSTEM_LIB to compile the vendored sources." >&2
       exit 1
     fi
   fi
@@ -102,10 +119,9 @@ if [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "1" ] || [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "t
     echo "PKG_LIBS=-L${duckdb_lib_dir} -lduckdb -Wl,-rpath,${duckdb_lib_dir}"
   } >> Makevars.duckdb
 
-  # The vendored headers are still required: the R glue code includes
-  # internal DuckDB C++ headers from duckdb/src/include/. After
-  # `R CMD build` runs the cleanup script, those headers live inside
-  # src/duckdb.tar.xz and must be extracted before compilation.
+  # Extract the vendored headers if R CMD build has compressed them. The
+  # glue code's `#include "duckdb/..."` lines resolve under -Iduckdb/src/include
+  # which only exists once the tarball is unpacked.
   if [ -f duckdb.tar.xz ]; then
     if command -v gtar >/dev/null 2>&1 && command -v xz >/dev/null 2>&1; then
       TAR=gtar
