@@ -88,26 +88,46 @@ fi
 
 unzip -q -o "${zip}" -d "${tmpdir}/extracted"
 
-mkdir -p "${prefix}/lib" "${prefix}/include"
+# Use sudo only when we're not root and the prefix isn't writable. This
+# keeps callers from having to special-case Linux (/usr/local typically
+# needs root) vs. macOS (writable by the runner user on GitHub Actions)
+# vs. local dev (`--prefix=$HOME/.local`).
+SUDO=
+if [ "$(id -u)" != "0" ]; then
+  probe="${prefix}"
+  while [ ! -d "${probe}" ]; do
+    probe=$(dirname "${probe}")
+  done
+  if [ ! -w "${probe}" ]; then
+    if command -v sudo >/dev/null 2>&1; then
+      SUDO=sudo
+    else
+      echo "${prefix} is not writable and sudo is not available." >&2
+      exit 1
+    fi
+  fi
+fi
+
+${SUDO} mkdir -p "${prefix}/lib" "${prefix}/include"
 
 case "${uname_s}" in
   Linux)
-    install -m 0755 "${tmpdir}/extracted/libduckdb.so" "${prefix}/lib/libduckdb.so"
+    ${SUDO} install -m 0755 "${tmpdir}/extracted/libduckdb.so" "${prefix}/lib/libduckdb.so"
     ;;
   Darwin)
-    install -m 0755 "${tmpdir}/extracted/libduckdb.dylib" "${prefix}/lib/libduckdb.dylib"
+    ${SUDO} install -m 0755 "${tmpdir}/extracted/libduckdb.dylib" "${prefix}/lib/libduckdb.dylib"
     ;;
 esac
 
 if [ -f "${tmpdir}/extracted/duckdb.h" ]; then
-  install -m 0644 "${tmpdir}/extracted/duckdb.h"   "${prefix}/include/duckdb.h"
+  ${SUDO} install -m 0644 "${tmpdir}/extracted/duckdb.h"   "${prefix}/include/duckdb.h"
 fi
 if [ -f "${tmpdir}/extracted/duckdb.hpp" ]; then
-  install -m 0644 "${tmpdir}/extracted/duckdb.hpp" "${prefix}/include/duckdb.hpp"
+  ${SUDO} install -m 0644 "${tmpdir}/extracted/duckdb.hpp" "${prefix}/include/duckdb.hpp"
 fi
 
-if [ "${uname_s}" = "Linux" ] && [ "$(id -u)" = "0" ] && command -v ldconfig >/dev/null 2>&1; then
-  ldconfig
+if [ "${uname_s}" = "Linux" ] && command -v ldconfig >/dev/null 2>&1; then
+  ${SUDO} ldconfig
 fi
 
 echo "Installed libduckdb ${version} to ${prefix}"
