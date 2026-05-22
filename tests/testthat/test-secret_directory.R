@@ -1,4 +1,6 @@
 skip_on_cran()
+skip_on_os("windows")
+skip_on_os("mac")
 
 local_secret_dirs <- function(.local_envir = parent.frame()) {
   root <- withr::local_tempdir(.local_envir = .local_envir)
