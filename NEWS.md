@@ -1,35 +1,31 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.5.2.9901
+# duckdb 1.5.3.9000
+
+- Switching to development version.
+
+
+# duckdb 1.5.3
 
 ## Features
-
-- Add secret directory configuration, package startup message, and consolidation support via new experimental `duckdb_consolidate_secrets()` (#2305, #2340).
-
-- New `env` argument to `rel_from_sql()` (#645, #1077).
-
-
-# duckdb 1.5.2.9900
-
-## Bug fixes
 
 - Update to DuckDB v1.5.3, see <https://github.com/duckdb/duckdb/releases/tag/v1.5.3> for details.
 
+- Add secret directory configuration, package startup message, and consolidation support via new experimental `duckdb_consolidate_secrets()` (#2305, #2340).
+
+- Add native `VARIANT` (@thohan88, #2313) and `TIME WITH TIME ZONE` (#1807, #2336) data type support.
+
+- Add `is_distinct_from()` / `is_not_distinct_from()` dbplyr translations for compatibility with upcoming dbplyr 2.6.0 (#2326, #2332).
+
+## Bug fixes
+
 - Avoid rchk error in `RownamesDuplicate()` (#2290, #2291).
-
-## Features
-
-- Add support for `TIME WITH TIME ZONE` type in R bindings (#1807, #2336).
-
-- Store downloaded extensions inside the duckdb package install directory (#2327).
-
-- Add native `VARIANT` data type support (@thohan88, #2313).
-
-- Add `is_distinct_from()` / `is_not_distinct_from()` dbplyr translations for compatibility with dbplyr 2.6.0 (#2326, #2332).
 
 ## Chore
 
 - Bump minimum R version requirement to 4.2.0 (#2233, #2334).
+
+- Store downloaded extensions inside the duckdb package install directory (#2327).
 
 ## Testing
 
