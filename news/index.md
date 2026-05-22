@@ -1,5 +1,9 @@
 # Changelog
 
+## duckdb 1.5.3.9000
+
+- Switching to development version.
+
 ## duckdb 1.5.3
 
 ### Features
