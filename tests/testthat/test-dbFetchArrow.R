@@ -51,13 +51,15 @@ test_that("dbFetchArrow() errors after the result is cleared", {
   expect_error(dbFetchArrowChunk(res), "cleared")
 })
 
-test_that("dbFetchArrow() errors when the result has already been consumed", {
+test_that("dbFetchArrow() returns an empty stream after the result is consumed", {
   con <- local_con()
   res <- dbSendQueryArrow(con, "SELECT 1 AS a")
   on.exit(dbClearResult(res), add = TRUE)
 
   dbFetchArrow(res)
-  expect_error(dbFetchArrow(res), "consumed")
+  again <- dbFetchArrow(res)
+  expect_s3_class(again, "nanoarrow_array_stream")
+  expect_equal(length(nanoarrow::collect_array_stream(again)), 0L)
 })
 
 test_that("dbSendQueryArrow() + dbFetchArrowChunk() streams large queries", {

@@ -3,6 +3,8 @@
 %   R/dbClearResult__duckdb_result_arrow.R,
 %   R/dbColumnInfo__duckdb_result_arrow.R,
 %   R/dbFetchArrow__duckdb_result_arrow.R,
+%   R/dbGetRowCount__duckdb_result_arrow.R,
+%   R/dbGetRowsAffected__duckdb_result_arrow.R,
 %   R/dbGetStatement__duckdb_result_arrow.R,
 %   R/dbHasCompleted__duckdb_result_arrow.R,
 %   R/dbIsValid__duckdb_result_arrow.R, R/show__duckdb_result_arrow.R
@@ -22,6 +24,10 @@
 \alias{dbFetchArrow,duckdb_result_arrow-method}
 \alias{dbFetchArrowChunk__duckdb_result_arrow}
 \alias{dbFetchArrowChunk,duckdb_result_arrow-method}
+\alias{dbGetRowCount__duckdb_result_arrow}
+\alias{dbGetRowCount,duckdb_result_arrow-method}
+\alias{dbGetRowsAffected__duckdb_result_arrow}
+\alias{dbGetRowsAffected,duckdb_result_arrow-method}
 \alias{dbGetStatement__duckdb_result_arrow}
 \alias{dbGetStatement,duckdb_result_arrow-method}
 \alias{dbHasCompleted__duckdb_result_arrow}
@@ -43,6 +49,10 @@
 \S4method{dbFetchArrow}{duckdb_result_arrow}(res, ..., chunk_size = 1e+06)
 
 \S4method{dbFetchArrowChunk}{duckdb_result_arrow}(res, ..., chunk_size = 1e+06)
+
+\S4method{dbGetRowCount}{duckdb_result_arrow}(res, ...)
+
+\S4method{dbGetRowsAffected}{duckdb_result_arrow}(res, ...)
 
 \S4method{dbGetStatement}{duckdb_result_arrow}(res, ...)
 

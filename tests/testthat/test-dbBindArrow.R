@@ -38,7 +38,9 @@ test_that("dbBindArrow() works with a nanoarrow stream", {
   res <- dbSendQueryArrow(con, "SELECT * FROM mt WHERE cyl = ?")
   on.exit(dbClearResult(res), add = TRUE)
 
-  arrow_params <- nanoarrow::as_nanoarrow_array_stream(data.frame(cyl = 8L))
+  arrow_params <- nanoarrow::as_nanoarrow_array_stream(
+    stats::setNames(data.frame(8L), "")
+  )
   dbBindArrow(res, arrow_params)
 
   stream <- dbFetchArrow(res)
@@ -64,13 +66,16 @@ test_that("dbBind() resets completion state for re-use", {
   expect_false(dbHasCompleted(res))
 })
 
-test_that("dbBindArrow() rejects multi-row parameter streams", {
+test_that("dbBindArrow() runs the query once per row for multi-row streams", {
   con <- local_con()
-  dbExecute(con, "CREATE TABLE t (a INTEGER)")
 
-  res <- dbSendQueryArrow(con, "INSERT INTO t VALUES (?)")
+  res <- dbSendQueryArrow(con, "SELECT ? + 1.0 AS a")
   on.exit(dbClearResult(res), add = TRUE)
 
-  arrow_params <- nanoarrow::as_nanoarrow_array_stream(data.frame(a = c(1L, 2L)))
-  expect_error(dbBindArrow(res, arrow_params), "length one")
+  arrow_params <- nanoarrow::as_nanoarrow_array_stream(
+    stats::setNames(data.frame(c(1, 2, 3) - 1), "")
+  )
+  dbBindArrow(res, arrow_params)
+  df <- dbFetch(res)
+  expect_equal(df$a, c(1, 2, 3))
 })

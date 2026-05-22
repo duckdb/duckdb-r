@@ -113,6 +113,8 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	return construct_retlist(std::move(stmt), query, n_param, conn->db->registered_dfs);
 }
 
+static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &convert_opts, bool allow_stream_result);
+
 [[cpp11::register]] cpp11::list rapi_bind(duckdb::stmt_eptr_t stmt, cpp11::list params,
                                           duckdb::ConvertOpts convert_opts) {
 	if (!stmt || !stmt.get() || !stmt->stmt) {
@@ -141,9 +143,10 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		}
 	}
 
-	if (n_rows != 1 && convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED) {
-		rapi_error_with_context("rapi_bind", "Bind parameter values need to have length one for arrow queries");
-	}
+	// Streaming arrow results from the same prepared statement cannot coexist
+	// (each Execute() invalidates the previous StreamQueryResult). Materialize
+	// per-row arrow results when binding multiple rows.
+	bool allow_stream_result = convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED && n_rows == 1;
 
 	cpp11::writable::list out;
 	out.reserve(n_rows);
@@ -156,7 +159,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		}
 
 		// Protection error is flagged by rchk
-		cpp11::sexp res = rapi_execute(stmt, convert_opts);
+		cpp11::sexp res = rapi_execute_impl(stmt.get(), convert_opts, allow_stream_result);
 		out.push_back(res);
 	}
 
@@ -385,14 +388,9 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	return cpp11::safe[Rf_eval](record_batch_reader, arrow_namespace);
 }
 
-[[cpp11::register]] SEXP rapi_execute(duckdb::stmt_eptr_t stmt, duckdb::ConvertOpts convert_opts) {
-	if (!stmt || !stmt.get() || !stmt->stmt) {
-		rapi_error_with_context("rapi_execute", "Invalid statement");
-	}
-
+static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &convert_opts, bool allow_stream_result) {
 	ScopedInterruptHandler signal_handler(stmt->stmt->context);
 
-	bool allow_stream_result = convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED;
 	auto generic_result = stmt->stmt->Execute(stmt->parameters, allow_stream_result);
 
 	signal_handler.HandleInterrupt();
@@ -417,4 +415,13 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 		cpp11::sexp out = duckdb_execute_R_impl(result, convert_opts, RStrings::get().dataframe_str);
 		return out;
 	}
+}
+
+[[cpp11::register]] SEXP rapi_execute(duckdb::stmt_eptr_t stmt, duckdb::ConvertOpts convert_opts) {
+	if (!stmt || !stmt.get() || !stmt->stmt) {
+		rapi_error_with_context("rapi_execute", "Invalid statement");
+	}
+
+	bool allow_stream_result = convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED;
+	return rapi_execute_impl(stmt.get(), convert_opts, allow_stream_result);
 }

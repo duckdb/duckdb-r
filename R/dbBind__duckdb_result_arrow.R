@@ -8,6 +8,7 @@ dbBind__duckdb_result_arrow <- function(res, params, ...) {
   res@env$completed <- FALSE
   res@env$arrow_schema <- NULL
   res@env$query_result <- NULL
+  res@env$pending_query_results <- NULL
 
   params <- as.list(params)
   if (!is.null(names(params))) {
@@ -21,10 +22,15 @@ dbBind__duckdb_result_arrow <- function(res, params, ...) {
     params,
     duckdb_convert_opts_impl(res@connection@convert_opts, arrow = TRUE)
   )
-  if (length(out) != 1) {
-    stop("Arrow bind expects a single set of parameters")
+  if (length(out) == 0L) {
+    # Zero-length bind: no executions; result is immediately drained.
+    res@env$completed <- TRUE
+  } else {
+    res@env$query_result <- out[[1L]]
+    if (length(out) > 1L) {
+      res@env$pending_query_results <- out[-1L]
+    }
   }
-  res@env$query_result <- out[[1]]
   invisible(res)
 }
 
@@ -37,7 +43,10 @@ setMethod("dbBind", "duckdb_result_arrow", dbBind__duckdb_result_arrow)
 #' @usage NULL
 dbBindArrow__duckdb_result_arrow <- function(res, params, ...) {
   require_nanoarrow("dbBindArrow()")
-  param_list <- unname(as.list(as.data.frame(nanoarrow::as_nanoarrow_array_stream(params))))
+  param_list <- as.list(as.data.frame(nanoarrow::as_nanoarrow_array_stream(params)))
+  if (length(param_list) > 0 && all(names(param_list) == "")) {
+    names(param_list) <- NULL
+  }
   dbBind(res, param_list, ...)
 }
 
