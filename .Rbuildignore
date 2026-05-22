@@ -47,3 +47,4 @@ _files$
 ^\.claude$
 ^extensions$
 ^plan$
+^runs$
