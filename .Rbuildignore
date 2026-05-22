@@ -46,4 +46,5 @@ _files$
 ^BRANCHES\.md$
 ^\.claude$
 ^extensions$
+^plan$
 ^runs$
