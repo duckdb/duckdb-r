@@ -48,3 +48,4 @@ _files$
 ^extensions$
 ^plan$
 ^runs$
+^inst/extensions$
