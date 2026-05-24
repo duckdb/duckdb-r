@@ -1,5 +1,18 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.3.9002
+
+## Bug fixes
+
+- Use memcmp in StringValueComparison to silence valgrind (#2349).
+
+## Continuous integration
+
+- Update ccache-action reference.
+
+- Bump action version.
+
+
 # duckdb 1.5.3.9001
 
 ## Bug fixes
