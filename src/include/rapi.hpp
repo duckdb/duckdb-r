@@ -29,6 +29,23 @@
 
 #define DUCKDB_PACKAGE_NAME "duckdb"
 
+// Guard for ALTREP methods - calling into R from ALTREP methods is unsafe.
+// When an AltrepGuard is on the stack, rapi_error_with_context() throws a
+// C++ exception (caught by BEGIN_CPP11/END_CPP11) instead of invoking the
+// duckdb::rapi_error R function, which would trigger a long-jmp out of the
+// ALTREP method and leave R in an inconsistent state.
+class AltrepGuard {
+public:
+	AltrepGuard();
+	~AltrepGuard();
+	AltrepGuard(const AltrepGuard &) = delete;
+	AltrepGuard &operator=(const AltrepGuard &) = delete;
+	static bool IsActive();
+
+private:
+	static thread_local int depth;
+};
+
 // Helper functions to communicate errors via R's stop() function with context information
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message);
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::exception &e);
