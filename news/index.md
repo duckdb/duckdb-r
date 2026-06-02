@@ -1,26 +1,5 @@
 # Changelog
 
-## duckdb 1.5.3.9001
-
-### Bug fixes
-
-- Silence valgrind errors in TransactionContext and BaseStatistics
-  ([\#1](https://github.com/duckdb/duckdb-r/issues/1),
-  [\#2](https://github.com/duckdb/duckdb-r/issues/2),
-  [\#2348](https://github.com/duckdb/duckdb-r/issues/2348)).
-
-### Chore
-
-- Build-ignore plan directory.
-
-### Continuous integration
-
-- Skip tests on Windows and macOS.
-
-## duckdb 1.5.3.9000
-
-- Switching to development version.
-
 ## duckdb 1.5.3
 
 ### Features
