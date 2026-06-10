@@ -1,5 +1,33 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.3.9002
+
+## Bug fixes
+
+- Use memcmp in StringValueComparison to silence valgrind (#2349).
+
+## Continuous integration
+
+- Update ccache-action reference.
+
+- Bump action version.
+
+
+# duckdb 1.5.3.9001
+
+## Bug fixes
+
+- Silence valgrind errors in TransactionContext and BaseStatistics (#1, #2, #2348).
+
+## Chore
+
+- Build-ignore plan directory.
+
+## Continuous integration
+
+- Skip tests on Windows and macOS.
+
+
 # duckdb 1.5.3.9000
 
 - Switching to development version.
