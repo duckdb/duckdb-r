@@ -39,13 +39,13 @@ rather than indeterminate.
  1 file changed, 8 insertions(+), 2 deletions(-)
 
 diff --git a/src/duckdb/src/storage/statistics/base_statistics.cpp b/src/duckdb/src/storage/statistics/base_statistics.cpp
-index 0000000..0000000 100644
 --- a/src/duckdb/src/storage/statistics/base_statistics.cpp
 +++ b/src/duckdb/src/storage/statistics/base_statistics.cpp
-@@ -12,7 +12,8 @@ namespace duckdb {
- //===--------------------------------------------------------------------===//
- // Base Statistics
- //===--------------------------------------------------------------------===//
+@@ -11,8 +11,9 @@
+ #include "duckdb/common/serializer/deserializer.hpp"
+
+ namespace duckdb {
+
 -BaseStatistics::BaseStatistics() : type(LogicalType::INVALID) {
 +BaseStatistics::BaseStatistics() : type(LogicalType::INVALID), has_null(false), has_no_null(false), distinct_count(0) {
 +	memset(&stats_union, 0, sizeof(stats_union));

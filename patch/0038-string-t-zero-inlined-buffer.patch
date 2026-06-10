@@ -34,10 +34,9 @@ once the caller is done writing.
  1 file changed, 8 insertions(+)
 
 diff --git a/src/duckdb/src/include/duckdb/common/types/string_type.hpp b/src/duckdb/src/include/duckdb/common/types/string_type.hpp
-index 0000000..0000000 100644
 --- a/src/duckdb/src/include/duckdb/common/types/string_type.hpp
 +++ b/src/duckdb/src/include/duckdb/common/types/string_type.hpp
-@@ -40,6 +40,14 @@ struct string_t {
+@@ -40,6 +40,13 @@ struct string_t {
  	string_t() = default;
  	explicit string_t(uint32_t len) {
  		value.inlined.length = len;
