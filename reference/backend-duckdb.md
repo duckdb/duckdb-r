@@ -77,7 +77,7 @@ db %>%
   filter(a > 1) %>%
   select(b)
 #> # Source:   SQL [?? x 1]
-#> # Database: DuckDB 1.5.3 [unknown@Linux 6.17.0-1015-azure:R 4.6.0/:memory:]
+#> # Database: DuckDB 1.5.4-dev157 [unknown@Linux 6.17.0-1015-azure:R 4.6.0/:memory:]
 #>   b    
 #>   <chr>
 #> 1 c    
@@ -92,10 +92,10 @@ write.csv(data.frame(a = 1:3, b = letters[2:4]))
 
 db_csv <- tbl_file(con, path)
 #> Error in db_query_fields.DBIConnection(con, ...): Can't query fields.
-#> ℹ Using SQL: SELECT * FROM (FROM '/tmp/Rtmp8dusFF/file5e625437da74.csv') q01
+#> ℹ Using SQL: SELECT * FROM (FROM '/tmp/RtmpuXXrM1/file5d576155b9fb.csv') q01
 #>   WHERE (0 = 1)
 #> Caused by error in `dbSendQuery()`:
-#> ! IO Error: No files found that match the pattern "/tmp/Rtmp8dusFF/file5e625437da74.csv"
+#> ! IO Error: No files found that match the pattern "/tmp/RtmpuXXrM1/file5d576155b9fb.csv"
 #> ℹ Context: rapi_prepare
 #> ℹ Error type: IO
 db_csv %>%
@@ -105,11 +105,11 @@ db_csv %>%
 db_csv_fun <- tbl_function(con, paste0("read_csv_auto('", path, "')"))
 #> Error in db_query_fields.DBIConnection(con, ...): Can't query fields.
 #> ℹ Using SQL: SELECT * FROM (FROM
-#>   read_csv_auto('/tmp/Rtmp8dusFF/file5e625437da74.csv')) q02 WHERE (0 = 1)
+#>   read_csv_auto('/tmp/RtmpuXXrM1/file5d576155b9fb.csv')) q02 WHERE (0 = 1)
 #> Caused by error in `dbSendQuery()`:
-#> ! IO Error: No files found that match the pattern "/tmp/Rtmp8dusFF/file5e625437da74.csv"
+#> ! IO Error: No files found that match the pattern "/tmp/RtmpuXXrM1/file5d576155b9fb.csv"
 #> 
-#> LINE 2: FROM (FROM read_csv_auto('/tmp/Rtmp8dusFF/file5e625437da74.csv')) q02
+#> LINE 2: FROM (FROM read_csv_auto('/tmp/RtmpuXXrM1/file5d576155b9fb.csv')) q02
 #>                    ^
 #> ℹ Context: rapi_prepare
 #> ℹ Error type: IO
