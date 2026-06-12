@@ -7,3 +7,19 @@ runs:
       run: |
         echo '_R_CHECK_PKG_SIZES_=FALSE' | tee -a $GITHUB_ENV
       shell: bash
+
+    - name: Enable the duckdb test suite and examples (skipped on CRAN)
+      run: |
+        # The duckdb tests and runnable examples exercise the bundled C++ engine
+        # and are gated behind DUCKDB_R_RUN_TESTS so they never run on CRAN
+        # (see tests/testthat.R and R/cran-guard.R). We opt in here for CI.
+        #
+        # The dedicated "poison" matrix entry sets DUCKDB_R_POISON instead and
+        # deliberately leaves DUCKDB_R_RUN_TESTS unset to verify the guard, so we
+        # skip enabling it when poisoning.
+        if [ -z "${DUCKDB_R_POISON:-}" ]; then
+          echo 'DUCKDB_R_RUN_TESTS=true' | tee -a $GITHUB_ENV
+        else
+          echo "DUCKDB_R_POISON is set; leaving DUCKDB_R_RUN_TESTS unset to verify the CRAN guard."
+        fi
+      shell: bash

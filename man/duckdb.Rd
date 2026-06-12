@@ -125,12 +125,13 @@ If the timestamp is invalid in the target timezone, the resulting value may be \
 or an adjusted time.
 }
 \examples{
-\dontshow{if (requireNamespace("adbcdrivermanager", quietly = TRUE)) withAutoprint(\{ # examplesIf}
+\dontshow{if (duckdb:::examples_enabled() && requireNamespace("adbcdrivermanager", quietly = TRUE)) withAutoprint(\{ # examplesIf}
 library(adbcdrivermanager)
 with_adbc(db <- adbc_database_init(duckdb_adbc()), {
   as.data.frame(read_adbc(db, "SELECT 1 as one;"))
 })
 \dontshow{\}) # examplesIf}
+\dontshow{if (duckdb:::examples_enabled()) withAutoprint(\{ # examplesIf}
 drv <- duckdb()
 con <- dbConnect(drv)
 
@@ -143,4 +144,5 @@ duckdb_shutdown(drv)
 con <- dbConnect(duckdb())
 dbGetQuery(con, "SELECT 'Hello, world!'")
 dbDisconnect(con, shutdown = TRUE)
+\dontshow{\}) # examplesIf}
 }

@@ -29,6 +29,26 @@
 
 #define DUCKDB_PACKAGE_NAME "duckdb"
 
+// CRAN guard / poisoning
+//
+// DuckDB ships its own large C++ engine. Exercising it (running the test suite
+// or the runnable examples) is too heavy for CRAN's check farm, so everything
+// that touches the C++ code is gated behind the DUCKDB_R_RUN_TESTS environment
+// variable on the R side (see tests/testthat.R and R/cran-guard.R). That
+// variable is unset on CRAN and set in our own continuous integration.
+//
+// When duckdb is additionally built with -DDUCKDB_R_POISON, every C++ API entry
+// point aborts immediately. A poisoned build is used in CI *without* setting
+// DUCKDB_R_RUN_TESTS to prove that the R-side guards are effective: if any test
+// or example reaches the C++ engine, the check fails loudly.
+#ifdef DUCKDB_R_POISON
+#define DUCKDB_R_POISON_GUARD()                                                                                        \
+	cpp11::stop("This duckdb build is poisoned (-DDUCKDB_R_POISON): the DuckDB C++ engine must not be exercised "       \
+	            "during R CMD check. This is intentional; set DUCKDB_R_RUN_TESTS to run the suite outside CRAN.")
+#else
+#define DUCKDB_R_POISON_GUARD() ((void)0)
+#endif
+
 // Helper functions to communicate errors via R's stop() function with context information
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message);
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::exception &e);

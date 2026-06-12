@@ -19,7 +19,7 @@
 #' @param conn An optional connection, defaults to [default_conn()]
 #' @return A data frame with the query result
 #' @export
-#' @examples
+#' @examplesIf duckdb:::examples_enabled()
 #' # Queries
 #' sql_query("SELECT 42")
 #'
@@ -67,7 +67,7 @@ the <- new.env(parent = emptyenv())
 #'
 #' @return A DuckDB connection object
 #' @export
-#' @examples
+#' @examplesIf duckdb:::examples_enabled()
 #' conn <- default_conn()
 #' sql_query("SELECT 42", conn = conn)
 default_conn <- function() {

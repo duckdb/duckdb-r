@@ -32,6 +32,7 @@ No data is copied.
 \code{duckdb_unregister()} unregisters a previously registered data frame.
 }
 \examples{
+\dontshow{if (duckdb:::examples_enabled()) withAutoprint(\{ # examplesIf}
 con <- dbConnect(duckdb())
 
 data <- data.frame(a = 1:3, b = letters[1:3])
@@ -42,4 +43,5 @@ dbReadTable(con, "data")
 duckdb_unregister(con, "data")
 
 dbDisconnect(con)
+\dontshow{\}) # examplesIf}
 }
