@@ -310,20 +310,12 @@ jobs:
         with:
           ref: ${{ needs.rcc-smoke.outputs.sha }}
 
-      # Build the DuckDB C++ engine with a hard stop at its entry points and
-      # leave DUCKDB_R_RUN_TESTS unset (the before-install step honours
-      # DUCKDB_R_POISON). If any test or example reaches the engine the check
-      # fails, proving the CRAN guards work.
-      - name: Configure poisoning to verify the CRAN guard
-        if: matrix.poison == 'true'
-        run: |
-          echo 'DUCKDB_R_POISON=1' | tee -a "$GITHUB_ENV"
-          mkdir -p ~/.R
-          echo 'CPPFLAGS += -DDUCKDB_R_POISON' | tee -a ~/.R/Makevars
-        shell: bash
-
       - uses: ./.github/workflows/custom/before-install
         if: hashFiles('.github/workflows/custom/before-install/action.yml') != ''
+        with:
+          # Generic: forward any per-entry environment variables defined in the
+          # test matrix (see .github/versions-matrix.R) to the custom action.
+          env: ${{ matrix.env }}
 
       - uses: ./.github/workflows/install
         with:
@@ -348,10 +340,10 @@ jobs:
         shell: Rscript {0}
 
       - uses: ./.github/workflows/update-snapshots
-        # Skip when poisoning: update-snapshots runs the tests directly via
-        # testthat::test_local(), bypassing the DUCKDB_R_RUN_TESTS guard in
-        # tests/testthat.R, which would hit the poisoned engine.
-        if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && matrix.poison != 'true'
+        # Generic escape hatch: a matrix entry may set SKIP_UPDATE_SNAPSHOTS
+        # (via the "env" field) to opt out of running the snapshot updater,
+        # which runs tests directly via testthat::test_local().
+        if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && env.SKIP_UPDATE_SNAPSHOTS != 'true'
         with:
           base: ${{ github.head_ref }}
 
