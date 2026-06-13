@@ -68,7 +68,19 @@ runs:
         fi
       shell: bash
 
+    # install-libduckdb.sh exits 0 without installing anything when the
+    # vendored DuckDB is a -dev snapshot for which no prebuilt is
+    # published. Detect that here and fall back to a source build by
+    # clearing DUCKDB_R_USE_SYSTEM_LIB, so configure compiles the
+    # vendored .cpp tree instead of failing on a missing libduckdb.
     - name: Install libduckdb (system-lib mode)
       if: env.DUCKDB_R_USE_SYSTEM_LIB == '1' && runner.os != 'Windows'
-      run: scripts/install-libduckdb.sh --prefix /usr/local
+      run: |
+        scripts/install-libduckdb.sh --prefix /usr/local
+        ext=so
+        [ "${RUNNER_OS}" = "macOS" ] && ext=dylib
+        if [ ! -f "/usr/local/lib/libduckdb.${ext}" ]; then
+          echo "libduckdb was not installed (likely a dev snapshot with no published prebuilt); falling back to source build."
+          echo 'DUCKDB_R_USE_SYSTEM_LIB=0' | tee -a "$GITHUB_ENV"
+        fi
       shell: bash

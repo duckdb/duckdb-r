@@ -82,19 +82,19 @@ esac
 if [ -z "${url}" ]; then
   case "${version}" in
     *-dev*|*-dev)
-      # Development snapshot: pull the matching nightly from the DuckDB
-      # staging bucket (mirrored at blobs.duckdb.org). The path layout is
-      # <commit>/<repo>/github_release/, per duckdb/duckdb's
-      # scripts/upload-assets-to-staging.sh.
-      if [ -z "${source_id}" ]; then
-        echo "Development version ${version} but no DUCKDB_SOURCE_ID found; cannot locate nightly libduckdb." >&2
-        echo "Set DUCKDB_R_LIB_URL to the libduckdb-${platform}.zip to use." >&2
-        exit 1
-      fi
-      url="https://blobs.duckdb.org/${source_id}/duckdb/duckdb/github_release/libduckdb-${platform}.zip"
+      # No public per-commit libduckdb is published for development
+      # snapshots between releases (the DuckDB staging bucket is not
+      # exposed via a stable HTTP gateway). Exit cleanly so callers can
+      # fall back to compiling the vendored sources; an explicit
+      # DUCKDB_R_LIB_URL override is honored above for cases where a
+      # caller has a private build.
+      echo "libduckdb ${version} is a development snapshot (commit ${source_id:-unknown})." >&2
+      echo "No matching prebuilt is published; skipping install." >&2
+      echo "Set DUCKDB_R_LIB_URL to a libduckdb-${platform}.zip if you have one." >&2
+      exit 0
       ;;
     *)
-      # Tagged release.
+      # Tagged release: GitHub release assets.
       url="https://github.com/duckdb/duckdb/releases/download/${version}/libduckdb-${platform}.zip"
       ;;
   esac
