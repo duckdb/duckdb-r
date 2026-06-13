@@ -224,7 +224,8 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 			auto &key_type = MapType::KeyType(type);
 			auto &value_type = MapType::ValueType(type);
 
-			cpp11::sexp key_proto = duckdb_r_allocate(key_type, 0, "MAP ptype key", convert_opts, "duckdb_r_decorate MAP");
+			cpp11::sexp key_proto =
+			    duckdb_r_allocate(key_type, 0, "MAP ptype key", convert_opts, "duckdb_r_decorate MAP");
 			duckdb_r_decorate(key_type, key_proto, convert_opts);
 			cpp11::sexp value_proto =
 			    duckdb_r_allocate(value_type, 0, "MAP ptype value", convert_opts, "duckdb_r_decorate MAP");

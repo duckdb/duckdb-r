@@ -473,8 +473,7 @@ static bool DetectNamedListMapColumn(SEXP coldata, bool integer64, RType &value_
 		}
 		SEXP names_sexp = Rf_getAttrib(elt, R_NamesSymbol);
 		R_xlen_t inner_len = Rf_xlength(elt);
-		if (names_sexp == R_NilValue || TYPEOF(names_sexp) != STRSXP ||
-		    Rf_xlength(names_sexp) != inner_len) {
+		if (names_sexp == R_NilValue || TYPEOF(names_sexp) != STRSXP || Rf_xlength(names_sexp) != inner_len) {
 			return false;
 		}
 		for (R_xlen_t j = 0; j < inner_len; ++j) {
@@ -512,8 +511,7 @@ static bool DetectNamedListMapColumn(SEXP coldata, bool integer64, RType &value_
 struct DataFrameScanBindData : public TableFunctionData {
 	DataFrameScanBindData(SEXP df_p, idx_t row_count_p, vector<RType> &rtypes_p, vector<data_ptr_t> &dataptrs_p,
 	                      vector<bool> &named_list_map_p, named_parameter_map_t &named_parameters)
-	    : df(df_p), row_count(row_count_p), rtypes(rtypes_p), data_ptrs(dataptrs_p),
-	      named_list_map(named_list_map_p) {
+	    : df(df_p), row_count(row_count_p), rtypes(rtypes_p), data_ptrs(dataptrs_p), named_list_map(named_list_map_p) {
 		integer64 = get_integer64_param(named_parameters);
 		experimental = get_experimental_param(named_parameters);
 	}
