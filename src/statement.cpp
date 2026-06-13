@@ -143,10 +143,19 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 		}
 	}
 
+	bool arrow = convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED;
+	bool streaming = convert_opts.streaming == ConvertOpts::ResultStreaming::ENABLED;
+
+	// The legacy arrow path (`dbSendQuery(arrow = TRUE)`) materializes results and
+	// has never supported binding multiple rows; preserve that error.
+	if (arrow && !streaming && n_rows != 1) {
+		rapi_error_with_context("rapi_bind", "Bind parameter values need to have length one for arrow queries");
+	}
+
 	// Streaming arrow results from the same prepared statement cannot coexist
 	// (each Execute() invalidates the previous StreamQueryResult). Materialize
 	// per-row arrow results when binding multiple rows.
-	bool allow_stream_result = convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED && n_rows == 1;
+	bool allow_stream_result = arrow && streaming && n_rows == 1;
 
 	cpp11::writable::list out;
 	out.reserve(n_rows);
@@ -422,6 +431,7 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 		rapi_error_with_context("rapi_execute", "Invalid statement");
 	}
 
-	bool allow_stream_result = convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED;
+	bool allow_stream_result = convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED &&
+	                           convert_opts.streaming == ConvertOpts::ResultStreaming::ENABLED;
 	return rapi_execute_impl(stmt.get(), convert_opts, allow_stream_result);
 }

@@ -32,6 +32,7 @@ duckdb_convert_opts <- function(
     array = array,
     geometry = geometry,
     arrow = FALSE,
+    streaming = FALSE,
     experimental = FALSE,
     strict_relational = TRUE
   )
@@ -46,6 +47,7 @@ duckdb_convert_opts_impl <- function(
   array = NULL,
   geometry = NULL,
   arrow = NULL,
+  streaming = NULL,
   experimental = NULL,
   strict_relational = NULL
 ) {
@@ -66,6 +68,9 @@ duckdb_convert_opts_impl <- function(
   }
   if (!is.null(arrow)) {
     x$arrow <- arrow
+  }
+  if (!is.null(streaming)) {
+    x$streaming <- streaming
   }
   if (!is.null(experimental)) {
     x$experimental <- experimental
