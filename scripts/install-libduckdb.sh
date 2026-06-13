@@ -10,6 +10,12 @@
 #   scripts/install-libduckdb.sh --prefix DIR    # install to DIR (DIR/lib, DIR/include)
 #   scripts/install-libduckdb.sh --version vX.Y.Z  # override the version
 #
+# The vendored DuckDB version may be a tagged release (e.g. v1.5.3) or a
+# development snapshot between releases (e.g. v1.5.4-dev157). Released
+# versions are fetched from the GitHub release assets; development
+# snapshots are fetched from the DuckDB nightly staging bucket, keyed by
+# the commit recorded in the vendored pragma_version.cpp (DUCKDB_SOURCE_ID).
+#
 # Environment:
 #   DUCKDB_R_LIB_VERSION  override the version (same as --version)
 #   DUCKDB_R_LIB_URL      explicit URL of the libduckdb-<platform>.zip to use
@@ -48,6 +54,14 @@ if [ -z "${version}" ]; then
   exit 1
 fi
 
+# The commit hash recorded by upstream in the vendored sources. This is the
+# same `git log -1 --format=%h` value DuckDB's release workflow uses as the
+# staging path segment, so it doubles as the nightly artifact key.
+source_id=""
+if [ -f "${version_file}" ]; then
+  source_id=$(sed -n 's/^#define DUCKDB_SOURCE_ID "\(.*\)"$/\1/p' "${version_file}")
+fi
+
 if [ -z "${url}" ] && [ -n "${DUCKDB_R_LIB_URL:-}" ]; then
   url="${DUCKDB_R_LIB_URL}"
 fi
@@ -66,10 +80,27 @@ case "${uname_s}-${uname_m}" in
 esac
 
 if [ -z "${url}" ]; then
-  url="https://github.com/duckdb/duckdb/releases/download/${version}/libduckdb-${platform}.zip"
+  case "${version}" in
+    *-dev*|*-dev)
+      # Development snapshot: pull the matching nightly from the DuckDB
+      # staging bucket (mirrored at blobs.duckdb.org). The path layout is
+      # <commit>/<repo>/github_release/, per duckdb/duckdb's
+      # scripts/upload-assets-to-staging.sh.
+      if [ -z "${source_id}" ]; then
+        echo "Development version ${version} but no DUCKDB_SOURCE_ID found; cannot locate nightly libduckdb." >&2
+        echo "Set DUCKDB_R_LIB_URL to the libduckdb-${platform}.zip to use." >&2
+        exit 1
+      fi
+      url="https://blobs.duckdb.org/${source_id}/duckdb/duckdb/github_release/libduckdb-${platform}.zip"
+      ;;
+    *)
+      # Tagged release.
+      url="https://github.com/duckdb/duckdb/releases/download/${version}/libduckdb-${platform}.zip"
+      ;;
+  esac
 fi
 
-echo "Downloading libduckdb ${version} for ${platform}"
+echo "Downloading libduckdb ${version} (commit ${source_id:-unknown}) for ${platform}"
 echo "  from: ${url}"
 echo "  to:   ${prefix}/lib (and ${prefix}/include)"
 

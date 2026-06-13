@@ -17,6 +17,50 @@ setClass("duckdb_result",
   )
 )
 
+#' DuckDB Arrow Result Set
+#'
+#' Streaming Arrow result for queries on DuckDB connections.
+#' Implements [DBIResultArrow-class][DBI::DBIResultArrow-class].
+#'
+#' @aliases duckdb_result_arrow
+#' @keywords internal
+#' @export
+setClass("duckdb_result_arrow",
+  contains = "DBIResultArrow",
+  slots = list(
+    connection = "duckdb_connection",
+    stmt_lst = "list",
+    env = "environment"
+  )
+)
+
+duckdb_result_arrow <- function(connection, stmt_lst) {
+  env <- new.env(parent = emptyenv())
+  env$open <- TRUE
+  env$completed <- FALSE
+  env$query_result <- NULL
+
+  res <- new(
+    "duckdb_result_arrow",
+    connection = connection,
+    stmt_lst = stmt_lst,
+    env = env
+  )
+
+  if (stmt_lst$n_param == 0) {
+    env$query_result <- duckdb_execute_arrow(res)
+  }
+
+  res
+}
+
+duckdb_execute_arrow <- function(res) {
+  rethrow_rapi_execute(
+    res@stmt_lst$ref,
+    duckdb_convert_opts_impl(res@connection@convert_opts, arrow = TRUE)
+  )
+}
+
 duckdb_result <- function(connection, stmt_lst, arrow) {
   env <- new.env(parent = emptyenv())
   env$rows_fetched <- 0

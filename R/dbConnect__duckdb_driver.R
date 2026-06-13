@@ -45,7 +45,7 @@
 #' or an adjusted time.
 #'
 #' @rdname duckdb
-#' @examples
+#' @examplesIf duckdb:::examples_enabled()
 #' drv <- duckdb()
 #' con <- dbConnect(drv)
 #'

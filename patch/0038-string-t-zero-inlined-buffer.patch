@@ -1,0 +1,55 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+Subject: [PATCH] Zero the inlined buffer in string_t(uint32_t len)
+
+Valgrind reports "Conditional jump or move depends on uninitialised
+value(s)" in StringValueComparison (string_stats.cpp:125/127), reached
+from StringStats::Update during the StatisticsPropagator's constant
+folding for a VARIANT -> STRUCT -> STRING value. The trace identifies
+the originating "stack allocation" as the PLT entry for
+StringVector::EmptyString.
+
+StringVector::EmptyString returns `string_t(UnsafeNumericCast<uint32_t>(len))`
+for inlined strings (len <= INLINE_LENGTH). The `string_t(uint32_t len)`
+constructor only writes the 4-byte length and leaves the 12-byte inlined
+buffer indeterminate. Callers (e.g. the to_variant cast) then write
+`len` bytes into the buffer via GetDataWriteable() and finally call
+SetSizeAndFinalize, which calls Finalize() to zero the trailing
+bytes from `len` to INLINE_BYTES.
+
+In practice the buffer is fully written by the time the value is
+consumed, but the 16-byte string_t is bitwise-copied around (assignment
+in the FlatVector slot, the temporary string_t constructed in
+StringStats::Update via `string_t(string_value)`, the local `target[8]`
+filled by ConstructValue) before every byte has been written. valgrind
+follows the propagation of those indeterminate bytes from the moment
+they appear on the stack and flags the comparison in
+StringValueComparison.
+
+Initialise the inlined buffer in the length-only constructor. This is
+the same defensive treatment the (const char *, uint32_t) constructor
+already applies to its inlined case, and matches what Finalize() does
+once the caller is done writing.
+---
+ src/duckdb/src/include/duckdb/common/types/string_type.hpp | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/src/duckdb/src/include/duckdb/common/types/string_type.hpp b/src/duckdb/src/include/duckdb/common/types/string_type.hpp
+index 0000000..0000000 100644
+--- a/src/duckdb/src/include/duckdb/common/types/string_type.hpp
++++ b/src/duckdb/src/include/duckdb/common/types/string_type.hpp
+@@ -40,6 +40,14 @@ struct string_t {
+ 	string_t() = default;
+ 	explicit string_t(uint32_t len) {
+ 		value.inlined.length = len;
++		// Zero the inlined buffer. Callers (e.g. StringVector::EmptyString) hand
++		// the resulting string_t to write paths that fill `len` bytes and then
++		// call Finalize(); the unfilled trailing bytes need to be defined so
++		// that copies of the string_t (e.g. through a constant VARIANT BLOB
++		// flowing into StringStats::Update during constant folding) do not
++		// propagate indeterminate bytes.
++		memset(value.inlined.inlined, 0, INLINE_BYTES);
+ 	}
+ 	string_t(const char *data, uint32_t len) {
+ 		value.inlined.length = len;
+--
+2.52.0

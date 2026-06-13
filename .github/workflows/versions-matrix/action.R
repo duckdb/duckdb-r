@@ -28,16 +28,6 @@ covr <- data.frame(os = "ubuntu-24.04", r = r_versions[2], covr = "true", desc =
 
 include_list <- list(macos, windows, linux_devel, linux, covr)
 
-# On repos where the smoke job links against system libduckdb (handled by
-# .github/workflows/custom/before-install), add an explicit source-build
-# row so the vendored compile path stays covered in rcc-full. The
-# krlmlr/duckdb-r fork hosts the vendoring pipeline and always builds
-# from source in the smoke job, so no extra row is needed there.
-if (!identical(Sys.getenv("GITHUB_REPOSITORY"), "krlmlr/duckdb-r")) {
-  linux_source <- data.frame(os = "ubuntu-24.04", r = r_versions[2], desc = "source build")
-  include_list <- c(include_list, list(linux_source))
-}
-
 if (file.exists(".github/versions-matrix.R")) {
   custom <- source(".github/versions-matrix.R")$value
   if (is.data.frame(custom)) {
