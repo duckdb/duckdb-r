@@ -68,14 +68,14 @@ duckdb <- function(
 
   # Extensions are cached inside the duckdb package's installed library
   # directory (see default_extension_directory()), which keeps the binaries
-  # paired with the C++ toolchain that built duckdb. Secrets continue to
-  # live under R_user_dir(), shared across duckdb variants
-  # (duckdb.1.4, duckdb.dev, ...), so they survive a package upgrade.
+  # paired with the C++ toolchain that built duckdb. Secrets default to a
+  # location under R_user_dir() for CRAN compliance, but `resolve_secret_directory()`
+  # lets users opt into the shared `~/.duckdb/stored_secrets` location.
   if (!("extension_directory" %in% names(config))) {
     config["extension_directory"] <- default_extension_directory()
   }
   if (!("secret_directory" %in% names(config))) {
-    config["secret_directory"] <- default_secret_directory()
+    config["secret_directory"] <- resolve_secret_directory()
   }
 
   # Always create new database for in-memory,
@@ -83,7 +83,12 @@ duckdb <- function(
   drv <- new(
     "duckdb_driver",
     config = config,
-    database_ref = rethrow_rapi_startup(dbdir, read_only, config, environment_scan),
+    database_ref = rethrow_rapi_startup(
+      dbdir,
+      read_only,
+      config,
+      environment_scan
+    ),
     dbdir = dbdir,
     read_only = read_only,
     convert_opts = convert_opts,
@@ -130,13 +135,16 @@ duckdb_shutdown <- function(drv) {
 #' @return An object of class "adbc_driver"
 #' @rdname duckdb
 #' @export
-#' @examplesIf requireNamespace("adbcdrivermanager", quietly = TRUE)
+#' @examplesIf duckdb:::examples_enabled() && requireNamespace("adbcdrivermanager", quietly = TRUE)
 #' library(adbcdrivermanager)
 #' with_adbc(db <- adbc_database_init(duckdb_adbc()), {
 #'   as.data.frame(read_adbc(db, "SELECT 1 as one;"))
 #' })
 duckdb_adbc <- function() {
-  init_func <- structure(rethrow_rapi_adbc_init_func(), class = "adbc_driver_init_func")
+  init_func <- structure(
+    rethrow_rapi_adbc_init_func(),
+    class = "adbc_driver_init_func"
+  )
   adbcdrivermanager::adbc_driver(init_func, subclass = "duckdb_driver_adbc")
 }
 
@@ -176,7 +184,9 @@ check_tz <- function(timezone) {
 
   if (is.null(timezone) || !timezone %in% OlsonNames()) {
     warning(
-      "Invalid time zone '", timezone, "', ",
+      "Invalid time zone '",
+      timezone,
+      "', ",
       "falling back to UTC.\n",
       "Set the `timezone_out` argument to a valid time zone.\n",
       call. = FALSE

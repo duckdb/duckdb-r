@@ -1,9 +1,49 @@
 name: 'Custom steps to run before R packages are installed'
 
+inputs:
+  env:
+    description: >
+      Additional environment variables (one KEY=VALUE per line) contributed by
+      the test matrix. Generic hook used by .github/versions-matrix.R to flag
+      special matrix entries (e.g. the engine-poisoning entry below).
+    required: false
+    default: ""
+
 runs:
   using: "composite"
   steps:
+    - name: Apply environment variables from the test matrix
+      if: inputs.env != ''
+      env:
+        MATRIX_ENV: ${{ inputs.env }}
+      run: |
+        printf '%s\n' "$MATRIX_ENV" | tee -a "$GITHUB_ENV"
+      shell: bash
+
     - name: Define R CMD check error condition
       run: |
         echo '_R_CHECK_PKG_SIZES_=FALSE' | tee -a $GITHUB_ENV
+      shell: bash
+
+    - name: Configure the duckdb CRAN guard
+      run: |
+        # The duckdb tests and runnable examples exercise the bundled C++ engine
+        # and are gated behind DUCKDB_R_RUN_TESTS so they never run on CRAN
+        # (see tests/testthat.R and R/cran-guard.R). We opt in here for CI.
+        #
+        # The engine-poisoning matrix entry instead sets DUCKDB_R_POISON_ENGINE
+        # (via the generic "env" matrix field, applied above). When present we
+        # build the C++ tripwire (-DDUCKDB_R_POISON_ENGINE) and deliberately
+        # leave DUCKDB_R_RUN_TESTS unset, so that any test or example reaching
+        # the engine aborts the check and proves the CRAN guards are effective.
+        if [ -n "${DUCKDB_R_POISON_ENGINE:-}" ]; then
+          echo "DUCKDB_R_POISON_ENGINE is set; building the engine tripwire and leaving DUCKDB_R_RUN_TESTS unset."
+          mkdir -p ~/.R
+          echo 'CPPFLAGS += -DDUCKDB_R_POISON_ENGINE' | tee -a ~/.R/Makevars
+          # The snapshot updater bypasses tests/testthat.R via testthat::test_local(),
+          # so disable it here to keep it from exercising the poisoned engine.
+          echo 'SKIP_UPDATE_SNAPSHOTS=true' | tee -a "$GITHUB_ENV"
+        else
+          echo 'DUCKDB_R_RUN_TESTS=true' | tee -a "$GITHUB_ENV"
+        fi
       shell: bash

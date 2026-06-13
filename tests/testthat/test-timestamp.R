@@ -26,3 +26,21 @@ test_that("fractional seconds can be extracted from TIME columns", {
     structure(3723.45, class = "difftime", units = "secs")
   )
 })
+
+test_that("TIME WITH TIME ZONE columns are returned as difftime (#1807)", {
+  con <- local_con()
+
+  data <- dbGetQuery(
+    con,
+    "SELECT
+       TIMETZ '01:02:03.45+05:00' AS a,
+       TIMETZ '01:02:03.45-05:00' AS b,
+       TIMETZ '01:02:03.45+00:00' AS c,
+       CAST(NULL AS TIMETZ) AS d"
+  )
+  expected <- structure(3723.45, class = "difftime", units = "secs")
+  expect_equal(data$a, expected)
+  expect_equal(data$b, expected)
+  expect_equal(data$c, expected)
+  expect_equal(data$d, structure(NA_real_, class = "difftime", units = "secs"))
+})

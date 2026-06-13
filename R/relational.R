@@ -664,16 +664,41 @@ rel_to_sql <- function(rel) {
 
 
 
-#' Create a duckdb table relation from a table name
-#' @param sql An SQL query
+#' Create a duckdb relation from an SQL query
+#'
+#' Creates a relation that represents the result of an SQL query against the
+#' connection, without executing it.
+#'
+#' If the connection was opened with `duckdb(environment_scan = TRUE)`, table
+#' references in `sql` that do not resolve in the database catalog are looked
+#' up in `env` (and its enclosing environments). Any data frame found this way
+#' is captured by the resulting relation and stays accessible for the lifetime
+#' of the relation, even after `env` is no longer reachable from R.
+#'
+#' @param con A duckdb connection.
+#' @param sql An SQL query.
+#' @param env An environment in which to look up data frames referenced by
+#'   `sql`. Defaults to the caller's environment.
 #' @return a duckdb relation
 #' @noRd
 #' @examples
 #' con <- DBI::dbConnect(duckdb())
 #' DBI::dbWriteTable(con, "mtcars", mtcars)
 #' rel <- rel_from_sql(con, "SELECT * FROM mtcars")
-rel_from_sql <- function(con, sql) {
-  rethrow_rapi_rel_from_sql(con@conn_ref, sql)
+#'
+#' # With environment scanning, data frames in scope can be queried directly:
+#' con2 <- DBI::dbConnect(duckdb(environment_scan = TRUE))
+#' make_rel <- function() {
+#'   df <- data.frame(a = 1:3)
+#'   rel_from_sql(con2, "FROM df")
+#' }
+#' rel2 <- make_rel()
+#' as.data.frame(rel2)
+rel_from_sql <- function(con, sql, env = parent.frame()) {
+  if (!is.environment(env)) {
+    stop("`env` must be an environment.", call. = FALSE)
+  }
+  rethrow_rapi_rel_from_sql(con@conn_ref, sql, env)
 }
 
 #' Create a duckdb table relation from a table name

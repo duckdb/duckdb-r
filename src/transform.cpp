@@ -54,6 +54,7 @@ int duckdb_r_typeof(const LogicalType &type, const string &name, const char *cal
 	case LogicalTypeId::TIMESTAMP_NS:
 	case LogicalTypeId::DATE:
 	case LogicalTypeId::TIME:
+	case LogicalTypeId::TIME_TZ:
 	case LogicalTypeId::INTERVAL:
 		return REALSXP;
 	case LogicalTypeId::LIST:
@@ -283,6 +284,7 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 		SET_CLASS(dest, RStrings::get().Date_str);
 		break;
 	case LogicalTypeId::TIME:
+	case LogicalTypeId::TIME_TZ:
 	case LogicalTypeId::INTERVAL:
 		SET_CLASS(dest, RStrings::get().difftime_str);
 		Rf_setAttrib(dest, RStrings::get().units_sym, RStrings::get().secs_str);
@@ -478,6 +480,24 @@ void duckdb_r_transform(const Vector &src_vec, const SEXP dest, idx_t dest_offse
 				dest_ptr[row_idx] = NA_REAL;
 			} else {
 				dest_ptr[row_idx] = static_cast<double>(src_data[row_idx].micros) / Interval::MICROS_PER_SEC;
+			}
+		}
+		SET_CLASS(dest, RStrings::get().difftime_str);
+		Rf_setAttrib(dest, RStrings::get().units_sym, RStrings::get().secs_str);
+		break;
+	}
+	case LogicalTypeId::TIME_TZ: {
+		// R has no native time-with-time-zone type, so drop the offset and return
+		// the local time portion as a difftime in seconds. This matches the
+		// semantics of CAST(TIMETZ AS TIME) in DuckDB.
+		auto src_data = FlatVector::GetData<dtime_tz_t>(src_vec);
+		auto &mask = FlatVector::Validity(src_vec);
+		double *dest_ptr = ((double *)NUMERIC_POINTER(dest)) + dest_offset;
+		for (size_t row_idx = 0; row_idx < n; row_idx++) {
+			if (!mask.RowIsValid(row_idx)) {
+				dest_ptr[row_idx] = NA_REAL;
+			} else {
+				dest_ptr[row_idx] = static_cast<double>(src_data[row_idx].time().micros) / Interval::MICROS_PER_SEC;
 			}
 		}
 		SET_CLASS(dest, RStrings::get().difftime_str);
