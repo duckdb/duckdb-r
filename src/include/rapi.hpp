@@ -16,6 +16,7 @@
 #include "duckdb/parser/tableref/table_function_ref.hpp"
 #include "duckdb/common/mutex.hpp"
 #include "duckdb/common/error_data.hpp"
+#include "duckdb/common/arrow/result_arrow_wrapper.hpp"
 
 #include "convert.hpp"
 
@@ -169,6 +170,7 @@ typedef cpp11::external_pointer<ParsedExpression> expr_extptr_t;
 
 struct RQueryResult {
 	duckdb::unique_ptr<QueryResult> result;
+	duckdb::unique_ptr<ResultArrowArrayStreamWrapper> stream_wrapper;
 };
 
 typedef cpp11::external_pointer<RQueryResult> rqry_eptr_t;

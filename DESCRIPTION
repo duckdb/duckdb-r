@@ -55,6 +55,7 @@ Suggests:
     DBItest,
     dbplyr,
     dplyr,
+    nanoarrow,
     rlang,
     sf,
     testthat (>= 3.0.0),

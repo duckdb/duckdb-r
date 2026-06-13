@@ -412,6 +412,21 @@ extern "C" SEXP _duckdb_rapi_execute_arrow(SEXP qry_res, SEXP chunk_size) {
   END_CPP11
 }
 // statement.cpp
+void rapi_fetch_arrow_stream_into(duckdb::rqry_eptr_t qry_res, cpp11::sexp stream_xptr, int chunk_size);
+extern "C" SEXP _duckdb_rapi_fetch_arrow_stream_into(SEXP qry_res, SEXP stream_xptr, SEXP chunk_size) {
+  BEGIN_CPP11
+    rapi_fetch_arrow_stream_into(cpp11::as_cpp<cpp11::decay_t<duckdb::rqry_eptr_t>>(qry_res), cpp11::as_cpp<cpp11::decay_t<cpp11::sexp>>(stream_xptr), cpp11::as_cpp<cpp11::decay_t<int>>(chunk_size));
+    return R_NilValue;
+  END_CPP11
+}
+// statement.cpp
+bool rapi_fetch_arrow_array(duckdb::rqry_eptr_t qry_res, cpp11::sexp array_xptr, cpp11::sexp schema_xptr, int chunk_size);
+extern "C" SEXP _duckdb_rapi_fetch_arrow_array(SEXP qry_res, SEXP array_xptr, SEXP schema_xptr, SEXP chunk_size) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(rapi_fetch_arrow_array(cpp11::as_cpp<cpp11::decay_t<duckdb::rqry_eptr_t>>(qry_res), cpp11::as_cpp<cpp11::decay_t<cpp11::sexp>>(array_xptr), cpp11::as_cpp<cpp11::decay_t<cpp11::sexp>>(schema_xptr), cpp11::as_cpp<cpp11::decay_t<int>>(chunk_size)));
+  END_CPP11
+}
+// statement.cpp
 SEXP rapi_record_batch(duckdb::rqry_eptr_t qry_res, int chunk_size);
 extern "C" SEXP _duckdb_rapi_record_batch(SEXP qry_res, SEXP chunk_size) {
   BEGIN_CPP11
@@ -465,6 +480,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_expr_set_alias",          (DL_FUNC) &_duckdb_rapi_expr_set_alias,           2},
     {"_duckdb_rapi_expr_tostring",           (DL_FUNC) &_duckdb_rapi_expr_tostring,            1},
     {"_duckdb_rapi_expr_window",             (DL_FUNC) &_duckdb_rapi_expr_window,             12},
+    {"_duckdb_rapi_fetch_arrow_array",       (DL_FUNC) &_duckdb_rapi_fetch_arrow_array,        4},
+    {"_duckdb_rapi_fetch_arrow_stream_into", (DL_FUNC) &_duckdb_rapi_fetch_arrow_stream_into,  3},
     {"_duckdb_rapi_get_null_SEXP_ptr",       (DL_FUNC) &_duckdb_rapi_get_null_SEXP_ptr,        0},
     {"_duckdb_rapi_is_locked",               (DL_FUNC) &_duckdb_rapi_is_locked,                1},
     {"_duckdb_rapi_list_arrow",              (DL_FUNC) &_duckdb_rapi_list_arrow,               1},
