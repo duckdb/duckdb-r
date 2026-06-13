@@ -37,6 +37,7 @@
   [`dbQuoteLiteral(`*`<duckdb_connection>`*`)`](https://r.duckdb.org/reference/duckdb_connection-class.md)
   [`dbRemoveTable(`*`<duckdb_connection>`*`,`*`<character>`*`)`](https://r.duckdb.org/reference/duckdb_connection-class.md)
   [`dbRollback(`*`<duckdb_connection>`*`)`](https://r.duckdb.org/reference/duckdb_connection-class.md)
+  [`dbSendQueryArrow(`*`<duckdb_connection>`*`,`*`<character>`*`)`](https://r.duckdb.org/reference/duckdb_connection-class.md)
   [`dbSendQuery(`*`<duckdb_connection>`*`,`*`<character>`*`)`](https://r.duckdb.org/reference/duckdb_connection-class.md)
   [`dbWriteTable(`*`<duckdb_connection>`*`,`*`<character>`*`,`*`<data.frame>`*`)`](https://r.duckdb.org/reference/duckdb_connection-class.md)
   [`show(`*`<duckdb_connection>`*`)`](https://r.duckdb.org/reference/duckdb_connection-class.md)
