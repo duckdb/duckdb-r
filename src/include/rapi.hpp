@@ -32,10 +32,11 @@
 // CRAN guard / engine poisoning
 //
 // DuckDB ships its own large C++ engine. Exercising it (running the test suite
-// or the runnable examples) is too heavy for CRAN's check farm, so everything
-// that touches the C++ code is gated behind the DUCKDB_R_RUN_TESTS environment
-// variable on the R side (see tests/testthat.R and R/cran-guard.R). That
-// variable is unset on CRAN and set in our own continuous integration.
+// or the runnable examples) is too heavy for CRAN's check farm, and checks
+// were very fragile in the past. Everything that touches the C++ code is gated
+// behind the DUCKDB_R_RUN_TESTS environment variable on the R side (see
+// tests/testthat.R and R/cran-guard.R). That variable is unset on CRAN and set
+// in our own continuous integration.
 //
 // When duckdb is additionally built with -DDUCKDB_R_POISON_ENGINE, every C++
 // API entry point aborts immediately. Such a build is used in CI *without*
@@ -43,9 +44,8 @@
 // any test or example reaches the C++ engine, the check fails loudly.
 #ifdef DUCKDB_R_POISON_ENGINE
 #define DUCKDB_R_POISON_GUARD()                                                                                        \
-	cpp11::stop("This duckdb build is poisoned (-DDUCKDB_R_POISON_ENGINE): the DuckDB C++ engine must not be "          \
-	            "exercised during R CMD check. This is intentional; set DUCKDB_R_RUN_TESTS to run the suite outside "   \
-	            "CRAN.")
+	cpp11::stop("This duckdb build is poisoned (-DDUCKDB_R_POISON_ENGINE) to check that the DuckDB C++ engine"         \
+	            "is not exercised during R CMD check.")
 #else
 #define DUCKDB_R_POISON_GUARD() ((void)0)
 #endif

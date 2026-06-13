@@ -340,9 +340,10 @@ jobs:
         shell: Rscript {0}
 
       - uses: ./.github/workflows/update-snapshots
-        # Generic escape hatch: a matrix entry may set SKIP_UPDATE_SNAPSHOTS
-        # (via the "env" field) to opt out of running the snapshot updater,
-        # which runs tests directly via testthat::test_local().
+        # Generic escape hatch: a custom action may set SKIP_UPDATE_SNAPSHOTS
+        # to opt out of running the snapshot updater,
+        # which runs tests directly via testthat::test_local()
+        # and is difficult to disable otherwise.
         if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && env.SKIP_UPDATE_SNAPSHOTS != 'true'
         with:
           base: ${{ github.head_ref }}
