@@ -42,7 +42,7 @@ duckdb_target_column_types <- function(conn, name) {
     conn,
     paste0("DESCRIBE ", dbQuoteIdentifier(conn, name))
   )
-  setNames(info$column_type, info$column_name)
+  structure(info$column_type, names = info$column_name)
 }
 
 # Build SELECT column expressions, converting source representations into the
