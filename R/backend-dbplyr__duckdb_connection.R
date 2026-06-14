@@ -527,11 +527,13 @@ tbl_query <- function(src, query, ...) {
 #'
 #' Use `simulate_duckdb()` with `lazy_frame()`
 #' to see simulated SQL without opening a DuckDB connection.
+#' The name of the package providing the connection is available as
+#' `simulate_duckdb()$package`.
 #' @param ... Any parameters to be forwarded
 #' @export
 #' @rdname backend-duckdb
 simulate_duckdb <- function(...) {
-  structure(list(), ..., class = c("duckdb_connection", "TestConnection", "DBIConnection"))
+  structure(list(package = get_package_name()), ..., class = c("duckdb_connection", "TestConnection", "DBIConnection"))
 }
 
 

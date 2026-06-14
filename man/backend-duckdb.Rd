@@ -47,6 +47,8 @@ As an alternative, use \code{dplyr::tbl(src, dplyr::sql("SELECT ... FROM ..."))}
 
 Use \code{simulate_duckdb()} with \code{lazy_frame()}
 to see simulated SQL without opening a DuckDB connection.
+The name of the package providing the connection is available as
+\code{simulate_duckdb()$package}.
 }
 \examples{
 \dontshow{if (identical(Sys.getenv("IN_PKGDOWN"), "true") && rlang::is_installed("dbplyr")) withAutoprint(\{ # examplesIf}

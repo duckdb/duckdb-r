@@ -687,3 +687,7 @@ test_that("these should give errors", {
     translate(str_pad(x, width = 10, side = "other")) # Error
   })
 })
+
+test_that("simulate_duckdb() exposes the package name", {
+  expect_identical(simulate_duckdb()$package, get_package_name())
+})
