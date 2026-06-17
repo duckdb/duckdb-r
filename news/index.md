@@ -1,6 +1,6 @@
 # Changelog
 
-## duckdb 1.5.3.9900
+## duckdb 1.5.3.9006
 
 ### vendor
 
@@ -11,6 +11,8 @@
 
 - Update vendored sources to
   <duckdb/duckdb@08e34c447bae34eaee3723cac61f2878b6bdf787>.
+
+  Date: 2026-06-16 10:51:13 +0200
 
   Fix more geom stats
   (<https://redirect.github.com/duckdb/duckdb/pull/23295>) bump iceberg
@@ -218,6 +220,72 @@
   ducklake for release
   (<https://redirect.github.com/duckdb/duckdb/pull/23182>)
 
+## duckdb 1.5.3.9005
+
+### Features
+
+- Support writing `MAP` columns via
+  [`dbAppendTable()`](https://dbi.r-dbi.org/reference/dbAppendTable.html)
+  and
+  [`dbWriteTable()`](https://dbi.r-dbi.org/reference/dbWriteTable.html)
+  ([\#2354](https://github.com/duckdb/duckdb-r/issues/2354)).
+
+### Chore
+
+- Repair hand-written patch files so GNU patch can apply them.
+
+  - Drop all-zero index lines from patches 0036-0038: GNU patch treats
+    an all-zero old blob hash as file creation and refuses to apply the
+    patch onto an existing file.
+  - Fix the new-side line count of the hunk in patch 0038 (13, not 14).
+  - Replace invented context (banner comments not present in the source)
+    in the first hunk of patch 0037 with the actual surrounding lines.
+
+  <https://claude.ai/code/session_01GQmwQa48K7BVDnKjMwrNJv>
+
+### Testing
+
+- Refactor example conditions to use the
+  [`simulate_duckdb()`](https://r.duckdb.org/reference/backend-duckdb.md)
+  helper ([\#2359](https://github.com/duckdb/duckdb-r/issues/2359)).
+
+- Simplify CRAN guard: auto-enable tests on GitHub Actions
+  ([\#2358](https://github.com/duckdb/duckdb-r/issues/2358)).
+
+## duckdb 1.5.3.9004
+
+### Features
+
+#### arrow
+
+- Add opt-in streaming flag for Arrow result conversion
+  ([\#2355](https://github.com/duckdb/duckdb-r/issues/2355)).
+
+- Implement DBI Arrow API with dbSendQueryArrow() and streaming
+  ([\#2347](https://github.com/duckdb/duckdb-r/issues/2347)).
+
+### Chore
+
+- Collect revdep problems.
+
+### Testing
+
+- Add CRAN guards to prevent heavy C++ engine tests on CRAN
+  ([\#2353](https://github.com/duckdb/duckdb-r/issues/2353)).
+
+## duckdb 1.5.3.9003
+
+### Chore
+
+- Cleanup.
+
+### vendor
+
+- Update vendored sources to
+  <duckdb/duckdb@894e3727d194d72295d10aa971798de10a82e657>.
+
+  Date: 2026-06-09 14:53:37 +0200
+
 - Update vendored sources to
   <duckdb/duckdb@894e3727d194d72295d10aa971798de10a82e657>.
 
@@ -243,6 +311,10 @@
   type for array_to_json
   (<https://redirect.github.com/duckdb/duckdb/pull/23129>)
 
+  ## Conflicts:
+
+  ## DESCRIPTION
+
 - Update vendored sources to
   <duckdb/duckdb@4f8d9cb5d4661d98c33ff428ef632dc0fe6f8c96>.
 
@@ -251,6 +323,10 @@
   Clarify BIGNUM C API data is big endian
   (<https://redirect.github.com/duckdb/duckdb/pull/23127>)
 
+  ## Conflicts:
+
+  ## DESCRIPTION
+
 - Update vendored sources to
   <duckdb/duckdb@07866eb051fda03d148fb40fa9cb188363606119>.
 
@@ -258,6 +334,10 @@
 
   Internal <https://redirect.github.com/duckdb/duckdb/pull/9375>: PRAGMA
   enum NULL (<https://redirect.github.com/duckdb/duckdb/pull/23146>)
+
+  ## Conflicts:
+
+  ## DESCRIPTION
 
 - Update vendored sources to
   <duckdb/duckdb@b4eeb55d58fdf26395efcb11ee830a48dec31955>.
@@ -269,6 +349,10 @@
   ignore_errors silently accepting invalid json
   (<https://redirect.github.com/duckdb/duckdb/pull/23137>)
 
+  ## Conflicts:
+
+  ## DESCRIPTION
+
 - Update vendored sources to
   <duckdb/duckdb@238d1f1ae4e02b732678f02de6dc1e571f1b2b3b>.
 
@@ -278,6 +362,10 @@
   (<https://redirect.github.com/duckdb/duckdb/pull/23136>) Reject NULL
   json key (<https://redirect.github.com/duckdb/duckdb/pull/23116>)
 
+  ## Conflicts:
+
+  ## DESCRIPTION
+
 - Update vendored sources to
   <duckdb/duckdb@2478e35c7ac9281e493dec56b2c8e09b42d5084f>.
 
@@ -286,6 +374,10 @@
   fix(adbc): fill metadata of GetObjects
   (<https://redirect.github.com/duckdb/duckdb/pull/23110>)
 
+  ## Conflicts:
+
+  ## DESCRIPTION
+
 - Update vendored sources to
   <duckdb/duckdb@a6fce56cf7d2e2c0ca7831b7d8db10413cdb269b>.
 
@@ -293,6 +385,10 @@
 
   Fix Parquet thrift byte order on windows + relax geometry stats
   pruning (<https://redirect.github.com/duckdb/duckdb/pull/23095>)
+
+  ## Conflicts:
+
+  ## DESCRIPTION
 
 - Update vendored sources to
   <duckdb/duckdb@fcfa67b7c42f025567133fc98f062b4b531bdc22>.
@@ -305,6 +401,10 @@
   Bump lance in variegata
   (<https://redirect.github.com/duckdb/duckdb/pull/23094>)
 
+  ## Conflicts:
+
+  ## DESCRIPTION
+
 - Update vendored sources to
   <duckdb/duckdb@082b80b696847fa40419e035d76aa9f02bee2e74>.
 
@@ -313,6 +413,10 @@
   Merge v1.4-andium into v1.5-variegata, and add storage versions v1.4.5
   and v1.5.4 (<https://redirect.github.com/duckdb/duckdb/pull/23082>)
 
+  ## Conflicts:
+
+  ## DESCRIPTION
+
 - Update vendored sources to
   <duckdb/duckdb@9fd94dac874e3bb382fe6cf8c6b71d675811e656>.
 
@@ -320,6 +424,10 @@
 
   fix(adbc): implement ADBC 1.1.0 Rich Error Metadata API
   (<https://redirect.github.com/duckdb/duckdb/pull/23073>)
+
+  ## Conflicts:
+
+  ## DESCRIPTION
 
 - Update vendored sources to
   <duckdb/duckdb@be167b09f1d1e5e4d9814a03082a0f90d10cbc6b>.
@@ -331,6 +439,10 @@
   emscripten action in v1.5
   (<https://redirect.github.com/duckdb/duckdb/pull/23044>)
 
+  ## Conflicts:
+
+  ## DESCRIPTION
+
 - Update vendored sources to
   <duckdb/duckdb@40721d5609648df8bf00671e2094ccee8d142c0b>.
 
@@ -339,6 +451,10 @@
   Merge Into: Avoid recursively binding in the ProjectionBinder
   (<https://redirect.github.com/duckdb/duckdb/pull/23022>)
 
+  ## Conflicts:
+
+  ## DESCRIPTION
+
 - Update vendored sources to
   <duckdb/duckdb@cdfe7bf954245f77420afca6d19013da8b468bb6>.
 
@@ -346,6 +462,10 @@
 
   In the optimistic writer always start a new row group after merging
   (<https://redirect.github.com/duckdb/duckdb/pull/22997>)
+
+  ## Conflicts:
+
+  ## DESCRIPTION
 
 - Update vendored sources to
   <duckdb/duckdb@936e23eaf579f5c8732ae3490b1e1cff4820eaa0>.
@@ -356,6 +476,10 @@
   and source table when binding `WHEN NOT MATCHED BY TARGET`
   (<https://redirect.github.com/duckdb/duckdb/pull/23014>)
 
+  ## Conflicts:
+
+  ## DESCRIPTION
+
 - Update vendored sources to
   <duckdb/duckdb@ac79ba69fe32d1bd612964daf08d3777837e331d>.
 
@@ -363,6 +487,10 @@
 
   Normalize db_type to lowercase on ATTACH, apply extension aliases on
   compare (<https://redirect.github.com/duckdb/duckdb/pull/22758>)
+
+  ## Conflicts:
+
+  ## DESCRIPTION
 
 - Update vendored sources to
   <duckdb/duckdb@810a15558f1cd411b4a38b8e84ba74c1a724409f>.
@@ -372,6 +500,10 @@
   Fix case-insensitive column match in INSERT … SELECT ON CONFLICT
   (<https://redirect.github.com/duckdb/duckdb/pull/22825>)
 
+  ## Conflicts:
+
+  ## DESCRIPTION
+
 - Update vendored sources to
   <duckdb/duckdb@6367663157416c79e64875d96156d80059f2dc07>.
 
@@ -379,6 +511,10 @@
 
   Add avro and unity_catalog to extension list
   (<https://redirect.github.com/duckdb/duckdb/pull/22948>)
+
+  ## Conflicts:
+
+  ## DESCRIPTION
 
 - Update vendored sources to
   <duckdb/duckdb@b7373fb7590fd7dcd1a9362d598f6e847c59c3b4>.
@@ -388,6 +524,10 @@
   Fix partial column metadata reuse bug
   (<https://redirect.github.com/duckdb/duckdb/pull/22994>)
 
+  ## Conflicts:
+
+  ## DESCRIPTION
+
 - Update vendored sources to
   <duckdb/duckdb@f0c930c615f6d2efc3b15241bad0e6d68b0fe008>.
 
@@ -395,6 +535,10 @@
 
   fix(adbc): support `StatementExecuteSchema` of ADBC 1.1.0
   (<https://redirect.github.com/duckdb/duckdb/pull/22965>)
+
+  ## Conflicts:
+
+  ## DESCRIPTION
 
 - Update vendored sources to
   <duckdb/duckdb@91e5d92c16fce5042ead343a4a7950318ae26e65>.
@@ -405,6 +549,10 @@
   (<https://redirect.github.com/duckdb/duckdb/pull/22953>) Bump Julia to
   v1.5.3 (<https://redirect.github.com/duckdb/duckdb/pull/22804>)
 
+  ## Conflicts:
+
+  ## DESCRIPTION
+
 - Update vendored sources to
   <duckdb/duckdb@257dbeecb9d395951d616c99803b3772a62628ed>.
 
@@ -412,6 +560,10 @@
 
   Rowgroup index append
   (<https://redirect.github.com/duckdb/duckdb/pull/22940>)
+
+  ## Conflicts:
+
+  ## DESCRIPTION
 
 - Update vendored sources to
   <duckdb/duckdb@7505fef25c46c334da03fe132c59cfb1a9a2dcd4>.
@@ -422,6 +574,10 @@
   (<https://redirect.github.com/duckdb/duckdb/pull/22852>) Update vortex
   extension (<https://redirect.github.com/duckdb/duckdb/pull/22930>)
 
+  ## Conflicts:
+
+  ## DESCRIPTION
+
 - Update vendored sources to
   <duckdb/duckdb@4dac4343d654d967afb9bc057c3b3638158cd00b>.
 
@@ -431,6 +587,10 @@
   duckdb_create_decimal
   (<https://redirect.github.com/duckdb/duckdb/pull/22905>)
 
+  ## Conflicts:
+
+  ## DESCRIPTION
+
 - Update vendored sources to
   <duckdb/duckdb@64e1c5e9347902cd462f1e445766ab4ed104bf82>.
 
@@ -438,6 +598,10 @@
 
   Use non-deleted row count in `RowGroupReorderer`
   (<https://redirect.github.com/duckdb/duckdb/pull/22911>)
+
+  ## Conflicts:
+
+  ## DESCRIPTION
 
 - Update vendored sources to
   <duckdb/duckdb@635155a8522632cafb2ba36189f46569ebba8b23>.
@@ -449,6 +613,10 @@
   `nullptr` expressions in deserialized JSON
   (<https://redirect.github.com/duckdb/duckdb/pull/22906>)
 
+  ## Conflicts:
+
+  ## DESCRIPTION
+
 - Update vendored sources to
   <duckdb/duckdb@c0765cea1fee6de532b825a456430623969ef262>.
 
@@ -456,6 +624,10 @@
 
   Fix geometry stats checkpointing when no changes are detected
   (<https://redirect.github.com/duckdb/duckdb/pull/22882>)
+
+  ## Conflicts:
+
+  ## DESCRIPTION
 
 - Update vendored sources to
   <duckdb/duckdb@d53c7e81239969ce35a39ce4340e23140b931024>.
@@ -469,6 +641,10 @@
   with wildcard paths
   (<https://redirect.github.com/duckdb/duckdb/pull/22855>)
 
+  ## Conflicts:
+
+  ## DESCRIPTION
+
 - Update vendored sources to
   <duckdb/duckdb@cd3b2ad3eeb918620262802fa7d12705b308a25e>.
 
@@ -476,6 +652,10 @@
 
   \[Backport\] Column-level metadata loading and serialization
   (<https://redirect.github.com/duckdb/duckdb/pull/22768>)
+
+  ## Conflicts:
+
+  ## DESCRIPTION
 
 - Update vendored sources to
   <duckdb/duckdb@9e4f3003f71f5dd1399543930b63cfae2adb0684>.
@@ -488,6 +668,10 @@
   `ParseFormatSpecifier` returns unrecognized format
   (<https://redirect.github.com/duckdb/duckdb/pull/22850>)
 
+  ## Conflicts:
+
+  ## DESCRIPTION
+
 - Update vendored sources to
   <duckdb/duckdb@655dfabf9411dbca9e127960c34e00087e15ebc5>.
 
@@ -497,6 +681,10 @@
   Window Projections
   (<https://redirect.github.com/duckdb/duckdb/pull/22851>)
 
+  ## Conflicts:
+
+  ## DESCRIPTION
+
 - Update vendored sources to
   <duckdb/duckdb@66a1ae56f7a094d6664d949c9fe87caf62f54466>.
 
@@ -504,6 +692,10 @@
 
   fix progress bar output and crash when piping SQL
   (<https://redirect.github.com/duckdb/duckdb/pull/22836>)
+
+  ## Conflicts:
+
+  ## DESCRIPTION
 
 - Update vendored sources to
   <duckdb/duckdb@9a64d338f2fa1d3c1d43c016b09c538b529dd397>.
@@ -515,6 +707,10 @@
   time-out waiting for terminal background color
   (<https://redirect.github.com/duckdb/duckdb/pull/22838>)
 
+  ## Conflicts:
+
+  ## DESCRIPTION
+
 - Update vendored sources to
   <duckdb/duckdb@6e9cdf83f975253739349d95894376c237968b29>.
 
@@ -522,6 +718,10 @@
 
   Render MAP values as valid SQL in Value::ToSQLString()
   (<https://redirect.github.com/duckdb/duckdb/pull/22815>)
+
+  ## Conflicts:
+
+  ## DESCRIPTION
 
 - Update vendored sources to
   <duckdb/duckdb@ebdadcc66174e02ab11302354c61a31c958000bb>.
@@ -531,6 +731,10 @@
   Fix double free and memory leak in Arrow GeoArrow CRS serialization
   (<https://redirect.github.com/duckdb/duckdb/pull/21854>)
 
+  ## Conflicts:
+
+  ## DESCRIPTION
+
 - Update vendored sources to
   <duckdb/duckdb@f6cf717afbeccc47d0c4aecaf7785a6ffd294a31>.
 
@@ -539,6 +743,10 @@
   Set query text on PIVOT MultiStatement sub-statements at construction
   (<https://redirect.github.com/duckdb/duckdb/pull/22769>)
 
+  ## Conflicts:
+
+  ## DESCRIPTION
+
 - Update vendored sources to
   <duckdb/duckdb@db52b80730acf504a4cf25b066ed9368b0f53a2e>.
 
@@ -546,71 +754,6 @@
 
   Fix `TemporaryFileManager` reported size to reflect live blocks
   (<https://redirect.github.com/duckdb/duckdb/pull/22767>)
-
-### Bug fixes
-
-- Use memcmp in StringValueComparison to silence valgrind
-  ([\#2349](https://github.com/duckdb/duckdb-r/issues/2349)).
-
-- Silence valgrind errors in TransactionContext and BaseStatistics
-  ([\#1](https://github.com/duckdb/duckdb-r/issues/1),
-  [\#2](https://github.com/duckdb/duckdb-r/issues/2),
-  [\#2348](https://github.com/duckdb/duckdb-r/issues/2348)).
-
-### Features
-
-- Support writing `MAP` columns via
-  [`dbAppendTable()`](https://dbi.r-dbi.org/reference/dbAppendTable.html)
-  and
-  [`dbWriteTable()`](https://dbi.r-dbi.org/reference/dbWriteTable.html)
-  ([\#2354](https://github.com/duckdb/duckdb-r/issues/2354)).
-
-#### arrow
-
-- Add opt-in streaming flag for Arrow result conversion
-  ([\#2355](https://github.com/duckdb/duckdb-r/issues/2355)).
-
-- Implement DBI Arrow API with dbSendQueryArrow() and streaming
-  ([\#2347](https://github.com/duckdb/duckdb-r/issues/2347)).
-
-### Chore
-
-- Repair hand-written patch files so GNU patch can apply them.
-
-  - Drop all-zero index lines from patches 0036-0038: GNU patch treats
-    an all-zero old blob hash as file creation and refuses to apply the
-    patch onto an existing file.
-  - Fix the new-side line count of the hunk in patch 0038 (13, not 14).
-  - Replace invented context (banner comments not present in the source)
-    in the first hunk of patch 0037 with the actual surrounding lines.
-
-  <https://claude.ai/code/session_01GQmwQa48K7BVDnKjMwrNJv>
-
-- Collect revdep problems.
-
-- Cleanup.
-
-- Build-ignore plan directory.
-
-### Continuous integration
-
-- Update ccache-action reference.
-
-- Bump action version.
-
-- Skip tests on Windows and macOS.
-
-### Testing
-
-- Refactor example conditions to use the
-  [`simulate_duckdb()`](https://r.duckdb.org/reference/backend-duckdb.md)
-  helper ([\#2359](https://github.com/duckdb/duckdb-r/issues/2359)).
-
-- Simplify CRAN guard: auto-enable tests on GitHub Actions
-  ([\#2358](https://github.com/duckdb/duckdb-r/issues/2358)).
-
-- Add CRAN guards to prevent heavy C++ engine tests on CRAN
-  ([\#2353](https://github.com/duckdb/duckdb-r/issues/2353)).
 
 ### Uncategorized
 
@@ -650,6 +793,38 @@
 
 - Add comprehensive test coverage for `MAP` type reading
   ([\#2342](https://github.com/duckdb/duckdb-r/issues/2342)).
+
+## duckdb 1.5.3.9002
+
+### Bug fixes
+
+- Use memcmp in StringValueComparison to silence valgrind
+  ([\#2349](https://github.com/duckdb/duckdb-r/issues/2349)).
+
+### Continuous integration
+
+- Update ccache-action reference.
+
+- Bump action version.
+
+## duckdb 1.5.3.9001
+
+### Bug fixes
+
+- Silence valgrind errors in TransactionContext and BaseStatistics
+  ([\#1](https://github.com/duckdb/duckdb-r/issues/1),
+  [\#2](https://github.com/duckdb/duckdb-r/issues/2),
+  [\#2348](https://github.com/duckdb/duckdb-r/issues/2348)).
+
+### Chore
+
+- Build-ignore plan directory.
+
+### Continuous integration
+
+- Skip tests on Windows and macOS.
+
+## duckdb 1.5.3.9000
 
 - Switching to development version.
 
