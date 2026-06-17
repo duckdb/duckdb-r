@@ -19,6 +19,8 @@ struct ConvertOpts {
 
 	enum class ArrowConversion { DISABLED, ENABLED };
 
+	enum class ResultStreaming { DISABLED, ENABLED };
+
 	enum class ExperimentalFeatures { DISABLED, ENABLED };
 
 	enum class StrictRelational { DISABLED, ENABLED };
@@ -31,6 +33,7 @@ struct ConvertOpts {
 	GeometryConversion geometry = GeometryConversion::BLOB;
 	MapShape map = MapShape::DATA_FRAME;
 	ArrowConversion arrow = ArrowConversion::DISABLED;
+	ResultStreaming streaming = ResultStreaming::DISABLED;
 	ExperimentalFeatures experimental = ExperimentalFeatures::DISABLED;
 	StrictRelational strict_relational = StrictRelational::ENABLED;
 

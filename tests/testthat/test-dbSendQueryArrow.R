@@ -1,3 +1,5 @@
+skip_if_not_installed("nanoarrow")
+
 test_that("dbSendQueryArrow() returns a duckdb_result_arrow", {
   con <- local_con()
   dbExecute(con, "CREATE TABLE t (a INTEGER, b VARCHAR)")

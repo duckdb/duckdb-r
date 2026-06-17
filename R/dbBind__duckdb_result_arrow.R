@@ -20,7 +20,7 @@ dbBind__duckdb_result_arrow <- function(res, params, ...) {
   out <- rethrow_rapi_bind(
     res@stmt_lst$ref,
     params,
-    duckdb_convert_opts_impl(res@connection@convert_opts, arrow = TRUE)
+    duckdb_convert_opts_impl(res@connection@convert_opts, arrow = TRUE, streaming = TRUE)
   )
   if (length(out) == 0L) {
     # Zero-length bind: no executions; result is immediately drained.

@@ -1,5 +1,24 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.3.9004
+
+## Features
+
+### arrow
+
+- Add opt-in streaming flag for Arrow result conversion (#2355).
+
+- Implement DBI Arrow API with dbSendQueryArrow() and streaming (#2347).
+
+## Chore
+
+- Collect revdep problems.
+
+## Testing
+
+- Add CRAN guards to prevent heavy C++ engine tests on CRAN (#2353).
+
+
 # duckdb 1.5.3.9003
 
 ## Chore
