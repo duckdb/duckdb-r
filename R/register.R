@@ -31,7 +31,7 @@ encode_values <- function(value) {
 #' @param experimental Enable experimental optimizations
 #' @return These functions are called for their side effect.
 #' @export
-#' @examplesIf duckdb:::examples_enabled()
+#' @examplesIf simulate_duckdb()$env$examples_enabled()
 #' con <- dbConnect(duckdb())
 #'
 #' data <- data.frame(a = 1:3, b = letters[1:3])

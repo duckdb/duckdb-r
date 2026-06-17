@@ -33,7 +33,7 @@ Scripts and packages should manage their own connections
 and prefer the DBI methods for more control.
 }
 \examples{
-\dontshow{if (duckdb:::examples_enabled()) withAutoprint(\{ # examplesIf}
+\dontshow{if (simulate_duckdb()$env$examples_enabled()) withAutoprint(\{ # examplesIf}
 # Queries
 sql_query("SELECT 42")
 
