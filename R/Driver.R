@@ -135,7 +135,7 @@ duckdb_shutdown <- function(drv) {
 #' @return An object of class "adbc_driver"
 #' @rdname duckdb
 #' @export
-#' @examplesIf duckdb:::examples_enabled() && requireNamespace("adbcdrivermanager", quietly = TRUE)
+#' @examplesIf simulate_duckdb()$env$examples_enabled() && requireNamespace("adbcdrivermanager", quietly = TRUE)
 #' library(adbcdrivermanager)
 #' with_adbc(db <- adbc_database_init(duckdb_adbc()), {
 #'   as.data.frame(read_adbc(db, "SELECT 1 as one;"))

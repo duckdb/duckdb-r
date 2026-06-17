@@ -52,7 +52,7 @@
 #' or an adjusted time.
 #'
 #' @rdname duckdb
-#' @examplesIf duckdb:::examples_enabled()
+#' @examplesIf simulate_duckdb()$env$examples_enabled()
 #' drv <- duckdb()
 #' con <- dbConnect(drv)
 #'
