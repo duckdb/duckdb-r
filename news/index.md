@@ -1,5 +1,26 @@
 # Changelog
 
+## duckdb 1.5.3.9004
+
+### Features
+
+#### arrow
+
+- Add opt-in streaming flag for Arrow result conversion
+  ([\#2355](https://github.com/duckdb/duckdb-r/issues/2355)).
+
+- Implement DBI Arrow API with dbSendQueryArrow() and streaming
+  ([\#2347](https://github.com/duckdb/duckdb-r/issues/2347)).
+
+### Chore
+
+- Collect revdep problems.
+
+### Testing
+
+- Add CRAN guards to prevent heavy C++ engine tests on CRAN
+  ([\#2353](https://github.com/duckdb/duckdb-r/issues/2353)).
+
 ## duckdb 1.5.3.9003
 
 ### Chore

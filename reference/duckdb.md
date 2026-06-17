@@ -45,7 +45,8 @@ dbConnect(
   config = list(),
   bigint = "numeric",
   array = "none",
-  geometry = "blob"
+  geometry = "blob",
+  map = "data.frame"
 )
 
 # S4 method for class 'duckdb_connection'
@@ -134,6 +135,23 @@ dbDisconnect(conn, ..., shutdown = TRUE)
   or
   [`sf::st_as_sfc()`](https://r-spatial.github.io/sf/reference/st_as_sfc.html)
   to convert to other geometry formats.
+
+- map:
+
+  How `MAP` columns should be returned. There are two options:
+  `"data.frame"` and `"list_of"`. If `"data.frame"` is selected (the
+  default), `MAP` columns are returned as a list of data frames with
+  `key` and `value` columns. If `"list_of"` is selected, `MAP` columns
+  are returned as a
+  [`vctrs::list_of()`](https://vctrs.r-lib.org/reference/list_of.html)
+  whose `ptype` is a `data.frame(key = <K>, value = <V>)` that records
+  the SQL key/value types. This enables MAP columns to round-trip
+  through
+  [`dbWriteTable()`](https://dbi.r-dbi.org/reference/dbWriteTable.html)
+  /
+  [`dbCreateTable()`](https://dbi.r-dbi.org/reference/dbCreateTable.html)
+  without specifying `field.types`, and lets scans accept named-list
+  cells as MAP entries.
 
 - conn:
 

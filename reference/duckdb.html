@@ -21,7 +21,7 @@ it is no longer necessary to set shutdown = TRUE or to call duckdb_shutdown().">
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.3.9003</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.3.9004</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -84,7 +84,8 @@ it is no longer necessary to set <code>shutdown = TRUE</code> or to call <code>d
 <span>  config <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  bigint <span class="op">=</span> <span class="st">"numeric"</span>,</span>
 <span>  array <span class="op">=</span> <span class="st">"none"</span>,</span>
-<span>  geometry <span class="op">=</span> <span class="st">"blob"</span></span>
+<span>  geometry <span class="op">=</span> <span class="st">"blob"</span>,</span>
+<span>  map <span class="op">=</span> <span class="st">"data.frame"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for class 'duckdb_connection'</span></span>
@@ -166,6 +167,16 @@ If <code>"matrix"</code> is selected, arrays are returned as a column matrix. Ea
 If <code>"blob"</code> is selected, geometry columns are returned as a list of raw vectors containing WKB data.
 If <code>"wk"</code> is selected, geometry columns are returned as <span class="pkg">wk</span> <code>wk_wkb</code> vectors.
 Use <code><a href="https://paleolimbot.github.io/wk/reference/wk_handle.html" class="external-link">wk::wk_handle()</a></code> or <code><a href="https://r-spatial.github.io/sf/reference/st_as_sfc.html" class="external-link">sf::st_as_sfc()</a></code> to convert to other geometry formats.</p></dd>
+
+
+<dt id="arg-map">map<a class="anchor" aria-label="anchor" href="#arg-map"></a></dt>
+<dd><p>How <code>MAP</code> columns should be returned. There are two options: <code>"data.frame"</code> and <code>"list_of"</code>.
+If <code>"data.frame"</code> is selected (the default), <code>MAP</code> columns are returned as a list of data frames with
+<code>key</code> and <code>value</code> columns.
+If <code>"list_of"</code> is selected, <code>MAP</code> columns are returned as a <code><a href="https://vctrs.r-lib.org/reference/list_of.html" class="external-link">vctrs::list_of()</a></code> whose <code>ptype</code> is a
+<code>data.frame(key = &lt;K&gt;, value = &lt;V&gt;)</code> that records the SQL key/value types. This enables MAP columns
+to round-trip through <code><a href="https://dbi.r-dbi.org/reference/dbWriteTable.html" class="external-link">dbWriteTable()</a></code> / <code><a href="https://dbi.r-dbi.org/reference/dbCreateTable.html" class="external-link">dbCreateTable()</a></code> without specifying <code>field.types</code>,
+and lets scans accept named-list cells as MAP entries.</p></dd>
 
 
 <dt id="arg-conn">conn<a class="anchor" aria-label="anchor" href="#arg-conn"></a></dt>
