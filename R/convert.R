@@ -4,7 +4,8 @@ duckdb_convert_opts <- function(
   tz_out_convert = c("with", "force"),
   bigint = "numeric",
   array = "none",
-  geometry = "blob"
+  geometry = "blob",
+  map = "data.frame"
 ) {
   tz_out_convert <- match.arg(tz_out_convert)
   timezone_out <- check_tz(timezone_out)
@@ -25,12 +26,21 @@ duckdb_convert_opts <- function(
     stop(paste0("Unsupported geometry configuration: ", geometry))
   }
 
+  if (map == "list_of") {
+    if (!is_installed("vctrs")) {
+      stop("vctrs package is required for map = \"list_of\" support")
+    }
+  } else if (map != "data.frame") {
+    stop(paste0("Unsupported map configuration: ", map))
+  }
+
   duckdb_convert_opts_impl(
     timezone_out = timezone_out,
     tz_out_convert = tz_out_convert,
     bigint = bigint,
     array = array,
     geometry = geometry,
+    map = map,
     arrow = FALSE,
     streaming = FALSE,
     experimental = FALSE,
@@ -46,6 +56,7 @@ duckdb_convert_opts_impl <- function(
   bigint = NULL,
   array = NULL,
   geometry = NULL,
+  map = NULL,
   arrow = NULL,
   streaming = NULL,
   experimental = NULL,
@@ -65,6 +76,9 @@ duckdb_convert_opts_impl <- function(
   }
   if (!is.null(geometry)) {
     x$geometry <- geometry
+  }
+  if (!is.null(map)) {
+    x$map <- map
   }
   if (!is.null(arrow)) {
     x$arrow <- arrow
