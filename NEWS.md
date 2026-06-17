@@ -1,5 +1,31 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.3.9005
+
+## Features
+
+- Support writing `MAP` columns via `dbAppendTable()` and `dbWriteTable()` (#2354).
+
+## Chore
+
+- Repair hand-written patch files so GNU patch can apply them.
+
+  - Drop all-zero index lines from patches 0036-0038: GNU patch treats
+    an all-zero old blob hash as file creation and refuses to apply the
+    patch onto an existing file.
+  - Fix the new-side line count of the hunk in patch 0038 (13, not 14).
+  - Replace invented context (banner comments not present in the source)
+    in the first hunk of patch 0037 with the actual surrounding lines.
+
+  https://claude.ai/code/session_01GQmwQa48K7BVDnKjMwrNJv
+
+## Testing
+
+- Refactor example conditions to use the `simulate_duckdb()` helper (#2359).
+
+- Simplify CRAN guard: auto-enable tests on GitHub Actions (#2358).
+
+
 # duckdb 1.5.3.9004
 
 ## Features
