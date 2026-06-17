@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.3.9005</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.3.9004</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -31,28 +31,6 @@
       <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.3.9005" id="duckdb-1539005">duckdb 1.5.3.9005<a class="anchor" aria-label="anchor" href="#duckdb-1539005"></a></h2>
-<div class="section level3">
-<h3 id="features-1-5-3-9005">Features<a class="anchor" aria-label="anchor" href="#features-1-5-3-9005"></a></h3>
-<ul><li>Support writing <code>MAP</code> columns via <code><a href="https://dbi.r-dbi.org/reference/dbAppendTable.html" class="external-link">dbAppendTable()</a></code> and <code><a href="https://dbi.r-dbi.org/reference/dbWriteTable.html" class="external-link">dbWriteTable()</a></code> (<a href="https://github.com/duckdb/duckdb-r/issues/2354" class="external-link">#2354</a>).</li>
-</ul></div>
-<div class="section level3">
-<h3 id="chore-1-5-3-9005">Chore<a class="anchor" aria-label="anchor" href="#chore-1-5-3-9005"></a></h3>
-<ul><li>
-<p>Repair hand-written patch files so GNU patch can apply them.</p>
-<ul><li>Drop all-zero index lines from patches 0036-0038: GNU patch treats an all-zero old blob hash as file creation and refuses to apply the patch onto an existing file.</li>
-<li>Fix the new-side line count of the hunk in patch 0038 (13, not 14).</li>
-<li>Replace invented context (banner comments not present in the source) in the first hunk of patch 0037 with the actual surrounding lines.</li>
-</ul><p><a href="https://claude.ai/code/session_01GQmwQa48K7BVDnKjMwrNJv" class="external-link uri">https://claude.ai/code/session_01GQmwQa48K7BVDnKjMwrNJv</a></p>
-</li>
-</ul></div>
-<div class="section level3">
-<h3 id="testing-1-5-3-9005">Testing<a class="anchor" aria-label="anchor" href="#testing-1-5-3-9005"></a></h3>
-<ul><li><p>Refactor example conditions to use the <code><a href="../reference/backend-duckdb.html">simulate_duckdb()</a></code> helper (<a href="https://github.com/duckdb/duckdb-r/issues/2359" class="external-link">#2359</a>).</p></li>
-<li><p>Simplify CRAN guard: auto-enable tests on GitHub Actions (<a href="https://github.com/duckdb/duckdb-r/issues/2358" class="external-link">#2358</a>).</p></li>
-</ul></div>
-</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.5.3.9004" id="duckdb-1539004">duckdb 1.5.3.9004<a class="anchor" aria-label="anchor" href="#duckdb-1539004"></a></h2>
 <div class="section level3">
