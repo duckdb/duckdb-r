@@ -1,5 +1,37 @@
 # Changelog
 
+## duckdb 1.5.3.9005
+
+### Features
+
+- Support writing `MAP` columns via
+  [`dbAppendTable()`](https://dbi.r-dbi.org/reference/dbAppendTable.html)
+  and
+  [`dbWriteTable()`](https://dbi.r-dbi.org/reference/dbWriteTable.html)
+  ([\#2354](https://github.com/duckdb/duckdb-r/issues/2354)).
+
+### Chore
+
+- Repair hand-written patch files so GNU patch can apply them.
+
+  - Drop all-zero index lines from patches 0036-0038: GNU patch treats
+    an all-zero old blob hash as file creation and refuses to apply the
+    patch onto an existing file.
+  - Fix the new-side line count of the hunk in patch 0038 (13, not 14).
+  - Replace invented context (banner comments not present in the source)
+    in the first hunk of patch 0037 with the actual surrounding lines.
+
+  <https://claude.ai/code/session_01GQmwQa48K7BVDnKjMwrNJv>
+
+### Testing
+
+- Refactor example conditions to use the
+  [`simulate_duckdb()`](https://r.duckdb.org/reference/backend-duckdb.md)
+  helper ([\#2359](https://github.com/duckdb/duckdb-r/issues/2359)).
+
+- Simplify CRAN guard: auto-enable tests on GitHub Actions
+  ([\#2358](https://github.com/duckdb/duckdb-r/issues/2358)).
+
 ## duckdb 1.5.3.9004
 
 ### Features
