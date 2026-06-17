@@ -13,9 +13,9 @@ library(duckdb)
 #
 # The duckdb test suite exercises DuckDB's bundled C++ engine, which is too heavy
 # for CRAN's check farm, and checks were very fragile in the past. We therefore
-# keep it off on CRAN but run it automatically on GitHub Actions (our own CI as
-# well as r-universe). An explicit DUCKDB_R_RUN_TESTS opts in (true-ish) or out
-# (false-ish) and always wins; otherwise we fall back to GITHUB_ACTIONS.
+# keep it off on CRAN but run it automatically on GitHub Actions (GITHUB_ACTIONS)
+# and on r-universe (MY_UNIVERSE). An explicit DUCKDB_R_RUN_TESTS opts in
+# (true-ish) or out (false-ish) and always wins; otherwise we fall back to those.
 # This check is intentionally inlined here (rather than calling into the package)
 # so the guard is obvious and self-contained.
 run_tests <- tolower(trimws(Sys.getenv("DUCKDB_R_RUN_TESTS", "")))
@@ -25,7 +25,8 @@ if (run_tests %in% c("true", "1", "yes", "on")) {
 } else if (run_tests %in% c("false", "0", "no", "off")) {
   run <- FALSE
 } else {
-  run <- tolower(trimws(Sys.getenv("GITHUB_ACTIONS", ""))) == "true"
+  run <- tolower(trimws(Sys.getenv("GITHUB_ACTIONS", ""))) == "true" ||
+    nzchar(trimws(Sys.getenv("MY_UNIVERSE", "")))
 }
 
 if (run) {
