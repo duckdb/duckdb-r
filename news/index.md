@@ -2,6 +2,22 @@
 
 ## duckdb 1.5.4
 
+### fledge
+
+- CRAN pre-release v1.5.3.9900
+  ([\#2360](https://github.com/duckdb/duckdb-r/issues/2360)).
+
+### Compatibility
+
+- Add `is_distinct_from()` / `is_not_distinct_from()` dbplyr
+  translations for compatibility with upcoming dbplyr 2.6.0
+  ([\#2326](https://github.com/duckdb/duckdb-r/issues/2326),
+  [\#2332](https://github.com/duckdb/duckdb-r/issues/2332)).
+
+- Bump minimum R version requirement to 4.2.0
+  ([\#2233](https://github.com/duckdb/duckdb-r/issues/2233),
+  [\#2334](https://github.com/duckdb/duckdb-r/issues/2334)).
+
 ### Features
 
 - Update to DuckDB v1.5.4, see
@@ -35,18 +51,13 @@
   ([\#2305](https://github.com/duckdb/duckdb-r/issues/2305),
   [\#2340](https://github.com/duckdb/duckdb-r/issues/2340)).
 
-### Compatibility
+### Chore
 
-- Add `is_distinct_from()` / `is_not_distinct_from()` dbplyr
-  translations for compatibility with upcoming dbplyr 2.6.0
-  ([\#2326](https://github.com/duckdb/duckdb-r/issues/2326),
-  [\#2332](https://github.com/duckdb/duckdb-r/issues/2332)).
-
-- Bump minimum R version requirement to 4.2.0
-  ([\#2233](https://github.com/duckdb/duckdb-r/issues/2233),
-  [\#2334](https://github.com/duckdb/duckdb-r/issues/2334)).
+- Also ignore `inst/extensions`.
 
 ### Testing
+
+- More precise check for development version.
 
 - Add CRAN guards to prevent heavy C++ engine tests on CRAN
   ([\#2353](https://github.com/duckdb/duckdb-r/issues/2353),
