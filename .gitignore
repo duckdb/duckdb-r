@@ -119,3 +119,4 @@ cmake-build-debug
 /runs/
 /.ccache/
 /extensions/
+/inst/extensions/
