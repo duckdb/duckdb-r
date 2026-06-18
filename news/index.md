@@ -1,5 +1,20 @@
 # Changelog
 
+## duckdb 1.5.3.9901
+
+### Chore
+
+- Also ignore `inst/extensions`.
+
+### Testing
+
+- More precise check for development version.
+
+### fledge
+
+- CRAN pre-release v1.5.3.9900
+  ([\#2360](https://github.com/duckdb/duckdb-r/issues/2360)).
+
 ## duckdb 1.5.3.9900
 
 ### Features
