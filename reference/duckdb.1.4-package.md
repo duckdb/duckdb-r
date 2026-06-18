@@ -1,4 +1,4 @@
-# duckdb: DBI Package for the DuckDB Database Management System
+# duckdb.1.4: DBI Package for the DuckDB Database Management System
 
 The DuckDB project is an embedded analytical data management system with
 support for the Structured Query Language (SQL). This package includes
