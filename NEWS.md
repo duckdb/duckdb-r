@@ -1,21 +1,6 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.5.3.9901
-
-## Chore
-
-- Also ignore `inst/extensions`.
-
-## Testing
-
-- More precise check for development version.
-
-## fledge
-
-- CRAN pre-release v1.5.3.9900 (#2360).
-
-
-# duckdb 1.5.3.9900
+# duckdb 1.5.4
 
 ## Features
 
