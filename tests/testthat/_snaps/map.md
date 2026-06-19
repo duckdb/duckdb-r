@@ -8,16 +8,6 @@
       i Context: rapi_execute
       i Error type: INVALID
 
-# dbAppendTable cannot write to a MAP column (issue #200)
-
-    Code
-      dbAppendTable(con, "tbl", df)
-    Condition
-      Error in `duckdb_result()`:
-      ! Invalid Error: Conversion Error: Unimplemented type for cast (STRUCT("key" VARCHAR, "value" VARCHAR)[] -> MAP(VARCHAR, VARCHAR)) when casting from source column mp
-      i Context: rapi_execute
-      i Error type: INVALID
-
 # casting STRUCT(key, value)[] to MAP is unsupported (issue #200)
 
     Code

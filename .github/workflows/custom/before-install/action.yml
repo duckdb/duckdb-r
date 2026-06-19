@@ -26,27 +26,26 @@ runs:
         echo '_R_CHECK_PKG_SIZES_=FALSE' | tee -a $GITHUB_ENV
       shell: bash
 
-    - name: Configure the duckdb CRAN guard
+    # The duckdb tests and runnable examples exercise the bundled C++ engine and
+    # are gated behind DUCKDB_R_RUN_TESTS so they never run on CRAN (see
+    # tests/testthat.R and R/cran-guard.R). The guard enables them automatically
+    # on GitHub Actions (GITHUB_ACTIONS=true), which also covers r-universe, so
+    # CI no longer has to opt in explicitly here.
+    #
+    # The engine-poisoning matrix entry is the one exception: it builds the C++
+    # tripwire (-DDUCKDB_R_POISON_ENGINE) and forces DUCKDB_R_RUN_TESTS=false, so
+    # that any test or example reaching the engine aborts the check and proves
+    # the CRAN guards are effective.
+    - name: Build the engine tripwire (engine-poisoning entry)
+      if: env.DUCKDB_R_POISON_ENGINE != ''
       run: |
-        # The duckdb tests and runnable examples exercise the bundled C++ engine
-        # and are gated behind DUCKDB_R_RUN_TESTS so they never run on CRAN
-        # (see tests/testthat.R and R/cran-guard.R). We opt in here for CI.
-        #
-        # The engine-poisoning matrix entry instead sets DUCKDB_R_POISON_ENGINE
-        # (via the generic "env" matrix field, applied above). When present we
-        # build the C++ tripwire (-DDUCKDB_R_POISON_ENGINE) and deliberately
-        # leave DUCKDB_R_RUN_TESTS unset, so that any test or example reaching
-        # the engine aborts the check and proves the CRAN guards are effective.
-        if [ -n "${DUCKDB_R_POISON_ENGINE:-}" ]; then
-          echo "DUCKDB_R_POISON_ENGINE is set; building the engine tripwire and leaving DUCKDB_R_RUN_TESTS unset."
-          mkdir -p ~/.R
-          echo 'CPPFLAGS += -DDUCKDB_R_POISON_ENGINE' | tee -a ~/.R/Makevars
-          # The snapshot updater bypasses tests/testthat.R via testthat::test_local(),
-          # so disable it here to keep it from exercising the poisoned engine.
-          echo 'SKIP_UPDATE_SNAPSHOTS=true' | tee -a "$GITHUB_ENV"
-        else
-          echo 'DUCKDB_R_RUN_TESTS=true' | tee -a "$GITHUB_ENV"
-        fi
+        echo "DUCKDB_R_POISON_ENGINE is set; building the engine tripwire and forcing DUCKDB_R_RUN_TESTS=false."
+        mkdir -p ~/.R
+        echo 'CPPFLAGS += -DDUCKDB_R_POISON_ENGINE' | tee -a ~/.R/Makevars
+        echo 'DUCKDB_R_RUN_TESTS=false' | tee -a "$GITHUB_ENV"
+        # The snapshot updater bypasses tests/testthat.R via testthat::test_local(),
+        # so disable it here to keep it from exercising the poisoned engine.
+        echo 'SKIP_UPDATE_SNAPSHOTS=true' | tee -a "$GITHUB_ENV"
       shell: bash
 
     # Default to the fast system-libduckdb build (link against a prebuilt

@@ -109,6 +109,57 @@ static void AppendListColumnSegment(const RType &rtype, SEXP *source_data, idx_t
 	}
 }
 
+// Scan path for the `map = "list_of"` opt-in: each non-NULL cell is either a
+// `data.frame(key, value)` or a named list, and produces a `STRUCT(key, value)`
+// row per entry.
+static void AppendMapEntriesListColumnSegment(const RType &rtype, SEXP *source_data, idx_t sexp_offset, Vector &result,
+                                              idx_t count) {
+	source_data += sexp_offset;
+	auto &result_mask = FlatVector::Validity(result);
+	auto child_rtype = rtype.GetListChildType();
+	D_ASSERT(child_rtype.id() == RTypeId::STRUCT);
+	auto result_data = FlatVector::GetData<list_entry_t>(result);
+
+	for (idx_t i = 0; i < count; i++) {
+		auto val = source_data[i];
+		if (RSexpType::IsNull(val)) {
+			result_mask.SetInvalid(i);
+			continue;
+		}
+		result_data[i].offset = ListVector::GetListSize(result);
+		R_len_t len = 0;
+
+		if (Rf_inherits(val, "data.frame")) {
+			SEXP key_col = VECTOR_ELT(val, 0);
+			SEXP value_col = VECTOR_ELT(val, 1);
+			len = (R_len_t)Rf_xlength(key_col);
+			for (R_len_t j = 0; j < len; ++j) {
+				child_list_t<Value> kv;
+				kv.push_back({"key", RApiTypes::SexpToValue(key_col, j)});
+				kv.push_back({"value", RApiTypes::SexpToValue(value_col, j)});
+				ListVector::PushBack(result, Value::STRUCT(std::move(kv)));
+			}
+		} else {
+			SEXP names_sexp = Rf_getAttrib(val, R_NamesSymbol);
+			len = (R_len_t)Rf_xlength(val);
+			for (R_len_t j = 0; j < len; ++j) {
+				SEXP nm = STRING_ELT(names_sexp, j);
+				SEXP value_sexp = VECTOR_ELT(val, j);
+				child_list_t<Value> kv;
+				kv.push_back({"key", Value(string(CHAR(nm)))});
+				if (value_sexp == R_NilValue) {
+					// Treat element NULL as a SQL NULL of the column's value type
+					kv.push_back({"value", Value()});
+				} else {
+					kv.push_back({"value", RApiTypes::SexpToValue(value_sexp, 0)});
+				}
+				ListVector::PushBack(result, Value::STRUCT(std::move(kv)));
+			}
+		}
+		result_data[i].length = len;
+	}
+}
+
 template <class SRC, class DST, class RTYPE>
 static inline void AppendMatrixSegmentAtomic(SRC *src_ptr, int nrows, int ncols, idx_t sexp_offset,
                                              Vector &child_vector, idx_t count) {
@@ -386,10 +437,81 @@ static bool get_experimental_param(named_parameter_map_t &named_parameters) {
 	return false;
 }
 
+static bool get_map_list_of_param(named_parameter_map_t &named_parameters) {
+	auto entry = named_parameters.find("map_list_of");
+	if (entry != named_parameters.end()) {
+		return BooleanValue::Get(entry->second);
+	}
+	return false;
+}
+
+// Returns true when `coldata` is a list column whose non-NULL cells are all
+// named lists (and not data frames or blobs) that the caller has opted into
+// scanning as MAP entries via `dbConnect(map = "list_of")`. The cells'
+// value types must agree; otherwise the column scans as before.
+//
+// On success, `value_rtype` is set to the common value RType and the column's
+// rtype should be overridden to `LIST(STRUCT(key = STRING, value = V))`.
+static bool DetectNamedListMapColumn(SEXP coldata, bool integer64, RType &value_rtype) {
+	if (TYPEOF(coldata) != VECSXP) {
+		return false;
+	}
+	R_xlen_t len = Rf_xlength(coldata);
+	bool any_seen = false;
+	bool common_set = false;
+
+	for (R_xlen_t i = 0; i < len; ++i) {
+		SEXP elt = VECTOR_ELT(coldata, i);
+		if (elt == R_NilValue) {
+			continue;
+		}
+		if (TYPEOF(elt) != VECSXP) {
+			return false;
+		}
+		if (Rf_inherits(elt, "data.frame") || Rf_inherits(elt, "blob")) {
+			return false;
+		}
+		SEXP names_sexp = Rf_getAttrib(elt, R_NamesSymbol);
+		R_xlen_t inner_len = Rf_xlength(elt);
+		if (names_sexp == R_NilValue || TYPEOF(names_sexp) != STRSXP || Rf_xlength(names_sexp) != inner_len) {
+			return false;
+		}
+		for (R_xlen_t j = 0; j < inner_len; ++j) {
+			SEXP nm = STRING_ELT(names_sexp, j);
+			if (nm == NA_STRING || Rf_xlength(nm) == 0) {
+				return false;
+			}
+		}
+		any_seen = true;
+		for (R_xlen_t j = 0; j < inner_len; ++j) {
+			SEXP v_j = VECTOR_ELT(elt, j);
+			if (v_j == R_NilValue) {
+				continue;
+			}
+			RType t = RApiTypes::DetectRType(v_j, integer64);
+			if (!common_set) {
+				value_rtype = t;
+				common_set = true;
+			} else if (t != value_rtype) {
+				return false;
+			}
+		}
+	}
+
+	if (!any_seen) {
+		return false;
+	}
+	if (!common_set) {
+		// All non-NULL cells were empty named lists. Default value type to STRING.
+		value_rtype = RTypeId::STRING;
+	}
+	return true;
+}
+
 struct DataFrameScanBindData : public TableFunctionData {
 	DataFrameScanBindData(SEXP df_p, idx_t row_count_p, vector<RType> &rtypes_p, vector<data_ptr_t> &dataptrs_p,
-	                      named_parameter_map_t &named_parameters)
-	    : df(df_p), row_count(row_count_p), rtypes(rtypes_p), data_ptrs(dataptrs_p) {
+	                      vector<bool> &named_list_map_p, named_parameter_map_t &named_parameters)
+	    : df(df_p), row_count(row_count_p), rtypes(rtypes_p), data_ptrs(dataptrs_p), named_list_map(named_list_map_p) {
 		integer64 = get_integer64_param(named_parameters);
 		experimental = get_experimental_param(named_parameters);
 	}
@@ -397,6 +519,7 @@ struct DataFrameScanBindData : public TableFunctionData {
 	idx_t row_count;
 	vector<RType> rtypes;
 	vector<data_ptr_t> data_ptrs;
+	vector<bool> named_list_map;
 	idx_t rows_per_task = 1000000;
 	bool integer64 = false;
 	bool experimental = false;
@@ -428,23 +551,39 @@ static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context
 
 	auto integer64 = get_integer64_param(input.named_parameters);
 	auto experimental = get_experimental_param(input.named_parameters);
+	auto map_list_of = get_map_list_of_param(input.named_parameters);
 
 	auto df_names = df.names();
 	vector<RType> rtypes;
 	vector<data_ptr_t> data_ptrs;
+	vector<bool> named_list_map;
 
 	for (R_xlen_t col_idx = 0; col_idx < df.size(); col_idx++) {
 		names.push_back(df_names[col_idx]);
 
 		auto coldata = df[col_idx];
 		auto rtype = RApiTypes::DetectRType(coldata, integer64);
+
+		bool is_named_list_map = false;
+		if (map_list_of && (rtype.id() == RTypeId::LIST || rtype.id() == RTypeId::LIST_OF_NULLS)) {
+			RType value_rtype;
+			if (DetectNamedListMapColumn(coldata, integer64, value_rtype)) {
+				child_list_t<RType> struct_children;
+				struct_children.push_back({"key", RType(RTypeId::STRING)});
+				struct_children.push_back({"value", value_rtype});
+				rtype = RType::LIST(RType::STRUCT(std::move(struct_children)));
+				is_named_list_map = true;
+			}
+		}
+
 		rtypes.push_back(rtype);
+		named_list_map.push_back(is_named_list_map);
 		return_types.push_back(RApiTypes::LogicalTypeFromRType(rtype, experimental));
 
 		data_ptrs.push_back(GetColDataPtr(rtype, coldata));
 	}
 	auto row_count = RApiTypes::GetVecSize(rtypes[0], VECTOR_ELT(df, 0));
-	return make_uniq<DataFrameScanBindData>(df, row_count, rtypes, data_ptrs, input.named_parameters);
+	return make_uniq<DataFrameScanBindData>(df, row_count, rtypes, data_ptrs, named_list_map, input.named_parameters);
 }
 
 static idx_t DataFrameScanMaxThreads(ClientContext &context, const FunctionData *bind_data_p) {
@@ -520,7 +659,11 @@ static void DataFrameScanFunc(ClientContext &context, TableFunctionInput &data, 
 
 		auto coldata_ptr = bind_data.data_ptrs[src_df_col_idx];
 		auto rtype = bind_data.rtypes[src_df_col_idx];
-		AppendAnyColumnSegment(rtype, bind_data.experimental, coldata_ptr, sexp_offset, v, this_count);
+		if (bind_data.named_list_map[src_df_col_idx]) {
+			AppendMapEntriesListColumnSegment(rtype, (SEXP *)coldata_ptr, sexp_offset, v, this_count);
+		} else {
+			AppendAnyColumnSegment(rtype, bind_data.experimental, coldata_ptr, sexp_offset, v, this_count);
+		}
 	}
 	operator_data.position += this_count;
 }
@@ -543,6 +686,7 @@ DataFrameScanFunction::DataFrameScanFunction()
 	to_string = DataFrameScanToString;
 	named_parameters["integer64"] = LogicalType::BOOLEAN;
 	named_parameters["experimental"] = LogicalType::BOOLEAN;
+	named_parameters["map_list_of"] = LogicalType::BOOLEAN;
 	projection_pushdown = true;
 	global_initialization = TableFunctionInitialization::INITIALIZE_ON_SCHEDULE;
 }

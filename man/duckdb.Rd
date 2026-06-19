@@ -35,7 +35,8 @@ duckdb_adbc()
   config = list(),
   bigint = "numeric",
   array = "none",
-  geometry = "blob"
+  geometry = "blob",
+  map = "data.frame"
 )
 
 \S4method{dbDisconnect}{duckdb_connection}(conn, ..., shutdown = TRUE)
@@ -90,6 +91,14 @@ If \code{"blob"} is selected, geometry columns are returned as a list of raw vec
 If \code{"wk"} is selected, geometry columns are returned as \pkg{wk} \code{wk_wkb} vectors.
 Use \code{\link[wk:wk_handle]{wk::wk_handle()}} or \code{\link[sf:st_as_sfc]{sf::st_as_sfc()}} to convert to other geometry formats.}
 
+\item{map}{How \code{MAP} columns should be returned. There are two options: \code{"data.frame"} and \code{"list_of"}.
+If \code{"data.frame"} is selected (the default), \code{MAP} columns are returned as a list of data frames with
+\code{key} and \code{value} columns.
+If \code{"list_of"} is selected, \code{MAP} columns are returned as a \code{\link[vctrs:list_of]{vctrs::list_of()}} whose \code{ptype} is a
+\verb{data.frame(key = <K>, value = <V>)} that records the SQL key/value types. This enables MAP columns
+to round-trip through \code{\link[DBI:dbWriteTable]{dbWriteTable()}} / \code{\link[DBI:dbCreateTable]{dbCreateTable()}} without specifying \code{field.types},
+and lets scans accept named-list cells as MAP entries.}
+
 \item{conn}{A \code{duckdb_connection} object}
 
 \item{shutdown}{Unused. The database instance is shut down automatically.}
@@ -125,13 +134,13 @@ If the timestamp is invalid in the target timezone, the resulting value may be \
 or an adjusted time.
 }
 \examples{
-\dontshow{if (duckdb:::examples_enabled() && requireNamespace("adbcdrivermanager", quietly = TRUE)) withAutoprint(\{ # examplesIf}
+\dontshow{if (simulate_duckdb()$env$examples_enabled() && requireNamespace("adbcdrivermanager", quietly = TRUE)) withAutoprint(\{ # examplesIf}
 library(adbcdrivermanager)
 with_adbc(db <- adbc_database_init(duckdb_adbc()), {
   as.data.frame(read_adbc(db, "SELECT 1 as one;"))
 })
 \dontshow{\}) # examplesIf}
-\dontshow{if (duckdb:::examples_enabled()) withAutoprint(\{ # examplesIf}
+\dontshow{if (simulate_duckdb()$env$examples_enabled()) withAutoprint(\{ # examplesIf}
 drv <- duckdb()
 con <- dbConnect(drv)
 

@@ -1,13 +1,7 @@
 # https://github.com/r-lib/testthat/issues/2236
 skip_on_dev_version <- function() {
-  version <- asNamespace(testing_package())[[".__NAMESPACE__."]][["spec"]][[
-    "version"
-  ]] |>
-    package_version() |>
-    unclass() |>
-    getElement(1L)
-
-  if (length(version) >= 4 && version[[4]] >= 1000) {
+  version <- get_duckdb_version()
+  if (!grepl("^[0-9]+[.][0-9]+[.][0-9]$", version)) {
     skip("Skip on development versions.")
   }
 }

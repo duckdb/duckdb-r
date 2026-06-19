@@ -98,6 +98,11 @@ if [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "1" ] || [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "t
   # internal headers; the only thing that guarantees the layout matches
   # the loaded library is an exact-commit match. We check the embedded
   # DUCKDB_SOURCE_ID string in the .so/.dylib.
+  #
+  # The two abbreviations need not be the same length: DuckDB truncates the
+  # commit hash to 10 chars in the binary (CMake SUBSTRING 0 10), while the
+  # vendored pragma_version.cpp sometimes carries 11. Both abbreviate the
+  # same SHA, so we compare on the shared 10-char prefix.
   version_file=duckdb/src/function/table/version/pragma_version.cpp
   if [ -f "${version_file}" ]; then
     vendored_version=$(sed -n 's/^#define DUCKDB_VERSION "\(.*\)"$/\1/p' "${version_file}")
@@ -109,8 +114,10 @@ if [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "1" ] || [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "t
       exit 1
     fi
 
-    if [ -n "${vendored_source_id}" ] && ! strings "${duckdb_lib_dir}/libduckdb.${lib_ext}" | grep -qxF "${vendored_source_id}"; then
-      installed_source_id=$(strings "${duckdb_lib_dir}/libduckdb.${lib_ext}" | grep -E '^[0-9a-f]{10}$' | head -n 1)
+    # Compare on the first 10 hex chars (DuckDB's canonical binary length).
+    vendored_prefix=$(printf '%s' "${vendored_source_id}" | cut -c1-10)
+    if [ -n "${vendored_prefix}" ] && ! strings "${duckdb_lib_dir}/libduckdb.${lib_ext}" | grep -qE "^${vendored_prefix}"; then
+      installed_source_id=$(strings "${duckdb_lib_dir}/libduckdb.${lib_ext}" | grep -E '^[0-9a-f]{10,}$' | head -n 1)
       echo "" >&2
       echo "ERROR: vendored headers and system libduckdb were built from different commits." >&2
       echo "  vendored headers expect commit: ${vendored_source_id} (${vendored_version})" >&2

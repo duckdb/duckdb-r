@@ -15,22 +15,38 @@ chunk-by-chunk rather than materializing up front.
   goes into `Suggests`; missing-package error includes an install hint.
 - `duckdb_fetch_arrow()` and `duckdb_fetch_record_batch()` stay; new docs
   cross-link them and flag them for future deprecation.
+- Streaming is opt-in via a dedicated `streaming` flag on `ConvertOpts`, set
+  only by the new `duckdb_result_arrow` paths. The legacy
+  `dbSendQuery(arrow = TRUE)` path keeps materializing results, so it remains
+  fully backward compatible (results survive interleaved queries on the same
+  connection, and the existing single-row-bind restriction is preserved).
+- Multi-row binding is supported for the new Arrow API: streams cannot
+  coexist on one prepared statement, so multi-row binds materialize one
+  result per row and `dbFetchArrow()` concatenates them into a single stream.
 
 ## Commits
 
 Each commit is self-contained and keeps the existing test suite green.
 
-### 1. fix(arrow): stream results when arrow execute is requested
+### 1. feat(arrow): add an opt-in `streaming` flag and stream when requested
 
 In `src/statement.cpp`, `rapi_execute` calls
 `stmt->Execute(stmt->parameters, /*allow_stream_result=*/false)` even when
-arrow is enabled. Switch this to `true` for the arrow path so the result is
-not materialized up front.
+arrow is enabled, materializing the result up front. Allow streaming, but
+gate it behind a new `streaming` flag so only the new Arrow API opts in.
 
-- Change confined to `rapi_execute`.
+- Add `ConvertOpts::ResultStreaming { DISABLED, ENABLED }` and a `streaming`
+  field (`src/include/convert.hpp`), parsed from the `streaming` list element
+  (`src/convert.cpp`). Thread it through the R helper `duckdb_convert_opts()` /
+  `duckdb_convert_opts_impl()` (`R/convert.R`), defaulting to `FALSE`.
+- `rapi_execute`: `allow_stream_result = arrow && streaming`.
+- `rapi_bind`: `allow_stream_result = arrow && streaming && n_rows == 1`;
+  keep the historical "length one for arrow queries" error for the
+  non-streaming (legacy) arrow path.
 - Existing arrow tests (`test-fetch_arrow.R`, `test-arrow_stream.R`,
-  `test-register_arrow.R`) keep passing because `QueryResultChunkScanState`
-  consumes both streaming and materialized results.
+  `test-register_arrow.R`) keep passing unchanged: the legacy path never sets
+  `streaming`, so it still materializes. `QueryResultChunkScanState` consumes
+  both streaming and materialized results.
 
 ### 2. feat(arrow): add `duckdb_result_arrow` class and `dbSendQueryArrow()`
 
@@ -79,19 +95,25 @@ Wire up nanoarrow-based fetching against DuckDB's
   a streaming-proof test that calling `dbSendQueryArrow()` on a `range()`
   query without fetching completes immediately (no materialization).
 
-### 4. feat(arrow): implement `dbBindArrow()`
+### 4. feat(arrow): implement `dbBind()`, `dbBindArrow()`, and multi-row binding
 
-- New `R/dbBindArrow__duckdb_result_arrow.R`.
-- Converts the nanoarrow stream params via `nanoarrow::convert_array_stream`
-  (or equivalent) into the existing single-row list form, then delegates to
-  the bind path. The single-row restriction from `rapi_bind` (arrow path)
-  carries over.
-- Tests cover: bind a parameterized arrow query and fetch the result.
+- `R/dbBind__duckdb_result_arrow.R`: `dbBind()` rebinds the result, resetting
+  completion/schema state. A single bound row keeps the streaming result;
+  multiple rows materialize one result per row, stored as
+  `query_result` + `pending_query_results` so fetching drains them in order.
+- `R/dbBindArrow__duckdb_result_arrow.R`: converts the nanoarrow stream params
+  into the list form and delegates to `dbBind()`. Multi-row streams therefore
+  run the query once per row.
+- `R/dbFetchArrow__duckdb_result_arrow.R`: for a single execution, hands the
+  streaming wrapper to nanoarrow directly; for multiple pending results,
+  drains every per-row result via `dbFetchArrowChunk()` and emits one unified
+  `basic_array_stream`.
+- Tests cover: bind a parameterized arrow query and fetch the result,
+  `dbBind()` rebind/reset, `dbBindArrow()` with a stream, and a multi-row
+  stream running the query once per row.
 
 ## Out of scope
 
-- Multi-row parameter binding for arrow queries — `rapi_bind` already
-  rejects this for arrow, and we keep that restriction.
 - Soft-deprecation of `duckdb_fetch_arrow()` / `duckdb_fetch_record_batch()`
   — only cross-link via `@seealso`.
 - The plain `dbFetch()` (data-frame) streaming work mentioned in the same

@@ -38,6 +38,131 @@ test_that("maps can be read", {
   ))
 })
 
+test_that("maps can be written with dbAppendTable (#200)", {
+  con <- local_con()
+
+  dbExecute(con, "CREATE TABLE tbl (mp MAP(VARCHAR, VARCHAR))")
+
+  df <- data.frame(
+    mp = I(list(data.frame(key = "page", value = "1", stringsAsFactors = FALSE)))
+  )
+  dbAppendTable(con, "tbl", df)
+
+  out <- dbReadTable(con, "tbl")
+  expect_equal(length(out$mp), 1L)
+  expect_equal(
+    as.data.frame(out$mp[[1]]),
+    data.frame(key = "page", value = "1", stringsAsFactors = FALSE)
+  )
+})
+
+test_that("maps can be round-tripped via dbAppendTable (#200)", {
+  con <- local_con()
+
+  dbExecute(con, "CREATE TABLE tbl (id INTEGER, mp MAP(VARCHAR, VARCHAR))")
+  dbExecute(con, "INSERT INTO tbl VALUES (1, MAP {'a': 'b', 'c': 'd'}), (2, MAP {'x': 'y'})")
+
+  original <- dbReadTable(con, "tbl")
+
+  dbExecute(con, "CREATE TABLE tbl2 (id INTEGER, mp MAP(VARCHAR, VARCHAR))")
+  dbAppendTable(con, "tbl2", original)
+
+  roundtripped <- dbReadTable(con, "tbl2")
+  expect_equal(roundtripped$id, original$id)
+  expect_equal(length(roundtripped$mp), length(original$mp))
+  for (i in seq_along(original$mp)) {
+    expect_equal(
+      as.data.frame(roundtripped$mp[[i]]),
+      as.data.frame(original$mp[[i]])
+    )
+  }
+})
+
+test_that("maps with NULL values can be written (#200)", {
+  con <- local_con()
+
+  dbExecute(con, "CREATE TABLE tbl (id INTEGER, mp MAP(VARCHAR, VARCHAR))")
+
+  df <- data.frame(id = 1:2)
+  df$mp <- list(
+    data.frame(key = "a", value = "b", stringsAsFactors = FALSE),
+    NULL
+  )
+  dbAppendTable(con, "tbl", df)
+
+  out <- dbReadTable(con, "tbl")
+  expect_equal(out$id, 1:2)
+  expect_equal(
+    as.data.frame(out$mp[[1]]),
+    data.frame(key = "a", value = "b", stringsAsFactors = FALSE)
+  )
+  expect_null(out$mp[[2]])
+})
+
+test_that("maps with non-character keys/values can be written (#200)", {
+  con <- local_con()
+
+  dbExecute(con, "CREATE TABLE tbl (mp MAP(INTEGER, DOUBLE))")
+
+  df <- data.frame(
+    mp = I(list(data.frame(key = 1:2, value = c(1.5, 2.5))))
+  )
+  dbAppendTable(con, "tbl", df)
+
+  out <- dbReadTable(con, "tbl")
+  expect_equal(
+    as.data.frame(out$mp[[1]]),
+    data.frame(key = 1:2, value = c(1.5, 2.5))
+  )
+})
+
+test_that("maps can be written with dbWriteTable and field.types (#200)", {
+  con <- local_con()
+
+  df <- data.frame(
+    mp = I(list(data.frame(key = "a", value = "b", stringsAsFactors = FALSE)))
+  )
+  dbWriteTable(con, "tbl", df, field.types = c(mp = "MAP(VARCHAR, VARCHAR)"))
+
+  type <- dbGetQuery(con, "DESCRIBE tbl")$column_type
+  expect_equal(type, "MAP(VARCHAR, VARCHAR)")
+
+  out <- dbReadTable(con, "tbl")
+  expect_equal(
+    as.data.frame(out$mp[[1]]),
+    data.frame(key = "a", value = "b", stringsAsFactors = FALSE)
+  )
+})
+
+test_that("non-map columns alongside map columns still work (#200)", {
+  con <- local_con()
+
+  dbExecute(con, "CREATE TABLE tbl (id INTEGER, name VARCHAR, mp MAP(VARCHAR, INTEGER))")
+
+  df <- data.frame(
+    id = 1:2,
+    name = c("foo", "bar"),
+    stringsAsFactors = FALSE
+  )
+  df$mp <- list(
+    data.frame(key = c("a", "b"), value = 1:2, stringsAsFactors = FALSE),
+    data.frame(key = "c", value = 3L, stringsAsFactors = FALSE)
+  )
+  dbAppendTable(con, "tbl", df)
+
+  out <- dbReadTable(con, "tbl")
+  expect_equal(out$id, 1:2)
+  expect_equal(out$name, c("foo", "bar"))
+  expect_equal(
+    as.data.frame(out$mp[[1]]),
+    data.frame(key = c("a", "b"), value = 1:2, stringsAsFactors = FALSE)
+  )
+  expect_equal(
+    as.data.frame(out$mp[[2]]),
+    data.frame(key = "c", value = 3L, stringsAsFactors = FALSE)
+  )
+})
+
 test_that("structs give the same results via Arrow", {
   skip_on_cran()
   skip_if_not_installed("vctrs")
@@ -285,23 +410,286 @@ test_that("duplicate map keys are rejected by DuckDB", {
   )
 })
 
+# Reading with map = "list_of" ---------------------------------------------
+
+test_that("dbConnect(map = \"list_of\") returns vctrs::list_of for MAP columns", {
+  skip_if_not_installed("vctrs")
+
+  con <- local_con(map = "list_of")
+
+  res <- dbGetQuery(con, "SELECT MAP {'a': 1, 'b': 2} AS m")
+  expect_s3_class(res$m, "vctrs_list_of")
+  expect_equal(
+    vctrs::vec_ptype(attr(res$m, "ptype")),
+    vctrs::vec_ptype(data.frame(key = character(), value = integer()))
+  )
+  expect_equal(
+    as.data.frame(res$m[[1]]),
+    data.frame(key = c("a", "b"), value = 1:2, stringsAsFactors = FALSE)
+  )
+})
+
+test_that("dbConnect(map = \"list_of\") preserves NULL and empty MAP cells", {
+  skip_if_not_installed("vctrs")
+
+  con <- local_con(map = "list_of")
+
+  res <- dbGetQuery(
+    con,
+    "SELECT 1 AS i, MAP {'a': 1} AS m UNION ALL
+     SELECT 2, NULL UNION ALL
+     SELECT 3, MAP([]::VARCHAR[], []::INTEGER[]) ORDER BY i"
+  )
+  expect_s3_class(res$m, "vctrs_list_of")
+  expect_equal(
+    as.data.frame(res$m[[1]]),
+    data.frame(key = "a", value = 1L, stringsAsFactors = FALSE)
+  )
+  expect_null(res$m[[2]])
+  expect_equal(nrow(as.data.frame(res$m[[3]])), 0L)
+})
+
+test_that("dbConnect default `map` keeps MAP columns as plain data.frame lists", {
+  skip_if_not_installed("vctrs")
+
+  con <- local_con()
+
+  res <- dbGetQuery(con, "SELECT MAP {'a': 1} AS m")
+  expect_false(inherits(res$m, "vctrs_list_of"))
+  expect_type(res$m, "list")
+})
+
+test_that("dbConnect(map = \"list_of\") works with nested key/value types", {
+  skip_if_not_installed("vctrs")
+
+  con <- local_con(map = "list_of")
+
+  res <- dbGetQuery(
+    con,
+    "SELECT MAP([DATE '2024-01-01'], ['x']) AS m"
+  )
+  expect_s3_class(res$m, "vctrs_list_of")
+  ptype <- attr(res$m, "ptype")
+  expect_s3_class(ptype$key, "Date")
+  expect_type(ptype$value, "character")
+})
+
+test_that("dbConnect(map = ...) rejects unknown values", {
+  expect_error(local_con(map = "wat"), "Unsupported map configuration")
+})
+
+# Auto-detection in dbDataType --------------------------------------------
+
+test_that("dbDataType reports MAP for vctrs::list_of with key/value ptype", {
+  skip_if_not_installed("vctrs")
+
+  con <- local_con()
+
+  col <- vctrs::new_list_of(
+    list(data.frame(key = c("a", "b"), value = 1:2, stringsAsFactors = FALSE)),
+    ptype = data.frame(key = character(), value = integer(), stringsAsFactors = FALSE)
+  )
+  expect_equal(dbDataType(con, col), "MAP(STRING, INTEGER)")
+
+  col2 <- vctrs::new_list_of(
+    list(data.frame(key = as.Date("2024-01-01"), value = "v", stringsAsFactors = FALSE)),
+    ptype = data.frame(key = as.Date(character()), value = character(), stringsAsFactors = FALSE)
+  )
+  expect_equal(dbDataType(con, col2), "MAP(DATE, STRING)")
+})
+
+test_that("dbDataType ignores vctrs::list_of without key/value ptype", {
+  skip_if_not_installed("vctrs")
+
+  con <- local_con()
+
+  col <- vctrs::list_of(1L, 2L)
+  expect_equal(dbDataType(con, col), "STRING")
+
+  col2 <- vctrs::new_list_of(
+    list(data.frame(a = 1L, b = 2L)),
+    ptype = data.frame(a = integer(), b = integer())
+  )
+  expect_equal(dbDataType(con, col2), "STRING")
+})
+
+test_that("dbCreateTable on a list_of column creates a MAP column", {
+  skip_if_not_installed("vctrs")
+
+  con <- local_con()
+
+  m <- vctrs::new_list_of(
+    list(data.frame(key = "k", value = 1L, stringsAsFactors = FALSE)),
+    ptype = data.frame(key = character(), value = integer(), stringsAsFactors = FALSE)
+  )
+  df <- data.frame(id = 1L)
+  df$m <- m
+  dbCreateTable(con, "t", df)
+  expect_equal(
+    dbGetQuery(con, "DESCRIBE t")$column_type,
+    c("INTEGER", "MAP(VARCHAR, INTEGER)")
+  )
+})
+
+test_that("dbWriteTable on a list_of column creates and populates a MAP column", {
+  skip_if_not_installed("vctrs")
+
+  con <- local_con()
+
+  m <- vctrs::new_list_of(
+    list(
+      data.frame(key = c("a", "b"), value = 1:2, stringsAsFactors = FALSE),
+      NULL,
+      data.frame(key = "c", value = 3L, stringsAsFactors = FALSE)
+    ),
+    ptype = data.frame(key = character(), value = integer(), stringsAsFactors = FALSE)
+  )
+  df <- data.frame(id = 1:3)
+  df$m <- m
+  dbWriteTable(con, "t", df)
+  expect_equal(
+    dbGetQuery(con, "DESCRIBE t")$column_type,
+    c("INTEGER", "MAP(VARCHAR, INTEGER)")
+  )
+  out <- dbReadTable(con, "t")
+  expect_equal(out$id, 1:3)
+  expect_equal(
+    as.data.frame(out$m[[1]]),
+    data.frame(key = c("a", "b"), value = 1:2, stringsAsFactors = FALSE)
+  )
+  expect_null(out$m[[2]])
+  expect_equal(
+    as.data.frame(out$m[[3]]),
+    data.frame(key = "c", value = 3L, stringsAsFactors = FALSE)
+  )
+})
+
+test_that("`map = \"list_of\"` round-trips a MAP column through dbWriteTable (#200)", {
+  skip_if_not_installed("vctrs")
+
+  con <- local_con(map = "list_of")
+
+  dbExecute(con, "CREATE TABLE src (id INTEGER, m MAP(VARCHAR, INTEGER))")
+  dbExecute(con, "INSERT INTO src VALUES
+    (1, MAP {'a': 1, 'b': 2}),
+    (2, NULL),
+    (3, MAP {'c': 3})")
+
+  df <- dbReadTable(con, "src")
+  expect_s3_class(df$m, "vctrs_list_of")
+
+  dbWriteTable(con, "dst", df)
+  expect_equal(
+    dbGetQuery(con, "DESCRIBE dst")$column_type,
+    c("INTEGER", "MAP(VARCHAR, INTEGER)")
+  )
+
+  back <- dbReadTable(con, "dst")
+  expect_s3_class(back$m, "vctrs_list_of")
+  expect_equal(back$id, df$id)
+  for (i in seq_along(df$m)) {
+    if (is.null(df$m[[i]])) {
+      expect_null(back$m[[i]])
+    } else {
+      expect_equal(as.data.frame(back$m[[i]]), as.data.frame(df$m[[i]]))
+    }
+  }
+})
+
+# Named-list scan (map = "list_of") ---------------------------------------
+
+test_that("`map = \"list_of\"` scans named-list cells as MAP entries", {
+  con <- local_con(map = "list_of")
+
+  dbExecute(con, "CREATE TABLE t (mp MAP(VARCHAR, INTEGER))")
+  df <- data.frame(id = 1:3)
+  df$mp <- list(list(a = 1L, b = 2L), NULL, list(c = 3L))
+  dbAppendTable(con, "t", df[, "mp", drop = FALSE])
+
+  out <- dbReadTable(con, "t")
+  expect_equal(length(out$mp), 3L)
+  expect_equal(
+    as.data.frame(out$mp[[1]]),
+    data.frame(key = c("a", "b"), value = 1:2, stringsAsFactors = FALSE)
+  )
+  expect_null(out$mp[[2]])
+  expect_equal(
+    as.data.frame(out$mp[[3]]),
+    data.frame(key = "c", value = 3L, stringsAsFactors = FALSE)
+  )
+})
+
+test_that("`map = \"list_of\"` scan ignores unnamed list columns", {
+  con <- local_con(map = "list_of")
+
+  df <- data.frame(id = 1L)
+  df$m <- list(list(1L, 2L))  # not named
+  duckdb_register(con, "v", df)
+  ctype <- dbGetQuery(con, "DESCRIBE v")[2, "column_type"]
+  expect_false(grepl("STRUCT", ctype, fixed = TRUE))
+})
+
+test_that("`map = \"list_of\"` scan does not promote partly-unnamed lists", {
+  con <- local_con(map = "list_of")
+
+  # Some entries have an empty name -> the detector bails out and the
+  # column scans via the existing LIST path.
+  df <- data.frame(id = 1L)
+  df$m <- list(list(a = 1L, 2L))  # second name is ""
+  duckdb_register(con, "v", df)
+  ctype <- dbGetQuery(con, "DESCRIBE v")[2, "column_type"]
+  expect_false(grepl("STRUCT", ctype, fixed = TRUE))
+})
+
+test_that("`map = \"list_of\"` scan keeps data.frame(key, value) cells working", {
+  con <- local_con(map = "list_of")
+
+  dbExecute(con, "CREATE TABLE t (mp MAP(VARCHAR, INTEGER))")
+  df <- data.frame(id = 1L)
+  df$mp <- list(data.frame(key = c("a", "b"), value = 1:2, stringsAsFactors = FALSE))
+  dbAppendTable(con, "t", df[, "mp", drop = FALSE])
+
+  out <- dbReadTable(con, "t")
+  expect_equal(
+    as.data.frame(out$mp[[1]]),
+    data.frame(key = c("a", "b"), value = 1:2, stringsAsFactors = FALSE)
+  )
+})
+
+test_that("default `map` does not interpret named lists as MAP entries", {
+  con <- local_con()
+
+  # Without opt-in, a named-list column scans via the existing path
+  # (no STRUCT(key, value) override is applied).
+  df <- data.frame(id = 1L)
+  df$m <- list(list(a = 1L, b = 2L))
+  duckdb_register(con, "v", df)
+  ctype <- dbGetQuery(con, "DESCRIBE v")[2, "column_type"]
+  expect_false(grepl("STRUCT", ctype, fixed = TRUE))
+})
+
 # Writing -----------------------------------------------------------------
 #
-# Tracks the limitations described in
+# Tracks the behavior described in
 # https://github.com/duckdb/duckdb-r/issues/200.
-# When the underlying cast STRUCT(key, value)[] -> MAP(..., ...) becomes
-# supported, the error snapshots below will need updating.
 
-test_that("dbAppendTable cannot write to a MAP column (issue #200)", {
+test_that("dbAppendTable can write to a MAP column (issue #200)", {
   con <- local_con()
 
   dbExecute(con, "CREATE TABLE tbl (mp MAP(VARCHAR, VARCHAR))")
   dbExecute(con, "INSERT INTO tbl VALUES (MAP {'a': 'b'})")
 
   df <- data.frame(
-    mp = I(list(data.frame(key = "page", value = "1")))
+    mp = I(list(data.frame(key = "page", value = "1", stringsAsFactors = FALSE)))
   )
-  expect_snapshot(error = TRUE, dbAppendTable(con, "tbl", df))
+  dbAppendTable(con, "tbl", df)
+
+  out <- dbReadTable(con, "tbl")
+  expect_equal(nrow(out), 2L)
+  expect_equal(
+    as.data.frame(out$mp[[2]]),
+    data.frame(key = "page", value = "1", stringsAsFactors = FALSE)
+  )
 })
 
 test_that("dbWriteTable of a MAP-shaped data frame creates STRUCT[], not MAP", {
