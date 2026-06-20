@@ -310,9 +310,11 @@ other.
   `inst/include/duckdb_*_types.hpp`, the README blurb, and the `library()` /
   `test_check()` names in `tests/`). Nothing under `src/duckdb/`, no glue logic
   in `src/*.cpp`, no `R/` logic.
-- **S2 — Baseline purity (`dev-base`).** Reverse-applying the `L.dev` flavor
-  rename to `dev-base` yields a tree identical to `stable` at its current
-  release. (`dev-base` carries no code beyond the release except the rename.)
+- **S2 — Baseline purity (`dev-base`).** `dev-base` is byte-identical to the
+  *released* `stable` tree: `Package: duckdb`, bare three-component version, **no
+  flavor rename**. The `lts.sh` rename and the version scaffolding live entirely
+  *above* it, in `dev-base..dev`. (Confirmed: `v1.5-variegata-dev-base` reads
+  `duckdb 1.5.4`, `v1.4-andium-dev-base` reads `duckdb 1.4.5`.)
 - **S3 — `dev-base` ⊑ `dev`.** `dev-base` is an ancestor of `dev` and only ever
   fast-forwards; `dev..dev-base` is always empty.
 - **S4 — `dev` contents.** Every commit in `dev-base..dev` is either a `vendor:`
@@ -325,20 +327,29 @@ other.
 
 ### Linearity and ancestry
 
-History is **linear everywhere** — the cost of extra rebases and CI runs is
-accepted in exchange for a bisectable, merge-free history.
+History is **linear going forward** — the cost of extra rebases and CI runs is
+accepted in exchange for a bisectable, merge-free active history.
 
-- **L — No merge commits.** `git log --merges <branch>` is empty on every branch.
-  Forward-ports are `cherry-pick`s, not merges; releases are fast-forwards or
-  rebases; PRs never create a merge commit (use "Rebase and merge", or a
-  fast-forward push).
+- **L — No new merge commits.** The active region (`dev-base..dev`) and every
+  release transition are linear: forward-ports are `cherry-pick`s, releases are
+  fast-forwards or rebases, and PRs never create a merge commit (use "Rebase and
+  merge", or a fast-forward push). Deep history below the release baselines still
+  contains ~170 historical PR merges from before this policy; those are
+  grandfathered. *(Currently nearly satisfied: `main-dev` adds 0 merges over 402
+  commits, `v1.4-andium-dev` 0 over 3 — but `v1.5-variegata-dev` carries 1 stray
+  merge in its 21-commit window that should be rebased out, and the 1.5.4 release
+  landed on `main` via a merge commit, which this policy replaces with FF/rebase.)*
 - **A1 — Dev descends from its release point.** Within a patch series,
-  `release-point ⊑ dev-base ⊑ dev` as linear ancestors. `dev-base` advances only
-  by fast-forward; `dev` grows by append and is rewritten (force-push) only to
-  re-anchor onto a new release point or to drop a non-green commit. The `lts.sh`
-  rename is the first commit of `dev-base..dev`. *(The `dev-base ⊑ dev` half is
-  confirmed: the pending windows are 402 / 21 / 3 commits ahead with nothing
-  behind.)*
+  `release-content ⊑ dev-base ⊑ dev` as linear ancestors, where `release-content`
+  is the released tree (which `dev-base` equals, per **S2**) — this may sit a
+  couple of commits *below* `stable`'s tip when that tip carries release mechanics
+  (the CRAN merge + post-release bump). `dev-base` advances only by fast-forward;
+  `dev` grows by append and is rewritten (force-push) only to re-anchor onto a new
+  release point or to drop a non-green commit. The `lts.sh` rename is the first
+  group of commits in `dev-base..dev`. *(Confirmed: `dev-base ⊑ dev` everywhere
+  (pending 402 / 21 / 3, nothing behind); `v1.4-andium`'s release ⊑ `dev`. For
+  1.5, `dev-base` is anchored at the release content `main~2`, two commits below
+  `main`'s current tip.)*
 - **A2 — Flip ancestry (preview line).** For the next-major flip to be an atomic
   fast-forward, `main ⊑ main-dev` must hold. This is **not** maintained
   continuously: `main` (current stable) and `main-dev` (next major) vendor
@@ -370,8 +381,10 @@ release.
 
 - **F1 — Name coherence.** Within a branch, `DESCRIPTION:Package`,
   `DUCKDB_PACKAGE_NAME`, `@useDynLib`, the `duckdb[._]L[._]types.hpp` filename,
-  and the testthat names all agree and match the branch role: `stable` →
-  `duckdb`, `lts` → `duckdb.L`, `dev`/`dev-base` → `duckdb.L.dev`.
+  and the testthat names all agree and match the branch role: `stable` and
+  `dev-base` → `duckdb` (per **S2**, `dev-base` is the un-renamed release);
+  `lts` → `duckdb.L`; `dev` → `duckdb.L.dev`. The rename is exactly what
+  distinguishes `dev` from `dev-base`.
 - **F2 — Mechanical rename.** The rename is produced solely by `scripts/lts.sh`;
   its non-name structure is identical across all series, differing only in the
   version token.
@@ -379,12 +392,17 @@ release.
 ### Version
 
 - **V1 — Prefix lock.** `major.minor` equals `L` on every branch of the series.
+  *Exception:* the preview line carries a synthetic placeholder prefix greater
+  than any current release (`main-dev` is `1.5.99.…`) until the flip sets the
+  real number (e.g. `2.0.0`).
 - **V2 — Patch ordering.** `stable` and `lts` share the released patch `Z`;
   `dev`/`dev-base` are at or ahead of `Z`.
-- **V3 — Counters.** The 4th component (R-client) advances only via `fledge` on
-  the glue source of truth; the 5th (vendor) advances strictly monotonically
-  along `dev`, one bump per vendor commit. Componentwise within the prefix,
-  `dev > dev-base ≥ stable`.
+- **V3 — Counters.** The **4th** component free-runs as the R-client dev counter
+  *only* on the glue source of truth (`main`: `…9003`, `…9004`); on `-dev`
+  branches it is a fixed marker (`.9000` / `.9001`). The **5th** component is the
+  vendor counter, strictly monotone along `dev` (one bump per vendor commit) and
+  *absent until vendoring starts* — e.g. `v1.4-andium-dev` at `1.4.5.9000` has no
+  vendor commits yet. Componentwise within the prefix, `dev ≥ dev-base ≥ stable`.
 - **V4 — Release shape.** A released `stable`/`lts` version is the bare
   three-component prefix (no 4th/5th component).
 
