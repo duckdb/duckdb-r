@@ -503,6 +503,43 @@ When a patch is no longer needed (because the fix was merged upstream), delete t
 
 If a vendor run fails because a patch no longer applies cleanly, update the patch against the new upstream code, commit it, and re-run vendoring.
 
+## Version Numbering
+
+The package version in `DESCRIPTION` carries up to five dot-separated components. Two of them are
+independent counters that advance on different strands:
+
+| Component | Example | Counter | Advanced by |
+|-----------|---------|---------|-------------|
+| 1–3 (`major.minor.patch`) | `1.5.3` | Release line identity | Matches the upstream DuckDB tag |
+| 4th | `…​.9006` | **R-client counter** | `fledge` on the source-of-truth strand (`main`) |
+| 5th | `…​.9006.42` | **vendor counter** | `scripts/vendor-one.sh`, one bump per vendor commit on a `-dev` branch |
+
+A released version is the bare three-component prefix (`1.5.4`). The `-dev` branches never touch
+`NEWS.md`; only `DESCRIPTION:Version` differs between the strands.
+
+### The DESCRIPTION merge driver
+
+Because the two counters advance on the same line, a plain forward-port, rebase, or release merge
+conflicts on `DESCRIPTION:Version` at essentially every commit. The merge driver in
+`scripts/merge-version.sh` resolves that line by taking the **component-wise maximum** of the two
+sides, **gated on an equal `major.minor.patch` prefix**:
+
+- Within a release line, the max keeps the 4th component from the strand that owns it (the R-client
+  strand) and the 5th from the strand that owns it (the vendor strand). E.g.
+  `1.5.3.9008` merged with `1.5.3.9006.42` → `1.5.3.9008.42`. The result is direction-agnostic.
+- Across release lines (different prefix, e.g. forward-porting a fix from `1.5.x` onto the `1.4.x`
+  LTS), the driver keeps **ours** unchanged and never inherits a foreign prefix.
+
+The rest of `DESCRIPTION` still gets a normal 3-way merge, so a genuine concurrent edit
+(e.g. two branches touching `Imports:`) still raises a real conflict. The authoritative release
+version is set by `fledge::bump_version()` at the tip after the operation completes — the driver's
+only job is to stop the version line from halting a rebase.
+
+**Setup.** The `merge=ours-version` attribute is committed in `.gitattributes`, but the driver's
+name→command mapping must live in `.git/config`. Run `scripts/setup-git.sh` once per clone — and as
+the first step of any CI job that rebases, cherry-picks, or merges — to register the driver, enable
+`rerere`, and pin `rebase.backend=merge` (the patch/`am` backend bypasses merge drivers).
+
 ## Tooling
 
 ### Existing tooling
@@ -514,6 +551,8 @@ If a vendor run fails because a patch no longer applies cleanly, update the patc
 | `scripts/lts.sh <flavor>`       | Applies the flavor rename (updates `lts.patch`, then applies it and re-runs `cpp11::cpp_register()`)       |
 | `scripts/lts.patch`             | Patch template used by `lts.sh`; contains `1.4` as placeholder version (replaced by `lts.sh`)              |
 | `scripts/each-rcc.sh`           | Identifies commits in the first-parent history without a build status and triggers an `rcc` run for each   |
+| `scripts/merge-version.sh`      | Git merge driver for `DESCRIPTION`: combines the 4th/5th version counters, gated on an equal prefix         |
+| `scripts/setup-git.sh`          | Registers the merge driver in `.git/config`, enables `rerere`, pins `rebase.backend=merge` (run per clone)  |
 | `.github/workflows/vendor.yaml` | Hourly vendoring for all active dev branches (matrix: `v1.4-andium-dev`, `v1.5-variegata-dev`, `main-dev`) |
 | `.github/workflows/sync.yaml`   | Hourly fast-forward of `krlmlr/main` from `duckdb/main`                                                    |
 | `.github/workflows/each.yaml`   | Dispatches `rcc` per-commit on push to `*-dev` branches                                                    |
