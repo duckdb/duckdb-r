@@ -16,8 +16,8 @@ fi
 # Replace all dots with \1 for the sed expression
 replacer=${package_name//./\\1}
 
-# The patch file has 1.4
-gsed -i.bak -r 's/([._])1\14/\1'$replacer'/g' scripts/lts.patch
+# The patch file has 1.3
+gsed -i.bak -r 's/([._])1\13/\1'$replacer'/g' scripts/lts.patch
 rm scripts/lts.patch.bak
 git add scripts/lts.patch
 git commit -m "chore: Update LTS patch to $package_name"
