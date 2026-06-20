@@ -3,6 +3,10 @@
 Version numbers are given at the time of writing (March 2026) and may be outdated by the time you read this.
 The branching strategy is expected to remain stable.
 
+This document defines the branch model, the package flavors, and the
+**[series invariants](#series-invariants)**. For the release process itself —
+modelled as a finite state machine — see [`RELEASE.md`](RELEASE.md).
+
 ## Package Components
 
 The R package is a **monorepo without submodules**, combining several components in a single repository.
@@ -283,6 +287,96 @@ Never port in reverse. Proposed patterns to keep this consistent:
    are labeled `needs-forward-port` automatically by a label action, reminding maintainers to
    propagate the change toward `main` before the next release.
 
+## Series Invariants
+
+A **series** is one DuckDB minor line `L` together with its branches: `stable`
+(published; `main` for the current line), `lts` (LTS lines only), `dev`, and
+`dev-base`. The following invariants hold across all branches of a series. Each
+is phrased to be **checkable** — most can be enforced by a dev-branch health
+workflow — and each is referenced by name from the release FSM in
+[`RELEASE.md`](RELEASE.md), which must preserve them at every step.
+
+State relationships as **tree diffs**, not ancestry: `main` is maintained as a
+rebuilt/linear history and shares no merge-base with the parked `vX-codename`
+baselines, so any invariant phrased as "X equals Y plus a rename" means *the
+working trees differ only by the rename*, not that one is a git-ancestor of the
+other.
+
+### Structural
+
+- **S1 — Flavor isolation (`lts`).** `git diff stable lts` touches only flavor
+  files (`DESCRIPTION:Package`, `R/duckdb-package.R`, `src/include/rapi.hpp`
+  macro, `NAMESPACE`, `man/*-package.Rd`, the renamed
+  `inst/include/duckdb_*_types.hpp`, the README blurb, and the `library()` /
+  `test_check()` names in `tests/`). Nothing under `src/duckdb/`, no glue logic
+  in `src/*.cpp`, no `R/` logic.
+- **S2 — Baseline purity (`dev-base`).** Reverse-applying the `L.dev` flavor
+  rename to `dev-base` yields a tree identical to `stable` at its current
+  release. (`dev-base` carries no code beyond the release except the rename.)
+- **S3 — `dev-base` ⊑ `dev`.** `dev-base` is an ancestor of `dev` and only ever
+  fast-forwards; `dev..dev-base` is always empty.
+- **S4 — `dev` contents.** Every commit in `dev-base..dev` is either a `vendor:`
+  commit or a forward-port equivalent to a commit on `main` (`git cherry main
+  dev` shows no unmatched non-vendor `+`). **Glue is never *born* on a `dev`
+  branch.** *Exception:* on the preview line (tracking upstream `main`),
+  vendor-coupled glue — adaptation forced by a new upstream C++ API — is born on
+  `dev` alongside the vendor commit that requires it, because `main` does not yet
+  carry that upstream version.
+
+### Flavor / identity
+
+- **F1 — Name coherence.** Within a branch, `DESCRIPTION:Package`,
+  `DUCKDB_PACKAGE_NAME`, `@useDynLib`, the `duckdb[._]L[._]types.hpp` filename,
+  and the testthat names all agree and match the branch role: `stable` →
+  `duckdb`, `lts` → `duckdb.L`, `dev`/`dev-base` → `duckdb.L.dev`.
+- **F2 — Mechanical rename.** The rename is produced solely by `scripts/lts.sh`;
+  its non-name structure is identical across all series, differing only in the
+  version token.
+
+### Version
+
+- **V1 — Prefix lock.** `major.minor` equals `L` on every branch of the series.
+- **V2 — Patch ordering.** `stable` and `lts` share the released patch `Z`;
+  `dev`/`dev-base` are at or ahead of `Z`.
+- **V3 — Counters.** The 4th component (R-client) advances only via `fledge` on
+  the glue source of truth; the 5th (vendor) advances strictly monotonically
+  along `dev`, one bump per vendor commit. Componentwise within the prefix,
+  `dev > dev-base ≥ stable`.
+- **V4 — Release shape.** A released `stable`/`lts` version is the bare
+  three-component prefix (no 4th/5th component).
+
+### Source of truth (cross-series)
+
+- **G1 — Glue monotone down the chain.** At the forward-port frontier,
+  glue/R/tests/CI/cpp11 satisfy `main ⊇ newer-dev ⊇ … ⊇ older-dev`; older lines
+  lag only by pending forward-ports. (S4 applied across the whole chain.)
+- **G2 — Patch-stack derivation.** Each `dev`'s `patch/` equals `main`'s patch
+  set minus the patches already merged into *that series'* upstream branch.
+  `patch/` may therefore legitimately differ between series; it is never
+  hand-authored per series beyond dropping patches that landed upstream.
+
+### CI / green
+
+- **C1 — Every `dev` commit is green** (`each.yaml`), so `dev` is bisectable
+  end to end.
+- **C2 — `stable`, `lts`, and `dev-base` tips are green** (former green `dev`
+  tips or freshly checked re-baselines).
+
+### Prerelease (during STABILIZE)
+
+- **P1 — Release branches frozen.** Pre-release mutates only `main` (fold-back
+  fixes) and `dev` (forward-ports + vendor); `stable`, `lts`, and `dev-base`
+  stay at the previous release until CUT. A half-finished pre-release is
+  abortable with zero rollback on the release branches.
+- **P2 — Candidate ⊆ release.** The revdep-tested pinned candidate is an ancestor
+  of the `dev` tip that will be cut; any delta added after a revdep run is
+  reviewed (and re-checked if risky). What ships was tested.
+- **P3 — Fold-back ordering.** Every fold-back fix lands on `main` before any
+  `dev` (a `dev` fix lacking a `main` ancestor violates S4).
+- **P4 — Freeze convergence (barrier).** At GLUE FREEZE, `git cherry main dev` is
+  empty for *every* releasing series simultaneously, so all releasing lines share
+  identical glue. This is the multi-line synchronization invariant.
+
 ## Release Cycle Mapping
 
 The upstream release cycle is documented at <https://duckdb.org/docs/stable/dev/release_cycle>.
@@ -356,93 +450,17 @@ TBD.
 
 ### On patch release (`v1.4.5`)
 
-This is the most common release event. The steps below use `v1.4.5` as an example;
-substitute the appropriate version and branch names for other series.
-
-**Prerequisite**: upstream has created the tag `v1.4.5` on the `v1.4-andium` branch in `duckdb/duckdb`.
-
-**Step 1 — Vendoring (automated)**
-
-The hourly `vendor.yaml` workflow runs `scripts/vendor-one.sh` against `v1.4-andium` and creates
-vendor commits in `krlmlr/duckdb-r@v1.4-andium-dev`. The commit message for the tagged version reads:
-
-```
-vendor: Update vendored sources (tag v1.4.5) to duckdb/duckdb@<sha>
-```
-
-**Step 2 — Per-commit CI**
-
-The `each.yaml` workflow triggers an R CMD check (`rcc`) for each new commit in `v1.4-andium-dev`.
-Wait until the tagged commit shows a green build status before proceeding.
-
-**Step 3 — Review pending changes**
-
-Inspect the diff between the last stabilized point and bleeding edge:
-
-```
-https://github.com/krlmlr/duckdb-r/compare/v1.4-andium-dev-base...v1.4-andium-dev
-```
-
-Confirm that all changes are expected (vendor commits for v1.4.5, no accidental glue-code drift).
-
-**Step 4 — Advance dev-base**
-
-Fast-forward `v1.4-andium-dev-base` to match `v1.4-andium-dev`, marking the new reviewed point:
-
-```bash
-git push krlmlr refs/heads/v1.4-andium-dev:refs/heads/v1.4-andium-dev-base
-```
-
-**Step 5 — Merge to stable baseline**
-
-Open a PR from `krlmlr/duckdb-r@v1.4-andium-dev` → `duckdb/duckdb-r@v1.4-andium`.
-The PR contains the vendored C++ code for v1.4.5 and any glue-code fixes from this cycle.
-CI runs R CMD check; merge when green.
-
-**Step 6 — Version bump**
-
-In the `v1.4-andium` worktree, bump the version to `1.4.5`:
-
-```r
-fledge::bump_version("1.4.5")
-```
-
-Commit and push. The `DESCRIPTION` version must match the upstream tag.
-
-**Step 7 — Update the LTS branch**
-
-`v1.4-andium-lts` contains exactly one additional commit on top of `v1.4-andium`: the `Package: duckdb.1.4`
-rename. Rebase it onto the updated tip of `v1.4-andium`:
-
-```bash
-# In the v1.4-andium-lts worktree:
-git rebase origin/v1.4-andium
-git push origin v1.4-andium-lts
-```
-
-**Step 8 — Tag and publish**
-
-Tag the tip of `v1.4-andium-lts` (or `v1.4-andium`, per convention):
-
-```bash
-git tag v1.4.5 origin/v1.4-andium-lts
-git push origin v1.4.5
-```
-
-r-universe picks up the new tag automatically. For CRAN submission, follow the checklist in `RELEASE.md`.
-
-**Step 9 — Update dev-base and dev to the new stable tip**
-
-After the release merges, the dev baseline is now behind the stable branch.
-Re-create the dev-base from the updated stable tip plus the flavor rename:
-
-```bash
-# Apply the dev flavor on top of the new v1.4-andium:
-git checkout -b v1.4-andium-dev-base origin/v1.4-andium
-scripts/lts.sh 1.4.dev
-git push krlmlr v1.4-andium-dev-base --force-with-lease
-git push krlmlr v1.4-andium-dev-base:v1.4-andium-dev --force-with-lease
-```
+This is the most common release event, and it is described in full as the
+**CUT** and **RESET** clusters of the release FSM in
+[`RELEASE.md`](RELEASE.md#cut--release-execution). In summary, once upstream tags
+`v1.4.5`: the hourly vendoring lands the tagged commit on `v1.4-andium-dev`
+(state 1), `each.yaml` proves it green, the pending window is reviewed (state 2),
+`dev-base` is fast-forwarded to the tagged commit (state 3), the commit is merged
+to `v1.4-andium` with `fledge::bump_version("1.4.5")` and the `-lts` branch
+rebased (state 4), the release is tagged and published to r-universe / CRAN
+(state 5), and finally `dev`/`dev-base` are re-baselined via `scripts/lts.sh
+1.4.dev` (RESET). The pre-release reverse-dependency work that precedes the tag
+is the **STABILIZE** cluster.
 
 ## Synchronization
 
