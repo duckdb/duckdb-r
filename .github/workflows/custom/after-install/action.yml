@@ -5,23 +5,27 @@ runs:
   steps:
     # Must be done after installing R because rtools is installed only then
     - name: Compute cache key
+      if: env.DUCKDB_R_USE_SYSTEM_LIB != '1'
       run: |
         echo "DUCKDB_R_PREBUILT_ARCHIVE_GHA_CACHE_KEY=duckdb-tar-R$(Rscript --vanilla -e 'cat(format(getRversion()))')-${{ runner.os }}-$($(R CMD config CXX) --version | head -n 1 | sed -r 's/[, ]/-/g')-${{ hashFiles('src/duckdb/**') }}" | tee -a $GITHUB_ENV
         echo "DUCKDB_R_PREBUILT_ARCHIVE=${{ runner.temp }}/duckdb.tar" | tee -a $GITHUB_ENV
       shell: bash
 
     - name: Cache duckdb archive
+      if: env.DUCKDB_R_USE_SYSTEM_LIB != '1'
       uses: actions/cache@v4
       with:
         path: ${{ env.DUCKDB_R_PREBUILT_ARCHIVE }}
         key: ${{ env.DUCKDB_R_PREBUILT_ARCHIVE_GHA_CACHE_KEY }}
 
     - name: Compute ccache key
+      if: env.DUCKDB_R_USE_SYSTEM_LIB != '1'
       run: |
         echo "GHA_CCACHE_KEY=${{ runner.os }}-$($(R CMD config CXX) --version | head -n 1 | sed -r 's/[, ]/-/g')-R-$(Rscript --vanilla -e 'cat(format(getRversion()))')" | tee -a $GITHUB_ENV
       shell: bash
 
     - name: Install persistent ccache
+      if: env.DUCKDB_R_USE_SYSTEM_LIB != '1'
       uses: hendrikmuhs/ccache-action@v1.2.14
       with:
         key: ${{ env.GHA_CCACHE_KEY }}
@@ -35,6 +39,7 @@ runs:
       shell: bash
 
     - name: Show ccache stats
+      if: env.DUCKDB_R_USE_SYSTEM_LIB != '1'
       run: |
         ccache -s
       shell: bash

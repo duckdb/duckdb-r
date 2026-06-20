@@ -13,5 +13,16 @@ list(
     r = r_versions[[2]],
     env = "DUCKDB_R_POISON_ENGINE=true",
     desc = "with engine poisoning, DUCKDB_R_RUN_TESTS=false"
+  ),
+  # Regular builds default to the fast system-libduckdb path (see the custom
+  # before-install action). This dedicated entry pins DUCKDB_R_USE_SYSTEM_LIB=0
+  # via the generic "env" field so that one regular matrix build actually
+  # compiles the vendored DuckDB sources -- the artifact that ships to CRAN --
+  # instead of linking against a prebuilt libduckdb.
+  data.frame(
+    os = "ubuntu-24.04",
+    r = r_versions[[2]],
+    env = "DUCKDB_R_USE_SYSTEM_LIB=0",
+    desc = "vendored build (compiles bundled DuckDB sources)"
   )
 )

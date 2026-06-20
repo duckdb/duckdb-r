@@ -5,7 +5,8 @@ inputs:
     description: >
       Additional environment variables (one KEY=VALUE per line) contributed by
       the test matrix. Generic hook used by .github/versions-matrix.R to flag
-      special matrix entries (e.g. the engine-poisoning entry below).
+      special matrix entries (e.g. the engine-poisoning and vendored-build
+      entries below).
     required: false
     default: ""
 
@@ -45,4 +46,40 @@ runs:
         # The snapshot updater bypasses tests/testthat.R via testthat::test_local(),
         # so disable it here to keep it from exercising the poisoned engine.
         echo 'SKIP_UPDATE_SNAPSHOTS=true' | tee -a "$GITHUB_ENV"
+      shell: bash
+
+    # Default to the fast system-libduckdb build (link against a prebuilt
+    # libduckdb instead of compiling the ~1700 vendored .cpp files). This
+    # applies to the smoke test and to regular matrix builds, on Linux and
+    # macOS, except:
+    #   * the krlmlr/duckdb-r fork, which hosts the vendoring pipeline and
+    #     must always exercise a full source build;
+    #   * any matrix entry that already pinned DUCKDB_R_USE_SYSTEM_LIB via
+    #     the "env" field above (e.g. the dedicated vendored-build entry in
+    #     .github/versions-matrix.R, which sets DUCKDB_R_USE_SYSTEM_LIB=0).
+    - name: Default to system libduckdb (non-vendoring repos)
+      if: runner.os != 'Windows' && github.repository != 'krlmlr/duckdb-r'
+      run: |
+        if [ -z "${DUCKDB_R_USE_SYSTEM_LIB:-}" ]; then
+          echo 'DUCKDB_R_USE_SYSTEM_LIB=1' | tee -a "$GITHUB_ENV"
+        else
+          echo "DUCKDB_R_USE_SYSTEM_LIB already set to '${DUCKDB_R_USE_SYSTEM_LIB}' by the test matrix; leaving as is."
+        fi
+      shell: bash
+
+    # install-libduckdb.sh exits 0 without installing anything when the
+    # vendored DuckDB is a -dev snapshot for which no prebuilt is
+    # published. Detect that here and fall back to a source build by
+    # clearing DUCKDB_R_USE_SYSTEM_LIB, so configure compiles the
+    # vendored .cpp tree instead of failing on a missing libduckdb.
+    - name: Install libduckdb (system-lib mode)
+      if: env.DUCKDB_R_USE_SYSTEM_LIB == '1' && runner.os != 'Windows'
+      run: |
+        scripts/install-libduckdb.sh --prefix /usr/local
+        ext=so
+        [ "${RUNNER_OS}" = "macOS" ] && ext=dylib
+        if [ ! -f "/usr/local/lib/libduckdb.${ext}" ]; then
+          echo "libduckdb was not installed (likely a dev snapshot with no published prebuilt); falling back to source build."
+          echo 'DUCKDB_R_USE_SYSTEM_LIB=0' | tee -a "$GITHUB_ENV"
+        fi
       shell: bash
