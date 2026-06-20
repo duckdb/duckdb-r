@@ -131,7 +131,7 @@ if [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "1" ] || [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "t
     fi
   fi
 
-  # Write Makevars.system-lib, which Makevars picks up via `-include`.
+  # Write Makevars.system-lib, which Makevars picks up via `include`.
   # The file is ignored by git; the rest of the build (Makevars.duckdb
   # and friends) is left untouched.
   {

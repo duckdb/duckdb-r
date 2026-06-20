@@ -33,8 +33,13 @@ include Makevars.duckdb
 # Optional override file, written by configure when
 # DUCKDB_R_USE_SYSTEM_LIB=1. Empties SOURCES and sets PKG_LIBS so the
 # vendored .cpp tree is skipped and the package links against a system
-# libduckdb instead. Silently absent otherwise.
--include Makevars.system-lib
+# libduckdb instead. When absent, we create an empty file (keeping an old
+# timestamp to avoid rebuilds), because plain include is portable while
+# -include is a GNU Make extension.
+Makevars.system-lib:
+	touch -r $$(ls -t *.cpp | head -n 1) "$@"
+
+include Makevars.system-lib
 
 CXX_STD = CXX17
 PKG_CPPFLAGS = -Iinclude -I../inst/include -DDUCKDB_DISABLE_PRINT -DDUCKDB_R_BUILD -DBROTLI_ENCODER_CLEANUP_ON_OOM -DDUCKDB_EXTENSION_AUTOLOAD_DEFAULT -DDUCKDB_RSTRTMGR=$(DUCKDB_RSTRTMGR) {{ INCLUDES }}
