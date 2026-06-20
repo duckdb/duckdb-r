@@ -116,6 +116,59 @@ The following are validated commands and their typical execution times:
 UserNM=true R CMD INSTALL . --no-byte-compile
 ```
 
+### Fast build with system libduckdb (Linux/macOS, opt-in)
+
+For iteration during development (and for coding agent sessions), the R
+package can skip compiling the ~1700 vendored .cpp files and link
+against a system-installed libduckdb instead. Drops a clean
+`R CMD INSTALL .` from 10–15 minutes to about 5 seconds.
+
+``` bash
+# One-time: install libduckdb matching the vendored DuckDB version
+sudo scripts/install-libduckdb.sh        # to /usr/local
+# or: scripts/install-libduckdb.sh --prefix "$HOME/.local"
+
+# Each install
+DUCKDB_R_USE_SYSTEM_LIB=1 R CMD INSTALL . --no-byte-compile
+```
+
+**What this mode actually does.** The R glue compiles against the
+**vendored headers** in `src/duckdb/src/include/` (the amalgamated
+`duckdb.hpp` shipped with libduckdb releases is missing ~37 of the 71
+internal C++ headers the glue needs — templates like `GenericExecutor`,
+the Arrow integration, core-functions extension internals). Only the
+**implementation** is swapped for the system-installed `libduckdb.so` /
+`.dylib` at link time and at runtime.
+
+That is only safe if the vendored sources and the installed library were
+built from the **same commit**. `configure` extracts the
+`DUCKDB_SOURCE_ID` from the vendored `pragma_version.cpp`, greps for it
+inside the shared library, and aborts with a clear error if it is not
+present. Re-run `scripts/install-libduckdb.sh` after every vendoring
+bump.
+
+The opt-in only applies to `R CMD INSTALL .` — not to `R CMD build`,
+since the resulting installation depends on libduckdb being present at
+runtime. The installed `duckdb.so` carries an rpath pointing at the
+libduckdb directory; do not move libduckdb after installing.
+
+In CI, `.github/workflows/custom/before-install/action.yml` defaults all
+Linux/macOS builds (the smoke test and the regular matrix) to the fast
+path, except:
+
+- the `krlmlr/duckdb-r` fork, which hosts the vendoring pipeline and
+  must always build from source;
+- any matrix entry that pins `DUCKDB_R_USE_SYSTEM_LIB` itself through
+  the generic `env` field in `.github/versions-matrix.R`. That file
+  carries a dedicated “vendored build” entry
+  (`DUCKDB_R_USE_SYSTEM_LIB=0`) so one regular matrix build still
+  compiles the bundled sources — the artifact that ships to CRAN.
+
+The libduckdb that `scripts/install-libduckdb.sh` fetches matches the
+vendored commit: tagged versions come from the GitHub release assets,
+development snapshots (e.g. `v1.5.4-dev157`) from the DuckDB nightly
+staging bucket keyed by `DUCKDB_SOURCE_ID`.
+
 IMPORTANT: `.dd` files in `src/` are dependency tracking files for
 development (source files that need rebuilding when a header file
 changes) and should be kept in version control. These files are
