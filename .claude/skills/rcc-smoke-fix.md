@@ -253,6 +253,12 @@ fi
 
 Collect all `NEEDS_FIX  <branch>  <sha>` lines. Process them in order.
 
+If, while scanning, you observe a `success` on a commit later than
+`FIRST_FAIL` without manual intervention, the failure is **transient**
+(upstream self-healed). This is rare; see the sub-skill
+`rcc-smoke-fix-self-heal.md` for the squash / transient-patch
+strategies. Otherwise continue with the default workflow below.
+
 ## Step 4 — Create, fix, and push a `broken-*` branch
 
 Repeat for each `NEEDS_FIX` pair `($BRANCH, $SHA)`:
@@ -505,6 +511,11 @@ for C in $REMAINING; do
 done
 ```
 
+If a self-heal strategy was applied (see `rcc-smoke-fix-self-heal.md`),
+the loop above needs a small adjustment at `HEAL_AT` — skip the commit
+(squash) or amend it to drop the transient patch (transient). See that
+sub-skill.
+
 Most of these commits are vendor-only and apply cleanly. However, the range
 **may include non-vendor commits**: forward-ports from `duckdb/duckdb-r@main`
 (glue, R code, CI/CD, cpp11), or later glue-code repairs that were pushed
@@ -567,6 +578,8 @@ No failure found: v1.4-andium-dev
   the failing `<sha>` only on the freshly-created local `broken-<sha>-dev`
   branch (which has not been pushed); the original `<sha>` on the upstream
   `*-dev` branch is left alone.
+- **Self-healing windows** (rare): see `rcc-smoke-fix-self-heal.md` for
+  the squash / transient-patch strategies and their hard rules.
 - **Commit status to check**: context `rcc` (not the full check-run name).
 - **Branch target**: all pushes go to the `krlmlr` remote
   (`krlmlr/duckdb-r`) to a branch named `broken-<sha>-dev` (full 40-char
