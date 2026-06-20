@@ -323,6 +323,49 @@ other.
   `dev` alongside the vendor commit that requires it, because `main` does not yet
   carry that upstream version.
 
+### Linearity and ancestry
+
+History is **linear everywhere** — the cost of extra rebases and CI runs is
+accepted in exchange for a bisectable, merge-free history.
+
+- **L — No merge commits.** `git log --merges <branch>` is empty on every branch.
+  Forward-ports are `cherry-pick`s, not merges; releases are fast-forwards or
+  rebases; PRs never create a merge commit (use "Rebase and merge", or a
+  fast-forward push).
+- **A1 — Dev descends from its release point.** Within a patch series,
+  `release-point ⊑ dev-base ⊑ dev` as linear ancestors. `dev-base` advances only
+  by fast-forward; `dev` grows by append and is rewritten (force-push) only to
+  re-anchor onto a new release point or to drop a non-green commit. The `lts.sh`
+  rename is the first commit of `dev-base..dev`. *(The `dev-base ⊑ dev` half is
+  confirmed: the pending windows are 402 / 21 / 3 commits ahead with nothing
+  behind.)*
+- **A2 — Flip ancestry (preview line).** For the next-major flip to be an atomic
+  fast-forward, `main ⊑ main-dev` must hold. This is **not** maintained
+  continuously: `main` (current stable) and `main-dev` (next major) vendor
+  different upstream C++, so forcing ancestry would mean rebasing 400+ commits on
+  every `main` patch release for no benefit. Instead it is **established once**,
+  immediately before the flip, by the linearization runbook (rewind to the
+  upstream bifurcation point, then replay).
+- **A3 — Dev SHAs are disposable.** Because linearity is maintained by rebasing,
+  `-dev` SHAs are not durable; only tags (releases) and the fast-forward-only
+  `dev-base` marker are stable references. This is acceptable — `-dev` exists
+  solely for CI and r-universe.
+
+#### Cost of maintaining linear ancestry
+
+| Operation | When | Cost | Mechanism |
+|-----------|------|------|-----------|
+| `dev` append (vendor / forward-port) | hourly / per glue change | O(1) | append; cherry-pick |
+| `dev-base` advance | per reviewed release | O(1) ref update | fast-forward |
+| Patch re-baseline | per patch release | O(pending) replayed × per-commit CI (small: 3–21 today) | rebase; merge driver auto-resolves the version |
+| Forward-port across the chain | per glue change | O(diff) × active lines | cherry-pick; merge driver handles `DESCRIPTION` |
+| **Major-flip linearization** | per major release | O(hundreds) — 402 pending on `main-dev` today | one-time rewind + replay (deferred, not continuous) |
+
+The merge driver is what keeps the recurring rebases (patch re-baseline,
+forward-port) cheap; the one genuinely expensive operation — the major-flip
+linearization — is paid once, by design, rather than amortized into every patch
+release.
+
 ### Flavor / identity
 
 - **F1 — Name coherence.** Within a branch, `DESCRIPTION:Package`,
@@ -475,7 +518,7 @@ For this reason, the `-dev` branches are checked commit by commit via `each.yaml
 
 ### On release
 
-When a new version is released, the dev branch is merged into the corresponding stable branch:
+When a new version is released, the dev branch is brought onto the corresponding stable branch — **linearly, never as a merge commit** (invariant **L**). The tagged `dev` content is fast-forwarded or rebased onto stable, dropping the `lts.sh` flavor rename and setting the release version via `fledge`:
 
 ```txt
 krlmlr/duckdb-r@main-dev            →  duckdb/duckdb-r@main
@@ -483,7 +526,7 @@ krlmlr/duckdb-r@v1.5-variegata-dev  →  duckdb/duckdb-r@v1.5-variegata
 krlmlr/duckdb-r@v1.4-andium-dev     →  duckdb/duckdb-r@v1.4-andium
 ```
 
-After the merge, the `-lts` branch for that series is rebased or reset on top of the updated `-andium` branch as described in [On patch release](#on-patch-release-v145).
+After this, the `-lts` branch for that series is rebased or reset on top of the updated `-andium` branch as described in [On patch release](#on-patch-release-v145).
 
 ### Ongoing
 

@@ -189,10 +189,14 @@ usually moved on by now, and the post-tag commits stay queued for the next cycle
 
 ### 4 MERGED — stable + version bump
 
-Open a PR from the tagged `dev` commit into `stable`; merge when green. The
-`DESCRIPTION` version conflict is resolved automatically by the merge driver (see
+Bring the tagged `dev` content onto `stable` **linearly — never as a merge
+commit** (invariant **L**): fast-forward or rebase the tagged range onto
+`stable`, dropping the `lts.sh` flavor rename. The `DESCRIPTION` version conflict
+is resolved automatically by the merge driver (see
 [BRANCHES.md → Version Numbering](BRANCHES.md#version-numbering)); run
-`scripts/setup-git.sh` first if this is a fresh clone or CI runner.
+`scripts/setup-git.sh` first if this is a fresh clone or CI runner. Because
+`stable ⊑ dev-base ⊑ dev` (invariant **A1**), the only rewriting is dropping the
+rename commit.
 
 The package version is **not** derived from the git tag — set it explicitly so
 `DESCRIPTION` matches the upstream tag:
@@ -263,9 +267,12 @@ on r-universe), coordinate at the **cluster** level:
   alongside with no CRAN tail.
 - **The preview line** (next major, tracking upstream `main`) lives in a
   long-running TRACK/STABILIZE: its STABILIZE *is* the upstream RC window and its
-  CUT *is* the atomic fast-forward flip of `main`. Same FSM, different durations;
-  the only addition is that vendor-coupled glue may be *born* on its `dev` (the
-  documented exception to invariant **S4**).
+  CUT *is* the atomic fast-forward flip of `main`. The flip requires `main ⊑
+  main-dev` (invariant **A2**), which is *not* maintained continuously — it is
+  established once, just before the flip, by the rewind-to-bifurcation + replay
+  linearization. Same FSM, different durations; the only other addition is that
+  vendor-coupled glue may be *born* on its `dev` (the documented exception to
+  invariant **S4**).
 
 ## Failure & rollback
 
