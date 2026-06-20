@@ -24,7 +24,7 @@ struct DuckCleanupInfo {
 	transaction_t lowest_start_time;
 	vector<unique_ptr<DuckTransaction>> transactions;
 
-	void Cleanup() noexcept;
+	void Cleanup();
 	bool ScheduleCleanup() noexcept;
 };
 
@@ -94,6 +94,7 @@ private:
 	//! Whether or not we can checkpoint
 	CheckpointDecision CanCheckpoint(DuckTransaction &transaction, unique_ptr<StorageLockKey> &checkpoint_lock,
 	                                 const UndoBufferProperties &properties);
+	void CleanupTransactions();
 
 private:
 	//! The current start timestamp used by transactions

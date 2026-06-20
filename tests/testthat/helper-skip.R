@@ -7,9 +7,7 @@ skip_on_dev_version <- function() {
     unclass() |>
     getElement(1L)
 
-  if (length(version) < 3 || tail(version, 1L) < 9000) {
-    invisible()
-  } else {
+  if (length(version) >= 4 && version[[4]] >= 1000) {
     skip("Skip on development versions.")
   }
 }
