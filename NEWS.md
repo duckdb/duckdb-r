@@ -1,5 +1,24 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.4.9001
+
+## Features
+
+- Update vendored code to v0.9.1 (#26).
+
+## Chore
+
+- Add opt-in system libduckdb linking for faster development builds (#2345).
+
+- Skip DBItest tests if not installed (#30).
+
+- Fix tests when dplyr is missing (#29).
+
+## fledge
+
+- CRAN release v1.5.4 (#2362).
+
+
 # duckdb 1.5.4.9000
 
 ## Chore
