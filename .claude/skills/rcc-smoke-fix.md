@@ -167,15 +167,29 @@ COMMITS_OLDEST_FIRST=$(git log "krlmlr/$BRANCH" \
   --first-parent --since="$SINCE" --format="%H" --reverse)
 ```
 
-Cache the orphan-branch run index once (no token required):
+Build the orphan-branch run index **once** into an associative array keyed
+by commit SHA (no token required). This is the single most important
+performance step. `runs2.ndjson` holds 2500+ records, and each `*-dev`
+branch walk visits hundreds of commits (`main-dev` alone is ~500). A
+per-commit `jq` pass over the whole file is O(branches × commits × file)
+and takes many minutes — slow enough to look hung. One `jq` pass up front
+turns every later lookup into an O(1) array read (seconds total).
 
 ```bash
-RCC_NDJSON=$(git show krlmlr/rcc:runs2.ndjson 2>/dev/null || true)
+# Single jq pass: emit "<sha> <conclusion>" per completed run, load into a map.
+declare -A RCC_STATUS
+while read -r sha conclusion; do
+  RCC_STATUS["$sha"]="$conclusion"
+done < <(git show krlmlr/rcc:runs2.ndjson 2>/dev/null \
+  | jq -r '"\(.commit) \(.run.conclusion // "none")"')
 ```
 
-Define helpers. `lookup_rcc_status` reads from the cached `$RCC_NDJSON`
-first; falls back to `gh` only when the SHA is absent and `gh auth status`
-succeeds. Do not use `curl` or check environment variables.
+Define helpers. `lookup_rcc_status` reads the precomputed map first; falls
+back to `gh` only when the SHA is absent and `gh auth status` succeeds. A
+SHA missing from the map means its run has not completed yet (only completed
+runs are written to `runs2.ndjson`), so a freshly-queued commit reads as
+`none` — re-run the scan once those runs finish to catch failures that were
+still pending. Do not use `curl` or check environment variables.
 
 ```bash
 is_rcc_failure() {
@@ -191,13 +205,10 @@ gh auth status &>/dev/null && GH_OK=1
 
 lookup_rcc_status() {
   local sha="$1"
-  # Primary: orphan branch index (instant, no auth needed).
+  # Primary: precomputed orphan-branch index (O(1), no jq, no auth needed).
   # runs2.ndjson is keyed by commit SHA and only contains completed runs;
-  # use the run conclusion so it lines up with is_rcc_failure().
-  local conclusion
-  conclusion=$(jq -r --arg sha "$sha" \
-    'select(.commit == $sha) | .run.conclusion // empty' \
-    <<< "$RCC_NDJSON" | head -1)
+  # the run conclusion lines up with is_rcc_failure().
+  local conclusion="${RCC_STATUS[$sha]:-}"
   [[ -n "$conclusion" ]] && { echo "$conclusion"; return; }
 
   # Fallback: gh CLI (only when authenticated). Returns the commit-status
