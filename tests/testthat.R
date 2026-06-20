@@ -9,4 +9,4 @@
 library(testthat)
 library(duckdb)
 
-test_check("duckdb")
+test_check(simulate_duckdb()$pkg)
