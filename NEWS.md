@@ -1,5 +1,16 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.4.9002
+
+## Chore
+
+- Tweak LTS to also apply to v1.4.
+
+## Uncategorized
+
+- Test: Derive package name dynamically in tests instead of hard-coding, to support flavors (#34).
+
+
 # duckdb 1.5.4.9001
 
 ## Features
