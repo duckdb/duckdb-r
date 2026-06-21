@@ -46,6 +46,9 @@ dbRemoveTable(conn, name, ..., fail_if_missing = TRUE)
 dbRollback(conn, ...)
 
 # S4 method for class 'duckdb_connection,character'
+dbSendQueryArrow(conn, statement, params = NULL, ...)
+
+# S4 method for class 'duckdb_connection,character'
 dbSendQuery(conn, statement, params = NULL, ..., arrow = FALSE)
 
 # S4 method for class 'duckdb_connection,character,data.frame'
