@@ -599,6 +599,8 @@ test_that("`map = \"list_of\"` round-trips a MAP column through dbWriteTable (#2
 # Named-list scan (map = "list_of") ---------------------------------------
 
 test_that("`map = \"list_of\"` scans named-list cells as MAP entries", {
+  skip_if_not_installed("vctrs")
+
   con <- local_con(map = "list_of")
 
   dbExecute(con, "CREATE TABLE t (mp MAP(VARCHAR, INTEGER))")
@@ -620,6 +622,8 @@ test_that("`map = \"list_of\"` scans named-list cells as MAP entries", {
 })
 
 test_that("`map = \"list_of\"` scan ignores unnamed list columns", {
+  skip_if_not_installed("vctrs")
+
   con <- local_con(map = "list_of")
 
   df <- data.frame(id = 1L)
@@ -630,6 +634,8 @@ test_that("`map = \"list_of\"` scan ignores unnamed list columns", {
 })
 
 test_that("`map = \"list_of\"` scan does not promote partly-unnamed lists", {
+  skip_if_not_installed("vctrs")
+
   con <- local_con(map = "list_of")
 
   # Some entries have an empty name -> the detector bails out and the
@@ -642,6 +648,8 @@ test_that("`map = \"list_of\"` scan does not promote partly-unnamed lists", {
 })
 
 test_that("`map = \"list_of\"` scan keeps data.frame(key, value) cells working", {
+  skip_if_not_installed("vctrs")
+
   con <- local_con(map = "list_of")
 
   dbExecute(con, "CREATE TABLE t (mp MAP(VARCHAR, INTEGER))")
