@@ -66,26 +66,19 @@ duckdb <- function(
     }
   }
 
-  # CRAN-safe defaults: keep writable state under a per-session temporary
-  # directory unless the user overrides it (see `?duckdb_storage`). Setting
-  # `home_directory` relocates the extension cache, which DuckDB resolves lazily
-  # through the connection's file system. Secrets are *not* covered: DuckDB
-  # binds the secret path at startup from the process `$HOME`, ignoring
-  # `home_directory`, so `secret_directory` must be set explicitly. Logs are
-  # written only when a path is configured, so there is nothing to default.
-  if (!("home_directory" %in% names(config))) {
-    config["home_directory"] <- resolve_home_directory()
-  }
+  # CRAN-safe defaults: point each writable location at a per-session temporary
+  # directory unless the user overrides it (see `?duckdb_storage`). We set
+  # `extension_directory` and `secret_directory` explicitly and deliberately
+  # leave `home_directory` untouched -- setting it would also redirect `~` in
+  # user SQL. Logs are written only when a path is configured, so there is
+  # nothing to default.
   if (!("extension_directory" %in% names(config))) {
-    extension_directory <- resolve_extension_directory()
-    if (!is.null(extension_directory)) {
-      config["extension_directory"] <- extension_directory
-    }
+    config["extension_directory"] <- resolve_extension_directory()
   }
   if (!("secret_directory" %in% names(config))) {
     config["secret_directory"] <- resolve_secret_directory()
   }
-  maybe_ephemeral_home_message(config[["home_directory"]])
+  maybe_ephemeral_state_message(config[["extension_directory"]])
 
   # Always create new database for in-memory,
   # allows isolation and mixing different configs

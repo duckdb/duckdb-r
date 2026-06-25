@@ -24,23 +24,17 @@ options or environment variables. Some names remain provisional.
 \describe{
 \item{Home directory}{The base DuckDB uses to expand a leading \code{~} and to
 derive default sub-locations such as the extension cache. DuckDB setting:
-\code{home_directory}. The package points this at a per-session \code{\link[=tempdir]{tempdir()}}
-directory by default, which is the single lever that keeps the extension
-cache CRAN-safe (see below). Note that it also redirects \code{~} in user SQL
-(e.g. \verb{COPY ... TO '~/out.csv'}).}
+\code{home_directory}. The package \strong{does not set this}: doing so would also
+redirect \code{~} in user SQL (e.g. \verb{COPY ... TO '~/out.csv'}). Each location
+below is pointed at a temporary directory directly instead.}
 \item{Extension binaries}{Downloaded \verb{*.duckdb_extension} files (e.g.
 \code{spatial}, \code{httpfs}, \code{h3}). DuckDB setting: \code{extension_directory}. A
 re-usable cache: a given binary is valid only for the exact DuckDB
-version and platform/ABI that downloaded it. By default this is \emph{not} set
-explicitly; DuckDB derives it from the home directory as
-\verb{<home>/.duckdb/extensions}, resolving it lazily through the connection's
-file system -- so relocating the home directory relocates the cache.}
+version and platform/ABI that downloaded it. Set explicitly to a
+\code{\link[=tempdir]{tempdir()}} sub-directory by default.}
 \item{Secrets}{Persisted credentials under \code{stored_secrets}. DuckDB
 setting: \code{secret_directory}. Managed via \code{\link[=duckdb_consolidate_secrets]{duckdb_consolidate_secrets()}}.
-Set explicitly to a \code{\link[=tempdir]{tempdir()}} location by default, because DuckDB binds
-the secret path at startup from the process \verb{$HOME} and ignores
-\code{home_directory} -- so unlike the extension cache, secrets are not
-covered by the home directory and must be pointed at tempdir directly.}
+Set explicitly to a \code{\link[=tempdir]{tempdir()}} location by default.}
 \item{Temporary / spill files}{Out-of-core intermediates for sorts, hash
 joins, aggregations, and the buffer manager. DuckDB settings:
 \code{temp_directory}, \code{max_temp_directory_size}. For an in-memory
@@ -61,16 +55,18 @@ connection or an \code{ATTACH} of a temporary database should default into
 }
 }
 
-\section{Why setting only the home directory is not enough}{
+\section{Why each location is set explicitly, not via the home directory}{
 It is tempting to set \code{home_directory} to a \code{\link[=tempdir]{tempdir()}} location and leave
-every other location unset. That handles the extension cache -- DuckDB
-resolves it lazily through the connection's (opener-aware) file system, which
-consults the \code{home_directory} setting. It does \strong{not} handle secrets: the
-secret manager fixes its path once at database startup from the raw process
-\verb{$HOME} (it never sees the \code{home_directory} setting), so secrets would still
-land in \verb{~/.duckdb/stored_secrets}. Nor does it cover spill files. The
-package therefore sets \code{home_directory} \emph{and} \code{secret_directory} (and, where
-relevant, \code{temp_directory}) explicitly.
+every other location unset. Two problems rule that out. First, it is
+incomplete: it would relocate the extension cache (DuckDB resolves that
+lazily through the connection's opener-aware file system, which consults the
+setting) but \strong{not} secrets -- the secret manager fixes its path once at
+database startup from the raw process \verb{$HOME}, never seeing the
+\code{home_directory} setting -- nor spill files. Second, it is too broad:
+\code{home_directory} is also the base for \code{~} expansion in user SQL, so setting
+it would silently redirect paths like \verb{COPY ... TO '~/out.csv'}. The package
+therefore leaves \code{home_directory} alone and sets \code{extension_directory} and
+\code{secret_directory} (and, where relevant, \code{temp_directory}) explicitly.
 }
 
 \section{Resolution policy}{
@@ -153,25 +149,25 @@ engine on CRAN; see the CRAN guard in \code{tests/testthat.R}.
 \section{Per-location reference}{
 \tabular{lllll}{
    Kind \tab DuckDB setting \tab Option \tab Environment variable \tab Default \cr
-   Home \tab \code{home_directory} \tab \code{duckdb.home_directory} \tab \code{DUCKDB_HOME_DIRECTORY} \tab \code{tempdir()} sub-directory (set) \cr
-   Extensions \tab \code{extension_directory} \tab \code{duckdb.extension_directory} \tab \code{DUCKDB_EXTENSION_DIRECTORY} \tab derived from home (not set) \cr
+   Home \tab \code{home_directory} \tab -- \tab -- \tab left untouched (not set) \cr
+   Extensions \tab \code{extension_directory} \tab \code{duckdb.extension_directory} \tab \code{DUCKDB_EXTENSION_DIRECTORY} \tab \code{tempdir()} sub-directory (set) \cr
    Secrets \tab \code{secret_directory} \tab \code{duckdb.secret_directory} \tab \code{DUCKDB_SECRET_DIRECTORY} \tab \code{tempdir()} sub-directory (set) \cr
    Temp/spill \tab \code{temp_directory} \tab \code{duckdb.temp_directory} \tab \code{DUCKDB_TEMP_DIRECTORY} \tab \code{tempdir()} sub-directory \cr
    Logs \tab \code{log_query_path} \tab \code{duckdb.log_directory} \tab \code{DUCKDB_LOG_DIRECTORY} \tab disabled (off) \cr
 }
 
 
-"set" means the package passes the value to \code{\link[=duckdb]{duckdb()}} explicitly; the
-extension cache is left unset so DuckDB derives it from the home directory.
+"set" means the package passes the value to \code{\link[=duckdb]{duckdb()}} explicitly. The home
+directory is left untouched so that \code{~} in user SQL keeps its usual meaning.
 }
 
 \section{Startup message}{
-When a connection is established and the resolved home directory lies inside
+When a connection is established and the resolved extension cache lies inside
 \code{\link[=tempdir]{tempdir()}}, the package emits an informational message -- at most once every
 eight hours per session, and only in interactive sessions, so non-interactive
-scripts and CRAN checks stay quiet. It explains that extensions and other
-state will not persist across sessions and how to opt into a permanent
-location via \code{options(duckdb.home_directory =)} or \code{DUCKDB_HOME_DIRECTORY}.
+scripts and CRAN checks stay quiet. It explains that downloaded extensions
+will not persist across sessions and how to opt into a permanent location via
+\code{options(duckdb.extension_directory =)} or \code{DUCKDB_EXTENSION_DIRECTORY}.
 }
 
 \seealso{
