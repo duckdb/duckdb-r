@@ -168,7 +168,7 @@ static inline void AppendMatrixSegmentAtomic(SRC *src_ptr, int nrows, int ncols,
 	idx_t vector_idx = 0;
 	for (idx_t i = 0; i < count; i++) {
 		auto matrix_elt_idx = sexp_offset + i;
-		for (idx_t k = 0; k < ncols; k++) {
+		for (idx_t k = 0; k < static_cast<idx_t>(ncols); k++) {
 			auto val = src_ptr[matrix_elt_idx];
 			if (RTYPE::IsNull(val)) {
 				child_mask.SetInvalid(vector_idx++);
@@ -410,7 +410,7 @@ case_insensitive_map_t<vector<Value>> ListToVectorOfValue(list input_sexps) {
 
 		vector<Value> vv;
 		vv.reserve(size);
-		for (idx_t i = 0; i < size; ++i) {
+		for (idx_t i = 0; i < static_cast<idx_t>(size); ++i) {
 			vv.push_back(v.GetValue(i));
 		}
 
