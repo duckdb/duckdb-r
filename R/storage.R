@@ -94,37 +94,78 @@
 #' consent on disk, once, so it need not be re-granted on every connection and
 #' does not require editing `.Rprofile` or `.Renviron`.
 #'
-#' A marker is an empty sentinel file placed in a candidate persistent *store
-#' root*. The general-purpose roots are the locations DuckDB clients otherwise
-#' share:
+#' Two functions write and relocate these markers -- one per kind of state, so
+#' the two can be configured independently:
 #'
-#' \itemize{
-#'   \item the DuckDB default home (`~/.duckdb`) -- the location also used by
-#'     the DuckDB CLI and Python client, so a marker here opts into a store
-#'     shared across all DuckDB clients on the machine;
-#'   \item a [tools::R_user_dir()] location -- the R-specific store, private to
-#'     this package and surviving package upgrades.
+#' \preformatted{
+#' duckdb_extension_storage(location = NULL, migrate = TRUE, conflict = "error")
+#' duckdb_secret_storage(location = NULL, migrate = TRUE, conflict = "error")
 #' }
 #'
-#' Extension binaries are the exception. In addition to the roots above they may
-#' be cached in the duckdb package's own installed library directory
-#' ([base::system.file()] location), which is wiped and re-created on every
-#' re-install so the binaries are always paired with the current build's ABI.
-#' That directory holds **only** extensions; it never stores secrets or any
-#' other state. Wherever extensions instead persist across upgrades (the home
-#' or [tools::R_user_dir()] roots), per-version, per-platform sub-paths keep a
-#' stale binary from being loaded into a newer, ABI-incompatible build.
+#' Called with `location = NULL` (the default) each function reports where that
+#' kind currently resolves and how it was chosen. Called with a `location` it
+#' writes the marker there (creating, relocating, or -- with `"session"` --
+#' removing it). There is no `ask` argument: calling the function *is* the
+#' consent.
 #'
-#' Rules:
+#' ## The `location` argument
+#'
+#' `location` names a *root*, not a full path (an explicit path is also
+#' accepted). The recognized roots are:
+#'
+#' \describe{
+#'   \item{`"session"`}{`tempdir()` -- the default, and the opt-out: setting it
+#'     removes the marker and reverts that kind to a per-session location.}
+#'   \item{`"user"`}{[tools::R_user_dir()] -- R-specific, private to this
+#'     package, surviving package upgrades.}
+#'   \item{`"shared"`}{`~/.duckdb` -- shared with the DuckDB CLI and Python
+#'     client.}
+#'   \item{`"library"`}{*(extensions only)* alongside the installed duckdb
+#'     package ([base::system.file()]). This was the default before extensions
+#'     moved to `tempdir()`; it pairs binaries with the build's ABI but is wiped
+#'     on every re-install, so the marker there must be re-created after an
+#'     upgrade. Not offered for secrets.}
+#' }
+#'
+#' The argument name and value vocabulary are still provisional. Alternatives
+#' considered: name `where` or `root` instead of `location`; values
+#' `"temporary"`/`"package"` instead of `"session"`/`"library"`.
+#'
+#' ## The marker file
+#'
+#' The marker is an empty sentinel whose name makes clear it belongs to the R
+#' package -- important because the `"shared"` root (`~/.duckdb`) is also used
+#' by the DuckDB CLI and Python client, which must not mistake it for their own:
+#'
+#' \preformatted{<root>/extensions/.duckdb-r-keep     # opts in the extension cache
+#' <root>/stored_secrets/.duckdb-r-keep              # opts in secrets}
+#'
+#' Markers are per-kind and live inside each kind's sub-directory, so one root
+#' can persist extensions but not secrets, or vice versa. For extensions in a
+#' persistent root, DuckDB's `v<version>/<platform>/` sub-paths keep a stale
+#' binary from being loaded into a newer, ABI-incompatible build.
+#'
+#' ## Migration
+#'
+#' `migrate = TRUE` moves the already-cached files from the current location to
+#' the new root. `conflict` decides what happens when a file of the same name
+#' exists at the destination: `"error"` (the default) aborts and lists the
+#' collisions without moving anything; `"ours"` lets the files being relocated
+#' win (overwriting the destination); `"theirs"` keeps the destination files and
+#' drops the colliding sources. Secret migration is performed by
+#' [duckdb_consolidate_secrets()].
+#'
+#' ## Rules
 #'
 #' \itemize{
 #'   \item An option or environment variable overrides any marker.
-#'   \item A marker in **more than one** root is ambiguous: the package emits a
-#'     startup message naming the candidates and falls back to the [tempdir()]
-#'     default until the ambiguity is resolved.
+#'   \item A kind's marker present in **more than one** root is ambiguous: the
+#'     package emits a startup message naming the candidates and falls back to
+#'     the [tempdir()] default until the ambiguity is resolved.
 #'   \item The package **never ships a marker** and **never creates one as a
-#'     side effect**. A marker is created only by an explicit user action (a
-#'     dedicated helper), which is what makes the default CRAN-safe.
+#'     side effect**; only `duckdb_extension_storage()` /
+#'     `duckdb_secret_storage()` write one, which is what keeps the default
+#'     CRAN-safe.
 #'   \item A marked location that is not writable (for example the package
 #'     library remounted read-only during `R CMD check`) falls back to the
 #'     [tempdir()] default rather than failing.

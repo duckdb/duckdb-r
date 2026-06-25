@@ -90,37 +90,80 @@ CRAN Policy permits only with the user's consent. A marker file records that
 consent on disk, once, so it need not be re-granted on every connection and
 does not require editing \code{.Rprofile} or \code{.Renviron}.
 
-A marker is an empty sentinel file placed in a candidate persistent \emph{store
-root}. The general-purpose roots are the locations DuckDB clients otherwise
-share:
+Two functions write and relocate these markers -- one per kind of state, so
+the two can be configured independently:
 
-\itemize{
-\item the DuckDB default home (\verb{~/.duckdb}) -- the location also used by
-the DuckDB CLI and Python client, so a marker here opts into a store
-shared across all DuckDB clients on the machine;
-\item a \code{\link[tools:R_user_dir]{tools::R_user_dir()}} location -- the R-specific store, private to
-this package and surviving package upgrades.
+\preformatted{
+duckdb_extension_storage(location = NULL, migrate = TRUE, conflict = "error")
+duckdb_secret_storage(location = NULL, migrate = TRUE, conflict = "error")
 }
 
-Extension binaries are the exception. In addition to the roots above they may
-be cached in the duckdb package's own installed library directory
-(\code{\link[base:system.file]{base::system.file()}} location), which is wiped and re-created on every
-re-install so the binaries are always paired with the current build's ABI.
-That directory holds \strong{only} extensions; it never stores secrets or any
-other state. Wherever extensions instead persist across upgrades (the home
-or \code{\link[tools:R_user_dir]{tools::R_user_dir()}} roots), per-version, per-platform sub-paths keep a
-stale binary from being loaded into a newer, ABI-incompatible build.
+Called with \code{location = NULL} (the default) each function reports where that
+kind currently resolves and how it was chosen. Called with a \code{location} it
+writes the marker there (creating, relocating, or -- with \code{"session"} --
+removing it). There is no \code{ask} argument: calling the function \emph{is} the
+consent.
+\subsection{The \code{location} argument}{
 
-Rules:
+\code{location} names a \emph{root}, not a full path (an explicit path is also
+accepted). The recognized roots are:
+
+\describe{
+\item{\code{"session"}}{\code{tempdir()} -- the default, and the opt-out: setting it
+removes the marker and reverts that kind to a per-session location.}
+\item{\code{"user"}}{\code{\link[tools:R_user_dir]{tools::R_user_dir()}} -- R-specific, private to this
+package, surviving package upgrades.}
+\item{\code{"shared"}}{\verb{~/.duckdb} -- shared with the DuckDB CLI and Python
+client.}
+\item{\code{"library"}}{\emph{(extensions only)} alongside the installed duckdb
+package (\code{\link[base:system.file]{base::system.file()}}). This was the default before extensions
+moved to \code{tempdir()}; it pairs binaries with the build's ABI but is wiped
+on every re-install, so the marker there must be re-created after an
+upgrade. Not offered for secrets.}
+}
+
+The argument name and value vocabulary are still provisional. Alternatives
+considered: name \code{where} or \code{root} instead of \code{location}; values
+\code{"temporary"}/\code{"package"} instead of \code{"session"}/\code{"library"}.
+}
+
+\subsection{The marker file}{
+
+The marker is an empty sentinel whose name makes clear it belongs to the R
+package -- important because the \code{"shared"} root (\verb{~/.duckdb}) is also used
+by the DuckDB CLI and Python client, which must not mistake it for their own:
+
+\preformatted{<root>/extensions/.duckdb-r-keep     # opts in the extension cache
+<root>/stored_secrets/.duckdb-r-keep              # opts in secrets}
+
+Markers are per-kind and live inside each kind's sub-directory, so one root
+can persist extensions but not secrets, or vice versa. For extensions in a
+persistent root, DuckDB's \verb{v<version>/<platform>/} sub-paths keep a stale
+binary from being loaded into a newer, ABI-incompatible build.
+}
+
+\subsection{Migration}{
+
+\code{migrate = TRUE} moves the already-cached files from the current location to
+the new root. \code{conflict} decides what happens when a file of the same name
+exists at the destination: \code{"error"} (the default) aborts and lists the
+collisions without moving anything; \code{"ours"} lets the files being relocated
+win (overwriting the destination); \code{"theirs"} keeps the destination files and
+drops the colliding sources. Secret migration is performed by
+\code{\link[=duckdb_consolidate_secrets]{duckdb_consolidate_secrets()}}.
+}
+
+\subsection{Rules}{
 
 \itemize{
 \item An option or environment variable overrides any marker.
-\item A marker in \strong{more than one} root is ambiguous: the package emits a
-startup message naming the candidates and falls back to the \code{\link[=tempdir]{tempdir()}}
-default until the ambiguity is resolved.
+\item A kind's marker present in \strong{more than one} root is ambiguous: the
+package emits a startup message naming the candidates and falls back to
+the \code{\link[=tempdir]{tempdir()}} default until the ambiguity is resolved.
 \item The package \strong{never ships a marker} and \strong{never creates one as a
-side effect}. A marker is created only by an explicit user action (a
-dedicated helper), which is what makes the default CRAN-safe.
+side effect}; only \code{duckdb_extension_storage()} /
+\code{duckdb_secret_storage()} write one, which is what keeps the default
+CRAN-safe.
 \item A marked location that is not writable (for example the package
 library remounted read-only during \verb{R CMD check}) falls back to the
 \code{\link[=tempdir]{tempdir()}} default rather than failing.
@@ -131,6 +174,7 @@ presence of a cached binary: an extension found under \verb{v<version>/<platform
 governs only \emph{validity} (whether a re-download is needed), never the choice
 of location. This separation prevents a stale leftover binary from silently
 resurrecting a store root and reintroducing an ABI mismatch.
+}
 }
 
 \section{CRAN compliance}{
