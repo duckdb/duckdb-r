@@ -66,17 +66,26 @@ duckdb <- function(
     }
   }
 
-  # Extensions are cached inside the duckdb package's installed library
-  # directory (see default_extension_directory()), which keeps the binaries
-  # paired with the C++ toolchain that built duckdb. Secrets default to a
-  # location under R_user_dir() for CRAN compliance, but `resolve_secret_directory()`
-  # lets users opt into the shared `~/.duckdb/stored_secrets` location.
+  # CRAN-safe defaults: keep writable state under a per-session temporary
+  # directory unless the user overrides it (see `?duckdb_storage`). Setting
+  # `home_directory` relocates the extension cache, which DuckDB resolves lazily
+  # through the connection's file system. Secrets are *not* covered: DuckDB
+  # binds the secret path at startup from the process `$HOME`, ignoring
+  # `home_directory`, so `secret_directory` must be set explicitly. Logs are
+  # written only when a path is configured, so there is nothing to default.
+  if (!("home_directory" %in% names(config))) {
+    config["home_directory"] <- resolve_home_directory()
+  }
   if (!("extension_directory" %in% names(config))) {
-    config["extension_directory"] <- default_extension_directory()
+    extension_directory <- resolve_extension_directory()
+    if (!is.null(extension_directory)) {
+      config["extension_directory"] <- extension_directory
+    }
   }
   if (!("secret_directory" %in% names(config))) {
     config["secret_directory"] <- resolve_secret_directory()
   }
+  maybe_ephemeral_home_message(config[["home_directory"]])
 
   # Always create new database for in-memory,
   # allows isolation and mixing different configs

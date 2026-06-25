@@ -15,40 +15,62 @@ which states that packages should not write in the user's home filespace,
 "nor anywhere else on the file system apart from the R session's temporary
 directory".
 
-This topic describes the intended end state. It is documentation in lieu of a
-design plan; some of the behavior below may not yet be implemented, and the
-option, environment-variable, and marker names are provisional.
+The home, extension, and secret defaults and the ephemeral-home startup
+message are implemented. The marker mechanism described below is the planned
+way to opt into persistence without configuration; until it lands, use the
+options or environment variables. Some names remain provisional.
 }
 \section{Kinds of on-disk state}{
-Extensions and secrets are the two locations the package manages today; the
-remaining kinds are subject to the same CRAN constraint and should be brought
-under the same policy.
-
 \describe{
+\item{Home directory}{The base DuckDB uses to expand a leading \code{~} and to
+derive default sub-locations such as the extension cache. DuckDB setting:
+\code{home_directory}. The package points this at a per-session \code{\link[=tempdir]{tempdir()}}
+directory by default, which is the single lever that keeps the extension
+cache CRAN-safe (see below). Note that it also redirects \code{~} in user SQL
+(e.g. \verb{COPY ... TO '~/out.csv'}).}
 \item{Extension binaries}{Downloaded \verb{*.duckdb_extension} files (e.g.
 \code{spatial}, \code{httpfs}, \code{h3}). DuckDB setting: \code{extension_directory}. A
 re-usable cache: a given binary is valid only for the exact DuckDB
-version and platform/ABI that downloaded it.}
+version and platform/ABI that downloaded it. By default this is \emph{not} set
+explicitly; DuckDB derives it from the home directory as
+\verb{<home>/.duckdb/extensions}, resolving it lazily through the connection's
+file system -- so relocating the home directory relocates the cache.}
 \item{Secrets}{Persisted credentials under \code{stored_secrets}. DuckDB
-setting: \code{secret_directory}. Managed via \code{\link[=duckdb_consolidate_secrets]{duckdb_consolidate_secrets()}}.}
+setting: \code{secret_directory}. Managed via \code{\link[=duckdb_consolidate_secrets]{duckdb_consolidate_secrets()}}.
+Set explicitly to a \code{\link[=tempdir]{tempdir()}} location by default, because DuckDB binds
+the secret path at startup from the process \verb{$HOME} and ignores
+\code{home_directory} -- so unlike the extension cache, secrets are not
+covered by the home directory and must be pointed at tempdir directly.}
 \item{Temporary / spill files}{Out-of-core intermediates for sorts, hash
 joins, aggregations, and the buffer manager. DuckDB settings:
 \code{temp_directory}, \code{max_temp_directory_size}. For an in-memory
 (\verb{:memory:}) database DuckDB's own default spills to \code{.tmp} in the
 current working directory -- a CRAN-policy violation -- so the package
 must override it.}
-\item{Home directory}{The base DuckDB uses to expand a leading \code{~} and to
-derive several default sub-locations. DuckDB setting: \code{home_directory}.
-The umbrella setting behind the more specific ones above.}
-\item{Logs and profiling output}{Written only when explicitly enabled, but
-to disk when they are. DuckDB settings: \code{log_query_path},
-\code{http_logging_output}, and profiling output.}
+\item{Logs and profiling output}{Written only when a path is explicitly
+configured (DuckDB settings \code{log_query_path}, \code{http_logging_output},
+profiling output). They default to \emph{off}, so there is no location to
+default and nothing written without the user asking -- which is why the
+package does not force them into \code{\link[=tempdir]{tempdir()}}. If the user turns logging
+on they choose where it goes.}
 \item{Database file, WAL, and checkpoints}{Chosen by the user through the
 \code{dbdir} argument of \code{\link[=duckdb]{duckdb()}}, so primarily the user's responsibility.
 The package is still responsible for ephemeral databases: a \verb{:memory:}
 connection or an \code{ATTACH} of a temporary database should default into
 \code{\link[=tempdir]{tempdir()}} and be cleaned up on disconnect.}
 }
+}
+
+\section{Why setting only the home directory is not enough}{
+It is tempting to set \code{home_directory} to a \code{\link[=tempdir]{tempdir()}} location and leave
+every other location unset. That handles the extension cache -- DuckDB
+resolves it lazily through the connection's (opener-aware) file system, which
+consults the \code{home_directory} setting. It does \strong{not} handle secrets: the
+secret manager fixes its path once at database startup from the raw process
+\verb{$HOME} (it never sees the \code{home_directory} setting), so secrets would still
+land in \verb{~/.duckdb/stored_secrets}. Nor does it cover spill files. The
+package therefore sets \code{home_directory} \emph{and} \code{secret_directory} (and, where
+relevant, \code{temp_directory}) explicitly.
 }
 
 \section{Resolution policy}{
@@ -131,17 +153,25 @@ engine on CRAN; see the CRAN guard in \code{tests/testthat.R}.
 \section{Per-location reference}{
 \tabular{lllll}{
    Kind \tab DuckDB setting \tab Option \tab Environment variable \tab Default \cr
-   Extensions \tab \code{extension_directory} \tab \code{duckdb.extension_directory} \tab \code{DUCKDB_EXTENSION_DIRECTORY} \tab \code{tempdir()} sub-directory \cr
-   Secrets \tab \code{secret_directory} \tab \code{duckdb.secret_directory} \tab \code{DUCKDB_SECRET_DIRECTORY} \tab \code{\link[tools:R_user_dir]{tools::R_user_dir()}} (existing) \cr
+   Home \tab \code{home_directory} \tab \code{duckdb.home_directory} \tab \code{DUCKDB_HOME_DIRECTORY} \tab \code{tempdir()} sub-directory (set) \cr
+   Extensions \tab \code{extension_directory} \tab \code{duckdb.extension_directory} \tab \code{DUCKDB_EXTENSION_DIRECTORY} \tab derived from home (not set) \cr
+   Secrets \tab \code{secret_directory} \tab \code{duckdb.secret_directory} \tab \code{DUCKDB_SECRET_DIRECTORY} \tab \code{tempdir()} sub-directory (set) \cr
    Temp/spill \tab \code{temp_directory} \tab \code{duckdb.temp_directory} \tab \code{DUCKDB_TEMP_DIRECTORY} \tab \code{tempdir()} sub-directory \cr
-   Home \tab \code{home_directory} \tab \code{duckdb.home_directory} \tab \code{DUCKDB_HOME_DIRECTORY} \tab \code{tempdir()} sub-directory \cr
-   Logs \tab \code{log_query_path} \tab \code{duckdb.log_directory} \tab \code{DUCKDB_LOG_DIRECTORY} \tab disabled \cr
+   Logs \tab \code{log_query_path} \tab \code{duckdb.log_directory} \tab \code{DUCKDB_LOG_DIRECTORY} \tab disabled (off) \cr
 }
 
 
-Secrets keep their existing \code{\link[tools:R_user_dir]{tools::R_user_dir()}} default for backward
-compatibility and are opt-in to the shared location; the marker mechanism is
-the forward-looking, uniform way to opt any of these into persistence.
+"set" means the package passes the value to \code{\link[=duckdb]{duckdb()}} explicitly; the
+extension cache is left unset so DuckDB derives it from the home directory.
+}
+
+\section{Startup message}{
+When a connection is established and the resolved home directory lies inside
+\code{\link[=tempdir]{tempdir()}}, the package emits an informational message -- at most once every
+eight hours per session, and only in interactive sessions, so non-interactive
+scripts and CRAN checks stay quiet. It explains that extensions and other
+state will not persist across sessions and how to opt into a permanent
+location via \code{options(duckdb.home_directory =)} or \code{DUCKDB_HOME_DIRECTORY}.
 }
 
 \seealso{

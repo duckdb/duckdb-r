@@ -17,42 +17,64 @@
 #' "nor anywhere else on the file system apart from the R session's temporary
 #' directory".
 #'
-#' This topic describes the intended end state. It is documentation in lieu of a
-#' design plan; some of the behavior below may not yet be implemented, and the
-#' option, environment-variable, and marker names are provisional.
+#' The home, extension, and secret defaults and the ephemeral-home startup
+#' message are implemented. The marker mechanism described below is the planned
+#' way to opt into persistence without configuration; until it lands, use the
+#' options or environment variables. Some names remain provisional.
 #'
 #' @details
 #' # Kinds of on-disk state
 #'
-#' Extensions and secrets are the two locations the package manages today; the
-#' remaining kinds are subject to the same CRAN constraint and should be brought
-#' under the same policy.
-#'
 #' \describe{
+#'   \item{Home directory}{The base DuckDB uses to expand a leading `~` and to
+#'     derive default sub-locations such as the extension cache. DuckDB setting:
+#'     `home_directory`. The package points this at a per-session [tempdir()]
+#'     directory by default, which is the single lever that keeps the extension
+#'     cache CRAN-safe (see below). Note that it also redirects `~` in user SQL
+#'     (e.g. `COPY ... TO '~/out.csv'`).}
 #'   \item{Extension binaries}{Downloaded `*.duckdb_extension` files (e.g.
 #'     `spatial`, `httpfs`, `h3`). DuckDB setting: `extension_directory`. A
 #'     re-usable cache: a given binary is valid only for the exact DuckDB
-#'     version and platform/ABI that downloaded it.}
+#'     version and platform/ABI that downloaded it. By default this is *not* set
+#'     explicitly; DuckDB derives it from the home directory as
+#'     `<home>/.duckdb/extensions`, resolving it lazily through the connection's
+#'     file system -- so relocating the home directory relocates the cache.}
 #'   \item{Secrets}{Persisted credentials under `stored_secrets`. DuckDB
-#'     setting: `secret_directory`. Managed via [duckdb_consolidate_secrets()].}
+#'     setting: `secret_directory`. Managed via [duckdb_consolidate_secrets()].
+#'     Set explicitly to a [tempdir()] location by default, because DuckDB binds
+#'     the secret path at startup from the process `$HOME` and ignores
+#'     `home_directory` -- so unlike the extension cache, secrets are not
+#'     covered by the home directory and must be pointed at tempdir directly.}
 #'   \item{Temporary / spill files}{Out-of-core intermediates for sorts, hash
 #'     joins, aggregations, and the buffer manager. DuckDB settings:
 #'     `temp_directory`, `max_temp_directory_size`. For an in-memory
 #'     (`:memory:`) database DuckDB's own default spills to `.tmp` in the
 #'     current working directory -- a CRAN-policy violation -- so the package
 #'     must override it.}
-#'   \item{Home directory}{The base DuckDB uses to expand a leading `~` and to
-#'     derive several default sub-locations. DuckDB setting: `home_directory`.
-#'     The umbrella setting behind the more specific ones above.}
-#'   \item{Logs and profiling output}{Written only when explicitly enabled, but
-#'     to disk when they are. DuckDB settings: `log_query_path`,
-#'     `http_logging_output`, and profiling output.}
+#'   \item{Logs and profiling output}{Written only when a path is explicitly
+#'     configured (DuckDB settings `log_query_path`, `http_logging_output`,
+#'     profiling output). They default to *off*, so there is no location to
+#'     default and nothing written without the user asking -- which is why the
+#'     package does not force them into [tempdir()]. If the user turns logging
+#'     on they choose where it goes.}
 #'   \item{Database file, WAL, and checkpoints}{Chosen by the user through the
 #'     `dbdir` argument of [duckdb()], so primarily the user's responsibility.
 #'     The package is still responsible for ephemeral databases: a `:memory:`
 #'     connection or an `ATTACH` of a temporary database should default into
 #'     [tempdir()] and be cleaned up on disconnect.}
 #' }
+#'
+#' # Why setting only the home directory is not enough
+#'
+#' It is tempting to set `home_directory` to a [tempdir()] location and leave
+#' every other location unset. That handles the extension cache -- DuckDB
+#' resolves it lazily through the connection's (opener-aware) file system, which
+#' consults the `home_directory` setting. It does **not** handle secrets: the
+#' secret manager fixes its path once at database startup from the raw process
+#' `$HOME` (it never sees the `home_directory` setting), so secrets would still
+#' land in `~/.duckdb/stored_secrets`. Nor does it cover spill files. The
+#' package therefore sets `home_directory` *and* `secret_directory` (and, where
+#' relevant, `temp_directory`) explicitly.
 #'
 #' # Resolution policy
 #'
@@ -133,17 +155,25 @@
 #'
 #' # Per-location reference
 #'
-#' | Kind        | DuckDB setting        | Option                        | Environment variable          | Default                         |
-#' |-------------|-----------------------|-------------------------------|-------------------------------|---------------------------------|
-#' | Extensions  | `extension_directory` | `duckdb.extension_directory`  | `DUCKDB_EXTENSION_DIRECTORY`  | `tempdir()` sub-directory       |
-#' | Secrets     | `secret_directory`    | `duckdb.secret_directory`     | `DUCKDB_SECRET_DIRECTORY`     | [tools::R_user_dir()] (existing)|
-#' | Temp/spill  | `temp_directory`      | `duckdb.temp_directory`       | `DUCKDB_TEMP_DIRECTORY`       | `tempdir()` sub-directory       |
-#' | Home        | `home_directory`      | `duckdb.home_directory`       | `DUCKDB_HOME_DIRECTORY`       | `tempdir()` sub-directory       |
-#' | Logs        | `log_query_path`      | `duckdb.log_directory`        | `DUCKDB_LOG_DIRECTORY`        | disabled                        |
+#' | Kind        | DuckDB setting        | Option                        | Environment variable          | Default                          |
+#' |-------------|-----------------------|-------------------------------|-------------------------------|----------------------------------|
+#' | Home        | `home_directory`      | `duckdb.home_directory`       | `DUCKDB_HOME_DIRECTORY`       | `tempdir()` sub-directory (set)  |
+#' | Extensions  | `extension_directory` | `duckdb.extension_directory`  | `DUCKDB_EXTENSION_DIRECTORY`  | derived from home (not set)      |
+#' | Secrets     | `secret_directory`    | `duckdb.secret_directory`     | `DUCKDB_SECRET_DIRECTORY`     | `tempdir()` sub-directory (set)  |
+#' | Temp/spill  | `temp_directory`      | `duckdb.temp_directory`       | `DUCKDB_TEMP_DIRECTORY`       | `tempdir()` sub-directory        |
+#' | Logs        | `log_query_path`      | `duckdb.log_directory`        | `DUCKDB_LOG_DIRECTORY`        | disabled (off)                   |
 #'
-#' Secrets keep their existing [tools::R_user_dir()] default for backward
-#' compatibility and are opt-in to the shared location; the marker mechanism is
-#' the forward-looking, uniform way to opt any of these into persistence.
+#' "set" means the package passes the value to [duckdb()] explicitly; the
+#' extension cache is left unset so DuckDB derives it from the home directory.
+#'
+#' # Startup message
+#'
+#' When a connection is established and the resolved home directory lies inside
+#' [tempdir()], the package emits an informational message -- at most once every
+#' eight hours per session, and only in interactive sessions, so non-interactive
+#' scripts and CRAN checks stay quiet. It explains that extensions and other
+#' state will not persist across sessions and how to opt into a permanent
+#' location via `options(duckdb.home_directory =)` or `DUCKDB_HOME_DIRECTORY`.
 #'
 #' @seealso [duckdb()] for the `config` argument, and
 #'   [duckdb_consolidate_secrets()] for the secrets store.
