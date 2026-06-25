@@ -77,17 +77,25 @@
 #' does not require editing `.Rprofile` or `.Renviron`.
 #'
 #' A marker is an empty sentinel file placed in a candidate persistent *store
-#' root*. Two roots are recognized:
+#' root*. The general-purpose roots are the locations DuckDB clients otherwise
+#' share:
 #'
 #' \itemize{
-#'   \item the duckdb package's installed library directory
-#'     ([base::system.file()] location) -- wiped and re-created on every
-#'     re-install, so binaries here are always paired with the current build's
-#'     ABI;
-#'   \item a [tools::R_user_dir()] location -- survives package upgrades, so
-#'     per-version, per-platform sub-paths are required to keep a stale binary
-#'     from being loaded into a newer, ABI-incompatible build.
+#'   \item the DuckDB default home (`~/.duckdb`) -- the location also used by
+#'     the DuckDB CLI and Python client, so a marker here opts into a store
+#'     shared across all DuckDB clients on the machine;
+#'   \item a [tools::R_user_dir()] location -- the R-specific store, private to
+#'     this package and surviving package upgrades.
 #' }
+#'
+#' Extension binaries are the exception. In addition to the roots above they may
+#' be cached in the duckdb package's own installed library directory
+#' ([base::system.file()] location), which is wiped and re-created on every
+#' re-install so the binaries are always paired with the current build's ABI.
+#' That directory holds **only** extensions; it never stores secrets or any
+#' other state. Wherever extensions instead persist across upgrades (the home
+#' or [tools::R_user_dir()] roots), per-version, per-platform sub-paths keep a
+#' stale binary from being loaded into a newer, ABI-incompatible build.
 #'
 #' Rules:
 #'
