@@ -12,11 +12,10 @@
 #' catalogs every such location and documents the unified policy the duckdb R
 #' package uses to choose them, so that **by default nothing is written outside
 #' the R session's temporary directory**, as required by the
-#' [CRAN Repository Policy](https://cran.r-project.org/web/packages/policies.html):
-#'
-#' > Packages should not write in the user's home filespace (including
-#' > clipboards), nor anywhere else on the file system apart from the R
-#' > session's temporary directory \[...\].
+#' [CRAN Repository Policy](https://cran.r-project.org/web/packages/policies.html),
+#' which states that packages should not write in the user's home filespace,
+#' "nor anywhere else on the file system apart from the R session's temporary
+#' directory".
 #'
 #' This topic describes the intended end state. It is documentation in lieu of a
 #' design plan; some of the behavior below may not yet be implemented, and the
