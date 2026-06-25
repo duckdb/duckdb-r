@@ -46,7 +46,8 @@
 <code>export MAKEFLAGS="-j$(nproc)"</code> – enables parallel compilation</li>
 <li>
 <code>UserNM=true R CMD INSTALL . --no-byte-compile</code> – builds and installs the package. NEVER CANCEL: takes 10-15 minutes on first build. Set timeout to 30+ minutes.</li>
-</ul></div>
+</ul><p>For an interactive edit-build-test loop, prefer the prebuilt-libduckdb fast path (seconds instead of 10-15 minutes) – see <a href="#fast-build-with-system-libduckdb-linuxmacos-opt-in">“Fast build with system libduckdb”</a> and <a href="#testing-with-prebuilt-duckdb-the-fast-iterate-loop">“Testing with prebuilt DuckDB”</a> below.</p>
+</div>
 <div class="section level3">
 <h3 id="run-tests">Run Tests<a class="anchor" aria-label="anchor" href="#run-tests"></a></h3>
 <ul><li>
@@ -153,6 +154,20 @@
 <p><strong>What this mode actually does.</strong> The R glue compiles against the <strong>vendored headers</strong> in <code>src/duckdb/src/include/</code> (the amalgamated <code>duckdb.hpp</code> shipped with libduckdb releases is missing ~37 of the 71 internal C++ headers the glue needs — templates like <code>GenericExecutor</code>, the Arrow integration, core-functions extension internals). Only the <strong>implementation</strong> is swapped for the system-installed <code>libduckdb.so</code> / <code>.dylib</code> at link time and at runtime.</p>
 <p>That is only safe if the vendored sources and the installed library were built from the <strong>same commit</strong>. <code>configure</code> extracts the <code>DUCKDB_SOURCE_ID</code> from the vendored <code>pragma_version.cpp</code>, greps for it inside the shared library, and aborts with a clear error if it is not present. Re-run <code>scripts/install-libduckdb.sh</code> after every vendoring bump.</p>
 <p>The opt-in only applies to <code>R CMD INSTALL .</code> — not to <code>R CMD build</code>, since the resulting installation depends on libduckdb being present at runtime. The installed <code>duckdb.so</code> carries an rpath pointing at the libduckdb directory; do not move libduckdb after installing.</p>
+</div>
+<div class="section level3">
+<h3 id="testing-with-prebuilt-duckdb-the-fast-iterate-loop">Testing with prebuilt DuckDB (the fast iterate loop)<a class="anchor" aria-label="anchor" href="#testing-with-prebuilt-duckdb-the-fast-iterate-loop"></a></h3>
+<p><code><a href="https://pkgload.r-lib.org/reference/load_all.html" class="external-link">pkgload::load_all()</a></code> / <code>devtools::load_all()</code> — and therefore <code><a href="https://testthat.r-lib.org/reference/test_package.html" class="external-link">testthat::test_local()</a></code>, which loads the package the same way — honor <code>DUCKDB_R_USE_SYSTEM_LIB</code> too: they compile only the ~30 glue <code>.cpp</code> files in <code>src/</code> and link against the prebuilt libduckdb, exactly like <code>R CMD INSTALL .</code>. This is the recommended setup for any edit-build-test loop (including coding-agent sessions), because it turns the otherwise 10–15 minute first build into seconds.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co"># One-time, matching the vendored DuckDB version (see above)</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="fu">sudo</span> scripts/install-libduckdb.sh          <span class="co"># or --prefix "$HOME/.local"</span></span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a><span class="co"># Then, in every shell that builds/tests the package:</span></span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a><span class="bu">export</span> <span class="va">DUCKDB_R_USE_SYSTEM_LIB</span><span class="op">=</span>1</span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a><span class="bu">export</span> <span class="va">MAKEFLAGS</span><span class="op">=</span><span class="st">"-j</span><span class="va">$(</span><span class="fu">nproc</span><span class="va">)</span><span class="st">"</span></span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="ex">R</span> <span class="at">-q</span> <span class="at">-e</span> <span class="st">'pkgload::load_all()'</span>              <span class="co"># ~1 s warm, no source changes</span></span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="ex">R</span> <span class="at">-q</span> <span class="at">-e</span> <span class="st">'testthat::test_local()'</span>           <span class="co"># runs the suite against the glue</span></span></code></pre></div>
+<p>Measured on a clean container (R 4.5.3, ccache warm): a no-op <code>load_all()</code> takes about 1 second, and a <code>load_all()</code> after editing a single glue file (recompile one <code>.cpp</code> + relink) about 4 seconds — versus 10–15 minutes when the vendored sources are compiled. The same <code>configure</code> commit-match guard applies, so re-run <code>scripts/install-libduckdb.sh</code> after every vendoring bump; if it reports a <code>-dev</code> snapshot with no published prebuilt, drop <code>DUCKDB_R_USE_SYSTEM_LIB</code> and fall back to a source build.</p>
 <p>In CI, <code>.github/workflows/custom/before-install/action.yml</code> defaults all Linux/macOS builds (the smoke test and the regular matrix) to the fast path, except:</p>
 <ul><li>the <code>krlmlr/duckdb-r</code> fork, which hosts the vendoring pipeline and must always build from source;</li>
 <li>any matrix entry that pins <code>DUCKDB_R_USE_SYSTEM_LIB</code> itself through the generic <code>env</code> field in <code>.github/versions-matrix.R</code>. That file carries a dedicated “vendored build” entry (<code>DUCKDB_R_USE_SYSTEM_LIB=0</code>) so one regular matrix build still compiles the bundled sources — the artifact that ships to CRAN.</li>
@@ -162,20 +177,20 @@
 </div>
 <div class="section level2">
 <h2 id="running-tests">Running Tests<a class="anchor" aria-label="anchor" href="#running-tests"></a></h2>
-<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co"># Run all tests</span></span>
-<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="ex">R</span> <span class="at">-q</span> <span class="at">-e</span> <span class="st">"testthat::test_local()"</span></span>
-<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a></span>
-<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a><span class="co"># Run specific test file (replace 'array' with the test name, or use more complex regex)</span></span>
-<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a><span class="ex">R</span> <span class="at">-q</span> <span class="at">-e</span> <span class="st">"testthat::test_local(filter = '^array$')"</span></span></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="co"># Run all tests</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="ex">R</span> <span class="at">-q</span> <span class="at">-e</span> <span class="st">"testthat::test_local()"</span></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="co"># Run specific test file (replace 'array' with the test name, or use more complex regex)</span></span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="ex">R</span> <span class="at">-q</span> <span class="at">-e</span> <span class="st">"testthat::test_local(filter = '^array$')"</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="manual-testing-scripts">Manual Testing Scripts<a class="anchor" aria-label="anchor" href="#manual-testing-scripts"></a></h2>
-<div class="sourceCode" id="cb5"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="co"># Run bug reproduction script</span></span>
-<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="ex">R</span> <span class="at">-q</span> <span class="at">-f</span> bug.R</span>
-<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a></span>
-<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="co"># Run any R script</span></span>
-<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="ex">R</span> <span class="at">-q</span> <span class="at">-f</span> script_name.R</span>
-<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="ex">R</span></span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="co"># Run bug reproduction script</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="ex">R</span> <span class="at">-q</span> <span class="at">-f</span> bug.R</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="co"># Run any R script</span></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="ex">R</span> <span class="at">-q</span> <span class="at">-f</span> script_name.R</span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a><span class="ex">R</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="test-development">Test Development<a class="anchor" aria-label="anchor" href="#test-development"></a></h2>

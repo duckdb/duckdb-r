@@ -47,11 +47,20 @@
 <code>export MAKEFLAGS="-j$(nproc)"</code> – enables parallel compilation</li>
 <li>
 <code>UserNM=true R CMD INSTALL . --no-byte-compile</code> – builds and installs the package. NEVER CANCEL: takes 10-15 minutes on first build. Set timeout to 30+ minutes.</li>
-</ul></div>
+</ul><div class="section level4">
+<h4 id="fast-path-buildtest-against-prebuilt-duckdb-recommended">Fast path: build/test against prebuilt DuckDB (recommended)<a class="anchor" aria-label="anchor" href="#fast-path-buildtest-against-prebuilt-duckdb-recommended"></a></h4>
+<p>For an interactive edit-build-test loop, link against a prebuilt libduckdb instead of compiling the ~1700 vendored <code>.cpp</code> files. This turns the first build from 10-15 minutes into seconds, and is exactly what CI does by default (see <code>.github/workflows/custom/before-install/action.yml</code>).</p>
+<ul><li>
+<code>sudo scripts/install-libduckdb.sh</code> – one-time, downloads the libduckdb matching the vendored DuckDB version (re-run after every vendoring bump)</li>
+<li>
+<code>export DUCKDB_R_USE_SYSTEM_LIB=1</code> – in every shell that builds or tests the package</li>
+</ul><p>With <code>DUCKDB_R_USE_SYSTEM_LIB=1</code> set, <code>R CMD INSTALL .</code>, <code><a href="https://pkgload.r-lib.org/reference/load_all.html" class="external-link">pkgload::load_all()</a></code>, <code>devtools::load_all()</code>, and <code><a href="https://testthat.r-lib.org/reference/test_package.html" class="external-link">testthat::test_local()</a></code> all compile only the glue code and link the prebuilt library. See AGENTS.md for the full details, caveats, and the commit-match guard.</p>
+</div>
+</div>
 <div class="section level3">
 <h3 id="run-tests">Run Tests<a class="anchor" aria-label="anchor" href="#run-tests"></a></h3>
 <ul><li>
-<code>R -q -e "testthat::test_local()"</code> – runs all tests. Takes about 45 seconds. NEVER CANCEL: set timeout to 5+ minutes.</li>
+<code>R -q -e "testthat::test_local()"</code> – runs all tests. Takes about 45 seconds. NEVER CANCEL: set timeout to 5+ minutes. With the prebuilt fast path above, <code>load_all()</code> is ~1 second warm.</li>
 <li>
 <code>R -q -e "testthat::test_local(filter = '^name$')"</code> – runs specific test file by name</li>
 </ul></div>

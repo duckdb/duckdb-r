@@ -16,6 +16,12 @@ glue code for R, including a DBI and a relational interface.
   the package. NEVER CANCEL: takes 10-15 minutes on first build. Set
   timeout to 30+ minutes.
 
+For an interactive edit-build-test loop, prefer the prebuilt-libduckdb
+fast path (seconds instead of 10-15 minutes) – see [“Fast build with
+system libduckdb”](#fast-build-with-system-libduckdb-linuxmacos-opt-in)
+and [“Testing with prebuilt
+DuckDB”](#testing-with-prebuilt-duckdb-the-fast-iterate-loop) below.
+
 ### Run Tests
 
 - `R -q -e "testthat::test_local()"` – runs all tests. Takes about 45
@@ -151,6 +157,39 @@ The opt-in only applies to `R CMD INSTALL .` — not to `R CMD build`,
 since the resulting installation depends on libduckdb being present at
 runtime. The installed `duckdb.so` carries an rpath pointing at the
 libduckdb directory; do not move libduckdb after installing.
+
+### Testing with prebuilt DuckDB (the fast iterate loop)
+
+[`pkgload::load_all()`](https://pkgload.r-lib.org/reference/load_all.html)
+/ `devtools::load_all()` — and therefore
+[`testthat::test_local()`](https://testthat.r-lib.org/reference/test_package.html),
+which loads the package the same way — honor `DUCKDB_R_USE_SYSTEM_LIB`
+too: they compile only the ~30 glue `.cpp` files in `src/` and link
+against the prebuilt libduckdb, exactly like `R CMD INSTALL .`. This is
+the recommended setup for any edit-build-test loop (including
+coding-agent sessions), because it turns the otherwise 10–15 minute
+first build into seconds.
+
+``` bash
+# One-time, matching the vendored DuckDB version (see above)
+sudo scripts/install-libduckdb.sh          # or --prefix "$HOME/.local"
+
+# Then, in every shell that builds/tests the package:
+export DUCKDB_R_USE_SYSTEM_LIB=1
+export MAKEFLAGS="-j$(nproc)"
+
+R -q -e 'pkgload::load_all()'              # ~1 s warm, no source changes
+R -q -e 'testthat::test_local()'           # runs the suite against the glue
+```
+
+Measured on a clean container (R 4.5.3, ccache warm): a no-op
+`load_all()` takes about 1 second, and a `load_all()` after editing a
+single glue file (recompile one `.cpp` + relink) about 4 seconds —
+versus 10–15 minutes when the vendored sources are compiled. The same
+`configure` commit-match guard applies, so re-run
+`scripts/install-libduckdb.sh` after every vendoring bump; if it reports
+a `-dev` snapshot with no published prebuilt, drop
+`DUCKDB_R_USE_SYSTEM_LIB` and fall back to a source build.
 
 In CI, `.github/workflows/custom/before-install/action.yml` defaults all
 Linux/macOS builds (the smoke test and the regular matrix) to the fast
