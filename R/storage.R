@@ -9,7 +9,7 @@
 #' `r lifecycle::badge('experimental')`
 #'
 #' DuckDB writes several distinct kinds of data to the file system. This page
-#' catalogues every such location and documents the unified policy the duckdb R
+#' catalogs every such location and documents the unified policy the duckdb R
 #' package uses to choose them, so that **by default nothing is written outside
 #' the R session's temporary directory**, as required by the
 #' [CRAN Repository Policy](https://cran.r-project.org/web/packages/policies.html):
@@ -19,7 +19,7 @@
 #' > session's temporary directory \[...\].
 #'
 #' This topic describes the intended end state. It is documentation in lieu of a
-#' design plan; some of the behaviour below may not yet be implemented, and the
+#' design plan; some of the behavior below may not yet be implemented, and the
 #' option, environment-variable, and marker names are provisional.
 #'
 #' @details
@@ -44,7 +44,7 @@
 #'     must override it.}
 #'   \item{Home directory}{The base DuckDB uses to expand a leading `~` and to
 #'     derive several default sub-locations. DuckDB setting: `home_directory`.
-#'     The umbrella knob behind the more specific ones above.}
+#'     The umbrella setting behind the more specific ones above.}
 #'   \item{Logs and profiling output}{Written only when explicitly enabled, but
 #'     to disk when they are. DuckDB settings: `log_query_path`,
 #'     `http_logging_output`, and profiling output.}
@@ -78,7 +78,7 @@
 #' does not require editing `.Rprofile` or `.Renviron`.
 #'
 #' A marker is an empty sentinel file placed in a candidate persistent *store
-#' root*. Two roots are recognised:
+#' root*. Two roots are recognized:
 #'
 #' \itemize{
 #'   \item the duckdb package's installed library directory
@@ -119,7 +119,7 @@
 #' [tools::R_user_dir()] is clean, so on the CRAN check farm every location
 #' resolves to the session temporary directory with no action required from
 #' duckdb or from any reverse dependency. The writability fallback above is a
-#' second line of defence for the read-only library remount used during checks.
+#' second line of defense for the read-only library remount used during checks.
 #'
 #' The package's own examples and tests additionally avoid exercising the C++
 #' engine on CRAN; see the CRAN guard in `tests/testthat.R`.
