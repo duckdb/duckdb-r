@@ -158,11 +158,10 @@ test_that("conflict modes decide who wins a name collision", {
   expect_false(file.exists(file.path(roots$user, "stored_secrets", "a.json")))
 })
 
-test_that("storage functions reject stray dots and bad locations", {
+test_that("storage functions reject stray dots and non-root locations", {
   local_storage_roots()
   expect_error(duckdb_extension_storage("session", "oops"))
-  expect_error(
-    duckdb_secret_storage("library"),
-    "only available for extensions"
-  )
+  # "library" is extensions-only, and arbitrary paths are not accepted.
+  expect_error(duckdb_secret_storage("library"), "must be one of")
+  expect_error(duckdb_extension_storage("/tmp/whatever"), "must be one of")
 })

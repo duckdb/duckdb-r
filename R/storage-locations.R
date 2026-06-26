@@ -29,13 +29,9 @@ storage_root_base <- function(root) {
   )
 }
 
-# The directory a (root, kind) pair maps to, e.g. `<root>/extensions`. An
-# explicit path (anything that is not a known root name) is used verbatim.
+# The directory a (root, kind) pair maps to, e.g. `<root>/extensions`. `root`
+# must be a known root name; `storage_root_base()` errors otherwise.
 storage_dir <- function(root, kind) {
-  known <- c("session", "user", "shared", "library")
-  if (!root %in% known) {
-    return(path.expand(root))
-  }
   file.path(storage_root_base(root), storage_kind_subdir(kind))
 }
 
@@ -268,17 +264,27 @@ marker_roots <- function(kind) {
   }
 }
 
-# Validate a requested `location` for a kind. "library" is extensions-only;
-# every other string is a known root or an explicit path (see `storage_dir()`).
+# Validate a requested `location` for a kind. `location` must name a known root
+# ("library" is extensions-only): a marker is only ever rediscovered in a fixed
+# root, so an arbitrary path could not persist and is rejected -- arbitrary
+# directories are configured through the option / environment variable instead.
 validate_location <- function(kind, location) {
   stopifnot(is.character(location), length(location) == 1L, !is.na(location))
-  if (kind == "secrets" && identical(location, "library")) {
-    stop(
-      '`location = "library"` is only available for extensions.',
-      call. = FALSE
-    )
+  roots <- c("session", "user", "shared", if (kind == "extensions") "library")
+  if (location %in% roots) {
+    return(invisible())
   }
-  invisible()
+  prefix <- if (kind == "extensions") "extension" else "secret"
+  stop(
+    "`location` must be one of ",
+    paste0('"', roots, '"', collapse = ", "),
+    ", not a path. To use an arbitrary directory, set ",
+    sprintf("`options(duckdb.%s_directory = ...)`", prefix),
+    " or the ",
+    sprintf("`DUCKDB_%s_DIRECTORY`", toupper(prefix)),
+    " environment variable.",
+    call. = FALSE
+  )
 }
 
 # Point a kind's persistent location at `location`: clear any existing markers,

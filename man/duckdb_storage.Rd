@@ -90,8 +90,9 @@ where each kind currently resolves and how it was chosen. There is no \code{ask}
 argument: calling a \verb{*_storage()} function \emph{is} the consent.
 \subsection{The \code{location} argument}{
 
-\code{location} names a \emph{root}, not a full path (an explicit path is also
-accepted). The recognized roots are:
+\code{location} names a \emph{root}, not a full path. (To point a kind at an arbitrary
+directory, use the option or environment variable instead -- a marker is only
+ever rediscovered in one of the fixed roots below.) The recognized roots are:
 
 \describe{
 \item{\code{"session"}}{\code{tempdir()} -- the default, and the opt-out: setting it
@@ -194,4 +195,3 @@ or \code{DUCKDB_EXTENSION_DIRECTORY}.
 \code{\link[=duckdb_storage_config]{duckdb_storage_config()}} for the functions that configure these
 locations, and \code{\link[=duckdb]{duckdb()}} for the \code{config} argument.
 }
-\keyword{internal}

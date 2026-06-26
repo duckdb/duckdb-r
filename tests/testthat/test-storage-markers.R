@@ -1,6 +1,6 @@
 # Storage roots and marker helpers (plan/PLAN-storage-locations.md, Phase 2).
 
-test_that("storage_dir maps roots and kinds, and passes explicit paths through", {
+test_that("storage_dir maps known roots and kinds, and rejects unknown roots", {
   local_mocked_bindings(
     session_temp_dir = function() "/tmp/sess",
     default_user_directory = function() "/userdir",
@@ -14,7 +14,10 @@ test_that("storage_dir maps roots and kinds, and passes explicit paths through",
   expect_equal(storage_dir("user", "secrets"), "/userdir/stored_secrets")
   expect_equal(storage_dir("shared", "secrets"), "/home/.duckdb/stored_secrets")
   expect_equal(storage_dir("library", "extensions"), "/pkg/extensions")
-  expect_equal(storage_dir("/explicit/path", "extensions"), "/explicit/path")
+  expect_error(
+    storage_dir("/explicit/path", "extensions"),
+    "Unknown storage root"
+  )
 })
 
 test_that("write_keep_marker creates the marker, leaves it, and is detectable", {

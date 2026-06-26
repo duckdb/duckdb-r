@@ -119,8 +119,9 @@
 #'
 #' ## The `location` argument
 #'
-#' `location` names a *root*, not a full path (an explicit path is also
-#' accepted). The recognized roots are:
+#' `location` names a *root*, not a full path. (To point a kind at an arbitrary
+#' directory, use the option or environment variable instead -- a marker is only
+#' ever rediscovered in one of the fixed roots below.) The recognized roots are:
 #'
 #' \describe{
 #'   \item{`"session"`}{`tempdir()` -- the default, and the opt-out: setting it
@@ -215,5 +216,4 @@
 #' @seealso [duckdb_storage_config()] for the functions that configure these
 #'   locations, and [duckdb()] for the `config` argument.
 #' @name duckdb_storage
-#' @keywords internal
 NULL

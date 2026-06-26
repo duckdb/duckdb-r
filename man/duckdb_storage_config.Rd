@@ -14,12 +14,13 @@ duckdb_secret_storage(location, ..., migrate = TRUE, conflict = "error")
 duckdb_storage_status()
 }
 \arguments{
-\item{location}{The destination root, or an explicit path. Recognized roots
-are \code{"session"} (the per-session temporary directory; also the opt-out --
-it removes the marker), \code{"user"} (\code{\link[tools:R_user_dir]{tools::R_user_dir()}}), \code{"shared"}
+\item{location}{The destination root (not a path). Recognized roots are
+\code{"session"} (the per-session temporary directory; also the opt-out -- it
+removes the marker), \code{"user"} (\code{\link[tools:R_user_dir]{tools::R_user_dir()}}), \code{"shared"}
 (\verb{~/.duckdb}, shared with the DuckDB CLI and Python client), and -- for
 \code{duckdb_extension_storage()} only -- \code{"library"} (alongside the installed
-package). See \link{duckdb_storage} for what each root means.}
+package). To use an arbitrary directory, set the option or environment
+variable instead (see \link{duckdb_storage}).}
 
 \item{...}{These dots are for future extensions and must be empty.}
 
@@ -70,4 +71,3 @@ consent to write outside the temporary directory.
 \seealso{
 \link{duckdb_storage} for the storage policy these functions implement.
 }
-\keyword{internal}
