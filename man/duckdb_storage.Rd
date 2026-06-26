@@ -79,8 +79,8 @@ Two functions write and relocate these markers -- one per kind of state, so
 the two can be configured independently -- and a third reports the current
 state. They are documented in full on \code{\link[=duckdb_storage_config]{duckdb_storage_config()}}:
 
-\if{html}{\out{<div class="sourceCode r">}}\preformatted{duckdb_extension_storage(location, migrate = TRUE, conflict = "error")
-duckdb_secret_storage(location, migrate = TRUE, conflict = "error")
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{duckdb_extension_storage(location, ..., migrate = TRUE, conflict = "error")
+duckdb_secret_storage(location, ..., migrate = TRUE, conflict = "error")
 duckdb_storage_status()
 }\if{html}{\out{</div>}}
 
@@ -140,8 +140,7 @@ exists at the destination: \code{"error"} (the default) aborts and lists the
 collisions without moving anything; \code{"ours"} lets the files being relocated
 win (overwriting the destination); \code{"theirs"} keeps the destination files and
 drops the colliding sources. Secret migration is folded into
-\code{duckdb_secret_storage()}; the standalone \code{duckdb_consolidate_secrets()} is
-hard-deprecated in favor of it.
+\code{duckdb_secret_storage()}, which replaces \code{duckdb_consolidate_secrets()}.
 }
 
 \subsection{Rules}{

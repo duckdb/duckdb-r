@@ -107,8 +107,8 @@
 #' state. They are documented in full on [duckdb_storage_config()]:
 #'
 #' ```r
-#' duckdb_extension_storage(location, migrate = TRUE, conflict = "error")
-#' duckdb_secret_storage(location, migrate = TRUE, conflict = "error")
+#' duckdb_extension_storage(location, ..., migrate = TRUE, conflict = "error")
+#' duckdb_secret_storage(location, ..., migrate = TRUE, conflict = "error")
 #' duckdb_storage_status()
 #' ```
 #'
@@ -168,8 +168,7 @@
 #' collisions without moving anything; `"ours"` lets the files being relocated
 #' win (overwriting the destination); `"theirs"` keeps the destination files and
 #' drops the colliding sources. Secret migration is folded into
-#' `duckdb_secret_storage()`; the standalone `duckdb_consolidate_secrets()` is
-#' hard-deprecated in favor of it.
+#' `duckdb_secret_storage()`, which replaces `duckdb_consolidate_secrets()`.
 #'
 #' ## Rules
 #'

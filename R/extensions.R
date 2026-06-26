@@ -2,50 +2,55 @@ default_user_directory <- function() {
   tools::R_user_dir("duckdb", "data")
 }
 
-# Per-session base directory for DuckDB state that should not persist across
-# sessions by default. It lives under `tempdir()`, so out of the box nothing is
-# written outside the R session's temporary directory, as the CRAN Repository
-# Policy requires. It is stable within a session, so repeated connections share
-# one extension cache. We deliberately do *not* set DuckDB's `home_directory`:
-# that would also redirect `~` in user SQL (e.g. `COPY ... TO '~/out.csv'`), so
-# we point each location at this base explicitly instead. See `?duckdb_storage`.
-default_state_directory <- function() {
-  file.path(tempdir(), "duckdb")
+# `default_user_directory()` above, and the seams below, are thin wrappers over
+# the environment so that the storage-location logic stays testable without
+# touching the real filesystem, HOME, or package library. See `?duckdb_storage`
+# and plan/PLAN-storage-locations.md.
+
+# The DuckDB default home (`~/.duckdb`), shared with the DuckDB CLI and Python
+# client.
+duckdb_shared_home <- function() {
+  path.expand("~/.duckdb")
 }
 
-# Default location for the extension cache: a per-session tempdir sub-directory.
+# The R session's temporary directory.
+session_temp_dir <- function() {
+  tempdir()
+}
+
+# TRUE if a file can be created under `dir` (creating `dir` if needed). A thin,
+# mockable seam; uses a real write rather than file.access(), which is
+# unreliable on Windows.
+dir_is_writable <- function(dir) {
+  if (
+    !dir.exists(dir) &&
+      !dir.create(dir, recursive = TRUE, showWarnings = FALSE)
+  ) {
+    return(FALSE)
+  }
+  probe <- tempfile(".duckdb-r-probe-", tmpdir = dir)
+  if (!file.create(probe, showWarnings = FALSE)) {
+    return(FALSE)
+  }
+  unlink(probe)
+  TRUE
+}
+
+# Extension binaries are cached inside the duckdb package's installed library
+# directory; co-locating with the install pairs them with the build's ABI.
 default_extension_directory <- function() {
-  file.path(default_state_directory(), "extensions")
+  system_file_path("extensions")
 }
 
-# Resolution order for the extension cache:
-#   1. `options(duckdb.extension_directory =)`
-#   2. `Sys.getenv("DUCKDB_EXTENSION_DIRECTORY")`
-#   3. `default_extension_directory()` (a per-session tempdir, CRAN-safe)
-resolve_extension_directory <- function() {
-  opt <- getOption("duckdb.extension_directory")
-  if (is.character(opt) && length(opt) == 1L && nzchar(opt)) {
-    return(path.expand(opt))
-  }
-  env <- Sys.getenv("DUCKDB_EXTENSION_DIRECTORY", unset = "")
-  if (nzchar(env)) {
-    return(path.expand(env))
-  }
-  default_extension_directory()
-}
-
-# Secrets default to the per-session state directory too. DuckDB binds the
-# secret path at startup from the process `$HOME`, so `secret_directory` must be
-# set explicitly to keep secrets inside `tempdir()` by default.
 default_secret_directory <- function() {
-  file.path(default_state_directory(), "stored_secrets")
+  file.path(default_user_directory(), "stored_secrets")
 }
 
 # Location used by the DuckDB CLI and the Python client. Sharing this
 # directory across DuckDB clients is opt-in for R because CRAN policy
 # forbids writing outside `R_user_dir()` without user consent.
 common_secret_directory <- function() {
-  path.expand("~/.duckdb/stored_secrets")
+  file.path(duckdb_shared_home(), "stored_secrets")
 }
 
 # Resolution order for the configured secrets directory:
@@ -294,66 +299,6 @@ has_secret_files <- function(path) {
 # Indirection over `readline()` so tests can mock the prompt.
 prompt_proceed <- function(prompt) {
   readline(prompt)
-}
-
-# Homegrown, rlang-style message throttling: emit a given message at most once
-# per `seconds` within an R session. State lives in this package-local env, so
-# the throttle is per-session (like rlang's `.frequency = "regularly"`), not
-# persisted to disk.
-message_throttle <- new.env(parent = emptyenv())
-
-inform_once_every <- function(id, seconds, message) {
-  now <- Sys.time()
-  last <- message_throttle[[id]]
-  if (!is.null(last) && as.double(now - last, units = "secs") < seconds) {
-    return(invisible(FALSE))
-  }
-  message_throttle[[id]] <- now
-  if (requireNamespace("rlang", quietly = TRUE)) {
-    rlang::inform(message, class = paste0("duckdb_", id))
-  } else {
-    base::message(paste(message, collapse = "\n"))
-  }
-  invisible(TRUE)
-}
-
-# TRUE if `path` lies inside the session's temporary directory.
-path_within_tempdir <- function(path) {
-  np <- normalizePath(path, winslash = "/", mustWork = FALSE)
-  tp <- normalizePath(tempdir(), winslash = "/", mustWork = FALSE)
-  startsWith(np, tp)
-}
-
-# Eight hours, in seconds.
-EPHEMERAL_STATE_MESSAGE_INTERVAL <- 8 * 60 * 60
-
-# When a connection is established and the extension cache resolves to a
-# temporary location, let the user know -- at most once every 8 hours per
-# session -- that downloaded extensions will not persist, and how to opt into a
-# permanent location. Emitted in unattended (non-interactive) runs too, so the
-# notice shows up in logs.
-maybe_ephemeral_state_message <- function(extension_directory) {
-  if (
-    is.null(extension_directory) || !path_within_tempdir(extension_directory)
-  ) {
-    return(invisible())
-  }
-  inform_once_every(
-    "ephemeral_state",
-    EPHEMERAL_STATE_MESSAGE_INTERVAL,
-    c(
-      "duckdb is keeping downloaded extensions in a temporary directory:",
-      i = extension_directory,
-      paste0(
-        "This is removed when the R session ends, so extensions are ",
-        "re-downloaded each session."
-      ),
-      i = paste0(
-        "To keep them, point `options(duckdb.extension_directory =)` or the ",
-        "`DUCKDB_EXTENSION_DIRECTORY` environment variable at a permanent path."
-      )
-    )
-  )
 }
 
 cleanup_user_directory <- function() {

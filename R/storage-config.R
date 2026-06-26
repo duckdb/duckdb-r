@@ -23,8 +23,8 @@
 #' documented in [duckdb_storage].
 #'
 #' @usage
-#' duckdb_extension_storage(location, migrate = TRUE, conflict = "error")
-#' duckdb_secret_storage(location, migrate = TRUE, conflict = "error")
+#' duckdb_extension_storage(location, ..., migrate = TRUE, conflict = "error")
+#' duckdb_secret_storage(location, ..., migrate = TRUE, conflict = "error")
 #' duckdb_storage_status()
 #'
 #' @details
@@ -38,9 +38,8 @@
 #' There is no `ask` argument: calling a `*_storage()` function is itself the
 #' consent to write outside the temporary directory.
 #'
-#' `duckdb_secret_storage()` supersedes [duckdb_consolidate_secrets()], which is
-#' hard-deprecated: secret migration is now a `migrate` step of
-#' `duckdb_secret_storage()`.
+#' `duckdb_secret_storage()` replaces `duckdb_consolidate_secrets()`: secret
+#' migration is now a `migrate` step of `duckdb_secret_storage()`.
 #'
 #' @param location The destination root, or an explicit path. Recognized roots
 #'   are `"session"` (the per-session temporary directory; also the opt-out --
@@ -48,6 +47,7 @@
 #'   (`~/.duckdb`, shared with the DuckDB CLI and Python client), and -- for
 #'   `duckdb_extension_storage()` only -- `"library"` (alongside the installed
 #'   package). See [duckdb_storage] for what each root means.
+#' @param ... These dots are for future extension and must be empty.
 #' @param migrate If `TRUE` (the default), move the already-cached files from the
 #'   current location into the new one.
 #' @param conflict How to resolve a name collision during migration: `"error"`

@@ -7,8 +7,8 @@
 \alias{duckdb_storage_status}
 \title{Configure where DuckDB stores extensions and secrets}
 \usage{
-duckdb_extension_storage(location, migrate = TRUE, conflict = "error")
-duckdb_secret_storage(location, migrate = TRUE, conflict = "error")
+duckdb_extension_storage(location, ..., migrate = TRUE, conflict = "error")
+duckdb_secret_storage(location, ..., migrate = TRUE, conflict = "error")
 duckdb_storage_status()
 }
 \arguments{
@@ -18,6 +18,8 @@ it removes the marker), \code{"user"} (\code{\link[tools:R_user_dir]{tools::R_us
 (\verb{~/.duckdb}, shared with the DuckDB CLI and Python client), and -- for
 \code{duckdb_extension_storage()} only -- \code{"library"} (alongside the installed
 package). See \link{duckdb_storage} for what each root means.}
+
+\item{...}{These dots are for future extension and must be empty.}
 
 \item{migrate}{If \code{TRUE} (the default), move the already-cached files from the
 current location into the new one.}
@@ -63,9 +65,8 @@ unaffected.
 There is no \code{ask} argument: calling a \verb{*_storage()} function is itself the
 consent to write outside the temporary directory.
 
-\code{duckdb_secret_storage()} supersedes \code{\link[=duckdb_consolidate_secrets]{duckdb_consolidate_secrets()}}, which is
-hard-deprecated: secret migration is now a \code{migrate} step of
-\code{duckdb_secret_storage()}.
+\code{duckdb_secret_storage()} replaces \code{duckdb_consolidate_secrets()}: secret
+migration is now a \code{migrate} step of \code{duckdb_secret_storage()}.
 }
 \seealso{
 \link{duckdb_storage} for the storage policy these functions implement.
