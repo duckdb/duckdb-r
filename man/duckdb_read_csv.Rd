@@ -29,7 +29,7 @@ duckdb_read_csv(
 
 \item{files}{One or more CSV file names, should all have the same structure though}
 
-\item{...}{Reserved for future extensions, must be empty.}
+\item{...}{These dots are for future extensions and must be empty.}
 
 \item{header}{Whether or not the CSV files have a separate header in the first line}
 

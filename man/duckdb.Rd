@@ -60,7 +60,7 @@ If \code{"integer64"} is selected, bigint integers will be set to bit64 encoding
 These flags are only applied when the database object is instantiated.
 Subsequent connections will silently ignore these flags.}
 
-\item{...}{Reserved for future extensions, must be empty.}
+\item{...}{These dots are for future extensions and must be empty.}
 
 \item{environment_scan}{Set to \code{TRUE} to treat
 data frames from the calling environment as tables.
