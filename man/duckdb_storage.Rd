@@ -8,38 +8,34 @@
 
 DuckDB writes several distinct kinds of data to the file system. This page
 catalogs every such location and documents the unified policy the duckdb R
-package uses to choose them, so that \strong{by default nothing is written outside
-the R session's temporary directory}, as required by the
-\href{https://cran.r-project.org/web/packages/policies.html}{CRAN Repository Policy},
-which states that packages should not write in the user's home filespace,
-"nor anywhere else on the file system apart from the R session's temporary
-directory".
+package uses to choose them, so that by default nothing is written outside
+the R session's temporary directory.
 
 The functions that configure these locations are documented in
-\link{duckdb_storage_config}.
+\code{\link[=duckdb_storage_config]{duckdb_storage_config()}}.
 }
 \section{Kinds of on-disk state}{
 \describe{
 \item{Home directory}{The base DuckDB uses to expand a leading \code{~} and to
 derive default sub-locations such as the extension cache. DuckDB setting:
-\code{home_directory}. The package \strong{does not set this}: doing so would also
+\code{home_directory}. The package does not set this: doing so would also
 redirect \code{~} in user SQL (e.g. \verb{COPY ... TO '~/out.csv'}). Each location
 below is pointed at a temporary directory directly instead.}
 \item{Extension binaries}{Downloaded \verb{*.duckdb_extension} files (e.g.
 \code{spatial}, \code{httpfs}, \code{h3}). DuckDB setting: \code{extension_directory}. A
 re-usable cache: a given binary is valid only for the exact DuckDB
 version and platform/ABI that downloaded it. By default the cache is the
-\code{"library"} root (alongside the installed package) \strong{when it is
-writable}, falling back to a \code{\link[=tempdir]{tempdir()}} sub-directory when it is not
+\code{"library"} root (alongside the installed package) when it is writable,
+falling back to a \code{\link[=tempdir]{tempdir()}} sub-directory when it is not
 (for example the read-only library mount used during \verb{R CMD check}). See
 the marker section for how this is detected.}
 \item{Secrets}{Persisted credentials under \code{stored_secrets}. DuckDB
 setting: \code{secret_directory}. Set explicitly to a \code{\link[=tempdir]{tempdir()}} location by
-default. Configured and migrated with \link{duckdb_storage_config}; the older
+default. Configured and migrated with \code{\link[=duckdb_storage_config]{duckdb_storage_config()}}; the older
 \code{duckdb_consolidate_secrets()} is hard-deprecated in favor of
 \code{duckdb_secret_storage()}.}
 \item{Temporary / spill files}{Out-of-core intermediates for sorts, hash
-joins, aggregations, and the buffer manager. DuckDB settings:
+joins, and similar operations. DuckDB settings:
 \code{temp_directory}, \code{max_temp_directory_size}. For an in-memory
 (\verb{:memory:}) database DuckDB's own default spills to \code{.tmp} in the
 current working directory -- a CRAN-policy violation -- so the package
@@ -63,7 +59,7 @@ It is tempting to set \code{home_directory} to a \code{\link[=tempdir]{tempdir()
 every other location unset. Two problems rule that out. First, it is
 incomplete: it would relocate the extension cache (DuckDB resolves that
 lazily through the connection's opener-aware file system, which consults the
-setting) but \strong{not} secrets -- the secret manager fixes its path once at
+setting) but not secrets -- the secret manager fixes its path once at
 database startup from the raw process \verb{$HOME}, never seeing the
 \code{home_directory} setting -- nor spill files. Second, it is too broad:
 \code{home_directory} is also the base for \code{~} expansion in user SQL, so setting
@@ -82,7 +78,7 @@ source that yields a value wins:
 \item the corresponding R option, e.g. \code{getOption("duckdb.temp_directory")};
 \item the corresponding environment variable, e.g.
 \code{Sys.getenv("DUCKDB_TEMP_DIRECTORY")};
-\item a persistent location selected by a \strong{marker file} (see below);
+\item a persistent location selected by a marker file (see below);
 \item the CRAN-safe default: a per-session sub-directory of \code{\link[=tempdir]{tempdir()}}.
 }
 
@@ -103,7 +99,7 @@ does not require editing \code{.Rprofile} or \code{.Renviron}.
 
 Two functions write and relocate these markers -- one per kind of state, so
 the two can be configured independently -- and a third reports the current
-state. They are documented in full on \link{duckdb_storage_config}:
+state. They are documented in full on \code{\link[=duckdb_storage_config]{duckdb_storage_config()}}:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{duckdb_extension_storage(location, migrate = TRUE, conflict = "error")
 duckdb_secret_storage(location, migrate = TRUE, conflict = "error")
@@ -128,9 +124,9 @@ package, surviving package upgrades.}
 client.}
 \item{\code{"library"}}{\emph{(extensions only)} alongside the installed duckdb
 package (\code{\link[base:system.file]{base::system.file()}}). It pairs binaries with the build's ABI
-but is wiped on every re-install. This is the \strong{automatic default for
-extensions when the library is writable} (see the resolution policy
-above): rather than requiring an explicit opt-in, the package probes it at
+but is wiped on every re-install. This is the automatic default for
+extensions when the library is writable (see the resolution policy
+above): rather than require an explicit opt-in, the package probes it at
 connect time and uses it unless the write fails. Not offered for secrets,
 which always default to \code{"session"}.}
 }
@@ -148,8 +144,8 @@ Python client, which must not mistake it for their own:
 
 It is not empty: the package writes a single line of human-readable text
 describing what the file is and that it is safe to delete. Only the file's
-\strong{presence} is significant -- the contents are never read back or validated,
-so editing them has no effect.
+presence is significant -- the contents are never read back or validated,
+so editing it has no effect.
 
 Markers are per-kind and live inside each kind's sub-directory, so one root
 can persist extensions but not secrets, or vice versa. For extensions in a
@@ -173,10 +169,10 @@ hard-deprecated in favor of it.
 
 \itemize{
 \item An option or environment variable overrides any marker.
-\item A kind's marker present in \strong{more than one} root is ambiguous: the
+\item A kind's marker present in more than one root is ambiguous: the
 package emits a startup message naming the candidates and falls back to
 the \code{\link[=tempdir]{tempdir()}} default until the ambiguity is resolved.
-\item The package \strong{never ships a marker}. The only writes are by
+\item The package never ships a marker. The only writes are by
 \code{duckdb_extension_storage()} / \code{duckdb_secret_storage()}, and the
 connect-time probe of the \code{"library"} root for extensions (which writes
 the marker only when the directory is writable). No marker is ever
@@ -233,7 +229,7 @@ will not persist across sessions and how to opt into a permanent location via
 }
 
 \seealso{
-\link{duckdb_storage_config} for the functions that configure these
+\code{\link[=duckdb_storage_config]{duckdb_storage_config()}} for the functions that configure these
 locations, and \code{\link[=duckdb]{duckdb()}} for the \code{config} argument.
 }
 \keyword{internal}

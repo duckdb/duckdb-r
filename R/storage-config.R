@@ -38,6 +38,10 @@
 #' There is no `ask` argument: calling a `*_storage()` function is itself the
 #' consent to write outside the temporary directory.
 #'
+#' `duckdb_secret_storage()` supersedes [duckdb_consolidate_secrets()], which is
+#' hard-deprecated: secret migration is now a `migrate` step of
+#' `duckdb_secret_storage()`.
+#'
 #' @param location The destination root, or an explicit path. Recognized roots
 #'   are `"session"` (the per-session temporary directory; also the opt-out --
 #'   it removes the marker), `"user"` ([tools::R_user_dir()]), `"shared"`
@@ -55,13 +59,6 @@
 #'   or removing a marker, and optionally migrating files) and return the
 #'   resolved directory invisibly. `duckdb_storage_status()` returns a data frame
 #'   with one row per kind of state.
-#'
-#' @details
-#' # Relationship to existing functions
-#'
-#' `duckdb_secret_storage()` supersedes [duckdb_consolidate_secrets()], which is
-#' hard-deprecated: secret migration is now a `migrate` step of
-#' `duckdb_secret_storage()`.
 #'
 #' @seealso [duckdb_storage] for the storage policy these functions implement.
 #' @name duckdb_storage_config

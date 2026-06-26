@@ -8,40 +8,35 @@
 #'
 #' DuckDB writes several distinct kinds of data to the file system. This page
 #' catalogs every such location and documents the unified policy the duckdb R
-#' package uses to choose them, so that **by default nothing is written outside
-#' the R session's temporary directory**, as required by the
-#' [CRAN Repository Policy](https://cran.r-project.org/web/packages/policies.html),
-#' which states that packages should not write in the user's home filespace,
-#' "nor anywhere else on the file system apart from the R session's temporary
-#' directory".
+#' package uses to choose them, so that by default nothing is written outside
+#' the R session's temporary directory.
 #'
 #' The functions that configure these locations are documented in
-#' [duckdb_storage_config].
+#' [duckdb_storage_config()].
 #'
-#' @details
 #' # Kinds of on-disk state
 #'
 #' \describe{
 #'   \item{Home directory}{The base DuckDB uses to expand a leading `~` and to
 #'     derive default sub-locations such as the extension cache. DuckDB setting:
-#'     `home_directory`. The package **does not set this**: doing so would also
+#'     `home_directory`. The package does not set this: doing so would also
 #'     redirect `~` in user SQL (e.g. `COPY ... TO '~/out.csv'`). Each location
 #'     below is pointed at a temporary directory directly instead.}
 #'   \item{Extension binaries}{Downloaded `*.duckdb_extension` files (e.g.
 #'     `spatial`, `httpfs`, `h3`). DuckDB setting: `extension_directory`. A
 #'     re-usable cache: a given binary is valid only for the exact DuckDB
 #'     version and platform/ABI that downloaded it. By default the cache is the
-#'     `"library"` root (alongside the installed package) **when it is
-#'     writable**, falling back to a [tempdir()] sub-directory when it is not
+#'     `"library"` root (alongside the installed package) when it is writable,
+#'     falling back to a [tempdir()] sub-directory when it is not
 #'     (for example the read-only library mount used during `R CMD check`). See
 #'     the marker section for how this is detected.}
 #'   \item{Secrets}{Persisted credentials under `stored_secrets`. DuckDB
 #'     setting: `secret_directory`. Set explicitly to a [tempdir()] location by
-#'     default. Configured and migrated with [duckdb_storage_config]; the older
+#'     default. Configured and migrated with [duckdb_storage_config()]; the older
 #'     `duckdb_consolidate_secrets()` is hard-deprecated in favor of
 #'     `duckdb_secret_storage()`.}
 #'   \item{Temporary / spill files}{Out-of-core intermediates for sorts, hash
-#'     joins, aggregations, and the buffer manager. DuckDB settings:
+#'     joins, and similar operations. DuckDB settings:
 #'     `temp_directory`, `max_temp_directory_size`. For an in-memory
 #'     (`:memory:`) database DuckDB's own default spills to `.tmp` in the
 #'     current working directory -- a CRAN-policy violation -- so the package
@@ -65,7 +60,7 @@
 #' every other location unset. Two problems rule that out. First, it is
 #' incomplete: it would relocate the extension cache (DuckDB resolves that
 #' lazily through the connection's opener-aware file system, which consults the
-#' setting) but **not** secrets -- the secret manager fixes its path once at
+#' setting) but not secrets -- the secret manager fixes its path once at
 #' database startup from the raw process `$HOME`, never seeing the
 #' `home_directory` setting -- nor spill files. Second, it is too broad:
 #' `home_directory` is also the base for `~` expansion in user SQL, so setting
@@ -84,7 +79,7 @@
 #'   \item the corresponding R option, e.g. `getOption("duckdb.temp_directory")`;
 #'   \item the corresponding environment variable, e.g.
 #'     `Sys.getenv("DUCKDB_TEMP_DIRECTORY")`;
-#'   \item a persistent location selected by a **marker file** (see below);
+#'   \item a persistent location selected by a marker file (see below);
 #'   \item the CRAN-safe default: a per-session sub-directory of [tempdir()].
 #' }
 #'
@@ -105,7 +100,7 @@
 #'
 #' Two functions write and relocate these markers -- one per kind of state, so
 #' the two can be configured independently -- and a third reports the current
-#' state. They are documented in full on [duckdb_storage_config]:
+#' state. They are documented in full on [duckdb_storage_config()]:
 #'
 #' ```r
 #' duckdb_extension_storage(location, migrate = TRUE, conflict = "error")
@@ -132,9 +127,9 @@
 #'     client.}
 #'   \item{`"library"`}{*(extensions only)* alongside the installed duckdb
 #'     package ([base::system.file()]). It pairs binaries with the build's ABI
-#'     but is wiped on every re-install. This is the **automatic default for
-#'     extensions when the library is writable** (see the resolution policy
-#'     above): rather than requiring an explicit opt-in, the package probes it at
+#'     but is wiped on every re-install. This is the automatic default for
+#'     extensions when the library is writable (see the resolution policy
+#'     above): rather than require an explicit opt-in, the package probes it at
 #'     connect time and uses it unless the write fails. Not offered for secrets,
 #'     which always default to `"session"`.}
 #' }
@@ -152,8 +147,8 @@
 #'
 #' It is not empty: the package writes a single line of human-readable text
 #' describing what the file is and that it is safe to delete. Only the file's
-#' **presence** is significant -- the contents are never read back or validated,
-#' so editing them has no effect.
+#' presence is significant -- the contents are never read back or validated,
+#' so editing it has no effect.
 #'
 #' Markers are per-kind and live inside each kind's sub-directory, so one root
 #' can persist extensions but not secrets, or vice versa. For extensions in a
@@ -175,10 +170,10 @@
 #'
 #' \itemize{
 #'   \item An option or environment variable overrides any marker.
-#'   \item A kind's marker present in **more than one** root is ambiguous: the
+#'   \item A kind's marker present in more than one root is ambiguous: the
 #'     package emits a startup message naming the candidates and falls back to
 #'     the [tempdir()] default until the ambiguity is resolved.
-#'   \item The package **never ships a marker**. The only writes are by
+#'   \item The package never ships a marker. The only writes are by
 #'     `duckdb_extension_storage()` / `duckdb_secret_storage()`, and the
 #'     connect-time probe of the `"library"` root for extensions (which writes
 #'     the marker only when the directory is writable). No marker is ever
@@ -230,7 +225,7 @@
 #' will not persist across sessions and how to opt into a permanent location via
 #' `options(duckdb.extension_directory =)` or `DUCKDB_EXTENSION_DIRECTORY`.
 #'
-#' @seealso [duckdb_storage_config] for the functions that configure these
+#' @seealso [duckdb_storage_config()] for the functions that configure these
 #'   locations, and [duckdb()] for the `config` argument.
 #' @name duckdb_storage
 #' @keywords internal
