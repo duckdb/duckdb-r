@@ -86,3 +86,14 @@
 - [`duckdb_consolidate_secrets()`](https://r.duckdb.org/reference/duckdb_consolidate_secrets.md)
   **\[experimental\]** : Consolidate DuckDB secrets into the configured
   secret directory
+
+## Storage locations
+
+- [`duckdb_storage`](https://r.duckdb.org/reference/duckdb_storage.md)
+  **\[experimental\]** : DuckDB file-system usage: storage locations and
+  how they are resolved
+- [`duckdb_extension_storage()`](https://r.duckdb.org/reference/duckdb_storage_config.md)
+  [`duckdb_secret_storage()`](https://r.duckdb.org/reference/duckdb_storage_config.md)
+  [`duckdb_storage_status()`](https://r.duckdb.org/reference/duckdb_storage_config.md)
+  **\[experimental\]** : Configure where DuckDB stores extensions and
+  secrets

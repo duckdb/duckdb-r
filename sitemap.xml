@@ -22,6 +22,8 @@
 <url><loc>https://r.duckdb.org/reference/duckdb_register_arrow.html</loc></url>
 <url><loc>https://r.duckdb.org/reference/duckdb_result-class.html</loc></url>
 <url><loc>https://r.duckdb.org/reference/duckdb_result_arrow-class.html</loc></url>
+<url><loc>https://r.duckdb.org/reference/duckdb_storage.html</loc></url>
+<url><loc>https://r.duckdb.org/reference/duckdb_storage_config.html</loc></url>
 <url><loc>https://r.duckdb.org/reference/index.html</loc></url>
 <url><loc>https://r.duckdb.org/reference/sql_query.html</loc></url>
 </urlset>

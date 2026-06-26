@@ -1,5 +1,22 @@
 # Changelog
 
+## duckdb 1.5.4.9003
+
+### Documentation
+
+- Minor spelling consistency
+  ([\#2373](https://github.com/duckdb/duckdb-r/issues/2373)).
+
+- Document prebuilt-libduckdb fast path for testing; fix glue
+  `-Wsign-compare` warnings
+  ([\#2371](https://github.com/duckdb/duckdb-r/issues/2371)).
+
+### Testing
+
+- Add vctrs dependency checks to map tests using
+  [`vctrs::list_of()`](https://vctrs.r-lib.org/reference/list_of.html)
+  ([\#2369](https://github.com/duckdb/duckdb-r/issues/2369)).
+
 ## duckdb 1.5.4.9002
 
 ### Chore
