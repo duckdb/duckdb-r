@@ -43,7 +43,7 @@ duckdb_read_csv(
 
 - ...:
 
-  Reserved for future extensions, must be empty.
+  These dots are for future extensions and must be empty.
 
 - header:
 
