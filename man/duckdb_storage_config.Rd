@@ -25,7 +25,8 @@ variable instead (see \link{duckdb_storage}).}
 \item{...}{These dots are for future extensions and must be empty.}
 
 \item{migrate}{If \code{TRUE} (the default), move the already-cached files from the
-current location into the new one.}
+current location into the new one. Ignored when \code{location} is \code{"session"}:
+opting out never moves files into the per-session directory.}
 
 \item{conflict}{How to resolve a name collision during migration: \code{"error"}
 (the default) aborts and lists the collisions without moving anything;
@@ -36,7 +37,10 @@ current location into the new one.}
 The \verb{*_storage()} functions are called for their side effect (writing
 or removing a marker, and optionally migrating files) and return the
 resolved directory invisibly. \code{duckdb_storage_status()} returns a data frame
-with one row per kind of state.
+with one row per kind of state. It reports only the persisted selection and
+does not run the connect-time \code{"library"} write-probe, so before the first
+connection of a session it may report \code{"session"} for extensions even though
+a writable library would be used on connect.
 }
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}

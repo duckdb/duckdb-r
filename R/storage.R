@@ -174,9 +174,9 @@
 #' ## Rules
 #'
 #' * An option or environment variable overrides any marker.
-#' * A kind's marker present in more than one root is ambiguous: the package
-#'   emits a startup message naming the candidates and falls back to the
-#'   [tempdir()] default until the ambiguity is resolved.
+#' * A kind's marker present in more than one root is ambiguous: when a
+#'   connection is opened the package emits a message naming the candidates and
+#'   falls back to the [tempdir()] default until the ambiguity is resolved.
 #' * The package never ships a marker. The only writes are by
 #'   `duckdb_extension_storage()` / `duckdb_secret_storage()`, and the
 #'   connect-time probe of the `"library"` root for extensions (which writes the

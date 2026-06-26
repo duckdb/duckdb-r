@@ -42,7 +42,8 @@
 #'   variable instead (see [duckdb_storage]).
 #' @param ... These dots are for future extensions and must be empty.
 #' @param migrate If `TRUE` (the default), move the already-cached files from the
-#'   current location into the new one.
+#'   current location into the new one. Ignored when `location` is `"session"`:
+#'   opting out never moves files into the per-session directory.
 #' @param conflict How to resolve a name collision during migration: `"error"`
 #'   (the default) aborts and lists the collisions without moving anything;
 #'   `"ours"` lets the files being relocated overwrite the destination;
@@ -51,7 +52,10 @@
 #' @return The `*_storage()` functions are called for their side effect (writing
 #'   or removing a marker, and optionally migrating files) and return the
 #'   resolved directory invisibly. `duckdb_storage_status()` returns a data frame
-#'   with one row per kind of state.
+#'   with one row per kind of state. It reports only the persisted selection and
+#'   does not run the connect-time `"library"` write-probe, so before the first
+#'   connection of a session it may report `"session"` for extensions even though
+#'   a writable library would be used on connect.
 #'
 #' @seealso [duckdb_storage] for the storage policy these functions implement.
 #' @name duckdb_storage_config

@@ -147,9 +147,9 @@ drops the colliding sources. Secret migration is folded into
 \subsection{Rules}{
 \itemize{
 \item An option or environment variable overrides any marker.
-\item A kind's marker present in more than one root is ambiguous: the package
-emits a startup message naming the candidates and falls back to the
-\code{\link[=tempdir]{tempdir()}} default until the ambiguity is resolved.
+\item A kind's marker present in more than one root is ambiguous: when a
+connection is opened the package emits a message naming the candidates and
+falls back to the \code{\link[=tempdir]{tempdir()}} default until the ambiguity is resolved.
 \item The package never ships a marker. The only writes are by
 \code{duckdb_extension_storage()} / \code{duckdb_secret_storage()}, and the
 connect-time probe of the \code{"library"} root for extensions (which writes the
