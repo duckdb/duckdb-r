@@ -177,8 +177,9 @@ resurrecting a store root and reintroducing an ABI mismatch.
 }
 
 
-"set" means the package passes the value to \code{\link[=duckdb]{duckdb()}} explicitly. The home
-directory is left untouched so that \code{~} in user SQL keeps its usual meaning.
+"set" means \code{duckdb()} sets the value explicitly in the database config. The
+home directory is left untouched so that \code{~} in user SQL keeps its usual
+meaning.
 }
 
 \section{Startup message}{

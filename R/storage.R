@@ -200,8 +200,9 @@
 #' | Temp/spill  | `temp_directory`      | `duckdb.temp_directory`       | `DUCKDB_TEMP_DIRECTORY`       | `tempdir()` sub-directory (set)     |
 #' | Logs        | `log_query_path`      | `duckdb.log_directory`        | `DUCKDB_LOG_DIRECTORY`        | disabled (off)                      |
 #'
-#' "set" means the package passes the value to [duckdb()] explicitly. The home
-#' directory is left untouched so that `~` in user SQL keeps its usual meaning.
+#' "set" means `duckdb()` sets the value explicitly in the database config. The
+#' home directory is left untouched so that `~` in user SQL keeps its usual
+#' meaning.
 #'
 #' # Startup message
 #'
