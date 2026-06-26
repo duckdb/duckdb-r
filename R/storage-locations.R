@@ -51,8 +51,9 @@ persistent_roots <- function() {
 # only: the package checks for the file's presence, never reads it back.
 KEEP_MARKER_NAME <- ".duckdb-r-keep"
 KEEP_MARKER_TEXT <- paste(
-  "This directory is used by the duckdb R package to store downloaded",
-  "extensions or secrets. It is safe to delete."
+  "Marker written by the duckdb R package: while this file is present,",
+  "downloaded extensions or secrets are kept in this directory. Delete this",
+  "file to opt out; deleting the directory itself removes the stored data."
 )
 
 # TRUE if the keep-marker is present in `dir`.
@@ -355,16 +356,30 @@ migrate_storage <- function(from, to, conflict) {
   }
   # Every source is removed: copied ones moved, "theirs" collisions dropped.
   unlink(file.path(from, rel))
+  remaining <- rel[file.exists(file.path(from, rel))]
+  if (length(remaining) > 0L) {
+    warning(
+      "Migrated, but could not remove the originals under ",
+      from,
+      "; they now exist in both locations:\n",
+      paste0("  ", remaining, collapse = "\n"),
+      call. = FALSE
+    )
+  }
   invisible()
 }
 
 # --- Ephemeral-storage message ------------------------------------------------
 
-# TRUE if `path` lies inside the session's temporary directory.
+# TRUE if `path` lies inside the session's temporary directory. Compares whole
+# path segments (so `/tmp/Rtmp1` is not treated as a prefix of `/tmp/Rtmp12`).
 path_within_tempdir <- function(path) {
+  if (length(path) != 1L || is.na(path) || !nzchar(path)) {
+    return(FALSE)
+  }
   np <- normalizePath(path, winslash = "/", mustWork = FALSE)
   tp <- normalizePath(session_temp_dir(), winslash = "/", mustWork = FALSE)
-  startsWith(np, tp)
+  np == tp || startsWith(np, paste0(tp, "/"))
 }
 
 # On connect, when the extension cache resolves to a temporary location, let the

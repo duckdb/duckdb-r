@@ -54,7 +54,7 @@ resolution/marker logic calls these, never the underlying primitive.
       same strategy as `is_interactive` / `rapi_error`; no rlang-availability
       cache).
 - [x] `is_interactive()` — pre-existing; use it, never `interactive()`.
-- [x] `session_temp_dir()` (wraps `tempdir()`) — deferred to Phase 1.
+- [x] `session_temp_dir()` (wraps `tempdir()`) — implemented in Phase 1.
 - [x] Options/env reads stay `getOption()` / `Sys.getenv()` (mockable via
       `withr`), but each kind reads them through one `resolve_*()` so precedence
       is tested in one place. (Phase 1.)
