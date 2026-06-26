@@ -71,6 +71,8 @@ duckdb <- function(
   # paired with the C++ toolchain that built duckdb. Secrets default to a
   # location under R_user_dir() for CRAN compliance, but `resolve_secret_directory()`
   # lets users opt into the shared `~/.duckdb/stored_secrets` location.
+  # The CRAN-safe storage-location policy this prepares for is documented in
+  # `?duckdb_storage`; see also plan/PLAN-storage-locations.md.
   if (!("extension_directory" %in% names(config))) {
     config["extension_directory"] <- default_extension_directory()
   }

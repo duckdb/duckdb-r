@@ -36,3 +36,7 @@ reference:
 - title: Secrets
   contents:
   - duckdb_consolidate_secrets
+- title: Storage locations
+  contents:
+  - duckdb_storage
+  - duckdb_storage_config

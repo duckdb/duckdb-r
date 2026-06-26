@@ -2,27 +2,19 @@ default_user_directory <- function() {
   tools::R_user_dir("duckdb", "data")
 }
 
-# Extension binaries are stored inside the duckdb package's installed
-# library directory:
-#
-#   <system.file(package = "duckdb")>/extensions/v<version>/<duckdb_platform>/<ext>.duckdb_extension
-#
-# Co-locating the cache with the package install guarantees that downloaded
-# extensions are paired with the exact toolchain that built duckdb itself,
-# regardless of C++ standard library, compiler version, or other ABI-relevant
-# settings. When the package is reinstalled (upgrade, downgrade, fresh
-# install on a new R), the install directory is replaced and the cache is
-# wiped together with the old binaries, so the next download picks up
-# extensions matching the new build.
-#
-# Example layouts for the spatial extension:
-#
-#   Linux,   user library :
-#     ~/R/x86_64-pc-linux-gnu-library/4.5/duckdb/extensions/v1.5.3/linux_amd64/spatial.duckdb_extension
-#   macOS,   user library :
-#     ~/Library/R/arm64/4.5/library/duckdb/extensions/v1.5.3/osx_arm64/spatial.duckdb_extension
-#   Windows, user library :
-#     %LOCALAPPDATA%\R\win-library\4.5\duckdb\extensions\v1.5.3\windows_amd64_mingw\spatial.duckdb_extension
+# `default_user_directory()` above and `duckdb_shared_home()` below are thin
+# wrappers over the environment so the storage-location logic stays testable
+# without touching the real filesystem or HOME. See `?duckdb_storage` and
+# plan/PLAN-storage-locations.md.
+
+# The DuckDB default home (`~/.duckdb`), shared with the DuckDB CLI and Python
+# client.
+duckdb_shared_home <- function() {
+  path.expand("~/.duckdb")
+}
+
+# Extension binaries are cached inside the duckdb package's installed library
+# directory; co-locating with the install pairs them with the build's ABI.
 default_extension_directory <- function() {
   system_file_path("extensions")
 }
@@ -35,7 +27,7 @@ default_secret_directory <- function() {
 # directory across DuckDB clients is opt-in for R because CRAN policy
 # forbids writing outside `R_user_dir()` without user consent.
 common_secret_directory <- function() {
-  path.expand("~/.duckdb/stored_secrets")
+  file.path(duckdb_shared_home(), "stored_secrets")
 }
 
 # Resolution order for the configured secrets directory:

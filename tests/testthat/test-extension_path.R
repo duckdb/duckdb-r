@@ -6,6 +6,10 @@ test_that("duckdb extensions are stored inside the duckdb package install direct
   expected_dir <- system_file_path("extensions")
   err <- expect_error(dbExecute(con, "LOAD 'bogus'"))
   expect_true(grepl(expected_dir, conditionMessage(err), fixed = TRUE))
-  expect_true(grepl("bogus.duckdb_extension", conditionMessage(err), fixed = TRUE))
+  expect_true(grepl(
+    "bogus.duckdb_extension",
+    conditionMessage(err),
+    fixed = TRUE
+  ))
   expect_true(grepl("not found", conditionMessage(err), fixed = TRUE))
 })

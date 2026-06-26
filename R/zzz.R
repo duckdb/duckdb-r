@@ -17,6 +17,7 @@
     is_interactive <<- rlang::is_interactive
     local_interactive <<- rlang::local_interactive
     rapi_error <<- rapi_error_rlang
+    check_dots_empty <<- rlang::check_dots_empty0
   } else {
     rethrow_restore()
     # Overwrite rapi_error with base version when rlang is not available
