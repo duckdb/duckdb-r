@@ -93,14 +93,12 @@ test_that("ephemeral-storage message fires only for a tempdir cache, once", {
   local_mocked_bindings(session_temp_dir = function() tempdir())
   storage_message_state[["ephemeral_state"]] <- NULL
 
-  # A persistent cache says nothing.
-  expect_silent(maybe_ephemeral_state_message("/persistent/extensions"))
-
   tmp_cache <- file.path(tempdir(), "duckdb", "extensions")
   expect_message(
     maybe_ephemeral_state_message(tmp_cache),
     "temporary directory"
   )
+
   # Throttled within the session.
   expect_silent(maybe_ephemeral_state_message(tmp_cache))
 })

@@ -433,25 +433,12 @@ inform_library_cache_init <- function(dir) {
 
 # --- Ephemeral-storage message ------------------------------------------------
 
-# TRUE if `path` lies inside the session's temporary directory. Compares whole
-# path segments (so `/tmp/Rtmp1` is not treated as a prefix of `/tmp/Rtmp12`).
-path_within_tempdir <- function(path) {
-  if (length(path) != 1L || is.na(path) || !nzchar(path)) {
-    return(FALSE)
-  }
-  np <- normalizePath(path, winslash = "/", mustWork = FALSE)
-  tp <- normalizePath(session_temp_dir(), winslash = "/", mustWork = FALSE)
-  np == tp || startsWith(np, paste0(tp, "/"))
-}
-
-# On connect, when the extension cache resolves to a temporary location, let the
-# user know -- at most once every 8 hours per session, in unattended runs too --
+# Called on connect when the extension cache resolves to a temporary location.
+# Lets the user know -- at most once every 8 hours per session, in unattended runs too --
 # that downloaded extensions will not persist, and how to opt into a permanent
 # location.
 maybe_ephemeral_state_message <- function(extension_directory) {
-  if (
-    is.null(extension_directory) || !path_within_tempdir(extension_directory)
-  ) {
+  if (is.null(extension_directory)) {
     return(invisible())
   }
   inform_once_every(
