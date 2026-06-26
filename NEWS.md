@@ -1,5 +1,18 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.4.9003
+
+## Documentation
+
+- Minor spelling consistency (#2373).
+
+- Document prebuilt-libduckdb fast path for testing; fix glue `-Wsign-compare` warnings (#2371).
+
+## Testing
+
+- Add vctrs dependency checks to map tests using `vctrs::list_of()` (#2369).
+
+
 # duckdb 1.5.4.9002
 
 ## Chore

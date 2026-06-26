@@ -6,7 +6,7 @@
 # so that nothing heavy runs on CRAN, while it always runs on GitHub Actions
 # (our own CI as well as r-universe, both powered by GitHub Actions).
 #
-# The behaviour is controlled by two environment variables:
+# The behavior is controlled by two environment variables:
 #
 # * `DUCKDB_R_RUN_TESTS` is an explicit opt-in (or opt-out) that always wins.
 #   Set it to a true-ish value to run the tests and examples locally, or to a
