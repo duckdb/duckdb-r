@@ -2,10 +2,10 @@
 
 local_storage_roots <- function(.local_envir = parent.frame()) {
   roots <- list(
-    user = withr::local_tempdir(.local_envir = .local_envir),
-    shared = withr::local_tempdir(.local_envir = .local_envir),
-    session = withr::local_tempdir(.local_envir = .local_envir),
-    library = withr::local_tempdir(.local_envir = .local_envir)
+    user = withr::local_tempdir("user-", .local_envir = .local_envir),
+    shared = withr::local_tempdir("shared-", .local_envir = .local_envir),
+    session = withr::local_tempdir("session-", .local_envir = .local_envir),
+    library = withr::local_tempdir("library-", .local_envir = .local_envir)
   )
   withr::local_envvar(
     DUCKDB_EXTENSION_DIRECTORY = NA,
