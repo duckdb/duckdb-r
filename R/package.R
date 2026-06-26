@@ -13,41 +13,6 @@ system_file_path <- function(...) {
   file.path(system.file(package = get_package_name()), ...)
 }
 
-# Base fallback for `rlang::check_dots_empty0()`; in `.onLoad()` this is swapped
-# for rlang's version when rlang is available (same strategy as `is_interactive`
-# and `rapi_error`). Named to match the function it shadows.
-check_dots_empty0 <- function(...) {
-  if (...length() > 0L) {
-    stop("`...` must be empty.", call. = FALSE)
-  }
-  invisible()
-}
-
-# Base fallback for `rlang::inform()`, swapped for rlang's version in `.onLoad()`
-# when rlang is available (same strategy as `check_dots_empty0()`). Emits the
-# message vector as a single base message; the `class` and other rlang-only
-# arguments are accepted and ignored.
-inform <- function(message = NULL, ..., class = NULL) {
-  base::message(paste(message, collapse = "\n"))
-  invisible()
-}
-
-# Base fallback for `rlang::arg_match()`, swapped for rlang's version in
-# `.onLoad()` when rlang is available (same strategy as `check_dots_empty0()`).
-# With `values` unset the allowed values are taken from the calling function's
-# formal default for `arg` (as `rlang::arg_match()` and `match.arg()` do), so an
-# unmodified `arg` resolves to its first value.
-arg_match <- function(arg, values = NULL, ...) {
-  if (is.null(values)) {
-    parent <- sys.parent()
-    values <- eval(
-      formals(sys.function(parent))[[as.character(substitute(arg))]],
-      envir = sys.frame(parent)
-    )
-  }
-  match.arg(arg, values)
-}
-
 get_package_spec <- function() {
   getNamespaceInfo(get_package_name(), "spec")
 }

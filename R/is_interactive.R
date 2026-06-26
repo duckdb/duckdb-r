@@ -12,3 +12,7 @@ is_interactive <- function() {
   }
   interactive()
 }
+
+local_interactive <- function(value = TRUE, frame = rlang::caller_env()) {
+  rlang::local_options(rlang_interactive = value, .frame = frame)
+}

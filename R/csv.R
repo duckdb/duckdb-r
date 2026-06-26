@@ -7,7 +7,7 @@
 #'
 #' @inheritParams duckdb_register
 #' @param files One or more CSV file names, should all have the same structure though
-#' @inheritParams rlang::args_dots_empty
+#' @param ... Reserved for future extensions, must be empty.
 #' @param header Whether or not the CSV files have a separate header in the first line
 #' @param na.strings Which strings in the CSV files should be considered to be NULL
 #' @param nrow.check How many rows should be read from the CSV file to figure out data types

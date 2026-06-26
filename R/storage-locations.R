@@ -148,33 +148,52 @@ inform_duplicate_marker <- function(kind, roots) {
 
 # --- Resolution ---------------------------------------------------------------
 
-# An explicit override for a location kind ("extension", "secret", "temp") and
-# the tier it came from, via `options(duckdb.<kind>_directory)` (source
-# "option") or `DUCKDB_<KIND>_DIRECTORY` (source "env"), or NULL if neither.
+# An explicit override for a storage kind ("extensions", "stored_secrets",
+# "temp") and the tier it came from, via the option (source "option") or
+# environment variable (source "env") for its DuckDB setting, or NULL if neither.
 directory_override_with_source <- function(kind) {
-  opt <- getOption(paste0("duckdb.", kind, "_directory"))
+  # The kind token ("extensions" / "stored_secrets") matches DuckDB's
+  # sub-directory names; the option/env var use DuckDB's *setting* names
+  # ("extension" / "secret"), which we map to here.
+  setting <- override_setting(kind)
+  opt <- getOption(paste0("duckdb.", setting, "_directory"))
   if (is.character(opt) && length(opt) == 1L && nzchar(opt)) {
     return(list(directory = path.expand(opt), source = "option"))
   }
   if (!is.null(opt)) {
     # Set but unusable: warn once per session and fall through to the env var.
-    id <- paste0("bad_option_", kind)
+    id <- paste0("bad_option_", setting)
     if (is.null(storage_message_state[[id]])) {
       storage_message_state[[id]] <- TRUE
       warning(
         sprintf(
           "Ignoring `options(duckdb.%s_directory=)`: not a non-empty string.",
-          kind
+          setting
         ),
         call. = FALSE
       )
     }
   }
-  env <- Sys.getenv(paste0("DUCKDB_", toupper(kind), "_DIRECTORY"), unset = "")
+  env <- Sys.getenv(
+    paste0("DUCKDB_", toupper(setting), "_DIRECTORY"),
+    unset = ""
+  )
   if (nzchar(env)) {
     return(list(directory = path.expand(env), source = "env"))
   }
   NULL
+}
+
+# Map a storage kind to the DuckDB config-setting name behind its option / env
+# var (`duckdb.<setting>_directory` / `DUCKDB_<SETTING>_DIRECTORY`).
+override_setting <- function(kind) {
+  switch(
+    kind,
+    extensions = "extension",
+    stored_secrets = "secret",
+    temp = "temp",
+    stop("Unknown storage kind: ", kind, call. = FALSE)
+  )
 }
 
 # Just the override path (or NULL), for the resolvers.
@@ -186,7 +205,7 @@ directory_override <- function(kind) {
 # Resolve the extension cache directory (see ?duckdb_storage):
 # override -> marker (user/shared) -> "library" write-probe -> session tempdir.
 resolve_extension_directory <- function() {
-  override <- directory_override("extension")
+  override <- directory_override("extensions")
   if (!is.null(override)) {
     return(override)
   }
@@ -212,7 +231,7 @@ resolve_extension_directory <- function() {
 # override -> marker (user/shared) -> session tempdir. There is no "library"
 # root for secrets, and the default is a per-session temporary directory.
 resolve_secret_directory <- function() {
-  override <- directory_override("secret")
+  override <- directory_override("stored_secrets")
   if (!is.null(override)) {
     return(override)
   }
@@ -252,8 +271,7 @@ is_memory_dbdir <- function(dbdir) {
 # resolver it does not write-probe the library, so it has no side effects and
 # reports only what is already persisted.
 describe_storage <- function(kind) {
-  prefix <- if (kind == "extensions") "extension" else "secret"
-  override <- directory_override_with_source(prefix)
+  override <- directory_override_with_source(kind)
   if (!is.null(override)) {
     return(override)
   }
@@ -321,8 +339,7 @@ set_storage_marker <- function(kind, location, migrate, conflict) {
 # (abnormally) marked in more than one root, relocating should sweep them all in
 # rather than orphan the data left in the roots whose markers we clear.
 migration_sources <- function(kind) {
-  prefix <- if (kind == "extensions") "extension" else "secret"
-  override <- directory_override_with_source(prefix)
+  override <- directory_override_with_source(kind)
   if (!is.null(override)) {
     return(override$directory)
   }
