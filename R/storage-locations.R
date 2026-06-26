@@ -153,3 +153,96 @@ inform_duplicate_marker <- function(kind, roots) {
     )
   )
 }
+
+# --- Resolution ---------------------------------------------------------------
+
+# An explicit override for a location kind ("extension", "secret", "temp"), via
+# `options(duckdb.<kind>_directory)` or `DUCKDB_<KIND>_DIRECTORY`, or NULL.
+directory_override <- function(kind) {
+  opt <- getOption(paste0("duckdb.", kind, "_directory"))
+  if (is.character(opt) && length(opt) == 1L && nzchar(opt)) {
+    return(path.expand(opt))
+  }
+  env <- Sys.getenv(paste0("DUCKDB_", toupper(kind), "_DIRECTORY"), unset = "")
+  if (nzchar(env)) {
+    return(path.expand(env))
+  }
+  NULL
+}
+
+# Resolve the extension cache directory (see ?duckdb_storage):
+# override -> marker (user/shared) -> "library" write-probe -> session tempdir.
+resolve_extension_directory <- function() {
+  override <- directory_override("extension")
+  if (!is.null(override)) {
+    return(override)
+  }
+  marked <- marked_storage_dir("extensions")
+  if (!is.null(marked)) {
+    return(marked)
+  }
+  library_dir <- storage_dir("library", "extensions")
+  if (has_keep_marker(library_dir) || write_keep_marker(library_dir)) {
+    return(library_dir)
+  }
+  storage_dir("session", "extensions")
+}
+
+# Resolve the temp/spill directory. For in-memory databases DuckDB would spill
+# to a `.tmp` directory in the working directory, so point it at a per-session
+# tempdir instead; for on-disk databases keep DuckDB's `<db>.tmp` default
+# (return NULL so the setting is left unset). Overridable.
+resolve_temp_directory <- function(dbdir) {
+  override <- directory_override("temp")
+  if (!is.null(override)) {
+    return(override)
+  }
+  if (is_memory_dbdir(dbdir)) {
+    return(file.path(session_temp_dir(), "duckdb", "temp"))
+  }
+  NULL
+}
+
+is_memory_dbdir <- function(dbdir) {
+  is.null(dbdir) ||
+    !nzchar(dbdir) ||
+    identical(dbdir, ":memory:") ||
+    startsWith(dbdir, ":memory:")
+}
+
+# --- Ephemeral-storage message ------------------------------------------------
+
+# TRUE if `path` lies inside the session's temporary directory.
+path_within_tempdir <- function(path) {
+  np <- normalizePath(path, winslash = "/", mustWork = FALSE)
+  tp <- normalizePath(session_temp_dir(), winslash = "/", mustWork = FALSE)
+  startsWith(np, tp)
+}
+
+# On connect, when the extension cache resolves to a temporary location, let the
+# user know -- at most once every 8 hours per session, in unattended runs too --
+# that downloaded extensions will not persist, and how to opt into a permanent
+# location.
+maybe_ephemeral_state_message <- function(extension_directory) {
+  if (
+    is.null(extension_directory) || !path_within_tempdir(extension_directory)
+  ) {
+    return(invisible())
+  }
+  inform_once_every(
+    "ephemeral_state",
+    STORAGE_MESSAGE_INTERVAL,
+    c(
+      "duckdb is keeping downloaded extensions in a temporary directory:",
+      i = extension_directory,
+      paste0(
+        "This is removed when the R session ends, so extensions are ",
+        "re-downloaded each session."
+      ),
+      i = paste0(
+        "To keep them, point `options(duckdb.extension_directory =)` or the ",
+        "`DUCKDB_EXTENSION_DIRECTORY` environment variable at a permanent path."
+      )
+    )
+  )
+}

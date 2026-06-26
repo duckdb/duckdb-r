@@ -66,19 +66,24 @@ duckdb <- function(
     }
   }
 
-  # Extensions are cached inside the duckdb package's installed library
-  # directory (see default_extension_directory()), which keeps the binaries
-  # paired with the C++ toolchain that built duckdb. Secrets default to a
-  # location under R_user_dir() for CRAN compliance, but `resolve_secret_directory()`
-  # lets users opt into the shared `~/.duckdb/stored_secrets` location.
-  # The CRAN-safe storage-location policy this prepares for is documented in
-  # `?duckdb_storage`; see also plan/PLAN-storage-locations.md.
+  # Choose CRAN-safe locations for the engine's writable state unless the user
+  # set them explicitly. The extension cache lives alongside the package when
+  # that is writable and falls back to a temporary directory otherwise; the
+  # temp/spill directory is redirected for in-memory databases. See
+  # `?duckdb_storage`.
   if (!("extension_directory" %in% names(config))) {
-    config["extension_directory"] <- default_extension_directory()
+    config["extension_directory"] <- resolve_extension_directory()
   }
   if (!("secret_directory" %in% names(config))) {
     config["secret_directory"] <- resolve_secret_directory()
   }
+  if (!("temp_directory" %in% names(config))) {
+    temp_directory <- resolve_temp_directory(dbdir)
+    if (!is.null(temp_directory)) {
+      config["temp_directory"] <- temp_directory
+    }
+  }
+  maybe_ephemeral_state_message(config[["extension_directory"]])
 
   # Always create new database for in-memory,
   # allows isolation and mixing different configs
