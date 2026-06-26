@@ -58,9 +58,7 @@
 #'     marker section for how this is detected.}
 #'   \item{Secrets}{Persisted credentials under `stored_secrets`. DuckDB
 #'     setting: `secret_directory`. Set explicitly to a [tempdir()] location by
-#'     default. Configured and migrated with [duckdb_storage_config()]; the older
-#'     `duckdb_consolidate_secrets()` is hard-deprecated in favor of
-#'     `duckdb_secret_storage()`.}
+#'     default. Configured and migrated with [duckdb_storage_config()].}
 #'   \item{Temporary / spill files}{Out-of-core intermediates for sorts, hash
 #'     joins, and similar operations. DuckDB settings: `temp_directory`,
 #'     `max_temp_directory_size`. For an in-memory (`:memory:`) database DuckDB's
@@ -82,15 +80,13 @@
 #' Each managed location is resolved through the same ordered chain. The first
 #' source that yields a value wins:
 #'
-#' \enumerate{
-#'   \item an explicit value passed to [duckdb()] via `config` (e.g.
-#'     `config = list(temp_directory = "...")`);
-#'   \item the corresponding R option, e.g. `getOption("duckdb.temp_directory")`;
-#'   \item the corresponding environment variable, e.g.
-#'     `Sys.getenv("DUCKDB_TEMP_DIRECTORY")`;
-#'   \item a persistent location selected by a marker file (see below);
-#'   \item the default: a per-session sub-directory of [tempdir()].
-#' }
+#' 1. an explicit value passed to [duckdb()] via `config` (e.g.
+#'    `config = list(temp_directory = "...")`);
+#' 1. the corresponding R option, e.g. `getOption("duckdb.temp_directory")`;
+#' 1. the corresponding environment variable, e.g.
+#'    `Sys.getenv("DUCKDB_TEMP_DIRECTORY")`;
+#' 1. a persistent location selected by a marker file (see below);
+#' 1. the default: a per-session sub-directory of [tempdir()].
 #'
 #' The extension cache inserts one extra step before the [tempdir()] fallback:
 #' if no marker has selected a root, the `"library"` root is probed at connect
@@ -177,18 +173,16 @@
 #'
 #' ## Rules
 #'
-#' \itemize{
-#'   \item An option or environment variable overrides any marker.
-#'   \item A kind's marker present in more than one root is ambiguous: the
-#'     package emits a startup message naming the candidates and falls back to
-#'     the [tempdir()] default until the ambiguity is resolved.
-#'   \item The package never ships a marker. The only writes are by
-#'     `duckdb_extension_storage()` / `duckdb_secret_storage()`, and the
-#'     connect-time probe of the `"library"` root for extensions (which writes
-#'     the marker only when the directory is writable).
-#'   \item A marked location that is not writable falls back to the [tempdir()]
-#'     default rather than failing.
-#' }
+#' * An option or environment variable overrides any marker.
+#' * A kind's marker present in more than one root is ambiguous: the package
+#'   emits a startup message naming the candidates and falls back to the
+#'   [tempdir()] default until the ambiguity is resolved.
+#' * The package never ships a marker. The only writes are by
+#'   `duckdb_extension_storage()` / `duckdb_secret_storage()`, and the
+#'   connect-time probe of the `"library"` root for extensions (which writes the
+#'   marker only when the directory is writable).
+#' * A marked location that is not writable falls back to the [tempdir()]
+#'   default rather than failing.
 #'
 #' A marker selects the *location*. It is deliberately distinct from the
 #' presence of a cached binary: an extension found under `v<version>/<platform>/`

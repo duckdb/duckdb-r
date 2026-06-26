@@ -30,9 +30,7 @@ falling back to a \code{\link[=tempdir]{tempdir()}} sub-directory when it is not
 marker section for how this is detected.}
 \item{Secrets}{Persisted credentials under \code{stored_secrets}. DuckDB
 setting: \code{secret_directory}. Set explicitly to a \code{\link[=tempdir]{tempdir()}} location by
-default. Configured and migrated with \code{\link[=duckdb_storage_config]{duckdb_storage_config()}}; the older
-\code{duckdb_consolidate_secrets()} is hard-deprecated in favor of
-\code{duckdb_secret_storage()}.}
+default. Configured and migrated with \code{\link[=duckdb_storage_config]{duckdb_storage_config()}}.}
 \item{Temporary / spill files}{Out-of-core intermediates for sorts, hash
 joins, and similar operations. DuckDB settings: \code{temp_directory},
 \code{max_temp_directory_size}. For an in-memory (\verb{:memory:}) database DuckDB's
@@ -53,7 +51,6 @@ in-memory (\verb{:memory:}) database has none.}
 \section{Resolution policy}{
 Each managed location is resolved through the same ordered chain. The first
 source that yields a value wins:
-
 \enumerate{
 \item an explicit value passed to \code{\link[=duckdb]{duckdb()}} via \code{config} (e.g.
 \code{config = list(temp_directory = "...")});
@@ -148,16 +145,15 @@ hard-deprecated in favor of it.
 }
 
 \subsection{Rules}{
-
 \itemize{
 \item An option or environment variable overrides any marker.
-\item A kind's marker present in more than one root is ambiguous: the
-package emits a startup message naming the candidates and falls back to
-the \code{\link[=tempdir]{tempdir()}} default until the ambiguity is resolved.
+\item A kind's marker present in more than one root is ambiguous: the package
+emits a startup message naming the candidates and falls back to the
+\code{\link[=tempdir]{tempdir()}} default until the ambiguity is resolved.
 \item The package never ships a marker. The only writes are by
 \code{duckdb_extension_storage()} / \code{duckdb_secret_storage()}, and the
-connect-time probe of the \code{"library"} root for extensions (which writes
-the marker only when the directory is writable).
+connect-time probe of the \code{"library"} root for extensions (which writes the
+marker only when the directory is writable).
 \item A marked location that is not writable falls back to the \code{\link[=tempdir]{tempdir()}}
 default rather than failing.
 }
