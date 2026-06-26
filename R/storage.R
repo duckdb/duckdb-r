@@ -56,7 +56,7 @@
 #'     `"library"` root (alongside the installed package) when it is writable,
 #'     falling back to a [tempdir()] sub-directory when it is not. See the
 #'     marker section for how this is detected.}
-#'   \item{Secrets}{Persisted credentials under `stored_secrets`. DuckDB
+#'   \item{Stored secrets}{Persisted credentials under `stored_secrets`. DuckDB
 #'     setting: `secret_directory`. Set explicitly to a [tempdir()] location by
 #'     default. Configured and migrated with [duckdb_storage_config()].}
 #'   \item{Temporary / spill files}{Out-of-core intermediates for sorts, hash
@@ -134,8 +134,8 @@
 #'     but is wiped on every re-install. This is the automatic default for
 #'     extensions when the library is writable (see the resolution policy
 #'     above): rather than require an explicit opt-in, the package probes it at
-#'     connect time and uses it unless the write fails. Not offered for secrets,
-#'     which always default to `"session"`.}
+#'     connect time and uses it unless the write fails. Not offered for stored
+#'     secrets, which always default to `"session"`.}
 #' }
 #'
 #' ## The marker file
@@ -147,7 +147,7 @@
 #'
 #' ```
 #' <root>/extensions/.duckdb-r-keep        # opts in the extension cache
-#' <root>/stored_secrets/.duckdb-r-keep    # opts in secrets
+#' <root>/stored_secrets/.duckdb-r-keep    # opts in stored secrets
 #' ```
 #'
 #' It is not empty: the package writes a single line of human-readable text
@@ -156,7 +156,7 @@
 #' editing it has no effect.
 #'
 #' Markers are per-kind and live inside each kind's sub-directory, so one root
-#' can persist extensions but not secrets, or vice versa. For extensions in a
+#' can persist extensions but not stored secrets, or vice versa. For extensions in a
 #' persistent root, DuckDB's `v<version>/<platform>/` sub-paths keep a stale
 #' binary from being loaded into a newer, ABI-incompatible build.
 #'
@@ -191,13 +191,13 @@
 #'
 #' # Per-location reference
 #'
-#' | Kind        | DuckDB setting        | Option                        | Environment variable          | Default                          |
-#' |-------------|-----------------------|-------------------------------|-------------------------------|----------------------------------|
-#' | Home        | `home_directory`      | --                            | --                            | left untouched (not set)            |
-#' | Extensions  | `extension_directory` | `duckdb.extension_directory`  | `DUCKDB_EXTENSION_DIRECTORY`  | library if writable, else `tempdir()`|
-#' | Secrets     | `secret_directory`    | `duckdb.secret_directory`     | `DUCKDB_SECRET_DIRECTORY`     | `tempdir()` sub-directory (set)     |
-#' | Temp/spill  | `temp_directory`      | `duckdb.temp_directory`       | `DUCKDB_TEMP_DIRECTORY`       | `tempdir()` sub-directory (set)     |
-#' | Logs        | `log_query_path`      | `duckdb.log_directory`        | `DUCKDB_LOG_DIRECTORY`        | disabled (off)                      |
+#' | Kind        | DuckDB setting        | Option / environment variable                              | Default                          |
+#' |-------------|-----------------------|------------------------------------------------------------|----------------------------------|
+#' | Home        | `home_directory`      | --                                                         | left untouched (not set)            |
+#' | Extensions  | `extension_directory` | `duckdb.extension_directory` / `DUCKDB_EXTENSION_DIRECTORY` | library if writable, else `tempdir()`|
+#' | Stored secrets | `secret_directory` | `duckdb.secret_directory` / `DUCKDB_SECRET_DIRECTORY`       | `tempdir()` sub-directory (set)     |
+#' | Temp/spill  | `temp_directory`      | `duckdb.temp_directory` / `DUCKDB_TEMP_DIRECTORY`          | `tempdir()` sub-directory (set)     |
+#' | Logs        | `log_query_path`      | `duckdb.log_directory` / `DUCKDB_LOG_DIRECTORY`            | disabled (off)                      |
 #'
 #' "set" means `duckdb()` sets the value explicitly in the database config. The
 #' home directory is left untouched so that `~` in user SQL keeps its usual

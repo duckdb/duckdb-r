@@ -28,7 +28,7 @@ version and platform/ABI that downloaded it. By default the cache is the
 \code{"library"} root (alongside the installed package) when it is writable,
 falling back to a \code{\link[=tempdir]{tempdir()}} sub-directory when it is not. See the
 marker section for how this is detected.}
-\item{Secrets}{Persisted credentials under \code{stored_secrets}. DuckDB
+\item{Stored secrets}{Persisted credentials under \code{stored_secrets}. DuckDB
 setting: \code{secret_directory}. Set explicitly to a \code{\link[=tempdir]{tempdir()}} location by
 default. Configured and migrated with \code{\link[=duckdb_storage_config]{duckdb_storage_config()}}.}
 \item{Temporary / spill files}{Out-of-core intermediates for sorts, hash
@@ -105,8 +105,8 @@ package (\code{\link[base:system.file]{base::system.file()}}). It pairs binaries
 but is wiped on every re-install. This is the automatic default for
 extensions when the library is writable (see the resolution policy
 above): rather than require an explicit opt-in, the package probes it at
-connect time and uses it unless the write fails. Not offered for secrets,
-which always default to \code{"session"}.}
+connect time and uses it unless the write fails. Not offered for stored
+secrets, which always default to \code{"session"}.}
 }
 }
 
@@ -118,7 +118,7 @@ matters most in the \code{"shared"} root (\verb{~/.duckdb}), which is also used 
 DuckDB CLI and Python client:
 
 \if{html}{\out{<div class="sourceCode">}}\preformatted{<root>/extensions/.duckdb-r-keep        # opts in the extension cache
-<root>/stored_secrets/.duckdb-r-keep    # opts in secrets
+<root>/stored_secrets/.duckdb-r-keep    # opts in stored secrets
 }\if{html}{\out{</div>}}
 
 It is not empty: the package writes a single line of human-readable text
@@ -127,7 +127,7 @@ presence is significant -- the contents are never read back or validated, so
 editing it has no effect.
 
 Markers are per-kind and live inside each kind's sub-directory, so one root
-can persist extensions but not secrets, or vice versa. For extensions in a
+can persist extensions but not stored secrets, or vice versa. For extensions in a
 persistent root, DuckDB's \verb{v<version>/<platform>/} sub-paths keep a stale
 binary from being loaded into a newer, ABI-incompatible build.
 }
@@ -166,13 +166,13 @@ resurrecting a store root and reintroducing an ABI mismatch.
 }
 
 \section{Per-location reference}{
-\tabular{lllll}{
-   Kind \tab DuckDB setting \tab Option \tab Environment variable \tab Default \cr
-   Home \tab \code{home_directory} \tab -- \tab -- \tab left untouched (not set) \cr
-   Extensions \tab \code{extension_directory} \tab \code{duckdb.extension_directory} \tab \code{DUCKDB_EXTENSION_DIRECTORY} \tab library if writable, else \code{tempdir()} \cr
-   Secrets \tab \code{secret_directory} \tab \code{duckdb.secret_directory} \tab \code{DUCKDB_SECRET_DIRECTORY} \tab \code{tempdir()} sub-directory (set) \cr
-   Temp/spill \tab \code{temp_directory} \tab \code{duckdb.temp_directory} \tab \code{DUCKDB_TEMP_DIRECTORY} \tab \code{tempdir()} sub-directory (set) \cr
-   Logs \tab \code{log_query_path} \tab \code{duckdb.log_directory} \tab \code{DUCKDB_LOG_DIRECTORY} \tab disabled (off) \cr
+\tabular{llll}{
+   Kind \tab DuckDB setting \tab Option / environment variable \tab Default \cr
+   Home \tab \code{home_directory} \tab -- \tab left untouched (not set) \cr
+   Extensions \tab \code{extension_directory} \tab \code{duckdb.extension_directory} / \code{DUCKDB_EXTENSION_DIRECTORY} \tab library if writable, else \code{tempdir()} \cr
+   Stored secrets \tab \code{secret_directory} \tab \code{duckdb.secret_directory} / \code{DUCKDB_SECRET_DIRECTORY} \tab \code{tempdir()} sub-directory (set) \cr
+   Temp/spill \tab \code{temp_directory} \tab \code{duckdb.temp_directory} / \code{DUCKDB_TEMP_DIRECTORY} \tab \code{tempdir()} sub-directory (set) \cr
+   Logs \tab \code{log_query_path} \tab \code{duckdb.log_directory} / \code{DUCKDB_LOG_DIRECTORY} \tab disabled (off) \cr
 }
 
 
