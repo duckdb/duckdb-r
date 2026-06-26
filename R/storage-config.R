@@ -43,7 +43,7 @@
 #'
 #'   To use an arbitrary directory, set the option or environment variable
 #'   instead (see [duckdb_storage]).
-#' @param ... These dots are for future extensions and must be empty.
+#' @inheritParams rlang::args_dots_empty
 #' @param migrate If `TRUE` (the default), move the already-cached files from the
 #'   current location into the new one. Ignored when `location` is `"session"`:
 #'   opting out never moves files into the per-session directory.
