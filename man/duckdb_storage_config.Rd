@@ -8,7 +8,9 @@
 \title{Configure where DuckDB stores extensions and secrets}
 \usage{
 duckdb_extension_storage(location, ..., migrate = TRUE, conflict = "error")
+
 duckdb_secret_storage(location, ..., migrate = TRUE, conflict = "error")
+
 duckdb_storage_status()
 }
 \arguments{
@@ -39,7 +41,7 @@ with one row per kind of state.
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
 
 Choose where the duckdb R package keeps downloaded extensions and persisted
-secrets, by writing a small \emph{marker file} that records the choice:
+secrets, by writing a small marker file that records the choice:
 \itemize{
 \item \code{duckdb_extension_storage()} -- set or move the extension cache (default:
 the package library when writable, otherwise a per-session temporary
@@ -64,9 +66,6 @@ unaffected.
 
 There is no \code{ask} argument: calling a \verb{*_storage()} function is itself the
 consent to write outside the temporary directory.
-
-\code{duckdb_secret_storage()} replaces \code{duckdb_consolidate_secrets()}: secret
-migration is now a \code{migrate} step of \code{duckdb_secret_storage()}.
 }
 \seealso{
 \link{duckdb_storage} for the storage policy these functions implement.

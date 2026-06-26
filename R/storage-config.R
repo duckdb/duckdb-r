@@ -1,6 +1,6 @@
-# Documentation for the user-facing functions that configure where the duckdb R
-# package stores extensions and secrets. The storage policy itself is described
-# in `?duckdb_storage`. See `?duckdb_storage_config`.
+# Documentation and implementation for the user-facing functions that configure
+# where the duckdb R package stores extensions and secrets. The storage policy
+# itself is described in `?duckdb_storage`. See `?duckdb_storage_config`.
 
 #' Configure where DuckDB stores extensions and secrets
 #'
@@ -8,7 +8,7 @@
 #' `r lifecycle::badge('experimental')`
 #'
 #' Choose where the duckdb R package keeps downloaded extensions and persisted
-#' secrets, by writing a small *marker file* that records the choice:
+#' secrets, by writing a small marker file that records the choice:
 #'
 #' * `duckdb_extension_storage()` -- set or move the extension cache (default:
 #'   the package library when writable, otherwise a per-session temporary
@@ -22,11 +22,6 @@
 #' overriding with options and environment variables. The full policy is
 #' documented in [duckdb_storage].
 #'
-#' @usage
-#' duckdb_extension_storage(location, ..., migrate = TRUE, conflict = "error")
-#' duckdb_secret_storage(location, ..., migrate = TRUE, conflict = "error")
-#' duckdb_storage_status()
-#'
 #' @details
 #' `duckdb_extension_storage()` and `duckdb_secret_storage()` write (or remove)
 #' the marker for that one kind of state, so the two can be configured
@@ -37,9 +32,6 @@
 #'
 #' There is no `ask` argument: calling a `*_storage()` function is itself the
 #' consent to write outside the temporary directory.
-#'
-#' `duckdb_secret_storage()` replaces `duckdb_consolidate_secrets()`: secret
-#' migration is now a `migrate` step of `duckdb_secret_storage()`.
 #'
 #' @param location The destination root, or an explicit path. Recognized roots
 #'   are `"session"` (the per-session temporary directory; also the opt-out --
@@ -62,32 +54,42 @@
 #'
 #' @seealso [duckdb_storage] for the storage policy these functions implement.
 #' @name duckdb_storage_config
-#' @aliases duckdb_extension_storage duckdb_secret_storage duckdb_storage_status
 #' @keywords internal
 NULL
 
-# Unexported stubs. The storage policy is documented (see `?duckdb_storage`) but
-# not implemented yet (see plan/PLAN-storage-locations.md); these keep the
-# documented `\usage` in sync with the code and error until implemented. Their
-# formals must match the `@usage` block above.
+#' @rdname duckdb_storage_config
+#' @export
 duckdb_extension_storage <- function(
   location,
   ...,
   migrate = TRUE,
   conflict = "error"
 ) {
-  stop("`duckdb_extension_storage()` is not implemented yet.", call. = FALSE)
+  check_dots_empty(...)
+  set_storage_marker("extensions", location, migrate, conflict)
 }
 
+#' @rdname duckdb_storage_config
+#' @export
 duckdb_secret_storage <- function(
   location,
   ...,
   migrate = TRUE,
   conflict = "error"
 ) {
-  stop("`duckdb_secret_storage()` is not implemented yet.", call. = FALSE)
+  check_dots_empty(...)
+  set_storage_marker("secrets", location, migrate, conflict)
 }
 
+#' @rdname duckdb_storage_config
+#' @export
 duckdb_storage_status <- function() {
-  stop("`duckdb_storage_status()` is not implemented yet.", call. = FALSE)
+  kinds <- c("extensions", "secrets")
+  rows <- lapply(kinds, describe_storage)
+  data.frame(
+    kind = kinds,
+    directory = vapply(rows, function(r) r$directory, character(1)),
+    source = vapply(rows, function(r) r$source, character(1)),
+    stringsAsFactors = FALSE
+  )
 }

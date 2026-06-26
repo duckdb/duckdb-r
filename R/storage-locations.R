@@ -156,18 +156,25 @@ inform_duplicate_marker <- function(kind, roots) {
 
 # --- Resolution ---------------------------------------------------------------
 
-# An explicit override for a location kind ("extension", "secret", "temp"), via
-# `options(duckdb.<kind>_directory)` or `DUCKDB_<KIND>_DIRECTORY`, or NULL.
-directory_override <- function(kind) {
+# An explicit override for a location kind ("extension", "secret", "temp") and
+# the tier it came from, via `options(duckdb.<kind>_directory)` (source
+# "option") or `DUCKDB_<KIND>_DIRECTORY` (source "env"), or NULL if neither.
+directory_override_with_source <- function(kind) {
   opt <- getOption(paste0("duckdb.", kind, "_directory"))
   if (is.character(opt) && length(opt) == 1L && nzchar(opt)) {
-    return(path.expand(opt))
+    return(list(directory = path.expand(opt), source = "option"))
   }
   env <- Sys.getenv(paste0("DUCKDB_", toupper(kind), "_DIRECTORY"), unset = "")
   if (nzchar(env)) {
-    return(path.expand(env))
+    return(list(directory = path.expand(env), source = "env"))
   }
   NULL
+}
+
+# Just the override path (or NULL), for the resolvers.
+directory_override <- function(kind) {
+  o <- directory_override_with_source(kind)
+  if (is.null(o)) NULL else o$directory
 }
 
 # Resolve the extension cache directory (see ?duckdb_storage):
@@ -223,6 +230,132 @@ is_memory_dbdir <- function(dbdir) {
     !nzchar(dbdir) ||
     identical(dbdir, ":memory:") ||
     startsWith(dbdir, ":memory:")
+}
+
+# --- Inspecting and changing the persistent location -------------------------
+
+# Read-only counterpart to the resolvers, used by duckdb_storage_status(): the
+# resolved directory and the tier that selected it. Unlike the connect-time
+# resolver it does not write-probe the library, so it has no side effects and
+# reports only what is already persisted.
+describe_storage <- function(kind) {
+  prefix <- if (kind == "extensions") "extension" else "secret"
+  override <- directory_override_with_source(prefix)
+  if (!is.null(override)) {
+    return(override)
+  }
+  marked <- marked_storage_dir(kind)
+  if (!is.null(marked)) {
+    return(list(directory = marked, source = "marker"))
+  }
+  if (kind == "extensions") {
+    library_dir <- storage_dir("library", kind)
+    if (has_keep_marker(library_dir)) {
+      return(list(directory = library_dir, source = "library"))
+    }
+  }
+  list(directory = storage_dir("session", kind), source = "session")
+}
+
+# Roots whose marker is cleared before a new one is written, so a kind is never
+# marked in more than one place. Extensions add "library" (the auto-probe root).
+marker_roots <- function(kind) {
+  if (kind == "extensions") {
+    c("user", "shared", "library")
+  } else {
+    c("user", "shared")
+  }
+}
+
+# Validate a requested `location` for a kind. "library" is extensions-only;
+# every other string is a known root or an explicit path (see `storage_dir()`).
+validate_location <- function(kind, location) {
+  stopifnot(is.character(location), length(location) == 1L, !is.na(location))
+  if (kind == "secrets" && identical(location, "library")) {
+    stop(
+      '`location = "library"` is only available for extensions.',
+      call. = FALSE
+    )
+  }
+  invisible()
+}
+
+# Point a kind's persistent location at `location`: clear any existing markers,
+# write the new one (unless `location` is "session", the opt-out), and migrate
+# the cached files. Returns the resolved directory invisibly.
+set_storage_marker <- function(kind, location, migrate, conflict) {
+  validate_location(kind, location)
+  conflict <- match.arg(conflict, c("error", "ours", "theirs"))
+  stopifnot(is.logical(migrate), length(migrate) == 1L, !is.na(migrate))
+
+  from <- describe_storage(kind)$directory
+
+  for (root in marker_roots(kind)) {
+    remove_keep_marker(storage_dir(root, kind))
+  }
+
+  if (identical(location, "session")) {
+    # Opt-out: revert to the per-session default. Cached files are left where
+    # they are rather than moved into a directory that is wiped on exit.
+    return(invisible(storage_dir("session", kind)))
+  }
+
+  to <- storage_dir(location, kind)
+  if (!write_keep_marker(to)) {
+    stop("Cannot write the storage marker to ", to, ".", call. = FALSE)
+  }
+  if (isTRUE(migrate)) {
+    migrate_storage(from, to, conflict)
+  }
+  invisible(to)
+}
+
+# Move the cached files from `from` to `to` (recursively, preserving DuckDB's
+# `v<version>/<platform>/` layout) without the keep-marker. `conflict` decides
+# name collisions at the destination: "error" aborts listing them, "ours"
+# overwrites, "theirs" keeps the destination and drops the colliding sources.
+migrate_storage <- function(from, to, conflict) {
+  if (!dir.exists(from)) {
+    return(invisible())
+  }
+  if (
+    identical(
+      normalizePath(from, mustWork = FALSE),
+      normalizePath(to, mustWork = FALSE)
+    )
+  ) {
+    return(invisible())
+  }
+  rel <- list.files(from, recursive = TRUE, all.files = TRUE, no.. = TRUE)
+  rel <- rel[basename(rel) != KEEP_MARKER_NAME]
+  if (length(rel) == 0L) {
+    return(invisible())
+  }
+  collide <- rel[file.exists(file.path(to, rel))]
+  if (length(collide) > 0L && identical(conflict, "error")) {
+    stop(
+      "Migration would overwrite files at ",
+      to,
+      ":\n",
+      paste0("  ", collide, collapse = "\n"),
+      '\nRe-run with conflict = "ours" or "theirs".',
+      call. = FALSE
+    )
+  }
+  # "theirs" keeps the destination, so its colliding sources are not copied.
+  to_copy <- if (identical(conflict, "theirs")) setdiff(rel, collide) else rel
+  for (r in to_copy) {
+    dst <- file.path(to, r)
+    dir.create(dirname(dst), recursive = TRUE, showWarnings = FALSE)
+    if (
+      !file.copy(file.path(from, r), dst, overwrite = TRUE, copy.date = TRUE)
+    ) {
+      stop("Failed to migrate ", file.path(from, r), ".", call. = FALSE)
+    }
+  }
+  # Every source is removed: copied ones moved, "theirs" collisions dropped.
+  unlink(file.path(from, rel))
+  invisible()
 }
 
 # --- Ephemeral-storage message ------------------------------------------------
