@@ -330,13 +330,11 @@ EPHEMERAL_STATE_MESSAGE_INTERVAL <- 8 * 60 * 60
 # When a connection is established and the extension cache resolves to a
 # temporary location, let the user know -- at most once every 8 hours per
 # session -- that downloaded extensions will not persist, and how to opt into a
-# permanent location. Interactive sessions only, to keep non-interactive scripts
-# and CRAN checks quiet.
+# permanent location. Emitted in unattended (non-interactive) runs too, so the
+# notice shows up in logs.
 maybe_ephemeral_state_message <- function(extension_directory) {
   if (
-    !is_interactive() ||
-      is.null(extension_directory) ||
-      !path_within_tempdir(extension_directory)
+    is.null(extension_directory) || !path_within_tempdir(extension_directory)
   ) {
     return(invisible())
   }

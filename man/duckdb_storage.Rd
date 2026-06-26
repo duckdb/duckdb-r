@@ -185,10 +185,10 @@ meaning.
 \section{Startup message}{
 When a connection is established and the resolved extension cache lies inside
 \code{\link[=tempdir]{tempdir()}}, the package emits an informational message -- at most once every
-eight hours per session, and only in interactive sessions, so non-interactive
-scripts stay quiet. It explains that downloaded extensions will not persist
-across sessions and how to opt into a permanent location via
-\code{options(duckdb.extension_directory =)} or \code{DUCKDB_EXTENSION_DIRECTORY}.
+eight hours per session, including in unattended (non-interactive) runs. It
+explains that downloaded extensions will not persist across sessions and how
+to opt into a permanent location via \code{options(duckdb.extension_directory =)}
+or \code{DUCKDB_EXTENSION_DIRECTORY}.
 }
 
 \seealso{
