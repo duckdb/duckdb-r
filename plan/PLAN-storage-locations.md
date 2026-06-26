@@ -1,15 +1,15 @@
 # Plan: CRAN-safe storage-location policy
 
 Implementation roadmap for the storage-location policy documented in
-`?duckdb_storage` and `?duckdb_storage_config` (see PR #2372). The design is
-settled in the docs; this file tracks the work to implement it.
+`?duckdb_storage` and `?duckdb_storage_config`. The design is settled in the
+docs; this file tracks the work to implement it.
 
 ## Guiding principles
 
-- **No behavior change in this PR.** This PR ships the documentation
+- **Start behavior-neutral.** The first step ships the documentation
   (`R/storage.R`, `R/storage-config.R`) and *behavior-neutral* helper
   scaffolding only. Anything that changes where files are actually written, or
-  emits a new message, is deferred to a follow-up PR.
+  emits a new message, comes in a later step.
 - **Everything is testable without touching the real filesystem or HOME.**
   Every dependency on the environment goes through a thin, package-local
   function that tests can replace with `testthat::local_mocked_bindings()`. No
@@ -20,12 +20,13 @@ settled in the docs; this file tracks the work to implement it.
 
 ---
 
-## Phase 0 — this PR (docs + behavior-neutral seams)
+## Phase 0 — docs + behavior-neutral seams
 
 - [ ] Keep the documentation pages (`?duckdb_storage`, `?duckdb_storage_config`)
       as the spec. No `@export` of the new functions yet.
-- [ ] **Revert the behavior changes currently on this branch** so the PR is
-      behavior-neutral relative to `main`, or gate them so they are inert:
+- [ ] **Revert the behavior changes currently on this branch** so the working
+      tree is behavior-neutral relative to `main`, or gate them so they are
+      inert:
   - [ ] `R/Driver.R`: restore the previous `extension_directory` /
         `secret_directory` defaults; do not set `home_directory`; do not call
         the ephemeral-storage message on connect.
@@ -63,7 +64,7 @@ the resolution/marker logic with these.
 
 ---
 
-## Phase 1 — resolution layer (behavior change; follow-up PR)
+## Phase 1 — resolution layer (behavior change)
 
 - [ ] `resolve_extension_directory()`: precedence config? (caller-supplied) →
       `options(duckdb.extension_directory)` → `DUCKDB_EXTENSION_DIRECTORY` →
