@@ -33,9 +33,9 @@
 #' There is no `ask` argument: calling a `*_storage()` function is itself the
 #' consent to write outside the temporary directory.
 #'
-#' @param location The destination root (not a path); one of:
-#'   * `"session"` -- the per-session temporary directory; also the opt-out
-#'     (removes the marker).
+#' @param location The destination root (not a path), one of:
+#'   * `"session"` -- the per-session temporary directory; the default, and the
+#'     opt-out (removes the marker, reverting to a per-session location).
 #'   * `"user"` -- [tools::R_user_dir()].
 #'   * `"shared"` -- `~/.duckdb`, shared with the DuckDB CLI and Python client.
 #'   * `"library"` -- *(`duckdb_extension_storage()` only)* alongside the
@@ -69,24 +69,26 @@ NULL
 #' @rdname duckdb_storage_config
 #' @export
 duckdb_extension_storage <- function(
-  location,
+  location = c("session", "user", "shared", "library"),
   ...,
   migrate = TRUE,
   conflict = "error"
 ) {
   check_dots_empty0(...)
+  location <- arg_match(location)
   set_storage_marker("extensions", location, migrate, conflict)
 }
 
 #' @rdname duckdb_storage_config
 #' @export
 duckdb_secret_storage <- function(
-  location,
+  location = c("session", "user", "shared"),
   ...,
   migrate = TRUE,
   conflict = "error"
 ) {
   check_dots_empty0(...)
+  location <- arg_match(location)
   set_storage_marker("stored_secrets", location, migrate, conflict)
 }
 

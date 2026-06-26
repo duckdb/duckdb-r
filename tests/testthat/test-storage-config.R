@@ -161,9 +161,19 @@ test_that("conflict modes decide who wins a name collision", {
 test_that("storage functions reject stray dots and non-root locations", {
   local_storage_roots()
   expect_error(duckdb_extension_storage("session", "oops"))
-  # "library" is extensions-only, and arbitrary paths are not accepted.
-  expect_error(duckdb_secret_storage("library"), "must be one of")
-  expect_error(duckdb_extension_storage("/tmp/whatever"), "must be one of")
+  # arg_match() enforces the per-kind roots: "library" is extensions-only, and
+  # arbitrary paths are not accepted.
+  expect_error(duckdb_secret_storage("library"), "one of")
+  expect_error(duckdb_extension_storage("/tmp/whatever"), "one of")
+})
+
+test_that("storage functions default location to \"session\"", {
+  roots <- local_storage_roots()
+  write_keep_marker(file.path(roots$user, "stored_secrets"))
+  # A bare call resolves to the first choice, "session": the opt-out.
+  dir <- duckdb_secret_storage()
+  expect_false(has_keep_marker(file.path(roots$user, "stored_secrets")))
+  expect_equal(dir, file.path(roots$session, "duckdb", "stored_secrets"))
 })
 
 test_that("migration sweeps every marked root (duplicate-marker recovery)", {

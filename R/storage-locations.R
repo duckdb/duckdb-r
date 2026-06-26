@@ -280,34 +280,12 @@ marker_roots <- function(kind) {
   }
 }
 
-# Validate a requested `location` for a kind. `location` must name a known root
-# ("library" is extensions-only): a marker is only ever rediscovered in a fixed
-# root, so an arbitrary path could not persist and is rejected -- arbitrary
-# directories are configured through the option / environment variable instead.
-validate_location <- function(kind, location) {
-  stopifnot(is.character(location), length(location) == 1L, !is.na(location))
-  roots <- c("session", "user", "shared", if (kind == "extensions") "library")
-  if (location %in% roots) {
-    return(invisible())
-  }
-  prefix <- if (kind == "extensions") "extension" else "secret"
-  stop(
-    "`location` must be one of ",
-    paste0('"', roots, '"', collapse = ", "),
-    ", not a path. To use an arbitrary directory, set ",
-    sprintf("`options(duckdb.%s_directory = ...)`", prefix),
-    " or the ",
-    sprintf("`DUCKDB_%s_DIRECTORY`", toupper(prefix)),
-    " environment variable.",
-    call. = FALSE
-  )
-}
-
 # Point a kind's persistent location at `location`: clear any existing markers,
 # write the new one (unless `location` is "session", the opt-out), and migrate
 # the cached files. Returns the resolved directory invisibly.
 set_storage_marker <- function(kind, location, migrate, conflict) {
-  validate_location(kind, location)
+  # `location` is already validated against the kind's roots by the exported
+  # wrapper (via arg_match()).
   conflict <- match.arg(conflict, c("error", "ours", "theirs"))
   stopifnot(is.logical(migrate), length(migrate) == 1L, !is.na(migrate))
 

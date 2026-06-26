@@ -7,17 +7,27 @@
 \alias{duckdb_storage_status}
 \title{Configure where DuckDB stores extensions and secrets}
 \usage{
-duckdb_extension_storage(location, ..., migrate = TRUE, conflict = "error")
+duckdb_extension_storage(
+  location = c("session", "user", "shared", "library"),
+  ...,
+  migrate = TRUE,
+  conflict = "error"
+)
 
-duckdb_secret_storage(location, ..., migrate = TRUE, conflict = "error")
+duckdb_secret_storage(
+  location = c("session", "user", "shared"),
+  ...,
+  migrate = TRUE,
+  conflict = "error"
+)
 
 duckdb_storage_status()
 }
 \arguments{
-\item{location}{The destination root (not a path); one of:
+\item{location}{The destination root (not a path), one of:
 \itemize{
-\item \code{"session"} -- the per-session temporary directory; also the opt-out
-(removes the marker).
+\item \code{"session"} -- the per-session temporary directory; the default, and the
+opt-out (removes the marker, reverting to a per-session location).
 \item \code{"user"} -- \code{\link[tools:R_user_dir]{tools::R_user_dir()}}.
 \item \code{"shared"} -- \verb{~/.duckdb}, shared with the DuckDB CLI and Python client.
 \item \code{"library"} -- \emph{(\code{duckdb_extension_storage()} only)} alongside the

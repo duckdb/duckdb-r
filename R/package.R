@@ -32,6 +32,22 @@ inform <- function(message = NULL, ..., class = NULL) {
   invisible()
 }
 
+# Base fallback for `rlang::arg_match()`, swapped for rlang's version in
+# `.onLoad()` when rlang is available (same strategy as `check_dots_empty0()`).
+# With `values` unset the allowed values are taken from the calling function's
+# formal default for `arg` (as `rlang::arg_match()` and `match.arg()` do), so an
+# unmodified `arg` resolves to its first value.
+arg_match <- function(arg, values = NULL, ...) {
+  if (is.null(values)) {
+    parent <- sys.parent()
+    values <- eval(
+      formals(sys.function(parent))[[as.character(substitute(arg))]],
+      envir = sys.frame(parent)
+    )
+  }
+  match.arg(arg, values)
+}
+
 get_package_spec <- function() {
   getNamespaceInfo(get_package_name(), "spec")
 }
