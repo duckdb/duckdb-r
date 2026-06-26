@@ -54,13 +54,13 @@
 #'
 #' @return The `*_storage()` functions are called for their side effect (writing
 #'   or removing a marker, and optionally migrating files) and return the
-#'   resolved directory invisibly. `duckdb_storage_status()` prints a readable
-#'   summary and invisibly returns a data frame with one row per kind of state
-#'   and columns `kind`, `source`, and `directory`. It reports only the
-#'   persisted selection and does not run the connect-time `"library"`
-#'   write-probe, so before the first connection of a session it may report
-#'   `"session"` for extensions even though a writable library would be used on
-#'   connect.
+#'   resolved directory invisibly. `duckdb_storage_status()` returns a data frame
+#'   (class `"duckdb_storage_status"`) with one row per kind of state and columns
+#'   `kind`, `source`, and `directory`; its print method renders a readable
+#'   summary when the result is auto-printed. It reports only the persisted
+#'   selection and does not run the connect-time `"library"` write-probe, so
+#'   before the first connection of a session it may report `"session"` for
+#'   extensions even though a writable library would be used on connect.
 #'
 #' @seealso [duckdb_storage] for the storage policy these functions implement.
 #' @name duckdb_storage_config
@@ -104,8 +104,9 @@ duckdb_storage_status <- function() {
     stringsAsFactors = FALSE
   )
   class(status) <- c("duckdb_storage_status", "data.frame")
-  print(status)
-  invisible(status)
+  # Returned visibly: the print method below renders the readable summary when
+  # the result is auto-printed, while assignment stays quiet as usual.
+  status
 }
 
 #' @export

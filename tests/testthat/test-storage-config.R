@@ -202,9 +202,11 @@ test_that("a malformed directory option warns once, then is ignored", {
   expect_silent(describe_storage("extensions"))
 })
 
-test_that("duckdb_storage_status returns kind/source/directory invisibly", {
+test_that("duckdb_storage_status returns a visible kind/source/directory frame", {
   local_storage_roots()
-  st <- expect_invisible(duckdb_storage_status())
+  result <- withVisible(duckdb_storage_status())
+  expect_true(result$visible)
+  st <- result$value
   expect_s3_class(st, "duckdb_storage_status")
   expect_named(st, c("kind", "source", "directory"))
   expect_equal(st$kind, c("extensions", "stored_secrets"))
