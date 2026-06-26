@@ -2,6 +2,9 @@
 
 ## Getting started
 
+One-line entry points for running a query or grabbing a throwaway
+in-memory connection.
+
 - [`sql_query()`](https://r.duckdb.org/reference/sql_query.md)
   [`sql_exec()`](https://r.duckdb.org/reference/sql_query.md)
   **\[experimental\]** : Run an SQL query or statement
@@ -9,6 +12,9 @@
   **\[experimental\]** : Get the default connection
 
 ## Driver
+
+Create or reuse a DuckDB database instance and the driver object passed
+to [`dbConnect()`](https://dbi.r-dbi.org/reference/dbConnect.html).
 
 - [`duckdb()`](https://r.duckdb.org/reference/duckdb.md)
   [`duckdb_shutdown()`](https://r.duckdb.org/reference/duckdb.md)
@@ -23,6 +29,8 @@
   : DuckDB driver class
 
 ## Connection
+
+The DBI connection to a DuckDB database and its methods.
 
 - [`dbAppendTable(`*`<duckdb_connection>`*`)`](https://r.duckdb.org/reference/duckdb_connection-class.md)
   [`dbBegin(`*`<duckdb_connection>`*`)`](https://r.duckdb.org/reference/duckdb_connection-class.md)
@@ -45,6 +53,8 @@
 
 ## Result
 
+The object returned by a query, used to fetch rows and column metadata.
+
 - [`duckdb_fetch_arrow()`](https://r.duckdb.org/reference/duckdb_result-class.md)
   [`duckdb_fetch_record_batch()`](https://r.duckdb.org/reference/duckdb_result-class.md)
   [`dbBind(`*`<duckdb_result>`*`)`](https://r.duckdb.org/reference/duckdb_result-class.md)
@@ -61,6 +71,10 @@
   : DuckDB Result Set
 
 ## Interfaces
+
+Integrations with other parts of the R ecosystem: the dplyr/dbplyr
+backend, registering data frames and Arrow data as tables, reading CSV
+files, and inspecting query plans.
 
 - [`tbl_file()`](https://r.duckdb.org/reference/backend-duckdb.md)
   [`tbl_function()`](https://r.duckdb.org/reference/backend-duckdb.md)
@@ -88,6 +102,10 @@
   secret directory
 
 ## Storage locations
+
+Where DuckDB writes extensions, stored secrets, and temporary files, and
+how to choose those locations so that nothing is written outside the
+session’s temporary directory unless you opt in.
 
 - [`duckdb_storage`](https://r.duckdb.org/reference/duckdb_storage.md)
   **\[experimental\]** : DuckDB file-system usage: storage locations and
