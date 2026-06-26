@@ -184,10 +184,39 @@ home directory is left untouched so that \code{~} in user SQL keeps its usual
 meaning.
 }
 
-\section{Library-cache notice}{
-The first time the extension cache is initialized in the package library
-(when its marker is written), the package says so once. The marker then
-persists, so this is effectively once per installation.
+\section{Messages}{
+\describe{
+\item{Startup message}{When a connection is established and the resolved
+extension cache lies inside \code{\link[=tempdir]{tempdir()}}, the package emits an
+informational message -- at most once every eight hours per session,
+including in unattended (non-interactive) runs. It explains that
+downloaded extensions will not persist across sessions and how to opt
+into a permanent location. It is shown only when the package chose the
+location itself; if you set the extension directory (via \code{config}, the
+option, or the environment variable) the choice is yours and the message
+is suppressed.}
+\item{Library-cache notice}{The first time the extension cache is
+initialized in the package library (when its marker is written), the
+package says so once. The marker then persists, so this is effectively
+once per installation.}
+}
+\subsection{Silencing the startup message}{
+
+Pointing the extension cache at a permanent location (an option, an
+environment variable, or \code{config}) both keeps the extensions and silences the
+message. If you are happy with a temporary cache and only want the reminder
+gone, set the location explicitly so it counts as your choice -- the simplest
+is a \code{config} entry on every connection:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{con <- dbConnect(duckdb(config = list(
+  extension_directory = file.path(tempdir(), "duckdb", "extensions")
+)))
+}\if{html}{\out{</div>}}
+
+or set it once per session with
+\code{options(duckdb.extension_directory = file.path(tempdir(), "duckdb", "extensions"))}
+(or the \code{DUCKDB_EXTENSION_DIRECTORY} environment variable).
+}
 }
 
 \seealso{

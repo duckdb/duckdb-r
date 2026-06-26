@@ -73,6 +73,12 @@ duckdb <- function(
   # `?duckdb_storage`.
   if (!("extension_directory" %in% names(config))) {
     config["extension_directory"] <- resolve_extension_directory()
+    # Nag about ephemeral caching only when we picked the location ourselves: if
+    # the user set it via an option or environment variable the choice is
+    # theirs, and the message (which points at exactly those) would be noise.
+    if (is.null(directory_override("extensions"))) {
+      maybe_ephemeral_state_message(config[["extension_directory"]])
+    }
   }
   if (!("secret_directory" %in% names(config))) {
     config["secret_directory"] <- resolve_secret_directory()
