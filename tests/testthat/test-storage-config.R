@@ -165,3 +165,29 @@ test_that("storage functions reject stray dots and non-root locations", {
   expect_error(duckdb_secret_storage("library"), "must be one of")
   expect_error(duckdb_extension_storage("/tmp/whatever"), "must be one of")
 })
+
+test_that("migration sweeps every marked root (duplicate-marker recovery)", {
+  roots <- local_storage_roots()
+  # Abnormal state: a kind is marked in two roots at once.
+  write_keep_marker(file.path(roots$user, "extensions"))
+  write_keep_marker(file.path(roots$shared, "extensions"))
+  writeLines("u", file.path(roots$user, "extensions", "u.txt"))
+  writeLines("s", file.path(roots$shared, "extensions", "s.txt"))
+
+  duckdb_extension_storage("library")
+
+  expect_true(file.exists(file.path(roots$library, "extensions", "u.txt")))
+  expect_true(file.exists(file.path(roots$library, "extensions", "s.txt")))
+  expect_false(file.exists(file.path(roots$user, "extensions", "u.txt")))
+  expect_false(file.exists(file.path(roots$shared, "extensions", "s.txt")))
+})
+
+test_that("a malformed directory option warns once, then is ignored", {
+  local_storage_roots()
+  storage_message_state[["bad_option_extension"]] <- NULL
+  withr::local_options(duckdb.extension_directory = 123)
+
+  expect_warning(describe_storage("extensions"), "not a non-empty string")
+  # Throttled within the session.
+  expect_silent(describe_storage("extensions"))
+})

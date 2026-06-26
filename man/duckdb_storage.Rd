@@ -9,7 +9,9 @@
 DuckDB writes several distinct kinds of data to the file system. This page
 catalogs every such location and documents the unified policy the duckdb R
 package uses to choose them, so that by default nothing is written outside
-the R session's temporary directory.
+the R session's temporary directory -- except the extension cache, which is
+auto-probed into the writable package library (and falls back to the
+temporary directory when the library is read-only, as on CRAN).
 
 The functions that configure these locations are documented in
 \code{\link[=duckdb_storage_config]{duckdb_storage_config()}}.

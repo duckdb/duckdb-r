@@ -161,6 +161,20 @@ directory_override_with_source <- function(kind) {
   if (is.character(opt) && length(opt) == 1L && nzchar(opt)) {
     return(list(directory = path.expand(opt), source = "option"))
   }
+  if (!is.null(opt)) {
+    # Set but unusable: warn once per session and fall through to the env var.
+    id <- paste0("bad_option_", kind)
+    if (is.null(storage_message_state[[id]])) {
+      storage_message_state[[id]] <- TRUE
+      warning(
+        sprintf(
+          "Ignoring `options(duckdb.%s_directory=)`: not a non-empty string.",
+          kind
+        ),
+        call. = FALSE
+      )
+    }
+  }
   env <- Sys.getenv(paste0("DUCKDB_", toupper(kind), "_DIRECTORY"), unset = "")
   if (nzchar(env)) {
     return(list(directory = path.expand(env), source = "env"))
@@ -295,7 +309,9 @@ set_storage_marker <- function(kind, location, migrate, conflict) {
   conflict <- match.arg(conflict, c("error", "ours", "theirs"))
   stopifnot(is.logical(migrate), length(migrate) == 1L, !is.na(migrate))
 
-  from <- describe_storage(kind)$directory
+  # Capture the current source(s) before clearing markers (see migration_sources
+  # for why this can be more than one directory).
+  from <- migration_sources(kind)
 
   for (root in marker_roots(kind)) {
     remove_keep_marker(storage_dir(root, kind))
@@ -312,9 +328,32 @@ set_storage_marker <- function(kind, location, migrate, conflict) {
     stop("Cannot write the storage marker to ", to, ".", call. = FALSE)
   }
   if (isTRUE(migrate)) {
-    migrate_storage(from, to, conflict)
+    for (src in from) {
+      migrate_storage(src, to, conflict)
+    }
   }
   invisible(to)
+}
+
+# The directory or directories holding a kind's currently-cached files, used as
+# the migration source(s). Mirrors the resolver's precedence (override -> marker
+# -> default) but, in the marker tier, returns *every* marked root: if a kind is
+# (abnormally) marked in more than one root, relocating should sweep them all in
+# rather than orphan the data left in the roots whose markers we clear.
+migration_sources <- function(kind) {
+  prefix <- if (kind == "extensions") "extension" else "secret"
+  override <- directory_override_with_source(prefix)
+  if (!is.null(override)) {
+    return(override$directory)
+  }
+  marked <- Filter(
+    function(r) has_keep_marker(storage_dir(r, kind)),
+    marker_roots(kind)
+  )
+  if (length(marked) > 0L) {
+    return(vapply(marked, function(r) storage_dir(r, kind), character(1)))
+  }
+  describe_storage(kind)$directory
 }
 
 # Move the cached files from `from` to `to` (recursively, preserving DuckDB's
