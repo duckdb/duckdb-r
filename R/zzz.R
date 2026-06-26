@@ -26,7 +26,3 @@
 
   invisible()
 }
-
-.onAttach <- function(...) {
-  maybe_secret_directory_message()
-}

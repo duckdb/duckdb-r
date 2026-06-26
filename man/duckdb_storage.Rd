@@ -140,7 +140,7 @@ exists at the destination: \code{"error"} (the default) aborts and lists the
 collisions without moving anything; \code{"ours"} lets the files being relocated
 win (overwriting the destination); \code{"theirs"} keeps the destination files and
 drops the colliding sources. Secret migration is folded into
-\code{duckdb_secret_storage()}, which replaces \code{duckdb_consolidate_secrets()}.
+\code{duckdb_secret_storage()}.
 }
 
 \subsection{Rules}{

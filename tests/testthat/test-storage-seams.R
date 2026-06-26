@@ -17,14 +17,6 @@ test_that("default_secret_directory routes through the R_user_dir seam", {
   )
 })
 
-test_that("common_secret_directory routes through the shared-home seam", {
-  local_mocked_bindings(duckdb_shared_home = function() "/home/.duckdb")
-  expect_equal(
-    common_secret_directory(),
-    file.path("/home/.duckdb", "stored_secrets")
-  )
-})
-
 test_that("check_dots_empty0 rejects non-empty dots", {
   f <- function(x, ...) {
     check_dots_empty0(...)

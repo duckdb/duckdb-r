@@ -64,9 +64,6 @@ unaffected.
 
 There is no \code{ask} argument: calling a \verb{*_storage()} function is itself the
 consent to write outside the temporary directory.
-
-\code{duckdb_secret_storage()} replaces \code{duckdb_consolidate_secrets()}: secret
-migration is now a \code{migrate} step of \code{duckdb_secret_storage()}.
 }
 \seealso{
 \link{duckdb_storage} for the storage policy these functions implement.

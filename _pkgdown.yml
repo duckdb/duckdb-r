@@ -47,9 +47,6 @@ reference:
   - duckdb_register_arrow
   - duckdb_read_csv
   - duckdb_explain-class
-- title: Secrets
-  contents:
-  - duckdb_consolidate_secrets
 - title: Storage locations
   desc: >
     Where DuckDB writes extensions, stored secrets, and temporary files, and

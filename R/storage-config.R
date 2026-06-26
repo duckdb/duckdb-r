@@ -38,9 +38,6 @@
 #' There is no `ask` argument: calling a `*_storage()` function is itself the
 #' consent to write outside the temporary directory.
 #'
-#' `duckdb_secret_storage()` replaces `duckdb_consolidate_secrets()`: secret
-#' migration is now a `migrate` step of `duckdb_secret_storage()`.
-#'
 #' @param location The destination root, or an explicit path. Recognized roots
 #'   are `"session"` (the per-session temporary directory; also the opt-out --
 #'   it removes the marker), `"user"` ([tools::R_user_dir()]), `"shared"`
