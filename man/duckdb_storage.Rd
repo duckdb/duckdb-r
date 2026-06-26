@@ -26,46 +26,28 @@ below is pointed at a temporary directory directly instead.}
 re-usable cache: a given binary is valid only for the exact DuckDB
 version and platform/ABI that downloaded it. By default the cache is the
 \code{"library"} root (alongside the installed package) when it is writable,
-falling back to a \code{\link[=tempdir]{tempdir()}} sub-directory when it is not
-(for example the read-only library mount used during \verb{R CMD check}). See
-the marker section for how this is detected.}
+falling back to a \code{\link[=tempdir]{tempdir()}} sub-directory when it is not. See the
+marker section for how this is detected.}
 \item{Secrets}{Persisted credentials under \code{stored_secrets}. DuckDB
 setting: \code{secret_directory}. Set explicitly to a \code{\link[=tempdir]{tempdir()}} location by
 default. Configured and migrated with \code{\link[=duckdb_storage_config]{duckdb_storage_config()}}; the older
 \code{duckdb_consolidate_secrets()} is hard-deprecated in favor of
 \code{duckdb_secret_storage()}.}
 \item{Temporary / spill files}{Out-of-core intermediates for sorts, hash
-joins, and similar operations. DuckDB settings:
-\code{temp_directory}, \code{max_temp_directory_size}. For an in-memory
-(\verb{:memory:}) database DuckDB's own default spills to \code{.tmp} in the
-current working directory -- a CRAN-policy violation -- so the package
-overrides it with an R-specific \code{\link[=tempdir]{tempdir()}} sub-directory by default.}
+joins, and similar operations. DuckDB settings: \code{temp_directory},
+\code{max_temp_directory_size}. For an in-memory (\verb{:memory:}) database DuckDB's
+own default spills to \code{.tmp} in the current working directory, so the
+package overrides it with a \code{\link[=tempdir]{tempdir()}} sub-directory by default.}
 \item{Logs and profiling output}{Written only when a path is explicitly
 configured (DuckDB settings \code{log_query_path}, \code{http_logging_output},
 profiling output). They default to \emph{off}, so there is no location to
-default and nothing written without the user asking -- which is why the
-package does not force them into \code{\link[=tempdir]{tempdir()}}. If the user turns logging
-on they choose where it goes.}
+default and nothing is written without the user asking. If the user turns
+logging on they choose where it goes.}
 \item{Database file, WAL, and checkpoints}{Chosen by the user through the
-\code{dbdir} argument of \code{\link[=duckdb]{duckdb()}}, so primarily the user's responsibility.
-The package is still responsible for ephemeral databases: a \verb{:memory:}
-connection or an \code{ATTACH} of a temporary database should default into
-\code{\link[=tempdir]{tempdir()}} and be cleaned up on disconnect.}
+\code{dbdir} argument of \code{\link[=duckdb]{duckdb()}}. The package does not manage these: an
+on-disk database and its sidecar files live where \code{dbdir} points, and an
+in-memory (\verb{:memory:}) database has none.}
 }
-}
-
-\section{Why each location is set explicitly, not via the home directory}{
-It is tempting to set \code{home_directory} to a \code{\link[=tempdir]{tempdir()}} location and leave
-every other location unset. Two problems rule that out. First, it is
-incomplete: it would relocate the extension cache (DuckDB resolves that
-lazily through the connection's opener-aware file system, which consults the
-setting) but not secrets -- the secret manager fixes its path once at
-database startup from the raw process \verb{$HOME}, never seeing the
-\code{home_directory} setting -- nor spill files. Second, it is too broad:
-\code{home_directory} is also the base for \code{~} expansion in user SQL, so setting
-it would silently redirect paths like \verb{COPY ... TO '~/out.csv'}. The package
-therefore leaves \code{home_directory} alone and sets \code{extension_directory} and
-\code{secret_directory} (and, where relevant, \code{temp_directory}) explicitly.
 }
 
 \section{Resolution policy}{
@@ -79,23 +61,22 @@ source that yields a value wins:
 \item the corresponding environment variable, e.g.
 \code{Sys.getenv("DUCKDB_TEMP_DIRECTORY")};
 \item a persistent location selected by a marker file (see below);
-\item the CRAN-safe default: a per-session sub-directory of \code{\link[=tempdir]{tempdir()}}.
+\item the default: a per-session sub-directory of \code{\link[=tempdir]{tempdir()}}.
 }
 
 The extension cache inserts one extra step before the \code{\link[=tempdir]{tempdir()}} fallback:
 if no marker has selected a root, the \code{"library"} root is probed at connect
 time by attempting to write its marker. If that succeeds the cache is kept
-alongside the package (and the marker records the choice); if it fails -- the
-library is read-only, as on the CRAN check farm -- the cache falls back to
-\code{\link[=tempdir]{tempdir()}}. So the effective default is "library when writable, else
-tempdir", with no persistent write ever attempted where it would fail.
+alongside the package (and the marker records the choice); if it fails (the
+library is read-only) the cache falls back to \code{\link[=tempdir]{tempdir()}}. So the effective
+default is "library when writable, else tempdir", with no persistent write
+ever attempted where it would fail.
 }
 
 \section{Marker files}{
-Persisting data across sessions means writing outside \code{\link[=tempdir]{tempdir()}}, which the
-CRAN Policy permits only with the user's consent. A marker file records that
-consent on disk, once, so it need not be re-granted on every connection and
-does not require editing \code{.Rprofile} or \code{.Renviron}.
+Persisting data across sessions means writing outside \code{\link[=tempdir]{tempdir()}}; a marker
+file records the user's consent to do so, once, so it need not be re-granted
+on every connection and does not require editing \code{.Rprofile} or \code{.Renviron}.
 
 Two functions write and relocate these markers -- one per kind of state, so
 the two can be configured independently -- and a third reports the current
@@ -144,8 +125,8 @@ Python client, which must not mistake it for their own:
 
 It is not empty: the package writes a single line of human-readable text
 describing what the file is and that it is safe to delete. Only the file's
-presence is significant -- the contents are never read back or validated,
-so editing it has no effect.
+presence is significant -- the contents are never read back or validated, so
+editing it has no effect.
 
 Markers are per-kind and live inside each kind's sub-directory, so one root
 can persist extensions but not secrets, or vice versa. For extensions in a
@@ -175,12 +156,9 @@ the \code{\link[=tempdir]{tempdir()}} default until the ambiguity is resolved.
 \item The package never ships a marker. The only writes are by
 \code{duckdb_extension_storage()} / \code{duckdb_secret_storage()}, and the
 connect-time probe of the \code{"library"} root for extensions (which writes
-the marker only when the directory is writable). No marker is ever
-created where the write would fail, which is what keeps the default
-CRAN-safe.
-\item A marked location that is not writable (for example the package
-library remounted read-only during \verb{R CMD check}) falls back to the
-\code{\link[=tempdir]{tempdir()}} default rather than failing.
+the marker only when the directory is writable).
+\item A marked location that is not writable falls back to the \code{\link[=tempdir]{tempdir()}}
+default rather than failing.
 }
 
 A marker selects the \emph{location}. It is deliberately distinct from the
@@ -189,19 +167,6 @@ governs only \emph{validity} (whether a re-download is needed), never the choice
 of location. This separation prevents a stale leftover binary from silently
 resurrecting a store root and reintroducing an ABI mismatch.
 }
-}
-
-\section{CRAN compliance}{
-The policy rests on a single invariant: with no \code{config} value, no option, no
-environment variable, and no marker, every managed location resolves under
-\code{\link[=tempdir]{tempdir()}}. A freshly built package ships no marker, and the check sandbox's
-\code{\link[tools:R_user_dir]{tools::R_user_dir()}} is clean, so on the CRAN check farm every location
-resolves to the session temporary directory with no action required from
-duckdb or from any reverse dependency. The writability fallback above is a
-second line of defense for the read-only library remount used during checks.
-
-The package's own examples and tests additionally avoid exercising the C++
-engine on CRAN; see the CRAN guard in \code{tests/testthat.R}.
 }
 
 \section{Per-location reference}{
@@ -223,8 +188,8 @@ directory is left untouched so that \code{~} in user SQL keeps its usual meaning
 When a connection is established and the resolved extension cache lies inside
 \code{\link[=tempdir]{tempdir()}}, the package emits an informational message -- at most once every
 eight hours per session, and only in interactive sessions, so non-interactive
-scripts and CRAN checks stay quiet. It explains that downloaded extensions
-will not persist across sessions and how to opt into a permanent location via
+scripts stay quiet. It explains that downloaded extensions will not persist
+across sessions and how to opt into a permanent location via
 \code{options(duckdb.extension_directory =)} or \code{DUCKDB_EXTENSION_DIRECTORY}.
 }
 
