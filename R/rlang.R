@@ -2,6 +2,21 @@
 # soft dependency: each fallback below is swapped for the real rlang function in
 # `.onLoad()` when rlang is available (see zzz.R), and named to match it.
 
+# `rlang::is_interactive()`.
+is_interactive <- function() {
+  opt <- getOption("rlang_interactive")
+  if (!is.null(opt)) {
+    return(isTRUE(opt))
+  }
+  if (isTRUE(getOption("knitr.in.progress"))) {
+    return(FALSE)
+  }
+  if (identical(Sys.getenv("TESTTHAT"), "true")) {
+    return(FALSE)
+  }
+  interactive()
+}
+
 # `rlang::check_dots_empty0()`.
 check_dots_empty0 <- function(...) {
   if (...length() > 0L) {
