@@ -54,11 +54,13 @@
 #'
 #' @return The `*_storage()` functions are called for their side effect (writing
 #'   or removing a marker, and optionally migrating files) and return the
-#'   resolved directory invisibly. `duckdb_storage_status()` returns a data frame
-#'   with one row per kind of state. It reports only the persisted selection and
-#'   does not run the connect-time `"library"` write-probe, so before the first
-#'   connection of a session it may report `"session"` for extensions even though
-#'   a writable library would be used on connect.
+#'   resolved directory invisibly. `duckdb_storage_status()` prints a readable
+#'   summary and invisibly returns a data frame with one row per kind of state
+#'   and columns `kind`, `source`, and `directory`. It reports only the
+#'   persisted selection and does not run the connect-time `"library"`
+#'   write-probe, so before the first connection of a session it may report
+#'   `"session"` for extensions even though a writable library would be used on
+#'   connect.
 #'
 #' @seealso [duckdb_storage] for the storage policy these functions implement.
 #' @name duckdb_storage_config
@@ -93,10 +95,25 @@ duckdb_secret_storage <- function(
 duckdb_storage_status <- function() {
   extensions <- describe_storage("extensions")
   stored_secrets <- describe_storage("stored_secrets")
-  data.frame(
+  status <- data.frame(
     kind = c("extensions", "stored_secrets"),
-    directory = c(extensions$directory, stored_secrets$directory),
     source = c(extensions$source, stored_secrets$source),
+    directory = c(extensions$directory, stored_secrets$directory),
     stringsAsFactors = FALSE
   )
+  class(status) <- c("duckdb_storage_status", "data.frame")
+  print(status)
+  invisible(status)
+}
+
+#' @export
+print.duckdb_storage_status <- function(x, ...) {
+  cat("DuckDB storage locations:\n")
+  kind <- format(x$kind, width = max(nchar(x$kind)))
+  source <- format(
+    paste0("[", x$source, "]"),
+    width = max(nchar(x$source)) + 2L
+  )
+  cat(paste0("  ", kind, "  ", source, "  ", x$directory), sep = "\n")
+  invisible(x)
 }

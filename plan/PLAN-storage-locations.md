@@ -124,11 +124,20 @@ resolution/marker logic calls these, never the underlying primitive.
       (it existed only briefly). Fold its logic into the `migrate` step of
       `duckdb_secret_storage()`, and remove its `_pkgdown.yml` "Secrets" entry.
       → test: the migrate step covers the cases the old function did.
-- [x] Ephemeral-storage message on connect when the resolved extension cache is
-      under tempdir; throttled once / 8h / session, **including unattended runs**
-      (no interactive gate). Re-add `maybe_ephemeral_state_message()` +
-      `inform_once_every()` (removed in Phase 0) and wire in.
-      → test: fires once then throttled (mocked clock); fires non-interactively.
+- [x] Ephemeral-storage warning (revised): instead of nagging on connect, only
+      warn when the session *actually* wrote extensions/secrets into a
+      tempdir location the package chose itself, and only on disconnect or at
+      session exit. `duckdb()` records auto-resolved tempdir locations
+      (`note_ephemeral_dir()`); `maybe_warn_ephemeral()` scans them (filesystem:
+      `*.duckdb_extension` / `*.duckdb_secret`) and warns once per session. Wired
+      into `dbDisconnect()` plus a `reg.finalizer(onexit = TRUE)` backstop for
+      scripts that never disconnect (incl. the `sql_query()`/`sql_exec()`
+      default connection).
+      → test: warns once when an ephemeral dir has files; silent when empty or
+      when the location was user-chosen.
+- [x] Library-cache notice: announce once (on first marker write, i.e. once per
+      install) when the extension cache initializes in the package library.
+      → test: fires when the marker is freshly written, not when it pre-exists.
 
 ---
 

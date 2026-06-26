@@ -14,6 +14,9 @@ dbDisconnect__duckdb_connection <- function(conn, ..., shutdown = TRUE) {
   }
   rethrow_rapi_disconnect(conn@conn_ref)
   rs_on_connection_closed(conn)
+  # If the session wrote extensions/secrets to a temporary directory, this is a
+  # good moment to point out they will not persist (see ?duckdb_storage).
+  maybe_warn_ephemeral()
   invisible(TRUE)
 }
 

@@ -184,13 +184,25 @@ home directory is left untouched so that \code{~} in user SQL keeps its usual
 meaning.
 }
 
-\section{Startup message}{
-When a connection is established and the resolved extension cache lies inside
-\code{\link[=tempdir]{tempdir()}}, the package emits an informational message -- at most once every
-eight hours per session, including in unattended (non-interactive) runs. It
-explains that downloaded extensions will not persist across sessions and how
-to opt into a permanent location via \code{options(duckdb.extension_directory =)}
-or \code{DUCKDB_EXTENSION_DIRECTORY}.
+\section{Messages}{
+The package keeps quiet unless something actually happened:
+
+\describe{
+\item{Ephemeral-storage warning}{If, by the time a connection is closed (or
+the R session ends), this session has actually written downloaded
+extensions or persisted secrets into a \code{\link[=tempdir]{tempdir()}} location that the
+package chose itself, it warns once that those will not persist and how to
+opt into a permanent location. Nothing is said up front, and nothing is
+said when no such data was written or when the location was chosen by the
+user (via \code{config}, an option, or an environment variable). The check runs
+on \code{dbDisconnect()} and, as a backstop for scripts that never disconnect
+(including the default connection behind \code{\link[=sql_query]{sql_query()}} / \code{\link[=sql_exec]{sql_exec()}}),
+once more when R exits.}
+\item{Library-cache notice}{The first time the extension cache is
+initialized in the package library (when its marker is written), the
+package says so once. The marker then persists, so this is effectively
+once per installation.}
+}
 }
 
 \seealso{

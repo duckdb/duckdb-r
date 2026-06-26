@@ -39,7 +39,7 @@ test_that("duckdb_extension_storage writes a marker, status reports it", {
 
   st <- duckdb_storage_status()
   expect_s3_class(st, "data.frame")
-  expect_named(st, c("kind", "directory", "source"))
+  expect_named(st, c("kind", "source", "directory"))
   expect_setequal(st$kind, c("extensions", "stored_secrets"))
   ext <- st[st$kind == "extensions", ]
   expect_equal(
@@ -190,4 +190,30 @@ test_that("a malformed directory option warns once, then is ignored", {
   expect_warning(describe_storage("extensions"), "not a non-empty string")
   # Throttled within the session.
   expect_silent(describe_storage("extensions"))
+})
+
+test_that("duckdb_storage_status returns kind/source/directory invisibly", {
+  local_storage_roots()
+  st <- expect_invisible(duckdb_storage_status())
+  expect_s3_class(st, "duckdb_storage_status")
+  expect_named(st, c("kind", "source", "directory"))
+  expect_equal(st$kind, c("extensions", "stored_secrets"))
+})
+
+test_that("duckdb_storage_status prints a readable summary", {
+  withr::local_envvar(
+    DUCKDB_EXTENSION_DIRECTORY = NA,
+    DUCKDB_SECRET_DIRECTORY = NA
+  )
+  withr::local_options(
+    duckdb.extension_directory = NULL,
+    duckdb.secret_directory = NULL
+  )
+  local_mocked_bindings(
+    session_temp_dir = function() "/tmp/sess",
+    default_user_directory = function() "/userdir",
+    duckdb_shared_home = function() "/home/.duckdb",
+    system_file_path = function(...) file.path("/pkg", ...)
+  )
+  expect_snapshot(duckdb_storage_status())
 })

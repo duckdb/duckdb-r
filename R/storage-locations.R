@@ -199,7 +199,14 @@ resolve_extension_directory <- function() {
     return(marked)
   }
   library_dir <- storage_dir("library", "extensions")
-  if (has_keep_marker(library_dir) || write_keep_marker(library_dir)) {
+  if (has_keep_marker(library_dir)) {
+    return(library_dir)
+  }
+  # Writing the marker doubles as the writability probe. When it succeeds the
+  # marker did not exist before, so this is the first time the library cache is
+  # initialized -- say so once (it then persists across sessions).
+  if (write_keep_marker(library_dir)) {
+    inform_library_cache_init(library_dir)
     return(library_dir)
   }
   storage_dir("session", "extensions")
@@ -413,7 +420,27 @@ migrate_storage <- function(from, to, conflict) {
   invisible()
 }
 
-# --- Ephemeral-storage message ------------------------------------------------
+# Announce the first time the package library is used as the extension cache.
+# Only reached when the keep-marker was just written (it persists afterwards),
+# so this fires once per install rather than once per session.
+inform_library_cache_init <- function(dir) {
+  msg <- c(
+    "duckdb: caching downloaded extensions in the package library:",
+    i = dir,
+    i = paste0(
+      "This is removed when the package is re-installed; see `?duckdb_storage` ",
+      "to choose a different location."
+    )
+  )
+  if (requireNamespace("rlang", quietly = TRUE)) {
+    rlang::inform(msg, class = "duckdb_library_cache_init")
+  } else {
+    base::message(paste(msg, collapse = "\n"))
+  }
+  invisible()
+}
+
+# --- Ephemeral-storage warning ------------------------------------------------
 
 # TRUE if `path` lies inside the session's temporary directory. Compares whole
 # path segments (so `/tmp/Rtmp1` is not treated as a prefix of `/tmp/Rtmp12`).
@@ -426,30 +453,97 @@ path_within_tempdir <- function(path) {
   np == tp || startsWith(np, paste0(tp, "/"))
 }
 
-# On connect, when the extension cache resolves to a temporary location, let the
-# user know -- at most once every 8 hours per session, in unattended runs too --
-# that downloaded extensions will not persist, and how to opt into a permanent
-# location.
-maybe_ephemeral_state_message <- function(extension_directory) {
-  if (
-    is.null(extension_directory) || !path_within_tempdir(extension_directory)
-  ) {
+# Directories where, if anything lands, it lands *ephemerally*: locations under
+# tempdir() that duckdb() resolved itself (not ones the user pointed at). Maps
+# directory -> kind. Rather than nag at connect, we wait until disconnect or
+# session exit and warn only if these actually hold downloaded extensions or
+# persisted secrets -- i.e. only if the session really wrote something that
+# will not survive.
+ephemeral_dirs <- new.env(parent = emptyenv())
+
+# Record `dir` as ephemeral if it is under tempdir(), and make sure the
+# at-exit backstop is installed. Called by duckdb() for the locations it
+# auto-resolves (not when an option / env var / config chose them).
+note_ephemeral_dir <- function(kind, dir) {
+  if (is.null(dir) || !path_within_tempdir(dir)) {
     return(invisible())
   }
-  inform_once_every(
-    "ephemeral_state",
-    STORAGE_MESSAGE_INTERVAL,
-    c(
-      "duckdb is keeping downloaded extensions in a temporary directory:",
-      i = extension_directory,
-      paste0(
-        "This is removed when the R session ends, so extensions are ",
-        "re-downloaded each session."
-      ),
-      i = paste0(
-        "To keep them, point `options(duckdb.extension_directory =)` or the ",
-        "`DUCKDB_EXTENSION_DIRECTORY` environment variable at a permanent path."
-      )
+  ephemeral_dirs[[dir]] <- kind
+  ensure_ephemeral_exit_hook()
+  invisible()
+}
+
+# Register, once per session, a finalizer that runs the ephemeral check when R
+# exits. This is the backstop for scripts that never call dbDisconnect() --
+# including the long-lived default connection behind sql_query()/sql_exec().
+ensure_ephemeral_exit_hook <- function() {
+  if (isTRUE(storage_message_state[["exit_hook"]])) {
+    return(invisible())
+  }
+  storage_message_state[["exit_hook"]] <- TRUE
+  reg.finalizer(
+    ephemeral_dirs,
+    function(e) maybe_warn_ephemeral(),
+    onexit = TRUE
+  )
+  invisible()
+}
+
+# The file names DuckDB writes for each kind, used to tell "the session really
+# wrote something here" from "the directory was merely created".
+ephemeral_kind_pattern <- function(kind) {
+  if (kind == "extensions") "\\.duckdb_extension$" else "\\.duckdb_secret$"
+}
+
+# If any recorded ephemeral directory now actually holds downloaded extensions
+# or persisted secrets, warn -- once per session -- that they will not persist,
+# and how to opt into a permanent location. Called on disconnect and at exit.
+maybe_warn_ephemeral <- function() {
+  if (isTRUE(storage_message_state[["ephemeral_warned"]])) {
+    return(invisible(FALSE))
+  }
+  affected <- list()
+  for (dir in ls(ephemeral_dirs)) {
+    kind <- ephemeral_dirs[[dir]]
+    hits <- list.files(
+      dir,
+      pattern = ephemeral_kind_pattern(kind),
+      recursive = TRUE
+    )
+    if (length(hits) > 0L) {
+      affected[[kind]] <- dir
+    }
+  }
+  if (length(affected) == 0L) {
+    return(invisible(FALSE))
+  }
+  storage_message_state[["ephemeral_warned"]] <- TRUE
+  inform_ephemeral(affected)
+  invisible(TRUE)
+}
+
+inform_ephemeral <- function(affected) {
+  bullets <- vapply(
+    names(affected),
+    function(k) sprintf("%s: %s", gsub("_", " ", k), affected[[k]]),
+    character(1)
+  )
+  names(bullets) <- rep("*", length(bullets))
+  msg <- c(
+    "duckdb: this session kept downloaded data in a temporary directory:",
+    bullets,
+    i = "It is removed when the R session ends, so it will not persist.",
+    i = paste0(
+      "To keep it, set `options(duckdb.extension_directory=)` / ",
+      "`options(duckdb.secret_directory=)` (or the matching `DUCKDB_*_DIRECTORY` ",
+      "environment variables), or call `duckdb_extension_storage()` / ",
+      "`duckdb_secret_storage()`."
     )
   )
+  if (requireNamespace("rlang", quietly = TRUE)) {
+    rlang::inform(msg, class = "duckdb_ephemeral_storage")
+  } else {
+    base::message(paste(msg, collapse = "\n"))
+  }
+  invisible()
 }

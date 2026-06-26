@@ -23,17 +23,23 @@ test_that("resolve_extension_directory uses a marked root over the library", {
   )
 })
 
-test_that("resolve_extension_directory uses the library when writable", {
+test_that("resolve_extension_directory uses the library when writable, announcing once", {
   lib <- withr::local_tempdir()
   local_mocked_bindings(
     marked_storage_dir = function(kind) NULL,
     system_file_path = function(...) file.path(lib, ...)
   )
-  expect_equal(
-    normalizePath(resolve_extension_directory()),
-    normalizePath(file.path(lib, "extensions"))
+  # First use writes the marker and announces the library cache once.
+  expect_message(
+    expect_equal(
+      normalizePath(resolve_extension_directory()),
+      normalizePath(file.path(lib, "extensions"))
+    ),
+    "package library"
   )
   expect_true(has_keep_marker(file.path(lib, "extensions")))
+  # Marker now present: no second announcement.
+  expect_silent(resolve_extension_directory())
 })
 
 test_that("resolve_extension_directory falls back to tempdir when library is read-only", {
@@ -56,17 +62,35 @@ test_that("resolve_temp_directory redirects in-memory only, honors override", {
   expect_equal(resolve_temp_directory("/path/to/my.db"), "/opt/tmp")
 })
 
-test_that("ephemeral-storage message fires only for a tempdir cache, once", {
-  local_mocked_bindings(session_temp_dir = function() tempdir())
-  storage_message_state[["ephemeral_state"]] <- NULL
+test_that("note_ephemeral_dir records only tempdir locations", {
+  local_mocked_bindings(session_temp_dir = function() "/tmp/sess")
+  rm(list = ls(ephemeral_dirs), envir = ephemeral_dirs)
 
-  expect_silent(maybe_ephemeral_state_message("/persistent/extensions"))
+  note_ephemeral_dir("extensions", "/persistent/ext")
+  expect_length(ls(ephemeral_dirs), 0L)
 
-  tmp_cache <- file.path(tempdir(), "duckdb", "extensions")
-  expect_message(
-    maybe_ephemeral_state_message(tmp_cache),
-    "temporary directory"
+  note_ephemeral_dir("stored_secrets", "/tmp/sess/duckdb/stored_secrets")
+  expect_equal(
+    ephemeral_dirs[["/tmp/sess/duckdb/stored_secrets"]],
+    "stored_secrets"
   )
-  # Throttled within the session.
-  expect_silent(maybe_ephemeral_state_message(tmp_cache))
+})
+
+test_that("maybe_warn_ephemeral warns once, and only once data was written", {
+  local_mocked_bindings(session_temp_dir = function() tempdir())
+  rm(list = ls(ephemeral_dirs), envir = ephemeral_dirs)
+  storage_message_state[["ephemeral_warned"]] <- NULL
+
+  ext_dir <- withr::local_tempdir("eph-ext-")
+  nested <- file.path(ext_dir, "v1.0.0", "linux_amd64")
+  dir.create(nested, recursive = TRUE)
+  note_ephemeral_dir("extensions", ext_dir)
+
+  # Nothing downloaded yet -> silent.
+  expect_silent(maybe_warn_ephemeral())
+
+  writeLines("bin", file.path(nested, "spatial.duckdb_extension"))
+  expect_message(maybe_warn_ephemeral(), "will not persist")
+  # Once per session.
+  expect_silent(maybe_warn_ephemeral())
 })
