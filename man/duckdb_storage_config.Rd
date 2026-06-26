@@ -34,16 +34,18 @@ with one row per kind of state.
 Choose where the duckdb R package keeps downloaded extensions and persisted
 secrets, by writing a small \emph{marker file} that records the choice:
 \itemize{
-\item \code{duckdb_extension_storage()} -- set or move the extension cache.
-\item \code{duckdb_secret_storage()} -- set or move the secret store.
+\item \code{duckdb_extension_storage()} -- set or move the extension cache (default:
+the package library when writable, otherwise a per-session temporary
+directory).
+\item \code{duckdb_secret_storage()} -- set or move the secret store (default: a
+per-session temporary directory).
 \item \code{duckdb_storage_status()} -- report where each currently resolves.
 }
 
-By default both kinds live in a per-session temporary directory (extensions
-use the package library when it is writable); these functions move them to a
-location that survives across sessions. The same locations can also be set
-without a marker by overriding with options and environment variables; the
-full policy is documented in \link{duckdb_storage}.
+These functions move the cache and secret store to a location that survives
+across sessions; the same locations can also be set without a marker by
+overriding with options and environment variables. The full policy is
+documented in \link{duckdb_storage}.
 }
 \section{Functions}{
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{duckdb_extension_storage(location, migrate = TRUE, conflict = "error")
