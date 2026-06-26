@@ -23,6 +23,15 @@ check_dots_empty0 <- function(...) {
   invisible()
 }
 
+# Base fallback for `rlang::inform()`, swapped for rlang's version in `.onLoad()`
+# when rlang is available (same strategy as `check_dots_empty0()`). Emits the
+# message vector as a single base message; the `class` and other rlang-only
+# arguments are accepted and ignored.
+inform <- function(message = NULL, ..., class = NULL) {
+  base::message(paste(message, collapse = "\n"))
+  invisible()
+}
+
 get_package_spec <- function() {
   getNamespaceInfo(get_package_name(), "spec")
 }

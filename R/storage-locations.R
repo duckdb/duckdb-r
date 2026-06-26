@@ -125,11 +125,7 @@ inform_once_every <- function(id, seconds, message) {
     return(invisible(FALSE))
   }
   storage_message_state[[id]] <- now
-  if (requireNamespace("rlang", quietly = TRUE)) {
-    rlang::inform(message, class = paste0("duckdb_", id))
-  } else {
-    base::message(paste(message, collapse = "\n"))
-  }
+  inform(message, class = paste0("duckdb_", id))
   invisible(TRUE)
 }
 
@@ -432,11 +428,7 @@ inform_library_cache_init <- function(dir) {
       "to choose a different location."
     )
   )
-  if (requireNamespace("rlang", quietly = TRUE)) {
-    rlang::inform(msg, class = "duckdb_library_cache_init")
-  } else {
-    base::message(paste(msg, collapse = "\n"))
-  }
+  inform(msg, class = "duckdb_library_cache_init")
   invisible()
 }
 
@@ -540,10 +532,6 @@ inform_ephemeral <- function(affected) {
       "`duckdb_secret_storage()`."
     )
   )
-  if (requireNamespace("rlang", quietly = TRUE)) {
-    rlang::inform(msg, class = "duckdb_ephemeral_storage")
-  } else {
-    base::message(paste(msg, collapse = "\n"))
-  }
+  inform(msg, class = "duckdb_ephemeral_storage")
   invisible()
 }
