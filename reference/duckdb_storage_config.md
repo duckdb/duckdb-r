@@ -3,7 +3,7 @@
 **\[experimental\]**
 
 Choose where the duckdb R package keeps downloaded extensions and
-persisted secrets, by writing a small *marker file* that records the
+persisted secrets, by writing a small marker file that records the
 choice:
 
 - `duckdb_extension_storage()` – set or move the extension cache
@@ -24,8 +24,20 @@ policy is documented in
 ## Usage
 
 ``` r
-duckdb_extension_storage(location, ..., migrate = TRUE, conflict = "error")
-duckdb_secret_storage(location, ..., migrate = TRUE, conflict = "error")
+duckdb_extension_storage(
+  location = c("session", "user", "shared", "library"),
+  ...,
+  migrate = TRUE,
+  conflict = "error"
+)
+
+duckdb_secret_storage(
+  location = c("session", "user", "shared"),
+  ...,
+  migrate = TRUE,
+  conflict = "error"
+)
+
 duckdb_storage_status()
 ```
 
@@ -33,15 +45,24 @@ duckdb_storage_status()
 
 - location:
 
-  The destination root, or an explicit path. Recognized roots are
-  `"session"` (the per-session temporary directory; also the opt-out –
-  it removes the marker), `"user"`
-  ([`tools::R_user_dir()`](https://rdrr.io/r/tools/userdir.html)),
-  `"shared"` (`~/.duckdb`, shared with the DuckDB CLI and Python
-  client), and – for `duckdb_extension_storage()` only – `"library"`
-  (alongside the installed package). See
-  [duckdb_storage](https://r.duckdb.org/reference/duckdb_storage.md) for
-  what each root means.
+  The destination root (not a path), one of:
+
+  - `"session"` – the per-session temporary directory; the default, and
+    the opt-out (removes the marker, reverting to a per-session
+    location).
+
+  - `"user"` –
+    [`tools::R_user_dir()`](https://rdrr.io/r/tools/userdir.html).
+
+  - `"shared"` – `~/.duckdb`, shared with the DuckDB CLI and Python
+    client.
+
+  - `"library"` – *(`duckdb_extension_storage()` only)* alongside the
+    installed package.
+
+  To use an arbitrary directory, set the option or environment variable
+  instead (see
+  [duckdb_storage](https://r.duckdb.org/reference/duckdb_storage.md)).
 
 - ...:
 
@@ -50,7 +71,9 @@ duckdb_storage_status()
 - migrate:
 
   If `TRUE` (the default), move the already-cached files from the
-  current location into the new one.
+  current location into the new one. Ignored when `location` is
+  `"session"`: opting out never moves files into the per-session
+  directory.
 
 - conflict:
 
@@ -65,7 +88,9 @@ duckdb_storage_status()
 The `*_storage()` functions are called for their side effect (writing or
 removing a marker, and optionally migrating files) and return the
 resolved directory invisibly. `duckdb_storage_status()` returns a data
-frame with one row per kind of state.
+frame (class `"duckdb_storage_status"`) with one row per kind of state
+and columns `kind`, `source`, and `directory`; its print method renders
+a readable summary when the result is auto-printed.
 
 ## Details
 
@@ -78,10 +103,6 @@ existing connections are unaffected.
 
 There is no `ask` argument: calling a `*_storage()` function is itself
 the consent to write outside the temporary directory.
-
-`duckdb_secret_storage()` replaces
-[`duckdb_consolidate_secrets()`](https://r.duckdb.org/reference/duckdb_consolidate_secrets.md):
-secret migration is now a `migrate` step of `duckdb_secret_storage()`.
 
 ## See also
 

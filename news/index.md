@@ -97,7 +97,7 @@ CRAN release: 2026-06-19
 
 - Add secret directory configuration, package startup message, and
   consolidation support via new experimental
-  [`duckdb_consolidate_secrets()`](https://r.duckdb.org/reference/duckdb_consolidate_secrets.md)
+  `duckdb_consolidate_secrets()`
   ([\#2305](https://github.com/duckdb/duckdb-r/issues/2305),
   [\#2340](https://github.com/duckdb/duckdb-r/issues/2340)).
 
@@ -130,7 +130,7 @@ CRAN release: 2026-06-19
 
 - Add secret directory configuration, package startup message, and
   consolidation support via new experimental
-  [`duckdb_consolidate_secrets()`](https://r.duckdb.org/reference/duckdb_consolidate_secrets.md)
+  `duckdb_consolidate_secrets()`
   ([\#2305](https://github.com/duckdb/duckdb-r/issues/2305),
   [\#2340](https://github.com/duckdb/duckdb-r/issues/2340)).
 

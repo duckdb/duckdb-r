@@ -63,7 +63,7 @@ documented in duckdb_storage."><meta property="og:image" content="https://r.duck
     <div class="ref-description section level2">
     <p><a href="https://lifecycle.r-lib.org/articles/stages.html#experimental" class="external-link"><img src="figures/lifecycle-experimental.svg" alt="[Experimental]"></a></p>
 <p>Choose where the duckdb R package keeps downloaded extensions and persisted
-secrets, by writing a small <em>marker file</em> that records the choice:</p><ul><li><p><code>duckdb_extension_storage()</code> – set or move the extension cache (default:
+secrets, by writing a small marker file that records the choice:</p><ul><li><p><code>duckdb_extension_storage()</code> – set or move the extension cache (default:
 the package library when writable, otherwise a per-session temporary
 directory).</p></li>
 <li><p><code>duckdb_secret_storage()</code> – set or move the secret store (default: a
@@ -77,8 +77,20 @@ documented in <a href="duckdb_storage.html">duckdb_storage</a>.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">duckdb_extension_storage</span><span class="op">(</span><span class="va">location</span>, <span class="va">...</span>, migrate <span class="op">=</span> <span class="cn">TRUE</span>, conflict <span class="op">=</span> <span class="st">"error"</span><span class="op">)</span></span>
-<span><span class="fu">duckdb_secret_storage</span><span class="op">(</span><span class="va">location</span>, <span class="va">...</span>, migrate <span class="op">=</span> <span class="cn">TRUE</span>, conflict <span class="op">=</span> <span class="st">"error"</span><span class="op">)</span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">duckdb_extension_storage</span><span class="op">(</span></span>
+<span>  location <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"session"</span>, <span class="st">"user"</span>, <span class="st">"shared"</span>, <span class="st">"library"</span><span class="op">)</span>,</span>
+<span>  <span class="va">...</span>,</span>
+<span>  migrate <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  conflict <span class="op">=</span> <span class="st">"error"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">duckdb_secret_storage</span><span class="op">(</span></span>
+<span>  location <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"session"</span>, <span class="st">"user"</span>, <span class="st">"shared"</span><span class="op">)</span>,</span>
+<span>  <span class="va">...</span>,</span>
+<span>  migrate <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  conflict <span class="op">=</span> <span class="st">"error"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
 <span><span class="fu">duckdb_storage_status</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -87,12 +99,14 @@ documented in <a href="duckdb_storage.html">duckdb_storage</a>.</p>
 
 
 <dl><dt id="arg-location">location<a class="anchor" aria-label="anchor" href="#arg-location"></a></dt>
-<dd><p>The destination root, or an explicit path. Recognized roots
-are <code>"session"</code> (the per-session temporary directory; also the opt-out –
-it removes the marker), <code>"user"</code> (<code><a href="https://rdrr.io/r/tools/userdir.html" class="external-link">tools::R_user_dir()</a></code>), <code>"shared"</code>
-(<code>~/.duckdb</code>, shared with the DuckDB CLI and Python client), and – for
-<code>duckdb_extension_storage()</code> only – <code>"library"</code> (alongside the installed
-package). See <a href="duckdb_storage.html">duckdb_storage</a> for what each root means.</p></dd>
+<dd><p>The destination root (not a path), one of:</p><ul><li><p><code>"session"</code> – the per-session temporary directory; the default, and the
+opt-out (removes the marker, reverting to a per-session location).</p></li>
+<li><p><code>"user"</code> – <code><a href="https://rdrr.io/r/tools/userdir.html" class="external-link">tools::R_user_dir()</a></code>.</p></li>
+<li><p><code>"shared"</code> – <code>~/.duckdb</code>, shared with the DuckDB CLI and Python client.</p></li>
+<li><p><code>"library"</code> – <em>(<code>duckdb_extension_storage()</code> only)</em> alongside the
+installed package.</p></li>
+</ul><p>To use an arbitrary directory, set the option or environment variable
+instead (see <a href="duckdb_storage.html">duckdb_storage</a>).</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
@@ -101,7 +115,8 @@ package). See <a href="duckdb_storage.html">duckdb_storage</a> for what each roo
 
 <dt id="arg-migrate">migrate<a class="anchor" aria-label="anchor" href="#arg-migrate"></a></dt>
 <dd><p>If <code>TRUE</code> (the default), move the already-cached files from the
-current location into the new one.</p></dd>
+current location into the new one. Ignored when <code>location</code> is <code>"session"</code>:
+opting out never moves files into the per-session directory.</p></dd>
 
 
 <dt id="arg-conflict">conflict<a class="anchor" aria-label="anchor" href="#arg-conflict"></a></dt>
@@ -116,7 +131,9 @@ current location into the new one.</p></dd>
     <p>The <code>*_storage()</code> functions are called for their side effect (writing
 or removing a marker, and optionally migrating files) and return the
 resolved directory invisibly. <code>duckdb_storage_status()</code> returns a data frame
-with one row per kind of state.</p>
+(class <code>"duckdb_storage_status"</code>) with one row per kind of state and columns
+<code>kind</code>, <code>source</code>, and <code>directory</code>; its print method renders a readable
+summary when the result is auto-printed.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -128,8 +145,6 @@ takes effect for connections opened afterwards; existing connections are
 unaffected.</p>
 <p>There is no <code>ask</code> argument: calling a <code>*_storage()</code> function is itself the
 consent to write outside the temporary directory.</p>
-<p><code>duckdb_secret_storage()</code> replaces <code><a href="duckdb_consolidate_secrets.html">duckdb_consolidate_secrets()</a></code>: secret
-migration is now a <code>migrate</code> step of <code>duckdb_secret_storage()</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

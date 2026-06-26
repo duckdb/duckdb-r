@@ -223,12 +223,6 @@ files, and inspecting query plans.
   [`print.duckdb_explain`](https://r.duckdb.org/reference/duckdb_explain-class.md)
   : DuckDB EXPLAIN query tree
 
-## Secrets
-
-- [`duckdb_consolidate_secrets()`](https://r.duckdb.org/reference/duckdb_consolidate_secrets.md)
-  **\[experimental\]** : Consolidate DuckDB secrets into the configured
-  secret directory
-
 ## Storage locations
 
 Where DuckDB writes extensions, stored secrets, and temporary files, and

@@ -5,7 +5,10 @@
 DuckDB writes several distinct kinds of data to the file system. This
 page catalogs every such location and documents the unified policy the
 duckdb R package uses to choose them, so that by default nothing is
-written outside the R session's temporary directory.
+written outside the R session's temporary directory – except the
+extension cache, which is auto-probed into the writable package library
+(and falls back to the temporary directory when the library is
+read-only, as on CRAN).
 
 The functions that configure these locations are documented in
 [`duckdb_storage_config()`](https://r.duckdb.org/reference/duckdb_storage_config.md).
@@ -119,8 +122,10 @@ is no `ask` argument: calling a `*_storage()` function *is* the consent.
 
 ### The `location` argument
 
-`location` names a *root*, not a full path (an explicit path is also
-accepted). The recognized roots are:
+`location` names a *root*, not a full path. (To point a kind at an
+arbitrary directory, use the option or environment variable instead – a
+marker is only ever rediscovered in one of the fixed roots below.) The
+recognized roots are:
 
 - `"session"`:
 
@@ -178,18 +183,17 @@ and lists the collisions without moving anything; `"ours"` lets the
 files being relocated win (overwriting the destination); `"theirs"`
 keeps the destination files and drops the colliding sources. Secret
 migration is folded into
-[`duckdb_secret_storage()`](https://r.duckdb.org/reference/duckdb_storage_config.md),
-which replaces
-[`duckdb_consolidate_secrets()`](https://r.duckdb.org/reference/duckdb_consolidate_secrets.md).
+[`duckdb_secret_storage()`](https://r.duckdb.org/reference/duckdb_storage_config.md).
 
 ### Rules
 
 - An option or environment variable overrides any marker.
 
-- A kind's marker present in more than one root is ambiguous: the
-  package emits a startup message naming the candidates and falls back
-  to the [`tempdir()`](https://rdrr.io/r/base/tempfile.html) default
-  until the ambiguity is resolved.
+- A kind's marker present in more than one root is ambiguous: when a
+  connection is opened the package emits a message naming the candidates
+  and falls back to the
+  [`tempdir()`](https://rdrr.io/r/base/tempfile.html) default until the
+  ambiguity is resolved.
 
 - The package never ships a marker. The only writes are by
   [`duckdb_extension_storage()`](https://r.duckdb.org/reference/duckdb_storage_config.md)
@@ -224,15 +228,41 @@ reintroducing an ABI mismatch.
 the value explicitly in the database config. The home directory is left
 untouched so that `~` in user SQL keeps its usual meaning.
 
-## Startup message
+## Messages
 
-When a connection is established and the resolved extension cache lies
-inside [`tempdir()`](https://rdrr.io/r/base/tempfile.html), the package
-emits an informational message – at most once every eight hours per
-session, including in unattended (non-interactive) runs. It explains
-that downloaded extensions will not persist across sessions and how to
-opt into a permanent location via
-`options(duckdb.extension_directory =)` or `DUCKDB_EXTENSION_DIRECTORY`.
+- Startup message:
+
+  When a connection is established and the resolved extension cache lies
+  inside [`tempdir()`](https://rdrr.io/r/base/tempfile.html), the
+  package emits an informational message – at most once every eight
+  hours per session, including in unattended (non-interactive) runs. It
+  explains that downloaded extensions will not persist across sessions
+  and how to opt into a permanent location. It is shown only when the
+  package chose the location itself; if you set the extension directory
+  (via `config`, the option, or the environment variable) the choice is
+  yours and the message is suppressed.
+
+- Library-cache notice:
+
+  The first time the extension cache is initialized in the package
+  library (when its marker is written), the package says so once. The
+  marker then persists, so this is effectively once per installation.
+
+### Silencing the startup message
+
+Pointing the extension cache at a permanent location (an option, an
+environment variable, or `config`) both keeps the extensions and
+silences the message. If you are happy with a temporary cache and only
+want the reminder gone, set the location explicitly so it counts as your
+choice – the simplest is a `config` entry on every connection:
+
+    con <- dbConnect(duckdb(config = list(
+      extension_directory = file.path(tempdir(), "duckdb", "extensions")
+    )))
+
+or set it once per session with
+`options(duckdb.extension_directory = file.path(tempdir(), "duckdb", "extensions"))`
+(or the `DUCKDB_EXTENSION_DIRECTORY` environment variable).
 
 ## See also
 
