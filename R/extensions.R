@@ -19,7 +19,7 @@ cleanup_user_directory <- function() {
     return()
   }
   # Extensions are no longer kept under R_user_dir; drop any leftovers from
-  # earlier versions while preserving stored_secrets which still lives here.
+  # earlier versions while preserving stored_secrets which may still live here.
   user_files <- setdiff(list.files(user_directory), "stored_secrets")
   if (length(user_files) > 0) {
     message(
