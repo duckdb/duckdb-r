@@ -31,7 +31,7 @@ The functions that configure these locations are documented in
   [`tempdir()`](https://rdrr.io/r/base/tempfile.html) sub-directory when
   it is not. See the marker section for how this is detected.
 
-- Secrets:
+- Stored secrets:
 
   Persisted credentials under `stored_secrets`. DuckDB setting:
   `secret_directory`. Set explicitly to a
@@ -145,8 +145,8 @@ accepted). The recognized roots are:
   This is the automatic default for extensions when the library is
   writable (see the resolution policy above): rather than require an
   explicit opt-in, the package probes it at connect time and uses it
-  unless the write fails. Not offered for secrets, which always default
-  to `"session"`.
+  unless the write fails. Not offered for stored secrets, which always
+  default to `"session"`.
 
 ### The marker file
 
@@ -156,7 +156,7 @@ This matters most in the `"shared"` root (`~/.duckdb`), which is also
 used by the DuckDB CLI and Python client:
 
     <root>/extensions/.duckdb-r-keep        # opts in the extension cache
-    <root>/stored_secrets/.duckdb-r-keep    # opts in secrets
+    <root>/stored_secrets/.duckdb-r-keep    # opts in stored secrets
 
 It is not empty: the package writes a single line of human-readable text
 describing what the file is and that it is safe to delete. Only the
@@ -164,7 +164,7 @@ file's presence is significant – the contents are never read back or
 validated, so editing it has no effect.
 
 Markers are per-kind and live inside each kind's sub-directory, so one
-root can persist extensions but not secrets, or vice versa. For
+root can persist extensions but not stored secrets, or vice versa. For
 extensions in a persistent root, DuckDB's `v<version>/<platform>/`
 sub-paths keep a stale binary from being loaded into a newer,
 ABI-incompatible build.
@@ -211,14 +211,14 @@ reintroducing an ABI mismatch.
 
 ## Per-location reference
 
-|  |  |  |  |  |
-|----|----|----|----|----|
-| Kind | DuckDB setting | Option | Environment variable | Default |
-| Home | `home_directory` | – | – | left untouched (not set) |
-| Extensions | `extension_directory` | `duckdb.extension_directory` | `DUCKDB_EXTENSION_DIRECTORY` | library if writable, else [`tempdir()`](https://rdrr.io/r/base/tempfile.html) |
-| Secrets | `secret_directory` | `duckdb.secret_directory` | `DUCKDB_SECRET_DIRECTORY` | [`tempdir()`](https://rdrr.io/r/base/tempfile.html) sub-directory (set) |
-| Temp/spill | `temp_directory` | `duckdb.temp_directory` | `DUCKDB_TEMP_DIRECTORY` | [`tempdir()`](https://rdrr.io/r/base/tempfile.html) sub-directory (set) |
-| Logs | `log_query_path` | `duckdb.log_directory` | `DUCKDB_LOG_DIRECTORY` | disabled (off) |
+|  |  |  |  |
+|----|----|----|----|
+| Kind | DuckDB setting | Option / environment variable | Default |
+| Home | `home_directory` | – | left untouched (not set) |
+| Extensions | `extension_directory` | `duckdb.extension_directory` / `DUCKDB_EXTENSION_DIRECTORY` | library if writable, else [`tempdir()`](https://rdrr.io/r/base/tempfile.html) |
+| Stored secrets | `secret_directory` | `duckdb.secret_directory` / `DUCKDB_SECRET_DIRECTORY` | [`tempdir()`](https://rdrr.io/r/base/tempfile.html) sub-directory (set) |
+| Temp/spill | `temp_directory` | `duckdb.temp_directory` / `DUCKDB_TEMP_DIRECTORY` | [`tempdir()`](https://rdrr.io/r/base/tempfile.html) sub-directory (set) |
+| Logs | `log_query_path` | `duckdb.log_directory` / `DUCKDB_LOG_DIRECTORY` | disabled (off) |
 
 "set" means [`duckdb()`](https://r.duckdb.org/reference/duckdb.md) sets
 the value explicitly in the database config. The home directory is left

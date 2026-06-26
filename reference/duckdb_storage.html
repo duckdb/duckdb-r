@@ -74,7 +74,7 @@ version and platform/ABI that downloaded it. By default the cache is the
 falling back to a <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> sub-directory when it is not. See the
 marker section for how this is detected.</p></dd>
 
-<dt>Secrets</dt>
+<dt>Stored secrets</dt>
 <dd><p>Persisted credentials under <code>stored_secrets</code>. DuckDB
 setting: <code>secret_directory</code>. Set explicitly to a <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> location by
 default. Configured and migrated with <code><a href="duckdb_storage_config.html">duckdb_storage_config()</a></code>.</p></dd>
@@ -157,8 +157,8 @@ package (<code><a href="https://rdrr.io/r/base/system.file.html" class="external
 but is wiped on every re-install. This is the automatic default for
 extensions when the library is writable (see the resolution policy
 above): rather than require an explicit opt-in, the package probes it at
-connect time and uses it unless the write fails. Not offered for secrets,
-which always default to <code>"session"</code>.</p></dd>
+connect time and uses it unless the write fails. Not offered for stored
+secrets, which always default to <code>"session"</code>.</p></dd>
 
 
 </dl></div>
@@ -172,13 +172,13 @@ user inspecting the directory can tell at a glance what created it. This
 matters most in the <code>"shared"</code> root (<code>~/.duckdb</code>), which is also used by the
 DuckDB CLI and Python client:</p>
 <p></p><div class="sourceCode"><pre><code><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="sc">&lt;</span>root<span class="sc">&gt;</span><span class="er">/</span>extensions<span class="sc">/</span>.duckdb<span class="sc">-</span>r<span class="sc">-</span>keep        <span class="co"># opts in the extension cache</span></span>
-<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="sc">&lt;</span>root<span class="sc">&gt;</span><span class="er">/</span>stored_secrets<span class="sc">/</span>.duckdb<span class="sc">-</span>r<span class="sc">-</span>keep    <span class="co"># opts in secrets</span></span></code></pre><p></p></div>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="sc">&lt;</span>root<span class="sc">&gt;</span><span class="er">/</span>stored_secrets<span class="sc">/</span>.duckdb<span class="sc">-</span>r<span class="sc">-</span>keep    <span class="co"># opts in stored secrets</span></span></code></pre><p></p></div>
 <p>It is not empty: the package writes a single line of human-readable text
 describing what the file is and that it is safe to delete. Only the file's
 presence is significant – the contents are never read back or validated, so
 editing it has no effect.</p>
 <p>Markers are per-kind and live inside each kind's sub-directory, so one root
-can persist extensions but not secrets, or vice versa. For extensions in a
+can persist extensions but not stored secrets, or vice versa. For extensions in a
 persistent root, DuckDB's <code>v&lt;version&gt;/&lt;platform&gt;/</code> sub-paths keep a stale
 binary from being loaded into a newer, ABI-incompatible build.</p>
 </div>
@@ -220,7 +220,7 @@ resurrecting a store root and reintroducing an ABI mismatch.</p>
     <div class="section level2">
     <h2 id="per-location-reference">Per-location reference<a class="anchor" aria-label="anchor" href="#per-location-reference"></a></h2>
 
-<table class="table table"><tr><td>Kind</td><td>DuckDB setting</td><td>Option</td><td>Environment variable</td><td>Default</td></tr><tr><td>Home</td><td><code>home_directory</code></td><td>–</td><td>–</td><td>left untouched (not set)</td></tr><tr><td>Extensions</td><td><code>extension_directory</code></td><td><code>duckdb.extension_directory</code></td><td><code>DUCKDB_EXTENSION_DIRECTORY</code></td><td>library if writable, else <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code></td></tr><tr><td>Secrets</td><td><code>secret_directory</code></td><td><code>duckdb.secret_directory</code></td><td><code>DUCKDB_SECRET_DIRECTORY</code></td><td><code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> sub-directory (set)</td></tr><tr><td>Temp/spill</td><td><code>temp_directory</code></td><td><code>duckdb.temp_directory</code></td><td><code>DUCKDB_TEMP_DIRECTORY</code></td><td><code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> sub-directory (set)</td></tr><tr><td>Logs</td><td><code>log_query_path</code></td><td><code>duckdb.log_directory</code></td><td><code>DUCKDB_LOG_DIRECTORY</code></td><td>disabled (off)</td></tr></table><p>"set" means <code><a href="duckdb.html">duckdb()</a></code> sets the value explicitly in the database config. The
+<table class="table table"><tr><td>Kind</td><td>DuckDB setting</td><td>Option / environment variable</td><td>Default</td></tr><tr><td>Home</td><td><code>home_directory</code></td><td>–</td><td>left untouched (not set)</td></tr><tr><td>Extensions</td><td><code>extension_directory</code></td><td><code>duckdb.extension_directory</code> / <code>DUCKDB_EXTENSION_DIRECTORY</code></td><td>library if writable, else <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code></td></tr><tr><td>Stored secrets</td><td><code>secret_directory</code></td><td><code>duckdb.secret_directory</code> / <code>DUCKDB_SECRET_DIRECTORY</code></td><td><code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> sub-directory (set)</td></tr><tr><td>Temp/spill</td><td><code>temp_directory</code></td><td><code>duckdb.temp_directory</code> / <code>DUCKDB_TEMP_DIRECTORY</code></td><td><code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> sub-directory (set)</td></tr><tr><td>Logs</td><td><code>log_query_path</code></td><td><code>duckdb.log_directory</code> / <code>DUCKDB_LOG_DIRECTORY</code></td><td>disabled (off)</td></tr></table><p>"set" means <code><a href="duckdb.html">duckdb()</a></code> sets the value explicitly in the database config. The
 home directory is left untouched so that <code>~</code> in user SQL keeps its usual
 meaning.</p>
     </div>
