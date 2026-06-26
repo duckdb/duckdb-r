@@ -15,12 +15,8 @@ which states that packages should not write in the user's home filespace,
 "nor anywhere else on the file system apart from the R session's temporary
 directory".
 
-The tempdir-based extension and secret defaults and the ephemeral-state
-startup message are implemented. The library-when-writable extension default,
-the R-specific \code{temp_directory} default, and the marker functions
-(\code{duckdb_extension_storage()}, \code{duckdb_secret_storage()},
-\code{duckdb_storage_status()}; see \link{duckdb_storage_config}) are planned. Some
-names remain provisional.
+The functions that configure these locations are documented in
+\link{duckdb_storage_config}.
 }
 \section{Kinds of on-disk state}{
 \describe{
@@ -139,10 +135,6 @@ above): rather than requiring an explicit opt-in, the package probes it at
 connect time and uses it unless the write fails. Not offered for secrets,
 which always default to \code{"session"}.}
 }
-
-The argument name and value vocabulary are still provisional. Alternatives
-considered: name \code{where} or \code{root} instead of \code{location}; values
-\code{"temporary"}/\code{"package"} instead of \code{"session"}/\code{"library"}.
 }
 
 \subsection{The marker file}{

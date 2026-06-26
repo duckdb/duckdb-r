@@ -1,7 +1,5 @@
-# This file documents the *desired* state of how the duckdb R package chooses
-# the file-system locations it (and the bundled DuckDB engine) writes to. It is
-# design documentation in lieu of a plan: it describes the intended end state,
-# parts of which may not yet be implemented. See `?duckdb_storage`.
+# Documentation for how the duckdb R package chooses the file-system locations
+# it (and the bundled DuckDB engine) writes to. See `?duckdb_storage`.
 
 #' DuckDB file-system usage: storage locations and how they are resolved
 #'
@@ -17,12 +15,8 @@
 #' "nor anywhere else on the file system apart from the R session's temporary
 #' directory".
 #'
-#' The tempdir-based extension and secret defaults and the ephemeral-state
-#' startup message are implemented. The library-when-writable extension default,
-#' the R-specific `temp_directory` default, and the marker functions
-#' (`duckdb_extension_storage()`, `duckdb_secret_storage()`,
-#' `duckdb_storage_status()`; see [duckdb_storage_config]) are planned. Some
-#' names remain provisional.
+#' The functions that configure these locations are documented in
+#' [duckdb_storage_config].
 #'
 #' @details
 #' # Kinds of on-disk state
@@ -144,10 +138,6 @@
 #'     connect time and uses it unless the write fails. Not offered for secrets,
 #'     which always default to `"session"`.}
 #' }
-#'
-#' The argument name and value vocabulary are still provisional. Alternatives
-#' considered: name `where` or `root` instead of `location`; values
-#' `"temporary"`/`"package"` instead of `"session"`/`"library"`.
 #'
 #' ## The marker file
 #'

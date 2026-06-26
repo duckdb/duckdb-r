@@ -1,7 +1,6 @@
-# This file documents the *planned* user-facing functions for configuring where
-# the duckdb R package stores extensions and secrets. It is design documentation
-# in lieu of a plan; the functions are not implemented yet. The storage policy
-# itself is described in `?duckdb_storage`. See `?duckdb_storage_config`.
+# Documentation for the user-facing functions that configure where the duckdb R
+# package stores extensions and secrets. The storage policy itself is described
+# in `?duckdb_storage`. See `?duckdb_storage_config`.
 
 #' Configure where DuckDB stores extensions and secrets
 #'
@@ -20,9 +19,6 @@
 #' location that survives across sessions. The same locations can also be set
 #' without a marker by overriding with options and environment variables; the
 #' full policy is documented in [duckdb_storage].
-#'
-#' These functions are planned and not yet implemented; this page describes
-#' their intended behavior.
 #'
 #' @details
 #' # Functions
@@ -51,8 +47,7 @@
 #'     opt-out -- it removes the marker), `"user"` ([tools::R_user_dir()]),
 #'     `"shared"` (`~/.duckdb`, shared with the DuckDB CLI and Python client),
 #'     and -- for `duckdb_extension_storage()` only -- `"library"` (alongside
-#'     the installed package). See [duckdb_storage] for what each root means and
-#'     for the still-provisional naming.}
+#'     the installed package). See [duckdb_storage] for what each root means.}
 #'   \item{`migrate`}{If `TRUE` (the default), move the already-cached files
 #'     from the current location into the new one.}
 #'   \item{`conflict`}{How to resolve a name collision during migration:

@@ -22,9 +22,6 @@ use the package library when it is writable); these functions move them to a
 location that survives across sessions. The same locations can also be set
 without a marker by overriding with options and environment variables; the
 full policy is documented in \link{duckdb_storage}.
-
-These functions are planned and not yet implemented; this page describes
-their intended behavior.
 }
 \section{Functions}{
 \preformatted{
@@ -51,8 +48,7 @@ roots are \code{"session"} (the per-session temporary directory; also the
 opt-out -- it removes the marker), \code{"user"} (\code{\link[tools:R_user_dir]{tools::R_user_dir()}}),
 \code{"shared"} (\verb{~/.duckdb}, shared with the DuckDB CLI and Python client),
 and -- for \code{duckdb_extension_storage()} only -- \code{"library"} (alongside
-the installed package). See \link{duckdb_storage} for what each root means and
-for the still-provisional naming.}
+the installed package). See \link{duckdb_storage} for what each root means.}
 \item{\code{migrate}}{If \code{TRUE} (the default), move the already-cached files
 from the current location into the new one.}
 \item{\code{conflict}}{How to resolve a name collision during migration:
