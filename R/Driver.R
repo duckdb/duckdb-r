@@ -71,21 +71,11 @@ duckdb <- function(
   # that is writable and falls back to a temporary directory otherwise; the
   # temp/spill directory is redirected for in-memory databases. See
   # `?duckdb_storage`.
-  # When we choose a location ourselves (no config entry, no option/env
-  # override) and it lands under tempdir(), record it so that -- if the session
-  # actually writes extensions or secrets there -- we can warn on disconnect or
-  # at exit that they will not persist. A user-chosen location is their call.
   if (!("extension_directory" %in% names(config))) {
     config["extension_directory"] <- resolve_extension_directory()
-    if (is.null(directory_override("extension"))) {
-      note_ephemeral_dir("extensions", config[["extension_directory"]])
-    }
   }
   if (!("secret_directory" %in% names(config))) {
     config["secret_directory"] <- resolve_secret_directory()
-    if (is.null(directory_override("secret"))) {
-      note_ephemeral_dir("stored_secrets", config[["secret_directory"]])
-    }
   }
   if (!("temp_directory" %in% names(config))) {
     temp_directory <- resolve_temp_directory(dbdir)

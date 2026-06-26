@@ -184,25 +184,10 @@ home directory is left untouched so that \code{~} in user SQL keeps its usual
 meaning.
 }
 
-\section{Messages}{
-The package keeps quiet unless something actually happened:
-
-\describe{
-\item{Ephemeral-storage warning}{If, by the time a connection is closed (or
-the R session ends), this session has actually written downloaded
-extensions or persisted secrets into a \code{\link[=tempdir]{tempdir()}} location that the
-package chose itself, it warns once that those will not persist and how to
-opt into a permanent location. Nothing is said up front, and nothing is
-said when no such data was written or when the location was chosen by the
-user (via \code{config}, an option, or an environment variable). The check runs
-after each \code{\link[=sql_query]{sql_query()}} / \code{\link[=sql_exec]{sql_exec()}} call (which manage their own
-connection) and on \code{dbDisconnect()}, with a final backstop when R exits
-for scripts that never disconnect.}
-\item{Library-cache notice}{The first time the extension cache is
-initialized in the package library (when its marker is written), the
-package says so once. The marker then persists, so this is effectively
-once per installation.}
-}
+\section{Library-cache notice}{
+The first time the extension cache is initialized in the package library
+(when its marker is written), the package says so once. The marker then
+persists, so this is effectively once per installation.
 }
 
 \seealso{

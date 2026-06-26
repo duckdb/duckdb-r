@@ -56,25 +56,3 @@ test_that("the httpfs extension installs and loads into the configured cache", {
   cached <- list.files(ext_dir, recursive = TRUE, pattern = "httpfs")
   expect_gt(length(cached), 0)
 })
-
-test_that("sql_exec warns when it writes ephemeral data (no disconnect)", {
-  skip_on_cran()
-  # No override: secrets resolve to a tempdir we control, so the write is
-  # ephemeral. sql_exec() never disconnects, so the warning must come from the
-  # post-call check rather than the at-exit backstop.
-  tmp <- withr::local_tempdir("eph-sql-")
-  withr::local_envvar(DUCKDB_SECRET_DIRECTORY = NA)
-  withr::local_options(duckdb.secret_directory = NULL)
-  local_mocked_bindings(session_temp_dir = function() tmp)
-  state <- getNamespace("duckdb")[["storage_message_state"]]
-  state[["ephemeral_warned"]] <- NULL
-
-  con <- local_con()
-  expect_message(
-    sql_exec(
-      "CREATE PERSISTENT SECRET sql_demo (TYPE http, BEARER_TOKEN 'x')",
-      conn = con
-    ),
-    "will not persist"
-  )
-})
