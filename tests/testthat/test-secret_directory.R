@@ -1,10 +1,12 @@
 # Secrets resolution (plan/PLAN-storage-locations.md, Phase 1).
 
-test_that("resolve_secret_directory honors option then env override", {
+test_that("resolve_secret_directory honors the option override", {
   withr::local_envvar(DUCKDB_SECRET_DIRECTORY = NA)
   withr::local_options(duckdb.secret_directory = "/opt/sec")
   expect_equal(resolve_secret_directory(), "/opt/sec")
+})
 
+test_that("resolve_secret_directory honors the env-var override", {
   withr::local_options(duckdb.secret_directory = NULL)
   withr::local_envvar(DUCKDB_SECRET_DIRECTORY = "/env/sec")
   expect_equal(resolve_secret_directory(), "/env/sec")
