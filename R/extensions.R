@@ -2,38 +2,15 @@ default_user_directory <- function() {
   tools::R_user_dir("duckdb", "data")
 }
 
-# `default_user_directory()` above, and the seams below, are thin wrappers over
-# the environment so that the storage-location logic stays testable without
-# touching the real filesystem, HOME, or package library. See `?duckdb_storage`
-# and plan/PLAN-storage-locations.md.
+# `default_user_directory()` above and `duckdb_shared_home()` below are thin
+# wrappers over the environment so the storage-location logic stays testable
+# without touching the real filesystem or HOME. See `?duckdb_storage` and
+# plan/PLAN-storage-locations.md.
 
 # The DuckDB default home (`~/.duckdb`), shared with the DuckDB CLI and Python
 # client.
 duckdb_shared_home <- function() {
   path.expand("~/.duckdb")
-}
-
-# The R session's temporary directory.
-session_temp_dir <- function() {
-  tempdir()
-}
-
-# TRUE if a file can be created under `dir` (creating `dir` if needed). A thin,
-# mockable seam; uses a real write rather than file.access(), which is
-# unreliable on Windows.
-dir_is_writable <- function(dir) {
-  if (
-    !dir.exists(dir) &&
-      !dir.create(dir, recursive = TRUE, showWarnings = FALSE)
-  ) {
-    return(FALSE)
-  }
-  probe <- tempfile(".duckdb-r-probe-", tmpdir = dir)
-  if (!file.create(probe, showWarnings = FALSE)) {
-    return(FALSE)
-  }
-  unlink(probe)
-  TRUE
 }
 
 # Extension binaries are cached inside the duckdb package's installed library

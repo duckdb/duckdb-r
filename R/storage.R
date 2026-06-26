@@ -90,8 +90,8 @@
 #'
 #' The extension cache inserts one extra step before the [tempdir()] fallback:
 #' if no marker has selected a root, the `"library"` root is probed at connect
-#' time by attempting to write its marker. If that succeeds the cache is kept
-#' alongside the package (and the marker records the choice); if it fails (the
+#' time by writing its marker -- the write doubles as the writability test, and
+#' the marker is left in place to record the choice. If the write fails (the
 #' library is read-only) the cache falls back to [tempdir()]. So the effective
 #' default is "library when writable, else tempdir", with no persistent write
 #' ever attempted where it would fail.

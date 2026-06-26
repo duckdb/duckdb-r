@@ -41,19 +41,18 @@ resolution/marker logic calls these, never the underlying primitive.
       (pre-existing; the R-user-dir seam).
 - [x] `duckdb_shared_home()` → wraps `path.expand("~/.duckdb")`; replaces the
       hard-coded literal in `common_secret_directory()`.
-- [x] `package_install_dir()` → wraps `system.file(package = ...)`;
-      `system_file_path()` (and later the `"library"` root) build on it.
-- [x] `session_temp_dir()` → wraps `tempdir()`.
-- [x] `dir_is_writable(dir)` → writability check via a real create+remove (not
-      `file.access`); mockable so a read-only library can be simulated.
-- [x] `has_rlang()` → caches `requireNamespace("rlang")` once per session; used
-      wherever we fall back to base R when rlang is absent (e.g. `.onLoad`).
-- [x] `check_dots_empty(...)` → forwards to `rlang::check_dots_empty0()` when
-      `has_rlang()`, else a base fallback; for the `...` in the new functions.
+- [x] `system_file_path()` → the package-install-dir seam (pre-existing); tests
+      stub it rather than resolving the real install path. (No separate
+      `package_install_dir()` wrapper — `system_file_path()` is enough.)
+- [x] `check_dots_empty(...)` → base fallback, swapped to
+      `rlang::check_dots_empty0()` in `.onLoad()` when rlang is available (the
+      same strategy as `is_interactive` / `rapi_error`; no rlang-availability
+      cache).
 - [x] `is_interactive()` — pre-existing; use it, never `interactive()`.
+- [ ] `session_temp_dir()` (wraps `tempdir()`) — deferred to Phase 1.
 - [ ] Options/env reads stay `getOption()` / `Sys.getenv()` (mockable via
       `withr`), but each kind reads them through one `resolve_*()` so precedence
-      is tested in one place. (Done when the resolvers land in Phase 1.)
+      is tested in one place. (Phase 1.)
 
 ---
 
@@ -87,9 +86,11 @@ resolution/marker logic calls these, never the underlying primitive.
       → test: presence drives selection; editing contents has no effect.
 - [ ] `read_marker(kind)` / `write_marker(kind, root)` / `remove_marker(...)`.
       → test: round-trip create / read / remove with a mocked temp root.
-- [ ] `"library"` write-probe via `dir_is_writable()`; on success use library +
-      record marker, else fall back to tempdir; never write where it would fail.
-      → test: probe TRUE → library + marker; FALSE → tempdir, no write.
+- [ ] `"library"` probe = write the keep-marker into `<library>/extensions/`
+      (creating it if needed) and leave it in place; the write doubles as the
+      writability test. On success use the library; on failure fall back to
+      tempdir. No throwaway probe file.
+      → test: writable → library + marker left in place; not → tempdir, no write.
 - [ ] Marker selects *location*; a cached binary under `v<version>/<platform>/`
       governs *validity* only.
       → test: a stale binary in an unmarked root does not select it.

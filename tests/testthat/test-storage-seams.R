@@ -2,10 +2,10 @@
 # (plan/PLAN-storage-locations.md). These tests pin the current behavior and
 # confirm the seams are mockable without touching the real filesystem.
 
-test_that("default_extension_directory routes through the package-install seam", {
+test_that("default_extension_directory routes through the system_file_path seam", {
   expect_equal(default_extension_directory(), system_file_path("extensions"))
 
-  local_mocked_bindings(package_install_dir = function() "/pkg")
+  local_mocked_bindings(system_file_path = function(...) file.path("/pkg", ...))
   expect_equal(default_extension_directory(), file.path("/pkg", "extensions"))
 })
 
@@ -25,18 +25,7 @@ test_that("common_secret_directory routes through the shared-home seam", {
   )
 })
 
-test_that("dir_is_writable is TRUE for a writable dir and mockable otherwise", {
-  d <- withr::local_tempdir()
-  expect_true(dir_is_writable(d))
-
-  # The library probe can be simulated as read-only without a real read-only FS.
-  local_mocked_bindings(dir_is_writable = function(dir) FALSE)
-  expect_false(dir_is_writable(d))
-})
-
-test_that("has_rlang caches and check_dots_empty rejects non-empty dots", {
-  expect_type(has_rlang(), "logical")
-
+test_that("check_dots_empty rejects non-empty dots", {
   f <- function(x, ...) {
     check_dots_empty(...)
     x
