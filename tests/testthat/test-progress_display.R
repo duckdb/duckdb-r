@@ -13,7 +13,7 @@ test_that("progress display", {
   options(duckdb.progress_display = function() {})
   expect_message(expect_null(get_progress_display()), "has no argument, expecting at least one")
 
-  local_interactive()
+  rlang::local_interactive()
 
   options(duckdb.progress_display = function(x) {})
   expect_type(get_progress_display(), "closure")
