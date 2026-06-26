@@ -7,22 +7,41 @@
 \alias{duckdb_storage_status}
 \title{Configure where DuckDB stores extensions and secrets}
 \usage{
-duckdb_extension_storage(location, ..., migrate = TRUE, conflict = "error")
-duckdb_secret_storage(location, ..., migrate = TRUE, conflict = "error")
+duckdb_extension_storage(
+  location = c("session", "user", "shared", "library"),
+  ...,
+  migrate = TRUE,
+  conflict = "error"
+)
+
+duckdb_secret_storage(
+  location = c("session", "user", "shared"),
+  ...,
+  migrate = TRUE,
+  conflict = "error"
+)
+
 duckdb_storage_status()
 }
 \arguments{
-\item{location}{The destination root, or an explicit path. Recognized roots
-are \code{"session"} (the per-session temporary directory; also the opt-out --
-it removes the marker), \code{"user"} (\code{\link[tools:R_user_dir]{tools::R_user_dir()}}), \code{"shared"}
-(\verb{~/.duckdb}, shared with the DuckDB CLI and Python client), and -- for
-\code{duckdb_extension_storage()} only -- \code{"library"} (alongside the installed
-package). See \link{duckdb_storage} for what each root means.}
+\item{location}{The destination root (not a path), one of:
+\itemize{
+\item \code{"session"} -- the per-session temporary directory; the default, and the
+opt-out (removes the marker, reverting to a per-session location).
+\item \code{"user"} -- \code{\link[tools:R_user_dir]{tools::R_user_dir()}}.
+\item \code{"shared"} -- \verb{~/.duckdb}, shared with the DuckDB CLI and Python client.
+\item \code{"library"} -- \emph{(\code{duckdb_extension_storage()} only)} alongside the
+installed package.
+}
+
+To use an arbitrary directory, set the option or environment variable
+instead (see \link{duckdb_storage}).}
 
 \item{...}{These dots are for future extensions and must be empty.}
 
 \item{migrate}{If \code{TRUE} (the default), move the already-cached files from the
-current location into the new one.}
+current location into the new one. Ignored when \code{location} is \code{"session"}:
+opting out never moves files into the per-session directory.}
 
 \item{conflict}{How to resolve a name collision during migration: \code{"error"}
 (the default) aborts and lists the collisions without moving anything;
@@ -33,13 +52,15 @@ current location into the new one.}
 The \verb{*_storage()} functions are called for their side effect (writing
 or removing a marker, and optionally migrating files) and return the
 resolved directory invisibly. \code{duckdb_storage_status()} returns a data frame
-with one row per kind of state.
+(class \code{"duckdb_storage_status"}) with one row per kind of state and columns
+\code{kind}, \code{source}, and \code{directory}; its print method renders a readable
+summary when the result is auto-printed.
 }
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
 
 Choose where the duckdb R package keeps downloaded extensions and persisted
-secrets, by writing a small \emph{marker file} that records the choice:
+secrets, by writing a small marker file that records the choice:
 \itemize{
 \item \code{duckdb_extension_storage()} -- set or move the extension cache (default:
 the package library when writable, otherwise a per-session temporary
@@ -64,11 +85,7 @@ unaffected.
 
 There is no \code{ask} argument: calling a \verb{*_storage()} function is itself the
 consent to write outside the temporary directory.
-
-\code{duckdb_secret_storage()} replaces \code{duckdb_consolidate_secrets()}: secret
-migration is now a \code{migrate} step of \code{duckdb_secret_storage()}.
 }
 \seealso{
 \link{duckdb_storage} for the storage policy these functions implement.
 }
-\keyword{internal}

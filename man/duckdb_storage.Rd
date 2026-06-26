@@ -9,7 +9,9 @@
 DuckDB writes several distinct kinds of data to the file system. This page
 catalogs every such location and documents the unified policy the duckdb R
 package uses to choose them, so that by default nothing is written outside
-the R session's temporary directory.
+the R session's temporary directory -- except the extension cache, which is
+auto-probed into the writable package library (and falls back to the
+temporary directory when the library is read-only, as on CRAN).
 
 The functions that configure these locations are documented in
 \code{\link[=duckdb_storage_config]{duckdb_storage_config()}}.
@@ -90,8 +92,9 @@ where each kind currently resolves and how it was chosen. There is no \code{ask}
 argument: calling a \verb{*_storage()} function \emph{is} the consent.
 \subsection{The \code{location} argument}{
 
-\code{location} names a \emph{root}, not a full path (an explicit path is also
-accepted). The recognized roots are:
+\code{location} names a \emph{root}, not a full path. (To point a kind at an arbitrary
+directory, use the option or environment variable instead -- a marker is only
+ever rediscovered in one of the fixed roots below.) The recognized roots are:
 
 \describe{
 \item{\code{"session"}}{\code{tempdir()} -- the default, and the opt-out: setting it
@@ -140,15 +143,15 @@ exists at the destination: \code{"error"} (the default) aborts and lists the
 collisions without moving anything; \code{"ours"} lets the files being relocated
 win (overwriting the destination); \code{"theirs"} keeps the destination files and
 drops the colliding sources. Secret migration is folded into
-\code{duckdb_secret_storage()}, which replaces \code{duckdb_consolidate_secrets()}.
+\code{duckdb_secret_storage()}.
 }
 
 \subsection{Rules}{
 \itemize{
 \item An option or environment variable overrides any marker.
-\item A kind's marker present in more than one root is ambiguous: the package
-emits a startup message naming the candidates and falls back to the
-\code{\link[=tempdir]{tempdir()}} default until the ambiguity is resolved.
+\item A kind's marker present in more than one root is ambiguous: when a
+connection is opened the package emits a message naming the candidates and
+falls back to the \code{\link[=tempdir]{tempdir()}} default until the ambiguity is resolved.
 \item The package never ships a marker. The only writes are by
 \code{duckdb_extension_storage()} / \code{duckdb_secret_storage()}, and the
 connect-time probe of the \code{"library"} root for extensions (which writes the
@@ -181,17 +184,42 @@ home directory is left untouched so that \code{~} in user SQL keeps its usual
 meaning.
 }
 
-\section{Startup message}{
-When a connection is established and the resolved extension cache lies inside
-\code{\link[=tempdir]{tempdir()}}, the package emits an informational message -- at most once every
-eight hours per session, including in unattended (non-interactive) runs. It
-explains that downloaded extensions will not persist across sessions and how
-to opt into a permanent location via \code{options(duckdb.extension_directory =)}
-or \code{DUCKDB_EXTENSION_DIRECTORY}.
+\section{Messages}{
+\describe{
+\item{Startup message}{When a connection is established and the resolved
+extension cache lies inside \code{\link[=tempdir]{tempdir()}}, the package emits an
+informational message -- at most once every eight hours per session,
+including in unattended (non-interactive) runs. It explains that
+downloaded extensions will not persist across sessions and how to opt
+into a permanent location. It is shown only when the package chose the
+location itself; if you set the extension directory (via \code{config}, the
+option, or the environment variable) the choice is yours and the message
+is suppressed.}
+\item{Library-cache notice}{The first time the extension cache is
+initialized in the package library (when its marker is written), the
+package says so once. The marker then persists, so this is effectively
+once per installation.}
+}
+\subsection{Silencing the startup message}{
+
+Pointing the extension cache at a permanent location (an option, an
+environment variable, or \code{config}) both keeps the extensions and silences the
+message. If you are happy with a temporary cache and only want the reminder
+gone, set the location explicitly so it counts as your choice -- the simplest
+is a \code{config} entry on every connection:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{con <- dbConnect(duckdb(config = list(
+  extension_directory = file.path(tempdir(), "duckdb", "extensions")
+)))
+}\if{html}{\out{</div>}}
+
+or set it once per session with
+\code{options(duckdb.extension_directory = file.path(tempdir(), "duckdb", "extensions"))}
+(or the \code{DUCKDB_EXTENSION_DIRECTORY} environment variable).
+}
 }
 
 \seealso{
 \code{\link[=duckdb_storage_config]{duckdb_storage_config()}} for the functions that configure these
 locations, and \code{\link[=duckdb]{duckdb()}} for the \code{config} argument.
 }
-\keyword{internal}

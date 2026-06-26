@@ -54,94 +54,104 @@ resolution/marker logic calls these, never the underlying primitive.
       same strategy as `is_interactive` / `rapi_error`; no rlang-availability
       cache).
 - [x] `is_interactive()` — pre-existing; use it, never `interactive()`.
-- [ ] `session_temp_dir()` (wraps `tempdir()`) — deferred to Phase 1.
-- [ ] Options/env reads stay `getOption()` / `Sys.getenv()` (mockable via
+- [x] `session_temp_dir()` (wraps `tempdir()`) — implemented in Phase 1.
+- [x] Options/env reads stay `getOption()` / `Sys.getenv()` (mockable via
       `withr`), but each kind reads them through one `resolve_*()` so precedence
       is tested in one place. (Phase 1.)
 
 ---
 
-## Phase 1 — resolution layer (behavior change)
+## Phase 1 — resolution layer (done)
 
-- [ ] `resolve_extension_directory()`: config (caller-supplied) →
+- [x] `resolve_extension_directory()`: config (caller-supplied) →
       `options(duckdb.extension_directory)` → `DUCKDB_EXTENSION_DIRECTORY` →
       marker scan → `"library"` write-probe → `session_temp_dir()` default.
       → test: each precedence rung with mocked seams + `withr` options/env.
-- [ ] `resolve_secret_directory()`: option → env → marker scan →
+- [x] `resolve_secret_directory()`: option → env → marker scan →
       `session_temp_dir()` default (no `"library"` root).
       → test: precedence, and that the default is tempdir, not `R_user_dir`.
-- [ ] `resolve_temp_directory()`: `:memory:` → `session_temp_dir()` sub-dir
+- [x] `resolve_temp_directory()`: `:memory:` → `session_temp_dir()` sub-dir
       (override DuckDB's cwd `.tmp`); on-disk → DuckDB's `<db>.tmp`. Option/env.
       → test: memory vs on-disk branch with a mocked `dbdir`.
-- [ ] Wire into `R/Driver.R` (`duckdb()` config) — all three are database-global
+- [x] Wire into `R/Driver.R` (`duckdb()` config) — all three are database-global
       (C++: `extension_directory` is `GLOBAL_ONLY`; `secret_directory` /
       `temp_directory` are SetGlobal-only). Do **not** set `home_directory`.
       → test: connect and assert resolved settings; `home_directory` unset.
-- [ ] Duplicate-marker startup message (a kind's marker in >1 root → message +
+- [x] Duplicate-marker startup message (a kind's marker in >1 root → message +
       tempdir fallback).
       → test: two markers present → message emitted, resolves to tempdir.
 
-## Phase 2 — markers
+## Phase 2 — markers (done)
 
-- [ ] Marker filename constant `.duckdb-r-keep` (provisional); per kind, inside
+- [x] Marker filename constant `.duckdb-r-keep` (provisional); per kind, inside
       `<root>/extensions/` and `<root>/stored_secrets/`.
       → test: path construction per kind / root.
-- [ ] Marker is a one-line descriptive text file; written, never read back
+- [x] Marker is a one-line descriptive text file; written, never read back
       (presence only). Define the wording.
       → test: presence drives selection; editing contents has no effect.
-- [ ] `read_marker(kind)` / `write_marker(kind, root)` / `remove_marker(...)`.
+- [x] `read_marker(kind)` / `write_marker(kind, root)` / `remove_marker(...)`.
       → test: round-trip create / read / remove with a mocked temp root.
-- [ ] `"library"` probe = write the keep-marker into `<library>/extensions/`
+- [x] `"library"` probe = write the keep-marker into `<library>/extensions/`
       (creating it if needed) and leave it in place; the write doubles as the
       writability test. On success use the library; on failure fall back to
       tempdir. No throwaway probe file.
       → test: writable → library + marker left in place; not → tempdir, no write.
-- [ ] Marker selects *location*; a cached binary under `v<version>/<platform>/`
+- [x] Marker selects *location*; a cached binary under `v<version>/<platform>/`
       governs *validity* only.
       → test: a stale binary in an unmarked root does not select it.
 
-## Phase 3 — user-facing functions
+## Phase 3 — user-facing functions (done)
 
-- [ ] Flesh out the Phase 0 stubs (replace the `stop()` bodies) and `@export`
+- [x] Flesh out the Phase 0 stubs (replace the `stop()` bodies) and `@export`
       them.
-- [ ] `duckdb_extension_storage(location, ..., migrate = TRUE, conflict = "error")`.
-- [ ] `duckdb_secret_storage(location, ..., migrate = TRUE, conflict = "error")`.
-- [ ] `duckdb_storage_status()` → data frame, one row per kind (resolved dir +
+- [x] `duckdb_extension_storage(location, ..., migrate = TRUE, conflict = "error")`.
+- [x] `duckdb_secret_storage(location, ..., migrate = TRUE, conflict = "error")`.
+- [x] `duckdb_storage_status()` → data frame, one row per kind (resolved dir +
       which tier chose it).
-- [ ] `...` checked empty via `check_dots_empty()`.
-- [ ] `location` roots `"session"` (also the opt-out) / `"user"` / `"shared"` /
+- [x] `...` checked empty via `check_dots_empty()`.
+- [x] `location` roots `"session"` (also the opt-out) / `"user"` / `"shared"` /
       `"library"` (extensions only); plus an explicit path.
-- [ ] `migrate` + `conflict` (`"error"` / `"ours"` / `"theirs"`); secret
+- [x] `migrate` + `conflict` (`"error"` / `"ours"` / `"theirs"`); secret
       migration reuses the consolidation logic.
-- [ ] `@export` + NAMESPACE; move `@name` / `@aliases` from the planning page
+- [x] `@export` + NAMESPACE; move `@name` / `@aliases` from the planning page
       onto the real functions; resolve the `[duckdb_storage_config()]` links.
       → test: create / relocate / unset (`"session"`); migrate per `conflict`;
       `check_dots_empty()` rejects stray args; `duckdb_storage_status()` shape.
 
-## Phase 4 — removal & messaging
+## Phase 4 — removal & messaging (done)
 
-- [ ] Remove `duckdb_consolidate_secrets()` outright — no deprecation ceremony
+- [x] Remove `duckdb_consolidate_secrets()` outright — no deprecation ceremony
       (it existed only briefly). Fold its logic into the `migrate` step of
       `duckdb_secret_storage()`, and remove its `_pkgdown.yml` "Secrets" entry.
       → test: the migrate step covers the cases the old function did.
-- [ ] Ephemeral-storage message on connect when the resolved extension cache is
-      under tempdir; throttled once / 8h / session, **including unattended runs**
-      (no interactive gate). Re-add `maybe_ephemeral_state_message()` +
-      `inform_once_every()` (removed in Phase 0) and wire in.
-      → test: fires once then throttled (mocked clock); fires non-interactively.
+- [x] Startup message on connect when the resolved extension cache is under
+      tempdir; throttled once / 8h / session, including unattended runs. Shown
+      only when the package chose the location itself (no config/option/env), so
+      setting the directory both opts in and silences it. `?duckdb_storage`
+      documents how to silence it.
+      → test: fires once then throttled (mocked clock); silent for a persistent
+      cache.
+- [ ] Reactive ephemeral *warning* (warn only when the session actually wrote
+      something, on disconnect/at-exit): **deferred to a separate change.** A
+      reactive design proved too complex to land here -- detecting the write,
+      picking a reliable trigger, and avoiding lost output during shutdown all
+      need more thought -- so the connect-time message above stays for now.
+- [x] Library-cache notice: announce once (on first marker write, i.e. once per
+      install) when the extension cache initializes in the package library.
+      → test: fires when the marker is freshly written, not when it pre-exists.
 
 ---
 
 ## Tests to confirm after implementing (full checklist)
 
-- [ ] Each `resolve_*()` precedence chain via mocked seams + `withr`.
-- [ ] `"library"` probe both ways (writable → library + marker; not → tempdir).
-- [ ] Marker discovery, duplicate-marker ambiguity, contents-never-read.
-- [ ] The three user functions: create / relocate / unset, migrate per
+- [x] Each `resolve_*()` precedence chain via mocked seams + `withr`.
+- [x] `"library"` probe both ways (writable → library + marker; not → tempdir).
+- [x] Marker discovery, duplicate-marker ambiguity, contents-never-read.
+- [x] The three user functions: create / relocate / unset, migrate per
       `conflict`, status output.
-- [ ] 8h throttle via a mocked clock (inject time; do not call `Sys.time()`).
-- [ ] `check_dots_empty()` with and without rlang (`has_rlang()` mocked).
-- [ ] `skip_on_cran()` on anything touching the C++ engine; seam tests are pure
+- [x] 8h throttle via a mocked clock (inject time; do not call `Sys.time()`).
+- [x] `check_dots_empty()` with and without rlang (`has_rlang()` mocked).
+- [x] `skip_on_cran()` on anything touching the C++ engine; seam tests are pure
       R and run everywhere.
 
 ## Open questions / decisions to confirm
@@ -158,9 +168,9 @@ resolution/marker logic calls these, never the underlying primitive.
 ## Things not to forget
 
 - [ ] `NEWS.md` entry (via fledge) for the new functions + removal.
-- [ ] Reconcile with the existing `maybe_secret_directory_message()` and
+- [x] Reconcile with the existing `maybe_secret_directory_message()` and
       `cleanup_user_directory()` (legacy `R_user_dir/extensions` sweep).
 - [ ] Windows path handling (`normalizePath(winslash=)`, `%LOCALAPPDATA%`).
 - [ ] `.Rbuildignore` / `.gitignore` already ignore `/extensions/`; re-check
       once the default location moves.
-- [ ] pkgdown reference index: add the new topics.
+- [x] pkgdown reference index: add the new topics.
