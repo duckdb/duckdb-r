@@ -31,8 +31,7 @@ docs; this file tracks the work to implement it.
         `secret_directory` defaults; do not set `home_directory`; do not call
         the ephemeral-storage message on connect.
   - [ ] `R/extensions.R`: keep the new helpers but route them so the resolved
-        locations match the released (pre-PR) behavior until the follow-up PR
-        flips the default.
+        locations match the released behavior until Phase 1 flips the default.
   - [ ] Confirm `R CMD check` / the test suite show no behavioral diff vs `main`
         (same resolved directories, no new messages).
 - [ ] Introduce the **mockable seams** below as plain local functions, used by
