@@ -6,6 +6,28 @@
 \alias{duckdb_secret_storage}
 \alias{duckdb_storage_status}
 \title{Configure where DuckDB stores extensions and secrets}
+\arguments{
+\item{location}{The destination root, or an explicit path. Recognized roots
+are \code{"session"} (the per-session temporary directory; also the opt-out --
+it removes the marker), \code{"user"} (\code{\link[tools:R_user_dir]{tools::R_user_dir()}}), \code{"shared"}
+(\verb{~/.duckdb}, shared with the DuckDB CLI and Python client), and -- for
+\code{duckdb_extension_storage()} only -- \code{"library"} (alongside the installed
+package). See \link{duckdb_storage} for what each root means.}
+
+\item{migrate}{If \code{TRUE} (the default), move the already-cached files from the
+current location into the new one.}
+
+\item{conflict}{How to resolve a name collision during migration: \code{"error"}
+(the default) aborts and lists the collisions without moving anything;
+\code{"ours"} lets the files being relocated overwrite the destination;
+\code{"theirs"} keeps the destination files and drops the colliding sources.}
+}
+\value{
+The \verb{*_storage()} functions are called for their side effect (writing
+or removing a marker, and optionally migrating files) and return the
+resolved directory invisibly. \code{duckdb_storage_status()} returns a data frame
+with one row per kind of state.
+}
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
 
@@ -38,31 +60,6 @@ unaffected.
 
 There is no \code{ask} argument: calling a \verb{*_storage()} function is itself the
 consent to write outside the temporary directory.
-}
-
-\section{Arguments}{
-\describe{
-\item{\code{location}}{The destination root, or an explicit path. Recognized
-roots are \code{"session"} (the per-session temporary directory; also the
-opt-out -- it removes the marker), \code{"user"} (\code{\link[tools:R_user_dir]{tools::R_user_dir()}}),
-\code{"shared"} (\verb{~/.duckdb}, shared with the DuckDB CLI and Python client),
-and -- for \code{duckdb_extension_storage()} only -- \code{"library"} (alongside
-the installed package). See \link{duckdb_storage} for what each root means.}
-\item{\code{migrate}}{If \code{TRUE} (the default), move the already-cached files
-from the current location into the new one.}
-\item{\code{conflict}}{How to resolve a name collision during migration:
-\code{"error"} (the default) aborts and lists the collisions without moving
-anything; \code{"ours"} lets the files being relocated overwrite the
-destination; \code{"theirs"} keeps the destination files and drops the
-colliding sources.}
-}
-}
-
-\section{Value}{
-The \verb{*_storage()} functions are called for their side effect (writing or
-removing a marker, and optionally migrating files) and return the resolved
-directory invisibly. \code{duckdb_storage_status()} returns a data frame with one
-row per kind of state.
 }
 
 \section{Relationship to existing functions}{

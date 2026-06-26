@@ -39,31 +39,25 @@
 #' There is no `ask` argument: calling a `*_storage()` function is itself the
 #' consent to write outside the temporary directory.
 #'
-#' # Arguments
+#' @param location The destination root, or an explicit path. Recognized roots
+#'   are `"session"` (the per-session temporary directory; also the opt-out --
+#'   it removes the marker), `"user"` ([tools::R_user_dir()]), `"shared"`
+#'   (`~/.duckdb`, shared with the DuckDB CLI and Python client), and -- for
+#'   `duckdb_extension_storage()` only -- `"library"` (alongside the installed
+#'   package). See [duckdb_storage] for what each root means.
+#' @param migrate If `TRUE` (the default), move the already-cached files from the
+#'   current location into the new one.
+#' @param conflict How to resolve a name collision during migration: `"error"`
+#'   (the default) aborts and lists the collisions without moving anything;
+#'   `"ours"` lets the files being relocated overwrite the destination;
+#'   `"theirs"` keeps the destination files and drops the colliding sources.
 #'
-#' \describe{
-#'   \item{`location`}{The destination root, or an explicit path. Recognized
-#'     roots are `"session"` (the per-session temporary directory; also the
-#'     opt-out -- it removes the marker), `"user"` ([tools::R_user_dir()]),
-#'     `"shared"` (`~/.duckdb`, shared with the DuckDB CLI and Python client),
-#'     and -- for `duckdb_extension_storage()` only -- `"library"` (alongside
-#'     the installed package). See [duckdb_storage] for what each root means.}
-#'   \item{`migrate`}{If `TRUE` (the default), move the already-cached files
-#'     from the current location into the new one.}
-#'   \item{`conflict`}{How to resolve a name collision during migration:
-#'     `"error"` (the default) aborts and lists the collisions without moving
-#'     anything; `"ours"` lets the files being relocated overwrite the
-#'     destination; `"theirs"` keeps the destination files and drops the
-#'     colliding sources.}
-#' }
+#' @return The `*_storage()` functions are called for their side effect (writing
+#'   or removing a marker, and optionally migrating files) and return the
+#'   resolved directory invisibly. `duckdb_storage_status()` returns a data frame
+#'   with one row per kind of state.
 #'
-#' # Value
-#'
-#' The `*_storage()` functions are called for their side effect (writing or
-#' removing a marker, and optionally migrating files) and return the resolved
-#' directory invisibly. `duckdb_storage_status()` returns a data frame with one
-#' row per kind of state.
-#'
+#' @details
 #' # Relationship to existing functions
 #'
 #' `duckdb_secret_storage()` supersedes [duckdb_consolidate_secrets()], which is
