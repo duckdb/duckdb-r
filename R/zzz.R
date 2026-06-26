@@ -15,7 +15,6 @@
 
   if (requireNamespace("rlang", quietly = TRUE)) {
     is_interactive <<- rlang::is_interactive
-    local_interactive <<- rlang::local_interactive
     rapi_error <<- rapi_error_rlang
     check_dots_empty <<- rlang::check_dots_empty0
   } else {
