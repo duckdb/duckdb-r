@@ -15,8 +15,8 @@ system_file_path <- function(...) {
 
 # Base fallback for `rlang::check_dots_empty0()`; in `.onLoad()` this is swapped
 # for rlang's version when rlang is available (same strategy as `is_interactive`
-# and `rapi_error`).
-check_dots_empty <- function(...) {
+# and `rapi_error`). Named to match the function it shadows.
+check_dots_empty0 <- function(...) {
   if (...length() > 0L) {
     stop("`...` must be empty.", call. = FALSE)
   }
