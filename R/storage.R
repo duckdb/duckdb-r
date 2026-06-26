@@ -168,7 +168,7 @@
 #' collisions without moving anything; `"ours"` lets the files being relocated
 #' win (overwriting the destination); `"theirs"` keeps the destination files and
 #' drops the colliding sources. Secret migration is folded into
-#' `duckdb_secret_storage()`, which replaces `duckdb_consolidate_secrets()`.
+#' `duckdb_secret_storage()`.
 #'
 #' ## Rules
 #'

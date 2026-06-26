@@ -188,6 +188,21 @@ resolve_extension_directory <- function() {
   storage_dir("session", "extensions")
 }
 
+# Resolve the secrets directory (see ?duckdb_storage):
+# override -> marker (user/shared) -> session tempdir. There is no "library"
+# root for secrets, and the default is a per-session temporary directory.
+resolve_secret_directory <- function() {
+  override <- directory_override("secret")
+  if (!is.null(override)) {
+    return(override)
+  }
+  marked <- marked_storage_dir("secrets")
+  if (!is.null(marked)) {
+    return(marked)
+  }
+  storage_dir("session", "secrets")
+}
+
 # Resolve the temp/spill directory. For in-memory databases DuckDB would spill
 # to a `.tmp` directory in the working directory, so point it at a per-session
 # tempdir instead; for on-disk databases keep DuckDB's `<db>.tmp` default
