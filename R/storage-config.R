@@ -85,18 +85,18 @@ duckdb_secret_storage <- function(
   conflict = "error"
 ) {
   check_dots_empty0(...)
-  set_storage_marker("secrets", location, migrate, conflict)
+  set_storage_marker("stored_secrets", location, migrate, conflict)
 }
 
 #' @rdname duckdb_storage_config
 #' @export
 duckdb_storage_status <- function() {
   extensions <- describe_storage("extensions")
-  secrets <- describe_storage("secrets")
+  stored_secrets <- describe_storage("stored_secrets")
   data.frame(
-    kind = c("extensions", "secrets"),
-    directory = c(extensions$directory, secrets$directory),
-    source = c(extensions$source, secrets$source),
+    kind = c("extensions", "stored_secrets"),
+    directory = c(extensions$directory, stored_secrets$directory),
+    source = c(extensions$source, stored_secrets$source),
     stringsAsFactors = FALSE
   )
 }

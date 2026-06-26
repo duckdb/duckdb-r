@@ -32,7 +32,7 @@ test_that("resolve_secret_directory uses a marked root over the default", {
     default_user_directory = function() user,
     duckdb_shared_home = function() shared
   )
-  write_keep_marker(storage_dir("shared", "secrets"))
+  write_keep_marker(storage_dir("shared", "stored_secrets"))
   expect_equal(
     normalizePath(resolve_secret_directory()),
     normalizePath(file.path(shared, "stored_secrets"))

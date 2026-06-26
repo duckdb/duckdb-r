@@ -40,7 +40,7 @@ test_that("duckdb_extension_storage writes a marker, status reports it", {
   st <- duckdb_storage_status()
   expect_s3_class(st, "data.frame")
   expect_named(st, c("kind", "directory", "source"))
-  expect_setequal(st$kind, c("extensions", "secrets"))
+  expect_setequal(st$kind, c("extensions", "stored_secrets"))
   ext <- st[st$kind == "extensions", ]
   expect_equal(
     normalizePath(ext$directory),
@@ -73,7 +73,7 @@ test_that('location = "session" removes the marker and reverts to the default', 
   expect_false(has_keep_marker(file.path(roots$user, "stored_secrets")))
   expect_equal(dir, file.path(roots$session, "duckdb", "stored_secrets"))
   sec <- duckdb_storage_status()
-  expect_equal(sec[sec$kind == "secrets", "source"], "session")
+  expect_equal(sec[sec$kind == "stored_secrets", "source"], "session")
 })
 
 test_that("duckdb_storage_status reports the library root when it is marked", {

@@ -11,8 +11,11 @@ test_that("storage_dir maps known roots and kinds, and rejects unknown roots", {
     storage_dir("session", "extensions"),
     "/tmp/sess/duckdb/extensions"
   )
-  expect_equal(storage_dir("user", "secrets"), "/userdir/stored_secrets")
-  expect_equal(storage_dir("shared", "secrets"), "/home/.duckdb/stored_secrets")
+  expect_equal(storage_dir("user", "stored_secrets"), "/userdir/stored_secrets")
+  expect_equal(
+    storage_dir("shared", "stored_secrets"),
+    "/home/.duckdb/stored_secrets"
+  )
   expect_equal(storage_dir("library", "extensions"), "/pkg/extensions")
   expect_error(
     storage_dir("/explicit/path", "extensions"),
@@ -38,18 +41,21 @@ test_that("marked_storage_dir returns NULL, the one marked root, or warns on dup
     duckdb_shared_home = function() shared
   )
 
-  expect_null(marked_storage_dir("secrets"))
+  expect_null(marked_storage_dir("stored_secrets"))
 
-  write_keep_marker(storage_dir("user", "secrets"))
+  write_keep_marker(storage_dir("user", "stored_secrets"))
   expect_equal(
-    normalizePath(marked_storage_dir("secrets")),
+    normalizePath(marked_storage_dir("stored_secrets")),
     normalizePath(file.path(user, "stored_secrets"))
   )
 
   # Two markers -> ambiguous -> message + NULL (fall back to default).
-  write_keep_marker(storage_dir("shared", "secrets"))
-  storage_message_state[["duplicate_marker_secrets"]] <- NULL
-  expect_message(expect_null(marked_storage_dir("secrets")), "more than one")
+  write_keep_marker(storage_dir("shared", "stored_secrets"))
+  storage_message_state[["duplicate_marker_stored_secrets"]] <- NULL
+  expect_message(
+    expect_null(marked_storage_dir("stored_secrets")),
+    "more than one"
+  )
 })
 
 test_that("inform_once_every throttles within the interval (mocked clock)", {

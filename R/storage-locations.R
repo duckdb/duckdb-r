@@ -6,16 +6,6 @@ session_temp_dir <- function() {
   tempdir()
 }
 
-# Per-kind sub-directory name under a storage root.
-storage_kind_subdir <- function(kind) {
-  switch(
-    kind,
-    extensions = "extensions",
-    secrets = "stored_secrets",
-    stop("Unknown storage kind: ", kind, call. = FALSE)
-  )
-}
-
 # Base directory for a named root. `"library"` is only meaningful for
 # extensions (it is wiped on re-install, pairing binaries with the build ABI).
 storage_root_base <- function(root) {
@@ -30,9 +20,14 @@ storage_root_base <- function(root) {
 }
 
 # The directory a (root, kind) pair maps to, e.g. `<root>/extensions`. `root`
-# must be a known root name; `storage_root_base()` errors otherwise.
+# must be a known root name (`storage_root_base()` errors otherwise); `kind` is
+# the sub-directory, matching DuckDB's own names ("extensions",
+# "stored_secrets").
 storage_dir <- function(root, kind) {
-  file.path(storage_root_base(root), storage_kind_subdir(kind))
+  if (!kind %in% c("extensions", "stored_secrets")) {
+    stop("Unknown storage kind: ", kind, call. = FALSE)
+  }
+  file.path(storage_root_base(root), kind)
 }
 
 # Persistent roots a marker may opt into, in priority order. (`session` is the
@@ -46,10 +41,11 @@ persistent_roots <- function() {
 # Name and contents of the per-kind "keep" marker. Contents are informational
 # only: the package checks for the file's presence, never reads it back.
 KEEP_MARKER_NAME <- ".duckdb-r-keep"
-KEEP_MARKER_TEXT <- paste(
-  "Marker written by the duckdb R package: while this file is present,",
-  "downloaded extensions or secrets are kept in this directory. Delete this",
-  "file to opt out; deleting the directory itself removes the stored data."
+KEEP_MARKER_TEXT <- paste0(
+  "Marker written by the duckdb R package: while this file is present, ",
+  "downloaded extensions or stored secrets are kept in this directory. ",
+  "Delete this file to opt out; deleting the directory itself removes the ",
+  "stored data."
 )
 
 # TRUE if the keep-marker is present in `dir`.
@@ -62,11 +58,11 @@ has_keep_marker <- function(dir) {
 # now exists. A real write rather than file.access(), which is unreliable on
 # Windows.
 write_keep_marker <- function(dir) {
-  if (
-    !dir.exists(dir) &&
-      !dir.create(dir, recursive = TRUE, showWarnings = FALSE)
-  ) {
-    return(FALSE)
+  if (!dir.exists(dir)) {
+    created <- dir.create(dir, recursive = TRUE, showWarnings = FALSE)
+    if (!created) {
+      return(FALSE)
+    }
   }
   marker <- file.path(dir, KEEP_MARKER_NAME)
   ok <- tryCatch(
@@ -144,7 +140,10 @@ inform_duplicate_marker <- function(kind, roots) {
     paste0("duplicate_marker_", kind),
     STORAGE_MESSAGE_INTERVAL,
     c(
-      sprintf("duckdb: %s storage is marked in more than one location:", kind),
+      sprintf(
+        "duckdb: %s storage is marked in more than one location:",
+        gsub("_", " ", kind)
+      ),
       dirs,
       i = "Falling back to a temporary directory until only one remains."
     )
@@ -214,11 +213,11 @@ resolve_secret_directory <- function() {
   if (!is.null(override)) {
     return(override)
   }
-  marked <- marked_storage_dir("secrets")
+  marked <- marked_storage_dir("stored_secrets")
   if (!is.null(marked)) {
     return(marked)
   }
-  storage_dir("session", "secrets")
+  storage_dir("session", "stored_secrets")
 }
 
 # Resolve the temp/spill directory. For in-memory databases DuckDB would spill
