@@ -33,13 +33,16 @@
 #' There is no `ask` argument: calling a `*_storage()` function is itself the
 #' consent to write outside the temporary directory.
 #'
-#' @param location The destination root (not a path). Recognized roots are
-#'   `"session"` (the per-session temporary directory; also the opt-out -- it
-#'   removes the marker), `"user"` ([tools::R_user_dir()]), `"shared"`
-#'   (`~/.duckdb`, shared with the DuckDB CLI and Python client), and -- for
-#'   `duckdb_extension_storage()` only -- `"library"` (alongside the installed
-#'   package). To use an arbitrary directory, set the option or environment
-#'   variable instead (see [duckdb_storage]).
+#' @param location The destination root (not a path); one of:
+#'   * `"session"` -- the per-session temporary directory; also the opt-out
+#'     (removes the marker).
+#'   * `"user"` -- [tools::R_user_dir()].
+#'   * `"shared"` -- `~/.duckdb`, shared with the DuckDB CLI and Python client.
+#'   * `"library"` -- *(`duckdb_extension_storage()` only)* alongside the
+#'     installed package.
+#'
+#'   To use an arbitrary directory, set the option or environment variable
+#'   instead (see [duckdb_storage]).
 #' @param ... These dots are for future extensions and must be empty.
 #' @param migrate If `TRUE` (the default), move the already-cached files from the
 #'   current location into the new one. Ignored when `location` is `"session"`:
