@@ -13,16 +13,6 @@ system_file_path <- function(...) {
   file.path(system.file(package = get_package_name()), ...)
 }
 
-# Base fallback for `rlang::check_dots_empty0()`; in `.onLoad()` this is swapped
-# for rlang's version when rlang is available (same strategy as `is_interactive`
-# and `rapi_error`).
-check_dots_empty <- function(...) {
-  if (...length() > 0L) {
-    stop("`...` must be empty.", call. = FALSE)
-  }
-  invisible()
-}
-
 get_package_spec <- function() {
   getNamespaceInfo(get_package_name(), "spec")
 }

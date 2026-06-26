@@ -16,7 +16,9 @@
   if (requireNamespace("rlang", quietly = TRUE)) {
     is_interactive <<- rlang::is_interactive
     rapi_error <<- rapi_error_rlang
-    check_dots_empty <<- rlang::check_dots_empty0
+    check_dots_empty0 <<- rlang::check_dots_empty0
+    inform <<- rlang::inform
+    arg_match <<- rlang::arg_match
   } else {
     rethrow_restore()
     # Overwrite rapi_error with base version when rlang is not available

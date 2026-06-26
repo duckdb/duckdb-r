@@ -25,9 +25,9 @@ test_that("common_secret_directory routes through the shared-home seam", {
   )
 })
 
-test_that("check_dots_empty rejects non-empty dots", {
+test_that("check_dots_empty0 rejects non-empty dots", {
   f <- function(x, ...) {
-    check_dots_empty(...)
+    check_dots_empty0(...)
     x
   }
   expect_identical(f(1), 1)
