@@ -113,7 +113,7 @@ which always default to \code{"session"}.}
 \subsection{The marker file}{
 
 The marker's name and contents make clear it belongs to the R package, so a
-human inspecting the directory can tell at a glance what created it. This
+user inspecting the directory can tell at a glance what created it. This
 matters most in the \code{"shared"} root (\verb{~/.duckdb}), which is also used by the
 DuckDB CLI and Python client:
 

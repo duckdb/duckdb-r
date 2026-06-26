@@ -31,6 +31,11 @@ docs; this file tracks the work to implement it.
       the working tree is behavior-neutral.
 - [x] Seam tests in `tests/testthat/test-storage-seams.R` pin current behavior
       and confirm each seam is mockable.
+- [x] Unexported stubs for `duckdb_extension_storage()` /
+      `duckdb_secret_storage()` / `duckdb_storage_status()` keep the documented
+      `\usage` in sync with the code (so `codoc`/`R CMD check` is clean); they
+      `stop()` until implemented.
+- [x] pkgdown reference index lists `duckdb_storage` / `duckdb_storage_config`.
 
 ### Mockable seams (implemented in Phase 0)
 
@@ -97,6 +102,8 @@ resolution/marker logic calls these, never the underlying primitive.
 
 ## Phase 3 — user-facing functions
 
+- [ ] Flesh out the Phase 0 stubs (replace the `stop()` bodies) and `@export`
+      them.
 - [ ] `duckdb_extension_storage(location, ..., migrate = TRUE, conflict = "error")`.
 - [ ] `duckdb_secret_storage(location, ..., migrate = TRUE, conflict = "error")`.
 - [ ] `duckdb_storage_status()` → data frame, one row per kind (resolved dir +
@@ -115,7 +122,7 @@ resolution/marker logic calls these, never the underlying primitive.
 
 - [ ] Remove `duckdb_consolidate_secrets()` outright — no deprecation ceremony
       (it existed only briefly). Fold its logic into the `migrate` step of
-      `duckdb_secret_storage()`.
+      `duckdb_secret_storage()`, and remove its `_pkgdown.yml` "Secrets" entry.
       → test: the migrate step covers the cases the old function did.
 - [ ] Ephemeral-storage message on connect when the resolved extension cache is
       under tempdir; throttled once / 8h / session, **including unattended runs**

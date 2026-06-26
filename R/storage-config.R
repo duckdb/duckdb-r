@@ -65,3 +65,29 @@
 #' @aliases duckdb_extension_storage duckdb_secret_storage duckdb_storage_status
 #' @keywords internal
 NULL
+
+# Unexported stubs. The storage policy is documented (see `?duckdb_storage`) but
+# not implemented yet (see plan/PLAN-storage-locations.md); these keep the
+# documented `\usage` in sync with the code and error until implemented. Their
+# formals must match the `@usage` block above.
+duckdb_extension_storage <- function(
+  location,
+  ...,
+  migrate = TRUE,
+  conflict = "error"
+) {
+  stop("`duckdb_extension_storage()` is not implemented yet.", call. = FALSE)
+}
+
+duckdb_secret_storage <- function(
+  location,
+  ...,
+  migrate = TRUE,
+  conflict = "error"
+) {
+  stop("`duckdb_secret_storage()` is not implemented yet.", call. = FALSE)
+}
+
+duckdb_storage_status <- function() {
+  stop("`duckdb_storage_status()` is not implemented yet.", call. = FALSE)
+}
