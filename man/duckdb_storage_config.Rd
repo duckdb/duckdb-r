@@ -19,8 +19,9 @@ secrets, by writing a small \emph{marker file} that records the choice:
 
 By default both kinds live in a per-session temporary directory (extensions
 use the package library when it is writable); these functions move them to a
-location that survives across sessions. The full policy is documented in
-\link{duckdb_storage}.
+location that survives across sessions. The same locations can also be set
+without a marker by overriding with options and environment variables; the
+full policy is documented in \link{duckdb_storage}.
 
 These functions are planned and not yet implemented; this page describes
 their intended behavior.
