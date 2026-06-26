@@ -47,7 +47,7 @@
 #'   (`~/.duckdb`, shared with the DuckDB CLI and Python client), and -- for
 #'   `duckdb_extension_storage()` only -- `"library"` (alongside the installed
 #'   package). See [duckdb_storage] for what each root means.
-#' @param ... These dots are for future extension and must be empty.
+#' @param ... These dots are for future extensions and must be empty.
 #' @param migrate If `TRUE` (the default), move the already-cached files from the
 #'   current location into the new one.
 #' @param conflict How to resolve a name collision during migration: `"error"`

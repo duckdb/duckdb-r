@@ -19,7 +19,7 @@ it removes the marker), \code{"user"} (\code{\link[tools:R_user_dir]{tools::R_us
 \code{duckdb_extension_storage()} only -- \code{"library"} (alongside the installed
 package). See \link{duckdb_storage} for what each root means.}
 
-\item{...}{These dots are for future extension and must be empty.}
+\item{...}{These dots are for future extensions and must be empty.}
 
 \item{migrate}{If \code{TRUE} (the default), move the already-cached files from the
 current location into the new one.}
