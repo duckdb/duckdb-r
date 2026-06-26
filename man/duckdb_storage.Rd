@@ -105,11 +105,10 @@ Two functions write and relocate these markers -- one per kind of state, so
 the two can be configured independently -- and a third reports the current
 state. They are documented in full on \link{duckdb_storage_config}:
 
-\preformatted{
-duckdb_extension_storage(location, migrate = TRUE, conflict = "error")
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{duckdb_extension_storage(location, migrate = TRUE, conflict = "error")
 duckdb_secret_storage(location, migrate = TRUE, conflict = "error")
 duckdb_storage_status()
-}
+}\if{html}{\out{</div>}}
 
 A \verb{*_storage()} call writes the marker at \code{location} (creating, relocating,
 or -- with \code{"session"} -- removing it); \code{duckdb_storage_status()} reports
@@ -143,8 +142,9 @@ The marker's name makes clear it belongs to the R package -- important
 because the \code{"shared"} root (\verb{~/.duckdb}) is also used by the DuckDB CLI and
 Python client, which must not mistake it for their own:
 
-\preformatted{<root>/extensions/.duckdb-r-keep     # opts in the extension cache
-<root>/stored_secrets/.duckdb-r-keep              # opts in secrets}
+\if{html}{\out{<div class="sourceCode">}}\preformatted{<root>/extensions/.duckdb-r-keep        # opts in the extension cache
+<root>/stored_secrets/.duckdb-r-keep    # opts in secrets
+}\if{html}{\out{</div>}}
 
 It is not empty: the package writes a single line of human-readable text
 describing what the file is and that it is safe to delete. Only the file's

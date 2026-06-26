@@ -24,11 +24,10 @@ without a marker by overriding with options and environment variables; the
 full policy is documented in \link{duckdb_storage}.
 }
 \section{Functions}{
-\preformatted{
-duckdb_extension_storage(location, migrate = TRUE, conflict = "error")
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{duckdb_extension_storage(location, migrate = TRUE, conflict = "error")
 duckdb_secret_storage(location, migrate = TRUE, conflict = "error")
 duckdb_storage_status()
-}
+}\if{html}{\out{</div>}}
 
 \code{duckdb_extension_storage()} and \code{duckdb_secret_storage()} write (or remove)
 the marker for that one kind of state, so the two can be configured

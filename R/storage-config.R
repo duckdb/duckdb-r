@@ -23,11 +23,11 @@
 #' @details
 #' # Functions
 #'
-#' \preformatted{
+#' ```r
 #' duckdb_extension_storage(location, migrate = TRUE, conflict = "error")
 #' duckdb_secret_storage(location, migrate = TRUE, conflict = "error")
 #' duckdb_storage_status()
-#' }
+#' ```
 #'
 #' `duckdb_extension_storage()` and `duckdb_secret_storage()` write (or remove)
 #' the marker for that one kind of state, so the two can be configured

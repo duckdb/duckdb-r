@@ -107,11 +107,11 @@
 #' the two can be configured independently -- and a third reports the current
 #' state. They are documented in full on [duckdb_storage_config]:
 #'
-#' \preformatted{
+#' ```r
 #' duckdb_extension_storage(location, migrate = TRUE, conflict = "error")
 #' duckdb_secret_storage(location, migrate = TRUE, conflict = "error")
 #' duckdb_storage_status()
-#' }
+#' ```
 #'
 #' A `*_storage()` call writes the marker at `location` (creating, relocating,
 #' or -- with `"session"` -- removing it); `duckdb_storage_status()` reports
@@ -145,8 +145,10 @@
 #' because the `"shared"` root (`~/.duckdb`) is also used by the DuckDB CLI and
 #' Python client, which must not mistake it for their own:
 #'
-#' \preformatted{<root>/extensions/.duckdb-r-keep     # opts in the extension cache
-#' <root>/stored_secrets/.duckdb-r-keep              # opts in secrets}
+#' ```
+#' <root>/extensions/.duckdb-r-keep        # opts in the extension cache
+#' <root>/stored_secrets/.duckdb-r-keep    # opts in secrets
+#' ```
 #'
 #' It is not empty: the package writes a single line of human-readable text
 #' describing what the file is and that it is safe to delete. Only the file's
