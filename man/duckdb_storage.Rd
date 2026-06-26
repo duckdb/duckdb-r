@@ -195,9 +195,9 @@ package chose itself, it warns once that those will not persist and how to
 opt into a permanent location. Nothing is said up front, and nothing is
 said when no such data was written or when the location was chosen by the
 user (via \code{config}, an option, or an environment variable). The check runs
-on \code{dbDisconnect()} and, as a backstop for scripts that never disconnect
-(including the default connection behind \code{\link[=sql_query]{sql_query()}} / \code{\link[=sql_exec]{sql_exec()}}),
-once more when R exits.}
+after each \code{\link[=sql_query]{sql_query()}} / \code{\link[=sql_exec]{sql_exec()}} call (which manage their own
+connection) and on \code{dbDisconnect()}, with a final backstop when R exits
+for scripts that never disconnect.}
 \item{Library-cache notice}{The first time the extension cache is
 initialized in the package library (when its marker is written), the
 package says so once. The marker then persists, so this is effectively

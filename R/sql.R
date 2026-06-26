@@ -32,6 +32,11 @@
 #' sql_query("FROM mtcars")
 sql_query <- function(sql, conn = default_conn()) {
   stopifnot(dbIsValid(conn))
+  # These convenience functions manage the connection themselves and are never
+  # explicitly disconnected, so warn about ephemeral storage right after running
+  # rather than relying only on the fragile at-exit finalizer (see
+  # `?duckdb_storage`).
+  on.exit(maybe_warn_ephemeral(), add = TRUE)
   dbGetQuery(conn, sql)
 }
 
@@ -39,6 +44,7 @@ sql_query <- function(sql, conn = default_conn()) {
 #' @export
 sql_exec <- function(sql, conn = default_conn()) {
   stopifnot(dbIsValid(conn))
+  on.exit(maybe_warn_ephemeral(), add = TRUE)
   DBI::dbExecute(conn, sql)
 }
 
@@ -71,7 +77,7 @@ the <- new.env(parent = emptyenv())
 #' conn <- default_conn()
 #' sql_query("SELECT 42", conn = conn)
 default_conn <- function() {
-  if(!exists("con", the)) {
+  if (!exists("con", the)) {
     con <- DBI::dbConnect(
       duckdb(environment_scan = TRUE),
       timezone_out = "",
