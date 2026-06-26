@@ -144,9 +144,10 @@
 #'
 #' ## The marker file
 #'
-#' The marker's name makes clear it belongs to the R package -- important
-#' because the `"shared"` root (`~/.duckdb`) is also used by the DuckDB CLI and
-#' Python client, which must not mistake it for their own:
+#' The marker's name and contents make clear it belongs to the R package, so a
+#' human inspecting the directory can tell at a glance what created it. This
+#' matters most in the `"shared"` root (`~/.duckdb`), which is also used by the
+#' DuckDB CLI and Python client:
 #'
 #' ```
 #' <root>/extensions/.duckdb-r-keep        # opts in the extension cache

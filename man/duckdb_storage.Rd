@@ -115,9 +115,10 @@ which always default to \code{"session"}.}
 
 \subsection{The marker file}{
 
-The marker's name makes clear it belongs to the R package -- important
-because the \code{"shared"} root (\verb{~/.duckdb}) is also used by the DuckDB CLI and
-Python client, which must not mistake it for their own:
+The marker's name and contents make clear it belongs to the R package, so a
+human inspecting the directory can tell at a glance what created it. This
+matters most in the \code{"shared"} root (\verb{~/.duckdb}), which is also used by the
+DuckDB CLI and Python client:
 
 \if{html}{\out{<div class="sourceCode">}}\preformatted{<root>/extensions/.duckdb-r-keep        # opts in the extension cache
 <root>/stored_secrets/.duckdb-r-keep    # opts in secrets
