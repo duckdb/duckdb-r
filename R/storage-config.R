@@ -22,15 +22,12 @@
 #' overriding with options and environment variables. The full policy is
 #' documented in [duckdb_storage].
 #'
-#' @details
-#' # Functions
-#'
-#' ```r
+#' @usage
 #' duckdb_extension_storage(location, migrate = TRUE, conflict = "error")
 #' duckdb_secret_storage(location, migrate = TRUE, conflict = "error")
 #' duckdb_storage_status()
-#' ```
 #'
+#' @details
 #' `duckdb_extension_storage()` and `duckdb_secret_storage()` write (or remove)
 #' the marker for that one kind of state, so the two can be configured
 #' independently. `duckdb_storage_status()` reports where each kind currently

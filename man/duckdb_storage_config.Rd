@@ -6,6 +6,11 @@
 \alias{duckdb_secret_storage}
 \alias{duckdb_storage_status}
 \title{Configure where DuckDB stores extensions and secrets}
+\usage{
+duckdb_extension_storage(location, migrate = TRUE, conflict = "error")
+duckdb_secret_storage(location, migrate = TRUE, conflict = "error")
+duckdb_storage_status()
+}
 \arguments{
 \item{location}{The destination root, or an explicit path. Recognized roots
 are \code{"session"} (the per-session temporary directory; also the opt-out --
@@ -47,12 +52,7 @@ across sessions; the same locations can also be set without a marker by
 overriding with options and environment variables. The full policy is
 documented in \link{duckdb_storage}.
 }
-\section{Functions}{
-\if{html}{\out{<div class="sourceCode r">}}\preformatted{duckdb_extension_storage(location, migrate = TRUE, conflict = "error")
-duckdb_secret_storage(location, migrate = TRUE, conflict = "error")
-duckdb_storage_status()
-}\if{html}{\out{</div>}}
-
+\details{
 \code{duckdb_extension_storage()} and \code{duckdb_secret_storage()} write (or remove)
 the marker for that one kind of state, so the two can be configured
 independently. \code{duckdb_storage_status()} reports where each kind currently
@@ -63,7 +63,6 @@ unaffected.
 There is no \code{ask} argument: calling a \verb{*_storage()} function is itself the
 consent to write outside the temporary directory.
 }
-
 \section{Relationship to existing functions}{
 \code{duckdb_secret_storage()} supersedes \code{\link[=duckdb_consolidate_secrets]{duckdb_consolidate_secrets()}}, which is
 hard-deprecated: secret migration is now a \code{migrate} step of
