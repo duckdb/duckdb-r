@@ -194,13 +194,13 @@
 #'
 #' # Per-location reference
 #'
-#' | Kind        | DuckDB setting        | Option                        | Environment variable          | Default                          |
-#' |-------------|-----------------------|-------------------------------|-------------------------------|----------------------------------|
-#' | Home        | `home_directory`      | --                            | --                            | left untouched (not set)            |
-#' | Extensions  | `extension_directory` | `duckdb.extension_directory`  | `DUCKDB_EXTENSION_DIRECTORY`  | library if writable, else `tempdir()`|
-#' | Stored secrets | `secret_directory` | `duckdb.secret_directory`     | `DUCKDB_SECRET_DIRECTORY`     | `tempdir()` sub-directory (set)     |
-#' | Temp/spill  | `temp_directory`      | `duckdb.temp_directory`       | `DUCKDB_TEMP_DIRECTORY`       | `tempdir()` sub-directory (set)     |
-#' | Logs        | `log_query_path`      | `duckdb.log_directory`        | `DUCKDB_LOG_DIRECTORY`        | disabled (off)                      |
+#' | Kind        | DuckDB setting        | Option / environment variable                              | Default                          |
+#' |-------------|-----------------------|------------------------------------------------------------|----------------------------------|
+#' | Home        | `home_directory`      | --                                                         | left untouched (not set)            |
+#' | Extensions  | `extension_directory` | `duckdb.extension_directory` / `DUCKDB_EXTENSION_DIRECTORY` | library if writable, else `tempdir()`|
+#' | Stored secrets | `secret_directory` | `duckdb.secret_directory` / `DUCKDB_SECRET_DIRECTORY`       | `tempdir()` sub-directory (set)     |
+#' | Temp/spill  | `temp_directory`      | `duckdb.temp_directory` / `DUCKDB_TEMP_DIRECTORY`          | `tempdir()` sub-directory (set)     |
+#' | Logs        | `log_query_path`      | `duckdb.log_directory` / `DUCKDB_LOG_DIRECTORY`            | disabled (off)                      |
 #'
 #' "set" means `duckdb()` sets the value explicitly in the database config. The
 #' home directory is left untouched so that `~` in user SQL keeps its usual

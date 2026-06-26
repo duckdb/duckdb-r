@@ -169,13 +169,13 @@ resurrecting a store root and reintroducing an ABI mismatch.
 }
 
 \section{Per-location reference}{
-\tabular{lllll}{
-   Kind \tab DuckDB setting \tab Option \tab Environment variable \tab Default \cr
-   Home \tab \code{home_directory} \tab -- \tab -- \tab left untouched (not set) \cr
-   Extensions \tab \code{extension_directory} \tab \code{duckdb.extension_directory} \tab \code{DUCKDB_EXTENSION_DIRECTORY} \tab library if writable, else \code{tempdir()} \cr
-   Stored secrets \tab \code{secret_directory} \tab \code{duckdb.secret_directory} \tab \code{DUCKDB_SECRET_DIRECTORY} \tab \code{tempdir()} sub-directory (set) \cr
-   Temp/spill \tab \code{temp_directory} \tab \code{duckdb.temp_directory} \tab \code{DUCKDB_TEMP_DIRECTORY} \tab \code{tempdir()} sub-directory (set) \cr
-   Logs \tab \code{log_query_path} \tab \code{duckdb.log_directory} \tab \code{DUCKDB_LOG_DIRECTORY} \tab disabled (off) \cr
+\tabular{llll}{
+   Kind \tab DuckDB setting \tab Option / environment variable \tab Default \cr
+   Home \tab \code{home_directory} \tab -- \tab left untouched (not set) \cr
+   Extensions \tab \code{extension_directory} \tab \code{duckdb.extension_directory} / \code{DUCKDB_EXTENSION_DIRECTORY} \tab library if writable, else \code{tempdir()} \cr
+   Stored secrets \tab \code{secret_directory} \tab \code{duckdb.secret_directory} / \code{DUCKDB_SECRET_DIRECTORY} \tab \code{tempdir()} sub-directory (set) \cr
+   Temp/spill \tab \code{temp_directory} \tab \code{duckdb.temp_directory} / \code{DUCKDB_TEMP_DIRECTORY} \tab \code{tempdir()} sub-directory (set) \cr
+   Logs \tab \code{log_query_path} \tab \code{duckdb.log_directory} / \code{DUCKDB_LOG_DIRECTORY} \tab disabled (off) \cr
 }
 
 
