@@ -24,5 +24,16 @@ list(
     r = r_versions[[2]],
     env = "DUCKDB_R_USE_SYSTEM_LIB=0",
     desc = "vendored build (compiles bundled DuckDB sources)"
+  ),
+  # Companion macOS vendored build. Regular macOS entries default to the fast
+  # system-libduckdb path (see the custom before-install action), so without
+  # this entry no macOS job would actually compile the bundled DuckDB sources.
+  # Windows always builds from source, so together with the Linux entry above
+  # this covers a source build on every OS in the matrix.
+  data.frame(
+    os = "macos-latest",
+    r = r_versions[[2]],
+    env = "DUCKDB_R_USE_SYSTEM_LIB=0",
+    desc = "vendored build (compiles bundled DuckDB sources)"
   )
 )

@@ -83,3 +83,19 @@ runs:
           echo 'DUCKDB_R_USE_SYSTEM_LIB=0' | tee -a "$GITHUB_ENV"
         fi
       shell: bash
+
+    # Download the standalone DuckDB CLI that matches the vendored engine so the
+    # CLI<->R secret-sharing end-to-end tests can run (tests/testthat/
+    # test-storage-cli-e2e.R). Runs on every OS -- including Windows, where the
+    # original `path.expand("~/.duckdb")` bug surfaced -- via Git Bash. The CLI
+    # is published only for tagged releases; for a -dev snapshot the script
+    # prints nothing and the tests skip, so failures here never break the build.
+    - name: Install the DuckDB CLI (for CLI<->R end-to-end tests)
+      run: |
+        cli="$(scripts/install-duckdb-cli.sh --prefix "${RUNNER_TEMP}/duckdb-cli" || true)"
+        if [ -n "${cli}" ] && [ -f "${cli}" ]; then
+          echo "DUCKDB_CLI=${cli}" | tee -a "$GITHUB_ENV"
+        else
+          echo "No matching DuckDB CLI available; CLI<->R end-to-end tests will skip."
+        fi
+      shell: bash

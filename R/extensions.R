@@ -7,10 +7,37 @@ default_user_directory <- function() {
 # without touching the real filesystem or HOME. See `?duckdb_storage` and
 # plan/PLAN-storage-locations.md.
 
-# The DuckDB default home (`~/.duckdb`), shared with the DuckDB CLI and Python
-# client.
+# The DuckDB default home (`<home>/.duckdb`), shared with the DuckDB CLI and
+# Python client. The `<home>` base must match the engine's own notion of the
+# home directory or markers/secrets written here would not be seen by the CLI.
 duckdb_shared_home <- function() {
-  path.expand("~/.duckdb")
+  file.path(duckdb_home_directory(), ".duckdb")
+}
+
+# Replicate the default home directory the bundled DuckDB engine derives in
+# FileSystem::GetHomeDirectory() (src/duckdb/src/common/file_system.cpp):
+# the USERPROFILE environment variable on Windows, HOME elsewhere.
+#
+# This deliberately avoids R's `path.expand("~")`, which on Windows resolves to
+# the user's Documents folder (e.g. `C:/Users/<user>/Documents`), not the
+# profile root (`C:/Users/<user>`) that DuckDB, its CLI, and the Python client
+# treat as `~`. Using `path.expand()` there would point the "shared" root at a
+# directory the rest of the DuckDB ecosystem never looks in.
+duckdb_home_directory <- function() {
+  var <- if (is_windows()) "USERPROFILE" else "HOME"
+  home <- Sys.getenv(var, unset = "")
+  if (!nzchar(home)) {
+    # The environment variable DuckDB consults is unset (rare); fall back to
+    # R's own idea of the home directory rather than producing a rootless path.
+    home <- path.expand("~")
+  }
+  home
+}
+
+# Platform seam, mockable in tests. Mirrors DuckDB's compile-time
+# `DUCKDB_WINDOWS` switch.
+is_windows <- function() {
+  .Platform$OS.type == "windows"
 }
 
 cleanup_user_directory <- function() {
