@@ -1,5 +1,70 @@
 # Changelog
 
+## duckdb 1.5.4.9004
+
+### Bug fixes
+
+- Fix messaging logic.
+
+### Features
+
+- CRAN-safe, configurable storage locations for extensions and secrets
+  ([\#2370](https://github.com/duckdb/duckdb-r/issues/2370),
+  [\#2377](https://github.com/duckdb/duckdb-r/issues/2377)).
+
+### Chore
+
+- Move code ([\#2378](https://github.com/duckdb/duckdb-r/issues/2378)).
+
+- Move rlang shims to `rlang.R`, add `inform()`/`arg_match()`.
+
+  Gather the package’s rlang soft-dependency fallbacks into a dedicated
+  `R/rlang.R`: rename `check_dots_empty()` to `check_dots_empty0()`
+  (matching the rlang function it shadows) and add `inform()` and
+  `arg_match()` fallbacks, each swapped for the real rlang function in
+  `.onLoad()`. Behaviour-neutral; the new shims are used by later
+  commits. Also normalize an `if(` in
+  [`default_conn()`](https://r.duckdb.org/reference/default_conn.md).
+
+  Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+  Claude-Session:
+  <https://claude.ai/code/session_01R5F1rPyR7Vo3r9BRqUXCfu>
+
+### Documentation
+
+- Refactor
+  [`?duckdb_storage`](https://r.duckdb.org/reference/duckdb_storage.md)
+  terminology and reference table.
+
+  Behavior-neutral documentation cleanup, independent of the resolution
+  policy:
+
+  - Rename the “Secrets” kind to “Stored secrets” throughout, matching
+    DuckDB’s `stored_secrets` sub-directory name.
+  - Merge the “Per-location reference” table’s separate “Option” and
+    “Environment variable” columns into a single “Option / environment
+    variable” column.
+
+  Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+  Claude-Session:
+  <https://claude.ai/code/session_01R5F1rPyR7Vo3r9BRqUXCfu>
+
+- Use rlang::args_dots_empty for dots; drop `local_interactive()` shim
+  ([\#2376](https://github.com/duckdb/duckdb-r/issues/2376)).
+
+- Add descriptions to every pkgdown reference section.
+
+  Give each reference section (Getting started, Driver, Connection,
+  Result, Interfaces, Storage locations) a `desc:` so the reference
+  index explains what each group is for.
+
+  Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+  Claude-Session:
+  <https://claude.ai/code/session_01R5F1rPyR7Vo3r9BRqUXCfu>
+
+- CRAN-safe storage-location policy + behavior-neutral scaffolding
+  (Phase 0) ([\#2372](https://github.com/duckdb/duckdb-r/issues/2372)).
+
 ## duckdb 1.5.4.9003
 
 ### Documentation
