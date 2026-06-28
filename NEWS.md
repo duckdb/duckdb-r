@@ -1,6 +1,6 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.5.4.9004
+# duckdb 1.5.4.1
 
 ## Bug fixes
 
@@ -10,83 +10,15 @@
 
 - CRAN-safe, configurable storage locations for extensions and secrets (#2370, #2377).
 
+- Update vendored code to v0.9.1 (#26).
+
 ## Chore
 
 - Move code (#2378).
 
 - Move rlang shims to `rlang.R`, add `inform()`/`arg_match()`.
 
-  Gather the package's rlang soft-dependency fallbacks into a dedicated
-  `R/rlang.R`: rename `check_dots_empty()` to `check_dots_empty0()` (matching
-  the rlang function it shadows) and add `inform()` and `arg_match()`
-  fallbacks, each swapped for the real rlang function in `.onLoad()`.
-  Behaviour-neutral; the new shims are used by later commits. Also normalize
-  an `if(` in `default_conn()`.
-
-  Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
-  Claude-Session: https://claude.ai/code/session_01R5F1rPyR7Vo3r9BRqUXCfu
-
-## Documentation
-
-- Refactor `?duckdb_storage` terminology and reference table.
-
-  Behavior-neutral documentation cleanup, independent of the resolution
-  policy:
-
-  - Rename the "Secrets" kind to "Stored secrets" throughout, matching
-    DuckDB's `stored_secrets` sub-directory name.
-  - Merge the "Per-location reference" table's separate "Option" and
-    "Environment variable" columns into a single "Option / environment
-    variable" column.
-
-  Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
-  Claude-Session: https://claude.ai/code/session_01R5F1rPyR7Vo3r9BRqUXCfu
-
-- Use rlang::args_dots_empty for dots; drop `local_interactive()` shim (#2376).
-
-- Add descriptions to every pkgdown reference section.
-
-  Give each reference section (Getting started, Driver, Connection, Result,
-  Interfaces, Storage locations) a `desc:` so the reference index explains
-  what each group is for.
-
-  Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
-  Claude-Session: https://claude.ai/code/session_01R5F1rPyR7Vo3r9BRqUXCfu
-
-- CRAN-safe storage-location policy + behavior-neutral scaffolding (Phase 0) (#2372).
-
-
-# duckdb 1.5.4.9003
-
-## Documentation
-
-- Minor spelling consistency (#2373).
-
-- Document prebuilt-libduckdb fast path for testing; fix glue `-Wsign-compare` warnings (#2371).
-
-## Testing
-
-- Add vctrs dependency checks to map tests using `vctrs::list_of()` (#2369).
-
-
-# duckdb 1.5.4.9002
-
-## Chore
-
 - Tweak LTS to also apply to v1.4.
-
-## Uncategorized
-
-- Test: Derive package name dynamically in tests instead of hard-coding, to support flavors (#34).
-
-
-# duckdb 1.5.4.9001
-
-## Features
-
-- Update vendored code to v0.9.1 (#26).
-
-## Chore
 
 - Add opt-in system libduckdb linking for faster development builds (#2345).
 
@@ -94,20 +26,25 @@
 
 - Fix tests when dplyr is missing (#29).
 
-## fledge
+## Documentation
 
-- CRAN release v1.5.4 (#2362).
+- Refactor `?duckdb_storage` terminology and reference table.
 
+- Use `rlang::args_dots_empty()` for dots; drop `local_interactive()` shim (#2376).
 
-# duckdb 1.5.4.9000
+- Add descriptions to every pkgdown reference section.
 
-## Chore
+- CRAN-safe storage-location policy + behavior-neutral scaffolding (Phase 0) (#2372).
 
-- Fix tests when dplyr is missing (#29).
+- Minor spelling consistency (#2373).
 
-## fledge
+- Document prebuilt-libduckdb fast path for testing; fix glue `-Wsign-compare` warnings (#2371).
 
-- CRAN release v1.5.4 (#2362).
+## Testing
+
+- Derive package name dynamically in tests instead of hard-coding, to support flavors (#34).
+
+- Add vctrs dependency checks to map tests using `vctrs::list_of()` (#2369).
 
 
 # duckdb 1.5.4
