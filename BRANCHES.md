@@ -582,7 +582,7 @@ vendoring.
 |----|----|
 | `scripts/vendor.sh` | Local manual vendoring from a cloned upstream repo |
 | `scripts/vendor-one.sh` | CI commit-by-commit vendoring (called by `vendor.yaml`) |
-| `scripts/lts.sh <flavor>` | Applies the flavor rename (updates `lts.patch`, then applies it and re-runs [`cpp11::cpp_register()`](https://cpp11.r-lib.org/reference/cpp_register.html)) |
+| `scripts/lts.sh <flavor>` | Applies the flavor rename (updates `lts.patch`, then applies it and re-runs `cpp11::cpp_register()`) |
 | `scripts/lts.patch` | Patch template used by `lts.sh`; contains `1.4` as placeholder version (replaced by `lts.sh`) |
 | `scripts/each-rcc.sh` | Identifies commits in the first-parent history without a build status and triggers an `rcc` run for each |
 | `.github/workflows/vendor.yaml` | Hourly vendoring for all active dev branches (matrix: `v1.4-andium-dev`, `v1.5-variegata-dev`, `main-dev`) |

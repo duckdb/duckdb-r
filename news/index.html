@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.4.9004</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.4.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -28,95 +28,17 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/cran-1.5.4.1/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.4.9004" id="duckdb-1549004">duckdb 1.5.4.9004<a class="anchor" aria-label="anchor" href="#duckdb-1549004"></a></h2>
+<h2 class="pkg-version" data-toc-text="1.5.4.1" id="duckdb-1541">duckdb 1.5.4.1<a class="anchor" aria-label="anchor" href="#duckdb-1541"></a></h2>
 <div class="section level3">
-<h3 id="bug-fixes-1-5-4-9004">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5-4-9004"></a></h3>
-<ul><li>Fix messaging logic.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="features-1-5-4-9004">Features<a class="anchor" aria-label="anchor" href="#features-1-5-4-9004"></a></h3>
-<ul><li>CRAN-safe, configurable storage locations for extensions and secrets (<a href="https://github.com/duckdb/duckdb-r/issues/2370" class="external-link">#2370</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2377" class="external-link">#2377</a>).</li>
-</ul></div>
-<div class="section level3">
-<h3 id="chore-1-5-4-9004">Chore<a class="anchor" aria-label="anchor" href="#chore-1-5-4-9004"></a></h3>
-<ul><li><p>Move code (<a href="https://github.com/duckdb/duckdb-r/issues/2378" class="external-link">#2378</a>).</p></li>
-<li>
-<p>Move rlang shims to <code>rlang.R</code>, add <code>inform()</code>/<code>arg_match()</code>.</p>
-<p>Gather the package’s rlang soft-dependency fallbacks into a dedicated <code>R/rlang.R</code>: rename <code>check_dots_empty()</code> to <code>check_dots_empty0()</code> (matching the rlang function it shadows) and add <code>inform()</code> and <code>arg_match()</code> fallbacks, each swapped for the real rlang function in <code>.onLoad()</code>. Behaviour-neutral; the new shims are used by later commits. Also normalize an <code>if(</code> in <code><a href="../reference/default_conn.html">default_conn()</a></code>.</p>
-<p>Co-Authored-By: Claude Opus 4.8 <a href="mailto:noreply@anthropic.com" class="email">noreply@anthropic.com</a> Claude-Session: <a href="https://claude.ai/code/session_01R5F1rPyR7Vo3r9BRqUXCfu" class="external-link uri">https://claude.ai/code/session_01R5F1rPyR7Vo3r9BRqUXCfu</a></p>
-</li>
-</ul></div>
-<div class="section level3">
-<h3 id="documentation-1-5-4-9004">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-5-4-9004"></a></h3>
+<h3 id="features-1-5-4-1">Features<a class="anchor" aria-label="anchor" href="#features-1-5-4-1"></a></h3>
 <ul><li>
-<p>Refactor <code><a href="../reference/duckdb_storage.html">?duckdb_storage</a></code> terminology and reference table.</p>
-<p>Behavior-neutral documentation cleanup, independent of the resolution policy:</p>
-<ul><li>Rename the “Secrets” kind to “Stored secrets” throughout, matching DuckDB’s <code>stored_secrets</code> sub-directory name.</li>
-<li>Merge the “Per-location reference” table’s separate “Option” and “Environment variable” columns into a single “Option / environment variable” column.</li>
-</ul><p>Co-Authored-By: Claude Opus 4.8 <a href="mailto:noreply@anthropic.com" class="email">noreply@anthropic.com</a> Claude-Session: <a href="https://claude.ai/code/session_01R5F1rPyR7Vo3r9BRqUXCfu" class="external-link uri">https://claude.ai/code/session_01R5F1rPyR7Vo3r9BRqUXCfu</a></p>
+<p>DuckDB’s on-disk storage locations now follow a unified policy. By default nothing is written outside the R session’s temporary directory, with one exception: the extension cache is placed in the package library when it is writable and falls back to the temporary directory otherwise. Each location can be redirected through the <code>config</code> argument of <code><a href="../reference/duckdb.html">duckdb()</a></code>, an R option, or an environment variable. Configure the location for extensions and secrets with the new <code><a href="../reference/duckdb_storage_config.html">duckdb_extension_storage()</a></code> and <code><a href="../reference/duckdb_storage_config.html">duckdb_secret_storage()</a></code>, inspect the resolved locations with <code><a href="../reference/duckdb_storage_config.html">duckdb_storage_status()</a></code>, and see <code><a href="../reference/duckdb_storage.html">?duckdb_storage</a></code> for the full resolution policy (<a href="https://github.com/duckdb/duckdb-r/issues/2370" class="external-link">#2370</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2372" class="external-link">#2372</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2377" class="external-link">#2377</a>).</p>
+<p>These functions replace the experimental <code>duckdb_consolidate_secrets()</code> introduced in 1.5.4.</p>
 </li>
-<li><p>Use rlang::args_dots_empty for dots; drop <code>local_interactive()</code> shim (<a href="https://github.com/duckdb/duckdb-r/issues/2376" class="external-link">#2376</a>).</p></li>
-<li>
-<p>Add descriptions to every pkgdown reference section.</p>
-<p>Give each reference section (Getting started, Driver, Connection, Result, Interfaces, Storage locations) a <code>desc:</code> so the reference index explains what each group is for.</p>
-<p>Co-Authored-By: Claude Opus 4.8 <a href="mailto:noreply@anthropic.com" class="email">noreply@anthropic.com</a> Claude-Session: <a href="https://claude.ai/code/session_01R5F1rPyR7Vo3r9BRqUXCfu" class="external-link uri">https://claude.ai/code/session_01R5F1rPyR7Vo3r9BRqUXCfu</a></p>
-</li>
-<li><p>CRAN-safe storage-location policy + behavior-neutral scaffolding (Phase 0) (<a href="https://github.com/duckdb/duckdb-r/issues/2372" class="external-link">#2372</a>).</p></li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.4.9003" id="duckdb-1549003">duckdb 1.5.4.9003<a class="anchor" aria-label="anchor" href="#duckdb-1549003"></a></h2>
-<div class="section level3">
-<h3 id="documentation-1-5-4-9003">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-5-4-9003"></a></h3>
-<ul><li><p>Minor spelling consistency (<a href="https://github.com/duckdb/duckdb-r/issues/2373" class="external-link">#2373</a>).</p></li>
-<li><p>Document prebuilt-libduckdb fast path for testing; fix glue <code>-Wsign-compare</code> warnings (<a href="https://github.com/duckdb/duckdb-r/issues/2371" class="external-link">#2371</a>).</p></li>
-</ul></div>
-<div class="section level3">
-<h3 id="testing-1-5-4-9003">Testing<a class="anchor" aria-label="anchor" href="#testing-1-5-4-9003"></a></h3>
-<ul><li>Add vctrs dependency checks to map tests using <code><a href="https://vctrs.r-lib.org/reference/list_of.html" class="external-link">vctrs::list_of()</a></code> (<a href="https://github.com/duckdb/duckdb-r/issues/2369" class="external-link">#2369</a>).</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.4.9002" id="duckdb-1549002">duckdb 1.5.4.9002<a class="anchor" aria-label="anchor" href="#duckdb-1549002"></a></h2>
-<div class="section level3">
-<h3 id="chore-1-5-4-9002">Chore<a class="anchor" aria-label="anchor" href="#chore-1-5-4-9002"></a></h3>
-<ul><li>Tweak LTS to also apply to v1.4.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="uncategorized-1-5-4-9002">Uncategorized<a class="anchor" aria-label="anchor" href="#uncategorized-1-5-4-9002"></a></h3>
-<ul><li>Test: Derive package name dynamically in tests instead of hard-coding, to support flavors (<a href="https://github.com/duckdb/duckdb-r/issues/34" class="external-link">#34</a>).</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.4.9001" id="duckdb-1549001">duckdb 1.5.4.9001<a class="anchor" aria-label="anchor" href="#duckdb-1549001"></a></h2>
-<div class="section level3">
-<h3 id="features-1-5-4-9001">Features<a class="anchor" aria-label="anchor" href="#features-1-5-4-9001"></a></h3>
-<ul><li>Update vendored code to v0.9.1 (<a href="https://github.com/duckdb/duckdb-r/issues/26" class="external-link">#26</a>).</li>
-</ul></div>
-<div class="section level3">
-<h3 id="chore-1-5-4-9001">Chore<a class="anchor" aria-label="anchor" href="#chore-1-5-4-9001"></a></h3>
-<ul><li><p>Add opt-in system libduckdb linking for faster development builds (<a href="https://github.com/duckdb/duckdb-r/issues/2345" class="external-link">#2345</a>).</p></li>
-<li><p>Skip DBItest tests if not installed (<a href="https://github.com/duckdb/duckdb-r/issues/30" class="external-link">#30</a>).</p></li>
-<li><p>Fix tests when dplyr is missing (<a href="https://github.com/duckdb/duckdb-r/issues/29" class="external-link">#29</a>).</p></li>
-</ul></div>
-<div class="section level3">
-<h3 id="fledge-1-5-4-9001">fledge<a class="anchor" aria-label="anchor" href="#fledge-1-5-4-9001"></a></h3>
-<ul><li>CRAN release v1.5.4 (<a href="https://github.com/duckdb/duckdb-r/issues/2362" class="external-link">#2362</a>).</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.4.9000" id="duckdb-1549000">duckdb 1.5.4.9000<a class="anchor" aria-label="anchor" href="#duckdb-1549000"></a></h2>
-<div class="section level3">
-<h3 id="chore-1-5-4-9000">Chore<a class="anchor" aria-label="anchor" href="#chore-1-5-4-9000"></a></h3>
-<ul><li>Fix tests when dplyr is missing (<a href="https://github.com/duckdb/duckdb-r/issues/29" class="external-link">#29</a>).</li>
-</ul></div>
-<div class="section level3">
-<h3 id="fledge-1-5-4-9000">fledge<a class="anchor" aria-label="anchor" href="#fledge-1-5-4-9000"></a></h3>
-<ul><li>CRAN release v1.5.4 (<a href="https://github.com/duckdb/duckdb-r/issues/2362" class="external-link">#2362</a>).</li>
 </ul></div>
 </div>
     <div class="section level2">
