@@ -2,49 +2,25 @@
 
 # duckdb 1.5.4.1
 
-## Bug fixes
-
-- Fix messaging logic.
-
 ## Features
 
-- CRAN-safe, configurable storage locations for extensions and secrets (#2370, #2377).
+- DuckDB's on-disk storage locations now follow a unified, CRAN-safe policy. By
+  default nothing is written outside the R session's temporary directory, with
+  one exception: the extension cache is placed in the package library when it
+  is writable and falls back to the temporary directory otherwise (for example
+  on CRAN). Each location can be redirected through the `config` argument of
+  `duckdb()`, an R option, or an environment variable. Configure extensions and
+  secrets with the new `duckdb_extension_storage()` and `duckdb_secret_storage()`,
+  inspect the resolved locations with `duckdb_storage_status()`, and see
+  `?duckdb_storage` for the full resolution policy (#2370, #2372, #2377).
 
-- Update vendored code to v0.9.1 (#26).
+  These functions replace the experimental `duckdb_consolidate_secrets()`
+  introduced in 1.5.4.
 
-## Chore
+## Bug fixes
 
-- Move code (#2378).
-
-- Move rlang shims to `rlang.R`, add `inform()`/`arg_match()`.
-
-- Tweak LTS to also apply to v1.4.
-
-- Add opt-in system libduckdb linking for faster development builds (#2345).
-
-- Skip DBItest tests if not installed (#30).
-
-- Fix tests when dplyr is missing (#29).
-
-## Documentation
-
-- Refactor `?duckdb_storage` terminology and reference table.
-
-- Use `rlang::args_dots_empty()` for dots; drop `local_interactive()` shim (#2376).
-
-- Add descriptions to every pkgdown reference section.
-
-- CRAN-safe storage-location policy + behavior-neutral scaffolding (Phase 0) (#2372).
-
-- Minor spelling consistency (#2373).
-
-- Document prebuilt-libduckdb fast path for testing; fix glue `-Wsign-compare` warnings (#2371).
-
-## Testing
-
-- Derive package name dynamically in tests instead of hard-coding, to support flavors (#34).
-
-- Add vctrs dependency checks to map tests using `vctrs::list_of()` (#2369).
+- The notice that downloaded extensions will not persist is now shown whenever
+  the extension cache resolves to a temporary location.
 
 
 # duckdb 1.5.4
