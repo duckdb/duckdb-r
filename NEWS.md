@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.4.9005
+
+## Bug fixes
+
+- Resolve the shared DuckDB home like the engine, not path.expand() (#2385).
+
+
 # duckdb 1.5.4.9004
 
 ## Bug fixes
