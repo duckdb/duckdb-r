@@ -1,5 +1,11 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.4.2
+
+## Bug fixes
+
+- Fix shared on-disk storage path on Windows (#2385).
+
 # duckdb 1.5.4.1
 
 ## Features
