@@ -1,140 +1,41 @@
 # Changelog
 
-## duckdb 1.5.4.9005
+## duckdb 1.5.4.2
 
 ### Bug fixes
 
-- Resolve the shared DuckDB home like the engine, not path.expand()
+- Fix shared on-disk storage path on Windows
   ([\#2385](https://github.com/duckdb/duckdb-r/issues/2385)).
 
-## duckdb 1.5.4.9004
+## duckdb 1.5.4.1
 
-### Bug fixes
-
-- Fix messaging logic.
+CRAN release: 2026-06-28
 
 ### Features
 
-- CRAN-safe, configurable storage locations for extensions and secrets
+- DuckDB’s on-disk storage locations now follow a unified policy. By
+  default nothing is written outside the R session’s temporary
+  directory, with one exception: the extension cache is placed in the
+  package library when it is writable and falls back to the temporary
+  directory otherwise. Each location can be redirected through the
+  `config` argument of
+  [`duckdb()`](https://r.duckdb.org/reference/duckdb.md), an R option,
+  or an environment variable. Configure the location for extensions and
+  secrets with the new
+  [`duckdb_extension_storage()`](https://r.duckdb.org/reference/duckdb_storage_config.md)
+  and
+  [`duckdb_secret_storage()`](https://r.duckdb.org/reference/duckdb_storage_config.md),
+  inspect the resolved locations with
+  [`duckdb_storage_status()`](https://r.duckdb.org/reference/duckdb_storage_config.md),
+  and see
+  [`?duckdb_storage`](https://r.duckdb.org/reference/duckdb_storage.md)
+  for the full resolution policy
   ([\#2370](https://github.com/duckdb/duckdb-r/issues/2370),
+  [\#2372](https://github.com/duckdb/duckdb-r/issues/2372),
   [\#2377](https://github.com/duckdb/duckdb-r/issues/2377)).
 
-### Chore
-
-- Move code ([\#2378](https://github.com/duckdb/duckdb-r/issues/2378)).
-
-- Move rlang shims to `rlang.R`, add `inform()`/`arg_match()`.
-
-  Gather the package’s rlang soft-dependency fallbacks into a dedicated
-  `R/rlang.R`: rename `check_dots_empty()` to `check_dots_empty0()`
-  (matching the rlang function it shadows) and add `inform()` and
-  `arg_match()` fallbacks, each swapped for the real rlang function in
-  `.onLoad()`. Behaviour-neutral; the new shims are used by later
-  commits. Also normalize an `if(` in
-  [`default_conn()`](https://r.duckdb.org/reference/default_conn.md).
-
-  Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
-  Claude-Session:
-  <https://claude.ai/code/session_01R5F1rPyR7Vo3r9BRqUXCfu>
-
-### Documentation
-
-- Refactor
-  [`?duckdb_storage`](https://r.duckdb.org/reference/duckdb_storage.md)
-  terminology and reference table.
-
-  Behavior-neutral documentation cleanup, independent of the resolution
-  policy:
-
-  - Rename the “Secrets” kind to “Stored secrets” throughout, matching
-    DuckDB’s `stored_secrets` sub-directory name.
-  - Merge the “Per-location reference” table’s separate “Option” and
-    “Environment variable” columns into a single “Option / environment
-    variable” column.
-
-  Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
-  Claude-Session:
-  <https://claude.ai/code/session_01R5F1rPyR7Vo3r9BRqUXCfu>
-
-- Use rlang::args_dots_empty for dots; drop `local_interactive()` shim
-  ([\#2376](https://github.com/duckdb/duckdb-r/issues/2376)).
-
-- Add descriptions to every pkgdown reference section.
-
-  Give each reference section (Getting started, Driver, Connection,
-  Result, Interfaces, Storage locations) a `desc:` so the reference
-  index explains what each group is for.
-
-  Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
-  Claude-Session:
-  <https://claude.ai/code/session_01R5F1rPyR7Vo3r9BRqUXCfu>
-
-- CRAN-safe storage-location policy + behavior-neutral scaffolding
-  (Phase 0) ([\#2372](https://github.com/duckdb/duckdb-r/issues/2372)).
-
-## duckdb 1.5.4.9003
-
-### Documentation
-
-- Minor spelling consistency
-  ([\#2373](https://github.com/duckdb/duckdb-r/issues/2373)).
-
-- Document prebuilt-libduckdb fast path for testing; fix glue
-  `-Wsign-compare` warnings
-  ([\#2371](https://github.com/duckdb/duckdb-r/issues/2371)).
-
-### Testing
-
-- Add vctrs dependency checks to map tests using
-  [`vctrs::list_of()`](https://vctrs.r-lib.org/reference/list_of.html)
-  ([\#2369](https://github.com/duckdb/duckdb-r/issues/2369)).
-
-## duckdb 1.5.4.9002
-
-### Chore
-
-- Tweak LTS to also apply to v1.4.
-
-### Uncategorized
-
-- Test: Derive package name dynamically in tests instead of hard-coding,
-  to support flavors
-  ([\#34](https://github.com/duckdb/duckdb-r/issues/34)).
-
-## duckdb 1.5.4.9001
-
-### Features
-
-- Update vendored code to v0.9.1
-  ([\#26](https://github.com/duckdb/duckdb-r/issues/26)).
-
-### Chore
-
-- Add opt-in system libduckdb linking for faster development builds
-  ([\#2345](https://github.com/duckdb/duckdb-r/issues/2345)).
-
-- Skip DBItest tests if not installed
-  ([\#30](https://github.com/duckdb/duckdb-r/issues/30)).
-
-- Fix tests when dplyr is missing
-  ([\#29](https://github.com/duckdb/duckdb-r/issues/29)).
-
-### fledge
-
-- CRAN release v1.5.4
-  ([\#2362](https://github.com/duckdb/duckdb-r/issues/2362)).
-
-## duckdb 1.5.4.9000
-
-### Chore
-
-- Fix tests when dplyr is missing
-  ([\#29](https://github.com/duckdb/duckdb-r/issues/29)).
-
-### fledge
-
-- CRAN release v1.5.4
-  ([\#2362](https://github.com/duckdb/duckdb-r/issues/2362)).
+  These functions replace the experimental
+  `duckdb_consolidate_secrets()` introduced in 1.5.4.
 
 ## duckdb 1.5.4
 
