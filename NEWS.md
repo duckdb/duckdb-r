@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.4.9006
+
+## Continuous integration
+
+- Allow workflow writes.
+
+
 # duckdb 1.5.4.9005
 
 ## Bug fixes
