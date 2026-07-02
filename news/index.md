@@ -1,6 +1,14 @@
 # Changelog
 
+## duckdb 1.5.4.9006
+
+### Continuous integration
+
+- Allow workflow writes.
+
 ## duckdb 1.5.4.2
+
+CRAN release: 2026-06-29
 
 ### Bug fixes
 
