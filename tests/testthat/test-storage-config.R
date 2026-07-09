@@ -4,8 +4,7 @@ local_storage_roots <- function(.local_envir = parent.frame()) {
   roots <- list(
     user = withr::local_tempdir("user-", .local_envir = .local_envir),
     shared = withr::local_tempdir("shared-", .local_envir = .local_envir),
-    session = withr::local_tempdir("session-", .local_envir = .local_envir),
-    library = withr::local_tempdir("library-", .local_envir = .local_envir)
+    session = withr::local_tempdir("session-", .local_envir = .local_envir)
   )
   withr::local_envvar(
     DUCKDB_EXTENSION_DIRECTORY = NA,
@@ -21,7 +20,6 @@ local_storage_roots <- function(.local_envir = parent.frame()) {
     default_user_directory = function() roots$user,
     duckdb_shared_home = function() roots$shared,
     session_temp_dir = function() roots$session,
-    system_file_path = function(...) file.path(roots$library, ...),
     .env = .local_envir
   )
   roots
@@ -74,19 +72,6 @@ test_that('location = "session" removes the marker and reverts to the default', 
   expect_equal(dir, file.path(roots$session, "duckdb", "stored_secrets"))
   sec <- duckdb_storage_status()
   expect_equal(sec[sec$kind == "stored_secrets", "source"], "session")
-})
-
-test_that("duckdb_storage_status reports the library root when it is marked", {
-  roots <- local_storage_roots()
-  write_keep_marker(file.path(roots$library, "extensions"))
-
-  ext <- duckdb_storage_status()
-  ext <- ext[ext$kind == "extensions", ]
-  expect_equal(ext$source, "library")
-  expect_equal(
-    normalizePath(ext$directory),
-    normalizePath(file.path(roots$library, "extensions"))
-  )
 })
 
 test_that("migrate moves cached files between roots", {
@@ -161,8 +146,9 @@ test_that("conflict modes decide who wins a name collision", {
 test_that("storage functions reject stray dots and non-root locations", {
   local_storage_roots()
   expect_error(duckdb_extension_storage("session", "oops"))
-  # arg_match() enforces the per-kind roots: "library" is extensions-only, and
-  # arbitrary paths are not accepted.
+  # arg_match() enforces the roots: the retired "library" root and arbitrary
+  # paths are not accepted.
+  expect_error(duckdb_extension_storage("library"), "one of")
   expect_error(duckdb_secret_storage("library"), "one of")
   expect_error(duckdb_extension_storage("/tmp/whatever"), "one of")
 })
@@ -184,11 +170,12 @@ test_that("migration sweeps every marked root (duplicate-marker recovery)", {
   writeLines("u", file.path(roots$user, "extensions", "u.txt"))
   writeLines("s", file.path(roots$shared, "extensions", "s.txt"))
 
-  duckdb_extension_storage("library")
+  # Relocating to one of the marked roots still sweeps in the files orphaned in
+  # the other root whose marker is cleared.
+  duckdb_extension_storage("user")
 
-  expect_true(file.exists(file.path(roots$library, "extensions", "u.txt")))
-  expect_true(file.exists(file.path(roots$library, "extensions", "s.txt")))
-  expect_false(file.exists(file.path(roots$user, "extensions", "u.txt")))
+  expect_true(file.exists(file.path(roots$user, "extensions", "u.txt")))
+  expect_true(file.exists(file.path(roots$user, "extensions", "s.txt")))
   expect_false(file.exists(file.path(roots$shared, "extensions", "s.txt")))
 })
 

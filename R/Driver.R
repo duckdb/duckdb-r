@@ -67,16 +67,15 @@ duckdb <- function(
   }
 
   # Choose CRAN-safe locations for the engine's writable state unless the user
-  # set them explicitly. The extension cache lives alongside the package when
-  # that is writable and falls back to a temporary directory otherwise; the
-  # temp/spill directory is redirected for in-memory databases. See
-  # `?duckdb_storage`.
+  # set them explicitly. The extension cache defaults to a temporary directory
+  # (persist it with `duckdb_extension_storage()`); the temp/spill directory is
+  # redirected for in-memory databases. See `?duckdb_storage`.
   if (!("extension_directory" %in% names(config))) {
     extension <- resolve_extension_directory()
     config["extension_directory"] <- extension$directory
-    # Nag about ephemeral caching only for the per-session tempdir fallback. The
+    # Nag about ephemeral caching only for the per-session tempdir default. The
     # other sources are all persistent -- an option/env override, or a marked
-    # user/shared/library root -- so there is nothing ephemeral to warn about.
+    # user/shared root -- so there is nothing ephemeral to warn about.
     if (identical(extension$source, "session")) {
       maybe_ephemeral_state_message(extension$directory)
     }

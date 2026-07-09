@@ -4,8 +4,7 @@ test_that("storage_dir maps known roots and kinds, and rejects unknown roots", {
   local_mocked_bindings(
     session_temp_dir = function() "/tmp/sess",
     default_user_directory = function() "/userdir",
-    duckdb_shared_home = function() "/home/.duckdb",
-    system_file_path = function(...) file.path("/pkg", ...)
+    duckdb_shared_home = function() "/home/.duckdb"
   )
   expect_equal(
     storage_dir("session", "extensions"),
@@ -16,7 +15,8 @@ test_that("storage_dir maps known roots and kinds, and rejects unknown roots", {
     storage_dir("shared", "stored_secrets"),
     "/home/.duckdb/stored_secrets"
   )
-  expect_equal(storage_dir("library", "extensions"), "/pkg/extensions")
+  # The retired "library" root and arbitrary paths are not known roots.
+  expect_error(storage_dir("library", "extensions"), "Unknown storage root")
   expect_error(
     storage_dir("/explicit/path", "extensions"),
     "Unknown storage root"

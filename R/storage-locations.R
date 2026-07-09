@@ -6,15 +6,13 @@ session_temp_dir <- function() {
   tempdir()
 }
 
-# Base directory for a named root. `"library"` is only meaningful for
-# extensions (it is wiped on re-install, pairing binaries with the build ABI).
+# Base directory for a named root.
 storage_root_base <- function(root) {
   switch(
     root,
     session = file.path(session_temp_dir(), "duckdb"),
     user = default_user_directory(),
     shared = duckdb_shared_home(),
-    library = system_file_path(),
     stop("Unknown storage root: ", root, call. = FALSE)
   )
 }
@@ -31,7 +29,7 @@ storage_dir <- function(root, kind) {
 }
 
 # Persistent roots a marker may opt into, in priority order. (`session` is the
-# tempdir default/opt-out; `library` is auto-probed, not marker-selected.)
+# tempdir default/opt-out.)
 persistent_roots <- function() {
   c("user", "shared")
 }
@@ -198,13 +196,13 @@ override_setting <- function(kind) {
 
 # The resolvers below each return a named list `list(directory, source)`: the
 # resolved directory and the tier of the policy that chose it ("option", "env",
-# "marker", "library", or "session"; "default" when nothing is set). Callers use
+# "marker", or "session"; "default" when nothing is set). Callers use
 # `source` to decide follow-up behavior (e.g. whether to nag about an ephemeral
 # cache) without re-running the resolution. `directory` may be NULL when a
 # setting is deliberately left unset (see `resolve_temp_directory()`).
 
 # Resolve the extension cache directory (see ?duckdb_storage):
-# override -> marker (user/shared) -> "library" write-probe -> session tempdir.
+# override -> marker (user/shared) -> session tempdir default.
 resolve_extension_directory <- function() {
   override <- directory_override_with_source("extensions")
   if (!is.null(override)) {
@@ -214,23 +212,12 @@ resolve_extension_directory <- function() {
   if (!is.null(marked)) {
     return(list(directory = marked, source = "marker"))
   }
-  library_dir <- storage_dir("library", "extensions")
-  if (has_keep_marker(library_dir)) {
-    return(list(directory = library_dir, source = "library"))
-  }
-  # Writing the marker doubles as the writability probe. When it succeeds the
-  # marker did not exist before, so this is the first time the library cache is
-  # initialized -- say so once (it then persists across sessions).
-  if (write_keep_marker(library_dir)) {
-    inform_library_cache_init(library_dir)
-    return(list(directory = library_dir, source = "library"))
-  }
   list(directory = storage_dir("session", "extensions"), source = "session")
 }
 
 # Resolve the secrets directory (see ?duckdb_storage):
-# override -> marker (user/shared) -> session tempdir. There is no "library"
-# root for secrets, and the default is a per-session temporary directory.
+# override -> marker (user/shared) -> session tempdir default. Same shape as
+# resolve_extension_directory(); the default is a per-session temporary directory.
 resolve_secret_directory <- function() {
   override <- directory_override_with_source("stored_secrets")
   if (!is.null(override)) {
@@ -271,8 +258,7 @@ is_memory_dbdir <- function(dbdir) {
 # --- Inspecting and changing the persistent location -------------------------
 
 # Read-only counterpart to the resolvers, used by duckdb_storage_status(): the
-# resolved directory and the tier that selected it. Unlike the connect-time
-# resolver it does not write-probe the library, so it has no side effects and
+# resolved directory and the tier that selected it. It has no side effects and
 # reports only what is already persisted.
 describe_storage <- function(kind) {
   override <- directory_override_with_source(kind)
@@ -283,23 +269,7 @@ describe_storage <- function(kind) {
   if (!is.null(marked)) {
     return(list(directory = marked, source = "marker"))
   }
-  if (kind == "extensions") {
-    library_dir <- storage_dir("library", kind)
-    if (has_keep_marker(library_dir)) {
-      return(list(directory = library_dir, source = "library"))
-    }
-  }
   list(directory = storage_dir("session", kind), source = "session")
-}
-
-# Roots whose marker is cleared before a new one is written, so a kind is never
-# marked in more than one place. Extensions add "library" (the auto-probe root).
-marker_roots <- function(kind) {
-  if (kind == "extensions") {
-    c("user", "shared", "library")
-  } else {
-    c("user", "shared")
-  }
 }
 
 # Point a kind's persistent location at `location`: clear any existing markers,
@@ -315,7 +285,7 @@ set_storage_marker <- function(kind, location, migrate, conflict) {
   # for why this can be more than one directory).
   from <- migration_sources(kind)
 
-  for (root in marker_roots(kind)) {
+  for (root in persistent_roots()) {
     remove_keep_marker(storage_dir(root, kind))
   }
 
@@ -349,7 +319,7 @@ migration_sources <- function(kind) {
   }
   marked <- Filter(
     function(r) has_keep_marker(storage_dir(r, kind)),
-    marker_roots(kind)
+    persistent_roots()
   )
   if (length(marked) > 0L) {
     return(vapply(marked, function(r) storage_dir(r, kind), character(1)))
@@ -412,22 +382,6 @@ migrate_storage <- function(from, to, conflict) {
       call. = FALSE
     )
   }
-  invisible()
-}
-
-# Announce the first time the package library is used as the extension cache.
-# Only reached when the keep-marker was just written (it persists afterwards),
-# so this fires once per install rather than once per session.
-inform_library_cache_init <- function(dir) {
-  msg <- c(
-    "duckdb: caching downloaded extensions in the package library:",
-    i = dir,
-    i = paste0(
-      "This is removed when the package is re-installed; see `?duckdb_storage` ",
-      "to choose a different location."
-    )
-  )
-  inform(msg, class = "duckdb_library_cache_init")
   invisible()
 }
 
