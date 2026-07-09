@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.4.9008
+
+## Features
+
+- Remove the package-library extension storage option (#2390).
+
+
 # duckdb 1.5.4.9007
 
 - Merge branch 'cran-1.5.4.2'.
