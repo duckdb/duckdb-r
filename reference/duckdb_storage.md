@@ -5,10 +5,7 @@
 DuckDB writes several distinct kinds of data to the file system. This
 page catalogs every such location and documents the unified policy the
 duckdb R package uses to choose them, so that by default nothing is
-written outside the R session's temporary directory – except the
-extension cache, which is auto-probed into the writable package library
-(and falls back to the temporary directory when the library is
-read-only, as on CRAN).
+written outside the R session's temporary directory.
 
 The functions that configure these locations are documented in
 [`duckdb_storage_config()`](https://r.duckdb.org/reference/duckdb_storage_config.md).
@@ -28,11 +25,11 @@ The functions that configure these locations are documented in
   Downloaded `*.duckdb_extension` files (e.g. `spatial`, `httpfs`,
   `h3`). DuckDB setting: `extension_directory`. A re-usable cache: a
   given binary is valid only for the exact DuckDB version and
-  platform/ABI that downloaded it. By default the cache is the
-  `"library"` root (alongside the installed package) when it is
-  writable, falling back to a
-  [`tempdir()`](https://rdrr.io/r/base/tempfile.html) sub-directory when
-  it is not. See the marker section for how this is detected.
+  platform/ABI that downloaded it. Set explicitly to a
+  [`tempdir()`](https://rdrr.io/r/base/tempfile.html) location by
+  default, and kept across sessions by pointing it at a persistent root
+  with
+  [`duckdb_storage_config()`](https://r.duckdb.org/reference/duckdb_storage_config.md).
 
 - Stored secrets:
 
@@ -87,16 +84,6 @@ first source that yields a value wins:
 5.  the default: a per-session sub-directory of
     [`tempdir()`](https://rdrr.io/r/base/tempfile.html).
 
-The extension cache inserts one extra step before the
-[`tempdir()`](https://rdrr.io/r/base/tempfile.html) fallback: if no
-marker has selected a root, the `"library"` root is probed at connect
-time by writing its marker – the write doubles as the writability test,
-and the marker is left in place to record the choice. If the write fails
-(the library is read-only) the cache falls back to
-[`tempdir()`](https://rdrr.io/r/base/tempfile.html). So the effective
-default is "library when writable, else tempdir", with no persistent
-write ever attempted where it would fail.
-
 ## Marker files
 
 Persisting data across sessions means writing outside
@@ -141,17 +128,6 @@ recognized roots are:
 - `"shared"`:
 
   `~/.duckdb` – shared with the DuckDB CLI and Python client.
-
-- `"library"`:
-
-  *(extensions only)* alongside the installed duckdb package
-  ([`base::system.file()`](https://rdrr.io/r/base/system.file.html)). It
-  pairs binaries with the build's ABI but is wiped on every re-install.
-  This is the automatic default for extensions when the library is
-  writable (see the resolution policy above): rather than require an
-  explicit opt-in, the package probes it at connect time and uses it
-  unless the write fails. Not offered for stored secrets, which always
-  default to `"session"`.
 
 ### The marker file
 
@@ -198,9 +174,7 @@ migration is folded into
 - The package never ships a marker. The only writes are by
   [`duckdb_extension_storage()`](https://r.duckdb.org/reference/duckdb_storage_config.md)
   /
-  [`duckdb_secret_storage()`](https://r.duckdb.org/reference/duckdb_storage_config.md),
-  and the connect-time probe of the `"library"` root for extensions
-  (which writes the marker only when the directory is writable).
+  [`duckdb_secret_storage()`](https://r.duckdb.org/reference/duckdb_storage_config.md).
 
 - A marked location that is not writable falls back to the
   [`tempdir()`](https://rdrr.io/r/base/tempfile.html) default rather
@@ -219,7 +193,7 @@ reintroducing an ABI mismatch.
 |----|----|----|----|
 | Kind | DuckDB setting | Option / environment variable | Default |
 | Home | `home_directory` | – | left untouched (not set) |
-| Extensions | `extension_directory` | `duckdb.extension_directory` / `DUCKDB_EXTENSION_DIRECTORY` | library if writable, else [`tempdir()`](https://rdrr.io/r/base/tempfile.html) |
+| Extensions | `extension_directory` | `duckdb.extension_directory` / `DUCKDB_EXTENSION_DIRECTORY` | [`tempdir()`](https://rdrr.io/r/base/tempfile.html) sub-directory (set) |
 | Stored secrets | `secret_directory` | `duckdb.secret_directory` / `DUCKDB_SECRET_DIRECTORY` | [`tempdir()`](https://rdrr.io/r/base/tempfile.html) sub-directory (set) |
 | Temp/spill | `temp_directory` | `duckdb.temp_directory` / `DUCKDB_TEMP_DIRECTORY` | [`tempdir()`](https://rdrr.io/r/base/tempfile.html) sub-directory (set) |
 | Logs | `log_query_path` | `duckdb.log_directory` / `DUCKDB_LOG_DIRECTORY` | disabled (off) |
@@ -241,12 +215,6 @@ untouched so that `~` in user SQL keeps its usual meaning.
   package chose the location itself; if you set the extension directory
   (via `config`, the option, or the environment variable) the choice is
   yours and the message is suppressed.
-
-- Library-cache notice:
-
-  The first time the extension cache is initialized in the package
-  library (when its marker is written), the package says so once. The
-  marker then persists, so this is effectively once per installation.
 
 ### Silencing the startup message
 

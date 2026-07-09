@@ -7,8 +7,7 @@ persisted secrets, by writing a small marker file that records the
 choice:
 
 - `duckdb_extension_storage()` – set or move the extension cache
-  (default: the package library when writable, otherwise a per-session
-  temporary directory).
+  (default: a per-session temporary directory).
 
 - `duckdb_secret_storage()` – set or move the secret store (default: a
   per-session temporary directory).
@@ -25,7 +24,7 @@ policy is documented in
 
 ``` r
 duckdb_extension_storage(
-  location = c("session", "user", "shared", "library"),
+  location = c("session", "user", "shared"),
   ...,
   migrate = TRUE,
   conflict = "error"
@@ -56,9 +55,6 @@ duckdb_storage_status()
 
   - `"shared"` – `~/.duckdb`, shared with the DuckDB CLI and Python
     client.
-
-  - `"library"` – *(`duckdb_extension_storage()` only)* alongside the
-    installed package.
 
   To use an arbitrary directory, set the option or environment variable
   instead (see

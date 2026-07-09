@@ -3,17 +3,13 @@
 DuckDB writes several distinct kinds of data to the file system. This page
 catalogs every such location and documents the unified policy the duckdb R
 package uses to choose them, so that by default nothing is written outside
-the R session's temporary directory – except the extension cache, which is
-auto-probed into the writable package library (and falls back to the
-temporary directory when the library is read-only, as on CRAN).
+the R session's temporary directory.
 The functions that configure these locations are documented in
 duckdb_storage_config()."><meta property="og:description" content="
 DuckDB writes several distinct kinds of data to the file system. This page
 catalogs every such location and documents the unified policy the duckdb R
 package uses to choose them, so that by default nothing is written outside
-the R session's temporary directory – except the extension cache, which is
-auto-probed into the writable package library (and falls back to the
-temporary directory when the library is read-only, as on CRAN).
+the R session's temporary directory.
 The functions that configure these locations are documented in
 duckdb_storage_config()."><meta property="og:image" content="https://r.duckdb.org/logo.png"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -23,7 +19,7 @@ duckdb_storage_config()."><meta property="og:image" content="https://r.duckdb.or
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.4.9006</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.4.9007</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -53,9 +49,7 @@ duckdb_storage_config()."><meta property="og:image" content="https://r.duckdb.or
 <p>DuckDB writes several distinct kinds of data to the file system. This page
 catalogs every such location and documents the unified policy the duckdb R
 package uses to choose them, so that by default nothing is written outside
-the R session's temporary directory – except the extension cache, which is
-auto-probed into the writable package library (and falls back to the
-temporary directory when the library is read-only, as on CRAN).</p>
+the R session's temporary directory.</p>
 <p>The functions that configure these locations are documented in
 <code><a href="duckdb_storage_config.html">duckdb_storage_config()</a></code>.</p>
     </div>
@@ -75,10 +69,9 @@ below is pointed at a temporary directory directly instead.</p></dd>
 <dd><p>Downloaded <code>*.duckdb_extension</code> files (e.g.
 <code>spatial</code>, <code>httpfs</code>, <code>h3</code>). DuckDB setting: <code>extension_directory</code>. A
 re-usable cache: a given binary is valid only for the exact DuckDB
-version and platform/ABI that downloaded it. By default the cache is the
-<code>"library"</code> root (alongside the installed package) when it is writable,
-falling back to a <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> sub-directory when it is not. See the
-marker section for how this is detected.</p></dd>
+version and platform/ABI that downloaded it. Set explicitly to a
+<code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> location by default, and kept across sessions by pointing it
+at a persistent root with <code><a href="duckdb_storage_config.html">duckdb_storage_config()</a></code>.</p></dd>
 
 <dt>Stored secrets</dt>
 <dd><p>Persisted credentials under <code>stored_secrets</code>. DuckDB
@@ -117,14 +110,7 @@ source that yields a value wins:</p><ol><li><p>an explicit value passed to <code
 <code>Sys.getenv("DUCKDB_TEMP_DIRECTORY")</code>;</p></li>
 <li><p>a persistent location selected by a marker file (see below);</p></li>
 <li><p>the default: a per-session sub-directory of <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code>.</p></li>
-</ol><p>The extension cache inserts one extra step before the <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> fallback:
-if no marker has selected a root, the <code>"library"</code> root is probed at connect
-time by writing its marker – the write doubles as the writability test, and
-the marker is left in place to record the choice. If the write fails (the
-library is read-only) the cache falls back to <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code>. So the effective
-default is "library when writable, else tempdir", with no persistent write
-ever attempted where it would fail.</p>
-    </div>
+</ol></div>
     <div class="section level2">
     <h2 id="marker-files">Marker files<a class="anchor" aria-label="anchor" href="#marker-files"></a></h2>
     <p>Persisting data across sessions means writing outside <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code>; a marker
@@ -157,15 +143,6 @@ package, surviving package upgrades.</p></dd>
 <dt><code>"shared"</code></dt>
 <dd><p><code>~/.duckdb</code> – shared with the DuckDB CLI and Python
 client.</p></dd>
-
-<dt><code>"library"</code></dt>
-<dd><p><em>(extensions only)</em> alongside the installed duckdb
-package (<code><a href="https://rdrr.io/r/base/system.file.html" class="external-link">base::system.file()</a></code>). It pairs binaries with the build's ABI
-but is wiped on every re-install. This is the automatic default for
-extensions when the library is writable (see the resolution policy
-above): rather than require an explicit opt-in, the package probes it at
-connect time and uses it unless the write fails. Not offered for stored
-secrets, which always default to <code>"session"</code>.</p></dd>
 
 
 </dl></div>
@@ -211,9 +188,7 @@ drops the colliding sources. Secret migration is folded into
 connection is opened the package emits a message naming the candidates and
 falls back to the <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> default until the ambiguity is resolved.</p></li>
 <li><p>The package never ships a marker. The only writes are by
-<code><a href="duckdb_storage_config.html">duckdb_extension_storage()</a></code> / <code><a href="duckdb_storage_config.html">duckdb_secret_storage()</a></code>, and the
-connect-time probe of the <code>"library"</code> root for extensions (which writes the
-marker only when the directory is writable).</p></li>
+<code><a href="duckdb_storage_config.html">duckdb_extension_storage()</a></code> / <code><a href="duckdb_storage_config.html">duckdb_secret_storage()</a></code>.</p></li>
 <li><p>A marked location that is not writable falls back to the <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code>
 default rather than failing.</p></li>
 </ul><p>A marker selects the <em>location</em>. It is deliberately distinct from the
@@ -227,7 +202,7 @@ resurrecting a store root and reintroducing an ABI mismatch.</p>
     <div class="section level2">
     <h2 id="per-location-reference">Per-location reference<a class="anchor" aria-label="anchor" href="#per-location-reference"></a></h2>
 
-<table class="table table"><tr><td>Kind</td><td>DuckDB setting</td><td>Option / environment variable</td><td>Default</td></tr><tr><td>Home</td><td><code>home_directory</code></td><td>–</td><td>left untouched (not set)</td></tr><tr><td>Extensions</td><td><code>extension_directory</code></td><td><code>duckdb.extension_directory</code> / <code>DUCKDB_EXTENSION_DIRECTORY</code></td><td>library if writable, else <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code></td></tr><tr><td>Stored secrets</td><td><code>secret_directory</code></td><td><code>duckdb.secret_directory</code> / <code>DUCKDB_SECRET_DIRECTORY</code></td><td><code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> sub-directory (set)</td></tr><tr><td>Temp/spill</td><td><code>temp_directory</code></td><td><code>duckdb.temp_directory</code> / <code>DUCKDB_TEMP_DIRECTORY</code></td><td><code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> sub-directory (set)</td></tr><tr><td>Logs</td><td><code>log_query_path</code></td><td><code>duckdb.log_directory</code> / <code>DUCKDB_LOG_DIRECTORY</code></td><td>disabled (off)</td></tr></table><p>"set" means <code><a href="duckdb.html">duckdb()</a></code> sets the value explicitly in the database config. The
+<table class="table table"><tr><td>Kind</td><td>DuckDB setting</td><td>Option / environment variable</td><td>Default</td></tr><tr><td>Home</td><td><code>home_directory</code></td><td>–</td><td>left untouched (not set)</td></tr><tr><td>Extensions</td><td><code>extension_directory</code></td><td><code>duckdb.extension_directory</code> / <code>DUCKDB_EXTENSION_DIRECTORY</code></td><td><code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> sub-directory (set)</td></tr><tr><td>Stored secrets</td><td><code>secret_directory</code></td><td><code>duckdb.secret_directory</code> / <code>DUCKDB_SECRET_DIRECTORY</code></td><td><code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> sub-directory (set)</td></tr><tr><td>Temp/spill</td><td><code>temp_directory</code></td><td><code>duckdb.temp_directory</code> / <code>DUCKDB_TEMP_DIRECTORY</code></td><td><code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> sub-directory (set)</td></tr><tr><td>Logs</td><td><code>log_query_path</code></td><td><code>duckdb.log_directory</code> / <code>DUCKDB_LOG_DIRECTORY</code></td><td>disabled (off)</td></tr></table><p>"set" means <code><a href="duckdb.html">duckdb()</a></code> sets the value explicitly in the database config. The
 home directory is left untouched so that <code>~</code> in user SQL keeps its usual
 meaning.</p>
     </div>
@@ -244,12 +219,6 @@ into a permanent location. It is shown only when the package chose the
 location itself; if you set the extension directory (via <code>config</code>, the
 option, or the environment variable) the choice is yours and the message
 is suppressed.</p></dd>
-
-<dt>Library-cache notice</dt>
-<dd><p>The first time the extension cache is
-initialized in the package library (when its marker is written), the
-package says so once. The marker then persists, so this is effectively
-once per installation.</p></dd>
 
 
 </dl><div class="section">
@@ -285,7 +254,7 @@ locations, and <code><a href="duckdb.html">duckdb()</a></code> for the <code>con
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.9000.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.9000.</p>
 </div>
 
     </footer></div>
