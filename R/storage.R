@@ -9,13 +9,10 @@
 # tempdir() so that, with no config/option/env/marker, nothing is written
 # outside the session temporary directory and reverse dependencies pass checks
 # with no action:
-#   * Extensions default to the package library only when it is writable. On the
-#     CRAN check farm the library is remounted read-only, the marker-write probe
-#     fails, and the cache falls back to tempdir(); no persistent write is ever
-#     attempted where it would fail.
-#   * Secrets and the in-memory temp/spill directory are pointed at tempdir()
-#     explicitly, overriding DuckDB's own defaults ($HOME/.duckdb and a `.tmp`
-#     directory in the working directory, respectively).
+#   * Extensions, secrets, and the in-memory temp/spill directory are pointed at
+#     tempdir() explicitly, overriding DuckDB's own defaults (a sub-directory of
+#     the DuckDB home, $HOME/.duckdb, and a `.tmp` directory in the working
+#     directory, respectively).
 # The package's tests and runnable examples also avoid the bundled C++ engine on
 # CRAN; see the CRAN guard in tests/testthat.R.
 #
@@ -36,9 +33,7 @@
 #' DuckDB writes several distinct kinds of data to the file system. This page
 #' catalogs every such location and documents the unified policy the duckdb R
 #' package uses to choose them, so that by default nothing is written outside
-#' the R session's temporary directory -- except the extension cache, which is
-#' auto-probed into the writable package library (and falls back to the
-#' temporary directory when the library is read-only, as on CRAN).
+#' the R session's temporary directory.
 #'
 #' The functions that configure these locations are documented in
 #' [duckdb_storage_config()].
@@ -54,10 +49,9 @@
 #'   \item{Extension binaries}{Downloaded `*.duckdb_extension` files (e.g.
 #'     `spatial`, `httpfs`, `h3`). DuckDB setting: `extension_directory`. A
 #'     re-usable cache: a given binary is valid only for the exact DuckDB
-#'     version and platform/ABI that downloaded it. By default the cache is the
-#'     `"library"` root (alongside the installed package) when it is writable,
-#'     falling back to a [tempdir()] sub-directory when it is not. See the
-#'     marker section for how this is detected.}
+#'     version and platform/ABI that downloaded it. Set explicitly to a
+#'     [tempdir()] location by default, and kept across sessions by pointing it
+#'     at a persistent root with [duckdb_storage_config()].}
 #'   \item{Stored secrets}{Persisted credentials under `stored_secrets`. DuckDB
 #'     setting: `secret_directory`. Set explicitly to a [tempdir()] location by
 #'     default. Configured and migrated with [duckdb_storage_config()].}
@@ -89,14 +83,6 @@
 #'    `Sys.getenv("DUCKDB_TEMP_DIRECTORY")`;
 #' 1. a persistent location selected by a marker file (see below);
 #' 1. the default: a per-session sub-directory of [tempdir()].
-#'
-#' The extension cache inserts one extra step before the [tempdir()] fallback:
-#' if no marker has selected a root, the `"library"` root is probed at connect
-#' time by writing its marker -- the write doubles as the writability test, and
-#' the marker is left in place to record the choice. If the write fails (the
-#' library is read-only) the cache falls back to [tempdir()]. So the effective
-#' default is "library when writable, else tempdir", with no persistent write
-#' ever attempted where it would fail.
 #'
 #' # Marker files
 #'
@@ -132,13 +118,6 @@
 #'     package, surviving package upgrades.}
 #'   \item{`"shared"`}{`~/.duckdb` -- shared with the DuckDB CLI and Python
 #'     client.}
-#'   \item{`"library"`}{*(extensions only)* alongside the installed duckdb
-#'     package ([base::system.file()]). It pairs binaries with the build's ABI
-#'     but is wiped on every re-install. This is the automatic default for
-#'     extensions when the library is writable (see the resolution policy
-#'     above): rather than require an explicit opt-in, the package probes it at
-#'     connect time and uses it unless the write fails. Not offered for stored
-#'     secrets, which always default to `"session"`.}
 #' }
 #'
 #' ## The marker file
@@ -180,9 +159,7 @@
 #'   connection is opened the package emits a message naming the candidates and
 #'   falls back to the [tempdir()] default until the ambiguity is resolved.
 #' * The package never ships a marker. The only writes are by
-#'   `duckdb_extension_storage()` / `duckdb_secret_storage()`, and the
-#'   connect-time probe of the `"library"` root for extensions (which writes the
-#'   marker only when the directory is writable).
+#'   `duckdb_extension_storage()` / `duckdb_secret_storage()`.
 #' * A marked location that is not writable falls back to the [tempdir()]
 #'   default rather than failing.
 #'
@@ -197,7 +174,7 @@
 #' | Kind        | DuckDB setting        | Option / environment variable                              | Default                          |
 #' |-------------|-----------------------|------------------------------------------------------------|----------------------------------|
 #' | Home        | `home_directory`      | --                                                         | left untouched (not set)            |
-#' | Extensions  | `extension_directory` | `duckdb.extension_directory` / `DUCKDB_EXTENSION_DIRECTORY` | library if writable, else `tempdir()`|
+#' | Extensions  | `extension_directory` | `duckdb.extension_directory` / `DUCKDB_EXTENSION_DIRECTORY` | `tempdir()` sub-directory (set)     |
 #' | Stored secrets | `secret_directory` | `duckdb.secret_directory` / `DUCKDB_SECRET_DIRECTORY`       | `tempdir()` sub-directory (set)     |
 #' | Temp/spill  | `temp_directory`      | `duckdb.temp_directory` / `DUCKDB_TEMP_DIRECTORY`          | `tempdir()` sub-directory (set)     |
 #' | Logs        | `log_query_path`      | `duckdb.log_directory` / `DUCKDB_LOG_DIRECTORY`            | disabled (off)                      |
@@ -218,10 +195,6 @@
 #'     location itself; if you set the extension directory (via `config`, the
 #'     option, or the environment variable) the choice is yours and the message
 #'     is suppressed.}
-#'   \item{Library-cache notice}{The first time the extension cache is
-#'     initialized in the package library (when its marker is written), the
-#'     package says so once. The marker then persists, so this is effectively
-#'     once per installation.}
 #' }
 #'
 #' ## Silencing the startup message

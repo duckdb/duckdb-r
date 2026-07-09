@@ -9,9 +9,7 @@
 DuckDB writes several distinct kinds of data to the file system. This page
 catalogs every such location and documents the unified policy the duckdb R
 package uses to choose them, so that by default nothing is written outside
-the R session's temporary directory -- except the extension cache, which is
-auto-probed into the writable package library (and falls back to the
-temporary directory when the library is read-only, as on CRAN).
+the R session's temporary directory.
 
 The functions that configure these locations are documented in
 \code{\link[=duckdb_storage_config]{duckdb_storage_config()}}.
@@ -26,10 +24,9 @@ below is pointed at a temporary directory directly instead.}
 \item{Extension binaries}{Downloaded \verb{*.duckdb_extension} files (e.g.
 \code{spatial}, \code{httpfs}, \code{h3}). DuckDB setting: \code{extension_directory}. A
 re-usable cache: a given binary is valid only for the exact DuckDB
-version and platform/ABI that downloaded it. By default the cache is the
-\code{"library"} root (alongside the installed package) when it is writable,
-falling back to a \code{\link[=tempdir]{tempdir()}} sub-directory when it is not. See the
-marker section for how this is detected.}
+version and platform/ABI that downloaded it. Set explicitly to a
+\code{\link[=tempdir]{tempdir()}} location by default, and kept across sessions by pointing it
+at a persistent root with \code{\link[=duckdb_storage_config]{duckdb_storage_config()}}.}
 \item{Stored secrets}{Persisted credentials under \code{stored_secrets}. DuckDB
 setting: \code{secret_directory}. Set explicitly to a \code{\link[=tempdir]{tempdir()}} location by
 default. Configured and migrated with \code{\link[=duckdb_storage_config]{duckdb_storage_config()}}.}
@@ -62,14 +59,6 @@ source that yields a value wins:
 \item a persistent location selected by a marker file (see below);
 \item the default: a per-session sub-directory of \code{\link[=tempdir]{tempdir()}}.
 }
-
-The extension cache inserts one extra step before the \code{\link[=tempdir]{tempdir()}} fallback:
-if no marker has selected a root, the \code{"library"} root is probed at connect
-time by writing its marker -- the write doubles as the writability test, and
-the marker is left in place to record the choice. If the write fails (the
-library is read-only) the cache falls back to \code{\link[=tempdir]{tempdir()}}. So the effective
-default is "library when writable, else tempdir", with no persistent write
-ever attempted where it would fail.
 }
 
 \section{Marker files}{
@@ -103,13 +92,6 @@ removes the marker and reverts that kind to a per-session location.}
 package, surviving package upgrades.}
 \item{\code{"shared"}}{\verb{~/.duckdb} -- shared with the DuckDB CLI and Python
 client.}
-\item{\code{"library"}}{\emph{(extensions only)} alongside the installed duckdb
-package (\code{\link[base:system.file]{base::system.file()}}). It pairs binaries with the build's ABI
-but is wiped on every re-install. This is the automatic default for
-extensions when the library is writable (see the resolution policy
-above): rather than require an explicit opt-in, the package probes it at
-connect time and uses it unless the write fails. Not offered for stored
-secrets, which always default to \code{"session"}.}
 }
 }
 
@@ -153,9 +135,7 @@ drops the colliding sources. Secret migration is folded into
 connection is opened the package emits a message naming the candidates and
 falls back to the \code{\link[=tempdir]{tempdir()}} default until the ambiguity is resolved.
 \item The package never ships a marker. The only writes are by
-\code{duckdb_extension_storage()} / \code{duckdb_secret_storage()}, and the
-connect-time probe of the \code{"library"} root for extensions (which writes the
-marker only when the directory is writable).
+\code{duckdb_extension_storage()} / \code{duckdb_secret_storage()}.
 \item A marked location that is not writable falls back to the \code{\link[=tempdir]{tempdir()}}
 default rather than failing.
 }
@@ -172,7 +152,7 @@ resurrecting a store root and reintroducing an ABI mismatch.
 \tabular{llll}{
    Kind \tab DuckDB setting \tab Option / environment variable \tab Default \cr
    Home \tab \code{home_directory} \tab -- \tab left untouched (not set) \cr
-   Extensions \tab \code{extension_directory} \tab \code{duckdb.extension_directory} / \code{DUCKDB_EXTENSION_DIRECTORY} \tab library if writable, else \code{tempdir()} \cr
+   Extensions \tab \code{extension_directory} \tab \code{duckdb.extension_directory} / \code{DUCKDB_EXTENSION_DIRECTORY} \tab \code{tempdir()} sub-directory (set) \cr
    Stored secrets \tab \code{secret_directory} \tab \code{duckdb.secret_directory} / \code{DUCKDB_SECRET_DIRECTORY} \tab \code{tempdir()} sub-directory (set) \cr
    Temp/spill \tab \code{temp_directory} \tab \code{duckdb.temp_directory} / \code{DUCKDB_TEMP_DIRECTORY} \tab \code{tempdir()} sub-directory (set) \cr
    Logs \tab \code{log_query_path} \tab \code{duckdb.log_directory} / \code{DUCKDB_LOG_DIRECTORY} \tab disabled (off) \cr
@@ -195,10 +175,6 @@ into a permanent location. It is shown only when the package chose the
 location itself; if you set the extension directory (via \code{config}, the
 option, or the environment variable) the choice is yours and the message
 is suppressed.}
-\item{Library-cache notice}{The first time the extension cache is
-initialized in the package library (when its marker is written), the
-package says so once. The marker then persists, so this is effectively
-once per installation.}
 }
 \subsection{Silencing the startup message}{
 

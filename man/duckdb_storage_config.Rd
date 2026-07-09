@@ -8,7 +8,7 @@
 \title{Configure where DuckDB stores extensions and secrets}
 \usage{
 duckdb_extension_storage(
-  location = c("session", "user", "shared", "library"),
+  location = c("session", "user", "shared"),
   ...,
   migrate = TRUE,
   conflict = "error"
@@ -30,8 +30,6 @@ duckdb_storage_status()
 opt-out (removes the marker, reverting to a per-session location).
 \item \code{"user"} -- \code{\link[tools:R_user_dir]{tools::R_user_dir()}}.
 \item \code{"shared"} -- \verb{~/.duckdb}, shared with the DuckDB CLI and Python client.
-\item \code{"library"} -- \emph{(\code{duckdb_extension_storage()} only)} alongside the
-installed package.
 }
 
 To use an arbitrary directory, set the option or environment variable
@@ -62,9 +60,8 @@ summary when the result is auto-printed.
 Choose where the duckdb R package keeps downloaded extensions and persisted
 secrets, by writing a small marker file that records the choice:
 \itemize{
-\item \code{duckdb_extension_storage()} -- set or move the extension cache (default:
-the package library when writable, otherwise a per-session temporary
-directory).
+\item \code{duckdb_extension_storage()} -- set or move the extension cache (default: a
+per-session temporary directory).
 \item \code{duckdb_secret_storage()} -- set or move the secret store (default: a
 per-session temporary directory).
 \item \code{duckdb_storage_status()} -- report where each currently resolves.

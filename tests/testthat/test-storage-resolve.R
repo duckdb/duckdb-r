@@ -15,7 +15,7 @@ test_that("resolve_extension_directory honors option then env override", {
   )
 })
 
-test_that("resolve_extension_directory uses a marked root over the library", {
+test_that("resolve_extension_directory uses a marked root", {
   user <- withr::local_tempdir()
   shared <- withr::local_tempdir()
   local_mocked_bindings(
@@ -31,34 +31,9 @@ test_that("resolve_extension_directory uses a marked root over the library", {
   expect_equal(resolved$source, "marker")
 })
 
-test_that("resolve_extension_directory uses the library when writable, announcing once", {
-  lib <- withr::local_tempdir()
+test_that("resolve_extension_directory defaults to the session tempdir", {
   local_mocked_bindings(
     marked_storage_dir = function(kind) NULL,
-    system_file_path = function(...) file.path(lib, ...)
-  )
-  # First use writes the marker and announces the library cache once.
-  expect_message(
-    {
-      resolved <- resolve_extension_directory()
-      expect_equal(
-        normalizePath(resolved$directory),
-        normalizePath(file.path(lib, "extensions"))
-      )
-      expect_equal(resolved$source, "library")
-    },
-    "package library"
-  )
-  expect_true(has_keep_marker(file.path(lib, "extensions")))
-  # Marker now present: no second announcement.
-  expect_silent(resolve_extension_directory())
-})
-
-test_that("resolve_extension_directory falls back to tempdir when library is read-only", {
-  local_mocked_bindings(
-    marked_storage_dir = function(kind) NULL,
-    has_keep_marker = function(dir) FALSE,
-    write_keep_marker = function(dir) FALSE,
     session_temp_dir = function() "/tmp/sess"
   )
   expect_equal(
