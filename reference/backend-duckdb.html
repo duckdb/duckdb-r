@@ -35,7 +35,7 @@ to see simulated SQL without opening a DuckDB connection."><meta property="og:im
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.4.9008</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.4.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -56,7 +56,7 @@ to see simulated SQL without opening a DuckDB connection."><meta property="og:im
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>DuckDB SQL backend for dbplyr</h1>
-      <small class="dont-index">Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/R/backend-dbplyr__duckdb_connection.R" class="external-link"><code>R/backend-dbplyr__duckdb_connection.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/duckdb/duckdb-r/blob/cran-1.5.4.3/R/backend-dbplyr__duckdb_connection.R" class="external-link"><code>R/backend-dbplyr__duckdb_connection.R</code></a></small>
       <div class="d-none name"><code>backend-duckdb.Rd</code></div>
     </div>
 
@@ -119,7 +119,7 @@ to see simulated SQL without opening a DuckDB connection.</p>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span>, warn.conflicts <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">dbConnect</a></span><span class="op">(</span><span class="fu"><a href="duckdb.html">duckdb</a></span><span class="op">(</span><span class="op">)</span>, path <span class="op">=</span> <span class="st">":memory:"</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> duckdb is keeping downloaded extensions in a temporary directory:</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> /tmp/RtmpzzPpS6/duckdb/extensions</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> /tmp/RtmpsIIZ4I/duckdb/extensions</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> This is removed when the R session ends, so extensions are re-downloaded each session.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> To keep them, point `options(duckdb.extension_directory =)` or the `DUCKDB_EXTENSION_DIRECTORY` environment variable at a permanent path.</span>
 <span class="r-in"><span></span></span>
@@ -144,10 +144,10 @@ to see simulated SQL without opening a DuckDB connection.</p>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="va">db_csv</span> <span class="op">&lt;-</span> <span class="fu">tbl_file</span><span class="op">(</span><span class="va">con</span>, <span class="va">path</span><span class="op">)</span></span></span>
 <span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in dbplyr_query_fields(con, source):</span> Can't query fields.</span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Using SQL: SELECT * FROM (FROM '/tmp/RtmpzzPpS6/file46a92ad63bed.csv') AS q01</span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Using SQL: SELECT * FROM (FROM '/tmp/RtmpsIIZ4I/file2ae76581b602.csv') AS q01</span>
 <span class="r-err co"><span class="r-pr">#&gt;</span>   WHERE (0 = 1)</span>
 <span class="r-err co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Caused by error in `dbSendQuery()`:</span></span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span style="color: #BBBB00;">!</span> IO Error: No files found that match the pattern "/tmp/RtmpzzPpS6/file46a92ad63bed.csv"</span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span style="color: #BBBB00;">!</span> IO Error: No files found that match the pattern "/tmp/RtmpsIIZ4I/file2ae76581b602.csv"</span>
 <span class="r-err co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> Context: rapi_prepare</span>
 <span class="r-err co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> Error type: IO</span>
 <span class="r-in"><span><span class="va">db_csv</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span></span>
@@ -157,11 +157,11 @@ to see simulated SQL without opening a DuckDB connection.</p>
 <span class="r-in"><span><span class="va">db_csv_fun</span> <span class="op">&lt;-</span> <span class="fu">tbl_function</span><span class="op">(</span><span class="va">con</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"read_csv_auto('"</span>, <span class="va">path</span>, <span class="st">"')"</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in dbplyr_query_fields(con, source):</span> Can't query fields.</span>
 <span class="r-err co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Using SQL: SELECT * FROM (FROM</span>
-<span class="r-err co"><span class="r-pr">#&gt;</span>   read_csv_auto('/tmp/RtmpzzPpS6/file46a92ad63bed.csv')) AS q02 WHERE (0 = 1)</span>
+<span class="r-err co"><span class="r-pr">#&gt;</span>   read_csv_auto('/tmp/RtmpsIIZ4I/file2ae76581b602.csv')) AS q02 WHERE (0 = 1)</span>
 <span class="r-err co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Caused by error in `dbSendQuery()`:</span></span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span style="color: #BBBB00;">!</span> IO Error: No files found that match the pattern "/tmp/RtmpzzPpS6/file46a92ad63bed.csv"</span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span style="color: #BBBB00;">!</span> IO Error: No files found that match the pattern "/tmp/RtmpsIIZ4I/file2ae76581b602.csv"</span>
 <span class="r-err co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> LINE 2: FROM (FROM read_csv_auto('/tmp/RtmpzzPpS6/file46a92ad63bed.csv')) AS...</span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> LINE 2: FROM (FROM read_csv_auto('/tmp/RtmpsIIZ4I/file2ae76581b602.csv')) AS...</span>
 <span class="r-err co"><span class="r-pr">#&gt;</span>                    ^</span>
 <span class="r-err co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> Context: rapi_prepare</span>
 <span class="r-err co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> Error type: IO</span>
