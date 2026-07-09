@@ -1,5 +1,12 @@
 # Changelog
 
+## duckdb 1.5.4.9008
+
+### Features
+
+- Remove the package-library extension storage option
+  ([\#2390](https://github.com/duckdb/duckdb-r/issues/2390)).
+
 ## duckdb 1.5.4.9007
 
 - Merge branch ‘cran-1.5.4.2’.
