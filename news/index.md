@@ -2,6 +2,8 @@
 
 ## duckdb 1.5.4.3
 
+CRAN release: 2026-07-10
+
 ### Bug fixes
 
 - Remove the package-library extension storage option. The
