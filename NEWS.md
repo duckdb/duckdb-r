@@ -1,22 +1,10 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.5.4.9008
+# duckdb 1.5.4.3
 
-## Features
+## Bug fixes
 
-- Remove the package-library extension storage option (#2390).
-
-
-# duckdb 1.5.4.9007
-
-- Merge branch 'cran-1.5.4.2'.
-
-
-# duckdb 1.5.4.9006
-
-## Continuous integration
-
-- Allow workflow writes.
+- Remove the package-library extension storage option. The `duckdb_extension_storage()` function no longer accepts `"library"` (#2390).
 
 
 # duckdb 1.5.4.2
