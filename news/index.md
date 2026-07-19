@@ -1,5 +1,9 @@
 # Changelog
 
+## duckdb 1.5.4.4
+
+- Merge branch ‘cran-1.5.4.3’.
+
 ## duckdb 1.5.4.3
 
 CRAN release: 2026-07-10

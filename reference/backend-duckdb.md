@@ -71,7 +71,7 @@ simulate_duckdb(...)
 library(dplyr, warn.conflicts = FALSE)
 con <- DBI::dbConnect(duckdb(), path = ":memory:")
 #> duckdb is keeping downloaded extensions in a temporary directory:
-#> ℹ /tmp/RtmpQAC8gJ/duckdb/extensions
+#> ℹ /tmp/RtmpQOaxk2/duckdb/extensions
 #> This is removed when the R session ends, so extensions are re-downloaded each session.
 #> ℹ To keep them, point `options(duckdb.extension_directory =)` or the `DUCKDB_EXTENSION_DIRECTORY` environment variable at a permanent path.
 
@@ -81,7 +81,7 @@ db %>%
   filter(a > 1) %>%
   select(b)
 #> # A query:  ?? x 1
-#> # Database: DuckDB 1.5.4 [unknown@Linux 6.17.0-1018-azure:R 4.6.1/:memory:]
+#> # Database: DuckDB 1.5.4 [unknown@Linux 6.17.0-1020-azure:R 4.6.1/:memory:]
 #>   b    
 #>   <chr>
 #> 1 c    
@@ -96,10 +96,10 @@ write.csv(data.frame(a = 1:3, b = letters[2:4]))
 
 db_csv <- tbl_file(con, path)
 #> Error in dbplyr_query_fields(con, source): Can't query fields.
-#> ℹ Using SQL: SELECT * FROM (FROM '/tmp/RtmpQAC8gJ/file47611feecc03.csv') AS q01
+#> ℹ Using SQL: SELECT * FROM (FROM '/tmp/RtmpQOaxk2/file4787420c1f87.csv') AS q01
 #>   WHERE (0 = 1)
 #> Caused by error in `dbSendQuery()`:
-#> ! IO Error: No files found that match the pattern "/tmp/RtmpQAC8gJ/file47611feecc03.csv"
+#> ! IO Error: No files found that match the pattern "/tmp/RtmpQOaxk2/file4787420c1f87.csv"
 #> ℹ Context: rapi_prepare
 #> ℹ Error type: IO
 db_csv %>%
@@ -109,11 +109,11 @@ db_csv %>%
 db_csv_fun <- tbl_function(con, paste0("read_csv_auto('", path, "')"))
 #> Error in dbplyr_query_fields(con, source): Can't query fields.
 #> ℹ Using SQL: SELECT * FROM (FROM
-#>   read_csv_auto('/tmp/RtmpQAC8gJ/file47611feecc03.csv')) AS q02 WHERE (0 = 1)
+#>   read_csv_auto('/tmp/RtmpQOaxk2/file4787420c1f87.csv')) AS q02 WHERE (0 = 1)
 #> Caused by error in `dbSendQuery()`:
-#> ! IO Error: No files found that match the pattern "/tmp/RtmpQAC8gJ/file47611feecc03.csv"
+#> ! IO Error: No files found that match the pattern "/tmp/RtmpQOaxk2/file4787420c1f87.csv"
 #> 
-#> LINE 2: FROM (FROM read_csv_auto('/tmp/RtmpQAC8gJ/file47611feecc03.csv')) AS...
+#> LINE 2: FROM (FROM read_csv_auto('/tmp/RtmpQOaxk2/file4787420c1f87.csv')) AS...
 #>                    ^
 #> ℹ Context: rapi_prepare
 #> ℹ Error type: IO
