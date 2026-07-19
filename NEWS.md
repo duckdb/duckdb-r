@@ -1,15 +1,5 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.5.4.6
-
-- Switching to development version.
-
-
-# duckdb 1.5.4.5
-
-- Switching to development version.
-
-
 # duckdb 1.5.4.4
 
 - Merge branch 'cran-1.5.4.3'.
