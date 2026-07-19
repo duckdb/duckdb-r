@@ -1,5 +1,9 @@
 # Changelog
 
+## duckdb 1.5.4.9009
+
+- Switching to development version.
+
 ## duckdb 1.5.4.4
 
 - Merge branch ‘cran-1.5.4.3’.
