@@ -1,14 +1,14 @@
 # End-to-end tests against the bundled DuckDB engine: a persistent secret and a
-# downloaded extension should land in the directories the storage-location
-# policy resolves (plan/PLAN-storage-locations.md). These exercise the real
-# engine, so they skip on CRAN; the extension test additionally skips, best
-# effort, when the download/install fails (e.g. no network).
+# downloaded extension should land under the home directory the storage-location
+# policy resolves (see ?duckdb_storage). These exercise the real engine, so they
+# skip on CRAN; the extension test additionally skips, best effort, when the
+# download/install fails (e.g. no network).
 
-test_that("a persistent secret is written to the configured secret directory", {
+test_that("a persistent secret is written under the configured home", {
   skip_on_cran()
-  secret_dir <- withr::local_tempdir("e2e-secrets-")
-  withr::local_envvar(DUCKDB_SECRET_DIRECTORY = NA)
-  withr::local_options(duckdb.secret_directory = secret_dir)
+  home <- withr::local_tempdir("e2e-home-")
+  withr::local_envvar(DUCKDB_R_HOME = NA)
+  withr::local_options(duckdb.home = home)
 
   con <- local_con()
 
@@ -20,14 +20,18 @@ test_that("a persistent secret is written to the configured secret directory", {
 
   secrets <- dbGetQuery(con, "SELECT name FROM duckdb_secrets()")
   expect_true("e2e_secret" %in% secrets$name)
-  expect_true(file.exists(file.path(secret_dir, "e2e_secret.duckdb_secret")))
+  expect_true(file.exists(file.path(
+    home,
+    "stored_secrets",
+    "e2e_secret.duckdb_secret"
+  )))
 })
 
-test_that("the httpfs extension installs and loads into the configured cache", {
+test_that("the httpfs extension installs and loads under the configured home", {
   skip_on_cran()
-  ext_dir <- withr::local_tempdir("e2e-ext-")
-  withr::local_envvar(DUCKDB_EXTENSION_DIRECTORY = NA)
-  withr::local_options(duckdb.extension_directory = ext_dir)
+  home <- withr::local_tempdir("e2e-home-ext-")
+  withr::local_envvar(DUCKDB_R_HOME = NA)
+  withr::local_options(duckdb.home = home)
 
   con <- local_con()
 
@@ -52,7 +56,11 @@ test_that("the httpfs extension installs and loads into the configured cache", {
   )
   expect_true(isTRUE(loaded$loaded))
 
-  # The binary was cached under the directory we pointed the setting at.
-  cached <- list.files(ext_dir, recursive = TRUE, pattern = "httpfs")
+  # The binary was cached under the extensions sub-directory of the home.
+  cached <- list.files(
+    file.path(home, "extensions"),
+    recursive = TRUE,
+    pattern = "httpfs"
+  )
   expect_gt(length(cached), 0)
 })

@@ -16,6 +16,7 @@ duckdb(
   read_only = FALSE,
   bigint = "numeric",
   config = list(),
+  home = NULL,
   ...,
   environment_scan = FALSE
 )
@@ -59,6 +60,14 @@ If \code{"integer64"} is selected, bigint integers will be set to bit64 encoding
 \url{https://duckdb.org/docs/configuration/overview#configuration-reference} for the possible options.
 These flags are only applied when the database object is instantiated.
 Subsequent connections will silently ignore these flags.}
+
+\item{home}{Root directory for DuckDB's downloaded extensions and stored
+secrets. \code{NULL} (the default) resolves the location as described in
+\link{duckdb_storage}: an existing \code{~/.duckdb}, else a per-session temporary
+directory (with, in interactive sessions, a one-time offer to create
+\code{~/.duckdb}). Pass a path to use it as the root explicitly, creating it if
+needed. See also the \code{duckdb.home} option and the \code{DUCKDB_R_HOME}
+environment variable.}
 
 \item{...}{These dots are for future extensions and must be empty.}
 

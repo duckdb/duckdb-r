@@ -1,53 +1,32 @@
-# Secrets resolution (plan/PLAN-storage-locations.md, Phase 1).
+# Secrets share the resolved home root with extensions (see ?duckdb_storage).
 
-test_that("resolve_secret_directory honors the option override", {
-  withr::local_envvar(DUCKDB_SECRET_DIRECTORY = NA)
-  withr::local_options(duckdb.secret_directory = "/opt/sec")
+test_that("the secret store follows the home option", {
+  withr::local_envvar(DUCKDB_R_HOME = NA)
+  withr::local_options(duckdb.home = "/opt/home")
   expect_equal(
-    resolve_secret_directory(),
-    list(directory = "/opt/sec", source = "option")
+    home_subdir(resolve_storage_home()$root, "stored_secrets"),
+    "/opt/home/stored_secrets"
   )
 })
 
-test_that("resolve_secret_directory honors the env-var override", {
-  withr::local_options(duckdb.secret_directory = NULL)
-  withr::local_envvar(DUCKDB_SECRET_DIRECTORY = "/env/sec")
+test_that("the secret store follows the DUCKDB_R_HOME environment variable", {
+  withr::local_options(duckdb.home = NULL)
+  withr::local_envvar(DUCKDB_R_HOME = "/env/home")
   expect_equal(
-    resolve_secret_directory(),
-    list(directory = "/env/sec", source = "env")
+    home_subdir(resolve_storage_home()$root, "stored_secrets"),
+    "/env/home/stored_secrets"
   )
 })
 
-test_that("resolve_secret_directory defaults to a session tempdir, not R_user_dir", {
-  user <- withr::local_tempdir()
-  shared <- withr::local_tempdir()
-  withr::local_envvar(DUCKDB_SECRET_DIRECTORY = NA)
-  withr::local_options(duckdb.secret_directory = NULL)
+test_that("the secret store defaults under the session tempdir", {
+  withr::local_envvar(DUCKDB_R_HOME = NA)
+  withr::local_options(duckdb.home = NULL, rlang_interactive = FALSE)
   local_mocked_bindings(
-    default_user_directory = function() user,
-    duckdb_shared_home = function() shared,
+    duckdb_shared_home = function() file.path(tempdir(), "no-such-home-sec"),
     session_temp_dir = function() "/tmp/sess"
   )
   expect_equal(
-    resolve_secret_directory(),
-    list(directory = "/tmp/sess/duckdb/stored_secrets", source = "session")
+    home_subdir(resolve_storage_home()$root, "stored_secrets"),
+    "/tmp/sess/duckdb/stored_secrets"
   )
-})
-
-test_that("resolve_secret_directory uses a marked root over the default", {
-  user <- withr::local_tempdir()
-  shared <- withr::local_tempdir()
-  withr::local_envvar(DUCKDB_SECRET_DIRECTORY = NA)
-  withr::local_options(duckdb.secret_directory = NULL)
-  local_mocked_bindings(
-    default_user_directory = function() user,
-    duckdb_shared_home = function() shared
-  )
-  write_keep_marker(storage_dir("shared", "stored_secrets"))
-  resolved <- resolve_secret_directory()
-  expect_equal(
-    normalizePath(resolved$directory),
-    normalizePath(file.path(shared, "stored_secrets"))
-  )
-  expect_equal(resolved$source, "marker")
 })

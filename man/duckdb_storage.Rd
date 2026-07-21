@@ -7,161 +7,84 @@
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
 
 DuckDB writes several distinct kinds of data to the file system. This page
-catalogs every such location and documents the unified policy the duckdb R
-package uses to choose them, so that by default nothing is written outside
-the R session's temporary directory.
+catalogs every such location and documents the policy the duckdb R package
+uses to choose them. By default the package never creates anything in your
+home directory on its own: downloaded extensions and stored secrets go under
+the R session's temporary directory unless a \verb{~/.duckdb} directory already
+exists (or you point the package somewhere explicitly).
 
-The functions that configure these locations are documented in
-\code{\link[=duckdb_storage_config]{duckdb_storage_config()}}.
+\code{\link[=duckdb_storage_status]{duckdb_storage_status()}} reports where each location currently resolves.
 }
 \section{Kinds of on-disk state}{
 \describe{
 \item{Home directory}{The base DuckDB uses to expand a leading \code{~} and to
-derive default sub-locations such as the extension cache. DuckDB setting:
-\code{home_directory}. The package does not set this: doing so would also
-redirect \code{~} in user SQL (e.g. \verb{COPY ... TO '~/out.csv'}). Each location
-below is pointed at a temporary directory directly instead.}
+derive default sub-locations. DuckDB setting: \code{home_directory}. The
+package does not set this: doing so would also redirect \code{~} in user SQL
+(e.g. \verb{COPY ... TO '~/out.csv'}). The extension and secret locations
+below are pointed at the resolved home root directly instead.}
 \item{Extension binaries}{Downloaded \verb{*.duckdb_extension} files (e.g.
 \code{spatial}, \code{httpfs}, \code{h3}). DuckDB setting: \code{extension_directory}. A
-re-usable cache: a given binary is valid only for the exact DuckDB
-version and platform/ABI that downloaded it. Set explicitly to a
-\code{\link[=tempdir]{tempdir()}} location by default, and kept across sessions by pointing it
-at a persistent root with \code{\link[=duckdb_storage_config]{duckdb_storage_config()}}.}
+re-usable cache placed at \verb{<home>/extensions}, where \verb{<home>} is resolved
+as described below.}
 \item{Stored secrets}{Persisted credentials under \code{stored_secrets}. DuckDB
-setting: \code{secret_directory}. Set explicitly to a \code{\link[=tempdir]{tempdir()}} location by
-default. Configured and migrated with \code{\link[=duckdb_storage_config]{duckdb_storage_config()}}.}
+setting: \code{secret_directory}. Placed at \verb{<home>/stored_secrets}, the same
+\verb{<home>}.}
 \item{Temporary / spill files}{Out-of-core intermediates for sorts, hash
 joins, and similar operations. DuckDB settings: \code{temp_directory},
 \code{max_temp_directory_size}. For an in-memory (\verb{:memory:}) database DuckDB's
 own default spills to \code{.tmp} in the current working directory, so the
-package overrides it with a \code{\link[=tempdir]{tempdir()}} sub-directory by default.}
+package overrides it with a \code{\link[=tempdir]{tempdir()}} sub-directory by default. This is
+a separate knob from the extension/secret home (see below).}
 \item{Logs and profiling output}{Written only when a path is explicitly
 configured (DuckDB settings \code{log_query_path}, \code{http_logging_output},
-profiling output). They default to \emph{off}, so there is no location to
-default and nothing is written without the user asking. If the user turns
-logging on they choose where it goes.}
+profiling output). They default to \emph{off}, so nothing is written without
+the user asking, and the user chooses where it goes.}
 \item{Database file, WAL, and checkpoints}{Chosen by the user through the
-\code{dbdir} argument of \code{\link[=duckdb]{duckdb()}}. The package does not manage these: an
-on-disk database and its sidecar files live where \code{dbdir} points, and an
-in-memory (\verb{:memory:}) database has none.}
+\code{dbdir} argument of \code{\link[=duckdb]{duckdb()}}. The package does not manage these.}
 }
 }
 
-\section{Resolution policy}{
-Each managed location is resolved through the same ordered chain. The first
-source that yields a value wins:
+\section{Resolving the home directory}{
+Extensions and secrets share one \emph{home} root, resolved fresh on every call to
+\code{\link[=duckdb]{duckdb()}} that creates a new database. The first source that yields a value
+wins:
 \enumerate{
-\item an explicit value passed to \code{\link[=duckdb]{duckdb()}} via \code{config} (e.g.
-\code{config = list(temp_directory = "...")});
-\item the corresponding R option, e.g. \code{getOption("duckdb.temp_directory")};
-\item the corresponding environment variable, e.g.
-\code{Sys.getenv("DUCKDB_TEMP_DIRECTORY")};
-\item a persistent location selected by a marker file (see below);
-\item the default: a per-session sub-directory of \code{\link[=tempdir]{tempdir()}}.
-}
-}
-
-\section{Marker files}{
-Persisting data across sessions means writing outside \code{\link[=tempdir]{tempdir()}}; a marker
-file records the user's consent to do so, once, so it need not be re-granted
-on every connection and does not require editing \code{.Rprofile} or \code{.Renviron}.
-
-Two functions write and relocate these markers -- one per kind of state, so
-the two can be configured independently -- and a third reports the current
-state. They are documented in full on \code{\link[=duckdb_storage_config]{duckdb_storage_config()}}:
-
-\if{html}{\out{<div class="sourceCode r">}}\preformatted{duckdb_extension_storage(location, ..., migrate = TRUE, conflict = "error")
-duckdb_secret_storage(location, ..., migrate = TRUE, conflict = "error")
-duckdb_storage_status()
-}\if{html}{\out{</div>}}
-
-A \verb{*_storage()} call writes the marker at \code{location} (creating, relocating,
-or -- with \code{"session"} -- removing it); \code{duckdb_storage_status()} reports
-where each kind currently resolves and how it was chosen. There is no \code{ask}
-argument: calling a \verb{*_storage()} function \emph{is} the consent.
-\subsection{The \code{location} argument}{
-
-\code{location} names a \emph{root}, not a full path. (To point a kind at an arbitrary
-directory, use the option or environment variable instead -- a marker is only
-ever rediscovered in one of the fixed roots below.) The recognized roots are:
-
-\describe{
-\item{\code{"session"}}{\code{tempdir()} -- the default, and the opt-out: setting it
-removes the marker and reverts that kind to a per-session location.}
-\item{\code{"user"}}{\code{\link[tools:R_user_dir]{tools::R_user_dir()}} -- R-specific, private to this
-package, surviving package upgrades.}
-\item{\code{"shared"}}{\verb{~/.duckdb} -- shared with the DuckDB CLI and Python
-client.}
-}
+\item the \code{home} argument to \code{\link[=duckdb]{duckdb()}};
+\item the \code{duckdb.home} R option, e.g.
+\code{options(duckdb.home = "/path/to/duckdb")};
+\item the \code{DUCKDB_R_HOME} environment variable;
+\item \verb{~/.duckdb}, if that directory already exists -- the location shared with
+the DuckDB CLI and Python client;
+\item otherwise a per-session sub-directory of \code{\link[=tempdir]{tempdir()}}, with one exception:
+in an \strong{interactive} session the package offers, once per session, to
+create \verb{~/.duckdb} and use it. Decline, and it uses the temporary
+directory for the rest of the session.
 }
 
-\subsection{The marker file}{
+The extension cache is then \verb{<home>/extensions} and the secret store is
+\verb{<home>/stored_secrets}.
 
-The marker's name and contents make clear it belongs to the R package, so a
-user inspecting the directory can tell at a glance what created it. This
-matters most in the \code{"shared"} root (\verb{~/.duckdb}), which is also used by the
-DuckDB CLI and Python client:
-
-\if{html}{\out{<div class="sourceCode">}}\preformatted{<root>/extensions/.duckdb-r-keep        # opts in the extension cache
-<root>/stored_secrets/.duckdb-r-keep    # opts in stored secrets
-}\if{html}{\out{</div>}}
-
-It is not empty: the package writes a single line of human-readable text
-describing what the file is and that it is safe to delete. Only the file's
-presence is significant -- the contents are never read back or validated, so
-editing it has no effect.
-
-Markers are per-kind and live inside each kind's sub-directory, so one root
-can persist extensions but not stored secrets, or vice versa. For extensions in a
-persistent root, DuckDB's \verb{v<version>/<platform>/} sub-paths keep a stale
-binary from being loaded into a newer, ABI-incompatible build.
-}
-
-\subsection{Migration}{
-
-\code{migrate = TRUE} moves the already-cached files from the current location to
-the new root. \code{conflict} decides what happens when a file of the same name
-exists at the destination: \code{"error"} (the default) aborts and lists the
-collisions without moving anything; \code{"ours"} lets the files being relocated
-win (overwriting the destination); \code{"theirs"} keeps the destination files and
-drops the colliding sources. Secret migration is folded into
-\code{duckdb_secret_storage()}.
-}
-
-\subsection{Rules}{
-\itemize{
-\item An option or environment variable overrides any marker.
-\item A kind's marker present in more than one root is ambiguous: when a
-connection is opened the package emits a message naming the candidates and
-falls back to the \code{\link[=tempdir]{tempdir()}} default until the ambiguity is resolved.
-\item The package never ships a marker. The only writes are by
-\code{duckdb_extension_storage()} / \code{duckdb_secret_storage()}.
-\item A marked location that is not writable falls back to the \code{\link[=tempdir]{tempdir()}}
-default rather than failing.
-}
-
-A marker selects the \emph{location}. It is deliberately distinct from the
-presence of a cached binary: an extension found under \verb{v<version>/<platform>/}
-governs only \emph{validity} (whether a re-download is needed), never the choice
-of location. This separation prevents a stale leftover binary from silently
-resurrecting a store root and reintroducing an ABI mismatch.
-}
+Because the decision is remade on every connection, creating \verb{~/.duckdb} (or
+setting the option/variable) takes effect immediately for connections opened
+afterwards; existing connections are unaffected.
 }
 
 \section{Per-location reference}{
 \tabular{llll}{
-   Kind \tab DuckDB setting \tab Option / environment variable \tab Default \cr
+   Kind \tab DuckDB setting \tab How to set it \tab Default \cr
    Home \tab \code{home_directory} \tab -- \tab left untouched (not set) \cr
-   Extensions \tab \code{extension_directory} \tab \code{duckdb.extension_directory} / \code{DUCKDB_EXTENSION_DIRECTORY} \tab \code{tempdir()} sub-directory (set) \cr
-   Stored secrets \tab \code{secret_directory} \tab \code{duckdb.secret_directory} / \code{DUCKDB_SECRET_DIRECTORY} \tab \code{tempdir()} sub-directory (set) \cr
+   Extensions \tab \code{extension_directory} \tab \code{home} arg / \code{duckdb.home} / \code{DUCKDB_R_HOME} (as \verb{<home>/extensions}) \tab \code{tempdir()} sub-directory (set) \cr
+   Stored secrets \tab \code{secret_directory} \tab as extensions (\verb{<home>/stored_secrets}) \tab \code{tempdir()} sub-directory (set) \cr
    Temp/spill \tab \code{temp_directory} \tab \code{duckdb.temp_directory} / \code{DUCKDB_TEMP_DIRECTORY} \tab \code{tempdir()} sub-directory (set) \cr
-   Logs \tab \code{log_query_path} \tab \code{duckdb.log_directory} / \code{DUCKDB_LOG_DIRECTORY} \tab disabled (off) \cr
+   Logs \tab \code{log_query_path} \tab DuckDB setting \tab disabled (off) \cr
 }
 
 
 "set" means \code{duckdb()} sets the value explicitly in the database config. The
 home directory is left untouched so that \code{~} in user SQL keeps its usual
-meaning.
+meaning. An \code{extension_directory} / \code{secret_directory} / \code{temp_directory}
+passed directly in the \code{config} list is always honored and takes precedence
+over the resolution above.
 }
 
 \section{Messages}{
@@ -172,30 +95,49 @@ informational message -- at most once every eight hours per session,
 including in unattended (non-interactive) runs. It explains that
 downloaded extensions will not persist across sessions and how to opt
 into a permanent location. It is shown only when the package chose the
-location itself; if you set the extension directory (via \code{config}, the
-option, or the environment variable) the choice is yours and the message
-is suppressed.}
+location itself; if you set the home (via \code{home}, the option, the
+environment variable, or an existing \verb{~/.duckdb}) the choice is yours and
+the message is suppressed.}
 }
 \subsection{Silencing the startup message}{
 
-Pointing the extension cache at a permanent location (an option, an
-environment variable, or \code{config}) both keeps the extensions and silences the
-message. If you are happy with a temporary cache and only want the reminder
-gone, set the location explicitly so it counts as your choice -- the simplest
-is a \code{config} entry on every connection:
+Pointing the home at a permanent location both keeps the extensions and
+silences the message. If you are happy with a temporary cache and only want
+the reminder gone, set the home explicitly so it counts as your choice -- the
+simplest is per connection:
 
-\if{html}{\out{<div class="sourceCode r">}}\preformatted{con <- dbConnect(duckdb(config = list(
-  extension_directory = file.path(tempdir(), "duckdb", "extensions")
-)))
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{con <- dbConnect(duckdb(home = file.path(tempdir(), "duckdb")))
 }\if{html}{\out{</div>}}
 
 or set it once per session with
-\code{options(duckdb.extension_directory = file.path(tempdir(), "duckdb", "extensions"))}
-(or the \code{DUCKDB_EXTENSION_DIRECTORY} environment variable).
+\code{options(duckdb.home = file.path(tempdir(), "duckdb"))} (or the
+\code{DUCKDB_R_HOME} environment variable).
 }
 }
 
+\section{Use by other packages}{
+Packages that build on duckdb inherit this policy, and two points matter for
+anyone doing so -- especially to keep CRAN checks clean:
+\itemize{
+\item \strong{duckdb never writes outside \code{\link[=tempdir]{tempdir()}} on its own during checks.} In a
+non-interactive session (which all \verb{R CMD check} runs are) it uses
+\code{tempdir()} unless a \verb{~/.duckdb} already exists, and it never \emph{creates}
+\verb{~/.duckdb}. So a package that merely opens connections needs no special
+handling.
+\item \strong{Installing an extension is the caller's responsibility.} DuckDB
+downloads extensions such as \code{spatial}, \code{httpfs}, or \code{h3} from the network
+on first use. CRAN forbids tests and examples that depend on external
+resources, so a package that runs \code{INSTALL}/\code{LOAD} (directly or via
+\code{dbExecute()}) must guard those with \code{testthat::skip_on_cran()} /
+\verb{@examplesIf}, or test them off CRAN (GitHub Actions, R-universe). To force
+a throwaway cache in your own tests, connect with an explicit home:
+}
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{con <- DBI::dbConnect(duckdb::duckdb(home = withr::local_tempdir()))
+}\if{html}{\out{</div>}}
+}
+
 \seealso{
-\code{\link[=duckdb_storage_config]{duckdb_storage_config()}} for the functions that configure these
-locations, and \code{\link[=duckdb]{duckdb()}} for the \code{config} argument.
+\code{\link[=duckdb_storage_status]{duckdb_storage_status()}} to report the resolved locations, and
+\code{\link[=duckdb]{duckdb()}} for the \code{home} argument.
 }

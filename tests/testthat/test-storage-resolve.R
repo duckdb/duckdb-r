@@ -1,45 +1,106 @@
-# Resolution layer (plan/PLAN-storage-locations.md, Phase 1).
+# Home resolution, temp/spill resolution, and the throttled messages.
 
-test_that("resolve_extension_directory honors option then env override", {
-  withr::local_options(duckdb.extension_directory = "/opt/ext")
+test_that("resolve_storage_home honors argument, then option, then env", {
+  # An explicit argument wins over everything.
   expect_equal(
-    resolve_extension_directory(),
-    list(directory = "/opt/ext", source = "option")
+    resolve_storage_home("/opt/home"),
+    list(root = path.expand("/opt/home"), source = "argument")
   )
 
-  withr::local_options(duckdb.extension_directory = NULL)
-  withr::local_envvar(DUCKDB_EXTENSION_DIRECTORY = "/env/ext")
+  withr::local_options(duckdb.home = "/opt/opt-home")
+  withr::local_envvar(DUCKDB_R_HOME = "/opt/env-home")
+  # The option beats the environment variable.
   expect_equal(
-    resolve_extension_directory(),
-    list(directory = "/env/ext", source = "env")
+    resolve_storage_home(),
+    list(root = path.expand("/opt/opt-home"), source = "option")
+  )
+
+  withr::local_options(duckdb.home = NULL)
+  expect_equal(
+    resolve_storage_home(),
+    list(root = path.expand("/opt/env-home"), source = "env")
   )
 })
 
-test_that("resolve_extension_directory uses a marked root", {
-  user <- withr::local_tempdir()
+test_that("resolve_storage_home uses an existing ~/.duckdb", {
   shared <- withr::local_tempdir()
-  local_mocked_bindings(
-    default_user_directory = function() user,
-    duckdb_shared_home = function() shared
-  )
-  write_keep_marker(storage_dir("user", "extensions"))
-  resolved <- resolve_extension_directory()
+  withr::local_options(duckdb.home = NULL)
+  withr::local_envvar(DUCKDB_R_HOME = NA)
+  local_mocked_bindings(duckdb_shared_home = function() shared)
   expect_equal(
-    normalizePath(resolved$directory),
-    normalizePath(file.path(user, "extensions"))
+    resolve_storage_home(),
+    list(root = shared, source = "shared")
   )
-  expect_equal(resolved$source, "marker")
 })
 
-test_that("resolve_extension_directory defaults to the session tempdir", {
+test_that("resolve_storage_home falls back to a session tempdir non-interactively", {
+  withr::local_options(duckdb.home = NULL, rlang_interactive = FALSE)
+  withr::local_envvar(DUCKDB_R_HOME = NA)
   local_mocked_bindings(
-    marked_storage_dir = function(kind) NULL,
+    duckdb_shared_home = function() file.path(tempdir(), "no-such-duckdb-home"),
     session_temp_dir = function() "/tmp/sess"
   )
   expect_equal(
-    resolve_extension_directory(),
-    list(directory = "/tmp/sess/duckdb/extensions", source = "session")
+    resolve_storage_home(),
+    list(root = "/tmp/sess/duckdb", source = "session")
   )
+})
+
+test_that("an interactive yes creates and uses ~/.duckdb", {
+  shared <- file.path(withr::local_tempdir(), ".duckdb")
+  withr::local_options(duckdb.home = NULL, rlang_interactive = TRUE)
+  withr::local_envvar(DUCKDB_R_HOME = NA)
+  storage_message_state[["home_prompt_declined"]] <- NULL
+  local_mocked_bindings(
+    duckdb_shared_home = function() shared,
+    consent_to_create_home = function(path) TRUE
+  )
+  resolved <- resolve_storage_home()
+  expect_equal(resolved, list(root = shared, source = "created"))
+  expect_true(dir.exists(shared))
+})
+
+test_that("an interactive no uses tempdir and is not re-asked this session", {
+  shared <- file.path(withr::local_tempdir(), ".duckdb")
+  withr::local_options(duckdb.home = NULL, rlang_interactive = TRUE)
+  withr::local_envvar(DUCKDB_R_HOME = NA)
+  storage_message_state[["home_prompt_declined"]] <- NULL
+  calls <- 0L
+  local_mocked_bindings(
+    duckdb_shared_home = function() shared,
+    session_temp_dir = function() "/tmp/sess",
+    consent_to_create_home = function(path) {
+      calls <<- calls + 1L
+      FALSE
+    }
+  )
+  expect_equal(resolve_storage_home()$source, "session")
+  # Declined once -> not asked again for the rest of the session.
+  expect_equal(resolve_storage_home()$source, "session")
+  expect_equal(calls, 1L)
+  expect_false(dir.exists(shared))
+})
+
+test_that("describe_storage_home is read-only: no prompt, no creation", {
+  shared <- file.path(withr::local_tempdir(), ".duckdb")
+  withr::local_options(duckdb.home = NULL, rlang_interactive = TRUE)
+  withr::local_envvar(DUCKDB_R_HOME = NA)
+  local_mocked_bindings(
+    duckdb_shared_home = function() shared,
+    session_temp_dir = function() "/tmp/sess",
+    consent_to_create_home = function(path) stop("must not prompt")
+  )
+  expect_equal(
+    describe_storage_home(),
+    list(root = "/tmp/sess/duckdb", source = "session")
+  )
+  expect_false(dir.exists(shared))
+})
+
+test_that("resolve_storage_home rejects a malformed home argument", {
+  expect_error(resolve_storage_home(123), "single non-empty string")
+  expect_error(resolve_storage_home(c("a", "b")), "single non-empty string")
+  expect_error(resolve_storage_home(""), "single non-empty string")
 })
 
 test_that("resolve_temp_directory redirects in-memory only, honors override", {
@@ -76,4 +137,13 @@ test_that("ephemeral-storage message fires only for a tempdir cache, once", {
 
   # Throttled within the session.
   expect_silent(maybe_ephemeral_state_message(tmp_cache))
+})
+
+test_that("inform_once_every throttles within the interval (mocked clock)", {
+  storage_message_state[["probe"]] <- NULL
+  local_mocked_bindings(now_seconds = function() 0)
+  expect_true(inform_once_every("probe", 100, "x"))
+  expect_false(inform_once_every("probe", 100, "x"))
+  local_mocked_bindings(now_seconds = function() 1000)
+  expect_true(inform_once_every("probe", 100, "x"))
 })

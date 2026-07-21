@@ -1,233 +1,162 @@
 # Implementation of the storage-location policy documented in `?duckdb_storage`.
-# Roots and marker files; the resolvers and user-facing functions build on these.
+# Extensions and stored secrets live under a single "home" directory that is
+# resolved afresh on every `duckdb()` call; the resolvers and the user-facing
+# status function build on the helpers below.
+
+# --- Home root ----------------------------------------------------------------
 
 # The R session's temporary directory (mockable seam).
 session_temp_dir <- function() {
   tempdir()
 }
 
-# Base directory for a named root.
-storage_root_base <- function(root) {
-  switch(
-    root,
-    session = file.path(session_temp_dir(), "duckdb"),
-    user = default_user_directory(),
-    shared = duckdb_shared_home(),
-    stop("Unknown storage root: ", root, call. = FALSE)
-  )
+# The per-session home, under tempdir(). Wiped when the R session ends.
+session_home <- function() {
+  file.path(session_temp_dir(), "duckdb")
 }
 
-# The directory a (root, kind) pair maps to, e.g. `<root>/extensions`. `root`
-# must be a known root name (`storage_root_base()` errors otherwise); `kind` is
-# the sub-directory, matching DuckDB's own names ("extensions",
-# "stored_secrets").
-storage_dir <- function(root, kind) {
-  if (!kind %in% c("extensions", "stored_secrets")) {
-    stop("Unknown storage kind: ", kind, call. = FALSE)
-  }
-  file.path(storage_root_base(root), kind)
+# The sub-directory of a home root that holds a given kind of state. The names
+# ("extensions", "stored_secrets") match DuckDB's own layout, so a home shared
+# with the DuckDB CLI and Python client lines up.
+home_subdir <- function(root, kind) {
+  file.path(root, kind)
 }
 
-# Persistent roots a marker may opt into, in priority order. (`session` is the
-# tempdir default/opt-out.)
-persistent_roots <- function() {
-  c("user", "shared")
-}
-
-# --- Marker files -------------------------------------------------------------
-
-# Name and contents of the per-kind "keep" marker. Contents are informational
-# only: the package checks for the file's presence, never reads it back.
-KEEP_MARKER_NAME <- ".duckdb-r-keep"
-KEEP_MARKER_TEXT <- paste0(
-  "Marker written by the duckdb R package: while this file is present, ",
-  "downloaded extensions or stored secrets are kept in this directory. ",
-  "Delete this file to opt out; deleting the directory itself removes the ",
-  "stored data."
-)
-
-# TRUE if the keep-marker is present in `dir`.
-has_keep_marker <- function(dir) {
-  file.exists(file.path(dir, KEEP_MARKER_NAME))
-}
-
-# Write the keep-marker into `dir` (creating `dir` if needed) and leave it in
-# place. The write doubles as a writability probe: returns TRUE if the marker
-# now exists. A real write rather than file.access(), which is unreliable on
-# Windows.
-write_keep_marker <- function(dir) {
-  if (!dir.exists(dir)) {
-    created <- dir.create(dir, recursive = TRUE, showWarnings = FALSE)
-    if (!created) {
-      return(FALSE)
-    }
-  }
-  marker <- file.path(dir, KEEP_MARKER_NAME)
-  ok <- tryCatch(
-    {
-      writeLines(KEEP_MARKER_TEXT, marker)
-      TRUE
-    },
-    error = function(e) FALSE
-  )
-  isTRUE(ok) && file.exists(marker)
-}
-
-# Remove the keep-marker from `dir` if present.
-remove_keep_marker <- function(dir) {
-  marker <- file.path(dir, KEEP_MARKER_NAME)
-  if (file.exists(marker)) {
-    unlink(marker)
-  }
-  invisible()
-}
-
-# Scan the persistent roots for a kind's keep-marker. Returns the directory of
-# the single marked root, or NULL if none is marked. If more than one root is
-# marked the choice is ambiguous: emit a one-time message and return NULL so the
-# caller falls back to the default.
-marked_storage_dir <- function(kind) {
-  marked <- Filter(
-    function(root) has_keep_marker(storage_dir(root, kind)),
-    persistent_roots()
-  )
-  if (length(marked) == 0L) {
-    return(NULL)
-  }
-  if (length(marked) > 1L) {
-    inform_duplicate_marker(kind, marked)
-    return(NULL)
-  }
-  storage_dir(marked[[1L]], kind)
-}
-
-# --- Throttled messages -------------------------------------------------------
-
-# Eight hours, in seconds.
-STORAGE_MESSAGE_INTERVAL <- 8 * 60 * 60
-
-# Current time in seconds (mockable seam so throttle tests can inject time).
-now_seconds <- function() {
-  as.numeric(Sys.time())
-}
-
-# Session-local throttle state.
-storage_message_state <- new.env(parent = emptyenv())
-
-# Emit `message` (an rlang-style character vector, names "i"/"!"/"*" for
-# bullets) at most once per `seconds` per session.
-inform_once_every <- function(id, seconds, message) {
-  now <- now_seconds()
-  last <- storage_message_state[[id]]
-  if (!is.null(last) && (now - last) < seconds) {
-    return(invisible(FALSE))
-  }
-  storage_message_state[[id]] <- now
-  inform(message, class = paste0("duckdb_", id))
-  invisible(TRUE)
-}
-
-inform_duplicate_marker <- function(kind, roots) {
-  dirs <- vapply(roots, function(r) storage_dir(r, kind), character(1))
-  names(dirs) <- rep("*", length(dirs))
-  inform_once_every(
-    paste0("duplicate_marker_", kind),
-    STORAGE_MESSAGE_INTERVAL,
-    c(
-      sprintf(
-        "duckdb: %s storage is marked in more than one location:",
-        gsub("_", " ", kind)
-      ),
-      dirs,
-      i = "Falling back to a temporary directory until only one remains."
-    )
-  )
+# TRUE for a usable scalar path string.
+is_nonempty_string <- function(x) {
+  is.character(x) && length(x) == 1L && !is.na(x) && nzchar(x)
 }
 
 # --- Resolution ---------------------------------------------------------------
 
-# An explicit override for a storage kind ("extensions", "stored_secrets",
-# "temp") and the tier it came from, via the option (source "option") or
-# environment variable (source "env") for its DuckDB setting, or NULL if neither.
-directory_override_with_source <- function(kind) {
-  # The kind token ("extensions" / "stored_secrets") matches DuckDB's
-  # sub-directory names; the option/env var use DuckDB's *setting* names
-  # ("extension" / "secret"), which we map to here.
-  setting <- override_setting(kind)
-  opt <- getOption(paste0("duckdb.", setting, "_directory"))
-  if (is.character(opt) && length(opt) == 1L && nzchar(opt)) {
-    return(list(directory = path.expand(opt), source = "option"))
+# Resolve the home directory this connection uses for extensions and secrets,
+# and the tier that chose it. First match wins:
+#
+#   1. the `home` argument to duckdb()          -> source "argument"
+#   2. the `duckdb.home` option                 -> source "option"
+#   3. the `DUCKDB_R_HOME` environment variable -> source "env"
+#   4. `~/.duckdb`, if it already exists         -> source "shared"
+#   5. otherwise: in an interactive session, offer to create `~/.duckdb` once
+#      (source "created" if accepted); a declined prompt or a non-interactive
+#      session falls back to a per-session tempdir (source "session").
+#
+# Only branch 5 in an interactive session has side effects (a prompt and, on
+# consent, creating the directory). The read-only counterpart used by
+# `duckdb_storage_status()` is `describe_storage_home()`.
+resolve_storage_home <- function(home = NULL) {
+  fixed <- fixed_storage_home(home)
+  if (!is.null(fixed)) {
+    return(fixed)
   }
-  if (!is.null(opt)) {
-    # Set but unusable: warn once per session and fall through to the env var.
-    id <- paste0("bad_option_", setting)
-    if (is.null(storage_message_state[[id]])) {
-      storage_message_state[[id]] <- TRUE
-      warning(
-        sprintf(
-          "Ignoring `options(duckdb.%s_directory=)`: not a non-empty string.",
-          setting
-        ),
-        call. = FALSE
-      )
+
+  shared <- duckdb_shared_home()
+  if (dir.exists(shared)) {
+    return(list(root = shared, source = "shared"))
+  }
+
+  if (is_interactive() && !home_prompt_declined()) {
+    if (consent_to_create_home(shared)) {
+      dir.create(shared, recursive = TRUE, showWarnings = FALSE)
+      if (dir.exists(shared)) {
+        return(list(root = shared, source = "created"))
+      }
     }
+    # Remember a decline (or a failed creation) so we do not prompt again this
+    # session; fall through to the per-session default.
+    mark_home_prompt_declined()
   }
-  env <- Sys.getenv(
-    paste0("DUCKDB_", toupper(setting), "_DIRECTORY"),
-    unset = ""
-  )
+
+  list(root = session_home(), source = "session")
+}
+
+# The tiers of `resolve_storage_home()` that are pure lookups with no side
+# effects: the explicit argument, the option, and the environment variable.
+# Returns NULL when none is set. Shared by the resolver and the read-only
+# `describe_storage_home()`.
+fixed_storage_home <- function(home = NULL) {
+  if (!is.null(home)) {
+    check_home_arg(home)
+    return(list(root = path.expand(home), source = "argument"))
+  }
+  opt <- getOption("duckdb.home")
+  if (is_nonempty_string(opt)) {
+    return(list(root = path.expand(opt), source = "option"))
+  }
+  env <- Sys.getenv("DUCKDB_R_HOME", unset = "")
   if (nzchar(env)) {
-    return(list(directory = path.expand(env), source = "env"))
+    return(list(root = path.expand(env), source = "env"))
   }
   NULL
 }
 
-# Map a storage kind to the DuckDB config-setting name behind its option / env
-# var (`duckdb.<setting>_directory` / `DUCKDB_<SETTING>_DIRECTORY`).
-override_setting <- function(kind) {
-  switch(
-    kind,
-    extensions = "extension",
-    stored_secrets = "secret",
-    temp = "temp",
-    stop("Unknown storage kind: ", kind, call. = FALSE)
+# Read-only counterpart to `resolve_storage_home()`, used by
+# `duckdb_storage_status()`: never prompts and never creates a directory. An
+# as-yet-uncreated `~/.duckdb` is therefore reported as the per-session default.
+describe_storage_home <- function() {
+  fixed <- fixed_storage_home()
+  if (!is.null(fixed)) {
+    return(fixed)
+  }
+  shared <- duckdb_shared_home()
+  if (dir.exists(shared)) {
+    return(list(root = shared, source = "shared"))
+  }
+  list(root = session_home(), source = "session")
+}
+
+check_home_arg <- function(home) {
+  if (!is_nonempty_string(home)) {
+    stop(
+      "`home` must be a single non-empty string (a directory path), or NULL.",
+      call. = FALSE
+    )
+  }
+}
+
+# --- Interactive consent ------------------------------------------------------
+
+# Ask, in an interactive session, whether `~/.duckdb` may be created. Returns
+# TRUE only on an explicit yes. Mockable seam: tests bind this directly rather
+# than driving the console.
+consent_to_create_home <- function(path) {
+  answer <- tryCatch(
+    utils::askYesNo(
+      paste0(
+        "duckdb: create ",
+        path,
+        " to keep downloaded extensions and stored secrets across sessions?"
+      ),
+      default = FALSE
+    ),
+    error = function(e) NA
   )
+  isTRUE(answer)
 }
 
-# The resolvers below each return a named list `list(directory, source)`: the
-# resolved directory and the tier of the policy that chose it ("option", "env",
-# "marker", or "session"; "default" when nothing is set). Callers use
-# `source` to decide follow-up behavior (e.g. whether to nag about an ephemeral
-# cache) without re-running the resolution. `directory` may be NULL when a
-# setting is deliberately left unset (see `resolve_temp_directory()`).
-
-# Resolve the extension cache directory (see ?duckdb_storage):
-# override -> marker (user/shared) -> session tempdir default.
-resolve_extension_directory <- function() {
-  override <- directory_override_with_source("extensions")
-  if (!is.null(override)) {
-    return(override)
-  }
-  marked <- marked_storage_dir("extensions")
-  if (!is.null(marked)) {
-    return(list(directory = marked, source = "marker"))
-  }
-  list(directory = storage_dir("session", "extensions"), source = "session")
+home_prompt_declined <- function() {
+  isTRUE(storage_message_state[["home_prompt_declined"]])
 }
 
-# Resolve the secrets directory (see ?duckdb_storage):
-# override -> marker (user/shared) -> session tempdir default. Same shape as
-# resolve_extension_directory(); the default is a per-session temporary directory.
-resolve_secret_directory <- function() {
-  override <- directory_override_with_source("stored_secrets")
-  if (!is.null(override)) {
-    return(override)
+mark_home_prompt_declined <- function() {
+  storage_message_state[["home_prompt_declined"]] <- TRUE
+}
+
+# --- Temp / spill directory ---------------------------------------------------
+
+# An explicit temp/spill-directory override via the `duckdb.temp_directory`
+# option or the `DUCKDB_TEMP_DIRECTORY` environment variable, or NULL if neither
+# is set. Unlike the extension/secret home this stays a separate knob: spill
+# files can be large and are unrelated to the extension cache.
+temp_directory_override <- function() {
+  opt <- getOption("duckdb.temp_directory")
+  if (is_nonempty_string(opt)) {
+    return(list(directory = path.expand(opt), source = "option"))
   }
-  marked <- marked_storage_dir("stored_secrets")
-  if (!is.null(marked)) {
-    return(list(directory = marked, source = "marker"))
+  env <- Sys.getenv("DUCKDB_TEMP_DIRECTORY", unset = "")
+  if (nzchar(env)) {
+    return(list(directory = path.expand(env), source = "env"))
   }
-  list(directory = storage_dir("session", "stored_secrets"), source = "session")
+  NULL
 }
 
 # Resolve the temp/spill directory. For in-memory databases DuckDB would spill
@@ -235,13 +164,13 @@ resolve_secret_directory <- function() {
 # tempdir instead; for on-disk databases keep DuckDB's `<db>.tmp` default
 # (`directory` is NULL so the setting is left unset). Overridable.
 resolve_temp_directory <- function(dbdir) {
-  override <- directory_override_with_source("temp")
+  override <- temp_directory_override()
   if (!is.null(override)) {
     return(override)
   }
   if (is_memory_dbdir(dbdir)) {
     return(list(
-      directory = file.path(session_temp_dir(), "duckdb", "temp"),
+      directory = file.path(session_home(), "temp"),
       source = "session"
     ))
   }
@@ -255,142 +184,36 @@ is_memory_dbdir <- function(dbdir) {
     startsWith(dbdir, ":memory:")
 }
 
-# --- Inspecting and changing the persistent location -------------------------
+# --- Throttled messages -------------------------------------------------------
 
-# Read-only counterpart to the resolvers, used by duckdb_storage_status(): the
-# resolved directory and the tier that selected it. It has no side effects and
-# reports only what is already persisted.
-describe_storage <- function(kind) {
-  override <- directory_override_with_source(kind)
-  if (!is.null(override)) {
-    return(override)
-  }
-  marked <- marked_storage_dir(kind)
-  if (!is.null(marked)) {
-    return(list(directory = marked, source = "marker"))
-  }
-  list(directory = storage_dir("session", kind), source = "session")
+# Eight hours, in seconds.
+STORAGE_MESSAGE_INTERVAL <- 8 * 60 * 60
+
+# Current time in seconds (mockable seam so throttle tests can inject time).
+now_seconds <- function() {
+  as.numeric(Sys.time())
 }
 
-# Point a kind's persistent location at `location`: clear any existing markers,
-# write the new one (unless `location` is "session", the opt-out), and migrate
-# the cached files. Returns the resolved directory invisibly.
-set_storage_marker <- function(kind, location, migrate, conflict) {
-  # `location` is already validated against the kind's roots by the exported
-  # wrapper (via arg_match()).
-  conflict <- match.arg(conflict, c("error", "ours", "theirs"))
-  stopifnot(is.logical(migrate), length(migrate) == 1L, !is.na(migrate))
+# Session-local throttle state (also holds the "prompt declined" flag).
+storage_message_state <- new.env(parent = emptyenv())
 
-  # Capture the current source(s) before clearing markers (see migration_sources
-  # for why this can be more than one directory).
-  from <- migration_sources(kind)
-
-  for (root in persistent_roots()) {
-    remove_keep_marker(storage_dir(root, kind))
+# Emit `message` (an rlang-style character vector, names "i"/"!"/"*" for
+# bullets) at most once per `seconds` per session.
+inform_once_every <- function(id, seconds, message) {
+  now <- now_seconds()
+  last <- storage_message_state[[id]]
+  if (is.numeric(last) && (now - last) < seconds) {
+    return(invisible(FALSE))
   }
-
-  if (identical(location, "session")) {
-    # Opt-out: revert to the per-session default. Cached files are left where
-    # they are rather than moved into a directory that is wiped on exit.
-    return(invisible(storage_dir("session", kind)))
-  }
-
-  to <- storage_dir(location, kind)
-  if (!write_keep_marker(to)) {
-    stop("Cannot write the storage marker to ", to, ".", call. = FALSE)
-  }
-  if (isTRUE(migrate)) {
-    for (src in from) {
-      migrate_storage(src, to, conflict)
-    }
-  }
-  invisible(to)
+  storage_message_state[[id]] <- now
+  inform(message, class = paste0("duckdb_", id))
+  invisible(TRUE)
 }
-
-# The directory or directories holding a kind's currently-cached files, used as
-# the migration source(s). Mirrors the resolver's precedence (override -> marker
-# -> default) but, in the marker tier, returns *every* marked root: if a kind is
-# (abnormally) marked in more than one root, relocating should sweep them all in
-# rather than orphan the data left in the roots whose markers we clear.
-migration_sources <- function(kind) {
-  override <- directory_override_with_source(kind)
-  if (!is.null(override)) {
-    return(override$directory)
-  }
-  marked <- Filter(
-    function(r) has_keep_marker(storage_dir(r, kind)),
-    persistent_roots()
-  )
-  if (length(marked) > 0L) {
-    return(vapply(marked, function(r) storage_dir(r, kind), character(1)))
-  }
-  describe_storage(kind)$directory
-}
-
-# Move the cached files from `from` to `to` (recursively, preserving DuckDB's
-# `v<version>/<platform>/` layout) without the keep-marker. `conflict` decides
-# name collisions at the destination: "error" aborts listing them, "ours"
-# overwrites, "theirs" keeps the destination and drops the colliding sources.
-migrate_storage <- function(from, to, conflict) {
-  if (!dir.exists(from)) {
-    return(invisible())
-  }
-  if (
-    identical(
-      normalizePath(from, mustWork = FALSE),
-      normalizePath(to, mustWork = FALSE)
-    )
-  ) {
-    return(invisible())
-  }
-  rel <- list.files(from, recursive = TRUE, all.files = TRUE, no.. = TRUE)
-  rel <- rel[basename(rel) != KEEP_MARKER_NAME]
-  if (length(rel) == 0L) {
-    return(invisible())
-  }
-  collide <- rel[file.exists(file.path(to, rel))]
-  if (length(collide) > 0L && identical(conflict, "error")) {
-    stop(
-      "Migration would overwrite files at ",
-      to,
-      ":\n",
-      paste0("  ", collide, collapse = "\n"),
-      '\nRe-run with conflict = "ours" or "theirs".',
-      call. = FALSE
-    )
-  }
-  # "theirs" keeps the destination, so its colliding sources are not copied.
-  to_copy <- if (identical(conflict, "theirs")) setdiff(rel, collide) else rel
-  for (r in to_copy) {
-    dst <- file.path(to, r)
-    dir.create(dirname(dst), recursive = TRUE, showWarnings = FALSE)
-    if (
-      !file.copy(file.path(from, r), dst, overwrite = TRUE, copy.date = TRUE)
-    ) {
-      stop("Failed to migrate ", file.path(from, r), ".", call. = FALSE)
-    }
-  }
-  # Every source is removed: copied ones moved, "theirs" collisions dropped.
-  unlink(file.path(from, rel))
-  remaining <- rel[file.exists(file.path(from, rel))]
-  if (length(remaining) > 0L) {
-    warning(
-      "Migrated, but could not remove the originals under ",
-      from,
-      "; they now exist in both locations:\n",
-      paste0("  ", remaining, collapse = "\n"),
-      call. = FALSE
-    )
-  }
-  invisible()
-}
-
-# --- Ephemeral-storage message ------------------------------------------------
 
 # Called on connect when the extension cache resolves to a temporary location.
-# Lets the user know -- at most once every 8 hours per session, in unattended runs too --
-# that downloaded extensions will not persist, and how to opt into a permanent
-# location.
+# Lets the user know -- at most once every 8 hours per session, in unattended
+# runs too -- that downloaded extensions will not persist, and how to opt into a
+# permanent location.
 maybe_ephemeral_state_message <- function(extension_directory) {
   if (is.null(extension_directory)) {
     return(invisible())
@@ -406,8 +229,9 @@ maybe_ephemeral_state_message <- function(extension_directory) {
         "re-downloaded each session."
       ),
       i = paste0(
-        "To keep them, point `options(duckdb.extension_directory =)` or the ",
-        "`DUCKDB_EXTENSION_DIRECTORY` environment variable at a permanent path."
+        "To keep them, create ~/.duckdb, or point duckdb there with the ",
+        "`home` argument of duckdb(), the `duckdb.home` option, or the ",
+        "DUCKDB_R_HOME environment variable."
       )
     )
   )
