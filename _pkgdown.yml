@@ -54,4 +54,3 @@ reference:
     session's temporary directory unless you opt in.
   contents:
   - duckdb_storage
-  - duckdb_storage_status

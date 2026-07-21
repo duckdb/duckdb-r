@@ -156,7 +156,6 @@
 #' con <- DBI::dbConnect(duckdb::duckdb(home = withr::local_tempdir()))
 #' ```
 #'
-#' @seealso [duckdb_storage_status()] to report the resolved locations, and
-#'   [duckdb()] for the `home` argument.
+#' @seealso [duckdb()] for the `home` and `shared_home` arguments.
 #' @name duckdb_storage
 NULL
