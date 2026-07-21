@@ -49,8 +49,8 @@ duckdb <- function(
   read_only = FALSE,
   bigint = "numeric",
   config = list(),
-  home = NULL,
   ...,
+  home = NULL,
   environment_scan = FALSE
 ) {
   check_flag(read_only)
