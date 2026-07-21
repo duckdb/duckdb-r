@@ -62,6 +62,9 @@ duckdb <- function(
   if (...length() > 0) {
     stop("... must be empty")
   }
+  if (isTRUE(shared_home) && !is.null(home)) {
+    stop("Pass either `home` or `shared_home = TRUE`, not both.", call. = FALSE)
+  }
 
   convert_opts <- duckdb_convert_opts(bigint = bigint)
 

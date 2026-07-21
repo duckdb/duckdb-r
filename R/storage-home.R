@@ -45,15 +45,9 @@ is_nonempty_string <- function(x) {
 # `duckdb_storage_status()` is `describe_storage_home()`.
 resolve_storage_home <- function(home = NULL, shared_home = FALSE) {
   # `shared_home = TRUE` is the explicit, non-interactive opt-in to ~/.duckdb:
-  # use it (creating it if needed) with no prompt. It is shorthand for the
-  # shared location, so it cannot be combined with an explicit `home`.
+  # use it (creating it if needed) with no prompt. duckdb() has already checked
+  # that it is not combined with an explicit `home`.
   if (isTRUE(shared_home)) {
-    if (!is.null(home)) {
-      stop(
-        "Pass either `home` or `shared_home = TRUE`, not both.",
-        call. = FALSE
-      )
-    }
     shared <- duckdb_shared_home()
     dir.create(shared, recursive = TRUE, showWarnings = FALSE)
     return(list(root = shared, source = "shared"))

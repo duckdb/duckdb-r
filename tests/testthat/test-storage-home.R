@@ -116,9 +116,9 @@ test_that("shared_home = TRUE opts into ~/.duckdb, creating it, without promptin
   expect_true(dir.exists(shared))
 })
 
-test_that("shared_home = TRUE cannot be combined with an explicit home", {
+test_that("duckdb() rejects home combined with shared_home = TRUE", {
   expect_error(
-    resolve_storage_home(home = "/opt/home", shared_home = TRUE),
+    duckdb(home = "/opt/home", shared_home = TRUE),
     "not both"
   )
 })
