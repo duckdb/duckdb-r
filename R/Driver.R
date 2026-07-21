@@ -33,8 +33,7 @@ driver_registry <- new.env(parent = emptyenv())
 #'   [duckdb_storage]: an existing `~/.duckdb`, else a per-session temporary
 #'   directory (with, in interactive sessions, a one-time offer to create
 #'   `~/.duckdb`). Pass a path to use it as the root explicitly, creating it if
-#'   needed. See also the `duckdb.home` option and the `DUCKDB_R_HOME`
-#'   environment variable.
+#'   needed.
 #' @param environment_scan Set to `TRUE` to treat
 #'   data frames from the calling environment as tables.
 #'   If a database table with the same name exists, it takes precedence.

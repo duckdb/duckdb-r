@@ -119,18 +119,14 @@ check_home_arg <- function(home) {
 # TRUE only on an explicit yes. Mockable seam: tests bind this directly rather
 # than driving the console.
 consent_to_create_home <- function(path) {
-  answer <- tryCatch(
-    utils::askYesNo(
-      paste0(
-        "duckdb: create ",
-        path,
-        " to keep downloaded extensions and stored secrets across sessions?"
-      ),
-      default = FALSE
+  utils::askYesNo(
+    paste0(
+      "duckdb: create ",
+      path,
+      "?\n"
     ),
-    error = function(e) NA
+    default = TRUE
   )
-  isTRUE(answer)
 }
 
 home_prompt_declined <- function() {
@@ -144,7 +140,7 @@ mark_home_prompt_declined <- function() {
 # --- Temp / spill directory ---------------------------------------------------
 
 # An explicit temp/spill-directory override via the `duckdb.temp_directory`
-# option or the `DUCKDB_TEMP_DIRECTORY` environment variable, or NULL if neither
+# option or the `DUCKDB_R_TEMP_DIRECTORY` environment variable, or NULL if neither
 # is set. Unlike the extension/secret home this stays a separate knob: spill
 # files can be large and are unrelated to the extension cache.
 temp_directory_override <- function() {
@@ -152,7 +148,7 @@ temp_directory_override <- function() {
   if (is_nonempty_string(opt)) {
     return(list(directory = path.expand(opt), source = "option"))
   }
-  env <- Sys.getenv("DUCKDB_TEMP_DIRECTORY", unset = "")
+  env <- Sys.getenv("DUCKDB_R_TEMP_DIRECTORY", unset = "")
   if (nzchar(env)) {
     return(list(directory = path.expand(env), source = "env"))
   }
@@ -222,17 +218,14 @@ maybe_ephemeral_state_message <- function(extension_directory) {
     "ephemeral_state",
     STORAGE_MESSAGE_INTERVAL,
     c(
-      "duckdb is keeping downloaded extensions in a temporary directory:",
+      "duckdb is keeping downloaded extensions and secrets",
+      "in a temporary directory:",
       i = extension_directory,
-      paste0(
-        "This is removed when the R session ends, so extensions are ",
-        "re-downloaded each session."
-      ),
-      i = paste0(
-        "To keep them, create ~/.duckdb, or point duckdb there with the ",
-        "`home` argument of duckdb(), the `duckdb.home` option, or the ",
-        "DUCKDB_R_HOME environment variable."
-      )
+      "This is removed when the R session ends.",
+      "*" = "Extensions are re-downloaded each session.",
+      "*" = "Secrets are lost.",
+      i = "To keep them, create ~/.duckdb or run duckdb(shared_home = TRUE) .",
+      i = "See ?duckdb_storage for details and alternatives."
     )
   )
 }

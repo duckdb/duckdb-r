@@ -69,8 +69,8 @@
 #' # Resolving the home directory
 #'
 #' Extensions and secrets share one *home* root, resolved fresh on every call to
-#' [duckdb()] that creates a new database. The first source that yields a value
-#' wins:
+#' [duckdb()] that creates a new database driver object.
+#' The first source that yields a value wins:
 #'
 #' 1. the `home` argument to [duckdb()];
 #' 1. the `duckdb.home` R option, e.g.
@@ -78,10 +78,9 @@
 #' 1. the `DUCKDB_R_HOME` environment variable;
 #' 1. `~/.duckdb`, if that directory already exists -- the location shared with
 #'    the DuckDB CLI and Python client;
-#' 1. otherwise a per-session sub-directory of [tempdir()], with one exception:
-#'    in an **interactive** session the package offers, once per session, to
-#'    create `~/.duckdb` and use it. Decline, and it uses the temporary
-#'    directory for the rest of the session.
+#' 1. In interactive sessions only, the package offers to create `~/.duckdb` once.
+#'    If you accept, it is created and used.
+#' 1. Otherwise a per-session sub-directory of [tempdir()].
 #'
 #' The extension cache is then `<home>/extensions` and the secret store is
 #' `<home>/stored_secrets`.
@@ -92,13 +91,13 @@
 #'
 #' # Per-location reference
 #'
-#' | Kind        | DuckDB setting        | How to set it                                            | Default                          |
-#' |-------------|-----------------------|----------------------------------------------------------|----------------------------------|
-#' | Home        | `home_directory`      | --                                                       | left untouched (not set)         |
-#' | Extensions  | `extension_directory` | `home` arg / `duckdb.home` / `DUCKDB_R_HOME` (as `<home>/extensions`) | `tempdir()` sub-directory (set)  |
-#' | Stored secrets | `secret_directory` | as extensions (`<home>/stored_secrets`)                 | `tempdir()` sub-directory (set)  |
-#' | Temp/spill  | `temp_directory`      | `duckdb.temp_directory` / `DUCKDB_TEMP_DIRECTORY`        | `tempdir()` sub-directory (set)  |
-#' | Logs        | `log_query_path`      | DuckDB setting                                           | disabled (off)                   |
+#' | Kind           | DuckDB setting        | How to set it                                                         | Default                          |
+#' |----------------|-----------------------|-----------------------------------------------------------------------|----------------------------------|
+#' | Home           | `home_directory`      | --                                                                    | left untouched (not set)         |
+#' | Extensions     | `extension_directory` | `home` arg / `duckdb.home` / `DUCKDB_R_HOME` (as `<home>/extensions`) | `tempdir()` sub-directory (set)  |
+#' | Stored secrets | `secret_directory`    | like extensions (`<home>/stored_secrets`)                             | `tempdir()` sub-directory (set)  |
+#' | Temp/spill     | `temp_directory`      | `duckdb.temp_directory` / `DUCKDB_R_TEMP_DIRECTORY`                   | `tempdir()` sub-directory (set)  |
+#' | Logs           | `log_query_path`      | DuckDB setting                                                        | disabled (off)                   |
 #'
 #' "set" means `duckdb()` sets the value explicitly in the database config. The
 #' home directory is left untouched so that `~` in user SQL keeps its usual
@@ -109,7 +108,7 @@
 #' # Messages
 #'
 #' \describe{
-#'   \item{Startup message}{When a connection is established and the resolved
+#'   \item{Startup message}{When a driver object is created and the resolved
 #'     extension cache lies inside [tempdir()], the package emits an
 #'     informational message -- at most once every eight hours per session,
 #'     including in unattended (non-interactive) runs. It explains that

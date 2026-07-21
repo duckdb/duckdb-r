@@ -75,7 +75,7 @@ afterwards; existing connections are unaffected.
    Home \tab \code{home_directory} \tab -- \tab left untouched (not set) \cr
    Extensions \tab \code{extension_directory} \tab \code{home} arg / \code{duckdb.home} / \code{DUCKDB_R_HOME} (as \verb{<home>/extensions}) \tab \code{tempdir()} sub-directory (set) \cr
    Stored secrets \tab \code{secret_directory} \tab as extensions (\verb{<home>/stored_secrets}) \tab \code{tempdir()} sub-directory (set) \cr
-   Temp/spill \tab \code{temp_directory} \tab \code{duckdb.temp_directory} / \code{DUCKDB_TEMP_DIRECTORY} \tab \code{tempdir()} sub-directory (set) \cr
+   Temp/spill \tab \code{temp_directory} \tab \code{duckdb.temp_directory} / \code{DUCKDB_R_TEMP_DIRECTORY} \tab \code{tempdir()} sub-directory (set) \cr
    Logs \tab \code{log_query_path} \tab DuckDB setting \tab disabled (off) \cr
 }
 
