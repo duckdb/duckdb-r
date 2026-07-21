@@ -128,7 +128,7 @@ handling.
 downloads extensions such as \code{spatial}, \code{httpfs}, or \code{h3} from the network
 on first use. CRAN forbids tests and examples that depend on external
 resources, so a package that runs \code{INSTALL}/\code{LOAD} (directly or via
-\code{dbExecute()}) must guard those with \code{testthat::skip_on_cran()} /
+\code{dbExecute()}) must guard those with \code{\link[testthat:skip_on_cran]{testthat::skip_on_cran()}} /
 \verb{@examplesIf}, or test them off CRAN (GitHub Actions, R-universe). To force
 a throwaway cache in your own tests, connect with an explicit home:
 }

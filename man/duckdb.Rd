@@ -63,9 +63,9 @@ Subsequent connections will silently ignore these flags.}
 
 \item{home}{Root directory for DuckDB's downloaded extensions and stored
 secrets. \code{NULL} (the default) resolves the location as described in
-\link{duckdb_storage}: an existing \code{~/.duckdb}, else a per-session temporary
+\link{duckdb_storage}: an existing \verb{~/.duckdb}, else a per-session temporary
 directory (with, in interactive sessions, a one-time offer to create
-\code{~/.duckdb}). Pass a path to use it as the root explicitly, creating it if
+\verb{~/.duckdb}). Pass a path to use it as the root explicitly, creating it if
 needed. See also the \code{duckdb.home} option and the \code{DUCKDB_R_HOME}
 environment variable.}
 
