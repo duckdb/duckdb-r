@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.4.9010
+
+## Chore
+
+- Switch to dev version.
+
+
 # duckdb 1.5.4.9009
 
 - Switching to development version.
