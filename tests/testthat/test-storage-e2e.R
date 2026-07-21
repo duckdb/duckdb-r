@@ -4,6 +4,26 @@
 # skip on CRAN; the extension test additionally skips, best effort, when the
 # download/install fails (e.g. no network).
 
+test_that("a non-interactive connect announces the storage location, unless chosen", {
+  skip_on_cran()
+  withr::local_options(duckdb.home = NULL, rlang_interactive = FALSE)
+  withr::local_envvar(DUCKDB_R_HOME = NA)
+  local_mocked_bindings(
+    duckdb_shared_home = function() file.path(tempdir(), "no-such-home-msg")
+  )
+
+  # Auto-resolved (no ~/.duckdb, no args) -> the tempdir message fires once.
+  storage_message_state[["storage_location"]] <- NULL
+  drv <- NULL
+  expect_message({ drv <- duckdb() }, "temporary directory")
+  duckdb_shutdown(drv)
+
+  # Explicit opt-out with shared_home = FALSE -> suppressed.
+  storage_message_state[["storage_location"]] <- NULL
+  expect_no_message({ drv <- duckdb(shared_home = FALSE) })
+  duckdb_shutdown(drv)
+})
+
 test_that("a persistent secret is written under the configured home", {
   skip_on_cran()
   home <- withr::local_tempdir("e2e-home-")

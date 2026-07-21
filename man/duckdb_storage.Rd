@@ -83,6 +83,10 @@ The extension cache is then \verb{<home>/extensions} and the secret store is
 Because the decision is remade on every connection, creating \verb{~/.duckdb} (or
 setting the option/variable) takes effect immediately for connections opened
 afterwards; existing connections are unaffected.
+
+The \code{shared_home} argument of \code{\link[=duckdb]{duckdb()}} overrides this resolution:
+\code{shared_home = TRUE} uses (and creates) \verb{~/.duckdb}, and \code{shared_home = FALSE}
+forces a per-session \code{\link[=tempdir]{tempdir()}} even if \verb{~/.duckdb} already exists.
 }
 
 \section{Per-location reference}{
@@ -105,29 +109,27 @@ over the resolution above.
 
 \section{Messages}{
 \describe{
-\item{Startup message}{When a driver object is created and the resolved
-extension cache lies inside \code{\link[=tempdir]{tempdir()}}, the package emits an
-informational message -- at most once every eight hours per session,
-including in unattended (non-interactive) runs. It explains that
-downloaded extensions will not persist across sessions and how to opt
-into a permanent location. It is shown only when the package chose the
-location itself; if you set the home (via \code{home}, the option, the
-environment variable, or an existing \verb{~/.duckdb}) the choice is yours and
-the message is suppressed.}
+\item{Storage-location message}{In a \strong{non-interactive} session, when the
+package picked the location itself -- a per-session \code{\link[=tempdir]{tempdir()}}, or an
+existing \verb{~/.duckdb} -- it emits an informational message the first time a
+driver object is created (throttled to at most once every eight hours per
+session). For a temporary directory it explains that extensions are
+re-downloaded and secrets lost each session, and how to keep them; for
+\verb{~/.duckdb} it notes that data persists and is shared with the DuckDB CLI
+and Python client, and how to opt out. It is suppressed when you chose the
+location yourself -- the \code{home} or \code{shared_home} argument, the
+\code{duckdb.home} option, or the \code{DUCKDB_R_HOME} environment variable -- and
+in interactive sessions, where the one-time prompt takes its place.}
 }
-\subsection{Silencing the startup message}{
+\subsection{Silencing the message}{
 
-Pointing the home at a permanent location both keeps the extensions and
-silences the message. If you are happy with a temporary cache and only want
-the reminder gone, set the home explicitly so it counts as your choice -- the
-simplest is per connection:
+Make the choice explicit and it is no longer announced. Pass \code{shared_home} to
+\code{\link[=duckdb]{duckdb()}} -- \code{TRUE} to keep extensions and secrets under \verb{~/.duckdb}, \code{FALSE}
+to accept a per-session temporary directory -- or point \code{home} (or the
+\code{duckdb.home} option / \code{DUCKDB_R_HOME} variable) at a location of your choice:
 
-\if{html}{\out{<div class="sourceCode r">}}\preformatted{con <- dbConnect(duckdb(home = file.path(tempdir(), "duckdb")))
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{con <- dbConnect(duckdb(shared_home = FALSE))
 }\if{html}{\out{</div>}}
-
-or set it once per session with
-\code{options(duckdb.home = file.path(tempdir(), "duckdb"))} (or the
-\code{DUCKDB_R_HOME} environment variable).
 }
 }
 

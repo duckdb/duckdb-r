@@ -116,11 +116,26 @@ test_that("shared_home = TRUE opts into ~/.duckdb, creating it, without promptin
   expect_true(dir.exists(shared))
 })
 
-test_that("duckdb() rejects home combined with shared_home = TRUE", {
-  expect_error(
-    duckdb(home = "/opt/home", shared_home = TRUE),
-    "not both"
+test_that("shared_home = FALSE forces tempdir even when ~/.duckdb exists", {
+  shared <- withr::local_tempdir() # exists
+  withr::local_options(duckdb.home = "/opt/should-be-ignored")
+  withr::local_envvar(DUCKDB_R_HOME = "/opt/also-ignored")
+  local_mocked_bindings(
+    duckdb_shared_home = function() shared,
+    session_temp_dir = function() "/tmp/sess"
   )
+  # Ignores the existing ~/.duckdb and the option/env override.
+  expect_equal(
+    resolve_storage_home(shared_home = FALSE),
+    list(root = "/tmp/sess/duckdb", source = "session")
+  )
+})
+
+test_that("duckdb() rejects home combined with shared_home, and bad shared_home", {
+  expect_error(duckdb(home = "/opt/home", shared_home = TRUE), "not both")
+  expect_error(duckdb(home = "/opt/home", shared_home = FALSE), "not both")
+  expect_error(duckdb(shared_home = "yes"), "TRUE, FALSE, or NULL")
+  expect_error(duckdb(shared_home = NA), "TRUE, FALSE, or NULL")
 })
 
 test_that("a cancelled prompt (NA) declines without error", {
@@ -159,18 +174,24 @@ test_that("resolve_temp_directory redirects in-memory only, honors override", {
   )
 })
 
-test_that("ephemeral-storage message fires only for a tempdir cache, once", {
-  local_mocked_bindings(session_temp_dir = function() tempdir())
-  storage_message_state[["ephemeral_state"]] <- NULL
-
-  tmp_cache <- file.path(tempdir(), "duckdb", "extensions")
+test_that("storage-location message: tempdir wording, throttled once", {
+  storage_message_state[["storage_location"]] <- NULL
+  resolved <- list(root = "/tmp/sess/duckdb", source = "session")
   expect_message(
-    maybe_ephemeral_state_message(tmp_cache),
+    maybe_storage_location_message(resolved),
     "temporary directory"
   )
-
   # Throttled within the session.
-  expect_silent(maybe_ephemeral_state_message(tmp_cache))
+  expect_silent(maybe_storage_location_message(resolved))
+})
+
+test_that("storage-location message: ~/.duckdb wording mentions shared_home = FALSE", {
+  storage_message_state[["storage_location"]] <- NULL
+  resolved <- list(root = "/home/me/.duckdb", source = "shared")
+  expect_message(
+    maybe_storage_location_message(resolved),
+    "shared_home = FALSE"
+  )
 })
 
 test_that("inform_once_every throttles within the interval (mocked clock)", {

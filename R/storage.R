@@ -89,6 +89,10 @@
 #' setting the option/variable) takes effect immediately for connections opened
 #' afterwards; existing connections are unaffected.
 #'
+#' The `shared_home` argument of [duckdb()] overrides this resolution:
+#' `shared_home = TRUE` uses (and creates) `~/.duckdb`, and `shared_home = FALSE`
+#' forces a per-session [tempdir()] even if `~/.duckdb` already exists.
+#'
 #' # Per-location reference
 #'
 #' | Kind           | DuckDB setting        | How to set it                                                         | Default                          |
@@ -108,31 +112,29 @@
 #' # Messages
 #'
 #' \describe{
-#'   \item{Startup message}{When a driver object is created and the resolved
-#'     extension cache lies inside [tempdir()], the package emits an
-#'     informational message -- at most once every eight hours per session,
-#'     including in unattended (non-interactive) runs. It explains that
-#'     downloaded extensions will not persist across sessions and how to opt
-#'     into a permanent location. It is shown only when the package chose the
-#'     location itself; if you set the home (via `home`, the option, the
-#'     environment variable, or an existing `~/.duckdb`) the choice is yours and
-#'     the message is suppressed.}
+#'   \item{Storage-location message}{In a **non-interactive** session, when the
+#'     package picked the location itself -- a per-session [tempdir()], or an
+#'     existing `~/.duckdb` -- it emits an informational message the first time a
+#'     driver object is created (throttled to at most once every eight hours per
+#'     session). For a temporary directory it explains that extensions are
+#'     re-downloaded and secrets lost each session, and how to keep them; for
+#'     `~/.duckdb` it notes that data persists and is shared with the DuckDB CLI
+#'     and Python client, and how to opt out. It is suppressed when you chose the
+#'     location yourself -- the `home` or `shared_home` argument, the
+#'     `duckdb.home` option, or the `DUCKDB_R_HOME` environment variable -- and
+#'     in interactive sessions, where the one-time prompt takes its place.}
 #' }
 #'
-#' ## Silencing the startup message
+#' ## Silencing the message
 #'
-#' Pointing the home at a permanent location both keeps the extensions and
-#' silences the message. If you are happy with a temporary cache and only want
-#' the reminder gone, set the home explicitly so it counts as your choice -- the
-#' simplest is per connection:
+#' Make the choice explicit and it is no longer announced. Pass `shared_home` to
+#' [duckdb()] -- `TRUE` to keep extensions and secrets under `~/.duckdb`, `FALSE`
+#' to accept a per-session temporary directory -- or point `home` (or the
+#' `duckdb.home` option / `DUCKDB_R_HOME` variable) at a location of your choice:
 #'
 #' ```r
-#' con <- dbConnect(duckdb(home = file.path(tempdir(), "duckdb")))
+#' con <- dbConnect(duckdb(shared_home = FALSE))
 #' ```
-#'
-#' or set it once per session with
-#' `options(duckdb.home = file.path(tempdir(), "duckdb"))` (or the
-#' `DUCKDB_R_HOME` environment variable).
 #'
 #' # Use by other packages
 #'

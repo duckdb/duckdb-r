@@ -34,11 +34,21 @@ driver_registry <- new.env(parent = emptyenv())
 #'   directory (with, in interactive sessions, a one-time offer to create
 #'   `~/.duckdb`). Pass a path to use it as the root explicitly, creating it if
 #'   needed.
-#' @param shared_home Set to `TRUE` to store extensions and secrets under
-#'   `~/.duckdb` (shared with the DuckDB CLI and Python client), creating that
-#'   directory if needed. Unlike the interactive offer, this opts in explicitly
-#'   and without a prompt, so it also works non-interactively (CI, Posit
-#'   Connect). Cannot be combined with `home`. See [duckdb_storage].
+#' @param shared_home Opt in or out of the shared `~/.duckdb` location,
+#'   overriding the automatic resolution. One of:
+#'   * `NULL` (the default) -- resolve automatically (see [duckdb_storage]).
+#'   * `TRUE` -- store extensions and secrets under `~/.duckdb`, **creating that
+#'     directory if it does not exist**. This is a durable, machine-level side
+#'     effect that is *not* scoped to the current session: the directory
+#'     persists after R exits, is reused by every future R session (and by the
+#'     DuckDB CLI and Python client that share `~/.duckdb`), and any secrets
+#'     written there outlive this process. Pass `TRUE` only when you intend
+#'     that. It opts in without a prompt, so it also works non-interactively
+#'     (CI, Posit Connect).
+#'   * `FALSE` -- use a per-session temporary directory even if `~/.duckdb`
+#'     already exists (nothing persists beyond the session).
+#'
+#'   Cannot be combined with `home`. See [duckdb_storage].
 #' @param environment_scan Set to `TRUE` to treat
 #'   data frames from the calling environment as tables.
 #'   If a database table with the same name exists, it takes precedence.
@@ -55,15 +65,21 @@ duckdb <- function(
   config = list(),
   ...,
   home = NULL,
-  shared_home = FALSE,
+  shared_home = NULL,
   environment_scan = FALSE
 ) {
   check_flag(read_only)
   if (...length() > 0) {
     stop("... must be empty")
   }
-  if (isTRUE(shared_home) && !is.null(home)) {
-    stop("Pass either `home` or `shared_home = TRUE`, not both.", call. = FALSE)
+  if (
+    !is.null(shared_home) &&
+      !(is.logical(shared_home) && length(shared_home) == 1L && !is.na(shared_home))
+  ) {
+    stop("`shared_home` must be TRUE, FALSE, or NULL.", call. = FALSE)
+  }
+  if (!is.null(home) && !is.null(shared_home)) {
+    stop("Pass either `home` or `shared_home`, not both.", call. = FALSE)
   }
 
   convert_opts <- duckdb_convert_opts(bigint = bigint)
@@ -96,18 +112,25 @@ duckdb <- function(
         resolved_home$root,
         "extensions"
       )
-      # Nag about ephemeral caching only for the per-session tempdir default;
-      # every other source is a persistent location the user chose or already
-      # has, so there is nothing ephemeral to warn about.
-      if (identical(resolved_home$source, "session")) {
-        maybe_ephemeral_state_message(config[["extension_directory"]])
-      }
     }
     if (need_secret) {
       config["secret_directory"] <- home_subdir(
         resolved_home$root,
         "stored_secrets"
       )
+    }
+    # In a non-interactive session, report where storage resolved (once),
+    # unless the caller chose the location explicitly with `home` or
+    # `shared_home`. Only the package's own choices are announced (a per-session
+    # tempdir, or an existing ~/.duckdb); an option/environment override or an
+    # interactive prompt is already the user's decision.
+    if (
+      !is_interactive() &&
+        is.null(home) &&
+        is.null(shared_home) &&
+        resolved_home$source %in% c("session", "shared")
+    ) {
+      maybe_storage_location_message(resolved_home)
     }
   }
   if (!("temp_directory" %in% names(config))) {

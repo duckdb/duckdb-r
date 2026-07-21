@@ -18,7 +18,7 @@ duckdb(
   config = list(),
   ...,
   home = NULL,
-  shared_home = FALSE,
+  shared_home = NULL,
   environment_scan = FALSE
 )
 
@@ -71,11 +71,23 @@ directory (with, in interactive sessions, a one-time offer to create
 \verb{~/.duckdb}). Pass a path to use it as the root explicitly, creating it if
 needed.}
 
-\item{shared_home}{Set to \code{TRUE} to store extensions and secrets under
-\verb{~/.duckdb} (shared with the DuckDB CLI and Python client), creating that
-directory if needed. Unlike the interactive offer, this opts in explicitly
-and without a prompt, so it also works non-interactively (CI, Posit
-Connect). Cannot be combined with \code{home}. See \link{duckdb_storage}.}
+\item{shared_home}{Opt in or out of the shared \verb{~/.duckdb} location,
+overriding the automatic resolution. One of:
+\itemize{
+\item \code{NULL} (the default) -- resolve automatically (see \link{duckdb_storage}).
+\item \code{TRUE} -- store extensions and secrets under \verb{~/.duckdb}, \strong{creating that
+directory if it does not exist}. This is a durable, machine-level side
+effect that is \emph{not} scoped to the current session: the directory
+persists after R exits, is reused by every future R session (and by the
+DuckDB CLI and Python client that share \verb{~/.duckdb}), and any secrets
+written there outlive this process. Pass \code{TRUE} only when you intend
+that. It opts in without a prompt, so it also works non-interactively
+(CI, Posit Connect).
+\item \code{FALSE} -- use a per-session temporary directory even if \verb{~/.duckdb}
+already exists (nothing persists beyond the session).
+}
+
+Cannot be combined with \code{home}. See \link{duckdb_storage}.}
 
 \item{environment_scan}{Set to \code{TRUE} to treat
 data frames from the calling environment as tables.

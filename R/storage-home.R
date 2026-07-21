@@ -43,14 +43,20 @@ is_nonempty_string <- function(x) {
 # Only branch 5 in an interactive session has side effects (a prompt and, on
 # consent, creating the directory). The read-only counterpart used by
 # `duckdb_storage_status()` is `describe_storage_home()`.
-resolve_storage_home <- function(home = NULL, shared_home = FALSE) {
-  # `shared_home = TRUE` is the explicit, non-interactive opt-in to ~/.duckdb:
-  # use it (creating it if needed) with no prompt. duckdb() has already checked
-  # that it is not combined with an explicit `home`.
+resolve_storage_home <- function(home = NULL, shared_home = NULL) {
+  # `shared_home` is a tri-state explicit override (duckdb() has already checked
+  # it is not combined with `home`):
+  #   * TRUE  -- opt in to ~/.duckdb, creating it if needed, with no prompt.
+  #   * FALSE -- force a per-session tempdir, even if ~/.duckdb already exists
+  #              (and ignoring the option/environment variable).
+  #   * NULL  -- resolve automatically (the tiers below).
   if (isTRUE(shared_home)) {
     shared <- duckdb_shared_home()
     dir.create(shared, recursive = TRUE, showWarnings = FALSE)
     return(list(root = shared, source = "shared"))
+  }
+  if (isFALSE(shared_home)) {
+    return(list(root = session_home(), source = "session"))
   }
 
   fixed <- fixed_storage_home(home)
@@ -218,26 +224,40 @@ inform_once_every <- function(id, seconds, message) {
   invisible(TRUE)
 }
 
-# Called on connect when the extension cache resolves to a temporary location.
-# Lets the user know -- at most once every 8 hours per session, in unattended
-# runs too -- that downloaded extensions will not persist, and how to opt into a
-# permanent location.
-maybe_ephemeral_state_message <- function(extension_directory) {
-  if (is.null(extension_directory)) {
+# Called on connect in a non-interactive session, when the location was chosen
+# by the package itself (a per-session tempdir, or an existing ~/.duckdb) rather
+# than requested explicitly. Reports where extensions and secrets are going --
+# at most once every 8 hours per session -- and how to change or silence it.
+# `resolved` is the list(root, source) from resolve_storage_home().
+maybe_storage_location_message <- function(resolved) {
+  if (is.null(resolved) || is.null(resolved$root)) {
     return(invisible())
   }
-  inform_once_every(
-    "ephemeral_state",
-    STORAGE_MESSAGE_INTERVAL,
-    c(
+  if (identical(resolved$source, "shared")) {
+    message <- c(
+      "duckdb is storing downloaded extensions and secrets under ~/.duckdb:",
+      i = resolved$root,
+      paste0(
+        "This persists across sessions and is shared with the DuckDB CLI and ",
+        "Python client."
+      ),
+      i = "Run duckdb(shared_home = FALSE) to use a temporary directory instead.",
+      i = "See ?duckdb_storage for details and alternatives."
+    )
+  } else {
+    message <- c(
       "duckdb is keeping downloaded extensions and secrets",
       "in a temporary directory:",
-      i = extension_directory,
+      i = resolved$root,
       "This is removed when the R session ends.",
       "*" = "Extensions are re-downloaded each session.",
       "*" = "Secrets are lost.",
-      i = "To keep them, create ~/.duckdb or run duckdb(shared_home = TRUE) .",
+      i = paste0(
+        "Run duckdb(shared_home = TRUE) (or create ~/.duckdb) to keep them, ",
+        "or duckdb(shared_home = FALSE) to silence this message."
+      ),
       i = "See ?duckdb_storage for details and alternatives."
     )
-  )
+  }
+  inform_once_every("storage_location", STORAGE_MESSAGE_INTERVAL, message)
 }
