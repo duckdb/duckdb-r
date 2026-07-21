@@ -103,6 +103,40 @@ test_that("resolve_storage_home rejects a malformed home argument", {
   expect_error(resolve_storage_home(""), "single non-empty string")
 })
 
+test_that("shared_home = TRUE opts into ~/.duckdb, creating it, without prompting", {
+  shared <- file.path(withr::local_tempdir(), ".duckdb")
+  withr::local_options(duckdb.home = NULL, rlang_interactive = FALSE)
+  withr::local_envvar(DUCKDB_R_HOME = NA)
+  local_mocked_bindings(
+    duckdb_shared_home = function() shared,
+    consent_to_create_home = function(path) stop("must not prompt")
+  )
+  resolved <- resolve_storage_home(shared_home = TRUE)
+  expect_equal(resolved, list(root = shared, source = "shared"))
+  expect_true(dir.exists(shared))
+})
+
+test_that("shared_home = TRUE cannot be combined with an explicit home", {
+  expect_error(
+    resolve_storage_home(home = "/opt/home", shared_home = TRUE),
+    "not both"
+  )
+})
+
+test_that("a cancelled prompt (NA) declines without error", {
+  shared <- file.path(withr::local_tempdir(), ".duckdb")
+  withr::local_options(duckdb.home = NULL, rlang_interactive = TRUE)
+  withr::local_envvar(DUCKDB_R_HOME = NA)
+  storage_message_state[["home_prompt_declined"]] <- NULL
+  local_mocked_bindings(
+    duckdb_shared_home = function() shared,
+    session_temp_dir = function() "/tmp/sess",
+    consent_to_create_home = function(path) NA
+  )
+  expect_equal(resolve_storage_home()$source, "session")
+  expect_false(dir.exists(shared))
+})
+
 test_that("resolve_temp_directory redirects in-memory only, honors override", {
   local_mocked_bindings(session_temp_dir = function() "/tmp/sess")
   expect_equal(

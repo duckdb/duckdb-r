@@ -46,8 +46,8 @@ the user asking, and the user chooses where it goes.}
 
 \section{Resolving the home directory}{
 Extensions and secrets share one \emph{home} root, resolved fresh on every call to
-\code{\link[=duckdb]{duckdb()}} that creates a new database. The first source that yields a value
-wins:
+\code{\link[=duckdb]{duckdb()}} that creates a new database driver object.
+The first source that yields a value wins:
 \enumerate{
 \item the \code{home} argument to \code{\link[=duckdb]{duckdb()}};
 \item the \code{duckdb.home} R option, e.g.
@@ -55,10 +55,9 @@ wins:
 \item the \code{DUCKDB_R_HOME} environment variable;
 \item \verb{~/.duckdb}, if that directory already exists -- the location shared with
 the DuckDB CLI and Python client;
-\item otherwise a per-session sub-directory of \code{\link[=tempdir]{tempdir()}}, with one exception:
-in an \strong{interactive} session the package offers, once per session, to
-create \verb{~/.duckdb} and use it. Decline, and it uses the temporary
-directory for the rest of the session.
+\item In interactive sessions only, the package offers to create \verb{~/.duckdb} once.
+If you accept, it is created and used.
+\item Otherwise a per-session sub-directory of \code{\link[=tempdir]{tempdir()}}.
 }
 
 The extension cache is then \verb{<home>/extensions} and the secret store is
@@ -74,7 +73,7 @@ afterwards; existing connections are unaffected.
    Kind \tab DuckDB setting \tab How to set it \tab Default \cr
    Home \tab \code{home_directory} \tab -- \tab left untouched (not set) \cr
    Extensions \tab \code{extension_directory} \tab \code{home} arg / \code{duckdb.home} / \code{DUCKDB_R_HOME} (as \verb{<home>/extensions}) \tab \code{tempdir()} sub-directory (set) \cr
-   Stored secrets \tab \code{secret_directory} \tab as extensions (\verb{<home>/stored_secrets}) \tab \code{tempdir()} sub-directory (set) \cr
+   Stored secrets \tab \code{secret_directory} \tab like extensions (\verb{<home>/stored_secrets}) \tab \code{tempdir()} sub-directory (set) \cr
    Temp/spill \tab \code{temp_directory} \tab \code{duckdb.temp_directory} / \code{DUCKDB_R_TEMP_DIRECTORY} \tab \code{tempdir()} sub-directory (set) \cr
    Logs \tab \code{log_query_path} \tab DuckDB setting \tab disabled (off) \cr
 }
@@ -89,7 +88,7 @@ over the resolution above.
 
 \section{Messages}{
 \describe{
-\item{Startup message}{When a connection is established and the resolved
+\item{Startup message}{When a driver object is created and the resolved
 extension cache lies inside \code{\link[=tempdir]{tempdir()}}, the package emits an
 informational message -- at most once every eight hours per session,
 including in unattended (non-interactive) runs. It explains that

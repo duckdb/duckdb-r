@@ -43,7 +43,22 @@ is_nonempty_string <- function(x) {
 # Only branch 5 in an interactive session has side effects (a prompt and, on
 # consent, creating the directory). The read-only counterpart used by
 # `duckdb_storage_status()` is `describe_storage_home()`.
-resolve_storage_home <- function(home = NULL) {
+resolve_storage_home <- function(home = NULL, shared_home = FALSE) {
+  # `shared_home = TRUE` is the explicit, non-interactive opt-in to ~/.duckdb:
+  # use it (creating it if needed) with no prompt. It is shorthand for the
+  # shared location, so it cannot be combined with an explicit `home`.
+  if (isTRUE(shared_home)) {
+    if (!is.null(home)) {
+      stop(
+        "Pass either `home` or `shared_home = TRUE`, not both.",
+        call. = FALSE
+      )
+    }
+    shared <- duckdb_shared_home()
+    dir.create(shared, recursive = TRUE, showWarnings = FALSE)
+    return(list(root = shared, source = "shared"))
+  }
+
   fixed <- fixed_storage_home(home)
   if (!is.null(fixed)) {
     return(fixed)
@@ -55,7 +70,9 @@ resolve_storage_home <- function(home = NULL) {
   }
 
   if (is_interactive() && !home_prompt_declined()) {
-    if (consent_to_create_home(shared)) {
+    # consent_to_create_home() returns askYesNo()'s TRUE/FALSE/NA; treat
+    # anything but an explicit TRUE (including a cancelled prompt) as a decline.
+    if (isTRUE(consent_to_create_home(shared))) {
       dir.create(shared, recursive = TRUE, showWarnings = FALSE)
       if (dir.exists(shared)) {
         return(list(root = shared, source = "created"))
@@ -116,8 +133,9 @@ check_home_arg <- function(home) {
 # --- Interactive consent ------------------------------------------------------
 
 # Ask, in an interactive session, whether `~/.duckdb` may be created. Returns
-# TRUE only on an explicit yes. Mockable seam: tests bind this directly rather
-# than driving the console.
+# askYesNo()'s TRUE / FALSE / NA (NA when the prompt is cancelled); the caller
+# treats anything but TRUE as a decline. Mockable seam: tests bind this directly
+# rather than driving the console.
 consent_to_create_home <- function(path) {
   utils::askYesNo(
     paste0(

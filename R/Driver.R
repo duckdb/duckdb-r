@@ -34,6 +34,11 @@ driver_registry <- new.env(parent = emptyenv())
 #'   directory (with, in interactive sessions, a one-time offer to create
 #'   `~/.duckdb`). Pass a path to use it as the root explicitly, creating it if
 #'   needed.
+#' @param shared_home Set to `TRUE` to store extensions and secrets under
+#'   `~/.duckdb` (shared with the DuckDB CLI and Python client), creating that
+#'   directory if needed. Unlike the interactive offer, this opts in explicitly
+#'   and without a prompt, so it also works non-interactively (CI, Posit
+#'   Connect). Cannot be combined with `home`. See [duckdb_storage].
 #' @param environment_scan Set to `TRUE` to treat
 #'   data frames from the calling environment as tables.
 #'   If a database table with the same name exists, it takes precedence.
@@ -50,6 +55,7 @@ duckdb <- function(
   config = list(),
   ...,
   home = NULL,
+  shared_home = FALSE,
   environment_scan = FALSE
 ) {
   check_flag(read_only)
@@ -81,7 +87,7 @@ duckdb <- function(
   need_extension <- !("extension_directory" %in% names(config))
   need_secret <- !("secret_directory" %in% names(config))
   if (need_extension || need_secret) {
-    resolved_home <- resolve_storage_home(home)
+    resolved_home <- resolve_storage_home(home, shared_home)
     if (need_extension) {
       config["extension_directory"] <- home_subdir(
         resolved_home$root,
