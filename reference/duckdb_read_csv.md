@@ -108,7 +108,7 @@ Otherwise the table is created.
 ``` r
 con <- dbConnect(duckdb())
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpPgBZvt/duckdb
+#> ℹ /tmp/RtmpZ5Hnqo/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -137,7 +137,7 @@ write.csv(iris, path, row.names = FALSE)
 
 con <- dbConnect(duckdb())
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpPgBZvt/duckdb
+#> ℹ /tmp/RtmpZ5Hnqo/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
