@@ -1,5 +1,36 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.4.9012
+
+## Bug fixes
+
+- Silence storage message for GeoTox's transitive use (temporary) (#2397).
+
+- Silence storage message for GeoTox's transitive use (temporary) (#2397).
+
+## Features
+
+- Stop announcing storage location after an explicit choice (#2398).
+
+## Chore
+
+- Results for revdepchecks, second run.
+
+- Results for revdepchecks.
+
+## Documentation
+
+- Branching strategy: release-process state machine + series invariants (#2367).
+
+- Document database-instance caching and driver reuse (#2399).
+
+- Only show 60 messages in non-interactive mode, works for GeoTox.
+
+## Testing
+
+- Bump DBItest.
+
+
 # duckdb 1.5.4.9011
 
 ## Features
