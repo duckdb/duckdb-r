@@ -14,6 +14,7 @@ test_that("a non-interactive connect announces the storage location, unless chos
 
   # Auto-resolved (no ~/.duckdb, no args) -> the tempdir message fires once.
   storage_message_state[["storage_location"]] <- NULL
+  storage_message_state[["choice_made"]] <- NULL
   drv <- NULL
   expect_message({ drv <- duckdb() }, "temporary directory")
   duckdb_shutdown(drv)
@@ -44,6 +45,7 @@ test_that("an interactive yes announces creation; a no announces the tempdir", {
   # "no" -> tempdir, and the storage-location message is announced.
   storage_message_state[["home_prompt_declined"]] <- NULL
   storage_message_state[["storage_location"]] <- NULL
+  storage_message_state[["choice_made"]] <- NULL
   local_mocked_bindings(
     duckdb_shared_home = function() file.path(tempdir(), "no-such-home-int"),
     consent_to_create_home = function(path) FALSE
