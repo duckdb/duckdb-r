@@ -240,9 +240,14 @@ callback. Options, in order of preference:
 2. Register distinct function sets and rewrite the call in R/duckplyr.
 3. Upstream ask: aggregate bind callback (same shape as the scalar one).
 
-Note two latent `Combine` bugs (source state ignored when both states are
-set: `rfuns.cpp:444–453`, `1038–1043`) — fix during the port rather than
-replicating.
+Two latent `Combine` bugs (source state dropped when both states are set:
+`rfuns.cpp:444–453`, `1038–1043`) and a broken `na.rm` detection (the
+`ToString()` comparison never matches SQL literals, which bind as
+`CAST('t' AS BOOLEAN)`) were found here; they are fixed independently of
+the port in #2404, #2405, and #2407. The `na.rm` regression is itself a
+data point for this review: the string comparison presumably matched under
+an earlier vendored DuckDB and broke silently when the binder's rendering
+changed.
 
 ### 5.5 Structured errors
 
@@ -421,7 +426,9 @@ alter-on-conflict — verified). Scalar kernels: hand-rolled loops over
 list at bind via the C expression interface (`is_foldable` + `fold`) — an
 improvement over today's `CONSTANT_VECTOR` check. `na.rm`: per-chunk read
 (§5.4). Drop the `dispatch()` debug helpers or reimplement via
-`duckdb_functions()` SQL. Fix the `Combine` bugs.
+`duckdb_functions()` SQL. (The `Combine` and `na.rm`-binding bugs found
+during this review are fixed ahead of the port in #2404, #2405, #2407; the
+consumed-result crash in the Arrow entry points in #2406.)
 
 ### 7.6 The residue and its retirement path
 
@@ -460,7 +467,7 @@ rel_api corpus stays on the untouched residue until the end):
 | 2 | Prepare/bind/execute, pending loop, interrupts+progress redesign, `errors.cpp` | 2–3 wk |
 | 3 | `scan_df.cpp` + registration + env replacement scan | 2–3 wk |
 | 4 | Arrow in/out (`arrow_in.cpp`, `arrow_out.cpp`, nanoarrow paths) | 1.5–2 wk |
-| 5 | `rfuns.cpp` port (incl. `na.rm` redesign, Combine fixes) | 2–3 wk |
+| 5 | `rfuns.cpp` port (incl. `na.rm` redesign) | 2–3 wk |
 | 6 | DB lifecycle swap, delete dead C++ glue, docs | 1 wk |
 | Σ | **Phases 0–6** | **11–16 wk** |
 | U | Upstream track (asks §6 #1–7 early; #8 RFC) — parallel | ongoing |
