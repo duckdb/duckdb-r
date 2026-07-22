@@ -140,7 +140,10 @@ duckdb <- function(
       is.null(shared_home) &&
       (identical(resolved_home$source, "session") ||
         (!is_interactive() && identical(resolved_home$source, "shared")))
-    if (announce) {
+    # TEMPORARY: also suppress the message when duckdb is used transitively by
+    # GeoTox, whose test asserts silence (see R/storage-geotox-workaround.R).
+    # Remove this guard after the next release.
+    if (announce && !caller_is_geotox()) {
       maybe_storage_location_message(resolved_home)
     }
   }
