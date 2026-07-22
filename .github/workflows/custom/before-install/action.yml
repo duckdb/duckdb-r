@@ -26,6 +26,18 @@ runs:
         echo '_R_CHECK_PKG_SIZES_=FALSE' | tee -a $GITHUB_ENV
       shell: bash
 
+    # Ubuntu 26.04 moved the legacy System V-style time zones (e.g. PST8PDT)
+    # into a separate tzdata-legacy package. Some DBItest specs call
+    # lubridate::with_tz(tzone = "PST8PDT"), which warns "Unrecognized time
+    # zone" when the zone is missing; testthat then promotes that warning to a
+    # failure. Install tzdata-legacy so the zone resolves and the tests run.
+    - name: Install tzdata-legacy (legacy time zones like PST8PDT)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata-legacy
+      shell: bash
+
     # The duckdb tests and runnable examples exercise the bundled C++ engine and
     # are gated behind DUCKDB_R_RUN_TESTS so they never run on CRAN (see
     # tests/testthat.R and R/cran-guard.R). The guard enables them automatically
