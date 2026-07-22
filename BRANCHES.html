@@ -34,6 +34,7 @@
 <div id="branching-strategy" class="section level1">
 
 <p>Version numbers are given at the time of writing (March 2026) and may be outdated by the time you read this. The branching strategy is expected to remain stable.</p>
+<p>This document defines the branch model, the package flavors, and the <strong><a href="#series-invariants">series invariants</a></strong>. For the release process itself — modelled as a finite state machine — see <a href="RELEASE.html"><code>RELEASE.md</code></a>.</p>
 <div class="section level2">
 <h2 id="package-components">Package Components<a class="anchor" aria-label="anchor" href="#package-components"></a></h2>
 <p>The R package is a <strong>monorepo without submodules</strong>, combining several components in a single repository. This design accommodates R development conventions (<code>R CMD build</code>, CRAN compliance) and preserves the requirement to avoid hard runtime dependencies other than DBI.</p>
@@ -77,7 +78,7 @@
 │   └── VENDORING.md                # Supplementary vendoring notes (→ see §Vendoring)
 ├── .github/
 │   └── workflows/
-│       ├── vendor.yaml             # Hourly automated vendoring                    [5]
+│       ├── vendor.yaml             # Daily automated vendoring                     [5]
 │       ├── sync.yaml               # Fast-forward krlmlr/main from duckdb/main     [5]
 │       ├── each.yaml               # Per-commit CI trigger helper                  [5]
 │       ├── fledge.yaml             # Automated version-bump PRs                    [5]
@@ -95,7 +96,7 @@
                                                                                       │ vendored [6]
   duckdb/duckdb (upstream C++)   ←── R core evolves independently (indirect) [7]      │
       │                                                                               │
-      │  vendor.sh / vendor-one.sh  (hourly CI via vendor.yaml)                       │
+      │  vendor.sh / vendor-one.sh  (daily CI via vendor.yaml)                        │
       │  patch/ applied on top                                                        │
       ▼                                                                               │
   src/duckdb/   ← R-ready vendored C++  [1]                                           │
@@ -185,7 +186,7 @@
 <span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a></span>
 <span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a>   │              ^        ^       │                ^</span>
 <span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a>   │  vendor      │        │       │ during release │</span>
-<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a>   │  (hourly)    │        │       │  preparation   │</span>
+<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a>   │  (daily)     │        │       │  preparation   │</span>
 <span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a>   │  + patches   │        │       │     only       │</span>
 <span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a>   │  from patch/ │        │       └────────────────┘</span>
 <span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a>   └──────────────┘        │</span>
@@ -332,12 +333,116 @@ krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
 </ol></div>
 </div>
 <div class="section level2">
+<h2 id="series-invariants">Series Invariants<a class="anchor" aria-label="anchor" href="#series-invariants"></a></h2>
+<p>A <strong>series</strong> is one DuckDB minor line <code>L</code> together with its branches: <code>stable</code> (published; <code>main</code> for the current line), <code>lts</code> (LTS lines only), <code>dev</code>, and <code>dev-base</code>. The following invariants hold across all branches of a series. Each is phrased to be <strong>checkable</strong> — most can be enforced by a dev-branch health workflow — and each is referenced by name from the release FSM in <a href="RELEASE.html"><code>RELEASE.md</code></a>, which must preserve them at every step.</p>
+<p>State relationships as <strong>tree diffs</strong>, not ancestry: <code>main</code> is maintained as a rebuilt/linear history and shares no merge-base with the parked <code>vX-codename</code> baselines, so any invariant phrased as “X equals Y plus a rename” means <em>the working trees differ only by the rename</em>, not that one is a git-ancestor of the other.</p>
+<div class="section level3">
+<h3 id="structural">Structural<a class="anchor" aria-label="anchor" href="#structural"></a></h3>
+<ul><li>
+<strong>S1 — Flavor isolation (<code>lts</code>).</strong> <code>git diff stable lts</code> touches only flavor files (<code>DESCRIPTION:Package</code>, <code>R/duckdb-package.R</code>, <code>src/include/rapi.hpp</code> macro, <code>NAMESPACE</code>, <code>man/*-package.Rd</code>, the renamed <code>inst/include/duckdb_*_types.hpp</code>, the README blurb, and the <code><a href="https://rdrr.io/r/base/library.html" class="external-link">library()</a></code> / <code>test_check()</code> names in <code>tests/</code>). Nothing under <code>src/duckdb/</code>, no glue logic in <code>src/*.cpp</code>, no <code>R/</code> logic.</li>
+<li>
+<strong>S2 — Baseline purity (<code>dev-base</code>).</strong> <code>dev-base</code> is byte-identical to the <em>released</em> <code>stable</code> tree: <code>Package: duckdb</code>, bare three-component version, <strong>no flavor rename</strong>. The <code>lts.sh</code> rename and the version scaffolding live entirely <em>above</em> it, in <code>dev-base..dev</code>. (Confirmed: <code>v1.5-variegata-dev-base</code> reads <code>duckdb 1.5.4</code>, <code>v1.4-andium-dev-base</code> reads <code>duckdb 1.4.5</code>.)</li>
+<li>
+<strong>S3 — <code>dev-base</code> ⊑ <code>dev</code>.</strong> <code>dev-base</code> is an ancestor of <code>dev</code> and only ever fast-forwards; <code>dev..dev-base</code> is always empty.</li>
+<li>
+<strong>S4 — <code>dev</code> contents.</strong> Every commit in <code>dev-base..dev</code> is either a <code>vendor:</code> commit or a forward-port equivalent to a commit on <code>main</code> (<code>git cherry main dev</code> shows no unmatched non-vendor <code>+</code>). <strong>Glue is never <em>born</em> on a <code>dev</code> branch.</strong> <em>Exception:</em> on the preview line (tracking upstream <code>main</code>), vendor-coupled glue — adaptation forced by a new upstream C++ API — is born on <code>dev</code> alongside the vendor commit that requires it, because <code>main</code> does not yet carry that upstream version.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="linearity-and-ancestry">Linearity and ancestry<a class="anchor" aria-label="anchor" href="#linearity-and-ancestry"></a></h3>
+<p>History is <strong>linear going forward</strong> — the cost of extra rebases and CI runs is accepted in exchange for a bisectable, merge-free active history.</p>
+<ul><li>
+<strong>L — No new merge commits.</strong> The active region (<code>dev-base..dev</code>) and every release transition are linear: forward-ports are <code>cherry-pick</code>s, releases are fast-forwards or rebases, and PRs never create a merge commit (use “Rebase and merge”, or a fast-forward push). Deep history below the release baselines still contains ~170 historical PR merges from before this policy; those are grandfathered. <em>(Currently nearly satisfied: <code>main-dev</code> adds 0 merges over 402 commits, <code>v1.4-andium-dev</code> 0 over 3 — but <code>v1.5-variegata-dev</code> carries 1 stray merge in its 21-commit window that should be rebased out, and the 1.5.4 release landed on <code>main</code> via a merge commit, which this policy replaces with FF/rebase.)</em>
+</li>
+<li>
+<strong>A1 — Dev descends from its release point.</strong> Within a patch series, <code>release-content ⊑ dev-base ⊑ dev</code> as linear ancestors, where <code>release-content</code> is the released tree (which <code>dev-base</code> equals, per <strong>S2</strong>) — this may sit a couple of commits <em>below</em> <code>stable</code>’s tip when that tip carries release mechanics (the CRAN merge + post-release bump). <code>dev-base</code> advances only by fast-forward; <code>dev</code> grows by append and is rewritten (force-push) only to re-anchor onto a new release point or to drop a non-green commit. The <code>lts.sh</code> rename is the first group of commits in <code>dev-base..dev</code>. <em>(Confirmed: <code>dev-base ⊑ dev</code> everywhere (pending 402 / 21 / 3, nothing behind); <code>v1.4-andium</code>’s release ⊑ <code>dev</code>. For 1.5, <code>dev-base</code> is anchored at the release content <code>main~2</code>, two commits below <code>main</code>’s current tip.)</em>
+</li>
+<li>
+<strong>A2 — Flip ancestry (preview line).</strong> For the next-major flip to be an atomic fast-forward, <code>main ⊑ main-dev</code> must hold. This is <strong>not</strong> maintained continuously: <code>main</code> (current stable) and <code>main-dev</code> (next major) vendor different upstream C++, so forcing ancestry would mean rebasing 400+ commits on every <code>main</code> patch release for no benefit. Instead it is <strong>established once</strong>, immediately before the flip, by the linearization runbook (rewind to the upstream bifurcation point, then replay).</li>
+<li>
+<strong>A3 — Dev SHAs are disposable.</strong> Because linearity is maintained by rebasing, <code>-dev</code> SHAs are not durable; only tags (releases) and the fast-forward-only <code>dev-base</code> marker are stable references. This is acceptable — <code>-dev</code> exists solely for CI and r-universe.</li>
+</ul><div class="section level4">
+<h4 id="cost-of-maintaining-linear-ancestry">Cost of maintaining linear ancestry<a class="anchor" aria-label="anchor" href="#cost-of-maintaining-linear-ancestry"></a></h4>
+<table class="table"><colgroup><col width="32%"><col width="17%"><col width="17%"><col width="32%"></colgroup><thead><tr><th>Operation</th>
+<th>When</th>
+<th>Cost</th>
+<th>Mechanism</th>
+</tr></thead><tbody><tr><td>
+<code>dev</code> append (vendor / forward-port)</td>
+<td>daily / per glue change</td>
+<td>O(1)</td>
+<td>append; cherry-pick</td>
+</tr><tr><td>
+<code>dev-base</code> advance</td>
+<td>per reviewed release</td>
+<td>O(1) ref update</td>
+<td>fast-forward</td>
+</tr><tr><td>Patch re-baseline</td>
+<td>per patch release</td>
+<td>O(pending) replayed × per-commit CI (small: 3–21 today)</td>
+<td>rebase; merge driver auto-resolves the version</td>
+</tr><tr><td>Forward-port across the chain</td>
+<td>per glue change</td>
+<td>O(diff) × active lines</td>
+<td>cherry-pick; merge driver handles <code>DESCRIPTION</code>
+</td>
+</tr><tr><td><strong>Major-flip linearization</strong></td>
+<td>per major release</td>
+<td>O(hundreds) — 402 pending on <code>main-dev</code> today</td>
+<td>one-time rewind + replay (deferred, not continuous)</td>
+</tr></tbody></table><p>The merge driver is what keeps the recurring rebases (patch re-baseline, forward-port) cheap; the one genuinely expensive operation — the major-flip linearization — is paid once, by design, rather than amortized into every patch release.</p>
+</div>
+</div>
+<div class="section level3">
+<h3 id="flavor--identity">Flavor / identity<a class="anchor" aria-label="anchor" href="#flavor--identity"></a></h3>
+<ul><li>
+<strong>F1 — Name coherence.</strong> Within a branch, <code>DESCRIPTION:Package</code>, <code>DUCKDB_PACKAGE_NAME</code>, <code>@useDynLib</code>, the <code>duckdb[._]L[._]types.hpp</code> filename, and the testthat names all agree and match the branch role: <code>stable</code> and <code>dev-base</code> → <code>duckdb</code> (per <strong>S2</strong>, <code>dev-base</code> is the un-renamed release); <code>lts</code> → <code>duckdb.L</code>; <code>dev</code> → <code>duckdb.L.dev</code>. The rename is exactly what distinguishes <code>dev</code> from <code>dev-base</code>.</li>
+<li>
+<strong>F2 — Mechanical rename.</strong> The rename is produced solely by <code>scripts/lts.sh</code>; its non-name structure is identical across all series, differing only in the version token.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="version">Version<a class="anchor" aria-label="anchor" href="#version"></a></h3>
+<ul><li>
+<strong>V1 — Prefix lock.</strong> <code>major.minor</code> equals <code>L</code> on every branch of the series. <em>Exception:</em> the preview line carries a synthetic placeholder prefix greater than any current release (<code>main-dev</code> is <code>1.5.99.…</code>) until the flip sets the real number (e.g. <code>2.0.0</code>).</li>
+<li>
+<strong>V2 — Patch ordering.</strong> <code>stable</code> and <code>lts</code> share the released patch <code>Z</code>; <code>dev</code>/<code>dev-base</code> are at or ahead of <code>Z</code>.</li>
+<li>
+<strong>V3 — Counters.</strong> The <strong>4th</strong> component free-runs as the R-client dev counter <em>only</em> on the glue source of truth (<code>main</code>: <code>…9003</code>, <code>…9004</code>); on <code>-dev</code> branches it is a fixed marker (<code>.9000</code> / <code>.9001</code>). The <strong>5th</strong> component is the vendor counter, strictly monotone along <code>dev</code> (one bump per vendor commit) and <em>absent until vendoring starts</em> — e.g. <code>v1.4-andium-dev</code> at <code>1.4.5.9000</code> has no vendor commits yet. Componentwise within the prefix, <code>dev ≥ dev-base ≥ stable</code>.</li>
+<li>
+<strong>V4 — Release shape.</strong> A released <code>stable</code>/<code>lts</code> version is the bare three-component prefix (no 4th/5th component).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="source-of-truth-cross-series">Source of truth (cross-series)<a class="anchor" aria-label="anchor" href="#source-of-truth-cross-series"></a></h3>
+<ul><li>
+<strong>G1 — Glue monotone down the chain.</strong> At the forward-port frontier, glue/R/tests/CI/cpp11 satisfy <code>main ⊇ newer-dev ⊇ … ⊇ older-dev</code>; older lines lag only by pending forward-ports. (S4 applied across the whole chain.)</li>
+<li>
+<strong>G2 — Patch-stack derivation.</strong> Each <code>dev</code>’s <code>patch/</code> equals <code>main</code>’s patch set minus the patches already merged into <em>that series’</em> upstream branch. <code>patch/</code> may therefore legitimately differ between series; it is never hand-authored per series beyond dropping patches that landed upstream.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="ci--green">CI / green<a class="anchor" aria-label="anchor" href="#ci--green"></a></h3>
+<ul><li>
+<strong>C1 — Every <code>dev</code> commit is green</strong> (<code>each.yaml</code>), so <code>dev</code> is bisectable end to end.</li>
+<li>
+<strong>C2 — <code>stable</code>, <code>lts</code>, and <code>dev-base</code> tips are green</strong> (former green <code>dev</code> tips or freshly checked re-baselines).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="prerelease-during-stabilize">Prerelease (during STABILIZE)<a class="anchor" aria-label="anchor" href="#prerelease-during-stabilize"></a></h3>
+<ul><li>
+<strong>P1 — Release branches frozen.</strong> Pre-release mutates only <code>main</code> (fold-back fixes) and <code>dev</code> (forward-ports + vendor); <code>stable</code>, <code>lts</code>, and <code>dev-base</code> stay at the previous release until CUT. A half-finished pre-release is abortable with zero rollback on the release branches.</li>
+<li>
+<strong>P2 — Candidate ⊆ release.</strong> The revdep-tested pinned candidate is an ancestor of the <code>dev</code> tip that will be cut; any delta added after a revdep run is reviewed (and re-checked if risky). What ships was tested.</li>
+<li>
+<strong>P3 — Fold-back ordering.</strong> Every fold-back fix lands on <code>main</code> before any <code>dev</code> (a <code>dev</code> fix lacking a <code>main</code> ancestor violates S4).</li>
+<li>
+<strong>P4 — Freeze convergence (barrier).</strong> At GLUE FREEZE, <code>git cherry main dev</code> is empty for <em>every</em> releasing series simultaneously, so all releasing lines share identical glue. This is the multi-line synchronization invariant.</li>
+</ul></div>
+</div>
+<div class="section level2">
 <h2 id="release-cycle-mapping">Release Cycle Mapping<a class="anchor" aria-label="anchor" href="#release-cycle-mapping"></a></h2>
 <p>The upstream release cycle is documented at <a href="https://duckdb.org/docs/stable/dev/release_cycle" class="external-link uri">https://duckdb.org/docs/stable/dev/release_cycle</a>. This section summarises the parts that are relevant to the R package and describes what actions to take at each phase. This assumes v1.5-variegata is the current release, v1.6 is in development, and v1.4-andium is current LTS; adjust branch names as needed for future cycles. (These numbers are for illustrative purposes only; at the time of writing, the next release is expected to be v2.0.0.)</p>
 <div class="section level3">
 <h3 id="phase-1-mid-cycle-75-of-the-time">Phase 1: Mid-Cycle (≈75% of the time)<a class="anchor" aria-label="anchor" href="#phase-1-mid-cycle-75-of-the-time"></a></h3>
 <p>Upstream active branches: <code>main</code>, <code>v1.5-variegata</code>, <code>v1.4-andium</code>.</p>
-<p>This is business-as-usual. Automated vendoring runs hourly with no manual intervention required.</p>
+<p>This is business-as-usual. Automated vendoring runs daily with no manual intervention required.</p>
 <ul><li>Upstream patch releases (<code>v1.5.z</code>) cut from <code>v1.5-variegata</code> are picked up automatically by the corresponding <code>-dev</code> branch.</li>
 <li>When a patch release is tagged upstream, run the <a href="#on-patch-release-v145">On patch release</a> flow for that branch.</li>
 <li>Forward-port glue code changes from <code>main</code> toward older branches as usual.</li>
@@ -386,85 +491,79 @@ krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
 </div>
 <div class="section level3">
 <h3 id="on-patch-release-v145">On patch release (<code>v1.4.5</code>)<a class="anchor" aria-label="anchor" href="#on-patch-release-v145"></a></h3>
-<p>This is the most common release event. The steps below use <code>v1.4.5</code> as an example; substitute the appropriate version and branch names for other series.</p>
-<p><strong>Prerequisite</strong>: upstream has created the tag <code>v1.4.5</code> on the <code>v1.4-andium</code> branch in <code>duckdb/duckdb</code>.</p>
-<p><strong>Step 1 — Vendoring (automated)</strong></p>
-<p>The hourly <code>vendor.yaml</code> workflow runs <code>scripts/vendor-one.sh</code> against <code>v1.4-andium</code> and creates vendor commits in <code>krlmlr/duckdb-r@v1.4-andium-dev</code>. The commit message for the tagged version reads:</p>
-<pre><code>vendor: Update vendored sources (tag v1.4.5) to duckdb/duckdb@&lt;sha&gt;</code></pre>
-<p><strong>Step 2 — Per-commit CI</strong></p>
-<p>The <code>each.yaml</code> workflow triggers an R CMD check (<code>rcc</code>) for each new commit in <code>v1.4-andium-dev</code>. Wait until the tagged commit shows a green build status before proceeding.</p>
-<p><strong>Step 3 — Review pending changes</strong></p>
-<p>Inspect the diff between the last stabilized point and bleeding edge:</p>
-<pre><code>https://github.com/krlmlr/duckdb-r/compare/v1.4-andium-dev-base...v1.4-andium-dev</code></pre>
-<p>Confirm that all changes are expected (vendor commits for v1.4.5, no accidental glue-code drift).</p>
-<p><strong>Step 4 — Advance dev-base</strong></p>
-<p>Fast-forward <code>v1.4-andium-dev-base</code> to match <code>v1.4-andium-dev</code>, marking the new reviewed point:</p>
-<div class="sourceCode" id="cb11"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a><span class="fu">git</span> push krlmlr refs/heads/v1.4-andium-dev:refs/heads/v1.4-andium-dev-base</span></code></pre></div>
-<p><strong>Step 5 — Merge to stable baseline</strong></p>
-<p>Open a PR from <code>krlmlr/duckdb-r@v1.4-andium-dev</code> → <code>duckdb/duckdb-r@v1.4-andium</code>. The PR contains the vendored C++ code for v1.4.5 and any glue-code fixes from this cycle. CI runs R CMD check; merge when green.</p>
-<p><strong>Step 6 — Version bump</strong></p>
-<p>In the <code>v1.4-andium</code> worktree, bump the version to <code>1.4.5</code>:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">fledge</span><span class="fu">::</span><span class="fu">bump_version</span><span class="op">(</span><span class="st">"1.4.5"</span><span class="op">)</span></span></code></pre></div>
-<p>Commit and push. The <code>DESCRIPTION</code> version must match the upstream tag.</p>
-<p><strong>Step 7 — Update the LTS branch</strong></p>
-<p><code>v1.4-andium-lts</code> contains exactly one additional commit on top of <code>v1.4-andium</code>: the <code>Package: duckdb.1.4</code> rename. Rebase it onto the updated tip of <code>v1.4-andium</code>:</p>
-<div class="sourceCode" id="cb13"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="co"># In the v1.4-andium-lts worktree:</span></span>
-<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a><span class="fu">git</span> rebase origin/v1.4-andium</span>
-<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a><span class="fu">git</span> push origin v1.4-andium-lts</span></code></pre></div>
-<p><strong>Step 8 — Tag and publish</strong></p>
-<p>Tag the tip of <code>v1.4-andium-lts</code> (or <code>v1.4-andium</code>, per convention):</p>
-<div class="sourceCode" id="cb14"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a><span class="fu">git</span> tag v1.4.5 origin/v1.4-andium-lts</span>
-<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a><span class="fu">git</span> push origin v1.4.5</span></code></pre></div>
-<p>r-universe picks up the new tag automatically. For CRAN submission, follow the checklist in <code>RELEASE.md</code>.</p>
-<p><strong>Step 9 — Update dev-base and dev to the new stable tip</strong></p>
-<p>After the release merges, the dev baseline is now behind the stable branch. Re-create the dev-base from the updated stable tip plus the flavor rename:</p>
-<div class="sourceCode" id="cb15"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a><span class="co"># Apply the dev flavor on top of the new v1.4-andium:</span></span>
-<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a><span class="fu">git</span> checkout <span class="at">-b</span> v1.4-andium-dev-base origin/v1.4-andium</span>
-<span id="cb15-3"><a href="#cb15-3" tabindex="-1"></a><span class="ex">scripts/lts.sh</span> 1.4.dev</span>
-<span id="cb15-4"><a href="#cb15-4" tabindex="-1"></a><span class="fu">git</span> push krlmlr v1.4-andium-dev-base <span class="at">--force-with-lease</span></span>
-<span id="cb15-5"><a href="#cb15-5" tabindex="-1"></a><span class="fu">git</span> push krlmlr v1.4-andium-dev-base:v1.4-andium-dev <span class="at">--force-with-lease</span></span></code></pre></div>
+<p>This is the most common release event, and it is described in full as the <strong>CUT</strong> and <strong>RESET</strong> clusters of the release FSM in <a href="RELEASE.html#cut--release-execution"><code>RELEASE.md</code></a>. In summary, once upstream tags <code>v1.4.5</code>: the daily vendoring lands the tagged commit on <code>v1.4-andium-dev</code> (state 1), <code>each.yaml</code> proves it green, the pending window is reviewed (state 2), <code>dev-base</code> is fast-forwarded to the tagged commit (state 3), the commit is merged to <code>v1.4-andium</code> with <code>fledge::bump_version("1.4.5")</code> and the <code>-lts</code> branch rebased (state 4), the release is tagged and published to r-universe / CRAN (state 5), and finally <code>dev</code>/<code>dev-base</code> are re-baselined via <code>scripts/lts.sh 1.4.dev</code> (RESET). The pre-release reverse-dependency work that precedes the tag is the <strong>STABILIZE</strong> cluster.</p>
 </div>
 </div>
 <div class="section level2">
 <h2 id="synchronization">Synchronization<a class="anchor" aria-label="anchor" href="#synchronization"></a></h2>
 <div class="section level3">
 <h3 id="vendoring">Vendoring<a class="anchor" aria-label="anchor" href="#vendoring"></a></h3>
-<p>CI/CD pipelines in <code>krlmlr/duckdb-r</code> unconditionally vendor the C++ code from the corresponding upstream branch and build the <code>.dev</code> package. If vendoring breaks the build, it can be fixed after the fact in the same commit. The <code>-dev</code> branches are not protected, so force-pushes are allowed to fix mistakes.</p>
+<p>CI/CD pipelines in <code>krlmlr/duckdb-r</code> vendor the C++ code from the corresponding upstream branch daily — a bounded advance gated on the <code>rcc</code> commit-status of the last green base (<code>scripts/vendor-gate.sh</code>) — and build the <code>.dev</code> package. If vendoring breaks the build, it can be fixed after the fact in the same commit. The <code>-dev</code> branches are not protected, so force-pushes are allowed to fix mistakes.</p>
 <p>It is important that every commit in the <code>-dev</code> branches builds successfully so that the history is clean and bisectable. For this reason, the <code>-dev</code> branches are checked commit by commit via <code>each.yaml</code>, even if multiple commits are pushed at once.</p>
 </div>
 <div class="section level3">
 <h3 id="on-release">On release<a class="anchor" aria-label="anchor" href="#on-release"></a></h3>
-<p>When a new version is released, the dev branch is merged into the corresponding stable branch:</p>
-<div class="sourceCode" id="cb16"><pre class="sourceCode txt"><code class="sourceCode default"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a>krlmlr/duckdb-r@main-dev            →  duckdb/duckdb-r@main</span>
-<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a>krlmlr/duckdb-r@v1.5-variegata-dev  →  duckdb/duckdb-r@v1.5-variegata</span>
-<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a>krlmlr/duckdb-r@v1.4-andium-dev     →  duckdb/duckdb-r@v1.4-andium</span></code></pre></div>
-<p>After the merge, the <code>-lts</code> branch for that series is rebased or reset on top of the updated <code>-andium</code> branch as described in <a href="#on-patch-release-v145">On patch release</a>.</p>
+<p>When a new version is released, the dev branch is brought onto the corresponding stable branch — <strong>linearly, never as a merge commit</strong> (invariant <strong>L</strong>). The tagged <code>dev</code> content is fast-forwarded or rebased onto stable, dropping the <code>lts.sh</code> flavor rename and setting the release version via <code>fledge</code>:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode txt"><code class="sourceCode default"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a>krlmlr/duckdb-r@main-dev            →  duckdb/duckdb-r@main</span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>krlmlr/duckdb-r@v1.5-variegata-dev  →  duckdb/duckdb-r@v1.5-variegata</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a>krlmlr/duckdb-r@v1.4-andium-dev     →  duckdb/duckdb-r@v1.4-andium</span></code></pre></div>
+<p>After this, the <code>-lts</code> branch for that series is rebased or reset on top of the updated <code>-andium</code> branch as described in <a href="#on-patch-release-v145">On patch release</a>.</p>
 </div>
 <div class="section level3">
 <h3 id="ongoing">Ongoing<a class="anchor" aria-label="anchor" href="#ongoing"></a></h3>
 <p>Glue code changes are forward-ported continuously from newer to older branches so that LTS branches stay up to date (see <a href="#source-of-truth">Source of Truth</a>):</p>
-<div class="sourceCode" id="cb17"><pre class="sourceCode txt"><code class="sourceCode default"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a>duckdb/duckdb-r@main  →  krlmlr/duckdb-r@main-dev  →  krlmlr/duckdb-r@v1.5-variegata-dev  →  krlmlr/duckdb-r@v1.4-andium-dev</span></code></pre></div>
+<div class="sourceCode" id="cb10"><pre class="sourceCode txt"><code class="sourceCode default"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a>duckdb/duckdb-r@main  →  krlmlr/duckdb-r@main-dev  →  krlmlr/duckdb-r@v1.5-variegata-dev  →  krlmlr/duckdb-r@v1.4-andium-dev</span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
 <h2 id="patch-stack">Patch Stack<a class="anchor" aria-label="anchor" href="#patch-stack"></a></h2>
 <p>The upstream C++ code in <code>src/duckdb/</code> may be updated to suit the needs of the R package, but not all updates are relevant or appropriate. R-specific fixes are maintained as an ordered series of git-format patches under <code>patch/</code>. Every vendor run re-applies the full stack on top of the freshly vendored sources.</p>
-<div class="sourceCode" id="cb18"><pre class="sourceCode txt"><code class="sourceCode default"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a>  duckdb/duckdb (upstream)</span>
-<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a>        │</span>
-<span id="cb18-3"><a href="#cb18-3" tabindex="-1"></a>        │  vendor.sh / vendor-one.sh</span>
-<span id="cb18-4"><a href="#cb18-4" tabindex="-1"></a>        ▼</span>
-<span id="cb18-5"><a href="#cb18-5" tabindex="-1"></a>  src/duckdb/   ← raw vendored C++ sources</span>
-<span id="cb18-6"><a href="#cb18-6" tabindex="-1"></a>        │</span>
-<span id="cb18-7"><a href="#cb18-7" tabindex="-1"></a>        │  apply patch/0001-...patch</span>
-<span id="cb18-8"><a href="#cb18-8" tabindex="-1"></a>        │  apply patch/0002-...patch</span>
-<span id="cb18-9"><a href="#cb18-9" tabindex="-1"></a>        │  apply patch/0003-...patch</span>
-<span id="cb18-10"><a href="#cb18-10" tabindex="-1"></a>        │  ...</span>
-<span id="cb18-11"><a href="#cb18-11" tabindex="-1"></a>        ▼</span>
-<span id="cb18-12"><a href="#cb18-12" tabindex="-1"></a>  src/duckdb/   ← R-ready C++ sources (committed to branch)</span></code></pre></div>
+<div class="sourceCode" id="cb11"><pre class="sourceCode txt"><code class="sourceCode default"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>  duckdb/duckdb (upstream)</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a>        │</span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a>        │  vendor.sh / vendor-one.sh</span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a>        ▼</span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a>  src/duckdb/   ← raw vendored C++ sources</span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a>        │</span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a>        │  apply patch/0001-...patch</span>
+<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a>        │  apply patch/0002-...patch</span>
+<span id="cb11-9"><a href="#cb11-9" tabindex="-1"></a>        │  apply patch/0003-...patch</span>
+<span id="cb11-10"><a href="#cb11-10" tabindex="-1"></a>        │  ...</span>
+<span id="cb11-11"><a href="#cb11-11" tabindex="-1"></a>        ▼</span>
+<span id="cb11-12"><a href="#cb11-12" tabindex="-1"></a>  src/duckdb/   ← R-ready C++ sources (committed to branch)</span></code></pre></div>
 <p>Patches are numbered to define their application order. Gaps in the numbering are normal — they indicate patches that were previously removed because the fix was accepted upstream.</p>
 <p>When a patch is no longer needed (because the fix was merged upstream), delete the file. Do not renumber the remaining patches. When adding a new patch, assign it the next available number and send the same change as a pull request to <code>duckdb/duckdb</code> so it can be retired eventually.</p>
 <p>If a vendor run fails because a patch no longer applies cleanly, update the patch against the new upstream code, commit it, and re-run vendoring.</p>
+</div>
+<div class="section level2">
+<h2 id="version-numbering">Version Numbering<a class="anchor" aria-label="anchor" href="#version-numbering"></a></h2>
+<p>The package version in <code>DESCRIPTION</code> carries up to five dot-separated components. Two of them are independent counters that advance on different strands:</p>
+<table class="table"><colgroup><col width="26%"><col width="21%"><col width="21%"><col width="30%"></colgroup><thead><tr><th>Component</th>
+<th>Example</th>
+<th>Counter</th>
+<th>Advanced by</th>
+</tr></thead><tbody><tr><td>1–3 (<code>major.minor.patch</code>)</td>
+<td><code>1.5.3</code></td>
+<td>Release line identity</td>
+<td>Matches the upstream DuckDB tag</td>
+</tr><tr><td>4th</td>
+<td><code>…​.9006</code></td>
+<td><strong>R-client counter</strong></td>
+<td>
+<code>fledge</code> on the source-of-truth strand (<code>main</code>)</td>
+</tr><tr><td>5th</td>
+<td><code>…​.9006.42</code></td>
+<td><strong>vendor counter</strong></td>
+<td>
+<code>scripts/vendor-one.sh</code>, one bump per vendor commit on a <code>-dev</code> branch</td>
+</tr></tbody></table><p>A released version is the bare three-component prefix (<code>1.5.4</code>). The <code>-dev</code> branches never touch <code>NEWS.md</code>; only <code>DESCRIPTION:Version</code> differs between the strands.</p>
+<div class="section level3">
+<h3 id="the-description-merge-driver">The DESCRIPTION merge driver<a class="anchor" aria-label="anchor" href="#the-description-merge-driver"></a></h3>
+<p>Because the two counters advance on the same line, a plain forward-port, rebase, or release merge conflicts on <code>DESCRIPTION:Version</code> at essentially every commit. The merge driver in <code>scripts/merge-version.sh</code> resolves that line by taking the <strong>component-wise maximum</strong> of the two sides, <strong>gated on an equal <code>major.minor.patch</code> prefix</strong>:</p>
+<ul><li>Within a release line, the max keeps the 4th component from the strand that owns it (the R-client strand) and the 5th from the strand that owns it (the vendor strand). E.g. <code>1.5.3.9008</code> merged with <code>1.5.3.9006.42</code> → <code>1.5.3.9008.42</code>. The result is direction-agnostic.</li>
+<li>Across release lines (different prefix, e.g. forward-porting a fix from <code>1.5.x</code> onto the <code>1.4.x</code> LTS), the driver keeps <strong>ours</strong> unchanged and never inherits a foreign prefix.</li>
+</ul><p>The rest of <code>DESCRIPTION</code> still gets a normal 3-way merge, so a genuine concurrent edit (e.g. two branches touching <code>Imports:</code>) still raises a real conflict. The authoritative release version is set by <code>fledge::bump_version()</code> at the tip after the operation completes — the driver’s only job is to stop the version line from halting a rebase.</p>
+<p><strong>Setup.</strong> The <code>merge=ours-version</code> attribute is committed in <code>.gitattributes</code>, but the driver’s name→command mapping must live in <code>.git/config</code>. Run <code>scripts/setup-git.sh</code> once per clone — and as the first step of any CI job that rebases, cherry-picks, or merges — to register the driver, enable <code>rerere</code>, and pin <code>rebase.backend=merge</code> (the patch/<code>am</code> backend bypasses merge drivers).</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="tooling">Tooling<a class="anchor" aria-label="anchor" href="#tooling"></a></h2>
@@ -476,14 +575,20 @@ krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
 <td>Local manual vendoring from a cloned upstream repo</td>
 </tr><tr><td><code>scripts/vendor-one.sh</code></td>
 <td>CI commit-by-commit vendoring (called by <code>vendor.yaml</code>)</td>
+</tr><tr><td><code>scripts/vendor-gate.sh</code></td>
+<td>Decides the bounded, <code>rcc</code>-gated batch of upstream commits <code>vendor.yaml</code> may advance per run</td>
 </tr><tr><td><code>scripts/lts.sh &lt;flavor&gt;</code></td>
 <td>Applies the flavor rename (updates <code>lts.patch</code>, then applies it and re-runs <code><a href="https://cpp11.r-lib.org/reference/cpp_register.html" class="external-link">cpp11::cpp_register()</a></code>)</td>
 </tr><tr><td><code>scripts/lts.patch</code></td>
 <td>Patch template used by <code>lts.sh</code>; contains <code>1.4</code> as placeholder version (replaced by <code>lts.sh</code>)</td>
 </tr><tr><td><code>scripts/each-rcc.sh</code></td>
 <td>Identifies commits in the first-parent history without a build status and triggers an <code>rcc</code> run for each</td>
+</tr><tr><td><code>scripts/merge-version.sh</code></td>
+<td>Git merge driver for <code>DESCRIPTION</code>: combines the 4th/5th version counters, gated on an equal prefix</td>
+</tr><tr><td><code>scripts/setup-git.sh</code></td>
+<td>Registers the merge driver in <code>.git/config</code>, enables <code>rerere</code>, pins <code>rebase.backend=merge</code> (run per clone)</td>
 </tr><tr><td><code>.github/workflows/vendor.yaml</code></td>
-<td>Hourly vendoring for all active dev branches (matrix: <code>v1.4-andium-dev</code>, <code>v1.5-variegata-dev</code>, <code>main-dev</code>)</td>
+<td>Daily, <code>rcc</code>-gated vendoring for all active dev branches (matrix: <code>v1.4-andium-dev</code>, <code>v1.5-variegata-dev</code>, <code>main-dev</code>)</td>
 </tr><tr><td><code>.github/workflows/sync.yaml</code></td>
 <td>Hourly fast-forward of <code>krlmlr/main</code> from <code>duckdb/main</code>
 </td>
@@ -500,9 +605,9 @@ krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
 <p>Computes the set of commits in <code>&lt;source-branch&gt;</code> not yet reachable from <code>&lt;target-branch&gt;</code>, filters out vendor commits (matching <code>^vendor:</code>), and prints the <code>git cherry-pick</code> commands needed to bring the target up to date. Optionally opens a draft PR via <code>gh pr create --draft</code>. Automates the forward-porting step for glue code and R code changes.</p>
 <p><strong><code>scripts/promote-dev.sh &lt;series&gt;</code></strong> (e.g., <code>promote-dev.sh v1.4-andium</code>)</p>
 <p>Fast-forwards <code>&lt;series&gt;-dev-base</code> to match <code>&lt;series&gt;-dev</code> in <code>krlmlr/duckdb-r</code>. Serves as Step 4 of the patch-release process; makes the comparison URL empty once a release is confirmed clean.</p>
-<div class="sourceCode" id="cb19"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a><span class="co"># Example:</span></span>
-<span id="cb19-2"><a href="#cb19-2" tabindex="-1"></a><span class="ex">scripts/promote-dev.sh</span> v1.4-andium</span>
-<span id="cb19-3"><a href="#cb19-3" tabindex="-1"></a><span class="co"># → git push krlmlr refs/heads/v1.4-andium-dev:refs/heads/v1.4-andium-dev-base</span></span></code></pre></div>
+<div class="sourceCode" id="cb12"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="co"># Example:</span></span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a><span class="ex">scripts/promote-dev.sh</span> v1.4-andium</span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a><span class="co"># → git push krlmlr refs/heads/v1.4-andium-dev:refs/heads/v1.4-andium-dev-base</span></span></code></pre></div>
 <p><strong><code>scripts/release-lts.sh &lt;series&gt; &lt;version&gt;</code></strong> (e.g., <code>release-lts.sh v1.4-andium 1.4.5</code>)</p>
 <p>Orchestrates Steps 4–9 of the patch-release process for an LTS series: promotes dev-base, opens a merge PR to the stable branch, bumps the version, rebases the <code>-lts</code> branch, tags, and prints a CRAN submission checklist.</p>
 <p><strong>Stale-branch CI check</strong> (<code>.github/workflows/stale-branches.yaml</code>)</p>

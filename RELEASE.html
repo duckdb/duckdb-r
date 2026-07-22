@@ -33,34 +33,325 @@
 
 <div id="r-package-release-process" class="section level1">
 
+<p>This document describes the release process for one DuckDB release line as a <strong>finite state machine (FSM)</strong>. It is the operational companion to <a href="BRANCHES.html"><code>BRANCHES.md</code></a>, which defines the branch model, the package flavors, and the <strong><a href="BRANCHES.html#series-invariants">series invariants</a></strong> that this process must preserve at every step.</p>
+<p>A <strong>series</strong> is one DuckDB minor line <code>L</code> (e.g. <code>v1.4-andium</code>) together with its branches:</p>
+<ul><li>
+<code>stable</code> — published branch on <code>duckdb/duckdb-r</code> (<code>Package: duckdb</code>). For the <em>current</em> line this is literally <code>main</code>.</li>
+<li>
+<code>lts</code> — <code>stable</code> + the flavor rename (<code>Package: duckdb.L</code>); exists only for an LTS line.</li>
+<li>
+<code>dev</code> — bleeding edge on <code>krlmlr/duckdb-r</code> (<code>Package: duckdb.L.dev</code>), vendored daily from the upstream branch for <code>L</code>.</li>
+<li>
+<code>dev-base</code> — the last reviewed/released point of <code>dev</code>.</li>
+</ul><p>At any moment a series is in exactly one of four <strong>clusters</strong>. The clusters — not the individual states — are the unit of coordination when several series release together (see <a href="#multi-line-coordination">Multi-line coordination</a>).</p>
 <div class="section level2">
-<h2 id="preflight-checks">Preflight Checks<a class="anchor" aria-label="anchor" href="#preflight-checks"></a></h2>
-<p>Check the GitHub actions reports for the revision you want to release. <a href="https://github.com/duckdb/duckdb/actions/workflows/R.yml" class="external-link">Github Actions R Workflow</a> The output has a “R CMD check” section. Any errors/warnigns here are show stoppers and need to be addressed. NOTEs about package size or the ” Note to CRAN Maintainers” are fine, other NOTEs likely indicate problems.</p>
-<p>Also, have a look at the <a href="https://cran.r-project.org/web/checks/check_results_duckdb.html" class="external-link">CRAN package checks</a>. NOTEs or WARNINGs or anything in red needs to be addressed. Again, the NOTE about the package size is fine.</p>
+<h2 id="clusters">Clusters<a class="anchor" aria-label="anchor" href="#clusters"></a></h2>
+<table class="table"><colgroup><col width="10%"><col width="9%"><col width="9%"><col width="25%"><col width="35%"><col width="9%"></colgroup><thead><tr><th>Cluster</th>
+<th>States</th>
+<th>Driver</th>
+<th>Mutates <code>main</code> glue?</th>
+<th>Vendored commits → mainline?</th>
+<th>Loops?</th>
+</tr></thead><tbody><tr><td><strong>TRACK</strong></td>
+<td>0</td>
+<td>automation (daily)</td>
+<td>no — forward-ports pass <em>through</em>
+</td>
+<td>no</td>
+<td>—</td>
+</tr><tr><td><strong>STABILIZE</strong></td>
+<td>0.1–0.5</td>
+<td>calendar / human (T−14 → tag)</td>
+<td>
+<strong>yes</strong> (fold-back fixes are born here)</td>
+<td>no</td>
+<td>revdep ⇄ fold-back</td>
+</tr><tr><td><strong>CUT</strong></td>
+<td>1–5</td>
+<td>upstream tag, then mechanical</td>
+<td>no</td>
+<td><strong>yes — the only cluster that does</strong></td>
+<td>red ⇄ fix-in-commit</td>
+</tr><tr><td><strong>RESET</strong></td>
+<td>6</td>
+<td>script</td>
+<td>no</td>
+<td>no</td>
+<td>—</td>
+</tr></tbody></table><p>The single most important property of the whole design lives in the last two columns: <strong>vendored commits enter the mainline in exactly one cluster (CUT), and <code>main</code>’s glue changes only in TRACK / STABILIZE.</strong> The two never overlap, which is what keeps <code>main</code> CRAN-releasable at all times.</p>
 </div>
 <div class="section level2">
-<h2 id="reverse-dependency-checks">Reverse Dependency Checks<a class="anchor" aria-label="anchor" href="#reverse-dependency-checks"></a></h2>
-<p>Next you should run the reverse dependency check, checking if packages on CRAN that depend on DuckDB still work, any issues there will lead to issues with CRAN updates. The policy there is that you should contact package authors “well beforehand”. If things fail in this check, you should contact the package authors.</p>
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<h2 id="state-diagram">State diagram<a class="anchor" aria-label="anchor" href="#state-diagram"></a></h2>
+<pre class="mermaid"><code>stateDiagram-v2
+    [*] --&gt; TRACK
+
+    state TRACK {
+        Tracking : 0 TRACKING — daily vendor + forward-port, all green
+    }
+
+    state STABILIZE {
+        Pinned : 0.1 CANDIDATE PINNED
+        Revdep1 : 0.2 REVDEP-1
+        FoldBack : 0.3 FOLD-BACK (fix on main, forward-port)
+        Revdep2 : 0.4 REVDEP-2 (go / no-go)
+        Freeze : 0.5 GLUE FREEZE (barrier)
+        Pinned --&gt; Revdep1
+        Revdep1 --&gt; FoldBack
+        FoldBack --&gt; Revdep2
+        Revdep2 --&gt; FoldBack : regressions
+        Revdep2 --&gt; Freeze : go
+        Freeze --&gt; Freeze : late glue re-arms
+    }
+
+    state CUT {
+        Vendored : 1 VENDORED
+        Review : 2 REVIEW
+        Promoted : 3 PROMOTED (FF dev-base)
+        Merged : 4 MERGED (stable bump, lts rebase)
+        Published : 5 PUBLISHED (tag, r-universe, CRAN)
+        Vendored --&gt; Vendored : red / fix-in-commit
+        Vendored --&gt; Review : green
+        Review --&gt; Vendored : drift
+        Review --&gt; Promoted : ok
+        Promoted --&gt; Merged
+        Merged --&gt; Published
+    }
+
+    state RESET {
+        Rebaselined : 6 RE-BASELINED (recreate dev / dev-base)
+    }
+
+    TRACK --&gt; STABILIZE : T-14 open window
+    STABILIZE --&gt; CUT : upstream tag vX.Y.Z
+    CUT --&gt; RESET : published
+    RESET --&gt; TRACK
+    note right of CUT : CRAN acceptance is an async tail (current line only)</code></pre>
+</div>
+<div class="section level2">
+<h2 id="states">States<a class="anchor" aria-label="anchor" href="#states"></a></h2>
+<table class="table"><colgroup><col width="8%"><col width="13%"><col width="8%"><col width="13%"><col width="22%"><col width="18%"><col width="14%"></colgroup><thead><tr><th>State</th>
+<th>Enter when</th>
+<th><code>dev</code></th>
+<th><code>dev-base</code></th>
+<th>
+<code>stable</code> / <code>lts</code>
+</th>
+<th>Gate to leave</th>
+<th>On failure</th>
+</tr></thead><tbody><tr><td><strong>0 TRACKING</strong></td>
+<td>RESET done</td>
+<td>grows: vendor + forward-port, all green</td>
+<td>frozen</td>
+<td>frozen at <code>X.Y.(Z-1)</code>
+</td>
+<td>maintainer opens window (≈ T−14)</td>
+<td>—</td>
+</tr><tr><td><strong>0.1 CANDIDATE PINNED</strong></td>
+<td>window opens</td>
+<td>fixes only; pin likely release commit</td>
+<td>frozen</td>
+<td>frozen</td>
+<td>candidate green</td>
+<td>—</td>
+</tr><tr><td><strong>0.2 REVDEP-1</strong></td>
+<td>candidate pinned</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>revdep run triaged</td>
+<td>—</td>
+</tr><tr><td><strong>0.3 FOLD-BACK</strong></td>
+<td>findings exist</td>
+<td>fold-back forward-ports land</td>
+<td>frozen</td>
+<td>
+<strong>fixes born here</strong>, then ported</td>
+<td>findings resolved/accepted</td>
+<td>loop to 0.4</td>
+</tr><tr><td><strong>0.4 REVDEP-2</strong></td>
+<td>≈ T−7</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td><strong>go / no-go</strong></td>
+<td>fail → 0.3</td>
+</tr><tr><td><strong>0.5 GLUE FREEZE</strong></td>
+<td>go</td>
+<td>frozen (barrier; all lines aligned)</td>
+<td>frozen</td>
+<td>frozen</td>
+<td>upstream tags <code>vX.Y.Z</code>
+</td>
+<td>late glue → re-arm 0.5</td>
+</tr><tr><td><strong>1 VENDORED</strong></td>
+<td>tag lands on <code>dev</code>
+</td>
+<td>tagged vendor commit present</td>
+<td>frozen</td>
+<td>frozen</td>
+<td>tagged commit <strong>green</strong> (<code>each.yaml</code>)</td>
+<td>red → fix in-commit, force-push <code>dev</code>
+</td>
+</tr><tr><td><strong>2 REVIEW</strong></td>
+<td>green</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>
+<code>dev-base..tagged</code> clean</td>
+<td>drift → fix on <code>main</code>, forward-port</td>
+</tr><tr><td><strong>3 PROMOTED</strong></td>
+<td>review ok</td>
+<td>—</td>
+<td><strong>FF → tagged commit</strong></td>
+<td>—</td>
+<td>dev-base advanced</td>
+<td>—</td>
+</tr><tr><td><strong>4 MERGED</strong></td>
+<td>promoted</td>
+<td>frozen at tagged commit</td>
+<td>—</td>
+<td>PR <code>tagged → stable</code> green; <code>fledge</code> bump to <code>X.Y.Z</code>; <code>lts</code> rebased</td>
+<td>stable green</td>
+<td>version conflict (merge driver) / red CI</td>
+</tr><tr><td><strong>5 PUBLISHED</strong></td>
+<td>merged</td>
+<td>—</td>
+<td>—</td>
+<td>tag <code>vX.Y.Z</code> pushed; r-universe builds; CRAN submitted (current line)</td>
+<td>tag pushed</td>
+<td>CRAN reject → new patch cycle</td>
+</tr><tr><td><strong>6 RE-BASELINED</strong></td>
+<td>published</td>
+<td>force-recreated from new <code>stable</code> + flavor</td>
+<td>recreated</td>
+<td>—</td>
+<td>back to TRACK</td>
+<td>—</td>
+</tr></tbody></table><hr></div>
+<div class="section level2">
+<h2 id="track--steady-state">TRACK — steady state<a class="anchor" aria-label="anchor" href="#track--steady-state"></a></h2>
+<p>Fully automated; there is nothing to do. <code>vendor.yaml</code> runs daily and advances <code>dev</code> by a bounded batch, gated on the <code>rcc</code> commit-status of the last green base (<code>scripts/vendor-gate.sh</code>); <code>each.yaml</code> checks every new commit, and glue changes flow in from <code>main</code> via the forward-port chain. <code>dev-base..dev</code> is the running list of “what would ship if we released now.”</p>
+<p>A maintainer leaves TRACK by <strong>opening the release window</strong> (≈ two weeks before the expected upstream release date), which enters STABILIZE.</p>
+</div>
+<div class="section level2">
+<h2 id="stabilize--pre-release--t14--tag">STABILIZE — pre-release (≈ T−14 → tag)<a class="anchor" aria-label="anchor" href="#stabilize--pre-release--t14--tag"></a></h2>
+<p>The goal is to prove the release <em>candidate</em> — the <code>dev</code> branch — against reverse dependencies <strong>before upstream cuts the tag</strong>, so that regressions can be folded back (into our glue, into <code>patch/</code>, or reported upstream) while there is still time. STABILIZE mutates only <code>main</code> (fold-back fixes) and <code>dev</code> (forward-ports + ongoing vendor); the release branches stay at the previous release (invariant <strong>P1</strong>), so the whole cluster is abortable with zero rollback.</p>
+<div class="section level3">
+<h3 id="preflight">Preflight<a class="anchor" aria-label="anchor" href="#preflight"></a></h3>
+<ul><li>Review the upstream <strong>R workflow</strong> R CMD check for the candidate revision: <a href="https://github.com/duckdb/duckdb/actions/workflows/R.yml" class="external-link uri">https://github.com/duckdb/duckdb/actions/workflows/R.yml</a>. Errors and warnings are show-stoppers. The package-size NOTE and the “Note to CRAN Maintainers” are fine; other NOTEs usually indicate real problems.</li>
+<li>Review the current <strong>CRAN checks</strong> page: <a href="https://cran.r-project.org/web/checks/check_results_duckdb.html" class="external-link uri">https://cran.r-project.org/web/checks/check_results_duckdb.html</a>. Anything in red, or any WARNING/NOTE other than package size, must be addressed.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="id_01-pin-the-release-candidate">0.1 Pin the release candidate<a class="anchor" aria-label="anchor" href="#id_01-pin-the-release-candidate"></a></h3>
+<p>Upstream commits land up to and including release day, so the release commit is a moving target. <strong>Ask upstream for the most likely release commit</strong> and pin it. From here, only fixes (not features) flow into the glue source of truth. Re-pin as upstream advances; a re-pin only forces a re-run of the revdep checks if the delta touches anything risky (invariant <strong>P2</strong>: what ships must have been tested).</p>
+</div>
+<div class="section level3">
+<h3 id="id_02--04-reverse-dependency-checks">0.2 / 0.4 Reverse-dependency checks<a class="anchor" aria-label="anchor" href="#id_02--04-reverse-dependency-checks"></a></h3>
+<p>Run against the <code>.dev</code> build at the pinned commit. The first pass is early enough to act on; the second (≈ T−7) is the go/no-go gate.</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"r-lib/revdepcheck"</span><span class="op">)</span> <span class="co"># once</span></span>
-<span><span class="fu">revdepcheck</span><span class="fu">::</span><span class="fu">revdep_check</span><span class="op">(</span>num_workers <span class="op">=</span> <span class="fl">8</span>, env<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>`MAKEVARS`<span class="op">=</span><span class="st">"-j8"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">revdepcheck</span><span class="fu">::</span><span class="fu">revdep_check</span><span class="op">(</span>num_workers <span class="op">=</span> <span class="fl">8</span>, env <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>MAKEVARS <span class="op">=</span> <span class="st">"-j8"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p>CRAN policy requires contacting affected maintainers <strong>well beforehand</strong>, which is the entire reason this happens before the tag rather than after.</p>
+</div>
+<div class="section level3">
+<h3 id="id_03-fold-back">0.3 Fold back<a class="anchor" aria-label="anchor" href="#id_03-fold-back"></a></h3>
+<p>Every fold-back fix is <strong>born on <code>main</code></strong> and forward-ported down the chain — never authored directly on a <code>dev</code> branch (invariant <strong>P3</strong> / <strong>S4</strong>). C++ issues go into <code>patch/</code> and are simultaneously sent upstream as a PR so the patch can eventually be retired. Contact the maintainers of any broken reverse dependencies. Loop back to 0.4 until clean or explained.</p>
+</div>
+<div class="section level3">
+<h3 id="id_05-glue-freeze-barrier">0.5 Glue freeze (barrier)<a class="anchor" aria-label="anchor" href="#id_05-glue-freeze-barrier"></a></h3>
+<p>Freeze glue across <strong>all</strong> releasing series and confirm <code>git cherry main dev</code> is empty for each (invariant <strong>P4</strong>) — every releasing line now carries identical glue. A late glue change after this point is allowed but <strong>re-arms the freeze</strong>: land it on <code>main</code>, forward-port to every releasing <code>dev</code>, re-run a targeted revdep, and only then proceed. The clock resets to 0.5; it is not a scramble.</p>
+</div>
 </div>
 <div class="section level2">
-<h2 id="source-package">Source Package<a class="anchor" aria-label="anchor" href="#source-package"></a></h2>
-<p>The R package does not automatically pick up the DuckDB version from the git tag. Make sure the file <code>DESCRIPTION</code> in the master branch has the <code>Version</code> entry that <em>you want to create</em>.</p>
-<p>It’s important that package builds are created from the <code>main</code> branch of the <a href="https://github.com/duckdb/duckdb" class="external-link">duckdb/duckdb repository</a> (not of a fork) because otherwise the git revision ids used to install extensions are wrong.</p>
-<p>You can get the R source tarball either from the build artifacts (r-package-source) or from a GitHub release after CI finishes (<code>duckdb_[version].tar.gz</code>).</p>
-<p>Next check the package using WinBuilder, upload the source tarball at <a href="https://win-builder.r-project.org/upload.aspx" class="external-link uri">https://win-builder.r-project.org/upload.aspx</a>, using R-devel. You will get an email at some point. Again, warnings/notes besides the ones mentioned are bad.</p>
+<h2 id="cut--release-execution">CUT — release execution<a class="anchor" aria-label="anchor" href="#cut--release-execution"></a></h2>
+<p>Triggered by upstream tagging <code>vX.Y.Z</code>. This is the only cluster that moves vendored commits into the mainline, and it does so through reviewed, green, gated steps. <strong>You release the tagged commit, not the <code>dev</code> tip</strong> — upstream has usually moved on by now, and the post-tag commits stay queued for the next cycle.</p>
+<div class="section level3">
+<h3 id="id_1-vendored--2-review--3-promoted">1 VENDORED → 2 REVIEW → 3 PROMOTED<a class="anchor" aria-label="anchor" href="#id_1-vendored--2-review--3-promoted"></a></h3>
+<ol style="list-style-type: decimal"><li>
+<code>vendor.yaml</code> produces the <code>vendor: … (tag vX.Y.Z) …</code> commit on <code>dev</code>; wait for <code>each.yaml</code> to show it <strong>green</strong>. If vendoring broke the build, fix it in the same commit and force-push <code>dev</code>.</li>
+<li>Review the pending window — <code>https://github.com/krlmlr/duckdb-r/compare/&lt;dev-base&gt;...&lt;tagged&gt;</code> — and confirm it contains only the expected vendor commits and intended forward-ports, with no glue drift.</li>
+<li>Fast-forward <code>dev-base</code> to the tagged commit (<code>scripts/promote-dev.sh L</code>, when available; otherwise <code>git push krlmlr &lt;tagged&gt;:refs/heads/L-dev-base</code>).</li>
+</ol></div>
+<div class="section level3">
+<h3 id="id_4-merged--stable--version-bump">4 MERGED — stable + version bump<a class="anchor" aria-label="anchor" href="#id_4-merged--stable--version-bump"></a></h3>
+<p>Bring the tagged <code>dev</code> content onto <code>stable</code> <strong>linearly — never as a merge commit</strong> (invariant <strong>L</strong>): fast-forward or rebase the tagged range onto <code>stable</code>, dropping the <code>lts.sh</code> flavor rename. The <code>DESCRIPTION</code> version conflict is resolved automatically by the merge driver (see <a href="BRANCHES.html#version-numbering">BRANCHES.md → Version Numbering</a>); run <code>scripts/setup-git.sh</code> first if this is a fresh clone or CI runner. Because <code>release-content ⊑ dev-base ⊑ dev</code> (invariant <strong>A1</strong>), the only rewriting is dropping the rename commit.</p>
+<p>The package version is <strong>not</strong> derived from the git tag — set it explicitly so <code>DESCRIPTION</code> matches the upstream tag:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">fledge</span><span class="fu">::</span><span class="fu">bump_version</span><span class="op">(</span><span class="st">"X.Y.Z"</span><span class="op">)</span></span></code></pre></div>
+<p>Then rebase the <code>lts</code> branch (one rename commit on top of <code>stable</code>):</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co"># in the L-lts worktree</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="fu">git</span> rebase origin/L <span class="kw">&amp;&amp;</span> <span class="fu">git</span> push origin L-lts</span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="winbuilder--final-checks">WinBuilder + final checks<a class="anchor" aria-label="anchor" href="#winbuilder--final-checks"></a></h3>
+<p>Obtain the source tarball from the CI build artifact (<code>r-package-source</code>) or the post-CI GitHub release (<code>duckdb_&lt;version&gt;.tar.gz</code>). Build it from <code>duckdb/duckdb@main</code> rather than a fork, so the git revision ids used to fetch extensions are correct. Upload to WinBuilder (R-devel): <a href="https://win-builder.r-project.org/upload.aspx" class="external-link uri">https://win-builder.r-project.org/upload.aspx</a>. Apart from the known package-size NOTE, warnings and notes are blockers.</p>
+</div>
+<div class="section level3">
+<h3 id="id_5-published--tag--publish">5 PUBLISHED — tag &amp; publish<a class="anchor" aria-label="anchor" href="#id_5-published--tag--publish"></a></h3>
+<p>Tag the release and push; r-universe rebuilds automatically:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="fu">git</span> tag vX.Y.Z origin/L-lts   <span class="co"># or origin/L per series convention</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="fu">git</span> push origin vX.Y.Z</span></code></pre></div>
+<p>For the <strong>current</strong> line (the CRAN <code>duckdb</code> package), submit the source tarball at <a href="https://cran.r-project.org/submit.html" class="external-link uri">https://cran.r-project.org/submit.html</a>. The maintainer (currently Hannes) confirms the upload, after which CRAN’s automated checks run. CRAN acceptance is <strong>asynchronous</strong> — it can take days and overlaps RESET and the next TRACK. If CRAN rejects, fix on <code>stable</code> and re-enter CUT as a follow-up patch. LTS lines publish to r-universe only and have no CRAN tail.</p>
+</div>
 </div>
 <div class="section level2">
-<h2 id="upload">Upload<a class="anchor" aria-label="anchor" href="#upload"></a></h2>
-<p>Finally, upload the package to CRAN here: <a href="https://cran.r-project.org/submit.html" class="external-link uri">https://cran.r-project.org/submit.html</a></p>
-<p>The maintainer (currently Hannes) has to confirm the upload, after which various automatic checks are triggered.</p>
+<h2 id="reset--re-baseline">RESET — re-baseline<a class="anchor" aria-label="anchor" href="#reset--re-baseline"></a></h2>
+<p>Recreate the dev baseline from the freshly released <code>stable</code> tip plus the flavor rename, returning the series to TRACK:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">git</span> checkout <span class="at">-b</span> L-dev-base origin/L</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="ex">scripts/lts.sh</span> L.dev</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="fu">git</span> push krlmlr L-dev-base <span class="at">--force-with-lease</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="fu">git</span> push krlmlr L-dev-base:L-dev <span class="at">--force-with-lease</span></span></code></pre></div>
+<p>The glue source of truth (<code>main</code>) separately moves to its ongoing development version (4th component, e.g. <code>X.Y.Z.9000</code>) via <code>fledge</code>; the <code>dev</code> branches then resume bumping the 5th (vendor) component from the new baseline.</p>
 </div>
 <div class="section level2">
-<h2 id="post-release">Post-release<a class="anchor" aria-label="anchor" href="#post-release"></a></h2>
-<p>By convention, development versions have a fourth component <code>.9000</code>. After a successful release, edit <code>DESCRIPTION</code> to include this, e.g., change <code>0.8.1</code> to <code>0.8.1.9000</code>.</p>
-</div>
+<h2 id="multi-line-coordination">Multi-line coordination<a class="anchor" aria-label="anchor" href="#multi-line-coordination"></a></h2>
+<p>When several series release together (e.g. a current line on CRAN plus an LTS line on r-universe), coordinate at the <strong>cluster</strong> level:</p>
+<ul><li>
+<strong>STABILIZE ends on a shared barrier.</strong> All releasing lines must reach <strong>0.5 GLUE FREEZE</strong> together — this is the forward-port barrier that guarantees identical glue across lines (invariant <strong>P4</strong>). It is the one hard synchronization point.</li>
+<li>
+<strong>CUT runs per line, pipelined, CRAN line first.</strong> Submit the CRAN line early because its acceptance is asynchronous; the r-universe-only LTS line finishes alongside with no CRAN tail.</li>
+<li>
+<strong>The preview line</strong> (next major, tracking upstream <code>main</code>) lives in a long-running TRACK/STABILIZE: its STABILIZE <em>is</em> the upstream RC window and its CUT <em>is</em> the atomic fast-forward flip of <code>main</code>. The flip requires <code>main ⊑ main-dev</code> (invariant <strong>A2</strong>), which is <em>not</em> maintained continuously — it is established once, just before the flip, by the rewind-to-bifurcation + replay linearization. Same FSM, different durations; the only other addition is that vendor-coupled glue may be <em>born</em> on its <code>dev</code> (the documented exception to invariant <strong>S4</strong>).</li>
+</ul></div>
+<div class="section level2">
+<h2 id="failure--rollback">Failure &amp; rollback<a class="anchor" aria-label="anchor" href="#failure--rollback"></a></h2>
+<table class="table"><colgroup><col width="34%"><col width="26%"><col width="38%"></colgroup><thead><tr><th>Failure</th>
+<th>State</th>
+<th>Response</th>
+</tr></thead><tbody><tr><td>Vendor breaks the build</td>
+<td>1 VENDORED</td>
+<td>fix in the same commit, force-push <code>dev</code>, re-green</td>
+</tr><tr><td>Glue drift found in review</td>
+<td>2 REVIEW</td>
+<td>fix on <code>main</code>, forward-port, back to 1</td>
+</tr><tr><td>Revdep regression</td>
+<td>0.2 / 0.4</td>
+<td>fold back on <code>main</code> (0.3), loop</td>
+</tr><tr><td>Late glue change</td>
+<td>0.5 / CUT</td>
+<td>land on <code>main</code>, forward-port to all, re-revdep, re-freeze</td>
+</tr><tr><td>Merge conflict on version</td>
+<td>4 MERGED</td>
+<td>resolved by the merge driver; run <code>scripts/setup-git.sh</code>
+</td>
+</tr><tr><td>CRAN rejection</td>
+<td>after 5</td>
+<td>fix on <code>stable</code>, re-enter CUT as a follow-up patch</td>
+</tr><tr><td>Upstream re-tags</td>
+<td>any</td>
+<td>treat as a fresh CUT entry on the new tag</td>
+</tr></tbody></table></div>
+<div class="section level2">
+<h2 id="invariants-preserved-per-cluster">Invariants preserved per cluster<a class="anchor" aria-label="anchor" href="#invariants-preserved-per-cluster"></a></h2>
+<p>Each cluster must leave the series satisfying the <strong><a href="BRANCHES.html#series-invariants">series invariants</a></strong>:</p>
+<ul><li>
+<strong>TRACK / STABILIZE</strong> maintain <strong>S1–S4</strong>, <strong>G1–G2</strong>, <strong>C1–C2</strong>, and the prerelease invariants <strong>P1–P4</strong>.</li>
+<li>
+<strong>CUT</strong> is the controlled transition where <code>dev-base</code> catches up to the tagged commit and <code>stable</code>/<code>lts</code> advance; <strong>V1–V4</strong> and <strong>F1–F2</strong> must hold at the new release point.</li>
+<li>
+<strong>RESET</strong> re-establishes <strong>S2</strong> (baseline purity) for the next cycle.</li>
+</ul></div>
 </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
