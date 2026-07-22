@@ -72,10 +72,12 @@ driver_registry <- new.env(parent = emptyenv())
 #'
 #' For a file-based `dbdir`, the instance is cached, keyed by the (normalized)
 #' path: calling `duckdb()` again with the same `dbdir` returns the same driver
-#' and instance while it is still alive, so repeated
-#' `dbConnect(duckdb(dbdir = "my.db"))` share one instance rather than competing
-#' for the file. An in-memory database (`:memory:`, the default) is never cached:
-#' every `duckdb()` call creates a fresh, isolated instance.
+#' and instance while it is still alive. This is deliberate. DuckDB allows only a
+#' single read-write handle to a database file at a time, so opening a second
+#' instance of the same file would fail with a lock error; reusing one instance
+#' instead lets any number of `dbConnect(duckdb(dbdir = "my.db"))` calls share
+#' it. An in-memory database (`:memory:`, the default) has no file to lock and is
+#' never cached: every `duckdb()` call creates a fresh, isolated instance.
 #'
 #' Because the instance is created once, `config`, `read_only`, `home`, and
 #' `shared_home` take effect only at creation; a call that reuses an existing

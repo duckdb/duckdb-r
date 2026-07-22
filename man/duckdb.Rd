@@ -177,10 +177,12 @@ share one instance.
 
 For a file-based \code{dbdir}, the instance is cached, keyed by the (normalized)
 path: calling \code{duckdb()} again with the same \code{dbdir} returns the same driver
-and instance while it is still alive, so repeated
-\code{dbConnect(duckdb(dbdir = "my.db"))} share one instance rather than competing
-for the file. An in-memory database (\verb{:memory:}, the default) is never cached:
-every \code{duckdb()} call creates a fresh, isolated instance.
+and instance while it is still alive. This is deliberate. DuckDB allows only a
+single read-write handle to a database file at a time, so opening a second
+instance of the same file would fail with a lock error; reusing one instance
+instead lets any number of \code{dbConnect(duckdb(dbdir = "my.db"))} calls share
+it. An in-memory database (\verb{:memory:}, the default) has no file to lock and is
+never cached: every \code{duckdb()} call creates a fresh, isolated instance.
 
 Because the instance is created once, \code{config}, \code{read_only}, \code{home}, and
 \code{shared_home} take effect only at creation; a call that reuses an existing
