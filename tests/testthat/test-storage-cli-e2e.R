@@ -61,9 +61,9 @@ local_matching_cli <- function() {
   cli
 }
 
-# Point both the engine (via Sys.getenv-based duckdb_shared_home()) and the CLI
-# (via its own HOME/USERPROFILE expansion) at the same throwaway home, so the
-# "shared" root resolves to one place for both. Returns the shared
+# Point both the engine and the CLI at the same throwaway `~/.duckdb`: the CLI
+# derives it from HOME/USERPROFILE, and we point the R engine at the matching
+# `duckdb_shared_home()` via the `duckdb.home` option. Returns the shared
 # stored-secrets directory the R side will use.
 local_shared_home <- function(.local_envir = parent.frame()) {
   home <- withr::local_tempdir("e2e-cli-home-", .local_envir = .local_envir)
@@ -72,7 +72,13 @@ local_shared_home <- function(.local_envir = parent.frame()) {
   withr::local_envvar(
     HOME = home,
     USERPROFILE = home,
-    DUCKDB_SECRET_DIRECTORY = NA,
+    DUCKDB_R_HOME = NA,
+    .local_envir = .local_envir
+  )
+  # Use that ~/.duckdb explicitly rather than relying on the "exists" check, so
+  # the R side writes there even before the directory has been created.
+  withr::local_options(
+    duckdb.home = duckdb_shared_home(),
     .local_envir = .local_envir
   )
   file.path(duckdb_shared_home(), "stored_secrets")
@@ -82,11 +88,10 @@ test_that("a secret created in R is visible to the DuckDB CLI", {
   cli <- local_matching_cli()
   shared_secret_dir <- local_shared_home()
 
-  # The R engine writes its persistent secret into the shared root. We resolve
-  # the path through duckdb_shared_home() (the function under test) rather than
-  # hard-coding it, so a wrong home base fails this test.
-  withr::local_options(duckdb.secret_directory = shared_secret_dir)
-
+  # The R engine writes its persistent secret into the shared root (pointed
+  # there by local_shared_home() via the duckdb.home option). We resolve the
+  # path through duckdb_shared_home() rather than hard-coding it, so a wrong home
+  # base fails this test.
   con <- local_con()
   dbExecute(
     con,
@@ -119,7 +124,6 @@ test_that("a secret created by the DuckDB CLI is visible to R", {
   )
 
   # R, reading the shared root, must see the CLI's secret.
-  withr::local_options(duckdb.secret_directory = shared_secret_dir)
   con <- local_con()
   secrets <- dbGetQuery(con, "SELECT name FROM duckdb_secrets()")
   expect_true("cli_to_r" %in% secrets$name)

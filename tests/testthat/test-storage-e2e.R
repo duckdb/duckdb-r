@@ -1,14 +1,62 @@
 # End-to-end tests against the bundled DuckDB engine: a persistent secret and a
-# downloaded extension should land in the directories the storage-location
-# policy resolves (plan/PLAN-storage-locations.md). These exercise the real
-# engine, so they skip on CRAN; the extension test additionally skips, best
-# effort, when the download/install fails (e.g. no network).
+# downloaded extension should land under the home directory the storage-location
+# policy resolves (see ?duckdb_storage). These exercise the real engine, so they
+# skip on CRAN; the extension test additionally skips, best effort, when the
+# download/install fails (e.g. no network).
 
-test_that("a persistent secret is written to the configured secret directory", {
+test_that("a non-interactive connect announces the storage location, unless chosen", {
   skip_on_cran()
-  secret_dir <- withr::local_tempdir("e2e-secrets-")
-  withr::local_envvar(DUCKDB_SECRET_DIRECTORY = NA)
-  withr::local_options(duckdb.secret_directory = secret_dir)
+  withr::local_options(duckdb.home = NULL, rlang_interactive = FALSE)
+  withr::local_envvar(DUCKDB_R_HOME = NA)
+  local_mocked_bindings(
+    duckdb_shared_home = function() file.path(tempdir(), "no-such-home-msg")
+  )
+
+  # Auto-resolved (no ~/.duckdb, no args) -> the tempdir message fires once.
+  storage_message_state[["storage_location"]] <- NULL
+  drv <- NULL
+  expect_message({ drv <- duckdb() }, "temporary directory")
+  duckdb_shutdown(drv)
+
+  # Explicit opt-out with shared_home = FALSE -> suppressed.
+  storage_message_state[["storage_location"]] <- NULL
+  expect_no_message({ drv <- duckdb(shared_home = FALSE) })
+  duckdb_shutdown(drv)
+})
+
+test_that("an interactive yes announces creation; a no announces the tempdir", {
+  skip_on_cran()
+  withr::local_options(duckdb.home = NULL, rlang_interactive = TRUE)
+  withr::local_envvar(DUCKDB_R_HOME = NA)
+  drv <- NULL
+
+  # "yes" -> ~/.duckdb created, short confirmation shown.
+  shared <- file.path(withr::local_tempdir(), ".duckdb")
+  storage_message_state[["home_prompt_declined"]] <- NULL
+  local_mocked_bindings(
+    duckdb_shared_home = function() shared,
+    consent_to_create_home = function(path) TRUE
+  )
+  expect_message({ drv <- duckdb() }, "created")
+  duckdb_shutdown(drv)
+  expect_true(dir.exists(shared))
+
+  # "no" -> tempdir, and the storage-location message is announced.
+  storage_message_state[["home_prompt_declined"]] <- NULL
+  storage_message_state[["storage_location"]] <- NULL
+  local_mocked_bindings(
+    duckdb_shared_home = function() file.path(tempdir(), "no-such-home-int"),
+    consent_to_create_home = function(path) FALSE
+  )
+  expect_message({ drv <- duckdb() }, "temporary directory")
+  duckdb_shutdown(drv)
+})
+
+test_that("a persistent secret is written under the configured home", {
+  skip_on_cran()
+  home <- withr::local_tempdir("e2e-home-")
+  withr::local_envvar(DUCKDB_R_HOME = NA)
+  withr::local_options(duckdb.home = home)
 
   con <- local_con()
 
@@ -20,14 +68,18 @@ test_that("a persistent secret is written to the configured secret directory", {
 
   secrets <- dbGetQuery(con, "SELECT name FROM duckdb_secrets()")
   expect_true("e2e_secret" %in% secrets$name)
-  expect_true(file.exists(file.path(secret_dir, "e2e_secret.duckdb_secret")))
+  expect_true(file.exists(file.path(
+    home,
+    "stored_secrets",
+    "e2e_secret.duckdb_secret"
+  )))
 })
 
-test_that("the httpfs extension installs and loads into the configured cache", {
+test_that("the httpfs extension installs and loads under the configured home", {
   skip_on_cran()
-  ext_dir <- withr::local_tempdir("e2e-ext-")
-  withr::local_envvar(DUCKDB_EXTENSION_DIRECTORY = NA)
-  withr::local_options(duckdb.extension_directory = ext_dir)
+  home <- withr::local_tempdir("e2e-home-ext-")
+  withr::local_envvar(DUCKDB_R_HOME = NA)
+  withr::local_options(duckdb.home = home)
 
   con <- local_con()
 
@@ -52,7 +104,11 @@ test_that("the httpfs extension installs and loads into the configured cache", {
   )
   expect_true(isTRUE(loaded$loaded))
 
-  # The binary was cached under the directory we pointed the setting at.
-  cached <- list.files(ext_dir, recursive = TRUE, pattern = "httpfs")
+  # The binary was cached under the extensions sub-directory of the home.
+  cached <- list.files(
+    file.path(home, "extensions"),
+    recursive = TRUE,
+    pattern = "httpfs"
+  )
   expect_gt(length(cached), 0)
 })

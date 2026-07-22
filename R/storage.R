@@ -5,217 +5,178 @@
 #
 # The CRAN Repository Policy says a package should not write in the user's home
 # filespace, "nor anywhere else on the file system apart from the R session's
-# temporary directory". The defaults below keep every writable location under
-# tempdir() so that, with no config/option/env/marker, nothing is written
-# outside the session temporary directory and reverse dependencies pass checks
-# with no action:
-#   * Extensions, secrets, and the in-memory temp/spill directory are pointed at
-#     tempdir() explicitly, overriding DuckDB's own defaults (a sub-directory of
-#     the DuckDB home, $HOME/.duckdb, and a `.tmp` directory in the working
-#     directory, respectively).
+# temporary directory". The package therefore never *creates* anything in the
+# home directory on its own: in a non-interactive session (all package checks)
+# extensions and secrets go under tempdir() unless a `~/.duckdb` already exists
+# or a location is set explicitly, so reverse dependencies pass checks with no
+# action. `~/.duckdb` is only ever created after an explicit, interactive
+# confirmation from the user. Nothing is written to the package/user library.
+#
+# Why the extension and secret locations are set explicitly (rather than via
+# DuckDB's own `home_directory`): setting `home_directory` is both incomplete
+# (it does not move the spill directory) and too broad (it is also the base for
+# `~` expansion in user SQL, so it would silently redirect paths like
+# `COPY ... TO '~/out.csv'`). We therefore leave `home_directory` alone and set
+# `extension_directory`, `secret_directory`, and `temp_directory` -- all
+# database-global settings, applied via `duckdb()` -- directly.
+#
 # The package's tests and runnable examples also avoid the bundled C++ engine on
 # CRAN; see the CRAN guard in tests/testthat.R.
-#
-# Why each location is set explicitly rather than via `home_directory`: setting
-# `home_directory` would be incomplete (it relocates the extension cache but not
-# secrets, whose path the secret manager binds at startup from $HOME, nor spill
-# files) and too broad (it is also the base for `~` expansion in user SQL, so it
-# would silently redirect paths like `COPY ... TO '~/out.csv'`). We therefore
-# leave `home_directory` alone and set `extension_directory`, `secret_directory`,
-# and `temp_directory` -- all database-global settings, applied via `duckdb()` --
-# directly.
 
 #' DuckDB file-system usage: storage locations and how they are resolved
 #'
 #' @description
 #' `r lifecycle::badge('experimental')`
 #'
-#' DuckDB writes several distinct kinds of data to the file system. This page
-#' catalogs every such location and documents the unified policy the duckdb R
-#' package uses to choose them, so that by default nothing is written outside
-#' the R session's temporary directory.
+#' DuckDB writes several distinct kinds of data to the file system.
+#' This page catalogs every such location
+#' and documents the policy the duckdb R package uses to choose them.
+#' By default the package never creates anything in your home directory on its own:
+#' downloaded extensions and stored secrets go under the R session's temporary directory
+#' unless a `~/.duckdb` directory already exists
+#' (or you point the package somewhere explicitly).
 #'
-#' The functions that configure these locations are documented in
-#' [duckdb_storage_config()].
+#' [duckdb_storage_status()] reports where each location currently resolves.
 #'
 #' # Kinds of on-disk state
 #'
 #' \describe{
 #'   \item{Home directory}{The base DuckDB uses to expand a leading `~` and to
-#'     derive default sub-locations such as the extension cache. DuckDB setting:
-#'     `home_directory`. The package does not set this: doing so would also
-#'     redirect `~` in user SQL (e.g. `COPY ... TO '~/out.csv'`). Each location
-#'     below is pointed at a temporary directory directly instead.}
+#'     derive default sub-locations. DuckDB setting: `home_directory`. The
+#'     package does not set this: doing so would also redirect `~` in user SQL
+#'     (e.g. `COPY ... TO '~/out.csv'`). The extension and secret locations
+#'     below are pointed at the resolved home root directly instead.}
 #'   \item{Extension binaries}{Downloaded `*.duckdb_extension` files (e.g.
 #'     `spatial`, `httpfs`, `h3`). DuckDB setting: `extension_directory`. A
-#'     re-usable cache: a given binary is valid only for the exact DuckDB
-#'     version and platform/ABI that downloaded it. Set explicitly to a
-#'     [tempdir()] location by default, and kept across sessions by pointing it
-#'     at a persistent root with [duckdb_storage_config()].}
+#'     re-usable cache placed at `<home>/extensions`, where `<home>` is resolved
+#'     as described below.}
 #'   \item{Stored secrets}{Persisted credentials under `stored_secrets`. DuckDB
-#'     setting: `secret_directory`. Set explicitly to a [tempdir()] location by
-#'     default. Configured and migrated with [duckdb_storage_config()].}
+#'     setting: `secret_directory`. Placed at `<home>/stored_secrets`, the same
+#'     `<home>`.}
 #'   \item{Temporary / spill files}{Out-of-core intermediates for sorts, hash
 #'     joins, and similar operations. DuckDB settings: `temp_directory`,
 #'     `max_temp_directory_size`. For an in-memory (`:memory:`) database DuckDB's
 #'     own default spills to `.tmp` in the current working directory, so the
-#'     package overrides it with a [tempdir()] sub-directory by default.}
+#'     package overrides it with a [tempdir()] sub-directory by default. This is
+#'     a separate knob from the extension/secret home (see below).}
 #'   \item{Logs and profiling output}{Written only when a path is explicitly
 #'     configured (DuckDB settings `log_query_path`, `http_logging_output`,
-#'     profiling output). They default to *off*, so there is no location to
-#'     default and nothing is written without the user asking. If the user turns
-#'     logging on they choose where it goes.}
+#'     profiling output). They default to *off*, so nothing is written without
+#'     the user asking, and the user chooses where it goes.}
 #'   \item{Database file, WAL, and checkpoints}{Chosen by the user through the
-#'     `dbdir` argument of [duckdb()]. The package does not manage these: an
-#'     on-disk database and its sidecar files live where `dbdir` points, and an
-#'     in-memory (`:memory:`) database has none.}
+#'     `dbdir` argument of [duckdb()]. The package does not manage these.}
 #' }
 #'
-#' # Resolution policy
+#' # Resolving the home directory
 #'
-#' Each managed location is resolved through the same ordered chain. The first
-#' source that yields a value wins:
+#' Extensions and secrets share one *home* root, resolved fresh on every call to
+#' [duckdb()] that creates a new database driver object.
+#' The first source that yields a value wins:
 #'
-#' 1. an explicit value passed to [duckdb()] via `config` (e.g.
-#'    `config = list(temp_directory = "...")`);
-#' 1. the corresponding R option, e.g. `getOption("duckdb.temp_directory")`;
-#' 1. the corresponding environment variable, e.g.
-#'    `Sys.getenv("DUCKDB_TEMP_DIRECTORY")`;
-#' 1. a persistent location selected by a marker file (see below);
-#' 1. the default: a per-session sub-directory of [tempdir()].
+#' 1. the `home` argument to [duckdb()];
+#' 1. the `duckdb.home` R option, e.g.
+#'    `options(duckdb.home = "/path/to/duckdb")`;
+#' 1. the `DUCKDB_R_HOME` environment variable;
+#' 1. `~/.duckdb`, if that directory already exists -- the location shared with
+#'    the DuckDB CLI and other clients;
+#' 1. In interactive sessions only, the package offers to create `~/.duckdb`
+#'    once: answer "yes" to create and use it, "no" to fall through to the
+#'    temporary directory below, or cancel the prompt to abort with an error.
+#' 1. Otherwise a per-session sub-directory of [tempdir()].
 #'
-#' # Marker files
+#' The extension cache is then `<home>/extensions` and the secret store is
+#' `<home>/stored_secrets`.
 #'
-#' Persisting data across sessions means writing outside [tempdir()]; a marker
-#' file records the user's consent to do so, once, so it need not be re-granted
-#' on every connection and does not require editing `.Rprofile` or `.Renviron`.
+#' Because the decision is remade on every new driver object, creating
+#' `~/.duckdb` (or setting the option/variable) takes effect immediately for
+#' drivers created afterwards.
+#' Existing drivers are unaffected.
 #'
-#' Two functions write and relocate these markers -- one per kind of state, so
-#' the two can be configured independently -- and a third reports the current
-#' state. They are documented in full on [duckdb_storage_config()]:
-#'
-#' ```r
-#' duckdb_extension_storage(location, ..., migrate = TRUE, conflict = "error")
-#' duckdb_secret_storage(location, ..., migrate = TRUE, conflict = "error")
-#' duckdb_storage_status()
-#' ```
-#'
-#' A `*_storage()` call writes the marker at `location` (creating, relocating,
-#' or -- with `"session"` -- removing it); `duckdb_storage_status()` reports
-#' where each kind currently resolves and how it was chosen. There is no `ask`
-#' argument: calling a `*_storage()` function *is* the consent.
-#'
-#' ## The `location` argument
-#'
-#' `location` names a *root*, not a full path. (To point a kind at an arbitrary
-#' directory, use the option or environment variable instead -- a marker is only
-#' ever rediscovered in one of the fixed roots below.) The recognized roots are:
-#'
-#' \describe{
-#'   \item{`"session"`}{`tempdir()` -- the default, and the opt-out: setting it
-#'     removes the marker and reverts that kind to a per-session location.}
-#'   \item{`"user"`}{[tools::R_user_dir()] -- R-specific, private to this
-#'     package, surviving package upgrades.}
-#'   \item{`"shared"`}{`~/.duckdb` -- shared with the DuckDB CLI and Python
-#'     client.}
-#' }
-#'
-#' ## The marker file
-#'
-#' The marker's name and contents make clear it belongs to the R package, so a
-#' user inspecting the directory can tell at a glance what created it. This
-#' matters most in the `"shared"` root (`~/.duckdb`), which is also used by the
-#' DuckDB CLI and Python client:
-#'
-#' ```
-#' <root>/extensions/.duckdb-r-keep        # opts in the extension cache
-#' <root>/stored_secrets/.duckdb-r-keep    # opts in stored secrets
-#' ```
-#'
-#' It is not empty: the package writes a single line of human-readable text
-#' describing what the file is and that it is safe to delete. Only the file's
-#' presence is significant -- the contents are never read back or validated, so
-#' editing it has no effect.
-#'
-#' Markers are per-kind and live inside each kind's sub-directory, so one root
-#' can persist extensions but not stored secrets, or vice versa. For extensions in a
-#' persistent root, DuckDB's `v<version>/<platform>/` sub-paths keep a stale
-#' binary from being loaded into a newer, ABI-incompatible build.
-#'
-#' ## Migration
-#'
-#' `migrate = TRUE` moves the already-cached files from the current location to
-#' the new root. `conflict` decides what happens when a file of the same name
-#' exists at the destination: `"error"` (the default) aborts and lists the
-#' collisions without moving anything; `"ours"` lets the files being relocated
-#' win (overwriting the destination); `"theirs"` keeps the destination files and
-#' drops the colliding sources. Secret migration is folded into
-#' `duckdb_secret_storage()`.
-#'
-#' ## Rules
-#'
-#' * An option or environment variable overrides any marker.
-#' * A kind's marker present in more than one root is ambiguous: when a
-#'   connection is opened the package emits a message naming the candidates and
-#'   falls back to the [tempdir()] default until the ambiguity is resolved.
-#' * The package never ships a marker. The only writes are by
-#'   `duckdb_extension_storage()` / `duckdb_secret_storage()`.
-#' * A marked location that is not writable falls back to the [tempdir()]
-#'   default rather than failing.
-#'
-#' A marker selects the *location*. It is deliberately distinct from the
-#' presence of a cached binary: an extension found under `v<version>/<platform>/`
-#' governs only *validity* (whether a re-download is needed), never the choice
-#' of location. This separation prevents a stale leftover binary from silently
-#' resurrecting a store root and reintroducing an ABI mismatch.
+#' The `shared_home` argument of [duckdb()] overrides this resolution:
+#' `shared_home = TRUE` uses (and creates) `~/.duckdb`, and `shared_home = FALSE`
+#' forces a per-session [tempdir()] even if `~/.duckdb` already exists.
 #'
 #' # Per-location reference
 #'
-#' | Kind        | DuckDB setting        | Option / environment variable                              | Default                          |
-#' |-------------|-----------------------|------------------------------------------------------------|----------------------------------|
-#' | Home        | `home_directory`      | --                                                         | left untouched (not set)            |
-#' | Extensions  | `extension_directory` | `duckdb.extension_directory` / `DUCKDB_EXTENSION_DIRECTORY` | `tempdir()` sub-directory (set)     |
-#' | Stored secrets | `secret_directory` | `duckdb.secret_directory` / `DUCKDB_SECRET_DIRECTORY`       | `tempdir()` sub-directory (set)     |
-#' | Temp/spill  | `temp_directory`      | `duckdb.temp_directory` / `DUCKDB_TEMP_DIRECTORY`          | `tempdir()` sub-directory (set)     |
-#' | Logs        | `log_query_path`      | `duckdb.log_directory` / `DUCKDB_LOG_DIRECTORY`            | disabled (off)                      |
+#' | Kind           | DuckDB setting        | How to set it                                                         | Default                          |
+#' |----------------|-----------------------|-----------------------------------------------------------------------|----------------------------------|
+#' | Home           | `home_directory`      | --                                                                    | left untouched (not set)         |
+#' | Extensions     | `extension_directory` | `home` arg / `duckdb.home` / `DUCKDB_R_HOME` (as `<home>/extensions`) | `tempdir()` sub-directory (set)  |
+#' | Stored secrets | `secret_directory`    | like extensions (`<home>/stored_secrets`)                             | `tempdir()` sub-directory (set)  |
+#' | Temp/spill     | `temp_directory`      | `duckdb.temp_directory` / `DUCKDB_R_TEMP_DIRECTORY`                   | `tempdir()` sub-directory (set)  |
+#' | Logs           | `log_query_path`      | DuckDB setting                                                        | disabled (off)                   |
 #'
-#' "set" means `duckdb()` sets the value explicitly in the database config. The
-#' home directory is left untouched so that `~` in user SQL keeps its usual
-#' meaning.
+#' "set" means `duckdb()` sets the value explicitly in the database config.
+#' The home directory is left untouched so that `~` in user SQL keeps its usual meaning.
+#' An `extension_directory` / `secret_directory` / `temp_directory`
+#' passed directly in the `config` list is always honored
+#' and takes precedence over the resolution above.
 #'
 #' # Messages
 #'
 #' \describe{
-#'   \item{Startup message}{When a connection is established and the resolved
-#'     extension cache lies inside [tempdir()], the package emits an
-#'     informational message -- at most once every eight hours per session,
-#'     including in unattended (non-interactive) runs. It explains that
-#'     downloaded extensions will not persist across sessions and how to opt
-#'     into a permanent location. It is shown only when the package chose the
-#'     location itself; if you set the extension directory (via `config`, the
-#'     option, or the environment variable) the choice is yours and the message
-#'     is suppressed.}
+#'   \item{Storage-location message}{When the package picked the location itself
+#'     (a per-session [tempdir()], or an existing `~/.duckdb`), `duckdb()` emits
+#'     an informational message describing where extensions and secrets are
+#'     going and how to change it. It is throttled by session type: in an
+#'     **interactive** session at most once every eight hours (a human can act
+#'     on it); in a **non-interactive** session up to 100 times, after which it
+#'     goes silent for good, so a long-running or automated process is not
+#'     reminded forever. The message is suppressed entirely when you chose the
+#'     location yourself -- the `home` or `shared_home` argument, the
+#'     `duckdb.home` option, or the `DUCKDB_R_HOME` environment variable.
+#'     Non-interactively it covers both the temporary directory and an existing
+#'     `~/.duckdb`; interactively it is issued only when the user opts out of
+#'     creating `~/.duckdb`.
+#'   }
 #' }
 #'
-#' ## Silencing the startup message
+#' ## Silencing the message
 #'
-#' Pointing the extension cache at a permanent location (an option, an
-#' environment variable, or `config`) both keeps the extensions and silences the
-#' message. If you are happy with a temporary cache and only want the reminder
-#' gone, set the location explicitly so it counts as your choice -- the simplest
-#' is a `config` entry on every connection:
+#' Make the choice explicit and it is no longer announced.
+#' Pass `shared_home` to [duckdb()] -- `TRUE` to keep extensions and secrets under `~/.duckdb`,
+#' `FALSE` to accept a per-session temporary directory.
+#' Alternatively, point `home` (or the `duckdb.home` option / `DUCKDB_R_HOME` variable)
+#' at a location of your choice.
+#' As a last resort, use [suppressMessages()]:
 #'
 #' ```r
-#' con <- dbConnect(duckdb(config = list(
-#'   extension_directory = file.path(tempdir(), "duckdb", "extensions")
-#' )))
+#' # Explicit arguments:
+#' con <- dbConnect(duckdb(shared_home = FALSE))
+#' con <- dbConnect(duckdb(home = "/path/to/duckdb"))
+#'
+#' # As a fallback:
+#' con <- suppressMessages(dbConnect(duckdb()))
+#'
+#' # With configuration:
+#' Sys.setenv(DUCKDB_R_HOME = "/path/to/duckdb")
+#' con <- dbConnect(duckdb())
+#' options(duckdb.home = "/path/to/duckdb")
+#' con <- dbConnect(duckdb())
 #' ```
 #'
-#' or set it once per session with
-#' `options(duckdb.extension_directory = file.path(tempdir(), "duckdb", "extensions"))`
-#' (or the `DUCKDB_EXTENSION_DIRECTORY` environment variable).
+#' # Use by other packages
 #'
-#' @seealso [duckdb_storage_config()] for the functions that configure these
-#'   locations, and [duckdb()] for the `config` argument.
+#' Packages that use duckdb inherit this policy:
+#'
+#' * duckdb never writes outside [tempdir()] on its own during checks.
+#'   In a non-interactive session (which all `R CMD check` runs are)
+#'   it uses `tempdir()` by default unless a `~/.duckdb` already exists,
+#'   and it never *creates* `~/.duckdb` unless requested.
+#'   So a package that merely opens a database needs no special handling.
+#' * Downloading and installing an extension is the caller's responsibility.
+#'   Ensure that all tests involving extensions are skipped if the download fails.
+#'   For robust testing on CRAN and other platforms,
+#'   ensure that the extensions your package uses can be downloaded and installed.
+#'   Run the check in a subprocess to avoid crashing the main R process
+#'   if the extension is incompatible with the platform.
+#'   To force a throwaway cache in your own tests, connect with an explicit home:
+#'
+#' ```r
+#' tempdir_for_tests <- withr::local_tempdir()
+#' con <- DBI::dbConnect(duckdb::duckdb(home = tempdir_for_tests))
+#' ```
+#'
+#' @seealso [duckdb()] for the `home` and `shared_home` arguments.
 #' @name duckdb_storage
 NULL

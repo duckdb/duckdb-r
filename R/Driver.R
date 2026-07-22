@@ -28,6 +28,31 @@ driver_registry <- new.env(parent = emptyenv())
 #' @description
 #' `duckdb()` creates or reuses a database instance.
 #'
+#' @param home Root directory for DuckDB's downloaded extensions and stored secrets.
+#'   `NULL` (the default) resolves the location as described in [duckdb_storage]:
+#'   an existing `~/.duckdb`, else a per-session temporary directory
+#'   (with an offer to create `~/.duckdb` in interactive sessions).
+#'   Pass a path to use it as the root explicitly, creating it if needed.
+#'   Cannot be combined with `shared_home`.
+#' @param shared_home Opt in or out of the shared `~/.duckdb` location,
+#'   overriding the automatic resolution.
+#'   One of:
+#'   * `NULL` (the default) -- resolve automatically (see [duckdb_storage]).
+#'     This is the safe default.
+#'   * `TRUE` -- store extensions and secrets under `~/.duckdb`, **creating that
+#'     directory if it does not exist**.
+#'     This is a good setting for permanent deployments (Posit Connect, Shiny, APIs).
+#'     Do not use on CRAN or on other infrastructure where you don't own `~/.duckdb`.
+#'
+#'     The setting is a durable, machine-level side effect that is *not* scoped to the current session:
+#'     the directory persists after R exits, is reused by every future R session
+#'     (and by the DuckDB CLI, Python and other clients that share `~/.duckdb`),
+#'     and any secrets written there outlive this process.
+#'     Applying this setting repeatedly is a fast no-op.
+#'   * `FALSE` -- use a per-session temporary directory even if `~/.duckdb`
+#'     already exists. Nothing persists beyond the session.
+#'
+#'   Cannot be combined with `home`.
 #' @param environment_scan Set to `TRUE` to treat
 #'   data frames from the calling environment as tables.
 #'   If a database table with the same name exists, it takes precedence.
@@ -43,11 +68,22 @@ duckdb <- function(
   bigint = "numeric",
   config = list(),
   ...,
+  home = NULL,
+  shared_home = NULL,
   environment_scan = FALSE
 ) {
   check_flag(read_only)
   if (...length() > 0) {
     stop("... must be empty")
+  }
+  if (
+    !is.null(shared_home) &&
+      !(is.logical(shared_home) && length(shared_home) == 1L && !is.na(shared_home))
+  ) {
+    stop("`shared_home` must be TRUE, FALSE, or NULL.", call. = FALSE)
+  }
+  if (!is.null(home) && !is.null(shared_home)) {
+    stop("Pass either `home` or `shared_home`, not both.", call. = FALSE)
   }
 
   convert_opts <- duckdb_convert_opts(bigint = bigint)
@@ -67,21 +103,40 @@ duckdb <- function(
   }
 
   # Choose CRAN-safe locations for the engine's writable state unless the user
-  # set them explicitly. The extension cache defaults to a temporary directory
-  # (persist it with `duckdb_extension_storage()`); the temp/spill directory is
-  # redirected for in-memory databases. See `?duckdb_storage`.
-  if (!("extension_directory" %in% names(config))) {
-    extension <- resolve_extension_directory()
-    config["extension_directory"] <- extension$directory
-    # Nag about ephemeral caching only for the per-session tempdir default. The
-    # other sources are all persistent -- an option/env override, or a marked
-    # user/shared root -- so there is nothing ephemeral to warn about.
-    if (identical(extension$source, "session")) {
-      maybe_ephemeral_state_message(extension$directory)
+  # set them explicitly. Extensions and secrets share a "home" directory
+  # resolved fresh on every call (an existing ~/.duckdb, else a temporary
+  # directory; see `?duckdb_storage`); the temp/spill directory is redirected
+  # for in-memory databases.
+  need_extension <- !("extension_directory" %in% names(config))
+  need_secret <- !("secret_directory" %in% names(config))
+  if (need_extension || need_secret) {
+    resolved_home <- resolve_storage_home(home, shared_home)
+    if (need_extension) {
+      config["extension_directory"] <- home_subdir(
+        resolved_home$root,
+        "extensions"
+      )
     }
-  }
-  if (!("secret_directory" %in% names(config))) {
-    config["secret_directory"] <- resolve_secret_directory()$directory
+    if (need_secret) {
+      config["secret_directory"] <- home_subdir(
+        resolved_home$root,
+        "stored_secrets"
+      )
+    }
+    # Report where storage resolved (once), unless the caller chose the location
+    # explicitly with `home` or `shared_home` (or a `duckdb.home` option /
+    # `DUCKDB_R_HOME` variable, which yield sources "option"/"env"). A tempdir
+    # ("session") is announced in both modes -- non-interactively, and
+    # interactively when the user opted out of creating ~/.duckdb; an existing
+    # ~/.duckdb ("shared") is announced only non-interactively (interactively it
+    # is the user's own directory, used without a prompt).
+    announce <- is.null(home) &&
+      is.null(shared_home) &&
+      (identical(resolved_home$source, "session") ||
+        (!is_interactive() && identical(resolved_home$source, "shared")))
+    if (announce) {
+      maybe_storage_location_message(resolved_home)
+    }
   }
   if (!("temp_directory" %in% names(config))) {
     temp_directory <- resolve_temp_directory(dbdir)$directory
