@@ -64,30 +64,34 @@ Subsequent connections will silently ignore these flags.}
 
 \item{...}{These dots are for future extensions and must be empty.}
 
-\item{home}{Root directory for DuckDB's downloaded extensions and stored
-secrets. \code{NULL} (the default) resolves the location as described in
-\link{duckdb_storage}: an existing \verb{~/.duckdb}, else a per-session temporary
-directory (with, in interactive sessions, a one-time offer to create
-\verb{~/.duckdb}). Pass a path to use it as the root explicitly, creating it if
-needed.}
+\item{home}{Root directory for DuckDB's downloaded extensions and stored secrets.
+\code{NULL} (the default) resolves the location as described in \link{duckdb_storage}:
+an existing \verb{~/.duckdb}, else a per-session temporary directory
+(with an offer to create \verb{~/.duckdb} in interactive sessions).
+Pass a path to use it as the root explicitly, creating it if needed.
+Cannot be combined with \code{shared_home}.}
 
 \item{shared_home}{Opt in or out of the shared \verb{~/.duckdb} location,
-overriding the automatic resolution. One of:
+overriding the automatic resolution.
+One of:
 \itemize{
 \item \code{NULL} (the default) -- resolve automatically (see \link{duckdb_storage}).
+This is the safe default.
 \item \code{TRUE} -- store extensions and secrets under \verb{~/.duckdb}, \strong{creating that
-directory if it does not exist}. This is a durable, machine-level side
-effect that is \emph{not} scoped to the current session: the directory
-persists after R exits, is reused by every future R session (and by the
-DuckDB CLI and Python client that share \verb{~/.duckdb}), and any secrets
-written there outlive this process. Pass \code{TRUE} only when you intend
-that. It opts in without a prompt, so it also works non-interactively
-(CI, Posit Connect).
-\item \code{FALSE} -- use a per-session temporary directory even if \verb{~/.duckdb}
-already exists (nothing persists beyond the session).
+directory if it does not exist}.
+This is a good setting for permanent deployments (Posit Connect, Shiny, APIs).
+Do not use on CRAN or on other infrastructure where you don't own \verb{~/.duckdb}.
+
+The setting is a durable, machine-level side effect that is \emph{not} scoped to the current session:
+the directory persists after R exits, is reused by every future R session
+(and by the DuckDB CLI, Python and other clients that share \verb{~/.duckdb}),
+and any secrets written there outlive this process.
+Applying this setting repeatedly is a fast no-op.
+\item \code{FALSE} -- use a per-session temporary directory even if \verb{~/.duckdb} already exists-
+Nothing persists beyond the session.
 }
 
-Cannot be combined with \code{home}. See \link{duckdb_storage}.}
+Cannot be combined with \code{home}.}
 
 \item{environment_scan}{Set to \code{TRUE} to treat
 data frames from the calling environment as tables.
