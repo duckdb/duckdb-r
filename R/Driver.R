@@ -34,6 +34,8 @@ driver_registry <- new.env(parent = emptyenv())
 #'   (with an offer to create `~/.duckdb` in interactive sessions).
 #'   Pass a path to use it as the root explicitly, creating it if needed.
 #'   Cannot be combined with `shared_home`.
+#'   Like `config`, this takes effect only when a new database instance is
+#'   created; a call that reuses a cached driver for the same `dbdir` ignores it.
 #' @param shared_home Opt in or out of the shared `~/.duckdb` location,
 #'   overriding the automatic resolution.
 #'   One of:
@@ -53,6 +55,8 @@ driver_registry <- new.env(parent = emptyenv())
 #'     already exists. Nothing persists beyond the session.
 #'
 #'   Cannot be combined with `home`.
+#'   Like `config`, this takes effect only when a new database instance is
+#'   created; a call that reuses a cached driver for the same `dbdir` ignores it.
 #' @param environment_scan Set to `TRUE` to treat
 #'   data frames from the calling environment as tables.
 #'   If a database table with the same name exists, it takes precedence.
@@ -78,7 +82,9 @@ duckdb <- function(
   }
   if (
     !is.null(shared_home) &&
-      !(is.logical(shared_home) && length(shared_home) == 1L && !is.na(shared_home))
+      !(is.logical(shared_home) &&
+        length(shared_home) == 1L &&
+        !is.na(shared_home))
   ) {
     stop("`shared_home` must be TRUE, FALSE, or NULL.", call. = FALSE)
   }

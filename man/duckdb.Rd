@@ -69,7 +69,9 @@ Subsequent connections will silently ignore these flags.}
 an existing \verb{~/.duckdb}, else a per-session temporary directory
 (with an offer to create \verb{~/.duckdb} in interactive sessions).
 Pass a path to use it as the root explicitly, creating it if needed.
-Cannot be combined with \code{shared_home}.}
+Cannot be combined with \code{shared_home}.
+Like \code{config}, this takes effect only when a new database instance is
+created; a call that reuses a cached driver for the same \code{dbdir} ignores it.}
 
 \item{shared_home}{Opt in or out of the shared \verb{~/.duckdb} location,
 overriding the automatic resolution.
@@ -91,7 +93,9 @@ Applying this setting repeatedly is a fast no-op.
 already exists. Nothing persists beyond the session.
 }
 
-Cannot be combined with \code{home}.}
+Cannot be combined with \code{home}.
+Like \code{config}, this takes effect only when a new database instance is
+created; a call that reuses a cached driver for the same \code{dbdir} ignores it.}
 
 \item{environment_scan}{Set to \code{TRUE} to treat
 data frames from the calling environment as tables.
