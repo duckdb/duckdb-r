@@ -162,10 +162,11 @@ and takes precedence over the resolution above.</p>
 (a per-session <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code>, or an existing <code>~/.duckdb</code>), <code><a href="duckdb.html">duckdb()</a></code> emits
 an informational message describing where extensions and secrets are
 going and how to change it. It is throttled by session type: in an
-<strong>interactive</strong> session at most once every eight hours (a human can act
-on it); in a <strong>non-interactive</strong> session up to 100 times, after which it
-goes silent for good, so a long-running or automated process is not
-reminded forever. The message is suppressed entirely when you chose the
+<strong>interactive</strong> session at most once every eight hours (a human can act on it);
+in a <strong>non-interactive</strong> session up to 60 times,
+after which it goes silent for good,
+so a long-running or automated process is not reminded forever.
+The message is suppressed entirely when you chose the
 location yourself – the <code>home</code> or <code>shared_home</code> argument, the
 <code>duckdb.home</code> option, or the <code>DUCKDB_R_HOME</code> environment variable.
 Non-interactively it covers both the temporary directory and an existing
@@ -228,8 +229,8 @@ To force a throwaway cache in your own tests, connect with an explicit home:</p>
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu">duckdb_storage_status</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> DuckDB storage locations:</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   extensions      [session]  /tmp/Rtmp6NtqRK/duckdb/extensions</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   stored_secrets  [session]  /tmp/Rtmp6NtqRK/duckdb/stored_secrets</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   extensions      [session]  /tmp/RtmpC0nyPR/duckdb/extensions</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   stored_secrets  [session]  /tmp/RtmpC0nyPR/duckdb/stored_secrets</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
