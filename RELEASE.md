@@ -14,7 +14,7 @@ branches:
 - `lts` — `stable` + the flavor rename (`Package: duckdb.L`); exists only for an
   LTS line.
 - `dev` — bleeding edge on `krlmlr/duckdb-r` (`Package: duckdb.L.dev`), vendored
-  hourly from the upstream branch for `L`.
+  daily from the upstream branch for `L`.
 - `dev-base` — the last reviewed/released point of `dev`.
 
 At any moment a series is in exactly one of four **clusters**. The clusters —
@@ -25,7 +25,7 @@ release together (see [Multi-line coordination](#multi-line-coordination)).
 
 | Cluster | States | Driver | Mutates `main` glue? | Vendored commits → mainline? | Loops? |
 |---------|--------|--------|----------------------|------------------------------|--------|
-| **TRACK** | 0 | automation (hourly) | no — forward-ports pass *through* | no | — |
+| **TRACK** | 0 | automation (daily) | no — forward-ports pass *through* | no | — |
 | **STABILIZE** | 0.1–0.5 | calendar / human (T−14 → tag) | **yes** (fold-back fixes are born here) | no | revdep ⇄ fold-back |
 | **CUT** | 1–5 | upstream tag, then mechanical | no | **yes — the only cluster that does** | red ⇄ fix-in-commit |
 | **RESET** | 6 | script | no | no | — |
@@ -42,7 +42,7 @@ stateDiagram-v2
     [*] --> TRACK
 
     state TRACK {
-        Tracking : 0 TRACKING — hourly vendor + forward-port, all green
+        Tracking : 0 TRACKING — daily vendor + forward-port, all green
     }
 
     state STABILIZE {
@@ -91,7 +91,7 @@ stateDiagram-v2
 | **0 TRACKING** | RESET done | grows: vendor + forward-port, all green | frozen | frozen at `X.Y.(Z-1)` | maintainer opens window (≈ T−14) | — |
 | **0.1 CANDIDATE PINNED** | window opens | fixes only; pin likely release commit | frozen | frozen | candidate green | — |
 | **0.2 REVDEP-1** | candidate pinned | — | — | — | revdep run triaged | — |
-| **0.3 FOLD-BACK** | findings exist | fold-back forward-ports land | frozen | **fixes born here**, then ported | findings resolved/accepted | loop to 0.2 |
+| **0.3 FOLD-BACK** | findings exist | fold-back forward-ports land | frozen | **fixes born here**, then ported | findings resolved/accepted | loop to 0.4 |
 | **0.4 REVDEP-2** | ≈ T−7 | — | — | — | **go / no-go** | fail → 0.3 |
 | **0.5 GLUE FREEZE** | go | frozen (barrier; all lines aligned) | frozen | frozen | upstream tags `vX.Y.Z` | late glue → re-arm 0.5 |
 | **1 VENDORED** | tag lands on `dev` | tagged vendor commit present | frozen | frozen | tagged commit **green** (`each.yaml`) | red → fix in-commit, force-push `dev` |
@@ -105,10 +105,11 @@ stateDiagram-v2
 
 ## TRACK — steady state
 
-Fully automated; there is nothing to do. `vendor.yaml` vendors the upstream
-branch for `L` hourly onto `dev`, `each.yaml` checks every new commit, and glue
-changes flow in from `main` via the forward-port chain. `dev-base..dev` is the
-running list of "what would ship if we released now."
+Fully automated; there is nothing to do. `vendor.yaml` runs daily and advances
+`dev` by a bounded batch, gated on the `rcc` commit-status of the last green base
+(`scripts/vendor-gate.sh`); `each.yaml` checks every new commit, and glue changes
+flow in from `main` via the forward-port chain. `dev-base..dev` is the running
+list of "what would ship if we released now."
 
 A maintainer leaves TRACK by **opening the release window** (≈ two weeks before
 the expected upstream release date), which enters STABILIZE.
@@ -159,7 +160,7 @@ Every fold-back fix is **born on `main`** and forward-ported down the chain — 
 authored directly on a `dev` branch (invariant **P3** / **S4**). C++ issues go into
 `patch/` and are simultaneously sent upstream as a PR so the patch can eventually
 be retired. Contact the maintainers of any broken reverse dependencies. Loop back
-to 0.2 until clean or explained.
+to 0.4 until clean or explained.
 
 ### 0.5 Glue freeze (barrier)
 
@@ -195,8 +196,8 @@ commit** (invariant **L**): fast-forward or rebase the tagged range onto
 is resolved automatically by the merge driver (see
 [BRANCHES.md → Version Numbering](BRANCHES.md#version-numbering)); run
 `scripts/setup-git.sh` first if this is a fresh clone or CI runner. Because
-`stable ⊑ dev-base ⊑ dev` (invariant **A1**), the only rewriting is dropping the
-rename commit.
+`release-content ⊑ dev-base ⊑ dev` (invariant **A1**), the only rewriting is
+dropping the rename commit.
 
 The package version is **not** derived from the git tag — set it explicitly so
 `DESCRIPTION` matches the upstream tag:

@@ -73,7 +73,7 @@ duckdb-r/
 │   └── VENDORING.md                # Supplementary vendoring notes (→ see §Vendoring)
 ├── .github/
 │   └── workflows/
-│       ├── vendor.yaml             # Hourly automated vendoring                    [5]
+│       ├── vendor.yaml             # Daily automated vendoring                     [5]
 │       ├── sync.yaml               # Fast-forward krlmlr/main from duckdb/main     [5]
 │       ├── each.yaml               # Per-commit CI trigger helper                  [5]
 │       ├── fledge.yaml             # Automated version-bump PRs                    [5]
@@ -94,7 +94,7 @@ Numbers in `[brackets]` refer to the component list above.
                                                                                       │ vendored [6]
   duckdb/duckdb (upstream C++)   ←── R core evolves independently (indirect) [7]      │
       │                                                                               │
-      │  vendor.sh / vendor-one.sh  (hourly CI via vendor.yaml)                       │
+      │  vendor.sh / vendor-one.sh  (daily CI via vendor.yaml)                        │
       │  patch/ applied on top                                                        │
       ▼                                                                               │
   src/duckdb/   ← R-ready vendored C++  [1]                                           │
@@ -162,7 +162,7 @@ v1.4-andium     ──►  v1.4-andium-dev    ──►  v1.4-andium        ─�
 
    │              ^        ^       │                ^
    │  vendor      │        │       │ during release │
-   │  (hourly)    │        │       │  preparation   │
+   │  (daily)     │        │       │  preparation   │
    │  + patches   │        │       │     only       │
    │  from patch/ │        │       └────────────────┘
    └──────────────┘        │
@@ -366,7 +366,7 @@ accepted in exchange for a bisectable, merge-free active history.
 
 | Operation | When | Cost | Mechanism |
 |-----------|------|------|-----------|
-| `dev` append (vendor / forward-port) | hourly / per glue change | O(1) | append; cherry-pick |
+| `dev` append (vendor / forward-port) | daily / per glue change | O(1) | append; cherry-pick |
 | `dev-base` advance | per reviewed release | O(1) ref update | fast-forward |
 | Patch re-baseline | per patch release | O(pending) replayed × per-commit CI (small: 3–21 today) | rebase; merge driver auto-resolves the version |
 | Forward-port across the chain | per glue change | O(diff) × active lines | cherry-pick; merge driver handles `DESCRIPTION` |
@@ -449,7 +449,7 @@ This assumes v1.5-variegata is the current release, v1.6 is in development, and 
 
 Upstream active branches: `main`, `v1.5-variegata`, `v1.4-andium`.
 
-This is business-as-usual. Automated vendoring runs hourly with no manual intervention required.
+This is business-as-usual. Automated vendoring runs daily with no manual intervention required.
 
 - Upstream patch releases (`v1.5.z`) cut from `v1.5-variegata` are picked up automatically by the corresponding `-dev` branch.
 - When a patch release is tagged upstream, run the [On patch release](#on-patch-release-v145) flow for that branch.
@@ -514,7 +514,7 @@ TBD.
 This is the most common release event, and it is described in full as the
 **CUT** and **RESET** clusters of the release FSM in
 [`RELEASE.md`](RELEASE.md#cut--release-execution). In summary, once upstream tags
-`v1.4.5`: the hourly vendoring lands the tagged commit on `v1.4-andium-dev`
+`v1.4.5`: the daily vendoring lands the tagged commit on `v1.4-andium-dev`
 (state 1), `each.yaml` proves it green, the pending window is reviewed (state 2),
 `dev-base` is fast-forwarded to the tagged commit (state 3), the commit is merged
 to `v1.4-andium` with `fledge::bump_version("1.4.5")` and the `-lts` branch
@@ -527,7 +527,7 @@ is the **STABILIZE** cluster.
 
 ### Vendoring
 
-CI/CD pipelines in `krlmlr/duckdb-r` unconditionally vendor the C++ code from the corresponding upstream branch and build the `.dev` package.
+CI/CD pipelines in `krlmlr/duckdb-r` vendor the C++ code from the corresponding upstream branch daily — a bounded advance gated on the `rcc` commit-status of the last green base (`scripts/vendor-gate.sh`) — and build the `.dev` package.
 If vendoring breaks the build, it can be fixed after the fact in the same commit.
 The `-dev` branches are not protected, so force-pushes are allowed to fix mistakes.
 
@@ -627,12 +627,13 @@ the first step of any CI job that rebases, cherry-picks, or merges — to regist
 |---------------------------------|------------------------------------------------------------------------------------------------------------|
 | `scripts/vendor.sh`             | Local manual vendoring from a cloned upstream repo                                                         |
 | `scripts/vendor-one.sh`         | CI commit-by-commit vendoring (called by `vendor.yaml`)                                                    |
+| `scripts/vendor-gate.sh`        | Decides the bounded, `rcc`-gated batch of upstream commits `vendor.yaml` may advance per run               |
 | `scripts/lts.sh <flavor>`       | Applies the flavor rename (updates `lts.patch`, then applies it and re-runs `cpp11::cpp_register()`)       |
 | `scripts/lts.patch`             | Patch template used by `lts.sh`; contains `1.4` as placeholder version (replaced by `lts.sh`)              |
 | `scripts/each-rcc.sh`           | Identifies commits in the first-parent history without a build status and triggers an `rcc` run for each   |
 | `scripts/merge-version.sh`      | Git merge driver for `DESCRIPTION`: combines the 4th/5th version counters, gated on an equal prefix         |
 | `scripts/setup-git.sh`          | Registers the merge driver in `.git/config`, enables `rerere`, pins `rebase.backend=merge` (run per clone)  |
-| `.github/workflows/vendor.yaml` | Hourly vendoring for all active dev branches (matrix: `v1.4-andium-dev`, `v1.5-variegata-dev`, `main-dev`) |
+| `.github/workflows/vendor.yaml` | Daily, `rcc`-gated vendoring for all active dev branches (matrix: `v1.4-andium-dev`, `v1.5-variegata-dev`, `main-dev`) |
 | `.github/workflows/sync.yaml`   | Hourly fast-forward of `krlmlr/main` from `duckdb/main`                                                    |
 | `.github/workflows/each.yaml`   | Dispatches `rcc` per-commit on push to `*-dev` branches                                                    |
 | `.github/workflows/fledge.yaml` | Daily version-bump PRs via `fledge`                                                                        |
