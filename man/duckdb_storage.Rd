@@ -117,7 +117,7 @@ and takes precedence over the resolution above.
 an informational message describing where extensions and secrets are
 going and how to change it. It is throttled by session type: in an
 \strong{interactive} session at most once every eight hours (a human can act
-on it); in a \strong{non-interactive} session up to 100 times, after which it
+on it); in a \strong{non-interactive} session up to 60 times, after which it
 goes silent for good, so a long-running or automated process is not
 reminded forever. The message is suppressed entirely when you chose the
 location yourself -- the \code{home} or \code{shared_home} argument, the

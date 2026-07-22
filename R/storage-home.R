@@ -271,7 +271,7 @@ inform_once_every <- function(id, seconds, message) {
 # time-based throttle used interactively) so that a long-running or automated
 # process -- which the time throttle would remind forever, once every interval
 # -- eventually stops being told.
-STORAGE_MESSAGE_MAX <- 100L
+STORAGE_MESSAGE_MAX <- 60L
 
 # Emit `message` up to `max` times per session (keyed by `id`), then stay
 # silent. The final allowed emission notes that it will not be shown again.
