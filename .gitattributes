@@ -1,1 +1,2 @@
 src/duckdb/** linguist-vendored
+DESCRIPTION merge=ours-version
