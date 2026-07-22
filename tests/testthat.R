@@ -30,7 +30,7 @@ if (run_tests %in% c("true", "1", "yes", "on")) {
 }
 
 if (run) {
-  test_check("duckdb")
+  test_check(simulate_duckdb()$pkg)
 } else {
   message(
     "\n",

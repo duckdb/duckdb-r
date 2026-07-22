@@ -6,11 +6,12 @@ test_that("long-running queries can be cancelled", {
   skip_on_cran()
 
   r_session <- callr::r_session$new()
+  pkg <- get_package_name()
 
-  r_session$run(function() {
-    .GlobalEnv$con <- DBI::dbConnect(duckdb::duckdb())
+  r_session$run(function(pkg) {
+    .GlobalEnv$con <- DBI::dbConnect(asNamespace(pkg)$duckdb())
     DBI::dbExecute(.GlobalEnv$con, "CREATE TABLE data AS SELECT unnest(generate_series(1, 100000)) AS a")
-  })
+  }, args = list(pkg))
 
   r_session$call(function() {
     .GlobalEnv$interrupted <- FALSE

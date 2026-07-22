@@ -71,7 +71,7 @@ the <- new.env(parent = emptyenv())
 #' conn <- default_conn()
 #' sql_query("SELECT 42", conn = conn)
 default_conn <- function() {
-  if(!exists("con", the)) {
+  if (!exists("con", the)) {
     con <- DBI::dbConnect(
       duckdb(environment_scan = TRUE),
       timezone_out = "",

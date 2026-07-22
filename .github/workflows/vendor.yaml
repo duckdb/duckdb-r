@@ -1,8 +1,15 @@
-# Automated vendoring workflow for DuckDB sources
-# Runs hourly to sync with upstream DuckDB repository
-# main branch: vendors from v1.3-ossivalis (stable) - branch name may change with releases
-# next branch: vendors from main (bleeding edge)
-# See scripts/VENDORING.md for complete documentation
+# Automated vendoring workflow for DuckDB sources.
+#
+# Runs daily. For each dev branch it gates on the `rcc` commit-status of the
+# branch tip and the 5 commits before it (scripts/vendor-gate.sh):
+#   * green     -> reset to the youngest green commit in that window and vendor
+#                  at most 25 commits on top (bounded advance from a known-good
+#                  base; the <=5 unverified commits after it are re-rolled).
+#   * red       -> fail loudly (a breakage is near the tip with no green base in
+#                  reach; repair is needed before vendoring continues).
+#   * undecided -> succeed and do nothing (CI has not decided yet; re-check next
+#                  day).
+# See scripts/VENDORING.md and scripts/VENDORING-LOOP.md for the wider plan.
 
 on:
   push:
@@ -12,9 +19,10 @@ on:
     paths:
       - ".github/workflows/vendor.yaml"
       - "scripts/vendor-one.sh"
+      - "scripts/vendor-gate.sh"
   workflow_dispatch:
   schedule:
-    - cron: "0 * * * *"
+    - cron: "0 3 * * *"
 
 concurrency:
   group: ${{ github.workflow }}
@@ -27,6 +35,7 @@ jobs:
     # Only run in the vendoring repository
     if: github.repository == 'krlmlr/duckdb-r'
     strategy:
+      fail-fast: false
       matrix:
         # REMINDER: When changing branch names below,
         # update the documentation in scripts/VENDORING.md accordingly (see disclaimers section)
@@ -60,22 +69,31 @@ jobs:
 
       - uses: ./.github/workflows/git-identity
 
-      - name: Vendor sources
-        id: vendor
+      - name: Decide vendoring action (gate on rcc status of tip + 5)
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/vendor-gate.sh
+        shell: bash
+
+      - name: Fail loudly if the recent window is red
+        if: steps.gate.outputs.decision == 'red'
         run: |
-          git pull --rebase
-          scripts/vendor-one.sh ./duckdb --commits 30
+          echo "::error::${{ matrix.branch }}: recent commits fail rcc and no green base is within the last 6 commits. Repair the breakage before vendoring continues."
+          exit 1
+
+      - name: Reset to youngest green and vendor (at most 25)
+        if: steps.gate.outputs.decision == 'green'
+        run: |
+          git reset --hard "${{ steps.gate.outputs.green_sha }}"
+          scripts/vendor-one.sh ./duckdb --commits 25
           rm -rf ./duckdb
-          # Check if ahead of upstream branch
-          # If yes, set a step output and push directly
-          if [ $(git rev-list HEAD...origin/${{ matrix.branch }} --count) -gt 0 ]; then
-            git push
-            # Avoid set-output, it's deprecated
-            echo "vendor=ok" >> "$GITHUB_OUTPUT"
-          fi
+          # The reset may have discarded the <=5 unverified commits after the
+          # green base, so the push can rewrite history -> force (with lease).
+          git push --force-with-lease origin "HEAD:refs/heads/${{ matrix.branch }}"
 
       - name: Enumerate commits and trigger rcc workflow
-        # if: steps.vendor.outputs.vendor == 'ok'
+        if: steps.gate.outputs.decision == 'green'
         env:
           GH_TOKEN: ${{ github.token }}
         run: scripts/each-rcc.sh

@@ -1,5 +1,52 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.4.9010
+
+## Chore
+
+- Switch to dev version.
+
+
+# duckdb 1.5.4.9009
+
+- Switching to development version.
+
+
+# duckdb 1.5.4.4
+
+- Merge branch 'cran-1.5.4.3'.
+
+
+# duckdb 1.5.4.3
+
+## Bug fixes
+
+- Remove the package-library extension storage option. The `duckdb_extension_storage()` function no longer accepts `"library"` (#2390).
+
+
+# duckdb 1.5.4.2
+
+## Bug fixes
+
+- Fix shared on-disk storage path on Windows (#2385).
+
+# duckdb 1.5.4.1
+
+## Features
+
+- DuckDB's on-disk storage locations now follow a unified policy. By
+  default nothing is written outside the R session's temporary directory, with
+  one exception: the extension cache is placed in the package library when it
+  is writable and falls back to the temporary directory otherwise. Each location can be redirected through the `config` argument of
+  `duckdb()`, an R option, or an environment variable. Configure the location for extensions and
+  secrets with the new `duckdb_extension_storage()` and `duckdb_secret_storage()`,
+  inspect the resolved locations with `duckdb_storage_status()`, and see
+  `?duckdb_storage` for the full resolution policy (#2370, #2372, #2377).
+
+  These functions replace the experimental `duckdb_consolidate_secrets()`
+  introduced in 1.5.4.
+
+
 # duckdb 1.5.4
 
 ## Features

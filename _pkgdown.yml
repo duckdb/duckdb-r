@@ -13,26 +13,44 @@ authors:
 
 reference:
 - title: Getting started
+  desc: >
+    One-line entry points for running a query or grabbing a throwaway
+    in-memory connection.
   contents:
   - sql_query
   - default_conn
 - title: Driver
+  desc: >
+    Create or reuse a DuckDB database instance and the driver object passed to
+    `dbConnect()`.
   contents:
   - duckdb
   - duckdb_driver
 - title: Connection
+  desc: >
+    The DBI connection to a DuckDB database and its methods.
   contents:
   - duckdb_connection
 - title: Result
+  desc: >
+    The object returned by a query, used to fetch rows and column metadata.
   contents:
   - duckdb_result
 - title: Interfaces
+  desc: >
+    Integrations with other parts of the R ecosystem: the dplyr/dbplyr backend,
+    registering data frames and Arrow data as tables, reading CSV files, and
+    inspecting query plans.
   contents:
   - backend-duckdb
   - duckdb_register
   - duckdb_register_arrow
   - duckdb_read_csv
   - duckdb_explain-class
-- title: Secrets
+- title: Storage locations
+  desc: >
+    Where DuckDB writes extensions, stored secrets, and temporary files, and
+    how to choose those locations so that nothing is written outside the
+    session's temporary directory unless you opt in.
   contents:
-  - duckdb_consolidate_secrets
+  - duckdb_storage

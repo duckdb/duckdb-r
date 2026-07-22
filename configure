@@ -15,11 +15,134 @@ else
   echo "MAKEFLAGS already set to: ${MAKEFLAGS}"
 fi
 
-cd "$(dirname "$0")/src"
+PKG_ROOT="$(dirname "$0")"
+cd "${PKG_ROOT}/src"
 
 # Not used on Linux, for completeness.
 echo DUCKDB_RSTRTMGR=1 > Makevars.rstrtmgr
 echo DUCKDB_RSTRTMGR_LIB= >> Makevars.rstrtmgr
+
+
+# Opt-in mode: skip compilation of the ~1700 vendored .cpp files and
+# link the R package against a system-installed libduckdb instead.
+# Shrinks `R CMD INSTALL .` from minutes to seconds. Intended for local
+# development, CI smoke tests, and coding-agent iteration. Not for
+# `R CMD build` / CRAN-style tarballs: the resulting installation
+# depends on libduckdb being present at runtime.
+#
+# Linux and macOS only.
+#
+# How this works:
+#   * The R glue code uses ~71 internal DuckDB C++ headers (templates,
+#     extension internals, Arrow integration) that are NOT in the
+#     amalgamated duckdb.hpp shipped with libduckdb releases. So we
+#     keep using the vendored header tree in src/duckdb/src/include/
+#     for the *headers*, and only swap the *implementation* for the
+#     system libduckdb.
+#   * That is only safe if the vendored sources and the system library
+#     were built from the same commit. We hard-fail otherwise, by
+#     checking that the DUCKDB_SOURCE_ID string in the vendored
+#     pragma_version.cpp is embedded in libduckdb.{so,dylib}.
+#   * Under `R CMD check`, the package is first tarballed by `R CMD
+#     build`, which runs cleanup and compresses src/duckdb/ into
+#     src/duckdb.tar.xz. We extract that tarball below so the headers
+#     are available for compilation of the glue code.
+if [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "1" ] || [ "${DUCKDB_R_USE_SYSTEM_LIB}" = "true" ]; then
+  uname_s=$(uname -s)
+  case "${uname_s}" in
+    Linux)  lib_ext=so ;;
+    Darwin) lib_ext=dylib ;;
+    *)
+      echo "DUCKDB_R_USE_SYSTEM_LIB is only supported on Linux and macOS (got: ${uname_s})" >&2
+      exit 1
+      ;;
+  esac
+
+  # Resolve libduckdb directory.
+  # Precedence: DUCKDB_R_LIB_DIR -> pkg-config duckdb -> standard system paths.
+  duckdb_lib_dir="${DUCKDB_R_LIB_DIR}"
+  if [ -z "${duckdb_lib_dir}" ] && command -v pkg-config >/dev/null 2>&1 && pkg-config --exists duckdb 2>/dev/null; then
+    duckdb_lib_dir=$(pkg-config --variable=libdir duckdb 2>/dev/null)
+  fi
+  if [ -z "${duckdb_lib_dir}" ]; then
+    for candidate in /usr/local/lib /opt/homebrew/lib /usr/lib/x86_64-linux-gnu /usr/lib/aarch64-linux-gnu /usr/lib; do
+      if [ -f "${candidate}/libduckdb.${lib_ext}" ]; then
+        duckdb_lib_dir="${candidate}"
+        break
+      fi
+    done
+  fi
+  if [ -z "${duckdb_lib_dir}" ] || [ ! -f "${duckdb_lib_dir}/libduckdb.${lib_ext}" ]; then
+    echo "DUCKDB_R_USE_SYSTEM_LIB=1 but libduckdb.${lib_ext} not found." >&2
+    echo "Set DUCKDB_R_LIB_DIR to the directory containing libduckdb.${lib_ext}," >&2
+    echo "or run scripts/install-libduckdb.sh to install a matching build." >&2
+    exit 1
+  fi
+  echo "Using system libduckdb from: ${duckdb_lib_dir}/libduckdb.${lib_ext}"
+
+  # Extract the vendored headers if R CMD build has compressed them.
+  # Must happen before the version check, which reads from the vendored
+  # pragma_version.cpp, and before the glue compile, which resolves
+  # #include "duckdb/..." under -Iduckdb/src/include.
+  if [ -f duckdb.tar.xz ]; then
+    if command -v gtar >/dev/null 2>&1 && command -v xz >/dev/null 2>&1; then
+      TAR=gtar
+    else
+      TAR=tar
+    fi
+    $TAR xJf duckdb.tar.xz
+  fi
+
+  # Hard-fail unless the system libduckdb was built from the same upstream
+  # commit as the vendored sources. The glue compiles against the vendored
+  # internal headers; the only thing that guarantees the layout matches
+  # the loaded library is an exact-commit match. We check the embedded
+  # DUCKDB_SOURCE_ID string in the .so/.dylib.
+  #
+  # The two abbreviations need not be the same length: DuckDB truncates the
+  # commit hash to 10 chars in the binary (CMake SUBSTRING 0 10), while the
+  # vendored pragma_version.cpp sometimes carries 11. Both abbreviate the
+  # same SHA, so we compare on the shared 10-char prefix.
+  version_file=duckdb/src/function/table/version/pragma_version.cpp
+  if [ -f "${version_file}" ]; then
+    vendored_version=$(sed -n 's/^#define DUCKDB_VERSION "\(.*\)"$/\1/p' "${version_file}")
+    vendored_source_id=$(sed -n 's/^#define DUCKDB_SOURCE_ID "\(.*\)"$/\1/p' "${version_file}")
+    echo "Vendored DuckDB headers: ${vendored_version} (commit ${vendored_source_id})"
+
+    if ! command -v strings >/dev/null 2>&1; then
+      echo "Cannot find 'strings' to verify libduckdb commit. Install binutils." >&2
+      exit 1
+    fi
+
+    # Compare on the first 10 hex chars (DuckDB's canonical binary length).
+    vendored_prefix=$(printf '%s' "${vendored_source_id}" | cut -c1-10)
+    if [ -n "${vendored_prefix}" ] && ! strings "${duckdb_lib_dir}/libduckdb.${lib_ext}" | grep -qE "^${vendored_prefix}"; then
+      installed_source_id=$(strings "${duckdb_lib_dir}/libduckdb.${lib_ext}" | grep -E '^[0-9a-f]{10,}$' | head -n 1)
+      echo "" >&2
+      echo "ERROR: vendored headers and system libduckdb were built from different commits." >&2
+      echo "  vendored headers expect commit: ${vendored_source_id} (${vendored_version})" >&2
+      echo "  ${duckdb_lib_dir}/libduckdb.${lib_ext} reports commit: ${installed_source_id:-<not found>}" >&2
+      echo "" >&2
+      echo "The R glue includes internal DuckDB C++ headers; these are only" >&2
+      echo "ABI-compatible with the matching commit's libduckdb. Either:" >&2
+      echo "  * run scripts/install-libduckdb.sh to install a matching build, or" >&2
+      echo "  * unset DUCKDB_R_USE_SYSTEM_LIB to compile the vendored sources." >&2
+      exit 1
+    fi
+  fi
+
+  # Write Makevars.system-lib, which Makevars picks up via `include`.
+  # The file is ignored by git; the rest of the build (Makevars.duckdb
+  # and friends) is left untouched.
+  {
+    echo "# Generated by configure (DUCKDB_R_USE_SYSTEM_LIB=1). Do not edit."
+    echo "SOURCES="
+    echo "PKG_LIBS=-L${duckdb_lib_dir} -lduckdb -Wl,-rpath,${duckdb_lib_dir}"
+  } > Makevars.system-lib
+
+  # Skip the prebuilt-archive logic below; we have nothing to compile.
+  exit 0
+fi
 
 
 # The purpose of this is to avoid rebuilding duckdb in every CI/CD run.

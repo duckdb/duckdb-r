@@ -7,7 +7,7 @@
 #'
 #' @inheritParams duckdb_register
 #' @param files One or more CSV file names, should all have the same structure though
-#' @param ... Reserved for future extensions, must be empty.
+#' @inheritParams rlang::args_dots_empty
 #' @param header Whether or not the CSV files have a separate header in the first line
 #' @param na.strings Which strings in the CSV files should be considered to be NULL
 #' @param nrow.check How many rows should be read from the CSV file to figure out data types
@@ -72,28 +72,52 @@ duckdb_read_csv <- function(
   temporary = FALSE
 ) {
   # FIXME: Warning as of duckdb 1.1.1, turn this into an error later
-  if (...length() > 0) warning("Arguments passed to ... are currently not used")
-  if (length(na.strings) > 1) stop("na.strings must be of length 1")
-  if (!missing(sep)) delim <- sep
+  if (...length() > 0) {
+    warning("Arguments passed to ... are currently not used")
+  }
+  if (length(na.strings) > 1) {
+    stop("na.strings must be of length 1")
+  }
+  if (!missing(sep)) {
+    delim <- sep
+  }
 
-  headers <- lapply(files, utils::read.csv,
-    sep = delim, na.strings = na.strings,
-    quote = quote, nrows = nrow.check, header = header, ...
+  headers <- lapply(
+    files,
+    utils::read.csv,
+    sep = delim,
+    na.strings = na.strings,
+    quote = quote,
+    nrows = nrow.check,
+    header = header,
+    ...
   )
   if (length(files) > 1) {
     nn <- sapply(headers, ncol)
-    if (!all(nn == nn[1])) stop("Files have different numbers of columns")
+    if (!all(nn == nn[1])) {
+      stop("Files have different numbers of columns")
+    }
     nms <- sapply(headers, names)
-    if (!all(nms == nms[, 1])) stop("Files have different variable names or order")
+    if (!all(nms == nms[, 1])) {
+      stop("Files have different variable names or order")
+    }
     if (is.null(col.types)) {
-      types <- sapply(headers, function(df) sapply(df, dbDataType, dbObj = conn))
+      types <- sapply(headers, function(df) {
+        sapply(df, dbDataType, dbObj = conn)
+      })
       if (!all(types == types[, 1])) stop("Files have different variable types")
     }
   }
 
-  fields <- set_csv_fields(found = headers[[1]][FALSE, , drop = FALSE], col.names, col.types)
+  fields <- set_csv_fields(
+    found = headers[[1]][FALSE, , drop = FALSE],
+    col.names,
+    col.types
+  )
 
-  if (lower.case.names) { names(fields) <- tolower(names(fields)) }
+  if (lower.case.names) {
+    names(fields) <- tolower(names(fields))
+  }
 
   if (transaction) {
     dbBegin(conn)
@@ -108,7 +132,18 @@ duckdb_read_csv <- function(
 
   for (i in seq_along(files)) {
     thefile <- dbQuoteString(conn, enc2native(normalizePath(files[i])))
-    dbExecute(conn, sprintf("COPY %s FROM %s (DELIMITER %s, QUOTE %s, HEADER %s, NULL %s)", tablename, thefile, dbQuoteString(conn, delim), dbQuoteString(conn, quote), tolower(header), dbQuoteString(conn, na.strings[1])))
+    dbExecute(
+      conn,
+      sprintf(
+        "COPY %s FROM %s (DELIMITER %s, QUOTE %s, HEADER %s, NULL %s)",
+        tablename,
+        thefile,
+        dbQuoteString(conn, delim),
+        dbQuoteString(conn, quote),
+        tolower(header),
+        dbQuoteString(conn, na.strings[1])
+      )
+    )
   }
   out <- dbGetQuery(conn, paste("SELECT COUNT(*) FROM", tablename))[[1]]
 
@@ -135,15 +170,20 @@ set_csv_fields <- function(found, col.names, col.types) {
   }
 
   if (!is.null(names(col.types)) && !is.null(col.names)) {
-    warning("Ignoring `col.names` as column names provided by `col.types` parameter")
+    warning(
+      "Ignoring `col.names` as column names provided by `col.types` parameter"
+    )
     return(col.types)
   }
 
   if (!is.null(col.types)) {
     if (length(col.types) != ncol(found)) {
       stop(
-        "You supplied ", length(col.types), " values to `col.names`, but file has ",
-        ncol(found), " columns."
+        "You supplied ",
+        length(col.types),
+        " values to `col.names`, but file has ",
+        ncol(found),
+        " columns."
       )
     }
 
@@ -152,8 +192,11 @@ set_csv_fields <- function(found, col.names, col.types) {
     } else {
       if (length(col.types) != ncol(found)) {
         stop(
-          "You supplied ", length(col.types), " values to `col.types`, but file has ",
-          ncol(found), " columns."
+          "You supplied ",
+          length(col.types),
+          " values to `col.types`, but file has ",
+          ncol(found),
+          " columns."
         )
       }
       fields <- col.types
@@ -166,8 +209,6 @@ set_csv_fields <- function(found, col.names, col.types) {
   }
   fields
 }
-
-
 
 
 #' Deprecated functions
