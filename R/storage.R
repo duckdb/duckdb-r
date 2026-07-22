@@ -79,8 +79,9 @@
 #' 1. the `DUCKDB_R_HOME` environment variable;
 #' 1. `~/.duckdb`, if that directory already exists -- the location shared with
 #'    the DuckDB CLI and other clients;
-#' 1. In interactive sessions only, the package offers to create `~/.duckdb` once.
-#'    If the user accepts, it is created and used.
+#' 1. In interactive sessions only, the package offers to create `~/.duckdb`
+#'    once: answer "yes" to create and use it, "no" to fall through to the
+#'    temporary directory below, or cancel the prompt to abort with an error.
 #' 1. Otherwise a per-session sub-directory of [tempdir()].
 #'
 #' The extension cache is then `<home>/extensions` and the secret store is

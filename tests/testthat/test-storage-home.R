@@ -55,7 +55,8 @@ test_that("an interactive yes creates and uses ~/.duckdb", {
     duckdb_shared_home = function() shared,
     consent_to_create_home = function(path) TRUE
   )
-  resolved <- resolve_storage_home()
+  # Accepting also emits a short confirmation of what was created.
+  expect_message(resolved <- resolve_storage_home(), "created")
   expect_equal(resolved, list(root = shared, source = "created"))
   expect_true(dir.exists(shared))
 })
@@ -216,4 +217,35 @@ test_that("inform_once_every throttles within the interval (mocked clock)", {
   expect_false(inform_once_every("probe", 100, "x"))
   local_mocked_bindings(now_seconds = function() 1000)
   expect_true(inform_once_every("probe", 100, "x"))
+})
+
+# Snapshots of the exact wording of every storage message and error. `cat()`
+# drops the bullet names, so these capture the text deterministically (no cli
+# version or tempdir path leaks in).
+test_that("storage message wording is stable", {
+  tempdir_home <- list(root = "/tmp/Rtmpxx/duckdb", source = "session")
+  shared_home <- list(root = "/home/alice/.duckdb", source = "shared")
+
+  expect_snapshot({
+    cat("# non-interactive, temporary directory:\n")
+    cat(storage_location_message(tempdir_home), sep = "\n")
+    cat("\n\n# non-interactive, existing ~/.duckdb:\n")
+    cat(storage_location_message(shared_home), sep = "\n")
+    cat("\n\n# cancelled interactive prompt (error text):\n")
+    cat(storage_location_message(tempdir_home, interactive = TRUE), sep = "\n")
+    cat("\n\n# confirmation after creating ~/.duckdb:\n")
+    cat(home_created_message("/home/alice/.duckdb"), sep = "\n")
+  })
+})
+
+test_that("a cancelled prompt aborts with a stable error", {
+  withr::local_options(duckdb.home = NULL, rlang_interactive = TRUE)
+  withr::local_envvar(DUCKDB_R_HOME = NA)
+  storage_message_state[["home_prompt_declined"]] <- NULL
+  local_mocked_bindings(
+    duckdb_shared_home = function() "/home/alice/.duckdb",
+    session_temp_dir = function() "/tmp/Rtmpxx",
+    consent_to_create_home = function(path) NA
+  )
+  expect_snapshot(resolve_storage_home(), error = TRUE)
 })

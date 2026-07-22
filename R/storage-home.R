@@ -81,10 +81,10 @@ resolve_storage_home <- function(home = NULL, shared_home = NULL) {
       # proceeds with a temporary directory.
       stop(
         paste(
-          storage_location_message(list(
-            root = session_home(),
-            source = "session"
-          )),
+          storage_location_message(
+            list(root = session_home(), source = "session"),
+            interactive = TRUE
+          ),
           collapse = "\n"
         ),
         call. = FALSE
@@ -93,6 +93,7 @@ resolve_storage_home <- function(home = NULL, shared_home = NULL) {
     if (isTRUE(answer)) {
       dir.create(shared, recursive = TRUE, showWarnings = FALSE)
       if (dir.exists(shared)) {
+        inform(home_created_message(shared), class = "duckdb_home_created")
         return(list(root = shared, source = "created"))
       }
       warning(
@@ -251,8 +252,11 @@ inform_once_every <- function(id, seconds, message) {
 # The informational lines describing a resolved storage location (`resolved` is
 # the list(root, source) from resolve_storage_home()). Kept in one place because
 # it is reused both for the non-interactive message and, verbatim, as the error
-# text when an interactive prompt is cancelled.
-storage_location_message <- function(resolved) {
+# text when an interactive prompt is cancelled. `interactive = TRUE` selects the
+# variant for the cancelled-prompt error: the quickest fix there is to re-run
+# and answer the prompt, so it leads with that rather than the `shared_home`
+# arguments a script would use.
+storage_location_message <- function(resolved, interactive = FALSE) {
   if (identical(resolved$source, "shared")) {
     c(
       "duckdb is storing downloaded extensions and secrets under ~/.duckdb:",
@@ -262,17 +266,37 @@ storage_location_message <- function(resolved) {
       "i" = "See ?duckdb_storage for details and alternatives."
     )
   } else {
+    keep <- if (interactive) {
+      c(
+        "i" = "Answer \"yes\" at the prompt to create ~/.duckdb and keep them (suitable for most users).",
+        "i" = "Answer \"no\" to use a temporary directory for this session."
+      )
+    } else {
+      c(
+        "i" = "Run duckdb(shared_home = TRUE) (or create ~/.duckdb) to keep them (suitable for most users).",
+        "i" = "Run duckdb(shared_home = FALSE) to accept the temporary directory (and silence this message)."
+      )
+    }
     c(
       "duckdb keeps downloaded extensions and secrets in a temporary directory:",
       "i" = resolved$root,
       "This is removed when the R session ends.",
       "*" = "Extensions are re-downloaded each session.",
       "*" = "Secrets are lost.",
-      "i" = "Run duckdb(shared_home = TRUE) (or create ~/.duckdb) to keep them (suitable for most users).",
-      "i" = "Run duckdb(shared_home = FALSE) to accept the temporary directory (and silence this message).",
+      keep,
       "i" = "See ?duckdb_storage for details and alternatives."
     )
   }
+}
+
+# A short confirmation shown right after the interactive prompt creates
+# ~/.duckdb, so the user sees what accepting actually did.
+home_created_message <- function(path) {
+  c(
+    paste0("duckdb: created ", path, "."),
+    "i" = "Extensions and secrets are kept here across sessions, and shared with the DuckDB CLI and other clients.",
+    "i" = "See ?duckdb_storage; run duckdb(shared_home = FALSE) for a temporary directory instead."
+  )
 }
 
 # Called when a new driver is created in a non-interactive session and the

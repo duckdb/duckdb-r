@@ -24,6 +24,34 @@ test_that("a non-interactive connect announces the storage location, unless chos
   duckdb_shutdown(drv)
 })
 
+test_that("an interactive yes announces creation; a no announces the tempdir", {
+  skip_on_cran()
+  withr::local_options(duckdb.home = NULL, rlang_interactive = TRUE)
+  withr::local_envvar(DUCKDB_R_HOME = NA)
+  drv <- NULL
+
+  # "yes" -> ~/.duckdb created, short confirmation shown.
+  shared <- file.path(withr::local_tempdir(), ".duckdb")
+  storage_message_state[["home_prompt_declined"]] <- NULL
+  local_mocked_bindings(
+    duckdb_shared_home = function() shared,
+    consent_to_create_home = function(path) TRUE
+  )
+  expect_message({ drv <- duckdb() }, "created")
+  duckdb_shutdown(drv)
+  expect_true(dir.exists(shared))
+
+  # "no" -> tempdir, and the storage-location message is announced.
+  storage_message_state[["home_prompt_declined"]] <- NULL
+  storage_message_state[["storage_location"]] <- NULL
+  local_mocked_bindings(
+    duckdb_shared_home = function() file.path(tempdir(), "no-such-home-int"),
+    consent_to_create_home = function(path) FALSE
+  )
+  expect_message({ drv <- duckdb() }, "temporary directory")
+  duckdb_shutdown(drv)
+})
+
 test_that("a persistent secret is written under the configured home", {
   skip_on_cran()
   home <- withr::local_tempdir("e2e-home-")

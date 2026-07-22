@@ -73,8 +73,9 @@ The first source that yields a value wins:
 \item the \code{DUCKDB_R_HOME} environment variable;
 \item \verb{~/.duckdb}, if that directory already exists -- the location shared with
 the DuckDB CLI and other clients;
-\item In interactive sessions only, the package offers to create \verb{~/.duckdb} once.
-If the user accepts, it is created and used.
+\item In interactive sessions only, the package offers to create \verb{~/.duckdb}
+once: answer "yes" to create and use it, "no" to fall through to the
+temporary directory below, or cancel the prompt to abort with an error.
 \item Otherwise a per-session sub-directory of \code{\link[=tempdir]{tempdir()}}.
 }
 

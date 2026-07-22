@@ -123,17 +123,18 @@ duckdb <- function(
         "stored_secrets"
       )
     }
-    # In a non-interactive session, report where storage resolved (once),
-    # unless the caller chose the location explicitly with `home` or
-    # `shared_home`. Only the package's own choices are announced (a per-session
-    # tempdir, or an existing ~/.duckdb); an option/environment override or an
-    # interactive prompt is already the user's decision.
-    if (
-      !is_interactive() &&
-        is.null(home) &&
-        is.null(shared_home) &&
-        resolved_home$source %in% c("session", "shared")
-    ) {
+    # Report where storage resolved (once), unless the caller chose the location
+    # explicitly with `home` or `shared_home` (or a `duckdb.home` option /
+    # `DUCKDB_R_HOME` variable, which yield sources "option"/"env"). A tempdir
+    # ("session") is announced in both modes -- non-interactively, and
+    # interactively when the user opted out of creating ~/.duckdb; an existing
+    # ~/.duckdb ("shared") is announced only non-interactively (interactively it
+    # is the user's own directory, used without a prompt).
+    announce <- is.null(home) &&
+      is.null(shared_home) &&
+      (identical(resolved_home$source, "session") ||
+        (!is_interactive() && identical(resolved_home$source, "shared")))
+    if (announce) {
       maybe_storage_location_message(resolved_home)
     }
   }
