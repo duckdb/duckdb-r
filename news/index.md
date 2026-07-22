@@ -1,5 +1,516 @@
 # Changelog
 
+## duckdb 1.5.4.9011
+
+### Features
+
+- Resolve extension/secret storage under `~/.duckdb` or
+  [`tempdir()`](https://rdrr.io/r/base/tempfile.html)
+  ([\#2396](https://github.com/duckdb/duckdb-r/issues/2396)).
+
+### Chore
+
+- Results for revdepchecks.
+
+### Continuous integration
+
+- Align Windows builds.
+
+- Align vendoring scripts.
+
+### vendor
+
+- Update vendored sources (tag v1.5.5) to
+  <duckdb/duckdb@d8cdaa33fda8df955cc76ef58a280f68f4cd43fa>.
+
+  Date: 2026-07-21 13:03:22 +0200
+
+  Bump httpfs (<https://redirect.github.com/duckdb/duckdb/pull/24003>)
+
+- Update vendored sources to
+  <duckdb/duckdb@0b9ca135652107c7dccfe398662267b449097c61>.
+
+  Date: 2026-07-21 10:33:44 +0200
+
+  Add missing statement types to capi
+  (<https://redirect.github.com/duckdb/duckdb/pull/23407>) Bump lance
+  pin to upstream ethnum fix, drop local patch
+  (<https://redirect.github.com/duckdb/duckdb/pull/23969>)
+
+- Update vendored sources to
+  <duckdb/duckdb@96e5ae96d283e1cba4c551a2d61877ec1aa18121>.
+
+  Date: 2026-07-21 09:15:35 +0200
+
+  Fix OSX ci (<https://redirect.github.com/duckdb/duckdb/pull/23963>)
+  Bump DuckLake (<https://redirect.github.com/duckdb/duckdb/pull/23962>)
+
+- Update vendored sources to
+  <duckdb/duckdb@1d8a8ea65f52c66476dfb5850b7083dd87647d1f>.
+
+  Date: 2026-07-20 13:43:10 +0200
+
+  Expose destructors, so they are callable module boundaries
+  (<https://redirect.github.com/duckdb/duckdb/pull/23953>) Bump
+  extensions for v1.5.5: quack, httpfs and aws
+  (<https://redirect.github.com/duckdb/duckdb/pull/23892>)
+
+- Update vendored sources to
+  <duckdb/duckdb@4a11fb2555db746a6bfbc9bafc1018d7638369fa>.
+
+  Date: 2026-07-20 10:15:28 +0200
+
+  \[v1.5 backport\] Fix: reset empty_range in the TIMESTAMP range()
+  table function
+  (<https://redirect.github.com/duckdb/duckdb/pull/23879>) Bump Postgres
+  extension for 1.5
+  (<https://redirect.github.com/duckdb/duckdb/pull/23930>)
+
+- Update vendored sources to
+  <duckdb/duckdb@e14c3db18700c8f730a3421f6b96a8655d7662c4>.
+
+  Date: 2026-07-17 18:28:49 +0200
+
+  Fix concurrent ALTER and INSERT crash
+  (<https://redirect.github.com/duckdb/duckdb/pull/23861>)
+
+- Update vendored sources to
+  <duckdb/duckdb@d8e8cd9aea5a98f4b4766a8e9d6c48bd4741935a>.
+
+  Date: 2026-07-17 09:41:10 +0200
+
+  TryLookupEntry now uses default schema as fallback
+  (<https://redirect.github.com/duckdb/duckdb/pull/23790>)
+
+- Update vendored sources to
+  <duckdb/duckdb@1b68da1dc15069f4b5ed9766b55170bc923830cd>.
+
+  Date: 2026-07-16 16:01:17 +0200
+
+  \[DependencyManager\] Fix ALTER dependency preservation
+  (<https://redirect.github.com/duckdb/duckdb/pull/23808>)
+
+- Update vendored sources to
+  <duckdb/duckdb@65cc13cdeeebe53781dcc8dad15a0ac764ad25a8>.
+
+  Date: 2026-07-16 10:56:27 +0200
+
+  \[v1.5\] Backport two more fixes
+  (<https://redirect.github.com/duckdb/duckdb/pull/23841>)
+
+- Update vendored sources to
+  <duckdb/duckdb@6daa70e0e87a5f3f20e58a37d447d2b7fec3abe7>.
+
+  Date: 2026-07-15 11:12:58 +0200
+
+  backport <https://redirect.github.com/duckdb/duckdb/pull/22198>
+  (<https://redirect.github.com/duckdb/duckdb/pull/23810>) \[variegata\]
+  Bump quack to 8e715ebb
+  (<https://redirect.github.com/duckdb/duckdb/pull/23820>)
+
+- Update vendored sources to
+  <duckdb/duckdb@7adf7a70bb9a8755d1c3f86aaf52430ff66227b2>.
+
+  Date: 2026-07-15 10:49:49 +0200
+
+  Fix swapped min/max for multi-row-group 128-bit DECIMAL in
+  RETURN_STATS (<https://redirect.github.com/duckdb/duckdb/pull/23693>)
+
+- Update vendored sources to
+  <duckdb/duckdb@76d5b0bda1be609960e19ac5db46acd7248c2faa>.
+
+  Date: 2026-07-15 10:49:31 +0200
+
+  bound alp/alprd exception positions to vector size
+  (<https://redirect.github.com/duckdb/duckdb/pull/23778>)
+
+- Update vendored sources to
+  <duckdb/duckdb@925680abaace84aca8ed9f5cf51f5ac969e8f153>.
+
+  Date: 2026-07-15 10:37:02 +0200
+
+  \[v1.5\] Backport a few fix PRs for v1.5.5 release
+  (<https://redirect.github.com/duckdb/duckdb/pull/23804>)
+
+- Update vendored sources to
+  <duckdb/duckdb@61d4d2f92af6ae2ca606f28b1540f1156af49fdb>.
+
+  Date: 2026-07-14 20:34:53 +0200
+
+  Fix for malformed JSON when rendering via duckbox
+  (<https://redirect.github.com/duckdb/duckdb/pull/23803>) bump iceberg
+  (<https://redirect.github.com/duckdb/duckdb/pull/23735>)
+
+- Update vendored sources to
+  <duckdb/duckdb@1a0b2bd02fab6e0af46e9bd4939fd3ce4e0cee97>.
+
+  Date: 2026-07-14 18:50:41 +0200
+
+  Bump extensions in preparation for v1.5.5
+  (<https://redirect.github.com/duckdb/duckdb/pull/23794>) Bump azure,
+  unity_catalog extensions to v1.5-variegata HEAD
+  (<https://redirect.github.com/duckdb/duckdb/pull/23800>)
+
+- Update vendored sources to
+  <duckdb/duckdb@983f81bd2dbf3e3eebbaf4b7e2fb04ab1bb058aa>.
+
+  Date: 2026-07-14 12:44:23 +0200
+
+  Add HTTPUtil::ShouldRetry(request, response) retry-classification hook
+  (<https://redirect.github.com/duckdb/duckdb/pull/23793>)
+
+- Update vendored sources to
+  <duckdb/duckdb@d6d9cdaacaaa2ee7d0bca3e2faf0899b367b89ca>.
+
+  Date: 2026-07-14 10:56:00 +0200
+
+  Fix segfault in external hash aggregate when radix bits grow after
+  going external
+  (<https://redirect.github.com/duckdb/duckdb/pull/23757>)
+
+- Update vendored sources to
+  <duckdb/duckdb@f2677bfbf76214821f72538c65a8472355e89c98>.
+
+  Date: 2026-07-14 00:26:19 -0700
+
+  Bump Postgres, MySQL and SQLite in 1.5
+  (<https://redirect.github.com/duckdb/duckdb/pull/23780>) Fix lance
+  build on Rust 1.97: patch its Cargo.lock to ethnum 1.5.3
+  (<https://redirect.github.com/duckdb/duckdb/pull/23770>)
+
+- Update vendored sources to
+  <duckdb/duckdb@1bc78bf4686dae282adebcd75f2a0c28e2e7e85b>.
+
+  Date: 2026-07-13 03:20:58 -0700
+
+  Correctly promote `SUGGEST_NEW` to `REQUIRE_NEW` for variant /
+  geometry columns
+  (<https://redirect.github.com/duckdb/duckdb/pull/23763>) Include
+  extension header in libduckdb archives
+  (<https://redirect.github.com/duckdb/duckdb/pull/23752>)
+
+- Update vendored sources to
+  <duckdb/duckdb@f13d14e616a7d88d66a01f0588bae66b55af9add>.
+
+  Date: 2026-07-09 15:20:59 -0700
+
+  Fix DROP COLUMN corrupting per-column metadata block bookkeeping
+  (<https://redirect.github.com/duckdb/duckdb/pull/23714>)
+
+- Update vendored sources to
+  <duckdb/duckdb@ce4ba75ed83af354465ce46a4ffe0a78670f3d74>.
+
+  Date: 2026-07-09 14:06:05 +0200
+
+  Issue <https://redirect.github.com/duckdb/duckdb/pull/23664>: RANGE
+  ZERO (<https://redirect.github.com/duckdb/duckdb/pull/23710>)
+
+- Update vendored sources to
+  <duckdb/duckdb@b8cd3225ee801cb835e8d8578cc89153816e9888>.
+
+  Date: 2026-07-08 15:47:38 +0200
+
+  fix(adbc): support the ADBC Statistics API
+  (<https://redirect.github.com/duckdb/duckdb/pull/23230>)
+
+- Update vendored sources to
+  <duckdb/duckdb@42040d6df4aa410f7fa05e77e1d0ac45e53fa675>.
+
+  Date: 2026-07-08 11:21:49 +0200
+
+  backport <https://redirect.github.com/duckdb/duckdb/pull/23573>
+  (<https://redirect.github.com/duckdb/duckdb/pull/23672>)
+
+- Update vendored sources to
+  <duckdb/duckdb@b155d6f63cea14e0dfacb1cb795d5266024303e6>.
+
+  Date: 2026-07-07 16:11:56 +0200
+
+  Bump HTTPFS (<https://redirect.github.com/duckdb/duckdb/pull/23648>)
+
+- Update vendored sources to
+  <duckdb/duckdb@bd77d596392f567d1d8cc18d45874c78b145d3d3>.
+
+  Date: 2026-07-07 11:27:33 +0200
+
+  Fixed unsafe iteration when parent is `NULL` in string cast
+  (<https://redirect.github.com/duckdb/duckdb/pull/23593>)
+
+- Update vendored sources to
+  <duckdb/duckdb@4af19ec15497a6c7ac86ca5c04ef3796a0596fe7>.
+
+  Date: 2026-07-07 10:34:36 +0200
+
+  Issue <https://redirect.github.com/duckdb/duckdb/pull/23641>:
+  CUME_DIST Underflow
+  (<https://redirect.github.com/duckdb/duckdb/pull/23651>)
+
+- Update vendored sources to
+  <duckdb/duckdb@b7eba810936b3aac911928ab14d3e3a267e56854>.
+
+  Date: 2026-07-06 12:53:34 +0200
+
+  backport <https://redirect.github.com/duckdb/duckdb/pull/23548> to
+  v1.5 (<https://redirect.github.com/duckdb/duckdb/pull/23587>)
+
+- Update vendored sources to
+  <duckdb/duckdb@ffbe20ddf05a745d95c6bb2ff4432656ac80bd11>.
+
+  Date: 2026-07-06 12:35:54 +0200
+
+  Bump version map to include v1.5.5
+  (<https://redirect.github.com/duckdb/duckdb/pull/23629>)
+
+- Update vendored sources to
+  <duckdb/duckdb@2707468686ef077eed7d3e04a4d01752d4ed3403>.
+
+  Date: 2026-07-03 13:34:50 +0200
+
+  \[v1.5\] Quickfix `ALTER TABLE ADD COLUMN IF NOT EXISTS ... DEFAULT`
+  regression (<https://redirect.github.com/duckdb/duckdb/pull/23507>)
+
+- Update vendored sources to
+  <duckdb/duckdb@599574338bfac54f5a8f993e710fd6eaf53270a0>.
+
+  Date: 2026-07-03 10:22:12 +0200
+
+  fix out-of-bounds read on empty byte array decimals
+  (<https://redirect.github.com/duckdb/duckdb/pull/23567>)
+
+- Update vendored sources to
+  <duckdb/duckdb@9a8e50ddeeb66c543db4d5312ab80bccf280f887>.
+
+  Date: 2026-07-03 10:21:56 +0200
+
+  Fix filter combiner not pruning unsatisfiable bounds
+  (<https://redirect.github.com/duckdb/duckdb/pull/23563>)
+
+- Update vendored sources to
+  <duckdb/duckdb@c23ca53615cdee0eee8c1a2a1622077116df04de>.
+
+  Date: 2026-07-03 10:21:41 +0200
+
+  \[variegata\] Bump extensions
+  (<https://redirect.github.com/duckdb/duckdb/pull/23562>)
+
+- Update vendored sources to
+  <duckdb/duckdb@97f93aba21cc2fa3883da6e74e551a59ba64f020>.
+
+  Date: 2026-07-03 08:54:46 +0200
+
+  Fix/capi scalar bind subquery crash
+  (<https://redirect.github.com/duckdb/duckdb/pull/23566>)
+
+- Update vendored sources to
+  <duckdb/duckdb@4e7493b0a76bcfb72b07e407ad86077fdded0e89>.
+
+  Date: 2026-07-02 10:09:51 +0200
+
+  \[ADBC\] Add support for duckdb:// URI scheme in URI option
+  (<https://redirect.github.com/duckdb/duckdb/pull/21293>) Merge v1.4
+  into v1.5 (<https://redirect.github.com/duckdb/duckdb/pull/23560>)
+
+- Update vendored sources to
+  <duckdb/duckdb@60bc9708b5aaaf404131b4f0f70d68db2d8f7dd0>.
+
+  Date: 2026-07-02 08:07:23 +0200
+
+  fix out-of-bounds read in dictionary string decompression
+  (<https://redirect.github.com/duckdb/duckdb/pull/23549>) Issue
+  <https://redirect.github.com/duckdb/duckdb/pull/23500>: JSON
+  TIMESTAMP_TZ Formatting
+  (<https://redirect.github.com/duckdb/duckdb/pull/23513>)
+
+- Update vendored sources to
+  <duckdb/duckdb@8c893b6a8ad80d19eb6c50ce11d875c89b01e78b>.
+
+  Date: 2026-07-01 14:27:47 +0200
+
+  Fix arrow type extension bugs
+  (<https://redirect.github.com/duckdb/duckdb/pull/23534>)
+
+- Update vendored sources to
+  <duckdb/duckdb@39391b92ca9ef97e56d20311c93fbe6fc5b16f88>.
+
+  Date: 2026-07-01 13:57:29 +0200
+
+  Backport <https://redirect.github.com/duckdb/duckdb/pull/23468> and
+  <https://redirect.github.com/duckdb/duckdb/pull/23510>
+  (<https://redirect.github.com/duckdb/duckdb/pull/23529>)
+
+- Update vendored sources to
+  <duckdb/duckdb@da9f597c751364e7da87aa3852a5fa60643a0264>.
+
+  Date: 2026-06-30 14:03:31 +0200
+
+  \[v1.5\] Fix min/max aggregate stats when row groups filtered
+  (<https://redirect.github.com/duckdb/duckdb/pull/23517>)
+
+- Update vendored sources to
+  <duckdb/duckdb@87ba47bbcd90895469e96d74e6e0e2abf84c9174>.
+
+  Date: 2026-06-29 10:42:57 +0200
+
+  \[v1.5\] Backport PR
+  <https://redirect.github.com/duckdb/duckdb/pull/23444>: fix eviction
+  node memleak when external fi…
+  (<https://redirect.github.com/duckdb/duckdb/pull/23479>)
+
+- Update vendored sources to
+  <duckdb/duckdb@fe1ea2865f8b2fab434ec256010719e5f42b2918>.
+
+  Date: 2026-06-29 10:10:12 +0200
+
+  Enabled `ALP` and `ALP_RD` for storage version v1.5.0 and up when
+  using smaller block sizes
+  (<https://redirect.github.com/duckdb/duckdb/pull/23483>)
+
+- Update vendored sources to
+  <duckdb/duckdb@db41de85b1b3360600c2ed7eb2c1627b35dff426>.
+
+  Date: 2026-06-29 09:13:19 +0200
+
+  Issue <https://redirect.github.com/duckdb/duckdb/pull/23457>: Ordered
+  FIRST_VALUE Framing
+  (<https://redirect.github.com/duckdb/duckdb/pull/23499>)
+
+- Update vendored sources to
+  <duckdb/duckdb@fda2906db545de8921dd939ccbdc79e35b666f1e>.
+
+  Date: 2026-06-26 22:20:43 +0200
+
+  Improve rle corruption error messages
+  (<https://redirect.github.com/duckdb/duckdb/pull/23480>)
+
+- Update vendored sources to
+  <duckdb/duckdb@dc72a8dc06e1c0b84bbdb6db438d17f9ee058ab5>.
+
+  Date: 2026-06-26 10:51:41 +0200
+
+  \[v1.5\] No cache if file doesn’t contain version information
+  (<https://redirect.github.com/duckdb/duckdb/pull/23434>)
+
+- Update vendored sources to
+  <duckdb/duckdb@24649101adce4fb71bfa920d3c7c1f1333df42c2>.
+
+  Date: 2026-06-25 19:51:38 +0200
+
+  Fix false RLE corruption error
+  (<https://redirect.github.com/duckdb/duckdb/pull/23458>)
+
+- Update vendored sources to
+  <duckdb/duckdb@6352fbb168f267f8690abd6e76e4bf1daa43e8df>.
+
+  Date: 2026-06-25 11:08:11 +0200
+
+  Use correct start time when verifying dependencies
+  (<https://redirect.github.com/duckdb/duckdb/pull/23430>)
+
+- Update vendored sources to
+  <duckdb/duckdb@152ff5079832659296600facb42ad92558c3b115>.
+
+  Date: 2026-06-23 10:58:19 +0200
+
+  Issue <https://redirect.github.com/duckdb/duckdb/pull/23383>: Common
+  Aggregate CTEs
+  (<https://redirect.github.com/duckdb/duckdb/pull/23409>)
+
+- Update vendored sources to
+  <duckdb/duckdb@15d896e750ceb1380551783c94b195f0328f09bc>.
+
+  Date: 2026-06-23 08:34:54 +0200
+
+  fix out-of-bounds read in string to struct cast
+  (<https://redirect.github.com/duckdb/duckdb/pull/23384>) fix
+  out-of-bounds read in json path ReadKey lookahead
+  (<https://redirect.github.com/duckdb/duckdb/pull/23371>)
+
+- Update vendored sources to
+  <duckdb/duckdb@2cc5cda9dab17d55b5d3dabdb7f54cfd23ca634e>.
+
+  Date: 2026-06-22 16:43:49 +0200
+
+  Add additional guards to `DICT_FSST` to prevent exception during
+  compression with small block size
+  (<https://redirect.github.com/duckdb/duckdb/pull/23341>) Bump Julia to
+  v1.5.4 (<https://redirect.github.com/duckdb/duckdb/pull/23398>)
+
+- Update vendored sources to
+  <duckdb/duckdb@c4770ecba48065b691843da2e6eb9f91e3fea77b>.
+
+  Date: 2026-06-19 22:02:50 +0200
+
+  Propagate lambda bindings into `try` operator
+  (<https://redirect.github.com/duckdb/duckdb/pull/23375>)
+
+- Update vendored sources to
+  <duckdb/duckdb@600f2242eb52f32a6af6fbe668eb6c0687dcc128>.
+
+  Date: 2026-06-19 13:02:53 +0200
+
+  \[MultiFileReader\] Prevent NULL MAP keys because of (likely missing)
+  default value (<https://redirect.github.com/duckdb/duckdb/pull/23354>)
+  \[Dev\] Fix recursion issue with `scripts/lldb/pointer_print`
+  (<https://redirect.github.com/duckdb/duckdb/pull/23362>)
+
+- Update vendored sources to
+  <duckdb/duckdb@d8d71422f8b9d45cb0de6f68beeac4de81fc9fec>.
+
+  Date: 2026-06-19 10:24:30 +0200
+
+  Register `oid` of dependencies in the `DependencyManager` so that we
+  can track if an object was re-created with the same name
+  (<https://redirect.github.com/duckdb/duckdb/pull/23348>)
+
+- Update vendored sources to
+  <duckdb/duckdb@4abd06ce01db60bc9ea8d65c99e65a6666b77377>.
+
+  Date: 2026-06-18 16:08:08 +0200
+
+  Fix deadlock in `TemporaryMemoryManager`
+  (<https://redirect.github.com/duckdb/duckdb/pull/23351>)
+
+- Update vendored sources to
+  <duckdb/duckdb@5e09cde1ebae9dab1f8a6bb30be33b046a80a863>.
+
+  Date: 2026-06-18 12:36:16 +0200
+
+  parquet: reject DATA_PAGE_V2 pages with inconsistent
+  compressed_page_size
+  (<https://redirect.github.com/duckdb/duckdb/pull/23279>) Dispatch Rust
+  nightly build (<https://redirect.github.com/duckdb/duckdb/pull/23352>)
+
+- Update vendored sources to
+  <duckdb/duckdb@d7ed3ca53fffb187a8768a4630883aeac05bbb3f>.
+
+  Date: 2026-06-18 08:05:02 +0200
+
+  Show transport errors in HTTP log
+  (<https://redirect.github.com/duckdb/duckdb/pull/23327>)
+
+- Update vendored sources to
+  <duckdb/duckdb@f134ccacff2e6d752df3d5a4db9f01e2f01ed87e>.
+
+  Date: 2026-06-17 19:38:41 +0200
+
+  Add request body length to http logs
+  (<https://redirect.github.com/duckdb/duckdb/pull/23316>) bump unity to
+  include backfill fix
+  (<https://redirect.github.com/duckdb/duckdb/pull/23326>)
+
+- Update vendored sources to
+  <duckdb/duckdb@044589684474e8e58f98fb76213cfad67d9abe3d>.
+
+  Date: 2026-06-17 15:13:27 +0200
+
+  Correctly get typed value stats for fully shredded variants
+  (<https://redirect.github.com/duckdb/duckdb/pull/23325>) bump iceberg
+  again (<https://redirect.github.com/duckdb/duckdb/pull/23311>) Add
+  support for test config extending
+  (<https://redirect.github.com/duckdb/duckdb/pull/23145>) \[Dev\] Add
+  LLDB scripts to help with debugging
+  (<https://redirect.github.com/duckdb/duckdb/pull/23297>)
+
 ## duckdb 1.5.4.9010
 
 ### Chore

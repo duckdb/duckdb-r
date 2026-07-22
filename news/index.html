@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.4.9010.55</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.4.9011</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -31,6 +31,305 @@
       <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.5.4.9011" id="duckdb-1549011">duckdb 1.5.4.9011<a class="anchor" aria-label="anchor" href="#duckdb-1549011"></a></h2>
+<div class="section level3">
+<h3 id="features-1-5-4-9011">Features<a class="anchor" aria-label="anchor" href="#features-1-5-4-9011"></a></h3>
+<ul><li>Resolve extension/secret storage under <code>~/.duckdb</code> or <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> (<a href="https://github.com/duckdb/duckdb-r/issues/2396" class="external-link">#2396</a>).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="chore-1-5-4-9011">Chore<a class="anchor" aria-label="anchor" href="#chore-1-5-4-9011"></a></h3>
+<ul><li>Results for revdepchecks.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="continuous-integration-1-5-4-9011">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-5-4-9011"></a></h3>
+<ul><li><p>Align Windows builds.</p></li>
+<li><p>Align vendoring scripts.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="vendor-1-5-4-9011">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-5-4-9011"></a></h3>
+<ul><li>
+<p>Update vendored sources (tag v1.5.5) to <a href="mailto:duckdb/duckdb@d8cdaa33fda8df955cc76ef58a280f68f4cd43fa" class="email">duckdb/duckdb@d8cdaa33fda8df955cc76ef58a280f68f4cd43fa</a>.</p>
+<p>Date: 2026-07-21 13:03:22 +0200</p>
+<p>Bump httpfs (<a href="https://redirect.github.com/duckdb/duckdb/pull/24003" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/24003</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@0b9ca135652107c7dccfe398662267b449097c61" class="email">duckdb/duckdb@0b9ca135652107c7dccfe398662267b449097c61</a>.</p>
+<p>Date: 2026-07-21 10:33:44 +0200</p>
+<p>Add missing statement types to capi (<a href="https://redirect.github.com/duckdb/duckdb/pull/23407" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23407</a>) Bump lance pin to upstream ethnum fix, drop local patch (<a href="https://redirect.github.com/duckdb/duckdb/pull/23969" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23969</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@96e5ae96d283e1cba4c551a2d61877ec1aa18121" class="email">duckdb/duckdb@96e5ae96d283e1cba4c551a2d61877ec1aa18121</a>.</p>
+<p>Date: 2026-07-21 09:15:35 +0200</p>
+<p>Fix OSX ci (<a href="https://redirect.github.com/duckdb/duckdb/pull/23963" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23963</a>) Bump DuckLake (<a href="https://redirect.github.com/duckdb/duckdb/pull/23962" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23962</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@1d8a8ea65f52c66476dfb5850b7083dd87647d1f" class="email">duckdb/duckdb@1d8a8ea65f52c66476dfb5850b7083dd87647d1f</a>.</p>
+<p>Date: 2026-07-20 13:43:10 +0200</p>
+<p>Expose destructors, so they are callable module boundaries (<a href="https://redirect.github.com/duckdb/duckdb/pull/23953" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23953</a>) Bump extensions for v1.5.5: quack, httpfs and aws (<a href="https://redirect.github.com/duckdb/duckdb/pull/23892" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23892</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@4a11fb2555db746a6bfbc9bafc1018d7638369fa" class="email">duckdb/duckdb@4a11fb2555db746a6bfbc9bafc1018d7638369fa</a>.</p>
+<p>Date: 2026-07-20 10:15:28 +0200</p>
+<p>[v1.5 backport] Fix: reset empty_range in the TIMESTAMP range() table function (<a href="https://redirect.github.com/duckdb/duckdb/pull/23879" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23879</a>) Bump Postgres extension for 1.5 (<a href="https://redirect.github.com/duckdb/duckdb/pull/23930" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23930</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@e14c3db18700c8f730a3421f6b96a8655d7662c4" class="email">duckdb/duckdb@e14c3db18700c8f730a3421f6b96a8655d7662c4</a>.</p>
+<p>Date: 2026-07-17 18:28:49 +0200</p>
+<p>Fix concurrent ALTER and INSERT crash (<a href="https://redirect.github.com/duckdb/duckdb/pull/23861" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23861</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@d8e8cd9aea5a98f4b4766a8e9d6c48bd4741935a" class="email">duckdb/duckdb@d8e8cd9aea5a98f4b4766a8e9d6c48bd4741935a</a>.</p>
+<p>Date: 2026-07-17 09:41:10 +0200</p>
+<p>TryLookupEntry now uses default schema as fallback (<a href="https://redirect.github.com/duckdb/duckdb/pull/23790" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23790</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@1b68da1dc15069f4b5ed9766b55170bc923830cd" class="email">duckdb/duckdb@1b68da1dc15069f4b5ed9766b55170bc923830cd</a>.</p>
+<p>Date: 2026-07-16 16:01:17 +0200</p>
+<p>[DependencyManager] Fix ALTER dependency preservation (<a href="https://redirect.github.com/duckdb/duckdb/pull/23808" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23808</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@65cc13cdeeebe53781dcc8dad15a0ac764ad25a8" class="email">duckdb/duckdb@65cc13cdeeebe53781dcc8dad15a0ac764ad25a8</a>.</p>
+<p>Date: 2026-07-16 10:56:27 +0200</p>
+<p>[v1.5] Backport two more fixes (<a href="https://redirect.github.com/duckdb/duckdb/pull/23841" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23841</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@6daa70e0e87a5f3f20e58a37d447d2b7fec3abe7" class="email">duckdb/duckdb@6daa70e0e87a5f3f20e58a37d447d2b7fec3abe7</a>.</p>
+<p>Date: 2026-07-15 11:12:58 +0200</p>
+<p>backport <a href="https://redirect.github.com/duckdb/duckdb/pull/22198" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/22198</a> (<a href="https://redirect.github.com/duckdb/duckdb/pull/23810" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23810</a>) [variegata] Bump quack to 8e715ebb (<a href="https://redirect.github.com/duckdb/duckdb/pull/23820" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23820</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@7adf7a70bb9a8755d1c3f86aaf52430ff66227b2" class="email">duckdb/duckdb@7adf7a70bb9a8755d1c3f86aaf52430ff66227b2</a>.</p>
+<p>Date: 2026-07-15 10:49:49 +0200</p>
+<p>Fix swapped min/max for multi-row-group 128-bit DECIMAL in RETURN_STATS (<a href="https://redirect.github.com/duckdb/duckdb/pull/23693" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23693</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@76d5b0bda1be609960e19ac5db46acd7248c2faa" class="email">duckdb/duckdb@76d5b0bda1be609960e19ac5db46acd7248c2faa</a>.</p>
+<p>Date: 2026-07-15 10:49:31 +0200</p>
+<p>bound alp/alprd exception positions to vector size (<a href="https://redirect.github.com/duckdb/duckdb/pull/23778" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23778</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@925680abaace84aca8ed9f5cf51f5ac969e8f153" class="email">duckdb/duckdb@925680abaace84aca8ed9f5cf51f5ac969e8f153</a>.</p>
+<p>Date: 2026-07-15 10:37:02 +0200</p>
+<p>[v1.5] Backport a few fix PRs for v1.5.5 release (<a href="https://redirect.github.com/duckdb/duckdb/pull/23804" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23804</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@61d4d2f92af6ae2ca606f28b1540f1156af49fdb" class="email">duckdb/duckdb@61d4d2f92af6ae2ca606f28b1540f1156af49fdb</a>.</p>
+<p>Date: 2026-07-14 20:34:53 +0200</p>
+<p>Fix for malformed JSON when rendering via duckbox (<a href="https://redirect.github.com/duckdb/duckdb/pull/23803" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23803</a>) bump iceberg (<a href="https://redirect.github.com/duckdb/duckdb/pull/23735" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23735</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@1a0b2bd02fab6e0af46e9bd4939fd3ce4e0cee97" class="email">duckdb/duckdb@1a0b2bd02fab6e0af46e9bd4939fd3ce4e0cee97</a>.</p>
+<p>Date: 2026-07-14 18:50:41 +0200</p>
+<p>Bump extensions in preparation for v1.5.5 (<a href="https://redirect.github.com/duckdb/duckdb/pull/23794" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23794</a>) Bump azure, unity_catalog extensions to v1.5-variegata HEAD (<a href="https://redirect.github.com/duckdb/duckdb/pull/23800" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23800</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@983f81bd2dbf3e3eebbaf4b7e2fb04ab1bb058aa" class="email">duckdb/duckdb@983f81bd2dbf3e3eebbaf4b7e2fb04ab1bb058aa</a>.</p>
+<p>Date: 2026-07-14 12:44:23 +0200</p>
+<p>Add HTTPUtil::ShouldRetry(request, response) retry-classification hook (<a href="https://redirect.github.com/duckdb/duckdb/pull/23793" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23793</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@d6d9cdaacaaa2ee7d0bca3e2faf0899b367b89ca" class="email">duckdb/duckdb@d6d9cdaacaaa2ee7d0bca3e2faf0899b367b89ca</a>.</p>
+<p>Date: 2026-07-14 10:56:00 +0200</p>
+<p>Fix segfault in external hash aggregate when radix bits grow after going external (<a href="https://redirect.github.com/duckdb/duckdb/pull/23757" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23757</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@f2677bfbf76214821f72538c65a8472355e89c98" class="email">duckdb/duckdb@f2677bfbf76214821f72538c65a8472355e89c98</a>.</p>
+<p>Date: 2026-07-14 00:26:19 -0700</p>
+<p>Bump Postgres, MySQL and SQLite in 1.5 (<a href="https://redirect.github.com/duckdb/duckdb/pull/23780" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23780</a>) Fix lance build on Rust 1.97: patch its Cargo.lock to ethnum 1.5.3 (<a href="https://redirect.github.com/duckdb/duckdb/pull/23770" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23770</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@1bc78bf4686dae282adebcd75f2a0c28e2e7e85b" class="email">duckdb/duckdb@1bc78bf4686dae282adebcd75f2a0c28e2e7e85b</a>.</p>
+<p>Date: 2026-07-13 03:20:58 -0700</p>
+<p>Correctly promote <code>SUGGEST_NEW</code> to <code>REQUIRE_NEW</code> for variant / geometry columns (<a href="https://redirect.github.com/duckdb/duckdb/pull/23763" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23763</a>) Include extension header in libduckdb archives (<a href="https://redirect.github.com/duckdb/duckdb/pull/23752" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23752</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@f13d14e616a7d88d66a01f0588bae66b55af9add" class="email">duckdb/duckdb@f13d14e616a7d88d66a01f0588bae66b55af9add</a>.</p>
+<p>Date: 2026-07-09 15:20:59 -0700</p>
+<p>Fix DROP COLUMN corrupting per-column metadata block bookkeeping (<a href="https://redirect.github.com/duckdb/duckdb/pull/23714" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23714</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@ce4ba75ed83af354465ce46a4ffe0a78670f3d74" class="email">duckdb/duckdb@ce4ba75ed83af354465ce46a4ffe0a78670f3d74</a>.</p>
+<p>Date: 2026-07-09 14:06:05 +0200</p>
+<p>Issue <a href="https://redirect.github.com/duckdb/duckdb/pull/23664" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23664</a>: RANGE ZERO (<a href="https://redirect.github.com/duckdb/duckdb/pull/23710" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23710</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@b8cd3225ee801cb835e8d8578cc89153816e9888" class="email">duckdb/duckdb@b8cd3225ee801cb835e8d8578cc89153816e9888</a>.</p>
+<p>Date: 2026-07-08 15:47:38 +0200</p>
+<p>fix(adbc): support the ADBC Statistics API (<a href="https://redirect.github.com/duckdb/duckdb/pull/23230" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23230</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@42040d6df4aa410f7fa05e77e1d0ac45e53fa675" class="email">duckdb/duckdb@42040d6df4aa410f7fa05e77e1d0ac45e53fa675</a>.</p>
+<p>Date: 2026-07-08 11:21:49 +0200</p>
+<p>backport <a href="https://redirect.github.com/duckdb/duckdb/pull/23573" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23573</a> (<a href="https://redirect.github.com/duckdb/duckdb/pull/23672" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23672</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@b155d6f63cea14e0dfacb1cb795d5266024303e6" class="email">duckdb/duckdb@b155d6f63cea14e0dfacb1cb795d5266024303e6</a>.</p>
+<p>Date: 2026-07-07 16:11:56 +0200</p>
+<p>Bump HTTPFS (<a href="https://redirect.github.com/duckdb/duckdb/pull/23648" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23648</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@bd77d596392f567d1d8cc18d45874c78b145d3d3" class="email">duckdb/duckdb@bd77d596392f567d1d8cc18d45874c78b145d3d3</a>.</p>
+<p>Date: 2026-07-07 11:27:33 +0200</p>
+<p>Fixed unsafe iteration when parent is <code>NULL</code> in string cast (<a href="https://redirect.github.com/duckdb/duckdb/pull/23593" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23593</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@4af19ec15497a6c7ac86ca5c04ef3796a0596fe7" class="email">duckdb/duckdb@4af19ec15497a6c7ac86ca5c04ef3796a0596fe7</a>.</p>
+<p>Date: 2026-07-07 10:34:36 +0200</p>
+<p>Issue <a href="https://redirect.github.com/duckdb/duckdb/pull/23641" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23641</a>: CUME_DIST Underflow (<a href="https://redirect.github.com/duckdb/duckdb/pull/23651" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23651</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@b7eba810936b3aac911928ab14d3e3a267e56854" class="email">duckdb/duckdb@b7eba810936b3aac911928ab14d3e3a267e56854</a>.</p>
+<p>Date: 2026-07-06 12:53:34 +0200</p>
+<p>backport <a href="https://redirect.github.com/duckdb/duckdb/pull/23548" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23548</a> to v1.5 (<a href="https://redirect.github.com/duckdb/duckdb/pull/23587" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23587</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@ffbe20ddf05a745d95c6bb2ff4432656ac80bd11" class="email">duckdb/duckdb@ffbe20ddf05a745d95c6bb2ff4432656ac80bd11</a>.</p>
+<p>Date: 2026-07-06 12:35:54 +0200</p>
+<p>Bump version map to include v1.5.5 (<a href="https://redirect.github.com/duckdb/duckdb/pull/23629" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23629</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@2707468686ef077eed7d3e04a4d01752d4ed3403" class="email">duckdb/duckdb@2707468686ef077eed7d3e04a4d01752d4ed3403</a>.</p>
+<p>Date: 2026-07-03 13:34:50 +0200</p>
+<p>[v1.5] Quickfix <code>ALTER TABLE ADD COLUMN IF NOT EXISTS ... DEFAULT</code> regression (<a href="https://redirect.github.com/duckdb/duckdb/pull/23507" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23507</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@599574338bfac54f5a8f993e710fd6eaf53270a0" class="email">duckdb/duckdb@599574338bfac54f5a8f993e710fd6eaf53270a0</a>.</p>
+<p>Date: 2026-07-03 10:22:12 +0200</p>
+<p>fix out-of-bounds read on empty byte array decimals (<a href="https://redirect.github.com/duckdb/duckdb/pull/23567" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23567</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@9a8e50ddeeb66c543db4d5312ab80bccf280f887" class="email">duckdb/duckdb@9a8e50ddeeb66c543db4d5312ab80bccf280f887</a>.</p>
+<p>Date: 2026-07-03 10:21:56 +0200</p>
+<p>Fix filter combiner not pruning unsatisfiable bounds (<a href="https://redirect.github.com/duckdb/duckdb/pull/23563" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23563</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@c23ca53615cdee0eee8c1a2a1622077116df04de" class="email">duckdb/duckdb@c23ca53615cdee0eee8c1a2a1622077116df04de</a>.</p>
+<p>Date: 2026-07-03 10:21:41 +0200</p>
+<p>[variegata] Bump extensions (<a href="https://redirect.github.com/duckdb/duckdb/pull/23562" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23562</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@97f93aba21cc2fa3883da6e74e551a59ba64f020" class="email">duckdb/duckdb@97f93aba21cc2fa3883da6e74e551a59ba64f020</a>.</p>
+<p>Date: 2026-07-03 08:54:46 +0200</p>
+<p>Fix/capi scalar bind subquery crash (<a href="https://redirect.github.com/duckdb/duckdb/pull/23566" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23566</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@4e7493b0a76bcfb72b07e407ad86077fdded0e89" class="email">duckdb/duckdb@4e7493b0a76bcfb72b07e407ad86077fdded0e89</a>.</p>
+<p>Date: 2026-07-02 10:09:51 +0200</p>
+<p>[ADBC] Add support for duckdb:// URI scheme in URI option (<a href="https://redirect.github.com/duckdb/duckdb/pull/21293" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/21293</a>) Merge v1.4 into v1.5 (<a href="https://redirect.github.com/duckdb/duckdb/pull/23560" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23560</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@60bc9708b5aaaf404131b4f0f70d68db2d8f7dd0" class="email">duckdb/duckdb@60bc9708b5aaaf404131b4f0f70d68db2d8f7dd0</a>.</p>
+<p>Date: 2026-07-02 08:07:23 +0200</p>
+<p>fix out-of-bounds read in dictionary string decompression (<a href="https://redirect.github.com/duckdb/duckdb/pull/23549" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23549</a>) Issue <a href="https://redirect.github.com/duckdb/duckdb/pull/23500" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23500</a>: JSON TIMESTAMP_TZ Formatting (<a href="https://redirect.github.com/duckdb/duckdb/pull/23513" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23513</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@8c893b6a8ad80d19eb6c50ce11d875c89b01e78b" class="email">duckdb/duckdb@8c893b6a8ad80d19eb6c50ce11d875c89b01e78b</a>.</p>
+<p>Date: 2026-07-01 14:27:47 +0200</p>
+<p>Fix arrow type extension bugs (<a href="https://redirect.github.com/duckdb/duckdb/pull/23534" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23534</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@39391b92ca9ef97e56d20311c93fbe6fc5b16f88" class="email">duckdb/duckdb@39391b92ca9ef97e56d20311c93fbe6fc5b16f88</a>.</p>
+<p>Date: 2026-07-01 13:57:29 +0200</p>
+<p>Backport <a href="https://redirect.github.com/duckdb/duckdb/pull/23468" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23468</a> and <a href="https://redirect.github.com/duckdb/duckdb/pull/23510" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23510</a> (<a href="https://redirect.github.com/duckdb/duckdb/pull/23529" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23529</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@da9f597c751364e7da87aa3852a5fa60643a0264" class="email">duckdb/duckdb@da9f597c751364e7da87aa3852a5fa60643a0264</a>.</p>
+<p>Date: 2026-06-30 14:03:31 +0200</p>
+<p>[v1.5] Fix min/max aggregate stats when row groups filtered (<a href="https://redirect.github.com/duckdb/duckdb/pull/23517" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23517</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@87ba47bbcd90895469e96d74e6e0e2abf84c9174" class="email">duckdb/duckdb@87ba47bbcd90895469e96d74e6e0e2abf84c9174</a>.</p>
+<p>Date: 2026-06-29 10:42:57 +0200</p>
+<p>[v1.5] Backport PR <a href="https://redirect.github.com/duckdb/duckdb/pull/23444" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23444</a>: fix eviction node memleak when external fi… (<a href="https://redirect.github.com/duckdb/duckdb/pull/23479" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23479</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@fe1ea2865f8b2fab434ec256010719e5f42b2918" class="email">duckdb/duckdb@fe1ea2865f8b2fab434ec256010719e5f42b2918</a>.</p>
+<p>Date: 2026-06-29 10:10:12 +0200</p>
+<p>Enabled <code>ALP</code> and <code>ALP_RD</code> for storage version v1.5.0 and up when using smaller block sizes (<a href="https://redirect.github.com/duckdb/duckdb/pull/23483" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23483</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@db41de85b1b3360600c2ed7eb2c1627b35dff426" class="email">duckdb/duckdb@db41de85b1b3360600c2ed7eb2c1627b35dff426</a>.</p>
+<p>Date: 2026-06-29 09:13:19 +0200</p>
+<p>Issue <a href="https://redirect.github.com/duckdb/duckdb/pull/23457" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23457</a>: Ordered FIRST_VALUE Framing (<a href="https://redirect.github.com/duckdb/duckdb/pull/23499" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23499</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@fda2906db545de8921dd939ccbdc79e35b666f1e" class="email">duckdb/duckdb@fda2906db545de8921dd939ccbdc79e35b666f1e</a>.</p>
+<p>Date: 2026-06-26 22:20:43 +0200</p>
+<p>Improve rle corruption error messages (<a href="https://redirect.github.com/duckdb/duckdb/pull/23480" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23480</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@dc72a8dc06e1c0b84bbdb6db438d17f9ee058ab5" class="email">duckdb/duckdb@dc72a8dc06e1c0b84bbdb6db438d17f9ee058ab5</a>.</p>
+<p>Date: 2026-06-26 10:51:41 +0200</p>
+<p>[v1.5] No cache if file doesn’t contain version information (<a href="https://redirect.github.com/duckdb/duckdb/pull/23434" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23434</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@24649101adce4fb71bfa920d3c7c1f1333df42c2" class="email">duckdb/duckdb@24649101adce4fb71bfa920d3c7c1f1333df42c2</a>.</p>
+<p>Date: 2026-06-25 19:51:38 +0200</p>
+<p>Fix false RLE corruption error (<a href="https://redirect.github.com/duckdb/duckdb/pull/23458" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23458</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@6352fbb168f267f8690abd6e76e4bf1daa43e8df" class="email">duckdb/duckdb@6352fbb168f267f8690abd6e76e4bf1daa43e8df</a>.</p>
+<p>Date: 2026-06-25 11:08:11 +0200</p>
+<p>Use correct start time when verifying dependencies (<a href="https://redirect.github.com/duckdb/duckdb/pull/23430" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23430</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@152ff5079832659296600facb42ad92558c3b115" class="email">duckdb/duckdb@152ff5079832659296600facb42ad92558c3b115</a>.</p>
+<p>Date: 2026-06-23 10:58:19 +0200</p>
+<p>Issue <a href="https://redirect.github.com/duckdb/duckdb/pull/23383" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23383</a>: Common Aggregate CTEs (<a href="https://redirect.github.com/duckdb/duckdb/pull/23409" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23409</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@15d896e750ceb1380551783c94b195f0328f09bc" class="email">duckdb/duckdb@15d896e750ceb1380551783c94b195f0328f09bc</a>.</p>
+<p>Date: 2026-06-23 08:34:54 +0200</p>
+<p>fix out-of-bounds read in string to struct cast (<a href="https://redirect.github.com/duckdb/duckdb/pull/23384" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23384</a>) fix out-of-bounds read in json path ReadKey lookahead (<a href="https://redirect.github.com/duckdb/duckdb/pull/23371" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23371</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@2cc5cda9dab17d55b5d3dabdb7f54cfd23ca634e" class="email">duckdb/duckdb@2cc5cda9dab17d55b5d3dabdb7f54cfd23ca634e</a>.</p>
+<p>Date: 2026-06-22 16:43:49 +0200</p>
+<p>Add additional guards to <code>DICT_FSST</code> to prevent exception during compression with small block size (<a href="https://redirect.github.com/duckdb/duckdb/pull/23341" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23341</a>) Bump Julia to v1.5.4 (<a href="https://redirect.github.com/duckdb/duckdb/pull/23398" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23398</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@c4770ecba48065b691843da2e6eb9f91e3fea77b" class="email">duckdb/duckdb@c4770ecba48065b691843da2e6eb9f91e3fea77b</a>.</p>
+<p>Date: 2026-06-19 22:02:50 +0200</p>
+<p>Propagate lambda bindings into <code>try</code> operator (<a href="https://redirect.github.com/duckdb/duckdb/pull/23375" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23375</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@600f2242eb52f32a6af6fbe668eb6c0687dcc128" class="email">duckdb/duckdb@600f2242eb52f32a6af6fbe668eb6c0687dcc128</a>.</p>
+<p>Date: 2026-06-19 13:02:53 +0200</p>
+<p>[MultiFileReader] Prevent NULL MAP keys because of (likely missing) default value (<a href="https://redirect.github.com/duckdb/duckdb/pull/23354" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23354</a>) [Dev] Fix recursion issue with <code>scripts/lldb/pointer_print</code> (<a href="https://redirect.github.com/duckdb/duckdb/pull/23362" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23362</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@d8d71422f8b9d45cb0de6f68beeac4de81fc9fec" class="email">duckdb/duckdb@d8d71422f8b9d45cb0de6f68beeac4de81fc9fec</a>.</p>
+<p>Date: 2026-06-19 10:24:30 +0200</p>
+<p>Register <code>oid</code> of dependencies in the <code>DependencyManager</code> so that we can track if an object was re-created with the same name (<a href="https://redirect.github.com/duckdb/duckdb/pull/23348" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23348</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@4abd06ce01db60bc9ea8d65c99e65a6666b77377" class="email">duckdb/duckdb@4abd06ce01db60bc9ea8d65c99e65a6666b77377</a>.</p>
+<p>Date: 2026-06-18 16:08:08 +0200</p>
+<p>Fix deadlock in <code>TemporaryMemoryManager</code> (<a href="https://redirect.github.com/duckdb/duckdb/pull/23351" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23351</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@5e09cde1ebae9dab1f8a6bb30be33b046a80a863" class="email">duckdb/duckdb@5e09cde1ebae9dab1f8a6bb30be33b046a80a863</a>.</p>
+<p>Date: 2026-06-18 12:36:16 +0200</p>
+<p>parquet: reject DATA_PAGE_V2 pages with inconsistent compressed_page_size (<a href="https://redirect.github.com/duckdb/duckdb/pull/23279" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23279</a>) Dispatch Rust nightly build (<a href="https://redirect.github.com/duckdb/duckdb/pull/23352" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23352</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@d7ed3ca53fffb187a8768a4630883aeac05bbb3f" class="email">duckdb/duckdb@d7ed3ca53fffb187a8768a4630883aeac05bbb3f</a>.</p>
+<p>Date: 2026-06-18 08:05:02 +0200</p>
+<p>Show transport errors in HTTP log (<a href="https://redirect.github.com/duckdb/duckdb/pull/23327" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23327</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@f134ccacff2e6d752df3d5a4db9f01e2f01ed87e" class="email">duckdb/duckdb@f134ccacff2e6d752df3d5a4db9f01e2f01ed87e</a>.</p>
+<p>Date: 2026-06-17 19:38:41 +0200</p>
+<p>Add request body length to http logs (<a href="https://redirect.github.com/duckdb/duckdb/pull/23316" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23316</a>) bump unity to include backfill fix (<a href="https://redirect.github.com/duckdb/duckdb/pull/23326" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23326</a>)</p>
+</li>
+<li>
+<p>Update vendored sources to <a href="mailto:duckdb/duckdb@044589684474e8e58f98fb76213cfad67d9abe3d" class="email">duckdb/duckdb@044589684474e8e58f98fb76213cfad67d9abe3d</a>.</p>
+<p>Date: 2026-06-17 15:13:27 +0200</p>
+<p>Correctly get typed value stats for fully shredded variants (<a href="https://redirect.github.com/duckdb/duckdb/pull/23325" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23325</a>) bump iceberg again (<a href="https://redirect.github.com/duckdb/duckdb/pull/23311" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23311</a>) Add support for test config extending (<a href="https://redirect.github.com/duckdb/duckdb/pull/23145" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23145</a>) [Dev] Add LLDB scripts to help with debugging (<a href="https://redirect.github.com/duckdb/duckdb/pull/23297" class="external-link uri">https://redirect.github.com/duckdb/duckdb/pull/23297</a>)</p>
+</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.5.4.9010" id="duckdb-1549010">duckdb 1.5.4.9010<a class="anchor" aria-label="anchor" href="#duckdb-1549010"></a></h2>
 <div class="section level3">
