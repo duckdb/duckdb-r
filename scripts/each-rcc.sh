@@ -36,6 +36,9 @@ echo "Scanning all commits on or after ${SINCE}"
 # Scan and queue in a single pass, in chronological order (oldest first).
 # Each commit without an rcc status is triggered as soon as it is found, so
 # runs start queuing while the remaining commits are still being scanned.
+# `awk 'NF'` re-emits every SHA newline-terminated — so the tip (the final line,
+# left unterminated by `--pretty=format:` under `--reverse`) is not dropped by
+# `read` — and emits nothing for empty input, avoiding a spurious empty commit.
 scheduled=0
 while IFS= read -r commit; do
   # Look for any rcc status on this commit (success, failure, pending/running)
@@ -53,6 +56,6 @@ while IFS= read -r commit; do
     gh workflow run rcc -f ref="$commit" -r "$REF"
     scheduled=$(( scheduled + 1 ))
   fi
-done < <(git log --first-parent --reverse --pretty=format:"%H" --after="${SINCE}" --)
+done < <(git log --first-parent --reverse --pretty=format:"%H" --after="${SINCE}" -- | awk 'NF')
 
 echo "Scheduled ${scheduled} run(s)"

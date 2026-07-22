@@ -33,7 +33,7 @@ To add or change a branch, update the matrix in `.github/workflows/vendor.yaml`.
 
 The vendoring process is automated via GitHub Actions (`.github/workflows/vendor.yaml`):
 
-- **Schedule**: Runs every hour (`0 * * * *`)
+- **Schedule**: Runs daily (`0 3 * * *`)
 - **Manual trigger**: Can be triggered via `workflow_dispatch`
 - **Code changes**: Triggers on changes to vendoring scripts or workflow
 
@@ -49,6 +49,35 @@ The automation uses `scripts/vendor-one.sh` which:
    - Always vendors Git tags (releases)
    - Only vendors commits with substantial changes (at least one file changed)
    - Preserves version compatibility (won't vendor if tags are incompatible)
+
+### Gating (`scripts/vendor-gate.sh`)
+
+Before vendoring, each daily run gates on the `rcc` commit-status of the branch
+tip and the 5 commits before it (a first-parent window of 6 commits), scanning
+newest → oldest:
+
+| Decision    | Condition                                                                 | Action |
+|-------------|---------------------------------------------------------------------------|--------|
+| `green`     | some commit in the window has `rcc=success`                               | advance from the youngest green commit and vendor at most 25 commits on top (only unverified *vendored* commits are re-rolled; non-vendored commits are preserved) |
+| `red`       | no green, but at least one `rcc=failure`/`error`                          | fail loudly — repair the breakage first |
+| `stale`     | no green/red, but a result-less commit is older than `MAX_AGE_HOURS` (6h) | fail loudly — CI never decided in time (e.g. the commit was never scheduled, or a run is wedged) |
+| `undecided` | no green/red, and every result-less commit is younger than 6h            | succeed and do nothing; the next daily run re-checks once CI has decided |
+
+The `stale`/`undecided` split keeps the loop patient with commits that are
+legitimately still building while surfacing a genuinely stuck pipeline instead
+of waiting on it forever. After a green advance, `scripts/each-rcc.sh` triggers
+an `rcc` build for every newly vendored commit that lacks one.
+
+**Non-vendored commits are never overwritten.** A vendor commit only regenerates
+`src/duckdb/` (plus the version bump), so vendoring can re-create it from
+upstream at any time. A *non-vendored* commit — a merged tooling / R-side PR on
+a `*-dev` branch — cannot be regenerated, so the green advance never discards it:
+it rewinds only past unverified **vendored** commits and cherry-picks any
+non-vendored commits back on top. Consequently, merging a PR onto a `*-dev`
+branch and letting vendoring run immediately leaves the merge in place (the
+freshly merged commit is younger than 6h with no result yet, so the six-hour
+rule treats it as still in flight), and the next `rcc` build promotes it to the
+green base like any other commit.
 
 ## Manual Vendoring
 
@@ -178,6 +207,8 @@ git log --oneline -1 --grep="vendor:"
 
 - `scripts/vendor.sh` - Manual vendoring script
 - `scripts/vendor-one.sh` - CI vendoring script (commit-by-commit)
+- `scripts/vendor-gate.sh` - Daily advance/fail/wait gate on `rcc` status
+- `scripts/each-rcc.sh` - Triggers an `rcc` build for commits without a status
 - `scripts/rconfigure.py` - R-specific DuckDB configuration
 - `.github/workflows/vendor.yaml` - Automated vendoring workflow
 - `patch/*.patch` - R-specific patches applied to DuckDB code (see [Patch Stack](../BRANCHES.md#patch-stack))
