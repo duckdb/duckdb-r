@@ -87,11 +87,6 @@ duckdb <- function(
   if (!is.null(home) && !is.null(shared_home)) {
     stop("Pass either `home` or `shared_home`, not both.", call. = FALSE)
   }
-  # An explicit `home`/`shared_home` means the user knows about the storage
-  # knobs; remember it so later auto-resolved calls this session stay quiet.
-  if (!is.null(home) || !is.null(shared_home)) {
-    mark_storage_choice_made()
-  }
 
   convert_opts <- duckdb_convert_opts(bigint = bigint)
 
@@ -117,6 +112,13 @@ duckdb <- function(
   need_extension <- !("extension_directory" %in% names(config))
   need_secret <- !("secret_directory" %in% names(config))
   if (need_extension || need_secret) {
+    # An explicit `home`/`shared_home` means the user knows the storage
+    # settings; remember it so later auto-resolved calls this session stay
+    # quiet. Set here, past the driver-cache reuse above, so an argument that a
+    # reused driver would ignore does not silence future messages.
+    if (!is.null(home) || !is.null(shared_home)) {
+      mark_storage_choice_made()
+    }
     resolved_home <- resolve_storage_home(home, shared_home)
     if (need_extension) {
       config["extension_directory"] <- home_subdir(
@@ -137,8 +139,8 @@ duckdb <- function(
     # interactively when the user opted out of creating ~/.duckdb; an existing
     # ~/.duckdb ("shared") is announced only non-interactively (interactively it
     # is the user's own directory, used without a prompt). Once the user has
-    # made any explicit `home`/`shared_home` choice this session they are
-    # informed, so we stay quiet from then on.
+    # made any explicit `home`/`shared_home` choice this session they have seen
+    # the settings, so we stay quiet from then on.
     announce <- is.null(home) &&
       is.null(shared_home) &&
       !storage_choice_made() &&
