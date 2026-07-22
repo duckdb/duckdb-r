@@ -521,3 +521,28 @@ test_that("duckdb can read arrow timestamptz", {
     duckdb_unregister_arrow(con, "timestamps")
   }
 })
+
+test_that("OR and IN predicates are pushed down to registered Arrow tables", {
+  con <- local_con()
+
+  tab <- arrow::arrow_table(data.frame(a = 1:20, b = letters[1:20]))
+  duckdb_register_arrow(con, "test_arrow_or", tab)
+  on.exit(duckdb_unregister_arrow(con, "test_arrow_or"))
+
+  expect_identical(
+    dbGetQuery(con, "SELECT a FROM test_arrow_or WHERE a = 3 OR a = 7 ORDER BY a")$a,
+    c(3L, 7L)
+  )
+  expect_identical(
+    dbGetQuery(con, "SELECT a FROM test_arrow_or WHERE a IN (2, 5, 11) ORDER BY a")$a,
+    c(2L, 5L, 11L)
+  )
+  expect_identical(
+    dbGetQuery(con, "SELECT a FROM test_arrow_or WHERE b IN ('c', 'f') ORDER BY a")$a,
+    c(3L, 6L)
+  )
+  expect_identical(
+    dbGetQuery(con, "SELECT a FROM test_arrow_or WHERE (a > 15 AND a < 18) OR a = 1 ORDER BY a")$a,
+    c(1L, 16L, 17L)
+  )
+})

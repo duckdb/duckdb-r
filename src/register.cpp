@@ -5,6 +5,8 @@
 #include "duckdb/parser/expression/function_expression.hpp"
 #include "duckdb/planner/filter/conjunction_filter.hpp"
 #include "duckdb/planner/filter/constant_filter.hpp"
+#include "duckdb/planner/filter/in_filter.hpp"
+#include "duckdb/planner/filter/optional_filter.hpp"
 #include "duckdb/planner/table_filter.hpp"
 #include "rapi.hpp"
 #include "signal.hpp"
@@ -172,16 +174,8 @@ private:
 
 		switch (filter.filter_type) {
 		case TableFilterType::CONSTANT_COMPARISON: {
-			auto constant_filter = (ConstantFilter &)filter;
-			ConvertOpts filter_opts;
-			cpp11::sexp constant_sexp = RApiTypes::ValueToSexp(constant_filter.constant, filter_opts);
-
-			// Scalar TIMESTAMP (no TZ) must have tzone="" for Arrow pushdown compatibility
-			if (constant_filter.constant.type().id() == LogicalTypeId::TIMESTAMP && TYPEOF(constant_sexp) == REALSXP) {
-				Rf_setAttrib(constant_sexp, RStrings::get().tzone_sym, StringsToSexp({""}));
-			}
-
-			cpp11::sexp constant_expr = CreateScalar(functions, constant_sexp);
+			auto &constant_filter = (ConstantFilter &)filter;
+			cpp11::sexp constant_expr = CreateConstantExpression(functions, constant_filter.constant);
 			switch (constant_filter.comparison_type) {
 			case ExpressionType::COMPARE_EQUAL: {
 				return CreateExpression(functions, "equal", column_name_expr, constant_expr);
@@ -218,8 +212,38 @@ private:
 			return TransformChildFilters(functions, column_name, "and_kleene", and_filter.child_filters);
 		}
 		case TableFilterType::CONJUNCTION_OR: {
-			auto &and_filter = (ConjunctionAndFilter &)filter;
-			return TransformChildFilters(functions, column_name, "or_kleene", and_filter.child_filters);
+			auto &or_filter = (ConjunctionOrFilter &)filter;
+			return TransformChildFilters(functions, column_name, "or_kleene", or_filter.child_filters);
+		}
+		case TableFilterType::IN_FILTER: {
+			// col IN (v1, v2, ...) as an OR chain of equality comparisons.
+			auto &in_filter = (InFilter &)filter;
+			if (in_filter.values.empty()) {
+				throw NotImplementedException("Arrow table filter pushdown %s not supported yet",
+				                              filter.ToString(column_name));
+			}
+			cpp11::sexp in_expr = CreateExpression(functions, "equal", column_name_expr,
+			                                       CreateConstantExpression(functions, in_filter.values[0]));
+			for (idx_t i = 1; i < in_filter.values.size(); i++) {
+				cpp11::sexp rhs = CreateExpression(functions, "equal", column_name_expr,
+				                                   CreateConstantExpression(functions, in_filter.values[i]));
+				in_expr = CreateExpression(functions, "or_kleene", in_expr, rhs);
+			}
+			return in_expr;
+		}
+		case TableFilterType::OPTIONAL_FILTER: {
+			// Optional filters only prune; DuckDB still applies the actual
+			// predicate. Push the child filter if it is expressible, and a
+			// TRUE literal otherwise, instead of failing the whole query.
+			auto &optional_filter = (OptionalFilter &)filter;
+			if (optional_filter.child_filter) {
+				try {
+					return TransformFilterExpression(*optional_filter.child_filter, column_name, functions);
+				} catch (NotImplementedException &) {
+				} catch (InternalException &) {
+				}
+			}
+			return CreateScalar(functions, cpp11::sexp(Rf_ScalarLogical(true)));
 		}
 
 		default:
@@ -274,6 +298,18 @@ private:
 
 	static SEXP CreateScalar(SEXP functions, SEXP op) {
 		return CallArrowFactory(functions, 3, op);
+	}
+
+	static SEXP CreateConstantExpression(SEXP functions, const Value &constant) {
+		ConvertOpts filter_opts;
+		cpp11::sexp constant_sexp = RApiTypes::ValueToSexp(constant, filter_opts);
+
+		// Scalar TIMESTAMP (no TZ) must have tzone="" for Arrow pushdown compatibility
+		if (constant.type().id() == LogicalTypeId::TIMESTAMP && TYPEOF(constant_sexp) == REALSXP) {
+			Rf_setAttrib(constant_sexp, RStrings::get().tzone_sym, StringsToSexp({""}));
+		}
+
+		return CreateScalar(functions, constant_sexp);
 	}
 };
 
