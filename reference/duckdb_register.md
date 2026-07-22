@@ -47,7 +47,7 @@ These functions are called for their side effect.
 ``` r
 con <- dbConnect(duckdb())
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpiHiGXX/duckdb
+#> ℹ /tmp/Rtmpi8P3Js/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
