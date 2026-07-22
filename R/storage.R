@@ -58,7 +58,7 @@
 #'     `max_temp_directory_size`. For an in-memory (`:memory:`) database DuckDB's
 #'     own default spills to `.tmp` in the current working directory, so the
 #'     package overrides it with a [tempdir()] sub-directory by default. This is
-#'     a separate knob from the extension/secret home (see below).}
+#'     a separate setting from the extension/secret home (see below).}
 #'   \item{Logs and profiling output}{Written only when a path is explicitly
 #'     configured (DuckDB settings `log_query_path`, `http_logging_output`,
 #'     profiling output). They default to *off*, so nothing is written without
@@ -128,6 +128,10 @@
 #'     Non-interactively it covers both the temporary directory and an existing
 #'     `~/.duckdb`; interactively it is issued only when the user opts out of
 #'     creating `~/.duckdb`.
+#'     It is also suppressed once you have made any explicit `home` or
+#'     `shared_home` choice earlier in the session: having set the location
+#'     explicitly once, you have seen how, so later auto-resolved calls stay
+#'     quiet.
 #'   }
 #' }
 #'
