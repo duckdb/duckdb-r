@@ -64,8 +64,8 @@ never prompts and never creates a directory, so an as-yet-uncreated
   DuckDB's own default spills to `.tmp` in the current working
   directory, so the package overrides it with a
   [`tempdir()`](https://rdrr.io/r/base/tempfile.html) sub-directory by
-  default. This is a separate knob from the extension/secret home (see
-  below).
+  default. This is a separate setting from the extension/secret home
+  (see below).
 
 - Logs and profiling output:
 
@@ -155,7 +155,10 @@ over the resolution above.
   the `duckdb.home` option, or the `DUCKDB_R_HOME` environment variable.
   Non-interactively it covers both the temporary directory and an
   existing `~/.duckdb`; interactively it is issued only when the user
-  opts out of creating `~/.duckdb`.
+  opts out of creating `~/.duckdb`. It is also suppressed once you have
+  made any explicit `home` or `shared_home` choice earlier in the
+  session: having set the location explicitly once, you have seen how,
+  so later auto-resolved calls stay quiet.
 
 ### Silencing the message
 
@@ -213,6 +216,6 @@ and `shared_home` arguments.
 ``` r
 duckdb_storage_status()
 #> DuckDB storage locations:
-#>   extensions      [session]  /tmp/RtmpfdgXWy/duckdb/extensions
-#>   stored_secrets  [session]  /tmp/RtmpfdgXWy/duckdb/stored_secrets
+#>   extensions      [session]  /tmp/Rtmp6NtqRK/duckdb/extensions
+#>   stored_secrets  [session]  /tmp/Rtmp6NtqRK/duckdb/stored_secrets
 ```

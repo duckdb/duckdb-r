@@ -107,7 +107,7 @@ joins, and similar operations. DuckDB settings: <code>temp_directory</code>,
 <code>max_temp_directory_size</code>. For an in-memory (<code>:memory:</code>) database DuckDB's
 own default spills to <code>.tmp</code> in the current working directory, so the
 package overrides it with a <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> sub-directory by default. This is
-a separate knob from the extension/secret home (see below).</p></dd>
+a separate setting from the extension/secret home (see below).</p></dd>
 
 <dt>Logs and profiling output</dt>
 <dd><p>Written only when a path is explicitly
@@ -170,7 +170,11 @@ location yourself – the <code>home</code> or <code>shared_home</code> argument
 <code>duckdb.home</code> option, or the <code>DUCKDB_R_HOME</code> environment variable.
 Non-interactively it covers both the temporary directory and an existing
 <code>~/.duckdb</code>; interactively it is issued only when the user opts out of
-creating <code>~/.duckdb</code>.</p></dd>
+creating <code>~/.duckdb</code>.
+It is also suppressed once you have made any explicit <code>home</code> or
+<code>shared_home</code> choice earlier in the session: having set the location
+explicitly once, you have seen how, so later auto-resolved calls stay
+quiet.</p></dd>
 
 
 </dl><div class="section">
@@ -224,8 +228,8 @@ To force a throwaway cache in your own tests, connect with an explicit home:</p>
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu">duckdb_storage_status</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> DuckDB storage locations:</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   extensions      [session]  /tmp/RtmpfdgXWy/duckdb/extensions</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   stored_secrets  [session]  /tmp/RtmpfdgXWy/duckdb/stored_secrets</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   extensions      [session]  /tmp/Rtmp6NtqRK/duckdb/extensions</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   stored_secrets  [session]  /tmp/Rtmp6NtqRK/duckdb/stored_secrets</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
