@@ -34,7 +34,7 @@ connection, so scripts and packages should manage their own connections.
 ``` r
 conn <- default_conn()
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/Rtmp6LwE2J/duckdb
+#> ℹ /tmp/Rtmp3h7FRP/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
