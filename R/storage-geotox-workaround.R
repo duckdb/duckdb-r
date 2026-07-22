@@ -15,9 +15,8 @@
 # tests/testthat/test-storage-geotox-workaround.R.
 # See https://github.com/duckdb/duckdb-r/pull/2397.
 caller_is_geotox <- function() {
-  frames <- sys.frames()
-  for (i in seq_along(frames)) {
-    if (identical(environmentName(topenv(frames[[i]])), "GeoTox")) {
+  for (frame in sys.frames()) {
+    if (identical(environmentName(topenv(frame)), "GeoTox")) {
       return(TRUE)
     }
   }
