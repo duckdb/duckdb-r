@@ -134,7 +134,9 @@ Subsequent connections will silently ignore these flags.</p></dd>
 an existing <code>~/.duckdb</code>, else a per-session temporary directory
 (with an offer to create <code>~/.duckdb</code> in interactive sessions).
 Pass a path to use it as the root explicitly, creating it if needed.
-Cannot be combined with <code>shared_home</code>.</p></dd>
+Cannot be combined with <code>shared_home</code>.
+Applied only when the database instance is created;
+see the ‘Database instances and driver reuse’ section.</p></dd>
 
 
 <dt id="arg-shared-home">shared_home<a class="anchor" aria-label="anchor" href="#arg-shared-home"></a></dt>
@@ -153,7 +155,9 @@ and any secrets written there outlive this process.
 Applying this setting repeatedly is a fast no-op.</p></li>
 <li><p><code>FALSE</code> – use a per-session temporary directory even if <code>~/.duckdb</code>
 already exists. Nothing persists beyond the session.</p></li>
-</ul><p>Cannot be combined with <code>home</code>.</p></dd>
+</ul><p>Cannot be combined with <code>home</code>.
+Applied only when the database instance is created;
+see the ‘Database instances and driver reuse’ section.</p></dd>
 
 
 <dt id="arg-environment-scan">environment_scan<a class="anchor" aria-label="anchor" href="#arg-environment-scan"></a></dt>
@@ -232,6 +236,34 @@ the underlying time representation to a human-readable format.
 If the timestamp is invalid in the target timezone, the resulting value may be <code>NA</code>
 or an adjusted time.</p>
     </div>
+    <div class="section level2">
+    <h2 id="database-instances-and-driver-reuse">Database instances and driver reuse<a class="anchor" aria-label="anchor" href="#database-instances-and-driver-reuse"></a></h2>
+
+
+
+<p><code>duckdb()</code> returns a driver object that owns a DuckDB <em>database instance</em>.
+<code><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">dbConnect()</a></code> opens connections to that instance,
+and many connections can share one instance.</p>
+<p>For a file-based <code>dbdir</code>, the instance is cached, keyed by the (normalized) path:
+calling <code>duckdb()</code> again with the same <code>dbdir</code> returns the same driver and instance
+while it is still alive.
+This is deliberate.
+DuckDB allows only a single read-write handle to a database file at a time,
+so opening a second instance of the same file would fail with a lock error.
+Reusing one instance instead lets any number of <code>dbConnect(duckdb(dbdir = "my.db"))</code> calls share it.
+An in-memory database (<code>:memory:</code>, the default) has no file to lock and is never cached:
+every <code>duckdb()</code> call creates a fresh, isolated instance.</p>
+<p>Because the instance is created once per database file,
+<code>config</code>, <code>read_only</code>, <code>home</code>, and <code>shared_home</code> take effect only at creation.
+A call that reuses an existing instance ignores them.
+To apply different values to a file-based database –
+for example to reopen it read-only, or to send extensions and secrets elsewhere –
+first release the instance with <code>duckdb_shutdown()</code>, which also drops it from the cache,
+then create it again.
+<code><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect()</a></code> only closes a connection,
+it does not release the instance, and its <code>shutdown</code> argument is unused.
+Instances are shut down automatically when the driver is garbage-collected or the session ends.</p>
+    </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
@@ -243,7 +275,7 @@ or an adjusted time.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1   1</span>
 <span class="r-in"><span><span class="va">drv</span> <span class="op">&lt;-</span> <span class="fu">duckdb</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> duckdb keeps downloaded extensions and secrets in a temporary directory:</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> /tmp/RtmpC0nyPR/duckdb</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> /tmp/RtmpR59STl/duckdb</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> This is removed when the R session ends.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Extensions are re-downloaded each session.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Secrets are lost.</span>
@@ -262,7 +294,7 @@ or an adjusted time.</p>
 <span class="r-in"><span><span class="co"># Shorter:</span></span></span>
 <span class="r-in"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">dbConnect</a></span><span class="op">(</span><span class="fu">duckdb</span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> duckdb keeps downloaded extensions and secrets in a temporary directory:</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> /tmp/RtmpC0nyPR/duckdb</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> /tmp/RtmpR59STl/duckdb</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> This is removed when the R session ends.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Extensions are re-downloaded each session.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Secrets are lost.</span>

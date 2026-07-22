@@ -97,7 +97,8 @@ dbDisconnect(conn, ..., shutdown = TRUE)
   existing `~/.duckdb`, else a per-session temporary directory (with an
   offer to create `~/.duckdb` in interactive sessions). Pass a path to
   use it as the root explicitly, creating it if needed. Cannot be
-  combined with `shared_home`.
+  combined with `shared_home`. Applied only when the database instance
+  is created; see the ‘Database instances and driver reuse’ section.
 
 - shared_home:
 
@@ -123,7 +124,9 @@ dbDisconnect(conn, ..., shutdown = TRUE)
   - `FALSE` – use a per-session temporary directory even if `~/.duckdb`
     already exists. Nothing persists beyond the session.
 
-  Cannot be combined with `home`.
+  Cannot be combined with `home`. Applied only when the database
+  instance is created; see the ‘Database instances and driver reuse’
+  section.
 
 - environment_scan:
 
@@ -220,6 +223,36 @@ handles translation from the underlying time representation to a
 human-readable format. If the timestamp is invalid in the target
 timezone, the resulting value may be `NA` or an adjusted time.
 
+## Database instances and driver reuse
+
+`duckdb()` returns a driver object that owns a DuckDB *database
+instance*.
+[`dbConnect()`](https://dbi.r-dbi.org/reference/dbConnect.html) opens
+connections to that instance, and many connections can share one
+instance.
+
+For a file-based `dbdir`, the instance is cached, keyed by the
+(normalized) path: calling `duckdb()` again with the same `dbdir`
+returns the same driver and instance while it is still alive. This is
+deliberate. DuckDB allows only a single read-write handle to a database
+file at a time, so opening a second instance of the same file would fail
+with a lock error. Reusing one instance instead lets any number of
+`dbConnect(duckdb(dbdir = "my.db"))` calls share it. An in-memory
+database (`:memory:`, the default) has no file to lock and is never
+cached: every `duckdb()` call creates a fresh, isolated instance.
+
+Because the instance is created once per database file, `config`,
+`read_only`, `home`, and `shared_home` take effect only at creation. A
+call that reuses an existing instance ignores them. To apply different
+values to a file-based database – for example to reopen it read-only, or
+to send extensions and secrets elsewhere – first release the instance
+with `duckdb_shutdown()`, which also drops it from the cache, then
+create it again.
+[`dbDisconnect()`](https://dbi.r-dbi.org/reference/dbDisconnect.html)
+only closes a connection, it does not release the instance, and its
+`shutdown` argument is unused. Instances are shut down automatically
+when the driver is garbage-collected or the session ends.
+
 ## Examples
 
 ``` r
@@ -231,7 +264,7 @@ with_adbc(db <- adbc_database_init(duckdb_adbc()), {
 #> 1   1
 drv <- duckdb()
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpC0nyPR/duckdb
+#> ℹ /tmp/RtmpR59STl/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -250,7 +283,7 @@ duckdb_shutdown(drv)
 # Shorter:
 con <- dbConnect(duckdb())
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpC0nyPR/duckdb
+#> ℹ /tmp/RtmpR59STl/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
