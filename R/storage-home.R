@@ -125,7 +125,10 @@ fixed_storage_home <- function(home = NULL) {
   if (is_nonempty_string(opt)) {
     return(list(root = path.expand(opt), source = "option"))
   } else if (!is.null(opt)) {
-    warning("`duckdb.home` option must be a single non-empty string (a directory path), or NULL.", call. = FALSE)
+    warning(
+      "`duckdb.home` option must be a single non-empty string (a directory path), or NULL.",
+      call. = FALSE
+    )
     options(duckdb.home = NULL)
   }
   env <- Sys.getenv("DUCKDB_R_HOME", unset = "")
@@ -178,6 +181,19 @@ home_prompt_declined <- function() {
 
 mark_home_prompt_declined <- function() {
   storage_message_state[["home_prompt_declined"]] <- TRUE
+}
+
+# Whether the user has, in this session, chosen a storage location explicitly by
+# passing `home` or `shared_home` to duckdb(). The storage-location message is a
+# teaching device for exactly those arguments, so once the user has used one of
+# them they are "informed" and later auto-resolved calls no longer announce (see
+# the announce logic in duckdb()).
+storage_choice_made <- function() {
+  isTRUE(storage_message_state[["choice_made"]])
+}
+
+mark_storage_choice_made <- function() {
+  storage_message_state[["choice_made"]] <- TRUE
 }
 
 # --- Temp / spill directory ---------------------------------------------------

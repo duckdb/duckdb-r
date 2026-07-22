@@ -78,12 +78,19 @@ duckdb <- function(
   }
   if (
     !is.null(shared_home) &&
-      !(is.logical(shared_home) && length(shared_home) == 1L && !is.na(shared_home))
+      !(is.logical(shared_home) &&
+        length(shared_home) == 1L &&
+        !is.na(shared_home))
   ) {
     stop("`shared_home` must be TRUE, FALSE, or NULL.", call. = FALSE)
   }
   if (!is.null(home) && !is.null(shared_home)) {
     stop("Pass either `home` or `shared_home`, not both.", call. = FALSE)
+  }
+  # An explicit `home`/`shared_home` means the user knows about the storage
+  # knobs; remember it so later auto-resolved calls this session stay quiet.
+  if (!is.null(home) || !is.null(shared_home)) {
+    mark_storage_choice_made()
   }
 
   convert_opts <- duckdb_convert_opts(bigint = bigint)
@@ -129,9 +136,12 @@ duckdb <- function(
     # ("session") is announced in both modes -- non-interactively, and
     # interactively when the user opted out of creating ~/.duckdb; an existing
     # ~/.duckdb ("shared") is announced only non-interactively (interactively it
-    # is the user's own directory, used without a prompt).
+    # is the user's own directory, used without a prompt). Once the user has
+    # made any explicit `home`/`shared_home` choice this session they are
+    # informed, so we stay quiet from then on.
     announce <- is.null(home) &&
       is.null(shared_home) &&
+      !storage_choice_made() &&
       (identical(resolved_home$source, "session") ||
         (!is_interactive() && identical(resolved_home$source, "shared")))
     if (announce) {

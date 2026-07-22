@@ -125,6 +125,9 @@ location yourself -- the \code{home} or \code{shared_home} argument, the
 Non-interactively it covers both the temporary directory and an existing
 \verb{~/.duckdb}; interactively it is issued only when the user opts out of
 creating \verb{~/.duckdb}.
+It is also suppressed once you have made any explicit \code{home} or
+\code{shared_home} choice earlier in the session: having used those arguments,
+you already know the knob, so later auto-resolved calls stay quiet.
 }
 }
 \subsection{Silencing the message}{
