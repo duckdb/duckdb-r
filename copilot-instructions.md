@@ -1,7 +1,7 @@
 # GitHub Copilot Instructions for duckdb Package
 
 Read and follow the development guidelines outlined in
-[AGENTS.md](https://r.duckdb.org/AGENTS.md).
+[AGENTS.md](https://r.duckdb.org/../AGENTS.md).
 
 ## Working Effectively
 
