@@ -10,10 +10,6 @@
 
 - Stop announcing the storage location after an explicit choice (#2398).
 
-## Bug fixes
-
-- Silence the storage message for GeoTox's transitive use (#2397).
-
 ## Documentation
 
 - Document database-instance caching and driver reuse (#2399).
