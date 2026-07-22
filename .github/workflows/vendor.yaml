@@ -2,12 +2,19 @@
 #
 # Runs daily. For each dev branch it gates on the `rcc` commit-status of the
 # branch tip and the 5 commits before it (scripts/vendor-gate.sh):
-#   * green     -> reset to the youngest green commit in that window and vendor
-#                  at most 25 commits on top (bounded advance from a known-good
-#                  base; the <=5 unverified commits after it are re-rolled).
+#   * green     -> advance from the youngest green commit in that window and
+#                  vendor at most 25 commits on top (bounded advance from a
+#                  known-good base). Only unverified *vendored* commits after the
+#                  green base are re-rolled; non-vendored commits (merged tooling
+#                  / R-side PRs) are always preserved, since vendoring does not
+#                  regenerate them.
 #   * red       -> fail loudly (a breakage is near the tip with no green base in
 #                  reach; repair is needed before vendoring continues).
-#   * undecided -> succeed and do nothing (CI has not decided yet; re-check next
+#   * stale     -> fail loudly (no green/red, but a commit has had no rcc result
+#                  for more than 6h; CI never decided in time and silently
+#                  waiting would hide the stall).
+#   * undecided -> succeed and do nothing (CI has not decided yet and the
+#                  result-less commits are still younger than 6h; re-check next
 #                  day).
 # See scripts/VENDORING.md and scripts/VENDORING-LOOP.md for the wider plan.
 
@@ -82,14 +89,44 @@ jobs:
           echo "::error::${{ matrix.branch }}: recent commits fail rcc and no green base is within the last 6 commits. Repair the breakage before vendoring continues."
           exit 1
 
-      - name: Reset to youngest green and vendor (at most 25)
+      - name: Fail loudly if a commit has been waiting too long for CI
+        if: steps.gate.outputs.decision == 'stale'
+        run: |
+          echo "::error::${{ matrix.branch }}: commit ${{ steps.gate.outputs.stale_sha }} still has no rcc result after more than 6h and no green base is within the last 6 commits. CI never decided in time (e.g. the commit was never scheduled, or a run is wedged); investigate before vendoring continues."
+          exit 1
+
+      - name: Advance from youngest green (preserving non-vendored commits) and vendor (at most 25)
         if: steps.gate.outputs.decision == 'green'
         run: |
-          git reset --hard "${{ steps.gate.outputs.green_sha }}"
+          green_sha="${{ steps.gate.outputs.green_sha }}"
+          # Re-roll only unverified *vendored* commits above the green base;
+          # never discard non-vendored commits (merged tooling / R-side PRs),
+          # which vendoring does not regenerate. Rewind to the green base only if
+          # there is at least one unverified vendored commit to drop, then
+          # cherry-pick the preserved non-vendored commits back on top in order.
+          mapfile -t above < <(git rev-list --reverse "${green_sha}..HEAD")
+          preserve=()
+          discard_vendored=0
+          for sha in "${above[@]}"; do
+            case "$(git log -1 --format=%s "$sha")" in
+              "vendor: "*) discard_vendored=1 ;;
+              *) preserve+=("$sha") ;;
+            esac
+          done
+          if [ "$discard_vendored" -eq 1 ]; then
+            echo "Rewinding to green base ${green_sha}; preserving ${#preserve[@]} non-vendored commit(s)."
+            git reset --hard "${green_sha}"
+            for sha in "${preserve[@]}"; do
+              echo "Re-applying non-vendored commit: $(git log -1 --oneline "$sha")"
+              git cherry-pick "${sha}"
+            done
+          else
+            echo "No unverified vendored commits above ${green_sha}; keeping current tip."
+          fi
           scripts/vendor-one.sh ./duckdb --commits 25
           rm -rf ./duckdb
-          # The reset may have discarded the <=5 unverified commits after the
-          # green base, so the push can rewrite history -> force (with lease).
+          # Preserving non-vendored commits may still drop unverified vendored
+          # commits, so the push can rewrite history -> force (with lease).
           git push --force-with-lease origin "HEAD:refs/heads/${{ matrix.branch }}"
 
       - name: Enumerate commits and trigger rcc workflow
