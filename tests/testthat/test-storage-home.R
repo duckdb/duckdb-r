@@ -190,24 +190,41 @@ test_that("resolve_temp_directory redirects in-memory only, honors override", {
   )
 })
 
-test_that("storage-location message: tempdir wording, throttled once", {
+test_that("storage-location message: tempdir wording", {
+  withr::local_options(rlang_interactive = FALSE)
   storage_message_state[["storage_location"]] <- NULL
   resolved <- list(root = "/tmp/sess/duckdb", source = "session")
   expect_message(
     maybe_storage_location_message(resolved),
     "temporary directory"
   )
-  # Throttled within the session.
-  expect_silent(maybe_storage_location_message(resolved))
 })
 
 test_that("storage-location message: ~/.duckdb wording mentions shared_home = FALSE", {
+  withr::local_options(rlang_interactive = FALSE)
   storage_message_state[["storage_location"]] <- NULL
   resolved <- list(root = "/home/me/.duckdb", source = "shared")
   expect_message(
     maybe_storage_location_message(resolved),
     "shared_home = FALSE"
   )
+})
+
+test_that("non-interactive reminder is bounded by a count, interactive by time", {
+  resolved <- list(root = "/tmp/sess/duckdb", source = "session")
+
+  # Non-interactive: bounded by STORAGE_MESSAGE_MAX, then silent.
+  withr::local_options(rlang_interactive = FALSE)
+  storage_message_state[["storage_location"]] <- STORAGE_MESSAGE_MAX - 1L
+  expect_message(maybe_storage_location_message(resolved), "not be shown again")
+  expect_silent(maybe_storage_location_message(resolved))
+
+  # Interactive: time-throttled instead (still emits once the count is spent).
+  withr::local_options(rlang_interactive = TRUE)
+  storage_message_state[["storage_location"]] <- NULL
+  local_mocked_bindings(now_seconds = function() 0)
+  expect_message(maybe_storage_location_message(resolved), "temporary directory")
+  expect_silent(maybe_storage_location_message(resolved))
 })
 
 test_that("inform_once_every throttles within the interval (mocked clock)", {
@@ -217,6 +234,13 @@ test_that("inform_once_every throttles within the interval (mocked clock)", {
   expect_false(inform_once_every("probe", 100, "x"))
   local_mocked_bindings(now_seconds = function() 1000)
   expect_true(inform_once_every("probe", 100, "x"))
+})
+
+test_that("inform_up_to emits up to max times, notes the last, then goes silent", {
+  storage_message_state[["probe"]] <- NULL
+  expect_message(inform_up_to("probe", 2L, "hi"), "hi")
+  expect_message(inform_up_to("probe", 2L, "hi"), "not be shown again")
+  expect_silent(inform_up_to("probe", 2L, "hi"))
 })
 
 # Snapshots of the exact wording of every storage message and error. `cat()`

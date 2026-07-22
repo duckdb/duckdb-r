@@ -115,14 +115,19 @@
 #' # Messages
 #'
 #' \describe{
-#'   \item{Storage-location message}{In a **non-interactive** session, when the
-#'     package picked the location itself (a per-session [tempdir()], or an
-#'     existing `~/.duckdb`), `duckdb()` emits an informational message
-#'     (throttled to at most once every eight hours per session).
-#'     The message is suppressed when you chose the
+#'   \item{Storage-location message}{When the package picked the location itself
+#'     (a per-session [tempdir()], or an existing `~/.duckdb`), `duckdb()` emits
+#'     an informational message describing where extensions and secrets are
+#'     going and how to change it. It is throttled by session type: in an
+#'     **interactive** session at most once every eight hours (a human can act
+#'     on it); in a **non-interactive** session up to 100 times, after which it
+#'     goes silent for good, so a long-running or automated process is not
+#'     reminded forever. The message is suppressed entirely when you chose the
 #'     location yourself -- the `home` or `shared_home` argument, the
 #'     `duckdb.home` option, or the `DUCKDB_R_HOME` environment variable.
-#'     In interactive sessions, it is issued when the user opts out of creating `~/.duckdb`.
+#'     Non-interactively it covers both the temporary directory and an existing
+#'     `~/.duckdb`; interactively it is issued only when the user opts out of
+#'     creating `~/.duckdb`.
 #'   }
 #' }
 #'

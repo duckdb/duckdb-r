@@ -237,7 +237,8 @@ now_seconds <- function() {
 storage_message_state <- new.env(parent = emptyenv())
 
 # Emit `message` (an rlang-style character vector, names "i"/"!"/"*" for
-# bullets) at most once per `seconds` per session.
+# bullets) at most once per `seconds` per session. Used for the interactive
+# reminder, where a human can act on it and a gentle time-based cadence fits.
 inform_once_every <- function(id, seconds, message) {
   now <- now_seconds()
   last <- storage_message_state[[id]]
@@ -245,6 +246,37 @@ inform_once_every <- function(id, seconds, message) {
     return(invisible(FALSE))
   }
   storage_message_state[[id]] <- now
+  inform(message, class = paste0("duckdb_", id))
+  invisible(TRUE)
+}
+
+# The most times the non-interactive storage-location message is shown per
+# session before it goes quiet for good. A bounded count (rather than the
+# time-based throttle used interactively) so that a long-running or automated
+# process -- which the time throttle would remind forever, once every interval
+# -- eventually stops being told.
+STORAGE_MESSAGE_MAX <- 100L
+
+# Emit `message` up to `max` times per session (keyed by `id`), then stay
+# silent. The final allowed emission notes that it will not be shown again.
+inform_up_to <- function(id, max, message) {
+  count <- storage_message_state[[id]]
+  count <- if (is.numeric(count)) count else 0L
+  if (count >= max) {
+    return(invisible(FALSE))
+  }
+  count <- count + 1L
+  storage_message_state[[id]] <- count
+  if (count >= max) {
+    message <- c(
+      message,
+      "i" = paste0(
+        "This message has been shown ",
+        max,
+        " times and will not be shown again this session."
+      )
+    )
+  }
   inform(message, class = paste0("duckdb_", id))
   invisible(TRUE)
 }
@@ -299,18 +331,21 @@ home_created_message <- function(path) {
   )
 }
 
-# Called when a new driver is created in a non-interactive session and the
-# location was chosen by the package itself (a per-session tempdir, or an
-# existing ~/.duckdb) rather than requested explicitly. Reports where extensions
-# and secrets are going -- at most once every 8 hours per session -- and how to
-# change or silence it.
+# Called when a new driver is created and the location was chosen by the package
+# itself (a per-session tempdir, or an existing ~/.duckdb) rather than requested
+# explicitly. Reports where extensions and secrets are going, and how to change
+# or silence it. The reminder is throttled differently by mode: interactively,
+# at most once every 8 hours (a human can act on it); non-interactively, a
+# bounded number of times before going silent for good, so an automated process
+# is not reminded forever.
 maybe_storage_location_message <- function(resolved) {
   if (is.null(resolved) || is.null(resolved$root)) {
     return(invisible())
   }
-  inform_once_every(
-    "storage_location",
-    STORAGE_MESSAGE_INTERVAL,
-    storage_location_message(resolved)
-  )
+  message <- storage_location_message(resolved)
+  if (is_interactive()) {
+    inform_once_every("storage_location", STORAGE_MESSAGE_INTERVAL, message)
+  } else {
+    inform_up_to("storage_location", STORAGE_MESSAGE_MAX, message)
+  }
 }

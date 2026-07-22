@@ -112,14 +112,19 @@ and takes precedence over the resolution above.
 
 \section{Messages}{
 \describe{
-\item{Storage-location message}{In a \strong{non-interactive} session, when the
-package picked the location itself (a per-session \code{\link[=tempdir]{tempdir()}}, or an
-existing \verb{~/.duckdb}), \code{duckdb()} emits an informational message
-(throttled to at most once every eight hours per session).
-The message is suppressed when you chose the
+\item{Storage-location message}{When the package picked the location itself
+(a per-session \code{\link[=tempdir]{tempdir()}}, or an existing \verb{~/.duckdb}), \code{duckdb()} emits
+an informational message describing where extensions and secrets are
+going and how to change it. It is throttled by session type: in an
+\strong{interactive} session at most once every eight hours (a human can act
+on it); in a \strong{non-interactive} session up to 100 times, after which it
+goes silent for good, so a long-running or automated process is not
+reminded forever. The message is suppressed entirely when you chose the
 location yourself -- the \code{home} or \code{shared_home} argument, the
 \code{duckdb.home} option, or the \code{DUCKDB_R_HOME} environment variable.
-In interactive sessions, it is issued when the user opts out of creating \verb{~/.duckdb}.
+Non-interactively it covers both the temporary directory and an existing
+\verb{~/.duckdb}; interactively it is issued only when the user opts out of
+creating \verb{~/.duckdb}.
 }
 }
 \subsection{Silencing the message}{
