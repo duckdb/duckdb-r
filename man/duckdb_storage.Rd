@@ -116,10 +116,11 @@ and takes precedence over the resolution above.
 (a per-session \code{\link[=tempdir]{tempdir()}}, or an existing \verb{~/.duckdb}), \code{duckdb()} emits
 an informational message describing where extensions and secrets are
 going and how to change it. It is throttled by session type: in an
-\strong{interactive} session at most once every eight hours (a human can act
-on it); in a \strong{non-interactive} session up to 100 times, after which it
-goes silent for good, so a long-running or automated process is not
-reminded forever. The message is suppressed entirely when you chose the
+\strong{interactive} session at most once every eight hours (a human can act on it);
+in a \strong{non-interactive} session up to 60 times,
+after which it goes silent for good,
+so a long-running or automated process is not reminded forever.
+The message is suppressed entirely when you chose the
 location yourself -- the \code{home} or \code{shared_home} argument, the
 \code{duckdb.home} option, or the \code{DUCKDB_R_HOME} environment variable.
 Non-interactively it covers both the temporary directory and an existing
