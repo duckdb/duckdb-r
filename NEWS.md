@@ -6,9 +6,19 @@
 
 - Update to DuckDB v1.5.5, see <https://github.com/duckdb/duckdb/releases/tag/v1.5.5> for details.
 
-- Resolve extension/secret storage under `~/.duckdb` or `tempdir()` (#2396).
-
-- Stop announcing the storage location after an explicit choice (#2398).
+- Rework how extensions and secrets choose their on-disk location, replacing the
+  package-library extension cache attempted across 1.5.4.1 through 1.5.4.3. Both
+  now share a single "home" root, resolved fresh for every `duckdb()` driver from
+  the first of these that yields a value: the `home` argument, the `duckdb.home`
+  option, the `DUCKDB_R_HOME` environment variable, an existing `~/.duckdb` (the
+  directory shared with the DuckDB CLI), a one-time interactive offer to create
+  `~/.duckdb`, and otherwise a per-session `tempdir()` sub-directory. Extensions
+  live in `<home>/extensions` and secrets in `<home>/stored_secrets`; by default
+  nothing is written under your home directory unless `~/.duckdb` already exists.
+  Pass `shared_home = TRUE` or `FALSE` to force `~/.duckdb` or `tempdir()`, and
+  call `duckdb_storage_status()` to see where each currently resolves. The chosen
+  location is announced only when the package picked it, and stays quiet once you
+  have made an explicit `home` or `shared_home` choice (#2396, #2398).
 
 ## Documentation
 
