@@ -172,27 +172,28 @@ or an adjusted time.
 
 
 \code{duckdb()} returns a driver object that owns a DuckDB \emph{database instance}.
-\code{dbConnect()} opens connections to that instance, and many connections can
-share one instance.
+\code{dbConnect()} opens connections to that instance,
+and many connections can share one instance.
 
-For a file-based \code{dbdir}, the instance is cached, keyed by the (normalized)
-path: calling \code{duckdb()} again with the same \code{dbdir} returns the same driver
-and instance while it is still alive. This is deliberate. DuckDB allows only a
-single read-write handle to a database file at a time, so opening a second
-instance of the same file would fail with a lock error; reusing one instance
-instead lets any number of \code{dbConnect(duckdb(dbdir = "my.db"))} calls share
-it. An in-memory database (\verb{:memory:}, the default) has no file to lock and is
-never cached: every \code{duckdb()} call creates a fresh, isolated instance.
+For a file-based \code{dbdir}, the instance is cached, keyed by the (normalized) path:
+calling \code{duckdb()} again with the same \code{dbdir} returns the same driver and instance while it is still alive.
+This is deliberate.
+DuckDB allows only a single read-write handle to a database file at a time,
+so opening a second instance of the same file would fail with a lock error;
+reusing one instance instead lets any number of \code{dbConnect(duckdb(dbdir = "my.db"))} calls share it.
+An in-memory database (\verb{:memory:}, the default) has no file to lock and is never cached:
+every \code{duckdb()} call creates a fresh, isolated instance.
 
-Because the instance is created once, \code{config}, \code{read_only}, \code{home}, and
-\code{shared_home} take effect only at creation; a call that reuses an existing
-instance ignores them (only \code{bigint} is updated). To apply different values
-to a file-based database -- for example to reopen it read-only, or to send
-extensions and secrets elsewhere -- first release the instance with
-\code{\link[=duckdb_shutdown]{duckdb_shutdown()}}, which also drops it from the cache, then create it again.
-\code{\link[DBI:dbDisconnect]{dbDisconnect()}} only closes a connection; it does not release the instance
-(its \code{shutdown} argument is unused). Instances are shut down automatically
-when the driver is garbage-collected or the session ends.
+Because the instance is created once,
+\code{config}, \code{read_only}, \code{home}, and \code{shared_home} take effect only at creation;
+a call that reuses an existing instance ignores them.
+To apply different values to a file-based database --
+for example to reopen it read-only, or to send extensions and secrets elsewhere --
+first release the instance with \code{\link[=duckdb_shutdown]{duckdb_shutdown()}}, which also drops it from the cache,
+then create it again.
+\code{\link[DBI:dbDisconnect]{dbDisconnect()}} only closes a connection;
+it does not release the instance (its \code{shutdown} argument is unused).
+Instances are shut down automatically when the driver is garbage-collected or the session ends.
 }
 
 \examples{
