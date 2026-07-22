@@ -1,4 +1,4 @@
-# freestiler (0.1.7)
+# freestiler (0.2.0)
 
 * GitHub: <https://github.com/walkerke/freestiler>
 * Email: <mailto:kyle@walker-data.com>
@@ -20,7 +20,7 @@ Run `revdepcheck::cloud_details(, "freestiler")` for more info
 
 ```
 * installing *source* package ‘freestiler’ ...
-** this is package ‘freestiler’ version ‘0.1.7’
+** this is package ‘freestiler’ version ‘0.2.0’
 ** package ‘freestiler’ successfully unpacked and MD5 sums checked
 ** using staged installation
 Error in eval(ei, envir) : 
@@ -39,7 +39,7 @@ ERROR: configuration failed for package ‘freestiler’
 
 ```
 * installing *source* package ‘freestiler’ ...
-** this is package ‘freestiler’ version ‘0.1.7’
+** this is package ‘freestiler’ version ‘0.2.0’
 ** package ‘freestiler’ successfully unpacked and MD5 sums checked
 ** using staged installation
 Error in eval(ei, envir) : 
