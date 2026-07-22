@@ -38,5 +38,4 @@ test_that("duckdb_shared_home does not use the Windows Documents folder", {
   local_mocked_bindings(is_windows = function() TRUE)
   withr::local_envvar(USERPROFILE = "C:/Users/someone")
   expect_equal(duckdb_shared_home(), file.path("C:/Users/someone", ".duckdb"))
-  expect_false(grepl("Documents", duckdb_shared_home(), fixed = TRUE))
 })

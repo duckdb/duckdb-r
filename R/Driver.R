@@ -28,27 +28,31 @@ driver_registry <- new.env(parent = emptyenv())
 #' @description
 #' `duckdb()` creates or reuses a database instance.
 #'
-#' @param home Root directory for DuckDB's downloaded extensions and stored
-#'   secrets. `NULL` (the default) resolves the location as described in
-#'   [duckdb_storage]: an existing `~/.duckdb`, else a per-session temporary
-#'   directory (with, in interactive sessions, a one-time offer to create
-#'   `~/.duckdb`). Pass a path to use it as the root explicitly, creating it if
-#'   needed.
+#' @param home Root directory for DuckDB's downloaded extensions and stored secrets.
+#'   `NULL` (the default) resolves the location as described in [duckdb_storage]:
+#'   an existing `~/.duckdb`, else a per-session temporary directory
+#'   (with an offer to create `~/.duckdb` in interactive sessions).
+#'   Pass a path to use it as the root explicitly, creating it if needed.
+#'   Cannot be combined with `shared_home`.
 #' @param shared_home Opt in or out of the shared `~/.duckdb` location,
-#'   overriding the automatic resolution. One of:
+#'   overriding the automatic resolution.
+#'   One of:
 #'   * `NULL` (the default) -- resolve automatically (see [duckdb_storage]).
+#'     This is the safe default.
 #'   * `TRUE` -- store extensions and secrets under `~/.duckdb`, **creating that
-#'     directory if it does not exist**. This is a durable, machine-level side
-#'     effect that is *not* scoped to the current session: the directory
-#'     persists after R exits, is reused by every future R session (and by the
-#'     DuckDB CLI and Python client that share `~/.duckdb`), and any secrets
-#'     written there outlive this process. Pass `TRUE` only when you intend
-#'     that. It opts in without a prompt, so it also works non-interactively
-#'     (CI, Posit Connect).
-#'   * `FALSE` -- use a per-session temporary directory even if `~/.duckdb`
-#'     already exists (nothing persists beyond the session).
+#'     directory if it does not exist**.
+#'     This is a good setting for permanent deployments (Posit Connect, Shiny, APIs).
+#'     Do not use on CRAN or on other infrastructure where you don't own `~/.duckdb`.
 #'
-#'   Cannot be combined with `home`. See [duckdb_storage].
+#'     The setting is a durable, machine-level side effect that is *not* scoped to the current session:
+#'     the directory persists after R exits, is reused by every future R session
+#'     (and by the DuckDB CLI, Python and other clients that share `~/.duckdb`),
+#'     and any secrets written there outlive this process.
+#'     Applying this setting repeatedly is a fast no-op.
+#'   * `FALSE` -- use a per-session temporary directory even if `~/.duckdb` already exists-
+#'     Nothing persists beyond the session.
+#'
+#'   Cannot be combined with `home`.
 #' @param environment_scan Set to `TRUE` to treat
 #'   data frames from the calling environment as tables.
 #'   If a database table with the same name exists, it takes precedence.

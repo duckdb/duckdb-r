@@ -25,8 +25,7 @@ duckdb_storage_status <- function() {
     directory = c(
       home_subdir(home$root, "extensions"),
       home_subdir(home$root, "stored_secrets")
-    ),
-    stringsAsFactors = FALSE
+    )
   )
   class(status) <- c("duckdb_storage_status", "data.frame")
   # Returned visibly: the print method below renders the readable summary when

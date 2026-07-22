@@ -46,10 +46,10 @@ is_nonempty_string <- function(x) {
 resolve_storage_home <- function(home = NULL, shared_home = NULL) {
   # `shared_home` is a tri-state explicit override (duckdb() has already checked
   # it is not combined with `home`):
+  #   * NULL  -- resolve automatically (the tiers below).
   #   * TRUE  -- opt in to ~/.duckdb, creating it if needed, with no prompt.
   #   * FALSE -- force a per-session tempdir, even if ~/.duckdb already exists
   #              (and ignoring the option/environment variable).
-  #   * NULL  -- resolve automatically (the tiers below).
   if (isTRUE(shared_home)) {
     shared <- duckdb_shared_home()
     dir.create(shared, recursive = TRUE, showWarnings = FALSE)
@@ -76,8 +76,14 @@ resolve_storage_home <- function(home = NULL, shared_home = NULL) {
       dir.create(shared, recursive = TRUE, showWarnings = FALSE)
       if (dir.exists(shared)) {
         return(list(root = shared, source = "created"))
+      } else {
+        warning(
+          "duckdb: failed to create ", shared, "; falling back to a temporary directory.",
+          call. = FALSE
+        )
       }
     }
+
     # Remember a decline (or a failed creation) so we do not prompt again this
     # session; fall through to the per-session default.
     mark_home_prompt_declined()
@@ -98,6 +104,9 @@ fixed_storage_home <- function(home = NULL) {
   opt <- getOption("duckdb.home")
   if (is_nonempty_string(opt)) {
     return(list(root = path.expand(opt), source = "option"))
+  } else if (!is.null(opt)) {
+    warning("`duckdb.home` option must be a single non-empty string (a directory path), or NULL.", call. = FALSE)
+    options(duckdb.home = NULL)
   }
   env <- Sys.getenv("DUCKDB_R_HOME", unset = "")
   if (nzchar(env)) {
@@ -107,8 +116,8 @@ fixed_storage_home <- function(home = NULL) {
 }
 
 # Read-only counterpart to `resolve_storage_home()`, used by
-# `duckdb_storage_status()`: never prompts and never creates a directory. An
-# as-yet-uncreated `~/.duckdb` is therefore reported as the per-session default.
+# `duckdb_storage_status()`: never prompts and never creates a directory.
+# A missing `~/.duckdb` is therefore reported as the per-session default.
 describe_storage_home <- function() {
   fixed <- fixed_storage_home()
   if (!is.null(fixed)) {
@@ -138,11 +147,7 @@ check_home_arg <- function(home) {
 # rather than driving the console.
 consent_to_create_home <- function(path) {
   utils::askYesNo(
-    paste0(
-      "duckdb: create ",
-      path,
-      "?\n"
-    ),
+    paste0("duckdb: create ", path, "?\n"),
     default = TRUE
   )
 }
@@ -236,27 +241,22 @@ maybe_storage_location_message <- function(resolved) {
   if (identical(resolved$source, "shared")) {
     message <- c(
       "duckdb is storing downloaded extensions and secrets under ~/.duckdb:",
-      i = resolved$root,
-      paste0(
-        "This persists across sessions and is shared with the DuckDB CLI and ",
-        "Python client."
-      ),
-      i = "Run duckdb(shared_home = FALSE) to use a temporary directory instead.",
-      i = "See ?duckdb_storage for details and alternatives."
+      "i" = resolved$root,
+      "This persists across sessions and is shared with the DuckDB CLI and other clients.",
+      "i" = "Run duckdb(shared_home = FALSE) to use a temporary directory instead.",
+      "i" = "See ?duckdb_storage for details and alternatives."
     )
   } else {
     message <- c(
       "duckdb is keeping downloaded extensions and secrets",
       "in a temporary directory:",
-      i = resolved$root,
+      "i" = resolved$root,
       "This is removed when the R session ends.",
       "*" = "Extensions are re-downloaded each session.",
       "*" = "Secrets are lost.",
-      i = paste0(
-        "Run duckdb(shared_home = TRUE) (or create ~/.duckdb) to keep them, ",
-        "or duckdb(shared_home = FALSE) to silence this message."
-      ),
-      i = "See ?duckdb_storage for details and alternatives."
+      "i" = "Run duckdb(shared_home = TRUE) (or create ~/.duckdb) to keep them (suitable for most users)",
+      "i" = "Run duckdb(shared_home = FALSE) to silence this message",
+      "i" = "See ?duckdb_storage for details and alternatives."
     )
   }
   inform_once_every("storage_location", STORAGE_MESSAGE_INTERVAL, message)
