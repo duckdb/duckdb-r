@@ -70,8 +70,8 @@ an existing \verb{~/.duckdb}, else a per-session temporary directory
 (with an offer to create \verb{~/.duckdb} in interactive sessions).
 Pass a path to use it as the root explicitly, creating it if needed.
 Cannot be combined with \code{shared_home}.
-Like \code{config}, this takes effect only when a new database instance is
-created; a call that reuses a cached driver for the same \code{dbdir} ignores it.}
+Applied only when the database instance is created; see the
+\sQuote{Database instances and driver reuse} section.}
 
 \item{shared_home}{Opt in or out of the shared \verb{~/.duckdb} location,
 overriding the automatic resolution.
@@ -94,8 +94,8 @@ already exists. Nothing persists beyond the session.
 }
 
 Cannot be combined with \code{home}.
-Like \code{config}, this takes effect only when a new database instance is
-created; a call that reuses a cached driver for the same \code{dbdir} ignores it.}
+Applied only when the database instance is created; see the
+\sQuote{Database instances and driver reuse} section.}
 
 \item{environment_scan}{Set to \code{TRUE} to treat
 data frames from the calling environment as tables.
@@ -168,6 +168,31 @@ the underlying time representation to a human-readable format.
 If the timestamp is invalid in the target timezone, the resulting value may be \code{NA}
 or an adjusted time.
 }
+\section{Database instances and driver reuse}{
+
+
+\code{duckdb()} returns a driver object that owns a DuckDB \emph{database instance}.
+\code{dbConnect()} opens connections to that instance, and many connections can
+share one instance.
+
+For a file-based \code{dbdir}, the instance is cached, keyed by the (normalized)
+path: calling \code{duckdb()} again with the same \code{dbdir} returns the same driver
+and instance while it is still alive, so repeated
+\code{dbConnect(duckdb(dbdir = "my.db"))} share one instance rather than competing
+for the file. An in-memory database (\verb{:memory:}, the default) is never cached:
+every \code{duckdb()} call creates a fresh, isolated instance.
+
+Because the instance is created once, \code{config}, \code{read_only}, \code{home}, and
+\code{shared_home} take effect only at creation; a call that reuses an existing
+instance ignores them (only \code{bigint} is updated). To apply different values
+to a file-based database -- for example to reopen it read-only, or to send
+extensions and secrets elsewhere -- first release the instance with
+\code{\link[=duckdb_shutdown]{duckdb_shutdown()}}, which also drops it from the cache, then create it again.
+\code{\link[DBI:dbDisconnect]{dbDisconnect()}} only closes a connection; it does not release the instance
+(its \code{shutdown} argument is unused). Instances are shut down automatically
+when the driver is garbage-collected or the session ends.
+}
+
 \examples{
 \dontshow{if (simulate_duckdb()$env$examples_enabled() && requireNamespace("adbcdrivermanager", quietly = TRUE)) withAutoprint(\{ # examplesIf}
 library(adbcdrivermanager)

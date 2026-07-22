@@ -34,8 +34,8 @@ driver_registry <- new.env(parent = emptyenv())
 #'   (with an offer to create `~/.duckdb` in interactive sessions).
 #'   Pass a path to use it as the root explicitly, creating it if needed.
 #'   Cannot be combined with `shared_home`.
-#'   Like `config`, this takes effect only when a new database instance is
-#'   created; a call that reuses a cached driver for the same `dbdir` ignores it.
+#'   Applied only when the database instance is created; see the
+#'   \sQuote{Database instances and driver reuse} section.
 #' @param shared_home Opt in or out of the shared `~/.duckdb` location,
 #'   overriding the automatic resolution.
 #'   One of:
@@ -55,14 +55,37 @@ driver_registry <- new.env(parent = emptyenv())
 #'     already exists. Nothing persists beyond the session.
 #'
 #'   Cannot be combined with `home`.
-#'   Like `config`, this takes effect only when a new database instance is
-#'   created; a call that reuses a cached driver for the same `dbdir` ignores it.
+#'   Applied only when the database instance is created; see the
+#'   \sQuote{Database instances and driver reuse} section.
 #' @param environment_scan Set to `TRUE` to treat
 #'   data frames from the calling environment as tables.
 #'   If a database table with the same name exists, it takes precedence.
 #'   The default of this setting may change in a future version.
 #'
 #' @return `duckdb()` returns an object of class [duckdb_driver-class].
+#'
+#' @section Database instances and driver reuse:
+#'
+#' `duckdb()` returns a driver object that owns a DuckDB *database instance*.
+#' `dbConnect()` opens connections to that instance, and many connections can
+#' share one instance.
+#'
+#' For a file-based `dbdir`, the instance is cached, keyed by the (normalized)
+#' path: calling `duckdb()` again with the same `dbdir` returns the same driver
+#' and instance while it is still alive, so repeated
+#' `dbConnect(duckdb(dbdir = "my.db"))` share one instance rather than competing
+#' for the file. An in-memory database (`:memory:`, the default) is never cached:
+#' every `duckdb()` call creates a fresh, isolated instance.
+#'
+#' Because the instance is created once, `config`, `read_only`, `home`, and
+#' `shared_home` take effect only at creation; a call that reuses an existing
+#' instance ignores them (only `bigint` is updated). To apply different values
+#' to a file-based database -- for example to reopen it read-only, or to send
+#' extensions and secrets elsewhere -- first release the instance with
+#' [duckdb_shutdown()], which also drops it from the cache, then create it again.
+#' [dbDisconnect()] only closes a connection; it does not release the instance
+#' (its `shutdown` argument is unused). Instances are shut down automatically
+#' when the driver is garbage-collected or the session ends.
 #'
 #' @import methods DBI
 #' @export
