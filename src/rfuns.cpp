@@ -1037,9 +1037,16 @@ struct RSumOperation {
 
 	template <class STATE, class OP>
 	static void Combine(const STATE &source, STATE &target, AggregateInputData &) {
-		if (!target.is_set) {
-			target = source;
+		if (source.is_null) {
+			target.is_null = true;
+			return;
 		}
+		if (!source.is_set || target.is_null) {
+			return;
+		}
+
+		target.is_set = true;
+		target.value += source.value;
 	}
 
 	template <class T, class STATE>
