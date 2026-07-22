@@ -86,10 +86,10 @@
 #' The extension cache is then `<home>/extensions` and the secret store is
 #' `<home>/stored_secrets`.
 #'
-#' Because the decision is remade on every new driver object, creating `~/.duckdb` (or
-#' setting the option/variable) takes effect immediately for connections opened
-#' afterwards.
-#' Existing connections are unaffected.
+#' Because the decision is remade on every new driver object, creating
+#' `~/.duckdb` (or setting the option/variable) takes effect immediately for
+#' drivers created afterwards.
+#' Existing drivers are unaffected.
 #'
 #' The `shared_home` argument of [duckdb()] overrides this resolution:
 #' `shared_home = TRUE` uses (and creates) `~/.duckdb`, and `shared_home = FALSE`
@@ -157,7 +157,7 @@
 #'   In a non-interactive session (which all `R CMD check` runs are)
 #'   it uses `tempdir()` by default unless a `~/.duckdb` already exists,
 #'   and it never *creates* `~/.duckdb` unless requested.
-#'   So a package that merely opens connections needs no special handling.
+#'   So a package that merely opens a database needs no special handling.
 #' * Downloading and installing an extension is the caller's responsibility.
 #'   Ensure that all tests involving extensions are skipped if the download fails.
 #'   For robust testing on CRAN and other platforms,

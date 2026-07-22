@@ -81,10 +81,10 @@ If the user accepts, it is created and used.
 The extension cache is then \verb{<home>/extensions} and the secret store is
 \verb{<home>/stored_secrets}.
 
-Because the decision is remade on every new driver object, creating \verb{~/.duckdb} (or
-setting the option/variable) takes effect immediately for connections opened
-afterwards.
-Existing connections are unaffected.
+Because the decision is remade on every new driver object, creating
+\verb{~/.duckdb} (or setting the option/variable) takes effect immediately for
+drivers created afterwards.
+Existing drivers are unaffected.
 
 The \code{shared_home} argument of \code{\link[=duckdb]{duckdb()}} overrides this resolution:
 \code{shared_home = TRUE} uses (and creates) \verb{~/.duckdb}, and \code{shared_home = FALSE}
@@ -153,7 +153,7 @@ Packages that use duckdb inherit this policy:
 In a non-interactive session (which all \verb{R CMD check} runs are)
 it uses \code{tempdir()} by default unless a \verb{~/.duckdb} already exists,
 and it never \emph{creates} \verb{~/.duckdb} unless requested.
-So a package that merely opens connections needs no special handling.
+So a package that merely opens a database needs no special handling.
 \item Downloading and installing an extension is the caller's responsibility.
 Ensure that all tests involving extensions are skipped if the download fails.
 For robust testing on CRAN and other platforms,

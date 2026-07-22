@@ -87,8 +87,8 @@ the directory persists after R exits, is reused by every future R session
 (and by the DuckDB CLI, Python and other clients that share \verb{~/.duckdb}),
 and any secrets written there outlive this process.
 Applying this setting repeatedly is a fast no-op.
-\item \code{FALSE} -- use a per-session temporary directory even if \verb{~/.duckdb} already exists-
-Nothing persists beyond the session.
+\item \code{FALSE} -- use a per-session temporary directory even if \verb{~/.duckdb}
+already exists. Nothing persists beyond the session.
 }
 
 Cannot be combined with \code{home}.}

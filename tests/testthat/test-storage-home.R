@@ -138,7 +138,7 @@ test_that("duckdb() rejects home combined with shared_home, and bad shared_home"
   expect_error(duckdb(shared_home = NA), "TRUE, FALSE, or NULL")
 })
 
-test_that("a cancelled prompt (NA) declines without error", {
+test_that("a cancelled prompt (NA) aborts with the storage-location message", {
   shared <- file.path(withr::local_tempdir(), ".duckdb")
   withr::local_options(duckdb.home = NULL, rlang_interactive = TRUE)
   withr::local_envvar(DUCKDB_R_HOME = NA)
@@ -147,6 +147,21 @@ test_that("a cancelled prompt (NA) declines without error", {
     duckdb_shared_home = function() shared,
     session_temp_dir = function() "/tmp/sess",
     consent_to_create_home = function(path) NA
+  )
+  # Cancel is not a decision: it errors (reusing the message) and creates nothing.
+  expect_error(resolve_storage_home(), "temporary directory")
+  expect_false(dir.exists(shared))
+})
+
+test_that("an explicit no proceeds with a tempdir, no error", {
+  shared <- file.path(withr::local_tempdir(), ".duckdb")
+  withr::local_options(duckdb.home = NULL, rlang_interactive = TRUE)
+  withr::local_envvar(DUCKDB_R_HOME = NA)
+  storage_message_state[["home_prompt_declined"]] <- NULL
+  local_mocked_bindings(
+    duckdb_shared_home = function() shared,
+    session_temp_dir = function() "/tmp/sess",
+    consent_to_create_home = function(path) FALSE
   )
   expect_equal(resolve_storage_home()$source, "session")
   expect_false(dir.exists(shared))

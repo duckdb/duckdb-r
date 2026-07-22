@@ -49,8 +49,8 @@ driver_registry <- new.env(parent = emptyenv())
 #'     (and by the DuckDB CLI, Python and other clients that share `~/.duckdb`),
 #'     and any secrets written there outlive this process.
 #'     Applying this setting repeatedly is a fast no-op.
-#'   * `FALSE` -- use a per-session temporary directory even if `~/.duckdb` already exists-
-#'     Nothing persists beyond the session.
+#'   * `FALSE` -- use a per-session temporary directory even if `~/.duckdb`
+#'     already exists. Nothing persists beyond the session.
 #'
 #'   Cannot be combined with `home`.
 #' @param environment_scan Set to `TRUE` to treat

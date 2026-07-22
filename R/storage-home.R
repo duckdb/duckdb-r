@@ -29,20 +29,21 @@ is_nonempty_string <- function(x) {
 
 # --- Resolution ---------------------------------------------------------------
 
-# Resolve the home directory this connection uses for extensions and secrets,
-# and the tier that chose it. First match wins:
+# Resolve the home directory this driver uses for extensions and secrets, and
+# the tier that chose it. First match wins:
 #
 #   1. the `home` argument to duckdb()          -> source "argument"
 #   2. the `duckdb.home` option                 -> source "option"
 #   3. the `DUCKDB_R_HOME` environment variable -> source "env"
 #   4. `~/.duckdb`, if it already exists         -> source "shared"
 #   5. otherwise: in an interactive session, offer to create `~/.duckdb` once
-#      (source "created" if accepted); a declined prompt or a non-interactive
-#      session falls back to a per-session tempdir (source "session").
+#      (source "created" if accepted; a "no" uses a per-session tempdir; a
+#      cancelled prompt aborts with an error). A non-interactive session uses
+#      the per-session tempdir (source "session").
 #
-# Only branch 5 in an interactive session has side effects (a prompt and, on
-# consent, creating the directory). The read-only counterpart used by
-# `duckdb_storage_status()` is `describe_storage_home()`.
+# Only branch 5 in an interactive session has side effects (a prompt, and on
+# consent creating the directory, or an error if cancelled). The read-only
+# counterpart used by `duckdb_storage_status()` is `describe_storage_home()`.
 resolve_storage_home <- function(home = NULL, shared_home = NULL) {
   # `shared_home` is a tri-state explicit override (duckdb() has already checked
   # it is not combined with `home`):
@@ -70,22 +71,40 @@ resolve_storage_home <- function(home = NULL, shared_home = NULL) {
   }
 
   if (is_interactive() && !home_prompt_declined()) {
-    # consent_to_create_home() returns askYesNo()'s TRUE/FALSE/NA; treat
-    # anything but an explicit TRUE (including a cancelled prompt) as a decline.
-    if (isTRUE(consent_to_create_home(shared))) {
+    # consent_to_create_home() returns askYesNo()'s TRUE (yes) / FALSE (no) /
+    # NA (cancel).
+    answer <- consent_to_create_home(shared)
+    if (is.na(answer)) {
+      # A cancelled prompt is not a decision. Rather than silently pick a
+      # location, abort -- reusing the storage-location message as the error
+      # text so the user sees exactly how to choose. Only an explicit "no"
+      # proceeds with a temporary directory.
+      stop(
+        paste(
+          storage_location_message(list(
+            root = session_home(),
+            source = "session"
+          )),
+          collapse = "\n"
+        ),
+        call. = FALSE
+      )
+    }
+    if (isTRUE(answer)) {
       dir.create(shared, recursive = TRUE, showWarnings = FALSE)
       if (dir.exists(shared)) {
         return(list(root = shared, source = "created"))
-      } else {
-        warning(
-          "duckdb: failed to create ", shared, "; falling back to a temporary directory.",
-          call. = FALSE
-        )
       }
+      warning(
+        "duckdb: failed to create ",
+        shared,
+        "; falling back to a temporary directory.",
+        call. = FALSE
+      )
     }
 
-    # Remember a decline (or a failed creation) so we do not prompt again this
-    # session; fall through to the per-session default.
+    # An explicit "no", or a creation that failed: remember it so we do not
+    # prompt again this session, and fall through to the per-session default.
     mark_home_prompt_declined()
   }
 
@@ -229,17 +248,13 @@ inform_once_every <- function(id, seconds, message) {
   invisible(TRUE)
 }
 
-# Called on connect in a non-interactive session, when the location was chosen
-# by the package itself (a per-session tempdir, or an existing ~/.duckdb) rather
-# than requested explicitly. Reports where extensions and secrets are going --
-# at most once every 8 hours per session -- and how to change or silence it.
-# `resolved` is the list(root, source) from resolve_storage_home().
-maybe_storage_location_message <- function(resolved) {
-  if (is.null(resolved) || is.null(resolved$root)) {
-    return(invisible())
-  }
+# The informational lines describing a resolved storage location (`resolved` is
+# the list(root, source) from resolve_storage_home()). Kept in one place because
+# it is reused both for the non-interactive message and, verbatim, as the error
+# text when an interactive prompt is cancelled.
+storage_location_message <- function(resolved) {
   if (identical(resolved$source, "shared")) {
-    message <- c(
+    c(
       "duckdb is storing downloaded extensions and secrets under ~/.duckdb:",
       "i" = resolved$root,
       "This persists across sessions and is shared with the DuckDB CLI and other clients.",
@@ -247,17 +262,31 @@ maybe_storage_location_message <- function(resolved) {
       "i" = "See ?duckdb_storage for details and alternatives."
     )
   } else {
-    message <- c(
-      "duckdb is keeping downloaded extensions and secrets",
-      "in a temporary directory:",
+    c(
+      "duckdb keeps downloaded extensions and secrets in a temporary directory:",
       "i" = resolved$root,
       "This is removed when the R session ends.",
       "*" = "Extensions are re-downloaded each session.",
       "*" = "Secrets are lost.",
-      "i" = "Run duckdb(shared_home = TRUE) (or create ~/.duckdb) to keep them (suitable for most users)",
-      "i" = "Run duckdb(shared_home = FALSE) to silence this message",
+      "i" = "Run duckdb(shared_home = TRUE) (or create ~/.duckdb) to keep them (suitable for most users).",
+      "i" = "Run duckdb(shared_home = FALSE) to accept the temporary directory (and silence this message).",
       "i" = "See ?duckdb_storage for details and alternatives."
     )
   }
-  inform_once_every("storage_location", STORAGE_MESSAGE_INTERVAL, message)
+}
+
+# Called when a new driver is created in a non-interactive session and the
+# location was chosen by the package itself (a per-session tempdir, or an
+# existing ~/.duckdb) rather than requested explicitly. Reports where extensions
+# and secrets are going -- at most once every 8 hours per session -- and how to
+# change or silence it.
+maybe_storage_location_message <- function(resolved) {
+  if (is.null(resolved) || is.null(resolved$root)) {
+    return(invisible())
+  }
+  inform_once_every(
+    "storage_location",
+    STORAGE_MESSAGE_INTERVAL,
+    storage_location_message(resolved)
+  )
 }
