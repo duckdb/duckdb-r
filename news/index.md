@@ -1,5 +1,11 @@
 # Changelog
 
+## duckdb 1.5.4.9010
+
+### Chore
+
+- Switch to dev version.
+
 ## duckdb 1.5.4.9009
 
 - Switching to development version.
@@ -15,8 +21,7 @@ CRAN release: 2026-07-10
 ### Bug fixes
 
 - Remove the package-library extension storage option. The
-  [`duckdb_extension_storage()`](https://r.duckdb.org/reference/duckdb_storage_config.md)
-  function no longer accepts `"library"`
+  `duckdb_extension_storage()` function no longer accepts `"library"`
   ([\#2390](https://github.com/duckdb/duckdb-r/issues/2390)).
 
 ## duckdb 1.5.4.2
@@ -42,12 +47,9 @@ CRAN release: 2026-06-28
   `config` argument of
   [`duckdb()`](https://r.duckdb.org/reference/duckdb.md), an R option,
   or an environment variable. Configure the location for extensions and
-  secrets with the new
-  [`duckdb_extension_storage()`](https://r.duckdb.org/reference/duckdb_storage_config.md)
-  and
-  [`duckdb_secret_storage()`](https://r.duckdb.org/reference/duckdb_storage_config.md),
-  inspect the resolved locations with
-  [`duckdb_storage_status()`](https://r.duckdb.org/reference/duckdb_storage_config.md),
+  secrets with the new `duckdb_extension_storage()` and
+  `duckdb_secret_storage()`, inspect the resolved locations with
+  [`duckdb_storage_status()`](https://r.duckdb.org/reference/duckdb_storage.md),
   and see
   [`?duckdb_storage`](https://r.duckdb.org/reference/duckdb_storage.md)
   for the full resolution policy

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.4.9009</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.4.9010</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -32,6 +32,13 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.5.4.9010" id="duckdb-1549010">duckdb 1.5.4.9010<a class="anchor" aria-label="anchor" href="#duckdb-1549010"></a></h2>
+<div class="section level3">
+<h3 id="chore-1-5-4-9010">Chore<a class="anchor" aria-label="anchor" href="#chore-1-5-4-9010"></a></h3>
+<ul><li>Switch to dev version.</li>
+</ul></div>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.5.4.9009" id="duckdb-1549009">duckdb 1.5.4.9009<a class="anchor" aria-label="anchor" href="#duckdb-1549009"></a></h2>
 <ul><li>Switching to development version.</li>
 </ul></div>
@@ -43,7 +50,7 @@
 <h2 class="pkg-version" data-toc-text="1.5.4.3" id="duckdb-1543">duckdb 1.5.4.3<a class="anchor" aria-label="anchor" href="#duckdb-1543"></a></h2><p class="text-muted">CRAN release: 2026-07-10</p>
 <div class="section level3">
 <h3 id="bug-fixes-1-5-4-3">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5-4-3"></a></h3>
-<ul><li>Remove the package-library extension storage option. The <code><a href="../reference/duckdb_storage_config.html">duckdb_extension_storage()</a></code> function no longer accepts <code>"library"</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2390" class="external-link">#2390</a>).</li>
+<ul><li>Remove the package-library extension storage option. The <code>duckdb_extension_storage()</code> function no longer accepts <code>"library"</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2390" class="external-link">#2390</a>).</li>
 </ul></div>
 </div>
     <div class="section level2">
@@ -58,7 +65,7 @@
 <div class="section level3">
 <h3 id="features-1-5-4-1">Features<a class="anchor" aria-label="anchor" href="#features-1-5-4-1"></a></h3>
 <ul><li>
-<p>DuckDB’s on-disk storage locations now follow a unified policy. By default nothing is written outside the R session’s temporary directory, with one exception: the extension cache is placed in the package library when it is writable and falls back to the temporary directory otherwise. Each location can be redirected through the <code>config</code> argument of <code><a href="../reference/duckdb.html">duckdb()</a></code>, an R option, or an environment variable. Configure the location for extensions and secrets with the new <code><a href="../reference/duckdb_storage_config.html">duckdb_extension_storage()</a></code> and <code><a href="../reference/duckdb_storage_config.html">duckdb_secret_storage()</a></code>, inspect the resolved locations with <code><a href="../reference/duckdb_storage_config.html">duckdb_storage_status()</a></code>, and see <code><a href="../reference/duckdb_storage.html">?duckdb_storage</a></code> for the full resolution policy (<a href="https://github.com/duckdb/duckdb-r/issues/2370" class="external-link">#2370</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2372" class="external-link">#2372</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2377" class="external-link">#2377</a>).</p>
+<p>DuckDB’s on-disk storage locations now follow a unified policy. By default nothing is written outside the R session’s temporary directory, with one exception: the extension cache is placed in the package library when it is writable and falls back to the temporary directory otherwise. Each location can be redirected through the <code>config</code> argument of <code><a href="../reference/duckdb.html">duckdb()</a></code>, an R option, or an environment variable. Configure the location for extensions and secrets with the new <code>duckdb_extension_storage()</code> and <code>duckdb_secret_storage()</code>, inspect the resolved locations with <code><a href="../reference/duckdb_storage.html">duckdb_storage_status()</a></code>, and see <code><a href="../reference/duckdb_storage.html">?duckdb_storage</a></code> for the full resolution policy (<a href="https://github.com/duckdb/duckdb-r/issues/2370" class="external-link">#2370</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2372" class="external-link">#2372</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2377" class="external-link">#2377</a>).</p>
 <p>These functions replace the experimental <code>duckdb_consolidate_secrets()</code> introduced in 1.5.4.</p>
 </li>
 </ul></div>

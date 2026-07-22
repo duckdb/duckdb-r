@@ -107,6 +107,14 @@ Otherwise the table is created.
 
 ``` r
 con <- dbConnect(duckdb())
+#> duckdb keeps downloaded extensions and secrets in a temporary directory:
+#> ℹ /tmp/RtmppIFmCu/duckdb
+#> This is removed when the R session ends.
+#> • Extensions are re-downloaded each session.
+#> • Secrets are lost.
+#> ℹ Run duckdb(shared_home = TRUE) (or create ~/.duckdb) to keep them (suitable for most users).
+#> ℹ Run duckdb(shared_home = FALSE) to accept the temporary directory (and silence this message).
+#> ℹ See ?duckdb_storage for details and alternatives.
 
 data <- data.frame(a = 1:3, b = letters[1:3])
 path <- tempfile(fileext = ".csv")
@@ -128,6 +136,14 @@ path <- tempfile(fileext = ".csv")
 write.csv(iris, path, row.names = FALSE)
 
 con <- dbConnect(duckdb())
+#> duckdb keeps downloaded extensions and secrets in a temporary directory:
+#> ℹ /tmp/RtmppIFmCu/duckdb
+#> This is removed when the R session ends.
+#> • Extensions are re-downloaded each session.
+#> • Secrets are lost.
+#> ℹ Run duckdb(shared_home = TRUE) (or create ~/.duckdb) to keep them (suitable for most users).
+#> ℹ Run duckdb(shared_home = FALSE) to accept the temporary directory (and silence this message).
+#> ℹ See ?duckdb_storage for details and alternatives.
 duckdb_read_csv(con, "iris", path,
   col.types = c(
     Sepal.Length = "DOUBLE",

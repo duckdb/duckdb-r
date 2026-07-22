@@ -101,11 +101,6 @@ Where DuckDB writes extensions, stored secrets, and temporary files, and
 how to choose those locations so that nothing is written outside the
 session’s temporary directory unless you opt in.
 
-- [`duckdb_storage`](https://r.duckdb.org/reference/duckdb_storage.md)
+- [`duckdb_storage_status()`](https://r.duckdb.org/reference/duckdb_storage.md)
   **\[experimental\]** : DuckDB file-system usage: storage locations and
   how they are resolved
-- [`duckdb_extension_storage()`](https://r.duckdb.org/reference/duckdb_storage_config.md)
-  [`duckdb_secret_storage()`](https://r.duckdb.org/reference/duckdb_storage_config.md)
-  [`duckdb_storage_status()`](https://r.duckdb.org/reference/duckdb_storage_config.md)
-  **\[experimental\]** : Configure where DuckDB stores extensions and
-  secrets

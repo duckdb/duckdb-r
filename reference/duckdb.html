@@ -21,7 +21,7 @@ it is no longer necessary to set shutdown = TRUE or to call duckdb_shutdown().">
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.4.9009</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.4.9010</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -65,6 +65,8 @@ it is no longer necessary to set <code>shutdown = TRUE</code> or to call <code>d
 <span>  bigint <span class="op">=</span> <span class="st">"numeric"</span>,</span>
 <span>  config <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  <span class="va">...</span>,</span>
+<span>  home <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  shared_home <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  environment_scan <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -124,6 +126,34 @@ Subsequent connections will silently ignore these flags.</p></dd>
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>These dots are for future extensions and must be empty.</p></dd>
+
+
+<dt id="arg-home">home<a class="anchor" aria-label="anchor" href="#arg-home"></a></dt>
+<dd><p>Root directory for DuckDB's downloaded extensions and stored secrets.
+<code>NULL</code> (the default) resolves the location as described in <a href="duckdb_storage.html">duckdb_storage</a>:
+an existing <code>~/.duckdb</code>, else a per-session temporary directory
+(with an offer to create <code>~/.duckdb</code> in interactive sessions).
+Pass a path to use it as the root explicitly, creating it if needed.
+Cannot be combined with <code>shared_home</code>.</p></dd>
+
+
+<dt id="arg-shared-home">shared_home<a class="anchor" aria-label="anchor" href="#arg-shared-home"></a></dt>
+<dd><p>Opt in or out of the shared <code>~/.duckdb</code> location,
+overriding the automatic resolution.
+One of:</p><ul><li><p><code>NULL</code> (the default) – resolve automatically (see <a href="duckdb_storage.html">duckdb_storage</a>).
+This is the safe default.</p></li>
+<li><p><code>TRUE</code> – store extensions and secrets under <code>~/.duckdb</code>, <strong>creating that
+directory if it does not exist</strong>.
+This is a good setting for permanent deployments (Posit Connect, Shiny, APIs).
+Do not use on CRAN or on other infrastructure where you don't own <code>~/.duckdb</code>.</p>
+<p>The setting is a durable, machine-level side effect that is <em>not</em> scoped to the current session:
+the directory persists after R exits, is reused by every future R session
+(and by the DuckDB CLI, Python and other clients that share <code>~/.duckdb</code>),
+and any secrets written there outlive this process.
+Applying this setting repeatedly is a fast no-op.</p></li>
+<li><p><code>FALSE</code> – use a per-session temporary directory even if <code>~/.duckdb</code>
+already exists. Nothing persists beyond the session.</p></li>
+</ul><p>Cannot be combined with <code>home</code>.</p></dd>
 
 
 <dt id="arg-environment-scan">environment_scan<a class="anchor" aria-label="anchor" href="#arg-environment-scan"></a></dt>
@@ -212,6 +242,14 @@ or an adjusted time.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   one</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1   1</span>
 <span class="r-in"><span><span class="va">drv</span> <span class="op">&lt;-</span> <span class="fu">duckdb</span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> duckdb keeps downloaded extensions and secrets in a temporary directory:</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> /tmp/RtmppIFmCu/duckdb</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> This is removed when the R session ends.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Extensions are re-downloaded each session.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Secrets are lost.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> Run duckdb(shared_home = TRUE) (or create ~/.duckdb) to keep them (suitable for most users).</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> Run duckdb(shared_home = FALSE) to accept the temporary directory (and silence this message).</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> See ?duckdb_storage for details and alternatives.</span>
 <span class="r-in"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">dbConnect</a></span><span class="op">(</span><span class="va">drv</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbGetQuery.html" class="external-link">dbGetQuery</a></span><span class="op">(</span><span class="va">con</span>, <span class="st">"SELECT 'Hello, world!'"</span><span class="op">)</span></span></span>
@@ -223,6 +261,14 @@ or an adjusted time.</p>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Shorter:</span></span></span>
 <span class="r-in"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">dbConnect</a></span><span class="op">(</span><span class="fu">duckdb</span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> duckdb keeps downloaded extensions and secrets in a temporary directory:</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> /tmp/RtmppIFmCu/duckdb</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> This is removed when the R session ends.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Extensions are re-downloaded each session.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Secrets are lost.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> Run duckdb(shared_home = TRUE) (or create ~/.duckdb) to keep them (suitable for most users).</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> Run duckdb(shared_home = FALSE) to accept the temporary directory (and silence this message).</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> See ?duckdb_storage for details and alternatives.</span>
 <span class="r-in"><span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbGetQuery.html" class="external-link">dbGetQuery</a></span><span class="op">(</span><span class="va">con</span>, <span class="st">"SELECT 'Hello, world!'"</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   'Hello, world!'</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1   Hello, world!</span>

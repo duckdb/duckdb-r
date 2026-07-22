@@ -26,6 +26,8 @@ duckdb(
   bigint = "numeric",
   config = list(),
   ...,
+  home = NULL,
+  shared_home = NULL,
   environment_scan = FALSE
 )
 
@@ -86,6 +88,42 @@ dbDisconnect(conn, ..., shutdown = TRUE)
 - ...:
 
   These dots are for future extensions and must be empty.
+
+- home:
+
+  Root directory for DuckDB's downloaded extensions and stored secrets.
+  `NULL` (the default) resolves the location as described in
+  [duckdb_storage](https://r.duckdb.org/reference/duckdb_storage.md): an
+  existing `~/.duckdb`, else a per-session temporary directory (with an
+  offer to create `~/.duckdb` in interactive sessions). Pass a path to
+  use it as the root explicitly, creating it if needed. Cannot be
+  combined with `shared_home`.
+
+- shared_home:
+
+  Opt in or out of the shared `~/.duckdb` location, overriding the
+  automatic resolution. One of:
+
+  - `NULL` (the default) – resolve automatically (see
+    [duckdb_storage](https://r.duckdb.org/reference/duckdb_storage.md)).
+    This is the safe default.
+
+  - `TRUE` – store extensions and secrets under `~/.duckdb`, **creating
+    that directory if it does not exist**. This is a good setting for
+    permanent deployments (Posit Connect, Shiny, APIs). Do not use on
+    CRAN or on other infrastructure where you don't own `~/.duckdb`.
+
+    The setting is a durable, machine-level side effect that is *not*
+    scoped to the current session: the directory persists after R exits,
+    is reused by every future R session (and by the DuckDB CLI, Python
+    and other clients that share `~/.duckdb`), and any secrets written
+    there outlive this process. Applying this setting repeatedly is a
+    fast no-op.
+
+  - `FALSE` – use a per-session temporary directory even if `~/.duckdb`
+    already exists. Nothing persists beyond the session.
+
+  Cannot be combined with `home`.
 
 - environment_scan:
 
@@ -192,6 +230,14 @@ with_adbc(db <- adbc_database_init(duckdb_adbc()), {
 #>   one
 #> 1   1
 drv <- duckdb()
+#> duckdb keeps downloaded extensions and secrets in a temporary directory:
+#> ℹ /tmp/RtmppIFmCu/duckdb
+#> This is removed when the R session ends.
+#> • Extensions are re-downloaded each session.
+#> • Secrets are lost.
+#> ℹ Run duckdb(shared_home = TRUE) (or create ~/.duckdb) to keep them (suitable for most users).
+#> ℹ Run duckdb(shared_home = FALSE) to accept the temporary directory (and silence this message).
+#> ℹ See ?duckdb_storage for details and alternatives.
 con <- dbConnect(drv)
 
 dbGetQuery(con, "SELECT 'Hello, world!'")
@@ -203,6 +249,14 @@ duckdb_shutdown(drv)
 
 # Shorter:
 con <- dbConnect(duckdb())
+#> duckdb keeps downloaded extensions and secrets in a temporary directory:
+#> ℹ /tmp/RtmppIFmCu/duckdb
+#> This is removed when the R session ends.
+#> • Extensions are re-downloaded each session.
+#> • Secrets are lost.
+#> ℹ Run duckdb(shared_home = TRUE) (or create ~/.duckdb) to keep them (suitable for most users).
+#> ℹ Run duckdb(shared_home = FALSE) to accept the temporary directory (and silence this message).
+#> ℹ See ?duckdb_storage for details and alternatives.
 dbGetQuery(con, "SELECT 'Hello, world!'")
 #>   'Hello, world!'
 #> 1   Hello, world!

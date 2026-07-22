@@ -70,10 +70,14 @@ simulate_duckdb(...)
 ``` r
 library(dplyr, warn.conflicts = FALSE)
 con <- DBI::dbConnect(duckdb(), path = ":memory:")
-#> duckdb is keeping downloaded extensions in a temporary directory:
-#> ℹ /tmp/RtmpvNRH7a/duckdb/extensions
-#> This is removed when the R session ends, so extensions are re-downloaded each session.
-#> ℹ To keep them, point `options(duckdb.extension_directory =)` or the `DUCKDB_EXTENSION_DIRECTORY` environment variable at a permanent path.
+#> duckdb keeps downloaded extensions and secrets in a temporary directory:
+#> ℹ /tmp/RtmppIFmCu/duckdb
+#> This is removed when the R session ends.
+#> • Extensions are re-downloaded each session.
+#> • Secrets are lost.
+#> ℹ Run duckdb(shared_home = TRUE) (or create ~/.duckdb) to keep them (suitable for most users).
+#> ℹ Run duckdb(shared_home = FALSE) to accept the temporary directory (and silence this message).
+#> ℹ See ?duckdb_storage for details and alternatives.
 
 db <- copy_to(con, data.frame(a = 1:3, b = letters[2:4]))
 
@@ -96,10 +100,10 @@ write.csv(data.frame(a = 1:3, b = letters[2:4]))
 
 db_csv <- tbl_file(con, path)
 #> Error in dbplyr_query_fields(con, source): Can't query fields.
-#> ℹ Using SQL: SELECT * FROM (FROM '/tmp/RtmpvNRH7a/file47826c778949.csv') AS q01
+#> ℹ Using SQL: SELECT * FROM (FROM '/tmp/RtmppIFmCu/file47226de40958.csv') AS q01
 #>   WHERE (0 = 1)
 #> Caused by error in `dbSendQuery()`:
-#> ! IO Error: No files found that match the pattern "/tmp/RtmpvNRH7a/file47826c778949.csv"
+#> ! IO Error: No files found that match the pattern "/tmp/RtmppIFmCu/file47226de40958.csv"
 #> ℹ Context: rapi_prepare
 #> ℹ Error type: IO
 db_csv %>%
@@ -109,11 +113,11 @@ db_csv %>%
 db_csv_fun <- tbl_function(con, paste0("read_csv_auto('", path, "')"))
 #> Error in dbplyr_query_fields(con, source): Can't query fields.
 #> ℹ Using SQL: SELECT * FROM (FROM
-#>   read_csv_auto('/tmp/RtmpvNRH7a/file47826c778949.csv')) AS q02 WHERE (0 = 1)
+#>   read_csv_auto('/tmp/RtmppIFmCu/file47226de40958.csv')) AS q02 WHERE (0 = 1)
 #> Caused by error in `dbSendQuery()`:
-#> ! IO Error: No files found that match the pattern "/tmp/RtmpvNRH7a/file47826c778949.csv"
+#> ! IO Error: No files found that match the pattern "/tmp/RtmppIFmCu/file47226de40958.csv"
 #> 
-#> LINE 2: FROM (FROM read_csv_auto('/tmp/RtmpvNRH7a/file47826c778949.csv')) AS...
+#> LINE 2: FROM (FROM read_csv_auto('/tmp/RtmppIFmCu/file47226de40958.csv')) AS...
 #>                    ^
 #> ℹ Context: rapi_prepare
 #> ℹ Error type: IO
