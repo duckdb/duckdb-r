@@ -7,39 +7,14 @@
 - Update to DuckDB v1.5.5, see
   <https://github.com/duckdb/duckdb/releases/tag/v1.5.5> for details.
 
-- DuckDB’s on-disk storage locations now follow a unified policy. By
-  default nothing is written outside the R session’s temporary
-  directory, with one exception: the extension cache is placed in the
-  package library when it is writable and falls back to the temporary
-  directory otherwise. Each location can be redirected through the
-  `config` argument of
-  [`duckdb()`](https://r.duckdb.org/reference/duckdb.md), an R option,
-  or an environment variable. Configure the locations for extensions and
-  secrets with the new `duckdb_extension_storage()` and
-  `duckdb_secret_storage()`, inspect the resolved locations with
-  [`duckdb_storage_status()`](https://r.duckdb.org/reference/duckdb_storage.md),
-  and see
-  [`?duckdb_storage`](https://r.duckdb.org/reference/duckdb_storage.md)
-  for the full resolution policy
-  ([\#2370](https://github.com/duckdb/duckdb-r/issues/2370),
-  [\#2372](https://github.com/duckdb/duckdb-r/issues/2372),
-  [\#2377](https://github.com/duckdb/duckdb-r/issues/2377),
-  [\#2396](https://github.com/duckdb/duckdb-r/issues/2396)).
-
-  These functions replace the experimental
-  `duckdb_consolidate_secrets()` introduced in 1.5.4.
+- Resolve extension/secret storage under `~/.duckdb` or
+  [`tempdir()`](https://rdrr.io/r/base/tempfile.html)
+  ([\#2396](https://github.com/duckdb/duckdb-r/issues/2396)).
 
 - Stop announcing the storage location after an explicit choice
   ([\#2398](https://github.com/duckdb/duckdb-r/issues/2398)).
 
 ### Bug fixes
-
-- Remove the package-library extension storage option. The
-  `duckdb_extension_storage()` function no longer accepts `"library"`
-  ([\#2390](https://github.com/duckdb/duckdb-r/issues/2390)).
-
-- Fix shared on-disk storage path on Windows
-  ([\#2385](https://github.com/duckdb/duckdb-r/issues/2385)).
 
 - Silence the storage message for GeoTox’s transitive use
   ([\#2397](https://github.com/duckdb/duckdb-r/issues/2397)).
@@ -48,6 +23,52 @@
 
 - Document database-instance caching and driver reuse
   ([\#2399](https://github.com/duckdb/duckdb-r/issues/2399)).
+
+## duckdb 1.5.4.3
+
+CRAN release: 2026-07-10
+
+### Bug fixes
+
+- Remove the package-library extension storage option. The
+  `duckdb_extension_storage()` function no longer accepts `"library"`
+  ([\#2390](https://github.com/duckdb/duckdb-r/issues/2390)).
+
+## duckdb 1.5.4.2
+
+CRAN release: 2026-06-29
+
+### Bug fixes
+
+- Fix shared on-disk storage path on Windows
+  ([\#2385](https://github.com/duckdb/duckdb-r/issues/2385)).
+
+## duckdb 1.5.4.1
+
+CRAN release: 2026-06-28
+
+### Features
+
+- DuckDB’s on-disk storage locations now follow a unified policy. By
+  default nothing is written outside the R session’s temporary
+  directory, with one exception: the extension cache is placed in the
+  package library when it is writable and falls back to the temporary
+  directory otherwise. Each location can be redirected through the
+  `config` argument of
+  [`duckdb()`](https://r.duckdb.org/reference/duckdb.md), an R option,
+  or an environment variable. Configure the location for extensions and
+  secrets with the new `duckdb_extension_storage()` and
+  `duckdb_secret_storage()`, inspect the resolved locations with
+  [`duckdb_storage_status()`](https://r.duckdb.org/reference/duckdb_storage.md),
+  and see
+  [`?duckdb_storage`](https://r.duckdb.org/reference/duckdb_storage.md)
+  for the full resolution policy
+  ([\#2370](https://github.com/duckdb/duckdb-r/issues/2370),
+  [\#2372](https://github.com/duckdb/duckdb-r/issues/2372),
+  [\#2377](https://github.com/duckdb/duckdb-r/issues/2377)).
+
+  These functions replace the experimental
+  `duckdb_consolidate_secrets()` introduced in 1.5.4.
 
 ## duckdb 1.5.4
 
