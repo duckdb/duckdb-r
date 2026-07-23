@@ -158,11 +158,11 @@ Implements \link[DBI:DBIConnection-class]{DBIConnection}.
 
 \item{\code{reserved_words}}{character vector of the engine's reserved SQL keywords, used to quote identifiers.}
 
-\item{\code{timezone_out}}{(legacy) time zone results are returned in.}
+\item{\code{timezone_out}}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} time zone results are returned in; superseded by \code{convert_opts}, from which it is copied at construction, and no longer read internally.}
 
-\item{\code{tz_out_convert}}{(legacy) how timestamps are converted to \code{timezone_out} (\code{"with"} or \code{"force"}).}
+\item{\code{tz_out_convert}}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} how timestamps are converted to \code{timezone_out} (\code{"with"} or \code{"force"}); superseded by \code{convert_opts}.}
 
-\item{\code{bigint}}{(legacy) how 64-bit integers are returned.}
+\item{\code{bigint}}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} how 64-bit integers are returned; superseded by \code{convert_opts}.}
 }}
 
 \keyword{internal}

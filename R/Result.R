@@ -120,8 +120,8 @@ duckdb_post_execute <- function(res, out) {
   }
   res@env$rows_affected <- rows_affected
 
-  if (res@connection@tz_out_convert == "force") {
-    out <- tz_force(out, res@connection@timezone_out)
+  if (res@connection@convert_opts$tz_out_convert == "force") {
+    out <- tz_force(out, res@connection@convert_opts$timezone_out)
   }
 
   res@env$resultset <- out
