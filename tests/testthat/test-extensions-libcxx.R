@@ -149,6 +149,32 @@ test_that("DUCKDB_R_ALLOW_EXTENSIONS enables or disables per as.logical()", {
   }
 })
 
+test_that("an unparseable DUCKDB_R_ALLOW_EXTENSIONS is treated as completely unset", {
+  withr::local_options(duckdb.allow_extensions = NULL)
+  # Affected build: the auto path disables extensions and announces.
+  local_mocked_bindings(extensions_supported = function() FALSE)
+
+  # Baseline: with the variable unset, the advisory fires (the library mismatch
+  # is genuinely the cause).
+  withr::with_envvar(list(DUCKDB_R_ALLOW_EXTENSIONS = NA), {
+    res <- resolve_allow_extensions(NULL)
+    expect_identical(res$source, "auto")
+    expect_false(res$allow)
+    expect_true(res$announce)
+  })
+
+  # A value as.logical() reads as neither TRUE nor FALSE is ignored entirely --
+  # same source, decision, and advisory as if the variable were unset.
+  for (v in c("", "1", "yes", "maybe")) {
+    withr::with_envvar(list(DUCKDB_R_ALLOW_EXTENSIONS = v), {
+      res <- resolve_allow_extensions(NULL)
+      expect_identical(res$source, "auto")
+      expect_false(res$allow)
+      expect_true(res$announce)
+    })
+  }
+})
+
 # --- duckdb() advisory message ------------------------------------------------
 
 # Clear the "extensions" throttle key so message tests are order-independent.
@@ -221,6 +247,44 @@ test_that("an option or env override silences the duckdb() advisory", {
       }
     )
   )
+})
+
+test_that("duckdb() still announces when DUCKDB_R_ALLOW_EXTENSIONS is unparseable", {
+  skip_on_cran()
+  # A value as.logical() cannot read as TRUE/FALSE is treated as completely
+  # unset, so the auto advisory fires exactly as it would with no variable set.
+  withr::local_options(
+    duckdb.allow_extensions = NULL,
+    duckdb.home = withr::local_tempdir(),
+    rlang_interactive = FALSE
+  )
+  local_mocked_bindings(extensions_supported = function() FALSE)
+  reset_extensions_throttle()
+
+  drv <- NULL
+  withr::with_envvar(
+    list(DUCKDB_R_ALLOW_EXTENSIONS = "1"),
+    expect_message(drv <- duckdb(), "extensions are disabled")
+  )
+  duckdb_shutdown(drv)
+})
+
+# --- message wording (snapshot) ----------------------------------------------
+
+test_that("extensions message wording is stable", {
+  # The advisory names the detected C++ standard library as the cause and is only
+  # shown on the auto path, so snapshot both stdlib variants that reach it.
+  local_mocked_bindings(compiled_cxx_stdlib = function() "libc++")
+  expect_snapshot(rlang::inform(extensions_disabled_message()))
+
+  local_mocked_bindings(compiled_cxx_stdlib = function() "<an unknown C++ library>")
+  expect_snapshot(rlang::inform(extensions_disabled_message()))
+
+  # The INSTALL / LOAD refusal error is cause-neutral: it fires both on the
+  # auto-disable path and for an explicit duckdb(allow_extensions = FALSE), so it
+  # never names the library. Snapshot it through the centralized rapi_error()
+  # bridge the C++ guard calls with context "load_extension" and an empty message.
+  expect_snapshot(rapi_error("load_extension", ""), error = TRUE)
 })
 
 # --- driver slots -------------------------------------------------------------
