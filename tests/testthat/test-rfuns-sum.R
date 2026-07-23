@@ -48,3 +48,27 @@ test_that("r_base::sum propagates NA poisoning across partial states", {
   )
   expect_identical(res$s, NA_real_)
 })
+
+test_that("r_base::sum merges partial states in window frames", {
+  drv <- duckdb()
+  con <- dbConnect(drv)
+  on.exit(dbDisconnect(con, shutdown = TRUE))
+
+  rapi_load_rfuns(drv@database_ref)
+
+  # The window segment tree combines partial states even on a single
+  # thread. Unlike the parallel aggregation tests above, this exercises
+  # Combine() deterministically: parallel aggregation only combines
+  # loaded states when several workers pick up rows, which fast machines
+  # can serve from a single worker.
+  dbExecute(con, "PRAGMA threads=1")
+
+  res <- dbGetQuery(con, '
+    WITH t AS (SELECT range::INTEGER AS i FROM range(5000)),
+    w AS (SELECT
+      "r_base::sum"(i) OVER (ORDER BY i ROWS BETWEEN 999 PRECEDING AND CURRENT ROW) AS rs,
+      sum(i)           OVER (ORDER BY i ROWS BETWEEN 999 PRECEDING AND CURRENT ROW) AS ns
+    FROM t)
+    SELECT count(*) FILTER (WHERE rs IS DISTINCT FROM ns::DOUBLE) AS mismatches FROM w')
+  expect_identical(res$mismatches, 0)
+})
