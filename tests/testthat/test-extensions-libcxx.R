@@ -120,15 +120,33 @@ test_that("a malformed duckdb.allow_extensions option warns and is reset", {
   expect_null(getOption("duckdb.allow_extensions"))
 })
 
-test_that("a non-empty DUCKDB_R_ALLOW_EXTENSIONS env var enables extensions", {
+test_that("DUCKDB_R_ALLOW_EXTENSIONS enables or disables per as.logical()", {
   withr::local_options(duckdb.allow_extensions = NULL)
-  withr::local_envvar(DUCKDB_R_ALLOW_EXTENSIONS = "1")
-  local_mocked_bindings(extensions_supported = function() FALSE)
+  # Supported build, so the auto path would enable; this isolates the env var.
+  local_mocked_bindings(extensions_supported = function() TRUE)
 
-  res <- resolve_allow_extensions(NULL)
-  expect_true(res$allow)
-  expect_false(res$announce)
-  expect_identical(res$source, "env")
+  # A value R reads as TRUE enables via the env var.
+  withr::with_envvar(list(DUCKDB_R_ALLOW_EXTENSIONS = "TRUE"), {
+    res <- resolve_allow_extensions(NULL)
+    expect_true(res$allow)
+    expect_false(res$announce)
+    expect_identical(res$source, "env")
+  })
+
+  # A value R reads as FALSE disables, even though the auto path would enable.
+  withr::with_envvar(list(DUCKDB_R_ALLOW_EXTENSIONS = "false"), {
+    res <- resolve_allow_extensions(NULL)
+    expect_false(res$allow)
+    expect_identical(res$source, "env")
+  })
+
+  # An unparseable or empty value is NA -- undecided -- and falls through to auto.
+  for (v in c("", "1", "maybe")) {
+    withr::with_envvar(list(DUCKDB_R_ALLOW_EXTENSIONS = v), {
+      res <- resolve_allow_extensions(NULL)
+      expect_identical(res$source, "auto")
+    })
+  }
 })
 
 # --- duckdb() advisory message ------------------------------------------------
@@ -190,11 +208,11 @@ test_that("an option or env override silences the duckdb() advisory", {
     }
   )
 
-  # Env set: no advisory.
+  # Env set (a value as.logical() parses): no advisory.
   withr::with_options(
     list(duckdb.allow_extensions = NULL),
     withr::with_envvar(
-      list(DUCKDB_R_ALLOW_EXTENSIONS = "1"),
+      list(DUCKDB_R_ALLOW_EXTENSIONS = "false"),
       {
         reset_extensions_throttle()
         drv <- NULL

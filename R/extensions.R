@@ -73,14 +73,17 @@ extensions_supported <- function() {
 #
 #   1. the `allow_extensions` argument (if non-NULL)   -> source "argument"
 #   2. the `duckdb.allow_extensions` option            -> source "option"
-#   3. the `DUCKDB_R_ALLOW_EXTENSIONS` environment var  -> source "env"
+#   3. a `DUCKDB_R_ALLOW_EXTENSIONS` env var as.logical() reads as TRUE/FALSE
+#                                                        -> source "env"
 #   4. otherwise: auto -- allow when this is a supported build (see
 #      extensions_supported())                          -> source "auto"
 #
 # `announce` is TRUE only on the auto path when the build is affected (so
-# extensions came out disabled). Any explicit argument/option/env silences the
-# advisory message. The option must be a scalar logical, else it warns and
-# resets to NULL, mirroring the `duckdb.home` option handling.
+# extensions came out disabled). An explicit argument or option, or an env var
+# as.logical() reads as TRUE (enable) or FALSE (disable), silences the advisory
+# message; an unset, empty, or unparseable env var is NA -- undecided -- and
+# falls through to the auto path. The option must be a scalar logical, else it
+# warns and resets to NULL, mirroring `duckdb.home`.
 resolve_allow_extensions <- function(allow_extensions) {
   if (!is.null(allow_extensions)) {
     check_flag(allow_extensions)
@@ -94,8 +97,9 @@ resolve_allow_extensions <- function(allow_extensions) {
     warning("`duckdb.allow_extensions` option must be TRUE, FALSE, or NULL.", call. = FALSE)
     options(duckdb.allow_extensions = NULL)
   }
-  if (nzchar(Sys.getenv("DUCKDB_R_ALLOW_EXTENSIONS", unset = ""))) {
-    return(list(allow = TRUE, source = "env", announce = FALSE))
+  env_allow <- as.logical(Sys.getenv("DUCKDB_R_ALLOW_EXTENSIONS", unset = ""))
+  if (!is.na(env_allow)) {
+    return(list(allow = env_allow, source = "env", announce = FALSE))
   }
   allow <- extensions_supported()
   list(allow = allow, source = "auto", announce = !allow)
@@ -107,7 +111,7 @@ resolve_allow_extensions <- function(allow_extensions) {
 extensions_disabled_message <- function() {
   c(
     paste0("duckdb was built with ", compiled_cxx_stdlib(), " (not libstdc++) on Linux, so DuckDB extensions are disabled:"),
-    "*" = "Loading a prebuilt (libstdc++) extension would crash R (https://github.com/duckdb/duckdb-r/issues/1107).",
+    "*" = "Loading a prebuilt (libstdc++) extension could crash R (https://github.com/duckdb/duckdb-r/issues/1107).",
     "*" = "INSTALL/LOAD of an extension will error, and automatic extension loading is off.",
     "i" = "Pass duckdb(allow_extensions = FALSE) to accept this and silence this message.",
     "i" = "Pass duckdb(allow_extensions = TRUE) to attempt loading anyway (may crash R).",

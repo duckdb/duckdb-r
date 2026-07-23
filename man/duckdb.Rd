@@ -114,7 +114,9 @@ No message.
 }
 
 The argument takes precedence over the \code{duckdb.allow_extensions} option (a scalar logical)
-and the \code{DUCKDB_R_ALLOW_EXTENSIONS} environment variable (any non-empty value enables extensions).
+and the \code{DUCKDB_R_ALLOW_EXTENSIONS} environment variable
+(a value R reads as \code{TRUE} enables extensions and \code{FALSE} disables them;
+unset, empty, or any other value is undecided).
 Applied only when the database instance is created;
 see the \sQuote{Database instances and driver reuse} section.}
 
