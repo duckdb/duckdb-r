@@ -458,12 +458,18 @@ struct RMinMaxOperation {
 
 	template <class STATE, class OP>
 	static void Combine(const STATE &source, STATE &target, AggregateInputData &) {
-		if (!source.is_set) {
+		if (source.is_null) {
+			target.is_null = true;
+			return;
+		}
+		if (!source.is_set || target.is_null) {
 			return;
 		}
 
 		if (!target.is_set) {
 			target = source;
+		} else {
+			MinMaxOP::Execute(target, source.value);
 		}
 	}
 
