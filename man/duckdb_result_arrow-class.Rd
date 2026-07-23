@@ -85,4 +85,14 @@ or a \link[DBI:DBIResult-class]{DBIResult}}
 Streaming Arrow result for queries on DuckDB connections.
 Implements \link[DBI:DBIResultArrow-class]{DBIResultArrow-class}.
 }
+\section{Slots}{
+
+\describe{
+\item{\code{connection}}{the \link[=duckdb_connection-class]{duckdb_connection} the query was executed on.}
+
+\item{\code{stmt_lst}}{internal list describing the prepared statement.}
+
+\item{\code{env}}{environment holding the result's mutable fetch state.}
+}}
+
 \keyword{internal}
