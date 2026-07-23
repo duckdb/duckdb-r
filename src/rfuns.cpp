@@ -380,6 +380,7 @@ ScalarFunctionSet base_r_is_na() {
 
 } // namespace rfuns
 } // namespace duckdb
+#include "duckdb/execution/expression_executor.hpp"
 #include "duckdb/extension/core_functions/include/core_functions/aggregate/distributive_functions.hpp"
 #include "duckdb/parser/parsed_data/create_aggregate_function_info.hpp"
 #include "rfuns_extension.hpp"
@@ -389,6 +390,20 @@ ScalarFunctionSet base_r_is_na() {
 
 namespace duckdb {
 namespace rfuns {
+
+// Read the constant na.rm argument at bind time. SQL literals bind as
+// CAST('t' AS BOOLEAN), so string-comparing ToString() against "true"
+// would not work here.
+static bool ExtractNaRm(ClientContext &context, Expression &arg) {
+	if (!arg.IsFoldable()) {
+		throw InvalidInputException("na.rm must be TRUE or FALSE");
+	}
+	auto val = ExpressionExecutor::EvaluateScalar(context, arg);
+	if (val.IsNull()) {
+		throw InvalidInputException("na.rm must not be NULL");
+	}
+	return BooleanValue::Get(val);
+}
 
 template <class T>
 struct RMinMaxState {
@@ -443,12 +458,18 @@ struct RMinMaxOperation {
 
 	template <class STATE, class OP>
 	static void Combine(const STATE &source, STATE &target, AggregateInputData &) {
-		if (!source.is_set) {
+		if (source.is_null) {
+			target.is_null = true;
+			return;
+		}
+		if (!source.is_set || target.is_null) {
 			return;
 		}
 
 		if (!target.is_set) {
 			target = source;
+		} else {
+			MinMaxOP::Execute(target, source.value);
 		}
 	}
 
@@ -491,7 +512,7 @@ unique_ptr<FunctionData> BindRMinMax_dispatch(ClientContext &context, AggregateF
 template <typename OP, typename T>
 unique_ptr<FunctionData> BindRMinMax(ClientContext &context, AggregateFunction &function,
                                      vector<unique_ptr<Expression>> &arguments) {
-	auto na_rm = arguments[1]->ToString() == "true";
+	auto na_rm = ExtractNaRm(context, *arguments[1]);
 	if (na_rm) {
 		return BindRMinMax_dispatch<OP, T, true>(context, function, arguments);
 	} else {
@@ -1037,9 +1058,16 @@ struct RSumOperation {
 
 	template <class STATE, class OP>
 	static void Combine(const STATE &source, STATE &target, AggregateInputData &) {
-		if (!target.is_set) {
-			target = source;
+		if (source.is_null) {
+			target.is_null = true;
+			return;
 		}
+		if (!source.is_set || target.is_null) {
+			return;
+		}
+
+		target.is_set = true;
+		target.value += source.value;
 	}
 
 	template <class T, class STATE>
@@ -1079,7 +1107,7 @@ unique_ptr<FunctionData> BindRSum_dispatch(ClientContext &context, AggregateFunc
 
 unique_ptr<FunctionData> BindRSum(ClientContext &context, AggregateFunction &function,
                                   vector<unique_ptr<Expression>> &arguments) {
-	auto na_rm = arguments[1]->ToString() == "true";
+	auto na_rm = ExtractNaRm(context, *arguments[1]);
 	if (na_rm) {
 		return BindRSum_dispatch<true>(context, function, arguments);
 	} else {
