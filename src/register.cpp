@@ -243,15 +243,14 @@ private:
 				// Give up rather than building a huge expression tree. Inside an
 				// optional filter this degrades to pushing TRUE.
 				throw NotImplementedException("IN filter with more than %llu values is not pushed down (%s)",
-				                              (unsigned long long)MAX_PUSHDOWN_IN_VALUES,
-				                              filter.ToString(column_name));
+				                              (unsigned long long)MAX_PUSHDOWN_IN_VALUES, filter.ToString(column_name));
 			}
 			// col IN (v1, v2, ...) as a balanced tree of equality comparisons.
 			vector<cpp11::sexp> equal_exprs;
 			equal_exprs.reserve(in_filter.values.size());
 			for (auto &value : in_filter.values) {
-				equal_exprs.push_back(cpp11::sexp(
-				    CreateExpression(functions, "equal", column_name_expr, CreateConstantExpression(functions, value))));
+				equal_exprs.push_back(cpp11::sexp(CreateExpression(functions, "equal", column_name_expr,
+				                                                   CreateConstantExpression(functions, value))));
 			}
 			return FoldBalanced(functions, "or_kleene", equal_exprs, 0, equal_exprs.size());
 		}
