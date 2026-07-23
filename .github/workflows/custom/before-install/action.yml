@@ -111,3 +111,25 @@ runs:
           echo "No matching DuckDB CLI available; CLI<->R end-to-end tests will skip."
         fi
       shell: bash
+
+    # Create the shared DuckDB home (~/.duckdb) so CI exercises the "shared"
+    # storage-resolution path. The package only treats ~/.duckdb as the home for
+    # downloaded extensions and stored secrets when that directory already
+    # exists; otherwise a non-interactive session (all of CI) falls back to a
+    # per-session tempdir (see R/storage-home.R and ?duckdb_storage). Creating it
+    # up front makes bare duckdb() connections resolve to ~/.duckdb ("shared"),
+    # the same location a user who opted in takes, instead of a throwaway
+    # tempdir. DuckDB -- the engine, its CLI, and this package via
+    # duckdb_shared_home() -- derives the home from USERPROFILE on Windows and
+    # HOME elsewhere (R/extensions.R, mirroring FileSystem::GetHomeDirectory()),
+    # so match that here rather than relying on shell ~ expansion.
+    - name: Create the shared DuckDB home (~/.duckdb)
+      run: |
+        if [ "${RUNNER_OS}" = "Windows" ]; then
+          home="$(cygpath -u "${USERPROFILE}")"
+        else
+          home="${HOME}"
+        fi
+        mkdir -p "${home}/.duckdb"
+        echo "Created shared DuckDB home: ${home}/.duckdb"
+      shell: bash
