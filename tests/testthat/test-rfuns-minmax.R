@@ -49,3 +49,29 @@ test_that("r_base::min and r_base::max propagate NA poisoning across partial sta
   expect_identical(res$mn, NA_integer_)
   expect_identical(res$mx, NA_integer_)
 })
+
+test_that("r_base::min and r_base::max merge partial states in window frames", {
+  drv <- duckdb()
+  con <- dbConnect(drv)
+  on.exit(dbDisconnect(con, shutdown = TRUE))
+
+  rapi_load_rfuns(drv@database_ref)
+
+  # The window segment tree combines partial aggregate states even on a
+  # single thread. Unlike the parallel aggregation tests above, this
+  # exercises Combine() deterministically: parallel aggregation only
+  # combines loaded states when several workers pick up rows, which fast
+  # machines can serve from a single worker.
+  dbExecute(con, "PRAGMA threads=1")
+
+  res <- dbGetQuery(con, '
+    WITH t AS (SELECT range::INTEGER AS i FROM range(5000)),
+    w AS (SELECT
+      "r_base::min"(i) OVER win AS rmn,
+      "r_base::max"(i) OVER win AS rmx,
+      min(i)           OVER win AS nmn,
+      max(i)           OVER win AS nmx
+    FROM t WINDOW win AS (ORDER BY i ROWS BETWEEN 999 PRECEDING AND CURRENT ROW))
+    SELECT count(*) FILTER (WHERE rmn IS DISTINCT FROM nmn OR rmx IS DISTINCT FROM nmx) AS mismatches FROM w')
+  expect_identical(res$mismatches, 0)
+})
