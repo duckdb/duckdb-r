@@ -266,6 +266,12 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 
 // Turn a DuckDB result set into an Arrow Table
 [[cpp11::register]] SEXP rapi_execute_arrow(duckdb::rqry_eptr_t qry_res, int chunk_size) {
+	if (!qry_res || !qry_res.get()) {
+		rapi_error_with_context("rapi_execute_arrow", "Invalid query result");
+	}
+	if (!qry_res->result) {
+		rapi_error_with_context("rapi_execute_arrow", "Result has already been consumed");
+	}
 	auto result = qry_res->result.get();
 	// somewhat dark magic below
 	cpp11::function getNamespace = RStrings::get().getNamespace_sym;
@@ -384,6 +390,12 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 
 // Turn a DuckDB result set into an RecordBatchReader
 [[cpp11::register]] SEXP rapi_record_batch(duckdb::rqry_eptr_t qry_res, int chunk_size) {
+	if (!qry_res || !qry_res.get()) {
+		rapi_error_with_context("rapi_record_batch", "Invalid query result");
+	}
+	if (!qry_res->result) {
+		rapi_error_with_context("rapi_record_batch", "Result has already been consumed");
+	}
 	// somewhat dark magic below
 	cpp11::function getNamespace = RStrings::get().getNamespace_sym;
 	cpp11::sexp arrow_namespace(getNamespace(RStrings::get().arrow_str));

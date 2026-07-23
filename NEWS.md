@@ -1,5 +1,20 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.4.9901
+
+## Continuous integration
+
+- Install `tzdata-legacy` for legacy time zones like `PST8PDT` (#2409).
+
+## Testing
+
+- Skip DBItest timestamp roundtrip tests when `PST8PDT` is unresolvable (#2408).
+
+## fledge
+
+- CRAN pre-release v1.5.4.9900 (#2402).
+
+
 # duckdb 1.5.4.9900
 
 ## Features
