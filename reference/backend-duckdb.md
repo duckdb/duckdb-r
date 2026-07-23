@@ -71,7 +71,7 @@ simulate_duckdb(...)
 library(dplyr, warn.conflicts = FALSE)
 con <- DBI::dbConnect(duckdb(), path = ":memory:")
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpwKCBOa/duckdb
+#> ℹ /tmp/RtmpNd5afA/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -100,10 +100,10 @@ write.csv(data.frame(a = 1:3, b = letters[2:4]))
 
 db_csv <- tbl_file(con, path)
 #> Error in dbplyr_query_fields(con, source): Can't query fields.
-#> ℹ Using SQL: SELECT * FROM (FROM '/tmp/RtmpwKCBOa/file428b3ee6e611.csv') AS q01
+#> ℹ Using SQL: SELECT * FROM (FROM '/tmp/RtmpNd5afA/file3fbb6900c8ed.csv') AS q01
 #>   WHERE (0 = 1)
 #> Caused by error in `dbSendQuery()`:
-#> ! IO Error: No files found that match the pattern "/tmp/RtmpwKCBOa/file428b3ee6e611.csv"
+#> ! IO Error: No files found that match the pattern "/tmp/RtmpNd5afA/file3fbb6900c8ed.csv"
 #> ℹ Context: rapi_prepare
 #> ℹ Error type: IO
 db_csv %>%
@@ -113,11 +113,11 @@ db_csv %>%
 db_csv_fun <- tbl_function(con, paste0("read_csv_auto('", path, "')"))
 #> Error in dbplyr_query_fields(con, source): Can't query fields.
 #> ℹ Using SQL: SELECT * FROM (FROM
-#>   read_csv_auto('/tmp/RtmpwKCBOa/file428b3ee6e611.csv')) AS q02 WHERE (0 = 1)
+#>   read_csv_auto('/tmp/RtmpNd5afA/file3fbb6900c8ed.csv')) AS q02 WHERE (0 = 1)
 #> Caused by error in `dbSendQuery()`:
-#> ! IO Error: No files found that match the pattern "/tmp/RtmpwKCBOa/file428b3ee6e611.csv"
+#> ! IO Error: No files found that match the pattern "/tmp/RtmpNd5afA/file3fbb6900c8ed.csv"
 #> 
-#> LINE 2: FROM (FROM read_csv_auto('/tmp/RtmpwKCBOa/file428b3ee6e611.csv')) AS...
+#> LINE 2: FROM (FROM read_csv_auto('/tmp/RtmpNd5afA/file3fbb6900c8ed.csv')) AS...
 #>                    ^
 #> ℹ Context: rapi_prepare
 #> ℹ Error type: IO
