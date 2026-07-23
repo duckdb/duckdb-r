@@ -5,6 +5,7 @@
 #include "duckdb/common/arrow/result_arrow_wrapper.hpp"
 #include "duckdb/common/types/timestamp.hpp"
 #include "duckdb/main/chunk_scan_state/query_result.hpp"
+#include "duckdb/parser/statement/load_statement.hpp"
 #include "duckdb/parser/statement/relation_statement.hpp"
 #include "httplib.hpp"
 #include "rapi.hpp"
@@ -28,14 +29,18 @@ using namespace cpp11::literals;
 }
 
 static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt, const string &query, idx_t n_param,
-                                     SEXP registered_dfs = R_NilValue) {
+                                     bool is_install, SEXP registered_dfs = R_NilValue) {
 	cpp11::writable::list retlist;
-	retlist.reserve(8);
+	retlist.reserve(9);
 	retlist.push_back({"str"_nm = query});
 
 	auto stmtholder = make_uniq<RStatement>(std::move(stmt));
 
 	retlist.push_back({"type"_nm = StatementTypeToString(stmtholder->stmt->GetStatementType())});
+	// Whether this is an extension INSTALL / FORCE INSTALL (detected from the
+	// parsed LoadInfo in rapi_prepare, since INSTALL/LOAD share LOAD_STATEMENT).
+	// R uses it to flush the deferred storage-location message on INSTALL.
+	retlist.push_back({"is_install"_nm = is_install});
 	retlist.push_back({"names"_nm = cpp11::as_sexp(stmtholder->stmt->GetNames())});
 
 	cpp11::writable::strings rtypes;
@@ -120,6 +125,17 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 			rapi_error_with_context("rapi_prepare", error);
 		}
 	}
+	// Detect an extension INSTALL / FORCE INSTALL from the parsed statement before
+	// it is consumed by Prepare(). INSTALL, FORCE INSTALL and LOAD all parse to
+	// StatementType::LOAD_STATEMENT; only the LoadInfo's load_type distinguishes
+	// them. R uses this to flush the deferred storage-location message on the
+	// first INSTALL (see dbSendQuery() / flush_pending_storage_message()).
+	bool is_install = false;
+	if (statements.back()->type == StatementType::LOAD_STATEMENT) {
+		auto load_type = statements.back()->Cast<LoadStatement>().info->load_type;
+		is_install = load_type == LoadType::INSTALL || load_type == LoadType::FORCE_INSTALL;
+	}
+
 	auto stmt = conn->conn->Prepare(std::move(statements.back()));
 
 	signal_handler.HandleInterrupt();
@@ -131,7 +147,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		rapi_error_with_context("rapi_prepare", error);
 	}
 	auto n_param = stmt->named_param_map.size();
-	return construct_retlist(std::move(stmt), query, n_param, conn->db->registered_dfs);
+	return construct_retlist(std::move(stmt), query, n_param, is_install, conn->db->registered_dfs);
 }
 
 static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &convert_opts, bool allow_stream_result);

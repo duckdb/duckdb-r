@@ -1,17 +1,7 @@
 # The storage-location message is deferred from duckdb() to the first INSTALL.
-
-test_that("is_install_statement() matches INSTALL / FORCE INSTALL only", {
-  expect_true(is_install_statement("INSTALL spatial"))
-  expect_true(is_install_statement("install spatial"))
-  expect_true(is_install_statement("  INSTALL spatial"))
-  expect_true(is_install_statement("FORCE INSTALL spatial"))
-  expect_true(is_install_statement("force install spatial"))
-
-  expect_false(is_install_statement("LOAD spatial"))
-  expect_false(is_install_statement("SELECT 'install'"))
-  expect_false(is_install_statement("SELECT 1"))
-  expect_false(is_install_statement("INSTALLING")) # word boundary
-})
+# Whether a statement is an INSTALL is detected in the engine glue from the
+# parsed LoadInfo (see rapi_prepare()) and surfaced as stmt_lst$is_install; the
+# end-to-end test below exercises that path.
 
 test_that("duckdb() queues the message but does not emit it; a flush emits once", {
   skip_on_cran()
@@ -41,7 +31,7 @@ test_that("an INSTALL statement flushes the deferred storage message", {
   skip_on_cran()
   # On a libc++ Linux build INSTALL is refused at prepare (before the flush), and
   # extensions are disabled anyway -- there is nothing to announce.
-  skip_if(extensions_unsupported(), "extensions disabled on this build")
+  skip_if(!extensions_supported(), "extensions disabled on this build")
 
   withr::local_options(duckdb.home = NULL, rlang_interactive = FALSE)
   withr::local_envvar(DUCKDB_R_HOME = NA)
