@@ -428,7 +428,11 @@ improvement over today's `CONSTANT_VECTOR` check. `na.rm`: per-chunk read
 (§5.4). Drop the `dispatch()` debug helpers or reimplement via
 `duckdb_functions()` SQL. (The `Combine` and `na.rm`-binding bugs found
 during this review are fixed ahead of the port in #2404, #2405, #2407; the
-consumed-result crash in the Arrow entry points in #2406.)
+consumed-result crash in the Arrow entry points in #2406; the Arrow OR/IN
+pushdown failure — the review initially classified the `CONJUNCTION_OR`
+cast as benign, but it turned out to hide hard query failures for
+`OPTIONAL_FILTER`/`IN_FILTER` — in #2410; and the `BinaryTypeAssert`
+copy-paste in #2411.)
 
 ### 7.6 The residue and its retirement path
 
