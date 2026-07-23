@@ -5,6 +5,8 @@
 #include "duckdb/parser/expression/function_expression.hpp"
 #include "duckdb/planner/filter/conjunction_filter.hpp"
 #include "duckdb/planner/filter/constant_filter.hpp"
+#include "duckdb/planner/filter/in_filter.hpp"
+#include "duckdb/planner/filter/optional_filter.hpp"
 #include "duckdb/planner/table_filter.hpp"
 #include "rapi.hpp"
 #include "signal.hpp"
@@ -166,22 +168,32 @@ public:
 	ClientProperties config;
 
 private:
+	// Upper bound on the number of IN values expanded into equality
+	// comparisons; larger lists are not pushed down.
+	static constexpr idx_t MAX_PUSHDOWN_IN_VALUES = 100;
+
+	// Combine expressions over [lo, hi) with a binary op as a balanced tree,
+	// so that long chains (e.g. from IN lists) do not produce deeply nested
+	// expressions.
+	static SEXP FoldBalanced(SEXP functions, const string &op, const vector<cpp11::sexp> &exprs, idx_t lo, idx_t hi) {
+		D_ASSERT(lo < hi);
+		if (hi - lo == 1) {
+			return exprs[lo];
+		}
+		auto mid = lo + (hi - lo) / 2;
+		cpp11::sexp lhs = FoldBalanced(functions, op, exprs, lo, mid);
+		cpp11::sexp rhs = FoldBalanced(functions, op, exprs, mid, hi);
+		return CreateExpression(functions, op, lhs, rhs);
+	}
+
 	static SEXP TransformFilterExpression(TableFilter &filter, const string &column_name, SEXP functions) {
 		cpp11::sexp column_name_sexp = Rf_mkString(column_name.c_str());
 		cpp11::sexp column_name_expr = CreateFieldRef(functions, column_name_sexp);
 
 		switch (filter.filter_type) {
 		case TableFilterType::CONSTANT_COMPARISON: {
-			auto constant_filter = (ConstantFilter &)filter;
-			ConvertOpts filter_opts;
-			cpp11::sexp constant_sexp = RApiTypes::ValueToSexp(constant_filter.constant, filter_opts);
-
-			// Scalar TIMESTAMP (no TZ) must have tzone="" for Arrow pushdown compatibility
-			if (constant_filter.constant.type().id() == LogicalTypeId::TIMESTAMP && TYPEOF(constant_sexp) == REALSXP) {
-				Rf_setAttrib(constant_sexp, RStrings::get().tzone_sym, StringsToSexp({""}));
-			}
-
-			cpp11::sexp constant_expr = CreateScalar(functions, constant_sexp);
+			auto &constant_filter = (ConstantFilter &)filter;
+			cpp11::sexp constant_expr = CreateConstantExpression(functions, constant_filter.constant);
 			switch (constant_filter.comparison_type) {
 			case ExpressionType::COMPARE_EQUAL: {
 				return CreateExpression(functions, "equal", column_name_expr, constant_expr);
@@ -202,8 +214,8 @@ private:
 				return CreateExpression(functions, "not_equal", column_name_expr, constant_expr);
 			}
 			default:
-				throw InternalException("%s can't be transformed to Arrow Scan Pushdown Filter",
-				                        filter.ToString(column_name));
+				throw NotImplementedException("%s can't be transformed to Arrow Scan Pushdown Filter",
+				                              filter.ToString(column_name));
 			}
 		}
 		case TableFilterType::IS_NULL: {
@@ -218,8 +230,43 @@ private:
 			return TransformChildFilters(functions, column_name, "and_kleene", and_filter.child_filters);
 		}
 		case TableFilterType::CONJUNCTION_OR: {
-			auto &and_filter = (ConjunctionAndFilter &)filter;
-			return TransformChildFilters(functions, column_name, "or_kleene", and_filter.child_filters);
+			auto &or_filter = (ConjunctionOrFilter &)filter;
+			return TransformChildFilters(functions, column_name, "or_kleene", or_filter.child_filters);
+		}
+		case TableFilterType::IN_FILTER: {
+			auto &in_filter = (InFilter &)filter;
+			if (in_filter.values.empty()) {
+				// col IN () matches no rows
+				return CreateScalar(functions, cpp11::sexp(Rf_ScalarLogical(false)));
+			}
+			if (in_filter.values.size() > MAX_PUSHDOWN_IN_VALUES) {
+				// Give up rather than building a huge expression tree. Inside an
+				// optional filter this degrades to pushing TRUE.
+				static_assert(MAX_PUSHDOWN_IN_VALUES == 100, "update the message below");
+				throw NotImplementedException("IN filter with more than 100 values is not pushed down (%s)",
+				                              filter.ToString(column_name));
+			}
+			// col IN (v1, v2, ...) as a balanced tree of equality comparisons.
+			vector<cpp11::sexp> equal_exprs;
+			equal_exprs.reserve(in_filter.values.size());
+			for (auto &value : in_filter.values) {
+				equal_exprs.push_back(cpp11::sexp(CreateExpression(functions, "equal", column_name_expr,
+				                                                   CreateConstantExpression(functions, value))));
+			}
+			return FoldBalanced(functions, "or_kleene", equal_exprs, 0, equal_exprs.size());
+		}
+		case TableFilterType::OPTIONAL_FILTER: {
+			// Optional filters only prune; DuckDB still applies the actual
+			// predicate. Push the child filter if it is expressible, and a
+			// TRUE literal otherwise, instead of failing the whole query.
+			auto &optional_filter = (OptionalFilter &)filter;
+			if (optional_filter.child_filter) {
+				try {
+					return TransformFilterExpression(*optional_filter.child_filter, column_name, functions);
+				} catch (NotImplementedException &) {
+				}
+			}
+			return CreateScalar(functions, cpp11::sexp(Rf_ScalarLogical(true)));
 		}
 
 		default:
@@ -230,14 +277,12 @@ private:
 
 	static SEXP TransformChildFilters(SEXP functions, const string &column_name, const string op,
 	                                  vector<duckdb::unique_ptr<TableFilter>> &filters) {
-		auto fit = filters.begin();
-		cpp11::sexp conjunction_sexp = TransformFilterExpression(**fit, column_name, functions);
-		fit++;
-		for (; fit != filters.end(); ++fit) {
-			cpp11::sexp rhs = TransformFilterExpression(**fit, column_name, functions);
-			conjunction_sexp = CreateExpression(functions, op, conjunction_sexp, rhs);
+		vector<cpp11::sexp> child_exprs;
+		child_exprs.reserve(filters.size());
+		for (auto &child_filter : filters) {
+			child_exprs.push_back(cpp11::sexp(TransformFilterExpression(*child_filter, column_name, functions)));
 		}
-		return conjunction_sexp;
+		return FoldBalanced(functions, op, child_exprs, 0, child_exprs.size());
 	}
 
 	static SEXP TransformFilter(TableFilterSet &filter_collection, unordered_map<idx_t, string> &columns,
@@ -274,6 +319,18 @@ private:
 
 	static SEXP CreateScalar(SEXP functions, SEXP op) {
 		return CallArrowFactory(functions, 3, op);
+	}
+
+	static SEXP CreateConstantExpression(SEXP functions, const Value &constant) {
+		ConvertOpts filter_opts;
+		cpp11::sexp constant_sexp = RApiTypes::ValueToSexp(constant, filter_opts);
+
+		// Scalar TIMESTAMP (no TZ) must have tzone="" for Arrow pushdown compatibility
+		if (constant.type().id() == LogicalTypeId::TIMESTAMP && TYPEOF(constant_sexp) == REALSXP) {
+			Rf_setAttrib(constant_sexp, RStrings::get().tzone_sym, StringsToSexp({""}));
+		}
+
+		return CreateScalar(functions, constant_sexp);
 	}
 };
 
