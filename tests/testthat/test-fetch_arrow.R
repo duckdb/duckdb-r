@@ -131,3 +131,19 @@ test_that("duckdb_fetch_arrow() record_batch_reader Read Table", {
   arrow_table <- record_batch_reader$read_table()
   expect_equal(3000, arrow_table$num_rows)
 })
+
+test_that("fetching from a consumed query result errors instead of crashing", {
+  con <- local_con()
+
+  res <- dbSendQuery(con, "SELECT 1 AS a", arrow = TRUE)
+  record_batch_reader <- duckdb_fetch_record_batch(res)
+  expect_true(inherits(record_batch_reader, "RecordBatchReader"))
+
+  # The result has been moved into the record batch reader: fetching again
+  # must raise an error, not crash the session.
+  expect_error(duckdb_fetch_arrow(res), "consumed")
+  expect_error(duckdb_fetch_record_batch(res), "consumed")
+
+  expect_equal(record_batch_reader$read_table()$num_rows, 1)
+  dbClearResult(res)
+})
