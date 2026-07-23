@@ -196,6 +196,24 @@ mark_storage_choice_made <- function() {
   storage_message_state[["choice_made"]] <- TRUE
 }
 
+# The storage-location message is deferred from duckdb() until the user actually
+# installs an extension -- the only moment the extension cache location matters.
+# duckdb() stashes the resolved home here (when it would otherwise have
+# announced); the first INSTALL statement flushes it (see dbSendQuery). The
+# underlying maybe_storage_location_message() still dedupes per session, so
+# repeated installs stay quiet.
+set_pending_storage_message <- function(resolved) {
+  storage_message_state[["pending"]] <- resolved
+}
+
+flush_pending_storage_message <- function() {
+  resolved <- storage_message_state[["pending"]]
+  if (!is.null(resolved)) {
+    maybe_storage_location_message(resolved)
+  }
+  invisible()
+}
+
 # --- Temp / spill directory ---------------------------------------------------
 
 # An explicit temp/spill-directory override via the `duckdb.temp_directory`

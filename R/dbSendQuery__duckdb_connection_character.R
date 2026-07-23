@@ -13,6 +13,13 @@ dbSendQuery__duckdb_connection_character <- function(conn, statement, params = N
   statement <- enc2utf8(statement)
   stmt_lst <- rethrow_rapi_prepare(conn@conn_ref, statement, env)
 
+  # The storage-location message is deferred from duckdb() until an extension is
+  # actually installed (the only time the extension cache location matters). This
+  # is that moment: emit it now for an INSTALL statement.
+  if (identical(stmt_lst$type, "LOAD") && is_install_statement(statement)) {
+    flush_pending_storage_message()
+  }
+
   res <- duckdb_result(
     connection = conn,
     stmt_lst = stmt_lst,

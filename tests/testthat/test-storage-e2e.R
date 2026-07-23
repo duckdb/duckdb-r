@@ -4,7 +4,7 @@
 # skip on CRAN; the extension test additionally skips, best effort, when the
 # download/install fails (e.g. no network).
 
-test_that("a non-interactive connect announces the storage location, unless chosen", {
+test_that("a non-interactive connect queues the storage location, unless chosen", {
   skip_on_cran()
   withr::local_options(duckdb.home = NULL, rlang_interactive = FALSE)
   withr::local_envvar(DUCKDB_R_HOME = NA)
@@ -12,16 +12,21 @@ test_that("a non-interactive connect announces the storage location, unless chos
     duckdb_shared_home = function() file.path(tempdir(), "no-such-home-msg")
   )
 
-  # Auto-resolved (no ~/.duckdb, no args) -> the tempdir message fires once.
+  # Auto-resolved (no ~/.duckdb, no args) -> connect is silent; the tempdir
+  # message is deferred to INSTALL, where a flush fires it once.
   storage_message_state[["storage_location"]] <- NULL
   storage_message_state[["choice_made"]] <- NULL
+  storage_message_state[["pending"]] <- NULL
   drv <- NULL
-  expect_message({ drv <- duckdb() }, "temporary directory")
+  expect_no_message({ drv <- duckdb() })
+  expect_message(flush_pending_storage_message(), "temporary directory")
   duckdb_shutdown(drv)
 
-  # Explicit opt-out with shared_home = FALSE -> suppressed.
+  # Explicit opt-out with shared_home = FALSE -> nothing queued, flush silent.
   storage_message_state[["storage_location"]] <- NULL
+  storage_message_state[["pending"]] <- NULL
   expect_no_message({ drv <- duckdb(shared_home = FALSE) })
+  expect_silent(flush_pending_storage_message())
   duckdb_shutdown(drv)
 })
 
@@ -42,15 +47,19 @@ test_that("an interactive yes announces creation; a no announces the tempdir", {
   duckdb_shutdown(drv)
   expect_true(dir.exists(shared))
 
-  # "no" -> tempdir, and the storage-location message is announced.
+  # "no" -> tempdir; the storage-location message is deferred to INSTALL, so
+  # connect is silent and a flush emits it. (The "created" confirmation above is
+  # a separate message and still fires at connect.)
   storage_message_state[["home_prompt_declined"]] <- NULL
   storage_message_state[["storage_location"]] <- NULL
   storage_message_state[["choice_made"]] <- NULL
+  storage_message_state[["pending"]] <- NULL
   local_mocked_bindings(
     duckdb_shared_home = function() file.path(tempdir(), "no-such-home-int"),
     consent_to_create_home = function(path) FALSE
   )
-  expect_message({ drv <- duckdb() }, "temporary directory")
+  expect_no_message({ drv <- duckdb() })
+  expect_message(flush_pending_storage_message(), "temporary directory")
   duckdb_shutdown(drv)
 })
 

@@ -148,6 +148,13 @@ maybe_extensions_message <- function() {
   }
 }
 
+# TRUE if `sql` is an extension INSTALL statement (`INSTALL` or `FORCE INSTALL`).
+# Paired with the parser-derived statement type ("LOAD") in dbSendQuery() to
+# decide when to emit the deferred storage-location message.
+is_install_statement <- function(sql) {
+  grepl("^\\s*(force\\s+)?install\\b", sql, ignore.case = TRUE)
+}
+
 cleanup_user_directory <- function() {
   user_directory <- default_user_directory()
   if (!dir.exists(user_directory)) {

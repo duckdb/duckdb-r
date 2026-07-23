@@ -229,7 +229,11 @@ duckdb <- function(
       (identical(resolved_home$source, "session") ||
         (!is_interactive() && identical(resolved_home$source, "shared")))
     if (announce) {
-      maybe_storage_location_message(resolved_home)
+      # Defer the storage-location message: it only matters once the user
+      # actually installs an extension. Stash the resolved home and let the
+      # first INSTALL statement emit it (see flush_pending_storage_message(),
+      # called from dbSendQuery()).
+      set_pending_storage_message(resolved_home)
     }
   }
   if (!("temp_directory" %in% names(config))) {
