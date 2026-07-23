@@ -19,6 +19,7 @@ duckdb(
   ...,
   home = NULL,
   shared_home = NULL,
+  allow_extensions = NULL,
   environment_scan = FALSE
 )
 
@@ -94,6 +95,28 @@ already exists. Nothing persists beyond the session.
 }
 
 Cannot be combined with \code{home}.
+Applied only when the database instance is created;
+see the \sQuote{Database instances and driver reuse} section.}
+
+\item{allow_extensions}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+Whether this driver may load DuckDB extensions (\code{INSTALL} / \code{LOAD}).
+One of:
+\itemize{
+\item \code{NULL} (the default) -- decide automatically.
+Extensions are enabled,
+except on an affected Linux build (one not compiled with \verb{libstdc++}),
+where they are disabled and a throttled advisory message is shown.
+See the \sQuote{DuckDB extensions on Linux} section.
+\item \code{TRUE} -- force-enable extensions,
+attempting to load them even on an affected build (which may crash R).
+No message.
+\item \code{FALSE} -- disable extensions and silence the advisory message.
+}
+
+The argument takes precedence over the \code{duckdb.allow_extensions} option (a scalar logical)
+and the \code{DUCKDB_R_ALLOW_EXTENSIONS} environment variable
+(a value R reads as \code{TRUE} enables extensions and \code{FALSE} disables them;
+unset, empty, or any other value is undecided).
 Applied only when the database instance is created;
 see the \sQuote{Database instances and driver reuse} section.}
 
@@ -195,6 +218,30 @@ then create it again.
 \code{\link[DBI:dbDisconnect]{dbDisconnect()}} only closes a connection,
 it does not release the instance, and its \code{shutdown} argument is unused.
 Instances are shut down automatically when the driver is garbage-collected or the session ends.
+}
+
+\section{DuckDB extensions on Linux}{
+
+
+DuckDB's prebuilt extensions for Linux are compiled with the GNU C++ standard library (\verb{libstdc++}).
+Loading one into a \code{duckdb} package that was itself built with a \emph{different} C++ standard library --
+most commonly \verb{libc++} (clang's \verb{-stdlib=libc++}) --
+is an ABI mismatch that crashes R (\url{https://github.com/duckdb/duckdb-r/issues/1107}).
+Almost all Linux builds (CRAN binaries and most source installs) use \verb{libstdc++} and are unaffected;
+macOS and Windows are unaffected.
+
+Each \code{duckdb()} call decides whether the driver it returns may load extensions,
+via the \code{allow_extensions} argument, the \code{duckdb.allow_extensions} option,
+the \code{DUCKDB_R_ALLOW_EXTENSIONS} environment variable, or automatic detection.
+On the automatic path a build that was not compiled with \verb{libstdc++} on Linux disables extensions:
+\code{INSTALL} / \code{LOAD} raise a clear error instead of crashing,
+automatic extension install/load is turned off,
+and a throttled advisory message is shown when \code{duckdb()} is called.
+Pass \code{allow_extensions = FALSE} to disable extensions and silence that message,
+or \code{allow_extensions = TRUE} to attempt loading anyway (which may still crash R).
+
+The decision is carried on the returned driver as the experimental \code{allow_extensions} slot
+(see \link[=duckdb_driver-class]{duckdb_driver}).
 }
 
 \examples{

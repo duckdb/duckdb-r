@@ -66,6 +66,7 @@ struct DBWrapper {
 	mutex lock;
 	cpp11::sexp env;
 	cpp11::sexp registered_dfs;
+	bool allow_extensions = true;
 };
 
 template <class T>
@@ -219,6 +220,9 @@ struct RStrings {
 	SEXP tbl_df_tbl_dataframe_str;
 	SEXP wk_wkb_wk_vctr_str;
 	SEXP vctrs_list_of_str;
+	SEXP cxx_stdlib_libstdcxx_str;
+	SEXP cxx_stdlib_libcxx_str;
+	SEXP cxx_stdlib_unknown_str;
 	SEXP enc2utf8_sym; // Rf_install
 	SEXP ptype_sym;
 	SEXP tzone_sym;
@@ -252,7 +256,7 @@ SEXP duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb::Conver
 
 // moved out of duckdb namespace for the time being (r-lib/cpp11#262)
 
-duckdb::db_eptr_t rapi_startup(std::string, bool, cpp11::list);
+duckdb::db_eptr_t rapi_startup(std::string, bool, cpp11::list, bool, bool);
 
 void rapi_shutdown(duckdb::db_eptr_t);
 

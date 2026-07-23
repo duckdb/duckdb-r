@@ -12,8 +12,8 @@ rapi_connection_valid <- function(conn) {
   .Call(`_duckdb_rapi_connection_valid`, conn)
 }
 
-rapi_startup <- function(dbdir, readonly, configsexp, environment_scan) {
-  .Call(`_duckdb_rapi_startup`, dbdir, readonly, configsexp, environment_scan)
+rapi_startup <- function(dbdir, readonly, configsexp, environment_scan, allow_extensions) {
+  .Call(`_duckdb_rapi_startup`, dbdir, readonly, configsexp, environment_scan, allow_extensions)
 }
 
 rapi_lock <- function(dual) {
@@ -242,6 +242,10 @@ rapi_execute <- function(stmt, convert_opts) {
 
 rapi_adbc_init_func <- function() {
   .Call(`_duckdb_rapi_adbc_init_func`)
+}
+
+rapi_cxx_stdlib <- function() {
+  .Call(`_duckdb_rapi_cxx_stdlib`)
 }
 
 rapi_ptr_to_str <- function(extptr) {
