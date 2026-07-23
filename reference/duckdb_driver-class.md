@@ -32,3 +32,11 @@ show(object)
 - object:
 
   Any R object
+
+## Details
+
+The driver object additionally carries an experimental
+`allow_extensions` slot **\[experimental\]**: whether this driver
+permits loading DuckDB extensions (`INSTALL` / `LOAD`), resolved once
+when the driver is created. See the `allow_extensions` argument of
+[`duckdb()`](https://r.duckdb.org/reference/duckdb.md).

@@ -67,6 +67,7 @@ it is no longer necessary to set <code>shutdown = TRUE</code> or to call <code>d
 <span>  <span class="va">...</span>,</span>
 <span>  home <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  shared_home <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  allow_extensions <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  environment_scan <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -156,6 +157,26 @@ Applying this setting repeatedly is a fast no-op.</p></li>
 <li><p><code>FALSE</code> – use a per-session temporary directory even if <code>~/.duckdb</code>
 already exists. Nothing persists beyond the session.</p></li>
 </ul><p>Cannot be combined with <code>home</code>.
+Applied only when the database instance is created;
+see the ‘Database instances and driver reuse’ section.</p></dd>
+
+
+<dt id="arg-allow-extensions">allow_extensions<a class="anchor" aria-label="anchor" href="#arg-allow-extensions"></a></dt>
+<dd><p><a href="https://lifecycle.r-lib.org/articles/stages.html#experimental" class="external-link"><img src="figures/lifecycle-experimental.svg" alt="[Experimental]"></a>
+Whether this driver may load DuckDB extensions (<code>INSTALL</code> / <code>LOAD</code>).
+One of:</p><ul><li><p><code>NULL</code> (the default) – decide automatically.
+Extensions are enabled,
+except on an affected Linux build (one not compiled with <code>libstdc++</code>),
+where they are disabled and a throttled advisory message is shown.
+See the ‘DuckDB extensions on Linux’ section.</p></li>
+<li><p><code>TRUE</code> – force-enable extensions,
+attempting to load them even on an affected build (which may crash R).
+No message.</p></li>
+<li><p><code>FALSE</code> – disable extensions and silence the advisory message.</p></li>
+</ul><p>The argument takes precedence over the <code>duckdb.allow_extensions</code> option (a scalar logical)
+and the <code>DUCKDB_R_ALLOW_EXTENSIONS</code> environment variable
+(a value R reads as <code>TRUE</code> enables extensions and <code>FALSE</code> disables them;
+unset, empty, or any other value is undecided).
 Applied only when the database instance is created;
 see the ‘Database instances and driver reuse’ section.</p></dd>
 
@@ -264,6 +285,29 @@ then create it again.
 it does not release the instance, and its <code>shutdown</code> argument is unused.
 Instances are shut down automatically when the driver is garbage-collected or the session ends.</p>
     </div>
+    <div class="section level2">
+    <h2 id="duckdb-extensions-on-linux">DuckDB extensions on Linux<a class="anchor" aria-label="anchor" href="#duckdb-extensions-on-linux"></a></h2>
+
+
+
+<p>DuckDB's prebuilt extensions for Linux are compiled with the GNU C++ standard library (<code>libstdc++</code>).
+Loading one into a <code>duckdb</code> package that was itself built with a <em>different</em> C++ standard library –
+most commonly <code>libc++</code> (clang's <code>-stdlib=libc++</code>) –
+is an ABI mismatch that crashes R (<a href="https://github.com/duckdb/duckdb-r/issues/1107" class="external-link">https://github.com/duckdb/duckdb-r/issues/1107</a>).
+Almost all Linux builds (CRAN binaries and most source installs) use <code>libstdc++</code> and are unaffected;
+macOS and Windows are unaffected.</p>
+<p>Each <code>duckdb()</code> call decides whether the driver it returns may load extensions,
+via the <code>allow_extensions</code> argument, the <code>duckdb.allow_extensions</code> option,
+the <code>DUCKDB_R_ALLOW_EXTENSIONS</code> environment variable, or automatic detection.
+On the automatic path a build that was not compiled with <code>libstdc++</code> on Linux disables extensions:
+<code>INSTALL</code> / <code>LOAD</code> raise a clear error instead of crashing,
+automatic extension install/load is turned off,
+and a throttled advisory message is shown when <code>duckdb()</code> is called.
+Pass <code>allow_extensions = FALSE</code> to disable extensions and silence that message,
+or <code>allow_extensions = TRUE</code> to attempt loading anyway (which may still crash R).</p>
+<p>The decision is carried on the returned driver as the experimental <code>allow_extensions</code> slot
+(see <a href="duckdb_driver-class.html">duckdb_driver</a>).</p>
+    </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
@@ -275,7 +319,7 @@ Instances are shut down automatically when the driver is garbage-collected or th
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1   1</span>
 <span class="r-in"><span><span class="va">drv</span> <span class="op">&lt;-</span> <span class="fu">duckdb</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> duckdb keeps downloaded extensions and secrets in a temporary directory:</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> /tmp/RtmpyNI3HU/duckdb</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> /tmp/RtmpJIWOmR/duckdb</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> This is removed when the R session ends.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Extensions are re-downloaded each session.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Secrets are lost.</span>
@@ -294,7 +338,7 @@ Instances are shut down automatically when the driver is garbage-collected or th
 <span class="r-in"><span><span class="co"># Shorter:</span></span></span>
 <span class="r-in"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">dbConnect</a></span><span class="op">(</span><span class="fu">duckdb</span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> duckdb keeps downloaded extensions and secrets in a temporary directory:</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> /tmp/RtmpyNI3HU/duckdb</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">ℹ</span> /tmp/RtmpJIWOmR/duckdb</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> This is removed when the R session ends.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Extensions are re-downloaded each session.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> Secrets are lost.</span>

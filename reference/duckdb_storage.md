@@ -216,6 +216,6 @@ and `shared_home` arguments.
 ``` r
 duckdb_storage_status()
 #> DuckDB storage locations:
-#>   extensions      [session]  /tmp/RtmpyNI3HU/duckdb/extensions
-#>   stored_secrets  [session]  /tmp/RtmpyNI3HU/duckdb/stored_secrets
+#>   extensions      [session]  /tmp/RtmpJIWOmR/duckdb/extensions
+#>   stored_secrets  [session]  /tmp/RtmpJIWOmR/duckdb/stored_secrets
 ```

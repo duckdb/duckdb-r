@@ -28,6 +28,7 @@ duckdb(
   ...,
   home = NULL,
   shared_home = NULL,
+  allow_extensions = NULL,
   environment_scan = FALSE
 )
 
@@ -127,6 +128,28 @@ dbDisconnect(conn, ..., shutdown = TRUE)
   Cannot be combined with `home`. Applied only when the database
   instance is created; see the ‘Database instances and driver reuse’
   section.
+
+- allow_extensions:
+
+  **\[experimental\]** Whether this driver may load DuckDB extensions
+  (`INSTALL` / `LOAD`). One of:
+
+  - `NULL` (the default) – decide automatically. Extensions are enabled,
+    except on an affected Linux build (one not compiled with
+    `libstdc++`), where they are disabled and a throttled advisory
+    message is shown. See the ‘DuckDB extensions on Linux’ section.
+
+  - `TRUE` – force-enable extensions, attempting to load them even on an
+    affected build (which may crash R). No message.
+
+  - `FALSE` – disable extensions and silence the advisory message.
+
+  The argument takes precedence over the `duckdb.allow_extensions`
+  option (a scalar logical) and the `DUCKDB_R_ALLOW_EXTENSIONS`
+  environment variable (a value R reads as `TRUE` enables extensions and
+  `FALSE` disables them; unset, empty, or any other value is undecided).
+  Applied only when the database instance is created; see the ‘Database
+  instances and driver reuse’ section.
 
 - environment_scan:
 
@@ -253,6 +276,32 @@ only closes a connection, it does not release the instance, and its
 `shutdown` argument is unused. Instances are shut down automatically
 when the driver is garbage-collected or the session ends.
 
+## DuckDB extensions on Linux
+
+DuckDB's prebuilt extensions for Linux are compiled with the GNU C++
+standard library (`libstdc++`). Loading one into a `duckdb` package that
+was itself built with a *different* C++ standard library – most commonly
+`libc++` (clang's `-stdlib=libc++`) – is an ABI mismatch that crashes R
+(<https://github.com/duckdb/duckdb-r/issues/1107>). Almost all Linux
+builds (CRAN binaries and most source installs) use `libstdc++` and are
+unaffected; macOS and Windows are unaffected.
+
+Each `duckdb()` call decides whether the driver it returns may load
+extensions, via the `allow_extensions` argument, the
+`duckdb.allow_extensions` option, the `DUCKDB_R_ALLOW_EXTENSIONS`
+environment variable, or automatic detection. On the automatic path a
+build that was not compiled with `libstdc++` on Linux disables
+extensions: `INSTALL` / `LOAD` raise a clear error instead of crashing,
+automatic extension install/load is turned off, and a throttled advisory
+message is shown when `duckdb()` is called. Pass
+`allow_extensions = FALSE` to disable extensions and silence that
+message, or `allow_extensions = TRUE` to attempt loading anyway (which
+may still crash R).
+
+The decision is carried on the returned driver as the experimental
+`allow_extensions` slot (see
+[duckdb_driver](https://r.duckdb.org/reference/duckdb_driver-class.md)).
+
 ## Examples
 
 ``` r
@@ -264,7 +313,7 @@ with_adbc(db <- adbc_database_init(duckdb_adbc()), {
 #> 1   1
 drv <- duckdb()
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpyNI3HU/duckdb
+#> ℹ /tmp/RtmpJIWOmR/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -283,7 +332,7 @@ duckdb_shutdown(drv)
 # Shorter:
 con <- dbConnect(duckdb())
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpyNI3HU/duckdb
+#> ℹ /tmp/RtmpJIWOmR/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
