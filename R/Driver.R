@@ -118,18 +118,14 @@ driver_registry <- new.env(parent = emptyenv())
 #' macOS and Windows are unaffected.
 #'
 #' Each `duckdb()` call decides whether the driver it returns may load extensions,
-#' via the `allow_extensions` argument
-#' (defaulting to the `duckdb.allow_extensions` option,
-#' then the `DUCKDB_R_ALLOW_EXTENSIONS` environment variable,
-#' then automatic detection).
+#' via the `allow_extensions` argument, the `duckdb.allow_extensions` option,
+#' the `DUCKDB_R_ALLOW_EXTENSIONS` environment variable, or automatic detection.
 #' On the automatic path a build that was not compiled with `libstdc++` on Linux disables extensions:
 #' `INSTALL` / `LOAD` raise a clear error instead of crashing,
 #' automatic extension install/load is turned off,
-#' and a throttled advisory message is shown at `duckdb()` time
-#' (it is no longer shown when the package is attached).
+#' and a throttled advisory message is shown when `duckdb()` is called.
 #' Pass `allow_extensions = FALSE` to disable extensions and silence that message,
-#' or `allow_extensions = TRUE` to attempt loading anyway --
-#' for example to test whether it works on a particular build (which may still crash R).
+#' or `allow_extensions = TRUE` to attempt loading anyway (which may still crash R).
 #'
 #' The decision is carried on the returned driver as the experimental `allow_extensions` slot
 #' (see [duckdb_driver-class]).
