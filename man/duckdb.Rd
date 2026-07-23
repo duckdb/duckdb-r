@@ -229,18 +229,14 @@ Almost all Linux builds (CRAN binaries and most source installs) use \verb{libst
 macOS and Windows are unaffected.
 
 Each \code{duckdb()} call decides whether the driver it returns may load extensions,
-via the \code{allow_extensions} argument
-(defaulting to the \code{duckdb.allow_extensions} option,
-then the \code{DUCKDB_R_ALLOW_EXTENSIONS} environment variable,
-then automatic detection).
+via the \code{allow_extensions} argument, the \code{duckdb.allow_extensions} option,
+the \code{DUCKDB_R_ALLOW_EXTENSIONS} environment variable, or automatic detection.
 On the automatic path a build that was not compiled with \verb{libstdc++} on Linux disables extensions:
 \code{INSTALL} / \code{LOAD} raise a clear error instead of crashing,
 automatic extension install/load is turned off,
-and a throttled advisory message is shown at \code{duckdb()} time
-(it is no longer shown when the package is attached).
+and a throttled advisory message is shown when \code{duckdb()} is called.
 Pass \code{allow_extensions = FALSE} to disable extensions and silence that message,
-or \code{allow_extensions = TRUE} to attempt loading anyway --
-for example to test whether it works on a particular build (which may still crash R).
+or \code{allow_extensions = TRUE} to attempt loading anyway (which may still crash R).
 
 The decision is carried on the returned driver as the experimental \code{allow_extensions} slot
 (see \link[=duckdb_driver-class]{duckdb_driver}).
