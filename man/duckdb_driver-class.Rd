@@ -34,4 +34,10 @@
 \description{
 Implements \link[DBI:DBIDriver-class]{DBIDriver}.
 }
+\details{
+The driver object additionally carries an experimental \code{allow_extensions}
+slot \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}: whether this driver permits
+loading DuckDB extensions (\code{INSTALL} / \code{LOAD}), resolved once when the driver
+is created; see the \code{allow_extensions} argument of \code{\link[=duckdb]{duckdb()}}.
+}
 \keyword{internal}

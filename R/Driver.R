@@ -57,6 +57,23 @@ driver_registry <- new.env(parent = emptyenv())
 #'   Cannot be combined with `home`.
 #'   Applied only when the database instance is created;
 #'   see the \sQuote{Database instances and driver reuse} section.
+#' @param allow_extensions `r lifecycle::badge("experimental")`
+#'   Whether this driver may load DuckDB extensions (`INSTALL` / `LOAD`).
+#'   One of:
+#'   * `NULL` (the default) -- decide automatically.
+#'     Extensions are enabled,
+#'     except on an affected Linux build (one not compiled with `libstdc++`),
+#'     where they are disabled and a throttled advisory message is shown.
+#'     See the \sQuote{DuckDB extensions on Linux} section.
+#'   * `TRUE` -- force-enable extensions,
+#'     attempting to load them even on an affected build (which may crash R).
+#'     No message.
+#'   * `FALSE` -- disable extensions and silence the advisory message.
+#'
+#'   The argument takes precedence over the `duckdb.allow_extensions` option (a scalar logical)
+#'   and the `DUCKDB_R_ALLOW_EXTENSIONS` environment variable (any non-empty value enables extensions).
+#'   Applied only when the database instance is created;
+#'   see the \sQuote{Database instances and driver reuse} section.
 #' @param environment_scan Set to `TRUE` to treat
 #'   data frames from the calling environment as tables.
 #'   If a database table with the same name exists, it takes precedence.
@@ -91,6 +108,32 @@ driver_registry <- new.env(parent = emptyenv())
 #' it does not release the instance, and its `shutdown` argument is unused.
 #' Instances are shut down automatically when the driver is garbage-collected or the session ends.
 #'
+#' @section DuckDB extensions on Linux:
+#'
+#' DuckDB's prebuilt extensions for Linux are compiled with the GNU C++ standard library (`libstdc++`).
+#' Loading one into a `duckdb` package that was itself built with a *different* C++ standard library --
+#' most commonly `libc++` (clang's `-stdlib=libc++`) --
+#' is an ABI mismatch that crashes R (\url{https://github.com/duckdb/duckdb-r/issues/1107}).
+#' Almost all Linux builds (CRAN binaries and most source installs) use `libstdc++` and are unaffected;
+#' macOS and Windows are unaffected.
+#'
+#' Each `duckdb()` call decides whether the driver it returns may load extensions,
+#' via the `allow_extensions` argument
+#' (defaulting to the `duckdb.allow_extensions` option,
+#' then the `DUCKDB_R_ALLOW_EXTENSIONS` environment variable,
+#' then automatic detection).
+#' On the automatic path a build that was not compiled with `libstdc++` on Linux disables extensions:
+#' `INSTALL` / `LOAD` raise a clear error instead of crashing,
+#' automatic extension install/load is turned off,
+#' and a throttled advisory message is shown at `duckdb()` time
+#' (it is no longer shown when the package is attached).
+#' Pass `allow_extensions = FALSE` to disable extensions and silence that message,
+#' or `allow_extensions = TRUE` to attempt loading anyway --
+#' for example to test whether it works on a particular build (which may still crash R).
+#'
+#' The decision is carried on the returned driver as the experimental `allow_extensions` slot
+#' (see [duckdb_driver-class]).
+#'
 #' @import methods DBI
 #' @export
 duckdb <- function(
@@ -101,6 +144,7 @@ duckdb <- function(
   ...,
   home = NULL,
   shared_home = NULL,
+  allow_extensions = NULL,
   environment_scan = FALSE
 ) {
   check_flag(read_only)
@@ -133,6 +177,15 @@ duckdb <- function(
     }
   }
 
+  # Decide once, past the driver-cache reuse above, whether this driver may load
+  # DuckDB extensions (argument > `duckdb.allow_extensions` option >
+  # `DUCKDB_R_ALLOW_EXTENSIONS` env var > auto). The resolved flag is plumbed
+  # into the engine via rapi_startup() and exposed as the driver's
+  # `allow_extensions` slot; on the auto path it also drives the advisory message
+  # below. Placed here so an argument a reused driver would ignore does not take
+  # effect.
+  ax <- resolve_allow_extensions(allow_extensions)
+
   # Choose CRAN-safe locations for the engine's writable state unless the user
   # set them explicitly. Extensions and secrets share a "home" directory
   # resolved fresh on every call (an existing ~/.duckdb, else a temporary
@@ -150,13 +203,13 @@ duckdb <- function(
     }
     resolved_home <- resolve_storage_home(home, shared_home)
     if (need_extension) {
-      config["extension_directory"] <- home_subdir(
+      config[["extension_directory"]] <- home_subdir(
         resolved_home$root,
         "extensions"
       )
     }
     if (need_secret) {
-      config["secret_directory"] <- home_subdir(
+      config[["secret_directory"]] <- home_subdir(
         resolved_home$root,
         "stored_secrets"
       )
@@ -182,8 +235,31 @@ duckdb <- function(
   if (!("temp_directory" %in% names(config))) {
     temp_directory <- resolve_temp_directory(dbdir)$directory
     if (!is.null(temp_directory)) {
-      config["temp_directory"] <- temp_directory
+      config[["temp_directory"]] <- temp_directory
     }
+  }
+
+  # When extensions are disallowed for this driver, also turn off automatic
+  # extension install/load so a query cannot implicitly pull in a prebuilt
+  # (libstdc++) extension and crash R (duckdb/duckdb-r#1107). Automatic loading
+  # is a separate engine mechanism the C++ INSTALL/LOAD guard does not
+  # intercept, so it must be disabled here. Explicit INSTALL/LOAD is refused in
+  # the engine glue (see rapi_prepare()). An explicit user setting wins.
+  if (!ax$allow) {
+    if (!("autoinstall_known_extensions" %in% names(config))) {
+      config[["autoinstall_known_extensions"]] <- "FALSE"
+    }
+    if (!("autoload_known_extensions" %in% names(config))) {
+      config[["autoload_known_extensions"]] <- "FALSE"
+    }
+  }
+
+  # Announce the disabled state, but only on the auto path (NULL argument and no
+  # option/env override) where extensions came out disabled -- an explicit
+  # argument/option/env silences it. Throttled like the storage message, and
+  # independent of the storage announce above.
+  if (ax$announce) {
+    maybe_extensions_message()
   }
 
   # Always create new database for in-memory,
@@ -195,12 +271,14 @@ duckdb <- function(
       dbdir,
       read_only,
       config,
-      environment_scan
+      environment_scan,
+      ax$allow
     ),
     dbdir = dbdir,
     read_only = read_only,
     convert_opts = convert_opts,
-    bigint = convert_opts$bigint
+    bigint = convert_opts$bigint,
+    allow_extensions = ax$allow
   )
 
   if (dbdir != DBDIR_MEMORY) {

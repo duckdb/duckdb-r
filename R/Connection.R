@@ -2,6 +2,12 @@
 #'
 #' Implements [DBIDriver-class].
 #'
+#' The driver object additionally carries an experimental `allow_extensions`
+#' slot `r lifecycle::badge("experimental")`: whether this driver permits
+#' loading DuckDB extensions (`INSTALL` / `LOAD`), resolved once when the driver
+#' is created.
+#' See the `allow_extensions` argument of [duckdb()].
+#'
 #' @aliases duckdb_driver
 #' @keywords internal
 #' @export
@@ -11,7 +17,8 @@ setClass("duckdb_driver", contains = "DBIDriver", slots = list(
   dbdir = "character",
   read_only = "logical",
   convert_opts = "list",
-  bigint = "character"
+  bigint = "character",
+  allow_extensions = "logical"
 ))
 
 #' DuckDB connection class

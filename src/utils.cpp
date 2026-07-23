@@ -15,6 +15,22 @@ using namespace duckdb;
 	return R_MakeExternalPtrFn((DL_FUNC)duckdb_adbc_init, R_NilValue, R_NilValue);
 }
 
+// Report the C++ standard library this package was compiled against, read from a
+// compile-time macro. The R layer uses this to detect a Linux build NOT compiled
+// with libstdc++ (typically libc++), which cannot safely load prebuilt
+// (libstdc++) DuckDB extensions -- loading one crashes R (duckdb/duckdb-r#1107).
+// Returns a cached SEXP owned by RStrings (allocated once), so callers get the
+// same string without a fresh allocation on each call.
+[[cpp11::register]] SEXP rapi_cxx_stdlib() {
+#if defined(__GLIBCXX__)
+	return RStrings::get().cxx_stdlib_libstdcxx_str;
+#elif defined(_LIBCPP_VERSION)
+	return RStrings::get().cxx_stdlib_libcxx_str;
+#else
+	return RStrings::get().cxx_stdlib_unknown_str;
+#endif
+}
+
 [[cpp11::register]] cpp11::r_string rapi_ptr_to_str(SEXP extptr) {
 	if (TYPEOF(extptr) != EXTPTRSXP) {
 		rapi_error_with_context("rapi_ptr_to_str", "Need external pointer parameter");
@@ -57,7 +73,7 @@ RStrings::RStrings() {
 	R_PreserveObject(strings);
 	MARK_NOT_MUTABLE(strings);
 
-	cpp11::sexp chars = Rf_allocVector(VECSXP, 13);
+	cpp11::sexp chars = Rf_allocVector(VECSXP, 16);
 	SET_VECTOR_ELT(chars, 0, UTC_str = Rf_mkString("UTC"));
 	SET_VECTOR_ELT(chars, 1, Date_str = Rf_mkString("Date"));
 	SET_VECTOR_ELT(chars, 2, difftime_str = Rf_mkString("difftime"));
@@ -71,6 +87,9 @@ RStrings::RStrings() {
 	SET_VECTOR_ELT(chars, 10, tbl_df_tbl_dataframe_str = StringsToSexp({"tbl_df", "tbl", "data.frame"}));
 	SET_VECTOR_ELT(chars, 11, wk_wkb_wk_vctr_str = StringsToSexp({"wk_wkb", "wk_vctr"}));
 	SET_VECTOR_ELT(chars, 12, vctrs_list_of_str = StringsToSexp({"vctrs_list_of", "vctrs_vctr", "list"}));
+	SET_VECTOR_ELT(chars, 13, cxx_stdlib_libstdcxx_str = Rf_mkString("libstdc++"));
+	SET_VECTOR_ELT(chars, 14, cxx_stdlib_libcxx_str = Rf_mkString("libc++"));
+	SET_VECTOR_ELT(chars, 15, cxx_stdlib_unknown_str = Rf_mkString("<an unknown C++ library>"));
 
 	R_PreserveObject(chars);
 	MARK_NOT_MUTABLE(chars);

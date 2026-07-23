@@ -1,5 +1,10 @@
 # Internal error function for C++ layer
 rapi_error <- function(context, message, error_type = NULL, raw_message = NULL, extra_info = NULL) {
+  # The extension INSTALL/LOAD guard throws with context "load_extension" and an
+  # empty message; the text is centralized in R (extensions_disabled_error()).
+  if (identical(context, "load_extension") && !any(nzchar(message))) {
+    message <- paste(extensions_disabled_error(), collapse = " ")
+  }
   if (is.null(error_type) && is.null(raw_message) && is.null(extra_info)) {
     extra_text <- ""
   } else {
@@ -16,6 +21,12 @@ rapi_error <- function(context, message, error_type = NULL, raw_message = NULL, 
 
 # rlang error function (will be conditionally replaced in .onLoad)
 rapi_error_rlang <- function(context, message, error_type = NULL, raw_message = NULL, extra_info = NULL) {
+  # The extension INSTALL/LOAD guard throws with context "load_extension" and an
+  # empty message; the text is centralized in R (extensions_disabled_error()).
+  if (identical(context, "load_extension") && !any(nzchar(message))) {
+    message <- extensions_disabled_error()
+  }
+
   # Avoid initializing NULL fields
   fields <- list()
   fields$context <- context
