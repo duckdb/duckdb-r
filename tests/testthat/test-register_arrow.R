@@ -546,3 +546,30 @@ test_that("OR and IN predicates are pushed down to registered Arrow tables", {
     c(1L, 16L, 17L)
   )
 })
+
+test_that("long IN lists on registered Arrow tables degrade gracefully", {
+  con <- local_con()
+
+  tab <- arrow::arrow_table(data.frame(a = 1:400))
+  duckdb_register_arrow(con, "test_arrow_in", tab)
+  on.exit(duckdb_unregister_arrow(con, "test_arrow_in"))
+
+  # 99 non-dense values: pushed down as a balanced or_kleene tree.
+  vals <- seq(1L, by = 3L, length.out = 99L)
+  sql <- paste0(
+    "SELECT a FROM test_arrow_in WHERE a IN (",
+    paste(vals, collapse = ", "),
+    ") ORDER BY a"
+  )
+  expect_identical(dbGetQuery(con, sql)$a, vals)
+
+  # 150 non-dense values: beyond the pushdown limit, the optional filter
+  # degrades to TRUE and DuckDB applies the predicate itself.
+  vals <- seq(1L, by = 2L, length.out = 150L)
+  sql <- paste0(
+    "SELECT a FROM test_arrow_in WHERE a IN (",
+    paste(vals, collapse = ", "),
+    ") ORDER BY a"
+  )
+  expect_identical(dbGetQuery(con, sql)$a, vals)
+})
