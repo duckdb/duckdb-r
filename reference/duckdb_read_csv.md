@@ -107,13 +107,10 @@ Otherwise the table is created.
 
 ``` r
 con <- dbConnect(duckdb())
-#> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpLAGFlh/duckdb
-#> This is removed when the R session ends.
-#> • Extensions are re-downloaded each session.
-#> • Secrets are lost.
-#> ℹ Run duckdb(shared_home = TRUE) (or create ~/.duckdb) to keep them (suitable for most users).
-#> ℹ Run duckdb(shared_home = FALSE) to accept the temporary directory (and silence this message).
+#> duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+#> ℹ /home/runner/.duckdb
+#> This persists across sessions and is shared with the DuckDB CLI and other clients.
+#> ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
 #> ℹ See ?duckdb_storage for details and alternatives.
 
 data <- data.frame(a = 1:3, b = letters[1:3])
@@ -136,13 +133,10 @@ path <- tempfile(fileext = ".csv")
 write.csv(iris, path, row.names = FALSE)
 
 con <- dbConnect(duckdb())
-#> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpLAGFlh/duckdb
-#> This is removed when the R session ends.
-#> • Extensions are re-downloaded each session.
-#> • Secrets are lost.
-#> ℹ Run duckdb(shared_home = TRUE) (or create ~/.duckdb) to keep them (suitable for most users).
-#> ℹ Run duckdb(shared_home = FALSE) to accept the temporary directory (and silence this message).
+#> duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+#> ℹ /home/runner/.duckdb
+#> This persists across sessions and is shared with the DuckDB CLI and other clients.
+#> ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
 #> ℹ See ?duckdb_storage for details and alternatives.
 duckdb_read_csv(con, "iris", path,
   col.types = c(

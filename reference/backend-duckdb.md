@@ -70,13 +70,10 @@ simulate_duckdb(...)
 ``` r
 library(dplyr, warn.conflicts = FALSE)
 con <- DBI::dbConnect(duckdb(), path = ":memory:")
-#> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpLAGFlh/duckdb
-#> This is removed when the R session ends.
-#> • Extensions are re-downloaded each session.
-#> • Secrets are lost.
-#> ℹ Run duckdb(shared_home = TRUE) (or create ~/.duckdb) to keep them (suitable for most users).
-#> ℹ Run duckdb(shared_home = FALSE) to accept the temporary directory (and silence this message).
+#> duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+#> ℹ /home/runner/.duckdb
+#> This persists across sessions and is shared with the DuckDB CLI and other clients.
+#> ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
 #> ℹ See ?duckdb_storage for details and alternatives.
 
 db <- copy_to(con, data.frame(a = 1:3, b = letters[2:4]))
@@ -100,10 +97,10 @@ write.csv(data.frame(a = 1:3, b = letters[2:4]))
 
 db_csv <- tbl_file(con, path)
 #> Error in dbplyr_query_fields(con, source): Can't query fields.
-#> ℹ Using SQL: SELECT * FROM (FROM '/tmp/RtmpLAGFlh/file3f7354dc8094.csv') AS q01
+#> ℹ Using SQL: SELECT * FROM (FROM '/tmp/RtmpA2fWxz/file42cd73c5445f.csv') AS q01
 #>   WHERE (0 = 1)
 #> Caused by error in `dbSendQuery()`:
-#> ! IO Error: No files found that match the pattern "/tmp/RtmpLAGFlh/file3f7354dc8094.csv"
+#> ! IO Error: No files found that match the pattern "/tmp/RtmpA2fWxz/file42cd73c5445f.csv"
 #> ℹ Context: rapi_prepare
 #> ℹ Error type: IO
 db_csv %>%
@@ -113,11 +110,11 @@ db_csv %>%
 db_csv_fun <- tbl_function(con, paste0("read_csv_auto('", path, "')"))
 #> Error in dbplyr_query_fields(con, source): Can't query fields.
 #> ℹ Using SQL: SELECT * FROM (FROM
-#>   read_csv_auto('/tmp/RtmpLAGFlh/file3f7354dc8094.csv')) AS q02 WHERE (0 = 1)
+#>   read_csv_auto('/tmp/RtmpA2fWxz/file42cd73c5445f.csv')) AS q02 WHERE (0 = 1)
 #> Caused by error in `dbSendQuery()`:
-#> ! IO Error: No files found that match the pattern "/tmp/RtmpLAGFlh/file3f7354dc8094.csv"
+#> ! IO Error: No files found that match the pattern "/tmp/RtmpA2fWxz/file42cd73c5445f.csv"
 #> 
-#> LINE 2: FROM (FROM read_csv_auto('/tmp/RtmpLAGFlh/file3f7354dc8094.csv')) AS...
+#> LINE 2: FROM (FROM read_csv_auto('/tmp/RtmpA2fWxz/file42cd73c5445f.csv')) AS...
 #>                    ^
 #> ℹ Context: rapi_prepare
 #> ℹ Error type: IO

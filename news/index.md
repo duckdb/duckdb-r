@@ -1,5 +1,55 @@
 # Changelog
 
+## duckdb 1.5.4.9902
+
+### Bug fixes
+
+#### ci
+
+- Emit empty package matrix when there are no (rev)deps.
+
+- Support `OR` and `IN` predicates pushed down to registered Arrow
+  tables ([\#2410](https://github.com/duckdb/duckdb-r/issues/2410)).
+
+- Merge partial states in `r_base::min`/`r_base::max` aggregates
+  ([\#2404](https://github.com/duckdb/duckdb-r/issues/2404)).
+
+- Honor the `na.rm` argument of `r_base` aggregates in SQL queries
+  ([\#2407](https://github.com/duckdb/duckdb-r/issues/2407)).
+
+- Merge partial states in the `r_base::sum` aggregate
+  ([\#2405](https://github.com/duckdb/duckdb-r/issues/2405)).
+
+- Check the right-hand argument against the right-hand type in
+  `BinaryTypeAssert()`
+  ([\#2411](https://github.com/duckdb/duckdb-r/issues/2411)).
+
+- Error instead of crashing when calling
+  [`duckdb_fetch_arrow()`](https://r.duckdb.org/reference/duckdb_result-class.md)
+  on an Arrow result that has been consumed with
+  [`duckdb_fetch_record_batch()`](https://r.duckdb.org/reference/duckdb_result-class.md)
+  ([\#2406](https://github.com/duckdb/duckdb-r/issues/2406)).
+
+### Features
+
+- Disable extensions on libc++ Linux builds, with startup message and
+  load error ([\#2414](https://github.com/duckdb/duckdb-r/issues/2414)).
+
+### Documentation
+
+- Document all S4 class slots; deprecate the legacy connection slots
+  ([\#2416](https://github.com/duckdb/duckdb-r/issues/2416)).
+
+### Testing
+
+- Cover extensions env-var semantics and lock message wording
+  ([\#2418](https://github.com/duckdb/duckdb-r/issues/2418)).
+
+### Uncategorized
+
+- Ci: Harden `format-suggest` against `pull_request_target` pwn requests
+  ([\#93](https://github.com/duckdb/duckdb-r/issues/93)).
+
 ## duckdb 1.5.4.9901
 
 ### Continuous integration

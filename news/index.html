@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.4.9901</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.4.9902</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -31,6 +31,38 @@
       <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.5.4.9902" id="duckdb-1549902">duckdb 1.5.4.9902<a class="anchor" aria-label="anchor" href="#duckdb-1549902"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-1-5-4-9902">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5-4-9902"></a></h3>
+<div class="section level4">
+<h4 id="ci-1-5-4-9902">ci<a class="anchor" aria-label="anchor" href="#ci-1-5-4-9902"></a></h4>
+<ul><li><p>Emit empty package matrix when there are no (rev)deps.</p></li>
+<li><p>Support <code>OR</code> and <code>IN</code> predicates pushed down to registered Arrow tables (<a href="https://github.com/duckdb/duckdb-r/issues/2410" class="external-link">#2410</a>).</p></li>
+<li><p>Merge partial states in <code>r_base::min</code>/<code>r_base::max</code> aggregates (<a href="https://github.com/duckdb/duckdb-r/issues/2404" class="external-link">#2404</a>).</p></li>
+<li><p>Honor the <code>na.rm</code> argument of <code>r_base</code> aggregates in SQL queries (<a href="https://github.com/duckdb/duckdb-r/issues/2407" class="external-link">#2407</a>).</p></li>
+<li><p>Merge partial states in the <code>r_base::sum</code> aggregate (<a href="https://github.com/duckdb/duckdb-r/issues/2405" class="external-link">#2405</a>).</p></li>
+<li><p>Check the right-hand argument against the right-hand type in <code>BinaryTypeAssert()</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2411" class="external-link">#2411</a>).</p></li>
+<li><p>Error instead of crashing when calling <code><a href="../reference/duckdb_result-class.html">duckdb_fetch_arrow()</a></code> on an Arrow result that has been consumed with <code><a href="../reference/duckdb_result-class.html">duckdb_fetch_record_batch()</a></code> (<a href="https://github.com/duckdb/duckdb-r/issues/2406" class="external-link">#2406</a>).</p></li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="features-1-5-4-9902">Features<a class="anchor" aria-label="anchor" href="#features-1-5-4-9902"></a></h3>
+<ul><li>Disable extensions on libc++ Linux builds, with startup message and load error (<a href="https://github.com/duckdb/duckdb-r/issues/2414" class="external-link">#2414</a>).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-1-5-4-9902">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-5-4-9902"></a></h3>
+<ul><li>Document all S4 class slots; deprecate the legacy connection slots (<a href="https://github.com/duckdb/duckdb-r/issues/2416" class="external-link">#2416</a>).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="testing-1-5-4-9902">Testing<a class="anchor" aria-label="anchor" href="#testing-1-5-4-9902"></a></h3>
+<ul><li>Cover extensions env-var semantics and lock message wording (<a href="https://github.com/duckdb/duckdb-r/issues/2418" class="external-link">#2418</a>).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="uncategorized-1-5-4-9902">Uncategorized<a class="anchor" aria-label="anchor" href="#uncategorized-1-5-4-9902"></a></h3>
+<ul><li>Ci: Harden <code>format-suggest</code> against <code>pull_request_target</code> pwn requests (<a href="https://github.com/duckdb/duckdb-r/issues/93" class="external-link">#93</a>).</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.5.4.9901" id="duckdb-1549901">duckdb 1.5.4.9901<a class="anchor" aria-label="anchor" href="#duckdb-1549901"></a></h2>
 <div class="section level3">
