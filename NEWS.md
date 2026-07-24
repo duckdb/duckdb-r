@@ -1,5 +1,12 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.4.9903
+
+## Continuous integration
+
+- Create `~/.duckdb` so CI exercises the shared storage path (#2417).
+
+
 # duckdb 1.5.4.9902
 
 ## Bug fixes
