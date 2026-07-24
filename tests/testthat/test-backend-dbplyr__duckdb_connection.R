@@ -289,6 +289,46 @@ test_that("datetime escaping working as in DBI", {
   expect_equal(escape("2020-01-01 18:23:45 PST"), sql(r"{'2020-01-01 18:23:45 PST'}"))
 })
 
+test_that("double escaping casts Inf/-Inf/NaN to DOUBLE (#1585)", {
+  skip_if_not_installed("dbplyr")
+  con <- local_con()
+  escape <- function(...) dbplyr::escape(..., con = con)
+  sql <- function(...) dbplyr::sql(...)
+
+  # Regular doubles unchanged
+  expect_equal(escape(1.5), sql(r"{1.5}"))
+  expect_equal(escape(2), sql(r"{2.0}"))
+  expect_equal(escape(NA_real_), sql(r"{NULL}"))
+
+  # Inf, -Inf and NaN cast to DOUBLE to avoid being interpreted as strings
+  expect_equal(escape(Inf), sql(r"{'Infinity'::DOUBLE}"))
+  expect_equal(escape(-Inf), sql(r"{'-Infinity'::DOUBLE}"))
+  expect_equal(escape(NaN), sql(r"{'NaN'::DOUBLE}"))
+
+  expect_equal(
+    escape(c(1, Inf, -Inf, NaN, NA_real_)),
+    sql(r"{(1.0, 'Infinity'::DOUBLE, '-Infinity'::DOUBLE, 'NaN'::DOUBLE, NULL)}")
+  )
+})
+
+test_that("Inf can be assigned to a column via mutate (#1585)", {
+  skip_if_not_installed("dbplyr")
+  skip_if_not_installed("dplyr")
+  con <- local_con()
+  df <- data.frame(x = 1)
+  duckdb_register(con, "df_inf", df)
+  withr::defer(duckdb_unregister(con, "df_inf"))
+
+  result <- dplyr::collect(
+    dplyr::mutate(dplyr::tbl(con, "df_inf"),
+      pos = Inf,
+      neg = -Inf
+    )
+  )
+  expect_identical(result$pos, Inf)
+  expect_identical(result$neg, -Inf)
+})
+
 test_that("aggregators translated correctly", {
   skip_if_not_installed("dbplyr")
   con <- local_con()
