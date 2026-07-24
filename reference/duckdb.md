@@ -313,7 +313,7 @@ with_adbc(db <- adbc_database_init(duckdb_adbc()), {
 #> 1   1
 drv <- duckdb()
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpJIWOmR/duckdb
+#> ℹ /tmp/Rtmp5A2b56/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -332,7 +332,7 @@ duckdb_shutdown(drv)
 # Shorter:
 con <- dbConnect(duckdb())
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpJIWOmR/duckdb
+#> ℹ /tmp/Rtmp5A2b56/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
