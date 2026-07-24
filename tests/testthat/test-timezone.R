@@ -144,6 +144,72 @@ test_that("POSIXct with local time zone and existing but empty attribute", {
   expect_error(rel_from_df(con, df2), "convert")
 })
 
+test_that("TIMESTAMPTZ values preserve UTC instants regardless of input offset (#184)", {
+  con <- local_con()
+
+  dbExecute(con, "INSTALL icu")
+  dbExecute(con, "LOAD icu")
+  dbExecute(con, "SET TimeZone = 'UTC'")
+
+  dbExecute(con, "CREATE TABLE x (a TIMESTAMPTZ)")
+  dbExecute(con, "INSERT INTO x VALUES (TIMESTAMPTZ '2024-01-10 13:03:12-08:00')")
+  dbExecute(con, "INSERT INTO x VALUES (TIMESTAMPTZ '2024-01-10 13:03:12-05:00')")
+
+  out <- dbReadTable(con, "x")$a
+  # -08:00 → 21:03:12 UTC, -05:00 → 18:03:12 UTC
+  expect_equal(
+    out,
+    as.POSIXct(c("2024-01-10 21:03:12", "2024-01-10 18:03:12"), tz = "UTC")
+  )
+})
+
+test_that("TIMESTAMPTZ tzone attribute follows session TimeZone setting (#184)", {
+  con <- local_con()
+
+  dbExecute(con, "INSTALL icu")
+  dbExecute(con, "LOAD icu")
+  dbExecute(con, "SET TimeZone = 'America/Los_Angeles'")
+
+  res <- dbGetQuery(con, "SELECT TIMESTAMPTZ '2024-01-10 13:03:12-08:00' AS a")
+  expect_equal(attr(res$a, "tzone"), "America/Los_Angeles")
+  # 13:03:12 -08:00 is 21:03:12 UTC = 13:03:12 in Los Angeles (PST)
+  expect_equal(
+    res$a,
+    as.POSIXct("2024-01-10 13:03:12", tz = "America/Los_Angeles")
+  )
+})
+
+test_that("TIMESTAMPTZ session TimeZone is also picked up by ALTREP relations (#184)", {
+  con <- local_con()
+
+  dbExecute(con, "INSTALL icu")
+  dbExecute(con, "LOAD icu")
+  dbExecute(con, "SET TimeZone = 'America/Los_Angeles'")
+
+  dbExecute(con, "CREATE TABLE x (a TIMESTAMPTZ)")
+  dbExecute(con, "INSERT INTO x VALUES (TIMESTAMPTZ '2024-01-10 13:03:12-08:00')")
+
+  out <- as.data.frame(rel_to_altrep(rel_from_table(con, "x")))
+  expect_equal(attr(out$a, "tzone"), "America/Los_Angeles")
+  expect_equal(
+    out$a,
+    as.POSIXct("2024-01-10 13:03:12", tz = "America/Los_Angeles")
+  )
+})
+
+test_that("TIMESTAMP (no TZ) is unaffected by session TimeZone (#184)", {
+  con <- local_con()
+
+  dbExecute(con, "INSTALL icu")
+  dbExecute(con, "LOAD icu")
+  dbExecute(con, "SET TimeZone = 'America/Los_Angeles'")
+
+  res <- dbGetQuery(con, "SELECT TIMESTAMP '2024-01-10 13:03:12' AS a")
+  # Plain TIMESTAMP keeps the connection-level `timezone_out`
+  expect_equal(attr(res$a, "tzone"), "UTC")
+  expect_equal(res$a, as.POSIXct("2024-01-10 13:03:12", tz = "UTC"))
+})
+
 test_that("tz_out_convert = force handles invalid timestamps during DST transitions", {
   withr::local_timezone("Europe/London")
 
