@@ -720,7 +720,7 @@ register the driver, enable `rerere`, and pin `rebase.backend=merge`
 | `scripts/vendor.sh` | Local manual vendoring from a cloned upstream repo |
 | `scripts/vendor-one.sh` | CI commit-by-commit vendoring (called by `vendor.yaml`) |
 | `scripts/vendor-gate.sh` | Decides the bounded, `rcc`-gated batch of upstream commits `vendor.yaml` may advance per run |
-| `scripts/lts.sh <flavor>` | Applies the flavor rename (updates `lts.patch`, then applies it and re-runs `cpp11::cpp_register()`) |
+| `scripts/lts.sh <flavor>` | Applies the flavor rename (updates `lts.patch`, then applies it and re-runs [`cpp11::cpp_register()`](https://cpp11.r-lib.org/reference/cpp_register.html)) |
 | `scripts/lts.patch` | Patch template used by `lts.sh`; contains `1.4` as placeholder version (replaced by `lts.sh`) |
 | `scripts/each-rcc.sh` | Identifies commits in the first-parent history without a build status and triggers an `rcc` run for each |
 | `scripts/merge-version.sh` | Git merge driver for `DESCRIPTION`: combines the 4th/5th version counters, gated on an equal prefix |
