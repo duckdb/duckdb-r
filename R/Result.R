@@ -3,6 +3,13 @@
 #' Methods for accessing result sets for queries on DuckDB connections.
 #' Implements [DBIResult-class].
 #'
+#' @slot connection the [duckdb_connection-class] the query was executed on.
+#' @slot stmt_lst internal list describing the prepared statement (names,
+#'   types, ...).
+#' @slot env environment holding the result's mutable fetch state.
+#' @slot arrow whether the result is fetched via Arrow.
+#' @slot query_result external pointer to the underlying materialized query
+#'   result.
 #' @aliases duckdb_result
 #' @keywords internal
 #' @export
@@ -22,6 +29,9 @@ setClass("duckdb_result",
 #' Streaming Arrow result for queries on DuckDB connections.
 #' Implements [DBIResultArrow-class][DBI::DBIResultArrow-class].
 #'
+#' @slot connection the [duckdb_connection-class] the query was executed on.
+#' @slot stmt_lst internal list describing the prepared statement.
+#' @slot env environment holding the result's mutable fetch state.
 #' @aliases duckdb_result_arrow
 #' @keywords internal
 #' @export
@@ -110,8 +120,8 @@ duckdb_post_execute <- function(res, out) {
   }
   res@env$rows_affected <- rows_affected
 
-  if (res@connection@tz_out_convert == "force") {
-    out <- tz_force(out, res@connection@timezone_out)
+  if (res@connection@convert_opts$tz_out_convert == "force") {
+    out <- tz_force(out, res@connection@convert_opts$timezone_out)
   }
 
   res@env$resultset <- out

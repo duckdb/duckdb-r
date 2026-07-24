@@ -86,4 +86,20 @@ special values.}
 Methods for accessing result sets for queries on DuckDB connections.
 Implements \link[DBI:DBIResult-class]{DBIResult}.
 }
+\section{Slots}{
+
+\describe{
+\item{\code{connection}}{the \link[=duckdb_connection-class]{duckdb_connection} the query was executed on.}
+
+\item{\code{stmt_lst}}{internal list describing the prepared statement (names,
+types, ...).}
+
+\item{\code{env}}{environment holding the result's mutable fetch state.}
+
+\item{\code{arrow}}{whether the result is fetched via Arrow.}
+
+\item{\code{query_result}}{external pointer to the underlying materialized query
+result.}
+}}
+
 \keyword{internal}

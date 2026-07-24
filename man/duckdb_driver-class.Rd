@@ -34,11 +34,26 @@
 \description{
 Implements \link[DBI:DBIDriver-class]{DBIDriver}.
 }
-\details{
-The driver object additionally carries an experimental \code{allow_extensions}
-slot \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}: whether this driver permits
-loading DuckDB extensions (\code{INSTALL} / \code{LOAD}), resolved once when the driver
-is created.
-See the \code{allow_extensions} argument of \code{\link[=duckdb]{duckdb()}}.
-}
+\section{Slots}{
+
+\describe{
+\item{\code{database_ref}}{external pointer to the underlying DuckDB database instance.}
+
+\item{\code{config}}{named list of DuckDB configuration flags applied when the instance was created.}
+
+\item{\code{dbdir}}{path to the database file, or \code{":memory:"} for an in-memory database.}
+
+\item{\code{read_only}}{whether the database was opened read-only.}
+
+\item{\code{convert_opts}}{internal options controlling how result values are converted to R
+(bigint handling, time zone, ...).}
+
+\item{\code{bigint}}{how 64-bit integers are returned (\code{"numeric"} or \code{"integer64"}).}
+
+\item{\code{allow_extensions}}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} whether this driver
+permits loading DuckDB extensions (\code{INSTALL} / \code{LOAD}),
+resolved once when the driver is created.
+See the \code{allow_extensions} argument of \code{\link[=duckdb]{duckdb()}}.}
+}}
+
 \keyword{internal}

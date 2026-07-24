@@ -2,12 +2,17 @@
 #'
 #' Implements [DBIDriver-class].
 #'
-#' The driver object additionally carries an experimental `allow_extensions`
-#' slot `r lifecycle::badge("experimental")`: whether this driver permits
-#' loading DuckDB extensions (`INSTALL` / `LOAD`), resolved once when the driver
-#' is created.
-#' See the `allow_extensions` argument of [duckdb()].
-#'
+#' @slot database_ref external pointer to the underlying DuckDB database instance.
+#' @slot config named list of DuckDB configuration flags applied when the instance was created.
+#' @slot dbdir path to the database file, or `":memory:"` for an in-memory database.
+#' @slot read_only whether the database was opened read-only.
+#' @slot convert_opts internal options controlling how result values are converted to R
+#'   (bigint handling, time zone, ...).
+#' @slot bigint how 64-bit integers are returned (`"numeric"` or `"integer64"`).
+#' @slot allow_extensions `r lifecycle::badge("experimental")` whether this driver
+#'   permits loading DuckDB extensions (`INSTALL` / `LOAD`),
+#'   resolved once when the driver is created.
+#'   See the `allow_extensions` argument of [duckdb()].
 #' @aliases duckdb_driver
 #' @keywords internal
 #' @export
@@ -25,6 +30,14 @@ setClass("duckdb_driver", contains = "DBIDriver", slots = list(
 #'
 #' Implements [DBIConnection-class].
 #'
+#' @slot conn_ref external pointer to the underlying DuckDB connection.
+#' @slot driver the [duckdb_driver-class] this connection was opened from.
+#' @slot debug whether debug information (such as queries) is printed.
+#' @slot convert_opts internal options controlling how result values are converted to R.
+#' @slot reserved_words character vector of the engine's reserved SQL keywords, used to quote identifiers.
+#' @slot timezone_out `r lifecycle::badge("deprecated")` time zone results are returned in; superseded by `convert_opts`, from which it is copied at construction, and no longer read internally.
+#' @slot tz_out_convert `r lifecycle::badge("deprecated")` how timestamps are converted to `timezone_out` (`"with"` or `"force"`); superseded by `convert_opts`.
+#' @slot bigint `r lifecycle::badge("deprecated")` how 64-bit integers are returned; superseded by `convert_opts`.
 #' @aliases duckdb_connection
 #' @keywords internal
 #' @export
@@ -35,7 +48,8 @@ setClass("duckdb_connection", contains = "DBIConnection", slots = list(
   convert_opts = "list",
   reserved_words = "character",
 
-  # Legacy
+  # Deprecated: superseded by convert_opts (copied from it at construction),
+  # retained for back-compat and no longer read internally.
   timezone_out = "character",
   tz_out_convert = "character",
   bigint = "character"
