@@ -150,3 +150,44 @@ show(object)
 - object:
 
   Any R object
+
+## Slots
+
+- `conn_ref`:
+
+  external pointer to the underlying DuckDB connection.
+
+- `driver`:
+
+  the
+  [duckdb_driver](https://r.duckdb.org/reference/duckdb_driver-class.md)
+  this connection was opened from.
+
+- `debug`:
+
+  whether debug information (such as queries) is printed.
+
+- `convert_opts`:
+
+  internal options controlling how result values are converted to R.
+
+- `reserved_words`:
+
+  character vector of the engine's reserved SQL keywords, used to quote
+  identifiers.
+
+- `timezone_out`:
+
+  **\[deprecated\]** time zone results are returned in; superseded by
+  `convert_opts`, from which it is copied at construction, and no longer
+  read internally.
+
+- `tz_out_convert`:
+
+  **\[deprecated\]** how timestamps are converted to `timezone_out`
+  (`"with"` or `"force"`); superseded by `convert_opts`.
+
+- `bigint`:
+
+  **\[deprecated\]** how 64-bit integers are returned; superseded by
+  `convert_opts`.

@@ -68,13 +68,42 @@
 
 </dl></div>
     <div class="section level2">
-    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>The driver object additionally carries an experimental <code>allow_extensions</code>
-slot <a href="https://lifecycle.r-lib.org/articles/stages.html#experimental" class="external-link"><img src="figures/lifecycle-experimental.svg" alt="[Experimental]"></a>: whether this driver permits
-loading DuckDB extensions (<code>INSTALL</code> / <code>LOAD</code>), resolved once when the driver
-is created.
-See the <code>allow_extensions</code> argument of <code><a href="duckdb.html">duckdb()</a></code>.</p>
-    </div>
+    <h2 id="slots">Slots<a class="anchor" aria-label="anchor" href="#slots"></a></h2>
+
+
+<dl><dt><code>database_ref</code></dt>
+<dd><p>external pointer to the underlying DuckDB database instance.</p></dd>
+
+
+<dt><code>config</code></dt>
+<dd><p>named list of DuckDB configuration flags applied when the instance was created.</p></dd>
+
+
+<dt><code>dbdir</code></dt>
+<dd><p>path to the database file, or <code>":memory:"</code> for an in-memory database.</p></dd>
+
+
+<dt><code>read_only</code></dt>
+<dd><p>whether the database was opened read-only.</p></dd>
+
+
+<dt><code>convert_opts</code></dt>
+<dd><p>internal options controlling how result values are converted to R
+(bigint handling, time zone, ...).</p></dd>
+
+
+<dt><code>bigint</code></dt>
+<dd><p>how 64-bit integers are returned (<code>"numeric"</code> or <code>"integer64"</code>).</p></dd>
+
+
+<dt><code>allow_extensions</code></dt>
+<dd><p><a href="https://lifecycle.r-lib.org/articles/stages.html#experimental" class="external-link"><img src="figures/lifecycle-experimental.svg" alt="[Experimental]"></a> whether this driver
+permits loading DuckDB extensions (<code>INSTALL</code> / <code>LOAD</code>),
+resolved once when the driver is created.
+See the <code>allow_extensions</code> argument of <code><a href="duckdb.html">duckdb()</a></code>.</p></dd>
+
+
+</dl></div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>

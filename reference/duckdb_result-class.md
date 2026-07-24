@@ -80,3 +80,27 @@ show(object)
 - object:
 
   Any R object
+
+## Slots
+
+- `connection`:
+
+  the
+  [duckdb_connection](https://r.duckdb.org/reference/duckdb_connection-class.md)
+  the query was executed on.
+
+- `stmt_lst`:
+
+  internal list describing the prepared statement (names, types, ...).
+
+- `env`:
+
+  environment holding the result's mutable fetch state.
+
+- `arrow`:
+
+  whether the result is fetched via Arrow.
+
+- `query_result`:
+
+  external pointer to the underlying materialized query result.

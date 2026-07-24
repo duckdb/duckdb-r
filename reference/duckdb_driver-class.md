@@ -33,10 +33,37 @@ show(object)
 
   Any R object
 
-## Details
+## Slots
 
-The driver object additionally carries an experimental
-`allow_extensions` slot **\[experimental\]**: whether this driver
-permits loading DuckDB extensions (`INSTALL` / `LOAD`), resolved once
-when the driver is created. See the `allow_extensions` argument of
-[`duckdb()`](https://r.duckdb.org/reference/duckdb.md).
+- `database_ref`:
+
+  external pointer to the underlying DuckDB database instance.
+
+- `config`:
+
+  named list of DuckDB configuration flags applied when the instance was
+  created.
+
+- `dbdir`:
+
+  path to the database file, or `":memory:"` for an in-memory database.
+
+- `read_only`:
+
+  whether the database was opened read-only.
+
+- `convert_opts`:
+
+  internal options controlling how result values are converted to R
+  (bigint handling, time zone, ...).
+
+- `bigint`:
+
+  how 64-bit integers are returned (`"numeric"` or `"integer64"`).
+
+- `allow_extensions`:
+
+  **\[experimental\]** whether this driver permits loading DuckDB
+  extensions (`INSTALL` / `LOAD`), resolved once when the driver is
+  created. See the `allow_extensions` argument of
+  [`duckdb()`](https://r.duckdb.org/reference/duckdb.md).

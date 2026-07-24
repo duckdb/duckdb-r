@@ -173,6 +173,43 @@ with one column per query parameter.</p></dd>
 <dd><p>Any R object</p></dd>
 
 </dl></div>
+    <div class="section level2">
+    <h2 id="slots">Slots<a class="anchor" aria-label="anchor" href="#slots"></a></h2>
+
+
+<dl><dt><code>conn_ref</code></dt>
+<dd><p>external pointer to the underlying DuckDB connection.</p></dd>
+
+
+<dt><code>driver</code></dt>
+<dd><p>the <a href="duckdb_driver-class.html">duckdb_driver</a> this connection was opened from.</p></dd>
+
+
+<dt><code>debug</code></dt>
+<dd><p>whether debug information (such as queries) is printed.</p></dd>
+
+
+<dt><code>convert_opts</code></dt>
+<dd><p>internal options controlling how result values are converted to R.</p></dd>
+
+
+<dt><code>reserved_words</code></dt>
+<dd><p>character vector of the engine's reserved SQL keywords, used to quote identifiers.</p></dd>
+
+
+<dt><code>timezone_out</code></dt>
+<dd><p><a href="https://lifecycle.r-lib.org/articles/stages.html#deprecated" class="external-link"><img src="figures/lifecycle-deprecated.svg" alt="[Deprecated]"></a> time zone results are returned in; superseded by <code>convert_opts</code>, from which it is copied at construction, and no longer read internally.</p></dd>
+
+
+<dt><code>tz_out_convert</code></dt>
+<dd><p><a href="https://lifecycle.r-lib.org/articles/stages.html#deprecated" class="external-link"><img src="figures/lifecycle-deprecated.svg" alt="[Deprecated]"></a> how timestamps are converted to <code>timezone_out</code> (<code>"with"</code> or <code>"force"</code>); superseded by <code>convert_opts</code>.</p></dd>
+
+
+<dt><code>bigint</code></dt>
+<dd><p><a href="https://lifecycle.r-lib.org/articles/stages.html#deprecated" class="external-link"><img src="figures/lifecycle-deprecated.svg" alt="[Deprecated]"></a> how 64-bit integers are returned; superseded by <code>convert_opts</code>.</p></dd>
+
+
+</dl></div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
