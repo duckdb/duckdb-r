@@ -578,7 +578,7 @@ krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
 </tr><tr><td><code>scripts/vendor-gate.sh</code></td>
 <td>Decides the bounded, <code>rcc</code>-gated batch of upstream commits <code>vendor.yaml</code> may advance per run</td>
 </tr><tr><td><code>scripts/lts.sh &lt;flavor&gt;</code></td>
-<td>Applies the flavor rename (updates <code>lts.patch</code>, then applies it and re-runs <code>cpp11::cpp_register()</code>)</td>
+<td>Applies the flavor rename (updates <code>lts.patch</code>, then applies it and re-runs <code><a href="https://cpp11.r-lib.org/reference/cpp_register.html" class="external-link">cpp11::cpp_register()</a></code>)</td>
 </tr><tr><td><code>scripts/lts.patch</code></td>
 <td>Patch template used by <code>lts.sh</code>; contains <code>1.4</code> as placeholder version (replaced by <code>lts.sh</code>)</td>
 </tr><tr><td><code>scripts/each-rcc.sh</code></td>
