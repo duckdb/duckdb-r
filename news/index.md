@@ -1,35 +1,32 @@
 # Changelog
 
-## duckdb 1.5.4.9903
+## duckdb 1.5.5
 
-### Continuous integration
+### Features
 
-- Create `~/.duckdb` so CI exercises the shared storage path
-  ([\#2417](https://github.com/duckdb/duckdb-r/issues/2417)).
+- Update to DuckDB v1.5.5, see
+  <https://github.com/duckdb/duckdb/releases/tag/v1.5.5> for details.
 
-## duckdb 1.5.4.9902
+- Disable extensions on libc++ Linux builds, with startup message and
+  load error ([\#1107](https://github.com/duckdb/duckdb-r/issues/1107),
+  [\#2414](https://github.com/duckdb/duckdb-r/issues/2414)).
+
+- Rework how extensions and secrets choose their on-disk location,
+  replacing the package-library extension cache attempted across 1.5.4.1
+  through 1.5.4.3. Both now share a single “home” root, resolved fresh
+  for every [`duckdb()`](https://r.duckdb.org/reference/duckdb.md)
+  driver. An interactive prompt in
+  [`duckdb()`](https://r.duckdb.org/reference/duckdb.md) and messages in
+  non-interactive sessions guide the process. See
+  [`?duckdb_storage`](https://r.duckdb.org/reference/duckdb_storage.md)
+  for details.
+  ([\#2396](https://github.com/duckdb/duckdb-r/issues/2396),
+  [\#2398](https://github.com/duckdb/duckdb-r/issues/2398)).
 
 ### Bug fixes
 
-#### ci
-
-- Emit empty package matrix when there are no (rev)deps.
-
 - Support `OR` and `IN` predicates pushed down to registered Arrow
   tables ([\#2410](https://github.com/duckdb/duckdb-r/issues/2410)).
-
-- Merge partial states in `r_base::min`/`r_base::max` aggregates
-  ([\#2404](https://github.com/duckdb/duckdb-r/issues/2404)).
-
-- Honor the `na.rm` argument of `r_base` aggregates in SQL queries
-  ([\#2407](https://github.com/duckdb/duckdb-r/issues/2407)).
-
-- Merge partial states in the `r_base::sum` aggregate
-  ([\#2405](https://github.com/duckdb/duckdb-r/issues/2405)).
-
-- Check the right-hand argument against the right-hand type in
-  `BinaryTypeAssert()`
-  ([\#2411](https://github.com/duckdb/duckdb-r/issues/2411)).
 
 - Error instead of crashing when calling
   [`duckdb_fetch_arrow()`](https://r.duckdb.org/reference/duckdb_result-class.md)
@@ -37,71 +34,13 @@
   [`duckdb_fetch_record_batch()`](https://r.duckdb.org/reference/duckdb_result-class.md)
   ([\#2406](https://github.com/duckdb/duckdb-r/issues/2406)).
 
-### Features
+- Fix edge case in computation of
+  `r_base::min`/`r_base::max`/`r_base::sum` aggregates
+  ([\#2404](https://github.com/duckdb/duckdb-r/issues/2404),
+  [\#2405](https://github.com/duckdb/duckdb-r/issues/2405)).
 
-- Disable extensions on libc++ Linux builds, with startup message and
-  load error ([\#2414](https://github.com/duckdb/duckdb-r/issues/2414)).
-
-### Documentation
-
-- Document all S4 class slots; deprecate the legacy connection slots
-  ([\#2416](https://github.com/duckdb/duckdb-r/issues/2416)).
-
-### Testing
-
-- Cover extensions env-var semantics and lock message wording
-  ([\#2418](https://github.com/duckdb/duckdb-r/issues/2418)).
-
-### Uncategorized
-
-- Ci: Harden `format-suggest` against `pull_request_target` pwn requests
-  ([\#93](https://github.com/duckdb/duckdb-r/issues/93)).
-
-## duckdb 1.5.4.9901
-
-### Continuous integration
-
-- Install `tzdata-legacy` for legacy time zones like `PST8PDT`
-  ([\#2409](https://github.com/duckdb/duckdb-r/issues/2409)).
-
-### Testing
-
-- Skip DBItest timestamp roundtrip tests when `PST8PDT` is unresolvable
-  ([\#2408](https://github.com/duckdb/duckdb-r/issues/2408)).
-
-### fledge
-
-- CRAN pre-release v1.5.4.9900
-  ([\#2402](https://github.com/duckdb/duckdb-r/issues/2402)).
-
-## duckdb 1.5.4.9900
-
-### Features
-
-- Update to DuckDB v1.5.5, see
-  <https://github.com/duckdb/duckdb/releases/tag/v1.5.5> for details.
-
-- Rework how extensions and secrets choose their on-disk location,
-  replacing the package-library extension cache attempted across 1.5.4.1
-  through 1.5.4.3. Both now share a single “home” root, resolved fresh
-  for every [`duckdb()`](https://r.duckdb.org/reference/duckdb.md)
-  driver from the first of these that yields a value: the `home`
-  argument, the `duckdb.home` option, the `DUCKDB_R_HOME` environment
-  variable, an existing `~/.duckdb` (the directory shared with the
-  DuckDB CLI), a one-time interactive offer to create `~/.duckdb`, and
-  otherwise a per-session
-  [`tempdir()`](https://rdrr.io/r/base/tempfile.html) sub-directory.
-  Extensions live in `<home>/extensions` and secrets in
-  `<home>/stored_secrets`; by default nothing is written under your home
-  directory unless `~/.duckdb` already exists. Pass `shared_home = TRUE`
-  or `FALSE` to force `~/.duckdb` or
-  [`tempdir()`](https://rdrr.io/r/base/tempfile.html), and call
-  [`duckdb_storage_status()`](https://r.duckdb.org/reference/duckdb_storage.md)
-  to see where each currently resolves. The chosen location is announced
-  only when the package picked it, and stays quiet once you have made an
-  explicit `home` or `shared_home` choice
-  ([\#2396](https://github.com/duckdb/duckdb-r/issues/2396),
-  [\#2398](https://github.com/duckdb/duckdb-r/issues/2398)).
+- Honor the `na.rm` argument of `r_base` aggregates in SQL queries
+  ([\#2407](https://github.com/duckdb/duckdb-r/issues/2407)).
 
 ### Documentation
 
@@ -153,6 +92,35 @@ CRAN release: 2026-06-28
 
   These functions replace the experimental
   `duckdb_consolidate_secrets()` introduced in 1.5.4.
+
+### Continuous integration
+
+- Create `~/.duckdb` so CI exercises the shared storage path
+  ([\#2417](https://github.com/duckdb/duckdb-r/issues/2417)).
+
+- Install `tzdata-legacy` for legacy time zones like `PST8PDT`
+  ([\#2409](https://github.com/duckdb/duckdb-r/issues/2409)).
+
+### Documentation
+
+- Document all S4 class slots; deprecate the legacy connection slots
+  ([\#2416](https://github.com/duckdb/duckdb-r/issues/2416)).
+
+- Document database-instance caching and driver reuse
+  ([\#2399](https://github.com/duckdb/duckdb-r/issues/2399)).
+
+### Testing
+
+- Cover extensions env-var semantics and lock message wording
+  ([\#2418](https://github.com/duckdb/duckdb-r/issues/2418)).
+
+- Skip DBItest timestamp roundtrip tests when `PST8PDT` is unresolvable
+  ([\#2408](https://github.com/duckdb/duckdb-r/issues/2408)).
+
+### Uncategorized
+
+- Ci: Harden `format-suggest` against `pull_request_target` pwn requests
+  ([\#93](https://github.com/duckdb/duckdb-r/issues/93)).
 
 ## duckdb 1.5.4
 
