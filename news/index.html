@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.4.9902</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -28,15 +28,19 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/cran-1.5.5/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.4.9902" id="duckdb-1549902">duckdb 1.5.4.9902<a class="anchor" aria-label="anchor" href="#duckdb-1549902"></a></h2>
+<h2 class="pkg-version" data-toc-text="1.5.5" id="duckdb-155">duckdb 1.5.5<a class="anchor" aria-label="anchor" href="#duckdb-155"></a></h2>
 <div class="section level3">
-<h3 id="bug-fixes-1-5-4-9902">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5-4-9902"></a></h3>
+<h3 id="fledge-1-5-5">fledge<a class="anchor" aria-label="anchor" href="#fledge-1-5-5"></a></h3>
+<ul><li>CRAN pre-release v1.5.4.9900 (<a href="https://github.com/duckdb/duckdb-r/issues/2402" class="external-link">#2402</a>).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-1-5-5">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5-5"></a></h3>
 <div class="section level4">
-<h4 id="ci-1-5-4-9902">ci<a class="anchor" aria-label="anchor" href="#ci-1-5-4-9902"></a></h4>
+<h4 id="ci-1-5-5">ci<a class="anchor" aria-label="anchor" href="#ci-1-5-5"></a></h4>
 <ul><li><p>Emit empty package matrix when there are no (rev)deps.</p></li>
 <li><p>Support <code>OR</code> and <code>IN</code> predicates pushed down to registered Arrow tables (<a href="https://github.com/duckdb/duckdb-r/issues/2410" class="external-link">#2410</a>).</p></li>
 <li><p>Merge partial states in <code>r_base::min</code>/<code>r_base::max</code> aggregates (<a href="https://github.com/duckdb/duckdb-r/issues/2404" class="external-link">#2404</a>).</p></li>
@@ -44,74 +48,38 @@
 <li><p>Merge partial states in the <code>r_base::sum</code> aggregate (<a href="https://github.com/duckdb/duckdb-r/issues/2405" class="external-link">#2405</a>).</p></li>
 <li><p>Check the right-hand argument against the right-hand type in <code>BinaryTypeAssert()</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2411" class="external-link">#2411</a>).</p></li>
 <li><p>Error instead of crashing when calling <code><a href="../reference/duckdb_result-class.html">duckdb_fetch_arrow()</a></code> on an Arrow result that has been consumed with <code><a href="../reference/duckdb_result-class.html">duckdb_fetch_record_batch()</a></code> (<a href="https://github.com/duckdb/duckdb-r/issues/2406" class="external-link">#2406</a>).</p></li>
+<li><p>Remove the package-library extension storage option. The <code>duckdb_extension_storage()</code> function no longer accepts <code>"library"</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2390" class="external-link">#2390</a>).</p></li>
+<li><p>Fix shared on-disk storage path on Windows (<a href="https://github.com/duckdb/duckdb-r/issues/2385" class="external-link">#2385</a>).</p></li>
 </ul></div>
 </div>
 <div class="section level3">
-<h3 id="features-1-5-4-9902">Features<a class="anchor" aria-label="anchor" href="#features-1-5-4-9902"></a></h3>
-<ul><li>Disable extensions on libc++ Linux builds, with startup message and load error (<a href="https://github.com/duckdb/duckdb-r/issues/2414" class="external-link">#2414</a>).</li>
-</ul></div>
-<div class="section level3">
-<h3 id="documentation-1-5-4-9902">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-5-4-9902"></a></h3>
-<ul><li>Document all S4 class slots; deprecate the legacy connection slots (<a href="https://github.com/duckdb/duckdb-r/issues/2416" class="external-link">#2416</a>).</li>
-</ul></div>
-<div class="section level3">
-<h3 id="testing-1-5-4-9902">Testing<a class="anchor" aria-label="anchor" href="#testing-1-5-4-9902"></a></h3>
-<ul><li>Cover extensions env-var semantics and lock message wording (<a href="https://github.com/duckdb/duckdb-r/issues/2418" class="external-link">#2418</a>).</li>
-</ul></div>
-<div class="section level3">
-<h3 id="uncategorized-1-5-4-9902">Uncategorized<a class="anchor" aria-label="anchor" href="#uncategorized-1-5-4-9902"></a></h3>
-<ul><li>Ci: Harden <code>format-suggest</code> against <code>pull_request_target</code> pwn requests (<a href="https://github.com/duckdb/duckdb-r/issues/93" class="external-link">#93</a>).</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.4.9901" id="duckdb-1549901">duckdb 1.5.4.9901<a class="anchor" aria-label="anchor" href="#duckdb-1549901"></a></h2>
-<div class="section level3">
-<h3 id="continuous-integration-1-5-4-9901">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-5-4-9901"></a></h3>
-<ul><li>Install <code>tzdata-legacy</code> for legacy time zones like <code>PST8PDT</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2409" class="external-link">#2409</a>).</li>
-</ul></div>
-<div class="section level3">
-<h3 id="testing-1-5-4-9901">Testing<a class="anchor" aria-label="anchor" href="#testing-1-5-4-9901"></a></h3>
-<ul><li>Skip DBItest timestamp roundtrip tests when <code>PST8PDT</code> is unresolvable (<a href="https://github.com/duckdb/duckdb-r/issues/2408" class="external-link">#2408</a>).</li>
-</ul></div>
-<div class="section level3">
-<h3 id="fledge-1-5-4-9901">fledge<a class="anchor" aria-label="anchor" href="#fledge-1-5-4-9901"></a></h3>
-<ul><li>CRAN pre-release v1.5.4.9900 (<a href="https://github.com/duckdb/duckdb-r/issues/2402" class="external-link">#2402</a>).</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.4.9900" id="duckdb-1549900">duckdb 1.5.4.9900<a class="anchor" aria-label="anchor" href="#duckdb-1549900"></a></h2>
-<div class="section level3">
-<h3 id="features-1-5-4-9900">Features<a class="anchor" aria-label="anchor" href="#features-1-5-4-9900"></a></h3>
-<ul><li><p>Update to DuckDB v1.5.5, see <a href="https://github.com/duckdb/duckdb/releases/tag/v1.5.5" class="external-link uri">https://github.com/duckdb/duckdb/releases/tag/v1.5.5</a> for details.</p></li>
+<h3 id="features-1-5-5">Features<a class="anchor" aria-label="anchor" href="#features-1-5-5"></a></h3>
+<ul><li><p>Disable extensions on libc++ Linux builds, with startup message and load error (<a href="https://github.com/duckdb/duckdb-r/issues/2414" class="external-link">#2414</a>).</p></li>
+<li><p>Update to DuckDB v1.5.5, see <a href="https://github.com/duckdb/duckdb/releases/tag/v1.5.5" class="external-link uri">https://github.com/duckdb/duckdb/releases/tag/v1.5.5</a> for details.</p></li>
 <li><p>Rework how extensions and secrets choose their on-disk location, replacing the package-library extension cache attempted across 1.5.4.1 through 1.5.4.3. Both now share a single “home” root, resolved fresh for every <code><a href="../reference/duckdb.html">duckdb()</a></code> driver from the first of these that yields a value: the <code>home</code> argument, the <code>duckdb.home</code> option, the <code>DUCKDB_R_HOME</code> environment variable, an existing <code>~/.duckdb</code> (the directory shared with the DuckDB CLI), a one-time interactive offer to create <code>~/.duckdb</code>, and otherwise a per-session <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> sub-directory. Extensions live in <code>&lt;home&gt;/extensions</code> and secrets in <code>&lt;home&gt;/stored_secrets</code>; by default nothing is written under your home directory unless <code>~/.duckdb</code> already exists. Pass <code>shared_home = TRUE</code> or <code>FALSE</code> to force <code>~/.duckdb</code> or <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code>, and call <code><a href="../reference/duckdb_storage.html">duckdb_storage_status()</a></code> to see where each currently resolves. The chosen location is announced only when the package picked it, and stays quiet once you have made an explicit <code>home</code> or <code>shared_home</code> choice (<a href="https://github.com/duckdb/duckdb-r/issues/2396" class="external-link">#2396</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2398" class="external-link">#2398</a>).</p></li>
-</ul></div>
-<div class="section level3">
-<h3 id="documentation-1-5-4-9900">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-5-4-9900"></a></h3>
-<ul><li>Document database-instance caching and driver reuse (<a href="https://github.com/duckdb/duckdb-r/issues/2399" class="external-link">#2399</a>).</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.4.3" id="duckdb-1543">duckdb 1.5.4.3<a class="anchor" aria-label="anchor" href="#duckdb-1543"></a></h2><p class="text-muted">CRAN release: 2026-07-10</p>
-<div class="section level3">
-<h3 id="bug-fixes-1-5-4-3">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5-4-3"></a></h3>
-<ul><li>Remove the package-library extension storage option. The <code>duckdb_extension_storage()</code> function no longer accepts <code>"library"</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2390" class="external-link">#2390</a>).</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.4.2" id="duckdb-1542">duckdb 1.5.4.2<a class="anchor" aria-label="anchor" href="#duckdb-1542"></a></h2><p class="text-muted">CRAN release: 2026-06-29</p>
-<div class="section level3">
-<h3 id="bug-fixes-1-5-4-2">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5-4-2"></a></h3>
-<ul><li>Fix shared on-disk storage path on Windows (<a href="https://github.com/duckdb/duckdb-r/issues/2385" class="external-link">#2385</a>).</li>
-</ul></div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.5.4.1" id="duckdb-1541">duckdb 1.5.4.1<a class="anchor" aria-label="anchor" href="#duckdb-1541"></a></h2><p class="text-muted">CRAN release: 2026-06-28</p>
-<div class="section level3">
-<h3 id="features-1-5-4-1">Features<a class="anchor" aria-label="anchor" href="#features-1-5-4-1"></a></h3>
-<ul><li>
+<li>
 <p>DuckDB’s on-disk storage locations now follow a unified policy. By default nothing is written outside the R session’s temporary directory, with one exception: the extension cache is placed in the package library when it is writable and falls back to the temporary directory otherwise. Each location can be redirected through the <code>config</code> argument of <code><a href="../reference/duckdb.html">duckdb()</a></code>, an R option, or an environment variable. Configure the location for extensions and secrets with the new <code>duckdb_extension_storage()</code> and <code>duckdb_secret_storage()</code>, inspect the resolved locations with <code><a href="../reference/duckdb_storage.html">duckdb_storage_status()</a></code>, and see <code><a href="../reference/duckdb_storage.html">?duckdb_storage</a></code> for the full resolution policy (<a href="https://github.com/duckdb/duckdb-r/issues/2370" class="external-link">#2370</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2372" class="external-link">#2372</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2377" class="external-link">#2377</a>).</p>
 <p>These functions replace the experimental <code>duckdb_consolidate_secrets()</code> introduced in 1.5.4.</p>
 </li>
+</ul></div>
+<div class="section level3">
+<h3 id="continuous-integration-1-5-5">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-5-5"></a></h3>
+<ul><li><p>Create <code>~/.duckdb</code> so CI exercises the shared storage path (<a href="https://github.com/duckdb/duckdb-r/issues/2417" class="external-link">#2417</a>).</p></li>
+<li><p>Install <code>tzdata-legacy</code> for legacy time zones like <code>PST8PDT</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2409" class="external-link">#2409</a>).</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-1-5-5">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-5-5"></a></h3>
+<ul><li><p>Document all S4 class slots; deprecate the legacy connection slots (<a href="https://github.com/duckdb/duckdb-r/issues/2416" class="external-link">#2416</a>).</p></li>
+<li><p>Document database-instance caching and driver reuse (<a href="https://github.com/duckdb/duckdb-r/issues/2399" class="external-link">#2399</a>).</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="testing-1-5-5">Testing<a class="anchor" aria-label="anchor" href="#testing-1-5-5"></a></h3>
+<ul><li><p>Cover extensions env-var semantics and lock message wording (<a href="https://github.com/duckdb/duckdb-r/issues/2418" class="external-link">#2418</a>).</p></li>
+<li><p>Skip DBItest timestamp roundtrip tests when <code>PST8PDT</code> is unresolvable (<a href="https://github.com/duckdb/duckdb-r/issues/2408" class="external-link">#2408</a>).</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="uncategorized-1-5-5">Uncategorized<a class="anchor" aria-label="anchor" href="#uncategorized-1-5-5"></a></h3>
+<ul><li>Ci: Harden <code>format-suggest</code> against <code>pull_request_target</code> pwn requests (<a href="https://github.com/duckdb/duckdb-r/issues/93" class="external-link">#93</a>).</li>
 </ul></div>
 </div>
     <div class="section level2">
