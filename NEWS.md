@@ -12,14 +12,6 @@
 
 - Error instead of crashing when calling `duckdb_fetch_arrow()` on an Arrow result that has been consumed with `duckdb_fetch_record_batch()` (#2406).
 
-
-
-- Remove the package-library extension storage option. The `duckdb_extension_storage()` function no longer accepts `"library"` (#2390).
-
-
-
-- Fix shared on-disk storage path on Windows (#2385).
-
 ## Features
 
 - Disable extensions on libc++ Linux builds, with startup message and load error (#2414).
@@ -39,6 +31,29 @@
   call `duckdb_storage_status()` to see where each currently resolves. The chosen
   location is announced only when the package picked it, and stays quiet once you
   have made an explicit `home` or `shared_home` choice (#2396, #2398).
+
+## Documentation
+
+- Document database-instance caching and driver reuse (#2399).
+
+
+# duckdb 1.5.4.3
+
+## Bug fixes
+
+- Remove the package-library extension storage option. The `duckdb_extension_storage()` function no longer accepts `"library"` (#2390).
+
+
+# duckdb 1.5.4.2
+
+## Bug fixes
+
+- Fix shared on-disk storage path on Windows (#2385).
+
+
+# duckdb 1.5.4.1
+
+## Features
 
 - DuckDB's on-disk storage locations now follow a unified policy. By
   default nothing is written outside the R session's temporary directory, with
