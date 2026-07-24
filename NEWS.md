@@ -2,25 +2,13 @@
 
 # duckdb 1.5.5
 
-## fledge
-
-- CRAN pre-release v1.5.4.9900 (#2402).
-
 ## Bug fixes
-
-### ci
-
-- Emit empty package matrix when there are no (rev)deps.
 
 - Support `OR` and `IN` predicates pushed down to registered Arrow tables (#2410).
 
-- Merge partial states in `r_base::min`/`r_base::max` aggregates (#2404).
+- Fix edge case in computation of `r_base::min`/`r_base::max`/`r_base::sum` aggregates (#2404, #2405).
 
 - Honor the `na.rm` argument of `r_base` aggregates in SQL queries (#2407).
-
-- Merge partial states in the `r_base::sum` aggregate (#2405).
-
-- Check the right-hand argument against the right-hand type in `BinaryTypeAssert()` (#2411).
 
 - Error instead of crashing when calling `duckdb_fetch_arrow()` on an Arrow result that has been consumed with `duckdb_fetch_record_batch()` (#2406).
 
