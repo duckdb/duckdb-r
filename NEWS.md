@@ -1,13 +1,10 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.5.4.9903
+# duckdb 1.5.5
 
-## Continuous integration
+## fledge
 
-- Create `~/.duckdb` so CI exercises the shared storage path (#2417).
-
-
-# duckdb 1.5.4.9902
+- CRAN pre-release v1.5.4.9900 (#2402).
 
 ## Bug fixes
 
@@ -27,41 +24,17 @@
 
 - Error instead of crashing when calling `duckdb_fetch_arrow()` on an Arrow result that has been consumed with `duckdb_fetch_record_batch()` (#2406).
 
+
+
+- Remove the package-library extension storage option. The `duckdb_extension_storage()` function no longer accepts `"library"` (#2390).
+
+
+
+- Fix shared on-disk storage path on Windows (#2385).
+
 ## Features
 
 - Disable extensions on libc++ Linux builds, with startup message and load error (#2414).
-
-## Documentation
-
-- Document all S4 class slots; deprecate the legacy connection slots (#2416).
-
-## Testing
-
-- Cover extensions env-var semantics and lock message wording (#2418).
-
-## Uncategorized
-
-- Ci: Harden `format-suggest` against `pull_request_target` pwn requests (#93).
-
-
-# duckdb 1.5.4.9901
-
-## Continuous integration
-
-- Install `tzdata-legacy` for legacy time zones like `PST8PDT` (#2409).
-
-## Testing
-
-- Skip DBItest timestamp roundtrip tests when `PST8PDT` is unresolvable (#2408).
-
-## fledge
-
-- CRAN pre-release v1.5.4.9900 (#2402).
-
-
-# duckdb 1.5.4.9900
-
-## Features
 
 - Update to DuckDB v1.5.5, see <https://github.com/duckdb/duckdb/releases/tag/v1.5.5> for details.
 
@@ -79,29 +52,6 @@
   location is announced only when the package picked it, and stays quiet once you
   have made an explicit `home` or `shared_home` choice (#2396, #2398).
 
-## Documentation
-
-- Document database-instance caching and driver reuse (#2399).
-
-
-# duckdb 1.5.4.3
-
-## Bug fixes
-
-- Remove the package-library extension storage option. The `duckdb_extension_storage()` function no longer accepts `"library"` (#2390).
-
-
-# duckdb 1.5.4.2
-
-## Bug fixes
-
-- Fix shared on-disk storage path on Windows (#2385).
-
-
-# duckdb 1.5.4.1
-
-## Features
-
 - DuckDB's on-disk storage locations now follow a unified policy. By
   default nothing is written outside the R session's temporary directory, with
   one exception: the extension cache is placed in the package library when it
@@ -113,6 +63,28 @@
 
   These functions replace the experimental `duckdb_consolidate_secrets()`
   introduced in 1.5.4.
+
+## Continuous integration
+
+- Create `~/.duckdb` so CI exercises the shared storage path (#2417).
+
+- Install `tzdata-legacy` for legacy time zones like `PST8PDT` (#2409).
+
+## Documentation
+
+- Document all S4 class slots; deprecate the legacy connection slots (#2416).
+
+- Document database-instance caching and driver reuse (#2399).
+
+## Testing
+
+- Cover extensions env-var semantics and lock message wording (#2418).
+
+- Skip DBItest timestamp roundtrip tests when `PST8PDT` is unresolvable (#2408).
+
+## Uncategorized
+
+- Ci: Harden `format-suggest` against `pull_request_target` pwn requests (#93).
 
 
 # duckdb 1.5.4
