@@ -2,16 +2,6 @@
 
 # duckdb 1.5.5
 
-## Bug fixes
-
-- Support `OR` and `IN` predicates pushed down to registered Arrow tables (#2410).
-
-- Fix edge case in computation of `r_base::min`/`r_base::max`/`r_base::sum` aggregates (#2404, #2405).
-
-- Honor the `na.rm` argument of `r_base` aggregates in SQL queries (#2407).
-
-- Error instead of crashing when calling `duckdb_fetch_arrow()` on an Arrow result that has been consumed with `duckdb_fetch_record_batch()` (#2406).
-
 ## Features
 
 - Disable extensions on libc++ Linux builds, with startup message and load error (#2414).
@@ -31,6 +21,16 @@
   call `duckdb_storage_status()` to see where each currently resolves. The chosen
   location is announced only when the package picked it, and stays quiet once you
   have made an explicit `home` or `shared_home` choice (#2396, #2398).
+
+## Bug fixes
+
+- Support `OR` and `IN` predicates pushed down to registered Arrow tables (#2410).
+
+- Fix edge case in computation of `r_base::min`/`r_base::max`/`r_base::sum` aggregates (#2404, #2405).
+
+- Honor the `na.rm` argument of `r_base` aggregates in SQL queries (#2407).
+
+- Error instead of crashing when calling `duckdb_fetch_arrow()` on an Arrow result that has been consumed with `duckdb_fetch_record_batch()` (#2406).
 
 ## Documentation
 
