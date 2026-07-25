@@ -1,5 +1,16 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.5.9000
+
+## Continuous integration
+
+- Lock down `format-suggest` egress (audit → block).
+
+## fledge
+
+- CRAN release v1.5.5 (#2420).
+
+
 # duckdb 1.5.5
 
 ## Features
