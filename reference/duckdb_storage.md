@@ -204,7 +204,7 @@ Packages that use duckdb inherit this policy:
   throwaway cache in your own tests, connect with an explicit home:
 
     tempdir_for_tests <- withr::local_tempdir()
-    con <- DBI::dbConnect(duckdb::duckdb(home = tempdir_for_tests))
+    con <- DBI::dbConnect(duckdb(home = tempdir_for_tests))
 
 ## See also
 
