@@ -1,6 +1,19 @@
 # Changelog
 
+## duckdb 1.5.5.9000
+
+### Continuous integration
+
+- Lock down `format-suggest` egress (audit → block).
+
+### fledge
+
+- CRAN release v1.5.5
+  ([\#2420](https://github.com/duckdb/duckdb-r/issues/2420)).
+
 ## duckdb 1.5.5
+
+CRAN release: 2026-07-25
 
 ### Features
 
