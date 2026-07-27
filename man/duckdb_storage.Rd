@@ -175,7 +175,7 @@ To force a throwaway cache in your own tests, connect with an explicit home:
 }
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{tempdir_for_tests <- withr::local_tempdir()
-con <- DBI::dbConnect(duckdb::duckdb(home = tempdir_for_tests))
+con <- DBI::dbConnect(duckdb(home = tempdir_for_tests))
 }\if{html}{\out{</div>}}
 }
 

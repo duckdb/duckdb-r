@@ -12,7 +12,7 @@ test_that("parquet reader works with the binary as string flag", {
 })
 
 # Fixture data/time_tz.parquet was created with:
-#   con <- duckdb::dbConnect(duckdb::duckdb())
+#   con <- dbConnect(duckdb())
 #   DBI::dbExecute(con, "COPY (
 #     SELECT * FROM (VALUES
 #       (TIMETZ '01:02:03.45+05:00'),

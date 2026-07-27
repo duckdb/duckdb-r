@@ -44,6 +44,8 @@ resolution/marker logic calls these, never the underlying primitive.
 
 - [x] `default_user_directory()` → wraps `tools::R_user_dir("duckdb", "data")`
       (pre-existing; the R-user-dir seam).
+      Since removed: once extensions moved out of `R_user_dir`, nothing wrote
+      there any more, and the seam had no callers left but the legacy sweep.
 - [x] `duckdb_shared_home()` → wraps `path.expand("~/.duckdb")`; replaces the
       hard-coded literal in `common_secret_directory()`.
 - [x] `system_file_path()` → the package-install-dir seam (pre-existing); tests
@@ -170,6 +172,8 @@ resolution/marker logic calls these, never the underlying primitive.
 - [ ] `NEWS.md` entry (via fledge) for the new functions + removal.
 - [x] Reconcile with the existing `maybe_secret_directory_message()` and
       `cleanup_user_directory()` (legacy `R_user_dir/extensions` sweep).
+      The sweep is gone: it only ever ran from the test teardown, against a
+      directory this package stopped writing to.
 - [ ] Windows path handling (`normalizePath(winslash=)`, `%LOCALAPPDATA%`).
 - [ ] `.Rbuildignore` / `.gitignore` already ignore `/extensions/`; re-check
       once the default location moves.

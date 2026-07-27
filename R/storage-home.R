@@ -12,7 +12,7 @@ session_temp_dir <- function() {
 
 # The per-session home, under tempdir(). Wiped when the R session ends.
 session_home <- function() {
-  file.path(session_temp_dir(), "duckdb")
+  file.path(session_temp_dir(), get_package_name())
 }
 
 # The sub-directory of a home root that holds a given kind of state. The names
