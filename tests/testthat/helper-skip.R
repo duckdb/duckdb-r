@@ -6,16 +6,17 @@ skip_on_dev_version <- function() {
   }
 }
 
-# Skip when running as one of the LTS builds.
+# Skip on every flavor but the mainline one.
 #
-# `scripts/lts.sh` renames the package to `duckdb.<version>` (e.g. `duckdb.1.3`)
-# by applying `scripts/lts.patch`. Tests that depend on another package hard-coding
-# the mainline `duckdb` name -- arrow's DuckDB integration, for instance -- cannot
-# work there. The suffix is what tells the builds apart: the mainline name has no
-# dot in it, every LTS name does.
-skip_on_lts <- function() {
+# `scripts/lts.sh` renames the package to a flavor -- `duckdb.1.4`,
+# `duckdb.1.4.dev`, `duckdb.dev`, ... -- by applying `scripts/lts.patch`; see
+# BRANCHES.md. Tests that depend on another package hard-coding the mainline
+# `duckdb` name -- arrow's DuckDB integration, for instance -- cannot work under
+# any of them. The suffix is what tells the flavors apart: the mainline name has
+# no dot in it, every renamed one does.
+skip_on_flavor <- function() {
   if (grepl(".", get_package_name(), fixed = TRUE)) {
-    skip("Skip on LTS builds.")
+    skip("Skip on renamed flavors.")
   }
 }
 

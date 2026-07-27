@@ -15,9 +15,9 @@
 # Resolve the CLI to test against: an explicit DUCKDB_CLI wins, else `duckdb` on
 # the PATH. Returns "" when none is available.
 #
-# The executable name is spelled in two pieces so that the LTS guard
+# The executable name is spelled in two pieces so that the flavor guard
 # (scripts/lts-package-name.R) does not read it as the R package name, which the
-# LTS builds rename -- this one names a binary on the PATH and must not be
+# renamed flavors change -- this one names a binary on the PATH and must not be
 # renamed with them.
 duckdb_cli_bin <- function() {
   explicit <- Sys.getenv("DUCKDB_CLI", unset = "")

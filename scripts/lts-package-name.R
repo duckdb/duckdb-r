@@ -1,8 +1,8 @@
 # Guard for the LTS rename.
 #
-# The LTS builds ship this package under a different name: `scripts/lts.sh`
-# applies `scripts/lts.patch`, which renames `duckdb` to `duckdb.1.3`,
-# `duckdb.1.5`, and so on.
+# Every flavor but the mainline one ships this package under a different name:
+# `scripts/lts.sh` applies `scripts/lts.patch`, which renames `duckdb` to
+# `duckdb.1.4`, `duckdb.1.4.dev`, `duckdb.dev`, and so on. See BRANCHES.md.
 #
 # Every hard-coded `duckdb::`, `duckdb:::`, or `"duckdb"` that the patch does not
 # rewrite keeps pointing at the mainline package in those builds -- silently, and
