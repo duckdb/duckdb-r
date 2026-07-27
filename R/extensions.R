@@ -1,5 +1,5 @@
 default_user_directory <- function() {
-  tools::R_user_dir("duckdb", "data")
+  tools::R_user_dir(get_package_name(), "data")
 }
 
 # `default_user_directory()` above and `duckdb_shared_home()` below are thin

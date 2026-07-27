@@ -120,7 +120,7 @@
 #'     an informational message describing where extensions and secrets are
 #'     going and how to change it. It is throttled by session type: in an
 #'     **interactive** session at most once every eight hours (a human can act on it);
-#'     in a **non-interactive** session up to `r duckdb:::STORAGE_MESSAGE_MAX` times,
+#'     in a **non-interactive** session up to `r STORAGE_MESSAGE_MAX` times,
 #'     after which it goes silent for good,
 #'     so a long-running or automated process is not reminded forever.
 #'     The message is suppressed entirely when you chose the
@@ -179,7 +179,7 @@
 #'
 #' ```r
 #' tempdir_for_tests <- withr::local_tempdir()
-#' con <- DBI::dbConnect(duckdb::duckdb(home = tempdir_for_tests))
+#' con <- DBI::dbConnect(duckdb(home = tempdir_for_tests))
 #' ```
 #'
 #' @seealso [duckdb()] for the `home` and `shared_home` arguments.
