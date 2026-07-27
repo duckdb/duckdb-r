@@ -25,10 +25,12 @@ The seven components are:
    name variant (`duckdb`, `duckdb.1.4`, `duckdb.1.4.dev`, …).
    Managed via `scripts/lts.patch` and `scripts/lts.sh`; also covers the `@useDynLib` directive and
    the `DUCKDB_PACKAGE_NAME` C++ macro.
-   `tests/testthat/test-lts-package-name.R` guards the boundary: it fails as soon as the package name is
-   hard-coded — as a namespace qualifier or as a quoted string — in code or docs anywhere the patch does
-   not rewrite it. Code asks for the name at run time with `get_package_name()` instead, and docs do not
-   namespace-qualify our own objects.
+   `scripts/lts-package-name.R` guards the boundary: it fails as soon as the package name is hard-coded —
+   as a namespace qualifier or as a quoted string — in code or docs anywhere the patch does not rewrite it.
+   Code asks for the name at run time with `get_package_name()` instead, and docs do not namespace-qualify
+   our own objects. CI runs the scan from `.github/workflows/custom/after-install`;
+   `tests/testthat/test-lts-package-name.R` wraps it for `testthat::test_local()` and skips under
+   `R CMD check`, which works from a tarball that carries neither the sources nor `scripts/`.
 
 3. **Glue code** (`src/*.cpp`, `src/include/`): the C++ bridge between R and the DuckDB C++ API.
    Glue code may change when DuckDB's C++ API shifts, so it is updated together with vendoring commits.

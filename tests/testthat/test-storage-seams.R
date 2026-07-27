@@ -3,7 +3,7 @@
 # confirm the seams are mockable without touching the real filesystem.
 
 test_that("default_user_directory routes through the R_user_dir seam", {
-  expect_equal(default_user_directory(), tools::R_user_dir(get_package_name(), "data"))
+  expect_equal(default_user_directory(), tools::R_user_dir("duckdb", "data"))
 })
 
 test_that("check_dots_empty0 rejects non-empty dots", {

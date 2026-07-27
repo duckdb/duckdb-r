@@ -43,3 +43,23 @@ runs:
       run: |
         ccache -s
       shell: bash
+
+    # Guard for the LTS rename: fail when the package name is hard-coded
+    # somewhere scripts/lts.patch does not rewrite it. The equivalent testthat
+    # test (tests/testthat/test-lts-package-name.R) can only skip under R CMD
+    # check, which runs from a built tarball where neither the sources nor
+    # scripts/ (.Rbuildignore'd) exist -- so the scan runs here, against the
+    # checkout. Base R only, no package needed.
+    - name: Check that the package name is hard-coded only where scripts/lts.patch rewrites it
+      run: |
+        source("scripts/lts-package-name.R")
+        offenders <- lts_package_name_offenders(".")
+        if (length(offenders) > 0) {
+          writeLines(offenders)
+          stop(
+            "The package name is hard-coded outside scripts/lts.patch; ",
+            "see scripts/lts-package-name.R for how to resolve this."
+          )
+        }
+        writeLines("No hard-coded package name outside scripts/lts.patch.")
+      shell: Rscript {0}

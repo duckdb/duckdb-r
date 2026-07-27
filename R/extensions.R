@@ -1,5 +1,9 @@
+# The legacy extension cache. Every flavor of the package -- `duckdb`,
+# `duckdb.1.4`, ... -- wrote here under the literal `duckdb`, so the name stays
+# hard-coded: it is where the leftovers actually are, not the name of the package
+# doing the sweeping. Only `cleanup_user_directory()` reads it.
 default_user_directory <- function() {
-  tools::R_user_dir(get_package_name(), "data")
+  tools::R_user_dir("duckdb", "data")
 }
 
 # `default_user_directory()` above and `duckdb_shared_home()` below are thin
