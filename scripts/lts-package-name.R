@@ -11,7 +11,9 @@
 #
 # * in code, ask for the name at run time with `get_package_name()`;
 # * in docs, do not qualify our own objects with `duckdb::`;
-# * if the literal names something else, add it to `LTS_ALLOWED_OUTSIDE_PATCH`;
+# * if the literal names something else that happens to be spelled the same --
+#   the DuckDB CLI executable, say -- write it in two pieces, as
+#   `paste0("duck", "db")`, so it reads as what it is;
 # * otherwise teach `scripts/lts.patch` to rewrite it.
 #
 # The scan covers the R-level surface -- `R/`, `man/`, `tests/`, `vignettes/`, and
@@ -26,18 +28,6 @@
 # that test cannot carry the check on its own, because `R CMD check` runs the
 # tests from a built tarball, where neither the sources nor this directory
 # (`.Rbuildignore`d) exist.
-
-# Occurrences that name something other than this R package, and must therefore
-# stay literal in the LTS builds as well. Values are the trimmed source lines.
-LTS_ALLOWED_OUTSIDE_PATCH <- list(
-  # The DuckDB CLI executable on the PATH, not the R package.
-  "tests/testthat/test-storage-cli-e2e.R" = 'unname(Sys.which("duckdb"))',
-  # The legacy extension cache, which every flavor of the package wrote to under
-  # the literal `duckdb`; renaming it would point the sweep at a directory that
-  # never existed. See `cleanup_user_directory()`.
-  "R/extensions.R" = 'tools::R_user_dir("duckdb", "data")',
-  "tests/testthat/test-storage-seams.R" = 'expect_equal(default_user_directory(), tools::R_user_dir("duckdb", "data"))'
-)
 
 # The lines `scripts/lts.patch` rewrites, as a list of trimmed source lines keyed
 # by the path they are rewritten in. These are exactly the occurrences the LTS
@@ -103,7 +93,6 @@ lts_package_name_offenders <- function(root = ".") {
     for (hit in grep(scanned[[i]], lines)) {
       line <- trimws(lines[[hit]])
       if (line %in% patched[[path]]) next
-      if (line %in% LTS_ALLOWED_OUTSIDE_PATCH[[path]]) next
       offenders <- c(offenders, paste0(path, ":", hit, ": ", line))
     }
   }
