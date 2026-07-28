@@ -68,6 +68,8 @@
 
 #include "src/common/enum_util.cpp"
 
+#include "src/common/serialization_compatibility.cpp"
+
 #include "src/common/render_tree.cpp"
 
 #include "src/common/thread_util.cpp"
