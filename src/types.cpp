@@ -314,6 +314,13 @@ LogicalType RApiTypes::LogicalTypeFromRType(const RType &rtype, bool experimenta
 	}
 }
 
+child_list_t<LogicalType> RApiTypes::StructLikeChildTypes(const LogicalType &type) {
+	if (type.id() == LogicalTypeId::TUPLE) {
+		return TupleType::NamedChildren(type);
+	}
+	return StructType::GetChildTypes(type);
+}
+
 string RApiTypes::DetectLogicalType(const LogicalType &stype, const char *caller) {
 
 	if (stype.GetAlias() == R_STRING_TYPE_NAME) {
@@ -363,6 +370,7 @@ string RApiTypes::DetectLogicalType(const LogicalType &stype, const char *caller
 	case LogicalTypeId::ARRAY:
 		return "matrix";
 	case LogicalTypeId::STRUCT:
+	case LogicalTypeId::TUPLE:
 	case LogicalTypeId::MAP:
 		return "data.frame";
 	case LogicalTypeId::ENUM:

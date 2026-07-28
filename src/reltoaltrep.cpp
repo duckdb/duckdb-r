@@ -665,7 +665,7 @@ static R_altrep_class_t LogicalTypeToAltrepType(const LogicalType &type, const d
 		return RelToAltrep::string_class;
 #if defined(R_HAS_ALTLIST)
 	case VECSXP:
-		if (type.id() == LogicalTypeId::STRUCT) {
+		if (StructType::IsStruct(type)) {
 			return RelToAltrep::struct_class;
 		} else {
 			return RelToAltrep::list_class;
@@ -748,8 +748,8 @@ SEXP rapi_rel_to_altrep_impl(duckdb::shared_ptr<AltrepRelationWrapper> relation_
 
 		// Special case: Only STRUCTs have a redundant row names attribute
 		// Moving this logic into duckdb_r_decorate() would add too much noise elsewhere
-		if (col_type.id() == LogicalTypeId::STRUCT) {
-			auto &child_types = StructType::GetChildTypes(col_type);
+		if (StructType::IsStruct(col_type)) {
+			auto child_types = RApiTypes::StructLikeChildTypes(col_type);
 			std::vector<idx_t> child_col_idx = parent_col_idx;
 			child_col_idx.push_back(col_idx);
 			vector_sexp =

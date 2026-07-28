@@ -306,4 +306,10 @@
       NULL
       
       
+      $tuple
+        element1     element2
+      1       NA         <NA>
+      2       42 🦆🦆🦆🦆🦆🦆
+      3       NA         <NA>
+      
 

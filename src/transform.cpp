@@ -72,6 +72,7 @@ int duckdb_r_typeof(const LogicalType &type, const string &name, const char *cal
 		return duckdb_r_typeof(child_type, name, caller);
 	}
 	case LogicalTypeId::STRUCT:
+	case LogicalTypeId::TUPLE:
 		return VECSXP;
 	case LogicalTypeId::VARCHAR:
 	case LogicalTypeId::UUID:
@@ -105,11 +106,14 @@ SEXP duckdb_r_allocate(const LogicalType &type, idx_t nrows, const string &name,
 		    duckdb_r_allocate(child_type, (nrows * array_size), name, convert_opts, "LogicalTypeId::ARRAY");
 		return varvalue;
 	}
-	case LogicalTypeId::STRUCT: {
-		cpp11::writable::list dest_list;
-		dest_list.reserve(StructType::GetChildTypes(type).size());
+	case LogicalTypeId::STRUCT:
+	case LogicalTypeId::TUPLE: {
+		const auto child_types = RApiTypes::StructLikeChildTypes(type);
 
-		for (const auto &child : StructType::GetChildTypes(type)) {
+		cpp11::writable::list dest_list;
+		dest_list.reserve(child_types.size());
+
+		for (const auto &child : child_types) {
 			const auto &child_name = child.first;
 			const auto &child_type = child.second;
 
@@ -329,8 +333,9 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 			Rf_setAttrib(dest, R_ClassSymbol, RStrings::get().integer64_str);
 		}
 		break;
-	case LogicalTypeId::STRUCT: {
-		const auto &child_types = StructType::GetChildTypes(type);
+	case LogicalTypeId::STRUCT:
+	case LogicalTypeId::TUPLE: {
+		const auto child_types = RApiTypes::StructLikeChildTypes(type);
 		cpp11::writable::strings names;
 		names.reserve(child_types.size());
 
@@ -689,7 +694,8 @@ void duckdb_r_transform(const Vector &src_vec, const SEXP dest, idx_t dest_offse
 		TransformArrayVector(src_vec, dest, dest_offset, n, convert_opts, name);
 		break;
 	}
-	case LogicalTypeId::STRUCT: {
+	case LogicalTypeId::STRUCT:
+	case LogicalTypeId::TUPLE: {
 		const auto &children = StructVector::GetEntries(src_vec);
 
 		for (size_t i = 0; i < children.size(); i++) {
