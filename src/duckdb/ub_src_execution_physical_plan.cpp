@@ -1,12 +1,18 @@
 #include "src/execution/physical_plan/plan_aggregate.cpp"
 
+#include "src/execution/physical_plan/plan_alter.cpp"
+
 #include "src/execution/physical_plan/plan_any_join.cpp"
 
 #include "src/execution/physical_plan/plan_asof_join.cpp"
 
+#include "src/execution/physical_plan/plan_attach.cpp"
+
 #include "src/execution/physical_plan/plan_column_data_get.cpp"
 
 #include "src/execution/physical_plan/plan_comparison_join.cpp"
+
+#include "src/execution/physical_plan/plan_connect.cpp"
 
 #include "src/execution/physical_plan/plan_copy_database.cpp"
 
@@ -30,7 +36,13 @@
 
 #include "src/execution/physical_plan/plan_delim_join.cpp"
 
+#include "src/execution/physical_plan/plan_detach.cpp"
+
+#include "src/execution/physical_plan/plan_disconnect.cpp"
+
 #include "src/execution/physical_plan/plan_distinct.cpp"
+
+#include "src/execution/physical_plan/plan_drop.cpp"
 
 #include "src/execution/physical_plan/plan_dummy_scan.cpp"
 
@@ -51,6 +63,8 @@
 #include "src/execution/physical_plan/plan_insert.cpp"
 
 #include "src/execution/physical_plan/plan_limit.cpp"
+
+#include "src/execution/physical_plan/plan_load.cpp"
 
 #include "src/execution/physical_plan/plan_merge_into.cpp"
 
@@ -76,13 +90,15 @@
 
 #include "src/execution/physical_plan/plan_set_operation.cpp"
 
-#include "src/execution/physical_plan/plan_simple.cpp"
-
 #include "src/execution/physical_plan/plan_top_n.cpp"
+
+#include "src/execution/physical_plan/plan_transaction.cpp"
 
 #include "src/execution/physical_plan/plan_unnest.cpp"
 
 #include "src/execution/physical_plan/plan_update.cpp"
+
+#include "src/execution/physical_plan/plan_update_extensions.cpp"
 
 #include "src/execution/physical_plan/plan_vacuum.cpp"
 
