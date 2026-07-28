@@ -336,7 +336,7 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 
 		for (size_t i = 0; i < child_types.size(); i++) {
 			const auto &child_name = child_types[i].first;
-			names.push_back(child_name);
+			names.push_back(child_name.GetIdentifierName());
 
 			const auto &child_type = child_types[i].second;
 			SEXP child_dest = VECTOR_ELT(dest, i);
