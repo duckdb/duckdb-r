@@ -2,6 +2,8 @@
 
 #include "src/planner/binder/statement/bind_call.cpp"
 
+#include "src/planner/binder/statement/bind_connect.cpp"
+
 #include "src/planner/binder/statement/bind_copy.cpp"
 
 #include "src/planner/binder/statement/bind_copy_database.cpp"
