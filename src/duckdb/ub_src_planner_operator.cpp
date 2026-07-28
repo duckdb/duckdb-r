@@ -80,6 +80,8 @@
 
 #include "src/planner/operator/logical_top_n.cpp"
 
+#include "src/planner/operator/logical_trigger.cpp"
+
 #include "src/planner/operator/logical_unconditional_join.cpp"
 
 #include "src/planner/operator/logical_unnest.cpp"
