@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 19 Oct 2026 03:35:23 +0000
+Subject: [PATCH] Default the alter entry data's lookup mode
+
+The PEG transformer builds many alter infos from a default-constructed
+AlterEntryData, whose if_not_found member nothing sets, and passes it
+by value, so GCC 15 reports the member read uninitialized in the copy
+that passing by value makes. A default in the declaration gives the
+temporary a value. Upstream later passes the data by reference, after
+which no caller copies the temporary.
+
+Carried here until the engine brings the same change.
+
+---
+ src/duckdb/src/include/duckdb/parser/parsed_data/alter_info.hpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/duckdb/src/include/duckdb/parser/parsed_data/alter_info.hpp b/src/duckdb/src/include/duckdb/parser/parsed_data/alter_info.hpp
+index 5ba8680fc9..c90bdf1283 100644
+--- a/src/duckdb/src/include/duckdb/parser/parsed_data/alter_info.hpp
++++ b/src/duckdb/src/include/duckdb/parser/parsed_data/alter_info.hpp
+@@ -41,7 +41,7 @@ struct AlterEntryData {
+ 	string catalog;
+ 	string schema;
+ 	string name;
+-	OnEntryNotFound if_not_found;
++	OnEntryNotFound if_not_found = OnEntryNotFound::THROW_EXCEPTION;
+ };
+ 
+ struct AlterInfo : public ParseInfo {

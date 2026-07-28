@@ -41,7 +41,7 @@ struct AlterEntryData {
 	string catalog;
 	string schema;
 	string name;
-	OnEntryNotFound if_not_found;
+	OnEntryNotFound if_not_found = OnEntryNotFound::THROW_EXCEPTION;
 };
 
 struct AlterInfo : public ParseInfo {
