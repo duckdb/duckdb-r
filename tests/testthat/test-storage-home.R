@@ -271,5 +271,5 @@ test_that("a cancelled prompt aborts with a stable error", {
     session_temp_dir = function() "/tmp/Rtmpxx",
     consent_to_create_home = function(path) NA
   )
-  expect_snapshot(resolve_storage_home(), error = TRUE)
+  expect_snapshot(resolve_storage_home(), error = TRUE, transform = transform_package_name)
 })

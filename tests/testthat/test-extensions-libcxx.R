@@ -275,10 +275,14 @@ test_that("extensions message wording is stable", {
   # The advisory names the detected C++ standard library as the cause and is only
   # shown on the auto path, so snapshot both stdlib variants that reach it.
   local_mocked_bindings(compiled_cxx_stdlib = function() "libc++")
-  expect_snapshot(rlang::inform(extensions_disabled_message()))
+  expect_snapshot(rlang::inform(extensions_disabled_message()),
+    transform = transform_package_name
+  )
 
   local_mocked_bindings(compiled_cxx_stdlib = function() "<an unknown C++ library>")
-  expect_snapshot(rlang::inform(extensions_disabled_message()))
+  expect_snapshot(rlang::inform(extensions_disabled_message()),
+    transform = transform_package_name
+  )
 
   # The INSTALL / LOAD refusal error is cause-neutral: it fires both on the
   # auto-disable path and for an explicit duckdb(allow_extensions = FALSE), so it
