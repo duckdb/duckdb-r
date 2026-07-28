@@ -16,6 +16,8 @@
 
 #include "src/storage/table/list_column_data.cpp"
 
+#include "src/storage/table/per_column_metadata_blocks.cpp"
+
 #include "src/storage/table/persistent_table_data.cpp"
 
 #include "src/storage/table/row_group.cpp"

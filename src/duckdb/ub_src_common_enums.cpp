@@ -1,5 +1,7 @@
 #include "src/common/enums/catalog_type.cpp"
 
+#include "src/common/enums/column_segment_info_scan_type.cpp"
+
 #include "src/common/enums/compression_type.cpp"
 
 #include "src/common/enums/date_part_specifier.cpp"
