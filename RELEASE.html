@@ -231,7 +231,7 @@
 </tr></tbody></table><hr></div>
 <div class="section level2">
 <h2 id="track--steady-state">TRACK — steady state<a class="anchor" aria-label="anchor" href="#track--steady-state"></a></h2>
-<p>Fully automated; there is nothing to do. <code>vendor.yaml</code> runs daily and advances <code>dev</code> by a bounded batch, gated on the <code>rcc</code> commit-status of the last green base (<code>scripts/vendor-gate.sh</code>); <code>each.yaml</code> checks every new commit, and glue changes flow in from <code>main</code> via the forward-port chain. <code>dev-base..dev</code> is the running list of “what would ship if we released now.”</p>
+<p>Fully automated; there is nothing to do. The series loop (<code>.claude/skills/series-loop.md</code>) vendors into <code>-build</code>, consumes into <code>-dev</code> at most 25 commits at a time, and fast-forwards <code>-green</code>, gated on the per-commit <code>rcc</code> results harvested to branch <code>rcc</code>; <code>each.yaml</code> checks every new commit, and glue changes flow in from <code>main</code> via the forward-port chain. <code>-green</code> is “what would ship if we released now.”</p>
 <p>A maintainer leaves TRACK by <strong>opening the release window</strong> (≈ two weeks before the expected upstream release date), which enters STABILIZE.</p>
 </div>
 <div class="section level2">
@@ -268,8 +268,7 @@
 <p>Triggered by upstream tagging <code>vX.Y.Z</code>. This is the only cluster that moves vendored commits into the mainline, and it does so through reviewed, green, gated steps. <strong>You release the tagged commit, not the <code>dev</code> tip</strong> — upstream has usually moved on by now, and the post-tag commits stay queued for the next cycle.</p>
 <div class="section level3">
 <h3 id="id_1-vendored--2-review--3-promoted">1 VENDORED → 2 REVIEW → 3 PROMOTED<a class="anchor" aria-label="anchor" href="#id_1-vendored--2-review--3-promoted"></a></h3>
-<ol style="list-style-type: decimal"><li>
-<code>vendor.yaml</code> produces the <code>vendor: … (tag vX.Y.Z) …</code> commit on <code>dev</code>; wait for <code>each.yaml</code> to show it <strong>green</strong>. If vendoring broke the build, fix it in the same commit and force-push <code>dev</code>.</li>
+<ol style="list-style-type: decimal"><li>The series loop produces the <code>vendor: … (tag vX.Y.Z) …</code> commit on <code>-dev</code>; wait for <code>each.yaml</code> to show it <strong>green</strong>. If vendoring broke the build, fix it in the same commit and force-push <code>dev</code>.</li>
 <li>Review the pending window — <code>https://github.com/krlmlr/duckdb-r/compare/&lt;dev-base&gt;...&lt;tagged&gt;</code> — and confirm it contains only the expected vendor commits and intended forward-ports, with no glue drift.</li>
 <li>Fast-forward <code>dev-base</code> to the tagged commit (<code>scripts/promote-dev.sh L</code>, when available; otherwise <code>git push krlmlr &lt;tagged&gt;:refs/heads/L-dev-base</code>).</li>
 </ol></div>

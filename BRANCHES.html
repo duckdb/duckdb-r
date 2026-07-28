@@ -71,16 +71,15 @@
 │   └── …
 ├── scripts/                        # Build and maintenance scripts                 [5]
 │   ├── vendor.sh                   # Manual vendoring from local DuckDB clone
-│   ├── vendor-one.sh               # CI commit-by-commit vendoring
+│   ├── vendor-one.sh               # Commit-by-commit vendoring (series loop)
 │   ├── flavor.sh                   # Apply flavor rename to a branch
 │   ├── flavor.patch                # Patch template for flavor rename              [2]
 │   ├── each-rcc.sh                 # Trigger per-commit CI for unbuilt commits
 │   └── VENDORING.md                # Supplementary vendoring notes (→ see §Vendoring)
 ├── .github/
 │   └── workflows/
-│       ├── vendor.yaml             # Daily automated vendoring                     [5]
+│       ├── each.yaml               # Per-commit rcc dispatch on *-dev pushes       [5]
 │       ├── sync.yaml               # Fast-forward krlmlr/main from duckdb/main     [5]
-│       ├── each.yaml               # Per-commit CI trigger helper                  [5]
 │       ├── fledge.yaml             # Automated version-bump PRs                    [5]
 │       └── R-CMD-check*.yaml       # Package check workflows                       [5]
 ├── DESCRIPTION                     # Package metadata — name + version = flavor    [2]
@@ -96,7 +95,7 @@
                                                                                       │ vendored [6]
   duckdb/duckdb (upstream C++)   ←── R core evolves independently (indirect) [7]      │
       │                                                                               │
-      │  vendor.sh / vendor-one.sh  (daily CI via vendor.yaml)                        │
+      │  vendor.sh / vendor-one.sh  (routine-driven; see the series loop)            │
       │  patch/ applied on top                                                        │
       ▼                                                                               │
   src/duckdb/   ← R-ready vendored C++  [1]                                           │
@@ -118,7 +117,7 @@
       └──►  Published R package (CRAN / r-universe)
 
   ─────────────────────────────────────────────────────────────────────────────────
-  CI/CD infrastructure [5]:   vendor.yaml → each.yaml → R-CMD-check → fledge.yaml
+  CI/CD infrastructure [5]:   series routine → each.yaml → R-CMD-check → fledge.yaml
   ─────────────────────────────────────────────────────────────────────────────────</code></pre>
 </div>
 </div>
@@ -204,7 +203,7 @@
 </div>
 <div class="section level2">
 <h2 id="branch-overview">Branch Overview<a class="anchor" aria-label="anchor" href="#branch-overview"></a></h2>
-<p>Each supported DuckDB minor version has a <strong>series of four branches</strong> organised into two repos. The table below shows the complete set at the time of writing:</p>
+<p>Each supported DuckDB minor version has a <strong>series of four branches</strong> organised into two repos. The table below shows the complete set at the time of writing. The <code>dev</code>/<code>dev-base</code> pair is the legacy vendoring layout; as each series is reseeded into the series loop (see <a href="#vendoring">Vendoring</a> below), that pair gives way to the loop’s four refs — <code>&lt;S&gt;-build</code>, <code>&lt;S&gt;-dev</code>, <code>&lt;S&gt;-green</code>, <code>&lt;S&gt;-build-base</code>.</p>
 <table class="table"><colgroup><col width="21%"><col width="15%"><col width="14%"><col width="48%"></colgroup><thead><tr><th>Branch</th>
 <th>Repo</th>
 <th><code>Package:</code></th>
@@ -341,7 +340,7 @@ krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
 <ul><li>
 <strong>S1 — Flavor isolation (<code>lts</code>).</strong> <code>git diff stable lts</code> touches only flavor files (<code>DESCRIPTION:Package</code>, <code>R/duckdb-package.R</code>, <code>src/include/rapi.hpp</code> macro, <code>NAMESPACE</code>, <code>man/*-package.Rd</code>, the renamed <code>inst/include/duckdb_*_types.hpp</code>, the README blurb, and the <code><a href="https://rdrr.io/r/base/library.html" class="external-link">library()</a></code> / <code>test_check()</code> names in <code>tests/</code>). Nothing under <code>src/duckdb/</code>, no glue logic in <code>src/*.cpp</code>, no <code>R/</code> logic.</li>
 <li>
-<strong>S2 — Baseline purity (<code>dev-base</code>).</strong> <code>dev-base</code> is byte-identical to the <em>released</em> <code>stable</code> tree: <code>Package: duckdb</code>, bare three-component version, <strong>no flavor rename</strong>. The <code>flavor.sh</code> rename and the version scaffolding live entirely <em>above</em> it, in <code>dev-base..dev</code>. (Confirmed: <code>v1.5-variegata-dev-base</code> reads <code>duckdb 1.5.4</code>, <code>v1.4-andium-dev-base</code> reads <code>duckdb 1.4.5</code>.)</li>
+<strong>S2 — Baseline purity (<code>dev-base</code>).</strong> <code>dev-base</code> is byte-identical to the <em>released</em> <code>stable</code> tree: <code>Package: duckdb</code>, bare three-component version, <strong>no flavor rename</strong>. The <code>flavor.sh</code> rename and the version scaffolding live entirely <em>above</em> it, in <code>dev-base..dev</code>. (Confirmed: <code>v1.5-variegata-dev-base</code> reads <code>duckdb 1.5.4</code>, <code>v1.4-andium-dev-base</code> reads <code>duckdb 1.4.5</code>.) This invariant describes the legacy <code>dev-base</code> layout; a series-loop series has no <code>dev-base</code> — its seed is flavored from day one, per the bootstrap rule in <code>.claude/skills/series-loop.md</code>.</li>
 <li>
 <strong>S3 — <code>dev-base</code> ⊑ <code>dev</code>.</strong> <code>dev-base</code> is an ancestor of <code>dev</code> and only ever fast-forwards; <code>dev..dev-base</code> is always empty.</li>
 <li>
@@ -406,7 +405,7 @@ krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
 <li>
 <strong>V2 — Patch ordering.</strong> <code>stable</code> and <code>lts</code> share the released patch <code>Z</code>; <code>dev</code>/<code>dev-base</code> are at or ahead of <code>Z</code>.</li>
 <li>
-<strong>V3 — Counters.</strong> The <strong>4th</strong> component free-runs as the R-client dev counter <em>only</em> on the glue source of truth (<code>main</code>: <code>…9003</code>, <code>…9004</code>); on <code>-dev</code> branches it is a fixed marker (<code>.9000</code> / <code>.9001</code>). The <strong>5th</strong> component is the vendor counter, strictly monotone along <code>dev</code> (one bump per vendor commit) and <em>absent until vendoring starts</em> — e.g. <code>v1.4-andium-dev</code> at <code>1.4.5.9000</code> has no vendor commits yet. Componentwise within the prefix, <code>dev ≥ dev-base ≥ stable</code>.</li>
+<strong>V3 — Counters.</strong> The <strong>4th</strong> component free-runs as the R-client dev counter <em>only</em> on the glue source of truth (<code>main</code>: <code>…9003</code>, <code>…9004</code>); on <code>-dev</code> branches it is a fixed marker (<code>.9000</code> / <code>.9001</code>). The <strong>5th</strong> component is the vendor counter, strictly monotone along <code>dev</code> (one bump per vendor commit). On a series-loop dev branch the seed’s <code>chore: Add fifth version component</code> commit stamps it at <code>.0</code>; elsewhere it is absent until the first vendor commit mints <code>.1</code> — e.g. <code>v1.4-andium-dev</code> at <code>1.4.5.9000</code> has no vendor commits yet. Regular LTS flavors never carry a fifth component. Componentwise within the prefix, <code>dev ≥ dev-base ≥ stable</code>.</li>
 <li>
 <strong>V4 — Release shape.</strong> A released <code>stable</code>/<code>lts</code> version is the bare three-component prefix (no 4th/5th component).</li>
 </ul></div>
@@ -442,7 +441,7 @@ krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
 <div class="section level3">
 <h3 id="phase-1-mid-cycle-75-of-the-time">Phase 1: Mid-Cycle (≈75% of the time)<a class="anchor" aria-label="anchor" href="#phase-1-mid-cycle-75-of-the-time"></a></h3>
 <p>Upstream active branches: <code>main</code>, <code>v1.5-variegata</code>, <code>v1.4-andium</code>.</p>
-<p>This is business-as-usual. Automated vendoring runs daily with no manual intervention required.</p>
+<p>This is business-as-usual. The series loop vendors on its schedule with no manual intervention required.</p>
 <ul><li>Upstream patch releases (<code>v1.5.z</code>) cut from <code>v1.5-variegata</code> are picked up automatically by the corresponding <code>-dev</code> branch.</li>
 <li>When a patch release is tagged upstream, run the <a href="#on-patch-release-v145">On patch release</a> flow for that branch.</li>
 <li>Forward-port glue code changes from <code>main</code> toward older branches as usual.</li>
@@ -456,20 +455,16 @@ krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
 <span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>  main                            (existing) krlmlr/duckdb-r@main-dev</span>
 <span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>  v1.4-andium                     (existing) krlmlr/duckdb-r@v1.4-andium-dev</span>
 <span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>  v1.5-variegata                  (existing) krlmlr/duckdb-r@v1.5-variegata-dev</span>
-<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>  v1.6-codename  (new)  ──►       krlmlr/duckdb-r@v1.6-codename-dev  (create)</span>
-<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>                                  krlmlr/duckdb-r@v1.6-codename-dev-base  (create)</span>
-<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a>                                  duckdb/duckdb-r@v1.6-codename      (create)</span></code></pre></div>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>  v1.6-codename  (new)  ──►       krlmlr/duckdb-r@v1.6-codename-{build,dev,green,build-base}  (create)</span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>                                  duckdb/duckdb-r@v1.6-codename      (create)</span></code></pre></div>
 <p>Actions:</p>
 <ol style="list-style-type: decimal"><li>Create <code>v1.6-codename</code> in <code>duckdb/duckdb-r</code> (the future stable branch) from <code>main</code>.</li>
-<li>Create <code>v1.6-codename-dev-base</code> and <code>v1.6-codename-dev</code> in <code>krlmlr/duckdb-r</code> from <code>main-dev</code> and configure CI to vendor from the upstream <code>v1.6-codename</code> branch.</li>
-<li>Apply the dev flavor to <code>v1.6-codename-dev-base</code> using <code>scripts/flavor.sh 1.6.dev</code> (adapt as needed).</li>
+<li>Open the <code>v1.6-codename</code> series in <code>krlmlr/duckdb-r</code> following <code>.claude/skills/series-open.md</code>: seed from <code>main</code> with <code>scripts/flavor.sh 1.6.dev</code> plus the separate fifth-component commit, create the four series refs equal at the seed tip, and populate <code>v1.6-codename-build</code> starting from the fork-point tree. The routine discovers the new series from its refs; no CI configuration is needed.</li>
 <li>Add the new dev branch to the front of the forward-port chain:</li>
 </ol><div class="sourceCode" id="cb8"><pre class="sourceCode txt"><code class="sourceCode default"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>duckdb/duckdb-r@main  →  krlmlr/duckdb-r@main-dev  →  krlmlr/duckdb-r@v1.6-codename-dev</span>
 <span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>                                                    ↘  krlmlr/duckdb-r@v1.5-variegata-dev  →  …</span></code></pre></div>
-<ol start="5" style="list-style-type: decimal"><li>
-<p><strong>Re-seed <code>main-dev</code> at the fork point.</strong> This is the step that is easy to miss, and the one that decides whether the mainline stays bisectable. From the moment <code>v1.6-codename</code> is cut, <code>main</code> and the release branch diverge, and the two lines are only merged back into each other later. <code>main-dev</code> must therefore restart from a vendor commit at the <strong>fork point</strong> of <code>main</code> and <code>v1.6-codename</code> and walk <code>main</code> forward from there, one upstream commit at a time. Letting <code>main-dev</code> simply continue from its last release-branch base makes its next vendor commit jump over every <code>main</code>-only commit accumulated since the fork — sources move backwards in time and forwards in history in a single step, and nothing in between is ever built. The procedure, including how to compute the fork point (it is <em>not</em> <code>git merge-base</code>) and how far the glue code has to be rewound, is in <a href="scripts/VENDORING.html#starting-a-new-dev-line-the-fork-point-rule">Starting a new dev line</a>.</p>
-<p>The new <code>v1.6-codename-dev</code> needs no such rewind: it forks from <code>main</code> at a point the package already builds against.</p>
-</li>
+<ol start="4" style="list-style-type: decimal"><li>
+<strong>The <code>main</code> series needs nothing.</strong> Under the series loop it keeps walking upstream <code>main</code>’s first-parent chain, which passes through the fork point, so nothing jumps and nothing is re-seeded (the legacy <code>main-dev</code> layout needed an explicit fork-point re-seed here — that hazard is what the loop’s one-commit-at-a-time walk removes). The fork point matters for the <em>new</em> series instead: <code>v1.6-codename-build</code> starts from the fork-point tree, computed as in <a href="scripts/VENDORING.html#starting-a-new-dev-line-the-fork-point-rule">Starting a new dev line</a> (it is <em>not</em> <code>git merge-base</code>), with the glue rewound as far as that tree requires.</li>
 </ol></div>
 <div class="section level3">
 <h3 id="phase-3-feature-freeze">Phase 3: Feature Freeze<a class="anchor" aria-label="anchor" href="#phase-3-feature-freeze"></a></h3>
@@ -502,7 +497,7 @@ krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
 <h2 id="synchronization">Synchronization<a class="anchor" aria-label="anchor" href="#synchronization"></a></h2>
 <div class="section level3">
 <h3 id="vendoring">Vendoring<a class="anchor" aria-label="anchor" href="#vendoring"></a></h3>
-<p>CI/CD pipelines in <code>krlmlr/duckdb-r</code> vendor the C++ code from the corresponding upstream branch daily — a bounded advance gated on the <code>rcc</code> commit-status of the last green base (<code>scripts/vendor-gate.sh</code>) — and build the <code>.dev</code> package. If vendoring breaks the build, it can be fixed after the fact in the same commit. The <code>-dev</code> branches are not protected, so force-pushes are allowed to fix mistakes.</p>
+<p>Vendoring is driven by a single scheduled Claude routine — the <strong>series loop</strong> (<code>.claude/skills/series-loop.md</code>) — which discovers every series from its refs and serves them all in one firing. Each series <code>&lt;S&gt;</code> has four branches: <code>&lt;S&gt;-build</code> (every upstream commit vendored, glue compiling, no CI), <code>&lt;S&gt;-dev</code> (consumed from <code>-build</code> up to 25 commits at a time; CI builds every commit), <code>&lt;S&gt;-green</code> (fast-forwarded to the newest all-green commit; what r-universe should build from), and <code>&lt;S&gt;-build-base</code> (the <code>-build</code> commit equivalent to <code>-green</code>). CI builds the <code>.dev</code> package per commit via <code>each.yaml</code>. If vendoring breaks the build, it can be fixed after the fact in the same commit. The <code>-dev</code> branches are not protected, so force-pushes are allowed to fix mistakes.</p>
 <p>It is important that every commit in the <code>-dev</code> branches builds successfully so that the history is clean and bisectable. For this reason, the <code>-dev</code> branches are checked commit by commit via <code>each.yaml</code>, even if multiple commits are pushed at once.</p>
 <p>Bisectability is a property of the whole branch, not of individual commits, so it needs three things at once: a <strong>linear</strong> first-parent history without merge commits, <strong>one upstream commit per vendor commit</strong> forming a contiguous first-parent walk of the tracked upstream branch, and a <strong>green</strong> build for every commit. These are stated as invariants, with the reasoning and the failure modes, in <a href="scripts/VENDORING.html#dev-branch-invariants">Dev Branch Invariants</a>.</p>
 </div>
@@ -579,9 +574,9 @@ krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
 </tr></thead><tbody><tr><td><code>scripts/vendor.sh</code></td>
 <td>Local manual vendoring from a cloned upstream repo</td>
 </tr><tr><td><code>scripts/vendor-one.sh</code></td>
-<td>CI commit-by-commit vendoring (called by <code>vendor.yaml</code>)</td>
+<td>Commit-by-commit vendoring (called by the series-loop routine)</td>
 </tr><tr><td><code>scripts/vendor-gate.sh</code></td>
-<td>Decides the bounded, <code>rcc</code>-gated batch of upstream commits <code>vendor.yaml</code> may advance per run</td>
+<td>Green/red gate over <code>rcc</code> statuses (kept for tooling; the series loop reads branch <code>rcc</code> directly)</td>
 </tr><tr><td><code>scripts/flavor.sh &lt;flavor&gt;</code></td>
 <td>Applies the flavor rename (updates <code>flavor.patch</code>, then applies it and re-runs <code><a href="https://cpp11.r-lib.org/reference/cpp_register.html" class="external-link">cpp11::cpp_register()</a></code>)</td>
 </tr><tr><td><code>scripts/flavor.patch</code></td>
@@ -592,8 +587,6 @@ krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
 <td>Git merge driver for <code>DESCRIPTION</code>: combines the 4th/5th version counters, gated on an equal prefix</td>
 </tr><tr><td><code>scripts/setup-git.sh</code></td>
 <td>Registers the merge driver in <code>.git/config</code>, enables <code>rerere</code>, pins <code>rebase.backend=merge</code> (run per clone)</td>
-</tr><tr><td><code>.github/workflows/vendor.yaml</code></td>
-<td>Daily, <code>rcc</code>-gated vendoring for all active dev branches (matrix: <code>v1.4-andium-dev</code>, <code>v1.5-variegata-dev</code>, <code>main-dev</code>)</td>
 </tr><tr><td><code>.github/workflows/sync.yaml</code></td>
 <td>Hourly fast-forward of <code>krlmlr/main</code> from <code>duckdb/main</code>
 </td>

@@ -108,12 +108,12 @@ stateDiagram-v2
 
 ## TRACK — steady state
 
-Fully automated; there is nothing to do. `vendor.yaml` runs daily and
-advances `dev` by a bounded batch, gated on the `rcc` commit-status of
-the last green base (`scripts/vendor-gate.sh`); `each.yaml` checks every
-new commit, and glue changes flow in from `main` via the forward-port
-chain. `dev-base..dev` is the running list of “what would ship if we
-released now.”
+Fully automated; there is nothing to do. The series loop
+(`.claude/skills/series-loop.md`) vendors into `-build`, consumes into
+`-dev` at most 25 commits at a time, and fast-forwards `-green`, gated
+on the per-commit `rcc` results harvested to branch `rcc`; `each.yaml`
+checks every new commit, and glue changes flow in from `main` via the
+forward-port chain. `-green` is “what would ship if we released now.”
 
 A maintainer leaves TRACK by **opening the release window** (≈ two weeks
 before the expected upstream release date), which enters STABILIZE.
@@ -192,9 +192,9 @@ commits stay queued for the next cycle.
 
 ### 1 VENDORED → 2 REVIEW → 3 PROMOTED
 
-1.  `vendor.yaml` produces the `vendor: … (tag vX.Y.Z) …` commit on
-    `dev`; wait for `each.yaml` to show it **green**. If vendoring broke
-    the build, fix it in the same commit and force-push `dev`.
+1.  The series loop produces the `vendor: … (tag vX.Y.Z) …` commit on
+    `-dev`; wait for `each.yaml` to show it **green**. If vendoring
+    broke the build, fix it in the same commit and force-push `dev`.
 2.  Review the pending window —
     `https://github.com/krlmlr/duckdb-r/compare/<dev-base>...<tagged>` —
     and confirm it contains only the expected vendor commits and
