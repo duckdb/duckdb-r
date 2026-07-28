@@ -159,7 +159,7 @@ jobs:
         run: scripts/each-plan.sh
         shell: bash
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         if: env.EACH_MODE != 'dispatch' && steps.plan.outputs.shards != '0'
         with:
           name: each-plan
@@ -204,7 +204,7 @@ jobs:
           ref: ${{ inputs.branch || github.ref }}
           fetch-depth: 0
 
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           name: each-plan
           path: ${{ runner.temp }}/plan
@@ -255,7 +255,7 @@ jobs:
         run: scripts/each-shard.sh
         shell: bash
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: each-logs-${{ matrix.shard }}
@@ -307,7 +307,7 @@ jobs:
           fi
         shell: bash
 
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           pattern: each-logs-*
           path: ${{ runner.temp }}/artifacts
