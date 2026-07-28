@@ -6,11 +6,11 @@
 
 #include "src/parser/expression/collate_expression.cpp"
 
-#include "src/parser/expression/conjunction_expression.cpp"
-
 #include "src/parser/expression/columnref_expression.cpp"
 
 #include "src/parser/expression/comparison_expression.cpp"
+
+#include "src/parser/expression/conjunction_expression.cpp"
 
 #include "src/parser/expression/constant_expression.cpp"
 

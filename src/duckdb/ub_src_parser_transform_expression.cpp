@@ -20,11 +20,13 @@
 
 #include "src/parser/transform/expression/transform_grouping_function.cpp"
 
-#include "src/parser/transform/expression/transform_lambda.cpp"
-
 #include "src/parser/transform/expression/transform_interval.cpp"
 
 #include "src/parser/transform/expression/transform_is_null.cpp"
+
+#include "src/parser/transform/expression/transform_lambda.cpp"
+
+#include "src/parser/transform/expression/transform_multi_assign_reference.cpp"
 
 #include "src/parser/transform/expression/transform_operator.cpp"
 
@@ -33,6 +35,4 @@
 #include "src/parser/transform/expression/transform_positional_reference.cpp"
 
 #include "src/parser/transform/expression/transform_subquery.cpp"
-
-#include "src/parser/transform/expression/transform_multi_assign_reference.cpp"
 
