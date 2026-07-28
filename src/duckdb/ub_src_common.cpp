@@ -88,6 +88,8 @@
 
 #include "src/common/thread_util.cpp"
 
+#include "src/common/time_point.cpp"
+
 #include "src/common/tree_renderer.cpp"
 
 #include "src/common/types.cpp"
