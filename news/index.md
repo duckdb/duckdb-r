@@ -1,5 +1,29 @@
 # Changelog
 
+## duckdb 1.5.5.9001
+
+### Features
+
+- New [`tbl_file()`](https://r.duckdb.org/reference/backend-duckdb.md)
+  and [`tbl_query()`](https://r.duckdb.org/reference/backend-duckdb.md)
+  to explicitly access tables and queries as dbplyr lazy tables
+  ([\#96](https://github.com/duckdb/duckdb-r/issues/96)).
+
+### Continuous integration
+
+- Sync R-CMD-check workflow; drop matrix-env plumbing from custom action
+  ([\#2422](https://github.com/duckdb/duckdb-r/issues/2422)).
+
+### Testing
+
+- Guard the LTS rename against hard-coded package names
+  ([\#2423](https://github.com/duckdb/duckdb-r/issues/2423)).
+
+### Uncategorized
+
+- Ci: Run all smoke-test checks even when one fails
+  ([\#97](https://github.com/duckdb/duckdb-r/issues/97)).
+
 ## duckdb 1.5.5.9000
 
 ### Continuous integration
