@@ -4,6 +4,8 @@
 
 #include "src/parser/column_list.cpp"
 
+#include "src/parser/common_table_expression_info.cpp"
+
 #include "src/parser/constraint.cpp"
 
 #include "src/parser/expression_util.cpp"
@@ -25,6 +27,4 @@
 #include "src/parser/result_modifier.cpp"
 
 #include "src/parser/tableref.cpp"
-
-#include "src/parser/transformer.cpp"
 
