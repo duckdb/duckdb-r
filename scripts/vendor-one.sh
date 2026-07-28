@@ -73,6 +73,10 @@ start=$(git -C "$upstream_dir" rev-parse --verify HEAD)
 # glue has to follow, costs ~20 s, and needs no link and no R session.  The
 # compile flags come from a dry run, so they always match the local setup.
 glue_compile_flags() {
+  # src/Makevars includes Makevars.rstrtmgr, which only ./configure writes and
+  # .gitignore keeps out of the tree; without it `make -n` stops before it ever
+  # prints a compile line.
+  [ -f src/Makevars.rstrtmgr ] || ./configure >/dev/null 2>&1
   (cd src && R CMD SHLIB -n cpp11.cpp 2>/dev/null) |
     grep -m 1 -E -- '-c cpp11\.cpp' |
     sed -E 's/^ *(ccache )?g\+\+ //; s/ -c cpp11\.cpp -o cpp11\.o *$//'
@@ -85,8 +89,11 @@ glue_compiles() {
     echo "Error: could not derive glue compile flags (R CMD SHLIB -n)"
     return 2
   fi
+  # `eval` because R quotes its include path (-I"/usr/share/R/include"); plain
+  # expansion word-splits without removing the quotes, so g++ never finds R.h
+  # and every glue file looks broken.
   (cd src && ls *.cpp | FLAGS="$flags" xargs -P 4 -I{} \
-    sh -c 'g++ $FLAGS -fsyntax-only {} 2>/dev/null || echo {}') | sort |
+    sh -c 'eval "g++ $FLAGS -fsyntax-only \"\$1\"" 2>/dev/null || echo "$1"' sh {}) | sort |
     tee /tmp/vendor-one-glue-failures.txt |
     { ! grep -q .; }
 }
