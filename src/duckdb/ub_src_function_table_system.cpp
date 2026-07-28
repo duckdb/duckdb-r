@@ -1,3 +1,5 @@
+#include "src/function/table/system/create_external_resource.cpp"
+
 #include "src/function/table/system/duckdb_approx_database_count.cpp"
 
 #include "src/function/table/system/duckdb_columns.cpp"
@@ -61,6 +63,8 @@
 #include "src/function/table/system/duckdb_which_secret.cpp"
 
 #include "src/function/table/system/enable_profiling.cpp"
+
+#include "src/function/table/system/external_resource_types.cpp"
 
 #include "src/function/table/system/logging_utils.cpp"
 
