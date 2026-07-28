@@ -327,7 +327,7 @@ R/version.R                 # generated: version string per vendor run
 src/include/sources.mk      # generated: unity-build object list
 ```
 
-(Flavor files managed by `scripts/lts.sh` — `DESCRIPTION` `Package:`,
+(Flavor files managed by `scripts/flavor.sh` — `DESCRIPTION` `Package:`,
 `src/include/rapi.hpp`'s `DUCKDB_PACKAGE_NAME`, etc. — are likewise mechanical
 and can be excluded or reported in their own bucket.)
 

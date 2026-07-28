@@ -362,12 +362,12 @@ Day one of a new cycle then looks like this:
 
 1. Create the new dev branch from the current package `main`
    (glue code, R code, CI — the [source of truth](../BRANCHES.md#source-of-truth)),
-   and apply its flavor with `scripts/lts.sh`,
+   and apply its flavor with `scripts/flavor.sh`,
    as the **first** commits of the branch —
    the rename touches the shared-object name and every `.Call()` entry point,
    so applying it later invalidates every build below it.
 
-   `lts.sh` has three prerequisites it does not check:
+   `flavor.sh` has three prerequisites it does not check:
    GNU sed under the name `gsed` (present on macOS via Homebrew, absent on a plain Linux box),
    and the `cpp11` and `decor` R packages, needed for the `cpp11::cpp_register()` step.
    It commits the first of its two commits *before* reaching that step,

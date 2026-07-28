@@ -23,13 +23,13 @@ The seven components are:
 2. **Flavor** (`DESCRIPTION`, `R/duckdb-package.R`, `NAMESPACE`, `README.md`, `src/include/rapi.hpp`,
    `inst/include/duckdb_types.hpp`, `tests/testthat.R`, `man/duckdb-package.Rd`): the published package
    name variant (`duckdb`, `duckdb.1.4`, `duckdb.1.4.dev`, …).
-   Managed via `scripts/lts.patch` and `scripts/lts.sh`; also covers the `@useDynLib` directive and
+   Managed via `scripts/flavor.patch` and `scripts/flavor.sh`; also covers the `@useDynLib` directive and
    the `DUCKDB_PACKAGE_NAME` C++ macro.
-   `scripts/lts-package-name.R` guards the boundary: it fails as soon as the package name is hard-coded —
+   `scripts/flavor-package-name.R` guards the boundary: it fails as soon as the package name is hard-coded —
    as a namespace qualifier or as a quoted string — in code or docs anywhere the patch does not rewrite it.
    Code asks for the name at run time with `get_package_name()` instead, and docs do not namespace-qualify
    our own objects. CI runs the scan from `.github/workflows/custom/after-install`;
-   `tests/testthat/test-lts-package-name.R` wraps it for `testthat::test_local()` and skips under
+   `tests/testthat/test-flavor-package-name.R` wraps it for `testthat::test_local()` and skips under
    `R CMD check`, which works from a tarball that carries neither the sources nor `scripts/`.
 
 3. **Glue code** (`src/*.cpp`, `src/include/`): the C++ bridge between R and the DuckDB C++ API.
@@ -74,8 +74,8 @@ duckdb-r/
 ├── scripts/                        # Build and maintenance scripts                 [5]
 │   ├── vendor.sh                   # Manual vendoring from local DuckDB clone
 │   ├── vendor-one.sh               # CI commit-by-commit vendoring
-│   ├── lts.sh                      # Apply flavor rename to a branch
-│   ├── lts.patch                   # Patch template for flavor rename              [2]
+│   ├── flavor.sh                   # Apply flavor rename to a branch
+│   ├── flavor.patch                # Patch template for flavor rename              [2]
 │   ├── each-rcc.sh                 # Trigger per-commit CI for unbuilt commits
 │   └── VENDORING.md                # Supplementary vendoring notes (→ see §Vendoring)
 ├── .github/
@@ -110,7 +110,7 @@ Numbers in `[brackets]` refer to the component list above.
       ▼                                                                               │
   src/*.cpp  (glue code)  [3]  ◄── src/include/rapi.hpp (DUCKDB_PACKAGE_NAME) [2,3]   │
       │                                       ▲                                       │
-      │                                       │ lts.sh / lts.patch                    │
+      │                                       │ flavor.sh / flavor.patch              │
       │                              DESCRIPTION · Package: duckdb.x.y [2]            │
       │                                                                               │
       │  compiled and linked against cpp11 ◄──────────────────────────────────────────┘
@@ -182,7 +182,7 @@ The arrow from upstream to the CI/CD fork represents automated vendoring; the ar
 
 This package lives in two GitHub repositories:
 
-- **`duckdb/duckdb-r`** — the canonical repository. Stable and LTS branches are published to CRAN and r-universe from here.
+- **`duckdb/duckdb-r`** — the canonical repository. Stable and flavor branches are published to CRAN and r-universe from here.
 - **`krlmlr/duckdb-r`** — a disconnected fork used exclusively for CI/CD, so that automated runs do not consume the `duckdb` organization's GitHub Actions quota. Development ("dev") branches live here.
 
 The C++ database engine is vendored from **`duckdb/duckdb`** (referred to as *upstream*) into `krlmlr/duckdb-r`. The R glue code that wraps it lives in `duckdb/duckdb-r` and is synchronized with the dev branches.
@@ -252,7 +252,7 @@ published as `.dev` packages.
 | Component                | Source of truth                   | Notes                                             |
 |--------------------------|-----------------------------------|---------------------------------------------------|
 | DuckDB core              | `duckdb/duckdb` upstream          | Vendored independently into each branch           |
-| Flavor                   | Per-branch (via `lts.sh`)         | Applied mechanically on top of the baseline       |
+| Flavor                   | Per-branch (via `flavor.sh`)      | Applied mechanically on top of the baseline       |
 | **Glue code**            | **`main`**                        | Forward-ported to all `-andium` / `-dev` branches |
 | **R code and tests**     | **`main`**                        | Forward-ported to all `-andium` / `-dev` branches |
 | **CI/CD infrastructure** | **`main`**                        | Forward-ported to all `-andium` / `-dev` branches |
@@ -319,7 +319,7 @@ other.
   in `src/*.cpp`, no `R/` logic.
 - **S2 — Baseline purity (`dev-base`).** `dev-base` is byte-identical to the
   *released* `stable` tree: `Package: duckdb`, bare three-component version, **no
-  flavor rename**. The `lts.sh` rename and the version scaffolding live entirely
+  flavor rename**. The `flavor.sh` rename and the version scaffolding live entirely
   *above* it, in `dev-base..dev`. (Confirmed: `v1.5-variegata-dev-base` reads
   `duckdb 1.5.4`, `v1.4-andium-dev-base` reads `duckdb 1.4.5`.)
 - **S3 — `dev-base` ⊑ `dev`.** `dev-base` is an ancestor of `dev` and only ever
@@ -352,7 +352,7 @@ accepted in exchange for a bisectable, merge-free active history.
   couple of commits *below* `stable`'s tip when that tip carries release mechanics
   (the CRAN merge + post-release bump). `dev-base` advances only by fast-forward;
   `dev` grows by append and is rewritten (force-push) only to re-anchor onto a new
-  release point or to drop a non-green commit. The `lts.sh` rename is the first
+  release point or to drop a non-green commit. The `flavor.sh` rename is the first
   group of commits in `dev-base..dev`. *(Confirmed: `dev-base ⊑ dev` everywhere
   (pending 402 / 21 / 3, nothing behind); `v1.4-andium`'s release ⊑ `dev`. For
   1.5, `dev-base` is anchored at the release content `main~2`, two commits below
@@ -392,7 +392,7 @@ release.
   `dev-base` → `duckdb` (per **S2**, `dev-base` is the un-renamed release);
   `lts` → `duckdb.L`; `dev` → `duckdb.L.dev`. The rename is exactly what
   distinguishes `dev` from `dev-base`.
-- **F2 — Mechanical rename.** The rename is produced solely by `scripts/lts.sh`;
+- **F2 — Mechanical rename.** The rename is produced solely by `scripts/flavor.sh`;
   its non-name structure is identical across all series, differing only in the
   version token.
 
@@ -484,7 +484,7 @@ Actions:
 1. Create `v1.6-codename` in `duckdb/duckdb-r` (the future stable branch) from `main`.
 2. Create `v1.6-codename-dev-base` and `v1.6-codename-dev` in `krlmlr/duckdb-r` from `main-dev`
    and configure CI to vendor from the upstream `v1.6-codename` branch.
-3. Apply the dev flavor to `v1.6-codename-dev-base` using `scripts/lts.sh 1.6.dev` (adapt as needed).
+3. Apply the dev flavor to `v1.6-codename-dev-base` using `scripts/flavor.sh 1.6.dev` (adapt as needed).
 4. Add the new dev branch to the front of the forward-port chain:
 
 ```txt
@@ -524,7 +524,7 @@ When upstream tags `v1.6.0`:
 1. Run the [On release](#on-release) flow: merge `krlmlr/duckdb-r@v1.6-codename-dev` → `duckdb/duckdb-r@v1.6-codename`.
 2. Publish the new `duckdb` CRAN package from `duckdb/duckdb-r@v1.6-codename`.
 3. Decide whether `v1.5-variegata` is designated as an LTS release:
-   - **If LTS**: create `v1.5-variegata-lts` from `v1.5-variegata`, apply `scripts/lts.sh 1.5`
+   - **If LTS**: create `v1.5-variegata-lts` from `v1.5-variegata`, apply `scripts/flavor.sh 1.5`
      to produce the `duckdb.1.5` branch, register `duckdb.1.5` on r-universe, and add it to the forward-port chain.
    - **If not LTS**: stop vendoring into its dev branch and archive both branches.
 4. Update the Branch Overview table and the R Package Flavors table in this document.
@@ -543,7 +543,7 @@ This is the most common release event, and it is described in full as the
 `dev-base` is fast-forwarded to the tagged commit (state 3), the commit is merged
 to `v1.4-andium` with `fledge::bump_version("1.4.5")` and the `-lts` branch
 rebased (state 4), the release is tagged and published to r-universe / CRAN
-(state 5), and finally `dev`/`dev-base` are re-baselined via `scripts/lts.sh
+(state 5), and finally `dev`/`dev-base` are re-baselined via `scripts/flavor.sh
 1.4.dev` (RESET). The pre-release reverse-dependency work that precedes the tag
 is the **STABILIZE** cluster.
 
@@ -567,7 +567,7 @@ These are stated as invariants, with the reasoning and the failure modes, in
 
 ### On release
 
-When a new version is released, the dev branch is brought onto the corresponding stable branch — **linearly, never as a merge commit** (invariant **L**). The tagged `dev` content is fast-forwarded or rebased onto stable, dropping the `lts.sh` flavor rename and setting the release version via `fledge`:
+When a new version is released, the dev branch is brought onto the corresponding stable branch — **linearly, never as a merge commit** (invariant **L**). The tagged `dev` content is fast-forwarded or rebased onto stable, dropping the `flavor.sh` flavor rename and setting the release version via `fledge`:
 
 ```txt
 krlmlr/duckdb-r@main-dev            →  duckdb/duckdb-r@main
@@ -579,7 +579,7 @@ After this, the `-lts` branch for that series is rebased or reset on top of the 
 
 ### Ongoing
 
-Glue code changes are forward-ported continuously from newer to older branches so that LTS branches stay up to date (see [Source of Truth](#source-of-truth)):
+Glue code changes are forward-ported continuously from newer to older branches so that flavor branches stay up to date (see [Source of Truth](#source-of-truth)):
 
 ```txt
 duckdb/duckdb-r@main  →  krlmlr/duckdb-r@main-dev  →  krlmlr/duckdb-r@v1.5-variegata-dev  →  krlmlr/duckdb-r@v1.4-andium-dev
@@ -659,8 +659,8 @@ the first step of any CI job that rebases, cherry-picks, or merges — to regist
 | `scripts/vendor.sh`             | Local manual vendoring from a cloned upstream repo                                                         |
 | `scripts/vendor-one.sh`         | CI commit-by-commit vendoring (called by `vendor.yaml`)                                                    |
 | `scripts/vendor-gate.sh`        | Decides the bounded, `rcc`-gated batch of upstream commits `vendor.yaml` may advance per run               |
-| `scripts/lts.sh <flavor>`       | Applies the flavor rename (updates `lts.patch`, then applies it and re-runs `cpp11::cpp_register()`)       |
-| `scripts/lts.patch`             | Patch template used by `lts.sh`; contains `1.4` as placeholder version (replaced by `lts.sh`)              |
+| `scripts/flavor.sh <flavor>`    | Applies the flavor rename (updates `flavor.patch`, then applies it and re-runs `cpp11::cpp_register()`)    |
+| `scripts/flavor.patch`          | Patch template used by `flavor.sh`; contains `1.4` as placeholder version (replaced by `flavor.sh`)        |
 | `scripts/each-rcc.sh`           | Identifies commits in the first-parent history without a build status and triggers an `rcc` run for each   |
 | `scripts/merge-version.sh`      | Git merge driver for `DESCRIPTION`: combines the 4th/5th version counters, gated on an equal prefix         |
 | `scripts/setup-git.sh`          | Registers the merge driver in `.git/config`, enables `rerere`, pins `rebase.backend=merge` (run per clone)  |
