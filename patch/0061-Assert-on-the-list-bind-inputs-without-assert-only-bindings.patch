@@ -18,25 +18,25 @@ Carried here until the engine brings the same change.
  2 files changed, 3 insertions(+), 6 deletions(-)
 
 diff --git a/src/duckdb/extension/core_functions/scalar/list/list_aggregates.cpp b/src/duckdb/extension/core_functions/scalar/list/list_aggregates.cpp
-index f220e97160..c3fda05ead 100644
+index 088d23e2a6..cbbb88c41d 100644
 --- a/src/duckdb/extension/core_functions/scalar/list/list_aggregates.cpp
 +++ b/src/duckdb/extension/core_functions/scalar/list/list_aggregates.cpp
-@@ -485,11 +485,9 @@ unique_ptr<FunctionData> ListAggregatesBind(BindScalarFunctionInput &input) {
+@@ -483,11 +483,9 @@ unique_ptr<FunctionData> ListAggregatesBind(BindScalarFunctionInput &input) {
  }
  
  unique_ptr<FunctionData> ListAggregateBind(BindScalarFunctionInput &input) {
 -	auto &bound_function = input.GetBoundFunction();
 -	auto &arguments = input.GetArguments();
  	// the list column and the name of the aggregate function
--	D_ASSERT(bound_function.arguments.size() >= 2);
+-	D_ASSERT(bound_function.GetArguments().size() >= 2);
 -	D_ASSERT(arguments.size() >= 2);
-+	D_ASSERT(input.GetBoundFunction().arguments.size() >= 2);
++	D_ASSERT(input.GetBoundFunction().GetArguments().size() >= 2);
 +	D_ASSERT(input.GetArguments().size() >= 2);
  
  	return ListAggregatesBind<true>(input);
  }
 diff --git a/src/duckdb/src/function/scalar/list/list_extract.cpp b/src/duckdb/src/function/scalar/list/list_extract.cpp
-index 69dbe22cd8..47650cf253 100644
+index 1fce52878b..184530163c 100644
 --- a/src/duckdb/src/function/scalar/list/list_extract.cpp
 +++ b/src/duckdb/src/function/scalar/list/list_extract.cpp
 @@ -122,9 +122,8 @@ static void ListExtractFunction(DataChunk &args, ExpressionState &state, Vector
@@ -45,8 +45,8 @@ index 69dbe22cd8..47650cf253 100644
  	auto &context = input.GetClientContext();
 -	auto &bound_function = input.GetBoundFunction();
  	auto &arguments = input.GetArguments();
--	D_ASSERT(bound_function.arguments.size() == 2);
-+	D_ASSERT(input.GetBoundFunction().arguments.size() == 2);
+-	D_ASSERT(bound_function.GetArguments().size() == 2);
++	D_ASSERT(input.GetBoundFunction().GetArguments().size() == 2);
  	arguments[0] = BoundCastExpression::AddArrayCastToList(context, std::move(arguments[0]));
  	return nullptr;
  }
