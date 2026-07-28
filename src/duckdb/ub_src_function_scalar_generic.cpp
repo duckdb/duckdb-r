@@ -4,3 +4,5 @@
 
 #include "src/function/scalar/generic/getvariable.cpp"
 
+#include "src/function/scalar/generic/invoke.cpp"
+
