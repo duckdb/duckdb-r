@@ -28,6 +28,8 @@
 
 #include "src/function/table/system/duckdb_memory.cpp"
 
+#include "src/function/table/system/duckdb_eviction_queues.cpp"
+
 #include "src/function/table/system/duckdb_optimizers.cpp"
 
 #include "src/function/table/system/duckdb_schemas.cpp"
