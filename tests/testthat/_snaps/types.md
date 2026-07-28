@@ -63,6 +63,10 @@
       Time differences in secs
       [1]     0 86400    NA
       
+      $timestamp_tz_ns
+      [1] "1677-09-22 00:00:00.000000 UTC" "2262-04-11 23:47:16.854776 UTC"
+      [3] NA                              
+      
       $float
       [1] -3.402823e+38  3.402823e+38            NA
       
