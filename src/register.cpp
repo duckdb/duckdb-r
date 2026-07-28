@@ -67,11 +67,6 @@ using namespace duckdb;
 	if (!conn || !conn.get() || !conn->conn) {
 		return;
 	}
-	// The PEG parser accepts the empty identifier that the view would be dropped by,
-	// which the PostgreSQL parser refused (duckdb/duckdb#23553 refuses it again).
-	if (name.empty()) {
-		rapi_error_with_context("rapi_unregister_df", "Name cannot be empty");
-	}
 
 	ScopedInterruptHandler signal_handler(conn->conn->context);
 
