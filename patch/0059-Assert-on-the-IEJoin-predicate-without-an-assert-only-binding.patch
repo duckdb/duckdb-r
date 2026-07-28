@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 18 Oct 2026 22:03:28 +0000
+Subject: [PATCH] Assert on the IEJoin predicate without an assert-only binding
+
+IEJoinLocalSourceState::ApplyArbitraryPredicate() binds the operator
+to a name that only D_ASSERT() reads, so in a release build, where
+D_ASSERT() expands to nothing, the binding is unused and
+-Wunused-variable says so. The assertion reads the operator through
+the source state and the binding goes, which is the shape upstream
+gives the function later.
+
+Carried here until the engine brings the same change.
+
+---
+ src/duckdb/src/execution/operator/join/physical_iejoin.cpp | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/duckdb/src/execution/operator/join/physical_iejoin.cpp b/src/duckdb/src/execution/operator/join/physical_iejoin.cpp
+index 424052e880..e6be544b1a 100644
+--- a/src/duckdb/src/execution/operator/join/physical_iejoin.cpp
++++ b/src/duckdb/src/execution/operator/join/physical_iejoin.cpp
+@@ -1385,8 +1385,7 @@ void IEJoinLocalSourceState::SplitPayloads(DataChunk &chunk) {
+ 
+ const SelectionVector *IEJoinLocalSourceState::ApplyArbitraryPredicate(DataChunk &chunk) {
+ 	//	Apply any arbitrary predicate
+-	auto &op = gsource.op;
+-	D_ASSERT(op.predicate);
++	D_ASSERT(gsource.op.predicate);
+ 
+ 	const auto result_count = pred_executor.SelectExpression(chunk, pred_matches);
+ 	chunk.Slice(pred_matches, result_count);
