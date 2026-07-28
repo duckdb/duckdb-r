@@ -20,10 +20,10 @@
       sql_exec("INVALID SQL SYNTAX")
     Condition
       Error in `dbSendQuery()`:
-      ! Parser Error: syntax error at or near "INVALID"
+      ! Parser Error: syntax error at or near "SQL"
       
       LINE 1: INVALID SQL SYNTAX
-              ^
+                      ^
       i Context: rapi_prepare
       i Error type: PARSER
 
