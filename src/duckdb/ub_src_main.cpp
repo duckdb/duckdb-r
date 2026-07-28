@@ -2,11 +2,13 @@
 
 #include "src/main/attached_database.cpp"
 
+#include "src/main/chunk_scan_state.cpp"
+
 #include "src/main/client_config.cpp"
 
-#include "src/main/client_context_file_opener.cpp"
-
 #include "src/main/client_context.cpp"
+
+#include "src/main/client_context_file_opener.cpp"
 
 #include "src/main/client_context_wrapper.cpp"
 
@@ -14,21 +16,19 @@
 
 #include "src/main/client_verify.cpp"
 
-#include "src/main/connection_manager.cpp"
-
-#include "src/main/chunk_scan_state.cpp"
-
 #include "src/main/config.cpp"
 
 #include "src/main/connection.cpp"
+
+#include "src/main/connection_manager.cpp"
 
 #include "src/main/database.cpp"
 
 #include "src/main/database_file_path_manager.cpp"
 
-#include "src/main/database_path_and_type.cpp"
-
 #include "src/main/database_manager.cpp"
+
+#include "src/main/database_path_and_type.cpp"
 
 #include "src/main/db_instance_cache.cpp"
 
@@ -54,11 +54,11 @@
 
 #include "src/main/profiling_utils.cpp"
 
-#include "src/main/relation.cpp"
-
 #include "src/main/query_profiler.cpp"
 
 #include "src/main/query_result.cpp"
+
+#include "src/main/relation.cpp"
 
 #include "src/main/result_set_manager.cpp"
 

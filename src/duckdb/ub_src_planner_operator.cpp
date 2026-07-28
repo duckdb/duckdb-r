@@ -6,9 +6,9 @@
 
 #include "src/planner/operator/logical_comparison_join.cpp"
 
-#include "src/planner/operator/logical_copy_to_file.cpp"
-
 #include "src/planner/operator/logical_copy_database.cpp"
+
+#include "src/planner/operator/logical_copy_to_file.cpp"
 
 #include "src/planner/operator/logical_create.cpp"
 
@@ -50,6 +50,8 @@
 
 #include "src/planner/operator/logical_limit.cpp"
 
+#include "src/planner/operator/logical_materialized_cte.cpp"
+
 #include "src/planner/operator/logical_merge_into.cpp"
 
 #include "src/planner/operator/logical_order.cpp"
@@ -66,13 +68,11 @@
 
 #include "src/planner/operator/logical_recursive_cte.cpp"
 
-#include "src/planner/operator/logical_materialized_cte.cpp"
+#include "src/planner/operator/logical_reset.cpp"
 
 #include "src/planner/operator/logical_sample.cpp"
 
 #include "src/planner/operator/logical_set.cpp"
-
-#include "src/planner/operator/logical_reset.cpp"
 
 #include "src/planner/operator/logical_set_operation.cpp"
 

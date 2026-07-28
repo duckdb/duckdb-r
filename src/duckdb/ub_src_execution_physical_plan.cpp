@@ -16,11 +16,13 @@
 
 #include "src/execution/physical_plan/plan_create_index.cpp"
 
-#include "src/execution/physical_plan/plan_create_table.cpp"
-
 #include "src/execution/physical_plan/plan_create_secret.cpp"
 
+#include "src/execution/physical_plan/plan_create_table.cpp"
+
 #include "src/execution/physical_plan/plan_cross_product.cpp"
+
+#include "src/execution/physical_plan/plan_cte.cpp"
 
 #include "src/execution/physical_plan/plan_delete.cpp"
 
@@ -39,6 +41,8 @@
 #include "src/execution/physical_plan/plan_explain.cpp"
 
 #include "src/execution/physical_plan/plan_export.cpp"
+
+#include "src/execution/physical_plan/plan_expression_get.cpp"
 
 #include "src/execution/physical_plan/plan_filter.cpp"
 
@@ -62,29 +66,25 @@
 
 #include "src/execution/physical_plan/plan_projection.cpp"
 
-#include "src/execution/physical_plan/plan_set_operation.cpp"
-
-#include "src/execution/physical_plan/plan_set.cpp"
+#include "src/execution/physical_plan/plan_recursive_cte.cpp"
 
 #include "src/execution/physical_plan/plan_reset.cpp"
 
 #include "src/execution/physical_plan/plan_sample.cpp"
 
+#include "src/execution/physical_plan/plan_set.cpp"
+
+#include "src/execution/physical_plan/plan_set_operation.cpp"
+
 #include "src/execution/physical_plan/plan_simple.cpp"
 
 #include "src/execution/physical_plan/plan_top_n.cpp"
 
-#include "src/execution/physical_plan/plan_update.cpp"
+#include "src/execution/physical_plan/plan_unnest.cpp"
 
-#include "src/execution/physical_plan/plan_window.cpp"
+#include "src/execution/physical_plan/plan_update.cpp"
 
 #include "src/execution/physical_plan/plan_vacuum.cpp"
 
-#include "src/execution/physical_plan/plan_unnest.cpp"
-
-#include "src/execution/physical_plan/plan_expression_get.cpp"
-
-#include "src/execution/physical_plan/plan_recursive_cte.cpp"
-
-#include "src/execution/physical_plan/plan_cte.cpp"
+#include "src/execution/physical_plan/plan_window.cpp"
 
