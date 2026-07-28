@@ -280,4 +280,8 @@ const vector<Vector> &VectorIteratorGetStructEntries(const Vector &vector) {
 	return StructVector::GetEntries(vector);
 }
 
+vector<Vector> &VectorWriterGetStructEntries(Vector &vector) {
+	return StructVector::GetEntries(vector);
+}
+
 } // namespace duckdb
