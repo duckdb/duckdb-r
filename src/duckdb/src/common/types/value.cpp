@@ -1,7 +1,6 @@
 #include "duckdb/common/types/value.hpp"
 
 #include "duckdb/common/exception.hpp"
-#include "duckdb/common/identifier.hpp"
 #include "duckdb/common/limits.hpp"
 #include "duckdb/common/operator/cast_operators.hpp"
 
@@ -27,12 +26,8 @@
 #include "duckdb/common/types/bignum.hpp"
 #include "duckdb/common/serializer/serializer.hpp"
 #include "duckdb/common/serializer/deserializer.hpp"
-#include "duckdb/common/serializer/binary_serializer.hpp"
-#include "duckdb/common/serializer/binary_deserializer.hpp"
-#include "duckdb/common/serializer/memory_stream.hpp"
 #include "duckdb/common/types/string.hpp"
 #include "duckdb/common/types/value_map.hpp"
-#include "duckdb/function/scalar/variant_utils.hpp"
 
 #include <utility>
 #include <cmath>
@@ -148,9 +143,6 @@ Value::Value(float val) : type_(LogicalType::FLOAT), is_null(false) {
 
 Value::Value(double val) : type_(LogicalType::DOUBLE), is_null(false) {
 	value_.double_ = val;
-}
-
-Value::Value(const Identifier &val) : Value(val.GetIdentifierName()) {
 }
 
 Value::Value(const char *val) : Value(val ? string(val) : string()) {
@@ -943,27 +935,6 @@ Value Value::GEOMETRY(const_data_ptr_t data, idx_t len) {
 	return result;
 }
 
-Value Value::TYPE(const LogicalType &type) {
-	MemoryStream stream;
-	SerializationOptions options;
-	options.serialization_compatibility = SerializationCompatibility::Latest();
-	BinarySerializer::Serialize(type, stream, options);
-	auto data_ptr = const_char_ptr_cast(stream.GetData());
-	auto data_len = stream.GetPosition();
-
-	Value result(LogicalType::TYPE());
-	result.is_null = false;
-	result.value_info_ = make_shared_ptr<StringValueInfo>(string(data_ptr, data_len));
-	return result;
-}
-
-Value Value::TYPE(const string_t &serialized_type) {
-	Value result(LogicalType::TYPE());
-	result.is_null = false;
-	result.value_info_ = make_shared_ptr<StringValueInfo>(serialized_type.GetString());
-	return result;
-}
-
 Value Value::BLOB(const string &data) {
 	Value result(LogicalType::BLOB);
 	result.is_null = false;
@@ -1371,11 +1342,6 @@ DUCKDB_API Value Value::GetValue() const {
 	return Value(*this);
 }
 
-template <>
-DUCKDB_API Identifier Value::GetValue() const {
-	return Identifier(GetValue<string>());
-}
-
 uintptr_t Value::GetPointer() const {
 	D_ASSERT(type() == LogicalType::POINTER);
 	return value_.pointer;
@@ -1679,17 +1645,7 @@ string Value::ToSQLString() const {
 		}
 		return "'" + StringUtil::Replace(ToString(), "'", "''") + "'";
 	}
-	case LogicalTypeId::VARIANT: {
-		string ret = "VARIANT(";
-		Vector tmp(*this);
-		RecursiveUnifiedVectorFormat format;
-		Vector::RecursiveToUnifiedFormat(tmp, 1, format);
-		UnifiedVariantVectorData vector_data(format);
-		auto val = VariantUtils::ConvertVariantToValue(vector_data, 0, 0);
-		ret += val.ToString();
-		ret += ")";
-		return ret;
-	}
+	case LogicalTypeId::VARIANT:
 	case LogicalTypeId::STRUCT: {
 		bool is_unnamed = StructType::IsUnnamed(type_);
 		string ret = is_unnamed ? "(" : "{";
@@ -1750,24 +1706,6 @@ string Value::ToSQLString() const {
 			}
 		}
 		ret += "]";
-		return ret;
-	}
-	case LogicalTypeId::MAP: {
-		// A bare `MAP {...}` literal infers its element types from the entries
-		// (and `MAP {}` infers MAP(INTEGER, INTEGER)), so it does not faithfully
-		// round-trip on its own. Append an explicit cast to the real type
-		auto &entries = MapValue::GetChildren(*this);
-		string ret = "MAP {";
-		for (idx_t i = 0; i < entries.size(); i++) {
-			auto &kv = StructValue::GetChildren(entries[i]);
-			if (i > 0) {
-				ret += ", ";
-			}
-			ret += kv[0].ToSQLString();
-			ret += ": ";
-			ret += kv[1].ToSQLString();
-		}
-		ret += "}::" + type_.ToString();
 		return ret;
 	}
 	case LogicalTypeId::UNION: {
@@ -1846,19 +1784,6 @@ const string &StringValue::Get(const Value &value) {
 	D_ASSERT(value.type().InternalType() == PhysicalType::VARCHAR);
 	D_ASSERT(value.value_info_);
 	return value.value_info_->Get<StringValueInfo>().GetString();
-}
-
-LogicalType TypeValue::GetType(const Value &value) {
-	if (value.is_null) {
-		throw InternalException("Calling TypeValue::GetType on a NULL value");
-	}
-	D_ASSERT(value.type().id() == LogicalTypeId::TYPE);
-	D_ASSERT(value.value_info_);
-	auto &type_str = value.value_info_->Get<StringValueInfo>().GetString();
-	auto str = string_t(type_str);
-	MemoryStream stream(data_ptr_cast(str.GetDataWriteable()), str.GetSize());
-	BinaryDeserializer deserializer(stream);
-	return LogicalType::Deserialize(deserializer);
 }
 
 date_t DateValue::Get(const Value &value) {
@@ -2109,7 +2034,7 @@ void Value::Reinterpret(LogicalType new_type) {
 	this->type_ = std::move(new_type);
 }
 
-static const LogicalType &GetChildType(const LogicalType &parent_type, idx_t i) {
+const LogicalType &GetChildType(const LogicalType &parent_type, idx_t i) {
 	switch (parent_type.InternalType()) {
 	case PhysicalType::LIST:
 		return ListType::GetChildType(parent_type);
@@ -2122,7 +2047,7 @@ static const LogicalType &GetChildType(const LogicalType &parent_type, idx_t i) 
 	}
 }
 
-static bool SerializeTypeMatches(const LogicalType &expected_type, const LogicalType &actual_type) {
+bool SerializeTypeMatches(const LogicalType &expected_type, const LogicalType &actual_type) {
 	if (expected_type.id() != actual_type.id()) {
 		// type id needs to be the same
 		return false;
@@ -2162,14 +2087,6 @@ void Value::SerializeInternal(Serializer &serializer, bool serialize_type) const
 	if (IsNull()) {
 		return;
 	}
-
-	if (type_.id() == LogicalTypeId::TYPE) {
-		// special case for TYPE values: serialize the type as a nested object
-		auto type_value = TypeValue::GetType(*this);
-		serializer.WriteProperty(102, "value", type_value);
-		return;
-	}
-
 	switch (type_.InternalType()) {
 	case PhysicalType::BIT:
 		throw InternalException("BIT type should not be serialized");
@@ -2219,19 +2136,6 @@ void Value::SerializeInternal(Serializer &serializer, bool serialize_type) const
 		if (type_.id() == LogicalTypeId::BLOB) {
 			auto blob_str = Blob::ToString(StringValue::Get(*this));
 			serializer.WriteProperty(102, "value", blob_str);
-		} else if (type_.id() == LogicalTypeId::GEOMETRY) {
-			if (!serializer.ShouldSerialize(7)) {
-				// Write as old-style SPATIAL format
-				string blob;
-				Geometry::ToSpatialGeometry(StringValue::Get(*this), blob);
-				auto text = Blob::ToString(blob);
-				serializer.WriteProperty(102, "value", text);
-			} else {
-				// Otherwise, write as WKB with an explicit format property so that we recognize during deserialization.
-				auto text = Blob::ToString(StringValue::Get(*this));
-				serializer.WriteProperty(102, "value", text);
-				serializer.WriteProperty(103, "geometry_format", GeometryStorageType::WKB);
-			}
 		} else {
 			serializer.WriteProperty(102, "value", StringValue::Get(*this));
 		}
@@ -2266,13 +2170,6 @@ Value Value::Deserialize(Deserializer &deserializer) {
 		return new_value;
 	}
 	new_value.is_null = false;
-
-	if (type.id() == LogicalTypeId::TYPE) {
-		// special case for TYPE values: deserialize the type as a nested object
-		auto type_value = deserializer.ReadProperty<LogicalType>(102, "value");
-		return Value::TYPE(type_value);
-	}
-
 	switch (type.InternalType()) {
 	case PhysicalType::BIT:
 		throw InternalException("BIT type should not be deserialized");
@@ -2319,27 +2216,11 @@ Value Value::Deserialize(Deserializer &deserializer) {
 		new_value.value_.interval = deserializer.ReadProperty<interval_t>(102, "value");
 		break;
 	case PhysicalType::VARCHAR: {
+		auto str = deserializer.ReadProperty<string>(102, "value");
 		if (type.id() == LogicalTypeId::BLOB) {
-			auto str = deserializer.ReadProperty<string>(102, "value");
 			new_value.value_info_ = make_shared_ptr<StringValueInfo>(Blob::ToBlob(str));
-		} else if (type.id() == LogicalTypeId::GEOMETRY) {
-			auto text = deserializer.ReadProperty<string>(102, "value");
-			auto type = deserializer.ReadPropertyWithExplicitDefault<GeometryStorageType>(103, "geometry_format",
-			                                                                              GeometryStorageType::SPATIAL);
-
-			auto blob = Blob::ToBlob(text);
-			if (type == GeometryStorageType::WKB) {
-				new_value.value_info_ = make_shared_ptr<StringValueInfo>(std::move(blob));
-			} else if (type == GeometryStorageType::SPATIAL) {
-				string geom;
-				Geometry::FromSpatialGeometry(blob, geom);
-				new_value.value_info_ = make_shared_ptr<StringValueInfo>(std::move(geom));
-			} else {
-				throw InternalException("Unknown geometry format in value deserialization");
-			}
 		} else {
-			auto str = deserializer.ReadProperty<string>(102, "value");
-			new_value.value_info_ = make_shared_ptr<StringValueInfo>(std::move(str));
+			new_value.value_info_ = make_shared_ptr<StringValueInfo>(str);
 		}
 	} break;
 	case PhysicalType::LIST: {

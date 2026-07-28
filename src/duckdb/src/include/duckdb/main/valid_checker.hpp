@@ -13,7 +13,6 @@
 #include "duckdb/common/mutex.hpp"
 
 namespace duckdb {
-class AttachedDatabase;
 class DatabaseInstance;
 class MetaTransaction;
 
@@ -22,7 +21,6 @@ public:
 	explicit ValidChecker(DatabaseInstance &db);
 
 	DUCKDB_API static ValidChecker &Get(DatabaseInstance &db);
-	DUCKDB_API static ValidChecker &Get(AttachedDatabase &db);
 	DUCKDB_API static ValidChecker &Get(MetaTransaction &transaction);
 
 	DUCKDB_API void Invalidate(string error);

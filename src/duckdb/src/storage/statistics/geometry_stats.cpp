@@ -4,7 +4,6 @@
 #include "duckdb/common/types/vector.hpp"
 #include "duckdb/common/serializer/serializer.hpp"
 #include "duckdb/common/serializer/deserializer.hpp"
-#include "duckdb/planner/expression/bound_cast_expression.hpp"
 #include "duckdb/planner/expression/bound_constant_expression.hpp"
 #include "duckdb/planner/expression/bound_function_expression.hpp"
 
@@ -78,18 +77,10 @@ BaseStatistics GeometryStats::CreateEmpty(LogicalType type) {
 }
 
 void GeometryStats::Serialize(const BaseStatistics &stats, Serializer &serializer) {
-	// Should we serialize as old extension geometry type for backwards compatibility?
-	// (in that case, write unknown string stats)
-	if (!serializer.ShouldSerialize(7)) {
-		auto string_stats = StringStats::CreateUnknown(LogicalType::VARCHAR);
-		StringStats::Serialize(string_stats, serializer);
-		return;
-	}
-
 	const auto &data = GetDataUnsafe(stats);
 
 	// Write extent
-	serializer.WriteObject(300, "extent", [&](Serializer &extent) {
+	serializer.WriteObject(200, "extent", [&](Serializer &extent) {
 		extent.WriteProperty<double>(101, "x_min", data.extent.x_min);
 		extent.WriteProperty<double>(102, "x_max", data.extent.x_max);
 		extent.WriteProperty<double>(103, "y_min", data.extent.y_min);
@@ -101,34 +92,19 @@ void GeometryStats::Serialize(const BaseStatistics &stats, Serializer &serialize
 	});
 
 	// Write types
-	serializer.WriteObject(301, "types", [&](Serializer &types) {
+	serializer.WriteObject(201, "types", [&](Serializer &types) {
 		types.WriteProperty<uint8_t>(101, "types_xy", data.types.sets[0]);
 		types.WriteProperty<uint8_t>(102, "types_xyz", data.types.sets[1]);
 		types.WriteProperty<uint8_t>(103, "types_xym", data.types.sets[2]);
 		types.WriteProperty<uint8_t>(104, "types_xyzm", data.types.sets[3]);
 	});
-
-	// Write flags
-	serializer.WritePropertyWithDefault(302, "flags", data.flags.flags);
 }
 
 void GeometryStats::Deserialize(Deserializer &deserializer, BaseStatistics &base) {
 	auto &data = GetDataUnsafe(base);
 
-	// Read old garbage string stats if present, but ignore it since it is not relevant to geometry stats
-	if (deserializer.CanDeserializeProperty(200, "min")) {
-		auto string_stats = StringStats::CreateEmpty(LogicalType::VARCHAR);
-		StringStats::Deserialize(deserializer, string_stats);
-
-		// We don't know how to interpret the old string stats, so we just set the geometry stats to unknown
-		data.extent = GeometryExtent::Unknown();
-		data.types = GeometryTypeSet::Unknown();
-		data.flags = GeometryStatsFlags::Unknown();
-		return;
-	}
-
 	// Read extent
-	deserializer.ReadObject(300, "extent", [&](Deserializer &extent) {
+	deserializer.ReadObject(200, "extent", [&](Deserializer &extent) {
 		extent.ReadProperty<double>(101, "x_min", data.extent.x_min);
 		extent.ReadProperty<double>(102, "x_max", data.extent.x_max);
 		extent.ReadProperty<double>(103, "y_min", data.extent.y_min);
@@ -140,15 +116,12 @@ void GeometryStats::Deserialize(Deserializer &deserializer, BaseStatistics &base
 	});
 
 	// Read types
-	deserializer.ReadObject(301, "types", [&](Deserializer &types) {
+	deserializer.ReadObject(201, "types", [&](Deserializer &types) {
 		types.ReadProperty<uint8_t>(101, "types_xy", data.types.sets[0]);
 		types.ReadProperty<uint8_t>(102, "types_xyz", data.types.sets[1]);
 		types.ReadProperty<uint8_t>(103, "types_xym", data.types.sets[2]);
 		types.ReadProperty<uint8_t>(104, "types_xyzm", data.types.sets[3]);
 	});
-
-	// Read flags
-	deserializer.ReadPropertyWithDefault<uint8_t>(302, "flags", data.flags.flags);
 }
 
 string GeometryStats::ToString(const BaseStatistics &stats) {
@@ -156,14 +129,10 @@ string GeometryStats::ToString(const BaseStatistics &stats) {
 	string result;
 
 	result += "[";
-	result += StringUtil::Format("Extent: [X: [%f, %f], Y: [%f, %f], Z: [%f, %f], M: [%f, %f]]", data.extent.x_min,
+	result += StringUtil::Format("Extent: [X: [%f, %f], Y: [%f, %f], Z: [%f, %f], M: [%f, %f]", data.extent.x_min,
 	                             data.extent.x_max, data.extent.y_min, data.extent.y_max, data.extent.z_min,
 	                             data.extent.z_max, data.extent.m_min, data.extent.m_max);
-	result += StringUtil::Format(", Types: [%s]", StringUtil::Join(data.types.ToString(true), ", "));
-	result += StringUtil::Format(
-	    ", Flags: [Has Empty Geom: %s, Has No Empty Geom: %s, Has Empty Part: %s, Has No Empty Part: %s]",
-	    data.flags.HasEmptyGeometry() ? "true" : "false", data.flags.HasNonEmptyGeometry() ? "true" : "false",
-	    data.flags.HasEmptyPart() ? "true" : "false", data.flags.HasNonEmptyPart() ? "true" : "false");
+	result += StringUtil::Format("], Types: [%s]", StringUtil::Join(data.types.ToString(true), ", "));
 
 	result += "]";
 	return result;
@@ -209,20 +178,12 @@ GeometryTypeSet &GeometryStats::GetTypes(BaseStatistics &stats) {
 	return GetDataUnsafe(stats).types;
 }
 
-GeometryStatsFlags &GeometryStats::GetFlags(BaseStatistics &stats) {
-	return GetDataUnsafe(stats).flags;
-}
-
 const GeometryExtent &GeometryStats::GetExtent(const BaseStatistics &stats) {
 	return GetDataUnsafe(stats).extent;
 }
 
 const GeometryTypeSet &GeometryStats::GetTypes(const BaseStatistics &stats) {
 	return GetDataUnsafe(stats).types;
-}
-
-const GeometryStatsFlags &GeometryStats::GetFlags(const BaseStatistics &stats) {
-	return GetDataUnsafe(stats).flags;
 }
 
 // Expression comparison pruning
@@ -232,10 +193,8 @@ static FilterPropagateResult CheckIntersectionFilter(const GeometryStatsData &da
 		return FilterPropagateResult::NO_PRUNING_POSSIBLE;
 	}
 
-	// This has been checked before and needs to be true for the checks below to be valid.
-	// Note: only one axis needs to be set; an unknown axis is an infinite range that
-	// intersects everything, so the IntersectsXY/ContainsXY math below stays valid.
-	D_ASSERT(data.extent.CanPruneXY());
+	// This has been checked before and needs to be true for the checks below to be valid
+	D_ASSERT(data.extent.HasXY());
 
 	const auto &geom = StringValue::Get(constant);
 	auto extent = GeometryExtent::Empty();
@@ -291,23 +250,8 @@ FilterPropagateResult GeometryStats::CheckZonemap(const BaseStatistics &stats, c
 		return FilterPropagateResult::NO_PRUNING_POSSIBLE;
 	}
 
-	// The column reference may be wrapped in a GEOMETRY -> GEOMETRY cast (e.g. a CRS-erasing cast inserted to match
-	// the predicate's argument type). Such casts only change CRS metadata, not coordinates, so the bounding box
-	// remains valid. Look through them when classifying the operands.
-	auto strip_geometry_cast = [](const Expression &child) -> const Expression * {
-		if (child.GetExpressionType() == ExpressionType::OPERATOR_CAST) {
-			auto &cast = child.Cast<BoundCastExpression>();
-			if (cast.child->return_type.id() == LogicalTypeId::GEOMETRY) {
-				return cast.child.get();
-			}
-		}
-		return &child;
-	};
-
-	const auto &lhs = *strip_geometry_cast(*func.children[0]);
-	const auto &rhs = *strip_geometry_cast(*func.children[1]);
-	const auto lhs_kind = lhs.GetExpressionType();
-	const auto rhs_kind = rhs.GetExpressionType();
+	const auto lhs_kind = func.children[0]->GetExpressionType();
+	const auto rhs_kind = func.children[1]->GetExpressionType();
 	const auto lhs_is_const = lhs_kind == ExpressionType::VALUE_CONSTANT && rhs_kind == ExpressionType::BOUND_REF;
 	const auto rhs_is_const = rhs_kind == ExpressionType::VALUE_CONSTANT && lhs_kind == ExpressionType::BOUND_REF;
 
@@ -318,28 +262,19 @@ FilterPropagateResult GeometryStats::CheckZonemap(const BaseStatistics &stats, c
 
 	auto &data = GetDataUnsafe(stats);
 
-	if (!data.extent.CanPruneXY()) {
-		// If neither axis is set (the extent is empty or fully unknown), we cannot prune.
-		// A single known axis is enough: the unknown axis is an infinite range that
-		// intersects everything, so pruning degrades to the known axis.
+	if (!data.extent.HasXY()) {
+		// If the extent is empty or unknown, we cannot prune
 		return FilterPropagateResult::NO_PRUNING_POSSIBLE;
 	}
 
-	auto result = FilterPropagateResult::NO_PRUNING_POSSIBLE;
 	if (lhs_is_const) {
-		result = CheckIntersectionFilter(data, lhs.Cast<BoundConstantExpression>().value);
-	} else if (rhs_is_const) {
-		result = CheckIntersectionFilter(data, rhs.Cast<BoundConstantExpression>().value);
+		return CheckIntersectionFilter(data, func.children[0]->Cast<BoundConstantExpression>().value);
 	}
-
-	if (result == FilterPropagateResult::FILTER_ALWAYS_TRUE && (stats.CanHaveNull() || data.flags.HasEmptyGeometry())) {
-		// the predicate matches every row that is represented in the extent, but rows that are not
-		// represented in it do not match: NULL values (the predicate evaluates to NULL for them) and
-		// empty geometries (which contribute no vertices, but never intersect anything).
-		// If either can be present we cannot prune the filter away
-		return FilterPropagateResult::NO_PRUNING_POSSIBLE;
+	if (rhs_is_const) {
+		return CheckIntersectionFilter(data, func.children[1]->Cast<BoundConstantExpression>().value);
 	}
-	return result;
+	// Else, no constant argument
+	return FilterPropagateResult::NO_PRUNING_POSSIBLE;
 }
 
 } // namespace duckdb

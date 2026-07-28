@@ -343,20 +343,16 @@ bool Utf8Proc::CodepointToUtf8(int cp, int &sz, char *c) {
 int Utf8Proc::CodepointLength(int cp) {
 	if (cp <= 0x7F) {
 		return 1;
-	}
-	 if (cp <= 0x7FF) {
+	} else if (cp <= 0x7FF) {
 		return 2;
-	}
-	 if (0xd800 <= cp && cp <= 0xdfff) {
-	 	throw InternalException("invalid code point detected in Utf8Proc::CodepointLength (0xd800 to 0xdfff), likely due to invalid UTF-8");
-	}
-	 if (cp <= 0xFFFF) {
+	} else if (0xd800 <= cp && cp <= 0xdfff) {
+		return -1;
+	} else if (cp <= 0xFFFF) {
 		return 3;
-	}
-	 if (cp <= 0x10FFFF) {
+	} else if (cp <= 0x10FFFF) {
 		return 4;
 	}
-	throw InternalException("invalid code point detected in Utf8Proc::CodepointLength, likely due to invalid UTF-8");
+	return -1;
 }
 
 int32_t Utf8Proc::UTF8ToCodepoint(const char *u_input, int &sz) {
@@ -373,7 +369,7 @@ int32_t Utf8Proc::UTF8ToCodepoint(const char *u_input, int &sz) {
 		return (u0 - 192) * 64 + (u1 - 128);
 	}
 	if (u[0] == 0xed && (u[1] & 0xa0) == 0xa0) {
-		throw InternalException("invalid code point detected in Utf8Proc::UTF8ToCodepoint (0xd800 to 0xdfff), likely due to invalid UTF-8");
+		return -1; // code points, 0xd800 to 0xdfff
 	}
 	unsigned char u2 = u[2];
 	if (u0 >= 224 && u0 <= 239) {
@@ -385,7 +381,7 @@ int32_t Utf8Proc::UTF8ToCodepoint(const char *u_input, int &sz) {
 		sz = 4;
 		return (u0 - 240) * 262144 + (u1 - 128) * 4096 + (u2 - 128) * 64 + (u3 - 128);
 	}
-	throw InternalException("invalid code point detected in Utf8Proc::UTF8ToCodepoint, likely due to invalid UTF-8");
+	return -1;
 }
 
 size_t Utf8Proc::RenderWidth(const char *s, size_t len, size_t pos) {
@@ -397,12 +393,13 @@ size_t Utf8Proc::RenderWidth(const char *s, size_t len, size_t pos) {
 
 size_t Utf8Proc::RenderWidth(const std::string &str) {
 	size_t render_width = 0;
-	for (auto cluster : Utf8Proc::GraphemeClusters(str.c_str(), str.size())) {
-		// use the width of the first codepoint in the grapheme cluster
-		// combining marks, ZWJ, variation selectors, etc. have charwidth 0
-		// and multi-codepoint clusters (e.g. ZWJ emoji sequences) should only
-		// count the base character's width, not the sum of all codepoints
-		render_width += Utf8Proc::RenderWidth(str.c_str(), str.size(), cluster.start);
+	size_t pos = 0;
+	while (pos < str.size()) {
+		int sz;
+		auto codepoint = Utf8Proc::UTF8ToCodepoint(str.c_str() + pos, sz);
+		auto properties = duckdb::utf8proc_get_property(codepoint);
+		render_width += properties->charwidth;
+		pos += sz;
 	}
 	return render_width;
 }

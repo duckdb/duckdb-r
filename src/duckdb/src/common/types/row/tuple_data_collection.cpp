@@ -32,18 +32,11 @@ TupleDataCollection::TupleDataCollection(ClientContext &context, shared_ptr<Tupl
 }
 
 TupleDataCollection::~TupleDataCollection() {
-	static constexpr idx_t PARALLEL_DESTROY_THRESHOLD = 1048576;
-	if (count > PARALLEL_DESTROY_THRESHOLD) {
-		ParallelDestroyTask<decltype(segments)>::Schedule(scheduler, segments);
-	}
+	ParallelDestroyTask<decltype(segments)>::Schedule(scheduler, segments);
 }
 
 void TupleDataCollection::Initialize() {
 	D_ASSERT(!layout.GetTypes().empty());
-	if (TuplesPerBlock() == 0) {
-		throw NotImplementedException("Too many columns: tuple width exceeds block size of %llu",
-		                              allocator->GetBufferManager().GetBlockSize());
-	}
 	this->count = 0;
 	this->data_size = 0;
 	if (layout.IsSortKeyLayout()) {

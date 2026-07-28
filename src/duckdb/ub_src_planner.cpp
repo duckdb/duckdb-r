@@ -8,8 +8,6 @@
 
 #include "src/planner/expression_iterator.cpp"
 
-#include "src/planner/expression_nullability.cpp"
-
 #include "src/planner/expression.cpp"
 
 #include "src/planner/table_binding.cpp"
@@ -26,7 +24,7 @@
 
 #include "src/planner/planner.cpp"
 
-#include "src/planner/statement_preprocessor.cpp"
+#include "src/planner/pragma_handler.cpp"
 
 #include "src/planner/logical_operator_deep_copy.cpp"
 

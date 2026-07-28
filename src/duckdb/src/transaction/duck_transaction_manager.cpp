@@ -17,21 +17,10 @@
 #include "duckdb/main/database_manager.hpp"
 #include "duckdb/transaction/meta_transaction.hpp"
 #include "duckdb/main/settings.hpp"
-#include "duckdb/storage/checkpoint/checkpoint_options.hpp"
-#include "duckdb/common/string_util.hpp"
 
 namespace duckdb {
 
-static ErrorData BuildAutocheckpointError(AttachedDatabase &db, const std::exception &ex) {
-	ErrorData original(ex);
-	string recovery = db.IsInitialDatabase() ? "Reopen the database instance to recover."
-	                                         : "Detach and reattach the database to recover.";
-	string msg = StringUtil::Format("Transaction COMMIT succeeded and is durable, but the autocheckpoint failed. %s %s",
-	                                recovery, original.RawMessage());
-	return ErrorData(original.Type(), msg);
-}
-
-void DuckCleanupInfo::Cleanup() {
+void DuckCleanupInfo::Cleanup() noexcept {
 	for (auto &transaction : transactions) {
 		if (transaction->awaiting_cleanup) {
 			transaction->Cleanup(lowest_start_time);
@@ -105,6 +94,10 @@ ActiveCheckpointWrapper::ActiveCheckpointWrapper(DuckTransactionManager &manager
     : manager(manager), is_cleared(false) {
 }
 
+ActiveCheckpointWrapper::~ActiveCheckpointWrapper() {
+	Clear();
+}
+
 void ActiveCheckpointWrapper::Clear() {
 	if (is_cleared) {
 		return;
@@ -162,7 +155,7 @@ DuckTransactionManager::CanCheckpoint(DuckTransaction &transaction, unique_ptr<S
 	if (!transaction.AutomaticCheckpoint(db, undo_properties)) {
 		return CheckpointDecision("no reason to automatically checkpoint");
 	}
-	if (Settings::Get<DebugSkipCheckpointOnCommitSetting>(db.GetDatabase())) {
+	if (DBConfig::GetSetting<DebugSkipCheckpointOnCommitSetting>(db.GetDatabase())) {
 		return CheckpointDecision("checkpointing on commit disabled through configuration");
 	}
 	// try to lock the checkpoint lock
@@ -171,12 +164,6 @@ DuckTransactionManager::CanCheckpoint(DuckTransaction &transaction, unique_ptr<S
 		return CheckpointDecision("Failed to obtain checkpoint lock - another thread is writing/checkpointing or "
 		                          "another read transaction relies on data that is not yet committed");
 	}
-	return CheckpointDecision(CheckpointType::FULL_CHECKPOINT);
-}
-
-DuckTransactionManager::CheckpointDecision
-DuckTransactionManager::GetCheckpointType(DuckTransaction &transaction, const UndoBufferProperties &undo_properties) {
-	auto &storage_manager = db.GetStorageManager();
 	auto checkpoint_type = CheckpointType::FULL_CHECKPOINT;
 	bool has_other_transactions = HasOtherTransactions(transaction);
 	if (has_other_transactions) {
@@ -222,9 +209,6 @@ DuckTransactionManager::GetCheckpointType(DuckTransaction &transaction, const Un
 }
 
 void DuckTransactionManager::Checkpoint(ClientContext &context, bool force) {
-	if (ValidChecker::IsInvalidated(db)) {
-		throw IOException("%s", ValidChecker::InvalidatedMessage(db));
-	}
 	auto &storage_manager = db.GetStorageManager();
 	auto current = Transaction::TryGet(context, db);
 	if (current) {
@@ -295,25 +279,6 @@ transaction_t DuckTransactionManager::GetCommitTimestamp() {
 	return current_start_timestamp++;
 }
 
-void DuckTransactionManager::CleanupTransactions() {
-	lock_guard<mutex> c_lock(cleanup_lock);
-	while (true) {
-		unique_ptr<DuckCleanupInfo> top_cleanup_info;
-		{
-			lock_guard<mutex> q_lock(cleanup_queue_lock);
-			if (cleanup_queue.empty()) {
-				// all transactions have been cleaned up - done
-				return;
-			}
-			top_cleanup_info = std::move(cleanup_queue.front());
-			cleanup_queue.pop();
-		}
-		if (top_cleanup_info) {
-			top_cleanup_info->Cleanup();
-		}
-	}
-}
-
 ErrorData DuckTransactionManager::CommitTransaction(ClientContext &context, Transaction &transaction_p) {
 	auto &transaction = transaction_p.Cast<DuckTransaction>();
 	unique_lock<mutex> t_lock(transaction_lock);
@@ -333,59 +298,23 @@ ErrorData DuckTransactionManager::CommitTransaction(ClientContext &context, Tran
 	ErrorData error;
 	unique_ptr<lock_guard<mutex>> held_wal_lock;
 	unique_ptr<StorageCommitState> commit_state;
-	bool skip_wal_write_due_to_checkpoint = false;
-	bool wal_written = false;
-	if (checkpoint_decision.can_checkpoint) {
-		// we can perform an automatic checkpoint
-		// we have two options:
-		// either we write to the WAL, in which case we can perform concurrent commits while running
-		// OR we skip writing to the WAL, in which case we cannot perform concurrent commits
-		// the reason for this is that if we don't write this transactions' changes to the WAL
-		// any failure during checkpoint will cause this transactions' changes to be lost,
-		// while later concurrent commits will not be
-		// this can cause undefined state, as those commits were made assuming this one was already committed
-		if (undo_properties.estimated_size >= Settings::Get<AutoCheckpointSkipWalThresholdSetting>(context)) {
-			skip_wal_write_due_to_checkpoint = true;
-		}
-	}
-	bool should_write_to_wal = transaction.ShouldWriteToWAL(db);
-	if (should_write_to_wal) {
+	if (!checkpoint_decision.can_checkpoint && transaction.ShouldWriteToWAL(db)) {
 		auto &storage_manager = db.GetStorageManager().Cast<SingleFileStorageManager>();
-		// if we are committing changes and we are not doing a "checkpoint instead of WAL write"
-		// we need to write to the WAL to make the changes durable
+		// if we are committing changes and we are not checkpointing, we need to write to the WAL
 		// since WAL writes can take a long time - we grab the WAL lock here and unlock the transaction lock
 		// read-only transactions can bypass this branch and start/commit while the WAL write is happening
 		// unlock the transaction lock while we write to the WAL
-		// note: we can only drop the transaction lock if we are NOT checkpointing
-		// if we are checkpointing, we have already made certain decisions (e.g. the CheckpointType)
 		t_lock.unlock();
 		// grab the WAL lock and hold it until the entire commit is finished
 		held_wal_lock = storage_manager.GetWALLock();
 
 		// Commit the changes to the WAL.
-		if (!skip_wal_write_due_to_checkpoint) {
+		if (db.GetRecoveryMode() == RecoveryMode::DEFAULT) {
 			error = transaction.WriteToWAL(context, db, commit_state);
-			wal_written = true;
 		}
 
 		// after we finish writing to the WAL we grab the transaction lock again
 		t_lock.lock();
-	}
-	if (!error.HasError() && checkpoint_decision.can_checkpoint) {
-		// now that we have the transaction lock again, new transactions can't start
-		// figure out the checkpoint type now
-		checkpoint_decision = GetCheckpointType(transaction, undo_properties);
-		if (should_write_to_wal && skip_wal_write_due_to_checkpoint && !checkpoint_decision.can_checkpoint) {
-			// we have not written to the WAL but we have now realized we can't checkpoint after all
-			// in order to commit we need backpeddle and write to the WAL after all
-			D_ASSERT(held_wal_lock);
-			// unlock the transaction lock while we are writing to the WAL
-			t_lock.unlock();
-			error = transaction.WriteToWAL(context, db, commit_state);
-			wal_written = true;
-			t_lock.lock();
-			skip_wal_write_due_to_checkpoint = false;
-		}
 	}
 	// in-memory databases don't have a WAL - we estimate how large their changeset is based on the undo properties
 	if (!db.IsSystem()) {
@@ -433,8 +362,7 @@ ErrorData DuckTransactionManager::CommitTransaction(ClientContext &context, Tran
 	OnCommitCheckpointDecision(checkpoint_decision, transaction);
 
 	if (!checkpoint_decision.can_checkpoint && lock) {
-		// we won't checkpoint after all due to an error during commit: unlock the checkpoint lock again
-		skip_wal_write_due_to_checkpoint = false;
+		// we won't checkpoint after all: unlock the checkpoint lock again
 		lock.reset();
 	}
 
@@ -453,35 +381,37 @@ ErrorData DuckTransactionManager::CommitTransaction(ClientContext &context, Tran
 	// We do not need to hold the transaction lock during cleanup of transactions,
 	// as they (1) have been removed, or (2) enter cleanup_info.
 	t_lock.unlock();
-	// if we have skipped the WAL write due to checkpoint, we keep the WAL lock while checkpointing
-	// this prevents any concurrent transactions from happening during this time
-	if (!skip_wal_write_due_to_checkpoint) {
-		held_wal_lock.reset();
-	}
+	held_wal_lock.reset();
 
-	CleanupTransactions();
+	{
+		lock_guard<mutex> c_lock(cleanup_lock);
+		unique_ptr<DuckCleanupInfo> top_cleanup_info;
+		{
+			lock_guard<mutex> q_lock(cleanup_queue_lock);
+			if (!cleanup_queue.empty()) {
+				top_cleanup_info = std::move(cleanup_queue.front());
+				cleanup_queue.pop();
+			}
+		}
+		if (top_cleanup_info) {
+			top_cleanup_info->Cleanup();
+		}
+	}
 
 	// now perform a checkpoint if (1) we are able to checkpoint, and (2) the WAL has reached sufficient size to
 	// checkpoint
 	if (checkpoint_decision.can_checkpoint) {
-		if (!lock || lock->GetType() != StorageLockType::EXCLUSIVE) {
-			throw InternalException("Checkpointing requires an exclusive lock to be held");
-		}
+		D_ASSERT(lock);
 		// we can unlock the transaction lock while checkpointing
 		// checkpoint the database to disk
 		CheckpointOptions options;
 		options.action = CheckpointAction::ALWAYS_CHECKPOINT;
 		options.type = checkpoint_decision.type;
-		options.wal_lock = held_wal_lock.get();
 		auto &storage_manager = db.GetStorageManager();
 		try {
 			storage_manager.CreateCheckpoint(context, options);
 		} catch (std::exception &ex) {
-			if (wal_written) {
-				context.transaction.SetAutocheckpointError(BuildAutocheckpointError(db, ex));
-			} else {
-				error.Merge(ErrorData(ex));
-			}
+			error.Merge(ErrorData(ex));
 		}
 	}
 
@@ -507,7 +437,20 @@ void DuckTransactionManager::RollbackTransaction(Transaction &transaction_p) {
 		}
 	}
 
-	CleanupTransactions();
+	{
+		lock_guard<mutex> c_lock(cleanup_lock);
+		unique_ptr<DuckCleanupInfo> top_cleanup_info;
+		{
+			lock_guard<mutex> q_lock(cleanup_queue_lock);
+			if (!cleanup_queue.empty()) {
+				top_cleanup_info = std::move(cleanup_queue.front());
+				cleanup_queue.pop();
+			}
+		}
+		if (top_cleanup_info) {
+			top_cleanup_info->Cleanup();
+		}
+	}
 
 	if (error.HasError()) {
 		throw FatalException("Failed to rollback transaction. Cannot continue operation.\nError: %s", error.Message());

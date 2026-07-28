@@ -24,8 +24,6 @@
 
 #include "src/parser/parsed_data/create_collation_info.cpp"
 
-#include "src/parser/parsed_data/create_coordinate_system_info.cpp"
-
 #include "src/parser/parsed_data/create_copy_function_info.cpp"
 
 #include "src/parser/parsed_data/create_macro_info.cpp"

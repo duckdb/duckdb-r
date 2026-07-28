@@ -32,14 +32,14 @@ public:
 	bool LookupString(string_t str) override;
 	void AddNewString(string_t str) override;
 	void AddNull() override;
-	void AddLastLookup(string_t str) override;
+	void AddLastLookup() override;
 	bool CalculateSpaceRequirements(bool new_string, idx_t string_size) override;
 	void Flush(bool final = false) override;
 	idx_t Finalize();
 
 public:
 	ColumnDataCheckpointData &checkpoint_data;
-	const CompressionFunction &function;
+	CompressionFunction &function;
 
 	// State regarding current segment
 	unique_ptr<ColumnSegment> current_segment;

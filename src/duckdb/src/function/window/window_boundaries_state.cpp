@@ -828,9 +828,8 @@ void WindowBoundariesState::FrameBegin(DataChunk &bounds, idx_t row_idx, const i
 		break;
 	case WindowBoundary::EXPR_FOLLOWING_RANGE:
 		for (idx_t chunk_idx = 0; chunk_idx < count; ++chunk_idx, ++row_idx) {
-			const auto peer_begin = peer_begin_data[chunk_idx];
 			if (boundary_begin.CellIsNull(chunk_idx)) {
-				window_start = peer_begin;
+				window_start = peer_begin_data[chunk_idx];
 			} else {
 				const auto valid_end = valid_end_data[chunk_idx];
 				prev.end = valid_end;
@@ -839,7 +838,7 @@ void WindowBoundariesState::FrameBegin(DataChunk &bounds, idx_t row_idx, const i
 					prev.start = valid_begin_data[chunk_idx];
 					prev_partition = cur_partition;
 				}
-				window_start = FindOrderedRangeBound<true>(*range_lo, *range_hi, range_sense, peer_begin, valid_end,
+				window_start = FindOrderedRangeBound<true>(*range_lo, *range_hi, range_sense, row_idx, valid_end,
 				                                           start_boundary, boundary_begin, chunk_idx, prev);
 				prev.start = window_start;
 			}
@@ -967,9 +966,8 @@ void WindowBoundariesState::FrameEnd(DataChunk &bounds, idx_t row_idx, const idx
 		break;
 	case WindowBoundary::EXPR_PRECEDING_RANGE:
 		for (idx_t chunk_idx = 0; chunk_idx < count; ++chunk_idx, ++row_idx) {
-			const auto peer_end = peer_end_data[chunk_idx];
 			if (boundary_end.CellIsNull(chunk_idx)) {
-				window_end = peer_end;
+				window_end = peer_end_data[chunk_idx];
 			} else {
 				const auto valid_start = valid_begin_data[chunk_idx];
 				prev.start = valid_start;
@@ -978,7 +976,7 @@ void WindowBoundariesState::FrameEnd(DataChunk &bounds, idx_t row_idx, const idx
 					prev.end = valid_end;
 					prev_partition = cur_partition;
 				}
-				window_end = FindOrderedRangeBound<false>(*range_lo, *range_hi, range_sense, valid_start, peer_end,
+				window_end = FindOrderedRangeBound<false>(*range_lo, *range_hi, range_sense, valid_start, row_idx + 1,
 				                                          end_boundary, boundary_end, chunk_idx, prev);
 				prev.end = window_end;
 			}

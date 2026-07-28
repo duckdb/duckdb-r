@@ -61,6 +61,8 @@ public:
 	//! The main optimistic data writer associated with this table.
 	OptimisticDataWriter optimistic_writer;
 
+	//! Whether or not storage was merged
+	bool merged_storage = false;
 	//! Whether or not the storage was dropped
 	bool is_dropped = false;
 
@@ -89,7 +91,6 @@ public:
 	OptimisticDataWriter &GetOptimisticWriter();
 
 	RowGroupCollection &GetCollection();
-	OptimisticWriteCollection &GetPrimaryCollection();
 
 private:
 	mutex collections_lock;
@@ -141,7 +142,7 @@ public:
 	//! Initialize the storage and its indexes, but no row groups.
 	void InitializeStorage(LocalAppendState &state, DataTable &table);
 	//! Append a chunk to the local storage
-	static void Append(LocalAppendState &state, DataChunk &table_chunk);
+	static void Append(LocalAppendState &state, DataChunk &table_chunk, DataTableInfo &data_table_info);
 	//! Finish appending to the local storage
 	static void FinalizeAppend(LocalAppendState &state);
 	//! Merge a row group collection into the transaction-local storage
@@ -182,7 +183,7 @@ public:
 	                const vector<StorageIndex> &bound_columns, Expression &cast_expr);
 
 	void MoveStorage(DataTable &old_dt, DataTable &new_dt);
-	void FetchChunk(DataTable &table, const Vector &row_ids, idx_t count, const vector<StorageIndex> &col_ids,
+	void FetchChunk(DataTable &table, Vector &row_ids, idx_t count, const vector<StorageIndex> &col_ids,
 	                DataChunk &chunk, ColumnFetchState &fetch_state);
 	//! Returns true, if the local storage contains the row id.
 	bool CanFetch(DataTable &table, const row_t row_id);

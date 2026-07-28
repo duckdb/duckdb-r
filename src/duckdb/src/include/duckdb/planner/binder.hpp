@@ -114,10 +114,6 @@ public:
 		correlated_columns.insert(correlated_columns.begin(), std::move(info));
 		delim_index++;
 	}
-	void AddColumnToBack(container_type::value_type info) {
-		// Add to end
-		correlated_columns.push_back(std::move(info));
-	}
 
 	void SetDelimIndexToZero() {
 		delim_index = 0;
@@ -246,11 +242,6 @@ public:
 
 	void SetCatalogLookupCallback(catalog_entry_callback_t callback);
 	void BindCreateViewInfo(CreateViewInfo &base);
-	static void BindView(ClientContext &context, const SelectStatement &stmt, const string &catalog_name,
-	                     const string &schema_name, optional_ptr<LogicalDependencyList> dependencies,
-	                     const vector<string> &aliases, vector<LogicalType> &result_types,
-	                     vector<string> &result_names);
-
 	void SearchSchema(CreateInfo &info);
 	SchemaCatalogEntry &BindSchema(CreateInfo &info);
 	SchemaCatalogEntry &BindCreateFunctionInfo(CreateInfo &info);
@@ -288,19 +279,17 @@ public:
 
 	unique_ptr<LogicalOperator> BindUpdateSet(LogicalOperator &op, unique_ptr<LogicalOperator> root,
 	                                          UpdateSetInfo &set_info, TableCatalogEntry &table,
-	                                          vector<PhysicalIndex> &columns,
-	                                          bool prioritize_table_when_binding = false);
+	                                          vector<PhysicalIndex> &columns);
 	void BindUpdateSet(idx_t proj_index, unique_ptr<LogicalOperator> &root, UpdateSetInfo &set_info,
 	                   TableCatalogEntry &table, vector<PhysicalIndex> &columns,
 	                   vector<unique_ptr<Expression>> &update_expressions,
-	                   vector<unique_ptr<Expression>> &projection_expressions,
-	                   bool prioritize_table_when_binding = false);
+	                   vector<unique_ptr<Expression>> &projection_expressions);
 
 	void BindVacuumTable(LogicalVacuum &vacuum, unique_ptr<LogicalOperator> &root);
 
 	static void BindSchemaOrCatalog(ClientContext &context, string &catalog, string &schema);
-
-	void BindLogicalType(LogicalType &type);
+	void BindLogicalType(LogicalType &type, optional_ptr<Catalog> catalog = nullptr,
+	                     const string &schema = INVALID_SCHEMA);
 
 	optional_ptr<Binding> GetMatchingBinding(const string &table_name, const string &column_name, ErrorData &error);
 	optional_ptr<Binding> GetMatchingBinding(const string &schema_name, const string &table_name,
@@ -331,8 +320,6 @@ public:
 	                                  optional_ptr<duckdb_re2::RE2> regex);
 
 	unique_ptr<LogicalOperator> UnionOperators(vector<unique_ptr<LogicalOperator>> nodes);
-
-	void SetSearchPath(Catalog &catalog, const string &schema);
 
 private:
 	//! The parent binder (if any)
@@ -516,10 +503,9 @@ private:
 	const string BindCatalog(string &catalog_name);
 	SchemaCatalogEntry &BindCreateSchema(CreateInfo &info);
 
-	vector<CatalogSearchEntry> GetSearchPath(Catalog &catalog, const string &schema_name,
-	                                         bool default_schema_precedence = false);
+	vector<CatalogSearchEntry> GetSearchPath(Catalog &catalog, const string &schema_name);
 
-	LogicalType BindLogicalTypeInternal(const unique_ptr<ParsedExpression> &type_expr);
+	LogicalType BindLogicalTypeInternal(const LogicalType &type, optional_ptr<Catalog> catalog, const string &schema);
 
 	BoundStatement BindSelectNode(SelectNode &statement, BoundStatement from_table);
 
@@ -537,10 +523,12 @@ private:
 	void ExpandDefaultInValuesList(InsertStatement &stmt, TableCatalogEntry &table,
 	                               optional_ptr<ExpressionListRef> values_list,
 	                               const vector<LogicalIndex> &named_column_map);
-	unique_ptr<BoundMergeIntoAction>
-	BindMergeAction(LogicalMergeInto &merge_into, TableCatalogEntry &table, LogicalGet &get, idx_t proj_index,
-	                vector<unique_ptr<Expression>> &expressions, MergeIntoAction &action,
-	                const vector<BindingAlias> &source_aliases, const vector<string> &source_names);
+	unique_ptr<BoundMergeIntoAction> BindMergeAction(LogicalMergeInto &merge_into, TableCatalogEntry &table,
+	                                                 LogicalGet &get, idx_t proj_index,
+	                                                 vector<unique_ptr<Expression>> &expressions,
+	                                                 unique_ptr<LogicalOperator> &root, MergeIntoAction &action,
+	                                                 const vector<BindingAlias> &source_aliases,
+	                                                 const vector<string> &source_names);
 
 	unique_ptr<MergeIntoStatement> GenerateMergeInto(InsertStatement &stmt, TableCatalogEntry &table);
 
@@ -549,8 +537,6 @@ private:
 
 	BoundCTEData PrepareCTE(const string &ctename, CommonTableExpressionInfo &statement);
 	BoundStatement FinishCTE(BoundCTEData &bound_cte, BoundStatement child_data);
-
-	shared_ptr<Binder> CreateBinderWithSearchPath(const string &catalog_name, const string &schema_name);
 
 private:
 	Binder(ClientContext &context, shared_ptr<Binder> parent, BinderType binder_type);

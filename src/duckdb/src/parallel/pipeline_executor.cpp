@@ -78,21 +78,26 @@ bool PipelineExecutor::TryFlushCachingOperators(ExecutionBudget &chunk_budget) {
 		    flushing_idx + 1 >= intermediate_chunks.size() ? final_chunk : *intermediate_chunks[flushing_idx + 1];
 		auto &current_operator = pipeline.operators[flushing_idx].get();
 
-		// In-process operators here mean an earlier push of curr_chunk was interrupted (the chunk budget
-		// ran out, or the Sink blocked). We resume that push rather than flushing the operator again, and
-		// leave should_flush_current_idx alone: it still reflects the last actual FinalExecute.
-		const bool resuming_push = !in_process_operators.empty();
+		OperatorFinalizeResultType finalize_result;
 
-		if (!resuming_push) {
+		if (in_process_operators.empty()) {
 			curr_chunk.Reset();
 			StartOperator(current_operator);
-			auto finalize_result = current_operator.FinalExecute(context, curr_chunk, *current_operator.op_state,
-			                                                     *intermediate_states[flushing_idx]);
+			finalize_result = current_operator.FinalExecute(context, curr_chunk, *current_operator.op_state,
+			                                                *intermediate_states[flushing_idx]);
 			EndOperator(current_operator, &curr_chunk);
-			should_flush_current_idx = finalize_result == OperatorFinalizeResultType::HAVE_MORE_OUTPUT;
+		} else {
+			// Reset flag and reflush the last chunk we were flushing.
+			finalize_result = OperatorFinalizeResultType::HAVE_MORE_OUTPUT;
 		}
 
 		auto push_result = ExecutePushInternal(curr_chunk, chunk_budget, flushing_idx + 1);
+
+		if (finalize_result == OperatorFinalizeResultType::HAVE_MORE_OUTPUT) {
+			should_flush_current_idx = true;
+		} else {
+			should_flush_current_idx = false;
+		}
 
 		switch (push_result) {
 		case OperatorResultType::BLOCKED: {
@@ -106,12 +111,14 @@ bool PipelineExecutor::TryFlushCachingOperators(ExecutionBudget &chunk_budget) {
 			return false;
 		}
 		case OperatorResultType::NEED_MORE_INPUT:
+			continue;
 		case OperatorResultType::FINISHED:
 			break;
 		default:
 			throw InternalException("Unexpected OperatorResultType (%s) in TryFlushCachingOperators",
 			                        EnumUtil::ToString(push_result));
 		}
+		break;
 	}
 	return true;
 }
@@ -227,7 +234,6 @@ PipelineExecuteResult PipelineExecutor::Execute(idx_t max_chunks) {
 					return PipelineExecuteResult::INTERRUPTED;
 				}
 				if (source_result == SourceResultType::FINISHED) {
-					exhausted_source = true;
 					exhausted_pipeline = true;
 				}
 			}
@@ -256,8 +262,8 @@ PipelineExecuteResult PipelineExecutor::Execute(idx_t max_chunks) {
 		}
 
 		if (result == OperatorResultType::FINISHED) {
-			D_ASSERT(in_process_operators.empty());
 			exhausted_pipeline = true;
+			break;
 		}
 	} while (chunk_budget.Next());
 
@@ -376,10 +382,6 @@ PipelineExecuteResult PipelineExecutor::PushFinalize() {
 	}
 
 	finalized = true;
-
-	context.thread.profiler.FinalizeSourceProfiling(*pipeline.source_state, *local_source_state, *pipeline.source,
-	                                                exhausted_source);
-
 	// flush all query profiler info
 	for (idx_t i = 0; i < intermediate_states.size(); i++) {
 		intermediate_states[i]->Finalize(pipeline.operators[i].get(), context);
@@ -531,6 +533,10 @@ SourceResultType PipelineExecutor::FetchFromSource(DataChunk &result) {
 
 	// Ensures sources only return empty results when Blocking or Finished
 	D_ASSERT(res != SourceResultType::BLOCKED || result.size() == 0);
+	if (res == SourceResultType::FINISHED) {
+		// final call into the source - finish source execution
+		context.thread.profiler.FinishSource(*pipeline.source_state, *local_source_state);
+	}
 	EndOperator(*pipeline.source, &result);
 
 	return res;

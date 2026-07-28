@@ -12,7 +12,7 @@
 
 namespace duckdb {
 
-static idx_t GetLambdaParamCount(vector<DummyBinding> &lambda_bindings) {
+idx_t GetLambdaParamCount(vector<DummyBinding> &lambda_bindings) {
 	idx_t count = 0;
 	for (auto &binding : lambda_bindings) {
 		count += binding.GetColumnCount();
@@ -20,8 +20,8 @@ static idx_t GetLambdaParamCount(vector<DummyBinding> &lambda_bindings) {
 	return count;
 }
 
-static idx_t GetLambdaParamIndex(vector<DummyBinding> &lambda_bindings, const BoundLambdaExpression &bound_lambda_expr,
-                                 const BoundLambdaRefExpression &bound_lambda_ref_expr) {
+idx_t GetLambdaParamIndex(vector<DummyBinding> &lambda_bindings, const BoundLambdaExpression &bound_lambda_expr,
+                          const BoundLambdaRefExpression &bound_lambda_ref_expr) {
 	D_ASSERT(bound_lambda_ref_expr.lambda_idx < lambda_bindings.size());
 	idx_t offset = 0;
 	// count the remaining lambda parameters BEFORE the current lambda parameter,
@@ -35,8 +35,7 @@ static idx_t GetLambdaParamIndex(vector<DummyBinding> &lambda_bindings, const Bo
 	return offset;
 }
 
-static void ExtractParameter(const ParsedExpression &expr, vector<string> &column_names,
-                             vector<string> &column_aliases) {
+void ExtractParameter(const ParsedExpression &expr, vector<string> &column_names, vector<string> &column_aliases) {
 	auto &column_ref = expr.Cast<ColumnRefExpression>();
 	if (column_ref.IsQualified()) {
 		throw BinderException(LambdaExpression::InvalidParametersErrorMessage());
@@ -46,7 +45,7 @@ static void ExtractParameter(const ParsedExpression &expr, vector<string> &colum
 	column_aliases.push_back(column_ref.ToString());
 }
 
-static void ExtractParameters(LambdaExpression &expr, vector<string> &column_names, vector<string> &column_aliases) {
+void ExtractParameters(LambdaExpression &expr, vector<string> &column_names, vector<string> &column_aliases) {
 	// extract the lambda parameters, which are a single column
 	// reference, or a list of column references (ROW function)
 	string error_message;
@@ -61,26 +60,6 @@ static void ExtractParameters(LambdaExpression &expr, vector<string> &column_nam
 	D_ASSERT(!column_names.empty());
 }
 
-static bool IsDoubleArrowRHS(const ParsedExpression &expr) {
-	if (expr.GetExpressionClass() != ExpressionClass::FUNCTION) {
-		return false;
-	}
-	auto &func = expr.Cast<FunctionExpression>();
-	return func.is_operator && func.function_name == "->>" && func.children.size() == 2;
-}
-
-static unique_ptr<ParsedExpression> RestructureArrowChain(LambdaExpression &expr) {
-	auto &rhs_func = expr.expr->Cast<FunctionExpression>();
-	auto inner_lambda = make_uniq<LambdaExpression>(std::move(expr.lhs), std::move(rhs_func.children[0]));
-	inner_lambda->syntax_type = expr.syntax_type;
-	vector<unique_ptr<ParsedExpression>> children;
-	children.push_back(std::move(inner_lambda));
-	children.push_back(std::move(rhs_func.children[1]));
-	auto restructured = make_uniq<FunctionExpression>("->>", std::move(children));
-	restructured->is_operator = true;
-	return std::move(restructured);
-}
-
 BindResult ExpressionBinder::BindExpression(LambdaExpression &expr, idx_t depth,
                                             const vector<LogicalType> &function_child_types,
                                             optional_ptr<bind_lambda_function_t> bind_lambda_function) {
@@ -89,13 +68,6 @@ BindResult ExpressionBinder::BindExpression(LambdaExpression &expr, idx_t depth,
 	}
 
 	if (!bind_lambda_function) {
-		// The PEG parser produces A -> (B ->> C) where the standard parser left-associates to (A -> B) ->> C.
-		// Restructure to match standard behavior before binding.
-		if (IsDoubleArrowRHS(*expr.expr)) {
-			unique_ptr<ParsedExpression> restructured = RestructureArrowChain(expr);
-			return BindExpression(restructured, depth);
-		}
-
 		// This is not a lambda expression, but the JSON arrow operator.
 		// Remember the original expression in case of a binding error.
 		if (!expr.copied_expr) {

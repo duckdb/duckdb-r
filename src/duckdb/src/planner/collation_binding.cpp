@@ -20,7 +20,7 @@ bool PushVarcharCollation(ClientContext &context, unique_ptr<Expression> &source
 	auto str_collation = StringType::GetCollation(sql_type);
 	string collation;
 	if (str_collation.empty()) {
-		collation = Settings::Get<DefaultCollationSetting>(context);
+		collation = DBConfig::GetSetting<DefaultCollationSetting>(context);
 	} else {
 		collation = str_collation;
 	}

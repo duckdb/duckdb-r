@@ -17,7 +17,6 @@
 #include "duckdb/common/unordered_set.hpp"
 #include "duckdb/common/exception/parser_exception.hpp"
 #include "duckdb/execution/operator/csv_scanner/csv_reader_options.hpp"
-#include "duckdb/storage/table/per_column_metadata_blocks.hpp"
 
 namespace duckdb {
 
@@ -53,8 +52,6 @@ public:
 	};
 
 public:
-	virtual bool CanDeserializeProperty(const field_id_t field_id, const char *tag) = 0;
-
 	// Read into an existing value
 	template <typename T>
 	inline void ReadProperty(const field_id_t field_id, const char *tag, T &ret) {
@@ -487,12 +484,6 @@ private:
 		return ReadString();
 	}
 
-	// Deserialize an Identifier (stored identically to a plain string)
-	template <typename T = void>
-	inline typename std::enable_if<std::is_same<T, Identifier>::value, T>::type Read() {
-		return Identifier(ReadString());
-	}
-
 	// Deserialize a Enum
 	template <typename T = void>
 	inline typename std::enable_if<std::is_enum<T>::value, T>::type Read() {
@@ -533,12 +524,6 @@ private:
 	inline typename std::enable_if<std::is_same<T, optional_idx>::value, T>::type Read() {
 		auto idx = ReadUnsignedInt64();
 		return idx == DConstants::INVALID_INDEX ? optional_idx() : optional_idx(idx);
-	}
-
-	// Deserialize a ProjectionIndex
-	template <typename T = void>
-	inline typename std::enable_if<std::is_same<T, PerColumnMetadataBlock>::value, T>::type Read() {
-		return PerColumnMetadataBlock::Unpack(ReadUnsignedInt64());
 	}
 
 protected:

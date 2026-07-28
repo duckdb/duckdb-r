@@ -18,7 +18,7 @@ public:
 	static constexpr const PhysicalType TYPE = PhysicalType::STRUCT;
 
 public:
-	VariantColumnReader(ClientContext &context, const ParquetReader &reader, const ParquetColumnSchema &schema,
+	VariantColumnReader(ClientContext &context, ParquetReader &reader, const ParquetColumnSchema &schema,
 	                    vector<unique_ptr<ColumnReader>> child_readers_p);
 
 	ClientContext &context;
@@ -35,7 +35,6 @@ public:
 	idx_t GroupRowsAvailable() override;
 	uint64_t TotalCompressedSize() override;
 	void RegisterPrefetch(ThriftFileTransport &transport, bool allow_merge) override;
-	static bool TypedValueLayoutToType(const LogicalType &typed_value, LogicalType &logical_type);
 
 protected:
 	idx_t metadata_reader_idx;

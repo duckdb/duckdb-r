@@ -76,8 +76,6 @@ public:
 	DUCKDB_API void Close() override;
 
 private:
-	void Clear(); // for Initialize re-use to support FS.Reset()
-
 	idx_t current_position = 0;
 	unique_ptr<StreamWrapper> stream_wrapper;
 };

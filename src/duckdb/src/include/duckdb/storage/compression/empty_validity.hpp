@@ -20,7 +20,7 @@ public:
 		}
 
 	public:
-		optional_ptr<const CompressionFunction> function;
+		optional_ptr<CompressionFunction> function;
 		ColumnDataCheckpointData &checkpoint_data;
 		idx_t count = 0;
 		idx_t non_nulls = 0;

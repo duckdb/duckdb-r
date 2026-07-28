@@ -28,8 +28,7 @@ void ArrowUnionData::Append(ArrowAppendData &append_data, Vector &input, idx_t f
 		child_vectors.emplace_back(child.second, size);
 	}
 
-	for (idx_t i = 0; i < size; i++) {
-		auto input_idx = from + i;
+	for (idx_t input_idx = from; input_idx < to; input_idx++) {
 		const auto &val = input.GetValue(input_idx);
 
 		idx_t tag = 0;
@@ -41,7 +40,7 @@ void ArrowUnionData::Append(ArrowAppendData &append_data, Vector &input, idx_t f
 		}
 
 		for (idx_t child_idx = 0; child_idx < child_vectors.size(); child_idx++) {
-			child_vectors[child_idx].SetValue(i, child_idx == tag ? resolved_value : Value(nullptr));
+			child_vectors[child_idx].SetValue(input_idx, child_idx == tag ? resolved_value : Value(nullptr));
 		}
 		types_buffer.push_back<data_t>(NumericCast<data_t>(tag));
 	}
@@ -49,7 +48,7 @@ void ArrowUnionData::Append(ArrowAppendData &append_data, Vector &input, idx_t f
 	for (idx_t child_idx = 0; child_idx < child_vectors.size(); child_idx++) {
 		auto &child_buffer = append_data.child_data[child_idx];
 		auto &child = child_vectors[child_idx];
-		child_buffer->AppendChild(child, 0, size, size);
+		child_buffer->append_vector(*child_buffer, child, from, to, size);
 	}
 	append_data.row_count += size;
 }

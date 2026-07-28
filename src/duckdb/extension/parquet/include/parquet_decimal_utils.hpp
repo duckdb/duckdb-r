@@ -18,10 +18,6 @@ public:
 	template <class PHYSICAL_TYPE>
 	static PHYSICAL_TYPE ReadDecimalValue(const_data_ptr_t pointer, idx_t size, const ParquetColumnSchema &) {
 		PHYSICAL_TYPE res = 0;
-		if (size == 0) {
-			// empty byte array - value is zero, and there is no sign byte to read
-			return res;
-		}
 
 		auto res_ptr = (uint8_t *)&res;
 		bool positive = (*pointer & 0x80) == 0;
@@ -50,7 +46,7 @@ public:
 		return res;
 	}
 
-	static unique_ptr<ColumnReader> CreateReader(const ParquetReader &reader, const ParquetColumnSchema &schema);
+	static unique_ptr<ColumnReader> CreateReader(ParquetReader &reader, const ParquetColumnSchema &schema);
 };
 
 template <>

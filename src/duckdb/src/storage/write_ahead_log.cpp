@@ -32,7 +32,6 @@ WriteAheadLog::WriteAheadLog(StorageManager &storage_manager, const string &wal_
     : storage_manager(storage_manager), wal_path(wal_path), init_state(init_state),
       checkpoint_iteration(checkpoint_iteration) {
 	storage_manager.SetWALSize(wal_size);
-	storage_manager.ResetWALEntriesCount();
 }
 
 WriteAheadLog::~WriteAheadLog() {
@@ -40,10 +39,6 @@ WriteAheadLog::~WriteAheadLog() {
 
 AttachedDatabase &WriteAheadLog::GetDatabase() {
 	return storage_manager.GetAttached();
-}
-
-StorageManager &WriteAheadLog::GetStorageManager() {
-	return storage_manager;
 }
 
 BufferedFileWriter &WriteAheadLog::Initialize() {
@@ -143,17 +138,15 @@ public:
 
 		auto &db = wal.GetDatabase();
 		auto &keys = EncryptionKeyManager::Get(db.GetDatabase());
-		auto metadata = make_uniq<EncryptionStateMetadata>(db.GetStorageManager().GetCipher(),
-		                                                   MainHeader::DEFAULT_ENCRYPTION_KEY_LENGTH,
-		                                                   EncryptionTypes::EncryptionVersion::V0_1);
-		auto encryption_state =
-		    db.GetDatabase().GetEncryptionUtil(db.IsReadOnly())->CreateEncryptionState(std::move(metadata));
+
+		auto encryption_state = db.GetDatabase().GetEncryptionUtil()->CreateEncryptionState(
+		    db.GetStorageManager().GetCipher(), MainHeader::DEFAULT_ENCRYPTION_KEY_LENGTH);
 
 		// temp buffer
 		const idx_t ciphertext_size = size + sizeof(uint64_t);
 		std::unique_ptr<uint8_t[]> temp_buf(new uint8_t[ciphertext_size]);
 
-		EncryptionNonce nonce(db.GetStorageManager().GetCipher(), db.GetStorageManager().GetEncryptionVersion());
+		EncryptionNonce nonce;
 		EncryptionTag tag;
 
 		// generate nonce
@@ -168,7 +161,8 @@ public:
 		memcpy(temp_buf.get() + sizeof(checksum), memory_stream.GetData(), memory_stream.GetPosition());
 
 		//! encrypt the temp buf
-		encryption_state->InitializeEncryption(nonce, keys.GetKey(encryption_key_id));
+		encryption_state->InitializeEncryption(nonce.data(), nonce.size(), keys.GetKey(encryption_key_id),
+		                                       MainHeader::DEFAULT_ENCRYPTION_KEY_LENGTH);
 		encryption_state->Process(temp_buf.get(), ciphertext_size, temp_buf.get(), ciphertext_size);
 
 		//! calculate the tag (for GCM)
@@ -178,17 +172,10 @@ public:
 		stream->WriteData(temp_buf.get(), ciphertext_size);
 
 		// Write the tag to the stream
-		if (encryption_state->GetCipher() == EncryptionTypes::CipherType::GCM) {
-			D_ASSERT(!tag.IsAllZeros());
-			stream->WriteData(tag.data(), tag.size());
-		}
+		stream->WriteData(tag.data(), tag.size());
 
 		// rewind the buffer
 		memory_stream.Rewind();
-	}
-
-	WriteAheadLog &GetWAL() {
-		return wal;
 	}
 
 private:
@@ -213,7 +200,6 @@ public:
 	void End() {
 		serializer.End();
 		checksum_writer.Flush();
-		checksum_writer.GetWAL().IncrementWALEntriesCount();
 	}
 
 	template <class T>
@@ -378,7 +364,7 @@ void SerializeIndex(AttachedDatabase &db, WriteAheadLogSerializer &serializer, T
 		options["v1_0_0_storage"] = v1_0_0_storage;
 	}
 
-	for (auto &index : list.Indexes()) {
+	list.Scan([&](Index &index) {
 		if (name == index.GetIndexName()) {
 			// We never write an unbound index to the WAL.
 			D_ASSERT(index.IsBound());
@@ -390,9 +376,10 @@ void SerializeIndex(AttachedDatabase &db, WriteAheadLogSerializer &serializer, T
 					list.WriteElement(buffer.buffer_ptr, buffer.allocation_size);
 				}
 			});
-			break;
+			return true;
 		}
-	}
+		return false;
+	});
 }
 
 void WriteAheadLog::WriteCreateIndex(const IndexCatalogEntry &entry) {
@@ -480,12 +467,6 @@ void WriteAheadLog::WriteRowGroupData(const PersistentCollectionData &data) {
 	WriteAheadLogSerializer serializer(*this, WALType::ROW_GROUP_DATA);
 	serializer.WriteProperty(101, "row_group_data", data);
 	serializer.End();
-
-	// mark written blocks as checkpointed
-	auto &block_manager = GetDatabase().GetStorageManager().GetBlockManager();
-	for (auto &block_id : data.GetBlockIds()) {
-		block_manager.MarkBlockAsCheckpointed(block_id);
-	}
 }
 
 void WriteAheadLog::WriteDelete(DataChunk &chunk) {
@@ -551,10 +532,6 @@ void WriteAheadLog::Flush() {
 	// flushes all changes made to the WAL to disk
 	writer->Sync();
 	storage_manager.SetWALSize(writer->GetFileSize());
-}
-
-void WriteAheadLog::IncrementWALEntriesCount() {
-	storage_manager.IncrementWALEntriesCount();
 }
 
 } // namespace duckdb

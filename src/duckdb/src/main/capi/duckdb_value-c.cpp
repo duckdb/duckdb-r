@@ -6,7 +6,6 @@
 #include "duckdb/common/types/uuid.hpp"
 #include "duckdb/common/types/value.hpp"
 #include "duckdb/common/types/bignum.hpp"
-#include "duckdb/common/types/decimal.hpp"
 #include "duckdb/main/capi/capi_internal.hpp"
 
 using duckdb::LogicalTypeId;
@@ -31,11 +30,7 @@ void duckdb_destroy_value(duckdb_value *value) {
 }
 
 duckdb_value duckdb_create_varchar_length(const char *text, idx_t length) {
-	try {
-		return WrapValue(new duckdb::Value(std::string(text, length)));
-	} catch (...) {
-		return nullptr;
-	}
+	return WrapValue(new duckdb::Value(std::string(text, length)));
 }
 
 duckdb_value duckdb_create_varchar(const char *text) {
@@ -140,9 +135,6 @@ duckdb_bignum duckdb_get_bignum(duckdb_value val) {
 	return {data, size, is_negative};
 }
 duckdb_value duckdb_create_decimal(duckdb_decimal input) {
-	if (!duckdb::Decimal::IsValidWidthScale(input.width, input.scale)) {
-		return nullptr;
-	}
 	duckdb::hugeint_t hugeint(input.value.upper, input.value.lower);
 	int64_t int64;
 	if (duckdb::Hugeint::TryCast<int64_t>(hugeint, int64)) {

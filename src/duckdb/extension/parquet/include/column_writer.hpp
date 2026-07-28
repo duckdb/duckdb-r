@@ -122,7 +122,7 @@ public:
 		}
 		return false;
 	}
-	virtual LogicalType TransformedType() const {
+	virtual LogicalType TransformedType() {
 		throw NotImplementedException("Writer does not have a transformed type");
 	}
 	virtual unique_ptr<Expression> TransformExpression(unique_ptr<BoundReferenceExpression> expr) {
@@ -137,9 +137,6 @@ public:
 		return child_writers;
 	}
 
-	//! Mark this writer (and descendants) as REQUIRED in the Parquet schema
-	void MarkRepetitionRequired();
-
 	virtual void AnalyzeSchema(ParquetAnalyzeSchemaState &state, Vector &input, idx_t count) {
 		throw NotImplementedException("Writer doesn't require an AnalyzeSchema pass");
 	}
@@ -148,7 +145,7 @@ public:
 		throw NotImplementedException("Writer doesn't require an AnalyzeSchemaFinalize pass");
 	}
 
-	virtual idx_t FinalizeSchema(vector<duckdb_parquet::SchemaElement> &schemas) = 0;
+	virtual void FinalizeSchema(vector<duckdb_parquet::SchemaElement> &schemas) = 0;
 
 	//! Create the column writer for a specific type recursively
 	static unique_ptr<ColumnWriter> CreateWriterRecursive(ClientContext &context, ParquetWriter &writer,
@@ -182,18 +179,6 @@ public:
 	virtual void Write(ColumnWriterState &state, Vector &vector, idx_t count) = 0;
 	virtual void FinalizeWrite(ColumnWriterState &state) = 0;
 
-public:
-	template <class TARGET>
-	TARGET &Cast() {
-		DynamicCastCheck<TARGET>(this);
-		return reinterpret_cast<TARGET &>(*this);
-	}
-	template <class TARGET>
-	const TARGET &Cast() const {
-		D_ASSERT(dynamic_cast<const TARGET *>(this));
-		return reinterpret_cast<const TARGET &>(*this);
-	}
-
 protected:
 	void HandleDefineLevels(ColumnWriterState &state, ColumnWriterState *parent, const ValidityMask &validity,
 	                        const idx_t count, const uint16_t define_value, const uint16_t null_value) const;
@@ -202,12 +187,8 @@ protected:
 	void CompressPage(MemoryStream &temp_writer, size_t &compressed_size, data_ptr_t &compressed_data,
 	                  AllocatedData &compressed_buf);
 
-	void DecrementMaxDefineRecursive();
-
 public:
 	ParquetWriter &writer;
-	//! The parent writer (if this is a nested field)
-	optional_ptr<ColumnWriter> parent;
 	ParquetColumnSchema column_schema;
 	vector<string> schema_path;
 	bool can_have_nulls;

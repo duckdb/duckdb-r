@@ -1,7 +1,6 @@
 #include "duckdb/execution/operator/join/physical_iejoin.hpp"
 
 #include "duckdb/common/atomic.hpp"
-#include "duckdb/common/bit_utils.hpp"
 #include "duckdb/common/row_operations/row_operations.hpp"
 #include "duckdb/common/sorting/sort_key.hpp"
 #include "duckdb/main/client_context.hpp"
@@ -161,7 +160,7 @@ SinkResultType PhysicalIEJoin::Sink(ExecutionContext &context, DataChunk &chunk,
 
 	gstate.Sink(context, chunk, lstate);
 
-	if (filter_pushdown && !gstate.skip_filter_pushdown && gstate.child == 1) {
+	if (filter_pushdown && !gstate.skip_filter_pushdown) {
 		filter_pushdown->Sink(lstate.table.keys, *lstate.local_filter_state);
 	}
 
@@ -177,7 +176,7 @@ SinkCombineResultType PhysicalIEJoin::Combine(ExecutionContext &context, Operato
 	context.thread.profiler.Flush(*this);
 	client_profiler.Flush(context.thread.profiler);
 
-	if (filter_pushdown && !gstate.skip_filter_pushdown && gstate.child == 1) {
+	if (filter_pushdown && !gstate.skip_filter_pushdown) {
 		filter_pushdown->Combine(*gstate.global_filter_state, *lstate.local_filter_state);
 	}
 
@@ -190,7 +189,7 @@ SinkCombineResultType PhysicalIEJoin::Combine(ExecutionContext &context, Operato
 SinkFinalizeType PhysicalIEJoin::Finalize(Pipeline &pipeline, Event &event, ClientContext &client,
                                           OperatorSinkFinalizeInput &input) const {
 	auto &gstate = input.global_state.Cast<IEJoinGlobalState>();
-	if (filter_pushdown && !gstate.skip_filter_pushdown && gstate.child == 1) {
+	if (filter_pushdown && !gstate.skip_filter_pushdown) {
 		(void)filter_pushdown->Finalize(client, nullptr, *gstate.global_filter_state, *this);
 	}
 	auto &table = *gstate.tables[gstate.child];
@@ -328,16 +327,16 @@ public:
 	//! Stop producing tasks
 	atomic<bool> stopped;
 	//! The number of completed tasks for each stage
-	array<atomic<idx_t>, static_cast<size_t>(IEJoinSourceStage::DONE)> completed;
+	array<atomic<idx_t>, size_t(IEJoinSourceStage::DONE)> completed;
 
 	//! L1
 	unique_ptr<SortedTable> l1;
 	//! L2
 	unique_ptr<SortedTable> l2;
 	//! Li
-	unsafe_vector<int64_t> li;
+	vector<int64_t> li;
 	//! P
-	unsafe_vector<idx_t> p;
+	vector<idx_t> p;
 
 	// Join queue state
 	idx_t l2_blocks = 0;
@@ -387,8 +386,8 @@ struct IEJoinUnion {
 	                       const ChunkRange &range);
 
 	template <typename T, typename VECTOR_TYPE = T>
-	static void ExtractColumn(SortedTable &table, idx_t col_idx, unsafe_vector<T> &result) {
-		result.clear();
+	static vector<T> ExtractColumn(SortedTable &table, idx_t col_idx) {
+		vector<T> result;
 		result.reserve(table.count);
 
 		auto &collection = *table.sorted->payload_data;
@@ -401,9 +400,13 @@ struct IEJoinUnion {
 
 		while (collection.Scan(state, payload)) {
 			const auto count = payload.size();
-			const auto data_ptr = reinterpret_cast<T *>(FlatVector::GetData<VECTOR_TYPE>(payload.data[0]));
-			result.insert(result.end(), data_ptr, data_ptr + count);
+			const auto data_ptr = FlatVector::GetData<VECTOR_TYPE>(payload.data[0]);
+			for (idx_t i = 0; i < count; i++) {
+				result.push_back(UnsafeNumericCast<T>(data_ptr[i]));
+			}
 		}
+
+		return result;
 	}
 
 	class UnionIterator {
@@ -419,25 +422,9 @@ struct IEJoinUnion {
 			index = i;
 		}
 
-		inline idx_t GetChunkIndex() const {
-			idx_t chunk_idx;
-			idx_t tuple_idx;
-			state->RandomAccess(chunk_idx, tuple_idx, index);
-			return chunk_idx;
-		}
-
-		inline void SetChunkIndex(idx_t chunk_idx) {
-			index = state->GetDivisor() * chunk_idx;
-		}
-
 		UnionIterator &operator++() {
 			++index;
 			return *this;
-		}
-
-		void Repin() {
-			state->SetKeepPinned(true);
-			state->SetPinPayload(true);
 		}
 
 		unique_ptr<ExternalBlockIteratorState> state;
@@ -459,7 +446,7 @@ struct IEJoinUnion {
 	IEJoinGlobalSourceState &gsource;
 
 	//! Inverted loop
-	idx_t JoinComplexBlocks(unsafe_vector<idx_t> &lsel, unsafe_vector<idx_t> &rsel);
+	idx_t JoinComplexBlocks(vector<idx_t> &lsel, vector<idx_t> &rsel);
 
 	//! B
 	vector<validity_t> bit_array;
@@ -475,6 +462,8 @@ struct IEJoinUnion {
 	idx_t i;
 	idx_t n_j;
 	idx_t j;
+	unique_ptr<UnionIterator> op1;
+	unique_ptr<UnionIterator> off1;
 	unique_ptr<UnionIterator> op2;
 	unique_ptr<UnionIterator> off2;
 	int64_t lrid;
@@ -559,6 +548,10 @@ idx_t IEJoinUnion::AppendKey(ExecutionContext &context, InterruptState &interrup
 
 IEJoinUnion::IEJoinUnion(IEJoinGlobalSourceState &gsource, const ChunkRange &chunks) : gsource(gsource), n(0), i(0) {
 	auto &op = gsource.op;
+	auto &l1 = *gsource.l1;
+	const auto strict1 = IsStrictComparison(op.conditions[0].comparison);
+	op1 = make_uniq<UnionIterator>(l1, strict1);
+	off1 = make_uniq<UnionIterator>(l1, strict1);
 
 	// 7. initialize bit-array B (|B| = n), and set all bits to 0
 	auto &l2 = *gsource.l2;
@@ -627,7 +620,6 @@ bool IEJoinUnion::NextRow() {
 	auto &li = gsource.li;
 	auto &p = gsource.p;
 
-	auto pinned_idx = off2->GetChunkIndex();
 	for (; i < n; ++i) {
 		// 12. pos ← P[i]
 		auto pos = p[i];
@@ -639,19 +631,14 @@ bool IEJoinUnion::NextRow() {
 		// 16. B[pos] ← 1
 		op2->SetIndex(i);
 		for (; off2->GetIndex() < n_j; ++(*off2)) {
-			//	Prevent buildup of pinned blocks
-			if (off2->GetChunkIndex() != pinned_idx) {
-				off2->Repin();
-				pinned_idx = off2->GetChunkIndex();
-			}
 			if (!Compare(off2_itr[off2->GetIndex()], op2_itr[op2->GetIndex()], strict)) {
 				break;
 			}
 			const auto p2 = p[off2->GetIndex()];
 			if (li[p2] < 0) {
 				// Only mark rhs matches.
-				bit_mask.SetValidUnsafe(p2);
-				bloom_filter.SetValidUnsafe(p2 / BLOOM_CHUNK_BITS);
+				bit_mask.SetValid(p2);
+				bloom_filter.SetValid(p2 / BLOOM_CHUNK_BITS);
 			}
 		}
 
@@ -677,64 +664,44 @@ static idx_t NextValid(const ValidityMask &bits, idx_t j, const idx_t n) {
 	// which gives 64:1.
 	idx_t entry_idx, idx_in_entry;
 	bits.GetEntryIndex(j, entry_idx, idx_in_entry);
+	auto entry = bits.GetValidityEntry(entry_idx++);
 
-	// Copy first entry to local and trim the bits before the start position
-	auto first_entry = bits.GetValidityEntryUnsafe(entry_idx++);
-	first_entry &= (ValidityMask::ValidityBuffer::MAX_ENTRY << idx_in_entry);
+	// Trim the bits before the start position
+	entry &= (ValidityMask::ValidityBuffer::MAX_ENTRY << idx_in_entry);
 
-	// If the first entry has a valid bit, we can return immediately
-	if (first_entry) {
-		return j + CountZeros<validity_t>::Trailing(first_entry) - idx_in_entry;
-	}
-
-	// The first entry did not have a valid bit
-	j += ValidityMask::BITS_PER_VALUE - idx_in_entry;
-
-	// Loop over non-ragged entries
-	const auto entry_count_minus_one = bits.EntryCount(n) - 1;
-	const auto entry_idx_before = entry_idx;
-
-	// The compiler has a hard time optimizing this loop for some reason
-	// Creating a static inner loop like this improves performance by almost 2x
-	static constexpr idx_t NEXT_VALID_UNROLL = 8;
-	for (; entry_idx + NEXT_VALID_UNROLL < entry_count_minus_one; entry_idx += NEXT_VALID_UNROLL) {
-		for (idx_t unroll_idx = 0; unroll_idx < NEXT_VALID_UNROLL; unroll_idx++) {
-			const auto unroll_entry_idx = entry_idx + unroll_idx;
-			const auto &entry = bits.GetValidityEntryUnsafe(unroll_entry_idx);
-			if (entry) {
-				return j + (unroll_entry_idx - entry_idx_before) * ValidityMask::BITS_PER_VALUE +
-				       CountZeros<validity_t>::Trailing(entry);
-			}
-		}
-	}
-
-	for (; entry_idx < entry_count_minus_one; ++entry_idx) {
-		const auto &entry = bits.GetValidityEntryUnsafe(entry_idx);
+	// Check the non-ragged entries
+	for (const auto entry_count = bits.EntryCount(n); entry_idx < entry_count; ++entry_idx) {
 		if (entry) {
-			return j + (entry_idx - entry_idx_before) * ValidityMask::BITS_PER_VALUE +
-			       CountZeros<validity_t>::Trailing(entry);
+			for (; idx_in_entry < bits.BITS_PER_VALUE; ++idx_in_entry, ++j) {
+				if (bits.RowIsValid(entry, idx_in_entry)) {
+					return j;
+				}
+			}
+		} else {
+			j += bits.BITS_PER_VALUE - idx_in_entry;
 		}
-	}
 
-	// Update j once after the loop so we don't have to update it in each iteration
-	j += (entry_idx - entry_idx_before) * ValidityMask::BITS_PER_VALUE;
+		entry = bits.GetValidityEntry(entry_idx);
+		idx_in_entry = 0;
+	}
 
 	// Check the final entry
-	return j >= n ? n : j + CountZeros<validity_t>::Trailing(bits.GetValidityEntryUnsafe(entry_idx));
+	for (; j < n; ++idx_in_entry, ++j) {
+		if (bits.RowIsValid(entry, idx_in_entry)) {
+			return j;
+		}
+	}
+
+	return j;
 }
 
-idx_t IEJoinUnion::JoinComplexBlocks(unsafe_vector<idx_t> &lsel, unsafe_vector<idx_t> &rsel) {
-	const auto &li = gsource.li;
-
-	// Release pinned blocks
-	op2->Repin();
-	off2->Repin();
+idx_t IEJoinUnion::JoinComplexBlocks(vector<idx_t> &lsel, vector<idx_t> &rsel) {
+	auto &li = gsource.li;
 
 	// 8. initialize join result as an empty list for tuple pairs
 	idx_t result_count = 0;
-
-	lsel.resize(STANDARD_VECTOR_SIZE);
-	rsel.resize(STANDARD_VECTOR_SIZE);
+	lsel.resize(0);
+	rsel.resize(0);
 
 	// 11. for(i←1 to n) do
 	while (i < n) {
@@ -764,8 +731,8 @@ idx_t IEJoinUnion::JoinComplexBlocks(unsafe_vector<idx_t> &lsel, unsafe_vector<i
 
 			D_ASSERT(lrid > 0 && rrid < 0);
 			// 15. add tuples w.r.t. (L1[j], L1[i]) to join result
-			lsel[result_count] = static_cast<idx_t>(+lrid - 1);
-			rsel[result_count] = static_cast<idx_t>(-rrid - 1);
+			lsel.emplace_back(idx_t(+lrid - 1));
+			rsel.emplace_back(idx_t(-rrid - 1));
 			++result_count;
 			if (result_count == STANDARD_VECTOR_SIZE) {
 				// out of space!
@@ -778,9 +745,6 @@ idx_t IEJoinUnion::JoinComplexBlocks(unsafe_vector<idx_t> &lsel, unsafe_vector<i
 			break;
 		}
 	}
-
-	lsel.resize(result_count);
-	rsel.resize(result_count);
 
 	return result_count;
 }
@@ -877,7 +841,7 @@ void IEJoinGlobalSourceState::ExecuteLiTask(ClientContext &client) {
 	// We don't actually need the L1 column, just its sort key, which is in the sort blocks
 	l1->GetSortedRun(client);
 
-	IEJoinUnion::ExtractColumn<int64_t>(*l1, 1, li);
+	li = IEJoinUnion::ExtractColumn<int64_t>(*l1, 1);
 }
 
 void IEJoinGlobalSourceState::ExecutePermutationTask(ClientContext &client) {
@@ -885,7 +849,7 @@ void IEJoinGlobalSourceState::ExecutePermutationTask(ClientContext &client) {
 	l2->GetSortedRun(client);
 
 	// 6. compute the permutation array P of L2 w.r.t. L1
-	IEJoinUnion::ExtractColumn<idx_t, int64_t>(*l2, 0, p);
+	p = IEJoinUnion::ExtractColumn<idx_t, int64_t>(*l2, 0);
 }
 
 class IEJoinLocalSourceState : public LocalSourceState {
@@ -993,7 +957,7 @@ public:
 	idx_t left_block_index;
 	unique_ptr<ExternalBlockIteratorState> left_iterator;
 	TupleDataChunkState left_chunk_state;
-	unsafe_vector<idx_t> lsel;
+	vector<idx_t> lsel;
 	DataChunk lpayload;
 	unique_ptr<SortedRunScanState> left_scan_state;
 
@@ -1001,7 +965,7 @@ public:
 	idx_t right_block_index;
 	unique_ptr<ExternalBlockIteratorState> right_iterator;
 	TupleDataChunkState right_chunk_state;
-	unsafe_vector<idx_t> rsel;
+	vector<idx_t> rsel;
 	DataChunk rpayload;
 	unique_ptr<SortedRunScanState> right_scan_state;
 
@@ -1017,7 +981,7 @@ public:
 	DataChunk unprojected;
 
 	// Outer joins
-	unsafe_vector<idx_t> outer_sel;
+	vector<idx_t> outer_sel;
 	idx_t outer_idx;
 	idx_t outer_count;
 	bool *left_matches;

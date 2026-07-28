@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 18 Oct 2026 21:07:56 +0000
+Subject: [PATCH] Bound the all-valid fill by the entry count, not by the last index
+
+TemplatedValidityMask::SetAllValid() fills every entry below the last
+with a loop bounded by EntryCount(count) - 1, and GCC turns the loop
+into a memset whose length it bounds from that expression. EntryCount()
+is (count + 63) / 64, which wraps to zero for a count within 63 of the
+type's maximum, so the compiler reads the index as possibly SIZE_MAX
+and -Wstringop-overflow reports a memset of more than any object can
+hold, twice, at the call sites it inlines. The loop now runs while
+i + 1 < entry_count, which bounds the fill by the entry count itself,
+and the last index is derived after it; the fill is the same for every
+count the function is called with.
+
+Only CI's GCC 15.2 raises this, in duckdb/duckdb-r#2937's check of the
+v2.0 landing; GCC 13.3 and 14.2 are silent on the same tree, so the
+patch is confirmed by that check rather than locally.
+
+Carried here until upstream takes it; not proposed upstream yet.
+
+---
+ src/duckdb/src/include/duckdb/common/types/validity_mask.hpp | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/duckdb/src/include/duckdb/common/types/validity_mask.hpp b/src/duckdb/src/include/duckdb/common/types/validity_mask.hpp
+index f3c351bf83..81815fd219 100644
+--- a/src/duckdb/src/include/duckdb/common/types/validity_mask.hpp
++++ b/src/duckdb/src/include/duckdb/common/types/validity_mask.hpp
+@@ -305,10 +305,11 @@ public:
+ 		if (count == 0) {
+ 			return;
+ 		}
+-		auto last_entry_index = ValidityBuffer::EntryCount(count) - 1;
+-		for (idx_t i = 0; i < last_entry_index; i++) {
++		const auto entry_count = ValidityBuffer::EntryCount(count);
++		for (idx_t i = 0; i + 1 < entry_count; i++) {
+ 			validity_mask[i] = ValidityBuffer::MAX_ENTRY;
+ 		}
++		const auto last_entry_index = entry_count - 1;
+ 		auto last_entry_bits = count % BITS_PER_VALUE;
+ 		validity_mask[last_entry_index] |= (last_entry_bits == 0)
+ 		                                       ? ValidityBuffer::MAX_ENTRY

@@ -51,7 +51,7 @@ public:
 	explicit CopyToFunctionGlobalState(ClientContext &context_p)
 	    : context(context_p), finalized(false), initialized(false), rows_copied(0), last_file_offset(0),
 	      file_write_lock_if_rotating(make_uniq<StorageLock>()) {
-		max_open_files = Settings::Get<PartitionedWriteMaxOpenFilesSetting>(context);
+		max_open_files = DBConfig::GetSetting<PartitionedWriteMaxOpenFilesSetting>(context);
 	}
 	~CopyToFunctionGlobalState() override;
 
@@ -120,11 +120,7 @@ public:
 				string p_dir;
 				p_dir += HivePartitioning::Escape(partition_col_name);
 				p_dir += "=";
-				if (partition_value.IsNull()) {
-					p_dir += "__HIVE_DEFAULT_PARTITION__";
-				} else {
-					p_dir += HivePartitioning::Escape(partition_value.ToString());
-				}
+				p_dir += HivePartitioning::Escape(partition_value.ToString());
 				path = fs.JoinPath(path, p_dir);
 				CreateDir(path, fs);
 			}
@@ -264,12 +260,7 @@ CopyToFunctionGlobalState::~CopyToFunctionGlobalState() {
 	// If we reach here, the query failed before Finalize was called
 	auto &fs = FileSystem::GetFileSystem(context);
 	for (auto &file : created_files) {
-		try {
-			fs.TryRemoveFile(file);
-		} catch (...) {
-			// TryRemoveFile migth fail for a varieaty of reasons, but we can't really propagate error codes here, so
-			// best effort cleanup
-		}
+		fs.TryRemoveFile(file);
 	}
 }
 
@@ -284,7 +275,7 @@ class CopyToFunctionLocalState : public LocalSinkState {
 public:
 	explicit CopyToFunctionLocalState(ClientContext &context, unique_ptr<LocalFunctionData> local_state)
 	    : local_state(std::move(local_state)) {
-		partitioned_write_flush_threshold = Settings::Get<PartitionedWriteFlushThresholdSetting>(context);
+		partitioned_write_flush_threshold = DBConfig::GetSetting<PartitionedWriteFlushThresholdSetting>(context);
 	}
 	unique_ptr<GlobalFunctionData> global_state;
 	unique_ptr<LocalFunctionData> local_state;
@@ -418,6 +409,11 @@ void CheckDirectory(FileSystem &fs, const string &file_path, CopyOverwriteMode o
 	    overwrite_mode == CopyOverwriteMode::COPY_APPEND) {
 		// with overwrite or ignore we fully ignore the presence of any files instead of erasing them
 		return;
+	}
+	if (fs.IsRemoteFile(file_path) && overwrite_mode == CopyOverwriteMode::COPY_OVERWRITE) {
+		// we can only remove files for local file systems currently
+		// as remote file systems (e.g. S3) do not support RemoveFile
+		throw NotImplementedException("OVERWRITE is not supported for remote file systems");
 	}
 	vector<string> file_list;
 	vector<string> directory_list;
@@ -688,43 +684,6 @@ unique_ptr<GlobalSourceState> PhysicalCopyToFile::GetGlobalSourceState(ClientCon
 	return make_uniq<CopyToFileGlobalSourceState>();
 }
 
-namespace {
-
-struct ColumnStatsMapData {
-	vector<Value> keys;
-	vector<Value> values;
-};
-
-} // namespace
-
-static ColumnStatsMapData
-CreateColumnStatistics(const case_insensitive_map_t<case_insensitive_map_t<Value>> &column_statistics) {
-	ColumnStatsMapData result;
-
-	//! Use a map to make sure the result has a consistent ordering
-	map<string, Value> stats;
-	for (auto &entry : column_statistics) {
-		map<string, Value> per_column_stats;
-		for (auto &stats_entry : entry.second) {
-			per_column_stats.emplace(stats_entry.first, stats_entry.second);
-		}
-		vector<Value> stats_keys;
-		vector<Value> stats_values;
-		for (auto &stats_entry : per_column_stats) {
-			stats_keys.emplace_back(stats_entry.first);
-			stats_values.emplace_back(std::move(stats_entry.second));
-		}
-		auto map_value =
-		    Value::MAP(LogicalType::VARCHAR, LogicalType::VARCHAR, std::move(stats_keys), std::move(stats_values));
-		stats.emplace(entry.first, std::move(map_value));
-	}
-	for (auto &entry : stats) {
-		result.keys.emplace_back(entry.first);
-		result.values.emplace_back(std::move(entry.second));
-	}
-	return result;
-}
-
 void PhysicalCopyToFile::ReturnStatistics(DataChunk &chunk, idx_t row_idx, CopyToFileInfo &info) {
 	auto &file_stats = *info.file_stats;
 
@@ -737,11 +696,30 @@ void PhysicalCopyToFile::ReturnStatistics(DataChunk &chunk, idx_t row_idx, CopyT
 	// footer size bytes BIGINT
 	chunk.SetValue(3, row_idx, file_stats.footer_size_bytes);
 	// column statistics map(varchar, map(varchar, varchar))
-	auto column_stats = CreateColumnStatistics(file_stats.column_statistics);
+	map<string, Value> stats;
+	for (auto &entry : file_stats.column_statistics) {
+		map<string, Value> per_column_stats;
+		for (auto &stats_entry : entry.second) {
+			per_column_stats.insert(make_pair(stats_entry.first, stats_entry.second));
+		}
+		vector<Value> stats_keys;
+		vector<Value> stats_values;
+		for (auto &stats_entry : per_column_stats) {
+			stats_keys.emplace_back(stats_entry.first);
+			stats_values.emplace_back(std::move(stats_entry.second));
+		}
+		auto map_value =
+		    Value::MAP(LogicalType::VARCHAR, LogicalType::VARCHAR, std::move(stats_keys), std::move(stats_values));
+		stats.insert(make_pair(entry.first, std::move(map_value)));
+	}
+	vector<Value> keys;
+	vector<Value> values;
+	for (auto &entry : stats) {
+		keys.emplace_back(entry.first);
+		values.emplace_back(std::move(entry.second));
+	}
 	auto map_val_type = LogicalType::MAP(LogicalType::VARCHAR, LogicalType::VARCHAR);
-	chunk.SetValue(
-	    4, row_idx,
-	    Value::MAP(LogicalType::VARCHAR, map_val_type, std::move(column_stats.keys), std::move(column_stats.values)));
+	chunk.SetValue(4, row_idx, Value::MAP(LogicalType::VARCHAR, map_val_type, std::move(keys), std::move(values)));
 
 	// partition_keys map(varchar, varchar)
 	chunk.SetValue(5, row_idx, info.partition_keys);

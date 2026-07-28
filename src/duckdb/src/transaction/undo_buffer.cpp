@@ -47,13 +47,13 @@ void UndoBuffer::IterateEntries(UndoBuffer::IteratorState &state, T &&callback) 
 		state.start = state.handle.Ptr();
 		state.end = state.start + state.current->position;
 		while (state.start < state.end) {
-			auto len_position = state.start + sizeof(UndoFlags);
-			auto payload_position = len_position + sizeof(uint32_t);
 			UndoFlags type = Load<UndoFlags>(state.start);
-			uint32_t len = Load<uint32_t>(len_position);
+			state.start += sizeof(UndoFlags);
 
-			callback(type, payload_position);
-			state.start = payload_position + len;
+			uint32_t len = Load<uint32_t>(state.start);
+			state.start += sizeof(uint32_t);
+			callback(type, state.start);
+			state.start += len;
 		}
 		state.current = state.current->prev;
 	}
@@ -196,7 +196,8 @@ void UndoBuffer::Commit(UndoBuffer::IteratorState &iterator_state, CommitInfo &i
 	active_transaction_state = info.active_transactions;
 
 	CommitState state(transaction, info.commit_id, active_transaction_state, CommitMode::COMMIT);
-	IterateEntries(iterator_state, [&](UndoFlags type, data_ptr_t data) { state.CommitEntry(type, data, info); });
+	IterateEntries(iterator_state, [&](UndoFlags type, data_ptr_t data) { state.CommitEntry(type, data); });
+
 	state.Verify();
 }
 

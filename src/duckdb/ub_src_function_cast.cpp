@@ -28,8 +28,6 @@
 
 #include "src/function/cast/time_casts.cpp"
 
-#include "src/function/cast/type_cast.cpp"
-
 #include "src/function/cast/union_casts.cpp"
 
 #include "src/function/cast/uuid_casts.cpp"

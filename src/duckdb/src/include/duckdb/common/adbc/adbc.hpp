@@ -18,25 +18,10 @@ namespace duckdb_adbc {
 
 class AppenderWrapper {
 public:
-	AppenderWrapper(duckdb_connection conn, const char *catalog, const char *schema, const char *table)
-	    : appender(nullptr), create_error_type(DUCKDB_ERROR_UNKNOWN_TYPE) {
-		// Note: duckdb_appender_create_ext allocates an internal wrapper even on failure.
-		// If creation fails, make sure to destroy it to avoid leaking.
-		auto created = duckdb_appender(nullptr);
-		if (duckdb_appender_create_ext(conn, catalog, schema, table, &created) != DuckDBSuccess) {
-			if (created) {
-				auto error_data = duckdb_appender_error_data(created);
-				auto error_message = duckdb_error_data_message(error_data);
-				if (error_message) {
-					create_error = error_message;
-				}
-				create_error_type = duckdb_error_data_error_type(error_data);
-				duckdb_destroy_error_data(&error_data);
-				duckdb_appender_destroy(&created);
-			}
-			return;
+	AppenderWrapper(duckdb_connection conn, const char *schema, const char *table) : appender(nullptr) {
+		if (duckdb_appender_create(conn, schema, table, &appender) != DuckDBSuccess) {
+			appender = nullptr;
 		}
-		appender = created;
 	}
 	~AppenderWrapper() {
 		if (appender) {
@@ -50,17 +35,9 @@ public:
 	bool Valid() const {
 		return appender != nullptr;
 	}
-	const std::string &CreateError() const {
-		return create_error;
-	}
-	duckdb_error_type CreateErrorType() const {
-		return create_error_type;
-	}
 
 private:
 	duckdb_appender appender;
-	std::string create_error;
-	duckdb_error_type create_error_type;
 };
 
 class DataChunkWrapper {
@@ -137,74 +114,12 @@ AdbcStatusCode ConnectionGetTableSchema(struct AdbcConnection *connection, const
 AdbcStatusCode ConnectionGetTableTypes(struct AdbcConnection *connection, struct ArrowArrayStream *out,
                                        struct AdbcError *error);
 
-AdbcStatusCode ConnectionGetStatistics(struct AdbcConnection *connection, const char *catalog, const char *db_schema,
-                                       const char *table_name, char approximate, struct ArrowArrayStream *out,
-                                       struct AdbcError *error);
-
-AdbcStatusCode ConnectionGetStatisticNames(struct AdbcConnection *connection, struct ArrowArrayStream *out,
-                                           struct AdbcError *error);
-
 AdbcStatusCode ConnectionReadPartition(struct AdbcConnection *connection, const uint8_t *serialized_partition,
                                        size_t serialized_length, struct ArrowArrayStream *out, struct AdbcError *error);
 
 AdbcStatusCode ConnectionCommit(struct AdbcConnection *connection, struct AdbcError *error);
 
 AdbcStatusCode ConnectionRollback(struct AdbcConnection *connection, struct AdbcError *error);
-
-AdbcStatusCode ConnectionCancel(struct AdbcConnection *connection, struct AdbcError *error);
-
-// Database Typed Option API (ADBC 1.1.0)
-AdbcStatusCode DatabaseGetOption(struct AdbcDatabase *database, const char *key, char *value, size_t *length,
-                                 struct AdbcError *error);
-AdbcStatusCode DatabaseGetOptionBytes(struct AdbcDatabase *database, const char *key, uint8_t *value, size_t *length,
-                                      struct AdbcError *error);
-AdbcStatusCode DatabaseGetOptionDouble(struct AdbcDatabase *database, const char *key, double *value,
-                                       struct AdbcError *error);
-AdbcStatusCode DatabaseGetOptionInt(struct AdbcDatabase *database, const char *key, int64_t *value,
-                                    struct AdbcError *error);
-AdbcStatusCode DatabaseSetOptionBytes(struct AdbcDatabase *database, const char *key, const uint8_t *value,
-                                      size_t length, struct AdbcError *error);
-AdbcStatusCode DatabaseSetOptionInt(struct AdbcDatabase *database, const char *key, int64_t value,
-                                    struct AdbcError *error);
-AdbcStatusCode DatabaseSetOptionDouble(struct AdbcDatabase *database, const char *key, double value,
-                                       struct AdbcError *error);
-
-// Connection Typed Option API (ADBC 1.1.0)
-AdbcStatusCode ConnectionGetOption(struct AdbcConnection *connection, const char *key, char *value, size_t *length,
-                                   struct AdbcError *error);
-AdbcStatusCode ConnectionGetOptionBytes(struct AdbcConnection *connection, const char *key, uint8_t *value,
-                                        size_t *length, struct AdbcError *error);
-AdbcStatusCode ConnectionGetOptionDouble(struct AdbcConnection *connection, const char *key, double *value,
-                                         struct AdbcError *error);
-AdbcStatusCode ConnectionGetOptionInt(struct AdbcConnection *connection, const char *key, int64_t *value,
-                                      struct AdbcError *error);
-AdbcStatusCode ConnectionSetOptionBytes(struct AdbcConnection *connection, const char *key, const uint8_t *value,
-                                        size_t length, struct AdbcError *error);
-AdbcStatusCode ConnectionSetOptionInt(struct AdbcConnection *connection, const char *key, int64_t value,
-                                      struct AdbcError *error);
-AdbcStatusCode ConnectionSetOptionDouble(struct AdbcConnection *connection, const char *key, double value,
-                                         struct AdbcError *error);
-
-// Statement Typed Option API (ADBC 1.1.0)
-AdbcStatusCode StatementGetOption(struct AdbcStatement *statement, const char *key, char *value, size_t *length,
-                                  struct AdbcError *error);
-AdbcStatusCode StatementGetOptionBytes(struct AdbcStatement *statement, const char *key, uint8_t *value, size_t *length,
-                                       struct AdbcError *error);
-AdbcStatusCode StatementGetOptionDouble(struct AdbcStatement *statement, const char *key, double *value,
-                                        struct AdbcError *error);
-AdbcStatusCode StatementGetOptionInt(struct AdbcStatement *statement, const char *key, int64_t *value,
-                                     struct AdbcError *error);
-AdbcStatusCode StatementSetOptionBytes(struct AdbcStatement *statement, const char *key, const uint8_t *value,
-                                       size_t length, struct AdbcError *error);
-AdbcStatusCode StatementSetOptionInt(struct AdbcStatement *statement, const char *key, int64_t value,
-                                     struct AdbcError *error);
-AdbcStatusCode StatementSetOptionDouble(struct AdbcStatement *statement, const char *key, double value,
-                                        struct AdbcError *error);
-
-const AdbcError *ErrorFromArrayStream(struct ArrowArrayStream *stream, AdbcStatusCode *status);
-
-int ErrorGetDetailCount(const struct AdbcError *error);
-struct AdbcErrorDetail ErrorGetDetail(const struct AdbcError *error, int index);
 
 AdbcStatusCode StatementNew(struct AdbcConnection *connection, struct AdbcStatement *statement,
                             struct AdbcError *error);
@@ -213,8 +128,6 @@ AdbcStatusCode StatementRelease(struct AdbcStatement *statement, struct AdbcErro
 
 AdbcStatusCode StatementExecuteQuery(struct AdbcStatement *statement, struct ArrowArrayStream *out,
                                      int64_t *rows_affected, struct AdbcError *error);
-
-AdbcStatusCode StatementCancel(struct AdbcStatement *statement, struct AdbcError *error);
 
 AdbcStatusCode StatementPrepare(struct AdbcStatement *statement, struct AdbcError *error);
 
@@ -228,9 +141,6 @@ AdbcStatusCode StatementBind(struct AdbcStatement *statement, struct ArrowArray 
 
 AdbcStatusCode StatementBindStream(struct AdbcStatement *statement, struct ArrowArrayStream *stream,
                                    struct AdbcError *error);
-
-AdbcStatusCode StatementExecuteSchema(struct AdbcStatement *statement, struct ArrowSchema *schema,
-                                      struct AdbcError *error);
 
 AdbcStatusCode StatementGetParameterSchema(struct AdbcStatement *statement, struct ArrowSchema *schema,
                                            struct AdbcError *error);

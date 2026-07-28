@@ -7,7 +7,6 @@
 #include "duckdb/common/types/datetime.hpp"
 #include "duckdb/common/types/timestamp.hpp"
 #include "duckdb/common/types/date.hpp"
-#include "duckdb/common/types/blob.hpp"
 #include "duckdb/common/types/interval.hpp"
 #include "duckdb/common/types/decimal.hpp"
 #include "duckdb/common/types/variant.hpp"
@@ -23,59 +22,12 @@ namespace duckdb {
 
 void VariantValue::AddChild(const string &key, VariantValue &&val) {
 	D_ASSERT(value_type == VariantValueType::OBJECT);
-	if (val.IsMissing()) {
-		return;
-	}
 	object_children.emplace(key, std::move(val));
 }
 
 void VariantValue::AddItem(VariantValue &&val) {
 	D_ASSERT(value_type == VariantValueType::ARRAY);
-	if (val.IsMissing()) {
-		//! SPEC: If a Variant is missing in a context where a value is required, readers must return a Variant null
-		val = VariantValue::NullValue();
-	}
 	array_items.push_back(std::move(val));
-}
-
-void VariantValue::SetItems(vector<VariantValue> &&values) {
-	D_ASSERT(value_type == VariantValueType::ARRAY);
-	for (auto &value : values) {
-		if (value.IsMissing()) {
-			//! SPEC: If a Variant is missing in a context where a value is required, readers must return a Variant null
-			value = VariantValue::NullValue();
-		}
-	}
-	array_items = std::move(values);
-}
-
-void VariantValue::ReserveItems(idx_t count) {
-	array_items.reserve(count);
-}
-
-void VariantValue::AddItems(vector<VariantValue>::iterator begin, vector<VariantValue>::iterator end) {
-	D_ASSERT(value_type == VariantValueType::ARRAY);
-	for (; begin != end; begin++) {
-		auto &value = *begin;
-		if (value.IsMissing()) {
-			//! SPEC: If a Variant is missing in a context where a value is required, readers must return a Variant null
-			value = VariantValue::NullValue();
-		}
-		array_items.push_back(std::move(value));
-	}
-}
-
-map<string, VariantValue> VariantValue::TakeObjectChildren() {
-	D_ASSERT(value_type == VariantValueType::OBJECT);
-	return std::move(object_children);
-}
-
-const map<string, VariantValue> &VariantValue::ObjectChildren() const {
-	return object_children;
-}
-
-const vector<VariantValue> &VariantValue::ArrayItems() const {
-	return array_items;
 }
 
 static void AnalyzeValue(const VariantValue &value, idx_t row, DataChunk &offsets) {
@@ -88,7 +40,7 @@ static void AnalyzeValue(const VariantValue &value, idx_t row, DataChunk &offset
 	switch (value.value_type) {
 	case VariantValueType::OBJECT: {
 		//! Write the count of the children
-		auto &children = value.ObjectChildren();
+		auto &children = value.object_children;
 		data_offset += GetVarintSize(children.size());
 		if (!children.empty()) {
 			//! Write the children offset
@@ -104,7 +56,7 @@ static void AnalyzeValue(const VariantValue &value, idx_t row, DataChunk &offset
 	}
 	case VariantValueType::ARRAY: {
 		//! Write the count of the children
-		auto &children = value.ArrayItems();
+		auto &children = value.array_items;
 		data_offset += GetVarintSize(children.size());
 		if (!children.empty()) {
 			//! Write the children offset
@@ -290,7 +242,7 @@ static void ConvertValue(const VariantValue &value, VariantVectorData &result, i
 	switch (value.value_type) {
 	case VariantValueType::OBJECT: {
 		//! Write the count of the children
-		auto &children = value.ObjectChildren();
+		auto &children = value.object_children;
 
 		//! values
 		result.type_ids_data[values_list_offset + values_offset] = static_cast<uint8_t>(VariantLogicalType::OBJECT);
@@ -331,7 +283,7 @@ static void ConvertValue(const VariantValue &value, VariantVectorData &result, i
 	}
 	case VariantValueType::ARRAY: {
 		//! Write the count of the children
-		auto &children = value.ArrayItems();
+		auto &children = value.array_items;
 
 		//! values
 		result.type_ids_data[values_list_offset + values_offset] = static_cast<uint8_t>(VariantLogicalType::ARRAY);
@@ -688,7 +640,7 @@ void VariantValue::ToVARIANT(vector<VariantValue> &input, Vector &result) {
 
 	for (idx_t i = 0; i < count; i++) {
 		auto &value = input[i];
-		if (value.IsNull() || value.IsMissing()) {
+		if (value.IsNull()) {
 			continue;
 		}
 		AnalyzeValue(value, i, analyze_offsets);
@@ -712,8 +664,7 @@ void VariantValue::ToVARIANT(vector<VariantValue> &input, Vector &result) {
 	VariantVectorData variant_data(result);
 	for (idx_t i = 0; i < count; i++) {
 		auto &value = input[i];
-		if (value.IsNull() || value.IsMissing()) {
-			//! SPEC: If a Variant is missing in a context where a value is required, readers must return a Variant null
+		if (value.IsNull()) {
 			FlatVector::SetNull(result, i, true);
 			continue;
 		}
@@ -786,12 +737,6 @@ yyjson_mut_val *VariantValue::ToJSON(ClientContext &context, yyjson_mut_doc *doc
 			return yyjson_mut_real(doc, primitive_value.GetValue<float>());
 		case LogicalTypeId::DOUBLE:
 			return yyjson_mut_real(doc, primitive_value.GetValue<double>());
-		case LogicalTypeId::BLOB: {
-			//! Follow the JSON serialization guide by converting BINARY to Base64:
-			//! For example: `"dmFyaWFudAo="`
-			auto value_str = Blob::ToBase64(primitive_value.GetValueUnsafe<string_t>());
-			return yyjson_mut_strncpy(doc, value_str.c_str(), value_str.size());
-		}
 		case LogicalTypeId::DATE:
 		case LogicalTypeId::TIME:
 		case LogicalTypeId::VARCHAR: {

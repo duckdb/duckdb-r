@@ -9,6 +9,7 @@
 #include "duckdb/common/types/uuid.hpp"
 #include "duckdb/common/types/time.hpp"
 #include "duckdb/common/types/date.hpp"
+#include "duckdb/common/types/blob.hpp"
 
 static constexpr uint8_t VERSION_MASK = 0xF;
 static constexpr uint8_t SORTED_STRINGS_MASK = 0x1;
@@ -39,18 +40,13 @@ namespace duckdb {
 
 namespace {
 
-static idx_t ReadVariableLengthLittleEndian(idx_t length_in_bytes, const_data_ptr_t ptr, idx_t &offset,
-                                            const idx_t capacity) {
+static idx_t ReadVariableLengthLittleEndian(idx_t length_in_bytes, const_data_ptr_t &ptr) {
 	if (length_in_bytes > sizeof(idx_t)) {
 		throw NotImplementedException("Can't read little-endian value of %d bytes", length_in_bytes);
 	}
-	if (offset + length_in_bytes > capacity) {
-		throw IOException("Data corruption detected, read of length_in_bytes (%d) would exceed buffer capacity",
-		                  length_in_bytes);
-	}
 	idx_t result = 0;
-	memcpy(reinterpret_cast<uint8_t *>(&result), ptr + offset, length_in_bytes);
-	offset += length_in_bytes;
+	memcpy(reinterpret_cast<uint8_t *>(&result), ptr, length_in_bytes);
+	ptr += length_in_bytes;
 	return result;
 }
 
@@ -71,34 +67,21 @@ VariantMetadataHeader VariantMetadataHeader::FromHeaderByte(uint8_t byte) {
 }
 
 VariantMetadata::VariantMetadata(const string_t &metadata) : metadata(metadata) {
-	auto metadata_data = reinterpret_cast<const_data_ptr_t>(metadata.GetData());
-	const auto metadata_buffer_capacity = metadata.GetSize();
-	if (!metadata_data || metadata.GetSize() < 1) {
-		throw IOException("Corrupted VARIANT 'metadata' buffer, empty or nullptr");
-	}
+	auto metadata_data = metadata.GetData();
 
-	idx_t metadata_offset = 0;
-	header = VariantMetadataHeader::FromHeaderByte(metadata_data[metadata_offset]);
-	metadata_offset += sizeof(uint8_t);
+	header = VariantMetadataHeader::FromHeaderByte(metadata_data[0]);
 
-	idx_t dictionary_size =
-	    ReadVariableLengthLittleEndian(header.offset_size, metadata_data, metadata_offset, metadata_buffer_capacity);
+	const_data_ptr_t ptr = reinterpret_cast<const_data_ptr_t>(metadata_data + sizeof(uint8_t));
+	idx_t dictionary_size = ReadVariableLengthLittleEndian(header.offset_size, ptr);
 
-	auto data_start = metadata_offset + ((dictionary_size + 1) * header.offset_size);
-	idx_t last_offset =
-	    ReadVariableLengthLittleEndian(header.offset_size, metadata_data, metadata_offset, metadata_buffer_capacity);
+	auto offsets = ptr;
+	auto bytes = offsets + ((dictionary_size + 1) * header.offset_size);
+	idx_t last_offset = ReadVariableLengthLittleEndian(header.offset_size, ptr);
 	for (idx_t i = 0; i < dictionary_size; i++) {
-		auto next_offset = ReadVariableLengthLittleEndian(header.offset_size, metadata_data, metadata_offset,
-		                                                  metadata_buffer_capacity);
-		const idx_t string_size = next_offset - last_offset;
-		if (data_start + last_offset + string_size > metadata_buffer_capacity) {
-			throw IOException("Corrupted VARIANT 'metadata' buffer");
-		}
-		strings.emplace_back(reinterpret_cast<const char *>(metadata_data + data_start + last_offset), string_size);
+		auto next_offset = ReadVariableLengthLittleEndian(header.offset_size, ptr);
+		strings.emplace_back(reinterpret_cast<const char *>(bytes + last_offset), next_offset - last_offset);
 		last_offset = next_offset;
 	}
-	//! header byte + offsets region + string bytes
-	total_size = metadata_offset + last_offset;
 }
 
 VariantValueMetadata VariantValueMetadata::FromHeaderByte(uint8_t byte) {
@@ -132,35 +115,25 @@ VariantValueMetadata VariantValueMetadata::FromHeaderByte(uint8_t byte) {
 }
 
 template <class T>
-static T DecodeDecimal(const_data_ptr_t data, idx_t data_offset, idx_t data_size, uint8_t &scale, uint8_t &width) {
-	if (data_offset + sizeof(uint8_t) + sizeof(T) > data_size) {
-		throw IOException("Corrupted VARIANT 'value' buffer");
-	}
-	scale = Load<uint8_t>(data + data_offset);
-	data_offset += sizeof(uint8_t);
+static T DecodeDecimal(const_data_ptr_t data, uint8_t &scale, uint8_t &width) {
+	scale = Load<uint8_t>(data);
+	data++;
 
-	auto result = Load<T>(data + data_offset);
-	auto abs_val = result;
-	if (abs_val < 0) {
-		abs_val = -abs_val;
-	}
-	uint8_t digits = floor(log10(abs_val)) + 1;
-	width = digits;
+	auto result = Load<T>(data);
+	//! FIXME: The spec says:
+	//! The implied precision of a decimal value is `floor(log_10(val)) + 1`
+	width = DecimalWidth<T>::max;
 	return result;
 }
 
 template <>
-hugeint_t DecodeDecimal(const_data_ptr_t data, idx_t data_offset, idx_t data_size, uint8_t &scale, uint8_t &width) {
-	if (data_offset + sizeof(uint8_t) + sizeof(uint64_t) + sizeof(int64_t) > data_size) {
-		throw IOException("Corrupted VARIANT 'value' buffer");
-	}
-	scale = Load<uint8_t>(data + data_offset);
-	data_offset += sizeof(uint8_t);
+hugeint_t DecodeDecimal(const_data_ptr_t data, uint8_t &scale, uint8_t &width) {
+	scale = Load<uint8_t>(data);
+	data++;
 
 	hugeint_t result;
-	result.lower = Load<uint64_t>(data + data_offset);
-	data_offset += sizeof(uint64_t);
-	result.upper = Load<int64_t>(data + data_offset);
+	result.lower = Load<uint64_t>(data);
+	result.upper = Load<int64_t>(data + sizeof(uint64_t));
 	//! FIXME: The spec says:
 	//! The implied precision of a decimal value is `floor(log_10(val)) + 1`
 	width = DecimalWidth<hugeint_t>::max;
@@ -168,10 +141,10 @@ hugeint_t DecodeDecimal(const_data_ptr_t data, idx_t data_offset, idx_t data_siz
 }
 
 VariantValue VariantBinaryDecoder::PrimitiveTypeDecode(const VariantValueMetadata &value_metadata,
-                                                       const_data_ptr_t data, idx_t data_offset, idx_t data_size) {
+                                                       const_data_ptr_t data) {
 	switch (value_metadata.primitive_type) {
 	case VariantPrimitiveType::NULL_TYPE: {
-		return VariantValue::NullValue();
+		return VariantValue(Value());
 	}
 	case VariantPrimitiveType::BOOLEAN_TRUE: {
 		return VariantValue(Value::BOOLEAN(true));
@@ -180,138 +153,95 @@ VariantValue VariantBinaryDecoder::PrimitiveTypeDecode(const VariantValueMetadat
 		return VariantValue(Value::BOOLEAN(false));
 	}
 	case VariantPrimitiveType::INT8: {
-		if (data_offset + sizeof(int8_t) > data_size) {
-			throw IOException("Corrupted VARIANT 'value' buffer");
-		}
-		auto value = Load<int8_t>(data + data_offset);
+		auto value = Load<int8_t>(data);
 		return VariantValue(Value::TINYINT(value));
 	}
 	case VariantPrimitiveType::INT16: {
-		if (data_offset + sizeof(int16_t) > data_size) {
-			throw IOException("Corrupted VARIANT 'value' buffer");
-		}
-		auto value = Load<int16_t>(data + data_offset);
+		auto value = Load<int16_t>(data);
 		return VariantValue(Value::SMALLINT(value));
 	}
 	case VariantPrimitiveType::INT32: {
-		if (data_offset + sizeof(int32_t) > data_size) {
-			throw IOException("Corrupted VARIANT 'value' buffer");
-		}
-		auto value = Load<int32_t>(data + data_offset);
+		auto value = Load<int32_t>(data);
 		return VariantValue(Value::INTEGER(value));
 	}
 	case VariantPrimitiveType::INT64: {
-		if (data_offset + sizeof(int64_t) > data_size) {
-			throw IOException("Corrupted VARIANT 'value' buffer");
-		}
-		auto value = Load<int64_t>(data + data_offset);
+		auto value = Load<int64_t>(data);
 		return VariantValue(Value::BIGINT(value));
 	}
 	case VariantPrimitiveType::DOUBLE: {
-		if (data_offset + sizeof(double) > data_size) {
-			throw IOException("Corrupted VARIANT 'value' buffer");
-		}
-		double value = Load<double>(data + data_offset);
+		double value = Load<double>(data);
 		return VariantValue(Value::DOUBLE(value));
 	}
 	case VariantPrimitiveType::FLOAT: {
-		if (data_offset + sizeof(float) > data_size) {
-			throw IOException("Corrupted VARIANT 'value' buffer");
-		}
-		float value = Load<float>(data + data_offset);
+		float value = Load<float>(data);
 		return VariantValue(Value::FLOAT(value));
 	}
 	case VariantPrimitiveType::DECIMAL4: {
 		uint8_t scale;
 		uint8_t width;
 
-		auto value = DecodeDecimal<int32_t>(data, data_offset, data_size, scale, width);
-		return VariantValue(Value::DECIMAL(value, width, scale));
+		auto value = DecodeDecimal<int32_t>(data, scale, width);
+		auto value_str = Decimal::ToString(value, width, scale);
+		return VariantValue(Value(value_str));
 	}
 	case VariantPrimitiveType::DECIMAL8: {
 		uint8_t scale;
 		uint8_t width;
 
-		auto value = DecodeDecimal<int64_t>(data, data_offset, data_size, scale, width);
-		return VariantValue(Value::DECIMAL(value, width, scale));
+		auto value = DecodeDecimal<int64_t>(data, scale, width);
+		auto value_str = Decimal::ToString(value, width, scale);
+		return VariantValue(Value(value_str));
 	}
 	case VariantPrimitiveType::DECIMAL16: {
 		uint8_t scale;
 		uint8_t width;
 
-		auto value = DecodeDecimal<hugeint_t>(data, data_offset, data_size, scale, width);
-		return VariantValue(Value::DECIMAL(value, width, scale));
+		auto value = DecodeDecimal<hugeint_t>(data, scale, width);
+		auto value_str = Decimal::ToString(value, width, scale);
+		return VariantValue(Value(value_str));
 	}
 	case VariantPrimitiveType::DATE: {
 		date_t value;
-		if (data_offset + sizeof(int32_t) > data_size) {
-			throw IOException("Corrupted VARIANT 'value' buffer");
-		}
-		value.days = Load<int32_t>(data + data_offset);
+		value.days = Load<int32_t>(data);
 		return VariantValue(Value::DATE(value));
 	}
 	case VariantPrimitiveType::TIMESTAMP_MICROS: {
 		timestamp_tz_t micros_ts_tz;
-		if (data_offset + sizeof(int64_t) > data_size) {
-			throw IOException("Corrupted VARIANT 'value' buffer");
-		}
-		micros_ts_tz.value = Load<int64_t>(data + data_offset);
+		micros_ts_tz.value = Load<int64_t>(data);
 		return VariantValue(Value::TIMESTAMPTZ(micros_ts_tz));
 	}
 	case VariantPrimitiveType::TIMESTAMP_NTZ_MICROS: {
 		timestamp_t micros_ts;
-		if (data_offset + sizeof(int64_t) > data_size) {
-			throw IOException("Corrupted VARIANT 'value' buffer");
-		}
-		micros_ts.value = Load<int64_t>(data + data_offset);
+		micros_ts.value = Load<int64_t>(data);
 
 		auto value = Value::TIMESTAMP(micros_ts);
-		return VariantValue(std::move(value));
+		auto value_str = value.ToString();
+		return VariantValue(Value(value_str));
 	}
 	case VariantPrimitiveType::BINARY: {
-		//! Keep the raw bytes as a BLOB so the type is preserved when reconstructing a VARIANT. The conversion to
-		//! Base64 happens now in VariantValue::ToJSON.
-		if (data_offset + sizeof(uint32_t) > data_size) {
-			throw IOException("Corrupted VARIANT 'value' buffer");
-		}
-		auto size = Load<uint32_t>(data + data_offset);
-		data_offset += sizeof(uint32_t);
-
-		if (data_offset + size > data_size) {
-			throw IOException("Corrupted VARIANT 'value' buffer");
-		}
-		return VariantValue(Value::BLOB(data + data_offset, size));
+		//! Follow the JSON serialization guide by converting BINARY to Base64:
+		//! For example: `"dmFyaWFudAo="`
+		auto size = Load<uint32_t>(data);
+		auto string_data = reinterpret_cast<const char *>(data + sizeof(uint32_t));
+		auto base64_string = Blob::ToBase64(string_t(string_data, size));
+		return VariantValue(Value(base64_string));
 	}
 	case VariantPrimitiveType::STRING: {
-		if (data_offset + sizeof(uint32_t) > data_size) {
-			throw IOException("Corrupted VARIANT 'value' buffer");
-		}
-		auto size = Load<uint32_t>(data + data_offset);
-		data_offset += sizeof(uint32_t);
-
-		auto string_data = reinterpret_cast<const char *>(data + data_offset);
-		if (data_offset + size > data_size) {
-			throw IOException("Corrupted VARIANT 'value' buffer");
-		}
+		auto size = Load<uint32_t>(data);
+		auto string_data = reinterpret_cast<const char *>(data + sizeof(uint32_t));
 		if (!Utf8Proc::IsValid(string_data, size)) {
-			throw IOException("Can't decode Variant short-string, string isn't valid UTF8");
+			throw InternalException("Can't decode Variant short-string, string isn't valid UTF8");
 		}
 		return VariantValue(Value(string(string_data, size)));
 	}
 	case VariantPrimitiveType::TIME_NTZ_MICROS: {
 		dtime_t micros_time;
-		if (data_offset + sizeof(int64_t) > data_size) {
-			throw IOException("Corrupted VARIANT 'value' buffer");
-		}
-		micros_time.micros = Load<int64_t>(data + data_offset);
+		micros_time.micros = Load<int64_t>(data);
 		return VariantValue(Value::TIME(micros_time));
 	}
 	case VariantPrimitiveType::TIMESTAMP_NANOS: {
 		timestamp_ns_t nanos_ts;
-		if (data_offset + sizeof(int64_t) > data_size) {
-			throw IOException("Corrupted VARIANT 'value' buffer");
-		}
-		nanos_ts.value = Load<int64_t>(data + data_offset);
+		nanos_ts.value = Load<int64_t>(data);
 
 		//! Convert the nanos timestamp to a micros timestamp (not lossless)
 		auto micros_ts = Timestamp::FromEpochNanoSeconds(nanos_ts.value);
@@ -319,20 +249,16 @@ VariantValue VariantBinaryDecoder::PrimitiveTypeDecode(const VariantValueMetadat
 	}
 	case VariantPrimitiveType::TIMESTAMP_NTZ_NANOS: {
 		timestamp_ns_t nanos_ts;
-		if (data_offset + sizeof(int64_t) > data_size) {
-			throw IOException("Corrupted VARIANT 'value' buffer");
-		}
-		nanos_ts.value = Load<int64_t>(data + data_offset);
+		nanos_ts.value = Load<int64_t>(data);
 
 		auto value = Value::TIMESTAMPNS(nanos_ts);
-		return VariantValue(std::move(value));
+		auto value_str = value.ToString();
+		return VariantValue(Value(value_str));
 	}
 	case VariantPrimitiveType::UUID: {
-		if (data_offset + sizeof(hugeint_t) > data_size) {
-			throw IOException("Corrupted VARIANT 'value' buffer");
-		}
-		auto uuid_value = UUIDValueConversion::ReadParquetUUID(data + data_offset);
-		return VariantValue(Value::UUID(uuid_value));
+		auto uuid_value = UUIDValueConversion::ReadParquetUUID(data);
+		auto value_str = UUID::ToString(uuid_value);
+		return VariantValue(Value(value_str));
 	}
 	default:
 		throw NotImplementedException("Variant PrimitiveTypeDecode not implemented for type (%d)",
@@ -340,24 +266,18 @@ VariantValue VariantBinaryDecoder::PrimitiveTypeDecode(const VariantValueMetadat
 	}
 }
 
-VariantValue VariantBinaryDecoder::ShortStringDecode(const VariantValueMetadata &value_metadata, const_data_ptr_t data,
-                                                     idx_t data_offset, idx_t data_size) {
-	if (value_metadata.string_size >= 64) {
-		throw IOException("Corrupted VARIANT 'metadata' buffer");
-	}
-	auto string_data = reinterpret_cast<const char *>(data + data_offset);
-	if (data_offset + value_metadata.string_size > data_size) {
-		throw IOException("Corrupted VARIANT 'value' buffer");
-	}
+VariantValue VariantBinaryDecoder::ShortStringDecode(const VariantValueMetadata &value_metadata,
+                                                     const_data_ptr_t data) {
+	D_ASSERT(value_metadata.string_size < 64);
+	auto string_data = reinterpret_cast<const char *>(data);
 	if (!Utf8Proc::IsValid(string_data, value_metadata.string_size)) {
-		throw IOException("Can't decode Variant short-string, string isn't valid UTF8");
+		throw InternalException("Can't decode Variant short-string, string isn't valid UTF8");
 	}
 	return VariantValue(Value(string(string_data, value_metadata.string_size)));
 }
 
 VariantValue VariantBinaryDecoder::ObjectDecode(const VariantMetadata &metadata,
-                                                const VariantValueMetadata &value_metadata, const_data_ptr_t data,
-                                                idx_t data_offset, idx_t data_size) {
+                                                const VariantValueMetadata &value_metadata, const_data_ptr_t data) {
 	VariantValue ret(VariantValueType::OBJECT);
 
 	auto field_offset_size = value_metadata.field_offset_size;
@@ -366,32 +286,23 @@ VariantValue VariantBinaryDecoder::ObjectDecode(const VariantMetadata &metadata,
 
 	idx_t num_elements;
 	if (is_large) {
-		if (data_offset + sizeof(uint32_t) > data_size) {
-			throw IOException("Corrupted VARIANT 'value' buffer");
-		}
-		num_elements = Load<uint32_t>(data + data_offset);
-		data_offset += sizeof(uint32_t);
+		num_elements = Load<uint32_t>(data);
+		data += sizeof(uint32_t);
 	} else {
-		if (data_offset + sizeof(uint8_t) > data_size) {
-			throw IOException("Corrupted VARIANT 'value' buffer");
-		}
-		num_elements = Load<uint8_t>(data + data_offset);
-		data_offset += sizeof(uint8_t);
+		num_elements = Load<uint8_t>(data);
+		data += sizeof(uint8_t);
 	}
 
-	auto field_ids_offset = data_offset;
-	auto field_offsets_offset = data_offset + (num_elements * field_id_size);
-	auto values_offset = field_offsets_offset + ((num_elements + 1) * field_offset_size);
+	auto field_ids = data;
+	auto field_offsets = data + (num_elements * field_id_size);
+	auto values = field_offsets + ((num_elements + 1) * field_offset_size);
 
-	idx_t last_offset = ReadVariableLengthLittleEndian(field_offset_size, data, field_offsets_offset, data_size);
+	idx_t last_offset = ReadVariableLengthLittleEndian(field_offset_size, field_offsets);
 	for (idx_t i = 0; i < num_elements; i++) {
-		auto field_id = ReadVariableLengthLittleEndian(field_id_size, data, field_ids_offset, data_size);
-		auto next_offset = ReadVariableLengthLittleEndian(field_offset_size, data, field_offsets_offset, data_size);
+		auto field_id = ReadVariableLengthLittleEndian(field_id_size, field_ids);
+		auto next_offset = ReadVariableLengthLittleEndian(field_offset_size, field_offsets);
 
-		auto value = Decode(metadata, data, values_offset + last_offset, data_size);
-		if (field_id >= metadata.strings.size()) {
-			throw IOException("Corrupted VARIANT 'value' buffer");
-		}
+		auto value = Decode(metadata, values + last_offset);
 		auto &key = metadata.strings[field_id];
 
 		ret.AddChild(key, std::move(value));
@@ -401,8 +312,7 @@ VariantValue VariantBinaryDecoder::ObjectDecode(const VariantMetadata &metadata,
 }
 
 VariantValue VariantBinaryDecoder::ArrayDecode(const VariantMetadata &metadata,
-                                               const VariantValueMetadata &value_metadata, const_data_ptr_t data,
-                                               idx_t data_offset, idx_t data_size) {
+                                               const VariantValueMetadata &value_metadata, const_data_ptr_t data) {
 	VariantValue ret(VariantValueType::ARRAY);
 
 	auto field_offset_size = value_metadata.field_offset_size;
@@ -410,55 +320,45 @@ VariantValue VariantBinaryDecoder::ArrayDecode(const VariantMetadata &metadata,
 
 	uint32_t num_elements;
 	if (is_large) {
-		if (data_offset + sizeof(uint32_t) > data_size) {
-			throw IOException("Corrupted VARIANT 'value' buffer");
-		}
-		num_elements = Load<uint32_t>(data + data_offset);
-		data_offset += sizeof(uint32_t);
+		num_elements = Load<uint32_t>(data);
+		data += sizeof(uint32_t);
 	} else {
-		if (data_offset + sizeof(uint8_t) > data_size) {
-			throw IOException("Corrupted VARIANT 'value' buffer");
-		}
-		num_elements = Load<uint8_t>(data + data_offset);
-		data_offset += sizeof(uint8_t);
+		num_elements = Load<uint8_t>(data);
+		data += sizeof(uint8_t);
 	}
 
-	auto field_offsets_offset = data_offset;
-	auto values_offset = field_offsets_offset + ((num_elements + 1) * field_offset_size);
+	auto field_offsets = data;
+	auto values = field_offsets + ((num_elements + 1) * field_offset_size);
 
-	idx_t last_offset = ReadVariableLengthLittleEndian(field_offset_size, data, field_offsets_offset, data_size);
+	idx_t last_offset = ReadVariableLengthLittleEndian(field_offset_size, field_offsets);
 	for (idx_t i = 0; i < num_elements; i++) {
-		auto next_offset = ReadVariableLengthLittleEndian(field_offset_size, data, field_offsets_offset, data_size);
+		auto next_offset = ReadVariableLengthLittleEndian(field_offset_size, field_offsets);
 
-		ret.AddItem(Decode(metadata, data, values_offset + last_offset, data_size));
+		ret.AddItem(Decode(metadata, values + last_offset));
 		last_offset = next_offset;
 	}
 	return ret;
 }
 
-VariantValue VariantBinaryDecoder::Decode(const VariantMetadata &variant_metadata, const_data_ptr_t data,
-                                          idx_t data_offset, idx_t data_size) {
-	if (data_offset + 1 > data_size) {
-		throw IOException("Corrupted VARIANT 'value' buffer");
-	}
-	auto value_metadata = VariantValueMetadata::FromHeaderByte(data[data_offset]);
-	data_offset += sizeof(uint8_t);
+VariantValue VariantBinaryDecoder::Decode(const VariantMetadata &variant_metadata, const_data_ptr_t data) {
+	auto value_metadata = VariantValueMetadata::FromHeaderByte(data[0]);
 
+	data++;
 	switch (value_metadata.basic_type) {
 	case VariantBasicType::PRIMITIVE: {
-		return PrimitiveTypeDecode(value_metadata, data, data_offset, data_size);
+		return PrimitiveTypeDecode(value_metadata, data);
 	}
 	case VariantBasicType::SHORT_STRING: {
-		return ShortStringDecode(value_metadata, data, data_offset, data_size);
+		return ShortStringDecode(value_metadata, data);
 	}
 	case VariantBasicType::OBJECT: {
-		return ObjectDecode(variant_metadata, value_metadata, data, data_offset, data_size);
+		return ObjectDecode(variant_metadata, value_metadata, data);
 	}
 	case VariantBasicType::ARRAY: {
-		return ArrayDecode(variant_metadata, value_metadata, data, data_offset, data_size);
+		return ArrayDecode(variant_metadata, value_metadata, data);
 	}
 	default:
-		throw IOException("Unexpected value for VariantBasicType");
+		throw InternalException("Unexpected value for VariantBasicType");
 	}
 }
 

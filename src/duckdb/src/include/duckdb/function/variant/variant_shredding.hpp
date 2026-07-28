@@ -29,7 +29,7 @@ public:
 
 	idx_t total_count = 0;
 	//! indices into the top-level 'columns' vector where the stats for the field/element live
-	unordered_map<string, idx_t> field_stats;
+	case_insensitive_map_t<idx_t> field_stats;
 	idx_t element_stats = DConstants::INVALID_INDEX;
 };
 
@@ -51,8 +51,7 @@ public:
 	LogicalType GetShreddedType() const;
 
 private:
-	bool GetShreddedTypeInternal(const VariantColumnStatsData &column, LogicalType &out_type,
-	                             optional_idx parent_count = optional_idx()) const;
+	bool GetShreddedTypeInternal(const VariantColumnStatsData &column, LogicalType &out_type) const;
 
 private:
 	//! Nested type analysis
@@ -77,13 +76,8 @@ public:
 	                                optional_ptr<const SelectionVector> result_sel, idx_t count) = 0;
 
 protected:
-	idx_t typed_value_index = VariantStats::TYPED_VALUE_INDEX;
-	idx_t untyped_value_index = VariantStats::UNTYPED_VALUE_INDEX;
-
-protected:
 	void WriteTypedValues(UnifiedVariantVectorData &variant, Vector &result, const SelectionVector &sel,
 	                      const SelectionVector &value_index_sel, const SelectionVector &result_sel, idx_t count);
-	virtual void WriteMissingField(Vector &vector, idx_t index);
 
 private:
 	void WriteTypedObjectValues(UnifiedVariantVectorData &variant, Vector &result, const SelectionVector &sel,

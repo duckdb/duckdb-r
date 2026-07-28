@@ -80,7 +80,6 @@ public:
 	//! Flush all blocks to disk
 	void Flush();
 
-	bool BlockIsModified(const MetaBlockPointer &ptr);
 	bool BlockHasBeenCleared(const MetaBlockPointer &ptr);
 
 	void MarkBlocksAsModified();

@@ -51,11 +51,9 @@ BindResult TableFunctionBinder::BindColumnReference(unique_ptr<ParsedExpression>
 		}
 	}
 
-	if (accept_sql_value_functions) {
-		auto value_function = ExpressionBinder::GetSQLValueFunction(column_names.back());
-		if (value_function) {
-			return BindExpression(value_function, depth, root_expression);
-		}
+	auto value_function = ExpressionBinder::GetSQLValueFunction(column_names.back());
+	if (value_function) {
+		return BindExpression(value_function, depth, root_expression);
 	}
 
 	auto result = BindCorrelatedColumns(expr_ptr, ErrorData("error"));

@@ -43,9 +43,7 @@ static void URLDecodeFunction(DataChunk &args, ExpressionState &state, Vector &r
 }
 
 ScalarFunction UrlDecodeFun::GetFunction() {
-	ScalarFunction fun({LogicalType::VARCHAR}, LogicalType::VARCHAR, URLDecodeFunction);
-	fun.SetFallible();
-	return fun;
+	return ScalarFunction({LogicalType::VARCHAR}, LogicalType::VARCHAR, URLDecodeFunction);
 }
 
 } // namespace duckdb

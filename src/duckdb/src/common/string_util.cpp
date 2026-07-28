@@ -77,14 +77,6 @@ idx_t StringUtil::ToUnsigned(const string &str) {
 	return std::stoull(str);
 }
 
-int64_t StringUtil::ToSigned(const string &str) {
-	return std::stoll(str);
-}
-
-double StringUtil::ToDouble(const string &str) {
-	return std::stod(str);
-}
-
 void StringUtil::LTrim(string &str) {
 	auto it = str.begin();
 	while (it != str.end() && CharacterIsSpace(*it)) {
@@ -432,20 +424,6 @@ bool StringUtil::CIEquals(const char *l1, idx_t l1_size, const char *l2, idx_t l
 
 bool StringUtil::CIEquals(const string &l1, const string &l2) {
 	return CIEquals(l1.c_str(), l1.size(), l2.c_str(), l2.size());
-}
-
-bool StringUtil::CIStartsWith(const string &str, const string &prefix) {
-	if (prefix.size() > str.size()) {
-		return false;
-	}
-	return CIEquals(str.c_str(), prefix.size(), prefix.c_str(), prefix.size());
-}
-
-bool StringUtil::CIEndsWith(const string &str, const string &suffix) {
-	if (suffix.size() > str.size()) {
-		return false;
-	}
-	return CIEquals(str.c_str() + str.size() - suffix.size(), suffix.size(), suffix.c_str(), suffix.size());
 }
 
 bool StringUtil::CILessThan(const string &s1, const string &s2) {

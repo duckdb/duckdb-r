@@ -39,13 +39,13 @@ public:
 	TableIndexList &GetIndexes() {
 		return indexes;
 	}
-	//! Find and move out an IndexStorageInfo by name from the stored collection.
-	IndexStorageInfo ExtractIndexStorageInfo(const string &name);
+	const vector<IndexStorageInfo> &GetIndexStorageInfo() const {
+		return index_storage_infos;
+	}
 	unique_ptr<StorageLockKey> GetSharedLock() {
 		return checkpoint_lock.GetSharedLock();
 	}
 	bool AppendRequiresNewRowGroup(RowGroupCollection &collection, transaction_t checkpoint_id);
-	optional_idx CheckpointRowGroupCount(const CheckpointOptions &options) const;
 	void VerifyIndexBuffers();
 
 	string GetSchemaName();

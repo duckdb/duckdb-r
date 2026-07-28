@@ -157,7 +157,7 @@ bool Pipeline::IsOrderDependent() const {
 			return true;
 		}
 	}
-	if (!Settings::Get<PreserveInsertionOrderSetting>(executor.context)) {
+	if (!DBConfig::GetSetting<PreserveInsertionOrderSetting>(executor.context)) {
 		return false;
 	}
 	if (sink && sink->SinkOrderDependent()) {
@@ -253,36 +253,6 @@ void Pipeline::AddDependency(shared_ptr<Pipeline> &pipeline) {
 	D_ASSERT(pipeline);
 	dependencies.push_back(weak_ptr<Pipeline>(pipeline));
 	pipeline->parents.push_back(weak_ptr<Pipeline>(shared_from_this()));
-}
-
-vector<weak_ptr<Pipeline>> Pipeline::GetDependencies() const {
-	return dependencies;
-}
-
-void Pipeline::AddIntraDependency(Pipeline &dependency) {
-	intra_dependencies.emplace_back(dependency.shared_from_this());
-}
-
-void Pipeline::InheritDependencies(const Pipeline &other) {
-	dependencies = other.dependencies;
-	intra_dependencies = other.intra_dependencies;
-}
-
-vector<shared_ptr<Pipeline>> Pipeline::GetAllDependencies() const {
-	vector<shared_ptr<Pipeline>> result;
-	for (auto &weak_dep : intra_dependencies) {
-		auto dep = weak_dep.lock();
-		if (dep) {
-			result.push_back(std::move(dep));
-		}
-	}
-	for (auto &weak_dep : dependencies) {
-		auto dep = weak_dep.lock();
-		if (dep) {
-			result.push_back(std::move(dep));
-		}
-	}
-	return result;
 }
 
 string Pipeline::ToString() const {

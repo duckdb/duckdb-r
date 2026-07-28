@@ -38,8 +38,6 @@
 
 #include "src/common/types/timestamp.cpp"
 
-#include "src/common/types/type_manager.cpp"
-
 #include "src/common/types/time.cpp"
 
 #include "src/common/types/validity_mask.cpp"

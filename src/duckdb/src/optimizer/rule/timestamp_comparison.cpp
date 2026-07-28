@@ -5,7 +5,6 @@
 #include "duckdb/common/constants.hpp"
 #include "duckdb/execution/expression_executor.hpp"
 #include "duckdb/planner/expression/bound_cast_expression.hpp"
-#include "duckdb/planner/expression/bound_columnref_expression.hpp"
 #include "duckdb/planner/expression/bound_conjunction_expression.hpp"
 #include "duckdb/planner/expression/bound_comparison_expression.hpp"
 #include "duckdb/planner/expression/bound_constant_expression.hpp"
@@ -16,7 +15,8 @@
 
 namespace duckdb {
 
-TimeStampComparison::TimeStampComparison(ExpressionRewriter &rewriter) : Rule(rewriter), context(rewriter.context) {
+TimeStampComparison::TimeStampComparison(ClientContext &context, ExpressionRewriter &rewriter)
+    : Rule(rewriter), context(context) {
 	// match on a ComparisonExpression that is an Equality and has a VARCHAR and ENUM as its children
 	auto op = make_uniq<ComparisonExpressionMatcher>();
 	op->policy = SetMatcher::Policy::UNORDERED;

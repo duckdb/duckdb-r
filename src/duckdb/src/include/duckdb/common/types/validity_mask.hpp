@@ -298,10 +298,11 @@ public:
 		if (count == 0) {
 			return;
 		}
-		auto last_entry_index = ValidityBuffer::EntryCount(count) - 1;
-		for (idx_t i = 0; i < last_entry_index; i++) {
+		const auto entry_count = ValidityBuffer::EntryCount(count);
+		for (idx_t i = 0; i + 1 < entry_count; i++) {
 			validity_mask[i] = ValidityBuffer::MAX_ENTRY;
 		}
+		const auto last_entry_index = entry_count - 1;
 		auto last_entry_bits = count % BITS_PER_VALUE;
 		validity_mask[last_entry_index] |= (last_entry_bits == 0)
 		                                       ? ValidityBuffer::MAX_ENTRY

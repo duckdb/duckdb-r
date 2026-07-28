@@ -115,11 +115,11 @@ public:
 		return GetValueAtIndex<T>(block_idx, tuple_idx);
 	}
 
-	static void SetKeepPinned(const bool &) {
+	void SetKeepPinned(const bool &) {
 		// NOP
 	}
 
-	static void SetPinPayload(const bool &) {
+	void SetPinPayload(const bool &) {
 		// NOP
 	}
 
