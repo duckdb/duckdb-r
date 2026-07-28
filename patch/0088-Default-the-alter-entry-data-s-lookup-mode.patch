@@ -17,13 +17,13 @@ Carried here until the engine brings the same change.
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/src/duckdb/src/include/duckdb/parser/parsed_data/alter_info.hpp b/src/duckdb/src/include/duckdb/parser/parsed_data/alter_info.hpp
-index 3cea24761b..023bb31596 100644
+index 0b2be8b897..b7f944e6c1 100644
 --- a/src/duckdb/src/include/duckdb/parser/parsed_data/alter_info.hpp
 +++ b/src/duckdb/src/include/duckdb/parser/parsed_data/alter_info.hpp
-@@ -42,7 +42,7 @@ struct AlterEntryData {
- 	Identifier catalog;
- 	Identifier schema;
- 	Identifier name;
+@@ -53,7 +53,7 @@ struct AlterEntryData {
+ 	}
+ 
+ 	QualifiedName qualified_name;
 -	OnEntryNotFound if_not_found;
 +	OnEntryNotFound if_not_found = OnEntryNotFound::THROW_EXCEPTION;
  };
