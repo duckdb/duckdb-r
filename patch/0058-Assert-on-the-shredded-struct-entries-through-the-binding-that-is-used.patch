@@ -18,16 +18,16 @@ Carried here until the engine brings the same change.
  1 file changed, 1 insertion(+), 2 deletions(-)
 
 diff --git a/src/duckdb/src/storage/table/variant/variant_unshredding.cpp b/src/duckdb/src/storage/table/variant/variant_unshredding.cpp
-index b0e90b2d28..10b82363d5 100644
+index cc7d6cfa89..d89e9c833b 100644
 --- a/src/duckdb/src/storage/table/variant/variant_unshredding.cpp
 +++ b/src/duckdb/src/storage/table/variant/variant_unshredding.cpp
-@@ -198,8 +198,7 @@ static vector<VariantValue> Unshred(UnifiedVariantVectorData &variant, Vector &s
+@@ -202,8 +202,7 @@ static vector<VariantValue> Unshred(UnifiedVariantVectorData &variant, Vector &s
  		// "typed_value", "untyped_value"
  		auto &child_vectors = StructVector::GetEntries(shredded);
  		D_ASSERT(shredded.GetType().id() == LogicalTypeId::STRUCT);
 -		auto &child_entries = StructVector::GetEntries(shredded);
 -		D_ASSERT(child_entries.size() <= 2);
 +		D_ASSERT(child_vectors.size() <= 2);
- 		typed_value_ref = *child_vectors[VariantColumnData::TYPED_VALUE_INDEX];
+ 		typed_value_ref = child_vectors[VariantColumnData::TYPED_VALUE_INDEX];
  		if (child_vectors.size() > 1) {
  			D_ASSERT(child_vectors.size() == 2);
