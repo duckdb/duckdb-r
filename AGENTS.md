@@ -238,10 +238,10 @@ which is what makes `@examplesIf simulate_duckdb()$env$examples_enabled()` work 
 
 Use them anywhere the package refers to itself:
 
-* `system.file(..., package = get_package_name())`, never `package = "duckdb"`;
-* `get_package_env()$some_internal`, never `duckdb:::some_internal`;
+* `system.file(..., package = get_package_name())`, never the package name as a string literal;
+* `get_package_env()$some_internal`, never a `:::` qualifier on our own name;
 * in roxygen too — an inline chunk `` `r get_package_env()$CONSTANT` `` resolves under any name,
-  while `` `r duckdb:::CONSTANT` `` fails everywhere except `main`.
+  while the same chunk written with a `:::` qualifier fails everywhere except `main`.
 
 The roxygen case is worth calling out because it fails in a confusing way.
 roxygen2 evaluates inline chunks in the package's own namespace,
@@ -249,7 +249,7 @@ so an unresolvable reference does not raise an error:
 the chunk, **and every other inline chunk in the same roxygen block**,
 is emitted verbatim as `\verb{r ...}`.
 A single hard-coded qualifier therefore silently de-evaluates its neighbours —
-one `duckdb:::` in `R/storage.R` also took out the `lifecycle::badge()` chunk beside it.
+a single qualified reference in `R/storage.R` also took out the `lifecycle::badge()` chunk beside it.
 The regenerated `.Rd` then differs from the committed one
 and CI fails at the `roxygenize` step, before anything is compiled.
 
