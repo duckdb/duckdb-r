@@ -16,6 +16,8 @@
 
 #include "src/common/client_box_renderer_context.cpp"
 
+#include "src/common/clustered_aggregate.cpp"
+
 #include "src/common/column_data_collection_render_interface.cpp"
 
 #include "src/common/column_index.cpp"
