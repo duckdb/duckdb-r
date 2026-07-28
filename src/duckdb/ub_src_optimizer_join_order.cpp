@@ -2,9 +2,13 @@
 
 #include "src/optimizer/join_order/cost_model.cpp"
 
+#include "src/optimizer/join_order/filter_info.cpp"
+
 #include "src/optimizer/join_order/join_node.cpp"
 
 #include "src/optimizer/join_order/join_order_optimizer.cpp"
+
+#include "src/optimizer/join_order/join_predicate.cpp"
 
 #include "src/optimizer/join_order/join_relation_set.cpp"
 
