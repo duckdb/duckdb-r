@@ -22,6 +22,8 @@
 
 #include "src/catalog/catalog_entry/table_catalog_entry.cpp"
 
+#include "src/catalog/catalog_entry/trigger_catalog_entry.cpp"
+
 #include "src/catalog/catalog_entry/column_dependency_manager.cpp"
 
 #include "src/catalog/catalog_entry/scalar_function_catalog_entry.cpp"

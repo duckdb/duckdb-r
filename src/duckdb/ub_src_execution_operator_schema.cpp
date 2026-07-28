@@ -12,6 +12,8 @@
 
 #include "src/execution/operator/schema/physical_create_table.cpp"
 
+#include "src/execution/operator/schema/physical_create_trigger.cpp"
+
 #include "src/execution/operator/schema/physical_create_view.cpp"
 
 #include "src/execution/operator/schema/physical_create_function.cpp"
