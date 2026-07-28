@@ -6,6 +6,8 @@
 
 #include "src/common/box_renderer.cpp"
 
+#include "src/common/column_data_collection_render_interface.cpp"
+
 #include "src/common/cgroups.cpp"
 
 #include "src/common/column_index.cpp"
