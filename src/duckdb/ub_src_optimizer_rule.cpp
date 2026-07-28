@@ -40,6 +40,8 @@
 
 #include "src/optimizer/rule/not_comparison_simplification.cpp"
 
+#include "src/optimizer/rule/not_conjunction_simplification.cpp"
+
 #include "src/optimizer/rule/ordered_aggregate_optimizer.cpp"
 
 #include "src/optimizer/rule/predicate_factoring.cpp"
