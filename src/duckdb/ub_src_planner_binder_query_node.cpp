@@ -10,6 +10,8 @@
 
 #include "src/planner/binder/query_node/bind_table_macro_node.cpp"
 
+#include "src/planner/binder/query_node/bind_trigger_expansion.cpp"
+
 #include "src/planner/binder/query_node/plan_query_node.cpp"
 
 #include "src/planner/binder/query_node/plan_select_node.cpp"
