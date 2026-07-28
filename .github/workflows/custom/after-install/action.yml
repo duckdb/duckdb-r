@@ -45,8 +45,8 @@ runs:
       shell: bash
 
     # Guard for the flavor rename: fail when the package name is hard-coded
-    # somewhere scripts/lts.patch does not rewrite it. The equivalent testthat
-    # test (tests/testthat/test-lts-package-name.R) can only skip under R CMD
+    # somewhere scripts/flavor.patch does not rewrite it. The equivalent testthat
+    # test (tests/testthat/test-flavor-package-name.R) can only skip under R CMD
     # check, which runs from a built tarball where neither the sources nor
     # scripts/ (.Rbuildignore'd) exist -- so the scan runs here, against the
     # checkout. Base R only, no package needed.
@@ -55,17 +55,17 @@ runs:
     # and nothing else, so its result is the same everywhere. Run it in the
     # smoke test only -- the gate that also styles, roxygenizes and updates
     # snapshots -- rather than a dozen more times for the same answer.
-    - name: Check that the package name is hard-coded only where scripts/lts.patch rewrites it
+    - name: Check that the package name is hard-coded only where scripts/flavor.patch rewrites it
       if: github.job == 'rcc-smoke'
       run: |
-        source("scripts/lts-package-name.R")
-        offenders <- lts_package_name_offenders(".")
+        source("scripts/flavor-package-name.R")
+        offenders <- flavor_package_name_offenders(".")
         if (length(offenders) > 0) {
           writeLines(offenders)
           stop(
-            "The package name is hard-coded outside scripts/lts.patch; ",
-            "see scripts/lts-package-name.R for how to resolve this."
+            "The package name is hard-coded outside scripts/flavor.patch; ",
+            "see scripts/flavor-package-name.R for how to resolve this."
           )
         }
-        writeLines("No hard-coded package name outside scripts/lts.patch.")
+        writeLines("No hard-coded package name outside scripts/flavor.patch.")
       shell: Rscript {0}

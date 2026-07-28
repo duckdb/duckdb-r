@@ -12,7 +12,7 @@
 
 ## Testing
 
-- Guard the LTS rename against hard-coded package names (#2423).
+- Guard the flavor rename against hard-coded package names (#2423).
 
 ## Uncategorized
 

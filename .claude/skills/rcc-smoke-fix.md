@@ -352,14 +352,14 @@ has actually failed.
   forbidden.
 - `inst/include/cpp11/`, `inst/include/cpp11.hpp` (vendored cpp11 from
   `krlmlr/cpp11`)
-- `scripts/vendor.sh`, `scripts/vendor-one.sh`, `scripts/lts.sh`,
-  `scripts/lts.patch` (vendoring + flavor automation)
+- `scripts/vendor.sh`, `scripts/vendor-one.sh`, `scripts/flavor.sh`,
+  `scripts/flavor.patch` (vendoring + flavor automation)
 
 The flavor files (`DESCRIPTION`'s `Package:` field, `R/duckdb-package.R`,
 `src/include/rapi.hpp` for `DUCKDB_PACKAGE_NAME`,
 `inst/include/duckdb_types.hpp`, `tests/testthat.R`) are managed by
-`scripts/lts.sh` and should not be hand-edited; if they look wrong, re-run
-`scripts/lts.sh <flavor>` rather than patching by hand.
+`scripts/flavor.sh` and should not be hand-edited; if they look wrong, re-run
+`scripts/flavor.sh <flavor>` rather than patching by hand.
 
 Everything else — including `patch/` — may be changed.
 
@@ -495,7 +495,7 @@ This rewrites the local `broken-<sha>-dev` HEAD only — the original
 commit on a new, never-before-pushed branch.
 
 Never `git add` paths under `inst/include/cpp11/` or any flavor file
-managed by `scripts/lts.sh`. `src/duckdb/` should only appear in the
+managed by `scripts/flavor.sh`. `src/duckdb/` should only appear in the
 amended commit when it carries the downstream effect of a `patch/`
 change.
 
@@ -570,7 +570,7 @@ No failure found: v1.4-andium-dev
 - **Never** hand-edit flavor files (`DESCRIPTION` `Package:` field,
   `R/duckdb-package.R`, `src/include/rapi.hpp`'s `DUCKDB_PACKAGE_NAME`,
   `inst/include/duckdb_types.hpp`, `tests/testthat.R`); they are produced
-  by `scripts/lts.sh` and should match per-branch.
+  by `scripts/flavor.sh` and should match per-branch.
 - **Never** suppress C++ warnings via `#pragma clang diagnostic ignored` or
   similar. Add a `patch/` file that fixes the underlying issue (see
   `AGENTS.md`). CRAN rejects packages that silence warnings.

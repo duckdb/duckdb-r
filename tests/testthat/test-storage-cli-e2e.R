@@ -16,7 +16,7 @@
 # the PATH. Returns "" when none is available.
 #
 # The executable name is spelled in two pieces so that the flavor guard
-# (scripts/lts-package-name.R) does not read it as the R package name, which the
+# (scripts/flavor-package-name.R) does not read it as the R package name, which the
 # renamed flavors change -- this one names a binary on the PATH and must not be
 # renamed with them.
 duckdb_cli_bin <- function() {

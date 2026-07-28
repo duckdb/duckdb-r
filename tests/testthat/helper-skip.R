@@ -8,8 +8,8 @@ skip_on_dev_version <- function() {
 
 # Skip on every flavor but the mainline one.
 #
-# `scripts/lts.sh` renames the package to a flavor -- `duckdb.1.4`,
-# `duckdb.1.4.dev`, `duckdb.dev`, ... -- by applying `scripts/lts.patch`; see
+# `scripts/flavor.sh` renames the package to a flavor -- `duckdb.1.4`,
+# `duckdb.1.4.dev`, `duckdb.dev`, ... -- by applying `scripts/flavor.patch`; see
 # BRANCHES.md. Tests that depend on another package hard-coding the mainline
 # `duckdb` name -- arrow's DuckDB integration, for instance -- cannot work under
 # any of them. The suffix is what tells the flavors apart: the mainline name has
