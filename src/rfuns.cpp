@@ -757,8 +757,8 @@ void InExecute(DataChunk &args, ExpressionState &state, Vector &result) {
 		throw InvalidInputException("rhs must be a constant");
 	}
 	auto y_size = ListVector::GetListSize(y);
-	auto y_data = FlatVector::GetData<RHS_TYPE>(ListVector::GetEntry(y));
-	auto y_mask = FlatVector::Validity(ListVector::GetEntry(y));
+	auto y_data = FlatVector::GetData<RHS_TYPE>(ListVector::GetChild(y));
+	auto y_mask = FlatVector::Validity(ListVector::GetChild(y));
 
 	bool na_in_y = [&]() {
 		if (y_mask.CannotHaveNull()) {
