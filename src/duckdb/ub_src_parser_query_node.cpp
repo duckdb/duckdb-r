@@ -1,3 +1,5 @@
+#include "src/parser/query_node/copy_query_node.cpp"
+
 #include "src/parser/query_node/cte_node.cpp"
 
 #include "src/parser/query_node/delete_query_node.cpp"
