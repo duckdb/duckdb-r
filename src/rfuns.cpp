@@ -307,7 +307,7 @@ void isna_double(DataChunk &args, ExpressionState &state, Vector &result) {
 }
 
 void isna_any_loop(idx_t count, bool *result_data, ValidityMask mask) {
-	if (mask.AllValid()) {
+	if (mask.CannotHaveNull()) {
 		for (idx_t i = 0; i < count; i++) {
 			result_data[i] = false;
 		}
@@ -763,7 +763,7 @@ void InExecute(DataChunk &args, ExpressionState &state, Vector &result) {
 	auto y_mask = FlatVector::Validity(ListVector::GetEntry(y));
 
 	bool na_in_y = [&]() {
-		if (y_mask.AllValid()) {
+		if (y_mask.CannotHaveNull()) {
 			return false;
 		}
 
@@ -849,7 +849,7 @@ void InExecute(DataChunk &args, ExpressionState &state, Vector &result) {
 			} else if (ValidityMask::NoneValid(validity_entry)) {
 				// None valid:
 				for (; base_idx < next; base_idx++) {
-					result_data[base_idx] = !y_mask.AllValid();
+					result_data[base_idx] = !y_mask.CannotHaveNull();
 				}
 			} else {
 				// partially valid: need to check individual elements for validity
