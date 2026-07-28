@@ -298,7 +298,7 @@ void isna_double(DataChunk &args, ExpressionState &state, Vector &result) {
 
 	default: {
 		UnifiedVectorFormat vdata;
-		input.ToUnifiedFormat(count, vdata);
+		input.ToUnifiedFormat(vdata);
 		result.SetVectorType(VectorType::FLAT_VECTOR);
 
 		isna_double_loop(count, UnifiedVectorFormat::GetData<double>(vdata), FlatVector::GetDataMutable<bool>(result),
@@ -365,7 +365,7 @@ void isna_any(DataChunk &args, ExpressionState &state, Vector &result) {
 
 	default: {
 		UnifiedVectorFormat vdata;
-		input.ToUnifiedFormat(count, vdata);
+		input.ToUnifiedFormat(vdata);
 		result.SetVectorType(VectorType::FLAT_VECTOR);
 		isna_any_loop(count, FlatVector::GetDataMutable<bool>(result), vdata.validity);
 
@@ -883,7 +883,7 @@ void InExecute(DataChunk &args, ExpressionState &state, Vector &result) {
 
 	default: {
 		UnifiedVectorFormat vdata;
-		x.ToUnifiedFormat(count, vdata);
+		x.ToUnifiedFormat(vdata);
 		result.SetVectorType(VectorType::FLAT_VECTOR);
 		in_loop(count, UnifiedVectorFormat::GetData<LHS_TYPE>(vdata), FlatVector::GetDataMutable<bool>(result),
 		        vdata.validity);
