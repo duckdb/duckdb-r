@@ -8,6 +8,7 @@
 #include "duckdb/planner/filter/in_filter.hpp"
 #include "duckdb/planner/filter/optional_filter.hpp"
 #include "duckdb/planner/table_filter.hpp"
+#include "duckdb/planner/table_filter_set.hpp"
 #include "rapi.hpp"
 #include "signal.hpp"
 #include "typesr.hpp"
@@ -148,7 +149,7 @@ public:
 		} else {
 			cpp11::sexp projection_sexp = StringsToSexp(column_list);
 			cpp11::sexp filters_sexp = Rf_ScalarLogical(true);
-			if (filters && !filters->filters.empty()) {
+			if (filters && filters->HasFilters()) {
 				filters_sexp = TransformFilter(*filters, projection_map, factory->export_fun);
 			}
 			export_fun(factory->arrow_scannable, stream_ptr_sexp, projection_sexp, filters_sexp);
@@ -296,11 +297,11 @@ private:
 
 	static SEXP TransformFilter(TableFilterSet &filter_collection, unordered_map<idx_t, string> &columns,
 	                            SEXP functions) {
-		auto fit = filter_collection.filters.begin();
-		cpp11::sexp res = TransformFilterExpression(*fit->second, columns[fit->first], functions);
-		fit++;
-		for (; fit != filter_collection.filters.end(); ++fit) {
-			cpp11::sexp rhs = TransformFilterExpression(*fit->second, columns[fit->first], functions);
+		auto fit = filter_collection.begin();
+		cpp11::sexp res = TransformFilterExpression((*fit).Filter(), columns[(*fit).ColumnIndex()], functions);
+		++fit;
+		for (; fit != filter_collection.end(); ++fit) {
+			cpp11::sexp rhs = TransformFilterExpression((*fit).Filter(), columns[(*fit).ColumnIndex()], functions);
 			res = CreateExpression(functions, "and_kleene", res, rhs);
 		}
 		return res;
