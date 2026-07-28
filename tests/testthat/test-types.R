@@ -12,6 +12,7 @@ test_that("test_all_types() output", {
       # Need to omit timestamp columns, likely due to https://bugs.r-project.org/show_bug.cgi?id=16856
       "timestamp_tz",
       "timestamp_ns",
+      "timestamp_tz_ns",
       "timestamp_array",
       "timestamptz_array",
 

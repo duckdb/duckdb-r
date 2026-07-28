@@ -112,6 +112,7 @@ void VariantShredding::WriteTypedPrimitiveValues(UnifiedVariantVectorData &varia
 	case LogicalTypeId::TIME_NS:
 	case LogicalTypeId::TIME_TZ:
 	case LogicalTypeId::TIMESTAMP_TZ:
+	case LogicalTypeId::TIMESTAMP_TZ_NS:
 	case LogicalTypeId::TIMESTAMP:
 	case LogicalTypeId::TIMESTAMP_SEC:
 	case LogicalTypeId::TIMESTAMP_MS:
