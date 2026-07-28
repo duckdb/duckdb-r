@@ -232,10 +232,10 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 
 	auto func_expr = make_external<FunctionExpression>("duckdb_expr", name, std::move(children));
 	if (!order_bys.empty()) {
-		func_expr->order_bys = std::move(order_modifier);
+		func_expr->OrderByMutable() = std::move(order_modifier);
 	}
 	if (!filter_bys.empty()) {
-		func_expr->filter = std::move(filter_expr);
+		func_expr->FilterMutable() = std::move(filter_expr);
 	}
 	if (alias != "") {
 		func_expr->SetAlias(std::move(alias));
@@ -505,46 +505,46 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 	}
 
 	auto &function = (FunctionExpression &)*window_function;
-	auto window_expr = make_external<WindowExpression>("duckdb_expr", "", "", function.function_name);
+	auto window_expr = make_external<WindowExpression>("duckdb_expr", "", "", function.FunctionName());
 
 	size_t i = 0;
 	for (expr_extptr_t expr : order_bys) {
 		OrderType order_type = ascending[i] ? OrderType::ASCENDING : OrderType::DESCENDING;
 		OrderByNullType null_type = nulls_first[i] ? OrderByNullType::NULLS_FIRST : OrderByNullType::NULLS_LAST;
-		window_expr->orders.emplace_back(order_type, null_type, expr->Copy());
+		window_expr->OrderByMutable().emplace_back(order_type, null_type, expr->Copy());
 		i++;
 	}
 
-	if (function.filter) {
-		window_expr->filter_expr = function.filter->Copy();
+	if (function.Filter()) {
+		window_expr->FilterMutable() = function.Filter()->Copy();
 	}
 
-	window_expr->start = StringToWindowBoundary(window_boundary_start);
-	window_expr->end = StringToWindowBoundary(window_boundary_end);
-	for (auto &child : function.children) {
-		window_expr->children.push_back(child->Copy());
+	window_expr->WindowStartMutable() = StringToWindowBoundary(window_boundary_start);
+	window_expr->WindowEndMutable() = StringToWindowBoundary(window_boundary_end);
+	for (auto &child : function.GetChildren()) {
+		window_expr->GetChildrenMutable().push_back(child->Copy());
 	}
 	for (expr_extptr_t partition : partitions) {
-		window_expr->partitions.push_back(partition->Copy());
+		window_expr->PartitionsMutable().push_back(partition->Copy());
 	}
 
 	if (constant_expression_is_not_null(start_expr)) {
-		window_expr->start_expr = start_expr->Copy();
+		window_expr->StartExprMutable() = start_expr->Copy();
 	}
 	if (constant_expression_is_not_null(end_expr)) {
-		window_expr->end_expr = end_expr->Copy();
+		window_expr->EndExprMutable() = end_expr->Copy();
 	}
 	if (constant_expression_is_not_null(offset_expr)) {
 		// LEAD/LAG offset must be BIGINT; cast to avoid type mismatch errors
 		auto offset_copy = offset_expr->Copy();
-		bool is_lead_lag = (function.function_name == "lead" || function.function_name == "lag");
+		bool is_lead_lag = (function.FunctionName() == "lead" || function.FunctionName() == "lag");
 		if (is_lead_lag) {
 			offset_copy = make_uniq<CastExpression>(LogicalType::BIGINT, std::move(offset_copy));
 		}
-		window_expr->children.push_back(std::move(offset_copy));
+		window_expr->GetChildrenMutable().push_back(std::move(offset_copy));
 	}
 	if (constant_expression_is_not_null(default_expr)) {
-		window_expr->children.push_back(default_expr->Copy());
+		window_expr->GetChildrenMutable().push_back(default_expr->Copy());
 	}
 
 	if (alias != "") {
