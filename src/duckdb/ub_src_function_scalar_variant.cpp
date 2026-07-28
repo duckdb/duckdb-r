@@ -2,6 +2,8 @@
 
 #include "src/function/scalar/variant/variant_bind_utils.cpp"
 
+#include "src/function/scalar/variant/variant_comparator.cpp"
+
 #include "src/function/scalar/variant/variant_exists.cpp"
 
 #include "src/function/scalar/variant/variant_extract.cpp"
