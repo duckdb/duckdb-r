@@ -6,6 +6,8 @@
 
 #include "src/execution/operator/aggregate/physical_hash_aggregate.cpp"
 
+#include "src/execution/operator/aggregate/physical_limited_distinct.cpp"
+
 #include "src/execution/operator/aggregate/physical_partitioned_aggregate.cpp"
 
 #include "src/execution/operator/aggregate/physical_perfecthash_aggregate.cpp"
