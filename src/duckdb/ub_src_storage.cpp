@@ -12,6 +12,8 @@
 
 #include "src/storage/data_table.cpp"
 
+#include "src/storage/database_handle.cpp"
+
 #include "src/storage/index.cpp"
 
 #include "src/storage/local_storage.cpp"
