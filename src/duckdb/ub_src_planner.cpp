@@ -12,6 +12,8 @@
 
 #include "src/planner/column_binding.cpp"
 
+#include "src/planner/column_qualifier.cpp"
+
 #include "src/planner/expression.cpp"
 
 #include "src/planner/expression_binder.cpp"
