@@ -1,5 +1,5 @@
 #ifndef DUCKDB_PATCH_VERSION
-#define DUCKDB_PATCH_VERSION "0-dev7789"
+#define DUCKDB_PATCH_VERSION "0-dev7813"
 #endif
 #ifndef DUCKDB_MINOR_VERSION
 #define DUCKDB_MINOR_VERSION 6
@@ -8,10 +8,10 @@
 #define DUCKDB_MAJOR_VERSION 1
 #endif
 #ifndef DUCKDB_VERSION
-#define DUCKDB_VERSION "v1.6.0-dev7789"
+#define DUCKDB_VERSION "v1.6.0-dev7813"
 #endif
 #ifndef DUCKDB_SOURCE_ID
-#define DUCKDB_SOURCE_ID "457b1aceea"
+#define DUCKDB_SOURCE_ID "7594f5a2d3"
 #endif
 #include "duckdb/function/table/system_functions.hpp"
 #include "duckdb/main/database.hpp"
@@ -50,7 +50,6 @@ static void PragmaVersionFunction(ClientContext &context, TableFunctionInput &da
 		// finished returning values
 		return;
 	}
-	output.SetCardinality(1);
 	output.data[0].Append(Value(DuckDB::LibraryVersion()));
 	output.data[1].Append(Value(DuckDB::SourceID()));
 	output.data[2].Append(Value(DuckDB::ReleaseCodename()));
@@ -128,7 +127,6 @@ static void PragmaPlatformFunction(ClientContext &context, TableFunctionInput &d
 		// finished returning values
 		return;
 	}
-	output.SetCardinality(1);
 	output.data[0].Append(Value(DuckDB::Platform()));
 	data.finished = true;
 }
