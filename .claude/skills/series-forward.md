@@ -22,20 +22,41 @@ the replay then populates `<S>-fwd-build`.
    `scripts/flavor.sh`,
    plus the separate fifth-component commit on a dev branch
    (`series-open.md`) —
-   then replay each vendor commit:
-   chain-owned paths from the old commit
-   (`src/` — vendored sources and glue alike —
-   `patch/`, `DESCRIPTION`, `R/version.R`, `R/cpp11.R`),
-   everything `main` changed since the old base from `main`,
-   deleted-on-`main` files dropped,
-   `.github` restored wholesale.
-   Tests and snapshots are `main`-owned:
-   a `-build` branch carries glue fixes only,
-   and test amendments live on `-dev`.
-   Renumber the fifth version component onto `main`'s prefix.
-   Keep every commit message.
+   then replay each vendor commit onto it.
+
+   **The forward series takes the whole of the new base.**
+   The replay is a cherry-pick, not a tree reconstruction:
+   a vendor commit's diff is already exactly what vendoring changed —
+   `src/duckdb/`, the version bookkeeping,
+   and the glue that commit had to adapt —
+   so replaying the diffs keeps `main`'s state for everything else
+   by construction.
+   Files `main` deleted stay deleted,
+   tooling `main` gained comes along,
+   tests and snapshots are `main`'s,
+   and glue born on a `-dev` branch
+   rides in the commit that needed it,
+   so the preview line needs no exception.
+   Nothing is reconstructed from a path list,
+   which is what used to go wrong:
+   every failure was the list failing to see
+   something `main` had removed.
+
+   Only `vendor:` subjects are replayed —
+   a `-dev` branch's non-vendor commits belong to `main`
+   and are already in the seed.
+   The fifth version component is renumbered as a true counter,
+   one per replayed commit,
+   so it counts this chain rather than carrying the old one's numbering.
+   Keep every commit message;
+   the original author survives the replay, only the committer changes.
    `scripts/series-forward-build.sh <old-build> <old-base>`
-   does exactly this, run on the fresh seed.
+   does exactly this, run on the fresh seed —
+   `<old-base>` only delimits the range.
+   `DESCRIPTION` merges on every commit,
+   so register the merge driver first (`scripts/setup-git.sh`);
+   on a conflict the script stops with the tree in place,
+   and rerunning it after `git add` continues where it stopped.
 
 2. **`<S>-fwd-dev` = `<S>-fwd-green` = `<S>-fwd-build-base`** =
    the seed tip:
@@ -71,10 +92,9 @@ The rebase is a rebuild, not a merge:
    exactly as when the series was created.
 2. Rebuild the buffer onto it:
    rerun `scripts/series-forward-build.sh <old-build> <old-base>`
-   when `main` moved
-   (the replayed trees must pick up `main`'s changes),
-   or re-parent the existing chain with trees preserved
-   when only the seed's own commits changed.
+   against the **original** `<old-build>`, not the current `-fwd-build` —
+   the replay is defined by the old series' vendor commits,
+   and running it from the new seed is what picks up `main`'s changes.
 3. Reset all four `-fwd` refs in one atomic push:
    `-fwd-build` to the rebuilt buffer tip,
    the other three to the new seed tip.
