@@ -750,7 +750,7 @@ void duckdb_r_transform(const Vector &src_vec, const SEXP dest, idx_t dest_offse
 
 	case LogicalTypeId::VARIANT: {
 		RecursiveUnifiedVectorFormat format;
-		Vector::RecursiveToUnifiedFormat(const_cast<Vector &>(src_vec), n, format);
+		Vector::RecursiveToUnifiedFormat(src_vec, format);
 		UnifiedVariantVectorData variant_data(format);
 
 		for (idx_t row_idx = 0; row_idx < n; row_idx++) {
