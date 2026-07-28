@@ -14,6 +14,8 @@
 
 #include "src/function/scalar/string/regexp.cpp"
 
+#include "src/function/scalar/string/path_join.cpp"
+
 #include "src/function/scalar/string/substring.cpp"
 
 #include "src/function/scalar/string/prefix.cpp"
