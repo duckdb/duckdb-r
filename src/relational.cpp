@@ -489,7 +489,7 @@ static WindowBoundary StringToWindowBoundary(string &window_boundary) {
 bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 	if (expr->GetExpressionType() == ExpressionType::VALUE_CONSTANT) {
 		auto const_expr = expr->Cast<ConstantExpression>();
-		return !const_expr.value.IsNull();
+		return !const_expr.GetValue().IsNull();
 	}
 	return true;
 }
