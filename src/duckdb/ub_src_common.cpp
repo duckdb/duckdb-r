@@ -66,6 +66,8 @@
 
 #include "src/common/opener_file_system.cpp"
 
+#include "src/common/optional_idx.cpp"
+
 #include "src/common/path.cpp"
 
 #include "src/common/pipe_file_system.cpp"
