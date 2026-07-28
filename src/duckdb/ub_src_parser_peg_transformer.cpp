@@ -60,8 +60,6 @@
 
 #include "src/parser/peg/transformer/transform_generic_copy_option.cpp"
 
-#include "src/parser/peg/transformer/transform_import.cpp"
-
 #include "src/parser/peg/transformer/transform_insert.cpp"
 
 #include "src/parser/peg/transformer/transform_load.cpp"
