@@ -1,5 +1,7 @@
 #include "src/optimizer/aggregate_function_rewriter.cpp"
 
+#include "src/optimizer/aggregate_rewrite_helper.cpp"
+
 #include "src/optimizer/build_probe_side_optimizer.cpp"
 
 #include "src/optimizer/column_binding_replacer.cpp"
@@ -19,6 +21,8 @@
 #include "src/optimizer/cte_inlining.cpp"
 
 #include "src/optimizer/deliminator.cpp"
+
+#include "src/optimizer/distinct_aggregate_rewriter.cpp"
 
 #include "src/optimizer/empty_result_pullup.cpp"
 
