@@ -32,5 +32,9 @@
 
 #include "src/parallel/task_scheduler.cpp"
 
+#include "src/parallel/task_scheduler_pool.cpp"
+
+#include "src/parallel/task_scheduler_queue.cpp"
+
 #include "src/parallel/thread_context.cpp"
 
