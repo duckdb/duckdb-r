@@ -1,3 +1,5 @@
+#include "src/optimizer/aggregate_function_rewriter.cpp"
+
 #include "src/optimizer/build_probe_side_optimizer.cpp"
 
 #include "src/optimizer/column_binding_replacer.cpp"
@@ -63,8 +65,6 @@
 #include "src/optimizer/window_self_join.cpp"
 
 #include "src/optimizer/sampling_pushdown.cpp"
-
-#include "src/optimizer/sum_rewriter.cpp"
 
 #include "src/optimizer/projection_pullup.cpp"
 
