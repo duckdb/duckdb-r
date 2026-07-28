@@ -50,6 +50,8 @@
 
 #include "src/parser/parsed_data/create_view_info.cpp"
 
+#include "src/parser/parsed_data/create_window_function_info.cpp"
+
 #include "src/parser/parsed_data/detach_info.cpp"
 
 #include "src/parser/parsed_data/drop_info.cpp"

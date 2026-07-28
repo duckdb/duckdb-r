@@ -16,6 +16,8 @@
 
 #include "src/function/window/window_executor.cpp"
 
+#include "src/function/window/window_functions.cpp"
+
 #include "src/function/window/window_index_tree.cpp"
 
 #include "src/function/window/window_merge_sort_tree.cpp"
