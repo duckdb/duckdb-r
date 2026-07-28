@@ -119,6 +119,9 @@ void QueryProfiler::StartQuery(const string &query, bool is_explain_analyze_p, b
 	// would be profiled as an EXPLAIN ANALYZE, which writes no profiling output. Preparing starts the profiler,
 	// so the one left running by a statement prepared and never executed is still running here.
 	is_explain_analyze = false;
+	// Always reset byte counters at the start of each query so the progress bar shows per-query values
+	query_metrics.ResetMetric(MetricType::TOTAL_BYTES_READ);
+	query_metrics.ResetMetric(MetricType::TOTAL_BYTES_WRITTEN);
 	if (is_explain_analyze_p) {
 		StartExplainAnalyze();
 	}
@@ -243,6 +246,11 @@ void QueryProfiler::FinalizeMetrics() {
 }
 
 void QueryProfiler::AddToCounter(const MetricType type, const idx_t amount) {
+	// Always track bytes read/written so the progress bar can display them
+	if (type == MetricType::TOTAL_BYTES_READ || type == MetricType::TOTAL_BYTES_WRITTEN) {
+		query_metrics.UpdateMetric(type, amount);
+		return;
+	}
 	if (IsEnabled()) {
 		query_metrics.UpdateMetric(type, amount);
 	}
