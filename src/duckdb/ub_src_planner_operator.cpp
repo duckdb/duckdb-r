@@ -32,6 +32,8 @@
 
 #include "src/planner/operator/logical_empty_result.cpp"
 
+#include "src/planner/operator/logical_explain.cpp"
+
 #include "src/planner/operator/logical_export.cpp"
 
 #include "src/planner/operator/logical_expression_get.cpp"
