@@ -1,7 +1,13 @@
 #!/bin/bash
 # Trigger rcc workflow runs for commits on a branch that don't yet have a build status.
 #
-# Considers all commits on or after 2026-01-01 in the first-parent history from HEAD.
+# On a series branch (`<S>-dev` with a sibling `<S>-green` on the remote), only
+# commits in `<S>-green..HEAD` are considered — the series loop's world
+# (.claude/skills/series-loop.md); everything at or before green is trusted and
+# never rebuilt.  If green exists but is not an ancestor of HEAD, nothing is
+# scheduled: the branch is mid-surgery or on another lineage, and an unbounded
+# scan would flood the queue.  On branches without a green sibling, all commits
+# on or after 2026-01-01 in the first-parent history from HEAD are considered.
 # Commits are scanned in chronological order (oldest first); for each one, checks for
 # an existing rcc build status (success, failure, or running/pending).  Commits without
 # any status are triggered immediately as they are found, so runs start queuing while
@@ -31,7 +37,25 @@ SINCE="${SINCE:-2026-01-01}"
 gh auth status
 
 echo "Branch ref: ${REF}"
-echo "Scanning all commits on or after ${SINCE}"
+
+# Bound the scan to the series' world when there is one (see header).
+BRANCH=${REF#refs/heads/}
+RANGE=("HEAD")
+case "$BRANCH" in
+  *-dev)
+    S=${BRANCH%-dev}
+    if git fetch -q origin "+refs/heads/$S-green:refs/remotes/origin/$S-green" 2>/dev/null; then
+      if git merge-base --is-ancestor "refs/remotes/origin/$S-green" HEAD; then
+        RANGE=("refs/remotes/origin/$S-green..HEAD")
+        echo "Series branch: scanning origin/$S-green..HEAD"
+      else
+        echo "origin/$S-green is not an ancestor of HEAD — scheduling nothing"
+        exit 0
+      fi
+    fi ;;
+esac
+
+echo "Scanning first-parent commits on or after ${SINCE}"
 
 # Scan and queue in a single pass, in chronological order (oldest first).
 # Each commit without an rcc status is triggered as soon as it is found, so
@@ -56,6 +80,6 @@ while IFS= read -r commit; do
     gh workflow run rcc -f ref="$commit" -r "$REF"
     scheduled=$(( scheduled + 1 ))
   fi
-done < <(git log --first-parent --reverse --pretty=format:"%H" --after="${SINCE}" -- | awk 'NF')
+done < <(git log --first-parent --reverse --pretty=format:"%H" --after="${SINCE}" "${RANGE[@]}" -- | awk 'NF')
 
 echo "Scheduled ${scheduled} run(s)"

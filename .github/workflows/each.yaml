@@ -1,6 +1,9 @@
 # Helper workflow to trigger rcc for each commit on a branch
-# Triggers rcc for commits after the first commit in the first-parent history
-#   that already has an rcc build status.
+# On a series branch (`<S>-dev` with a sibling `<S>-green`), triggers rcc only
+#   for commits in `<S>-green..HEAD` without an rcc build status — the series
+#   loop's world; nothing is scheduled when green is not an ancestor of HEAD.
+#   On branches without a green sibling, scans the first-parent history since
+#   2026-01-01 for commits without a status.
 #   The user can always rebase and force-push to move commits past the boundary and
 #   re-trigger builds for specific commits.
 
