@@ -10,6 +10,8 @@
 
 #include "src/optimizer/rule/constant_order_normalization.cpp"
 
+#include "src/optimizer/rule/contains_to_in_clause.cpp"
+
 #include "src/optimizer/rule/date_part_simplification.cpp"
 
 #include "src/optimizer/rule/date_trunc_simplification.cpp"
