@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 18 Oct 2026 22:02:00 +0000
+Subject: [PATCH] Walk the row groups to write by index, so the assert-only binding goes
+
+RowGroup::WriteToDisk() binds each row group of the batch to a name
+that only D_ASSERT() reads, so in a release build, where D_ASSERT()
+expands to nothing, every iteration holds an unused variable and
+-Wunused-variable says so. The loop walks the batch by index and the
+assertion indexes it, which is the shape upstream gives the loop
+later; nothing else in the loop read the binding.
+
+Carried here until the engine brings the same change.
+
+---
+ src/duckdb/src/storage/table/row_group.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/duckdb/src/storage/table/row_group.cpp b/src/duckdb/src/storage/table/row_group.cpp
+index e440140659..8a3b0beed1 100644
+--- a/src/duckdb/src/storage/table/row_group.cpp
++++ b/src/duckdb/src/storage/table/row_group.cpp
+@@ -1044,8 +1044,8 @@ vector<RowGroupWriteData> RowGroup::WriteToDisk(RowGroupWriteInfo &info,
+ 	}
+ 
+ 	idx_t column_count = row_groups[0].get().GetColumnCount();
+-	for (auto &row_group : row_groups) {
+-		D_ASSERT(column_count == row_group.get().GetColumnCount());
++	for (idx_t row_group_idx = 0; row_group_idx < row_groups.size(); row_group_idx++) {
++		D_ASSERT(column_count == row_groups[row_group_idx].get().GetColumnCount());
+ 		RowGroupWriteData write_data;
+ 		write_data.states.reserve(column_count);
+ 		write_data.statistics.reserve(column_count);
