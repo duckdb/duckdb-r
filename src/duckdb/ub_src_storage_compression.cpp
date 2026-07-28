@@ -20,6 +20,8 @@
 
 #include "src/storage/compression/rle.cpp"
 
+#include "src/storage/compression/standard_compression_state.cpp"
+
 #include "src/storage/compression/string_uncompressed.cpp"
 
 #include "src/storage/compression/uncompressed.cpp"
