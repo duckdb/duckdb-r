@@ -36,6 +36,8 @@
 
 #include "src/optimizer/rule/list_comprehension_rewrite.cpp"
 
+#include "src/optimizer/rule/monotone_preimage.cpp"
+
 #include "src/optimizer/rule/move_constants.cpp"
 
 #include "src/optimizer/rule/not_comparison_simplification.cpp"
