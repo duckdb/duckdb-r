@@ -1,6 +1,7 @@
 #include "R_ext/Random.h"
 #include "duckdb/common/enum_util.hpp"
 #include "duckdb/common/enums/joinref_type.hpp"
+#include "duckdb/common/identifier.hpp"
 #include "duckdb/main/relation/aggregate_relation.hpp"
 #include "duckdb/main/relation/cross_product_relation.hpp"
 #include "duckdb/main/relation/distinct_relation.hpp"
@@ -142,9 +143,9 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 		}
 		names.push_back(name);
 	}
-	auto out = make_external<ColumnRefExpression>("duckdb_expr", names);
+	auto out = make_external<ColumnRefExpression>("duckdb_expr", StringsToIdentifiers(names));
 	if (alias != "") {
-		out->SetAlias(std::move(alias));
+		out->SetAlias(Identifier(std::move(alias)));
 	}
 	return out;
 }
@@ -157,7 +158,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 	auto const_value = RApiTypes::SexpToValue(val, 0, false);
 	auto out = make_external<ConstantExpression>("duckdb_expr", const_value);
 	if (alias != "") {
-		out->SetAlias(std::move(alias));
+		out->SetAlias(Identifier(std::move(alias)));
 	}
 	return out;
 }
@@ -181,7 +182,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 
 	auto out = make_external<OperatorExpression>("duckdb_expr", expr_type, std::move(parsed_exprs));
 	if (alias != "") {
-		out->SetAlias(std::move(alias));
+		out->SetAlias(Identifier(std::move(alias)));
 	}
 	return out;
 }
@@ -196,7 +197,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 	auto out = make_external<ComparisonExpression>("duckdb_expr", expr_type, expr_extptr_t(exprs[0])->Copy(),
 	                                               expr_extptr_t(exprs[1])->Copy());
 	if (alias != "") {
-		out->SetAlias(std::move(alias));
+		out->SetAlias(Identifier(std::move(alias)));
 	}
 	return out;
 }
@@ -230,7 +231,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 		filter_expr = make_uniq<ConjunctionExpression>(ExpressionType::CONJUNCTION_AND, std::move(filters));
 	}
 
-	auto func_expr = make_external<FunctionExpression>("duckdb_expr", name, std::move(children));
+	auto func_expr = make_external<FunctionExpression>("duckdb_expr", Identifier(name), std::move(children));
 	if (!order_bys.empty()) {
 		func_expr->OrderByMutable() = std::move(order_modifier);
 	}
@@ -238,13 +239,13 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 		func_expr->FilterMutable() = std::move(filter_expr);
 	}
 	if (alias != "") {
-		func_expr->SetAlias(std::move(alias));
+		func_expr->SetAlias(Identifier(std::move(alias)));
 	}
 	return func_expr;
 }
 
 [[cpp11::register]] void rapi_expr_set_alias(duckdb::expr_extptr_t expr, std::string alias) {
-	expr->SetAlias(alias);
+	expr->SetAlias(Identifier(alias));
 }
 
 [[cpp11::register]] std::string rapi_expr_tostring(duckdb::expr_extptr_t expr) {
@@ -354,13 +355,13 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 [[cpp11::register]] SEXP rapi_rel_names(duckdb::rel_extptr_t rel) {
 	auto ret = writable::strings();
 	for (auto &col : rel->rel->Columns()) {
-		ret.push_back(col.Name());
+		ret.push_back(col.Name().GetIdentifierName());
 	}
 	return (ret);
 }
 
 [[cpp11::register]] std::string rapi_rel_alias(duckdb::rel_extptr_t rel) {
-	return rel->rel->GetAlias();
+	return rel->rel->GetAlias().GetIdentifierName();
 }
 
 [[cpp11::register]] SEXP rapi_rel_set_alias(duckdb::rel_extptr_t rel, std::string alias) {
@@ -399,7 +400,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 		return rel;
 	}
 	vector<duckdb::unique_ptr<ParsedExpression>> projections;
-	vector<string> aliases;
+	vector<Identifier> aliases;
 
 	for (expr_extptr_t expr : exprs) {
 		auto dexpr = expr->Copy();
@@ -431,7 +432,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 	for (expr_extptr_t expr_p : aggregates) {
 		auto expr = expr_p->Copy();
 		if (aggr_names.size() > aggr_idx) {
-			expr->SetAlias(aggr_names[aggr_idx]);
+			expr->SetAlias(Identifier(std::string(aggr_names[aggr_idx])));
 		}
 		res_aggregates.push_back(std::move(expr));
 		aggr_idx++;
@@ -505,7 +506,8 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 	}
 
 	auto &function = (FunctionExpression &)*window_function;
-	auto window_expr = make_external<WindowExpression>("duckdb_expr", "", "", function.FunctionName());
+	auto window_expr =
+	    make_external<WindowExpression>("duckdb_expr", "", "", function.FunctionName().GetIdentifierName());
 
 	size_t i = 0;
 	for (expr_extptr_t expr : order_bys) {
@@ -548,7 +550,7 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 	}
 
 	if (alias != "") {
-		window_expr->SetAlias(std::move(alias));
+		window_expr->SetAlias(Identifier(std::move(alias)));
 	}
 
 	return window_expr;
@@ -699,7 +701,7 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 	if (!con || !con.get() || !con->conn) {
 		stop("rel_from_table: Invalid connection");
 	}
-	auto rel = con->conn->Table(schema_name, table_name);
+	auto rel = con->conn->Table(Identifier(schema_name), Identifier(table_name));
 	cpp11::writable::list prot = {};
 	return make_external_prot<RelationWrapper>("duckdb_relation", prot, std::move(rel), con->convert_opts);
 }
@@ -729,7 +731,8 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 		if (RApiTypes::GetVecSize(parameter_sexp) != 1) {
 			stop("rel_from_table_function: Need scalar parameter");
 		}
-		named_parameters[names[named_parameter_idx]] = RApiTypes::SexpToValue(parameter_sexp, 0);
+		named_parameters[Identifier(std::string(names[named_parameter_idx]))] =
+		    RApiTypes::SexpToValue(parameter_sexp, 0);
 		named_parameter_idx++;
 	}
 
@@ -776,7 +779,7 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
                                            bool temporary) {
 	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
 
-	rel->rel->Create(schema_name, table_name, temporary);
+	rel->rel->Create(Identifier(schema_name), Identifier(table_name), temporary);
 
 	signal_handler.HandleInterrupt();
 }
@@ -785,7 +788,7 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
                                           bool temporary) {
 	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
 
-	rel->rel->CreateView(schema_name, view_name, false, temporary);
+	rel->rel->CreateView(Identifier(schema_name), Identifier(view_name), false, temporary);
 
 	signal_handler.HandleInterrupt();
 }
@@ -793,7 +796,7 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 [[cpp11::register]] void rapi_rel_insert(duckdb::rel_extptr_t rel, std::string schema_name, std::string table_name) {
 	ScopedInterruptHandler signal_handler(rel->rel->context->GetContext());
 
-	rel->rel->Insert(schema_name, table_name);
+	rel->rel->Insert(Identifier(schema_name), Identifier(table_name));
 
 	signal_handler.HandleInterrupt();
 }

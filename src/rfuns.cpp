@@ -176,7 +176,7 @@ ScalarFunction AsNumberFunction() {
 
 template <LogicalTypeId RESULT_TYPE>
 ScalarFunctionSet as_number(std::string name) {
-	ScalarFunctionSet set(name);
+	ScalarFunctionSet set {Identifier(name)};
 
 	set.AddFunction(AsNumberFunction<LogicalType::BOOLEAN, RESULT_TYPE>());
 	set.AddFunction(AsNumberFunction<LogicalType::INTEGER, RESULT_TYPE>());
@@ -210,7 +210,7 @@ namespace duckdb {
 namespace rfuns {
 
 ScalarFunctionSet binary_dispatch(ScalarFunctionSet fn) {
-	ScalarFunctionSet set(StringUtil::Format("dispatch(%s)", fn.name));
+	ScalarFunctionSet set {Identifier(StringUtil::Format("dispatch(%s)", fn.name.GetIdentifierName()))};
 
 	set.AddFunction(ScalarFunction(
 	    {LogicalType::ANY, LogicalType::ANY}, LogicalType::VARCHAR,
@@ -537,7 +537,7 @@ void add_RMinMax(AggregateFunctionSet &set) {
 
 template <typename OP>
 AggregateFunctionSet base_r_minmax(std::string name) {
-	AggregateFunctionSet set(name);
+	AggregateFunctionSet set {Identifier(name)};
 
 	add_RMinMax<OP, LogicalType::BOOLEAN>(set);
 	add_RMinMax<OP, LogicalType::INTEGER>(set);
@@ -693,7 +693,7 @@ void RelopExecute(DataChunk &args, ExpressionState &state, Vector &result) {
 
 template <Relop OP>
 ScalarFunctionSet base_r_relop(string name) {
-	ScalarFunctionSet set(name);
+	ScalarFunctionSet set {Identifier(name)};
 
 	set.AddFunction(RELOP_VARIANT(BOOLEAN, BOOLEAN));
 	set.AddFunction(RELOP_VARIANT(BOOLEAN, INTEGER));
