@@ -36,6 +36,8 @@
 
 #include "src/parser/parsed_data/create_sequence_info.cpp"
 
+#include "src/parser/parsed_data/create_trigger_info.cpp"
+
 #include "src/parser/parsed_data/create_schema_info.cpp"
 
 #include "src/parser/parsed_data/create_scalar_function_info.cpp"
