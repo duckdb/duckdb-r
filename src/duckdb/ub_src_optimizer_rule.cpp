@@ -30,8 +30,6 @@
 
 #include "src/optimizer/rule/join_dependent_filter.cpp"
 
-#include "src/optimizer/rule/left_to_prefix.cpp"
-
 #include "src/optimizer/rule/like_optimizations.cpp"
 
 #include "src/optimizer/rule/list_comprehension_rewrite.cpp"
@@ -47,6 +45,8 @@
 #include "src/optimizer/rule/predicate_factoring.cpp"
 
 #include "src/optimizer/rule/regex_optimizations.cpp"
+
+#include "src/optimizer/rule/string_prefix.cpp"
 
 #include "src/optimizer/rule/timestamp_comparison.cpp"
 
