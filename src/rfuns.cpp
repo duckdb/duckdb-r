@@ -504,21 +504,20 @@ struct RMaxOperation {
 };
 
 template <typename OP, typename T, bool NA_RM>
-unique_ptr<FunctionData> BindRMinMax_dispatch(ClientContext &context, AggregateFunction &function,
-                                              vector<unique_ptr<Expression>> &arguments) {
-	auto type = arguments[0]->return_type;
-	function = AggregateFunction::UnaryAggregate<RMinMaxState<T>, T, T, RMinMaxOperation<OP, NA_RM>>(type, type);
+unique_ptr<FunctionData> BindRMinMax_dispatch(BindAggregateFunctionInput &input) {
+	auto type = input.GetArguments()[0]->return_type;
+	input.GetBoundFunction() =
+	    AggregateFunction::UnaryAggregate<RMinMaxState<T>, T, T, RMinMaxOperation<OP, NA_RM>>(type, type);
 	return nullptr;
 }
 
 template <typename OP, typename T>
-unique_ptr<FunctionData> BindRMinMax(ClientContext &context, AggregateFunction &function,
-                                     vector<unique_ptr<Expression>> &arguments) {
-	auto na_rm = ExtractNaRm(context, *arguments[1]);
+unique_ptr<FunctionData> BindRMinMax(BindAggregateFunctionInput &input) {
+	auto na_rm = ExtractNaRm(input.GetClientContext(), *input.GetArguments()[1]);
 	if (na_rm) {
-		return BindRMinMax_dispatch<OP, T, true>(context, function, arguments);
+		return BindRMinMax_dispatch<OP, T, true>(input);
 	} else {
-		return BindRMinMax_dispatch<OP, T, false>(context, function, arguments);
+		return BindRMinMax_dispatch<OP, T, false>(input);
 	}
 }
 
@@ -688,8 +687,7 @@ void RelopExecute(DataChunk &args, ExpressionState &state, Vector &result) {
 	ScalarFunction(/* arguments   = */                                                                                 \
 	               {LogicalType::__LHS__, LogicalType::__RHS__}, /* return_type = */ LogicalType::BOOLEAN,             \
 	               /* function    = */ [](DataChunk &args, ExpressionState &state, Vector &result) {}, /* bind = */    \
-	               [](ClientContext &context, ScalarFunction &bound_function,                                          \
-	                  vector<duckdb::unique_ptr<Expression>> &arguments) -> unique_ptr<FunctionData> {                 \
+	               [](BindScalarFunctionInput &input) -> unique_ptr<FunctionData> {                                    \
 		               throw InvalidInputException("%s : %s <=> %s", __WHY__, EnumUtil::ToChars(LogicalType::__LHS__), \
 		                                           EnumUtil::ToChars(LogicalType::__RHS__));                           \
 	               })
@@ -1085,22 +1083,23 @@ struct RSumOperation {
 };
 
 template <bool NA_RM>
-unique_ptr<FunctionData> BindRSum_dispatch(ClientContext &context, AggregateFunction &function,
-                                           vector<unique_ptr<Expression>> &arguments) {
-	auto type = arguments[0]->return_type;
+unique_ptr<FunctionData> BindRSum_dispatch(BindAggregateFunctionInput &input) {
+	auto type = input.GetArguments()[0]->return_type;
 
 	switch (type.id()) {
 	case LogicalTypeId::DOUBLE:
-		function = AggregateFunction::UnaryAggregate<RSumKeepNaState<double>, double, double,
-		                                             RSumOperation<RegularAdd, NA_RM>>(type, type);
+		input.GetBoundFunction() = AggregateFunction::UnaryAggregate<RSumKeepNaState<double>, double, double,
+		                                                             RSumOperation<RegularAdd, NA_RM>>(type, type);
 		break;
 	case LogicalTypeId::INTEGER:
-		function = AggregateFunction::UnaryAggregate<RSumKeepNaState<double>, int32_t, double,
-		                                             RSumOperation<RegularAdd, NA_RM>>(type, LogicalTypeId::DOUBLE);
+		input.GetBoundFunction() =
+		    AggregateFunction::UnaryAggregate<RSumKeepNaState<double>, int32_t, double,
+		                                      RSumOperation<RegularAdd, NA_RM>>(type, LogicalTypeId::DOUBLE);
 		break;
 	case LogicalTypeId::BOOLEAN:
-		function = AggregateFunction::UnaryAggregate<RSumKeepNaState<int32_t>, bool, int32_t,
-		                                             RSumOperation<RegularAdd, NA_RM>>(type, LogicalType::INTEGER);
+		input.GetBoundFunction() =
+		    AggregateFunction::UnaryAggregate<RSumKeepNaState<int32_t>, bool, int32_t,
+		                                      RSumOperation<RegularAdd, NA_RM>>(type, LogicalType::INTEGER);
 		break;
 	default:
 		break;
@@ -1109,13 +1108,12 @@ unique_ptr<FunctionData> BindRSum_dispatch(ClientContext &context, AggregateFunc
 	return nullptr;
 }
 
-unique_ptr<FunctionData> BindRSum(ClientContext &context, AggregateFunction &function,
-                                  vector<unique_ptr<Expression>> &arguments) {
-	auto na_rm = ExtractNaRm(context, *arguments[1]);
+unique_ptr<FunctionData> BindRSum(BindAggregateFunctionInput &input) {
+	auto na_rm = ExtractNaRm(input.GetClientContext(), *input.GetArguments()[1]);
 	if (na_rm) {
-		return BindRSum_dispatch<true>(context, function, arguments);
+		return BindRSum_dispatch<true>(input);
 	} else {
-		return BindRSum_dispatch<false>(context, function, arguments);
+		return BindRSum_dispatch<false>(input);
 	}
 }
 
