@@ -48,7 +48,12 @@ using namespace duckdb;
 	LocalFileSystem fs;
 	string result;
 	try {
-		result = fs.CanonicalizePath(path, nullptr);
+		// No `CanonicalizePath()` in this engine yet: expand, absolutize and normalize, which resolves no symlinks
+		result = fs.ExpandPath(path);
+		if (!fs.IsPathAbsolute(result)) {
+			result = fs.JoinPath(FileSystem::GetWorkingDirectory(), result);
+		}
+		result = fs.NormalizeAbsolutePath(result);
 	} catch (std::exception &e) {
 		rapi_error_with_context("rapi_canonicalize_path", ErrorData(e));
 	}

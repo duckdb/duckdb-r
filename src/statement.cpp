@@ -120,7 +120,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 		vector<unique_ptr<SQLStatement>> fragments;
 		fragments.push_back(std::move(statements[i]));
 		try {
-			conn->conn->context->PreprocessStatements(fragments);
+			conn->conn->context->HandlePragmaStatements(fragments);
 		} catch (std::exception &ex) {
 			ErrorData error(ex);
 			error.AddErrorLocation(query);
@@ -143,16 +143,6 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 				break;
 			}
 			auto res = conn->conn->Query(std::move(fragment));
-			if (res->HasError()) {
-				// Mirrors ClientContext::Query(const string &), which rolls back the implicit transaction a PRAGMA's
-				// expansion runs in when one of its statements fails. Query(unique_ptr<SQLStatement>) does so only
-				// for an error raised before execution, and leaves the transaction open and aborted otherwise.
-				// Ahead of HandleInterrupt(), so that an interrupted fragment is rolled back too.
-				auto &transaction = conn->conn->context->transaction;
-				if (transaction.HasActiveTransaction() && transaction.GetAutoRollback()) {
-					transaction.Rollback(res->GetErrorObject());
-				}
-			}
 			signal_handler.HandleInterrupt();
 			if (res->HasError()) {
 				// `GetErrorObject()`, not `GetError()`: the latter is the formatted
