@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 18 Oct 2026 23:08:15 +0000
+Subject: [PATCH] Compile the hashed sort's assert-only helper only when asserts are on
+
+Assert-only code in hashed_sort.cpp binds values that only D_ASSERT()
+reads, so in a release build, where D_ASSERT() expands to nothing, the
+bindings are unused and -Wunused-variable or -Wunused-but-set-variable
+say so. The assert-only lines are compiled only when assertions are
+enabled, with the side-effecting call kept in both builds, which is the
+shape upstream gives the file later.
+
+Carried here until the engine brings the same change.
+
+---
+ src/duckdb/src/common/sort/hashed_sort.cpp | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/duckdb/src/common/sort/hashed_sort.cpp b/src/duckdb/src/common/sort/hashed_sort.cpp
+index 596d015d82..ba28a77321 100644
+--- a/src/duckdb/src/common/sort/hashed_sort.cpp
++++ b/src/duckdb/src/common/sort/hashed_sort.cpp
+@@ -509,9 +509,11 @@ static void BuildDirectColumnData(ClientContext &client, const vector<LogicalTyp
+ 	}
+ }
+ 
++#ifdef D_ASSERT_IS_ENABLED
+ static idx_t ExpectedChunkCount(idx_t count) {
+ 	return (count + STANDARD_VECTOR_SIZE - 1) / STANDARD_VECTOR_SIZE;
+ }
++#endif
+ 
+ static void PackDirectColumnData(HashedSortGroup &hash_group) {
+ 	lock_guard<mutex> direct_guard(hash_group.scan_lock);
