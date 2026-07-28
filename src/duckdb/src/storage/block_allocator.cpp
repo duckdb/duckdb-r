@@ -136,24 +136,21 @@ public:
 	}
 
 	void Clear() {
-		if (alive_token && alive_token->load()) {
-			// Allocator is still alive — return local blocks to global queues
-			if (!touched.empty()) {
-				block_allocator->touched->q.enqueue_bulk(touched.begin(), touched.size());
-			}
-			if (!untouched.empty()) {
-				block_allocator->untouched->q.enqueue_bulk(untouched.begin(), untouched.size());
-			}
+		// Return all local blocks back to global
+		if (!touched.empty()) {
+			block_allocator->touched->q.enqueue_bulk(touched.begin(), touched.size());
+			touched.clear();
 		}
-		touched.clear();
-		untouched.clear();
+		if (!untouched.empty()) {
+			block_allocator->untouched->q.enqueue_bulk(untouched.begin(), untouched.size());
+			untouched.clear();
+		}
 	}
 
 private:
 	void Initialize(const BlockAllocator &block_allocator_p) {
 		cached_uuid = block_allocator_p.uuid;
 		block_allocator = block_allocator_p;
-		alive_token = block_allocator_p.alive_token;
 		untouched.clear();
 		touched.clear();
 		untouched.reserve(BATCH_SIZE);
@@ -187,8 +184,6 @@ private:
 private:
 	hugeint_t cached_uuid;
 	optional_ptr<const BlockAllocator> block_allocator;
-	// Whether the BlockAllocator is still alive.
-	shared_ptr<atomic<bool>> alive_token;
 
 	static constexpr idx_t BATCH_SIZE = 128;
 	static constexpr idx_t FREE_THRESHOLD = BATCH_SIZE * 2;
@@ -218,15 +213,14 @@ BlockAllocator::BlockAllocator(Allocator &allocator_p, const idx_t block_size_p,
                                const idx_t physical_memory_size_p)
     : uuid(UUID::GenerateRandomUUID()), allocator(allocator_p), block_size(block_size_p),
       block_size_div_shift(CountZeros<idx_t>::Trailing(block_size)),
-      virtual_memory_size(AlignValue(virtual_memory_size_p, block_size)), virtual_memory_space(nullptr),
-      physical_memory_size(0), untouched(make_unsafe_uniq<BlockQueue>()), touched(make_unsafe_uniq<BlockQueue>()),
-      alive_token(make_shared_ptr<atomic<bool>>(true)) {
+      virtual_memory_size(AlignValue(virtual_memory_size_p, block_size)),
+      virtual_memory_space(AllocateVirtualMemory(virtual_memory_size)), physical_memory_size(0),
+      untouched(make_unsafe_uniq<BlockQueue>()), touched(make_unsafe_uniq<BlockQueue>()) {
 	D_ASSERT(IsPowerOfTwo(block_size));
 	Resize(physical_memory_size_p);
 }
 
 BlockAllocator::~BlockAllocator() {
-	alive_token->store(false);
 	GetBlockAllocatorThreadLocalState(*this).Clear();
 	if (IsActive()) {
 		try {
@@ -246,15 +240,11 @@ BlockAllocator &BlockAllocator::Get(AttachedDatabase &db) {
 }
 
 void BlockAllocator::Resize(const idx_t new_physical_memory_size) {
-	lock_guard<mutex> guard(physical_memory_lock);
-
-	if (new_physical_memory_size != 0 && !IsActive()) {
-		virtual_memory_space = AllocateVirtualMemory(virtual_memory_size);
-		if (!IsActive()) {
-			return; // Failed to initialize
-		}
+	if (!IsActive()) {
+		return;
 	}
 
+	lock_guard<mutex> guard(physical_memory_lock);
 	if (new_physical_memory_size < physical_memory_size) {
 		throw InvalidInputException("The \"block_allocator_size\" setting cannot be reduced (current: %llu)",
 		                            physical_memory_size.load());
@@ -282,7 +272,7 @@ void BlockAllocator::Resize(const idx_t new_physical_memory_size) {
 }
 
 bool BlockAllocator::IsActive() const {
-	return virtual_memory_space.load(std::memory_order_relaxed);
+	return virtual_memory_space;
 }
 
 bool BlockAllocator::IsEnabled() const {
@@ -290,8 +280,7 @@ bool BlockAllocator::IsEnabled() const {
 }
 
 bool BlockAllocator::IsInPool(const data_ptr_t pointer) const {
-	const auto virtual_memory_space_loaded = virtual_memory_space.load(std::memory_order_relaxed);
-	return pointer >= virtual_memory_space_loaded && pointer < virtual_memory_space_loaded + virtual_memory_size;
+	return pointer >= virtual_memory_space && pointer < virtual_memory_space + virtual_memory_size;
 }
 
 idx_t BlockAllocator::ModuloBlockSize(const idx_t n) const {
@@ -304,7 +293,7 @@ idx_t BlockAllocator::DivBlockSize(const idx_t n) const {
 
 uint32_t BlockAllocator::GetBlockID(const data_ptr_t pointer) const {
 	D_ASSERT(IsInPool(pointer));
-	const auto offset = NumericCast<idx_t>(pointer - virtual_memory_space.load(std::memory_order_relaxed));
+	const auto offset = NumericCast<idx_t>(pointer - virtual_memory_space);
 	D_ASSERT(ModuloBlockSize(offset) == 0);
 	const auto block_id = NumericCast<uint32_t>(DivBlockSize(offset));
 	VerifyBlockID(block_id);
@@ -317,7 +306,7 @@ void BlockAllocator::VerifyBlockID(const uint32_t block_id) const {
 
 data_ptr_t BlockAllocator::GetPointer(const uint32_t block_id) const {
 	VerifyBlockID(block_id);
-	return virtual_memory_space.load(std::memory_order_relaxed) + NumericCast<idx_t>(block_id) * block_size;
+	return virtual_memory_space + NumericCast<idx_t>(block_id) * block_size;
 }
 
 data_ptr_t BlockAllocator::AllocateData(const idx_t size) const {

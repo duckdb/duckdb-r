@@ -333,42 +333,43 @@ static AggregateFunction GetMinMaxOperator(const LogicalType &type) {
 template <class OP, class OP_STRING, class OP_VECTOR>
 unique_ptr<FunctionData> BindMinMax(ClientContext &context, AggregateFunction &function,
                                     vector<unique_ptr<Expression>> &arguments) {
-	// We should also push collations for non-VARCHAR here, but we aren't ready for it yet (see internal #8704)
-	const auto collation = arguments[0]->return_type.id() == LogicalTypeId::VARCHAR &&
-	                       (!StringType::GetCollation(arguments[0]->return_type).empty() ||
-	                        !Settings::Get<DefaultCollationSetting>(context).empty());
-	auto collated_arg = collation ? arguments[0]->Copy() : nullptr;
-	if (collation && ExpressionBinder::PushCollation(context, collated_arg, collated_arg->return_type)) {
-		// If aggr function is min/max and uses collations, replace bound_function with arg_min/arg_max
-		// to make sure the result's correctness.
-		string function_name = function.name == "min" ? "arg_min" : "arg_max";
-		QueryErrorContext error_context;
-		auto func = Catalog::GetEntry<AggregateFunctionCatalogEntry>(context, "", "", function_name,
-		                                                             OnEntryNotFound::RETURN_NULL, error_context);
-		if (!func) {
-			throw NotImplementedException(
-			    "Failure while binding function \"%s\" using collations - arg_min/arg_max do not exist in the "
-			    "catalog - load the core_functions module to fix this issue",
-			    function.name);
+	if (arguments[0]->return_type.id() == LogicalTypeId::VARCHAR) {
+		auto str_collation = StringType::GetCollation(arguments[0]->return_type);
+		if (!str_collation.empty() || !DBConfig::GetSetting<DefaultCollationSetting>(context).empty()) {
+			// If aggr function is min/max and uses collations, replace bound_function with arg_min/arg_max
+			// to make sure the result's correctness.
+			string function_name = function.name == "min" ? "arg_min" : "arg_max";
+			QueryErrorContext error_context;
+			auto func = Catalog::GetEntry<AggregateFunctionCatalogEntry>(context, "", "", function_name,
+			                                                             OnEntryNotFound::RETURN_NULL, error_context);
+			if (!func) {
+				throw NotImplementedException(
+				    "Failure while binding function \"%s\" using collations - arg_min/arg_max do not exist in the "
+				    "catalog - load the core_functions module to fix this issue",
+				    function.name);
+			}
+
+			auto &func_entry = *func;
+
+			FunctionBinder function_binder(context);
+			vector<LogicalType> types {arguments[0]->return_type, arguments[0]->return_type};
+			ErrorData error;
+			auto best_function = function_binder.BindFunction(func_entry.name, func_entry.functions, types, error);
+			if (!best_function.IsValid()) {
+				throw BinderException(string("Fail to find corresponding function for collation min/max: ") +
+				                      error.Message());
+			}
+			function = func_entry.functions.GetFunctionByOffset(best_function.GetIndex());
+
+			// Create a copied child and PushCollation for it.
+			arguments.push_back(arguments[0]->Copy());
+			ExpressionBinder::PushCollation(context, arguments[1], arguments[0]->return_type);
+
+			// Bind function like arg_min/arg_max.
+			function.arguments[0] = arguments[0]->return_type;
+			function.SetReturnType(arguments[0]->return_type);
+			return make_uniq<ArgMinMaxFunctionData>();
 		}
-
-		auto &func_entry = *func;
-
-		FunctionBinder function_binder(context);
-		vector<LogicalType> types {arguments[0]->return_type, collated_arg->return_type};
-		ErrorData error;
-		auto best_function = function_binder.BindFunction(func_entry.name, func_entry.functions, types, error);
-		if (!best_function.IsValid()) {
-			throw BinderException(string("Fail to find corresponding function for collation min/max: ") +
-			                      error.Message());
-		}
-		function = func_entry.functions.GetFunctionByOffset(best_function.GetIndex());
-
-		// Bind function like arg_min/arg_max.
-		arguments.push_back(std::move(collated_arg));
-		function.arguments[0] = arguments[0]->return_type;
-		function.SetReturnType(arguments[0]->return_type);
-		return make_uniq<ArgMinMaxFunctionData>();
 	}
 
 	auto input_type = arguments[0]->return_type;
@@ -456,6 +457,7 @@ void MinMaxNUpdate(Vector inputs[], AggregateInputData &aggr_input, idx_t input_
 
 		// Initialize the heap if necessary and add the input to the heap
 		if (!state.is_initialized) {
+			static constexpr int64_t MAX_N = 1000000;
 			const auto nidx = n_format.sel->get_index(i);
 			if (!n_format.validity.RowIsValid(nidx)) {
 				throw InvalidInputException("Invalid input for MIN/MAX: n value cannot be NULL");
@@ -464,8 +466,8 @@ void MinMaxNUpdate(Vector inputs[], AggregateInputData &aggr_input, idx_t input_
 			if (nval <= 0) {
 				throw InvalidInputException("Invalid input for MIN/MAX: n value must be > 0");
 			}
-			if (nval >= MIN_MAX_N_MAX_VALUE) {
-				throw InvalidInputException("Invalid input for MIN/MAX: n value must be < %d", MIN_MAX_N_MAX_VALUE);
+			if (nval >= MAX_N) {
+				throw InvalidInputException("Invalid input for MIN/MAX: n value must be < %d", MAX_N);
 			}
 			state.Initialize(aggr_input.allocator, UnsafeNumericCast<idx_t>(nval));
 		}

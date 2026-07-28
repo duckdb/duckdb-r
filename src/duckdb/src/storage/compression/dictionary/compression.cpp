@@ -92,8 +92,7 @@ void DictionaryCompressionCompressState::AddNull() {
 	current_segment->count++;
 }
 
-void DictionaryCompressionCompressState::AddLastLookup(string_t str) {
-	UncompressedStringStorage::UpdateStringStats(current_segment->stats, str);
+void DictionaryCompressionCompressState::AddLastLookup() {
 	selection_buffer.push_back(latest_lookup_result);
 	current_segment->count++;
 }

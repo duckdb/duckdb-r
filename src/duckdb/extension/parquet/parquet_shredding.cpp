@@ -21,40 +21,6 @@ ShreddingType::ShreddingType() : set(false) {
 ShreddingType::ShreddingType(const LogicalType &type) : set(true), type(type) {
 }
 
-bool ShreddingType::operator==(const ShreddingType &other) const {
-	if (set != other.set) {
-		return false;
-	}
-	if (set && type != other.type) {
-		return false;
-	}
-	if (!children.types && !other.children.types) {
-		return true;
-	}
-	if (!children.types || !other.children.types) {
-		return false;
-	}
-	auto &a_children = *children.types;
-	auto &b_children = *other.children.types;
-	if (a_children.size() != b_children.size()) {
-		return false;
-	}
-	for (auto a_it = a_children.begin(); a_it != a_children.end(); ++a_it) {
-		auto &a_name = a_it->first;
-		auto b_it = b_children.find(a_name);
-		if (b_it == b_children.end()) {
-			return false;
-		}
-
-		auto &a_child = a_it->second;
-		auto &b_child = b_it->second;
-		if (!(a_child == b_child)) {
-			return false;
-		}
-	}
-	return true;
-}
-
 ShreddingType ShreddingType::Copy() const {
 	auto result = set ? ShreddingType(type) : ShreddingType();
 	result.children = children.Copy();
@@ -102,12 +68,12 @@ optional_ptr<const ShreddingType> ShreddingType::GetChild(const string &name) co
 	return it->second;
 }
 
-ShreddingType ShreddingType::GetShreddingTypes(const Value &val, ClientContext &context) {
+ShreddingType ShreddingType::GetShreddingTypes(const Value &val) {
 	if (val.type().id() != LogicalTypeId::VARCHAR) {
 		throw BinderException("SHREDDING value should be of type VARCHAR, a stringified type to use for the column");
 	}
 	auto type_str = val.GetValue<string>();
-	auto logical_type = TransformStringToLogicalType(type_str, context);
+	auto logical_type = TransformStringToLogicalType(type_str);
 
 	return ConvertShreddingTypeRecursive(logical_type);
 }

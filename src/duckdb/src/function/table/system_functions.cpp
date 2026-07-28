@@ -22,7 +22,6 @@ void BuiltinFunctions::RegisterSQLiteFunctions() {
 	DuckDBApproxDatabaseCountFun::RegisterFunction(*this);
 	DuckDBColumnsFun::RegisterFunction(*this);
 	DuckDBConstraintsFun::RegisterFunction(*this);
-	DuckDBCoordinateSystemsFun::RegisterFunction(*this);
 	DuckDBDatabasesFun::RegisterFunction(*this);
 	DuckDBFunctionsFun::RegisterFunction(*this);
 	DuckDBKeywordsFun::RegisterFunction(*this);

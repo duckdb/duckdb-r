@@ -97,8 +97,6 @@ public:
 	idx_t GetMaxIndex() const;
 	//! Whether there are free blocks available within the file
 	bool HasFreeBlocks() const;
-	//! Get the count of blocks currently holding data
-	idx_t GetUsedBlockCount() const;
 
 private:
 	//! Get/set max block index
@@ -285,7 +283,7 @@ public:
 	idx_t WriteTemporaryBuffer(block_id_t block_id, FileBuffer &buffer);
 	bool HasTemporaryBuffer(block_id_t block_id);
 	unique_ptr<FileBuffer> ReadTemporaryBuffer(QueryContext context, block_id_t id,
-	                                           unique_ptr<FileBuffer> reusable_buffer, idx_t *eviction_size = nullptr);
+	                                           unique_ptr<FileBuffer> reusable_buffer);
 	idx_t DeleteTemporaryBuffer(block_id_t id);
 	bool IsEncrypted() const;
 

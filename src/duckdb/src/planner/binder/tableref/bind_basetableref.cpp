@@ -23,7 +23,9 @@ namespace duckdb {
 
 static bool TryLoadExtensionForReplacementScan(ClientContext &context, const string &table_name) {
 	auto lower_name = StringUtil::Lower(table_name);
-	if (!Settings::Get<AutoloadKnownExtensionsSetting>(context)) {
+	auto &dbconfig = DBConfig::GetConfig(context);
+
+	if (!dbconfig.options.autoload_known_extensions) {
 		return false;
 	}
 
@@ -69,16 +71,12 @@ BoundStatement Binder::BindWithReplacementScan(ClientContext &context, BaseTable
 			auto &subquery = replacement_function->Cast<SubqueryRef>();
 			subquery.column_name_alias = ref.column_name_alias;
 		} else {
-			// carry the alias to the wrapping SubqueryRef so qualified references
-			// like `SELECT d.x FROM _ AS d` can resolve against the outer ref
-			auto inner_alias = replacement_function->alias;
 			auto select_node = make_uniq<SelectNode>();
 			select_node->select_list.push_back(make_uniq<StarExpression>());
 			select_node->from_table = std::move(replacement_function);
 			auto select_stmt = make_uniq<SelectStatement>();
 			select_stmt->node = std::move(select_node);
 			auto subquery = make_uniq<SubqueryRef>(std::move(select_stmt));
-			subquery->alias = std::move(inner_alias);
 			subquery->column_name_alias = ref.column_name_alias;
 			replacement_function = std::move(subquery);
 		}
@@ -100,8 +98,7 @@ unique_ptr<BoundAtClause> Binder::BindAtClause(optional_ptr<AtClause> at_clause)
 	return make_uniq<BoundAtClause>(at_clause->Unit(), std::move(val));
 }
 
-vector<CatalogSearchEntry> Binder::GetSearchPath(Catalog &catalog, const string &schema_name,
-                                                 bool default_schema_precedence) {
+vector<CatalogSearchEntry> Binder::GetSearchPath(Catalog &catalog, const string &schema_name) {
 	vector<CatalogSearchEntry> view_search_path;
 	auto &catalog_name = catalog.GetName();
 	if (!schema_name.empty()) {
@@ -109,16 +106,19 @@ vector<CatalogSearchEntry> Binder::GetSearchPath(Catalog &catalog, const string 
 	}
 	auto default_schema = catalog.GetDefaultSchema();
 	if (schema_name.empty() && schema_name != default_schema) {
-		view_search_path.emplace_back(catalog_name, default_schema);
+		view_search_path.emplace_back(catalog.GetName(), default_schema);
 	}
-	//! Signal that this catalog should be checked, regardless of the schema in the reference
-	view_search_path.emplace_back(catalog_name, INVALID_SCHEMA, default_schema_precedence);
 	return view_search_path;
 }
 
-void Binder::SetSearchPath(Catalog &catalog, const string &schema) {
-	auto search_path = GetSearchPath(catalog, schema);
-	entry_retriever.SetSearchPath(std::move(search_path));
+static vector<LogicalType> ExchangeAllNullTypes(const vector<LogicalType> &types) {
+	vector<LogicalType> result = types;
+	for (auto &type : result) {
+		if (ExpressionBinder::ContainsNullType(type)) {
+			type = ExpressionBinder::ExchangeNullType(type);
+		}
+	}
+	return result;
 }
 
 BoundStatement Binder::Bind(BaseTableRef &ref) {
@@ -203,7 +203,7 @@ BoundStatement Binder::Bind(BaseTableRef &ref) {
 			}
 		}
 		auto &config = DBConfig::GetConfig(context);
-		if (context.config.use_replacement_scans && Settings::Get<EnableExternalAccessSetting>(config) &&
+		if (context.config.use_replacement_scans && config.options.enable_external_access &&
 		    ExtensionHelper::IsFullPath(full_path)) {
 			auto &fs = FileSystem::GetFileSystem(context);
 			if (!fs.IsDisabledForPath(full_path) && fs.FileExists(full_path)) {
@@ -228,6 +228,7 @@ BoundStatement Binder::Bind(BaseTableRef &ref) {
 		table_or_view =
 		    entry_retriever.GetEntry(ref.catalog_name, ref.schema_name, table_lookup, OnEntryNotFound::THROW_EXCEPTION);
 	}
+
 	switch (table_or_view->type) {
 	case CatalogType::TABLE_ENTRY: {
 		// base table
@@ -293,21 +294,17 @@ BoundStatement Binder::Bind(BaseTableRef &ref) {
 		SubqueryRef subquery(unique_ptr_cast<SQLStatement, SelectStatement>(std::move(query)));
 
 		subquery.alias = ref.alias;
-		// construct view names by taking the view aliases
-		subquery.column_name_alias = view_catalog_entry.aliases;
-		// now apply the subquery column aliases
-		for (idx_t i = 0; i < ref.column_name_alias.size(); i++) {
-			if (i < subquery.column_name_alias.size()) {
-				// override alias
-				subquery.column_name_alias[i] = ref.column_name_alias[i];
-			} else {
-				subquery.column_name_alias.push_back(ref.column_name_alias[i]);
-			}
+		// construct view names by first (1) taking the view aliases, (2) adding the view names, then (3) applying
+		// subquery aliases
+		vector<string> view_names = view_catalog_entry.aliases;
+		for (idx_t n = view_names.size(); n < view_catalog_entry.names.size(); n++) {
+			view_names.push_back(view_catalog_entry.names[n]);
 		}
+		subquery.column_name_alias = BindContext::AliasColumnNames(ref.table_name, view_names, ref.column_name_alias);
 
 		// when binding a view, we always look into the catalog/schema where the view is stored first
 		auto view_search_path =
-		    GetSearchPath(view_catalog_entry.ParentCatalog(), view_catalog_entry.ParentSchema().name, true);
+		    GetSearchPath(view_catalog_entry.ParentCatalog(), view_catalog_entry.ParentSchema().name);
 		view_binder->entry_retriever.SetSearchPath(std::move(view_search_path));
 		// propagate the AT clause through the view
 		view_binder->entry_retriever.SetAtClause(entry_at_clause);
@@ -318,8 +315,31 @@ BoundStatement Binder::Bind(BaseTableRef &ref) {
 		if (!view_binder->correlated_columns.empty()) {
 			throw BinderException("Contents of view were altered - view bound correlated columns");
 		}
-		// update the view binding with the bound view information
-		view_catalog_entry.UpdateBinding(bound_child.types, bound_child.names);
+
+		// verify that the types and names match up with the expected types and names if the view has type info defined
+		if (GetBindingMode() != BindingMode::EXTRACT_NAMES &&
+		    GetBindingMode() != BindingMode::EXTRACT_QUALIFIED_NAMES && view_catalog_entry.HasTypes()) {
+			// we bind the view subquery and the original view with different "can_contain_nulls",
+			// but we don't want to throw an error when SQLNULL does not match up with INTEGER,
+			// so we exchange all SQLNULL with INTEGER here before comparing
+			auto bound_types = ExchangeAllNullTypes(bound_child.types);
+			auto view_types = ExchangeAllNullTypes(view_catalog_entry.types);
+			if (bound_types != view_types) {
+				auto actual_types = StringUtil::ToString(bound_types, ", ");
+				auto expected_types = StringUtil::ToString(view_types, ", ");
+				throw BinderException(
+				    "Contents of view were altered: types don't match! Expected [%s], but found [%s] instead",
+				    expected_types, actual_types);
+			}
+			if (bound_child.names.size() == view_catalog_entry.names.size() &&
+			    bound_child.names != view_catalog_entry.names) {
+				auto actual_names = StringUtil::Join(bound_child.names, ", ");
+				auto expected_names = StringUtil::Join(view_catalog_entry.names, ", ");
+				throw BinderException(
+				    "Contents of view were altered: names don't match! Expected [%s], but found [%s] instead",
+				    expected_names, actual_names);
+			}
+		}
 		bind_context.AddView(bound_child.plan->GetRootIndex(), subquery.alias, subquery, bound_child,
 		                     view_catalog_entry);
 		return bound_child;

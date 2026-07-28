@@ -53,9 +53,6 @@ public:
         for(idx_t i = 0; i < ACTIVELY_TRACKED_METRICS; i++) {
             active_metrics[i] = 0;
         }
-
-        latency_timer.reset();
-        query_name = "";
     }
 
     void Merge(const QueryMetrics &other) {
@@ -70,21 +67,20 @@ public:
 		case MetricType::ATTACH_REPLAY_WAL_LATENCY: return 1;
 		case MetricType::CHECKPOINT_LATENCY: return 2;
 		case MetricType::COMMIT_LOCAL_STORAGE_LATENCY: return 3;
-		case MetricType::CUMULATIVE_VACUUM_TIME: return 4;
-		case MetricType::LATENCY: return 5;
-		case MetricType::WAITING_TO_ATTACH_LATENCY: return 6;
-		case MetricType::WRITE_TO_WAL_LATENCY: return 7;
-		case MetricType::TOTAL_BYTES_READ: return 8;
-		case MetricType::TOTAL_BYTES_WRITTEN: return 9;
-		case MetricType::TOTAL_MEMORY_ALLOCATED: return 10;
-		case MetricType::WAL_REPLAY_ENTRY_COUNT: return 11;
+		case MetricType::LATENCY: return 4;
+		case MetricType::WAITING_TO_ATTACH_LATENCY: return 5;
+		case MetricType::WRITE_TO_WAL_LATENCY: return 6;
+		case MetricType::TOTAL_BYTES_READ: return 7;
+		case MetricType::TOTAL_BYTES_WRITTEN: return 8;
+		case MetricType::TOTAL_MEMORY_ALLOCATED: return 9;
+		case MetricType::WAL_REPLAY_ENTRY_COUNT: return 10;
 		default:
 			throw InternalException("MetricType %s is not actively tracked.", EnumUtil::ToString(type));
 		}
 	}
 
 private:
-	static constexpr const idx_t ACTIVELY_TRACKED_METRICS = 12;
+	static constexpr const idx_t ACTIVELY_TRACKED_METRICS = 11;
 
 	atomic<idx_t> active_metrics[ACTIVELY_TRACKED_METRICS];
 };
@@ -98,8 +94,6 @@ public:
 
 struct ActiveTimer {
 public:
-	ActiveTimer() : metric(MetricType::EXTRA_INFO), is_active(false) {
-	}
 	ActiveTimer(QueryMetrics &query_metrics, const MetricType metric, const bool is_active = true) : query_metrics(query_metrics), metric(metric), is_active(is_active) {
 		// start on constructor
 		if (!is_active) {
@@ -107,28 +101,12 @@ public:
 		}
 		profiler.Start();
 	}
+
 	~ActiveTimer() {
 		if (is_active) {
 			// automatically end in destructor
 			EndTimer();
 		}
-	}
-	// disable copy constructors
-	ActiveTimer(const ActiveTimer &other) = delete;
-	ActiveTimer &operator=(const ActiveTimer &) = delete;
-	//! enable move constructors
-	ActiveTimer(ActiveTimer &&other) noexcept : is_active(false) {
-		std::swap(query_metrics, other.query_metrics);
-		std::swap(metric, other.metric);
-		std::swap(profiler, other.profiler);
-		std::swap(is_active, other.is_active);
-	}
-	ActiveTimer &operator=(ActiveTimer &&other) noexcept {
-		std::swap(query_metrics, other.query_metrics);
-		std::swap(metric, other.metric);
-		std::swap(profiler, other.profiler);
-		std::swap(is_active, other.is_active);
-		return *this;
 	}
 
 	// Automatically called in the destructor.
@@ -139,7 +117,7 @@ public:
 		// stop profiling and report
 		is_active = false;
 		profiler.End();
-		query_metrics->UpdateMetric(metric, profiler.ElapsedNanos());
+		query_metrics.UpdateMetric(metric, profiler.ElapsedNanos());
 	}
 
 	void Reset() {
@@ -151,8 +129,8 @@ public:
 	}
 
 private:
-	optional_ptr<QueryMetrics> query_metrics;
-	MetricType metric = MetricType::EXTRA_INFO;
+	QueryMetrics &query_metrics;
+	const MetricType metric;
 	Profiler profiler;
 	bool is_active;
 };

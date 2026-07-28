@@ -11,10 +11,7 @@ uint16_t CompressedStringScanState::GetStringLength(sel_t index) {
 }
 
 string_t CompressedStringScanState::FetchStringFromDict(int32_t dict_offset, uint16_t string_len) {
-	if (dict_offset < 0 || NumericCast<idx_t>(dict_offset) > dict.end || string_len > dict_offset) {
-		throw IOException(
-		    "Failed to scan dictionary string - offset out of range. Database file appears to be corrupted.");
-	}
+	D_ASSERT(dict_offset >= 0 && dict_offset <= NumericCast<int32_t>(block_size));
 	if (dict_offset == 0) {
 		return string_t(nullptr, 0);
 	}
@@ -36,20 +33,16 @@ void CompressedStringScanState::Initialize(ColumnSegment &segment, bool initiali
 	index_buffer_count = Load<uint32_t>(data_ptr_cast(&header_ptr->index_buffer_count));
 	current_width = (bitpacking_width_t)(Load<uint32_t>(data_ptr_cast(&header_ptr->bitpacking_width)));
 	if (segment.GetBlockOffset() + index_buffer_offset + sizeof(uint32_t) * index_buffer_count >
-	    segment.GetBlockSize()) {
+	    segment.GetBlockManager().GetBlockSize()) {
 		throw IOException(
 		    "Failed to scan dictionary string - index was out of range. Database file appears to be corrupted.");
 	}
 	index_buffer_ptr = reinterpret_cast<uint32_t *>(baseptr + index_buffer_offset);
 	base_data = data_ptr_cast(baseptr + DictionaryCompression::DICTIONARY_HEADER_SIZE);
 
-	block_size = segment.GetBlockSize();
+	block_size = segment.GetBlockManager().GetBlockSize();
 
 	dict = DictionaryCompression::GetDictionary(segment, *handle);
-	if (segment.GetBlockOffset() + dict.end > block_size) {
-		throw IOException(
-		    "Failed to scan dictionary string - dictionary end out of range. Database file appears to be corrupted.");
-	}
 	if (!initialize_dictionary) {
 		// Used by fetch, as fetch will never produce a DictionaryVector
 		return;

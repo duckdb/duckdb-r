@@ -39,7 +39,6 @@ static void WriteShreddedDecimal(UnifiedVariantVectorData &variant, Vector &resu
 	}
 }
 
-#ifdef D_ASSERT_IS_ENABLED
 static bool IsVariantStringType(VariantLogicalType type_id) {
 	switch (type_id) {
 	case VariantLogicalType::GEOMETRY:
@@ -52,7 +51,6 @@ static bool IsVariantStringType(VariantLogicalType type_id) {
 		return false;
 	}
 }
-#endif
 
 static void WriteShreddedString(UnifiedVariantVectorData &variant, Vector &result, const SelectionVector &sel,
                                 const SelectionVector &value_index_sel, const SelectionVector &result_sel,
@@ -158,10 +156,6 @@ void VariantShredding::WriteTypedPrimitiveValues(UnifiedVariantVectorData &varia
 	}
 }
 
-void VariantShredding::WriteMissingField(Vector &vector, idx_t index) {
-	FlatVector::GetData<uint32_t>(vector)[index] = 0;
-}
-
 void VariantShredding::WriteTypedObjectValues(UnifiedVariantVectorData &variant, Vector &result,
                                               const SelectionVector &sel, const SelectionVector &value_index_sel,
                                               const SelectionVector &result_sel, idx_t count) {
@@ -204,39 +198,21 @@ void VariantShredding::WriteTypedObjectValues(UnifiedVariantVectorData &variant,
 		path_component.key = key;
 
 		ValidityMask lookup_validity(count);
-		ValidityMask all_valid_validity(count);
 		VariantUtils::FindChildValues(variant, path_component, sel, child_values_indexes, lookup_validity,
-		                              nested_data.get(), all_valid_validity, count);
+		                              nested_data.get(), count);
 
 		if (!lookup_validity.AllValid()) {
-			optional_ptr<Vector> typed_value_vector;
-			optional_ptr<Vector> untyped_value_vector;
-			if (child_vec.GetType().id() == LogicalTypeId::STRUCT) {
-				// this is a STRUCT(typed_value .., [untyped_value UINT])
-				auto &child_variant_vectors = StructVector::GetEntries(child_vec);
-				if (typed_value_index < child_variant_vectors.size()) {
-					typed_value_vector = child_variant_vectors[typed_value_index];
-				}
-				if (untyped_value_index < child_variant_vectors.size()) {
-					untyped_value_vector = child_variant_vectors[untyped_value_index];
-				}
-			} else {
-				// this is a primitive type
-				typed_value_vector = child_vec;
-			}
+			auto &child_variant_vectors = StructVector::GetEntries(child_vec);
 
 			//! For some of the rows the field is missing, adjust the selection vector to exclude these rows.
 			idx_t child_count = 0;
 			for (idx_t i = 0; i < count; i++) {
 				if (!lookup_validity.RowIsValid(i)) {
-					//! The field is missing, set the untyped value index to 0
-					if (typed_value_vector) {
-						FlatVector::SetNull(*typed_value_vector, result_sel[i], true);
+					//! The field is missing, set it to null
+					FlatVector::SetNull(*child_variant_vectors[0], result_sel[i], true);
+					if (child_variant_vectors.size() >= 2) {
+						FlatVector::SetNull(*child_variant_vectors[1], result_sel[i], true);
 					}
-					if (!untyped_value_vector) {
-						throw InternalException("Field is missing but untyped_value_index is not set");
-					}
-					WriteMissingField(*untyped_value_vector, result_sel[i]);
 					continue;
 				}
 

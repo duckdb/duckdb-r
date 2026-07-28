@@ -1595,7 +1595,6 @@ SourceResultType PhysicalAsOfJoin::GetDataInternal(ExecutionContext &context, Da
 			auto guard = gsource.Lock();
 			if (!gsource.HasMoreTasks()) {
 				gsource.UnblockTasks(guard);
-				break;
 			} else {
 				// there are more tasks available, but we can't execute them yet
 				// block the source

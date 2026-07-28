@@ -39,9 +39,6 @@ public:
 	static DatabaseManager &Get(ClientContext &db);
 	static DatabaseManager &Get(AttachedDatabase &db);
 
-	DatabaseInstance &GetInstance() {
-		return db;
-	}
 	//! Initializes the system catalog of the attached SYSTEM_DATABASE.
 	void InitializeSystemCatalog();
 	//! Finalize starting up the system
@@ -111,7 +108,6 @@ private:
 	                                              shared_ptr<AttachedDatabase> database);
 
 private:
-	DatabaseInstance &db;
 	//! The system database is a special database that holds system entries (e.g. functions)
 	shared_ptr<AttachedDatabase> system;
 	//! Lock for databases

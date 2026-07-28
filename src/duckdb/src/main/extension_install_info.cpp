@@ -1,7 +1,6 @@
 #include "duckdb/main/extension_install_info.hpp"
 #include "duckdb/common/string.hpp"
 #include "duckdb/common/file_system.hpp"
-#include "duckdb/main/settings.hpp"
 #include "duckdb/common/serializer/buffered_file_reader.hpp"
 #include "duckdb/common/serializer/binary_deserializer.hpp"
 
@@ -46,11 +45,8 @@ string ExtensionRepository::TryConvertUrlToKnownRepository(const string &url) {
 }
 
 ExtensionRepository ExtensionRepository::GetDefaultRepository(optional_ptr<DBConfig> config) {
-	if (config) {
-		auto custom_extension_repo = Settings::Get<CustomExtensionRepositorySetting>(*config);
-		if (!custom_extension_repo.empty()) {
-			return ExtensionRepository("", custom_extension_repo);
-		}
+	if (config && !config->options.custom_extension_repo.empty()) {
+		return ExtensionRepository("", config->options.custom_extension_repo);
 	}
 
 	return GetCoreRepository();

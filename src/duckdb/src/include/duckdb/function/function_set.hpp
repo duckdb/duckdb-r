@@ -27,13 +27,6 @@ public:
 	vector<T> functions;
 
 public:
-	void SetName(string name_p) {
-		name = std::move(name_p);
-	}
-	const string &GetName() const {
-		return name;
-	}
-
 	void AddFunction(T function) {
 		functions.push_back(std::move(function));
 	}

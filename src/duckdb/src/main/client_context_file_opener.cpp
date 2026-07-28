@@ -5,7 +5,6 @@
 #include "duckdb/common/file_opener.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/logging/log_manager.hpp"
-#include "duckdb/common/http_util.hpp"
 
 namespace duckdb {
 
@@ -26,8 +25,8 @@ optional_ptr<DatabaseInstance> ClientContextFileOpener::TryGetDatabase() {
 	return context.db.get();
 }
 
-HTTPUtil &ClientContextFileOpener::GetHTTPUtil() {
-	return HTTPUtil::Get(*TryGetDatabase());
+shared_ptr<HTTPUtil> &ClientContextFileOpener::GetHTTPUtil() {
+	return TryGetDatabase()->config.http_util;
 }
 
 unique_ptr<CatalogTransaction> FileOpener::TryGetCatalogTransaction(optional_ptr<FileOpener> opener) {
@@ -90,7 +89,7 @@ SettingLookupResult FileOpener::TryGetCurrentSetting(optional_ptr<FileOpener> op
 }
 
 SettingLookupResult FileOpener::TryGetCurrentSetting(const string &key, Value &result, FileOpenerInfo &info) {
-	return TryGetCurrentSetting(key, result);
+	return this->TryGetCurrentSetting(key, result);
 }
 // LCOV_EXCL_STOP
 } // namespace duckdb

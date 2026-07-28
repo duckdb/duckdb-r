@@ -15,7 +15,6 @@
 #include "duckdb/common/enums/explain_format.hpp"
 #include "duckdb/common/exception.hpp"
 #include "duckdb/common/numeric_utils.hpp"
-#include "duckdb/common/optional_idx.hpp"
 #include "duckdb/common/pair.hpp"
 #include "duckdb/common/profiler.hpp"
 #include "duckdb/common/reference_map.hpp"
@@ -51,8 +50,6 @@ struct OperatorInformation {
 	idx_t system_peak_buffer_manager_memory = 0;
 	idx_t system_peak_temp_directory_size = 0;
 	idx_t rows_scanned = 0;
-	idx_t row_groups_scanned = 0;
-	optional_idx total_row_groups_to_scan;
 
 	InsertionOrderPreservingMap<string> extra_info;
 
@@ -83,12 +80,6 @@ struct OperatorInformation {
 		case MetricType::OPERATOR_ROWS_SCANNED:
 			rows_scanned = LossyNumericCast<idx_t>(metric);
 			break;
-		case MetricType::OPERATOR_ROW_GROUPS_SCANNED:
-			row_groups_scanned = LossyNumericCast<idx_t>(metric);
-			break;
-		case MetricType::OPERATOR_TOTAL_ROW_GROUPS_TO_SCAN:
-			total_row_groups_to_scan = optional_idx(LossyNumericCast<idx_t>(metric));
-			break;
 		default:
 			throw InternalException("OperatorProfiler: Unknown metric type");
 		}
@@ -108,8 +99,7 @@ public:
 public:
 	DUCKDB_API void StartOperator(optional_ptr<const PhysicalOperator> phys_op);
 	DUCKDB_API void EndOperator(optional_ptr<DataChunk> chunk);
-	DUCKDB_API void FinalizeSourceProfiling(GlobalSourceState &gstate, LocalSourceState &lstate,
-	                                        const PhysicalOperator &phys_op, bool source_exhausted);
+	DUCKDB_API void FinishSource(GlobalSourceState &gstate, LocalSourceState &lstate);
 
 	//! Adds the timings in the OperatorProfiler (tree) to the QueryProfiler (tree).
 	DUCKDB_API void Flush(const PhysicalOperator &phys_op);
@@ -154,8 +144,6 @@ public:
 	DUCKDB_API void Reset();
 	DUCKDB_API void StartQuery(const string &query, bool is_explain_analyze = false, bool start_at_optimizer = false);
 	DUCKDB_API void EndQuery();
-	//! Finalize query metrics for output; safe to call multiple times.
-	DUCKDB_API void FinalizeMetrics();
 
 	//! Adds amount to a specific metric type.
 	DUCKDB_API void AddToCounter(MetricType type, const idx_t amount);
@@ -239,8 +227,6 @@ private:
 	TreeMap tree_map;
 	//! Whether or not we are running as part of a explain_analyze query
 	bool is_explain_analyze;
-	//! Whether root metrics have been finalized for output
-	bool metrics_finalized;
 
 public:
 	const TreeMap &GetTreeMap() const {
@@ -259,7 +245,6 @@ private:
 
 private:
 	void MoveOptimizerPhasesToRoot();
-	void FinalizeMetricsInternal();
 
 	//! Check whether or not an operator type requires query profiling. If none of the ops in a query require profiling
 	//! no profiling information is output.

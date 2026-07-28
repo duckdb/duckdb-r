@@ -7,18 +7,15 @@
 #include "duckdb/main/database.hpp"
 #include "duckdb/main/database_path_and_type.hpp"
 #include "duckdb/main/extension_helper.hpp"
-#include "duckdb/parser/parsed_data/alter_database_info.hpp"
-#include "duckdb/storage/storage_extension.hpp"
 #include "duckdb/storage/storage_manager.hpp"
 #include "duckdb/transaction/duck_transaction.hpp"
 #include "duckdb/transaction/duck_transaction_manager.hpp"
+#include "duckdb/parser/parsed_data/alter_database_info.hpp"
 
 namespace duckdb {
 
-// Oids are started at 20000 to avoid colliding with Postgres builtin types, which end at 16383:
-// https://github.com/postgres/postgres/blob/db93988ab0e78396f2ed9e96c826ff988d12b9f2/src/include/access/transam.h#L156-L197
 DatabaseManager::DatabaseManager(DatabaseInstance &db)
-    : db(db), next_oid(20000), current_query_number(1), current_transaction_id(0) {
+    : next_oid(0), current_query_number(1), current_transaction_id(0) {
 	system = make_shared_ptr<AttachedDatabase>(db);
 	auto &config = DBConfig::GetConfig(db);
 	path_manager = config.path_manager;
@@ -85,20 +82,6 @@ shared_ptr<AttachedDatabase> DatabaseManager::GetDatabaseInternal(const lock_gua
 	return entry->second;
 }
 
-bool RequiresTrackingAttaches(const string &path, const string &db_type) {
-	// we need to track attaches for file-based duckdb databases
-	if (!db_type.empty() && !StringUtil::CIEquals(db_type, "duckdb")) {
-		// not duckdb - don't track
-		return false;
-	}
-	if (path.empty() || path == IN_MEMORY_PATH) {
-		// in-memory - don't track
-		return false;
-	}
-	// file-based duckdb - track
-	return true;
-}
-
 shared_ptr<AttachedDatabase> DatabaseManager::AttachDatabase(ClientContext &context, AttachInfo &info,
                                                              AttachOptions &options) {
 	string extension = "";
@@ -110,60 +93,17 @@ shared_ptr<AttachedDatabase> DatabaseManager::AttachDatabase(ClientContext &cont
 			options.access_mode = AccessMode::READ_ONLY;
 		}
 	}
-	bool requires_tracking_attaches = RequiresTrackingAttaches(info.path, options.db_type);
-	if (requires_tracking_attaches) {
-		// canonicalize the path to the database
-		auto &fs = FileSystem::GetFileSystem(context);
-		info.path = fs.CanonicalizePath(info.path);
-	}
 
-	// for IGNORE / REPLACE ON CONFLICT - first look for an existing entry
-	if (info.on_conflict == OnCreateConflict::IGNORE_ON_CONFLICT ||
-	    info.on_conflict == OnCreateConflict::REPLACE_ON_CONFLICT) {
-		// constant-time lookup in the catalog for the db name
-		auto existing_db = GetDatabase(info.name);
-		if (existing_db) {
-			if ((existing_db->IsReadOnly() && options.access_mode == AccessMode::READ_WRITE) ||
-			    (!existing_db->IsReadOnly() && options.access_mode == AccessMode::READ_ONLY)) {
-				auto existing_mode = existing_db->IsReadOnly() ? AccessMode::READ_ONLY : AccessMode::READ_WRITE;
-				auto existing_mode_str = EnumUtil::ToString(existing_mode);
-				auto attached_mode = EnumUtil::ToString(options.access_mode);
-				throw BinderException("Database \"%s\" is already attached in %s mode, cannot re-attach in %s mode",
-				                      info.name, existing_mode_str, attached_mode);
-			}
-			if (!options.default_table.name.empty()) {
-				existing_db->GetCatalog().SetDefaultTable(options.default_table.schema, options.default_table.name);
-			}
-			if (info.on_conflict == OnCreateConflict::REPLACE_ON_CONFLICT) {
-				// we require the vacuuming threshold for indexed tables to be the same as the already attached db
-				if (options.vacuum_rebuild_indexes_threshold.IsValid()) {
-					auto previous_setting = existing_db->GetVacuumRebuildIndexThreshold();
-					auto new_setting = options.vacuum_rebuild_indexes_threshold.GetIndex();
-					if (previous_setting != new_setting) {
-						throw BinderException("Cannot re-attach with a different vacuum_rebuild_indexes setting "
-						                      "(previous: %d, new: %d)",
-						                      previous_setting, new_setting);
-					}
-				}
-				// allow custom catalogs to override this behavior
-				if (!existing_db->GetCatalog().HasConflictingAttachOptions(info.path, options)) {
-					return existing_db;
-				}
-			} else {
-				return existing_db;
-			}
-		}
-	}
-
-	if (requires_tracking_attaches) {
+	if (options.db_type.empty() || StringUtil::CIEquals(options.db_type, "duckdb")) {
 		// Start timing the ATTACH-delay step.
-		auto timer = context.client_data->profiler->StartTimer(MetricType::WAITING_TO_ATTACH_LATENCY);
-		// Start trying to attach.
+		auto profiler = context.client_data->profiler->StartTimer(MetricType::WAITING_TO_ATTACH_LATENCY);
+
 		while (InsertDatabasePath(info, options) == InsertDatabasePathResult::ALREADY_EXISTS) {
 			// database with this name and path already exists
 			// first check if it exists within this transaction
 			auto &meta_transaction = MetaTransaction::Get(context);
-			if (auto existing_db = meta_transaction.GetReferencedDatabaseOwning(info.name)) {
+			auto existing_db = meta_transaction.GetReferencedDatabaseOwning(info.name);
+			if (existing_db) {
 				// it does! return it
 				return existing_db;
 			}
@@ -180,8 +120,6 @@ shared_ptr<AttachedDatabase> DatabaseManager::AttachDatabase(ClientContext &cont
 				throw InterruptException();
 			}
 		}
-		// Returning in the loop above will also end the timer, otherwise, do it explicitly here.
-		timer.EndTimer();
 	}
 	auto &config = DBConfig::GetConfig(context);
 	GetDatabaseType(context, info, config, options);
@@ -255,7 +193,7 @@ optional_ptr<AttachedDatabase> DatabaseManager::FinalizeAttach(ClientContext &co
 }
 
 void DatabaseManager::DetachDatabase(ClientContext &context, const string &name, OnEntryNotFound if_not_found) {
-	if (StringUtil::CIEquals(GetDefaultDatabase(context), name)) {
+	if (GetDefaultDatabase(context) == name) {
 		throw BinderException("Cannot detach database \"%s\" because it is the default database. Select a different "
 		                      "database using `USE` to allow detaching this database",
 		                      name);
@@ -318,7 +256,7 @@ void DatabaseManager::RenameDatabase(ClientContext &context, const string &old_n
 		databases[new_name] = attached_db;
 	}
 
-	if (StringUtil::CIEquals(default_database, old_name)) {
+	if (default_database == old_name) {
 		default_database = new_name;
 	}
 }
@@ -382,7 +320,7 @@ void DatabaseManager::GetDatabaseType(ClientContext &context, AttachInfo &info, 
 	}
 
 	auto extension_name = ExtensionHelper::ApplyExtensionAlias(options.db_type);
-	if (StorageExtension::Find(config, extension_name)) {
+	if (config.storage_extensions.find(extension_name) != config.storage_extensions.end()) {
 		// If the database type is already registered, we don't need to load it again.
 		return;
 	}

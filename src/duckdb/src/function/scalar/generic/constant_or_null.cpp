@@ -37,7 +37,6 @@ static void ConstantOrNullFunction(DataChunk &args, ExpressionState &state, Vect
 				// there are null values: need to merge them into the result
 				result.Flatten(args.size());
 				auto &result_mask = FlatVector::Validity(result);
-				result_mask.EnsureWritable();
 				result_mask.Combine(input_mask, args.size());
 			}
 			break;

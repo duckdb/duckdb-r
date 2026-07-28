@@ -17,7 +17,6 @@
 #include "duckdb/storage/statistics/node_statistics.hpp"
 #include "duckdb/storage/table/row_group_reorderer.hpp"
 #include "duckdb/common/column_index.hpp"
-#include "duckdb/common/enums/metric_type.hpp"
 #include "duckdb/common/table_column.hpp"
 #include "duckdb/parallel/async_result.hpp"
 #include "duckdb/function/partition_stats.hpp"
@@ -37,9 +36,9 @@ class SampleOptions;
 struct MultiFileReader;
 struct OperatorPartitionData;
 struct OperatorPartitionInfo;
-enum class OrderByColumnType : uint8_t;
-enum class OrderType : uint8_t;
-enum class OrderByStatistics : uint8_t;
+enum class OrderByColumnType;
+enum class RowGroupOrderType;
+enum class OrderByStatistics;
 
 struct TableFunctionInfo {
 	DUCKDB_API virtual ~TableFunctionInfo();
@@ -323,10 +322,6 @@ typedef unique_ptr<NodeStatistics> (*table_function_cardinality_t)(ClientContext
                                                                    const FunctionData *bind_data);
 typedef idx_t (*table_function_rows_scanned_t)(GlobalTableFunctionState &global_state,
                                                LocalTableFunctionState &local_state);
-typedef void (*table_function_get_metrics_t)(ClientContext &context, const FunctionData *bind_data,
-                                             GlobalTableFunctionState &global_state,
-                                             LocalTableFunctionState &local_state,
-                                             const profiler_settings_t &requested_metrics, profiler_metrics_t &metrics);
 typedef void (*table_function_pushdown_complex_filter_t)(ClientContext &context, LogicalGet &get,
                                                          FunctionData *bind_data,
                                                          vector<unique_ptr<Expression>> &filters);
@@ -441,10 +436,8 @@ public:
 	//! (Optional) cardinality function
 	//! Returns the expected cardinality of this scan
 	table_function_cardinality_t cardinality;
-	//! (Optional) deprecated compatibility callback; prefer get_metrics for new table scan metrics
+	//! (Optional) returns the number of rows that have benn scanned
 	table_function_rows_scanned_t rows_scanned;
-	//! (Optional) returns profiling metrics for this table scan operator
-	table_function_get_metrics_t get_metrics;
 	//! (Optional) pushdown a set of arbitrary filter expressions, rather than only simple comparisons with a constant
 	//! Any functions remaining in the expression list will be pushed as a regular filter after the scan
 	table_function_pushdown_complex_filter_t pushdown_complex_filter;

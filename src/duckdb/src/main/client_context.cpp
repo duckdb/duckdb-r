@@ -43,7 +43,7 @@
 #include "duckdb/parser/tableref/column_data_ref.hpp"
 #include "duckdb/planner/operator/logical_execute.hpp"
 #include "duckdb/planner/planner.hpp"
-#include "duckdb/planner/statement_preprocessor.hpp"
+#include "duckdb/planner/pragma_handler.hpp"
 #include "duckdb/storage/data_table.hpp"
 #include "duckdb/transaction/meta_transaction.hpp"
 #include "duckdb/transaction/transaction_context.hpp"
@@ -52,23 +52,6 @@
 #include "duckdb/logging/log_manager.hpp"
 #include "duckdb/main/settings.hpp"
 #include "duckdb/main/result_set_manager.hpp"
-#include "duckdb/parser/statement/transaction_statement.hpp"
-
-#ifdef __APPLE__
-#include <sys/sysctl.h>
-
-// code adapted from Apple's example
-// https://developer.apple.com/documentation/apple-silicon/about-the-rosetta-translation-environment#Determine-Whether-Your-App-Is-Running-as-a-Translated-Binary
-static bool OsxRosettaIsActive() {
-	int ret = 0;
-	size_t size = sizeof(ret);
-	if (sysctlbyname("sysctl.proc_translated", &ret, &size, NULL, 0)) {
-		return false;
-	}
-	return ret == 1;
-}
-
-#endif
 
 namespace duckdb {
 
@@ -172,14 +155,6 @@ ClientContext::ClientContext(shared_ptr<DatabaseInstance> database)
 	LoggingContext context(LogContextScope::CONNECTION);
 	logger = db->GetLogManager().CreateLogger(context, true);
 	client_data = make_uniq<ClientData>(*this);
-
-#ifdef __APPLE__
-	if (OsxRosettaIsActive()) {
-		DUCKDB_LOG_WARNING(*this, "OSX binary translation ('Rosetta') detected. Running DuckDB through Rosetta will "
-		                          "cause a significant performance degradation. DuckDB is available natively on Apple "
-		                          "silicon, please download an appropriate binary here: https://duckdb.org/install/");
-	}
-#endif
 }
 
 ClientContext::~ClientContext() {
@@ -208,7 +183,7 @@ void ClientContext::Destroy() {
 
 void ClientContext::ProcessError(ErrorData &error, const string &query) const {
 	error.FinalizeError();
-	if (Settings::Get<ErrorsAsJSONSetting>(*this)) {
+	if (config.errors_as_json) {
 		error.ConvertErrorToJSON();
 	} else {
 		error.AddErrorLocation(query);
@@ -276,11 +251,7 @@ ErrorData ClientContext::EndQueryInternal(ClientContextLock &lock, bool success,
 				}
 			} else if (invalidate_transaction) {
 				D_ASSERT(!success);
-				if (transaction.GetAutoRollback()) {
-					transaction.Rollback(previous_error);
-				} else {
-					ValidChecker::Invalidate(ActiveTransaction(), "Failed to commit");
-				}
+				ValidChecker::Invalidate(ActiveTransaction(), "Failed to commit");
 			}
 		}
 	} catch (std::exception &ex) {
@@ -417,23 +388,11 @@ shared_ptr<PreparedStatementData> ClientContext::CreatePreparedStatementInternal
 	result->types = logical_planner.types;
 	result->value_map = std::move(logical_planner.value_map);
 	if (!logical_planner.properties.bound_all_parameters) {
-		// not all parameters were bound - return
 		return result;
 	}
 #ifdef DEBUG
 	logical_plan->Verify(*this);
 #endif
-	if (result->properties.parameter_count > 0 && !parameters.parameters) {
-		// if this is a prepared statement we can choose not to fully plan
-		// if we have parameters, we might want to re-bind when they are available as we can then do more optimizations
-		// in this situation we check if we want to cache the plan at all
-		if (!PreparedStatement::CanCachePlan(*logical_plan)) {
-			// we don't - early-out
-			result->properties.always_require_rebind = true;
-			return result;
-		}
-	}
-
 	if (config.enable_optimizer && logical_plan->RequireOptimizer()) {
 		profiler.StartPhase(MetricType::ALL_OPTIMIZERS);
 		Optimizer optimizer(*logical_planner.binder, *this);
@@ -595,9 +554,9 @@ ClientContext::PendingPreparedStatementInternal(ClientContextLock &lock,
 	statement_data.memory_type = parameters.query_parameters.memory_type;
 
 	// Get the result collector and initialize the executor.
-	auto collector = get_collector(*this, statement_data);
-	D_ASSERT(collector->type == PhysicalOperatorType::RESULT_COLLECTOR);
-	executor.Initialize(std::move(collector));
+	auto &collector = get_collector(*this, statement_data);
+	D_ASSERT(collector.type == PhysicalOperatorType::RESULT_COLLECTOR);
+	executor.Initialize(collector);
 
 	auto types = executor.GetTypes();
 	D_ASSERT(types == statement_data.types);
@@ -638,15 +597,6 @@ void ClientContext::WaitForTask(ClientContextLock &lock, BaseQueryResult &result
 	active_query->executor->WaitForTask();
 }
 
-bool ClientContext::ErrorInvalidatesTransaction(ExceptionType type) {
-	switch (transaction.GetInvalidationPolicy()) {
-	case TransactionInvalidationPolicy::ALL_ERRORS_INVALIDATE_TRANSACTION:
-		return true;
-	default:
-		return Exception::InvalidatesTransaction(type);
-	}
-}
-
 PendingExecutionResult ClientContext::ExecuteTaskInternal(ClientContextLock &lock, BaseQueryResult &result,
                                                           bool dry_run) {
 	D_ASSERT(active_query);
@@ -671,10 +621,10 @@ PendingExecutionResult ClientContext::ExecuteTaskInternal(ClientContextLock &loc
 			} else {
 				// Interrupted by an exception caused in a worker thread
 				error = executor.GetError();
-				invalidate_transaction = ErrorInvalidatesTransaction(error.Type());
+				invalidate_transaction = Exception::InvalidatesTransaction(error.Type());
 				result.SetError(error);
 			}
-		} else if (!ErrorInvalidatesTransaction(error.Type())) {
+		} else if (!Exception::InvalidatesTransaction(error.Type())) {
 			invalidate_transaction = false;
 		} else if (Exception::InvalidatesDatabase(error.Type()) || error.Type() == ExceptionType::INTERNAL) {
 			// fatal exceptions invalidate the entire database
@@ -706,11 +656,8 @@ vector<unique_ptr<SQLStatement>> ClientContext::ParseStatementsInternal(ClientCo
 		Parser parser(GetParserOptions());
 		parser.ParseQuery(query);
 
-		StatementPreprocessor preprocessor(*this);
-
-		const CurrentTransactionState transaction_context_state =
-		    transaction.HasActiveTransaction() ? IN_ACTIVE_TRANSACTION : NOT_IN_ACTIVE_TRANSACTION;
-		preprocessor.Preprocess(lock, parser.statements, transaction_context_state);
+		PragmaHandler handler(*this);
+		handler.HandlePragmaStatements(lock, parser.statements);
 
 		return std::move(parser.statements);
 	} catch (std::exception &ex) {
@@ -720,13 +667,11 @@ vector<unique_ptr<SQLStatement>> ClientContext::ParseStatementsInternal(ClientCo
 	}
 }
 
-void ClientContext::PreprocessStatements(vector<unique_ptr<SQLStatement>> &statements) {
+void ClientContext::HandlePragmaStatements(vector<unique_ptr<SQLStatement>> &statements) {
 	auto lock = LockContext();
 
-	StatementPreprocessor preprocessor(*this);
-	const CurrentTransactionState transaction_context_state =
-	    transaction.HasActiveTransaction() ? IN_ACTIVE_TRANSACTION : NOT_IN_ACTIVE_TRANSACTION;
-	preprocessor.Preprocess(*lock, statements, transaction_context_state);
+	PragmaHandler handler(*this);
+	handler.HandlePragmaStatements(*lock, statements);
 }
 
 unique_ptr<LogicalOperator> ClientContext::ExtractPlan(const string &query) {
@@ -765,10 +710,8 @@ unique_ptr<PreparedStatement> ClientContext::PrepareInternal(ClientContextLock &
 	auto statement_query = statement->query;
 	shared_ptr<PreparedStatementData> prepared_data;
 	auto unbound_statement = statement->Copy();
-	PendingQueryParameters parameters;
 	RunFunctionInTransactionInternal(
-	    lock,
-	    [&]() { prepared_data = CreatePreparedStatement(lock, statement_query, std::move(statement), parameters); },
+	    lock, [&]() { prepared_data = CreatePreparedStatement(lock, statement_query, std::move(statement), {}); },
 	    false);
 	prepared_data->unbound_statement = std::move(unbound_statement);
 	return make_uniq<PreparedStatement>(shared_from_this(), std::move(prepared_data), std::move(statement_query),
@@ -777,10 +720,8 @@ unique_ptr<PreparedStatement> ClientContext::PrepareInternal(ClientContextLock &
 
 unique_ptr<PreparedStatement> ClientContext::Prepare(unique_ptr<SQLStatement> statement) {
 	auto lock = LockContext();
-	// Store the query in case of an error.
+	// prepare the query
 	auto query = statement->query;
-
-	// Try to prepare.
 	try {
 		InitialCleanup(*lock);
 		return PrepareInternal(*lock, std::move(statement));
@@ -932,21 +873,6 @@ unique_ptr<PendingQueryResult> ClientContext::PendingStatementOrPreparedStatemen
 					Parser parser(GetParserOptions());
 					ErrorData error;
 					parser.ParseQuery(statement->ToString());
-					// FIXME: these properties don't round-trip in ToString(), so we overwrite them manually
-					if (statement->type == StatementType::UPDATE_STATEMENT) {
-						// re-apply `prioritize_table_when_binding` (which is normally set during transform)
-						parser.statements[0]->Cast<UpdateStatement>().prioritize_table_when_binding =
-						    statement->Cast<UpdateStatement>().prioritize_table_when_binding;
-					} else if (statement->type == StatementType::TRANSACTION_STATEMENT) {
-						// re-apply invalidation policy
-						auto &reparsed_transaction_stmt = parser.statements[0]->Cast<TransactionStatement>();
-						auto &previous_transaction_stmt = statement->Cast<TransactionStatement>();
-						reparsed_transaction_stmt.info->invalidation_policy =
-						    previous_transaction_stmt.info->invalidation_policy;
-						// re-apply auto rollback
-						reparsed_transaction_stmt.info->auto_rollback =
-						    statement->Cast<TransactionStatement>().info->auto_rollback;
-					}
 					statement = std::move(parser.statements[0]);
 				} catch (const NotImplementedException &) {
 					// ToString was not implemented, just use the copied statement
@@ -989,7 +915,7 @@ unique_ptr<PendingQueryResult> ClientContext::PendingStatementOrPreparedStatemen
 		}
 	} catch (std::exception &ex) {
 		ErrorData error(ex);
-		if (!ErrorInvalidatesTransaction(error.Type())) {
+		if (!Exception::InvalidatesTransaction(error.Type())) {
 			// standard exceptions do not invalidate the current transaction
 			invalidate_query = false;
 		} else if (Exception::InvalidatesDatabase(error.Type())) {
@@ -1035,9 +961,6 @@ void ClientContext::LogQueryInternal(ClientContextLock &, const string &query) {
 unique_ptr<QueryResult> ClientContext::Query(unique_ptr<SQLStatement> statement, QueryParameters parameters) {
 	auto pending_query = PendingQuery(std::move(statement), parameters);
 	if (pending_query->HasError()) {
-		if (transaction.HasActiveTransaction() && transaction.GetAutoRollback()) {
-			transaction.Rollback(pending_query->GetErrorObject());
-		}
 		return ErrorResult<MaterializedQueryResult>(pending_query->GetErrorObject());
 	}
 	return pending_query->Execute();
@@ -1045,6 +968,7 @@ unique_ptr<QueryResult> ClientContext::Query(unique_ptr<SQLStatement> statement,
 
 unique_ptr<QueryResult> ClientContext::Query(const string &query, QueryParameters query_parameters) {
 	auto lock = LockContext();
+
 	vector<unique_ptr<SQLStatement>> statements;
 	try {
 		statements = ParseStatements(*lock, query);
@@ -1080,9 +1004,6 @@ unique_ptr<QueryResult> ClientContext::Query(const string &query, QueryParameter
 			current_result = ExecutePendingQueryInternal(*lock, *pending_query);
 		}
 		if (current_result->HasError()) {
-			if (transaction.HasActiveTransaction() && transaction.GetAutoRollback()) {
-				transaction.Rollback(current_result->GetErrorObject());
-			}
 			// Reset the interrupted flag, this was set by the task that found the error
 			// Next statements should not be bothered by that interruption
 			interrupted = false;
@@ -1249,14 +1170,13 @@ void ClientContext::RunFunctionInTransactionInternal(ClientContextLock &lock, co
 	if (require_new_transaction) {
 		D_ASSERT(!active_query);
 		transaction.BeginTransaction();
-		interrupted = false;
 	}
 	try {
 		fun();
 	} catch (std::exception &ex) {
 		ErrorData error(ex);
 		bool invalidates_transaction = true;
-		if (!ErrorInvalidatesTransaction(error.Type())) {
+		if (!Exception::InvalidatesTransaction(error.Type())) {
 			// standard exceptions don't invalidate the transaction
 			invalidates_transaction = false;
 		} else if (Exception::InvalidatesDatabase(error.Type())) {
@@ -1305,20 +1225,86 @@ unique_ptr<TableDescription> ClientContext::TableInfo(const string &schema_name,
 	return TableInfo(INVALID_CATALOG, schema_name, table_name);
 }
 
-void ClientContext::Append(unique_ptr<SQLStatement> stmt) {
-	auto result = Query(std::move(stmt), false);
+CommonTableExpressionMap &GetCTEMap(SQLStatement &statement) {
+	switch (statement.type) {
+	case StatementType::INSERT_STATEMENT:
+		return statement.Cast<InsertStatement>().cte_map;
+	case StatementType::DELETE_STATEMENT:
+		return statement.Cast<DeleteStatement>().cte_map;
+	case StatementType::UPDATE_STATEMENT:
+		return statement.Cast<UpdateStatement>().cte_map;
+	case StatementType::MERGE_INTO_STATEMENT:
+		return statement.Cast<MergeIntoStatement>().cte_map;
+	default:
+		throw InvalidInputException(
+		    "Unsupported statement type for appender: expected INSERT, DELETE, UPDATE or MERGE INTO");
+	}
+}
+
+void ClientContext::Append(ColumnDataCollection &collection, const string &query, const vector<string> &column_names,
+                           const string &collection_name) {
+	// create the CTE for the appender
+	string alias = collection_name.empty() ? "appended_data" : collection_name;
+	auto column_data_ref = make_uniq<ColumnDataRef>(collection);
+	column_data_ref->alias = alias;
+	column_data_ref->expected_names = column_names;
+	auto cte = make_uniq<SelectNode>();
+	cte->select_list.push_back(make_uniq<StarExpression>());
+	cte->from_table = std::move(column_data_ref);
+	auto cte_select = make_uniq<SelectStatement>();
+	cte_select->node = std::move(cte);
+
+	// parse the query
+	Parser parser;
+	parser.ParseQuery(query);
+
+	// must be a single statement with CTEs
+	if (parser.statements.size() != 1) {
+		throw InvalidInputException("Expected exactly 1 query for appending data");
+	}
+
+	// add the appender data as a CTE to the cte map
+	auto &cte_map = GetCTEMap(*parser.statements[0]);
+	auto cte_info = make_uniq<CommonTableExpressionInfo>();
+	cte_info->query = std::move(cte_select);
+	cte_info->materialized = CTEMaterialize::CTE_MATERIALIZE_NEVER;
+
+	cte_map.map.insert(alias, std::move(cte_info));
+
+	// now we have the query - run it in a transaction
+	auto result = Query(std::move(parser.statements[0]), false);
 	if (result->HasError()) {
 		result->GetErrorObject().Throw("Failed to append: ");
 	}
 }
 
-void ClientContext::Append(TableDescription &description, ColumnDataCollection &collection) {
+void ClientContext::Append(TableDescription &description, ColumnDataCollection &collection,
+                           optional_ptr<const vector<LogicalIndex>> column_ids) {
 	string table_name = "__duckdb_internal_appended_data";
-	vector<string> expected_names;
-	auto query = Appender::ConstructQuery(description, table_name, expected_names);
-	auto table_ref = BaseAppender::GetColumnDataTableRef(collection, table_name, expected_names);
-	auto stmt = BaseAppender::ParseStatement(std::move(table_ref), query, table_name);
-	Append(std::move(stmt));
+	string query = "INSERT INTO ";
+	if (!description.database.empty()) {
+		query += StringUtil::Format("%s.", SQLIdentifier(description.database));
+	}
+	if (!description.schema.empty()) {
+		query += StringUtil::Format("%s.", SQLIdentifier(description.schema));
+	}
+	query += StringUtil::Format("%s", SQLIdentifier(description.table));
+	if (column_ids && !column_ids->empty()) {
+		query += "(";
+		auto &ids = *column_ids;
+		for (idx_t i = 0; i < ids.size(); i++) {
+			if (i > 0) {
+				query += ", ";
+			}
+			auto &col_name = description.columns[ids[i].index].Name();
+			query += StringUtil::Format("%s", SQLIdentifier(col_name));
+		}
+		query += ")";
+	}
+	query += " FROM ";
+	query += table_name;
+	vector<string> column_names;
+	Append(collection, query, column_names, table_name);
 }
 
 void ClientContext::InternalTryBindRelation(Relation &relation, vector<ColumnDefinition> &result_columns) {
@@ -1438,40 +1424,43 @@ unique_ptr<QueryResult> ClientContext::Execute(const shared_ptr<Relation> &relat
 	return ErrorResult<MaterializedQueryResult>(ErrorData(err_str));
 }
 
-SettingLookupResult ClientContext::TryGetCurrentSetting(const string &key, Value &result) const {
-	optional_ptr<const ConfigurationOption> option;
-	// try to get the setting index
-	auto &db_config = DBConfig::GetConfig(*this);
-	auto setting_index = db_config.TryGetSettingIndex(key, option);
-	if (setting_index.IsValid()) {
-		// generic setting - try to fetch it
-		auto lookup_result =
-		    config.user_settings.TryGetSetting(db_config.user_settings, setting_index.GetIndex(), result);
-		if (lookup_result) {
-			return lookup_result;
-		}
-	}
-	if (option && option->get_setting) {
-		// legacy callback
-		result = option->get_setting(*this);
+SettingLookupResult ClientContext::TryGetCurrentSettingInternal(const string &key, Value &result) const {
+	// check the client session values
+	const auto &session_config_map = config.set_variables;
+
+	auto session_value = session_config_map.find(key);
+	bool found_session_value = session_value != session_config_map.end();
+	if (found_session_value) {
+		result = session_value->second;
 		return SettingLookupResult(SettingScope::LOCAL);
 	}
-	// setting is not set - get the default value
-	return DBConfig::TryGetDefaultValue(option, result);
+	// finally check the global session values
+	return db->TryGetCurrentSetting(key, result);
 }
 
-SettingLookupResult ClientContext::TryGetCurrentUserSetting(idx_t setting_index, Value &result) const {
+SettingLookupResult ClientContext::TryGetCurrentSetting(const string &key, Value &result) const {
+	// first check the built-in settings
 	auto &db_config = DBConfig::GetConfig(*this);
-	return config.user_settings.TryGetSetting(db_config.user_settings, setting_index, result);
+	auto option = db_config.GetOptionByName(key);
+	if (option) {
+		if (option->get_setting) {
+			result = option->get_setting(*this);
+			return SettingLookupResult(SettingScope::LOCAL);
+		}
+		// alias - search for the default key
+		return TryGetCurrentSettingInternal(option->name, result);
+	}
+	return TryGetCurrentSettingInternal(key, result);
 }
 
 ParserOptions ClientContext::GetParserOptions() const {
+	auto &client_config = ClientConfig::GetConfig(*this);
 	ParserOptions options;
-	options.preserve_identifier_case = Settings::Get<PreserveIdentifierCaseSetting>(*this);
-	options.integer_division = Settings::Get<IntegerDivisionSetting>(*this);
-	options.max_expression_depth = Settings::Get<MaxExpressionDepthSetting>(*this);
-	options.extensions = DBConfig::GetConfig(*this).GetCallbackManager();
-	options.parser_override_setting = Settings::Get<AllowParserOverrideExtensionSetting>(*this);
+	options.preserve_identifier_case = DBConfig::GetSetting<PreserveIdentifierCaseSetting>(*this);
+	options.integer_division = DBConfig::GetSetting<IntegerDivisionSetting>(*this);
+	options.max_expression_depth = client_config.max_expression_depth;
+	options.extensions = &DBConfig::GetConfig(*this).parser_extensions;
+	options.parser_override_setting = DBConfig::GetConfig(*this).options.allow_parser_override_extension;
 	return options;
 }
 
@@ -1483,13 +1472,13 @@ ClientProperties ClientContext::GetClientProperties() {
 		timezone = result.ToString();
 	}
 	ArrowOffsetSize arrow_offset_size = ArrowOffsetSize::REGULAR;
-	if (Settings::Get<ArrowLargeBufferSizeSetting>(*this)) {
+	if (DBConfig::GetSetting<ArrowLargeBufferSizeSetting>(*this)) {
 		arrow_offset_size = ArrowOffsetSize::LARGE;
 	}
-	bool arrow_use_list_view = Settings::Get<ArrowOutputListViewSetting>(*this);
-	bool arrow_lossless_conversion = Settings::Get<ArrowLosslessConversionSetting>(*this);
-	bool arrow_use_string_view = Settings::Get<ProduceArrowStringViewSetting>(*this);
-	auto arrow_format_version = Settings::Get<ArrowOutputVersionSetting>(*this);
+	bool arrow_use_list_view = DBConfig::GetSetting<ArrowOutputListViewSetting>(*this);
+	bool arrow_lossless_conversion = DBConfig::GetSetting<ArrowLosslessConversionSetting>(*this);
+	bool arrow_use_string_view = DBConfig::GetSetting<ProduceArrowStringViewSetting>(*this);
+	auto arrow_format_version = DBConfig::GetSetting<ArrowOutputVersionSetting>(*this);
 	return {timezone,
 	        arrow_offset_size,
 	        arrow_use_list_view,
@@ -1504,14 +1493,6 @@ bool ClientContext::ExecutionIsFinished() {
 		return false;
 	}
 	return active_query->executor->ExecutionIsFinished();
-}
-
-LogicalType ClientContext::ParseLogicalType(const string &type) {
-	auto lock = LockContext();
-	LogicalType logical_type;
-	RunFunctionInTransactionInternal(*lock,
-	                                 [&]() { logical_type = TypeManager::Get(*db).ParseLogicalType(type, *this); });
-	return logical_type;
 }
 
 } // namespace duckdb

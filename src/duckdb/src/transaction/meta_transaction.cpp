@@ -54,9 +54,6 @@ optional_ptr<Transaction> MetaTransaction::TryGetTransaction(AttachedDatabase &d
 }
 
 Transaction &MetaTransaction::GetTransaction(AttachedDatabase &db) {
-	if (ValidChecker::IsInvalidated(db)) {
-		throw IOException("%s", ValidChecker::InvalidatedMessage(db));
-	}
 	lock_guard<mutex> guard(lock);
 	auto entry = transactions.find(db);
 	if (entry == transactions.end()) {
@@ -130,10 +127,6 @@ ErrorData MetaTransaction::Commit() {
 
 		auto &transaction_manager = db.GetTransactionManager();
 		auto &transaction_ref = entry->second;
-		if (ValidChecker::IsInvalidated(db)) {
-			error.Merge(ErrorData(IOException("%s", ValidChecker::InvalidatedMessage(db))));
-			continue;
-		}
 		if (transaction_ref.state != TransactionState::UNCOMMITTED) {
 			continue;
 		}
@@ -165,10 +158,6 @@ void MetaTransaction::Rollback() {
 		auto entry = transactions.find(db);
 		D_ASSERT(entry != transactions.end());
 		auto &transaction_ref = entry->second;
-		if (ValidChecker::IsInvalidated(db)) {
-			error.Merge(ErrorData(IOException("%s", ValidChecker::InvalidatedMessage(db))));
-			continue;
-		}
 		if (transaction_ref.state != TransactionState::UNCOMMITTED) {
 			continue;
 		}
@@ -199,7 +188,6 @@ idx_t MetaTransaction::GetActiveQuery() {
 }
 
 void MetaTransaction::SetActiveQuery(transaction_t query_number) {
-	lock_guard<mutex> guard(lock);
 	active_query = query_number;
 	for (auto &entry : transactions) {
 		entry.second.transaction.active_query = query_number;

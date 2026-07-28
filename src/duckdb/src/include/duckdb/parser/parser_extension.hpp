@@ -8,14 +8,12 @@
 
 #pragma once
 
-#include "duckdb/parser/parser_options.hpp"
 #include "duckdb/common/common.hpp"
 #include "duckdb/common/enums/statement_type.hpp"
 #include "duckdb/function/table_function.hpp"
 #include "duckdb/parser/sql_statement.hpp"
 
 namespace duckdb {
-struct DBConfig;
 
 //! The ParserExtensionInfo holds static information relevant to the parser extension
 //! It is made available in the parse_function, and will be kept alive as long as the database system is kept alive
@@ -96,8 +94,7 @@ struct ParserOverrideResult {
 	ErrorData error;
 };
 
-typedef ParserOverrideResult (*parser_override_function_t)(ParserExtensionInfo *info, const string &query,
-                                                           ParserOptions &options);
+typedef ParserOverrideResult (*parser_override_function_t)(ParserExtensionInfo *info, const string &query);
 
 //===--------------------------------------------------------------------===//
 // ParserExtension
@@ -117,8 +114,6 @@ public:
 
 	//! Additional parser info passed to the parse function
 	shared_ptr<ParserExtensionInfo> parser_info;
-
-	static void Register(DBConfig &config, ParserExtension extension);
 };
 
 } // namespace duckdb

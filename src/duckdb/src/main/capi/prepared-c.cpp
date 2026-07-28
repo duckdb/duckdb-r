@@ -41,14 +41,6 @@ idx_t duckdb_extract_statements(duckdb_connection connection, const char *query,
 	return wrapper->statements.size();
 }
 
-static void duckdb_prepare_param_index_to_name_map_internal(PreparedStatementWrapper *wrapper) {
-	auto &named_param_map = wrapper->statement->named_param_map;
-	auto &cache = wrapper->param_index_to_name;
-	for (auto &kv : named_param_map) {
-		cache[kv.second] = kv.first;
-	}
-}
-
 duckdb_state duckdb_prepare_extracted_statement(duckdb_connection connection,
                                                 duckdb_extracted_statements extracted_statements, idx_t index,
                                                 duckdb_prepared_statement *out_prepared_statement) {
@@ -62,11 +54,7 @@ duckdb_state duckdb_prepare_extracted_statement(duckdb_connection connection,
 	try {
 		wrapper->statement = conn->Prepare(std::move(source_wrapper->statements[index]));
 		*out_prepared_statement = (duckdb_prepared_statement)wrapper;
-		if (wrapper->statement->HasError()) {
-			return DuckDBError;
-		}
-		duckdb_prepare_param_index_to_name_map_internal(wrapper);
-		return DuckDBSuccess;
+		return wrapper->statement->HasError() ? DuckDBError : DuckDBSuccess;
 	} catch (...) {
 		delete wrapper;
 		return DuckDBError;
@@ -91,11 +79,7 @@ duckdb_state duckdb_prepare(duckdb_connection connection, const char *query,
 	try {
 		wrapper->statement = conn->Prepare(query);
 		*out_prepared_statement = reinterpret_cast<duckdb_prepared_statement>(wrapper);
-		if (wrapper->statement->HasError()) {
-			return DuckDBError;
-		}
-		duckdb_prepare_param_index_to_name_map_internal(wrapper);
-		return DuckDBSuccess;
+		return !wrapper->statement->HasError() ? DuckDBSuccess : DuckDBError;
 	} catch (...) {
 		delete wrapper;
 		return DuckDBError;
@@ -129,12 +113,19 @@ static duckdb::string duckdb_parameter_name_internal(duckdb_prepared_statement p
 	if (!wrapper || !wrapper->statement || wrapper->statement->HasError()) {
 		return duckdb::string();
 	}
-	auto &cache = wrapper->param_index_to_name;
-	auto it = cache.find(index);
-	if (it == cache.end()) {
+	if (index > wrapper->statement->named_param_map.size()) {
 		return duckdb::string();
 	}
-	return it->second;
+	for (auto &item : wrapper->statement->named_param_map) {
+		auto &identifier = item.first;
+		auto &param_idx = item.second;
+		if (param_idx == index) {
+			// Found the matching parameter
+			return identifier;
+		}
+	}
+	// No parameter was found with this index
+	return duckdb::string();
 }
 
 const char *duckdb_parameter_name(duckdb_prepared_statement prepared_statement, idx_t index) {

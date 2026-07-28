@@ -120,7 +120,11 @@ void ExpressionExecutor::Execute(const BoundOperatorExpression &expr, Expression
 				result.Reference(try_result);
 				return;
 			}
-			VectorOperations::Copy(try_result, result, count, 0, 0);
+			if (sel) {
+				VectorOperations::Copy(try_result, result, *sel, count, 0, 0, count);
+			} else {
+				VectorOperations::Copy(try_result, result, count, 0, 0);
+			}
 			return;
 		} catch (std::exception &ex) {
 			ErrorData error(ex);
@@ -129,19 +133,12 @@ void ExpressionExecutor::Execute(const BoundOperatorExpression &expr, Expression
 				throw;
 			}
 		}
-
-		// On error, evaluate per row
 		SelectionVector selvec(1);
 		DataChunk intermediate;
 		intermediate.Initialize(GetAllocator(), {result.GetType()}, 1);
 		for (idx_t i = 0; i < count; i++) {
 			intermediate.Reset();
 			intermediate.SetCardinality(1);
-
-			// Make sure to clear any dictionary states in the child expression, so that it actually
-			// gets executed anew for every row
-			child_state.ResetDictionaryStates();
-
 			selvec.set_index(0, sel ? sel->get_index(i) : i);
 			Value val(result.GetType());
 			try {

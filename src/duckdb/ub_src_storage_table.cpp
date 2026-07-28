@@ -8,8 +8,6 @@
 
 #include "src/storage/table/column_segment.cpp"
 
-#include "src/storage/table/geo_column_data.cpp"
-
 #include "src/storage/table/array_column_data.cpp"
 
 #include "src/storage/table/list_column_data.cpp"
@@ -17,8 +15,6 @@
 #include "src/storage/table/in_memory_checkpoint.cpp"
 
 #include "src/storage/table/update_segment.cpp"
-
-#include "src/storage/table/per_column_metadata_blocks.cpp"
 
 #include "src/storage/table/persistent_table_data.cpp"
 

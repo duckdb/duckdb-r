@@ -88,10 +88,6 @@ string HivePartitioning::Unescape(const string &input) {
 	return StringUtil::URLDecode(input);
 }
 
-bool HivePartitioning::IsNull(const string &input) {
-	return StringUtil::CIEquals(input, "NULL") || input == "__HIVE_DEFAULT_PARTITION__";
-}
-
 // matches hive partitions in file name. For example:
 // 	- s3://bucket/var1=value1/bla/bla/var2=value2
 //  - http(s)://domain(:port)/lala/kasdl/var1=value1/?not-a-var=not-a-value
@@ -130,7 +126,7 @@ std::map<string, string> HivePartitioning::Parse(const string &filename) {
 Value HivePartitioning::GetValue(ClientContext &context, const string &key, const string &str_val,
                                  const LogicalType &type) {
 	// Handle nulls
-	if (IsNull(str_val)) {
+	if (StringUtil::CIEquals(str_val, "NULL")) {
 		return Value(type);
 	}
 	if (type.id() == LogicalTypeId::VARCHAR) {
@@ -248,13 +244,26 @@ static void TemplatedGetHivePartitionValues(Vector &input, vector<HivePartitionK
 
 	const auto &type = input.GetType();
 
-	for (idx_t i = 0; i < count; i++) {
-		auto &key = keys[i];
-		const auto idx = sel.get_index(i);
-		if (validity.RowIsValid(idx)) {
-			key.values[col_idx] = GetHiveKeyValue(data[idx], type);
-		} else {
-			key.values[col_idx] = GetHiveKeyNullValue(type);
+	const auto reinterpret = Value::CreateValue<T>(data[sel.get_index(0)]).GetTypeMutable() != type;
+	if (reinterpret) {
+		for (idx_t i = 0; i < count; i++) {
+			auto &key = keys[i];
+			const auto idx = sel.get_index(i);
+			if (validity.RowIsValid(idx)) {
+				key.values[col_idx] = GetHiveKeyValue(data[idx], type);
+			} else {
+				key.values[col_idx] = GetHiveKeyNullValue(type);
+			}
+		}
+	} else {
+		for (idx_t i = 0; i < count; i++) {
+			auto &key = keys[i];
+			const auto idx = sel.get_index(i);
+			if (validity.RowIsValid(idx)) {
+				key.values[col_idx] = GetHiveKeyValue(data[idx]);
+			} else {
+				key.values[col_idx] = GetHiveKeyNullValue(type);
+			}
 		}
 	}
 }

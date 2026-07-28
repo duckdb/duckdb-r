@@ -80,7 +80,7 @@ static unique_ptr<Expression> PlanUncorrelatedSubquery(Binder &binder, BoundSubq
 		D_ASSERT(bindings.size() == 1);
 		idx_t table_idx = bindings[0].table_index;
 
-		bool error_on_multiple_rows = Settings::Get<ScalarSubqueryErrorOnMultipleRowsSetting>(binder.context);
+		bool error_on_multiple_rows = DBConfig::GetSetting<ScalarSubqueryErrorOnMultipleRowsSetting>(binder.context);
 
 		// we push an aggregate that returns the FIRST element
 		vector<unique_ptr<Expression>> expressions;
@@ -374,7 +374,7 @@ void RecursiveDependentJoinPlanner::VisitOperator(LogicalOperator &op) {
 		// Collect all recursive CTEs during recursive descend
 		if (op.type == LogicalOperatorType::LOGICAL_RECURSIVE_CTE ||
 		    op.type == LogicalOperatorType::LOGICAL_MATERIALIZED_CTE) {
-			auto &rec_cte = op.Cast<LogicalCTE>();
+			auto &rec_cte = op.Cast<LogicalRecursiveCTE>();
 			binder.recursive_ctes[rec_cte.table_index] = &op;
 		}
 		for (idx_t i = 0; i < op.children.size(); i++) {

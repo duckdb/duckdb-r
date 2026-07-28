@@ -342,8 +342,6 @@ bool CatalogSet::AlterEntry(CatalogTransaction transaction, const string &name, 
 	// Mark this entry as being created by this transaction
 	value->timestamp = transaction.transaction_id;
 	value->set = this;
-	// Preserve the oid across the alter: an altered entry is the same logical object as before
-	value->oid = entry->oid;
 
 	if (!StringUtil::CIEquals(value->name, entry->name)) {
 		if (!RenameEntryInternal(transaction, *entry, value->name, alter_info, read_lock)) {
@@ -445,7 +443,7 @@ void CatalogSet::VerifyExistenceOfDependency(transaction_t commit_id, CatalogEnt
 	// Make sure that we don't see any uncommitted changes
 	auto transaction_id = MAX_TRANSACTION_ID;
 	// This will allow us to see all committed changes made before this COMMIT happened
-	auto tx_start_time = commit_id + 1;
+	auto tx_start_time = commit_id;
 	CatalogTransaction commit_transaction(duck_catalog.GetDatabase(), transaction_id, tx_start_time);
 
 	D_ASSERT(entry.type == CatalogType::DEPENDENCY_ENTRY);
@@ -570,17 +568,12 @@ optional_ptr<CatalogEntry> CatalogSet::CreateDefaultEntry(CatalogTransaction tra
 		// no defaults either: return null
 		return nullptr;
 	}
-	auto unlock = !defaults->LockDuringCreate();
-	if (unlock) {
-		read_lock.unlock();
-	}
+	read_lock.unlock();
 	// this catalog set has a default map defined
 	// check if there is a default entry that we can create with this name
 	auto entry = defaults->CreateDefaultEntry(transaction, name);
 
-	if (unlock) {
-		read_lock.lock();
-	}
+	read_lock.lock();
 	if (!entry) {
 		// no default entry
 		return nullptr;
@@ -593,9 +586,7 @@ optional_ptr<CatalogEntry> CatalogSet::CreateDefaultEntry(CatalogTransaction tra
 	// we found a default entry, but failed
 	// this means somebody else created the entry first
 	// just retry?
-	if (unlock) {
-		read_lock.unlock();
-	}
+	read_lock.unlock();
 	return GetEntry(transaction, name);
 }
 
@@ -666,7 +657,6 @@ void CatalogSet::CreateDefaultEntries(CatalogTransaction transaction, unique_loc
 	if (!defaults || defaults->created_all_entries) {
 		return;
 	}
-	auto unlock = !defaults->LockDuringCreate();
 	// this catalog set has a default set defined:
 	auto default_entries = defaults->GetDefaultEntries();
 	for (auto &default_entry : default_entries) {
@@ -674,17 +664,13 @@ void CatalogSet::CreateDefaultEntries(CatalogTransaction transaction, unique_loc
 		if (!entry_value) {
 			// we unlock during the CreateEntry, since it might reference other catalog sets...
 			// specifically for views this can happen since the view will be bound
-			if (unlock) {
-				read_lock.unlock();
-			}
+			read_lock.unlock();
 			auto entry = defaults->CreateDefaultEntry(transaction, default_entry);
 			if (!entry) {
 				throw InternalException("Failed to create default entry for %s", default_entry);
 			}
 
-			if (unlock) {
-				read_lock.lock();
-			}
+			read_lock.lock();
 			CreateCommittedEntry(std::move(entry));
 		}
 	}

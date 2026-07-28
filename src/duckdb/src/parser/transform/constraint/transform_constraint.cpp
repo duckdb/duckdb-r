@@ -10,9 +10,7 @@ static void ParseSchemaTableNameFK(duckdb_libpgquery::PGRangeVar &input, Foreign
 	if (input.catalogname) {
 		throw ParserException("FOREIGN KEY constraints cannot be defined cross-database");
 	}
-	if (input.schemaname) {
-		fk_info.schema = input.schemaname;
-	}
+	fk_info.schema = input.schemaname ? input.schemaname : "";
 	fk_info.table = input.relname;
 }
 
@@ -91,7 +89,7 @@ unique_ptr<Constraint> Transformer::TransformConstraint(duckdb_libpgquery::PGCon
 		if (expression->HasSubquery()) {
 			throw ParserException("subqueries prohibited in CHECK constraints");
 		}
-		return make_uniq<CheckConstraint>(std::move(expression));
+		return make_uniq<CheckConstraint>(TransformExpression(constraint.raw_expr));
 	}
 	case duckdb_libpgquery::PG_CONSTR_FOREIGN:
 		return TransformForeignKeyConstraint(constraint);
@@ -126,19 +124,13 @@ unique_ptr<Constraint> Transformer::TransformConstraint(duckdb_libpgquery::PGCon
 	case duckdb_libpgquery::PG_CONSTR_DEFAULT:
 		column.SetDefaultValue(TransformExpression(constraint.raw_expr));
 		return nullptr;
-	case duckdb_libpgquery::PG_CONSTR_COMPRESSION: {
-		auto compression_type = EnumUtil::FromString<CompressionType>(constraint.compression_name);
-		switch (compression_type) {
-		case CompressionType::COMPRESSION_AUTO:
-		case CompressionType::COMPRESSION_CONSTANT:
-		case CompressionType::COMPRESSION_EMPTY:
-			throw InvalidInputException("Compression method %d cannot be forced", constraint.compression_name);
-		default:
-			break;
+	case duckdb_libpgquery::PG_CONSTR_COMPRESSION:
+		column.SetCompressionType(CompressionTypeFromString(constraint.compression_name));
+		if (column.CompressionType() == CompressionType::COMPRESSION_AUTO) {
+			throw ParserException("Unrecognized option for column compression, expected none, uncompressed, rle, "
+			                      "dictionary, pfor, bitpacking, fsst, chimp, patas, zstd, alp, alprd or roaring");
 		}
-		column.SetCompressionType(compression_type);
 		return nullptr;
-	}
 	case duckdb_libpgquery::PG_CONSTR_FOREIGN:
 		return TransformForeignKeyConstraint(constraint, &column.Name());
 	default:

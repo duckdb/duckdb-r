@@ -18,6 +18,7 @@ void CommonAggregateOptimizer::VisitOperator(LogicalOperator &op) {
 	case LogicalOperatorType::LOGICAL_UNION:
 	case LogicalOperatorType::LOGICAL_EXCEPT:
 	case LogicalOperatorType::LOGICAL_INTERSECT:
+	case LogicalOperatorType::LOGICAL_MATERIALIZED_CTE:
 	case LogicalOperatorType::LOGICAL_PROJECTION: {
 		CommonAggregateOptimizer common_aggregate;
 		common_aggregate.StandardVisitOperator(op);

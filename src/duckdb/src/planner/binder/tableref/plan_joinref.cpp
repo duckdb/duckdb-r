@@ -11,6 +11,7 @@
 #include "duckdb/planner/operator/logical_any_join.hpp"
 #include "duckdb/planner/operator/logical_comparison_join.hpp"
 #include "duckdb/planner/operator/logical_cross_product.hpp"
+#include "duckdb/planner/operator/logical_dependent_join.hpp"
 #include "duckdb/planner/operator/logical_filter.hpp"
 #include "duckdb/planner/operator/logical_positional_join.hpp"
 #include "duckdb/planner/subquery/recursive_dependent_join_planner.hpp"
@@ -231,30 +232,10 @@ unique_ptr<LogicalOperator> LogicalComparisonJoin::CreateJoin(JoinType type, Joi
                                                               unique_ptr<LogicalOperator> right_child,
                                                               vector<JoinCondition> conditions,
                                                               vector<unique_ptr<Expression>> arbitrary_expressions) {
-	auto is_asof = (ref_type == JoinRefType::ASOF);
+	const bool is_asof = ref_type == JoinRefType::ASOF;
 
 	// validate ASOF join conditions
 	if (is_asof) {
-		switch (type) {
-		case JoinType::RIGHT:
-		case JoinType::OUTER:
-			//	We can't (yet) support arbitrary predicates with some ASOF joins
-			if (!arbitrary_expressions.empty()) {
-				throw NotImplementedException("Unsupported ASOF JOIN type (%s) with arbitrary predicate",
-				                              EnumUtil::ToChars(type));
-			}
-			break;
-		case JoinType::SEMI:
-		case JoinType::ANTI:
-			//	For these join types, we can use a regular join because the RHS match is not important
-			//	But we will verify the requirements of an ASOF.
-			is_asof = false;
-			ref_type = JoinRefType::REGULAR;
-			break;
-		default:
-			break;
-		}
-
 		idx_t asof_idx = conditions.size();
 		for (size_t c = 0; c < conditions.size(); ++c) {
 			auto &cond = conditions[c];

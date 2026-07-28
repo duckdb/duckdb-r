@@ -2,8 +2,6 @@
 
 #include "duckdb/catalog/catalog_entry/duck_table_entry.hpp"
 #include "duckdb/common/types/conflict_manager.hpp"
-#include "duckdb/execution/index/art/art.hpp"
-#include "duckdb/storage/table/append_state.hpp"
 #include "duckdb/execution/index/index_type_set.hpp"
 #include "duckdb/execution/index/unbound_index.hpp"
 #include "duckdb/main/config.hpp"
@@ -23,68 +21,6 @@ IndexEntry::IndexEntry(unique_ptr<Index> index_p) : index(std::move(index_p)) {
 	}
 }
 
-template <class T>
-TableIndexIterationHelper<T>::TableIndexIterationHelper(mutex &index_lock,
-                                                        const vector<unique_ptr<IndexEntry>> &index_entries)
-    : lock(index_lock), index_entries(index_entries) {
-}
-
-template <class T>
-TableIndexIterationHelper<T>::TableIndexIterator::TableIndexIterator(
-    optional_ptr<const vector<unique_ptr<IndexEntry>>> index_entries_p)
-    : index_entries(index_entries_p) {
-	if (index_entries) {
-		if (index_entries->empty()) {
-			index_entries = nullptr;
-		} else {
-			index = 0;
-		}
-	}
-}
-
-template <class T>
-typename TableIndexIterationHelper<T>::TableIndexIterator &
-TableIndexIterationHelper<T>::TableIndexIterator::operator++() {
-	if (index_entries) {
-		auto next_index = index.GetIndex() + 1;
-		if (next_index >= index_entries->size()) {
-			// reached the end
-			index = optional_idx();
-			index_entries = nullptr;
-		} else {
-			// next index
-			index = next_index;
-		}
-	}
-	return *this;
-}
-
-template <class T>
-bool TableIndexIterationHelper<T>::TableIndexIterator::operator!=(const TableIndexIterator &other) const {
-	return index != other.index || index_entries != other.index_entries;
-}
-
-template <>
-IndexEntry &TableIndexIterationHelper<IndexEntry>::TableIndexIterator::operator*() const {
-	return *index_entries->at(index.GetIndex());
-}
-
-template <>
-Index &TableIndexIterationHelper<Index>::TableIndexIterator::operator*() const {
-	return *index_entries->at(index.GetIndex())->index;
-}
-
-TableIndexIterationHelper<IndexEntry> TableIndexList::IndexEntries() const {
-	return TableIndexIterationHelper<IndexEntry>(index_entries_lock, index_entries);
-}
-
-TableIndexIterationHelper<Index> TableIndexList::Indexes() const {
-	return TableIndexIterationHelper<Index>(index_entries_lock, index_entries);
-}
-
-template class TableIndexIterationHelper<IndexEntry>;
-template class TableIndexIterationHelper<Index>;
-
 void TableIndexList::AddIndex(unique_ptr<Index> index) {
 	D_ASSERT(index);
 	lock_guard<mutex> lock(index_entries_lock);
@@ -103,20 +39,21 @@ void TableIndexList::RemoveIndex(const string &name) {
 			if (!index.IsBound()) {
 				unbound_count--;
 			}
-			index.ResetStorage();
 			index_entries.erase_at(i);
 			return;
 		}
 	}
 }
 
-unordered_set<string> TableIndexList::DistinctIndexTypes() const {
+void TableIndexList::CommitDrop(const string &name) {
 	lock_guard<mutex> lock(index_entries_lock);
-	unordered_set<string> result;
 	for (auto &entry : index_entries) {
-		result.insert(entry->index->GetIndexType());
+		auto &index = *entry->index;
+		if (index.GetIndexName() == name) {
+			index.CommitDrop();
+			return;
+		}
 	}
-	return result;
 }
 
 bool TableIndexList::NameIsUnique(const string &name) {
@@ -181,7 +118,8 @@ void TableIndexList::Bind(ClientContext &context, DataTableInfo &table_info, con
 			}
 		}
 		if (!index_entry) {
-			// We bound all indexes. (of this type)
+			// We bound all indexes.
+			D_ASSERT(unbound_count == 0);
 			break;
 		}
 		if (index_entry->bind_state == IndexBindState::BINDING) {
@@ -311,76 +249,129 @@ unordered_set<column_t> TableIndexList::GetRequiredColumns() {
 	return column_ids;
 }
 
-IndexSerializationResult TableIndexList::SerializeToDisk(QueryContext context, const IndexSerializationInfo &info) {
+vector<IndexStorageInfo> TableIndexList::SerializeToDisk(QueryContext context, const IndexSerializationInfo &info) {
 	lock_guard<mutex> lock(index_entries_lock);
-
-	IndexSerializationResult result;
-
-	idx_t bound_count = 0;
-	for (auto &entry : index_entries) {
-		if (entry->index->IsBound()) {
-			bound_count++;
-		}
-	}
-	result.bound_infos.reserve(bound_count);
+	vector<IndexStorageInfo> infos;
 	for (auto &entry : index_entries) {
 		auto &index = *entry->index;
 		if (!index.IsBound()) {
-			// Unbound: reference existing storage info
-			auto &unbound_index = index.Cast<UnboundIndex>();
-			D_ASSERT(!unbound_index.GetStorageInfo().name.empty());
-			result.ordered_infos.push_back(unbound_index.GetStorageInfo());
+			auto storage_info = index.Cast<UnboundIndex>().GetStorageInfo();
+			D_ASSERT(!storage_info.name.empty());
+			infos.push_back(storage_info);
 			continue;
 		}
-		// Bound: move new storage info into bound_infos, then reference it
+		// serialize the index to disk
 		auto &bound_index = index.Cast<BoundIndex>();
 		auto storage_info = bound_index.SerializeToDisk(context, info.options);
 		D_ASSERT(storage_info.IsValid() && !storage_info.name.empty());
-		result.bound_infos.push_back(std::move(storage_info));
-		result.ordered_infos.push_back(result.bound_infos.back());
+		infos.push_back(storage_info);
 	}
-
-	return result;
+	return infos;
 }
 
-void TableIndexList::MergeCheckpointDeltas(transaction_t checkpoint_id) {
+void TableIndexList::MergeCheckpointDeltas(DataTable &storage, transaction_t checkpoint_id) {
 	lock_guard<mutex> lock(index_entries_lock);
 	for (auto &entry : index_entries) {
-		// Merge any data appended to the index while the checkpoint was running.
+		// merge any data appended to the index while the checkpoint was running
 		auto &index = *entry->index;
 		if (!index.IsBound()) {
 			continue;
 		}
 		lock_guard<mutex> guard(entry->lock);
 		auto &bound_index = index.Cast<BoundIndex>();
-		if (entry->removed_data_during_checkpoint || entry->added_data_during_checkpoint) {
-			if (bound_index.GetIndexType() != ART::TYPE_NAME) {
-				throw InternalException("Concurrent changes made to a non-ART index");
-			}
+		vector<reference<BoundIndex>> delta_indexes;
+		vector<bool> delta_index_is_delete;
+		if (entry->removed_data_during_checkpoint) {
+			delta_indexes.push_back(*entry->removed_data_during_checkpoint);
+			delta_index_is_delete.push_back(true);
+		}
+		if (entry->added_data_during_checkpoint) {
+			delta_indexes.push_back(*entry->added_data_during_checkpoint);
+			delta_index_is_delete.push_back(false);
+		}
+		for (idx_t i = 0; i < delta_indexes.size(); i++) {
+			auto &delta_index = delta_indexes[i].get();
+			auto is_delete = delta_index_is_delete[i];
+			// FIXME: this should use an optimized (removal) merge instead of doing fetches in the base table
+			// fetch all row-ids to delete
+			auto &art = delta_index.Cast<ART>();
+			auto scan_state = art.InitializeFullScan();
+			set<row_t> all_row_ids;
+			art.Scan(*scan_state, NumericLimits<idx_t>::Maximum(), all_row_ids);
 
-			auto &art = bound_index.Cast<ART>();
+			// FIXME: this is mostly copied over from RowGroupCollection::RemoveFromIndexes, but we shouldn't be doing
+			// this anyway...
+			if (!all_row_ids.empty()) {
+				// in a loop fetch the
+				Vector row_identifiers(LogicalType::BIGINT);
+				auto row_ids = FlatVector::GetData<int64_t>(row_identifiers);
+				idx_t count = 0;
 
-			if (entry->removed_data_during_checkpoint) {
-				art.RemovalMerge(*entry->removed_data_during_checkpoint);
-			}
-			if (entry->added_data_during_checkpoint) {
-				// NOTE: we insert duplicates here (IndexAppendMode::INSERT_DUPLICATES)
-				// this is necessary due to the way that data is inserted into indexes during transaction commit
-				// essentially we always FIRST insert data into the index, THEN remove data
-				// even if the data was logically removed first
-				// i.e. if we have a transaction like: DELETE FROM tbl WHERE i=42; INSERT INTO tbl VALUES (42);
-				// we will FIRST insert 42, THEN delete 42 from the index
-				// We plan to change this in the future - see https://github.com/duckdblabs/duckdb-internal/issues/6886
-				auto error = art.InsertMerge(*entry->added_data_during_checkpoint, IndexAppendMode::INSERT_DUPLICATES);
-				if (error.HasError()) {
-					throw InternalException("Failed to append while merging checkpoint deltas - this "
-					                        "signifies a bug or broken index: %s",
-					                        error.Message());
+				auto indexed_column_id_set = bound_index.GetColumnIdSet();
+				vector<StorageIndex> column_ids;
+				for (auto &col : indexed_column_id_set) {
+					column_ids.emplace_back(col);
+				}
+				sort(column_ids.begin(), column_ids.end());
+
+				auto types = storage.GetTypes();
+				vector<LogicalType> column_types;
+				for (auto &col : column_ids) {
+					column_types.push_back(types[col.GetPrimaryIndex()]);
+				}
+
+				DataChunk fetch_chunk;
+				fetch_chunk.Initialize(Allocator::DefaultAllocator(), column_types);
+
+				ColumnFetchState state;
+				state.fetch_type = FetchType::FORCE_FETCH;
+
+				DataChunk result_chunk;
+				auto fetched_columns = vector<bool>(types.size(), false);
+				result_chunk.Initialize(Allocator::DefaultAllocator(), types, fetched_columns);
+				// Now set all to-be-fetched columns.
+				for (auto &col : indexed_column_id_set) {
+					fetched_columns[col] = true;
+				}
+				auto last_row_id = *all_row_ids.rbegin();
+				for (auto &row_id : all_row_ids) {
+					row_ids[count++] = row_id;
+					if (row_id == last_row_id || count == STANDARD_VECTOR_SIZE) {
+						fetch_chunk.Reset();
+						storage.FetchCommitted(fetch_chunk, column_ids, row_identifiers, count, state);
+
+						// Reference the necessary columns of the fetch_chunk.
+						idx_t fetch_idx = 0;
+						for (idx_t j = 0; j < types.size(); j++) {
+							if (fetched_columns[j]) {
+								result_chunk.data[j].Reference(fetch_chunk.data[fetch_idx++]);
+								continue;
+							}
+							result_chunk.data[j].Reference(Value(types[j]));
+						}
+						result_chunk.SetCardinality(fetch_chunk);
+						if (is_delete) {
+							auto delete_count = bound_index.TryDelete(result_chunk, row_identifiers);
+							if (delete_count != result_chunk.size()) {
+								throw InternalException("Failed to remove all rows while merging checkpoint deltas - "
+								                        "this signifies a bug or broken index\nChunk: %s",
+								                        result_chunk.ToString());
+							}
+						} else {
+							auto error = bound_index.Append(result_chunk, row_identifiers);
+							if (error.HasError()) {
+								throw InternalException("Failed to append while merging checkpoint deltas - this "
+								                        "signifies a bug or broken index: %s",
+								                        error.Message());
+							}
+						}
+						count = 0;
+					}
 				}
 			}
-			entry->removed_data_during_checkpoint.reset();
-			entry->added_data_during_checkpoint.reset();
 		}
+		entry->removed_data_during_checkpoint.reset();
+		entry->added_data_during_checkpoint.reset();
 		entry->last_written_checkpoint = checkpoint_id;
 	}
 }
@@ -392,7 +383,8 @@ void TableIndexList::InitializeIndexChunk(DataChunk &index_chunk, const vector<L
 	auto &index_list = data_table_info.GetIndexes();
 	auto indexed_columns = index_list.GetRequiredColumns();
 
-	// Store the mapped_column_ids and index_types in sorted canonical form.
+	// Store the mapped_column_ids and index_types in sorted canonical form, needed for
+	// buffering WAL index operations during replay (see notes in unbound_index.hpp).
 	// First sort mapped_column_ids, then populate index_types according to the sorted order.
 	for (auto &col : indexed_columns) {
 		mapped_column_ids.emplace_back(col);

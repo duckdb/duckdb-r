@@ -44,7 +44,7 @@ public:
 		auto result = buffer_manager.AllocateTemporaryMemory(tag, block_size, can_destroy);
 		// Track allocation based on actual allocated size from the handle
 		if (result) {
-			TrackMemoryAllocation(result->GetMemory().GetMemoryUsage());
+			TrackMemoryAllocation(result->GetMemoryUsage());
 		}
 		return result;
 	}
@@ -53,7 +53,7 @@ public:
 		auto result = buffer_manager.AllocateMemory(tag, block_manager, can_destroy);
 		// Track allocation based on actual allocated size from the handle
 		if (result) {
-			TrackMemoryAllocation(result->GetMemory().GetMemoryUsage());
+			TrackMemoryAllocation(result->GetMemoryUsage());
 		}
 		return result;
 	}
@@ -61,7 +61,7 @@ public:
 		auto result = buffer_manager.Allocate(tag, block_size, can_destroy);
 		// Track allocation based on actual allocated size from the handle
 		if (result.GetBlockHandle()) {
-			TrackMemoryAllocation(result.GetBlockHandle()->GetMemory().GetMemoryUsage());
+			TrackMemoryAllocation(result.GetBlockHandle()->GetMemoryUsage());
 		}
 		return result;
 	}
@@ -69,9 +69,18 @@ public:
 		auto result = buffer_manager.Allocate(tag, block_manager, can_destroy);
 		// Track allocation based on actual allocated size from the handle
 		if (result.GetBlockHandle()) {
-			TrackMemoryAllocation(result.GetBlockHandle()->GetMemory().GetMemoryUsage());
+			TrackMemoryAllocation(result.GetBlockHandle()->GetMemoryUsage());
 		}
 		return result;
+	}
+	void ReAllocate(shared_ptr<BlockHandle> &handle, idx_t block_size) override {
+		// Track the difference in size (new size - old size)
+		idx_t old_size = handle->GetMemoryUsage();
+		buffer_manager.ReAllocate(handle, block_size);
+		idx_t new_size = handle->GetMemoryUsage();
+		if (new_size > old_size) {
+			TrackMemoryAllocation(new_size - old_size);
+		}
 	}
 	BufferHandle Pin(shared_ptr<BlockHandle> &handle) override {
 		return Pin(QueryContext(), handle);
@@ -169,9 +178,6 @@ public:
 	BufferPool &GetBufferPool() const override {
 		return buffer_manager.GetBufferPool();
 	}
-	const DatabaseInstance &GetDatabase() const override {
-		return buffer_manager.GetDatabase();
-	}
 	DatabaseInstance &GetDatabase() override {
 		return buffer_manager.GetDatabase();
 	}
@@ -192,8 +198,8 @@ public:
 	                                           unique_ptr<FileBuffer> buffer) override {
 		return buffer_manager.ReadTemporaryBuffer(context, tag, block, std::move(buffer));
 	}
-	void DeleteTemporaryFile(BlockMemory &memory) override {
-		return buffer_manager.DeleteTemporaryFile(memory);
+	void DeleteTemporaryFile(BlockHandle &block) override {
+		return buffer_manager.DeleteTemporaryFile(block);
 	}
 
 private:

@@ -23,7 +23,6 @@
 namespace duckdb {
 
 class String;
-class Identifier;
 class CastFunctionSet;
 struct GetCastFunctionInput;
 struct ExtraValueInfo;
@@ -37,7 +36,6 @@ class Value {
 	friend struct UnionValue;
 	friend struct ArrayValue;
 	friend struct MapValue;
-	friend struct TypeValue;
 
 public:
 	//! Create an empty NULL value of the specified type
@@ -53,8 +51,7 @@ public:
 	//! Create a DOUBLE value
 	DUCKDB_API Value(double val); // NOLINT: Allow implicit conversion from `double`
 	//! Create a VARCHAR value
-	DUCKDB_API Value(const char *val);       // NOLINT: Allow implicit conversion from `const char *`
-	DUCKDB_API Value(const Identifier &val); // NOLINT: Allow implicit conversion from `Identifier`
+	DUCKDB_API Value(const char *val); // NOLINT: Allow implicit conversion from `const char *`
 	//! Create a NULL value
 	DUCKDB_API Value(std::nullptr_t val); // NOLINT: Allow implicit conversion from `nullptr_t`
 	//! Create a VARCHAR value
@@ -206,9 +203,6 @@ public:
 
 	DUCKDB_API static Value GEOMETRY(const_data_ptr_t data, idx_t len);
 	DUCKDB_API static Value GEOMETRY(const_data_ptr_t data, idx_t len, const CoordinateReferenceSystem &crs);
-
-	DUCKDB_API static Value TYPE(const LogicalType &type);
-	DUCKDB_API static Value TYPE(const string_t &serialized_type);
 
 	//! Creates an aggregate state
 	DUCKDB_API static Value AGGREGATE_STATE(const LogicalType &type, const_data_ptr_t data, idx_t len); // NOLINT
@@ -474,10 +468,6 @@ struct UnionValue {
 	DUCKDB_API static const LogicalType &GetType(const Value &value);
 };
 
-struct TypeValue {
-	DUCKDB_API static LogicalType GetType(const Value &value);
-};
-
 //! Return the internal integral value for any type that is stored as an integral value internally
 //! This can be used on values of type integer, uinteger, but also date, timestamp, decimal, etc
 struct IntegralValue {
@@ -589,10 +579,6 @@ template <>
 DUCKDB_API interval_t Value::GetValue() const;
 template <>
 DUCKDB_API Value Value::GetValue() const;
-// Not a logical type like the specializations above, but a semantic wrapper around the string value. It mirrors the
-// implicit Value(const Identifier &) constructor, so identifiers can round-trip through a Value.
-template <>
-DUCKDB_API Identifier Value::GetValue() const;
 
 template <>
 DUCKDB_API bool Value::GetValueUnsafe() const;

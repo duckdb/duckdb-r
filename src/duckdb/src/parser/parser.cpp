@@ -1,6 +1,5 @@
 #include "duckdb/parser/parser.hpp"
 
-#include "duckdb/main/extension_callback_manager.hpp"
 #include "duckdb/parser/group_by_node.hpp"
 #include "duckdb/parser/parsed_data/create_table_info.hpp"
 #include "duckdb/parser/parser_extension.hpp"
@@ -12,7 +11,6 @@
 #include "duckdb/parser/tableref/expressionlistref.hpp"
 #include "duckdb/parser/transformer.hpp"
 #include "parser/parser.hpp"
-
 #include "postgres_parser.hpp"
 
 namespace duckdb {
@@ -184,6 +182,7 @@ vector<string> SplitQueries(const string &input_query) {
 	string final_segment = input_query.substr(last_split);
 	StringUtil::Trim(final_segment);
 	if (!final_segment.empty()) {
+		final_segment.append(";");
 		queries.push_back(std::move(final_segment));
 	}
 	return queries;
@@ -214,6 +213,15 @@ void Parser::ThrowParserOverrideError(ParserOverrideResult &result) {
 		                      result.error.RawMessage());
 	}
 	if (result.type == ParserExtensionResultType::DISPLAY_EXTENSION_ERROR) {
+		if (result.error.Type() == ExceptionType::NOT_IMPLEMENTED) {
+			throw NotImplementedException("Parser override has not yet implemented this "
+			                              "transformer rule.\nOriginal error: %s",
+			                              result.error.RawMessage());
+		}
+		if (result.error.Type() == ExceptionType::PARSER) {
+			throw ParserException("Parser override could not parse this query.\nOriginal error: %s",
+			                      result.error.RawMessage());
+		}
 		result.error.Throw();
 	}
 }
@@ -222,6 +230,7 @@ void Parser::ParseQuery(const string &query) {
 	Transformer transformer(options);
 	string parser_error;
 	optional_idx parser_error_location;
+	string parser_override_option = StringUtil::Lower(options.parser_override_setting);
 	{
 		// check if there are any unicode spaces in the string
 		string new_query;
@@ -233,35 +242,67 @@ void Parser::ParseQuery(const string &query) {
 	}
 	{
 		if (options.extensions) {
-			bool has_strict_extension_error = false;
-			ErrorData last_strict_extension_error;
-			for (auto &ext : options.extensions->ParserExtensions()) {
+			for (auto &ext : *options.extensions) {
 				if (!ext.parser_override) {
 					continue;
 				}
-				if (options.parser_override_setting == AllowParserOverride::DEFAULT_OVERRIDE) {
+				if (StringUtil::CIEquals(parser_override_option, "default")) {
 					continue;
 				}
-
-				auto result = ext.parser_override(ext.parser_info.get(), query, options);
+				auto result = ext.parser_override(ext.parser_info.get(), query);
 				if (result.type == ParserExtensionResultType::PARSE_SUCCESSFUL) {
 					statements = std::move(result.statements);
 					return;
 				}
-				if (options.parser_override_setting == AllowParserOverride::STRICT_OVERRIDE) {
-					if (result.type == ParserExtensionResultType::DISPLAY_EXTENSION_ERROR) {
-						has_strict_extension_error = true;
-						last_strict_extension_error = std::move(result.error);
-					} else {
-						has_strict_extension_error = false;
+				if (StringUtil::CIEquals(parser_override_option, "strict")) {
+					ThrowParserOverrideError(result);
+				}
+				if (StringUtil::CIEquals(parser_override_option, "strict_when_supported")) {
+					auto statement = GetStatement(query);
+					if (!statement) {
+						break;
 					}
-					continue;
-				} else if (options.parser_override_setting == AllowParserOverride::FALLBACK_OVERRIDE) {
+					bool is_supported = false;
+					switch (statement->type) {
+					case StatementType::CALL_STATEMENT:
+					case StatementType::TRANSACTION_STATEMENT:
+					case StatementType::VARIABLE_SET_STATEMENT:
+					case StatementType::LOAD_STATEMENT:
+					case StatementType::ATTACH_STATEMENT:
+					case StatementType::DETACH_STATEMENT:
+					case StatementType::DELETE_STATEMENT:
+					case StatementType::DROP_STATEMENT:
+					case StatementType::ALTER_STATEMENT:
+					case StatementType::PRAGMA_STATEMENT:
+					case StatementType::COPY_DATABASE_STATEMENT:
+						is_supported = true;
+						break;
+					case StatementType::CREATE_STATEMENT: {
+						auto &create_statement = statement->Cast<CreateStatement>();
+						switch (create_statement.info->type) {
+						case CatalogType::INDEX_ENTRY:
+						case CatalogType::MACRO_ENTRY:
+						case CatalogType::SCHEMA_ENTRY:
+						case CatalogType::SECRET_ENTRY:
+						case CatalogType::SEQUENCE_ENTRY:
+						case CatalogType::TYPE_ENTRY:
+							is_supported = true;
+							break;
+						default:
+							is_supported = false;
+						}
+						break;
+					}
+					default:
+						is_supported = false;
+						break;
+					}
+					if (is_supported) {
+						ThrowParserOverrideError(result);
+					}
+				} else if (StringUtil::CIEquals(parser_override_option, "fallback")) {
 					continue;
 				}
-			}
-			if (options.parser_override_setting == AllowParserOverride::STRICT_OVERRIDE && has_strict_extension_error) {
-				last_strict_extension_error.Throw();
 			}
 		}
 		PostgresParser::SetPreserveIdentifierCase(options.preserve_identifier_case);
@@ -294,7 +335,7 @@ void Parser::ParseQuery(const string &query) {
 			// no-op
 			// return here would require refactoring into another function. o.w. will just no-op in order to run wrap up
 			// code at the end of this function
-		} else if (!options.extensions || !options.extensions->HasParserExtensions()) {
+		} else if (!options.extensions || options.extensions->empty()) {
 			throw ParserException::SyntaxError(query, parser_error, parser_error_location);
 		} else {
 			// split sql string into statements and re-parse using extension
@@ -330,7 +371,7 @@ void Parser::ParseQuery(const string &query) {
 				// LCOV_EXCL_START
 				// let extensions parse the statement which DuckDB failed to parse
 				bool parsed_single_statement = false;
-				for (auto &ext : options.extensions->ParserExtensions()) {
+				for (auto &ext : *options.extensions) {
 					D_ASSERT(!parsed_single_statement);
 					if (!ext.parse_function) {
 						continue;
@@ -596,24 +637,6 @@ vector<unique_ptr<ParsedExpression>> Parser::ParseExpressionList(const string &s
 		throw ParserException("Expected a single SELECT node");
 	}
 	auto &select_node = select.node->Cast<SelectNode>();
-	if (!select_node.modifiers.empty()) {
-		throw ParserException("Cannot have any modifiers in the expression list");
-	}
-	if (select_node.where_clause) {
-		throw ParserException("Cannot have a WHERE clause in the expression list");
-	}
-	if (!select_node.groups.group_expressions.empty()) {
-		throw ParserException("Cannot have a GROUP BY clause in the expression list");
-	}
-	if (select_node.having) {
-		throw ParserException("Cannot have a HAVING clause in the expression list");
-	}
-	if (select_node.qualify) {
-		throw ParserException("Cannot have a QUALIFY clause in the expression list");
-	}
-	if (select_node.sample) {
-		throw ParserException("Cannot have a SAMPLE clause in the expression list");
-	}
 	return std::move(select_node.select_list);
 }
 

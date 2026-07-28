@@ -34,7 +34,7 @@ void BufferHandle::Destroy() {
 	if (!handle || !IsValid()) {
 		return;
 	}
-	handle->GetMemory().GetBufferManager().Unpin(handle);
+	handle->block_manager.buffer_manager.Unpin(handle);
 	handle.reset();
 	node = nullptr;
 }

@@ -354,10 +354,6 @@ FilterPushdownResult FilterCombiner::TryPushdownConstantFilter(TableFilterSet &t
 	if (!TryGetBoundColumnIndex(column_ids, expr, column_index)) {
 		return FilterPushdownResult::NO_PUSHDOWN;
 	}
-	if (column_index.IsPushdownExtract()) {
-		//! FIXME: can't push down filters on a column that has a pushed down extract currently
-		return FilterPushdownResult::NO_PUSHDOWN;
-	}
 
 	auto &constant_list = constant_values.find(equiv_set)->second;
 	for (auto &constant_cmp : constant_list) {
@@ -404,10 +400,6 @@ FilterPushdownResult FilterCombiner::TryPushdownGenericExpression(LogicalGet &ge
 	auto &column_ids = get.GetColumnIds();
 	auto expr_filter = make_uniq<ExpressionFilter>(std::move(filter_expr));
 	auto &column_index = column_ids[bindings[0].column_index];
-	if (column_index.IsPushdownExtract()) {
-		//! FIXME: can't support filters on a pushed down extract currently
-		return FilterPushdownResult::NO_PUSHDOWN;
-	}
 	get.table_filters.PushFilter(column_index, std::move(expr_filter));
 	return FilterPushdownResult::PUSHED_DOWN_FULLY;
 }
@@ -434,10 +426,6 @@ FilterPushdownResult FilterCombiner::TryPushdownPrefixFilter(TableFilterSet &tab
 		return FilterPushdownResult::NO_PUSHDOWN;
 	}
 	auto &column_index = column_ids[column_ref.binding.column_index];
-	if (column_index.IsPushdownExtract()) {
-		//! FIXME: can't support filter pushdown on pushed down extract currently
-		return FilterPushdownResult::NO_PUSHDOWN;
-	}
 	//! Replace prefix with a set of comparisons
 	auto lower_bound = make_uniq<ConstantFilter>(ExpressionType::COMPARE_GREATERTHANOREQUALTO, Value(prefix_string));
 	table_filters.PushFilter(column_index, std::move(lower_bound));
@@ -469,11 +457,6 @@ FilterPushdownResult FilterCombiner::TryPushdownLikeFilter(TableFilterSet &table
 	auto &column_ref = func.children[0]->Cast<BoundColumnRefExpression>();
 	auto &constant_value_expr = func.children[1]->Cast<BoundConstantExpression>();
 	auto &column_index = column_ids[column_ref.binding.column_index];
-	if (column_index.IsPushdownExtract()) {
-		//! FIXME: can't support filter pushdown on pushed down extract currently
-		return FilterPushdownResult::NO_PUSHDOWN;
-	}
-
 	// constant value expr can sometimes be null. if so, push is not null filter, which will
 	// make the filter unsatisfiable and return no results.
 	if (constant_value_expr.value.IsNull()) {
@@ -525,11 +508,6 @@ FilterPushdownResult FilterCombiner::TryPushdownInFilter(TableFilterSet &table_f
 	}
 	auto &column_ref = func.children[0]->Cast<BoundColumnRefExpression>();
 	auto &column_index = column_ids[column_ref.binding.column_index];
-	if (column_index.IsPushdownExtract()) {
-		//! FIXME: can't support filter pushdown on pushed down extract currently
-		return FilterPushdownResult::NO_PUSHDOWN;
-	}
-
 	//! check if all children are const expr
 	bool children_constant = true;
 	for (size_t i {1}; i < func.children.size(); i++) {
@@ -625,10 +603,6 @@ FilterPushdownResult FilterCombiner::TryPushdownOrClause(TableFilterSet &table_f
 		if (i == 0) {
 			auto &col_id = column_ids[column_ref->binding.column_index];
 			column_id = col_id.GetPrimaryIndex();
-			if (col_id.IsPushdownExtract()) {
-				//! FIXME: can't support filter pushdown on pushed down extract currently
-				return FilterPushdownResult::NO_PUSHDOWN;
-			}
 		} else if (column_id != column_ids[column_ref->binding.column_index].GetPrimaryIndex()) {
 			return FilterPushdownResult::NO_PUSHDOWN;
 		}
@@ -867,10 +841,10 @@ FilterResult FilterCombiner::AddFilter(Expression &expr) {
 				result = AddConstantComparison(info_list, info);
 			} else {
 				D_ASSERT(upper_is_scalar);
-				const auto type = comparison.lower_inclusive ? ExpressionType::COMPARE_GREATERTHANOREQUALTO
-				                                             : ExpressionType::COMPARE_GREATERTHAN;
-				auto left = comparison.input->Copy();
-				auto right = comparison.lower->Copy();
+				const auto type = comparison.upper_inclusive ? ExpressionType::COMPARE_LESSTHANOREQUALTO
+				                                             : ExpressionType::COMPARE_LESSTHAN;
+				auto left = comparison.lower->Copy();
+				auto right = comparison.input->Copy();
 				auto lower_comp = make_uniq<BoundComparisonExpression>(type, std::move(left), std::move(right));
 				result = AddBoundComparisonFilter(*lower_comp);
 			}
@@ -1204,19 +1178,10 @@ ValueComparisonResult CompareValueInformation(ExpressionValueInformation &left, 
 		// (1) prune nothing or
 		// (2) return UNSATISFIABLE
 		// the SMALLER THAN constant has to be greater than the BIGGER THAN constant
-		if (left.constant > right.constant) {
+		if (left.constant >= right.constant) {
 			return ValueComparisonResult::PRUNE_NOTHING;
-		} else if (left.constant < right.constant) {
-			return ValueComparisonResult::UNSATISFIABLE_CONDITION;
 		} else {
-			// the constants are equal
-			// This is only satisfiable if both bounds are inclusive
-			if (left.comparison_type == ExpressionType::COMPARE_LESSTHANOREQUALTO &&
-			    right.comparison_type == ExpressionType::COMPARE_GREATERTHANOREQUALTO) {
-				return ValueComparisonResult::PRUNE_NOTHING;
-			} else {
-				return ValueComparisonResult::UNSATISFIABLE_CONDITION;
-			}
+			return ValueComparisonResult::UNSATISFIABLE_CONDITION;
 		}
 	} else {
 		// left is [>] and right is [<] or [!=]

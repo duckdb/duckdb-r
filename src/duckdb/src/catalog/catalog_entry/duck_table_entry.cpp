@@ -1,5 +1,4 @@
 #include "duckdb/catalog/catalog_entry/duck_table_entry.hpp"
-#include "duckdb/transaction/commit_state.hpp"
 
 #include "duckdb/common/enum_util.hpp"
 #include "duckdb/common/exception/transaction_exception.hpp"
@@ -40,51 +39,6 @@ IndexStorageInfo GetIndexInfo(const IndexConstraintType type, const bool v1_0_0_
 	return index_info;
 }
 
-static void CheckTypeIsSupported(const LogicalType &logical_type, AttachedDatabase &db) {
-	TypeVisitor::Contains(logical_type, [&](const LogicalType &type) {
-		switch (type.id()) {
-		case LogicalTypeId::TYPE: {
-			throw InvalidInputException("A table cannot be created with a 'TYPE' column");
-		} break;
-		case LogicalTypeId::VARIANT: {
-			const auto storage_version = db.GetStorageManager().GetStorageVersion();
-
-			if (storage_version < Variant::VERSION_ADDED) {
-				auto required = GetStorageVersionName(Variant::VERSION_ADDED, false);
-				auto current = GetStorageVersionName(storage_version, false);
-
-				throw InvalidInputException("VARIANT columns are not supported in storage versions prior to %s "
-				                            "(database \"%s\" is using storage version %s)",
-				                            required, db.GetName(), current);
-			}
-		} break;
-		case LogicalTypeId::GEOMETRY: {
-			const auto storage_version = db.GetStorageManager().GetStorageVersion();
-
-			if (GeoType::HasCRS(type) && storage_version < Geometry::VERSION_ADDED) {
-				auto required = GetStorageVersionName(Geometry::VERSION_ADDED, false);
-				auto current = GetStorageVersionName(storage_version, false);
-
-				// TODO: Turn this into a hard error
-				auto &logger = Logger::Get(db.GetDatabase());
-				logger.WriteLog(DefaultLogType::NAME, LogLevel::LOG_WARNING,
-				                "GEOMETRY columns with coordinate reference system identifiers are not supported in "
-				                "storage versions prior "
-				                "to %s (database \"%s\" is using storage version %s). CRS will not be persisted.",
-				                required, db.GetName(), current);
-			}
-		} break;
-		default:
-			break;
-		}
-		return false;
-	});
-}
-
-static void SetAlterDependencies(BoundCreateTableInfo &info, AlterInfo &alter_info) {
-	alter_info.new_dependencies = make_uniq<LogicalDependencyList>(info.Base().dependencies);
-}
-
 DuckTableEntry::DuckTableEntry(Catalog &catalog, SchemaCatalogEntry &schema, BoundCreateTableInfo &info,
                                shared_ptr<DataTable> inherited_storage)
     : TableCatalogEntry(catalog, schema, info.Base()), storage(std::move(inherited_storage)),
@@ -99,8 +53,6 @@ DuckTableEntry::DuckTableEntry(Catalog &catalog, SchemaCatalogEntry &schema, Bou
 	// create the physical storage
 	vector<ColumnDefinition> column_defs;
 	for (auto &col_def : columns.Physical()) {
-		CheckTypeIsSupported(col_def.Type(), catalog.GetAttached());
-
 		column_defs.push_back(col_def.Copy());
 	}
 	storage = make_shared_ptr<DataTable>(catalog.GetAttached(), StorageManager::Get(catalog).GetTableIOManager(&info),
@@ -121,18 +73,18 @@ DuckTableEntry::DuckTableEntry(Catalog &catalog, SchemaCatalogEntry &schema, Bou
 			auto column_indexes = unique.GetLogicalIndexes(columns);
 			if (info.indexes.empty()) {
 				auto index_info = GetIndexInfo(constraint_type, false, info.base, i);
-				storage->AddIndex(columns, column_indexes, constraint_type, std::move(index_info));
+				storage->AddIndex(columns, column_indexes, constraint_type, index_info);
 				continue;
 			}
 
 			// We read the index from an old storage version applying a dummy name.
-			auto index_storage_info = std::move(info.indexes[indexes_idx++]);
-			if (index_storage_info.name.empty()) {
+			if (info.indexes[indexes_idx].name.empty()) {
 				auto name_info = GetIndexInfo(constraint_type, true, info.base, i);
-				index_storage_info.name = name_info.name;
+				info.indexes[indexes_idx].name = name_info.name;
 			}
 
-			storage->AddIndex(columns, column_indexes, constraint_type, std::move(index_storage_info));
+			// Now we can add the index.
+			storage->AddIndex(columns, column_indexes, constraint_type, info.indexes[indexes_idx++]);
 			continue;
 		}
 
@@ -150,30 +102,24 @@ DuckTableEntry::DuckTableEntry(Catalog &catalog, SchemaCatalogEntry &schema, Bou
 				if (info.indexes.empty()) {
 					auto constraint_type = IndexConstraintType::FOREIGN;
 					auto index_info = GetIndexInfo(constraint_type, false, info.base, i);
-					storage->AddIndex(columns, column_indexes, constraint_type, std::move(index_info));
+					storage->AddIndex(columns, column_indexes, constraint_type, index_info);
 					continue;
 				}
 
 				// We read the index from an old storage version applying a dummy name.
-				auto index_storage_info = std::move(info.indexes[indexes_idx++]);
-				if (index_storage_info.name.empty()) {
+				if (info.indexes[indexes_idx].name.empty()) {
 					auto name_info = GetIndexInfo(IndexConstraintType::FOREIGN, true, info.base, i);
-					index_storage_info.name = name_info.name;
+					info.indexes[indexes_idx].name = name_info.name;
 				}
 
-				storage->AddIndex(columns, column_indexes, IndexConstraintType::FOREIGN, std::move(index_storage_info));
+				// Now we can add the index.
+				storage->AddIndex(columns, column_indexes, IndexConstraintType::FOREIGN, info.indexes[indexes_idx++]);
 			}
 		}
 	}
 
-	// Move any remaining unused IndexStorageInfos to storage.
-	// These are non-constraint indexes that are still unbound at this point.
-	vector<IndexStorageInfo> remaining_indexes;
-	while (indexes_idx < info.indexes.size()) {
-		remaining_indexes.push_back(std::move(info.indexes[indexes_idx++]));
-	}
-	if (!remaining_indexes.empty()) {
-		storage->SetIndexStorageInfo(std::move(remaining_indexes));
+	if (!info.indexes.empty()) {
+		storage->SetIndexStorageInfo(std::move(info.indexes));
 	}
 }
 
@@ -296,11 +242,6 @@ unique_ptr<CatalogEntry> DuckTableEntry::AlterEntry(ClientContext &context, Alte
 		throw NotImplementedException("SET PARTITIONED BY is not supported for DuckDB tables");
 	case AlterTableType::SET_SORTED_BY:
 		throw NotImplementedException("SET SORTED BY is not supported for DuckDB tables");
-	case AlterTableType::SET_TABLE_OPTIONS:
-		throw NotImplementedException("SET (<options>) is not supported for DuckDB tables");
-	case AlterTableType::RESET_TABLE_OPTIONS: {
-		throw NotImplementedException("RESET (<options>) is not supported for DuckDB tables");
-	}
 	default:
 		throw InternalException("Unrecognized alter table type!");
 	}
@@ -396,7 +337,6 @@ unique_ptr<CatalogEntry> DuckTableEntry::RenameColumn(ClientContext &context, Re
 	}
 	auto binder = Binder::CreateBinder(context);
 	auto bound_create_info = binder->BindCreateTableInfo(std::move(create_info), schema);
-	SetAlterDependencies(*bound_create_info, info);
 	return make_uniq<DuckTableEntry>(catalog, schema, *bound_create_info, storage);
 }
 
@@ -419,14 +359,8 @@ unique_ptr<CatalogEntry> DuckTableEntry::AddColumn(ClientContext &context, AddCo
 	for (auto &constraint : constraints) {
 		create_info->constraints.push_back(constraint->Copy());
 	}
-
 	auto binder = Binder::CreateBinder(context);
-	binder->SetSearchPath(catalog, schema.name);
-	binder->BindLogicalType(info.new_column.TypeMutable());
-
-	// Check if type is supported in this database version
-	CheckTypeIsSupported(info.new_column.GetType(), catalog.GetAttached());
-
+	binder->BindLogicalType(info.new_column.TypeMutable(), &catalog, schema.name);
 	info.new_column.SetOid(columns.LogicalColumnCount());
 	info.new_column.SetStorageOid(columns.PhysicalColumnCount());
 	auto col = info.new_column.Copy();
@@ -435,7 +369,6 @@ unique_ptr<CatalogEntry> DuckTableEntry::AddColumn(ClientContext &context, AddCo
 
 	vector<unique_ptr<Expression>> bound_defaults;
 	auto bound_create_info = binder->BindCreateTableInfo(std::move(create_info), schema, bound_defaults);
-	SetAlterDependencies(*bound_create_info, info);
 	auto new_storage = make_shared_ptr<DataTable>(context, *storage, info.new_column, *bound_defaults.back());
 	return make_uniq<DuckTableEntry>(catalog, schema, *bound_create_info, new_storage);
 }
@@ -752,7 +685,6 @@ unique_ptr<CatalogEntry> DuckTableEntry::RemoveColumn(ClientContext &context, Re
 	                              dropped_column_is_generated);
 
 	auto bound_create_info = binder->BindCreateTableInfo(std::move(create_info), schema);
-	SetAlterDependencies(*bound_create_info, info);
 	if (columns.GetColumn(LogicalIndex(removed_index)).Generated()) {
 		return make_uniq<DuckTableEntry>(catalog, schema, *bound_create_info, storage);
 	}
@@ -976,7 +908,6 @@ unique_ptr<CatalogEntry> DuckTableEntry::SetDefault(ClientContext &context, SetD
 
 	auto binder = Binder::CreateBinder(context);
 	auto bound_create_info = binder->BindCreateTableInfo(std::move(create_info), schema);
-	SetAlterDependencies(*bound_create_info, info);
 	return make_uniq<DuckTableEntry>(catalog, schema, *bound_create_info, storage);
 }
 
@@ -1005,7 +936,6 @@ unique_ptr<CatalogEntry> DuckTableEntry::SetNotNull(ClientContext &context, SetN
 
 	auto binder = Binder::CreateBinder(context);
 	auto bound_create_info = binder->BindCreateTableInfo(std::move(create_info), schema);
-	SetAlterDependencies(*bound_create_info, info);
 
 	// Early return
 	if (has_not_null) {
@@ -1039,15 +969,12 @@ unique_ptr<CatalogEntry> DuckTableEntry::DropNotNull(ClientContext &context, Dro
 
 	auto binder = Binder::CreateBinder(context);
 	auto bound_create_info = binder->BindCreateTableInfo(std::move(create_info), schema);
-	SetAlterDependencies(*bound_create_info, info);
 	return make_uniq<DuckTableEntry>(catalog, schema, *bound_create_info, storage);
 }
 
 unique_ptr<CatalogEntry> DuckTableEntry::ChangeColumnType(ClientContext &context, ChangeColumnTypeInfo &info) {
-	// Bind type
-	auto type_binder = Binder::CreateBinder(context);
-	type_binder->SetSearchPath(catalog, schema.name);
-	type_binder->BindLogicalType(info.target_type);
+	auto binder = Binder::CreateBinder(context);
+	binder->BindLogicalType(info.target_type, &catalog, schema.name);
 
 	auto change_idx = GetColumnIndex(info.column_name);
 	auto create_info = make_uniq<CreateTableInfo>(schema, name);
@@ -1056,7 +983,6 @@ unique_ptr<CatalogEntry> DuckTableEntry::ChangeColumnType(ClientContext &context
 	create_info->tags = tags;
 
 	// Bind the USING expression.
-	auto binder = Binder::CreateBinder(context);
 	vector<LogicalIndex> bound_columns;
 	AlterBinder expr_binder(*binder, context, *this, bound_columns, info.target_type);
 	auto expression = info.expression->Copy();
@@ -1066,9 +992,6 @@ unique_ptr<CatalogEntry> DuckTableEntry::ChangeColumnType(ClientContext &context
 	if (info.target_type == LogicalType::UNKNOWN) {
 		info.target_type = bound_expression->return_type;
 	}
-
-	// Check if type is supported in this database version
-	CheckTypeIsSupported(info.target_type, catalog.GetAttached());
 
 	auto bound_constraints = binder->BindConstraints(constraints, name, columns);
 	for (auto &col : columns.Logical()) {
@@ -1131,7 +1054,6 @@ unique_ptr<CatalogEntry> DuckTableEntry::ChangeColumnType(ClientContext &context
 	}
 
 	auto bound_create_info = binder->BindCreateTableInfo(std::move(create_info), schema);
-	SetAlterDependencies(*bound_create_info, info);
 
 	vector<StorageIndex> storage_oids;
 	for (idx_t i = 0; i < bound_columns.size(); i++) {
@@ -1212,7 +1134,6 @@ unique_ptr<CatalogEntry> DuckTableEntry::DropForeignKeyConstraint(ClientContext 
 
 	auto binder = Binder::CreateBinder(context);
 	auto bound_create_info = binder->BindCreateTableInfo(std::move(create_info), schema);
-	SetAlterDependencies(*bound_create_info, info);
 	return make_uniq<DuckTableEntry>(catalog, schema, *bound_create_info, storage);
 }
 
@@ -1285,8 +1206,7 @@ unique_ptr<CatalogEntry> DuckTableEntry::AddConstraint(ClientContext &context, A
 	// We create a physical table with a new constraint and a new unique index.
 	const auto binder = Binder::CreateBinder(context);
 	const auto bound_constraint = binder->BindConstraint(*info.constraint, table_info.table, table_info.columns);
-	auto bound_create_info = binder->BindCreateTableInfo(std::move(create_info), schema);
-	SetAlterDependencies(*bound_create_info, info);
+	const auto bound_create_info = binder->BindCreateTableInfo(std::move(create_info), schema);
 
 	auto new_storage = make_shared_ptr<DataTable>(context, *storage, *bound_constraint);
 	auto new_entry = make_uniq<DuckTableEntry>(catalog, schema, *bound_create_info, new_storage);
@@ -1307,7 +1227,7 @@ void DuckTableEntry::SetAsRoot() {
 	storage->SetTableName(name);
 }
 
-void DuckTableEntry::CommitAlter(string &column_name, CommitDropState &drop_state) {
+void DuckTableEntry::CommitAlter(string &column_name) {
 	D_ASSERT(!column_name.empty());
 	optional_idx removed_index;
 	for (auto &col : columns.Logical()) {
@@ -1323,11 +1243,11 @@ void DuckTableEntry::CommitAlter(string &column_name, CommitDropState &drop_stat
 
 	auto logical_column_index = LogicalIndex(removed_index.GetIndex());
 	auto column_index = columns.LogicalToPhysical(logical_column_index).index;
-	storage->CommitDropColumn(column_index, drop_state);
+	storage->CommitDropColumn(column_index);
 }
 
-void DuckTableEntry::CommitDrop(CommitDropState &drop_state) {
-	storage->CommitDropTable(drop_state);
+void DuckTableEntry::CommitDrop() {
+	storage->CommitDropTable();
 }
 
 DataTable &DuckTableEntry::GetStorage() {

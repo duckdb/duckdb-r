@@ -118,7 +118,11 @@ vector<string> MultiFileReader::ParsePaths(const Value &input) {
 
 shared_ptr<MultiFileList> MultiFileReader::CreateFileList(ClientContext &context, const vector<string> &paths,
                                                           const FileGlobInput &glob_input) {
-	auto res = make_uniq<GlobMultiFileList>(context, paths, glob_input);
+	vector<OpenFileInfo> open_files;
+	for (auto &path : paths) {
+		open_files.emplace_back(path);
+	}
+	auto res = make_uniq<GlobMultiFileList>(context, std::move(open_files), glob_input);
 	if (res->GetExpandResult() == FileExpandResult::NO_FILES && glob_input.behavior != FileGlobOptions::ALLOW_EMPTY) {
 		throw IOException("%s needs at least one file to read", function_name);
 	}
@@ -716,9 +720,6 @@ void MultiFileOptions::AutoDetectHiveTypesInternal(MultiFileList &files, ClientC
 			if (hive_types_schema.find(name) != hive_types_schema.end()) {
 				// type was explicitly provided by the user
 				continue;
-			}
-			if (HivePartitioning::IsNull(part.second)) {
-				continue; // don't update detected_types for this partition/file
 			}
 			LogicalType detected_type = LogicalType::VARCHAR;
 			Value value(part.second);

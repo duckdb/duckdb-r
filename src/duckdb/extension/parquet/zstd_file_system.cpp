@@ -45,7 +45,7 @@ ZstdStreamWrapper::~ZstdStreamWrapper() {
 }
 
 void ZstdStreamWrapper::Initialize(QueryContext context, CompressedFile &file, bool write) {
-	D_ASSERT(!zstd_stream_ptr && !zstd_compress_ptr);
+	Close();
 	this->file = &file;
 	this->writing = write;
 	if (write) {

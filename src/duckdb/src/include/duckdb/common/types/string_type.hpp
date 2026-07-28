@@ -40,7 +40,6 @@ public:
 	string_t() = default;
 	explicit string_t(uint32_t len) {
 		value.inlined.length = len;
-		memset(value.inlined.inlined, 0, INLINE_BYTES);
 	}
 	string_t(const char *data, uint32_t len) {
 		value.inlined.length = len;

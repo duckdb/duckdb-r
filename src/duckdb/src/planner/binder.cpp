@@ -7,7 +7,6 @@
 #include "duckdb/common/helper.hpp"
 #include "duckdb/main/config.hpp"
 #include "duckdb/main/database.hpp"
-#include "duckdb/main/settings.hpp"
 #include "duckdb/optimizer/optimizer.hpp"
 #include "duckdb/parser/expression/function_expression.hpp"
 #include "duckdb/parser/expression/subquery_expression.hpp"
@@ -35,11 +34,10 @@ idx_t Binder::GetBinderDepth() const {
 
 void Binder::IncreaseDepth() {
 	depth++;
-	auto max_expression_depth = Settings::Get<MaxExpressionDepthSetting>(context);
-	if (depth > max_expression_depth) {
+	if (depth > context.config.max_expression_depth) {
 		throw BinderException("Max expression depth limit of %lld exceeded. Use \"SET max_expression_depth TO x\" to "
 		                      "increase the maximum expression depth.",
-		                      max_expression_depth);
+		                      context.config.max_expression_depth);
 	}
 }
 
@@ -421,20 +419,6 @@ optional_ptr<CatalogEntry> Binder::GetCatalogEntry(const string &catalog, const 
                                                    const EntryLookupInfo &lookup_info,
                                                    OnEntryNotFound on_entry_not_found) {
 	return entry_retriever.GetEntry(catalog, schema, lookup_info, on_entry_not_found);
-}
-
-//! Create a binder whose catalog search path is anchored to the table's catalog+schema
-shared_ptr<Binder> Binder::CreateBinderWithSearchPath(const string &catalog_name, const string &schema_name) {
-	shared_ptr<Binder> new_binder = Binder::CreateBinder(context, this);
-
-	vector<CatalogSearchEntry> search_path;
-
-	search_path.emplace_back(catalog_name, schema_name);
-	if (schema_name != DEFAULT_SCHEMA) {
-		search_path.emplace_back(catalog_name, DEFAULT_SCHEMA);
-	}
-	new_binder->entry_retriever.SetSearchPath(std::move(search_path));
-	return new_binder;
 }
 
 } // namespace duckdb

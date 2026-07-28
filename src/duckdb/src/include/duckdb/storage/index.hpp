@@ -86,7 +86,8 @@ public:
 		return column_id_set;
 	}
 
-	virtual void ResetStorage() = 0;
+	// All indexes can be dropped, even if they are unbound
+	virtual void CommitDrop() = 0;
 
 public:
 	template <class TARGET>

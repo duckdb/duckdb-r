@@ -35,7 +35,6 @@ struct VertexXY {
 	static constexpr auto TYPE = VertexType::XY;
 	static constexpr auto HAS_Z = false;
 	static constexpr auto HAS_M = false;
-	static constexpr auto WIDTH = 2;
 
 	double x;
 	double y;
@@ -49,7 +48,6 @@ struct VertexXYZ {
 	static constexpr auto TYPE = VertexType::XYZ;
 	static constexpr auto HAS_Z = true;
 	static constexpr auto HAS_M = false;
-	static constexpr auto WIDTH = 3;
 
 	double x;
 	double y;
@@ -63,7 +61,6 @@ struct VertexXYM {
 	static constexpr auto TYPE = VertexType::XYM;
 	static constexpr auto HAS_M = true;
 	static constexpr auto HAS_Z = false;
-	static constexpr auto WIDTH = 3;
 
 	double x;
 	double y;
@@ -78,7 +75,6 @@ struct VertexXYZM {
 	static constexpr auto TYPE = VertexType::XYZM;
 	static constexpr auto HAS_Z = true;
 	static constexpr auto HAS_M = true;
-	static constexpr auto WIDTH = 4;
 
 	double x;
 	double y;
@@ -113,27 +109,10 @@ public:
 		return GeometryExtent {EMPTY_MIN, EMPTY_MIN, EMPTY_MIN, EMPTY_MIN, EMPTY_MAX, EMPTY_MAX, EMPTY_MAX, EMPTY_MAX};
 	}
 
-	// Does this extent have the X axis set?
-	// In other words, is the range of the x-axis not empty and not unknown?
-	bool HasX() const {
-		return std::isfinite(x_min) && std::isfinite(x_max);
-	}
-	// Does this extent have the Y axis set?
-	// In other words, is the range of the y-axis not empty and not unknown?
-	bool HasY() const {
-		return std::isfinite(y_min) && std::isfinite(y_max);
-	}
-	// Does this extent have both X and Y axes set?
-	// In other words, are the ranges of both the x and y axes not empty and not unknown?
-	// Used to gate serialization, where a non-finite axis cannot be represented.
+	// Does this extent have any X/Y values set?
+	// In other words, is the range of the x/y axes not empty and not unknown?
 	bool HasXY() const {
-		return HasX() && HasY();
-	}
-	// Can this extent be used for X/Y zonemap pruning?
-	// A single finite axis is enough: an unknown axis is treated as an infinite range,
-	// which intersects everything, so pruning simply degrades to the finite axis.
-	bool CanPruneXY() const {
-		return HasX() || HasY();
+		return std::isfinite(x_min) && std::isfinite(y_min) && std::isfinite(x_max) && std::isfinite(y_max);
 	}
 	// Does this extent have any Z values set?
 	// In other words, is the range of the Z-axis not empty and not unknown?
@@ -218,58 +197,12 @@ public:
 	double m_max;
 };
 
-enum class GeometryStorageType : uint8_t {
-
-	SPATIAL = 0,
-	WKB = 1,
-
-	// Base: 16
-	POINT_XY = 17,
-	LINESTRING_XY = 18,
-	POLYGON_XY = 19,
-	MULTIPOINT_XY = 20,
-	MULTILINESTRING_XY = 21,
-	MULTIPOLYGON_XY = 22,
-
-	// Base: 32
-	POINT_XYZ = 33,
-	LINESTRING_XYZ = 34,
-	POLYGON_XYZ = 35,
-	MULTIPOINT_XYZ = 36,
-	MULTILINESTRING_XYZ = 37,
-	MULTIPOLYGON_XYZ = 38,
-
-	// Base: 64
-	POINT_XYM = 65,
-	LINESTRING_XYM = 66,
-	POLYGON_XYM = 67,
-	MULTIPOINT_XYM = 68,
-	MULTILINESTRING_XYM = 69,
-	MULTIPOLYGON_XYM = 70,
-
-	// Base: 96
-	POINT_XYZM = 97,
-	LINESTRING_XYZM = 98,
-	POLYGON_XYZM = 99,
-	MULTIPOINT_XYZM = 100,
-	MULTILINESTRING_XYZM = 101,
-	MULTIPOLYGON_XYZM = 102,
-};
-
 class Geometry {
 public:
 	static constexpr idx_t MAX_RECURSION_DEPTH = 16;
-	static constexpr idx_t VERSION_ADDED = 7; // Added to core in DuckDB v1.5.0
-
-	//! Check for legayc geometry type (pre v1.5)
-	static bool IsSpatialGeometryType(const LogicalType &type);
-	//! Get legacy geometry type (pre v1.5)
-	static LogicalType GetSpatialGeometryType();
 
 	//! Convert from WKT
 	DUCKDB_API static bool FromString(const string_t &wkt_text, string_t &result, Vector &result_vector, bool strict);
-	DUCKDB_API static bool FromString(const string_t &wkt_text, string_t &result, Vector &result_vector, bool strict,
-	                                  optional_idx query_location);
 
 	//! Convert to WKT
 	DUCKDB_API static string_t ToString(Vector &result, const string_t &geom);
@@ -286,31 +219,6 @@ public:
 
 	//! Update the bounding box, return number of vertices processed
 	DUCKDB_API static uint32_t GetExtent(const string_t &wkb, GeometryExtent &extent);
-	DUCKDB_API static uint32_t GetExtent(const string_t &wkb, GeometryExtent &extent, bool &has_any_empty);
-
-	//! Convert to vectorized format
-	DUCKDB_API static void ToVectorizedFormat(Vector &source, Vector &target, idx_t count, GeometryType geom_type,
-	                                          VertexType vert_type);
-	DUCKDB_API static void ToVectorizedFormat(Vector &source, Vector &target, idx_t count, GeometryStorageType type);
-	//! Convert from vectorized format
-	DUCKDB_API static void FromVectorizedFormat(Vector &source, Vector &target, idx_t count, GeometryType geom_type,
-	                                            VertexType vert_type, idx_t result_offset);
-	DUCKDB_API static void FromVectorizedFormat(Vector &source, Vector &target, idx_t count, GeometryStorageType type,
-	                                            idx_t result_offset);
-
-	//! Get the vectorized logical type for a given geometry and vertex type
-	DUCKDB_API static LogicalType GetVectorizedType(GeometryStorageType type);
-	DUCKDB_API static LogicalType GetVectorizedType(GeometryType geom_type, VertexType vert_type);
-
-	DUCKDB_API static pair<GeometryType, VertexType> GetSpecializedType(GeometryStorageType type);
-
-	DUCKDB_API static void FromSpatialGeometry(const string_t &source, string_t &target, Vector &vector);
-	DUCKDB_API static void FromSpatialGeometry(Vector &source, Vector &target, idx_t count, idx_t result_offset);
-	DUCKDB_API static void FromSpatialGeometry(const string_t &source, string &target);
-
-	DUCKDB_API static void ToSpatialGeometry(const string_t &source, string_t &target, Vector &vector);
-	DUCKDB_API static void ToSpatialGeometry(Vector &source, Vector &target, idx_t count);
-	DUCKDB_API static void ToSpatialGeometry(const string_t &source, string &target);
 };
 
 } // namespace duckdb

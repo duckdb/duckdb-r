@@ -2,50 +2,14 @@
 #include "duckdb/optimizer/optimizer.hpp"
 #include "duckdb/planner/expression/bound_columnref_expression.hpp"
 #include "duckdb/planner/expression/bound_parameter_expression.hpp"
-#include "duckdb/planner/expression_iterator.hpp"
+#include "duckdb/planner/operator/logical_filter.hpp"
 #include "duckdb/planner/operator/logical_get.hpp"
 #include "duckdb/planner/operator/logical_empty_result.hpp"
 
 namespace duckdb {
-
-// When a BoundColumnRefExpression that's part of a filter arrives here, its
-// alias may have been set to the projection name i.e. "other" for SELECT col AS other.
-// If CTE inlining collapses the CTE in
-// WITH cte AS (SELECT col AS other FROM reader()) SELECT * FROM cte WHERE other > 0,
-// reader() will get a complex filter with "other" which doesn't exist.
-// Rename the columns back to their original scan names.
-static void NormalizeColumnRefAliases(unique_ptr<Expression> &expr, const LogicalGet &get) {
-	auto &column_ids = get.GetColumnIds();
-	ExpressionIterator::VisitExpressionMutable<BoundColumnRefExpression>(
-	    expr, [&](BoundColumnRefExpression &ref, unique_ptr<Expression> &) {
-		    const auto &binding = ref.binding;
-		    if (binding.table_index != get.table_index || binding.column_index >= column_ids.size()) {
-			    return;
-		    }
-		    const auto &col_idx = column_ids[binding.column_index];
-		    if (!col_idx.HasPrimaryIndex()) {
-			    ref.SetAlias(col_idx.GetFieldName());
-			    return;
-		    }
-		    const idx_t primary = col_idx.GetPrimaryIndex();
-		    if (col_idx.IsVirtualColumn()) {
-			    auto it = get.virtual_columns.find(primary);
-			    if (it != get.virtual_columns.end()) {
-				    ref.SetAlias(it->second.name);
-			    }
-		    } else if (primary < get.names.size()) {
-			    ref.SetAlias(get.names[primary]);
-		    }
-	    });
-}
-
 unique_ptr<LogicalOperator> FilterPushdown::PushdownGet(unique_ptr<LogicalOperator> op) {
 	D_ASSERT(op->type == LogicalOperatorType::LOGICAL_GET);
 	auto &get = op->Cast<LogicalGet>();
-
-	for (auto &filter : filters) {
-		NormalizeColumnRefAliases(filter->filter, get);
-	}
 
 	if (get.function.pushdown_complex_filter || get.function.filter_pushdown) {
 		// this scan supports some form of filter push-down
@@ -89,10 +53,9 @@ unique_ptr<LogicalOperator> FilterPushdown::PushdownGet(unique_ptr<LogicalOperat
 		return make_uniq<LogicalEmptyResult>(std::move(op));
 	}
 
-	auto &column_ids = get.GetColumnIds();
 	//! We generate the table filters that will be executed during the table scan
 	vector<FilterPushdownResult> pushdown_results;
-	get.table_filters = combiner.GenerateTableScanFilters(column_ids, pushdown_results);
+	get.table_filters = combiner.GenerateTableScanFilters(get.GetColumnIds(), pushdown_results);
 
 	GenerateFilters();
 
@@ -110,13 +73,8 @@ unique_ptr<LogicalOperator> FilterPushdown::PushdownGet(unique_ptr<LogicalOperat
 			continue;
 		}
 		auto &expr = *filters[i]->filter;
-		if (expr.IsVolatile()) {
-			continue;
-		}
-		// Allow pushing down filters that can throw only if there is a single expression
-		// For now, do not push down single expressions with IN either. Later we can change InClauseRewriter to handle
-		// this case
-		if (expr.CanThrow() && (expr.type == ExpressionType::COMPARE_IN || filters.size() > 1)) {
+		if (expr.IsVolatile() || expr.CanThrow()) {
+			// we cannot push down volatile or throwing expressions
 			continue;
 		}
 		pushdown_result = combiner.TryPushdownGenericExpression(get, expr);

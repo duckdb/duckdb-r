@@ -115,25 +115,6 @@ ColumnWriter::ColumnWriter(ParquetWriter &writer, ParquetColumnSchema &&column_s
 ColumnWriter::~ColumnWriter() {
 }
 
-void ColumnWriter::MarkRepetitionRequired() {
-	if (column_schema.repetition_type == duckdb_parquet::FieldRepetitionType::REQUIRED) {
-		return;
-	}
-	D_ASSERT(column_schema.repetition_type == duckdb_parquet::FieldRepetitionType::OPTIONAL);
-	D_ASSERT(can_have_nulls);
-	column_schema.repetition_type = duckdb_parquet::FieldRepetitionType::REQUIRED;
-	can_have_nulls = false;
-	DecrementMaxDefineRecursive();
-}
-
-void ColumnWriter::DecrementMaxDefineRecursive() {
-	D_ASSERT(column_schema.max_define > 0);
-	column_schema.max_define--;
-	for (auto &child : child_writers) {
-		child->DecrementMaxDefineRecursive();
-	}
-}
-
 ColumnWriterState::~ColumnWriterState() {
 }
 
@@ -307,9 +288,6 @@ unique_ptr<ColumnWriter> ColumnWriter::CreateWriterRecursive(ClientContext &cont
 		//! Construct the column schema
 		auto variant_column =
 		    ParquetColumnSchema::FromLogicalType(name, type, max_define, max_repeat, 0, null_type, allow_geometry);
-		if (field_id && field_id->set) {
-			variant_column.field_id = field_id->field_id;
-		}
 		vector<unique_ptr<ColumnWriter>> child_writers;
 		child_writers.reserve(child_types.size());
 
@@ -442,7 +420,6 @@ unique_ptr<ColumnWriter> ColumnWriter::CreateWriterRecursive(ClientContext &cont
 		return make_uniq<StandardColumnWriter<int32_t, int32_t>>(writer, std::move(schema), std::move(path_in_schema));
 	case LogicalTypeId::BIGINT:
 	case LogicalTypeId::TIME:
-	case LogicalTypeId::TIME_NS:
 	case LogicalTypeId::TIMESTAMP:
 	case LogicalTypeId::TIMESTAMP_TZ:
 	case LogicalTypeId::TIMESTAMP_MS:

@@ -29,6 +29,8 @@ public:
 
 	idx_t Scan(TransactionData transaction, idx_t vector_index, ColumnScanState &state, Vector &result,
 	           idx_t target_count) override;
+	idx_t ScanCommitted(idx_t vector_index, ColumnScanState &state, Vector &result, bool allow_updates,
+	                    idx_t target_count) override;
 	idx_t ScanCount(ColumnScanState &state, Vector &result, idx_t count, idx_t result_offset) override;
 
 	void Filter(TransactionData transaction, idx_t vector_index, ColumnScanState &state, Vector &result,
@@ -53,8 +55,7 @@ public:
 
 	unique_ptr<ColumnCheckpointState> CreateCheckpointState(const RowGroup &row_group,
 	                                                        PartialBlockManager &partial_block_manager) override;
-	unique_ptr<ColumnCheckpointState> Checkpoint(const RowGroup &row_group, ColumnCheckpointInfo &info,
-	                                             const BaseStatistics &stats) override;
+	unique_ptr<ColumnCheckpointState> Checkpoint(const RowGroup &row_group, ColumnCheckpointInfo &info) override;
 	void CheckpointScan(ColumnSegment &segment, ColumnScanState &state, idx_t count,
 	                    Vector &scan_vector) const override;
 
@@ -69,8 +70,6 @@ public:
 	void Verify(RowGroup &parent) override;
 
 	void SetValidityData(shared_ptr<ValidityColumnData> validity);
-	//! Direct access to the validity column data. Intended for extensions that need to walk storage internals.
-	ValidityColumnData &GetValidityData();
 
 protected:
 	//! The validity column data
