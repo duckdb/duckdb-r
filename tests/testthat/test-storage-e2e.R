@@ -82,6 +82,8 @@ test_that("the httpfs extension installs and loads under the configured home", {
   # Disabled on a libc++ Linux build (loading a prebuilt extension crashes R --
   # duckdb/duckdb-r#1107).
   skip_if_not(extensions_supported(), "DuckDB extensions disabled on this build (duckdb/duckdb-r#1107)")
+  # Only released versions have signed extensions on extensions.duckdb.org.
+  skip_on_dev_version()
   home <- withr::local_tempdir("e2e-home-ext-")
   withr::local_envvar(DUCKDB_R_HOME = NA)
   withr::local_options(duckdb.home = home)
