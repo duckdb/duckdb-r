@@ -29,7 +29,7 @@ test_that("EXPLAIN ANALYZE outputs query tree", {
   rs <- DBI::dbGetQuery(con, "EXPLAIN ANALYZE SELECT 1;")
   expect_true(is(rs, c("duckdb_explain")))
   expect_true(grepl("Total Time", rs$explain_value))
-  expect_true(grepl("DUMMY_SCAN", rs$explain_value))
+  expect_true(grepl("Dummy Scan", rs$explain_value))
 })
 
 test_that("zero length input is smoothly skipped", {
