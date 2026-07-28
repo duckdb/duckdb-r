@@ -521,8 +521,8 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 
 	window_expr->WindowStartMutable() = StringToWindowBoundary(window_boundary_start);
 	window_expr->WindowEndMutable() = StringToWindowBoundary(window_boundary_end);
-	for (auto &child : function.GetChildren()) {
-		window_expr->GetChildrenMutable().push_back(child->Copy());
+	for (auto &child : function.GetArguments()) {
+		window_expr->GetChildrenMutable().push_back(child.GetExpression().Copy());
 	}
 	for (expr_extptr_t partition : partitions) {
 		window_expr->PartitionsMutable().push_back(partition->Copy());
