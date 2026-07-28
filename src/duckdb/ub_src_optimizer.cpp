@@ -32,6 +32,8 @@
 
 #include "src/optimizer/filter_pushdown.cpp"
 
+#include "src/optimizer/grouping_sets_optimizer.cpp"
+
 #include "src/optimizer/in_clause_rewriter.cpp"
 
 #include "src/optimizer/join_elimination.cpp"
