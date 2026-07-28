@@ -171,9 +171,10 @@ static void ListIntersectFunction(DataChunk &args, ExpressionState &state, Vecto
 	result_entry.Flatten(offset);
 	FlatVector::SetValidity(result_entry, result_entry_validity_mask);
 }
-static unique_ptr<FunctionData> ListIntersectBind(ClientContext &context, ScalarFunction &bound_function,
-                                                  vector<unique_ptr<Expression>> &arguments) {
-	D_ASSERT(bound_function.arguments.size() == 2);
+static unique_ptr<FunctionData> ListIntersectBind(BindScalarFunctionInput &input) {
+	auto &context = input.GetClientContext();
+	auto &arguments = input.GetArguments();
+	D_ASSERT(input.GetBoundFunction().arguments.size() == 2);
 	arguments[0] = BoundCastExpression::AddArrayCastToList(context, std::move(arguments[0]));
 	arguments[1] = BoundCastExpression::AddArrayCastToList(context, std::move(arguments[1]));
 	return nullptr;

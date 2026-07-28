@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 18 Oct 2026 23:54:20 +0000
+Subject: [PATCH] Assert on the list intersect bind inputs without an assert-only binding
+
+ListIntersectBind() binds the bound function to a reference that only
+D_ASSERT() reads, so in a release build, where D_ASSERT() expands to
+nothing, -Wunused-variable reports it. The assertion reads the
+function from the input itself, which is the shape upstream gives the
+site later.
+
+Carried here until the engine brings the same change.
+
+---
+ src/duckdb/src/function/scalar/list/list_intersect.cpp | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/duckdb/src/function/scalar/list/list_intersect.cpp b/src/duckdb/src/function/scalar/list/list_intersect.cpp
+index 7a3003dfb5..e9df644b30 100644
+--- a/src/duckdb/src/function/scalar/list/list_intersect.cpp
++++ b/src/duckdb/src/function/scalar/list/list_intersect.cpp
+@@ -173,9 +173,8 @@ static void ListIntersectFunction(DataChunk &args, ExpressionState &state, Vecto
+ }
+ static unique_ptr<FunctionData> ListIntersectBind(BindScalarFunctionInput &input) {
+ 	auto &context = input.GetClientContext();
+-	auto &bound_function = input.GetBoundFunction();
+ 	auto &arguments = input.GetArguments();
+-	D_ASSERT(bound_function.arguments.size() == 2);
++	D_ASSERT(input.GetBoundFunction().arguments.size() == 2);
+ 	arguments[0] = BoundCastExpression::AddArrayCastToList(context, std::move(arguments[0]));
+ 	arguments[1] = BoundCastExpression::AddArrayCastToList(context, std::move(arguments[1]));
+ 	return nullptr;

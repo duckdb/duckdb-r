@@ -1,0 +1,52 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 18 Oct 2026 22:27:02 +0000
+Subject: [PATCH] Assert on the list bind inputs without assert-only bindings
+
+ListExtractBind() and ListAggregateBind() bind the bound function, and
+the latter the arguments too, to names that only D_ASSERT() reads, so
+in a release build, where D_ASSERT() expands to nothing, the bindings
+are unused and -Wunused-variable says so. The assertions read the
+inputs through the bind input and the bindings go, which is the shape
+upstream gives both functions later.
+
+Carried here until the engine brings the same change.
+
+---
+ src/duckdb/extension/core_functions/scalar/list/list_aggregates.cpp | 6 ++----
+ src/duckdb/src/function/scalar/list/list_extract.cpp                | 3 +--
+ 2 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/duckdb/extension/core_functions/scalar/list/list_aggregates.cpp b/src/duckdb/extension/core_functions/scalar/list/list_aggregates.cpp
+index f220e97160..c3fda05ead 100644
+--- a/src/duckdb/extension/core_functions/scalar/list/list_aggregates.cpp
++++ b/src/duckdb/extension/core_functions/scalar/list/list_aggregates.cpp
+@@ -485,11 +485,9 @@ unique_ptr<FunctionData> ListAggregatesBind(BindScalarFunctionInput &input) {
+ }
+ 
+ unique_ptr<FunctionData> ListAggregateBind(BindScalarFunctionInput &input) {
+-	auto &bound_function = input.GetBoundFunction();
+-	auto &arguments = input.GetArguments();
+ 	// the list column and the name of the aggregate function
+-	D_ASSERT(bound_function.arguments.size() >= 2);
+-	D_ASSERT(arguments.size() >= 2);
++	D_ASSERT(input.GetBoundFunction().arguments.size() >= 2);
++	D_ASSERT(input.GetArguments().size() >= 2);
+ 
+ 	return ListAggregatesBind<true>(input);
+ }
+diff --git a/src/duckdb/src/function/scalar/list/list_extract.cpp b/src/duckdb/src/function/scalar/list/list_extract.cpp
+index 69dbe22cd8..47650cf253 100644
+--- a/src/duckdb/src/function/scalar/list/list_extract.cpp
++++ b/src/duckdb/src/function/scalar/list/list_extract.cpp
+@@ -122,9 +122,8 @@ static void ListExtractFunction(DataChunk &args, ExpressionState &state, Vector
+ 
+ static unique_ptr<FunctionData> ListExtractBind(BindScalarFunctionInput &input) {
+ 	auto &context = input.GetClientContext();
+-	auto &bound_function = input.GetBoundFunction();
+ 	auto &arguments = input.GetArguments();
+-	D_ASSERT(bound_function.arguments.size() == 2);
++	D_ASSERT(input.GetBoundFunction().arguments.size() == 2);
+ 	arguments[0] = BoundCastExpression::AddArrayCastToList(context, std::move(arguments[0]));
+ 	return nullptr;
+ }
