@@ -6,8 +6,6 @@
 
 #include "src/planner/expression/bound_columnref_expression.cpp"
 
-#include "src/planner/expression/bound_comparison_expression.cpp"
-
 #include "src/planner/expression/bound_conjunction_expression.cpp"
 
 #include "src/planner/expression/bound_constant_expression.cpp"
@@ -35,4 +33,6 @@
 #include "src/planner/expression/bound_window_expression.cpp"
 
 #include "src/planner/expression/legacy_bound_between_expression.cpp"
+
+#include "src/planner/expression/legacy_bound_comparison_expression.cpp"
 
