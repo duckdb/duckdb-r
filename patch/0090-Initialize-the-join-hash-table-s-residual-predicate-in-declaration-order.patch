@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 19 Oct 2026 07:10:35 +0000
+Subject: [PATCH] Initialize the join hash table's residual predicate in declaration order
+
+JoinHashTable's constructor lists radix_bits before residual_predicate
+while the class declares them the other way round, so -Wreorder
+reports the initializer. Upstream later lists them in declaration
+order; this is that text.
+
+Carried here until the engine brings the same change.
+
+---
+ src/duckdb/src/execution/join_hashtable.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/duckdb/src/execution/join_hashtable.cpp b/src/duckdb/src/execution/join_hashtable.cpp
+index 1dd35f117d..4b8d599025 100644
+--- a/src/duckdb/src/execution/join_hashtable.cpp
++++ b/src/duckdb/src/execution/join_hashtable.cpp
+@@ -42,7 +42,7 @@ JoinHashTable::JoinHashTable(ClientContext &context_p, const PhysicalOperator &o
+     : context(context_p), op(op_p), buffer_manager(BufferManager::GetBufferManager(context)), conditions(conditions_p),
+       build_types(std::move(btypes)), output_columns(output_columns_p), entry_size(0), tuple_size(0),
+       vfound(Value::BOOLEAN(false)), join_type(type_p), finalized(false), has_null(false),
+-      radix_bits(INITIAL_RADIX_BITS), residual_predicate(predicate_ptr) {
++      residual_predicate(predicate_ptr), radix_bits(INITIAL_RADIX_BITS) {
+ 	// store residual predicate information
+ 	residual_info = std::move(residual_p);
+ 	lhs_output_in_probe = output_in_probe;
