@@ -76,9 +76,9 @@
 
 #include "src/common/render_tree.cpp"
 
-#include "src/common/serialization_compatibility.cpp"
-
 #include "src/common/stacktrace.cpp"
+
+#include "src/common/storage_compatibility.cpp"
 
 #include "src/common/string_util.cpp"
 
