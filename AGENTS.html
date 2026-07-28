@@ -46,7 +46,8 @@
 <code>export MAKEFLAGS="-j$(nproc)"</code> – enables parallel compilation</li>
 <li>
 <code>UserNM=true R CMD INSTALL . --no-byte-compile</code> – builds and installs the package. NEVER CANCEL: takes 10-15 minutes on first build. Set timeout to 30+ minutes.</li>
-</ul><p>For an interactive edit-build-test loop, prefer the prebuilt-libduckdb fast path (seconds instead of 10-15 minutes) – see <a href="#fast-build-with-system-libduckdb-linuxmacos-opt-in">“Fast build with system libduckdb”</a> and <a href="#testing-with-prebuilt-duckdb-the-fast-iterate-loop">“Testing with prebuilt DuckDB”</a> below.</p>
+</ul><p><code>UserNM=true</code> is an install-time shortcut only – <strong>never export it for <code>R CMD check</code></strong>. R takes the <code>nm</code> program from <code>$UserNM</code>, and <code>tools:::check_so_symbols</code> uses it to scan the built <code>.so</code>; pointing it at <code>true</code> blinds that scan, so the check reports “Found no calls to <code>R_registerRoutines</code>, <code>R_useDynamicSymbols</code>” and fails a package that registers its routines correctly. It saves ~10-20 s on this tree, so it is not worth carrying into CI at all.</p>
+<p>For an interactive edit-build-test loop, prefer the prebuilt-libduckdb fast path (seconds instead of 10-15 minutes) – see <a href="#fast-build-with-system-libduckdb-linuxmacos-opt-in">“Fast build with system libduckdb”</a> and <a href="#testing-with-prebuilt-duckdb-the-fast-iterate-loop">“Testing with prebuilt DuckDB”</a> below.</p>
 </div>
 <div class="section level3">
 <h3 id="run-tests">Run Tests<a class="anchor" aria-label="anchor" href="#run-tests"></a></h3>

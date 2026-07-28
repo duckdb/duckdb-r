@@ -74,11 +74,17 @@
 │   ├── vendor-one.sh               # Commit-by-commit vendoring (series loop)
 │   ├── flavor.sh                   # Apply flavor rename to a branch
 │   ├── flavor.patch                # Patch template for flavor rename              [2]
-│   ├── each-rcc.sh                 # Trigger per-commit CI for unbuilt commits
+│   ├── each-plan.sh                # Plan cost-balanced shards of unbuilt commits
+│   ├── each-shard.sh               # Build one shard: many commits, one job
+│   ├── each-cost.py                # Unity objects a commit invalidates
+│   ├── rcc-one.sh                  # The per-commit rcc gate
+│   ├── each-harvest.sh             # Fold shard results onto the rcc branch
+│   ├── each-rcc.sh                 # Legacy per-commit CI dispatcher (fallback)
+│   ├── EACH.md                     # Sharded per-commit CI design (→ see §Vendoring)
 │   └── VENDORING.md                # Supplementary vendoring notes (→ see §Vendoring)
 ├── .github/
 │   └── workflows/
-│       ├── each.yaml               # Per-commit rcc dispatch on *-dev pushes       [5]
+│       ├── each.yaml               # Per-commit rcc, as a sharded matrix           [5]
 │       ├── sync.yaml               # Fast-forward krlmlr/main from duckdb/main     [5]
 │       ├── fledge.yaml             # Automated version-bump PRs                    [5]
 │       └── R-CMD-check*.yaml       # Package check workflows                       [5]
@@ -498,7 +504,7 @@ krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
 <div class="section level3">
 <h3 id="vendoring">Vendoring<a class="anchor" aria-label="anchor" href="#vendoring"></a></h3>
 <p>Vendoring is driven by a single scheduled Claude routine — the <strong>series loop</strong> (<code>.claude/skills/series-loop.md</code>) — which discovers every series from its refs and serves them all in one firing. Each series <code>&lt;S&gt;</code> has four branches: <code>&lt;S&gt;-build</code> (every upstream commit vendored, glue compiling, no CI), <code>&lt;S&gt;-dev</code> (consumed from <code>-build</code> up to 25 commits at a time; CI builds every commit), <code>&lt;S&gt;-green</code> (fast-forwarded to the newest all-green commit; what r-universe should build from), and <code>&lt;S&gt;-build-base</code> (the <code>-build</code> commit equivalent to <code>-green</code>). CI builds the <code>.dev</code> package per commit via <code>each.yaml</code>. If vendoring breaks the build, it can be fixed after the fact in the same commit. The <code>-dev</code> branches are not protected, so force-pushes are allowed to fix mistakes.</p>
-<p>It is important that every commit in the <code>-dev</code> branches builds successfully so that the history is clean and bisectable. For this reason, the <code>-dev</code> branches are checked commit by commit via <code>each.yaml</code>, even if multiple commits are pushed at once.</p>
+<p>It is important that every commit in the <code>-dev</code> branches builds successfully so that the history is clean and bisectable. For this reason, the <code>-dev</code> branches are checked commit by commit via <code>each.yaml</code>, even if multiple commits are pushed at once. <code>each.yaml</code> groups those commits into contiguous, cost-balanced shards and gives each shard one job, so a batch is one run to cancel, the R setup is paid per shard rather than per commit, and adjacent commits reuse the runner’s local ccache; the per-commit <code>rcc</code> marker is unchanged. See <a href="scripts/EACH.html"><code>scripts/EACH.md</code></a> for the design and its limits.</p>
 <p>Bisectability is a property of the whole branch, not of individual commits, so it needs three things at once: a <strong>linear</strong> first-parent history without merge commits, <strong>one upstream commit per vendor commit</strong> forming a contiguous first-parent walk of the tracked upstream branch, and a <strong>green</strong> build for every commit. These are stated as invariants, with the reasoning and the failure modes, in <a href="scripts/VENDORING.html#dev-branch-invariants">Dev Branch Invariants</a>.</p>
 </div>
 <div class="section level3">
@@ -581,8 +587,18 @@ krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
 <td>Applies the flavor rename (updates <code>flavor.patch</code>, then applies it and re-runs <code><a href="https://cpp11.r-lib.org/reference/cpp_register.html" class="external-link">cpp11::cpp_register()</a></code>)</td>
 </tr><tr><td><code>scripts/flavor.patch</code></td>
 <td>Patch template used by <code>flavor.sh</code>; contains <code>1.4</code> as placeholder version (replaced by <code>flavor.sh</code>)</td>
+</tr><tr><td><code>scripts/each-plan.sh</code></td>
+<td>Selects the commits without a build status and partitions them into contiguous, cost-balanced shards</td>
+</tr><tr><td><code>scripts/each-cost.py</code></td>
+<td>Counts the unity objects a commit invalidates, from the include graph, without building</td>
+</tr><tr><td><code>scripts/each-shard.sh</code></td>
+<td>Builds one shard: many commits in one job and one workspace, writing the <code>rcc</code> status per commit</td>
+</tr><tr><td><code>scripts/rcc-one.sh</code></td>
+<td>The per-commit gate (style, snapshots, roxygen, clean tree, <code>R CMD check</code>, pkgdown), as a script</td>
+</tr><tr><td><code>scripts/each-harvest.sh</code></td>
+<td>Single-writer fan-in of the shards’ results onto the orphan <code>rcc</code> branch</td>
 </tr><tr><td><code>scripts/each-rcc.sh</code></td>
-<td>Identifies commits in the first-parent history without a build status and triggers an <code>rcc</code> run for each</td>
+<td>Legacy fallback: triggers one <code>rcc</code> run per commit without a build status (<code>EACH_RCC_MODE=dispatch</code>)</td>
 </tr><tr><td><code>scripts/merge-version.sh</code></td>
 <td>Git merge driver for <code>DESCRIPTION</code>: combines the 4th/5th version counters, gated on an equal prefix</td>
 </tr><tr><td><code>scripts/setup-git.sh</code></td>
@@ -591,7 +607,7 @@ krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
 <td>Hourly fast-forward of <code>krlmlr/main</code> from <code>duckdb/main</code>
 </td>
 </tr><tr><td><code>.github/workflows/each.yaml</code></td>
-<td>Dispatches <code>rcc</code> per-commit on push to <code>*-dev</code> branches</td>
+<td>Builds every statusless commit on push to <code>*-dev</code> branches, as a sharded matrix (see <a href="scripts/EACH.html"><code>scripts/EACH.md</code></a>)</td>
 </tr><tr><td><code>.github/workflows/fledge.yaml</code></td>
 <td>Daily version-bump PRs via <code>fledge</code>
 </td>
