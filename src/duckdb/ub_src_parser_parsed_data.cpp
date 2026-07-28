@@ -12,6 +12,8 @@
 
 #include "src/parser/parsed_data/comment_on_column_info.cpp"
 
+#include "src/parser/parsed_data/connect_info.cpp"
+
 #include "src/parser/parsed_data/copy_info.cpp"
 
 #include "src/parser/parsed_data/create_aggregate_function_info.cpp"
@@ -53,6 +55,8 @@
 #include "src/parser/parsed_data/create_window_function_info.cpp"
 
 #include "src/parser/parsed_data/detach_info.cpp"
+
+#include "src/parser/parsed_data/disconnect_info.cpp"
 
 #include "src/parser/parsed_data/drop_info.cpp"
 

@@ -16,6 +16,8 @@
 
 #include "src/parser/peg/transformer/transform_common.cpp"
 
+#include "src/parser/peg/transformer/transform_connect.cpp"
+
 #include "src/parser/peg/transformer/transform_copy.cpp"
 
 #include "src/parser/peg/transformer/transform_create_index.cpp"
