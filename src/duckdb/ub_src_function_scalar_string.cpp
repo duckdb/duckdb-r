@@ -14,6 +14,8 @@
 
 #include "src/function/scalar/string/nfc_normalize.cpp"
 
+#include "src/function/scalar/string/overlay.cpp"
+
 #include "src/function/scalar/string/path_join.cpp"
 
 #include "src/function/scalar/string/prefix.cpp"
