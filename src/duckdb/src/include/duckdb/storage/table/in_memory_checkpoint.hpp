@@ -49,8 +49,7 @@ public:
 	InMemoryTableDataWriter(InMemoryCheckpointer &checkpoint_manager, TableCatalogEntry &table);
 
 public:
-	void WriteUnchangedTable(MetaBlockPointer pointer, const vector<MetaBlockPointer> &metadata_pointers,
-	                         idx_t total_rows) override;
+	void WriteUnchangedTable(MetaBlockPointer pointer, idx_t total_rows) override;
 	void FinalizeTable(const TableStatistics &global_stats, DataTableInfo &info, RowGroupCollection &collection,
 	                   Serializer &serializer) override;
 	unique_ptr<RowGroupWriter> GetRowGroupWriter(RowGroup &row_group) override;
@@ -64,8 +63,8 @@ private:
 
 class InMemoryRowGroupWriter : public RowGroupWriter {
 public:
-	InMemoryRowGroupWriter(TableDataWriter &writer, TableCatalogEntry &table,
-	                       PartialBlockManager &partial_block_manager, InMemoryCheckpointer &checkpoint_manager);
+	InMemoryRowGroupWriter(TableCatalogEntry &table, PartialBlockManager &partial_block_manager,
+	                       InMemoryCheckpointer &checkpoint_manager);
 
 public:
 	CheckpointOptions GetCheckpointOptions() const override;

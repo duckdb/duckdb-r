@@ -58,10 +58,10 @@ void BoundIndex::VerifyConstraint(DataChunk &chunk, IndexAppendInfo &info, Confl
 	throw NotImplementedException("this implementation of VerifyConstraint does not exist.");
 }
 
-void BoundIndex::ResetStorage() {
+void BoundIndex::CommitDrop() {
 	IndexLock index_lock;
 	InitializeLock(index_lock);
-	ResetStorage(index_lock);
+	CommitDrop(index_lock);
 }
 
 idx_t BoundIndex::TryDelete(DataChunk &entries, Vector &row_identifiers, optional_ptr<SelectionVector> deleted_sel,
@@ -83,11 +83,12 @@ void BoundIndex::Delete(DataChunk &entries, Vector &row_identifiers) {
 }
 
 void BoundIndex::Delete(IndexLock &state, DataChunk &entries, Vector &row_identifiers) {
-	auto deleted_rows = TryDelete(state, entries, row_identifiers);
-	if (deleted_rows != entries.size()) {
-		throw InvalidInputException("Failed to delete all rows from index. Only deleted %d out of %d rows.\nChunk: %s",
-		                            deleted_rows, entries.size(), entries.ToString());
-	}
+	TryDelete(state, entries, row_identifiers);
+	// FIXME: enable this
+	// if (deleted_rows != entries.size()) {
+	// 	throw InvalidInputException("Failed to delete all rows from index. Only deleted %d out of %d rows.\nChunk: %s",
+	// deleted_rows, entries.size(), entries.ToString());
+	// }
 }
 
 ErrorData BoundIndex::Insert(IndexLock &l, DataChunk &chunk, Vector &row_ids, IndexAppendInfo &info) {
@@ -244,8 +245,6 @@ void BoundIndex::ApplyBufferedReplays(const vector<LogicalType> &table_types, Bu
 
 			SelectionVector sel(offset_in_chunk, rows_to_process);
 
-			// Buffered chunks are in mapped_column_ids layout (plus a trailing rowid column).
-			D_ASSERT(state.current_chunk.ColumnCount() == mapped_column_ids.size() + 1);
 			for (idx_t col_idx = 0; col_idx < state.current_chunk.ColumnCount() - 1; col_idx++) {
 				const auto col_id = mapped_column_ids[col_idx].GetPrimaryIndex();
 				table_chunk.data[col_id].Reference(state.current_chunk.data[col_idx]);

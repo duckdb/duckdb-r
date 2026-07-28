@@ -170,6 +170,7 @@ FileGlobInput DirectMultiFileInfo<OP>::GetGlobInput() {
 
 struct ReadBlobOperation {
 	static constexpr const char *NAME = "read_blob";
+	static constexpr const char *FILE_TYPE = "blob";
 
 	static inline LogicalType TYPE() {
 		return LogicalType::BLOB;
@@ -178,6 +179,7 @@ struct ReadBlobOperation {
 
 struct ReadTextOperation {
 	static constexpr const char *NAME = "read_text";
+	static constexpr const char *FILE_TYPE = "text";
 
 	static inline LogicalType TYPE() {
 		return LogicalType::VARCHAR;

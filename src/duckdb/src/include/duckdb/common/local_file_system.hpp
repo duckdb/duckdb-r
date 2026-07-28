@@ -67,10 +67,8 @@ public:
 	//! Sync a file handle to disk
 	void FileSync(FileHandle &handle) override;
 
-	//! Checks if path is is an absolute path
-	bool IsPathAbsolute(const string &path) override;
-	string MakePathAbsolute(const string &input, optional_ptr<FileOpener> opener);
-	bool PathStartsWithDrive(const string &path);
+	//! Runs a glob on the file system, returning a list of matching files
+	vector<OpenFileInfo> Glob(const string &path, FileOpener *opener = nullptr) override;
 
 	bool CanHandleFile(const string &fpath) override {
 		//! Whether or not a sub-system can handle a specific file path
@@ -88,10 +86,6 @@ public:
 	//! in a file on-disk are much cheaper than e.g. random reads in a file over the network
 	bool OnDiskFile(FileHandle &handle) override;
 
-	bool IsLocalFileSystem() const override {
-		return true;
-	}
-
 	std::string GetName() const override {
 		return "LocalFileSystem";
 	}
@@ -103,9 +97,8 @@ public:
 	//! Checks a file is private (checks for 600 on linux/macos, TODO: currently always returns true on windows)
 	static bool IsPrivateFile(const string &path_p, FileOpener *opener);
 
-	vector<OpenFileInfo> FetchFileWithoutGlob(const string &path, optional_ptr<FileOpener> opener, bool absolute_path);
-
-	string CanonicalizePath(const string &path_p, optional_ptr<FileOpener> opener) override;
+	// returns a C-string of the path that trims any file:/ prefix
+	static const char *NormalizeLocalPath(const string &path);
 
 protected:
 	bool ListFilesExtended(const string &directory, const std::function<void(OpenFileInfo &info)> &callback,
@@ -115,18 +108,12 @@ protected:
 		return true;
 	}
 
-	unique_ptr<MultiFileList> GlobFilesExtended(const string &path, const FileGlobInput &input,
-	                                            optional_ptr<FileOpener> opener) override;
-	bool SupportsGlobExtended() const override {
-		return true;
-	}
-
-	bool TryCanonicalizeExistingPath(string &path_p);
-
 private:
 	//! Set the file pointer of a file handle to a specified location. Reads and writes will happen from this location
 	void SetFilePointer(FileHandle &handle, idx_t location);
 	idx_t GetFilePointer(FileHandle &handle);
+
+	vector<OpenFileInfo> FetchFileWithoutGlob(const string &path, FileOpener *opener, bool absolute_path);
 };
 
 } // namespace duckdb

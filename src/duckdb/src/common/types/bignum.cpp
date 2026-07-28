@@ -148,24 +148,13 @@ bool Bignum::VarcharFormatting(const string_t &value, idx_t &start_pos, idx_t &e
 			return false;
 		}
 
-		// Now cur_pos points to the first digit after the decimal point.
-		bool has_digit_after_decimal = false;
 		while (cur_pos < end_pos) {
 			if (std::isdigit(int_value_char[cur_pos])) {
-				has_digit_after_decimal = true;
 				cur_pos++;
 			} else {
 				// By now we can only have numbers, otherwise this is invalid.
 				return false;
 			}
-		}
-		// No integer digits before the decimal (e.g. ".5", "0.5" after leading zero trim, "0.").
-		if (possible_end == start_pos) {
-			if (!at_least_one_zero && !has_digit_after_decimal) {
-				return false;
-			}
-			is_zero = true;
-			return true;
 		}
 		// Floor cast this boy
 		end_pos = possible_end;
@@ -264,7 +253,12 @@ string Bignum::BignumToVarchar(const bignum_t &blob) {
 	return decimal_string;
 }
 
-string Bignum::EncodeBignum(const string_t &value, idx_t start_pos, idx_t end_pos, bool is_negative, bool is_zero) {
+string Bignum::VarcharToBignum(const string_t &value) {
+	idx_t start_pos, end_pos;
+	bool is_negative, is_zero;
+	if (!VarcharFormatting(value, start_pos, end_pos, is_negative, is_zero)) {
+		throw ConversionException("Could not convert string \'%s\' to Bignum", value.GetString());
+	}
 	if (is_zero) {
 		// Return Value 0
 		return InitializeBignumZero();
@@ -321,15 +315,6 @@ string Bignum::EncodeBignum(const string_t &value, idx_t start_pos, idx_t end_po
 	// Set header after we know the size of the bignum
 	SetHeader(&result[0], result.size() - BIGNUM_HEADER_SIZE, is_negative);
 	return result;
-}
-
-string Bignum::VarcharToBignum(const string_t &value) {
-	idx_t start_pos, end_pos;
-	bool is_negative, is_zero;
-	if (!VarcharFormatting(value, start_pos, end_pos, is_negative, is_zero)) {
-		throw ConversionException("Could not convert string \'%s\' to Bignum", value.GetString());
-	}
-	return EncodeBignum(value, start_pos, end_pos, is_negative, is_zero);
 }
 
 bool Bignum::BignumToDouble(const bignum_t &blob, double &result, bool &strict) {

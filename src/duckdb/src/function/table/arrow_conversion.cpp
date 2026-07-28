@@ -736,7 +736,7 @@ void ArrowToDuckDBConversion::ColumnArrowToDuckDBRunEndEncoded(Vector &vector, c
 		FlattenRunEndsSwitch<int32_t>(vector, run_end_encoding, compressed_size, scan_offset, size);
 		break;
 	case PhysicalType::INT64:
-		FlattenRunEndsSwitch<int64_t>(vector, run_end_encoding, compressed_size, scan_offset, size);
+		FlattenRunEndsSwitch<int32_t>(vector, run_end_encoding, compressed_size, scan_offset, size);
 		break;
 	default:
 		throw NotImplementedException("Type '%s' not implemented for RunEndEncoding", TypeIdToString(physical_type));
@@ -1197,10 +1197,7 @@ void ArrowToDuckDBConversion::ColumnArrowToDuckDB(Vector &vector, ArrowArray &ar
 		break;
 	}
 	case LogicalTypeId::UNION: {
-		auto type_ids_buffer_idx = array.n_buffers == 1 ? 0 : 1;
-		auto effective_offset =
-		    GetEffectiveOffset(array, NumericCast<int64_t>(parent_offset), chunk_offset, nested_offset);
-		auto type_ids = ArrowBufferData<int8_t>(array, type_ids_buffer_idx) + effective_offset;
+		auto type_ids = ArrowBufferData<int8_t>(array, array.n_buffers == 1 ? 0 : 1);
 		D_ASSERT(type_ids);
 		auto members = UnionType::CopyMemberTypes(vector.GetType());
 
@@ -1399,14 +1396,9 @@ void ArrowToDuckDBConversion::ColumnArrowToDuckDBDictionary(Vector &vector, Arro
 	const bool has_nulls = CanContainNull(array, parent_mask);
 	if (array_state.CacheOutdated(array.dictionary)) {
 		//! We need to set the dictionary data for this column
-		//! Allocate one extra entry beyond dictionary length for the NULL sentinel.
-		//! SetMaskedSelectionVectorLoop points NULL indices at last_element_pos (= dictionary->length),
-		//! so the buffer must be large enough and that entry must be marked invalid.
-		auto dict_length = NumericCast<idx_t>(array.dictionary->length);
-		auto base_vector = make_uniq<Vector>(vector.GetType(), dict_length + 1);
-		ArrowToDuckDBConversion::SetValidityMask(*base_vector, *array.dictionary, chunk_offset, dict_length, 0, 0,
-		                                         has_nulls);
-		FlatVector::Validity(*base_vector).SetInvalid(dict_length);
+		auto base_vector = make_uniq<Vector>(vector.GetType(), NumericCast<idx_t>(array.dictionary->length));
+		ArrowToDuckDBConversion::SetValidityMask(*base_vector, *array.dictionary, chunk_offset,
+		                                         NumericCast<idx_t>(array.dictionary->length), 0, 0, has_nulls);
 		auto &dictionary_type = arrow_type.GetDictionary();
 		auto arrow_physical_type = dictionary_type.GetPhysicalType();
 		;

@@ -247,10 +247,12 @@ struct BignumOperation {
 			return;
 		}
 		if (!target.is_set) {
-			target.value.Initialize(input.allocator);
+			target.value = source.value;
 			target.is_set = true;
+			return;
 		}
 		target.value.AddInPlace(input.allocator, source.value);
+		target.is_set = true;
 	}
 
 	template <class TARGET_TYPE, class STATE>

@@ -32,10 +32,6 @@ public:
 		return key;
 	}
 
-	data_ptr_t GetData() {
-		return key;
-	}
-
 public:
 	static void LockEncryptionKey(data_ptr_t key, idx_t key_len = MainHeader::DEFAULT_ENCRYPTION_KEY_LENGTH);
 	static void UnlockEncryptionKey(data_ptr_t key, idx_t key_len = MainHeader::DEFAULT_ENCRYPTION_KEY_LENGTH);
@@ -54,8 +50,6 @@ public:
 	void AddKey(const string &key_name, data_ptr_t key);
 	bool HasKey(const string &key_name) const;
 	void DeleteKey(const string &key_name);
-	void ClearKey(const string &key_name);
-	void EraseKey(const string &key_name);
 	const_data_ptr_t GetKey(const string &key_name) const;
 
 public:

@@ -92,26 +92,16 @@ static bool CanUsePartitionedAggregate(ClientContext &context, LogicalAggregate 
 		return false;
 	}
 	// get the base columns by projecting over the projection_ids/column_ids
+	if (!table_scan.projection_ids.empty()) {
+		for (auto &partition_col : partition_columns) {
+			partition_col = table_scan.projection_ids[partition_col];
+		}
+	}
 	vector<column_t> base_columns;
-	if (!table_scan.function.projection_pushdown) {
-		// Non-pushdown scans output every base column in order. Any projection above the scan already maps references
-		// into that base-column space.
-		base_columns = partition_columns;
-	} else {
-		if (!table_scan.projection_ids.empty()) {
-			for (auto &partition_col : partition_columns) {
-				if (partition_col >= table_scan.projection_ids.size()) {
-					return false;
-				}
-				partition_col = table_scan.projection_ids[partition_col];
-			}
-		}
-		for (const auto &partition_idx : partition_columns) {
-			if (partition_idx >= table_scan.column_ids.size()) {
-				return false;
-			}
-			base_columns.push_back(table_scan.column_ids[partition_idx].GetPrimaryIndex());
-		}
+	for (const auto &partition_idx : partition_columns) {
+		auto col_idx = partition_idx;
+		col_idx = table_scan.column_ids[col_idx].GetPrimaryIndex();
+		base_columns.push_back(col_idx);
 	}
 	// check if the source operator is partitioned by the grouping columns
 	TableFunctionPartitionInput input(table_scan.bind_data.get(), base_columns);
@@ -227,7 +217,7 @@ static bool CanUsePerfectHashAggregate(ClientContext &context, LogicalAggregate 
 		bits_per_group.push_back(required_bits);
 		perfect_hash_bits += required_bits;
 		// check if we have exceeded the bits for the hash
-		if (perfect_hash_bits > Settings::Get<PerfectHtThresholdSetting>(context)) {
+		if (perfect_hash_bits > DBConfig::GetSetting<PerfectHtThresholdSetting>(context)) {
 			// too many bits for perfect hash
 			return false;
 		}

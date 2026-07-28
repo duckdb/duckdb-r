@@ -23,7 +23,6 @@
 #include "duckdb/execution/operator/csv_scanner/csv_option.hpp"
 #include "duckdb/main/config.hpp"
 #include "duckdb/common/insertion_order_preserving_map.hpp"
-#include "duckdb/storage/table/per_column_metadata_blocks.hpp"
 
 namespace duckdb {
 
@@ -366,10 +365,6 @@ protected:
 	virtual void WriteValue(const string &value) = 0;
 	virtual void WriteValue(const char *str) = 0;
 	virtual void WriteDataPtr(const_data_ptr_t ptr, idx_t count) = 0;
-	//! Identifiers are serialized identically to a plain string (preserving the original casing)
-	void WriteValue(const Identifier &value) {
-		WriteValue(value.GetIdentifierName());
-	}
 	void WriteValue(LogicalIndex value) {
 		WriteValue(value.index);
 	}
@@ -378,9 +373,6 @@ protected:
 	}
 	void WriteValue(optional_idx value) {
 		WriteValue(value.IsValid() ? value.GetIndex() : DConstants::INVALID_INDEX);
-	}
-	void WriteValue(PerColumnMetadataBlock value) {
-		WriteValue(value.GetPacked());
 	}
 };
 

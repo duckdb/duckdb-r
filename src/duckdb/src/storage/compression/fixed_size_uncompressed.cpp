@@ -52,7 +52,7 @@ public:
 
 public:
 	ColumnDataCheckpointData &checkpoint_data;
-	const CompressionFunction &function;
+	CompressionFunction &function;
 	unique_ptr<ColumnSegment> current_segment;
 	ColumnAppendState append_state;
 };

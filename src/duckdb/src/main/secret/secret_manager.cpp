@@ -3,7 +3,6 @@
 #include "duckdb/catalog/catalog_entry.hpp"
 #include "duckdb/common/common.hpp"
 #include "duckdb/common/file_system.hpp"
-#include "duckdb/main/database_file_opener.hpp"
 #include "duckdb/common/local_file_system.hpp"
 #include "duckdb/common/mutex.hpp"
 #include "duckdb/common/serializer/binary_deserializer.hpp"
@@ -44,7 +43,7 @@ void SecretManager::Initialize(DatabaseInstance &db) {
 	lock_guard<mutex> lck(manager_lock);
 
 	// Construct default path
-	auto &fs = FileSystem::GetLocal(db);
+	LocalFileSystem fs;
 	config.default_secret_path = fs.GetHomeDirectory();
 	vector<string> path_components = {".duckdb", "stored_secrets"};
 	for (auto &path_ele : path_components) {
@@ -657,7 +656,7 @@ unique_ptr<CatalogEntry> DefaultSecretGenerator::CreateDefaultEntryInternal(cons
 		return nullptr;
 	}
 
-	auto &fs = FileSystem::GetLocal(catalog.GetDatabase());
+	LocalFileSystem fs;
 
 	string base_secret_path = secret_manager.PersistentSecretPath();
 	string secret_path = fs.JoinPath(base_secret_path, entry_name + ".duckdb_secret");

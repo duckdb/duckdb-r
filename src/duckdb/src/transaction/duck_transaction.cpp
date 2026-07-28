@@ -1,5 +1,4 @@
 #include "duckdb/transaction/duck_transaction.hpp"
-#include "duckdb/transaction/commit_state.hpp"
 #include "duckdb/transaction/duck_transaction_manager.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/catalog/catalog_entry/table_catalog_entry.hpp"
@@ -201,10 +200,6 @@ bool DuckTransaction::ShouldWriteToWAL(AttachedDatabase &db) {
 	if (db.IsSystem()) {
 		return false;
 	}
-	if (db.GetRecoveryMode() == RecoveryMode::NO_WAL_WRITES) {
-		// WAL writes are explicitly disabled
-		return false;
-	}
 	auto &storage_manager = db.GetStorageManager();
 	if (!storage_manager.HasWAL()) {
 		return false;
@@ -222,9 +217,9 @@ ErrorData DuckTransaction::WriteToWAL(ClientContext &context, AttachedDatabase &
 		commit_state = storage_manager.GenStorageCommitState(*wal);
 
 		auto &profiler = *context.client_data->profiler;
+
 		auto commit_timer = profiler.StartTimer(MetricType::COMMIT_LOCAL_STORAGE_LATENCY);
 		storage->Commit(commit_state.get());
-		commit_timer.EndTimer();
 
 		auto wal_timer = profiler.StartTimer(MetricType::WRITE_TO_WAL_LATENCY);
 		undo_buffer.WriteToWAL(*wal, commit_state.get());
@@ -234,8 +229,6 @@ ErrorData DuckTransaction::WriteToWAL(ClientContext &context, AttachedDatabase &
 			// hence we need to ensure those optimistically written blocks are persisted
 			storage_manager.GetBlockManager().FileSync();
 		}
-		wal_timer.EndTimer();
-
 	} catch (std::exception &ex) {
 		// Call RevertCommit() outside this try-catch as it itself may throw
 		error_data = ErrorData(ex);
@@ -263,12 +256,6 @@ ErrorData DuckTransaction::Commit(AttachedDatabase &db, CommitInfo &commit_info,
 	D_ASSERT(db.IsSystem() || db.IsTemporary() || !IsReadOnly());
 
 	UndoBuffer::IteratorState iterator_state;
-	optional_ptr<BlockManager> block_manager;
-	if (db.HasStorageManager()) {
-		block_manager = db.GetStorageManager().GetBlockManager();
-	}
-	CommitDropState drop_state(block_manager);
-	commit_info.drop_state = &drop_state;
 	try {
 		storage->Commit(commit_state.get());
 		undo_buffer.Commit(iterator_state, commit_info);
@@ -279,7 +266,6 @@ ErrorData DuckTransaction::Commit(AttachedDatabase &db, CommitInfo &commit_info,
 			// if we have written to the WAL - flush after the commit has been successful
 			commit_state->FlushCommit();
 		}
-		drop_state.FinalizeCommit();
 		return ErrorData();
 	} catch (std::exception &ex) {
 		undo_buffer.RevertCommit(iterator_state, this->transaction_id);

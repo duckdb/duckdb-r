@@ -12,7 +12,6 @@
 #include "duckdb/common/case_insensitive_map.hpp"
 #include "duckdb/common/enums/http_status_code.hpp"
 #include "duckdb/common/types/timestamp.hpp"
-#include "duckdb/common/winapi.hpp"
 #include <functional>
 
 namespace duckdb {
@@ -42,8 +41,6 @@ struct HTTPParams {
 	float retry_backoff = DEFAULT_RETRY_BACKOFF;
 	bool keep_alive = DEFAULT_KEEP_ALIVE;
 	bool follow_location = true;
-	bool override_verify_ssl = false;
-	bool verify_ssl = true;
 
 	string http_proxy;
 	idx_t http_proxy_port;
@@ -76,8 +73,6 @@ struct HTTPHeaders {
 public:
 	HTTPHeaders() = default;
 	explicit HTTPHeaders(DatabaseInstance &db);
-	// Out-of-line so the symbol is emitted/exported for loadable (WASM side-module) extensions.
-	DUCKDB_API ~HTTPHeaders();
 
 	void Insert(string key, string value);
 	bool HasHeader(const string &key) const;
@@ -111,8 +106,6 @@ private:
 
 struct HTTPResponse {
 	explicit HTTPResponse(HTTPStatusCode code);
-	// Out-of-line so the symbol is emitted/exported for loadable (WASM side-module) extensions.
-	DUCKDB_API ~HTTPResponse();
 
 	HTTPStatusCode status;
 	string url;
@@ -137,13 +130,13 @@ public:
 
 struct BaseRequest {
 	BaseRequest(RequestType type, const string &url, const HTTPHeaders &headers, HTTPParams &params);
-	// Out-of-line so the symbol is emitted/exported for loadable (WASM side-module) extensions.
-	// Non-virtual on purpose: these types carry no vtable and are only destroyed as their concrete
-	// stack type, so keeping the dtor non-virtual preserves object layout / ABI.
-	DUCKDB_API ~BaseRequest();
+	BaseRequest(RequestType type, const string &endpoint_p, const string &path_p, const HTTPHeaders &headers,
+	            HTTPParams &params)
+	    : type(type), url(path), path(path_p), proto_host_port(endpoint_p), headers(headers), params(params) {
+	}
 
 	RequestType type;
-	string url;
+	const string &url;
 	string path;
 	string proto_host_port;
 	HTTPHeaders headers;
@@ -155,8 +148,6 @@ struct BaseRequest {
 	bool have_request_timing = false;
 	timestamp_t request_start;
 	timestamp_t request_end;
-	//! Request body size in bytes (the Content-Length we send). Only set for PUT/POST.
-	idx_t request_body_length = 0;
 
 	template <class TARGET>
 	TARGET &Cast() {
@@ -183,8 +174,12 @@ struct GetRequestInfo : public BaseRequest {
 	    : BaseRequest(RequestType::GET_REQUEST, url, headers, params), content_handler(std::move(content_handler_p)),
 	      response_handler(std::move(response_handler_p)) {
 	}
-
-	DUCKDB_API ~GetRequestInfo();
+	GetRequestInfo(const string &endpoint, const string &path, const HTTPHeaders &headers, HTTPParams &params,
+	               std::function<bool(const HTTPResponse &response)> response_handler_p,
+	               std::function<bool(const_data_ptr_t data, idx_t data_length)> content_handler_p)
+	    : BaseRequest(RequestType::GET_REQUEST, endpoint, path, headers, params),
+	      content_handler(std::move(content_handler_p)), response_handler(std::move(response_handler_p)) {
+	}
 
 	std::function<bool(const_data_ptr_t data, idx_t data_length)> content_handler;
 	std::function<bool(const HTTPResponse &response)> response_handler;
@@ -195,9 +190,7 @@ struct PutRequestInfo : public BaseRequest {
 	               idx_t buffer_in_len, const string &content_type)
 	    : BaseRequest(RequestType::PUT_REQUEST, path, headers, params), buffer_in(buffer_in),
 	      buffer_in_len(buffer_in_len), content_type(content_type) {
-		request_body_length = buffer_in_len;
 	}
-	DUCKDB_API ~PutRequestInfo();
 
 	const_data_ptr_t buffer_in;
 	idx_t buffer_in_len;
@@ -208,14 +201,12 @@ struct HeadRequestInfo : public BaseRequest {
 	HeadRequestInfo(const string &path, const HTTPHeaders &headers, HTTPParams &params)
 	    : BaseRequest(RequestType::HEAD_REQUEST, path, headers, params) {
 	}
-	DUCKDB_API ~HeadRequestInfo();
 };
 
 struct DeleteRequestInfo : public BaseRequest {
 	DeleteRequestInfo(const string &path, const HTTPHeaders &headers, HTTPParams &params)
 	    : BaseRequest(RequestType::DELETE_REQUEST, path, headers, params) {
 	}
-	DUCKDB_API ~DeleteRequestInfo();
 };
 
 struct PostRequestInfo : public BaseRequest {
@@ -223,23 +214,15 @@ struct PostRequestInfo : public BaseRequest {
 	                idx_t buffer_in_len)
 	    : BaseRequest(RequestType::POST_REQUEST, path, headers, params), buffer_in(buffer_in),
 	      buffer_in_len(buffer_in_len) {
-		request_body_length = buffer_in_len;
 	}
-
-	DUCKDB_API ~PostRequestInfo();
 
 	const_data_ptr_t buffer_in;
 	idx_t buffer_in_len;
 	string buffer_out;
-	//! Used to send a GET request with a body (non-standard but supported by some servers)
-	bool send_post_as_get_request = false;
 };
 
 class HTTPClient {
 public:
-	HTTPClient() = default;
-	explicit HTTPClient(const string &proto_host_port) : base_url(proto_host_port) {
-	}
 	virtual ~HTTPClient() = default;
 	virtual void Initialize(HTTPParams &http_params) = 0;
 
@@ -248,26 +231,13 @@ public:
 	virtual unique_ptr<HTTPResponse> Head(HeadRequestInfo &info) = 0;
 	virtual unique_ptr<HTTPResponse> Delete(DeleteRequestInfo &info) = 0;
 	virtual unique_ptr<HTTPResponse> Post(PostRequestInfo &info) = 0;
-	virtual void Cleanup() {};
 
 	unique_ptr<HTTPResponse> Request(BaseRequest &request);
-
-	const string &GetBaseUrl() const {
-		return base_url;
-	}
-
-private:
-	//! The base URL (scheme + host + port) this client was created for
-	const string base_url;
 };
 
 class HTTPUtil {
 public:
-	HTTPUtil();
 	virtual ~HTTPUtil() = default;
-	// disable copy constructors
-	HTTPUtil(const HTTPUtil &other) = delete;
-	HTTPUtil &operator=(const HTTPUtil &) = delete;
 
 public:
 	static HTTPUtil &Get(DatabaseInstance &db);
@@ -281,27 +251,16 @@ public:
 
 	virtual unique_ptr<HTTPClient> InitializeClient(HTTPParams &http_params, const string &proto_host_port);
 
-	//! Close a client — implementations may cache it for reuse
-	virtual void CloseClient(unique_ptr<HTTPClient> &&client);
-
 	unique_ptr<HTTPResponse> Request(BaseRequest &request);
 	unique_ptr<HTTPResponse> Request(BaseRequest &request, unique_ptr<HTTPClient> &client);
 
 	virtual unique_ptr<HTTPResponse> SendRequest(BaseRequest &request, unique_ptr<HTTPClient> &client);
 	virtual void LogRequest(BaseRequest &request, optional_ptr<HTTPResponse> response);
 
-	//! Whether a failed request should be retried, possibly using HTTPResponse information, and allowing overrides
-	DUCKDB_API virtual bool ShouldRetry(const BaseRequest &request, const HTTPResponse &response);
-
-	//! Whether replaying this request is safe. POST is the only method we cannot assume is idempotent.
-	DUCKDB_API static bool IsIdempotent(RequestType type);
-
 	static void ParseHTTPProxyHost(string &proxy_value, string &hostname_out, idx_t &port_out, idx_t default_port = 80);
 	static void DecomposeURL(const string &url, string &path_out, string &proto_host_port_out);
 	static HTTPStatusCode ToStatusCode(int32_t status_code);
 	static string GetStatusMessage(HTTPStatusCode status);
-	static bool IsHTTPProtocol(const string &url);
-	static void BumpToSecureProtocol(string &url);
 
 public:
 	static duckdb::unique_ptr<HTTPResponse>

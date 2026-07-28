@@ -34,8 +34,6 @@
 
 #include "src/planner/binder/expression/bind_subquery_expression.cpp"
 
-#include "src/planner/binder/expression/bind_type_expression.cpp"
-
 #include "src/planner/binder/expression/bind_unnest_expression.cpp"
 
 #include "src/planner/binder/expression/bind_window_expression.cpp"

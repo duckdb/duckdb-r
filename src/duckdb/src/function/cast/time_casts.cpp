@@ -30,9 +30,6 @@ BoundCastInfo DefaultCasts::TimeCastSwitch(BindCastInput &input, const LogicalTy
 	case LogicalTypeId::VARCHAR:
 		// time to varchar
 		return BoundCastInfo(&VectorCastHelpers::StringCast<dtime_t, duckdb::StringCast>);
-	case LogicalTypeId::TIME_NS:
-		// time (us) to time (ns)
-		return BoundCastInfo(&VectorCastHelpers::TryCastLoop<dtime_t, dtime_ns_t, duckdb::TryCast>);
 	case LogicalTypeId::TIME_TZ:
 		// time to time with time zone
 		return BoundCastInfo(&VectorCastHelpers::TemplatedCastLoop<dtime_t, dtime_tz_t, duckdb::Cast>);
@@ -119,18 +116,6 @@ BoundCastInfo DefaultCasts::TimestampTzCastSwitch(BindCastInput &input, const Lo
 	case LogicalTypeId::TIMESTAMP:
 		// timestamp with time zone to timestamp (us)
 		return ReinterpretCast;
-	case LogicalTypeId::TIMESTAMP_NS:
-		// timestamptz (us) to timestamp (ns)
-		return BoundCastInfo(
-		    &VectorCastHelpers::TemplatedCastLoop<timestamp_t, timestamp_t, duckdb::CastTimestampUsToNs>);
-	case LogicalTypeId::TIMESTAMP_MS:
-		// timestamptz (us) to timestamp (ms)
-		return BoundCastInfo(
-		    &VectorCastHelpers::TemplatedCastLoop<timestamp_t, timestamp_t, duckdb::CastTimestampUsToMs>);
-	case LogicalTypeId::TIMESTAMP_SEC:
-		// timestamptz (us) to timestamp (s)
-		return BoundCastInfo(
-		    &VectorCastHelpers::TemplatedCastLoop<timestamp_t, timestamp_t, duckdb::CastTimestampUsToSec>);
 	default:
 		return TryVectorNullCast;
 	}

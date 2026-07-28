@@ -9,7 +9,6 @@
 #include "duckdb/storage/table/delete_state.hpp"
 #include "duckdb/storage/table/scan_state.hpp"
 #include "duckdb/transaction/duck_transaction.hpp"
-#include "duckdb/transaction/local_storage.hpp"
 
 namespace duckdb {
 
@@ -90,13 +89,14 @@ SinkResultType PhysicalDelete::Sink(ExecutionContext &context, DataChunk &chunk,
 		auto &local_storage = LocalStorage::Get(context.client, table.db);
 		auto storage = local_storage.GetStorage(table);
 		unordered_set<column_t> indexed_column_id_set;
-		for (auto &index : storage->delete_indexes.Indexes()) {
+		storage->delete_indexes.Scan([&](Index &index) {
 			if (!index.IsBound() || !index.IsUnique()) {
-				continue;
+				return false;
 			}
 			auto &set = index.GetColumnIdSet();
 			indexed_column_id_set.insert(set.begin(), set.end());
-		}
+			return false;
+		});
 		for (auto &col : indexed_column_id_set) {
 			column_ids.emplace_back(col);
 		}
@@ -129,10 +129,22 @@ SinkResultType PhysicalDelete::Sink(ExecutionContext &context, DataChunk &chunk,
 	l_state.delete_chunk.SetCardinality(fetch_chunk);
 
 	// Append the deleted row IDs to the delete indexes.
+	// If we only delete local row IDs, then the delete_chunk is empty.
 	if (g_state.has_unique_indexes && l_state.delete_chunk.size() != 0) {
 		auto &local_storage = LocalStorage::Get(context.client, table.db);
 		auto storage = local_storage.GetStorage(table);
-		storage->AppendToDeleteIndexes(row_ids, l_state.delete_chunk);
+		IndexAppendInfo index_append_info(IndexAppendMode::IGNORE_DUPLICATES, nullptr);
+		storage->delete_indexes.Scan([&](Index &index) {
+			if (!index.IsBound() || !index.IsUnique()) {
+				return false;
+			}
+			auto &bound_index = index.Cast<BoundIndex>();
+			auto error = bound_index.Append(l_state.delete_chunk, row_ids, index_append_info);
+			if (error.HasError()) {
+				throw InternalException("failed to update delete ART in physical delete: ", error.Message());
+			}
+			return false;
+		});
 	}
 
 	auto deleted_count = table.Delete(*l_state.delete_state, context.client, row_ids, chunk.size());

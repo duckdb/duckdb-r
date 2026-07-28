@@ -30,7 +30,8 @@ PhysicalTableScan::PhysicalTableScan(PhysicalPlan &physical_plan, vector<Logical
 class TableScanGlobalSourceState : public GlobalSourceState {
 public:
 	TableScanGlobalSourceState(ClientContext &context, const PhysicalTableScan &op) {
-		physical_table_scan_execution_strategy = Settings::Get<DebugPhysicalTableScanExecutionStrategySetting>(context);
+		physical_table_scan_execution_strategy =
+		    DBConfig::GetSetting<DebugPhysicalTableScanExecutionStrategySetting>(context);
 
 		if (op.dynamic_filters && op.dynamic_filters->HasFilters()) {
 			table_filters = op.dynamic_filters->GetFinalTableFilters(op, op.table_filters.get());
@@ -284,26 +285,10 @@ void AddProjectionNames(const ColumnIndex &index, const string &name, const Logi
 		result += name;
 		return;
 	}
-
-	if (type.id() == LogicalTypeId::STRUCT) {
-		auto &child_types = StructType::GetChildTypes(type);
-		for (auto &child_index : index.GetChildIndexes()) {
-			if (child_index.HasPrimaryIndex()) {
-				auto &ele = child_types[child_index.GetPrimaryIndex()];
-				AddProjectionNames(child_index, name + "." + ele.first, ele.second, result);
-			} else {
-				auto field_type = child_index.HasType() ? child_index.GetType() : LogicalType::VARIANT();
-				AddProjectionNames(child_index, name + "." + child_index.GetFieldName(), field_type, result);
-			}
-		}
-	} else if (type.id() == LogicalTypeId::VARIANT) {
-		for (auto &child_index : index.GetChildIndexes()) {
-			D_ASSERT(!child_index.HasPrimaryIndex());
-			auto field_type = child_index.HasType() ? child_index.GetType() : LogicalType::VARIANT();
-			AddProjectionNames(child_index, name + "." + child_index.GetFieldName(), field_type, result);
-		}
-	} else {
-		throw InternalException("Unexpected type (%s) in AddProjectionNames", type.ToString());
+	auto &child_types = StructType::GetChildTypes(type);
+	for (auto &child_index : index.GetChildIndexes()) {
+		auto &ele = child_types[child_index.GetPrimaryIndex()];
+		AddProjectionNames(child_index, name + "." + ele.first, ele.second, result);
 	}
 }
 
@@ -420,26 +405,13 @@ InsertionOrderPreservingMap<string> PhysicalTableScan::ExtraSourceParams(GlobalS
 	return function.dynamic_to_string(input);
 }
 
-void PhysicalTableScan::GetMetrics(ClientContext &context, GlobalSourceState &gstate_p, LocalSourceState &lstate,
-                                   const profiler_settings_t &requested_metrics, profiler_metrics_t &metrics) const {
-	if (!function.get_metrics && !function.rows_scanned) {
-		return;
+optional_idx PhysicalTableScan::GetRowsScanned(GlobalSourceState &gstate_p, LocalSourceState &lstate) const {
+	if (function.rows_scanned) {
+		auto &gstate = gstate_p.Cast<TableScanGlobalSourceState>();
+		auto &state = lstate.Cast<TableScanLocalSourceState>();
+		return function.rows_scanned(*gstate.global_state, *state.local_state);
 	}
-	auto &gstate = gstate_p.Cast<TableScanGlobalSourceState>();
-	auto &state = lstate.Cast<TableScanLocalSourceState>();
-	if (!state.local_state) {
-		// FIXME: We should be able to retrieve metrics from table functions with only a global state.
-		return;
-	}
-	if (function.get_metrics) {
-		function.get_metrics(context, bind_data.get(), *gstate.global_state, *state.local_state, requested_metrics,
-		                     metrics);
-		return;
-	}
-	if (requested_metrics.find(MetricType::OPERATOR_ROWS_SCANNED) != requested_metrics.end()) {
-		metrics[MetricType::OPERATOR_ROWS_SCANNED] =
-		    Value::UBIGINT(function.rows_scanned(*gstate.global_state, *state.local_state));
-	}
+	return optional_idx();
 }
 
 } // namespace duckdb

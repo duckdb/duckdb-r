@@ -23,22 +23,6 @@ public:
 public:
 	//! View name
 	string view_name;
-
-	//! NOTE(backport): DuckDB 2.0 stores catalog/schema/name in a single `QualifiedName` on `CreateInfo`; here they are
-	//! separate strings and the name lives on the subclass. These accessors only exist so that call sites can be
-	//! spelled exactly as they are on the 2.0 branch.
-	const string &GetViewName() const {
-		return view_name;
-	}
-	void SetViewName(string name_p) {
-		view_name = std::move(name_p);
-	}
-	const string &GetEntryName() const override {
-		return view_name;
-	}
-	void SetEntryName(string name_p) override {
-		view_name = std::move(name_p);
-	}
 	//! Aliases of the view
 	vector<string> aliases;
 	//! Return types
@@ -46,7 +30,7 @@ public:
 	//! Names of the query
 	vector<string> names;
 	//! Comments on columns of the query. Note: vector can be empty when no comments are set
-	unordered_map<string, Value> column_comments_map;
+	vector<Value> column_comments;
 	//! The SelectStatement of the view
 	unique_ptr<SelectStatement> query;
 
@@ -65,11 +49,6 @@ public:
 	DUCKDB_API static unique_ptr<CreateInfo> Deserialize(Deserializer &deserializer);
 
 	string ToString() const override;
-
-private:
-	CreateViewInfo(vector<string> names, vector<Value> comments, unordered_map<string, Value> column_comments);
-
-	vector<Value> GetColumnCommentsList() const;
 };
 
 } // namespace duckdb

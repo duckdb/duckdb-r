@@ -1,6 +1,5 @@
 #include "duckdb/optimizer/cte_filter_pusher.hpp"
 
-#include "duckdb/optimizer/optimizer.hpp"
 #include "duckdb/optimizer/column_binding_replacer.hpp"
 #include "duckdb/optimizer/filter_pushdown.hpp"
 #include "duckdb/planner/expression/bound_conjunction_expression.hpp"
@@ -109,18 +108,11 @@ void CTEFilterPusher::PushFilterIntoCTE(MaterializedCTEInfo &info) {
 		}
 	}
 
-	// Add the filter on top of the CTE definition and split the predicates
+	// Add the filter on top of the CTE definition and push it down
 	auto new_cte = make_uniq_base<LogicalOperator, LogicalFilter>(std::move(outer_expr));
-	LogicalFilter::SplitPredicates(new_cte->Cast<LogicalFilter>().expressions);
-
-	// Rewrite the operator expressions before adding the child op (children should be rewritten already)
-	optimizer.rewriter.VisitOperator(*new_cte);
 	new_cte->children.push_back(std::move(info.materialized_cte.children[0]));
-
-	// Push down the filter
 	FilterPushdown pushdown(optimizer);
 	new_cte = pushdown.Rewrite(std::move(new_cte));
-
 	info.materialized_cte.children[0] = std::move(new_cte);
 }
 

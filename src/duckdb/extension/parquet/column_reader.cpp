@@ -109,7 +109,7 @@ const uint64_t ParquetDecodeUtils::BITPACK_MASKS_SIZE = sizeof(ParquetDecodeUtil
 
 const uint8_t ParquetDecodeUtils::BITPACK_DLEN = 8;
 
-ColumnReader::ColumnReader(const ParquetReader &reader, const ParquetColumnSchema &schema_p)
+ColumnReader::ColumnReader(ParquetReader &reader, const ParquetColumnSchema &schema_p)
     : column_schema(schema_p), reader(reader), page_rows_available(0), dictionary_decoder(*this),
       delta_binary_packed_decoder(*this), rle_decoder(*this), delta_length_byte_array_decoder(*this),
       delta_byte_array_decoder(*this), byte_stream_split_decoder(*this), aad_crypto_metadata(reader.allocator) {
@@ -122,7 +122,7 @@ Allocator &ColumnReader::GetAllocator() {
 	return reader.allocator;
 }
 
-const ParquetReader &ColumnReader::Reader() {
+ParquetReader &ColumnReader::Reader() {
 	return reader;
 }
 
@@ -287,7 +287,7 @@ void ColumnReader::PrepareRead(optional_ptr<const TableFilter> filter, optional_
 	}
 	// some basic sanity check
 	if (page_hdr.compressed_page_size < 0 || page_hdr.uncompressed_page_size < 0) {
-		throw InvalidInputException("Failed to read file \"%s\": Page sizes must be >= 0", Reader().GetFileName());
+		throw InvalidInputException("Failed to read file \"%s\": Page sizes can't be < 0", Reader().GetFileName());
 	}
 
 	if (PageIsFilteredOut(page_hdr)) {
@@ -342,28 +342,12 @@ void ColumnReader::PreparePageV2(PageHeader &page_hdr) {
 		return;
 	}
 
-	// copy repeats & defines as-is because FOR SOME REASON they are uncompressed.
-	// the page sizes are already validated >= 0 by the caller, but the level lengths are not, so guard
-	// them here. with all four i32 header fields non-negative, the sum below cannot overflow once widened
-	// to uint64_t, and the uint64_t casts in the comparisons below are safe.
-	if (page_hdr.data_page_header_v2.repetition_levels_byte_length < 0 ||
-	    page_hdr.data_page_header_v2.definition_levels_byte_length < 0) {
-		throw InvalidInputException(
-		    "Failed to read file \"%s\": header inconsistency, repetition_levels_byte_length and "
-		    "definition_levels_byte_length must be >= 0",
-		    Reader().GetFileName());
-	}
-	uint64_t uncompressed_bytes = static_cast<uint64_t>(page_hdr.data_page_header_v2.repetition_levels_byte_length) +
-	                              page_hdr.data_page_header_v2.definition_levels_byte_length;
-	if (uncompressed_bytes > static_cast<uint64_t>(page_hdr.uncompressed_page_size)) {
+	// copy repeats & defines as-is because FOR SOME REASON they are uncompressed
+	auto uncompressed_bytes = page_hdr.data_page_header_v2.repetition_levels_byte_length +
+	                          page_hdr.data_page_header_v2.definition_levels_byte_length;
+	if (uncompressed_bytes > page_hdr.uncompressed_page_size) {
 		throw InvalidInputException(
 		    "Failed to read file \"%s\": header inconsistency, uncompressed_page_size needs to be larger than "
-		    "repetition_levels_byte_length + definition_levels_byte_length",
-		    Reader().GetFileName());
-	}
-	if (static_cast<uint64_t>(page_hdr.compressed_page_size) < uncompressed_bytes) {
-		throw InvalidInputException(
-		    "Failed to read file \"%s\": header inconsistency, compressed_page_size is smaller than "
 		    "repetition_levels_byte_length + definition_levels_byte_length",
 		    Reader().GetFileName());
 	}
@@ -371,13 +355,6 @@ void ColumnReader::PreparePageV2(PageHeader &page_hdr) {
 	ReadData(block->ptr, uncompressed_bytes, page_hdr.type);
 
 	auto compressed_bytes = page_hdr.compressed_page_size - uncompressed_bytes;
-
-	if (compressed_bytes == 0 && static_cast<uint64_t>(page_hdr.uncompressed_page_size) > uncompressed_bytes) {
-		throw InvalidInputException(
-		    "Failed to read file \"%s\": header inconsistency, compressed_page_size is too small for the "
-		    "declared value region",
-		    Reader().GetFileName());
-	}
 
 	if (compressed_bytes > 0) {
 		ResizeableBuffer compressed_buffer;
@@ -797,10 +774,6 @@ void ColumnReader::ApplyPendingSkips(data_ptr_t define_out, data_ptr_t repeat_ou
 	pending_skips = 0;
 
 	auto to_skip = num_values;
-	data_t skip_defines[STANDARD_VECTOR_SIZE] = {};
-	data_t skip_repeats[STANDARD_VECTOR_SIZE];
-	data_ptr_t skip_define_out = HasDefines() ? skip_defines : define_out;
-	data_ptr_t skip_repeat_out = HasRepeats() ? skip_repeats : repeat_out;
 	// start reading but do not apply skips (we are skipping now)
 	BeginRead(nullptr, nullptr);
 
@@ -812,9 +785,9 @@ void ColumnReader::ApplyPendingSkips(data_ptr_t define_out, data_ptr_t repeat_ou
 			to_skip -= skip_now;
 			continue;
 		}
-		const auto all_valid = PrepareRead(skip_now, skip_define_out, skip_repeat_out, 0);
+		const auto all_valid = PrepareRead(skip_now, define_out, repeat_out, 0);
 
-		const auto define_ptr = all_valid ? nullptr : static_cast<uint8_t *>(skip_define_out);
+		const auto define_ptr = all_valid ? nullptr : static_cast<uint8_t *>(define_out);
 		switch (encoding) {
 		case ColumnEncoding::DICTIONARY:
 			dictionary_decoder.Skip(define_ptr, skip_now);
@@ -848,7 +821,7 @@ void ColumnReader::ApplyPendingSkips(data_ptr_t define_out, data_ptr_t repeat_ou
 // Create Column Reader
 //===--------------------------------------------------------------------===//
 template <class T>
-static unique_ptr<ColumnReader> CreateDecimalReader(const ParquetReader &reader, const ParquetColumnSchema &schema) {
+static unique_ptr<ColumnReader> CreateDecimalReader(ParquetReader &reader, const ParquetColumnSchema &schema) {
 	switch (schema.type.InternalType()) {
 	case PhysicalType::INT16:
 		return make_uniq<TemplatedColumnReader<int16_t, TemplatedParquetValueConversion<T>>>(reader, schema);
@@ -863,7 +836,7 @@ static unique_ptr<ColumnReader> CreateDecimalReader(const ParquetReader &reader,
 	}
 }
 
-unique_ptr<ColumnReader> ColumnReader::CreateReader(const ParquetReader &reader, const ParquetColumnSchema &schema) {
+unique_ptr<ColumnReader> ColumnReader::CreateReader(ParquetReader &reader, const ParquetColumnSchema &schema) {
 	switch (schema.type.id()) {
 	case LogicalTypeId::BOOLEAN:
 		return make_uniq<BooleanColumnReader>(reader, schema);

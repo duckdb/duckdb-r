@@ -30,7 +30,10 @@ void BaseLeaf<CAPACITY, TYPE>::InsertByteInternal(BaseLeaf &n, const uint8_t byt
 }
 
 template <uint8_t CAPACITY, NType TYPE>
-void BaseLeaf<CAPACITY, TYPE>::DeleteByteInternal(BaseLeaf &n, const uint8_t byte) {
+NodeHandle<BaseLeaf<CAPACITY, TYPE>> BaseLeaf<CAPACITY, TYPE>::DeleteByteInternal(ART &art, Node &node,
+                                                                                  const uint8_t byte) {
+	NodeHandle<BaseLeaf<CAPACITY, TYPE>> handle(art, node);
+	auto &n = handle.Get();
 	uint8_t child_pos = 0;
 
 	for (; child_pos < n.count; child_pos++) {
@@ -44,6 +47,7 @@ void BaseLeaf<CAPACITY, TYPE>::DeleteByteInternal(BaseLeaf &n, const uint8_t byt
 	for (uint8_t i = child_pos; i < n.count; i++) {
 		n.key[i] = n.key[i + 1];
 	}
+	return handle;
 }
 
 //===--------------------------------------------------------------------===//
@@ -69,9 +73,8 @@ void Node7Leaf::InsertByte(ART &art, Node &node, const uint8_t byte) {
 void Node7Leaf::DeleteByte(ART &art, Node &node, Node &prefix, const uint8_t byte, const ARTKey &row_id) {
 	idx_t remainder;
 	{
-		NodeHandle<Node7Leaf> n7_handle(art, node);
+		auto n7_handle = DeleteByteInternal(art, node, byte);
 		auto &n7 = n7_handle.Get();
-		DeleteByteInternal(n7, byte);
 
 		if (n7.count != 1) {
 			return;
@@ -83,12 +86,13 @@ void Node7Leaf::DeleteByte(ART &art, Node &node, Node &prefix, const uint8_t byt
 		// Get the remaining row ID.
 		remainder = UnsafeNumericCast<idx_t>(row_id.GetRowId()) & AND_LAST_BYTE;
 		remainder |= UnsafeNumericCast<idx_t>(n7.key[0]);
-	}
-	// Free the prefix (nodes) and inline the remainder.
-	if (prefix.GetType() == NType::PREFIX) {
-		Node::FreeTree(art, prefix);
-		Leaf::New(prefix, UnsafeNumericCast<row_t>(remainder));
-		return;
+
+		// Free the prefix (nodes) and inline the remainder.
+		if (prefix.GetType() == NType::PREFIX) {
+			Node::FreeTree(art, prefix);
+			Leaf::New(prefix, UnsafeNumericCast<row_t>(remainder));
+			return;
+		}
 	}
 	// Free the Node7Leaf and inline the remainder.
 	Node::FreeNode(art, node);
@@ -133,9 +137,8 @@ void Node15Leaf::InsertByte(ART &art, Node &node, const uint8_t byte) {
 
 void Node15Leaf::DeleteByte(ART &art, Node &node, const uint8_t byte) {
 	{
-		NodeHandle<Node15Leaf> n15_handle(art, node);
+		auto n15_handle = DeleteByteInternal(art, node, byte);
 		auto &n15 = n15_handle.Get();
-		DeleteByteInternal(n15, byte);
 		if (n15.count >= Node7Leaf::CAPACITY) {
 			return;
 		}

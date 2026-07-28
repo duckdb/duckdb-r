@@ -13,7 +13,8 @@ CompressedFile::CompressedFile(CompressedFileSystem &fs, unique_ptr<FileHandle> 
 
 CompressedFile::~CompressedFile() {
 	try {
-		Close();
+		// stream_wrapper->Close() might throw
+		CompressedFile::Close();
 	} catch (std::exception &ex) {
 		if (child_handle) {
 			// FIXME: Make any log context available here.
@@ -31,7 +32,7 @@ CompressedFile::~CompressedFile() {
 }
 
 void CompressedFile::Initialize(QueryContext context, bool write) {
-	Clear();
+	Close();
 
 	this->write = write;
 	stream_data.in_buf_size = compressed_fs.InBufferSize();
@@ -125,15 +126,11 @@ int64_t CompressedFile::WriteData(data_ptr_t buffer, int64_t nr_bytes) {
 	return nr_bytes;
 }
 
-// Clear does most of the heavy lifting of a close, but leaves the child_handle intact. Specifically it is separated out
-// to support upstream Reset() calls from the FileSystem, which should tear down / reset ephemeral state but leave
-// persisent state (child_handle) intact.
-void CompressedFile::Clear() {
+void CompressedFile::Close() {
 	if (stream_wrapper) {
 		stream_wrapper->Close();
 		stream_wrapper.reset();
 	}
-
 	stream_data.in_buff.reset();
 	stream_data.out_buff.reset();
 	stream_data.out_buff_start = nullptr;
@@ -143,18 +140,6 @@ void CompressedFile::Clear() {
 	stream_data.in_buf_size = 0;
 	stream_data.out_buf_size = 0;
 	stream_data.refresh = false;
-}
-
-void CompressedFile::Close() {
-	// This can throw and halt close leaving child_handle dangling until destruction. Given the alternative of writing
-	// corrupted data that seems better than flushing data in an unknown state.
-	Clear();
-
-	// Then close out child_handle itself.
-	if (child_handle) {
-		child_handle->Close();
-		child_handle.reset();
-	}
 }
 
 int64_t CompressedFileSystem::Read(FileHandle &handle, void *buffer, int64_t nr_bytes) {

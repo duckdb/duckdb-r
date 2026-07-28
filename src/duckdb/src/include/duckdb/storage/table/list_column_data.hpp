@@ -29,6 +29,8 @@ public:
 
 	idx_t Scan(TransactionData transaction, idx_t vector_index, ColumnScanState &state, Vector &result,
 	           idx_t scan_count) override;
+	idx_t ScanCommitted(idx_t vector_index, ColumnScanState &state, Vector &result, bool allow_updates,
+	                    idx_t scan_count) override;
 	idx_t ScanCount(ColumnScanState &state, Vector &result, idx_t count, idx_t result_offset = 0) override;
 
 	void Skip(ColumnScanState &state, idx_t count = STANDARD_VECTOR_SIZE) override;
@@ -50,8 +52,7 @@ public:
 
 	unique_ptr<ColumnCheckpointState> CreateCheckpointState(const RowGroup &row_group,
 	                                                        PartialBlockManager &partial_block_manager) override;
-	unique_ptr<ColumnCheckpointState> Checkpoint(const RowGroup &row_group, ColumnCheckpointInfo &info,
-	                                             const BaseStatistics &old_stats) override;
+	unique_ptr<ColumnCheckpointState> Checkpoint(const RowGroup &row_group, ColumnCheckpointInfo &info) override;
 
 	bool IsPersistent() override;
 	bool HasAnyChanges() const override;
@@ -63,8 +64,6 @@ public:
 
 	void SetValidityData(shared_ptr<ValidityColumnData> validity_p);
 	void SetChildData(shared_ptr<ColumnData> child_column_p);
-
-	const BaseStatistics &GetChildStats(const ColumnData &child) const override;
 
 protected:
 	//! The child-column of the list

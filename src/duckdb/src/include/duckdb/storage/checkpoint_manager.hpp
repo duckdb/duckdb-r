@@ -15,7 +15,6 @@
 namespace duckdb {
 class DatabaseInstance;
 class ClientContext;
-class Connection;
 class ColumnSegment;
 class MetadataReader;
 class SchemaCatalogEntry;
@@ -101,7 +100,6 @@ class SingleFileCheckpointWriter final : public CheckpointWriter {
 public:
 	SingleFileCheckpointWriter(QueryContext context, AttachedDatabase &db, BlockManager &block_manager,
 	                           CheckpointOptions options);
-	~SingleFileCheckpointWriter() override;
 
 	void CreateCheckpoint() override;
 
@@ -122,8 +120,6 @@ public:
 
 private:
 	optional_ptr<ClientContext> context;
-	//! Read-only connection that binds indexes, only set while CreateCheckpoint runs.
-	unique_ptr<Connection> bind_connection;
 	//! The metadata writer is responsible for writing schema information
 	unique_ptr<MetadataWriter> metadata_writer;
 	//! The table data writer is responsible for writing the DataPointers used by the table chunks

@@ -57,7 +57,7 @@ public:
 	const vector<MultiFileColumnDefinition> &GetColumns() const {
 		return columns;
 	}
-	const string &GetFileName() const {
+	const string &GetFileName() {
 		return file.path;
 	}
 	virtual bool UseCastMap() const {
@@ -76,11 +76,8 @@ public:
 	//! Prepare reader for scanning
 	DUCKDB_API virtual void PrepareReader(ClientContext &context, GlobalTableFunctionState &);
 
-	//! Try to initialize a scan over the reader - this is done while the global lock is held
 	virtual bool TryInitializeScan(ClientContext &context, GlobalTableFunctionState &gstate,
 	                               LocalTableFunctionState &lstate) = 0;
-	//! Prepare a scan - called after TryInitializeScan succeeds - this is done without any lock held
-	virtual void PrepareScan(ClientContext &context, GlobalTableFunctionState &gstate, LocalTableFunctionState &lstate);
 	//! Scan a chunk from the read state
 	virtual AsyncResult Scan(ClientContext &context, GlobalTableFunctionState &global_state,
 	                         LocalTableFunctionState &local_state, DataChunk &chunk) = 0;
@@ -139,9 +136,6 @@ public:
 		return file.path;
 	}
 
-	virtual optional_idx TryGetCardinalityEstimate() const {
-		return optional_idx();
-	}
 	virtual unique_ptr<BaseStatistics> GetStatistics(ClientContext &context, const string &name);
 
 public:

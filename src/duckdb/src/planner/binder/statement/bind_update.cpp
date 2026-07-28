@@ -21,18 +21,8 @@ namespace duckdb {
 void Binder::BindUpdateSet(idx_t proj_index, unique_ptr<LogicalOperator> &root, UpdateSetInfo &set_info,
                            TableCatalogEntry &table, vector<PhysicalIndex> &columns,
                            vector<unique_ptr<Expression>> &update_expressions,
-                           vector<unique_ptr<Expression>> &projection_expressions, bool prioritize_table_when_binding) {
+                           vector<unique_ptr<Expression>> &projection_expressions) {
 	D_ASSERT(set_info.columns.size() == set_info.expressions.size());
-
-	Binder *expr_binder_ptr = this;
-	shared_ptr<Binder> binder_with_search_path;
-
-	if (prioritize_table_when_binding) {
-		binder_with_search_path =
-		    CreateBinderWithSearchPath(table.ParentCatalog().GetName(), table.ParentSchema().name);
-		expr_binder_ptr = binder_with_search_path.get();
-	}
-
 	for (idx_t i = 0; i < set_info.columns.size(); i++) {
 		auto &colname = set_info.columns[i];
 		auto &expr = set_info.expressions[i];
@@ -55,12 +45,10 @@ void Binder::BindUpdateSet(idx_t proj_index, unique_ptr<LogicalOperator> &root, 
 		if (expr->GetExpressionType() == ExpressionType::VALUE_DEFAULT) {
 			update_expressions.push_back(make_uniq<BoundDefaultExpression>(column.Type()));
 		} else {
-			UpdateBinder binder(*expr_binder_ptr, context);
+			UpdateBinder binder(*this, context);
 			binder.target_type = column.Type();
 			auto bound_expr = binder.Bind(expr);
-			if (root) {
-				PlanSubqueries(bound_expr, root);
-			}
+			PlanSubqueries(bound_expr, root);
 
 			update_expressions.push_back(make_uniq<BoundColumnRefExpression>(
 			    bound_expr->return_type, ColumnBinding(proj_index, projection_expressions.size())));
@@ -73,12 +61,11 @@ void Binder::BindUpdateSet(idx_t proj_index, unique_ptr<LogicalOperator> &root, 
 // unless there are no expressions to project, in which case it just returns 'root'
 unique_ptr<LogicalOperator> Binder::BindUpdateSet(LogicalOperator &op, unique_ptr<LogicalOperator> root,
                                                   UpdateSetInfo &set_info, TableCatalogEntry &table,
-                                                  vector<PhysicalIndex> &columns, bool prioritize_table_when_binding) {
+                                                  vector<PhysicalIndex> &columns) {
 	auto proj_index = GenerateTableIndex();
 
 	vector<unique_ptr<Expression>> projection_expressions;
-	BindUpdateSet(proj_index, root, set_info, table, columns, op.expressions, projection_expressions,
-	              prioritize_table_when_binding);
+	BindUpdateSet(proj_index, root, set_info, table, columns, op.expressions, projection_expressions);
 	if (op.type != LogicalOperatorType::LOGICAL_UPDATE && projection_expressions.empty()) {
 		return root;
 	}
@@ -176,8 +163,7 @@ BoundStatement Binder::Bind(UpdateStatement &stmt) {
 	D_ASSERT(stmt.set_info);
 	D_ASSERT(stmt.set_info->columns.size() == stmt.set_info->expressions.size());
 
-	auto proj_tmp = BindUpdateSet(*update, std::move(root), *stmt.set_info, table, update->columns,
-	                              stmt.prioritize_table_when_binding);
+	auto proj_tmp = BindUpdateSet(*update, std::move(root), *stmt.set_info, table, update->columns);
 	D_ASSERT(proj_tmp->type == LogicalOperatorType::LOGICAL_PROJECTION);
 	auto proj = unique_ptr_cast<LogicalOperator, LogicalProjection>(std::move(proj_tmp));
 

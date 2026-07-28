@@ -5,7 +5,6 @@
 #include "duckdb/main/attached_database.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/main/client_data.hpp"
-#include "duckdb/main/settings.hpp"
 #include "duckdb/main/database.hpp"
 #include "duckdb/storage/checkpoint_manager.hpp"
 #include "duckdb/storage/in_memory_block_manager.hpp"
@@ -19,70 +18,12 @@
 #include "duckdb/catalog/catalog_entry/duck_table_entry.hpp"
 #include "duckdb/transaction/duck_transaction_manager.hpp"
 #include "mbedtls_wrapper.hpp"
-#include "duckdb/common/path.hpp"
 
 namespace duckdb {
+
 using SHA256State = duckdb_mbedtls::MbedTlsWrapper::SHA256State;
 
-void StorageOptions::SetEncryptionVersion(string &storage_version_user_provided) {
-	// storage version < v1.4.0
-	if (!storage_version.IsValid() ||
-	    storage_version.GetIndex() < SerializationCompatibility::FromString("v1.4.0").serialization_version) {
-		if (!storage_version_user_provided.empty()) {
-			throw InvalidInputException("Explicit provided STORAGE_VERSION (\"%s\") and ENCRYPTION_KEY (storage >= "
-			                            "v1.4.0) are not compatible",
-			                            storage_version_user_provided);
-		}
-	}
-
-	auto target_encryption_version = encryption_version;
-
-	if (target_encryption_version == EncryptionTypes::NONE) {
-		target_encryption_version = EncryptionTypes::V0_1;
-	}
-
-	switch (target_encryption_version) {
-	case EncryptionTypes::V0_1:
-		// storage version not explicitly set
-		if (!storage_version.IsValid() && storage_version_user_provided.empty()) {
-			storage_version = SerializationCompatibility::FromString("v1.5.0").serialization_version;
-			break;
-		}
-		// storage version set, but v1.4.0 =< storage < v1.5.0
-		if (storage_version.GetIndex() < SerializationCompatibility::FromString("v1.5.0").serialization_version) {
-			if (!storage_version_user_provided.empty()) {
-				if (encryption_version == target_encryption_version) {
-					// encryption version is explicitly given, but not compatible with < v1.5.0
-					throw InvalidInputException("Explicit provided STORAGE_VERSION (\"%s\") is not compatible with "
-					                            "'debug_encryption_version = v1' (storage >= "
-					                            "v1.5.0)",
-					                            storage_version_user_provided);
-				}
-			} else {
-				// encryption version needs to be lowered, because storage version < v1.5.0
-				target_encryption_version = EncryptionTypes::V0_0;
-				break;
-			}
-		}
-
-		break;
-
-	case EncryptionTypes::V0_0:
-		// we set this to V0 to V1.5.0 if no explicit storage version provided
-		if (!storage_version.IsValid() && storage_version_user_provided.empty()) {
-			storage_version = SerializationCompatibility::FromString("v1.5.0").serialization_version;
-			break;
-		}
-		// if storage version is provided, we do nothing
-		break;
-	default:
-		throw InvalidConfigurationException("Encryption version is not set");
-	}
-
-	encryption_version = target_encryption_version;
-}
-
-void StorageOptions::Initialize(unordered_map<string, Value> &options) {
+void StorageOptions::Initialize(const unordered_map<string, Value> &options) {
 	string storage_version_user_provided = "";
 	for (auto &entry : options) {
 		if (entry.first == "block_size") {
@@ -120,21 +61,24 @@ void StorageOptions::Initialize(unordered_map<string, Value> &options) {
 			} else {
 				compress_in_memory = CompressInMemory::DO_NOT_COMPRESS;
 			}
-		} else if (entry.first == "debug_encryption_version") {
-			encryption_version = EncryptionTypes::StringToVersion(entry.second.ToString());
 		} else {
 			throw BinderException("Unrecognized option for attach \"%s\"", entry.first);
 		}
 	}
-	// erase encryption settings
-	options.erase("encryption_key");
-	options.erase("encryption_cipher");
-	if (encryption) {
-		SetEncryptionVersion(storage_version_user_provided);
+	if (encryption &&
+	    (!storage_version.IsValid() ||
+	     storage_version.GetIndex() < SerializationCompatibility::FromString("v1.4.0").serialization_version)) {
+		if (!storage_version_user_provided.empty()) {
+			throw InvalidInputException(
+			    "Explicit provided STORAGE_VERSION (\"%s\") and ENCRYPTION_KEY (storage >= v1.4.0) are not compatible",
+			    storage_version_user_provided);
+		}
+		// set storage version to v1.4.0
+		storage_version = SerializationCompatibility::FromString("v1.4.0").serialization_version;
 	}
 }
 
-StorageManager::StorageManager(AttachedDatabase &db, string path_p, AttachOptions &options)
+StorageManager::StorageManager(AttachedDatabase &db, string path_p, const AttachOptions &options)
     : db(db), path(std::move(path_p)), read_only(options.access_mode == AccessMode::READ_ONLY), wal_size(0) {
 	if (path.empty()) {
 		path = IN_MEMORY_PATH;
@@ -176,18 +120,6 @@ void StorageManager::SetWALSize(idx_t size) {
 	wal_size = size;
 }
 
-idx_t StorageManager::GetWALEntriesCount() const {
-	return wal_entries_count;
-}
-
-void StorageManager::ResetWALEntriesCount() {
-	wal_entries_count = 0;
-}
-
-void StorageManager::IncrementWALEntriesCount() {
-	wal_entries_count++;
-}
-
 optional_ptr<WriteAheadLog> StorageManager::GetWAL() {
 	if (InMemory() || read_only || !load_complete) {
 		return nullptr;
@@ -203,11 +135,7 @@ bool StorageManager::HasWAL() const {
 }
 
 bool StorageManager::WALStartCheckpoint(MetaBlockPointer meta_block, CheckpointOptions &options) {
-	unique_ptr<lock_guard<mutex>> guard;
-	if (!options.wal_lock) {
-		// not holding the WAL lock yet - grab it
-		guard = GetWALLock();
-	}
+	lock_guard<mutex> guard(wal_lock);
 	// while holding the WAL lock - get the last committed transaction from the transaction manager
 	// this is the commit we will be checkpointing on - everything in this commit will be written to the file
 	// any new commits made will be written to the next wal
@@ -225,7 +153,7 @@ bool StorageManager::WALStartCheckpoint(MetaBlockPointer meta_block, CheckpointO
 	}
 	// verify the main WAL is the active WAL currently
 	if (wal->GetPath() != wal_path) {
-		throw InternalException("Current WAL path \"%s\" does not match base WAL path \"%s\" in WALStartCheckpoint",
+		throw InternalException("Current WAL path %s does not match base WAL path %s in WALStartCheckpoint",
 		                        wal->GetPath(), wal_path);
 	}
 	// write to the main WAL that we have initiated a checkpoint
@@ -261,7 +189,7 @@ void StorageManager::WALFinishCheckpoint(lock_guard<mutex> &) {
 		// this is the common scenario if there are no concurrent writes happening while checkpointing
 		// in this case we can just remove the main WAL and re-instantiate it to empty
 		fs.TryRemoveFile(wal_path);
-		ResetWALEntriesCount();
+
 		wal = make_uniq<WriteAheadLog>(*this, wal_path);
 		return;
 	}
@@ -286,15 +214,27 @@ unique_ptr<lock_guard<mutex>> StorageManager::GetWALLock() {
 }
 
 string StorageManager::GetWALPath(const string &suffix) {
-	return Path::AddSuffixToPath(path, suffix);
+	// we append the ".wal" **before** a question mark in case of GET parameters
+	// but only if we are not in a windows long path (which starts with \\?\)
+	std::size_t question_mark_pos = std::string::npos;
+	if (!StringUtil::StartsWith(path, "\\\\?\\")) {
+		question_mark_pos = path.find('?');
+	}
+	auto result = path;
+	if (question_mark_pos != std::string::npos) {
+		result.insert(question_mark_pos, suffix);
+	} else {
+		result += suffix;
+	}
+	return result;
 }
 
 string StorageManager::GetCheckpointWALPath() {
-	return GetWALPath(".wal.checkpoint");
+	return GetWALPath(".checkpoint.wal");
 }
 
 string StorageManager::GetRecoveryWALPath() {
-	return GetWALPath(".wal.recovery");
+	return GetWALPath(".recovery.wal");
 }
 
 bool StorageManager::InMemory() const {
@@ -351,7 +291,7 @@ public:
 	}
 };
 
-SingleFileStorageManager::SingleFileStorageManager(AttachedDatabase &db, string path, AttachOptions &options)
+SingleFileStorageManager::SingleFileStorageManager(AttachedDatabase &db, string path, const AttachOptions &options)
     : StorageManager(db, std::move(path), options) {
 }
 
@@ -383,7 +323,6 @@ void SingleFileStorageManager::LoadDatabase(QueryContext context) {
 		D_ASSERT(storage_options.block_header_size == DEFAULT_ENCRYPTION_BLOCK_HEADER_SIZE);
 		options.encryption_options.encryption_enabled = true;
 		options.encryption_options.user_key = std::move(storage_options.user_key);
-		options.encryption_options.encryption_version = storage_options.encryption_version;
 	}
 
 	idx_t row_group_size = DEFAULT_ROW_GROUP_SIZE;
@@ -416,7 +355,7 @@ void SingleFileStorageManager::LoadDatabase(QueryContext context) {
 			options.block_alloc_size = storage_options.block_alloc_size;
 		} else {
 			// No explicit option provided: use the default option.
-			options.block_alloc_size = Settings::Get<DefaultBlockSizeSetting>(config);
+			options.block_alloc_size = config.options.default_block_alloc_size;
 		}
 		//! set the block header size for the encrypted database files
 		//! set the database to encrypted
@@ -502,8 +441,9 @@ void SingleFileStorageManager::LoadDatabase(QueryContext context) {
 		auto checkpoint_reader = SingleFileCheckpointReader(*this);
 		checkpoint_reader.LoadFromStorage();
 
-		// Reset the timer (also ends it).
+		// End timing the storage load step.
 		if (timer) {
+			timer->EndTimer();
 			timer = nullptr;
 		}
 
@@ -517,7 +457,10 @@ void SingleFileStorageManager::LoadDatabase(QueryContext context) {
 		wal_path = GetWALPath();
 		wal = WriteAheadLog::Replay(context, *this, wal_path);
 
-		// Timer will go out of scope here, if set.
+		// End timing the WAL replay step.
+		if (timer) {
+			timer->EndTimer();
+		}
 	}
 
 	if (row_group_size > 122880ULL && GetStorageVersion() < 4) {
@@ -607,7 +550,6 @@ void SingleFileStorageCommitState::FlushCommit() {
 	if (state != WALCommitState::IN_PROGRESS) {
 		return;
 	}
-	// Move the blocks in this COMMIT into the WAL and mark them as "in use".
 	wal.Flush();
 	state = WALCommitState::FLUSHED;
 }
@@ -616,6 +558,10 @@ void SingleFileStorageCommitState::AddRowGroupData(DataTable &table, idx_t start
                                                    unique_ptr<PersistentCollectionData> row_group_data) {
 	if (row_group_data->HasUpdates()) {
 		// cannot serialize optimistic block pointers if in-memory updates exist
+		return;
+	}
+	if (table.HasIndexes()) {
+		// cannot serialize optimistic block pointers if the table has indexes
 		return;
 	}
 	auto &entries = optimistically_written_data[table];
@@ -693,27 +639,17 @@ void SingleFileStorageManager::CreateCheckpoint(QueryContext context, Checkpoint
 		try {
 			// Start timing the checkpoint.
 			auto client_context = context.GetClientContext();
-			ActiveTimer timer;
 			if (client_context) {
-				timer = client_context->client_data->profiler->StartTimer(MetricType::CHECKPOINT_LATENCY);
+				auto profiler = client_context->client_data->profiler->StartTimer(MetricType::CHECKPOINT_LATENCY);
 			}
 
 			// Write the checkpoint.
 			auto checkpointer = CreateCheckpointWriter(context, options);
 			checkpointer->CreateCheckpoint();
-			timer.EndTimer();
 
 		} catch (std::exception &ex) {
 			ErrorData error(ex);
-			if (db.IsInitialDatabase()) {
-				ValidChecker::Invalidate(db.GetDatabase(), error.RawMessage());
-				throw FatalException("Failed to create checkpoint because of error: %s", error.RawMessage());
-			}
-			// A non-initial database can be detached and reattached, so scope invalidation to this db.
-			db.Invalidate(error.RawMessage());
-			throw IOException("Checkpoint failed for database \"%s\". The database has been invalidated. Original "
-			                  "error: %s",
-			                  db.GetName(), error.RawMessage());
+			throw FatalException("Failed to create checkpoint because of error: %s", error.Message());
 		}
 	}
 
@@ -769,22 +705,9 @@ vector<MetadataBlockInfo> SingleFileStorageManager::GetMetadataInfo() {
 }
 
 bool SingleFileStorageManager::AutomaticCheckpoint(idx_t estimated_wal_bytes) {
-	auto &config = DBConfig::Get(db).options;
-
-	// Check size-based threshold
 	auto initial_size = NumericCast<idx_t>(GetWALSize());
 	idx_t expected_wal_size = initial_size + estimated_wal_bytes;
-	if (expected_wal_size > config.checkpoint_wal_size) {
-		return true;
-	}
-
-	// Check entry-based threshold (if enabled)
-	auto entry_limit = Settings::Get<WalAutocheckpointEntriesSetting>(DBConfig::Get(db));
-	if (entry_limit > 0 && GetWALEntriesCount() >= entry_limit) {
-		return true;
-	}
-
-	return false;
+	return expected_wal_size > DBConfig::Get(db).options.checkpoint_wal_size;
 }
 
 shared_ptr<TableIOManager> SingleFileStorageManager::GetTableIOManager(BoundCreateTableInfo *info /*info*/) {

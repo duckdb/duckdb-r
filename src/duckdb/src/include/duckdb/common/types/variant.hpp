@@ -17,23 +17,9 @@ struct UnifiedVariantVector;
 struct RecursiveUnifiedVectorFormat;
 struct UnifiedVectorFormat;
 
-enum class VariantChildLookupMode : uint8_t { INVALID, BY_KEY, BY_INDEX };
-
-struct Variant {
-public:
-	static constexpr idx_t VERSION_ADDED = 7; // Added to core in DuckDB v1.5.0
-};
+enum class VariantChildLookupMode : uint8_t { BY_KEY, BY_INDEX };
 
 struct VariantPathComponent {
-public:
-	explicit VariantPathComponent() : lookup_mode(VariantChildLookupMode::INVALID) {
-	}
-	explicit VariantPathComponent(const string &key) : lookup_mode(VariantChildLookupMode::BY_KEY), key(key) {
-	}
-	explicit VariantPathComponent(uint32_t index) : lookup_mode(VariantChildLookupMode::BY_INDEX), index(index) {
-	}
-
-public:
 	VariantChildLookupMode lookup_mode;
 	string key;
 	uint32_t index;
@@ -44,6 +30,8 @@ struct VariantNestedData {
 	uint32_t child_count;
 	//! Index of the first child
 	uint32_t children_idx;
+	//! Whether the row is null
+	bool is_null;
 };
 
 struct VariantDecimalData {

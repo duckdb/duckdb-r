@@ -13,7 +13,6 @@
 #include "duckdb/planner/expression/bound_lambda_expression.hpp"
 #include "duckdb/planner/expression/bound_reference_expression.hpp"
 #include "duckdb/planner/expression_binder.hpp"
-#include "duckdb/main/settings.hpp"
 
 namespace duckdb {
 
@@ -24,13 +23,14 @@ BindResult ExpressionBinder::TryBindLambdaOrJson(FunctionExpression &function, i
 		return BindLambdaFunction(function, func.Cast<ScalarFunctionCatalogEntry>(), depth);
 	}
 
-	auto setting = Settings::Get<LambdaSyntaxSetting>(context);
+	auto &config = ClientConfig::GetConfig(context);
+	auto setting = config.lambda_syntax;
 	bool invalid_syntax =
 	    setting == LambdaSyntax::DISABLE_SINGLE_ARROW && syntax_type == LambdaSyntaxType::SINGLE_ARROW;
 	bool warn_deprecated_syntax = setting == LambdaSyntax::DEFAULT && syntax_type == LambdaSyntaxType::SINGLE_ARROW;
 	const string msg = "Deprecated lambda arrow (->) detected. Please transition to the new lambda syntax, "
-	                   "i.e.., lambda x, i: x + i, before DuckDB's next release.\n"
-	                   "Use SET lambda_syntax='ENABLE_SINGLE_ARROW' to revert to the deprecated behavior.\n"
+	                   "i.e.., lambda x, i: x + i, before DuckDB's next release. \n"
+	                   "Use SET lambda_syntax='ENABLE_SINGLE_ARROW' to revert to the deprecated behavior. \n"
 	                   "For more information, see https://duckdb.org/docs/stable/sql/functions/lambda.html.";
 
 	BindResult lambda_bind_result;
@@ -220,12 +220,12 @@ BindResult ExpressionBinder::BindLambdaFunction(FunctionExpression &function, Sc
 	}
 
 	// the first child is the list, the second child is the lambda expression
-	// constexpr idx_t list_ix = 0;
 	constexpr idx_t list_idx = 0;
 	constexpr idx_t lambda_expr_idx = 1;
 	D_ASSERT(function.children[lambda_expr_idx]->GetExpressionClass() == ExpressionClass::LAMBDA);
 
 	vector<LogicalType> function_child_types;
+
 	// bind the list
 	ErrorData error;
 	for (idx_t i = 0; i < function.children.size(); i++) {
@@ -306,9 +306,8 @@ BindResult ExpressionBinder::BindLambdaFunction(FunctionExpression &function, Sc
 	// push back (in reverse order) any nested lambda parameters so that we can later use them in the lambda
 	// expression (rhs). This happens after we bound the lambda expression of this depth. So it is relevant for
 	// correctly binding lambdas one level 'out'. Therefore, the current parameter count does not matter here.
+	idx_t offset = 0;
 	if (lambda_bindings) {
-		idx_t offset = 0;
-
 		for (idx_t i = lambda_bindings->size(); i > 0; i--) {
 			auto &binding = (*lambda_bindings)[i - 1];
 			auto &column_names = binding.GetColumnNames();

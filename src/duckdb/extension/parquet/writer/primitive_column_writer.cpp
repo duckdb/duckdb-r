@@ -72,9 +72,11 @@ void PrimitiveColumnWriter::Prepare(ColumnWriterState &state_p, ColumnWriterStat
 			}
 			if (validity.RowIsValid(vector_index)) {
 				page_info.estimated_page_size += GetRowSize(vector, vector_index, state);
-				// a vector that cannot span multiple pages stays on the page it started on
-				if (page_info.estimated_page_size >= MAX_UNCOMPRESSED_PAGE_SIZE &&
-				    (vector_can_span_multiple_pages || i == 0)) {
+				if (page_info.estimated_page_size >= MAX_UNCOMPRESSED_PAGE_SIZE) {
+					if (!vector_can_span_multiple_pages && i != 0) {
+						// Vector is not allowed to span multiple pages, and we already started writing it
+						continue;
+					}
 					PageInformation new_info;
 					new_info.offset = page_info.offset + page_info.row_count;
 					state.page_info.push_back(new_info);
@@ -262,11 +264,11 @@ void PrimitiveColumnWriter::SetParquetStatistics(PrimitiveColumnWriterState &sta
 	if (!state.stats_state) {
 		return;
 	}
-	auto null_count = MaxRepeat() == 0 ? state.null_count : state.null_count + state.parent_null_count;
-	column_chunk.meta_data.statistics.null_count = NumericCast<int64_t>(null_count);
-	column_chunk.meta_data.statistics.__isset.null_count = true;
-	column_chunk.meta_data.__isset.statistics = true;
-
+	if (MaxRepeat() == 0) {
+		column_chunk.meta_data.statistics.null_count = NumericCast<int64_t>(state.null_count);
+		column_chunk.meta_data.statistics.__isset.null_count = true;
+		column_chunk.meta_data.__isset.statistics = true;
+	}
 	// if we have NaN values - don't write the min/max here
 	if (!state.stats_state->HasNaN()) {
 		// set min/max/min_value/max_value
@@ -319,7 +321,7 @@ void PrimitiveColumnWriter::SetParquetStatistics(PrimitiveColumnWriterState &sta
 		}
 		if (has_json_stats) {
 			// Add the geospatial statistics to the extra GeoParquet metadata
-			writer.GetGeoParquetData().AddGeoParquetStats(writer.GetContext(), column_schema.name, column_schema.type,
+			writer.GetGeoParquetData().AddGeoParquetStats(column_schema.name, column_schema.type,
 			                                              *state.stats_state->GetGeoStats(), gpq_version);
 		}
 	}
@@ -380,6 +382,7 @@ void PrimitiveColumnWriter::FinalizeWrite(ColumnWriterState &state_p) {
 	if (state.bloom_filter) {
 		writer.BufferBloomFilter(state.col_idx, std::move(state.bloom_filter));
 	}
+
 	// finalize the stats
 	writer.FlushColumnStats(state.col_idx, column_chunk, state.stats_state.get());
 }
@@ -428,7 +431,7 @@ void PrimitiveColumnWriter::WriteDictionary(PrimitiveColumnWriterState &state, u
 	state.write_info.insert(state.write_info.begin(), std::move(write_info));
 }
 
-idx_t PrimitiveColumnWriter::FinalizeSchema(vector<duckdb_parquet::SchemaElement> &schemas) {
+void PrimitiveColumnWriter::FinalizeSchema(vector<duckdb_parquet::SchemaElement> &schemas) {
 	idx_t schema_idx = schemas.size();
 
 	auto &schema = column_schema;
@@ -451,11 +454,10 @@ idx_t PrimitiveColumnWriter::FinalizeSchema(vector<duckdb_parquet::SchemaElement
 		schema_element.__isset.field_id = true;
 		schema_element.field_id = field_id.GetIndex();
 	}
-	ParquetWriter::SetSchemaProperties(type, schema_element, allow_geometry, writer.GetContext());
+	ParquetWriter::SetSchemaProperties(type, schema_element, allow_geometry);
 	schemas.push_back(std::move(schema_element));
 
 	D_ASSERT(child_writers.empty());
-	return 1;
 }
 
 } // namespace duckdb

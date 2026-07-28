@@ -47,8 +47,4 @@
 #undef interface
 #endif
 
-#ifdef DELETE
-#undef DELETE
-#endif
-
 #endif

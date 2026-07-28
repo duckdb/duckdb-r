@@ -66,15 +66,11 @@ AsyncResult::AsyncResult(vector<unique_ptr<AsyncTask>> &&tasks)
 }
 
 AsyncResult &AsyncResult::operator=(duckdb::SourceResultType t) {
-	result_type = GetAsyncResultType(t);
-	async_tasks.clear();
-	return *this;
+	return operator=(AsyncResult(t));
 }
 
 AsyncResult &AsyncResult::operator=(duckdb::AsyncResultType t) {
-	result_type = t;
-	async_tasks.clear();
-	return *this;
+	return operator=(AsyncResult(t));
 }
 
 AsyncResult &AsyncResult::operator=(AsyncResult &&other) noexcept {

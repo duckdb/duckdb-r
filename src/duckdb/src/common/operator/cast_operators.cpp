@@ -26,8 +26,6 @@
 #include "duckdb/common/operator/integer_cast_operator.hpp"
 #include "duckdb/common/operator/double_cast_operator.hpp"
 #include "duckdb/planner/expression.hpp"
-#include "duckdb/common/serializer/binary_deserializer.hpp"
-#include "duckdb/common/serializer/memory_stream.hpp"
 
 #include <cctype>
 #include <cmath>
@@ -1427,22 +1425,6 @@ string_t CastFromPointer::Operation(uintptr_t input, Vector &vector) {
 }
 
 //===--------------------------------------------------------------------===//
-// Cast From Pointer
-//===--------------------------------------------------------------------===//
-template <>
-string_t CastFromType::Operation(string_t input, Vector &vector) {
-	MemoryStream stream(data_ptr_cast(input.GetDataWriteable()), input.GetSize());
-	BinaryDeserializer deserializer(stream);
-	try {
-		auto type = LogicalType::Deserialize(deserializer);
-		return StringVector::AddString(vector, type.ToString());
-	} catch (std::exception &ex) {
-		// TODO: Format better error here?
-		return StringVector::AddString(vector, ex.what());
-	}
-}
-
-//===--------------------------------------------------------------------===//
 // Cast To Blob
 //===--------------------------------------------------------------------===//
 template <>
@@ -1583,9 +1565,7 @@ bool TryCastBlobToUUID::Operation(string_t input, hugeint_t &result, bool strict
 //===--------------------------------------------------------------------===//
 template <>
 bool TryCastToGeometry::Operation(string_t input, string_t &result, Vector &result_vector, CastParameters &parameters) {
-	// Pass the query location of the cast source if available.
-	return Geometry::FromString(input, result, result_vector, parameters.strict,
-	                            parameters.cast_source ? parameters.cast_source->query_location : optional_idx());
+	return Geometry::FromString(input, result, result_vector, parameters.strict);
 }
 
 //===--------------------------------------------------------------------===//
@@ -1812,7 +1792,7 @@ struct HugeIntCastData {
 	using Operation = OP;
 	ResultType result;
 	IntermediateType intermediate;
-	idx_t digits;
+	uint8_t digits;
 
 	ResultType decimal;
 	uint16_t decimal_total_digits;

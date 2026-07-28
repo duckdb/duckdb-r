@@ -8,7 +8,6 @@
 #include "duckdb/common/serializer/binary_serializer.hpp"
 #include "duckdb/common/arena_containers/arena_unordered_map.hpp"
 #include "duckdb/common/arena_containers/arena_vector.hpp"
-#include "duckdb/planner/column_binding_map.hpp"
 
 namespace duckdb {
 
@@ -731,14 +730,7 @@ public:
 			// Check if the maximum subplan fully contains the column bindings of the other subplans
 			for (idx_t subplan_idx = 1; subplan_idx < subplan_info.subplans.size() && !bail; subplan_idx++) {
 				const auto &subplan_bindings = subplan_info.subplans[subplan_idx].canonical_bindings;
-				column_binding_set_t subplan_column_binding_set;
 				for (auto &cb : subplan_bindings) {
-					if (subplan_column_binding_set.find(cb) != subplan_column_binding_set.end()) {
-						bail = true; // Subplan contains duplicate column bindings, i.e., column bindings that
-						             // collapse onto the same column produced by the primary subplan
-						break;
-					}
-					subplan_column_binding_set.insert(cb);
 					if (max_subplan_column_binding_set.find(cb) == max_subplan_column_binding_set.end()) {
 						bail = true; // Subplan does not fully contain the the other subplans
 						break;
@@ -783,28 +775,6 @@ public:
 				col_names.emplace_back(StringUtil::Format("%s_col_%llu", cte_name, i + 1));
 			}
 			const auto &primary_subplan_bindings = primary_subplan.canonical_bindings;
-			column_binding_map_t<idx_t> primary_binding_index;
-			for (idx_t i = 0; i < primary_subplan_bindings.size(); i++) {
-				primary_binding_index.emplace(primary_subplan_bindings[i], i);
-			}
-			vector<vector<idx_t>> cte_column_indexes(subplan_info.subplans.size());
-			vector<bool> needs_projection(subplan_info.subplans.size(), false);
-			for (idx_t subplan_idx = 0; subplan_idx < subplan_info.subplans.size(); subplan_idx++) {
-				const auto &subplan = subplan_info.subplans[subplan_idx];
-				const auto &canonical_bindings = subplan.canonical_bindings;
-				cte_column_indexes[subplan_idx].reserve(canonical_bindings.size());
-				needs_projection[subplan_idx] = canonical_bindings.size() != types.size();
-				for (idx_t i = 0; i < canonical_bindings.size(); i++) {
-					const auto &cb = canonical_bindings[i];
-					const auto entry = primary_binding_index.find(cb);
-					D_ASSERT(entry != primary_binding_index.end()); // guaranteed by FilterSubplans
-					const auto cte_col_idx = entry->second;
-					// Types must match: same canonical binding = same base column = same type
-					D_ASSERT(subplan.op.get()->types[i] == types[cte_col_idx]);
-					cte_column_indexes[subplan_idx].push_back(cte_col_idx);
-					needs_projection[subplan_idx] = needs_projection[subplan_idx] || cte_col_idx != i;
-				}
-			}
 
 			// Create CTE refs and figure out column binding replacements
 			vector<unique_ptr<LogicalOperator>> cte_refs;
@@ -818,11 +788,18 @@ public:
 				}
 				const auto old_bindings = subplan.op.get()->GetColumnBindings();
 				auto new_bindings = cte_refs.back()->GetColumnBindings();
-				if (needs_projection[subplan_idx]) {
-					// Preserve each subplan's original output order when it differs from the
-					// primary materialized CTE.
+				if (old_bindings.size() != new_bindings.size()) {
+					// Different number of output columns - project columns out
+					const auto &canonical_bindings = subplan.canonical_bindings;
 					vector<unique_ptr<Expression>> select_list;
-					for (auto cte_col_idx : cte_column_indexes[subplan_idx]) {
+					for (auto &cb : canonical_bindings) {
+						idx_t cte_col_idx = 0;
+						for (; cte_col_idx < primary_subplan_bindings.size(); cte_col_idx++) {
+							if (cb == primary_subplan_bindings[cte_col_idx]) {
+								break;
+							}
+						}
+						D_ASSERT(cte_col_idx < primary_subplan_bindings.size());
 						select_list.emplace_back(make_uniq<BoundColumnRefExpression>(
 						    types[cte_col_idx], ColumnBinding(cte_ref_index, cte_col_idx)));
 					}
@@ -842,21 +819,9 @@ public:
 
 			// Create the materialized CTE and replace the common subplans with references to it
 			auto &lowest_common_ancestor = subplan_info.lowest_common_ancestor.get();
-			const auto materialized_column_count = types.size();
-			auto materialized_subplan = std::move(primary_subplan.op.get());
-			auto remainder = std::move(lowest_common_ancestor);
-			vector<unique_ptr<Expression>> materialized_select_list;
-			const auto materialized_bindings = materialized_subplan->GetColumnBindings();
-			for (idx_t i = 0; i < materialized_bindings.size(); i++) {
-				materialized_select_list.emplace_back(
-				    make_uniq<BoundColumnRefExpression>(types[i], materialized_bindings[i]));
-			}
-			auto materialized_projection = make_uniq<LogicalProjection>(optimizer.binder.GenerateTableIndex(),
-			                                                            std::move(materialized_select_list));
-			materialized_projection->children.emplace_back(std::move(materialized_subplan));
-			auto cte = make_uniq<LogicalMaterializedCTE>(cte_name, cte_index, materialized_column_count,
-			                                             std::move(materialized_projection), std::move(remainder),
-			                                             CTEMaterialize::CTE_MATERIALIZE_DEFAULT);
+			auto cte = make_uniq<LogicalMaterializedCTE>(
+			    cte_name, cte_index, types.size(), std::move(primary_subplan.op.get()),
+			    std::move(lowest_common_ancestor), CTEMaterialize::CTE_MATERIALIZE_DEFAULT);
 			for (idx_t subplan_idx = 0; subplan_idx < subplan_info.subplans.size(); subplan_idx++) {
 				const auto &subplan = subplan_info.subplans[subplan_idx];
 				subplan.op.get() = std::move(cte_refs[subplan_idx]);

@@ -102,7 +102,7 @@ struct DateDiff {
 		template <class TA, class TB, class TR>
 		static inline TR Operation(TA startdate, TB enddate) {
 			//	Weeks do not count Monday crossings, just distance
-			return (TR(enddate.days) - TR(startdate.days)) / Interval::DAYS_PER_WEEK;
+			return (enddate.days - startdate.days) / Interval::DAYS_PER_WEEK;
 		}
 	};
 
@@ -116,9 +116,7 @@ struct DateDiff {
 	struct MicrosecondsOperator {
 		template <class TA, class TB, class TR>
 		static inline TR Operation(TA startdate, TB enddate) {
-			const auto start = Date::EpochMicroseconds(startdate);
-			const auto end = Date::EpochMicroseconds(enddate);
-			return SubtractOperatorOverflowCheck::Operation<int64_t, int64_t, int64_t>(end, start);
+			return Date::EpochMicroseconds(enddate) - Date::EpochMicroseconds(startdate);
 		}
 	};
 

@@ -37,7 +37,7 @@ void IsFormatExtensionKnown(const string &format) {
 			// It's a match, we must throw
 			throw CatalogException(
 			    "Copy Function with name \"%s\" is not in the catalog, but it exists in the %s extension.", format,
-			    file_postfixes.extension);
+			    std::string(file_postfixes.extension));
 		}
 	}
 }
@@ -422,21 +422,10 @@ vector<Value> BindCopyOption(ClientContext &context, TableFunctionBinder &option
 			return result;
 		}
 	}
-	const bool is_partition_by = StringUtil::CIEquals(name, "partition_by");
-
-	if (is_partition_by) {
-		//! When binding the 'partition_by' option, we don't want to resolve a column reference to a SQLValueFunction
-		//! (like 'user')
-		option_binder.DisableSQLValueFunctions();
-	}
 	auto bound_expr = option_binder.Bind(expr);
 	if (bound_expr->HasParameter()) {
 		throw ParameterNotResolvedException();
 	}
-	if (is_partition_by) {
-		option_binder.EnableSQLValueFunctions();
-	}
-
 	auto val = ExpressionExecutor::EvaluateScalar(context, *bound_expr, true);
 	if (val.IsNull()) {
 		throw BinderException("NULL is not supported as a valid option for COPY option \"" + name + "\"");
@@ -565,8 +554,8 @@ BoundStatement Binder::Bind(CopyStatement &stmt, CopyToType copy_to_type) {
 			// check if this matches the mode
 			if (copy_option.mode != CopyOptionMode::READ_WRITE && copy_option.mode != copy_mode) {
 				throw InvalidInputException("Option \"%s\" is not supported for %s - only for %s", provided_option,
-				                            stmt.info->is_from ? "reading" : "writing",
-				                            stmt.info->is_from ? "writing" : "reading");
+				                            std::string(stmt.info->is_from ? "reading" : "writing"),
+				                            std::string(stmt.info->is_from ? "writing" : "reading"));
 			}
 			if (copy_option.type.id() != LogicalTypeId::ANY) {
 				if (provided_entry.second.empty()) {

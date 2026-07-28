@@ -10,7 +10,6 @@
 
 #include "duckdb/main/config.hpp"
 #include "duckdb/catalog/catalog_entry.hpp"
-#include "duckdb/main/valid_checker.hpp"
 
 namespace duckdb {
 class Catalog;
@@ -78,8 +77,6 @@ struct AttachOptions {
 	AttachVisibility visibility = AttachVisibility::SHOWN;
 	//! The stored database path (in the path manager)
 	unique_ptr<StoredDatabasePath> stored_database_path;
-	//! Per-database override of vacuum_rebuild_indexes. If not set, the global setting value is used.
-	optional_idx vacuum_rebuild_indexes_threshold;
 };
 
 //! The AttachedDatabase represents an attached database instance.
@@ -104,16 +101,11 @@ public:
 	const Catalog &ParentCatalog() const override;
 	bool HasStorageManager() const;
 	StorageManager &GetStorageManager();
-	const StorageManager &GetStorageManager() const;
 	Catalog &GetCatalog();
 	TransactionManager &GetTransactionManager();
 	DatabaseInstance &GetDatabase() {
 		return db;
 	}
-	ValidChecker &GetValidChecker() {
-		return validity;
-	}
-	void Invalidate(const string &reason);
 
 	optional_ptr<StorageExtension> GetStorageExtension() {
 		return storage_extension;
@@ -138,9 +130,6 @@ public:
 	AttachVisibility GetVisibility() const {
 		return visibility;
 	}
-	//! vacuum_rebuild_indexes threshold for this attached database.
-	//! Falls back to the global VacuumRebuildIndexesSetting if not overridden.
-	idx_t GetVacuumRebuildIndexThreshold() const;
 	const unordered_map<string, Value> &GetAttachOptions() const {
 		return attach_options;
 	}
@@ -154,7 +143,6 @@ public:
 
 private:
 	DatabaseInstance &db;
-	ValidChecker validity;
 	unique_ptr<StoredDatabasePath> stored_database_path;
 	unique_ptr<StorageManager> storage;
 	unique_ptr<Catalog> catalog;
@@ -166,8 +154,7 @@ private:
 	AttachVisibility visibility = AttachVisibility::SHOWN;
 	bool is_initial_database = false;
 	bool is_closed = false;
-	shared_ptr<mutex> close_lock;
-	optional_idx vacuum_rebuild_threshold;
+	mutex close_lock;
 	unordered_map<string, Value> attach_options;
 
 private:

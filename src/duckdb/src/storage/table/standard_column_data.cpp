@@ -60,10 +60,17 @@ idx_t StandardColumnData::Scan(TransactionData transaction, idx_t vector_index, 
                                idx_t target_count) {
 	D_ASSERT(state.offset_in_column == state.child_states[0].offset_in_column);
 	auto scan_type = GetVectorScanType(state, target_count, result);
-	auto scan_count =
-	    ScanVector(transaction, vector_index, state, result, target_count, scan_type, state.update_scan_type);
-	validity->ScanVector(transaction, vector_index, state.child_states[0], result, target_count, scan_type,
-	                     state.update_scan_type);
+	auto mode = ScanVectorMode::REGULAR_SCAN;
+	auto scan_count = ScanVector(transaction, vector_index, state, result, target_count, scan_type, mode);
+	validity->ScanVector(transaction, vector_index, state.child_states[0], result, target_count, scan_type, mode);
+	return scan_count;
+}
+
+idx_t StandardColumnData::ScanCommitted(idx_t vector_index, ColumnScanState &state, Vector &result, bool allow_updates,
+                                        idx_t target_count) {
+	D_ASSERT(state.offset_in_column == state.child_states[0].offset_in_column);
+	auto scan_count = ColumnData::ScanCommitted(vector_index, state, result, allow_updates, target_count);
+	validity->ScanCommitted(vector_index, state.child_states[0], result, allow_updates, target_count);
 	return scan_count;
 }
 
@@ -80,9 +87,8 @@ void StandardColumnData::Filter(TransactionData transaction, idx_t vector_index,
 	// the compression functions need to support this
 	auto compression = GetCompressionFunction();
 	bool has_filter = compression && compression->filter;
-	bool filter_includes_validity = compression && compression->validity == CompressionValidity::NO_VALIDITY_REQUIRED;
 	auto validity_compression = validity->GetCompressionFunction();
-	bool validity_has_filter = filter_includes_validity || (validity_compression && validity_compression->filter);
+	bool validity_has_filter = validity_compression && validity_compression->filter;
 	auto target_count = GetVectorCount(vector_index);
 	auto scan_type = GetVectorScanType(state, target_count, result);
 	bool scan_entire_vector = scan_type == ScanVectorType::SCAN_ENTIRE_VECTOR;
@@ -93,11 +99,7 @@ void StandardColumnData::Filter(TransactionData transaction, idx_t vector_index,
 		return;
 	}
 	FilterVector(state, result, target_count, sel, count, filter, filter_state);
-	if (!filter_includes_validity) {
-		validity->FilterVector(state.child_states[0], result, target_count, sel, count, filter, filter_state);
-	} else {
-		validity->Skip(state.child_states[0], target_count);
-	}
+	validity->FilterVector(state.child_states[0], result, target_count, sel, count, filter, filter_state);
 }
 
 void StandardColumnData::Select(TransactionData transaction, idx_t vector_index, ColumnScanState &state, Vector &result,
@@ -155,9 +157,11 @@ void StandardColumnData::Update(TransactionData transaction, DataTable &data_tab
 	ColumnScanState standard_state(nullptr);
 	ColumnScanState validity_state(nullptr);
 	Vector base_vector(type);
-
-	FetchUpdateData(standard_state, row_ids, base_vector, row_group_start);
-	validity->FetchUpdateData(validity_state, row_ids, base_vector, row_group_start);
+	auto standard_fetch = FetchUpdateData(standard_state, row_ids, base_vector, row_group_start);
+	auto validity_fetch = validity->FetchUpdateData(validity_state, row_ids, base_vector, row_group_start);
+	if (standard_fetch != validity_fetch) {
+		throw InternalException("Unaligned fetch in validity and main column data for update");
+	}
 
 	UpdateInternal(transaction, data_table, column_index, update_vector, row_ids, update_count, base_vector,
 	               row_group_start);
@@ -220,11 +224,6 @@ void StandardColumnData::SetValidityData(shared_ptr<ValidityColumnData> validity
 	this->validity = std::move(validity_p);
 }
 
-ValidityColumnData &StandardColumnData::GetValidityData() {
-	D_ASSERT(validity);
-	return *validity;
-}
-
 struct StandardColumnCheckpointState : public ColumnCheckpointState {
 	StandardColumnCheckpointState(const RowGroup &row_group, ColumnData &column_data,
 	                              PartialBlockManager &partial_block_manager)
@@ -268,8 +267,7 @@ StandardColumnData::CreateCheckpointState(const RowGroup &row_group, PartialBloc
 }
 
 unique_ptr<ColumnCheckpointState> StandardColumnData::Checkpoint(const RowGroup &row_group,
-                                                                 ColumnCheckpointInfo &checkpoint_info,
-                                                                 const BaseStatistics &stats) {
+                                                                 ColumnCheckpointInfo &checkpoint_info) {
 	// we need to checkpoint the main column data first
 	// that is because the checkpointing of the main column data ALSO scans the validity data
 	// to prevent reading the validity data immediately after it is checkpointed we first checkpoint the main column

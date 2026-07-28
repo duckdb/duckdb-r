@@ -48,49 +48,46 @@ PrefixHandle PrefixHandle::NewDeprecated(FixedSizeAllocator &allocator, Node &no
 	return handle;
 }
 
-optional_ptr<Node> PrefixHandle::TransformToDeprecated(ART &art, Node &node, TransformToDeprecatedState &state) {
+void PrefixHandle::TransformToDeprecated(ART &art, Node &node, TransformToDeprecatedState &state) {
 	// Early-out, if we do not need any transformations.
 	if (!state.HasAllocator()) {
 		reference<Node> ref(node);
-		auto &allocator = Node::GetAllocator(art, PREFIX);
 		while (ref.get().GetType() == PREFIX && ref.get().GetGateStatus() == GateStatus::GATE_NOT_SET) {
-			if (!allocator.LoadedFromStorage(ref)) {
-				return nullptr;
+			auto &alloc = Node::GetAllocator(art, PREFIX);
+			if (!alloc.LoadedFromStorage(ref)) {
+				return;
 			}
 			PrefixHandle handle(art, ref);
 			ref = *handle.child;
 		}
-		return ref.get();
+		return Node::TransformToDeprecated(art, ref, state);
 	}
 
 	// We need to create a new prefix (chain) in the deprecated format.
-	auto &deprecated_allocator = state.GetAllocator();
+	auto &allocator = state.GetAllocator();
 	Node new_node;
-	auto new_handle = NewDeprecated(deprecated_allocator, new_node);
+	auto new_handle = PrefixHandle::NewDeprecated(allocator, new_node);
 
-	auto &allocator = Node::GetAllocator(art, PREFIX);
 	Node current_node = node;
 	while (current_node.GetType() == PREFIX && current_node.GetGateStatus() == GateStatus::GATE_NOT_SET) {
-		if (!allocator.LoadedFromStorage(current_node)) {
-			return nullptr;
-		}
-		{
-			// Decrease the readers on current_handle after moving all data over.
-			PrefixHandle current_handle(art, current_node);
-			for (idx_t i = 0; i < current_handle.data[art.PrefixCount()]; i++) {
-				new_handle = new_handle.TransformToDeprecatedAppend(art, deprecated_allocator, current_handle.data[i]);
-			}
-			*new_handle.child = *current_handle.child;
+		auto &alloc = Node::GetAllocator(art, PREFIX);
+		if (!alloc.LoadedFromStorage(current_node)) {
+			return;
 		}
 
-		// Freeing the node here can trigger a buffer removal (last segment on the buffer).
-		// In that case, there cannot be any readers left on the buffer.
+		PrefixHandle current_handle(art, current_node);
+
+		for (idx_t i = 0; i < current_handle.data[art.PrefixCount()]; i++) {
+			new_handle = new_handle.TransformToDeprecatedAppend(art, allocator, current_handle.data[i]);
+		}
+
+		*new_handle.child = *current_handle.child;
 		Node::FreeNode(art, current_node);
 		current_node = *new_handle.child;
 	}
 
 	node = new_node;
-	return new_handle.child;
+	return Node::TransformToDeprecated(art, *new_handle.child, state);
 }
 
 PrefixHandle PrefixHandle::TransformToDeprecatedAppend(ART &art, FixedSizeAllocator &allocator, const uint8_t byte) {
@@ -100,7 +97,7 @@ PrefixHandle PrefixHandle::TransformToDeprecatedAppend(ART &art, FixedSizeAlloca
 		return std::move(*this);
 	}
 
-	auto new_prefix = NewDeprecated(allocator, *child);
+	auto new_prefix = PrefixHandle::NewDeprecated(allocator, *child);
 	return new_prefix.TransformToDeprecatedAppend(art, allocator, byte);
 }
 

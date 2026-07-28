@@ -79,6 +79,7 @@ public:
 CompressionAvailabilityResult CompressionTypeIsAvailable(CompressionType compression_type,
                                                          optional_ptr<StorageManager> storage_manager = nullptr);
 vector<string> ListCompressionTypes(void);
+CompressionType CompressionTypeFromString(const string &str);
 string CompressionTypeToString(CompressionType type);
 
 } // namespace duckdb

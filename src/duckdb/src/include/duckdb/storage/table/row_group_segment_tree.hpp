@@ -21,7 +21,7 @@ public:
 	RowGroupSegmentTree(RowGroupCollection &collection, idx_t base_row_id);
 	~RowGroupSegmentTree() override;
 
-	void Initialize(PersistentTableData &data, optional_ptr<vector<MetaBlockPointer>> read_pointers = nullptr);
+	void Initialize(PersistentTableData &data);
 
 	MetaBlockPointer GetRootPointer() const {
 		return root_pointer;

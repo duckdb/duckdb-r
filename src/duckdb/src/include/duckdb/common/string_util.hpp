@@ -171,8 +171,6 @@ public:
 	DUCKDB_API static void SkipBOM(const char *buffer_ptr, const idx_t &buffer_size, idx_t &buffer_pos);
 
 	DUCKDB_API static idx_t ToUnsigned(const string &str);
-	DUCKDB_API static int64_t ToSigned(const string &str);
-	DUCKDB_API static double ToDouble(const string &str);
 
 	template <class T>
 	static string ToString(const vector<T> &input, const string &separator) {
@@ -232,12 +230,6 @@ public:
 
 	//! Case insensitive equals (null-terminated strings)
 	DUCKDB_API static bool CIEquals(const char *l1, idx_t l1_size, const char *l2, idx_t l2_size);
-
-	//! Case insensitive starts-with
-	DUCKDB_API static bool CIStartsWith(const string &str, const string &prefix);
-
-	//! Case insensitive ends-with
-	DUCKDB_API static bool CIEndsWith(const string &str, const string &suffix);
 
 	//! Case insensitive compare
 	DUCKDB_API static bool CILessThan(const string &l1, const string &l2);

@@ -109,10 +109,7 @@ public:
 			}
 			return false;
 		case WindowGroupStage::SINK:
-			// Gate on blocks (not rows): every SINK task must have completed before FINALIZE
-			// can run, otherwise a FINALIZE task can read a thread_states[thread_idx] entry
-			// that the matching SINK task hasn't initialised yet.
-			if (sunk == blocks) {
+			if (sunk == count) {
 				stage = WindowGroupStage::FINALIZE;
 				return true;
 			}
@@ -190,7 +187,7 @@ public:
 	std::atomic<idx_t> materialized;
 	//! Count of masked blocks
 	std::atomic<idx_t> masked;
-	//! Count of sunk blocks (one per completed SINK task block, not per row)
+	//! Count of sunk rows
 	std::atomic<idx_t> sunk;
 	//! Count of finalized blocks
 	std::atomic<idx_t> finalized;
@@ -283,7 +280,7 @@ static unique_ptr<WindowExecutor> WindowExecutorFactory(BoundWindowExpression &w
 	case ExpressionType::WINDOW_LAG:
 		return make_uniq<WindowLeadLagExecutor>(wexpr, shared);
 	case ExpressionType::WINDOW_FILL:
-		return make_uniq<WindowFillExecutor>(wexpr, client, shared);
+		return make_uniq<WindowFillExecutor>(wexpr, shared);
 	case ExpressionType::WINDOW_FIRST_VALUE:
 		return make_uniq<WindowFirstValueExecutor>(wexpr, shared);
 	case ExpressionType::WINDOW_LAST_VALUE:
@@ -301,7 +298,7 @@ WindowGlobalSinkState::WindowGlobalSinkState(const PhysicalWindow &op, ClientCon
 	D_ASSERT(op.select_list[op.order_idx]->GetExpressionClass() == ExpressionClass::BOUND_WINDOW);
 	auto &wexpr = op.select_list[op.order_idx]->Cast<BoundWindowExpression>();
 
-	const auto mode = Settings::Get<DebugWindowModeSetting>(client);
+	const auto mode = DBConfig::GetSetting<DebugWindowModeSetting>(client);
 	for (idx_t expr_idx = 0; expr_idx < op.select_list.size(); ++expr_idx) {
 		D_ASSERT(op.select_list[expr_idx]->GetExpressionClass() == ExpressionClass::BOUND_WINDOW);
 		auto &wexpr = op.select_list[expr_idx]->Cast<BoundWindowExpression>();
@@ -795,14 +792,9 @@ void WindowLocalSourceState::Sink(ExecutionContext &context, InterruptState &int
 		}
 	}
 
-	//	The block range owned by this task. Counted whole so that the SINK -> FINALIZE
-	//	transition waits for every SINK task to run, even ones whose blocks contain no rows.
-	const idx_t task_blocks = task->end_idx - task->begin_idx;
-
 	//	First pass over the input without flushing
 	scanner = window_hash_group->GetScanner(task->begin_idx);
 	if (!scanner) {
-		window_hash_group->sunk += task_blocks;
 		return;
 	}
 	for (; task->begin_idx < task->end_idx; ++task->begin_idx) {
@@ -838,9 +830,10 @@ void WindowLocalSourceState::Sink(ExecutionContext &context, InterruptState &int
 			OperatorSinkInput sink {*gestates[w], *local_states[w], interrupt};
 			executors[w]->Sink(context, sink_chunk, coll_chunk, input_idx, sink);
 		}
+
+		window_hash_group->sunk += input_chunk.size();
 	}
 	scanner.reset();
-	window_hash_group->sunk += task_blocks;
 }
 
 void WindowLocalSourceState::Finalize(ExecutionContext &context, InterruptState &interrupt) {
