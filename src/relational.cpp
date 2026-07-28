@@ -756,7 +756,9 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 
 [[cpp11::register]] SEXP rapi_rel_explain(duckdb::rel_extptr_t rel, std::string type, std::string format) {
 	auto type_enum = EnumUtil::FromString<ExplainType>(type);
-	auto print_format = ProfilerPrintFormat::FromString(format);
+	// Format names are resolved by the renderer registry, which is keyed on the
+	// lowercase name; rel_explain_df() passes them uppercase.
+	auto print_format = ProfilerPrintFormat(StringUtil::Lower(format));
 	return result_to_df(rel->rel->Explain(type_enum, print_format));
 }
 
