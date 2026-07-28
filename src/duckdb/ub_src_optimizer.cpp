@@ -66,3 +66,5 @@
 
 #include "src/optimizer/sum_rewriter.cpp"
 
+#include "src/optimizer/projection_pullup.cpp"
+
