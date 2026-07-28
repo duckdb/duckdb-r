@@ -211,24 +211,25 @@ private:
 	// Optional filters are internal table filter functions that evaluate to TRUE
 	// and keep the real predicate in their bind data.
 	static optional_ptr<const Expression> OptionalFilterChild(const BoundFunctionExpression &func) {
-		if (!func.bind_info) {
+		if (!func.BindInfo()) {
 			return nullptr;
 		}
-		if (func.function.GetName() == OptionalFilterScalarFun::NAME) {
-			return func.bind_info->Cast<OptionalFilterFunctionData>().child_filter_expr.get();
+		if (func.Function().GetName() == OptionalFilterScalarFun::NAME) {
+			return func.BindInfo()->Cast<OptionalFilterFunctionData>().child_filter_expr.get();
 		}
-		if (func.function.GetName() == SelectivityOptionalFilterScalarFun::NAME) {
-			return func.bind_info->Cast<SelectivityOptionalFilterFunctionData>().child_filter_expr.get();
+		if (func.Function().GetName() == SelectivityOptionalFilterScalarFun::NAME) {
+			return func.BindInfo()->Cast<SelectivityOptionalFilterFunctionData>().child_filter_expr.get();
 		}
 		return nullptr;
 	}
 
 	// col IN (v1, v2, ...) as a balanced tree of equality comparisons.
 	static SEXP TransformInExpression(const BoundOperatorExpression &op_expr, SEXP column_name_expr, SEXP functions) {
-		if (op_expr.children.empty() || op_expr.children[0]->GetExpressionClass() != ExpressionClass::BOUND_REF) {
+		if (op_expr.GetChildren().empty() ||
+		    op_expr.GetChildren()[0]->GetExpressionClass() != ExpressionClass::BOUND_REF) {
 			throw NotImplementedException("Arrow table filter pushdown %s not supported yet", op_expr.ToString());
 		}
-		const idx_t num_values = op_expr.children.size() - 1;
+		const idx_t num_values = op_expr.GetChildren().size() - 1;
 		if (num_values == 0) {
 			// col IN () matches no rows
 			return CreateScalar(functions, cpp11::sexp(Rf_ScalarLogical(false)));
@@ -242,12 +243,12 @@ private:
 		}
 		vector<cpp11::sexp> equal_exprs;
 		equal_exprs.reserve(num_values);
-		for (idx_t i = 1; i < op_expr.children.size(); i++) {
-			auto &value_expr = *op_expr.children[i];
+		for (idx_t i = 1; i < op_expr.GetChildren().size(); i++) {
+			auto &value_expr = *op_expr.GetChildren()[i];
 			if (value_expr.GetExpressionType() != ExpressionType::VALUE_CONSTANT) {
 				throw NotImplementedException("Arrow table filter pushdown %s not supported yet", op_expr.ToString());
 			}
-			auto &value = value_expr.Cast<BoundConstantExpression>().value;
+			auto &value = value_expr.Cast<BoundConstantExpression>().GetValue();
 			equal_exprs.push_back(cpp11::sexp(
 			    CreateExpression(functions, "equal", column_name_expr, CreateConstantExpression(functions, value))));
 		}
@@ -273,7 +274,7 @@ private:
 				throw NotImplementedException("Arrow table filter pushdown %s not supported yet", expr.ToString());
 			}
 			cpp11::sexp constant_expr =
-			    CreateConstantExpression(functions, const_side->Cast<BoundConstantExpression>().value);
+			    CreateConstantExpression(functions, const_side->Cast<BoundConstantExpression>().GetValue());
 			switch (comparison_type) {
 			case ExpressionType::COMPARE_EQUAL:
 				return CreateExpression(functions, "equal", column_name_expr, constant_expr);
@@ -295,8 +296,8 @@ private:
 			auto &conj = expr.Cast<BoundConjunctionExpression>();
 			const string op = expr.GetExpressionType() == ExpressionType::CONJUNCTION_AND ? "and_kleene" : "or_kleene";
 			vector<cpp11::sexp> child_exprs;
-			child_exprs.reserve(conj.children.size());
-			for (auto &child : conj.children) {
+			child_exprs.reserve(conj.GetChildren().size());
+			for (auto &child : conj.GetChildren()) {
 				child_exprs.push_back(cpp11::sexp(TransformExpression(*child, column_name_expr, functions)));
 			}
 			return FoldBalanced(functions, op, child_exprs, 0, child_exprs.size());
