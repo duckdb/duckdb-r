@@ -551,6 +551,25 @@ duckdb/duckdb-r@main  →  krlmlr/duckdb-r@main-dev  →  krlmlr/duckdb-r@v1.6-c
                                                     ↘  krlmlr/duckdb-r@v1.5-variegata-dev  →  …
 ```
 
+5.  **Re-seed `main-dev` at the fork point.** This is the step that is
+    easy to miss, and the one that decides whether the mainline stays
+    bisectable. From the moment `v1.6-codename` is cut, `main` and the
+    release branch diverge, and the two lines are only merged back into
+    each other later. `main-dev` must therefore restart from a vendor
+    commit at the **fork point** of `main` and `v1.6-codename` and walk
+    `main` forward from there, one upstream commit at a time. Letting
+    `main-dev` simply continue from its last release-branch base makes
+    its next vendor commit jump over every `main`-only commit
+    accumulated since the fork — sources move backwards in time and
+    forwards in history in a single step, and nothing in between is ever
+    built. The procedure, including how to compute the fork point (it is
+    *not* `git merge-base`) and how far the glue code has to be rewound,
+    is in [Starting a new dev
+    line](https://r.duckdb.org/scripts/VENDORING.html#starting-a-new-dev-line-the-fork-point-rule).
+
+    The new `v1.6-codename-dev` needs no such rewind: it forks from
+    `main` at a point the package already builds against.
+
 ### Phase 3: Feature Freeze
 
 Upstream active branches: `main`, `v1.5-variegata`, `v1.6-codename`
@@ -612,6 +631,14 @@ It is important that every commit in the `-dev` branches builds
 successfully so that the history is clean and bisectable. For this
 reason, the `-dev` branches are checked commit by commit via
 `each.yaml`, even if multiple commits are pushed at once.
+
+Bisectability is a property of the whole branch, not of individual
+commits, so it needs three things at once: a **linear** first-parent
+history without merge commits, **one upstream commit per vendor commit**
+forming a contiguous first-parent walk of the tracked upstream branch,
+and a **green** build for every commit. These are stated as invariants,
+with the reasoning and the failure modes, in [Dev Branch
+Invariants](https://r.duckdb.org/scripts/VENDORING.html#dev-branch-invariants).
 
 ### On release
 

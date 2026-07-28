@@ -466,7 +466,11 @@ krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
 <li>Add the new dev branch to the front of the forward-port chain:</li>
 </ol><div class="sourceCode" id="cb8"><pre class="sourceCode txt"><code class="sourceCode default"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>duckdb/duckdb-r@main  →  krlmlr/duckdb-r@main-dev  →  krlmlr/duckdb-r@v1.6-codename-dev</span>
 <span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>                                                    ↘  krlmlr/duckdb-r@v1.5-variegata-dev  →  …</span></code></pre></div>
-</div>
+<ol start="5" style="list-style-type: decimal"><li>
+<p><strong>Re-seed <code>main-dev</code> at the fork point.</strong> This is the step that is easy to miss, and the one that decides whether the mainline stays bisectable. From the moment <code>v1.6-codename</code> is cut, <code>main</code> and the release branch diverge, and the two lines are only merged back into each other later. <code>main-dev</code> must therefore restart from a vendor commit at the <strong>fork point</strong> of <code>main</code> and <code>v1.6-codename</code> and walk <code>main</code> forward from there, one upstream commit at a time. Letting <code>main-dev</code> simply continue from its last release-branch base makes its next vendor commit jump over every <code>main</code>-only commit accumulated since the fork — sources move backwards in time and forwards in history in a single step, and nothing in between is ever built. The procedure, including how to compute the fork point (it is <em>not</em> <code>git merge-base</code>) and how far the glue code has to be rewound, is in <a href="scripts/VENDORING.html#starting-a-new-dev-line-the-fork-point-rule">Starting a new dev line</a>.</p>
+<p>The new <code>v1.6-codename-dev</code> needs no such rewind: it forks from <code>main</code> at a point the package already builds against.</p>
+</li>
+</ol></div>
 <div class="section level3">
 <h3 id="phase-3-feature-freeze">Phase 3: Feature Freeze<a class="anchor" aria-label="anchor" href="#phase-3-feature-freeze"></a></h3>
 <p>Upstream active branches: <code>main</code>, <code>v1.5-variegata</code>, <code>v1.6-codename</code></p>
@@ -500,6 +504,7 @@ krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
 <h3 id="vendoring">Vendoring<a class="anchor" aria-label="anchor" href="#vendoring"></a></h3>
 <p>CI/CD pipelines in <code>krlmlr/duckdb-r</code> vendor the C++ code from the corresponding upstream branch daily — a bounded advance gated on the <code>rcc</code> commit-status of the last green base (<code>scripts/vendor-gate.sh</code>) — and build the <code>.dev</code> package. If vendoring breaks the build, it can be fixed after the fact in the same commit. The <code>-dev</code> branches are not protected, so force-pushes are allowed to fix mistakes.</p>
 <p>It is important that every commit in the <code>-dev</code> branches builds successfully so that the history is clean and bisectable. For this reason, the <code>-dev</code> branches are checked commit by commit via <code>each.yaml</code>, even if multiple commits are pushed at once.</p>
+<p>Bisectability is a property of the whole branch, not of individual commits, so it needs three things at once: a <strong>linear</strong> first-parent history without merge commits, <strong>one upstream commit per vendor commit</strong> forming a contiguous first-parent walk of the tracked upstream branch, and a <strong>green</strong> build for every commit. These are stated as invariants, with the reasoning and the failure modes, in <a href="scripts/VENDORING.html#dev-branch-invariants">Dev Branch Invariants</a>.</p>
 </div>
 <div class="section level3">
 <h3 id="on-release">On release<a class="anchor" aria-label="anchor" href="#on-release"></a></h3>

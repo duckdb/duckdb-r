@@ -121,14 +121,16 @@
 <h2 id="vendoring">Vendoring<a class="anchor" aria-label="anchor" href="#vendoring"></a></h2>
 <p>The duckdb-r package vendors (includes a copy of) the DuckDB C++ core library. Key points:</p>
 <ul><li>
-<strong>Automated Process</strong>: Runs hourly via GitHub Actions, vendors from upstream DuckDB</li>
+<strong>Automated Process</strong>: Runs daily via GitHub Actions in <code>krlmlr/duckdb-r</code>, gated on the per-commit <code>rcc</code> build status</li>
 <li>
-<strong>Branch Strategy</strong>: <code>main</code> tracks stable <code>v1.3-ossivalis</code>, <code><a href="https://rdrr.io/r/base/Control.html" class="external-link">next</a></code> tracks bleeding-edge <code>main</code>
+<strong>Branch Strategy</strong>: one dev branch per upstream branch (<code>main-dev</code> ← <code>main</code>, <code>v1.5-variegata-dev</code> ← <code>v1.5-variegata</code>, <code>v1.4-andium-dev</code> ← <code>v1.4-andium</code>); see <a href="BRANCHES.html">BRANCHES.md</a>
 </li>
+<li>
+<strong>One commit at a time</strong>: each vendor commit corresponds to exactly one upstream commit, and must build and pass tests on its own — fold any required glue fix into that commit rather than adding a follow-up</li>
 <li>
 <strong>Never modify <code>src/duckdb/</code> directly</strong> - changes will be overwritten by vendoring</li>
 <li>
-<strong>Patching</strong>: Add files to the <code>patch/</code> directory to apply R-specific modifications to vendored code. Send patches upstream as pull requests every once in a while.</li>
+<strong>Patching</strong>: Add files to the <code>patch/</code> directory to apply R-specific modifications to vendored code. Send patches upstream as pull requests every once in a while. A patch that no longer applies is deleted by the next vendor run.</li>
 <li>
 <strong>Manual vendoring</strong>: Use <code>scripts/vendor.sh /path/to/duckdb/repo</code> for testing</li>
 <li>
@@ -212,6 +214,33 @@
 <li>Fix the root cause instead. For vendored code in <code>src/duckdb/</code>, add a patch file in <code>patch/</code> that corrects the source of the warning (e.g. by changing template definitions to avoid instantiating deprecated types).</li>
 <li>Example: <code>-Wdeprecated-declarations</code> from <code>char_traits&lt;T&gt;</code> for non-char <code>T</code> in libc++ was fixed by changing the <code>std_string_view</code> alias in <code>src/duckdb/third_party/fmt/include/fmt/core.h</code> to a struct that only provides <code>std::basic_string_view&lt;Char&gt;</code> for standard char types.</li>
 </ul></div>
+<div class="section level2">
+<h2 id="never-hard-code-the-package-name">Never Hard-Code the Package Name<a class="anchor" aria-label="anchor" href="#never-hard-code-the-package-name"></a></h2>
+<p>The package is published under several names — <code>duckdb</code> on CRAN, and <code>duckdb.dev</code>, <code>duckdb.1.5.dev</code>, <code>duckdb.1.4</code> and friends on r-universe — all built from the same sources with <code>scripts/lts.sh</code> applying the rename (see <a href="BRANCHES.html#r-package-flavors">BRANCHES.md</a>). Anything that writes <code>duckdb</code> literally works on <code>main</code> and breaks on every other branch.</p>
+<p><code>R/package.R</code> is the seam for this:</p>
+<table class="table"><colgroup><col width="50%"><col width="50%"></colgroup><thead><tr><th>Helper</th>
+<th>Returns</th>
+</tr></thead><tbody><tr><td><code>get_package_name()</code></td>
+<td>the current package name, via <code><a href="https://rdrr.io/r/utils/packageName.html" class="external-link">utils::packageName()</a></code>
+</td>
+</tr><tr><td><code>get_package_env()</code></td>
+<td>that package’s namespace, via <code><a href="https://rdrr.io/r/base/ns-internal.html" class="external-link">asNamespace()</a></code>
+</td>
+</tr><tr><td>
+<code>get_package_spec()</code>, <code>get_package_version()</code>
+</td>
+<td>the namespace spec and version</td>
+</tr><tr><td><code>system_file_path(...)</code></td>
+<td>a path inside the installed package (also the mockable seam tests stub)</td>
+</tr></tbody></table><p><code><a href="reference/backend-duckdb.html">simulate_duckdb()</a></code> exposes the first two as <code>$pkg</code> and <code>$env</code>, which is what makes <code>@examplesIf simulate_duckdb()$env$examples_enabled()</code> work under any flavor.</p>
+<p>Use them anywhere the package refers to itself:</p>
+<ul><li>
+<code>system.file(..., package = get_package_name())</code>, never the package name as a string literal;</li>
+<li>
+<code>get_package_env()$some_internal</code>, never a <code>:::</code> qualifier on our own name;</li>
+<li>in roxygen too — an inline chunk <code>`r get_package_env()$CONSTANT`</code> resolves under any name, while the same chunk written with a <code>:::</code> qualifier fails everywhere except <code>main</code>.</li>
+</ul><p>The roxygen case is worth calling out because it fails in a confusing way. roxygen2 evaluates inline chunks in the package’s own namespace, so an unresolvable reference does not raise an error: the chunk, <strong>and every other inline chunk in the same roxygen block</strong>, is emitted verbatim as <code>\verb{r ...}</code>. A single hard-coded qualifier therefore silently de-evaluates its neighbours — a single qualified reference in <code>R/storage.R</code> also took out the <code><a href="https://lifecycle.r-lib.org/reference/badge.html" class="external-link">lifecycle::badge()</a></code> chunk beside it. The regenerated <code>.Rd</code> then differs from the committed one and CI fails at the <code>roxygenize</code> step, before anything is compiled.</p>
+</div>
 <div class="section level2">
 <h2 id="c-glue-code-conventions">C++ Glue Code Conventions<a class="anchor" aria-label="anchor" href="#c-glue-code-conventions"></a></h2>
 <ul><li>R string constants and symbols (SEXP) used in C++ glue code are defined in <code>src/utils.cpp</code> (in <code>RStrings::RStrings()</code>) and declared in <code>src/include/rapi.hpp</code> (in <code>struct RStrings</code>).</li>
