@@ -323,7 +323,8 @@ static void CheckResultTypeForR(const LogicalType &type, const string &name) {
 		CheckResultTypeForR(MapType::ValueType(type), name);
 		return;
 	case LogicalTypeId::STRUCT:
-		for (const auto &child : StructType::GetChildTypes(type)) {
+	case LogicalTypeId::TUPLE:
+		for (const auto &child : RApiTypes::StructLikeChildTypes(type)) {
 			CheckResultTypeForR(child.second, name + "$" + child.first);
 		}
 		return;
