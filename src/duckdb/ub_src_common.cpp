@@ -8,6 +8,8 @@
 
 #include "src/common/cgroups.cpp"
 
+#include "src/common/column_index.cpp"
+
 #include "src/common/csv_writer.cpp"
 
 #include "src/common/complex_json.cpp"
