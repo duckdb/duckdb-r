@@ -4,6 +4,8 @@
 
 #include "src/function/cast_rules.cpp"
 
+#include "src/function/combine_types_rules.cpp"
+
 #include "src/function/compression_config.cpp"
 
 #include "src/function/copy_blob.cpp"
