@@ -14,8 +14,6 @@
 
 #include "src/planner/filter/optional_filter.cpp"
 
-#include "src/planner/filter/perfect_hash_join_filter.cpp"
-
 #include "src/planner/filter/prefix_range_filter.cpp"
 
 #include "src/planner/filter/selectivity_optional_filter.cpp"
@@ -29,8 +27,6 @@
 #include "src/planner/filter/table_filter_functions.cpp"
 
 #include "src/planner/filter/table_filter_optional_function.cpp"
-
-#include "src/planner/filter/table_filter_perfect_hash_join_function.cpp"
 
 #include "src/planner/filter/table_filter_prefix_range_function.cpp"
 
