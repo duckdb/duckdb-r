@@ -712,7 +712,7 @@ static void DataFrameScanFunc(ClientContext &context, TableFunctionInput &data, 
 		// Hannes: I love the reference, but would you mind adding a bit of context why this is necessary?
 		if (src_df_col_idx == COLUMN_IDENTIFIER_ROW_ID) {
 			Value constant_42 = Value::BIGINT(42);
-			output.data[out_col_idx].Reference(constant_42);
+			output.data[out_col_idx].Reference(constant_42, count_t(this_count));
 			continue;
 		}
 
