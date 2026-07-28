@@ -76,6 +76,8 @@
 
 #include "src/optimizer/topn_window_elimination.cpp"
 
+#include "src/optimizer/type_pushdown.cpp"
+
 #include "src/optimizer/unnest_rewriter.cpp"
 
 #include "src/optimizer/window_self_join.cpp"
