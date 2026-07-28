@@ -151,14 +151,11 @@
     Code
       writeLines(rel_explain_df(proj)[[2]])
     Output
-      ┌───────────────────────────┐
-      │      R_DATAFRAME_SCAN     │
-      │    ────────────────────   │
-      │      Text: data.frame     │
-      │       Projections: x      │
-      │                           │
-      │           ~1 row          │
-      └───────────────────────────┘
+      ╭─ R Dataframe Scan ─╮
+      │ data.frame         │
+      │ Projections: x     │
+      │ ~1 row             │
+      ╰────────────────────╯
       
 
 ---
