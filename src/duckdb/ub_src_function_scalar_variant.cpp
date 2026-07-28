@@ -1,3 +1,5 @@
+#include "src/function/scalar/variant/variant_array_length.cpp"
+
 #include "src/function/scalar/variant/variant_bind_utils.cpp"
 
 #include "src/function/scalar/variant/variant_exists.cpp"
