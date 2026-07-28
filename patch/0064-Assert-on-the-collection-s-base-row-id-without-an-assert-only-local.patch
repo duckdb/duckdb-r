@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 18 Oct 2026 22:31:57 +0000
+Subject: [PATCH] Assert on the collection's base row id without an assert-only local
+
+RowGroupCollection::Initialize() reads the base row id into a local
+that only D_ASSERT() reads, so in a release build, where D_ASSERT()
+expands to nothing, the local is unused and -Wunused-variable says so.
+The assertion reads the id from the segment tree itself, which is the
+shape upstream gives the site later.
+
+Carried here until the engine brings the same change.
+
+---
+ src/duckdb/src/storage/table/row_group_collection.cpp | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/duckdb/src/storage/table/row_group_collection.cpp b/src/duckdb/src/storage/table/row_group_collection.cpp
+index 338eb89bef..10ef5f43a5 100644
+--- a/src/duckdb/src/storage/table/row_group_collection.cpp
++++ b/src/duckdb/src/storage/table/row_group_collection.cpp
+@@ -155,9 +155,8 @@ void RowGroupCollection::FinalizeCheckpoint(MetaBlockPointer pointer,
+ void RowGroupCollection::Initialize(PersistentCollectionData &data) {
+ 	stats.InitializeEmpty(types);
+ 	auto l = owned_row_groups->Lock();
+-	auto base_row_id = owned_row_groups->GetBaseRowId();
+ 	for (auto &row_group_data : data.row_group_data) {
+-		D_ASSERT(row_group_data.start == base_row_id + total_rows.load());
++		D_ASSERT(row_group_data.start == owned_row_groups->GetBaseRowId() + total_rows.load());
+ 		auto row_group = make_uniq<RowGroup>(*this, row_group_data);
+ 		row_group->MergeIntoStatistics(stats);
+ 		total_rows += row_group->count;
