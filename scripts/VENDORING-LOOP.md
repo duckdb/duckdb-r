@@ -178,8 +178,9 @@ Replaces fire-and-forget dispatch (`each-rcc.sh`) **and** the 4×/day harvest
    only *scanning* runs ahead.
 2. **Matrix step** — one leg per shard. Each leg, for each commit in its shard
    *in chronological order*:
-   - checks out the commit, builds from source + runs the smoke test (warm
-     ccache restored at shard start; see §4),
+   - checks out the commit, builds from source (incremental `make` reuses the
+     previous commit's objects within the shard; cache-free, see §4) + runs the
+     smoke test,
    - **sets the `rcc` commit-status** (pending→success/failure) — an idempotent,
      per-SHA GitHub API call, so it is fresh per commit with **no contention**,
    - **uploads its log tail as a per-leg artifact** (no git push from legs).
@@ -220,14 +221,14 @@ Invocation (all three supported — the workflow doesn't care who called it):
   primitive right after it pushes) or `repository_dispatch` from an external
   API caller.
 
-> **ccache is mandatory here** (see §4, measured in Appendix A): the build is a
-> **unity build** (~340 `ub_*.o`/object groups, not ~1700 separate TUs), and a
-> typical vendor commit changes ~2 `.cpp` in zero or one header — so it
-> invalidates only a handful of unity objects. Measured: a typical adjacent
-> commit recompiles ~5 of 351 objects (**~98% cached, ~90 s vs 841 s cold**).
-> The `DUCKDB_R_USE_SYSTEM_LIB` fast path from `AGENTS.md` is *not* usable here —
-> we are validating that each commit builds *from source* — so ccache is the
-> substitute for that speed-up.
+> **Incremental rebuilds make this cheap** (see §4, measured in Appendix A): the
+> build is a **unity build** (~340 `ub_*.o`/object groups, not ~1700 separate
+> TUs), and a typical vendor commit changes ~2 `.cpp` in zero or one header — so
+> it invalidates only a handful of unity objects (~5 of 351; ~90 s vs cold).
+> The normal per-commit path gets this from the existing CI caches; the bulk
+> path gets it from **incremental `make` within a shard** (§4.2) — no shared
+> cache. The `DUCKDB_R_USE_SYSTEM_LIB` fast path from `AGENTS.md` is *not* usable
+> either way — we are validating that each commit builds *from source*.
 
 #### C. Promote primitive — deterministic green advance *(NEW: `promote-green.yaml` + `scripts/promote-green.sh`)*
 
@@ -269,8 +270,8 @@ lookahead (~3–5). This is the concrete meaning of "not replaying the rest":
 the old `broken-<sha>-dev` model cherry-picked the *entire* subsequent history
 (unbounded), whereas in-place repair rewrites only the bounded lookahead. Those
 ≤25 rebuilds are cheap — they were almost certainly red too (same break
-cascading) and the fix flips them green, and with a warm ccache each recompiles
-only the few unity objects the tiny fix touches (Appendix A).
+cascading) and the fix flips them green, and incremental rebuilds recompile only
+the few unity objects the tiny fix touches (Appendix A).
 
 **Reviewability of the fold.** Amending keeps history bisectable and the vendor
 markers intact, and it does *not* hide the R-side edit: the vendored content is
@@ -297,7 +298,7 @@ Each iteration (driven by Claude, or by a chained set of GHA triggers):
 4. REPAIR?  if a red frontier exists:
               D: amend/squash it in place, force-push *-dev;
               GOTO 2 — but only for the rewritten range (new SHAs only),
-              which is ≤25 commits (the bound) and warm-ccache cheap.
+              which is ≤25 commits (the bound) and incremental-rebuild cheap.
             else: iteration done.
 ```
 
@@ -395,6 +396,87 @@ wanted. See §8 Q9.
 
 ---
 
+### 3.6 The routine — what Claude actually runs *(REVISED)*
+
+§3.3 describes the loop as a peer set of primitives. Running the `main-rewind-dev`
+rebuild end to end (1001 commits, ~1180 first-parent upstream commits from the
+fork point to the mainline tip) showed the division of labour is more lopsided
+than that, and in a useful direction: **CI does all the heavy lifting, and the
+only thing worth doing locally is the cheap gate that CI cannot afford to be
+the first to discover.**
+
+So the loop is a **Claude Code Web routine** — a scheduled session, not a
+workflow — that on each firing does exactly four things, in order:
+
+```
+1. PROMOTE  fast-forward <line>-green to the youngest commit on <line>-dev
+            whose `rcc` status is success (and whose ancestors are all green).
+            Ground truth only; never a local build.
+2. VENDOR   append the newest upstream first-parent commits to <line>-dev,
+            one commit each, gated locally on the glue compiling.
+3. REPAIR   take the OLDEST failing commit past <line>-green -- and only that
+            one -- fold the fix into it, replay the tail, force-push <line>-dev.
+4. PRs      update any pull request whose base moved under the force-push.
+```
+
+**Why only the oldest failure.** Reds past the first one are usually the same
+break re-reported: every later commit inherits the broken glue. Repairing the
+oldest and letting CI re-run is cheaper and less error-prone than triaging a
+frontier. It also keeps the blast radius of each force-push to the tail of one
+commit. In the rebuild, all four upstream API breaks past the replay window
+behaved this way — one adaptation each, every later commit green again.
+
+**The local gate is a syntax-only glue compile, not a build.**
+
+```bash
+clang-format -i src/*.{c,cc,cpp,h,hpp}          # must be a no-op
+g++ $FLAGS -fsyntax-only <the 15 glue TUs>      # 4 at a time
+```
+
+Roughly 20 s per commit against a fully vendored header tree, versus minutes
+for a real build, and it catches *every* upstream API change — which is the
+only class of breakage a vendor commit can introduce into the glue. It does not
+link and it does not test; both are CI's job. Over 320 vendored commits this
+gate found four breaks and cost about six seconds of vendoring plus twenty of
+checking per commit.
+
+**The style gate is not optional.** The per-commit `rcc` runs are
+`workflow_dispatch`, and `.github/workflows/commit/action.yml` has:
+
+```yaml
+- name: Write diff and fail for workflow_dispatch
+  if: steps.check.outputs.has_changes == 'true' && github.event_name == 'workflow_dispatch'
+  run: |
+    echo "Changes detected in workflow_dispatch build. Diff:"
+    git diff
+    exit 1
+```
+
+Anything the auto-style, roxygenize or snapshot steps rewrite is an immediate
+failure rather than a commit-back. A glue tweak that is merely *correct* is not
+enough: it must also be clang-format clean, or every commit from that index
+onwards goes red. This is the single most likely way for an otherwise good
+adaptation to poison a long chain, and it is invisible to a local build. Run
+the formatter before the compiler, and treat a non-empty `git diff` as a
+failure of the same severity as a compile error.
+
+**Version skew is a real risk here.** CI installs `clang-format-21`; whatever
+the routine has locally may format differently in edge cases. The routine
+should pin the same major version where it can, and otherwise treat the first
+CI run after a push as the authority — CI prints the diff it wants, which is
+directly appliable.
+
+**Fold, do not append.** The adaptation belongs in the commit that vendors the
+upstream change which requires it, so that every commit of the chain is
+independently green and a bisect over the chain stays meaningful. A fixup
+commit on top is acceptable only as a temporary measure to avoid disturbing
+in-flight CI, and must be squashed back into its target before the next
+promotion. To find the target from the log alone:
+
+```bash
+git log --oneline -S'<the removed symbol>' <line>-dev -- src/duckdb
+```
+
 ## 4. Compute model & sharding (measured)
 
 All numbers here are measured, not assumed — see **Appendix A** for the
@@ -411,74 +493,49 @@ rebuilds). Three facts drive the design:
   738 s — nearly cold). Header *count* is a poor predictor; what matters is how
   many unity objects transitively include the changed header.
 
-### 4.1 Steady state needs no sharding
+The Appendix-A numbers are from a fast local box; on the **GHA runners** a cold
+build is ≈36 min (~10 fit a 6 h job). The bulk path (§4.2) realises the ~98%
+adjacent-commit reuse via **incremental `make` within a shard**, not ccache — the
+hit-rate figures describe the same "only the changed unity objects recompile"
+effect either way.
 
-In normal operation commits arrive hourly in small batches (the §3.2 A budget
-caps a batch at ≤25, usually 1–8). A **single runner** builds them sequentially
-on a warm restored ccache: one warm start + a few ~90 s incrementals = a few
-minutes, **one runner, near-zero Actions pressure**. This is the common case;
-the matrix below is reserved for bulk replay.
+### 4.1 Two build paths with different economics
 
-### 4.2 Persistent caching — reuse the bespoke caches already in CI
+- **Normal path (unchanged):** a single commit, or a small daily batch (§3.2 A,
+  ≤25), is checked by the existing per-commit `rcc` workflow, which already uses
+  the bespoke caches in `custom/after-install` (the `duckdb.tar` tree-archive +
+  `ccache-action`). Cached, fast, near-zero Actions pressure — the common case.
+- **Bulk path (new, this section):** rebuild *many* commits at once after a
+  force-push or first-time backfill. This is the matrix primitive, and it is
+  deliberately **cache-free** (§4.2).
 
-The enemy is the **per-shard cold build**: if every shard paid 841 s cold,
-fine-grained sharding is a compute disaster (a 900 s/shard target over 101
-commits → 84 shards, ~20 core-hours — exactly the saturation that hurts other
-projects). The fix is persistent caching — and **it already exists** in
-`custom/after-install/action.yml`, active on the `krlmlr` fork (both caches are
-gated `if DUCKDB_R_USE_SYSTEM_LIB != '1'`, which the fork always forces). Reuse
-it rather than inventing S3 storage:
+### 4.2 Massive builds are cache-free; incremental make within a shard, bounded by 6 h
 
-1. **`duckdb.tar` prebuilt-object archive** (`from-tar.mk` / `to-tar.mk` +
-   `configure`): a tarball of the compiled unity `.o` files, cached via
-   `actions/cache` keyed on **`hashFiles('src/duckdb/**')`** (+ R/OS/CXX).
-   `configure` extracts it to skip compilation when present, else compiles and
-   re-tars. This is a **content-addressed, whole-tree object cache**: an
-   identical vendored tree → extract → *zero compilation*. It is **strictly
-   better than ccache for force-push replays and R-only commits** — same
-   `src/duckdb/` content ⇒ same key ⇒ one untar, no per-TU work.
-2. **`hendrikmuhs/ccache-action`** — persistent ccache (content-addressed per
-   TU). Covers the *novel* adjacent commit (archive miss, but ~98% of unity
-   objects unchanged ⇒ ~90 s; Appendix A).
+**No shared cache for the bulk path.** The bespoke caches are **GHA-action-bound**:
+`actions/cache` restore/save run once per *job*, and the `duckdb.tar` key is per
+*whole tree* (`hashFiles('src/duckdb/**')`). A shard that builds many commits in
+one job cannot restore/save a per-commit archive mid-job, and invoking those
+actions per commit is impractical — so the matrix path does not reuse them.
 
-They compose: archive hit for recurring trees (replay / R-only), ccache for the
-~2-file delta of a genuinely new commit.
+Instead, each shard builds its slice **sequentially in one workspace with
+incremental `make`**: build the first commit cold, then `git checkout` each next
+commit (≈2 files change) and rebuild **without cleaning**. Make recompiles only
+the changed unity objects (via the `.dd` dependency tracking) — the same ~98%
+reuse Appendix A measured, but from make timestamps rather than ccache. No
+`actions/cache` calls, no cross-job state. The price is one cold build per shard
+(not per commit), which is cheap amortized over ~20 commits, and **massive builds
+are infrequent** anyway (force-push / backfill). The normal per-commit `rcc`
+runs are untouched and stay cached.
 
-| Case | `src/duckdb/` tree | Cache that fires | Cost |
-|---|---|---|---|
-| R-only commit | unchanged vs parent | archive hit | untar only |
-| Force-push / re-run | content recurs | archive hit | untar only |
-| Novel vendor commit | changed (~2 files) | archive miss → ccache | ~98% TU hits, ~90 s |
-
-**Adaptations required:**
-
-- **Build with `-g`, strip the *archived* objects only** (validated end-to-end,
-  Appendix A.3). Keep `-g` on the live build so a failing test yields a real C++
-  stack trace, but `strip --strip-debug` the `.o` *just before they are tarred*
-  for the cache. As built today the archive is **2.5 GB raw / ~457 MB zstd** (only
-  ~20 trees fit the 10 GB budget — bulk replay impossible); stripped it is
-  **97 MB raw / ~19 MB zstd (26×)** → **~500 trees fit**, so per-commit archive
-  caching is cheap (no green-tip restriction needed). Use `--strip-debug`, not a
-  full `strip` (the symbol table must survive for linking). Order the
-  `to-tar.mk` rule *after* the `.so` link so the live `.so` keeps its debug info.
-  Caveat: on a cache *hit* the engine objects come from the stripped archive, so
-  the relinked `.so`'s DuckDB frames lack debug info (only the freshly-compiled
-  glue has it) — acceptable, since a novel failure is on the *miss* path with a
-  full `-g` engine. Verified: a cache-hit install from the stripped archive
-  rebuilt only the ~15 glue files (6 s), linked cleanly, and passed the
-  connect/insert/query smoke test.
-- **Raise the ccache `max-size` (currently `200M`)** — size it to ~1–2 GB so a
-  shard building many commits doesn't thrash (well within the 10 GB/repo budget).
-  (ccache stores `-g` outputs, so it benefits less from the archive strip; the
-  cap is the lever there.)
-- **Matrix legs reuse the existing `install` + `custom/after-install` composite**
-  rather than reinventing, so both caches and the `DUCKDB_R_USE_SYSTEM_LIB`
-  gating stay intact. (The new build path must keep system-lib *off* — the whole
-  point is a from-source build.)
-- Parallel-shard hygiene: `ccache-action` already uses a prefix `key` +
-  timestamped saves (restore-latest, save-new), so concurrent shards accumulate
-  without collision; the archive keys are per-tree-hash, so distinct commits
-  never collide.
+**Capacity / the 6-hour job limit.** On the GHA runners (slower than the
+Appendix-A local box): ~**10 cold builds** fit in 6 h (≈36 min each, from
+source) and a check is ~**4 min**/version. Since only the *first* build in a
+shard is cold and the rest are incremental, a shard comfortably builds and tests
+**~20 consecutive versions** in 6 h (1 cold + ~19 incremental + check). With the
+256-job matrix cap that is **~256 × 20 ≈ 5 000 commits per run** before the
+limit forces multi-run continuation (§4.3). 5 000 ≫ any realistic backlog
+(`main` produces ~2 500 commits/year), so a timeout is effectively unreachable;
+the continuation path exists only for completeness.
 
 ### 4.3 Header-aware (cost-balanced) sharding for bulk replay
 
@@ -489,30 +546,25 @@ catch-up), the plan step:
    map** (header → number of unity objects that transitively include it,
    computed once per build). Weight ≈ fixed floor + `Σ reach(changed header)`.
    This correctly makes wide-header commits heavy and isolates them.
-2. **Partitions the contiguous sequence into cost-balanced shards** (contiguity
-   preserves within-shard ccache warmth). Balance by *predicted cost*, not
-   commit count, so shards finish together (no straggler). Pick a *small* number
-   of shards `S` to bound concurrent runners (good-neighbour budget), not a tiny
-   wall-target that explodes `S`.
+2. **Partitions the contiguous sequence into cost-balanced shards** of
+   **≤~20 commits** (the 6 h bound, §4.2; contiguity preserves within-shard
+   *incremental-make* reuse). Balance by *predicted cost*, not commit count, so
+   shards finish together (no straggler) — a wide-header commit costs a
+   near-cold incremental, so it weighs heavily and gets isolated. Pick the
+   *fewest* shards that keep each ≤20 / under 6 h (good-neighbour runner budget).
 3. **Frontier-first ordering** so the ≤25 commits past `*-green` build first and
    promotion can advance immediately; backfill the rest.
-4. **Multi-run continuation** if `S` would exceed the 256 cap (or the runner
-   budget): build a prefix, re-dispatch (`workflow_call`/`repository_dispatch`)
-   for the remainder as `*-green` advances.
+4. **Multi-run continuation** if commits exceed `256 × 20 ≈ 5 000` (or the
+   runner budget): build a prefix, re-dispatch
+   (`workflow_call`/`repository_dispatch`) for the remainder as `*-green`
+   advances.
 
-Worked example — **v1.5.3 → v1.5.4 (101 commits, ~3 weeks)**, warm ccache,
-balancing by predicted cost (Appendix A):
-
-| Shards | Sizes (cost-balanced, uneven) | Wall/shard | Concurrent runners |
-|---|---|---|---|
-| 1 | [101] | ~186 min | 1 |
-| 2 | [56, 45] | ~95 min | 2 |
-| 4 | [37, 19, 29, 16] | ~50 min | 4 |
-| 6 | [36, 8, 13, 23, 10, 11] | ~36 min | 6 |
-| 8 | [30, 8, 8, 10, 14, 15, 5, 11] | ~27 min | 8 |
-
-Note the **uneven sizes at equal wall-time** — that *is* header-aware balancing:
-cheap/R-only commits packed densely, header-cascade commits isolated.
+Worked example — **v1.5.3 → v1.5.4 (101 commits, ~3 weeks)**: at ≤20 commits per
+shard that is **~6 cost-balanced shards**, each one cold build (~36 min) plus
+~14–18 incremental builds + checks ≈ **2–3 h**, comfortably under 6 h, on 6
+concurrent runners. Shard *sizes* are uneven (cheap/R-only commits packed
+densely, header-cascade commits isolated) but wall-times match — that is the
+header-aware balancing. The whole range fits in **one** matrix run.
 
 ### 4.4 The real floor is per-commit test cost, not compilation
 
@@ -522,17 +574,66 @@ the rest carry a **~70–90 s fixed floor** that is mostly **LTO link of the big
 ≈ 100 min is irreducible overhead if every commit is tested. The lever that
 actually moves this is **dropping LTO for the smoke build**: it is irrelevant to
 verifying a commit compiles and tests pass, and it dominates the link (hence the
-floor); keep LTO only on the shipped artifact. Note `-g` is *kept* on the live
-build (for debuggable failures) and stripped only from the *archived* objects
-(§4.2) — that addresses cache size without touching the floor or trace quality.
+floor); keep LTO only on the shipped artifact. In the **bulk (cache-free) path**
+the smoke build may also compile **`-g0`** for faster cold builds — a failure
+just yields a red status, and the repair primitive reproduces it *standalone*
+with `-g` for the trace, so debug info is not needed during a massive run. (The
+`-g` + archive-strip discussion of the earlier draft applied only to a cached
+path; with no archive in the bulk path, `-g0` is the simpler win.)
 
 (Only-missing-status filtering — never rebuild a commit that already has a
 current `rcc=success` — is assumed baseline throughout, not an optimization: it
 is already how the §3.2 B plan step enumerates work.)
 
-> Implementation choices deferred to §8: ccache backend (`actions/cache` vs
-> self-hosted vs S3 secondary), shard count policy, and whether the smoke build
-> drops LTO.
+### 4.5 Restart, repeated, and concurrent runs
+
+The build primitive is **idempotent and resumable** because progress is durable
+*per commit*, not per run:
+
+- **Unit of progress = the per-SHA `rcc` commit-status**, set the moment each
+  commit finishes (§3.2 B). It is a pure function of the deterministic build,
+  written last-write-wins with the same value on re-run; the `rcc`-branch logs
+  are reconstructable from ground truth by the idempotent reconciler.
+- **Work selection** is always "commits between `*-green` and `*-dev` lacking
+  `rcc=success`", so any run computes its own to-do list from current ground
+  truth — no run depends on another's in-memory state.
+
+**Restart (timeout / cancellation).** A shard that dies mid-slice has already
+published statuses for the commits it finished; the in-progress commit has no
+final status and the rest never started. The next run re-enumerates
+missing-status commits and resumes. Correctness is unaffected; the only cost is
+that the resumed slice loses its in-job incremental-make state and pays one fresh
+cold build. No checkpointing is needed beyond the commit-status.
+
+**Repeated runs (cron + manual, or back-to-back).** Only-missing-status
+filtering makes a second run mostly a no-op — it skips already-decided commits.
+Re-checking a decided commit is allowed (deterministic ⇒ same result); an
+explicit `force` input can re-run a range to refresh stale logs.
+
+**Concurrent runs.**
+- *Two build runs overlapping* re-enumerate the same commits and duplicate work —
+  harmless (idempotent status writes) but wasteful, and doubling 256 runners on a
+  5 000-commit run is antisocial. Guard with a **`concurrency` group per branch**,
+  `cancel-in-progress: false` so a queued run waits rather than killing a long
+  bulk build.
+- *Build concurrent with vendor / repair* (which force-push the branch): the
+  build targets **explicit SHAs**, so a mid-flight rewrite cannot corrupt it — it
+  finishes the old SHAs and attaches their statuses (now-unreachable commits are
+  simply ignored by promotion), while the new post-rewrite SHAs lack status and
+  are picked up next run. To avoid wasting a run on orphaned SHAs, put the daily
+  vendor, repair, and bulk build for a line in a **shared per-line concurrency
+  group**. The cheap per-commit `rcc` runs need no coordination (they self-heal).
+- *Concurrent writes to the `rcc` branch* are already avoided by the single
+  `if: always()` fan-in writer + idempotent reconciler (§3.2 B), not per-leg
+  pushes.
+
+Net: **nothing requires a lock for correctness** — idempotent, ground-truth-derived
+state makes restarts and repeats safe by construction; the concurrency groups
+exist only to avoid *wasted* compute.
+
+> Implementation choices deferred to §8: shard-count policy, whether the bulk
+> smoke build drops LTO and `-g0`, and the exact concurrency-group scoping
+> between vendor / repair / build.
 
 ---
 
@@ -588,10 +689,10 @@ async workflows; the branch model and markers are unchanged, so no data is lost.
 |---|---|
 | Concurrent writers clobber the `rcc` branch | no per-leg pushes: legs upload artifacts; a single `if: always()` fan-in writes once (§3.2 B) |
 | Fan-in skipped on full workflow cancellation | idempotent scheduled/on-demand reconciler (`rcc-logs.sh`) is the backstop; `rcc`-state is a pure function of ground truth (§3.2 B) |
-| ccache cold after a force-push → slow recovery | persistent content-addressed ccache (§4.2); a force-push keeps file *content*, so it is nearly all hits |
-| Fine-grained sharding explodes compute (cold floor) | persistent ccache removes the per-shard cold build; balance by predicted cost into a *small* `S` (§4.2–4.3) |
-| Per-commit floor dominated by LTO link | drop LTO for the smoke build; keep it only on the shipped artifact (§4.4) |
-| Cached `duckdb.tar` too large for the 10 GB budget (2.5 GB raw / ~457 MB zstd with `-g`) | keep `-g` on the live build, `--strip-debug` only the archived `.o` → 97 MB raw / ~19 MB zstd, ~500 trees fit; validated end-to-end (A.3) |
+| Bulk run hits the 6 h job timeout | a shard does ≤~20 commits (1 cold + ~19 incremental); restart resumes from per-commit status — no checkpoint needed (§4.2, §4.5) |
+| Fine-grained sharding explodes compute (cold floor) | bound shards to ≤~20 commits balanced by predicted cost; one cold build amortized over ~20 (§4.2–4.3) |
+| Per-commit floor dominated by LTO link | drop LTO (and `-g`/`-g0` in the bulk path) for the smoke build; keep them on the shipped artifact (§4.4) |
+| Concurrent / repeated build runs waste compute or race | per-branch `concurrency` group (`cancel-in-progress: false`); shared per-line group across vendor/repair/build; correctness needs no lock — state is idempotent and ground-truth-derived (§4.5) |
 | Matrix > 256 jobs | cost-balanced shards + multi-run continuation (§4.3) |
 | In-place force-push on `*-dev` races with hourly vendor | single concurrency group across A/D per line; vendor guard refuses while a repair is open |
 | r-universe build of `*-green` still fails despite green `rcc` | `rcc` smoke test must be a faithful subset of the r-universe build env; add an r-universe-parity check to the smoke job before cut-over |
@@ -605,14 +706,13 @@ async workflows; the branch model and markers are unchanged, so no data is lost.
 
 ## 8. Open questions (for implementation)
 
-1. **Cache backend — largely settled:** reuse the existing CI caches
-   (`duckdb.tar` tree-archive + `ccache-action`, §4.2). Open: the new ccache
-   `max-size` (a few GB?), and whether the 10 GB/repo `actions/cache` budget
-   suffices for bulk replay or warrants a self-hosted / S3 ccache secondary
-   store as overflow.
-2. **Shard policy:** cost-balanced by predicted reach (§4.3) is settled; open is
-   the *number* of shards — a fixed good-neighbour cap (e.g. ≤4–8 concurrent
-   runners) vs a wall-clock target. And: drop LTO for the smoke build (§4.4)?
+1. **Caching — settled:** the normal per-commit path keeps the existing CI caches
+   (`duckdb.tar` + `ccache-action`); the **bulk path is cache-free** (the bespoke
+   caches are GHA-action-bound and don't fit a multi-commit job), relying on
+   incremental `make` within a shard (§4.2). No new cache backend needed.
+2. **Shard policy:** cost-balanced by predicted reach into ≤~20-commit shards
+   (§4.2–4.3); open is the concurrency cap (how many runners is "good-neighbour"
+   for a big run) and whether the bulk smoke build drops LTO/`-g0` (§4.4).
 3. **`*-green` bootstrap point:** create from current `*-dev-base`, or from the
    latest already-green `*-dev` commit per line?
 4. **r-universe parity:** how closely must the `rcc` smoke job mirror the
@@ -643,12 +743,11 @@ async workflows; the branch model and markers are unchanged, so no data is lost.
    `rcc` status reads from the orphan branch).
 2. `.github/workflows/promote-green.yaml` — wraps (1); `schedule` +
    `workflow_call` + `workflow_dispatch`.
-3. `.github/workflows/rcc-matrix.yaml` — plan (cost-balanced shards) + matrix
-   build (legs reuse the existing `install` + `custom/after-install` composite,
-   so the `duckdb.tar` archive + ccache caches and the `DUCKDB_R_USE_SYSTEM_LIB`
-   gating are inherited; per-leg status + log artifact) + `if: always()` fan-in
-   that runs `rcc-logs.sh` scoped to the run. Also: raise the ccache `max-size`
-   from 200 M (§4.2) and add the reverse-include cost-estimator.
+3. `.github/workflows/rcc-matrix.yaml` — plan (cost-balanced ≤20-commit shards
+   via the reverse-include estimator) + cache-free matrix build (each leg builds
+   its slice sequentially with incremental `make`, `DUCKDB_R_USE_SYSTEM_LIB` off,
+   per-commit status + log artifact) + `if: always()` fan-in running `rcc-logs.sh`
+   scoped to the run; per-branch + shared per-line `concurrency` groups (§4.5).
 4. Vendor guard: add the ≤25-ahead-of-frontier check to `vendor-one.sh` /
    `vendor.yaml`.
 5. Create `*-green` branches; document the model in `BRANCHES.md` and
@@ -709,11 +808,19 @@ Takeaways:
   headers by reverse-include reach (§4.3).
 - The ~70–90 s floor on cheap commits is **LTO link + install + smoke test**, not
   compilation ⇒ drop LTO for the smoke build (§4.4).
-- A.1 (66% zero-header) + A.2 (zero-header ⇒ 98%) ⇒ **most of the pipeline is
-  near-free with a warm ccache**; the persistent cache (§4.2) is what guarantees
-  "warm".
+- A.1 (66% zero-header) + A.2 (zero-header ⇒ 98%) ⇒ **most adjacent rebuilds are
+  near-free**. The bulk path realises this with incremental `make` within a shard
+  (no shared cache, §4.2); the normal per-commit path with the existing CI caches.
+  The `--preclean` here only *forces* a full recompile to measure the hit rate;
+  production never cleans between consecutive commits.
 
 ### A.3 `duckdb.tar` archive size — debug info dominates
+
+> Scope: this measurement informed an earlier *cached* bulk design. The bulk
+> path is now **cache-free** (§4.2), so the archive-size question applies only if
+> the **normal per-commit** cached path's `duckdb.tar` is ever shrunk; it is
+> retained here as a measured reference (and the `-g`/strip trade-off is real for
+> that path).
 
 The cached object archive (`$(SOURCES)` = 341 unity `.o`, one v1.5 tree):
 
