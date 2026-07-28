@@ -1,0 +1,50 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 18 Oct 2026 23:44:32 +0000
+Subject: [PATCH] Compile the copy directory manager's assert-only flag only when asserts are on
+
+CopyDirectoryManager::EnsureDirectory() tracks whether it created the
+directory entry in a flag that only D_ASSERT() reads, so in a release
+build, where D_ASSERT() expands to nothing, -Wunused-but-set-variable
+reports it. Upstream later guards the flag with D_ASSERT_IS_ENABLED;
+this is that text.
+
+Carried here until the engine brings the same change.
+
+---
+ src/duckdb/src/execution/operator/persistent/physical_copy_to_file.cpp | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/duckdb/src/execution/operator/persistent/physical_copy_to_file.cpp b/src/duckdb/src/execution/operator/persistent/physical_copy_to_file.cpp
+index e58fc8c83f..57530a0fd2 100644
+--- a/src/duckdb/src/execution/operator/persistent/physical_copy_to_file.cpp
++++ b/src/duckdb/src/execution/operator/persistent/physical_copy_to_file.cpp
+@@ -1578,14 +1578,18 @@ void CopyFileLifecycleExecutor::ThrowError() {
+ // Copy File State Helpers
+ //===--------------------------------------------------------------------===//
+ void CopyDirectoryManager::EnsureDirectory(FileSystem &fs, const string &dir_path) {
++#ifdef D_ASSERT_IS_ENABLED
+ 	bool created_entry = false;
++#endif
+ 	{
+ 		std::unique_lock<mutex> guard(lock);
+ 		while (true) {
+ 			auto entry = directories.find(dir_path);
+ 			if (entry == directories.end()) {
+ 				directories.emplace(dir_path, DirectoryEntry());
++#ifdef D_ASSERT_IS_ENABLED
+ 				created_entry = true;
++#endif
+ 				break;
+ 			}
+ 
+@@ -1612,7 +1616,9 @@ void CopyDirectoryManager::EnsureDirectory(FileSystem &fs, const string &dir_pat
+ 		lock_guard<mutex> guard(lock);
+ 		auto entry = directories.find(dir_path);
+ 		D_ASSERT(entry != directories.end());
++#ifdef D_ASSERT_IS_ENABLED
+ 		D_ASSERT(created_entry);
++#endif
+ 		entry->second.state = error ? CopyDirectoryState::FAILED : CopyDirectoryState::COMPLETE;
+ 		entry->second.error = error;
+ 	}
