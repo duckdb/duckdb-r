@@ -277,7 +277,7 @@ void isna_double(DataChunk &args, ExpressionState &state, Vector &result) {
 	case VectorType::FLAT_VECTOR: {
 		result.SetVectorType(VectorType::FLAT_VECTOR);
 
-		isna_double_loop(count, FlatVector::GetData<double>(input), FlatVector::GetData<bool>(result),
+		isna_double_loop(count, FlatVector::GetData<double>(input), FlatVector::GetDataMutable<bool>(result),
 		                 FlatVector::Validity(input));
 
 		break;
@@ -298,7 +298,7 @@ void isna_double(DataChunk &args, ExpressionState &state, Vector &result) {
 		input.ToUnifiedFormat(count, vdata);
 		result.SetVectorType(VectorType::FLAT_VECTOR);
 
-		isna_double_loop(count, UnifiedVectorFormat::GetData<double>(vdata), FlatVector::GetData<bool>(result),
+		isna_double_loop(count, UnifiedVectorFormat::GetData<double>(vdata), FlatVector::GetDataMutable<bool>(result),
 		                 vdata.validity);
 
 		break;
@@ -347,7 +347,7 @@ void isna_any(DataChunk &args, ExpressionState &state, Vector &result) {
 	switch (input.GetVectorType()) {
 	case VectorType::FLAT_VECTOR: {
 		result.SetVectorType(VectorType::FLAT_VECTOR);
-		isna_any_loop(count, FlatVector::GetData<bool>(result), FlatVector::Validity(input));
+		isna_any_loop(count, FlatVector::GetDataMutable<bool>(result), FlatVector::Validity(input));
 
 		break;
 	}
@@ -364,7 +364,7 @@ void isna_any(DataChunk &args, ExpressionState &state, Vector &result) {
 		UnifiedVectorFormat vdata;
 		input.ToUnifiedFormat(count, vdata);
 		result.SetVectorType(VectorType::FLAT_VECTOR);
-		isna_any_loop(count, FlatVector::GetData<bool>(result), vdata.validity);
+		isna_any_loop(count, FlatVector::GetDataMutable<bool>(result), vdata.validity);
 
 		break;
 	}
@@ -870,7 +870,8 @@ void InExecute(DataChunk &args, ExpressionState &state, Vector &result) {
 	case VectorType::FLAT_VECTOR: {
 		result.SetVectorType(VectorType::FLAT_VECTOR);
 
-		in_loop(count, FlatVector::GetData<LHS_TYPE>(x), FlatVector::GetData<bool>(result), FlatVector::Validity(x));
+		in_loop(count, FlatVector::GetData<LHS_TYPE>(x), FlatVector::GetDataMutable<bool>(result),
+		        FlatVector::Validity(x));
 
 		break;
 	}
@@ -887,7 +888,7 @@ void InExecute(DataChunk &args, ExpressionState &state, Vector &result) {
 		UnifiedVectorFormat vdata;
 		x.ToUnifiedFormat(count, vdata);
 		result.SetVectorType(VectorType::FLAT_VECTOR);
-		in_loop(count, UnifiedVectorFormat::GetData<LHS_TYPE>(vdata), FlatVector::GetData<bool>(result),
+		in_loop(count, UnifiedVectorFormat::GetData<LHS_TYPE>(vdata), FlatVector::GetDataMutable<bool>(result),
 		        vdata.validity);
 
 		break;
