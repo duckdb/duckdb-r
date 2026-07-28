@@ -16,5 +16,7 @@
 
 #include "src/common/serializer/memory_stream.cpp"
 
+#include "src/common/serializer/serialization_data.cpp"
+
 #include "src/common/serializer/serializer.cpp"
 
