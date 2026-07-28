@@ -29,6 +29,22 @@ test_that("a release version is told from a snapshot between releases", {
   expect_false(is_release_version(""))
 })
 
+test_that("an engine gate holds until the version it names, and never on a release", {
+  # Along one line of snapshots, by the counter and then by the three numbers.
+  expect_true(engine_before("1.5.0-dev5296", "1.5.0-dev7500"))
+  expect_false(engine_before("1.5.0-dev7500", "1.5.0-dev7500"))
+  expect_true(engine_before("1.5.0-dev7500", "1.6.0-dev2046"))
+  expect_false(engine_before("2.0.0-dev83856", "1.6.0-dev2046"))
+  expect_true(engine_before("1.6.0-dev99", "1.6.0"))
+
+  # A release, an upstream alpha build among them, is never gated.
+  expect_false(engine_before("1.5.6", "2.0.0-dev1"))
+  expect_false(engine_before("2.0.0-alpha46057", "2.0.0-dev90000"))
+
+  # A gate that cannot be read lets its test run.
+  expect_false(engine_before("1.5.0-dev5296", "soon"))
+})
+
 test_that("the tests behind `TEST_RE2` run everywhere but in the R-hub workflow", {
   withr::local_envvar(DUCKDB_R_TEST_RE2 = NA, GITHUB_WORKFLOW = NA)
   expect_true(test_re2_enabled())

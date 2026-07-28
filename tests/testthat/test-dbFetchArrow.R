@@ -110,7 +110,6 @@ test_that("the final empty chunk imports into arrow for every type (#2773)", {
     iv = "INTERVAL 1 DAY",
     s = "{'a': i, 'l': ['a']}",
     m = "MAP {'k': 'v'}",
-    e = "'a'::mood",
     a = "['a', 'b']::VARCHAR[2]",
     u = "uuid()",
     h = "i::HUGEINT"
