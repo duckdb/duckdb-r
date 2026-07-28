@@ -42,6 +42,8 @@
 
 #include "src/optimizer/optimizer.cpp"
 
+#include "src/optimizer/outer_join_simplification.cpp"
+
 #include "src/optimizer/join_elimination.cpp"
 
 #include "src/optimizer/regex_range_filter.cpp"
