@@ -19,36 +19,32 @@ namespace {
 void BaseRAddFunctionInteger(DataChunk &args, ExpressionState &state, Vector &result) {
 	auto parts = BinaryTypeAssert<LogicalType::INTEGER, LogicalType::INTEGER>(args);
 
-	BinaryExecutor::ExecuteWithNulls<int32_t, int32_t, int32_t>(
-	    parts.lefts, parts.rights, result, args.size(),
-	    [&](int32_t left, int32_t right, ValidityMask &mask, idx_t idx) {
-		    int64_t sum = (int64_t)left + right;
-		    if (sum > INT_MAX || sum < (INT_MIN + 1)) {
-			    // FIXME: Need warning: NAs produced by integer overflow
-			    mask.SetInvalid(idx);
-			    return 0;
-		    }
-		    return (int32_t)sum;
-	    });
+	BinaryExecutor::Execute<int32_t, int32_t, int32_t>(parts.lefts, parts.rights, result, args.size(),
+	                                                   [&](int32_t left, int32_t right) -> optional<int32_t> {
+		                                                   int64_t sum = (int64_t)left + right;
+		                                                   if (sum > INT_MAX || sum < (INT_MIN + 1)) {
+			                                                   // FIXME: Need warning: NAs produced by integer overflow
+			                                                   return nullopt;
+		                                                   }
+		                                                   return (int32_t)sum;
+	                                                   });
 }
 
 void BaseRAddFunctionDouble(DataChunk &args, ExpressionState &state, Vector &result) {
 	auto parts = BinaryTypeAssert<LogicalType::DOUBLE, LogicalType::DOUBLE>(args);
 
-	BinaryExecutor::ExecuteWithNulls<double, double, double>(
-	    parts.lefts, parts.rights, result, args.size(), [&](double left, double right, ValidityMask &mask, idx_t idx) {
-		    if (std::isnan(left) || std::isnan(right)) {
-			    mask.SetInvalid(idx);
-			    return 0.0;
-		    }
-		    return left + right;
-	    });
+	BinaryExecutor::Execute<double, double, double>(parts.lefts, parts.rights, result, args.size(),
+	                                                [&](double left, double right) -> optional<double> {
+		                                                if (std::isnan(left) || std::isnan(right)) {
+			                                                return nullopt;
+		                                                }
+		                                                return left + right;
+	                                                });
 }
 
-double ExecuteBaseRPlusFunctionIntDouble(int32_t left, double right, ValidityMask &mask, idx_t idx) {
+optional<double> ExecuteBaseRPlusFunctionIntDouble(int32_t left, double right) {
 	if (std::isnan(right)) {
-		mask.SetInvalid(idx);
-		return 0.0;
+		return nullopt;
 	}
 	return left + right;
 }
@@ -56,15 +52,15 @@ double ExecuteBaseRPlusFunctionIntDouble(int32_t left, double right, ValidityMas
 void BaseRAddFunctionIntDouble(DataChunk &args, ExpressionState &state, Vector &result) {
 	auto parts = BinaryTypeAssert<LogicalType::INTEGER, LogicalType::DOUBLE>(args);
 
-	BinaryExecutor::ExecuteWithNulls<int32_t, double, double>(parts.lefts, parts.rights, result, args.size(),
-	                                                          ExecuteBaseRPlusFunctionIntDouble);
+	BinaryExecutor::Execute<int32_t, double, double>(parts.lefts, parts.rights, result, args.size(),
+	                                                 ExecuteBaseRPlusFunctionIntDouble);
 }
 
 void BaseRAddFunctionDoubleInt(DataChunk &args, ExpressionState &state, Vector &result) {
 	auto parts = BinaryTypeAssert<LogicalType::DOUBLE, LogicalType::INTEGER>(args);
 
-	BinaryExecutor::ExecuteWithNulls<int32_t, double, double>(parts.rights, parts.lefts, result, args.size(),
-	                                                          ExecuteBaseRPlusFunctionIntDouble);
+	BinaryExecutor::Execute<int32_t, double, double>(parts.rights, parts.lefts, result, args.size(),
+	                                                 ExecuteBaseRPlusFunctionIntDouble);
 }
 
 } // namespace
@@ -102,61 +98,68 @@ namespace rfuns {
 namespace {
 
 template <typename T>
-int32_t check_int_range(T value, ValidityMask &mask, idx_t idx) {
+optional<int32_t> check_int_range(T value) {
 	if (value > std::numeric_limits<int32_t>::max() || value < std::numeric_limits<int32_t>::min()) {
-		mask.SetInvalid(idx);
+		return nullopt;
 	}
 
 	return static_cast<int32_t>(value);
 }
 
 template <typename FROM, typename TO>
-TO cast(FROM input, ValidityMask &mask, idx_t idx) {
+optional<TO> cast(FROM input) {
 	return static_cast<TO>(input);
 }
 
 template <>
-int32_t cast<double, int32_t>(double input, ValidityMask &mask, idx_t idx) {
+optional<int32_t> cast<double, int32_t>(double input) {
 	if (std::isnan(input)) {
-		mask.SetInvalid(idx);
+		return nullopt;
 	}
-	return check_int_range(input, mask, idx);
+	return check_int_range(input);
 }
 
 template <>
-double cast<string_t, double>(string_t input, ValidityMask &mask, idx_t idx) {
+optional<double> cast<string_t, double>(string_t input) {
 	double result;
 	if (!TryDoubleCast<double>(input.GetData(), input.GetSize(), result, false)) {
-		mask.SetInvalid(idx);
+		return nullopt;
 	}
 
 	return result;
 }
 
 template <>
-int32_t cast<string_t, int32_t>(string_t input, ValidityMask &mask, idx_t idx) {
-	auto dbl = cast<string_t, double>(input, mask, idx);
-	return cast<double, int32_t>(dbl, mask, idx);
+optional<int32_t> cast<string_t, int32_t>(string_t input) {
+	auto dbl = cast<string_t, double>(input);
+	if (!dbl.has_value()) {
+		return nullopt;
+	}
+	return cast<double, int32_t>(*dbl);
 }
 
 template <>
-int32_t cast<date_t, int32_t>(date_t input, ValidityMask &mask, idx_t idx) {
+optional<int32_t> cast<date_t, int32_t>(date_t input) {
 	return input.days;
 }
 
 template <>
-double cast<date_t, double>(date_t input, ValidityMask &mask, idx_t idx) {
-	return input.days;
+optional<double> cast<date_t, double>(date_t input) {
+	return static_cast<double>(input.days);
 }
 
 template <>
-int32_t cast<timestamp_t, int32_t>(timestamp_t input, ValidityMask &mask, idx_t idx) {
-	return check_int_range(Timestamp::GetEpochSeconds(input), mask, idx);
+optional<int32_t> cast<timestamp_t, int32_t>(timestamp_t input) {
+	return check_int_range(Timestamp::GetEpochSeconds(input));
 }
 
 template <>
-double cast<timestamp_t, double>(timestamp_t input, ValidityMask &mask, idx_t idx) {
-	return check_int_range(Timestamp::GetEpochSeconds(input), mask, idx);
+optional<double> cast<timestamp_t, double>(timestamp_t input) {
+	auto v = check_int_range(Timestamp::GetEpochSeconds(input));
+	if (!v.has_value()) {
+		return nullopt;
+	}
+	return static_cast<double>(*v);
 }
 
 template <LogicalTypeId TYPE, LogicalTypeId RESULT_TYPE>
@@ -165,8 +168,8 @@ ScalarFunction AsNumberFunction() {
 	using result_type = typename physical<RESULT_TYPE>::type;
 
 	auto fun = [](DataChunk &args, ExpressionState &state, Vector &result) {
-		UnaryExecutor::ExecuteWithNulls<physical_type, result_type>(args.data[0], result, args.size(),
-		                                                            cast<physical_type, result_type>);
+		UnaryExecutor::Execute<physical_type, result_type>(args.data[0], result, args.size(),
+		                                                   cast<physical_type, result_type>);
 	};
 	return ScalarFunction({TYPE}, RESULT_TYPE, fun);
 }
@@ -638,17 +641,13 @@ template <>
 struct relop_adds_null<double, double> : public std::integral_constant<bool, true> {};
 
 template <typename T>
-bool set_null(T value, ValidityMask &mask, idx_t idx) {
+bool is_null(T value) {
 	return false;
 }
 
 template <>
-bool set_null<double>(double value, ValidityMask &mask, idx_t idx) {
-	if (std::isnan(value)) {
-		mask.SetInvalid(idx);
-		return true;
-	}
-	return false;
+bool is_null<double>(double value) {
+	return std::isnan(value);
 }
 
 template <LogicalTypeId LHS_LOGICAL, typename LHS_TYPE, LogicalTypeId RHS_LOGICAL, typename RHS_TYPE, Relop OP>
@@ -661,14 +660,14 @@ void RelopExecuteDispatch(DataChunk &args, ExpressionState &state, Vector &resul
 template <LogicalTypeId LHS_LOGICAL, typename LHS_TYPE, LogicalTypeId RHS_LOGICAL, typename RHS_TYPE, Relop OP>
 void RelopExecuteDispatch(DataChunk &args, ExpressionState &state, Vector &result, std::true_type) {
 	auto parts = BinaryTypeAssert<LHS_LOGICAL, RHS_LOGICAL>(args);
-	auto fun = [&](LHS_TYPE left, RHS_TYPE right, ValidityMask &mask, idx_t idx) {
-		if (set_null<LHS_TYPE>(left, mask, idx))
-			return false;
-		if (set_null<RHS_TYPE>(right, mask, idx))
-			return false;
+	auto fun = [&](LHS_TYPE left, RHS_TYPE right) -> optional<bool> {
+		if (is_null<LHS_TYPE>(left))
+			return nullopt;
+		if (is_null<RHS_TYPE>(right))
+			return nullopt;
 		return relop<LHS_TYPE, RHS_TYPE, OP>(left, right);
 	};
-	BinaryExecutor::ExecuteWithNulls<LHS_TYPE, RHS_TYPE, bool>(parts.lefts, parts.rights, result, args.size(), fun);
+	BinaryExecutor::Execute<LHS_TYPE, RHS_TYPE, bool>(parts.lefts, parts.rights, result, args.size(), fun);
 }
 
 template <LogicalTypeId LHS_LOGICAL, typename LHS_TYPE, LogicalTypeId RHS_LOGICAL, typename RHS_TYPE, Relop OP>
