@@ -34,7 +34,5 @@
 
 #include "src/function/table_macro_function.cpp"
 
-#include "src/function/udf_function.cpp"
-
 #include "src/function/window_function.cpp"
 
