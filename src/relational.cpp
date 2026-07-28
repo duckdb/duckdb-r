@@ -2,6 +2,7 @@
 #include "duckdb/common/enum_util.hpp"
 #include "duckdb/common/enums/joinref_type.hpp"
 #include "duckdb/common/identifier.hpp"
+#include "duckdb/main/profiler/profiler_print_format.hpp"
 #include "duckdb/main/relation/aggregate_relation.hpp"
 #include "duckdb/main/relation/cross_product_relation.hpp"
 #include "duckdb/main/relation/distinct_relation.hpp"
@@ -755,8 +756,8 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 
 [[cpp11::register]] SEXP rapi_rel_explain(duckdb::rel_extptr_t rel, std::string type, std::string format) {
 	auto type_enum = EnumUtil::FromString<ExplainType>(type);
-	auto format_enum = EnumUtil::FromString<ExplainFormat>(format);
-	return result_to_df(rel->rel->Explain(type_enum, format_enum));
+	auto print_format = ProfilerPrintFormat::FromString(format);
+	return result_to_df(rel->rel->Explain(type_enum, print_format));
 }
 
 [[cpp11::register]] void rapi_rel_to_parquet(duckdb::rel_extptr_t rel, std::string file_name, list options_sexps) {
