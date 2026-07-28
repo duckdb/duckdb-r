@@ -58,6 +58,8 @@
 
 #include "src/common/hive_partitioning.cpp"
 
+#include "src/common/identifier.cpp"
+
 #include "src/common/local_file_system.cpp"
 
 #include "src/common/memory_mapped_file.cpp"
