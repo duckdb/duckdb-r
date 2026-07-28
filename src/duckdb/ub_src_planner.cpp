@@ -32,5 +32,7 @@
 
 #include "src/planner/table_filter.cpp"
 
+#include "src/planner/table_filter_set.cpp"
+
 #include "src/planner/table_filter_state.cpp"
 
