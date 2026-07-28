@@ -129,6 +129,8 @@ struct RApiTypes {
 	static R_len_t GetVecSize(SEXP coldata, bool integer64 = false);
 	static Value SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null = true);
 	static SEXP ValueToSexp(const Value &val, const ConvertOpts &convert_opts);
+	// Children of a STRUCT or TUPLE, with positional names synthesized for the unnamed TUPLE members
+	static child_list_t<LogicalType> StructLikeChildTypes(const LogicalType &type);
 };
 
 struct RIntegralType {
