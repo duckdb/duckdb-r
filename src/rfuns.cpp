@@ -509,8 +509,8 @@ struct RMaxOperation {
 template <typename OP, typename T, bool NA_RM>
 unique_ptr<FunctionData> BindRMinMax_dispatch(BindAggregateFunctionInput &input) {
 	auto type = input.GetArguments()[0]->GetReturnType();
-	input.GetBoundFunction() =
-	    AggregateFunction::UnaryAggregate<RMinMaxState<T>, T, T, RMinMaxOperation<OP, NA_RM>>(type, type);
+	input.GetBoundFunction().ReplaceImplementation(
+	    AggregateFunction::UnaryAggregate<RMinMaxState<T>, T, T, RMinMaxOperation<OP, NA_RM>>(type, type));
 	return nullptr;
 }
 
@@ -1087,18 +1087,19 @@ unique_ptr<FunctionData> BindRSum_dispatch(BindAggregateFunctionInput &input) {
 
 	switch (type.id()) {
 	case LogicalTypeId::DOUBLE:
-		input.GetBoundFunction() = AggregateFunction::UnaryAggregate<RSumKeepNaState<double>, double, double,
-		                                                             RSumOperation<RegularAdd, NA_RM>>(type, type);
+		input.GetBoundFunction().ReplaceImplementation(
+		    AggregateFunction::UnaryAggregate<RSumKeepNaState<double>, double, double,
+		                                      RSumOperation<RegularAdd, NA_RM>>(type, type));
 		break;
 	case LogicalTypeId::INTEGER:
-		input.GetBoundFunction() =
+		input.GetBoundFunction().ReplaceImplementation(
 		    AggregateFunction::UnaryAggregate<RSumKeepNaState<double>, int32_t, double,
-		                                      RSumOperation<RegularAdd, NA_RM>>(type, LogicalTypeId::DOUBLE);
+		                                      RSumOperation<RegularAdd, NA_RM>>(type, LogicalTypeId::DOUBLE));
 		break;
 	case LogicalTypeId::BOOLEAN:
-		input.GetBoundFunction() =
+		input.GetBoundFunction().ReplaceImplementation(
 		    AggregateFunction::UnaryAggregate<RSumKeepNaState<int32_t>, bool, int32_t,
-		                                      RSumOperation<RegularAdd, NA_RM>>(type, LogicalType::INTEGER);
+		                                      RSumOperation<RegularAdd, NA_RM>>(type, LogicalType::INTEGER));
 		break;
 	default:
 		break;
