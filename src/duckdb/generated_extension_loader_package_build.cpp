@@ -15,6 +15,7 @@
 #include "duckdb/main/extension/generated_extension_loader.hpp"
 #include "duckdb/main/extension_helper.hpp"
 
+
 namespace duckdb {
 
 //! Looks through the package_build.py-generated list of extensions that are linked into DuckDB currently to try load <extension>
