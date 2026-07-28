@@ -413,10 +413,10 @@ struct AltrepVectorWrapper {
 
 		auto struct_vector = &chunk.data[0];
 		for (idx_t i = 1; i < parent_column_index.size(); i++) {
-			struct_vector = &*StructVector::GetEntries(*struct_vector)[parent_column_index[i]];
+			struct_vector = &StructVector::GetEntries(*struct_vector)[parent_column_index[i]];
 		}
 
-		return *StructVector::GetEntries(*struct_vector)[column_index];
+		return StructVector::GetEntries(*struct_vector)[column_index];
 	}
 
 	void *Dataptr() {

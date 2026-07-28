@@ -293,7 +293,7 @@ static void AppendStructColumnSegment(const RType &rtype, bool experimental, SEX
 		auto coldata = VECTOR_ELT(source_data, i);
 		auto const &child_rtype = child_rtypes[i].second;
 		auto coldata_ptr = GetColDataPtr(child_rtype, coldata);
-		AppendAnyColumnSegment(child_rtype, experimental, coldata_ptr, sexp_offset, *child_entries[i], count);
+		AppendAnyColumnSegment(child_rtype, experimental, coldata_ptr, sexp_offset, child_entries[i], count);
 	}
 }
 
