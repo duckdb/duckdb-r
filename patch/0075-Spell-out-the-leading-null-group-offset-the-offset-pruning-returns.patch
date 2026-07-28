@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 18 Oct 2026 23:44:00 +0000
+Subject: [PATCH] Spell out the leading null group offset the offset pruning returns
+
+OffsetPruningResult gains a third member, leading_null_group_offset,
+and two returns in RowGroupReorderer still brace-initialize the first
+two, so -Wmissing-field-initializers reports them. Upstream later
+writes the zero out; this is that text.
+
+Carried here until the engine brings the same change.
+
+---
+ src/duckdb/src/storage/table/row_group_reorderer.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/duckdb/src/storage/table/row_group_reorderer.cpp b/src/duckdb/src/storage/table/row_group_reorderer.cpp
+index 314848d596..9ba0ab6fb4 100644
+--- a/src/duckdb/src/storage/table/row_group_reorderer.cpp
++++ b/src/duckdb/src/storage/table/row_group_reorderer.cpp
+@@ -175,7 +175,7 @@ OffsetPruningResult FindOffsetPrunableChunks(It it, End end, const OrderByStatis
+ 			if (pruned_stats->CanHaveNull()) {
+ 				// Offset pruning can only remove a contiguous prefix of row groups. Once the first unresolved
+ 				// row group might still contribute NULLs to the ordered prefix, we cannot prune past it.
+-				return {new_row_offset, pruned_row_group_count};
++				return {new_row_offset, pruned_row_group_count, 0};
+ 			}
+ 			// This row group has exactly row_group.count valid values. We can exclude those.
+ 			pruned_row_group_count++;
+@@ -194,7 +194,7 @@ OffsetPruningResult FindOffsetPrunableChunks(It it, End end, const OrderByStatis
+ 		}
+ 	}
+ 
+-	return {new_row_offset, pruned_row_group_count};
++	return {new_row_offset, pruned_row_group_count, 0};
+ }
+ 
+ } // namespace
