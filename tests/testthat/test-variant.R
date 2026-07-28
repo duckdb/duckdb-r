@@ -1,5 +1,4 @@
 test_that("DuckDB VARIANT type is correctly decoded into an R list", {
-  skip_if_engine_before("1.6.0-dev2046", "VARIANT lists and maps decode")
   con <- local_con()
 
   dbExecute(con, "CREATE TABLE test_v (id INTEGER, v VARIANT)")
@@ -60,7 +59,6 @@ test_that("VARIANT handles empty arrays and objects", {
 })
 
 test_that("VARIANT handles deeply nested structures", {
-  skip_if_engine_before("1.6.0-dev2046", "VARIANT lists and maps decode")
   con <- local_con()
 
   res <- dbGetQuery(con, "SELECT {'a': {'b': {'c': [1, 2, 3]}}}::VARIANT AS v")
@@ -173,7 +171,6 @@ test_that("VARIANT handles UNION types", {
 })
 
 test_that("VARIANT handles ARRAY types", {
-  skip_if_engine_before("1.6.0-dev2046", "VARIANT lists and maps decode")
   # Respects user preference: matrix
   con <- local_con(array = "matrix")
   res <- dbGetQuery(con, "SELECT [1, 2, 3]::INTEGER[3]::VARIANT AS v")
@@ -194,7 +191,6 @@ test_that("VARIANT handles BLOBs", {
 
 
 test_that("VARIANT handles MAPs with data", {
-  skip_if_engine_before("1.6.0-dev2046", "VARIANT lists and maps decode")
   con <- local_con()
 
   res <- dbGetQuery(con, "SELECT MAP(['key1', 'key2'], [10, 20])::VARIANT AS v")

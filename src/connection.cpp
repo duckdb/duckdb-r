@@ -147,10 +147,10 @@ static void SetDefaultConfigArguments(ClientContext &context) {
 	if (!conn || !conn.get() || !conn->conn) {
 		rapi_error_with_context("rapi_connection_set_invalidation_policy", "Invalid connection");
 	}
-	// This engine has no transaction invalidation policy, which arrives with duckdb/duckdb@3ac07aebe5;
-	// the R side asks for it only from DuckDB 2.0 on (probe_table() in R/dbExistsTable__duckdb_connection_ANY.R).
-	rapi_error_with_context("rapi_connection_set_invalidation_policy",
-	                        "This engine has no transaction invalidation policy to set to " + policy);
+	auto &transaction = conn->conn->context->transaction;
+	auto previous = EnumUtil::ToString(transaction.GetInvalidationPolicy());
+	transaction.SetInvalidationPolicy(EnumUtil::FromString<TransactionInvalidationPolicy>(policy));
+	return previous;
 }
 
 [[cpp11::register]] bool rapi_connection_valid(duckdb::conn_eptr_t conn) {
