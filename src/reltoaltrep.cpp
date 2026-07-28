@@ -5,6 +5,7 @@
 #include "altrepdataframe_relation.hpp"
 #include "cpp11/declarations.hpp"
 #include "duckdb/common/unique_ptr.hpp"
+#include "duckdb/common/vector/struct_vector.hpp"
 #include "duckdb/main/client_config.hpp"
 #include "duckdb/main/materialized_query_result.hpp"
 #include "duckdb/main/query_result.hpp"
