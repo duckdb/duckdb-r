@@ -53,7 +53,7 @@ using namespace duckdb;
 		parameter_map["map_list_of"] = convert_opts.map == ConvertOpts::MapShape::LIST_OF;
 
 		conn->conn->TableFunction("r_dataframe_scan", {Value::POINTER((uintptr_t)value.data())}, parameter_map)
-		    ->CreateView(name, overwrite, true);
+		    ->CreateView(Identifier(name), overwrite, true);
 
 		signal_handler.HandleInterrupt();
 
