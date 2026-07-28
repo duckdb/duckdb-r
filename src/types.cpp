@@ -33,8 +33,19 @@ RTypeId RType::id() const {
 	return id_;
 }
 
+// Field names and factor levels are R's, so they compare exactly:
+// an Identifier compares case-insensitively, as SQL names do.
 bool RType::operator==(const RType &rhs) const {
-	return id_ == rhs.id_ && size_ == rhs.size_ && aux_ == rhs.aux_;
+	if (id_ != rhs.id_ || size_ != rhs.size_ || aux_.size() != rhs.aux_.size()) {
+		return false;
+	}
+	for (idx_t i = 0; i < aux_.size(); i++) {
+		if (aux_[i].first.GetIdentifierName() != rhs.aux_[i].first.GetIdentifierName() ||
+		    !(aux_[i].second == rhs.aux_[i].second)) {
+			return false;
+		}
+	}
+	return true;
 }
 
 // Reads the levels in place, as DetectRType() does a data frame's names
@@ -52,7 +63,7 @@ Vector RType::GetFactorLevels() const {
 	Vector duckdb_levels(LogicalType::VARCHAR, aux_.size());
 	auto levels_ptr = FlatVector::GetDataMutable<string_t>(duckdb_levels);
 	for (size_t level_idx = 0; level_idx < aux_.size(); level_idx++) {
-		levels_ptr[level_idx] = StringVector::AddString(duckdb_levels, aux_[level_idx].first);
+		levels_ptr[level_idx] = StringVector::AddString(duckdb_levels, aux_[level_idx].first.GetIdentifierName());
 	}
 	return duckdb_levels;
 }
