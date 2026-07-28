@@ -50,27 +50,36 @@ duckdb-r's v2.0 glue marks the profiler with StartExplainAnalyze()
 before it executes a prepared EXPLAIN ANALYZE, and that mark still
 reaches the engine with the change in place.
 
+From duckdb/duckdb#21268 on, v2.0 starts the profiler when a statement
+is prepared, and nothing ends it for a statement that is prepared and
+never executed, so the profiler such a statement leaves is still
+running, with its flag, when the next statement is prepared. On that
+branch StartQuery() therefore clears the flag on every call before
+setting it from the statement it starts: each call there either starts a
+new query, and the parser marks an EXPLAIN ANALYZE once it has read one,
+or names the statement it plans, so a call for a query that is already
+running sets the flag that query has.
+
 Proposed upstream in duckdb/duckdb#<PR> (placeholder: not opened yet)
 against v1.5-variegata, and carried here until a release carries it.
 ---
- src/duckdb/src/main/query_profiler.cpp | 7 +++++++
- 1 file changed, 7 insertions(+)
+ src/duckdb/src/main/query_profiler.cpp | 6 ++++++
+ 1 file changed, 6 insertions(+)
 
 diff --git a/src/duckdb/src/main/query_profiler.cpp b/src/duckdb/src/main/query_profiler.cpp
-index 5735e6439f..b80b2e4776 100644
+index f8b600aa86..742c8f24c3 100644
 --- a/src/duckdb/src/main/query_profiler.cpp
 +++ b/src/duckdb/src/main/query_profiler.cpp
-@@ -113,6 +113,13 @@ void QueryProfiler::Reset() {
+@@ -113,6 +113,12 @@ void QueryProfiler::Reset() {
  
  void QueryProfiler::StartQuery(const string &query, bool is_explain_analyze_p, bool start_at_optimizer) {
  	lock_guard<std::mutex> guard(lock);
-+	if (!running) {
-+		// A query that starts on an idle profiler is an EXPLAIN ANALYZE only if its own statement is one.
-+		// EndQuery() clears the flag only for a running profiler, and a failed query's rollback resets it first,
-+		// so a failed EXPLAIN ANALYZE, or one prepared and never run, would leave the flag set, and the next query
-+		// would be profiled as an EXPLAIN ANALYZE, which writes no profiling output.
-+		is_explain_analyze = false;
-+	}
++	// A query is an EXPLAIN ANALYZE only if the statement this call starts is one.
++	// EndQuery() clears the flag only for a running profiler, and a failed query's rollback resets it first,
++	// so a failed EXPLAIN ANALYZE, or one prepared and never run, would leave the flag set, and the next query
++	// would be profiled as an EXPLAIN ANALYZE, which writes no profiling output. Preparing starts the profiler,
++	// so the one left running by a statement prepared and never executed is still running here.
++	is_explain_analyze = false;
  	if (is_explain_analyze_p) {
  		StartExplainAnalyze();
  	}
