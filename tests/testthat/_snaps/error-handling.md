@@ -36,7 +36,7 @@
       ! Binder Error: Referenced column "missing_column" was not found because the FROM clause is missing
       
       LINE 1: SELECT missing_column
-                     ^
+                     ^^^^^^^^^^^^^^
       i Context: rapi_prepare
       i Error type: BINDER
 
