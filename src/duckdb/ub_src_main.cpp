@@ -42,19 +42,13 @@
 
 #include "src/main/extension_manager.cpp"
 
-#include "src/main/gathered_metrics.cpp"
-
 #include "src/main/materialized_query_result.cpp"
-
-#include "src/main/metrics_manager.cpp"
 
 #include "src/main/pending_query_result.cpp"
 
 #include "src/main/prepared_statement.cpp"
 
 #include "src/main/prepared_statement_data.cpp"
-
-#include "src/main/profiling_utils.cpp"
 
 #include "src/main/query_profiler.cpp"
 
