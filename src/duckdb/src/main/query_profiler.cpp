@@ -369,6 +369,7 @@ void OperatorProfiler::StartOperator(optional_ptr<const PhysicalOperator> phys_o
 				auto &info = GetOperatorInfo(*active_operator);
 				auto params = active_operator->ParamsToString();
 				info.extra_info = params;
+				info.extra_info_dirty = true;
 			}
 		}
 
@@ -434,6 +435,7 @@ void OperatorProfiler::FinishSource(GlobalSourceState &gstate, LocalSourceState 
 					info.extra_info.insert(std::move(new_info));
 				}
 			}
+			info.extra_info_dirty = info.extra_info_dirty || !extra_info.empty();
 		}
 		if (ProfilingInfo::Enabled(settings, MetricType::OPERATOR_ROWS_SCANNED) &&
 		    active_operator.get()->type == PhysicalOperatorType::TABLE_SCAN) {
@@ -480,7 +482,9 @@ void OperatorProfiler::Flush(const PhysicalOperator &phys_op) {
 	}
 
 	auto &info = entry->second;
-	info.name = phys_op.GetName();
+	if (info.name.empty()) {
+		info.name = phys_op.GetName();
+	}
 }
 
 void QueryProfiler::Flush(OperatorProfiler &profiler) {
@@ -508,8 +512,9 @@ void QueryProfiler::Flush(OperatorProfiler &profiler) {
 		if (ProfilingInfo::Enabled(profiler.settings, MetricType::RESULT_SET_SIZE)) {
 			info.MetricSum<idx_t>(MetricType::RESULT_SET_SIZE, node.second.result_set_size);
 		}
-		if (ProfilingInfo::Enabled(profiler.settings, MetricType::EXTRA_INFO)) {
+		if (ProfilingInfo::Enabled(profiler.settings, MetricType::EXTRA_INFO) && node.second.extra_info_dirty) {
 			info.metrics[MetricType::EXTRA_INFO] = Value::MAP(node.second.extra_info);
+			node.second.extra_info_dirty = false;
 		}
 		if (ProfilingInfo::Enabled(profiler.settings, MetricType::SYSTEM_PEAK_BUFFER_MEMORY)) {
 			query_metrics.query_global_info.MetricMax(MetricType::SYSTEM_PEAK_BUFFER_MEMORY,
@@ -519,8 +524,8 @@ void QueryProfiler::Flush(OperatorProfiler &profiler) {
 			query_metrics.query_global_info.MetricMax(MetricType::SYSTEM_PEAK_TEMP_DIR_SIZE,
 			                                          node.second.system_peak_temp_directory_size);
 		}
+		node.second.ResetMetrics();
 	}
-	profiler.operator_infos.clear();
 }
 
 void QueryProfiler::SetBlockedTime(const double &blocked_thread_time) {

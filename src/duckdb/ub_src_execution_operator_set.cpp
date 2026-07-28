@@ -2,5 +2,7 @@
 
 #include "src/execution/operator/set/physical_recursive_cte.cpp"
 
+#include "src/execution/operator/set/physical_recursive_cte_runtime.cpp"
+
 #include "src/execution/operator/set/physical_union.cpp"
 
