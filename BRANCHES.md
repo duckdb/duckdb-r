@@ -76,11 +76,17 @@ duckdb-r/
 │   ├── vendor-one.sh               # Commit-by-commit vendoring (series loop)
 │   ├── flavor.sh                   # Apply flavor rename to a branch
 │   ├── flavor.patch                # Patch template for flavor rename              [2]
-│   ├── each-rcc.sh                 # Trigger per-commit CI for unbuilt commits
+│   ├── each-plan.sh                # Plan cost-balanced shards of unbuilt commits
+│   ├── each-shard.sh               # Build one shard: many commits, one job
+│   ├── each-cost.py                # Unity objects a commit invalidates
+│   ├── rcc-one.sh                  # The per-commit rcc gate
+│   ├── each-harvest.sh             # Fold shard results onto the rcc branch
+│   ├── each-rcc.sh                 # Legacy per-commit CI dispatcher (fallback)
+│   ├── EACH.md                     # Sharded per-commit CI design (→ see §Vendoring)
 │   └── VENDORING.md                # Supplementary vendoring notes (→ see §Vendoring)
 ├── .github/
 │   └── workflows/
-│       ├── each.yaml               # Per-commit rcc dispatch on *-dev pushes       [5]
+│       ├── each.yaml               # Per-commit rcc, as a sharded matrix           [5]
 │       ├── sync.yaml               # Fast-forward krlmlr/main from duckdb/main     [5]
 │       ├── fledge.yaml             # Automated version-bump PRs                    [5]
 │       └── R-CMD-check*.yaml       # Package check workflows                       [5]
@@ -579,6 +585,11 @@ The `-dev` branches are not protected, so force-pushes are allowed to fix mistak
 
 It is important that every commit in the `-dev` branches builds successfully so that the history is clean and bisectable.
 For this reason, the `-dev` branches are checked commit by commit via `each.yaml`, even if multiple commits are pushed at once.
+`each.yaml` groups those commits into contiguous, cost-balanced shards and gives each shard one job,
+so a batch is one run to cancel, the R setup is paid per shard rather than per commit,
+and adjacent commits reuse the runner's local ccache;
+the per-commit `rcc` marker is unchanged.
+See [`scripts/EACH.md`](scripts/EACH.md) for the design and its limits.
 
 Bisectability is a property of the whole branch, not of individual commits, so it needs three things at once:
 a **linear** first-parent history without merge commits,
@@ -683,11 +694,16 @@ the first step of any CI job that rebases, cherry-picks, or merges — to regist
 | `scripts/vendor-gate.sh`        | Green/red gate over `rcc` statuses (kept for tooling; the series loop reads branch `rcc` directly)         |
 | `scripts/flavor.sh <flavor>`    | Applies the flavor rename (updates `flavor.patch`, then applies it and re-runs `cpp11::cpp_register()`)    |
 | `scripts/flavor.patch`          | Patch template used by `flavor.sh`; contains `1.4` as placeholder version (replaced by `flavor.sh`)        |
-| `scripts/each-rcc.sh`           | Identifies commits in the first-parent history without a build status and triggers an `rcc` run for each   |
+| `scripts/each-plan.sh`          | Selects the commits without a build status and partitions them into contiguous, cost-balanced shards       |
+| `scripts/each-cost.py`          | Counts the unity objects a commit invalidates, from the include graph, without building                    |
+| `scripts/each-shard.sh`         | Builds one shard: many commits in one job and one workspace, writing the `rcc` status per commit           |
+| `scripts/rcc-one.sh`            | The per-commit gate (style, snapshots, roxygen, clean tree, `R CMD check`, pkgdown), as a script           |
+| `scripts/each-harvest.sh`       | Single-writer fan-in of the shards' results onto the orphan `rcc` branch                                   |
+| `scripts/each-rcc.sh`           | Legacy fallback: triggers one `rcc` run per commit without a build status (`EACH_RCC_MODE=dispatch`)       |
 | `scripts/merge-version.sh`      | Git merge driver for `DESCRIPTION`: combines the 4th/5th version counters, gated on an equal prefix         |
 | `scripts/setup-git.sh`          | Registers the merge driver in `.git/config`, enables `rerere`, pins `rebase.backend=merge` (run per clone)  |
 | `.github/workflows/sync.yaml`   | Hourly fast-forward of `krlmlr/main` from `duckdb/main`                                                    |
-| `.github/workflows/each.yaml`   | Dispatches `rcc` per-commit on push to `*-dev` branches                                                    |
+| `.github/workflows/each.yaml`   | Builds every statusless commit on push to `*-dev` branches, as a sharded matrix (see [`scripts/EACH.md`](scripts/EACH.md)) |
 | `.github/workflows/fledge.yaml` | Daily version-bump PRs via `fledge`                                                                        |
 
 ### Proposed tooling

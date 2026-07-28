@@ -26,7 +26,7 @@ concurrency:
 jobs:
   collect:
     if: github.repository == 'krlmlr/duckdb-r'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     name: "Collect rcc workflow logs"
 

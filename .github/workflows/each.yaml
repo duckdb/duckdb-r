@@ -1,11 +1,26 @@
-# Helper workflow to trigger rcc for each commit on a branch
-# On a series branch (`<S>-dev` with a sibling `<S>-green`), triggers rcc only
-#   for commits in `<S>-green..HEAD` without an rcc build status — the series
-#   loop's world; nothing is scheduled when green is not an ancestor of HEAD.
-#   On branches without a green sibling, scans the first-parent history since
-#   2026-01-01 for commits without a status.
-#   The user can always rebase and force-push to move commits past the boundary and
-#   re-trigger builds for specific commits.
+# Helper workflow to build every commit on a branch that has no rcc result yet.
+#
+# Semantics are unchanged from the fire-and-forget dispatcher this replaces.
+# On a series branch (`<S>-dev` with a sibling `<S>-green`), only commits in
+#   `<S>-green..HEAD` are considered -- the series loop's world; nothing is built
+#   when green is not an ancestor of HEAD. On branches without a green sibling,
+#   the first-parent history since $SINCE is scanned. Either way, a commit is
+#   built only if it carries no `rcc` commit-status, oldest first, and gets a
+#   status of its own. Rebasing and force-pushing a commit past the boundary
+#   still re-triggers it.
+#
+# What changed is the shape of the work. Instead of one dispatched `rcc` run per
+# commit, the run plans contiguous, cost-balanced *shards* and gives each shard
+# one job, which walks its commits in a single workspace. The batch is then one
+# thing to cancel, the R/dependency setup is paid per shard rather than per
+# commit, and consecutive commits hit the runner's local ccache -- a typical
+# adjacent vendor commit recompiles ~5 of 341 unity objects.
+#
+# See scripts/EACH.md for the design, the GitHub Actions limits it works within,
+# and why `workflow_call` is not the mechanism that gets us there.
+#
+# Set the repository variable EACH_RCC_MODE to "dispatch" to fall back to the
+# old per-commit dispatcher (scripts/each-rcc.sh) without editing this file.
 
 on:
   push:
@@ -13,25 +28,97 @@ on:
       - each-*
       - '*-dev'
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "matrix (sharded build) or dispatch (legacy per-commit rcc runs)"
+        type: choice
+        options:
+          - matrix
+          - dispatch
+        default: matrix
+      since:
+        description: "Earliest commit date to consider (ISO 8601)"
+        type: string
+        default: ""
+      shard-budget-minutes:
+        description: "Wall-clock target per shard; the GitHub job limit is 360"
+        type: string
+        default: ""
+      max-parallel:
+        description: "Shards to build concurrently"
+        type: string
+        default: ""
+      max-commits:
+        description: "Cap on commits considered (0 = no cap), newest kept"
+        type: string
+        default: ""
+      force:
+        description: "Rebuild commits that already have an rcc status"
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       branch:
         description: "Branch ref to trigger rcc for (e.g. refs/heads/main-dev)"
         required: true
         type: string
+      mode:
+        description: "matrix (sharded build) or dispatch (legacy per-commit rcc runs)"
+        required: false
+        type: string
+        default: ""
+      since:
+        description: "Earliest commit date to consider (ISO 8601)"
+        required: false
+        type: string
+        default: ""
+      shard-budget-minutes:
+        description: "Wall-clock target per shard"
+        required: false
+        type: string
+        default: ""
+      max-parallel:
+        description: "Shards to build concurrently"
+        required: false
+        type: string
+        default: ""
+      max-commits:
+        description: "Cap on commits considered (0 = no cap), newest kept"
+        required: false
+        type: string
+        default: ""
 
 name: each-rcc
 
-jobs:
-  each-rcc:
-    if: github.repository == 'krlmlr/duckdb-r'
-    runs-on: ubuntu-24.04
-    outputs:
-      sha: ${{ steps.commit.outputs.sha }}
-      versions-matrix: ${{ steps.versions-matrix.outputs.matrix }}
-      dep-suggests-matrix: ${{ steps.dep-suggests-matrix.outputs.matrix }}
+# One planning/building pass per branch at a time. `cancel-in-progress: false`
+# on purpose: a queued run must wait for a long bulk build rather than kill it,
+# because a killed leg leaves its in-flight commit undecided.
+concurrency:
+  group: each-rcc-${{ inputs.branch || github.ref }}
+  cancel-in-progress: false
 
-    name: "Trigger rcc workflow for each commit"
+env:
+  EACH_MODE: ${{ inputs.mode || vars.EACH_RCC_MODE || 'matrix' }}
+  EACH_SINCE: ${{ inputs.since || vars.EACH_RCC_SINCE || '2026-01-01' }}
+  EACH_SHARD_BUDGET_MINUTES: ${{ inputs.shard-budget-minutes || '300' }}
+  EACH_MAX_PARALLEL: ${{ inputs.max-parallel || vars.EACH_RCC_MAX_PARALLEL || '20' }}
+  EACH_MAX_COMMITS: ${{ inputs.max-commits || '0' }}
+
+jobs:
+  plan:
+    if: github.repository == 'krlmlr/duckdb-r'
+    runs-on: ubuntu-26.04
+
+    name: "Plan per-commit rcc builds"
+
+    outputs:
+      # The fallbacks cover legacy dispatch mode, where the planning step never
+      # runs: `build` is guarded by `shards != '0'`, but its `strategy` must
+      # still parse.
+      matrix: ${{ steps.plan.outputs.matrix || '{"shard":["none"]}' }}
+      shards: ${{ steps.plan.outputs.shards || '0' }}
+      commits: ${{ steps.plan.outputs.commits || '0' }}
+      max_parallel: ${{ steps.plan.outputs.max_parallel || '1' }}
 
     permissions:
       contents: read
@@ -47,8 +134,210 @@ jobs:
           ref: ${{ inputs.branch || github.ref }}
           fetch-depth: 0
 
-      - name: Enumerate commits and trigger rcc workflow
+      # Escape hatch. Unchanged behaviour, unchanged script -- the point of
+      # keeping it is that rolling back is a repository-variable flip, not a
+      # revert, for as long as the sharded path is still earning trust.
+      - name: Enumerate commits and trigger rcc workflow (legacy mode)
+        if: env.EACH_MODE == 'dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
+          SINCE: ${{ env.EACH_SINCE }}
         run: scripts/each-rcc.sh
+        shell: bash
+
+      - id: plan
+        name: Plan shards
+        if: env.EACH_MODE != 'dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SINCE: ${{ env.EACH_SINCE }}
+          SHARD_BUDGET_MINUTES: ${{ env.EACH_SHARD_BUDGET_MINUTES }}
+          MAX_PARALLEL: ${{ env.EACH_MAX_PARALLEL }}
+          MAX_COMMITS: ${{ env.EACH_MAX_COMMITS }}
+          FORCE: ${{ inputs.force && '1' || '' }}
+          OUT: ${{ runner.temp }}/plan.json
+        run: scripts/each-plan.sh
+        shell: bash
+
+      - uses: actions/upload-artifact@v5
+        if: env.EACH_MODE != 'dispatch' && steps.plan.outputs.shards != '0'
+        with:
+          name: each-plan
+          path: ${{ runner.temp }}/plan.json
+          retention-days: 7
+
+  build:
+    needs:
+      - plan
+
+    if: needs.plan.outputs.shards != '0'
+
+    runs-on: ubuntu-26.04
+
+    # Below GitHub's 6 h ceiling, and above the leg's own deadline: the leg is
+    # meant to stop itself and report what it deferred, not to be killed
+    # mid-commit and leave a `pending` status behind.
+    timeout-minutes: 350
+
+    name: "shard ${{ matrix.shard }} (${{ matrix.label }})"
+
+    permissions:
+      # `write` for the snapshot-<sha>-rcc-smoke-null branches: the snapshots
+      # gate publishes accepted snapshots as a branch off the commit under test,
+      # the way peter-evans/create-pull-request does on the dispatch path, and
+      # tooling looks those up by name.
+      contents: write
+      statuses: write
+      actions: read
+
+    strategy:
+      fail-fast: false
+      max-parallel: ${{ fromJSON(needs.plan.outputs.max_parallel) }}
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+
+    # Begin custom: services
+    # End custom: services
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.branch || github.ref }}
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: each-plan
+          path: ${{ runner.temp }}/plan
+
+      - uses: ./.github/workflows/git-identity
+
+      - uses: ./.github/workflows/custom/before-install
+        if: hashFiles('.github/workflows/custom/before-install/action.yml') != ''
+
+      - uses: ./.github/workflows/install
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          cache-version: each-rcc-1
+          needs: build, check, website, roxygen2
+          extra-packages: any::rcmdcheck r-lib/roxygen2 any::decor r-lib/pkgdown deps::.
+
+      # Deliberately not custom/after-install: its ccache-action caps the cache
+      # at 200 MB and its duckdb.tar archive is keyed on the whole vendored tree,
+      # so both are per-commit constructs a multi-commit job cannot use. This job
+      # keeps one large local cache instead.
+      - name: Point ccache outside the workspace and size it for a whole shard
+        run: |
+          ## -- Point ccache outside the workspace and size it for a whole shard --
+          # scripts/each-shard.sh wipes the workspace between commits, and
+          # hendrikmuhs/ccache-action has historically kept the cache inside it.
+          # This is the cache that carries reuse from one commit to the next, so
+          # losing it would turn every commit into a cold build.
+          export CCACHE_DIR="${RUNNER_TEMP}/ccache"
+          mkdir -p "${CCACHE_DIR}"
+          echo "CCACHE_DIR=${CCACHE_DIR}" | tee -a "${GITHUB_ENV}"
+          ccache --set-config=max_size=8G
+          ccache --zero-stats
+          ccache --show-config | grep -E 'cache_dir|max_size'
+        shell: bash
+
+      # Run for its tool installation only (air, clang-format). The formatting it
+      # performs on the tip checkout is discarded: scripts/each-shard.sh resets
+      # the workspace before every commit.
+      - uses: ./.github/workflows/style
+
+      - name: Build the shard
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHARD: ${{ matrix.shard }}
+          PLAN: ${{ runner.temp }}/plan/plan.json
+          LOG_DIR: ${{ runner.temp }}/each-logs
+          DEADLINE_MINUTES: ${{ env.EACH_SHARD_BUDGET_MINUTES }}
+        run: scripts/each-shard.sh
+        shell: bash
+
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: each-logs-${{ matrix.shard }}
+          path: ${{ runner.temp }}/each-logs
+          if-no-files-found: ignore
+          retention-days: 14
+
+  harvest:
+    needs:
+      - plan
+      - build
+
+    # `always()` so the failure records are collected too -- a red commit is the
+    # result we most want on the rcc branch. A cancellation of the whole run can
+    # still skip this job; scripts/rcc-logs.sh remains the scheduled backstop and
+    # reconstructs the same records from commit statuses.
+    if: always() && needs.plan.outputs.shards != '0'
+
+    runs-on: ubuntu-26.04
+
+    name: "Collect results onto the rcc branch"
+
+    # Shared with rcc-logs.yaml: both push to the orphan rcc branch, and one
+    # writer at a time is what keeps that branch conflict-free.
+    concurrency:
+      group: rcc-logs
+      cancel-in-progress: false
+
+    permissions:
+      contents: write
+      actions: read
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/workflows/git-identity
+
+      - name: Add rcc worktree at runs/
+        run: |
+          ## -- Add rcc worktree at runs/ --
+          set -euo pipefail
+          if git ls-remote --exit-code --heads origin rcc >/dev/null 2>&1; then
+            git fetch origin rcc:rcc
+            git worktree add runs rcc
+          else
+            git worktree add --orphan -b rcc runs
+          fi
+        shell: bash
+
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: each-logs-*
+          path: ${{ runner.temp }}/artifacts
+
+      - name: Merge shard results into the rcc branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACTS: ${{ runner.temp }}/artifacts
+          OUT_DIR: runs
+        run: scripts/each-harvest.sh
+        shell: bash
+
+      - name: Commit and push to rcc branch
+        working-directory: runs
+        run: |
+          ## -- Commit and push to rcc branch --
+          set -euo pipefail
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes; nothing to commit."
+            exit 0
+          fi
+          git commit -m "each-rcc: results from run ${GITHUB_RUN_ID}"
+          for attempt in 1 2 3 4; do
+            if git push origin rcc; then
+              exit 0
+            fi
+            sleep $(( 2 ** attempt ))
+            git pull --rebase origin rcc || true
+          done
+          echo "git push failed after retries"
+          exit 1
         shell: bash
