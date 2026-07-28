@@ -1,0 +1,50 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 18 Oct 2026 22:27:52 +0000
+Subject: [PATCH] Read the outcome of registering a correlated alias outside the assertion
+
+FlattenDependentJoins and RewriteCorrelatedExpressions register
+correlated aliases with emplace() and read the outcome only inside
+D_ASSERT(), so in a release build, where D_ASSERT() expands to
+nothing, the outcome is set and never used and
+-Wunused-but-set-variable says so. Both now test whether the alias was
+already registered and assert on the existing entry inside that
+branch, which is the shape upstream gives both sites later.
+
+Carried here until the engine brings the same change.
+
+---
+ src/duckdb/src/planner/subquery/flatten_dependent_join.cpp         | 4 +++-
+ src/duckdb/src/planner/subquery/rewrite_correlated_expressions.cpp | 4 +++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/duckdb/src/planner/subquery/flatten_dependent_join.cpp b/src/duckdb/src/planner/subquery/flatten_dependent_join.cpp
+index 0f76e1aa7a..30016a6a32 100644
+--- a/src/duckdb/src/planner/subquery/flatten_dependent_join.cpp
++++ b/src/duckdb/src/planner/subquery/flatten_dependent_join.cpp
+@@ -153,7 +153,9 @@ void FlattenDependentJoins::MergeCorrelatedAliases(const FlattenDependentJoins &
+ 			continue;
+ 		}
+ 		auto result = correlated_aliases.emplace(entry);
+-		D_ASSERT(result.second || result.first->second == entry.second);
++		if (!result.second) {
++			D_ASSERT(result.first->second == entry.second);
++		}
+ 	}
+ }
+ 
+diff --git a/src/duckdb/src/planner/subquery/rewrite_correlated_expressions.cpp b/src/duckdb/src/planner/subquery/rewrite_correlated_expressions.cpp
+index 23f196d939..8060521a38 100644
+--- a/src/duckdb/src/planner/subquery/rewrite_correlated_expressions.cpp
++++ b/src/duckdb/src/planner/subquery/rewrite_correlated_expressions.cpp
+@@ -28,7 +28,9 @@ void RewriteCorrelatedExpressions::RegisterCorrelatedBinding(const ColumnBinding
+ 	auto source_entry = correlated_aliases.find(source_binding);
+ 	D_ASSERT(source_entry != correlated_aliases.end());
+ 	auto result = correlated_aliases.emplace(target_binding, source_entry->second);
+-	D_ASSERT(result.second || result.first->second == source_entry->second);
++	if (!result.second) {
++		D_ASSERT(result.first->second == source_entry->second);
++	}
+ }
+ 
+ void RewriteCorrelatedExpressions::VisitOperator(LogicalOperator &op) {
