@@ -558,6 +558,7 @@ AggregateFunctionSet base_r_max() {
 } // namespace duckdb
 #include "duckdb/common/operator/double_cast_operator.hpp"
 #include "duckdb/common/operator/string_cast.hpp"
+#include "duckdb/common/vector/list_vector.hpp"
 #include "duckdb/parser/parsed_data/create_scalar_function_info.hpp"
 #include "rfuns_extension.hpp"
 
