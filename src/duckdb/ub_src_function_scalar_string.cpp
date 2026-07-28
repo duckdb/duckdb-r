@@ -28,6 +28,8 @@
 
 #include "src/function/scalar/string/sha256.cpp"
 
+#include "src/function/scalar/string/string_slice.cpp"
+
 #include "src/function/scalar/string/string_split.cpp"
 
 #include "src/function/scalar/string/strip_accents.cpp"
