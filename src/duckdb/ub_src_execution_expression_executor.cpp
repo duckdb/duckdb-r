@@ -1,7 +1,5 @@
 #include "src/execution/expression_executor/execute_case.cpp"
 
-#include "src/execution/expression_executor/execute_cast.cpp"
-
 #include "src/execution/expression_executor/execute_comparison.cpp"
 
 #include "src/execution/expression_executor/execute_conjunction.cpp"
