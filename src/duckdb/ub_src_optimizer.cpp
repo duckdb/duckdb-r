@@ -70,6 +70,8 @@
 
 #include "src/optimizer/sampling_pushdown.cpp"
 
+#include "src/optimizer/scalar_fn_pushdown.cpp"
+
 #include "src/optimizer/statistics_propagator.cpp"
 
 #include "src/optimizer/topn_optimizer.cpp"
