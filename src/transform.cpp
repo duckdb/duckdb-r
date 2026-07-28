@@ -387,7 +387,7 @@ static void TransformArrayVector(const Vector &src_vec, const SEXP dest, idx_t d
 	for (size_t row_idx = 0; row_idx < n; row_idx++) {
 		size_t offset = (row_idx * array_size);
 		size_t end = offset + array_size;
-		child_vector.Slice(ArrayVector::GetEntry(src_vec), offset, end);
+		child_vector.Slice(ArrayVector::GetChild(src_vec), offset, end);
 		duckdb_r_transform(child_vector, buffer, 0, array_size, convert_opts, name);
 
 		// Calculate destination index for R column-major matrix layout
@@ -651,7 +651,7 @@ void duckdb_r_transform(const Vector &src_vec, const SEXP dest, idx_t dest_offse
 				SET_ELEMENT(dest, dest_offset + row_idx, R_NilValue);
 			} else {
 				const auto end = src_data[row_idx].offset + src_data[row_idx].length;
-				child_vector.Slice(ListVector::GetEntry(src_vec), src_data[row_idx].offset, end);
+				child_vector.Slice(ListVector::GetChild(src_vec), src_data[row_idx].offset, end);
 
 				// transform the list child vector to a single R SEXP
 				cpp11::sexp list_element =
