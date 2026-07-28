@@ -66,6 +66,8 @@
 
 #include "src/optimizer/window_self_join.cpp"
 
+#include "src/optimizer/row_number_rewriter.cpp"
+
 #include "src/optimizer/sampling_pushdown.cpp"
 
 #include "src/optimizer/projection_pullup.cpp"
