@@ -244,7 +244,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 }
 
 [[cpp11::register]] void rapi_expr_set_alias(duckdb::expr_extptr_t expr, std::string alias) {
-	expr->alias = alias;
+	expr->SetAlias(alias);
 }
 
 [[cpp11::register]] std::string rapi_expr_tostring(duckdb::expr_extptr_t expr) {
@@ -431,7 +431,7 @@ void check_column_validity(SEXP col, const std::string &col_name, ConvertOpts::S
 	for (expr_extptr_t expr_p : aggregates) {
 		auto expr = expr_p->Copy();
 		if (aggr_names.size() > aggr_idx) {
-			expr->alias = aggr_names[aggr_idx];
+			expr->SetAlias(aggr_names[aggr_idx]);
 		}
 		res_aggregates.push_back(std::move(expr));
 		aggr_idx++;
@@ -487,7 +487,7 @@ static WindowBoundary StringToWindowBoundary(string &window_boundary) {
 }
 
 bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
-	if (expr->type == ExpressionType::VALUE_CONSTANT) {
+	if (expr->GetExpressionType() == ExpressionType::VALUE_CONSTANT) {
 		auto const_expr = expr->Cast<ConstantExpression>();
 		return !const_expr.value.IsNull();
 	}
@@ -500,7 +500,7 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
                                           duckdb::expr_extptr_t offset_expr, duckdb::expr_extptr_t default_expr,
                                           std::string alias, r_vector<r_bool> ascending, r_vector<r_bool> nulls_first) {
 
-	if (!window_function || window_function->type != ExpressionType::FUNCTION) {
+	if (!window_function || window_function->GetExpressionType() != ExpressionType::FUNCTION) {
 		stop("expected function expression");
 	}
 

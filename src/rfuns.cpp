@@ -505,7 +505,7 @@ struct RMaxOperation {
 
 template <typename OP, typename T, bool NA_RM>
 unique_ptr<FunctionData> BindRMinMax_dispatch(BindAggregateFunctionInput &input) {
-	auto type = input.GetArguments()[0]->return_type;
+	auto type = input.GetArguments()[0]->GetReturnType();
 	input.GetBoundFunction() =
 	    AggregateFunction::UnaryAggregate<RMinMaxState<T>, T, T, RMinMaxOperation<OP, NA_RM>>(type, type);
 	return nullptr;
@@ -1084,7 +1084,7 @@ struct RSumOperation {
 
 template <bool NA_RM>
 unique_ptr<FunctionData> BindRSum_dispatch(BindAggregateFunctionInput &input) {
-	auto type = input.GetArguments()[0]->return_type;
+	auto type = input.GetArguments()[0]->GetReturnType();
 
 	switch (type.id()) {
 	case LogicalTypeId::DOUBLE:
