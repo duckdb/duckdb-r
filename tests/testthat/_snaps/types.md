@@ -194,6 +194,9 @@
       2 42 🦆🦆🦆🦆🦆🦆
       3 NA         <NA>
       
+      $empty_struct
+      data frame with 0 columns and 3 rows
+      
       $struct_of_arrays
                            a                         b
       1                 NULL                      NULL
