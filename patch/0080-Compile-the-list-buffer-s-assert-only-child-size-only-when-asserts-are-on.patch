@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 18 Oct 2026 23:54:12 +0000
+Subject: [PATCH] Compile the list buffer's assert-only child size only when asserts are on
+
+VectorListBuffer::Verify() reads the child size into a local that only
+D_ASSERT() reads, so in a release build, where D_ASSERT() expands to
+nothing, -Wunused-variable reports it. The guard keeps the local to
+the builds that assert; upstream later drops the local, as the size
+becomes a member of the buffer.
+
+Carried here until the engine brings the same change.
+
+---
+ src/duckdb/src/common/vector/list_vector.cpp | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/duckdb/src/common/vector/list_vector.cpp b/src/duckdb/src/common/vector/list_vector.cpp
+index fa2055397d..89595b6c8a 100644
+--- a/src/duckdb/src/common/vector/list_vector.cpp
++++ b/src/duckdb/src/common/vector/list_vector.cpp
+@@ -119,7 +119,9 @@ void VectorListBuffer::Verify(const LogicalType &type, const SelectionVector &se
+ 	// NOTE: size > capacity can occur in valid intermediate states (e.g. after SetListSize before Reserve)
+ 	// D_ASSERT(size <= capacity);
+ 	idx_t total_size = 0;
++#ifdef D_ASSERT_IS_ENABLED
+ 	auto child_size = GetSize();
++#endif
+ 	auto list_data = reinterpret_cast<list_entry_t *>(data_ptr);
+ 	for (idx_t i = 0; i < count; i++) {
+ 		auto idx = sel.get_index(i);

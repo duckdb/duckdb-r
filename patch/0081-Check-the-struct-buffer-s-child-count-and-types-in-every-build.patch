@@ -1,0 +1,40 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 18 Oct 2026 23:54:15 +0000
+Subject: [PATCH] Check the struct buffer's child count and types in every build
+
+VectorStructBuffer::Verify() reads the struct's child types into a
+reference that only D_ASSERT() reads, so in a release build, where
+D_ASSERT() expands to nothing, -Wunused-variable reports it. Upstream
+later turns the two assertions into checks that throw; this is that
+text.
+
+Carried here until the engine brings the same change.
+
+---
+ src/duckdb/src/common/vector/struct_vector.cpp | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/duckdb/src/common/vector/struct_vector.cpp b/src/duckdb/src/common/vector/struct_vector.cpp
+index 5649f7b5a4..08bcbf0534 100644
+--- a/src/duckdb/src/common/vector/struct_vector.cpp
++++ b/src/duckdb/src/common/vector/struct_vector.cpp
+@@ -67,10 +67,16 @@ void VectorStructBuffer::Verify(const LogicalType &type, const SelectionVector &
+ 	D_ASSERT(type.InternalType() == PhysicalType::STRUCT);
+ 	D_ASSERT(vector_type == VectorType::FLAT_VECTOR || vector_type == VectorType::CONSTANT_VECTOR);
+ 	auto &child_types = StructType::GetChildTypes(type);
+-	D_ASSERT(child_types.size() == children.size());
++	if (child_types.size() != children.size()) {
++		throw InternalException("Struct child count mismatch - expected %d children but found %d", child_types.size(),
++		                        children.size());
++	}
+ 	for (idx_t child_idx = 0; child_idx < children.size(); child_idx++) {
+ 		auto &child = children[child_idx];
+-		D_ASSERT(child.GetType() == child_types[child_idx].second);
++		if (child.GetType() != child_types[child_idx].second) {
++			throw InternalException("Struct child type mismatch - expected child of type %s but found child of type %s",
++			                        child_types[child_idx].second, child.GetType());
++		}
+ 		child.Verify(sel, count);
+ 		if (vector_type == VectorType::CONSTANT_VECTOR) {
+ 			D_ASSERT(child.GetVectorType() == VectorType::CONSTANT_VECTOR);
