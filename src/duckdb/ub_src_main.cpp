@@ -44,6 +44,8 @@
 
 #include "src/main/materialized_query_result.cpp"
 
+#include "src/main/parse_iterator.cpp"
+
 #include "src/main/pending_query_result.cpp"
 
 #include "src/main/prepared_statement.cpp"
@@ -57,6 +59,8 @@
 #include "src/main/relation.cpp"
 
 #include "src/main/result_set_manager.cpp"
+
+#include "src/main/statement_iterator.cpp"
 
 #include "src/main/stream_query_result.cpp"
 
