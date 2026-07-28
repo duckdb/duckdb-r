@@ -56,6 +56,8 @@
 
 #include "src/optimizer/regex_range_filter.cpp"
 
+#include "src/optimizer/remote_pushdown_optimizer.cpp"
+
 #include "src/optimizer/remove_duplicate_groups.cpp"
 
 #include "src/optimizer/remove_unused_columns.cpp"
