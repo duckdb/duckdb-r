@@ -1,4 +1,4 @@
-#include "extension/parquet/reader/variant/variant_binary_decoder.cpp"
+#include "extension/parquet/reader/variant/parquet_variant_iterator.cpp"
 
-#include "extension/parquet/reader/variant/variant_shredded_conversion.cpp"
+#include "extension/parquet/reader/variant/variant_binary_decoder.cpp"
 
