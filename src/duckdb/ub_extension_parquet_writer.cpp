@@ -6,6 +6,8 @@
 
 #include "extension/parquet/writer/primitive_column_writer.cpp"
 
+#include "extension/parquet/writer/variant_column_writer.cpp"
+
 #include "extension/parquet/writer/enum_column_writer.cpp"
 
 #include "extension/parquet/writer/decimal_column_writer.cpp"
