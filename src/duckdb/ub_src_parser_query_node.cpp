@@ -4,6 +4,8 @@
 
 #include "src/parser/query_node/insert_query_node.cpp"
 
+#include "src/parser/query_node/merge_query_node.cpp"
+
 #include "src/parser/query_node/recursive_cte_node.cpp"
 
 #include "src/parser/query_node/select_node.cpp"
