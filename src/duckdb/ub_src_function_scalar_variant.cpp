@@ -12,6 +12,10 @@
 
 #include "src/function/scalar/variant/variant_normalize.cpp"
 
+#include "src/function/scalar/variant/variant_path_function.cpp"
+
+#include "src/function/scalar/variant/variant_type.cpp"
+
 #include "src/function/scalar/variant/variant_typeof.cpp"
 
 #include "src/function/scalar/variant/variant_utils.cpp"
