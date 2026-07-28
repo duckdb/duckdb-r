@@ -60,6 +60,8 @@
 
 #include "src/common/local_file_system.cpp"
 
+#include "src/common/memory_mapped_file.cpp"
+
 #include "src/common/opener_file_system.cpp"
 
 #include "src/common/path.cpp"
