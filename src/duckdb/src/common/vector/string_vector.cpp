@@ -128,7 +128,7 @@ void VectorStringBuffer::VerifyInternal(const LogicalType &type, const Selection
 			break;
 		case LogicalTypeId::VARCHAR:
 			// verify that the string is correct unicode
-			str.Verify();
+			str.ForceVerify();
 			break;
 		default:
 			break;

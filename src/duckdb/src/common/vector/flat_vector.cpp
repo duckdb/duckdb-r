@@ -52,7 +52,9 @@ idx_t StandardVectorBuffer::GetAllocationSize() const {
 
 void StandardVectorBuffer::VerifyInternal(const LogicalType &type, const SelectionVector &sel, idx_t count) const {
 	D_ASSERT(vector_type == VectorType::FLAT_VECTOR || vector_type == VectorType::CONSTANT_VECTOR);
-	D_ASSERT(type_size == GetTypeIdSize(type.InternalType()));
+	if (type_size != GetTypeIdSize(type.InternalType())) {
+		throw InternalException("Type size mismatch in flat vector buffer");
+	}
 	// verify all entries in the sel fit within the validity
 	if (sel.IsSet()) {
 		for (idx_t i = 0; i < count; i++) {
@@ -67,8 +69,12 @@ void StandardVectorBuffer::VerifyInternal(const LogicalType &type, const Selecti
 			}
 		}
 	} else if (vector_type == VectorType::FLAT_VECTOR) {
-		D_ASSERT(count <= validity.Capacity());
-		D_ASSERT(count <= Capacity());
+		if (count > validity.Capacity()) {
+			throw InternalException("Count %d out of range for validity capacity %d", count, validity.Capacity());
+		}
+		if (count > Capacity()) {
+			throw InternalException("Count %d out of range for capacity %d", count, Capacity());
+		}
 	}
 }
 
