@@ -34,5 +34,7 @@
 
 #include "src/planner/expression/legacy_bound_between_expression.cpp"
 
+#include "src/planner/expression/legacy_bound_cast_expression.cpp"
+
 #include "src/planner/expression/legacy_bound_comparison_expression.cpp"
 
