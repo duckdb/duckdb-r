@@ -42,6 +42,8 @@
 
 #include "src/main/extension_manager.cpp"
 
+#include "src/main/external_resource_type_registry.cpp"
+
 #include "src/main/materialized_query_result.cpp"
 
 #include "src/main/parse_iterator.cpp"
