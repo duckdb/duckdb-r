@@ -10,3 +10,5 @@
 
 #include "src/parser/query_node/update_query_node.cpp"
 
+#include "src/parser/query_node/delete_query_node.cpp"
+
