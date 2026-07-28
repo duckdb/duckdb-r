@@ -200,16 +200,18 @@ private:
 	// Translate the bound expression of an EXPRESSION_FILTER. Such a filter always
 	// applies to a single column, which is bound as reference index 0.
 	static SEXP TransformExpression(const Expression &expr, SEXP column_name_expr, SEXP functions) {
-		if (expr.GetExpressionClass() == ExpressionClass::BOUND_COMPARISON) {
-			auto &comp = expr.Cast<BoundComparisonExpression>();
+		if (BoundComparisonExpression::IsComparison(expr)) {
+			auto &comp = expr.Cast<BoundFunctionExpression>();
 			auto comparison_type = comp.GetExpressionType();
+			auto &lhs = BoundComparisonExpression::Left(comp);
+			auto &rhs = BoundComparisonExpression::Right(comp);
 			optional_ptr<const Expression> const_side;
-			if (comp.left->GetExpressionClass() == ExpressionClass::BOUND_REF &&
-			    comp.right->GetExpressionType() == ExpressionType::VALUE_CONSTANT) {
-				const_side = comp.right.get();
-			} else if (comp.right->GetExpressionClass() == ExpressionClass::BOUND_REF &&
-			           comp.left->GetExpressionType() == ExpressionType::VALUE_CONSTANT) {
-				const_side = comp.left.get();
+			if (lhs.GetExpressionClass() == ExpressionClass::BOUND_REF &&
+			    rhs.GetExpressionType() == ExpressionType::VALUE_CONSTANT) {
+				const_side = &rhs;
+			} else if (rhs.GetExpressionClass() == ExpressionClass::BOUND_REF &&
+			           lhs.GetExpressionType() == ExpressionType::VALUE_CONSTANT) {
+				const_side = &lhs;
 				comparison_type = FlipComparisonExpression(comparison_type);
 			}
 			if (!const_side) {
