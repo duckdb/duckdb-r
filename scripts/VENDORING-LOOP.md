@@ -1,6 +1,11 @@
 # Vendoring as an Agentic Loop — Design Plan
 
-Status: **proposal / plan** (not yet implemented).
+Status: **historical** — superseded by the series loop
+(`.claude/skills/series-loop.md`);
+kept as design context.
+References to `vendor.yaml` and the `rcc-smoke-fix` /
+`advance-green-dev` skills below describe artifacts
+that no longer exist.
 Target repo for implementation: `krlmlr/duckdb-r` (the CI/CD fork; see
 [`BRANCHES.md`](../BRANCHES.md)). Source-of-truth CI/CD lives in
 `duckdb/duckdb-r@main` and is forward-ported.

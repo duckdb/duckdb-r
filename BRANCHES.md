@@ -73,16 +73,15 @@ duckdb-r/
 │   └── …
 ├── scripts/                        # Build and maintenance scripts                 [5]
 │   ├── vendor.sh                   # Manual vendoring from local DuckDB clone
-│   ├── vendor-one.sh               # CI commit-by-commit vendoring
+│   ├── vendor-one.sh               # Commit-by-commit vendoring (series loop)
 │   ├── flavor.sh                   # Apply flavor rename to a branch
 │   ├── flavor.patch                # Patch template for flavor rename              [2]
 │   ├── each-rcc.sh                 # Trigger per-commit CI for unbuilt commits
 │   └── VENDORING.md                # Supplementary vendoring notes (→ see §Vendoring)
 ├── .github/
 │   └── workflows/
-│       ├── vendor.yaml             # Daily automated vendoring                     [5]
+│       ├── each.yaml               # Per-commit rcc dispatch on *-dev pushes       [5]
 │       ├── sync.yaml               # Fast-forward krlmlr/main from duckdb/main     [5]
-│       ├── each.yaml               # Per-commit CI trigger helper                  [5]
 │       ├── fledge.yaml             # Automated version-bump PRs                    [5]
 │       └── R-CMD-check*.yaml       # Package check workflows                       [5]
 ├── DESCRIPTION                     # Package metadata — name + version = flavor    [2]
@@ -101,7 +100,7 @@ Numbers in `[brackets]` refer to the component list above.
                                                                                       │ vendored [6]
   duckdb/duckdb (upstream C++)   ←── R core evolves independently (indirect) [7]      │
       │                                                                               │
-      │  vendor.sh / vendor-one.sh  (daily CI via vendor.yaml)                        │
+      │  vendor.sh / vendor-one.sh  (routine-driven; see the series loop)            │
       │  patch/ applied on top                                                        │
       ▼                                                                               │
   src/duckdb/   ← R-ready vendored C++  [1]                                           │
@@ -123,7 +122,7 @@ Numbers in `[brackets]` refer to the component list above.
       └──►  Published R package (CRAN / r-universe)
 
   ─────────────────────────────────────────────────────────────────────────────────
-  CI/CD infrastructure [5]:   vendor.yaml → each.yaml → R-CMD-check → fledge.yaml
+  CI/CD infrastructure [5]:   series routine → each.yaml → R-CMD-check → fledge.yaml
   ─────────────────────────────────────────────────────────────────────────────────
 ```
 
@@ -190,7 +189,12 @@ The C++ database engine is vendored from **`duckdb/duckdb`** (referred to as *up
 ## Branch Overview
 
 Each supported DuckDB minor version has a **series of four branches** organised into two repos.
-The table below shows the complete set at the time of writing:
+The table below shows the complete set at the time of writing.
+The `dev`/`dev-base` pair is the legacy vendoring layout;
+as each series is reseeded into the series loop
+(see [Vendoring](#vendoring) below),
+that pair gives way to the loop's four refs —
+`<S>-build`, `<S>-dev`, `<S>-green`, `<S>-build-base`.
 
 | Branch                    | Repo              | `Package:`       | Purpose                                                    |
 |---------------------------|-------------------|------------------|------------------------------------------------------------|
@@ -322,6 +326,10 @@ other.
   flavor rename**. The `flavor.sh` rename and the version scaffolding live entirely
   *above* it, in `dev-base..dev`. (Confirmed: `v1.5-variegata-dev-base` reads
   `duckdb 1.5.4`, `v1.4-andium-dev-base` reads `duckdb 1.4.5`.)
+  This invariant describes the legacy `dev-base` layout;
+  a series-loop series has no `dev-base` —
+  its seed is flavored from day one,
+  per the bootstrap rule in `.claude/skills/series-loop.md`.
 - **S3 — `dev-base` ⊑ `dev`.** `dev-base` is an ancestor of `dev` and only ever
   fast-forwards; `dev..dev-base` is always empty.
 - **S4 — `dev` contents.** Every commit in `dev-base..dev` is either a `vendor:`
@@ -407,9 +415,13 @@ release.
 - **V3 — Counters.** The **4th** component free-runs as the R-client dev counter
   *only* on the glue source of truth (`main`: `…9003`, `…9004`); on `-dev`
   branches it is a fixed marker (`.9000` / `.9001`). The **5th** component is the
-  vendor counter, strictly monotone along `dev` (one bump per vendor commit) and
-  *absent until vendoring starts* — e.g. `v1.4-andium-dev` at `1.4.5.9000` has no
-  vendor commits yet. Componentwise within the prefix, `dev ≥ dev-base ≥ stable`.
+  vendor counter, strictly monotone along `dev` (one bump per vendor commit).
+  On a series-loop dev branch the seed's `chore: Add fifth version component`
+  commit stamps it at `.0`;
+  elsewhere it is absent until the first vendor commit mints `.1` —
+  e.g. `v1.4-andium-dev` at `1.4.5.9000` has no vendor commits yet.
+  Regular LTS flavors never carry a fifth component.
+  Componentwise within the prefix, `dev ≥ dev-base ≥ stable`.
 - **V4 — Release shape.** A released `stable`/`lts` version is the bare
   three-component prefix (no 4th/5th component).
 
@@ -456,7 +468,8 @@ This assumes v1.5-variegata is the current release, v1.6 is in development, and 
 
 Upstream active branches: `main`, `v1.5-variegata`, `v1.4-andium`.
 
-This is business-as-usual. Automated vendoring runs daily with no manual intervention required.
+This is business-as-usual.
+The series loop vendors on its schedule with no manual intervention required.
 
 - Upstream patch releases (`v1.5.z`) cut from `v1.5-variegata` are picked up automatically by the corresponding `-dev` branch.
 - When a patch release is tagged upstream, run the [On patch release](#on-patch-release-v145) flow for that branch.
@@ -474,40 +487,40 @@ When the upstream team creates the new `v1.6-codename` branch, the R package tem
   main                            (existing) krlmlr/duckdb-r@main-dev
   v1.4-andium                     (existing) krlmlr/duckdb-r@v1.4-andium-dev
   v1.5-variegata                  (existing) krlmlr/duckdb-r@v1.5-variegata-dev
-  v1.6-codename  (new)  ──►       krlmlr/duckdb-r@v1.6-codename-dev  (create)
-                                  krlmlr/duckdb-r@v1.6-codename-dev-base  (create)
+  v1.6-codename  (new)  ──►       krlmlr/duckdb-r@v1.6-codename-{build,dev,green,build-base}  (create)
                                   duckdb/duckdb-r@v1.6-codename      (create)
 ```
 
 Actions:
 
 1. Create `v1.6-codename` in `duckdb/duckdb-r` (the future stable branch) from `main`.
-2. Create `v1.6-codename-dev-base` and `v1.6-codename-dev` in `krlmlr/duckdb-r` from `main-dev`
-   and configure CI to vendor from the upstream `v1.6-codename` branch.
-3. Apply the dev flavor to `v1.6-codename-dev-base` using `scripts/flavor.sh 1.6.dev` (adapt as needed).
-4. Add the new dev branch to the front of the forward-port chain:
+2. Open the `v1.6-codename` series in `krlmlr/duckdb-r`
+   following `.claude/skills/series-open.md`:
+   seed from `main` with `scripts/flavor.sh 1.6.dev`
+   plus the separate fifth-component commit,
+   create the four series refs equal at the seed tip,
+   and populate `v1.6-codename-build` starting from the fork-point tree.
+   The routine discovers the new series from its refs;
+   no CI configuration is needed.
+3. Add the new dev branch to the front of the forward-port chain:
 
 ```txt
 duckdb/duckdb-r@main  →  krlmlr/duckdb-r@main-dev  →  krlmlr/duckdb-r@v1.6-codename-dev
                                                     ↘  krlmlr/duckdb-r@v1.5-variegata-dev  →  …
 ```
 
-5. **Re-seed `main-dev` at the fork point.**
-   This is the step that is easy to miss, and the one that decides whether the mainline stays bisectable.
-   From the moment `v1.6-codename` is cut, `main` and the release branch diverge,
-   and the two lines are only merged back into each other later.
-   `main-dev` must therefore restart from a vendor commit at the **fork point** of `main` and `v1.6-codename`
-   and walk `main` forward from there, one upstream commit at a time.
-   Letting `main-dev` simply continue from its last release-branch base
-   makes its next vendor commit jump over every `main`-only commit accumulated since the fork —
-   sources move backwards in time and forwards in history in a single step,
-   and nothing in between is ever built.
-   The procedure, including how to compute the fork point
-   (it is *not* `git merge-base`) and how far the glue code has to be rewound, is in
-   [Starting a new dev line](scripts/VENDORING.md#starting-a-new-dev-line-the-fork-point-rule).
-
-   The new `v1.6-codename-dev` needs no such rewind:
-   it forks from `main` at a point the package already builds against.
+4. **The `main` series needs nothing.**
+   Under the series loop it keeps walking upstream `main`'s
+   first-parent chain, which passes through the fork point,
+   so nothing jumps and nothing is re-seeded
+   (the legacy `main-dev` layout needed an explicit fork-point re-seed here —
+   that hazard is what the loop's one-commit-at-a-time walk removes).
+   The fork point matters for the *new* series instead:
+   `v1.6-codename-build` starts from the fork-point tree,
+   computed as in
+   [Starting a new dev line](scripts/VENDORING.md#starting-a-new-dev-line-the-fork-point-rule)
+   (it is *not* `git merge-base`),
+   with the glue rewound as far as that tree requires.
 
 ### Phase 3: Feature Freeze
 
@@ -551,7 +564,16 @@ is the **STABILIZE** cluster.
 
 ### Vendoring
 
-CI/CD pipelines in `krlmlr/duckdb-r` vendor the C++ code from the corresponding upstream branch daily — a bounded advance gated on the `rcc` commit-status of the last green base (`scripts/vendor-gate.sh`) — and build the `.dev` package.
+Vendoring is driven by a single scheduled Claude routine — the **series
+loop** (`.claude/skills/series-loop.md`) — which discovers every series from
+its refs and serves them all in one firing.
+Each series `<S>` has four branches:
+`<S>-build` (every upstream commit vendored, glue compiling, no CI),
+`<S>-dev` (consumed from `-build` up to 25 commits at a time; CI builds every
+commit), `<S>-green` (fast-forwarded to the newest all-green commit; what
+r-universe should build from), and `<S>-build-base` (the `-build` commit
+equivalent to `-green`). CI builds the `.dev` package per commit via
+`each.yaml`.
 If vendoring breaks the build, it can be fixed after the fact in the same commit.
 The `-dev` branches are not protected, so force-pushes are allowed to fix mistakes.
 
@@ -657,14 +679,13 @@ the first step of any CI job that rebases, cherry-picks, or merges — to regist
 | Script / Workflow               | Purpose                                                                                                    |
 |---------------------------------|------------------------------------------------------------------------------------------------------------|
 | `scripts/vendor.sh`             | Local manual vendoring from a cloned upstream repo                                                         |
-| `scripts/vendor-one.sh`         | CI commit-by-commit vendoring (called by `vendor.yaml`)                                                    |
-| `scripts/vendor-gate.sh`        | Decides the bounded, `rcc`-gated batch of upstream commits `vendor.yaml` may advance per run               |
+| `scripts/vendor-one.sh`         | Commit-by-commit vendoring (called by the series-loop routine)                                             |
+| `scripts/vendor-gate.sh`        | Green/red gate over `rcc` statuses (kept for tooling; the series loop reads branch `rcc` directly)         |
 | `scripts/flavor.sh <flavor>`    | Applies the flavor rename (updates `flavor.patch`, then applies it and re-runs `cpp11::cpp_register()`)    |
 | `scripts/flavor.patch`          | Patch template used by `flavor.sh`; contains `1.4` as placeholder version (replaced by `flavor.sh`)        |
 | `scripts/each-rcc.sh`           | Identifies commits in the first-parent history without a build status and triggers an `rcc` run for each   |
 | `scripts/merge-version.sh`      | Git merge driver for `DESCRIPTION`: combines the 4th/5th version counters, gated on an equal prefix         |
 | `scripts/setup-git.sh`          | Registers the merge driver in `.git/config`, enables `rerere`, pins `rebase.backend=merge` (run per clone)  |
-| `.github/workflows/vendor.yaml` | Daily, `rcc`-gated vendoring for all active dev branches (matrix: `v1.4-andium-dev`, `v1.5-variegata-dev`, `main-dev`) |
 | `.github/workflows/sync.yaml`   | Hourly fast-forward of `krlmlr/main` from `duckdb/main`                                                    |
 | `.github/workflows/each.yaml`   | Dispatches `rcc` per-commit on push to `*-dev` branches                                                    |
 | `.github/workflows/fledge.yaml` | Daily version-bump PRs via `fledge`                                                                        |

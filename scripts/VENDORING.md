@@ -5,7 +5,9 @@ what the scripts do, which invariants a dev branch must satisfy, how a new dev l
 and how to troubleshoot a failing run.
 For the branch strategy, the complete list of active branches, and the release process, see
 [BRANCHES.md](../BRANCHES.md), which is the authoritative source.
-For the planned agentic re-architecture of the pipeline, see [VENDORING-LOOP.md](VENDORING-LOOP.md).
+For the historical design notes that led to the series loop,
+see [VENDORING-LOOP.md](VENDORING-LOOP.md)
+(superseded by `.claude/skills/series-loop.md`).
 
 ## What is Vendoring?
 
@@ -21,8 +23,10 @@ The duckdb-r package vendors (includes a complete copy of) the DuckDB C++ core l
 
 ## Active Dev Branches
 
-The `vendor.yaml` workflow vendors into the dev branches listed in its matrix
-(see `BRANCHES.md` for the full branch list):
+All series are vendored by a single scheduled Claude routine — the **series
+loop** (`.claude/skills/series-loop.md`) — into each series' `-build` branch,
+and consumed from there into `-dev` (see `BRANCHES.md` for the full branch
+list):
 
 | Dev branch           | Vendors from upstream |
 |----------------------|-----------------------|
@@ -30,8 +34,9 @@ The `vendor.yaml` workflow vendors into the dev branches listed in its matrix
 | `v1.5-variegata-dev` | `v1.5-variegata`      |
 | `main-dev`           | `main`                |
 
-To add or change a branch, update the matrix in `.github/workflows/vendor.yaml` **and** this table —
-the workflow carries a reminder comment pointing here.
+To add a series, create its refs (see `.claude/skills/series-open.md`)
+**and** update this table;
+the one routine discovers the series from its refs.
 
 ## Dev Branch Invariants
 
@@ -71,7 +76,7 @@ They differ only in how they choose *which* upstream commit to vendor.
 | Script                  | Chooses                                             | Bumps version | Typical use                                                        |
 |-------------------------|-----------------------------------------------------|---------------|--------------------------------------------------------------------|
 | `scripts/vendor.sh`     | the upstream clone's `HEAD`, whatever it is          | no            | one-off / manual, and to **seed** a new dev line at the fork point  |
-| `scripts/vendor-one.sh` | the next unvendored upstream commit(s), oldest first | yes           | CI, and any commit-by-commit walk                                   |
+| `scripts/vendor-one.sh` | the next unvendored upstream commit(s), oldest first | yes           | the series loop, and any commit-by-commit walk                      |
 
 Shared behaviour, in the order it happens:
 
@@ -184,12 +189,16 @@ one case where the driver silently does less than a reader might assume.
 
 ## Automated Vendoring
 
-`.github/workflows/vendor.yaml` runs **daily** (`0 3 * * *`), on `workflow_dispatch`,
-and on pushes that touch the vendoring scripts or the workflow itself.
-It only runs in `krlmlr/duckdb-r`.
+Vendoring is driven by the routine described in
+`.claude/skills/series-loop.md`: `scripts/vendor-one.sh` appends upstream
+commits to `<series>-build` with a glue-only compile gate, and the routine
+consumes them into `<series>-dev` at most 25 at a time, gated on the per-commit
+`rcc` results harvested to branch `rcc`. There is no vendoring workflow; CI's
+role is building each `-dev` commit (`each.yaml`) and recording results
+(`rcc-logs.yaml`, every 30 minutes).
 
-Each matrix leg (one per dev branch) is gated by `scripts/vendor-gate.sh`,
-which reads the `rcc` commit-status of the branch tip and the five commits before it:
+`scripts/vendor-gate.sh` remains for tooling that wants a one-shot verdict.
+It reads the `rcc` commit-status of a branch tip and the five commits before it:
 
 | Gate decision | Meaning                                                        | Action                                                                                                                    |
 |---------------|----------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------|
@@ -209,15 +218,15 @@ while surfacing a genuinely stuck pipeline instead of waiting on it forever.
 **Non-vendored commits are never overwritten.**
 A vendor commit only regenerates `src/duckdb/` (plus the version bump),
 so vendoring can re-create it from upstream at any time.
-A *non-vendored* commit — a merged tooling or R-side PR on a `*-dev` branch —
-cannot be regenerated, so the green advance never discards it:
-it rewinds only past unverified **vendored** commits
-and cherry-picks any non-vendored commits back on top.
-Consequently, merging a PR onto a `*-dev` branch and letting vendoring run immediately
-leaves the merge in place
-(the freshly merged commit is younger than 6h with no result yet,
-so the six-hour rule treats it as still in flight),
-and the next `rcc` build promotes it to the green base like any other commit.
+A *non-vendored* commit cannot be regenerated,
+and the series loop never discards one:
+`-green` only ever fast-forwards,
+and repairs rewrite only the unverified range `-green..-dev`.
+R-side work does not land on `-dev` directly at all —
+it lands on `main`
+and reaches a series by forwarding (`.claude/skills/series-forward.md`),
+which rebuilds the series beside the old one
+instead of rewriting it.
 
 ## Manual Vendoring
 
@@ -358,7 +367,11 @@ git rev-list --first-parent origin/v2.0-codename > /tmp/rel-fp
 awk 'NR==FNR{a[$0];next} $0 in a{print; exit}' /tmp/main-fp /tmp/rel-fp
 ```
 
-Day one of a new cycle then looks like this:
+Day one of a new cycle then looks like this
+(the series bootstrap — the fifth-component commit
+and the four refs created equal at the seed tip — is
+`.claude/skills/series-open.md`'s job;
+this list is the sources-and-glue side it drives):
 
 1. Create the new dev branch from the current package `main`
    (glue code, R code, CI — the [source of truth](../BRANCHES.md#source-of-truth)),
@@ -431,7 +444,8 @@ without keeping the newest SHA in the subject.
 
 ### Vendoring stopped working
 
-1. **Check GitHub Actions**: look for failed `vendor` workflow runs in `krlmlr/duckdb-r`.
+1. **Check the harvest**: read `runs2.ndjson` and `logs2/` on branch `rcc`
+   (`scripts/series-check.sh` prints a per-series verdict).
 2. **Gate says `red` or `stale`**: a commit near the tip is failing `rcc`, or never got a result.
    Repair the failing commit first (see the skills in `.claude/skills/`);
    vendoring resumes on its own once a green base is back in the window.
@@ -484,9 +498,9 @@ They should only change when a `.cpp` file gains or loses a local `#include`.
 
 ### GitHub Actions
 
-- Monitor the [vendor workflow](https://github.com/krlmlr/duckdb-r/actions/workflows/vendor.yaml);
-  it runs in the CI/CD fork, not in `duckdb/duckdb-r`
-- Check for failed runs, and for `rcc` statuses on the individual commits
+- The routine reports each firing; branch `rcc` holds the harvested
+  per-commit results (`runs2.ndjson`, `logs2/<sha>.log`)
+- Check for `rcc` statuses on the individual commits of each `-dev` branch
 
 ### Commit history
 
@@ -510,13 +524,12 @@ git log -1 --grep="^vendor:" --format=%s   # upstream commit it came from
 ### Key vendoring files
 
 - `scripts/vendor.sh` - Manual vendoring of one specific upstream state
-- `scripts/vendor-one.sh` - Commit-by-commit vendoring (used by CI)
+- `scripts/vendor-one.sh` - Commit-by-commit vendoring (used by the series loop)
 - `scripts/vendor-gate.sh` - Decides whether a scheduled run advances, fails, or waits
 - `scripts/each-rcc.sh` - Triggers a per-commit `rcc` build for commits without a status
 - `scripts/rconfigure.py` - Regenerates `src/duckdb/`, `src/include/sources.mk`, `R/version.R`
 - `scripts/setup-git.sh` - Registers the `DESCRIPTION` merge driver, `rerere`, and `rebase.backend=merge`
 - `scripts/merge-version.sh` - The merge driver itself (see [Version counters and the merge driver](#version-counters-and-the-merge-driver))
-- `.github/workflows/vendor.yaml` - Daily automated vendoring
 - `.github/workflows/each.yaml` - Per-commit CI dispatch
 - `patch/*.patch` - R-specific patches applied to vendored code
   (see [Patch Stack](../BRANCHES.md#patch-stack))
