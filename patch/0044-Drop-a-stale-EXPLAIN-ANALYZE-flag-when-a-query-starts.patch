@@ -63,11 +63,8 @@ running sets the flag that query has.
 Proposed upstream in duckdb/duckdb#<PR> (placeholder: not opened yet)
 against v1.5-variegata, and carried here until a release carries it.
 ---
- src/duckdb/src/main/query_profiler.cpp | 6 ++++++
- 1 file changed, 6 insertions(+)
-
 diff --git a/src/duckdb/src/main/query_profiler.cpp b/src/duckdb/src/main/query_profiler.cpp
-index f8b600aa86..742c8f24c3 100644
+index 9baf7f4c86..4cdd2375f4 100644
 --- a/src/duckdb/src/main/query_profiler.cpp
 +++ b/src/duckdb/src/main/query_profiler.cpp
 @@ -113,6 +113,12 @@ void QueryProfiler::Reset() {
@@ -80,6 +77,6 @@ index f8b600aa86..742c8f24c3 100644
 +	// would be profiled as an EXPLAIN ANALYZE, which writes no profiling output. Preparing starts the profiler,
 +	// so the one left running by a statement prepared and never executed is still running here.
 +	is_explain_analyze = false;
- 	if (is_explain_analyze_p) {
- 		StartExplainAnalyze();
- 	}
+ 	// Always reset byte counters at the start of each query so the progress bar shows per-query values
+ 	query_metrics.ResetMetric(MetricType::TOTAL_BYTES_READ);
+ 	query_metrics.ResetMetric(MetricType::TOTAL_BYTES_WRITTEN);
