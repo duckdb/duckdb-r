@@ -279,7 +279,7 @@ R
 
 The package is published under several names — `duckdb` on CRAN, and
 `duckdb.dev`, `duckdb.1.5.dev`, `duckdb.1.4` and friends on r-universe —
-all built from the same sources with `scripts/lts.sh` applying the
+all built from the same sources with `scripts/flavor.sh` applying the
 rename (see
 [BRANCHES.md](https://r.duckdb.org/BRANCHES.html#r-package-flavors)).
 Anything that writes `duckdb` literally works on `main` and breaks on

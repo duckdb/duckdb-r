@@ -16,7 +16,7 @@
 
 ### Testing
 
-- Guard the LTS rename against hard-coded package names
+- Guard the flavor rename against hard-coded package names
   ([\#2423](https://github.com/duckdb/duckdb-r/issues/2423)).
 
 ### Uncategorized

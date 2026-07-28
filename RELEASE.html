@@ -275,7 +275,7 @@
 </ol></div>
 <div class="section level3">
 <h3 id="id_4-merged--stable--version-bump">4 MERGED — stable + version bump<a class="anchor" aria-label="anchor" href="#id_4-merged--stable--version-bump"></a></h3>
-<p>Bring the tagged <code>dev</code> content onto <code>stable</code> <strong>linearly — never as a merge commit</strong> (invariant <strong>L</strong>): fast-forward or rebase the tagged range onto <code>stable</code>, dropping the <code>lts.sh</code> flavor rename. The <code>DESCRIPTION</code> version conflict is resolved automatically by the merge driver (see <a href="BRANCHES.html#version-numbering">BRANCHES.md → Version Numbering</a>); run <code>scripts/setup-git.sh</code> first if this is a fresh clone or CI runner. Because <code>release-content ⊑ dev-base ⊑ dev</code> (invariant <strong>A1</strong>), the only rewriting is dropping the rename commit.</p>
+<p>Bring the tagged <code>dev</code> content onto <code>stable</code> <strong>linearly — never as a merge commit</strong> (invariant <strong>L</strong>): fast-forward or rebase the tagged range onto <code>stable</code>, dropping the <code>flavor.sh</code> flavor rename. The <code>DESCRIPTION</code> version conflict is resolved automatically by the merge driver (see <a href="BRANCHES.html#version-numbering">BRANCHES.md → Version Numbering</a>); run <code>scripts/setup-git.sh</code> first if this is a fresh clone or CI runner. Because <code>release-content ⊑ dev-base ⊑ dev</code> (invariant <strong>A1</strong>), the only rewriting is dropping the rename commit.</p>
 <p>The package version is <strong>not</strong> derived from the git tag — set it explicitly so <code>DESCRIPTION</code> matches the upstream tag:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">fledge</span><span class="fu">::</span><span class="fu">bump_version</span><span class="op">(</span><span class="st">"X.Y.Z"</span><span class="op">)</span></span></code></pre></div>
@@ -299,7 +299,7 @@
 <h2 id="reset--re-baseline">RESET — re-baseline<a class="anchor" aria-label="anchor" href="#reset--re-baseline"></a></h2>
 <p>Recreate the dev baseline from the freshly released <code>stable</code> tip plus the flavor rename, returning the series to TRACK:</p>
 <div class="sourceCode" id="cb6"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">git</span> checkout <span class="at">-b</span> L-dev-base origin/L</span>
-<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="ex">scripts/lts.sh</span> L.dev</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="ex">scripts/flavor.sh</span> L.dev</span>
 <span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="fu">git</span> push krlmlr L-dev-base <span class="at">--force-with-lease</span></span>
 <span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="fu">git</span> push krlmlr L-dev-base:L-dev <span class="at">--force-with-lease</span></span></code></pre></div>
 <p>The glue source of truth (<code>main</code>) separately moves to its ongoing development version (4th component, e.g. <code>X.Y.Z.9000</code>) via <code>fledge</code>; the <code>dev</code> branches then resume bumping the 5th (vendor) component from the new baseline.</p>

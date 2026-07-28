@@ -207,7 +207,7 @@ commits stay queued for the next cycle.
 
 Bring the tagged `dev` content onto `stable` **linearly — never as a
 merge commit** (invariant **L**): fast-forward or rebase the tagged
-range onto `stable`, dropping the `lts.sh` flavor rename. The
+range onto `stable`, dropping the `flavor.sh` flavor rename. The
 `DESCRIPTION` version conflict is resolved automatically by the merge
 driver (see [BRANCHES.md → Version
 Numbering](https://r.duckdb.org/BRANCHES.html#version-numbering)); run
@@ -264,7 +264,7 @@ the flavor rename, returning the series to TRACK:
 
 ``` bash
 git checkout -b L-dev-base origin/L
-scripts/lts.sh L.dev
+scripts/flavor.sh L.dev
 git push krlmlr L-dev-base --force-with-lease
 git push krlmlr L-dev-base:L-dev --force-with-lease
 ```

@@ -216,7 +216,7 @@
 </ul></div>
 <div class="section level2">
 <h2 id="never-hard-code-the-package-name">Never Hard-Code the Package Name<a class="anchor" aria-label="anchor" href="#never-hard-code-the-package-name"></a></h2>
-<p>The package is published under several names — <code>duckdb</code> on CRAN, and <code>duckdb.dev</code>, <code>duckdb.1.5.dev</code>, <code>duckdb.1.4</code> and friends on r-universe — all built from the same sources with <code>scripts/lts.sh</code> applying the rename (see <a href="BRANCHES.html#r-package-flavors">BRANCHES.md</a>). Anything that writes <code>duckdb</code> literally works on <code>main</code> and breaks on every other branch.</p>
+<p>The package is published under several names — <code>duckdb</code> on CRAN, and <code>duckdb.dev</code>, <code>duckdb.1.5.dev</code>, <code>duckdb.1.4</code> and friends on r-universe — all built from the same sources with <code>scripts/flavor.sh</code> applying the rename (see <a href="BRANCHES.html#r-package-flavors">BRANCHES.md</a>). Anything that writes <code>duckdb</code> literally works on <code>main</code> and breaks on every other branch.</p>
 <p><code>R/package.R</code> is the seam for this:</p>
 <table class="table"><colgroup><col width="50%"><col width="50%"></colgroup><thead><tr><th>Helper</th>
 <th>Returns</th>
