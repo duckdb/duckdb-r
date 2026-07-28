@@ -10,6 +10,7 @@
 #include "duckdb/main/relation/order_relation.hpp"
 #include "duckdb/main/relation/projection_relation.hpp"
 #include "duckdb/main/relation/setop_relation.hpp"
+#include "duckdb/parser/expression/cast_expression.hpp"
 #include "duckdb/parser/expression/columnref_expression.hpp"
 #include "duckdb/parser/expression/comparison_expression.hpp"
 #include "duckdb/parser/expression/conjunction_expression.hpp"
@@ -504,8 +505,7 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 	}
 
 	auto &function = (FunctionExpression &)*window_function;
-	auto window_type = WindowExpression::WindowToExpressionType(function.function_name);
-	auto window_expr = make_external<WindowExpression>("duckdb_expr", window_type, "", "", function.function_name);
+	auto window_expr = make_external<WindowExpression>("duckdb_expr", "", "", function.function_name);
 
 	size_t i = 0;
 	for (expr_extptr_t expr : order_bys) {
@@ -535,10 +535,16 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 		window_expr->end_expr = end_expr->Copy();
 	}
 	if (constant_expression_is_not_null(offset_expr)) {
-		window_expr->offset_expr = offset_expr->Copy();
+		// LEAD/LAG offset must be BIGINT; cast to avoid type mismatch errors
+		auto offset_copy = offset_expr->Copy();
+		bool is_lead_lag = (function.function_name == "lead" || function.function_name == "lag");
+		if (is_lead_lag) {
+			offset_copy = make_uniq<CastExpression>(LogicalType::BIGINT, std::move(offset_copy));
+		}
+		window_expr->children.push_back(std::move(offset_copy));
 	}
 	if (constant_expression_is_not_null(default_expr)) {
-		window_expr->default_expr = default_expr->Copy();
+		window_expr->children.push_back(default_expr->Copy());
 	}
 
 	if (alias != "") {
