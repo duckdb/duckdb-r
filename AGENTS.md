@@ -68,10 +68,11 @@ For an interactive edit-build-test loop, prefer the prebuilt-libduckdb fast path
 
 The duckdb-r package vendors (includes a copy of) the DuckDB C++ core library. Key points:
 
-- **Automated Process**: Runs hourly via GitHub Actions, vendors from upstream DuckDB
-- **Branch Strategy**: `main` tracks stable `v1.3-ossivalis`, `next` tracks bleeding-edge `main`
+- **Automated Process**: Runs daily via GitHub Actions in `krlmlr/duckdb-r`, gated on the per-commit `rcc` build status
+- **Branch Strategy**: one dev branch per upstream branch (`main-dev` ← `main`, `v1.5-variegata-dev` ← `v1.5-variegata`, `v1.4-andium-dev` ← `v1.4-andium`); see [BRANCHES.md](BRANCHES.md)
+- **One commit at a time**: each vendor commit corresponds to exactly one upstream commit, and must build and pass tests on its own — fold any required glue fix into that commit rather than adding a follow-up
 - **Never modify `src/duckdb/` directly** - changes will be overwritten by vendoring
-- **Patching**: Add files to the `patch/` directory to apply R-specific modifications to vendored code. Send patches upstream as pull requests every once in a while.
+- **Patching**: Add files to the `patch/` directory to apply R-specific modifications to vendored code. Send patches upstream as pull requests every once in a while. A patch that no longer applies is deleted by the next vendor run.
 - **Manual vendoring**: Use `scripts/vendor.sh /path/to/duckdb/repo` for testing
 - **Full documentation**: See [VENDORING.md](scripts/VENDORING.md) for complete details
 
@@ -214,6 +215,43 @@ R
 - **Do not suppress warnings with `#pragma clang diagnostic ignored` or similar.** CRAN rejects packages that silence warnings rather than fixing the underlying issue.
 - Fix the root cause instead. For vendored code in `src/duckdb/`, add a patch file in `patch/` that corrects the source of the warning (e.g. by changing template definitions to avoid instantiating deprecated types).
 - Example: `-Wdeprecated-declarations` from `char_traits<T>` for non-char `T` in libc++ was fixed by changing the `std_string_view` alias in `src/duckdb/third_party/fmt/include/fmt/core.h` to a struct that only provides `std::basic_string_view<Char>` for standard char types.
+
+## Never Hard-Code the Package Name
+
+The package is published under several names —
+`duckdb` on CRAN, and `duckdb.dev`, `duckdb.1.5.dev`, `duckdb.1.4` and friends on r-universe —
+all built from the same sources with `scripts/lts.sh` applying the rename
+(see [BRANCHES.md](BRANCHES.md#r-package-flavors)).
+Anything that writes `duckdb` literally works on `main` and breaks on every other branch.
+
+`R/package.R` is the seam for this:
+
+| Helper | Returns |
+|---|---|
+| `get_package_name()` | the current package name, via `utils::packageName()` |
+| `get_package_env()` | that package's namespace, via `asNamespace()` |
+| `get_package_spec()`, `get_package_version()` | the namespace spec and version |
+| `system_file_path(...)` | a path inside the installed package (also the mockable seam tests stub) |
+
+`simulate_duckdb()` exposes the first two as `$pkg` and `$env`,
+which is what makes `@examplesIf simulate_duckdb()$env$examples_enabled()` work under any flavor.
+
+Use them anywhere the package refers to itself:
+
+* `system.file(..., package = get_package_name())`, never `package = "duckdb"`;
+* `get_package_env()$some_internal`, never `duckdb:::some_internal`;
+* in roxygen too — an inline chunk `` `r get_package_env()$CONSTANT` `` resolves under any name,
+  while `` `r duckdb:::CONSTANT` `` fails everywhere except `main`.
+
+The roxygen case is worth calling out because it fails in a confusing way.
+roxygen2 evaluates inline chunks in the package's own namespace,
+so an unresolvable reference does not raise an error:
+the chunk, **and every other inline chunk in the same roxygen block**,
+is emitted verbatim as `\verb{r ...}`.
+A single hard-coded qualifier therefore silently de-evaluates its neighbours —
+one `duckdb:::` in `R/storage.R` also took out the `lifecycle::badge()` chunk beside it.
+The regenerated `.Rd` then differs from the committed one
+and CI fails at the `roxygenize` step, before anything is compiled.
 
 ## C++ Glue Code Conventions
 
