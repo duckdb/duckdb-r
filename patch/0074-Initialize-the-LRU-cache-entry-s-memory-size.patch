@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 18 Oct 2026 23:43:23 +0000
+Subject: [PATCH] Initialize the LRU cache entry's memory size
+
+SharedLruCache::Put() builds an Entry whose memory member nothing
+assigns once the reservation carries the size, so -Wmaybe-uninitialized
+reports the member when the entry moves into the map. Upstream later
+initializes it in the declaration; this is that line.
+
+Carried here until the engine brings the same change.
+
+---
+ src/duckdb/src/include/duckdb/common/lru_cache.hpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/duckdb/src/include/duckdb/common/lru_cache.hpp b/src/duckdb/src/include/duckdb/common/lru_cache.hpp
+index d0a6bbfc30..488c224862 100644
+--- a/src/duckdb/src/include/duckdb/common/lru_cache.hpp
++++ b/src/duckdb/src/include/duckdb/common/lru_cache.hpp
+@@ -134,7 +134,7 @@ public:
+ private:
+ 	struct Entry {
+ 		shared_ptr<Val> value;
+-		idx_t memory;
++		idx_t memory = 0;
+ 		typename list<Key>::iterator lru_iterator;
+ 		// Record memory reservation in the buffer pool, which is used for global memory control.
+ 		unique_ptr<BufferPoolReservation> reservation;
