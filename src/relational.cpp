@@ -522,7 +522,7 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 	window_expr->WindowStartMutable() = StringToWindowBoundary(window_boundary_start);
 	window_expr->WindowEndMutable() = StringToWindowBoundary(window_boundary_end);
 	for (auto &child : function.GetArguments()) {
-		window_expr->GetChildrenMutable().push_back(child.GetExpression().Copy());
+		window_expr->GetArgumentsMutable().push_back(child.Copy());
 	}
 	for (expr_extptr_t partition : partitions) {
 		window_expr->PartitionsMutable().push_back(partition->Copy());
@@ -541,10 +541,10 @@ bool constant_expression_is_not_null(duckdb::expr_extptr_t expr) {
 		if (is_lead_lag) {
 			offset_copy = make_uniq<CastExpression>(LogicalType::BIGINT, std::move(offset_copy));
 		}
-		window_expr->GetChildrenMutable().push_back(std::move(offset_copy));
+		window_expr->GetArgumentsMutable().push_back(FunctionArgument(std::move(offset_copy)));
 	}
 	if (constant_expression_is_not_null(default_expr)) {
-		window_expr->GetChildrenMutable().push_back(default_expr->Copy());
+		window_expr->GetArgumentsMutable().push_back(FunctionArgument(default_expr->Copy()));
 	}
 
 	if (alias != "") {
