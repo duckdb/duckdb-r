@@ -3,8 +3,13 @@
 #include "duckdb/main/external_dependencies.hpp"
 #include "duckdb/parser/expression/constant_expression.hpp"
 #include "duckdb/parser/expression/function_expression.hpp"
+#include "duckdb/planner/expression/bound_comparison_expression.hpp"
+#include "duckdb/planner/expression/bound_conjunction_expression.hpp"
+#include "duckdb/planner/expression/bound_constant_expression.hpp"
+#include "duckdb/planner/expression/bound_reference_expression.hpp"
 #include "duckdb/planner/filter/conjunction_filter.hpp"
 #include "duckdb/planner/filter/constant_filter.hpp"
+#include "duckdb/planner/filter/expression_filter.hpp"
 #include "duckdb/planner/filter/in_filter.hpp"
 #include "duckdb/planner/filter/optional_filter.hpp"
 #include "duckdb/planner/table_filter.hpp"
@@ -192,11 +197,65 @@ private:
 		return CreateExpression(functions, op, lhs, rhs);
 	}
 
+	// Translate the bound expression of an EXPRESSION_FILTER. Such a filter always
+	// applies to a single column, which is bound as reference index 0.
+	static SEXP TransformExpression(const Expression &expr, SEXP column_name_expr, SEXP functions) {
+		if (expr.GetExpressionClass() == ExpressionClass::BOUND_COMPARISON) {
+			auto &comp = expr.Cast<BoundComparisonExpression>();
+			auto comparison_type = comp.GetExpressionType();
+			optional_ptr<const Expression> const_side;
+			if (comp.left->GetExpressionClass() == ExpressionClass::BOUND_REF &&
+			    comp.right->GetExpressionType() == ExpressionType::VALUE_CONSTANT) {
+				const_side = comp.right.get();
+			} else if (comp.right->GetExpressionClass() == ExpressionClass::BOUND_REF &&
+			           comp.left->GetExpressionType() == ExpressionType::VALUE_CONSTANT) {
+				const_side = comp.left.get();
+				comparison_type = FlipComparisonExpression(comparison_type);
+			}
+			if (!const_side) {
+				throw NotImplementedException("Arrow table filter pushdown %s not supported yet", expr.ToString());
+			}
+			cpp11::sexp constant_expr =
+			    CreateConstantExpression(functions, const_side->Cast<BoundConstantExpression>().value);
+			switch (comparison_type) {
+			case ExpressionType::COMPARE_EQUAL:
+				return CreateExpression(functions, "equal", column_name_expr, constant_expr);
+			case ExpressionType::COMPARE_GREATERTHAN:
+				return CreateExpression(functions, "greater", column_name_expr, constant_expr);
+			case ExpressionType::COMPARE_GREATERTHANOREQUALTO:
+				return CreateExpression(functions, "greater_equal", column_name_expr, constant_expr);
+			case ExpressionType::COMPARE_LESSTHAN:
+				return CreateExpression(functions, "less", column_name_expr, constant_expr);
+			case ExpressionType::COMPARE_LESSTHANOREQUALTO:
+				return CreateExpression(functions, "less_equal", column_name_expr, constant_expr);
+			case ExpressionType::COMPARE_NOTEQUAL:
+				return CreateExpression(functions, "not_equal", column_name_expr, constant_expr);
+			default:
+				throw NotImplementedException("%s can't be transformed to Arrow Scan Pushdown Filter", expr.ToString());
+			}
+		}
+		if (expr.GetExpressionClass() == ExpressionClass::BOUND_CONJUNCTION) {
+			auto &conj = expr.Cast<BoundConjunctionExpression>();
+			const string op = expr.GetExpressionType() == ExpressionType::CONJUNCTION_AND ? "and_kleene" : "or_kleene";
+			vector<cpp11::sexp> child_exprs;
+			child_exprs.reserve(conj.children.size());
+			for (auto &child : conj.children) {
+				child_exprs.push_back(cpp11::sexp(TransformExpression(*child, column_name_expr, functions)));
+			}
+			return FoldBalanced(functions, op, child_exprs, 0, child_exprs.size());
+		}
+		throw NotImplementedException("Arrow table filter pushdown %s not supported yet", expr.ToString());
+	}
+
 	static SEXP TransformFilterExpression(TableFilter &filter, const string &column_name, SEXP functions) {
 		cpp11::sexp column_name_sexp = Rf_mkString(column_name.c_str());
 		cpp11::sexp column_name_expr = CreateFieldRef(functions, column_name_sexp);
 
 		switch (filter.filter_type) {
+		case TableFilterType::EXPRESSION_FILTER: {
+			auto &expr_filter = filter.Cast<ExpressionFilter>();
+			return TransformExpression(*expr_filter.expr, column_name_expr, functions);
+		}
 		case TableFilterType::CONSTANT_COMPARISON: {
 			auto &constant_filter = (ConstantFilter &)filter;
 			cpp11::sexp constant_expr = CreateConstantExpression(functions, constant_filter.constant);
