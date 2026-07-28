@@ -66,6 +66,8 @@
 
 #include "src/function/table/system/external_resource_types.cpp"
 
+#include "src/function/table/system/external_resources.cpp"
+
 #include "src/function/table/system/logging_utils.cpp"
 
 #include "src/function/table/system/pragma_collations.cpp"
