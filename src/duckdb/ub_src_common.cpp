@@ -20,8 +20,6 @@
 
 #include "src/common/column_index.cpp"
 
-#include "src/common/complex_json.cpp"
-
 #include "src/common/compressed_file_system.cpp"
 
 #include "src/common/constants.cpp"
@@ -59,6 +57,8 @@
 #include "src/common/hive_partitioning.cpp"
 
 #include "src/common/identifier.cpp"
+
+#include "src/common/json_document.cpp"
 
 #include "src/common/local_file_system.cpp"
 
