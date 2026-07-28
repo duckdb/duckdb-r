@@ -4,6 +4,8 @@
 
 #include "src/function/table/checkpoint.cpp"
 
+#include "src/function/table/copy_csv.cpp"
+
 #include "src/function/table/direct_file_reader.cpp"
 
 #include "src/function/table/glob.cpp"
@@ -12,23 +14,21 @@
 
 #include "src/function/table/range.cpp"
 
-#include "src/function/table/repeat.cpp"
-
-#include "src/function/table/repeat_row.cpp"
-
-#include "src/function/table/copy_csv.cpp"
-
 #include "src/function/table/read_csv.cpp"
 
 #include "src/function/table/read_duckdb.cpp"
 
-#include "src/function/table/sniff_csv.cpp"
-
 #include "src/function/table/read_file.cpp"
 
-#include "src/function/table/system_functions.cpp"
+#include "src/function/table/repeat.cpp"
+
+#include "src/function/table/repeat_row.cpp"
+
+#include "src/function/table/sniff_csv.cpp"
 
 #include "src/function/table/summary.cpp"
+
+#include "src/function/table/system_functions.cpp"
 
 #include "src/function/table/table_scan.cpp"
 
