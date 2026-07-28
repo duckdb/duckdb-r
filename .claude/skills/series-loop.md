@@ -205,6 +205,9 @@ the delta between that `-dev` commit and its `-build` equivalent —
 are proven fixes.
 Carrying them over beats rederiving them,
 and their commit-message trailers say what they were for.
+After a WIP forward series is rebased onto a newer mainline
+(`series-forward.md`),
+its own previous `-fwd-dev` is mined the same way.
 CI still judges the result like any other repair.
 
 For snapshot drift,
