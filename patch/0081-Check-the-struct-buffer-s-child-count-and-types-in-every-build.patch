@@ -16,10 +16,10 @@ Carried here until the engine brings the same change.
  1 file changed, 8 insertions(+), 2 deletions(-)
 
 diff --git a/src/duckdb/src/common/vector/struct_vector.cpp b/src/duckdb/src/common/vector/struct_vector.cpp
-index 5649f7b5a4..08bcbf0534 100644
+index 2cffc92ebd..6499b6992f 100644
 --- a/src/duckdb/src/common/vector/struct_vector.cpp
 +++ b/src/duckdb/src/common/vector/struct_vector.cpp
-@@ -67,10 +67,16 @@ void VectorStructBuffer::Verify(const LogicalType &type, const SelectionVector &
+@@ -81,10 +81,16 @@ void VectorStructBuffer::VerifyInternal(const LogicalType &type, const Selection
  	D_ASSERT(type.InternalType() == PhysicalType::STRUCT);
  	D_ASSERT(vector_type == VectorType::FLAT_VECTOR || vector_type == VectorType::CONSTANT_VECTOR);
  	auto &child_types = StructType::GetChildTypes(type);
@@ -35,6 +35,6 @@ index 5649f7b5a4..08bcbf0534 100644
 +			throw InternalException("Struct child type mismatch - expected child of type %s but found child of type %s",
 +			                        child_types[child_idx].second, child.GetType());
 +		}
- 		child.Verify(sel, count);
- 		if (vector_type == VectorType::CONSTANT_VECTOR) {
- 			D_ASSERT(child.GetVectorType() == VectorType::CONSTANT_VECTOR);
+ 		if (!sel.IsSet() && count == Size()) {
+ 			child.Verify();
+ 		} else {
