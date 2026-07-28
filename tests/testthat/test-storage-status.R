@@ -18,7 +18,7 @@ test_that("duckdb_storage_status reports the per-session default", {
   expect_equal(st$source, c("session", "session"))
   expect_equal(
     st$directory,
-    c("/tmp/sess/duckdb/extensions", "/tmp/sess/duckdb/stored_secrets")
+    c(session_home_path("extensions"), session_home_path("stored_secrets"))
   )
 })
 

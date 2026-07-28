@@ -27,6 +27,6 @@ test_that("the secret store defaults under the session tempdir", {
   )
   expect_equal(
     home_subdir(resolve_storage_home()$root, "stored_secrets"),
-    "/tmp/sess/duckdb/stored_secrets"
+    session_home_path("stored_secrets")
   )
 })

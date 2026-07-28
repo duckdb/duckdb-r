@@ -42,7 +42,7 @@ test_that("resolve_storage_home falls back to a session tempdir non-interactivel
   )
   expect_equal(
     resolve_storage_home(),
-    list(root = "/tmp/sess/duckdb", source = "session")
+    list(root = session_home_path(), source = "session")
   )
 })
 
@@ -93,7 +93,7 @@ test_that("describe_storage_home is read-only: no prompt, no creation", {
   )
   expect_equal(
     describe_storage_home(),
-    list(root = "/tmp/sess/duckdb", source = "session")
+    list(root = session_home_path(), source = "session")
   )
   expect_false(dir.exists(shared))
 })
@@ -128,7 +128,7 @@ test_that("shared_home = FALSE forces tempdir even when ~/.duckdb exists", {
   # Ignores the existing ~/.duckdb and the option/env override.
   expect_equal(
     resolve_storage_home(shared_home = FALSE),
-    list(root = "/tmp/sess/duckdb", source = "session")
+    list(root = session_home_path(), source = "session")
   )
 })
 
@@ -172,7 +172,7 @@ test_that("resolve_temp_directory redirects in-memory only, honors override", {
   local_mocked_bindings(session_temp_dir = function() "/tmp/sess")
   expect_equal(
     resolve_temp_directory(":memory:"),
-    list(directory = "/tmp/sess/duckdb/temp", source = "session")
+    list(directory = session_home_path("temp"), source = "session")
   )
   expect_equal(
     resolve_temp_directory("/path/to/my.db"),
