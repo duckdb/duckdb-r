@@ -20,7 +20,7 @@
 
 #include "src/common/enums/physical_operator_type.cpp"
 
-#include "src/common/enums/statement_type.cpp"
-
 #include "src/common/enums/relation_type.cpp"
+
+#include "src/common/enums/statement_type.cpp"
 

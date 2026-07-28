@@ -14,29 +14,29 @@
 
 #include "src/planner/expression_binder/having_binder.cpp"
 
-#include "src/planner/expression_binder/lateral_binder.cpp"
-
-#include "src/planner/expression_binder/qualify_binder.cpp"
-
 #include "src/planner/expression_binder/index_binder.cpp"
 
 #include "src/planner/expression_binder/insert_binder.cpp"
 
+#include "src/planner/expression_binder/lateral_binder.cpp"
+
 #include "src/planner/expression_binder/order_binder.cpp"
 
-#include "src/planner/expression_binder/try_operator_binder.cpp"
-
 #include "src/planner/expression_binder/projection_binder.cpp"
+
+#include "src/planner/expression_binder/qualify_binder.cpp"
 
 #include "src/planner/expression_binder/relation_binder.cpp"
 
 #include "src/planner/expression_binder/returning_binder.cpp"
 
-#include "src/planner/expression_binder/select_binder.cpp"
-
 #include "src/planner/expression_binder/select_bind_state.cpp"
 
+#include "src/planner/expression_binder/select_binder.cpp"
+
 #include "src/planner/expression_binder/table_function_binder.cpp"
+
+#include "src/planner/expression_binder/try_operator_binder.cpp"
 
 #include "src/planner/expression_binder/update_binder.cpp"
 
