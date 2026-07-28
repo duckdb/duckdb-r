@@ -51,6 +51,48 @@ the replay then populates `<S>-fwd-build`.
    but keeps verifying and promoting what is already in flight —
    `<S>-green` still serves consumers, unchanged, on the old lineage.
 
+## Rebase while still WIP
+
+Until cutover, a forward series is work in progress:
+nothing consumes its refs —
+the base `<S>-green` is still the serving ref —
+so the fast-forward-only discipline that protects a serving green
+does not yet bind the `-fwd` refs.
+A WIP forward series can therefore **always be rebased
+against the current mainline**,
+and this is the normal way to pick up `main`-side fine-tuning —
+CI changes, script fixes, R-side work —
+that landed while the forward series was being built or verified.
+
+The rebase is a rebuild, not a merge:
+
+1. Regenerate the seed on current `main` —
+   `scripts/flavor.sh`, plus the fifth-component commit —
+   exactly as when the series was created.
+2. Rebuild the buffer onto it:
+   rerun `scripts/series-forward-build.sh <old-build> <old-base>`
+   when `main` moved
+   (the replayed trees must pick up `main`'s changes),
+   or re-parent the existing chain with trees preserved
+   when only the seed's own commits changed.
+3. Reset all four `-fwd` refs in one atomic push:
+   `-fwd-build` to the rebuilt buffer tip,
+   the other three to the new seed tip.
+
+Verification restarts from the new seed —
+re-minted commits have no runs —
+and that is the accepted cost:
+rebase when `main`'s motion matters to the series,
+not for every commit.
+What was already proven is not lost:
+mine the previous `-fwd-dev` like the base `-dev` —
+the forward-series mining rule in `series-loop.md`,
+matching by vendored `duckdb/duckdb@<sha>` subject.
+
+A series that has cut over is no longer WIP:
+its green serves consumers,
+and moving it means a new forward series, not a rebase.
+
 ## Cut over
 
 When `<S>-fwd-green` vendors at least the upstream commit
@@ -65,8 +107,11 @@ It swaps all four refs in a single `git push --atomic`
 with a per-ref lease,
 so consumers never observe a half-replaced series,
 then deletes the `-fwd` refs.
-The swap is the **one sanctioned non-fast-forward move of a green ref**;
-everything before and after it is fast-forward only.
+The swap is the **one sanctioned non-fast-forward move
+of a serving green ref**;
+a WIP `-fwd-green` may be reset by a rebase (above),
+but a green that consumers read
+moves fast-forward only, before and after the swap.
 
 If the remote refuses ref deletion (some git proxies do),
 remove the `-fwd` refs via the forge UI.
