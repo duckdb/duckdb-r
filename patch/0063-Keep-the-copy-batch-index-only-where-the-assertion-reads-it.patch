@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 18 Oct 2026 22:28:45 +0000
+Subject: [PATCH] Keep the copy batch index only where the assertion reads it
+
+The partitioned COPY task builder keeps the batch index its collection
+slot returns only to assert that it matches the task's, so in a
+release build, where D_ASSERT() expands to nothing, the index is
+unused and -Wunused-variable says so. The slot is still added in every
+build; the index is bound and asserted on only when assertions are
+enabled, which is the shape upstream gives the site later.
+
+Carried here until the engine brings the same change.
+
+---
+ src/duckdb/src/execution/operator/persistent/physical_copy_to_file.cpp | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/duckdb/src/execution/operator/persistent/physical_copy_to_file.cpp b/src/duckdb/src/execution/operator/persistent/physical_copy_to_file.cpp
+index 2bd27d1413..8fb0b22487 100644
+--- a/src/duckdb/src/execution/operator/persistent/physical_copy_to_file.cpp
++++ b/src/duckdb/src/execution/operator/persistent/physical_copy_to_file.cpp
+@@ -1050,9 +1050,13 @@ optional<PartitionedCopyTask> PartitionedCopyHashGroup::TryNextBatchTask() {
+ 	task.end_idx = batch_row_idx;
+ 
+ 	// Update partition/batch counters
++#ifdef D_ASSERT_IS_ENABLED
+ 	const auto batch_idx =
+ 	    batch_state.AddCollectionSlot(partitioned_copy.GetPartitionCollectionSchema(), task.end_idx - task.begin_idx);
+ 	D_ASSERT(batch_idx == task.batch_idx);
++#else
++	batch_state.AddCollectionSlot(partitioned_copy.GetPartitionCollectionSchema(), task.end_idx - task.begin_idx);
++#endif
+ 
+ 	return task;
+ }
