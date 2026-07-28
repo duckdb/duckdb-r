@@ -238,7 +238,7 @@ static void AppendMatrixColumnSegment(const RType &rtype, bool experimental, SEX
 	auto element_rtype = rtype.GetMatrixElementType();
 	auto nrows = Rf_nrows(source_data);
 	auto ncols = Rf_ncols(source_data);
-	auto &child_vector = ArrayVector::GetEntry(result);
+	auto &child_vector = ArrayVector::GetChildMutable(result);
 
 	switch (element_rtype.id()) {
 	case RType::LOGICAL: // LGLSXP
