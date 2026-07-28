@@ -38,6 +38,7 @@ int duckdb_r_typeof(const LogicalType &type, const string &name, const char *cal
 	case LogicalTypeId::TINYINT:
 	case LogicalTypeId::SMALLINT:
 	case LogicalTypeId::USMALLINT:
+	case LogicalTypeId::SQLNULL:
 	case LogicalTypeId::INTEGER:
 		return INTSXP;
 	case LogicalTypeId::UINTEGER:
@@ -218,6 +219,7 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 	case LogicalTypeId::TINYINT:
 	case LogicalTypeId::USMALLINT:
 	case LogicalTypeId::SMALLINT:
+	case LogicalTypeId::SQLNULL:
 	case LogicalTypeId::INTEGER:
 	case LogicalTypeId::UINTEGER:
 	case LogicalTypeId::HUGEINT:
@@ -471,6 +473,7 @@ void duckdb_r_transform(const Vector &src_vec, const SEXP dest, idx_t dest_offse
 	case LogicalTypeId::SMALLINT:
 		VectorToR<int16_t, uint32_t>(src_vec, n, INTEGER_POINTER(dest), dest_offset, NA_INTEGER);
 		break;
+	case LogicalTypeId::SQLNULL:
 	case LogicalTypeId::INTEGER:
 		VectorToR<int32_t, uint32_t>(src_vec, n, INTEGER_POINTER(dest), dest_offset, NA_INTEGER);
 		break;

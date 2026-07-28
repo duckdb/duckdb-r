@@ -327,6 +327,7 @@ string RApiTypes::DetectLogicalType(const LogicalType &stype, const char *caller
 	case LogicalTypeId::TINYINT:
 	case LogicalTypeId::USMALLINT:
 	case LogicalTypeId::SMALLINT:
+	case LogicalTypeId::SQLNULL:
 	case LogicalTypeId::INTEGER:
 		return "integer";
 	case LogicalTypeId::TIMESTAMP_SEC:
@@ -368,7 +369,6 @@ string RApiTypes::DetectLogicalType(const LogicalType &stype, const char *caller
 	case LogicalTypeId::ENUM:
 		return "factor";
 	case LogicalTypeId::UNKNOWN:
-	case LogicalTypeId::SQLNULL:
 	// No R vector holds these: the route to R vectors refuses them by column before
 	// the statement runs, in rapi_execute_impl(), while an Arrow result carries them
 	// unconverted (handbook/usage/types/README.md).
