@@ -24,6 +24,61 @@ test_that("a database file yet to be created gets the key it will keep", {
   expect_equal(path_normalize(path), before)
 })
 
+test_that("spellings of one database collapse to one key", {
+  dir <- withr::local_tempdir()
+  path <- file.path(dir, "db.duckdb")
+  expected <- path_normalize(path)
+
+  expect_equal(
+    path_normalize(file.path(dir, "..", basename(dir), "db.duckdb")),
+    expected
+  )
+  expect_equal(path_normalize(paste0(dir, "//db.duckdb")), expected)
+
+  withr::local_dir(dir)
+  expect_equal(path_normalize("db.duckdb"), expected)
+})
+
+test_that("a symlinked database resolves to its target", {
+  dir <- withr::local_tempdir()
+  target <- file.path(dir, "real.duckdb")
+  file.create(target)
+  link <- file.path(dir, "link.duckdb")
+  skip_if_not(
+    suppressWarnings(file.symlink(target, link)),
+    "symlinks unavailable"
+  )
+
+  expect_equal(path_normalize(link), path_normalize(target))
+})
+
+test_that("a symlink to a database yet to be created shares one instance", {
+  # The link resolves only once the engine has created its target, so the key
+  # taken before the open is not the one every later call computes.
+  # Symlinks are out of scope on Windows, where creating one needs admin rights
+  # or Developer Mode, and the engine does not open a link to a missing target.
+  # See handbook/usage/connections/README.md.
+  skip_on_os("windows")
+  dir <- withr::local_tempdir()
+  target <- file.path(dir, "target.duckdb")
+  link <- file.path(dir, "link.duckdb")
+  skip_if_not(
+    suppressWarnings(file.symlink(target, link)),
+    "symlinks unavailable"
+  )
+
+  drv1 <- duckdb(link)
+  withr::defer(duckdb_shutdown(drv1))
+  expect_equal(drv1@dbdir, path_normalize(target))
+
+  drv2 <- duckdb(link)
+  expect_identical(drv2@database_ref, drv1@database_ref)
+  # The same spelling reaches the same driver through `dbConnect()` as well.
+  con <- dbConnect(drv1, dbdir = link)
+  withr::defer(dbDisconnect(con))
+  expect_identical(con@driver@database_ref, drv1@database_ref)
+})
+
 test_that("a lower-case drive letter resolves on that drive, not in the working directory", {
   # The engine walks up to the drive and turns it into its root, and a bare
   # `c:` is the working directory on that drive rather than its root. Only a
@@ -92,4 +147,29 @@ test_that("a database in a directory that does not exist fails in `dbConnect()`,
   err <- expect_error(open(), "no-such-directory", fixed = TRUE)
   expect_identical(conditionCall(err)[[1]], quote(dbConnect))
   expect_null(driver_registry[[path_normalize(path)]])
+})
+
+test_that("two spellings of one database share an instance", {
+  # Not a reuse optimization: the engine does not refuse a second read-write
+  # instance on a file this process already holds, and two of them diverge
+  # silently. The registry is what prevents that, and it can only do so if the
+  # key unifies the spellings. See handbook/usage/connections/README.md.
+  dir <- withr::local_tempdir()
+  path <- file.path(dir, "db.duckdb")
+
+  drv1 <- duckdb(path)
+  # `defer()` unwinds last-in-first-out, so every connection is closed before
+  # the instance they belong to is shut down.
+  withr::defer(duckdb_shutdown(drv1))
+  con1 <- dbConnect(drv1)
+  withr::defer(dbDisconnect(con1))
+  dbWriteTable(con1, "x", data.frame(a = 1L))
+
+  drv2 <- duckdb(file.path(dir, "..", basename(dir), "db.duckdb"))
+  expect_identical(drv2@database_ref, drv1@database_ref)
+
+  con2 <- dbConnect(drv2)
+  withr::defer(dbDisconnect(con2))
+  # A second instance would not see a write made through the first.
+  expect_equal(dbReadTable(con2, "x"), data.frame(a = 1L))
 })

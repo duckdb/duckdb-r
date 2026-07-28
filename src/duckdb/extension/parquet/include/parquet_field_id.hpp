@@ -21,8 +21,8 @@ public:
 	FieldID();
 	explicit FieldID(int32_t field_id);
 	FieldID Copy() const;
-	bool set;
-	int32_t field_id;
+	bool set = false;
+	int32_t field_id = 0;
 	ChildFieldIDs child_field_ids;
 
 	void Serialize(Serializer &serializer) const;
