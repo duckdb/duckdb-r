@@ -36,6 +36,8 @@
 
 #include "src/main/extension.cpp"
 
+#include "src/main/extension_callback_manager.cpp"
+
 #include "src/main/extension_install_info.cpp"
 
 #include "src/main/extension_manager.cpp"
