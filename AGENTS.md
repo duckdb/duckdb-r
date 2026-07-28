@@ -11,6 +11,13 @@ R package that contains a vendored copy of the DuckDB C++ library and glue code 
 - `export MAKEFLAGS="-j$(nproc)"` -- enables parallel compilation
 - `UserNM=true R CMD INSTALL . --no-byte-compile` -- builds and installs the package. NEVER CANCEL: takes 10-15 minutes on first build. Set timeout to 30+ minutes.
 
+`UserNM=true` is an install-time shortcut only -- **never export it for `R CMD check`**.
+R takes the `nm` program from `$UserNM`, and `tools:::check_so_symbols` uses it to scan the built `.so`;
+pointing it at `true` blinds that scan,
+so the check reports "Found no calls to `R_registerRoutines`, `R_useDynamicSymbols`"
+and fails a package that registers its routines correctly.
+It saves ~10-20 s on this tree, so it is not worth carrying into CI at all.
+
 For an interactive edit-build-test loop, prefer the prebuilt-libduckdb fast path (seconds instead of 10-15 minutes) -- see ["Fast build with system libduckdb"](#fast-build-with-system-libduckdb-linuxmacos-opt-in) and ["Testing with prebuilt DuckDB"](#testing-with-prebuilt-duckdb-the-fast-iterate-loop) below.
 
 ### Run Tests

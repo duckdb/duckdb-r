@@ -207,9 +207,13 @@ It reads the `rcc` commit-status of a branch tip and the five commits before it:
 | `stale`       | no green/red, and a commit has had no `rcc` result for over 6h | fail loudly — CI never decided; investigate                                                                               |
 | `undecided`   | no green/red, results still pending and younger than 6h        | succeed and do nothing; re-check tomorrow                                                                                 |
 
-After a successful advance, `.github/workflows/each.yaml` (`scripts/each-rcc.sh`)
-dispatches one `rcc` run per commit that does not yet have a build status,
+After a successful advance, `.github/workflows/each.yaml` (`scripts/each-plan.sh`)
+builds every commit that does not yet have a build status,
 which is what keeps invariant 3 checkable.
+It groups them into contiguous shards balanced by predicted build cost
+and gives each shard one job that walks its commits in a single workspace;
+the per-commit `rcc` status is written exactly as before.
+See [`EACH.md`](EACH.md).
 
 The `stale`/`undecided` split keeps the loop patient with commits that are
 legitimately still building,
@@ -434,7 +438,7 @@ vendor: Update vendored sources (tag v1.x.x) to duckdb/duckdb@<commit_hash>
 ```
 
 The subject line is machine-readable state:
-`vendor-one.sh`, `vendor-gate.sh`, `each-rcc.sh` and the repair skills
+`vendor-one.sh`, `vendor-gate.sh`, `each-plan.sh` and the repair skills
 all recover "where is this branch in upstream history"
 by parsing `duckdb/duckdb@<sha>` out of it.
 Do not reword it, and do not squash vendor commits together
@@ -526,11 +530,16 @@ git log -1 --grep="^vendor:" --format=%s   # upstream commit it came from
 - `scripts/vendor.sh` - Manual vendoring of one specific upstream state
 - `scripts/vendor-one.sh` - Commit-by-commit vendoring (used by the series loop)
 - `scripts/vendor-gate.sh` - Decides whether a scheduled run advances, fails, or waits
-- `scripts/each-rcc.sh` - Triggers a per-commit `rcc` build for commits without a status
+- `scripts/each-plan.sh` - Selects commits without an `rcc` status and shards them by predicted build cost
+- `scripts/each-cost.py` - Counts the unity objects a commit invalidates, from the include graph
+- `scripts/each-shard.sh` - Builds one shard of commits in a single job
+- `scripts/rcc-one.sh` - The per-commit `rcc` gate
+- `scripts/each-harvest.sh` - Folds the shards' results onto the orphan `rcc` branch
+- `scripts/each-rcc.sh` - Legacy fallback: one dispatched `rcc` run per commit without a status
 - `scripts/rconfigure.py` - Regenerates `src/duckdb/`, `src/include/sources.mk`, `R/version.R`
 - `scripts/setup-git.sh` - Registers the `DESCRIPTION` merge driver, `rerere`, and `rebase.backend=merge`
 - `scripts/merge-version.sh` - The merge driver itself (see [Version counters and the merge driver](#version-counters-and-the-merge-driver))
-- `.github/workflows/each.yaml` - Per-commit CI dispatch
+- `.github/workflows/each.yaml` - Per-commit CI as a sharded matrix (see [`EACH.md`](EACH.md))
 - `patch/*.patch` - R-specific patches applied to vendored code
   (see [Patch Stack](../BRANCHES.md#patch-stack))
 

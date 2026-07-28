@@ -26,7 +26,7 @@ three repair skills in `.claude/skills/`.
 | Concern | Today | Mechanism |
 |---|---|---|
 | **Vendor** upstream C++ into `*-dev` | hourly, commit-by-commit, ≤30/run | `vendor.yaml` → `scripts/vendor-one.sh ./duckdb --commits 30` |
-| **Trigger** per-commit CI | fire-and-forget dispatch, no cap | `each.yaml` → `scripts/each-rcc.sh` → `gh workflow run rcc -f ref=<sha>` |
+| **Trigger** per-commit CI | fire-and-forget dispatch, no cap | `each.yaml` → `scripts/each-rcc.sh` → `gh workflow run rcc -f ref=<sha>` (since superseded by the sharded matrix, [`EACH.md`](EACH.md)) |
 | **Build / smoke-test** a commit | one independent `rcc` run per commit | `R-CMD-check.yaml` (job *Smoke test: stock R*) |
 | **Record** the result marker | commit-status `rcc` = pending/success/failure | `R-CMD-check-status.yaml` (via `workflow_run`) |
 | **Harvest** logs to ground truth | **delayed**, 4×/day | `rcc-logs.yaml` → `scripts/rcc-logs.sh` → orphan branch `rcc` (`runs2.ndjson`, `logs2/<sha>.log`) |
@@ -170,6 +170,14 @@ Invariants:
   behaviour.
 
 #### B. Build primitive — synchronous **sharded matrix** CI *(NEW: `rcc-matrix.yaml`)*
+
+> **Landed, in narrower form.** This primitive is now implemented inside the
+> existing `each.yaml` rather than as a separate `rcc-matrix.yaml`, because the
+> commit-selection semantics were already there. See [`EACH.md`](EACH.md) for
+> what was built, the GitHub Actions limits it works within, and two corrections
+> to the analysis below: within-shard reuse comes from **ccache**, not
+> incremental `make` (§4.2), and the reverse-include estimator of §4.3 exists as
+> `scripts/each-cost.py`.
 
 Replaces fire-and-forget dispatch (`each-rcc.sh`) **and** the 4×/day harvest
 (`rcc-logs.yaml`). One workflow that, given a branch and a set of commits:
