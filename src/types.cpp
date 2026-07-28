@@ -334,6 +334,7 @@ string RApiTypes::DetectLogicalType(const LogicalType &stype, const char *caller
 	case LogicalTypeId::TIMESTAMP:
 	case LogicalTypeId::TIMESTAMP_TZ:
 	case LogicalTypeId::TIMESTAMP_NS:
+	case LogicalTypeId::TIMESTAMP_TZ_NS:
 		return "POSIXct";
 	case LogicalTypeId::DATE:
 		return "Date";
