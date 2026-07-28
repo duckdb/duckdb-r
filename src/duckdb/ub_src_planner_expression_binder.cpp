@@ -1,5 +1,3 @@
-#include "src/planner/expression_binder/aggregate_binder.cpp"
-
 #include "src/planner/expression_binder/alter_binder.cpp"
 
 #include "src/planner/expression_binder/base_select_binder.cpp"
@@ -35,8 +33,6 @@
 #include "src/planner/expression_binder/select_binder.cpp"
 
 #include "src/planner/expression_binder/table_function_binder.cpp"
-
-#include "src/planner/expression_binder/try_operator_binder.cpp"
 
 #include "src/planner/expression_binder/update_binder.cpp"
 
