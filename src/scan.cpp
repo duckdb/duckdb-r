@@ -700,7 +700,7 @@ static void DataFrameScanFunc(ClientContext &context, TableFunctionInput &data, 
 		}
 	}
 	idx_t this_count = MinValue<idx_t>(STANDARD_VECTOR_SIZE, operator_data.count - operator_data.position);
-	output.SetCardinality(this_count);
+	output.SetChildCardinality(this_count);
 
 	auto sexp_offset = operator_data.offset + operator_data.position;
 	D_ASSERT(sexp_offset + this_count <= bind_data.row_count);
