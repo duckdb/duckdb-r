@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 19 Oct 2026 11:28:00 +0000
+Subject: [PATCH] Drop the unreferenced string specialization of the arg min max state's CreateValue
+
+ArgMinMaxStateBase specializes CreateValue() for string_t in an
+anonymous namespace, and once no state in the file instantiates it,
+-Wunused-function reports the specialization. Upstream later removes
+CreateValue() altogether; dropping the specialization is the part of
+that change this file needs.
+
+Carried here until the engine brings the same change.
+
+---
+ src/duckdb/extension/core_functions/aggregate/distributive/arg_min_max.cpp | 5 -----
+ 1 file changed, 5 deletions(-)
+
+diff --git a/src/duckdb/extension/core_functions/aggregate/distributive/arg_min_max.cpp b/src/duckdb/extension/core_functions/aggregate/distributive/arg_min_max.cpp
+index ee62107548..c171a3bc38 100644
+--- a/src/duckdb/extension/core_functions/aggregate/distributive/arg_min_max.cpp
++++ b/src/duckdb/extension/core_functions/aggregate/distributive/arg_min_max.cpp
+@@ -38,11 +38,6 @@ struct ArgMinMaxStateBase {
+ };
+ 
+ // Out-of-line specialisations
+-template <>
+-void ArgMinMaxStateBase::CreateValue(string_t &value) {
+-	value = string_t(uint32_t(0));
+-}
+-
+ template <>
+ void ArgMinMaxStateBase::AssignValue(string_t &target, string_t new_value, AggregateInputData &aggregate_input_data) {
+ 	if (new_value.IsInlined()) {

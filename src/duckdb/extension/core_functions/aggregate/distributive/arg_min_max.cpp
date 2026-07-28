@@ -39,11 +39,6 @@ struct ArgMinMaxStateBase {
 
 // Out-of-line specialisations
 template <>
-void ArgMinMaxStateBase::CreateValue(string_t &value) {
-	value = string_t(uint32_t(0));
-}
-
-template <>
 void ArgMinMaxStateBase::AssignValue(string_t &target, string_t new_value, AggregateInputData &aggregate_input_data) {
 	if (new_value.IsInlined()) {
 		target = new_value;
@@ -84,11 +79,6 @@ struct ArgMinMaxState : public ArgMinMaxStateBase {
 
 template <class COMPARATOR>
 struct ArgMinMaxBase {
-	template <class STATE>
-	static void Initialize(STATE &state) {
-		new (&state) STATE;
-	}
-
 	template <class STATE>
 	static void Destroy(STATE &state, AggregateInputData &aggr_input_data) {
 		state.~STATE();
