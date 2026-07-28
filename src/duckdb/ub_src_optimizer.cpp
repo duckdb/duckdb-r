@@ -48,6 +48,8 @@
 
 #include "src/optimizer/outer_join_simplification.cpp"
 
+#include "src/optimizer/partial_aggregate_pushdown.cpp"
+
 #include "src/optimizer/partitioned_execution.cpp"
 
 #include "src/optimizer/projection_pullup.cpp"
