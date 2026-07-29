@@ -21,6 +21,12 @@
 # shards back apart, spending at most EACH_SPLIT_FACTOR times the runner minutes
 # and never asking for more legs than EACH_MAX_PARALLEL can run at once.
 #
+# Shards are numbered along the history -- shard 1 is the oldest slice, shard N
+# the branch tip -- and queued the other way round, so under max-parallel
+# throttling the tip is decided first. A leg that fails a commit quotes the tail
+# of every stage that failed into its job summary, so the run summary says what
+# broke without opening the log.
+#
 # See scripts/EACH.md for the design, the GitHub Actions limits it works within,
 # and why `workflow_call` is not the mechanism that gets us there.
 #
@@ -268,6 +274,9 @@ jobs:
           PLAN: ${{ runner.temp }}/plan/plan.json
           LOG_DIR: ${{ runner.temp }}/each-logs
           DEADLINE_MINUTES: ${{ env.EACH_SHARD_BUDGET_MINUTES }}
+          # Empty falls through to the script's own default; 0 turns the
+          # per-failure log excerpts in the job summary off.
+          SUMMARY_TAIL: ${{ vars.EACH_RCC_SUMMARY_TAIL || '' }}
         run: scripts/each-shard.sh
         shell: bash
 
