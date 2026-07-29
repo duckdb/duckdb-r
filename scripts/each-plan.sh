@@ -37,8 +37,8 @@
 #   SINCE               - earliest commit date to consider (default: 2026-01-01)
 #   OUT                 - plan file to write (default: plan.json)
 #   FORCE               - if non-empty, ignore existing statuses and replan all
-#                         (implied on a `retry-<sha>-dev` branch, which exists
-#                         to have one already-decided commit judged again)
+#                         (a `retry-<S>-dev` branch replans its tip that way
+#                         without this, which is the whole point of it)
 #   PENDING_TTL_HOURS   - a `pending` status older than this is treated as
 #                         abandoned and the commit is replanned (default: 6,
 #                         matching MAX_AGE_HOURS in scripts/vendor-gate.sh)
@@ -114,46 +114,43 @@ plan_nothing() {
 }
 
 RANGE=("HEAD")
-bounded=""
+retry=""
 case "${branch}" in
   *-dev)
     series="${branch%-dev}"
+    # `retry-<S>-dev` asks for one commit of series `<S>` to be judged again on
+    # its own SHA -- the alternative is amending it, which re-mints every
+    # descendant and throws away the runs that decided them. See
+    # .claude/skills/series-loop.md.
+    #
+    # It is the series' own branch name with a prefix, so stripping the prefix
+    # anchors the scan on `<S>-green`, the ref that already marks how far the
+    # series is trusted. The retry branch needs no ref of its own for that: the
+    # bound it needs is the bound the series already publishes. Only the tip is
+    # forced, below -- the commit the branch was pushed at is the one being
+    # asked about, and everything under it keeps the ordinary rule, so a run
+    # lost further down the range is picked up in the same pass.
+    case "${series}" in
+      retry-*) series="${series#retry-}"; retry=1 ;;
+    esac
     if git fetch -q origin \
         "+refs/heads/${series}-green:refs/remotes/origin/${series}-green" 2>/dev/null; then
       if git merge-base --is-ancestor "refs/remotes/origin/${series}-green" HEAD; then
         RANGE=("refs/remotes/origin/${series}-green..HEAD")
-        bounded=1
         echo "Series branch: scanning origin/${series}-green..HEAD"
       else
         echo "origin/${series}-green is not an ancestor of HEAD -- planning nothing"
         plan_nothing
         exit 0
       fi
-    fi ;;
-esac
-
-# A `retry-<sha>` pair asks for a commit that already carries a verdict to be
-# judged again, on its own SHA. The alternative is amending it, which re-mints
-# every descendant and throws away the runs that decided them; a rerun that
-# leaves the chain alone is worth a forced replan. See
-# .claude/skills/series-loop.md.
-#
-# The `retry-<sha>-green` sibling is what makes the request safe to honour: it
-# pins the range to the single commit under retry. Without it the scan falls
-# back to first-parent history since SINCE, which reaches past the series' seed
-# into `main`, where no commit carries an `rcc` status -- so an unbounded retry
-# branch would queue a build for every one of them. Force only when the range
-# is bounded, and refuse outright when it is not.
-case "${branch}" in
-  retry-*-dev)
-    if [ -z "${bounded}" ]; then
-      echo "Retry branch without an origin/${branch%-dev}-green sibling -- planning nothing"
+    elif [ -n "${retry}" ]; then
+      # Without the anchor the scan would fall back to first-parent history
+      # since SINCE, reach past the series' seed into `main`, and queue a build
+      # for every commit there that carries no `rcc` status. A retry branch
+      # naming a series that has no green is not a request anyone can serve.
+      echo "Retry branch names series ${series}, which has no green -- planning nothing"
       plan_nothing
       exit 0
-    fi
-    if [ -z "${FORCE}" ]; then
-      FORCE="retry"
-      echo "Retry branch: replanning the range regardless of existing statuses"
     fi ;;
 esac
 
@@ -235,11 +232,18 @@ fi
 # decision and is left alone -- the same rule scripts/each-rcc.sh applies, which
 # is what keeps a rebase-and-force-push the way to re-trigger a commit.
 #
+# The tip of a `retry-<S>-dev` branch is the one exception: it is a decision the
+# push exists to overturn. Only the tip, and only on that branch -- the rest of
+# the range is the series' own history and keeps the ordinary rule.
+#
 # Driven by the enumeration, not by the status list, so a commit the status scan
 # did not report is replanned rather than silently dropped. Order stays
 # oldest-first, which is what the partitioner and the shard driver rely on.
 now="$(date -u +%s)"
-awk -v now="${now}" -v ttl_hours="${PENDING_TTL_HOURS}" -v force="${FORCE}" '
+retry_tip=""
+[ -n "${retry}" ] && retry_tip="$(git rev-parse HEAD)"
+awk -v now="${now}" -v ttl_hours="${PENDING_TTL_HOURS}" -v force="${FORCE}" \
+    -v retry_tip="${retry_tip}" '
   function to_epoch(s,   cmd, out) {
     # RFC 3339 -> epoch. GNU date first, BSD date second; "" when absent.
     if (s == "") return 0
@@ -255,6 +259,7 @@ awk -v now="${now}" -v ttl_hours="${PENDING_TTL_HOURS}" -v force="${FORCE}" '
     sha = $1
     s = (sha in state) ? state[sha] : "none"
     if (force != "") { print sha, "replan-forced"; next }
+    if (retry_tip != "" && sha == retry_tip) { print sha, "replan-retry"; next }
     if (s == "none" || s == "expected") { print sha, "no-status"; next }
     if (s == "pending" && now - to_epoch(created[sha]) > ttl_hours * 3600) {
       print sha, "stale-pending"

@@ -14,9 +14,11 @@
 # Classification is by positive evidence only (.claude/skills/series-loop.md);
 # "Job is waiting for a hosted runner" appears in every log and means nothing.
 #
-# RETRY and REPAIR split on the retry ledger: a `retry-<sha>-dev` branch on the
-# remote means the commit has already had its one rerun, so a failure that still
-# looks transient is not, and the verdict is REPAIR regardless.
+# RETRY and REPAIR split on the retry ledger: `retry-<S>-dev` pointing at the
+# failing commit means it has already had its one rerun, so a failure that still
+# looks transient is not, and the verdict is REPAIR regardless. The branch
+# pointing anywhere else is a spent retry of some earlier commit, and says
+# nothing about this one.
 #
 # Usage: series-check.sh [<series>...]     # default: discover all from refs
 
@@ -122,10 +124,11 @@ for S in "${series[@]}"; do
 
   if [ -n "$oldest" ]; then
     kind=${why%%|*}; desc=${why#*|}
-    if git rev-parse -q --verify "refs/remotes/$remote/retry-$oldest-dev" >/dev/null; then
+    retried=$(git rev-parse -q --verify "refs/remotes/$remote/retry-$S-dev" || true)
+    if [ "$retried" = "$oldest" ]; then
       echo "  REPAIR $oldest"
       echo "         $desc"
-      echo "         retry-$oldest-dev exists: the rerun was spent, this failure is real"
+      echo "         retry-$S-dev is on this commit: the rerun was spent, this failure is real"
     elif [ "$kind" = transient ]; then
       echo "  RETRY  $oldest"
       echo "         $desc"

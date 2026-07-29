@@ -121,9 +121,10 @@ and the run may simply be queued
 so a long tail behind a large push is normal).
 Review whatever CI state is reachable before concluding loss.
 Only then self-heal:
-push a **retry pair** for the first commit with missing state
+push `retry-<S>-dev` at the first commit with missing state
 (*Rerun one commit*, below).
-A missing status is the case the pair handles with nothing forced,
+A missing status needs nothing forced —
+the commit is planned by the ordinary rule —
 and `<S>-dev` is not touched at all,
 so no descendant is re-minted and no verified run is discarded.
 Never amend a commit that has a record;
@@ -138,8 +139,8 @@ Classify each `failure` by what its log (`logs2/<sha>.log`) **contains**:
 | `Error ('test-….R:N:M')` | real test failure | fix test/R code at origin |
 | the cause is in `src/duckdb/` itself and a later vendor commit fixes it | upstream was transiently broken | fold the vendor commits into one (below) |
 | `Changes detected in workflow_dispatch build` | style / roxygen drift | fix formatting at origin |
-| a gate reached out and was refused — `cannot open URL`, `SSL connect error`, a refused or reset connection — while the tests themselves passed | infra, not the tree | rerun the commit: the retry pair (below) |
-| none of the above and no test phase | cancelled or infra | rerun the commit: the retry pair (below) |
+| a gate reached out and was refused — `cannot open URL`, `SSL connect error`, a refused or reset connection — while the tests themselves passed | infra, not the tree | rerun the commit: `retry-<S>-dev` (below) |
+| none of the above and no test phase | cancelled or infra | rerun the commit: `retry-<S>-dev` (below) |
 
 Never classify by absence of a marker:
 `"Job is waiting for a hosted runner"` appears in every log
@@ -271,7 +272,7 @@ verify and promote it, but do not extend it.
 `rcc-logs.yaml` harvests results to branch `rcc` every 30 minutes,
 which is below build time (~35 min).
 
-## Rerun one commit: the retry pair
+## Rerun one commit: `retry-<S>-dev`
 
 Some runs fail for reasons the commit had no part in:
 a CDN that refused the TLS handshake in the `pkgdown` gate,
@@ -290,38 +291,45 @@ amending would have thrown away 22 verified builds to reprint one.
 So ask for that one commit to be judged again, beside the series:
 
 ```sh
-sha=<the failing commit>
-git push --atomic origin \
-  "${sha}^:refs/heads/retry-${sha}-green" \
-  "${sha}:refs/heads/retry-${sha}-dev"
+git push --force-with-lease origin \
+  "<the failing commit>:refs/heads/retry-<S>-dev"
 ```
 
-Two refs, no rewrite; `<S>-dev` does not move
+One ref, no rewrite; `<S>-dev` does not move
 and the chain the loop walks never learns anything happened.
 `-dev` is what `each.yaml` triggers on,
-the `-green` sibling makes the pair a one-commit series
-so `each-plan.sh` scans exactly the commit under retry,
-and a bounded `retry-*-dev` range is replanned
-even where every commit in it already carries a verdict.
+and the name is the series' own branch with a prefix,
+which is the whole trick:
+`each-plan.sh` strips `retry-` and anchors the scan on `<S>-green`,
+so the bound comes from the ref
+that already marks how far the series is trusted.
+The retry branch needs no ref of its own for it.
 The rerun writes a fresh `rcc` status on the **same SHA**.
 
-**The sibling is not optional.**
-Without it the scan falls back to first-parent history since `SINCE`,
-which reaches past the series' seed into `main`,
+**The tip is what is being asked about.**
+Only it is replanned in spite of its verdict;
+the rest of `<S>-green..tip` keeps the ordinary
+build-it-if-it-has-no-status rule,
+so a run lost further down the range comes back in the same pass.
+A retry branch naming a series with no green plans nothing at all:
+without the anchor the scan falls back to
+first-parent history since `SINCE`,
+which reaches past the seed into `main`,
 where no commit carries an `rcc` status —
 14 of them, for the failure this was written for,
 every one queued as a build.
-`each-plan.sh` refuses an unbounded `retry-*-dev` branch for that reason,
-so a half-pushed pair costs nothing;
-it also means the pair must be pushed atomically, green included.
 
 **The branch is the ledger, and nothing deletes it.**
-`retry-<sha>-dev` already on the remote means
-this commit has had its one rerun and failed again:
+`retry-<S>-dev` already **on this commit** means
+it has had its one rerun and failed again:
 the failure is not transient, whatever the log looks like.
 Classify it from the new log and repair it for real.
-`series-check.sh` reads the ledger the same way —
-a commit with a retry branch is REPAIR, never RETRY.
+Pointing anywhere else, it is a spent retry of an earlier commit
+and says nothing about this one — force-update it and rerun.
+`series-check.sh` reads the ledger the same way:
+the failure a retry branch sits on is REPAIR, never RETRY.
+One ref per series, so it records the retry in flight,
+not the history of them.
 
 The verdict reaches the loop the ordinary way.
 `runs2.ndjson` is keyed by SHA and readers take the first record for a key,
@@ -334,8 +342,8 @@ the scheduled backstop re-derives both from the fresh status.
 **Both mechanisms live in the tree at the commit under retry.**
 `each.yaml` and its scripts are read from the retried ref, not from `main`,
 so a series whose commits predate them retries by hand:
-push the pair, dispatch `each-rcc` on `retry-<sha>-dev`
-with `force=true` (the sibling still bounds the range to one commit),
+push the branch, dispatch `each-rcc` on `retry-<S>-dev`
+with `force=true` and `max-commits=1`,
 and drop the stale record from `rcc` once the rerun is green.
 A rebase onto a newer mainline (`series-rebase.md`)
 is what carries the automatic path into a forward series.
@@ -383,8 +391,8 @@ is what carries the automatic path into a forward series.
   every commit of `<S>-dev` must remain independently green
   so the chain stays bisectable.
 - Git alone is sufficient in principle:
-  even a rerun is two pushed refs —
-  the retry pair, which asks for one commit to be judged again
+  even a rerun is one pushed ref —
+  `retry-<S>-dev`, which asks for one commit to be judged again
   without rewriting anything —
   and `each.yaml` schedules runs
   for any commit in `<S>-green..tip` without a status.
