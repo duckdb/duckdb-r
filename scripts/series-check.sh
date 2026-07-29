@@ -8,10 +8,15 @@
 #
 #   ADVANCE            every in-flight commit has a success run
 #   WAIT               runs still missing from the harvest (age of harvest shown)
+#   RETRY <sha> <why>  the oldest failure, and nothing in the commit caused it
 #   REPAIR <sha> <why>  the oldest failure and its classification
 #
 # Classification is by positive evidence only (.claude/skills/series-loop.md);
 # "Job is waiting for a hosted runner" appears in every log and means nothing.
+#
+# RETRY and REPAIR split on the retry ledger: a `retry-<sha>-dev` branch on the
+# remote means the commit has already had its one rerun, so a failure that still
+# looks transient is not, and the verdict is REPAIR regardless.
 #
 # Usage: series-check.sh [<series>...]     # default: discover all from refs
 
@@ -29,20 +34,34 @@ state_of() { # <sha> -> success|failure|pending|missing
   echo "$rec" | sed -nr 's/.*"status":[^}]*"state": *"([a-z]+)".*/\1/p' | head -n 1
 }
 
-classify() { # <sha> -> one line
-  local log
+# Positive evidence that a gate reached out over the network and was refused.
+# Checked only after the tree-shaped classifications above it, so a real test
+# failure that happens to mention a URL is not mistaken for a flake.
+net_re="cannot open URL|SSL connect error|Could not resolve host"
+net_re="$net_re|Connection (timed out|refused|reset)|Timeout was reached"
+net_re="$net_re|Failed to connect|curl: \([0-9]+\)|50[234] (Bad Gateway|Service Unavailable|Gateway Time-out)"
+
+failed_gate() { # <log> -> name of the first gate rcc-one.sh's summary marks FAIL
+  grep -oE '^\| [A-Za-z0-9_-]+ \| FAIL ' <<<"$1" | head -1 | awk '{print $2}'
+}
+
+classify() { # <sha> -> "<kind>|<one line>"; kind `transient` means rerun, do not repair
+  local log gate
   log=$(git show "$remote/rcc:logs2/$1.log" 2>/dev/null || true)
-  [ -z "$log" ] && { echo "failure, no log harvested yet"; return; }
+  [ -z "$log" ] && { echo "unknown|failure, no log harvested yet"; return; }
   if grep -qE "Updating snapshots: '" <<<"$log"; then
-    echo "snapshot drift ($(grep -oE "Updating snapshots: [^.]*" <<<"$log" | head -1))"
+    echo "snapshot|snapshot drift ($(grep -oE "Updating snapshots: [^.]*" <<<"$log" | head -1))"
   elif grep -qE "Error \('test-[^']+'\)" <<<"$log"; then
-    echo "test failure ($(grep -oE "Error \('test-[^']+'\)" <<<"$log" | head -1))"
+    echo "test|test failure ($(grep -oE "Error \('test-[^']+'\)" <<<"$log" | head -1))"
   elif grep -q "Changes detected in workflow_dispatch build" <<<"$log"; then
-    echo "style/roxygen drift"
+    echo "style|style/roxygen drift"
+  elif grep -qE "$net_re" <<<"$log"; then
+    gate=$(failed_gate "$log")
+    echo "transient|network failure in the ${gate:-unnamed} gate ($(grep -oE "$net_re" <<<"$log" | head -1))"
   elif ! grep -q "test_local\|testthat" <<<"$log"; then
-    echo "cancelled or infra (no test phase in log)"
+    echo "transient|cancelled or infra (no test phase in log)"
   else
-    echo "unclassified: review logs2/$1.log on branch rcc by hand"
+    echo "unknown|unclassified: review logs2/$1.log on branch rcc by hand"
   fi
 }
 
@@ -102,8 +121,18 @@ for S in "${series[@]}"; do
   done < <(git rev-list "$green..$dev")
 
   if [ -n "$oldest" ]; then
-    echo "  REPAIR $oldest"
-    echo "         $why"
+    kind=${why%%|*}; desc=${why#*|}
+    if git rev-parse -q --verify "refs/remotes/$remote/retry-$oldest-dev" >/dev/null; then
+      echo "  REPAIR $oldest"
+      echo "         $desc"
+      echo "         retry-$oldest-dev exists: the rerun was spent, this failure is real"
+    elif [ "$kind" = transient ]; then
+      echo "  RETRY  $oldest"
+      echo "         $desc"
+    else
+      echo "  REPAIR $oldest"
+      echo "         $desc"
+    fi
   elif [ "$missing" -gt 0 ]; then
     echo "  WAIT   $missing run(s) not harvested yet"
   elif [ "$inflight" -eq 0 ] && [ "$buffered" = 0 ]; then
