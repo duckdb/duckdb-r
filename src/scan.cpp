@@ -645,6 +645,11 @@ struct DataFrameLocalState : public LocalTableFunctionState {
 
 static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context, TableFunctionBindInput &input,
                                                           vector<LogicalType> &return_types, vector<string> &names) {
+	// The binder holds the client context lock across this, and touching an ALTREP column
+	// runs its class's code: a duckdb relation materializes, after evaluating
+	// `duckdb.materialize_callback` -- arbitrary R code, and with it pending finalizers.
+	RCallbackScope callback_scope;
+
 	data_frame df((SEXP)input.inputs[0].GetPointer());
 
 	auto integer64 = get_integer64_param(input.named_parameters);
