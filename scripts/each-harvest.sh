@@ -98,11 +98,18 @@ while IFS= read -r index_file; do
         description: $description, created_at: $created_at,
         updated_at: $created_at}')"
 
+    # `timing` is the one field the dispatch path cannot produce, and the only
+    # ground truth the cost model in scripts/each-plan.sh can be refitted
+    # against -- the leg already measured it, so it would be a shame to drop it
+    # on the floor. Readers pick out .commit and .status, and ignore this.
+    timing_json="$(jq -c '{shard, duration_seconds, exit_code}' <<<"${record}")"
+
     jq -c -n \
       --arg commit "${sha}" \
       --argjson status "${status_json}" \
       --argjson run "${run_json}" \
-      '{commit: $commit, status: $status, run: $run}' \
+      --argjson timing "${timing_json}" \
+      '{commit: $commit, status: $status, run: $run, timing: $timing}' \
       >> "${OUT_DIR}/runs2.ndjson"
     printf '%s\n' "${sha}" >> "${seen}"
     recorded=$(( recorded + 1 ))

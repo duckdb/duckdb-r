@@ -16,6 +16,11 @@
 # commit, and consecutive commits hit the runner's local ccache -- a typical
 # adjacent vendor commit recompiles ~5 of 341 unity objects.
 #
+# Packing commits that tightly is the cheapest plan and the slowest one: a
+# 25-commit batch fits in two 5-hour legs. So the planner then splits its longest
+# shards back apart, spending at most EACH_SPLIT_FACTOR times the runner minutes
+# and never asking for more legs than EACH_MAX_PARALLEL can run at once.
+#
 # See scripts/EACH.md for the design, the GitHub Actions limits it works within,
 # and why `workflow_call` is not the mechanism that gets us there.
 #
@@ -41,11 +46,15 @@ on:
         type: string
         default: ""
       shard-budget-minutes:
-        description: "Wall-clock target per shard; the GitHub job limit is 360"
+        description: "Build-time target per shard, excluding setup; the GitHub job limit is 360"
         type: string
         default: ""
       max-parallel:
         description: "Shards to build concurrently"
+        type: string
+        default: ""
+      split-factor:
+        description: "Runner minutes the plan may cost, relative to the fewest-shards plan, to shorten wall clock (1.0 = never split)"
         type: string
         default: ""
       max-commits:
@@ -73,12 +82,17 @@ on:
         type: string
         default: ""
       shard-budget-minutes:
-        description: "Wall-clock target per shard"
+        description: "Build-time target per shard, excluding setup"
         required: false
         type: string
         default: ""
       max-parallel:
         description: "Shards to build concurrently"
+        required: false
+        type: string
+        default: ""
+      split-factor:
+        description: "Runner minutes the plan may cost, relative to the fewest-shards plan, to shorten wall clock"
         required: false
         type: string
         default: ""
@@ -103,6 +117,7 @@ env:
   EACH_SHARD_BUDGET_MINUTES: ${{ inputs.shard-budget-minutes || '300' }}
   EACH_MAX_PARALLEL: ${{ inputs.max-parallel || vars.EACH_RCC_MAX_PARALLEL || '20' }}
   EACH_MAX_COMMITS: ${{ inputs.max-commits || '0' }}
+  EACH_SPLIT_FACTOR: ${{ inputs.split-factor || vars.EACH_RCC_SPLIT_FACTOR || '1.5' }}
 
 jobs:
   plan:
@@ -154,6 +169,7 @@ jobs:
           SHARD_BUDGET_MINUTES: ${{ env.EACH_SHARD_BUDGET_MINUTES }}
           MAX_PARALLEL: ${{ env.EACH_MAX_PARALLEL }}
           MAX_COMMITS: ${{ env.EACH_MAX_COMMITS }}
+          SPLIT_FACTOR: ${{ env.EACH_SPLIT_FACTOR }}
           FORCE: ${{ inputs.force && '1' || '' }}
           OUT: ${{ runner.temp }}/plan.json
         run: scripts/each-plan.sh
