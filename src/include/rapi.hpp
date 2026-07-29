@@ -198,11 +198,38 @@ struct ConnWrapper {
 void ConnDeleter(ConnWrapper *);
 typedef cpp11::external_pointer<ConnWrapper, ConnDeleter> conn_eptr_t;
 
+// Marks a stretch of R code that runs underneath a duckdb call, with the client
+// context locked: a registered data frame or Arrow stream being scanned, the
+// progress display. R may collect garbage there and run the finalizer of any
+// duckdb object it still holds, and a prepared statement deallocates itself
+// through ClientContext::RemovePreparedStatement(), which takes that same
+// non-recursive lock. Statements freed inside such a callback are parked
+// instead, and destroyed at the next entry point that is known to hold nothing.
+class RCallbackScope {
+public:
+	RCallbackScope();
+	~RCallbackScope();
+
+	RCallbackScope(const RCallbackScope &) = delete;
+	RCallbackScope &operator=(const RCallbackScope &) = delete;
+
+	//! Whether a duckdb call is running R code right now
+	static bool Active();
+	//! Park a statement that cannot be destroyed where we are
+	static void Defer(duckdb::unique_ptr<PreparedStatement> stmt);
+	//! Destroy everything parked so far; a no-op while Active()
+	static void Drain();
+};
+
 struct RStatement {
 	RStatement() = delete;
-	RStatement(duckdb::unique_ptr<PreparedStatement> stmt_p) : stmt(std::move(stmt_p)) {
+	RStatement(duckdb::unique_ptr<PreparedStatement> stmt_p, bool explain_analyze_p = false)
+	    : stmt(std::move(stmt_p)), explain_analyze(explain_analyze_p) {
 	}
+	~RStatement();
 	duckdb::unique_ptr<PreparedStatement> stmt;
+	//! Whether the prepared statement is an EXPLAIN ANALYZE, which needs the profiler
+	bool explain_analyze;
 	vector<Value> parameters;
 };
 
