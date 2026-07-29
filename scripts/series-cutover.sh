@@ -8,6 +8,9 @@
 # half-replaced series. The swap is the one sanctioned non-fast-forward move
 # of a green ref.
 #
+# A base series ref that does not exist yet is created rather than swapped:
+# a series that started as -fwd has no counterpart to replace.
+#
 # Usage: series-cutover.sh <series> [remote] [upstream-clone]
 #   series-cutover.sh main origin ../duckdb
 #
@@ -28,13 +31,26 @@ vendored_sha() {
 }
 
 for r in build dev green build-base; do
-  git rev-parse -q --verify "refs/remotes/$remote/$S-$r" >/dev/null ||
-    { echo "Error: $S-$r does not exist on $remote"; exit 1; }
   git rev-parse -q --verify "refs/remotes/$remote/$S-fwd-$r" >/dev/null ||
     { echo "Error: $S-fwd-$r does not exist on $remote"; exit 1; }
 done
 
-old_up=$(vendored_sha "refs/remotes/$remote/$S-green")
+# A base series ref may legitimately be missing: a series started as -fwd has
+# no counterpart to replace, and the cutover creates the ref rather than
+# swapping it. Only the forward refs are required.
+missing=()
+for r in build dev green build-base; do
+  git rev-parse -q --verify "refs/remotes/$remote/$S-$r" >/dev/null ||
+    missing+=("$S-$r")
+done
+[ ${#missing[@]} -eq 0 ] ||
+  echo "Note: ${missing[*]} missing on $remote, will be created from $S-fwd-*"
+
+if git rev-parse -q --verify "refs/remotes/$remote/$S-green" >/dev/null; then
+  old_up=$(vendored_sha "refs/remotes/$remote/$S-green")
+else
+  old_up=
+fi
 new_up=$(vendored_sha "refs/remotes/$remote/$S-fwd-green")
 echo "old green vendors: ${old_up:-<nothing>}"
 echo "new green vendors: ${new_up:-<nothing>}"
@@ -59,14 +75,22 @@ fi
 leases=()
 refspecs=()
 for r in build dev green build-base; do
-  cur=$(git rev-parse "refs/remotes/$remote/$S-$r")
   new=$(git rev-parse "refs/remotes/$remote/$S-fwd-$r")
+  # An empty expected value leases the ref as "must not exist yet", which is
+  # what a base ref from `missing` needs. The refspecs carry no leading `+`:
+  # a forced refspec defeats --force-with-lease outright, and the lease alone
+  # already authorizes the non-fast-forward swap.
+  cur=$(git rev-parse -q --verify "refs/remotes/$remote/$S-$r") || cur=
   leases+=("--force-with-lease=refs/heads/$S-$r:$cur")
-  refspecs+=("+$new:refs/heads/$S-$r")
+  refspecs+=("$new:refs/heads/$S-$r")
 done
 
 git push --atomic "${leases[@]}" "$remote" "${refspecs[@]}"
-echo "Series $S replaced by its forward counterpart."
+if [ ${#missing[@]} -eq 4 ]; then
+  echo "Series $S created from its forward counterpart."
+else
+  echo "Series $S replaced by its forward counterpart."
+fi
 
 # Best-effort: some git proxies refuse deletions. Until these refs are gone,
 # the loop ignores a forward series whose refs equal its base series.
