@@ -433,9 +433,29 @@ gate stays on. The lever for a slow batch is `max-parallel`.
 | The whole run is cancelled | no fan-in; `rcc-logs.yaml` reconstructs the records on its next tick |
 | History is force-pushed mid-run | unreachable SHAs fail checkout and are skipped; new SHAs picked up next run |
 | More than 250 shards planned | oldest shards deferred, reported in the job summary |
+| Another writer pushed to `rcc` first | the push is rejected, and [`scripts/rcc-push.sh`](rcc-push.sh) resets onto the new tip and re-runs the fan-in before retrying |
 
 Nothing here needs a lock for correctness.
 Progress is durable per commit, and every run recomputes its own to-do list from ground truth.
+
+That extends to the `rcc` branch itself, and it is why the fan-in takes no lock.
+The tempting serialiser is a concurrency group shared with `rcc-logs.yaml`,
+and it was one until the eviction rule caught up with it:
+only one run may be *pending* per group,
+so a third writer queued behind the second cancels it outright.
+A cancelled fan-in is not a delayed fan-in.
+It takes the only copy of its per-commit logs with it,
+and the backstop can only reconstruct the *run*-level log in their place.
+Concurrent writers that retry lose strictly less than serialised writers that get evicted,
+so the group is gone and the fan-in simply never assumes it won.
+
+A rejected push resets onto the remote and re-derives from the artifacts,
+which is safe precisely because `each-harvest.sh` dedupes against `runs2.ndjson`
+and therefore only re-adds what the winner did not already record.
+Rebasing would be the wrong recovery here:
+both writers append to `runs2.ndjson`,
+so a genuine collision means both sides added lines at EOF
+and conflicts on nearly every attempt.
 
 ---
 
