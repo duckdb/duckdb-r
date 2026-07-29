@@ -52,6 +52,8 @@
 
 #include "src/planner/operator/logical_extension_operator.cpp"
 
+#include "src/planner/operator/logical_external_resource.cpp"
+
 #include "src/planner/operator/logical_filter.cpp"
 
 #include "src/planner/operator/logical_get.cpp"
