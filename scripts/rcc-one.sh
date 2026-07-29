@@ -43,6 +43,10 @@
 #   EACH_SNAPSHOT_BRANCH  - publish the snapshot-<sha>-rcc-smoke-null branch when
 #                           the snapshots gate changed anything
 #                           (default: true under GITHUB_ACTIONS, false locally)
+#   EACH_STAGE_DIR        - when set, each stage's combined output is also kept
+#                           in <dir>/<stage>.log and its verdict appended to
+#                           <dir>/outcomes.tsv, so scripts/each-shard.sh can
+#                           quote the failing stage into the run summary
 #   RCMDCHECK_ERROR_ON    - passed through to rcmdcheck (default: note)
 
 set -uo pipefail
@@ -50,6 +54,7 @@ set -uo pipefail
 ALL_GATES="style snapshots roxygen clean check pkgdown"
 GATES="${EACH_GATES:-${ALL_GATES}}"
 SNAPSHOT_BRANCH="${EACH_SNAPSHOT_BRANCH:-${GITHUB_ACTIONS:-false}}"
+STAGE_DIR="${EACH_STAGE_DIR:-}"
 
 # peter-evans/create-pull-request commits as this identity by default, not as
 # the repository's git config. Reproduced verbatim so the published branches stay
@@ -65,6 +70,11 @@ names=()
 outcomes=()
 status=0
 
+if [ -n "${STAGE_DIR}" ]; then
+  mkdir -p "${STAGE_DIR}"
+  : > "${STAGE_DIR}/outcomes.tsv"
+fi
+
 has_gate() {
   case " ${GATES} " in
     *" $1 "*) return 0 ;;
@@ -72,11 +82,39 @@ has_gate() {
   esac
 }
 
+# The per-stage verdict, in execution order. A stage that has a log here but no
+# line in this file is one that never returned -- which is exactly the stage the
+# leg's timeout killed, and the one worth showing.
+note_stage() {
+  [ -n "${STAGE_DIR}" ] || return 0
+  printf '%s\t%s\n' "$1" "$2" >> "${STAGE_DIR}/outcomes.tsv"
+}
+
 record() {
   names+=("$1")
   outcomes+=("$2")
+  note_stage "$1" "$2"
   [ "$2" = "failure" ] && status=1
   return 0
+}
+
+# Run one stage, keeping a copy of its combined output when EACH_STAGE_DIR is
+# set. Nothing is lost by buffering it: the caller (scripts/each-shard.sh)
+# already redirects the whole commit to a file and prints it once the commit is
+# over, so there is no live stream here to interleave with. What is gained is a
+# log that begins and ends at the stage boundary, which is what makes a useful
+# excerpt -- slicing the combined log back apart would mean parsing it.
+run_stage() {
+  local name="$1"
+  shift
+  local rc=0
+  if [ -z "${STAGE_DIR}" ]; then
+    "$@" || rc=$?
+    return "${rc}"
+  fi
+  "$@" > "${STAGE_DIR}/${name}.log" 2>&1 || rc=$?
+  cat "${STAGE_DIR}/${name}.log"
+  return "${rc}"
 }
 
 run_gate() {
@@ -87,7 +125,7 @@ run_gate() {
   fi
   echo "::group::gate: ${gate}"
   local outcome="success"
-  if ! "gate_${gate}"; then
+  if ! run_stage "${gate}" "gate_${gate}"; then
     outcome="failure"
   fi
   echo "::endgroup::"
@@ -109,12 +147,14 @@ rscript() {
 # install failure ends the commit right there. Everything downstream needs the
 # package loadable anyway (roxygen2, testthat, pkgdown).
 echo "::group::install"
-if ! _R_SHLIB_STRIP_=true R CMD INSTALL .; then
+if ! run_stage install env _R_SHLIB_STRIP_=true R CMD INSTALL .; then
+  note_stage install failure
   echo "::endgroup::"
   echo "install: failure -- skipping the remaining gates"
   echo "| install | failure |"
   exit 1
 fi
+note_stage install success
 echo "::endgroup::"
 
 # -------------------------------------------------------------------- gates --

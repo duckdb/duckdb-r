@@ -9,7 +9,9 @@
 # paying for).
 # One shard becomes one matrix leg in `.github/workflows/each.yaml`, and one
 # leg builds its whole slice sequentially in a single job (see
-# `scripts/each-shard.sh`).
+# `scripts/each-shard.sh`). Shards are numbered along the history -- shard 1 is
+# the oldest slice, shard N the branch tip -- and emitted in the reverse order,
+# so the leg holding the tip is the one queued first.
 #
 # Why shards instead of one dispatch per commit:
 #   * a leg pays the ~4 min R/dependency setup once for ~20 commits, not once
@@ -284,9 +286,18 @@ if [ "${dropped}" -gt 0 ]; then
   echo "Capped to ${MAX_SHARDS} shards; ${dropped} older commit(s) deferred to the next run"
 fi
 
-# Newest first: under MAX_PARALLEL throttling the tip of the branch is decided
-# first, which is what scripts/vendor-gate.sh and the promotion flow wait on.
-jq -r 'reverse | to_entries | map(.value + {index: .key}) | .' \
+# Two independent things, deliberately not conflated:
+#
+#   * the *number* runs with history -- shard 1 holds the oldest commits of the
+#     plan and shard N the branch tip, so a shard number reads the way the
+#     commits do, and adjacent numbers are adjacent slices;
+#   * the *order* of the array is newest first, because that is the order
+#     GitHub starts the legs in, and under MAX_PARALLEL throttling the tip of
+#     the branch has to be decided first -- it is what scripts/vendor-gate.sh
+#     and the promotion flow wait on.
+#
+# So the matrix starts shard N and finishes with shard 1.
+jq -r 'to_entries | map(.value + {index: (.key + 1)}) | reverse' \
   "${workdir}/shards.json" > "${workdir}/shards.final.json"
 
 parallel="${MAX_PARALLEL}"
@@ -340,7 +351,10 @@ fi
 planned="$(jq '[.shards[].commits | length] | add // 0' "${OUT}")"
 
 echo "Plan written to ${OUT}: ${shards} shard(s), ${planned} commit(s), max-parallel ${parallel}"
-jq -r '.shards[] | "  shard \(.index): \(.commits | length) commits, ~\(.estimate_minutes) min"' "${OUT}"
+# Listed by number, which is oldest slice first; the legs are queued the other
+# way round.
+jq -r '.shards | sort_by(.index)[]
+       | "  shard \(.index): \(.commits | length) commits, ~\(.estimate_minutes) min"' "${OUT}"
 
 if [ -n "${GITHUB_OUTPUT:-}" ]; then
   {
@@ -375,7 +389,10 @@ if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
       echo
       echo "| Shard | Commits | Estimate | Invalidated objects (max) |"
       echo "| --- | --- | --- | --- |"
-      jq -r '.shards[] | "| \(.index) | \(.commits | length) | ~\(.estimate_minutes) min | \([.commits[].objects] | max) |"' "${OUT}"
+      jq -r '.shards | sort_by(.index)[]
+             | "| \(.index) | \(.commits | length) | ~\(.estimate_minutes) min | \([.commits[].objects] | max) |"' "${OUT}"
+      echo
+      echo "Shard 1 is the oldest slice; the legs are queued newest first, so shard ${shards} starts first."
     fi
   } >> "${GITHUB_STEP_SUMMARY}"
 fi

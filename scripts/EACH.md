@@ -115,7 +115,8 @@ build (one job per shard, throttled by max-parallel)
   └─ for sha in shard (oldest → newest):
        reset workspace → rcc status pending
        → scripts/rcc-one.sh → rcc status success/failure
-       → capture the log
+       → capture the log, whole and per stage
+       → on failure, quote each failed stage's tail into the job summary
      ... stops at its own deadline and defers the rest
 
 harvest (1 job, if: always())
@@ -319,8 +320,8 @@ and [30422580063](https://github.com/krlmlr/duckdb-r/actions/runs/30422580063)
 The three cold builds came in at 40.4, 39.7 and 40.1 minutes —
 flat, and independent of what their commit changed, exactly as the model says.
 Whole legs land within a few percent:
-the 12 commits of shard 0 were predicted at 243 min and took 252,
-and the first 12 of shard 1 were predicted at 304 and took 302.
+one leg's 12 commits were predicted at 243 min and took 252,
+and the other's first 12 at 304 against 302.
 
 These numbers replace the pre-2026 estimates the model shipped with
 (`COLD_MINUTES=22`, `FLOOR_MINUTES=11`, `OBJECT_SECONDS=4.3`),
@@ -329,7 +330,7 @@ they charged nearly twice too much for a cheap commit and half too little for an
 expensive one, so the predicted spread was *compressed*.
 Legs of "equal" predicted cost were not equal,
 and a leg full of wide-header commits overran its 300-minute deadline and
-deferred its last commit — which is what happened to shard 1 of run
+deferred its last commit — which is what happened to the second leg of run
 30406932093.
 Every leg records `duration_seconds` per commit and
 [`each-harvest.sh`](each-harvest.sh) now carries it onto the `rcc` branch
@@ -396,9 +397,25 @@ On the 998-commit `main-dev` backlog the greedy pass already emits 66 legs
 against a `max-parallel` of 20, so nothing is split and nothing is spent:
 19.2 h of wall clock either way.
 
-Shards are emitted newest-first, so under `max-parallel` throttling
-the branch tip — the thing the series loop and the release flow wait on — is decided first.
+#### Numbering, and the order they are queued in
+
+These are two different things, and conflating them is what made the first
+version confusing to read.
+
+A shard's **number** runs with the history: shard 1 holds the oldest commits of
+the plan, shard N the branch tip, and adjacent numbers are adjacent slices.
+So a leg's number reads the way its commits do, and the numbering starts at
+one rather than at zero.
+
+The **order** they are queued in is the reverse: newest shard first, so that
+under `max-parallel` throttling the branch tip — the thing the series loop and
+the release flow wait on — is decided first.
+The matrix therefore starts at shard N and finishes with shard 1.
 Within a shard, commits run oldest-first, for cache locality.
+
+Numbers are assigned after the matrix cap has dropped the oldest shards
+(§4), so shard 1 is the oldest shard *this run* will build,
+not the oldest one the planner considered.
 
 ### Can we measure which commit invalidates how many unity files?
 
@@ -539,6 +556,7 @@ are repository variables:
 | Compute traded for wall clock | `split-factor` | `EACH_RCC_SPLIT_FACTOR` | `1.5` |
 | Cap on commits considered | `max-commits` | — | `0` (no cap) |
 | Rebuild decided commits | `force` | — | `false` |
+| Log lines quoted per failed stage | — | `EACH_RCC_SUMMARY_TAIL` | `50` |
 
 `EACH_GATES` can drop individual gates, but note that `pkgdown` is **not** a
 candidate: a pkgdown failure is a real failure and has to be dealt with, so the
@@ -552,11 +570,41 @@ and the only way to shorten it is to make the longest leg shorter.
 Set `split-factor` to `1.0` to get the old fewest-legs, cheapest-compute
 behaviour back.
 
+### Reading a failure without opening the log
+
+A leg is one job for up to ~20 commits and up to five hours of output,
+so "which commit went red, and why" used to mean expanding the right
+`::group::` in a very long job log.
+The leg's job summary answers both directly.
+The result table names the stages that failed —
+a commit's cell reads `failure (check, pkgdown)`, not just `failure` —
+and below it each failed stage gets a collapsed `<details>` block holding the
+last `EACH_RCC_SUMMARY_TAIL` lines of *that stage's* output,
+which is enough to tell a compile error from a failing test.
+Setting the variable to `0` turns the excerpts off.
+
+The excerpt is not the record.
+The whole per-commit log still goes to `logs2/<sha>.log` on the `rcc` branch,
+which is what [`scripts/series-check.sh`](series-check.sh) classifies against;
+the summary is the fast path for a human.
+Two details make it work in practice:
+
+- [`scripts/rcc-one.sh`](rcc-one.sh) writes each stage's output to its own file
+  under `EACH_STAGE_DIR` and its verdict to `outcomes.tsv`,
+  rather than the leg parsing the combined log back apart.
+  Nothing is buffered that was not already buffered —
+  the leg redirects the whole commit to a file and prints it once the commit is
+  over — and a stage with a log but no verdict is precisely the stage the leg's
+  `timeout` killed, so that one is quoted too.
+- Excerpts stop at 900 kB, because GitHub truncates a step summary at 1 MiB and
+  a truncated summary would take the result table with it.
+  How many were dropped is stated.
+
 ### Failure modes and what happens
 
 | Situation | Outcome |
 |---|---|
-| A commit fails its gate | `rcc=failure`, the leg keeps going, log kept on the `rcc` branch |
+| A commit fails its gate | `rcc=failure`, the leg keeps going, log kept on the `rcc` branch, failed stages' tails in the job summary |
 | A leg runs out of budget | remaining commits stay statusless, next run replans them |
 | A leg dies hard mid-commit | that commit stays `pending`; replanned after `PENDING_TTL_HOURS` |
 | The whole run is cancelled | no fan-in; `rcc-logs.yaml` reconstructs the records on its next tick |
