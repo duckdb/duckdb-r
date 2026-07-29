@@ -73,26 +73,48 @@ that repair had folded in.
 The buffer carries no runs (`each.yaml` never matches `*-build`),
 so moving it claims nothing.
 
-`-fwd-green` claims a `success` run for every commit below it,
+**`-fwd-green` always resets to the new seed tip.**
+It is never replayed, and it never rides forward,
+however little the series absorbed.
+
+Green claims a `success` run for every commit below it,
 and a rebase re-mints every SHA,
-so those runs no longer attach to anything.
-Keeping green where it stands has to be earned:
-what CI checked must be what is still there.
-The delta the series absorbs has to miss the built package entirely —
-everything `.Rbuildignore` excludes:
+so those runs no longer attach to anything —
+a green carried forward claims a verification
+that no run backs any more.
+The failure is not only bookkeeping.
+`each.yaml` builds `<S>-green..HEAD` and nothing else,
+and builds nothing at all when green is not an ancestor of `HEAD`;
+a green replayed to the `-dev` tip leaves that range empty,
+so the rebased series emits no builds
+and reads IDLE while nothing on the new base has been checked.
 
-```sh
-git diff --name-only <old-green> <new-green> \
-  -- . ':!scripts/**' ':!.github/**' ':!.claude/**'
-```
-
-Empty, and green rides forward;
-`each.yaml` finds nothing to schedule, and nothing needs it to.
-Not empty, and green resets to the new seed tip:
-`green..tip` then has no runs
-and the loop re-verifies the chain from the seed.
+Resetting green to the seed puts the whole chain back in flight:
+`green..tip` has no runs, and the loop re-verifies it from the seed.
 That is the whole cost of a rebase, and it is why one rebases
 when `main`'s motion matters to the series, not per commit.
+
+## Green first, then `-dev`
+
+The atomic push already gets the order right —
+green lands at the seed in the same push that moves `-dev`,
+so the `-dev` push event finds a full `green..HEAD` and starts building.
+
+Moving green on its own starts nothing:
+`each.yaml` triggers on pushes to `*-dev`, and green is not one.
+So a series pushed with green ahead of the seed —
+or one whose green is rewound afterwards — needs the event re-emitted:
+
+```sh
+git push --force-with-lease=... origin +<new-seed>:refs/heads/<S>-fwd-green
+git commit --amend --no-edit          # same tree, new SHA, on <S>-fwd-dev
+git push --force-with-lease=... origin +<new-dev>:refs/heads/<S>-fwd-dev
+```
+
+Green first in both cases.
+A `-dev` push while green still sits ahead of it
+spends the event on an empty range,
+and the next one has to be manufactured.
 
 ## Paid for once
 
