@@ -21,7 +21,12 @@
 #   5. A newer verdict for a commit that already has one overwrites it, in the
 #      part and in the aggregate's line -- which is what a retry needs
 #      (.claude/skills/series-loop.md), and what a re-publish of the *same*
-#      verdict must not cost anything.
+#      verdict must not cost anything -- and a verdict that stops being a failure
+#      takes its log with it, on both the leg's path and the fan-in's.
+#   5b. A fan-in whose run is *older* than what the branch already records leaves
+#      it alone. Legs publish within seconds while a run takes hours, so an
+#      earlier run's fan-in can outlive a retry that corrected it; replaying its
+#      artifact must not put the overturned verdict back.
 #   6. scripts/rcc-consolidate.sh is a no-op as a dry run, makes the two layouts
 #      agree, drops logs past their retention, squashes to two commits, inherits
 #      its empty root on a second pass, and refuses to push over a writer that
@@ -281,6 +286,71 @@ first="$(grep -m 1 "\"${retry_sha}\"" "${work}/agg2/runs2.ndjson" | jq -r '.stat
   && pass "the aggregate holds one line for the commit, with the newer verdict" \
   || fail "the aggregate has ${lines} line(s), first says ${first}"
 
+# The stale log must go when the verdict stops being a failure, on the leg path.
+git -C "${work}/remote.git" cat-file -e "rcc:logs2/${retry_sha}.log" 2>/dev/null \
+  && fail "the failure log survived a retry to success" \
+  || pass "the leg dropped the log its own new verdict overturned"
+
+echo
+echo "== 5b. an older run's fan-in does not overwrite a newer record =="
+stale_sha="$(sha_for 556001)"
+mkdir -p "${work}/sf/runs/runs2.d/${stale_sha:0:2}" "${work}/sf/runs/logs2" \
+  "${work}/sf/art/each-logs-1/parts"
+# The branch carries run 2's success (a retry, which corrected run 1).
+printf '{"commit":"%s","status":{"context":"rcc","state":"success","created_at":"2026-07-29T12:00:00Z"},"run":{"id":2}}\n' \
+  "${stale_sha}" > "${work}/sf/runs/runs2.d/${stale_sha:0:2}/${stale_sha}.ndjson"
+# Run 1's artifact, decided hours earlier, is what its slow fan-in replays.
+printf '{"commit":"%s","status":{"context":"rcc","state":"failure","created_at":"2026-07-29T08:00:00Z"},"run":{"id":1}}\n' \
+  "${stale_sha}" > "${work}/sf/art/each-logs-1/parts/${stale_sha}.ndjson"
+printf 'the overturned failure\n' > "${work}/sf/art/each-logs-1/${stale_sha}.log"
+printf '{"commit":"%s","state":"failure","shard":1,"duration_seconds":1,"exit_code":1}\n' \
+  "${stale_sha}" > "${work}/sf/art/each-logs-1/index.ndjson"
+ARTIFACTS="${work}/sf/art" OUT_DIR="${work}/sf/runs" RUN_ID=1 GH_TOKEN=x \
+  "${here}/each-harvest.sh" > "${work}/sf.log" 2>&1
+after="$(jq -r '.status.state' "${work}/sf/runs/runs2.d/${stale_sha:0:2}/${stale_sha}.ndjson")"
+[ "${after}" = "success" ] \
+  && pass "the newer run's verdict survived the older fan-in" \
+  || fail "an older fan-in overwrote a newer verdict with ${after}"
+[ ! -f "${work}/sf/runs/logs2/${stale_sha}.log" ] \
+  && pass "and it did not resurrect the overturned log" \
+  || fail "the overturned failure log was restored"
+grep -q 'newer than this run' "${work}/sf.log" \
+  && pass "the fan-in said why it kept the record" \
+  || fail "the fan-in was silent about superseding"
+
+# The reverse direction must still work: a *newer* run does replace.
+printf '{"commit":"%s","status":{"context":"rcc","state":"success","created_at":"2026-07-29T20:00:00Z"},"run":{"id":9}}\n' \
+  "${stale_sha}" > "${work}/sf/art/each-logs-1/parts/${stale_sha}.ndjson"
+printf '{"commit":"%s","state":"success","shard":1,"duration_seconds":1,"exit_code":0}\n' \
+  "${stale_sha}" > "${work}/sf/art/each-logs-1/index.ndjson"
+# Give the branch a failure for run 2 to be corrected.
+printf '{"commit":"%s","status":{"context":"rcc","state":"failure","created_at":"2026-07-29T12:00:00Z"},"run":{"id":2}}\n' \
+  "${stale_sha}" > "${work}/sf/runs/runs2.d/${stale_sha:0:2}/${stale_sha}.ndjson"
+printf 'stale\n' > "${work}/sf/runs/logs2/${stale_sha}.log"
+ARTIFACTS="${work}/sf/art" OUT_DIR="${work}/sf/runs" RUN_ID=9 GH_TOKEN=x \
+  "${here}/each-harvest.sh" > "${work}/sf2.log" 2>&1
+after="$(jq -r '.status.state' "${work}/sf/runs/runs2.d/${stale_sha:0:2}/${stale_sha}.ndjson")"
+[ "${after}" = "success" ] && [ ! -f "${work}/sf/runs/logs2/${stale_sha}.log" ] \
+  && pass "a newer run still replaces the record and drops the stale log" \
+  || fail "a newer run failed to replace (state=${after})"
+
+# A malformed record on the branch must not take the whole run down with it.
+mkdir -p "${work}/mf/runs/runs2.d/ff" "${work}/mf/runs/logs2" "${work}/mf/art/each-logs-1/parts"
+bad="ff$(sha_for 557001 | cut -c3-)"; ok_sha="$(sha_for 557002)"
+printf 'not json\n' > "${work}/mf/runs/runs2.d/${bad:0:2}/${bad}.ndjson"
+for c in "${bad}" "${ok_sha}"; do
+  record_for "${c}" success > "${work}/mf/art/each-logs-1/parts/${c}.ndjson"
+  printf '{"commit":"%s","state":"success","shard":1,"duration_seconds":1,"exit_code":0}\n' \
+    "${c}" >> "${work}/mf/art/each-logs-1/index.ndjson"
+done
+if ARTIFACTS="${work}/mf/art" OUT_DIR="${work}/mf/runs" RUN_ID=1 GH_TOKEN=x \
+     "${here}/each-harvest.sh" > "${work}/mf.log" 2>&1 \
+   && [ -f "${work}/mf/runs/runs2.d/${ok_sha:0:2}/${ok_sha}.ndjson" ]; then
+  pass "one unreadable record does not abort the fan-in"
+else
+  fail "a malformed record aborted the whole fan-in (see ${work}/mf.log)"
+fi
+
 echo
 echo "== 6. consolidation =="
 rm -rf "${work}/cons"
@@ -371,6 +441,35 @@ else
     && pass "the lease refused the push and the other writer's record survived" \
     || fail "the push was refused but the record is gone anyway"
 fi
+
+# Every shape the branch can legitimately have must still produce a report.
+echo
+echo "== 6b. consolidation survives every branch shape =="
+for shape in no-aggregate no-logs no-parts empty; do
+  d="${work}/shape-${shape}"
+  rm -rf "${d}"
+  git init -q "${d}"
+  git -C "${d}" config user.name t
+  git -C "${d}" config user.email t@e
+  case "${shape}" in
+    no-aggregate) mkdir -p "${d}/runs2.d/aa" "${d}/logs2"
+                  record_for "$(sha_for 1)" success > "${d}/runs2.d/aa/$(sha_for 1).ndjson" ;;
+    no-logs)      mkdir -p "${d}/runs2.d/aa"
+                  record_for "$(sha_for 1)" success > "${d}/runs2.d/aa/$(sha_for 1).ndjson"
+                  record_for "$(sha_for 1)" success > "${d}/runs2.ndjson" ;;
+    no-parts)     mkdir -p "${d}/logs2"
+                  record_for "$(sha_for 1)" success > "${d}/runs2.ndjson" ;;
+    empty)        : ;;
+  esac
+  git -C "${d}" add -A > /dev/null 2>&1 || true
+  git -C "${d}" commit -qm "${shape}" --allow-empty
+  if OUT_DIR="${d}" "${here}/rcc-consolidate.sh" > "${work}/shape-${shape}.log" 2>&1 \
+     && grep -q 'dry run' "${work}/shape-${shape}.log"; then
+    pass "${shape}: the dry run reported instead of dying"
+  else
+    fail "${shape}: the dry run failed (see ${work}/shape-${shape}.log)"
+  fi
+done
 
 echo
 if [ "${failures}" -eq 0 ]; then

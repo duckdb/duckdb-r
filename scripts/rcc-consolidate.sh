@@ -78,15 +78,29 @@ here="$(cd "$(dirname "$0")" && pwd)"
 
 git_out() { git -C "${OUT_DIR}" "$@"; }
 
+# Every shape this branch can legitimately have, up front. The bootstrap path in
+# scripts/rcc-part-push.sh creates it with `runs2.d/` alone, and the pre-split
+# shape had `runs2.ndjson` alone, so neither is an error -- but under `set -e`
+# every probe below would abort on the missing one, and `2>/dev/null` would hide
+# why. An operator dispatching the dry run to *find out* what state the branch is
+# in deserves a report rather than a bare redirection error.
+mkdir -p "${OUT_DIR}/logs2" "${OUT_DIR}/runs2.d"
+[ -e "${OUT_DIR}/runs2.ndjson" ] || : > "${OUT_DIR}/runs2.ndjson"
+
+count_files() { # <dir> <name-glob>
+  [ -d "$1" ] || { echo 0; return 0; }
+  find "$1" -type f -name "$2" | wc -l | tr -d ' '
+}
+
 before_tip="$(git_out rev-parse HEAD)"
 before_commits="$(git_out rev-list --count HEAD)"
 before_bytes="$(git_out rev-list --disk-usage --objects HEAD 2>/dev/null || echo 0)"
-before_logs="$(find "${OUT_DIR}/logs2" -type f -name '*.log' 2>/dev/null | wc -l | tr -d ' ')"
+before_logs="$(count_files "${OUT_DIR}/logs2" '*.log')"
 
 echo "== ${BRANCH} before =="
 echo "   commits:  ${before_commits}"
-echo "   records:  $(wc -l < "${OUT_DIR}/runs2.ndjson" 2>/dev/null || echo 0) in runs2.ndjson," \
-  "$(find "${OUT_DIR}/runs2.d" -type f -name '*.ndjson' 2>/dev/null | wc -l | tr -d ' ') in runs2.d/"
+echo "   records:  $(wc -l < "${OUT_DIR}/runs2.ndjson" | tr -d ' ') in runs2.ndjson," \
+  "$(count_files "${OUT_DIR}/runs2.d" '*.ndjson') in runs2.d/"
 echo "   logs:     ${before_logs}"
 echo "   objects:  $(( before_bytes / 1048576 )) MB"
 echo
