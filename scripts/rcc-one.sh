@@ -248,9 +248,14 @@ gate_clean() {
 gate_check() {
   local rc=0
   RCMDCHECK_ERROR_ON="${RCMDCHECK_ERROR_ON:-note}" rscript <<'EOF' || rc=1
+# The action's own defaults, set before the check and only when unset.
+# `--as-cran` otherwise turns the CRAN incoming checks on, and a flavored
+# package is not on CRAN, so every commit picks up a "New submission" NOTE.
+if (Sys.getenv("_R_CHECK_FORCE_SUGGESTS_", "") == "") Sys.setenv("_R_CHECK_FORCE_SUGGESTS_" = "false")
+if (Sys.getenv("_R_CHECK_CRAN_INCOMING_", "") == "") Sys.setenv("_R_CHECK_CRAN_INCOMING_" = "false")
 rcmdcheck::rcmdcheck(
   args = c("--no-manual", "--as-cran", "--no-multiarch"),
-  build_args = character(),
+  build_args = "--no-manual",
   error_on = Sys.getenv("RCMDCHECK_ERROR_ON", "note"),
   check_dir = "check"
 )
