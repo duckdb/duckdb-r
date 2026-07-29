@@ -380,7 +380,7 @@ The default leg deadline is 300 minutes and a cheap commit costs ~6,
 so 25 commits fit in two legs — and the branch tip waits five hours for a verdict
 that 20 legs would have delivered in fifty minutes.
 This is the common case, not the corner case:
-a series-loop batch is usually well under 25 commits.
+a series-loop batch is capped at 100 commits and is usually far smaller.
 A large backlog looks like it should be immune, since every slot is busy anyway,
 but it is not: see [below](#why-the-pass-cannot-stop-at-max_parallel).
 

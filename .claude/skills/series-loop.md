@@ -16,7 +16,7 @@ this loop repairs in place and was proven on the `main` rewind
 | ref | who writes it | what it is |
 |---|---|---|
 | `<S>-build` | the routine, unconditionally | Every upstream first-parent commit vendored one-to-one, glue compiling at every commit. **No CI runs here** (`each.yaml` never matches `*-build`). The buffer. |
-| `<S>-dev` | the routine, force-push | `<S>-build` commits, consumed up to 25 at a time, with test/R/patch adaptations folded in as CI demands. What CI builds, commit by commit. |
+| `<S>-dev` | the routine, force-push | `<S>-build` commits, consumed up to 100 at a time, with test/R/patch adaptations folded in as CI demands. What CI builds, commit by commit. |
 | `<S>-green` | the routine, fast-forward only | The newest commit such that every commit in `<S>-green..it` has a `success` run. What r-universe should build from. |
 | `<S>-build-base` | the routine | The `<S>-build` commit equivalent to `<S>-green` (same vendored upstream SHA). Marks how much of the buffer has been consumed and verified. |
 
@@ -67,14 +67,14 @@ ADVANCE / WAIT / RETRY `<sha>` / REPAIR `<sha>` / IDLE)
 and `scripts/series-advance.sh <S>`
 (stages 3–4 — fast-forwards `-green`,
 moves `-build-base` by vendored-SHA match,
-extends `-dev` by ≤ 25;
+extends `-dev` by ≤ 100;
 refuses on any failure or non-fast-forward).
 Judgement — repairs, review, vendoring — stays here.
 
 ### 1. Vendor onto `<S>-build`
 
 ```sh
-scripts/vendor-one.sh --commits 25 <upstream-clone>
+scripts/vendor-one.sh --commits 100 <upstream-clone>
 ```
 
 The script gates itself:
@@ -263,7 +263,7 @@ stop and say so.
 
 If everything between `<S>-green` and the `<S>-dev` tip is green
 (or the tip equals `-green`),
-append the next ≤ 25 commits from `<S>-build` and push.
+append the next ≤ 100 commits from `<S>-build` and push.
 While `-dev` sits on `-build`'s line this is a plain ref move;
 after a repair it is a replay of the buffer commits
 onto the repaired tip —
