@@ -1,6 +1,6 @@
 #!/bin/bash
 # Vendors DuckDB sources commit-by-commit from upstream repository
-# Used by CI automation (.github/workflows/vendor.yaml)
+# Used by the series loop (.claude/skills/series-loop.md)
 # See scripts/VENDORING.md for complete documentation
 # https://unix.stackexchange.com/a/654932/19205
 # Using bash for -o pipefail
@@ -20,12 +20,17 @@ repo_name=${project}
 
 upstream_basedir=""
 num_commits=1
+check_glue=true
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --commits|-c)
       num_commits="$2"
       shift 2
+      ;;
+    --no-check-glue)
+      check_glue=false
+      shift
       ;;
     -*)
       echo "Unknown option: $1" >&2
@@ -63,12 +68,43 @@ fi
 
 start=$(git -C "$upstream_dir" rev-parse --verify HEAD)
 
+# The glue gate: after each vendored commit, syntax-check the R glue against
+# the freshly vendored headers.  This catches every upstream API change the
+# glue has to follow, costs ~20 s, and needs no link and no R session.  The
+# compile flags come from a dry run, so they always match the local setup.
+glue_compile_flags() {
+  # src/Makevars includes Makevars.rstrtmgr, which only ./configure writes and
+  # .gitignore keeps out of the tree; without it `make -n` stops before it ever
+  # prints a compile line.
+  [ -f src/Makevars.rstrtmgr ] || ./configure >/dev/null 2>&1
+  (cd src && R CMD SHLIB -n cpp11.cpp 2>/dev/null) |
+    grep -m 1 -E -- '-c cpp11\.cpp' |
+    sed -E 's/^ *(ccache )?g\+\+ //; s/ -c cpp11\.cpp -o cpp11\.o *$//'
+}
+
+glue_compiles() {
+  local flags
+  flags=$(glue_compile_flags)
+  if [ -z "$flags" ]; then
+    echo "Error: could not derive glue compile flags (R CMD SHLIB -n)"
+    return 2
+  fi
+  # `eval` because R quotes its include path (-I"/usr/share/R/include"); plain
+  # expansion word-splits without removing the quotes, so g++ never finds R.h
+  # and every glue file looks broken.
+  (cd src && ls *.cpp | FLAGS="$flags" xargs -P 4 -I{} \
+    sh -c 'eval "g++ $FLAGS -fsyntax-only \"\$1\"" 2>/dev/null || echo "$1"' sh {}) | sort |
+    tee /tmp/vendor-one-glue-failures.txt |
+    { ! grep -q .; }
+}
+
 # Loop for the specified number of commits
 commits_vendored=0
 
 while [ $commits_vendored -lt $num_commits ]; do
   echo "=== Vendoring commit $((commits_vendored + 1)) of $num_commits ==="
 
+  # Look back 10 commits to find the last vendor commit; needed when vendoring multiple commits per run
   base=$(git log -n 10 --format="%s" -- ${vendor_dir} | tee /dev/stderr | sed -nr '/^.*'${repo_org}.${repo_name}'@([0-9a-f]+)( .*)?$/{s//\1/;p;}' | head -n 1)
 
   original=$(git -C "$upstream_dir" log --first-parent --reverse --format="%H" "${base}".."${start}" --)
@@ -181,6 +217,16 @@ while [ $commits_vendored -lt $num_commits ]; do
   commits_vendored=$((commits_vendored + 1))
 
   echo "Successfully vendored commit $commits_vendored"
+
+  if [ "$check_glue" = true ] && ! glue_compiles; then
+    echo ""
+    echo "=== GLUE BROKEN by $(git rev-parse --short HEAD) (upstream ${commit}) ==="
+    echo "Files: $(tr '\n' ' ' < /tmp/vendor-one-glue-failures.txt)"
+    echo "The breaking vendor commit is at HEAD and the upstream clone is kept."
+    echo "Fix the glue, run clang-format, amend into HEAD appending an"
+    echo "'R-side fix' section to the message, then rerun this script."
+    exit 3
+  fi
 
   # If we just vendored a tag, stop here
   if [ -n "${is_tag}" ]; then
