@@ -19,6 +19,10 @@ on:
 
 name: rcc-logs
 
+# Keeps two ticks of *this* workflow from redoing the same API work; it is not
+# shared with the fan-in job in each.yaml, which pushes to the same branch and
+# resolves collisions by retrying (see scripts/rcc-push.sh) rather than by
+# queueing, because a queued run in a busy group gets cancelled outright.
 concurrency:
   group: rcc-logs
   cancel-in-progress: false
@@ -61,21 +65,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: bash scripts/rcc-logs.sh
 
+      # A rejected push re-derives against the new remote tip rather than
+      # retrying the same commit; see scripts/rcc-push.sh. Re-running
+      # scripts/rcc-logs.sh is cheap on a retry because it skips every commit
+      # already recorded in runs2.ndjson.
       - name: Commit and push to rcc branch
-        working-directory: runs
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
-          git add -A
-          if git diff --cached --quiet; then
-            echo "No changes; nothing to commit."
-            exit 0
-          fi
-          git commit -m "rcc-logs: refresh $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          for attempt in 1 2 3 4; do
-            if git push origin rcc; then
-              exit 0
-            fi
-            sleep $(( 2 ** attempt ))
-          done
-          echo "git push failed after retries"
-          exit 1
+          bash scripts/rcc-push.sh \
+            "rcc-logs: refresh $(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -- bash scripts/rcc-logs.sh

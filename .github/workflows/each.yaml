@@ -278,12 +278,14 @@ jobs:
 
     name: "Collect results onto the rcc branch"
 
-    # Shared with rcc-logs.yaml: both push to the orphan rcc branch, and one
-    # writer at a time is what keeps that branch conflict-free.
-    concurrency:
-      group: rcc-logs
-      cancel-in-progress: false
-
+    # Deliberately *not* in the rcc-logs concurrency group that rcc-logs.yaml
+    # uses, even though both push to the orphan rcc branch. Only one run may be
+    # pending per group, so a third fan-in queued behind an rcc-logs tick
+    # cancelled the second outright -- and this job holds the only copy of the
+    # per-commit logs, which the backstop cannot reconstruct (it recovers
+    # run-level logs instead). Racing and retrying loses less than being
+    # evicted: scripts/rcc-push.sh resets onto the winner and re-derives, so a
+    # lost race costs a retry rather than the logs.
     permissions:
       contents: write
       actions: read
@@ -320,24 +322,18 @@ jobs:
         run: scripts/each-harvest.sh
         shell: bash
 
+      # A rejected push re-derives against the new remote tip rather than
+      # rebasing; see scripts/rcc-push.sh. The artifacts stay on disk, so
+      # re-running the merge reproduces exactly the records the remote is still
+      # missing.
       - name: Commit and push to rcc branch
-        working-directory: runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACTS: ${{ runner.temp }}/artifacts
+          OUT_DIR: runs
         run: |
           ## -- Commit and push to rcc branch --
-          set -euo pipefail
-          git add -A
-          if git diff --cached --quiet; then
-            echo "No changes; nothing to commit."
-            exit 0
-          fi
-          git commit -m "each-rcc: results from run ${GITHUB_RUN_ID}"
-          for attempt in 1 2 3 4; do
-            if git push origin rcc; then
-              exit 0
-            fi
-            sleep $(( 2 ** attempt ))
-            git pull --rebase origin rcc || true
-          done
-          echo "git push failed after retries"
-          exit 1
+          bash scripts/rcc-push.sh \
+            "each-rcc: results from run ${GITHUB_RUN_ID}" \
+            -- bash scripts/each-harvest.sh
         shell: bash
