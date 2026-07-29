@@ -20,6 +20,8 @@
 
 #include "src/planner/expression_iterator.cpp"
 
+#include "src/planner/expression_nullability.cpp"
+
 #include "src/planner/joinside.cpp"
 
 #include "src/planner/logical_operator.cpp"
