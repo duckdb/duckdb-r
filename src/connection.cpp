@@ -39,6 +39,12 @@ unique_ptr<ProgressBarDisplay> RProgressBarDisplay::Create() {
 }
 
 void RProgressBarDisplay::Initialize() {
+	// Reached from ClientContext::PendingPreparedStatementInternal(), which
+	// constructs the ProgressBar -- and with it this display -- while it holds
+	// the client context lock. Looking the callback up evaluates R code, and
+	// with it a garbage collection.
+	RCallbackScope callback_scope;
+
 	cpp11::function getNamespace = RStrings::get().getNamespace_sym;
 	cpp11::environment duckdb_namespace(getNamespace(RStrings::get().duckdb_str));
 	cpp11::sexp get_progress_display(Rf_lang1(RStrings::get().get_progress_display_sym));
@@ -78,6 +84,9 @@ void RProgressBarDisplay::Update(double percentage) {
 	if (progress_callback == R_NilValue || !OnRThread()) {
 		return;
 	}
+
+	// Called from the executor while the query that drives it holds the lock.
+	RCallbackScope callback_scope;
 
 	try {
 		cpp11::sexp call = Rf_lang2(progress_callback, Rf_ScalarReal(percentage));

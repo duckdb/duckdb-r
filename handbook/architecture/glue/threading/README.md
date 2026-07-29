@@ -105,12 +105,14 @@ and [#2816](https://github.com/duckdb/duckdb-r/pull/2816) taking the call into R
 **The engine runs R code while it holds the client context lock.**
 The replacement scans and the Arrow stream factory in
 [`src/register.cpp`](/src/register.cpp),
-and the progress display in
+the progress display in
 [`src/connection.cpp`](/src/connection.cpp),
+and the bind of a data frame scan in [`src/scan.cpp`](/src/scan.cpp),
+which materializes an ALTREP column and evaluates `duckdb.materialize_callback` for one of duckdb's own,
 are all reached from underneath a query the engine is already executing.
 R may collect garbage in any of them,
-and a collection runs the finalizer of every engine handle
-the session has stopped referencing,
+and runs the finalizer of every engine handle the session has stopped referencing
+when it collects there or evaluates R code with finalizers pending from an earlier collection,
 at a point no R code chose.
 So no such finalizer may re-enter the client context it belongs to:
 the context lock is not recursive,
@@ -118,8 +120,8 @@ and the callback's caller already owns it.
 The rule binds the finalizers rather than the callbacks,
 because a callback cannot know what R will collect inside it;
 [`tests/testthat/test-progress_display.R`](/tests/testthat/test-progress_display.R)
-pins it by collecting an abandoned handle
-from inside the display's callback lookup.
+and [`tests/testthat/test-relational.R`](/tests/testthat/test-relational.R) pin it with an abandoned handle finalized
+from inside the display's callback lookup and from inside the materialize callback.
 
 *To deepen: name the scan's remaining task-thread reads per call site,
 as #2583's audit settles each.*
