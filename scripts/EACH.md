@@ -1,7 +1,9 @@
 # `each-rcc` — building every commit as a sharded matrix
 
-Status: **implemented, not yet exercised on CI.**
+Status: **in production on the `*-fwd-dev` branches.**
 Rollback is a repository-variable flip (`EACH_RCC_MODE=dispatch`), not a revert.
+The cost model's constants are no longer borrowed —
+they are fitted to measured legs; see [§3, *Can we compute breakpoints efficiently, and evenly?*](#can-we-compute-breakpoints-efficiently-and-evenly).
 
 `.github/workflows/each.yaml` proves invariant **C1** from
 [`BRANCHES.md`](../BRANCHES.md#ci--green):
@@ -99,11 +101,13 @@ Two selection details are new, and both only fire in states the old path never p
 ## 2. Architecture
 
 ```
-plan  (1 job, ~2 min)
+plan  (1 job, ~30 s)
   ├─ git log --first-parent --after=$SINCE          → candidate commits
   ├─ GraphQL, 100 commits per request               → existing rcc statuses
   ├─ scripts/each-cost.py                           → objects each commit invalidates
-  ├─ greedy contiguous partition under a time budget → shards
+  ├─ scripts/each-partition.py
+  │    ├─ greedy contiguous fill under the leg deadline → fewest shards
+  │    └─ split the longest shard while it is affordable → fewest *waves*
   └─ plan.json (artifact) + matrix (job output)
 
 build (one job per shard, throttled by max-parallel)
@@ -125,6 +129,7 @@ Files:
 | `.github/workflows/each.yaml` | plan → build → harvest, plus the legacy dispatch mode |
 | `scripts/each-plan.sh` | enumerate, read statuses, weigh, partition |
 | `scripts/each-cost.py` | unity-object reach; the cost model's only input |
+| `scripts/each-partition.py` | the cost model, the greedy fill, and the split pass |
 | `scripts/each-shard.sh` | one leg: many commits, one workspace |
 | `scripts/rcc-one.sh` | the per-commit gate, extracted from `rcc-smoke` |
 | `scripts/each-harvest.sh` | single-writer fan-in onto the `rcc` branch |
@@ -260,28 +265,136 @@ so a queued run waits for a long bulk build rather than killing it.
 
 ### Can we compute breakpoints efficiently, and evenly?
 
-Yes, and the problem is easier than it looks.
+Yes, and the problem is easier than it looks —
+but "evenly" turned out to be the wrong objective on its own.
+
+#### The cost model
+
+A leg's wall clock is
+
+```
+estimate_minutes = SETUP + FULL + Σ min(FLOOR + OBJECT_SECONDS × objects, FULL)
+                                                        over all but the first
+build_minutes    = estimate_minutes − SETUP
+```
+
+Four constants, each measuring one thing:
+
+| Constant | Default | What it is |
+|---|---|---|
+| `SETUP_MINUTES` | 5 | checkout, `install/action.yml`, `style` — paid once per leg |
+| `FULL_BUILD_MINUTES` | 40 | a build on an empty ccache: all 355 objects of `sources.mk` |
+| `FLOOR_MINUTES` | 6 | one commit with nothing to recompile: link, install, `R CMD check`, the gates |
+| `OBJECT_SECONDS` | 9.7 | marginal cost of recompiling one unity object |
+
+The **first** commit of a leg pays `FULL` rather than its own weight,
+because it starts on an empty ccache and rebuilds everything
+no matter how little it changed.
+Every later commit pays only for the objects it invalidates,
+capped at `FULL` — a commit that touches a wide header cannot cost more than
+building the world.
+`build_minutes` is what [`each-shard.sh`](each-shard.sh) measures itself against,
+since its deadline starts after setup;
+`estimate_minutes` is what the job takes.
+
+#### The constants are measured, not borrowed
+
+Fitted by least squares to the 29 commits of runs
+[30406932093](https://github.com/krlmlr/duckdb-r/actions/runs/30406932093)
+(`main-fwd-dev`, 24 commits over two legs)
+and [30422580063](https://github.com/krlmlr/duckdb-r/actions/runs/30422580063)
+(`v1.5-variegata-fwd-dev`, 5 commits, one leg),
+**RMSE 1.3 min** across the 26 warm builds, which span 4.9 to 38.0 minutes:
+
+| objects | predicted | measured |
+|---|---|---|
+| 2 | 6.3 | 4.9, 5.2, 5.8, 5.9, 6.9 |
+| 3 | 6.5 | 6.0, 6.1, 6.4, 6.5 |
+| 23 | 9.7 | 10.3 |
+| 53 | 14.6 | 16.5, 16.6 |
+| 139 | 28.4 | 27.3 |
+| 177 | 34.5 | 36.5 |
+| 219 | 40.0 (capped) | 38.0 |
+
+The three cold builds came in at 40.4, 39.7 and 40.1 minutes —
+flat, and independent of what their commit changed, exactly as the model says.
+Whole legs land within a few percent:
+the 12 commits of shard 0 were predicted at 243 min and took 252,
+and the first 12 of shard 1 were predicted at 304 and took 302.
+
+These numbers replace the pre-2026 estimates the model shipped with
+(`COLD_MINUTES=22`, `FLOOR_MINUTES=11`, `OBJECT_SECONDS=4.3`),
+which were wrong in a way that mattered:
+they charged nearly twice too much for a cheap commit and half too little for an
+expensive one, so the predicted spread was *compressed*.
+Legs of "equal" predicted cost were not equal,
+and a leg full of wide-header commits overran its 300-minute deadline and
+deferred its last commit — which is what happened to shard 1 of run
+30406932093.
+Every leg records `duration_seconds` per commit and
+[`each-harvest.sh`](each-harvest.sh) now carries it onto the `rcc` branch
+as `.timing`, so the fit can be redone against any range at any time.
+
+#### Pass 1: the fewest legs
+
 Shards must be **contiguous** — that is what makes consecutive checkouts cheap —
 so this is not bin packing.
 Partitioning a sequence into the fewest contiguous parts under a fixed budget
 is solved exactly by a single greedy left-to-right pass, in O(n).
-`each-plan.sh` does that in one `awk` invocation.
 
-Weight per commit is `FLOOR_MINUTES + OBJECT_SECONDS × invalidated-objects`,
-plus one `COLD_MINUTES` per shard for its first build.
-Balancing by predicted time rather than commit count is what isolates expensive commits.
-Measured on 120 real `v1.5-variegata-dev` commits, the planner produces:
+Balancing by predicted time rather than commit count is what isolates expensive
+commits: on 998 undecided `main-dev` commits the greedy pass emits legs of 7 to
+27 commits, a 3.9× spread in count, to hold them all under one deadline.
 
-```
-shard 0: 14 commits, ~227 min   (626 objects invalidated in total)
-shard 1: 17 commits, ~263 min   (655)
-shard 2: 21 commits, ~259 min   (238)
-shard 3: 23 commits, ~257 min   (38)
-shard 4: 24 commits, ~264 min   (0 — all R-side)
-shard 5: 21 commits, ~259 min   (241)
-```
+#### Pass 2: the fewest waves
 
-Commit counts differ by 70%; predicted wall-times differ by 16%. That is the point.
+The greedy pass minimises **runner-minutes**, and for a large backlog that is
+also the right answer for wall clock, because every slot is busy anyway.
+For a small batch it is the *worst* answer.
+The default leg deadline is 300 minutes and a cheap commit costs ~6,
+so 25 commits fit in two legs — and the branch tip waits five hours for a verdict
+that 20 legs would have delivered in fifty minutes.
+This is the common case, not the corner case:
+a series-loop batch is usually well under 25 commits.
+
+So a second pass buys the wall clock back.
+It repeatedly splits the **longest** shard — the only one that can be setting
+the makespan — at the contiguous cut that leaves the shorter longer half,
+and stops at the first of three limits:
+
+* **`MAX_PARALLEL`.** More legs than can run at once move no verdict earlier;
+  they only queue. This is the limit that actually binds.
+* **`SPLIT_FACTOR`** (default 1.5). The plan may cost at most this multiple of
+  the pass-1 plan's runner-minutes. `1.0` disables splitting entirely.
+* **A longest shard of one commit**, which cannot be split further.
+
+Every split costs exactly one more cold build and one more job setup — ~45
+minutes — because the second half no longer inherits the first half's ccache.
+That is the whole of the trade, and `SPLIT_FACTOR` is the dial on it.
+Termination and monotonicity are easy to see:
+both halves of a contiguous cut are shorter than the whole,
+and with fewer legs than slots the makespan *is* the longest leg,
+so every accepted split strictly shortens the critical path.
+
+On the live 25-commit `main-fwd-dev` batch:
+
+| `SPLIT_FACTOR` | shards | wall clock | runner time |
+|---|---|---|---|
+| 1.0 (off) | 2 | 305 min | 585 min |
+| 1.1 | 3 | 280 min | 622 min |
+| 1.25 | 10 | 93 min | 722 min |
+| **1.5** | **18** | **58 min** | **856 min** |
+| 2.0 | 20 (`max-parallel`) | 52 min | 932 min |
+
+The default trades 1.46× the compute for **5.2× the wall clock**.
+Past 1.5 the curve flattens hard —
+`max-parallel` takes over as the binding limit, and the extra 77 runner-minutes
+buy six.
+
+The pass is a no-op exactly where it should be.
+On the 998-commit `main-dev` backlog the greedy pass already emits 66 legs
+against a `max-parallel` of 20, so nothing is split and nothing is spent:
+19.2 h of wall clock either way.
 
 Shards are emitted newest-first, so under `max-parallel` throttling
 the branch tip — the thing the series loop and the release flow wait on — is decided first.
@@ -337,7 +450,7 @@ reach drifts slowly, and a stale weight only mis-balances a shard.
 | Jobs per matrix | 256 per workflow run | `MAX_SHARDS` defaults to 250; 1000 `main-fwd-build` commits plan to 79 shards |
 | Job execution time | 6 h | shard budget 300 min, job `timeout-minutes: 350`, and the leg stops itself and defers the rest |
 | Workflow run duration | 35 days | 1000 `main-fwd-build` commits are ~18 h at `max-parallel: 20` |
-| Concurrent jobs | plan-dependent | `max-parallel` (default 20) keeps the run a good neighbour |
+| Concurrent jobs | plan-dependent | `max-parallel` (default 20) keeps the run a good neighbour, and caps the split pass |
 | `GITHUB_TOKEN` REST requests | 1000 per hour per repository | see below |
 | Reusable workflow nesting | 10 levels, 50 unique per file | not used |
 
@@ -397,11 +510,18 @@ Extrapolating the same shard density, a 3000-commit mainline replay
 is ~240 shards — still inside the 250 cap, still one run, but close enough
 to it that a bigger backlog would need a second run or a larger shard budget.
 
-Runner-hours are derived from the cost model, not from measured legs.
-The model's three constants (`COLD_MINUTES=36`, `FLOOR_MINUTES=11`, `OBJECT_SECONDS=7`)
-The model's three constants (`COLD_MINUTES=36`, `FLOOR_MINUTES=11`, `OBJECT_SECONDS=7`)
-are the numbers to recalibrate first once real leg timings exist —
-`each-shard.sh` records `duration_seconds` per commit precisely so that they can be.
+Those figures predate the recalibration in §3 and were derived from the model,
+not from measured legs;
+the shard counts move a little under the fitted constants but the shape does not.
+The current numbers for the two live backlogs, at `max-parallel: 20`:
+
+| | `main-fwd-dev` | `main-dev` |
+|---|---|---|
+| commits to build | 25 | 998 |
+| shards, fewest-legs | 2 | 66 |
+| shards, after splitting | **18** | 66 (nothing to split) |
+| wall clock | **58 min** (was 5.1 h) | 19.2 h |
+| runner time | 14.3 h (was 9.7 h) | 316 h |
 
 ---
 
@@ -415,13 +535,22 @@ are repository variables:
 | Legacy per-commit dispatch | `mode: dispatch` | `EACH_RCC_MODE` | `matrix` |
 | Earliest commit date | `since` | `EACH_RCC_SINCE` | `2026-01-01` |
 | Concurrent shards | `max-parallel` | `EACH_RCC_MAX_PARALLEL` | `20` |
-| Wall-clock target per shard | `shard-budget-minutes` | — | `300` |
+| Build-time target per shard | `shard-budget-minutes` | — | `300` |
+| Compute traded for wall clock | `split-factor` | `EACH_RCC_SPLIT_FACTOR` | `1.5` |
 | Cap on commits considered | `max-commits` | — | `0` (no cap) |
 | Rebuild decided commits | `force` | — | `false` |
 
 `EACH_GATES` can drop individual gates, but note that `pkgdown` is **not** a
 candidate: a pkgdown failure is a real failure and has to be dealt with, so the
-gate stays on. The lever for a slow batch is `max-parallel`.
+gate stays on.
+
+The lever for a slow *large* batch is `max-parallel`, which decides how many
+waves it takes.
+The lever for a slow *small* batch is `split-factor`:
+under `max-parallel` legs the run is one wave,
+and the only way to shorten it is to make the longest leg shorter.
+Set `split-factor` to `1.0` to get the old fewest-legs, cheapest-compute
+behaviour back.
 
 ### Failure modes and what happens
 
@@ -476,9 +605,9 @@ planner skips any commit that already has one, so they never double-build.
 Suggested order:
 
 1. Land here; exercise on a scratch `each-*` branch by dispatching `each-rcc` manually.
-2. Run the parity check from §7 item 2 — legacy and sharded over the same commit range — and compare verdicts.
+2. Run the parity check from §7 item 1 — legacy and sharded over the same commit range — and compare verdicts.
 3. Forward-port to the `*-dev` branches.
-4. Recalibrate the cost-model constants from real `duration_seconds`.
+4. ~~Recalibrate the cost-model constants from real `duration_seconds`.~~ Done; see §3.
 
 Rolling back at any point: set the repository variable `EACH_RCC_MODE=dispatch`.
 
@@ -488,21 +617,29 @@ Rolling back at any point: set the repository variable `EACH_RCC_MODE=dispatch`.
 
 Honest list, in rough order of risk:
 
-1. **No CI run yet.** The scripts are exercised offline
-   (planner selection, partitioning, shard dry-run, harvester idempotence),
-   but no leg has built a commit on a runner.
-2. **`rcc-one.sh` is a port, not a call.** It reproduces the gates `rcc-smoke`
+1. **`rcc-one.sh` is a port, not a call.** It reproduces the gates `rcc-smoke`
    applies on its `workflow_dispatch` path. `R-CMD-check.yaml` is forward-ported
    from upstream, so the two can drift.
    A parity run — legacy dispatch and sharded build over the same commits,
    comparing verdicts — is the check that should precede cut-over.
-3. **Cost-model constants are borrowed**, from `VENDORING-LOOP.md` §4 rather than
-   from `each-rcc` legs. The first real run recalibrates them.
+2. **The cost model counts objects, not object *sizes*.**
+   A `ub_*.o` group compiles dozens of `.cpp` files and a leaf object compiles
+   one, and the model charges the same `OBJECT_SECONDS` for both.
+   The fit absorbs this on average — a wide-header commit reaches mostly `ub_*`
+   objects and a narrow one mostly leaves — but it is why the residuals go one
+   way at 53 objects (16.5 measured against 14.6 predicted)
+   and the other at 219 (38.0 against a capped 40.0).
+   Weighting each object by its translation unit's size would remove the bias;
+   `each-cost.py` already has the graph it would need.
+3. **The fit is 29 commits from two branches**, both heavy on vendor churn.
+   An R-only batch — 0 invalidated objects throughout — is not represented,
+   and `FLOOR_MINUTES` is the constant that would move.
 4. **8 GB ccache on a standard runner** should hold ~17 trees' worth of compressed
    objects; only the previous commit's are needed. Not measured on a runner.
-5. **`max-parallel` as an expression.** `strategy` accepts the `needs` context,
-   and the planner always emits a valid integer, but this is the one piece of
-   workflow syntax with no local test.
+5. **Splitting raises the concurrency footprint.** A 25-commit batch now asks
+   for 18 runners instead of 2, for an hour. That is inside `max-parallel`, but
+   it is the whole account's Actions concurrency, so other workflows queue
+   behind it where they used not to.
 
 ---
 

@@ -4,7 +4,9 @@
 # Selects exactly the commits `scripts/each-rcc.sh` would dispatch -- on a
 # series branch the commits in `<S>-green..HEAD` without an `rcc` commit-status,
 # elsewhere the first-parent history on or after $SINCE without one -- and
-# partitions them into contiguous, cost-balanced shards.
+# partitions them into contiguous, cost-balanced shards (see
+# `scripts/each-partition.py`, which also decides how many shards are worth
+# paying for).
 # One shard becomes one matrix leg in `.github/workflows/each.yaml`, and one
 # leg builds its whole slice sequentially in a single job (see
 # `scripts/each-shard.sh`).
@@ -36,26 +38,30 @@
 #   PENDING_TTL_HOURS   - a `pending` status older than this is treated as
 #                         abandoned and the commit is replanned (default: 6,
 #                         matching MAX_AGE_HOURS in scripts/vendor-gate.sh)
-#   SHARD_BUDGET_MINUTES- wall-clock target per leg (default: 300; the GitHub
-#                         job limit is 360, and scripts/each-shard.sh stops at
-#                         its own deadline rather than being killed)
+#   SHARD_BUDGET_MINUTES- build-time target per leg, excluding job setup
+#                         (default: 300; the GitHub job limit is 360, and
+#                         scripts/each-shard.sh stops at its own deadline rather
+#                         than being killed)
 #   MAX_SHARDS          - matrix legs to emit (default: 250; GitHub generates at
 #                         most 256 jobs per matrix)
 #   MAX_PARALLEL        - legs to run concurrently (default: 8)
 #   MAX_COMMITS         - hard cap on commits considered (default: 0 = no cap)
-#   COLD_MINUTES        - one cold build per leg (default: 22)
-#   FLOOR_MINUTES       - per-commit floor: link, install, R CMD check
-#                         (default: 11)
+#   SPLIT_FACTOR        - runner-minutes the plan may cost, as a multiple of the
+#                         fewest-legs plan, to shorten wall clock
+#                         (default: 1.5; 1.0 disables splitting)
+#   SETUP_MINUTES       - per-leg checkout, R and dependency install (default: 5)
+#   FULL_BUILD_MINUTES  - a build on an empty ccache (default: 40)
+#   FLOOR_MINUTES       - per-commit floor: link, install, R CMD check, gates
+#                         (default: 6)
 #   OBJECT_SECONDS      - marginal cost of recompiling one unity object
-#                         (default: 4.3)
+#                         (default: 9.7)
 #
-# The two compile-bound constants are the pre-2026 measurements (36 / 7) scaled
-# by the 1.64x that raising MAKEFLAGS from -j2 to every core buys on a 4-vCPU
-# runner (see .github/workflows/install/action.yml). FLOOR_MINUTES is left alone:
-# it is mostly link plus the serial test run, and although dropping the
-# post-link `nm` sweep shortens it too, by how much is not yet measured.
-# scripts/each-shard.sh records duration_seconds per commit so all three can be
-# replaced with observations after the first real run.
+# The four constants are fitted to the 29 commits of runs 30406932093
+# (main-fwd-dev, 24 commits over two legs) and 30422580063
+# (v1.5-variegata-fwd-dev, 5 commits, one leg), RMSE 1.3 min over the 26 warm
+# builds; see scripts/EACH.md section 3. Every leg still records
+# duration_seconds per commit, and scripts/each-harvest.sh carries it onto the
+# `rcc` branch, so the fit can be redone from a wider range at any time.
 
 set -euo pipefail
 
@@ -67,9 +73,11 @@ SHARD_BUDGET_MINUTES="${SHARD_BUDGET_MINUTES:-300}"
 MAX_SHARDS="${MAX_SHARDS:-250}"
 MAX_PARALLEL="${MAX_PARALLEL:-8}"
 MAX_COMMITS="${MAX_COMMITS:-0}"
-COLD_MINUTES="${COLD_MINUTES:-22}"
-FLOOR_MINUTES="${FLOOR_MINUTES:-11}"
-OBJECT_SECONDS="${OBJECT_SECONDS:-4.3}"
+SPLIT_FACTOR="${SPLIT_FACTOR:-1.5}"
+SETUP_MINUTES="${SETUP_MINUTES:-5}"
+FULL_BUILD_MINUTES="${FULL_BUILD_MINUTES:-40}"
+FLOOR_MINUTES="${FLOOR_MINUTES:-6}"
+OBJECT_SECONDS="${OBJECT_SECONDS:-9.7}"
 BATCH="${BATCH:-100}"
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -245,56 +253,39 @@ else
 fi
 
 # --------------------------------------------------------------- partition ---
-# Contiguous greedy fill: walk oldest -> newest and close a shard as soon as one
-# more commit would exceed the budget. Contiguity is the point -- it is what
-# makes consecutive checkouts in a leg cheap -- so this is not bin packing, and
-# greedy is optimal for "fewest contiguous parts under a fixed budget".
-# A single commit heavier than the budget still gets its own shard rather than
-# being dropped; the leg's own deadline handles the overrun.
-awk -v cold="${COLD_MINUTES}" -v floor="${FLOOR_MINUTES}" -v objsec="${OBJECT_SECONDS}" \
-    -v budget="${SHARD_BUDGET_MINUTES}" '
-  {
-    w = floor + $2 * objsec / 60
-    if (n > 0 && cold + used + w > budget) {
-      shard++
-      used = 0
-      n = 0
-    }
-    used += w
-    n++
-    printf "%d %s %.2f %d\n", shard, $1, w, $2
-  }
-' "${workdir}/objects" > "${workdir}/assigned"
+# Greedy contiguous fill for the fewest legs under the deadline, then split the
+# longest legs to shorten wall clock, up to SPLIT_FACTOR times the runner cost
+# and never past MAX_PARALLEL. See scripts/each-partition.py.
+python3 "${here}/each-partition.py" \
+  --budget "${SHARD_BUDGET_MINUTES}" \
+  --setup "${SETUP_MINUTES}" \
+  --full "${FULL_BUILD_MINUTES}" \
+  --floor "${FLOOR_MINUTES}" \
+  --object-seconds "${OBJECT_SECONDS}" \
+  --max-shards "${MAX_SHARDS}" \
+  --max-parallel "${MAX_PARALLEL}" \
+  --split-factor "${SPLIT_FACTOR}" \
+  < "${workdir}/objects" > "${workdir}/partition.json"
 
-# Rebuild as JSON: one object per shard, commits oldest-first inside a shard.
-jq -R -s '
-  [ splits("\n") | select(length > 0) | split(" ")
-    | { shard: (.[0] | tonumber), sha: .[1], weight: (.[2] | tonumber), objects: (.[3] | tonumber) } ]
-  | group_by(.shard)
-  | map({
-      index: .[0].shard,
-      commits: map({sha: .sha, objects: .objects, weight_minutes: .weight}),
-      estimate_minutes: ((map(.weight) | add) * 10 | round / 10)
-    })
-' "${workdir}/assigned" > "${workdir}/shards.json"
-
+jq '.shards' "${workdir}/partition.json" > "${workdir}/shards.json"
 shards="$(jq 'length' "${workdir}/shards.json")"
-echo "Shards before capping: ${shards}"
+dropped="$(jq '.deferred' "${workdir}/partition.json")"
 
-# Newest first: under MAX_PARALLEL throttling the tip of the branch is decided
-# first, which is what scripts/vendor-gate.sh and the promotion flow wait on.
-# Capping drops the *oldest* shards; the next run replans them.
-dropped=0
-if [ "${shards}" -gt "${MAX_SHARDS}" ]; then
-  dropped="$(jq --argjson keep "${MAX_SHARDS}" \
-    '[ .[0:(length - $keep)][].commits | length ] | add // 0' "${workdir}/shards.json")"
-  jq --argjson keep "${MAX_SHARDS}" '.[(length - $keep):]' \
-    "${workdir}/shards.json" > "${workdir}/capped.json"
-  mv "${workdir}/capped.json" "${workdir}/shards.json"
-  shards="${MAX_SHARDS}"
+jq -r '"Fewest legs: \(.split.before.shards) shard(s), "
+       + "~\(.split.before.makespan_minutes) min wall, "
+       + "~\(.split.before.runner_minutes) min runner time",
+       "After \(.split.splits) split(s) at factor \(.split.factor): "
+       + "\(.split.after.shards) shard(s), "
+       + "~\(.split.after.makespan_minutes) min wall, "
+       + "~\(.split.after.runner_minutes) min runner time"' \
+  "${workdir}/partition.json"
+
+if [ "${dropped}" -gt 0 ]; then
   echo "Capped to ${MAX_SHARDS} shards; ${dropped} older commit(s) deferred to the next run"
 fi
 
+# Newest first: under MAX_PARALLEL throttling the tip of the branch is decided
+# first, which is what scripts/vendor-gate.sh and the promotion flow wait on.
 jq -r 'reverse | to_entries | map(.value + {index: .key}) | .' \
   "${workdir}/shards.json" > "${workdir}/shards.final.json"
 
@@ -310,9 +301,11 @@ jq -n \
   --argjson skipped "${skipped}" \
   --argjson dropped "${dropped}" \
   --argjson budget "${SHARD_BUDGET_MINUTES}" \
-  --argjson cold "${COLD_MINUTES}" \
+  --argjson setup "${SETUP_MINUTES}" \
+  --argjson full "${FULL_BUILD_MINUTES}" \
   --argjson floor "${FLOOR_MINUTES}" \
   --argjson objsec "${OBJECT_SECONDS}" \
+  --slurpfile split "${workdir}/partition.json" \
   --slurpfile shards "${workdir}/shards.final.json" \
   '{
      branch: $branch,
@@ -321,11 +314,13 @@ jq -n \
      commits_already_decided: $skipped,
      commits_deferred: $dropped,
      cost_model: {
-       cold_build_minutes: $cold,
+       setup_minutes: $setup,
+       full_build_minutes: $full,
        per_commit_floor_minutes: $floor,
        per_object_seconds: $objsec,
        shard_budget_minutes: $budget
      },
+     split: $split[0].split,
      shards: $shards[0]
    }' > "${OUT}"
 
@@ -371,6 +366,13 @@ if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
     echo "| Shards | ${shards} (max-parallel ${parallel}) |"
     echo
     if [ "${shards}" -gt 0 ]; then
+      jq -r '.split |
+        "| Plan | Shards | Wall clock | Runner time |",
+        "| --- | --- | --- | --- |",
+        "| Fewest legs | \(.before.shards) | ~\(.before.makespan_minutes) min | ~\(.before.runner_minutes) min |",
+        "| After \(.splits) split(s), factor \(.factor) | \(.after.shards) | ~\(.after.makespan_minutes) min | ~\(.after.runner_minutes) min |"' \
+        "${OUT}"
+      echo
       echo "| Shard | Commits | Estimate | Invalidated objects (max) |"
       echo "| --- | --- | --- | --- |"
       jq -r '.shards[] | "| \(.index) | \(.commits | length) | ~\(.estimate_minutes) min | \([.commits[].objects] | max) |"' "${OUT}"
