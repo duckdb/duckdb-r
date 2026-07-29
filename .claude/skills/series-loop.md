@@ -205,9 +205,10 @@ the delta between that `-dev` commit and its `-build` equivalent —
 are proven fixes.
 Carrying them over beats rederiving them,
 and their commit-message trailers say what they were for.
-After a WIP forward series is rebased onto a newer mainline
-(`series-forward.md`),
-its own previous `-fwd-dev` is mined the same way.
+Mining is what *forwarding* costs, and only forwarding:
+a forward series rebased onto a newer mainline
+(`series-rebase.md`) leaves nothing to mine,
+because its repairs are still commits on `-fwd-dev`.
 CI still judges the result like any other repair.
 
 For snapshot drift,

@@ -38,6 +38,16 @@ This skill is the release branch's birth certificate.
    `flavor.sh` never stamps it,
    because regular LTS flavors keep their four-component version.
 
+   **Check the generated cpp11 files before trusting a fresh seed.**
+   `flavor.sh` runs `cpp11::cpp_register()`,
+   whose symbol names depend on the cpp11 that happens to be installed:
+   0.5.5 replaces only the *first* dot of the package name,
+   so a `1.5.dev` flavor comes out as `_duckdb_1.5.dev_rapi_connect`,
+   which is not a valid C identifier.
+   Compare `R/cpp11.R` against an existing series' seed;
+   this is also why a forward series is rebased rather than reseeded
+   (`series-rebase.md`).
+
 3. **Create all four refs at the seed tip**
    (day-one rule, no exceptions):
    `<S>-green` = `<S>-build-base` = `<S>-build` = `<S>-dev`,
