@@ -1,3 +1,5 @@
+#include "src/execution/operator/helper/launch_external_resource.cpp"
+
 #include "src/execution/operator/helper/physical_batch_collector.cpp"
 
 #include "src/execution/operator/helper/physical_buffered_batch_collector.cpp"
@@ -13,6 +15,8 @@
 #include "src/execution/operator/helper/physical_execute.cpp"
 
 #include "src/execution/operator/helper/physical_explain_analyze.cpp"
+
+#include "src/execution/operator/helper/physical_external_resource.cpp"
 
 #include "src/execution/operator/helper/physical_limit.cpp"
 

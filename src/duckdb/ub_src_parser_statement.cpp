@@ -28,6 +28,8 @@
 
 #include "src/parser/statement/extension_statement.cpp"
 
+#include "src/parser/statement/external_resource_statement.cpp"
+
 #include "src/parser/statement/insert_statement.cpp"
 
 #include "src/parser/statement/load_statement.cpp"

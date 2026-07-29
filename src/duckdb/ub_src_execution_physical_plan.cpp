@@ -56,6 +56,8 @@
 
 #include "src/execution/physical_plan/plan_expression_get.cpp"
 
+#include "src/execution/physical_plan/plan_external_resource.cpp"
+
 #include "src/execution/physical_plan/plan_filter.cpp"
 
 #include "src/execution/physical_plan/plan_get.cpp"
