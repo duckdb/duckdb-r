@@ -52,7 +52,7 @@
 #   MAX_COMMITS         - hard cap on commits considered (default: 0 = no cap)
 #   SPLIT_FACTOR        - runner-minutes the plan may cost, as a multiple of the
 #                         fewest-legs plan, to shorten wall clock
-#                         (default: 1.5; 1.0 disables splitting)
+#                         (default: 1.5; 1.0 disables rebalancing)
 #   SETUP_MINUTES       - per-leg checkout, R and dependency install (default: 5)
 #   FULL_BUILD_MINUTES  - a build on an empty ccache (default: 40)
 #   FLOOR_MINUTES       - per-commit floor: link, install, R CMD check, gates
@@ -291,9 +291,10 @@ else
 fi
 
 # --------------------------------------------------------------- partition ---
-# Greedy contiguous fill for the fewest legs under the deadline, then split the
-# longest legs to shorten wall clock, up to SPLIT_FACTOR times the runner cost
-# and never past MAX_PARALLEL. See scripts/each-partition.py.
+# Greedy contiguous fill for the fewest legs under the deadline, then a rerun of
+# that fill at shorter deadlines, keeping whichever plan finishes soonest at
+# MAX_PARALLEL legs at a time and costs at most SPLIT_FACTOR times the runner
+# minutes of the fewest-legs plan. See scripts/each-partition.py.
 python3 "${here}/each-partition.py" \
   --budget "${SHARD_BUDGET_MINUTES}" \
   --setup "${SETUP_MINUTES}" \
@@ -312,7 +313,7 @@ dropped="$(jq '.deferred' "${workdir}/partition.json")"
 jq -r '"Fewest legs: \(.split.before.shards) shard(s), "
        + "~\(.split.before.makespan_minutes) min wall, "
        + "~\(.split.before.runner_minutes) min runner time",
-       "After \(.split.splits) split(s) at factor \(.split.factor): "
+       "Rebalanced at factor \(.split.factor) (\(.split.splits) extra leg(s)): "
        + "\(.split.after.shards) shard(s), "
        + "~\(.split.after.makespan_minutes) min wall, "
        + "~\(.split.after.runner_minutes) min runner time"' \
@@ -420,7 +421,7 @@ if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
         "| Plan | Shards | Wall clock | Runner time |",
         "| --- | --- | --- | --- |",
         "| Fewest legs | \(.before.shards) | ~\(.before.makespan_minutes) min | ~\(.before.runner_minutes) min |",
-        "| After \(.splits) split(s), factor \(.factor) | \(.after.shards) | ~\(.after.makespan_minutes) min | ~\(.after.runner_minutes) min |"' \
+        "| Rebalanced, factor \(.factor) (+\(.splits) legs) | \(.after.shards) | ~\(.after.makespan_minutes) min | ~\(.after.runner_minutes) min |"' \
         "${OUT}"
       echo
       echo "| Shard | Commits | Estimate | Invalidated objects (max) |"

@@ -17,9 +17,10 @@
 # adjacent vendor commit recompiles ~5 of 341 unity objects.
 #
 # Packing commits that tightly is the cheapest plan and the slowest one: a
-# 25-commit batch fits in two 5-hour legs. So the planner then splits its longest
-# shards back apart, spending at most EACH_SPLIT_FACTOR times the runner minutes
-# and never asking for more legs than EACH_MAX_PARALLEL can run at once.
+# 25-commit batch fits in two 5-hour legs. So the planner replans the same range
+# against shorter per-leg deadlines and keeps whichever plan finishes soonest
+# with EACH_MAX_PARALLEL legs running at a time, spending at most
+# EACH_SPLIT_FACTOR times the runner minutes of the cheapest plan.
 #
 # Shards are numbered along the history -- shard 1 is the oldest slice, shard N
 # the branch tip -- and queued the other way round, so under max-parallel
@@ -60,7 +61,7 @@ on:
         type: string
         default: ""
       split-factor:
-        description: "Runner minutes the plan may cost, relative to the fewest-shards plan, to shorten wall clock (1.0 = never split)"
+        description: "Runner minutes the plan may cost, relative to the fewest-shards plan, to shorten wall clock (1.0 = never rebalance)"
         type: string
         default: ""
       max-commits:
