@@ -22,3 +22,5 @@
 
 #include "src/execution/radix_partitioned_hashtable.cpp"
 
+#include "src/execution/row_id_deduplicator.cpp"
+
