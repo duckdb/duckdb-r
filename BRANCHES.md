@@ -95,7 +95,10 @@ The seven components are:
     │   ├── each-shard.sh               # Build one shard: many commits, one job
     │   ├── each-cost.py                # Unity objects a commit invalidates
     │   ├── rcc-one.sh                  # The per-commit rcc gate
-    │   ├── each-harvest.sh             # Fold shard results onto the rcc branch
+    │   ├── each-harvest.sh             # Reconcile shard results onto the rcc branch
+    │   ├── rcc-part-push.sh            # Publish one commit's result from its leg
+    │   ├── rcc-merge.sh                # Bring runs2.ndjson level with the records
+    │   ├── rcc-consolidate.sh          # Manual: GC old logs, squash the rcc branch
     │   ├── each-rcc.sh                 # Legacy per-commit CI dispatcher (fallback)
     │   ├── EACH.md                     # Sharded per-commit CI design (→ see §Vendoring)
     │   └── VENDORING.md                # Supplementary vendoring notes (→ see §Vendoring)
@@ -785,12 +788,16 @@ register the driver, enable `rerere`, and pin `rebase.backend=merge`
 | `scripts/each-cost.py` | Counts the unity objects a commit invalidates, from the include graph, without building |
 | `scripts/each-shard.sh` | Builds one shard: many commits in one job and one workspace, writing the `rcc` status per commit |
 | `scripts/rcc-one.sh` | The per-commit gate (style, snapshots, roxygen, clean tree, `R CMD check`, pkgdown), as a script |
-| `scripts/each-harvest.sh` | Single-writer fan-in of the shards’ results onto the orphan `rcc` branch |
+| `scripts/each-harvest.sh` | Fan-in onto the orphan `rcc` branch: reconciles whatever the legs could not publish themselves |
+| `scripts/rcc-part-push.sh` | Publishes one commit’s record and log to the `rcc` branch from the leg that decided it, conflict-free |
+| `scripts/rcc-merge.sh` | Brings `runs2.ndjson` level with the per-commit records in `runs2.d/`: appends the missing, replaces the stale |
+| `scripts/rcc-consolidate.sh` | Manual: makes the two record layouts agree, drops logs past their retention, squashes `rcc` to two commits |
 | `scripts/each-rcc.sh` | Legacy fallback: triggers one `rcc` run per commit without a build status (`EACH_RCC_MODE=dispatch`) |
 | `scripts/merge-version.sh` | Git merge driver for `DESCRIPTION`: combines the 4th/5th version counters, gated on an equal prefix |
 | `scripts/setup-git.sh` | Registers the merge driver in `.git/config`, enables `rerere`, pins `rebase.backend=merge` (run per clone) |
 | `.github/workflows/sync.yaml` | Hourly fast-forward of `krlmlr/main` from `duckdb/main` |
 | `.github/workflows/each.yaml` | Builds every statusless commit on push to `*-dev` branches, as a sharded matrix (see [`scripts/EACH.md`](https://r.duckdb.org/scripts/EACH.md)) |
+| `.github/workflows/rcc-consolidate.yaml` | Manual (`workflow_dispatch`) consolidation of the `rcc` branch; dry run by default |
 | `.github/workflows/fledge.yaml` | Daily version-bump PRs via `fledge` |
 
 ### Proposed tooling

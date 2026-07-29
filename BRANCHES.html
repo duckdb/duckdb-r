@@ -78,7 +78,10 @@
 │   ├── each-shard.sh               # Build one shard: many commits, one job
 │   ├── each-cost.py                # Unity objects a commit invalidates
 │   ├── rcc-one.sh                  # The per-commit rcc gate
-│   ├── each-harvest.sh             # Fold shard results onto the rcc branch
+│   ├── each-harvest.sh             # Reconcile shard results onto the rcc branch
+│   ├── rcc-part-push.sh            # Publish one commit's result from its leg
+│   ├── rcc-merge.sh                # Bring runs2.ndjson level with the records
+│   ├── rcc-consolidate.sh          # Manual: GC old logs, squash the rcc branch
 │   ├── each-rcc.sh                 # Legacy per-commit CI dispatcher (fallback)
 │   ├── EACH.md                     # Sharded per-commit CI design (→ see §Vendoring)
 │   └── VENDORING.md                # Supplementary vendoring notes (→ see §Vendoring)
@@ -596,7 +599,13 @@ krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
 </tr><tr><td><code>scripts/rcc-one.sh</code></td>
 <td>The per-commit gate (style, snapshots, roxygen, clean tree, <code>R CMD check</code>, pkgdown), as a script</td>
 </tr><tr><td><code>scripts/each-harvest.sh</code></td>
-<td>Single-writer fan-in of the shards’ results onto the orphan <code>rcc</code> branch</td>
+<td>Fan-in onto the orphan <code>rcc</code> branch: reconciles whatever the legs could not publish themselves</td>
+</tr><tr><td><code>scripts/rcc-part-push.sh</code></td>
+<td>Publishes one commit’s record and log to the <code>rcc</code> branch from the leg that decided it, conflict-free</td>
+</tr><tr><td><code>scripts/rcc-merge.sh</code></td>
+<td>Brings <code>runs2.ndjson</code> level with the per-commit records in <code>runs2.d/</code>: appends the missing, replaces the stale</td>
+</tr><tr><td><code>scripts/rcc-consolidate.sh</code></td>
+<td>Manual: makes the two record layouts agree, drops logs past their retention, squashes <code>rcc</code> to two commits</td>
 </tr><tr><td><code>scripts/each-rcc.sh</code></td>
 <td>Legacy fallback: triggers one <code>rcc</code> run per commit without a build status (<code>EACH_RCC_MODE=dispatch</code>)</td>
 </tr><tr><td><code>scripts/merge-version.sh</code></td>
@@ -608,6 +617,8 @@ krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
 </td>
 </tr><tr><td><code>.github/workflows/each.yaml</code></td>
 <td>Builds every statusless commit on push to <code>*-dev</code> branches, as a sharded matrix (see <a href="scripts/EACH.html"><code>scripts/EACH.md</code></a>)</td>
+</tr><tr><td><code>.github/workflows/rcc-consolidate.yaml</code></td>
+<td>Manual (<code>workflow_dispatch</code>) consolidation of the <code>rcc</code> branch; dry run by default</td>
 </tr><tr><td><code>.github/workflows/fledge.yaml</code></td>
 <td>Daily version-bump PRs via <code>fledge</code>
 </td>
