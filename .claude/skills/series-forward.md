@@ -111,6 +111,11 @@ It swaps all four refs in a single `git push --atomic`
 with a per-ref lease,
 so consumers never observe a half-replaced series,
 then deletes the `-fwd` refs.
+A base ref that does not exist yet is **created** rather than swapped,
+leased as "must not exist" —
+a series opened directly as `-fwd`
+has no counterpart to replace,
+and its first cutover is what brings `<S>-*` into being.
 The swap is the **one sanctioned non-fast-forward move
 of a serving green ref**;
 a WIP `-fwd-green` may be reset by a rebase (above),
