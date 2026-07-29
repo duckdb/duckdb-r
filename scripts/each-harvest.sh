@@ -1,26 +1,37 @@
 #!/bin/bash
-# Fan-in for `each-rcc`: fold the shards' per-commit results into the orphan
-# `rcc` branch, from one writer, once.
+# Fan-in for `each-rcc`: make sure every commit the legs decided has a record on
+# the orphan `rcc` branch.
 #
-# Every leg uploads an artifact holding `index.ndjson` (one record per commit it
-# decided) and `<sha>.log` (the trailing output). This script merges them into
-# the same files `scripts/rcc-logs.sh` maintains -- `runs2.ndjson` and
-# `logs2/<sha>.log` -- with the same record shape, so every consumer of the `rcc`
-# branch keeps working unchanged.
+# This used to be the *only* writer: the legs uploaded artifacts, said nothing,
+# and this job folded them into `runs2.ndjson` once, at the end. That made the
+# join a barrier -- the tip's verdict waited for the slowest leg, which can be
+# five hours behind -- and it made the artifact the only copy of a per-commit log
+# until then, so a cancelled run lost them and the scheduled backstop could only
+# put a run-level log in their place.
 #
-# Legs deliberately do not push. One orphan branch with N concurrent writers
-# races and leaves partial state on cancel; a single fan-in writer does not.
+# The legs now publish each record the moment it exists
+# (scripts/rcc-part-push.sh), one file per commit, so this job's role is
+# reconciliation:
 #
-# Records are keyed by commit and written once, except when a retry rebuilt a
-# commit on its own SHA to overturn a verdict that was never about the tree
-# (.claude/skills/series-loop.md): then the stale record is replaced in place.
+#   1. fill in records for commits whose leg died, or could not reach the branch,
+#      between deciding a commit and publishing it -- the artifact holds the same
+#      record file, so this is a copy, not a reconstruction;
+#   2. bring `runs2.ndjson` up to date, which is where the ~10 MB aggregate is
+#      touched exactly once per run instead of once per commit
+#      (scripts/rcc-merge.sh, via scripts/rcc-push.sh).
 #
-# This is the *fast* path: results land seconds after the last leg instead of
-# waiting for the next `rcc-logs.yaml` tick. It is not the only path.
-# `rcc-logs.yaml` stays scheduled as the backstop, because it reconstructs the
-# same records from durable ground truth (commit statuses plus run logs) and is
-# idempotent -- so a fan-in that never ran, because the whole workflow was
-# cancelled, self-heals on the next tick.
+# A record is normally written once and then left alone, which is what makes both
+# steps idempotent: re-running this after a lost push re-reads the same artifacts
+# and finds nothing to do.
+#
+# The exception is a **retry** (.claude/skills/series-loop.md): a commit rebuilt
+# on its own SHA to overturn a verdict that was never about its tree. Then the
+# state under a known key legitimately changes, and the newer verdict wins --
+# record, log and all. Readers take the first record for a SHA, so a second one
+# would be invisible; replacing is the only thing that works.
+#
+# `scripts/rcc-logs.sh` remains the scheduled backstop for the case where this job
+# never runs at all, because the whole workflow was cancelled.
 #
 # Usage:
 #   ARTIFACTS=<dir-of-downloaded-leg-artifacts> OUT_DIR=runs \
@@ -30,7 +41,7 @@
 #   GH_TOKEN   - token with actions:read (required)
 #   ARTIFACTS  - directory the leg artifacts were downloaded into (required)
 #   OUT_DIR    - the rcc worktree (default: runs)
-#   RUN_ID     - workflow run to attribute the records to
+#   RUN_ID     - workflow run to attribute reconstructed records to
 #                (default: $GITHUB_RUN_ID)
 
 set -euo pipefail
@@ -39,106 +50,108 @@ ARTIFACTS="${ARTIFACTS:?ARTIFACTS is required}"
 OUT_DIR="${OUT_DIR:-runs}"
 RUN_ID="${RUN_ID:-${GITHUB_RUN_ID:-}}"
 
-mkdir -p "${OUT_DIR}/logs2"
+here="$(cd "$(dirname "$0")" && pwd)"
 
 if [ -z "${RUN_ID}" ]; then
   echo "RUN_ID or GITHUB_RUN_ID is required" >&2
   exit 1
 fi
 
-# One call for the whole fan-in: every commit in this run shares the run object,
-# and the field set matches what scripts/rcc-logs.sh records.
-run_json="$(gh api "repos/{owner}/{repo}/actions/runs/${RUN_ID}" | jq -c '{
-    id,
-    name,
-    head_branch,
-    head_sha,
-    event,
-    status,
-    conclusion,
-    run_attempt,
-    run_number,
-    run_started_at,
-    created_at,
-    updated_at,
-    html_url,
-    display_title,
-    actor: (.actor.login // null),
-    triggering_actor: (.triggering_actor.login // null)
-  }')"
+part_path() { printf '%s/runs2.d/%s/%s.ndjson' "${OUT_DIR}" "${1:0:2}" "$1"; }
 
-seen="$(mktemp)"
-trap 'rm -f "${seen}"' EXIT
-: > "${seen}"
-if [ -s "${OUT_DIR}/runs2.ndjson" ]; then
-  jq -r '.commit' "${OUT_DIR}/runs2.ndjson" | sort -u > "${seen}"
-fi
+mkdir -p "${OUT_DIR}/logs2"
 
+# The state a commit is already recorded with, from whichever layout holds it:
+# its own record first, then the aggregate for the records that predate
+# `runs2.d/` and are deliberately left there (scripts/rcc-merge.sh). Empty when
+# the commit is new.
+recorded_state() { # <sha>
+  local sha="$1" part
+  part="$(part_path "${sha}")"
+  if [ -f "${part}" ]; then
+    jq -r '.status.state // ""' "${part}"
+    return
+  fi
+  if [ -s "${OUT_DIR}/runs2.ndjson" ]; then
+    grep -m 1 "\"commit\"[[:space:]]*:[[:space:]]*\"${sha}\"" "${OUT_DIR}/runs2.ndjson" \
+      | jq -r '.status.state // ""' 2>/dev/null || true
+  fi
+}
+
+# The run object, for the one case where a leg wrote an index line but no record
+# file: an old leg, or one interrupted between the two. Fetched lazily, because
+# the common case needs it not at all.
+run_json=""
+load_run_json() {
+  [ -n "${run_json}" ] && return 0
+  run_json="$(gh api "repos/{owner}/{repo}/actions/runs/${RUN_ID}" \
+    | jq -c -f "${here}/rcc-run-fields.jq")"
+}
+
+published=0
 recorded=0
-logs=0
-duplicates=0
 replaced=0
+logs=0
+known=0
 
 while IFS= read -r index_file; do
   shard_dir="$(dirname "${index_file}")"
-  while IFS= read -r record; do
-    sha="$(jq -r '.commit' <<<"${record}")"
-    state="$(jq -r '.state' <<<"${record}")"
+  while IFS= read -r line; do
+    sha="$(jq -r '.commit' <<<"${line}")"
+    state="$(jq -r '.state' <<<"${line}")"
+    part="$(part_path "${sha}")"
+    previous="$(recorded_state "${sha}")"
 
-    # A commit already in the file is normally a re-run of this very merge --
-    # the push retries by re-deriving, so the same records arrive twice -- and
-    # is skipped, which is what makes the merge idempotent.
-    #
-    # A *retry* (.claude/skills/series-loop.md) is the one case where the state
-    # under a known key legitimately changes: the commit was rebuilt on its own
-    # SHA to overturn a verdict that was never about the tree. Then the record
-    # has to be replaced rather than appended to, because readers take the
-    # first line for a SHA (scripts/series-check.sh greps with -m 1), so a
-    # second line would be invisible. Its stale log goes with it; the new one
-    # is written below when the retry failed again.
-    if grep -qx -- "${sha}" "${seen}"; then
-      previous="$(jq -r --arg c "${sha}" 'select(.commit == $c) | .status.state' \
-        "${OUT_DIR}/runs2.ndjson" | head -n 1)"
-      if [ "${previous}" = "${state}" ]; then
-        echo "Commit ${sha}: already recorded as ${state}, skipping"
-        duplicates=$(( duplicates + 1 ))
-        continue
+    # Same verdict as the branch already carries: nothing to add. This is the
+    # common case on a retry of the push itself, and it is what makes this
+    # script safe to run again with the same artifacts.
+    if [ -n "${previous}" ] && [ "${previous}" = "${state}" ]; then
+      if [ -f "${part}" ]; then
+        published=$(( published + 1 ))
+      else
+        known=$(( known + 1 ))
       fi
-      echo "Commit ${sha}: recorded as ${previous}, now ${state} -- replacing the record"
-      jq -c --arg c "${sha}" 'select(.commit != $c)' "${OUT_DIR}/runs2.ndjson" \
-        > "${OUT_DIR}/runs2.ndjson.tmp"
-      mv "${OUT_DIR}/runs2.ndjson.tmp" "${OUT_DIR}/runs2.ndjson"
-      rm -f "${OUT_DIR}/logs2/${sha}.log"
-      replaced=$(( replaced + 1 ))
+      # A published record whose log never made it is still worth completing.
+      if [ "${state}" = "failure" ] && [ -f "${shard_dir}/${sha}.log" ] \
+         && [ ! -f "${OUT_DIR}/logs2/${sha}.log" ]; then
+        cp -f "${shard_dir}/${sha}.log" "${OUT_DIR}/logs2/${sha}.log"
+        logs=$(( logs + 1 ))
+      fi
+      continue
     fi
 
-    # Shaped like the REST commit-status object scripts/rcc-logs.sh stores, so
-    # readers that pick out .status.state / .status.target_url do not care which
-    # path produced the record.
-    status_json="$(jq -c -n \
-      --arg state "${state}" \
-      --arg target_url "$(jq -r '.target_url' <<<"${record}")" \
-      --arg description "$(jq -r '.description' <<<"${record}")" \
-      --arg created_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-      '{context: "rcc", state: $state, target_url: $target_url,
-        description: $description, created_at: $created_at,
-        updated_at: $created_at}')"
+    if [ -n "${previous}" ]; then
+      echo "Commit ${sha}: recorded as ${previous}, now ${state} -- replacing the record"
+      # The stale log goes with the stale verdict; the new one is written below
+      # if this verdict is a failure too.
+      rm -f "${OUT_DIR}/logs2/${sha}.log"
+      replaced=$(( replaced + 1 ))
+    else
+      recorded=$(( recorded + 1 ))
+    fi
 
-    # `timing` is the one field the dispatch path cannot produce, and the only
-    # ground truth the cost model in scripts/each-plan.sh can be refitted
-    # against -- the leg already measured it, so it would be a shame to drop it
-    # on the floor. Readers pick out .commit and .status, and ignore this.
-    timing_json="$(jq -c '{shard, duration_seconds, exit_code}' <<<"${record}")"
-
-    jq -c -n \
-      --arg commit "${sha}" \
-      --argjson status "${status_json}" \
-      --argjson run "${run_json}" \
-      --argjson timing "${timing_json}" \
-      '{commit: $commit, status: $status, run: $run, timing: $timing}' \
-      >> "${OUT_DIR}/runs2.ndjson"
-    printf '%s\n' "${sha}" >> "${seen}"
-    recorded=$(( recorded + 1 ))
+    mkdir -p "$(dirname "${part}")"
+    if [ -f "${shard_dir}/parts/${sha}.ndjson" ]; then
+      cp -f "${shard_dir}/parts/${sha}.ndjson" "${part}"
+    else
+      # No record in the artifact: rebuild it from the index line, which carries
+      # everything except the run object and the status timestamps.
+      load_run_json
+      jq -c -n \
+        --arg commit "${sha}" \
+        --arg state "${state}" \
+        --arg target_url "$(jq -r '.target_url // ""' <<<"${line}")" \
+        --arg description "$(jq -r '.description // ""' <<<"${line}")" \
+        --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        --argjson run "${run_json}" \
+        --argjson timing "$(jq -c '{shard, duration_seconds, exit_code,
+                                    failed_stages: (.failed_stages // [])}' <<<"${line}")" \
+        '{commit: $commit,
+          status: {context: "rcc", state: $state, target_url: $target_url,
+                   description: $description, created_at: $now, updated_at: $now},
+          run: $run,
+          timing: $timing}' > "${part}"
+    fi
 
     # Logs are kept for failures only, matching scripts/rcc-logs.sh. The
     # difference is that this log is the *commit's* output, not the whole run's,
@@ -150,4 +163,5 @@ while IFS= read -r index_file; do
   done < "${index_file}"
 done < <(find "${ARTIFACTS}" -name 'index.ndjson' | LC_ALL=C sort)
 
-echo "Recorded: ${recorded}, already known: ${duplicates}, replaced: ${replaced}, logs kept: ${logs}"
+echo "Published by the legs: ${published}, reconciled here: ${recorded}," \
+  "replaced: ${replaced}, already known: ${known}, logs kept: ${logs}"

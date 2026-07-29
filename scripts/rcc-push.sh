@@ -7,24 +7,41 @@
 # `scripts/rcc-logs.sh`). Nothing serialises them, by choice: the obvious
 # serialiser is a shared concurrency group, but a GitHub concurrency group is
 # not a lock -- only one run may be *pending* per group, so a third writer
-# queued behind the second cancels it outright, and a cancelled fan-in takes
-# the only copy of its per-commit logs with it. Concurrent writers that retry
-# lose strictly less than serialised writers that get evicted. So a push can be
-# rejected as non-fast-forward at any time, and this script is what survives
-# that.
+# queued behind the second cancels it outright, and a cancelled fan-in used to
+# take the only copy of its per-commit logs with it. Concurrent writers that
+# retry lose strictly less than serialised writers that get evicted. So a push
+# can be rejected as non-fast-forward at any time, and this script is what
+# survives that.
 #
-# The recovery is deliberately *not* a rebase. Both writers append to
-# `runs2.ndjson`, so a real race means both sides added lines at EOF with no
-# separating context -- a textual conflict on essentially every collision.
-# Instead we take the remote as the new base and re-run the producer:
+# (That argument has weakened, deliberately. Now that the legs publish their own
+# records and logs as they go, an evicted writer loses much less than it used to,
+# and serialising the once-per-run writers would be defensible. It is still not
+# done, because retrying is cheap and needs no coordination -- but the reason is
+# now "no benefit" rather than "actively harmful".)
+#
+# The recovery is deliberately *not* a rebase. `runs2.ndjson` is one file every
+# writer extends, so a real race means both sides changed it with no separating
+# context -- a textual conflict on essentially every collision. Instead we take
+# the remote as the new base and re-run the producer:
 #
 #   push rejected -> fetch -> reset --hard origin/rcc -> clean -> re-derive
 #
 # That is cheap and correct because both producers are idempotent and dedupe
-# against `runs2.ndjson`: whatever the other writer already recorded is skipped,
-# and only the records that are genuinely still missing are recomputed. It also
-# repairs the bootstrap race, where two runs each create an orphan `rcc` with
-# unrelated histories and no rebase could help.
+# against what is already on the branch: whatever the other writer recorded is
+# skipped, and only the records that are genuinely still missing are recomputed.
+# It also repairs the bootstrap race, where two runs each create an orphan `rcc`
+# with unrelated histories and no rebase could help.
+#
+# What has changed is how often that has to happen. Records live one per file in
+# `runs2.d/` now, so the only file two writers can disagree about is
+# `runs2.ndjson` -- and that one is not merged either. It is brought up to date
+# here on every attempt by appending the records it is missing
+# (scripts/rcc-merge.sh), which needs nothing but the branch, so a retry against
+# a new tip simply appends fewer of them. The matrix legs, which publish after
+# every commit and are by far the most frequent writers, never come through this
+# script at all; they add one file and never touch the aggregate
+# (scripts/rcc-part-push.sh). This path is left for the two writers that were
+# already once-per-run.
 #
 # Usage:
 #   scripts/rcc-push.sh <commit-message> [-- <re-derive command>...]
@@ -80,6 +97,8 @@ git_out() {
   git -C "${OUT_DIR}" "$@"
 }
 
+here="$(cd "$(dirname "$0")" && pwd)"
+
 attempt=1
 # Set once we hold a commit the remote has not accepted yet. Without it, an
 # iteration that stages nothing -- a retry after a failed *fetch*, where the
@@ -88,6 +107,11 @@ attempt=1
 pending=0
 
 while :; do
+  # Appended to rather than merged, on every attempt: after a reset this sees the
+  # winner's records already in the aggregate and appends only what is still
+  # missing, which is what makes the reset safe.
+  OUT_DIR="${OUT_DIR}" "${here}/rcc-merge.sh"
+
   git_out add -A
   if git_out diff --cached --quiet; then
     if [ "${pending}" -eq 0 ]; then

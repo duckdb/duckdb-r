@@ -182,12 +182,16 @@ jobs:
         run: scripts/each-plan.sh
         shell: bash
 
+      # `overwrite` because an artifact name has to be unique within a *run*, not
+      # within an attempt: without it, "Re-run all jobs" fails right here, on the
+      # `each-plan` this run's first attempt already uploaded.
       - uses: actions/upload-artifact@v7
         if: env.EACH_MODE != 'dispatch' && steps.plan.outputs.shards != '0'
         with:
           name: each-plan
           path: ${{ runner.temp }}/plan.json
           retention-days: 7
+          overwrite: true
 
   build:
     needs:
@@ -278,9 +282,16 @@ jobs:
           # Empty falls through to the script's own default; 0 turns the
           # per-failure log excerpts in the job summary off.
           SUMMARY_TAIL: ${{ vars.EACH_RCC_SUMMARY_TAIL || '' }}
+          # Outside the workspace: scripts/each-shard.sh wipes that per commit,
+          # and this holds the cached blobless clone of the `rcc` branch that the
+          # per-commit publish pushes through.
+          RCC_DIR: ${{ runner.temp }}/rcc-parts
         run: scripts/each-shard.sh
         shell: bash
 
+      # Still uploaded, and still the fan-in's input: the per-commit publish is
+      # the fast path, not a replacement. A leg that could not reach the `rcc`
+      # branch has its results collected from here instead.
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -288,6 +299,7 @@ jobs:
           path: ${{ runner.temp }}/each-logs
           if-no-files-found: ignore
           retention-days: 14
+          overwrite: true
 
   harvest:
     needs:
@@ -298,11 +310,15 @@ jobs:
     # result we most want on the rcc branch. A cancellation of the whole run can
     # still skip this job; scripts/rcc-logs.sh remains the scheduled backstop and
     # reconstructs the same records from commit statuses.
-    if: always() && needs.plan.outputs.shards != '0'
+    #
+    # Guarded on the planner having succeeded as well, because `shards` is the
+    # empty string when it did not, and `'' != '0'` is true: this job would then
+    # check out the rcc branch to reconcile a run that never built anything.
+    if: always() && needs.plan.result == 'success' && needs.plan.outputs.shards != '0'
 
     runs-on: ubuntu-26.04
 
-    name: "Collect results onto the rcc branch"
+    name: "Reconcile results onto the rcc branch"
 
     # Deliberately *not* in the rcc-logs concurrency group that rcc-logs.yaml
     # uses, even though both push to the orphan rcc branch. Only one run may be
@@ -328,7 +344,9 @@ jobs:
           ## -- Add rcc worktree at runs/ --
           set -euo pipefail
           if git ls-remote --exit-code --heads origin rcc >/dev/null 2>&1; then
-            git fetch origin rcc:rcc
+            # `+`: scripts/rcc-consolidate.sh force-pushes this branch, so a
+            # non-fast-forward fetch is an expected outcome, not an error.
+            git fetch origin '+refs/heads/rcc:refs/heads/rcc'
             git worktree add runs rcc
           else
             git worktree add --orphan -b rcc runs
@@ -340,7 +358,7 @@ jobs:
           pattern: each-logs-*
           path: ${{ runner.temp }}/artifacts
 
-      - name: Merge shard results into the rcc branch
+      - name: Reconcile shard results onto the rcc branch
         env:
           GH_TOKEN: ${{ github.token }}
           ARTIFACTS: ${{ runner.temp }}/artifacts
@@ -348,10 +366,11 @@ jobs:
         run: scripts/each-harvest.sh
         shell: bash
 
-      # A rejected push re-derives against the new remote tip rather than
-      # rebasing; see scripts/rcc-push.sh. The artifacts stay on disk, so
-      # re-running the merge reproduces exactly the records the remote is still
-      # missing.
+      # Most records are already on the branch, pushed by the leg that decided
+      # them; this push carries whatever was missing, plus the records
+      # `runs2.ndjson` still lacks. A rejected push re-derives against the new tip
+      # rather than rebasing; see scripts/rcc-push.sh. The artifacts stay on disk,
+      # so re-running the reconciliation reproduces exactly what is still missing.
       - name: Commit and push to rcc branch
         env:
           GH_TOKEN: ${{ github.token }}
