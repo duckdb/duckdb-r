@@ -198,11 +198,39 @@ struct ConnWrapper {
 void ConnDeleter(ConnWrapper *);
 typedef cpp11::external_pointer<ConnWrapper, ConnDeleter> conn_eptr_t;
 
+// Marks a stretch of R code that runs underneath a duckdb call, with the client
+// context locked: a registered data frame or Arrow stream being scanned, the
+// progress display. R may collect garbage there and run the finalizer of any
+// duckdb object it still holds, and a prepared statement deallocates itself
+// through ClientContext::RemovePreparedStatement(), which takes that same
+// non-recursive lock. A statement a finalizer frees is parked instead, inside
+// such a callback or not, and destroyed at the next entry point that is known
+// to hold nothing; dbClearResult() destroys its statement at once.
+class RCallbackScope {
+public:
+	RCallbackScope();
+	~RCallbackScope();
+
+	RCallbackScope(const RCallbackScope &) = delete;
+	RCallbackScope &operator=(const RCallbackScope &) = delete;
+
+	//! Whether a duckdb call is running R code right now
+	static bool Active();
+	//! Park a statement that cannot be destroyed where we are
+	static void Defer(duckdb::unique_ptr<PreparedStatement> stmt);
+	//! Destroy everything parked so far; a no-op while Active()
+	static void Drain();
+};
+
 struct RStatement {
 	RStatement() = delete;
-	RStatement(duckdb::unique_ptr<PreparedStatement> stmt_p) : stmt(std::move(stmt_p)) {
+	RStatement(duckdb::unique_ptr<PreparedStatement> stmt_p, bool explain_analyze_p = false)
+	    : stmt(std::move(stmt_p)), explain_analyze(explain_analyze_p) {
 	}
+	~RStatement();
 	duckdb::unique_ptr<PreparedStatement> stmt;
+	//! Whether the prepared statement is an EXPLAIN ANALYZE, which needs the profiler
+	bool explain_analyze;
 	vector<Value> parameters;
 };
 
@@ -225,7 +253,8 @@ typedef cpp11::external_pointer<ParsedExpression> expr_extptr_t;
 // invalidated by another statement on its connection as an error, where the engine reports the end of the stream
 // (handbook/usage/integrations/README.md).
 struct RArrowArrayStreamWrapper {
-	RArrowArrayStreamWrapper(duckdb::unique_ptr<QueryResult> result, idx_t batch_size);
+	RArrowArrayStreamWrapper(duckdb::shared_ptr<ClientContext> context, duckdb::unique_ptr<QueryResult> result,
+	                         idx_t batch_size);
 
 	ArrowArrayStream stream;
 	// The engine's callbacks read the result's client context through a raw pointer,
@@ -247,14 +276,17 @@ private:
 // A query result for the Arrow route.
 // Its columns stay after the result has been read to the end or handed over,
 // for the Arrow schema and the empty batch that answer from then on (handbook/usage/integrations/README.md).
-// The client properties point to the client context,
-// which the result's prepared statement keeps alive until dbClearResult().
+// The client properties point to the client context, which the result keeps alive itself,
+// taken when the statement ran: a disconnect frees the connection's context,
+// and the prepared statement only holds a weak reference to it.
 struct RQueryResult {
-	explicit RQueryResult(duckdb::unique_ptr<QueryResult> result_p)
-	    : result(std::move(result_p)), types(result->types), names(result->names),
+	RQueryResult(duckdb::shared_ptr<ClientContext> context_p, duckdb::unique_ptr<QueryResult> result_p)
+	    : context(std::move(context_p)), result(std::move(result_p)), types(result->types), names(result->names),
 	      client_properties(result->client_properties) {
 	}
 
+	// Declared first, so the context outlives everything that reads it.
+	duckdb::shared_ptr<ClientContext> context;
 	duckdb::unique_ptr<QueryResult> result;
 	duckdb::unique_ptr<RArrowArrayStreamWrapper> stream_wrapper;
 	vector<LogicalType> types;
