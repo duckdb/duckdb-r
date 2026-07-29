@@ -105,12 +105,17 @@ do not edit `src/duckdb/` by hand in this stage.
 
 ### 2. Repair the oldest `<S>-dev` failure
 
-Read `runs2.ndjson` on branch `rcc`
-for every commit in `<S>-green..<S>-dev`.
+Read the harvest on branch `rcc`
+for every commit in `<S>-green..<S>-dev` —
+`runs2.d/<xx>/<sha>.ndjson` per commit,
+or `runs2.ndjson`, which holds the same records concatenated.
 That range is the loop's whole world:
 nothing at or before `<S>-green` is ever re-examined.
-A commit **missing** from the file has not completed —
+A commit **missing** from the harvest has not completed —
 wait, do not guess.
+`each.yaml`'s legs publish a record within seconds of deciding a commit
+(see [`EACH.md`](../../scripts/EACH.md) §3),
+so missing now means undecided, not merely uncollected.
 
 If a commit is still missing after **12 hours**, presume its run lost —
 but only after trying hard to rule that out from what git can see:

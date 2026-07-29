@@ -21,17 +21,36 @@
 # mid-commit. Progress is durable per commit (the status), so the next run simply
 # replans whatever is left; nothing is checkpointed.
 #
+# Two consequences of "durable per commit" are load-bearing when a leg dies for
+# reasons of its own -- a lost runner, a cancellation, a platform hiccup:
+#
+#   * The leg *resumes*. Re-running a failed job replays its whole shard from
+#     plan.json, so without a check it would rebuild the commits it had already
+#     decided -- up to five hours of work to redo, on a cold cache. A commit that
+#     already carries a decided `rcc` status is therefore skipped here, which
+#     makes "Re-run failed jobs" cost only what was actually lost.
+#     Not every decided commit, though: a forced replan and the tip of a
+#     `retry-<S>-dev` branch are in the plan *because* they already have a
+#     verdict, and skipping those would make the retry a no-op. The planner
+#     names them in `replanned_despite_verdict`, so the leg reads the intent
+#     from the plan rather than trying to re-derive it.
+#   * The leg *publishes as it goes*. Every verdict is pushed to the `rcc` branch
+#     the moment it exists (scripts/rcc-part-push.sh), so a leg that dies takes
+#     nothing with it but the commit it was in the middle of. The artifact and
+#     the fan-in stay as the backstop for the push itself failing.
+#
 # Usage:
 #   SHARD=1 PLAN=plan.json LOG_DIR=/tmp/each-logs GH_TOKEN=<token> \
 #     scripts/each-shard.sh
 #
 # Environment variables:
-#   GH_TOKEN          - token with statuses:write (required unless DRY_RUN)
+#   GH_TOKEN          - token with statuses:write and contents:write
+#                       (required unless DRY_RUN)
 #   SHARD             - shard number from plan.json; 1 is the oldest slice of
 #                       the plan and N the branch tip (required)
 #   PLAN              - plan file (default: plan.json)
-#   LOG_DIR           - where per-commit logs and the index are written; must be
-#                       outside the workspace, which is wiped per commit
+#   LOG_DIR           - where per-commit logs, records and the index are written;
+#                       must be outside the workspace, which is wiped per commit
 #                       (default: $RUNNER_TEMP/each-logs)
 #   DEADLINE_MINUTES  - stop starting new commits past this (default: 300)
 #   LOG_TAIL          - trailing lines kept per commit (default: 10000)
@@ -40,6 +59,11 @@
 #   SUMMARY_MAX_BYTES - stop adding excerpts past this much summary text
 #                       (default: 900000; GitHub truncates a step summary at
 #                       1 MiB, and a truncated summary loses the table too)
+#   FORCE             - if non-empty, rebuild every commit in the shard, decided
+#                       or not; the plan's own `replanned_despite_verdict` list
+#                       already covers the forced and retried ones
+#   NO_PUBLISH        - if non-empty, do not push records to the `rcc` branch;
+#                       the fan-in collects them from the artifact instead
 #   DRY_RUN           - if non-empty, list the commits and exit
 
 set -uo pipefail
@@ -51,12 +75,14 @@ DEADLINE_MINUTES="${DEADLINE_MINUTES:-300}"
 LOG_TAIL="${LOG_TAIL:-10000}"
 SUMMARY_TAIL="${SUMMARY_TAIL:-50}"
 SUMMARY_MAX_BYTES="${SUMMARY_MAX_BYTES:-900000}"
+FORCE="${FORCE:-}"
+NO_PUBLISH="${NO_PUBLISH:-}"
 
 here="$(cd "$(dirname "$0")" && pwd)"
 started="$(date -u +%s)"
 deadline=$(( started + DEADLINE_MINUTES * 60 ))
 
-mkdir -p "${LOG_DIR}"
+mkdir -p "${LOG_DIR}" "${LOG_DIR}/parts"
 index="${LOG_DIR}/index.ndjson"
 : > "${index}"
 
@@ -71,6 +97,10 @@ excerpts_omitted=0
 : > "${excerpts}"
 
 mapfile -t commits < <(jq -r --argjson s "${SHARD}" '.shards[] | select(.index == $s) | .commits[].sha' "${PLAN}")
+
+# Commits the planner put in the plan even though they already carry a verdict.
+# Newline-delimited so the lookup below is a plain substring test on a small set.
+replanned="$(jq -r '(.replanned_despite_verdict // [])[]' "${PLAN}" 2>/dev/null || true)"
 
 if [ "${#commits[@]}" -eq 0 ]; then
   echo "Shard ${SHARD}: no commits in ${PLAN}"
@@ -114,6 +144,78 @@ set_status() {
     -f "target_url=${job_url}" \
     -f "description=${description}" \
     -f "context=rcc" > /dev/null
+}
+
+# Is this commit already decided? `pending` deliberately does not count: that is
+# the wedged-commit state a killed leg leaves behind, and redoing it is exactly
+# what a re-run is for.
+decided() {
+  local state
+  state="$(gh api "repos/{owner}/{repo}/commits/$1/statuses" \
+    --jq '[.[] | select(.context == "rcc")] | .[0].state // ""' 2>/dev/null || true)"
+  case "${state}" in
+    success|failure|error) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# --------------------------------------------------------------- publisher ----
+# The run object, once. Every record this leg writes carries it, so the fan-in and
+# the scheduled backstop do not have to reconstruct one; the projection is shared
+# (scripts/rcc-run-fields.jq) so all three writers agree byte for byte. A failure
+# here is not worth aborting a five-hour leg over -- fall back to what the
+# environment already tells us, and let the reader see a thinner run object.
+run_json='{}'
+if [ -n "${GITHUB_RUN_ID:-}" ]; then
+  run_json="$(gh api "repos/{owner}/{repo}/actions/runs/${GITHUB_RUN_ID}" \
+    | jq -c -f "${here}/rcc-run-fields.jq" 2>/dev/null || true)"
+  if [ -z "${run_json}" ]; then
+    echo "Could not read the run object; records will carry a minimal one."
+    run_json="$(jq -c -n --argjson id "${GITHUB_RUN_ID}" \
+      --arg name "${GITHUB_WORKFLOW:-each-rcc}" \
+      --arg head_branch "${GITHUB_REF_NAME:-}" \
+      --argjson run_attempt "${GITHUB_RUN_ATTEMPT:-1}" \
+      '{id: $id, name: $name, head_branch: $head_branch,
+        status: "in_progress", conclusion: null, run_attempt: $run_attempt}')"
+  fi
+fi
+
+# The record, in the shape `runs2.ndjson` holds and `runs2.d/<xx>/<sha>.ndjson`
+# now is. Written into LOG_DIR so it travels in the artifact too: the fan-in
+# copies these verbatim rather than rebuilding them, which is what keeps the two
+# paths from drifting apart.
+write_record() { # <sha> <state> <duration> <exit-code> <failed-stages-json>
+  local sha="$1" state="$2" duration="$3" rc="$4" stages="$5" now
+  now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  jq -c -n \
+    --arg commit "${sha}" \
+    --arg state "${state}" \
+    --arg target_url "${job_url}" \
+    --arg description "${description}" \
+    --arg now "${now}" \
+    --argjson run "${run_json}" \
+    --argjson shard "${SHARD}" \
+    --argjson duration "${duration}" \
+    --argjson rc "${rc}" \
+    --argjson stages "${stages}" \
+    '{commit: $commit,
+      status: {context: "rcc", state: $state, target_url: $target_url,
+               description: $description, created_at: $now, updated_at: $now},
+      run: $run,
+      timing: {shard: $shard, duration_seconds: $duration, exit_code: $rc,
+               failed_stages: $stages}}' \
+    > "${LOG_DIR}/parts/${sha}.ndjson"
+}
+
+# Never fatal: the artifact plus the fan-in remain the backstop, so the worst a
+# failed publish costs is that this record lands one job later instead of now.
+publish_record() { # <sha> <state>
+  local sha="$1" state="$2" log=""
+  [ -n "${NO_PUBLISH}" ] && return 0
+  [ "${state}" = "failure" ] && log="${LOG_DIR}/${sha}.log"
+  if ! "${here}/rcc-part-push.sh" "${sha}" "${LOG_DIR}/parts/${sha}.ndjson" ${log:+"${log}"}; then
+    echo "${sha}: could not publish to the rcc branch; deferring to the fan-in"
+  fi
 }
 
 # --------------------------------------------------------------- excerpts ----
@@ -179,11 +281,25 @@ write_excerpts() {
 built=0
 failed=0
 skipped=0
+resumed=0
 last_duration=0
 
 for sha in "${commits[@]}"; do
   now="$(date -u +%s)"
   remaining=$(( deadline - now ))
+
+  # Before anything expensive: has someone already decided this commit? On a
+  # first run nobody has, and this costs one REST read per commit. On a re-run of
+  # a leg that died it is the difference between redoing the lost commit and
+  # redoing the whole shard. A commit the planner deliberately replanned is
+  # exempt -- its verdict is the thing being overturned.
+  if [ -z "${FORCE}" ] && [ -n "${GH_TOKEN:-}" ] \
+     && ! grep -qxF -- "${sha}" <<<"${replanned}" \
+     && decided "${sha}"; then
+    echo "${sha}: already decided, skipping (re-run of a partially built shard)"
+    resumed=$(( resumed + 1 ))
+    continue
+  fi
 
   # Stop before starting a commit that the trailing pace says will not finish.
   # Always attempt the first one, or a leg whose budget was mis-estimated would
@@ -250,6 +366,9 @@ for sha in "${commits[@]}"; do
   fi
   set_status "${sha}" "${state}"
 
+  # The full record first, then the index line: the index is what the summary and
+  # the fan-in walk, so it must never name a record that was not written.
+  write_record "${sha}" "${state}" "${last_duration}" "${rc}" "${failed_stages}"
   jq -c -n \
     --arg commit "${sha}" \
     --arg state "${state}" \
@@ -263,6 +382,7 @@ for sha in "${commits[@]}"; do
       description: $description, shard: $shard,
       duration_seconds: $duration, exit_code: $rc,
       failed_stages: $failed_stages}' >> "${index}"
+  publish_record "${sha}" "${state}"
 
   echo "::endgroup::"
   echo "${sha}: ${state} (${last_duration}s, exit ${rc})"
@@ -275,7 +395,8 @@ done
 # ---------------------------------------------------------------- summary ----
 elapsed=$(( $(date -u +%s) - started ))
 echo
-echo "Shard ${SHARD}: ${built} built (${failed} failed), ${skipped} deferred, ${elapsed}s elapsed"
+echo "Shard ${SHARD}: ${built} built (${failed} failed), ${resumed} already decided," \
+  "${skipped} deferred, ${elapsed}s elapsed"
 
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
   {
@@ -286,6 +407,10 @@ if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
     jq -r '"| `\(.commit[0:9])` | \(.state)"
            + ((.failed_stages // []) | if length > 0 then " (" + join(", ") + ")" else "" end)
            + " | \(.duration_seconds)s |"' "${index}"
+    if [ "${resumed}" -gt 0 ]; then
+      echo
+      echo "${resumed} commit(s) were already decided and were not rebuilt."
+    fi
     if [ "${skipped}" -gt 0 ]; then
       echo
       echo "${skipped} commit(s) deferred to the next run (leg deadline)."

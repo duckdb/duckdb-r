@@ -31,7 +31,13 @@ rcc_tip() { git rev-parse -q --verify "refs/remotes/$remote/rcc" 2>/dev/null; }
 
 state_of() { # <sha> -> success|failure|pending|missing
   local rec
-  rec=$(git show "$remote/rcc:runs2.ndjson" 2>/dev/null | grep -m 1 "\"commit\": *\"$1\"" || true)
+  # The per-commit record first: it is one small blob, it is what the matrix legs
+  # publish seconds after they decide a commit, and it does not require reading a
+  # 10 MB file per lookup. The aggregate is the fallback for records that predate
+  # the per-commit layout, and are deliberately left there (scripts/rcc-merge.sh).
+  rec=$(git show "$remote/rcc:runs2.d/${1:0:2}/$1.ndjson" 2>/dev/null || true)
+  [ -z "$rec" ] &&
+    rec=$(git show "$remote/rcc:runs2.ndjson" 2>/dev/null | grep -m 1 "\"commit\": *\"$1\"" || true)
   [ -z "$rec" ] && { echo missing; return; }
   echo "$rec" | sed -nr 's/.*"status":[^}]*"state": *"([a-z]+)".*/\1/p' | head -n 1
 }

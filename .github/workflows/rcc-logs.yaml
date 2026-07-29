@@ -53,7 +53,9 @@ jobs:
           set -euo pipefail
           if git ls-remote --exit-code --heads origin rcc >/dev/null 2>&1; then
             echo "Existing rcc branch found; checking it out as a worktree."
-            git fetch origin rcc:rcc
+            # `+`: scripts/rcc-consolidate.sh force-pushes this branch, so a
+            # non-fast-forward fetch is an expected outcome, not an error.
+            git fetch origin '+refs/heads/rcc:refs/heads/rcc'
             git worktree add runs rcc
           else
             echo "rcc branch does not exist yet; creating an orphan worktree."

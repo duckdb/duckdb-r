@@ -23,7 +23,11 @@ done
 
 state_of() {
   local rec
-  rec=$(git show "$remote/rcc:runs2.ndjson" 2>/dev/null | grep -m 1 "\"commit\": *\"$1\"" || true)
+  # Per-commit record first, aggregate as the fallback; see
+  # scripts/rcc-merge.sh and the identical helper in scripts/series-check.sh.
+  rec=$(git show "$remote/rcc:runs2.d/${1:0:2}/$1.ndjson" 2>/dev/null || true)
+  [ -z "$rec" ] &&
+    rec=$(git show "$remote/rcc:runs2.ndjson" 2>/dev/null | grep -m 1 "\"commit\": *\"$1\"" || true)
   [ -z "$rec" ] && { echo missing; return; }
   echo "$rec" | sed -nr 's/.*"status":[^}]*"state": *"([a-z]+)".*/\1/p' | head -n 1
 }

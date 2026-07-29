@@ -271,6 +271,15 @@ awk -v now="${now}" -v ttl_hours="${PENDING_TTL_HOURS}" -v force="${FORCE}" \
 
 awk '$2 !~ /^skip:/ { print $1 }' "${workdir}/decisions" > "${workdir}/todo"
 
+# The commits that are in the plan *despite* already carrying a verdict -- a
+# forced replan, or the tip of a retry branch. scripts/each-shard.sh skips a
+# decided commit so that re-running a leg that died costs only what was lost,
+# and this is the list that tells it which decisions are the point of the run
+# rather than work already done. Carried in the plan rather than agreed on
+# through the workflow, so the two cannot drift apart.
+replanned="$(awk '$2 == "replan-forced" || $2 == "replan-retry" { print $1 }' \
+  "${workdir}/decisions" | jq -Rsc 'split("\n") | map(select(length > 0))')"
+
 todo="$(wc -l < "${workdir}/todo" | tr -d ' ')"
 skipped=$(( total - todo ))
 echo "Already decided: ${skipped}"
@@ -350,6 +359,7 @@ fi
 jq -n \
   --arg branch "${branch}" \
   --arg since "${SINCE}" \
+  --argjson replanned "${replanned}" \
   --argjson total "${total}" \
   --argjson skipped "${skipped}" \
   --argjson dropped "${dropped}" \
@@ -366,6 +376,7 @@ jq -n \
      commits_in_range: $total,
      commits_already_decided: $skipped,
      commits_deferred: $dropped,
+     replanned_despite_verdict: $replanned,
      cost_model: {
        setup_minutes: $setup,
        full_build_minutes: $full,

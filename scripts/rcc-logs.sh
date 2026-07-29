@@ -9,14 +9,21 @@
 #   2. Parses the workflow run id from the status `target_url`.
 #   3. Fetches the run object for the latest run_attempt and skips it if the
 #      run is not yet `completed` (also retried next time).
-#   4. Appends a merged {commit, status, run} record to runs2.ndjson.
+#   4. Writes a merged {commit, status, run} record to
+#      runs2.d/<xx>/<sha>.ndjson.
 #   5. For failed runs, ensures logs2/<sha>.log exists by either moving an
 #      existing logs/<run_id>.log into place (expected to shrink logs/), or
 #      downloading the run logs zip and keeping the trailing $LOG_TAIL lines.
 #
+# The record used to be appended straight to OUT_DIR/runs2.ndjson. It goes to
+# OUT_DIR/runs2.d/ first because a file per commit cannot collide, which is what
+# lets the `each-rcc` matrix legs publish their own records to the same branch
+# without ever racing this script for a line at EOF. The aggregate still gets the
+# record; nothing here writes it, because the push wrapper appends whatever is
+# missing on the way out (scripts/rcc-push.sh -> scripts/rcc-merge.sh).
+#
 # OUT_DIR/runs.json and OUT_DIR/runs.ndjson are intentionally not touched
-# (scheduled for removal); the new state lives in OUT_DIR/runs2.ndjson and
-# OUT_DIR/logs2/<sha>.log.
+# (scheduled for removal).
 #
 # Designed to be run inside a worktree that holds both the source branches
 # (where *-dev refs live) and the accumulated data (OUT_DIR).
@@ -29,8 +36,8 @@
 #   SINCE     - earliest commit date to consider, ISO 8601
 #               (default: 2026-04-11)
 #   MAX_NEW   - cap on commits inspected via the GitHub API per invocation;
-#               commits already recorded in runs2.ndjson don't count against
-#               this cap (default: 400)
+#               commits already recorded don't count against this cap
+#               (default: 400)
 #
 # Requires: gh, jq, unzip, git. Portable to bash on Linux and macOS.
 
@@ -59,13 +66,26 @@ is_failure_conclusion() {
   esac
 }
 
-# SHAs already recorded in runs2.ndjson are skipped so re-running the script
-# only does work for new commits.
+# Path of a commit's record. Fanned out over 256 directories so that adding one
+# record rewrites one small tree rather than a tree with every record in it --
+# which matters because the `each-rcc` legs now add one per commit built.
+part_path() { printf '%s/runs2.d/%s/%s.ndjson' "${OUT_DIR}" "${1:0:2}" "$1"; }
+
+here="$(cd "$(dirname "$0")" && pwd)"
+
+# SHAs already recorded are skipped, so re-running the script only does work for
+# new commits. Both layouts count: the parts are the truth, and the aggregate
+# covers a branch that has not been migrated yet.
 seen_shas="$(mktmp)"
 : > "${seen_shas}"
-if [ -s "${OUT_DIR}/runs2.ndjson" ]; then
-  jq -r '.commit' "${OUT_DIR}/runs2.ndjson" | sort -u > "${seen_shas}"
-fi
+{
+  if [ -d "${OUT_DIR}/runs2.d" ]; then
+    find "${OUT_DIR}/runs2.d" -type f -name '*.ndjson' | sed 's#.*/##; s#\.ndjson$##'
+  fi
+  if [ -s "${OUT_DIR}/runs2.ndjson" ]; then
+    jq -r '.commit' "${OUT_DIR}/runs2.ndjson"
+  fi
+} | sort -u > "${seen_shas}"
 
 # Collect first-parent commits from every refs/remotes/*/*-dev ref since
 # SINCE, deduped by SHA, newest first (git's natural order).
@@ -120,25 +140,10 @@ while IFS= read -r sha; do
     continue
   fi
 
+  # Shared projection, so a record written here is shaped exactly like one written
+  # by an `each-rcc` leg or its fan-in; see scripts/rcc-run-fields.jq.
   run_json="$(gh api "repos/{owner}/{repo}/actions/runs/${run_id}" 2>/dev/null \
-    | jq -c '{
-        id,
-        name,
-        head_branch,
-        head_sha,
-        event,
-        status,
-        conclusion,
-        run_attempt,
-        run_number,
-        run_started_at,
-        created_at,
-        updated_at,
-        html_url,
-        display_title,
-        actor: (.actor.login // null),
-        triggering_actor: (.triggering_actor.login // null)
-      }')"
+    | jq -c -f "${here}/rcc-run-fields.jq")"
   if [ -z "${run_json}" ]; then
     echo "Commit ${sha}: failed to fetch run ${run_id}, skipping"
     skipped_no_status=$((skipped_no_status + 1))
@@ -152,12 +157,14 @@ while IFS= read -r sha; do
     continue
   fi
 
+  part="$(part_path "${sha}")"
+  mkdir -p "$(dirname "${part}")"
   jq -c -n \
     --arg commit "${sha}" \
     --argjson status "${status_json}" \
     --argjson run "${run_json}" \
     '{commit: $commit, status: $status, run: $run}' \
-    >> "${OUT_DIR}/runs2.ndjson"
+    > "${part}"
   printf '%s\n' "${sha}" >> "${seen_shas}"
   processed=$((processed + 1))
 

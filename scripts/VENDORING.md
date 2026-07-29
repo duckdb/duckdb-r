@@ -448,8 +448,10 @@ without keeping the newest SHA in the subject.
 
 ### Vendoring stopped working
 
-1. **Check the harvest**: read `runs2.ndjson` and `logs2/` on branch `rcc`
-   (`scripts/series-check.sh` prints a per-series verdict).
+1. **Check the harvest**: read `runs2.d/<xx>/<sha>.ndjson` and `logs2/` on branch
+   `rcc` — `runs2.ndjson` accumulates the same records in one file
+   (`scripts/series-check.sh` prints a per-series verdict, reading whichever of
+   the two holds the commit).
 2. **Gate says `red` or `stale`**: a commit near the tip is failing `rcc`, or never got a result.
    Repair the failing commit first (see the skills in `.claude/skills/`);
    vendoring resumes on its own once a green base is back in the window.
@@ -503,7 +505,8 @@ They should only change when a `.cpp` file gains or loses a local `#include`.
 ### GitHub Actions
 
 - The routine reports each firing; branch `rcc` holds the harvested
-  per-commit results (`runs2.ndjson`, `logs2/<sha>.log`)
+  per-commit results (`runs2.d/<xx>/<sha>.ndjson`, `logs2/<sha>.log`, and
+  `runs2.ndjson`), published within seconds of each commit being decided
 - Check for `rcc` statuses on the individual commits of each `-dev` branch
 
 ### Commit history
@@ -535,6 +538,9 @@ git log -1 --grep="^vendor:" --format=%s   # upstream commit it came from
 - `scripts/each-shard.sh` - Builds one shard of commits in a single job
 - `scripts/rcc-one.sh` - The per-commit `rcc` gate
 - `scripts/each-harvest.sh` - Folds the shards' results onto the orphan `rcc` branch
+- `scripts/rcc-part-push.sh` - Publishes one commit's result to the `rcc` branch from the leg that decided it
+- `scripts/rcc-merge.sh` - Brings `runs2.ndjson` level with the records in `runs2.d/`
+- `scripts/rcc-consolidate.sh` - Manual: makes the layouts agree, GCs logs older than a month, squashes the `rcc` branch
 - `scripts/each-rcc.sh` - Legacy fallback: one dispatched `rcc` run per commit without a status
 - `scripts/rconfigure.py` - Regenerates `src/duckdb/`, `src/include/sources.mk`, `R/version.R`
 - `scripts/setup-git.sh` - Registers the `DESCRIPTION` merge driver, `rerere`, and `rebase.backend=merge`
