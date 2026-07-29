@@ -72,42 +72,26 @@ the replay then populates `<S>-fwd-build`.
    but keeps verifying and promoting what is already in flight —
    `<S>-green` still serves consumers, unchanged, on the old lineage.
 
-## Rebase while still WIP
+## A WIP forward series is not pinned to its base
 
 Until cutover, a forward series is work in progress:
 nothing consumes its refs —
 the base `<S>-green` is still the serving ref —
 so the fast-forward-only discipline that protects a serving green
 does not yet bind the `-fwd` refs.
-A WIP forward series can therefore **always be rebased
-against the current mainline**,
+A WIP forward series can therefore **always be moved
+onto the current mainline**,
 and this is the normal way to pick up `main`-side fine-tuning —
 CI changes, script fixes, R-side work —
 that landed while the forward series was being built or verified.
 
-The rebase is a rebuild, not a merge:
-
-1. Regenerate the seed on current `main` —
-   `scripts/flavor.sh`, plus the fifth-component commit —
-   exactly as when the series was created.
-2. Rebuild the buffer onto it:
-   rerun `scripts/series-forward-build.sh <old-build> <old-base>`
-   against the **original** `<old-build>`, not the current `-fwd-build` —
-   the replay is defined by the old series' vendor commits,
-   and running it from the new seed is what picks up `main`'s changes.
-3. Reset all four `-fwd` refs in one atomic push:
-   `-fwd-build` to the rebuilt buffer tip,
-   the other three to the new seed tip.
-
-Verification restarts from the new seed —
-re-minted commits have no runs —
-and that is the accepted cost:
-rebase when `main`'s motion matters to the series,
-not for every commit.
-What was already proven is not lost:
-mine the previous `-fwd-dev` like the base `-dev` —
-the forward-series mining rule in `series-loop.md`,
-matching by vendored `duckdb/duckdb@<sha>` subject.
+That move is a rebase of the series onto itself, `series-rebase.md`,
+and it is not this skill.
+Forwarding is `<S>` → `<S>-fwd`, across lineages:
+`-fwd-build` is replayed out of the base series' buffer
+and `-fwd-dev` starts empty, for the loop to rederive.
+A rebase is `<S>-fwd` → `<S>-fwd`, one lineage,
+all four refs replayed as they stand, nothing rederived.
 
 A series that has cut over is no longer WIP:
 its green serves consumers,
