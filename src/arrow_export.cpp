@@ -103,13 +103,9 @@ static void CheckQueryResult(const duckdb::rqry_eptr_t &qry_res, const char *con
 	return cpp11::safe[Rf_eval](from_record_batches, arrow_namespace);
 }
 
-static duckdb::shared_ptr<ClientContext> KeepContext(QueryResult &result) {
-	auto context = result.client_properties.client_context;
-	return context ? context->shared_from_this() : nullptr;
-}
-
-RArrowArrayStreamWrapper::RArrowArrayStreamWrapper(duckdb::unique_ptr<QueryResult> result, idx_t batch_size)
-    : context(KeepContext(*result)), engine(std::move(result), batch_size) {
+RArrowArrayStreamWrapper::RArrowArrayStreamWrapper(duckdb::shared_ptr<ClientContext> context_p,
+                                                   duckdb::unique_ptr<QueryResult> result, idx_t batch_size)
+    : context(std::move(context_p)), engine(std::move(result), batch_size) {
 	stream.get_schema = GetSchema;
 	stream.get_next = GetNext;
 	stream.get_last_error = GetLastError;
@@ -205,7 +201,7 @@ void RArrowArrayStreamWrapper::Release(ArrowArrayStream *stream) {
 		wrapper = qry_res->stream_wrapper.release();
 		wrapper->engine.batch_size = chunk_size;
 	} else if (qry_res->result) {
-		wrapper = new RArrowArrayStreamWrapper(std::move(qry_res->result), chunk_size);
+		wrapper = new RArrowArrayStreamWrapper(qry_res->context, std::move(qry_res->result), chunk_size);
 	} else {
 		rapi_error_with_context("rapi_fetch_arrow_stream_into", "Result has already been consumed");
 	}
@@ -258,7 +254,8 @@ void RArrowArrayStreamWrapper::Release(ArrowArrayStream *stream) {
 		if (!qry_res->result) {
 			rapi_error_with_context("rapi_fetch_arrow_array", "Result has already been consumed");
 		}
-		qry_res->stream_wrapper = make_uniq<RArrowArrayStreamWrapper>(std::move(qry_res->result), chunk_size);
+		qry_res->stream_wrapper =
+		    make_uniq<RArrowArrayStreamWrapper>(qry_res->context, std::move(qry_res->result), chunk_size);
 	}
 	// The wrapper outlives the call that created it, and each call asks for its own batch size.
 	qry_res->stream_wrapper->engine.batch_size = chunk_size;
@@ -334,7 +331,7 @@ void RArrowArrayStreamWrapper::Release(ArrowArrayStream *stream) {
 	// takes the stream and frees both through stream.release when the reader is
 	// collected; only a failing import below leaks it (handbook/usage/memory/reading/README.md).
 	// Unlike the engine's own wrapper, it keeps the client context alive for a reader that outlives the connection.
-	auto result_stream = new RArrowArrayStreamWrapper(std::move(qry_res->result), chunk_size);
+	auto result_stream = new RArrowArrayStreamWrapper(qry_res->context, std::move(qry_res->result), chunk_size);
 
 	cpp11::sexp stream_ptr_sexp(
 	    Rf_ScalarReal(static_cast<double>(reinterpret_cast<uintptr_t>(&result_stream->stream))));
