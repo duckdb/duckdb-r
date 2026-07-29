@@ -109,7 +109,7 @@ Numbers in `[brackets]` refer to the component list above.
                                                                                       │ vendored [6]
   duckdb/duckdb (upstream C++)   ←── R core evolves independently (indirect) [7]      │
       │                                                                               │
-      │  vendor.sh / vendor-one.sh  (routine-driven; see the series loop)            │
+      │  vendor.sh / vendor-one.sh  (routine-driven; see the series loop)             │
       │  patch/ applied on top                                                        │
       ▼                                                                               │
   src/duckdb/   ← R-ready vendored C++  [1]                                           │
