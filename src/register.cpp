@@ -85,6 +85,10 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	auto &data = (ReplacementDataDBWrapper &)*data_p;
 	auto db_wrapper = data.wrapper;
 
+	// The binder holds the client context lock across this, and looking the name
+	// up forces a promise -- arbitrary R code, and with it a garbage collection.
+	RCallbackScope callback_scope;
+
 	auto table_name_symbol = cpp11::safe[Rf_install](input.table_name.c_str());
 	SEXP rho = db_wrapper->env;
 	if (TYPEOF(rho) != ENVSXP) {
@@ -143,6 +147,9 @@ public:
 	}
 
 	static unique_ptr<ArrowArrayStreamWrapper> Produce(uintptr_t factory_p, ArrowStreamParameters &parameters) {
+		// Called from ArrowScanInitGlobal, under the client context lock.
+		RCallbackScope callback_scope;
+
 		auto res = make_uniq<ArrowArrayStreamWrapper>();
 		auto factory = (RArrowTabularStreamFactory *)factory_p;
 		cpp11::sexp stream_ptr_sexp =
@@ -167,6 +174,7 @@ public:
 	}
 
 	static void GetSchema(uintptr_t factory_p, ArrowSchemaWrapper &schema) {
+		RCallbackScope callback_scope;
 
 		auto res = make_uniq<ArrowArrayStreamWrapper>();
 		auto factory = (RArrowTabularStreamFactory *)factory_p;
