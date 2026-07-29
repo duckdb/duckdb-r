@@ -11,6 +11,10 @@
 # Legs deliberately do not push. One orphan branch with N concurrent writers
 # races and leaves partial state on cancel; a single fan-in writer does not.
 #
+# Records are keyed by commit and written once, except when a retry rebuilt a
+# commit on its own SHA to overturn a verdict that was never about the tree
+# (.claude/skills/series-loop.md): then the stale record is replaced in place.
+#
 # This is the *fast* path: results land seconds after the last leg instead of
 # waiting for the next `rcc-logs.yaml` tick. It is not the only path.
 # `rcc-logs.yaml` stays scheduled as the backstop, because it reconstructs the
@@ -73,6 +77,7 @@ fi
 recorded=0
 logs=0
 duplicates=0
+replaced=0
 
 while IFS= read -r index_file; do
   shard_dir="$(dirname "${index_file}")"
@@ -80,10 +85,31 @@ while IFS= read -r index_file; do
     sha="$(jq -r '.commit' <<<"${record}")"
     state="$(jq -r '.state' <<<"${record}")"
 
+    # A commit already in the file is normally a re-run of this very merge --
+    # the push retries by re-deriving, so the same records arrive twice -- and
+    # is skipped, which is what makes the merge idempotent.
+    #
+    # A *retry* (.claude/skills/series-loop.md) is the one case where the state
+    # under a known key legitimately changes: the commit was rebuilt on its own
+    # SHA to overturn a verdict that was never about the tree. Then the record
+    # has to be replaced rather than appended to, because readers take the
+    # first line for a SHA (scripts/series-check.sh greps with -m 1), so a
+    # second line would be invisible. Its stale log goes with it; the new one
+    # is written below when the retry failed again.
     if grep -qx -- "${sha}" "${seen}"; then
-      echo "Commit ${sha}: already recorded, skipping"
-      duplicates=$(( duplicates + 1 ))
-      continue
+      previous="$(jq -r --arg c "${sha}" 'select(.commit == $c) | .status.state' \
+        "${OUT_DIR}/runs2.ndjson" | head -n 1)"
+      if [ "${previous}" = "${state}" ]; then
+        echo "Commit ${sha}: already recorded as ${state}, skipping"
+        duplicates=$(( duplicates + 1 ))
+        continue
+      fi
+      echo "Commit ${sha}: recorded as ${previous}, now ${state} -- replacing the record"
+      jq -c --arg c "${sha}" 'select(.commit != $c)' "${OUT_DIR}/runs2.ndjson" \
+        > "${OUT_DIR}/runs2.ndjson.tmp"
+      mv "${OUT_DIR}/runs2.ndjson.tmp" "${OUT_DIR}/runs2.ndjson"
+      rm -f "${OUT_DIR}/logs2/${sha}.log"
+      replaced=$(( replaced + 1 ))
     fi
 
     # Shaped like the REST commit-status object scripts/rcc-logs.sh stores, so
@@ -124,4 +150,4 @@ while IFS= read -r index_file; do
   done < "${index_file}"
 done < <(find "${ARTIFACTS}" -name 'index.ndjson' | LC_ALL=C sort)
 
-echo "Recorded: ${recorded}, already known: ${duplicates}, logs kept: ${logs}"
+echo "Recorded: ${recorded}, already known: ${duplicates}, replaced: ${replaced}, logs kept: ${logs}"

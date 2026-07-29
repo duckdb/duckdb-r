@@ -35,6 +35,8 @@
 #   SINCE               - earliest commit date to consider (default: 2026-01-01)
 #   OUT                 - plan file to write (default: plan.json)
 #   FORCE               - if non-empty, ignore existing statuses and replan all
+#                         (implied on a `retry-<sha>-dev` branch, which exists
+#                         to have one already-decided commit judged again)
 #   PENDING_TTL_HOURS   - a `pending` status older than this is treated as
 #                         abandoned and the commit is replanned (default: 6,
 #                         matching MAX_AGE_HOURS in scripts/vendor-gate.sh)
@@ -94,7 +96,23 @@ echo "Considering commits on or after ${SINCE}"
 # and never rebuilt, and if green exists but is not an ancestor of HEAD the
 # branch is mid-surgery or on another lineage, so nothing is planned rather than
 # flooding the queue with an unbounded scan.
+
+# Reached from more than one early exit: a branch whose range cannot be bounded
+# plans nothing at all rather than a little of everything.
+plan_nothing() {
+  if [ -n "${GITHUB_OUTPUT:-}" ]; then
+    {
+      echo 'matrix={"shard":["none"]}'
+      echo "shards=0"
+      echo "commits=0"
+      echo "deferred=0"
+      echo "max_parallel=1"
+    } >> "${GITHUB_OUTPUT}"
+  fi
+}
+
 RANGE=("HEAD")
+bounded=""
 case "${branch}" in
   *-dev)
     series="${branch%-dev}"
@@ -102,20 +120,38 @@ case "${branch}" in
         "+refs/heads/${series}-green:refs/remotes/origin/${series}-green" 2>/dev/null; then
       if git merge-base --is-ancestor "refs/remotes/origin/${series}-green" HEAD; then
         RANGE=("refs/remotes/origin/${series}-green..HEAD")
+        bounded=1
         echo "Series branch: scanning origin/${series}-green..HEAD"
       else
         echo "origin/${series}-green is not an ancestor of HEAD -- planning nothing"
-        if [ -n "${GITHUB_OUTPUT:-}" ]; then
-          {
-            echo 'matrix={"shard":["none"]}'
-            echo "shards=0"
-            echo "commits=0"
-            echo "deferred=0"
-            echo "max_parallel=1"
-          } >> "${GITHUB_OUTPUT}"
-        fi
+        plan_nothing
         exit 0
       fi
+    fi ;;
+esac
+
+# A `retry-<sha>` pair asks for a commit that already carries a verdict to be
+# judged again, on its own SHA. The alternative is amending it, which re-mints
+# every descendant and throws away the runs that decided them; a rerun that
+# leaves the chain alone is worth a forced replan. See
+# .claude/skills/series-loop.md.
+#
+# The `retry-<sha>-green` sibling is what makes the request safe to honour: it
+# pins the range to the single commit under retry. Without it the scan falls
+# back to first-parent history since SINCE, which reaches past the series' seed
+# into `main`, where no commit carries an `rcc` status -- so an unbounded retry
+# branch would queue a build for every one of them. Force only when the range
+# is bounded, and refuse outright when it is not.
+case "${branch}" in
+  retry-*-dev)
+    if [ -z "${bounded}" ]; then
+      echo "Retry branch without an origin/${branch%-dev}-green sibling -- planning nothing"
+      plan_nothing
+      exit 0
+    fi
+    if [ -z "${FORCE}" ]; then
+      FORCE="retry"
+      echo "Retry branch: replanning the range regardless of existing statuses"
     fi ;;
 esac
 

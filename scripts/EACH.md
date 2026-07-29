@@ -95,6 +95,13 @@ Two selection details are new, and both only fire in states the old path never p
   `MAX_AGE_HOURS` in `vendor-gate.sh`) is treated as abandoned and replanned.
   Previously a leg that died hard left a commit wedged in `pending` forever.
 - A commit missing from the status scan is replanned rather than skipped.
+- A `retry-<sha>-dev` branch — pushed with a `retry-<sha>-green` sibling at the
+  failing commit's parent, see `.claude/skills/series-loop.md` — replans its
+  range even where every commit in it already carries a verdict, so one commit
+  can be judged again on its own SHA instead of being amended and taking its
+  descendants with it. The sibling is what bounds the range; without it the
+  branch plans nothing at all, because the fallback scan reaches into `main`,
+  where nothing carries an `rcc` status.
 
 ---
 
