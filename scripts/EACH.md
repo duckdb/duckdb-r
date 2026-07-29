@@ -114,7 +114,7 @@ plan  (1 job, ~30 s)
   ├─ scripts/each-cost.py                           → objects each commit invalidates
   ├─ scripts/each-partition.py
   │    ├─ greedy contiguous fill under the leg deadline → fewest shards
-  │    └─ split the longest shard while it is affordable → fewest *waves*
+  │    └─ replan at shorter deadlines while affordable  → shortest wall clock
   └─ plan.json (artifact) + matrix (job output)
 
 build (one job per shard, throttled by max-parallel)
@@ -137,7 +137,7 @@ Files:
 | `.github/workflows/each.yaml` | plan → build → harvest, plus the legacy dispatch mode |
 | `scripts/each-plan.sh` | enumerate, read statuses, weigh, partition |
 | `scripts/each-cost.py` | unity-object reach; the cost model's only input |
-| `scripts/each-partition.py` | the cost model, the greedy fill, and the split pass |
+| `scripts/each-partition.py` | the cost model, the greedy fill, and the rebalance pass |
 | `scripts/each-shard.sh` | one leg: many commits, one workspace |
 | `scripts/rcc-one.sh` | the per-commit gate, extracted from `rcc-smoke` |
 | `scripts/each-harvest.sh` | single-writer fan-in onto the `rcc` branch |
@@ -354,55 +354,99 @@ Balancing by predicted time rather than commit count is what isolates expensive
 commits: on 998 undecided `main-dev` commits the greedy pass emits legs of 7 to
 27 commits, a 3.9× spread in count, to hold them all under one deadline.
 
-#### Pass 2: the fewest waves
+#### Pass 2: the shortest wall clock
 
-The greedy pass minimises **runner-minutes**, and for a large backlog that is
-also the right answer for wall clock, because every slot is busy anyway.
-For a small batch it is the *worst* answer.
+The greedy pass minimises **legs**, which is close enough to minimising
+runner-minutes to serve as the cost baseline.
+It is a poor answer for wall clock at every size, and for a small batch it is
+the *worst* answer.
 The default leg deadline is 300 minutes and a cheap commit costs ~6,
 so 25 commits fit in two legs — and the branch tip waits five hours for a verdict
 that 20 legs would have delivered in fifty minutes.
 This is the common case, not the corner case:
 a series-loop batch is usually well under 25 commits.
+A large backlog looks like it should be immune, since every slot is busy anyway,
+but it is not: see [below](#why-the-pass-cannot-stop-at-max_parallel).
 
-So a second pass buys the wall clock back.
-It repeatedly splits the **longest** shard — the only one that can be setting
-the makespan — at the contiguous cut that leaves the shorter longer half,
-and stops at the first of three limits:
+So a second pass buys the wall clock back,
+by **running pass 1 again against shorter deadlines**
+and keeping whichever of those plans finishes soonest.
+Pass 1 at deadline `B` is a one-parameter family of *complete* plans —
+the lower `B`, the more legs, the more cold builds —
+so pass 2 only has to pick a `B`,
+and every plan it can pick is contiguous, balanced and inside the real deadline
+by construction.
+Two limits bound the search:
 
-* **`MAX_PARALLEL`.** More legs than can run at once move no verdict earlier;
-  they only queue. This is the limit that actually binds.
 * **`SPLIT_FACTOR`** (default 1.5). The plan may cost at most this multiple of
-  the pass-1 plan's runner-minutes. `1.0` disables splitting entirely.
-* **A longest shard of one commit**, which cannot be split further.
+  the pass-1 plan's runner-minutes. `1.0` disables the pass entirely.
+* **`MAX_SHARDS`**, and the commit count: one commit cannot be cut in half.
 
-Every split costs exactly one more cold build and one more job setup — ~45
-minutes — because the second half no longer inherits the first half's ccache.
-That is the whole of the trade, and `SPLIT_FACTOR` is the dial on it.
-Termination and monotonicity are easy to see:
-both halves of a contiguous cut are shorter than the whole,
-and with fewer legs than slots the makespan *is* the longest leg,
-so every accepted split strictly shortens the critical path.
+Ranking is by `makespan()`, which models `MAX_PARALLEL` throttling,
+and ties go to the cheapest plan:
+an extra leg costs a cold build plus a job setup, so it has to buy real time.
 
-On the live 25-commit `main-fwd-dev` batch:
+Neither axis is monotone in `B`, which is why the whole family is evaluated
+rather than walked in one direction:
+
+* **Wall clock** falls with more legs only until the matrix runs out of slots.
+  At `P` slots, `P` legs finish in one wave and `P + 1` take two —
+  one extra leg can nearly *double* the wall clock.
+  A plan cannot be ranked by its longest leg; it has to be scheduled.
+* **Runner cost** usually rises with more legs, but not always.
+  A commit that invalidates the whole unity build already pays `FULL`,
+  so a cut placed just before one is free but for the job setup.
+  More legs can be genuinely cheaper than fewer,
+  and a plan rejected on cost says nothing about the next one.
+
+On the live 77-commit `main-fwd-dev` batch:
 
 | `SPLIT_FACTOR` | shards | wall clock | runner time |
 |---|---|---|---|
-| 1.0 (off) | 2 | 305 min | 585 min |
-| 1.1 | 3 | 280 min | 622 min |
-| 1.25 | 10 | 93 min | 722 min |
-| **1.5** | **18** | **58 min** | **856 min** |
-| 2.0 | 20 (`max-parallel`) | 52 min | 932 min |
+| 1.0 (off) | 4 | 303 min | 978 min |
+| 1.25 | 15 | 93 min | 1219 min |
+| **1.5** | **20** | **79 min** | **1354 min** |
+| 2.0 | 20 (`max-parallel`) | 79 min | 1354 min |
 
-The default trades 1.46× the compute for **5.2× the wall clock**.
-Past 1.5 the curve flattens hard —
-`max-parallel` takes over as the binding limit, and the extra 77 runner-minutes
-buy six.
+The default trades 1.38× the compute for **3.8× the wall clock**.
+Past 1.5 the curve is flat: `max-parallel` takes over as the binding limit.
 
-The pass is a no-op exactly where it should be.
-On the 998-commit `main-dev` backlog the greedy pass already emits 66 legs
-against a `max-parallel` of 20, so nothing is split and nothing is spent:
-19.2 h of wall clock either way.
+#### Why the pass cannot stop at `MAX_PARALLEL`
+
+The version of pass 2 this replaces split the longest shard repeatedly
+and stopped once it had `MAX_PARALLEL` of them,
+on the reasoning that more legs than can run at once move no verdict earlier.
+That is true only while the *whole plan* fits in one wave.
+`MAX_PARALLEL` is not a ceiling on legs, it is the width of a wave,
+and pass 1 routinely emits more legs than that on its own —
+at which point a cap at `MAX_PARALLEL` is not a stopping rule, it is an
+off switch, and the pass did nothing at exactly the sizes where the waves are
+lumpiest.
+
+The 1039-commit `main-dev` backlog is the case in point.
+Pass 1 emits 67 legs against 20 slots: four waves, the last of them one-third
+full, every leg packed to the 300-minute deadline.
+The old pass declined to touch it at any `SPLIT_FACTOR`.
+Rebalancing to 79 legs keeps the wave count at four but shortens the longest
+leg to ~254 minutes:
+
+| | old pass 2 | rebalanced |
+|---|---|---|
+| shards | 67 | 79 |
+| longest leg | 300 min | 254 min |
+| wall clock | **19.2 h** | **16.9 h** |
+| runner time | 19,247 min | 19,259 min |
+
+**2.3 hours of wall clock for twelve runner-minutes** — 0.06%, well inside even
+a `SPLIT_FACTOR` of 1.001, because the twelve extra legs start on wide-header
+commits that were paying for a full rebuild anyway.
+The gain grows with the slot count, since a wider matrix leaves a lumpier tail:
+at `max-parallel: 40` the same backlog goes from 10.0 h to 8.5 h,
+and at 60 from 9.5 h to 6.0 h.
+
+The pass is still a no-op where it should be —
+`SPLIT_FACTOR: 1.0`, a batch already at `MAX_SHARDS`,
+or a plan whose waves are already even.
 
 #### Numbering, and the order they are queued in
 
@@ -471,10 +515,10 @@ reach drifts slowly, and a stale weight only mis-balances a shard.
 
 | Limit | Value | How the design stays inside it |
 |---|---|---|
-| Jobs per matrix | 256 per workflow run | `MAX_SHARDS` defaults to 250; 1000 `main-fwd-build` commits plan to 79 shards |
+| Jobs per matrix | 256 per workflow run | `MAX_SHARDS` defaults to 250, and bounds the rebalance pass as well as the fill; 1000 `main-fwd-build` commits plan to 79 shards |
 | Job execution time | 6 h | shard budget 300 min, job `timeout-minutes: 350`, and the leg stops itself and defers the rest |
 | Workflow run duration | 35 days | 1000 `main-fwd-build` commits are ~18 h at `max-parallel: 20` |
-| Concurrent jobs | plan-dependent | `max-parallel` (default 20) keeps the run a good neighbour, and caps the split pass |
+| Concurrent jobs | plan-dependent | `max-parallel` (default 20) keeps the run a good neighbour, and is the wave width the rebalance pass plans against |
 | `GITHUB_TOKEN` REST requests | 1000 per hour per repository | see below |
 | Reusable workflow nesting | 10 levels, 50 unique per file | not used |
 
@@ -541,11 +585,11 @@ The current numbers for the two live backlogs, at `max-parallel: 20`:
 
 | | `main-fwd-dev` | `main-dev` |
 |---|---|---|
-| commits to build | 25 | 998 |
-| shards, fewest-legs | 2 | 66 |
-| shards, after splitting | **18** | 66 (nothing to split) |
-| wall clock | **58 min** (was 5.1 h) | 19.2 h |
-| runner time | 14.3 h (was 9.7 h) | 316 h |
+| commits to build | 77 | 1039 |
+| shards, fewest-legs | 4 | 67 |
+| shards, after rebalancing | **20** | **79** |
+| wall clock | **79 min** (was 5.1 h) | **16.9 h** (was 19.2 h) |
+| runner time | 22.6 h (was 16.3 h) | 321.0 h (was 320.8 h) |
 
 ---
 
@@ -574,7 +618,9 @@ waves it takes.
 The lever for a slow *small* batch is `split-factor`:
 under `max-parallel` legs the run is one wave,
 and the only way to shorten it is to make the longest leg shorter.
-Set `split-factor` to `1.0` to get the old fewest-legs, cheapest-compute
+A large batch gets some of this for free — rebalancing evens out the waves at
+almost no compute — but shortening it *further* is what `split-factor` pays for.
+Set `split-factor` to `1.0` to get the fewest-legs, cheapest-compute
 behaviour back.
 
 ### Reading a failure without opening the log
@@ -691,10 +737,11 @@ Honest list, in rough order of risk:
    and `FLOOR_MINUTES` is the constant that would move.
 4. **8 GB ccache on a standard runner** should hold ~17 trees' worth of compressed
    objects; only the previous commit's are needed. Not measured on a runner.
-5. **Splitting raises the concurrency footprint.** A 25-commit batch now asks
-   for 18 runners instead of 2, for an hour. That is inside `max-parallel`, but
-   it is the whole account's Actions concurrency, so other workflows queue
-   behind it where they used not to.
+5. **Rebalancing raises the concurrency footprint.** A 77-commit batch now asks
+   for 20 runners instead of 4, for an hour. Peak concurrency is still capped by
+   `max-parallel` — a large batch gains legs (67 → 79 on `main-dev`) without
+   gaining slots — but it is the whole account's Actions concurrency, so other
+   workflows queue behind it where they used not to.
 
 ---
 
