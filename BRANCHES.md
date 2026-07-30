@@ -84,7 +84,6 @@ duckdb-r/
 │   ├── rcc-part-push.sh            # Publish one commit's result from its leg
 │   ├── rcc-merge.sh                # Bring runs2.ndjson level with the records
 │   ├── rcc-consolidate.sh          # Manual: GC old logs, squash the rcc branch
-│   ├── each-rcc.sh                 # Legacy per-commit CI dispatcher (fallback)
 │   ├── EACH.md                     # Sharded per-commit CI design (→ see §Vendoring)
 │   └── VENDORING.md                # Supplementary vendoring notes (→ see §Vendoring)
 ├── .github/
@@ -694,7 +693,6 @@ the first step of any CI job that rebases, cherry-picks, or merges — to regist
 |---------------------------------|------------------------------------------------------------------------------------------------------------|
 | `scripts/vendor.sh`             | Local manual vendoring from a cloned upstream repo                                                         |
 | `scripts/vendor-one.sh`         | Commit-by-commit vendoring (called by the series-loop routine)                                             |
-| `scripts/vendor-gate.sh`        | Green/red gate over `rcc` statuses (kept for tooling; the series loop reads branch `rcc` directly)         |
 | `scripts/flavor.sh <flavor>`    | Applies the flavor rename (updates `flavor.patch`, then applies it and re-runs `cpp11::cpp_register()`)    |
 | `scripts/flavor.patch`          | Patch template used by `flavor.sh`; contains `1.4` as placeholder version (replaced by `flavor.sh`)        |
 | `scripts/each-plan.sh`          | Selects the commits without a build status and partitions them into contiguous, cost-balanced shards       |
@@ -705,7 +703,6 @@ the first step of any CI job that rebases, cherry-picks, or merges — to regist
 | `scripts/rcc-part-push.sh`      | Publishes one commit's record and log to the `rcc` branch from the leg that decided it, conflict-free       |
 | `scripts/rcc-merge.sh`          | Brings `runs2.ndjson` level with the per-commit records in `runs2.d/`: appends the missing, replaces the stale |
 | `scripts/rcc-consolidate.sh`    | Manual: makes the two record layouts agree, drops logs past their retention, squashes `rcc` to two commits   |
-| `scripts/each-rcc.sh`           | Legacy fallback: triggers one `rcc` run per commit without a build status (`EACH_RCC_MODE=dispatch`)       |
 | `scripts/merge-version.sh`      | Git merge driver for `DESCRIPTION`: combines the 4th/5th version counters, gated on an equal prefix         |
 | `scripts/setup-git.sh`          | Registers the merge driver in `.git/config`, enables `rerere`, pins `rebase.backend=merge` (run per clone)  |
 | `.github/workflows/sync.yaml`   | Hourly fast-forward of `krlmlr/main` from `duckdb/main`                                                    |

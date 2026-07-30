@@ -214,10 +214,10 @@ the wider simplification is
 The next forward retires the ported commits,
 whose content the new seed already carries.
 
-`scripts/vendor-gate.sh` remains for tooling that wants a one-shot verdict
-(slated for retirement with the rest of the legacy dispatch path —
-[`plan/PLAN-vendoring-simplification.md`](../plan/PLAN-vendoring-simplification.md), D4).
-It reads the `rcc` commit-status of a branch tip and the five commits before it:
+`scripts/vendor-gate.sh` has been retired with the rest of the legacy dispatch
+path ([`plan/PLAN-vendoring-simplification.md`](../plan/PLAN-vendoring-simplification.md), D4).
+It turned the `rcc` commit-status of a branch tip and the five commits before it
+into one verdict for the daily vendoring run:
 
 | Gate decision | Meaning                                                        | Action                                                                                                                    |
 |---------------|----------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------|
@@ -457,7 +457,7 @@ vendor: Update vendored sources (tag v1.x.x) to duckdb/duckdb@<commit_hash>
 ```
 
 The subject line is machine-readable state:
-`vendor-one.sh`, `vendor-gate.sh`, `each-plan.sh` and the repair skills
+`vendor-one.sh`, `series-advance.sh`, `series-port.sh` and the repair skills
 all recover "where is this branch in upstream history"
 by parsing `duckdb/duckdb@<sha>` out of it.
 Do not reword it, and do not squash vendor commits together
@@ -586,7 +586,6 @@ git log -1 --grep="^vendor:" --format=%s   # upstream commit it came from
 
 - `scripts/vendor.sh` - Manual vendoring of one specific upstream state
 - `scripts/vendor-one.sh` - Commit-by-commit vendoring (used by the series loop)
-- `scripts/vendor-gate.sh` - Decides whether a scheduled run advances, fails, or waits
 - `scripts/each-plan.sh` - Selects commits without an `rcc` status and shards them by predicted build cost
 - `scripts/each-cost.py` - Counts the unity objects a commit invalidates, from the include graph
 - `scripts/each-shard.sh` - Builds one shard of commits in a single job
@@ -595,7 +594,6 @@ git log -1 --grep="^vendor:" --format=%s   # upstream commit it came from
 - `scripts/rcc-part-push.sh` - Publishes one commit's result to the `rcc` branch from the leg that decided it
 - `scripts/rcc-merge.sh` - Brings `runs2.ndjson` level with the records in `runs2.d/`
 - `scripts/rcc-consolidate.sh` - Manual: makes the layouts agree, GCs logs older than a month, squashes the `rcc` branch
-- `scripts/each-rcc.sh` - Legacy fallback: one dispatched `rcc` run per commit without a status
 - `scripts/rconfigure.py` - Regenerates `src/duckdb/`, `src/include/sources.mk`, `R/version.R`
 - `scripts/setup-git.sh` - Registers the `DESCRIPTION` merge driver, `rerere`, and `rebase.backend=merge`
 - `scripts/merge-version.sh` - The merge driver itself (see [Version counters and the merge driver](#version-counters-and-the-merge-driver))
