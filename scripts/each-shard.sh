@@ -37,7 +37,10 @@
 #   * The leg *publishes as it goes*. Every verdict is pushed to the `rcc` branch
 #     the moment it exists (scripts/rcc-part-push.sh), so a leg that dies takes
 #     nothing with it but the commit it was in the middle of. The artifact and
-#     the fan-in stay as the backstop for the push itself failing.
+#     the fan-in stay as the backstop for the push itself failing -- which is why
+#     each.yaml names the artifact per run *attempt*: a resumed leg's index covers
+#     only what it rebuilt, so overwriting would delete the previous attempt's
+#     copy of anything that attempt decided but could not publish.
 #
 # Usage:
 #   SHARD=1 PLAN=plan.json LOG_DIR=/tmp/each-logs GH_TOKEN=<token> \

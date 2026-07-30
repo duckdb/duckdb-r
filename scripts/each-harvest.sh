@@ -30,6 +30,19 @@
 # record, log and all. Readers take the first record for a SHA, so a second one
 # would be invisible; replacing is the only thing that works.
 #
+# "Newer" has to be checked, not assumed, and that is a consequence of legs
+# publishing as they go. A leg's verdict is on the branch within seconds, but this
+# job runs when the *whole run* is done -- possibly hours later. So a retry can
+# land, and be correct, while an earlier run is still building: replaying that
+# earlier run's artifact here would put its stale verdict back, and nothing would
+# repair it. The commit-status is already the retry's, so the planner never
+# rebuilds; scripts/rcc-logs.sh skips commits that have a record. The verdict
+# would simply be wrong until someone noticed.
+#
+# Run ids order this reliably -- they increase per repository, and a re-run keeps
+# the id of the run it re-runs -- so a record from a *higher* run id than ours is
+# newer than anything we can offer, and we leave it alone.
+#
 # `scripts/rcc-logs.sh` remains the scheduled backstop for the case where this job
 # never runs at all, because the whole workflow was cancelled.
 #
@@ -61,21 +74,26 @@ part_path() { printf '%s/runs2.d/%s/%s.ndjson' "${OUT_DIR}" "${1:0:2}" "$1"; }
 
 mkdir -p "${OUT_DIR}/logs2"
 
-# The state a commit is already recorded with, from whichever layout holds it:
-# its own record first, then the aggregate for the records that predate
-# `runs2.d/` and are deliberately left there (scripts/rcc-merge.sh). Empty when
-# the commit is new.
-recorded_state() { # <sha>
+# What the branch already says about a commit, from whichever layout holds it: its
+# own record first, then the aggregate for the records that predate `runs2.d/` and
+# are deliberately left there (scripts/rcc-merge.sh). Emits
+# "<state> <run-id>"; empty when the commit is new.
+#
+# Both branches tolerate a malformed record rather than aborting: this loop is the
+# only path by which a whole run's results reach the branch, and one unreadable
+# line must not take the other twenty-six commits down with it.
+recorded_record() { # <sha>
   local sha="$1" part
   part="$(part_path "${sha}")"
   if [ -f "${part}" ]; then
-    jq -r '.status.state // ""' "${part}"
-    return
+    jq -r '"\(.status.state // "") \(.run.id // 0)"' "${part}" 2>/dev/null || true
+    return 0
   fi
   if [ -s "${OUT_DIR}/runs2.ndjson" ]; then
     grep -m 1 "\"commit\"[[:space:]]*:[[:space:]]*\"${sha}\"" "${OUT_DIR}/runs2.ndjson" \
-      | jq -r '.status.state // ""' 2>/dev/null || true
+      | jq -r '"\(.status.state // "") \(.run.id // 0)"' 2>/dev/null || true
   fi
+  return 0
 }
 
 # The run object, for the one case where a leg wrote an index line but no record
@@ -91,6 +109,7 @@ load_run_json() {
 published=0
 recorded=0
 replaced=0
+superseded=0
 logs=0
 known=0
 
@@ -100,7 +119,11 @@ while IFS= read -r index_file; do
     sha="$(jq -r '.commit' <<<"${line}")"
     state="$(jq -r '.state' <<<"${line}")"
     part="$(part_path "${sha}")"
-    previous="$(recorded_state "${sha}")"
+    known_record="$(recorded_record "${sha}")"
+    previous="${known_record%% *}"
+    previous_run="${known_record##* }"
+    [ "${known_record}" = "${previous}" ] && previous_run=0
+    case "${previous_run}" in ''|*[!0-9]*) previous_run=0 ;; esac
 
     # Same verdict as the branch already carries: nothing to add. This is the
     # common case on a retry of the push itself, and it is what makes this
@@ -111,16 +134,31 @@ while IFS= read -r index_file; do
       else
         known=$(( known + 1 ))
       fi
-      # A published record whose log never made it is still worth completing.
-      if [ "${state}" = "failure" ] && [ -f "${shard_dir}/${sha}.log" ] \
-         && [ ! -f "${OUT_DIR}/logs2/${sha}.log" ]; then
-        cp -f "${shard_dir}/${sha}.log" "${OUT_DIR}/logs2/${sha}.log"
-        logs=$(( logs + 1 ))
+      # A published record whose log never made it is still worth completing --
+      # and a log left over from a verdict this one overturned is worth removing,
+      # which is the case the leg's own publish cannot see (it compares blob ids,
+      # and a success simply has no log to compare).
+      if [ "${state}" = "failure" ]; then
+        if [ -f "${shard_dir}/${sha}.log" ] && [ ! -f "${OUT_DIR}/logs2/${sha}.log" ]; then
+          cp -f "${shard_dir}/${sha}.log" "${OUT_DIR}/logs2/${sha}.log"
+          logs=$(( logs + 1 ))
+        fi
+      elif [ -f "${OUT_DIR}/logs2/${sha}.log" ]; then
+        echo "Commit ${sha}: ${state}, dropping the log left by an earlier verdict"
+        rm -f "${OUT_DIR}/logs2/${sha}.log"
       fi
       continue
     fi
 
     if [ -n "${previous}" ]; then
+      # A record from a later run than ours has seen something we have not -- a
+      # retry, most likely. Ours is the stale one; leave the branch alone.
+      if [ "${previous_run}" -gt "${RUN_ID}" ]; then
+        echo "Commit ${sha}: recorded as ${previous} by run ${previous_run}," \
+          "newer than this run -- keeping it, not replacing with ${state}"
+        superseded=$(( superseded + 1 ))
+        continue
+      fi
       echo "Commit ${sha}: recorded as ${previous}, now ${state} -- replacing the record"
       # The stale log goes with the stale verdict; the new one is written below
       # if this verdict is a failure too.
@@ -164,4 +202,5 @@ while IFS= read -r index_file; do
 done < <(find "${ARTIFACTS}" -name 'index.ndjson' | LC_ALL=C sort)
 
 echo "Published by the legs: ${published}, reconciled here: ${recorded}," \
-  "replaced: ${replaced}, already known: ${known}, logs kept: ${logs}"
+  "replaced: ${replaced}, superseded by a newer run: ${superseded}," \
+  "already known: ${known}, logs kept: ${logs}"

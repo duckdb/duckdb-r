@@ -380,7 +380,7 @@ The default leg deadline is 300 minutes and a cheap commit costs ~6,
 so 25 commits fit in two legs — and the branch tip waits five hours for a verdict
 that 20 legs would have delivered in fifty minutes.
 This is the common case, not the corner case:
-a series-loop batch is usually well under 25 commits.
+a series-loop batch is capped at 100 commits and is usually far smaller.
 A large backlog looks like it should be immune, since every slot is busy anyway,
 but it is not: see [below](#why-the-pass-cannot-stop-at-max_parallel).
 
@@ -770,6 +770,22 @@ Two writers can only collide here if they are deciding the same commit at the
 same moment, which the planner does not produce; if it somehow happened, the
 retry loop converges on whichever wrote last.
 
+**"Newer" is checked, not assumed**, and that is a consequence of publishing
+early rather than an incidental detail. A leg's verdict is on the branch within
+seconds, but its run's fan-in lands when the *whole run* is done — possibly hours
+later. So a retry can correctly overturn a commit while the run that first failed
+it is still building, and replaying that run's artifact afterwards would put the
+stale verdict back. Nothing would repair it: the commit-status is already the
+retry's, so the planner never rebuilds, and the backstop skips commits that have a
+record. The fan-in therefore compares run ids — they increase per repository, and a
+re-run keeps the id of the run it re-runs — and leaves alone any record written by
+a *higher* run id than its own.
+
+A verdict that stops being a failure also takes its log with it. That case cannot
+be caught by comparing what a writer was handed, because a success has no log to
+hand over; both the leg and the fan-in remove the log explicitly when the state is
+no longer a failure.
+
 The planner names the commits it replanned *despite* a verdict in the plan's
 `replanned_despite_verdict`, and the leg reads it from there. Without that the
 resume check above would skip exactly the commit a retry exists to rebuild, and
@@ -998,6 +1014,9 @@ Two details make it work in practice:
 | Two writers publish records at once | different files, no conflict; the loser of the ref race re-reads the tip and re-commits ([`rcc-part-push.sh`](rcc-part-push.sh)) |
 | Two writers extend the aggregate at once | the push is rejected, and [`rcc-push.sh`](rcc-push.sh) resets onto the new tip, re-derives, and appends what is still missing before retrying |
 | A retry overturns a verdict | the newer record and log replace the older ones, in the part and in the aggregate's line (§3) |
+| An earlier run's fan-in lands after a retry | it sees a higher run id on the branch and keeps that record; the stale verdict is not replayed (§3) |
+| A retry turns a failure green | the record is replaced and the log it overturned is dropped, on whichever path publishes first |
+| A leg is re-run after publishing failed | its artifact is named per attempt, so the earlier attempt's records stay collectable |
 | A writer lands during a consolidation | the lease refuses the force-push; nothing is lost, re-dispatch it |
 
 Nothing here needs a lock for correctness.

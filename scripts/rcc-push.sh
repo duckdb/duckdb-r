@@ -47,9 +47,14 @@
 #   scripts/rcc-push.sh <commit-message> [-- <re-derive command>...]
 #
 # Run from the repository root (the re-derive command inherits that directory,
-# and `scripts/rcc-logs.sh` reads the *source* refs from there). Without a
-# re-derive command the retry still resets onto the remote, so it degrades to
-# "push whatever the remote now has" rather than looping on a doomed push.
+# and `scripts/rcc-logs.sh` reads the *source* refs from there).
+#
+# The re-derive command is what makes the reset non-destructive, so losing a race
+# without one is a failure, not a no-op: the reset discards whatever this writer
+# had staged and nothing puts it back. That used to be reported as
+# "No changes; nothing to commit." and exit 0 -- success, with the records gone.
+# It now says what was dropped and exits non-zero. Both real callers pass a
+# command; this is about not lying when someone does not.
 #
 # Examples:
 #   scripts/rcc-push.sh "rcc-logs: refresh $(date -u +%Y-%m-%dT%H:%M:%SZ)" \
@@ -105,6 +110,10 @@ attempt=1
 # commit is already made and the tree is clean -- would look like "nothing to
 # do" and exit 0 with the records still unpushed.
 pending=0
+# Set once a rejected push has reset us onto the remote, which is the point past
+# which "nothing staged" can mean "our work was thrown away" rather than
+# "there was nothing to do".
+reset=0
 
 while :; do
   # Appended to rather than merged, on every attempt: after a reset this sees the
@@ -115,6 +124,12 @@ while :; do
   git_out add -A
   if git_out diff --cached --quiet; then
     if [ "${pending}" -eq 0 ]; then
+      if [ "${reset}" -eq 1 ] && [ "${#rederive[@]}" -eq 0 ]; then
+        echo "Lost the push race and no re-derive command was given, so the" \
+          "records staged here were discarded by the reset and nothing" \
+          "recreated them. Re-run with a re-derive command." >&2
+        exit 1
+      fi
       # Either nothing was collected, or the other writer already published
       # everything this run had to add. Both are success.
       echo "No changes; nothing to commit."
@@ -150,6 +165,7 @@ while :; do
     # drop them so the producer starts from the remote's exact state.
     git_out clean -qfd
     pending=0
+    reset=1
     if [ "${#rederive[@]}" -gt 0 ]; then
       "${rederive[@]}"
     fi

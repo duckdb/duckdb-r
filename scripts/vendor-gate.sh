@@ -6,7 +6,7 @@
 # Decision (scanning the window newest -> oldest):
 #   green     -> some commit in the window has rcc=success. Prints
 #                "green_sha=<youngest-green-sha>". The caller resets the dev
-#                branch to that commit and vendors at most 25 commits on top.
+#                branch to that commit and vendors at most 100 commits on top.
 #   red       -> no green in the window, but at least one rcc=failure/error.
 #                The caller fails loudly (a real breakage is near the tip and no
 #                green base is within reach; repair is needed first).

@@ -64,7 +64,7 @@ This skill is the release branch's birth certificate.
    if the fork point predates the current glue.
 
 5. **Walk forward** along `<U>`
-   with the gated `scripts/vendor-one.sh --commits 25 <upstream-clone>`,
+   with the gated `scripts/vendor-one.sh --commits 100 <upstream-clone>`,
    fixing glue breaks in place as the gate stops on them.
 
 6. The routine discovers every series from its refs

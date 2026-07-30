@@ -292,14 +292,20 @@ jobs:
       # Still uploaded, and still the fan-in's input: the per-commit publish is
       # the fast path, not a replacement. A leg that could not reach the `rcc`
       # branch has its results collected from here instead.
+      #
+      # Named per *attempt*, and therefore not overwritten. A re-run of a leg
+      # resumes, so its index covers only the commits it rebuilt -- overwriting
+      # would delete the previous attempt's artifact, which is the one copy of
+      # anything that attempt decided but could not publish. The fan-in's
+      # `each-logs-*` pattern collects every attempt, and reconciling the same
+      # commit twice is a no-op.
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: each-logs-${{ matrix.shard }}
+          name: each-logs-${{ matrix.shard }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/each-logs
           if-no-files-found: ignore
           retention-days: 14
-          overwrite: true
 
   harvest:
     needs:

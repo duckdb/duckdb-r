@@ -16,7 +16,7 @@ this loop repairs in place and was proven on the `main` rewind
 | ref | who writes it | what it is |
 |---|---|---|
 | `<S>-build` | the routine, unconditionally | Every upstream first-parent commit vendored one-to-one, glue compiling at every commit. **No CI runs here** (`each.yaml` never matches `*-build`). The buffer. |
-| `<S>-dev` | the routine, force-push | `<S>-build` commits, consumed up to 25 at a time, with test/R/patch adaptations folded in as CI demands. What CI builds, commit by commit. |
+| `<S>-dev` | the routine, force-push | `<S>-build` commits, consumed up to 100 at a time, with test/R/patch adaptations folded in as CI demands. What CI builds, commit by commit. |
 | `<S>-green` | the routine, fast-forward only | The newest commit such that every commit in `<S>-green..it` has a `success` run. What r-universe should build from. |
 | `<S>-build-base` | the routine | The `<S>-build` commit equivalent to `<S>-green` (same vendored upstream SHA). Marks how much of the buffer has been consumed and verified. |
 
@@ -67,14 +67,14 @@ ADVANCE / WAIT / RETRY `<sha>` / REPAIR `<sha>` / IDLE)
 and `scripts/series-advance.sh <S>`
 (stages 3–4 — fast-forwards `-green`,
 moves `-build-base` by vendored-SHA match,
-extends `-dev` by ≤ 25;
+extends `-dev` by ≤ 100;
 refuses on any failure or non-fast-forward).
 Judgement — repairs, review, vendoring — stays here.
 
 ### 1. Vendor onto `<S>-build`
 
 ```sh
-scripts/vendor-one.sh --commits 25 <upstream-clone>
+scripts/vendor-one.sh --commits 100 <upstream-clone>
 ```
 
 The script gates itself:
@@ -263,7 +263,7 @@ stop and say so.
 
 If everything between `<S>-green` and the `<S>-dev` tip is green
 (or the tip equals `-green`),
-append the next ≤ 25 commits from `<S>-build` and push.
+append the next ≤ 100 commits from `<S>-build` and push.
 While `-dev` sits on `-build`'s line this is a plain ref move;
 after a repair it is a replay of the buffer commits
 onto the repaired tip —
@@ -337,19 +337,29 @@ One ref per series, so it records the retry in flight,
 not the history of them.
 
 The verdict reaches the loop the ordinary way.
-`runs2.ndjson` is keyed by SHA and readers take the first record for a key,
-so `each-harvest.sh` replaces the stale record rather than appending —
-the one case where a decided commit legitimately changes state.
-If the fan-in was lost, drop the commit's line
-and its `logs2/<sha>.log` from the `rcc` branch;
-the scheduled backstop re-derives both from the fresh status.
+A commit's record lives twice on `rcc` —
+`runs2.d/<xx>/<sha>.ndjson`, which the leg publishes within seconds,
+and a line in `runs2.ndjson`, which `rcc-merge.sh` keeps level with it.
+Readers take the per-commit record first,
+so `each-harvest.sh` and the leg both *replace* it rather than appending;
+that is the one case where a decided commit legitimately changes state.
+
+**Deleting a record by hand means deleting both.**
+Dropping only the line from `runs2.ndjson` does nothing:
+readers still find the record, and the next `rcc-merge.sh`
+re-appends the line from the part that is still there.
+To drop a commit's result, remove
+`runs2.d/<xx>/<sha>.ndjson`, its line in `runs2.ndjson`,
+and `logs2/<sha>.log`;
+then the scheduled backstop re-derives all of it from the fresh status.
 
 **Both mechanisms live in the tree at the commit under retry.**
 `each.yaml` and its scripts are read from the retried ref, not from `main`,
 so a series whose commits predate them retries by hand:
 push the branch, dispatch `each-rcc` on `retry-<S>-dev`
 with `force=true` and `max-commits=1`,
-and drop the stale record from `rcc` once the rerun is green.
+and drop the stale record from `rcc` once the rerun is green —
+both copies of it, per above.
 A rebase onto a newer mainline (`series-rebase.md`)
 is what carries the automatic path into a forward series.
 

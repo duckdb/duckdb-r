@@ -7,12 +7,12 @@
 # review) stay with the skill. Refuses to do anything when a commit in the
 # in-flight range has a failure — run series-check.sh first and repair.
 #
-# Usage: series-advance.sh <series> [chunk-size]     # chunk default 25
+# Usage: series-advance.sh <series> [chunk-size]     # chunk default 100
 
 set -euo pipefail
 
 S=${1:?usage: series-advance.sh <series> [chunk-size]}
-chunk=${2:-25}
+chunk=${2:-100}
 remote=origin
 
 git fetch -q "$remote"
