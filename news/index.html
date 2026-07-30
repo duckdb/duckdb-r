@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9001</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9002</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -31,6 +31,105 @@
       <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.5.5.9002" id="duckdb-1559002">duckdb 1.5.5.9002<a class="anchor" aria-label="anchor" href="#duckdb-1559002"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-1-5-5-9002">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5-5-9002"></a></h3>
+<div class="section level4">
+<h4 id="rcc-1-5-5-9002">rcc<a class="anchor" aria-label="anchor" href="#rcc-1-5-5-9002"></a></h4>
+<ul><li><p>Make a verdict’s newest writer win, not its slowest.</p></li>
+<li><p>Let <code>series-cutover.sh</code> create a base series that does not exist yet (<a href="https://github.com/duckdb/duckdb-r/issues/2428" class="external-link">#2428</a>).</p></li>
+</ul></div>
+<div class="section level4">
+<h4 id="rcc-1-5-5-9002-1">rcc<a class="anchor" aria-label="anchor" href="#rcc-1-5-5-9002-1"></a></h4>
+<ul><li>Make writes to the <code>rcc</code> branch survive a lost race.</li>
+</ul></div>
+<div class="section level4">
+<h4 id="rcc-one-1-5-5-9002">rcc-one<a class="anchor" aria-label="anchor" href="#rcc-one-1-5-5-9002"></a></h4>
+<ul><li>Restore the check action’s CRAN-incoming default.</li>
+</ul></div>
+<div class="section level4">
+<h4 id="vendor-one-1-5-5-9002">vendor-one<a class="anchor" aria-label="anchor" href="#vendor-one-1-5-5-9002"></a></h4>
+<ul><li>Make the glue gate work again.</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="features-1-5-5-9002">Features<a class="anchor" aria-label="anchor" href="#features-1-5-5-9002"></a></h3>
+<div class="section level4">
+<h4 id="vendoring-1-5-5-9002">vendoring<a class="anchor" aria-label="anchor" href="#vendoring-1-5-5-9002"></a></h4>
+<ul><li>Raise the vendoring limit from 25 to 100 commits.</li>
+</ul></div>
+<div class="section level4">
+<h4 id="rcc-1-5-5-9002-2">rcc<a class="anchor" aria-label="anchor" href="#rcc-1-5-5-9002-2"></a></h4>
+<ul><li>Publish each commit’s result as its own file, and consolidate the branch by hand.</li>
+</ul></div>
+<div class="section level4">
+<h4 id="each-1-5-5-9002">each<a class="anchor" aria-label="anchor" href="#each-1-5-5-9002"></a></h4>
+<ul><li>Number shards along the history, and quote failing stages into the run summary (<a href="https://github.com/duckdb/duckdb-r/issues/2427" class="external-link">#2427</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="each-1-5-5-9002-1">each<a class="anchor" aria-label="anchor" href="#each-1-5-5-9002-1"></a></h4>
+<ul><li>Rerun one commit with a retry pair, not an amend.</li>
+</ul></div>
+<div class="section level4">
+<h4 id="each-1-5-5-9002-2">each<a class="anchor" aria-label="anchor" href="#each-1-5-5-9002-2"></a></h4>
+<ul><li>Build every commit as a sharded matrix instead of one run per commit.</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="continuous-integration-1-5-5-9002">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-5-5-9002"></a></h3>
+<ul><li><p>Replace workflow vendoring with the routine-driven series loop.</p></li>
+<li><p>Harvest rcc logs every 30 minutes.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-1-5-5-9002">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-5-5-9002"></a></h3>
+<ul><li>Space.</li>
+</ul><div class="section level4">
+<h4 id="skills-1-5-5-9002">skills<a class="anchor" aria-label="anchor" href="#skills-1-5-5-9002"></a></h4>
+<ul><li>Reset <code>-fwd-green</code> to the seed on every rebase.</li>
+</ul></div>
+<div class="section level4">
+<h4 id="skills-1-5-5-9002-1">skills<a class="anchor" aria-label="anchor" href="#skills-1-5-5-9002-1"></a></h4>
+<ul><li><p>Split rebasing a forward series out of forwarding one.</p></li>
+<li><p>A WIP forward series can always be rebased onto current mainline.</p></li>
+<li><p>Agentic-loop plan refinements + main-dev review.</p></li>
+<li><p>Describe the forbidden forms in <code>AGENTS.md</code> instead of spelling them.</p></li>
+</ul></div>
+<div class="section level4">
+<h4 id="vendoring-1-5-5-9002-1">vendoring<a class="anchor" aria-label="anchor" href="#vendoring-1-5-5-9002-1"></a></h4>
+<ul><li>Dev-branch invariants, the fork-point rule, and a corrected <code>VENDORING.md</code>.</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="refactoring-1-5-5-9002">Refactoring<a class="anchor" aria-label="anchor" href="#refactoring-1-5-5-9002"></a></h3>
+<div class="section level4">
+<h4 id="each-1-5-5-9002-3">each<a class="anchor" aria-label="anchor" href="#each-1-5-5-9002-3"></a></h4>
+<ul><li>Anchor a retry on the series’ green, not a ref of its own.</li>
+</ul></div>
+<div class="section level4">
+<h4 id="series-forward-1-5-5-9002">series-forward<a class="anchor" aria-label="anchor" href="#series-forward-1-5-5-9002"></a></h4>
+<ul><li><p>Replay by cherry-pick instead of rebuilding trees.</p></li>
+<li><p>Rename the flavor rename from “lts” to “flavor”.</p></li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="performance-1-5-5-9002">Performance<a class="anchor" aria-label="anchor" href="#performance-1-5-5-9002"></a></h3>
+<div class="section level4">
+<h4 id="each-1-5-5-9002-4">each<a class="anchor" aria-label="anchor" href="#each-1-5-5-9002-4"></a></h4>
+<ul><li>Rebalance shards across waves instead of capping at <code>max-parallel</code>.</li>
+</ul></div>
+<div class="section level4">
+<h4 id="each-1-5-5-9002-5">each<a class="anchor" aria-label="anchor" href="#each-1-5-5-9002-5"></a></h4>
+<ul><li>Split large shards to trade compute for wall clock.</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="testing-1-5-5-9002">Testing<a class="anchor" aria-label="anchor" href="#testing-1-5-5-9002"></a></h3>
+<ul><li><p>Derive the expected storage home from the package name.</p></li>
+<li><p>Make storage and extension snapshots stable across flavors.</p></li>
+<li><p>Skip the httpfs e2e test on development versions.</p></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.5.5.9001" id="duckdb-1559001">duckdb 1.5.5.9001<a class="anchor" aria-label="anchor" href="#duckdb-1559001"></a></h2>
 <div class="section level3">
