@@ -9,7 +9,26 @@ set -e
 set -x
 set -o pipefail
 
-cd "$(dirname "$0")"/..
+# The checkout to vendor into. Defaults to this script's own, which is what it
+# has always meant. The series loop sets it, so the routine can run `main`'s copy
+# of this script against a `<S>-build` worktree: stage 1 is the one stage the
+# port stage cannot reach, because ports land on `-dev` and the buffer's own
+# tooling only refreshes at a forward (.claude/skills/series-loop.md stage 1,
+# and plan/PLAN-vendoring-simplification.md §4).
+#
+# Only *this* script comes from `main` that way. Everything it invokes by
+# relative path -- `scripts/rconfigure.py`, `patch/*.patch`, `./configure` --
+# stays the target tree's, because those are coupled to the vendored tree they
+# generate and patch rather than to the loop that drives them.
+cd "${VENDOR_REPO:-$(dirname "$0")/..}"
+toplevel=$(git rev-parse --show-toplevel 2>/dev/null) || {
+  echo "Error: $PWD is not a git worktree" >&2
+  exit 1
+}
+[ "$toplevel" -ef . ] || {
+  echo "Error: $PWD is not the root of its worktree ($toplevel)" >&2
+  exit 1
+}
 
 project=duckdb
 vendor_base_dir=src/duckdb
