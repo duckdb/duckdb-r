@@ -1051,6 +1051,10 @@ so a `*-dev` branch picks up the sharded path only once the new scripts are forw
 the same constraint every CI change in this repository has
 (invariant **G1** in [`BRANCHES.md`](../BRANCHES.md#source-of-truth-cross-series)).
 Until then that branch's copy of `each.yaml` is the old dispatcher, and keeps working.
+(The series loop automates this forward-port:
+stage 4 — `scripts/series-port.sh` — brings each `-dev` level with `main`;
+the wider simplification is
+[`plan/PLAN-vendoring-simplification.md`](../plan/PLAN-vendoring-simplification.md).)
 
 `vendor.yaml` no longer exists — the series loop
 (`.claude/skills/series-loop.md`) replaced it — so the only remaining caller of

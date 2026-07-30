@@ -2,6 +2,23 @@
 
 R package that contains a vendored copy of the DuckDB C++ library and glue code for R, including a DBI and a relational interface.
 
+## Where to look
+
+This file and `README.md` are the roots of the documentation tree:
+`README.md` for using the package, this file for working on it.
+Each row names the single document that owns a topic;
+start there rather than searching.
+
+| To solve | Read |
+|---|---|
+| Build, test, and validate the package locally | this file (below) |
+| Branch model, package flavors, series invariants | `BRANCHES.md` |
+| Release process, modelled as a state machine | `RELEASE.md` |
+| Vendoring mechanics: scripts, invariants, troubleshooting | `scripts/VENDORING.md` |
+| Per-commit CI (sharded matrix): design and limits | `scripts/EACH.md` |
+| Operating the vendoring loop (routine playbooks) | `.claude/skills/`: `series-loop.md`, `series-forward.md`, `series-rebase.md`, `series-open.md` |
+| Designs, plans, and historical documents | `plan/` |
+
 ## Working Effectively
 
 ### Bootstrap, Build, and Test the Repository

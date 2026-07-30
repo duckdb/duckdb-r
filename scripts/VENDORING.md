@@ -197,7 +197,26 @@ consumes them into `<series>-dev` at most 100 at a time, gated on the per-commit
 role is building each `-dev` commit (`each.yaml`) and recording results
 (`rcc-logs.yaml`, every 30 minutes).
 
-`scripts/vendor-gate.sh` remains for tooling that wants a one-shot verdict.
+**Tooling is authored on `main` and ported by the loop.**
+CI reads workflows and scripts from the branch it checks,
+so a tooling fix takes effect for a series
+once it sits on `<S>-dev`.
+Porting is a stage of the series loop with an identity goal —
+after it, `.github/`, `scripts/`, and `.claude/` on `<S>-dev`
+are byte-identical to `main`'s:
+a helper script cherry-picks everything `main` has gained
+and closes the residue with one sync commit,
+and the routine judges conflicts
+(`scripts/series-port.sh`,
+stage 4 of `.claude/skills/series-loop.md`;
+the wider simplification is
+[`plan/PLAN-vendoring-simplification.md`](../plan/PLAN-vendoring-simplification.md)).
+The next forward retires the ported commits,
+whose content the new seed already carries.
+
+`scripts/vendor-gate.sh` remains for tooling that wants a one-shot verdict
+(slated for retirement with the rest of the legacy dispatch path —
+[`plan/PLAN-vendoring-simplification.md`](../plan/PLAN-vendoring-simplification.md), D4).
 It reads the `rcc` commit-status of a branch tip and the five commits before it:
 
 | Gate decision | Meaning                                                        | Action                                                                                                                    |
@@ -501,6 +520,41 @@ If the R-specific build configuration is at fault, update `scripts/rconfigure.py
 They should only change when a `.cpp` file gains or loses a local `#include`.
 
 ## Monitoring Vendoring
+
+### Ahead/behind badges
+
+Two ranges tell a human how far a series is,
+and both stay clean linear counts by construction
+(`-green` is always an ancestor of `-dev`,
+and `-build-base` of `-build` —
+the display ref `-build-base` exists for exactly this;
+no script ever reads it back):
+
+* **in flight** — pushed to CI, not yet trusted: `<S>-green..<S>-dev`
+* **buffered** — vendored, not yet consumed: `<S>-build-base..<S>-build`
+
+shields.io renders these from the public repo,
+showing how many commits `head` is ahead of `base`:
+
+```text
+https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=<S>-green&head=<S>-dev&label=in%20flight
+https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=<S>-build-base&head=<S>-build&label=buffered
+```
+
+The live table is the `Flavors` section of [`README.md`](../README.md) —
+one row per flavor, these two badges
+plus an *ahead* badge against the branch the series releases from,
+and version badges for the CRAN and LTS rows.
+`.claude/skills/series-open.md` documents its upkeep,
+including the constraint that every ref a badge names
+must live in `krlmlr/duckdb-r`:
+shields.io compares within a single repository,
+so release branches are mirrored into the fork and kept fresh.
+Link a badge to the matching compare URL —
+`https://github.com/krlmlr/duckdb-r/compare/<base>...<head>` —
+which is the drill-down.
+An upstream-lag badge ("how far behind `duckdb/duckdb` itself")
+is not expressible this way — the comparison would cross repositories.
 
 ### GitHub Actions
 
