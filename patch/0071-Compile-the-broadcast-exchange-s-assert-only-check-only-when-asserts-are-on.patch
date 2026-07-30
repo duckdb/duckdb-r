@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 18 Oct 2026 23:10:32 +0000
+Subject: [PATCH] Compile the broadcast exchange's assert-only check only when asserts are on
+
+Assert-only code in pipeline_broadcast_exchange.cpp binds the outcome
+of an insertion that only D_ASSERT() reads, so in a release build,
+where D_ASSERT() expands to nothing, the binding is set and never used
+and -Wunused-but-set-variable says so. The assert-only lines are
+compiled only when assertions are enabled, with the insertion kept in
+both builds, which is the shape upstream gives the site later.
+
+Carried here until the engine brings the same change.
+
+---
+ src/duckdb/src/parallel/pipeline_broadcast_exchange.cpp | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/duckdb/src/parallel/pipeline_broadcast_exchange.cpp b/src/duckdb/src/parallel/pipeline_broadcast_exchange.cpp
+index ea98aed70d..e522e27356 100644
+--- a/src/duckdb/src/parallel/pipeline_broadcast_exchange.cpp
++++ b/src/duckdb/src/parallel/pipeline_broadcast_exchange.cpp
+@@ -1351,8 +1351,12 @@ SourceResultType PipelineBroadcastExchange::ReserveScanLocked(
+ 		auto position = consumer.position++;
+ 		buffer->ReserveRead(position, scan_state.spool_reader, next_chunk, batch_index, spool_read);
+ 		if (spool_read.IsSet()) {
++#ifdef D_ASSERT_IS_ENABLED
+ 			auto inserted = consumer.in_flight_reads.insert(position);
+ 			D_ASSERT(inserted.second);
++#else
++			consumer.in_flight_reads.insert(position);
++#endif
+ 		} else {
+ 			consumer.rows_read += next_chunk->size();
+ 			RetireChunksLocked();
