@@ -50,6 +50,16 @@ Push all four in one `git push --atomic`
 with a per-ref `--force-with-lease`,
 so a half-moved series is never observable.
 
+Ported commits (stage 4 of the loop)
+whose content `main` has meanwhile absorbed
+are dropped by the rebase itself —
+the merge backend omits patch-id equivalents,
+and a stage-4 sync commit whose delta `main` caught up with
+rebases to empty and is dropped too —
+which is the intended end of their lives.
+One that survives is one `main` does not carry;
+it rides on, and the next forward retires it.
+
 ## One seed for all four
 
 The two `git rebase --onto seed` lines take **one** seed,
@@ -60,7 +70,7 @@ even when `-build` and `-dev` were seeded on different `main` commits
 Split bases are the state to get out of, not to preserve.
 The loop reads the `-build`↔`-dev` delta
 as the R-side fixes folded in during repair,
-and stage 4 replays buffer commits onto the `-dev` tip;
+and stage 5 replays buffer commits onto the `-dev` tip;
 with two bases that delta also carries `main`-side drift,
 and every replay drags it along.
 Measured on `main-fwd`: twelve files before the rebase,

@@ -1,5 +1,5 @@
 #!/bin/bash
-# The ref motion of the series loop, stages 3 and 4, for one series:
+# The ref motion of the series loop, stages 3 and 5, for one series:
 # fast-forward `<S>-green` over the all-green prefix, move `<S>-build-base` to
 # the equivalent `-build` commit, and extend `<S>-dev` from the buffer.
 #
@@ -68,7 +68,7 @@ else
   echo "green unchanged at $(git rev-parse --short "$green")"
 fi
 
-# --- stage 4: extend -dev from the buffer ------------------------------------
+# --- stage 5: extend -dev from the buffer ------------------------------------
 # A live forward counterpart replaces this series; leftover -fwd refs whose
 # green is an ancestor of ours are cutover litter and do not block.
 if git rev-parse -q --verify "$remote/$S-fwd-build" >/dev/null &&

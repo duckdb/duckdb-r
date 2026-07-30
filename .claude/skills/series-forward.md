@@ -45,6 +45,12 @@ the replay then populates `<S>-fwd-build`.
    Only `vendor:` subjects are replayed —
    a `-dev` branch's non-vendor commits belong to `main`
    and are already in the seed.
+   That includes the commits stage 4 of the loop
+   ported onto `-dev`, and its tooling sync commits
+   (`series-loop.md`):
+   the seed carries their content,
+   the replay leaves them behind,
+   and that is where a port's life ends.
    The fifth version component is renumbered as a true counter,
    one per replayed commit,
    so it counts this chain rather than carrying the old one's numbering.
@@ -62,13 +68,13 @@ the replay then populates `<S>-fwd-build`.
    the seed tip:
    green contains the flavor change from day one,
    so whatever consumes it builds the flavored package;
-   the loop's stage 4 extends `-fwd-dev` from the populated buffer.
+   the loop's stage 5 extends `-fwd-dev` from the populated buffer.
 
 3. Nothing else is special:
    a forward series is a series,
    and the loop discovers and drives it like any other.
    The base series stops consuming
-   (its stage 4 is skipped while a live `<S>-fwd-build` exists)
+   (its stage 5 is skipped while a live `<S>-fwd-build` exists)
    but keeps verifying and promoting what is already in flight —
    `<S>-green` still serves consumers, unchanged, on the old lineage.
 

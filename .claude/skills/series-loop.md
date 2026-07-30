@@ -59,16 +59,19 @@ every walk below is bounded by `<S>-green`, from the first firing on.
 
 Work through these in order;
 each stage is skippable when it has nothing to do.
-Two scripts carry the mechanical parts:
+Three scripts carry the mechanical parts:
 `scripts/series-check.sh`
 (read-only — walks every series, classifies from the harvest,
 prints one verdict each:
-ADVANCE / WAIT / RETRY `<sha>` / REPAIR `<sha>` / IDLE)
-and `scripts/series-advance.sh <S>`
-(stages 3–4 — fast-forwards `-green`,
+ADVANCE / WAIT / RETRY `<sha>` / REPAIR `<sha>` / IDLE),
+`scripts/series-advance.sh <S>`
+(stages 3 and 5 — fast-forwards `-green`,
 moves `-build-base` by vendored-SHA match,
 extends `-dev` by ≤ 100;
-refuses on any failure or non-fast-forward).
+refuses on any failure or non-fast-forward),
+and `scripts/series-port.sh <S>`
+(stage 4 — brings `<S>-dev` level with `main`:
+cherry-picks plus a tooling sync).
 Judgement — repairs, review, vendoring — stays here.
 
 ### 1. Vendor onto `<S>-build`
@@ -259,7 +262,98 @@ Fast-forward only —
 if `-green` cannot fast-forward, something rewrote verified history;
 stop and say so.
 
-### 4. Extend `<S>-dev`
+### 4. Port from `main`
+
+The goal is identity, not curation:
+after this stage,
+`.github/`, `scripts/` and `.claude/` on `<S>-dev`
+are byte-identical to `main`'s.
+CI reads workflows and scripts from the branch it checks,
+so this is what puts a fix into effect —
+never park a tooling change to wait for a forward.
+
+```sh
+scripts/series-port.sh <S>                  # list candidates + identity check
+scripts/series-port.sh <S> --apply          # cherry-pick all, sync, push
+scripts/series-port.sh <S> --apply <sha>…   # a chosen subset instead
+```
+
+The script lists **every** commit `main` has that the series lacks,
+oldest first,
+classified TOOLING / MIXED / OTHER / VENDOR by what it touches,
+and applies all but VENDOR by default.
+A MIXED or OTHER commit is a *forward-port*
+in `BRANCHES.md`'s sense (invariant S4):
+`-dev` has always been vendor commits
+plus cherry-picks of `main` commits,
+and the port merely batches what used to be manual —
+judged by CI like every `-dev` commit.
+Picks are whole commits, never split:
+a wholesale pick matches its `main` commit by patch-id,
+so the next rebase skips it silently,
+while a tooling-only half of a MIXED commit would replay —
+at best to empty, at worst to a conflict —
+and could sever a coupled change
+(a script from the test that exercises it),
+minting a commit whose message describes more than it contains.
+VENDOR commits —
+`vendor:` subjects,
+anything touching `src/duckdb/`
+or the generated `R/version.R` / `src/include/sources.mk` —
+are listed and never auto-picked:
+`main`'s engine is not this series' engine,
+and `vendor-one.sh`'s base scan and stage 5's anchors
+rely on every `src/duckdb`-touching commit on `-dev`
+being one of this series' vendor commits.
+Port volume threatens nothing:
+those scans are pathspec-filtered on `src/duckdb`,
+so they never see a ported commit —
+the boundary is that exclusion, not any count.
+After the picks the script closes whatever tooling delta remains
+with one sync commit taking `main`'s tooling tree verbatim,
+so the identity goal holds even where history diverged
+(adaptations folded into vendor commits during repair,
+picks dropped as empty).
+In steady state the residue is empty and no sync commit is created.
+When one appears, read its diff —
+it is the residue the commit walk could not explain —
+and treat anything it reverts that the series genuinely needs
+as a finding for `main`:
+make it conditional there;
+a series never keeps its own fork of the tooling.
+
+What stays judgement:
+
+- a conflict stops the sequence in place —
+  resolve it in the kept worktree toward `main`'s intent,
+  keeping the series' flavor where the two meet
+  (`Package:`, `@useDynLib`, `DUCKDB_PACKAGE_NAME`
+  keep the series' name),
+  `cherry-pick --continue` through the rest, push,
+  and rerun the script to finish
+  (reruns are exact:
+  clean picks dedupe by patch-id,
+  resolved ones by their `cherry picked from` trailer);
+- an OTHER commit that cannot work against this series' engine —
+  apply an explicit subset without it,
+  fix it on `main` (a guard, a runtime seam),
+  and port the fixed commit instead;
+- a series with a live forward counterpart is being replaced —
+  port only what its remaining verification needs.
+
+Ported and sync commits are ordinary `-dev` commits:
+green per commit like everything else,
+vendoring nothing —
+the consumption anchor of stage 5 reads vendor subjects
+and does not see them —
+and transient:
+a forward's seed already carries their content
+and the replay leaves them behind (`series-forward.md`);
+a rebase drops patch-id equivalents,
+and a sync commit whose delta `main` absorbed
+rebases to empty and is dropped the same way (`series-rebase.md`).
+
+### 5. Extend `<S>-dev`
 
 If everything between `<S>-green` and the `<S>-dev` tip is green
 (or the tip equals `-green`),
