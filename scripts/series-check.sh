@@ -20,6 +20,12 @@
 # pointing anywhere else is a spent retry of some earlier commit, and says
 # nothing about this one.
 #
+# The ledger only decides once the rerun has reported. The retry pair rewrites
+# nothing, so the pre-retry `failure` record survives on the same SHA until the
+# rerun's own record replaces it; reading the ref alone turns a rerun that is
+# still building into REPAIR, and invites amending a commit that is about to go
+# green. The harvested run's `head_branch` is what tells the two apart.
+#
 # Usage: series-check.sh [<series>...]     # default: discover all from refs
 
 set -euo pipefail
@@ -58,6 +64,22 @@ state_of() { # <sha> -> success|failure|pending|missing
     rec=$(git show "$remote/rcc:runs2.ndjson" 2>/dev/null | grep -m 1 "\"commit\": *\"$1\"" || true)
   [ -z "$rec" ] && { echo missing; return; }
   echo "$rec" | sed -nr 's/.*"status":[^}]*"state": *"([a-z]+)".*/\1/p' | head -n 1
+}
+
+# The branch the harvested record's run was triggered on. This is what tells a
+# spent rerun from one still in flight: the retry pair rewrites nothing, so the
+# pre-retry record survives on the same SHA until the rerun's replaces it.
+# Reads the per-commit record first, exactly as state_of does — the leg
+# publishes it within seconds, while runs2.ndjson catches up on the next merge,
+# and a state read from one source with a branch read from the other would
+# disagree for as long as that gap lasts.
+run_branch_of() { # <sha> -> head_branch of the harvested run, empty if none
+  local rec
+  rec=$(git show "$remote/rcc:runs2.d/${1:0:2}/$1.ndjson" 2>/dev/null || true)
+  [ -z "$rec" ] &&
+    rec=$(git show "$remote/rcc:runs2.ndjson" 2>/dev/null | grep -m 1 "\"commit\": *\"$1\"" || true)
+  [ -z "$rec" ] && return
+  echo "$rec" | sed -nr 's/.*"head_branch": *"([^"]*)".*/\1/p' | head -n 1
 }
 
 # Positive evidence that a gate reached out over the network and was refused.
@@ -152,9 +174,15 @@ for S in "${series[@]}"; do
     kind=${why%%|*}; desc=${why#*|}
     retried=$(git rev-parse -q --verify "refs/remotes/$remote/retry-$S-dev" || true)
     if [ "$retried" = "$oldest" ]; then
-      echo "  REPAIR $oldest"
-      echo "         $desc"
-      echo "         retry-$S-dev is on this commit: the rerun was spent, this failure is real"
+      if [ "$(run_branch_of "$oldest")" = "retry-$S-dev" ]; then
+        echo "  REPAIR $oldest"
+        echo "         $desc"
+        echo "         retry-$S-dev reported on this commit: the rerun was spent, this failure is real"
+      else
+        echo "  WAIT   retry-$S-dev is on this commit, rerun not harvested yet"
+        echo "         the record below is the pre-retry one; do not repair on it"
+        echo "         $desc"
+      fi
     elif [ "$kind" = transient ]; then
       echo "  RETRY  $oldest"
       echo "         $desc"
