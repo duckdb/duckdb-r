@@ -13,6 +13,14 @@ on:
       - next
       - cran-*
       - v*.*-*
+      # The series loop's own refs match `v*.*-*` too, and they are judged
+      # per-commit by `each-rcc`, which writes the same `rcc` status this
+      # workflow writes. Two writers on one context is a race the loop loses:
+      # see .claude/skills/series-loop.md. Negative patterns must come last.
+      - '!*-dev'
+      - '!*-build'
+      - '!*-green'
+      - '!*-base'
   pull_request:
     branches:
       - main
