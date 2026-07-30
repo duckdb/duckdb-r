@@ -35,6 +35,28 @@
 
 <p>R package that contains a vendored copy of the DuckDB C++ library and glue code for R, including a DBI and a relational interface.</p>
 <div class="section level2">
+<h2 id="where-to-look">Where to look<a class="anchor" aria-label="anchor" href="#where-to-look"></a></h2>
+<p>This file and <code>README.md</code> are the roots of the documentation tree: <code>README.md</code> for using the package, this file for working on it. Each row names the single document that owns a topic; start there rather than searching.</p>
+<table class="table"><colgroup><col width="50%"><col width="50%"></colgroup><thead><tr><th>To solve</th>
+<th>Read</th>
+</tr></thead><tbody><tr><td>Build, test, and validate the package locally</td>
+<td>this file (below)</td>
+</tr><tr><td>Branch model, package flavors, series invariants</td>
+<td><code>BRANCHES.md</code></td>
+</tr><tr><td>Release process, modelled as a state machine</td>
+<td><code>RELEASE.md</code></td>
+</tr><tr><td>Vendoring mechanics: scripts, invariants, troubleshooting</td>
+<td><code>scripts/VENDORING.md</code></td>
+</tr><tr><td>Per-commit CI (sharded matrix): design and limits</td>
+<td><code>scripts/EACH.md</code></td>
+</tr><tr><td>Operating the vendoring loop (routine playbooks)</td>
+<td>
+<code>.claude/skills/</code>: <code>series-loop.md</code>, <code>series-forward.md</code>, <code>series-rebase.md</code>, <code>series-open.md</code>
+</td>
+</tr><tr><td>Designs, plans, and historical documents</td>
+<td><code>plan/</code></td>
+</tr></tbody></table></div>
+<div class="section level2">
 <h2 id="working-effectively">Working Effectively<a class="anchor" aria-label="anchor" href="#working-effectively"></a></h2>
 <div class="section level3">
 <h3 id="bootstrap-build-and-test-the-repository">Bootstrap, Build, and Test the Repository<a class="anchor" aria-label="anchor" href="#bootstrap-build-and-test-the-repository"></a></h3>
