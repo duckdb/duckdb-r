@@ -96,7 +96,8 @@ and coding agents.
   series invariants
 * [`RELEASE.md`](RELEASE.md) — the release process
 * [`scripts/VENDORING.md`](scripts/VENDORING.md) — vendoring mechanics
-* [`plan/`](plan/) — designs, plans, and historical documents
+* [`plan/README.md`](plan/README.md) — designs, plans, and historical
+  documents, each named there by path
 
 ## Building
 

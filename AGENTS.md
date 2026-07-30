@@ -17,7 +17,7 @@ start there rather than searching.
 | Vendoring mechanics: scripts, invariants, troubleshooting | `scripts/VENDORING.md` |
 | Per-commit CI (sharded matrix): design and limits | `scripts/EACH.md` |
 | Operating the vendoring loop (routine playbooks) | `.claude/skills/`: `series-loop.md`, `series-forward.md`, `series-rebase.md`, `series-open.md` |
-| Designs, plans, and historical documents | `plan/` |
+| Designs, plans, and historical documents | `plan/README.md`, which names each by path |
 
 ## Working Effectively
 
