@@ -1,5 +1,108 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.5.9002
+
+## Bug fixes
+
+### rcc
+
+- Make a verdict's newest writer win, not its slowest.
+
+- Let `series-cutover.sh` create a base series that does not exist yet (#2428).
+
+### rcc
+
+- Make writes to the `rcc` branch survive a lost race.
+
+### rcc-one
+
+- Restore the check action's CRAN-incoming default.
+
+### vendor-one
+
+- Make the glue gate work again.
+
+## Features
+
+### vendoring
+
+- Raise the vendoring limit from 25 to 100 commits.
+
+### rcc
+
+- Publish each commit's result as its own file, and consolidate the branch by hand.
+
+### each
+
+- Number shards along the history, and quote failing stages into the run summary (#2427).
+
+### each
+
+- Rerun one commit with a retry pair, not an amend.
+
+### each
+
+- Build every commit as a sharded matrix instead of one run per commit.
+
+## Continuous integration
+
+- Replace workflow vendoring with the routine-driven series loop.
+
+- Harvest rcc logs every 30 minutes.
+
+## Documentation
+
+- Space.
+
+### skills
+
+- Reset `-fwd-green` to the seed on every rebase.
+
+### skills
+
+- Split rebasing a forward series out of forwarding one.
+
+- A WIP forward series can always be rebased onto current mainline.
+
+- Agentic-loop plan refinements + main-dev review.
+
+- Describe the forbidden forms in `AGENTS.md` instead of spelling them.
+
+### vendoring
+
+- Dev-branch invariants, the fork-point rule, and a corrected `VENDORING.md`.
+
+## Refactoring
+
+### each
+
+- Anchor a retry on the series' green, not a ref of its own.
+
+### series-forward
+
+- Replay by cherry-pick instead of rebuilding trees.
+
+- Rename the flavor rename from "lts" to "flavor".
+
+## Performance
+
+### each
+
+- Rebalance shards across waves instead of capping at `max-parallel`.
+
+### each
+
+- Split large shards to trade compute for wall clock.
+
+## Testing
+
+- Derive the expected storage home from the package name.
+
+- Make storage and extension snapshots stable across flavors.
+
+- Skip the httpfs e2e test on development versions.
+
+
 # duckdb 1.5.5.9001
 
 ## Features
