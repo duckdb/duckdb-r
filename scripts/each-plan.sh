@@ -1,9 +1,9 @@
 #!/bin/bash
 # Plan the sharded per-commit `rcc` build for the checked-out branch.
 #
-# Selects the commits that have no `rcc` commit-status -- on a series branch
-# those in `<S>-green..HEAD`, elsewhere the first-parent history on or after
-# $SINCE -- and
+# Selects the undecided commits -- on a series branch those in
+# `<S>-green..HEAD` with no verdict on the `rcc` branch, elsewhere the
+# first-parent history on or after $SINCE without one -- and
 # partitions them into contiguous, cost-balanced shards (see
 # `scripts/each-partition.py`, which also decides how many shards are worth
 # paying for).
@@ -20,10 +20,13 @@
 #     typical adjacent vendor commit is ~98% cached (VENDORING-LOOP.md, A.2);
 #   * the whole batch is one workflow run: one thing to cancel, one set of logs.
 #
-# Statuses are read in GraphQL batches of $BATCH commits rather than one REST
-# call each. This matters: GITHUB_TOKEN is limited to 1000 REST requests per
-# hour per repository, so a 3000-commit backfill cannot be enumerated over REST
-# at all, while the same scan costs ~30 GraphQL requests.
+# "Undecided" is read from the **verdict store**, not from commit statuses: a
+# commit has been decided when the `rcc` branch carries a record for it, and the
+# whole scan is one tree-only fetch (`scripts/rcc-decided.sh`). Statuses are a
+# display surface on the commit list and decide nothing here -- which is what
+# removes the reconciliation between two stores that used to answer this same
+# question differently: no GraphQL scan, no `pending` state to age out, and
+# nothing that has to be true about the status API for a plan to be correct.
 #
 # Usage:
 #   GH_TOKEN=<token> scripts/each-plan.sh
@@ -33,14 +36,12 @@
 #   GH_TOKEN=$(gh auth token) OUT=/tmp/plan.json scripts/each-plan.sh
 #
 # Environment variables:
-#   GH_TOKEN            - token with statuses:read (required)
+#   GH_TOKEN            - token with contents:read (required)
 #   SINCE               - earliest commit date to consider (default: 2026-01-01)
 #   OUT                 - plan file to write (default: plan.json)
-#   FORCE               - if non-empty, ignore existing statuses and replan all
+#   FORCE               - if non-empty, ignore existing verdicts and replan all
 #                         (a `retry-<S>-dev` branch replans its tip that way
 #                         without this, which is the whole point of it)
-#   PENDING_TTL_HOURS   - a `pending` status older than this is treated as
-#                         abandoned and the commit is replanned (default: 6)
 #   SHARD_BUDGET_MINUTES- build-time target per leg, excluding job setup
 #                         (default: 300; the GitHub job limit is 360, and
 #                         scripts/each-shard.sh stops at its own deadline rather
@@ -71,7 +72,6 @@ set -euo pipefail
 SINCE="${SINCE:-2026-01-01}"
 OUT="${OUT:-plan.json}"
 FORCE="${FORCE:-}"
-PENDING_TTL_HOURS="${PENDING_TTL_HOURS:-6}"
 SHARD_BUDGET_MINUTES="${SHARD_BUDGET_MINUTES:-300}"
 MAX_SHARDS="${MAX_SHARDS:-250}"
 MAX_PARALLEL="${MAX_PARALLEL:-8}"
@@ -81,7 +81,6 @@ SETUP_MINUTES="${SETUP_MINUTES:-5}"
 FULL_BUILD_MINUTES="${FULL_BUILD_MINUTES:-40}"
 FLOOR_MINUTES="${FLOOR_MINUTES:-6}"
 OBJECT_SECONDS="${OBJECT_SECONDS:-9.7}"
-BATCH="${BATCH:-100}"
 
 here="$(cd "$(dirname "$0")" && pwd)"
 workdir="$(mktemp -d)"
@@ -145,7 +144,7 @@ case "${branch}" in
     elif [ -n "${retry}" ]; then
       # Without the anchor the scan would fall back to first-parent history
       # since SINCE, reach past the series' seed into `main`, and queue a build
-      # for every commit there that carries no `rcc` status. A retry branch
+      # for every commit there that has no verdict. A retry branch
       # naming a series that has no green is not a request anyone can serve.
       echo "Retry branch names series ${series}, which has no green -- planning nothing"
       plan_nothing
@@ -168,105 +167,49 @@ fi
 total="$(wc -l < "${workdir}/all" | tr -d ' ')"
 echo "Commits in range: ${total}"
 
-# ------------------------------------------------------------- read statuses --
-# One GraphQL request per $BATCH commits. Emits "<sha> <state> <age-seconds>";
-# state is lowercase, "none" when the commit carries no rcc status at all.
-read_statuses() {
-  local -a shas=()
-  local sha
-
-  flush_batch() {
-    [ "${#shas[@]}" -eq 0 ] && return 0
-
-    local query='query { repository(owner: "'"${owner}"'", name: "'"${repo}"'") {'
-    local i=0
-    for sha in "${shas[@]}"; do
-      query+=" c${i}: object(oid: \"${sha}\") { ... on Commit { oid status { context(name: \"rcc\") { state createdAt } } } }"
-      i=$(( i + 1 ))
-    done
-    query+=' } }'
-
-    gh api graphql -f query="${query}" --jq '
-      .data.repository
-      | to_entries[]
-      | select(.value != null)
-      | [ .value.oid,
-          (.value.status.context.state // "NONE" | ascii_downcase),
-          (.value.status.context.createdAt // "") ]
-      | @tsv'
-
-    shas=()
-  }
-
-  while IFS= read -r sha; do
-    shas+=("${sha}")
-    if [ "${#shas[@]}" -ge "${BATCH}" ]; then
-      flush_batch
-    fi
-  done
-  flush_batch
-}
-
-if [ -n "${EACH_STATES_FILE:-}" ]; then
-  # Offline hook for testing the planner without a token: lines of
-  # "<sha> <state> [<createdAt>]". Commits absent from the file count as
-  # having no status, which is also what a partial GraphQL response means.
-  echo "Reading rcc statuses from ${EACH_STATES_FILE}"
-  cp "${EACH_STATES_FILE}" "${workdir}/states"
+# ------------------------------------------------------------ read verdicts --
+# Every commit the `rcc` branch holds a record for, in one tree-only fetch. A
+# reachable store that says nothing about a commit is the answer "undecided";
+# a store that cannot be reached is not an answer at all, and
+# scripts/rcc-decided.sh exits non-zero for it rather than reporting an empty
+# one, which under `set -e` stops the plan instead of replanning the world.
+if [ -n "${EACH_DECIDED_FILE:-}" ]; then
+  # Offline hook for testing the planner without a remote: one SHA per line.
+  echo "Reading decided commits from ${EACH_DECIDED_FILE}"
+  cp "${EACH_DECIDED_FILE}" "${workdir}/decided"
 elif [ "${total}" -eq 0 ]; then
-  : > "${workdir}/states"
+  : > "${workdir}/decided"
 else
-  owner="${GITHUB_REPOSITORY%%/*}"
-  repo="${GITHUB_REPOSITORY##*/}"
-  if [ -z "${GITHUB_REPOSITORY:-}" ]; then
-    owner="$(gh repo view --json owner --jq .owner.login)"
-    repo="$(gh repo view --json name --jq .name)"
-  fi
-  read_statuses < "${workdir}/all" > "${workdir}/states"
+  "${here}/rcc-decided.sh" > "${workdir}/decided"
 fi
+echo "Verdicts on the rcc branch: $(wc -l < "${workdir}/decided" | tr -d ' ')"
 
 # ---------------------------------------------------------------- select ----
-# Keep a commit when it has no status, or a `pending` status old enough that the
-# run that wrote it is gone. Every other state (success, failure, error) is a
-# decision and is left alone, which is what keeps a rebase-and-force-push the
-# way to re-trigger a commit.
+# Keep a commit when the store has no record for it. A record is a decision and
+# is left alone -- which is what keeps a rebase-and-force-push the way to
+# re-trigger a commit, the SHA being what the record is keyed by.
 #
 # The tip of a `retry-<S>-dev` branch is the one exception: it is a decision the
 # push exists to overturn. Only the tip, and only on that branch -- the rest of
 # the range is the series' own history and keeps the ordinary rule.
 #
-# Driven by the enumeration, not by the status list, so a commit the status scan
-# did not report is replanned rather than silently dropped. Order stays
+# Driven by the enumeration, not by the record list, so a commit the store does
+# not mention is replanned rather than silently dropped. Order stays
 # oldest-first, which is what the partitioner and the shard driver rely on.
-now="$(date -u +%s)"
 retry_tip=""
 [ -n "${retry}" ] && retry_tip="$(git rev-parse HEAD)"
-awk -v now="${now}" -v ttl_hours="${PENDING_TTL_HOURS}" -v force="${FORCE}" \
-    -v retry_tip="${retry_tip}" '
-  function to_epoch(s,   cmd, out) {
-    # RFC 3339 -> epoch. GNU date first, BSD date second; "" when absent.
-    if (s == "") return 0
-    cmd = "date -u -d \"" s "\" +%s 2>/dev/null || date -u -j -f %Y-%m-%dT%H:%M:%SZ \"" s "\" +%s 2>/dev/null"
-    cmd | getline out
-    close(cmd)
-    return out + 0
-  }
-  # The FILENAME guard matters: with an empty status file, FNR == NR is still
+awk -v force="${FORCE}" -v retry_tip="${retry_tip}" '
+  # The FILENAME guard matters: with an empty record list, FNR == NR is still
   # true for the first record of the second file.
-  FNR == NR && FILENAME == ARGV[1] { state[$1] = $2; created[$1] = $3; next }
+  FNR == NR && FILENAME == ARGV[1] { decided[$1] = 1; next }
   {
     sha = $1
-    s = (sha in state) ? state[sha] : "none"
     if (force != "") { print sha, "replan-forced"; next }
     if (retry_tip != "" && sha == retry_tip) { print sha, "replan-retry"; next }
-    if (s == "none" || s == "expected") { print sha, "no-status"; next }
-    if (s == "pending" && now - to_epoch(created[sha]) > ttl_hours * 3600) {
-      print sha, "stale-pending"
-      next
-    }
-    print sha, "skip:" s
+    if (!(sha in decided)) { print sha, "no-record"; next }
+    print sha, "skip:decided"
   }
-' "${workdir}/states" "${workdir}/all" > "${workdir}/decisions"
+' "${workdir}/decided" "${workdir}/all" > "${workdir}/decisions"
 
 awk '$2 !~ /^skip:/ { print $1 }' "${workdir}/decisions" > "${workdir}/todo"
 

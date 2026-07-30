@@ -82,6 +82,7 @@ duckdb-r/
 │   ├── rcc-one.sh                  # The per-commit rcc gate
 │   ├── each-harvest.sh             # Reconcile shard results onto the rcc branch
 │   ├── rcc-part-push.sh            # Publish one commit's result from its leg
+│   ├── rcc-decided.sh              # Commits the rcc branch has a verdict for
 │   ├── rcc-merge.sh                # Bring runs2.ndjson level with the records
 │   ├── rcc-consolidate.sh          # Manual: GC old logs, squash the rcc branch
 │   ├── EACH.md                     # Sharded per-commit CI design (→ see §Vendoring)
@@ -701,6 +702,7 @@ the first step of any CI job that rebases, cherry-picks, or merges — to regist
 | `scripts/rcc-one.sh`            | The per-commit gate (style, snapshots, roxygen, clean tree, `R CMD check`, pkgdown), as a script           |
 | `scripts/each-harvest.sh`       | Fan-in onto the orphan `rcc` branch: reconciles whatever the legs could not publish themselves              |
 | `scripts/rcc-part-push.sh`      | Publishes one commit's record and log to the `rcc` branch from the leg that decided it, conflict-free       |
+| `scripts/rcc-decided.sh`        | Lists the commits the `rcc` branch holds a verdict for; the single source work selection reads                |
 | `scripts/rcc-merge.sh`          | Brings `runs2.ndjson` level with the per-commit records in `runs2.d/`: appends the missing, replaces the stale |
 | `scripts/rcc-consolidate.sh`    | Manual: makes the two record layouts agree, drops logs past their retention, squashes `rcc` to two commits   |
 | `scripts/merge-version.sh`      | Git merge driver for `DESCRIPTION`: combines the 4th/5th version counters, gated on an equal prefix         |

@@ -25,9 +25,11 @@
 #
 #   * The leg *resumes*. Re-running a failed job replays its whole shard from
 #     plan.json, so without a check it would rebuild the commits it had already
-#     decided -- up to five hours of work to redo, on a cold cache. A commit that
-#     already carries a decided `rcc` status is therefore skipped here, which
-#     makes "Re-run failed jobs" cost only what was actually lost.
+#     decided -- up to five hours of work to redo, on a cold cache. A commit the
+#     verdict store already holds a record for is therefore skipped here, which
+#     makes "Re-run failed jobs" cost only what was actually lost. The store is
+#     what the planner selects from too (scripts/rcc-decided.sh), so the two
+#     cannot disagree about what "decided" means.
 #     Not every decided commit, though: a forced replan and the tip of a
 #     `retry-<S>-dev` branch are in the plan *because* they already have a
 #     verdict, and skipping those would make the retry a no-op. The planner
@@ -154,18 +156,24 @@ set_status() {
     -f "context=rcc" > /dev/null
 }
 
-# Is this commit already decided? `pending` deliberately does not count: that is
-# the wedged-commit state a killed leg leaves behind, and redoing it is exactly
-# what a re-run is for.
-decided() {
-  local state
-  state="$(gh api "repos/{owner}/{repo}/commits/$1/statuses" \
-    --jq '[.[] | select(.context == "rcc")] | .[0].state // ""' 2>/dev/null || true)"
-  case "${state}" in
-    success|failure|error) return 0 ;;
-    *) return 1 ;;
-  esac
-}
+# What the verdict store already holds, read once. The same source the planner
+# selects from (scripts/rcc-decided.sh), so "decided" means the same thing in
+# both places -- a record on the `rcc` branch, not a commit status, which is a
+# display surface and in particular carries the `pending` a killed leg leaves
+# behind.
+#
+# A snapshot at leg start is the right granularity: the commits this leg might
+# skip are the ones a *previous attempt* of it decided, and no other leg is
+# deciding a commit in this shard. Failing to read it is not fatal -- an empty
+# list rebuilds, which is what a leg with no store at all has always done.
+decided_file="${workdir}/decided"
+: > "${decided_file}"
+if ! "${here}/rcc-decided.sh" > "${decided_file}" 2>/dev/null; then
+  echo "Could not read the verdict store; nothing will be skipped as already decided."
+  : > "${decided_file}"
+fi
+
+decided() { grep -qxF -- "$1" "${decided_file}"; }
 
 # --------------------------------------------------------------- publisher ----
 # The run object, once. Every record this leg writes carries it, so the fan-in and
@@ -296,12 +304,12 @@ for sha in "${commits[@]}"; do
   now="$(date -u +%s)"
   remaining=$(( deadline - now ))
 
-  # Before anything expensive: has someone already decided this commit? On a
-  # first run nobody has, and this costs one REST read per commit. On a re-run of
-  # a leg that died it is the difference between redoing the lost commit and
+  # Before anything expensive: has this commit already been decided? On a first
+  # run nothing has, and the lookup is a grep over a list read once. On a re-run
+  # of a leg that died it is the difference between redoing the lost commit and
   # redoing the whole shard. A commit the planner deliberately replanned is
   # exempt -- its verdict is the thing being overturned.
-  if [ -z "${FORCE}" ] && [ -n "${GH_TOKEN:-}" ] \
+  if [ -z "${FORCE}" ] \
      && ! grep -qxF -- "${sha}" <<<"${replanned}" \
      && decided "${sha}"; then
     echo "${sha}: already decided, skipping (re-run of a partially built shard)"
