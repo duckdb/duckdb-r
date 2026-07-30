@@ -97,7 +97,7 @@
 <div class="section level2">
 <h2 id="flavors">Flavors<a class="anchor" aria-label="anchor" href="#flavors"></a>
 </h2>
-<p>The sources in this repository are published under several names: <code>duckdb</code> on CRAN, LTS and bleeding-edge <code>.dev</code> flavors on <a href="https://duckdb.r-universe.dev/builds" class="external-link">r-universe</a>. The <code>.dev</code> flavors are created by an automated vendoring process, CRAN and LTS flavors always point at a stable upstream release.</p>
+<p>The sources in this repository are published under several names — <code>duckdb</code> on CRAN, and every flavor on <a href="https://duckdb.r-universe.dev/builds" class="external-link">r-universe</a>. The <code>.dev</code> flavors are created by an automated vendoring process; the CRAN and LTS flavors always point at a stable upstream release.</p>
 <table class="table">
 <colgroup>
 <col width="25%">
@@ -114,42 +114,43 @@
 <tbody>
 <tr>
 <td><code>duckdb</code></td>
-<td><code>v1.5-variegata</code></td>
+<td><a href="https://github.com/duckdb/duckdb/tree/v1.5-variegata" class="external-link"><code>v1.5-variegata</code></a></td>
 <td>CRAN</td>
-<td>stable</td>
+<td><a href="https://cran.r-project.org/package=duckdb" class="external-link"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fpackagemanager.posit.co%2F__api__%2Frepos%2Fcran%2Fpackages%2Fduckdb&amp;query=%24.version&amp;label=version&amp;color=green" alt="CRAN version"></a></td>
 </tr>
 <tr>
 <td><code>duckdb.1.4</code></td>
-<td><code>v1.4-andium</code></td>
+<td><a href="https://github.com/duckdb/duckdb/tree/v1.4-andium" class="external-link"><code>v1.4-andium</code></a></td>
 <td>LTS</td>
-<td>stable</td>
-</tr>
-<tr>
-<td><code>duckdb.1.5.dev</code></td>
-<td><code>v1.5-variegata</code></td>
-<td>dev</td>
-<td>
-<a href="https://github.com/krlmlr/duckdb-r/compare/v1.5-variegata-build-base...v1.5-variegata-build" class="external-link"><img src="https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.5-variegata-build-base&amp;head=v1.5-variegata-build&amp;label=buffered" alt="buffered"></a> <a href="https://github.com/krlmlr/duckdb-r/compare/v1.5-variegata-green...v1.5-variegata-dev" class="external-link"><img src="https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.5-variegata-green&amp;head=v1.5-variegata-dev&amp;label=in%20flight" alt="in flight"></a>
-</td>
+<td><a href="https://duckdb.r-universe.dev/duckdb.1.4" class="external-link"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fduckdb.r-universe.dev%2Fapi%2Fpackages%2Fduckdb.1.4&amp;query=%24.Version&amp;label=version&amp;color=green" alt="r-universe version"></a></td>
 </tr>
 <tr>
 <td><code>duckdb.dev</code></td>
-<td><code>main</code></td>
+<td><a href="https://github.com/duckdb/duckdb/tree/main" class="external-link"><code>main</code></a></td>
 <td>dev</td>
 <td>
-<a href="https://github.com/krlmlr/duckdb-r/compare/main-fwd-build-base...main-fwd-build" class="external-link"><img src="https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=main-fwd-build-base&amp;head=main-fwd-build&amp;label=buffered" alt="buffered"></a> <a href="https://github.com/krlmlr/duckdb-r/compare/main-fwd-green...main-fwd-dev" class="external-link"><img src="https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=main-fwd-green&amp;head=main-fwd-dev&amp;label=in%20flight" alt="in flight"></a>
+<a href="https://github.com/krlmlr/duckdb-r/compare/main...main-fwd-dev" class="external-link"><img src="https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=main&amp;head=main-fwd-dev&amp;label=ahead&amp;color=green" alt="ahead"></a> <a href="https://github.com/krlmlr/duckdb-r/compare/main-fwd-green...main-fwd-dev" class="external-link"><img src="https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=main-fwd-green&amp;head=main-fwd-dev&amp;label=in%20flight&amp;color=yellow" alt="in flight"></a> <a href="https://github.com/krlmlr/duckdb-r/compare/main-fwd-build-base...main-fwd-build" class="external-link"><img src="https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=main-fwd-build-base&amp;head=main-fwd-build&amp;label=buffered&amp;color=blue" alt="buffered"></a>
+</td>
+</tr>
+<tr>
+<td><code>duckdb.1.5.dev</code></td>
+<td><a href="https://github.com/duckdb/duckdb/tree/v1.5-variegata" class="external-link"><code>v1.5-variegata</code></a></td>
+<td>dev</td>
+<td>
+<a href="https://github.com/krlmlr/duckdb-r/compare/main...v1.5-variegata-dev" class="external-link"><img src="https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=main&amp;head=v1.5-variegata-dev&amp;label=ahead&amp;color=green" alt="ahead"></a> <a href="https://github.com/krlmlr/duckdb-r/compare/v1.5-variegata-green...v1.5-variegata-dev" class="external-link"><img src="https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.5-variegata-green&amp;head=v1.5-variegata-dev&amp;label=in%20flight&amp;color=yellow" alt="in flight"></a> <a href="https://github.com/krlmlr/duckdb-r/compare/v1.5-variegata-build-base...v1.5-variegata-build" class="external-link"><img src="https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.5-variegata-build-base&amp;head=v1.5-variegata-build&amp;label=buffered&amp;color=blue" alt="buffered"></a>
 </td>
 </tr>
 <tr>
 <td><code>duckdb.1.4.dev</code></td>
-<td><code>v1.4-andium</code></td>
+<td><a href="https://github.com/duckdb/duckdb/tree/v1.4-andium" class="external-link"><code>v1.4-andium</code></a></td>
 <td>dev</td>
 <td>
-<a href="https://github.com/krlmlr/duckdb-r/compare/v1.4-andium-fwd-build-base...v1.4-andium-fwd-build" class="external-link"><img src="https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.4-andium-fwd-build-base&amp;head=v1.4-andium-fwd-build&amp;label=buffered" alt="buffered"></a> <a href="https://github.com/krlmlr/duckdb-r/compare/v1.4-andium-fwd-green...v1.4-andium-fwd-dev" class="external-link"><img src="https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.4-andium-fwd-green&amp;head=v1.4-andium-fwd-dev&amp;label=in%20flight" alt="in flight"></a>
+<a href="https://github.com/krlmlr/duckdb-r/compare/v1.4-andium...v1.4-andium-fwd-dev" class="external-link"><img src="https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.4-andium&amp;head=v1.4-andium-fwd-dev&amp;label=ahead&amp;color=green" alt="ahead"></a> <a href="https://github.com/krlmlr/duckdb-r/compare/v1.4-andium-fwd-green...v1.4-andium-fwd-dev" class="external-link"><img src="https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.4-andium-fwd-green&amp;head=v1.4-andium-fwd-dev&amp;label=in%20flight&amp;color=yellow" alt="in flight"></a> <a href="https://github.com/krlmlr/duckdb-r/compare/v1.4-andium-fwd-build-base...v1.4-andium-fwd-build" class="external-link"><img src="https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.4-andium-fwd-build-base&amp;head=v1.4-andium-fwd-build&amp;label=buffered&amp;color=blue" alt="buffered"></a>
 </td>
 </tr>
 </tbody>
 </table>
+<p>The badges track each <code>.dev</code> series: <em>ahead</em> counts commits ahead of the branch the series releases from, <em>in flight</em> counts commits in CI but not yet trusted, <em>buffered</em> counts commits vendored but not yet verified. See <a href="BRANCHES.html"><code>BRANCHES.md</code></a> for the full model.</p>
 </div>
 <div class="section level2">
 <h2 id="user-guide">User Guide<a class="anchor" aria-label="anchor" href="#user-guide"></a>
@@ -192,7 +193,7 @@
 <div class="section level2">
 <h2 id="vendoring">Vendoring<a class="anchor" aria-label="anchor" href="#vendoring"></a>
 </h2>
-<p>This package includes a vendored copy of the DuckDB C++ library. The vendoring process is automated — a scheduled routine synchronizes each release series with the upstream DuckDB repository, commit by commit. For detailed information about how vendoring works and manual vendoring procedures, see <code>scripts/VENDORING.md</code>.</p>
+<p>This package includes a vendored copy of the DuckDB C++ library. The vendoring process is automated — a scheduled routine synchronizes each release series with the upstream DuckDB repository, commit by commit. For detailed information about how vendoring works and manual vendoring procedures, see <a href="scripts/VENDORING.html"><code>scripts/VENDORING.md</code></a>.</p>
 </div>
 <div class="section level2">
 <h2 id="contributors">Contributors<a class="anchor" aria-label="anchor" href="#contributors"></a>
