@@ -59,11 +59,11 @@ Installing the package from GitHub may take up to an hour.
 
 ## Flavors
 
-The sources in this repository are published under several names:
+The sources in this repository are published under several names —
 `duckdb` on CRAN,
-LTS and bleeding-edge `.dev` flavors on [r-universe](https://duckdb.r-universe.dev/builds).
-The `.dev` flavors are created by an automated vendoring process,
-CRAN and LTS flavors always point at a stable upstream release.
+and every flavor on [r-universe](https://duckdb.r-universe.dev/builds).
+The `.dev` flavors are created by an automated vendoring process;
+the CRAN and LTS flavors always point at a stable upstream release.
 
 | Flavor | Series | Kind | Progress |
 |---|---|---|---|
@@ -72,6 +72,11 @@ CRAN and LTS flavors always point at a stable upstream release.
 | `duckdb.1.5.dev` | `v1.5-variegata` | dev | [![buffered](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.5-variegata-build-base&head=v1.5-variegata-build&label=buffered)](https://github.com/krlmlr/duckdb-r/compare/v1.5-variegata-build-base...v1.5-variegata-build) [![in flight](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.5-variegata-green&head=v1.5-variegata-dev&label=in%20flight)](https://github.com/krlmlr/duckdb-r/compare/v1.5-variegata-green...v1.5-variegata-dev) |
 | `duckdb.dev` | `main` | dev | [![buffered](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=main-fwd-build-base&head=main-fwd-build&label=buffered)](https://github.com/krlmlr/duckdb-r/compare/main-fwd-build-base...main-fwd-build) [![in flight](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=main-fwd-green&head=main-fwd-dev&label=in%20flight)](https://github.com/krlmlr/duckdb-r/compare/main-fwd-green...main-fwd-dev) |
 | `duckdb.1.4.dev` | `v1.4-andium` | dev | [![buffered](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.4-andium-fwd-build-base&head=v1.4-andium-fwd-build&label=buffered)](https://github.com/krlmlr/duckdb-r/compare/v1.4-andium-fwd-build-base...v1.4-andium-fwd-build) [![in flight](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.4-andium-fwd-green&head=v1.4-andium-fwd-dev&label=in%20flight)](https://github.com/krlmlr/duckdb-r/compare/v1.4-andium-fwd-green...v1.4-andium-fwd-dev) |
+
+The badges show each `.dev` series' lag:
+*buffered* counts commits vendored but not yet verified,
+*in flight* counts commits in CI but not yet trusted.
+See [`BRANCHES.md`](BRANCHES.md) for the full model.
 
 ## User Guide
 
