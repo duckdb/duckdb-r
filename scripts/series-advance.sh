@@ -129,6 +129,15 @@ if [ "$anchor" = "$(git rev-parse "$dev")" ]; then
 else
   # Replay onto the repaired tip in a throwaway worktree; a conflict means the
   # repair and the buffer touch the same paths — judgement, not mechanics.
+  #
+  # Every buffer commit bumps DESCRIPTION's vendor counter, so a -dev that has
+  # taken a fledge bump conflicts on the `Version:` line at the first replayed
+  # commit and at every one after it. That line is what the ours-version merge
+  # driver exists for; register it here as series-port.sh does, so only genuine
+  # conflicts reach the judgement above.
+  if [ -x "$(dirname "$0")/setup-git.sh" ]; then
+    "$(dirname "$0")/setup-git.sh" >/dev/null
+  fi
   wt=$(mktemp -d)
   git worktree add --detach -q "$wt" "$dev"
   if ! git -C "$wt" cherry-pick $(git rev-list --reverse "$anchor..$build" | head -n "$n"); then
