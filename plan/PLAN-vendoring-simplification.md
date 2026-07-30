@@ -438,6 +438,17 @@ kept light by habit rather than process:
   each with the failing firing linked as evidence;
   a fix must never be load-bearing for the *current* firing
   (the firing works around by hand; the PR prevents the next one).
+  *Status:* landed as stage 7 of `series-loop.md`,
+  with the **reading** of open PRs moved up into that skill's setup,
+  where it is context applied with judgement rather than a step:
+  an open PR is tooling the series does not have
+  (stage 4 ports what merged), so it names a workaround
+  still to be paid this firing, and a cause not to re-diagnose.
+  It was written here and nowhere else until then —
+  the skills said nothing about PRs at all —
+  so the habit depended on the routine improvising it every firing.
+  A rule that lives only in the plan is a rule the routine never reads:
+  this document is analysis, and the playbook is what executes.
 - The deeper lever is §3: the fixes to date cluster in the F1/F2
   reconciliation machinery and in the buffer-equivalence rule —
   the first is what Phase 2 deletes,
