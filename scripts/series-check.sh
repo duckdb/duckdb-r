@@ -103,13 +103,16 @@ for S in "${series[@]}"; do
 
   inflight=$(git rev-list --count "$green..$dev")
   # the buffer counts from -dev's consumption anchor on -build: the -dev tip
-  # while it sits on -build's line, its vendored-SHA equivalent after a repair
+  # while it sits on -build's line, otherwise the -build commit equivalent to
+  # -dev's newest vendor commit — the identical rule, and the identical reasons,
+  # as the anchor in scripts/series-advance.sh.
   mb=$(git merge-base "$dev" "$build")
   if [ "$mb" = "$(git rev-parse "$dev")" ]; then
     buffered=$(git rev-list --count "$dev..$build")
   else
-    dev_up=$(git log -1 --format=%s "$dev" | sed -nr 's/^.*duckdb.duckdb@([0-9a-f]+)( .*)?$/\1/p')
-    anchor=$(git log --format='%H %s' "$mb..$build" | grep -m 1 "duckdb@${dev_up:-NONE}" | cut -d' ' -f1 || true)
+    dev_up=$(git log -1 --format=%s "$dev" -- src/duckdb |
+      sed -nr 's/^.*duckdb.duckdb@([0-9a-f]+)( .*)?$/\1/p')
+    anchor=$(git log --format='%H %s' "$build" | grep -m 1 "duckdb@${dev_up:-NONE}" | cut -d' ' -f1 || true)
     if [ -n "$anchor" ]; then
       buffered=$(git rev-list --count "$anchor..$build")
     else

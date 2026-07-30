@@ -91,7 +91,12 @@ mb=$(git merge-base "$dev" "$build")
 if [ "$mb" = "$(git rev-parse "$dev")" ]; then
   anchor=$mb
 else
-  dev_up=$(git log --format=%s "$dev" | sed -nr 's/^.*duckdb.duckdb@([0-9a-f]+)( .*)?$/\1/p' | head -n 1)
+  # `-1` with a pathspec, never `head`: closing a long `git log`'s pipe kills it
+  # with SIGPIPE, which `pipefail` turns into a failed assignment (141), and
+  # -dev's history is thousands of commits. Every commit that touches
+  # src/duckdb is a vendor commit — a repair folds into one, it never stacks.
+  dev_up=$(git log -1 --format=%s "$dev" -- src/duckdb |
+    sed -nr 's/^.*duckdb.duckdb@([0-9a-f]+)( .*)?$/\1/p')
   [ -n "$dev_up" ] ||
     { echo "Error: no vendor commit in -dev's history — reconcile by hand"; exit 1; }
   anchor=$(git log --format='%H %s' "$build" | grep -m 1 "duckdb@$dev_up" | cut -d' ' -f1 || true)
