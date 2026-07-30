@@ -82,15 +82,19 @@ if [ "$(git rev-parse "$new_green")" != "$(git rev-parse "$dev")" ]; then
 fi
 
 # The consumption anchor on -build: -dev's own tip while it sits on -build's
-# line, its vendored-SHA equivalent once a repair has diverged it.
+# line, otherwise the -build commit equivalent to -dev's newest vendor commit.
+# Read from the newest vendor commit rather than the tip, because -dev also
+# carries commits that vendor nothing — tooling cherry-picked from main, and the
+# test/R adaptations folded in during repair. Searched over all of -build, since
+# the newest vendor commit may sit at or before the divergence point.
 mb=$(git merge-base "$dev" "$build")
 if [ "$mb" = "$(git rev-parse "$dev")" ]; then
   anchor=$mb
 else
-  dev_up=$(git log -1 --format=%s "$dev" | sed -nr 's/^.*duckdb.duckdb@([0-9a-f]+)( .*)?$/\1/p')
+  dev_up=$(git log --format=%s "$dev" | sed -nr 's/^.*duckdb.duckdb@([0-9a-f]+)( .*)?$/\1/p' | head -n 1)
   [ -n "$dev_up" ] ||
-    { echo "Error: -dev diverged and its tip is not a vendor commit — reconcile by hand"; exit 1; }
-  anchor=$(git log --format='%H %s' "$mb..$build" | grep -m 1 "duckdb@$dev_up" | cut -d' ' -f1 || true)
+    { echo "Error: no vendor commit in -dev's history — reconcile by hand"; exit 1; }
+  anchor=$(git log --format='%H %s' "$build" | grep -m 1 "duckdb@$dev_up" | cut -d' ' -f1 || true)
   [ -n "$anchor" ] ||
     { echo "Error: no -build commit vendors duckdb@$dev_up — mirror the fold in -build first"; exit 1; }
 fi

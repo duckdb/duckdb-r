@@ -268,7 +268,13 @@ While `-dev` sits on `-build`'s line this is a plain ref move;
 after a repair it is a replay of the buffer commits
 onto the repaired tip —
 `series-advance.sh` does both,
-anchoring on the `-build` commit equivalent to the `-dev` tip.
+anchoring on the `-build` commit equivalent to
+`-dev`'s newest **vendor** commit.
+Not its tip: `-dev` also carries commits that vendor nothing —
+tooling cherry-picked from `main`,
+and the adaptations folded in during repair —
+and the anchor is about how much of the buffer has been consumed,
+which only vendor commits record.
 Exception: a series with a **live** forward counterpart
 (`<S>-fwd-build` exists and is not cutover litter)
 is being replaced —
