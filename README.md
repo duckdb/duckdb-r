@@ -91,12 +91,19 @@ and [`AGENTS.md`](AGENTS.md) is the root for maintainers
 and coding agents.
 
 * [`AGENTS.md`](AGENTS.md) — working on the package:
-  build, test, and where to look for everything else
+  test, validate, and where to look for everything else
+* [`BUILD.md`](BUILD.md) — building and installing:
+  the three install paths, every build knob, the fast development loop
 * [`BRANCHES.md`](BRANCHES.md) — branch model, package flavors,
   series invariants
 * [`RELEASE.md`](RELEASE.md) — the release process
 * [`scripts/VENDORING.md`](scripts/VENDORING.md) — vendoring mechanics
 * [`plan/`](plan/) — designs, plans, and historical documents
+
+Per-topic user documentation ships with the package as help pages —
+`?duckdb_storage` for the file-system locations DuckDB writes to,
+and more to come per [`plan/PLAN-docs-tree.md`](plan/PLAN-docs-tree.md).
+They are also rendered at <https://r.duckdb.org/reference/>.
 
 ## Building
 
@@ -115,6 +122,18 @@ Then, install:
 
 Set the `MAKEFLAGS` environment variable to `-j8` or similar for parallel builds.
 Configure `ccache` for faster repeated builds.
+
+A source build compiles ~1700 vendored C++ files and takes 10–15 minutes.
+For an edit-build-test loop, link against a prebuilt DuckDB instead
+(about 90 seconds cold, seconds incremental):
+
+``` sh
+~duckdb-r: sudo scripts/install-libduckdb.sh
+~duckdb-r: DUCKDB_R_USE_SYSTEM_LIB=1 R CMD INSTALL .
+```
+
+See [`BUILD.md`](BUILD.md) for all three install paths, every build knob,
+and the cases where the fast path must not be trusted.
 
 If you wish to test new DuckDB functionality with duckdb-r, make sure your clone of `duckdb-r` is one level deeper than your clone of `duckdb` (e.g. `R/duckdb-r` and `duckdb`).
 Then run the following commands:

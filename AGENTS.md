@@ -11,7 +11,8 @@ start there rather than searching.
 
 | To solve | Read |
 |---|---|
-| Build, test, and validate the package locally | this file (below) |
+| Build and install the package; every build knob | `BUILD.md` |
+| Run and extend the testsuite; validate a change | this file (below) |
 | Branch model, package flavors, series invariants | `BRANCHES.md` |
 | Release process, modelled as a state machine | `RELEASE.md` |
 | Vendoring mechanics: scripts, invariants, troubleshooting | `scripts/VENDORING.md` |
@@ -21,21 +22,31 @@ start there rather than searching.
 
 ## Working Effectively
 
-### Bootstrap, Build, and Test the Repository
+### Bootstrap and Build
 
 - `sudo apt-get install -y r-base r-base-dev build-essential` -- installs R and development tools
 - `mkdir -p ~/R/library && echo '.libPaths("~/R/library")' > ~/.Rprofile` -- sets up local R library
-- `export MAKEFLAGS="-j$(nproc)"` -- enables parallel compilation
-- `UserNM=true R CMD INSTALL . --no-byte-compile` -- builds and installs the package. NEVER CANCEL: takes 10-15 minutes on first build. Set timeout to 30+ minutes.
 
-`UserNM=true` is an install-time shortcut only -- **never export it for `R CMD check`**.
-R takes the `nm` program from `$UserNM`, and `tools:::check_so_symbols` uses it to scan the built `.so`;
-pointing it at `true` blinds that scan,
-so the check reports "Found no calls to `R_registerRoutines`, `R_useDynamicSymbols`"
-and fails a package that registers its routines correctly.
-It saves ~10-20 s on this tree, so it is not worth carrying into CI at all.
+Then set up the fast path once, and use it for everything below:
 
-For an interactive edit-build-test loop, prefer the prebuilt-libduckdb fast path (seconds instead of 10-15 minutes) -- see ["Fast build with system libduckdb"](#fast-build-with-system-libduckdb-linuxmacos-opt-in) and ["Testing with prebuilt DuckDB"](#testing-with-prebuilt-duckdb-the-fast-iterate-loop) below.
+```sh
+sudo scripts/install-libduckdb.sh
+export DUCKDB_R_USE_SYSTEM_LIB=1 MAKEFLAGS="-j$(nproc)"
+R CMD INSTALL . --no-byte-compile      # ~90 s instead of 10-15 minutes
+```
+
+[`BUILD.md`](BUILD.md) owns the build system:
+the three install paths and when each is valid,
+every environment variable, the generated makefile fragments,
+the `.dd` dependency files, the tarball layout, formatting, and the C++ warning policy.
+
+Two rules from there are worth repeating because getting them wrong is silent:
+
+- **Never export `UserNM=true` for `R CMD check`** -- it blinds the symbol scan
+  and fails a package that registers its routines correctly.
+- **Never verify engine configuration under `DUCKDB_R_USE_SYSTEM_LIB`** -- the release
+  libduckdb links a different extension set and a different `autoinstall` default
+  than the vendored build. See [`BUILD.md`](BUILD.md#the-fast-path-is-not-the-package).
 
 ### Run Tests
 
@@ -56,11 +67,6 @@ For an interactive edit-build-test loop, prefer the prebuilt-libduckdb fast path
     print(result)
     dbDisconnect(con, shutdown=TRUE)
     ```
-
-### Format Checking (Optional - Has Known Issues)
-
-- `pip3 install cmake-format && export PATH="$HOME/.local/bin:$PATH"` -- installs formatter
-- `make format-check` -- checks code formatting (currently shows formatting differences)
 
 ### Markdown Linting
 
@@ -102,104 +108,8 @@ The duckdb-r package vendors (includes a copy of) the DuckDB C++ core library. K
 
 ## Common Tasks
 
-The following are validated commands and their typical execution times:
-
-### Building
-
-```bash
-# From the duckdb-r directory
-UserNM=true R CMD INSTALL . --no-byte-compile
-```
-
-### Fast build with system libduckdb (Linux/macOS, opt-in)
-
-For iteration during development (and for coding agent sessions), the R
-package can skip compiling the ~1700 vendored .cpp files and link
-against a system-installed libduckdb instead. Drops a clean
-`R CMD INSTALL .` from 10–15 minutes to about 5 seconds.
-
-```bash
-# One-time: install libduckdb matching the vendored DuckDB version
-sudo scripts/install-libduckdb.sh        # to /usr/local
-# or: scripts/install-libduckdb.sh --prefix "$HOME/.local"
-
-# Each install
-DUCKDB_R_USE_SYSTEM_LIB=1 R CMD INSTALL . --no-byte-compile
-```
-
-**What this mode actually does.** The R glue compiles against the
-**vendored headers** in `src/duckdb/src/include/` (the amalgamated
-`duckdb.hpp` shipped with libduckdb releases is missing ~37 of the 71
-internal C++ headers the glue needs — templates like `GenericExecutor`,
-the Arrow integration, core-functions extension internals). Only the
-**implementation** is swapped for the system-installed `libduckdb.so`
-/ `.dylib` at link time and at runtime.
-
-That is only safe if the vendored sources and the installed library
-were built from the **same commit**. `configure` extracts the
-`DUCKDB_SOURCE_ID` from the vendored `pragma_version.cpp`, greps for
-it inside the shared library, and aborts with a clear error if it is
-not present. Re-run `scripts/install-libduckdb.sh` after every
-vendoring bump.
-
-The opt-in only applies to `R CMD INSTALL .` — not to `R CMD build`,
-since the resulting installation depends on libduckdb being present at
-runtime. The installed `duckdb.so` carries an rpath pointing at the
-libduckdb directory; do not move libduckdb after installing.
-
-### Testing with prebuilt DuckDB (the fast iterate loop)
-
-`pkgload::load_all()` / `devtools::load_all()` — and therefore
-`testthat::test_local()`, which loads the package the same way — honor
-`DUCKDB_R_USE_SYSTEM_LIB` too: they compile only the ~30 glue `.cpp`
-files in `src/` and link against the prebuilt libduckdb, exactly like
-`R CMD INSTALL .`. This is the recommended setup for any
-edit-build-test loop (including coding-agent sessions), because it turns
-the otherwise 10–15 minute first build into seconds.
-
-```bash
-# One-time, matching the vendored DuckDB version (see above)
-sudo scripts/install-libduckdb.sh          # or --prefix "$HOME/.local"
-
-# Then, in every shell that builds/tests the package:
-export DUCKDB_R_USE_SYSTEM_LIB=1
-export MAKEFLAGS="-j$(nproc)"
-
-R -q -e 'pkgload::load_all()'              # ~1 s warm, no source changes
-R -q -e 'testthat::test_local()'           # runs the suite against the glue
-```
-
-Measured on a clean container (R 4.5.3, ccache warm): a no-op
-`load_all()` takes about 1 second, and a `load_all()` after editing a
-single glue file (recompile one `.cpp` + relink) about 4 seconds —
-versus 10–15 minutes when the vendored sources are compiled. The same
-`configure` commit-match guard applies, so re-run
-`scripts/install-libduckdb.sh` after every vendoring bump; if it
-reports a `-dev` snapshot with no published prebuilt, drop
-`DUCKDB_R_USE_SYSTEM_LIB` and fall back to a source build.
-
-In CI, `.github/workflows/custom/before-install/action.yml` defaults all
-Linux/macOS builds (the smoke test and the regular matrix) to the fast
-path, except:
-
-* the `krlmlr/duckdb-r` fork, which hosts the vendoring pipeline and
-  must always build from source;
-* any matrix entry that pins `DUCKDB_R_USE_SYSTEM_LIB` itself through the
-  generic `env` field in `.github/versions-matrix.R`. That file carries a
-  dedicated "vendored build" entry (`DUCKDB_R_USE_SYSTEM_LIB=0`) so one
-  regular matrix build still compiles the bundled sources — the artifact
-  that ships to CRAN.
-
-The libduckdb that `scripts/install-libduckdb.sh` fetches matches the
-vendored commit: tagged versions come from the GitHub release assets,
-development snapshots (e.g. `v1.5.4-dev157`) from the DuckDB nightly
-staging bucket keyed by `DUCKDB_SOURCE_ID`.
-
-IMPORTANT: `.dd` files in `src/` are dependency tracking files for development (source files that need rebuilding when a header file changes) and should be kept in version control.
-These files are generated by the `%.dd: %.d` rule in `src/include/deps.mk`, which filters compiler-generated `.d` files to keep only local `include/` dependencies.
-The files should only change when new `#include` directives for local headers are added to `.cpp` files.
-If a build regenerates them with system paths (`/opt/R/...`) or `../inst/include/...` entries, that is a spurious change — revert with `git checkout -- src/*.dd`.
-The root cause of spurious regeneration was a bug in `deps.mk` where the filter used `^  ` (exactly two spaces) but compiler continuation lines have only one space; this has been fixed to `^ *`.
+Build and install commands, the fast paths, and every build knob live in
+[`BUILD.md`](BUILD.md). The rest of this file covers testing and conventions.
 
 ## Running Tests
 
@@ -233,12 +143,6 @@ R
 - All files must end with an end-of-line (EOL) character
 - Ensure proper code formatting and consistent indentation
 - Follow R package development best practices
-
-## C++ Warning Policy
-
-- **Do not suppress warnings with `#pragma clang diagnostic ignored` or similar.** CRAN rejects packages that silence warnings rather than fixing the underlying issue.
-- Fix the root cause instead. For vendored code in `src/duckdb/`, add a patch file in `patch/` that corrects the source of the warning (e.g. by changing template definitions to avoid instantiating deprecated types).
-- Example: `-Wdeprecated-declarations` from `char_traits<T>` for non-char `T` in libc++ was fixed by changing the `std_string_view` alias in `src/duckdb/third_party/fmt/include/fmt/core.h` to a struct that only provides `std::basic_string_view<Char>` for standard char types.
 
 ## Never Hard-Code the Package Name
 
