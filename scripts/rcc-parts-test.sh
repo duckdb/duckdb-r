@@ -68,6 +68,14 @@ record_for() { # <sha> <state>
 
 git init -q --bare "${work}/remote.git"
 git -C "${work}/remote.git" config uploadpack.allowFilter true
+# `receive.autogc` is on by default, so every push into this bare repo may fork a
+# `git gc --auto`. This test pushes hundreds of loose objects and then immediately
+# clones the result, and a clone that reads the repo while gc is repacking it
+# fails outright -- the harness runs without `set -e`, so the clone's failure used
+# to surface much later as whichever check first found a directory missing. Ruling
+# gc out here is what makes the checks below deterministic.
+git -C "${work}/remote.git" config gc.auto 0
+git -C "${work}/remote.git" config receive.autogc false
 
 echo "== 1. the aggregate is extended, not migrated =="
 # Seeded from a real branch, the whole tree is taken -- the harvested logs are
@@ -414,7 +422,13 @@ git -C "${work}/remote.git" cat-file -e "rcc:runs2.d/${legacy_sha:0:2}/${legacy_
 rm -rf "${work}/cons2"
 # --no-hardlinks: the consolidation just repacked the bare repo, and
 # git's local clone optimisation trips on that. Local paths only.
-git clone -q --no-hardlinks --single-branch --branch rcc "${work}/remote.git" "${work}/cons2"
+if ! git clone -q --no-hardlinks --single-branch --branch rcc \
+     "${work}/remote.git" "${work}/cons2"; then
+  # Checked because the harness runs without `set -e`: an unchecked failure here
+  # leaves no worktree, and every check below it then reports its own subject
+  # rather than the clone that actually broke.
+  fail "could not clone the consolidated branch for a second pass"
+fi
 git -C "${work}/cons2" config user.name t
 git -C "${work}/cons2" config user.email t@e
 OUT_DIR="${work}/cons2" APPLY=1 "${here}/rcc-consolidate.sh" > "${work}/cons2.log" 2>&1

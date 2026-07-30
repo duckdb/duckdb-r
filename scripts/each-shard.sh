@@ -81,6 +81,12 @@ SUMMARY_MAX_BYTES="${SUMMARY_MAX_BYTES:-900000}"
 FORCE="${FORCE:-}"
 NO_PUBLISH="${NO_PUBLISH:-}"
 
+# Helpers resolve from `here`, and the loop below resets the workspace to each
+# commit it builds -- so every commit is checked by the harness *it carries*. That
+# is the intent, not a bug: we are vendoring, so a commit is either solid, or
+# broken and the next loop run fixes it, or broken-but-green and the mandatory
+# rebase before a release catches it either way. The run-level scripts use the tip
+# (each-plan.sh, and the fan-in's each-harvest.sh) -- a different question.
 here="$(cd "$(dirname "$0")" && pwd)"
 started="$(date -u +%s)"
 deadline=$(( started + DEADLINE_MINUTES * 60 ))
