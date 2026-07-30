@@ -67,9 +67,54 @@ This skill is the release branch's birth certificate.
    with the gated `scripts/vendor-one.sh --commits 100 <upstream-clone>`,
    fixing glue breaks in place as the gate stops on them.
 
-6. The routine discovers every series from its refs
+6. **Add the series to the README's `Flavors` table** — see below.
+
+7. The routine discovers every series from its refs
    and serves them all in one firing;
    a new series needs no configuration, only its refs.
+
+## Patching the README
+
+The `Flavors` table in `README.md` is the only place
+a new series has to be announced by hand;
+everything else is discovered from refs.
+Add one row for `<F>`, in the table's order —
+CRAN, then LTS, then the `.dev` flavors newest series first:
+
+* **Series** — `<U>` linked to
+  `https://github.com/duckdb/duckdb/tree/<U>`.
+* **Kind** — `dev`.
+* **Progress** — three badges, outward from the released state:
+  *ahead* (green) over `<release-branch>..<S>-dev`,
+  *in flight* (yellow) over `<S>-green..<S>-dev`,
+  *buffered* (blue) over `<S>-build-base..<S>-build`.
+  Copy an existing row and substitute the refs;
+  the shields.io endpoint is
+  `github/commits-difference/krlmlr/duckdb-r?base=…&head=…`.
+
+When the series later releases,
+add its stable row too,
+with a version badge instead of the lag badges.
+
+Two things to check before pushing:
+
+* **Every ref a badge names must live in `krlmlr/duckdb-r`.**
+  shields.io compares within a single repository,
+  and the fork is disconnected from `duckdb/duckdb-r`,
+  so a base branch that exists only in the canonical repo
+  renders as an error, not a count.
+  Mirror the release branch into the fork —
+  and keep the mirror fresh:
+  `sync.yaml` fast-forwards only `main`,
+  so a mirror left behind makes *ahead*
+  count commits that have already shipped.
+* **The table must stay clear of `scripts/flavor.patch`.**
+  `README.md` is a flavored file;
+  the patch rewrites the installation hunks near the top.
+  `git apply --check --include=README.md scripts/flavor.patch`
+  passes as long as the edit stays below them.
+
+The edit lands on `main` and is forward-ported like any other R-side change.
 
 ## The other half of a release cut
 
