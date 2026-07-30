@@ -29,6 +29,11 @@
 # moment, which the planner does not produce -- and if it somehow happened, the
 # retry loop would converge on whichever wrote last.
 #
+# "And its log" needs saying explicitly, because a retry that *succeeds* has no
+# log to hand over -- logs are kept for failures only. So the record changing to a
+# non-failure is what removes the log the previous verdict left; comparing what we
+# were given would never notice it, there being nothing to compare.
+#
 # The branch is reached through a blobless, shallow, checkout-less clone and
 # written with plumbing, because the point is to *not* pay for it. The `rcc`
 # branch is ~218 MB (2.5k harvested failure logs of a megabyte each), and a leg
@@ -93,6 +98,10 @@ fi
 
 part_path="runs2.d/${SHA:0:2}/${SHA}.ndjson"
 log_path="logs2/${SHA}.log"
+
+# Read from the record rather than taken as an argument, so the caller cannot
+# disagree with the record it just wrote.
+state="$(jq -r '.status.state // ""' "${RECORD}" 2>/dev/null || true)"
 
 # A blobless clone backfills on demand, and the demand is easy to trigger by
 # accident: plain `git write-tree` verifies that every index entry's object is
@@ -180,6 +189,13 @@ stage_if_changed() { # <path-on-branch> <source-file>
   return 0
 }
 
+# Removing an index entry needs no blob either, so this is as cheap as staging.
+unstage_if_present() { # <path-on-branch>
+  git_rcc ls-files --error-unmatch -- "$1" > /dev/null 2>&1 || return 1
+  git_rcc update-index --force-remove -- "$1"
+  return 0
+}
+
 attempt=1
 while :; do
   tip=""
@@ -197,6 +213,13 @@ while :; do
   stage_if_changed "${part_path}" "${RECORD}" && staged=$(( staged + 1 ))
   if [ -n "${LOG}" ]; then
     stage_if_changed "${log_path}" "${LOG}" && staged=$(( staged + 1 ))
+  elif [ "${state}" != "failure" ]; then
+    # No log to publish and no failure to explain: any log on the branch belongs
+    # to a verdict this record overturns.
+    if unstage_if_present "${log_path}"; then
+      echo "${SHA:0:9}: ${state:-decided}, dropping the log left by an earlier verdict"
+      staged=$(( staged + 1 ))
+    fi
   fi
 
   if [ "${staged}" -eq 0 ]; then

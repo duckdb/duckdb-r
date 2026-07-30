@@ -116,7 +116,7 @@ Shared behaviour, in the order it happens:
    so every vendor commit is installable as a distinct version on r-universe.
 8. **Commit** with the message described in [Understanding Vendor Commits](#understanding-vendor-commits).
 
-`vendor-one.sh --commits N` repeats steps 3–8 up to `N` times (CI uses 25),
+`vendor-one.sh --commits N` repeats steps 3–8 up to `N` times (the routine uses 100),
 stopping early on a tag or when no candidates remain.
 
 ### Two properties of the regenerated tree
@@ -192,7 +192,7 @@ one case where the driver silently does less than a reader might assume.
 Vendoring is driven by the routine described in
 `.claude/skills/series-loop.md`: `scripts/vendor-one.sh` appends upstream
 commits to `<series>-build` with a glue-only compile gate, and the routine
-consumes them into `<series>-dev` at most 25 at a time, gated on the per-commit
+consumes them into `<series>-dev` at most 100 at a time, gated on the per-commit
 `rcc` results harvested to branch `rcc`. There is no vendoring workflow; CI's
 role is building each `-dev` commit (`each.yaml`) and recording results
 (`rcc-logs.yaml`, every 30 minutes).
@@ -202,7 +202,7 @@ It reads the `rcc` commit-status of a branch tip and the five commits before it:
 
 | Gate decision | Meaning                                                        | Action                                                                                                                    |
 |---------------|----------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------|
-| `green`       | some commit in the window is `rcc=success`                     | rewind to the youngest green commit (re-applying any non-vendored commits above it), then vendor at most 25 commits on top |
+| `green`       | some commit in the window is `rcc=success`                     | rewind to the youngest green commit (re-applying any non-vendored commits above it), then vendor at most 100 commits on top |
 | `red`         | no green in the window, but a failure/error                    | fail loudly — the breakage must be repaired before vendoring continues                                                    |
 | `stale`       | no green/red, and a commit has had no `rcc` result for over 6h | fail loudly — CI never decided; investigate                                                                               |
 | `undecided`   | no green/red, results still pending and younger than 6h        | succeed and do nothing; re-check tomorrow                                                                                 |
