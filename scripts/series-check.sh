@@ -29,6 +29,24 @@ git fetch -q "$remote"
 
 rcc_tip() { git rev-parse -q --verify "refs/remotes/$remote/rcc" 2>/dev/null; }
 
+# See scripts/series-advance.sh: the pathspec narrows the walk, the subject
+# decides, and an empty answer explains itself on stderr.
+vendored_sha() {
+  local subjects sha n
+  subjects=$(git log -n 20 --format=%s "$1" -- src/duckdb || true)
+  sha=$(sed -nr 's/^.*duckdb.duckdb@([0-9a-f]+)( .*)?$/\1/p' <<<"$subjects" | head -n 1)
+  if [ -z "$sha" ]; then
+    n=$(grep -c . <<<"$subjects" || true)
+    if [ "$n" -ge 20 ]; then
+      echo "vendored_sha: 20 src/duckdb commits on $1, none of them vendoring;" >&2
+      echo "  if that is genuine, raise the bound in this helper" >&2
+    else
+      echo "vendored_sha: no vendor commit among $n src/duckdb commits on $1" >&2
+    fi
+  fi
+  echo "$sha"
+}
+
 state_of() { # <sha> -> success|failure|pending|missing
   local rec
   # The per-commit record first: it is one small blob, it is what the matrix legs
@@ -110,8 +128,7 @@ for S in "${series[@]}"; do
   if [ "$mb" = "$(git rev-parse "$dev")" ]; then
     buffered=$(git rev-list --count "$dev..$build")
   else
-    dev_up=$(git log -1 --format=%s "$dev" -- src/duckdb |
-      sed -nr 's/^.*duckdb.duckdb@([0-9a-f]+)( .*)?$/\1/p')
+    dev_up=$(vendored_sha "$dev")
     anchor=$(git log --format='%H %s' "$build" | grep -m 1 "duckdb@${dev_up:-NONE}" | cut -d' ' -f1 || true)
     if [ -n "$anchor" ]; then
       buffered=$(git rev-list --count "$anchor..$build")

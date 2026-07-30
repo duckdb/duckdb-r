@@ -25,6 +25,24 @@ Equivalence between `-build` and `-dev` commits is by the
 the subject is machine-readable state,
 which is also how `vendor-one.sh` finds its base.
 
+**The subject is what decides, never the path.**
+`src/duckdb/` is not a proxy for "vendored here":
+the patch stack is applied to the vendored tree in place,
+so every CRAN and compiler-warning fix lands under `src/duckdb/`
+carrying no upstream SHA —
+89 such commits on `main` today.
+A pathspec narrows the walk and nothing more;
+a reader of this state looks *past* such commits,
+and `vendored_sha()` does so 20 deep —
+far more than a series stacks above its buffer,
+and bounded so the walk ends by itself.
+Reading the newest commit that merely *touched* the directory
+answers with a commit that vendored nothing,
+which is how `scripts/series-advance.sh` came to refuse
+branches that had vendored perfectly well.
+Should 20 ever not be enough, the helper says so on stderr
+rather than answering wrongly; raise it then.
+
 **A series is discovered, not configured**:
 each firing lists `refs/heads/*-build`,
 and every `<X>-build` with a sibling `<X>-dev` is a series it serves —
@@ -366,7 +384,9 @@ anchoring on the `-build` commit equivalent to
 `-dev`'s newest **vendor** commit.
 Not its tip: `-dev` also carries commits that vendor nothing —
 tooling cherry-picked from `main`,
-and the adaptations folded in during repair —
+the adaptations folded in during repair,
+and the patch-stack fixes that edit `src/duckdb/` in place
+without vendoring anything —
 and the anchor is about how much of the buffer has been consumed,
 which only vendor commits record.
 Exception: a series with a **live** forward counterpart

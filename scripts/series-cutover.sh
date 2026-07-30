@@ -25,9 +25,22 @@ upstream=${3:-}
 
 git fetch -q "$remote"
 
+# See scripts/series-advance.sh: the pathspec narrows the walk, the subject
+# decides, and an empty answer explains itself on stderr.
 vendored_sha() {
-  git log -n 10 --format=%s "$1" -- src/duckdb |
-    sed -nr 's/^.*duckdb.duckdb@([0-9a-f]+)( .*)?$/\1/p' | head -n 1
+  local subjects sha n
+  subjects=$(git log -n 20 --format=%s "$1" -- src/duckdb || true)
+  sha=$(sed -nr 's/^.*duckdb.duckdb@([0-9a-f]+)( .*)?$/\1/p' <<<"$subjects" | head -n 1)
+  if [ -z "$sha" ]; then
+    n=$(grep -c . <<<"$subjects" || true)
+    if [ "$n" -ge 20 ]; then
+      echo "vendored_sha: 20 src/duckdb commits on $1, none of them vendoring;" >&2
+      echo "  if that is genuine, raise the bound in this helper" >&2
+    else
+      echo "vendored_sha: no vendor commit among $n src/duckdb commits on $1" >&2
+    fi
+  fi
+  echo "$sha"
 }
 
 for r in build dev green build-base; do

@@ -32,9 +32,28 @@ state_of() {
   echo "$rec" | sed -nr 's/.*"status":[^}]*"state": *"([a-z]+)".*/\1/p' | head -n 1
 }
 
+# The upstream SHA a ref has vendored. The pathspec narrows the walk, the
+# subject decides: commits that touch src/duckdb without vendoring are ordinary
+# (the patch stack is applied to the vendored tree in place), so look past them
+# — 20 deep, far more than a series stacks above its buffer, and bounded so
+# git ends the walk itself rather than being killed by a closing pipe.
+#
+# Empty is the answer being absent, not a wrong answer: callers refuse on it,
+# and the reason is on stderr for a human to act on.
 vendored_sha() {
-  git log -n 10 --format=%s "$1" -- src/duckdb |
-    sed -nr 's/^.*duckdb.duckdb@([0-9a-f]+)( .*)?$/\1/p' | head -n 1
+  local subjects sha n
+  subjects=$(git log -n 20 --format=%s "$1" -- src/duckdb || true)
+  sha=$(sed -nr 's/^.*duckdb.duckdb@([0-9a-f]+)( .*)?$/\1/p' <<<"$subjects" | head -n 1)
+  if [ -z "$sha" ]; then
+    n=$(grep -c . <<<"$subjects" || true)
+    if [ "$n" -ge 20 ]; then
+      echo "vendored_sha: 20 src/duckdb commits on $1, none of them vendoring;" >&2
+      echo "  if that is genuine, raise the bound in this helper" >&2
+    else
+      echo "vendored_sha: no vendor commit among $n src/duckdb commits on $1" >&2
+    fi
+  fi
+  echo "$sha"
 }
 
 # --- stage 3: the all-green prefix -------------------------------------------
@@ -91,12 +110,7 @@ mb=$(git merge-base "$dev" "$build")
 if [ "$mb" = "$(git rev-parse "$dev")" ]; then
   anchor=$mb
 else
-  # `-1` with a pathspec, never `head`: closing a long `git log`'s pipe kills it
-  # with SIGPIPE, which `pipefail` turns into a failed assignment (141), and
-  # -dev's history is thousands of commits. Every commit that touches
-  # src/duckdb is a vendor commit — a repair folds into one, it never stacks.
-  dev_up=$(git log -1 --format=%s "$dev" -- src/duckdb |
-    sed -nr 's/^.*duckdb.duckdb@([0-9a-f]+)( .*)?$/\1/p')
+  dev_up=$(vendored_sha "$dev")
   [ -n "$dev_up" ] ||
     { echo "Error: no vendor commit in -dev's history — reconcile by hand"; exit 1; }
   anchor=$(git log --format='%H %s' "$build" | grep -m 1 "duckdb@$dev_up" | cut -d' ' -f1 || true)
