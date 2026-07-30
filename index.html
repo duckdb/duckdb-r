@@ -95,9 +95,83 @@
 <p>Installing the package from GitHub may take up to an hour.</p>
 </div>
 <div class="section level2">
+<h2 id="flavors">Flavors<a class="anchor" aria-label="anchor" href="#flavors"></a>
+</h2>
+<p>The sources in this repository are published under several names: <code>duckdb</code> on CRAN, LTS and bleeding-edge <code>.dev</code> flavors on <a href="https://duckdb.r-universe.dev/builds" class="external-link">r-universe</a>. The <code>.dev</code> flavors are created by an automated vendoring process, CRAN and LTS flavors always point at a stable upstream release.</p>
+<table class="table">
+<colgroup>
+<col width="25%">
+<col width="25%">
+<col width="25%">
+<col width="25%">
+</colgroup>
+<thead><tr>
+<th>Flavor</th>
+<th>Series</th>
+<th>Kind</th>
+<th>Progress</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><code>duckdb</code></td>
+<td><code>v1.5-variegata</code></td>
+<td>CRAN</td>
+<td>stable</td>
+</tr>
+<tr>
+<td><code>duckdb.1.4</code></td>
+<td><code>v1.4-andium</code></td>
+<td>LTS</td>
+<td>stable</td>
+</tr>
+<tr>
+<td><code>duckdb.1.5.dev</code></td>
+<td><code>v1.5-variegata</code></td>
+<td>dev</td>
+<td>
+<a href="https://github.com/krlmlr/duckdb-r/compare/v1.5-variegata-build-base...v1.5-variegata-build" class="external-link"><img src="https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.5-variegata-build-base&amp;head=v1.5-variegata-build&amp;label=buffered" alt="buffered"></a> <a href="https://github.com/krlmlr/duckdb-r/compare/v1.5-variegata-green...v1.5-variegata-dev" class="external-link"><img src="https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.5-variegata-green&amp;head=v1.5-variegata-dev&amp;label=in%20flight" alt="in flight"></a>
+</td>
+</tr>
+<tr>
+<td><code>duckdb.dev</code></td>
+<td><code>main</code></td>
+<td>dev</td>
+<td>
+<a href="https://github.com/krlmlr/duckdb-r/compare/main-fwd-build-base...main-fwd-build" class="external-link"><img src="https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=main-fwd-build-base&amp;head=main-fwd-build&amp;label=buffered" alt="buffered"></a> <a href="https://github.com/krlmlr/duckdb-r/compare/main-fwd-green...main-fwd-dev" class="external-link"><img src="https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=main-fwd-green&amp;head=main-fwd-dev&amp;label=in%20flight" alt="in flight"></a>
+</td>
+</tr>
+<tr>
+<td><code>duckdb.1.4.dev</code></td>
+<td><code>v1.4-andium</code></td>
+<td>dev</td>
+<td>
+<a href="https://github.com/krlmlr/duckdb-r/compare/v1.4-andium-fwd-build-base...v1.4-andium-fwd-build" class="external-link"><img src="https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.4-andium-fwd-build-base&amp;head=v1.4-andium-fwd-build&amp;label=buffered" alt="buffered"></a> <a href="https://github.com/krlmlr/duckdb-r/compare/v1.4-andium-fwd-green...v1.4-andium-fwd-dev" class="external-link"><img src="https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=v1.4-andium-fwd-green&amp;head=v1.4-andium-fwd-dev&amp;label=in%20flight" alt="in flight"></a>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section level2">
 <h2 id="user-guide">User Guide<a class="anchor" aria-label="anchor" href="#user-guide"></a>
 </h2>
 <p>See the <a href="https://duckdb.org/docs/api/r" class="external-link">R API in the DuckDB documentation</a>.</p>
+</div>
+<div class="section level2">
+<h2 id="documentation">Documentation<a class="anchor" aria-label="anchor" href="#documentation"></a>
+</h2>
+<p>Documentation is organized as a tree; this section is its root for users, and <a href="AGENTS.html"><code>AGENTS.md</code></a> is the root for maintainers and coding agents.</p>
+<ul>
+<li>
+<a href="AGENTS.html"><code>AGENTS.md</code></a> — working on the package: build, test, and where to look for everything else</li>
+<li>
+<a href="BRANCHES.html"><code>BRANCHES.md</code></a> — branch model, package flavors, series invariants</li>
+<li>
+<a href="RELEASE.html"><code>RELEASE.md</code></a> — the release process</li>
+<li>
+<a href="scripts/VENDORING.html"><code>scripts/VENDORING.md</code></a> — vendoring mechanics</li>
+<li>
+<a href="plan/"><code>plan/</code></a> — designs, plans, and historical documents</li>
+</ul>
 </div>
 <div class="section level2">
 <h2 id="building">Building<a class="anchor" aria-label="anchor" href="#building"></a>
