@@ -7,7 +7,7 @@ files each. Compilation cost is therefore not proportional to the number of
 changed files but to the number of *objects* those files reach -- and header
 reach is bimodal: a narrow header pulls in a couple of dozen objects, a widely
 included one more than half the build (measured in
-`scripts/VENDORING-LOOP.md`, Appendix A.2).
+`plan/history/vendoring-loop.md`, Appendix A.2).
 
 `scripts/each-plan.sh` uses this to weigh commits before partitioning them into
 matrix shards, so that a wide-header commit is isolated instead of being packed

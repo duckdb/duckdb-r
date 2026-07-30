@@ -12,7 +12,7 @@
 # survive is **ccache**, which is content-addressed and lives on the runner's
 # local disk for the whole job. A typical adjacent vendor commit recompiles only
 # the handful of unity objects it invalidates -- ~98% hits, measured in
-# scripts/VENDORING-LOOP.md, Appendix A.2. That is the whole point of putting
+# plan/history/vendoring-loop.md, Appendix A.2. That is the whole point of putting
 # consecutive commits in one job.
 #
 # Stopping is graceful, not fatal. The leg stops at its own deadline and reports

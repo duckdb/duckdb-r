@@ -553,11 +553,24 @@ AGENTS.md ──┤                  maintainers & agents: quickstart + router
             ├─ .claude/skills/          playbooks the routine executes
             │    series-loop.md · series-forward.md ·
             │    series-rebase.md · series-open.md
-            └─ plan/                    designs, decisions, history
+            └─ plan/README.md           designs and decisions
                  PLAN-*.md
-                 · HISTORY-vendoring-loop.md (← scripts/VENDORING-LOOP.md)
-                 · REVIEW-main-dev-2026-07.md (← scripts/main-dev-review.md)
+                 └─ plan/history/            superseded designs, one-off artifacts
+                      vendoring-loop.md (← scripts/VENDORING-LOOP.md)
+                      main-dev-review-2026-07.md (← scripts/main-dev-review.md)
 ```
+
+History gets a directory of its own, not just a filename prefix:
+the distinction the tree cares about is that a plan may still come true
+and a history never will,
+and a directory says that at a glance from the path alone —
+which is the contract, links being the convenience.
+
+A directory cannot route, and both roots pointed at one:
+`plan/` was named as a node while nothing named its contents by path,
+so every document in it was an orphan by this tree's own rule —
+three of them with zero inbound references before the moves.
+`plan/README.md` is the node; the roots point at the file.
 
 Per-node target state:
 
@@ -568,8 +581,9 @@ Per-node target state:
 | `scripts/VENDORING.md` | mechanics + another re-telling | mechanics + troubleshooting only; owns the script inventory |
 | `scripts/EACH.md` | design + Q&A, current | keep; it is already the single owner of its topic |
 | skills | current | procedure only; mechanics by pointer |
-| `scripts/VENDORING-LOOP.md` | 865-line superseded design | move to `plan/HISTORY-vendoring-loop.md`; fix the 11 inbound references across 6 files |
-| `scripts/main-dev-review.md` | one-off review artifact in `scripts/`, currently orphaned (zero inbound references) | move to `plan/REVIEW-main-dev-2026-07.md` |
+| `scripts/VENDORING-LOOP.md` | 865-line superseded design | move to `plan/history/vendoring-loop.md`; fix the 11 inbound references across 6 files |
+| `scripts/main-dev-review.md` | one-off review artifact in `scripts/`, currently orphaned (zero inbound references) | move to `plan/history/main-dev-review-2026-07.md` |
+| `plan/` | named as a node by both roots; nothing named its children | `plan/README.md` routes: scope, then one row per document, by path — and the rule that a file the table does not name is an orphan |
 
 Migration: mechanical moves first (one PR), then one node per PR,
 router kept in sync in the same PR as each move —
