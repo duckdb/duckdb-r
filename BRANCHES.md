@@ -90,7 +90,7 @@ duckdb-r/
 ├── .github/
 │   └── workflows/
 │       ├── each.yaml               # Per-commit rcc, as a sharded matrix           [5]
-│       ├── sync.yaml               # Fast-forward krlmlr/main from duckdb/main     [5]
+│       ├── sync.yaml               # Mirror main + release lines from duckdb/      [5]
 │       ├── fledge.yaml             # Automated version-bump PRs                    [5]
 │       └── R-CMD-check*.yaml       # Package check workflows                       [5]
 ├── DESCRIPTION                     # Package metadata — name + version = flavor    [2]

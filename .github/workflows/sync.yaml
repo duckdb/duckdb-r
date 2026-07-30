@@ -1,5 +1,18 @@
-# Fast-forward sync: updates the main branch in krlmlr/duckdb-r from duckdb/duckdb-r.
-# Runs hourly and on manual dispatch.
+# Fast-forward sync: updates the mirrored branches in krlmlr/duckdb-r from
+# duckdb/duckdb-r. Runs hourly and on manual dispatch.
+#
+# `main` is what every series seeds from. The release branches are mirrored for
+# the badges: README.md's `Flavors` table counts each `.dev` series *ahead* of
+# the branch it releases from, and shields.io compares within one repository, so
+# the base of that comparison has to live here too. A mirror nobody refreshes
+# makes *ahead* count commits that have already shipped.
+#
+# Fast-forward only, never force: a mirror that has diverged is reported and
+# skipped, because whatever put a commit there did not come from upstream, and
+# this job is not the place to decide what happens to it. The other mirrors are
+# still moved, and the job then fails — an hourly green run's annotations are
+# read by nobody, and a mirror carrying a commit of its own is not a state to
+# sit in quietly.
 
 on:
   schedule:
@@ -13,7 +26,7 @@ jobs:
     runs-on: ubuntu-26.04
     if: github.repository == 'krlmlr/duckdb-r'
 
-    name: "Fast-forward main from duckdb/duckdb-r"
+    name: "Fast-forward the mirrors from duckdb/duckdb-r"
 
     permissions:
       contents: write
@@ -25,31 +38,53 @@ jobs:
           ref: main
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: ./.github/workflows/git-identity
-
-      - name: Fast-forward main from duckdb/duckdb-r
+      # No git-identity: nothing here creates a commit. Every branch is moved by
+      # pushing an upstream commit that already exists, which is also what keeps
+      # this a mirror rather than a merge.
+      - name: Fast-forward the mirrors from duckdb/duckdb-r
         run: |
-          set -x
+          ## -- Fast-forward the mirrors from duckdb/duckdb-r --
+          set -euxo pipefail
 
-          # Shallow clone duckdb/duckdb-r, excluding commits already reachable from our
-          # HEAD (assuming it exists there). Fail if HEAD is not found in the upstream history.
-          git clone --depth=100 --single-branch https://github.com/duckdb/duckdb-r.git /tmp/upstream
+          # Fetched straight from upstream rather than through a clone: a clone
+          # keeps only its own default branch under refs/heads/, so refetching
+          # from it would find `main` and nothing else. Shallow and deep enough
+          # to reach the point each mirror stands at, and no deeper -- this runs
+          # hourly. A mirror further behind than this is reported below rather
+          # than guessed at.
+          git remote add upstream https://github.com/duckdb/duckdb-r.git
+          git fetch --no-tags --depth=200 upstream '+refs/heads/*:refs/remotes/upstream/*'
 
-          # Add the cloned upstream as a local remote and fetch its main branch.
-          git remote add upstream /tmp/upstream
-          git fetch upstream main
+          # Discovered, not configured: `main` plus every release line
+          # (`v<major>.<minor>-<codename>` and its `-lts` sibling). A series
+          # branch lives only in this fork and matches nothing upstream, so the
+          # loop can never touch one.
+          branches="$(git for-each-ref --format='%(refname:strip=3)' 'refs/remotes/upstream/' \
+            | grep -E '^(main|v[0-9]+\.[0-9]+-[a-z]+(-lts)?)$' || true)"
+          echo "Mirroring: ${branches}"
 
-          # Get the current HEAD SHA of our main branch.
-          HEAD=$(git rev-parse HEAD)
+          rc=0
+          for b in ${branches}; do
+            theirs="$(git rev-parse "refs/remotes/upstream/${b}")"
+            ours="$(git ls-remote origin "refs/heads/${b}" | cut -f1)"
 
-          # Fast-forward our main to upstream/main.
-          git merge --ff-only upstream/main
+            if [ -z "${ours}" ]; then
+              echo "${b}: no mirror yet, creating it at ${theirs}"
+            elif [ "${ours}" = "${theirs}" ]; then
+              echo "${b}: already up to date"
+              continue
+            elif git merge-base --is-ancestor "${ours}" "${theirs}" 2>/dev/null; then
+              echo "${b}: fast-forwarding ${ours} -> ${theirs}"
+            else
+              # Either the mirror carries commits upstream does not, or it sits
+              # further back than this clone reaches. Both want a human.
+              echo "::warning::${b}: not a fast-forward from ${ours} (diverged, or behind the clone depth) -- skipped"
+              rc=1
+              continue
+            fi
 
-          NEW_HEAD=$(git rev-parse HEAD)
-          if [ "${HEAD}" != "${NEW_HEAD}" ]; then
-            echo "Pushing fast-forward from ${HEAD} to ${NEW_HEAD}"
-            git push
-          else
-            echo "Already up to date"
-          fi
+            git push origin "${theirs}:refs/heads/${b}"
+          done
+
+          exit "${rc}"
         shell: bash

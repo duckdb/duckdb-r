@@ -103,11 +103,15 @@ Two things to check before pushing:
   and the fork is disconnected from `duckdb/duckdb-r`,
   so a base branch that exists only in the canonical repo
   renders as an error, not a count.
-  Mirror the release branch into the fork —
-  and keep the mirror fresh:
-  `sync.yaml` fast-forwards only `main`,
-  so a mirror left behind makes *ahead*
-  count commits that have already shipped.
+  `sync.yaml` mirrors the release branches hourly
+  alongside `main`, creating a mirror that does not exist yet
+  and fast-forwarding one that does,
+  so the base of an *ahead* badge is there and stays fresh —
+  as long as the upstream branch is named like a release line
+  (`v<major>.<minor>-<codename>`, optionally `-lts`),
+  which is what that job discovers by.
+  Check the run once after a release cut;
+  a stale mirror makes *ahead* count commits that have already shipped.
 * **The table must stay clear of `scripts/flavor.patch`.**
   `README.md` is a flavored file;
   the patch rewrites the installation hunks near the top.
