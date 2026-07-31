@@ -1,5 +1,54 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.5.9003
+
+## Bug fixes
+
+### series-advance
+
+- Register the version merge driver before the replay.
+
+### series
+
+- Compute the buffer anchor safely, in both scripts.
+
+### series
+
+- Anchor the buffer replay on `-dev`'s newest vendor commit.
+
+## Features
+
+### series
+
+- Bring `-dev` level with `main` as a loop stage — identity over curation.
+
+## Documentation
+
+- Add the vendoring simplification plan, doc routing, and lag badges.
+
+- Document cutover.
+
+- Fix badge.
+
+### readme
+
+- Flesh out the `Flavors` table, document it in `series-open` (#2432).
+
+### readme
+
+- Add a `Flavors` section with lag badges and a `Documentation` root.
+
+## Refactoring
+
+### series
+
+- Read the vendored SHA one way, in one helper — and say what decides.
+
+## Uncategorized
+
+- Test(rcc): Stop `git gc` racing the harness's own clones, and say why a commit checks itself (#93).
+
+
 # duckdb 1.5.5.9002
 
 ## Bug fixes
