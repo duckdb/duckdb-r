@@ -28,6 +28,8 @@
 
 #include "src/planner/logical_operator_deep_copy.cpp"
 
+#include "src/planner/logical_operator_repeatability.cpp"
+
 #include "src/planner/logical_operator_visitor.cpp"
 
 #include "src/planner/planner.cpp"
