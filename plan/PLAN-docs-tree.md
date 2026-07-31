@@ -493,14 +493,21 @@ Each phase is independently shippable and docs-only except where noted.
 
 | Phase | Delivers | Unblocks |
 |---|---|---|
-| **A (this PR)** | this plan; `BUILD.md` with the three install paths, the roxygen-from-r-universe recipe, and the §4.2 fast-path caveat; `AGENTS.md` routes to it and drops the moved sections | #22 closable; every later phase gets a 90-second doc loop |
-| **B** | the five semantics pages of §3, one PR each, in the order `extensions` → `types` → `connections` → `csv` → `memory`; `_pkgdown.yml` gains `Guides`; `README.md` leads with it | the 8 `CLOSE-DOCS` closes, and the doc homes for 11 more (§3.1) |
+| **A (this PR)** | this plan; `BUILD.md` with the three install paths, the roxygen-from-r-universe recipe, and the §4.2 fast-path caveat; `AGENTS.md` routes to it and drops the moved sections; **`?duckdb_extensions` as the worked example**, plus the `Guides` section in `_pkgdown.yml` the rest of B lands into | #22 and #2306 closable; every later phase gets a 90-second doc loop and a page to copy |
+| **B** | the remaining four semantics pages of §3, one PR each, in the order `types` → `connections` → `csv` → `memory`; `README.md` leads with the guide list | the other 7 `CLOSE-DOCS` closes, and the doc homes for 11 more (§3.1) |
 | **C** | `TESTING.md`, `src/GLUE.md`, `R/ARCHITECTURE.md`, `.github/CI.md`; the matching `AGENTS.md` sections shrink to pointers | #1829, #2234, #2365 get a home; new contributors stop reading 270 lines of root |
 | **D** | `.github/docs-owners.yml`, `scripts/docs-coverage.R`, wired non-blocking then blocking; `.claude/skills/docs-tree.md` | the tree stops drifting |
 | **E** | the §8 moves inherited from `PLAN-vendoring-simplification.md`: `scripts/VENDORING-LOOP.md` → `plan/HISTORY-vendoring-loop.md`, `scripts/main-dev-review.md` → `plan/REVIEW-main-dev-2026-07.md`, and the `BRANCHES.md` / `scripts/VENDORING.md` node rewrites | history quarantined; inventories split by purpose per §1.6 |
 
 Phase B is the point of the plan.
-A exists to make B cheap; C–E exist so that B does not rot.
+A exists to make B cheap — and carries the first page itself,
+so that the shape is a file to copy rather than a description to interpret;
+C–E exist so that B does not rot.
+
+`?duckdb_extensions` goes first among the five because it is the only one
+whose subject matter the fast path actively misreports (§4.2),
+so writing it is what forced the caveat into `BUILD.md`.
+The remaining four can be written against the fast path.
 
 Ordering note: E is Phase 4 of `PLAN-vendoring-simplification.md` §9
 and stays owned there;

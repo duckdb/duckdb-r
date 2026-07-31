@@ -12,6 +12,13 @@ authors:
     href: "https://krlmlr.info/"
 
 reference:
+- title: Guides
+  desc: >
+    Concept pages that explain how the package behaves, as opposed to what a
+    single function does. Start here when something surprises you.
+  contents:
+  - duckdb_extensions
+  - duckdb_storage
 - title: Getting started
   desc: >
     One-line entry points for running a query or grabbing a throwaway
@@ -47,10 +54,3 @@ reference:
   - duckdb_register_arrow
   - duckdb_read_csv
   - duckdb_explain-class
-- title: Storage locations
-  desc: >
-    Where DuckDB writes extensions, stored secrets, and temporary files, and
-    how to choose those locations so that nothing is written outside the
-    session's temporary directory unless you opt in.
-  contents:
-  - duckdb_storage

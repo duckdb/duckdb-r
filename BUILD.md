@@ -151,23 +151,58 @@ So:
 `duckdb_extensions()` under the fast path will happily report `icu`
 as statically linked, which the shipped package does not have.
 
-## Published binaries
+#### Switching between modes
 
-For reproducing a user's report rather than testing local changes:
+`configure` writes `src/Makevars.system-lib` when the opt-in is active,
+and `src/Makevars.in` picks it up with a plain `include`.
+That file empties `SOURCES` and sets `PKG_LIBS=-lduckdb`.
 
-```r
-# CRAN
-install.packages("duckdb")
+Switching modes in a tree that has already built the other way
+has two traps, in opposite directions:
 
-# development flavors
-install.packages("duckdb", repos = c("https://duckdb.r-universe.dev", "https://cloud.r-project.org"))
+**Fast path leaking into a vendored build.**
+Nothing removes `Makevars.system-lib` once it exists,
+so unsetting `DUCKDB_R_USE_SYSTEM_LIB` is *not* enough:
+the next build keeps emptying `SOURCES` and linking `-lduckdb`
+while still appearing to compile the vendored sources,
+because make goes on building the objects it no longer links.
+That is how one arrives at a confidently wrong answer about
+the extension set. Delete the file by hand when leaving the fast path.
+(duckdb/duckdb-r#2446 makes `configure` do it.)
 
-# Posit Public Package Manager, binary for a specific Linux
-install.packages("duckdb", repos = sprintf(
-  "https://p3m.dev/cran/latest/bin/linux/manylinux_2_28-%s/%s", R.version["arch"], substr(getRversion(), 1, 3)
-))
+**A stale shared object surviving the switch.**
+`src/duckdb.so` depends on `$(OBJECTS)`.
+With `SOURCES` empty, `OBJECTS` is just the 15 glue objects,
+so a `duckdb.so` left over from a vendored build is *newer* than all of them
+and make relinks nothing: the fast path silently installs the vendored library.
+Nothing detects this, because the result is a correct package —
+just not the one you asked for, and not in the seconds you expected.
+
+So when switching modes, clear both:
+
+```sh
+rm -f src/Makevars.system-lib src/duckdb.so src/*.o
 ```
 
+**Checking which mode produced a package** — the reliable test is the
+installed shared object, not the environment variable:
+
+```sh
+ldd  <lib>/duckdb/libs/duckdb.so | grep libduckdb   # Linux
+otool -L <lib>/duckdb/libs/duckdb.so | grep duckdb  # macOS
+```
+
+A vendored build has no `libduckdb` dependency and is an order of magnitude
+larger (roughly 850 MB unstripped, versus 50 MB for the fast path).
+
+## Published binaries
+
+For reproducing a user's report rather than testing local changes,
+install a published build instead of compiling anything.
+[`README.md`](README.md) owns those instructions —
+CRAN, the Posit Public Package Manager, and r-universe —
+and states them under the right package name for each flavor,
+which is why they are not repeated here.
 See [`BRANCHES.md`](BRANCHES.md#r-package-flavors) for what each flavor tracks.
 
 ## Documentation builds
