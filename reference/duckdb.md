@@ -26,6 +26,9 @@ duckdb(
   bigint = "numeric",
   config = list(),
   ...,
+  home = NULL,
+  shared_home = NULL,
+  allow_extensions = NULL,
   environment_scan = FALSE
 )
 
@@ -44,7 +47,9 @@ dbConnect(
   tz_out_convert = c("with", "force"),
   config = list(),
   bigint = "numeric",
-  array = "none"
+  array = "none",
+  geometry = "blob",
+  map = "data.frame"
 )
 
 # S4 method for class 'duckdb_connection'
@@ -83,7 +88,68 @@ dbDisconnect(conn, ..., shutdown = TRUE)
 
 - ...:
 
-  Reserved for future extensions, must be empty.
+  These dots are for future extensions and must be empty.
+
+- home:
+
+  Root directory for DuckDB's downloaded extensions and stored secrets.
+  `NULL` (the default) resolves the location as described in
+  [duckdb_storage](https://r.duckdb.org/reference/duckdb_storage.md): an
+  existing `~/.duckdb`, else a per-session temporary directory (with an
+  offer to create `~/.duckdb` in interactive sessions). Pass a path to
+  use it as the root explicitly, creating it if needed. Cannot be
+  combined with `shared_home`. Applied only when the database instance
+  is created; see the ‘Database instances and driver reuse’ section.
+
+- shared_home:
+
+  Opt in or out of the shared `~/.duckdb` location, overriding the
+  automatic resolution. One of:
+
+  - `NULL` (the default) – resolve automatically (see
+    [duckdb_storage](https://r.duckdb.org/reference/duckdb_storage.md)).
+    This is the safe default.
+
+  - `TRUE` – store extensions and secrets under `~/.duckdb`, **creating
+    that directory if it does not exist**. This is a good setting for
+    permanent deployments (Posit Connect, Shiny, APIs). Do not use on
+    CRAN or on other infrastructure where you don't own `~/.duckdb`.
+
+    The setting is a durable, machine-level side effect that is *not*
+    scoped to the current session: the directory persists after R exits,
+    is reused by every future R session (and by the DuckDB CLI, Python
+    and other clients that share `~/.duckdb`), and any secrets written
+    there outlive this process. Applying this setting repeatedly is a
+    fast no-op.
+
+  - `FALSE` – use a per-session temporary directory even if `~/.duckdb`
+    already exists. Nothing persists beyond the session.
+
+  Cannot be combined with `home`. Applied only when the database
+  instance is created; see the ‘Database instances and driver reuse’
+  section.
+
+- allow_extensions:
+
+  **\[experimental\]** Whether this driver may load DuckDB extensions
+  (`INSTALL` / `LOAD`). One of:
+
+  - `NULL` (the default) – decide automatically. Extensions are enabled,
+    except on an affected Linux build (one not compiled with
+    `libstdc++`), where they are disabled and a throttled advisory
+    message is shown. See the ‘DuckDB extensions on Linux’ section.
+
+  - `TRUE` – force-enable extensions, attempting to load them even on an
+    affected build (which may crash R). No message.
+
+  - `FALSE` – disable extensions and silence the advisory message.
+
+  The argument takes precedence over the `duckdb.allow_extensions`
+  option (a scalar logical) and the `DUCKDB_R_ALLOW_EXTENSIONS`
+  environment variable (a value R reads as `TRUE` enables extensions and
+  `FALSE` disables them; unset, empty, or any other value is undecided).
+  Applied only when the database instance is created; see the ‘Database
+  instances and driver reuse’ section.
 
 - environment_scan:
 
@@ -123,6 +189,34 @@ dbDisconnect(conn, ..., shutdown = TRUE)
   an error is generated. If `"matrix"` is selected, arrays are returned
   as a column matrix. Each array is one row in the matrix.
 
+- geometry:
+
+  How geometry columns should be returned. There are two options:
+  `"blob"` and `"wk"`. If `"blob"` is selected, geometry columns are
+  returned as a list of raw vectors containing WKB data. If `"wk"` is
+  selected, geometry columns are returned as wk `wk_wkb` vectors. Use
+  [`wk::wk_handle()`](https://paleolimbot.github.io/wk/reference/wk_handle.html)
+  or
+  [`sf::st_as_sfc()`](https://r-spatial.github.io/sf/reference/st_as_sfc.html)
+  to convert to other geometry formats.
+
+- map:
+
+  How `MAP` columns should be returned. There are two options:
+  `"data.frame"` and `"list_of"`. If `"data.frame"` is selected (the
+  default), `MAP` columns are returned as a list of data frames with
+  `key` and `value` columns. If `"list_of"` is selected, `MAP` columns
+  are returned as a
+  [`vctrs::list_of()`](https://vctrs.r-lib.org/reference/list_of.html)
+  whose `ptype` is a `data.frame(key = <K>, value = <V>)` that records
+  the SQL key/value types. This enables MAP columns to round-trip
+  through
+  [`dbWriteTable()`](https://dbi.r-dbi.org/reference/dbWriteTable.html)
+  /
+  [`dbCreateTable()`](https://dbi.r-dbi.org/reference/dbCreateTable.html)
+  without specifying `field.types`, and lets scans accept named-list
+  cells as MAP entries.
+
 - conn:
 
   A `duckdb_connection` object
@@ -152,6 +246,62 @@ handles translation from the underlying time representation to a
 human-readable format. If the timestamp is invalid in the target
 timezone, the resulting value may be `NA` or an adjusted time.
 
+## Database instances and driver reuse
+
+`duckdb()` returns a driver object that owns a DuckDB *database
+instance*.
+[`dbConnect()`](https://dbi.r-dbi.org/reference/dbConnect.html) opens
+connections to that instance, and many connections can share one
+instance.
+
+For a file-based `dbdir`, the instance is cached, keyed by the
+(normalized) path: calling `duckdb()` again with the same `dbdir`
+returns the same driver and instance while it is still alive. This is
+deliberate. DuckDB allows only a single read-write handle to a database
+file at a time, so opening a second instance of the same file would fail
+with a lock error. Reusing one instance instead lets any number of
+`dbConnect(duckdb(dbdir = "my.db"))` calls share it. An in-memory
+database (`:memory:`, the default) has no file to lock and is never
+cached: every `duckdb()` call creates a fresh, isolated instance.
+
+Because the instance is created once per database file, `config`,
+`read_only`, `home`, and `shared_home` take effect only at creation. A
+call that reuses an existing instance ignores them. To apply different
+values to a file-based database – for example to reopen it read-only, or
+to send extensions and secrets elsewhere – first release the instance
+with `duckdb_shutdown()`, which also drops it from the cache, then
+create it again.
+[`dbDisconnect()`](https://dbi.r-dbi.org/reference/dbDisconnect.html)
+only closes a connection, it does not release the instance, and its
+`shutdown` argument is unused. Instances are shut down automatically
+when the driver is garbage-collected or the session ends.
+
+## DuckDB extensions on Linux
+
+DuckDB's prebuilt extensions for Linux are compiled with the GNU C++
+standard library (`libstdc++`). Loading one into a `duckdb` package that
+was itself built with a *different* C++ standard library – most commonly
+`libc++` (clang's `-stdlib=libc++`) – is an ABI mismatch that crashes R
+(<https://github.com/duckdb/duckdb-r/issues/1107>). Almost all Linux
+builds (CRAN binaries and most source installs) use `libstdc++` and are
+unaffected; macOS and Windows are unaffected.
+
+Each `duckdb()` call decides whether the driver it returns may load
+extensions, via the `allow_extensions` argument, the
+`duckdb.allow_extensions` option, the `DUCKDB_R_ALLOW_EXTENSIONS`
+environment variable, or automatic detection. On the automatic path a
+build that was not compiled with `libstdc++` on Linux disables
+extensions: `INSTALL` / `LOAD` raise a clear error instead of crashing,
+automatic extension install/load is turned off, and a throttled advisory
+message is shown when `duckdb()` is called. Pass
+`allow_extensions = FALSE` to disable extensions and silence that
+message, or `allow_extensions = TRUE` to attempt loading anyway (which
+may still crash R).
+
+The decision is carried on the returned driver as the experimental
+`allow_extensions` slot (see
+[duckdb_driver](https://r.duckdb.org/reference/duckdb_driver-class.md)).
+
 ## Examples
 
 ``` r
@@ -162,6 +312,11 @@ with_adbc(db <- adbc_database_init(duckdb_adbc()), {
 #>   one
 #> 1   1
 drv <- duckdb()
+#> duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+#> ℹ /home/runner/.duckdb
+#> This persists across sessions and is shared with the DuckDB CLI and other clients.
+#> ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+#> ℹ See ?duckdb_storage for details and alternatives.
 con <- dbConnect(drv)
 
 dbGetQuery(con, "SELECT 'Hello, world!'")
@@ -173,6 +328,11 @@ duckdb_shutdown(drv)
 
 # Shorter:
 con <- dbConnect(duckdb())
+#> duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+#> ℹ /home/runner/.duckdb
+#> This persists across sessions and is shared with the DuckDB CLI and other clients.
+#> ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+#> ℹ See ?duckdb_storage for details and alternatives.
 dbGetQuery(con, "SELECT 'Hello, world!'")
 #>   'Hello, world!'
 #> 1   Hello, world!

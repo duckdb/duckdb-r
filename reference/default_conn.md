@@ -33,6 +33,11 @@ connection, so scripts and packages should manage their own connections.
 
 ``` r
 conn <- default_conn()
+#> duckdb is storing downloaded extensions and secrets under ~/.duckdb:
+#> ℹ /home/runner/.duckdb
+#> This persists across sessions and is shared with the DuckDB CLI and other clients.
+#> ℹ Run duckdb(shared_home = FALSE) to use a temporary directory instead.
+#> ℹ See ?duckdb_storage for details and alternatives.
 sql_query("SELECT 42", conn = conn)
 #>   42
 #> 1 42
