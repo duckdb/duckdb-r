@@ -22,6 +22,15 @@ cd "${PKG_ROOT}/src"
 echo DUCKDB_RSTRTMGR=1 > Makevars.rstrtmgr
 echo DUCKDB_RSTRTMGR_LIB= >> Makevars.rstrtmgr
 
+# Drop any Makevars.system-lib left behind by an earlier
+# DUCKDB_R_USE_SYSTEM_LIB build; the branch below rewrites it when the
+# opt-in is active. Without this, the stale file keeps emptying SOURCES
+# and adding -lduckdb, so a plain `R CMD INSTALL .` silently stays on the
+# fast path -- producing a package that resolves DuckDB symbols from the
+# system library (a different extension set and autoinstall default)
+# while looking like a vendored build.
+rm -f Makevars.system-lib
+
 
 # Opt-in mode: skip compilation of the ~1700 vendored .cpp files and
 # link the R package against a system-installed libduckdb instead.
