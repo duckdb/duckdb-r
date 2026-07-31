@@ -28,6 +28,8 @@
 
 #include "src/parallel/pipeline_prepare_finish_event.cpp"
 
+#include "src/parallel/pipeline_schedule.cpp"
+
 #include "src/parallel/task_executor.cpp"
 
 #include "src/parallel/task_notifier.cpp"
