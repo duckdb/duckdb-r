@@ -466,19 +466,20 @@ or a plan whose waves are already even.
 
 #### Numbering, and the order they are queued in
 
-These are two different things, and conflating them is what made the first
-version confusing to read.
+These are two separate decisions that happen to agree.
 
 A shard's **number** runs with the history: shard 1 holds the oldest commits of
 the plan, shard N the branch tip, and adjacent numbers are adjacent slices.
 So a leg's number reads the way its commits do, and the numbering starts at
 one rather than at zero.
 
-The **order** they are queued in is the reverse: newest shard first, so that
-under `max-parallel` throttling the branch tip — the thing the series loop and
-the release flow wait on — is decided first.
-The matrix therefore starts at shard N and finishes with shard 1.
-Within a shard, commits run oldest-first, for cache locality.
+The **order** they are queued in is the same: oldest shard first, so that
+under `max-parallel` throttling the oldest undecided slice is decided first.
+That is the end the series loop can actually move from — `<S>-green` advances
+over a *contiguous* run of green commits, so a decided tip sitting above an
+undecided gap advances nothing.
+The matrix therefore starts at shard 1 and finishes with shard N.
+Within a shard, commits run oldest-first too, for cache locality.
 
 Numbers are assigned after the matrix cap has dropped the oldest shards
 (§4), so shard 1 is the oldest shard *this run* will build,

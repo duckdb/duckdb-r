@@ -145,11 +145,11 @@ def greedy(items, model, budget):
 
 
 def makespan(shards, model, parallel):
-    """Wall clock of the whole matrix, newest shard submitted first."""
+    """Wall clock of the whole matrix, oldest shard submitted first."""
     if not shards:
         return 0.0
     slots = [0.0] * max(1, min(parallel, len(shards)))
-    for shard in reversed(shards):
+    for shard in shards:
         i = min(range(len(slots)), key=lambda j: slots[j])
         slots[i] += model.estimate_minutes(shard)
     return max(slots)

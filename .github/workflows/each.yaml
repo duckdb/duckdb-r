@@ -23,8 +23,9 @@
 # EACH_SPLIT_FACTOR times the runner minutes of the cheapest plan.
 #
 # Shards are numbered along the history -- shard 1 is the oldest slice, shard N
-# the branch tip -- and queued the other way round, so under max-parallel
-# throttling the tip is decided first. A leg that fails a commit quotes the tail
+# the branch tip -- and queued in that same order, so under max-parallel
+# throttling the oldest undecided slice is decided first, which is the only end
+# `<S>-green` can advance from. A leg that fails a commit quotes the tail
 # of every stage that failed into its job summary, so the run summary says what
 # broke without opening the log.
 #
