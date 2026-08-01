@@ -1,5 +1,14 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.5.9004
+
+## Continuous integration
+
+### each
+
+- Queue the shards oldest first (#2445).
+
+
 # duckdb 1.5.5.9003
 
 ## Bug fixes
