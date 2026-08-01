@@ -137,6 +137,15 @@ linenr = bool(os.getenv("DUCKDB_R_LINENR", ""))
 
 (source_list, include_list, original_sources) = package_build.build_package(target_dir, extensions, linenr, unity_build)
 
+# Drop the bundled jemalloc sources. The R package does not enable jemalloc
+# (DUCKDB_ENABLE_JEMALLOC is never defined), so duckdb's allocator uses the
+# standard implementation. Upstream's packaging started emitting the jemalloc
+# tree into the source list (duckdb/duckdb#22811), which both fails to compile
+# (jemalloc_cpp.cpp requires DUCKDB_OVERRIDE_NEW_DELETE) and fails to link
+# (jemalloc's constructor references duckdb_malloc_ncpus(), defined only under
+# DUCKDB_ENABLE_JEMALLOC). Excluding the tree restores the previous behaviour.
+source_list = [x for x in source_list if 'third_party/jemalloc' not in x.replace('\\', '/')]
+
 # Walk target_dir, find all source and include files, and terminate with newline,
 # if not already present
 for root, dirs, files in os.walk(target_dir):
