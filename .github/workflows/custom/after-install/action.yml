@@ -18,14 +18,33 @@ runs:
         path: ${{ env.DUCKDB_R_PREBUILT_ARCHIVE }}
         key: ${{ env.DUCKDB_R_PREBUILT_ARCHIVE_GHA_CACHE_KEY }}
 
+    - name: Detect an unreleased R
+      run: |
+        ## -- Detect an unreleased R --
+        # The persistent ccache below is keyed on getRversion(), and that key is
+        # only honest for a released R, where the version number changes
+        # whenever the installation does. R-devel is rebuilt every day but keeps
+        # reporting the same number for months, so one cache entry ends up
+        # serving an arbitrary span of R-devel snapshots -- and restoring it in
+        # the rcc R-devel job has produced build failures. Skip the persistent
+        # cache there and build cold; ccache itself stays configured by the
+        # install action, so reuse within the job is unaffected.
+        #
+        # R.version$status is empty for a released R and non-empty for one that
+        # moves under a fixed version number ("Under development (unstable)" for
+        # R-devel, "Patched" for R-patched) -- exactly the builds the key cannot
+        # tell apart.
+        echo "DUCKDB_R_UNRELEASED=$(Rscript --vanilla -e 'cat(if (nzchar(R.version$status)) "1" else "0")')" | tee -a $GITHUB_ENV
+      shell: bash
+
     - name: Compute ccache key
-      if: env.DUCKDB_R_USE_SYSTEM_LIB != '1'
+      if: env.DUCKDB_R_USE_SYSTEM_LIB != '1' && env.DUCKDB_R_UNRELEASED != '1'
       run: |
         echo "GHA_CCACHE_KEY=${{ runner.os }}-$($(R CMD config CXX) --version | head -n 1 | sed -r 's/[, ]/-/g')-R-$(Rscript --vanilla -e 'cat(format(getRversion()))')" | tee -a $GITHUB_ENV
       shell: bash
 
     - name: Install persistent ccache
-      if: env.DUCKDB_R_USE_SYSTEM_LIB != '1'
+      if: env.DUCKDB_R_USE_SYSTEM_LIB != '1' && env.DUCKDB_R_UNRELEASED != '1'
       uses: hendrikmuhs/ccache-action@v1.2.14
       with:
         key: ${{ env.GHA_CCACHE_KEY }}
