@@ -1,9 +1,9 @@
 #!/bin/bash
 # Plan the sharded per-commit `rcc` build for the checked-out branch.
 #
-# Selects exactly the commits `scripts/each-rcc.sh` would dispatch -- on a
-# series branch the commits in `<S>-green..HEAD` without an `rcc` commit-status,
-# elsewhere the first-parent history on or after $SINCE without one -- and
+# Selects the commits that have no `rcc` commit-status -- on a series branch
+# those in `<S>-green..HEAD`, elsewhere the first-parent history on or after
+# $SINCE -- and
 # partitions them into contiguous, cost-balanced shards (see
 # `scripts/each-partition.py`, which also decides how many shards are worth
 # paying for).
@@ -40,8 +40,7 @@
 #                         (a `retry-<S>-dev` branch replans its tip that way
 #                         without this, which is the whole point of it)
 #   PENDING_TTL_HOURS   - a `pending` status older than this is treated as
-#                         abandoned and the commit is replanned (default: 6,
-#                         matching MAX_AGE_HOURS in scripts/vendor-gate.sh)
+#                         abandoned and the commit is replanned (default: 6)
 #   SHARD_BUDGET_MINUTES- build-time target per leg, excluding job setup
 #                         (default: 300; the GitHub job limit is 360, and
 #                         scripts/each-shard.sh stops at its own deadline rather
@@ -93,8 +92,8 @@ echo "Branch: ${branch}"
 echo "Considering commits on or after ${SINCE}"
 
 # ---------------------------------------------------------------- enumerate --
-# Bound the scan to the series' world when there is one, mirroring
-# scripts/each-rcc.sh exactly: everything at or before `<S>-green` is trusted
+# Bound the scan to the series' world when there is one:
+# everything at or before `<S>-green` is trusted
 # and never rebuilt, and if green exists but is not an ancestor of HEAD the
 # branch is mid-surgery or on another lineage, so nothing is planned rather than
 # flooding the queue with an unbounded scan.
@@ -154,7 +153,7 @@ case "${branch}" in
     fi ;;
 esac
 
-# Oldest first, exactly as scripts/each-rcc.sh scans. `awk 'NF'` re-emits every
+# Oldest first. `awk 'NF'` re-emits every
 # SHA newline-terminated, so the tip -- left unterminated by --pretty=format:
 # under --reverse -- is not dropped, and empty input yields nothing.
 git log --first-parent --reverse --pretty=format:"%H" --after="${SINCE}" "${RANGE[@]}" -- \
@@ -229,8 +228,8 @@ fi
 # ---------------------------------------------------------------- select ----
 # Keep a commit when it has no status, or a `pending` status old enough that the
 # run that wrote it is gone. Every other state (success, failure, error) is a
-# decision and is left alone -- the same rule scripts/each-rcc.sh applies, which
-# is what keeps a rebase-and-force-push the way to re-trigger a commit.
+# decision and is left alone, which is what keeps a rebase-and-force-push the
+# way to re-trigger a commit.
 #
 # The tip of a `retry-<S>-dev` branch is the one exception: it is a decision the
 # push exists to overturn. Only the tip, and only on that branch -- the rest of

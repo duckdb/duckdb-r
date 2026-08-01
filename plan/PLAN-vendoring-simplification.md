@@ -54,7 +54,7 @@ An inventory of the moving parts, as of today
 | Writers to `rcc` | 4 automated (leg publish, run fan-in, 30-min backstop, aggregate merge) + 1 manual (consolidate) |
 | Scripts | 26 shell/python executables + 3 data/jq files serve the loop |
 | Skills | 4 (`series-loop`, `series-forward`, `series-rebase`, `series-open`) |
-| Workflows | `each.yaml` (+ legacy dispatch mode), `rcc-logs.yaml`, `rcc-consolidate.yaml`; the legacy dispatch path also spans `R-CMD-check.yaml` (whose workflow *name* is `rcc`), `R-CMD-check-status.yaml`, and `cancel-rcc-dispatch.yaml` |
+| Workflows | `each.yaml`, `rcc-logs.yaml`, `rcc-consolidate.yaml` — the legacy dispatch path, which also spanned `cancel-rcc-dispatch.yaml`, is retired (D4). `R-CMD-check.yaml` (whose workflow *name* is `rcc`) and `R-CMD-check-status.yaml` stay: the ordinary push/PR check and the commit status branch protection reads, both core-set from `cynkra/cynkratemplate` |
 
 Findings, in order of how much brittleness they explain —
 diagnosis kept as written at review time,
@@ -262,8 +262,23 @@ as one checklist; this plan is analysis, not a routing node:
 | D1 | Selection reads the **record store**, not statuses — in `each-plan.sh`, `each-shard.sh`'s resume check, and the backstop. A commit without a record is undecided and gets replanned; nothing reconstructs records *from* statuses any more | GraphQL status scan, REST resume reads, `PENDING_TTL_HOURS`, the wedged-`pending` state, and the backstop's status-derived record repair (rebuild, don't reconstruct) |
 | D2 | Drop `runs2.ndjson` outright — no replacement. One sweep first (`BACKFILL=1 rcc-merge.sh` is exactly it) splits the pre-split records into parts; then the file goes, readers go parts-only, and `rcc-merge.sh` retires with the file | the aggregate, `rcc-merge.sh`, the stale-line rule, the two-layout fallback in every reader, and half of `rcc-consolidate.sh` (what remains: log GC and the squash) |
 | D3 | State `-build-base`'s contract: maintained and self-guarded by the loop, an input to no decision, consumed by humans (compare URLs and badges, §3.4) | the recurring temptation to treat it as coordination state — or to drop it and lose the only clean "buffered" range |
-| D4 | Retire the legacy dispatch path whole: `vendor-gate.sh`, `each-rcc.sh` + `each.yaml`'s dispatch mode, `cancel-rcc-dispatch.yaml`, and `R-CMD-check-status.yaml`'s rcc role. `R-CMD-check.yaml` itself stays — it is also the ordinary push/PR check — it only stops being dispatched per commit | four legacy surfaces that still have to be reasoned about on every change |
+| D4 | Retire the legacy dispatch path whole: `vendor-gate.sh`, `each-rcc.sh` + `each.yaml`'s dispatch mode, `cancel-rcc-dispatch.yaml`, ~~and `R-CMD-check-status.yaml`'s rcc role~~ (that last one was wrong — see the status note below). `R-CMD-check.yaml` itself stays — it is also the ordinary push/PR check — it only stops being dispatched per commit | four legacy surfaces that still have to be reasoned about on every change |
 | D5 | State the concurrency design in one place: per-series group + durable idempotent verdicts; **no pending markers, by design** | the recurring "did we lose the running marker" doubt (F3). The pieces exist in `each.yaml` and `EACH.md`; the one-place statement is what is missing |
+
+*Status of D4:* landed, minus one item this document had wrong.
+`vendor-gate.sh`, `each-rcc.sh`, `each.yaml`'s dispatch mode and
+`cancel-rcc-dispatch.yaml` are gone.
+`R-CMD-check-status.yaml` **stays**, and so does the `rcc-smoke-sha` artifact
+that feeds it: the commit status it writes is what **branch protection** reads,
+and both are core-set content from `cynkra/cynkratemplate` — the status file is
+byte-identical to the template's — so editing them would fork this repository
+from the template to no end. They were never part of the dispatch path; what
+went is the per-commit *dispatcher*, not the check it dispatched.
+`R-CMD-check.yaml` likewise stays, as the ordinary push/PR check; what it
+stopped being is dispatched per commit. The one thing the retirement costs is
+the escape hatch: rollback is now a revert rather than an `EACH_RCC_MODE` flip.
+That is the trade — an escape hatch nobody reaches for is not insurance, it is a
+second path everything else has to stay correct against.
 
 With D1/D2 the writers simplify to three, all parts-only:
 the leg publishes its own record and log;

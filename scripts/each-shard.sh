@@ -3,9 +3,8 @@
 #
 # Walks its slice of `plan.json` oldest-first, and for every commit resets the
 # workspace to it, runs `scripts/rcc-one.sh`, and writes the `rcc` commit-status
-# -- the same marker `scripts/each-rcc.sh` produces indirectly by dispatching an
-# `rcc` run per commit. Downstream consumers (`scripts/vendor-gate.sh`,
-# `scripts/rcc-logs.sh`, the repair skills) see no difference.
+# -- which is a display surface: `scripts/rcc-logs.sh` and the repair skills read
+# the record on the `rcc` branch, and nothing decides from the status.
 #
 # Why the reuse works even though every commit starts from a clean tree:
 # `R CMD build` copies the package and `R CMD check` compiles from the copy, so

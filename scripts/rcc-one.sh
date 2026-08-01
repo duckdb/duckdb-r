@@ -5,7 +5,7 @@
 #
 # This is the gate set that the `rcc-smoke` job of `.github/workflows/
 # R-CMD-check.yaml` applies on its per-commit `workflow_dispatch` path -- the
-# path `scripts/each-rcc.sh` drives today -- expressed as a script so that
+# path the retired per-commit dispatcher drove -- expressed as a script so that
 # `scripts/each-shard.sh` can run it many times in one job. A workflow cannot
 # loop over composite actions, so the gates have to be callable from a shell
 # loop; this file is that seam.
@@ -58,7 +58,7 @@ STAGE_DIR="${EACH_STAGE_DIR:-}"
 
 # peter-evans/create-pull-request commits as this identity by default, not as
 # the repository's git config. Reproduced verbatim so the published branches stay
-# byte-comparable with the ~950 the dispatch path already created.
+# byte-comparable with the ~950 the retired dispatch path created.
 CPR_NAME="github-actions[bot]"
 CPR_EMAIL="41898282+github-actions[bot]@users.noreply.github.com"
 CPR_MESSAGE="[create-pull-request] automated change"

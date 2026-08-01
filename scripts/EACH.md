@@ -1,7 +1,8 @@
 # `each-rcc` — building every commit as a sharded matrix
 
 Status: **in production on the `*-fwd-dev` branches.**
-Rollback is a repository-variable flip (`EACH_RCC_MODE=dispatch`), not a revert.
+The legacy per-commit dispatcher it replaced has been retired, so rollback is a
+revert rather than a repository-variable flip; §6 records what went with it.
 The cost model's constants are no longer borrowed —
 they are fitted to measured legs; see [§3, *Can we compute breakpoints efficiently, and evenly?*](#can-we-compute-breakpoints-efficiently-and-evenly).
 
@@ -44,8 +45,10 @@ identity, message and parent matching `peter-evans/create-pull-request` —
 so the working tree keeps its diff and the `clean` gate still fails the commit.
 This is why the `build` job needs `contents: write`.
 
-[`scripts/vendor-gate.sh`](vendor-gate.sh) needs no changes: it reads commit
-statuses, which are untouched.
+The commit status stays, and is now purely a display surface: nothing decides
+from it. `scripts/vendor-gate.sh`, which turned a window of statuses into one
+green/red/stale verdict for the daily vendoring run, went with the run it served
+(D4 of [`../plan/PLAN-vendoring-simplification.md`](../plan/PLAN-vendoring-simplification.md)).
 
 The readers of the `rcc` branch did need a change, but a compatible one. Records
 are now one file per commit, with `runs2.ndjson` extended from them
@@ -58,7 +61,7 @@ classification still reads the harvested log, unchanged (see below).
 
 ### Bounded by `<S>-green`
 
-Selection follows `scripts/each-rcc.sh` exactly, including the bound the series
+Selection carries over the bound the series
 loop introduced: on a `<S>-dev` branch with a sibling `<S>-green`, only
 `<S>-green..HEAD` is scanned — everything at or before green is trusted and
 never rebuilt — and if green exists but is not an ancestor of HEAD, *nothing* is
@@ -79,6 +82,17 @@ Setting the commit status *is* the job, so the leg does it directly:
 and `success`/`failure` after it, context `rcc` —
 the same call `rcc-smoke` makes inline in its own "Update status for rcc" steps.
 
+`R-CMD-check-status.yaml` and the `rcc-smoke-sha` artifact that feeds it both
+**stay**, untouched: they are core-set content from
+[`cynkra/cynkratemplate`](https://github.com/cynkra/cynkratemplate) — the status
+file is byte-identical to the template's — and the commit status they write is
+what branch protection reads on ordinary pushes and PRs. Retiring the dispatch
+path does not touch them, because they were never part of it: what went is the
+per-commit *dispatcher*, not the check it dispatched.
+
+What the rest of this section explains is why the sharded path needs no
+successor to that artifact.
+
 The `rcc-smoke-sha` artifact exists only to carry a SHA across a `workflow_run`
 boundary into `R-CMD-check-status.yaml`, and there is no such boundary here:
 the leg already knows the SHA it just built.
@@ -98,9 +112,10 @@ so `R-CMD-check-status.yaml` does not fire for it at all.
 
 Two selection details are new, and both only fire in states the old path never produced:
 
-- A `pending` status older than `PENDING_TTL_HOURS` (default 6, matching
-  `MAX_AGE_HOURS` in `vendor-gate.sh`) is treated as abandoned and replanned.
-  Previously a leg that died hard left a commit wedged in `pending` forever.
+- A `pending` status older than `PENDING_TTL_HOURS` (default 6) is treated as
+  abandoned and replanned. Previously a leg that died hard left a commit wedged
+  in `pending` forever. (The default was once matched to `MAX_AGE_HOURS` in
+  `vendor-gate.sh`; that script is gone, and the number now stands on its own.)
 - A commit missing from the status scan is replanned rather than skipped.
 - A `retry-<S>-dev` branch — the series' own branch name with a prefix, see
   `.claude/skills/series-loop.md` — replans **its tip** even when that commit
@@ -145,7 +160,7 @@ Files:
 
 | Path | Role |
 |---|---|
-| `.github/workflows/each.yaml` | plan → build → harvest, plus the legacy dispatch mode |
+| `.github/workflows/each.yaml` | plan → build → harvest |
 | `scripts/each-plan.sh` | enumerate, read statuses, weigh, partition |
 | `scripts/each-cost.py` | unity-object reach; the cost model's only input |
 | `scripts/each-partition.py` | the cost model, the greedy fill, and the rebalance pass |
@@ -157,7 +172,6 @@ Files:
 | `scripts/each-harvest.sh` | fan-in: reconcile what the legs could not publish |
 | `scripts/rcc-run-fields.jq` | the run-object projection all three writers share |
 | `scripts/rcc-parts-test.sh` | offline checks for the layout's invariants, and the source of the numbers below |
-| `scripts/each-rcc.sh` | unchanged; still the legacy dispatcher |
 
 ### No running marker, by design
 
@@ -900,10 +914,11 @@ collected the old way, one job later.
 | `GITHUB_TOKEN` REST requests | 1000 per hour per repository | see below |
 | Reusable workflow nesting | 10 levels, 50 unique per file | not used |
 
-The rate limit is the one that quietly rules out the obvious implementation.
-Reading one commit-status per REST call — what `each-rcc.sh` does today —
+The rate limit is the one that quietly ruled out the obvious implementation.
+Reading one commit-status per REST call — what the retired dispatcher did —
 costs one request per commit, so a 3000-commit scan cannot complete at all.
-The planner batches 100 commits per GraphQL request instead: the same scan is ~30 requests.
+That constraint is what a git-native verdict store answers outright: reading the
+store is one fetch regardless of range.
 
 Writing statuses stays REST (there is no batch endpoint), 2 per commit,
 plus one read per commit for the resume check
@@ -982,7 +997,6 @@ are repository variables:
 
 | Knob | Input | Variable | Default |
 |---|---|---|---|
-| Legacy per-commit dispatch | `mode: dispatch` | `EACH_RCC_MODE` | `matrix` |
 | Earliest commit date | `since` | `EACH_RCC_SINCE` | `2026-01-01` |
 | Concurrent shards | `max-parallel` | `EACH_RCC_MAX_PARALLEL` | `20` |
 | Build-time target per shard | `shard-budget-minutes` | — | `300` |
@@ -1094,10 +1108,17 @@ the wider simplification is
 [`plan/PLAN-vendoring-simplification.md`](../plan/PLAN-vendoring-simplification.md).)
 
 `vendor.yaml` no longer exists — the series loop
-(`.claude/skills/series-loop.md`) replaced it — so the only remaining caller of
-`scripts/each-rcc.sh` is the legacy `dispatch` mode of this workflow.
-Nothing has to be switched over; the two paths write the same marker, and the
-planner skips any commit that already has one, so they never double-build.
+(`.claude/skills/series-loop.md`) replaced it — and neither does the dispatcher
+that outlived it: `scripts/each-rcc.sh`, this workflow's `dispatch` mode,
+`scripts/vendor-gate.sh` and `cancel-rcc-dispatch.yaml` were retired together
+once the sharded path had run long enough to be the only path anyone reached
+for.
+
+`R-CMD-check.yaml` and `R-CMD-check-status.yaml` stay exactly as they are.
+They are the ordinary push/PR check and the commit status branch protection
+reads, they come from [`cynkra/cynkratemplate`](https://github.com/cynkra/cynkratemplate)
+rather than from here, and editing them would put this repository's copy out of
+step with the template for no gain.
 
 Suggested order:
 
@@ -1105,8 +1126,12 @@ Suggested order:
 2. Run the parity check from §7 item 1 — legacy and sharded over the same commit range — and compare verdicts.
 3. Forward-port to the `*-dev` branches.
 4. ~~Recalibrate the cost-model constants from real `duration_seconds`.~~ Done; see §3.
+5. ~~Retire the legacy dispatch path once the sharded one has earned it.~~ Done.
 
-Rolling back at any point: set the repository variable `EACH_RCC_MODE=dispatch`.
+Rolling back is now a revert of this workflow, not a variable flip. That is the
+trade the retirement makes, and it is the one worth making: an escape hatch that
+is never reached for is not insurance, it is a second path everything else has
+to keep being correct against.
 
 ---
 
@@ -1117,8 +1142,10 @@ Honest list, in rough order of risk:
 1. **`rcc-one.sh` is a port, not a call.** It reproduces the gates `rcc-smoke`
    applies on its `workflow_dispatch` path. `R-CMD-check.yaml` is forward-ported
    from upstream, so the two can drift.
-   A parity run — legacy dispatch and sharded build over the same commits,
-   comparing verdicts — is the check that should precede cut-over.
+   The parity run — legacy dispatch and sharded build over the same commits,
+   comparing verdicts — was the check for cut-over; with the legacy path retired,
+   drift is now caught by the gate list in `rcc-one.sh` being reviewed whenever
+   `R-CMD-check.yaml` is forward-ported.
 2. **The cost model counts objects, not object *sizes*.**
    A `ub_*.o` group compiles dozens of `.cpp` files and a leaf object compiles
    one, and the model charges the same `OBJECT_SECONDS` for both.

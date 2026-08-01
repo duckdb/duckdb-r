@@ -1,20 +1,17 @@
 # Helper workflow to build every commit on a branch that has no rcc result yet.
 #
-# Semantics are unchanged from the fire-and-forget dispatcher this replaces.
 # On a series branch (`<S>-dev` with a sibling `<S>-green`), only commits in
 #   `<S>-green..HEAD` are considered -- the series loop's world; nothing is built
 #   when green is not an ancestor of HEAD. On branches without a green sibling,
 #   the first-parent history since $SINCE is scanned. Either way, a commit is
-#   built only if it carries no `rcc` commit-status, oldest first, and gets a
-#   status of its own. Rebasing and force-pushing a commit past the boundary
-#   still re-triggers it.
+#   built only if it is undecided, oldest first, and gets a verdict of its own.
+#   Rebasing and force-pushing a commit past the boundary still re-triggers it.
 #
-# What changed is the shape of the work. Instead of one dispatched `rcc` run per
-# commit, the run plans contiguous, cost-balanced *shards* and gives each shard
-# one job, which walks its commits in a single workspace. The batch is then one
-# thing to cancel, the R/dependency setup is paid per shard rather than per
-# commit, and consecutive commits hit the runner's local ccache -- a typical
-# adjacent vendor commit recompiles ~5 of 341 unity objects.
+# The run plans contiguous, cost-balanced *shards* and gives each shard one job,
+# which walks its commits in a single workspace. The batch is then one thing to
+# cancel, the R/dependency setup is paid per shard rather than per commit, and
+# consecutive commits hit the runner's local ccache -- a typical adjacent vendor
+# commit recompiles ~5 of 341 unity objects.
 #
 # Packing commits that tightly is the cheapest plan and the slowest one: a
 # 25-commit batch fits in two 5-hour legs. So the planner replans the same range
@@ -31,9 +28,6 @@
 #
 # See scripts/EACH.md for the design, the GitHub Actions limits it works within,
 # and why `workflow_call` is not the mechanism that gets us there.
-#
-# Set the repository variable EACH_RCC_MODE to "dispatch" to fall back to the
-# old per-commit dispatcher (scripts/each-rcc.sh) without editing this file.
 
 on:
   push:
@@ -42,13 +36,6 @@ on:
       - '*-dev'
   workflow_dispatch:
     inputs:
-      mode:
-        description: "matrix (sharded build) or dispatch (legacy per-commit rcc runs)"
-        type: choice
-        options:
-          - matrix
-          - dispatch
-        default: matrix
       since:
         description: "Earliest commit date to consider (ISO 8601)"
         type: string
@@ -70,7 +57,7 @@ on:
         type: string
         default: ""
       force:
-        description: "Rebuild commits that already have an rcc status"
+        description: "Rebuild commits that already have a verdict"
         type: boolean
         default: false
   workflow_call:
@@ -79,11 +66,6 @@ on:
         description: "Branch ref to trigger rcc for (e.g. refs/heads/main-dev)"
         required: true
         type: string
-      mode:
-        description: "matrix (sharded build) or dispatch (legacy per-commit rcc runs)"
-        required: false
-        type: string
-        default: ""
       since:
         description: "Earliest commit date to consider (ISO 8601)"
         required: false
@@ -125,7 +107,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  EACH_MODE: ${{ inputs.mode || vars.EACH_RCC_MODE || 'matrix' }}
   EACH_SINCE: ${{ inputs.since || vars.EACH_RCC_SINCE || '2026-01-01' }}
   EACH_SHARD_BUDGET_MINUTES: ${{ inputs.shard-budget-minutes || '300' }}
   EACH_MAX_PARALLEL: ${{ inputs.max-parallel || vars.EACH_RCC_MAX_PARALLEL || '20' }}
@@ -140,9 +121,8 @@ jobs:
     name: "Plan per-commit rcc builds"
 
     outputs:
-      # The fallbacks cover legacy dispatch mode, where the planning step never
-      # runs: `build` is guarded by `shards != '0'`, but its `strategy` must
-      # still parse.
+      # The fallbacks cover a planning step that did not run at all: `build` is
+      # guarded by `shards != '0'`, but its `strategy` must still parse.
       matrix: ${{ steps.plan.outputs.matrix || '{"shard":["none"]}' }}
       shards: ${{ steps.plan.outputs.shards || '0' }}
       commits: ${{ steps.plan.outputs.commits || '0' }}
@@ -150,7 +130,6 @@ jobs:
 
     permissions:
       contents: read
-      statuses: read
       actions: write
 
     # Begin custom: services
@@ -162,20 +141,8 @@ jobs:
           ref: ${{ inputs.branch || github.ref }}
           fetch-depth: 0
 
-      # Escape hatch. Unchanged behaviour, unchanged script -- the point of
-      # keeping it is that rolling back is a repository-variable flip, not a
-      # revert, for as long as the sharded path is still earning trust.
-      - name: Enumerate commits and trigger rcc workflow (legacy mode)
-        if: env.EACH_MODE == 'dispatch'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          SINCE: ${{ env.EACH_SINCE }}
-        run: scripts/each-rcc.sh
-        shell: bash
-
       - id: plan
         name: Plan shards
-        if: env.EACH_MODE != 'dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
           SINCE: ${{ env.EACH_SINCE }}
@@ -192,7 +159,7 @@ jobs:
       # within an attempt: without it, "Re-run all jobs" fails right here, on the
       # `each-plan` this run's first attempt already uploaded.
       - uses: actions/upload-artifact@v7
-        if: env.EACH_MODE != 'dispatch' && steps.plan.outputs.shards != '0'
+        if: steps.plan.outputs.shards != '0'
         with:
           name: each-plan
           path: ${{ runner.temp }}/plan.json
@@ -217,8 +184,8 @@ jobs:
     permissions:
       # `write` for the snapshot-<sha>-rcc-smoke-null branches: the snapshots
       # gate publishes accepted snapshots as a branch off the commit under test,
-      # the way peter-evans/create-pull-request does on the dispatch path, and
-      # tooling looks those up by name.
+      # the way peter-evans/create-pull-request does, and tooling looks those
+      # up by name.
       contents: write
       statuses: write
       actions: read
