@@ -1,8 +1,5 @@
 # `operations/`
 
-Running the automation:
-playbooks, schedules, and what to do when it breaks.
+Running the repository's automation.
 
-* [`playbooks/`](playbooks/) — the executable procedures
-* [`schedules/`](schedules/) — which routine fires when
-* [`runbooks/`](runbooks/) — when something is red
+* [`vendoring/`](vendoring/) — how upstream becomes `src/duckdb/`, one commit at a time

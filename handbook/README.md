@@ -8,7 +8,6 @@ internal pages like this one only navigate — leaves explain
 * [`architecture/`](architecture/) — what the shipped code is
 * [`build/`](build/) — from tree to installed package
 * [`testing/`](testing/) — proving the package works
-* [`vendoring/`](vendoring/) — how upstream becomes `src/duckdb/`
 * [`branches/`](branches/) — series, flavors, invariants
 * [`ci/`](ci/) — what runs, and what it gates
 * [`releases/`](releases/) — from a green branch to CRAN

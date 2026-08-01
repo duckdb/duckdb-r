@@ -8,4 +8,4 @@ and the one-commit-per-upstream-commit invariant.
 
 Today:
 
-* [`scripts/VENDORING.md`](../../../scripts/VENDORING.md)
+* [`scripts/VENDORING.md`](../../../../scripts/VENDORING.md)

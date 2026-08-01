@@ -16,4 +16,4 @@ Today:
 * [`R/version.R`](../../../R/version.R) —
   the embedded engine version, generated at vendor time
 * how the embedded copy is maintained is
-  [`vendoring/`](../../vendoring/), not here
+  [`operations/vendoring/`](../../operations/vendoring/), not here
