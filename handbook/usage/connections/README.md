@@ -9,5 +9,5 @@ Scope: `dbConnect()` semantics: instance caching, `config` and `read_only`,
 Today:
 
 * `?duckdb` — the driver reference
-* `?duckdb_connections` is proposed in
-  [#2443](https://github.com/duckdb/duckdb-r/pull/2443)
+* a connection-semantics concept page (`.Rd`) is the natural next home,
+  not yet written

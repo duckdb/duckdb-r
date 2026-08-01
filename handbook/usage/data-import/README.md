@@ -9,5 +9,4 @@ and Parquet ingestion.
 Today:
 
 * `?duckdb_read_csv` — the function reference
-* `?duckdb_csv` is proposed in
-  [#2443](https://github.com/duckdb/duckdb-r/pull/2443)
+* a CSV concept page (`.Rd`) is the natural next home, not yet written

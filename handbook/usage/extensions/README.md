@@ -8,5 +8,5 @@ and installing more.
 
 Today:
 
-* `?duckdb_extensions` lands in
-  [#2443](https://github.com/duckdb/duckdb-r/pull/2443)
+* no single owner yet;
+  the natural home is a `?duckdb_extensions` reference page, not yet written

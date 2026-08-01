@@ -8,5 +8,5 @@ Scope: the R ↔ DuckDB edges: UTF-8 strictness, geometry via WKB,
 
 Today:
 
-* no single owner yet; `?duckdb_types` is proposed in
-  [#2443](https://github.com/duckdb/duckdb-r/pull/2443)
+* no single owner yet;
+  the natural home is a `?duckdb_types` reference page, not yet written

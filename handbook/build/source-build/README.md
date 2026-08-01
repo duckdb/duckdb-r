@@ -9,5 +9,3 @@ Scope: `configure`, `src/Makevars.in` and the `.mk` includes,
 Today:
 
 * [`AGENTS.md`](../../../AGENTS.md) — "Bootstrap, Build, and Test the Repository"
-* `BUILD.md` is proposed in
-  [#2443](https://github.com/duckdb/duckdb-r/pull/2443)

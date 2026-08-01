@@ -8,5 +8,5 @@ Scope: what `memory_limit` bounds and what it does not,
 
 Today:
 
-* no single owner yet; `?duckdb_memory` is proposed in
-  [#2443](https://github.com/duckdb/duckdb-r/pull/2443)
+* no single owner yet;
+  the natural home is a `?duckdb_memory` reference page, not yet written

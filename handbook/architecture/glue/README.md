@@ -14,5 +14,3 @@ Today:
   and "C++ Warning Policy"
 * [`scripts/format.py`](../../../scripts/format.py) —
   formats `src/`, driven by the Makefile's `format-*` targets
-* `src/GLUE.md` is proposed in
-  [#2443](https://github.com/duckdb/duckdb-r/pull/2443)
