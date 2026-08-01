@@ -16,7 +16,7 @@ internal pages like this one only navigate — leaves explain
 * [`architecture/`](architecture/) — what the shipped code is
   * [`r-layer/`](architecture/r-layer/) — R conventions and the flavor seam
   * [`glue/`](architecture/glue/) — the R ↔ DuckDB bridge in `src/`
-  * [`engine/`](architecture/engine/) — `src/duckdb/` and the patch policy
+  * [`engine/`](architecture/engine/) — the embedded DuckDB engine
 * [`build/`](build/) — from tree to installed package
   * [`source-build/`](build/source-build/) — `configure`, Makevars, the tarball
   * [`fast-paths/`](build/fast-paths/) — prebuilt libduckdb in seconds
@@ -50,5 +50,4 @@ internal pages like this one only navigate — leaves explain
   * [`runbooks/`](operations/runbooks/) — when something is red
 * [`meta/`](meta/) — the documentation system itself
   * [`handbook/`](meta/handbook/) — the rules of this tree
-  * [`documentation-map/`](meta/documentation-map/) — what lives outside, and why
   * [`plans/`](meta/plans/) — active designs, superseded records

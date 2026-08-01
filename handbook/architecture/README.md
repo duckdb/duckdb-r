@@ -5,4 +5,4 @@ the R layer, the C++ glue, and the vendored engine.
 
 * [`r-layer/`](r-layer/) — R conventions and the flavor seam
 * [`glue/`](glue/) — the R ↔ DuckDB bridge in `src/`
-* [`engine/`](engine/) — `src/duckdb/` and the patch policy
+* [`engine/`](engine/) — the embedded DuckDB engine

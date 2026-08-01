@@ -16,11 +16,15 @@ has exactly one place in this tree.
   a topic with no place in the tree is a defect of the tree,
   not of the topic.
 * **Pointer leaves are legitimate.**
-  Where the canonical medium is fixed elsewhere —
+  Where the canonical home is elsewhere —
   R reference pages (`?topic`) shipped in the tarball,
-  machine-loaded playbooks under `.claude/skills/` —
+  machine-loaded playbooks under `.claude/skills/`,
+  or truly external documentation
+  such as the upstream DuckDB docs —
   the leaf states the fact's home and links to it,
   so a traversal still finds it.
+  The tree needs no separate map of what lives outside;
+  the leaves are the map.
 * **Stubs are visible debt.**
   A leaf that is not yet written says so in its first line
   and routes to where the knowledge lives today.
