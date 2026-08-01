@@ -336,19 +336,22 @@ at best to empty, at worst to a conflict —
 and could sever a coupled change
 (a script from the test that exercises it),
 minting a commit whose message describes more than it contains.
-VENDOR commits —
-`vendor:` subjects,
-anything touching `src/duckdb/`
-or the generated `R/version.R` / `src/include/sources.mk` —
-are listed and never auto-picked:
+VENDOR commits are listed and never auto-picked:
 `main`'s engine is not this series' engine,
-and `vendor-one.sh`'s base scan and stage 5's anchors
-rely on every `src/duckdb`-touching commit on `-dev`
-being one of this series' vendor commits.
-Port volume threatens nothing:
-those scans are pathspec-filtered on `src/duckdb`,
-so they never see a ported commit —
-the boundary is that exclusion, not any count.
+and the series' own vendoring owns that strand.
+**The subject is what decides one, never the path** —
+the same rule as everywhere else in this skill.
+The patch stack is applied to the vendored tree in place,
+so CRAN and compiler-warning fixes land under `src/duckdb/`
+carrying no upstream SHA;
+excluding them by path made exactly those fixes wait for a forward,
+which is the one thing the port exists to end.
+They are ordinary commits, ported like any other.
+Port volume threatens nothing either:
+the readers of the strand — `vendored_sha()` in stage 5,
+the base scan in `vendor-one.sh` — look *past* such commits by subject,
+bounded, and say so on stderr when the bound is exhausted,
+so a ported commit is invisible to them whatever it touched.
 After the picks the script closes whatever tooling delta remains
 with one sync commit taking `main`'s tooling tree verbatim,
 so the identity goal holds even where history diverged

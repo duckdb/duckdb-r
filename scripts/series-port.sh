@@ -9,18 +9,26 @@
 # The script lists EVERY commit on `main` since the series' base that has no
 # patch-id equivalent on <S>-dev (`git cherry`), oldest first, classified by
 # what it touches: TOOLING (only tooling paths), MIXED (tooling and more),
-# OTHER (no tooling), VENDOR (`vendor:` subject, or anything under
-# src/duckdb/ or the generated R/version.R / src/include/sources.mk).
+# OTHER (no tooling), VENDOR.
 # --apply cherry-picks everything except VENDOR — a MIXED or OTHER commit is
 # a forward-port like any other, judged by CI like every -dev commit — or
 # exactly the SHAs given, for when judgement says a commit cannot work
 # against this series' engine yet. Picks are always whole commits: a pick
 # that matches its main commit is skipped by patch-id at the next rebase,
-# a half-pick would only replay. VENDOR commits are never auto-picked: the
-# series' own vendoring owns that strand, main's engine is not this series'
-# engine, and the base scan in vendor-one.sh and the anchors in
-# series-advance.sh rely on every src/duckdb-touching commit on -dev being
-# one of this series' vendor commits. After the picks, whatever tooling
+# a half-pick would only replay. VENDOR commits are never auto-picked,
+# because main's engine is not this series' engine: the series' own
+# vendoring owns that strand.
+#
+# **The subject is what decides a VENDOR commit, never the path.** The patch
+# stack is applied to the vendored tree in place, so CRAN and
+# compiler-warning fixes land under src/duckdb/ carrying no upstream SHA, and
+# excluding them by path made exactly those fixes wait for a forward — the
+# one thing this script exists to end. The readers of the vendor strand look
+# past such commits by subject and say so when their bound is exhausted
+# (vendored_sha() in scripts/series-advance.sh and scripts/series-check.sh,
+# the base scans in scripts/vendor-one.sh and scripts/vendor.sh), so a ported
+# commit under src/duckdb/ is invisible to them whether or not this class
+# names it. After the picks, whatever tooling
 # delta remains (history that diverged inside vendor commits, picks dropped
 # as empty) is closed with one sync commit that takes `main`'s tooling tree
 # verbatim; its diff is the residue the commit walk could not explain, and
@@ -56,7 +64,11 @@ remote=origin
 # but the sync commit never rewrites them.
 tooling=(.github scripts .claude)
 paths_re='^(\.github/|scripts/|\.claude/)'
-vendor_re='^(src/duckdb/|R/version\.R$|src/include/sources\.mk$)'
+# A vendor commit is one whose subject says it vendored: the `vendor:` prefix
+# vendor-one.sh writes, or the `<owner>/<repo>@<sha>` reference that carries the
+# upstream commit as machine-readable state. Same rule as every other reader of
+# the strand — see the header on why the path is not the rule.
+vendor_subject_re='^vendor:|duckdb/duckdb@[0-9a-f]+'
 
 git fetch -q "$remote"
 dev="$remote/$S-dev" main="$remote/main"
@@ -64,9 +76,8 @@ git rev-parse -q --verify "$dev" >/dev/null || { echo "Error: no $S-dev on $remo
 
 classify() { # <sha> -> TOOLING | MIXED | OTHER | VENDOR
   local f t= o=
-  case "$(git log -1 --format=%s "$1")" in vendor:*) echo VENDOR; return ;; esac
+  if [[ "$(git log -1 --format=%s "$1")" =~ $vendor_subject_re ]]; then echo VENDOR; return; fi
   while IFS= read -r f; do
-    if [[ "$f" =~ $vendor_re ]]; then echo VENDOR; return; fi
     if [[ "$f" =~ $paths_re ]]; then t=1; else o=1; fi
   done < <(git diff-tree --no-commit-id --name-only -r "$1")
   if [ -n "$t" ] && [ -n "$o" ]; then
