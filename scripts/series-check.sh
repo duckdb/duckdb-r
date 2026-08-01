@@ -18,6 +18,12 @@
 # Classification is by positive evidence only (.claude/skills/series-loop.md);
 # "Job is waiting for a hosted runner" appears in every log and means nothing.
 #
+# The record decides before the log does, for the one thing the log cannot say:
+# a commit the shard's `timeout` killed at its budget (exit 124) stops mid-run
+# with its stage output still buffered, which reads exactly like a cancelled
+# leg. That is a REPAIR — the commit did not finish — and calling it transient
+# spends another whole budget to learn the same thing.
+#
 # RETRY and REPAIR split on the retry ledger: `retry-<S>-dev` pointing at the
 # failing commit means it has already had its one rerun, so a failure that still
 # looks transient is not, and the verdict is REPAIR regardless. The branch
@@ -86,6 +92,31 @@ run_branch_of() { # <sha> -> head_branch of the harvested run, empty if none
   echo "$rec" | sed -nr 's/.*"head_branch": *"([^"]*)".*/\1/p' | head -n 1
 }
 
+# The shard's own verdict on how the commit ended. `timeout` in
+# scripts/each-shard.sh reports 124 when it kills rcc-one.sh at the budget, and
+# that is the one thing the log cannot say: the killed stage buffers its output
+# through run_stage and loses it, so the log simply stops mid-run and reads like
+# a cancelled leg. Without this the log rules below call a commit that ran out
+# of budget `transient` and the loop reruns it, which costs another full budget
+# to learn the same thing.
+exit_code_of() { # <sha> -> exit code the shard recorded, empty if none
+  local rec
+  rec=$(git show "$remote/rcc:runs2.d/${1:0:2}/$1.ndjson" 2>/dev/null || true)
+  [ -z "$rec" ] &&
+    rec=$(git show "$remote/rcc:runs2.ndjson" 2>/dev/null | grep -m 1 "\"commit\": *\"$1\"" || true)
+  [ -z "$rec" ] && return
+  echo "$rec" | sed -nr 's/.*"exit_code": *([0-9]+).*/\1/p' | head -n 1
+}
+
+duration_of() { # <sha> -> seconds the shard spent on it, empty if none
+  local rec
+  rec=$(git show "$remote/rcc:runs2.d/${1:0:2}/$1.ndjson" 2>/dev/null || true)
+  [ -z "$rec" ] &&
+    rec=$(git show "$remote/rcc:runs2.ndjson" 2>/dev/null | grep -m 1 "\"commit\": *\"$1\"" || true)
+  [ -z "$rec" ] && return
+  echo "$rec" | sed -nr 's/.*"duration_seconds": *([0-9]+).*/\1/p' | head -n 1
+}
+
 # Positive evidence that a gate reached out over the network and was refused.
 # Checked only after the tree-shaped classifications above it, so a real test
 # failure that happens to mention a URL is not mistaken for a flake.
@@ -97,10 +128,33 @@ failed_gate() { # <log> -> name of the first gate rcc-one.sh's summary marks FAI
   grep -oE '^\| [A-Za-z0-9_-]+ \| FAIL ' <<<"$1" | head -1 | awk '{print $2}'
 }
 
+last_gate() { # <log> -> the gate rcc-one.sh opened last, i.e. where it stopped
+  grep -oE '^::group::gate: [a-z]+' <<<"$1" | tail -1 | awk '{print $NF}'
+}
+
 classify() { # <sha> -> "<kind>|<one line>"; kind `transient` means rerun, do not repair
-  local log gate
+  local log gate rc
   log=$(git show "$remote/rcc:logs2/$1.log" 2>/dev/null || true)
   [ -z "$log" ] && { echo "unknown|failure, no log harvested yet"; return; }
+  # Budget first, and ahead of every log rule: a commit the shard killed never
+  # reached a verdict on its own content, so whatever the log shows is what it
+  # got through, not what went wrong. Rerunning it buys the same kill again.
+  rc=$(exit_code_of "$1")
+  if [ "$rc" = 124 ]; then
+    gate=$(last_gate "$log")
+    echo "budget|killed at the shard budget after $(duration_of "$1")s," \
+      "stuck in the ${gate:-unnamed} gate — not a flake, it did not finish"
+    return
+  fi
+  # The same thing one level down: scripts/rcc-one.sh bounds each stage, so a
+  # stuck gate is now killed on its own and the leg lives to report it. The leg
+  # then exits 1 like any failure, and only this line says the stage ran out of
+  # time rather than failing on its merits.
+  if grep -q "exceeded its .* budget -- presumed stuck" <<<"$log"; then
+    echo "budget|$(grep -oE "stage [a-z]+: exceeded its [0-9]+s budget" <<<"$log" | head -1)" \
+      "— the gate did not finish, rerunning it buys the same kill"
+    return
+  fi
   if grep -qE "Updating snapshots: '" <<<"$log"; then
     echo "snapshot|snapshot drift ($(grep -oE "Updating snapshots: [^.]*" <<<"$log" | head -1))"
   elif grep -qE "Error \('test-[^']+'\)" <<<"$log"; then

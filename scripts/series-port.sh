@@ -95,7 +95,15 @@ classify() { # <sha> -> TOOLING | MIXED | OTHER | VENDOR
 # every ported commit excludes picks whose resolution diverged from the
 # original patch — those would otherwise be re-offered and re-conflict on
 # every rerun.
-mb=$(git merge-base "$dev" "$main")
+mb=$(git merge-base "$dev" "$main" 2>/dev/null || true)
+if [ -z "$mb" ]; then
+  # A series seeded from an orphan mirror shares no history with `main`, so
+  # there is no base to bound the walk at and `git cherry` has nothing to
+  # compare against. Say so instead of dying on the empty expansion.
+  echo "$S: no merge base with main — the series is an unrelated lineage," >&2
+  echo "  so stage 4 cannot port onto it; sync its tooling by hand" >&2
+  exit 2
+fi
 declare -A ported=()
 while IFS= read -r x; do ported[$x]=1; done < <(
   git log --format=%B "$mb..$dev" |
