@@ -14,6 +14,7 @@ set -euo pipefail
 S=${1:?usage: series-advance.sh <series> [chunk-size]}
 chunk=${2:-100}
 remote=origin
+rcc=${RCC_BRANCH:-rcc2}
 
 git fetch -q "$remote"
 green="$remote/$S-green"; dev="$remote/$S-dev"; build="$remote/$S-build"; base="$remote/$S-build-base"
@@ -23,11 +24,9 @@ done
 
 state_of() {
   local rec
-  # Per-commit record first, aggregate as the fallback; see
-  # scripts/rcc-merge.sh and the identical helper in scripts/series-check.sh.
-  rec=$(git show "$remote/rcc:runs2.d/${1:0:2}/$1.ndjson" 2>/dev/null || true)
-  [ -z "$rec" ] &&
-    rec=$(git show "$remote/rcc:runs2.ndjson" 2>/dev/null | grep -m 1 "\"commit\": *\"$1\"" || true)
+  # One record per commit, and only that; see scripts/rcc-lib.sh and the
+  # identical helper in scripts/series-check.sh.
+  rec=$(git show "$remote/$rcc:runs2.d/${1:0:2}/$1.ndjson" 2>/dev/null || true)
   [ -z "$rec" ] && { echo missing; return; }
   echo "$rec" | sed -nr 's/.*"status":[^}]*"state": *"([a-z]+)".*/\1/p' | head -n 1
 }

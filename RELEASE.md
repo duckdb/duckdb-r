@@ -110,7 +110,7 @@ The series loop (`.claude/skills/series-loop.md`)
 vendors into `-build`,
 consumes into `-dev` at most 25 commits at a time,
 and fast-forwards `-green`,
-gated on the per-commit `rcc` results harvested to branch `rcc`;
+gated on the per-commit `rcc` results harvested to branch `rcc2`;
 `each.yaml` checks every new commit,
 and glue changes flow in from `main` via the forward-port chain.
 `-green` is "what would ship if we released now."

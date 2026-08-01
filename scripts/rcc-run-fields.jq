@@ -1,4 +1,4 @@
-# The subset of a GitHub workflow-run object that a record on the `rcc` branch
+# The subset of a GitHub workflow-run object that a record on the `rcc2` branch
 # carries, applied to `gh api repos/{owner}/{repo}/actions/runs/<id>`.
 #
 # Shared rather than inlined because three writers have to agree on it byte for

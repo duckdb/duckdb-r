@@ -1,0 +1,95 @@
+# One-shot: build the orphan `rcc2` verdict store from what the old `rcc` branch
+# holds, and leave `rcc` alone to die.
+#
+# `workflow_dispatch` only, and meant to be run once. It is here rather than in a
+# terminal because the source branch is ~220 MB: a runner has the disk and the
+# bandwidth for a full checkout of it, and a maintainer's laptop should not have
+# to.
+#
+# Defaults to a dry run: it reports what it would distribute and drop, and
+# changes nothing. Set `apply` to write the branch.
+#
+# After it has applied, `rcc` is still there and still complete. Deleting it is a
+# separate, deliberate step for whenever nothing reads it any more.
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "Write and push rcc2. Leave off for a dry run."
+        type: boolean
+        default: false
+      retention-days:
+        description: "Keep records and logs at most this old (0 = keep all)"
+        type: string
+        default: "30"
+      force:
+        description: "Replace rcc2 if it already exists. Discards what has been published there."
+        type: boolean
+        default: false
+
+name: rcc-cutover
+
+concurrency:
+  group: rcc-cutover
+  cancel-in-progress: false
+
+jobs:
+  cutover:
+    if: github.repository == 'krlmlr/duckdb-r'
+    runs-on: ubuntu-26.04
+
+    name: "Cut the rcc branch over to rcc2"
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/workflows/git-identity
+
+      - name: Add rcc worktree at runs/
+        run: |
+          ## -- Add rcc worktree at runs/ --
+          set -euo pipefail
+          if ! git ls-remote --exit-code --heads origin rcc > /dev/null 2>&1; then
+            echo "No rcc branch to cut over from."
+            exit 1
+          fi
+          # `+` because scripts/rcc-consolidate.sh has force-pushed this branch,
+          # so a non-fast-forward fetch is expected rather than an error.
+          git fetch origin '+refs/heads/rcc:refs/heads/rcc'
+          git worktree add runs rcc
+        shell: bash
+
+      - name: Cut over
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUT_DIR: runs
+          APPLY: ${{ inputs.apply && '1' || '' }}
+          FORCE: ${{ inputs.force && '1' || '' }}
+          RCC_RETENTION_DAYS: ${{ inputs.retention-days }}
+        run: scripts/rcc-cutover.sh | tee "${RUNNER_TEMP}/cutover.log"
+        shell: bash
+
+      - name: Summarise
+        if: always()
+        run: |
+          ## -- Summarise --
+          {
+            echo "## rcc-cutover"
+            echo
+            if [ "${APPLY}" = "1" ]; then
+              echo "Applied: \`rcc2\` was written and pushed. \`rcc\` is untouched."
+            else
+              echo "Dry run. Re-dispatch with \`apply\` to write the branch."
+            fi
+            echo
+            echo '```'
+            cat "${RUNNER_TEMP}/cutover.log" 2>/dev/null || echo "(no output)"
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+        env:
+          APPLY: ${{ inputs.apply && '1' || '' }}
+        shell: bash

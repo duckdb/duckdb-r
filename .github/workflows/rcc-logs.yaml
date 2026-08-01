@@ -1,9 +1,13 @@
 # Periodically collect results and failure logs for completed runs of the
-# "rcc" workflow and store them on the orphan branch "rcc".
+# "rcc" workflow and store them on the orphan branch "rcc2".
 #
-# The orphan branch holds only the collected data
-# (runs.json, runs.ndjson, logs/<id>.log) and shares no history with the
-# default branch.
+# The orphan branch holds only the collected data -- one record per commit at
+# runs2.d/<xx>/<sha>.ndjson and one log per failed commit at
+# logs2.d/<xx>/<sha>.log -- and shares no history with the default branch.
+#
+# This is the backstop, not the main path: the `each-rcc` legs publish their own
+# verdicts seconds after deciding them, and the run's fan-in recovers what a dead
+# leg could not. What is left for this job is the run that was cancelled whole.
 
 on:
   schedule:
@@ -19,10 +23,12 @@ on:
 
 name: rcc-logs
 
-# Keeps two ticks of *this* workflow from redoing the same API work; it is not
-# shared with the fan-in job in each.yaml, which pushes to the same branch and
-# resolves collisions by retrying (see scripts/rcc-push.sh) rather than by
-# queueing, because a queued run in a busy group gets cancelled outright.
+# Keeps two ticks of *this* workflow from redoing the same API work. It is not
+# shared with the other writers to the branch, and does not need to be: every
+# producer stages files at disjoint paths and publishes them with plumbing
+# (scripts/rcc-publish.sh), so a collision costs a tree fetch and a re-commit.
+# A shared group would be worse than no group at all -- only one run may be
+# *pending* per group, so a third writer queued behind the second cancels it.
 concurrency:
   group: rcc-logs
   cancel-in-progress: false
@@ -39,42 +45,27 @@ jobs:
       actions: read
 
     steps:
+      # Full history: the script walks the first-parent commits of every *-dev
+      # branch to find the ones the store has no record for.
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Configure git identity
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-      - name: Add rcc worktree at runs/
-        run: |
-          set -euo pipefail
-          if git ls-remote --exit-code --heads origin rcc >/dev/null 2>&1; then
-            echo "Existing rcc branch found; checking it out as a worktree."
-            # `+`: scripts/rcc-consolidate.sh force-pushes this branch, so a
-            # non-fast-forward fetch is an expected outcome, not an error.
-            git fetch origin '+refs/heads/rcc:refs/heads/rcc'
-            git worktree add runs rcc
-          else
-            echo "rcc branch does not exist yet; creating an orphan worktree."
-            git worktree add --orphan -b rcc runs
-          fi
-
+      # No worktree of the store: which commits are already decided is one
+      # tree-only fetch, and the store's bulk is harvested logs this job has no
+      # use for. What it collects goes into a staging directory shaped like the
+      # branch.
       - name: Collect rcc workflow runs and failure logs
         env:
           GH_TOKEN: ${{ github.token }}
+          OUT_DIR: ${{ runner.temp }}/rcc-stage
         run: bash scripts/rcc-logs.sh
 
-      # A rejected push re-derives against the new remote tip rather than
-      # retrying the same commit; see scripts/rcc-push.sh. Re-running
-      # scripts/rcc-logs.sh is cheap on a retry because it skips every commit
-      # already recorded in runs2.ndjson.
-      - name: Commit and push to rcc branch
+      - name: Publish to the rcc2 branch
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          bash scripts/rcc-push.sh \
+          ## -- Publish to the rcc2 branch --
+          bash scripts/rcc-publish.sh \
             "rcc-logs: refresh $(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            -- bash scripts/rcc-logs.sh
+            "${RUNNER_TEMP}/rcc-stage"

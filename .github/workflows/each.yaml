@@ -256,14 +256,15 @@ jobs:
           # per-failure log excerpts in the job summary off.
           SUMMARY_TAIL: ${{ vars.EACH_RCC_SUMMARY_TAIL || '' }}
           # Outside the workspace: scripts/each-shard.sh wipes that per commit,
-          # and this holds the cached blobless clone of the `rcc` branch that the
-          # per-commit publish pushes through.
-          RCC_DIR: ${{ runner.temp }}/rcc-parts
+          # and these hold the cached blobless clones of the `rcc2` branch that
+          # the per-commit publish and the resume check go through.
+          RCC_DIR: ${{ runner.temp }}/rcc-publish
+          RCC_READ_DIR: ${{ runner.temp }}/rcc-read
         run: scripts/each-shard.sh
         shell: bash
 
       # Still uploaded, and still the fan-in's input: the per-commit publish is
-      # the fast path, not a replacement. A leg that could not reach the `rcc`
+      # the fast path, not a replacement. A leg that could not reach the `rcc2`
       # branch has its results collected from here instead.
       #
       # Named per *attempt*, and therefore not overwritten. A re-run of a leg
@@ -286,78 +287,60 @@ jobs:
       - build
 
     # `always()` so the failure records are collected too -- a red commit is the
-    # result we most want on the rcc branch. A cancellation of the whole run can
+    # result we most want on the rcc2 branch. A cancellation of the whole run can
     # still skip this job; scripts/rcc-logs.sh remains the scheduled backstop and
     # reconstructs the same records from commit statuses.
     #
     # Guarded on the planner having succeeded as well, because `shards` is the
     # empty string when it did not, and `'' != '0'` is true: this job would then
-    # check out the rcc branch to reconcile a run that never built anything.
+    # reconcile a run that never built anything.
     if: always() && needs.plan.result == 'success' && needs.plan.outputs.shards != '0'
 
     runs-on: ubuntu-26.04
 
-    name: "Reconcile results onto the rcc branch"
+    name: "Reconcile results onto the rcc2 branch"
 
     # Deliberately *not* in the rcc-logs concurrency group that rcc-logs.yaml
-    # uses, even though both push to the orphan rcc branch. Only one run may be
+    # uses, even though both write to the orphan rcc2 branch. Only one run may be
     # pending per group, so a third fan-in queued behind an rcc-logs tick
     # cancelled the second outright -- and this job holds the only copy of the
     # per-commit logs, which the backstop cannot reconstruct (it recovers
-    # run-level logs instead). Racing and retrying loses less than being
-    # evicted: scripts/rcc-push.sh resets onto the winner and re-derives, so a
-    # lost race costs a retry rather than the logs.
+    # run-level logs instead). Racing and retrying loses less than being evicted:
+    # every writer stages disjoint paths, so a lost race costs a tree fetch and a
+    # re-commit (scripts/rcc-publish.sh).
     permissions:
       contents: write
       actions: read
 
     steps:
       - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - uses: ./.github/workflows/git-identity
-
-      - name: Add rcc worktree at runs/
-        run: |
-          ## -- Add rcc worktree at runs/ --
-          set -euo pipefail
-          if git ls-remote --exit-code --heads origin rcc >/dev/null 2>&1; then
-            # `+`: scripts/rcc-consolidate.sh force-pushes this branch, so a
-            # non-fast-forward fetch is an expected outcome, not an error.
-            git fetch origin '+refs/heads/rcc:refs/heads/rcc'
-            git worktree add runs rcc
-          else
-            git worktree add --orphan -b rcc runs
-          fi
-        shell: bash
 
       - uses: actions/download-artifact@v8
         with:
           pattern: each-logs-*
           path: ${{ runner.temp }}/artifacts
 
-      - name: Reconcile shard results onto the rcc branch
+      # No worktree of the store: what the branch already says is read from a
+      # checkout-less clone fetched with a size filter that brings every record
+      # and no log, and what this job adds goes into a staging directory shaped
+      # like the branch.
+      - name: Reconcile shard results for the rcc2 branch
         env:
           GH_TOKEN: ${{ github.token }}
           ARTIFACTS: ${{ runner.temp }}/artifacts
-          OUT_DIR: runs
+          OUT_DIR: ${{ runner.temp }}/rcc-stage
         run: scripts/each-harvest.sh
         shell: bash
 
       # Most records are already on the branch, pushed by the leg that decided
-      # them; this push carries whatever was missing, plus the records
-      # `runs2.ndjson` still lacks. A rejected push re-derives against the new tip
-      # rather than rebasing; see scripts/rcc-push.sh. The artifacts stay on disk,
+      # them; this push carries whatever was missing. The artifacts stay on disk,
       # so re-running the reconciliation reproduces exactly what is still missing.
-      - name: Commit and push to rcc branch
+      - name: Publish to the rcc2 branch
         env:
           GH_TOKEN: ${{ github.token }}
-          ARTIFACTS: ${{ runner.temp }}/artifacts
-          OUT_DIR: runs
         run: |
-          ## -- Commit and push to rcc branch --
-          bash scripts/rcc-push.sh \
+          ## -- Publish to the rcc2 branch --
+          bash scripts/rcc-publish.sh \
             "each-rcc: results from run ${GITHUB_RUN_ID}" \
-            -- bash scripts/each-harvest.sh
+            "${RUNNER_TEMP}/rcc-stage"
         shell: bash

@@ -198,7 +198,7 @@ Vendoring is driven by the routine described in
 `.claude/skills/series-loop.md`: `scripts/vendor-one.sh` appends upstream
 commits to `<series>-build` with a glue-only compile gate, and the routine
 consumes them into `<series>-dev` at most 100 at a time, gated on the per-commit
-`rcc` results harvested to branch `rcc`. There is no vendoring workflow; CI's
+`rcc` results harvested to branch `rcc2`. There is no vendoring workflow; CI's
 role is building each `-dev` commit (`each.yaml`) and recording results
 (`rcc-logs.yaml`, every 30 minutes).
 
@@ -472,10 +472,10 @@ without keeping the newest SHA in the subject.
 
 ### Vendoring stopped working
 
-1. **Check the harvest**: read `runs2.d/<xx>/<sha>.ndjson` and `logs2/` on branch
-   `rcc` — `runs2.ndjson` accumulates the same records in one file
-   (`scripts/series-check.sh` prints a per-series verdict, reading whichever of
-   the two holds the commit).
+1. **Check the harvest**: read `runs2.d/<xx>/<sha>.ndjson` and
+   `logs2.d/<xx>/<sha>.log` on branch `rcc2`
+   (`scripts/series-check.sh` prints a per-series verdict, reading the same
+   records). The store keeps 30 days; anything older has been consolidated away.
 2. **Gate says `red` or `stale`**: a commit near the tip is failing `rcc`, or never got a result.
    Repair the failing commit first (see the skills in `.claude/skills/`);
    vendoring resumes on its own once a green base is back in the window.
@@ -563,9 +563,9 @@ is not expressible this way — the comparison would cross repositories.
 
 ### GitHub Actions
 
-- The routine reports each firing; branch `rcc` holds the harvested
-  per-commit results (`runs2.d/<xx>/<sha>.ndjson`, `logs2/<sha>.log`, and
-  `runs2.ndjson`), published within seconds of each commit being decided
+- The routine reports each firing; branch `rcc2` holds the harvested
+  per-commit results (`runs2.d/<xx>/<sha>.ndjson` and `logs2.d/<xx>/<sha>.log`),
+  published within seconds of each commit being decided
 - Check for `rcc` statuses on the individual commits of each `-dev` branch
 
 ### Commit history
@@ -591,15 +591,16 @@ git log -1 --grep="^vendor:" --format=%s   # upstream commit it came from
 
 - `scripts/vendor.sh` - Manual vendoring of one specific upstream state
 - `scripts/vendor-one.sh` - Commit-by-commit vendoring (used by the series loop)
-- `scripts/each-plan.sh` - Selects commits with no verdict on the `rcc` branch and shards them by predicted build cost
+- `scripts/each-plan.sh` - Selects commits with no verdict on the `rcc2` branch and shards them by predicted build cost
 - `scripts/each-cost.py` - Counts the unity objects a commit invalidates, from the include graph
 - `scripts/each-shard.sh` - Builds one shard of commits in a single job
 - `scripts/rcc-one.sh` - The per-commit `rcc` gate
-- `scripts/each-harvest.sh` - Folds the shards' results onto the orphan `rcc` branch
-- `scripts/rcc-part-push.sh` - Publishes one commit's result to the `rcc` branch from the leg that decided it
-- `scripts/rcc-decided.sh` - Lists the commits the `rcc` branch has a verdict for; what work selection reads (see [`EACH.md`](EACH.md))
-- `scripts/rcc-merge.sh` - Brings `runs2.ndjson` level with the records in `runs2.d/`
-- `scripts/rcc-consolidate.sh` - Manual: makes the layouts agree, GCs logs older than a month, squashes the `rcc` branch
+- `scripts/each-harvest.sh` - Reconciles the shards' results onto the orphan `rcc2` branch
+- `scripts/rcc-lib.sh` - The verdict store: its paths, its clone helpers, its retention window and squash
+- `scripts/rcc-publish.sh` - The one writer to the `rcc2` branch: stages files, pushes them, retries the ref race
+- `scripts/rcc-decided.sh` - Lists the commits the `rcc2` branch has a verdict for; what work selection reads (see [`EACH.md`](EACH.md))
+- `scripts/rcc-consolidate.sh` - Manual: drops records and logs older than a month, squashes the `rcc2` branch
+- `scripts/rcc-cutover.sh` - One-shot: builds `rcc2` from what the old `rcc` branch held
 - `scripts/rconfigure.py` - Regenerates `src/duckdb/`, `src/include/sources.mk`, `R/version.R`
 - `scripts/setup-git.sh` - Registers the `DESCRIPTION` merge driver, `rerere`, and `rebase.backend=merge`
 - `scripts/merge-version.sh` - The merge driver itself (see [Version counters and the merge driver](#version-counters-and-the-merge-driver))
