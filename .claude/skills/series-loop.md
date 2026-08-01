@@ -81,7 +81,9 @@ Three scripts carry the mechanical parts:
 `scripts/series-check.sh`
 (read-only — walks every series, classifies from the harvest,
 prints one verdict each:
-ADVANCE / WAIT / RETRY `<sha>` / REPAIR `<sha>` / IDLE),
+ADVANCE / WAIT / RETRY `<sha>` / REPAIR `<sha>` / IDLE,
+plus a CUTOVER line for a forward series that has caught up —
+a suggestion for a human, stage 6),
 `scripts/series-advance.sh <S>`
 (stages 3 and 5 — fast-forwards `-green`,
 moves `-build-base` by vendored-SHA match,
@@ -417,6 +419,43 @@ verify and promote it, but do not extend it.
 `rcc-logs.yaml` harvests results to branch `rcc` every 30 minutes,
 which is below build time (~35 min).
 
+### 6. Suggest a cutover — never perform one
+
+A forward series that has caught up is **reported, not swapped**.
+When `<S>-fwd-green` vendors the upstream commit `<S>-green` vendors,
+`series-check.sh` says so beside that series' verdict,
+and the firing carries the line into its summary:
+
+```sh
+scripts/series-cutover.sh <S> origin <upstream-clone>
+```
+
+That is the whole stage.
+The routine does not run the script,
+and does not swap the four refs by hand instead.
+
+Cutover is the one move that retires a lineage consumers are reading.
+Everything else the loop does is bounded and recoverable:
+a bad repair is repaired again,
+a wrong extension is replayed,
+and `-green` only ever moves forward over commits CI called green.
+The swap moves a serving green *sideways*
+— the single sanctioned non-fast-forward of one (`series-forward.md`) —
+and it deletes the counterpart that would let it be undone.
+Its coverage gate is also the one gate the loop cannot fully evaluate:
+the ancestry check needs an upstream clone,
+and degrades to a warning without one,
+so an unattended firing would be authorizing the swap on a warning.
+Verification is mechanical, so the loop owns it;
+deciding that r-universe should build a different lineage today
+is not, so a human owns that.
+
+The script enforces its own half:
+it refuses to run without a terminal
+and takes the series name as confirmation,
+so a firing that tries anyway achieves nothing.
+Treat that refusal as the answer, not as an obstacle to route around.
+
 ## Rerun one commit: `retry-<S>-dev`
 
 Some runs fail for reasons the commit had no part in:
@@ -539,6 +578,11 @@ is what carries the automatic path into a forward series.
 ## Invariants
 
 - `<S>-green` and `<S>-build-base` move forward only.
+- Cutover is manual.
+  The loop reports that a forward series has caught up
+  and prints the command; it never runs it,
+  and never swaps the refs by another route.
+  Every other ref move in this skill is the routine's to make.
 - A base is advanced on completed, successful runs —
   never on absence of a failure.
 - Fixes are folded into the commit that needs them,

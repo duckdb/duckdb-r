@@ -146,8 +146,9 @@ with a status line each as the work lands:
   ref — `series-advance.sh` requires it and guards its own writes with a
   fast-forward check, `series-cutover.sh` swaps it atomically, the
   skills create it on day one — so "no script reads it back" was too
-  strong: it is written, guarded, and swapped by the loop, but it is an
-  input to nothing. Its consumer is the human: it is the ref that makes
+  strong: it is written and guarded by the loop, and swapped at cutover
+  (by hand — §3.1 rule 7), but it is an input to nothing.
+  Its consumer is the human: it is the ref that makes
   "how much is vendored but not yet verified" a clean linear range,
   `-build-base..-build`, renderable as a compare URL and as a badge
   (§3.4). The gap was that no document stated that contract,
@@ -225,7 +226,8 @@ as one checklist; this plan is analysis, not a routing node:
 6. A series is discovered from its refs, never configured.
 7. Rebasing or rerooting replays the vendor chain onto a fresh seed
    beside the serving series and re-verifies from scratch;
-   cutover is one atomic swap.
+   cutover is one atomic swap, and the one move the loop only suggests —
+   a human runs it, from a terminal.
 
 ### 3.2 Extensions that earn their keep
 

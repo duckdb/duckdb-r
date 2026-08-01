@@ -103,7 +103,7 @@ A series that has cut over is no longer WIP:
 its green serves consumers,
 and moving it means a new forward series, not a rebase.
 
-## Cut over
+## Cut over — by hand, always
 
 When `<S>-fwd-green` vendors at least the upstream commit
 `<S>-green` vendors —
@@ -112,6 +112,16 @@ coverage may never regress — run
 ```sh
 scripts/series-cutover.sh <S> origin <upstream-clone>
 ```
+
+**A human runs this, never the loop.**
+The series loop reports a ready cutover and stops there
+(`series-loop.md`, stage 6),
+and the script refuses to run without a terminal
+and a typed confirmation.
+Pass the upstream clone:
+without it the coverage gate degrades to a warning,
+and a warning is not what should authorize
+retiring the lineage consumers are reading.
 
 It swaps all four refs in a single `git push --atomic`
 with a per-ref lease,
