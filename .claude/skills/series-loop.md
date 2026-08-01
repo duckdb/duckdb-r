@@ -75,8 +75,8 @@ every walk below is bounded by `<S>-green`, from the first firing on.
 
 ## One firing
 
-Work through these in order;
-each stage is skippable when it has nothing to do.
+Set up first, then work through the stages in order;
+each stage is skippable when it has nothing to do, the setup is not.
 Three scripts carry the mechanical parts:
 `scripts/series-check.sh`
 (read-only — walks every series, classifies from the harvest,
@@ -93,6 +93,55 @@ and `scripts/series-port.sh <S>`
 (stage 4 — brings `<S>-dev` level with `main`:
 cherry-picks plus a tooling sync).
 Judgement — repairs, review, vendoring — stays here.
+
+### 0. Setup
+
+**Every branch, whole history, with tags.**
+A firing reads across all of them, and a narrowed clone fails quietly
+rather than loudly:
+
+```sh
+git config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'
+if [ "$(git rev-parse --is-shallow-repository)" = true ]; then
+  git fetch --unshallow origin
+fi
+git fetch --prune --tags origin
+```
+
+`--depth` implies `--single-branch`, and a checkout made that way
+sees no `*-build` refs at all —
+so a firing on one enumerates zero series
+and reports a clean pass over nothing.
+Depth costs more subtly:
+`vendored_sha()` walks 20 subjects deep,
+`series-port.sh` needs a merge base with `main`
+and patch-ids to dedupe against,
+stage 3 asks whether green is an ancestor of dev,
+and every one of those meets the graft boundary
+and answers wrong or refuses.
+Tags are not optional either:
+`vendor-one.sh` reads `git describe --tags` for the version it stamps.
+
+**Read the open PRs, and use judgement about them.**
+List the ones touching `.github/`, `scripts/` or `.claude/` —
+the paths stage 4 ports —
+and read the ones that change vendoring logic:
+`vendor-one.sh`, the `series-*` scripts, `each*`, `rcc*`, these skills.
+Earlier firings opened them, and an open PR is tooling
+the series does **not** have:
+stage 4 ports what `main` carries,
+and `main` carries only what merged.
+
+So each one is context for this firing, not an instruction to it.
+A PR that documents a bug says a workaround is still to be paid,
+and saves re-diagnosing from scratch what a previous firing wrote up.
+A PR that is *changing* a behaviour says something else:
+what looks like a fresh bug may be the thing already being fixed,
+and repairing against the old behaviour wastes the repair.
+Neither is a reason to wait for review,
+and none of them is applied early —
+the series gets a tooling change when it merges and stage 4 ports it,
+never before.
 
 ### 1. Vendor onto `<S>-build`
 
@@ -178,6 +227,11 @@ so no descendant is re-minted and no verified run is discarded.
 Never amend a commit that has a record;
 that discards a verified result —
 and a rerun no longer needs the amend.
+
+Before diagnosing anything twice,
+check the open PRs read during setup:
+a failure an earlier firing already wrote up
+is one to work around, not to re-derive.
 
 Classify each `failure` by what its log (`logs2/<sha>.log`) **contains**:
 
@@ -458,6 +512,60 @@ it refuses to run without a terminal
 and takes the series name as confirmation,
 so a firing that tries anyway achieves nothing.
 Treat that refusal as the answer, not as an obstacle to route around.
+
+### 7. Open a PR for whatever the tooling got wrong
+
+A firing that had to work around a bug in the tooling
+owes `main` a PR before it ends.
+Not a fix to this firing — a fix to the next one.
+
+**Check what the setup read.**
+If an open PR already covers the cause,
+**add this firing's evidence to it** rather than opening a second:
+two PRs for one cause split the review
+and neither one carries the whole case.
+If it has been open across several firings, say so in the report —
+§5's health signal is workarounds per month,
+and a fix waiting for review is a workaround that keeps being paid.
+Never merge one yourself to get past it.
+
+**Work around by hand first, then write the PR.**
+A fix that the current firing depends on
+is a fix nobody can review calmly:
+it has to merge now, it merges unreviewed,
+and the firing that needed it is over before anyone reads it.
+So: unstick the series by hand, finish the firing,
+and open a PR that prevents the workaround being needed again.
+If the workaround cannot be done by hand,
+say so in the report and stop —
+that is a finding, not a licence to self-merge.
+
+**One PR per cause, small, against `main`.**
+`main` is the source of truth for `.github/`, `scripts/` and `.claude/`;
+a series never keeps its own fork of the tooling.
+Two bugs in one firing are two PRs,
+because they will be reviewed —
+and merged, or not — independently.
+Link the failing firing as evidence:
+the run, the commit, the log line that shows the behaviour.
+A reviewer should be able to see the bug happen
+without reproducing it.
+
+**The fix reaches the series by itself.**
+Once merged, stage 4 ports it into every `-dev` branch
+on the next firing.
+Nothing has to be carried anywhere by hand,
+and nothing waits for a forward —
+which is the whole reason the port stage exists.
+
+**What is not a tooling PR.**
+A red commit whose cause is the vendored tree,
+a flake that a retry settles,
+a snapshot that drifted because the engine changed:
+those are stage 2 repairs.
+The test is whether the *same firing done again* would hit it —
+a bug in a script or a workflow would,
+an upstream commit that did not build would not.
 
 ## Rerun one commit: `retry-<S>-dev`
 
