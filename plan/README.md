@@ -25,6 +25,7 @@ when the two disagree, the owner above is right.
 | Simplifying the vendoring pipeline: one verdict store, tooling from `main`, a docs tree | [`PLAN-vendoring-simplification.md`](PLAN-vendoring-simplification.md) |
 | Implementing `dbSendQueryArrow()` and the DBI Arrow API | [`PLAN-dbSendQueryArrow.md`](PLAN-dbSendQueryArrow.md) |
 | The CRAN-safe storage-location policy, and the work to implement it | [`PLAN-storage-locations.md`](PLAN-storage-locations.md) |
+| Reconciling the documentation tree with the filesystem: per-directory `README.md` routing | [`PLAN-docs-tree-filesystem.md`](PLAN-docs-tree-filesystem.md) |
 
 ## `history/` — superseded designs and one-off artifacts
 
