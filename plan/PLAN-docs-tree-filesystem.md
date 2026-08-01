@@ -5,10 +5,11 @@ Status: **proposed** (2026-08-01, branch `claude/docs-tree-filesystem-v9hns3`).
 Inputs:
 the documentation-tree design in
 [`plan/PLAN-vendoring-simplification.md`](PLAN-vendoring-simplification.md) §8;
-its generalization to the whole package in `plan/PLAN-docs-tree.md`
-([#2443](https://github.com/duckdb/duckdb-r/pull/2443),
-branch `claude/r-package-docs-tree-r45c4q`),
-whose five rules and ownership manifest (§6 there) this plan builds on;
+its draft generalization to the whole package —
+the docs-tree draft, reviewed on branch `claude/r-package-docs-tree-r45c4q`
+and closed without landing —
+whose five rules and draft ownership manifest this plan builds on,
+restated inline wherever this plan relies on them;
 and GitHub's rendering rules for `README.md` files.
 
 Scope:
@@ -18,7 +19,8 @@ Not in scope:
 the semantics subtree (`.Rd` concept pages are routed by `_pkgdown.yml`
 and `?topic`, and are not filesystem-shaped by construction);
 the contents of any leaf;
-and the sequencing of #2443's phases, which stays owned there.
+and the order in which the concept pages
+and engineering leaves get written.
 
 ---
 
@@ -26,7 +28,7 @@ and the sequencing of #2443's phases, which stays owned there.
 
 ### 1.1 The tree is invisible from inside the tree
 
-The extended documentation tree of #2443 is a *logical* tree:
+The draft's extended documentation tree is a *logical* tree:
 two roots, purpose-shaped leaves, and routing tables inside the roots.
 It is navigable only by a reader who starts at a root —
 which means a reader who already knows
@@ -55,7 +57,7 @@ and only the second one has a user interface.
 
 The opposite rule — "docs live in the directory they document" —
 does not survive contact with the surface either.
-`PLAN-docs-tree.md` §1.6 is correct that
+The docs-tree draft is correct that
 **inventories are owned by purpose, not by directory**:
 
 * Build is not a directory.
@@ -73,7 +75,8 @@ therefore carries no documentation structure at all.
 
 ### 1.3 The resolution: two projections of one relation
 
-The ownership manifest of `PLAN-docs-tree.md` §6
+The draft ownership manifest —
+globs to owning documents, to land as `.github/docs-owners.yml` —
 maps every path to exactly one owning document.
 That relation has two useful projections:
 
@@ -85,7 +88,7 @@ That relation has two useful projections:
   and where each one is explained".
   This is the projection a reader with a *location* needs.
 
-\#2443 builds the first projection and its checker.
+The draft builds the first projection and its checker.
 This plan adds the second — and it is a projection in the strict sense:
 generated from the same relation, adding no facts of its own.
 
@@ -121,7 +124,7 @@ And it is **generated, not written**:
 Generation is what makes the pattern safe. It buys four properties:
 
 1. **It cannot drift.**
-   The stale-inventory failure of `PLAN-docs-tree.md` §1.3
+   The stale-inventory failure the docs-tree review recorded
    (`BRANCHES.md`'s tooling section missing ten scripts)
    is mechanically excluded: the index is recomputed from `git ls-files`.
 2. **It cannot become a second owner.**
@@ -150,7 +153,7 @@ Generation is what makes the pattern safe. It buys four properties:
 
 `scripts/docs-readme.R` generates `scripts/README.md`
 from the headers and an inline ownership mapping
-that follows `PLAN-docs-tree.md` §6's draft manifest,
+that follows the draft ownership manifest,
 deviating only where the projection showed the draft to be wrong.
 Which it did, immediately — projecting the manifest onto one directory
 caught six defects in it:
@@ -165,12 +168,12 @@ caught six defects in it:
    It is vendoring surface; the mapping here assigns it to `VENDORING.md`.
 3. **`scripts/rethrow.R` is double-claimed.**
    The manifest assigns it to `TESTING.md`;
-   §4's table says `R/ARCHITECTURE.md` owns
+   the draft's node table says `R/ARCHITECTURE.md` owns
    "generated files (`cpp11.R`, `rethrow-gen.R`) and what regenerates them" —
    and `rethrow.R` is what regenerates one of them.
    One of the two must win before phase D makes the check blocking.
 4. **`scripts/docs-coverage.R` would flag itself.**
-   The phase-D checker appears in no `own:` glob of its own manifest.
+   The planned checker appears in no `own:` glob of its own manifest.
 5. **The history files matched nothing until their move.**
    `scripts/VENDORING-LOOP.md` and `scripts/main-dev-review.md`
    were unmatched by any glob,
@@ -206,7 +209,7 @@ the root `README.md` on the repository landing page —
 the user root of the documentation tree, hijacked by a routing index.
 
 So `.github` keeps a *named* document.
-This resolves `PLAN-docs-tree.md` §9 question 2
+This settles an open question the docs-tree draft left
 ("does `.github/CI.md` belong under `.github/`?"):
 yes — congruence wants the CI doc co-located with the workflows it owns,
 and the deviant filename is forced by GitHub's precedence rule,
@@ -226,7 +229,7 @@ But congruence does have an opinion about where leaves sit:
 
 * **Directory-shaped leaves are co-located** —
   `scripts/VENDORING.md` and `scripts/EACH.md` already are,
-  and #2443's placement of `src/GLUE.md`, `R/ARCHITECTURE.md`,
+  and the draft's placement of `src/GLUE.md`, `R/ARCHITECTURE.md`,
   and `.github/CI.md` is endorsed by the same logic.
 * **Cross-cutting leaves live at the root** —
   `BUILD.md`, `BRANCHES.md`, `RELEASE.md`.
@@ -260,8 +263,8 @@ Left open below.
 | this PR | `scripts/` | generator + index + the five headers |
 | landed by #2438 | `plan/` | `plan/README.md` exists, hand-written; whether it becomes generated from each plan's `Status:` line is open (§7) |
 | next | `patch/` | two rows and a pointer to `VENDORING.md`'s patching section |
-| with #2443 phase C | `R/`, `src/`, `tests/` | needs `.Rbuildignore` entries (`^R/README\.md$` etc.) — unlike `scripts/` and `plan/`, these directories ship in the tarball, and `R CMD check` flags non-standard files |
-| with #2443 phase D | mapping moves | the inline mapping in `docs-readme.R` becomes `.github/docs-owners.yml`; `docs-coverage.R` and `docs-readme.R` are the same walk with two outputs, and should be one tool |
+| when the engineering leaves land | `R/`, `src/`, `tests/` | needs `.Rbuildignore` entries (`^R/README\.md$` etc.) — unlike `scripts/` and `plan/`, these directories ship in the tarball, and `R CMD check` flags non-standard files |
+| when the manifest lands | mapping moves | the inline mapping in `docs-readme.R` becomes `.github/docs-owners.yml`; `docs-coverage.R` and `docs-readme.R` are the same walk with two outputs, and should be one tool |
 | never | `.github/` (§4), `inst/` (§4), generated and vendored trees | |
 
 ## 7. Open questions
@@ -273,7 +276,7 @@ Left open below.
 2. **`TESTING.md` at the root or under `tests/`?**
 3. **Mapping now vs. manifest now.**
    The demonstration inlines the ownership mapping in `docs-readme.R`
-   and defers `.github/docs-owners.yml` to #2443 phase D.
+   and defers `.github/docs-owners.yml` until the manifest lands.
    Acceptable, or should the manifest file be pulled forward
    so there is never a second encoding of ownership?
 4. **`plan/README.md` landed hand-written (#2438), and works.**

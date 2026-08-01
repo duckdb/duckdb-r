@@ -57,7 +57,7 @@ Root of the documentation tree:
 | [`flavor.sh`](flavor.sh) | Apply a package flavor: rewrite scripts/flavor.patch to the target name (say, duckdb.dev), apply it, and commit the rename; see BRANCHES.md. |
 | [`setup-git.sh`](setup-git.sh) | Register repository-local git configuration that cannot live in versioned files. |
 
-## Build and development environment — `BUILD.md` *(proposed: [#2443](https://github.com/duckdb/duckdb-r/pull/2443))*
+## Build and development environment — `BUILD.md` *(planned)*
 
 | File | Purpose |
 |---|---|
@@ -67,7 +67,7 @@ Root of the documentation tree:
 | [`python_helpers.py`](python_helpers.py) | Shared file helpers for the Python scripts in this directory (imported by format.py). |
 | [`setup-makeflags.R`](setup-makeflags.R) | Setup MAKEFLAGS for parallel compilation. |
 
-## Testing — `TESTING.md` *(proposed: [#2443](https://github.com/duckdb/duckdb-r/pull/2443))*
+## Testing — `TESTING.md` *(planned)*
 
 | File | Purpose |
 |---|---|

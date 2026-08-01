@@ -6,8 +6,8 @@
 # topic; the purpose column is extracted from each file's own header
 # comment (or Python docstring, or Markdown H1), so the index cannot
 # drift from the files -- the roxygen model, applied to scripts.
-# Ownership follows the draft manifest in plan/PLAN-docs-tree.md ss.6
-# (PR #2443), corrected where projecting it onto this directory showed
+# Ownership follows the draft docs-ownership manifest,
+# corrected where projecting it onto this directory showed
 # it to be wrong; the mapping below moves into .github/docs-owners.yml
 # when that manifest lands.  Design: plan/PLAN-docs-tree-filesystem.md.
 #
@@ -102,10 +102,9 @@ first_sentence <- function(text) {
 
 # --- ownership ---------------------------------------------------------
 
-# Seed of .github/docs-owners.yml (plan/PLAN-docs-tree.md ss.6),
-# restricted to scripts/.  `owner` is repo-relative; `proposed` marks a
-# document that exists only in PR #2443 so far.  First match wins.
-PR2443 <- "https://github.com/duckdb/duckdb-r/pull/2443"
+# Seed of .github/docs-owners.yml, restricted to scripts/.
+# `owner` is repo-relative; `planned` marks a document that does not
+# exist yet.  First match wins.
 groups <- list(
   list(
     title = "Vendoring and series",
@@ -126,13 +125,13 @@ groups <- list(
   list(
     title = "Build and development environment",
     owner = "BUILD.md",
-    proposed = PR2443,
+    planned = TRUE,
     globs = c("install-*.sh", "setup-makeflags.R", "format.py", "python_helpers.py")
   ),
   list(
     title = "Testing",
     owner = "TESTING.md",
-    proposed = PR2443,
+    planned = TRUE,
     globs = c("snapshot-accept.sh", "rethrow.R")
   ),
   list(
@@ -167,8 +166,8 @@ owner_heading <- function(g) {
   rel <- if (dirname(g$owner) == "scripts") name else file.path("..", g$owner)
   if (file.exists(g$owner)) {
     paste0("## ", g$title, " — [`", name, "`](", rel, ")")
-  } else if (!is.null(g$proposed)) {
-    paste0("## ", g$title, " — `", name, "` *(proposed: [#2443](", g$proposed, "))*")
+  } else if (isTRUE(g$planned)) {
+    paste0("## ", g$title, " — `", name, "` *(planned)*")
   } else {
     stop("dangling owner: ", g$owner)
   }
