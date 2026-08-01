@@ -490,15 +490,28 @@ Fork-specific switches to flip at creation:
   (`EACH_RCC_*`), any secrets, and the non-default refs —
   the series refs, the `rcc` branch, and the snapshot branches are
   pushed fresh or migrated (see the open question on migration depth).
-- Keep the release-branch mirrors fresh, not only `main`:
-  the Flavors badges compare within `krlmlr/duckdb-r`
+- **Mirroring comes from the fork itself, not from `sync.yaml`.**
+  The Flavors badges compare within `krlmlr/duckdb-r`
   (their *ahead* base names the release branches),
-  and `sync.yaml` fast-forwards only `main`.
-  This is a **live defect already**, not only a fork item —
-  today's `duckdb.1.4.dev` *ahead* badge compares against a
+  and `sync.yaml` fast-forwards only `main`,
+  so today's `duckdb.1.4.dev` *ahead* badge compares against a
   `v1.4-andium` mirror nothing refreshes —
-  so extend `sync.yaml` on the standalone repo now
-  and carry the extension into the fork.
+  a **live defect**, counting commits that have already shipped.
+  An earlier revision of this plan proposed extending `sync.yaml`
+  to every release line and carrying the extension into the fork;
+  that was written, reviewed and **not merged**
+  (the branch is in the history if the argument is ever needed again).
+  The decision instead: a *genuine* fork keeps its branches current
+  through the **Pull app**, which is what a fork is for.
+  `sync.yaml` exists because the standalone copy is not a fork
+  and has no upstream to be pulled from;
+  replacing the copy with a fork replaces the need,
+  and one hand-written mirroring job is exactly the kind of machinery
+  §3 says has to justify itself against a mechanism that already exists.
+  Until the move, the mirrors are refreshed by hand —
+  which is what `series-open.md` says today,
+  and what it goes on saying rather than promising automation
+  that is not there yet.
 
 Keeping the repository name keeps r-universe and every
 `krlmlr/duckdb-r` URL — badges, compare links — valid.
@@ -623,7 +636,7 @@ of the kernel.
 | **1 — landed (#87)** | the port stage: `scripts/series-port.sh` plus the amended `series-loop` / `series-forward` / `series-rebase` skills | first real `--apply` still runs supervised |
 | **1a (follow-up)** | resolve the subject-vs-path contradiction (§4), in order: harden `vendor-one.sh` and `vendor.sh`'s subject scans to bounded-and-loud; relax `classify()` to subject-decided; rewrite the landed rationale in `series-port.sh`'s header and `series-loop.md` stage 4; stage 1 invokes `main`'s `vendor-one.sh` against the buffer worktree | wider than first scoped — two scanners, one classifier, two rationale blocks, one skill rule; each independently shippable |
 | **2** | single verdict store (D1: selection and resume by record; backstop stops writing, its schedule dispatches idle undecided work); one sweep, then drop the aggregate outright (D2); the fan-in stays (per-commit logs, §3.2) | verdicts are already dual-written today; rollback = read statuses again |
-| **3** | replace the standalone repo with a fresh fork (§6); extend `sync.yaml` to the release-branch mirrors **now**, ahead of the move | one-time move; keep the standalone until the fork has served one full loop cycle |
+| **3** | replace the standalone repo with a fresh fork (§6), configured with the Pull app so the release-branch mirrors stay current without a job of our own; mirrors stay manual until then | one-time move; keep the standalone until the fork has served one full loop cycle |
 | **4** | docs tree (§8): README root landed (#88); next the moves, then node rewrites (including `AGENTS.md`'s and `BRANCHES.md`'s stale rows); `docs-tree` skill | docs only |
 | **5** | kernel extraction + `rigraph` port (config file, generalized subject marker, igraph cost estimator or constant weight) | new repo consumed `@main`; rollback = vendored copy of the kernel |
 
