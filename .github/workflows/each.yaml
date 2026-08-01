@@ -115,6 +115,11 @@ name: each-rcc
 # One planning/building pass per branch at a time. `cancel-in-progress: false`
 # on purpose: a queued run must wait for a long bulk build rather than kill it,
 # because a killed leg leaves its in-flight commit undecided.
+#
+# This group, plus work-selection being a pure function of durable verdicts, is
+# the whole of what keeps a commit from being built twice. There is no running
+# marker and there is not meant to be one -- see scripts/EACH.md, "No running
+# marker, by design".
 concurrency:
   group: each-rcc-${{ inputs.branch || github.ref }}
   cancel-in-progress: false

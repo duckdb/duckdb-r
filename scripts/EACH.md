@@ -159,6 +159,42 @@ Files:
 | `scripts/rcc-parts-test.sh` | offline checks for the layout's invariants, and the source of the numbers below |
 | `scripts/each-rcc.sh` | unchanged; still the legacy dispatcher |
 
+### No running marker, by design
+
+Nothing anywhere records "this commit is being built right now",
+and nothing should.
+Two mechanisms keep a commit from being built twice, and neither is a marker:
+
+1. **One planning-and-building pass per branch at a time.**
+   `each.yaml`'s `concurrency` group is `each-rcc-<ref>`, with
+   `cancel-in-progress: false` — a second push queues behind the first
+   rather than killing it, because a killed leg leaves its in-flight commit
+   undecided.
+   So two runs never plan the same branch concurrently.
+2. **Work selection is a pure function of durable verdicts.**
+   The planner asks one question per commit — is there a verdict for it? —
+   and the answer lives on the `rcc` branch and in the commit status, both
+   of which outlive every runner.
+   A leg that dies takes no state with it: its decided commits are already
+   published, and the rest are simply undecided again.
+
+The old per-commit dispatcher looked like it had a third mechanism:
+`pending` was posted at dispatch time, so a commit was never re-dispatched.
+That guarantee was weaker than it looked —
+a dead runner left `pending` wedged forever,
+which is the *only* reason `PENDING_TTL_HOURS` exists —
+and the sharded path does not rely on it:
+`each-shard.sh` treats `pending` as undecided precisely because it is the
+state a killed leg leaves behind.
+
+The `pending` status is therefore a **display** artifact:
+it tells a human looking at the commit list that something is happening.
+Reasoning about it as coordination state is what keeps producing
+"did we lose the running marker" doubts;
+the answer is that there is no marker to lose, and there should not be one.
+D1 of `plan/PLAN-vendoring-simplification.md` finishes the thought by
+taking statuses out of selection altogether.
+
 ### Why reuse works even though every commit starts from a clean tree
 
 The leg does `git checkout --force` and `git clean -qfdx` before each commit.
