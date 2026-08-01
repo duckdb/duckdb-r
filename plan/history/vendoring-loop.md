@@ -3,11 +3,18 @@
 Status: **historical** — superseded by the series loop
 (`.claude/skills/series-loop.md`);
 kept as design context.
+It lives under `plan/` because it is history, not routing:
+what the pipeline does *today* is owned by
+[`scripts/VENDORING.md`](../../scripts/VENDORING.md) (mechanics),
+[`scripts/EACH.md`](../../scripts/EACH.md) (per-commit CI),
+and the skills in `.claude/skills/` (procedure).
+Nothing here is current except the measurements in Appendix A,
+which the sharded matrix still cites.
 References to `vendor.yaml` and the `rcc-smoke-fix` /
 `advance-green-dev` skills below describe artifacts
 that no longer exist.
 Target repo for implementation: `krlmlr/duckdb-r` (the CI/CD fork; see
-[`BRANCHES.md`](../BRANCHES.md)). Source-of-truth CI/CD lives in
+[`BRANCHES.md`](../../BRANCHES.md)). Source-of-truth CI/CD lives in
 `duckdb/duckdb-r@main` and is forward-ported.
 Author context: drafted on branch `claude/vibrant-ride-i4b5r2`.
 
@@ -15,8 +22,8 @@ This document proposes a re-architecture of the DuckDB-R vendoring pipeline as
 a **modular agentic loop**: Claude drives the creative steps, while GitHub
 Actions runs the predictable, parallelisable work and serves as the single
 **ground truth** for build results. It builds directly on the existing system
-documented in [`BRANCHES.md`](../BRANCHES.md) and
-[`scripts/VENDORING.md`](VENDORING.md), and supersedes parts of the
+documented in [`BRANCHES.md`](../../BRANCHES.md) and
+[`scripts/VENDORING.md`](../../scripts/VENDORING.md), and supersedes parts of the
 three repair skills in `.claude/skills/`.
 
 ---
@@ -26,10 +33,10 @@ three repair skills in `.claude/skills/`.
 | Concern | Today | Mechanism |
 |---|---|---|
 | **Vendor** upstream C++ into `*-dev` | hourly, commit-by-commit, ≤30/run | `vendor.yaml` → `scripts/vendor-one.sh ./duckdb --commits 30` |
-| **Trigger** per-commit CI | fire-and-forget dispatch, no cap | `each.yaml` → `scripts/each-rcc.sh` → `gh workflow run rcc -f ref=<sha>` (since superseded by the sharded matrix, [`EACH.md`](EACH.md)) |
+| **Trigger** per-commit CI | fire-and-forget dispatch, no cap | `each.yaml` → `scripts/each-rcc.sh` → `gh workflow run rcc -f ref=<sha>` (since superseded by the sharded matrix, [`scripts/EACH.md`](../../scripts/EACH.md)) |
 | **Build / smoke-test** a commit | one independent `rcc` run per commit | `R-CMD-check.yaml` (job *Smoke test: stock R*) |
 | **Record** the result marker | commit-status `rcc` = pending/success/failure | `R-CMD-check-status.yaml` (via `workflow_run`) |
-| **Harvest** logs to ground truth | **delayed**, 4×/day | `rcc-logs.yaml` → `scripts/rcc-logs.sh` → orphan branch `rcc` (`runs2.ndjson`, `logs2/<sha>.log`). Since [`EACH.md`](EACH.md) §3 the `each-rcc` legs publish their own records as each commit is decided, and this is the backstop. |
+| **Harvest** logs to ground truth | **delayed**, 4×/day | `rcc-logs.yaml` → `scripts/rcc-logs.sh` → orphan branch `rcc` (`runs2.ndjson`, `logs2/<sha>.log`). Since [`scripts/EACH.md`](../../scripts/EACH.md) §3 the `each-rcc` legs publish their own records as each commit is decided, and this is the backstop. |
 | **Repair** a red commit | fork `broken-<sha>-dev`, amend the failing commit, **cherry-pick (replay) the whole tail**, force-push | skill `rcc-smoke-fix.md` |
 | **Advance** a repaired branch | cherry-pick next 30 vendor commits, matched by vendored upstream SHA | skill `advance-green-dev.md` |
 | **Self-heal** transient breaks | squash (window 1) / transient patch (≥2) | skill `rcc-smoke-fix-self-heal.md` |
@@ -173,7 +180,7 @@ Invariants:
 
 > **Landed, in narrower form.** This primitive is now implemented inside the
 > existing `each.yaml` rather than as a separate `rcc-matrix.yaml`, because the
-> commit-selection semantics were already there. See [`EACH.md`](EACH.md) for
+> commit-selection semantics were already there. See [`scripts/EACH.md`](../../scripts/EACH.md) for
 > what was built, the GitHub Actions limits it works within, and two corrections
 > to the analysis below: within-shard reuse comes from **ccache**, not
 > incremental `make` (§4.2), and the reverse-include estimator of §4.3 exists as

@@ -237,7 +237,7 @@ Timestamp-based incremental `make` cannot cross a commit boundary here.
 What does survive is **ccache**, which is content-addressed
 and lives outside the workspace for the whole job.
 A typical adjacent vendor commit recompiles ~5 of 341 unity objects — ~98% hits
-(measured: [`VENDORING-LOOP.md` Appendix A.2](VENDORING-LOOP.md#a2-ccache-behaviour-on-adjacent-commits-8-consecutive-v15-commits)).
+(measured: [`history/vendoring-loop.md` Appendix A.2](../plan/history/vendoring-loop.md#a2-ccache-behaviour-on-adjacent-commits-8-consecutive-v15-commits)).
 Cleaning the workspace also means every commit's verdict is identical to one from a fresh checkout,
 which is what keeps the semantics honest.
 
@@ -581,7 +581,7 @@ And across 120 real `v1.5-variegata-dev` commits:
 | >100 (wide header) | 8 |
 
 median 2, mean 15, max 209.
-That is the bimodal distribution `VENDORING-LOOP.md` §4 predicted from ccache timings,
+That is the bimodal distribution `plan/history/vendoring-loop.md` §4 predicted from ccache timings,
 now derived statically and per commit.
 
 Resolution is deliberately an over-approximation:
@@ -1210,7 +1210,7 @@ Honest list, in rough order of risk:
 ## 8. Relation to the vendoring loop plan
 
 This is a concrete, narrower implementation of primitive **B** in
-[`VENDORING-LOOP.md` §3.2](VENDORING-LOOP.md#b-build-primitive--synchronous-sharded-matrix-ci-new-rcc-matrixyaml) —
+[`history/vendoring-loop.md` §3.2](../plan/history/vendoring-loop.md#b-build-primitive--synchronous-sharded-matrix-ci-new-rcc-matrixyaml) —
 plan, sharded matrix, `if: always()` fan-in — landed inside the existing `each-rcc`
 instead of as a new `rcc-matrix.yaml`, because the selection semantics are already right there.
 

@@ -17,7 +17,7 @@
 #   * a leg pays the ~4 min R/dependency setup once for ~20 commits, not once
 #     per commit;
 #   * consecutive commits in a leg share the runner's local ccache, where a
-#     typical adjacent vendor commit is ~98% cached (VENDORING-LOOP.md, A.2);
+#     typical adjacent vendor commit is ~98% cached (plan/history/vendoring-loop.md, A.2);
 #   * the whole batch is one workflow run: one thing to cancel, one set of logs.
 #
 # "Undecided" is read from the **verdict store**, not from commit statuses: a

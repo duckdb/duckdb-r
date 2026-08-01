@@ -1,12 +1,18 @@
 # Non-vendored changes on `main-dev` — review against upstream
 
+Status: **historical** — a one-off review artifact from 2026-07,
+kept for the findings it records about the R-side delta of a series.
+It is a snapshot of one branch at one moment, not a description of the
+system: the loop is owned by `.claude/skills/series-loop.md`,
+its mechanics by [`scripts/VENDORING.md`](../../scripts/VENDORING.md).
+
 **Range:** `main-dev-base..main-dev` (`krlmlr/duckdb-r`), 242 first-parent
 commits, of which **16 carry non-vendored (R-side) changes**.
 `main-dev` was force-pushed; the R-side fixes are folded **into** the vendor
 commits they accompany (the in-place repair model), so they are recovered here
 by **path filter** — the diff outside the mechanical paths `src/duckdb/`,
 `inst/include/cpp11*`, `R/version.R`, `src/include/sources.mk`, `DESCRIPTION`
-(version bump). This is primitive E of `scripts/VENDORING-LOOP.md` applied by
+(version bump). This is primitive E of `plan/history/vendoring-loop.md` applied by
 hand.
 
 - base `26c2becd` = `vendor … duckdb/duckdb@d521a441` (2026-04-24)

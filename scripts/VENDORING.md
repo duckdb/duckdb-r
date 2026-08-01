@@ -6,7 +6,7 @@ and how to troubleshoot a failing run.
 For the branch strategy, the complete list of active branches, and the release process, see
 [BRANCHES.md](../BRANCHES.md), which is the authoritative source.
 For the historical design notes that led to the series loop,
-see [VENDORING-LOOP.md](VENDORING-LOOP.md)
+see [history/vendoring-loop.md](../plan/history/vendoring-loop.md)
 (superseded by `.claude/skills/series-loop.md`).
 
 ## What is Vendoring?
@@ -59,7 +59,7 @@ They are what makes the history useful rather than merely present.
    Vendor commits touch only the mechanical path set
    (`src/duckdb/`, `R/version.R`, `src/include/sources.mk`, `DESCRIPTION`).
    Anything else in a vendor commit is a folded glue fix,
-   and must be reviewable as a path-filtered diff (see [VENDORING-LOOP.md](VENDORING-LOOP.md) §3.4).
+   and must be reviewable as a path-filtered diff (see [history/vendoring-loop.md](../plan/history/vendoring-loop.md) §3.4).
 
 Invariant 2 is the one that is easy to lose.
 It is violated the moment a dev branch is re-pointed at a different upstream branch
@@ -315,7 +315,7 @@ Three things make this affordable:
   Adjacent vendor commits change a median of two `.cpp` files and no headers,
   so a warm ccache turns a ~15 minute cold build into a couple of minutes;
   wide-header commits are the exception, not the rule
-  (measured in [VENDORING-LOOP.md](VENDORING-LOOP.md) Appendix A).
+  (measured in [history/vendoring-loop.md](../plan/history/vendoring-loop.md) Appendix A).
   Point R at it via `~/.R/Makevars` (`CXX = ccache g++`, …)
   and give it a cache large enough to hold several trees (`ccache --max-size=20G`).
   Note that ccache reads `$CCACHE_DIR/ccache.conf` (i.e. `~/.ccache/ccache.conf`)
@@ -345,7 +345,7 @@ The cheap mode is a commit that changes only `.cpp` files;
 the expensive mode is a commit touching a widely-included header,
 which invalidates a large share of the ~345 unity objects at once.
 Note that the mix depends on *which* branch is being replayed:
-Appendix A of [VENDORING-LOOP.md](VENDORING-LOOP.md) measured a release branch,
+Appendix A of [history/vendoring-loop.md](../plan/history/vendoring-loop.md) measured a release branch,
 where 66 % of commits touch no header at all,
 whereas a mainline window in active pre-release development
 runs closer to a 57/43 split — plan bulk replays off the pessimistic figure.
