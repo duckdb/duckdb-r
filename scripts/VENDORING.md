@@ -88,8 +88,13 @@ Shared behaviour, in the order it happens:
 2. **Refuse to run on a dirty tree.**
    `git status --porcelain` must be empty.
 3. **Find the base.**
-   The last `duckdb/duckdb@<sha>` mentioned in the subject of a recent commit that touched `src/duckdb/`
-   (`vendor-one.sh` looks back 10 such commits, `vendor.sh` 3).
+   The last `duckdb/duckdb@<sha>` mentioned in the subject of a recent commit that touched `src/duckdb/`.
+   The pathspec narrows the walk, the subject decides:
+   patch-stack fixes edit the vendored tree in place and carry no upstream SHA,
+   so the scan looks past them — 20 commits deep, the same bound `vendored_sha()` uses
+   in [`series-advance.sh`](series-advance.sh), and `BASE_SCAN_DEPTH` raises it.
+   Coming up empty is not an answer: both scripts refuse and say which bound they hit,
+   because an empty base turns the enumeration below into a range nobody chose.
    This is the *only* record of where the branch stands in upstream history:
    it is parsed out of the commit message, so vendor commit subjects must keep their exact format.
 4. **Enumerate candidates** (`vendor-one.sh` only):

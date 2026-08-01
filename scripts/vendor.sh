@@ -39,7 +39,27 @@ if [ -n "$(git -C "$upstream_dir" status --porcelain)" ]; then
   echo "Warning: working directory $upstream_dir not clean"
 fi
 
-base=$(git log -n 3 --format="%s" -- ${vendor_dir} | tee /dev/stderr | sed -nr '/^.*'${repo_org}.${repo_name}'@([0-9a-f]+)( .*)?$/{s//\1/;p;}' | head -n 1)
+# The upstream SHA the branch has vendored. The pathspec narrows the walk, the
+# subject decides: the patch stack is applied to the vendored tree in place, so
+# commits land under ${vendor_dir} carrying no upstream SHA, and this looks past
+# them -- bounded, so git ends the walk itself.
+#
+# Answering empty is not an option here, which is why this refuses instead: an
+# empty base makes the message body below read `${base}..${commit}` with a
+# missing left side, which git resolves to the clone's HEAD and which writes a
+# changelog nobody chose. The same rule, and the same bound, as vendored_sha()
+# in scripts/series-advance.sh; scripts/vendor-one.sh has its own copy.
+base_scan_depth="${BASE_SCAN_DEPTH:-20}"
+subjects=$(git log -n "${base_scan_depth}" --format="%s" -- ${vendor_dir} | tee /dev/stderr)
+base=$(sed -nr '/^.*'${repo_org}.${repo_name}'@([0-9a-f]+)( .*)?$/{s//\1/;p;}' <<<"$subjects" | head -n 1)
+if [ -z "$base" ]; then
+  n=$(grep -c . <<<"$subjects" || true)
+  echo "Error: no ${repo_org}/${repo_name}@ subject among the newest $n ${vendor_dir} commit(s)" >&2
+  if [ "$n" -ge "${base_scan_depth}" ]; then
+    echo "  the scan is bounded at ${base_scan_depth}; if that is genuinely too shallow, raise BASE_SCAN_DEPTH" >&2
+  fi
+  exit 1
+fi
 
 original=$(git -C "$upstream_dir" rev-parse --verify HEAD)
 

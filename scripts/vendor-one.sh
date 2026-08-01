@@ -41,6 +41,11 @@ upstream_basedir=""
 num_commits=1
 check_glue=true
 
+# How far to look past commits that touch the vendored tree without vendoring.
+# Matches the bound in vendored_sha() (scripts/series-advance.sh); override for a
+# branch that genuinely stacks more of them.
+base_scan_depth="${BASE_SCAN_DEPTH:-20}"
+
 while [ $# -gt 0 ]; do
   case "$1" in
     --commits|-c)
@@ -117,14 +122,46 @@ glue_compiles() {
     { ! grep -q .; }
 }
 
+# The upstream SHA the branch has vendored, and the base of the next walk.
+# The pathspec narrows the walk, the subject decides: the patch stack is applied
+# to the vendored tree in place, so commits land under ${vendor_dir} carrying no
+# upstream SHA, and this looks past them -- bounded, so git ends the walk itself
+# rather than being killed by a closing pipe.
+#
+# Answering empty is not an option here, which is why this refuses instead. An
+# empty base makes the range below read `..${start}`, whose missing left side
+# git resolves to the upstream clone's HEAD -- a range nobody chose, and one
+# that silently vendors the wrong span. The same rule, and the same bound, as
+# vendored_sha() in scripts/series-advance.sh; scripts/vendor.sh has its own copy.
+vendored_sha() {
+  local subjects sha n
+  subjects=$(git log -n "${base_scan_depth}" --format="%s" -- ${vendor_dir} | tee /dev/stderr)
+  sha=$(sed -nr '/^.*'${repo_org}.${repo_name}'@([0-9a-f]+)( .*)?$/{s//\1/;p;}' <<<"$subjects" | head -n 1)
+  if [ -z "$sha" ]; then
+    n=$(grep -c . <<<"$subjects" || true)
+    echo "Error: no ${repo_org}/${repo_name}@ subject among the newest $n" \
+      "${vendor_dir} commit(s) of $(git rev-parse --abbrev-ref HEAD)" >&2
+    if [ "$n" -ge "${base_scan_depth}" ]; then
+      echo "  the scan is bounded at ${base_scan_depth}; if that is genuinely too" \
+        "shallow, raise BASE_SCAN_DEPTH" >&2
+    fi
+    return 1
+  fi
+  echo "$sha"
+}
+
 # Loop for the specified number of commits
 commits_vendored=0
 
 while [ $commits_vendored -lt $num_commits ]; do
   echo "=== Vendoring commit $((commits_vendored + 1)) of $num_commits ==="
 
-  # Look back 10 commits to find the last vendor commit; needed when vendoring multiple commits per run
-  base=$(git log -n 10 --format="%s" -- ${vendor_dir} | tee /dev/stderr | sed -nr '/^.*'${repo_org}.${repo_name}'@([0-9a-f]+)( .*)?$/{s//\1/;p;}' | head -n 1)
+  # Where the last run left off; re-read every iteration, because each vendored
+  # commit moves it.
+  if ! base=$(vendored_sha); then
+    rm -rf "$upstream_dir"
+    exit 1
+  fi
 
   original=$(git -C "$upstream_dir" log --first-parent --reverse --format="%H" "${base}".."${start}" --)
 
