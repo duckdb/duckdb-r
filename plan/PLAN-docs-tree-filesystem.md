@@ -153,7 +153,7 @@ from the headers and an inline ownership mapping
 that follows `PLAN-docs-tree.md` §6's draft manifest,
 deviating only where the projection showed the draft to be wrong.
 Which it did, immediately — projecting the manifest onto one directory
-caught five defects in it:
+caught six defects in it:
 
 1. **`scripts/python_helpers.py` is unowned.**
    No `own:` glob matches it.
@@ -179,9 +179,14 @@ caught five defects in it:
    (`plan/history/`, indexed by a new hand-written `plan/README.md`),
    which resolves the finding on `main` —
    and shows the check would have caught it mechanically.
+6. **`scripts/merge-version.sh` is assigned to `BRANCHES.md`, wrongly.**
+   The `DESCRIPTION` merge driver exists
+   to keep version counters mergeable across vendor commits —
+   it is vendoring machinery, and moves to `VENDORING.md`'s group.
 
-None of these took judgment to find; they fell out of one projection
+The first five took no judgment to find; they fell out of one projection
 onto one directory.
+The sixth was caught by a reviewer reading the rendered index.
 That is the practical argument for maintaining both views:
 each is a check on the other.
 

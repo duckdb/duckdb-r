@@ -110,7 +110,8 @@ groups <- list(
   list(
     title = "Vendoring and series",
     owner = "scripts/VENDORING.md",
-    globs = c("VENDORING.md", "vendor*.sh", "rconfigure.py", "series-*.sh")
+    globs = c("VENDORING.md", "vendor*.sh", "rconfigure.py", "series-*.sh",
+      "merge-version.sh")
   ),
   list(
     title = "Per-commit CI",
@@ -120,7 +121,7 @@ groups <- list(
   list(
     title = "Flavors and branch plumbing",
     owner = "BRANCHES.md",
-    globs = c("flavor*", "merge-version.sh", "setup-git.sh")
+    globs = c("flavor*", "setup-git.sh")
   ),
   list(
     title = "Build and development environment",

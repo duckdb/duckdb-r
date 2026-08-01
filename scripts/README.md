@@ -17,6 +17,7 @@ Root of the documentation tree:
 | File | Purpose |
 |---|---|
 | [`VENDORING.md`](VENDORING.md) | DuckDB R Package Vendoring |
+| [`merge-version.sh`](merge-version.sh) | Git merge driver for DESCRIPTION. |
 | [`rconfigure.py`](rconfigure.py) | Regenerate the vendored build configuration from a DuckDB checkout: src/duckdb/, src/include/sources.mk, and R/version.R. |
 | [`series-advance.sh`](series-advance.sh) | The ref motion of the series loop, stages 3 and 5, for one series: fast-forward `<S>-green` over the all-green prefix, move `<S>-build-base` to the equivalen... |
 | [`series-check.sh`](series-check.sh) | Read-only diagnosis for the series loop: what should a firing do? |
@@ -54,7 +55,6 @@ Root of the documentation tree:
 | [`flavor-package-name.R`](flavor-package-name.R) | Guard for the flavor rename. |
 | [`flavor.patch`](flavor.patch) | — |
 | [`flavor.sh`](flavor.sh) | Apply a package flavor: rewrite scripts/flavor.patch to the target name (say, duckdb.dev), apply it, and commit the rename; see BRANCHES.md. |
-| [`merge-version.sh`](merge-version.sh) | Git merge driver for DESCRIPTION. |
 | [`setup-git.sh`](setup-git.sh) | Register repository-local git configuration that cannot live in versioned files. |
 
 ## Build and development environment — `BUILD.md` *(proposed: [#2443](https://github.com/duckdb/duckdb-r/pull/2443))*
