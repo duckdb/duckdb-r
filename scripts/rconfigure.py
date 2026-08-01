@@ -1,3 +1,6 @@
+# Regenerate the vendored build configuration from a DuckDB checkout:
+# src/duckdb/, src/include/sources.mk, and R/version.R.
+# Called by vendor.sh and vendor-one.sh with DUCKDB_PATH set.
 import os
 import sys
 import shutil

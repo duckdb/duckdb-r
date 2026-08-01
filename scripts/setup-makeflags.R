@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-# Setup MAKEFLAGS for parallel compilation
+# Setup MAKEFLAGS for parallel compilation.
 # Based on the approach used by Apache Arrow R package
 # Only sets MAKEFLAGS if not already set (respects user preferences)
 

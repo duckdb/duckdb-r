@@ -1,5 +1,5 @@
 #!/bin/bash
-# Vendors DuckDB sources from upstream repository (manual vendoring)
+# Vendors DuckDB sources from the upstream repository (manual vendoring).
 # For manual testing and development use
 # See scripts/VENDORING.md for complete documentation
 # https://unix.stackexchange.com/a/654932/19205

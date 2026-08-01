@@ -1,4 +1,6 @@
 #!/bin/sh
+# Vendor the rfuns extension: copy sources from a duckdb-rfuns checkout
+# into src/ and commit with the upstream log, one commit per import.
 
 set -e
 set -x

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# this script is used to format the source directory
+# Format the source directory; driven by the Makefile's format-* targets.
 
 import os
 import time
