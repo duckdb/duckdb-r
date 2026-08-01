@@ -26,7 +26,7 @@ The contract every consumer reads is untouched.
 
 | Contract | Before | After |
 |---|---|---|
-| Commits considered | `<S>-green..HEAD` on a series branch, else first-parent since `SINCE`; no `rcc` status | same |
+| Commits considered | `<S>-green..HEAD` on a series branch, else first-parent since `SINCE`; undecided | same range; "undecided" now means *no record on the `rcc` branch* rather than *no `rcc` status* ([§1](#the-green-marker-and-why-rcc-smoke-sha-has-no-successor)) |
 | Marker written | commit-status, context `rcc`, `pending` → `success`/`failure` | same, written by the leg |
 | Re-trigger a commit | rebase it past the boundary and force-push | same |
 | Results on the `rcc` branch | `runs2.ndjson` + `logs2/<sha>.log` | same schema, same paths, existing records untouched — plus `runs2.d/<xx>/<sha>.ndjson`, which new records land in first and which `runs2.ndjson` is extended from ([§3](#can-results-reach-the-rcc-branch-as-soon-as-they-exist)) |
@@ -46,8 +46,10 @@ so the working tree keeps its diff and the `clean` gate still fails the commit.
 This is why the `build` job needs `contents: write`.
 
 The commit status stays, and is now purely a display surface: nothing decides
-from it. `scripts/vendor-gate.sh`, which turned a window of statuses into one
-green/red/stale verdict for the daily vendoring run, went with the run it served
+from it. Selection reads the verdict store on the `rcc` branch instead (below),
+and `scripts/vendor-gate.sh` — the last consumer that decided anything from a
+status, turning a window of them into one green/red/stale verdict for the daily
+vendoring run — went with the run it served
 (D4 of [`../plan/PLAN-vendoring-simplification.md`](../plan/PLAN-vendoring-simplification.md)).
 
 The readers of the `rcc` branch did need a change, but a compatible one. Records
@@ -110,21 +112,34 @@ So the `workflow_run` hop was decorating the branch tip, not the commit under te
 The new path has no such hop, and `each-rcc` is not named `rcc`,
 so `R-CMD-check-status.yaml` does not fire for it at all.
 
-Two selection details are new, and both only fire in states the old path never produced:
+**Selection does not read any of this.** The status is written for the commit
+list to show, and a commit is planned or skipped according to the **verdict
+store** — the record the `rcc` branch holds at `runs2.d/<xx>/<sha>.ndjson`,
+which the deciding leg publishes within seconds
+([§3](#can-results-reach-the-rcc-branch-as-soon-as-they-exist)).
+`scripts/rcc-decided.sh` is that read, for the planner and for a resuming leg
+alike, and it is one tree-only fetch rather than a request per commit.
 
-- A `pending` status older than `PENDING_TTL_HOURS` (default 6) is treated as
-  abandoned and replanned. Previously a leg that died hard left a commit wedged
-  in `pending` forever. (The default was once matched to `MAX_AGE_HOURS` in
-  `vendor-gate.sh`; that script is gone, and the number now stands on its own.)
-- A commit missing from the status scan is replanned rather than skipped.
+Two stores answering the same question is what needed reconciling, and what
+made a `pending` status a problem at all: a leg that died hard left one wedged
+forever, so `PENDING_TTL_HOURS` existed to age it out. A store where a dead leg
+simply writes nothing needs no such rule — no record means undecided, which is
+the truth — and the TTL is gone with it.
+
+The remaining selection details:
+
+- A commit the store does not mention is planned rather than skipped: the
+  enumeration drives the decision, not the store's contents.
+- Reachability is not emptiness. A store that cannot be read stops the plan
+  rather than reporting nothing decided, which would replan the whole range.
 - A `retry-<S>-dev` branch — the series' own branch name with a prefix, see
   `.claude/skills/series-loop.md` — replans **its tip** even when that commit
   already carries a verdict, so one commit can be judged again on its own SHA
   instead of being amended and taking its descendants with it. The prefix is
   stripped to derive the series, so the scan anchors on `<S>-green` and needs no
   ref of its own; a retry branch naming a series with no green plans nothing at
-  all, because the fallback scan reaches into `main`, where nothing carries an
-  `rcc` status.
+  all, because the fallback scan reaches into `main`, where no commit has a
+  verdict.
 
 ---
 
@@ -133,7 +148,7 @@ Two selection details are new, and both only fire in states the old path never p
 ```
 plan  (1 job, ~30 s)
   ├─ git log --first-parent --after=$SINCE          → candidate commits
-  ├─ GraphQL, 100 commits per request               → existing rcc statuses
+  ├─ scripts/rcc-decided.sh (one tree-only fetch)   → verdicts already on `rcc`
   ├─ scripts/each-cost.py                           → objects each commit invalidates
   ├─ scripts/each-partition.py
   │    ├─ greedy contiguous fill under the leg deadline → fewest shards
@@ -161,12 +176,13 @@ Files:
 | Path | Role |
 |---|---|
 | `.github/workflows/each.yaml` | plan → build → harvest |
-| `scripts/each-plan.sh` | enumerate, read statuses, weigh, partition |
+| `scripts/each-plan.sh` | enumerate, read verdicts, weigh, partition |
 | `scripts/each-cost.py` | unity-object reach; the cost model's only input |
 | `scripts/each-partition.py` | the cost model, the greedy fill, and the rebalance pass |
 | `scripts/each-shard.sh` | one leg: many commits, one workspace |
 | `scripts/rcc-one.sh` | the per-commit gate, extracted from `rcc-smoke` |
 | `scripts/rcc-part-push.sh` | publish one commit's record from the leg that decided it |
+| `scripts/rcc-decided.sh` | the other direction: which commits the store has decided |
 | `scripts/rcc-merge.sh` | bring `runs2.ndjson` level with the per-commit records |
 | `scripts/rcc-consolidate.sh` | manual: make the layouts agree, GC old logs, squash the branch |
 | `scripts/each-harvest.sh` | fan-in: reconcile what the legs could not publish |

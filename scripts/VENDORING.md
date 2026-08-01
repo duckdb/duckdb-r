@@ -591,12 +591,13 @@ git log -1 --grep="^vendor:" --format=%s   # upstream commit it came from
 
 - `scripts/vendor.sh` - Manual vendoring of one specific upstream state
 - `scripts/vendor-one.sh` - Commit-by-commit vendoring (used by the series loop)
-- `scripts/each-plan.sh` - Selects commits without an `rcc` status and shards them by predicted build cost
+- `scripts/each-plan.sh` - Selects commits with no verdict on the `rcc` branch and shards them by predicted build cost
 - `scripts/each-cost.py` - Counts the unity objects a commit invalidates, from the include graph
 - `scripts/each-shard.sh` - Builds one shard of commits in a single job
 - `scripts/rcc-one.sh` - The per-commit `rcc` gate
 - `scripts/each-harvest.sh` - Folds the shards' results onto the orphan `rcc` branch
 - `scripts/rcc-part-push.sh` - Publishes one commit's result to the `rcc` branch from the leg that decided it
+- `scripts/rcc-decided.sh` - Lists the commits the `rcc` branch has a verdict for; what work selection reads (see [`EACH.md`](EACH.md))
 - `scripts/rcc-merge.sh` - Brings `runs2.ndjson` level with the records in `runs2.d/`
 - `scripts/rcc-consolidate.sh` - Manual: makes the layouts agree, GCs logs older than a month, squashes the `rcc` branch
 - `scripts/rconfigure.py` - Regenerates `src/duckdb/`, `src/include/sources.mk`, `R/version.R`
