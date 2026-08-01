@@ -11,6 +11,10 @@
 #   RETRY <sha> <why>  the oldest failure, and nothing in the commit caused it
 #   REPAIR <sha> <why>  the oldest failure and its classification
 #
+# A forward series that has caught up with the green it replaces additionally
+# gets a CUTOVER line: the command to run, for a human to run. The loop never
+# swaps a serving green itself (.claude/skills/series-loop.md).
+#
 # Classification is by positive evidence only (.claude/skills/series-loop.md);
 # "Job is waiting for a hosted runner" appears in every log and means nothing.
 #
@@ -133,11 +137,26 @@ for S in "${series[@]}"; do
   done
   # cutover litter: a forward series whose green is an ancestor of its base's
   # (the base moves on after cutover, so equality cannot be the test)
+  cutover=""
   case "$S" in *-fwd)
     base=${S%-fwd}
-    if git rev-parse -q --verify "$remote/$base-green" >/dev/null &&
-       git merge-base --is-ancestor "$green" "$remote/$base-green"; then
-      echo "$S: green is an ancestor of $base's — cutover litter, ignoring"; continue
+    if git rev-parse -q --verify "$remote/$base-green" >/dev/null; then
+      if git merge-base --is-ancestor "$green" "$remote/$base-green"; then
+        echo "$S: green is an ancestor of $base's — cutover litter, ignoring"; continue
+      fi
+      # Ready to cut over once the forward green vendors the upstream commit the
+      # base green vendors: coverage may never regress. Tested by subject, like
+      # every other equivalence here, and bounded by the mainline the forward
+      # seed was built on — `main`'s own vendor commits sit below that seed and
+      # must not answer for the forward chain. A base green that vendors nothing
+      # asks for no coverage, exactly as in series-cutover.sh.
+      base_up=$(vendored_sha "$remote/$base-green")
+      # Collected, not piped into grep: `grep -q` leaves early, and under
+      # `pipefail` the SIGPIPE it hands `git log` would read as a failed test.
+      fwd_vendored=$(git log --format=%s "$remote/main..$green" -- src/duckdb || true)
+      if [ -z "$base_up" ] || grep -q "duckdb@$base_up" <<<"$fwd_vendored"; then
+        cutover=$base
+      fi
     fi ;;
   esac
 
@@ -196,5 +215,14 @@ for S in "${series[@]}"; do
     echo "  IDLE   nothing in flight, buffer empty — vendor"
   else
     echo "  ADVANCE"
+  fi
+
+  # Suggested, never done: a firing reports a ready cutover and stops
+  # (.claude/skills/series-loop.md). Printed beside the verdict rather than as
+  # one, because it is orthogonal — a forward series that has caught up still
+  # needs repairing, advancing or waiting like any other.
+  if [ -n "$cutover" ]; then
+    echo "  CUTOVER  $S covers $cutover's green — a manual step, never a firing's:"
+    echo "           scripts/series-cutover.sh $cutover $remote <upstream-clone>"
   fi
 done

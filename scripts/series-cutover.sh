@@ -8,6 +8,12 @@
 # half-replaced series. The swap is the one sanctioned non-fast-forward move
 # of a green ref.
 #
+# It is also the one move the series loop never makes: the loop reports a ready
+# cutover and stops (.claude/skills/series-loop.md), because retiring the
+# lineage r-universe builds from is a decision, not a stage. This script is the
+# mechanical half of that rule — it runs from a terminal, on a typed
+# confirmation, and nowhere else.
+#
 # A base series ref that does not exist yet is created rather than swapped:
 # a series that started as -fwd has no counterpart to replace.
 #
@@ -22,6 +28,15 @@ set -euo pipefail
 S=${1:?usage: series-cutover.sh <series> [remote] [upstream-clone]}
 remote=${2:-origin}
 upstream=${3:-}
+
+# Fail before the fetch, not after it: an unattended firing has no terminal, so
+# there is nothing for it to confirm with and no reason to do any work first.
+if [ ! -t 0 ] || [ ! -t 1 ]; then
+  echo "Error: cutover is a manual operation; run this script from a terminal." >&2
+  echo "  The series loop reports a ready cutover and stops; a human runs it." >&2
+  echo "  See .claude/skills/series-forward.md and series-loop.md." >&2
+  exit 1
+fi
 
 git fetch -q "$remote"
 
@@ -87,6 +102,7 @@ fi
 
 leases=()
 refspecs=()
+echo "refs to swap:"
 for r in build dev green build-base; do
   new=$(git rev-parse "refs/remotes/$remote/$S-fwd-$r")
   # An empty expected value leases the ref as "must not exist yet", which is
@@ -96,7 +112,17 @@ for r in build dev green build-base; do
   cur=$(git rev-parse -q --verify "refs/remotes/$remote/$S-$r") || cur=
   leases+=("--force-with-lease=refs/heads/$S-$r:$cur")
   refspecs+=("$new:refs/heads/$S-$r")
+  short=${cur:0:7}
+  printf '  %-20s %s -> %s\n' "$S-$r" "${short:-<new>}" "${new:0:7}"
 done
+
+# The gate above says the swap is allowed; this asks whether it is wanted. It
+# comes last so the operator confirms with the coverage lines and the four ref
+# moves on screen, and it takes the series name rather than a keystroke because
+# the mistake worth catching is cutting over the wrong series.
+printf 'Replace series %s with %s-fwd-*? Type the series name to confirm: ' "$S" "$S"
+read -r confirm
+[ "$confirm" = "$S" ] || { echo "Aborted; nothing was pushed."; exit 1; }
 
 git push --atomic "${leases[@]}" "$remote" "${refspecs[@]}"
 if [ ${#missing[@]} -eq 4 ]; then
