@@ -722,6 +722,35 @@ retention window — and leaves `rcc` alone to be deleted when nobody misses it.
 one-shot script rather than a flag day inside the producers, because the producers
 should not carry a migration they run once.
 
+#### Runbook: the cutover
+
+Run once, from a terminal, against the repository that holds `rcc`
+(`krlmlr/duckdb-r`). It moves ~220 MB over the wire and rewrites the worktree in
+place, so give it a worktree of its own:
+
+```sh
+git fetch origin '+refs/heads/rcc:refs/heads/rcc'
+git worktree add ../rcc-cutover rcc
+
+OUT_DIR=../rcc-cutover scripts/rcc-cutover.sh            # dry run: reports only
+OUT_DIR=../rcc-cutover APPLY=1 scripts/rcc-cutover.sh    # writes and pushes rcc2
+
+git worktree remove --force ../rcc-cutover
+```
+
+The dry run prints what it would distribute and what ages out; read it before
+applying. `APPLY=1` pushes `rcc2` and nothing else — `rcc` is never written to,
+and the script refuses outright if `rcc2` already exists (`FORCE=1` overrides,
+and discards whatever the producers have published there).
+
+**Do this before the producers start writing.** Until `rcc2` exists, the first leg
+to publish creates it as an empty orphan, which is correct but starts the store
+with no history — and then the cutover's refusal is the only thing standing
+between you and discarding it.
+
+Afterwards, `rcc` is complete and untouched. Deleting it is a separate step for
+whenever nothing reads it.
+
 #### Who pays for what
 
 | Writer | Frequency | Touches |

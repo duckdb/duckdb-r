@@ -84,7 +84,7 @@ with a status line each as the work lands:
   `rcc-consolidate.sh`, and the two-layout fallback in every reader.
   *Status:* landed — the aggregate is gone, and so are `rcc-merge.sh`,
   `rcc-push.sh` and `rcc-part-push.sh`; one publisher
-  (`rcc-publish.sh`) writes the store, and `rcc-cutover.sh` built the
+  (`rcc-publish.sh`) writes the store, and `rcc-cutover.sh` builds the
   new branch rather than sweeping the old one in place.
   On the many-small-files worry that motivated the aggregate:
   the branch is built to be used **without a checkout**.

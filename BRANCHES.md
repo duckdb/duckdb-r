@@ -712,7 +712,6 @@ the first step of any CI job that rebases, cherry-picks, or merges — to regist
 | `.github/workflows/sync.yaml`   | Hourly fast-forward of `krlmlr/main` from `duckdb/main`                                                    |
 | `.github/workflows/each.yaml`   | Builds every statusless commit on push to `*-dev` branches, as a sharded matrix (see [`scripts/EACH.md`](scripts/EACH.md)) |
 | `.github/workflows/rcc-consolidate.yaml` | Manual (`workflow_dispatch`) consolidation of the `rcc2` branch; dry run by default                |
-| `.github/workflows/rcc-cutover.yaml` | Manual (`workflow_dispatch`) one-shot cutover from `rcc` to `rcc2`; dry run by default                 |
 | `.github/workflows/fledge.yaml` | Daily version-bump PRs via `fledge`                                                                        |
 
 ### Proposed tooling
