@@ -94,9 +94,29 @@ Judgement — repairs, review, vendoring — stays here.
 
 ### 1. Vendor onto `<S>-build`
 
+Run **`main`'s copy of the script**, against the buffer worktree:
+
 ```sh
-scripts/vendor-one.sh --commits 100 <upstream-clone>
+VENDOR_REPO=<S>-build-worktree \
+  <main-checkout>/scripts/vendor-one.sh --commits 100 <upstream-clone>
 ```
+
+This stage is the one place the port stage cannot reach.
+Stage 4 brings `.github/`, `scripts/` and `.claude/` on `<S>-dev`
+level with `main` every firing,
+but `-build` carries no ports by design —
+its tooling refreshes only at a forward,
+so a buffer opened last month vendors with last month's script.
+Invoking `main`'s copy closes that
+without teaching CI to read another branch's tree:
+it is a script the routine runs, not a cross-branch reference.
+
+Only the script comes from `main`.
+Everything it invokes by relative path —
+`scripts/rconfigure.py`, `patch/*.patch`, `./configure` —
+stays the buffer's,
+because those are coupled to the vendored tree
+they generate and patch.
 
 The script gates itself:
 after each vendored commit it syntax-checks the glue
