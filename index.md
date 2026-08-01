@@ -104,8 +104,8 @@ maintainers and coding agents.
 - [`RELEASE.md`](https://r.duckdb.org/RELEASE.md) — the release process
 - [`scripts/VENDORING.md`](https://r.duckdb.org/scripts/VENDORING.md) —
   vendoring mechanics
-- [`plan/`](https://r.duckdb.org/plan/) — designs, plans, and historical
-  documents
+- [`plan/README.md`](https://r.duckdb.org/plan/README.md) — designs,
+  plans, and historical documents, each named there by path
 
 ## Building
 
