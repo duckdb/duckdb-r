@@ -230,6 +230,19 @@ so untracked build output does not end up inside.
 `cleanup.win` additionally runs `dos2unix` over the vendored
 `.cc`, `.cpp`, `.h`, and `.hpp` files before archiving.
 
+**Never run `R CMD build` in a working tree you still need.**
+`cleanup` runs *in place*, on the tree it is invoked in, not on a copy:
+`git clean -fdx src` deletes every untracked and ignored file under
+`src/` — the `.o` files, `Makevars.duckdb`, a prebuilt archive, the
+generated fragments — and `src/duckdb/` itself is then archived and
+removed.
+The checkout stays valid, and the next `R CMD INSTALL` unpacks the
+archive again, but everything that made a rebuild cheap is gone and that
+install starts cold.
+A tree in the middle of an edit-build-test loop, or one replaying vendor
+commits, is exactly the tree not to build a tarball from:
+use a scratch clone or a worktree kept for the purpose.
+
 `configure` reverses this at install time,
 and that asymmetry is the thing to remember:
 in a git checkout `src/duckdb/` is a directory and `configure` leaves it
