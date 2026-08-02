@@ -307,14 +307,15 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 // Note we cannot use cpp11's data frame here as it tries to calculate the number of rows itself,
 // but gives the wrong answer if the first column is another data frame. So we set the necessary
 // attributes manually.
-static cpp11::writable::list duckdb_r_allocate_df(const vector<LogicalType> &types, const vector<string> &names,
+static cpp11::writable::list duckdb_r_allocate_df(const vector<LogicalType> &types, const vector<Identifier> &names,
                                                   idx_t nrows, const duckdb::ConvertOpts &convert_opts,
                                                   const char *caller) {
 	cpp11::writable::list data_frame;
 	data_frame.reserve(types.size());
 
 	for (size_t col_idx = 0; col_idx < types.size(); col_idx++) {
-		cpp11::sexp varvalue = duckdb_r_allocate(types[col_idx], nrows, names[col_idx], convert_opts, caller);
+		cpp11::sexp varvalue =
+		    duckdb_r_allocate(types[col_idx], nrows, names[col_idx].GetIdentifierName(), convert_opts, caller);
 		duckdb_r_decorate(types[col_idx], varvalue, convert_opts);
 		data_frame.push_back(varvalue);
 	}
@@ -325,7 +326,7 @@ static cpp11::writable::list duckdb_r_allocate_df(const vector<LogicalType> &typ
 SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb::ConvertOpts &convert_opts,
                                    SEXP class_) {
 	// step 2: create result data frame and allocate columns
-	auto ncols = result->types.size();
+	auto ncols = result->GetTypes().size();
 	if (ncols == 0) {
 		return Rf_ScalarReal(0); // no need for protection because no allocation can happen afterwards
 	}
@@ -337,8 +338,8 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 	ConvertOpts local_convert_opts = convert_opts;
 	local_convert_opts.session_time_zone = result->client_properties.time_zone;
 
-	cpp11::writable::list data_frame =
-	    duckdb_r_allocate_df(result->types, result->names, nrows, local_convert_opts, "duckdb_execute_R_impl");
+	cpp11::writable::list data_frame = duckdb_r_allocate_df(result->GetTypes(), result->GetNames(), nrows,
+	                                                        local_convert_opts, "duckdb_execute_R_impl");
 
 	// step 3: set values from chunks
 	idx_t dest_offset = 0;
@@ -347,7 +348,7 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 		D_ASSERT(chunk.ColumnCount() == (idx_t)Rf_length(data_frame));
 		for (size_t col_idx = 0; col_idx < chunk.ColumnCount(); col_idx++) {
 			duckdb_r_transform(chunk.data[col_idx], data_frame[col_idx], dest_offset, chunk.size(), local_convert_opts,
-			                   result->names[col_idx]);
+			                   result->GetNames()[col_idx].GetIdentifierName());
 		}
 		dest_offset += chunk.size();
 	}
@@ -357,7 +358,7 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 	// Convert to SEXP, finalize length
 	(void)(SEXP)data_frame;
 
-	SET_NAMES(data_frame, StringsToSexp(result->names));
+	SET_NAMES(data_frame, StringsToSexp(IdentifiersToStrings(result->GetNames())));
 	duckdb_r_df_decorate(data_frame, nrows, class_);
 
 	// at this point data_frame is fully allocated and the only protected SEXP
@@ -434,7 +435,7 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 		rqry_eptr_t query_resultsexp(query_result.release());
 		return query_resultsexp;
 	} else {
-		D_ASSERT(generic_result->type == QueryResultType::MATERIALIZED_RESULT);
+		D_ASSERT(generic_result->GetResultType() == QueryResultType::MATERIALIZED_RESULT);
 		auto result = (MaterializedQueryResult *)generic_result.get();
 
 		// Avoid rchk warning, it sees QueryResult::~QueryResult() as an allocating function

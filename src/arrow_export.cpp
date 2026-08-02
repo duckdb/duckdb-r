@@ -52,7 +52,7 @@ bool FetchArrowChunk(ChunkScanState &scan_state, ClientProperties options, Appen
 	if (count == 0) {
 		return false;
 	}
-	ArrowConverter::ToArrowSchema(&arrow_schema, scan_state.Types(), scan_state.Names(), options);
+	ArrowConverter::ToArrowSchema(&arrow_schema, scan_state.Types(), IdentifiersToStrings(scan_state.Names()), options);
 	batches_list.PrepAppend();
 	batches_list.Append(cpp11::safe[Rf_eval](batch_import_from_c, arrow_namespace));
 	return true;
@@ -94,7 +94,8 @@ static void CheckQueryResult(const duckdb::rqry_eptr_t &qry_res, const char *con
 	}
 
 	SET_LENGTH(batches_list.the_list, batches_list.size);
-	ArrowConverter::ToArrowSchema(&arrow_schema, result->types, result->names, result->client_properties);
+	ArrowConverter::ToArrowSchema(&arrow_schema, result->GetTypes(), IdentifiersToStrings(result->GetNames()),
+	                              result->client_properties);
 	cpp11::sexp schema_arrow_obj(cpp11::safe[Rf_eval](schema_import_from_c, arrow_namespace));
 
 	// create arrow::Table
@@ -122,7 +123,7 @@ RArrowArrayStreamWrapper::RArrowArrayStreamWrapper(duckdb::unique_ptr<QueryResul
 // (vendored src/duckdb/src/main/stream_query_result.cpp).
 bool RArrowArrayStreamWrapper::Invalidated() {
 	auto &result = *engine.result;
-	if (result.type != QueryResultType::STREAM_RESULT || result.HasError()) {
+	if (result.GetResultType() != QueryResultType::STREAM_RESULT || result.HasError()) {
 		return false;
 	}
 	auto &stream_result = result.Cast<StreamQueryResult>();
@@ -310,7 +311,7 @@ void RArrowArrayStreamWrapper::Release(ArrowArrayStream *stream) {
 		return;
 	}
 	auto result = qry_res->stream_wrapper ? qry_res->stream_wrapper->engine.result.get() : qry_res->result.get();
-	if (result && result->type == QueryResultType::STREAM_RESULT) {
+	if (result && result->GetResultType() == QueryResultType::STREAM_RESULT) {
 		auto &stream_result = result->Cast<StreamQueryResult>();
 		if (stream_result.IsOpen()) {
 			stream_result.context->CancelTransaction();

@@ -262,7 +262,7 @@ void AltrepRelationWrapper::Materialize() {
 		mat_error = duckdb_fmt::format("Error evaluating duckdb query: {}", local_res->GetError().c_str());
 		return;
 	}
-	D_ASSERT(local_res->type == QueryResultType::MATERIALIZED_RESULT);
+	D_ASSERT(local_res->GetResultType() == QueryResultType::MATERIALIZED_RESULT);
 
 	auto local_mat_res = (MaterializedQueryResult *)local_res.get();
 
@@ -354,10 +354,10 @@ struct AltrepVectorWrapper {
 		auto res = rel->GetQueryResult();
 
 		if (parent_column_index.empty()) {
-			return res->names[column_index];
+			return res->GetNames()[column_index].GetIdentifierName();
 		}
 
-		auto child_type = res->types[parent_column_index[0]];
+		auto child_type = res->GetTypes()[parent_column_index[0]];
 		for (idx_t i = 1; i < parent_column_index.size(); i++) {
 			child_type = StructType::GetChildType(child_type, parent_column_index[i]);
 		}
@@ -369,11 +369,11 @@ struct AltrepVectorWrapper {
 		auto res = rel->GetQueryResult();
 
 		if (parent_column_index.empty()) {
-			return res->names[column_index];
+			return res->GetNames()[column_index].GetIdentifierName();
 		}
 
-		string res_name = res->names[parent_column_index[0]];
-		auto child_type = res->types[parent_column_index[0]];
+		string res_name = res->GetNames()[parent_column_index[0]].GetIdentifierName();
+		auto child_type = res->GetTypes()[parent_column_index[0]];
 		for (idx_t i = 1; i < parent_column_index.size(); i++) {
 			res_name += "$" + StructType::GetChildName(child_type, parent_column_index[i]);
 			child_type = StructType::GetChildType(child_type, parent_column_index[i]);
@@ -386,10 +386,10 @@ struct AltrepVectorWrapper {
 		auto res = rel->GetQueryResult();
 
 		if (parent_column_index.empty()) {
-			return res->types[column_index];
+			return res->GetTypes()[column_index];
 		}
 
-		auto child_type = res->types[parent_column_index[0]];
+		auto child_type = res->GetTypes()[parent_column_index[0]];
 		for (idx_t i = 1; i < parent_column_index.size(); i++) {
 			child_type = StructType::GetChildType(child_type, parent_column_index[i]);
 		}
@@ -638,7 +638,7 @@ R_xlen_t RelToAltrep::StructLength(SEXP x) {
 	auto const *wrapper = AltrepVectorWrapper::Get(x);
 	auto const column_index = wrapper->column_index;
 	auto const &res = wrapper->rel->GetQueryResult();
-	auto const &type = res->types[column_index];
+	auto const &type = res->GetTypes()[column_index];
 
 	return static_cast<R_xlen_t>(StructType::GetChildTypes(type).size());
 	END_CPP11_EX(0)
