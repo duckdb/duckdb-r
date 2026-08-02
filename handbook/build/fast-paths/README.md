@@ -41,9 +41,7 @@ so engine-configuration claims are never verified
 under `DUCKDB_R_USE_SYSTEM_LIB=1`
 ([`usage/extensions/`](/handbook/usage/extensions/README.md)).
 
-In CI, `.github/workflows/custom/before-install/action.yml`
-defaults Linux and macOS builds to the fast path — except the
-`krlmlr/duckdb-r` fork (which hosts vendoring and must build from
-source) and the matrix entries that pin
-`DUCKDB_R_USE_SYSTEM_LIB=0` so the CRAN-shaped artifact still
-compiles ([`operations/ci/matrix/`](/handbook/operations/ci/matrix/README.md)).
+In CI, most Linux and macOS builds default to the fast path,
+via `.github/workflows/custom/before-install/action.yml`;
+the entries that compile the vendored sources instead are
+[`operations/ci/matrix/`](/handbook/operations/ci/matrix/README.md)'s.
