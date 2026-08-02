@@ -71,7 +71,8 @@ so vendoring can run ahead — red or not —
 while CI works through what has already been consumed.
 Consumption is bounded:
 [`scripts/series-advance.sh`](/scripts/series-advance.sh)
-appends at most 100 `-build` commits to `-dev` in one pass by default.
+appends at most one chunk of `-build` commits to `-dev` per pass,
+the chunk size an optional argument whose default the script names.
 
 Which `-build` commit corresponds to which `-dev` commit
 is decided by the `duckdb/duckdb@<sha>` reference in the commit subject,
@@ -102,10 +103,10 @@ and never runs it
 
 ### What exists today
 
-Three base series — `main`, `v1.5-variegata`, `v1.4-andium` —
-each with all four refs in `krlmlr/duckdb-r`,
+The base series are `main`, `v1.5-variegata` and `v1.4-andium`,
+each with its refs in `krlmlr/duckdb-r`,
 and `main` additionally with a live forward counterpart, `main-fwd`.
-In `duckdb/duckdb-r`: `main`, the two parked baselines, and `v1.4-andium-lts`.
+In `duckdb/duckdb-r`: `main`, the parked baselines, and `v1.4-andium-lts`.
 There is no `v1.5-variegata-lts`; v1.5 is not an LTS line.
 
 Every series also still carries a `<S>-dev-base` ref
