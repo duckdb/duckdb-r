@@ -64,11 +64,18 @@ until then it is a preference, and preferences are not enforced.
   is documented as such, and stops being when the issue closes.
 * **Never refer by position — name the thing.**
   "The first two" breaks silently when the list above is reordered.
-* **Illustrate with the shape, not the instances.**
-  An example that names today's members expires;
-  an example that shows the form does not.
-  Where a reader needs the actual members,
-  link the page that owns them rather than copying the list.
+* **Illustrate with a placeholder or a named example — and label which.**
+  A placeholder never goes stale but makes every reader substitute;
+  a named example reads fluently but ages into a snapshot.
+  Both are legitimate, and the guardrails are the same either way.
+  Declare a placeholder scheme once, where it starts,
+  and keep to one notation — a page running three is worse than either
+  choice made badly.
+  Say what a named example is a snapshot *of*,
+  so a later reader treats it as history rather than as status;
+  refreshing it is then an ordinary edit, not a correction.
+  A live inventory is neither: it *is* the fact, so it must be current,
+  and a dated snapshot is exactly wrong for it.
 * **Cite the claim, not its label.**
   An identifier from another page's numbering — an invariant number,
   a state number — means nothing where it is read,

@@ -13,11 +13,13 @@ the version counters
 and CRAN submission
 [`cran/`](/handbook/operations/releases/cran/README.md)'s.
 
-Two placeholders run through this page.
-`S` is the series — one upstream line of `duckdb/duckdb`, and the refs that
-carry it.
+Three placeholders run through this page, and nothing else stands in for
+a name.
+`<S>` is the series — one upstream line of `duckdb/duckdb`, and the refs
+that carry it.
 `N` is its `major.minor` token, which is what a flavor suffix is built from
 ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
+`X.Y.Z` is the version being released.
 
 Four refs matter here:
 
@@ -248,8 +250,8 @@ fledge::bump_version("X.Y.Z")
 Then rebase the LTS branch, one rename commit on top of the release branch:
 
 ```bash
-# in the L-lts worktree
-git rebase origin/L && git push origin L-lts
+# in the <S>-lts worktree
+git rebase origin/<S> && git push origin <S>-lts
 ```
 
 Build the source tarball and take it through WinBuilder and the CRAN
@@ -260,7 +262,7 @@ preflight before tagging (`cran/`).
 Tag the release and push; r-universe rebuilds automatically:
 
 ```bash
-git tag vX.Y.Z origin/L-lts   # or origin/L per series convention
+git tag vX.Y.Z origin/<S>-lts   # or origin/<S> per series convention
 git push origin vX.Y.Z
 ```
 
