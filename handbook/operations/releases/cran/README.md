@@ -81,6 +81,16 @@ file — version, timestamp, and commit SHA of a submitted release —
 that `devtools` writes after a successful upload.
 No such file is in the tree.
 
+The link to `cran-comments.md` is deliberately one-way:
+it carries no backreference to here,
+because it is outbound correspondence rather than documentation of a
+topic, and its whole text reaches a CRAN maintainer verbatim.
+The backreference convention exists so that a reader standing in the
+source tree finds the page explaining what they are looking at;
+nobody browses `cran-comments.md` for that,
+and its actual audience should not be reading our internal routing.
+The asymmetry is correct, not an orphan.
+
 ## Policy constraints
 
 ### No warning suppression
@@ -108,15 +118,22 @@ so fmt's `std_string_view` alias became a struct that derives from
 and `char32_t`, and is empty otherwise —
 the deprecated template is never instantiated.
 
-Two patches fall short of the rule and are debt, not precedent.
+**Two patches in the current stack break the rule while passing the
+check, and that is unresolved.**
 `patch/0003-Try-to-ignore-clang-warnings.patch` adds
 `-Wgnu-anonymous-struct`, `-Wnested-anon-types` and `-Wdtor-name`
-suppressions to re2 headers written as `#  pragma`,
-and `patch/0016-Avoid-mbedtls-diagnostic-pragmas.patch` respaces
-mbedtls's existing `-Wredundant-decls` pragmas as
+suppressions to two re2 headers, written as `#  pragma`;
+`patch/0016-Avoid-mbedtls-diagnostic-pragmas.patch` keeps mbedtls's
+existing `-Wredundant-decls` suppressions but respaces them as
 `#pragma  GCC  diagnostic  ignored`.
-Both forms fall outside the single-space pattern the check greps for,
-so the compiler still honours them while the check does not see them.
+The regex above matches only `#pragma` with single spaces,
+so neither form is seen by `R CMD check` —
+while the compiler honours both, exactly as if they had been written
+normally.
+These are warnings silenced rather than fixed,
+which is the thing the policy forbids;
+they are debt awaiting a root-cause fix or a deletion,
+not a precedent to copy.
 
 How the glue in `src/` honours the rule as a source convention is
 [`architecture/glue/`](/handbook/architecture/glue/README.md)'s.
