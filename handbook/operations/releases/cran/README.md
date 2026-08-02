@@ -39,6 +39,6 @@ no warning suppression
 no heavy tests or examples on the check farm
 ([`testing/guards/`](/handbook/testing/guards/README.md)),
 tarball size watched at release,
-and a maintainer reachable at the `cre` address —
-each read from CRAN's policy, which changes on CRAN's schedule,
-not this repository's.
+and a maintainer reachable at the `cre` address.
+The authoritative list is CRAN's
+[Repository Policy](https://cran.r-project.org/web/packages/policies.html).
