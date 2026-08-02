@@ -17,7 +17,10 @@ What every consumer of this workflow can rely on:
 * **Marker written** — a commit status, context `rcc`,
   `pending` before a commit and `success`/`failure` after it,
   written by the leg.
-* **Re-trigger a commit** — rebase it past the boundary and force-push.
+* **Re-trigger a commit** — give it a new SHA and force-push;
+  the record is keyed by SHA, so a rewritten commit has none.
+  To re-judge one on the SHA it already has, push a `retry-<S>-dev`
+  branch at it; to replan a whole range, dispatch with `force`.
 * **Results** — on the `rcc` branch:
   `runs2.d/<xx>/<sha>.ndjson` for a new record,
   `runs2.ndjson` for the aggregate it is merged into,
