@@ -233,7 +233,7 @@ static cpp11::list construct_retlist(duckdb::unique_ptr<PreparedStatement> stmt,
 	signal_handler.Disable();
 
 	if (stmt->HasError()) {
-		ErrorData error(stmt->error);
+		ErrorData error(stmt->GetErrorObject());
 		rapi_error_with_context("rapi_prepare", error);
 	}
 	auto n_param = stmt->GetParameterCount();
