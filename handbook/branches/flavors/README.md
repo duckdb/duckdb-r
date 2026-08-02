@@ -5,20 +5,19 @@ A flavor is a mechanical rename applied on top of a series' branch —
 nothing else distinguishes one published package from another.
 
 CRAN carries one version of one name at a time,
-and DuckDB cuts a minor roughly every four months,
 so a release line that must stay installable beside the current
 one needs its own name.
-An LTS line is mostly frozen for its year:
-bug fixes, and what R-devel on r-universe requires.
+An LTS line is frozen for its year
+([`invariants/`](/handbook/branches/invariants/README.md)).
 Because the names differ, flavors coexist in one library.
 
-| Flavor | Kind | Built from | Upstream series |
+| Flavor | Kind | Published from | Upstream series |
 |---|---|---|---|
 | `duckdb` | CRAN, also r-universe | `main` in `duckdb/duckdb-r` | `v1.5-variegata` |
-| `duckdb.1.4` | LTS, r-universe | `v1.4-andium-lts` | `v1.4-andium` |
-| `duckdb.dev` | dev, r-universe | the `main` series in the fork | `main` |
-| `duckdb.1.5.dev` | dev, r-universe | the `v1.5-variegata` series | `v1.5-variegata` |
-| `duckdb.1.4.dev` | dev, r-universe | the `v1.4-andium` series | `v1.4-andium` |
+| `duckdb.1.4` | LTS, r-universe | `v1.4-andium-lts` in `duckdb/duckdb-r` | `v1.4-andium` |
+| `duckdb.dev` | dev, r-universe | `main-dev` in the fork | `main` |
+| `duckdb.1.5.dev` | dev, r-universe | `v1.5-variegata-dev` in the fork | `v1.5-variegata` |
+| `duckdb.1.4.dev` | dev, r-universe | `v1.4-andium-dev` in the fork | `v1.4-andium` |
 
 There is no `duckdb.1.5`: v1.5 is not an LTS line,
 and the current release already ships as `duckdb`.
@@ -44,3 +43,6 @@ the scan that keeps it that way is
 This handbook is written for the mainline flavor:
 where a page spells the package `duckdb`,
 a reader on another flavor substitutes its name.
+
+*To deepen: state where r-universe is told
+which branch serves which flavor — the registration lives outside this repo.*

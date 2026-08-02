@@ -3,8 +3,8 @@
 What the shipped code is:
 the R layer, the C++ glue, and the vendored engine.
 The area divides by who wrote the code, not by language:
-two of the three are written here,
-and the third is upstream's,
+the R layer and the glue are written here,
+the engine is upstream's,
 described only as far as this package's build of it
 differs from a stock one.
 

@@ -17,14 +17,16 @@ Little of this is codified; what is settled:
   ([`testing/suite/`](/handbook/testing/suite/README.md));
   the full suite can also be left to CI.
   Add a test with every bug fix.
-* Formatting is suggested on the PR by CI; accept it rather than
-  arguing with it.
+* Formatting is suggested on the PR by CI;
+  accept it rather than arguing with it.
   A snapshot the change legitimately moved is accepted deliberately
   ([`testing/snapshots/`](/handbook/testing/snapshots/README.md)).
-* Never edit generated or vendored files.
+* Never edit generated or vendored files
+  ([`architecture/`](/handbook/architecture/README.md),
+  [`operations/vendoring/`](/handbook/operations/vendoring/README.md)).
 
 The review side — what gets checked, who drives CI — is
 [`operations/review/`](/handbook/operations/review/README.md).
 
-*To deepen: write the path from lived practice, including how a
-contributor without push access gets CI green.*
+*To deepen: write the path from lived practice,
+including how a contributor without push access gets CI green.*

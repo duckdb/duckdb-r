@@ -9,8 +9,7 @@ The engine underneath is
 `src/` holds two disjoint bodies of code:
 the vendored engine under `src/duckdb/`,
 and the glue translation units directly in `src/`,
-listed in [`src/include/glue.mk`](/src/include/glue.mk)'s `GLUE`
-variable —
+listed in [`src/include/glue.mk`](/src/include/glue.mk)'s `GLUE` variable —
 the split that lets the
 [fast paths](/handbook/build/fast-paths/README.md)
 compile the glue alone.
@@ -25,10 +24,8 @@ and `DUCKDB_R_POISON_GUARD()` (the C++ half of the CRAN guard).
 taken from [`krlmlr/cpp11`](https://github.com/krlmlr/cpp11),
 a patch stack on top of
 [`r-lib/cpp11`](https://github.com/r-lib/cpp11):
-upstream is slow to accept pull requests,
-and this package needs extensions it does not ship —
-support for package names with two dots
-(`duckdb.1.5.dev`) among them.
+this package needs extensions upstream does not ship,
+support for package names with two dots (`duckdb.1.5.dev`) among them.
 An entry point is a function marked `[[cpp11::register]]`;
 `cpp11::cpp_register()` writes both halves of the binding
 (`src/cpp11.cpp`, `R/cpp11.R`),
@@ -45,13 +42,10 @@ runs per row, on exactly the paths that move data.
 **No warning is suppressed.**
 CRAN rejects `-Wno-*` flags and `#pragma` silencing;
 fix the root cause instead,
-and for vendored code fix it as a patch under `patch/`
-or upstream
+and for vendored code fix it as a patch under `patch/` or upstream
 ([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
 Where a fix is truly not possible —
-mbedtls's own `-Wvla` suppression around the barrier
-that keeps `mbedtls_platform_zeroize()` from being optimised away
-is the standing example —
+mbedtls's own `-Wvla` suppression is the standing example —
 the pragma is respelled with widened spacing
 (`#pragma  GCC  diagnostic  ignored`),
 which the compiler honours unchanged
@@ -63,7 +57,8 @@ driving [`scripts/format.py`](/scripts/format.py).
 **ALTREP relations.**
 `rapi_rel_to_altrep()` wraps an unexecuted relation as a data frame;
 nothing runs until R touches the values,
-materialization is budgeted,
+materialization is budgeted by `n_rows` and `n_cells`,
+unlimited by default ([`R/relational.R`](/R/relational.R)),
 and an execution error is stored and re-raised at every later access.
 Raising an R error from inside an ALTREP method
 is the known weak point —

@@ -32,21 +32,21 @@ to be replaced by wei/pull once the fork is a true fork
 | Ref | Moves by | Meaning |
 |---|---|---|
 | `<S>-build` | append; force-push to repair | the buffer: one commit per upstream commit, glue compiling, no CI |
-| `<S>-dev` | append; force-push | what CI judges commit by commit; `-build` consumed in bounded chunks (default 100, `scripts/series-advance.sh`) plus forward-ports from `main` |
-| `<S>-green` | fast-forward only | the trusted frontier — every commit behind it has a successful run; what r-universe should build |
+| `<S>-dev` | append; force-push | what CI judges commit by commit, and what r-universe builds; `-build` consumed in bounded chunks plus forward-ports from `main` |
+| `<S>-green` | fast-forward only | the trusted frontier — every commit behind it has a successful run; what the per-commit planner and the cutover gate measure from |
 | `<S>-build-base` | forward only | the `-build` commit equivalent to `-green` |
 
 All four exist from a series' first day, equal at its seed,
 so there is never a "no green yet" state.
-The buffer is deliberately untested on CI/CD —
-`each.yaml` triggers on `*-dev`, never on `*-build` —
+The buffer is deliberately untested on CI/CD,
 so vendoring can run ahead while CI catches up
 ([`operations/ci/per-commit/`](/handbook/operations/ci/per-commit/README.md)).
 Rebasing a series happens *beside* it as a `<S>-fwd` counterpart,
 verified from scratch and swapped in by a human-run cutover;
 a serving `-green` never moves sideways on its own.
-The badges in the root `README.md` count the gaps between these
-refs: ahead, in flight, buffered.
+The badges in the root [`README.md`](/README.md) count these gaps:
+*in flight* and *buffered* between these refs,
+*ahead* against the branch the series releases from.
 
 *To deepen: absorb `BRANCHES.md` §§ Branch Overview,
 Source of Truth, and Release Cycle Mapping.*

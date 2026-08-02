@@ -24,21 +24,17 @@ Each opens with a header saying so:
   run by `.Rprofile` on every R start in the repo
 * `R/version.R` — by `scripts/rconfigure.py`, during vendoring
 
-R code calls the `rethrow_rapi_*()` wrappers, not `rapi_*()`
-directly — the wrapper re-raises C++ errors pointing at the
-user's call.
+R code calls the `rethrow_rapi_*()` wrappers, not `rapi_*()` directly —
+the wrapper re-raises C++ errors pointing at the user's call.
 
 **Never hard-code the package name.**
 The package publishes under several names
 ([`branches/flavors/`](/handbook/branches/flavors/README.md)),
 so a literal `duckdb` works on `main` and breaks everywhere else.
-`R/package.R` is the seam:
-`get_package_name()`, `get_package_env()`,
-`get_package_spec()` / `get_package_version()`,
-and `system_file_path()`;
+[`R/package.R`](/R/package.R) is the seam —
+its accessors are the only supported way to spell the name.
 `simulate_duckdb()` exposes `get_package_name()` and
-`get_package_env()` as `$pkg` and `$env`,
-which is what
+`get_package_env()` as `$pkg` and `$env`, which is what
 `@examplesIf simulate_duckdb()$env$examples_enabled()` relies on.
 The same rule holds in roxygen prose:
 inline chunks go through the seam, never a `:::` qualifier.

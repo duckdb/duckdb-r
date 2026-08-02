@@ -7,7 +7,8 @@ has exactly one place in this tree.
 * **Internal nodes navigate, and may govern.**
   An internal `README.md` is a scope sentence,
   optionally the principles that govern its area,
-  and a nested list of its subdirectories — nothing else.
+  and a nested list of its subdirectories —
+  and, except at the root below, nothing else.
   A principle is why the area is divided as it is,
   or a constraint every leaf under it obeys;
   it belongs to the node because no single leaf could state it
@@ -16,8 +17,8 @@ has exactly one place in this tree.
   and an internal node never repeats it
   (the tests are among [the forms](#the-forms)).
   The root additionally sketches each area's contents,
-  naming the next level in prose —
-  names, not links, so the sketch cannot rot.
+  naming the next level in prose — names, not links,
+  so the sketch cannot rot.
 * **Leaves explain, once.**
   A leaf page owns its topic;
   other pages link to it and never paraphrase it.
@@ -46,7 +47,7 @@ has exactly one place in this tree.
   the handbook describes how the system works today.
   So plans stay in [`plan/`](/plan/), outside `handbook/` —
   a decision taken, not a leftover.
-  [`meta/plans/`](/handbook/meta/plans/) explains that directory
+  [`meta/plans/`](/handbook/meta/plans/README.md) explains that directory
   and the conventions that govern it,
   and each affected leaf links the plan that carries its intent.
   A plan that has become fact is documented as fact,
@@ -107,6 +108,10 @@ Any of them is a complete, mergeable pull request:
 
 Whichever move, the same protocol:
 
+* **Register a term the tree reuses.**
+  A term of art gets a glossary line linking its owning leaf,
+  added by the change that coins it
+  ([`meta/glossary/`](/handbook/meta/glossary/README.md)).
 * **Follow [`meta/authoring/`](/handbook/meta/authoring/README.md).**
   New and absorbed prose alike is written to that checklist —
   absorption is rewriting, never blind copy-paste.
@@ -131,6 +136,13 @@ The scope sentence is load-bearing at every depth:
 the tree's shape depends on every leaf declaring its boundary.
 A one-screen leaf needs no headings; a longer one uses `##`.
 
+**A named part of a one-screen leaf** opens with a bold run-in phrase
+rather than a heading;
+headings start where a page is long enough to navigate.
+
+**A link to a handbook page** names the directory in backticks
+and targets its `README.md`.
+
 **A deepen line** is the last line of a leaf
 that is not yet comprehensive:
 one italic sentence naming what deepening absorbs, verifies, or drains —
@@ -153,6 +165,14 @@ A node whose leaves share no such constraint gets no principle;
 where an area has a leaf whose topic is the area's own rules,
 the principles are that leaf's, and the node stays navigation-only.
 
+**A link that leaves its own directory is written from the repository
+root**, with a leading `/`;
+same-directory and downward links stay relative,
+and an upward `../` chain is never written —
+it breaks the moment a page moves, and a page in a settling tree moves.
+GitHub resolves a root-relative link on any branch or fork;
+a local Markdown preview does not, and that is the trade taken.
+
 **An absorbed file keeps its essentials, or goes away.**
 A `.md` whose detail has landed in a leaf shrinks to the part
 its own readers need and backreferences the leaf;
@@ -171,9 +191,7 @@ and each absorbed heading becomes a one-line pointer to the leaf.
 
 **A backreference is how a leaf is discovered from the source tree.**
 Someone standing in `scripts/` finds the leaf that explains what they
-are looking at without knowing the handbook exists —
-which is the whole point, and the reason absorbing content
-never strands the reader who goes looking at the old address.
+are looking at without knowing the handbook exists.
 The generated index carries the backreference for every file it covers —
 today that is `scripts/` alone,
 and extending the generator to the other directories that hold
@@ -197,19 +215,17 @@ Where no index covers a document, it carries its own:
   so that it survives the next regeneration.
   Editing the generated file to add one is writing in sand.
 
-Only few kinds of file take no backreference to the handbook at all,
-among them `.Rd` files (auto-linked to `.R`).
+A generated file that is already auto-linked to the source it derives from
+takes no backreference; `man/*.Rd` is the only such case here.
 
 ## Enforcement
 
 Consistency is agent work.
-The checks — every source path maps to a leaf,
-every secondary document backreferences its node,
-every link resolves, generated indexes are fresh,
-every leaf's depth matches its deepen line —
-run as the `docs-consistency` skill
-(`.claude/skills/docs-consistency/`),
-invoked when documentation is touched
+The checks — mechanical on shape, links and index freshness,
+judgment on mapping and headers —
+are the `docs-consistency` skill's
+(`.claude/skills/docs-consistency/`), which is the list;
+it runs when documentation is touched
 and periodically as a routine.
 Helper scripts do the mechanical parts
 (extraction, rendering, link walking, diffing);
@@ -220,3 +236,7 @@ Helpers are not entry points of their own:
 every check that matters is reachable through the skill,
 and the skill covers the whole source tree,
 not one directory at a time.
+
+*To deepen: the generated index covers `scripts/` alone;
+extending it to the other directories that hold documentation
+is open work this page will state once it is settled.*

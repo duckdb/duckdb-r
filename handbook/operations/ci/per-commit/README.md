@@ -1,37 +1,37 @@
 # Per-commit builds
 
 Every commit on a series branch gets a gate verdict of its own:
-`each.yaml` plans cost-balanced shards of commits, each leg builds
-and tests its commits one by one, and the verdicts live on the
-orphan `rcc` branch — so every `*-dev` branch is bisectable end to
-end.
-This page is the design record,
-moved here from the former `scripts/EACH.md`.
+[`each.yaml`](/.github/workflows/each.yaml) plans cost-balanced shards of
+commits, each leg builds and tests its commits one by one,
+and the verdicts live on the orphan `rcc` branch —
+so every `*-dev` branch is bisectable end to end
+([`branches/invariants/`](/handbook/branches/invariants/README.md)).
 
-`.github/workflows/each.yaml` is what makes the series guarantee true
-([`branches/invariants/`](/handbook/branches/invariants/README.md)):
-every commit on a `*-dev` branch is green, so the branch is bisectable end to end.
-It plans contiguous, cost-balanced **shards** and gives each shard one job,
-which walks its commits in a single workspace.
+The workflow plans contiguous, cost-balanced **shards**
+and gives each shard one job, which walks its commits in a single workspace.
 
----
+## The contract
 
-## 1. What does not change
+What every consumer of this workflow can rely on:
 
-The contract every consumer reads is untouched.
+* **Commits considered** — `<S>-green..HEAD` on a series branch,
+  else first-parent history since `SINCE`; undecided ones only.
+* **Marker written** — a commit status, context `rcc`,
+  `pending` before a commit and `success`/`failure` after it,
+  written by the leg.
+* **Re-trigger a commit** — rebase it past the boundary and force-push.
+* **Results** — on the `rcc` branch:
+  `runs2.d/<xx>/<sha>.ndjson` for a new record,
+  `runs2.ndjson` for the aggregate it is merged into,
+  `logs2/<sha>.log` for the log.
+* **Gate applied per commit** — style, snapshots, roxygen, clean tree,
+  `R CMD check`, pkgdown, in that order.
+* **Accepted snapshots** — pushed as `snapshot-<sha>-rcc-smoke-null`.
+* **Triggers** — push to `each-*` / `*-dev`, `workflow_dispatch`,
+  `workflow_call`.
 
-| Contract | Before | After |
-|---|---|---|
-| Commits considered | `<S>-green..HEAD` on a series branch, else first-parent since `SINCE`; undecided | same range; "undecided" now means *no record on the `rcc` branch* rather than *no `rcc` status* ([§1](#the-green-marker-and-why-rcc-smoke-sha-has-no-successor)) |
-| Marker written | commit-status, context `rcc`, `pending` → `success`/`failure` | same, written by the leg |
-| Re-trigger a commit | rebase it past the boundary and force-push | same |
-| Results on the `rcc` branch | `runs2.ndjson` + `logs2/<sha>.log` | same schema, same paths, existing records untouched — plus `runs2.d/<xx>/<sha>.ndjson`, which new records land in first and which `runs2.ndjson` is extended from ([§3](#can-results-reach-the-rcc-branch-as-soon-as-they-exist)) |
-| Gate applied per commit | style, snapshots, roxygen, clean tree, `R CMD check`, pkgdown | same, same order |
-| Accepted snapshots | pushed as `snapshot-<sha>-rcc-smoke-null` | same name, same commit shape |
-| Triggers | push to `each-*` / `*-dev`, `workflow_dispatch`, `workflow_call` | same, plus tuning inputs |
-
-The snapshot branches are load-bearing — about 950 of them exist — so `rcc-one.sh`
-reproduces them rather than just leaving the accepted snapshots in the tree.
+The snapshot branches are load-bearing, so `rcc-one.sh` reproduces them
+rather than just leaving the accepted snapshots in the tree.
 Their name is deliberately **frozen** rather than derived:
 upstream builds it from `github.job` (`rcc-smoke`) and an empty matrix (`null`),
 and here the job is `build` and there *is* a matrix,
@@ -41,105 +41,74 @@ identity, message and parent matching `peter-evans/create-pull-request` —
 so the working tree keeps its diff and the `clean` gate still fails the commit.
 This is why the `build` job needs `contents: write`.
 
-The commit status stays, and is now purely a display surface: nothing decides
-from it. Selection reads the verdict store on the `rcc` branch instead (below),
-and `scripts/vendor-gate.sh` — the last consumer that decided anything from a
-status, turning a window of them into one green/red/stale verdict for the daily
-vendoring run — went with the run it served
-(D4 of [`plan/PLAN-vendoring-simplification.md`](/plan/PLAN-vendoring-simplification.md)).
-
-The readers of the `rcc` branch did need a change, but a compatible one. Records
-are now one file per commit, with `runs2.ndjson` extended from them
-([§3](#can-results-reach-the-rcc-branch-as-soon-as-they-exist)), so
-[`series-check.sh`](/scripts/series-check.sh) and [`series-advance.sh`](/scripts/series-advance.sh)
-read the per-commit record first and fall back to the aggregate — which is both
-faster and how they see a verdict minutes after it happens rather than at the end
-of the run. [`rcc-logs.sh`](/scripts/rcc-logs.sh) writes records to the same place. Failure
-classification still reads the harvested log, unchanged (see below).
+The commit status is a display surface: nothing decides from it.
+Selection reads the verdict store on the `rcc` branch instead.
+[`series-check.sh`](/scripts/series-check.sh) and
+[`series-advance.sh`](/scripts/series-advance.sh) read the per-commit record
+first and fall back to the aggregate,
+so they see a verdict minutes after it happens rather than at the end of a run.
+[`rcc-logs.sh`](/scripts/rcc-logs.sh) writes records to the same place.
 
 ### Bounded by `<S>-green`
 
-Selection carries over the bound the series
-loop introduced: on a `<S>-dev` branch with a sibling `<S>-green`, only
-`<S>-green..HEAD` is scanned — everything at or before green is trusted and
-never rebuilt — and if green exists but is not an ancestor of HEAD, *nothing* is
-planned, because the branch is mid-surgery or on another lineage and an
-unbounded scan would flood the queue. Branches without a green sibling fall back
-to the first-parent history since `SINCE`.
+On a `<S>-dev` branch with a sibling `<S>-green`, only `<S>-green..HEAD` is
+scanned — everything at or before green is trusted and never rebuilt.
+If green exists but is not an ancestor of HEAD, *nothing* is planned:
+the branch is mid-surgery or on another lineage,
+and an unbounded scan would flood the queue.
+Branches without a green sibling fall back to first-parent history since `SINCE`.
 
-The per-commit logs also stay readable to `scripts/series-check.sh`, which
-classifies a failure by what its harvested log contains. `rcc-one.sh` therefore
-emits `Changes detected in workflow_dispatch build` verbatim when the tree is
-dirty, so style/roxygen drift is still recognised as such rather than landing in
-the `unclassified` bucket.
+The per-commit logs stay readable to `series-check.sh`,
+which classifies a failure by what its harvested log contains.
+`rcc-one.sh` therefore emits `Changes detected in workflow_dispatch build`
+verbatim when the tree is dirty,
+so style and roxygen drift is recognised as such
+rather than landing in the `unclassified` bucket.
 
-### The green marker, and why `rcc-smoke-sha` has no successor
+### The green marker
 
 Setting the commit status *is* the job, so the leg does it directly:
 `each-shard.sh` POSTs `pending` to `repos/.../statuses/<sha>` before a commit
 and `success`/`failure` after it, context `rcc` —
 the same call `rcc-smoke` makes inline in its own "Update status for rcc" steps.
 
-`R-CMD-check-status.yaml` and the `rcc-smoke-sha` artifact that feeds it both
-**stay**, untouched: they are core-set content from
-[`cynkra/cynkratemplate`](https://github.com/cynkra/cynkratemplate) — the status
-file is byte-identical to the template's — and the commit status they write is
-what branch protection reads on ordinary pushes and PRs. Retiring the dispatch
-path does not touch them, because they were never part of it: what went is the
-per-commit *dispatcher*, not the check it dispatched.
+`R-CMD-check-status.yaml` and the `rcc-smoke-sha` artifact that feeds it are
+core-set content from
+[`cynkra/cynkratemplate`](https://github.com/cynkra/cynkratemplate),
+and the commit status they write is what branch protection reads on ordinary
+pushes and pull requests.
+They do not fire for this workflow: `each-rcc` is not named `rcc`.
 
-What the rest of this section explains is why the sharded path needs no
-successor to that artifact.
+### What selection actually reads
 
-The `rcc-smoke-sha` artifact exists only to carry a SHA across a `workflow_run`
-boundary into `R-CMD-check-status.yaml`, and there is no such boundary here:
-the leg already knows the SHA it just built.
-Nothing is lost, because on the per-commit path that artifact was always empty —
-its value is `steps.commit.outputs.sha`, which the `commit` action sets only when
-it pushes a commit back, and on `workflow_dispatch` it fails on any diff instead.
-
-Worth knowing when comparing the two paths:
-`R-CMD-check-status.yaml` then falls back to `workflow_run.head_sha`,
-which for a dispatched run is the tip of the *branch*, not the `ref` input.
-In the last 400 records on the `rcc` branch that differs for **391 of 393**
-dispatched runs, and every one of them carries the description `rcc / rcc-smoke`,
-i.e. the status that stuck is the one `rcc-smoke` wrote inline.
-So the `workflow_run` hop was decorating the branch tip, not the commit under test.
-The new path has no such hop, and `each-rcc` is not named `rcc`,
-so `R-CMD-check-status.yaml` does not fire for it at all.
-
-**Selection does not read any of this.** The status is written for the commit
-list to show, and a commit is planned or skipped according to the **verdict
-store** — the record the `rcc` branch holds at `runs2.d/<xx>/<sha>.ndjson`,
-which the deciding leg publishes within seconds
-([§3](#can-results-reach-the-rcc-branch-as-soon-as-they-exist)).
-`scripts/rcc-decided.sh` is that read, for the planner and for a resuming leg
-alike, and it is one tree-only fetch rather than a request per commit.
-
-Two stores answering the same question is what needed reconciling, and what
-made a `pending` status a problem at all: a leg that died hard left one wedged
-forever, so `PENDING_TTL_HOURS` existed to age it out. A store where a dead leg
-simply writes nothing needs no such rule — no record means undecided, which is
-the truth — and the TTL is gone with it.
+A commit is planned or skipped according to the **verdict store** —
+the record the `rcc` branch holds at `runs2.d/<xx>/<sha>.ndjson`,
+which the deciding leg publishes within seconds.
+[`scripts/rcc-decided.sh`](/scripts/rcc-decided.sh) is that read,
+for the planner and for a resuming leg alike,
+and it is one tree-only fetch rather than a request per commit.
+A dead leg simply writes nothing, and no record means undecided,
+which is the truth — so no marker needs ageing out.
 
 The remaining selection details:
 
-- A commit the store does not mention is planned rather than skipped: the
-  enumeration drives the decision, not the store's contents.
-- Reachability is not emptiness. A store that cannot be read stops the plan
-  rather than reporting nothing decided, which would replan the whole range.
-- A `retry-<S>-dev` branch — the series' own branch name with a prefix, see
-  `.claude/skills/series-loop.md` — replans **its tip** even when that commit
-  already carries a verdict, so one commit can be judged again on its own SHA
-  instead of being amended and taking its descendants with it. The prefix is
-  stripped to derive the series, so the scan anchors on `<S>-green` and needs no
-  ref of its own; a retry branch naming a series with no green plans nothing at
-  all, because the fallback scan reaches into `main`, where no commit has a
-  verdict.
+* A commit the store does not mention is planned rather than skipped:
+  the enumeration drives the decision, not the store's contents.
+* Reachability is not emptiness.
+  A store that cannot be read stops the plan rather than reporting nothing
+  decided, which would replan the whole range.
+* A `retry-<S>-dev` branch — the series' own branch name with a prefix, see
+  [`series-loop.md`](/.claude/skills/series-loop.md) — replans **its tip**
+  even when that commit already carries a verdict,
+  so one commit can be judged again on its own SHA
+  instead of being amended and taking its descendants with it.
+  The prefix is stripped to derive the series,
+  so the scan anchors on `<S>-green` and needs no ref of its own;
+  a retry branch naming a series with no green plans nothing at all,
+  because the fallback scan reaches into `main`,
+  where no commit has a verdict.
 
----
-
-## 2. Architecture
+## Architecture
 
 ```
 plan  (1 job, ~30 s)
@@ -167,23 +136,35 @@ harvest (1 job, if: always())
   └─ append the new records to runs2.ndjson
 ```
 
-Files:
+The files:
 
-| Path | Role |
-|---|---|
-| `.github/workflows/each.yaml` | plan → build → harvest |
-| `scripts/each-plan.sh` | enumerate, read verdicts, weigh, partition |
-| `scripts/each-cost.py` | unity-object reach; the cost model's only input |
-| `scripts/each-partition.py` | the cost model, the greedy fill, and the rebalance pass |
-| `scripts/each-shard.sh` | one leg: many commits, one workspace |
-| `scripts/rcc-one.sh` | the per-commit gate, extracted from `rcc-smoke` |
-| `scripts/rcc-part-push.sh` | publish one commit's record from the leg that decided it |
-| `scripts/rcc-decided.sh` | the other direction: which commits the store has decided |
-| `scripts/rcc-merge.sh` | bring `runs2.ndjson` level with the per-commit records |
-| `scripts/rcc-consolidate.sh` | manual: make the layouts agree, GC old logs, squash the branch |
-| `scripts/each-harvest.sh` | fan-in: reconcile what the legs could not publish |
-| `scripts/rcc-run-fields.jq` | the run-object projection all three writers share |
-| `scripts/rcc-parts-test.sh` | offline checks for the layout's invariants, and the source of the numbers below |
+* [`.github/workflows/each.yaml`](/.github/workflows/each.yaml) —
+  plan → build → harvest.
+* [`scripts/each-plan.sh`](/scripts/each-plan.sh) —
+  enumerate, read verdicts, weigh, partition.
+* [`scripts/each-cost.py`](/scripts/each-cost.py) —
+  unity-object reach; the cost model's only input.
+* [`scripts/each-partition.py`](/scripts/each-partition.py) —
+  the cost model, the greedy fill, and the rebalance pass.
+* [`scripts/each-shard.sh`](/scripts/each-shard.sh) —
+  one leg: many commits, one workspace.
+* [`scripts/rcc-one.sh`](/scripts/rcc-one.sh) —
+  the per-commit gate, extracted from `rcc-smoke`.
+* [`scripts/rcc-part-push.sh`](/scripts/rcc-part-push.sh) —
+  publish one commit's record from the leg that decided it.
+* [`scripts/rcc-decided.sh`](/scripts/rcc-decided.sh) —
+  the other direction: which commits the store has decided.
+* [`scripts/rcc-merge.sh`](/scripts/rcc-merge.sh) —
+  bring `runs2.ndjson` level with the per-commit records.
+* [`scripts/rcc-consolidate.sh`](/scripts/rcc-consolidate.sh) —
+  manual: make the layouts agree, GC old logs, squash the branch.
+* [`scripts/each-harvest.sh`](/scripts/each-harvest.sh) —
+  fan-in: reconcile what the legs could not publish.
+* [`scripts/rcc-run-fields.jq`](/scripts/rcc-run-fields.jq) —
+  the run-object projection all three writers share.
+* [`scripts/rcc-parts-test.sh`](/scripts/rcc-parts-test.sh) —
+  offline checks for the layout's invariants,
+  and the source of the concurrency measurements below.
 
 ### No running marker, by design
 
@@ -194,58 +175,44 @@ Two mechanisms keep a commit from being built twice, and neither is a marker:
 1. **One planning-and-building pass per branch at a time.**
    `each.yaml`'s `concurrency` group is `each-rcc-<ref>`, with
    `cancel-in-progress: false` — a second push queues behind the first
-   rather than killing it, because a killed leg leaves its in-flight commit
-   undecided.
+   rather than killing it,
+   because a killed leg leaves its in-flight commit undecided.
    So two runs never plan the same branch concurrently.
 2. **Work selection is a pure function of durable verdicts.**
    The planner asks one question per commit — is there a verdict for it? —
-   and the answer lives on the `rcc` branch and in the commit status, both
-   of which outlive every runner.
+   and the answer lives on the `rcc` branch, which outlives every runner.
    A leg that dies takes no state with it: its decided commits are already
    published, and the rest are simply undecided again.
 
-The old per-commit dispatcher looked like it had a third mechanism:
-`pending` was posted at dispatch time, so a commit was never re-dispatched.
-That guarantee was weaker than it looked —
-a dead runner left `pending` wedged forever,
-which is the *only* reason `PENDING_TTL_HOURS` exists —
-and the sharded path does not rely on it:
-`each-shard.sh` treats `pending` as undecided precisely because it is the
-state a killed leg leaves behind.
-
-The `pending` status is therefore a **display** artifact:
+The `pending` status is a **display** artifact:
 it tells a human looking at the commit list that something is happening.
-Reasoning about it as coordination state is what keeps producing
-"did we lose the running marker" doubts;
-the answer is that there is no marker to lose, and there should not be one.
-D1 of `plan/PLAN-vendoring-simplification.md` finishes the thought by
-taking statuses out of selection altogether.
+`each-shard.sh` treats it as undecided,
+because it is the state a killed leg leaves behind.
 
 ### Why reuse works even though every commit starts from a clean tree
 
 The leg does `git checkout --force` and `git clean -qfdx` before each commit.
-That looks like it throws away the previous commit's work, and for object files it does —
-but object files were never going to survive anyway.
-`R CMD check` runs `R CMD build` first, which copies the package and compiles from the copy;
+That looks like it throws away the previous commit's work,
+and for object files it does — but object files were never going to survive.
+`R CMD check` runs `R CMD build` first,
+which copies the package and compiles from the copy;
 worse, this package's `cleanup` script tars `src/duckdb` away and deletes it.
 Timestamp-based incremental `make` cannot cross a commit boundary here.
 
 What does survive is **ccache**, which is content-addressed
 and lives outside the workspace for the whole job.
-A typical adjacent vendor commit recompiles ~5 of 341 unity objects — ~98% hits
-(measured: [`experiments/2026-03-vendor-build-cost/`](/experiments/2026-03-vendor-build-cost/README.md)).
-Cleaning the workspace also means every commit's verdict is identical to one from a fresh checkout,
-which is what keeps the semantics honest.
+A typical adjacent vendor commit recompiles about five of the unity objects —
+roughly 98% hits, measured in
+[`experiments/2026-03-vendor-build-cost/`](/experiments/2026-03-vendor-build-cost/README.md).
+Cleaning the workspace also means every commit's verdict is identical to one
+from a fresh checkout, which is what keeps the semantics honest.
 
 ### All four cores, and no within-job parallelism
 
-The gate runs as a script, so backgrounding gates to fill the box is *possible*.
-It is not what was leaving cores idle.
-`install/action.yml` pinned `MAKEFLAGS = -j2` on a 4-vCPU runner,
-so the phase that dominates a build was using half the machine.
-Measured on a 4-core box, 8 vendored unity objects with ccache disabled:
-**70.8 s at `-j2` versus 43.1 s at `-j4`** — 1.64x, at identical user time.
-The action now derives `-j` from `parallel::detectCores()`.
+`install/action.yml` derives `-j` from `parallel::detectCores()`,
+because the compile phase dominates a build:
+measured on a 4-core box, 8 vendored unity objects with ccache disabled,
+70.8 s at `-j2` against 43.1 s at `-j4` — 1.64×, at identical user time.
 
 Backgrounding gates on top of that buys much less than it looks like.
 `style` → `snapshots` → `roxygen` all mutate the working tree and `clean` exists
@@ -261,7 +228,6 @@ Oversubscription is a non-issue today because `-j` is the only knob:
 the package requests no `-flto` and R's `Makeconf` reports `LTO =` empty,
 so there is no LTRANS fan-out multiplying against make;
 and without `Config/testthat/parallel` the suite runs serially.
-Peak RSS per unity object is ~834 MB, so four in flight is ~3.3 GB of 16 GB.
 If gates are ever overlapped, the mechanism is a counting semaphore
 (`flock` over N slots) with each gate declaring its width — not a make
 jobserver, which cannot span separate `R CMD INSTALL` and `rcmdcheck` processes.
@@ -273,88 +239,19 @@ reproduction. `install/action.yml` already carries the 26.04-specific
 `sudo -E` workaround the image needs.
 
 The leg therefore does **not** use `custom/after-install`:
-its ccache is capped at 200 MB and its `duckdb.tar` archive is keyed on the whole vendored tree,
-so both are per-commit constructs that a multi-commit job cannot use.
+its ccache is capped at 200 MB and its `duckdb.tar` archive is keyed on the
+whole vendored tree, so both are per-commit constructs
+that a multi-commit job cannot use.
 The leg keeps one 8 GB local cache instead.
 
----
+The gate runs as a script rather than a reusable workflow or a composite action:
+`uses:` is a job-level key and a workflow cannot loop over a composite action,
+so a shell loop ([`rcc-one.sh`](/scripts/rcc-one.sh))
+is the only construct that runs the same gate N times in one job.
 
-## 3. Answers to the questions this design started from
+## Planning
 
-### Can we use `workflow_call` to run the `rcc` jobs unchanged?
-
-Mechanically yes; usefully no.
-
-Add `workflow_call` to `R-CMD-check.yaml`, then have `each.yaml` call it from a matrix job:
-
-```yaml
-build:
-  strategy:
-    matrix: ${{ fromJSON(needs.plan.outputs.commits) }}
-  uses: ./.github/workflows/R-CMD-check.yaml
-  with:
-    ref: ${{ matrix.sha }}
-```
-
-That is valid — matrix strategies on reusable-workflow calls have been supported since August 2022.
-It even buys two of the four advantages: the batch becomes one run to cancel,
-and the logs land under one run id.
-
-But a `uses:` job does not run the called workflow *inside* your job.
-GitHub schedules the called workflow's jobs as **separate jobs on separate runners**.
-So the topology is exactly today's — one runner per commit — merely re-parented.
-The two efficiency advantages, amortised setup and a warm local ccache across adjacent commits,
-are precisely the ones this cannot deliver, because there is no shared runner to amortise onto.
-
-And it does not scale to the target.
-A matrix generates at most **256 jobs per workflow run**,
-and each `rcc` call expands to more than one job (`rcc-smoke` plus `rcc-smoke-check-matrix`),
-so the real ceiling is well under 256 commits — not the 2000–3000 we want in one run.
-
-Nesting matrices across reusable workflows *can* exceed 256 in practice:
-both caller and callee may define a matrix and GitHub multiplies them.
-It is a bad idea here. The one public write-up of the technique
-([community discussion #38704](https://github.com/orgs/community/discussions/38704))
-reports the run page failing to load past roughly 600 jobs,
-and Actions being disabled on the account that tried it.
-A 3000-job run would be unreadable exactly when a red commit needs finding.
-
-There is also a maintenance cost: `R-CMD-check.yaml` is forward-ported
-from `duckdb/duckdb-r@main`,
-so a repo-specific `workflow_call` interface there is a permanent merge tax.
-
-### Can a job have multiple tasks that each do a `workflow_call`?
-
-No. `uses:` is a **job-level** key: one job calls at most one reusable workflow,
-and such a job may not carry `steps` (nor `runs-on`, `env`, `timeout-minutes`,
-`container`, `services`, `continue-on-error`).
-The only fan-out available is `strategy.matrix` on the calling job,
-which produces one job per combination — back to the previous answer.
-
-Composite actions have the mirror-image limitation:
-they *can* be steps inside a job, but a workflow cannot loop over them,
-and their step list is static.
-That is the whole reason the per-commit gate had to become a script
-([`scripts/rcc-one.sh`](/scripts/rcc-one.sh)): a shell loop is the only construct
-that can run the same gate N times in one job.
-
-### Can we limit matrix parallelisation?
-
-Yes: `jobs.<id>.strategy.max-parallel`.
-The planner emits it as a job output (`max_parallel`), clamped to the shard count,
-so the workflow throttles itself without a hand-edit.
-Defaults to 8; override per run with the `max-parallel` input,
-or repo-wide with the `EACH_RCC_MAX_PARALLEL` variable.
-The run-level `concurrency` group additionally keeps two `each-rcc` runs
-for the same branch from overlapping, with `cancel-in-progress: false`
-so a queued run waits for a long bulk build rather than killing it.
-
-### Can we compute breakpoints efficiently, and evenly?
-
-Yes, and the problem is easier than it looks —
-but "evenly" turned out to be the wrong objective on its own.
-
-#### The cost model
+### The cost model
 
 A leg's wall clock is
 
@@ -369,7 +266,7 @@ Four constants, each measuring one thing:
 | Constant | Default | What it is |
 |---|---|---|
 | `SETUP_MINUTES` | 5 | checkout, `install/action.yml`, `style` — paid once per leg |
-| `FULL_BUILD_MINUTES` | 40 | a build on an empty ccache: all 355 objects of `sources.mk` |
+| `FULL_BUILD_MINUTES` | 40 | a build on an empty ccache: every object of `src/include/sources.mk` |
 | `FLOOR_MINUTES` | 6 | one commit with nothing to recompile: link, install, `R CMD check`, the gates |
 | `OBJECT_SECONDS` | 9.7 | marginal cost of recompiling one unity object |
 
@@ -379,13 +276,11 @@ no matter how little it changed.
 Every later commit pays only for the objects it invalidates,
 capped at `FULL` — a commit that touches a wide header cannot cost more than
 building the world.
-`build_minutes` is what [`each-shard.sh`](/scripts/each-shard.sh) measures itself against,
-since its deadline starts after setup;
+`build_minutes` is what [`each-shard.sh`](/scripts/each-shard.sh) measures
+itself against, since its deadline starts after setup;
 `estimate_minutes` is what the job takes.
 
-#### The constants are measured, not borrowed
-
-Fitted by least squares to the 29 commits of runs
+The constants are fitted by least squares to the 29 commits of runs
 [30406932093](https://github.com/krlmlr/duckdb-r/actions/runs/30406932093)
 (`main-fwd-dev`, 24 commits over two legs)
 and [30422580063](https://github.com/krlmlr/duckdb-r/actions/runs/30422580063)
@@ -407,21 +302,11 @@ flat, and independent of what their commit changed, exactly as the model says.
 Whole legs land within a few percent:
 one leg's 12 commits were predicted at 243 min and took 252,
 and the other's first 12 at 304 against 302.
-
-These numbers replace the pre-2026 estimates the model shipped with
-(`COLD_MINUTES=22`, `FLOOR_MINUTES=11`, `OBJECT_SECONDS=4.3`),
-which were wrong in a way that mattered:
-they charged nearly twice too much for a cheap commit and half too little for an
-expensive one, so the predicted spread was *compressed*.
-Legs of "equal" predicted cost were not equal,
-and a leg full of wide-header commits overran its 300-minute deadline and
-deferred its last commit — which is what happened to the second leg of run
-30406932093.
 Every leg records `duration_seconds` per commit and
-[`each-harvest.sh`](/scripts/each-harvest.sh) now carries it onto the `rcc` branch
+[`each-harvest.sh`](/scripts/each-harvest.sh) carries it onto the `rcc` branch
 as `.timing`, so the fit can be redone against any range at any time.
 
-#### Pass 1: the fewest legs
+### Pass 1: the fewest legs
 
 Shards must be **contiguous** — that is what makes consecutive checkouts cheap —
 so this is not bin packing.
@@ -429,22 +314,21 @@ Partitioning a sequence into the fewest contiguous parts under a fixed budget
 is solved exactly by a single greedy left-to-right pass, in O(n).
 
 Balancing by predicted time rather than commit count is what isolates expensive
-commits: on 998 undecided `main-dev` commits the greedy pass emits legs of 7 to
-27 commits, a 3.9× spread in count, to hold them all under one deadline.
+commits: on a thousand-commit `main-dev` backlog the greedy pass emits legs of
+7 to 27 commits, a 3.9× spread in count,
+to hold them all under one deadline.
 
-#### Pass 2: the shortest wall clock
+### Pass 2: the shortest wall clock
 
 The greedy pass minimises **legs**, which is close enough to minimising
 runner-minutes to serve as the cost baseline.
 It is a poor answer for wall clock at every size, and for a small batch it is
 the *worst* answer.
 The default leg deadline is 300 minutes and a cheap commit costs ~6,
-so 25 commits fit in two legs — and the branch tip waits five hours for a verdict
-that 20 legs would have delivered in fifty minutes.
+so 25 commits fit in two legs — and the branch tip waits five hours for a
+verdict that 20 legs would have delivered in fifty minutes.
 This is the common case, not the corner case:
 a series-loop batch is capped at 100 commits and is usually far smaller.
-A large backlog looks like it should be immune, since every slot is busy anyway,
-but it is not: see [below](#why-the-pass-cannot-stop-at-max_parallel).
 
 So a second pass buys the wall clock back,
 by **running pass 1 again against shorter deadlines**
@@ -456,9 +340,11 @@ and every plan it can pick is contiguous, balanced and inside the real deadline
 by construction.
 Two limits bound the search:
 
-* **`SPLIT_FACTOR`** (default 1.5). The plan may cost at most this multiple of
-  the pass-1 plan's runner-minutes. `1.0` disables the pass entirely.
-* **`MAX_SHARDS`**, and the commit count: one commit cannot be cut in half.
+* **`SPLIT_FACTOR`** (default 1.5, `scripts/each-plan.sh`).
+  The plan may cost at most this multiple of the pass-1 plan's runner-minutes.
+  `1.0` disables the pass entirely.
+* **`MAX_SHARDS`** (default 250, `scripts/each-plan.sh`),
+  and the commit count: one commit cannot be cut in half.
 
 Ranking is by `makespan()`, which models `MAX_PARALLEL` throttling,
 and ties go to the cheapest plan:
@@ -477,7 +363,7 @@ rather than walked in one direction:
   More legs can be genuinely cheaper than fewer,
   and a plan rejected on cost says nothing about the next one.
 
-On the live 77-commit `main-fwd-dev` batch:
+Measured on a 77-commit `main-fwd-dev` batch:
 
 | `SPLIT_FACTOR` | shards | wall clock | runner time |
 |---|---|---|---|
@@ -489,44 +375,23 @@ On the live 77-commit `main-fwd-dev` batch:
 The default trades 1.38× the compute for **3.8× the wall clock**.
 Past 1.5 the curve is flat: `max-parallel` takes over as the binding limit.
 
-#### Why the pass cannot stop at `MAX_PARALLEL`
-
-The version of pass 2 this replaces split the longest shard repeatedly
-and stopped once it had `MAX_PARALLEL` of them,
-on the reasoning that more legs than can run at once move no verdict earlier.
-That is true only while the *whole plan* fits in one wave.
-`MAX_PARALLEL` is not a ceiling on legs, it is the width of a wave,
-and pass 1 routinely emits more legs than that on its own —
-at which point a cap at `MAX_PARALLEL` is not a stopping rule, it is an
-off switch, and the pass did nothing at exactly the sizes where the waves are
-lumpiest.
-
-The 1039-commit `main-dev` backlog is the case in point.
-Pass 1 emits 67 legs against 20 slots: four waves, the last of them one-third
-full, every leg packed to the 300-minute deadline.
-The old pass declined to touch it at any `SPLIT_FACTOR`.
-Rebalancing to 79 legs keeps the wave count at four but shortens the longest
-leg to ~254 minutes:
-
-| | old pass 2 | rebalanced |
-|---|---|---|
-| shards | 67 | 79 |
-| longest leg | 300 min | 254 min |
-| wall clock | **19.2 h** | **16.9 h** |
-| runner time | 19,247 min | 19,259 min |
-
-**2.3 hours of wall clock for twelve runner-minutes** — 0.06%, well inside even
-a `SPLIT_FACTOR` of 1.001, because the twelve extra legs start on wide-header
-commits that were paying for a full rebuild anyway.
-The gain grows with the slot count, since a wider matrix leaves a lumpier tail:
-at `max-parallel: 40` the same backlog goes from 10.0 h to 8.5 h,
-and at 60 from 9.5 h to 6.0 h.
+**The pass does not stop at `MAX_PARALLEL`.**
+That is the width of a wave, not a ceiling on legs,
+and pass 1 routinely emits more legs than that on its own.
+A thousand-commit backlog plans to 67 legs against 20 slots: four waves,
+the last of them one-third full, every leg packed to the 300-minute deadline.
+Rebalancing to 79 legs keeps the wave count at four
+but shortens the longest leg from 300 to ~254 minutes —
+2.3 hours of wall clock for twelve runner-minutes, 0.06%,
+because the twelve extra legs start on wide-header commits that were paying for
+a full rebuild anyway.
+The gain grows with the slot count, since a wider matrix leaves a lumpier tail.
 
 The pass is still a no-op where it should be —
 `SPLIT_FACTOR: 1.0`, a batch already at `MAX_SHARDS`,
 or a plan whose waves are already even.
 
-#### Numbering, and the order they are queued in
+### Numbering, and the order they are queued in
 
 These are two separate decisions that happen to agree.
 
@@ -543,16 +408,16 @@ undecided gap advances nothing.
 The matrix therefore starts at shard 1 and finishes with shard N.
 Within a shard, commits run oldest-first too, for cache locality.
 
-Numbers are assigned after the matrix cap has dropped the oldest shards
-(§4), so shard 1 is the oldest shard *this run* will build,
+Numbers are assigned after the matrix cap has dropped the oldest shards,
+so shard 1 is the oldest shard *this run* will build,
 not the oldest one the planner considered.
 
-### Can we measure which commit invalidates how many unity files?
+### Which commit invalidates how many unity files
 
-Yes, exactly, without building anything, in about 3.5 seconds.
-
-[`scripts/each-cost.py`](/scripts/each-cost.py) reads the 341 objects from `src/include/sources.mk`,
-resolves every `#include "..."` edge in `src/duckdb/**` (3517 files),
+[`scripts/each-cost.py`](/scripts/each-cost.py) answers this exactly,
+without building anything, in about 3.5 seconds.
+It reads the objects from `src/include/sources.mk`,
+resolves every `#include "..."` edge in `src/duckdb/**`,
 and does one BFS per object.
 Each file ends up with a bitmask of the objects that transitively include it;
 a commit's cost is the population count of the OR over its changed paths.
@@ -576,8 +441,8 @@ And across 120 real `v1.5-variegata-dev` commits:
 | 31–100 | 2 |
 | >100 (wide header) | 8 |
 
-median 2, mean 15, max 209.
-That is the bimodal distribution predicted from the measured ccache timings
+Median 2, mean 15, max 209 —
+the bimodal distribution predicted from the measured ccache timings
 ([`experiments/2026-03-vendor-build-cost/`](/experiments/2026-03-vendor-build-cost/README.md)),
 now derived statically and per commit.
 
@@ -589,97 +454,66 @@ a little parallelism, no correctness.
 The map is built once from the branch tip and reused for the whole range;
 reach drifts slowly, and a stale weight only mis-balances a shard.
 
-### What happens when one leg is terminated, aborted, or fails for platform reasons?
+## When a leg is lost
 
 Nothing restarts the batch. `fail-fast: false` keeps the siblings running,
 every other leg keeps its verdicts,
-and the next `each-rcc` run recomputes its to-do list from commit statuses,
+and the next `each-rcc` run recomputes its to-do list from the verdict store,
 so it replans only the commits that are actually undecided.
 The blast radius of a lost runner is, by construction, one leg.
 
-What is durable, and what was not:
+What survives a runner that stops executing steps:
 
-| State | Where it lives | Survives a runner that stops executing steps |
-|---|---|---|
-| A commit's verdict | commit-status, written before and after each commit | **yes** |
-| The plan | `each-plan` artifact from the `plan` job | **yes** |
-| The per-commit record and log | the leg's artifact, uploaded in its last step | **no** — a lost runner never gets there |
-| The commit in flight | `pending` status, no verdict | wedged until `PENDING_TTL_HOURS` |
+* **A commit's verdict** — the commit status, and the record the leg published
+  seconds after deciding it. Both survive.
+* **The plan** — the `each-plan` artifact from the `plan` job. Survives.
+* **A commit in flight** — no record, so the next run replans it.
+* **Records a leg never got to publish** — only in the leg's artifact,
+  uploaded in its last step, so a lost runner never gets there;
+  the fan-in reconstructs them.
 
-Three sharp edges came out of walking that through, and two of them are fixed here.
+A re-run resumes rather than restarts:
+the leg skips a commit that already carries a decided record,
+so "Re-run failed jobs" costs what was lost rather than what the shard held.
+`pending` deliberately does not count as decided —
+that is precisely the state a killed leg leaves behind,
+and redoing it is what the re-run is for.
+Both artifact uploads carry `overwrite: true`,
+so "Re-run all jobs" does not fail on an artifact name conflict.
+The fan-in is guarded on the planner having succeeded,
+so it does not check out the `rcc` branch to reconcile a run that never built.
 
-**A re-run of a leg used to restart its whole shard.**
-`each-shard.sh` walked its slice of `plan.json` unconditionally,
-so a leg that died at commit 20 of 27 and was re-run rebuilt all 27 —
-on a cold ccache, which is also the slowest way to do it,
-and quite possibly into the same deadline that made it defer commits the first time.
-The leg now skips a commit that already carries a *decided* `rcc` status,
-at the cost of one REST read per commit.
-`pending` deliberately does not count as decided: that is precisely the state a
-killed leg leaves behind, and redoing it is what the re-run is for.
-So "Re-run failed jobs" now costs what was lost rather than what the shard held.
+Two edges are worth stating plainly.
 
-**"Re-run all jobs" used to fail outright.**
-An artifact name has to be unique within a *run*, not within an attempt,
-so the `plan` job's second upload of `each-plan` was rejected as a conflict.
-`overwrite: true` on both uploads fixes it.
+**Nothing schedules `each-rcc`.**
+It fires on push to `each-*`/`*-dev`, on `workflow_dispatch`, and on
+`workflow_call`.
+After a lost leg the branch is left with one `pending` commit and a tail of
+statusless ones, and the replanning that would pick them up does not happen
+until somebody pushes to that branch or dispatches the workflow.
+The replanning is correct; it is not automatic.
 
-**The documented recovery discards good results.**
-This is the one that actually looks like "self-healing restarts everything", and it
-is not in this workflow at all — it is in the series loop.
+**The series loop's documented recovery discards good results.**
 [`series-loop.md`](/.claude/skills/series-loop.md) says that a commit still
 missing from the harvest after 12 hours should be presumed lost, and repaired by
-amending it and replaying the tail. Replaying mints a new SHA for every commit
-after it, so one lost leg costs a rebuild of every *already-green* commit newer
-than the commit it was in the middle of. That recovery is still the right answer
-when a commit genuinely cannot get a verdict, but it should be the last resort:
-re-running the failed job, or dispatching `each-rcc` again, now costs only the
-commits that are undecided.
+amending it and replaying the tail.
+Replaying mints a new SHA for every commit after it,
+so one lost leg costs a rebuild of every *already-green* commit newer than the
+commit it was in the middle of.
+That recovery is the right answer when a commit genuinely cannot get a verdict,
+but it is the last resort:
+re-running the failed job, or dispatching `each-rcc` again,
+costs only the commits that are undecided.
 
-One edge is *not* fixed, and is worth stating plainly rather than leaving implied:
-**nothing schedules `each-rcc`.**
-It fires on push to `each-*`/`*-dev`, on `workflow_dispatch`, and on
-`workflow_call`. After a lost leg the branch is left with one `pending` commit and
-a tail of statusless ones, and the replanning that would pick them up does not
-happen until somebody pushes to that branch or dispatches the workflow. The
-replanning is correct; it is not automatic.
+## The verdict store
 
-Two smaller things fell out of the same walk-through.
-The fan-in is now guarded on the planner having succeeded — `shards` is the empty
-string when it did not, and `'' != '0'` is true, so the job used to check out the
-`rcc` branch to reconcile a run that never built anything.
-And a lost artifact used to cost more than the record:
-the backstop reconstructs the record from the commit status, but in place of the
-per-commit log it stores the *run*-level log, which for a sharded run is every
-leg's output concatenated and tailed to 10 000 lines.
-`series-check.sh` classifies a failure by what its log contains, so such a log is
-worse than absent — it can misclassify. Publishing per commit closes that window.
+A verdict reaches the `rcc` branch seconds after it exists,
+not at the end of the run.
+That latency is the series loop's cycle time, because
+[`series-check.sh`](/scripts/series-check.sh) gates on the *records*,
+not the statuses.
 
-### Can results reach the `rcc` branch as soon as they exist?
-
-Yes, and the interesting part is that it made the branch *less* contended rather
-than more.
-
-The old shape was a barrier. Legs uploaded artifacts and said nothing; one fan-in
-job folded them in at the end. So a verdict waited for the slowest leg in the run
-— up to the 350-minute job limit — even though the commit status had been green
-for hours. That latency is the series loop's cycle time, because
-[`series-check.sh`](/scripts/series-check.sh) gates on the *records*, not the statuses. And
-until the fan-in ran, the leg's artifact was the only copy of the per-commit log,
-so a cancelled run lost them all.
-
-#### Why one NDJSON file was the thing in the way
-
-Every record arrived *through* `runs2.ndjson`. Two writers append at EOF with no
-separating context, so a genuine collision is a textual conflict on essentially
-every attempt, and the only recovery is to take the remote as the new base and
-re-run the producer (see [`rcc-push.sh`](/scripts/rcc-push.sh)). That is a fine trade for
-two writers that push once per run. It does not survive twenty legs pushing after
-every commit: collisions stop being rare, and each one costs a re-derivation —
-for the scheduled backstop, a fresh scan of everything it had just recorded.
-
-So records stopped arriving *through* that file. They now land one per file, and
-the aggregate is fed from them:
+Records land one per file, and the aggregate is fed from them:
 
 ```
 runs2.d/<xx>/<sha>.ndjson     one record, one line -- where a record lands first
@@ -687,80 +521,49 @@ runs2.ndjson                  every record, in arrival order -- extended, never 
 logs2/<sha>.log               unchanged; already one file per commit
 ```
 
-Two writers recording different commits touch different paths, so there is nothing
-to conflict on, and a loser of the ref race re-reads the tip and re-commits its one
-file.
+Two writers recording different commits touch different paths,
+so there is nothing to conflict on,
+and a loser of the ref race re-reads the tip and re-commits its one file.
+The alternative — regenerating `runs2.ndjson` from the parts on every write —
+would rewrite the branch's principal file for byte-determinism nothing needs.
+[`rcc-merge.sh`](/scripts/rcc-merge.sh) instead **appends the records the
+aggregate does not yet have**, and touches nothing else:
 
-#### An extension, not a migration
+* the records that predate `runs2.d/` stay exactly where they are,
+  in the order they were collected, byte for byte;
+* every future commit's diff is the records it added,
+  so `git log -p` on the branch stays readable;
+* a record that exists only in the aggregate is left alone.
 
-The obvious next step is to make `runs2.ndjson` fully *derived* — regenerate it
-from the parts, in SHA order, on every write. That was the first version of this,
-and it is the wrong trade. It buys byte-determinism nothing needs, and it pays for
-it by rewriting the branch's principal file: 4.5k historical records reshuffled in
-one flag-day commit, as a side effect of whichever job happens to push first.
-
-[`rcc-merge.sh`](/scripts/rcc-merge.sh) instead **appends the records the aggregate does not
-yet have**, and touches nothing else:
-
-- the ~4.5k records that predate `runs2.d/` stay exactly where they are, in the
-  order they were collected, byte for byte. There is no flag-day commit and no
-  window in which a reader sees the file half-changed;
-- every future commit's diff is the records it added, so `git log -p` on the branch
-  stays readable;
-- a record that exists only in the aggregate is simply left alone. Readers try the
-  per-commit file and fall back to the aggregate, so the two together are the whole
-  truth and neither has to be complete on its own.
+`BACKFILL=1 scripts/rcc-merge.sh` splits the historical records out on request;
+it is a capability, not a step on the path.
 
 The merge needs nothing but the branch — it is a set difference (commits with a
-part, minus commits already in the aggregate) followed by an append. So it is
-idempotent, and losing a push race is cheap in a way re-deriving never was: reset
-onto the winner, recompute the difference, which is now *smaller* because the
-winner appended some of it, append, retry. No producer runs again.
+part, minus commits already in the aggregate) followed by an append.
+So it is idempotent, and losing a push race is cheap:
+reset onto the winner, recompute the difference,
+which is now *smaller* because the winner appended some of it, append, retry.
+No producer runs again.
 
-Measured against a copy of the real branch, pushing 25 new records:
+### Why both layouts
 
-| | migration commit | each subsequent update |
-|---|---|---|
-| regenerate from parts, SHA-ordered | 1.37 MiB | 3–4 KiB |
-| append what is missing | **none** | 3–4 KiB |
+They are not redundant so much as differently shaped:
 
-The steady state is the same — git deltas both perfectly well — so this is not a
-bytes argument. The 1.37 MiB is a one-off, and small. What the extension actually
-buys is that the riskiest operation in the change simply does not happen: the file
-every consumer reads is never rewritten, so the change cannot go wrong there. The
-capability is kept rather than discarded — `BACKFILL=1 scripts/rcc-merge.sh` splits
-the historical records out on request — it is just not on the path.
-
-The point of separating parts from the aggregate is who pays for which:
-
-| Writer | Frequency | Touches |
-|---|---|---|
-| a matrix leg | once per commit built (~2/min at `max-parallel: 20`) | its own record, its own log |
-| the fan-in | once per run | records the legs could not publish, and the aggregate |
-| `rcc-logs.yaml` | every 30 min | records for commits it finds undecided, and the aggregate |
-
-The frequent writers never touch the ~10 MB file. It is extended at exactly the
-cadence it was written at before.
-
-#### Do we need both, and who owns keeping them straight?
-
-Both, and they are not redundant so much as differently shaped:
-
-* `runs2.d/<xx>/<sha>.ndjson` is the **write** surface. One file per commit is
-  what lets twenty legs publish at once without a lock.
-* `runs2.ndjson` is the **read** surface. One file is what makes "what happened
-  to every commit in this range" a single fetch rather than N — which is what
-  `git show origin/rcc:runs2.ndjson` has always been good for.
+* `runs2.d/<xx>/<sha>.ndjson` is the **write** surface.
+  One file per commit is what lets twenty legs publish at once without a lock.
+* `runs2.ndjson` is the **read** surface.
+  One file is what makes "what happened to every commit in this range"
+  a single fetch rather than N.
 
 In normal operation they drift slightly, in two directions that are both
-harmless: records that predate the split live only in the aggregate, and a record
-published seconds ago may not be merged into it yet. Readers cope by trying the
-per-commit file and falling back
-([`series-check.sh`](/scripts/series-check.sh)), so the pair is the whole truth and
-neither has to be complete alone.
+harmless: records that predate the split live only in the aggregate,
+and a record published seconds ago may not be merged into it yet.
+Readers cope by trying the per-commit file and falling back
+([`series-check.sh`](/scripts/series-check.sh)),
+so the pair is the whole truth and neither has to be complete alone.
 
-Ownership is deliberately lopsided, because that is what makes the concurrency
-work:
+Ownership is deliberately lopsided,
+because that is what makes the concurrency work:
 
 | Writer | Adds | Rewrites |
 |---|---|---|
@@ -774,186 +577,177 @@ work:
 
 Everything routine is additive. The three destructive operations — making the
 layouts agree, deleting logs, discarding history — belong to one manually
-dispatched workflow ([`rcc-consolidate.yaml`](/.github/workflows/rcc-consolidate.yaml)),
+dispatched workflow
+([`rcc-consolidate.yaml`](/.github/workflows/rcc-consolidate.yaml)),
 where they happen once and under supervision.
 
-#### Consolidation
+### Consolidation
 
-`rcc-consolidate.sh` is `workflow_dispatch`-only and defaults to a dry run. What
-it does, measured on the live branch:
-
-| | before | after |
-|---|---|---|
-| commits | 181 | **2** |
-| records | 4601 aggregate / 4572 parts | 4601 / **4601** |
-| logs | 2496 | **856** |
-| objects | 218 MB | **74 MB** |
-
+`rcc-consolidate.sh` is `workflow_dispatch`-only and defaults to a dry run.
 Three things happen:
 
-1. **The layouts are made to agree.** Every aggregate-only record is split into a
-   part, and the aggregate is then rebuilt as exactly the parts' concatenation,
-   ordered by when each verdict was written. This is the one place where
-   migrating is right: the branch is being rewritten anyway, so there is no
-   flag-day commit to avoid.
-2. **Logs past `LOG_RETENTION_DAYS` (30) are dropped**, along with any log whose
-   commit has no record at all. Logs are ~1 MB each and ~90% of the branch;
-   records are ~2 KB. A log earns its keep by letting `series-check.sh` classify
-   a failure — which matters for a commit the loop is still working on, not for
-   one decided months ago and long since repaired. **Records are never dropped**,
-   so the verdict outlives the evidence, and `.timing.failed_stages` still names
-   the gate that broke.
-3. **The history is squashed to two commits**: an empty `Initial`, and the whole
-   current state. The root is *inherited* when one is already there — two
-   consolidations must not mint two roots, or each would invalidate every clone
-   twice over.
+1. **The layouts are made to agree.** Every aggregate-only record is split into
+   a part, and the aggregate is then rebuilt as exactly the parts'
+   concatenation, ordered by when each verdict was written.
+   This is the one place where migrating is right:
+   the branch is being rewritten anyway, so there is no flag-day commit to avoid.
+2. **Logs past `LOG_RETENTION_DAYS` are dropped** (30, in
+   [`rcc-consolidate.sh`](/scripts/rcc-consolidate.sh)),
+   along with any log whose commit has no record at all.
+   Logs are about a megabyte each and most of the branch; records are ~2 KB.
+   A log earns its keep by letting `series-check.sh` classify a failure —
+   which matters for a commit the loop is still working on,
+   not for one decided months ago and long since repaired.
+   **Records are never dropped**, so the verdict outlives the evidence,
+   and `.timing.failed_stages` still names the gate that broke.
+3. **The history is squashed to two commits**: an empty `Initial`,
+   and the whole current state.
+   The root is *inherited* when one is already there —
+   two consolidations must not mint two roots,
+   or each would invalidate every clone twice over.
 
-Why manual: every other writer is additive and races safely, so a rewrite is the
-one operation that wants an operator who knows nothing else is mid-flight. A
-schedule cannot know that. The push carries `--force-with-lease` as the backstop,
+Why manual: every other writer is additive and races safely,
+so a rewrite is the one operation that wants an operator who knows nothing else
+is mid-flight. A schedule cannot know that.
+The push carries `--force-with-lease` as the backstop,
 so a writer that *did* land in between refuses the push instead of losing its
-record — verified in [`rcc-parts-test.sh`](/scripts/rcc-parts-test.sh).
+record — verified in
+[`rcc-parts-test.sh`](/scripts/rcc-parts-test.sh).
 
-#### A newer verdict wins
+### A newer verdict wins
 
 A record is normally written once, which is what makes every writer idempotent.
 The exception is a **retry**: `retry-<S>-dev` asks for a commit that already has
-a verdict to be judged again on its own SHA, and the point is to overturn it. So
-the newer verdict replaces the older one everywhere —
+a verdict to be judged again on its own SHA, and the point is to overturn it.
+So the newer verdict replaces the older one everywhere —
 
-* [`rcc-part-push.sh`](/scripts/rcc-part-push.sh) compares blob ids in the index, so
-  re-publishing an identical record costs nothing and a changed one replaces both
-  the record and its now-stale log;
-* [`each-harvest.sh`](/scripts/each-harvest.sh) compares the artifact's verdict against
-  whichever layout holds the commit, and replaces on a difference;
-* [`rcc-merge.sh`](/scripts/rcc-merge.sh) replaces the aggregate's *line* rather than
-  appending a second one — readers take the first match for a SHA
+* [`rcc-part-push.sh`](/scripts/rcc-part-push.sh) compares blob ids in the index,
+  so re-publishing an identical record costs nothing
+  and a changed one replaces both the record and its now-stale log;
+* [`each-harvest.sh`](/scripts/each-harvest.sh) compares the artifact's verdict
+  against whichever layout holds the commit, and replaces on a difference;
+* [`rcc-merge.sh`](/scripts/rcc-merge.sh) replaces the aggregate's *line* rather
+  than appending a second one — readers take the first match for a SHA
   (`series-check.sh` greps with `-m 1`), so an appended line would be invisible.
 
 Two writers can only collide here if they are deciding the same commit at the
 same moment, which the planner does not produce; if it somehow happened, the
 retry loop converges on whichever wrote last.
 
-**"Newer" is checked, not assumed**, and that is a consequence of publishing
-early rather than an incidental detail. A leg's verdict is on the branch within
-seconds, but its run's fan-in lands when the *whole run* is done — possibly hours
-later. So a retry can correctly overturn a commit while the run that first failed
-it is still building, and replaying that run's artifact afterwards would put the
-stale verdict back. Nothing would repair it: the commit-status is already the
-retry's, so the planner never rebuilds, and the backstop skips commits that have a
-record. The fan-in therefore compares run ids — they increase per repository, and a
-re-run keeps the id of the run it re-runs — and leaves alone any record written by
-a *higher* run id than its own.
+**"Newer" is checked, not assumed.**
+A leg's verdict is on the branch within seconds,
+but its run's fan-in lands when the *whole run* is done — possibly hours later.
+So a retry can correctly overturn a commit while the run that first failed it is
+still building, and replaying that run's artifact afterwards would put the stale
+verdict back.
+Nothing would repair it: the commit status is already the retry's,
+so the planner never rebuilds,
+and the backstop skips commits that have a record.
+The fan-in therefore compares run ids — they increase per repository,
+and a re-run keeps the id of the run it re-runs —
+and leaves alone any record written by a *higher* run id than its own.
 
-A verdict that stops being a failure also takes its log with it. That case cannot
-be caught by comparing what a writer was handed, because a success has no log to
-hand over; both the leg and the fan-in remove the log explicitly when the state is
-no longer a failure.
+A verdict that stops being a failure also takes its log with it.
+That case cannot be caught by comparing what a writer was handed,
+because a success has no log to hand over;
+both the leg and the fan-in remove the log explicitly
+when the state is no longer a failure.
 
 The planner names the commits it replanned *despite* a verdict in the plan's
-`replanned_despite_verdict`, and the leg reads it from there. Without that the
-resume check above would skip exactly the commit a retry exists to rebuild, and
-the workflow would have to keep an env var in agreement with the planner's own
-logic — which it could not, since the planner decides on the branch name.
+`replanned_despite_verdict`, and the leg reads it from there.
+Without that the resume check would skip exactly the commit a retry exists to
+rebuild, and the workflow would have to keep an env var in agreement with the
+planner's own logic — which it could not,
+since the planner decides on the branch name.
 
-#### What publishing from a leg costs
+### What publishing from a leg costs
 
-It has to be cheap, or the latency is not worth buying. The `rcc` branch is
-218 MB, almost all of it those 2.5k harvested logs at about a megabyte each, and a
-leg needs none of those bytes to add one file. So
-[`rcc-part-push.sh`](/scripts/rcc-part-push.sh) keeps a blobless, shallow, checkout-less
-clone (`--filter=blob:none --depth 1`), which fetches trees only, and builds the
-commit with plumbing: `read-tree`, `hash-object -w`, `update-index`,
-`write-tree --missing-ok`, `commit-tree`, push. Measured against a copy of the
-real branch: **2.1 MB of clone against a 222 MB branch, and ~130 ms per publish
-once warm.**
+Publishing has to be cheap, or the latency is not worth buying.
+Almost all of the `rcc` branch is harvested logs,
+and a leg needs none of those bytes to add one file. So
+[`rcc-part-push.sh`](/scripts/rcc-part-push.sh) keeps a blobless, shallow,
+checkout-less clone (`--filter=blob:none --depth 1`), which fetches trees only,
+and builds the commit with plumbing: `read-tree`, `hash-object -w`,
+`update-index`, `write-tree --missing-ok`, `commit-tree`, push.
+Measured against a copy of the real branch,
+the clone is under 1% of the branch and a publish takes ~130 ms once warm.
 
-One trap is worth recording because it is completely invisible. Plain
-`git write-tree` verifies that every index entry's object is present, which in a
-blobless clone means lazily fetching all 2.5k logs — the whole 220 MB, per leg.
-`--missing-ok` suppresses the check (every entry came either from the remote's own
-tree or from the blob written moments earlier), and `GIT_NO_LAZY_FETCH=1` is
-exported so that any *other* route to the same mistake fails loudly instead of
-quietly downloading the branch.
+One trap is worth recording because it is completely invisible.
+Plain `git write-tree` verifies that every index entry's object is present,
+which in a blobless clone means lazily fetching every harvested log —
+the whole branch, per leg.
+`--missing-ok` suppresses the check
+(every entry came either from the remote's own tree
+or from the blob written moments earlier),
+and `GIT_NO_LAZY_FETCH=1` is exported so that any *other* route to the same
+mistake fails loudly instead of quietly downloading the branch.
 
-#### How bad is the race?
+### How bad is the race
 
-Measured by [`rcc-parts-test.sh`](/scripts/rcc-parts-test.sh) — 20 concurrent writers
-against a copy of the real branch, each publishing back to back with no build in
-between, so roughly 100× the real rate:
+Measured by [`rcc-parts-test.sh`](/scripts/rcc-parts-test.sh) —
+20 concurrent writers against a copy of the real branch,
+each publishing back to back with no build in between,
+so roughly 100× the real rate.
+Of 100 records published, **none were lost and none gave up**;
+51% succeeded on the first attempt, 87% landed within four,
+and the deepest retry was 9.
+Only the first two of those are invariants —
+the distribution moves from run to run with machine load.
+That tail is what saturation looks like, not what the branch looks like:
+with 20 writers pushing back to back there is always someone else mid-push,
+so a loser can be starved for several rounds.
+The retry budget is sized for it — a retry is one fetch and one push,
+the backoff caps at 8 s, so the whole budget is about two minutes
+against a build measured in tens of them.
 
-| | |
-|---|---|
-| records published | 100 |
-| records lost | **0** |
-| succeeded on the first attempt | 51% |
-| landed within 4 attempts | 87% |
-| needed 5 or more | 13% (deepest: 9 of 20) |
-| gave up | 0 |
+At the real rate the arithmetic is dull, which is the point.
+A publish is one fetch and one push, one or two seconds against GitHub;
+20 legs at one commit per ~10 minutes issue about two pushes a minute;
+so the chance that a given push overlaps another is around
+2 s × 2/60 s ≈ 7%, and losing costs a second.
 
-Only the first two rows are invariants; the distribution moves from run to run
-with machine load. That tail is what saturation looks like, not what the branch
-looks like: with 20 writers pushing back to back there is always someone else
-mid-push, so a loser can be starved for several rounds. The retry budget is sized
-for it — a retry is one fetch and one push, the backoff caps at 8 s, so the whole
-budget is about two minutes against a build measured in tens of them.
+What is genuinely spent is commits: the branch grows by one per record rather
+than one per run, so a 1000-commit backfill adds ~1000 commits to `rcc`.
+Each is one small blob and two small trees —
+which is what the 256-way fan-out is for.
+A single flat directory of ten thousand records would rewrite the whole tree on
+every push.
 
-At the real rate the arithmetic is dull, which is the point. A publish is one fetch
-and one push, one or two seconds against GitHub; 20 legs at one commit per ~10
-minutes issue about two pushes a minute; so the chance that a given push overlaps
-another is around 2 s × 2/60 s ≈ 7%, and losing costs a second. The hammer test is
-there to show the tail is bounded, not because the tail is expected.
+And none of it is load-bearing.
+Legs still upload their artifacts, the fan-in still runs `if: always()`,
+and `rcc-logs.yaml` still ticks every 30 minutes.
+A failed publish is logged and ignored — it never fails the leg —
+and the record is collected the old way, one job later.
 
-What is genuinely spent is commits: the branch grows by one per record rather than
-one per run, so a 1000-commit backfill adds ~1000 commits to `rcc`. Each is one
-small blob and two small trees — which is what the 256-way fan-out is for. A single
-flat directory of 10k records would rewrite a ~500 KB tree on every push.
-
-And none of it is load-bearing. Legs still upload their artifacts, the fan-in still
-runs `if: always()`, and `rcc-logs.yaml` still ticks every 30 minutes. A failed
-publish is logged and ignored — it never fails the leg — and the record is
-collected the old way, one job later.
-
----
-
-## 4. GitHub Actions limits this works within
+## GitHub Actions limits this works within
 
 | Limit | Value | How the design stays inside it |
 |---|---|---|
-| Jobs per matrix | 256 per workflow run | `MAX_SHARDS` defaults to 250, and bounds the rebalance pass as well as the fill; 1000 `main-fwd-build` commits plan to 79 shards |
+| Jobs per matrix | 256 per workflow run | `MAX_SHARDS` defaults to 250, and bounds the rebalance pass as well as the fill |
 | Job execution time | 6 h | shard budget 300 min, job `timeout-minutes: 350`, and the leg stops itself and defers the rest |
-| Workflow run duration | 35 days | 1000 `main-fwd-build` commits are ~18 h at `max-parallel: 20` |
-| Concurrent jobs | plan-dependent | `max-parallel` (default 20) keeps the run a good neighbour, and is the wave width the rebalance pass plans against |
+| Workflow run duration | 35 days | a thousand-commit backlog is under a day at `max-parallel: 20` |
+| Concurrent jobs | plan-dependent | `max-parallel` keeps the run a good neighbour, and is the wave width the rebalance pass plans against |
 | `GITHUB_TOKEN` REST requests | 1000 per hour per repository | see below |
 | Reusable workflow nesting | 10 levels, 50 unique per file | not used |
 
-The rate limit is the one that quietly ruled out the obvious implementation.
-Reading one commit-status per REST call — what the retired dispatcher did —
-costs one request per commit, so a 3000-commit scan cannot complete at all.
-That constraint is what a git-native verdict store answers outright: reading the
-store is one fetch regardless of range.
+The rate limit is the one that rules out the obvious implementation.
+Reading one commit status per REST call costs one request per commit,
+so a 3000-commit scan cannot complete at all.
+That constraint is what a git-native verdict store answers outright:
+reading the store is one fetch regardless of range.
 
-Writing statuses stays REST (there is no batch endpoint), 2 per commit,
-plus one read per commit for the resume check
-([§3](#what-happens-when-one-leg-is-terminated-aborted-or-fails-for-platform-reasons)).
+Writing statuses stays REST (there is no batch endpoint), two per commit.
 That is a *rate*, not a burst: at `max-parallel: 20` and ~20 min per commit
-the whole run issues on the order of 180 requests per hour.
-Publishing a record is a git push, not an API call, so it does not enter this
-budget at all.
+the whole run issues on the order of 80 requests per hour.
+Publishing a record is a git push, not an API call,
+so it does not enter this budget at all.
 
-### Scale, planned against a real backlog
+### Scale
 
-The planner run below is not a simulation:
-it is `each-plan.sh` over the newest **1000 commits of `main-fwd-build`**,
-with every commit treated as undecided. It takes **5.4 s** end to end,
-including building the reach map.
-
-```
-commits              1000
-shards                 79      (matrix cap 250)
-commits/shard          8 – 19  (median 12)
-estimate/shard       159 – 264 min  (median 254)
-```
+A planner run over the newest 1000 commits of `main-fwd-build`,
+every commit treated as undecided, takes 5.4 s end to end,
+including building the reach map, and emits 79 shards
+of 8 to 19 commits (median 12), estimated at 159 to 264 minutes each.
 
 `main-fwd-build` is close to the worst case for this design,
 and that is the useful thing about measuring on it.
@@ -970,43 +764,20 @@ Its churn is far heavier than `v1.5-variegata-dev`'s:
 
 A third of these commits are wide-header commits,
 so a third of them get little from the warm cache — and the shards shrink
-to 8–19 commits accordingly, which is exactly what cost balancing is for
-(estimates still land within 159–264 min).
-
-| | sharded | one run per commit |
-|---|---|---|
-| jobs | **79** | 1000 |
-| runner-hours | **338** | 883 |
-| wall clock at `max-parallel: 20` | **~18 h** (4 waves) | — |
-
-**2.6×** less compute here, against 3.6× on the much cheaper
-`v1.5-variegata-dev` distribution — the honest range,
-with the worst case at the low end.
-At `max-parallel: 8` this backlog is ~44 h; at 60, ~9 h.
+accordingly, which is exactly what cost balancing is for.
+Against one run per commit that is 79 jobs instead of 1000,
+and 338 runner-hours instead of 883 — **2.6×** less compute,
+against 3.6× on the much cheaper `v1.5-variegata-dev` distribution.
+That is the honest range, with the worst case at the low end.
 
 Extrapolating the same shard density, a 3000-commit mainline replay
 is ~240 shards — still inside the 250 cap, still one run, but close enough
 to it that a bigger backlog would need a second run or a larger shard budget.
 
-Those figures predate the recalibration in §3 and were derived from the model,
-not from measured legs;
-the shard counts move a little under the fitted constants but the shape does not.
-The current numbers for the two live backlogs, at `max-parallel: 20`:
+## Operating it
 
-| | `main-fwd-dev` | `main-dev` |
-|---|---|---|
-| commits to build | 77 | 1039 |
-| shards, fewest-legs | 4 | 67 |
-| shards, after rebalancing | **20** | **79** |
-| wall clock | **79 min** (was 5.1 h) | **16.9 h** (was 19.2 h) |
-| runner time | 22.6 h (was 16.3 h) | 321.0 h (was 320.8 h) |
-
----
-
-## 5. Operating it
-
-Everything is an input on `workflow_dispatch`, and the ones worth setting repo-wide
-are repository variables:
+Everything is an input on `workflow_dispatch`,
+and the ones worth setting repo-wide are repository variables:
 
 | Knob | Input | Variable | Default |
 |---|---|---|---|
@@ -1017,13 +788,20 @@ are repository variables:
 | Cap on commits considered | `max-commits` | — | `0` (no cap) |
 | Rebuild decided commits | `force` | — | `false` |
 | Log lines quoted per failed stage | — | `EACH_RCC_SUMMARY_TAIL` | `50` |
+| Gates to run | — | `EACH_GATES` | all six |
 
-`EACH_GATES` can drop individual gates, but note that `pkgdown` is **not** a
-candidate: a pkgdown failure is a real failure and has to be dealt with, so the
-gate stays on.
+The defaults above are the workflow's, set in
+[`each.yaml`](/.github/workflows/each.yaml);
+the scripts carry their own fallbacks for a direct invocation,
+and those differ — `each-plan.sh` falls back to `MAX_PARALLEL=8`,
+for instance, where the workflow passes 20.
 
-The lever for a slow *large* batch is `max-parallel`, which decides how many
-waves it takes.
+`EACH_GATES` can drop individual gates, but `pkgdown` is **not** a candidate:
+a pkgdown failure is a real failure and has to be dealt with,
+so the gate stays on.
+
+The lever for a slow *large* batch is `max-parallel`,
+which decides how many waves it takes.
 The lever for a slow *small* batch is `split-factor`:
 under `max-parallel` legs the run is one wave,
 and the only way to shorten it is to make the longest leg shorter.
@@ -1034,10 +812,8 @@ behaviour back.
 
 ### Reading a failure without opening the log
 
-A leg is one job for up to ~20 commits and up to five hours of output,
-so "which commit went red, and why" used to mean expanding the right
-`::group::` in a very long job log.
-The leg's job summary answers both directly.
+A leg is one job for up to ~20 commits and up to five hours of output.
+The leg's job summary says which commit went red and why.
 The result table names the stages that failed —
 a commit's cell reads `failure (check, pkgdown)`, not just `failure` —
 and below it each failed stage gets a collapsed `<details>` block holding the
@@ -1047,188 +823,116 @@ Setting the variable to `0` turns the excerpts off.
 
 The excerpt is not the record.
 The whole per-commit log still goes to `logs2/<sha>.log` on the `rcc` branch,
-which is what [`scripts/series-check.sh`](/scripts/series-check.sh) classifies against;
+which is what [`series-check.sh`](/scripts/series-check.sh) classifies against;
 the summary is the fast path for a human.
 Two details make it work in practice:
 
-- [`scripts/rcc-one.sh`](/scripts/rcc-one.sh) writes each stage's output to its own file
+* [`rcc-one.sh`](/scripts/rcc-one.sh) writes each stage's output to its own file
   under `EACH_STAGE_DIR` and its verdict to `outcomes.tsv`,
   rather than the leg parsing the combined log back apart.
   Nothing is buffered that was not already buffered —
   the leg redirects the whole commit to a file and prints it once the commit is
   over — and a stage with a log but no verdict is precisely the stage the leg's
   `timeout` killed, so that one is quoted too.
-- Excerpts stop at 900 kB, because GitHub truncates a step summary at 1 MiB and
+* Excerpts stop at 900 kB, because GitHub truncates a step summary at 1 MiB and
   a truncated summary would take the result table with it.
   How many were dropped is stated.
 
 ### Failure modes and what happens
 
-| Situation | Outcome |
-|---|---|
-| A commit fails its gate | `rcc=failure`, the leg keeps going, record and log published from the leg, failed stages' tails in the job summary |
-| A leg runs out of budget | remaining commits stay statusless, next run replans them |
-| A leg dies hard mid-commit | that commit stays `pending`; every commit it had already decided is on the `rcc` branch already; `pending` is replanned after `PENDING_TTL_HOURS` |
-| A leg is re-run after dying | commits it already decided are skipped, not rebuilt (§3) |
-| A leg cannot reach the `rcc` branch | logged, never fatal; the fan-in collects the record from the artifact |
-| The whole run is cancelled | no fan-in, but the legs' own records are already on the branch; `rcc-logs.yaml` covers whatever is left on its next tick |
-| The `plan` job fails | `build` and the fan-in are both skipped |
-| History is force-pushed mid-run | unreachable SHAs fail checkout and are skipped; new SHAs picked up next run |
-| More than 250 shards planned | oldest shards deferred, reported in the job summary |
-| Two writers publish records at once | different files, no conflict; the loser of the ref race re-reads the tip and re-commits ([`rcc-part-push.sh`](/scripts/rcc-part-push.sh)) |
-| Two writers extend the aggregate at once | the push is rejected, and [`rcc-push.sh`](/scripts/rcc-push.sh) resets onto the new tip, re-derives, and appends what is still missing before retrying |
-| A retry overturns a verdict | the newer record and log replace the older ones, in the part and in the aggregate's line (§3) |
-| An earlier run's fan-in lands after a retry | it sees a higher run id on the branch and keeps that record; the stale verdict is not replayed (§3) |
-| A retry turns a failure green | the record is replaced and the log it overturned is dropped, on whichever path publishes first |
-| A leg is re-run after publishing failed | its artifact is named per attempt, so the earlier attempt's records stay collectable |
-| A writer lands during a consolidation | the lease refuses the force-push; nothing is lost, re-dispatch it |
+* **A commit fails its gate** — `rcc=failure`, the leg keeps going,
+  record and log published from the leg,
+  failed stages' tails in the job summary.
+* **A leg runs out of budget** — remaining commits stay statusless,
+  the next run replans them.
+* **A leg dies hard mid-commit** — that commit has no record,
+  so the next run replans it;
+  every commit the leg had already decided is on the `rcc` branch.
+* **A leg is re-run after dying** — commits it already decided are skipped,
+  not rebuilt.
+* **A leg cannot reach the `rcc` branch** — logged, never fatal;
+  the fan-in collects the record from the artifact.
+* **The whole run is cancelled** — no fan-in,
+  but the legs' own records are already on the branch;
+  `rcc-logs.yaml` covers whatever is left on its next tick.
+* **The `plan` job fails** — `build` and the fan-in are both skipped.
+* **History is force-pushed mid-run** — unreachable SHAs fail checkout
+  and are skipped; new SHAs are picked up next run.
+* **More than `MAX_SHARDS` shards planned** — oldest shards deferred,
+  reported in the job summary.
+* **Two writers publish records at once** — different files, no conflict;
+  the loser of the ref race re-reads the tip and re-commits
+  ([`rcc-part-push.sh`](/scripts/rcc-part-push.sh)).
+* **Two writers extend the aggregate at once** — the push is rejected, and
+  [`rcc-push.sh`](/scripts/rcc-push.sh) resets onto the new tip, re-derives,
+  and appends what is still missing before retrying.
+* **A retry overturns a verdict** — the newer record and log replace the older
+  ones, in the part and in the aggregate's line.
+* **An earlier run's fan-in lands after a retry** — it sees a higher run id on
+  the branch and keeps that record; the stale verdict is not replayed.
+* **A retry turns a failure green** — the record is replaced and the log it
+  overturned is dropped, on whichever path publishes first.
+* **A leg is re-run after publishing failed** — its artifact is named per
+  attempt, so the earlier attempt's records stay collectable.
+* **A writer lands during a consolidation** — the lease refuses the force-push;
+  nothing is lost, re-dispatch it.
 
 Nothing here needs a lock for correctness.
-Progress is durable per commit, and every run recomputes its own to-do list from ground truth.
+Progress is durable per commit,
+and every run recomputes its own to-do list from ground truth.
 
-That extends to the `rcc` branch itself, and it is why no writer takes a lock.
-The tempting serialiser is a concurrency group shared with `rcc-logs.yaml`,
-and it was one until the eviction rule caught up with it:
-only one run may be *pending* per group,
-so a third writer queued behind the second cancels it outright.
-A cancelled fan-in is not a delayed fan-in —
-it used to take the only copy of its per-commit logs with it.
-Concurrent writers that retry lose strictly less than serialised writers that get evicted,
-so the group is gone and no writer assumes it won.
-
-What changed is that most collisions no longer exist to be resolved.
-Records live one per file (§3), so two writers adding different commits cannot
+**No writer takes a lock, and that is deliberate.**
+Records live one per file, so two writers adding different commits cannot
 conflict at all, and `runs2.ndjson` is appended to rather than merged.
-The reset-and-re-derive recovery is still there for the two writers that touch the
-aggregate, and is still safe for the same reason it always was: both producers
-dedupe against what is on the branch, so a retry only re-adds what the winner did
-not already record. Rebasing would still be the wrong recovery — the aggregate is a
-single file every writer extends, so a genuine collision means both sides changed
-it with no separating context.
+A shared concurrency group would be worse than the race:
+only one run may be *pending* per group,
+so a third writer queued behind the second cancels it outright,
+and a cancelled fan-in takes the only copy of its per-commit logs with it.
+The reset-and-re-derive recovery covers the two writers that touch the
+aggregate: both producers dedupe against what is on the branch,
+so a retry only re-adds what the winner did not already record.
+Rebasing would be the wrong recovery — the aggregate is a single file every
+writer extends, so a genuine collision means both sides changed it with no
+separating context.
 
----
+## Limits
 
-## 6. Rollout
+Two properties of the cost model are worth knowing before trusting a plan:
 
-`each.yaml` runs the scripts from the *branch it is checking*,
-so a `*-dev` branch picks up the sharded path only once the new scripts are forward-ported to it —
-the same constraint every CI change in this repository has:
-R-side work is born on `main` and reaches a series by forwarding.
-Until then that branch's copy of `each.yaml` is the old dispatcher, and keeps working.
-(The series loop automates this forward-port:
-stage 4 — `scripts/series-port.sh` — brings each `-dev` level with `main`;
-the wider simplification is
-[`plan/PLAN-vendoring-simplification.md`](/plan/PLAN-vendoring-simplification.md).)
+* **It counts objects, not object *sizes*.**
+  A `ub_*.o` group compiles dozens of `.cpp` files and a leaf object compiles
+  one, and the model charges the same `OBJECT_SECONDS` for both.
+  The fit absorbs this on average — a wide-header commit reaches mostly `ub_*`
+  objects and a narrow one mostly leaves — but it is why the residuals go one
+  way at 53 objects (16.5 measured against 14.6 predicted)
+  and the other at 219 (38.0 against a capped 40.0).
+  Weighting each object by its translation unit's size would remove the bias;
+  `each-cost.py` already has the graph it would need.
+* **The fit is 29 commits from two branches**, both heavy on vendor churn.
+  An R-only batch — 0 invalidated objects throughout — is not represented,
+  and `FLOOR_MINUTES` is the constant that would move.
 
-`vendor.yaml` no longer exists — the series loop
-(`.claude/skills/series-loop.md`) replaced it — and neither does the dispatcher
-that outlived it: `scripts/each-rcc.sh`, this workflow's `dispatch` mode,
-`scripts/vendor-gate.sh` and `cancel-rcc-dispatch.yaml` were retired together
-once the sharded path had run long enough to be the only path anyone reached
-for.
+Rebalancing also raises the concurrency footprint:
+a 77-commit batch asks for 20 runners instead of 4, for an hour.
+Peak concurrency is still capped by `max-parallel` —
+a large batch gains legs without gaining slots —
+but it is the whole account's Actions concurrency,
+so other workflows queue behind it where they used not to.
 
-`R-CMD-check.yaml` and `R-CMD-check-status.yaml` stay exactly as they are.
-They are the ordinary push/PR check and the commit status branch protection
-reads, they come from [`cynkra/cynkratemplate`](https://github.com/cynkra/cynkratemplate)
-rather than from here, and editing them would put this repository's copy out of
-step with the template for no gain.
+The scripts run from *the branch being checked*,
+so a `*-dev` branch picks up a change to this workflow only once it is
+forward-ported there — the same constraint every CI change in this repository
+has, and the series loop's stage 4
+([`series-port.sh`](/scripts/series-port.sh)) is what does it.
+`R-CMD-check.yaml` and `R-CMD-check-status.yaml` come from
+[`cynkra/cynkratemplate`](https://github.com/cynkra/cynkratemplate)
+rather than from here, so they are not edited:
+`rcc-one.sh` reproduces the gates they apply, and the two can drift,
+which is why the gate list is reviewed
+whenever `R-CMD-check.yaml` is forward-ported.
 
-Suggested order:
-
-1. Land here; exercise on a scratch `each-*` branch by dispatching `each-rcc` manually.
-2. Run the parity check from §7 item 1 — legacy and sharded over the same commit range — and compare verdicts.
-3. Forward-port to the `*-dev` branches.
-4. ~~Recalibrate the cost-model constants from real `duration_seconds`.~~ Done; see §3.
-5. ~~Retire the legacy dispatch path once the sharded one has earned it.~~ Done.
-
-Rolling back is now a revert of this workflow, not a variable flip. That is the
-trade the retirement makes, and it is the one worth making: an escape hatch that
-is never reached for is not insurance, it is a second path everything else has
-to keep being correct against.
-
----
-
-## 7. What is not yet validated
-
-Honest list, in rough order of risk:
-
-1. **`rcc-one.sh` is a port, not a call.** It reproduces the gates `rcc-smoke`
-   applies on its `workflow_dispatch` path. `R-CMD-check.yaml` is forward-ported
-   from upstream, so the two can drift.
-   The parity run — legacy dispatch and sharded build over the same commits,
-   comparing verdicts — was the check for cut-over; with the legacy path retired,
-   drift is now caught by the gate list in `rcc-one.sh` being reviewed whenever
-   `R-CMD-check.yaml` is forward-ported.
-2. **The cost model counts objects, not object *sizes*.**
-   A `ub_*.o` group compiles dozens of `.cpp` files and a leaf object compiles
-   one, and the model charges the same `OBJECT_SECONDS` for both.
-   The fit absorbs this on average — a wide-header commit reaches mostly `ub_*`
-   objects and a narrow one mostly leaves — but it is why the residuals go one
-   way at 53 objects (16.5 measured against 14.6 predicted)
-   and the other at 219 (38.0 against a capped 40.0).
-   Weighting each object by its translation unit's size would remove the bias;
-   `each-cost.py` already has the graph it would need.
-3. **The fit is 29 commits from two branches**, both heavy on vendor churn.
-   An R-only batch — 0 invalidated objects throughout — is not represented,
-   and `FLOOR_MINUTES` is the constant that would move.
-4. **8 GB ccache on a standard runner** should hold ~17 trees' worth of compressed
-   objects; only the previous commit's are needed. Not measured on a runner.
-5. **Rebalancing raises the concurrency footprint.** A 77-commit batch now asks
-   for 20 runners instead of 4, for an hour. Peak concurrency is still capped by
-   `max-parallel` — a large batch gains legs (67 → 79 on `main-dev`) without
-   gaining slots — but it is the whole account's Actions concurrency, so other
-   workflows queue behind it where they used not to.
-6. **The publish path has not run against GitHub.** Its invariants are checked
-   offline against a copy of the real branch
-   ([`rcc-parts-test.sh`](/scripts/rcc-parts-test.sh)), and the numbers in §3 come from
-   there, but a local bare repository is not the real remote: HTTPS latency makes
-   the collision window a second or two rather than 130 ms, and
-   `--filter=blob:none` is a server capability, exercised there through
-   `uploadpack.allowFilter`. The fallbacks are in place — a filtered fetch that is
-   refused retries unfiltered, and a publish that cannot succeed at all is logged
-   and left to the fan-in — so the failure mode is a slow leg or a late record,
-   not a lost one. The first live run on a scratch `each-*` branch is what
-   confirms it.
-7. **The two layouts coexist between consolidations.** Records written before
-   this lands live only in `runs2.ndjson`; records written after live in both.
-   Readers handle it by trying the per-commit file first, and
-   `rcc-consolidate.sh` removes the drift when it runs — but until it has, a
-   reader that only knows about `runs2.d/` would silently miss the historical
-   commits.
-8. **`rcc-consolidate.sh` has only been run against a copy.** The numbers in §3
-   come from consolidating a clone of the live branch, and the lease, the root
-   inheritance and the log GC are all checked in `rcc-parts-test.sh` — but it
-   force-pushes an orphan branch that ~950 snapshot branches and several
-   workflows read, and the first real run is the one that proves the fetch
-   refspecs elsewhere tolerate it. Dry run first.
-
----
-
-## 8. Relation to the vendoring loop plan
-
-This is a concrete, narrower implementation of primitive **B** in
-[`history/vendoring-loop.md` §3.2](/plan/history/vendoring-loop.md#b-build-primitive--synchronous-sharded-matrix-ci-new-rcc-matrixyaml) —
-plan, sharded matrix, `if: always()` fan-in — landed inside the existing `each-rcc`
-instead of as a new `rcc-matrix.yaml`, because the selection semantics are already right there.
-
-Two corrections to that plan fall out of implementing it:
-
-- §4.2 attributes within-shard reuse to **incremental `make`**.
-  It is **ccache**. `R CMD build` compiles from a copy of the package,
-  and this package's `cleanup` deletes `src/duckdb` on the way,
-  so make timestamps cannot cross a commit boundary. The hit-rate figures are unaffected —
-  it is the same "only the changed unity objects recompile" effect — but the mechanism matters
-  for how the leg is written (clean per commit, cache outside the workspace).
-- §4.4 attributes the ~70-90 s per-commit floor to the **LTO link**.
-  There is no LTO in this build: the package sets no `-flto` and R's `Makeconf`
-  reports `LTO =` empty. Whatever the floor is made of, dropping LTO is not the
-  lever, so `FLOOR_MINUTES` stays unmeasured rather than inheriting that
-  explanation.
-- §4.3 leaves the reverse-include map as future work.
-  It exists now (`each-cost.py`), and it is cheap enough — 3.5 s — to run per plan.
-
-The promote primitive (**C**) and the `*-green` branch model are no longer open:
-they landed on `main` as the **series loop** (`.claude/skills/series-loop.md`)
-while this branch was in flight, which is where the `<S>-green` bound above
-comes from. This change is orthogonal to it — it swaps how the commits in
-`<S>-green..HEAD` get built, not which ones.
+*To deepen: state what the first live consolidation and the first live publish
+against the real remote changed, and fold the vendoring-simplification plan's
+remaining per-commit items
+([`plan/PLAN-vendoring-simplification.md`](/plan/PLAN-vendoring-simplification.md))
+in as they land.*

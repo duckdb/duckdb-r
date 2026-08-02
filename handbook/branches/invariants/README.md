@@ -19,10 +19,9 @@ The families, in one breath:
   a series-loop seed is flavored from day one.
 * **Linearity** — the active history is linear and merge-free,
   so it stays bisectable; forward-ports are cherry-picks.
-* **Flavor / identity** — the names inside a branch agree with
-  each other, everywhere.
-* **Version** — each strand advances its own counter and freezes
-  the other
+* **Flavor / identity** — the names inside a branch agree with each other,
+  everywhere in the branch.
+* **Version** — each strand advances its own counter and freezes the other
   ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 * **Source of truth** — R-side work is born on `main` and reaches
   a series by forwarding, never the reverse;
@@ -33,14 +32,12 @@ The families, in one breath:
 
 Read every statement as a claim about **trees, not ancestry**:
 `main` is a rebuilt linear history that shares no merge-base with
-the parked baselines, so "X equals Y plus a rename" compares
-working trees.
+the parked baselines, so "X equals Y plus a rename" compares working trees.
 
 **Most invariants are enforced by nothing** —
 they are conventions, kept by the loop's routine and by review;
 a few hold mechanically
-(the vendor counter, the advance script's ancestor check on `-green`),
-and the honest per-invariant enforcement note is part of the record.
+(the vendor counter, the advance script's ancestor check on `-green`).
 
 *To deepen: absorb the statements
 with their enforcement notes from `BRANCHES.md`.*

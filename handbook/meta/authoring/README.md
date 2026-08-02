@@ -4,16 +4,18 @@ How the prose of a handbook page is written —
 the rules an author follows and a review enforces, owned here in full.
 The tree's structure, its growth moves, and their enforcement are
 [`meta/handbook/`](/handbook/meta/handbook/README.md)'s;
-extending the tree means following this page —
-absorption is rewriting, never blind copy-paste,
+extending the tree means following this page,
 and a rewrite that loses a fact is a regression, not an edit.
+A rule joins this list once a review has enforced it twice;
+until then it is a preference, and preferences are not enforced.
 
 * **Break lines at meaning boundaries**
   ([semantic line breaks](https://sembr.org)):
   widen a line rather than split a phrase;
   never leave a one-word line,
-  and never break one word before a comma.
-  A long link or code token may stand alone.
+  and never start a line with one word and a comma.
+  Aim under 80 characters, but meaning wins over length,
+  and a long link or code token may stand alone.
 * **Default to a bullet list; make a table earn its columns.**
   A list extends one line at a time and diffs the same way,
   so an enumeration is bullets, each item led by its name.
@@ -22,8 +24,8 @@ and a rewrite that loses a fact is a regression, not an edit.
   a two-column table whose second column is prose
   is a list wearing borders.
 * **State the rule, cut the war story:**
-  failure narratives and history live in git and issues, not in leaves;
-  hold a topic to one screen at core depth.
+  failure narratives, before-and-after framing, and rejected alternatives
+  live in git and issues, not in leaves.
 * **Guard a recurring failure; document only what a guard cannot catch.**
   A trap that keeps happening deserves a check that refuses it,
   not a paragraph asking readers to remember —
@@ -50,8 +52,8 @@ and a rewrite that loses a fact is a regression, not an edit.
   the file that lists the members is durable, the count is not.
   A list that names its members is safe where a tally is not.
   A measurement stays when the text says it is one, and against what;
-  a count stays when it *is* the design,
-  like the version counters or the release machine's states.
+  a count stays when it *is* the design, like the version counters
+  ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 * **Treat a default as a fact:**
   a default governs behaviour, so name the value *and* where it is set —
   the page stays useful when the two drift apart.
@@ -73,11 +75,10 @@ and a rewrite that loses a fact is a regression, not an edit.
   same-directory and downward links stay relative.
   Such links do not resolve in a local preview;
   the handbook is read on GitHub, and that is the trade taken.
-* **Verify before you state**,
-  on a build that can show the claim:
-  the fast path links a release library
-  with its own extension set and defaults,
-  so a claim those could distort needs a vendored build —
+* **Verify before you state**, on a build that can show the claim:
+  a claim the fast path's release library could distort
+  needs a vendored build
+  ([`build/fast-paths/`](/handbook/build/fast-paths/README.md));
   for everything the two builds share, either will do.
 * **When a claim is contested or surprising, check the ground truth**
   (run the diff, read the script) and discuss before editing.
@@ -87,5 +88,3 @@ and a rewrite that loses a fact is a regression, not an edit.
   a finding too expensive to re-derive becomes an experiment
   ([`experiments/`](/experiments/README.md)) that the leaf links.
   A one-off derivation stays in the pull request.
-
-*To deepen: add a rule when a review has enforced it twice.*

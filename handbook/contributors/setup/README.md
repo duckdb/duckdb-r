@@ -16,14 +16,16 @@ R -q -e 'pkgload::load_all()'           # seconds
 R -q -e 'testthat::test_local()'        # the suite
 ```
 
-The default build would compile the vendored engine for many minutes,
-so the fast path is the second step,
-not an optimization to discover later:
-what it costs and guards — and the re-install every vendoring bump
-requires — is
+The default build would compile the vendored engine for tens of minutes,
+so the fast path comes before the first build,
+not as an optimization to discover later:
+what it costs and guards —
+and the re-install every vendoring bump requires — is
 [`build/fast-paths/`](/handbook/build/fast-paths/README.md).
 It assumes Linux or macOS and a working toolchain,
-and the default prefix needs privileges the script escalates for —
+and the default prefix (`/usr/local`, set in
+[`scripts/install-libduckdb.sh`](/scripts/install-libduckdb.sh))
+needs privileges the script escalates for —
 constraints to be relaxed
 ([#22](https://github.com/duckdb/duckdb-r/issues/22#issuecomment-5158085048));
 on Windows, and when no prebuilt matches, the full build applies
