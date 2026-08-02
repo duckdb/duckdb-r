@@ -23,5 +23,5 @@ What is settled:
   repository is the series loop
   ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
 
-*To deepen: write the flow from lived practice — what a steward
-may do unprompted, what needs the maintainer.*
+*To deepen: write the flow from lived practice — what an agent
+may do unprompted on a pull request, and what needs the maintainer.*
