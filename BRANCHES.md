@@ -1,5 +1,7 @@
 # Branching Strategy
 
+*Handbook: [`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md).*
+
 Version numbers are given at the time of writing (March 2026) and may be outdated by the time you read this.
 The branching strategy is expected to remain stable.
 
@@ -623,31 +625,7 @@ duckdb/duckdb-r@main  →  krlmlr/duckdb-r@main-dev  →  krlmlr/duckdb-r@v1.5-v
 
 ## Patch Stack
 
-The upstream C++ code in `src/duckdb/` may be updated to suit the needs of the R package, but not all updates are relevant or appropriate.
-R-specific fixes are maintained as an ordered series of git-format patches under `patch/`.
-Every vendor run re-applies the full stack on top of the freshly vendored sources.
-
-```txt
-  duckdb/duckdb (upstream)
-        │
-        │  vendor.sh / vendor-one.sh
-        ▼
-  src/duckdb/   ← raw vendored C++ sources
-        │
-        │  apply patch/0001-...patch
-        │  apply patch/0002-...patch
-        │  apply patch/0003-...patch
-        │  ...
-        ▼
-  src/duckdb/   ← R-ready C++ sources (committed to branch)
-```
-
-Patches are numbered to define their application order.
-Gaps in the numbering are normal — they indicate patches that were previously removed because the fix was accepted upstream.
-
-When a patch is no longer needed (because the fix was merged upstream), delete the file. Do not renumber the remaining patches. When adding a new patch, assign it the next available number and send the same change as a pull request to `duckdb/duckdb` so it can be retired eventually.
-
-If a vendor run fails because a patch no longer applies cleanly, update the patch against the new upstream code, commit it, and re-run vendoring.
+How a patch is added, dropped, or lost by a vendor run: [`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md).
 
 ## Version Numbering
 
@@ -665,26 +643,7 @@ A released version is the bare three-component prefix (`1.5.4`). The `-dev` bran
 
 ### The DESCRIPTION merge driver
 
-Because the two counters advance on the same line, a plain forward-port, rebase, or release merge
-conflicts on `DESCRIPTION:Version` at essentially every commit. The merge driver in
-`scripts/merge-version.sh` resolves that line by taking the **component-wise maximum** of the two
-sides, **gated on an equal `major.minor.patch` prefix**:
-
-- Within a release line, the max keeps the 4th component from the strand that owns it (the R-client
-  strand) and the 5th from the strand that owns it (the vendor strand). E.g.
-  `1.5.3.9008` merged with `1.5.3.9006.42` → `1.5.3.9008.42`. The result is direction-agnostic.
-- Across release lines (different prefix, e.g. forward-porting a fix from `1.5.x` onto the `1.4.x`
-  LTS), the driver keeps **ours** unchanged and never inherits a foreign prefix.
-
-The rest of `DESCRIPTION` still gets a normal 3-way merge, so a genuine concurrent edit
-(e.g. two branches touching `Imports:`) still raises a real conflict. The authoritative release
-version is set by `fledge::bump_version()` at the tip after the operation completes — the driver's
-only job is to stop the version line from halting a rebase.
-
-**Setup.** The `merge=ours-version` attribute is committed in `.gitattributes`, but the driver's
-name→command mapping must live in `.git/config`. Run `scripts/setup-git.sh` once per clone — and as
-the first step of any CI job that rebases, cherry-picks, or merges — to register the driver, enable
-`rerere`, and pin `rebase.backend=merge` (the patch/`am` backend bypasses merge drivers).
+How the driver resolves the version line, and how it is wired up: [`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md).
 
 ## Tooling
 

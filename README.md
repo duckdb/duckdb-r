@@ -95,7 +95,8 @@ and coding agents.
 * [`BRANCHES.md`](BRANCHES.md) — branch model, package flavors,
   series invariants
 * [`RELEASE.md`](RELEASE.md) — the release process
-* [`scripts/VENDORING.md`](scripts/VENDORING.md) — vendoring mechanics
+* [`handbook/operations/vendoring/`](handbook/operations/vendoring/README.md) —
+  vendoring: the model, the pipeline, the routine that runs it
 * [`plan/README.md`](plan/README.md) — designs, plans, and historical
   documents, each named there by path
 
@@ -130,7 +131,9 @@ It helps if both the duckdb directory and duckdb-r directory are clean.
 
 ## Vendoring
 
-This package includes a vendored copy of the DuckDB C++ library. The vendoring process is automated — a scheduled routine synchronizes each release series with the upstream DuckDB repository, commit by commit. For detailed information about how vendoring works and manual vendoring procedures, see [`scripts/VENDORING.md`](scripts/VENDORING.md).
+This package includes a vendored copy of the DuckDB C++ library.
+The vendoring process is automated — a scheduled routine synchronizes each release series with the upstream DuckDB repository, commit by commit.
+How it works, and how to vendor by hand, is in [`handbook/operations/vendoring/`](handbook/operations/vendoring/README.md).
 
 ## Contributors
 
