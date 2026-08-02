@@ -93,10 +93,14 @@ Any of them is a complete, mergeable pull request:
    The verdicts, and where each routes the knowledge,
    are [`operations/triage/`](/handbook/operations/triage/README.md)'s.
 2. **Absorb a document, or one section of one.**
-   Absorbed text leaves its old home in the same change,
-   replaced by a one-line pointer to the leaf;
-   a fully absorbed file is deleted, not left as a redirect,
+   The fine print moves to the leaf in the same change;
+   what stays behind is cut to what a reader standing there needs,
+   and backreferences the leaf that now carries the detail.
+   A source with nothing left worth keeping goes away entirely,
    and anything that linked to it is updated.
+   The breadcrumb is the point:
+   a fact that changes is edited in one place,
+   and the reader who never heard of the handbook still finds it.
 3. **Deepen from the ground truth.**
    Write what the code, scripts, and workflows actually do,
    and cite the file that proves it.
@@ -149,11 +153,12 @@ A node whose leaves share no such constraint gets no principle;
 where an area has a leaf whose topic is the area's own rules,
 the principles are that leaf's, and the node stays navigation-only.
 
-**An absorbed file goes away.**
-There are no tombstones:
-a `.md` whose content has landed in a leaf is deleted,
-not left behind as a one-line redirect.
-What replaces it is the **in-place `README.md`** —
+**An absorbed file keeps its essentials, or goes away.**
+A `.md` whose detail has landed in a leaf shrinks to the part
+its own readers need and backreferences the leaf;
+what it must not become is a one-line redirect.
+A file with nothing left to keep is deleted, and its place is taken
+by the **in-place `README.md`** —
 the index GitHub renders when someone browses to that directory.
 The index is generated, one row per file,
 grouped by the handbook leaf that owns each file's topic

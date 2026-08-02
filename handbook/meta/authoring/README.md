@@ -37,6 +37,13 @@ and a rewrite that loses a fact is a regression, not an edit.
 * **Explain once:**
   when another leaf, a file header, or a reference page owns a fact,
   link it — never restate it.
+* **Leave a breadcrumb where the reader stands.**
+  When detail moves into a leaf,
+  the source it came from — a document, a script header,
+  an inline comment — keeps its essentials
+  and links the leaf that now carries the rest,
+  so a fact is edited in one place
+  and found from the place it is about.
 * **State what stays true as the code moves:**
   a number an ordinary commit invalidates is a hostage —
   name the mechanism instead:
