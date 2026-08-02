@@ -3,8 +3,6 @@
 # Called by vendor.sh and vendor-one.sh with DUCKDB_PATH set.
 import os
 import sys
-import shutil
-import subprocess
 import platform
 
 extensions = ['parquet','core_functions']
@@ -12,13 +10,6 @@ extensions = ['parquet','core_functions']
 # check if there are any additional extensions being requested
 if 'DUCKDB_R_EXTENSIONS' in os.environ:
     extensions = extensions + os.environ['DUCKDB_R_EXTENSIONS'].split(",")
-
-unity_build = 20
-if 'DUCKDB_BUILD_UNITY' in os.environ:
-    try:
-        unity_build = int(DUCKDB_BUILD_UNITY)
-    except:
-        pass
 
 debug_move_flag = ''
 if 'DUCKDB_DEBUG_MOVE' in os.environ:
@@ -97,39 +88,6 @@ link_flags = ''
 for libname in libraries:
     link_flags += ' -l' + libname
 
-# check if we are doing a build from an existing DuckDB installation
-if 'DUCKDB_R_BINDIR' in os.environ and 'DUCKDB_R_CFLAGS' in os.environ and 'DUCKDB_R_LIBS' in os.environ:
-    existing_duckdb_dir = os.environ['DUCKDB_R_BINDIR']
-    compile_flags = os.environ['DUCKDB_R_CFLAGS'].replace('\\', '').replace('  ', ' ')
-    rlibs = [x for x in os.environ['DUCKDB_R_LIBS'].split(' ') if len(x) > 0]
-
-    # use existing installation: set up Makevars
-    with open_utf8(os.path.join('src', 'Makevars.in'), 'r') as f:
-        text = f.read()
-
-    compile_flags += package_build.include_flags(extensions)
-    compile_flags += extension_list
-
-    # find libraries
-    result_libs = package_build.get_libraries(existing_duckdb_dir, rlibs, extensions)
-
-    for rlib in result_libs:
-        libdir = rlib[0]
-        libname = rlib[1]
-        if libdir != None:
-            link_flags += ' -L' + libdir
-        if libname != None:
-            link_flags += ' -l' + libname
-
-    text = text.replace('{{ SOURCES }}', '')
-    text = text.replace('{{ INCLUDES }}', compile_flags.strip())
-    text = text.replace('{{ LINK_FLAGS }}', link_flags.strip())
-
-    # now write it to the output Makevars
-    with open_utf8(os.path.join('src', 'Makevars'), 'w+') as f:
-        f.write(text)
-    exit(0)
-
 if not os.path.isfile(os.path.join(duckdb_path, 'scripts', 'amalgamation.py')):
     print("Could not find amalgamation script!")
     exit(1)
@@ -138,7 +96,7 @@ target_dir = os.path.join(os.getcwd(), 'src', 'duckdb')
 
 linenr = bool(os.getenv("DUCKDB_R_LINENR", ""))
 
-(source_list, include_list, original_sources) = package_build.build_package(target_dir, extensions, linenr, unity_build)
+(source_list, include_list, original_sources) = package_build.build_package(target_dir, extensions, linenr)
 
 # Drop the bundled jemalloc sources. The R package does not enable jemalloc
 # (DUCKDB_ENABLE_JEMALLOC is never defined), so duckdb's allocator uses the
