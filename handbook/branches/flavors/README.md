@@ -2,8 +2,8 @@
 
 One source tree, published under several package names:
 `duckdb` on CRAN,
-and `duckdb.1.4`, `duckdb.dev`, `duckdb.1.5.dev`, `duckdb.1.4.dev`
-on r-universe.
+and numbered and `.dev` names on r-universe,
+tabulated under [The flavors](#the-flavors) below.
 A flavor is a mechanical rename applied on top of a series' branch —
 nothing else distinguishes one published package from another.
 
@@ -65,8 +65,8 @@ is exactly this:
   so no roxygen2 run is needed.
 * `src/include/rapi.hpp` — the `DUCKDB_PACKAGE_NAME` macro.
 * `inst/include/duckdb_types.hpp` — renamed,
-  with dots turned into underscores:
-  `duckdb_1_4_types.hpp`, `duckdb_1_5_dev_types.hpp`, `duckdb_dev_types.hpp`.
+  with dots turned into underscores,
+  so `duckdb.1.5.dev` gives `duckdb_1_5_dev_types.hpp`.
   It is the public C++ header that downstream packages include by name.
 * `tests/testthat.R` — the `library()` call.
 * `README.md` — the CRAN and Posit Public Package Manager sections
