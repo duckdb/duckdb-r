@@ -213,6 +213,18 @@ because nothing in the sentence breaks when the forty-fifth lands.
 A list is safe, a tally is not,
 and the same number can be either depending on what surrounds it.
 
+A **default is a fact**, and belongs in the prose with its value.
+How many commits a pass consumes,
+how large a chunk the planner cuts,
+what a knob does when nobody sets it —
+these govern behaviour,
+and a reader who has to open the script to learn them
+has been sent away for the thing they came for.
+Name the value *and* where it is set,
+so the leaf stays useful when the two drift apart —
+and when a document has long claimed the wrong default,
+say so, or the wrong number comes back.
+
 Positional reference fails the same way.
 "Neither of the first two is in force"
 and "the first two, as `$pkg` and `$env`"
