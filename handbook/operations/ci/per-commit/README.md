@@ -233,7 +233,7 @@ and keeps one 8 GB local cache instead.
 The gate runs as a script rather than a reusable workflow or a composite action:
 `uses:` is a job-level key and a workflow cannot loop over a composite action,
 so a shell loop ([`rcc-one.sh`](/scripts/rcc-one.sh))
-is the only construct that runs the same gate N times in one job.
+is the simplest construct that runs the same gate N times in one job.
 
 ## Planning
 
