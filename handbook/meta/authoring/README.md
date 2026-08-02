@@ -42,8 +42,8 @@ where a rule has its full form there, the line here links it.
 * **Write links that leave their directory from the repository root**,
   with a leading `/`
   ([the forms](/handbook/meta/handbook/README.md#the-forms)).
-* **Verify before you state**;
-  make engine-configuration claims only on a vendored build
+* **Verify before you state**,
+  on a build that can show the claim
   ([growing a leaf](/handbook/meta/handbook/README.md#growing-a-leaf)).
 * **When a claim is contested or surprising, check the ground truth**
   (run the diff, read the script) and discuss before editing.
