@@ -59,8 +59,6 @@ classification still reads the harvested log, unchanged (see below).
 
 ### Bounded by `<S>-green`
 
-What each series ref means and how far it may move is
-[`branches/model/`](/handbook/branches/model/README.md)'s.
 Selection carries over the bound the series
 loop introduced: on a `<S>-dev` branch with a sibling `<S>-green`, only
 `<S>-green..HEAD` is scanned — everything at or before green is trusted and
@@ -322,7 +320,7 @@ and Actions being disabled on the account that tried it.
 A 3000-job run would be unreadable exactly when a red commit needs finding.
 
 There is also a maintenance cost: `R-CMD-check.yaml` is forward-ported
-from `duckdb/duckdb-r@main` (see [`branches/model/`](/handbook/branches/model/README.md)),
+from `duckdb/duckdb-r@main`,
 so a repo-specific `workflow_call` interface there is a permanent merge tax.
 
 ### Can a job have multiple tasks that each do a `workflow_call`?
@@ -1115,7 +1113,7 @@ it with no separating context.
 `each.yaml` runs the scripts from the *branch it is checking*,
 so a `*-dev` branch picks up the sharded path only once the new scripts are forward-ported to it —
 the same constraint every CI change in this repository has
-(invariant **G1**, [`branches/invariants/`](/handbook/branches/invariants/README.md)).
+(invariant **G1**).
 Until then that branch's copy of `each.yaml` is the old dispatcher, and keeps working.
 (The series loop automates this forward-port:
 stage 4 — `scripts/series-port.sh` — brings each `-dev` level with `main`;
