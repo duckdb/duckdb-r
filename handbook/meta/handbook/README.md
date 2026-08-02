@@ -106,13 +106,9 @@ Any of them is a complete, mergeable pull request:
 
 Whichever move, the same protocol:
 
-* **Verify before you state.**
-  Check every behavioral claim against the ground truth,
-  on a build that can show it:
-  the fast path links a release library
-  with its own extension set and defaults,
-  so a claim those could distort needs a vendored build —
-  for everything the two builds share, either will do.
+* **Follow [`meta/authoring/`](/handbook/meta/authoring/README.md).**
+  New and absorbed prose alike is written to that checklist —
+  absorption is rewriting, never blind copy-paste.
 * **Stay inside the scope line.**
   A fact beyond it belongs to another leaf — link, don't absorb.
 * **Finish clean.**
@@ -124,6 +120,8 @@ Whichever move, the same protocol:
 The rules above say what a page must do;
 these are the shapes the tree has settled on for doing it.
 They exist so that leaves written independently read as one document.
+How the prose itself is written is
+[`meta/authoring/`](/handbook/meta/authoring/README.md)'s.
 
 **A written leaf** opens with its H1
 and then a scope sentence in ordinary prose,
@@ -140,17 +138,6 @@ kept current by every change to the leaf,
 and deleted by the change that completes it.
 A leaf with no deepen line asserts it is comprehensive.
 
-**A bullet list is the default; a table must earn its columns.**
-A list extends one line at a time and diffs the same way,
-so an enumeration — files and their producers,
-knobs and their effects, verdicts and their meanings —
-is bullets, each item led by its name.
-A table is for genuinely two-dimensional content,
-where the reader compares along both axes
-and the aligned columns carry the comparison;
-a two-column table whose second column is prose
-is a list wearing borders.
-
 **A principle on an internal node** is a short paragraph, or a few,
 between the scope sentence and the list of children.
 It survives three tests,
@@ -164,15 +151,6 @@ no paths, scripts, variables, versions, counts, or commands.
 A node whose leaves share no such constraint gets no principle;
 where an area has a leaf whose topic is the area's own rules,
 the principles are that leaf's, and the node stays navigation-only.
-
-**No page writes `duckdb` as though it were the package's name.**
-One source tree is published under several names
-([`branches/flavors/`](/handbook/branches/flavors/README.md)),
-so prose that calls the package `duckdb` is wrong under every
-other flavor: write "the package", or say how to ask for the name.
-The repository (`duckdb-r`), the engine and upstream project
-(DuckDB), and a flavor named as a flavor (`duckdb` among them)
-are not violations.
 
 **An absorbed file goes away.**
 There are no tombstones:
@@ -217,97 +195,8 @@ Where no index covers a document, it carries its own:
   so that it survives the next regeneration.
   Editing the generated file to add one is writing in sand.
 
-Two kinds of file take no backreference at all.
-A file covered by a generated index is already carried by it.
-And **outbound correspondence takes none** —
-`cran-comments.md` is not documentation of a topic
-but a letter whose whole text reaches a CRAN maintainer verbatim,
-so the link to it is one-way,
-and that asymmetry is correct rather than an orphan.
-
-**A link that leaves its own directory
-is written from the repository root**,
-with a leading `/` — `/handbook/usage/types/`, not `../../usage/types/`. GitHub resolves such a link against the
-repository root and rewrites it for whatever branch the reader is on,
-so it works unchanged on `main`, on a pull request head, and in a fork.
-Same-directory and downward links stay relative, as they are already
-correct and already short.
-The tree is four levels deep in places,
-and a `../../../../` chain is both unreadable and wrong the moment a
-page moves — which, in a hierarchy that is still settling, it will.
-This follows the
-[Google Markdown style guide](https://google.github.io/styleguide/docguide/style.html#links),
-which discourages exactly the upward form and nothing else.
-The cost is that such a link does not resolve
-in a local Markdown preview, which has no notion of a repository root;
-the handbook is read on GitHub, and that is the trade taken.
-
-**A leaf states what stays true as the code moves.**
-A number that a normal commit invalidates —
-how many translation units, how many test files,
-how many seconds a build takes —
-is not a fact worth stating but a hostage to the next contributor,
-and a reader who trusts it is worse off than one who looked.
-Name the mechanism instead:
-the file that lists the translation units is durable,
-the count is not.
-Where the count carries no argument, cut it;
-where a qualitative statement will do, prefer it.
-Two things survive this rule.
-A measurement stays if the text says it is a measurement
-and against what — a measurement with provenance ages honestly,
-where a bare number pretends to be current.
-And a count stays when it *is* the design:
-the two version counters, the states of the release machine.
-Changing a load-bearing number means changing the design,
-which is exactly why stating it is safe.
-
-The working test is whether the prose names its members.
-"Two identifiers travel with the vendored copy" is durable
-when the next clause names both,
-because the set cannot change without the sentence changing with it;
-"forty-four files register S4 methods this way" is a hostage,
-because nothing in the sentence breaks when the forty-fifth lands.
-A list is safe, a tally is not,
-and the same number can be either depending on what surrounds it.
-
-**A fact known to be provisional carries the link to what will change it.**
-The rules already say a leaf points at the plan
-that carries its intent;
-intent also lives as an issue, ours or upstream,
-and those count the same.
-Without the link a reader cannot tell
-"this is how it works" from "this is how it works for now",
-and the two call for different decisions.
-With it, the leaf records that we already know —
-so the next reader does not re-derive the finding,
-and the acknowledgement is not lost
-the way it is when it lives only in a code comment
-or a pull-request thread.
-A behaviour that survives only because nobody has fixed it yet
-is documented as such, with its issue,
-and stops being documented that way when the issue closes.
-
-A **default is a fact**, and belongs in the prose with its value.
-How many commits a pass consumes,
-how large a chunk the planner cuts,
-what a knob does when nobody sets it —
-these govern behaviour,
-and a reader who has to open the script to learn them
-has been sent away for the thing they came for.
-Name the value *and* where it is set,
-so the leaf stays useful when the two drift apart —
-and when a document has long claimed the wrong default,
-say so, or the wrong number comes back.
-
-Positional reference fails the same way.
-"Neither of the first two is in force"
-and "the first two, as `$pkg` and `$env`"
-break silently when a list above them is reordered,
-which is not even a change to the subject matter.
-Name the thing.
-
-All prose in the tree uses [semantic line breaks](https://sembr.org).
+Only few kinds of file take no backreference to the handbook at all,
+among them `.Rd` files (auto-linked to `.R`) and `cran-comments.md`.
 
 ## Enforcement
 
