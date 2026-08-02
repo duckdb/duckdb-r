@@ -54,6 +54,11 @@ and it is written for an agent starting with clean context:
 * **Drain the issues.**
   An issue listed in the stub closes when its answer is written
   into the leaf; link the issue from the text that answers it.
+  Start from the triage (`operations/triage/` names the source):
+  for many listed issues the answer is already drafted there —
+  consume it, don't re-derive it.
+  An issue whose verdict is a fix stays open;
+  the leaf states today's behavior and links it as a boundary.
 * **Stay inside the scope line.**
   A fact beyond it belongs to another leaf — link, don't absorb.
 * **Finish clean.**

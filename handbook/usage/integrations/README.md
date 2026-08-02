@@ -17,4 +17,5 @@ To write this leaf:
 * own: dbplyr backend semantics (what pushes down, translation
   boundaries) and Arrow interchange; `?backend-duckdb` stays the
   translation reference
-* drain: #162, #209, #384, #642, #1064, #1585, #1982, #2029, #2230
+* drain: #162, #209, #384, #1064, #1585, #1982, #2029, #2230
+  (#642's Polars recipe lands in `types/`, per the triage)

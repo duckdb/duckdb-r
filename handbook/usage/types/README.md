@@ -17,6 +17,6 @@ To write this leaf:
 
 * gather: the mapping from `src/types.cpp` and the R coercion code;
   UTF-8 strictness is deliberate engine behavior — say so
-* drain: #12, #155, #184, #200, #590, #1670
+* drain: #12, #155, #184, #200, #590, #642, #1670
 * stage the facts here until a `?duckdb_types` reference page exists,
   then invert to a pointer
