@@ -22,7 +22,7 @@ is all it takes.
 | `MAKEFLAGS` | Passed to `make`; only `-j` matters here. When it is empty, `configure` fills it in from [`scripts/setup-makeflags.R`](/scripts/setup-makeflags.R) and prints what it chose; when it is set, `configure` prints it and leaves it alone. | `-j` with the smaller of `parallel::detectCores()` and 2, so `-j2` on any multicore box; the cap is lifted when `NOT_CRAN` is truthy | To pin parallelism yourself: `export MAKEFLAGS="-j$(nproc)"` |
 | `NOT_CRAN` | Lifts the two-core cap that `scripts/setup-makeflags.R` puts on its guess, per CRAN's policy for checks. Matched case-insensitively against `true`, `1`, `yes`; anything else counts as false. | unset, so the cap applies | A local build that should use every core without your naming a `-j` |
 | ccache | Not an environment variable — the compilers are wrapped in `~/.R/Makevars`. Turns a repeat build of the vendored tree from minutes into seconds. | off | Any machine that compiles the vendored tree more than once |
-| `UserNM` | Names the `nm` program R uses to build `symbols.rds`, which [`src/Makevars.in`](/src/Makevars.in) puts on the `all:` target. `UserNM=true` skips the sweep. | unset, so R takes `nm` from `PATH` | An install-time shortcut only, never for `R CMD check`; it saves about 10–20 s on this tree |
+| `UserNM` | Names the `nm` program R uses to build `symbols.rds`, which [`src/Makevars.in`](/src/Makevars.in) puts on the `all:` target. `UserNM=true` skips the sweep. | unset, so R takes `nm` from `PATH` | An install-time shortcut only, never for `R CMD check`; it trims a step from the end of the install |
 | `DUCKDB_R_PREBUILT_ARCHIVE` | Path to a `.tar` of the vendored object files. If the file exists and extracts, `configure` uses [`src/include/from-tar.mk`](/src/include/from-tar.mk) and nothing is recompiled; otherwise it uses `to-tar.mk` (`to-tar-win.mk` on Windows), which writes the archive once the objects are built. | unset, so objects are built normally and no archive is written | CI. Locally ccache does the same job better, as `configure`'s own comment says |
 | `DUCKDB_R_USE_SYSTEM_LIB` | Links a prebuilt libduckdb instead of compiling the vendored sources — see [`build/fast-paths/`](/handbook/build/fast-paths/README.md). | unset | — |
 | `DUCKDB_R_LIB_DIR` | Directory holding `libduckdb.so` / `.dylib`. Read only while the system-lib opt-in is active. | `pkg-config --variable=libdir duckdb`, then `/usr/local/lib`, `/opt/homebrew/lib`, `/usr/lib/x86_64-linux-gnu`, `/usr/lib/aarch64-linux-gnu`, `/usr/lib` | libduckdb sits in a prefix none of those cover |
@@ -70,7 +70,7 @@ they only take effect through a vendoring run
 
 | Knob | What it does | Default | When to set |
 |---|---|---|---|
-| `DUCKDB_R_EXTENSIONS` | Comma-separated extension names appended to the built-in list. Each one contributes `-DDUCKDB_EXTENSION_<NAME>_LINKED`, its include flags, and its sources. Merely defining the variable triggers the append, so an empty value appends an empty name. | `parquet`, `core_functions` — the two statically linked in every build ([`usage/extensions/`](/handbook/usage/extensions/README.md)) | Re-vendoring with a further in-tree extension linked in |
+| `DUCKDB_R_EXTENSIONS` | Comma-separated extension names appended to the built-in list. Each one contributes `-DDUCKDB_EXTENSION_<NAME>_LINKED`, its include flags, and its sources. Merely defining the variable triggers the append, so an empty value appends an empty name. | `parquet`, `core_functions` — statically linked in every build ([`usage/extensions/`](/handbook/usage/extensions/README.md)) | Re-vendoring with a further in-tree extension linked in |
 | `DUCKDB_DEBUG_MOVE` | Adds `-DDUCKDB_DEBUG_MOVE` to the generated `PKG_CPPFLAGS`. Triggered by the variable being defined, whatever its value. | unset | Chasing a use-after-move in the engine |
 | `DUCKDB_R_LINENR` | Passed on to upstream's `package_build.build_package()` as its `linenr` argument. Any non-empty value is true, including `0` and `false`. | unset, i.e. false | Rarely — what it produces is decided by `package_build.py`, which lives in the DuckDB checkout and not here, so it is not verifiable from this repository |
 | `DUCKDB_PATH` | Where the DuckDB checkout is. | `../duckdb` | Set for you by the vendoring scripts |
@@ -84,7 +84,7 @@ so the default of 20 always survives.
 It is listed as it behaves, not as it reads;
 making it work is a code change, not a documentation one.
 
-`DUCKDB_R_BINDIR`, `DUCKDB_R_CFLAGS` and `DUCKDB_R_LIBS` are a fourth
+`DUCKDB_R_BINDIR`, `DUCKDB_R_CFLAGS` and `DUCKDB_R_LIBS` are a further
 vendoring-time knob, taking effect only when all three are set together:
 `rconfigure.py` then writes a `src/Makevars` with no sources and link flags
 derived from an existing DuckDB installation, and exits before it touches
@@ -110,7 +110,7 @@ and are documented where they act:
   `scripts/install-libduckdb.sh` rather than the build —
   [`build/fast-paths/`](/handbook/build/fast-paths/README.md)
 
-Three more are outputs rather than inputs, and setting them by hand achieves
+Others are outputs rather than inputs, and setting them by hand achieves
 nothing: `DUCKDB_RSTRTMGR`, which `configure` writes into
 `src/Makevars.rstrtmgr`, and `DUCKDB_R_PREBUILT_ARCHIVE_GHA_CACHE_KEY` and
 `DUCKDB_R_UNRELEASED`, which the CI actions compute for themselves.
