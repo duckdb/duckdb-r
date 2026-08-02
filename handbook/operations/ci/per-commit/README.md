@@ -9,16 +9,10 @@ This page is the design record,
 moved here from the former `scripts/EACH.md`.
 
 `.github/workflows/each.yaml` proves invariant **C1** from
-[`BRANCHES.md`](/BRANCHES.md#ci--green):
+[`branches/invariants/`](/handbook/branches/invariants/README.md):
 every commit on a `*-dev` branch is green, so the branch is bisectable end to end.
-It used to do that by dispatching one `rcc` workflow run per commit.
-It now plans contiguous, cost-balanced **shards** and gives each shard one job,
+It plans contiguous, cost-balanced **shards** and gives each shard one job,
 which walks its commits in a single workspace.
-
-This document is the design: what stays the same, what the runner-level
-mechanics are, which GitHub Actions limits shape them,
-and — since they came up first — why `workflow_call` is *not* the mechanism
-that gets us there.
 
 ---
 
@@ -326,7 +320,7 @@ and Actions being disabled on the account that tried it.
 A 3000-job run would be unreadable exactly when a red commit needs finding.
 
 There is also a maintenance cost: `R-CMD-check.yaml` is forward-ported
-from `duckdb/duckdb-r@main` (see [`BRANCHES.md`](/BRANCHES.md)),
+from `duckdb/duckdb-r@main` (see [`branches/model/`](/handbook/branches/model/README.md)),
 so a repo-specific `workflow_call` interface there is a permanent merge tax.
 
 ### Can a job have multiple tasks that each do a `workflow_call`?
@@ -1118,7 +1112,7 @@ it with no separating context.
 `each.yaml` runs the scripts from the *branch it is checking*,
 so a `*-dev` branch picks up the sharded path only once the new scripts are forward-ported to it —
 the same constraint every CI change in this repository has
-(invariant **G1** in [`BRANCHES.md`](/BRANCHES.md#source-of-truth-cross-series)).
+(invariant **G1**, [`branches/invariants/`](/handbook/branches/invariants/README.md)).
 Until then that branch's copy of `each.yaml` is the old dispatcher, and keeps working.
 (The series loop automates this forward-port:
 stage 4 — `scripts/series-port.sh` — brings each `-dev` level with `main`;
