@@ -13,9 +13,9 @@ the R code on the other side of the seam is
 
 `src/` holds two disjoint bodies of code:
 the vendored engine under `src/duckdb/`,
-and fifteen glue translation units directly in `src/`.
-`src/include/glue.mk` names exactly those fifteen as `GLUE`,
-kept apart from the engine's `SOURCES` list —
+and the glue translation units directly in `src/`.
+`src/include/glue.mk` is the roster: its `GLUE` variable names them all,
+and keeps them apart from the engine's `SOURCES` list —
 the split that lets the
 [fast build paths](/handbook/build/fast-paths/README.md)
 compile the glue alone and link a prebuilt engine.
@@ -26,7 +26,7 @@ compile the glue alone and link a prebuilt engine.
 | `connection.cpp` | connect, disconnect, validity; the garbage-collection warning in `ConnDeleter`; the R progress-bar display |
 | `statement.cpp` | prepare, bind, execute, release; the Arrow result stream and record-batch entry points |
 | `register.cpp` | `rapi_register_df()`, which creates a view over the data-frame scan and pins the `SEXP` as an attribute on the connection so it outlives the call; `rapi_register_arrow()`; and the two replacement scans that resolve an unknown table name to a registered Arrow object or to a binding in the calling R environment |
-| `relational.cpp` | the relational API: thirty-seven `rapi_rel_*` and `rapi_expr_*` entry points that build `Relation` trees and `ParsedExpression`s without executing them |
+| `relational.cpp` | the relational API: the `rapi_rel_*` and `rapi_expr_*` entry points, which build `Relation` trees and `ParsedExpression`s without executing them |
 | `scan.cpp` | `DataFrameScanFunction`, the table function that reads R vectors as DuckDB vectors |
 | `transform.cpp` | the other direction: allocate, decorate, and fill R vectors from DuckDB vectors |
 | `types.cpp` | `RType`: detecting the R type of a vector, and mapping it to a `LogicalType` |
@@ -66,10 +66,10 @@ stamped with its version and vendoring date at the top of
 `inst/include/cpp11.hpp`, and `DESCRIPTION` has no `LinkingTo:` field.
 Upgrading cpp11 means re-vendoring those headers.
 
-An entry point is a free function marked `[[cpp11::register]]` —
-sixty-four of them today.
+An entry point is a free function marked `[[cpp11::register]]`.
 `cpp11::cpp_register()` reads the annotations and writes both halves of
-the binding: `src/cpp11.cpp` and `R/cpp11.R`.
+the binding: `src/cpp11.cpp` and `R/cpp11.R`,
+which between them are the current list of entry points.
 Both are generated and are never edited by hand;
 the R half belongs to
 [`architecture/r-layer/`](/handbook/architecture/r-layer/README.md).
@@ -167,7 +167,7 @@ It looks up the R function `rapi_error()` in the package namespace and
 calls it; the `ErrorData` overload passes the message, the raw message,
 the exception type, and the engine's extra-info map along, so the
 structured part of an engine error survives the crossing.
-Ten of the fifteen translation units call it, which is why the `context`
+Most of the glue calls it, which is why the `context`
 argument — the name of the C++ function raising the error — is worth
 passing accurately.
 
