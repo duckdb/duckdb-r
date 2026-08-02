@@ -15,8 +15,6 @@ What is settled:
   policy — and that snapshots changed only where the diff explains
   them ([`testing/snapshots/`](/handbook/testing/snapshots/README.md)).
 * The author drives CI to green.
-  Formatting arrives as suggestions on the pull request, from
-  [`format-suggest.yaml`](/.github/workflows/format-suggest.yaml).
 * An agent may be asked to watch a pull request — CI, review comments,
   merge conflicts — for the length of a session.
   Nothing here is scheduled: the only scheduled agent routine in this
