@@ -36,6 +36,10 @@ The load-bearing facts:
   everything before the final statement executes at prepare time,
   and `?` placeholders bind only in the last statement
   ([#179](https://github.com/duckdb/duckdb-r/issues/179)).
+  DBI's `immediate = TRUE` is no way around this and no way to opt out:
+  the driver has no unprepared path — every route reaches
+  [`src/statement.cpp`](/src/statement.cpp)'s prepare, which is where the
+  earlier statements run — and the argument lands in `...` unread.
 
 *To deepen: absorb the instance and caching section of `?duckdb`;
 drain [#172](https://github.com/duckdb/duckdb-r/issues/172),
