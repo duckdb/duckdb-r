@@ -142,6 +142,9 @@ headings start where a page is long enough to navigate.
 
 **A link to a handbook page** names the directory in backticks
 and targets its `README.md`.
+An internal node's child list is the exception:
+there the link text is the directory and so is the target,
+because the list is the tree, not a citation.
 
 **A deepen line** is the last line of a leaf
 that is not yet comprehensive:
@@ -192,10 +195,7 @@ and each absorbed heading becomes a one-line pointer to the leaf.
 **A backreference is how a leaf is discovered from the source tree.**
 Someone standing in `scripts/` finds the leaf that explains what they
 are looking at without knowing the handbook exists.
-The generated index carries the backreference for every file it covers —
-today that is `scripts/` alone,
-and extending the generator to the other directories that hold
-documentation is open work, not a settled shape.
+The generated index carries the backreference for every file it covers.
 Where no index covers a document, it carries its own:
 
 * *Markdown* — a visible italic line directly under the H1,

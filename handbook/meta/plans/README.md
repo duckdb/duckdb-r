@@ -9,8 +9,8 @@ things that are not so.
 A plan sits in `plan/` as `PLAN-<topic>.md`;
 a superseded design or one-off review sits in `plan/history/`,
 kept for its reasoning and measurements.
-Each opens by saying what it is and which document owns its topic
-today —
+Each opens by saying what it is
+and which document owns its topic today —
 and where a plan and the owner disagree, the owner is right.
 [`plan/README.md`](/plan/README.md) is the directory's index and
 names every document; a file it does not name is an orphan.

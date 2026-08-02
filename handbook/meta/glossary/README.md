@@ -2,6 +2,9 @@
 
 The tree's recurring terms of art, one line each,
 every entry linking the leaf that owns the concept.
+A term earns a line once a second leaf uses it,
+added by the change that reaches for it —
+one line, so the register stays greppable and diffs per term.
 
 * **ALTREP** — R's alternative-representation mechanism: how an unexecuted relation masquerades as a data frame until touched ([`architecture/glue/`](/handbook/architecture/glue/README.md)).
 * **autoload / autoinstall** — an *installed* extension loads on first use; nothing downloads without being asked ([`usage/extensions/`](/handbook/usage/extensions/README.md)).
@@ -46,5 +49,3 @@ every entry linking the leaf that owns the concept.
 * **vendoring** — keeping a dependency's sources inside the depending repository ([`operations/vendoring/model/`](/handbook/operations/vendoring/model/README.md)).
 * **verdict store** / **`rcc` branch** — the orphan branch holding each commit's build verdict and log ([`operations/ci/per-commit/`](/handbook/operations/ci/per-commit/README.md)).
 * **WKB** — well-known binary, the geometry interchange across the R boundary ([`usage/types/`](/handbook/usage/types/README.md)).
-
-*To deepen: add terms as leaves coin them; a term used in two leaves belongs here.*

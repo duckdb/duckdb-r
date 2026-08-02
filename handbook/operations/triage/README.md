@@ -2,11 +2,10 @@
 
 Issue intake: the verdicts an item can close under,
 and where each routes the knowledge.
-The worked instance is the 2026-07 triage of the whole open queue
-(`plan/PLAN-inbox-zero.md` on branch
-`claude/review-open-issues-prs-46alwv` of `krlmlr/duckdb-r`),
-whose per-issue dispositions and drafted answers the leaves here
-consume rather than re-derive.
+The per-issue dispositions and drafted answers for the current queue
+are a plan, not a leaf: they arrive with `PLAN-inbox-zero.md`
+(branch `claude/review-open-issues-prs-46alwv`, not yet landed),
+and the leaves here consume them rather than re-derive them.
 
 **Every open item gets exactly one verdict, an owner, and a next
 action** — an issue that stays open is a decision, not a leftover:
@@ -33,9 +32,10 @@ Closing credits the reporter and names the reopen condition.
 
 The label vocabulary readers act on is
 [`contributors/where-to-help/`](/handbook/contributors/where-to-help/README.md)'s;
-the lock bot (`.github/workflows/lock.yaml`) closes threads a year
-after they close, not open ones.
+the lock bot ([`lock.yaml`](/.github/workflows/lock.yaml))
+locks a thread after a year without activity —
+it neither closes nor reopens anything.
 
-*To deepen: absorb the guardrails from the triage plan § 7 —
+*To deepen: absorb the triage plan's guardrails —
 issue templates, queue-state labels, the sweep routine — as they
 are adopted.*

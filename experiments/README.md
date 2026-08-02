@@ -25,10 +25,13 @@ and a leaf that leans on it says so.
 Re-running is how it is refreshed;
 the directory keeps the method so that is possible.
 
-| Experiment | Supports |
-|---|---|
-| [`2026-03-vendor-build-cost/`](2026-03-vendor-build-cost/) — churn per vendor commit, ccache hit rate on adjacent commits, archive size | [`operations/ci/per-commit/`](/handbook/operations/ci/per-commit/README.md) |
-| [`2026-08-02-lts-drift/`](2026-08-02-lts-drift/) — how far the v1.4 LTS flavor has drifted from its baseline | [`branches/invariants/`](/handbook/branches/invariants/README.md) |
+* [`2026-03-vendor-build-cost/`](2026-03-vendor-build-cost/) —
+  churn per vendor commit, ccache hit rate on adjacent commits,
+  archive size; supports
+  [`operations/ci/per-commit/`](/handbook/operations/ci/per-commit/README.md).
+* [`2026-08-02-lts-drift/`](2026-08-02-lts-drift/) —
+  how far the v1.4 LTS flavor has drifted from its baseline; supports
+  [`branches/invariants/`](/handbook/branches/invariants/README.md).
 
 Adding one: create the directory, name it for the date and the topic,
 open its `README.md` with what and when and on what,
