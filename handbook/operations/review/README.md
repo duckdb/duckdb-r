@@ -1,7 +1,6 @@
 # Review
 
-Pull-request flow: what a review checks, who drives CI to green,
-and the stewardship routines that watch open pull requests.
+Pull-request flow: what a review checks, and who drives CI to green.
 Little of this is written down yet; the flow lives in practice.
 
 What is settled:
@@ -18,9 +17,11 @@ What is settled:
 * The author drives CI to green; formatting suggestions arrive on
   the PR from the format workflow
   ([`operations/ci/workflows/`](/handbook/operations/ci/workflows/README.md)).
-* Scheduled agent routines steward open PRs — watching CI,
-  rebasing, and answering review comments — under the same rule
-  as every routine: automation prepares, a person concludes.
+* An agent may be asked to watch a pull request — CI, review comments,
+  merge conflicts — for the length of a session.
+  Nothing here is scheduled: the only scheduled agent routine in this
+  repository is the series loop
+  ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
 
 *To deepen: write the flow from lived practice — what a steward
 may do unprompted, what needs the maintainer.*
