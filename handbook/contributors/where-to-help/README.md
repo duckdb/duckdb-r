@@ -6,11 +6,10 @@ The tracker is the list — a saved query is never out of date,
 so no curated selection is kept here.
 
 One label invites outside work:
-[`help wanted ❤️`](https://github.com/duckdb/duckdb-r/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted+%3Aheart%3A%22).
-GitHub renders the shortcode, so the label is *typed* as
-`label:"help wanted :heart:"`;
-`upstream 🐟` and `duckplyr 🗜️` carry the emoji character and
-paste verbatim.
+[`help wanted ❤️`](https://github.com/duckdb/duckdb-r/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted+%E2%9D%A4%EF%B8%8F%22).
+Label names carry real emoji characters,
+so every one — `upstream 🐟`, `duckplyr 🗜️` among them —
+pastes verbatim into a search box.
 The full vocabulary is the tracker's
 [label index](https://github.com/duckdb/duckdb-r/labels);
 the boundaries that matter when choosing work:
