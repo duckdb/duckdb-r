@@ -194,13 +194,11 @@ because it is the state a killed leg leaves behind.
 
 ### Why reuse works even though every commit starts from a clean tree
 
-The leg does `git checkout --force` and `git clean -qfdx` before each commit.
-That looks like it throws away the previous commit's work,
-and for object files it does — but object files were never going to survive.
-`R CMD check` runs `R CMD build` first,
-which copies the package and compiles from the copy;
-worse, this package's `cleanup` script tars `src/duckdb` away and deletes it.
-Timestamp-based incremental `make` cannot cross a commit boundary here.
+The leg does `git checkout --force` and `git clean -qfdx` before each commit,
+so object files do not survive — and they would not anyway:
+`R CMD check` compiles from the copy `R CMD build` makes,
+and this package's `cleanup` script tars `src/duckdb` away.
+Incremental `make` cannot cross a commit boundary here.
 
 What does survive is **ccache**, which is content-addressed
 and lives outside the workspace for the whole job.
