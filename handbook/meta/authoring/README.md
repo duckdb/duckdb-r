@@ -5,7 +5,8 @@ the rules an author follows and a review enforces, owned here in full.
 The tree's structure, its growth moves, and their enforcement are
 [`meta/handbook/`](/handbook/meta/handbook/README.md)'s;
 extending the tree means following this page —
-absorption is rewriting, never blind copy-paste.
+absorption is rewriting, never blind copy-paste,
+and a rewrite that loses a fact is a regression, not an edit.
 
 * **Break lines at meaning boundaries**
   ([semantic line breaks](https://sembr.org)):

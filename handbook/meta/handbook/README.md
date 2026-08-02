@@ -97,9 +97,6 @@ Any of them is a complete, mergeable pull request:
    replaced by a one-line pointer to the leaf;
    a fully absorbed file is deleted, not left as a redirect,
    and anything that linked to it is updated.
-   Prose may be rewritten — the handbook's voice is tighter
-   than its sources' —
-   but a rewrite that loses a fact is a regression, not an edit.
 3. **Deepen from the ground truth.**
    Write what the code, scripts, and workflows actually do,
    and cite the file that proves it.
