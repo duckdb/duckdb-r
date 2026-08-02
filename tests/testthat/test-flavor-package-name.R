@@ -1,3 +1,5 @@
+# Handbook: handbook/testing/guards/
+#
 # The flavored builds ship this package under a different name, and scripts/flavor.patch
 # is what renames it. This test fails when the name is hard-coded somewhere the
 # patch does not rewrite; scripts/flavor-package-name.R explains the rules and holds

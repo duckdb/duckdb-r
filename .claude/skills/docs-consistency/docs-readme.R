@@ -129,7 +129,7 @@ groups <- list(
   ),
   list(
     owner = "handbook/branches/flavors",
-    globs = c("flavor*")
+    globs = c("flavor.sh", "flavor.patch")
   ),
   list(
     owner = "handbook/build/fast-paths",
@@ -146,6 +146,10 @@ groups <- list(
   list(
     owner = "handbook/architecture/r-layer",
     globs = c("rethrow.R")
+  ),
+  list(
+    owner = "handbook/testing/guards",
+    globs = c("flavor-package-name.R")
   ),
   list(
     owner = "handbook/testing/snapshots",

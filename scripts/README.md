@@ -29,7 +29,6 @@ Root of the documentation tree: [`handbook/`](../handbook/).
 
 | File | Purpose |
 |---|---|
-| [`flavor-package-name.R`](flavor-package-name.R) | Guard for the flavor rename. |
 | [`flavor.patch`](flavor.patch) | — |
 | [`flavor.sh`](flavor.sh) | Apply a package flavor: rewrite scripts/flavor.patch to the target name (say, duckdb.dev), apply it, and commit the rename; see BRANCHES.md. |
 
@@ -98,6 +97,12 @@ Root of the documentation tree: [`handbook/`](../handbook/).
 | [`series-cutover.sh`](series-cutover.sh) | Atomically replace a series with its forward counterpart. |
 | [`series-forward-build.sh`](series-forward-build.sh) | Populate `<S>-fwd-build`: replay every vendor commit of the old `<S>-build` onto HEAD, which must be the freshly flavored seed on current `main` (.claude/ski... |
 | [`series-port.sh`](series-port.sh) | Bring a series' -dev branch level with `main` — stage 4 of the series loop (.claude/skills/series-loop.md). |
+
+## [`testing/guards/`](../handbook/testing/guards/)
+
+| File | Purpose |
+|---|---|
+| [`flavor-package-name.R`](flavor-package-name.R) | Guard for the flavor rename. |
 
 ## [`testing/snapshots/`](../handbook/testing/snapshots/)
 

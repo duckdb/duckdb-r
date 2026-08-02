@@ -1,3 +1,4 @@
+# Handbook: handbook/testing/guards/
 # CRAN guard
 #
 # DuckDB ships its own large C++ engine. Running the test suite or the runnable

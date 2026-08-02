@@ -9,6 +9,7 @@
 library(testthat)
 library(duckdb)
 
+# Handbook: handbook/testing/guards/
 # CRAN guard
 #
 # The duckdb test suite exercises DuckDB's bundled C++ engine, which is too heavy
