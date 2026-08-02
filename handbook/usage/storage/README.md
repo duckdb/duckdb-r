@@ -95,7 +95,7 @@ DuckDB ecosystem.
 An `extension_directory` or `secret_directory` passed directly in the `config`
 list wins over all of this:
 the package fills in only the settings the caller did not supply,
-and each of the two is decided independently.
+and each is decided independently of the other.
 
 Because the decision is remade for each new instance,
 creating `~/.duckdb` — or setting the option or the variable — takes effect
@@ -135,11 +135,10 @@ to a newly chosen location:
 extensions are simply re-downloaded on demand,
 and secrets have to be recreated.
 
-The package creates a directory in exactly one situation —
+The package creates only the shared home itself —
 `~/.duckdb`, when `shared_home = TRUE` or when the interactive prompt is
 accepted.
-Every other directory in the tree is created by the engine
-when it first writes there.
+The engine creates the rest of the tree on first write.
 
 ## The connect-time message
 
@@ -152,11 +151,14 @@ where nobody was asked.
 
 Throttling differs by session type,
 because the two audiences can do different things about it.
-Interactively the message repeats at most once every eight hours;
+Interactively it is throttled by elapsed time —
+`STORAGE_MESSAGE_INTERVAL` in
+[`R/storage-home.R`](/R/storage-home.R) sets the gap;
 a human can act on it, and a gentle cadence fits.
-Non-interactively it is shown at most sixty times in a session and then
-goes silent for good, the last one saying so —
-a long-running or automated process should not be reminded forever.
+Non-interactively it is throttled by count instead —
+`STORAGE_MESSAGE_MAX` messages in a session, and then silence for good,
+the last one saying so —
+because a long-running or automated process should not be reminded forever.
 
 The message is suppressed whenever the location was chosen rather than
 inferred: by `home` or `shared_home`, by the `duckdb.home` option,
@@ -219,7 +221,7 @@ Specifically, the following are *not* available today:
   was deferred as too complex to land;
   the connect-time message above is what exists instead.
 
-Three neighbouring topics are owned elsewhere.
+Neighbouring topics are owned elsewhere.
 Which extensions ship and where an extension is installed *from* belongs to
 [`/handbook/usage/extensions/`](/handbook/usage/extensions/).
 The spill directory — `temp_directory`, its override via the
