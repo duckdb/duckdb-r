@@ -7,9 +7,6 @@ so no curated selection is kept here.
 
 One label invites outside work:
 [`help wanted ❤️`](https://github.com/duckdb/duckdb-r/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted+%E2%9D%A4%EF%B8%8F%22).
-Label names carry real emoji characters,
-so every one — `upstream 🐟`, `duckplyr 🗜️` among them —
-pastes verbatim into a search box.
 The full vocabulary is the tracker's
 [label index](https://github.com/duckdb/duckdb-r/labels);
 the boundaries that matter when choosing work:
