@@ -39,7 +39,7 @@ Root of the documentation tree: [`handbook/`](../handbook/).
 | [`series-forward-build.sh`](series-forward-build.sh) | Populate `<S>-fwd-build`: replay every vendor commit of the old `<S>-build` onto HEAD, which must be the freshly flavored seed on current `main` (.claude/ski... |
 | [`series-port.sh`](series-port.sh) | Bring a series' -dev branch level with `main` — stage 4 of the series loop (.claude/skills/series-loop.md). |
 
-## Per-commit CI — [`ci/per-commit/`](../handbook/ci/per-commit/)
+## Per-commit CI — [`operations/ci/per-commit/`](../handbook/operations/ci/per-commit/)
 
 | File | Purpose |
 |---|---|

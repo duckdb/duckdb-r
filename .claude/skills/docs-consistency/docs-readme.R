@@ -126,7 +126,7 @@ groups <- list(
   ),
   list(
     title = "Per-commit CI",
-    owner = "handbook/ci/per-commit",
+    owner = "handbook/operations/ci/per-commit",
     globs = c("EACH.md", "each-*", "rcc-*")
   ),
   list(

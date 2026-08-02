@@ -16,3 +16,5 @@ To write this leaf:
 
 * nothing to absorb: `?duckdb_storage` (`R/storage.R`) owns the topic;
   keep this pointer in step with it
+* add the backreference to this leaf in `R/storage.R`'s roxygen —
+  the `.Rd` is generated, the source carries it

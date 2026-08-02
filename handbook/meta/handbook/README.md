@@ -7,6 +7,9 @@ has exactly one place in this tree.
 * **Internal nodes navigate, only.**
   An internal `README.md` is a scope sentence
   and a nested list of its subdirectories — nothing else.
+  The root additionally sketches each area's contents,
+  naming the next level in prose —
+  names, not links, so the sketch cannot rot.
 * **Leaves explain, once.**
   A leaf page owns its topic;
   other pages link to it and never paraphrase it.
@@ -40,6 +43,9 @@ has exactly one place in this tree.
   the links are bidirectional:
   the leaf points at the medium,
   the medium backreferences the leaf.
+  For reference pages the backreference lives
+  in the roxygen source under `R/` —
+  `man/*.Rd` is generated and never edited.
   A secondary document without a backreference is an orphan.
 * **Stubs are visible debt.**
   A leaf that is not yet written says so in its first line

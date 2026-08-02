@@ -18,6 +18,9 @@ Helpers are not entry points of their own.
    Every directory under `handbook/` has a `README.md`.
    Every subdirectory is listed exactly once
    in its parent's navigation list, with a scope phrase.
+   The root's per-area sketch names each area's actual
+   next level; a renamed, added, or removed child
+   updates the sketch in the same change.
    Internal nodes are navigation-only:
    a scope sentence and the list, nothing else.
    A leaf is either written content
