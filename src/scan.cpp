@@ -450,9 +450,9 @@ static void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_p
 	}
 }
 
-case_insensitive_map_t<vector<Value>> ListToVectorOfValue(list input_sexps) {
+identifier_map_t<vector<Value>> ListToVectorOfValue(list input_sexps) {
 	const bool integer64 = false, experimental = false;
-	case_insensitive_map_t<vector<Value>> output;
+	identifier_map_t<vector<Value>> output;
 
 	auto names = input_sexps.names();
 	if (names.size() != input_sexps.size()) {
@@ -472,7 +472,7 @@ case_insensitive_map_t<vector<Value>> ListToVectorOfValue(list input_sexps) {
 			vv.push_back(v.GetValue(i));
 		}
 
-		output[names[input_idx]] = vv;
+		output[Identifier(string(names[input_idx]))] = vv;
 		input_idx++;
 	}
 
