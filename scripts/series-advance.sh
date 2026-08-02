@@ -95,8 +95,22 @@ if git rev-parse -q --verify "$remote/$S-fwd-build" >/dev/null &&
   echo "$S has a live forward counterpart — not extending"
   exit 0
 fi
-if [ "$(git rev-parse "$new_green")" != "$(git rev-parse "$dev")" ]; then
-  echo "in-flight work remains — not extending"
+# Pending work does not hold the buffer (.claude/skills/series-loop.md stage 5):
+# each.yaml plans every commit in green..tip that has no status, so a longer tip
+# is more work planned in the same pass, not work deferred. A known failure does
+# hold it: stage 2 will fold a fix into that commit and replay everything above,
+# so anything appended now is minted only to be re-minted. The stage-3 walk above
+# stops at the first commit without a verdict, so it sees a failure only when no
+# pending commit precedes it -- scan the whole range here.
+red=
+while IFS= read -r sha; do
+  case "$(state_of "$sha")" in
+    success | missing | pending) ;;
+    *) red=$sha; break ;;
+  esac
+done < <(git rev-list --reverse "$new_green..$dev")
+if [ -n "$red" ]; then
+  echo "$(git rev-parse --short "$red") has failed — repair before extending"
   exit 0
 fi
 

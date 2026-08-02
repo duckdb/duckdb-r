@@ -647,6 +647,9 @@ Gaps in the numbering are normal — they indicate patches that were previously 
 
 When a patch is no longer needed (because the fix was merged upstream), delete the file. Do not renumber the remaining patches. When adding a new patch, assign it the next available number and send the same change as a pull request to `duckdb/duckdb` so it can be retired eventually.
 
+A **forward-port** is the one kind of patch that needs no pull request: it carries a fix upstream has already merged, back onto the commits vendored before it.
+It retires itself, and it is the escalation, not the default — a red vendor commit whose *next* commit fixes it is folded into that one instead ([troubleshooting](/handbook/operations/vendoring/troubleshooting/)).
+
 If a vendor run fails because a patch no longer applies cleanly, update the patch against the new upstream code, commit it, and re-run vendoring.
 
 ## Version Numbering
@@ -662,6 +665,13 @@ independent counters that advance on different strands:
 
 A released version is the bare three-component prefix (`1.5.4`). The `-dev` branches never touch
 `NEWS.md`; only `DESCRIPTION:Version` differs between the strands.
+
+The vendor counter must be **strictly increasing across every vendor commit** of a `-dev` or
+`-build` branch: r-universe installs by version, so two vendor commits sharing one are two commits
+it cannot tell apart. Gaps are fine — the counter orders, it does not count. A replay does not
+preserve this on its own: the `ours-version` merge driver keeps the replay target's `Version:` line
+through every cherry-pick, so a replayed chain has to be restamped before it is pushed
+([`series-loop.md`](/.claude/skills/series-loop.md), Invariants).
 
 ### The DESCRIPTION merge driver
 
