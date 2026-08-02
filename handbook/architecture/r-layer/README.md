@@ -16,7 +16,8 @@ and every S4 method the package defines lives in a file of its own,
 named `<generic>__<signature>.R`:
 `dbBegin__duckdb_connection.R`,
 `dbWriteTable__duckdb_connection_character_data.frame.R`.
-Forty-four files register S4 methods this way,
+The naming convention is therefore the index:
+the `__` files are where the S4 methods are,
 and there is no `setMethod()` call anywhere else in `R/`.
 
 Each defines a plain function named after the file
@@ -34,7 +35,7 @@ setMethod("dbBegin", "duckdb_connection", dbBegin__duckdb_connection)
 A file may hold more than one `setMethod()` call
 when the extra calls belong to the same pairing:
 several signatures of one generic
-(`dbQuoteIdentifier__duckdb_connection.R` registers four),
+(`dbQuoteIdentifier__duckdb_connection.R` registers several),
 or a generic and its inseparable companion
 (`dbBind` with `dbBindArrow`,
 `dbFetchArrow` with `dbFetchArrowChunk`).
@@ -50,7 +51,7 @@ Constructors, helpers, and the interfaces that are not S4
 are grouped by topic —
 `Driver.R`, `Connection.R`, `Result.R`, `relational.R`, `storage.R` —
 and S3 methods sit with the topic they serve:
-the three adbcdrivermanager methods in `Driver.R`,
+the adbcdrivermanager methods in `Driver.R`,
 the dplyr and dbplyr ones in `backend-dbplyr__duckdb_connection.R`,
 `print`, `head`, `names`, and `as.data.frame` for relations
 in `relational.R`.
@@ -60,7 +61,7 @@ so the name marks "methods for one class", not "S4".
 
 ## Generated files
 
-Three files under `R/` are generated and committed.
+A few files under `R/` are generated and committed.
 Each opens with a header saying so,
 and a hand edit to any of them is a bug:
 it passes review as ordinary R code,
@@ -128,7 +129,8 @@ works on `main` and breaks on every other branch.
 | `get_package_spec()`, `get_package_version()` | the namespace spec and version |
 | `system_file_path(...)` | a path inside the installed package; also the seam tests stub instead of resolving a real install |
 
-`simulate_duckdb()` exposes the first two as `$pkg` and `$env`,
+`simulate_duckdb()` exposes `get_package_name()` and `get_package_env()`
+as `$pkg` and `$env`,
 which is what makes
 `@examplesIf simulate_duckdb()$env$examples_enabled()`
 work under any flavor.
@@ -181,7 +183,7 @@ it is documented at
 
 ## The classes
 
-Five S4 classes, all exported:
+The S4 classes, all exported:
 
 | Class | Extends | Defined in |
 |---|---|---|
@@ -223,7 +225,7 @@ Outside S4 there are four S3 classes —
 and `duckdb_explain` again,
 which is an S4 class extending `data.frame`
 but takes an ordinary S3 `print` method rather than a `setMethod()`.
-Their seven methods are registered statically in `NAMESPACE`,
+Their methods are registered statically in `NAMESPACE`,
 since every generic they extend comes with R itself.
 
 ## Deferred S3 registration
@@ -237,11 +239,12 @@ cannot be declared in `NAMESPACE`,
 because `S3method(dbplyr::dbplyr_edition, duckdb_connection)`
 would make dbplyr a hard dependency.
 
-`.onLoad()` in `R/zzz.R` registers those ten methods instead,
+`.onLoad()` in `R/zzz.R` registers those methods instead,
 through `s3_register()` in `R/s3_register.R`
 (vendored from rlang's compatibility file, and `# nocov`-excluded):
-six dbplyr generics and `dplyr::tbl` on `duckdb_connection`,
-and three adbcdrivermanager generics on the ADBC wrapper classes.
+dbplyr generics and `dplyr::tbl` on `duckdb_connection`,
+and adbcdrivermanager generics on the ADBC wrapper classes.
+The `s3_register()` calls in `.onLoad()` are the list.
 `s3_register()` does three things worth knowing:
 it installs a `packageEvent(pkg, "onLoad")` hook,
 so registration also happens when the other package is loaded later,
@@ -253,11 +256,11 @@ except under `NOT_CRAN=true`, where it warns.
 
 `.onLoad()` carries the other half of the rlang soft dependency too.
 `R/rlang.R` holds base-R fallbacks
-for the four rlang functions the package uses —
+for the rlang functions the package uses —
 `is_interactive()`, `check_dots_empty0()`, `inform()`, `arg_match()` —
 each named to match the original.
 When rlang is installed,
-`.onLoad()` overwrites the four with the real functions
+`.onLoad()` overwrites them with the real functions
 and swaps `rapi_error()` for its rlang-based variant;
 when it is not,
 it calls the generated `rethrow_restore()`,
