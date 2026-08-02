@@ -3,10 +3,7 @@
 This repository is the R package for DuckDB:
 the R layer that presents a DBI driver and a relational API,
 the C++ glue in `src/` that bridges it to the engine,
-and a vendored copy of the DuckDB C++ engine in `src/duckdb/`
-that is maintained by
-[`operations/vendoring/`](/handbook/operations/vendoring/README.md)
-and never edited by hand.
+and a vendored copy of the DuckDB C++ engine in `src/duckdb/`.
 
 Everything this project documents lives in
 [`handbook/`](/handbook/README.md), the single source of truth.
