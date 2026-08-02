@@ -16,8 +16,20 @@ has exactly one place in this tree.
   and an internal node never repeats it —
   the shape a principle takes, and the tests that keep it
   from becoming a summary, are among [the forms](#the-forms).
+  An internal node links to its children,
+  and to another area's node where it draws a boundary against it;
+  it never links into a leaf, which is the mechanical form of the same rule.
+  There is one link into a leaf anywhere above the leaves,
+  the root's pointer to this page,
+  which orients a reader rather than supporting a claim;
+  it is named here so that the check stays a check
+  and not a matter of judgement.
   An area whose leaves share no such constraint gets no principle;
   a node reaching for one is navigating, which was always enough.
+  Look for an owner before writing one:
+  where an area has a leaf whose topic is the area's own reasons
+  or its own rules, the principles are already that leaf's,
+  and the node above it stays navigation-only.
   The root additionally sketches each area's contents,
   naming the next level in prose —
   names, not links, so the sketch cannot rot.
