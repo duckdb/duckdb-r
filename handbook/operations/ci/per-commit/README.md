@@ -59,6 +59,8 @@ classification still reads the harvested log, unchanged (see below).
 
 ### Bounded by `<S>-green`
 
+What each series ref means and how far it may move is
+[`branches/model/`](/handbook/branches/model/README.md)'s.
 Selection carries over the bound the series
 loop introduced: on a `<S>-dev` branch with a sibling `<S>-green`, only
 `<S>-green..HEAD` is scanned — everything at or before green is trusted and
