@@ -19,19 +19,31 @@ where every glue and R change is born,
 and is inherited frozen on a `-dev` branch;
 the 5th exists only on `-dev` branches, making every vendor commit
 installable as a distinct version on r-universe.
-Each strand owns one counter and freezes the other —
-the property the `DESCRIPTION` merge driver depends on
-([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
-The vendor counter orders, it does not count:
+Each strand owns one counter and freezes the other,
+which is what lets the `DESCRIPTION` merge driver
+([`scripts/merge-version.sh`](/scripts/merge-version.sh))
+resolve the `Version:` line without a conflict:
+it takes the component-wise **maximum** of the two sides,
+gated on an equal `major.minor.patch` prefix,
+so the fourth stays the R-client strand's and the fifth the vendor strand's,
+and a cross-release forward-port never inherits a foreign prefix.
+Every other line of `DESCRIPTION` still goes through a normal three-way merge.
+
+On a `-dev` branch the vendor counter **orders, it does not count**:
 gaps from folded repairs are accepted,
 but it must rise strictly across a series' vendor commits —
 r-universe installs by version,
 so two commits sharing one are two it cannot tell apart.
-A replayed chain does not inherit that for free:
-the merge driver keeps the replay target's `Version:` line
-through every cherry-pick,
-so [`scripts/series-advance.sh`](/scripts/series-advance.sh)
-restamps the chain before pushing it.
+Taking the maximum is what keeps that true through a replay:
+each replayed vendor commit carries its own higher counter,
+and the driver keeps it.
+
+A **forward rebuild** is the exception.
+[`scripts/series-forward-build.sh`](/scripts/series-forward-build.sh)
+renumbers the fifth component as a true counter, one per replayed commit,
+so the new chain counts itself rather than carrying the old one's numbering —
+and the counter is read back from `HEAD` at each step,
+which is what makes the replay restartable after a conflict.
 
 A released version is the bare three-component prefix, matching
 the upstream tag, set explicitly with
