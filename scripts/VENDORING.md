@@ -1,8 +1,9 @@
 # DuckDB R Package Vendoring
 
 This document covers the mechanics of vendoring:
-what the scripts do, which invariants a dev branch must satisfy, how a new dev line is started,
-and how to troubleshoot a failing run.
+what the scripts do, which invariants a dev branch must satisfy, and how a new dev line is started.
+Diagnosing a failing run is
+[`operations/vendoring/troubleshooting/`](/handbook/operations/vendoring/troubleshooting/README.md).
 For the branch strategy, the complete list of active branches, and the release process, see
 [BRANCHES.md](../BRANCHES.md), which is the authoritative source.
 For the historical design notes that led to the series loop,
@@ -470,59 +471,8 @@ without keeping the newest SHA in the subject.
 
 ## Troubleshooting
 
-### Vendoring stopped working
-
-1. **Check the harvest**: read `runs2.d/<xx>/<sha>.ndjson` and `logs2/` on branch
-   `rcc` — `runs2.ndjson` accumulates the same records in one file
-   (`scripts/series-check.sh` prints a per-series verdict, reading whichever of
-   the two holds the commit).
-2. **Gate says `red` or `stale`**: a commit near the tip is failing `rcc`, or never got a result.
-   Repair the failing commit first (see the skills in `.claude/skills/`);
-   vendoring resumes on its own once a green base is back in the window.
-3. **Clean working directory**: both scripts abort on any uncommitted change.
-4. **The base is unparseable**: if the recent commits touching `src/duckdb/`
-   no longer carry a `duckdb/duckdb@<sha>` subject (e.g. after a manual squash),
-   the script has no base and tries to vendor from the beginning of time.
-   Restore a well-formed vendor subject.
-
-### Manual recovery
-
-```bash
-# 1. Clone fresh DuckDB repository
-git clone https://github.com/duckdb/duckdb.git /tmp/duckdb-vendor
-
-# 2. Checkout target branch
-cd /tmp/duckdb-vendor
-git checkout v1.4-andium   # adjust to target series
-
-# 3. Run manual vendor
-cd /path/to/duckdb-r
-scripts/vendor.sh /tmp/duckdb-vendor
-
-# 4. Test build
-R CMD INSTALL .
-```
-
-### Common issues
-
-**Issue**: `Error: working directory not clean`
-**Solution**: Commit or stash all changes before vendoring.
-
-**Issue**: A patch silently disappeared from `patch/`
-**Solution**: That is by design —
-a patch that no longer applies is deleted by the vendor run,
-on the assumption that the fix landed upstream.
-Verify that assumption; if the patch is still needed, restore and rebase it against the new sources.
-See [Patch Stack](../BRANCHES.md#patch-stack).
-
-**Issue**: Build failures after vendoring
-**Solution**: Usually a DuckDB C++ API change;
-adapt the glue code in `src/*.cpp` / `src/include/` and fold the fix into the vendor commit.
-If the R-specific build configuration is at fault, update `scripts/rconfigure.py`.
-
-**Issue**: `src/*.dd` files change on every build
-**Solution**: Spurious — revert with `git checkout -- src/*.dd`.
-They should only change when a `.cpp` file gains or loses a local `#include`.
+Moved to the handbook:
+[`operations/vendoring/troubleshooting/`](/handbook/operations/vendoring/troubleshooting/README.md).
 
 ## Monitoring Vendoring
 
@@ -561,29 +511,10 @@ which is the drill-down.
 An upstream-lag badge ("how far behind `duckdb/duckdb` itself")
 is not expressible this way — the comparison would cross repositories.
 
-### GitHub Actions
+### Where a run stands
 
-- The routine reports each firing; branch `rcc` holds the harvested
-  per-commit results (`runs2.d/<xx>/<sha>.ndjson`, `logs2/<sha>.log`, and
-  `runs2.ndjson`), published within seconds of each commit being decided
-- Check for `rcc` statuses on the individual commits of each `-dev` branch
-
-### Commit history
-
-Look for recent vendor commits:
-
-```bash
-git log --oneline --grep="^vendor:" -10
-```
-
-### Version tracking
-
-Check what DuckDB version is currently vendored:
-
-```bash
-grep duckdb_version R/version.R            # DuckDB version string
-git log -1 --grep="^vendor:" --format=%s   # upstream commit it came from
-```
+Reading the harvest, the vendor commits, and the vendored version:
+[`operations/vendoring/troubleshooting/`](/handbook/operations/vendoring/troubleshooting/README.md).
 
 ## Files and Directories
 
