@@ -10,8 +10,12 @@ in both places at once.
 
 The families, in one breath:
 
-* **Structural** — the LTS flavor differs from stable by exactly
-  the rename surface; the dev baseline is the released tree.
+* **Structural** — the LTS flavor is the released tree plus the rename,
+  and then mostly frozen:
+  it moves only for bug fixes
+  and for what R-devel on r-universe requires.
+  The dev baseline equals the released tree on legacy series only;
+  a series-loop seed is flavored from day one.
 * **Linearity** — the active history is linear and merge-free,
   so it stays bisectable; forward-ports are cherry-picks.
 * **Flavor / identity** — the names inside a branch agree with

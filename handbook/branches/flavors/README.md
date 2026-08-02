@@ -7,7 +7,9 @@ nothing else distinguishes one published package from another.
 CRAN carries one version of one name at a time,
 and DuckDB cuts a minor roughly every four months,
 so a release line that must stay installable beside the current
-one needs its own name; LTS lines receive fixes for a year.
+one needs its own name.
+An LTS line is mostly frozen for its year:
+bug fixes, and what R-devel on r-universe requires.
 Because the names differ, flavors coexist in one library.
 
 | Flavor | Kind | Built from | Upstream series |

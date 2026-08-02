@@ -158,7 +158,7 @@ Several packages are published, organised into three release lines:
 | `duckdb`         | CRAN           | `main` (`duckdb/duckdb-r`)               | **Current stable release.**                          |
 | `duckdb`         | r-universe     | `main` (`duckdb/duckdb-r`)               | Current or upcoming release.                         |
 | `duckdb.1.5`     | Does not exist |                                          | v1.5 is not an LTS version.                          |
-| `duckdb.1.4`     | r-universe     | `v1.4-andium-lts` (`duckdb/duckdb-r`)    | **LTS — v1.4.** Receives only bug fixes.             |
+| `duckdb.1.4`     | r-universe     | `v1.4-andium-lts` (`duckdb/duckdb-r`)    | **LTS — v1.4.** Mostly frozen: bug fixes and R-devel compatibility only. |
 | `duckdb.dev`     | r-universe     | `main-dev` (`krlmlr/duckdb-r`)           | Bleeding-edge build of the next major/minor version. |
 | `duckdb.1.5.dev` | r-universe     | `v1.5-variegata-dev` (`krlmlr/duckdb-r`) | Bleeding-edge build on the v1.5 upstream.            |
 | `duckdb.1.4.dev` | r-universe     | `v1.4-andium-dev` (`krlmlr/duckdb-r`)    | Bleeding-edge build on the v1.4 upstream.            |
