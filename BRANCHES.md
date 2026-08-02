@@ -85,7 +85,6 @@ duckdb-r/
 │   ├── rcc-decided.sh              # Commits the rcc branch has a verdict for
 │   ├── rcc-merge.sh                # Bring runs2.ndjson level with the records
 │   ├── rcc-consolidate.sh          # Manual: GC old logs, squash the rcc branch
-│   ├── EACH.md                     # Sharded per-commit CI design (→ see §Vendoring)
 │   └── VENDORING.md                # Supplementary vendoring notes (→ see §Vendoring)
 ├── .github/
 │   └── workflows/
@@ -592,7 +591,7 @@ For this reason, the `-dev` branches are checked commit by commit via `each.yaml
 so a batch is one run to cancel, the R setup is paid per shard rather than per commit,
 and adjacent commits reuse the runner's local ccache;
 the per-commit `rcc` marker is unchanged.
-See [`scripts/EACH.md`](scripts/EACH.md) for the design and its limits.
+See [`handbook/operations/ci/per-commit/`](/handbook/operations/ci/per-commit/README.md) for the design and its limits.
 
 Bisectability is a property of the whole branch, not of individual commits, so it needs three things at once:
 a **linear** first-parent history without merge commits,
@@ -708,7 +707,7 @@ the first step of any CI job that rebases, cherry-picks, or merges — to regist
 | `scripts/merge-version.sh`      | Git merge driver for `DESCRIPTION`: combines the 4th/5th version counters, gated on an equal prefix         |
 | `scripts/setup-git.sh`          | Registers the merge driver in `.git/config`, enables `rerere`, pins `rebase.backend=merge` (run per clone)  |
 | `.github/workflows/sync.yaml`   | Hourly fast-forward of `krlmlr/main` from `duckdb/main`                                                    |
-| `.github/workflows/each.yaml`   | Builds every statusless commit on push to `*-dev` branches, as a sharded matrix (see [`scripts/EACH.md`](scripts/EACH.md)) |
+| `.github/workflows/each.yaml`   | Builds every statusless commit on push to `*-dev` branches, as a sharded matrix (see [`handbook/operations/ci/per-commit/`](/handbook/operations/ci/per-commit/README.md)) |
 | `.github/workflows/rcc-consolidate.yaml` | Manual (`workflow_dispatch`) consolidation of the `rcc` branch; dry run by default                 |
 | `.github/workflows/fledge.yaml` | Daily version-bump PRs via `fledge`                                                                        |
 

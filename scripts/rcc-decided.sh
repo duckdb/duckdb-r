@@ -3,10 +3,10 @@
 #
 # The verdict store is the orphan `rcc` branch: one record per commit at
 # `runs2.d/<xx>/<sha>.ndjson`, published by the leg that decided it within
-# seconds of the verdict existing (scripts/rcc-part-push.sh, scripts/EACH.md
-# section 3). Presence is the whole question -- a commit with a record has been
-# decided, a commit without one has not -- so the answer is one `ls-tree` over a
-# tree-only fetch rather than a request per commit.
+# seconds of the verdict existing (scripts/rcc-part-push.sh,
+# handbook/operations/ci/per-commit/). Presence is the whole question -- a
+# commit with a record has been decided, a commit without one has not -- so the
+# answer is one `ls-tree` over a tree-only fetch rather than a request per commit.
 #
 # This is what work selection reads: scripts/each-plan.sh to choose what to
 # build, scripts/each-shard.sh to skip what a previous attempt already decided.

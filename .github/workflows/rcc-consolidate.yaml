@@ -1,6 +1,8 @@
 # Consolidate the orphan `rcc` branch: make its two record layouts agree, drop
 # logs past their retention, and squash the history to two commits.
 #
+# Handbook: handbook/operations/ci/per-commit/
+#
 # `workflow_dispatch` only, and deliberately so. Every other writer to that
 # branch is additive and races safely (see scripts/rcc-merge.sh); this one
 # rewrites the branch, and the one thing that makes a rewrite safe is knowing

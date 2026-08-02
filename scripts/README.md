@@ -56,7 +56,6 @@ Root of the documentation tree: [`handbook/`](/handbook/).
 
 | File | Purpose |
 |---|---|
-| [`EACH.md`](EACH.md) | `each-rcc` — building every commit as a sharded matrix |
 | [`each-cost.py`](each-cost.py) | Estimate how many unity objects a change invalidates. |
 | [`each-harvest.sh`](each-harvest.sh) | Fan-in for `each-rcc`: make sure every commit the legs decided has a record on the orphan `rcc` branch. |
 | [`each-partition.py`](each-partition.py) | Partition a commit range into contiguous, cost-balanced `each-rcc` shards. |

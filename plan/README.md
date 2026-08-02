@@ -13,7 +13,7 @@ What is current lives elsewhere, and is owned there:
 [`BRANCHES.md`](/BRANCHES.md) for the branch model,
 [`RELEASE.md`](/RELEASE.md) for the release process,
 [`scripts/VENDORING.md`](/scripts/VENDORING.md) for vendoring mechanics,
-[`scripts/EACH.md`](/scripts/EACH.md) for per-commit CI,
+[`handbook/operations/ci/per-commit/`](/handbook/operations/ci/per-commit/README.md) for per-commit CI,
 and [`.claude/skills/`](/.claude/skills/) for the routine's playbooks.
 A document here may describe something that has since changed;
 when the two disagree, the owner above is right.

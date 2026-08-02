@@ -1,6 +1,8 @@
 # Periodically collect results and failure logs for completed runs of the
 # "rcc" workflow and store them on the orphan branch "rcc".
 #
+# Handbook: handbook/operations/ci/per-commit/
+#
 # The orphan branch holds only the collected data
 # (runs.json, runs.ndjson, logs/<id>.log) and shares no history with the
 # default branch.
