@@ -94,7 +94,9 @@ and coding agents.
   build, test, and where to look for everything else
 * [`BRANCHES.md`](BRANCHES.md) — branch model, package flavors,
   series invariants
-* [`RELEASE.md`](RELEASE.md) — the release process
+* [`handbook/operations/releases/`](handbook/operations/releases/README.md) —
+  the release process: the state machine, CRAN, versioning;
+  what has not moved there yet is in [`RELEASE.md`](RELEASE.md)
 * [`scripts/VENDORING.md`](scripts/VENDORING.md) — vendoring mechanics
 * [`plan/README.md`](plan/README.md) — designs, plans, and historical
   documents, each named there by path
