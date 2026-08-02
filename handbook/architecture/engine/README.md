@@ -28,8 +28,7 @@ The authoritative flag lists are the committed
 [`src/Makevars`](/src/Makevars) and
 [`src/Makevars.win`](/src/Makevars.win),
 both generated from [`src/Makevars.in`](/src/Makevars.in),
-which is where a flag change goes
-([`build/configuration/`](/handbook/build/configuration/README.md)).
+which is where a flag change goes.
 The load-bearing ones:
 
 * `-DDUCKDB_DISABLE_PRINT` — the engine cannot write to the console

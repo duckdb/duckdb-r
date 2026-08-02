@@ -64,6 +64,11 @@ until then it is a preference, and preferences are not enforced.
   is documented as such, and stops being when the issue closes.
 * **Never refer by position — name the thing.**
   "The first two" breaks silently when the list above is reordered.
+* **Illustrate with the shape, not the instances.**
+  An example that names today's members expires;
+  an example that shows the form does not.
+  Where a reader needs the actual members,
+  link the page that owns them rather than copying the list.
 * **Cite the claim, not its label.**
   An identifier from another page's numbering — an invariant number,
   a state number — means nothing where it is read,
@@ -88,3 +93,32 @@ until then it is a preference, and preferences are not enforced.
   a finding too expensive to re-derive becomes an experiment
   ([`experiments/`](/experiments/README.md)) that the leaf links.
   A one-off derivation stays in the pull request.
+
+## Linking between leaves
+
+A link from one leaf to another is how the tree stays free of repetition,
+and it is also the tree's only maintenance cost that grows with its size.
+Both halves of that matter.
+
+**Link a boundary once per page, and link the owner.**
+The load-bearing form is a page naming the boundary it does not own —
+"the engine underneath is `engine/`" — stated once, where the reader
+first needs it.
+A second link to the same target on the same page adds no reachability
+and costs another edit when the target moves;
+if a reader can enter mid-page and need it again, the page is too long,
+and splitting it is the fix.
+Never link an internal node where one of its leaves owns the fact:
+the node will look like an owner and collect citations its children
+deserve.
+
+**A fact that moves takes its inbound links with it.**
+Before changing where a fact lives — renaming a leaf, splitting one in
+two, moving a section — search the tree for what points at it and update
+those pages in the same change.
+The links are one-directional, so nothing else will catch a stale one;
+a leaf that has quietly become the wrong destination still resolves, and
+reads as if it were right, which is worse than a broken link.
+The same search settles the cheaper question: if nothing points at a
+leaf, its scope sentence is probably claiming a boundary no other page
+recognises.

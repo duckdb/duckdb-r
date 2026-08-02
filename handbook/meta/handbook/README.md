@@ -126,8 +126,7 @@ Whichever move, the same protocol:
 The rules above say what a page must do;
 these are the shapes the tree has settled on for doing it.
 They exist so that leaves written independently read as one document.
-How the prose itself is written is
-[`meta/authoring/`](/handbook/meta/authoring/README.md)'s.
+How the prose itself is written is `meta/authoring/`'s.
 
 **A written leaf** opens with its H1
 and then a scope sentence in ordinary prose,

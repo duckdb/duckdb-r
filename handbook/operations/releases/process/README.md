@@ -15,7 +15,7 @@ and CRAN submission
 
 Two placeholders run through this page.
 `S` is the series — one upstream line of `duckdb/duckdb`, and the refs that
-carry it ([`branches/model/`](/handbook/branches/model/README.md)).
+carry it.
 `N` is its `major.minor` token, which is what a flavor suffix is built from
 ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
 
@@ -131,8 +131,7 @@ and no failure that discards a green commit.
 
 Nothing to do: this is the series loop running unattended
 ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)),
-with `each.yaml` judging every new commit
-([`operations/ci/per-commit/`](/handbook/operations/ci/per-commit/README.md)),
+with `each.yaml` judging every new commit,
 and glue changes flowing in from `main` through the forward-port chain.
 The trusted frontier is "what would ship if we released now."
 
@@ -179,8 +178,7 @@ delta touches anything risky — what ships must have been tested.
 Two runs against the pinned candidate:
 an early pass with time to act on what it finds,
 and a second at about T−7 that is the go/no-go gate.
-How they are run and where the results land is
-[`testing/revdep/`](/handbook/testing/revdep/README.md)'s.
+How they are run and where the results land is `testing/revdep/`'s.
 
 ### 0.3 Fold back
 
@@ -234,7 +232,7 @@ merge-free so it stays bisectable.
 Fast-forward or rebase the tagged range onto the release branch,
 dropping the flavor rename commit.
 The `DESCRIPTION` version conflict is resolved automatically by the merge
-driver ([`versioning/`](/handbook/operations/releases/versioning/README.md));
+driver (`versioning/`);
 run [`scripts/setup-git.sh`](/scripts/setup-git.sh) first
 if this is a fresh clone or CI runner.
 Because `<S>-dev` descends from its release point,
@@ -255,8 +253,7 @@ git rebase origin/L && git push origin L-lts
 ```
 
 Build the source tarball and take it through WinBuilder and the CRAN
-preflight before tagging
-([`cran/`](/handbook/operations/releases/cran/README.md)).
+preflight before tagging (`cran/`).
 
 ### 5 PUBLISHED — tag and publish
 
@@ -267,8 +264,7 @@ git tag vX.Y.Z origin/L-lts   # or origin/L per series convention
 git push origin vX.Y.Z
 ```
 
-For the **current** line only, submit to CRAN
-([`cran/`](/handbook/operations/releases/cran/README.md)).
+For the **current** line only, submit to CRAN (`cran/`).
 Acceptance is asynchronous and overlaps RESET and the next TRACK,
 so the tag and the r-universe publish do not wait for it;
 a rejection is fixed on the release branch and re-enters CUT as a follow-up patch.
@@ -291,8 +287,7 @@ git push krlmlr S-dev-base:S-dev --force-with-lease
 
 Either way the glue source of truth (`main`) separately moves to its
 ongoing development version via `fledge`,
-and the vendor counter resumes from the new baseline
-([`versioning/`](/handbook/operations/releases/versioning/README.md)).
+and the vendor counter resumes from the new baseline (`versioning/`).
 
 ## Multi-line coordination
 
@@ -322,8 +317,7 @@ coordinate at the **cluster** level:
 
 ## What each cluster must leave standing
 
-Every cluster hands the series on with its invariants intact
-([`branches/invariants/`](/handbook/branches/invariants/README.md)):
+Every cluster hands the series on with its invariants intact:
 
 * **TRACK and STABILIZE** keep the flavor names internally consistent,
   the history linear, the glue identical down the forward-port chain,

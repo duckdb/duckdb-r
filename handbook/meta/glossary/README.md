@@ -39,7 +39,7 @@ one line, so the register stays greppable and diffs per term.
 * **series** — one upstream DuckDB branch with the package branches that carry it ([`branches/model/`](/handbook/branches/model/README.md)).
 * **series loop** — the scheduled agent routine that vendors every series ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
 * **series refs** — `-build`, `-dev`, `-green`, `-build-base`: each with one meaning and one allowed motion ([`branches/model/`](/handbook/branches/model/README.md)).
-* **shard** — a contiguous, cost-balanced slice of commits one CI job builds and judges ([`operations/ci/per-commit/`](/handbook/operations/ci/per-commit/README.md)).
+* **shard** — a contiguous, cost-balanced slice of commits one CI job builds and judges ([`operations/ci/per-commit/planning/`](/handbook/operations/ci/per-commit/planning/README.md)).
 * **snapshot** — recorded test output; accepting a change asserts the new output is correct ([`testing/snapshots/`](/handbook/testing/snapshots/README.md)).
 * **source id** — `DUCKDB_SOURCE_ID`, the upstream commit the vendored engine identifies as ([`architecture/engine/`](/handbook/architecture/engine/README.md)).
 * **spill** — the engine's offload of larger-than-memory work to `temp_directory` ([`usage/memory/`](/handbook/usage/memory/README.md)).
@@ -47,5 +47,5 @@ one line, so the register stays greppable and diffs per term.
 * **triage verdicts** — the dispositions issue intake assigns, exactly one per open item ([`operations/triage/`](/handbook/operations/triage/README.md)).
 * **vendor commit** — one commit advancing `src/duckdb/` by exactly one upstream commit ([`operations/vendoring/model/`](/handbook/operations/vendoring/model/README.md)).
 * **vendoring** — keeping a dependency's sources inside the depending repository ([`operations/vendoring/model/`](/handbook/operations/vendoring/model/README.md)).
-* **verdict store** / **`rcc` branch** — the orphan branch holding each commit's build verdict and log ([`operations/ci/per-commit/`](/handbook/operations/ci/per-commit/README.md)).
+* **verdict store** / **`rcc` branch** — the orphan branch holding each commit's build verdict and log ([`operations/ci/per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md)).
 * **WKB** — well-known binary, the geometry interchange across the R boundary ([`usage/types/`](/handbook/usage/types/README.md)).

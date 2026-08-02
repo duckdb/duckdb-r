@@ -13,7 +13,7 @@ verdict per series — the script's own list, `ADVANCE` through `IDLE`,
 plus a `CUTOVER` line where a forward counterpart has caught up —
 from the harvest on the orphan `rcc` branch,
 which stores one record per commit and failing commits'
-logs ([`ci/per-commit/`](/handbook/operations/ci/per-commit/README.md)).
+logs ([`ci/per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md)).
 What is vendored where:
 
 ```sh
@@ -37,7 +37,7 @@ The failure classes, and what each needs:
   ([`pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
 * **A red `-dev` commit** — repair-vs-retry is the loop's
   classification; a stuck shard or lost leg is
-  [`ci/per-commit/`](/handbook/operations/ci/per-commit/README.md)'s.
+  [`ci/per-commit/legs/`](/handbook/operations/ci/per-commit/legs/README.md)'s.
   When the tree upstream shipped is itself the defect, see below.
 * **Stale snapshots** — engine output drifted;
   [`testing/snapshots/`](/handbook/testing/snapshots/README.md).
@@ -75,8 +75,7 @@ The re-rooted files must be byte-identical to the fixing commit's;
 if they are not, the patch is not a forward-port of it.
 The patch retires itself:
 the vendor run that reaches upstream's own fix drops it,
-because a patch that no longer applies is dropped
-([`pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
+because a patch that no longer applies is dropped.
 With the patch applied, that fixing commit may change nothing
 and be skipped by the more-than-one-file rule,
 named in the next vendor commit's body like any other no-op commit.

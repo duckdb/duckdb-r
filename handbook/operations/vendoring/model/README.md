@@ -44,5 +44,4 @@ fast path, guarded by a commit match
 
 What enforces the green claim is
 [`ci/per-commit/`](/handbook/operations/ci/per-commit/README.md);
-the scripts that keep the rest are
-[`pipeline/`](/handbook/operations/vendoring/pipeline/README.md)'s.
+the scripts that keep the rest are `pipeline/`'s.
