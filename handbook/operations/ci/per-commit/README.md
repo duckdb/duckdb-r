@@ -1,14 +1,12 @@
 # Per-commit builds
 
 Every commit on a series branch gets a gate verdict of its own:
-[`each.yaml`](/.github/workflows/each.yaml) plans cost-balanced shards of
-commits, each leg builds and tests its commits one by one,
+[`each.yaml`](/.github/workflows/each.yaml) plans contiguous,
+cost-balanced **shards** of commits and gives each shard one job,
+which builds and tests its commits one by one in a single workspace,
 and the verdicts live on the orphan `rcc` branch —
 so every `*-dev` branch is bisectable end to end
 ([`branches/invariants/`](/handbook/branches/invariants/README.md)).
-
-The workflow plans contiguous, cost-balanced **shards**
-and gives each shard one job, which walks its commits in a single workspace.
 
 ## The contract
 
