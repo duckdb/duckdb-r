@@ -1,12 +1,19 @@
 # The suite
 
 The `tests/testthat/` layout, its helpers,
-and running the whole suite or one file.
+and running the whole suite or any part of it.
 
 ```sh
-R -q -e 'testthat::test_local()'                    # everything
-R -q -e "testthat::test_local(filter = '^array$')"  # one file
+R -q -e 'testthat::test_local()'                          # everything
+R -q -e "testthat::test_local(filter = '^array$')"        # one file
+R -q -e "testthat::test_local(filter = 'arrow')"          # every arrow file
+R -q -e "testthat::test_local(filter = '^(array|bind)$')" # exactly these two
 ```
+
+`filter` is a **regular expression**, matched against each file name with
+`test-` and `.R` stripped — so a family is a substring,
+several named files are an alternation,
+and one file is anchored to keep it from matching its neighbours.
 
 `test_local()` runs the directory directly and never reads
 `tests/testthat.R`, so the CRAN guard in that file
