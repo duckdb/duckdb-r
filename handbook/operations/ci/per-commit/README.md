@@ -96,7 +96,7 @@ verdict.
 
 ### The gate
 
-[`rcc-one.sh`](/scripts/rcc-one.sh) applies six gates in order:
+[`rcc-one.sh`](/scripts/rcc-one.sh) applies its gates in order:
 `style`, `snapshots`, `roxygen`, `clean`, `check`, `pkgdown`.
 `EACH_GATES` can drop individual ones.
 `pkgdown` is not a candidate: a pkgdown failure is a real failure and has to be
@@ -105,7 +105,8 @@ dealt with.
 The `snapshots` gate publishes accepted snapshots as a branch
 `snapshot-<sha>-rcc-smoke-null` off the commit under test
 (see [`testing/snapshots/`](/handbook/testing/snapshots/README.md)).
-About 950 of those branches exist and tooling looks them up by name, so the
+Those branches accumulate — one per accepted snapshot — and tooling looks them
+up by name, so the
 name is **frozen** rather than derived: upstream builds it from `github.job`
 and an empty matrix, and here the job is `build` and there *is* a matrix, so
 deriving it the same way would silently rename every future branch.
@@ -164,9 +165,11 @@ it, so timestamp-based incremental `make` cannot cross a commit boundary here.
 
 What survives is **ccache**, content-addressed and living outside the workspace
 for the whole job, capped at 8 GB.
-A typical adjacent vendor commit recompiles about 5 of 341 unity objects —
-roughly 98% hits, measured in
-[`plan/history/vendoring-loop.md`](/plan/history/vendoring-loop.md#a2-ccache-behaviour-on-adjacent-commits-8-consecutive-v15-commits).
+A typical adjacent vendor commit recompiles a handful of the unity objects
+`src/include/sources.mk` lists — roughly 98% hits, measured over eight
+consecutive `v1.5` commits and recorded in Appendix A of the superseded
+vendoring-loop design
+([`plan/history/vendoring-loop.md`](/plan/history/vendoring-loop.md#a2-ccache-behaviour-on-adjacent-commits-8-consecutive-v15-commits)).
 Cleaning the workspace also means every commit's verdict is identical to one
 from a fresh checkout, which keeps the semantics honest.
 The leg deliberately does not use `custom/after-install`: its ccache is capped
@@ -191,7 +194,8 @@ workspaces, and is deliberately not attempted.
 Oversubscription is a non-issue because `-j` is the only knob: the package
 requests no `-flto` and R's `Makeconf` reports `LTO =` empty, and without
 `Config/testthat/parallel` the suite runs serially.
-Peak RSS per unity object is about 834 MB, so four in flight is ~3.3 GB of 16.
+Peak RSS per unity object measured about 834 MB, so four in flight is ~3.3 GB
+of 16.
 
 ## The cost model
 
@@ -209,7 +213,7 @@ Four constants, each measuring one thing, each a default in
 | Constant | Default | What it is |
 |---|---|---|
 | `SETUP_MINUTES` | 5 | checkout, `install/action.yml`, `style` — paid once per leg |
-| `FULL_BUILD_MINUTES` | 40 | a build on an empty ccache: all 341 objects of `src/include/sources.mk` |
+| `FULL_BUILD_MINUTES` | 40 | a build on an empty ccache: every object `src/include/sources.mk` lists |
 | `FLOOR_MINUTES` | 6 | one commit with nothing to recompile: link, install, `R CMD check`, the gates |
 | `OBJECT_SECONDS` | 9.7 | marginal cost of recompiling one unity object |
 
@@ -254,15 +258,14 @@ as `.timing`, so the fit can be redone against any range at any time.
 ### Weighing a commit
 
 [`each-cost.py`](/scripts/each-cost.py) answers "how many unity objects does
-this commit invalidate" without building anything, in about 3.5 seconds.
-It reads the 341 objects from `src/include/sources.mk` — 138 of them `ub_*.o`
+this commit invalidate" without building anything, in a few seconds.
+It reads the object list from `src/include/sources.mk` — many of them `ub_*.o`
 groups that `#include` dozens of `.cpp` files each — resolves every
-`#include "..."` edge in `src/duckdb/**` (3517 files), and does one BFS per
-object.
+`#include "..."` edge in `src/duckdb/**`, and does one BFS per object.
 Each file ends up with a bitmask of the objects that transitively include it,
 and a commit's cost is the population count of the OR over its changed paths.
 
-Sanity checks against the tree:
+Sanity checks, measured against the vendored tree as it stood then:
 
 | path | objects |
 |---|---|
@@ -426,8 +429,8 @@ request.
 
 ### Publishing is cheap
 
-The `rcc` branch is around 218 MB, almost all of it harvested logs at about a
-megabyte each, and a leg needs none of those bytes to add one file.
+The `rcc` branch runs to hundreds of megabytes, almost all of it harvested logs
+at about a megabyte each, and a leg needs none of those bytes to add one file.
 So [`rcc-part-push.sh`](/scripts/rcc-part-push.sh) keeps a blobless, shallow,
 checkout-less clone (`--filter=blob:none --depth 1`) that fetches trees only,
 and builds the commit with plumbing: `read-tree`, `hash-object -w`,
@@ -437,8 +440,8 @@ branch, and ~130 ms per publish once warm.**
 
 One trap is worth recording because it is invisible.
 Plain `git write-tree` verifies that every index entry's object is present,
-which in a blobless clone means lazily fetching all 2.5k logs — the whole
-220 MB, per leg.
+which in a blobless clone means lazily fetching every log on the branch — the
+whole of it, per leg.
 `--missing-ok` suppresses the check, and `GIT_NO_LAZY_FETCH=1` is exported so
 that any *other* route to the same mistake fails loudly instead of quietly
 downloading the branch.
@@ -509,7 +512,7 @@ planner's own logic.
 [`rcc-consolidate.yaml`](/.github/workflows/rcc-consolidate.yaml) is
 `workflow_dispatch`-only and defaults to a dry run;
 set the `apply` input to actually rewrite the branch.
-Measured on the live branch:
+Measured on the live branch as it stood when the script was written:
 
 | | before | after |
 |---|---|---|
@@ -728,8 +731,8 @@ else has to keep being correct against.
   every series' green, and green bounds the planner's range, so the cost of the
   gap is a rebuild rather than a wrong verdict.
 * `rcc-consolidate.sh` has only been run against a copy.
-  It force-pushes an orphan branch that ~950 snapshot branches and several
-  workflows read, and the first real run is the one that proves the fetch
+  It force-pushes an orphan branch that the accumulated snapshot branches and
+  several workflows read, and the first real run is the one that proves the fetch
   refspecs elsewhere tolerate it.
   Dry run first.
 
