@@ -36,7 +36,7 @@ one line, so the register stays greppable and diffs per term.
 * **patch stack** — the patches under `patch/` re-applied to each freshly vendored tree ([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
 * **pointer leaf** — a leaf that states and links its topic's canonical home elsewhere ([`meta/handbook/`](/handbook/meta/handbook/README.md)).
 * **register** — expose an R data frame as a scannable table without copying ([`usage/data-import/`](/handbook/usage/data-import/README.md)); Arrow objects register the same way ([`usage/integrations/`](/handbook/usage/integrations/README.md)).
-* **relation** — an unexecuted query tree built by the relational API, run only when its values are touched ([`architecture/glue/`](/handbook/architecture/glue/README.md)).
+* **relation** — an unexecuted query tree built by the relational API, run only when its values are touched ([`usage/relational/`](/handbook/usage/relational/README.md)).
 * **secret store** — where `CREATE PERSISTENT SECRET` writes, under the storage home ([`usage/storage/`](/handbook/usage/storage/README.md)).
 * **series** — one upstream DuckDB branch with the package branches that carry it ([`branches/model/`](/handbook/branches/model/README.md)).
 * **series loop** — the scheduled agent routine that vendors every series ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).

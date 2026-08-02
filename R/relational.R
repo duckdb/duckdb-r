@@ -1,3 +1,8 @@
+# The relational API: lazy relation trees and the ALTREP data frames they
+# produce.  Internal -- every function here is @noRd, and duckplyr is the one
+# supported consumer.
+# Explained in handbook/usage/relational/README.md.
+
 # expressions
 
 #' Create a column reference expression

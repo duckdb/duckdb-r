@@ -15,7 +15,8 @@ an audience split would need the same fact in two places,
 and the tree holds every fact once.
 
 * [`usage/`](usage/) — installation and flavors, connections,
-  types, extensions, memory, data import, storage, integrations
+  types, extensions, memory, data import, storage, integrations,
+  the relational API
 * [`architecture/`](architecture/) — the R layer, the C++ glue,
   the embedded engine
 * [`build/`](build/) — source build, fast paths, build knobs
