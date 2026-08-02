@@ -12,7 +12,8 @@ stuck shards, stale snapshots.
 Today:
 
 * [`scripts/VENDORING.md`](/scripts/VENDORING.md)
-* [`scripts/EACH.md`](/scripts/EACH.md)
+* [`operations/ci/per-commit/`](/handbook/operations/ci/per-commit/) —
+  the sharded build system, which absorbed `scripts/EACH.md`
 
 To write this leaf:
 
