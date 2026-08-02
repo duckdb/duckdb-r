@@ -7,7 +7,7 @@ and the knobs that steer both.
 **What ships is the plain build.**
 Every shortcut is a development and CI convenience,
 never a second distribution model:
-the package a stranger installs always compiles the vendored sources.
+the package most users install always compiles the vendored sources.
 
 **A shortcut fails loudly or not at all.**
 Anything that skips work also proves it was entitled to skip it,
