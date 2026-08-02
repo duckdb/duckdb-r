@@ -1,5 +1,7 @@
 # DuckDB R Package - Operational Instructions
 
+*Handbook: [`testing/suite/`](/handbook/testing/suite/README.md).*
+
 R package that contains a vendored copy of the DuckDB C++ library and glue code for R, including a DBI and a relational interface.
 
 ## Where to look
@@ -39,23 +41,11 @@ For an interactive edit-build-test loop, prefer the prebuilt-libduckdb fast path
 
 ### Run Tests
 
-- `R -q -e "testthat::test_local()"` -- runs all tests. Takes about 45 seconds. NEVER CANCEL: set timeout to 5+ minutes.
-- `R -q -e "testthat::test_local(filter = '^name$')"` -- runs specific test file by name
+See [`testing/suite/`](/handbook/testing/suite/README.md).
 
 ### Manual Validation
 
-- ALWAYS test basic DuckDB functionality after making changes by running a complete scenario
-- Test connection, table creation, data insertion, and querying:
-
-    ```r
-    library(duckdb)
-    con <- dbConnect(duckdb())
-    dbExecute(con, "CREATE TABLE test (id INTEGER, name VARCHAR)")
-    dbExecute(con, "INSERT INTO test VALUES (1, 'Alice'), (2, 'Bob')")
-    result <- dbGetQuery(con, "SELECT * FROM test ORDER BY id")
-    print(result)
-    dbDisconnect(con, shutdown=TRUE)
-    ```
+See [`testing/suite/`](/handbook/testing/suite/README.md).
 
 ### Format Checking (Optional - Has Known Issues)
 
@@ -203,30 +193,15 @@ The root cause of spurious regeneration was a bug in `deps.mk` where the filter 
 
 ## Running Tests
 
-```bash
-# Run all tests
-R -q -e "testthat::test_local()"
-
-# Run specific test file (replace 'array' with the test name, or use more complex regex)
-R -q -e "testthat::test_local(filter = '^array$')"
-```
+See [`testing/suite/`](/handbook/testing/suite/README.md).
 
 ## Manual Testing Scripts
 
-```bash
-# Run bug reproduction script
-R -q -f bug.R
-
-# Run any R script
-R -q -f script_name.R
-R
-```
+See [`testing/suite/`](/handbook/testing/suite/README.md).
 
 ## Test Development
 
-- Test files located in `tests/testthat/`
-- Use `testthat::test_local(filter = "name")` for running specific test files
-- Always add tests when fixing bugs to prevent regression
+See [`testing/suite/`](/handbook/testing/suite/README.md).
 
 ## Code Style Guidelines
 
