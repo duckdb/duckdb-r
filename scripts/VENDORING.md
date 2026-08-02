@@ -5,71 +5,37 @@ its leaves state the model, the pipeline, the loop, and the
 troubleshooting map, and are absorbing this file section by
 section; where the two disagree, the leaf is right.*
 
-This document covers the mechanics of vendoring:
-what the scripts do, which invariants a dev branch must satisfy, how a new dev line is started,
-and how to troubleshoot a failing run.
+What is left here is the hands-on mechanics:
+what each script does and how to drive it by hand,
+how a new dev line is started, and how to work a failing run.
+The model, the invariants, the loop, and the version counters have been
+absorbed into the handbook; the headings below say where.
 For the branch strategy, the complete list of active branches, and the release process, see
 [BRANCHES.md](/BRANCHES.md), which is the authoritative source.
 For the historical design notes that led to the series loop,
 see [history/vendoring-loop.md](/plan/history/vendoring-loop.md)
 (superseded by `.claude/skills/series-loop.md`).
 
-## What is Vendoring?
+## What vendoring is, and why
 
-Vendoring is the practice of including a copy of external dependencies directly in your source code repository.
-The duckdb-r package vendors (includes a complete copy of) the DuckDB C++ core library in the `src/duckdb/` directory.
+`src/duckdb/` is a complete copy of the DuckDB C++ core, kept in this
+repository instead of resolved at build time.
+Absorbed into
+[`operations/vendoring/model/`](/handbook/operations/vendoring/model/README.md),
+which states the reasons and the invariants every `-dev` branch keeps.
 
-## Why Vendor DuckDB?
+## Which series exist
 
-- **Self-contained builds**: The R package can be built without requiring users to have DuckDB installed separately
-- **Version compatibility**: Ensures the R bindings work with a specific, tested version of the DuckDB core
-- **CRAN compliance**: Meets CRAN requirements for packages to be self-contained
-- **Reproducible builds**: Eliminates dependency on external DuckDB installations
+A series is *discovered from its refs*, not listed here.
+Absorbed into
+[`branches/model/`](/handbook/branches/model/README.md);
+the published flavors are
+[`branches/flavors/`](/handbook/branches/flavors/README.md)'s.
 
-## Active Dev Branches
+## Dev branch invariants
 
-All series are vendored by a single scheduled Claude routine — the **series
-loop** (`.claude/skills/series-loop.md`) — into each series' `-build` branch,
-and consumed from there into `-dev` (see `BRANCHES.md` for the full branch
-list):
-
-| Dev branch           | Vendors from upstream |
-|----------------------|-----------------------|
-| `v1.4-andium-dev`    | `v1.4-andium`         |
-| `v1.5-variegata-dev` | `v1.5-variegata`      |
-| `main-dev`           | `main`                |
-
-To add a series, create its refs (see `.claude/skills/series-open.md`)
-**and** update this table;
-the one routine discovers the series from its refs.
-
-## Dev Branch Invariants
-
-Everything below exists to keep four properties true for every dev branch.
-They are what makes the history useful rather than merely present.
-
-1. **Linear.**
-   First-parent history only, no merge commits.
-   A merge lands a batch of changes as a single step whose components were never built individually.
-2. **One upstream commit per vendor commit.**
-   Each vendor commit corresponds to exactly one upstream commit on the tracked branch,
-   and the vendored SHAs form a **contiguous first-parent walk** of that upstream branch —
-   no gaps, no jumps, no going backwards.
-3. **Green per commit.**
-   Every commit builds and passes the testsuite on its own.
-   That is what `each.yaml` verifies, and what makes `git bisect` meaningful.
-   If a vendor commit needs an R-side fix to build, the fix is folded **into that commit**,
-   never added as a follow-up — a follow-up leaves a red commit in the history forever.
-4. **Auditable R-side delta.**
-   Vendor commits touch only the mechanical path set
-   (`src/duckdb/`, `R/version.R`, `src/include/sources.mk`, `DESCRIPTION`).
-   Anything else in a vendor commit is a folded glue fix,
-   and must be reviewable as a path-filtered diff (see [history/vendoring-loop.md](/plan/history/vendoring-loop.md) §3.4).
-
-Invariant 2 is the one that is easy to lose.
-It is violated the moment a dev branch is re-pointed at a different upstream branch
-without re-basing its vendored history — see
-[Starting a new dev line](#starting-a-new-dev-line-the-fork-point-rule).
+Absorbed into
+[`operations/vendoring/model/`](/handbook/operations/vendoring/model/README.md).
 
 ## The Vendoring Scripts
 
@@ -158,108 +124,18 @@ because they changed nothing vendorable — this is the bulk of the per-commit c
 Writing only files whose content actually differs would roughly halve it,
 in CI as well as locally.
 
-## Version Counters and the Merge Driver
+## Version counters and the merge driver
 
-The package version carries two counters that advance on different strands:
+Absorbed into
+[`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md),
+including the prefix gate and what it declines to renumber.
 
-* the **4th** component is the R-client counter,
-  bumped on the source-of-truth strand (`main`): `1.5.5.9000` → `1.5.5.9001` → …
-* the **5th** component is the vendor counter,
-  bumped once per vendor commit on the `*-dev` strands: `1.5.5.9000.1` → `…9000.2` → …
+## Automated vendoring
 
-Each strand owns exactly one counter and freezes the other,
-so a merge or forward-port between them conflicts on the `Version:` line of *every* commit.
-`scripts/merge-version.sh` is a git merge driver that resolves that line deterministically,
-by taking the component-wise maximum of the two sides.
-Because of the ownership split, the max keeps the 4th component from the R-client strand
-and the 5th from the vendor strand, without either side having to know about the other.
-Every other line of `DESCRIPTION` still goes through a normal three-way merge,
-so a genuine concurrent edit (two branches touching `Imports:`, say) still surfaces as a conflict.
-
-The driver is wired up by two things:
-the `DESCRIPTION merge=ours-version` attribute in `.gitattributes`, which is committed,
-and the *name → command* mapping, which cannot live in a versioned file.
-`scripts/setup-git.sh` installs the latter into `.git/config`,
-and also enables `rerere` and pins `rebase.backend=merge`
-(the patch/`am` backend bypasses merge drivers entirely, so a rebase would ignore the driver).
-Run it once per clone,
-and as the first step of any CI job that rebases, cherry-picks, or merges in this repo.
-
-**The prefix gate.**
-The driver only combines counters when the `major.minor.patch` prefix of both sides is equal;
-otherwise it keeps *ours* verbatim and never inherits a foreign prefix.
-That is a safety rail for cross-release forward-ports (1.5.x → 1.4.x LTS),
-but it also means the driver does **not** renumber a dev branch
-when the base moves to a new patch release.
-Rebasing a `*-dev` branch from `1.5.4.9005.N` onto a `1.5.5.9000` base
-leaves every commit at the base version rather than producing `1.5.5.9000.1`, `…2`, `…3`, …;
-the vendor counter has to be re-applied explicitly, one commit at a time,
-as part of the rebase. This is expected — the gate is doing its job — but it is the
-one case where the driver silently does less than a reader might assume.
-
-## Automated Vendoring
-
-Vendoring is driven by the routine described in
-`.claude/skills/series-loop.md`: `scripts/vendor-one.sh` appends upstream
-commits to `<series>-build` with a glue-only compile gate, and the routine
-consumes them into `<series>-dev` at most 100 at a time, gated on the per-commit
-`rcc` results harvested to branch `rcc`. There is no vendoring workflow; CI's
-role is building each `-dev` commit (`each.yaml`) and recording results
-(`rcc-logs.yaml`, every 30 minutes).
-
-**Tooling is authored on `main` and ported by the loop.**
-CI reads workflows and scripts from the branch it checks,
-so a tooling fix takes effect for a series
-once it sits on `<S>-dev`.
-Porting is a stage of the series loop with an identity goal —
-after it, `.github/`, `scripts/`, and `.claude/` on `<S>-dev`
-are byte-identical to `main`'s:
-a helper script cherry-picks everything `main` has gained
-and closes the residue with one sync commit,
-and the routine judges conflicts
-(`scripts/series-port.sh`,
-stage 4 of `.claude/skills/series-loop.md`;
-the wider simplification is
-[`plan/PLAN-vendoring-simplification.md`](/plan/PLAN-vendoring-simplification.md)).
-The next forward retires the ported commits,
-whose content the new seed already carries.
-
-`scripts/vendor-gate.sh` has been retired with the rest of the legacy dispatch
-path ([`plan/PLAN-vendoring-simplification.md`](/plan/PLAN-vendoring-simplification.md), D4).
-It turned the `rcc` commit-status of a branch tip and the five commits before it
-into one verdict for the daily vendoring run:
-
-| Gate decision | Meaning                                                        | Action                                                                                                                    |
-|---------------|----------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------|
-| `green`       | some commit in the window is `rcc=success`                     | rewind to the youngest green commit (re-applying any non-vendored commits above it), then vendor at most 100 commits on top |
-| `red`         | no green in the window, but a failure/error                    | fail loudly — the breakage must be repaired before vendoring continues                                                    |
-| `stale`       | no green/red, and a commit has had no `rcc` result for over 6h | fail loudly — CI never decided; investigate                                                                               |
-| `undecided`   | no green/red, results still pending and younger than 6h        | succeed and do nothing; re-check tomorrow                                                                                 |
-
-After a successful advance, `.github/workflows/each.yaml` (`scripts/each-plan.sh`)
-builds every commit that does not yet have a build status,
-which is what keeps invariant 3 checkable.
-It groups them into contiguous shards balanced by predicted build cost
-and gives each shard one job that walks its commits in a single workspace;
-the per-commit `rcc` status is written exactly as before.
-See [`per-commit builds`](/handbook/operations/ci/per-commit/README.md).
-
-The `stale`/`undecided` split keeps the loop patient with commits that are
-legitimately still building,
-while surfacing a genuinely stuck pipeline instead of waiting on it forever.
-
-**Non-vendored commits are never overwritten.**
-A vendor commit only regenerates `src/duckdb/` (plus the version bump),
-so vendoring can re-create it from upstream at any time.
-A *non-vendored* commit cannot be regenerated,
-and the series loop never discards one:
-`-green` only ever fast-forwards,
-and repairs rewrite only the unverified range `-green..-dev`.
-R-side work does not land on `-dev` directly at all —
-it lands on `main`
-and reaches a series by forwarding (`.claude/skills/series-forward.md`),
-which rebuilds the series beside the old one
-instead of rewriting it.
+Absorbed into
+[`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md).
+The `scripts/vendor-gate.sh` decision table that stood here documented a
+script that has since been retired, and is gone with it.
 
 ## Manual Vendoring
 
@@ -645,15 +521,7 @@ git checkout -- src/duckdb/
 patch -p1 < patch/00NN-my-fix.patch
 ```
 
-## Release Considerations
+## Release considerations
 
-Which branch is released, and when, is governed by
-[Release Cycle Mapping](/BRANCHES.md#release-cycle-mapping) in `BRANCHES.md`.
-In short: CRAN releases come from the stable branches in `duckdb/duckdb-r`,
-the `.dev` packages on r-universe are built from the dev branches in `krlmlr/duckdb-r`,
-and the version in `DESCRIPTION` must match the upstream tag at release time.
-
----
-
-This vendoring system ensures that the duckdb-r package stays synchronized with DuckDB development
-while maintaining stability for end users.
+Absorbed into
+[`operations/releases/process/`](/handbook/operations/releases/process/README.md).
