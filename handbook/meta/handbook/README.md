@@ -213,6 +213,23 @@ because nothing in the sentence breaks when the forty-fifth lands.
 A list is safe, a tally is not,
 and the same number can be either depending on what surrounds it.
 
+**A fact known to be provisional carries the link to what will change it.**
+The rules already say a leaf points at the plan
+that carries its intent;
+intent also lives as an issue, ours or upstream,
+and those count the same.
+Without the link a reader cannot tell
+"this is how it works" from "this is how it works for now",
+and the two call for different decisions.
+With it, the leaf records that we already know —
+so the next reader does not re-derive the finding,
+and the acknowledgement is not lost
+the way it is when it lives only in a code comment
+or a pull-request thread.
+A behaviour that survives only because nobody has fixed it yet
+is documented as such, with its issue,
+and stops being documented that way when the issue closes.
+
 A **default is a fact**, and belongs in the prose with its value.
 How many commits a pass consumes,
 how large a chunk the planner cuts,
