@@ -541,6 +541,7 @@ krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
 <span id="cb11-12"><a href="#cb11-12" tabindex="-1"></a>  src/duckdb/   ← R-ready C++ sources (committed to branch)</span></code></pre></div>
 <p>Patches are numbered to define their application order. Gaps in the numbering are normal — they indicate patches that were previously removed because the fix was accepted upstream.</p>
 <p>When a patch is no longer needed (because the fix was merged upstream), delete the file. Do not renumber the remaining patches. When adding a new patch, assign it the next available number and send the same change as a pull request to <code>duckdb/duckdb</code> so it can be retired eventually.</p>
+<p>A <strong>forward-port</strong> is the one kind of patch that needs no pull request: it carries a fix upstream has already merged, back onto the commits vendored before it. It retires itself, and it is the escalation, not the default — a red vendor commit whose <em>next</em> commit fixes it is folded into that one instead (<a href="/handbook/operations/vendoring/troubleshooting/">troubleshooting</a>).</p>
 <p>If a vendor run fails because a patch no longer applies cleanly, update the patch against the new upstream code, commit it, and re-run vendoring.</p>
 </div>
 <div class="section level2">
@@ -565,6 +566,7 @@ krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
 <td>
 <code>scripts/vendor-one.sh</code>, one bump per vendor commit on a <code>-dev</code> branch</td>
 </tr></tbody></table><p>A released version is the bare three-component prefix (<code>1.5.4</code>). The <code>-dev</code> branches never touch <code>NEWS.md</code>; only <code>DESCRIPTION:Version</code> differs between the strands.</p>
+<p>The vendor counter must be <strong>strictly increasing across every vendor commit</strong> of a <code>-dev</code> or <code>-build</code> branch: r-universe installs by version, so two vendor commits sharing one are two commits it cannot tell apart. Gaps are fine — the counter orders, it does not count. A replay does not preserve this on its own: the <code>ours-version</code> merge driver keeps the replay target’s <code>Version:</code> line through every cherry-pick, so a replayed chain has to be restamped before it is pushed (<a href="/.claude/skills/series-loop.html"><code>series-loop.md</code></a>, Invariants).</p>
 <div class="section level3">
 <h3 id="the-description-merge-driver">The DESCRIPTION merge driver<a class="anchor" aria-label="anchor" href="#the-description-merge-driver"></a></h3>
 <p>Because the two counters advance on the same line, a plain forward-port, rebase, or release merge conflicts on <code>DESCRIPTION:Version</code> at essentially every commit. The merge driver in <code>scripts/merge-version.sh</code> resolves that line by taking the <strong>component-wise maximum</strong> of the two sides, <strong>gated on an equal <code>major.minor.patch</code> prefix</strong>:</p>
