@@ -20,11 +20,12 @@ Pushing a `cran-*` branch triggers
 [`rhub.yaml`](/.github/workflows/rhub.yaml) for R-hub's platforms.
 
 **Submitting:**
-<https://cran.r-project.org/submit.html>, with the tarball and the
-text of [`cran-comments.md`](/cran-comments.md) —
-the note that accompanies a submission, kept in the repository for
-review and history, `.Rbuildignore`d, and recording that the CRAN
-Repository Policy was read at its stated revision date.
+<https://cran.r-project.org/submit.html>, with the tarball and a
+short note in the form's comment field —
+the name and version submitted, and that the CRAN Repository Policy
+was reviewed at its stated revision date.
+No `cran-comments.md` is kept in the repository,
+and `.Rbuildignore` keeps a locally written one out of the tarball.
 The maintainer confirms the upload by mail.
 Acceptance is asynchronous — days, overlapping the next cycle —
 so the release is tagged and published to r-universe without

@@ -196,7 +196,7 @@ Where no index covers a document, it carries its own:
   Editing the generated file to add one is writing in sand.
 
 Only few kinds of file take no backreference to the handbook at all,
-among them `.Rd` files (auto-linked to `.R`) and `cran-comments.md`.
+among them `.Rd` files (auto-linked to `.R`).
 
 ## Enforcement
 
