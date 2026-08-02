@@ -25,9 +25,6 @@ silently stay on the fast path,
 and restores `src/duckdb/` from `src/duckdb.tar.xz` if the tree
 arrived compressed — which is how a tarball built by
 `R CMD build` compiles again under `R CMD check`.
-`src/Makevars` itself is generated from
-[`src/Makevars.in`](/src/Makevars.in) at vendor time
-([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
 
 **`UserNM=true` is an install-time shortcut only —
 never export it for `R CMD check`.**
