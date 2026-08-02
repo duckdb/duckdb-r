@@ -19,9 +19,7 @@ Read at build time:
   Repeat builds of the vendored tree drop from minutes to seconds.
 * **`UserNM`** — `UserNM=true` skips the `nm` symbol sweep
   at install time.
-  Never for `R CMD check` —
-  [`source-build/`](/handbook/build/source-build/README.md)
-  says what it blinds.
+  Never for `R CMD check`: it blinds the check's symbol scan.
 * **`DUCKDB_R_USE_SYSTEM_LIB`** — the fast path —
   [`fast-paths/`](/handbook/build/fast-paths/README.md).
 * **`DUCKDB_R_LIB_DIR`** — where the fast path looks for `libduckdb`
