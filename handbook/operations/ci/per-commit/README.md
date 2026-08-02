@@ -225,11 +225,10 @@ That is a parity requirement, not housekeeping: the gate exists to reproduce
 `rcc-smoke`'s verdict, and a verdict that depends on the runner image is not a
 reproduction.
 
-The leg therefore does **not** use `custom/after-install`:
-its ccache is capped at 200 MB and its `duckdb.tar` archive is keyed on the
-whole vendored tree, so both are per-commit constructs
-that a multi-commit job cannot use.
-The leg keeps one 8 GB local cache instead.
+The environments match, with minor differences that do not affect the result:
+the leg does not use `custom/after-install`, whose capped ccache and
+tree-keyed archive are per-commit constructs a multi-commit job cannot use,
+and keeps one 8 GB local cache instead.
 
 The gate runs as a script rather than a reusable workflow or a composite action:
 `uses:` is a job-level key and a workflow cannot loop over a composite action,
