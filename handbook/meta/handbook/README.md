@@ -10,6 +10,11 @@ has exactly one place in this tree.
 * **Leaves explain, once.**
   A leaf page owns its topic;
   other pages link to it and never paraphrase it.
+* **Leaves own their boundaries.**
+  A leaf states not only how its topic works
+  but also its limits, its declined requests with their reasons,
+  and — where intent exists — a pointer to the plan that carries it.
+  "Can it do X?" is answered at X's leaf, whichever way it goes.
 * **Full cover.**
   Every fact is reachable by walking down from
   [`handbook/`](../../README.md);
