@@ -60,7 +60,8 @@ by scanning back over recent commits that touched `src/duckdb/`
 and taking the first `duckdb/duckdb@<sha>` they find in a subject.
 The pathspec narrows the walk and the subject decides,
 so patch-stack fixes — which edit the vendored tree in place and carry no
-upstream SHA — are looked past, as deep as `BASE_SCAN_DEPTH` allows.
+upstream SHA — are looked past, as deep as `BASE_SCAN_DEPTH` allows,
+which is twenty commits unless the environment says otherwise.
 
 Coming up empty is not an answer, and neither script guesses.
 An empty base makes the enumeration read `..<HEAD>`,
@@ -80,7 +81,7 @@ The causes, with their different fixes:
   Raise `BASE_SCAN_DEPTH`.
   The message says the scan hit its bound only when it actually did,
   so its absence points at the first cause instead.
-  The same bound is hard-coded in `series-advance.sh` and `series-check.sh`,
+  The same twenty is hard-coded in `series-advance.sh` and `series-check.sh`,
   which read no such variable,
   so a branch that needs a raise here needs them changed too.
 
@@ -182,7 +183,7 @@ the harvest may be stale — compare the age of the `rcc` branch tip against
 large push.
 
 Only then is the run presumed lost.
-The series loop's playbook sets how long to wait before that,
+The series loop's playbook waits twelve hours before that,
 and its recovery is the `retry-<S>-dev` ref,
 which re-judges one commit on its own SHA
 instead of amending it and re-minting every descendant.
