@@ -74,15 +74,24 @@ they only take effect through a vendoring run
 | `DUCKDB_DEBUG_MOVE` | Adds `-DDUCKDB_DEBUG_MOVE` to the generated `PKG_CPPFLAGS`. Triggered by the variable being defined, whatever its value. | unset | Chasing a use-after-move in the engine |
 | `DUCKDB_R_LINENR` | Passed on to upstream's `package_build.build_package()` as its `linenr` argument. Any non-empty value is true, including `0` and `false`. | unset, i.e. false | Rarely — what it produces is decided by `package_build.py`, which lives in the DuckDB checkout and not here, so it is not verifiable from this repository |
 | `DUCKDB_PATH` | Where the DuckDB checkout is. | `../duckdb` | Set for you by the vendoring scripts |
-| `DUCKDB_BUILD_UNITY` | Intended to set the unity-build chunk size — but see below: it does nothing. | 20, always | Never |
+| `DUCKDB_BUILD_UNITY` | The unity-build chunk size handed to upstream's `package_build.build_package()` as its `unity_count` argument. Read and validated here; upstream disregards it — see below. | 20 | Nothing in the generated tree responds to it, so in practice never |
 
-`DUCKDB_BUILD_UNITY` is inert.
-`rconfigure.py` checks that the variable is defined and then converts a bare
-Python name rather than the environment entry,
-which raises `NameError` into a bare `except`,
-so the default of 20 always survives.
-It is listed as it behaves, not as it reads;
-making it work is a code change, not a documentation one.
+`DUCKDB_BUILD_UNITY` is read correctly and then disregarded downstream.
+`rconfigure.py` takes the value from the environment,
+keeps the default of 20 when it is unset or empty,
+and exits with a message when it is anything but a positive integer,
+so a malformed value stops the vendoring run rather than passing unnoticed.
+The value then travels to `package_build.build_package()` as `unity_count`,
+and that is as far as it gets:
+upstream's `generate_unity_builds()` accepts the split count and never uses it,
+and unity grouping is decided per directory by `add_library_unity`
+in upstream's CMakeLists.
+Every upstream version this package has followed behaves that way,
+from v0.8.1 through the vendored v1.5.5 and `main`.
+Setting the knob therefore changes the vendoring run's inputs
+and not the tree it commits.
+`package_build.py` lives in the DuckDB checkout and not here,
+so honouring the chunk size is an upstream change.
 
 `DUCKDB_R_BINDIR`, `DUCKDB_R_CFLAGS` and `DUCKDB_R_LIBS` are a further
 vendoring-time knob, taking effect only when all three are set together:
