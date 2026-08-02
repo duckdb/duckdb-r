@@ -1,7 +1,7 @@
 #!/bin/bash
 # Vendors DuckDB sources from the upstream repository (manual vendoring).
-# For manual testing and development use
-# See scripts/VENDORING.md for complete documentation
+# See handbook/operations/vendoring/pipeline/ for what this does and why.
+#
 # https://unix.stackexchange.com/a/654932/19205
 # Using bash for -o pipefail
 
@@ -39,13 +39,8 @@ if [ -n "$(git -C "$upstream_dir" status --porcelain)" ]; then
   echo "Warning: working directory $upstream_dir not clean"
 fi
 
-# The upstream SHA the branch has vendored. The pathspec narrows the walk, the
-# subject decides: the patch stack is applied to the vendored tree in place, so
-# commits land under ${vendor_dir} carrying no upstream SHA, and this looks past
-# them -- bounded, so git ends the walk itself.
-#
-# Answering empty is not an option here, which is why this refuses instead: an
-# empty base makes the message body below read `${base}..${commit}` with a
+# The upstream SHA the branch has vendored. Answering empty is not an option:
+# an empty base makes the message body below read `${base}..${commit}` with a
 # missing left side, which git resolves to the clone's HEAD and which writes a
 # changelog nobody chose. The same rule, and the same bound, as vendored_sha()
 # in scripts/series-advance.sh; scripts/vendor-one.sh has its own copy.
@@ -74,16 +69,10 @@ for commit in $original; do
   echo "R: configure"
   DUCKDB_PATH="$upstream_dir" python3 scripts/rconfigure.py
 
-  # The patch stack, classified in three: a patch that applies forward is
-  # applied; one that reverses cleanly is already in the regenerated tree,
-  # so its change landed upstream and it is retired; one that does neither
-  # has genuinely broken -- the code it patches moved -- and deleting it
-  # would silently lose an R-side fix, so the run stops instead.
-  # scripts/vendor-one.sh has the same three-way split and the same exit 4.
-  #
   # `--reverse` needs `--forward` beside it: on its own it prompts
   # ("Unreversed patch detected!  Ignore -R? [n]") and hangs a run whose
   # stdin is a terminal.
+  # scripts/vendor-one.sh has the same three-way split and the same exit 4.
   for f in patch/*.patch; do
     if patch -i "$f" -p1 --forward --dry-run; then
       patch -i "$f" -p1 --forward --no-backup-if-mismatch
@@ -114,8 +103,8 @@ for commit in $original; do
     break
   fi
 
-  # Expecting one change under ${vendor_base_dir} (and other changes) even if nothing else changed.
-  # Need at least three changed files to consider it a real update.
+  # pragma_version.cpp always differs, so "more than one" is the test for a
+  # real change.
   if [ "$(git status --porcelain -- ${vendor_base_dir} | wc -l)" -gt 1 ]; then
     message="vendor: Update vendored sources to ${repo_org}/${repo_name}@$commit"
     break

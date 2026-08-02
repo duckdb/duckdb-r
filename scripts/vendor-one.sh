@@ -1,7 +1,8 @@
 #!/bin/bash
 # Vendors DuckDB sources commit-by-commit from the upstream repository.
-# Used by the series loop (.claude/skills/series-loop.md)
-# See scripts/VENDORING.md for complete documentation
+# Used by the series loop (.claude/skills/series-loop.md).
+# See handbook/operations/vendoring/pipeline/ for what this does and why.
+#
 # https://unix.stackexchange.com/a/654932/19205
 # Using bash for -o pipefail
 
@@ -9,17 +10,10 @@ set -e
 set -x
 set -o pipefail
 
-# The checkout to vendor into. Defaults to this script's own, which is what it
-# has always meant. The series loop sets it, so the routine can run `main`'s copy
-# of this script against a `<S>-build` worktree: stage 1 is the one stage the
-# port stage cannot reach, because ports land on `-dev` and the buffer's own
-# tooling only refreshes at a forward (.claude/skills/series-loop.md stage 1,
-# and plan/PLAN-vendoring-simplification.md §4).
-#
-# Only *this* script comes from `main` that way. Everything it invokes by
-# relative path -- `scripts/rconfigure.py`, `patch/*.patch`, `./configure` --
-# stays the target tree's, because those are coupled to the vendored tree they
-# generate and patch rather than to the loop that drives them.
+# The checkout to vendor into, so the series loop can run `main`'s copy of this
+# script against another worktree. Only *this* script comes from `main` that
+# way: everything it invokes by relative path -- `scripts/rconfigure.py`,
+# `patch/*.patch`, `./configure` -- stays the target tree's.
 cd "${VENDOR_REPO:-$(dirname "$0")/..}"
 toplevel=$(git rev-parse --show-toplevel 2>/dev/null) || {
   echo "Error: $PWD is not a git worktree" >&2
@@ -41,9 +35,7 @@ upstream_basedir=""
 num_commits=1
 check_glue=true
 
-# How far to look past commits that touch the vendored tree without vendoring.
-# Matches the bound in vendored_sha() (scripts/series-advance.sh); override for a
-# branch that genuinely stacks more of them.
+# Matches the bound in vendored_sha() (scripts/series-advance.sh).
 base_scan_depth="${BASE_SCAN_DEPTH:-20}"
 
 while [ $# -gt 0 ]; do
@@ -73,11 +65,9 @@ fi
 
 upstream_dir=${project}
 
-# Clone the repo only once if it doesn't exist
 if [ ! -d "$upstream_dir" ]; then
   git clone "$upstream_basedir" "$upstream_dir"
 elif [ "$upstream_basedir" != "$upstream_dir" ]; then
-  # Update existing clone
   git -C "$upstream_dir" fetch origin
 fi
 
@@ -92,10 +82,6 @@ fi
 
 start=$(git -C "$upstream_dir" rev-parse --verify HEAD)
 
-# The glue gate: after each vendored commit, syntax-check the R glue against
-# the freshly vendored headers.  This catches every upstream API change the
-# glue has to follow, costs ~20 s, and needs no link and no R session.  The
-# compile flags come from a dry run, so they always match the local setup.
 glue_compile_flags() {
   # src/Makevars includes Makevars.rstrtmgr, which only ./configure writes and
   # .gitignore keeps out of the tree; without it `make -n` stops before it ever
@@ -123,16 +109,11 @@ glue_compiles() {
 }
 
 # The upstream SHA the branch has vendored, and the base of the next walk.
-# The pathspec narrows the walk, the subject decides: the patch stack is applied
-# to the vendored tree in place, so commits land under ${vendor_dir} carrying no
-# upstream SHA, and this looks past them -- bounded, so git ends the walk itself
-# rather than being killed by a closing pipe.
-#
-# Answering empty is not an option here, which is why this refuses instead. An
-# empty base makes the range below read `..${start}`, whose missing left side
-# git resolves to the upstream clone's HEAD -- a range nobody chose, and one
-# that silently vendors the wrong span. The same rule, and the same bound, as
-# vendored_sha() in scripts/series-advance.sh; scripts/vendor.sh has its own copy.
+# Answering empty is not an option: an empty base makes the range below read
+# `..${start}`, whose missing left side git resolves to the upstream clone's
+# HEAD -- a range nobody chose, and one that silently vendors the wrong span.
+# The same rule, and the same bound, as vendored_sha() in
+# scripts/series-advance.sh; scripts/vendor.sh has its own copy.
 vendored_sha() {
   local subjects sha n
   subjects=$(git log -n "${base_scan_depth}" --format="%s" -- ${vendor_dir} | tee /dev/stderr)
@@ -150,7 +131,6 @@ vendored_sha() {
   echo "$sha"
 }
 
-# Loop for the specified number of commits
 commits_vendored=0
 
 while [ $commits_vendored -lt $num_commits ]; do
@@ -192,16 +172,10 @@ while [ $commits_vendored -lt $num_commits ]; do
       exit 1
     }
 
-    # The patch stack, classified in three: a patch that applies forward is
-    # applied; one that reverses cleanly is already in the regenerated tree,
-    # so its change landed upstream and it is retired; one that does neither
-    # has genuinely broken -- the code it patches moved -- and deleting it
-    # would silently lose an R-side fix, so the run stops instead.
-    # scripts/vendor.sh has the same three-way split and the same exit 4.
-    #
     # `--reverse` needs `--forward` beside it: on its own it prompts
     # ("Unreversed patch detected!  Ignore -R? [n]") and hangs a run whose
     # stdin is a terminal.
+    # scripts/vendor.sh has the same three-way split and the same exit 4.
     for f in patch/*.patch; do
       if patch -i "$f" -p1 --forward --dry-run; then
         patch -i "$f" -p1 --forward --no-backup-if-mismatch
@@ -230,8 +204,8 @@ while [ $commits_vendored -lt $num_commits ]; do
       break
     fi
 
-    # Expecting one change under ${vendor_base_dir} (and other changes) even if nothing else changed.
-    # Need at least three changed files to consider it a real update.
+    # pragma_version.cpp always differs, so "more than one" is the test for a
+    # real change.
     if [ "$(git status --porcelain -- ${vendor_base_dir} | wc -l)" -gt 1 ]; then
       message="vendor: Update vendored sources to ${repo_org}/${repo_name}@$commit"
       break
@@ -261,12 +235,6 @@ while [ $commits_vendored -lt $num_commits ]; do
   echo "Our tag: $our_tag"
   echo "Upstream tag: $upstream_tag"
 
-  # Increase fifth version component by one
-  # Set to one if missing
-  # Set intermediate components to zero if missing
-  # 1.2.3 -> 1.2.3.0.1
-  # 1.2.3.9000 -> 1.2.3.9000.1
-  # 1.2.3.9000.4 -> 1.2.3.9000.5
   version=$(sed -r -n '/^Version: (.*)$/ s//\1/p' DESCRIPTION)
   version_array=(${version//./ })
   for i in {0..4}; do
@@ -311,7 +279,6 @@ while [ $commits_vendored -lt $num_commits ]; do
     exit 3
   fi
 
-  # If we just vendored a tag, stop here
   if [ -n "${is_tag}" ]; then
     echo "Vendored a tag. Stopping."
     rm -rf "$upstream_dir"
