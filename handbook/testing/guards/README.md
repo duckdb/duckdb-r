@@ -43,6 +43,6 @@ Resolve a hit, don't silence it:
 `paste0("duck", "db")`
 when the literal genuinely names something else,
 or teach `scripts/flavor.patch` the rename.
-The scan does not reach `handbook/` — prose here is the
-consistency skill's to keep clean
-([the rules](/handbook/meta/handbook/README.md)).
+The scan covers what ships;
+`handbook/` is outside it and is written for the mainline flavor
+([`branches/flavors/`](/handbook/branches/flavors/README.md)).

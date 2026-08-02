@@ -40,3 +40,7 @@ Everywhere else the package asks for its name at run time
 ([`architecture/r-layer/`](/handbook/architecture/r-layer/README.md));
 the scan that keeps it that way is
 [`testing/guards/`](/handbook/testing/guards/README.md)'s.
+
+This handbook is written for the mainline flavor:
+where a page spells the package `duckdb`,
+a reader on another flavor substitutes its name.

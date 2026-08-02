@@ -55,13 +55,6 @@ and a rewrite that loses a fact is a regression, not an edit.
   is documented as such, and stops being when the issue closes.
 * **Never refer by position — name the thing.**
   "The first two" breaks silently when the list above is reordered.
-* **Call it "the package", never `duckdb`** —
-  the published name varies.
-  Three spellings are fine: the repository (`duckdb-r`),
-  the DuckDB engine and upstream project,
-  and a flavor named as a flavor.
-  The flavor-name scan does not reach `handbook/`,
-  so prose here is the consistency skill's to keep clean.
 * **Write links that leave their directory from the repository root**,
   with a leading `/` —
   GitHub resolves them against the root on any branch or fork;
