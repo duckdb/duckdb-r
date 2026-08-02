@@ -4,37 +4,43 @@ Date: Fri, 16 May 2025 13:41:16 +0200
 Subject: [PATCH] Avoid mbedtls diagnostic pragmas
 
 ---
- src/duckdb/third_party/mbedtls/library/constant_time_impl.h | 4 ----
- src/duckdb/third_party/mbedtls/library/platform_util.cpp    | 6 ------
- 2 files changed, 10 deletions(-)
+ .../mbedtls/library/constant_time_impl.h          | 14 +++-----------
+ .../third_party/mbedtls/library/platform_util.cpp | 12 ++++++------
+ 2 files changed, 9 insertions(+), 17 deletions(-)
 
 diff --git a/src/duckdb/third_party/mbedtls/library/constant_time_impl.h b/src/duckdb/third_party/mbedtls/library/constant_time_impl.h
-index f63176c16..8d8aa87f0 100644
+index aeaeecb..1b6fe95 100644
 --- a/src/duckdb/third_party/mbedtls/library/constant_time_impl.h
 +++ b/src/duckdb/third_party/mbedtls/library/constant_time_impl.h
-@@ -32,8 +32,8 @@
-  * at the bottom of this file.
+@@ -28,13 +28,10 @@
+  * This appears to behave as if the declaration-without-definition was not present
+  * (except for warnings if gcc -Wredundant-decls or similar is used).
+  *
+- * Disable -Wredundant-decls so that gcc does not warn about this. This is re-enabled
+- * at the bottom of this file.
++ * Upstream disables -Wredundant-decls around this file; CRAN does not allow
++ * pragmas, and the warning is in neither -Wall nor -pedantic, so the
++ * suppression is dropped here.
   */
- #if defined(MBEDTLS_COMPILER_IS_GCC) && (__GNUC__ > 4)
+-#if defined(MBEDTLS_COMPILER_IS_GCC) && (__GNUC__ > 4)
 -    #pragma GCC diagnostic push
 -    #pragma GCC diagnostic ignored "-Wredundant-decls"
-+    #pragma  GCC  diagnostic  push
-+    #pragma  GCC  diagnostic  ignored "-Wredundant-decls"
- #endif
+-#endif
  
- /* Disable asm under Memsan because it confuses Memsan and generates false errors.
-@@ -549,8 +547,8 @@ inline mbedtls_ct_condition_t mbedtls_ct_bool_not(mbedtls_ct_condition_t x)
+ /* armcc5 --gnu defines __GNUC__ but doesn't support GNU's extended asm */
+ #if defined(MBEDTLS_HAVE_ASM) && defined(__GNUC__) && (!defined(__ARMCC_VERSION) || \
+@@ -533,9 +530,4 @@ static inline mbedtls_ct_condition_t mbedtls_ct_bool_not(mbedtls_ct_condition_t
+     return (mbedtls_ct_condition_t) (~x);
  }
  
- #if defined(MBEDTLS_COMPILER_IS_GCC) && (__GNUC__ > 4)
- /* Restore warnings for -Wredundant-decls on gcc */
+-#if defined(MBEDTLS_COMPILER_IS_GCC) && (__GNUC__ > 4)
+-/* Restore warnings for -Wredundant-decls on gcc */
 -    #pragma GCC diagnostic pop
-+    #pragma  GCC  diagnostic  pop
- #endif
- 
+-#endif
+-
  #endif /* MBEDTLS_CONSTANT_TIME_IMPL_H */
 diff --git a/src/duckdb/third_party/mbedtls/library/platform_util.cpp b/src/duckdb/third_party/mbedtls/library/platform_util.cpp
-index 19ef07aea..889caab08 100644
+index 19ef07a..7e7d23c 100644
 --- a/src/duckdb/third_party/mbedtls/library/platform_util.cpp
 +++ b/src/duckdb/third_party/mbedtls/library/platform_util.cpp
 @@ -118,17 +118,17 @@ void mbedtls_platform_zeroize(void *buf, size_t len)
@@ -63,4 +69,3 @@ index 19ef07aea..889caab08 100644
  #endif
 -- 
 2.48.1
-

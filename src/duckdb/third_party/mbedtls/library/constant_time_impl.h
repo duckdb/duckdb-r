@@ -28,13 +28,10 @@
  * This appears to behave as if the declaration-without-definition was not present
  * (except for warnings if gcc -Wredundant-decls or similar is used).
  *
- * Disable -Wredundant-decls so that gcc does not warn about this. This is re-enabled
- * at the bottom of this file.
+ * Upstream disables -Wredundant-decls around this file; CRAN does not allow
+ * pragmas, and the warning is in neither -Wall nor -pedantic, so the
+ * suppression is dropped here.
  */
-#if defined(MBEDTLS_COMPILER_IS_GCC) && (__GNUC__ > 4)
-    #pragma  GCC  diagnostic  push
-    #pragma  GCC  diagnostic  ignored "-Wredundant-decls"
-#endif
 
 /* armcc5 --gnu defines __GNUC__ but doesn't support GNU's extended asm */
 #if defined(MBEDTLS_HAVE_ASM) && defined(__GNUC__) && (!defined(__ARMCC_VERSION) || \
@@ -532,10 +529,5 @@ static inline mbedtls_ct_condition_t mbedtls_ct_bool_not(mbedtls_ct_condition_t 
 {
     return (mbedtls_ct_condition_t) (~x);
 }
-
-#if defined(MBEDTLS_COMPILER_IS_GCC) && (__GNUC__ > 4)
-/* Restore warnings for -Wredundant-decls on gcc */
-    #pragma  GCC  diagnostic  pop
-#endif
 
 #endif /* MBEDTLS_CONSTANT_TIME_IMPL_H */
