@@ -19,9 +19,7 @@ Little of this is codified; what is settled:
   arguing with it.
   A snapshot the change legitimately moved is accepted deliberately
   ([`testing/snapshots/`](/handbook/testing/snapshots/README.md)).
-* Never edit `src/duckdb/`, generated files, or `man/` —
-  each has a producer
-  ([`architecture/`](/handbook/architecture/README.md)).
+* Never edit generated or vendored files.
 
 The review side — what gets checked, who drives CI — is
 [`operations/review/`](/handbook/operations/review/README.md).
