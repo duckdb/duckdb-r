@@ -1,5 +1,7 @@
 # `plan/` — designs, decisions, and history
 
+*Handbook: [`meta/plans/`](/handbook/meta/plans/README.md).*
+
 This directory holds documents that are *not* part of the routing tree's
 description of how the system works today:
 plans for work that is not finished,
