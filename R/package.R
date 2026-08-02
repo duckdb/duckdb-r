@@ -1,3 +1,6 @@
+# The seam that keeps the package from writing its own name.
+# Handbook: handbook/architecture/r-layer/
+
 get_package_name <- function() {
   utils::packageName()
 }

@@ -1,3 +1,7 @@
+# Load-time registration of methods for suggested packages, and the rlang
+# soft-dependency swap.
+# Handbook: handbook/architecture/r-layer/
+
 .onLoad <- function(...) {
   s3_register("dbplyr::dbplyr_edition", "duckdb_connection")
   s3_register("dbplyr::db_connection_describe", "duckdb_connection")

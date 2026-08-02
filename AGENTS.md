@@ -1,5 +1,7 @@
 # DuckDB R Package - Operational Instructions
 
+*Handbook: [`architecture/r-layer/`](/handbook/architecture/r-layer/README.md).*
+
 R package that contains a vendored copy of the DuckDB C++ library and glue code for R, including a DBI and a relational interface.
 
 ## Where to look
@@ -242,40 +244,7 @@ R
 
 ## Never Hard-Code the Package Name
 
-The package is published under several names —
-`duckdb` on CRAN, and `duckdb.dev`, `duckdb.1.5.dev`, `duckdb.1.4` and friends on r-universe —
-all built from the same sources with `scripts/flavor.sh` applying the rename
-(see [BRANCHES.md](BRANCHES.md#r-package-flavors)).
-Anything that writes `duckdb` literally works on `main` and breaks on every other branch.
-
-`R/package.R` is the seam for this:
-
-| Helper | Returns |
-|---|---|
-| `get_package_name()` | the current package name, via `utils::packageName()` |
-| `get_package_env()` | that package's namespace, via `asNamespace()` |
-| `get_package_spec()`, `get_package_version()` | the namespace spec and version |
-| `system_file_path(...)` | a path inside the installed package (also the mockable seam tests stub) |
-
-`simulate_duckdb()` exposes the first two as `$pkg` and `$env`,
-which is what makes `@examplesIf simulate_duckdb()$env$examples_enabled()` work under any flavor.
-
-Use them anywhere the package refers to itself:
-
-* `system.file(..., package = get_package_name())`, never the package name as a string literal;
-* `get_package_env()$some_internal`, never a `:::` qualifier on our own name;
-* in roxygen too — an inline chunk `` `r get_package_env()$CONSTANT` `` resolves under any name,
-  while the same chunk written with a `:::` qualifier fails everywhere except `main`.
-
-The roxygen case is worth calling out because it fails in a confusing way.
-roxygen2 evaluates inline chunks in the package's own namespace,
-so an unresolvable reference does not raise an error:
-the chunk, **and every other inline chunk in the same roxygen block**,
-is emitted verbatim as `\verb{r ...}`.
-A single hard-coded qualifier therefore silently de-evaluates its neighbours —
-a single qualified reference in `R/storage.R` also took out the `lifecycle::badge()` chunk beside it.
-The regenerated `.Rd` then differs from the committed one
-and CI fails at the `roxygenize` step, before anything is compiled.
+The `get_package_name()` seam and the rules for using it are in the handbook: [`architecture/r-layer/`](/handbook/architecture/r-layer/README.md).
 
 ## C++ Glue Code Conventions
 
