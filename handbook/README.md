@@ -1,6 +1,7 @@
 # The duckdb-r handbook
 
-One place for every documentable aspect of this package;
+The single source of truth
+for every documentable aspect of this package;
 internal pages like this one only navigate — leaves explain
 ([the rules](meta/handbook/)).
 

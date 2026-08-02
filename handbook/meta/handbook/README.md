@@ -30,6 +30,17 @@ has exactly one place in this tree.
   so a traversal still finds it.
   The tree needs no separate map of what lives outside;
   the leaves are the map.
+* **The tree is the single source of truth.**
+  Everything outside it is secondary —
+  user-facing surfaces (the root `README.md`, reference pages),
+  per-directory indexes in the source tree, convenience copies —
+  and every secondary document carries a backreference
+  to the handbook node it serves.
+  Where a pointer leaf names a fixed medium as a fact's home,
+  the links are bidirectional:
+  the leaf points at the medium,
+  the medium backreferences the leaf.
+  A secondary document without a backreference is an orphan.
 * **Stubs are visible debt.**
   A leaf that is not yet written says so in its first line
   and routes to where the knowledge lives today.
@@ -45,6 +56,9 @@ and it is written for an agent starting with clean context:
 * **Move, don't copy.**
   Absorbed text leaves its old home in the same change,
   replaced by a pointer to the leaf.
+  Every secondary surface the leaf serves —
+  a root `README.md` section, a reference page,
+  a directory index — gains a backreference to the leaf.
   Free-floating `.md` files shrink as their content lands here;
   a fully absorbed file becomes a one-line tombstone.
 * **Verify before you state.**

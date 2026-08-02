@@ -14,4 +14,5 @@ Today:
 To write this leaf:
 
 * source: `README.md` — the install commands and the `Flavors` table;
-  summarize and point, the root keeps the full text (CRAN renders it)
+  summarize and point — the root keeps the full text (CRAN renders it)
+  and gains a backreference to this leaf
