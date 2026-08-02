@@ -3,9 +3,7 @@
 When a vendoring run is red:
 telling the failure modes apart and reaching the right repair.
 The repair procedures are the series loop's playbooks
-([`series-loop/`](/handbook/operations/vendoring/series-loop/README.md));
-[`scripts/VENDORING.md` § Troubleshooting](/scripts/VENDORING.md#troubleshooting)
-keeps the detailed recovery walkthroughs.
+([`series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
 
 Start read-only:
 [`scripts/series-check.sh`](/scripts/series-check.sh) prints one
@@ -91,4 +89,4 @@ The loop's own statement of the rule is in its repair stage
 ([`series-loop.md`](/.claude/skills/series-loop.md)).
 
 *To deepen: absorb `scripts/VENDORING.md` § Troubleshooting —
-the recovery walkthroughs behind these classes.*
+rebuilding the upstream clone, and the spurious `src/*.dd` churn.*

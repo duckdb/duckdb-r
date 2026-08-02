@@ -1,8 +1,8 @@
 # The pipeline
 
 The machinery that turns one upstream commit into one vendor commit.
-[`scripts/VENDORING.md`](/scripts/VENDORING.md) is the detailed
-mechanics record, being absorbed here leaf by leaf.
+[`scripts/VENDORING.md`](/scripts/VENDORING.md) keeps what is not
+yet absorbed: driving the scripts by hand, and creating a patch.
 
 **Two scripts**, both regenerating `src/duckdb/` from scratch,
 re-applying the patch stack, and committing:
@@ -50,5 +50,6 @@ resolving each component to the strand that owns it
 ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 
 *To deepen: absorb `scripts/VENDORING.md`'s remaining sections —
-the vendoring scripts, manual vendoring, the fork-point rule for a new
-dev line, understanding vendor commits, and monitoring.*
+vendoring by hand, creating a patch, the two properties of the
+regenerated tree, the fork-point rule for a new dev line, the vendor
+commit format, and the badges.*
