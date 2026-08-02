@@ -281,8 +281,8 @@ private:
 // and the prepared statement only holds a weak reference to it.
 struct RQueryResult {
 	RQueryResult(duckdb::shared_ptr<ClientContext> context_p, duckdb::unique_ptr<QueryResult> result_p)
-	    : context(std::move(context_p)), result(std::move(result_p)), types(result->types), names(result->names),
-	      client_properties(result->client_properties) {
+	    : context(std::move(context_p)), result(std::move(result_p)), types(result->GetTypes()),
+	      names(IdentifiersToStrings(result->GetNames())), client_properties(result->client_properties) {
 	}
 
 	// Declared first, so the context outlives everything that reads it.
