@@ -8,7 +8,11 @@
 # drift from the files -- the roxygen model, applied to scripts.
 # The mapping below is the scripts/ slice of the source-to-leaf
 # ownership map; it moves into a repo-wide manifest when that lands.
-# Rules: handbook/meta/handbook/README.md.
+#
+# A helper, not an entry point: the docs-consistency skill drives it
+# and owns the judgment calls -- whether a grouping is right, whether
+# a header says what its file does.  This renders and diffs.
+# Rules: handbook/meta/handbook/README.md, "Enforcement".
 #
 # Usage:
 #   Rscript scripts/docs-readme.R          # rewrite scripts/README.md

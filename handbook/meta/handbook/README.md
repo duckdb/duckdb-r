@@ -79,3 +79,23 @@ and it is written for an agent starting with clean context:
   Delete the "To write this leaf" section and the stub notice;
   keep internal nodes navigation-only;
   leave no dangling links.
+
+## Enforcement
+
+Consistency is agent work.
+The checks — every source path maps to a leaf,
+every secondary document backreferences its node,
+every link resolves, generated indexes are fresh,
+stubs carry their work orders —
+run as a skill under `.claude/skills/`,
+invoked when documentation is touched
+and periodically as a routine.
+Helper scripts do the mechanical parts
+(extraction, rendering, link walking, diffing);
+the skill owns the judgment —
+whether a mapping is right,
+whether a header says what its file does.
+Helpers are not entry points of their own:
+every check that matters is reachable through the skill,
+and the skill covers the whole source tree,
+not one directory at a time.
