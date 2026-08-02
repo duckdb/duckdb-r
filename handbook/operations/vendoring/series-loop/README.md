@@ -96,8 +96,10 @@ lacks, classified `TOOLING` / `MIXED` / `OTHER` / `VENDOR`, and applies all
 but `VENDOR`; conflicts and engine-incompatible commits stay judgement.
 
 **5. Extend `<S>-dev`** decides how much of the buffer is consumed —
-one chunk per firing, sized by `series-advance.sh`'s chunk argument,
+one chunk per firing — a hundred commits by default,
+overridable per call —
 and only when everything in flight is green.
+What the bound buys is [`branches/model/`](/handbook/branches/model/)'s to explain.
 A series with a live forward counterpart is being replaced, so it is
 verified and promoted but never extended.
 
