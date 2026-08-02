@@ -184,6 +184,26 @@ The cost is that such a link does not resolve in a local Markdown
 preview, which has no notion of a repository root;
 the handbook is read on GitHub, and that is the trade taken.
 
+**A leaf states what stays true as the code moves.**
+A number that a normal commit invalidates —
+how many translation units, how many test files,
+how many seconds a build takes —
+is not a fact worth stating but a hostage to the next contributor,
+and a reader who trusts it is worse off than one who looked.
+Name the mechanism instead:
+the file that lists the translation units is durable,
+the count is not.
+Where the count carries no argument, cut it;
+where a qualitative statement will do, prefer it.
+Two things survive this rule.
+A measurement stays if the text says it is a measurement
+and against what — a measurement with provenance ages honestly,
+where a bare number pretends to be current.
+And a count stays when it *is* the design:
+the two version counters, the states of the release machine.
+Changing a load-bearing number means changing the design,
+which is exactly why stating it is safe.
+
 Prose absorbed into a leaf may be rewritten —
 the handbook's voice is tighter than its sources' —
 but a rewrite that loses a fact is a regression, not an edit.
