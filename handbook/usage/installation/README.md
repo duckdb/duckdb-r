@@ -13,11 +13,12 @@ Four sources serve the package, and they differ in what they carry.
   It is the recommended source for recent R versions on Windows and macOS,
   which have binaries there.
   For Linux or an older R it offers sources only,
-  and a source install may take up to an hour.
+  and a source install compiles the whole vendored engine,
+  which takes tens of minutes rather than seconds.
 * **The [Posit Public Package Manager](https://p3m.dev/)** serves binary
   builds of the same CRAN release for a wide variety of platforms,
   including Linux —
-  the way around the hour-long source build.
+  the way around that source build.
   Setup instructions, a ManyLinux one-liner,
   and the page that shows which binaries exist for a platform
   are linked from the root `README.md`.
