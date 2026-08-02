@@ -204,6 +204,22 @@ the two version counters, the states of the release machine.
 Changing a load-bearing number means changing the design,
 which is exactly why stating it is safe.
 
+The working test is whether the prose names its members.
+"Two identifiers travel with the vendored copy" is durable
+when the next clause names both,
+because the set cannot change without the sentence changing with it;
+"forty-four files register S4 methods this way" is a hostage,
+because nothing in the sentence breaks when the forty-fifth lands.
+A list is safe, a tally is not,
+and the same number can be either depending on what surrounds it.
+
+Positional reference fails the same way.
+"Neither of the first two is in force"
+and "the first two, as `$pkg` and `$env`"
+break silently when a list above them is reordered,
+which is not even a change to the subject matter.
+Name the thing.
+
 Prose absorbed into a leaf may be rewritten —
 the handbook's voice is tighter than its sources' —
 but a rewrite that loses a fact is a regression, not an edit.
