@@ -114,8 +114,9 @@ Then, install:
 ~duckdb-r: R CMD INSTALL .
 ```
 
-Set the `MAKEFLAGS` environment variable to `-j8` or similar for parallel builds.
-Configure `ccache` for faster repeated builds.
+The build knobs — parallelism, `ccache`, the object-file archive, and the
+rest — are documented in
+[`handbook/build/configuration/`](/handbook/build/configuration/README.md).
 
 If you wish to test new DuckDB functionality with duckdb-r, make sure your clone of `duckdb-r` is one level deeper than your clone of `duckdb` (e.g. `R/duckdb-r` and `duckdb`).
 Then run the following commands:

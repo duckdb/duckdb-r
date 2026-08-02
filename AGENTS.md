@@ -1,5 +1,7 @@
 # DuckDB R Package - Operational Instructions
 
+*Handbook: [`build/configuration/`](/handbook/build/configuration/README.md).*
+
 R package that contains a vendored copy of the DuckDB C++ library and glue code for R, including a DBI and a relational interface.
 
 ## Where to look
@@ -25,7 +27,7 @@ start there rather than searching.
 
 - `sudo apt-get install -y r-base r-base-dev build-essential` -- installs R and development tools
 - `mkdir -p ~/R/library && echo '.libPaths("~/R/library")' > ~/.Rprofile` -- sets up local R library
-- `export MAKEFLAGS="-j$(nproc)"` -- enables parallel compilation
+- Build knobs -- `MAKEFLAGS` and parallelism, ccache, `UserNM`, the object-file archive, and everything else the build reads from the environment: [`handbook/build/configuration/`](/handbook/build/configuration/README.md)
 - `UserNM=true R CMD INSTALL . --no-byte-compile` -- builds and installs the package. NEVER CANCEL: takes 10-15 minutes on first build. Set timeout to 30+ minutes.
 
 `UserNM=true` is an install-time shortcut only -- **never export it for `R CMD check`**.
