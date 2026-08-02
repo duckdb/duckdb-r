@@ -1,5 +1,7 @@
 # R Package Release Process
 
+*Handbook: [`operations/releases/cran/`](/handbook/operations/releases/cran/README.md).*
+
 This document describes the release process for one DuckDB release line as a
 **finite state machine (FSM)**. It is the operational companion to
 [`BRANCHES.md`](BRANCHES.md), which defines the branch model, the package
@@ -219,12 +221,7 @@ git rebase origin/L && git push origin L-lts
 
 ### WinBuilder + final checks
 
-Obtain the source tarball from the CI build artifact (`r-package-source`) or the
-post-CI GitHub release (`duckdb_<version>.tar.gz`). Build it from
-`duckdb/duckdb@main` rather than a fork, so the git revision ids used to fetch
-extensions are correct. Upload to WinBuilder (R-devel):
-<https://win-builder.r-project.org/upload.aspx>. Apart from the known
-package-size NOTE, warnings and notes are blockers.
+See [`operations/releases/cran/`](/handbook/operations/releases/cran/README.md).
 
 ### 5 PUBLISHED — tag & publish
 
@@ -235,12 +232,10 @@ git tag vX.Y.Z origin/L-lts   # or origin/L per series convention
 git push origin vX.Y.Z
 ```
 
-For the **current** line (the CRAN `duckdb` package), submit the source tarball at
-<https://cran.r-project.org/submit.html>. The maintainer (currently Hannes)
-confirms the upload, after which CRAN's automated checks run. CRAN acceptance is
-**asynchronous** — it can take days and overlaps RESET and the next TRACK. If CRAN
-rejects, fix on `stable` and re-enter CUT as a follow-up patch. LTS lines publish
-to r-universe only and have no CRAN tail.
+For the **current** line (the CRAN `duckdb` package), the submission itself —
+and the asynchronous acceptance tail that overlaps RESET and the next TRACK —
+is [`operations/releases/cran/`](/handbook/operations/releases/cran/README.md).
+LTS lines publish to r-universe only and have no CRAN tail.
 
 ## RESET — re-baseline
 
