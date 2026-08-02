@@ -1,3 +1,4 @@
+# Handbook: handbook/build/source-build/
 # This file is used from Makevars if $DUCKDB_R_PREBUILT_ARCHIVE points
 # to an existing file.
 # We print details on the object files already extracted in the configure script

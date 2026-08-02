@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# Handbook: handbook/build/source-build/
+
 set -ex
 
 # Use gtar if available (e.g., on macOS via Homebrew), otherwise tar.

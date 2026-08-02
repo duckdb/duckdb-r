@@ -1,3 +1,4 @@
+# Handbook: handbook/build/source-build/
 # This file is used from Makevars if $DUCKDB_R_PREBUILT_ARCHIVE is empty
 # or does not point to an existing file.
 # In the latter case, we create the file after the object files have been built.
