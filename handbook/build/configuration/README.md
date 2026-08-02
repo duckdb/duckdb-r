@@ -44,18 +44,12 @@ and `core_functions`),
 `DUCKDB_DEBUG_MOVE`, `DUCKDB_R_LINENR`, `DUCKDB_PATH`
 ([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
 
-Not build knobs, documented where they act:
-`DUCKDB_R_HOME` and `DUCKDB_R_TEMP_DIRECTORY`
-([`usage/storage/`](/handbook/usage/storage/README.md)),
-`DUCKDB_R_ALLOW_EXTENSIONS`
-([`usage/extensions/`](/handbook/usage/extensions/README.md)),
-`DUCKDB_R_RUN_TESTS`
-([`testing/guards/`](/handbook/testing/guards/README.md)),
-`DUCKDB_R_POISON_ENGINE`
-([`operations/ci/matrix/`](/handbook/operations/ci/matrix/README.md)),
-and `DUCKDB_R_LIB_VERSION` / `DUCKDB_R_LIB_URL`,
-which steer `install-libduckdb.sh`
-([`fast-paths/`](/handbook/build/fast-paths/README.md)).
+Not every `DUCKDB_R_` variable is a build knob:
+one that acts at run time or in a helper script
+is documented at the leaf that owns its topic,
+and this page names only what the build reads.
+A few are outputs the build writes rather than inputs it reads,
+and setting those by hand achieves nothing.
 There is no knob for the C++ standard, optimisation, or warnings:
 `src/Makevars.in` pins `CXX_STD = CXX17` and leaves the rest to
 R's `Makeconf`.

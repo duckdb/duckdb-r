@@ -19,7 +19,9 @@ where a rule has its full form there, the line here links it.
   hold a topic to one screen at core depth.
 * **Describe by property and name the authoritative artifact:**
   never re-enumerate what a file already lists —
-  the file is the list.
+  the file is the list —
+  and never exhaustively enumerate facts another leaf owns:
+  state the principle that locates them, and stop.
 * **Explain once:**
   when another leaf, a file header, or a reference page owns a fact,
   link it — never restate it
