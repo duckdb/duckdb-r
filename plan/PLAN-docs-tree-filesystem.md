@@ -140,8 +140,7 @@ Generation is what makes the pattern safe. It buys four properties:
    plus four whose first line lacked sentence punctuation
    and therefore indexed as a run-on
    (`vendor.sh`, `vendor-one.sh`, `setup-makeflags.R`, `format.py`).
-   The fixes are split out to #2453,
-   folded into this branch as its first commit until that merges.
+   The fixes landed separately (#2453).
    `flavor.patch` keeps the em-dash:
    the patch format carries no place for a header.
 4. **It makes orphan surface visible in place.**
