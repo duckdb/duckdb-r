@@ -278,7 +278,7 @@ private:
 // which the result's prepared statement keeps alive until dbClearResult().
 struct RQueryResult {
 	explicit RQueryResult(duckdb::unique_ptr<QueryResult> result_p)
-	    : result(std::move(result_p)), types(result->types), names(result->names),
+	    : result(std::move(result_p)), types(result->GetTypes()), names(IdentifiersToStrings(result->GetNames())),
 	      client_properties(result->client_properties) {
 	}
 
