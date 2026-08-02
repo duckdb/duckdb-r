@@ -220,14 +220,6 @@ The tree-mutating chain is serial by construction —
 `style` → `snapshots` → `roxygen`, with `clean` observing their union —
 so the optimisation potential in overlapping the rest looks limited.
 
-Oversubscription is a non-issue today because `-j` is the only knob:
-the package requests no `-flto` and R's `Makeconf` reports `LTO =` empty,
-so there is no LTRANS fan-out multiplying against make;
-and without `Config/testthat/parallel` the suite runs serially.
-If gates are ever overlapped, the mechanism is a counting semaphore
-(`flock` over N slots) with each gate declaring its width — not a make
-jobserver, which cannot span separate `R CMD INSTALL` and `rcmdcheck` processes.
-
 The legs run on **`ubuntu-26.04`**, the image `rcc-smoke` uses.
 That is a parity requirement, not housekeeping: the gate exists to reproduce
 `rcc-smoke`'s verdict, and a verdict that depends on the runner image is not a
