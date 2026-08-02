@@ -18,11 +18,14 @@ sibling `<S>-dev`, so opening one is creating refs
 `duckdb/duckdb-r` is canonical:
 `main`, the parked stable baselines, the LTS flavor branch;
 CRAN and the numbered r-universe packages publish from here.
-`krlmlr/duckdb-r` is a fork used for CI/CD so the per-commit
-builds do not consume the `duckdb` organization's Actions quota;
-every series' working refs live there, and
-[`sync.yaml`](/.github/workflows/sync.yaml) fast-forwards the
-fork's `main` hourly.
+`krlmlr/duckdb-r` is a fork used for CI/CD
+so the per-commit builds do not consume
+the `duckdb` organization's Actions quota;
+every series' working refs live there,
+and [`sync.yaml`](/.github/workflows/sync.yaml)
+fast-forwards the fork's `main` hourly —
+to be replaced by wei/pull once the fork is a true fork
+([#2494](https://github.com/duckdb/duckdb-r/issues/2494)).
 
 **The four refs** of a series `<S>`, all in the fork:
 
@@ -35,7 +38,7 @@ fork's `main` hourly.
 
 All four exist from a series' first day, equal at its seed,
 so there is never a "no green yet" state.
-The buffer is deliberately untested —
+The buffer is deliberately untested on CI/CD —
 `each.yaml` triggers on `*-dev`, never on `*-build` —
 so vendoring can run ahead while CI catches up
 ([`operations/ci/per-commit/`](/handbook/operations/ci/per-commit/README.md)).

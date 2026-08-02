@@ -33,9 +33,10 @@ working trees.
 
 **Most invariants are enforced by nothing** —
 they are conventions, kept by the loop's routine and by review;
-a few hold mechanically (the vendor counter, the advance script's
-ancestor check on `-green`), and the honest per-invariant
-enforcement note is part of the record.
+a few hold mechanically
+(the vendor counter, the advance script's ancestor check on `-green`),
+and the honest per-invariant enforcement note is part of the record.
 
-*To deepen: absorb the numbered statements with their enforcement
-notes from `BRANCHES.md`, keeping the numbering.*
+*To deepen: absorb the numbered statements
+with their enforcement notes from `BRANCHES.md`,
+keeping the numbering.*
