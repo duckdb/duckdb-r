@@ -14,16 +14,28 @@ and CRAN submission
 [`cran/`](/handbook/operations/releases/cran/README.md)'s.
 
 Two placeholders run through this page.
-`L` is the upstream line — `v1.4-andium`, `v1.5-variegata`, `main` —
-and `N` is its `major.minor` token, `1.4` or `1.5`,
-which is what a flavor suffix is built from
+`S` is the series — one upstream line of `duckdb/duckdb`, and the refs that
+carry it ([`branches/model/`](/handbook/branches/model/README.md)).
+`N` is its `major.minor` token, which is what a flavor suffix is built from
 ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
 
-The machine is written in the **legacy `dev`/`dev-base` layout**,
-where a line has a published branch, an optional LTS rename,
-a bleeding-edge `dev`, and a `dev-base` marking its last reviewed point.
-A series reseeded into the series loop has the loop's four refs instead,
-and reconciling the two is open work — see the closing line.
+Four refs matter here:
+
+* **the release branch** — `main` for the current line,
+  `<S>` for a legacy one, in `duckdb/duckdb-r`.
+  It sits at the last release and is what CRAN and r-universe publish.
+* **`<S>-lts`** — the release branch plus the flavor rename,
+  where an LTS line has one.
+* **`<S>-dev`** — what CI judges commit by commit,
+  and what the `.dev` flavor is built from.
+* **`<S>-green`** — the trusted frontier: every commit behind it has a
+  recorded successful run
+  ([`operations/ci/per-commit/`](/handbook/operations/ci/per-commit/README.md)).
+
+`<S>-green` is what earlier revisions of this page called `dev-base`.
+The difference is who moves it: the series loop advances green continuously
+as commits go green, so promoting a release point is no longer a step
+someone performs.
 
 At any moment a series is in exactly one of four **clusters**.
 The clusters — not the individual states — are the unit of coordination
@@ -72,8 +84,8 @@ stateDiagram-v2
     state CUT {
         Vendored : 1 VENDORED
         Review : 2 REVIEW
-        Promoted : 3 PROMOTED (FF dev-base)
-        Merged : 4 MERGED (stable bump, lts rebase)
+        Promoted : 3 PROVEN (green covers the tag)
+        Merged : 4 MERGED (release branch bump, LTS rebase)
         Published : 5 PUBLISHED (tag, r-universe, CRAN)
         Vendored --> Vendored : red / fix-in-commit
         Vendored --> Review : green
@@ -84,7 +96,7 @@ stateDiagram-v2
     }
 
     state RESET {
-        Rebaselined : 6 RE-BASELINED (recreate dev / dev-base)
+        Rebaselined : 6 RE-BASELINED (legacy series only)
     }
 
     TRACK --> STABILIZE : T-14 open window
@@ -96,20 +108,20 @@ stateDiagram-v2
 
 ## States
 
-| State | Enter when | `dev` | `dev-base` | `stable` / `lts` | Gate to leave | On failure |
+| State | Enter when | `<S>-dev` | `<S>-green` | release / `-lts` branch | Gate to leave | On failure |
 |-------|-----------|-------|-----------|------------------|---------------|------------|
-| **0 TRACKING** | RESET done | grows: vendor + forward-port, all green | frozen | frozen at `X.Y.(Z-1)` | maintainer opens window (≈ T−14) | — |
-| **0.1 CANDIDATE PINNED** | window opens | fixes only; pin likely release commit | frozen | frozen | candidate green | — |
+| **0 TRACKING** | RESET done | grows: vendor + forward-port | advances with CI | frozen at `X.Y.(Z-1)` | maintainer opens window (≈ T−14) | — |
+| **0.1 CANDIDATE PINNED** | window opens | fixes only; pin likely release commit | advances with CI | frozen | candidate green | — |
 | **0.2 REVDEP-1** | candidate pinned | — | — | — | revdep run triaged | — |
-| **0.3 FOLD-BACK** | findings exist | fold-back forward-ports land | frozen | **fixes born here**, then ported | findings resolved/accepted | loop to 0.4 |
+| **0.3 FOLD-BACK** | findings exist | fold-back forward-ports land | advances with CI | **fixes born on `main`**, then ported | findings resolved/accepted | loop to 0.4 |
 | **0.4 REVDEP-2** | ≈ T−7 | — | — | — | **go / no-go** | fail → 0.3 |
-| **0.5 GLUE FREEZE** | go | frozen (barrier; all lines aligned) | frozen | frozen | upstream tags `vX.Y.Z` | late glue → re-arm 0.5 |
-| **1 VENDORED** | tag lands on `dev` | tagged vendor commit present | frozen | frozen | tagged commit **green** (`each.yaml`) | red → fix in-commit, force-push `dev` |
-| **2 REVIEW** | green | — | — | — | `dev-base..tagged` clean | drift → fix on `main`, forward-port |
-| **3 PROMOTED** | review ok | — | **FF → tagged commit** | — | dev-base advanced | — |
-| **4 MERGED** | promoted | frozen at tagged commit | — | PR `tagged → stable` green; `fledge` bump to `X.Y.Z`; `lts` rebased | stable green | version conflict (merge driver) / red CI |
+| **0.5 GLUE FREEZE** | go | frozen (barrier; all lines aligned) | catches up, then frozen | frozen | upstream tags `vX.Y.Z` | late glue → re-arm 0.5 |
+| **1 VENDORED** | tag lands on `<S>-dev` | tagged vendor commit present | advancing toward the tag | frozen | tagged commit **green** (`each.yaml`) | red → fix in-commit, force-push `<S>-dev` |
+| **2 REVIEW** | green | — | — | — | release branch `..tagged` clean | drift → fix on `main`, forward-port |
+| **3 PROVEN** | review ok | — | **has advanced over the tagged commit** | — | green covers the tag | red → 1 |
+| **4 MERGED** | proven | frozen at tagged commit | — | tagged content merged; `fledge` bump to `X.Y.Z`; `-lts` rebased | release branch green | version conflict (merge driver) / red CI |
 | **5 PUBLISHED** | merged | — | — | tag `vX.Y.Z` pushed; r-universe builds; CRAN submitted (current line) | tag pushed | CRAN reject → new patch cycle |
-| **6 RE-BASELINED** | published | force-recreated from new `stable` + flavor | recreated | — | back to TRACK | — |
+| **6 RE-BASELINED** | published | legacy series only: recreated from the new release branch plus the flavor rename; a series-loop series carries straight on | — | — | back to TRACK | — |
 
 The **On failure** column is the whole of rollback:
 there is no state this machine cannot be walked back out of,
@@ -135,7 +147,7 @@ The goal is to prove the release *candidate* against reverse dependencies
 so that regressions can be folded back — into the glue, into `patch/`,
 or reported upstream — while there is still time.
 STABILIZE mutates only `main` (fold-back fixes)
-and `dev` (forward-ports plus ongoing vendoring);
+and `<S>-dev` (forward-ports plus ongoing vendoring);
 the release branches stay at the previous release,
 so the whole cluster is abortable with zero rollback.
 
@@ -173,7 +185,7 @@ How they are run and where the results land is
 ### 0.3 Fold back
 
 Every fold-back fix is **born on `main`** and forward-ported down the
-chain — never authored directly on a `dev` branch.
+chain — never authored directly on a `<S>-dev` branch.
 C++ issues go into `patch/` and are simultaneously sent upstream as a
 pull request, so the patch can eventually retire
 ([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
@@ -187,7 +199,7 @@ and confirm `git cherry main dev` is empty for each —
 every releasing line now carries identical glue.
 A late glue change after this point is allowed
 but **re-arms the freeze**: land it on `main`,
-forward-port it to every releasing `dev`, re-run a targeted revdep,
+forward-port it to every releasing `<S>-dev`, re-run a targeted revdep,
 and only then proceed.
 The clock resets to 0.5; it is not a scramble.
 
@@ -196,35 +208,36 @@ The clock resets to 0.5; it is not a scramble.
 Triggered by upstream tagging `vX.Y.Z`.
 This is the only cluster that moves vendored commits into the mainline,
 and it does so through reviewed, green, gated steps.
-**You release the tagged commit, not the `dev` tip** —
+**You release the tagged commit, not the `<S>-dev` tip** —
 upstream has usually moved on by now,
 and the post-tag commits stay queued for the next cycle.
 
 ### 1 VENDORED → 2 REVIEW → 3 PROMOTED
 
 1. The series loop produces the `vendor: … (tag vX.Y.Z) …` commit on
-   `dev`; wait for `each.yaml` to show it **green**.
+   `<S>-dev`; wait for `each.yaml` to show it **green**.
    If vendoring broke the build, fix it in the same commit and
-   force-push `dev`.
-2. Review the pending window —
-   `https://github.com/krlmlr/duckdb-r/compare/<dev-base>...<tagged>` —
-   and confirm it contains only the expected vendor commits and intended
-   forward-ports, with no glue drift.
-3. Fast-forward `dev-base` to the tagged commit:
-   `git push krlmlr <tagged>:refs/heads/L-dev-base`.
+   force-push `<S>-dev`.
+2. Review the pending window — the release branch against the tagged
+   commit, which is what the *ahead* badge counts — and confirm it holds
+   only the expected vendor commits and intended forward-ports,
+   with no glue drift.
+3. Nothing to promote: the loop fast-forwards `<S>-green` over the tagged
+   commit as soon as it is green.
+   Confirm green covers it before going on.
 
-### 4 MERGED — stable and the version bump
+### 4 MERGED — the release branch and the version bump
 
-Bring the tagged `dev` content onto `stable`
+Bring the tagged `<S>-dev` content onto the release branch
 **linearly, never as a merge commit** — the active history stays
 merge-free so it stays bisectable.
-Fast-forward or rebase the tagged range onto `stable`,
+Fast-forward or rebase the tagged range onto the release branch,
 dropping the flavor rename commit.
 The `DESCRIPTION` version conflict is resolved automatically by the merge
 driver ([`versioning/`](/handbook/operations/releases/versioning/README.md));
 run [`scripts/setup-git.sh`](/scripts/setup-git.sh) first
 if this is a fresh clone or CI runner.
-Because `dev` descends from its release point,
+Because `<S>-dev` descends from its release point,
 the only rewriting is dropping that rename.
 
 The package version is **not** derived from the git tag —
@@ -234,7 +247,7 @@ set it explicitly so `DESCRIPTION` matches the upstream tag:
 fledge::bump_version("X.Y.Z")
 ```
 
-Then rebase the `lts` branch, one rename commit on top of `stable`:
+Then rebase the LTS branch, one rename commit on top of the release branch:
 
 ```bash
 # in the L-lts worktree
@@ -258,24 +271,27 @@ For the **current** line only, submit to CRAN
 ([`cran/`](/handbook/operations/releases/cran/README.md)).
 Acceptance is asynchronous and overlaps RESET and the next TRACK,
 so the tag and the r-universe publish do not wait for it;
-a rejection is fixed on `stable` and re-enters CUT as a follow-up patch.
+a rejection is fixed on the release branch and re-enters CUT as a follow-up patch.
 
 ## RESET — re-baseline
 
-Recreate the dev baseline from the freshly released `stable` tip plus the
-flavor rename, returning the series to TRACK:
+A series running the loop needs no reset: `<S>-dev` and `<S>-green` carry
+straight on past the release point, and the series is back in TRACK the
+moment the release branch has moved.
+
+A **legacy series** — one not yet reseeded into the loop — is rebuilt from
+the freshly released tip plus the flavor rename:
 
 ```bash
-git checkout -b L-dev-base origin/L
+git checkout -b S-dev-base origin/S
 scripts/flavor.sh N.dev          # the major.minor token, e.g. 1.4.dev
-git push krlmlr L-dev-base --force-with-lease
-git push krlmlr L-dev-base:L-dev --force-with-lease
+git push krlmlr S-dev-base --force-with-lease
+git push krlmlr S-dev-base:S-dev --force-with-lease
 ```
 
-The glue source of truth (`main`) separately moves to its ongoing
-development version via `fledge`,
-and the `dev` branches then resume bumping the vendor counter from the
-new baseline
+Either way the glue source of truth (`main`) separately moves to its
+ongoing development version via `fledge`,
+and the vendor counter resumes from the new baseline
 ([`versioning/`](/handbook/operations/releases/versioning/README.md)).
 
 ## Multi-line coordination
@@ -301,7 +317,7 @@ coordinate at the **cluster** level:
   by rewinding to the bifurcation and replaying.
   Same machine, different durations;
   the only other addition is that vendor-coupled glue may be *born* on
-  its `dev`, the one documented exception to R-side work being born on
+  its `<S>-dev`, the one documented exception to R-side work being born on
   `main`.
 
 ## What each cluster must leave standing
@@ -311,13 +327,9 @@ Every cluster hands the series on with its invariants intact
 
 * **TRACK and STABILIZE** keep the flavor names internally consistent,
   the history linear, the glue identical down the forward-port chain,
-  and every `dev` commit green.
-* **CUT** is the controlled transition where `dev-base` catches up to the
-  tagged commit and the release branches advance;
+  and every `<S>-dev` commit green.
+* **CUT** is the controlled transition where the release branches advance
+  to the tagged commit `<S>-green` has already proven;
   the version and flavor invariants must hold at the new release point.
 * **RESET** re-establishes a baseline that is the released tree plus the
   rename, and nothing else.
-
-*To deepen: restate the machine in the series loop's four refs —
-the `dev`/`dev-base` pair it is written in is the layout each series
-leaves as it is reseeded.*
