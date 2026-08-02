@@ -5,14 +5,8 @@ Every commit on a series branch gets a gate verdict of its own:
 and tests its commits one by one, and the verdicts live on the
 orphan `rcc` branch — so every `*-dev` branch is bisectable end to
 end.
-This page is the design record, moved here unchanged from the
-former `scripts/EACH.md`.
-
-Status: **in production on the `*-fwd-dev` branches.**
-The legacy per-commit dispatcher it replaced has been retired, so rollback is a
-revert rather than a repository-variable flip; §6 records what went with it.
-The cost model's constants are no longer borrowed —
-they are fitted to measured legs; see [§3, *Can we compute breakpoints efficiently, and evenly?*](#can-we-compute-breakpoints-efficiently-and-evenly).
+This page is the design record,
+moved here from the former `scripts/EACH.md`.
 
 `.github/workflows/each.yaml` proves invariant **C1** from
 [`BRANCHES.md`](/BRANCHES.md#ci--green):
