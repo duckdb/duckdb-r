@@ -14,8 +14,8 @@ That decision is the CRAN guard and belongs to
 [`testing/guards/`](/handbook/testing/guards/README.md);
 nothing else lives in that file.
 
-Every test is a file directly under `tests/testthat/` —
-close to seventy of them, flat, named `test-<topic>.R`.
+Every test is a file directly under `tests/testthat/`,
+flat, named `test-<topic>.R`.
 A name is one of three things:
 
 * the name of the `R/` file it covers
@@ -31,7 +31,7 @@ the file name is the unit of selection, and the only one.
 
 Beside the tests, the same directory holds
 `helper-*.R` and `setup.R` (below),
-`data/` — three Parquet fixtures,
+`data/` — the Parquet fixtures,
 read either through `test_path("data/userdata1.parquet")`
 or, since testthat runs with `tests/testthat/` as the working directory,
 by the bare relative path inside SQL
@@ -58,7 +58,7 @@ then `setup.R` once for the run.
   Loading it after the relational tests have run
   hits a garbage-collection problem
   in how arrow releases its resources.
-* `helper-skip.R` holds the three skip predicates the tests share:
+* `helper-skip.R` holds the skip predicates the tests share:
   `skip_on_dev_version()` for anything that needs a released version —
   a development snapshot is not `x.y.z`
   and has no signed extensions on `extensions.duckdb.org` —
@@ -84,7 +84,7 @@ Ask for the package name rather than writing it,
 for the reason [`branches/flavors/`](/handbook/branches/flavors/README.md)
 gives.
 
-`setup.R` is a single line:
+`setup.R` does one thing:
 it points the `arrow_duck_con` option at `default_conn()`
 for the length of the run,
 so arrow's DuckDB integration reuses the suite's connection
@@ -92,7 +92,7 @@ instead of opening one of its own.
 
 ## Running
 
-The whole suite, about 45 seconds:
+The whole suite:
 
 ```sh
 R -q -e 'testthat::test_local()'
@@ -111,7 +111,7 @@ R -q -e 'testthat::test_local(filter = "^array$")'
 
 `filter` is a regular expression, not a file name.
 Anchor it, or it selects every file whose name contains the string:
-unanchored, `filter = "storage"` runs all eight `test-storage-*.R` files,
+unanchored, `filter = "storage"` runs every `test-storage-*.R` file,
 which is occasionally what you want.
 
 ## The edit-test loop
@@ -119,11 +119,10 @@ which is occasionally what you want.
 `test_local()` loads the package the way `pkgload::load_all()` does,
 which means it honours `DUCKDB_R_USE_SYSTEM_LIB`:
 with a prebuilt libduckdb linked,
-only the glue in `src/` is compiled — fifteen files —
-and a no-op load takes a second,
-a load after one edited glue file about four.
-Without it, the first build compiles the vendored engine:
-ten to fifteen minutes.
+only the glue in `src/` is compiled,
+so a load after one edited glue file takes seconds.
+Without it, the first build compiles the vendored engine,
+which takes minutes.
 That is the difference between a loop and a wait,
 so set it up once —
 [`build/fast-paths/`](/handbook/build/fast-paths/README.md)
