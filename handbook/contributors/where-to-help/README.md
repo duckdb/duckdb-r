@@ -51,12 +51,10 @@ what each label says:
 | `upstream 🐟` | the cause is in the DuckDB engine, not in the R glue |
 | `duckplyr 🗜️` | support for the duckplyr R package |
 
-Six of these carry that wording as their own description on GitHub;
+Most carry that wording as their own description on GitHub;
 `documentation`, `reproduced` and `upstream 🐟` carry none,
 and the table records how they are used.
-`reproduced` is rare in practice.
-The labels are an issue vocabulary:
-open pull requests carry none.
+The labels are an issue vocabulary, not a pull-request one.
 
 `upstream 🐟` is the boundary that matters most when choosing work.
 It says the cause lies in the vendored DuckDB C++ engine
