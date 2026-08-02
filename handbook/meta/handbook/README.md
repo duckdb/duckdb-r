@@ -4,9 +4,20 @@ The handbook is a strict topic hierarchy with full cover:
 every aspect of this package that may need documentation
 has exactly one place in this tree.
 
-* **Internal nodes navigate, only.**
-  An internal `README.md` is a scope sentence
+* **Internal nodes navigate, and may govern.**
+  An internal `README.md` is a scope sentence,
+  optionally the principles that govern its area,
   and a nested list of its subdirectories — nothing else.
+  A principle is why the area is divided as it is,
+  or a constraint every leaf under it obeys;
+  it belongs to the node because no single leaf could state it
+  without reaching past its own scope.
+  Anything one leaf could state is that leaf's,
+  and an internal node never repeats it —
+  the shape a principle takes, and the tests that keep it
+  from becoming a summary, are among [the forms](#the-forms).
+  An area whose leaves share no such constraint gets no principle;
+  a node reaching for one is navigating, which was always enough.
   The root additionally sketches each area's contents,
   naming the next level in prose —
   names, not links, so the sketch cannot rot.
@@ -100,6 +111,35 @@ and continues with the content.
 The scope sentence survives the stub because the tree's shape
 depends on every leaf declaring its boundary.
 A one-screen leaf needs no headings; a longer one uses `##`.
+
+**A principle on an internal node** is a short paragraph, or a few of them,
+between the scope sentence and the list of children.
+It survives three tests,
+and a sentence that fails any one of them belongs to a leaf instead:
+
+* **It cannot be checked by reading one leaf.**
+  A statement a single child settles is that child's.
+  A principle is confirmed only by reading the children together,
+  or by looking at how the area is divided at all.
+* **It has the lifetime of the child list.**
+  An internal node may go stale only when its children change,
+  which is when the node is being edited anyway.
+  A sentence an ordinary commit to the package could falsify
+  is a fact, and every fact has a leaf.
+* **It names no particulars.**
+  No paths, script names, environment variables, versions, counts,
+  commands, or tables — that is the vocabulary of facts.
+  A principle that needs one of them to be understood
+  is a summary of the leaf that owns it.
+
+Where a node's links may go follows from the same tests.
+An internal node links to its own children,
+and to another area's node where it draws a boundary against it;
+a link *into* a leaf is the node reaching for that leaf's evidence,
+which means the sentence was the leaf's all along.
+This is what preserves the guarantee that navigation-only bought:
+a paraphrase of the leaves below fails all three tests at once,
+so the rule that admits principles still excludes summaries.
 
 **An absorbed file goes away.**
 There are no tombstones:
