@@ -107,64 +107,56 @@ first_sentence <- function(text) {
 # --- ownership ---------------------------------------------------------
 
 # The scripts/ slice of the source-to-leaf ownership map.
-# `owner` is a handbook node, repo-relative.  First match wins.
+# `owner` is a handbook node, repo-relative.  First match wins;
+# a file that could fit several paths is mapped to its best fit.
+# The index renders grouped by handbook path, in path order.
 groups <- list(
   list(
-    title = "Vendoring",
     owner = "handbook/operations/vendoring",
     globs = c("VENDORING.md")
   ),
   list(
-    title = "Vendoring pipeline",
     owner = "handbook/operations/vendoring/pipeline",
     globs = c("vendor*.sh", "rconfigure.py", "merge-version.sh", "setup-git.sh")
   ),
   list(
-    title = "Series loop",
     owner = "handbook/operations/vendoring/series-loop",
     globs = c("series-*.sh")
   ),
   list(
-    title = "Per-commit CI",
     owner = "handbook/operations/ci/per-commit",
     globs = c("EACH.md", "each-*", "rcc-*")
   ),
   list(
-    title = "Flavors",
     owner = "handbook/branches/flavors",
     globs = c("flavor*")
   ),
   list(
-    title = "Fast paths",
     owner = "handbook/build/fast-paths",
     globs = c("install-*.sh")
   ),
   list(
-    title = "Build configuration",
     owner = "handbook/build/configuration",
     globs = c("setup-makeflags.R")
   ),
   list(
-    title = "Glue conventions",
     owner = "handbook/architecture/glue",
     globs = c("format.py", "python_helpers.py")
   ),
   list(
-    title = "R layer",
     owner = "handbook/architecture/r-layer",
     globs = c("rethrow.R")
   ),
   list(
-    title = "Snapshots",
     owner = "handbook/testing/snapshots",
     globs = c("snapshot-accept.sh")
   ),
   list(
-    title = "This index",
     owner = "handbook/meta/handbook",
     globs = c("README.md")
   )
 )
+groups <- groups[order(vapply(groups, function(g) g$owner, character(1)))]
 
 find_group <- function(file) {
   hits <- which(vapply(
@@ -189,7 +181,7 @@ owner_heading <- function(g) {
   }
   name <- paste0(sub("^handbook/", "", g$owner), "/")
   rel <- paste0("../", g$owner, "/")
-  paste0("## ", g$title, " — [`", name, "`](", rel, ")")
+  paste0("## [`", name, "`](", rel, ")")
 }
 
 # --- assemble ----------------------------------------------------------

@@ -12,34 +12,47 @@ ownership by topic, navigation by place
 ([the rules](../handbook/meta/handbook/README.md)).
 Root of the documentation tree: [`handbook/`](../handbook/).
 
-## Vendoring — [`operations/vendoring/`](../handbook/operations/vendoring/)
+## [`architecture/glue/`](../handbook/architecture/glue/)
 
 | File | Purpose |
 |---|---|
-| [`VENDORING.md`](VENDORING.md) | DuckDB R Package Vendoring |
+| [`format.py`](format.py) | Format the source directory; driven by the Makefile's format-* targets. |
+| [`python_helpers.py`](python_helpers.py) | Shared file helpers for the Python scripts in this directory (imported by format.py). |
 
-## Vendoring pipeline — [`operations/vendoring/pipeline/`](../handbook/operations/vendoring/pipeline/)
-
-| File | Purpose |
-|---|---|
-| [`merge-version.sh`](merge-version.sh) | Git merge driver for DESCRIPTION. |
-| [`rconfigure.py`](rconfigure.py) | Regenerate the vendored build configuration from a DuckDB checkout: src/duckdb/, src/include/sources.mk, and R/version.R. |
-| [`setup-git.sh`](setup-git.sh) | Register repository-local git configuration that cannot live in versioned files. |
-| [`vendor-one.sh`](vendor-one.sh) | Vendors DuckDB sources commit-by-commit from the upstream repository. |
-| [`vendor-rfuns.sh`](vendor-rfuns.sh) | Vendor the rfuns extension: copy sources from a duckdb-rfuns checkout into src/ and commit with the upstream log, one commit per import. |
-| [`vendor.sh`](vendor.sh) | Vendors DuckDB sources from the upstream repository (manual vendoring). |
-
-## Series loop — [`operations/vendoring/series-loop/`](../handbook/operations/vendoring/series-loop/)
+## [`architecture/r-layer/`](../handbook/architecture/r-layer/)
 
 | File | Purpose |
 |---|---|
-| [`series-advance.sh`](series-advance.sh) | The ref motion of the series loop, stages 3 and 5, for one series: fast-forward `<S>-green` over the all-green prefix, move `<S>-build-base` to the equivalen... |
-| [`series-check.sh`](series-check.sh) | Read-only diagnosis for the series loop: what should a firing do? |
-| [`series-cutover.sh`](series-cutover.sh) | Atomically replace a series with its forward counterpart. |
-| [`series-forward-build.sh`](series-forward-build.sh) | Populate `<S>-fwd-build`: replay every vendor commit of the old `<S>-build` onto HEAD, which must be the freshly flavored seed on current `main` (.claude/ski... |
-| [`series-port.sh`](series-port.sh) | Bring a series' -dev branch level with `main` — stage 4 of the series loop (.claude/skills/series-loop.md). |
+| [`rethrow.R`](rethrow.R) | Generate R/rethrow-gen.R from R/cpp11.R: wrap each rapi_* binding to rethrow errors with call context; sourced by .Rprofile on repo load. |
 
-## Per-commit CI — [`operations/ci/per-commit/`](../handbook/operations/ci/per-commit/)
+## [`branches/flavors/`](../handbook/branches/flavors/)
+
+| File | Purpose |
+|---|---|
+| [`flavor-package-name.R`](flavor-package-name.R) | Guard for the flavor rename. |
+| [`flavor.patch`](flavor.patch) | — |
+| [`flavor.sh`](flavor.sh) | Apply a package flavor: rewrite scripts/flavor.patch to the target name (say, duckdb.dev), apply it, and commit the rename; see BRANCHES.md. |
+
+## [`build/configuration/`](../handbook/build/configuration/)
+
+| File | Purpose |
+|---|---|
+| [`setup-makeflags.R`](setup-makeflags.R) | Setup MAKEFLAGS for parallel compilation. |
+
+## [`build/fast-paths/`](../handbook/build/fast-paths/)
+
+| File | Purpose |
+|---|---|
+| [`install-duckdb-cli.sh`](install-duckdb-cli.sh) | Download the standalone DuckDB CLI matching the vendored DuckDB sources under src/duckdb/. |
+| [`install-libduckdb.sh`](install-libduckdb.sh) | Install the libduckdb prebuilt binary matching the vendored DuckDB sources under src/duckdb/. |
+
+## [`meta/handbook/`](../handbook/meta/handbook/)
+
+| File | Purpose |
+|---|---|
+| [`README.md`](README.md) | (this index) |
+
+## [`operations/ci/per-commit/`](../handbook/operations/ci/per-commit/)
 
 | File | Purpose |
 |---|---|
@@ -59,49 +72,36 @@ Root of the documentation tree: [`handbook/`](../handbook/).
 | [`rcc-push.sh`](rcc-push.sh) | Commit the orphan `rcc` worktree and push it, re-deriving on conflict. |
 | [`rcc-run-fields.jq`](rcc-run-fields.jq) | The subset of a GitHub workflow-run object that a record on the `rcc` branch carries, applied to `gh api repos/{owner}/{repo}/actions/runs/<id>`. |
 
-## Flavors — [`branches/flavors/`](../handbook/branches/flavors/)
+## [`operations/vendoring/`](../handbook/operations/vendoring/)
 
 | File | Purpose |
 |---|---|
-| [`flavor-package-name.R`](flavor-package-name.R) | Guard for the flavor rename. |
-| [`flavor.patch`](flavor.patch) | — |
-| [`flavor.sh`](flavor.sh) | Apply a package flavor: rewrite scripts/flavor.patch to the target name (say, duckdb.dev), apply it, and commit the rename; see BRANCHES.md. |
+| [`VENDORING.md`](VENDORING.md) | DuckDB R Package Vendoring |
 
-## Fast paths — [`build/fast-paths/`](../handbook/build/fast-paths/)
+## [`operations/vendoring/pipeline/`](../handbook/operations/vendoring/pipeline/)
 
 | File | Purpose |
 |---|---|
-| [`install-duckdb-cli.sh`](install-duckdb-cli.sh) | Download the standalone DuckDB CLI matching the vendored DuckDB sources under src/duckdb/. |
-| [`install-libduckdb.sh`](install-libduckdb.sh) | Install the libduckdb prebuilt binary matching the vendored DuckDB sources under src/duckdb/. |
+| [`merge-version.sh`](merge-version.sh) | Git merge driver for DESCRIPTION. |
+| [`rconfigure.py`](rconfigure.py) | Regenerate the vendored build configuration from a DuckDB checkout: src/duckdb/, src/include/sources.mk, and R/version.R. |
+| [`setup-git.sh`](setup-git.sh) | Register repository-local git configuration that cannot live in versioned files. |
+| [`vendor-one.sh`](vendor-one.sh) | Vendors DuckDB sources commit-by-commit from the upstream repository. |
+| [`vendor-rfuns.sh`](vendor-rfuns.sh) | Vendor the rfuns extension: copy sources from a duckdb-rfuns checkout into src/ and commit with the upstream log, one commit per import. |
+| [`vendor.sh`](vendor.sh) | Vendors DuckDB sources from the upstream repository (manual vendoring). |
 
-## Build configuration — [`build/configuration/`](../handbook/build/configuration/)
-
-| File | Purpose |
-|---|---|
-| [`setup-makeflags.R`](setup-makeflags.R) | Setup MAKEFLAGS for parallel compilation. |
-
-## Glue conventions — [`architecture/glue/`](../handbook/architecture/glue/)
+## [`operations/vendoring/series-loop/`](../handbook/operations/vendoring/series-loop/)
 
 | File | Purpose |
 |---|---|
-| [`format.py`](format.py) | Format the source directory; driven by the Makefile's format-* targets. |
-| [`python_helpers.py`](python_helpers.py) | Shared file helpers for the Python scripts in this directory (imported by format.py). |
+| [`series-advance.sh`](series-advance.sh) | The ref motion of the series loop, stages 3 and 5, for one series: fast-forward `<S>-green` over the all-green prefix, move `<S>-build-base` to the equivalen... |
+| [`series-check.sh`](series-check.sh) | Read-only diagnosis for the series loop: what should a firing do? |
+| [`series-cutover.sh`](series-cutover.sh) | Atomically replace a series with its forward counterpart. |
+| [`series-forward-build.sh`](series-forward-build.sh) | Populate `<S>-fwd-build`: replay every vendor commit of the old `<S>-build` onto HEAD, which must be the freshly flavored seed on current `main` (.claude/ski... |
+| [`series-port.sh`](series-port.sh) | Bring a series' -dev branch level with `main` — stage 4 of the series loop (.claude/skills/series-loop.md). |
 
-## R layer — [`architecture/r-layer/`](../handbook/architecture/r-layer/)
-
-| File | Purpose |
-|---|---|
-| [`rethrow.R`](rethrow.R) | Generate R/rethrow-gen.R from R/cpp11.R: wrap each rapi_* binding to rethrow errors with call context; sourced by .Rprofile on repo load. |
-
-## Snapshots — [`testing/snapshots/`](../handbook/testing/snapshots/)
+## [`testing/snapshots/`](../handbook/testing/snapshots/)
 
 | File | Purpose |
 |---|---|
 | [`snapshot-accept.sh`](snapshot-accept.sh) | Rebuild a commit, run the suite, accept the named snapshots, re-run to confirm they hold. |
-
-## This index — [`meta/handbook/`](../handbook/meta/handbook/)
-
-| File | Purpose |
-|---|---|
-| [`README.md`](README.md) | (this index) |
 
