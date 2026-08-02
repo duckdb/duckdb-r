@@ -111,7 +111,8 @@ so upstream's packaging decides which sources are emitted;
 It writes five committed things:
 
 * `src/duckdb/` — the engine sources for the package,
-  amalgamated into unity chunks of 20 translation units,
+  amalgamated into per-directory unity chunks
+  wherever upstream's own `CMakeLists.txt` says `add_library_unity`,
   with `parquet` and `core_functions` linked in
   (`DUCKDB_R_EXTENSIONS` adds more — a build knob,
   see [`build/configuration/`](/handbook/build/configuration/README.md));
@@ -155,13 +156,26 @@ Two smaller facts about the script:
 it drops the bundled jemalloc tree from the source list,
 because the R package never defines `DUCKDB_ENABLE_JEMALLOC`
 and upstream's packaging started emitting sources that neither compile nor link without it;
-and `DUCKDB_BUILD_UNITY` does **not** work —
-the branch that reads it dereferences an undefined name
-and the bare `except` swallows the error, so the chunk size stays 20.
+and `DUCKDB_BUILD_UNITY` is read from the environment,
+parsed as an integer and rejected — with a message, and a non-zero exit —
+when it is not a positive one;
+unset or empty keeps the long-standing default of 20.
+It reaches upstream's `build_package()` as its `unity_count` argument,
+and there it currently does nothing:
+upstream has accepted that argument without using it since well before v1.0.0,
+because the grouping is decided per directory by `add_library_unity`.
+So setting the knob is now honoured all the way to the call and no further —
+which is what it should do, and worth knowing before reaching for it.
 When `DUCKDB_R_BINDIR`, `DUCKDB_R_CFLAGS` and `DUCKDB_R_LIBS` are all set,
 the script writes `src/Makevars` for a system-library build and exits
-without touching the vendored tree at all;
-that path belongs to [`build/fast-paths/`](/handbook/build/fast-paths/README.md).
+without touching the vendored tree at all.
+That branch is reachable but stale:
+it still fills a `{{ SOURCES }}` placeholder that `src/Makevars.in` no longer has,
+so the generated `Makevars` keeps its `include include/sources.mk`
+and would compile the whole vendored tree anyway.
+The working route to a prebuilt library is `DUCKDB_R_USE_SYSTEM_LIB`,
+which `configure` handles instead;
+both belong to [`build/fast-paths/`](/handbook/build/fast-paths/README.md).
 
 ## The patch stack
 
@@ -173,7 +187,7 @@ in file-name order, with `patch -p1 --forward` after a dry run.
 Numbers define the order; gaps in the numbering are normal
 and mark patches that were retired.
 
-The lifecycle has three moves:
+The lifecycle has four moves:
 
 * **Adding one.**
   Edit `src/duckdb/`, capture the diff as `patch/00NN-my-fix.patch` with the next free number,
@@ -189,12 +203,26 @@ The lifecycle has three moves:
   so the patch can eventually be retired.
 * **Dropping one.**
   When the fix lands upstream, delete the file. Never renumber the rest.
-* **Losing one.**
-  A patch that no longer applies is deleted *by the vendor run*,
-  and the deletion becomes part of that vendor commit —
-  on the assumption that the fix reached upstream.
-  Verify the assumption:
-  if the patch is still needed, restore it and rebase it against the new sources.
+  `vendor-one.sh` also drops it for you, and correctly:
+  a patch that no longer applies forward but *reverses* cleanly
+  is already present in the regenerated tree,
+  which is exactly what "the fix landed upstream" looks like.
+  The deletion becomes part of that vendor commit.
+* **Breaking one.**
+  A patch that neither applies forward nor reverses cleanly is a different case:
+  its change is not in the tree and cannot be re-applied,
+  because the code around it moved.
+  `vendor-one.sh` stops, exits 4, and names the patch,
+  leaving the regenerated sources uncommitted in the working tree
+  and the upstream clone in place.
+  Rebase the patch against those sources — keep it outside the tree,
+  `git checkout -- .`, put it back, and rerun —
+  and delete it only after confirming its change is genuinely upstream.
+  Two cautions.
+  A run that used to limp past a broken patch now halts, which is the point,
+  but it does mean a series loop can stop where it previously did not.
+  And [`scripts/vendor.sh`](/scripts/vendor.sh) still deletes on any failure,
+  without the reverse check: prefer `vendor-one.sh` where a fix is at stake.
 
 Never edit `src/duckdb/` directly in a way you want to keep.
 The next run regenerates the directory from scratch, and the edit is gone.

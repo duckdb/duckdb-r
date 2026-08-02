@@ -625,7 +625,7 @@ duckdb/duckdb-r@main  →  krlmlr/duckdb-r@main-dev  →  krlmlr/duckdb-r@v1.5-v
 
 ## Patch Stack
 
-How a patch is added, dropped, or lost by a vendor run: [`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md).
+How a patch is added, dropped, or broken by a vendor run: [`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md).
 
 ## Version Numbering
 

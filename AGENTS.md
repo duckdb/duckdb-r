@@ -96,7 +96,7 @@ The duckdb-r package vendors (includes a copy of) the DuckDB C++ core library. K
 - **Branch Strategy**: one dev branch per upstream branch (`main-dev` ← `main`, `v1.5-variegata-dev` ← `v1.5-variegata`, `v1.4-andium-dev` ← `v1.4-andium`); see [BRANCHES.md](BRANCHES.md)
 - **One commit at a time**: each vendor commit corresponds to exactly one upstream commit, and must build and pass tests on its own — fold any required glue fix into that commit rather than adding a follow-up
 - **Never modify `src/duckdb/` directly** - changes will be overwritten by vendoring
-- **Patching**: Add files to the `patch/` directory to apply R-specific modifications to vendored code. Send patches upstream as pull requests every once in a while. A patch that no longer applies is deleted by the next vendor run.
+- **Patching**: Add files to the `patch/` directory to apply R-specific modifications to vendored code. Send patches upstream as pull requests every once in a while. A patch whose change has landed upstream is deleted by the next vendor run; one that has genuinely broken stops `vendor-one.sh` instead.
 - **Manual vendoring**: Use `scripts/vendor.sh /path/to/duckdb/repo` for testing
 - **Full documentation**: See [VENDORING.md](scripts/VENDORING.md) for complete details
 
