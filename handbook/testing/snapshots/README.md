@@ -7,8 +7,7 @@ deliberately, because accepting one asserts that the new output is correct.
 ## What a snapshot records
 
 Snapshot expectations are testthat's.
-About sixty `expect_snapshot()` calls (and one `expect_snapshot_error()`)
-are spread over `tests/testthat/`,
+`expect_snapshot()` calls are spread over `tests/testthat/`,
 and the text they captured lives in `tests/testthat/_snaps/<file>.md` —
 one Markdown file per test file,
 one section per test, holding the code and its printed output.
