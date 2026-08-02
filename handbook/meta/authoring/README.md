@@ -36,7 +36,8 @@ where a rule has its full form there, the line here links it.
   ([the forms](/handbook/meta/handbook/README.md#the-forms)).
 * **Never refer by position — name the thing**
   ([the forms](/handbook/meta/handbook/README.md#the-forms)).
-* **Never write `duckdb` as though it were the package's name**
+* **Call it "the package", never `duckdb`** —
+  the published name varies
   ([the forms](/handbook/meta/handbook/README.md#the-forms)).
 * **Write links that leave their directory from the repository root**,
   with a leading `/`
