@@ -38,6 +38,16 @@ Taking the maximum is what keeps that true through a replay:
 each replayed vendor commit carries its own higher counter,
 and the driver keeps it.
 
+The prefix gate has a consequence worth knowing:
+because the driver keeps *ours* verbatim when the prefixes differ,
+it does **not** renumber a `-dev` branch when the base moves to a new
+patch release.
+Rebasing from `1.5.4.9005.N` onto a `1.5.5.9000` base leaves every commit
+at the base version rather than producing `…9000.1`, `…2`, `…3`;
+the vendor counter has to be re-applied as part of the rebase.
+The gate is doing its job — this is the one case where it does less than
+a reader might assume.
+
 A **forward rebuild** is the exception.
 [`scripts/series-forward-build.sh`](/scripts/series-forward-build.sh)
 renumbers the fifth component as a true counter, one per replayed commit,
