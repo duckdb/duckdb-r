@@ -124,7 +124,12 @@ done
 
 if [ "$message" = "" ]; then
   echo "No changes."
-  git checkout -- ${vendor_base_dir} R/version.R
+  # Nothing was vendored, so leave the tree exactly as the run found it.
+  # rconfigure.py rewrites R/version.R, src/Makevars, src/Makevars.win and
+  # src/include/sources.mk as well as ${vendor_dir}, and any leftover of those
+  # would make the next run refuse on a dirty tree. Restoring everything is safe
+  # because the run refused to start on one.
+  git checkout -- .
   rm -rf "$upstream_dir"
   exit 0
 fi
