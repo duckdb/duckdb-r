@@ -130,21 +130,6 @@ class Prog {
       out_opcode_ = (out<<4) | (last()<<3) | opcode;
     }
 
-    // For CRAN: named and hoisted out of the anonymous union below, because
-    // ISO C++ does not allow types to be declared in an anonymous union
-    // (clang -pedantic: -Wnested-anon-types).
-    struct ByteRange {     // opcode == kInstByteRange
-      uint8_t lo_;         //   byte range is lo_-hi_ inclusive
-      uint8_t hi_;         //
-      uint16_t hint_foldcase_;  // 15 bits: hint, 1 (low) bit: foldcase
-                           //   hint to execution engines: the delta to the
-                           //   next instruction (in the current list) worth
-                           //   exploring iff this instruction matched; 0
-                           //   means there are no remaining possibilities,
-                           //   which is most likely for character classes.
-                           //   foldcase: A-Z -> a-z before checking range.
-    };
-
     uint32_t out_opcode_;  // 28 bits: out, 1 bit: last, 3 (low) bits: opcode
     union {                // additional instruction arguments:
       uint32_t out1_;      // opcode == kInstAlt
@@ -160,7 +145,17 @@ class Prog {
       int32_t match_id_;   // opcode == kInstMatch
                            //   Match ID to identify this match (for duckdb_re2::Set).
 
-      ByteRange byte_range;  // opcode == kInstByteRange
+      struct {             // opcode == kInstByteRange
+        uint8_t lo_;       //   byte range is lo_-hi_ inclusive
+        uint8_t hi_;       //
+        uint16_t hint_foldcase_;  // 15 bits: hint, 1 (low) bit: foldcase
+                           //   hint to execution engines: the delta to the
+                           //   next instruction (in the current list) worth
+                           //   exploring iff this instruction matched; 0
+                           //   means there are no remaining possibilities,
+                           //   which is most likely for character classes.
+                           //   foldcase: A-Z -> a-z before checking range.
+      } byte_range;
 
       EmptyOp empty_;       // opcode == kInstEmptyWidth
                             //   empty_ is bitwise OR of kEmpty* flags above.
@@ -426,14 +421,12 @@ class Prog {
 
   bool prefix_foldcase_;    // whether prefix is case-insensitive
   size_t prefix_size_;      // size of prefix (0 if no prefix)
-  // For CRAN: named and hoisted out of the anonymous union below, see above.
-  struct PrefixFrontBack {
-    int prefix_front_;      // first byte of prefix
-    int prefix_back_;       // last byte of prefix
-  };
   union {
     uint64_t* prefix_dfa_;  // "Shift DFA" for prefix
-    PrefixFrontBack prefix_front_back;
+    struct {
+      int prefix_front_;    // first byte of prefix
+      int prefix_back_;     // last byte of prefix
+    } prefix_front_back;
   };
 
   int list_count_;                  // count of lists (see above)

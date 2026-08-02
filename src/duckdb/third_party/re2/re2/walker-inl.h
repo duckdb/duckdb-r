@@ -137,9 +137,7 @@ template<typename T> Regexp::Walker<T>::Walker() {
   stopped_early_ = false;
 }
 
-// For CRAN: the name after '::~' must be found in the same scope as the name
-// before it (clang: -Wdtor-name).
-template<typename T> Regexp::Walker<T>::Walker::~Walker() {
+template<typename T> Regexp::Walker<T>::~Walker() {
   Reset();
 }
 
