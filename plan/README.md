@@ -4,17 +4,17 @@ This directory holds documents that are *not* part of the routing tree's
 description of how the system works today:
 plans for work that is not finished,
 and records of designs and reviews that have been superseded.
-Both roots — [`README.md`](../README.md) for users and
-[`AGENTS.md`](../AGENTS.md) for maintainers and coding agents — point here,
+Both roots — [`README.md`](/README.md) for users and
+[`AGENTS.md`](/AGENTS.md) for maintainers and coding agents — point here,
 and this file is what names the contents,
 so nothing under `plan/` is an orphan.
 
 What is current lives elsewhere, and is owned there:
-[`BRANCHES.md`](../BRANCHES.md) for the branch model,
-[`RELEASE.md`](../RELEASE.md) for the release process,
-[`scripts/VENDORING.md`](../scripts/VENDORING.md) for vendoring mechanics,
-[`scripts/EACH.md`](../scripts/EACH.md) for per-commit CI,
-and [`.claude/skills/`](../.claude/skills/) for the routine's playbooks.
+[`BRANCHES.md`](/BRANCHES.md) for the branch model,
+[`RELEASE.md`](/RELEASE.md) for the release process,
+[`scripts/VENDORING.md`](/scripts/VENDORING.md) for vendoring mechanics,
+[`scripts/EACH.md`](/scripts/EACH.md) for per-commit CI,
+and [`.claude/skills/`](/.claude/skills/) for the routine's playbooks.
 A document here may describe something that has since changed;
 when the two disagree, the owner above is right.
 

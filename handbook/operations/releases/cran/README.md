@@ -2,15 +2,15 @@
 
 *Stub — this leaf will own its topic;
 today it routes to where the knowledge lives.
-The writing protocol is in [`meta/handbook/`](../../../meta/handbook/);
+The writing protocol is in [`meta/handbook/`](/handbook/meta/handbook/);
 the last section holds this leaf's parameters.*
 
 Scope: submission mechanics and CRAN policy constraints.
 
 Today:
 
-* [`RELEASE.md`](../../../../RELEASE.md)
-* [`cran-comments.md`](../../../../cran-comments.md)
+* [`RELEASE.md`](/RELEASE.md)
+* [`cran-comments.md`](/cran-comments.md)
 
 To write this leaf:
 
