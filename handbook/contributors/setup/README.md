@@ -8,7 +8,7 @@ git clone https://github.com/duckdb/duckdb-r.git
 cd duckdb-r
 R -q -e 'pak::pak()'                    # R-level dependencies
 
-scripts/install-libduckdb.sh            # prebuilt engine, matching
+sudo scripts/install-libduckdb.sh       # prebuilt engine, matching
 export DUCKDB_R_USE_SYSTEM_LIB=1        # the vendored commit
 
 R -q -e 'pkgload::load_all()'           # seconds
@@ -21,7 +21,10 @@ not an optimization to discover later:
 what it costs and guards — and the re-install every vendoring bump
 requires — is
 [`build/fast-paths/`](/handbook/build/fast-paths/README.md).
-It assumes Linux or macOS and a working toolchain;
+It assumes Linux or macOS, a working toolchain,
+and root for the script's default `/usr/local` prefix —
+constraints to be relaxed
+([#22](https://github.com/duckdb/duckdb-r/issues/22#issuecomment-5158085048));
 on Windows, and when no prebuilt matches, the full build applies
 ([`build/source-build/`](/handbook/build/source-build/README.md)).
 The suite's layout and running one file:
