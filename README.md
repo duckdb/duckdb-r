@@ -118,13 +118,14 @@ Then, install:
 Set the `MAKEFLAGS` environment variable to `-j8` or similar for parallel builds.
 Configure `ccache` for faster repeated builds.
 
-If you wish to test new DuckDB functionality with duckdb-r, make sure your clone of `duckdb-r` is one level deeper than your clone of `duckdb` (e.g. `R/duckdb-r` and `duckdb`).
+If you wish to test new DuckDB functionality with duckdb-r, make sure your clone of `duckdb-r` is **two** levels deeper than your clone of `duckdb` (e.g. `~/git/duckdb` and `~/git/R/duckdb/duckdb-r`).
+That is the layout `scripts/vendor.sh` assumes when it is given no argument; any other layout works by passing the path to the `duckdb` clone.
 Then run the following commands:
 
 ``` sh
-~ (cd duckdb && git checkout {{desired_branch}})
-~ (cd R/duckdb-r && scripts/vendor.sh)
-~ (cd R/duckdb-r && R CMD INSTALL .)
+~/git (cd duckdb && git checkout {{desired_branch}})
+~/git (cd R/duckdb/duckdb-r && scripts/vendor.sh)
+~/git (cd R/duckdb/duckdb-r && R CMD INSTALL .)
 ```
 
 It helps if both the duckdb directory and duckdb-r directory are clean.

@@ -90,12 +90,15 @@ Shared behaviour, in the order it happens:
    in `/tmp/vendor-one-glue-failures.txt`:
    fix the glue and amend, do not add a follow-up commit.
 
-`vendor-one.sh --commits N` repeats steps 3–9 up to `N` times —
-the series loop passes 100 —
+`vendor-one.sh --commits N` repeats steps 3–9 up to `N` times,
 stopping early on a tag or when no candidate remains.
+How large a chunk the routine asks for, and what the bound buys, is
+[`branches/model/`](/handbook/branches/model/README.md)'s.
 Its `VENDOR_REPO` variable names the checkout to vendor *into*,
 which must be the root of a worktree;
-that is what lets the loop run `main`'s copy of the script against a series' buffer.
+that is what lets `main`'s copy of the script run against another tree,
+as [`series-loop/`](/handbook/operations/vendoring/series-loop/README.md)'s
+first stage does.
 Only the script itself comes from `main` that way:
 everything it invokes by relative path —
 `scripts/rconfigure.py`, `patch/*.patch`, `./configure` —
@@ -123,59 +126,32 @@ It writes five committed things:
   filled into `src/Makevars.in`.
 
 All five carry a "do not edit by hand" header, and all five are regenerated wholesale.
-Two consequences are worth knowing before reading a diff:
+Two properties of that regeneration are defects rather than curiosities,
+and both are open:
 
-**The tree is not byte-reproducible across clones.**
-`DUCKDB_SOURCE_ID` is an *abbreviated* commit id,
-and git auto-sizes that abbreviation from the number of objects in the clone it runs in.
-The same upstream commit vendors as `7300522cf0` from one clone and `7300522cf07` from another,
-and a single branch can contain both lengths at different points of its history.
-Nothing downstream breaks —
-`configure` compares only the first ten characters
-when it checks a prebuilt library against the vendored headers —
-but a diff between two vendorings of one upstream commit
-shows this line even when everything else is identical.
-Pin `core.abbrev` in the upstream clone if an exact match matters.
+* **The tree is not byte-reproducible across clones.**
+  `DUCKDB_SOURCE_ID` is an *abbreviated* commit id,
+  and git sizes the abbreviation from the clone it runs in,
+  so a diff between two vendorings of one upstream commit
+  shows that line even when everything else is identical
+  ([#2489](https://github.com/duckdb/duckdb-r/issues/2489)).
+* **Regeneration rewrites all ~3550 files unconditionally**,
+  including the ones whose content did not change,
+  which invalidates git's stat cache
+  and is the bulk of what a vendor commit costs
+  ([#2490](https://github.com/duckdb/duckdb-r/issues/2490)).
 
-**Regeneration costs about twice what it needs to.**
-All ~3550 vendored files are rewritten unconditionally,
-including the ones whose content did not change,
-which invalidates git's stat cache;
-both the "more than one changed file" test and the `git add` then re-hash the whole tree.
-Measured: `git status` over the vendored tree costs 1.06 s right after every file is touched
-and 0.017 s when the index is still valid,
-at two full passes per candidate — including candidates that are skipped —
-which is the bulk of the ~4.9 s a vendor commit takes on four cores.
-Writing only the files that actually differ would roughly halve it,
-in CI as well as locally.
-That is one of the items in
-[`plan/PLAN-vendoring-simplification.md`](/plan/PLAN-vendoring-simplification.md),
-which carries the intent for this pipeline.
-
-Two smaller facts about the script:
+One more fact about the script:
 it drops the bundled jemalloc tree from the source list,
 because the R package never defines `DUCKDB_ENABLE_JEMALLOC`
-and upstream's packaging started emitting sources that neither compile nor link without it;
-and `DUCKDB_BUILD_UNITY` is read from the environment,
-parsed as an integer and rejected — with a message, and a non-zero exit —
-when it is not a positive one;
-unset or empty keeps the long-standing default of 20.
-It reaches upstream's `build_package()` as its `unity_count` argument,
-and there it currently does nothing:
-upstream has accepted that argument without using it since well before v1.0.0,
-because the grouping is decided per directory by `add_library_unity`.
-So setting the knob is now honoured all the way to the call and no further —
-which is what it should do, and worth knowing before reaching for it.
-When `DUCKDB_R_BINDIR`, `DUCKDB_R_CFLAGS` and `DUCKDB_R_LIBS` are all set,
-the script writes `src/Makevars` for a system-library build and exits
-without touching the vendored tree at all.
-That branch is reachable but stale:
-it still fills a `{{ SOURCES }}` placeholder that `src/Makevars.in` no longer has,
-so the generated `Makevars` keeps its `include include/sources.mk`
-and would compile the whole vendored tree anyway.
-The working route to a prebuilt library is `DUCKDB_R_USE_SYSTEM_LIB`,
-which `configure` handles instead;
-both belong to [`build/fast-paths/`](/handbook/build/fast-paths/README.md).
+and upstream's packaging emits jemalloc sources
+that neither compile nor link without it.
+That is a fact expected to change:
+[`duckdb/duckdb#22811`](https://github.com/duckdb/duckdb/issues/22811)
+is where to check whether the exclusion is still needed.
+Linking against a prebuilt engine instead of the vendored tree
+is `DUCKDB_R_USE_SYSTEM_LIB`, which `configure` handles rather than this script,
+and belongs to [`build/fast-paths/`](/handbook/build/fast-paths/README.md).
 
 ## The patch stack
 
@@ -220,9 +196,14 @@ The lifecycle has four moves:
   and delete it only after confirming its change is genuinely upstream.
   Rerunning `vendor.sh` also means clearing `./duckdb` first, or passing it,
   because that script always clones.
-  One caution:
-  a run that used to limp past a broken patch now halts, which is the point,
-  but it does mean a series loop can stop where it previously did not.
+
+The patch stack is where the pipeline's overarching rule is easiest to see:
+**a run either succeeds or dies trying, and talks about it.**
+Nothing is dropped, skipped, or worked around to keep a run alive.
+Every stop names what stopped it, where it left the tree and the upstream clone,
+and what to do next —
+exit 4 for a broken patch, exit 3 for broken glue,
+exit 1 for a base scan that came up empty.
 
 Never edit `src/duckdb/` directly in a way you want to keep.
 The next run regenerates the directory from scratch, and the edit is gone.
@@ -249,7 +230,8 @@ and `#N` in the collected subjects rewritten to a full
 
 The subject line is machine-readable state, not decoration.
 It is the only record of where a branch stands in upstream history:
-the base scan in step 3 parses it, and so do the series scripts and the repair playbooks.
+the base scan that opens every run parses it,
+and so do the series scripts and the repair playbooks.
 Do not reword it,
 and do not squash vendor commits together without keeping the newest SHA in the subject.
 
@@ -257,7 +239,7 @@ and do not squash vendor commits together without keeping the newest SHA in the 
 
 The package version carries two counters that advance on different strands —
 the fourth component on the R-client strand,
-the fifth on the vendor strands, once per vendor commit (step 7 above).
+the fifth on the vendor strands, once per vendor commit, in the version-bump step above.
 What the counters mean and who sets them is
 [`releases/versioning/`](/handbook/operations/releases/versioning/README.md)'s;
 what keeps them from halting every rebase is here.
@@ -275,7 +257,9 @@ If either side has no `Version:` line at all, the driver falls back to a plain t
 **The prefix gate.**
 The driver combines counters only when the `major.minor.patch` prefix of both sides is equal;
 otherwise it keeps *ours* verbatim and never inherits a foreign prefix.
-That is a safety rail for cross-release forward-ports, such as 1.5.x onto the 1.4.x LTS.
+That is a safety rail for cross-release forward-ports, such as 1.5.x onto the 1.4.x LTS;
+whether the larger version would be the better answer is
+[#2488](https://github.com/duckdb/duckdb-r/issues/2488).
 It also means the driver does **not** renumber a dev branch when the base moves to a new patch release:
 rebasing a series from `1.5.4.9005.N` onto a `1.5.5.9000` base
 leaves every commit at the base version rather than producing `1.5.5.9000.1`, `…2`, `…3`,
@@ -295,25 +279,32 @@ and as the first step of any CI job that rebases, cherry-picks, or merges in thi
 
 ## Vendoring by hand
 
-The scripts expect the upstream clone one level *above* the package clone —
-`~/duckdb` next to `~/R/duckdb-r` is the layout the defaults assume.
+Both scripts `cd` to the package root before anything else,
+and the default source repository is `../../../duckdb` from there:
+**three** levels up.
+So the layout the defaults assume puts the package clone
+two directories *deeper* than the upstream clone —
+with the upstream clone at `~/git/duckdb`,
+`~/git/R/duckdb/duckdb-r` is a package clone that needs no argument.
+Any other layout works by passing the upstream path as the positional argument.
+
 For a single upstream state, check the clone out at the commit you want and run `vendor.sh`,
 which vendors whatever `HEAD` is:
 
 ```bash
-cd ~/duckdb && git checkout <branch-or-commit>
-cd ~/R/duckdb-r && scripts/vendor.sh ../../../duckdb
+cd ~/git/duckdb && git checkout <branch-or-commit>
+cd ~/git/R/duckdb/duckdb-r && scripts/vendor.sh
 R CMD INSTALL .
 ```
 
-To replay a stretch of upstream history the way CI does,
+To replay a stretch of upstream history the way the routine does,
 check the clone out at the **last** commit you want vendored, so the walk terminates by itself,
 and drive `vendor-one.sh` one commit at a time:
 
 ```bash
 export MAKEFLAGS=-j$(nproc) NOT_CRAN=true DUCKDB_R_RUN_TESTS=true
 
-while scripts/vendor-one.sh ../../../duckdb --commits 1; do
+while scripts/vendor-one.sh --commits 1; do
   rm -f src/*.o                                # see below — mandatory
   R CMD INSTALL . --no-byte-compile || break   # repair, then `git commit --amend`
   R -q -e 'testthat::test_local()'       || break
@@ -352,22 +343,9 @@ so plan bulk replays off the pessimistic figure.
 When a commit breaks, fix the glue and `git commit --amend`,
 so the fix lands *in* the vendor commit that needs it and the history stays bisectable;
 then continue the loop.
-Never run `R CMD build` in a working tree you still need:
-the `cleanup` script runs `git clean -fdx src` and packs `src/duckdb/` into `src/duckdb.tar.xz`.
 
 ## Limits
 
-* **A walk that vendors nothing can leave the tree dirty.**
-  When no candidate qualifies, `vendor-one.sh` restores `src/duckdb/` and stops,
-  but `rconfigure.py` has already rewritten `R/version.R` and the generated `Makevars`
-  for the last candidate it tried.
-  On a dev branch the version string changes with almost every upstream commit,
-  so this is the common case, and the *next* run then refuses on the dirty tree.
-  `git checkout -- .` before rerunning. `vendor.sh` restores `R/version.R` as well.
-* **There is no vendoring workflow.**
-  Nothing under `.github/workflows/` runs these scripts;
-  vendoring is driven by the routine, and CI's role is to build the commits it produces
-  ([`ci/per-commit/`](/handbook/operations/ci/per-commit/README.md)).
 * **The pipeline vendors DuckDB, and one other thing.**
   [`scripts/vendor-rfuns.sh`](/scripts/vendor-rfuns.sh)
   copies the `rfuns` extension sources from a `duckdb-rfuns` checkout into `src/`,
@@ -379,4 +357,8 @@ the `cleanup` script runs `git clean -fdx src` and packs `src/duckdb/` into `src
   which is not `git merge-base`,
   and the R side has to be rewound to what that engine supports.
   That procedure belongs to
-  [`series-loop/`](/handbook/operations/vendoring/series-loop/README.md).
+  [`series-loop/`](/handbook/operations/vendoring/series-loop/README.md),
+  which also owns what schedules these scripts and how far each firing runs them.
+
+Intent — what should change about this pipeline, and what has landed — is in
+[`plan/PLAN-vendoring-simplification.md`](/plan/PLAN-vendoring-simplification.md).
