@@ -16,7 +16,7 @@ start there rather than searching.
 | Release process, modelled as a state machine | `RELEASE.md` |
 | Vendoring mechanics: scripts, invariants, troubleshooting | `scripts/VENDORING.md` |
 | Per-commit CI (sharded matrix): design and limits | `scripts/EACH.md` |
-| Operating the vendoring loop (routine playbooks) | `.claude/skills/`: `series-loop.md`, `series-forward.md`, `series-rebase.md`, `series-open.md` |
+| Operating the vendoring loop: what fires it, what its stages decide | [`handbook/operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/), which links the playbooks in `.claude/skills/` |
 | Designs, plans, and historical documents | `plan/README.md`, which names each by path |
 
 ## Working Effectively
@@ -92,7 +92,7 @@ For an interactive edit-build-test loop, prefer the prebuilt-libduckdb fast path
 
 The duckdb-r package vendors (includes a copy of) the DuckDB C++ core library. Key points:
 
-- **Automated Process**: Runs daily via GitHub Actions in `krlmlr/duckdb-r`, gated on the per-commit `rcc` build status
+- **Automated Process**: a scheduled agent routine — the series loop — vendors every series in `krlmlr/duckdb-r` and promotes on the per-commit `rcc` build status; no workflow drives it, see [`handbook/operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/)
 - **Branch Strategy**: one dev branch per upstream branch (`main-dev` ← `main`, `v1.5-variegata-dev` ← `v1.5-variegata`, `v1.4-andium-dev` ← `v1.4-andium`); see [BRANCHES.md](BRANCHES.md)
 - **One commit at a time**: each vendor commit corresponds to exactly one upstream commit, and must build and pass tests on its own — fold any required glue fix into that commit rather than adding a follow-up
 - **Never modify `src/duckdb/` directly** - changes will be overwritten by vendoring
