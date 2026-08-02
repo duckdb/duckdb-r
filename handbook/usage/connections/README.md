@@ -39,7 +39,9 @@ The load-bearing facts:
   DBI's `immediate = TRUE` is no way around this and no way to opt out:
   the driver has no unprepared path — every route reaches
   [`src/statement.cpp`](/src/statement.cpp)'s prepare, which is where the
-  earlier statements run — and the argument lands in `...` unread.
+  earlier statements run — and the argument lands in `...` unread,
+  which it will stop doing
+  ([#2498](https://github.com/duckdb/duckdb-r/issues/2498)).
 
 *To deepen: absorb the instance and caching section of `?duckdb`;
 drain [#172](https://github.com/duckdb/duckdb-r/issues/172),
