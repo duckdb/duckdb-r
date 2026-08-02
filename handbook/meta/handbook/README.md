@@ -107,9 +107,12 @@ Any of them is a complete, mergeable pull request:
 Whichever move, the same protocol:
 
 * **Verify before you state.**
-  Check every behavioral claim against the ground truth;
-  check engine-configuration claims against a vendored build,
-  never under `DUCKDB_R_USE_SYSTEM_LIB=1`.
+  Check every behavioral claim against the ground truth,
+  on a build that can show it:
+  the fast path links a release library
+  with its own extension set and defaults,
+  so a claim those could distort needs a vendored build —
+  for everything the two builds share, either will do.
 * **Stay inside the scope line.**
   A fact beyond it belongs to another leaf — link, don't absorb.
 * **Finish clean.**
