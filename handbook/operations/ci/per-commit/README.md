@@ -36,10 +36,16 @@ What every consumer of this workflow can rely on:
 
 The snapshot branches are load-bearing, so `rcc-one.sh` reproduces them
 rather than just leaving the accepted snapshots in the tree.
-Their name is deliberately **frozen** rather than derived:
-upstream builds it from `github.job` (`rcc-smoke`) and an empty matrix (`null`),
-and here the job is `build` and there *is* a matrix,
-so deriving it the same way would silently rename every future branch.
+The name is a **frozen literal** — the full SHA between two constants:
+
+```
+snapshot-0019bff821c63ce478d9046aa925d104df1f71a0-rcc-smoke-null
+```
+
+Upstream derives that tail from its job name and its empty matrix.
+Here the job is `build` and a matrix exists, so the tail is *kept*
+rather than derived: deriving it would rename every future branch
+and orphan every existing one.
 The commit is written through a temporary index —
 identity, message and parent matching `peter-evans/create-pull-request` —
 so the working tree keeps its diff and the `clean` gate still fails the commit.
