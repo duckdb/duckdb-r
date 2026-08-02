@@ -2,7 +2,7 @@
 
 *Stub — this leaf will own its topic;
 today it routes to where the knowledge lives.
-The writing protocol is in [`meta/handbook/`](../../meta/handbook/);
+The writing protocol is in [`meta/handbook/`](/handbook/meta/handbook/);
 the last section holds this leaf's parameters.*
 
 Scope: one source tree published under many names
@@ -10,7 +10,7 @@ Scope: one source tree published under many names
 
 Today:
 
-* [`BRANCHES.md`](../../../BRANCHES.md#r-package-flavors)
+* [`BRANCHES.md`](/BRANCHES.md#r-package-flavors)
 
 To write this leaf:
 

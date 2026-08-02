@@ -20,7 +20,7 @@ has exactly one place in this tree.
   "Can it do X?" is answered at X's leaf, whichever way it goes.
 * **Full cover.**
   Every fact is reachable by walking down from
-  [`handbook/`](../../README.md);
+  [`handbook/`](/handbook/README.md);
   a topic with no place in the tree is a defect of the tree,
   not of the topic.
 * **Pointer leaves are legitimate.**
@@ -66,7 +66,8 @@ and it is written for an agent starting with clean context:
   a root `README.md` section, a reference page,
   a directory index — gains a backreference to the leaf.
   Free-floating `.md` files shrink as their content lands here;
-  a fully absorbed file becomes a one-line tombstone.
+  a fully absorbed file goes away, and its directory's in-place
+  `README.md` — the index GitHub renders there — routes on in its place.
 * **Verify before you state.**
   Check every behavioral claim against the ground truth the stub
   names; check engine-configuration claims against a vendored
@@ -85,6 +86,81 @@ and it is written for an agent starting with clean context:
   Delete the "To write this leaf" section and the stub notice;
   keep internal nodes navigation-only;
   leave no dangling links.
+
+## The forms
+
+The rules above say what a page must do;
+these are the shapes the tree has settled on for doing it.
+They exist so that leaves written independently read as one document.
+
+**A written leaf** opens with its H1
+and then a scope sentence in ordinary prose —
+no `Scope:` label, that scaffolding belongs to stubs —
+and continues with the content.
+The scope sentence survives the stub because the tree's shape
+depends on every leaf declaring its boundary.
+A one-screen leaf needs no headings; a longer one uses `##`.
+
+**An absorbed file goes away.**
+There are no tombstones:
+a `.md` whose content has landed in a leaf is deleted,
+not left behind as a one-line redirect.
+What replaces it is the **in-place `README.md`** —
+the index GitHub renders when someone browses to that directory.
+The index is generated, one row per file,
+grouped by the handbook leaf that owns each file's topic
+([`scripts/README.md`](/scripts/README.md) is the worked example);
+regenerating it is how it stays true,
+and the generator's file-to-leaf mapping is what a change edits,
+never the rendered table.
+A file only partly absorbed keeps its remaining sections,
+and each absorbed heading becomes a one-line pointer to the leaf.
+
+**A backreference is how a leaf is discovered from the source tree.**
+Someone standing in `scripts/` finds the leaf that explains what they
+are looking at without knowing the handbook exists —
+which is the whole point, and the reason absorbing content
+never strands the reader who goes looking at the old address.
+The generated index carries the backreference for every file it covers —
+today that is `scripts/` alone,
+and extending the generator to the other directories that hold
+documentation is open work, not a settled shape.
+Where no index covers a document, it carries its own:
+
+* *Markdown* — a visible italic line directly under the H1,
+  linking the leaf by repo-relative path.
+  Several leaves serving one file share the one line.
+  This holds for the root `README.md` too,
+  which already links `AGENTS.md` and `plan/README.md` the same way
+  even though CRAN renders it from a tarball
+  where `.Rbuildignore` has removed them.
+* *Source files* — a plain source comment,
+  above the roxygen block or below the script's one-line header.
+  Never a roxygen `#'` line:
+  `handbook/` is `.Rbuildignore`d,
+  so a reference page linking into it would be broken for users.
+
+**A link that leaves its own directory is written from the repository
+root**, with a leading `/` — `/handbook/usage/types/`, not
+`../../usage/types/`. GitHub resolves such a link against the
+repository root and rewrites it for whatever branch the reader is on,
+so it works unchanged on `main`, on a pull request head, and in a fork.
+Same-directory and downward links stay relative, as they are already
+correct and already short.
+The tree is four levels deep in places,
+and a `../../../../` chain is both unreadable and wrong the moment a
+page moves — which, in a hierarchy that is still settling, it will.
+This follows the
+[Google Markdown style guide](https://google.github.io/styleguide/docguide/style.html#links),
+which discourages exactly the upward form and nothing else.
+The cost is that such a link does not resolve in a local Markdown
+preview, which has no notion of a repository root;
+the handbook is read on GitHub, and that is the trade taken.
+
+Prose absorbed into a leaf may be rewritten —
+the handbook's voice is tighter than its sources' —
+but a rewrite that loses a fact is a regression, not an edit.
+All prose in the tree uses [semantic line breaks](https://sembr.org).
 
 ## Enforcement
 
