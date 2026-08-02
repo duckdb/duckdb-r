@@ -118,22 +118,53 @@ so fmt's `std_string_view` alias became a struct that derives from
 and `char32_t`, and is empty otherwise —
 the deprecated template is never instantiated.
 
-**Two patches in the current stack break the rule while passing the
-check, and that is unresolved.**
-`patch/0003-Try-to-ignore-clang-warnings.patch` adds
-`-Wgnu-anonymous-struct`, `-Wnested-anon-types` and `-Wdtor-name`
-suppressions to two re2 headers, written as `#  pragma`;
-`patch/0016-Avoid-mbedtls-diagnostic-pragmas.patch` keeps mbedtls's
-existing `-Wredundant-decls` suppressions but respaces them as
-`#pragma  GCC  diagnostic  ignored`.
-The regex above matches only `#pragma` with single spaces,
-so neither form is seen by `R CMD check` —
-while the compiler honours both, exactly as if they had been written
+The regex above matches only `#pragma` spelled with single spaces,
+which leaves a loophole:
+a pragma written as `#  pragma` or as
+`#pragma  GCC  diagnostic  ignored` is invisible to `R CMD check`
+while the compiler honours it exactly as if it had been written
 normally.
-These are warnings silenced rather than fixed,
-which is the thing the policy forbids;
-they are debt awaiting a root-cause fix or a deletion,
-not a precedent to copy.
+Two patches used to sit in that loophole.
+Both have now been dealt with, one fully and one in part.
+
+`patch/0003-Fix-clang-warnings-in-re2.patch` — formerly
+`Try-to-ignore-clang-warnings` — fixes the warnings it used to hide.
+`-Wnested-anon-types` came from two unnamed structs declared inside
+anonymous unions in `re2/prog.h`;
+they are now named and hoisted out of the union, layout-identical.
+`-Wdtor-name` came from `Regexp::Walker<T>::~Walker()` in
+`re2/walker-inl.h`, now spelled `Regexp::Walker<T>::Walker::~Walker()`
+as clang's own fix-it suggests.
+`-Wgnu-anonymous-struct` never fired at all.
+The suppressions were also costing something in their own right:
+`#pragma clang` is unknown to GCC,
+so each one raised a `-Wunknown-pragmas` warning per translation unit
+there.
+Alongside it, the `-Wredundant-decls` suppression that
+`patch/0016-Avoid-mbedtls-diagnostic-pragmas.patch` used to respace in
+`third_party/mbedtls/library/constant_time_impl.h` is deleted outright:
+that warning is in neither `-Wall` nor `-pedantic`,
+and no includer produces it in this C++ build even when it is asked
+for explicitly.
+
+What remains is one hunk of
+`patch/0016-Avoid-mbedtls-diagnostic-pragmas.patch`:
+mbedtls's own `-Wvla` suppression in
+`third_party/mbedtls/library/platform_util.cpp`,
+around the `asm volatile ("" : : "m" (*(char (*)[len]) buf) :)` barrier
+that stops `mbedtls_platform_zeroize()` from being optimised away.
+That warning is real — both GCC and clang emit it under `-pedantic`
+once the pragmas are removed —
+and the only pragma-free fix is to weaken the operand to a full
+`"memory"` clobber,
+which changes the codegen of a hardening primitive in vendored crypto
+code.
+So the suppression stays, still spelled
+`#pragma  GCC  diagnostic  ignored`,
+and `R CMD check` still does not report it.
+Whether to leave it that way, or to normalise the spelling and accept
+the resulting check output, is a maintainer decision, not a precedent
+to copy.
 
 How the glue in `src/` honours the rule as a source convention is
 [`architecture/glue/`](/handbook/architecture/glue/README.md)'s.
