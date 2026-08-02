@@ -122,8 +122,9 @@ are looking at without knowing the handbook exists —
 which is the whole point, and the reason absorbing content
 never strands the reader who goes looking at the old address.
 The generated index carries the backreference for every file it covers —
-today that is `scripts/` alone,
-and extending the generator to the other directories that hold
+today [`scripts/`](/scripts/README.md) and [`plan/`](/plan/README.md),
+each rendered from its own slice of one file-to-leaf ownership map.
+Extending the generator to the remaining directories that hold
 documentation is open work, not a settled shape.
 Where no index covers a document, it carries its own:
 

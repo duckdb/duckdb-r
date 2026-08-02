@@ -1,19 +1,21 @@
 #!/usr/bin/env Rscript
-# Generate scripts/README.md: the routing index GitHub renders in place
-# when the directory is browsed.
+# Generate the in-place directory indexes -- scripts/README.md and
+# plan/README.md -- the routing pages GitHub renders when one of those
+# directories is browsed.
 #
-# One row per file in scripts/, grouped by the handbook leaf that owns
-# the topic; the purpose column is extracted from each file's own header
-# comment (or Python docstring, or Markdown H1), so the index cannot
-# drift from the files -- the roxygen model, applied to scripts.
-# The mapping below is the scripts/ slice of the source-to-leaf
-# ownership map; it moves into a repo-wide manifest when that lands.
+# One row per file in the directory, grouped by the handbook leaf that
+# owns the topic; the purpose column is extracted from each file's own
+# header comment (or Python docstring, or Markdown H1), so an index
+# cannot drift from its files -- the roxygen model, applied to a
+# directory.  The mapping below is the source-to-leaf ownership map,
+# one slice per generated directory; it grows a slice whenever another
+# directory that holds documentation gets its index.
 #
 # A helper, not an entry point: the docs-consistency skill (SKILL.md
 # in this directory) drives it and owns the judgment calls -- whether
 # a grouping is right, whether a header says what its file does.
 # This renders and diffs.
-# Rules: handbook/meta/handbook/README.md, "Enforcement".
+# Rules: handbook/meta/handbook/README.md, "The forms".
 #
 # Usage (from anywhere in the repository):
 #   Rscript .claude/skills/docs-consistency/docs-readme.R          # rewrite
@@ -27,13 +29,19 @@ if (!length(root) || !nzchar(root)) {
 }
 setwd(root)
 
-files <- system2(
-  "git",
-  c("ls-files", "--cached", "--others", "--exclude-standard", "--", "scripts/"),
-  stdout = TRUE
-)
-# The target file lists itself, whether or not it exists yet.
-files <- sort(unique(c(basename(files), "README.md")), method = "radix")
+# Paths relative to `dir`, so a file in a subdirectory keeps it:
+# plan/ has one (history/), scripts/ has none.
+list_files <- function(dir) {
+  files <- system2(
+    "git",
+    c("ls-files", "--cached", "--others", "--exclude-standard", "--",
+      paste0(dir, "/")),
+    stdout = TRUE
+  )
+  files <- sub(paste0("^", dir, "/"), "", files)
+  # The target file lists itself, whether or not it exists yet.
+  sort(unique(c(files, "README.md")), method = "radix")
+}
 
 # --- purpose extraction ------------------------------------------------
 
@@ -106,59 +114,114 @@ first_sentence <- function(text) {
 
 # --- ownership ---------------------------------------------------------
 
-# The scripts/ slice of the source-to-leaf ownership map.
-# `owner` is a handbook node, repo-relative.  First match wins;
-# a file that could fit several paths is mapped to its best fit.
-# The index renders grouped by handbook path, in path order.
-groups <- list(
+# The source-to-leaf ownership map, one slice per generated directory.
+# `owner` is a handbook node, repo-relative; a glob matches a file's
+# path relative to its directory.  First match wins; a file that could
+# fit several paths is mapped to its best fit.  Each index renders
+# grouped by handbook path, in path order.
+directories <- list(
   list(
-    owner = "handbook/operations/vendoring",
-    globs = c("VENDORING.md")
+    dir = "scripts",
+    title = "# `scripts/` — what lives here, and who explains it",
+    intro = c(
+      "This index routes; the owning handbook leaves explain.",
+      "One row per file,",
+      "with the purpose taken from the file's own header line",
+      "and the grouping from the handbook leaf that owns the topic —",
+      "ownership by topic, navigation by place",
+      "([the rules](/handbook/meta/handbook/README.md)).",
+      "Root of the documentation tree: [`handbook/`](/handbook/)."
+    ),
+    groups = list(
+      list(
+        owner = "handbook/operations/vendoring",
+        globs = c("VENDORING.md")
+      ),
+      list(
+        owner = "handbook/operations/vendoring/pipeline",
+        globs = c("vendor*.sh", "rconfigure.py", "merge-version.sh", "setup-git.sh")
+      ),
+      list(
+        owner = "handbook/operations/vendoring/series-loop",
+        globs = c("series-*.sh")
+      ),
+      list(
+        owner = "handbook/operations/ci/per-commit",
+        globs = c("EACH.md", "each-*", "rcc-*")
+      ),
+      list(
+        owner = "handbook/branches/flavors",
+        globs = c("flavor*")
+      ),
+      list(
+        owner = "handbook/build/fast-paths",
+        globs = c("install-*.sh")
+      ),
+      list(
+        owner = "handbook/build/configuration",
+        globs = c("setup-makeflags.R")
+      ),
+      list(
+        owner = "handbook/architecture/glue",
+        globs = c("format.py", "python_helpers.py")
+      ),
+      list(
+        owner = "handbook/architecture/r-layer",
+        globs = c("rethrow.R")
+      ),
+      list(
+        owner = "handbook/testing/snapshots",
+        globs = c("snapshot-accept.sh")
+      ),
+      list(
+        owner = "handbook/meta/handbook",
+        globs = c("README.md")
+      )
+    )
   ),
   list(
-    owner = "handbook/operations/vendoring/pipeline",
-    globs = c("vendor*.sh", "rconfigure.py", "merge-version.sh", "setup-git.sh")
-  ),
-  list(
-    owner = "handbook/operations/vendoring/series-loop",
-    globs = c("series-*.sh")
-  ),
-  list(
-    owner = "handbook/operations/ci/per-commit",
-    globs = c("EACH.md", "each-*", "rcc-*")
-  ),
-  list(
-    owner = "handbook/branches/flavors",
-    globs = c("flavor*")
-  ),
-  list(
-    owner = "handbook/build/fast-paths",
-    globs = c("install-*.sh")
-  ),
-  list(
-    owner = "handbook/build/configuration",
-    globs = c("setup-makeflags.R")
-  ),
-  list(
-    owner = "handbook/architecture/glue",
-    globs = c("format.py", "python_helpers.py")
-  ),
-  list(
-    owner = "handbook/architecture/r-layer",
-    globs = c("rethrow.R")
-  ),
-  list(
-    owner = "handbook/testing/snapshots",
-    globs = c("snapshot-accept.sh")
-  ),
-  list(
-    owner = "handbook/meta/handbook",
-    globs = c("README.md")
+    dir = "plan",
+    title = "# `plan/` — designs, decisions, and history",
+    intro = c(
+      "This index routes; the owning handbook leaves explain.",
+      "One row per document,",
+      "with the purpose taken from the document's own H1",
+      "and the grouping from the handbook leaf whose topic it carries —",
+      "ownership by topic, navigation by place",
+      "([the rules](/handbook/meta/handbook/README.md)).",
+      "What belongs here, and what adding a document takes:",
+      "[`meta/plans/`](/handbook/meta/plans/README.md)."
+    ),
+    groups = list(
+      list(
+        owner = "handbook/usage/storage",
+        globs = c("PLAN-storage-locations.md")
+      ),
+      list(
+        owner = "handbook/usage/integrations",
+        globs = c("PLAN-dbSendQueryArrow.md")
+      ),
+      list(
+        owner = "handbook/operations/vendoring",
+        globs = c("PLAN-vendoring-simplification.md")
+      ),
+      list(
+        owner = "handbook/operations/vendoring/series-loop",
+        globs = c("history/vendoring-loop.md")
+      ),
+      list(
+        owner = "handbook/architecture/glue",
+        globs = c("history/main-dev-review-*.md")
+      ),
+      list(
+        owner = "handbook/meta/plans",
+        globs = c("README.md")
+      )
+    )
   )
 )
-groups <- groups[order(vapply(groups, function(g) g$owner, character(1)))]
 
-find_group <- function(file) {
+find_group <- function(file, groups) {
   hits <- which(vapply(
     groups,
     function(g) any(vapply(
@@ -186,68 +249,90 @@ owner_heading <- function(g) {
 
 # --- assemble ----------------------------------------------------------
 
-idx <- vapply(files, find_group, integer(1))
-unowned <- files[is.na(idx)]
+render <- function(spec) {
+  groups <- spec$groups[
+    order(vapply(spec$groups, function(g) g$owner, character(1)))
+  ]
+  files <- list_files(spec$dir)
+  idx <- vapply(files, find_group, integer(1), groups = groups)
+  unowned <- files[is.na(idx)]
 
-out <- c(
-  "# `scripts/` — what lives here, and who explains it",
-  "",
-  "<!-- Generated by .claude/skills/docs-consistency/docs-readme.R;",
-  "     do not edit by hand.  Regenerate:",
-  "     Rscript .claude/skills/docs-consistency/docs-readme.R -->",
-  "",
-  "This index routes; the owning handbook leaves explain.",
-  "One row per file,",
-  "with the purpose taken from the file's own header line",
-  "and the grouping from the handbook leaf that owns the topic —",
-  "ownership by topic, navigation by place",
-  "([the rules](/handbook/meta/handbook/README.md)).",
-  "Root of the documentation tree: [`handbook/`](/handbook/).",
-  ""
-)
-
-for (gi in seq_along(groups)) {
-  members <- files[!is.na(idx) & idx == gi]
-  if (!length(members)) next
-  out <- c(out, owner_heading(groups[[gi]]), "", "| File | Purpose |", "|---|---|")
-  for (file in members) {
-    purpose <- if (file == "README.md") {
-      "(this index)"
-    } else {
-      p <- extract_purpose(file.path("scripts", file))
-      if (is.na(p)) "—" else p
-    }
-    out <- c(out, paste0("| [`", file, "`](", file, ") | ", purpose, " |"))
-  }
-  out <- c(out, "")
-}
-
-if (length(unowned)) {
   out <- c(
-    out, "## Unowned", "",
-    "These files match no ownership glob — fix the mapping:", "",
-    paste0("* `", unowned, "`"), ""
+    spec$title,
+    "",
+    "<!-- Generated by .claude/skills/docs-consistency/docs-readme.R;",
+    "     do not edit by hand.  Regenerate:",
+    "     Rscript .claude/skills/docs-consistency/docs-readme.R -->",
+    "",
+    spec$intro,
+    ""
+  )
+
+  for (gi in seq_along(groups)) {
+    members <- files[!is.na(idx) & idx == gi]
+    if (!length(members)) next
+    out <- c(out, owner_heading(groups[[gi]]), "", "| File | Purpose |", "|---|---|")
+    for (file in members) {
+      purpose <- if (file == "README.md") {
+        "(this index)"
+      } else {
+        p <- extract_purpose(file.path(spec$dir, file))
+        if (is.na(p)) "—" else p
+      }
+      out <- c(out, paste0("| [`", file, "`](", file, ") | ", purpose, " |"))
+    }
+    out <- c(out, "")
+  }
+
+  if (length(unowned)) {
+    out <- c(
+      out, "## Unowned", "",
+      "These files match no ownership glob — fix the mapping:", "",
+      paste0("* `", unowned, "`"), ""
+    )
+  }
+
+  list(
+    target = file.path(spec$dir, "README.md"),
+    lines = out,
+    files = files,
+    unowned = unowned
   )
 }
 
 # --- write or check ----------------------------------------------------
 
-target <- "scripts/README.md"
 check <- any(commandArgs(trailingOnly = TRUE) == "--check")
+stale <- FALSE
 
-if (check) {
-  current <- if (file.exists(target)) readLines(target, warn = FALSE) else character()
-  if (!identical(current, out) || length(unowned)) {
-    if (length(unowned)) {
-      message("unowned files: ", paste(unowned, collapse = ", "))
+for (spec in directories) {
+  res <- render(spec)
+
+  if (check) {
+    current <- if (file.exists(res$target)) {
+      readLines(res$target, warn = FALSE)
+    } else {
+      character()
     }
-    message(target, " is stale; regenerate with:",
-      " Rscript .claude/skills/docs-consistency/docs-readme.R")
-    quit(status = 1)
+    if (!identical(current, res$lines) || length(res$unowned)) {
+      if (length(res$unowned)) {
+        message("unowned files in ", spec$dir, "/: ",
+          paste(res$unowned, collapse = ", "))
+      }
+      message(res$target, " is stale")
+      stale <- TRUE
+    } else {
+      message(res$target, " is current")
+    }
+  } else {
+    writeLines(res$lines, res$target)
+    message("wrote ", res$target, " (", length(res$files), " files",
+      if (length(res$unowned)) paste0(", ", length(res$unowned), " UNOWNED"), ")")
   }
-  message(target, " is current")
-} else {
-  writeLines(out, target)
-  message("wrote ", target, " (", length(files), " files",
-    if (length(unowned)) paste0(", ", length(unowned), " UNOWNED"), ")")
+}
+
+if (check && stale) {
+  message("regenerate with:",
+    " Rscript .claude/skills/docs-consistency/docs-readme.R")
+  quit(status = 1)
 }

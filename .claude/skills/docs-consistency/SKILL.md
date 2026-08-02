@@ -9,7 +9,8 @@ generated indexes — and periodically as a scheduled sweep.
 
 Judgment lives here; mechanics live in helpers.
 The one helper today is [`docs-readme.R`](docs-readme.R) in this
-directory, which renders and diffs the generated `scripts/` index.
+directory, which renders and diffs the generated in-place indexes,
+`scripts/README.md` and `plan/README.md`.
 Helpers are not entry points of their own.
 
 ## Checks
@@ -66,7 +67,8 @@ Helpers are not entry points of their own.
 
 4. **Source-to-leaf coverage** (judgment).
    Every tracked source path is claimed by exactly one handbook
-   leaf. `scripts/` is machine-mapped in the helper's `groups`;
+   leaf. `scripts/` and `plan/` are machine-mapped in the helper's
+   per-directory `groups`;
    for the rest, walk the top-level directories
    (`R/`, `src/`, `tests/`, `.github/`, `patch/`, `inst/`, …)
    against the leaves' scope lines and work orders.
