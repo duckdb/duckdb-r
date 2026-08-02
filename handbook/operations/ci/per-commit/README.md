@@ -25,6 +25,9 @@ What every consumer of this workflow can rely on:
   `runs2.d/<xx>/<sha>.ndjson` for a new record,
   `runs2.ndjson` for the aggregate it is merged into,
   `logs2/<sha>.log` for the log.
+  A reader takes the per-commit file and falls back to the aggregate;
+  the two are made to agree by
+  [consolidation](#consolidation), which is a manual operation.
 * **Gate applied per commit** — style, snapshots, roxygen, clean tree,
   `R CMD check`, pkgdown, in that order.
 * **Accepted snapshots** — pushed as `snapshot-<sha>-rcc-smoke-null`.
