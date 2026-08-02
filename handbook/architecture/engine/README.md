@@ -80,16 +80,18 @@ time: `TREAT_WARNINGS_AS_ERRORS` appends `-Werror`,
 `DUCKDB_DEBUG_MOVE` appends `-DDUCKDB_DEBUG_MOVE`,
 and `DUCKDB_R_LINENR` and `DUCKDB_BUILD_UNITY` change how the sources
 are amalgamated.
-Neither of the first two is in force for the shipped build —
-the committed `src/Makevars` carries neither flag.
+Neither `-Werror` nor `-DDUCKDB_DEBUG_MOVE` is in force for the shipped
+build — the committed `src/Makevars` carries neither flag.
 
 ## The linked extension set
 
 `rconfigure.py` starts from `parquet` and `core_functions`
 and appends whatever `DUCKDB_R_EXTENSIONS` names,
 turning each into `-DDUCKDB_EXTENSION_<NAME>_LINKED`.
-The committed `src/Makevars` therefore links exactly two extensions,
-`parquet` and `core_functions`.
+The committed `src/Makevars` therefore links `parquet` and
+`core_functions` and nothing else;
+the `-DDUCKDB_EXTENSION_*_LINKED` defines in that file are the
+authoritative list.
 
 The set is fixed when the package is vendored, not when it is installed:
 `DUCKDB_R_EXTENSIONS` only has an effect on a run of `rconfigure.py`
@@ -125,8 +127,8 @@ Until that exists, the exclusion stands.
 
 ## Warnings from the vendored tree
 
-Compiling the vendored tree — some 1800 C++ source files — raises
-warnings that this package does not silence.
+Compiling the vendored tree — well over a thousand C++ source files —
+raises warnings that this package does not silence.
 `g++` with `-std=gnu++17`, for instance, reports every
 `TryCastWithOverflowCheck()` overload in `numeric_cast.hpp` as
 `defined but not used`
