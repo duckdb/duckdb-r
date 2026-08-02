@@ -1,7 +1,7 @@
 #!/bin/bash
 # Vendors DuckDB sources from the upstream repository (manual vendoring).
 # For manual testing and development use
-# See scripts/VENDORING.md for complete documentation
+# See handbook/operations/vendoring/pipeline/ for what this does and why.
 # https://unix.stackexchange.com/a/654932/19205
 # Using bash for -o pipefail
 

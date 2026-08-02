@@ -1,7 +1,7 @@
 #!/bin/bash
 # Vendors DuckDB sources commit-by-commit from the upstream repository.
 # Used by the series loop (.claude/skills/series-loop.md)
-# See scripts/VENDORING.md for complete documentation
+# See handbook/operations/vendoring/pipeline/ for what this does and why.
 # https://unix.stackexchange.com/a/654932/19205
 # Using bash for -o pipefail
 
