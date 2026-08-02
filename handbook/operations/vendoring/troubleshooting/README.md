@@ -86,3 +86,6 @@ which is what a counter that orders rather than counts allows
 ([`versioning/`](/handbook/operations/releases/versioning/README.md)).
 The loop's own statement of the rule is
 [`series-loop.md`](/.claude/skills/series-loop.md), stage 2.
+
+*To deepen: absorb `scripts/VENDORING.md` § Troubleshooting —
+the recovery walkthroughs behind these classes.*
