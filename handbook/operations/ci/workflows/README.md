@@ -5,6 +5,12 @@ The top-level workflow files under
 one line each — what fires it, what it does.
 The workflow files are the ground truth;
 this table is the map.
+Most of them are **not authored here**:
+[`cynkra/cynkratemplate`](https://github.com/cynkra/cynkratemplate)
+is the source of truth for the core set,
+and an external process keeps this repository's copies level with it —
+so editing one here puts the copy out of step,
+and a change belongs in the template instead.
 
 | Workflow | Fires on | Does |
 |---|---|---|
