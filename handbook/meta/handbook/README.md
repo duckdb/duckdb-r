@@ -113,8 +113,9 @@ Whichever move, the same protocol:
   added by the change that coins it
   ([`meta/glossary/`](/handbook/meta/glossary/README.md)).
 * **Follow [`meta/authoring/`](/handbook/meta/authoring/README.md).**
-  New and absorbed prose alike is written to that checklist —
-  absorption is rewriting, never blind copy-paste.
+  Every sentence, new or absorbed, is walked down the ladder there
+  before it is written — absorption is rewriting, never blind
+  copy-paste.
 * **Stay inside the scope line.**
   A fact beyond it belongs to another leaf — link, don't absorb.
 * **Finish clean.**
