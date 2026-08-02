@@ -11,9 +11,10 @@ Little of this is codified; what is settled:
   phrased to be read:
   fledge turns `main`'s history into `NEWS.md`
   ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
-* Run the tests the change touches, and the suite before asking
-  for review ([`testing/suite/`](/handbook/testing/suite/README.md));
-  add a test with every bug fix.
+* Run the tests the change touches
+  ([`testing/suite/`](/handbook/testing/suite/README.md));
+  the full suite can also be left to CI.
+  Add a test with every bug fix.
 * Formatting is suggested on the PR by CI; accept it rather than
   arguing with it.
   A snapshot the change legitimately moved is accepted deliberately
