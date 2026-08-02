@@ -21,7 +21,14 @@ through R, every entry point,
 and `DUCKDB_R_POISON_GUARD()` (the C++ half of the CRAN guard).
 
 **cpp11 is vendored, not depended on** —
-`inst/include/cpp11/` carries the copy.
+`inst/include/cpp11/` carries the copy,
+taken from [`krlmlr/cpp11`](https://github.com/krlmlr/cpp11),
+a patch stack on top of
+[`r-lib/cpp11`](https://github.com/r-lib/cpp11):
+upstream is slow to accept pull requests,
+and this package needs extensions it does not ship —
+support for package names with two dots
+(`duckdb.1.5.dev`) among them.
 An entry point is a function marked `[[cpp11::register]]`;
 `cpp11::cpp_register()` writes both halves of the binding
 (`src/cpp11.cpp`, `R/cpp11.R`), which are generated and never
