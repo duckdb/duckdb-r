@@ -4,12 +4,12 @@ Linking a prebuilt `libduckdb` instead of compiling the vendored DuckDB
 sources: the `DUCKDB_R_USE_SYSTEM_LIB` opt-in, the commit-match guard
 that keeps it honest, and the claims it cannot support.
 
-A clean source install compiles about 1700 vendored `.cpp` files and
-takes 10–15 minutes
+A clean source install compiles the whole vendored DuckDB tree and
+takes many minutes
 ([`source-build/`](/handbook/build/source-build/)).
-With the opt-in set, only the ~30 glue files in `src/` are compiled and
-everything else is resolved from an already-built shared library,
-which brings `R CMD INSTALL .` down to roughly five seconds.
+With the opt-in set, only the glue translation units in `src/` are
+compiled and everything else is resolved from an already-built shared
+library, which brings `R CMD INSTALL .` down to seconds.
 It is meant for interactive iteration, coding-agent sessions, and CI —
 never for a tarball that someone else installs.
 Linux and macOS only; `configure` refuses any other platform.
@@ -52,10 +52,9 @@ The loop is not limited to `R CMD INSTALL`.
 `testthat::test_local()`, which loads the package the same way —
 compile through the same `configure` and `src/Makevars`, so they honor
 the opt-in identically.
-Measured on a clean container (R 4.5.3, `ccache` warm),
-a no-op `load_all()` takes about a second
-and a `load_all()` after editing one glue file about four,
-against 10–15 minutes for the vendored sources.
+With `ccache` warm, a no-op `load_all()` and a `load_all()` after
+editing one glue file both finish in seconds rather than the minutes a
+vendored build takes.
 The suite itself is [`testing/suite/`](/handbook/testing/suite/)'s topic.
 
 ## What is swapped, and what is not
@@ -63,11 +62,13 @@ The suite itself is [`testing/suite/`](/handbook/testing/suite/)'s topic.
 Only the *implementation* is swapped.
 The glue keeps compiling against the **vendored headers** in
 `src/duckdb/src/include/`,
-because it reaches into about 71 internal DuckDB C++ headers —
+because it reaches into internal DuckDB C++ headers —
 templates such as `GenericExecutor`, the Arrow integration,
 core-functions extension internals —
-and roughly 37 of them are absent from the amalgamated `duckdb.hpp`
+and a large share of those are absent from the amalgamated `duckdb.hpp`
 that ships with a `libduckdb` release.
+The comment block at the top of `configure` records that reasoning,
+and `configure` is where the header tree is wired up.
 
 Mechanically, `configure` writes `src/Makevars.system-lib`,
 which `src/Makevars` includes:
@@ -138,8 +139,8 @@ must always build from source.
 It then runs the install script, and — if no library appeared, which is
 how a development snapshot manifests — sets `DUCKDB_R_USE_SYSTEM_LIB=0`
 so the job falls back to compiling the vendored tree.
-`.github/versions-matrix.R` pins `DUCKDB_R_USE_SYSTEM_LIB=0` on one
-Linux and one macOS entry, so the artifact that ships to CRAN is still
+`.github/versions-matrix.R` pins `DUCKDB_R_USE_SYSTEM_LIB=0` on a Linux
+and a macOS entry, so the artifact that ships to CRAN is still
 built from source on every platform: Windows never takes the fast path
 at all.
 The workflows themselves are [`operations/ci/`](/handbook/operations/ci/)'s.
