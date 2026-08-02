@@ -1,7 +1,6 @@
 #!/bin/bash
 # Vendors DuckDB sources commit-by-commit from the upstream repository.
 # Used by the series loop (.claude/skills/series-loop.md).
-# See handbook/operations/vendoring/pipeline/ for what this does and why.
 #
 # https://unix.stackexchange.com/a/654932/19205
 # Using bash for -o pipefail
@@ -218,8 +217,11 @@ while [ $commits_vendored -lt $num_commits ]; do
     # rconfigure.py rewrites R/version.R, src/Makevars, src/Makevars.win and
     # src/include/sources.mk for every candidate it tries, not just ${vendor_dir},
     # and any leftover of those would make the next run refuse on a dirty tree.
-    # Restoring everything is safe because the run refused to start on one.
+    # Restoring everything is safe because the run refused to start on one:
+    # anything untracked here was created by this run. The clone is ignored,
+    # so `git clean` leaves it for `rm -rf` below to remove deliberately.
     git checkout -- .
+    git clean -fd
     rm -rf "$upstream_dir"
     exit 0
   fi

@@ -1,6 +1,5 @@
 #!/bin/bash
 # Vendors DuckDB sources from the upstream repository (manual vendoring).
-# See handbook/operations/vendoring/pipeline/ for what this does and why.
 #
 # https://unix.stackexchange.com/a/654932/19205
 # Using bash for -o pipefail
@@ -116,9 +115,13 @@ if [ "$message" = "" ]; then
   # Nothing was vendored, so leave the tree exactly as the run found it.
   # rconfigure.py rewrites R/version.R, src/Makevars, src/Makevars.win and
   # src/include/sources.mk as well as ${vendor_dir}, and any leftover of those
-  # would make the next run refuse on a dirty tree. Restoring everything is safe
-  # because the run refused to start on one.
+  # would make the next run refuse on a dirty tree. Regenerating can also add
+  # files upstream has that we do not, which `checkout` will not take back.
+  # Restoring everything is safe because the run refused to start on a dirty
+  # tree: anything untracked here was created by this run. The clone is
+  # ignored, so `git clean` leaves it for the `rm -rf` below.
   git checkout -- .
+  git clean -fd
   rm -rf "$upstream_dir"
   exit 0
 fi
