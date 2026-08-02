@@ -580,11 +580,13 @@ loop** (`.claude/skills/series-loop.md`) — which discovers every series from
 its refs and serves them all in one firing.
 Each series `<S>` has four branches:
 `<S>-build` (every upstream commit vendored, glue compiling, no CI),
-`<S>-dev` (consumed from `-build` up to 25 commits at a time; CI builds every
+`<S>-dev` (consumed from `-build` one bounded chunk per firing; CI builds every
 commit), `<S>-green` (fast-forwarded to the newest all-green commit; what
 r-universe should build from), and `<S>-build-base` (the `-build` commit
 equivalent to `-green`). CI builds the `.dev` package per commit via
 `each.yaml`.
+How large that chunk is, and what the bound buys, is
+[`branches/model/`](/handbook/branches/model/README.md)'s.
 If vendoring breaks the build, it can be fixed after the fact in the same commit.
 The `-dev` branches are not protected, so force-pushes are allowed to fix mistakes.
 
