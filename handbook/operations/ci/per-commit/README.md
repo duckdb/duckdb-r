@@ -82,13 +82,6 @@ Setting the commit status *is* the job, so the leg does it directly:
 and `success`/`failure` after it, context `rcc` —
 the same call `rcc-smoke` makes inline in its own "Update status for rcc" steps.
 
-`R-CMD-check-status.yaml` and the `rcc-smoke-sha` artifact that feeds it are
-core-set content from
-[`cynkra/cynkratemplate`](https://github.com/cynkra/cynkratemplate),
-and the commit status they write is what branch protection reads on ordinary
-pushes and pull requests.
-They do not fire for this workflow: `each-rcc` is not named `rcc`.
-
 ### What selection actually reads
 
 A commit is planned or skipped according to the **verdict store** —
