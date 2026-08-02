@@ -223,8 +223,7 @@ so the optimisation potential in overlapping the rest looks limited.
 The legs run on **`ubuntu-26.04`**, the image `rcc-smoke` uses.
 That is a parity requirement, not housekeeping: the gate exists to reproduce
 `rcc-smoke`'s verdict, and a verdict that depends on the runner image is not a
-reproduction. `install/action.yml` already carries the 26.04-specific
-`sudo -E` workaround the image needs.
+reproduction.
 
 The leg therefore does **not** use `custom/after-install`:
 its ccache is capped at 200 MB and its `duckdb.tar` archive is keyed on the
