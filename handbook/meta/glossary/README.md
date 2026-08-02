@@ -18,7 +18,7 @@ one line, so the register stays greppable and diffs per term.
 * **deepen line** — the italic last line naming what a not-yet-comprehensive leaf still owes ([`meta/handbook/`](/handbook/meta/handbook/README.md)).
 * **depths** (reference, core, comprehensive) — a leaf's three legitimate published states ([`meta/handbook/`](/handbook/meta/handbook/README.md)).
 * **driver / database instance** — `duckdb()` returns a driver owning one database instance; connections share it, and file-backed instances are cached by path ([`usage/connections/`](/handbook/usage/connections/README.md)).
-* **duckplyr** — the dplyr-native downstream package, the closest reverse dependency and a gate for behavior changes ([`testing/revdep/`](/handbook/testing/revdep/README.md)).
+* **duckplyr** — the dplyr-native downstream package: it drives the relational API rather than generating SQL, and is the closest reverse dependency ([`usage/integrations/`](/handbook/usage/integrations/README.md)).
 * **engine** — the DuckDB database engine embedded in `src/duckdb/` ([`architecture/engine/`](/handbook/architecture/engine/README.md)).
 * **fast path** — linking a prebuilt engine library instead of compiling the vendored sources ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
 * **flavor** — a mechanical rename publishing the one source tree under another package name ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
