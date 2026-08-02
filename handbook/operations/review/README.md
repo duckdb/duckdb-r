@@ -6,9 +6,11 @@ Little of this is written down yet; the flow lives in practice.
 
 What is settled:
 
-* Pull requests target `main` and merge without a merge commit,
-  keeping the history linear
+* Pull requests target `main` and land as a **squash commit**,
+  so the branch becomes one commit and the history stays linear
   ([`branches/invariants/`](/handbook/branches/invariants/README.md)).
+  The pull-request title is that commit's subject
+  ([`contributors/workflow/`](/handbook/contributors/workflow/README.md)).
 * A review checks the change against the owning leaves of this
   handbook — the invariants, the flavor seam, the no-suppression
   policy — and that snapshots changed only where the diff explains
