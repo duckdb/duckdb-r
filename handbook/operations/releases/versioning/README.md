@@ -12,7 +12,7 @@ that advance on different strands and never interfere:
 |---|---|---|---|
 | 1–3 | `1.5.5` | release-line identity — the upstream DuckDB tag | set explicitly at release |
 | 4th | `1.5.5.9004` | R-client counter | fledge, on `main` |
-| 5th | `1.5.3.9006.42` | vendor counter | `scripts/vendor-one.sh`, once per vendor commit |
+| 5th | `1.5.5.9004.42` | vendor counter | `scripts/vendor-one.sh`, once per vendor commit |
 
 The 4th free-runs on `main`,
 where every glue and R change is born,
@@ -22,15 +22,16 @@ installable as a distinct version on r-universe.
 Each strand owns one counter and freezes the other —
 the property the `DESCRIPTION` merge driver depends on
 ([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
-It orders, it does not count:
+The vendor counter orders, it does not count:
 gaps from folded repairs are accepted,
-but the counter must rise strictly across a series' vendor commits —
+but it must rise strictly across a series' vendor commits —
 r-universe installs by version,
 so two commits sharing one are two it cannot tell apart.
 A replayed chain does not inherit that for free:
 the merge driver keeps the replay target's `Version:` line
 through every cherry-pick,
-so the chain is restamped before it is pushed.
+so [`scripts/series-advance.sh`](/scripts/series-advance.sh)
+restamps the chain before pushing it.
 
 A released version is the bare three-component prefix, matching
 the upstream tag, set explicitly with

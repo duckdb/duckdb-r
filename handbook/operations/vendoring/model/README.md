@@ -17,7 +17,7 @@ The one supported way around compiling the copy is the developer
 fast path, guarded by a commit match
 ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
 
-**The invariant** every `-dev` branch keeps:
+**The invariants** every `-dev` branch keeps:
 
 1. **Linear** — first-parent history, no merges.
 2. **One upstream commit per vendor commit**, forming a
@@ -28,8 +28,10 @@ fast path, guarded by a commit match
 3. **Green per commit** — every commit builds and passes on its
    own; a needed fix is folded into the commit, never appended,
    because a follow-up leaves a red commit in history forever.
-4. **Auditable R-side delta** — vendor commits touch only the
-   mechanical path set; anything else is a folded glue fix,
+4. **Auditable R-side delta** — vendor commits touch only the paths
+   `rconfigure.py` regenerates, the generator being the list
+   ([`pipeline/`](/handbook/operations/vendoring/pipeline/README.md));
+   anything else is a folded glue fix,
    reviewable as a path-filtered diff.
 
 What enforces the green claim is

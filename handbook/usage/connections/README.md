@@ -37,7 +37,6 @@ The load-bearing facts:
   and `?` placeholders bind only in the last statement
   ([#179](https://github.com/duckdb/duckdb-r/issues/179)).
 
-*To deepen: absorb the instance/caching section of `?duckdb` or
-invert to a pure pointer once a connections concept page exists;
+*To deepen: absorb the instance and caching section of `?duckdb`;
 drain [#172](https://github.com/duckdb/duckdb-r/issues/172),
 [#455](https://github.com/duckdb/duckdb-r/issues/455).*

@@ -23,8 +23,7 @@ and reading many files at once.
   that, not the wrapper, is the supported way to a `filename`
   column or many-file reads today.
 * **Out:** `COPY ... TO 'file.parquet'` in SQL;
-  writing from dplyr pipelines is duckplyr's
-  `compute_parquet()`.
+  writing from dplyr pipelines is duckplyr's `compute_parquet()`.
 * **R data frames** need no import at all:
   `duckdb_register()` scans a frame in place, zero-copy,
   and `dbWriteTable()` copies it into a table.

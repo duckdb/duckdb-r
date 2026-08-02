@@ -22,8 +22,10 @@ and how to keep results from materializing in R.
   outgrows memory.
   For an in-memory database the package points it at a session
   temporary directory so spill works out of the box;
-  a file database uses DuckDB's own `<dbdir>.tmp` next to the file
-  ([`storage/`](/handbook/usage/storage/README.md)).
+  a file database is left to the engine's own default, `<dbdir>.tmp`
+  beside the file (`src/duckdb/src/main/config.cpp`);
+  the options that override either are
+  [`storage/`](/handbook/usage/storage/README.md)'s.
 * Larger-than-memory data is best left in DuckDB —
   query it lazily via dbplyr and `collect()` only the reduction.
 

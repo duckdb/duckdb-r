@@ -8,18 +8,16 @@ it ships in the package, documents every kind of state and the full
 resolution order, and `duckdb_storage_status()` reports where each
 kind resolves right now, side-effect-free.
 
-The shape, briefly:
-extensions and secrets share one *home* root,
-resolved afresh for every new database instance —
-`shared_home` / `home` arguments first,
-then the `duckdb.home` option, then `DUCKDB_R_HOME`,
-then `~/.duckdb` if it exists,
-then an interactive one-time offer to create it,
-else a per-session temporary directory.
-`~/.duckdb` is resolved the way the engine resolves it,
-so the store is genuinely shared with the DuckDB CLI and
-the other clients.
-Nothing is written into the package library,
-and no logs or profiling output are written unless configured.
-The design record is
-[`plan/PLAN-storage-locations.md`](/plan/PLAN-storage-locations.md).
+Two facts a reader must not miss, and the reference page has the rest:
+**nothing is written into the package library**, ever,
+and where `~/.duckdb` exists it is resolved the way the engine
+resolves it — so the extension cache and the secret store are
+genuinely shared with the DuckDB CLI and the other clients,
+not a private copy.
+The home root is resolved afresh for every new database instance,
+and `duckdb_storage_status()` reports where each kind of state
+resolves right now.
+
+*To deepen: absorb the resolution order from `?duckdb_storage`
+once [`plan/PLAN-storage-locations.md`](/plan/PLAN-storage-locations.md)
+is done and moves to `plan/history/`.*

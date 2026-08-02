@@ -26,7 +26,8 @@ the name and version submitted, and that the CRAN Repository Policy
 was reviewed at its stated revision date.
 No `cran-comments.md` is kept in the repository,
 and `.Rbuildignore` keeps a locally written one out of the tarball.
-The maintainer confirms the upload by mail.
+The `cre` address in `DESCRIPTION` receives the confirmation mail,
+and the upload is not queued until it is answered.
 Acceptance is asynchronous — days, overlapping the next cycle —
 so the release is tagged and published to r-universe without
 waiting; a rejection is fixed on the release branch and

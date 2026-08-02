@@ -13,13 +13,13 @@ and snapshot repair is a routine part of vendoring
 ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
 
 A snapshot must never record the package's own name:
-`scripts/lts.patch` does not rewrite `_snaps/`,
-so one recorded file has to serve every flavor.
+[`scripts/flavor.patch`](/scripts/flavor.patch) does not rewrite
+`_snaps/`, so one recorded file has to serve every flavor.
 Pass `transform = transform_package_name`
 (`tests/testthat/helper-snapshot.R`) to any expectation whose
 output can carry the name.
 
-**Accepting.**
+**Accepting a changed snapshot.**
 Every route ends in `testthat::snapshot_accept()`:
 
 * **By hand** — run the failing test, accept the named snapshot,
@@ -39,3 +39,6 @@ and the accepted files are folded into the commit
 that changed the behaviour — so the commit that moved the output carries the
 new expectation.
 A diff that does not read that way is a regression being hidden.
+
+*To deepen: absorb the repair procedure from
+`scripts/snapshot-accept.sh`'s header.*

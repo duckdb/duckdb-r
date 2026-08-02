@@ -9,8 +9,9 @@ keeps the detailed recovery walkthroughs.
 
 Start read-only:
 [`scripts/series-check.sh`](/scripts/series-check.sh) prints one
-verdict per series — `ADVANCE`, `WAIT`, `RETRY <sha>`,
-`REPAIR <sha>`, or `IDLE` — from the harvest on the orphan `rcc` branch,
+verdict per series — the script's own list, `ADVANCE` through `IDLE`,
+plus a `CUTOVER` line where a forward counterpart has caught up —
+from the harvest on the orphan `rcc` branch,
 which stores one record per commit and failing commits'
 logs ([`ci/per-commit/`](/handbook/operations/ci/per-commit/README.md)).
 What is vendored where:
@@ -24,13 +25,16 @@ The failure classes, and what each needs:
 
 * **The script refuses to start** — dirty tree; commit or stash.
 * **The base scan comes up empty** — no `duckdb/duckdb@` subject
-  within `BASE_SCAN_DEPTH`; the scripts refuse rather than guess a
-  range. Usually a reworded vendor subject.
+  within `BASE_SCAN_DEPTH` (20, in both vendor scripts);
+  they refuse rather than guess a range.
+  Usually a reworded vendor subject.
 * **The glue gate stops `vendor-one.sh`** —
   the fresh headers broke the glue;
   fix the glue and fold it into that vendor commit.
-* **A dropped patch** — the run classifies a patch that stopped
-  applying; re-derive or retire it deliberately.
+* **A patch stopped applying** — if it reverses cleanly the run
+  retires it and continues; if it neither applies nor reverses the run
+  stops, and the patch needs a hand rebase against the regenerated tree
+  ([`pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
 * **A red `-dev` commit** — repair-vs-retry is the loop's
   classification; a stuck shard or lost leg is
   [`ci/per-commit/`](/handbook/operations/ci/per-commit/README.md)'s.
@@ -84,8 +88,8 @@ Pay the second only when the first is unavailable.
 The version counter gains a gap where the folded bump went,
 which is what a counter that orders rather than counts allows
 ([`versioning/`](/handbook/operations/releases/versioning/README.md)).
-The loop's own statement of the rule is
-[`series-loop.md`](/.claude/skills/series-loop.md), stage 2.
+The loop's own statement of the rule is in its repair stage
+([`series-loop.md`](/.claude/skills/series-loop.md)).
 
 *To deepen: absorb `scripts/VENDORING.md` § Troubleshooting —
 the recovery walkthroughs behind these classes.*

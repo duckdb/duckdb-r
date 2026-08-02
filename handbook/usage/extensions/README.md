@@ -35,10 +35,8 @@ and how to get more.
   gaps for out-of-tree extensions are tracked as the toolchain epic
   ([#2234](https://github.com/duckdb/duckdb-r/issues/2234)).
 
-Verify any claim about the shipped set on a **vendored build**:
-a release `libduckdb` links more extensions (`icu`, `json`,
-`autocomplete`) and defaults differently, so the fast path
-answers for the wrong artifact
+Verify any claim about the shipped set on a **vendored build** —
+the fast path answers for a different artifact
 ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
 
 *To deepen: drain

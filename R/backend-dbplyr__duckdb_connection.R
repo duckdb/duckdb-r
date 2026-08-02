@@ -1,3 +1,5 @@
+# Explained in handbook/usage/integrations/README.md.
+
 #' DuckDB SQL backend for dbplyr
 #'
 #' @description

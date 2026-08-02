@@ -1,6 +1,6 @@
 # Guards
 
-Two checks that fail loudly rather than let a defect ship:
+The checks that fail loudly rather than let a defect ship:
 the CRAN guard,
 which keeps the bundled engine off CRAN's check farm,
 and the flavor-name guard,
@@ -19,7 +19,8 @@ nothing runs, and a framed message says so and names the variable.
 The same decision exists a second time as
 `duckdb_run_tests_enabled()` (`R/cran-guard.R`),
 gating the examples through `examples_enabled()`.
-`NOT_CRAN` plays no part.
+`NOT_CRAN` plays no part in this decision;
+individual skips elsewhere in the suite do read it.
 That the gate holds is *checked*, not assumed:
 a matrix entry builds the engine with a tripwire
 (`-DDUCKDB_R_POISON_ENGINE`) and forces the tests off,

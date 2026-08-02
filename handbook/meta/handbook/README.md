@@ -191,6 +191,9 @@ and the generator's file-to-leaf mapping is what a change edits,
 never the rendered table.
 A file only partly absorbed keeps its remaining sections,
 and each absorbed heading becomes a one-line pointer to the leaf.
+One directory never gets an in-place index:
+a `.github/README.md` would be surfaced as the repository front page
+(precedence `.github/` → root → `docs/`).
 
 **A backreference is how a leaf is discovered from the source tree.**
 Someone standing in `scripts/` finds the leaf that explains what they

@@ -16,28 +16,26 @@ With the fast path set up
 ([`build/fast-paths/`](/handbook/build/fast-paths/README.md))
 the edit-test loop stays in the seconds range.
 
-**Layout.**
+**The layout.**
 Tests are flat files `test-<topic>.R`,
 named for the `R/` file they cover,
 the DuckDB feature they round-trip,
 or a shared prefix for multi-pass areas;
 the file name is the unit of selection.
-Beside them: `helper-*.R` (sourced before the first test),
-`setup.R`,
-`data/` (Parquet fixtures, reached via `test_path()` or as bare
+Beside them: `helper-*.R` (sourced before the first test)
+and `setup.R`,
+then `data/` (Parquet fixtures, reached via `test_path()` or as bare
 relative paths inside SQL),
 and `_snaps/`
 ([`snapshots/`](/handbook/testing/snapshots/README.md)).
 
-**Helpers.**
-`helper-DBItest.R` registers the DBItest context (the
-`make_context()` call must stay in the helper);
-`helper-skip.R` holds the shared skip predicates
-(`skip_on_dev_version()`, `skip_on_flavor()`,
-`skip_on_cran_except_r_universe()`);
-`helper-snapshot.R` normalises the package name in captured
-output; `helper-arrow.R` loads arrow early for a
-garbage-collection reason it documents.
+**The helpers.**
+Every `helper-*.R` is sourced before the first test
+and carries a header saying why it exists — that set is the list.
+Two constraints are not obvious from reading one:
+`helper-DBItest.R`'s `make_context()` call must stay in the helper,
+and any expectation whose output can carry the package name goes
+through `transform_package_name` from `helper-snapshot.R`.
 `local_con()`, the self-disconnecting connection fixture,
 is package code (`R/test-fixtures.R`);
 the suite runs with the namespace loaded,
