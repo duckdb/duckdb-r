@@ -87,7 +87,8 @@ The checks — every source path maps to a leaf,
 every secondary document backreferences its node,
 every link resolves, generated indexes are fresh,
 stubs carry their work orders —
-run as a skill under `.claude/skills/`,
+run as the `docs-consistency` skill
+(`.claude/skills/docs-consistency/`),
 invoked when documentation is touched
 and periodically as a routine.
 Helper scripts do the mechanical parts
