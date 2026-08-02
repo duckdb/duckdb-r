@@ -1,5 +1,8 @@
 #pragma once
 
+// The shared header of the R <-> DuckDB glue in src/.
+// Handbook: handbook/architecture/glue/
+
 // Avoid clash with TRUE and FALSE macros in older rtools
 #undef TRUE
 #undef FALSE

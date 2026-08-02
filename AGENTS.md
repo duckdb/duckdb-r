@@ -1,5 +1,7 @@
 # DuckDB R Package - Operational Instructions
 
+*Handbook: [`architecture/glue/`](/handbook/architecture/glue/README.md).*
+
 R package that contains a vendored copy of the DuckDB C++ library and glue code for R, including a DBI and a relational interface.
 
 ## Where to look
@@ -236,9 +238,7 @@ R
 
 ## C++ Warning Policy
 
-- **Do not suppress warnings with `#pragma clang diagnostic ignored` or similar.** CRAN rejects packages that silence warnings rather than fixing the underlying issue.
-- Fix the root cause instead. For vendored code in `src/duckdb/`, add a patch file in `patch/` that corrects the source of the warning (e.g. by changing template definitions to avoid instantiating deprecated types).
-- Example: `-Wdeprecated-declarations` from `char_traits<T>` for non-char `T` in libc++ was fixed by changing the `std_string_view` alias in `src/duckdb/third_party/fmt/include/fmt/core.h` to a struct that only provides `std::basic_string_view<Char>` for standard char types.
+See [`architecture/glue/`](/handbook/architecture/glue/README.md).
 
 ## Never Hard-Code the Package Name
 
@@ -279,8 +279,7 @@ and CI fails at the `roxygenize` step, before anything is compiled.
 
 ## C++ Glue Code Conventions
 
-- R string constants and symbols (SEXP) used in C++ glue code are defined in `src/utils.cpp` (in `RStrings::RStrings()`) and declared in `src/include/rapi.hpp` (in `struct RStrings`).
-- Always add new string constants and `Rf_install()` symbols to `RStrings` rather than using inline `StringsToSexp()`, `Rf_mkString()`, or `Rf_install()` calls in hot paths.
+See [`architecture/glue/`](/handbook/architecture/glue/README.md).
 
 ## Dependencies
 
