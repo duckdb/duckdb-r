@@ -58,7 +58,7 @@ without opening a connection at all.
 
 ## Where translation stops
 
-The backend translates *expressions* and a pair of escapes.
+The backend translates *expressions* and the literal escapes.
 It adds no verb-level methods,
 so every dplyr verb produces whatever SQL dbplyr generates generically,
 however much better DuckDB's own syntax would be:
@@ -91,7 +91,7 @@ but the source notes that getting `INTERVAL`-typed data back out
 is unreliable pending
 [duckdb/duckdb#1920](https://github.com/duckdb/duckdb/issues/1920).
 
-Literals are escaped by dbplyr, not here, and two consequences show up
+Literals are escaped by dbplyr, not here, and the consequences show up
 as recurring reports:
 
 * `as.POSIXct("2025-03-01 18:00:00")` written inside a pipeline
@@ -108,8 +108,8 @@ as recurring reports:
   bare `Inf` still needs `dplyr::sql("'Infinity'::FLOAT")`.
   A fix needs a hook dbplyr does not have yet.
 
-One translation reaches into dbplyr's internals:
-`n_distinct()` fetches the unexported `glue_sql2()` with `pkg_method()`.
+The `n_distinct()` translation reaches into dbplyr's internals:
+it fetches the unexported `glue_sql2()` with `pkg_method()`.
 A dbplyr development version that dropped it broke `n_distinct()`
 outright ([#1982](https://github.com/duckdb/duckdb-r/issues/1982));
 dbplyr restored the function and offers `sql_glue()` from 2.6.0 instead,
@@ -128,7 +128,8 @@ When DuckDB scans such a table it hands the projection and the filters
 back to R as an Arrow scanner specification
 ([`src/register.cpp`](/src/register.cpp)):
 constant comparisons, `IS NULL` / `IS NOT NULL`, and `AND` / `OR`
-translate, and `IN` translates for up to 100 values,
+translate, and `IN` translates up to the `MAX_PUSHDOWN_IN_VALUES` cap
+declared there,
 expanded into a balanced tree of equality comparisons.
 Past that, the conversion raises a not-implemented error
 rather than quietly scanning everything —
@@ -139,8 +140,8 @@ Results come back through the DBI Arrow API:
 `dbSendQueryArrow()`, `dbFetchArrow()`, `dbFetchArrowChunk()`,
 `dbBind()` and `dbBindArrow()`.
 These return nanoarrow objects backed by DuckDB's own `ArrowArrayStream`,
-fetched chunk by chunk — one million rows per chunk by default —
-instead of materializing the result first
+fetched chunk by chunk — the `chunk_size` argument sets how many rows
+at a time — instead of materializing the result first
 ([#162](https://github.com/duckdb/duckdb-r/issues/162)).
 nanoarrow is a `Suggests`, and a missing install is reported with a hint.
 Binding several rows at once runs the query once per row
@@ -156,7 +157,7 @@ It materializes the whole result up front,
 and `dbFetch()` on such a result accepts only `n = -1`.
 It is kept for backward compatibility and flagged for eventual deprecation.
 
-`duckdb_adbc()` is a third route:
+`duckdb_adbc()` is a route of its own:
 it returns a driver for the adbcdrivermanager package,
 so DuckDB can be used through Arrow Database Connectivity
 instead of through DBI.
