@@ -14,9 +14,9 @@ What is settled:
   handbook — the invariants, the flavor seam, the no-suppression
   policy — and that snapshots changed only where the diff explains
   them ([`testing/snapshots/`](/handbook/testing/snapshots/README.md)).
-* The author drives CI to green; formatting suggestions arrive on
-  the PR from the format workflow
-  ([`operations/ci/workflows/`](/handbook/operations/ci/workflows/README.md)).
+* The author drives CI to green.
+  Formatting arrives as suggestions on the pull request, from
+  [`format-suggest.yaml`](/.github/workflows/format-suggest.yaml).
 * An agent may be asked to watch a pull request — CI, review comments,
   merge conflicts — for the length of a session.
   Nothing here is scheduled: the only scheduled agent routine in this
