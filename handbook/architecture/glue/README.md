@@ -48,16 +48,26 @@ fix the root cause instead,
 and for vendored code fix it as a patch under `patch/`
 or upstream
 ([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
+Where a fix is truly not possible —
+mbedtls's own `-Wvla` suppression around the barrier
+that keeps `mbedtls_platform_zeroize()` from being optimised away
+is the standing example —
+the pragma is respelled with widened spacing
+(`#pragma  GCC  diagnostic  ignored`),
+which the compiler honours unchanged
+while `R CMD check`'s single-space scan does not report it
+([`patch/0016-Avoid-mbedtls-diagnostic-pragmas.patch`](/patch/0016-Avoid-mbedtls-diagnostic-pragmas.patch)).
 Formatting runs through the Makefile `format-*` targets,
 driving [`scripts/format.py`](/scripts/format.py).
 
 **ALTREP relations.**
-`rapi_rel_to_altrep()` wraps an unexecuted relation as a data
-frame; nothing runs until R touches the values,
-materialization is budgeted, and an execution error is stored and
-re-raised at every later access.
-Raising an R error from inside an ALTREP method is the known weak
-point — a crash-class bug with a guard under review
+`rapi_rel_to_altrep()` wraps an unexecuted relation as a data frame;
+nothing runs until R touches the values,
+materialization is budgeted,
+and an execution error is stored and re-raised at every later access.
+Raising an R error from inside an ALTREP method
+is the known weak point —
+a crash-class bug with a guard under review
 ([#1796](https://github.com/duckdb/duckdb-r/issues/1796),
 [#1797](https://github.com/duckdb/duckdb-r/pull/1797)).
 
