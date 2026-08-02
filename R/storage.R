@@ -23,6 +23,7 @@
 # The package's tests and runnable examples also avoid the bundled C++ engine on
 # CRAN; see the CRAN guard in tests/testthat.R.
 
+# Handbook: handbook/usage/storage/
 #' DuckDB file-system usage: storage locations and how they are resolved
 #'
 #' @description

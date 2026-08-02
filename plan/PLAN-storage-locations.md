@@ -1,5 +1,7 @@
 # Plan: CRAN-safe storage-location policy
 
+*Handbook: [`usage/storage/`](/handbook/usage/storage/README.md).*
+
 Implementation roadmap for the storage-location policy documented in
 `?duckdb_storage` and `?duckdb_storage_config`. The design is settled in the
 docs; this file tracks the work to implement it.
