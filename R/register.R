@@ -62,6 +62,7 @@ duckdb_unregister <- function(conn, name) {
   invisible(TRUE)
 }
 
+# Handbook: handbook/usage/integrations/
 #' Register an Arrow data source as a virtual table
 #'
 #' `duckdb_register_arrow()` registers an Arrow data source as a virtual table (view)

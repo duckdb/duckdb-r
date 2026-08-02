@@ -24,6 +24,7 @@ setClass("duckdb_result",
   )
 )
 
+# Handbook: handbook/usage/integrations/
 #' DuckDB Arrow Result Set
 #'
 #' Streaming Arrow result for queries on DuckDB connections.

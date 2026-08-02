@@ -1,5 +1,7 @@
 # Plan: `dbSendQueryArrow()` and the DBI Arrow API
 
+*Handbook: [`usage/integrations/`](/handbook/usage/integrations/README.md).*
+
 Implements the `dbSendQueryArrow()` part of
 <https://github.com/duckdb/duckdb-r/issues/1997>.
 

@@ -1,3 +1,4 @@
+# Handbook: handbook/usage/integrations/
 #' DuckDB SQL backend for dbplyr
 #'
 #' @description
