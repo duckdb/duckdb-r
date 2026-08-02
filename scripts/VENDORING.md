@@ -320,7 +320,7 @@ Three things make this affordable:
   Adjacent vendor commits change a median of two `.cpp` files and no headers,
   so a warm ccache turns a ~15 minute cold build into a couple of minutes;
   wide-header commits are the exception, not the rule
-  (measured in [history/vendoring-loop.md](/plan/history/vendoring-loop.md) Appendix A).
+  (measured in [`experiments/2026-03-vendor-build-cost/`](/experiments/2026-03-vendor-build-cost/README.md)).
   Point R at it via `~/.R/Makevars` (`CXX = ccache g++`, …)
   and give it a cache large enough to hold several trees (`ccache --max-size=20G`).
   Note that ccache reads `$CCACHE_DIR/ccache.conf` (i.e. `~/.ccache/ccache.conf`)

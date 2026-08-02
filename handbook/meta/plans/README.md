@@ -16,3 +16,13 @@ and where a plan and the owner disagree, the owner is right.
 names every document; a file it does not name is an orphan.
 Each leaf whose topic a plan carries
 links that plan from its own text.
+
+Evidence lives outside the tree the same way,
+in [`experiments/`](/experiments/README.md):
+one directory per experiment,
+holding what it measured and everything the run took.
+A leaf states what is true;
+an experiment records what was measured, when, and on what,
+and the leaf that leans on it links it —
+which is what lets a reader weigh a finding
+without repeating the work.

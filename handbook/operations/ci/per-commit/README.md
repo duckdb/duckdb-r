@@ -235,7 +235,7 @@ Timestamp-based incremental `make` cannot cross a commit boundary here.
 What does survive is **ccache**, which is content-addressed
 and lives outside the workspace for the whole job.
 A typical adjacent vendor commit recompiles ~5 of 341 unity objects — ~98% hits
-(measured: [`history/vendoring-loop.md` Appendix A.2](/plan/history/vendoring-loop.md#a2-ccache-behaviour-on-adjacent-commits-8-consecutive-v15-commits)).
+(measured: [`experiments/2026-03-vendor-build-cost/`](/experiments/2026-03-vendor-build-cost/README.md)).
 Cleaning the workspace also means every commit's verdict is identical to one from a fresh checkout,
 which is what keeps the semantics honest.
 
@@ -579,7 +579,8 @@ And across 120 real `v1.5-variegata-dev` commits:
 | >100 (wide header) | 8 |
 
 median 2, mean 15, max 209.
-That is the bimodal distribution `plan/history/vendoring-loop.md` §4 predicted from ccache timings,
+That is the bimodal distribution predicted from the measured ccache timings
+([`experiments/2026-03-vendor-build-cost/`](/experiments/2026-03-vendor-build-cost/README.md)),
 now derived statically and per commit.
 
 Resolution is deliberately an over-approximation:

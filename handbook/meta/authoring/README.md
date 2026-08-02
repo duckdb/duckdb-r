@@ -76,5 +76,11 @@ and a rewrite that loses a fact is a regression, not an edit.
   for everything the two builds share, either will do.
 * **When a claim is contested or surprising, check the ground truth**
   (run the diff, read the script) and discuss before editing.
+* **Prove it where it stays proven.**
+  A behavioural claim lands with the test that pins it;
+  a repo-shape claim graduates into the consistency checks;
+  a finding too expensive to re-derive becomes an experiment
+  ([`experiments/`](/experiments/README.md)) that the leaf links.
+  A one-off derivation stays in the pull request.
 
 *To deepen: add a rule when a review has enforced it twice.*

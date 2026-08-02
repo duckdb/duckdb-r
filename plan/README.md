@@ -35,7 +35,7 @@ a plan may still come true, a history never will.
 
 | To read about | Read |
 |---|---|
-| The agentic-loop design that preceded the series loop, and Appendix A's ccache measurements that the cost model still cites | [`history/vendoring-loop.md`](history/vendoring-loop.md) |
+| The agentic-loop design that preceded the series loop (its measurements now live in [`experiments/`](/experiments/README.md)) | [`history/vendoring-loop.md`](history/vendoring-loop.md) |
 | A 2026-07 review of the non-vendored R-side delta on `main-dev` | [`history/main-dev-review-2026-07.md`](history/main-dev-review-2026-07.md) |
 
 ## Adding a document here
