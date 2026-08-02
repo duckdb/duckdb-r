@@ -38,8 +38,12 @@ the boundaries users keep hitting:
   ([#1585](https://github.com/duckdb/duckdb-r/issues/1585),
   blocked on
   [tidyverse/dbplyr#1838](https://github.com/tidyverse/dbplyr/issues/1838)).
-* `n_distinct()` borrows dbplyr's unexported `glue_sql2()`;
-  migrating to `sql_glue()` (dbplyr ≥ 2.6.0) is scheduled
+* `n_distinct()` reaches dbplyr's unexported `glue_sql2()` through
+  `getFromNamespace()` — a private-API dependency any dbplyr release
+  can break.
+  The public replacement `sql_glue()` has shipped, so the migration is
+  unblocked; what it still needs is a `dbplyr (>= 2.6.0)` floor, which
+  `DESCRIPTION`'s `Suggests` does not carry
   ([#1982](https://github.com/duckdb/duckdb-r/issues/1982)).
 
 ## Arrow
