@@ -18,8 +18,4 @@ The home root is resolved afresh for every new database instance,
 and `duckdb_storage_status()` reports where each kind of state
 resolves right now.
 
-*To deepen: absorb the resolution order from `?duckdb_storage`.
-The implementation has landed, but the `location` argument's name, the
-values it accepts, and the marker filename are still open
-([`plan/PLAN-storage-locations.md`](/plan/PLAN-storage-locations.md)),
-so this leaf should not spell them until they settle.*
+*To deepen: absorb the resolution order from `?duckdb_storage`.*

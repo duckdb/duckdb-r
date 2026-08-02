@@ -1,8 +1,17 @@
 # Plan: CRAN-safe storage-location policy
 
+**Done — the policy is on CRAN.** What the package resolves, and where, is
+[`usage/storage/`](/handbook/usage/storage/README.md)'s; this file is kept for
+the reasoning behind it, not as a description of the system.
+
+Two things the checklist below marks `[x]` never shipped, and are not part of
+what landed: the `duckdb_extension_storage()` / `duckdb_secret_storage()`
+setters, and the `?duckdb_storage_config` page. Neither exists in `R/` or
+`NAMESPACE`. `duckdb_storage_status()` is the one exported function.
+
 Implementation roadmap for the storage-location policy documented in
-`?duckdb_storage` and `?duckdb_storage_config`. The design is settled in the
-docs; this file tracks the work to implement it.
+`?duckdb_storage`. The design is settled in the docs; this file tracked the
+work to implement it.
 
 ## Guiding principles
 

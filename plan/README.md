@@ -6,7 +6,8 @@ owns this directory's conventions.*
 This directory holds documents that are *not* part of the
 description of how the system works today:
 plans for work that is not finished,
-and records of designs and reviews that have been superseded.
+records of plans that came true,
+and records of designs and reviews that never will.
 This file is what names the contents,
 so nothing under `plan/` is an orphan.
 
@@ -24,7 +25,15 @@ when the two disagree, the handbook leaf is right.
 |---|---|
 | Simplifying the vendoring pipeline: one verdict store, tooling from `main`, a docs tree | [`PLAN-vendoring-simplification.md`](PLAN-vendoring-simplification.md) |
 | Implementing `dbSendQueryArrow()` and the DBI Arrow API | [`PLAN-dbSendQueryArrow.md`](PLAN-dbSendQueryArrow.md) |
-| The CRAN-safe storage-location policy, and the work to implement it | [`PLAN-storage-locations.md`](PLAN-storage-locations.md) |
+
+## `done/` — plans that came true
+
+The handbook states the outcome as fact; these are kept for the reasoning
+that got there.
+
+| To read about | Read |
+|---|---|
+| The CRAN-safe storage-location policy, and the work that implemented it | [`done/PLAN-storage-locations.md`](done/PLAN-storage-locations.md) |
 
 ## `history/` — superseded designs and one-off artifacts
 

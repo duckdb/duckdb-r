@@ -6,9 +6,12 @@ and a plan describes work proposed, in progress, or superseded —
 filing proposals among descriptions would make the tree assert
 things that are not so.
 
-A plan sits in `plan/` as `PLAN-<topic>.md`;
-a superseded design or one-off review sits in `plan/history/`,
-kept for its reasoning and measurements.
+A plan sits in `plan/` as `PLAN-<topic>.md` while it is open.
+Events then decide which way it leaves:
+one that came true moves to `plan/done/`,
+one that never will to `plan/history/`,
+both kept for their reasoning and measurements rather than as
+descriptions of the system.
 Each opens by saying what it is
 and which document owns its topic today —
 and where a plan and the owner disagree, the owner is right.
