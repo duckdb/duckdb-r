@@ -204,10 +204,11 @@ Where no index covers a document, it carries its own:
 * *Markdown* — a visible italic line directly under the H1,
   linking the leaf by repo-relative path.
   Several leaves serving one file share the one line.
-  This holds for the root `README.md` too,
-  which already links `AGENTS.md` and `plan/README.md` the same way
-  even though CRAN renders it from a tarball
-  where `.Rbuildignore` has removed them.
+  The root `README.md` is the exception:
+  most of its readers arrive from CRAN, which renders it from a tarball
+  `.Rbuildignore` has removed `handbook/` from,
+  so its pointer lives in a Documentation section
+  rather than above the first sentence about the package.
 * *Source files* — a plain source comment,
   above the roxygen block or below the script's one-line header.
   Never a roxygen `#'` line:

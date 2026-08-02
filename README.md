@@ -8,11 +8,6 @@
 
 # duckdb
 
-*Handbook: [`usage/installation/`](handbook/usage/installation/README.md)
-owns where to install from;
-everything else about this repository is in the
-[handbook](handbook/README.md).*
-
 [DuckDB](https://duckdb.org/) is an in-process SQL OLAP database management system.
 It is designed to support analytical query workloads and is optimized for fast query execution.
 This repository contains the R bindings for DuckDB.
