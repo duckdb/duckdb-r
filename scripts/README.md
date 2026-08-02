@@ -83,7 +83,7 @@ Root of the documentation tree: [`handbook/`](/handbook/).
 | File | Purpose |
 |---|---|
 | [`merge-version.sh`](merge-version.sh) | Git merge driver for DESCRIPTION. |
-| [`rconfigure.py`](rconfigure.py) | Regenerate the vendored build configuration from a DuckDB checkout: src/duckdb/, src/include/sources.mk, and R/version.R. |
+| [`rconfigure.py`](rconfigure.py) | Regenerate the vendored build configuration from a DuckDB checkout: src/duckdb/, src/include/sources.mk, R/version.R and the Makevars files. |
 | [`setup-git.sh`](setup-git.sh) | Register repository-local git configuration that cannot live in versioned files. |
 | [`vendor-one.sh`](vendor-one.sh) | Vendors DuckDB sources commit-by-commit from the upstream repository. |
 | [`vendor-rfuns.sh`](vendor-rfuns.sh) | Vendor the rfuns extension: copy sources from a duckdb-rfuns checkout into src/ and commit with the upstream log, one commit per import. |
