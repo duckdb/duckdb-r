@@ -2,11 +2,12 @@
 
 What every series guarantees,
 and what would actually catch a violation.
-The numbered statements live in
-[`BRANCHES.md` § Series Invariants](/BRANCHES.md#series-invariants);
-the numbers are stable identifiers that the release process cites
-at every step which must preserve them, so they are renamed only
-in both places at once.
+The statements themselves live in
+[`BRANCHES.md` § Series Invariants](/BRANCHES.md#series-invariants),
+where each carries a number.
+The numbers are a filing device for that document,
+not a way to cite an invariant elsewhere:
+a page that depends on one says what it says.
 
 The families, in one breath:
 
@@ -41,6 +42,5 @@ a few hold mechanically
 (the vendor counter, the advance script's ancestor check on `-green`),
 and the honest per-invariant enforcement note is part of the record.
 
-*To deepen: absorb the numbered statements
-with their enforcement notes from `BRANCHES.md`,
-keeping the numbering.*
+*To deepen: absorb the statements
+with their enforcement notes from `BRANCHES.md`.*

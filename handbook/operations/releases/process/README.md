@@ -134,7 +134,7 @@ reverse dependencies **before upstream cuts the tag**, so that regressions can b
 folded back (into our glue, into `patch/`, or reported upstream) while there is
 still time. STABILIZE mutates only `main` (fold-back fixes) and `dev`
 (forward-ports + ongoing vendor); the release branches stay at the previous
-release (invariant **P1**), so the whole cluster is abortable with zero rollback.
+release, so the whole cluster is abortable with zero rollback.
 
 ### Preflight
 
@@ -152,7 +152,7 @@ Upstream commits land up to and including release day, so the release commit is 
 moving target. **Ask upstream for the most likely release commit** and pin it.
 From here, only fixes (not features) flow into the glue source of truth. Re-pin
 as upstream advances; a re-pin only forces a re-run of the revdep checks if the
-delta touches anything risky (invariant **P2**: what ships must have been tested).
+delta touches anything risky — what ships must have been tested.
 
 ### 0.2 / 0.4 Reverse-dependency checks
 
@@ -170,7 +170,7 @@ the entire reason this happens before the tag rather than after.
 ### 0.3 Fold back
 
 Every fold-back fix is **born on `main`** and forward-ported down the chain — never
-authored directly on a `dev` branch (invariant **P3** / **S4**). C++ issues go into
+authored directly on a `dev` branch, which is where R-side work is born. C++ issues go into
 `patch/` and are simultaneously sent upstream as a PR so the patch can eventually
 be retired. Contact the maintainers of any broken reverse dependencies. Loop back
 to 0.4 until clean or explained.
@@ -178,7 +178,7 @@ to 0.4 until clean or explained.
 ### 0.5 Glue freeze (barrier)
 
 Freeze glue across **all** releasing series and confirm `git cherry main dev` is
-empty for each (invariant **P4**) — every releasing line now carries identical
+empty for each — every releasing line now carries identical
 glue. A late glue change after this point is allowed but **re-arms the freeze**:
 land it on `main`, forward-port to every releasing `dev`, re-run a targeted
 revdep, and only then proceed. The clock resets to 0.5; it is not a scramble.
@@ -209,7 +209,7 @@ commit** (invariant **L**): fast-forward or rebase the tagged range onto
 is resolved automatically by the merge driver (see
 [BRANCHES.md → Version Numbering](/BRANCHES.md#version-numbering)); run
 `scripts/setup-git.sh` first if this is a fresh clone or CI runner. Because
-`release-content ⊑ dev-base ⊑ dev` (invariant **A1**), the only rewriting is
+`release-content ⊑ dev-base ⊑ dev` — dev descends from its release point — the only rewriting is
 dropping the rename commit.
 
 The package version is **not** derived from the git tag — set it explicitly so
@@ -274,7 +274,7 @@ on r-universe), coordinate at the **cluster** level:
 
 - **STABILIZE ends on a shared barrier.** All releasing lines must reach
   **0.5 GLUE FREEZE** together — this is the forward-port barrier that guarantees
-  identical glue across lines (invariant **P4**). It is the one hard
+  identical glue across lines. It is the one hard
   synchronization point.
 - **CUT runs per line, pipelined, CRAN line first.** Submit the CRAN line early
   because its acceptance is asynchronous; the r-universe-only LTS line finishes
@@ -282,11 +282,11 @@ on r-universe), coordinate at the **cluster** level:
 - **The preview line** (next major, tracking upstream `main`) lives in a
   long-running TRACK/STABILIZE: its STABILIZE *is* the upstream RC window and its
   CUT *is* the atomic fast-forward flip of `main`. The flip requires `main ⊑
-  main-dev` (invariant **A2**), which is *not* maintained continuously — it is
+  main-dev`, which is *not* maintained continuously — it is
   established once, just before the flip, by the rewind-to-bifurcation + replay
   linearization. Same FSM, different durations; the only other addition is that
-  vendor-coupled glue may be *born* on its `dev` (the documented exception to
-  invariant **S4**).
+  vendor-coupled glue may be *born* on its `dev` —
+  the documented exception to R-side work being born on `main`.
 
 ## Failure & rollback
 
@@ -308,6 +308,6 @@ Each cluster must leave the series satisfying the
 - **TRACK / STABILIZE** maintain **S1–S4**, **G1–G2**, **C1–C2**, and the
   prerelease invariants **P1–P4**.
 - **CUT** is the controlled transition where `dev-base` catches up to the tagged
-  commit and `stable`/`lts` advance; **V1–V4** and **F1–F2** must hold at the new
-  release point.
-- **RESET** re-establishes **S2** (baseline purity) for the next cycle.
+  commit and `stable`/`lts` advance; the version and flavor invariants must hold at
+  the new release point.
+- **RESET** re-establishes baseline purity for the next cycle.

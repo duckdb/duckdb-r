@@ -8,8 +8,8 @@ end.
 This page is the design record,
 moved here from the former `scripts/EACH.md`.
 
-`.github/workflows/each.yaml` proves invariant **C1** from
-[`branches/invariants/`](/handbook/branches/invariants/README.md):
+`.github/workflows/each.yaml` is what makes the series guarantee true
+([`branches/invariants/`](/handbook/branches/invariants/README.md)):
 every commit on a `*-dev` branch is green, so the branch is bisectable end to end.
 It plans contiguous, cost-balanced **shards** and gives each shard one job,
 which walks its commits in a single workspace.
@@ -1112,8 +1112,8 @@ it with no separating context.
 
 `each.yaml` runs the scripts from the *branch it is checking*,
 so a `*-dev` branch picks up the sharded path only once the new scripts are forward-ported to it —
-the same constraint every CI change in this repository has
-(invariant **G1**).
+the same constraint every CI change in this repository has:
+R-side work is born on `main` and reaches a series by forwarding.
 Until then that branch's copy of `each.yaml` is the old dispatcher, and keeps working.
 (The series loop automates this forward-port:
 stage 4 — `scripts/series-port.sh` — brings each `-dev` level with `main`;

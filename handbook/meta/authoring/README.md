@@ -62,6 +62,11 @@ and a rewrite that loses a fact is a regression, not an edit.
   is documented as such, and stops being when the issue closes.
 * **Never refer by position — name the thing.**
   "The first two" breaks silently when the list above is reordered.
+* **Cite the claim, not its label.**
+  An identifier from another page's numbering — an invariant number,
+  a state number — means nothing where it is read,
+  and resolves only for someone holding that table:
+  say what the invariant says, in the clause that depends on it.
 * **Write links that leave their directory from the repository root**,
   with a leading `/` —
   GitHub resolves them against the root on any branch or fork;
