@@ -16,9 +16,8 @@ and the schedule lives with the routine that invokes the playbook,
 outside this tree.
 What the repository schedules is adjacent to the loop rather than part of it:
 [`sync.yaml`](/.github/workflows/sync.yaml) fast-forwards the fork's `main`
-hourly,
-[`rcc-logs.yaml`](/.github/workflows/rcc-logs.yaml) harvests run results
-onto the `rcc` branch twice an hour,
+and [`rcc-logs.yaml`](/.github/workflows/rcc-logs.yaml) harvests run results
+onto the `rcc` branch, each on the schedule its own `cron:` line sets,
 and [`each.yaml`](/.github/workflows/each.yaml) triggers on every push
 to a `*-dev` branch.
 Those cadences bound how fast a firing can learn anything;
@@ -30,7 +29,7 @@ the firing lists `refs/heads/*-build`,
 and every `<S>-build` with a sibling `<S>-dev` is a series it serves —
 base series and forward (`-fwd`) counterparts alike.
 Opening a series therefore takes no configuration change, only refs.
-The refs themselves, and what each of the four guarantees,
+The refs themselves, and what each of them guarantees,
 belong to [`branches/model/`](/handbook/branches/model/)
 and [`branches/invariants/`](/handbook/branches/invariants/).
 
@@ -97,7 +96,8 @@ lacks, classified `TOOLING` / `MIXED` / `OTHER` / `VENDOR`, and applies all
 but `VENDOR`; conflicts and engine-incompatible commits stay judgement.
 
 **5. Extend `<S>-dev`** decides how much of the buffer is consumed —
-up to 100 commits per firing, and only when everything in flight is green.
+one chunk per firing, sized by `series-advance.sh`'s chunk argument,
+and only when everything in flight is green.
 A series with a live forward counterpart is being replaced, so it is
 verified and promoted but never extended.
 
