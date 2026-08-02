@@ -215,15 +215,10 @@ because the compile phase dominates a build:
 measured on a 4-core box, 8 vendored unity objects with ccache disabled,
 70.8 s at `-j2` against 43.1 s at `-j4` — 1.64×, at identical user time.
 
-Backgrounding gates on top of that buys much less than it looks like.
-`style` → `snapshots` → `roxygen` all mutate the working tree and `clean` exists
-to observe their union, so that chain is serial by construction;
-`check` then builds from the same tree.
-The only clean overlap is `check` ∥ `pkgdown`, which is also the one pair where
-two compile-bound phases would collide.
-The real idle-core opportunity is commit N's serial tail (tests, roxygen,
-pkgdown) against commit N+1's parallel head — cross-commit pipelining, needing
-two workspaces — and it is deliberately not attempted here.
+Gates run serially, and that works well enough.
+The tree-mutating chain is serial by construction —
+`style` → `snapshots` → `roxygen`, with `clean` observing their union —
+so the optimisation potential in overlapping the rest looks limited.
 
 Oversubscription is a non-issue today because `-j` is the only knob:
 the package requests no `-flto` and R's `Makeconf` reports `LTO =` empty,
