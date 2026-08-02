@@ -24,6 +24,11 @@ and a rewrite that loses a fact is a regression, not an edit.
 * **State the rule, cut the war story:**
   failure narratives and history live in git and issues, not in leaves;
   hold a topic to one screen at core depth.
+* **Guard a recurring failure; document only what a guard cannot catch.**
+  A trap that keeps happening deserves a check that refuses it,
+  not a paragraph asking readers to remember —
+  and when a guard is out of reach,
+  the leaf gets the trigger and the action, never the anatomy.
 * **Describe by property and name the authoritative artifact:**
   never re-enumerate what a file already lists —
   the file is the list —
