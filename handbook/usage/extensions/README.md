@@ -41,5 +41,5 @@ the fast path answers for a different artifact
 
 *To deepen: drain
 [#66](https://github.com/duckdb/duckdb-r/issues/66) (webR) into a
-boundary once its flags land;
-stage facts here until an extensions reference page exists.*
+boundary once its flags land.
+Facts land here to stay, not to wait for a reference page.*

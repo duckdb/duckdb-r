@@ -47,5 +47,6 @@ and [`src/transform.cpp`](/src/transform.cpp) (the way back).
   [#2401](https://github.com/duckdb/duckdb-r/pull/2401)).
 
 *To deepen: write the full mapping table from `src/types.cpp`,
-verified on a vendored build,
-and stage it here until a types reference page exists.*
+verified on a vendored build.
+This leaf is its home — a `?`-page for types would be generated from
+here, not the other way round.*
