@@ -6,7 +6,9 @@ Little of this is codified; what is settled:
 * Branch from `main`, open the pull request against `main`;
   it merges without a merge commit
   ([`branches/invariants/`](/handbook/branches/invariants/README.md)).
-* Write the commit message and PR title to be read:
+* Write the commit message and PR title as a
+  [Conventional Commit](https://www.conventionalcommits.org),
+  phrased to be read:
   fledge turns `main`'s history into `NEWS.md`
   ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
 * Run the tests the change touches, and the suite before asking
