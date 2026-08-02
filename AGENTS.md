@@ -12,7 +12,8 @@ start there rather than searching.
 | To solve | Read |
 |---|---|
 | Build, test, and validate the package locally | this file (below) |
-| Branch model, package flavors, series invariants | `BRANCHES.md` |
+| Branch model, package flavors | `BRANCHES.md` |
+| What every series guarantees, and what enforces it | [`handbook/branches/invariants/`](/handbook/branches/invariants/README.md) |
 | Release process, modelled as a state machine | `RELEASE.md` |
 | Vendoring mechanics: scripts, invariants, troubleshooting | `scripts/VENDORING.md` |
 | Per-commit CI (sharded matrix): design and limits | `scripts/EACH.md` |

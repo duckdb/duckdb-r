@@ -92,8 +92,9 @@ and coding agents.
 
 * [`AGENTS.md`](AGENTS.md) — working on the package:
   build, test, and where to look for everything else
-* [`BRANCHES.md`](BRANCHES.md) — branch model, package flavors,
-  series invariants
+* [`BRANCHES.md`](BRANCHES.md) — branch model, package flavors
+* [`handbook/branches/invariants/`](/handbook/branches/invariants/README.md) —
+  what every series guarantees, and what enforces it
 * [`RELEASE.md`](RELEASE.md) — the release process
 * [`scripts/VENDORING.md`](scripts/VENDORING.md) — vendoring mechanics
 * [`plan/README.md`](plan/README.md) — designs, plans, and historical

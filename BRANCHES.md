@@ -1,10 +1,13 @@
 # Branching Strategy
 
+*Handbook: [`branches/invariants/`](/handbook/branches/invariants/README.md).*
+
 Version numbers are given at the time of writing (March 2026) and may be outdated by the time you read this.
 The branching strategy is expected to remain stable.
 
-This document defines the branch model, the package flavors, and the
-**[series invariants](#series-invariants)**. For the release process itself —
+This document defines the branch model and the package flavors; the
+**[series invariants](/handbook/branches/invariants/README.md)** are in the
+handbook. For the release process itself —
 modelled as a finite state machine — see [`RELEASE.md`](RELEASE.md).
 
 ## Package Components
@@ -309,162 +312,8 @@ Never port in reverse. Proposed patterns to keep this consistent:
 
 ## Series Invariants
 
-A **series** is one DuckDB minor line `L` together with its branches: `stable`
-(published; `main` for the current line), `lts` (LTS lines only), `dev`, and
-`dev-base`. The following invariants hold across all branches of a series. Each
-is phrased to be **checkable** — most can be enforced by a dev-branch health
-workflow — and each is referenced by name from the release FSM in
-[`RELEASE.md`](RELEASE.md), which must preserve them at every step.
-
-State relationships as **tree diffs**, not ancestry: `main` is maintained as a
-rebuilt/linear history and shares no merge-base with the parked `vX-codename`
-baselines, so any invariant phrased as "X equals Y plus a rename" means *the
-working trees differ only by the rename*, not that one is a git-ancestor of the
-other.
-
-### Structural
-
-- **S1 — Flavor isolation (`lts`).** `git diff stable lts` touches only flavor
-  files (`DESCRIPTION:Package`, `R/duckdb-package.R`, `src/include/rapi.hpp`
-  macro, `NAMESPACE`, `man/*-package.Rd`, the renamed
-  `inst/include/duckdb_*_types.hpp`, the README blurb, and the `library()` /
-  `test_check()` names in `tests/`). Nothing under `src/duckdb/`, no glue logic
-  in `src/*.cpp`, no `R/` logic.
-- **S2 — Baseline purity (`dev-base`).** `dev-base` is byte-identical to the
-  *released* `stable` tree: `Package: duckdb`, bare three-component version, **no
-  flavor rename**. The `flavor.sh` rename and the version scaffolding live entirely
-  *above* it, in `dev-base..dev`. (Confirmed: `v1.5-variegata-dev-base` reads
-  `duckdb 1.5.4`, `v1.4-andium-dev-base` reads `duckdb 1.4.5`.)
-  This invariant describes the legacy `dev-base` layout;
-  a series-loop series has no `dev-base` —
-  its seed is flavored from day one,
-  per the bootstrap rule in `.claude/skills/series-loop.md`.
-- **S3 — `dev-base` ⊑ `dev`.** `dev-base` is an ancestor of `dev` and only ever
-  fast-forwards; `dev..dev-base` is always empty.
-- **S4 — `dev` contents.** Every commit in `dev-base..dev` is either a `vendor:`
-  commit or a forward-port equivalent to a commit on `main` (`git cherry main
-  dev` shows no unmatched non-vendor `+`). **Glue is never *born* on a `dev`
-  branch.** *Exception:* on the preview line (tracking upstream `main`),
-  vendor-coupled glue — adaptation forced by a new upstream C++ API — is born on
-  `dev` alongside the vendor commit that requires it, because `main` does not yet
-  carry that upstream version.
-
-### Linearity and ancestry
-
-History is **linear going forward** — the cost of extra rebases and CI runs is
-accepted in exchange for a bisectable, merge-free active history.
-
-- **L — No new merge commits.** The active region (`dev-base..dev`) and every
-  release transition are linear: forward-ports are `cherry-pick`s, releases are
-  fast-forwards or rebases, and PRs never create a merge commit (use "Rebase and
-  merge", or a fast-forward push). Deep history below the release baselines still
-  contains ~170 historical PR merges from before this policy; those are
-  grandfathered. *(Currently nearly satisfied: `main-dev` adds 0 merges over 402
-  commits, `v1.4-andium-dev` 0 over 3 — but `v1.5-variegata-dev` carries 1 stray
-  merge in its 21-commit window that should be rebased out, and the 1.5.4 release
-  landed on `main` via a merge commit, which this policy replaces with FF/rebase.)*
-- **A1 — Dev descends from its release point.** Within a patch series,
-  `release-content ⊑ dev-base ⊑ dev` as linear ancestors, where `release-content`
-  is the released tree (which `dev-base` equals, per **S2**) — this may sit a
-  couple of commits *below* `stable`'s tip when that tip carries release mechanics
-  (the CRAN merge + post-release bump). `dev-base` advances only by fast-forward;
-  `dev` grows by append and is rewritten (force-push) only to re-anchor onto a new
-  release point or to drop a non-green commit. The `flavor.sh` rename is the first
-  group of commits in `dev-base..dev`. *(Confirmed: `dev-base ⊑ dev` everywhere
-  (pending 402 / 21 / 3, nothing behind); `v1.4-andium`'s release ⊑ `dev`. For
-  1.5, `dev-base` is anchored at the release content `main~2`, two commits below
-  `main`'s current tip.)*
-- **A2 — Flip ancestry (preview line).** For the next-major flip to be an atomic
-  fast-forward, `main ⊑ main-dev` must hold. This is **not** maintained
-  continuously: `main` (current stable) and `main-dev` (next major) vendor
-  different upstream C++, so forcing ancestry would mean rebasing 400+ commits on
-  every `main` patch release for no benefit. Instead it is **established once**,
-  immediately before the flip, by the linearization runbook (rewind to the
-  upstream bifurcation point, then replay).
-- **A3 — Dev SHAs are disposable.** Because linearity is maintained by rebasing,
-  `-dev` SHAs are not durable; only tags (releases) and the fast-forward-only
-  `dev-base` marker are stable references. This is acceptable — `-dev` exists
-  solely for CI and r-universe.
-
-#### Cost of maintaining linear ancestry
-
-| Operation | When | Cost | Mechanism |
-|-----------|------|------|-----------|
-| `dev` append (vendor / forward-port) | daily / per glue change | O(1) | append; cherry-pick |
-| `dev-base` advance | per reviewed release | O(1) ref update | fast-forward |
-| Patch re-baseline | per patch release | O(pending) replayed × per-commit CI (small: 3–21 today) | rebase; merge driver auto-resolves the version |
-| Forward-port across the chain | per glue change | O(diff) × active lines | cherry-pick; merge driver handles `DESCRIPTION` |
-| **Major-flip linearization** | per major release | O(hundreds) — 402 pending on `main-dev` today | one-time rewind + replay (deferred, not continuous) |
-
-The merge driver is what keeps the recurring rebases (patch re-baseline,
-forward-port) cheap; the one genuinely expensive operation — the major-flip
-linearization — is paid once, by design, rather than amortized into every patch
-release.
-
-### Flavor / identity
-
-- **F1 — Name coherence.** Within a branch, `DESCRIPTION:Package`,
-  `DUCKDB_PACKAGE_NAME`, `@useDynLib`, the `duckdb[._]L[._]types.hpp` filename,
-  and the testthat names all agree and match the branch role: `stable` and
-  `dev-base` → `duckdb` (per **S2**, `dev-base` is the un-renamed release);
-  `lts` → `duckdb.L`; `dev` → `duckdb.L.dev`. The rename is exactly what
-  distinguishes `dev` from `dev-base`.
-- **F2 — Mechanical rename.** The rename is produced solely by `scripts/flavor.sh`;
-  its non-name structure is identical across all series, differing only in the
-  version token.
-
-### Version
-
-- **V1 — Prefix lock.** `major.minor` equals `L` on every branch of the series.
-  *Exception:* the preview line carries a synthetic placeholder prefix greater
-  than any current release (`main-dev` is `1.5.99.…`) until the flip sets the
-  real number (e.g. `2.0.0`).
-- **V2 — Patch ordering.** `stable` and `lts` share the released patch `Z`;
-  `dev`/`dev-base` are at or ahead of `Z`.
-- **V3 — Counters.** The **4th** component free-runs as the R-client dev counter
-  *only* on the glue source of truth (`main`: `…9003`, `…9004`); on `-dev`
-  branches it is a fixed marker (`.9000` / `.9001`). The **5th** component is the
-  vendor counter, strictly monotone along `dev` (one bump per vendor commit).
-  On a series-loop dev branch the seed's `chore: Add fifth version component`
-  commit stamps it at `.0`;
-  elsewhere it is absent until the first vendor commit mints `.1` —
-  e.g. `v1.4-andium-dev` at `1.4.5.9000` has no vendor commits yet.
-  Regular LTS flavors never carry a fifth component.
-  Componentwise within the prefix, `dev ≥ dev-base ≥ stable`.
-- **V4 — Release shape.** A released `stable`/`lts` version is the bare
-  three-component prefix (no 4th/5th component).
-
-### Source of truth (cross-series)
-
-- **G1 — Glue monotone down the chain.** At the forward-port frontier,
-  glue/R/tests/CI/cpp11 satisfy `main ⊇ newer-dev ⊇ … ⊇ older-dev`; older lines
-  lag only by pending forward-ports. (S4 applied across the whole chain.)
-- **G2 — Patch-stack derivation.** Each `dev`'s `patch/` equals `main`'s patch
-  set minus the patches already merged into *that series'* upstream branch.
-  `patch/` may therefore legitimately differ between series; it is never
-  hand-authored per series beyond dropping patches that landed upstream.
-
-### CI / green
-
-- **C1 — Every `dev` commit is green** (`each.yaml`), so `dev` is bisectable
-  end to end.
-- **C2 — `stable`, `lts`, and `dev-base` tips are green** (former green `dev`
-  tips or freshly checked re-baselines).
-
-### Prerelease (during STABILIZE)
-
-- **P1 — Release branches frozen.** Pre-release mutates only `main` (fold-back
-  fixes) and `dev` (forward-ports + vendor); `stable`, `lts`, and `dev-base`
-  stay at the previous release until CUT. A half-finished pre-release is
-  abortable with zero rollback on the release branches.
-- **P2 — Candidate ⊆ release.** The revdep-tested pinned candidate is an ancestor
-  of the `dev` tip that will be cut; any delta added after a revdep run is
-  reviewed (and re-checked if risky). What ships was tested.
-- **P3 — Fold-back ordering.** Every fold-back fix lands on `main` before any
-  `dev` (a `dev` fix lacking a `main` ancestor violates S4).
-- **P4 — Freeze convergence (barrier).** At GLUE FREEZE, `git cherry main dev` is
-  empty for *every* releasing series simultaneously, so all releasing lines share
-  identical glue. This is the multi-line synchronization invariant.
+The C-numbered guarantees every series must satisfy, and what enforces each,
+are [`handbook/branches/invariants/`](/handbook/branches/invariants/README.md).
 
 ## Release Cycle Mapping
 

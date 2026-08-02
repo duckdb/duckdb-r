@@ -7,7 +7,7 @@ The cost model's constants are no longer borrowed —
 they are fitted to measured legs; see [§3, *Can we compute breakpoints efficiently, and evenly?*](#can-we-compute-breakpoints-efficiently-and-evenly).
 
 `.github/workflows/each.yaml` proves invariant **C1** from
-[`BRANCHES.md`](../BRANCHES.md#ci--green):
+[`handbook/branches/invariants/`](/handbook/branches/invariants/README.md):
 every commit on a `*-dev` branch is green, so the branch is bisectable end to end.
 It used to do that by dispatching one `rcc` workflow run per commit.
 It now plans contiguous, cost-balanced **shards** and gives each shard one job,
@@ -1116,7 +1116,7 @@ it with no separating context.
 `each.yaml` runs the scripts from the *branch it is checking*,
 so a `*-dev` branch picks up the sharded path only once the new scripts are forward-ported to it —
 the same constraint every CI change in this repository has
-(invariant **G1** in [`BRANCHES.md`](../BRANCHES.md#source-of-truth-cross-series)).
+(invariant **G1** in [`handbook/branches/invariants/`](/handbook/branches/invariants/README.md)).
 Until then that branch's copy of `each.yaml` is the old dispatcher, and keeps working.
 (The series loop automates this forward-port:
 stage 4 — `scripts/series-port.sh` — brings each `-dev` level with `main`;
