@@ -2,7 +2,7 @@
 
 *Stub — this leaf will own its topic;
 today it routes to where the knowledge lives.
-The writing protocol is in [`meta/handbook/`](../../meta/handbook/);
+The writing protocol is in [`meta/handbook/`](/handbook/meta/handbook/);
 the last section holds this leaf's parameters.*
 
 Scope: the translation units bridging R and DuckDB —
@@ -12,9 +12,9 @@ formatting, and the no-warning-suppression policy.
 
 Today:
 
-* [`AGENTS.md`](../../../AGENTS.md) — "C++ Glue Code Conventions"
+* [`AGENTS.md`](/AGENTS.md) — "C++ Glue Code Conventions"
   and "C++ Warning Policy"
-* [`scripts/format.py`](../../../scripts/format.py) —
+* [`scripts/format.py`](/scripts/format.py) —
   formats `src/`, driven by the Makefile's `format-*` targets
 
 To write this leaf:
