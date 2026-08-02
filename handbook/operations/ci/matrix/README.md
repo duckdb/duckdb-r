@@ -18,7 +18,8 @@ extended by named special entries —
   because regular Linux and macOS entries default to the fast path via
   `.github/workflows/custom/before-install/action.yml`
   ([`build/fast-paths/`](/handbook/build/fast-paths/README.md));
-  Windows always builds from source.
+  Windows always builds from source, for now
+  ([#22](https://github.com/duckdb/duckdb-r/issues/22#issuecomment-5158085048)).
 
 Entries carry extra environment through the generic `env` field —
 the mechanism by which one matrix row can flip any knob
