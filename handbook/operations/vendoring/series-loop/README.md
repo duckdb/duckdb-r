@@ -16,8 +16,8 @@ A firing serves every series discovered from the refs
 ([`branches/model/`](/handbook/branches/model/README.md)),
 in stages that are skipped when they have nothing to do:
 
-* **Vendor onto `<S>-build`** — extend the buffer with
-  `vendor-one.sh`, fixing glue where the gate stops;
+* **Vendor onto `<S>-build`** — extend the buffer with `vendor-one.sh`,
+  fixing glue where the gate stops;
   red never blocks the buffer.
 * **Repair the oldest `<S>-dev` failure** — classify by what a
   log positively contains: the tree's fault is folded into the
@@ -29,8 +29,8 @@ in stages that are skipped when they have nothing to do:
 * **Forward-port** — bring `main`'s R-side work onto the series
   ([`scripts/series-port.sh`](/scripts/series-port.sh)).
 * **Report** — one summary per firing;
-  a caught-up `-fwd` counterpart is *reported* with the cutover
-  command, never executed — that move is a human's.
+  a caught-up `-fwd` counterpart is *reported* with the cutover command,
+  never executed — that move is a human's.
 
 [`scripts/series-check.sh`](/scripts/series-check.sh) prints each
 series' verdict read-only and is always safe to run

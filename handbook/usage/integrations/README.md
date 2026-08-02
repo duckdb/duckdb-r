@@ -17,8 +17,8 @@ so a value that will not convert yields `NULL` rather than failing
 the query
 ([#2230](https://github.com/duckdb/duckdb-r/issues/2230)).
 `tbl_file()` and `tbl_function()` turn files and table functions
-into lazy tables; `simulate_duckdb()` renders SQL without a
-connection.
+into lazy tables;
+`simulate_duckdb()` renders SQL without a connection.
 
 The backend translates *expressions*, not verbs,
 and literals are escaped by dbplyr —
@@ -50,8 +50,8 @@ Out: `dbGetQueryArrow()` returns a `nanoarrow_array_stream`,
 and `dbSendQueryArrow()` / `dbFetchArrowChunk()` stream a result
 batch by batch — true streaming since 1.5.4
 ([#162](https://github.com/duckdb/duckdb-r/issues/162)).
-`arrow::to_duckdb()` and `to_arrow()` bridge dplyr pipelines both
-ways.
+`arrow::to_duckdb()` and `to_arrow()`
+bridge dplyr pipelines both ways.
 The DBI Arrow API plan is
 [`plan/PLAN-dbSendQueryArrow.md`](/plan/PLAN-dbSendQueryArrow.md).
 

@@ -14,8 +14,7 @@ Little of this is codified; what is settled:
   add a test with every bug fix.
 * Formatting is suggested on the PR by CI; accept it rather than
   arguing with it.
-  A snapshot the change legitimately moved is accepted
-  deliberately
+  A snapshot the change legitimately moved is accepted deliberately
   ([`testing/snapshots/`](/handbook/testing/snapshots/README.md)).
 * Never edit `src/duckdb/`, generated files, or `man/` —
   each has a producer

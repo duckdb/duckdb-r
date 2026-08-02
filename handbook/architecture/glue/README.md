@@ -31,8 +31,8 @@ support for package names with two dots
 (`duckdb.1.5.dev`) among them.
 An entry point is a function marked `[[cpp11::register]]`;
 `cpp11::cpp_register()` writes both halves of the binding
-(`src/cpp11.cpp`, `R/cpp11.R`), which are generated and never
-edited.
+(`src/cpp11.cpp`, `R/cpp11.R`),
+which are generated and never edited.
 
 **`RStrings`.**
 R string constants and `Rf_install()` symbols used from C++

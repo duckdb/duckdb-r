@@ -1,7 +1,7 @@
 # Invariants
 
-What every series guarantees, and what would actually catch a
-violation.
+What every series guarantees,
+and what would actually catch a violation.
 The numbered statements live in
 [`BRANCHES.md` § Series Invariants](/BRANCHES.md#series-invariants);
 the numbers are stable identifiers that the release process cites
@@ -31,8 +31,8 @@ Read every statement as a claim about **trees, not ancestry**:
 the parked baselines, so "X equals Y plus a rename" compares
 working trees.
 
-**Most invariants are enforced by nothing** — they are
-conventions, kept by the loop's routine and by review;
+**Most invariants are enforced by nothing** —
+they are conventions, kept by the loop's routine and by review;
 a few hold mechanically (the vendor counter, the advance script's
 ancestor check on `-green`), and the honest per-invariant
 enforcement note is part of the record.

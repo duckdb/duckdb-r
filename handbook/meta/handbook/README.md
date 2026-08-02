@@ -108,8 +108,8 @@ Whichever move, the same protocol:
 
 * **Verify before you state.**
   Check every behavioral claim against the ground truth;
-  check engine-configuration claims against a vendored
-  build, never under `DUCKDB_R_USE_SYSTEM_LIB=1`.
+  check engine-configuration claims against a vendored build,
+  never under `DUCKDB_R_USE_SYSTEM_LIB=1`.
 * **Stay inside the scope line.**
   A fact beyond it belongs to another leaf — link, don't absorb.
 * **Finish clean.**
@@ -131,12 +131,22 @@ A one-screen leaf needs no headings; a longer one uses `##`.
 
 **A deepen line** is the last line of a leaf
 that is not yet comprehensive:
-one italic sentence naming what deepening absorbs,
-verifies, or drains —
+one italic sentence naming what deepening absorbs, verifies, or drains —
 `*To deepen: absorb `BRANCHES.md` § …; drain #….*` —
 kept current by every change to the leaf,
 and deleted by the change that completes it.
 A leaf with no deepen line asserts it is comprehensive.
+
+**A bullet list is the default; a table must earn its columns.**
+A list extends one line at a time and diffs the same way,
+so an enumeration — files and their producers,
+knobs and their effects, verdicts and their meanings —
+is bullets, each item led by its name.
+A table is for genuinely two-dimensional content,
+where the reader compares along both axes
+and the aligned columns carry the comparison;
+a two-column table whose second column is prose
+is a list wearing borders.
 
 **A principle on an internal node** is a short paragraph, or a few,
 between the scope sentence and the list of children.
@@ -212,9 +222,9 @@ but a letter whose whole text reaches a CRAN maintainer verbatim,
 so the link to it is one-way,
 and that asymmetry is correct rather than an orphan.
 
-**A link that leaves its own directory is written from the repository
-root**, with a leading `/` — `/handbook/usage/types/`, not
-`../../usage/types/`. GitHub resolves such a link against the
+**A link that leaves its own directory
+is written from the repository root**,
+with a leading `/` — `/handbook/usage/types/`, not `../../usage/types/`. GitHub resolves such a link against the
 repository root and rewrites it for whatever branch the reader is on,
 so it works unchanged on `main`, on a pull request head, and in a fork.
 Same-directory and downward links stay relative, as they are already
@@ -225,8 +235,8 @@ page moves — which, in a hierarchy that is still settling, it will.
 This follows the
 [Google Markdown style guide](https://google.github.io/styleguide/docguide/style.html#links),
 which discourages exactly the upward form and nothing else.
-The cost is that such a link does not resolve in a local Markdown
-preview, which has no notion of a repository root;
+The cost is that such a link does not resolve
+in a local Markdown preview, which has no notion of a repository root;
 the handbook is read on GitHub, and that is the trade taken.
 
 **A leaf states what stays true as the code moves.**

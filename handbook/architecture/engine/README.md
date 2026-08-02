@@ -10,18 +10,16 @@ how the copy is kept current is
 [`operations/vendoring/`](/handbook/operations/vendoring/README.md).
 
 **Identity.**
-Two identifiers travel with the copy, both defined in the vendored
-`pragma_version.cpp`:
+Two identifiers travel with the copy,
+both defined in the vendored `pragma_version.cpp`:
 `DUCKDB_VERSION` (the release string) and `DUCKDB_SOURCE_ID`
 (the abbreviated upstream commit).
 `PRAGMA version` returns both;
 the source id is what the fast path's commit-match guard checks
 ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
 At vendor time `rconfigure.py` writes the version into
-[`R/version.R`](/R/version.R) —
-a generated file, so anything wrong in it is fixed in
-`rconfigure.py`, never by editing the file —
-and that is what `dbGetInfo()` reports without opening a database.
+[`R/version.R`](/R/version.R),
+which is what `dbGetInfo()` reports without opening a database.
 The *package* version is a different number,
 owned by
 [`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md).

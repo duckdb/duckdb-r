@@ -14,8 +14,9 @@ Four sources serve the package:
   tens of minutes rather than seconds.
 * **[Posit Public Package Manager](https://p3m.dev/)** serves binaries
   of the same CRAN release for many platforms, including Linux.
-* **[r-universe](https://duckdb.r-universe.dev)** serves development
-  versions, and every flavor other than the CRAN `duckdb`.
+* **[r-universe](https://duckdb.r-universe.dev)** serves
+  development versions,
+  and every flavor other than the CRAN `duckdb`.
 * **GitHub** installs this repository's current state from source,
   `pak::pak("duckdb/duckdb-r")`.
 

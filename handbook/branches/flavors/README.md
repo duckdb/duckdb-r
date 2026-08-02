@@ -1,9 +1,8 @@
 # Flavors
 
 One source tree, published under several package names.
-A flavor is a mechanical rename applied on top of a series'
-branch — nothing else distinguishes one published package from
-another.
+A flavor is a mechanical rename applied on top of a series' branch —
+nothing else distinguishes one published package from another.
 
 CRAN carries one version of one name at a time,
 and DuckDB cuts a minor roughly every four months,
@@ -24,17 +23,17 @@ and the current release already ships as `duckdb`.
 The `Flavors` table in the root [`README.md`](/README.md) is where
 a new flavor is announced.
 
-**The rename surface** is small and closed:
-`DESCRIPTION`'s `Package:`, the `@useDynLib` and package-topic
-lines (with `NAMESPACE` and the package `.Rd` patched directly),
-the `DUCKDB_PACKAGE_NAME` macro, the renamed public C++ header
-(`duckdb.1.5.dev` → `duckdb_1_5_dev_types.hpp`),
-the `library()` call in `tests/`, the README blurb —
-plus `src/cpp11.cpp` / `R/cpp11.R` *regenerated*, because cpp11
-derives the `.Call` symbol prefix from the name.
+**The rename surface** is exactly the set of places
+that cannot ask for the name at run time —
+package metadata, generated binding symbols,
+and the public C++ header among them —
+and the authoritative list is
+[`scripts/flavor.patch`](/scripts/flavor.patch) itself:
+what the patch rewrites is the surface, by construction.
 [`scripts/flavor.sh`](/scripts/flavor.sh) takes the suffix
-(`1.4`, `1.5.dev`, `dev`) and applies
-[`scripts/flavor.patch`](/scripts/flavor.patch).
+(`1.4`, `1.5.dev`, `dev`) and applies it,
+regenerating `src/cpp11.cpp` and `R/cpp11.R` instead of patching them,
+because cpp11 derives the `.Call` symbol prefix from the name.
 Everywhere else the package asks for its name at run time
 ([`architecture/r-layer/`](/handbook/architecture/r-layer/README.md));
 the scan that keeps it that way is

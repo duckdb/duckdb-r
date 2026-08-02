@@ -36,8 +36,8 @@ If no prebuilt matches (a `-dev` snapshot), drop the variable and
 build from source.
 
 **The fast path proves nothing about the engine.**
-A release `libduckdb` links more extensions and defaults
-differently, so engine-configuration claims are never verified
+A release `libduckdb` links more extensions and defaults differently,
+so engine-configuration claims are never verified
 under `DUCKDB_R_USE_SYSTEM_LIB=1`
 ([`usage/extensions/`](/handbook/usage/extensions/README.md)).
 

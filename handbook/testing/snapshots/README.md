@@ -34,8 +34,8 @@ Every route ends in `testthat::snapshot_accept()`:
   [`scripts/snapshot-accept.sh`](/scripts/snapshot-accept.sh);
   its header is the procedure.
 
-Accepting is right when the diff reads as the change that caused
-it, and the accepted files are folded into the commit that changed
-the behaviour — so the commit that moved the output carries the
+Accepting is right when the diff reads as the change that caused it,
+and the accepted files are folded into the commit
+that changed the behaviour — so the commit that moved the output carries the
 new expectation.
 A diff that does not read that way is a regression being hidden.

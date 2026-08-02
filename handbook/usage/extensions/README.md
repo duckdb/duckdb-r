@@ -30,8 +30,8 @@ and how to get more.
   `?duckdb`, section "DuckDB extensions on Linux",
   owns that decision tree
   ([#1107](https://github.com/duckdb/duckdb-r/issues/1107)).
-* **Windows** fetches extensions for the `windows_amd64_mingw`
-  platform, which DuckDB has distributed since 1.4.1;
+* **Windows** fetches extensions for the `windows_amd64_mingw` platform,
+  which DuckDB has distributed since 1.4.1;
   gaps for out-of-tree extensions are tracked as the toolchain epic
   ([#2234](https://github.com/duckdb/duckdb-r/issues/2234)).
 

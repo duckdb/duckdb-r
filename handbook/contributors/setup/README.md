@@ -15,9 +15,9 @@ R -q -e 'pkgload::load_all()'           # seconds
 R -q -e 'testthat::test_local()'        # the suite
 ```
 
-The default build would compile the vendored engine for many
-minutes, so the fast path is the second step, not an
-optimization to discover later:
+The default build would compile the vendored engine for many minutes,
+so the fast path is the second step,
+not an optimization to discover later:
 what it costs and guards — and the re-install every vendoring bump
 requires — is
 [`build/fast-paths/`](/handbook/build/fast-paths/README.md).

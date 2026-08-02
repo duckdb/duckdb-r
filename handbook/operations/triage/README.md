@@ -11,18 +11,18 @@ consume rather than re-derive.
 **Every open item gets exactly one verdict, an owner, and a next
 action** — an issue that stays open is a decision, not a leftover:
 
-| Verdict | Meaning |
-|---|---|
-| `MERGE` / `FINISH` | PR is sound; land it, or complete then land |
-| `FIX` | valid, scheduled work; stays open with priority and vehicle |
-| `CLOSE-DOCS` | works as designed or known limitation; the close carries the doc |
-| `CLOSE-FIXED` | already fixed; the close cites version or commit |
-| `CLOSE-UPSTREAM` | engine, extension, or dbplyr matter; upstream link filed or found |
-| `CLOSE-STALE-ASK` | needs info, reporter gone; invite a fresh report |
-| `KEEP-ROADMAP` | deliberately open epic with a named next step |
+* `MERGE` / `FINISH` — the PR is sound; land it, or complete then land.
+* `FIX` — valid, scheduled work; stays open with priority and vehicle.
+* `CLOSE-DOCS` — works as designed or known limitation;
+  the close carries the doc.
+* `CLOSE-FIXED` — already fixed; the close cites version or commit.
+* `CLOSE-UPSTREAM` — engine, extension, or dbplyr matter;
+  upstream link filed or found.
+* `CLOSE-STALE-ASK` — needs info, reporter gone; invite a fresh report.
+* `KEEP-ROADMAP` — deliberately open epic with a named next step.
 
-**A close without a code change is a close *with* a documentation
-change.**
+**A close without a code change
+is a close *with* a documentation change.**
 The answer lands in the handbook leaf that owns the topic,
 in the same pull request that closes the issue,
 and the closing comment links it

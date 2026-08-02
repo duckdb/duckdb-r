@@ -8,15 +8,32 @@ the end.
 
 Read at build time:
 
-| Knob | What it does |
-|---|---|
-| `MAKEFLAGS` | Parallelism. When unset, `configure` fills it in via [`scripts/setup-makeflags.R`](/scripts/setup-makeflags.R) — capped at `-j2` unless `NOT_CRAN` is truthy, per CRAN policy. Set `-j$(nproc)` yourself for local builds. |
-| ccache | Not a variable — wrap the compilers in `~/.R/Makevars`, inferring each default with `R CMD config` and prepending `ccache`. Repeat builds of the vendored tree drop from minutes to seconds. |
-| `UserNM` | `UserNM=true` skips the `nm` symbol sweep at install time. Never for `R CMD check` — [`source-build/`](/handbook/build/source-build/README.md) says what it blinds. |
-| `DUCKDB_R_USE_SYSTEM_LIB` | The fast path — [`fast-paths/`](/handbook/build/fast-paths/README.md). |
-| `DUCKDB_R_LIB_DIR` | Where the fast path looks for `libduckdb` before `pkg-config` and the usual directories. |
-| `DUCKDB_R_PREBUILT_ARCHIVE` | Path to a `.tar` of vendored object files: reused if it exists, written after the build if not. A CI cache device; locally ccache does the same job better. |
-| `PKG_BUILD_EXTRA_FLAGS` | pkgbuild's knob (`load_all()`, not `R CMD INSTALL`): default merges `-UNDEBUG -Wall -pedantic -g -O0` over `~/.R/Makevars`; set `false` to keep your own optimisation flags. |
+* **`MAKEFLAGS`** — parallelism.
+  When unset, `configure` fills it in via
+  [`scripts/setup-makeflags.R`](/scripts/setup-makeflags.R) —
+  capped at `-j2` unless `NOT_CRAN` is truthy, per CRAN policy.
+  Set `-j$(nproc)` yourself for local builds.
+* **ccache** — not a variable:
+  wrap the compilers in `~/.R/Makevars`,
+  inferring each default with `R CMD config` and prepending `ccache`.
+  Repeat builds of the vendored tree drop from minutes to seconds.
+* **`UserNM`** — `UserNM=true` skips the `nm` symbol sweep
+  at install time.
+  Never for `R CMD check` —
+  [`source-build/`](/handbook/build/source-build/README.md)
+  says what it blinds.
+* **`DUCKDB_R_USE_SYSTEM_LIB`** — the fast path —
+  [`fast-paths/`](/handbook/build/fast-paths/README.md).
+* **`DUCKDB_R_LIB_DIR`** — where the fast path looks for `libduckdb`
+  before `pkg-config` and the usual directories.
+* **`DUCKDB_R_PREBUILT_ARCHIVE`** — path to a `.tar` of vendored
+  object files: reused if it exists, written after the build if not.
+  A CI cache device; locally ccache does the same job better.
+* **`PKG_BUILD_EXTRA_FLAGS`** — pkgbuild's knob
+  (`load_all()`, not `R CMD INSTALL`):
+  the default merges `-UNDEBUG -Wall -pedantic -g -O0`
+  over `~/.R/Makevars`;
+  set `false` to keep your own optimisation flags.
 
 Read at *vendoring* time by
 [`scripts/rconfigure.py`](/scripts/rconfigure.py) —
@@ -36,8 +53,8 @@ Not build knobs, documented where they act:
 ([`testing/guards/`](/handbook/testing/guards/README.md)),
 `DUCKDB_R_POISON_ENGINE`
 ([`operations/ci/matrix/`](/handbook/operations/ci/matrix/README.md)),
-and `DUCKDB_R_LIB_VERSION` / `DUCKDB_R_LIB_URL`, which steer
-`install-libduckdb.sh`
+and `DUCKDB_R_LIB_VERSION` / `DUCKDB_R_LIB_URL`,
+which steer `install-libduckdb.sh`
 ([`fast-paths/`](/handbook/build/fast-paths/README.md)).
 There is no knob for the C++ standard, optimisation, or warnings:
 `src/Makevars.in` pins `CXX_STD = CXX17` and leaves the rest to

@@ -2,8 +2,8 @@
 
 Checking the packages that depend on this one before a release.
 
-revdepcheck runs against the `.dev` build at the pinned release
-candidate, twice per release:
+revdepcheck runs against the `.dev` build
+at the pinned release candidate, twice per release:
 an early pass with time to act on what it finds,
 and a second pass (≈ T−7) that is the go/no-go gate —
 CRAN policy requires contacting affected maintainers *well before*

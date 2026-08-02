@@ -30,8 +30,8 @@ when the two disagree, the handbook leaf is right.
 
 Kept for the reasoning and the measurements, not as a description of the
 system. Each says so in its own first lines. They live in their own
-directory because the distinction is the point: a plan may still come
-true, a history never will.
+directory because the distinction is the point:
+a plan may still come true, a history never will.
 
 | To read about | Read |
 |---|---|

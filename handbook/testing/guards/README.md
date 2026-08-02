@@ -1,15 +1,17 @@
 # Guards
 
 Two checks that fail loudly rather than let a defect ship:
-the CRAN guard, which keeps the bundled engine off CRAN's check
-farm, and the flavor-name guard, which keeps the package name from
-being written where the rename cannot reach.
+the CRAN guard,
+which keeps the bundled engine off CRAN's check farm,
+and the flavor-name guard,
+which keeps the package name from being written
+where the rename cannot reach.
 
 **The CRAN guard.**
 The suite and the runnable examples both start the bundled engine —
 too heavy for CRAN's farm.
-`tests/testthat.R` decides for itself, in inlined, self-contained
-logic:
+`tests/testthat.R` decides for itself,
+in inlined, self-contained logic:
 `DUCKDB_R_RUN_TESTS` always wins (true-ish on, false-ish off);
 otherwise the suite runs when `GITHUB_ACTIONS` is `true` or
 `MY_UNIVERSE` is non-empty; everywhere else — including CRAN —
@@ -32,14 +34,15 @@ scans the tree for the hard-coded package name —
 the quoted form only in the glue,
 where `duckdb::` is the engine's own namespace.
 The allowlist is read out of `scripts/flavor.patch` itself,
-so what the rename accounts for cannot drift from what the scan
-tolerates.
+so what the rename accounts for
+cannot drift from what the scan tolerates.
 CI runs it against a plain checkout, and
 `tests/testthat/test-flavor-package-name.R` wraps it for the suite.
 Resolve a hit, don't silence it:
 `get_package_name()` in code, no self-qualification in docs,
-`paste0("duck", "db")` when the literal genuinely names something
-else, or teach `scripts/flavor.patch` the rename.
+`paste0("duck", "db")`
+when the literal genuinely names something else,
+or teach `scripts/flavor.patch` the rename.
 The scan does not reach `handbook/` — prose here is the
 consistency skill's to keep clean
 ([the rules](/handbook/meta/handbook/README.md)).

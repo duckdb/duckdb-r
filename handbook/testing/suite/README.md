@@ -18,8 +18,9 @@ the edit-test loop stays in the seconds range.
 
 **Layout.**
 Tests are flat files `test-<topic>.R`,
-named for the `R/` file they cover, the DuckDB feature they
-round-trip, or a shared prefix for multi-pass areas;
+named for the `R/` file they cover,
+the DuckDB feature they round-trip,
+or a shared prefix for multi-pass areas;
 the file name is the unit of selection.
 Beside them: `helper-*.R` (sourced before the first test),
 `setup.R`,
