@@ -203,7 +203,7 @@ The lifecycle has four moves:
   so the patch can eventually be retired.
 * **Dropping one.**
   When the fix lands upstream, delete the file. Never renumber the rest.
-  `vendor-one.sh` also drops it for you, and correctly:
+  Both scripts also drop it for you, and correctly:
   a patch that no longer applies forward but *reverses* cleanly
   is already present in the regenerated tree,
   which is exactly what "the fix landed upstream" looks like.
@@ -212,17 +212,17 @@ The lifecycle has four moves:
   A patch that neither applies forward nor reverses cleanly is a different case:
   its change is not in the tree and cannot be re-applied,
   because the code around it moved.
-  `vendor-one.sh` stops, exits 4, and names the patch,
+  Both scripts stop, exit 4, and name the patch,
   leaving the regenerated sources uncommitted in the working tree
   and the upstream clone in place.
   Rebase the patch against those sources — keep it outside the tree,
   `git checkout -- .`, put it back, and rerun —
   and delete it only after confirming its change is genuinely upstream.
-  Two cautions.
-  A run that used to limp past a broken patch now halts, which is the point,
+  Rerunning `vendor.sh` also means clearing `./duckdb` first, or passing it,
+  because that script always clones.
+  One caution:
+  a run that used to limp past a broken patch now halts, which is the point,
   but it does mean a series loop can stop where it previously did not.
-  And [`scripts/vendor.sh`](/scripts/vendor.sh) still deletes on any failure,
-  without the reverse check: prefer `vendor-one.sh` where a fix is at stake.
 
 Never edit `src/duckdb/` directly in a way you want to keep.
 The next run regenerates the directory from scratch, and the edit is gone.

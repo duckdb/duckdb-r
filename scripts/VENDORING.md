@@ -275,11 +275,10 @@ R CMD INSTALL .
 **Solution**: Commit or stash all changes before vendoring.
 
 **Issue**: A patch disappeared from `patch/`
-**Solution**: That is by design, and `vendor-one.sh` only does it
+**Solution**: That is by design, and both vendor scripts only do it
 when the patch reverses cleanly against the regenerated tree —
 its change is already there, so it landed upstream.
 A patch that neither applies nor reverses stops the run instead (exit 4).
-`vendor.sh` still deletes on any failure, without that check.
 See [the patch stack](/handbook/operations/vendoring/pipeline/README.md).
 
 **Issue**: Build failures after vendoring
