@@ -56,7 +56,7 @@ the `skip_on_*()` helpers that decide individual tests
 belong to the suite's helpers, not here.
 
 That the gate actually holds is checked, not assumed.
-One matrix entry builds the engine with a tripwire
+A matrix entry builds the engine with a tripwire
 (`-DDUCKDB_R_POISON_ENGINE`, declared in `src/include/rapi.hpp`)
 and forces `DUCKDB_R_RUN_TESTS=false`,
 so any test or example that still reaches the engine aborts the check —
