@@ -2,6 +2,7 @@
 # package stores extensions and secrets. It is documented together with the
 # storage policy on the `?duckdb_storage` page (via `@rdname`).
 
+# Handbook: handbook/usage/storage/
 #' @details
 #' `duckdb_storage_status()` reports the directory the package would currently
 #' use for downloaded extensions and for persisted secrets, and which tier of
