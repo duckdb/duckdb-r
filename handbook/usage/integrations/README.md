@@ -2,7 +2,7 @@
 
 *Stub — this leaf will own its topic;
 today it routes to where the knowledge lives.
-The writing protocol is in [`meta/handbook/`](../../meta/handbook/);
+The writing protocol is in [`meta/handbook/`](/handbook/meta/handbook/);
 the last section holds this leaf's parameters.*
 
 Scope: the dbplyr backend and Arrow interchange.
@@ -10,7 +10,7 @@ Scope: the dbplyr backend and Arrow interchange.
 Today:
 
 * `?backend-duckdb` — the dbplyr backend reference
-* [`plan/PLAN-dbSendQueryArrow.md`](../../../plan/PLAN-dbSendQueryArrow.md) — the DBI Arrow API plan
+* [`plan/PLAN-dbSendQueryArrow.md`](/plan/PLAN-dbSendQueryArrow.md) — the DBI Arrow API plan
 
 To write this leaf:
 

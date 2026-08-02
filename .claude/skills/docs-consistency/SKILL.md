@@ -1,7 +1,7 @@
 # Documentation consistency
 
 The enforcement arm of the handbook rules
-([`handbook/meta/handbook/`](../../../handbook/meta/handbook/README.md)):
+([`handbook/meta/handbook/`](/handbook/meta/handbook/README.md)):
 the checks that keep the documentation system whole.
 Run it when a change touches documentation —
 handbook pages, free-floating `.md` files, script headers,
@@ -29,7 +29,10 @@ Helpers are not entry points of their own.
    and a `To write this leaf` section last.
 
 2. **Link integrity** (mechanical).
-   Every relative link under `handbook/` resolves.
+   Every link under `handbook/` resolves,
+   and no link traverses upward with `../`
+   (the rules, "The forms": a link that leaves its own directory
+   is written from the repository root).
 
    ```sh
    python3 - <<'EOF'
@@ -40,8 +43,13 @@ Helpers are not entry points of their own.
            p = os.path.join(dirpath, f)
            for m in re.finditer(r"\]\(([^)#]+?)\)", open(p).read()):
                t = m.group(1)
-               if not t.startswith("http") and not os.path.exists(
-                       os.path.normpath(os.path.join(dirpath, t))):
+               if t.startswith("http"):
+                   continue
+               if t.startswith(".."):
+                   print("UPWARD", p, t); bad += 1
+                   continue
+               base = "." if t.startswith("/") else dirpath
+               if not os.path.exists(os.path.normpath(base + "/" + t)):
                    print("DANGLING", p, t); bad += 1
    sys.exit(1 if bad else 0)
    EOF
@@ -66,7 +74,7 @@ Helpers are not entry points of their own.
    report it with a proposed leaf address —
    an unaddressable path is a defect of the tree,
    per the address rule in
-   [`handbook/operations/triage/`](../../../handbook/operations/triage/README.md).
+   [`handbook/operations/triage/`](/handbook/operations/triage/README.md).
 
 5. **Backreferences** (judgment).
    The tree is the single source of truth;
@@ -94,5 +102,5 @@ Helpers are not entry points of their own.
 
 The rules define, this skill enforces:
 when the two disagree,
-[`handbook/meta/handbook/`](../../../handbook/meta/handbook/README.md)
+[`handbook/meta/handbook/`](/handbook/meta/handbook/README.md)
 is the authority, and the fix lands there first.

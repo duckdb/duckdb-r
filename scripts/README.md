@@ -9,23 +9,23 @@ One row per file,
 with the purpose taken from the file's own header line
 and the grouping from the handbook leaf that owns the topic —
 ownership by topic, navigation by place
-([the rules](../handbook/meta/handbook/README.md)).
-Root of the documentation tree: [`handbook/`](../handbook/).
+([the rules](/handbook/meta/handbook/README.md)).
+Root of the documentation tree: [`handbook/`](/handbook/).
 
-## [`architecture/glue/`](../handbook/architecture/glue/)
+## [`architecture/glue/`](/handbook/architecture/glue/)
 
 | File | Purpose |
 |---|---|
 | [`format.py`](format.py) | Format the source directory; driven by the Makefile's format-* targets. |
 | [`python_helpers.py`](python_helpers.py) | Shared file helpers for the Python scripts in this directory (imported by format.py). |
 
-## [`architecture/r-layer/`](../handbook/architecture/r-layer/)
+## [`architecture/r-layer/`](/handbook/architecture/r-layer/)
 
 | File | Purpose |
 |---|---|
 | [`rethrow.R`](rethrow.R) | Generate R/rethrow-gen.R from R/cpp11.R: wrap each rapi_* binding to rethrow errors with call context; sourced by .Rprofile on repo load. |
 
-## [`branches/flavors/`](../handbook/branches/flavors/)
+## [`branches/flavors/`](/handbook/branches/flavors/)
 
 | File | Purpose |
 |---|---|
@@ -33,26 +33,26 @@ Root of the documentation tree: [`handbook/`](../handbook/).
 | [`flavor.patch`](flavor.patch) | — |
 | [`flavor.sh`](flavor.sh) | Apply a package flavor: rewrite scripts/flavor.patch to the target name (say, duckdb.dev), apply it, and commit the rename; see BRANCHES.md. |
 
-## [`build/configuration/`](../handbook/build/configuration/)
+## [`build/configuration/`](/handbook/build/configuration/)
 
 | File | Purpose |
 |---|---|
 | [`setup-makeflags.R`](setup-makeflags.R) | Setup MAKEFLAGS for parallel compilation. |
 
-## [`build/fast-paths/`](../handbook/build/fast-paths/)
+## [`build/fast-paths/`](/handbook/build/fast-paths/)
 
 | File | Purpose |
 |---|---|
 | [`install-duckdb-cli.sh`](install-duckdb-cli.sh) | Download the standalone DuckDB CLI matching the vendored DuckDB sources under src/duckdb/. |
 | [`install-libduckdb.sh`](install-libduckdb.sh) | Install the libduckdb prebuilt binary matching the vendored DuckDB sources under src/duckdb/. |
 
-## [`meta/handbook/`](../handbook/meta/handbook/)
+## [`meta/handbook/`](/handbook/meta/handbook/)
 
 | File | Purpose |
 |---|---|
 | [`README.md`](README.md) | (this index) |
 
-## [`operations/ci/per-commit/`](../handbook/operations/ci/per-commit/)
+## [`operations/ci/per-commit/`](/handbook/operations/ci/per-commit/)
 
 | File | Purpose |
 |---|---|
@@ -72,13 +72,13 @@ Root of the documentation tree: [`handbook/`](../handbook/).
 | [`rcc-push.sh`](rcc-push.sh) | Commit the orphan `rcc` worktree and push it, re-deriving on conflict. |
 | [`rcc-run-fields.jq`](rcc-run-fields.jq) | The subset of a GitHub workflow-run object that a record on the `rcc` branch carries, applied to `gh api repos/{owner}/{repo}/actions/runs/<id>`. |
 
-## [`operations/vendoring/`](../handbook/operations/vendoring/)
+## [`operations/vendoring/`](/handbook/operations/vendoring/)
 
 | File | Purpose |
 |---|---|
 | [`VENDORING.md`](VENDORING.md) | DuckDB R Package Vendoring |
 
-## [`operations/vendoring/pipeline/`](../handbook/operations/vendoring/pipeline/)
+## [`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/)
 
 | File | Purpose |
 |---|---|
@@ -89,7 +89,7 @@ Root of the documentation tree: [`handbook/`](../handbook/).
 | [`vendor-rfuns.sh`](vendor-rfuns.sh) | Vendor the rfuns extension: copy sources from a duckdb-rfuns checkout into src/ and commit with the upstream log, one commit per import. |
 | [`vendor.sh`](vendor.sh) | Vendors DuckDB sources from the upstream repository (manual vendoring). |
 
-## [`operations/vendoring/series-loop/`](../handbook/operations/vendoring/series-loop/)
+## [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/)
 
 | File | Purpose |
 |---|---|
@@ -99,7 +99,7 @@ Root of the documentation tree: [`handbook/`](../handbook/).
 | [`series-forward-build.sh`](series-forward-build.sh) | Populate `<S>-fwd-build`: replay every vendor commit of the old `<S>-build` onto HEAD, which must be the freshly flavored seed on current `main` (.claude/ski... |
 | [`series-port.sh`](series-port.sh) | Bring a series' -dev branch level with `main` — stage 4 of the series loop (.claude/skills/series-loop.md). |
 
-## [`testing/snapshots/`](../handbook/testing/snapshots/)
+## [`testing/snapshots/`](/handbook/testing/snapshots/)
 
 | File | Purpose |
 |---|---|
