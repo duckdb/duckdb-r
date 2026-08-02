@@ -15,10 +15,11 @@ R -q -e "testthat::test_local(filter = '^(array|bind)$')" # exactly these two
 several named files are an alternation,
 and one file is anchored to keep it from matching its neighbours.
 
-`test_local()` runs the directory directly and never reads
-`tests/testthat.R`, so the CRAN guard in that file
-([`guards/`](/handbook/testing/guards/README.md))
-gates `R CMD check` only — the local loop is never gated.
+`test_local()` runs directly and unconditionally,
+without reading `tests/testthat.R`.
+The CRAN guard lives in that file
+([`guards/`](/handbook/testing/guards/README.md)),
+so it gates `R CMD check` only — the local loop is never gated.
 With the fast path set up
 ([`build/fast-paths/`](/handbook/build/fast-paths/README.md))
 the edit-test loop stays in the seconds range.
