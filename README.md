@@ -77,7 +77,8 @@ The badges track each `.dev` series:
 *ahead* counts commits ahead of the branch the series releases from,
 *in flight* counts commits in CI but not yet trusted,
 *buffered* counts commits vendored but not yet verified.
-See [`BRANCHES.md`](BRANCHES.md) for the full model.
+See [`handbook/branches/model/`](/handbook/branches/model/README.md)
+for the full model: the series, their refs, and how each one advances.
 
 ## User Guide
 
@@ -92,8 +93,10 @@ and coding agents.
 
 * [`AGENTS.md`](AGENTS.md) — working on the package:
   build, test, and where to look for everything else
-* [`BRANCHES.md`](BRANCHES.md) — branch model, package flavors,
-  series invariants
+* [`handbook/branches/`](/handbook/branches/README.md) — the branch model:
+  [the series and their refs](/handbook/branches/model/README.md),
+  package flavors, series invariants
+  (what is not yet moved is still in [`BRANCHES.md`](BRANCHES.md))
 * [`RELEASE.md`](RELEASE.md) — the release process
 * [`scripts/VENDORING.md`](scripts/VENDORING.md) — vendoring mechanics
 * [`plan/README.md`](plan/README.md) — designs, plans, and historical
