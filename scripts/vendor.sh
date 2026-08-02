@@ -74,12 +74,36 @@ for commit in $original; do
   echo "R: configure"
   DUCKDB_PATH="$upstream_dir" python3 scripts/rconfigure.py
 
+  # The patch stack, classified in three: a patch that applies forward is
+  # applied; one that reverses cleanly is already in the regenerated tree,
+  # so its change landed upstream and it is retired; one that does neither
+  # has genuinely broken -- the code it patches moved -- and deleting it
+  # would silently lose an R-side fix, so the run stops instead.
+  # scripts/vendor-one.sh has the same three-way split and the same exit 4.
+  #
+  # `--reverse` needs `--forward` beside it: on its own it prompts
+  # ("Unreversed patch detected!  Ignore -R? [n]") and hangs a run whose
+  # stdin is a terminal.
   for f in patch/*.patch; do
     if patch -i "$f" -p1 --forward --dry-run; then
       patch -i "$f" -p1 --forward --no-backup-if-mismatch
-    else
-      echo "Removing patch $f"
+    elif patch -i "$f" -p1 --reverse --forward --dry-run; then
+      echo "Removing patch $f (its change is already in the regenerated tree)"
       rm "$f"
+    else
+      echo ""
+      echo "=== PATCH BROKEN: $f (upstream ${commit}) ==="
+      echo "It neither applies forward nor reverses cleanly, so its change is"
+      echo "not in the regenerated tree and cannot be re-applied: the code it"
+      echo "patches moved."
+      echo "The regenerated sources for ${commit} are in the working tree,"
+      echo "uncommitted, and the upstream clone is kept."
+      echo "Rebase $f against them, keeping the rebased patch outside the tree,"
+      echo "then 'git checkout -- .' and put it back."
+      echo "Before rerunning, remove ./duckdb or pass it as the argument:"
+      echo "this script always clones, so a leftover clone makes it fail."
+      echo "Delete $f only after confirming its change is genuinely upstream."
+      exit 4
     fi
   done
 
