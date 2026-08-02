@@ -56,7 +56,8 @@ parallelism and `ccache` among them,
 are [`build/configuration/`](/handbook/build/configuration/README.md).
 
 The sequence assumes a toolchain that is already working —
-R 4.2.0 or newer, a C++ compiler, `make` —
+the R version `DESCRIPTION` names in `Depends`,
+a C++ compiler, `make` —
 and installs none of it.
 It also assumes Linux or macOS:
 `configure` rejects `DUCKDB_R_USE_SYSTEM_LIB` on any other system,
