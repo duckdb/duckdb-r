@@ -17,9 +17,6 @@ and one file is anchored to keep it from matching its neighbours.
 
 `test_local()` runs directly and unconditionally,
 without reading `tests/testthat.R`.
-The CRAN guard lives in that file
-([`guards/`](/handbook/testing/guards/README.md)),
-so it gates `R CMD check` only — the local loop is never gated.
 With the fast path set up
 ([`build/fast-paths/`](/handbook/build/fast-paths/README.md))
 the edit-test loop stays in the seconds range.
