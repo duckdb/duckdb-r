@@ -2,15 +2,15 @@
 
 *Stub — this leaf will own its topic;
 today it routes to where the knowledge lives.
-The writing protocol is in [`meta/handbook/`](../../meta/handbook/);
+The writing protocol is in [`meta/handbook/`](/handbook/meta/handbook/);
 the last section holds this leaf's parameters.*
 
 Scope: the CRAN test guard and the flavor-name guard.
 
 Today:
 
-* [`scripts/flavor-package-name.R`](../../../scripts/flavor-package-name.R)
-* [`AGENTS.md`](../../../AGENTS.md)
+* [`scripts/flavor-package-name.R`](/scripts/flavor-package-name.R)
+* [`AGENTS.md`](/AGENTS.md)
 
 To write this leaf:
 
