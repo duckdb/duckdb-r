@@ -22,14 +22,15 @@ one record per commit at `runs2.d/<xx>/<sha>.ndjson`,
 a failing commit's whole log at `logs2/<sha>.log`,
 and `runs2.ndjson` holding the same records concatenated
 for commits that predate the per-commit layout.
-A matrix leg publishes its record within seconds of deciding a commit,
-and `rcc-logs.yaml` sweeps every 30 minutes for whatever a leg could not publish.
+A matrix leg publishes its record as soon as it has decided a commit,
+and [`rcc-logs.yaml`](/.github/workflows/rcc-logs.yaml) sweeps on its own
+schedule for whatever a leg could not publish.
 The record is what decides whether a commit counts as judged;
 the `rcc` commit status is a display surface on the commit list.
 The store's shape and its writers belong to
 [`ci/per-commit/`](/handbook/operations/ci/per-commit/README.md).
 
-Three commands answer "what is vendored here, and when did it last move":
+These commands answer "what is vendored here, and when did it last move":
 
 ```bash
 grep duckdb_version R/version.R            # the DuckDB version string
@@ -59,7 +60,7 @@ by scanning back over recent commits that touched `src/duckdb/`
 and taking the first `duckdb/duckdb@<sha>` they find in a subject.
 The pathspec narrows the walk and the subject decides,
 so patch-stack fixes — which edit the vendored tree in place and carry no
-upstream SHA — are looked past, twenty commits deep by default.
+upstream SHA — are looked past, as deep as `BASE_SCAN_DEPTH` allows.
 
 Coming up empty is not an answer, and neither script guesses.
 An empty base makes the enumeration read `..<HEAD>`,
@@ -67,20 +68,21 @@ whose missing left side git resolves to the upstream clone's `HEAD` —
 a range nobody chose, silently vendoring the wrong span —
 so both refuse and name the bound they hit.
 
-Two causes, with different fixes:
+The causes, with their different fixes:
 
 * **A vendor subject was reworded or squashed away.**
   The subject line is the only record of the base,
   so restore a well-formed `vendor: … duckdb/duckdb@<sha>` subject;
   its exact format is
   [`pipeline/`](/handbook/operations/vendoring/pipeline/README.md)'s.
-* **The branch genuinely stacks more than twenty non-vendoring commits
-  under `src/duckdb/`.**
+* **The branch genuinely stacks more non-vendoring commits under
+  `src/duckdb/` than the scan reaches.**
   Raise `BASE_SCAN_DEPTH`.
   The message says the scan hit its bound only when it actually did,
   so its absence points at the first cause instead.
-  The same bound is written into `series-advance.sh` and `series-check.sh`
-  as a literal twenty, so a branch that needs a raise here needs them changed too.
+  The same bound is hard-coded in `series-advance.sh` and `series-check.sh`,
+  which read no such variable,
+  so a branch that needs a raise here needs them changed too.
 
 ## The glue gate stops the walk
 
@@ -97,12 +99,12 @@ The gate runs *after* the commit, so the breaking vendor commit is already at
 so the walk can resume once the glue is fixed.
 The failing files are also left in `/tmp/vendor-one-glue-failures.txt`.
 
-The check is `g++ -fsyntax-only` over `src/*.cpp`, four files at a time,
+The check is `g++ -fsyntax-only` over `src/*.cpp`, several files in parallel,
 with the compile flags derived from `R CMD SHLIB -n` so they match the local setup.
-It costs about twenty seconds, links nothing and starts no R session,
+It costs seconds, links nothing and starts no R session,
 which is what makes it affordable once per commit.
 Nearly every upstream break is a C++ API change the glue has to follow,
-and the gate catches it here rather than fifteen minutes into a build.
+and the gate catches it here rather than deep into a full build.
 
 Fix the glue in `src/*.cpp` and `src/include/`, never in `src/duckdb/`,
 run `clang-format`, amend into `HEAD` appending an `R-side fix` section
@@ -175,12 +177,14 @@ series loop.
 
 Missing is not failed, and `series-check.sh` says `WAIT` rather than `REPAIR`.
 Rule out the cheap explanations from what git can see before doing anything:
-the harvest may be stale — compare the age of the `rcc` branch tip against its
-thirty-minute schedule — and the run may simply be queued behind a large push.
+the harvest may be stale — compare the age of the `rcc` branch tip against
+`rcc-logs.yaml`'s sweep schedule — and the run may simply be queued behind a
+large push.
 
 Only then is the run presumed lost.
-The series loop's rule is twelve hours, and its recovery is the
-`retry-<S>-dev` ref, which re-judges one commit on its own SHA
+The series loop's playbook sets how long to wait before that,
+and its recovery is the `retry-<S>-dev` ref,
+which re-judges one commit on its own SHA
 instead of amending it and re-minting every descendant.
 
 Nothing schedules a replan.
