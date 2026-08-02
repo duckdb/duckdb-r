@@ -41,6 +41,16 @@ has exactly one place in this tree.
   so a traversal still finds it.
   The tree needs no separate map of what lives outside;
   the leaves are the map.
+* **Intent lives outside the tree.**
+  A plan describes work that is not done;
+  the handbook describes how the system works today.
+  So plans stay in [`plan/`](/plan/), outside `handbook/` —
+  a decision taken, not a leftover.
+  [`meta/plans/`](/handbook/meta/plans/) explains that directory
+  and the conventions that govern it,
+  and each affected leaf links the plan that carries its intent.
+  A plan that has become fact is documented as fact,
+  in the leaf, with no trace of its having once been a proposal.
 * **The tree is the single source of truth.**
   Everything outside it is secondary —
   user-facing surfaces (the root `README.md`, reference pages),
@@ -189,6 +199,18 @@ Where no index covers a document, it carries its own:
   Never a roxygen `#'` line:
   `handbook/` is `.Rbuildignore`d,
   so a reference page linking into it would be broken for users.
+* *Generated files* — the backreference belongs in the **generator**,
+  in the template the generated file is rendered from,
+  so that it survives the next regeneration.
+  Editing the generated file to add one is writing in sand.
+
+Two kinds of file take no backreference at all.
+A file covered by a generated index is already carried by it.
+And **outbound correspondence takes none** —
+`cran-comments.md` is not documentation of a topic
+but a letter whose whole text reaches a CRAN maintainer verbatim,
+so the link to it is one-way,
+and that asymmetry is correct rather than an orphan.
 
 **A link that leaves its own directory is written from the repository
 root**, with a leading `/` — `/handbook/usage/types/`, not
@@ -206,6 +228,71 @@ which discourages exactly the upward form and nothing else.
 The cost is that such a link does not resolve in a local Markdown
 preview, which has no notion of a repository root;
 the handbook is read on GitHub, and that is the trade taken.
+
+**A leaf states what stays true as the code moves.**
+A number that a normal commit invalidates —
+how many translation units, how many test files,
+how many seconds a build takes —
+is not a fact worth stating but a hostage to the next contributor,
+and a reader who trusts it is worse off than one who looked.
+Name the mechanism instead:
+the file that lists the translation units is durable,
+the count is not.
+Where the count carries no argument, cut it;
+where a qualitative statement will do, prefer it.
+Two things survive this rule.
+A measurement stays if the text says it is a measurement
+and against what — a measurement with provenance ages honestly,
+where a bare number pretends to be current.
+And a count stays when it *is* the design:
+the two version counters, the states of the release machine.
+Changing a load-bearing number means changing the design,
+which is exactly why stating it is safe.
+
+The working test is whether the prose names its members.
+"Two identifiers travel with the vendored copy" is durable
+when the next clause names both,
+because the set cannot change without the sentence changing with it;
+"forty-four files register S4 methods this way" is a hostage,
+because nothing in the sentence breaks when the forty-fifth lands.
+A list is safe, a tally is not,
+and the same number can be either depending on what surrounds it.
+
+**A fact known to be provisional carries the link to what will change it.**
+The rules already say a leaf points at the plan
+that carries its intent;
+intent also lives as an issue, ours or upstream,
+and those count the same.
+Without the link a reader cannot tell
+"this is how it works" from "this is how it works for now",
+and the two call for different decisions.
+With it, the leaf records that we already know —
+so the next reader does not re-derive the finding,
+and the acknowledgement is not lost
+the way it is when it lives only in a code comment
+or a pull-request thread.
+A behaviour that survives only because nobody has fixed it yet
+is documented as such, with its issue,
+and stops being documented that way when the issue closes.
+
+A **default is a fact**, and belongs in the prose with its value.
+How many commits a pass consumes,
+how large a chunk the planner cuts,
+what a knob does when nobody sets it —
+these govern behaviour,
+and a reader who has to open the script to learn them
+has been sent away for the thing they came for.
+Name the value *and* where it is set,
+so the leaf stays useful when the two drift apart —
+and when a document has long claimed the wrong default,
+say so, or the wrong number comes back.
+
+Positional reference fails the same way.
+"Neither of the first two is in force"
+and "the first two, as `$pkg` and `$env`"
+break silently when a list above them is reordered,
+which is not even a change to the subject matter.
+Name the thing.
 
 All prose in the tree uses [semantic line breaks](https://sembr.org).
 
