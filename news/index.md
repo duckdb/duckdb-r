@@ -1,5 +1,100 @@
 # Changelog
 
+## duckdb 1.5.5.9005
+
+### Bug fixes
+
+#### rcc
+
+- Do not restore the persistent ccache under R-devel
+  ([\#2455](https://github.com/duckdb/duckdb-r/issues/2455)).
+
+#### vendor
+
+- Bound the base scan and say when it comes up empty
+  ([\#2434](https://github.com/duckdb/duckdb-r/issues/2434)).
+
+#### configure
+
+- Drop a stale `Makevars.system-lib` so a vendored build is one
+  ([\#2446](https://github.com/duckdb/duckdb-r/issues/2446)).
+
+#### rconfigure
+
+- Drop bundled jemalloc from the generated source list.
+
+### Features
+
+#### series-loop
+
+- Set the firing up, and make the tooling PR a stage
+  ([\#2441](https://github.com/duckdb/duckdb-r/issues/2441)).
+
+#### each
+
+- Select work from the verdict store, not from statuses
+  ([\#2440](https://github.com/duckdb/duckdb-r/issues/2440)).
+
+#### series
+
+- Make cutover a manual operation the loop only suggests
+  ([\#2449](https://github.com/duckdb/duckdb-r/issues/2449)).
+
+#### series-loop
+
+- Vendor with `main`’s script, into the buffer worktree
+  ([\#2436](https://github.com/duckdb/duckdb-r/issues/2436)).
+
+### Documentation
+
+- Propose the handbook — a strict topic hierarchy with full cover, first
+  two levels ([\#2454](https://github.com/duckdb/duckdb-r/issues/2454)).
+
+#### scripts
+
+- Give every script an extractable one-line header
+  ([\#2453](https://github.com/duckdb/duckdb-r/issues/2453)).
+
+#### readme
+
+- Fix the `duckdb.1.4.dev` badge ranges
+  ([\#2452](https://github.com/duckdb/duckdb-r/issues/2452)).
+
+#### plan
+
+- Mirror the release branches from the fork, not from `sync.yaml`
+  ([\#2450](https://github.com/duckdb/duckdb-r/issues/2450)).
+
+#### readme
+
+- Point the `duckdb.dev` badges at the cut-over `main` series
+  ([\#2451](https://github.com/duckdb/duckdb-r/issues/2451)).
+
+- Quarantine the superseded loop design and the `main-dev` review
+  ([\#2438](https://github.com/duckdb/duckdb-r/issues/2438)).
+
+#### each
+
+- State that there is no running marker, and why
+  ([\#2439](https://github.com/duckdb/duckdb-r/issues/2439)).
+
+### Refactoring
+
+#### series-port
+
+- Let the subject decide what a vendor commit is
+  ([\#2435](https://github.com/duckdb/duckdb-r/issues/2435)).
+
+#### ci
+
+- Retire the legacy per-commit dispatch path
+  ([\#2442](https://github.com/duckdb/duckdb-r/issues/2442)).
+
+### Uncategorized
+
+- Feat(rcc-one): Bound each stage with its own timeout
+  ([\#97](https://github.com/duckdb/duckdb-r/issues/97)).
+
 ## duckdb 1.5.5.9004
 
 ### Continuous integration
