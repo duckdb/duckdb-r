@@ -4,6 +4,8 @@
 
 #include "src/function/scalar/variant/variant_comparator.cpp"
 
+#include "src/function/scalar/variant/variant_contains.cpp"
+
 #include "src/function/scalar/variant/variant_exists.cpp"
 
 #include "src/function/scalar/variant/variant_extract.cpp"
