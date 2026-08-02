@@ -68,7 +68,24 @@ upstream_dir=${project}
 if [ ! -d "$upstream_dir" ]; then
   git clone "$upstream_basedir" "$upstream_dir"
 elif [ "$upstream_basedir" != "$upstream_dir" ]; then
+  # Update existing clone, and put its HEAD back where the source's is.
+  #
+  # `start` below is the clone's HEAD, and the walk checks out every commit it
+  # vendors -- so a clone this script left behind points at the last commit it
+  # touched, not at the tip it was cloned from. The glue gate exits with the
+  # clone deliberately kept ("rerun this script"), and that rerun read the
+  # stopped-on commit as `start`: an empty range, "No more commits to vendor",
+  # and a walk silently truncated at the commit the gate stopped on. Observed on
+  # the 2026-08-02 main-build rebuild, which reported done with 19 upstream
+  # commits still unvendored.
+  #
+  # The source is the authority on what to vendor up to, so re-read it rather
+  # than trusting a HEAD this script itself moved. A detached source HEAD (the
+  # series loop hands us a worktree) has no branch to name, which is why this
+  # resolves a SHA rather than checking out a ref.
   git -C "$upstream_dir" fetch origin
+  git -C "$upstream_dir" checkout -q --detach \
+    "$(git -C "$upstream_basedir" rev-parse --verify HEAD)"
 fi
 
 if [ -n "$(git status --porcelain)" ]; then

@@ -23,7 +23,14 @@ Each strand owns one counter and freezes the other —
 the property the `DESCRIPTION` merge driver depends on
 ([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
 It orders, it does not count:
-gaps from folded repairs are accepted.
+gaps from folded repairs are accepted,
+but the counter must rise strictly across a series' vendor commits —
+r-universe installs by version,
+so two commits sharing one are two it cannot tell apart.
+A replayed chain does not inherit that for free:
+the merge driver keeps the replay target's `Version:` line
+through every cherry-pick,
+so the chain is restamped before it is pushed.
 
 A released version is the bare three-component prefix, matching
 the upstream tag, set explicitly with

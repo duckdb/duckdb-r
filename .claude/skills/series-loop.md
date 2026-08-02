@@ -186,7 +186,7 @@ Then:
 If no glue fix can help
 because the vendored tree itself is broken at that commit,
 vendor on and fold the broken commit
-into the upstream commit that repairs it —
+into the next one, when that repairs it —
 the fold rule in stage 2;
 the broken tree never stands alone on the chain.
 
@@ -239,7 +239,7 @@ Classify each `failure` by what its log (`logs2/<sha>.log`) **contains**:
 |---|---|---|
 | `Updating snapshots: '…'` | engine output drifted, or a flavor-dependent snapshot | fold the corrected files from `snapshot-<sha>-rcc-smoke-null` |
 | `Error ('test-….R:N:M')` | real test failure | fix test/R code at origin |
-| the cause is in `src/duckdb/` itself and a later vendor commit fixes it | upstream was transiently broken | fold the vendor commits into one (below) |
+| the cause is in `src/duckdb/` itself and the next upstream commit fixes it | upstream was transiently broken | fold the pair into one; if the next one is red too, forward-port (below) |
 | `Changes detected in workflow_dispatch build` | style / roxygen drift | fix formatting at origin |
 | a gate reached out and was refused — `cannot open URL`, `SSL connect error`, a refused or reset connection — while the tests themselves passed | infra, not the tree | rerun the commit: `retry-<S>-dev` (below) |
 | none of the above and no test phase | cancelled or infra | rerun the commit: `retry-<S>-dev` (below) |
@@ -256,30 +256,30 @@ If other failures have a demonstrably different cause,
 they may be fixed in the same pass;
 otherwise let CI re-judge the tail.
 
-**A transiently broken upstream commit is folded away, not fixed.**
-When the failure's cause lies in the vendored tree itself —
-upstream did not build or pass at that commit —
-and a later vendor commit (usually the next) repairs it,
-there is nothing to adapt on the R side:
-fold the failing vendor commit into the one that fixes it,
-so the broken tree never stands alone on the chain.
-One commit remains, carrying the newer commit's tree
-(the gap this leaves in the fifth version component is fine —
-the counter orders, it does not count)
-and a **carefully reconstructed message**:
-keep the newer commit's `vendor: … duckdb/duckdb@<sha>` subject,
-because the subject is machine-readable state
-and must name the tree's actual upstream commit;
-move the folded commit's upstream SHA and subject into the body,
-marked as folded because it does not pass on its own;
-keep any `R-side fix` sections from both.
-If upstream stayed broken for a span,
-the whole span folds into the commit that repairs it.
-Mirror the fold in `<S>-build` (force-push; it carries no CI),
-so the buffer never again offers the broken commit
-and `-build`/`-dev` equivalence by vendored SHA stays intact.
-Paid for on the rewind chain:
-a transient upstream build failure had to be squashed into its follow-up.
+**A transiently broken upstream commit is folded into the next one,
+when the next one fixes it.**
+Squash the adjacent pair, and only that pair.
+Keep the newer commit's `vendor: … duckdb/duckdb@<sha>` subject —
+the subject is machine-readable state and must name the tree it carries —
+and record the folded SHA and subject in the body,
+marked as not passing on its own.
+Keep any `R-side fix` sections from both.
+The gap this leaves in the fifth component is fine:
+the counter orders, it does not count.
+Mirror the fold in `<S>-build` (force-push; it carries no CI).
+
+**Forward-port only when the next commit is red too** —
+the build stays red for at least one commit that has to remain,
+and there is no adjacent green tree to squash into.
+Then re-root the fixing diff into `patch/00NN-*.patch`,
+fold that into the breaking vendor commit
+with an `R-side fix` section,
+and let it retire itself:
+every vendor run deletes a patch that no longer applies,
+so the commit reaching upstream's fix drops it as part of itself.
+
+Both treatments, and how to choose, are spelt out in
+[`handbook/operations/vendoring/troubleshooting/`](/handbook/operations/vendoring/troubleshooting/).
 
 Before force-pushing a repair,
 **build and check it locally** at the repaired commit
@@ -452,12 +452,28 @@ rebases to empty and is dropped the same way (`series-rebase.md`).
 
 ### 5. Extend `<S>-dev`
 
-If everything between `<S>-green` and the `<S>-dev` tip is green
-(or the tip equals `-green`),
-append the next ≤ 100 commits from `<S>-build` and push.
+Append the next ≤ 100 commits from `<S>-build` and push,
+**whether or not the commits already in flight have reported**.
+A commit that has not been judged yet is not a reason to hold the buffer:
+the budget is 100 and the buffer is rarely near it,
+so waiting for a full CI cycle before topping it up
+costs a cycle per firing and buys nothing —
+`each.yaml` plans every commit in `<S>-green..tip` without a status,
+so a longer tip is simply more work planned in the same pass.
+
+A **known failure** does stop the stage.
+Once a commit in `<S>-green..<S>-dev` has reported `failure`,
+stage 2 is going to fold a fix into it and replay everything above,
+so anything appended now is work minted only to be re-minted.
+Extend on pending, never on red.
 While `-dev` sits on `-build`'s line this is a plain ref move;
 after a repair it is a replay of the buffer commits
 onto the repaired tip —
+which is where the version counter is lost:
+the `ours-version` merge driver keeps green's `Version:`
+through every replayed commit,
+so **restamp the fifth component before pushing**
+(invariant below) —
 `series-advance.sh` does both,
 anchoring on the `-build` commit equivalent to
 `-dev`'s newest **vendor** commit.
@@ -656,7 +672,8 @@ is what carries the automatic path into a forward series.
 ## Commit-message contract
 
 - `-build`: the vendor message as `vendor-one.sh` writes it,
-  plus an `R-side fix` section when the glue was adapted in that commit.
+  plus an `R-side fix` section when the glue was adapted in that commit,
+  or a transient `patch/` entry was folded in to repair the tree.
 - `-dev`: the same message,
   extended with any test / R code / patch adaptations
   folded in during repair.
@@ -700,6 +717,32 @@ is what carries the automatic path into a forward series.
   never stacked on top:
   every commit of `<S>-dev` must remain independently green
   so the chain stays bisectable.
+- **Every vendor commit raises the fifth version component.**
+  `DESCRIPTION:Version` must be strictly greater
+  than its parent's on every commit that vendors,
+  on `-build` and on `-dev` alike.
+  The counter is what orders the series —
+  r-universe installs by version,
+  and a run of commits sharing one version
+  is a run r-universe cannot tell apart.
+  Gaps are fine; repeats are not.
+
+  The merge driver does not currently deliver this.
+  `ours-version` exists so a replay does not conflict
+  on the `Version:` line at every single commit,
+  and it keeps *our* side — which on a replay onto `<S>-green`
+  is green's version, for the whole chain.
+  A 40-commit `main-dev` came out of the 2026-08-02 firing
+  reading `1.5.99.9003.1039` from end to end.
+  Until the driver is fixed,
+  **restamp the counter after any replay**
+  and before pushing `-dev`:
+  walk the new commits oldest first
+  and reapply one bump per vendor commit
+  from the parent's value.
+  Check it, do not assume it —
+  a replay that silently froze the counter
+  looks exactly like one that did not.
 - Git alone is sufficient in principle:
   even a rerun is one pushed ref —
   `retry-<S>-dev`, which asks for one commit to be judged again

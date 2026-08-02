@@ -7,7 +7,8 @@
 # one verdict per series:
 #
 #   ADVANCE            every in-flight commit has a success run
-#   WAIT               runs still missing from the harvest (age of harvest shown)
+#   WAIT               runs still missing from the harvest (age of harvest shown);
+#                      green holds, but the buffer may still extend onto -dev
 #   RETRY <sha> <why>  the oldest failure, and nothing in the commit caused it
 #   REPAIR <sha> <why>  the oldest failure and its classification
 #
@@ -264,7 +265,13 @@ for S in "${series[@]}"; do
       echo "         $desc"
     fi
   elif [ "$missing" -gt 0 ]; then
-    echo "  WAIT   $missing run(s) not harvested yet"
+    # Pending verdicts hold green, not the buffer: stage 5 extends on pending
+    # and stops only on red (.claude/skills/series-loop.md stage 5).
+    if [ "$buffered" != 0 ]; then
+      echo "  WAIT   $missing run(s) not harvested yet — green holds, buffer may still extend"
+    else
+      echo "  WAIT   $missing run(s) not harvested yet"
+    fi
   elif [ "$inflight" -eq 0 ] && [ "$buffered" = 0 ]; then
     echo "  IDLE   nothing in flight, buffer empty — vendor"
   else
