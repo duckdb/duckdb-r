@@ -26,7 +26,6 @@ the boundaries that matter when choosing work:
 
 Verdicts and closes are the maintainer's —
 [`operations/triage/`](/handbook/operations/triage/README.md) —
-so comment on an issue before starting; nothing in the vocabulary
-records who is working on what.
+so comment on an issue before starting.
 Longer-range intent lives in [`plan/`](/plan/README.md)
 ([`meta/plans/`](/handbook/meta/plans/README.md)).
