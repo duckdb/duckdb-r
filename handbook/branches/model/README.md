@@ -72,7 +72,10 @@ while CI works through what has already been consumed.
 Consumption is bounded:
 [`scripts/series-advance.sh`](/scripts/series-advance.sh)
 appends at most one chunk of `-build` commits to `-dev` per pass,
-the chunk size an optional argument whose default the script names.
+a hundred by default, overridable per call.
+The bound is what keeps a pass reviewable
+and keeps a red run from stranding an unbounded backlog;
+`BRANCHES.md` long said twenty-five, which was never the default.
 
 Which `-build` commit corresponds to which `-dev` commit
 is decided by the `duckdb/duckdb@<sha>` reference in the commit subject,
