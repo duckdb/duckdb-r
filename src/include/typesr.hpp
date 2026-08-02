@@ -229,4 +229,4 @@ struct RRawSexpType : public RSexpType {
 
 } // namespace duckdb
 
-duckdb::case_insensitive_map_t<duckdb::vector<duckdb::Value>> ListToVectorOfValue(cpp11::list input_sexps);
+duckdb::identifier_map_t<duckdb::vector<duckdb::Value>> ListToVectorOfValue(cpp11::list input_sexps);
