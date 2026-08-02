@@ -129,10 +129,19 @@ between the scope sentence and the list of children.
 It survives three tests,
 and a sentence that fails any one of them belongs to a leaf instead:
 
-* **It cannot be checked by reading one leaf.**
-  A statement a single child settles is that child's.
-  A principle is confirmed only by reading the children together,
-  or by looking at how the area is divided at all.
+* **A leaf yet to be written could falsify it.**
+  This is the sharp form of "no single leaf settles it",
+  and the two differ in the case that matters.
+  A statement one leaf settles *in full* is that leaf's,
+  however tree-wide it feels —
+  nothing a later leaf says could make it false,
+  which is what tells you it is finished and owned.
+  A statement each leaf settles only for itself,
+  and which holds of the area only because all of them do,
+  is the node's: a child added tomorrow could break it,
+  and that exposure is exactly what makes it a claim about the area.
+  A conjunction of finished claims is a summary;
+  a generalisation over instances is a principle.
 * **It has the lifetime of the child list.**
   An internal node may go stale only when its children change,
   which is when the node is being edited anyway.
@@ -152,6 +161,28 @@ which means the sentence was the leaf's all along.
 This is what preserves the guarantee that navigation-only bought:
 a paraphrase of the leaves below fails all three tests at once,
 so the rule that admits principles still excludes summaries.
+
+**No page writes `duckdb` as though it were the package's name.**
+The name is a run-time question:
+one source tree is published under several names,
+and which one a build carries is decided by the branch it sits on
+([`branches/flavors/`](/handbook/branches/flavors/README.md)).
+A page that qualifies our own objects with it,
+or tells a reader to call the package by it,
+is therefore wrong under every flavor but the mainline one.
+Write around the name, or say how to ask for it.
+This is checkable mechanically, and nothing else checks it:
+the scan that catches a hard-coded name in the shipped sources
+does not reach this tree, and says so as one of its limits
+([`testing/guards/`](/handbook/testing/guards/README.md)),
+so `handbook/` is the consistency skill's to cover.
+Three spellings are correct and are not violations —
+the repository, which is `duckdb-r`;
+the engine and the upstream project, which are DuckDB's own and not ours;
+and a flavor named as a flavor,
+where the mainline one is called `duckdb` alongside the others.
+What the rule is about is the *package's* name in prose
+that a rename would falsify.
 
 **An absorbed file goes away.**
 There are no tombstones:
