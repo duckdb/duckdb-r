@@ -88,7 +88,7 @@ without invariant 3, the step cannot be tested at all.
 That is the whole reason a package repository replays upstream history
 commit by commit rather than jumping to the next release.
 
-The price is paid in four places:
+The price is paid in several places:
 
 * **Every vendorable upstream commit gets its own build and testsuite run.**
   A backlog of *n* commits costs *n* builds; there is no shortcut.
@@ -161,10 +161,10 @@ The enumeration then started from the v1.5 base,
 whose oldest entries are commits `main` accumulated
 after the fork point but *before* the release.
 The first mainline vendor commit therefore moved the vendored sources
-backwards in time — to a `main` commit two weeks older than `v1.5.0` —
-while simultaneously landing 101 first-parent commits past the fork point
-in a single step.
-Those hundred-odd upstream commits were never built against the glue,
+backwards in time — to a `main` commit predating the release —
+while simultaneously landing everything `main` had accumulated
+past the fork point, in a single step.
+None of that upstream work was ever built against the glue,
 and a bisect across that one commit answers nothing.
 
 The rule that avoids it:
