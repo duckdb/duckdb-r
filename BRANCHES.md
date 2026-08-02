@@ -1,11 +1,17 @@
 # Branching Strategy
 
+*Handbook: [`branches/`](/handbook/branches/README.md) —
+its leaves state the current model, flavors, and invariants,
+and are absorbing this file section by section;
+where the two disagree, the leaf is right.*
+
 Version numbers are given at the time of writing (March 2026) and may be outdated by the time you read this.
 The branching strategy is expected to remain stable.
 
 This document defines the branch model, the package flavors, and the
 **[series invariants](#series-invariants)**. For the release process itself —
-modelled as a finite state machine — see [`RELEASE.md`](RELEASE.md).
+modelled as a finite state machine — see
+[`operations/releases/process/`](/handbook/operations/releases/process/README.md).
 
 ## Package Components
 
@@ -85,7 +91,6 @@ duckdb-r/
 │   ├── rcc-decided.sh              # Commits the rcc branch has a verdict for
 │   ├── rcc-merge.sh                # Bring runs2.ndjson level with the records
 │   ├── rcc-consolidate.sh          # Manual: GC old logs, squash the rcc branch
-│   ├── EACH.md                     # Sharded per-commit CI design (→ see §Vendoring)
 │   └── VENDORING.md                # Supplementary vendoring notes (→ see §Vendoring)
 ├── .github/
 │   └── workflows/
@@ -314,7 +319,7 @@ A **series** is one DuckDB minor line `L` together with its branches: `stable`
 `dev-base`. The following invariants hold across all branches of a series. Each
 is phrased to be **checkable** — most can be enforced by a dev-branch health
 workflow — and each is referenced by name from the release FSM in
-[`RELEASE.md`](RELEASE.md), which must preserve them at every step.
+[`operations/releases/process/`](/handbook/operations/releases/process/README.md), which must preserve them at every step.
 
 State relationships as **tree diffs**, not ancestry: `main` is maintained as a
 rebuilt/linear history and shares no merge-base with the parked `vX-codename`
@@ -559,7 +564,7 @@ TBD.
 
 This is the most common release event, and it is described in full as the
 **CUT** and **RESET** clusters of the release FSM in
-[`RELEASE.md`](RELEASE.md#cut--release-execution). In summary, once upstream tags
+[`operations/releases/process/`](/handbook/operations/releases/process/README.md#cut--release-execution). In summary, once upstream tags
 `v1.4.5`: the daily vendoring lands the tagged commit on `v1.4-andium-dev`
 (state 1), `each.yaml` proves it green, the pending window is reviewed (state 2),
 `dev-base` is fast-forwarded to the tagged commit (state 3), the commit is merged
@@ -578,7 +583,7 @@ loop** (`.claude/skills/series-loop.md`) — which discovers every series from
 its refs and serves them all in one firing.
 Each series `<S>` has four branches:
 `<S>-build` (every upstream commit vendored, glue compiling, no CI),
-`<S>-dev` (consumed from `-build` up to 25 commits at a time; CI builds every
+`<S>-dev` (consumed from `-build` in bounded chunks — default 100, `scripts/series-advance.sh`; CI builds every
 commit), `<S>-green` (fast-forwarded to the newest all-green commit; what
 r-universe should build from), and `<S>-build-base` (the `-build` commit
 equivalent to `-green`). CI builds the `.dev` package per commit via
@@ -592,7 +597,7 @@ For this reason, the `-dev` branches are checked commit by commit via `each.yaml
 so a batch is one run to cancel, the R setup is paid per shard rather than per commit,
 and adjacent commits reuse the runner's local ccache;
 the per-commit `rcc` marker is unchanged.
-See [`scripts/EACH.md`](scripts/EACH.md) for the design and its limits.
+See [`operations/ci/per-commit/`](/handbook/operations/ci/per-commit/README.md) for the design and its limits.
 
 Bisectability is a property of the whole branch, not of individual commits, so it needs three things at once:
 a **linear** first-parent history without merge commits,
@@ -708,7 +713,7 @@ the first step of any CI job that rebases, cherry-picks, or merges — to regist
 | `scripts/merge-version.sh`      | Git merge driver for `DESCRIPTION`: combines the 4th/5th version counters, gated on an equal prefix         |
 | `scripts/setup-git.sh`          | Registers the merge driver in `.git/config`, enables `rerere`, pins `rebase.backend=merge` (run per clone)  |
 | `.github/workflows/sync.yaml`   | Hourly fast-forward of `krlmlr/main` from `duckdb/main`                                                    |
-| `.github/workflows/each.yaml`   | Builds every statusless commit on push to `*-dev` branches, as a sharded matrix (see [`scripts/EACH.md`](scripts/EACH.md)) |
+| `.github/workflows/each.yaml`   | Builds every statusless commit on push to `*-dev` branches, as a sharded matrix (see [`operations/ci/per-commit/`](/handbook/operations/ci/per-commit/README.md)) |
 | `.github/workflows/rcc-consolidate.yaml` | Manual (`workflow_dispatch`) consolidation of the `rcc` branch; dry run by default                 |
 | `.github/workflows/fledge.yaml` | Daily version-bump PRs via `fledge`                                                                        |
 

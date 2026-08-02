@@ -4,9 +4,17 @@ The handbook is a strict topic hierarchy with full cover:
 every aspect of this package that may need documentation
 has exactly one place in this tree.
 
-* **Internal nodes navigate, only.**
-  An internal `README.md` is a scope sentence
+* **Internal nodes navigate, and may govern.**
+  An internal `README.md` is a scope sentence,
+  optionally the principles that govern its area,
   and a nested list of its subdirectories — nothing else.
+  A principle is why the area is divided as it is,
+  or a constraint every leaf under it obeys;
+  it belongs to the node because no single leaf could state it
+  without reaching past its own scope.
+  Anything one leaf could state is that leaf's,
+  and an internal node never repeats it
+  (the tests are among [the forms](#the-forms)).
   The root additionally sketches each area's contents,
   naming the next level in prose —
   names, not links, so the sketch cannot rot.
@@ -16,7 +24,7 @@ has exactly one place in this tree.
 * **Leaves own their boundaries.**
   A leaf states not only how its topic works
   but also its limits, its declined requests with their reasons,
-  and — where intent exists — a pointer to the plan that carries it.
+  and — where intent exists — a pointer to the plan or issue that carries it.
   "Can it do X?" is answered at X's leaf, whichever way it goes.
 * **Full cover.**
   Every fact is reachable by walking down from
@@ -47,45 +55,56 @@ has exactly one place in this tree.
   in the roxygen source under `R/` —
   `man/*.Rd` is generated and never edited.
   A secondary document without a backreference is an orphan.
-* **Stubs are visible debt.**
-  A leaf that is not yet written says so in its first line
-  and routes to where the knowledge lives today.
+* **A leaf is born small and grows in place.**
+  Three depths are legitimate published states.
+  A **reference** leaf states its scope
+  and where the knowledge lives today.
+  A **core** leaf additionally states the load-bearing facts —
+  defaults, boundaries, the answers issues keep asking for —
+  and still points elsewhere for the rest.
+  A **comprehensive** leaf answers its topic in full,
+  so a reader never has to leave the tree for it.
+  Comprehensive is the end state, not the entry bar;
+  a leaf below it says what remains in a single closing line
+  ([the forms](#the-forms)),
+  which is this tree's only form of visible debt.
 
-## Writing a leaf
+## Growing a leaf
 
-Every stub ends with a "To write this leaf" section:
-that leaf's parameters — sources to absorb, issues to drain,
-facts to verify.
-The protocol is the same for every leaf,
-and it is written for an agent starting with clean context:
+The tree deepens one leaf per change, by three moves.
+Any of them is a complete, mergeable pull request:
 
-* **Move, don't copy.**
-  Absorbed text leaves its old home in the same change,
-  replaced by a pointer to the leaf.
-  Every secondary surface the leaf serves —
-  a root `README.md` section, a reference page,
-  a directory index — gains a backreference to the leaf.
-  Free-floating `.md` files shrink as their content lands here;
-  a fully absorbed file goes away, and its directory's in-place
-  `README.md` — the index GitHub renders there — routes on in its place.
+1. **Close an issue into its leaf.**
+   An issue closed without a code change is closed
+   *with* a documentation change:
+   the answer, workaround, or limitation lands in the leaf
+   that owns the topic, the closing comment links it,
+   and the leaf links the issue from the text that answers it.
+   The verdicts, and where each routes the knowledge,
+   are [`operations/triage/`](/handbook/operations/triage/README.md)'s.
+2. **Absorb a document, or one section of one.**
+   Absorbed text leaves its old home in the same change,
+   replaced by a one-line pointer to the leaf;
+   a fully absorbed file is deleted, not left as a redirect,
+   and anything that linked to it is updated.
+   Prose may be rewritten — the handbook's voice is tighter
+   than its sources' —
+   but a rewrite that loses a fact is a regression, not an edit.
+3. **Deepen from the ground truth.**
+   Write what the code, scripts, and workflows actually do,
+   and cite the file that proves it.
+
+Whichever move, the same protocol:
+
 * **Verify before you state.**
-  Check every behavioral claim against the ground truth the stub
-  names; check engine-configuration claims against a vendored
+  Check every behavioral claim against the ground truth;
+  check engine-configuration claims against a vendored
   build, never under `DUCKDB_R_USE_SYSTEM_LIB=1`.
-* **Drain the issues.**
-  An issue listed in the stub closes when its answer is written
-  into the leaf; link the issue from the text that answers it.
-  Start from the triage (`operations/triage/` names the source):
-  for many listed issues the answer is already drafted there —
-  consume it, don't re-derive it.
-  An issue whose verdict is a fix stays open;
-  the leaf states today's behavior and links it as a boundary.
 * **Stay inside the scope line.**
   A fact beyond it belongs to another leaf — link, don't absorb.
 * **Finish clean.**
-  Delete the "To write this leaf" section and the stub notice;
-  keep internal nodes navigation-only;
-  leave no dangling links.
+  Update the leaf's closing deepen line — or delete it
+  when nothing remains — and leave no dangling links.
 
 ## The forms
 
@@ -94,12 +113,43 @@ these are the shapes the tree has settled on for doing it.
 They exist so that leaves written independently read as one document.
 
 **A written leaf** opens with its H1
-and then a scope sentence in ordinary prose —
-no `Scope:` label, that scaffolding belongs to stubs —
+and then a scope sentence in ordinary prose,
 and continues with the content.
-The scope sentence survives the stub because the tree's shape
-depends on every leaf declaring its boundary.
+The scope sentence is load-bearing at every depth:
+the tree's shape depends on every leaf declaring its boundary.
 A one-screen leaf needs no headings; a longer one uses `##`.
+
+**A deepen line** is the last line of a leaf
+that is not yet comprehensive:
+one italic sentence naming what deepening absorbs,
+verifies, or drains —
+`*To deepen: absorb `BRANCHES.md` § …; drain #….*` —
+kept current by every change to the leaf,
+and deleted by the change that completes it.
+A leaf with no deepen line asserts it is comprehensive.
+
+**A principle on an internal node** is a short paragraph, or a few,
+between the scope sentence and the list of children.
+It survives three tests,
+and a sentence that fails any of them belongs to a leaf instead:
+a leaf yet to be written could falsify it
+(a generalisation over the children, not a summary of one);
+it has the lifetime of the child list
+(a fact an ordinary commit could falsify has a leaf);
+and it names no particulars —
+no paths, scripts, variables, versions, counts, or commands.
+A node whose leaves share no such constraint gets no principle;
+where an area has a leaf whose topic is the area's own rules,
+the principles are that leaf's, and the node stays navigation-only.
+
+**No page writes `duckdb` as though it were the package's name.**
+One source tree is published under several names
+([`branches/flavors/`](/handbook/branches/flavors/README.md)),
+so prose that calls the package `duckdb` is wrong under every
+other flavor: write "the package", or say how to ask for the name.
+The repository (`duckdb-r`), the engine and upstream project
+(DuckDB), and a flavor named as a flavor (`duckdb` among them)
+are not violations.
 
 **An absorbed file goes away.**
 There are no tombstones:
@@ -157,9 +207,6 @@ The cost is that such a link does not resolve in a local Markdown
 preview, which has no notion of a repository root;
 the handbook is read on GitHub, and that is the trade taken.
 
-Prose absorbed into a leaf may be rewritten —
-the handbook's voice is tighter than its sources' —
-but a rewrite that loses a fact is a regression, not an edit.
 All prose in the tree uses [semantic line breaks](https://sembr.org).
 
 ## Enforcement
@@ -168,7 +215,7 @@ Consistency is agent work.
 The checks — every source path maps to a leaf,
 every secondary document backreferences its node,
 every link resolves, generated indexes are fresh,
-stubs carry their work orders —
+every leaf's depth matches its deepen line —
 run as the `docs-consistency` skill
 (`.claude/skills/docs-consistency/`),
 invoked when documentation is touched

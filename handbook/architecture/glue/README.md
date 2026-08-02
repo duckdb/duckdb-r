@@ -1,25 +1,60 @@
 # The C++ glue
 
-*Stub — this leaf will own its topic;
-today it routes to where the knowledge lives.
-The writing protocol is in [`meta/handbook/`](/handbook/meta/handbook/);
-the last section holds this leaf's parameters.*
+The translation units in `src/` that bridge R and DuckDB,
+and the conventions that govern C++ source in this package.
+The engine underneath is
+[`engine/`](/handbook/architecture/engine/README.md).
 
-Scope: the translation units bridging R and DuckDB —
-cpp11, `RStrings`, ALTREP relations, error rethrow —
-and the C++ source conventions:
-formatting, and the no-warning-suppression policy.
+**The roster.**
+`src/` holds two disjoint bodies of code:
+the vendored engine under `src/duckdb/`,
+and the glue translation units directly in `src/`,
+listed in [`src/include/glue.mk`](/src/include/glue.mk)'s `GLUE`
+variable —
+the split that lets the
+[fast paths](/handbook/build/fast-paths/README.md)
+compile the glue alone.
+[`src/include/rapi.hpp`](/src/include/rapi.hpp) is the central
+header: the external-pointer wrappers that carry engine objects
+through R, every entry point,
+`DUCKDB_PACKAGE_NAME` (the C++ half of the flavor seam),
+and `DUCKDB_R_POISON_GUARD()` (the C++ half of the CRAN guard).
 
-Today:
+**cpp11 is vendored, not depended on** —
+`inst/include/cpp11/` carries the copy.
+An entry point is a function marked `[[cpp11::register]]`;
+`cpp11::cpp_register()` writes both halves of the binding
+(`src/cpp11.cpp`, `R/cpp11.R`), which are generated and never
+edited.
 
-* [`AGENTS.md`](/AGENTS.md) — "C++ Glue Code Conventions"
-  and "C++ Warning Policy"
-* [`scripts/format.py`](/scripts/format.py) —
-  formats `src/`, driven by the Makefile's `format-*` targets
+**`RStrings`.**
+R string constants and `Rf_install()` symbols used from C++
+live in `struct RStrings` (`rapi.hpp`, built in `src/utils.cpp`) —
+allocated once, preserved for the session.
+Always add there rather than calling `Rf_mkString()` or
+`Rf_install()` inline: an inline allocation in a conversion loop
+runs per row, on exactly the paths that move data.
 
-To write this leaf:
+**No warning is suppressed.**
+CRAN rejects `-Wno-*` flags and `#pragma` silencing;
+fix the root cause instead,
+and for vendored code fix it as a patch under `patch/`
+or upstream
+([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
+Formatting runs through the Makefile `format-*` targets,
+driving [`scripts/format.py`](/scripts/format.py).
 
-* absorb: `AGENTS.md` §§ "C++ Glue Code Conventions" and
-  "C++ Warning Policy" — the `RStrings` rule, no warning
-  suppression; formatting runs via the Makefile `format-*` targets
-* drain: #540, #1147, #1796
+**ALTREP relations.**
+`rapi_rel_to_altrep()` wraps an unexecuted relation as a data
+frame; nothing runs until R touches the values,
+materialization is budgeted, and an execution error is stored and
+re-raised at every later access.
+Raising an R error from inside an ALTREP method is the known weak
+point — a crash-class bug with a guard under review
+([#1796](https://github.com/duckdb/duckdb-r/issues/1796),
+[#1797](https://github.com/duckdb/duckdb-r/pull/1797)).
+
+*To deepen: absorb the per-unit responsibility table and the error
+rethrow path from the sources; drain
+[#540](https://github.com/duckdb/duckdb-r/issues/540),
+[#1147](https://github.com/duckdb/duckdb-r/issues/1147).*

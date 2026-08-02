@@ -6,7 +6,7 @@ kept as design context.
 It lives under `plan/` because it is history, not routing:
 what the pipeline does *today* is owned by
 [`scripts/VENDORING.md`](/scripts/VENDORING.md) (mechanics),
-[`scripts/EACH.md`](/scripts/EACH.md) (per-commit CI),
+[`scripts/EACH.md`](/handbook/operations/ci/per-commit/README.md) (per-commit CI),
 and the skills in `.claude/skills/` (procedure).
 Nothing here is current except the measurements in Appendix A,
 which the sharded matrix still cites.
@@ -33,10 +33,10 @@ three repair skills in `.claude/skills/`.
 | Concern | Today | Mechanism |
 |---|---|---|
 | **Vendor** upstream C++ into `*-dev` | hourly, commit-by-commit, ≤30/run | `vendor.yaml` → `scripts/vendor-one.sh ./duckdb --commits 30` |
-| **Trigger** per-commit CI | fire-and-forget dispatch, no cap | `each.yaml` → `scripts/each-rcc.sh` → `gh workflow run rcc -f ref=<sha>` (since superseded by the sharded matrix, [`scripts/EACH.md`](/scripts/EACH.md)) |
+| **Trigger** per-commit CI | fire-and-forget dispatch, no cap | `each.yaml` → `scripts/each-rcc.sh` → `gh workflow run rcc -f ref=<sha>` (since superseded by the sharded matrix, [`scripts/EACH.md`](/handbook/operations/ci/per-commit/README.md)) |
 | **Build / smoke-test** a commit | one independent `rcc` run per commit | `R-CMD-check.yaml` (job *Smoke test: stock R*) |
 | **Record** the result marker | commit-status `rcc` = pending/success/failure | `R-CMD-check-status.yaml` (via `workflow_run`) |
-| **Harvest** logs to ground truth | **delayed**, 4×/day | `rcc-logs.yaml` → `scripts/rcc-logs.sh` → orphan branch `rcc` (`runs2.ndjson`, `logs2/<sha>.log`). Since [`scripts/EACH.md`](/scripts/EACH.md) §3 the `each-rcc` legs publish their own records as each commit is decided, and this is the backstop. |
+| **Harvest** logs to ground truth | **delayed**, 4×/day | `rcc-logs.yaml` → `scripts/rcc-logs.sh` → orphan branch `rcc` (`runs2.ndjson`, `logs2/<sha>.log`). Since [`scripts/EACH.md`](/handbook/operations/ci/per-commit/README.md) §3 the `each-rcc` legs publish their own records as each commit is decided, and this is the backstop. |
 | **Repair** a red commit | fork `broken-<sha>-dev`, amend the failing commit, **cherry-pick (replay) the whole tail**, force-push | skill `rcc-smoke-fix.md` |
 | **Advance** a repaired branch | cherry-pick next 30 vendor commits, matched by vendored upstream SHA | skill `advance-green-dev.md` |
 | **Self-heal** transient breaks | squash (window 1) / transient patch (≥2) | skill `rcc-smoke-fix-self-heal.md` |
@@ -180,7 +180,7 @@ Invariants:
 
 > **Landed, in narrower form.** This primitive is now implemented inside the
 > existing `each.yaml` rather than as a separate `rcc-matrix.yaml`, because the
-> commit-selection semantics were already there. See [`scripts/EACH.md`](/scripts/EACH.md) for
+> commit-selection semantics were already there. See [`scripts/EACH.md`](/handbook/operations/ci/per-commit/README.md) for
 > what was built, the GitHub Actions limits it works within, and two corrections
 > to the analysis below: within-shard reuse comes from **ccache**, not
 > incremental `make` (§4.2), and the reverse-include estimator of §4.3 exists as

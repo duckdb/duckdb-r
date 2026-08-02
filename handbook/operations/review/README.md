@@ -1,22 +1,24 @@
 # Review
 
-*Stub — this leaf will own its topic;
-today it routes to where the knowledge lives.
-The writing protocol is in [`meta/handbook/`](/handbook/meta/handbook/);
-the last section holds this leaf's parameters.*
-
-Scope: pull-request flow —
-what a review checks, who drives CI to green,
+Pull-request flow: what a review checks, who drives CI to green,
 and the stewardship routines that watch open pull requests.
+Little of this is written down yet; the flow lives in practice.
 
-Today:
+What is settled:
 
-* no single owner today;
-  [`.github/copilot-instructions.md`](/.github/copilot-instructions.md)
-  carries a fragment
+* Pull requests target `main` and merge without a merge commit,
+  keeping the history linear
+  ([`branches/invariants/`](/handbook/branches/invariants/README.md)).
+* A review checks the change against the owning leaves of this
+  handbook — the invariants, the flavor seam, the no-suppression
+  policy — and that snapshots changed only where the diff explains
+  them ([`testing/snapshots/`](/handbook/testing/snapshots/README.md)).
+* The author drives CI to green; formatting suggestions arrive on
+  the PR from the format workflow
+  ([`operations/ci/workflows/`](/handbook/operations/ci/workflows/README.md)).
+* Scheduled agent routines steward open PRs — watching CI,
+  rebasing, and answering review comments — under the same rule
+  as every routine: automation prepares, a person concludes.
 
-To write this leaf:
-
-* write the pull-request flow: what a review checks, who drives CI
-  to green, how stewardship routines watch open PRs;
-  absorb the fragment in `.github/copilot-instructions.md`
+*To deepen: write the flow from lived practice — what a steward
+may do unprompted, what needs the maintainer.*

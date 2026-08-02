@@ -1,22 +1,22 @@
 # `plan/` — designs, decisions, and history
 
-This directory holds documents that are *not* part of the routing tree's
+*Handbook: [`meta/plans/`](/handbook/meta/plans/README.md)
+owns this directory's conventions.*
+
+This directory holds documents that are *not* part of the
 description of how the system works today:
 plans for work that is not finished,
 and records of designs and reviews that have been superseded.
-Both roots — [`README.md`](/README.md) for users and
-[`AGENTS.md`](/AGENTS.md) for maintainers and coding agents — point here,
-and this file is what names the contents,
+This file is what names the contents,
 so nothing under `plan/` is an orphan.
 
-What is current lives elsewhere, and is owned there:
-[`BRANCHES.md`](/BRANCHES.md) for the branch model,
-[`RELEASE.md`](/RELEASE.md) for the release process,
-[`scripts/VENDORING.md`](/scripts/VENDORING.md) for vendoring mechanics,
-[`scripts/EACH.md`](/scripts/EACH.md) for per-commit CI,
-and [`.claude/skills/`](/.claude/skills/) for the routine's playbooks.
+What is current is owned by the
+[handbook](/handbook/README.md) —
+walking down from its root finds the leaf for any topic —
+with [`.claude/skills/`](/.claude/skills/) holding the routines'
+machine-loaded playbooks.
 A document here may describe something that has since changed;
-when the two disagree, the owner above is right.
+when the two disagree, the handbook leaf is right.
 
 ## Plans — work proposed or in progress
 

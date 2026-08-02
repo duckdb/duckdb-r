@@ -8,6 +8,11 @@
 
 # duckdb
 
+*Handbook: [`usage/installation/`](handbook/usage/installation/README.md)
+owns where to install from;
+everything else about this repository is in the
+[handbook](handbook/README.md).*
+
 [DuckDB](https://duckdb.org/) is an in-process SQL OLAP database management system.
 It is designed to support analytical query workloads and is optimized for fast query execution.
 This repository contains the R bindings for DuckDB.
@@ -85,19 +90,14 @@ See the [R API in the DuckDB documentation](https://duckdb.org/docs/api/r).
 
 ## Documentation
 
-Documentation is organized as a tree;
-this section is its root for users,
-and [`AGENTS.md`](AGENTS.md) is the root for maintainers
-and coding agents.
-
-* [`AGENTS.md`](AGENTS.md) — working on the package:
-  build, test, and where to look for everything else
-* [`BRANCHES.md`](BRANCHES.md) — branch model, package flavors,
-  series invariants
-* [`RELEASE.md`](RELEASE.md) — the release process
-* [`scripts/VENDORING.md`](scripts/VENDORING.md) — vendoring mechanics
-* [`plan/README.md`](plan/README.md) — designs, plans, and historical
-  documents, each named there by path
+Everything this repository documents is reachable from the
+[handbook](handbook/README.md), a strict topic hierarchy;
+[`AGENTS.md`](AGENTS.md) is the door for maintainers and coding
+agents, and [`plan/README.md`](plan/README.md) names the designs,
+plans, and historical documents.
+[`BRANCHES.md`](BRANCHES.md) and
+[`scripts/VENDORING.md`](scripts/VENDORING.md) hold detail the
+handbook is still absorbing.
 
 ## Building
 
@@ -116,6 +116,9 @@ Then, install:
 
 Set the `MAKEFLAGS` environment variable to `-j8` or similar for parallel builds.
 Configure `ccache` for faster repeated builds.
+A build that links a prebuilt engine and finishes in seconds,
+and the remaining knobs, are described in the handbook under
+[`build/`](handbook/build/README.md).
 
 If you wish to test new DuckDB functionality with duckdb-r, make sure your clone of `duckdb-r` is one level deeper than your clone of `duckdb` (e.g. `R/duckdb-r` and `duckdb`).
 Then run the following commands:

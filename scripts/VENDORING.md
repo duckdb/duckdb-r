@@ -1,5 +1,10 @@
 # DuckDB R Package Vendoring
 
+*Handbook: [`operations/vendoring/`](/handbook/operations/vendoring/README.md) —
+its leaves state the model, the pipeline, the loop, and the
+troubleshooting map, and are absorbing this file section by
+section; where the two disagree, the leaf is right.*
+
 This document covers the mechanics of vendoring:
 what the scripts do, which invariants a dev branch must satisfy, how a new dev line is started,
 and how to troubleshoot a failing run.
@@ -237,7 +242,7 @@ which is what keeps invariant 3 checkable.
 It groups them into contiguous shards balanced by predicted build cost
 and gives each shard one job that walks its commits in a single workspace;
 the per-commit `rcc` status is written exactly as before.
-See [`EACH.md`](EACH.md).
+See [`per-commit builds`](/handbook/operations/ci/per-commit/README.md).
 
 The `stale`/`undecided` split keeps the loop patient with commits that are
 legitimately still building,
@@ -597,13 +602,13 @@ git log -1 --grep="^vendor:" --format=%s   # upstream commit it came from
 - `scripts/rcc-one.sh` - The per-commit `rcc` gate
 - `scripts/each-harvest.sh` - Folds the shards' results onto the orphan `rcc` branch
 - `scripts/rcc-part-push.sh` - Publishes one commit's result to the `rcc` branch from the leg that decided it
-- `scripts/rcc-decided.sh` - Lists the commits the `rcc` branch has a verdict for; what work selection reads (see [`EACH.md`](EACH.md))
+- `scripts/rcc-decided.sh` - Lists the commits the `rcc` branch has a verdict for; what work selection reads (see [`per-commit builds`](/handbook/operations/ci/per-commit/README.md))
 - `scripts/rcc-merge.sh` - Brings `runs2.ndjson` level with the records in `runs2.d/`
 - `scripts/rcc-consolidate.sh` - Manual: makes the layouts agree, GCs logs older than a month, squashes the `rcc` branch
 - `scripts/rconfigure.py` - Regenerates `src/duckdb/`, `src/include/sources.mk`, `R/version.R`
 - `scripts/setup-git.sh` - Registers the `DESCRIPTION` merge driver, `rerere`, and `rebase.backend=merge`
 - `scripts/merge-version.sh` - The merge driver itself (see [Version counters and the merge driver](#version-counters-and-the-merge-driver))
-- `.github/workflows/each.yaml` - Per-commit CI as a sharded matrix (see [`EACH.md`](EACH.md))
+- `.github/workflows/each.yaml` - Per-commit CI as a sharded matrix (see [`per-commit builds`](/handbook/operations/ci/per-commit/README.md))
 - `patch/*.patch` - R-specific patches applied to vendored code
   (see [Patch Stack](/BRANCHES.md#patch-stack))
 

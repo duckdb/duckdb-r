@@ -1,19 +1,25 @@
 # The matrix
 
-*Stub — this leaf will own its topic;
-today it routes to where the knowledge lives.
-The writing protocol is in [`meta/handbook/`](/handbook/meta/handbook/);
-the last section holds this leaf's parameters.*
+[`.github/versions-matrix.R`](/.github/versions-matrix.R) encodes
+which platforms and R versions the `rcc` check covers,
+and it is the ground truth this page maps.
 
-Scope: [`.github/versions-matrix.R`](/.github/versions-matrix.R):
-platforms, R versions, and the fast-path defaults.
+The shape: current and recent R on Linux, macOS, and Windows,
+extended by named special entries —
 
-Today:
+* **engine poisoning** — builds the engine with the
+  `-DDUCKDB_R_POISON_ENGINE` tripwire and forces
+  `DUCKDB_R_RUN_TESTS=false`,
+  verifying that the CRAN guards keep the engine untouched
+  ([`testing/guards/`](/handbook/testing/guards/README.md));
+* **vendored builds** — one Linux and one macOS entry pin
+  `DUCKDB_R_USE_SYSTEM_LIB=0` so the CRAN-shaped artifact still
+  compiles, because regular Linux and macOS entries default to the
+  fast path via
+  `.github/workflows/custom/before-install/action.yml`
+  ([`build/fast-paths/`](/handbook/build/fast-paths/README.md));
+  Windows always builds from source.
 
-* [`AGENTS.md`](/AGENTS.md) — "Testing with prebuilt DuckDB"
-
-To write this leaf:
-
-* absorb: what `.github/versions-matrix.R` encodes (platforms,
-  R versions, the pinned vendored-build entry) and the fast-path
-  defaults in `.github/workflows/custom/before-install`
+Entries carry extra environment through the generic `env` field —
+the mechanism by which one matrix row can flip any knob
+([`build/configuration/`](/handbook/build/configuration/README.md)).

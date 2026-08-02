@@ -1,18 +1,41 @@
 # Flavors
 
-*Stub — this leaf will own its topic;
-today it routes to where the knowledge lives.
-The writing protocol is in [`meta/handbook/`](/handbook/meta/handbook/);
-the last section holds this leaf's parameters.*
+One source tree, published under several package names.
+A flavor is a mechanical rename applied on top of a series'
+branch — nothing else distinguishes one published package from
+another.
 
-Scope: one source tree published under many names
-(`duckdb`, `duckdb.dev`, `duckdb.1.5.dev`, …).
+CRAN carries one version of one name at a time,
+and DuckDB cuts a minor roughly every four months,
+so a release line that must stay installable beside the current
+one needs its own name; LTS lines receive fixes for a year.
+Because the names differ, flavors coexist in one library.
 
-Today:
+| Flavor | Kind | Built from | Upstream series |
+|---|---|---|---|
+| `duckdb` | CRAN, also r-universe | `main` in `duckdb/duckdb-r` | `v1.5-variegata` |
+| `duckdb.1.4` | LTS, r-universe | `v1.4-andium-lts` | `v1.4-andium` |
+| `duckdb.dev` | dev, r-universe | the `main` series in the fork | `main` |
+| `duckdb.1.5.dev` | dev, r-universe | the `v1.5-variegata` series | `v1.5-variegata` |
+| `duckdb.1.4.dev` | dev, r-universe | the `v1.4-andium` series | `v1.4-andium` |
 
-* [`BRANCHES.md`](/BRANCHES.md#r-package-flavors)
+There is no `duckdb.1.5`: v1.5 is not an LTS line,
+and the current release already ships as `duckdb`.
+The `Flavors` table in the root [`README.md`](/README.md) is where
+a new flavor is announced.
 
-To write this leaf:
-
-* absorb: `BRANCHES.md` § "R package flavors" and the flavor tooling
-  (`scripts/flavor.sh`, `flavor.patch`, `flavor-package-name.R`)
+**The rename surface** is small and closed:
+`DESCRIPTION`'s `Package:`, the `@useDynLib` and package-topic
+lines (with `NAMESPACE` and the package `.Rd` patched directly),
+the `DUCKDB_PACKAGE_NAME` macro, the renamed public C++ header
+(`duckdb.1.5.dev` → `duckdb_1_5_dev_types.hpp`),
+the `library()` call in `tests/`, the README blurb —
+plus `src/cpp11.cpp` / `R/cpp11.R` *regenerated*, because cpp11
+derives the `.Call` symbol prefix from the name.
+[`scripts/flavor.sh`](/scripts/flavor.sh) takes the suffix
+(`1.4`, `1.5.dev`, `dev`) and applies
+[`scripts/flavor.patch`](/scripts/flavor.patch).
+Everywhere else the package asks for its name at run time
+([`architecture/r-layer/`](/handbook/architecture/r-layer/README.md));
+the scan that keeps it that way is
+[`testing/guards/`](/handbook/testing/guards/README.md)'s.

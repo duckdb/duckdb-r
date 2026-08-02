@@ -125,7 +125,7 @@ groups <- list(
   ),
   list(
     owner = "handbook/operations/ci/per-commit",
-    globs = c("EACH.md", "each-*", "rcc-*")
+    globs = c("each-*", "rcc-*")
   ),
   list(
     owner = "handbook/branches/flavors",
