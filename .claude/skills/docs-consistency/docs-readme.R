@@ -180,7 +180,7 @@ owner_heading <- function(g) {
     stop("dangling owner: ", g$owner)
   }
   name <- paste0(sub("^handbook/", "", g$owner), "/")
-  rel <- paste0("../", g$owner, "/")
+  rel <- paste0("/", g$owner, "/")
   paste0("## [`", name, "`](", rel, ")")
 }
 
@@ -201,8 +201,8 @@ out <- c(
   "with the purpose taken from the file's own header line",
   "and the grouping from the handbook leaf that owns the topic —",
   "ownership by topic, navigation by place",
-  "([the rules](../handbook/meta/handbook/README.md)).",
-  "Root of the documentation tree: [`handbook/`](../handbook/).",
+  "([the rules](/handbook/meta/handbook/README.md)).",
+  "Root of the documentation tree: [`handbook/`](/handbook/).",
   ""
 )
 
