@@ -1,5 +1,7 @@
 # R Package Release Process
 
+*Handbook: [`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md).*
+
 This document describes the release process for one DuckDB release line as a
 **finite state machine (FSM)**. It is the operational companion to
 [`BRANCHES.md`](BRANCHES.md), which defines the branch model, the package
@@ -198,17 +200,13 @@ Bring the tagged `dev` content onto `stable` **linearly — never as a merge
 commit** (invariant **L**): fast-forward or rebase the tagged range onto
 `stable`, dropping the `flavor.sh` flavor rename. The `DESCRIPTION` version conflict
 is resolved automatically by the merge driver (see
-[BRANCHES.md → Version Numbering](BRANCHES.md#version-numbering)); run
+[`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)); run
 `scripts/setup-git.sh` first if this is a fresh clone or CI runner. Because
 `release-content ⊑ dev-base ⊑ dev` (invariant **A1**), the only rewriting is
 dropping the rename commit.
 
-The package version is **not** derived from the git tag — set it explicitly so
-`DESCRIPTION` matches the upstream tag:
-
-```r
-fledge::bump_version("X.Y.Z")
-```
+Then set the release version with `fledge` — it is not derived from the git tag;
+see [`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md).
 
 Then rebase the `lts` branch (one rename commit on top of `stable`):
 
@@ -254,9 +252,8 @@ git push krlmlr L-dev-base --force-with-lease
 git push krlmlr L-dev-base:L-dev --force-with-lease
 ```
 
-The glue source of truth (`main`) separately moves to its ongoing development
-version (4th component, e.g. `X.Y.Z.9000`) via `fledge`; the `dev` branches then
-resume bumping the 5th (vendor) component from the new baseline.
+The version counters move on afterwards too; see
+[`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md).
 
 ## Multi-line coordination
 
