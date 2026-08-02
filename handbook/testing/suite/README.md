@@ -30,8 +30,7 @@ named for the `R/` file they cover,
 the DuckDB feature they round-trip,
 or a shared prefix for multi-pass areas;
 the file name is the unit of selection.
-Beside them: `helper-*.R` (sourced before the first test)
-and `setup.R`,
+Beside them: `helper-*.R` and `setup.R`,
 then `data/` (Parquet fixtures, reached via `test_path()` or as bare
 relative paths inside SQL),
 and `_snaps/`
