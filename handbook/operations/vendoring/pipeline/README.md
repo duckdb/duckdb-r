@@ -2,7 +2,7 @@
 
 *Stub — this leaf will own its topic;
 today it routes to where the knowledge lives.
-The writing protocol is in [`meta/handbook/`](../../../meta/handbook/);
+The writing protocol is in [`meta/handbook/`](/handbook/meta/handbook/);
 the last section holds this leaf's parameters.*
 
 Scope: `vendor-one.sh`, `rconfigure.py`, the patch stack,
@@ -11,8 +11,8 @@ mergeable across vendor commits.
 
 Today:
 
-* [`scripts/VENDORING.md`](../../../../scripts/VENDORING.md)
-* [`scripts/merge-version.sh`](../../../../scripts/merge-version.sh)
+* [`scripts/VENDORING.md`](/scripts/VENDORING.md)
+* [`scripts/merge-version.sh`](/scripts/merge-version.sh)
 * a generated `scripts/` directory index is proposed in
   [#2447](https://github.com/duckdb/duckdb-r/pull/2447)
 
