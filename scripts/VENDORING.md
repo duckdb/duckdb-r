@@ -1,8 +1,10 @@
 # DuckDB R Package Vendoring
 
 This document covers the mechanics of vendoring:
-what the scripts do, which invariants a dev branch must satisfy, how a new dev line is started,
+what the scripts do, how a new dev line is started,
 and how to troubleshoot a failing run.
+Why the engine is vendored at all, and the invariant the mechanics serve,
+are [`operations/vendoring/model/`](/handbook/operations/vendoring/model/README.md).
 For the branch strategy, the complete list of active branches, and the release process, see
 [BRANCHES.md](../BRANCHES.md), which is the authoritative source.
 For the historical design notes that led to the series loop,
@@ -11,15 +13,7 @@ see [history/vendoring-loop.md](../plan/history/vendoring-loop.md)
 
 ## What is Vendoring?
 
-Vendoring is the practice of including a copy of external dependencies directly in your source code repository.
-The duckdb-r package vendors (includes a complete copy of) the DuckDB C++ core library in the `src/duckdb/` directory.
-
-## Why Vendor DuckDB?
-
-- **Self-contained builds**: The R package can be built without requiring users to have DuckDB installed separately
-- **Version compatibility**: Ensures the R bindings work with a specific, tested version of the DuckDB core
-- **CRAN compliance**: Meets CRAN requirements for packages to be self-contained
-- **Reproducible builds**: Eliminates dependency on external DuckDB installations
+What vendoring is, and why this package does it, are [`operations/vendoring/model/`](/handbook/operations/vendoring/model/README.md).
 
 ## Active Dev Branches
 
@@ -40,31 +34,7 @@ the one routine discovers the series from its refs.
 
 ## Dev Branch Invariants
 
-Everything below exists to keep four properties true for every dev branch.
-They are what makes the history useful rather than merely present.
-
-1. **Linear.**
-   First-parent history only, no merge commits.
-   A merge lands a batch of changes as a single step whose components were never built individually.
-2. **One upstream commit per vendor commit.**
-   Each vendor commit corresponds to exactly one upstream commit on the tracked branch,
-   and the vendored SHAs form a **contiguous first-parent walk** of that upstream branch —
-   no gaps, no jumps, no going backwards.
-3. **Green per commit.**
-   Every commit builds and passes the testsuite on its own.
-   That is what `each.yaml` verifies, and what makes `git bisect` meaningful.
-   If a vendor commit needs an R-side fix to build, the fix is folded **into that commit**,
-   never added as a follow-up — a follow-up leaves a red commit in the history forever.
-4. **Auditable R-side delta.**
-   Vendor commits touch only the mechanical path set
-   (`src/duckdb/`, `R/version.R`, `src/include/sources.mk`, `DESCRIPTION`).
-   Anything else in a vendor commit is a folded glue fix,
-   and must be reviewable as a path-filtered diff (see [history/vendoring-loop.md](../plan/history/vendoring-loop.md) §3.4).
-
-Invariant 2 is the one that is easy to lose.
-It is violated the moment a dev branch is re-pointed at a different upstream branch
-without re-basing its vendored history — see
-[Starting a new dev line](#starting-a-new-dev-line-the-fork-point-rule).
+The four properties every dev branch keeps — linear, one upstream commit per vendor commit, green per commit, auditable R-side delta — are stated and reasoned in [`operations/vendoring/model/`](/handbook/operations/vendoring/model/README.md), which keeps this numbering.
 
 ## The Vendoring Scripts
 
@@ -119,7 +89,7 @@ Shared behaviour, in the order it happens:
    the fifth component of `Version:` in `DESCRIPTION` is incremented
    (`1.5.4.9005` → `1.5.4.9005.1` → `…9005.2`),
    so every vendor commit is installable as a distinct version on r-universe.
-8. **Commit** with the message described in [Understanding Vendor Commits](#understanding-vendor-commits).
+8. **Commit** with the message format described in [`operations/vendoring/model/`](/handbook/operations/vendoring/model/README.md).
 
 `vendor-one.sh --commits N` repeats steps 3–8 up to `N` times (the routine uses 100),
 stopping early on a tag or when no candidates remain.
@@ -359,33 +329,14 @@ the `cleanup` script runs `git clean -fdx src` and packs `src/duckdb/` into `src
 
 When upstream cuts a release branch (say `v2.0-<codename>` off `main`),
 the R package gains a new dev line.
-The tempting shortcut — point an existing dev branch at the new upstream branch
-and let `vendor-one.sh` catch up — silently breaks invariant 2,
-because the branch's recorded base is a commit on the *old* upstream line.
+The rule that governs how it starts — a seed vendor commit at the fork point
+of the two upstream branches, then a forward walk one upstream commit at a time —
+is [`operations/vendoring/model/`](/handbook/operations/vendoring/model/README.md),
+together with what goes wrong when a dev branch is re-pointed instead
+and why the fork point is not `git merge-base`.
+Below is how to carry the rule out.
 
-What happens then is worth spelling out, because it happened to `main-dev`:
-
-* `main-dev` was created from the v1.5-era package (vendoring the released `v1.5.0` tree)
-  and re-pointed at upstream `main`.
-* `vendor-one.sh` enumerated `<v1.5 base>..main`,
-  whose oldest entries are the commits `main` accumulated
-  **after the fork point but before the release**.
-  So the first mainline vendor commit moved the vendored sources *backwards* in time —
-  from released `v1.5.0` to a `main` commit two weeks older —
-  while simultaneously skipping ahead:
-  it landed 101 first-parent commits past the fork point in a single step.
-* Those ~100 upstream commits were never built against the R glue,
-  and a `git bisect` across that one commit answers nothing.
-
-The rule that avoids this:
-
-> **A new dev line starts with a vendor commit at the fork point of the two upstream branches,
-> and walks forward from there, one upstream commit at a time.**
-
-The fork point is the newest commit on the **first-parent chain of both** upstream branches.
-It is not `git merge-base`:
-upstream merges the release branch back into `main`,
-which drags the merge base forward to just after the most recent release.
+Computing the fork point, the newest commit on the first-parent chain of both branches:
 
 ```bash
 cd ~/duckdb
@@ -445,28 +396,7 @@ at a point the package already builds against, so it needs no rewind.
 
 ## Understanding Vendor Commits
 
-Vendor commits follow a specific format:
-
-```text
-vendor: Update vendored sources to duckdb/duckdb@<commit_hash>
-
-Date: <author date of the upstream commit>
-
-<subjects of the upstream first-parent commits since the previously vendored commit>
-```
-
-For tagged releases:
-
-```text
-vendor: Update vendored sources (tag v1.x.x) to duckdb/duckdb@<commit_hash>
-```
-
-The subject line is machine-readable state:
-`vendor-one.sh`, `series-advance.sh`, `series-port.sh` and the repair skills
-all recover "where is this branch in upstream history"
-by parsing `duckdb/duckdb@<sha>` out of it.
-Do not reword it, and do not squash vendor commits together
-without keeping the newest SHA in the subject.
+The vendor commit message format, and why the subject line is machine-readable state, are [`operations/vendoring/model/`](/handbook/operations/vendoring/model/README.md).
 
 ## Troubleshooting
 

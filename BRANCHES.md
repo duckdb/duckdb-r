@@ -599,7 +599,7 @@ a **linear** first-parent history without merge commits,
 **one upstream commit per vendor commit** forming a contiguous first-parent walk of the tracked upstream branch,
 and a **green** build for every commit.
 These are stated as invariants, with the reasoning and the failure modes, in
-[Dev Branch Invariants](scripts/VENDORING.md#dev-branch-invariants).
+[`operations/vendoring/model/`](handbook/operations/vendoring/model/README.md).
 
 ### On release
 

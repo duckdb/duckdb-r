@@ -14,7 +14,8 @@ start there rather than searching.
 | Build, test, and validate the package locally | this file (below) |
 | Branch model, package flavors, series invariants | `BRANCHES.md` |
 | Release process, modelled as a state machine | `RELEASE.md` |
-| Vendoring mechanics: scripts, invariants, troubleshooting | `scripts/VENDORING.md` |
+| Why the engine is vendored, and the one-commit-per-upstream-commit invariant | [`handbook/operations/vendoring/model/`](handbook/operations/vendoring/model/README.md) |
+| Vendoring mechanics: scripts, troubleshooting | `scripts/VENDORING.md` |
 | Per-commit CI (sharded matrix): design and limits | `scripts/EACH.md` |
 | Operating the vendoring loop (routine playbooks) | `.claude/skills/`: `series-loop.md`, `series-forward.md`, `series-rebase.md`, `series-open.md` |
 | Designs, plans, and historical documents | `plan/README.md`, which names each by path |
@@ -94,7 +95,7 @@ The duckdb-r package vendors (includes a copy of) the DuckDB C++ core library. K
 
 - **Automated Process**: Runs daily via GitHub Actions in `krlmlr/duckdb-r`, gated on the per-commit `rcc` build status
 - **Branch Strategy**: one dev branch per upstream branch (`main-dev` ← `main`, `v1.5-variegata-dev` ← `v1.5-variegata`, `v1.4-andium-dev` ← `v1.4-andium`); see [BRANCHES.md](BRANCHES.md)
-- **One commit at a time**: each vendor commit corresponds to exactly one upstream commit, and must build and pass tests on its own — fold any required glue fix into that commit rather than adding a follow-up
+- **One commit at a time**: the vendoring model — why the engine is vendored, and the invariant every vendor commit satisfies — is [`handbook/operations/vendoring/model/`](handbook/operations/vendoring/model/README.md)
 - **Never modify `src/duckdb/` directly** - changes will be overwritten by vendoring
 - **Patching**: Add files to the `patch/` directory to apply R-specific modifications to vendored code. Send patches upstream as pull requests every once in a while. A patch that no longer applies is deleted by the next vendor run.
 - **Manual vendoring**: Use `scripts/vendor.sh /path/to/duckdb/repo` for testing
