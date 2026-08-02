@@ -2,7 +2,7 @@
 
 *Stub — this leaf will own its topic;
 today it routes to where the knowledge lives.
-The writing protocol is in [`meta/handbook/`](../../meta/handbook/);
+The writing protocol is in [`meta/handbook/`](/handbook/meta/handbook/);
 the last section holds this leaf's parameters.*
 
 Scope: the file-per-method layout, generated files,
@@ -11,7 +11,7 @@ and deferred S3 registration.
 
 Today:
 
-* [`AGENTS.md`](../../../AGENTS.md) — "Never Hard-Code the Package Name"
+* [`AGENTS.md`](/AGENTS.md) — "Never Hard-Code the Package Name"
 
 To write this leaf:
 
