@@ -2,7 +2,7 @@
 
 *Stub — this leaf will own its topic;
 today it routes to where the knowledge lives.
-The writing protocol is in [`meta/handbook/`](../../meta/handbook/);
+The writing protocol is in [`meta/handbook/`](/handbook/meta/handbook/);
 the last section holds this leaf's parameters.*
 
 Scope: linking a prebuilt libduckdb (`DUCKDB_R_USE_SYSTEM_LIB`)
@@ -10,8 +10,8 @@ for seconds-long builds and test loops.
 
 Today:
 
-* [`AGENTS.md`](../../../AGENTS.md) — "Fast build with system libduckdb"
-* [`scripts/install-libduckdb.sh`](../../../scripts/install-libduckdb.sh)
+* [`AGENTS.md`](/AGENTS.md) — "Fast build with system libduckdb"
+* [`scripts/install-libduckdb.sh`](/scripts/install-libduckdb.sh)
 
 To write this leaf:
 

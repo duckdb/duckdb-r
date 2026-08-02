@@ -7,7 +7,7 @@ The cost model's constants are no longer borrowed —
 they are fitted to measured legs; see [§3, *Can we compute breakpoints efficiently, and evenly?*](#can-we-compute-breakpoints-efficiently-and-evenly).
 
 `.github/workflows/each.yaml` proves invariant **C1** from
-[`BRANCHES.md`](../BRANCHES.md#ci--green):
+[`BRANCHES.md`](/BRANCHES.md#ci--green):
 every commit on a `*-dev` branch is green, so the branch is bisectable end to end.
 It used to do that by dispatching one `rcc` workflow run per commit.
 It now plans contiguous, cost-balanced **shards** and gives each shard one job,
@@ -50,7 +50,7 @@ from it. Selection reads the verdict store on the `rcc` branch instead (below),
 and `scripts/vendor-gate.sh` — the last consumer that decided anything from a
 status, turning a window of them into one green/red/stale verdict for the daily
 vendoring run — went with the run it served
-(D4 of [`../plan/PLAN-vendoring-simplification.md`](../plan/PLAN-vendoring-simplification.md)).
+(D4 of [`../plan/PLAN-vendoring-simplification.md`](/plan/PLAN-vendoring-simplification.md)).
 
 The readers of the `rcc` branch did need a change, but a compatible one. Records
 are now one file per commit, with `runs2.ndjson` extended from them
@@ -237,7 +237,7 @@ Timestamp-based incremental `make` cannot cross a commit boundary here.
 What does survive is **ccache**, which is content-addressed
 and lives outside the workspace for the whole job.
 A typical adjacent vendor commit recompiles ~5 of 341 unity objects — ~98% hits
-(measured: [`history/vendoring-loop.md` Appendix A.2](../plan/history/vendoring-loop.md#a2-ccache-behaviour-on-adjacent-commits-8-consecutive-v15-commits)).
+(measured: [`history/vendoring-loop.md` Appendix A.2](/plan/history/vendoring-loop.md#a2-ccache-behaviour-on-adjacent-commits-8-consecutive-v15-commits)).
 Cleaning the workspace also means every commit's verdict is identical to one from a fresh checkout,
 which is what keeps the semantics honest.
 
@@ -324,7 +324,7 @@ and Actions being disabled on the account that tried it.
 A 3000-job run would be unreadable exactly when a red commit needs finding.
 
 There is also a maintenance cost: `R-CMD-check.yaml` is forward-ported
-from `duckdb/duckdb-r@main` (see [`BRANCHES.md`](../BRANCHES.md)),
+from `duckdb/duckdb-r@main` (see [`BRANCHES.md`](/BRANCHES.md)),
 so a repo-specific `workflow_call` interface there is a permanent merge tax.
 
 ### Can a job have multiple tasks that each do a `workflow_call`?
@@ -630,7 +630,7 @@ so the `plan` job's second upload of `each-plan` was rejected as a conflict.
 **The documented recovery discards good results.**
 This is the one that actually looks like "self-healing restarts everything", and it
 is not in this workflow at all — it is in the series loop.
-[`series-loop.md`](../.claude/skills/series-loop.md) says that a commit still
+[`series-loop.md`](/.claude/skills/series-loop.md) says that a commit still
 missing from the harvest after 12 hours should be presumed lost, and repaired by
 amending it and replaying the tail. Replaying mints a new SHA for every commit
 after it, so one lost leg costs a rebuild of every *already-green* commit newer
@@ -777,7 +777,7 @@ work:
 
 Everything routine is additive. The three destructive operations — making the
 layouts agree, deleting logs, discarding history — belong to one manually
-dispatched workflow ([`rcc-consolidate.yaml`](../.github/workflows/rcc-consolidate.yaml)),
+dispatched workflow ([`rcc-consolidate.yaml`](/.github/workflows/rcc-consolidate.yaml)),
 where they happen once and under supervision.
 
 #### Consolidation
@@ -1116,12 +1116,12 @@ it with no separating context.
 `each.yaml` runs the scripts from the *branch it is checking*,
 so a `*-dev` branch picks up the sharded path only once the new scripts are forward-ported to it —
 the same constraint every CI change in this repository has
-(invariant **G1** in [`BRANCHES.md`](../BRANCHES.md#source-of-truth-cross-series)).
+(invariant **G1** in [`BRANCHES.md`](/BRANCHES.md#source-of-truth-cross-series)).
 Until then that branch's copy of `each.yaml` is the old dispatcher, and keeps working.
 (The series loop automates this forward-port:
 stage 4 — `scripts/series-port.sh` — brings each `-dev` level with `main`;
 the wider simplification is
-[`plan/PLAN-vendoring-simplification.md`](../plan/PLAN-vendoring-simplification.md).)
+[`plan/PLAN-vendoring-simplification.md`](/plan/PLAN-vendoring-simplification.md).)
 
 `vendor.yaml` no longer exists — the series loop
 (`.claude/skills/series-loop.md`) replaced it — and neither does the dispatcher
@@ -1210,7 +1210,7 @@ Honest list, in rough order of risk:
 ## 8. Relation to the vendoring loop plan
 
 This is a concrete, narrower implementation of primitive **B** in
-[`history/vendoring-loop.md` §3.2](../plan/history/vendoring-loop.md#b-build-primitive--synchronous-sharded-matrix-ci-new-rcc-matrixyaml) —
+[`history/vendoring-loop.md` §3.2](/plan/history/vendoring-loop.md#b-build-primitive--synchronous-sharded-matrix-ci-new-rcc-matrixyaml) —
 plan, sharded matrix, `if: always()` fan-in — landed inside the existing `each-rcc`
 instead of as a new `rcc-matrix.yaml`, because the selection semantics are already right there.
 

@@ -4,7 +4,7 @@ Status: **historical** — a one-off review artifact from 2026-07,
 kept for the findings it records about the R-side delta of a series.
 It is a snapshot of one branch at one moment, not a description of the
 system: the loop is owned by `.claude/skills/series-loop.md`,
-its mechanics by [`scripts/VENDORING.md`](../../scripts/VENDORING.md).
+its mechanics by [`scripts/VENDORING.md`](/scripts/VENDORING.md).
 
 **Range:** `main-dev-base..main-dev` (`krlmlr/duckdb-r`), 242 first-parent
 commits, of which **16 carry non-vendored (R-side) changes**.
