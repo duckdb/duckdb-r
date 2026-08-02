@@ -24,4 +24,4 @@ and the tree holds every fact once.
 * [`operations/`](operations/) — vendoring, triage, review,
   CI, releases
 * [`contributors/`](contributors/) — setup, workflow, where to help
-* [`meta/`](meta/) — the rules, the plans
+* [`meta/`](meta/) — the rules, the plans, the glossary
