@@ -17,7 +17,7 @@ that advance on different strands and never interfere:
 | 4th | `1.5.5.9004` | **R-client counter** | `fledge`, on the glue source of truth (`main`) |
 | 5th | `1.5.3.9006.42` | **vendor counter** | `scripts/vendor-one.sh`, once per vendor commit |
 
-`main`'s `Version: 1.5.5.9004` is exactly that shape:
+A `main` version such as `1.5.5.9004` is exactly that shape:
 the released prefix `1.5.5`,
 the R-client counter at `9004`,
 and no fifth component at all,
@@ -83,8 +83,8 @@ from the new baseline.
 The bare prefix is the rule, not a guarantee.
 When the R layer needs a fix and upstream has not tagged,
 the package ships a release carrying a low 4th component instead:
-`v1.5.4.1`, `v1.5.4.2`, and `v1.5.4.3` were cut that way,
-and `NEWS.md` records them as releases between `1.5.4` and `1.5.5`.
+the tag list shows `v1.5.4.1`, `v1.5.4.2` and `v1.5.4.3` cut that way,
+recorded in `NEWS.md` as releases between `1.5.4` and `1.5.5`.
 Such a number is below the 9000 block the R-client counter uses,
 so it never collides with a development version.
 
@@ -97,11 +97,11 @@ not here.
 ## fledge
 
 [fledge](https://fledge.cynkra.com) owns the 4th component and `NEWS.md`.
-`.github/workflows/fledge.yaml` runs it daily at 00:30 UTC,
+`.github/workflows/fledge.yaml` runs it on a daily schedule,
 on manual dispatch,
 and on any push to `main` that touches the workflow file itself.
 
-Two guards run before anything is bumped.
+Guards run before anything is bumped.
 The workflow skips forks outright,
 and skips `krlmlr/duckdb-r` by name —
 so no branch in the CI/CD fork ever receives a version bump
@@ -143,8 +143,8 @@ at release they fold into the release's own heading.
 Below the current development block
 `NEWS.md` therefore carries release headings only,
 even though every intermediate bump was also tagged
-(`v1.5.4.9000` through `v1.5.4.9013` exist as tags
-with no heading of their own).
+(the tag list shows `v1.5.4.9000` and the bumps that followed it,
+none with a heading of its own).
 
 The `-dev` branches never touch `NEWS.md`.
 Between the strands only `DESCRIPTION:Version` differs,
