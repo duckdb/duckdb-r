@@ -8,10 +8,13 @@ where the two disagree, the leaf is right.*
 Version numbers are given at the time of writing (March 2026) and may be outdated by the time you read this.
 The branching strategy is expected to remain stable.
 
-What is left here is the branch model in detail and the
-**[series invariants](#series-invariants)**, which the handbook still
-defers to.  The flavors, the repositories, the release cycle, the
-synchronization, and the version counters have been absorbed;
+What is left here is the branch model in detail — components,
+diagrams, the legacy `dev`/`dev-base` layout — and the
+**[series invariants](#series-invariants)**, which
+[`branches/invariants/`](/handbook/branches/invariants/README.md)
+defers to rather than restating.
+The flavors, the repositories, the release cycle, the synchronization,
+and the version counters have been absorbed;
 the headings below say where.
 
 ## Package Components
@@ -25,19 +28,16 @@ The seven components are:
 1. **DuckDB core** (`src/duckdb/`): the vendored C++ database engine.
    It is tracked from upstream branches of `duckdb/duckdb`:
    `main` (bleeding edge / dev), `v1.5-variegata` (current patch series), `v1.4-andium` (LTS).
-   Never modify this directory directly — use the `patch/` mechanism instead.
+   Advanced by vendor commits, never edited in place
+   ([`operations/vendoring/model/`](/handbook/operations/vendoring/model/README.md)).
 
 2. **Flavor** (`DESCRIPTION`, `R/duckdb-package.R`, `NAMESPACE`, `README.md`, `src/include/rapi.hpp`,
    `inst/include/duckdb_types.hpp`, `tests/testthat.R`, `man/duckdb-package.Rd`): the published package
    name variant (`duckdb`, `duckdb.1.4`, `duckdb.1.4.dev`, …).
-   Managed via `scripts/flavor.patch` and `scripts/flavor.sh`; also covers the `@useDynLib` directive and
-   the `DUCKDB_PACKAGE_NAME` C++ macro.
-   `scripts/flavor-package-name.R` guards the boundary: it fails as soon as the package name is hard-coded —
-   as a namespace qualifier or as a quoted string — in code or docs anywhere the patch does not rewrite it.
-   Code asks for the name at run time with `get_package_name()` instead, and docs do not namespace-qualify
-   our own objects. CI runs the scan from `.github/workflows/custom/after-install`;
-   `tests/testthat/test-flavor-package-name.R` wraps it for `testthat::test_local()` and skips under
-   `R CMD check`, which works from a tarball that carries neither the sources nor `scripts/`.
+   The rename surface and the mechanism are
+   [`branches/flavors/`](/handbook/branches/flavors/README.md)'s,
+   the scan that keeps the name out of everything else is
+   [`testing/guards/`](/handbook/testing/guards/README.md)'s.
 
 3. **Glue code** (`src/*.cpp`, `src/include/`): the C++ bridge between R and the DuckDB C++ API.
    Glue code may change when DuckDB's C++ API shifts, so it is updated together with vendoring commits.
@@ -76,23 +76,7 @@ duckdb-r/
 │       ├── cpp11.hpp               # cpp11 single-header entry point               [6]
 │       └── duckdb_types.hpp        # Public C++ types exposed to downstream R pkgs [3]
 ├── patch/                          # R-specific patches applied to src/duckdb/     [1]
-│   ├── 0001-….patch
-│   └── …
-├── scripts/                        # Build and maintenance scripts                 [5]
-│   ├── vendor.sh                   # Manual vendoring from local DuckDB clone
-│   ├── vendor-one.sh               # Commit-by-commit vendoring (series loop)
-│   ├── flavor.sh                   # Apply flavor rename to a branch
-│   ├── flavor.patch                # Patch template for flavor rename              [2]
-│   ├── each-plan.sh                # Plan cost-balanced shards of unbuilt commits
-│   ├── each-shard.sh               # Build one shard: many commits, one job
-│   ├── each-cost.py                # Unity objects a commit invalidates
-│   ├── rcc-one.sh                  # The per-commit rcc gate
-│   ├── each-harvest.sh             # Reconcile shard results onto the rcc branch
-│   ├── rcc-part-push.sh            # Publish one commit's result from its leg
-│   ├── rcc-decided.sh              # Commits the rcc branch has a verdict for
-│   ├── rcc-merge.sh                # Bring runs2.ndjson level with the records
-│   ├── rcc-consolidate.sh          # Manual: GC old logs, squash the rcc branch
-│   └── VENDORING.md                # Supplementary vendoring notes (→ see §Vendoring)
+├── scripts/                        # Build and maintenance; index in its README   [5]
 ├── .github/
 │   └── workflows/
 │       ├── each.yaml               # Per-commit rcc, as a sharded matrix           [5]
@@ -276,23 +260,11 @@ krlmlr/duckdb-r@v1.5-variegata-dev
 krlmlr/duckdb-r@v1.4-andium-dev
 ```
 
-Never port in reverse. Proposed patterns to keep this consistent:
-
-1. **PR-per-branch**: After any non-vendor commit merges to `main`, open a PR for each active
-   `-dev` branch. `sync.yaml` already handles `krlmlr/main` automatically; the remaining branches
-   require a manual or script-assisted step.
-
-2. **`scripts/sync-to-derived.sh`** *(proposed — see §Tooling)*: A script that identifies commits
-   in `main` not yet reachable from a given `-dev` branch and prints the `git cherry-pick` commands
-   needed to bring it up to date.
-
-3. **Stale-branch CI check** *(proposed — see §Tooling)*: A scheduled workflow that computes
-   `git merge-base --is-ancestor main <branch>` for each active `-dev` branch and posts a status
-   summary to flag forward-porting debt early.
-
-4. **Mandatory merge-base label**: PRs to any `-dev` branch that target glue-code or R-code files
-   are labeled `needs-forward-port` automatically by a label action, reminding maintainers to
-   propagate the change toward `main` before the next release.
+Never port in reverse.
+Keeping it consistent is the series loop's forward-port stage
+([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)),
+which runs `scripts/series-port.sh` on every firing;
+`sync.yaml` handles the fork's `main` separately.
 
 ## Series Invariants
 
@@ -474,24 +446,11 @@ and bringing a release onto its branch is
 
 ## Patch Stack
 
-The upstream C++ code in `src/duckdb/` may be updated to suit the needs of the R package, but not all updates are relevant or appropriate.
-R-specific fixes are maintained as an ordered series of git-format patches under `patch/`.
-Every vendor run re-applies the full stack on top of the freshly vendored sources.
-
-```txt
-  duckdb/duckdb (upstream)
-        │
-        │  vendor.sh / vendor-one.sh
-        ▼
-  src/duckdb/   ← raw vendored C++ sources
-        │
-        │  apply patch/0001-...patch
-        │  apply patch/0002-...patch
-        │  apply patch/0003-...patch
-        │  ...
-        ▼
-  src/duckdb/   ← R-ready C++ sources (committed to branch)
-```
+R-specific fixes the engine needs are maintained as an ordered series of
+git-format patches under `patch/`, re-applied by every vendor run
+([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
+This section is the stack's own rules; producing a patch is
+[`scripts/VENDORING.md`](/scripts/VENDORING.md)'s.
 
 Patches are numbered to define their application order.
 Gaps in the numbering are normal — they indicate patches that were previously removed because the fix was accepted upstream.
@@ -499,9 +458,7 @@ Gaps in the numbering are normal — they indicate patches that were previously 
 When a patch is no longer needed (because the fix was merged upstream), delete the file. Do not renumber the remaining patches. When adding a new patch, assign it the next available number and send the same change as a pull request to `duckdb/duckdb` so it can be retired eventually.
 
 A **forward-port** is the one kind of patch that needs no pull request: it carries a fix upstream has already merged, back onto the commits vendored before it.
-It retires itself, and it is the escalation, not the default — a red vendor commit whose *next* commit fixes it is folded into that one instead ([troubleshooting](/handbook/operations/vendoring/troubleshooting/)).
-
-If a vendor run fails because a patch no longer applies cleanly, update the patch against the new upstream code, commit it, and re-run vendoring.
+It retires itself, and it is the escalation, not the default — a red vendor commit whose *next* commit fixes it is folded into that one instead ([troubleshooting](/handbook/operations/vendoring/troubleshooting/README.md)).
 
 ## Version numbering
 
@@ -512,63 +469,7 @@ renumbers.
 
 ## Tooling
 
-### Existing tooling
-
-| Script / Workflow               | Purpose                                                                                                    |
-|---------------------------------|------------------------------------------------------------------------------------------------------------|
-| `scripts/vendor.sh`             | Local manual vendoring from a cloned upstream repo                                                         |
-| `scripts/vendor-one.sh`         | Commit-by-commit vendoring (called by the series-loop routine)                                             |
-| `scripts/flavor.sh <flavor>`    | Applies the flavor rename (updates `flavor.patch`, then applies it and re-runs `cpp11::cpp_register()`)    |
-| `scripts/flavor.patch`          | Patch template used by `flavor.sh`; contains `1.4` as placeholder version (replaced by `flavor.sh`)        |
-| `scripts/each-plan.sh`          | Selects the commits without a build status and partitions them into contiguous, cost-balanced shards       |
-| `scripts/each-cost.py`          | Counts the unity objects a commit invalidates, from the include graph, without building                    |
-| `scripts/each-shard.sh`         | Builds one shard: many commits in one job and one workspace, writing the `rcc` status per commit           |
-| `scripts/rcc-one.sh`            | The per-commit gate (style, snapshots, roxygen, clean tree, `R CMD check`, pkgdown), as a script           |
-| `scripts/each-harvest.sh`       | Fan-in onto the orphan `rcc` branch: reconciles whatever the legs could not publish themselves              |
-| `scripts/rcc-part-push.sh`      | Publishes one commit's record and log to the `rcc` branch from the leg that decided it, conflict-free       |
-| `scripts/rcc-decided.sh`        | Lists the commits the `rcc` branch holds a verdict for; the single source work selection reads                |
-| `scripts/rcc-merge.sh`          | Brings `runs2.ndjson` level with the per-commit records in `runs2.d/`: appends the missing, replaces the stale |
-| `scripts/rcc-consolidate.sh`    | Manual: makes the two record layouts agree, drops logs past their retention, squashes `rcc` to two commits   |
-| `scripts/merge-version.sh`      | Git merge driver for `DESCRIPTION`: combines the 4th/5th version counters, gated on an equal prefix         |
-| `scripts/setup-git.sh`          | Registers the merge driver in `.git/config`, enables `rerere`, pins `rebase.backend=merge` (run per clone)  |
-| `.github/workflows/sync.yaml`   | Hourly fast-forward of `krlmlr/main` from `duckdb/main`                                                    |
-| `.github/workflows/each.yaml`   | Builds every statusless commit on push to `*-dev` branches, as a sharded matrix (see [`operations/ci/per-commit/`](/handbook/operations/ci/per-commit/README.md)) |
-| `.github/workflows/rcc-consolidate.yaml` | Manual (`workflow_dispatch`) consolidation of the `rcc` branch; dry run by default                 |
-| `.github/workflows/fledge.yaml` | Daily version-bump PRs via `fledge`                                                                        |
-
-### Proposed tooling
-
-The following scripts would fill gaps in the current workflow.
-They do not yet exist; this section documents the intent so they can be implemented incrementally.
-
-**`scripts/sync-to-derived.sh <source-branch> <target-branch>`**
-
-Computes the set of commits in `<source-branch>` not yet reachable from `<target-branch>`,
-filters out vendor commits (matching `^vendor:`), and prints the `git cherry-pick` commands
-needed to bring the target up to date.
-Optionally opens a draft PR via `gh pr create --draft`.
-Automates the forward-porting step for glue code and R code changes.
-
-**`scripts/promote-dev.sh <series>`** (e.g., `promote-dev.sh v1.4-andium`)
-
-Fast-forwards `<series>-dev-base` to match `<series>-dev` in `krlmlr/duckdb-r`.
-Serves as Step 4 of the patch-release process; makes the comparison URL empty once a release is confirmed clean.
-
-```bash
-# Example:
-scripts/promote-dev.sh v1.4-andium
-# → git push krlmlr refs/heads/v1.4-andium-dev:refs/heads/v1.4-andium-dev-base
-```
-
-**`scripts/release-lts.sh <series> <version>`** (e.g., `release-lts.sh v1.4-andium 1.4.5`)
-
-Orchestrates Steps 4–9 of the patch-release process for an LTS series:
-promotes dev-base, opens a merge PR to the stable branch, bumps the version,
-rebases the `-lts` branch, tags, and prints a CRAN submission checklist.
-
-**Stale-branch CI check** (`.github/workflows/stale-branches.yaml`)
-
-A scheduled workflow (e.g., daily) that runs `git merge-base --is-ancestor main <branch>` for each
-active `-dev` branch and posts a GitHub Actions summary.
-Alerts maintainers via a failing step when forward-porting is overdue by more than a configurable
-number of commits or days.
+[`scripts/README.md`](/scripts/README.md) is the inventory —
+one row per file, its purpose taken from the file's own header,
+grouped by the handbook leaf that owns the topic —
+and it is generated, so it stays complete as scripts come and go.

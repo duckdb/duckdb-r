@@ -2,9 +2,9 @@
 
 The series and their refs: what a series is, where its branches live,
 what each ref means and how far it may move.
-[`BRANCHES.md`](/BRANCHES.md) is the detailed record of the model
-(diagrams, release-cycle phases, synchronization),
-being absorbed here leaf by leaf.
+[`BRANCHES.md`](/BRANCHES.md) keeps what is not yet absorbed:
+the seven package components, the repository diagrams,
+and the legacy `dev`/`dev-base` layout some series still carry.
 
 **A series** is one upstream branch of `duckdb/duckdb` —
 `main`, `v1.5-variegata`, `v1.4-andium` —
@@ -48,5 +48,5 @@ The badges in the root [`README.md`](/README.md) count these gaps:
 *in flight* and *buffered* between these refs,
 *ahead* against the branch the series releases from.
 
-*To deepen: absorb `BRANCHES.md` §§ Branch Overview,
-Source of Truth, and Release Cycle Mapping.*
+*To deepen: absorb `BRANCHES.md` §§ Package Components,
+Branch Overview, and Source of Truth.*
