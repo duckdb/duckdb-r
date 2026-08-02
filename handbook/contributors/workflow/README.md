@@ -9,9 +9,7 @@ Scope: making a change, from branch to merged pull request.
 
 Today:
 
-* no single owner today;
-  [`.github/copilot-instructions.md`](/.github/copilot-instructions.md)
-  carries a fragment
+* nothing written owns this; the path lives in practice
 
 To write this leaf:
 

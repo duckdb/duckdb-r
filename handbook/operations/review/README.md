@@ -11,12 +11,9 @@ and the stewardship routines that watch open pull requests.
 
 Today:
 
-* no single owner today;
-  [`.github/copilot-instructions.md`](/.github/copilot-instructions.md)
-  carries a fragment
+* nothing written owns this; the flow lives in practice
 
 To write this leaf:
 
 * write the pull-request flow: what a review checks, who drives CI
-  to green, how stewardship routines watch open PRs;
-  absorb the fragment in `.github/copilot-instructions.md`
+  to green, how stewardship routines watch open PRs
