@@ -23,16 +23,31 @@ has exactly one place in this tree.
   [`handbook/`](/handbook/README.md);
   a topic with no place in the tree is a defect of the tree,
   not of the topic.
-* **Pointer leaves are legitimate.**
-  Where the canonical home is elsewhere —
-  R reference pages (`?topic`) shipped in the tarball,
-  machine-loaded playbooks under `.claude/skills/`,
-  or truly external documentation
-  such as the upstream DuckDB docs —
-  the leaf states the fact's home and links to it,
-  so a traversal still finds it.
+* **Leaves are comprehensive; pointing is the exception.**
+  A leaf answers its topic in full,
+  so that a reader never has to leave the tree to get the answer.
+  This holds even where a user-facing surface covers the same ground:
+  an R reference page (`?topic`) is a secondary surface
+  derived from the leaf, not the leaf's excuse to be thin.
+  Two homes are genuinely elsewhere, and only there does a leaf point
+  instead of explain: documentation that is not ours
+  (the upstream DuckDB docs, which this tree does not duplicate),
+  and the machine-loaded playbooks under `.claude/skills/`,
+  whose procedures are executed rather than read —
+  there the leaf says what the thing is and when it applies,
+  and links for the steps.
   The tree needs no separate map of what lives outside;
   the leaves are the map.
+* **Intent lives outside the tree.**
+  A plan describes work that is not done;
+  the handbook describes how the system works today.
+  So plans stay in [`plan/`](/plan/), outside `handbook/` —
+  a decision taken, not a leftover.
+  [`meta/plans/`](/handbook/meta/plans/) explains that directory
+  and the conventions that govern it,
+  and each affected leaf links the plan that carries its intent.
+  A plan that has become fact is documented as fact,
+  in the leaf, with no trace of its having once been a proposal.
 * **The tree is the single source of truth.**
   Everything outside it is secondary —
   user-facing surfaces (the root `README.md`, reference pages),
@@ -139,6 +154,18 @@ Where no index covers a document, it carries its own:
   Never a roxygen `#'` line:
   `handbook/` is `.Rbuildignore`d,
   so a reference page linking into it would be broken for users.
+* *Generated files* — the backreference belongs in the **generator**,
+  in the template the generated file is rendered from,
+  so that it survives the next regeneration.
+  Editing the generated file to add one is writing in sand.
+
+Two kinds of file take no backreference at all.
+A file covered by a generated index is already carried by it.
+And **outbound correspondence takes none** —
+`cran-comments.md` is not documentation of a topic
+but a letter whose whole text reaches a CRAN maintainer verbatim,
+so the link to it is one-way,
+and that asymmetry is correct rather than an orphan.
 
 **A link that leaves its own directory is written from the repository
 root**, with a leading `/` — `/handbook/usage/types/`, not
