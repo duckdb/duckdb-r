@@ -12,7 +12,7 @@ The branch model the machine operates on is
 [`branches/model/`](/handbook/branches/model/README.md),
 and the invariants every cluster must leave standing are
 [`branches/invariants/`](/handbook/branches/invariants/README.md).
-Three things the states name but do not define live at their own leaves:
+What the states name but do not define lives at its own leaf:
 the reverse-dependency runs at
 [`testing/revdep/`](/handbook/testing/revdep/README.md),
 the version counters and `fledge` at
@@ -36,7 +36,7 @@ At any moment a series is in exactly one of four clusters.
 | Cluster | States | Driver | Mutates `main` glue? | Vendored commits → mainline? | Loops? |
 |---------|--------|--------|----------------------|------------------------------|--------|
 | **TRACK** | 0 | automation (daily) | no — forward-ports pass *through* | no | — |
-| **STABILIZE** | 0.1–0.5 | calendar / human (T−14 → tag) | **yes** (fold-back fixes are born here) | no | revdep ⇄ fold-back |
+| **STABILIZE** | 0.1–0.5 | calendar / human (window → tag) | **yes** (fold-back fixes are born here) | no | revdep ⇄ fold-back |
 | **CUT** | 1–5 | upstream tag, then mechanical | no | **yes — the only cluster that does** | red ⇄ fix-in-commit |
 | **RESET** | 6 | script | no | no | — |
 
@@ -88,7 +88,7 @@ stateDiagram-v2
         Rebaselined : 6 RE-BASELINED (recreate dev / dev-base)
     }
 
-    TRACK --> STABILIZE : T-14 open window
+    TRACK --> STABILIZE : open release window
     STABILIZE --> CUT : upstream tag vX.Y.Z
     CUT --> RESET : published
     RESET --> TRACK
@@ -99,11 +99,11 @@ stateDiagram-v2
 
 | State | Enter when | `dev` | `dev-base` | `stable` / `lts` | Gate to leave | On failure |
 |-------|-----------|-------|-----------|------------------|---------------|------------|
-| **0 TRACKING** | RESET done | grows: vendor + forward-port, all green | frozen | frozen at `X.Y.(Z-1)` | maintainer opens window (≈ T−14) | — |
+| **0 TRACKING** | RESET done | grows: vendor + forward-port, all green | frozen | frozen at `X.Y.(Z-1)` | maintainer opens the release window | — |
 | **0.1 CANDIDATE PINNED** | window opens | fixes only; pin likely release commit | frozen | frozen | candidate green | — |
 | **0.2 REVDEP-1** | candidate pinned | — | — | — | revdep run triaged | — |
 | **0.3 FOLD-BACK** | findings exist | fold-back forward-ports land | frozen | **fixes born here**, then ported | findings resolved/accepted | loop to 0.4 |
-| **0.4 REVDEP-2** | ≈ T−7 | — | — | — | **go / no-go** | fail → 0.3 |
+| **0.4 REVDEP-2** | fold-back settled | — | — | — | **go / no-go** | fail → 0.3 |
 | **0.5 GLUE FREEZE** | go | frozen (barrier; all lines aligned) | frozen | frozen | upstream tags `vX.Y.Z` | late glue → re-arm 0.5 |
 | **1 VENDORED** | tag lands on `dev` | tagged vendor commit present | frozen | frozen | tagged commit **green** (`each.yaml`) | red → fix in-commit, force-push `dev` |
 | **2 REVIEW** | green | — | — | — | `dev-base..tagged` clean | drift → fix on `main`, forward-port |
@@ -127,10 +127,11 @@ and glue changes flow in from `main` along the forward-port chain.
 `-green` is "what would ship if we released now."
 
 A maintainer leaves TRACK by **opening the release window**,
-roughly two weeks before the expected upstream release date,
+far enough before the expected upstream release date
+that the reverse-dependency gates can run and their findings be acted on,
 which enters STABILIZE.
 
-## STABILIZE — pre-release (≈ T−14 → tag)
+## STABILIZE — pre-release (window open → tag)
 
 The goal is to prove the release *candidate* — the `dev` branch —
 against reverse dependencies **before upstream cuts the tag**,
@@ -144,7 +145,7 @@ so the whole cluster is abortable with zero rollback.
 
 ### Preflight
 
-Before pinning anything, read two check reports.
+Before pinning anything, read the current check reports.
 The upstream **R workflow** R CMD check for the candidate revision
 (<https://github.com/duckdb/duckdb/actions/workflows/R.yml>)
 must be free of errors and warnings.
@@ -170,7 +171,8 @@ only if the delta touches anything risky
 
 Two reverse-dependency passes bracket the fold-back loop.
 The first runs as soon as the candidate is pinned, early enough to act on;
-the second, around T−7, is the **go/no-go gate** for the whole release.
+the second, once the fold-back loop has settled,
+is the **go/no-go gate** for the whole release.
 Both run against the `.dev` build at the pinned commit;
 how they are run and what counts as a blocker is
 [`testing/revdep/`](/handbook/testing/revdep/README.md).
@@ -374,7 +376,7 @@ The gates are maintainer discipline
 plus the CI signals the states read.
 
 The steps from 3 PROMOTED through 5 PUBLISHED are still typed by hand.
-Two wrappers that would automate them —
+The wrappers that would automate them —
 `scripts/promote-dev.sh`, which fast-forwards `dev-base`,
 and `scripts/release-lts.sh`, which would chain promotion,
 the merge pull request, the version bump, the `lts` rebase, the tag,
