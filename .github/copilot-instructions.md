@@ -1,6 +1,6 @@
 # GitHub Copilot Instructions for duckdb Package
 
-Read and follow the development guidelines outlined in [AGENTS.md](../AGENTS.md).
+Read and follow the development guidelines outlined in [AGENTS.md](/AGENTS.md).
 
 ## Working Effectively
 

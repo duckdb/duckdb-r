@@ -4,9 +4,9 @@ This document covers the mechanics of vendoring:
 what the scripts do, which invariants a dev branch must satisfy, how a new dev line is started,
 and how to troubleshoot a failing run.
 For the branch strategy, the complete list of active branches, and the release process, see
-[BRANCHES.md](../BRANCHES.md), which is the authoritative source.
+[BRANCHES.md](/BRANCHES.md), which is the authoritative source.
 For the historical design notes that led to the series loop,
-see [history/vendoring-loop.md](../plan/history/vendoring-loop.md)
+see [history/vendoring-loop.md](/plan/history/vendoring-loop.md)
 (superseded by `.claude/skills/series-loop.md`).
 
 ## What is Vendoring?
@@ -59,7 +59,7 @@ They are what makes the history useful rather than merely present.
    Vendor commits touch only the mechanical path set
    (`src/duckdb/`, `R/version.R`, `src/include/sources.mk`, `DESCRIPTION`).
    Anything else in a vendor commit is a folded glue fix,
-   and must be reviewable as a path-filtered diff (see [history/vendoring-loop.md](../plan/history/vendoring-loop.md) §3.4).
+   and must be reviewable as a path-filtered diff (see [history/vendoring-loop.md](/plan/history/vendoring-loop.md) §3.4).
 
 Invariant 2 is the one that is easy to lose.
 It is violated the moment a dev branch is re-pointed at a different upstream branch
@@ -105,7 +105,7 @@ Shared behaviour, in the order it happens:
    For each candidate, check it out, regenerate `src/duckdb/`,
    then apply every `patch/*.patch` in order.
    **A patch that no longer applies is deleted**, and the deletion becomes part of the vendor commit —
-   see [Patch Stack](../BRANCHES.md#patch-stack).
+   see [Patch Stack](/BRANCHES.md#patch-stack).
 6. **Decide whether the commit is worth vendoring.**
    * If `git describe --tags <commit>` resolves to an exact tag (a release), it is **always** vendored,
      the subject gets a `(tag vX.Y.Z)` marker, and `vendor-one.sh` stops afterwards.
@@ -215,12 +215,12 @@ and the routine judges conflicts
 (`scripts/series-port.sh`,
 stage 4 of `.claude/skills/series-loop.md`;
 the wider simplification is
-[`plan/PLAN-vendoring-simplification.md`](../plan/PLAN-vendoring-simplification.md)).
+[`plan/PLAN-vendoring-simplification.md`](/plan/PLAN-vendoring-simplification.md)).
 The next forward retires the ported commits,
 whose content the new seed already carries.
 
 `scripts/vendor-gate.sh` has been retired with the rest of the legacy dispatch
-path ([`plan/PLAN-vendoring-simplification.md`](../plan/PLAN-vendoring-simplification.md), D4).
+path ([`plan/PLAN-vendoring-simplification.md`](/plan/PLAN-vendoring-simplification.md), D4).
 It turned the `rcc` commit-status of a branch tip and the five commits before it
 into one verdict for the daily vendoring run:
 
@@ -315,7 +315,7 @@ Three things make this affordable:
   Adjacent vendor commits change a median of two `.cpp` files and no headers,
   so a warm ccache turns a ~15 minute cold build into a couple of minutes;
   wide-header commits are the exception, not the rule
-  (measured in [history/vendoring-loop.md](../plan/history/vendoring-loop.md) Appendix A).
+  (measured in [history/vendoring-loop.md](/plan/history/vendoring-loop.md) Appendix A).
   Point R at it via `~/.R/Makevars` (`CXX = ccache g++`, …)
   and give it a cache large enough to hold several trees (`ccache --max-size=20G`).
   Note that ccache reads `$CCACHE_DIR/ccache.conf` (i.e. `~/.ccache/ccache.conf`)
@@ -345,7 +345,7 @@ The cheap mode is a commit that changes only `.cpp` files;
 the expensive mode is a commit touching a widely-included header,
 which invalidates a large share of the ~345 unity objects at once.
 Note that the mix depends on *which* branch is being replayed:
-Appendix A of [history/vendoring-loop.md](../plan/history/vendoring-loop.md) measured a release branch,
+Appendix A of [history/vendoring-loop.md](/plan/history/vendoring-loop.md) measured a release branch,
 where 66 % of commits touch no header at all,
 whereas a mainline window in active pre-release development
 runs closer to a 57/43 split — plan bulk replays off the pessimistic figure.
@@ -402,7 +402,7 @@ and the four refs created equal at the seed tip — is
 this list is the sources-and-glue side it drives):
 
 1. Create the new dev branch from the current package `main`
-   (glue code, R code, CI — the [source of truth](../BRANCHES.md#source-of-truth)),
+   (glue code, R code, CI — the [source of truth](/BRANCHES.md#source-of-truth)),
    and apply its flavor with `scripts/flavor.sh`,
    as the **first** commits of the branch —
    the rename touches the shared-object name and every `.Call()` entry point,
@@ -513,7 +513,7 @@ R CMD INSTALL .
 a patch that no longer applies is deleted by the vendor run,
 on the assumption that the fix landed upstream.
 Verify that assumption; if the patch is still needed, restore and rebase it against the new sources.
-See [Patch Stack](../BRANCHES.md#patch-stack).
+See [Patch Stack](/BRANCHES.md#patch-stack).
 
 **Issue**: Build failures after vendoring
 **Solution**: Usually a DuckDB C++ API change;
@@ -546,7 +546,7 @@ https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=<S>-green&
 https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=<S>-build-base&head=<S>-build&label=buffered
 ```
 
-The live table is the `Flavors` section of [`README.md`](../README.md) —
+The live table is the `Flavors` section of [`README.md`](/README.md) —
 one row per flavor, these two badges
 plus an *ahead* badge against the branch the series releases from,
 and version badges for the CRAN and LTS rows.
@@ -605,7 +605,7 @@ git log -1 --grep="^vendor:" --format=%s   # upstream commit it came from
 - `scripts/merge-version.sh` - The merge driver itself (see [Version counters and the merge driver](#version-counters-and-the-merge-driver))
 - `.github/workflows/each.yaml` - Per-commit CI as a sharded matrix (see [`EACH.md`](EACH.md))
 - `patch/*.patch` - R-specific patches applied to vendored code
-  (see [Patch Stack](../BRANCHES.md#patch-stack))
+  (see [Patch Stack](/BRANCHES.md#patch-stack))
 
 ### Vendored content
 
@@ -643,7 +643,7 @@ patch -p1 < patch/00NN-my-fix.patch
 ## Release Considerations
 
 Which branch is released, and when, is governed by
-[Release Cycle Mapping](../BRANCHES.md#release-cycle-mapping) in `BRANCHES.md`.
+[Release Cycle Mapping](/BRANCHES.md#release-cycle-mapping) in `BRANCHES.md`.
 In short: CRAN releases come from the stable branches in `duckdb/duckdb-r`,
 the `.dev` packages on r-universe are built from the dev branches in `krlmlr/duckdb-r`,
 and the version in `DESCRIPTION` must match the upstream tag at release time.
