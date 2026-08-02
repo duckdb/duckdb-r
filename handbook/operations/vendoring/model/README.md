@@ -7,12 +7,20 @@ Vendoring is keeping a dependency's sources inside the depending
 repository instead of resolving them at build time.
 `src/duckdb/` is that copy — regenerated from an upstream clone by
 the scripts, never edited in place.
-Why: self-contained builds on machines with no DuckDB;
-glue compiled against exactly the engine commit it was tested with
-(it includes internal headers that are ABI-compatible only with
-the matching library);
-CRAN's expectation that a package is self-contained;
-reproducible builds.
+Why:
+
+* **Self-contained builds.** The package compiles on a machine with no
+  DuckDB installed, which is also what CRAN expects of a package.
+* **The glue compiles against exactly the engine commit it was tested
+  with.** It reaches into internal DuckDB headers that are
+  ABI-compatible only with the matching library.
+* **A clone is the whole thing.** No submodule to initialise, update, or
+  forget — `git clone` gives a tree that builds.
+* **Reproducible builds**, since nothing is resolved at build time.
+* **A maintainer preference**, not only a derivation: a vendored tree is
+  preferred over a submodule for this package, and the points above are
+  why rather than the other way round.
+
 The one supported way around compiling the copy is the developer
 fast path, guarded by a commit match
 ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
