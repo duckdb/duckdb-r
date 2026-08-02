@@ -2,7 +2,7 @@
 
 *Stub — this leaf will own its topic;
 today it routes to where the knowledge lives.
-The writing protocol is in [`meta/handbook/`](../../meta/handbook/);
+The writing protocol is in [`meta/handbook/`](/handbook/meta/handbook/);
 the last section holds this leaf's parameters.*
 
 Scope: a working development environment in minutes —
@@ -10,7 +10,7 @@ clone, fast build, test loop.
 
 Today:
 
-* [`AGENTS.md`](../../../AGENTS.md) — the bootstrap and fast-path sections
+* [`AGENTS.md`](/AGENTS.md) — the bootstrap and fast-path sections
 
 To write this leaf:
 
