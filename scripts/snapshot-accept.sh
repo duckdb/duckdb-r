@@ -1,14 +1,9 @@
 #!/bin/bash
 # Rebuild a commit, run the suite, accept the named snapshots, re-run to
-# confirm they hold. The fallback for snapshot repair when no
-# snapshot-<sha>-rcc-smoke-null branch exists, or when its diff does not
-# survive review (.claude/skills/series-loop.md).
+# confirm they hold.
 #
 # Usage: snapshot-accept.sh <commit-ish> <snapshot-name>...
 #   snapshot-accept.sh abc1234 sql types
-#
-# Leaves the corrected files under tests/testthat/_snaps/ in the working tree
-# and prints them; folding them into the offending commit is the caller's job.
 
 set -euo pipefail
 
