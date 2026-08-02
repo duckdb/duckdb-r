@@ -8,6 +8,8 @@
 
 # duckdb
 
+*Handbook: [`branches/flavors/`](/handbook/branches/flavors/README.md).*
+
 [DuckDB](https://duckdb.org/) is an in-process SQL OLAP database management system.
 It is designed to support analytical query workloads and is optimized for fast query execution.
 This repository contains the R bindings for DuckDB.
@@ -77,7 +79,9 @@ The badges track each `.dev` series:
 *ahead* counts commits ahead of the branch the series releases from,
 *in flight* counts commits in CI but not yet trusted,
 *buffered* counts commits vendored but not yet verified.
-See [`BRANCHES.md`](BRANCHES.md) for the full model.
+See [`handbook/branches/flavors/`](/handbook/branches/flavors/README.md)
+for what a flavor is and how it is produced,
+and [`BRANCHES.md`](BRANCHES.md) for the full branch model.
 
 ## User Guide
 

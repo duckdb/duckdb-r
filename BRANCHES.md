@@ -1,5 +1,7 @@
 # Branching Strategy
 
+*Handbook: [`branches/flavors/`](/handbook/branches/flavors/README.md).*
+
 Version numbers are given at the time of writing (March 2026) and may be outdated by the time you read this.
 The branching strategy is expected to remain stable.
 
@@ -137,28 +139,11 @@ Numbers in `[brackets]` refer to the component list above.
 
 ## Why multiple R packages?
 
-DuckDB releases a new minor version approximately every four months.
-See <https://duckdb.org/docs/stable/dev/release_cycle> for a detailed description of the upstream release cycle.
-
-CRAN does not allow multiple versions of the same package to coexist, so each supported release line needs its own package name (`duckdb`, `duckdb.1.4`, etc.).
-LTS releases receive patch updates for one year — roughly three minor-release cycles — after which they are archived.
-The `.dev` packages on r-universe mirror the corresponding bleeding-edge upstream branches and let users test upcoming releases without waiting for CRAN.
+See [`handbook/branches/flavors/`](/handbook/branches/flavors/README.md).
 
 ## R Package Flavors
 
-Several packages are published, organised into three release lines:
-
-| Package          | Install from   | Branch (repo)                            | Description                                          |
-|------------------|----------------|------------------------------------------|------------------------------------------------------|
-| `duckdb`         | CRAN           | `main` (`duckdb/duckdb-r`)               | **Current stable release.**                          |
-| `duckdb`         | r-universe     | `main` (`duckdb/duckdb-r`)               | Current or upcoming release.                         |
-| `duckdb.1.5`     | Does not exist |                                          | v1.5 is not an LTS version.                          |
-| `duckdb.1.4`     | r-universe     | `v1.4-andium-lts` (`duckdb/duckdb-r`)    | **LTS — v1.4.** Receives only bug fixes.             |
-| `duckdb.dev`     | r-universe     | `main-dev` (`krlmlr/duckdb-r`)           | Bleeding-edge build of the next major/minor version. |
-| `duckdb.1.5.dev` | r-universe     | `v1.5-variegata-dev` (`krlmlr/duckdb-r`) | Bleeding-edge build on the v1.5 upstream.            |
-| `duckdb.1.4.dev` | r-universe     | `v1.4-andium-dev` (`krlmlr/duckdb-r`)    | Bleeding-edge build on the v1.4 upstream.            |
-
-Use `duckdb` unless you need to pin to a specific minor version (LTS) or want to test unreleased functionality (`.dev`).
+See [`handbook/branches/flavors/`](/handbook/branches/flavors/README.md).
 
 ## Overview
 
@@ -549,7 +534,8 @@ When upstream tags `v1.6.0`:
    - **If LTS**: create `v1.5-variegata-lts` from `v1.5-variegata`, apply `scripts/flavor.sh 1.5`
      to produce the `duckdb.1.5` branch, register `duckdb.1.5` on r-universe, and add it to the forward-port chain.
    - **If not LTS**: stop vendoring into its dev branch and archive both branches.
-4. Update the Branch Overview table and the R Package Flavors table in this document.
+4. Update the Branch Overview table in this document, and the flavor list in
+   [`handbook/branches/flavors/`](/handbook/branches/flavors/README.md).
 
 ### On LTS expiry (one year after designation)
 
