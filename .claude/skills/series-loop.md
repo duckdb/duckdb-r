@@ -206,7 +206,7 @@ nothing at or before `<S>-green` is ever re-examined.
 A commit **missing** from the harvest has not completed —
 wait, do not guess.
 `each.yaml`'s legs publish a record within seconds of deciding a commit
-(see [`per-commit builds`](/handbook/operations/ci/per-commit/README.md) §3),
+(see [`per-commit builds`](/handbook/operations/ci/per-commit/store/README.md)),
 so missing now means undecided, not merely uncollected.
 
 If a commit is still missing after **12 hours**, presume its run lost —
