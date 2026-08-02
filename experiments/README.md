@@ -29,6 +29,10 @@ the directory keeps the method so that is possible.
   churn per vendor commit, ccache hit rate on adjacent commits,
   archive size; supports
   [`operations/ci/per-commit/`](/handbook/operations/ci/per-commit/README.md).
+* [`2026-07-main-dev-review/`](2026-07-main-dev-review/) —
+  how much of a series' active range is R-side work rather than
+  vendoring, and what kind; supports
+  [`branches/invariants/`](/handbook/branches/invariants/README.md).
 * [`2026-08-02-lts-drift/`](2026-08-02-lts-drift/) —
   how far the v1.4 LTS flavor has drifted from its baseline; supports
   [`branches/invariants/`](/handbook/branches/invariants/README.md).

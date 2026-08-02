@@ -12,7 +12,7 @@ and this file goes away when the last one lands.
 For the branch model and the series invariants see
 [BRANCHES.md](/BRANCHES.md);
 for the design notes behind the series loop see
-[history/vendoring-loop.md](/plan/history/vendoring-loop.md).
+[superseded/vendoring-loop.md](/plan/superseded/vendoring-loop.md).
 
 What this file used to carry, and where each part lives now:
 
@@ -163,7 +163,7 @@ The cheap mode is a commit that changes only `.cpp` files;
 the expensive mode is a commit touching a widely-included header,
 which invalidates a large share of the ~345 unity objects at once.
 Note that the mix depends on *which* branch is being replayed:
-Appendix A of [history/vendoring-loop.md](/plan/history/vendoring-loop.md) measured a release branch,
+Appendix A of [superseded/vendoring-loop.md](/plan/superseded/vendoring-loop.md) measured a release branch,
 where 66 % of commits touch no header at all,
 whereas a mainline window in active pre-release development
 runs closer to a 57/43 split — plan bulk replays off the pessimistic figure.

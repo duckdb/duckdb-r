@@ -15,7 +15,7 @@ Sample for A.1: 163 vendor commits, March–May 2026.
 its shard weighting, its bimodal timing, and the archive trade-off.
 
 *Provenance:* run as Appendix A of the agentic-loop design,
-now [`plan/history/vendoring-loop.md`](/plan/history/vendoring-loop.md),
+now [`plan/superseded/vendoring-loop.md`](/plan/superseded/vendoring-loop.md),
 and moved here unchanged when that design was superseded
 but its measurements were not.
 No script survives; the method is described with each measurement.

@@ -38,6 +38,9 @@ the parked baselines, so "X equals Y plus a rename" compares working trees.
 they are conventions, kept by the loop's routine and by review;
 a few hold mechanically
 (the vendor counter, the advance script's ancestor check on `-green`).
+How well an unenforced one holds is measurable rather than assumed:
+[`experiments/2026-07-main-dev-review/`](/experiments/2026-07-main-dev-review/README.md)
+counted the R-side commits in one series' active range.
 
 *To deepen: absorb the statements
 with their enforcement notes from `BRANCHES.md`.*

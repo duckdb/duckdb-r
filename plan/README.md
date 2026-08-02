@@ -7,7 +7,7 @@ This directory holds documents that are *not* part of the
 description of how the system works today:
 plans for work that is not finished,
 records of plans that came true,
-and records of designs and reviews that never will.
+and records of designs that never will.
 This file is what names the contents,
 so nothing under `plan/` is an orphan.
 
@@ -35,24 +35,25 @@ that got there.
 |---|---|
 | The CRAN-safe storage-location policy, and the work that implemented it | [`done/PLAN-storage-locations.md`](done/PLAN-storage-locations.md) |
 
-## `history/` — superseded designs and one-off artifacts
+## `superseded/` — designs overtaken by events
 
-Kept for the reasoning and the measurements, not as a description of the
-system. Each says so in its own first lines. They live in their own
-directory because the distinction is the point:
-a plan may still come true, a history never will.
+Kept for the reasoning, not as a description of the system;
+each says so in its own first lines.
+They live in their own directory because the distinction is the point:
+a plan may still come true, a superseded design never will.
 
 | To read about | Read |
 |---|---|
-| The agentic-loop design that preceded the series loop (its measurements now live in [`experiments/`](/experiments/README.md)) | [`history/vendoring-loop.md`](history/vendoring-loop.md) |
-| A 2026-07 review of the non-vendored R-side delta on `main-dev` | [`history/main-dev-review-2026-07.md`](history/main-dev-review-2026-07.md) |
+| The agentic-loop design that preceded the series loop (its measurements now live in [`experiments/`](/experiments/README.md)) | [`superseded/vendoring-loop.md`](superseded/vendoring-loop.md) |
 
 ## Adding a document here
 
-A plan goes in `plan/` as `PLAN-<topic>.md`; a superseded design or a one-off
-review goes in `plan/history/`, named for what it is. Either way, open it with
-a line saying what it is and which document owns the topic today, and add a row
-above. A file under `plan/` that this table does not name is an orphan, which
-is the one thing the tree's structure exists to prevent — and when a plan is
-overtaken by events, moving it into `history/` and moving its row with it is
-what retiring it looks like.
+A plan goes in `plan/` as `PLAN-<topic>.md`, and opens with a line saying
+what it is and which document owns its topic today; add a row above.
+A file under `plan/` that this table does not name is an orphan, which is
+the one thing the tree's structure exists to prevent.
+Where a plan leaves depends on what happened to it:
+one that came true moves to `done/`, one overtaken by events to
+`superseded/`, and its row moves with it.
+A measurement is not a plan at all — it belongs in
+[`experiments/`](/experiments/README.md), one directory per run.
