@@ -37,5 +37,6 @@ Entries carry extra environment through the generic `env` field —
 the mechanism by which one matrix row can flip any knob
 ([`build/configuration/`](/handbook/build/configuration/README.md)).
 
-*To deepen: state how the base action derives its version window
-and what `Config/gha/filter` in `DESCRIPTION` removes from it.*
+*To deepen: state how the base action derives its version window,
+and what `Config/gha/filter` would remove from it —
+this package sets no such field today.*

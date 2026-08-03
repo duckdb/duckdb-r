@@ -1,7 +1,7 @@
 # Integrations
 
 The routes into DuckDB beside plain SQL:
-dplyr pipelines translated by dbplyr, and Arrow interchange.
+dplyr pipelines translated by dbplyr, Arrow interchange, and ADBC.
 What a value becomes across the boundary is
 [`types/`](/handbook/usage/types/README.md).
 
@@ -58,6 +58,15 @@ batch by batch — true streaming since 1.5.4
 bridge dplyr pipelines both ways.
 The DBI Arrow API plan is
 [`plan/PLAN-dbSendQueryArrow.md`](/plan/PLAN-dbSendQueryArrow.md).
+
+## ADBC
+
+`duckdb_adbc()` ([`R/Driver.R`](/R/Driver.R)) hands the engine to
+`adbcdrivermanager`, a `Suggests` like dbplyr, and its three methods
+register at load time the same way —
+`adbc_database_init`, `adbc_connection_init`, `adbc_statement_init`,
+all on classes this package defines for the purpose.
+It is the one route here that does not go through DBI at all.
 
 *To deepen: absorb the translation inventory and refused arguments
 from `?backend-duckdb`'s source; drain

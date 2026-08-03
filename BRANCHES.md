@@ -60,7 +60,7 @@ The seven components are:
 duckdb-r/
 ├── R/                              # R code — DBI interface, connection, results  [4]
 ├── tests/
-│   └── testthat/                   # R unit tests (~40 files)                     [4]
+│   └── testthat/                   # R unit tests, one file per topic            [4]
 ├── src/
 │   ├── *.cpp                       # Glue code — R ↔ DuckDB C++ bridge            [3]
 │   ├── *.dd                        # Local-header dependency tracking (keep in VCS)[3]
@@ -272,8 +272,11 @@ A **series** is one DuckDB minor line `L` together with its branches: `stable`
 (published; `main` for the current line), `lts` (LTS lines only), `dev`, and
 `dev-base`. The following invariants hold across all branches of a series. Each
 is phrased to be **checkable** — most can be enforced by a dev-branch health
-workflow — and each is referenced by name from the release FSM in
-[`operations/releases/process/`](/handbook/operations/releases/process/README.md), which must preserve them at every step.
+workflow. The numbers file them here and are not a way to cite one elsewhere:
+the release FSM in
+[`operations/releases/process/`](/handbook/operations/releases/process/README.md)
+must preserve them at every step, and says what it depends on rather than
+naming a number.
 
 State relationships as **tree diffs**, not ancestry: `main` is maintained as a
 rebuilt/linear history and shares no merge-base with the parked `vX-codename`

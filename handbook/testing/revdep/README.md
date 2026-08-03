@@ -8,7 +8,10 @@ Two routes, and they produce different things.
 release candidate.
 It installs each reverse dependency twice, old engine and new,
 and writes the comparison under [`revdep/`](/revdep/README.md),
-which is what gets committed and read:
+which is what gets committed and read.
+That directory carries no backreference to this leaf and cannot:
+revdepcheck writes it, and the generator is upstream's
+([`meta/handbook/`](/handbook/meta/handbook/README.md)).
 
 ```r
 revdepcheck::revdep_check(

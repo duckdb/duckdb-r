@@ -34,8 +34,10 @@ and `_snaps/`
 ([`snapshots/`](/handbook/testing/snapshots/README.md)).
 
 **The helpers.**
-Every `helper-*.R` is sourced before the first test
-and carries a header saying why it exists — that set is the list.
+Every `helper-*.R` is sourced before the first test,
+and that set is the list.
+Each should open with a header saying why it exists;
+`helper-DBItest.R` and `helper-skip.R` do not yet.
 Two constraints are not obvious from reading one:
 `helper-DBItest.R`'s `make_context()` call must stay in the helper,
 and any expectation whose output can carry the package name goes

@@ -3,7 +3,7 @@
 The series and their refs: what a series is, where its branches live,
 what each ref means and how far it may move.
 [`BRANCHES.md`](/BRANCHES.md) keeps what is not yet absorbed:
-the seven package components, the repository diagrams,
+the package components, the repository diagrams,
 and the legacy `dev`/`dev-base` layout some series still carry.
 
 **A series** is one upstream branch of `duckdb/duckdb` —
@@ -40,7 +40,7 @@ All four exist from a series' first day, equal at its seed,
 so there is never a "no green yet" state.
 The buffer is deliberately untested on CI/CD,
 so vendoring can run ahead while CI catches up
-([`operations/ci/per-commit/`](/handbook/operations/ci/per-commit/README.md)).
+([`ci/per-commit/selection/`](/handbook/operations/ci/per-commit/selection/README.md)).
 Rebasing a series happens *beside* it as a `<S>-fwd` counterpart,
 verified from scratch and swapped in by a human-run cutover;
 a serving `-green` never moves sideways on its own.

@@ -29,7 +29,7 @@ Every route ends in `testthat::snapshot_accept()`:
   as a `snapshot-*` pull request (then fails the job so red
   announces the drift), onto the PR branch, or —
   per-commit — as a `snapshot-<sha>-rcc-smoke-null` branch
-  ([`operations/ci/per-commit/`](/handbook/operations/ci/per-commit/README.md)).
+  ([`ci/per-commit/contract/`](/handbook/operations/ci/per-commit/contract/README.md)).
 * **For one commit deep in a series** —
   [`scripts/snapshot-accept.sh`](/scripts/snapshot-accept.sh);
   its header is the procedure.

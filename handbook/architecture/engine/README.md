@@ -33,9 +33,9 @@ The load-bearing ones:
 
 * `-DDUCKDB_DISABLE_PRINT` — the engine cannot write to the console
   behind R's back.
-* `-DDUCKDB_EXTENSION_AUTOLOAD_DEFAULT` — autoload on, autoinstall stays off
-  ([`usage/extensions/`](/handbook/usage/extensions/README.md)).
-* The linked extension set — `parquet` and `core_functions`.
+* `-DDUCKDB_EXTENSION_AUTOLOAD_DEFAULT` and the linked extension set —
+  what they mean for a reader loading an extension is
+  [`usage/extensions/`](/handbook/usage/extensions/README.md)'s.
 * `-DDUCKDB_PLATFORM_RTOOLS=1` — Windows only;
   the `_mingw` platform string extension downloads key on.
 * `-DDUCKDB_RSTRTMGR` — Windows restart-manager support,

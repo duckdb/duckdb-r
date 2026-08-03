@@ -1,5 +1,9 @@
 # Plan: `dbSendQueryArrow()` and the DBI Arrow API
 
+**Open.** The Arrow surface as it stands today is
+[`usage/integrations/`](/handbook/usage/integrations/README.md)'s;
+this file is the proposal, and where the two disagree the leaf is right.
+
 Implements the `dbSendQueryArrow()` part of
 <https://github.com/duckdb/duckdb-r/issues/1997>.
 

@@ -10,8 +10,8 @@ against real `v1.5-variegata-dev` history (~2 weeks+ old at the time),
 R 4.3.3, ccache 4.9.1, `-j4`, unity build linked with LTO.
 Sample for A.1: 163 vendor commits, March–May 2026.
 
-*What it supports:* the cost model of
-[`operations/ci/per-commit/`](/handbook/operations/ci/per-commit/README.md) —
+*What it supports:* the cost model in
+[`operations/ci/per-commit/planning/`](/handbook/operations/ci/per-commit/planning/README.md) —
 its shard weighting, its bimodal timing, and the archive trade-off.
 
 *Provenance:* run as Appendix A of the agentic-loop design,

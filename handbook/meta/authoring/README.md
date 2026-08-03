@@ -12,8 +12,9 @@ until then it is a preference, and preferences are not enforced.
 ## Before writing a sentence
 
 Walk these in order, and stop at the first that answers.
-Only the first two end in nothing being written, and what they discard
-is not a fact; the rest move the fact somewhere better than a paragraph.
+Only the two that ask whether it is a fact and whether it is true end in
+nothing being written, and what they discard is not a fact;
+the rest move the fact somewhere better than a paragraph.
 
 1. **Is it a fact about how the system works today?**
    A failure narrative, before-and-after framing, a rejected

@@ -77,11 +77,14 @@ The greedy pass minimises **legs**, which is close enough to minimising
 runner-minutes to serve as the cost baseline.
 It is a poor answer for wall clock at every size, and for a small batch it is
 the *worst* answer.
-The default leg deadline is 300 minutes and a cheap commit costs ~6,
-so 25 commits fit in two legs — and the branch tip waits five hours for a
+The default leg deadline is 300 minutes, a leg's first commit pays the
+cold build and every cheap commit after it ~6,
+so 45 commits take two legs — and the branch tip waits five hours for a
 verdict that 20 legs would have delivered in fifty minutes.
 This is the common case, not the corner case:
-a series-loop batch is capped at 100 commits and is usually far smaller.
+a series-loop batch is capped at the chunk the loop consumes per firing
+([`vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md))
+and is usually far smaller.
 
 So a second pass buys the wall clock back,
 by **running pass 1 again against shorter deadlines**

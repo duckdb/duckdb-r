@@ -14,8 +14,6 @@ and where `~/.duckdb` exists it is resolved the way the engine
 resolves it — so the extension cache and the secret store are
 genuinely shared with the DuckDB CLI and the other clients,
 not a private copy.
-The home root is resolved afresh for every new database instance,
-and `duckdb_storage_status()` reports where each kind of state
-resolves right now.
+The home root is resolved afresh for every new database instance.
 
 *To deepen: absorb the resolution order from `?duckdb_storage`.*

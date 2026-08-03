@@ -29,6 +29,11 @@ The families, in one breath:
   born beside the vendor commit that forces it.
 * **CI / green** — a `-green` ref only ever fast-forwards to
   commits with recorded successful runs.
+* **Prerelease** — while a release stabilises, only `main` and the dev
+  branches move, so an unfinished release is abandoned by walking away;
+  what ships is an ancestor of what was revdep-tested;
+  a fold-back fix reaches `main` before any series;
+  and at the glue freeze every releasing series carries identical glue.
 
 Read every statement as a claim about **trees, not ancestry**:
 `main` is a rebuilt linear history that shares no merge-base with
@@ -40,7 +45,9 @@ a few hold mechanically
 (the vendor counter, the advance script's ancestor check on `-green`).
 How well an unenforced one holds is measurable rather than assumed:
 [`experiments/2026-07-main-dev-review/`](/experiments/2026-07-main-dev-review/README.md)
-counted the R-side commits in one series' active range.
+counted the R-side commits in one series' active range, and
+[`experiments/2026-08-02-lts-drift/`](/experiments/2026-08-02-lts-drift/README.md)
+measured how far the LTS flavor has drifted from its baseline.
 
 *To deepen: absorb the statements
 with their enforcement notes from `BRANCHES.md`.*

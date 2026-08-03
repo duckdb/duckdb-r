@@ -36,3 +36,5 @@ Parallelism and ccache:
 [`build/configuration/`](/handbook/build/configuration/README.md).
 Making a change once the environment works:
 [`workflow/`](/handbook/contributors/workflow/README.md).
+Installing a published build rather than this source tree:
+[`usage/installation/`](/handbook/usage/installation/README.md).

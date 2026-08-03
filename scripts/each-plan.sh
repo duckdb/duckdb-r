@@ -63,7 +63,7 @@
 # The four constants are fitted to the 29 commits of runs 30406932093
 # (main-fwd-dev, 24 commits over two legs) and 30422580063
 # (v1.5-variegata-fwd-dev, 5 commits, one leg), RMSE 1.3 min over the 26 warm
-# builds; see handbook/operations/ci/per-commit/store/README.md. Every leg still records
+# builds; see handbook/operations/ci/per-commit/planning/README.md. Every leg still records
 # duration_seconds per commit, and scripts/each-harvest.sh carries it onto the
 # `rcc` branch, so the fit can be redone from a wider range at any time.
 

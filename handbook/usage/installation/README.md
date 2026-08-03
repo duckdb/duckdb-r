@@ -27,7 +27,7 @@ and the root `README.md`'s `Flavors` table
 is where a new one is announced.
 Picking a flavor changes the package name and little else,
 and a flavor installs alongside `duckdb` instead of replacing it;
-Only `duckdb` reaches CRAN.
+only `duckdb` reaches CRAN.
 
 Compiling a clone yourself, and making that fast,
 is [`build/source-build/`](/handbook/build/source-build/README.md)

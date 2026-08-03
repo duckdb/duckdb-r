@@ -11,6 +11,8 @@ is the source of truth for the core set,
 and an external process keeps this repository's copies level with it —
 so editing one here puts the copy out of step,
 and a change belongs in the template instead.
+A file's own first line records what it was derived from,
+which is the part of this a reader can check from the tree.
 
 | Workflow | Fires on | Does |
 |---|---|---|

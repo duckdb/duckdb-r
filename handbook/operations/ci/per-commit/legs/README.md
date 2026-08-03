@@ -132,8 +132,8 @@ so "Re-run failed jobs" costs what was lost rather than what the shard held.
 `pending` deliberately does not count as decided —
 that is precisely the state a killed leg leaves behind,
 and redoing it is what the re-run is for.
-Both artifact uploads carry `overwrite: true`,
-so "Re-run all jobs" does not fail on an artifact name conflict.
+The planner's artifact carries `overwrite: true` and the leg's is
+named per attempt, so "Re-run all jobs" collides on neither.
 The fan-in is guarded on the planner having succeeded,
 so it does not check out the `rcc` branch to reconcile a run that never built.
 

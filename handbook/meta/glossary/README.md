@@ -27,8 +27,10 @@ one line, so the register stays greppable and diffs per term.
 * **forward-port** — bringing `main`'s R-side work onto a series as cherry-picks ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
 * **glue** — the C++ translation units in `src/` that bridge R and the engine ([`architecture/glue/`](/handbook/architecture/glue/README.md)).
 * **glue gate** — the syntax check of the glue against freshly vendored headers ([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
+* **harvest** — the fan-in that reconciles what the legs could not publish themselves onto the verdict store ([`operations/ci/per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md)).
 * **in-memory database** — the default, file-less instance: never cached, fresh per `duckdb()` call ([`usage/connections/`](/handbook/usage/connections/README.md)).
 * **leaf** / **internal node** — leaves explain, once; internal nodes navigate and may govern ([`meta/handbook/`](/handbook/meta/handbook/README.md)).
+* **leg** — the one CI job that builds and judges a shard, commit by commit, in a single workspace ([`operations/ci/per-commit/legs/`](/handbook/operations/ci/per-commit/legs/README.md)).
 * **libduckdb** — a prebuilt engine library, linked by the fast path instead of compiling ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
 * **nanoarrow array stream** — the zero-copy, batch-by-batch result format of the Arrow API ([`usage/integrations/`](/handbook/usage/integrations/README.md)).
 * **patch stack** — the patches under `patch/` re-applied to each freshly vendored tree ([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).

@@ -52,35 +52,45 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 |---|---|
 | [`README.md`](README.md) | (this index) |
 
-## [`operations/ci/per-commit/`](/handbook/operations/ci/per-commit/README.md)
+## [`operations/ci/per-commit/legs/`](/handbook/operations/ci/per-commit/legs/README.md)
+
+| File | Purpose |
+|---|---|
+| [`each-shard.sh`](each-shard.sh) | Build one shard of an `each-rcc` plan: many commits, one job, one workspace. |
+| [`rcc-one.sh`](rcc-one.sh) | Run the per-commit `rcc` gate against the working tree, once. |
+
+## [`operations/ci/per-commit/planning/`](/handbook/operations/ci/per-commit/planning/README.md)
 
 | File | Purpose |
 |---|---|
 | [`each-cost.py`](each-cost.py) | Estimate how many unity objects a change invalidates. |
-| [`each-harvest.sh`](each-harvest.sh) | Fan-in for `each-rcc`: make sure every commit the legs decided has a record on the orphan `rcc` branch. |
 | [`each-partition.py`](each-partition.py) | Partition a commit range into contiguous, cost-balanced `each-rcc` shards. |
 | [`each-plan.sh`](each-plan.sh) | Plan the sharded per-commit `rcc` build for the checked-out branch. |
-| [`each-shard.sh`](each-shard.sh) | Build one shard of an `each-rcc` plan: many commits, one job, one workspace. |
-| [`rcc-consolidate.sh`](rcc-consolidate.sh) | Consolidate the orphan `rcc` branch: reconcile its two record layouts, drop logs older than a month, and squash the whole history to two commits. |
+
+## [`operations/ci/per-commit/selection/`](/handbook/operations/ci/per-commit/selection/README.md)
+
+| File | Purpose |
+|---|---|
 | [`rcc-decided.sh`](rcc-decided.sh) | Print the SHA of every commit the verdict store has decided, one per line. |
+
+## [`operations/ci/per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md)
+
+| File | Purpose |
+|---|---|
+| [`each-harvest.sh`](each-harvest.sh) | Fan-in for `each-rcc`: make sure every commit the legs decided has a record on the orphan `rcc` branch. |
+| [`rcc-consolidate.sh`](rcc-consolidate.sh) | Consolidate the orphan `rcc` branch: reconcile its two record layouts, drop logs older than a month, and squash the whole history to two commits. |
 | [`rcc-logs.sh`](rcc-logs.sh) | Collect rcc results and failure logs, indexed by commit SHA. |
 | [`rcc-merge.sh`](rcc-merge.sh) | Reconcile `runs2.ndjson` on the orphan `rcc` branch with the per-commit records in `runs2.d/`: append the ones it lacks, replace the ones it has stale. |
-| [`rcc-one.sh`](rcc-one.sh) | Run the per-commit `rcc` gate against the working tree, once. |
 | [`rcc-part-push.sh`](rcc-part-push.sh) | Publish one commit's `rcc` record -- and its log, if it failed -- to the orphan `rcc` branch, straight from the matrix leg that decided it. |
 | [`rcc-parts-test.sh`](rcc-parts-test.sh) | Check the invariants the per-commit record layout rests on, offline, against a local bare repository -- optionally seeded from the real `rcc` branch. |
 | [`rcc-push.sh`](rcc-push.sh) | Commit the orphan `rcc` worktree and push it, re-deriving on conflict. |
 | [`rcc-run-fields.jq`](rcc-run-fields.jq) | The subset of a GitHub workflow-run object that a record on the `rcc` branch carries, applied to `gh api repos/{owner}/{repo}/actions/runs/<id>`. |
 
-## [`operations/vendoring/`](/handbook/operations/vendoring/README.md)
-
-| File | Purpose |
-|---|---|
-| [`VENDORING.md`](VENDORING.md) | DuckDB R Package Vendoring |
-
 ## [`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)
 
 | File | Purpose |
 |---|---|
+| [`VENDORING.md`](VENDORING.md) | DuckDB R Package Vendoring |
 | [`merge-version.sh`](merge-version.sh) | Git merge driver for DESCRIPTION. |
 | [`rconfigure.py`](rconfigure.py) | Regenerate the vendored build configuration from a DuckDB checkout: src/duckdb/, src/include/sources.mk, R/version.R and the Makevars files. |
 | [`setup-git.sh`](setup-git.sh) | Register repository-local git configuration that cannot live in versioned files. |

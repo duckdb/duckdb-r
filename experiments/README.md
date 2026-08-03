@@ -28,7 +28,7 @@ the directory keeps the method so that is possible.
 * [`2026-03-vendor-build-cost/`](2026-03-vendor-build-cost/) —
   churn per vendor commit, ccache hit rate on adjacent commits,
   archive size; supports
-  [`operations/ci/per-commit/`](/handbook/operations/ci/per-commit/README.md).
+  [`operations/ci/per-commit/planning/`](/handbook/operations/ci/per-commit/planning/README.md).
 * [`2026-07-main-dev-review/`](2026-07-main-dev-review/) —
   how much of a series' active range is R-side work rather than
   vendoring, and what kind; supports

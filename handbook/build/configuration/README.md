@@ -37,8 +37,8 @@ setting them at install time does nothing, because the generated
 `src/Makevars` is committed
 ([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)):
 
-* **`DUCKDB_R_EXTENSIONS`** — extra linked extensions
-  beyond `parquet` and `core_functions`.
+* **`DUCKDB_R_EXTENSIONS`** — extensions linked beyond the standing set
+  ([`usage/extensions/`](/handbook/usage/extensions/README.md)).
 * **`TREAT_WARNINGS_AS_ERRORS`** — appends `-Werror`.
 * **`DUCKDB_DEBUG_MOVE`**, **`DUCKDB_R_LINENR`** — debug flags.
 * **`DUCKDB_PATH`** — where the upstream checkout is read from.

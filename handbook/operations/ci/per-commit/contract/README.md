@@ -20,17 +20,19 @@ How the to-do list is computed is
   `logs2/<sha>.log` for the log.
   A reader takes the per-commit file and falls back to the aggregate;
   the two are made to agree by
-  [consolidation](/handbook/operations/ci/per-commit/store/README.md#consolidation),
+  [`store/`](/handbook/operations/ci/per-commit/store/README.md#consolidation),
   which is a manual operation.
 * **Gate applied per commit** — style, snapshots, roxygen, clean tree,
-  `R CMD check`, pkgdown, in that order.
+  `R CMD check`, pkgdown. The *order* is the contract;
+  the list is `rcc-one.sh`'s `ALL_GATES`.
 * **Accepted snapshots** — pushed as `snapshot-<sha>-rcc-smoke-null`.
 * **Triggers** — push to `each-*` / `*-dev`, `workflow_dispatch`,
   `workflow_call`.
 
 The snapshot branches are load-bearing, so `rcc-one.sh` reproduces them
 rather than just leaving the accepted snapshots in the tree.
-The name is a **frozen literal** — the full SHA between two constants:
+The name is a **frozen literal** — the full SHA between two constants,
+one real branch name for the shape of it:
 
 ```
 snapshot-0019bff821c63ce478d9046aa925d104df1f71a0-rcc-smoke-null

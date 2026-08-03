@@ -5,8 +5,9 @@ its leaves state the model, the pipeline, the loop, and the
 troubleshooting map; where the two disagree, the leaf is right.*
 
 What is left here is what those leaves do not carry yet:
-driving the scripts by hand, starting a new dev line, the vendor commit
-format, recovering a broken run, and the badges.
+driving the scripts by hand, creating a patch, two properties of the
+regenerated tree, starting a new dev line, the vendor commit format,
+recovering a broken run, and the badges.
 Every heading below is a candidate for absorption,
 and this file goes away when the last one lands.
 For the branch model and the series invariants see

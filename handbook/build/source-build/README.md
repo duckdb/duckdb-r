@@ -21,8 +21,9 @@ then `make` in `src/` driven by `src/Makevars`.
 it writes small include fragments that `src/Makevars` picks up —
 `Makevars.rstrtmgr`, then either `Makevars.system-lib` for the fast path
 or a `Makevars.duckdb` copied from `src/include/from-tar.mk`
-or `src/include/to-tar.mk`,
-depending on whether the vendored tree arrived compressed.
+when `DUCKDB_R_PREBUILT_ARCHIVE` names an archive that extracts,
+and from `src/include/to-tar.mk` when it does not
+(`to-tar-win.mk` on Windows).
 It deletes a stale `Makevars.system-lib` first,
 so a plain install can never silently stay on the fast path,
 and it restores `src/duckdb/` from `src/duckdb.tar.xz` when it did —

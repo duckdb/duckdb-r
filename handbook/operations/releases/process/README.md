@@ -30,14 +30,12 @@ Four refs matter here:
   where an LTS line has one.
 * **`<S>-dev`** — what CI judges commit by commit,
   and what the `.dev` flavor is built from.
-* **`<S>-green`** — the trusted frontier: every commit behind it has a
-  recorded successful run
-  ([`operations/ci/per-commit/`](/handbook/operations/ci/per-commit/README.md)).
+* **`<S>-green`** — the trusted frontier
+  ([`branches/model/`](/handbook/branches/model/README.md)).
 
-`<S>-green` is what earlier revisions of this page called `dev-base`.
-The difference is who moves it: the series loop advances green continuously
-as commits go green, so promoting a release point is no longer a step
-someone performs.
+Green moves itself: the series loop fast-forwards it over commits with
+recorded successful runs, so promoting a release point is not a step
+anyone performs.
 
 At any moment a series is in exactly one of four **clusters**.
 The clusters — not the individual states — are the unit of coordination
@@ -195,7 +193,7 @@ Loop back to 0.4 until clean or explained.
 ### 0.5 Glue freeze (barrier)
 
 Freeze glue across **all** releasing series
-and confirm `git cherry main dev` is empty for each —
+and confirm `git cherry main <S>-dev` is empty for each —
 every releasing line now carries identical glue.
 A late glue change after this point is allowed
 but **re-arms the freeze**: land it on `main`,
@@ -281,10 +279,10 @@ A **legacy series** — one not yet reseeded into the loop — is rebuilt from
 the freshly released tip plus the flavor rename:
 
 ```bash
-git checkout -b S-dev-base origin/S
-scripts/flavor.sh N.dev          # the major.minor token, e.g. 1.4.dev
-git push krlmlr S-dev-base --force-with-lease
-git push krlmlr S-dev-base:S-dev --force-with-lease
+git checkout -b <S>-dev-base origin/<S>
+scripts/flavor.sh <N>.dev        # the major.minor token, e.g. 1.4.dev
+git push krlmlr <S>-dev-base --force-with-lease
+git push krlmlr <S>-dev-base:<S>-dev --force-with-lease
 ```
 
 Either way the glue source of truth (`main`) separately moves to its

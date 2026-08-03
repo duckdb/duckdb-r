@@ -3,9 +3,8 @@
 Issue intake: the verdicts an item can close under,
 and where each routes the knowledge.
 The per-issue dispositions and drafted answers for the current queue
-are a plan, not a leaf: they arrive with `PLAN-inbox-zero.md`
-(branch `claude/review-open-issues-prs-46alwv`, not yet landed),
-and the leaves here consume them rather than re-derive them.
+are a plan, not a leaf: when one lands in [`plan/`](/plan/README.md)
+the leaves here consume it rather than re-derive it.
 
 **Every open item gets exactly one verdict, an owner, and a next
 action** — an issue that stays open is a decision, not a leftover:
@@ -25,7 +24,7 @@ is a close *with* a documentation change.**
 The answer lands in the handbook leaf that owns the topic,
 in the same pull request that closes the issue,
 and the closing comment links it
-([the rules](/handbook/meta/handbook/README.md#growing-a-leaf)).
+([`meta/handbook/`](/handbook/meta/handbook/README.md#growing-a-leaf)).
 Every open issue can name the leaf that would absorb its answer;
 an issue with no addressable leaf is a defect of the tree.
 Closing credits the reporter and names the reopen condition.

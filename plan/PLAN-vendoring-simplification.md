@@ -1,5 +1,11 @@
 # PLAN — Vendoring: a smaller kernel, tooling from `main`, and a docs tree
 
+**Open.** How vendoring works today is
+[`operations/vendoring/`](/handbook/operations/vendoring/README.md)'s,
+and the documentation tree's own rules are
+[`meta/handbook/`](/handbook/meta/handbook/README.md)'s;
+this file is the proposal, and where the two disagree the leaf is right.
+
 Status: **in progress** (2026-07-30, branch `claude/vendoring-tooling-design-3swawc`;
 Phase 1 landed as #87, the README root as #88 — see §9;
 revised after a clean-context review of this document against `origin/main`).

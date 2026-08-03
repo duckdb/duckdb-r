@@ -15,11 +15,13 @@ and the ones worth setting repo-wide are repository variables:
 | Cap on commits considered | `max-commits` | — | `0` (no cap) |
 | Rebuild decided commits | `force` | — | `false` |
 | Log lines quoted per failed stage | — | `EACH_RCC_SUMMARY_TAIL` | `50` |
-| Gates to run | — | `EACH_GATES` | all six |
+| Gates to run | — | `EACH_GATES` | `rcc-one.sh`'s `ALL_GATES` |
 
-The defaults above are the workflow's, set in
+Most of these defaults are the workflow's, set in
 [`each.yaml`](/.github/workflows/each.yaml);
-the scripts carry their own fallbacks for a direct invocation,
+the summary tail and the gate list default in the scripts that read them
+instead.
+The scripts carry their own fallbacks for a direct invocation too,
 and those differ — `each-plan.sh` falls back to `MAX_PARALLEL=8`,
 for instance, where the workflow passes 20.
 

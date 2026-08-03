@@ -1,5 +1,8 @@
 # The series loop: vendor, promote, repair
 
+*Handbook: [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md) —
+what this routine is, and when it runs.*
+
 One routine drives **all** series:
 each firing enumerates every series and every existing forward (`-fwd`)
 counterpart and serves each in turn.

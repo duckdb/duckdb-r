@@ -11,7 +11,7 @@ the vendored engine under `src/duckdb/`,
 and the glue translation units directly in `src/`,
 listed in [`src/include/glue.mk`](/src/include/glue.mk)'s `GLUE` variable —
 the split that lets the
-[fast paths](/handbook/build/fast-paths/README.md)
+[`build/fast-paths/`](/handbook/build/fast-paths/README.md)
 compile the glue alone.
 [`src/include/rapi.hpp`](/src/include/rapi.hpp) is the central
 header: the external-pointer wrappers that carry engine objects
@@ -25,7 +25,8 @@ taken from [`krlmlr/cpp11`](https://github.com/krlmlr/cpp11),
 a patch stack on top of
 [`r-lib/cpp11`](https://github.com/r-lib/cpp11):
 this package needs extensions upstream does not ship,
-support for package names with two dots (`duckdb.1.5.dev`) among them.
+support for package names carrying more than one dot
+(`duckdb.1.5.dev`) among them.
 An entry point is a function marked `[[cpp11::register]]`;
 `cpp11::cpp_register()` writes both halves of the binding
 (`src/cpp11.cpp`, `R/cpp11.R`),
@@ -65,6 +66,14 @@ is the known weak point —
 a crash-class bug with a guard under review
 ([#1796](https://github.com/duckdb/duckdb-r/issues/1796),
 [#1797](https://github.com/duckdb/duckdb-r/pull/1797)).
+
+**One header is public.**
+[`inst/include/duckdb_types.hpp`](/inst/include/duckdb_types.hpp)
+is what a downstream R package compiles against;
+everything under `src/include/` is this package's own.
+Being public makes it part of the rename surface — it is installed
+under a name carrying the flavor
+([`branches/flavors/`](/handbook/branches/flavors/README.md)).
 
 *To deepen: absorb the per-unit responsibility table and the error
 rethrow path from the sources; drain

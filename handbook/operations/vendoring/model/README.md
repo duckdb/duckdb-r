@@ -42,6 +42,6 @@ fast path, guarded by a commit match
    anything else is a folded glue fix,
    reviewable as a path-filtered diff.
 
-What enforces the green claim is
-[`ci/per-commit/`](/handbook/operations/ci/per-commit/README.md);
+What enforces the green claim is the gate every commit passes
+([`ci/per-commit/contract/`](/handbook/operations/ci/per-commit/contract/README.md));
 the scripts that keep the rest are `pipeline/`'s.

@@ -190,7 +190,7 @@ so roughly 100× the real rate.
 Of 100 records published, **none were lost and none gave up**;
 51% succeeded on the first attempt, 87% landed within four,
 and the deepest retry was 9.
-Only the first two of those are invariants —
+Nothing lost and nothing given up are the invariants —
 the distribution moves from run to run with machine load.
 That tail is what saturation looks like, not what the branch looks like:
 with 20 writers pushing back to back there is always someone else mid-push,
