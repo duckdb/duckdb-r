@@ -13,8 +13,6 @@ tests/regression
 ^\.gitattributes$
 ^src/\.editorconfig$
 ^\.vscode$
-^CMakeLists\.txt$
-^src/CMakeLists\.txt$
 ^build$
 ^src/.*\.o$
 ^duckdb$
