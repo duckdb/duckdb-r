@@ -93,19 +93,15 @@ documentation](https://duckdb.org/docs/api/r).
 
 ## Documentation
 
-Documentation is organized as a tree; this section is its root for
-users, and [`AGENTS.md`](https://r.duckdb.org/AGENTS.md) is the root for
-maintainers and coding agents.
-
-- [`AGENTS.md`](https://r.duckdb.org/AGENTS.md) — working on the
-  package: build, test, and where to look for everything else
-- [`BRANCHES.md`](https://r.duckdb.org/BRANCHES.md) — branch model,
-  package flavors, series invariants
-- [`RELEASE.md`](https://r.duckdb.org/RELEASE.md) — the release process
-- [`scripts/VENDORING.md`](https://r.duckdb.org/scripts/VENDORING.md) —
-  vendoring mechanics
-- [`plan/README.md`](https://r.duckdb.org/plan/README.md) — designs,
-  plans, and historical documents, each named there by path
+Everything this repository documents is reachable from the
+[handbook](https://r.duckdb.org/handbook/README.md), a strict topic
+hierarchy; [`AGENTS.md`](https://r.duckdb.org/AGENTS.md) is the door for
+maintainers and coding agents, and
+[`plan/README.md`](https://r.duckdb.org/plan/README.md) names the
+designs, plans, and historical documents.
+[`BRANCHES.md`](https://r.duckdb.org/BRANCHES.md) and
+[`scripts/VENDORING.md`](https://r.duckdb.org/scripts/VENDORING.md) hold
+detail the handbook is still absorbing.
 
 ## Building
 
@@ -125,7 +121,10 @@ Then, install:
 ```
 
 Set the `MAKEFLAGS` environment variable to `-j8` or similar for
-parallel builds. Configure `ccache` for faster repeated builds.
+parallel builds. Configure `ccache` for faster repeated builds. A build
+that links a prebuilt engine and finishes in seconds, and the remaining
+knobs, are described in the handbook under
+[`build/`](https://r.duckdb.org/handbook/build/README.md).
 
 If you wish to test new DuckDB functionality with duckdb-r, make sure
 your clone of `duckdb-r` is one level deeper than your clone of `duckdb`

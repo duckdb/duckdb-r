@@ -14,7 +14,7 @@ in-memory connection.
 ## Driver
 
 Create or reuse a DuckDB database instance and the driver object passed
-to [`dbConnect()`](https://dbi.r-dbi.org/reference/dbConnect.html).
+to `dbConnect()`.
 
 - [`duckdb()`](https://r.duckdb.org/reference/duckdb.md)
   [`duckdb_shutdown()`](https://r.duckdb.org/reference/duckdb.md)

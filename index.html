@@ -27,7 +27,7 @@
 
     <a class="navbar-brand me-2" href="index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9005</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9006</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -160,19 +160,7 @@
 <div class="section level2">
 <h2 id="documentation">Documentation<a class="anchor" aria-label="anchor" href="#documentation"></a>
 </h2>
-<p>Documentation is organized as a tree; this section is its root for users, and <a href="AGENTS.html"><code>AGENTS.md</code></a> is the root for maintainers and coding agents.</p>
-<ul>
-<li>
-<a href="AGENTS.html"><code>AGENTS.md</code></a> — working on the package: build, test, and where to look for everything else</li>
-<li>
-<a href="BRANCHES.html"><code>BRANCHES.md</code></a> — branch model, package flavors, series invariants</li>
-<li>
-<a href="RELEASE.html"><code>RELEASE.md</code></a> — the release process</li>
-<li>
-<a href="scripts/VENDORING.html"><code>scripts/VENDORING.md</code></a> — vendoring mechanics</li>
-<li>
-<a href="plan/README.html"><code>plan/README.md</code></a> — designs, plans, and historical documents, each named there by path</li>
-</ul>
+<p>Everything this repository documents is reachable from the <a href="handbook/README.html">handbook</a>, a strict topic hierarchy; <a href="AGENTS.html"><code>AGENTS.md</code></a> is the door for maintainers and coding agents, and <a href="plan/README.html"><code>plan/README.md</code></a> names the designs, plans, and historical documents. <a href="BRANCHES.html"><code>BRANCHES.md</code></a> and <a href="scripts/VENDORING.html"><code>scripts/VENDORING.md</code></a> hold detail the handbook is still absorbing.</p>
 </div>
 <div class="section level2">
 <h2 id="building">Building<a class="anchor" aria-label="anchor" href="#building"></a>
@@ -183,7 +171,7 @@
 <span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p>Then, install:</p>
 <div class="sourceCode" id="cb6"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="ex">~duckdb-r:</span> R CMD INSTALL .</span></code></pre></div>
-<p>Set the <code>MAKEFLAGS</code> environment variable to <code>-j8</code> or similar for parallel builds. Configure <code>ccache</code> for faster repeated builds.</p>
+<p>Set the <code>MAKEFLAGS</code> environment variable to <code>-j8</code> or similar for parallel builds. Configure <code>ccache</code> for faster repeated builds. A build that links a prebuilt engine and finishes in seconds, and the remaining knobs, are described in the handbook under <a href="handbook/build/README.html"><code>build/</code></a>.</p>
 <p>If you wish to test new DuckDB functionality with duckdb-r, make sure your clone of <code>duckdb-r</code> is one level deeper than your clone of <code>duckdb</code> (e.g. <code>R/duckdb-r</code> and <code>duckdb</code>). Then run the following commands:</p>
 <div class="sourceCode" id="cb7"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> duckdb <span class="kw">&amp;&amp;</span> <span class="fu">git</span> checkout {{desired_branch}}<span class="kw">)</span></span>
 <span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> R/duckdb-r <span class="kw">&amp;&amp;</span> <span class="ex">scripts/vendor.sh</span><span class="kw">)</span></span>

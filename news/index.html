@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9005</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9006</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -31,6 +31,24 @@
       <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.5.5.9006" id="duckdb-1559006">duckdb 1.5.5.9006<a class="anchor" aria-label="anchor" href="#duckdb-1559006"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-1-5-5-9006">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5-5-9006"></a></h3>
+<div class="section level4">
+<h4 id="vendor-1-5-5-9006">vendor<a class="anchor" aria-label="anchor" href="#vendor-1-5-5-9006"></a></h4>
+<ul><li>Drop the dead knobs, classify patch failures, restore the tree on a no-op run (<a href="https://github.com/duckdb/duckdb-r/issues/2491" class="external-link">#2491</a>).</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="documentation-1-5-5-9006">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-5-5-9006"></a></h3>
+<div class="section level4">
+<h4 id="vendoring-1-5-5-9006">vendoring<a class="anchor" aria-label="anchor" href="#vendoring-1-5-5-9006"></a></h4>
+<ul><li><p>Fold by default, extend on pending, require a rising vendor counter.</p></li>
+<li><p>Write every upward link from the repository root (<a href="https://github.com/duckdb/duckdb-r/issues/2458" class="external-link">#2458</a>).</p></li>
+</ul></div>
+</div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.5.5.9005" id="duckdb-1559005">duckdb 1.5.5.9005<a class="anchor" aria-label="anchor" href="#duckdb-1559005"></a></h2>
 <div class="section level3">
@@ -369,9 +387,9 @@
 <div class="section level3">
 <h3 id="features-1-5-4">Features<a class="anchor" aria-label="anchor" href="#features-1-5-4"></a></h3>
 <ul><li><p>Update to DuckDB v1.5.4, see <a href="https://github.com/duckdb/duckdb/releases/tag/v1.5.4" class="external-link uri">https://github.com/duckdb/duckdb/releases/tag/v1.5.4</a> for details.</p></li>
-<li><p>Support writing <code>MAP</code> columns via <code><a href="https://dbi.r-dbi.org/reference/dbAppendTable.html" class="external-link">dbAppendTable()</a></code> and <code><a href="https://dbi.r-dbi.org/reference/dbWriteTable.html" class="external-link">dbWriteTable()</a></code> (<a href="https://github.com/duckdb/duckdb-r/issues/2354" class="external-link">#2354</a>).</p></li>
+<li><p>Support writing <code>MAP</code> columns via <code>dbAppendTable()</code> and <code>dbWriteTable()</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2354" class="external-link">#2354</a>).</p></li>
 <li><p>Add native <code>VARIANT</code> (<a href="https://github.com/thohan88" class="external-link">@thohan88</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2313" class="external-link">#2313</a>) and <code>TIME WITH TIME ZONE</code> (<a href="https://github.com/duckdb/duckdb-r/issues/1807" class="external-link">#1807</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2336" class="external-link">#2336</a>) data type support.</p></li>
-<li><p>Implement DBI Arrow API with <code><a href="https://dbi.r-dbi.org/reference/dbSendQueryArrow.html" class="external-link">dbSendQueryArrow()</a></code> and streaming (<a href="https://github.com/duckdb/duckdb-r/issues/2347" class="external-link">#2347</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2355" class="external-link">#2355</a>).</p></li>
+<li><p>Implement DBI Arrow API with <code>dbSendQueryArrow()</code> and streaming (<a href="https://github.com/duckdb/duckdb-r/issues/2347" class="external-link">#2347</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2355" class="external-link">#2355</a>).</p></li>
 <li><p>Store downloaded extensions inside the duckdb package install directory (<a href="https://github.com/duckdb/duckdb-r/issues/2327" class="external-link">#2327</a>).</p></li>
 <li><p>Add secret directory configuration, package startup message, and consolidation support via new experimental <code>duckdb_consolidate_secrets()</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2305" class="external-link">#2305</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2340" class="external-link">#2340</a>).</p></li>
 </ul></div>
@@ -556,7 +574,7 @@
 <h3 id="features-1-3-3">Features<a class="anchor" aria-label="anchor" href="#features-1-3-3"></a></h3>
 <ul><li><p>Add rich ErrorData-based error handling with structured error information (<a href="https://github.com/duckdb/duckdb-r/issues/1479" class="external-link">#1479</a>).</p></li>
 <li><p>Safeguard against deadlocks when accidentally issuing queries from the progress bar handler or other callbacks (<a href="https://github.com/duckdb/duckdb-r/issues/1475" class="external-link">#1475</a>).</p></li>
-<li><p><code><a href="https://dbi.r-dbi.org/reference/dbGetInfo.html" class="external-link">dbGetInfo()</a></code> gets the version from a hard-coded value and not from a DuckDB query (<a href="https://github.com/duckdb/duckdb-r/issues/1481" class="external-link">#1481</a>).</p></li>
+<li><p><code>dbGetInfo()</code> gets the version from a hard-coded value and not from a DuckDB query (<a href="https://github.com/duckdb/duckdb-r/issues/1481" class="external-link">#1481</a>).</p></li>
 <li><p>Package uses two cores by default for compilation (<a href="https://github.com/duckdb/duckdb-r/issues/1478" class="external-link">#1478</a>).</p></li>
 </ul></div>
 <div class="section level3">
@@ -841,7 +859,7 @@
 <div class="section level3">
 <h3 id="features-0-10-1">Features<a class="anchor" aria-label="anchor" href="#features-0-10-1"></a></h3>
 <ul><li>Update to duckdb v0.10.1, see <a href="https://github.com/duckdb/duckdb/releases/tag/v0.10.1" class="external-link uri">https://github.com/duckdb/duckdb/releases/tag/v0.10.1</a> for details.</li>
-<li>Fix shutdown semantics for the driver object created by <code><a href="../reference/duckdb.html">duckdb()</a></code>. A database file is closed (and available to be opened from another session) after the last connection that uses this file calls <code><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect()</a></code> . The <code>shutdown</code> argument to <code><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect()</a></code> or the <code><a href="../reference/duckdb.html">duckdb_shutdown()</a></code> functions are no longer necessary. Two database connections from the same R session can access the same file concurrently in read-write mode (<a href="https://github.com/duckdb/duckdb-r/issues/124" class="external-link">#124</a>).</li>
+<li>Fix shutdown semantics for the driver object created by <code><a href="../reference/duckdb.html">duckdb()</a></code>. A database file is closed (and available to be opened from another session) after the last connection that uses this file calls <code>dbDisconnect()</code> . The <code>shutdown</code> argument to <code>dbDisconnect()</code> or the <code><a href="../reference/duckdb.html">duckdb_shutdown()</a></code> functions are no longer necessary. Two database connections from the same R session can access the same file concurrently in read-write mode (<a href="https://github.com/duckdb/duckdb-r/issues/124" class="external-link">#124</a>).</li>
 </ul></div>
 <div class="section level3">
 <h3 id="bug-fixes-0-10-1">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-10-1"></a></h3>
@@ -864,7 +882,7 @@
 <h3 id="bug-fixes-0-10-0">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-10-0"></a></h3>
 <ul><li><p><code><a href="https://dplyr.tidyverse.org/reference/tbl.html" class="external-link">dplyr::tbl()</a></code> works again when a Parquet or CSV file is passed instead of a table name (<a href="https://github.com/duckdb/duckdb-r/issues/38" class="external-link">#38</a>, <a href="https://github.com/duckdb/duckdb-r/issues/91" class="external-link">#91</a>).</p></li>
 <li><p><code><a href="https://dbi.r-dbi.org/reference/dbQuoteIdentifier.html" class="external-link">DBI::dbQuoteIdentifier()</a></code> correctly quotes identifiers that start with a digit (<a href="https://github.com/duckdb/duckdb-r/issues/67" class="external-link">#67</a>, <a href="https://github.com/duckdb/duckdb-r/issues/92" class="external-link">#92</a>).</p></li>
-<li><p>Align the argument order of <code><a href="https://dbi.r-dbi.org/reference/dbWriteTable.html" class="external-link">dbWriteTable()</a></code> with the DBI specs (<a href="https://github.com/eitsupi" class="external-link">@eitsupi</a>, <a href="https://github.com/duckdb/duckdb-r/issues/43" class="external-link">#43</a>, <a href="https://github.com/duckdb/duckdb-r/issues/49" class="external-link">#49</a>).</p></li>
+<li><p>Align the argument order of <code>dbWriteTable()</code> with the DBI specs (<a href="https://github.com/eitsupi" class="external-link">@eitsupi</a>, <a href="https://github.com/duckdb/duckdb-r/issues/43" class="external-link">#43</a>, <a href="https://github.com/duckdb/duckdb-r/issues/49" class="external-link">#49</a>).</p></li>
 </ul></div>
 <div class="section level3">
 <h3 id="features-0-10-0">Features<a class="anchor" aria-label="anchor" href="#features-0-10-0"></a></h3>

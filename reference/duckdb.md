@@ -9,13 +9,11 @@ Return an
 for use with Arrow Database Connectivity via the adbcdrivermanager
 package.
 
-[`dbConnect()`](https://dbi.r-dbi.org/reference/dbConnect.html) connects
-to a database instance.
+`dbConnect()` connects to a database instance.
 
-[`dbDisconnect()`](https://dbi.r-dbi.org/reference/dbDisconnect.html)
-closes a DuckDB database connection. The associated DuckDB database
-instance is shut down automatically, it is no longer necessary to set
-`shutdown = TRUE` or to call `duckdb_shutdown()`.
+`dbDisconnect()` closes a DuckDB database connection. The associated
+DuckDB database instance is shut down automatically, it is no longer
+necessary to set `shutdown = TRUE` or to call `duckdb_shutdown()`.
 
 ## Usage
 
@@ -230,13 +228,12 @@ dbDisconnect(conn, ..., shutdown = TRUE)
 `duckdb()` returns an object of class
 [duckdb_driver](https://r.duckdb.org/reference/duckdb_driver-class.md).
 
-[`dbDisconnect()`](https://dbi.r-dbi.org/reference/dbDisconnect.html)
-and `duckdb_shutdown()` are called for their side effect.
+`dbDisconnect()` and `duckdb_shutdown()` are called for their side
+effect.
 
 An object of class "adbc_driver"
 
-[`dbConnect()`](https://dbi.r-dbi.org/reference/dbConnect.html) returns
-an object of class
+`dbConnect()` returns an object of class
 [duckdb_connection](https://r.duckdb.org/reference/duckdb_connection-class.md).
 
 ## Details
@@ -249,10 +246,8 @@ timezone, the resulting value may be `NA` or an adjusted time.
 ## Database instances and driver reuse
 
 `duckdb()` returns a driver object that owns a DuckDB *database
-instance*.
-[`dbConnect()`](https://dbi.r-dbi.org/reference/dbConnect.html) opens
-connections to that instance, and many connections can share one
-instance.
+instance*. `dbConnect()` opens connections to that instance, and many
+connections can share one instance.
 
 For a file-based `dbdir`, the instance is cached, keyed by the
 (normalized) path: calling `duckdb()` again with the same `dbdir`

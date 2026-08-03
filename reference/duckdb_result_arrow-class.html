@@ -9,7 +9,7 @@ Implements DBIResultArrow-class."><meta property="og:image" content="https://r.d
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9005</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9006</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,37 +42,37 @@ Implements <a href="https://dbi.r-dbi.org/reference/DBIResultArrow-class.html" c
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="co"># S4 method for class 'duckdb_result_arrow'</span></span>
-<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbBind.html" class="external-link">dbBind</a></span><span class="op">(</span><span class="va">res</span>, <span class="va">params</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">dbBind</span><span class="op">(</span><span class="va">res</span>, <span class="va">params</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for class 'duckdb_result_arrow'</span></span>
-<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbBind.html" class="external-link">dbBindArrow</a></span><span class="op">(</span><span class="va">res</span>, <span class="va">params</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">dbBindArrow</span><span class="op">(</span><span class="va">res</span>, <span class="va">params</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for class 'duckdb_result_arrow'</span></span>
-<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbClearResult.html" class="external-link">dbClearResult</a></span><span class="op">(</span><span class="va">res</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">dbClearResult</span><span class="op">(</span><span class="va">res</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for class 'duckdb_result_arrow'</span></span>
-<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbColumnInfo.html" class="external-link">dbColumnInfo</a></span><span class="op">(</span><span class="va">res</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">dbColumnInfo</span><span class="op">(</span><span class="va">res</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for class 'duckdb_result_arrow'</span></span>
-<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbFetchArrow.html" class="external-link">dbFetchArrow</a></span><span class="op">(</span><span class="va">res</span>, <span class="va">...</span>, chunk_size <span class="op">=</span> <span class="fl">1e+06</span><span class="op">)</span></span>
+<span><span class="fu">dbFetchArrow</span><span class="op">(</span><span class="va">res</span>, <span class="va">...</span>, chunk_size <span class="op">=</span> <span class="fl">1e+06</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for class 'duckdb_result_arrow'</span></span>
-<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbFetchArrowChunk.html" class="external-link">dbFetchArrowChunk</a></span><span class="op">(</span><span class="va">res</span>, <span class="va">...</span>, chunk_size <span class="op">=</span> <span class="fl">1e+06</span><span class="op">)</span></span>
+<span><span class="fu">dbFetchArrowChunk</span><span class="op">(</span><span class="va">res</span>, <span class="va">...</span>, chunk_size <span class="op">=</span> <span class="fl">1e+06</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for class 'duckdb_result_arrow'</span></span>
-<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbGetRowCount.html" class="external-link">dbGetRowCount</a></span><span class="op">(</span><span class="va">res</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">dbGetRowCount</span><span class="op">(</span><span class="va">res</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for class 'duckdb_result_arrow'</span></span>
-<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbGetRowsAffected.html" class="external-link">dbGetRowsAffected</a></span><span class="op">(</span><span class="va">res</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">dbGetRowsAffected</span><span class="op">(</span><span class="va">res</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for class 'duckdb_result_arrow'</span></span>
-<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbGetStatement.html" class="external-link">dbGetStatement</a></span><span class="op">(</span><span class="va">res</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">dbGetStatement</span><span class="op">(</span><span class="va">res</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for class 'duckdb_result_arrow'</span></span>
-<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbHasCompleted.html" class="external-link">dbHasCompleted</a></span><span class="op">(</span><span class="va">res</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">dbHasCompleted</span><span class="op">(</span><span class="va">res</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for class 'duckdb_result_arrow'</span></span>
-<span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbIsValid.html" class="external-link">dbIsValid</a></span><span class="op">(</span><span class="va">dbObj</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">dbIsValid</span><span class="op">(</span><span class="va">dbObj</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for class 'duckdb_result_arrow'</span></span>
 <span><span class="fu">show</span><span class="op">(</span><span class="va">object</span><span class="op">)</span></span></code></pre></div>
@@ -87,9 +87,9 @@ Implements <a href="https://dbi.r-dbi.org/reference/DBIResultArrow-class.html" c
 
 
 <dt id="arg-params">params<a class="anchor" aria-label="anchor" href="#arg-params"></a></dt>
-<dd><p>For <code><a href="https://dbi.r-dbi.org/reference/dbBind.html" class="external-link">dbBind()</a></code>, a list of values, named or unnamed,
+<dd><p>For <code>dbBind()</code>, a list of values, named or unnamed,
 or a data frame, with one element/column per query parameter.
-For <code><a href="https://dbi.r-dbi.org/reference/dbBind.html" class="external-link">dbBindArrow()</a></code>, values as a nanoarrow stream,
+For <code>dbBindArrow()</code>, values as a nanoarrow stream,
 with one column per query parameter.</p></dd>
 
 
