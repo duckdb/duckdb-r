@@ -53,10 +53,32 @@ the rest move the fact somewhere better than a paragraph.
    so a fact is edited in one place
    and found from the place it is about.
 
+**A behaviour that looks wrong rather than chosen is settled before the
+ladder, not on it.**
+A fact can be true and still be one nobody should have to read,
+and no rung can tell which:
+nothing mechanical distinguishes a deliberate limitation from an unfixed
+one, because both are only what the code does.
+So it is a discussion, not a test —
+is the behaviour *desirable*, or is it a mere *limitation*?
+Desirable, and it is an ordinary fact, taking the ladder like any other.
+A limitation, and the two costs are weighed against each other.
+A fix of one to three lines, with consequences obvious enough to approve
+at a glance, is cheaper than the paragraph and every later edit of it:
+make it, and write nothing.
+Anything larger is work carrying its own risk, review and timeline,
+so the limitation is real for as long as that takes —
+and the tree requires the leaf to state its limits,
+with the issue that will remove it, so the fact reads as provisional.
+Silence is the one answer never available:
+a limitation nobody wrote down is one the next reader rediscovers,
+and pays for twice.
+
 ## Where the handbook stops
 
-Rungs 3 to 5 all ask the same question — is something else a better
-home for this? — and the answer generalises.
+The rungs asking after another owner, an artifact, and a check
+all ask the same question — is something else a better home for this? —
+and the answer generalises.
 **The tree owns what the code cannot say about itself**, which is three
 things:
 
