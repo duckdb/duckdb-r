@@ -10,22 +10,22 @@ with the purpose taken from the file's own header line
 and the grouping from the handbook leaf that owns the topic —
 ownership by topic, navigation by place
 ([the rules](/handbook/meta/handbook/README.md)).
-Root of the documentation tree: [`handbook/`](/handbook/).
+Root of the documentation tree: [`handbook/`](/handbook/README.md).
 
-## [`architecture/glue/`](/handbook/architecture/glue/)
+## [`architecture/glue/`](/handbook/architecture/glue/README.md)
 
 | File | Purpose |
 |---|---|
 | [`format.py`](format.py) | Format the source directory; driven by the Makefile's format-* targets. |
 | [`python_helpers.py`](python_helpers.py) | Shared file helpers for the Python scripts in this directory (imported by format.py). |
 
-## [`architecture/r-layer/`](/handbook/architecture/r-layer/)
+## [`architecture/r-layer/`](/handbook/architecture/r-layer/README.md)
 
 | File | Purpose |
 |---|---|
 | [`rethrow.R`](rethrow.R) | Generate R/rethrow-gen.R from R/cpp11.R: wrap each rapi_* binding to rethrow errors with call context; sourced by .Rprofile on repo load. |
 
-## [`branches/flavors/`](/handbook/branches/flavors/)
+## [`branches/flavors/`](/handbook/branches/flavors/README.md)
 
 | File | Purpose |
 |---|---|
@@ -33,55 +33,64 @@ Root of the documentation tree: [`handbook/`](/handbook/).
 | [`flavor.patch`](flavor.patch) | — |
 | [`flavor.sh`](flavor.sh) | Apply a package flavor: rewrite scripts/flavor.patch to the target name (say, duckdb.dev), apply it, and commit the rename; see BRANCHES.md. |
 
-## [`build/configuration/`](/handbook/build/configuration/)
+## [`build/configuration/`](/handbook/build/configuration/README.md)
 
 | File | Purpose |
 |---|---|
 | [`setup-makeflags.R`](setup-makeflags.R) | Setup MAKEFLAGS for parallel compilation. |
 
-## [`build/fast-paths/`](/handbook/build/fast-paths/)
+## [`build/fast-paths/`](/handbook/build/fast-paths/README.md)
 
 | File | Purpose |
 |---|---|
 | [`install-duckdb-cli.sh`](install-duckdb-cli.sh) | Download the standalone DuckDB CLI matching the vendored DuckDB sources under src/duckdb/. |
 | [`install-libduckdb.sh`](install-libduckdb.sh) | Install the libduckdb prebuilt binary matching the vendored DuckDB sources under src/duckdb/. |
 
-## [`meta/handbook/`](/handbook/meta/handbook/)
+## [`meta/handbook/`](/handbook/meta/handbook/README.md)
 
 | File | Purpose |
 |---|---|
 | [`README.md`](README.md) | (this index) |
 
-## [`operations/ci/per-commit/`](/handbook/operations/ci/per-commit/)
+## [`operations/ci/per-commit/legs/`](/handbook/operations/ci/per-commit/legs/README.md)
 
 | File | Purpose |
 |---|---|
-| [`EACH.md`](EACH.md) | `each-rcc` — building every commit as a sharded matrix |
+| [`each-shard.sh`](each-shard.sh) | Build one shard of an `each-rcc` plan: many commits, one job, one workspace. |
+| [`rcc-one.sh`](rcc-one.sh) | Run the per-commit `rcc` gate against the working tree, once. |
+
+## [`operations/ci/per-commit/planning/`](/handbook/operations/ci/per-commit/planning/README.md)
+
+| File | Purpose |
+|---|---|
 | [`each-cost.py`](each-cost.py) | Estimate how many unity objects a change invalidates. |
-| [`each-harvest.sh`](each-harvest.sh) | Fan-in for `each-rcc`: make sure every commit the legs decided has a record on the orphan `rcc` branch. |
 | [`each-partition.py`](each-partition.py) | Partition a commit range into contiguous, cost-balanced `each-rcc` shards. |
 | [`each-plan.sh`](each-plan.sh) | Plan the sharded per-commit `rcc` build for the checked-out branch. |
-| [`each-shard.sh`](each-shard.sh) | Build one shard of an `each-rcc` plan: many commits, one job, one workspace. |
-| [`rcc-consolidate.sh`](rcc-consolidate.sh) | Consolidate the orphan `rcc` branch: reconcile its two record layouts, drop logs older than a month, and squash the whole history to two commits. |
+
+## [`operations/ci/per-commit/selection/`](/handbook/operations/ci/per-commit/selection/README.md)
+
+| File | Purpose |
+|---|---|
 | [`rcc-decided.sh`](rcc-decided.sh) | Print the SHA of every commit the verdict store has decided, one per line. |
+
+## [`operations/ci/per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md)
+
+| File | Purpose |
+|---|---|
+| [`each-harvest.sh`](each-harvest.sh) | Fan-in for `each-rcc`: make sure every commit the legs decided has a record on the orphan `rcc` branch. |
+| [`rcc-consolidate.sh`](rcc-consolidate.sh) | Consolidate the orphan `rcc` branch: reconcile its two record layouts, drop logs older than a month, and squash the whole history to two commits. |
 | [`rcc-logs.sh`](rcc-logs.sh) | Collect rcc results and failure logs, indexed by commit SHA. |
 | [`rcc-merge.sh`](rcc-merge.sh) | Reconcile `runs2.ndjson` on the orphan `rcc` branch with the per-commit records in `runs2.d/`: append the ones it lacks, replace the ones it has stale. |
-| [`rcc-one.sh`](rcc-one.sh) | Run the per-commit `rcc` gate against the working tree, once. |
 | [`rcc-part-push.sh`](rcc-part-push.sh) | Publish one commit's `rcc` record -- and its log, if it failed -- to the orphan `rcc` branch, straight from the matrix leg that decided it. |
 | [`rcc-parts-test.sh`](rcc-parts-test.sh) | Check the invariants the per-commit record layout rests on, offline, against a local bare repository -- optionally seeded from the real `rcc` branch. |
 | [`rcc-push.sh`](rcc-push.sh) | Commit the orphan `rcc` worktree and push it, re-deriving on conflict. |
 | [`rcc-run-fields.jq`](rcc-run-fields.jq) | The subset of a GitHub workflow-run object that a record on the `rcc` branch carries, applied to `gh api repos/{owner}/{repo}/actions/runs/<id>`. |
 
-## [`operations/vendoring/`](/handbook/operations/vendoring/)
+## [`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)
 
 | File | Purpose |
 |---|---|
 | [`VENDORING.md`](VENDORING.md) | DuckDB R Package Vendoring |
-
-## [`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/)
-
-| File | Purpose |
-|---|---|
 | [`merge-version.sh`](merge-version.sh) | Git merge driver for DESCRIPTION. |
 | [`rconfigure.py`](rconfigure.py) | Regenerate the vendored build configuration from a DuckDB checkout: src/duckdb/, src/include/sources.mk, R/version.R and the Makevars files. |
 | [`setup-git.sh`](setup-git.sh) | Register repository-local git configuration that cannot live in versioned files. |
@@ -89,7 +98,7 @@ Root of the documentation tree: [`handbook/`](/handbook/).
 | [`vendor-rfuns.sh`](vendor-rfuns.sh) | Vendor the rfuns extension: copy sources from a duckdb-rfuns checkout into src/ and commit with the upstream log, one commit per import. |
 | [`vendor.sh`](vendor.sh) | Vendors DuckDB sources from the upstream repository (manual vendoring). |
 
-## [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/)
+## [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)
 
 | File | Purpose |
 |---|---|
@@ -99,7 +108,7 @@ Root of the documentation tree: [`handbook/`](/handbook/).
 | [`series-forward-build.sh`](series-forward-build.sh) | Populate `<S>-fwd-build`: replay every vendor commit of the old `<S>-build` onto HEAD, which must be the freshly flavored seed on current `main` (.claude/ski... |
 | [`series-port.sh`](series-port.sh) | Bring a series' -dev branch level with `main` — stage 4 of the series loop (.claude/skills/series-loop.md). |
 
-## [`testing/snapshots/`](/handbook/testing/snapshots/)
+## [`testing/snapshots/`](/handbook/testing/snapshots/README.md)
 
 | File | Purpose |
 |---|---|

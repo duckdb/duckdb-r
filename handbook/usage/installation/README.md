@@ -1,18 +1,34 @@
 # Installation
 
-*Stub — this leaf will own its topic;
-today it routes to where the knowledge lives.
-The writing protocol is in [`meta/handbook/`](/handbook/meta/handbook/);
-the last section holds this leaf's parameters.*
+Choosing where to install the package from, and which flavor.
+The exact commands stay in the root [`README.md`](/README.md),
+which CRAN renders and which keeps the full install text
+and the `Flavors` table.
 
-Scope: installing from CRAN or r-universe, and choosing a flavor.
+Four sources serve the package:
 
-Today:
+* **CRAN** publishes the released `duckdb`,
+  with binaries for recent R on Windows and macOS;
+  elsewhere it is a source install,
+  which compiles the whole vendored engine —
+  tens of minutes rather than seconds.
+* **[Posit Public Package Manager](https://p3m.dev/)** serves binaries
+  of the same CRAN release for many platforms, including Linux.
+* **[r-universe](https://duckdb.r-universe.dev)** serves
+  development versions and every flavor, `duckdb` included.
+* **GitHub** installs this repository's current state from source,
+  `pak::pak("duckdb/duckdb-r")`.
 
-* [`README.md`](/README.md) — the install commands and the `Flavors` table
+Use `duckdb` unless you need to pin a minor version or to test
+unreleased builds.
+Which flavors exist is
+[`branches/flavors/`](/handbook/branches/flavors/README.md)'s,
+and the root `README.md`'s `Flavors` table
+is where a new one is announced.
+Picking a flavor changes the package name and little else,
+and a flavor installs alongside `duckdb` instead of replacing it;
+only `duckdb` reaches CRAN.
 
-To write this leaf:
-
-* source: `README.md` — the install commands and the `Flavors` table;
-  summarize and point — the root keeps the full text (CRAN renders it)
-  and gains a backreference to this leaf
+Compiling a clone yourself, and making that fast,
+is [`build/source-build/`](/handbook/build/source-build/README.md)
+and [`build/fast-paths/`](/handbook/build/fast-paths/README.md).

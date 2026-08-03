@@ -17,7 +17,7 @@
 #   * a leg pays the ~4 min R/dependency setup once for ~20 commits, not once
 #     per commit;
 #   * consecutive commits in a leg share the runner's local ccache, where a
-#     typical adjacent vendor commit is ~98% cached (plan/history/vendoring-loop.md, A.2);
+#     typical adjacent vendor commit is ~98% cached (plan/superseded/vendoring-loop.md, A.2);
 #   * the whole batch is one workflow run: one thing to cancel, one set of logs.
 #
 # "Undecided" is read from the **verdict store**, not from commit statuses: a
@@ -63,7 +63,7 @@
 # The four constants are fitted to the 29 commits of runs 30406932093
 # (main-fwd-dev, 24 commits over two legs) and 30422580063
 # (v1.5-variegata-fwd-dev, 5 commits, one leg), RMSE 1.3 min over the 26 warm
-# builds; see scripts/EACH.md section 3. Every leg still records
+# builds; see handbook/operations/ci/per-commit/planning/README.md. Every leg still records
 # duration_seconds per commit, and scripts/each-harvest.sh carries it onto the
 # `rcc` branch, so the fit can be redone from a wider range at any time.
 

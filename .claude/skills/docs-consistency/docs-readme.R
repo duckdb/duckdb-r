@@ -107,25 +107,40 @@ first_sentence <- function(text) {
 # --- ownership ---------------------------------------------------------
 
 # The scripts/ slice of the source-to-leaf ownership map.
-# `owner` is a handbook node, repo-relative.  First match wins;
+# `owner` is the handbook leaf that owns the file's topic, repo-relative.  First match wins;
 # a file that could fit several paths is mapped to its best fit.
 # The index renders grouped by handbook path, in path order.
 groups <- list(
   list(
-    owner = "handbook/operations/vendoring",
-    globs = c("VENDORING.md")
-  ),
-  list(
     owner = "handbook/operations/vendoring/pipeline",
-    globs = c("vendor*.sh", "rconfigure.py", "merge-version.sh", "setup-git.sh")
+    globs = c(
+      "VENDORING.md", "vendor*.sh", "rconfigure.py",
+      "merge-version.sh", "setup-git.sh"
+    )
   ),
   list(
     owner = "handbook/operations/vendoring/series-loop",
     globs = c("series-*.sh")
   ),
   list(
-    owner = "handbook/operations/ci/per-commit",
-    globs = c("EACH.md", "each-*", "rcc-*")
+    owner = "handbook/operations/ci/per-commit/selection",
+    globs = c("rcc-decided.sh")
+  ),
+  list(
+    owner = "handbook/operations/ci/per-commit/planning",
+    globs = c("each-plan.sh", "each-cost.py", "each-partition.py")
+  ),
+  list(
+    owner = "handbook/operations/ci/per-commit/legs",
+    globs = c("each-shard.sh", "rcc-one.sh")
+  ),
+  list(
+    owner = "handbook/operations/ci/per-commit/store",
+    globs = c(
+      "each-harvest.sh", "rcc-consolidate.sh", "rcc-logs.sh",
+      "rcc-merge.sh", "rcc-part-push.sh", "rcc-parts-test.sh",
+      "rcc-push.sh", "rcc-run-fields.jq"
+    )
   ),
   list(
     owner = "handbook/branches/flavors",
@@ -180,7 +195,7 @@ owner_heading <- function(g) {
     stop("dangling owner: ", g$owner)
   }
   name <- paste0(sub("^handbook/", "", g$owner), "/")
-  rel <- paste0("/", g$owner, "/")
+  rel <- paste0("/", g$owner, "/README.md")
   paste0("## [`", name, "`](", rel, ")")
 }
 
@@ -202,7 +217,7 @@ out <- c(
   "and the grouping from the handbook leaf that owns the topic —",
   "ownership by topic, navigation by place",
   "([the rules](/handbook/meta/handbook/README.md)).",
-  "Root of the documentation tree: [`handbook/`](/handbook/).",
+  "Root of the documentation tree: [`handbook/`](/handbook/README.md).",
   ""
 )
 

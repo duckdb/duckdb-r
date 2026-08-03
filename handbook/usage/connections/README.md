@@ -1,24 +1,48 @@
 # Connections
 
-*Stub — this leaf will own its topic;
-today it routes to where the knowledge lives.
-The writing protocol is in [`meta/handbook/`](/handbook/meta/handbook/);
-the last section holds this leaf's parameters.*
+`dbConnect()` semantics:
+database instances and their caching,
+when `config` and `read_only` take effect,
+and `duckdb_shutdown()`.
+`?duckdb` (the roxygen in [`R/Driver.R`](/R/Driver.R))
+is the shipped reference for this topic
+and carries the full text of these rules.
 
-Scope: `dbConnect()` semantics: instance caching, `config` and `read_only`,
-`dbdir` precedence, `duckdb_shutdown()`.
+The load-bearing facts:
 
-Today:
+* `duckdb()` returns a driver that owns a *database instance*;
+  `dbConnect()` opens connections to it,
+  and many connections share one instance.
+* For a file-based `dbdir` the instance is **cached**,
+  keyed by the normalized path —
+  DuckDB allows only one read-write handle per database file,
+  so reuse is what lets repeated
+  `dbConnect(duckdb(dbdir = "my.db"))` calls work at all.
+  An in-memory database is never cached.
+* `config`, `read_only`, `home`, and `shared_home`
+  bind when the instance is *created*;
+  a call that reuses a cached instance ignores them silently
+  ([#83](https://github.com/duckdb/duckdb-r/issues/83),
+  [#171](https://github.com/duckdb/duckdb-r/issues/171)).
+  To apply new values to a file database,
+  release the instance with `duckdb_shutdown()` first.
+  Warning in exactly the surprise cases is planned
+  ([#126](https://github.com/duckdb/duckdb-r/issues/126)).
+* `dbDisconnect()` closes one connection only;
+  its `shutdown` argument is unused.
+  Instances are shut down when the driver is garbage-collected
+  or the session ends.
+* In a multi-statement string,
+  everything before the final statement executes at prepare time,
+  and `?` placeholders bind only in the last statement
+  ([#179](https://github.com/duckdb/duckdb-r/issues/179)).
+  DBI's `immediate = TRUE` is no way around this and no way to opt out:
+  the driver has no unprepared path — every route reaches
+  [`src/statement.cpp`](/src/statement.cpp)'s prepare, which is where the
+  earlier statements run — and the argument lands in `...` unread,
+  which it will stop doing
+  ([#2498](https://github.com/duckdb/duckdb-r/issues/2498)).
 
-* `?duckdb` — the driver reference
-* a connection-semantics concept page (`.Rd`) is the natural next home,
-  not yet written
-
-To write this leaf:
-
-* gather: the `dbConnect()` / `duckdb()` roxygen in `R/Driver.R`
-  and `R/dbConnect__duckdb_driver.R`;
-  instance caching, `config` / `read_only` binding, `dbdir` precedence
-* drain: #83, #126, #171, #172, #179, #455
-* stage the facts here until a `?duckdb_connections` reference page
-  exists, then invert to a pointer
+*To deepen: absorb the instance and caching section of `?duckdb`;
+drain [#172](https://github.com/duckdb/duckdb-r/issues/172),
+[#455](https://github.com/duckdb/duckdb-r/issues/455).*

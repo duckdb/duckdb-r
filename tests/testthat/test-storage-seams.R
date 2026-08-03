@@ -1,5 +1,5 @@
 # Behavior-neutral seams introduced for the storage-location policy
-# (plan/PLAN-storage-locations.md). These tests pin the current behavior and
+# (plan/done/PLAN-storage-locations.md). These tests pin the current behavior and
 # confirm the seams are mockable without touching the real filesystem.
 
 test_that("check_dots_empty0 rejects non-empty dots", {

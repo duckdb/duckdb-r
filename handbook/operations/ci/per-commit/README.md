@@ -1,17 +1,20 @@
-# Per-commit builds
+# `per-commit/`
 
-*Stub — this leaf will own its topic;
-today it routes to where the knowledge lives.
-The writing protocol is in [`meta/handbook/`](/handbook/meta/handbook/);
-the last section holds this leaf's parameters.*
+Every commit on a series branch gets a gate verdict of its own,
+so every `*-dev` branch is bisectable end to end
+([`branches/invariants/`](/handbook/branches/invariants/README.md)).
+[`each.yaml`](/.github/workflows/each.yaml) is what runs.
 
-Scope: the sharded per-commit build system and its verdict store.
+**Nothing here coordinates; everything recomputes.**
+No part of this system asks another what it is doing,
+and none of it holds a lock or a running marker.
+Each run derives its own work from durable state and writes only what it
+decided — which is what makes a lost runner cost exactly its own work,
+and a re-run cost only what was lost.
 
-Today:
-
-* [`scripts/EACH.md`](/scripts/EACH.md)
-
-To write this leaf:
-
-* absorb: `scripts/EACH.md` — the sharded per-commit design, the
-  verdict store, the cost model with its measured constants
+* [`contract/`](contract/) — what consumers rely on
+* [`selection/`](selection/) — which commits a run plans
+* [`planning/`](planning/) — the cost model and the shard partition
+* [`legs/`](legs/) — the jobs, the scripts, one leg's workspace
+* [`store/`](store/) — the `rcc` branch and its writers
+* [`operating/`](operating/) — knobs, failures, what to do

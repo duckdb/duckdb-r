@@ -1,10 +1,15 @@
-# Non-vendored changes on `main-dev` — review against upstream
+# Non-vendored changes on `main-dev`
 
-Status: **historical** — a one-off review artifact from 2026-07,
-kept for the findings it records about the R-side delta of a series.
-It is a snapshot of one branch at one moment, not a description of the
-system: the loop is owned by `.claude/skills/series-loop.md`,
-its mechanics by [`scripts/VENDORING.md`](/scripts/VENDORING.md).
+**Measured** 2026-07, on `main-dev` in `krlmlr/duckdb-r`, by hand:
+how much of a series' active range is R-side work rather than vendoring,
+and what kind.
+Supports [`branches/invariants/`](/handbook/branches/invariants/README.md) —
+the claim that glue is never born on a dev branch, and its one exception.
+
+A snapshot of one branch at one moment, true of the day it names.
+The loop that produced the range is
+[`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)'s.
+Re-running it is the path filter below, applied to a current range.
 
 **Range:** `main-dev-base..main-dev` (`krlmlr/duckdb-r`), 242 first-parent
 commits, of which **16 carry non-vendored (R-side) changes**.
@@ -12,8 +17,9 @@ commits, of which **16 carry non-vendored (R-side) changes**.
 commits they accompany (the in-place repair model), so they are recovered here
 by **path filter** — the diff outside the mechanical paths `src/duckdb/`,
 `inst/include/cpp11*`, `R/version.R`, `src/include/sources.mk`, `DESCRIPTION`
-(version bump). This is primitive E of `plan/history/vendoring-loop.md` applied by
-hand.
+(version bump). This is primitive E of
+[`plan/superseded/vendoring-loop.md`](/plan/superseded/vendoring-loop.md)
+applied by hand.
 
 - base `26c2becd` = `vendor … duckdb/duckdb@d521a441` (2026-04-24)
 - tip  `93fe89ac` = `vendor … duckdb/duckdb@7dcfd4b9` (2026-06-02)

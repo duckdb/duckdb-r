@@ -1,21 +1,73 @@
 # Integrations
 
-*Stub — this leaf will own its topic;
-today it routes to where the knowledge lives.
-The writing protocol is in [`meta/handbook/`](/handbook/meta/handbook/);
-the last section holds this leaf's parameters.*
+The routes into DuckDB beside plain SQL:
+dplyr pipelines translated by dbplyr, Arrow interchange, and ADBC.
+What a value becomes across the boundary is
+[`types/`](/handbook/usage/types/README.md).
 
-Scope: the dbplyr backend and Arrow interchange.
+## dbplyr
 
-Today:
+`?backend-duckdb`
+([`R/backend-dbplyr__duckdb_connection.R`](/R/backend-dbplyr__duckdb_connection.R))
+is the backend reference.
+dbplyr and dplyr are `Suggests`;
+the methods register at load time, edition 2.
+Coercions translate to `TRY_CAST()`,
+so a value that will not convert yields `NULL` rather than failing
+the query
+([#2230](https://github.com/duckdb/duckdb-r/issues/2230)).
+`tbl_file()` and `tbl_function()` turn files and table functions
+into lazy tables;
+`simulate_duckdb()` renders SQL without a connection.
 
-* `?backend-duckdb` — the dbplyr backend reference
-* [`plan/PLAN-dbSendQueryArrow.md`](/plan/PLAN-dbSendQueryArrow.md) — the DBI Arrow API plan
+The backend translates *expressions*, not verbs,
+and literals are escaped by dbplyr —
+the boundaries users keep hitting:
 
-To write this leaf:
+* `distinct(.keep_all = TRUE)` is a `ROW_NUMBER()` subquery,
+  not `DISTINCT ON` — needs dbplyr support
+  ([#384](https://github.com/duckdb/duckdb-r/issues/384),
+  [tidyverse/dbplyr#1620](https://github.com/tidyverse/dbplyr/pull/1620)).
+* `pivot_longer()` expands SQL generically instead of `UNPIVOT`
+  ([#2029](https://github.com/duckdb/duckdb-r/issues/2029)).
+* An inline `as.POSIXct("…")` is translated, not escaped,
+  so the session time zone is not applied; `!!as.POSIXct(…)`
+  is escaped R-side and is
+  ([#1064](https://github.com/duckdb/duckdb-r/issues/1064), dbplyr-wide).
+* A bare `Inf` literal escapes as the string `'Infinity'`
+  ([#1585](https://github.com/duckdb/duckdb-r/issues/1585),
+  blocked on
+  [tidyverse/dbplyr#1838](https://github.com/tidyverse/dbplyr/issues/1838)).
+* `n_distinct()` reaches dbplyr's unexported `glue_sql2()` through
+  `getFromNamespace()` — a private-API dependency any dbplyr release
+  can break.
+  The public replacement `sql_glue()` has shipped, so the migration is
+  unblocked; what it still needs is a `dbplyr (>= 2.6.0)` floor, which
+  `DESCRIPTION`'s `Suggests` does not carry
+  ([#1982](https://github.com/duckdb/duckdb-r/issues/1982)).
 
-* own: dbplyr backend semantics (what pushes down, translation
-  boundaries) and Arrow interchange; `?backend-duckdb` stays the
-  translation reference
-* drain: #162, #209, #384, #1064, #1585, #1982, #2029, #2230
-  (#642's Polars recipe lands in `types/`, per the triage)
+## Arrow
+
+In: `duckdb_register_arrow()` registers an Arrow object as a
+scannable table, zero-copy, with projection and filter pushdown.
+Out: `dbGetQueryArrow()` returns a `nanoarrow_array_stream`,
+and `dbSendQueryArrow()` / `dbFetchArrowChunk()` stream a result
+batch by batch — true streaming since 1.5.4
+([#162](https://github.com/duckdb/duckdb-r/issues/162)).
+`arrow::to_duckdb()` and `to_arrow()`
+bridge dplyr pipelines both ways.
+The DBI Arrow API plan is
+[`plan/PLAN-dbSendQueryArrow.md`](/plan/PLAN-dbSendQueryArrow.md).
+
+## ADBC
+
+`duckdb_adbc()` ([`R/Driver.R`](/R/Driver.R)) hands the engine to
+`adbcdrivermanager`, a `Suggests` like dbplyr, and its three methods
+register at load time the same way —
+`adbc_database_init`, `adbc_connection_init`, `adbc_statement_init`,
+all on classes this package defines for the purpose.
+It is the one route here that does not go through DBI at all.
+
+*To deepen: absorb the translation inventory and refused arguments
+from `?backend-duckdb`'s source; drain
+[#209](https://github.com/duckdb/duckdb-r/issues/209).*

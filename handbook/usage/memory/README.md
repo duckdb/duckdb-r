@@ -1,23 +1,36 @@
 # Memory
 
-*Stub — this leaf will own its topic;
-today it routes to where the knowledge lives.
-The writing protocol is in [`meta/handbook/`](/handbook/meta/handbook/);
-the last section holds this leaf's parameters.*
+What DuckDB's `memory_limit` bounds and what it does not,
+where larger-than-memory work spills,
+and how to keep results from materializing in R.
 
-Scope: what `memory_limit` bounds and what it does not,
-`temp_directory` and spill, streaming results.
+* **`memory_limit` bounds the engine, not R.**
+  A fetched result is R memory:
+  `dbGetQuery()` and a full `dbFetch()` materialize every row
+  as R vectors, outside any engine limit
+  ([#1065](https://github.com/duckdb/duckdb-r/issues/1065)).
+  Writes have shown engine-side overshoot too, tracked in
+  [#97](https://github.com/duckdb/duckdb-r/issues/97).
+* **Stream instead of materializing:**
+  `dbSendQueryArrow()` and `dbFetchArrowChunk()` consume a result
+  batch by batch;
+  see [`integrations/`](/handbook/usage/integrations/README.md).
+  `dbSendQuery()` today executes and buffers eagerly —
+  a known boundary
+  ([#1997](https://github.com/duckdb/duckdb-r/issues/1997)).
+* **Spill:** the engine offloads to `temp_directory` when a query
+  outgrows memory.
+  For an in-memory database the package points it at a session
+  temporary directory so spill works out of the box;
+  a file database is left to the engine's own default, `<dbdir>.tmp`
+  beside the file (`src/duckdb/src/main/config.cpp`);
+  the options that override either are
+  [`storage/`](/handbook/usage/storage/README.md)'s.
+* Larger-than-memory data is best left in DuckDB —
+  query it lazily via dbplyr and `collect()` only the reduction.
 
-Today:
-
-* no single owner yet;
-  the natural home is a `?duckdb_memory` reference page, not yet written
-
-To write this leaf:
-
-* own: what `memory_limit` bounds and what it does not
-  (not R-side result buffers), `temp_directory` and spill,
-  streaming via the Arrow interface
-* drain: #72, #97, #1065, #1604, #1997
-* stage the facts here until a `?duckdb_memory` reference page exists,
-  then invert to a pointer
+*To deepen: verify and state the engine's default `memory_limit`
+as shipped, on a vendored build;
+drain what survives of
+[#72](https://github.com/duckdb/duckdb-r/issues/72),
+[#1604](https://github.com/duckdb/duckdb-r/issues/1604).*

@@ -9,7 +9,6 @@ src/Makevars.in
 ^\.Rproj\.user$
 ^_pkgdown\.yml$
 tests/regression
-RELEASE.md
 \.github
 ^\.gitattributes$
 ^src/\.editorconfig$
@@ -50,3 +49,4 @@ _files$
 ^runs$
 ^inst/extensions$
 ^handbook$
+^experiments$

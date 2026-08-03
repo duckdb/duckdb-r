@@ -63,7 +63,7 @@
 #                             retry is a tree fetch and one staged file and the
 #                             backoff caps at 8 s, so the whole budget is ~2 min
 #                             against a build measured in tens of them. See the
-#                             race numbers in scripts/EACH.md section 3, and
+#                             race numbers in handbook/operations/ci/per-commit/store/README.md, and
 #                             scripts/rcc-parts-test.sh, which produced them.
 
 set -euo pipefail

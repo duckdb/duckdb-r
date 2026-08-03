@@ -6,10 +6,11 @@ kept as design context.
 It lives under `plan/` because it is history, not routing:
 what the pipeline does *today* is owned by
 [`scripts/VENDORING.md`](/scripts/VENDORING.md) (mechanics),
-[`scripts/EACH.md`](/scripts/EACH.md) (per-commit CI),
+[`scripts/EACH.md`](/handbook/operations/ci/per-commit/README.md) (per-commit CI),
 and the skills in `.claude/skills/` (procedure).
-Nothing here is current except the measurements in Appendix A,
-which the sharded matrix still cites.
+Nothing here is current;
+the measurements it once carried now live in
+[`experiments/2026-03-vendor-build-cost/`](/experiments/2026-03-vendor-build-cost/README.md).
 References to `vendor.yaml` and the `rcc-smoke-fix` /
 `advance-green-dev` skills below describe artifacts
 that no longer exist.
@@ -33,10 +34,10 @@ three repair skills in `.claude/skills/`.
 | Concern | Today | Mechanism |
 |---|---|---|
 | **Vendor** upstream C++ into `*-dev` | hourly, commit-by-commit, ≤30/run | `vendor.yaml` → `scripts/vendor-one.sh ./duckdb --commits 30` |
-| **Trigger** per-commit CI | fire-and-forget dispatch, no cap | `each.yaml` → `scripts/each-rcc.sh` → `gh workflow run rcc -f ref=<sha>` (since superseded by the sharded matrix, [`scripts/EACH.md`](/scripts/EACH.md)) |
+| **Trigger** per-commit CI | fire-and-forget dispatch, no cap | `each.yaml` → `scripts/each-rcc.sh` → `gh workflow run rcc -f ref=<sha>` (since superseded by the sharded matrix, [`scripts/EACH.md`](/handbook/operations/ci/per-commit/README.md)) |
 | **Build / smoke-test** a commit | one independent `rcc` run per commit | `R-CMD-check.yaml` (job *Smoke test: stock R*) |
 | **Record** the result marker | commit-status `rcc` = pending/success/failure | `R-CMD-check-status.yaml` (via `workflow_run`) |
-| **Harvest** logs to ground truth | **delayed**, 4×/day | `rcc-logs.yaml` → `scripts/rcc-logs.sh` → orphan branch `rcc` (`runs2.ndjson`, `logs2/<sha>.log`). Since [`scripts/EACH.md`](/scripts/EACH.md) §3 the `each-rcc` legs publish their own records as each commit is decided, and this is the backstop. |
+| **Harvest** logs to ground truth | **delayed**, 4×/day | `rcc-logs.yaml` → `scripts/rcc-logs.sh` → orphan branch `rcc` (`runs2.ndjson`, `logs2/<sha>.log`). Since [`scripts/EACH.md`](/handbook/operations/ci/per-commit/README.md) §3 the `each-rcc` legs publish their own records as each commit is decided, and this is the backstop. |
 | **Repair** a red commit | fork `broken-<sha>-dev`, amend the failing commit, **cherry-pick (replay) the whole tail**, force-push | skill `rcc-smoke-fix.md` |
 | **Advance** a repaired branch | cherry-pick next 30 vendor commits, matched by vendored upstream SHA | skill `advance-green-dev.md` |
 | **Self-heal** transient breaks | squash (window 1) / transient patch (≥2) | skill `rcc-smoke-fix-self-heal.md` |
@@ -180,7 +181,7 @@ Invariants:
 
 > **Landed, in narrower form.** This primitive is now implemented inside the
 > existing `each.yaml` rather than as a separate `rcc-matrix.yaml`, because the
-> commit-selection semantics were already there. See [`scripts/EACH.md`](/scripts/EACH.md) for
+> commit-selection semantics were already there. See [`scripts/EACH.md`](/handbook/operations/ci/per-commit/README.md) for
 > what was built, the GitHub Actions limits it works within, and two corrections
 > to the analysis below: within-shard reuse comes from **ccache**, not
 > incremental `make` (§4.2), and the reverse-include estimator of §4.3 exists as
@@ -784,89 +785,9 @@ work, so they can land first and be exercised against today's `rcc` markers.
 
 ---
 
-## Appendix A — Empirical validation (measured, not assumed)
+## Appendix A — Empirical validation
 
-Three measurements underpin §3.4 and §4, all run in a local session against
-real `v1.5-variegata-dev` history (~2 weeks+ old, R 4.3.3, ccache 4.9.1, `-j4`).
-
-### A.1 Churn / path-filter validation (163 vendor commits, Mar–May 2026)
-
-- **Path filter holds.** Every vendor commit touches only `src/duckdb/` plus two
-  generated files: `R/version.R` (163/163) and occasionally `src/include/sources.mk`.
-  The only non-mechanical touches in the whole sample were 3 genuine folded
-  fixes (1 test, 2 snapshots) — i.e. exactly what the review surface (§3.4) is
-  meant to flag.
-- **Churn is tiny and header-light.** Per vendor commit: **median 2 `.cpp`**
-  changed (106/163 change exactly 2); **66% (107/163) change zero headers**;
-  header changes are a small tail (mostly 1, rarely up to 14).
-
-### A.2 ccache behaviour on adjacent commits (8 consecutive v1.5 commits)
-
-Full in-place rebuild at each commit, shared ccache, `--preclean` so every
-object is offered to ccache (measures the cache hit rate, not incremental make).
-Build is a **unity build** (~340 objects) linked with **LTO**.
-
-| step | Δ cpp | Δ hdr | wall | hits | misses | hit % |
-|---|---|---|---|---|---|---|
-| 1 (cold) | — | — | 841 s | 0 | 351 | 0% |
-| 2 | 1 | 1 (narrow) | 173 s | 325 | 26 | 92% |
-| 3 | 2 | 0 | 91 s | 346 | 5 | 98% |
-| 4 | 2 | 0 | 92 s | 346 | 5 | 98% |
-| 5 | 5 | 3 (**wide**) | 738 s | 161 | 190 | 45% |
-| 6 | 6 | 0 | 89 s | 347 | 5 | 98% |
-| 7 | 1 | 1 (narrow) | 89 s | 347 | 5 | 98% |
-| 8 | 1 | 1 (narrow) | 163 s | 326 | 26 | 92% |
-
-Takeaways:
-
-- **Typical adjacent commit: ~98% cached, ~90 s** (only ~5/351 objects rebuilt).
-- **Mean across all incremental steps ≈ 89% / ~205 s**, dragged down by the one
-  wide-header commit; **median ≈ 98% / ~92 s**.
-- **Header reach, not count, is the cost driver:** steps 2, 7, 8 are all
-  "1 cpp + 1 hdr" yet span 5–26 misses (98%↔92%); step 5's 3 *wide* headers
-  invalidated 190/351 (45%, near-cold). ⇒ the sharding cost-estimator must weight
-  headers by reverse-include reach (§4.3).
-- The ~70–90 s floor on cheap commits is **LTO link + install + smoke test**, not
-  compilation ⇒ drop LTO for the smoke build (§4.4).
-- A.1 (66% zero-header) + A.2 (zero-header ⇒ 98%) ⇒ **most adjacent rebuilds are
-  near-free**. The bulk path realises this with incremental `make` within a shard
-  (no shared cache, §4.2); the normal per-commit path with the existing CI caches.
-  The `--preclean` here only *forces* a full recompile to measure the hit rate;
-  production never cleans between consecutive commits.
-
-### A.3 `duckdb.tar` archive size — debug info dominates
-
-> Scope: this measurement informed an earlier *cached* bulk design. The bulk
-> path is now **cache-free** (§4.2), so the archive-size question applies only if
-> the **normal per-commit** cached path's `duckdb.tar` is ever shrunk; it is
-> retained here as a measured reference (and the `-g`/strip trade-off is real for
-> that path).
-
-The cached object archive (`$(SOURCES)` = 341 unity `.o`, one v1.5 tree):
-
-| variant | total `.o` | tar (raw) | gzip -6 | zstd -3 | zstd -19 |
-|---|---|---|---|---|---|
-| **unstripped (`-g`, current CI)** | 2.5 GB | 2.5 GB | 489 MB | 457 MB | — |
-| **stripped (`--strip-debug`)** | 97 MB | 97 MB | 20 MB | 19 MB | 14 MB |
-
-(Context: the shipped `duckdb.so`, stripped via `_R_SHLIB_STRIP_`, is ~46 MB.)
-
-- **Debug info is ~96% of the archive** — stripping is a **26×** reduction.
-- At ~457 MB zstd (current `-g`), only ~20 trees fit the 10 GB `actions/cache`
-  budget ⇒ per-commit archiving of a bulk replay is infeasible. At ~19 MB zstd
-  (stripped), **~500 trees fit** ⇒ per-commit archive caching is cheap (§4.2).
-
-**End-to-end validation of "build `-g`, strip only the archive":**
-
-1. *Live build* (`-g`, archive absent → `to-tar.mk`): rc=0, both the `.o` and the
-   installed `.so` carry `.debug_info` ⇒ real traces on a failing test.
-2. *Strip* the extracted `.o` with `--strip-debug`, re-tar → 97 MB / 19 MB zstd.
-3. *Cache-hit build* (stripped archive present → `from-tar.mk`): rc=0 in **6 s**,
-   engine objects extracted from the archive, only the ~15 glue `.cpp`
-   recompiled; the `.so` **linked cleanly from the stripped objects** and the
-   connect/insert/`SELECT sum` smoke test passed (loaded strictly from the
-   cache-hit library).
-
-Caveats confirmed: use `--strip-debug` (a full `strip` removes the symbol table
-and breaks linking); on a cache hit the engine frames are debug-less (only glue
-has `-g`), which is acceptable since novel failures occur on the `-g` miss path.
+Moved to [`experiments/2026-03-vendor-build-cost/`](/experiments/2026-03-vendor-build-cost/README.md),
+which the cost model cites:
+churn per vendor commit, ccache behaviour on adjacent commits,
+and the object-archive size.

@@ -1,11 +1,21 @@
 # Branching Strategy
 
+*Handbook: [`branches/`](/handbook/branches/README.md) —
+its leaves state the current model, flavors, and invariants,
+and are absorbing this file section by section;
+where the two disagree, the leaf is right.*
+
 Version numbers are given at the time of writing (March 2026) and may be outdated by the time you read this.
 The branching strategy is expected to remain stable.
 
-This document defines the branch model, the package flavors, and the
-**[series invariants](#series-invariants)**. For the release process itself —
-modelled as a finite state machine — see [`RELEASE.md`](RELEASE.md).
+What is left here is the branch model in detail — components,
+diagrams, the legacy `dev`/`dev-base` layout — and the
+**[series invariants](#series-invariants)**, which
+[`branches/invariants/`](/handbook/branches/invariants/README.md)
+defers to rather than restating.
+The flavors, the repositories, the release cycle, the synchronization,
+and the version counters have been absorbed;
+the headings below say where.
 
 ## Package Components
 
@@ -18,19 +28,16 @@ The seven components are:
 1. **DuckDB core** (`src/duckdb/`): the vendored C++ database engine.
    It is tracked from upstream branches of `duckdb/duckdb`:
    `main` (bleeding edge / dev), `v1.5-variegata` (current patch series), `v1.4-andium` (LTS).
-   Never modify this directory directly — use the `patch/` mechanism instead.
+   Advanced by vendor commits, never edited in place
+   ([`operations/vendoring/model/`](/handbook/operations/vendoring/model/README.md)).
 
 2. **Flavor** (`DESCRIPTION`, `R/duckdb-package.R`, `NAMESPACE`, `README.md`, `src/include/rapi.hpp`,
    `inst/include/duckdb_types.hpp`, `tests/testthat.R`, `man/duckdb-package.Rd`): the published package
    name variant (`duckdb`, `duckdb.1.4`, `duckdb.1.4.dev`, …).
-   Managed via `scripts/flavor.patch` and `scripts/flavor.sh`; also covers the `@useDynLib` directive and
-   the `DUCKDB_PACKAGE_NAME` C++ macro.
-   `scripts/flavor-package-name.R` guards the boundary: it fails as soon as the package name is hard-coded —
-   as a namespace qualifier or as a quoted string — in code or docs anywhere the patch does not rewrite it.
-   Code asks for the name at run time with `get_package_name()` instead, and docs do not namespace-qualify
-   our own objects. CI runs the scan from `.github/workflows/custom/after-install`;
-   `tests/testthat/test-flavor-package-name.R` wraps it for `testthat::test_local()` and skips under
-   `R CMD check`, which works from a tarball that carries neither the sources nor `scripts/`.
+   The rename surface and the mechanism are
+   [`branches/flavors/`](/handbook/branches/flavors/README.md)'s,
+   the scan that keeps the name out of everything else is
+   [`testing/guards/`](/handbook/testing/guards/README.md)'s.
 
 3. **Glue code** (`src/*.cpp`, `src/include/`): the C++ bridge between R and the DuckDB C++ API.
    Glue code may change when DuckDB's C++ API shifts, so it is updated together with vendoring commits.
@@ -53,7 +60,7 @@ The seven components are:
 duckdb-r/
 ├── R/                              # R code — DBI interface, connection, results  [4]
 ├── tests/
-│   └── testthat/                   # R unit tests (~40 files)                     [4]
+│   └── testthat/                   # R unit tests, one file per topic            [4]
 ├── src/
 │   ├── *.cpp                       # Glue code — R ↔ DuckDB C++ bridge            [3]
 │   ├── *.dd                        # Local-header dependency tracking (keep in VCS)[3]
@@ -69,24 +76,7 @@ duckdb-r/
 │       ├── cpp11.hpp               # cpp11 single-header entry point               [6]
 │       └── duckdb_types.hpp        # Public C++ types exposed to downstream R pkgs [3]
 ├── patch/                          # R-specific patches applied to src/duckdb/     [1]
-│   ├── 0001-….patch
-│   └── …
-├── scripts/                        # Build and maintenance scripts                 [5]
-│   ├── vendor.sh                   # Manual vendoring from local DuckDB clone
-│   ├── vendor-one.sh               # Commit-by-commit vendoring (series loop)
-│   ├── flavor.sh                   # Apply flavor rename to a branch
-│   ├── flavor.patch                # Patch template for flavor rename              [2]
-│   ├── each-plan.sh                # Plan cost-balanced shards of unbuilt commits
-│   ├── each-shard.sh               # Build one shard: many commits, one job
-│   ├── each-cost.py                # Unity objects a commit invalidates
-│   ├── rcc-one.sh                  # The per-commit rcc gate
-│   ├── each-harvest.sh             # Reconcile shard results onto the rcc branch
-│   ├── rcc-part-push.sh            # Publish one commit's result from its leg
-│   ├── rcc-decided.sh              # Commits the rcc branch has a verdict for
-│   ├── rcc-merge.sh                # Bring runs2.ndjson level with the records
-│   ├── rcc-consolidate.sh          # Manual: GC old logs, squash the rcc branch
-│   ├── EACH.md                     # Sharded per-commit CI design (→ see §Vendoring)
-│   └── VENDORING.md                # Supplementary vendoring notes (→ see §Vendoring)
+├── scripts/                        # Build and maintenance; index in its README   [5]
 ├── .github/
 │   └── workflows/
 │       ├── each.yaml               # Per-commit rcc, as a sharded matrix           [5]
@@ -135,30 +125,13 @@ Numbers in `[brackets]` refer to the component list above.
   ─────────────────────────────────────────────────────────────────────────────────
 ```
 
-## Why multiple R packages?
+## Why multiple R packages, and which exist
 
-DuckDB releases a new minor version approximately every four months.
-See <https://duckdb.org/docs/stable/dev/release_cycle> for a detailed description of the upstream release cycle.
-
-CRAN does not allow multiple versions of the same package to coexist, so each supported release line needs its own package name (`duckdb`, `duckdb.1.4`, etc.).
-LTS releases receive patch updates for one year — roughly three minor-release cycles — after which they are archived.
-The `.dev` packages on r-universe mirror the corresponding bleeding-edge upstream branches and let users test upcoming releases without waiting for CRAN.
-
-## R Package Flavors
-
-Several packages are published, organised into three release lines:
-
-| Package          | Install from   | Branch (repo)                            | Description                                          |
-|------------------|----------------|------------------------------------------|------------------------------------------------------|
-| `duckdb`         | CRAN           | `main` (`duckdb/duckdb-r`)               | **Current stable release.**                          |
-| `duckdb`         | r-universe     | `main` (`duckdb/duckdb-r`)               | Current or upcoming release.                         |
-| `duckdb.1.5`     | Does not exist |                                          | v1.5 is not an LTS version.                          |
-| `duckdb.1.4`     | r-universe     | `v1.4-andium-lts` (`duckdb/duckdb-r`)    | **LTS — v1.4.** Receives only bug fixes.             |
-| `duckdb.dev`     | r-universe     | `main-dev` (`krlmlr/duckdb-r`)           | Bleeding-edge build of the next major/minor version. |
-| `duckdb.1.5.dev` | r-universe     | `v1.5-variegata-dev` (`krlmlr/duckdb-r`) | Bleeding-edge build on the v1.5 upstream.            |
-| `duckdb.1.4.dev` | r-universe     | `v1.4-andium-dev` (`krlmlr/duckdb-r`)    | Bleeding-edge build on the v1.4 upstream.            |
-
-Use `duckdb` unless you need to pin to a specific minor version (LTS) or want to test unreleased functionality (`.dev`).
+Absorbed into
+[`branches/flavors/`](/handbook/branches/flavors/README.md):
+CRAN carries one version of one name at a time, so a release line that
+must stay installable beside the current one needs its own name.
+The leaf carries the live table of flavors and the ref each publishes from.
 
 ## Overview
 
@@ -188,12 +161,10 @@ The arrow from upstream to the CI/CD fork represents automated vendoring; the ar
 
 ## Repositories
 
-This package lives in two GitHub repositories:
-
-- **`duckdb/duckdb-r`** — the canonical repository. Stable and flavor branches are published to CRAN and r-universe from here.
-- **`krlmlr/duckdb-r`** — a disconnected fork used exclusively for CI/CD, so that automated runs do not consume the `duckdb` organization's GitHub Actions quota. Development ("dev") branches live here.
-
-The C++ database engine is vendored from **`duckdb/duckdb`** (referred to as *upstream*) into `krlmlr/duckdb-r`. The R glue code that wraps it lives in `duckdb/duckdb-r` and is synchronized with the dev branches.
+Absorbed into
+[`branches/model/`](/handbook/branches/model/README.md):
+`duckdb/duckdb-r` is canonical, `krlmlr/duckdb-r` is the CI/CD fork,
+and the engine is vendored from `duckdb/duckdb` into the fork.
 
 ## Branch Overview
 
@@ -201,7 +172,7 @@ Each supported DuckDB minor version has a **series of four branches** organised 
 The table below shows the complete set at the time of writing.
 The `dev`/`dev-base` pair is the legacy vendoring layout;
 as each series is reseeded into the series loop
-(see [Vendoring](#vendoring) below),
+(see [`operations/vendoring/`](/handbook/operations/vendoring/README.md) below),
 that pair gives way to the loop's four refs —
 `<S>-build`, `<S>-dev`, `<S>-green`, `<S>-build-base`.
 
@@ -289,23 +260,11 @@ krlmlr/duckdb-r@v1.5-variegata-dev
 krlmlr/duckdb-r@v1.4-andium-dev
 ```
 
-Never port in reverse. Proposed patterns to keep this consistent:
-
-1. **PR-per-branch**: After any non-vendor commit merges to `main`, open a PR for each active
-   `-dev` branch. `sync.yaml` already handles `krlmlr/main` automatically; the remaining branches
-   require a manual or script-assisted step.
-
-2. **`scripts/sync-to-derived.sh`** *(proposed — see §Tooling)*: A script that identifies commits
-   in `main` not yet reachable from a given `-dev` branch and prints the `git cherry-pick` commands
-   needed to bring it up to date.
-
-3. **Stale-branch CI check** *(proposed — see §Tooling)*: A scheduled workflow that computes
-   `git merge-base --is-ancestor main <branch>` for each active `-dev` branch and posts a status
-   summary to flag forward-porting debt early.
-
-4. **Mandatory merge-base label**: PRs to any `-dev` branch that target glue-code or R-code files
-   are labeled `needs-forward-port` automatically by a label action, reminding maintainers to
-   propagate the change toward `main` before the next release.
+Never port in reverse.
+Keeping it consistent is the series loop's forward-port stage
+([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)),
+which runs `scripts/series-port.sh` on every firing;
+`sync.yaml` handles the fork's `main` separately.
 
 ## Series Invariants
 
@@ -313,8 +272,11 @@ A **series** is one DuckDB minor line `L` together with its branches: `stable`
 (published; `main` for the current line), `lts` (LTS lines only), `dev`, and
 `dev-base`. The following invariants hold across all branches of a series. Each
 is phrased to be **checkable** — most can be enforced by a dev-branch health
-workflow — and each is referenced by name from the release FSM in
-[`RELEASE.md`](RELEASE.md), which must preserve them at every step.
+workflow. The numbers file them here and are not a way to cite one elsewhere:
+the release FSM in
+[`operations/releases/process/`](/handbook/operations/releases/process/README.md)
+must preserve them at every step, and says what it depends on rather than
+naming a number.
 
 State relationships as **tree diffs**, not ancestry: `main` is maintained as a
 rebuilt/linear history and shares no merge-base with the parked `vX-codename`
@@ -466,181 +428,32 @@ release.
   empty for *every* releasing series simultaneously, so all releasing lines share
   identical glue. This is the multi-line synchronization invariant.
 
-## Release Cycle Mapping
+## Release cycle mapping
 
-The upstream release cycle is documented at <https://duckdb.org/docs/stable/dev/release_cycle>.
-This section summarises the parts that are relevant to the R package and describes what actions to take at each phase.
-This assumes v1.5-variegata is the current release, v1.6 is in development, and v1.4-andium is current LTS; adjust branch names as needed for future cycles.
-(These numbers are for illustrative purposes only; at the time of writing, the next release is expected to be v2.0.0.)
-
-### Phase 1: Mid-Cycle (≈75% of the time)
-
-Upstream active branches: `main`, `v1.5-variegata`, `v1.4-andium`.
-
-This is business-as-usual.
-The series loop vendors on its schedule with no manual intervention required.
-
-- Upstream patch releases (`v1.5.z`) cut from `v1.5-variegata` are picked up automatically by the corresponding `-dev` branch.
-- When a patch release is tagged upstream, run the [On patch release](#on-patch-release-v145) flow for that branch.
-- Forward-port glue code changes from `main` toward older branches as usual.
-
-### Phase 2: Pre-Release
-
-Upstream active branches: `main`, `v1.5-variegata`, `v1.6-codename` (newly created), `v1.4-andium`.
-
-When the upstream team creates the new `v1.6-codename` branch, the R package temporarily becomes a three-branch extension:
-
-```txt
-  duckdb/duckdb branches          R package branches to create
-  ──────────────────────          ────────────────────────────
-  main                            (existing) krlmlr/duckdb-r@main-dev
-  v1.4-andium                     (existing) krlmlr/duckdb-r@v1.4-andium-dev
-  v1.5-variegata                  (existing) krlmlr/duckdb-r@v1.5-variegata-dev
-  v1.6-codename  (new)  ──►       krlmlr/duckdb-r@v1.6-codename-{build,dev,green,build-base}  (create)
-                                  duckdb/duckdb-r@v1.6-codename      (create)
-```
-
-Actions:
-
-1. Create `v1.6-codename` in `duckdb/duckdb-r` (the future stable branch) from `main`.
-2. Open the `v1.6-codename` series in `krlmlr/duckdb-r`
-   following `.claude/skills/series-open.md`:
-   seed from `main` with `scripts/flavor.sh 1.6.dev`
-   plus the separate fifth-component commit,
-   create the four series refs equal at the seed tip,
-   and populate `v1.6-codename-build` starting from the fork-point tree.
-   The routine discovers the new series from its refs;
-   no CI configuration is needed.
-3. Add the new dev branch to the front of the forward-port chain:
-
-```txt
-duckdb/duckdb-r@main  →  krlmlr/duckdb-r@main-dev  →  krlmlr/duckdb-r@v1.6-codename-dev
-                                                    ↘  krlmlr/duckdb-r@v1.5-variegata-dev  →  …
-```
-
-4. **The `main` series needs nothing.**
-   Under the series loop it keeps walking upstream `main`'s
-   first-parent chain, which passes through the fork point,
-   so nothing jumps and nothing is re-seeded
-   (the legacy `main-dev` layout needed an explicit fork-point re-seed here —
-   that hazard is what the loop's one-commit-at-a-time walk removes).
-   The fork point matters for the *new* series instead:
-   `v1.6-codename-build` starts from the fork-point tree,
-   computed as in
-   [Starting a new dev line](scripts/VENDORING.md#starting-a-new-dev-line-the-fork-point-rule)
-   (it is *not* `git merge-base`),
-   with the glue rewound as far as that tree requires.
-
-### Phase 3: Feature Freeze
-
-Upstream active branches: `main`, `v1.5-variegata`, `v1.6-codename`
-
-From the R package perspective, this phase is identical to Pre-Release.
-Only bug fixes flow into `v1.6-codename`; new features target `main`.
-No additional branch management is required.
-
-### On new minor release (`v1.6.0`)
-
-When upstream tags `v1.6.0`:
-
-1. Run the [On release](#on-release) flow: merge `krlmlr/duckdb-r@v1.6-codename-dev` → `duckdb/duckdb-r@v1.6-codename`.
-2. Publish the new `duckdb` CRAN package from `duckdb/duckdb-r@v1.6-codename`.
-3. Decide whether `v1.5-variegata` is designated as an LTS release:
-   - **If LTS**: create `v1.5-variegata-lts` from `v1.5-variegata`, apply `scripts/flavor.sh 1.5`
-     to produce the `duckdb.1.5` branch, register `duckdb.1.5` on r-universe, and add it to the forward-port chain.
-   - **If not LTS**: stop vendoring into its dev branch and archive both branches.
-4. Update the Branch Overview table and the R Package Flavors table in this document.
-
-### On LTS expiry (one year after designation)
-
-TBD.
-
-### On patch release (`v1.4.5`)
-
-This is the most common release event, and it is described in full as the
-**CUT** and **RESET** clusters of the release FSM in
-[`RELEASE.md`](RELEASE.md#cut--release-execution). In summary, once upstream tags
-`v1.4.5`: the daily vendoring lands the tagged commit on `v1.4-andium-dev`
-(state 1), `each.yaml` proves it green, the pending window is reviewed (state 2),
-`dev-base` is fast-forwarded to the tagged commit (state 3), the commit is merged
-to `v1.4-andium` with `fledge::bump_version("1.4.5")` and the `-lts` branch
-rebased (state 4), the release is tagged and published to r-universe / CRAN
-(state 5), and finally `dev`/`dev-base` are re-baselined via `scripts/flavor.sh
-1.4.dev` (RESET). The pre-release reverse-dependency work that precedes the tag
-is the **STABILIZE** cluster.
+Superseded by
+[`operations/releases/process/`](/handbook/operations/releases/process/README.md),
+which models the same cycle as a state machine — clusters, gates, and
+what each phase must leave standing — without illustrative branch names
+that go stale.
 
 ## Synchronization
 
-### Vendoring
-
-Vendoring is driven by a single scheduled Claude routine — the **series
-loop** (`.claude/skills/series-loop.md`) — which discovers every series from
-its refs and serves them all in one firing.
-Each series `<S>` has four branches:
-`<S>-build` (every upstream commit vendored, glue compiling, no CI),
-`<S>-dev` (consumed from `-build` up to 25 commits at a time; CI builds every
-commit), `<S>-green` (fast-forwarded to the newest all-green commit; what
-r-universe should build from), and `<S>-build-base` (the `-build` commit
-equivalent to `-green`). CI builds the `.dev` package per commit via
-`each.yaml`.
-If vendoring breaks the build, it can be fixed after the fact in the same commit.
-The `-dev` branches are not protected, so force-pushes are allowed to fix mistakes.
-
-It is important that every commit in the `-dev` branches builds successfully so that the history is clean and bisectable.
-For this reason, the `-dev` branches are checked commit by commit via `each.yaml`, even if multiple commits are pushed at once.
-`each.yaml` groups those commits into contiguous, cost-balanced shards and gives each shard one job,
-so a batch is one run to cancel, the R setup is paid per shard rather than per commit,
-and adjacent commits reuse the runner's local ccache;
-the per-commit `rcc` marker is unchanged.
-See [`scripts/EACH.md`](scripts/EACH.md) for the design and its limits.
-
-Bisectability is a property of the whole branch, not of individual commits, so it needs three things at once:
-a **linear** first-parent history without merge commits,
-**one upstream commit per vendor commit** forming a contiguous first-parent walk of the tracked upstream branch,
-and a **green** build for every commit.
-These are stated as invariants, with the reasoning and the failure modes, in
-[Dev Branch Invariants](scripts/VENDORING.md#dev-branch-invariants).
-
-### On release
-
-When a new version is released, the dev branch is brought onto the corresponding stable branch — **linearly, never as a merge commit** (invariant **L**). The tagged `dev` content is fast-forwarded or rebased onto stable, dropping the `flavor.sh` flavor rename and setting the release version via `fledge`:
-
-```txt
-krlmlr/duckdb-r@main-dev            →  duckdb/duckdb-r@main
-krlmlr/duckdb-r@v1.5-variegata-dev  →  duckdb/duckdb-r@v1.5-variegata
-krlmlr/duckdb-r@v1.4-andium-dev     →  duckdb/duckdb-r@v1.4-andium
-```
-
-After this, the `-lts` branch for that series is rebased or reset on top of the updated `-andium` branch as described in [On patch release](#on-patch-release-v145).
-
-### Ongoing
-
-Glue code changes are forward-ported continuously from newer to older branches so that flavor branches stay up to date (see [Source of Truth](#source-of-truth)):
-
-```txt
-duckdb/duckdb-r@main  →  krlmlr/duckdb-r@main-dev  →  krlmlr/duckdb-r@v1.5-variegata-dev  →  krlmlr/duckdb-r@v1.4-andium-dev
-```
+Absorbed: the refs and how far each may move are
+[`branches/model/`](/handbook/branches/model/README.md)'s,
+the routine that moves them is
+[`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)'s,
+the per-commit checking is
+[`operations/ci/per-commit/`](/handbook/operations/ci/per-commit/README.md)'s,
+and bringing a release onto its branch is
+[`operations/releases/process/`](/handbook/operations/releases/process/README.md)'s.
 
 ## Patch Stack
 
-The upstream C++ code in `src/duckdb/` may be updated to suit the needs of the R package, but not all updates are relevant or appropriate.
-R-specific fixes are maintained as an ordered series of git-format patches under `patch/`.
-Every vendor run re-applies the full stack on top of the freshly vendored sources.
-
-```txt
-  duckdb/duckdb (upstream)
-        │
-        │  vendor.sh / vendor-one.sh
-        ▼
-  src/duckdb/   ← raw vendored C++ sources
-        │
-        │  apply patch/0001-...patch
-        │  apply patch/0002-...patch
-        │  apply patch/0003-...patch
-        │  ...
-        ▼
-  src/duckdb/   ← R-ready C++ sources (committed to branch)
-```
+R-specific fixes the engine needs are maintained as an ordered series of
+git-format patches under `patch/`, re-applied by every vendor run
+([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
+This section is the stack's own rules; producing a patch is
+[`scripts/VENDORING.md`](/scripts/VENDORING.md)'s.
 
 Patches are numbered to define their application order.
 Gaps in the numbering are normal — they indicate patches that were previously removed because the fix was accepted upstream.
@@ -648,113 +461,18 @@ Gaps in the numbering are normal — they indicate patches that were previously 
 When a patch is no longer needed (because the fix was merged upstream), delete the file. Do not renumber the remaining patches. When adding a new patch, assign it the next available number and send the same change as a pull request to `duckdb/duckdb` so it can be retired eventually.
 
 A **forward-port** is the one kind of patch that needs no pull request: it carries a fix upstream has already merged, back onto the commits vendored before it.
-It retires itself, and it is the escalation, not the default — a red vendor commit whose *next* commit fixes it is folded into that one instead ([troubleshooting](/handbook/operations/vendoring/troubleshooting/)).
+It retires itself, and it is the escalation, not the default — a red vendor commit whose *next* commit fixes it is folded into that one instead ([troubleshooting](/handbook/operations/vendoring/troubleshooting/README.md)).
 
-If a vendor run fails because a patch no longer applies cleanly, update the patch against the new upstream code, commit it, and re-run vendoring.
+## Version numbering
 
-## Version Numbering
-
-The package version in `DESCRIPTION` carries up to five dot-separated components. Two of them are
-independent counters that advance on different strands:
-
-| Component | Example | Counter | Advanced by |
-|-----------|---------|---------|-------------|
-| 1–3 (`major.minor.patch`) | `1.5.3` | Release line identity | Matches the upstream DuckDB tag |
-| 4th | `…​.9006` | **R-client counter** | `fledge` on the source-of-truth strand (`main`) |
-| 5th | `…​.9006.42` | **vendor counter** | `scripts/vendor-one.sh`, one bump per vendor commit on a `-dev` branch |
-
-A released version is the bare three-component prefix (`1.5.4`). The `-dev` branches never touch
-`NEWS.md`; only `DESCRIPTION:Version` differs between the strands.
-
-The vendor counter must be **strictly increasing across every vendor commit** of a `-dev` or
-`-build` branch: r-universe installs by version, so two vendor commits sharing one are two commits
-it cannot tell apart. Gaps are fine — the counter orders, it does not count. A replay does not
-preserve this on its own: the `ours-version` merge driver keeps the replay target's `Version:` line
-through every cherry-pick, so a replayed chain has to be restamped before it is pushed
-([`series-loop.md`](/.claude/skills/series-loop.md), Invariants).
-
-### The DESCRIPTION merge driver
-
-Because the two counters advance on the same line, a plain forward-port, rebase, or release merge
-conflicts on `DESCRIPTION:Version` at essentially every commit. The merge driver in
-`scripts/merge-version.sh` resolves that line by taking the **component-wise maximum** of the two
-sides, **gated on an equal `major.minor.patch` prefix**:
-
-- Within a release line, the max keeps the 4th component from the strand that owns it (the R-client
-  strand) and the 5th from the strand that owns it (the vendor strand). E.g.
-  `1.5.3.9008` merged with `1.5.3.9006.42` → `1.5.3.9008.42`. The result is direction-agnostic.
-- Across release lines (different prefix, e.g. forward-porting a fix from `1.5.x` onto the `1.4.x`
-  LTS), the driver keeps **ours** unchanged and never inherits a foreign prefix.
-
-The rest of `DESCRIPTION` still gets a normal 3-way merge, so a genuine concurrent edit
-(e.g. two branches touching `Imports:`) still raises a real conflict. The authoritative release
-version is set by `fledge::bump_version()` at the tip after the operation completes — the driver's
-only job is to stop the version line from halting a rebase.
-
-**Setup.** The `merge=ours-version` attribute is committed in `.gitattributes`, but the driver's
-name→command mapping must live in `.git/config`. Run `scripts/setup-git.sh` once per clone — and as
-the first step of any CI job that rebases, cherry-picks, or merges — to register the driver, enable
-`rerere`, and pin `rebase.backend=merge` (the patch/`am` backend bypasses merge drivers).
+Absorbed into
+[`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md),
+including the merge driver, the prefix gate, and what a forward rebuild
+renumbers.
 
 ## Tooling
 
-### Existing tooling
-
-| Script / Workflow               | Purpose                                                                                                    |
-|---------------------------------|------------------------------------------------------------------------------------------------------------|
-| `scripts/vendor.sh`             | Local manual vendoring from a cloned upstream repo                                                         |
-| `scripts/vendor-one.sh`         | Commit-by-commit vendoring (called by the series-loop routine)                                             |
-| `scripts/flavor.sh <flavor>`    | Applies the flavor rename (updates `flavor.patch`, then applies it and re-runs `cpp11::cpp_register()`)    |
-| `scripts/flavor.patch`          | Patch template used by `flavor.sh`; contains `1.4` as placeholder version (replaced by `flavor.sh`)        |
-| `scripts/each-plan.sh`          | Selects the commits without a build status and partitions them into contiguous, cost-balanced shards       |
-| `scripts/each-cost.py`          | Counts the unity objects a commit invalidates, from the include graph, without building                    |
-| `scripts/each-shard.sh`         | Builds one shard: many commits in one job and one workspace, writing the `rcc` status per commit           |
-| `scripts/rcc-one.sh`            | The per-commit gate (style, snapshots, roxygen, clean tree, `R CMD check`, pkgdown), as a script           |
-| `scripts/each-harvest.sh`       | Fan-in onto the orphan `rcc` branch: reconciles whatever the legs could not publish themselves              |
-| `scripts/rcc-part-push.sh`      | Publishes one commit's record and log to the `rcc` branch from the leg that decided it, conflict-free       |
-| `scripts/rcc-decided.sh`        | Lists the commits the `rcc` branch holds a verdict for; the single source work selection reads                |
-| `scripts/rcc-merge.sh`          | Brings `runs2.ndjson` level with the per-commit records in `runs2.d/`: appends the missing, replaces the stale |
-| `scripts/rcc-consolidate.sh`    | Manual: makes the two record layouts agree, drops logs past their retention, squashes `rcc` to two commits   |
-| `scripts/merge-version.sh`      | Git merge driver for `DESCRIPTION`: combines the 4th/5th version counters, gated on an equal prefix         |
-| `scripts/setup-git.sh`          | Registers the merge driver in `.git/config`, enables `rerere`, pins `rebase.backend=merge` (run per clone)  |
-| `.github/workflows/sync.yaml`   | Hourly fast-forward of `krlmlr/main` from `duckdb/main`                                                    |
-| `.github/workflows/each.yaml`   | Builds every statusless commit on push to `*-dev` branches, as a sharded matrix (see [`scripts/EACH.md`](scripts/EACH.md)) |
-| `.github/workflows/rcc-consolidate.yaml` | Manual (`workflow_dispatch`) consolidation of the `rcc` branch; dry run by default                 |
-| `.github/workflows/fledge.yaml` | Daily version-bump PRs via `fledge`                                                                        |
-
-### Proposed tooling
-
-The following scripts would fill gaps in the current workflow.
-They do not yet exist; this section documents the intent so they can be implemented incrementally.
-
-**`scripts/sync-to-derived.sh <source-branch> <target-branch>`**
-
-Computes the set of commits in `<source-branch>` not yet reachable from `<target-branch>`,
-filters out vendor commits (matching `^vendor:`), and prints the `git cherry-pick` commands
-needed to bring the target up to date.
-Optionally opens a draft PR via `gh pr create --draft`.
-Automates the forward-porting step for glue code and R code changes.
-
-**`scripts/promote-dev.sh <series>`** (e.g., `promote-dev.sh v1.4-andium`)
-
-Fast-forwards `<series>-dev-base` to match `<series>-dev` in `krlmlr/duckdb-r`.
-Serves as Step 4 of the patch-release process; makes the comparison URL empty once a release is confirmed clean.
-
-```bash
-# Example:
-scripts/promote-dev.sh v1.4-andium
-# → git push krlmlr refs/heads/v1.4-andium-dev:refs/heads/v1.4-andium-dev-base
-```
-
-**`scripts/release-lts.sh <series> <version>`** (e.g., `release-lts.sh v1.4-andium 1.4.5`)
-
-Orchestrates Steps 4–9 of the patch-release process for an LTS series:
-promotes dev-base, opens a merge PR to the stable branch, bumps the version,
-rebases the `-lts` branch, tags, and prints a CRAN submission checklist.
-
-**Stale-branch CI check** (`.github/workflows/stale-branches.yaml`)
-
-A scheduled workflow (e.g., daily) that runs `git merge-base --is-ancestor main <branch>` for each
-active `-dev` branch and posts a GitHub Actions summary.
-Alerts maintainers via a failing step when forward-porting is overdue by more than a configurable
-number of commits or days.
+[`scripts/README.md`](/scripts/README.md) is the inventory —
+one row per file, its purpose taken from the file's own header,
+grouped by the handbook leaf that owns the topic —
+and it is generated, so it stays complete as scripts come and go.

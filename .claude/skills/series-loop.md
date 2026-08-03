@@ -1,5 +1,8 @@
 # The series loop: vendor, promote, repair
 
+*Handbook: [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md) —
+what this routine is, and when it runs.*
+
 One routine drives **all** series:
 each firing enumerates every series and every existing forward (`-fwd`)
 counterpart and serves each in turn.
@@ -206,7 +209,7 @@ nothing at or before `<S>-green` is ever re-examined.
 A commit **missing** from the harvest has not completed —
 wait, do not guess.
 `each.yaml`'s legs publish a record within seconds of deciding a commit
-(see [`EACH.md`](/scripts/EACH.md) §3),
+(see [`per-commit builds`](/handbook/operations/ci/per-commit/store/README.md)),
 so missing now means undecided, not merely uncollected.
 
 If a commit is still missing after **12 hours**, presume its run lost —
