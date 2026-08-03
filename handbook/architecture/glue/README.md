@@ -69,6 +69,25 @@ a crash-class bug with a guard under review
 ([#1796](https://github.com/duckdb/duckdb-r/issues/1796),
 [#1797](https://github.com/duckdb/duckdb-r/pull/1797)).
 
+**The engine runs R code while it holds the client context lock.**
+The replacement scans and the Arrow stream factory in
+[`src/register.cpp`](/src/register.cpp),
+and the progress display in
+[`src/connection.cpp`](/src/connection.cpp),
+are all reached from underneath a query the engine is already executing.
+R may collect garbage in any of them,
+and a collection runs the finalizer of every engine handle
+the session has stopped referencing,
+at a point no R code chose.
+So no such finalizer may re-enter the client context it belongs to:
+the context lock is not recursive,
+and the callback's caller already owns it.
+The rule binds the finalizers rather than the callbacks,
+because a callback cannot know what R will collect inside it;
+[`tests/testthat/test-progress_display.R`](/tests/testthat/test-progress_display.R)
+pins it by collecting an abandoned handle
+from inside the display's callback lookup.
+
 **One header is public.**
 [`inst/include/duckdb_types.hpp`](/inst/include/duckdb_types.hpp)
 is what a downstream R package compiles against;
