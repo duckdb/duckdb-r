@@ -25,6 +25,12 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 |---|---|
 | [`rethrow.R`](rethrow.R) | Generate R/rethrow-gen.R from R/cpp11.R: wrap each rapi_* binding to rethrow errors with call context; sourced by .Rprofile on repo load. |
 
+## [`architecture/rfuns/`](/handbook/architecture/rfuns/README.md)
+
+| File | Purpose |
+|---|---|
+| [`vendor-rfuns.sh`](vendor-rfuns.sh) | Vendor the rfuns extension: copy sources from a duckdb-rfuns checkout into src/ and commit with the upstream log, one commit per import. |
+
 ## [`branches/flavors/`](/handbook/branches/flavors/README.md)
 
 | File | Purpose |
@@ -95,7 +101,6 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`rconfigure.py`](rconfigure.py) | Regenerate the vendored build configuration from a DuckDB checkout: src/duckdb/, src/include/sources.mk, R/version.R and the Makevars files. |
 | [`setup-git.sh`](setup-git.sh) | Register repository-local git configuration that cannot live in versioned files. |
 | [`vendor-one.sh`](vendor-one.sh) | Vendors DuckDB sources commit-by-commit from the upstream repository. |
-| [`vendor-rfuns.sh`](vendor-rfuns.sh) | Vendor the rfuns extension: copy sources from a duckdb-rfuns checkout into src/ and commit with the upstream log, one commit per import. |
 | [`vendor.sh`](vendor.sh) | Vendors DuckDB sources from the upstream repository (manual vendoring). |
 
 ## [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)

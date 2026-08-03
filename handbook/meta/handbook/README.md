@@ -32,6 +32,17 @@ has exactly one place in this tree.
   [`handbook/`](/handbook/README.md);
   a topic with no place in the tree is a defect of the tree,
   not of the topic.
+  Nothing announces such a defect — a homeless topic raises no error,
+  it is simply absent — so full cover is a claim the tree has to be
+  audited against, not one its shape can enforce.
+* **A scope sentence states a boundary, not a child list.**
+  A node that describes itself by naming what is under it
+  cannot admit the topic it did not foresee:
+  the wording excludes it, and no one notices, because the child list
+  below says the same thing and agrees.
+  So when a topic turns out to have no home,
+  ask first whether a node's *wording* excluded it rather than its
+  design — that is the cheaper defect, and the commoner one.
 * **Pointer leaves are legitimate.**
   Where the canonical home is elsewhere —
   R reference pages (`?topic`) shipped in the tarball,
@@ -82,7 +93,7 @@ has exactly one place in this tree.
 
 ## Growing a leaf
 
-The tree deepens one leaf per change, by three moves.
+The tree deepens one leaf per change, by four moves.
 Any of them is a complete, mergeable pull request:
 
 1. **Close an issue into its leaf.**
@@ -105,6 +116,13 @@ Any of them is a complete, mergeable pull request:
 3. **Deepen from the ground truth.**
    Write what the code, scripts, and workflows actually do,
    and cite the file that proves it.
+4. **Give a homeless topic a home.**
+   Something tracked in this repository that no leaf covers gets one,
+   born at reference depth: a scope sentence, where the knowledge lives
+   today, and a deepen line naming the rest.
+   The node above it gains a child-list entry, and a scope sentence too
+   narrow to admit the new leaf is widened in the same change —
+   otherwise the next topic of that kind falls out again.
 
 Whichever move, the same protocol:
 

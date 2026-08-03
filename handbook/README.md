@@ -15,15 +15,15 @@ an audience split would need the same fact in two places,
 and the tree holds every fact once.
 
 * [`usage/`](usage/) — installation and flavors, connections,
-  types, extensions, memory, data import, storage, integrations,
-  the relational API
+  statements, types, extensions, memory, data import, storage,
+  integrations, the relational API, interactive use
 * [`architecture/`](architecture/) — the R layer, the C++ glue,
-  the embedded engine
+  the embedded engine, the `rfuns` extension
 * [`build/`](build/) — source build, fast paths, build knobs
 * [`testing/`](testing/) — suite, snapshots, guards, revdep
 * [`branches/`](branches/) — series, flavors, invariants
 * [`operations/`](operations/) — vendoring, triage, review,
-  CI, releases
+  CI, releases, the site
 * [`contributors/`](contributors/) — setup, workflow, where to help
 * [`meta/`](meta/) — the rules, the authoring checklist,
   the plans, the glossary
