@@ -89,6 +89,29 @@ NO_PUBLISH="${NO_PUBLISH:-}"
 # rebase before a release catches it either way. The run-level scripts use the tip
 # (each-plan.sh, and the fan-in's each-harvest.sh) -- a different question.
 here="$(cd "$(dirname "$0")" && pwd)"
+
+# This file is one of the ones that reset wipes, and bash reads a script
+# incrementally, by byte offset: crossing a commit that changed *this* script
+# lets the running shell resume at a stale offset in whatever content replaced
+# it. That is undefined behaviour, and it is independent of the choice above --
+# nothing about walking commits with the harness they carry requires executing
+# the walker out of the tree being walked.
+#
+# So run from a copy taken before the first reset. `here` survives the re-exec,
+# so the helpers still resolve from the workspace and every commit is still
+# checked by the harness it carries. The copy lives outside the workspace rather
+# than in a `.gitignore`d directory inside it, because `.gitignore` comes from
+# the commit under test: an in-tree staging directory is untracked and unignored
+# at every commit older than the entry, and `rcc-one.sh`'s `clean` gate fails on
+# it -- exactly in the rewind case this protects.
+if [ -z "${EACH_SHARD_HERE:-}" ]; then
+  staged="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/each-shard"
+  mkdir -p "${staged}"
+  cp "${here}/$(basename "$0")" "${staged}/each-shard.sh"
+  EACH_SHARD_HERE="${here}" exec bash "${staged}/each-shard.sh" "$@"
+fi
+here="${EACH_SHARD_HERE}"
+
 started="$(date -u +%s)"
 deadline=$(( started + DEADLINE_MINUTES * 60 ))
 

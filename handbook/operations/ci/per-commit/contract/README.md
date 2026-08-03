@@ -25,6 +25,11 @@ How the to-do list is computed is
 * **Gate applied per commit** — style, snapshots, roxygen, clean tree,
   `R CMD check`, pkgdown. The *order* is the contract;
   the list is `rcc-one.sh`'s `ALL_GATES`.
+  The copy that runs is the **commit's own**, not the branch tip's:
+  the leg resets the workspace before each commit, and the gate it then
+  invokes is the one that commit carries.
+  So a change to the gate binds the commits at or after it and no others,
+  and a range replayed from before one is judged without it.
 * **Accepted snapshots** — pushed as `snapshot-<sha>-rcc-smoke-null`.
 * **Triggers** — push to `each-*` / `*-dev`, `workflow_dispatch`,
   `workflow_call`.
