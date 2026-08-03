@@ -4,10 +4,13 @@
 [`usage/storage/`](/handbook/usage/storage/README.md)'s; this file is kept for
 the reasoning behind it, not as a description of the system.
 
-Two things the checklist below marks `[x]` never shipped, and are not part of
+Four things the checklist below marks `[x]` never shipped, and are not part of
 what landed: the `duckdb_extension_storage()` / `duckdb_secret_storage()`
-setters, and the `?duckdb_storage_config` page. Neither exists in `R/` or
-`NAMESPACE`. `duckdb_storage_status()` is the one exported function.
+setters, the `?duckdb_storage_config` page, the Phase 2 `.duckdb-r-keep` marker
+scheme, and the writability probe that would have placed the extension cache in
+the installed library. None of them appears in `R/` or `NAMESPACE`, and the
+resolution that shipped has neither a marker nor a `"library"` root.
+`duckdb_storage_status()` is the one exported function.
 
 Implementation roadmap for the storage-location policy documented in
 `?duckdb_storage`. The design is settled in the docs; this file tracked the

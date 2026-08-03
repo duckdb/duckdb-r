@@ -341,8 +341,10 @@ accepted in exchange for a bisectable, merge-free active history.
   continuously: `main` (current stable) and `main-dev` (next major) vendor
   different upstream C++, so forcing ancestry would mean rebasing 400+ commits on
   every `main` patch release for no benefit. Instead it is **established once**,
-  immediately before the flip, by the linearization runbook (rewind to the
-  upstream bifurcation point, then replay).
+  immediately before the flip, by rewinding to the upstream bifurcation point and
+  replaying. Nothing automates that step — there is no runbook and no script —
+  and the flip it prepares is
+  [`operations/releases/process/`](/handbook/operations/releases/process/README.md)'s.
 - **A3 — Dev SHAs are disposable.** Because linearity is maintained by rebasing,
   `-dev` SHAs are not durable; only tags (releases) and the fast-forward-only
   `dev-base` marker are stable references. This is acceptable — `-dev` exists
