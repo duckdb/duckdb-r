@@ -1,32 +1,40 @@
 # Triage
 
-*Stub — this leaf will own its topic;
-today it routes to where the knowledge lives.
-The writing protocol is in [`meta/handbook/`](/handbook/meta/handbook/);
-the last section holds this leaf's parameters.*
+Issue intake: the verdicts an item can close under,
+and where each routes the knowledge.
+The per-issue dispositions and drafted answers for the current queue
+are a plan, not a leaf: when one lands in [`plan/`](/plan/README.md)
+the leaves here consume it rather than re-derive it.
 
-Scope: issue intake —
-the verdict classes an issue can close under,
-the rule that a close without a code change
-is a close *with* a documentation change,
-and where each verdict routes the knowledge:
-into the leaf that owns the topic.
+**Every open item gets exactly one verdict, an owner, and a next
+action** — an issue that stays open is a decision, not a leftover:
 
-Today:
+* `MERGE` / `FINISH` — the PR is sound; land it, or complete then land.
+* `FIX` — valid, scheduled work; stays open with priority and vehicle.
+* `CLOSE-DOCS` — works as designed or known limitation;
+  the close carries the doc.
+* `CLOSE-FIXED` — already fixed; the close cites version or commit.
+* `CLOSE-UPSTREAM` — engine, extension, or dbplyr matter;
+  upstream link filed or found.
+* `CLOSE-STALE-ASK` — needs info, reporter gone; invite a fresh report.
+* `KEEP-ROADMAP` — deliberately open epic with a named next step.
 
-* the 2026-07 triage of the open queue
-  (branch `claude/review-open-issues-prs-46alwv` on `krlmlr/duckdb-r`)
-  is the worked instance; its rules land here
+**A close without a code change
+is a close *with* a documentation change.**
+The answer lands in the handbook leaf that owns the topic,
+in the same pull request that closes the issue,
+and the closing comment links it
+([`meta/handbook/`](/handbook/meta/handbook/README.md#growing-a-leaf)).
+Every open issue can name the leaf that would absorb its answer;
+an issue with no addressable leaf is a defect of the tree.
+Closing credits the reporter and names the reopen condition.
 
-To write this leaf:
+The label vocabulary readers act on is
+[`contributors/where-to-help/`](/handbook/contributors/where-to-help/README.md)'s;
+the lock bot ([`lock.yaml`](/.github/workflows/lock.yaml))
+locks a thread after a year without activity —
+it neither closes nor reopens anything.
 
-* absorb from `plan/PLAN-inbox-zero.md` on the 2026-07 triage branch
-  (`claude/review-open-issues-prs-46alwv` on `krlmlr/duckdb-r`):
-  the eight issue verdicts and five PR verdicts (§1, §4),
-  the close-with-docs rule (§2.3), and the guardrails (§7) —
-  issue templates, the `needs-info` / `docs-candidate` / `roadmap`
-  labels, the weekly sweep routine, the definition of done for a close
-* its §5 tables pre-draft the closing answers ("entry gists")
-  that the usage leaves consume — point leaf writers there
-* add the address rule: every open issue names the leaf that would
-  absorb its answer; an unaddressable issue is a defect of the tree
+*To deepen: absorb the triage plan's guardrails —
+issue templates, queue-state labels, the sweep routine — as they
+are adopted.*

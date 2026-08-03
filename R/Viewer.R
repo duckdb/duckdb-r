@@ -1,4 +1,5 @@
 # adapted from sort-of reference at https://github.com/r-dbi/odbc/blob/main/R/Viewer.R
+# Handbook: handbook/usage/interactive/README.md
 rs_list_object_types <- function(connection) {
   # slurp all the objects in the database so we can determine the correct
   # object hierarchy

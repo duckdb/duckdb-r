@@ -1,22 +1,23 @@
 # `plan/` — designs, decisions, and history
 
-This directory holds documents that are *not* part of the routing tree's
+*Handbook: [`meta/plans/`](/handbook/meta/plans/README.md)
+owns this directory's conventions.*
+
+This directory holds documents that are *not* part of the
 description of how the system works today:
 plans for work that is not finished,
-and records of designs and reviews that have been superseded.
-Both roots — [`README.md`](/README.md) for users and
-[`AGENTS.md`](/AGENTS.md) for maintainers and coding agents — point here,
-and this file is what names the contents,
+records of plans that came true,
+and records of designs that never will.
+This file is what names the contents,
 so nothing under `plan/` is an orphan.
 
-What is current lives elsewhere, and is owned there:
-[`BRANCHES.md`](/BRANCHES.md) for the branch model,
-[`RELEASE.md`](/RELEASE.md) for the release process,
-[`scripts/VENDORING.md`](/scripts/VENDORING.md) for vendoring mechanics,
-[`scripts/EACH.md`](/scripts/EACH.md) for per-commit CI,
-and [`.claude/skills/`](/.claude/skills/) for the routine's playbooks.
+What is current is owned by the
+[handbook](/handbook/README.md) —
+walking down from its root finds the leaf for any topic —
+with [`.claude/skills/`](/.claude/skills/) holding the routines'
+machine-loaded playbooks.
 A document here may describe something that has since changed;
-when the two disagree, the owner above is right.
+when the two disagree, the handbook leaf is right.
 
 ## Plans — work proposed or in progress
 
@@ -24,26 +25,35 @@ when the two disagree, the owner above is right.
 |---|---|
 | Simplifying the vendoring pipeline: one verdict store, tooling from `main`, a docs tree | [`PLAN-vendoring-simplification.md`](PLAN-vendoring-simplification.md) |
 | Implementing `dbSendQueryArrow()` and the DBI Arrow API | [`PLAN-dbSendQueryArrow.md`](PLAN-dbSendQueryArrow.md) |
-| The CRAN-safe storage-location policy, and the work to implement it | [`PLAN-storage-locations.md`](PLAN-storage-locations.md) |
 
-## `history/` — superseded designs and one-off artifacts
+## `done/` — plans that came true
 
-Kept for the reasoning and the measurements, not as a description of the
-system. Each says so in its own first lines. They live in their own
-directory because the distinction is the point: a plan may still come
-true, a history never will.
+The handbook states the outcome as fact; these are kept for the reasoning
+that got there.
 
 | To read about | Read |
 |---|---|
-| The agentic-loop design that preceded the series loop, and Appendix A's ccache measurements that the cost model still cites | [`history/vendoring-loop.md`](history/vendoring-loop.md) |
-| A 2026-07 review of the non-vendored R-side delta on `main-dev` | [`history/main-dev-review-2026-07.md`](history/main-dev-review-2026-07.md) |
+| The CRAN-safe storage-location policy, and the work that implemented it | [`done/PLAN-storage-locations.md`](done/PLAN-storage-locations.md) |
+
+## `superseded/` — designs overtaken by events
+
+Kept for the reasoning, not as a description of the system;
+each says so in its own first lines.
+They live in their own directory because the distinction is the point:
+a plan may still come true, a superseded design never will.
+
+| To read about | Read |
+|---|---|
+| The agentic-loop design that preceded the series loop (its measurements now live in [`experiments/`](/experiments/README.md)) | [`superseded/vendoring-loop.md`](superseded/vendoring-loop.md) |
 
 ## Adding a document here
 
-A plan goes in `plan/` as `PLAN-<topic>.md`; a superseded design or a one-off
-review goes in `plan/history/`, named for what it is. Either way, open it with
-a line saying what it is and which document owns the topic today, and add a row
-above. A file under `plan/` that this table does not name is an orphan, which
-is the one thing the tree's structure exists to prevent — and when a plan is
-overtaken by events, moving it into `history/` and moving its row with it is
-what retiring it looks like.
+A plan goes in `plan/` as `PLAN-<topic>.md`, and opens with a line saying
+what it is and which document owns its topic today; add a row above.
+A file under `plan/` that this table does not name is an orphan, which is
+the one thing the tree's structure exists to prevent.
+Where a plan leaves depends on what happened to it:
+one that came true moves to `done/`, one overtaken by events to
+`superseded/`, and its row moves with it.
+A measurement is not a plan at all — it belongs in
+[`experiments/`](/experiments/README.md), one directory per run.

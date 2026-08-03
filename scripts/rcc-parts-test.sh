@@ -2,7 +2,7 @@
 # Check the invariants the per-commit record layout rests on, offline, against a
 # local bare repository -- optionally seeded from the real `rcc` branch.
 #
-# The claims in scripts/EACH.md section 3 are measurements, so they should be
+# The claims in handbook/operations/ci/per-commit/store/README.md are measurements, so they should be
 # reproducible: this is what produced them. Six things are checked.
 #
 #   1. scripts/rcc-merge.sh extends the existing layout rather than migrating it:

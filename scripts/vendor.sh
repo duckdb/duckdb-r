@@ -1,7 +1,7 @@
 #!/bin/bash
 # Vendors DuckDB sources from the upstream repository (manual vendoring).
-# For manual testing and development use
 # See scripts/VENDORING.md for complete documentation
+#
 # https://unix.stackexchange.com/a/654932/19205
 # Using bash for -o pipefail
 
@@ -39,13 +39,8 @@ if [ -n "$(git -C "$upstream_dir" status --porcelain)" ]; then
   echo "Warning: working directory $upstream_dir not clean"
 fi
 
-# The upstream SHA the branch has vendored. The pathspec narrows the walk, the
-# subject decides: the patch stack is applied to the vendored tree in place, so
-# commits land under ${vendor_dir} carrying no upstream SHA, and this looks past
-# them -- bounded, so git ends the walk itself.
-#
-# Answering empty is not an option here, which is why this refuses instead: an
-# empty base makes the message body below read `${base}..${commit}` with a
+# The upstream SHA the branch has vendored. Answering empty is not an option:
+# an empty base makes the message body below read `${base}..${commit}` with a
 # missing left side, which git resolves to the clone's HEAD and which writes a
 # changelog nobody chose. The same rule, and the same bound, as vendored_sha()
 # in scripts/series-advance.sh; scripts/vendor-one.sh has its own copy.
@@ -74,12 +69,30 @@ for commit in $original; do
   echo "R: configure"
   DUCKDB_PATH="$upstream_dir" python3 scripts/rconfigure.py
 
+  # `--reverse` needs `--forward` beside it: on its own it prompts
+  # ("Unreversed patch detected!  Ignore -R? [n]") and hangs a run whose
+  # stdin is a terminal.
+  # scripts/vendor-one.sh has the same three-way split and the same exit 4.
   for f in patch/*.patch; do
     if patch -i "$f" -p1 --forward --dry-run; then
       patch -i "$f" -p1 --forward --no-backup-if-mismatch
-    else
-      echo "Removing patch $f"
+    elif patch -i "$f" -p1 --reverse --forward --dry-run; then
+      echo "Removing patch $f (its change is already in the regenerated tree)"
       rm "$f"
+    else
+      echo ""
+      echo "=== PATCH BROKEN: $f (upstream ${commit}) ==="
+      echo "It neither applies forward nor reverses cleanly, so its change is"
+      echo "not in the regenerated tree and cannot be re-applied: the code it"
+      echo "patches moved."
+      echo "The regenerated sources for ${commit} are in the working tree,"
+      echo "uncommitted, and the upstream clone is kept."
+      echo "Rebase $f against them, keeping the rebased patch outside the tree,"
+      echo "then 'git checkout -- .' and put it back."
+      echo "Before rerunning, remove ./duckdb or pass it as the argument:"
+      echo "this script always clones, so a leftover clone makes it fail."
+      echo "Delete $f only after confirming its change is genuinely upstream."
+      exit 4
     fi
   done
 
@@ -90,8 +103,8 @@ for commit in $original; do
     break
   fi
 
-  # Expecting one change under ${vendor_base_dir} (and other changes) even if nothing else changed.
-  # Need at least three changed files to consider it a real update.
+  # pragma_version.cpp always differs, so "more than one" is the test for a
+  # real change.
   if [ "$(git status --porcelain -- ${vendor_base_dir} | wc -l)" -gt 1 ]; then
     message="vendor: Update vendored sources to ${repo_org}/${repo_name}@$commit"
     break
@@ -100,7 +113,16 @@ done
 
 if [ "$message" = "" ]; then
   echo "No changes."
-  git checkout -- ${vendor_base_dir} R/version.R
+  # Nothing was vendored, so leave the tree exactly as the run found it.
+  # rconfigure.py rewrites R/version.R, src/Makevars, src/Makevars.win and
+  # src/include/sources.mk as well as ${vendor_dir}, and any leftover of those
+  # would make the next run refuse on a dirty tree. Regenerating can also add
+  # files upstream has that we do not, which `checkout` will not take back.
+  # Restoring everything is safe because the run refused to start on a dirty
+  # tree: anything untracked here was created by this run. The clone is
+  # ignored, so `git clean` leaves it for the `rm -rf` below.
+  git checkout -- .
+  git clean -fd
   rm -rf "$upstream_dir"
   exit 0
 fi

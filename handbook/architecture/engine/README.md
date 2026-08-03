@@ -1,29 +1,51 @@
 # The engine
 
-*Stub — this leaf will own its topic;
-today it routes to where the knowledge lives.
-The writing protocol is in [`meta/handbook/`](/handbook/meta/handbook/);
-the last section holds this leaf's parameters.*
+The DuckDB engine embedded in `src/duckdb/`:
+which commit is embedded, how that version reaches R,
+and how this build differs from a stock one.
+The engine itself — SQL dialect, storage, execution, tuning —
+is documented at [duckdb.org/docs](https://duckdb.org/docs/)
+and not repeated here;
+how the copy is kept current is
+[`operations/vendoring/`](/handbook/operations/vendoring/README.md).
 
-Scope: the DuckDB engine embedded in `src/duckdb/`:
-what it is, which commit is embedded,
-and how this package's build of it differs from a stock build.
+**Identity.**
+Two identifiers travel with the copy,
+both defined in the vendored `pragma_version.cpp`:
+`DUCKDB_VERSION` (the release string) and `DUCKDB_SOURCE_ID`
+(the abbreviated upstream commit).
+`PRAGMA version` returns both;
+the source id is what the fast path's commit-match guard checks
+([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
+At vendor time `rconfigure.py` writes the version into
+[`R/version.R`](/R/version.R),
+which is what `dbGetInfo()` reports without opening a database.
+The *package* version is a different number, owned by
+[`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md).
 
-Today:
+**How this build differs from stock.**
+The authoritative flag lists are the committed
+[`src/Makevars`](/src/Makevars) and
+[`src/Makevars.win`](/src/Makevars.win),
+both generated from [`src/Makevars.in`](/src/Makevars.in),
+which is where a flag change goes.
+The load-bearing ones:
 
-* [duckdb.org/docs](https://duckdb.org/docs/) —
-  the engine's own documentation, which this tree does not duplicate
-* [duckdb/duckdb](https://github.com/duckdb/duckdb) —
-  the upstream sources and internals
-* [`R/version.R`](/R/version.R) —
-  the embedded engine version, generated at vendor time
-* how the embedded copy is maintained is
-  [`operations/vendoring/`](/handbook/operations/vendoring/), not here
-
-To write this leaf:
-
-* stay external-pointer-heavy; add only what is ours:
-  version resolution (`R/version.R`, `DUCKDB_SOURCE_ID`) and how this
-  build differs from stock (`-D` flags in `src/Makevars.in`,
-  linked extension set)
-* drain: #1829, #2365
+* `-DDUCKDB_DISABLE_PRINT` — the engine cannot write to the console
+  behind R's back.
+* `-DDUCKDB_EXTENSION_AUTOLOAD_DEFAULT` and the linked extension set —
+  what they mean for a reader loading an extension is
+  [`usage/extensions/`](/handbook/usage/extensions/README.md)'s.
+* `-DDUCKDB_PLATFORM_RTOOLS=1` — Windows only;
+  the `_mingw` platform string extension downloads key on.
+* `-DDUCKDB_RSTRTMGR` — Windows restart-manager support,
+  set by `configure.win` and off on R < 4.2, which ships no `librstrtmgr.a`.
+* `-DBROTLI_ENCODER_CLEANUP_ON_OOM` — an R package must not `exit()`.
+jemalloc is excluded from the generated source list;
+enabling it deliberately is open
+([#2365](https://github.com/duckdb/duckdb-r/issues/2365)).
+Compiler warnings from the vendored tree are noise the shipped
+build does not silence
+([#1829](https://github.com/duckdb/duckdb-r/issues/1829));
+the no-suppression policy is
+[`glue/`](/handbook/architecture/glue/README.md)'s.

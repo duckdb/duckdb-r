@@ -1,5 +1,8 @@
 # Rebasing a forward series onto a newer mainline
 
+*Handbook: [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md) —
+what this routine is, and when it runs.*
+
 Two different moves put a series on a newer base,
 and only one of them is a rebase.
 

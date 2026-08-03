@@ -1,25 +1,45 @@
 # Extensions
 
-*Stub — this leaf will own its topic;
-today it routes to where the knowledge lives.
-The writing protocol is in [`meta/handbook/`](/handbook/meta/handbook/);
-the last section holds this leaf's parameters.*
+Which DuckDB extensions the package ships,
+what loads and installs by itself,
+and how to get more.
 
-Scope: the bundled extension set, autoload vs autoinstall,
-and installing more.
+* **Bundled: `parquet` and `core_functions`, nothing else.**
+  The authoritative list is the set of
+  `-DDUCKDB_EXTENSION_*_LINKED` defines in the committed
+  [`src/Makevars`](/src/Makevars);
+  changing it is a vendoring-time decision
+  ([`build/configuration/`](/handbook/build/configuration/README.md)).
+* **Autoload is on, autoinstall is off.**
+  The build flips `autoload_known_extensions`
+  (`-DDUCKDB_EXTENSION_AUTOLOAD_DEFAULT`)
+  but leaves `autoinstall_known_extensions` false:
+  an *installed* extension loads on first use,
+  but nothing is downloaded without being asked
+  ([#2306](https://github.com/duckdb/duckdb-r/issues/2306)) —
+  the CLI behaves differently because it flips both.
+  `INSTALL icu` once per DuckDB version and platform,
+  and ICU autoloads everywhere from then on;
+  `SET autoinstall_known_extensions = true` restores CLI behavior.
+* **Where installed extensions live**, and how to move or share
+  the store, is [`storage/`](/handbook/usage/storage/README.md).
+* **Whether loading is allowed at all** is decided per driver:
+  the `allow_extensions` argument, option, and environment variable,
+  with automatic detection of the libc++ ABI mismatch on Linux
+  that would otherwise crash R —
+  `?duckdb`, section "DuckDB extensions on Linux",
+  owns that decision tree
+  ([#1107](https://github.com/duckdb/duckdb-r/issues/1107)).
+* **Windows** fetches extensions for the `windows_amd64_mingw` platform,
+  which DuckDB has distributed since 1.4.1;
+  gaps for out-of-tree extensions are tracked as the toolchain epic
+  ([#2234](https://github.com/duckdb/duckdb-r/issues/2234)).
 
-Today:
+Verify any claim about the shipped set on a **vendored build** —
+the fast path answers for a different artifact
+([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
 
-* no single owner yet;
-  the natural home is a `?duckdb_extensions` reference page, not yet written
-
-To write this leaf:
-
-* state the shipped set and the autoload / autoinstall defaults,
-  verified against a **vendored build** — never under
-  `DUCKDB_R_USE_SYSTEM_LIB=1`: the release libduckdb links extra
-  extensions (`icu`, `json`, `autocomplete`) and flips
-  `autoinstall_known_extensions`
-* drain: #66, #100, #117, #202, #1083, #1581, #2306
-* stage the facts here until a `?duckdb_extensions` reference page
-  exists, then invert to a pointer
+*To deepen: drain
+[#66](https://github.com/duckdb/duckdb-r/issues/66) (webR) into a
+boundary once its flags land.
+Facts land here to stay, not to wait for a reference page.*

@@ -1,20 +1,19 @@
 # Storage locations
 
-*Stub — this leaf will own its topic;
-today it routes to where the knowledge lives.
-The writing protocol is in [`meta/handbook/`](/handbook/meta/handbook/);
-the last section holds this leaf's parameters.*
+Where the package and the embedded engine write on disk —
+the extension cache, the secret store, spill, and the database file —
+and how to move or share the store.
+`?duckdb_storage` ([`R/storage.R`](/R/storage.R)) owns this topic:
+it ships in the package, documents every kind of state and the full
+resolution order, and `duckdb_storage_status()` reports where each
+kind resolves right now, side-effect-free.
 
-Scope: where extensions and secrets live on disk, and how to move them.
+Two facts a reader must not miss, and the reference page has the rest:
+**nothing is written into the package library**, ever,
+and where `~/.duckdb` exists it is resolved the way the engine
+resolves it — so the extension cache and the secret store are
+genuinely shared with the DuckDB CLI and the other clients,
+not a private copy.
+The home root is resolved afresh for every new database instance.
 
-Today:
-
-* `?duckdb_storage` ([`R/storage.R`](/R/storage.R)),
-  backed by [`plan/PLAN-storage-locations.md`](/plan/PLAN-storage-locations.md)
-
-To write this leaf:
-
-* nothing to absorb: `?duckdb_storage` (`R/storage.R`) owns the topic;
-  keep this pointer in step with it
-* add the backreference to this leaf in `R/storage.R`'s roxygen —
-  the `.Rd` is generated, the source carries it
+*To deepen: absorb the resolution order from `?duckdb_storage`.*

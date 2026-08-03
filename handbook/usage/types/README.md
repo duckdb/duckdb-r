@@ -1,22 +1,52 @@
 # Types
 
-*Stub — this leaf will own its topic;
-today it routes to where the knowledge lives.
-The writing protocol is in [`meta/handbook/`](/handbook/meta/handbook/);
-the last section holds this leaf's parameters.*
+The R ↔ DuckDB edges:
+where a value does not survive the crossing unchanged,
+and what to do about it.
+The mapping itself is implemented in
+[`src/types.cpp`](/src/types.cpp) (R vector → `LogicalType`)
+and [`src/transform.cpp`](/src/transform.cpp) (the way back).
 
-Scope: the R ↔ DuckDB edges: UTF-8 strictness, geometry via WKB,
-`Inf`/`NaN`, `NULL` vs `NA`.
+* **UTF-8 is required, strictly.**
+  DuckDB checks string validity and rejects invalid UTF-8;
+  this is deliberate engine behavior, not a bug
+  ([#12](https://github.com/duckdb/duckdb-r/issues/12)).
+  Convert first: `iconv(x, to = "UTF-8")` or `enc2utf8()`.
+* **Geometry comes back as WKB by default.**
+  `dbConnect(geometry = )` chooses: `"blob"`, the default set in
+  [`R/dbConnect__duckdb_driver.R`](/R/dbConnect__duckdb_driver.R),
+  returns raw vectors; `"wk"` returns `wk_wkb`, which
+  `sf::st_as_sfc()` converts onward.
+  There is no automatic conversion on the *write* side —
+  write WKB blobs and use `ST_GeomFromWKB()` in DuckDB;
+  the duckspatial and duckdbfs packages wrap this
+  ([#1670](https://github.com/duckdb/duckdb-r/issues/1670)).
+  Native `sf` support is roadmapped in
+  [#117](https://github.com/duckdb/duckdb-r/issues/117).
+* **`NULL` arrives as logical `NA`** in untyped contexts;
+  making the relational API return typed `NA`s instead is decided
+  and pending ([#155](https://github.com/duckdb/duckdb-r/issues/155)).
+* **MAP columns** round-trip since 1.5.4
+  ([#200](https://github.com/duckdb/duckdb-r/issues/200)),
+  but writing one back without `field.types` needs
+  `dbConnect(map = "list_of")`; the default is `"data.frame"`,
+  set in
+  [`R/dbConnect__duckdb_driver.R`](/R/dbConnect__duckdb_driver.R).
+  Columns with unit or other attribute classes arrive as their
+  storage type — `units` becomes plain `DOUBLE`
+  ([#590](https://github.com/duckdb/duckdb-r/issues/590)).
+* **Arrow results are not R vectors at all** —
+  they stay in the stream, and what consumes them is
+  [`integrations/`](/handbook/usage/integrations/README.md)'s
+  ([#642](https://github.com/duckdb/duckdb-r/issues/642)).
+* **Timestamps** come back as `POSIXct` in the zone
+  `dbConnect(timezone_out = )` names, `"UTC"` by default
+  ([`R/dbConnect__duckdb_driver.R`](/R/dbConnect__duckdb_driver.R));
+  adopting the session `TimeZone` for `TIMESTAMPTZ` is in flight
+  ([#184](https://github.com/duckdb/duckdb-r/issues/184),
+  [#2401](https://github.com/duckdb/duckdb-r/pull/2401)).
 
-Today:
-
-* no single owner yet;
-  the natural home is a `?duckdb_types` reference page, not yet written
-
-To write this leaf:
-
-* gather: the mapping from `src/types.cpp` and the R coercion code;
-  UTF-8 strictness is deliberate engine behavior — say so
-* drain: #12, #155, #184, #200, #590, #642, #1670
-* stage the facts here until a `?duckdb_types` reference page exists,
-  then invert to a pointer
+*To deepen: write the full mapping table from `src/types.cpp`,
+verified on a vendored build.
+This leaf is its home — a `?`-page for types would be generated from
+here, not the other way round.*
