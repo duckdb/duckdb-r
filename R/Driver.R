@@ -1,3 +1,7 @@
+# The driver and its `?duckdb` reference page.
+# Explained in handbook/usage/connections/README.md, and for the extension
+# section of that page, handbook/usage/extensions/README.md.
+
 DBDIR_MEMORY <- ":memory:"
 
 check_flag <- function(x) {

@@ -39,8 +39,9 @@
 #   OUT_DIR=runs scripts/rcc-cutover.sh            # report, change nothing
 #   OUT_DIR=runs APPLY=1 scripts/rcc-cutover.sh    # write and push rcc2
 #
-# Run from a terminal, once; scripts/EACH.md section 3 has the runbook, including
-# how to get the worktree and when to run it relative to the producers.
+# Run from a terminal, once. The runbook -- how to get the worktree, and when to
+# run it relative to the producers -- is in
+# handbook/operations/ci/per-commit/store/README.md.
 #
 # OUT_DIR is a worktree of the **source** branch (`rcc`), and is rewritten in
 # place: the transformation is a few thousand `mv`s within one filesystem, which

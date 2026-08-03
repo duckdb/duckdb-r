@@ -1,3 +1,5 @@
+# Explained in handbook/usage/data-import/README.md.
+
 #' Reads a CSV file into DuckDB
 #'
 #' Directly reads a CSV file into DuckDB, tries to detect and create the correct schema for it.

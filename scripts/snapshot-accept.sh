@@ -3,6 +3,7 @@
 # confirm they hold. The fallback for snapshot repair when no
 # snapshot-<sha>-rcc-smoke-null branch exists, or when its diff does not
 # survive review (.claude/skills/series-loop.md).
+# Explained in handbook/testing/snapshots/README.md.
 #
 # Usage: snapshot-accept.sh <commit-ish> <snapshot-name>...
 #   snapshot-accept.sh abc1234 sql types

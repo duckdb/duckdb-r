@@ -1,5 +1,8 @@
 # Opening a new series
 
+*Handbook: [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md) —
+what this routine is, and when it runs.*
+
 When upstream cuts a release branch —
 v2.0 is released, upstream `main` becomes the 2.1 line —
 the release gets a series of its own.

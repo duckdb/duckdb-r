@@ -26,7 +26,7 @@
 # of every stage that failed into its job summary, so the run summary says what
 # broke without opening the log.
 #
-# See scripts/EACH.md for the design, the GitHub Actions limits it works within,
+# See handbook/operations/ci/per-commit/README.md for the design, the GitHub Actions limits it works within,
 # and why `workflow_call` is not the mechanism that gets us there.
 
 on:
@@ -100,7 +100,7 @@ name: each-rcc
 #
 # This group, plus work-selection being a pure function of durable verdicts, is
 # the whole of what keeps a commit from being built twice. There is no running
-# marker and there is not meant to be one -- see scripts/EACH.md, "No running
+# marker and there is not meant to be one -- see handbook/operations/ci/per-commit/selection/README.md, "No running
 # marker, by design".
 concurrency:
   group: each-rcc-${{ inputs.branch || github.ref }}

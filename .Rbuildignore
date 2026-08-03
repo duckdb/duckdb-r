@@ -9,7 +9,6 @@ src/Makevars.in
 ^\.Rproj\.user$
 ^_pkgdown\.yml$
 tests/regression
-RELEASE.md
 \.github
 ^\.gitattributes$
 ^src/\.editorconfig$
@@ -29,8 +28,6 @@ RELEASE.md
 ^CRAN-SUBMISSION$
 ^docs$
 ^pkgdown$
-^docker$
-^docker-compose\.yml$
 _files$
 ^vscode-build$
 ^vscode-integrate-build$
@@ -49,3 +46,5 @@ _files$
 ^plan$
 ^runs$
 ^inst/extensions$
+^handbook$
+^experiments$

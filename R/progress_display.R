@@ -1,3 +1,4 @@
+# Handbook: handbook/usage/interactive/README.md
 duckdb_progress_env <- new.env(parent = emptyenv())
 
 duckdb_progress_display <- function(x) {

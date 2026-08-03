@@ -1,5 +1,11 @@
 # PLAN — Vendoring: a smaller kernel, tooling from `main`, and a docs tree
 
+**Open.** How vendoring works today is
+[`operations/vendoring/`](/handbook/operations/vendoring/README.md)'s,
+and the documentation tree's own rules are
+[`meta/handbook/`](/handbook/meta/handbook/README.md)'s;
+this file is the proposal, and where the two disagree the leaf is right.
+
 Status: **in progress** (2026-07-30, branch `claude/vendoring-tooling-design-3swawc`;
 Phase 1 landed as #87, the README root as #88 — see §9;
 revised after a clean-context review of this document against `origin/main`).
@@ -56,7 +62,8 @@ An inventory of the moving parts, as of today
 *Since:* D1 and D2 have landed. Selection reads the record store, and the store is
 one layout on a new branch — `runs2.d/<xx>/<sha>.ndjson` and
 `logs2.d/<xx>/<sha>.log` on `rcc2`, written by three producers through one
-publisher, with `rcc` left behind whole. See [`../scripts/EACH.md`](../scripts/EACH.md) §3.
+publisher, with `rcc` left behind whole. See
+[`operations/ci/per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md).
 | Scripts | 26 shell/python executables + 3 data/jq files serve the loop |
 | Skills | 4 (`series-loop`, `series-forward`, `series-rebase`, `series-open`) |
 | Workflows | `each.yaml`, `rcc-logs.yaml`, `rcc-consolidate.yaml` — the legacy dispatch path, which also spanned `cancel-rcc-dispatch.yaml`, is retired (D4). `R-CMD-check.yaml` (whose workflow *name* is `rcc`) and `R-CMD-check-status.yaml` stay: the ordinary push/PR check and the commit status branch protection reads, both core-set from `cynkra/cynkratemplate` |
@@ -586,7 +593,7 @@ AGENTS.md ──┤                  maintainers & agents: quickstart + router
             │    series-rebase.md · series-open.md
             └─ plan/README.md           designs and decisions
                  PLAN-*.md
-                 └─ plan/history/            superseded designs, one-off artifacts
+                 └─ plan/superseded/         designs overtaken by events
                       vendoring-loop.md (← scripts/VENDORING-LOOP.md)
                       main-dev-review-2026-07.md (← scripts/main-dev-review.md)
 ```
@@ -612,8 +619,8 @@ Per-node target state:
 | `scripts/VENDORING.md` | mechanics + another re-telling | mechanics + troubleshooting only; owns the script inventory |
 | `scripts/EACH.md` | design + Q&A, current | keep; it is already the single owner of its topic |
 | skills | current | procedure only; mechanics by pointer |
-| `scripts/VENDORING-LOOP.md` | 865-line superseded design | move to `plan/history/vendoring-loop.md`; fix the 11 inbound references across 6 files |
-| `scripts/main-dev-review.md` | one-off review artifact in `scripts/`, currently orphaned (zero inbound references) | move to `plan/history/main-dev-review-2026-07.md` |
+| `scripts/VENDORING-LOOP.md` | 865-line superseded design | move to `plan/superseded/vendoring-loop.md`; fix the 11 inbound references across 6 files |
+| `scripts/main-dev-review.md` | one-off review artifact in `scripts/`, currently orphaned (zero inbound references) | move to `experiments/2026-07-main-dev-review/` |
 | `plan/` | named as a node by both roots; nothing named its children | `plan/README.md` routes: scope, then one row per document, by path — and the rule that a file the table does not name is an orphan |
 
 Migration: mechanical moves first (one PR), then one node per PR,

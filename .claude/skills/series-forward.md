@@ -1,5 +1,8 @@
 # Forwarding a series to a newer base
 
+*Handbook: [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md) —
+what this routine is, and when it runs.*
+
 `main` moves under a series:
 R-side fixes, workflow changes, version bumps.
 The series' branches are built on yesterday's `main`,

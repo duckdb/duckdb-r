@@ -2,6 +2,8 @@
 #include "duckdb/parser/parsed_data/create_scalar_function_info.hpp"
 #include "rfuns_extension.hpp"
 
+// Handbook: handbook/architecture/rfuns/README.md
+
 #include <climits>
 #include <cmath>
 #include <math.h>

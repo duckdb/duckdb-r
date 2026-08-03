@@ -1,6 +1,6 @@
 # `duckdb_shared_home()` below is a thin wrapper over the environment so the
 # storage-location logic stays testable without touching the real filesystem or
-# HOME. See `?duckdb_storage` and plan/PLAN-storage-locations.md.
+# HOME. See `?duckdb_storage` and plan/done/PLAN-storage-locations.md.
 
 # The DuckDB default home (`<home>/.duckdb`), shared with the DuckDB CLI and
 # Python client. The `<home>` base must match the engine's own notion of the

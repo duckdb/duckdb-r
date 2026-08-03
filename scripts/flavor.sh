@@ -1,4 +1,6 @@
 #!/bin/bash
+# Apply a package flavor: rewrite scripts/flavor.patch to the target name
+# (say, duckdb.dev), apply it, and commit the rename; see BRANCHES.md.
 
 set -euxo pipefail
 
