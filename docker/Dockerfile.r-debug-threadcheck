@@ -1,3 +1,4 @@
+# Handbook: handbook/contributors/debugging/README.md
 FROM wch1/r-debug
 
 WORKDIR /root

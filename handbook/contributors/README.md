@@ -10,3 +10,4 @@ and adds no fact of its own.
 * [`setup/`](setup/) — a working dev environment in minutes
 * [`workflow/`](workflow/) — making a change, start to merged
 * [`where-to-help/`](where-to-help/) — labels, the live list, the roadmap
+* [`debugging/`](debugging/) — reproducing a crash under an instrumented R

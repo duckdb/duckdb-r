@@ -13,3 +13,4 @@ are a human's call, recorded where they were taken.
 * [`review/`](review/) — pull-request flow and stewardship
 * [`ci/`](ci/) — what runs on every push: workflows, per-commit builds, the matrix
 * [`releases/`](releases/) — from a green branch to CRAN: process, policy, versioning
+* [`site/`](site/) — the pkgdown site: what it publishes, and who publishes it
