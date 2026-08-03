@@ -150,7 +150,7 @@
 </tr>
 </tbody>
 </table>
-<p>The badges track each <code>.dev</code> series: <em>ahead</em> counts commits ahead of the branch the series releases from, <em>in flight</em> counts commits in CI but not yet trusted, <em>buffered</em> counts commits vendored but not yet verified. See <a href="BRANCHES.html"><code>BRANCHES.md</code></a> for the full model.</p>
+<p>The badges track each <code>.dev</code> series: <em>ahead</em> counts commits ahead of the branch the series releases from, <em>in flight</em> counts commits in CI but not yet trusted, <em>buffered</em> counts commits vendored but not yet verified. See the handbook’s <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/branches/README.md" class="external-link"><code>branches/</code></a> for the full model.</p>
 </div>
 <div class="section level2">
 <h2 id="user-guide">User Guide<a class="anchor" aria-label="anchor" href="#user-guide"></a>
@@ -160,7 +160,7 @@
 <div class="section level2">
 <h2 id="documentation">Documentation<a class="anchor" aria-label="anchor" href="#documentation"></a>
 </h2>
-<p>Everything this repository documents is reachable from the <a href="handbook/README.html">handbook</a>, a strict topic hierarchy; <a href="AGENTS.html"><code>AGENTS.md</code></a> is the door for maintainers and coding agents, and <a href="plan/README.html"><code>plan/README.md</code></a> names the designs, plans, and historical documents. <a href="BRANCHES.html"><code>BRANCHES.md</code></a> and <a href="scripts/VENDORING.html"><code>scripts/VENDORING.md</code></a> hold detail the handbook is still absorbing.</p>
+<p>Everything this repository documents is reachable from the <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/README.md" class="external-link">handbook</a>, a strict topic hierarchy; <a href="https://github.com/duckdb/duckdb-r/blob/main/AGENTS.md" class="external-link"><code>AGENTS.md</code></a> is the door for maintainers and coding agents, and <a href="https://github.com/duckdb/duckdb-r/blob/main/plan/README.md" class="external-link"><code>plan/README.md</code></a> names the designs, plans, and historical documents. <a href="https://github.com/duckdb/duckdb-r/blob/main/BRANCHES.md" class="external-link"><code>BRANCHES.md</code></a> and <a href="https://github.com/duckdb/duckdb-r/blob/main/scripts/VENDORING.md" class="external-link"><code>scripts/VENDORING.md</code></a> hold detail the handbook is still absorbing.</p>
 </div>
 <div class="section level2">
 <h2 id="building">Building<a class="anchor" aria-label="anchor" href="#building"></a>
@@ -171,17 +171,12 @@
 <span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p>Then, install:</p>
 <div class="sourceCode" id="cb6"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="ex">~duckdb-r:</span> R CMD INSTALL .</span></code></pre></div>
-<p>Set the <code>MAKEFLAGS</code> environment variable to <code>-j8</code> or similar for parallel builds. Configure <code>ccache</code> for faster repeated builds. A build that links a prebuilt engine and finishes in seconds, and the remaining knobs, are described in the handbook under <a href="handbook/build/README.html"><code>build/</code></a>.</p>
-<p>If you wish to test new DuckDB functionality with duckdb-r, make sure your clone of <code>duckdb-r</code> is one level deeper than your clone of <code>duckdb</code> (e.g. <code>R/duckdb-r</code> and <code>duckdb</code>). Then run the following commands:</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> duckdb <span class="kw">&amp;&amp;</span> <span class="fu">git</span> checkout {{desired_branch}}<span class="kw">)</span></span>
-<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> R/duckdb-r <span class="kw">&amp;&amp;</span> <span class="ex">scripts/vendor.sh</span><span class="kw">)</span></span>
-<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="ex">~</span> <span class="er">(</span><span class="bu">cd</span> R/duckdb-r <span class="kw">&amp;&amp;</span> <span class="ex">R</span> CMD INSTALL .<span class="kw">)</span></span></code></pre></div>
-<p>It helps if both the duckdb directory and duckdb-r directory are clean.</p>
+<p>Set the <code>MAKEFLAGS</code> environment variable to <code>-j8</code> or similar for parallel builds. Configure <code>ccache</code> for faster repeated builds. A build that links a prebuilt engine and finishes in seconds, and other details, are described in the handbook under <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/build/README.md" class="external-link"><code>build/</code></a>.</p>
 </div>
 <div class="section level2">
 <h2 id="vendoring">Vendoring<a class="anchor" aria-label="anchor" href="#vendoring"></a>
 </h2>
-<p>This package includes a vendored copy of the DuckDB C++ library. The vendoring process is automated — a scheduled routine synchronizes each release series with the upstream DuckDB repository, commit by commit. For detailed information about how vendoring works and manual vendoring procedures, see <a href="scripts/VENDORING.html"><code>scripts/VENDORING.md</code></a>.</p>
+<p>This package includes a vendored copy of the DuckDB C++ library. The vendoring process is automated — a scheduled routine synchronizes each release series with the upstream DuckDB repository, commit by commit. How it works, and how to vendor by hand, is in the handbook under <a href="https://github.com/duckdb/duckdb-r/blob/main/handbook/operations/vendoring/README.md" class="external-link"><code>operations/vendoring/</code></a>.</p>
 </div>
 <div class="section level2">
 <h2 id="contributors">Contributors<a class="anchor" aria-label="anchor" href="#contributors"></a>
