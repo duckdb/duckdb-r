@@ -52,6 +52,10 @@ the pragma is respelled with widened spacing
 which the compiler honours unchanged
 while `R CMD check`'s single-space scan does not report it
 ([`patch/0016-Avoid-mbedtls-diagnostic-pragmas.patch`](/patch/0016-Avoid-mbedtls-diagnostic-pragmas.patch)).
+That exception is a listed one, not a spelling anyone may reach for:
+the vendored-warning guard fails on a suppression it does not carry,
+and compiles the patched libraries with the warnings on
+([`testing/guards/`](/handbook/testing/guards/README.md)).
 Formatting runs through the Makefile `format-*` targets,
 driving [`scripts/format.py`](/scripts/format.py).
 

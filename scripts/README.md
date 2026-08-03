@@ -113,6 +113,12 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`series-forward-build.sh`](series-forward-build.sh) | Populate `<S>-fwd-build`: replay every vendor commit of the old `<S>-build` onto HEAD, which must be the freshly flavored seed on current `main` (.claude/ski... |
 | [`series-port.sh`](series-port.sh) | Bring a series' -dev branch level with `main` — stage 4 of the series loop (.claude/skills/series-loop.md). |
 
+## [`testing/guards/`](/handbook/testing/guards/README.md)
+
+| File | Purpose |
+|---|---|
+| [`vendored-warnings.sh`](vendored-warnings.sh) | Guard for suppressed compiler warnings in the vendored engine. |
+
 ## [`testing/snapshots/`](/handbook/testing/snapshots/README.md)
 
 | File | Purpose |

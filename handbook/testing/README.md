@@ -12,5 +12,5 @@ never for the absence of something red.
 
 * [`suite/`](suite/) — layout, helpers, the fast loop
 * [`snapshots/`](snapshots/) — snapshot discipline
-* [`guards/`](guards/) — CRAN guard, flavor guard
+* [`guards/`](guards/) — CRAN guard, flavor guard, vendored-warning guard
 * [`revdep/`](revdep/) — `revdep/` before release

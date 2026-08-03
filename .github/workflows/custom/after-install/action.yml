@@ -88,3 +88,15 @@ runs:
         }
         writeLines("No hard-coded package name outside scripts/flavor.patch.")
       shell: Rscript {0}
+
+    # Guard for suppressed compiler warnings in the vendored engine: fail when
+    # the patch stack grows a suppression that is not written down, and when a
+    # library whose patches claim warning-freedom stops being warning-free.
+    # Needs clang, not the R toolchain compiler: the diagnostics
+    # patch/0003-Fix-clang-warnings-in-re2.patch addresses do not exist in GCC.
+    # Reads the checkout, so like the scan above its answer is the same in every
+    # matrix entry -- run it once, in the smoke test.
+    - name: Check that the vendored engine compiles without warnings, and hides none
+      if: github.job == 'rcc-smoke'
+      run: scripts/vendored-warnings.sh
+      shell: bash

@@ -167,6 +167,10 @@ groups <- list(
     globs = c("rethrow.R")
   ),
   list(
+    owner = "handbook/testing/guards",
+    globs = c("vendored-warnings.sh")
+  ),
+  list(
     owner = "handbook/testing/snapshots",
     globs = c("snapshot-accept.sh")
   ),
