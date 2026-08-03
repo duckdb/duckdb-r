@@ -24,7 +24,6 @@ and the tree holds every fact once.
 * [`branches/`](branches/) — series, flavors, invariants
 * [`operations/`](operations/) — vendoring, triage, review,
   CI, releases, the site
-* [`contributors/`](contributors/) — setup, workflow, where to help,
-  debugging
+* [`contributors/`](contributors/) — setup, workflow, where to help
 * [`meta/`](meta/) — the rules, the authoring checklist,
   the plans, the glossary
