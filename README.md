@@ -77,7 +77,9 @@ The badges track each `.dev` series:
 *ahead* counts commits ahead of the branch the series releases from,
 *in flight* counts commits in CI but not yet trusted,
 *buffered* counts commits vendored but not yet verified.
-See [`BRANCHES.md`](BRANCHES.md) for the full model.
+See the handbook's
+[`branches/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/branches/README.md)
+for the full model.
 
 ## User Guide
 
@@ -86,13 +88,15 @@ See the [R API in the DuckDB documentation](https://duckdb.org/docs/api/r).
 ## Documentation
 
 Everything this repository documents is reachable from the
-[handbook](handbook/README.md), a strict topic hierarchy;
-[`AGENTS.md`](AGENTS.md) is the door for maintainers and coding
-agents, and [`plan/README.md`](plan/README.md) names the designs,
-plans, and historical documents.
-[`BRANCHES.md`](BRANCHES.md) and
-[`scripts/VENDORING.md`](scripts/VENDORING.md) hold detail the
-handbook is still absorbing.
+[handbook](https://github.com/duckdb/duckdb-r/blob/main/handbook/README.md),
+a strict topic hierarchy;
+[`AGENTS.md`](https://github.com/duckdb/duckdb-r/blob/main/AGENTS.md)
+is the door for maintainers and coding agents, and
+[`plan/README.md`](https://github.com/duckdb/duckdb-r/blob/main/plan/README.md)
+names the designs, plans, and historical documents.
+[`BRANCHES.md`](https://github.com/duckdb/duckdb-r/blob/main/BRANCHES.md) and
+[`scripts/VENDORING.md`](https://github.com/duckdb/duckdb-r/blob/main/scripts/VENDORING.md)
+hold detail the handbook is still absorbing.
 
 ## Building
 
@@ -112,23 +116,12 @@ Then, install:
 Set the `MAKEFLAGS` environment variable to `-j8` or similar for parallel builds.
 Configure `ccache` for faster repeated builds.
 A build that links a prebuilt engine and finishes in seconds,
-and the remaining knobs, are described in the handbook under
-[`build/`](handbook/build/README.md).
-
-If you wish to test new DuckDB functionality with duckdb-r, make sure your clone of `duckdb-r` is one level deeper than your clone of `duckdb` (e.g. `R/duckdb-r` and `duckdb`).
-Then run the following commands:
-
-``` sh
-~ (cd duckdb && git checkout {{desired_branch}})
-~ (cd R/duckdb-r && scripts/vendor.sh)
-~ (cd R/duckdb-r && R CMD INSTALL .)
-```
-
-It helps if both the duckdb directory and duckdb-r directory are clean.
+and other details, are described in the handbook under
+[`build/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/build/README.md).
 
 ## Vendoring
 
-This package includes a vendored copy of the DuckDB C++ library. The vendoring process is automated — a scheduled routine synchronizes each release series with the upstream DuckDB repository, commit by commit. For detailed information about how vendoring works and manual vendoring procedures, see [`scripts/VENDORING.md`](scripts/VENDORING.md).
+This package includes a vendored copy of the DuckDB C++ library. The vendoring process is automated — a scheduled routine synchronizes each release series with the upstream DuckDB repository, commit by commit. How it works, and how to vendor by hand, is in the handbook under [`operations/vendoring/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/operations/vendoring/README.md).
 
 ## Contributors
 

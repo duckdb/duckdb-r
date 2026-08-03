@@ -21,6 +21,17 @@ A candidate is worth a commit when it is an exact tag or changes
 more than one file under `src/duckdb/`
 (one file, the version stamp, always changes).
 
+**Where the upstream repository is looked for.**
+Both scripts `cd` to the package root before anything else,
+and both default the upstream repository to `../../../duckdb`
+resolved from there —
+three levels above the package root,
+so a package clone at `~/git/R/duckdb/duckdb-r`
+finds an upstream clone at `~/git/duckdb`.
+That default is the only thing that depends on how the two clones are
+arranged: either script takes the path as a positional argument
+instead, and a caller that passes one is free of the layout entirely.
+
 **`rconfigure.py`** does the regeneration:
 `src/duckdb/`, `src/include/sources.mk`, the Makevars files
 (`src/Makevars` and `src/Makevars.win`) from `Makevars.in`,
