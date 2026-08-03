@@ -15,6 +15,14 @@ the branch is mid-surgery or on another lineage,
 and an unbounded scan would flood the queue.
 Branches without a green sibling fall back to first-parent history since `SINCE`.
 
+That fallback is the one path that can reach past the store's retention window
+([`store/`](/handbook/operations/ci/per-commit/store/README.md#retention-is-one-window)):
+`SINCE` defaults to a fixed date months back, while records are dropped after 30
+days, so a commit older than the window reads as undecided and is replanned.
+A series branch never sees it — `<S>-green` is far newer than the window — and
+the cost where it does bite is a rebuild, never a wrong verdict.
+Narrow `SINCE` on a branch with no green sibling if the rebuild is not wanted.
+
 The per-commit logs stay readable to `series-check.sh`,
 which classifies a failure by what its harvested log contains.
 `rcc-one.sh` therefore emits `Changes detected in workflow_dispatch build`
