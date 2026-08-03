@@ -55,7 +55,7 @@ topic today.
 
 | To read about | Read |
 |---|---|
-| Findings verified against the code by the closed handbook wave, and the defects it turned up | [`history/2026-08-handbook-wave-salvage.md`](history/2026-08-handbook-wave-salvage.md) |
+| Findings verified against the code by the closed handbook wave, and the issues its defects became | [`history/2026-08-handbook-wave-salvage.md`](history/2026-08-handbook-wave-salvage.md) |
 
 ## Adding a document here
 

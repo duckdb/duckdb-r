@@ -24,34 +24,22 @@ The bar applied was
 so most of the wave's prose is not here at all;
 what it excluded is listed at the end.
 
-## Findings
+**This record changed its mind once, and says so.**
+Its first version sorted the survivors into findings worth writing and a
+short tail of defects.
+The ladder then gained the rung that asks whether a fact *should* be
+true, and every survivor was walked down it again, against the code.
+A fact that reports a defect is not deepening material at any depth:
+the paragraph is what makes the defect look deliberate, so the output is
+an issue or a fix, and only what survives the fix is written.
+That reweighing moved three entries out of the findings and into the
+issue tracker, and moved two more out of the record entirely, because a
+leaf or a merged fix now states them better.
+Each defect below is a link rather than a paragraph for the same reason:
+an issue can be closed, and this directory is for things that never move
+again.
 
-* **`make format-check` aborts instead of reporting when `cmake-format`
-  is absent.**
-  [`scripts/format.py`](/scripts/format.py) sends `src/CMakeLists.txt`
-  through `cmake-format`, which ships separately from `clang-format`;
-  without it the run dies with a `FileNotFoundError` before it reaches a
-  verdict on any file, rather than reporting a difference.
-  Run, not inferred.
-  *Proof:* `scripts/format.py`, the `format-*` targets in
-  [`Makefile`](/Makefile).
-  *Leaf:* [`architecture/glue/`](/handbook/architecture/glue/README.md).
-  *From:* [#2484](https://github.com/duckdb/duckdb-r/pull/2484).
-
-* **The vendor scripts' default clone layout is two levels, not one.**
-  Both scripts `cd` to the package root first and then default
-  `upstream_basedir` to `../../../duckdb`,
-  so the package clone has to sit *two* directories deeper than the
-  upstream clone — upstream at `~/git/duckdb` pairs with a package clone
-  at `~/git/R/duckdb/duckdb-r`, and the layout `README.md` describes
-  resolves to a path that does not exist.
-  Any other layout works by passing the upstream path as the positional
-  argument.
-  *Proof:* [`scripts/vendor.sh`](/scripts/vendor.sh),
-  [`scripts/vendor-one.sh`](/scripts/vendor-one.sh);
-  the wrong statement is in [`README.md`](/README.md).
-  *Leaf:* [`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md).
-  *From:* [#2477](https://github.com/duckdb/duckdb-r/pull/2477).
+## Deepening material
 
 * **A local commit-by-commit replay must delete `src/*.o` between
   commits, or it means nothing.**
@@ -65,36 +53,17 @@ what it excluded is listed at the end.
   engine.
   A fresh CI checkout never hits this, which is why it bites only
   locally.
-  *Proof:* `src/include/deps.mk`.
+  The filtering is deliberate and the file says why —
+  the dependency lists would otherwise carry the whole vendored tree —
+  and the pipeline catches the API break by other means,
+  compiling the glue against the fresh headers after each commit.
+  So the caveat is an operator's, not a bug's.
+  *Proof:* `src/include/deps.mk`, and the glue gate in
+  [`scripts/vendor-one.sh`](/scripts/vendor-one.sh).
   *Leaf:* [`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md),
   or [`build/source-build/`](/handbook/build/source-build/README.md),
   which already owns the `.dd` files.
   *From:* [#2477](https://github.com/duckdb/duckdb-r/pull/2477).
-
-* **`BASE_SCAN_DEPTH` does not reach the series scripts.**
-  The variable is honoured by the two vendor scripts only.
-  [`scripts/series-advance.sh`](/scripts/series-advance.sh) and
-  [`scripts/series-check.sh`](/scripts/series-check.sh)
-  hard-code the same depth and read no such variable,
-  so a branch that stacks enough non-vendoring commits under
-  `src/duckdb/` to need the bound raised needs both of them changed too.
-  *Proof:* those two scripts, against
-  [`scripts/vendor-one.sh`](/scripts/vendor-one.sh).
-  *Leaf:* [`operations/vendoring/troubleshooting/`](/handbook/operations/vendoring/troubleshooting/README.md).
-  *From:* [#2472](https://github.com/duckdb/duckdb-r/pull/2472).
-
-* **An empty `Files:` list from the glue gate is a local setup problem,
-  not a broken glue.**
-  When it prints
-  `Error: could not derive glue compile flags (R CMD SHLIB -n)`
-  alongside an empty file list, the flags could not be derived at all.
-  Deriving them needs `src/Makevars.rstrtmgr`, which only `./configure`
-  writes; the gate runs `./configure` itself when the file is missing,
-  so reaching this message means that failed.
-  *Proof:* [`scripts/vendor-one.sh`](/scripts/vendor-one.sh),
-  the glue-flag block.
-  *Leaf:* [`operations/vendoring/troubleshooting/`](/handbook/operations/vendoring/troubleshooting/README.md).
-  *From:* [#2472](https://github.com/duckdb/duckdb-r/pull/2472).
 
 * **The version merge driver's prefix gate silently declines to
   renumber across a patch release.**
@@ -107,7 +76,10 @@ what it excluded is listed at the end.
   producing a rising vendor counter, which then has to be re-applied by
   hand, one commit at a time, as part of the rebase.
   Whether the larger version would be the better answer is
-  [#2488](https://github.com/duckdb/duckdb-r/issues/2488).
+  [#2488](https://github.com/duckdb/duckdb-r/issues/2488),
+  which is the boundary the prose carries:
+  the gate is deliberate, and the open question is which answer is
+  right, not whether the script is broken.
   *Proof:* `scripts/merge-version.sh`.
   *Leaf:* [`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md).
   *From:* [#2477](https://github.com/duckdb/duckdb-r/pull/2477).
@@ -120,7 +92,10 @@ what it excluded is listed at the end.
   accessor).
   That is the whole of what the define does,
   which makes it the one flag whose name suggests more than it delivers.
-  *Proof:* that header.
+  The two blocks are upstream's own, not this repository's:
+  nothing under `patch/` mentions the define,
+  so it is an accommodation upstream offers and the Makevars opt into.
+  *Proof:* that header, and the absence of the define from `patch/`.
   *Leaf:* [`architecture/engine/`](/handbook/architecture/engine/README.md).
   *From:* [#2466](https://github.com/duckdb/duckdb-r/pull/2466).
 
@@ -149,34 +124,31 @@ what it excluded is listed at the end.
   at the `roxygenize` step, before anything is compiled —
   which is why the failure reads as unrelated to the edit that caused
   it.
+  The instance is gone from `main`, and the CI step is the guard that
+  keeps it gone, so what a leaf owes is the trigger and the action —
+  never write the package name into an inline chunk, and read a
+  `roxygenize` failure as an unresolvable reference — not the anatomy.
   *Proof:* `R/storage.R` and its generated `man/` page.
   *Leaf:* [`architecture/r-layer/`](/handbook/architecture/r-layer/README.md),
   which states the rule but not this failure mode.
   *From:* [#2480](https://github.com/duckdb/duckdb-r/pull/2480).
 
-* **The flavor-name guard fires in exactly one place.**
-  `tests/testthat/test-flavor-package-name.R` can only ever skip under
-  `R CMD check`: [`.Rbuildignore`](/.Rbuildignore) excludes `scripts$`,
-  so neither
-  [`scripts/flavor-package-name.R`](/scripts/flavor-package-name.R)
-  nor the [`scripts/flavor.patch`](/scripts/flavor.patch) allowlist it
-  reads is present in a built tarball.
-  The `custom/after-install` CI step running the scan against a plain
-  checkout is the guard; delete it and nothing is left,
-  while the test keeps passing by skipping.
-  *Proof:* `.Rbuildignore`, that test file, and
-  [`.github/workflows/custom/after-install/action.yml`](/.github/workflows/custom/after-install/action.yml).
-  *Leaf:* [`testing/guards/`](/handbook/testing/guards/README.md).
-  *From:* [#2467](https://github.com/duckdb/duckdb-r/pull/2467).
-
-* **CI turns the installed-size check off.**
+* **CI turns the installed-size check off, because it treats every NOTE
+  as an error.**
   [`.github/workflows/custom/before-install/action.yml`](/.github/workflows/custom/before-install/action.yml)
-  exports `_R_CHECK_PKG_SIZES_=FALSE`,
-  so the standing package-size NOTE cannot fail a matrix run —
-  and neither can a size regression.
-  The NOTE is seen at submission time and nowhere earlier.
-  *Proof:* that action file.
-  *Leaf:* [`operations/releases/cran/`](/handbook/operations/releases/cran/README.md).
+  exports `_R_CHECK_PKG_SIZES_=FALSE`.
+  The check action runs `r-lib/actions/check-r-package` with
+  `error-on: "note"` unless `RCMDCHECK_ERROR_ON` overrides it, so
+  without that export the standing package-size NOTE would fail every
+  matrix run — the suppression is what makes a strict error level
+  usable at all.
+  The cost is that a size regression cannot fail a run either, and the
+  NOTE is seen at submission time and nowhere earlier.
+  *Proof:* that action file, and
+  [`.github/workflows/check/action.yml`](/.github/workflows/check/action.yml).
+  *Leaf:* [`operations/releases/cran/`](/handbook/operations/releases/cran/README.md),
+  which already names the known package-size NOTE as the one blocker
+  it tolerates.
   *From:* [#2474](https://github.com/duckdb/duckdb-r/pull/2474).
 
 * **`-j4` is safe on a 16 GB runner, and there is no second parallelism
@@ -194,11 +166,8 @@ what it excluded is listed at the end.
   *From:* [#2485](https://github.com/duckdb/duckdb-r/pull/2485).
 
 * **The per-invariant enforcement audit.**
-  [`branches/invariants/`](/handbook/branches/invariants/README.md)
-  says most invariants are enforced by nothing and defers the
-  per-statement notes to `BRANCHES.md`, which does not carry them.
-  The wave derived them against the scripts:
-  the only continuous mechanical checks are
+  The wave derived, against the scripts, what would actually catch a
+  violation: the only continuous mechanical checks are
   [`scripts/series-advance.sh`](/scripts/series-advance.sh)'s
   `git merge-base --is-ancestor` gate before it pushes `-green` or
   `-build-base`, and the vendor counter the pipeline bumps.
@@ -206,61 +175,85 @@ what it excluded is listed at the end.
   rename is one patch, so its diff is the surface — and the linearity
   and dev-baseline invariants are checked by nothing at all.
   Worth re-deriving rather than trusting, but the shape held.
-  *Proof:* `scripts/series-advance.sh`, `scripts/series-check.sh`,
+  That the leaf has nowhere to absorb this from is a defect of its own,
+  [#2516](https://github.com/duckdb/duckdb-r/issues/2516).
+  *Proof:* `scripts/series-advance.sh`,
+  [`scripts/series-check.sh`](/scripts/series-check.sh),
   [`scripts/flavor.patch`](/scripts/flavor.patch).
   *Leaf:* [`branches/invariants/`](/handbook/branches/invariants/README.md).
   *From:* [#2478](https://github.com/duckdb/duckdb-r/pull/2478).
 
-## Defects the wave found that `main` still has
+## Defects, filed as issues
 
-Each is a thing to fix, not a thing to write down;
-they are listed here so closing the wave does not lose them.
+Each is a thing to fix, not a thing to write down.
+They are links rather than paragraphs because a defect belongs where it
+can be closed, and this directory cannot close anything.
+Where a fix does not land, the leaf that owns the topic states today's
+behaviour and links the issue, as
+[`meta/authoring/`](/handbook/meta/authoring/README.md) requires of a
+provisional fact — that is the only prose any of these earns.
+
+Filed from this reweighing:
+
+* [#2511](https://github.com/duckdb/duckdb-r/issues/2511) —
+  `make format-check` dies with a `FileNotFoundError` when
+  `cmake-format` is absent, and formats generated CMake files it should
+  not touch. The two tracked CMake files are real: they exist to emit
+  `compile_commands.json` for clangd, and stay.
+* [#2512](https://github.com/duckdb/duckdb-r/issues/2512) —
+  `BASE_SCAN_DEPTH` raises the base-scan bound in the two vendor
+  scripts and not in the two series scripts that hard-code the same
+  twenty, which `scripts/VENDORING.md` states the other way round.
+* [#2513](https://github.com/duckdb/duckdb-r/issues/2513) —
+  the glue gate reports `GLUE BROKEN` with an empty file list when the
+  real failure is that it could not derive compile flags, discarding
+  the distinct return code it already computes.
+* [#2519](https://github.com/duckdb/duckdb-r/issues/2519) —
+  `plan/done/PLAN-storage-locations.md` still marks the Phase 2
+  `.duckdb-r-keep` marker scheme and the library writability probe
+  `[x]`, though neither reached `R/` or `NAMESPACE`.
+
+The flavor rename, one file, three wrong statements in the README it
+produces — the fix is one change, and a check in
+`scripts/flavor-package-name.R` would cover all three:
+
+* [#2517](https://github.com/duckdb/duckdb-r/issues/2517) —
+  `## Installation from GitHub` still says
+  `pak::pak("duckdb/duckdb-r")`, which installs the mainline package
+  rather than the flavor whose README the reader is on.
+  Whether a flavor is installable from GitHub at all, and with which
+  ref, is
+  [`branches/flavors/`](/handbook/branches/flavors/README.md)'s
+  question.
+* [#2514](https://github.com/duckdb/duckdb-r/issues/2514) —
+  the blurb announces LTS version 1.3 on every flavor, because the
+  substitution requires a `.` or `_` before the version and that one is
+  preceded by a space.
+* [#2518](https://github.com/duckdb/duckdb-r/issues/2518) —
+  the `# duckdb` H1 sits above every hunk in `scripts/flavor.patch`, so
+  every flavor is titled as the mainline package.
+
+`#2517` and `#2518` were surfaced by
+[#2510](https://github.com/duckdb/duckdb-r/pull/2510) rather than by the
+wave, and are recorded here because they belong beside `#2514`.
+
+Elsewhere in the same scripts, and in the branch documentation:
+
+* [#2515](https://github.com/duckdb/duckdb-r/issues/2515) —
+  `scripts/flavor.sh` invokes `gsed`, so it fails wherever GNU sed is
+  `sed`.
+* [#2516](https://github.com/duckdb/duckdb-r/issues/2516) —
+  `BRANCHES.md` is cited twice for content it does not carry: a
+  linearization runbook that is not in the repository, and the
+  per-invariant enforcement notes the invariants leaf defers to it for.
+
+Already filed when the wave closed, and not repeated here:
 [#2489](https://github.com/duckdb/duckdb-r/issues/2489)
 (the vendored tree is not byte-reproducible across clones, because
 `DUCKDB_SOURCE_ID` is an abbreviated commit id sized by the clone) and
 [#2490](https://github.com/duckdb/duckdb-r/issues/2490)
 (regeneration rewrites every file unconditionally, invalidating git's
-stat cache) already have issues and are not repeated.
-
-* **`README.md` states the wrong vendoring clone layout.**
-  It says the `duckdb-r` clone must be one level deeper than the
-  `duckdb` clone, and gives `R/duckdb-r` beside `duckdb` as the example.
-  The scripts default to `../../../duckdb` from the package root, which
-  makes that example resolve outside both clones — see the finding
-  above.
-  Either the sentence or the default is wrong; the scripts are what
-  runs.
-
-* **The flavor rename misses the README blurb.**
-  [`scripts/flavor.patch`](/scripts/flavor.patch) writes
-  "This package contains the LTS version 1.3 of DuckDB" into
-  `README.md`, and
-  [`scripts/flavor.sh`](/scripts/flavor.sh) rewrites the flavor suffix
-  with a substitution that requires a `.` or `_` immediately before the
-  `1`.
-  In that sentence the `1.3` is preceded by a space, so it is never
-  rewritten, and every flavored branch's README announces version 1.3
-  whatever it actually carries — visible on the published `duckdb.1.4`.
-  The rest of the rename is unaffected.
-
-* **`scripts/flavor.sh` requires `gsed`.**
-  It invokes `gsed` directly, so on a system where GNU sed is simply
-  `sed` — most Linux — the script fails unless a `gsed` is on `PATH`.
-
-* **`BRANCHES.md` cites a runbook that does not exist.**
-  The major-flip linearization invariant defers to "the linearization
-  runbook"; no such document is in the repository.
-  A reader following the citation finds nothing.
-
-* **`plan/done/PLAN-storage-locations.md` still marks unshipped work
-  `[x]`.**
-  Its header already corrects two of them — the
-  `duckdb_extension_storage()` / `duckdb_secret_storage()` setters and
-  the `?duckdb_storage_config` page.
-  A third is not corrected: the Phase 2 `.duckdb-r-keep` marker scheme
-  and the writability probe of the installed library directory.
-  Neither appears in `R/` or `NAMESPACE`, and the extension cache is
-  never placed in the package library.
+stat cache).
 
 ## What the ladder excluded
 
@@ -278,6 +271,16 @@ diffs, which remain readable on the closed pull requests.
   [`scripts/merge-version.sh`](/scripts/merge-version.sh),
   [`scripts/rconfigure.py`](/scripts/rconfigure.py) and
   `tests/testthat/helper-skip.R` already carry inline.
+  The reweighing added one: that the flavor-name guard can only ever
+  skip under `R CMD check`, because `.Rbuildignore` excludes `scripts$`
+  and a tarball therefore has neither the scan nor the allowlist it
+  reads, is stated in almost those words by the header of
+  `tests/testthat/test-flavor-package-name.R` *and* by the comment on
+  the `custom/after-install` step that runs the scan against the
+  checkout — and
+  [`testing/guards/`](/handbook/testing/guards/README.md)
+  already states the operative half, that CI runs the scan against a
+  plain checkout and the test wraps it for the suite.
 * **Reference-page material.**
   Storage resolution order, dbplyr translation coverage, and the
   connect-time message's throttling all belong to `?duckdb_storage` and
@@ -297,3 +300,9 @@ diffs, which remain readable on the closed pull requests.
   now states the operative fact directly — the status is a display
   artifact, selection reads records, and a commit without a record is
   undecided — which is the durable form of the same thing.
+  The reweighing added the vendor scripts' clone layout, which this
+  record carried twice, once as a finding and once as a defect:
+  [#2506](https://github.com/duckdb/duckdb-r/pull/2506) fixed the
+  `README.md` sentence that contradicted the scripts, and
+  [`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)
+  now owns where the upstream repository is looked for.
