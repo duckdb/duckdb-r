@@ -46,11 +46,12 @@ so check the clone out at the exact commit you want before running it;
 upstream first-parent commit at a time.
 What the two share is
 [`pipeline/`](/handbook/operations/vendoring/pipeline/README.md)'s.
-Three things an operator needs that it does not state:
+Three things an operator needs beyond what it states:
 
 * **Where the upstream clone goes.**
-  The positional argument is the source repository
-  (default `../../../duckdb`).
+  The positional argument is the source repository, and where each
+  script looks when it is omitted is
+  [`pipeline/`](/handbook/operations/vendoring/pipeline/README.md)'s.
   Unless it is already called `duckdb`, it is cloned into `./duckdb` in
   the package root — which is `.gitignore`d — and that clone is `rm -rf`ed
   when the script exits.
@@ -68,19 +69,20 @@ Three things an operator needs that it does not state:
 ### Local setup
 
 ```bash
-# Ensure your clone structure:
-# ~/
-#   duckdb/          # Upstream DuckDB repository
+# A clone structure the default reaches, three levels up:
+# ~/git/
+#   duckdb/              # Upstream DuckDB repository
 #   R/
-#     duckdb-r/      # This repository
+#     duckdb/
+#       duckdb-r/        # This repository
 
 # Update DuckDB to desired branch/commit
-cd ~/duckdb
+cd ~/git/duckdb
 git checkout desired_branch_or_commit
 
-# Run vendoring
-cd ~/R/duckdb-r
-scripts/vendor.sh ../../../duckdb
+# Run vendoring; any other layout passes the path instead
+cd ~/git/R/duckdb/duckdb-r
+scripts/vendor.sh
 
 # Build and test
 R CMD INSTALL .
@@ -112,7 +114,7 @@ so that the walk terminates by itself:
 ```bash
 export MAKEFLAGS=-j$(nproc) NOT_CRAN=true DUCKDB_R_RUN_TESTS=true
 
-while scripts/vendor-one.sh ../../../duckdb --commits 1; do
+while scripts/vendor-one.sh --commits 1; do
   rm -f src/*.o                                # see below — mandatory
   R CMD INSTALL . --no-byte-compile || break   # repair, then `git commit --amend`
   R -q -e 'testthat::test_local()'       || break
