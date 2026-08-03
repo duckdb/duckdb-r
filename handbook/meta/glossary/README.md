@@ -18,7 +18,7 @@ one line, so the register stays greppable and diffs per term.
 * **deepen line** — the italic last line naming what a not-yet-comprehensive leaf still owes ([`meta/handbook/`](/handbook/meta/handbook/README.md)).
 * **depths** (reference, core, comprehensive) — a leaf's three legitimate published states ([`meta/handbook/`](/handbook/meta/handbook/README.md)).
 * **driver / database instance** — `duckdb()` returns a driver owning one database instance; connections share it, and file-backed instances are cached by path ([`usage/connections/`](/handbook/usage/connections/README.md)).
-* **duckplyr** — the dplyr-native downstream package, the closest reverse dependency and a gate for behavior changes ([`testing/revdep/`](/handbook/testing/revdep/README.md)).
+* **duckplyr** — the dplyr-native downstream package: it drives the relational API rather than generating SQL, and is the closest reverse dependency ([`usage/integrations/`](/handbook/usage/integrations/README.md)).
 * **engine** — the DuckDB database engine embedded in `src/duckdb/` ([`architecture/engine/`](/handbook/architecture/engine/README.md)).
 * **fast path** — linking a prebuilt engine library instead of compiling the vendored sources ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
 * **flavor** — a mechanical rename publishing the one source tree under another package name ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
@@ -36,7 +36,7 @@ one line, so the register stays greppable and diffs per term.
 * **patch stack** — the patches under `patch/` re-applied to each freshly vendored tree ([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
 * **pointer leaf** — a leaf that states and links its topic's canonical home elsewhere ([`meta/handbook/`](/handbook/meta/handbook/README.md)).
 * **register** — expose an R data frame as a scannable table without copying ([`usage/data-import/`](/handbook/usage/data-import/README.md)); Arrow objects register the same way ([`usage/integrations/`](/handbook/usage/integrations/README.md)).
-* **relation** — an unexecuted query tree built by the relational API, run only when its values are touched ([`architecture/glue/`](/handbook/architecture/glue/README.md)).
+* **relation** — an unexecuted query tree built by the relational API, run only when its values are touched ([`usage/relational/`](/handbook/usage/relational/README.md)).
 * **secret store** — where `CREATE PERSISTENT SECRET` writes, under the storage home ([`usage/storage/`](/handbook/usage/storage/README.md)).
 * **series** — one upstream DuckDB branch with the package branches that carry it ([`branches/model/`](/handbook/branches/model/README.md)).
 * **series loop** — the scheduled agent routine that vendors every series ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).

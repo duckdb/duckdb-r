@@ -23,4 +23,5 @@ and is what turns the announcement off.
 * [`memory/`](memory/) — limits, spill, streaming
 * [`data-import/`](data-import/) — CSV and Parquet ingestion
 * [`storage/`](storage/) — where extensions and secrets live
-* [`integrations/`](integrations/) — dbplyr and Arrow
+* [`integrations/`](integrations/) — dbplyr, duckplyr, and Arrow
+* [`relational/`](relational/) — the internal lazy-relation API

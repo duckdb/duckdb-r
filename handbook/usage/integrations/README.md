@@ -1,7 +1,8 @@
 # Integrations
 
 The routes into DuckDB beside plain SQL:
-dplyr pipelines translated by dbplyr, Arrow interchange, and ADBC.
+dplyr pipelines by two different mechanisms, Arrow interchange,
+and ADBC.
 What a value becomes across the boundary is
 [`types/`](/handbook/usage/types/README.md).
 
@@ -45,6 +46,28 @@ the boundaries users keep hitting:
   unblocked; what it still needs is a `dbplyr (>= 2.6.0)` floor, which
   `DESCRIPTION`'s `Suggests` does not carry
   ([#1982](https://github.com/duckdb/duckdb-r/issues/1982)).
+
+## duckplyr
+
+The other dplyr route, and it is not a dbplyr backend:
+duckplyr drives the **relational API** directly
+([`relational/`](/handbook/usage/relational/README.md)),
+so a pipeline becomes a relation tree rather than a SQL string,
+and the result arrives as an ALTREP data frame that computes on access.
+Nothing is translated to SQL and back, which is the point —
+and which is also why the two routes fail differently:
+where dbplyr's boundaries are translation gaps
+(the ones listed above), duckplyr's are the verbs the relational API
+does not yet express, and it falls back to dplyr for those.
+
+The dependency runs the other way from the rest of this page:
+duckplyr consumes this package rather than being consumed by it.
+It is the closest reverse dependency, so a behaviour change here is
+checked against it before release
+([`testing/revdep/`](/handbook/testing/revdep/README.md)),
+and its version pins parts of the relational API in place.
+`compute_parquet()` is its route to a Parquet file
+([`data-import/`](/handbook/usage/data-import/README.md)).
 
 ## Arrow
 

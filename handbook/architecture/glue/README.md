@@ -56,6 +56,8 @@ Formatting runs through the Makefile `format-*` targets,
 driving [`scripts/format.py`](/scripts/format.py).
 
 **ALTREP relations.**
+The R-facing half of this, and who consumes it, is
+[`usage/relational/`](/handbook/usage/relational/README.md).
 `rapi_rel_to_altrep()` wraps an unexecuted relation as a data frame;
 nothing runs until R touches the values,
 materialization is budgeted by `n_rows` and `n_cells`,
