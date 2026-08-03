@@ -27,17 +27,23 @@ what it excluded is listed at the end.
 **This record changed its mind once, and says so.**
 Its first version sorted the survivors into findings worth writing and a
 short tail of defects.
-The ladder then gained the rung that asks whether a fact *should* be
-true, and every survivor was walked down it again, against the code.
-A fact that reports a defect is not deepening material at any depth:
-the paragraph is what makes the defect look deliberate, so the output is
-an issue or a fix, and only what survives the fix is written.
-That reweighing moved three entries out of the findings and into the
-issue tracker, and moved two more out of the record entirely, because a
+`meta/authoring/` then gained the discussion that precedes the ladder —
+is a behaviour that looks wrong actually desirable, or a mere
+limitation, and for a limitation, is it cheaper to document or to
+remove? — and every survivor was walked through it again, against the
+code.
+Where the fix is one to three lines with obvious consequences, it is
+cheaper than the paragraph, so the entry became an issue and nothing
+else.
+Where the fix is larger, the behaviour is a limitation for as long as
+that takes: it stays deepening material, and carries the issue so the
+leaf writes it as provisional.
+That reweighing moved two entries out of the findings and into the issue
+tracker alone, and moved two more out of the record entirely, because a
 leaf or a merged fix now states them better.
-Each defect below is a link rather than a paragraph for the same reason:
-an issue can be closed, and this directory is for things that never move
-again.
+The defects listed below are links rather than paragraphs for a separate
+reason: an issue can be closed, and this directory is for things that
+never move again.
 
 ## Deepening material
 
@@ -64,6 +70,28 @@ again.
   or [`build/source-build/`](/handbook/build/source-build/README.md),
   which already owns the `.dd` files.
   *From:* [#2477](https://github.com/duckdb/duckdb-r/pull/2477).
+
+* **An empty `Files:` list from the glue gate is a local setup problem,
+  not a broken glue.**
+  When it prints
+  `Error: could not derive glue compile flags (R CMD SHLIB -n)`
+  alongside an empty file list, the flags could not be derived at all.
+  Deriving them needs `src/Makevars.rstrtmgr`, which only `./configure`
+  writes; the gate runs `./configure` itself when the file is missing,
+  so reaching this message means that failed.
+  The script has the right answer and discards it — `glue_compiles()`
+  returns a distinct 2, and the caller's `!` collapses it into the
+  `GLUE BROKEN` path — but recovering it means restructuring an error
+  path in a script that pushes commits and exits with documented codes,
+  which is not a change a reviewer approves at a glance.
+  So this stays a limitation the leaf states while
+  [#2513](https://github.com/duckdb/duckdb-r/issues/2513) is open,
+  and the trigger and the action are what a reader needs:
+  an empty list means the setup, not the glue.
+  *Proof:* [`scripts/vendor-one.sh`](/scripts/vendor-one.sh),
+  the glue-flag block.
+  *Leaf:* [`operations/vendoring/troubleshooting/`](/handbook/operations/vendoring/troubleshooting/README.md).
+  *From:* [#2472](https://github.com/duckdb/duckdb-r/pull/2472).
 
 * **The version merge driver's prefix gate silently declines to
   renumber across a patch release.**
@@ -185,13 +213,14 @@ again.
 
 ## Defects, filed as issues
 
-Each is a thing to fix, not a thing to write down.
+Each is a thing to fix rather than a thing to write down, because the
+fix is small enough to be cheaper than the paragraph:
+a filed defect whose fix is *not* glance-sized is a limitation
+meanwhile, and appears above instead, with its issue linked —
+[#2513](https://github.com/duckdb/duckdb-r/issues/2513) is the one such
+case here.
 They are links rather than paragraphs because a defect belongs where it
 can be closed, and this directory cannot close anything.
-Where a fix does not land, the leaf that owns the topic states today's
-behaviour and links the issue, as
-[`meta/authoring/`](/handbook/meta/authoring/README.md) requires of a
-provisional fact — that is the only prose any of these earns.
 
 Filed from this reweighing:
 
@@ -199,15 +228,14 @@ Filed from this reweighing:
   `make format-check` dies with a `FileNotFoundError` when
   `cmake-format` is absent, and formats generated CMake files it should
   not touch. The two tracked CMake files are real: they exist to emit
-  `compile_commands.json` for clangd, and stay.
+  `compile_commands.json` for clangd, and stay. The fix is deleting the
+  CMake handling from `scripts/format.py`.
 * [#2512](https://github.com/duckdb/duckdb-r/issues/2512) —
   `BASE_SCAN_DEPTH` raises the base-scan bound in the two vendor
   scripts and not in the two series scripts that hard-code the same
   twenty, which `scripts/VENDORING.md` states the other way round.
-* [#2513](https://github.com/duckdb/duckdb-r/issues/2513) —
-  the glue gate reports `GLUE BROKEN` with an empty file list when the
-  real failure is that it could not derive compile flags, discarding
-  the distinct return code it already computes.
+  The fix reads the variable in place of the literal, with the same
+  default, so it changes nothing until someone sets it.
 * [#2519](https://github.com/duckdb/duckdb-r/issues/2519) —
   `plan/done/PLAN-storage-locations.md` still marks the Phase 2
   `.duckdb-r-keep` marker scheme and the library writability probe
