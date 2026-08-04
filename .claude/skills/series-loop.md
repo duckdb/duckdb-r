@@ -384,6 +384,24 @@ Fast-forward only —
 if `-green` cannot fast-forward, something rewrote verified history;
 stop and say so.
 
+**`-build-base` lands on vendor commits only, so it lags.**
+The match is by vendored SHA,
+and a `-build` commit that vendors nothing carries none —
+the `patch/` entries stage 3 commits onto the buffer, in particular.
+So a buffer ending in such commits leaves `-build-base` below them
+even when green already has their content,
+and the *buffered* badge (`-build-base..-build`) overstates by that much:
+9 rather than 6 on `main`, 2026-08-04.
+It is display-only and self-correcting —
+the next verified vendor commit moves the ref past the whole run —
+and the ref moves forward only either way,
+so nudging it onto the newest `-build` commit green demonstrably contains
+is a legitimate manual move, not a repair.
+Do not teach the match to guess:
+a patch-id scan finds only the commits
+whose content reached `-dev` unsplit,
+which on `main` that day was one of three.
+
 #### What r-universe made of it
 
 `<S>-green` is a ref with a consumer,
@@ -952,19 +970,17 @@ is what carries the automatic path into a forward series.
   is a run r-universe cannot tell apart.
   Gaps are fine; repeats are not.
 
-  The merge driver does not currently deliver this.
-  `ours-version` exists so a replay does not conflict
-  on the `Version:` line at every single commit,
-  and it keeps *our* side — which on a replay onto `<S>-green`
-  is green's version, for the whole chain.
-  A 40-commit `main-dev` came out of the 2026-08-02 firing
-  reading `1.5.99.9003.1039` from end to end.
-  Until the driver is fixed,
-  **restamp the counter after any replay**
-  and before pushing `-dev`:
+  A replay does not deliver it while `-dev` and `-build`
+  carry different `major.minor.patch` prefixes:
+  the merge driver's gate then keeps our side verbatim
+  and the counter freezes for the whole chain
+  ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
+  `main` is in that state, and every firing pays it —
+  40 commits at `1.5.99.9003.1039` on 2026-08-02,
+  five at `…1076` on 2026-08-04.
+  So after any replay, **restamp before pushing `-dev`**:
   walk the new commits oldest first
-  and reapply one bump per vendor commit
-  from the parent's value.
+  and bump once per vendor commit from the parent's value.
   Check it, do not assume it —
   a replay that silently froze the counter
   looks exactly like one that did not.

@@ -34,9 +34,20 @@ gaps from folded repairs are accepted,
 but it must rise strictly across a series' vendor commits —
 r-universe installs by version,
 so two commits sharing one are two it cannot tell apart.
-Taking the maximum is what keeps that true through a replay:
-each replayed vendor commit carries its own higher counter,
-and the driver keeps it.
+Taking the maximum is what keeps that true through a replay,
+but only while both strands share a `major.minor.patch` prefix.
+Where they do not, the gate keeps our side verbatim,
+so a replayed vendor commit arrives with its parent's counter
+and the series stops being orderable —
+the loop restamps by hand
+([`.claude/skills/series-loop.md`](/.claude/skills/series-loop.md)).
+`main-dev` carries the preview prefix `1.5.99`
+and its buffer `main-build` carries `1.5.5`,
+which is that state.
+Aligning a series' two strands is the fix,
+and the principle it follows is
+[#2496](https://github.com/duckdb/duckdb-r/issues/2496)'s:
+a `-dev` version identifies the series, not what `main` is now.
 
 The prefix gate has a consequence worth knowing:
 because the driver keeps *ours* verbatim when the prefixes differ,
