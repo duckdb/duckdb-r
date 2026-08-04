@@ -1,5 +1,42 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.5.9007
+
+## Bug fixes
+
+### each
+
+- Fail the plan when green is off the branch's lineage.
+
+## Features
+
+### series-loop
+
+- Read r-universe builds, and fix the Windows unity-build break.
+
+## Documentation
+
+- Fix the clone layout, and the README links CRAN cannot follow (#2506).
+
+### handbook
+
+- Give the tree a way to grow into its blind spots (#2504).
+
+### handbook
+
+- Add `usage/relational/`, and give duckplyr its own section (#2495).
+
+### handbook
+
+- Land the MVP — every leaf written, at reference or core depth (#2493).
+
+## Testing
+
+### progress
+
+- Pin that a handle collected in a callback cannot re-enter.
+
+
 # duckdb 1.5.5.9006
 
 ## Bug fixes
