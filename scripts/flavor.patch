@@ -68,6 +68,18 @@ diff --git a/inst/include/duckdb_types.hpp b/inst/include/duckdb_1_3_types.hpp
 similarity index 100%
 rename from inst/include/duckdb_types.hpp
 rename to inst/include/duckdb_1_3_types.hpp
+diff --git a/src/duckdb-win.def b/src/duckdb.1.3-win.def
+similarity index 94%
+rename from src/duckdb-win.def
+rename to src/duckdb.1.3-win.def
+--- a/src/duckdb-win.def
++++ b/src/duckdb.1.3-win.def
+@@ -15,4 +15,4 @@
+ ; The name of this file and the symbol below both carry the package name, so
+ ; scripts/flavor.patch renames and rewrites them for a flavor.
+ EXPORTS
+-R_init_duckdb
++R_init_duckdb_1_3
 diff --git a/src/include/rapi.hpp b/src/include/rapi.hpp
 index 4acc10425..572dd36e6 100644
 --- a/src/include/rapi.hpp
