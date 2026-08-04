@@ -16,8 +16,15 @@ that advance on different strands and never interfere:
 
 The 4th free-runs on `main`,
 where every glue and R change is born,
-and is inherited frozen on a `-dev` branch;
-the 5th exists only on `-dev` branches, making every vendor commit
+and is inherited frozen on a `-dev` branch —
+frozen at the value the series was seeded with,
+because [`scripts/series-port.sh`](/scripts/series-port.sh) classifies a
+version bump `VERSION` and does not port it
+([#2496](https://github.com/duckdb/duckdb-r/issues/2496)).
+A `-dev` version says which release line the series was seeded from
+and how far its own vendoring has run;
+what `main` is at today is read from `main`.
+The 5th exists only on `-dev` branches, making every vendor commit
 installable as a distinct version on r-universe.
 Each strand owns one counter and freezes the other,
 which is what lets the `DESCRIPTION` merge driver
@@ -44,10 +51,7 @@ the loop restamps by hand
 `main-dev` carries the preview prefix `1.5.99`
 and its buffer `main-build` carries `1.5.5`,
 which is that state.
-Aligning a series' two strands is the fix,
-and the principle it follows is
-[#2496](https://github.com/duckdb/duckdb-r/issues/2496)'s:
-a `-dev` version identifies the series, not what `main` is now.
+Aligning a series' two strands is the fix.
 
 The prefix gate has a consequence worth knowing:
 because the driver keeps *ours* verbatim when the prefixes differ,

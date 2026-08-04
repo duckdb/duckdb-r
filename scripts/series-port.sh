@@ -9,15 +9,28 @@
 # The script lists EVERY commit on `main` since the series' base that has no
 # patch-id equivalent on <S>-dev (`git cherry`), oldest first, classified by
 # what it touches: TOOLING (only tooling paths), MIXED (tooling and more),
-# OTHER (no tooling), VENDOR.
-# --apply cherry-picks everything except VENDOR — a MIXED or OTHER commit is
-# a forward-port like any other, judged by CI like every -dev commit — or
-# exactly the SHAs given, for when judgement says a commit cannot work
+# OTHER (no tooling), VENDOR, VERSION.
+# --apply cherry-picks everything except VENDOR and VERSION — a MIXED or OTHER
+# commit is a forward-port like any other, judged by CI like every -dev commit —
+# or exactly the SHAs given, for when judgement says a commit cannot work
 # against this series' engine yet. Picks are always whole commits: a pick
 # that matches its main commit is skipped by patch-id at the next rebase,
 # a half-pick would only replay. VENDOR commits are never auto-picked,
 # because main's engine is not this series' engine: the series' own
 # vendoring owns that strand.
+#
+# **A VERSION commit is not auto-picked either**, because `main`'s R-client
+# counter is not this series'. A series' version says which release line it was
+# seeded from and how far its own vendoring has run; what `main` is at today is
+# read from `main` (#2496). Porting fledge's bumps made the fourth component
+# free-run behind `main` instead of staying at the seed, which is the opposite
+# of the model handbook/operations/releases/versioning/ describes. The class is
+# read from the content -- the commit moves `Version:` and carries nothing but
+# release paperwork -- not from the `fledge:` subject, so a bump under another
+# name is caught and a bump riding on real content is not. Dropping one leaves
+# NEWS.md at the state the series was seeded with; that file is the release
+# strand's and already outside the sync commit's path set. Naming a VERSION
+# commit explicitly still ports it, like any other SHA.
 #
 # **The subject is what decides a VENDOR commit, never the path.** The patch
 # stack is applied to the vendored tree in place, so CRAN and
@@ -124,9 +137,40 @@ under=0
 frozen=
 [ "$under" != 0 ] && frozen=1
 
-classify() { # <sha> -> TOOLING | MIXED | OTHER | VENDOR
+# Files a version bump is allowed to carry and still be nothing but a bump:
+# DESCRIPTION itself, plus the release paperwork fledge writes beside it. Both
+# belong to the release strand, and neither is in the tooling set the sync
+# commit rewrites, so dropping the commit drops nothing the series executes.
+bump_paths_re='^(DESCRIPTION|NEWS\.md|cran-comments\.md)$'
+
+# Is this commit a version bump and nothing else? Two questions, both of which
+# have to answer yes:
+#
+#   * `Version:` moved -- read against the first parent rather than from the
+#     diff, so a merge commit answers as truthfully as an ordinary one. The
+#     content is the fact, not the subject: a bump is one whatever it is called,
+#     and `fledge:` is only today's name for it.
+#   * it carries nothing else. A commit that bumps the version *and* changes the
+#     package is a forward-port that happens to bump, and it is ported like any
+#     other, because a pick is a whole commit and never half of one. `Sync with
+#     main` (4e41675f9) is the shape this guards: a bump riding on 130 files of
+#     tooling, R code, tests and patches, which classifying by the version line
+#     alone would have dropped whole.
+version_bump() { # <sha>
+  local before after f
+  before=$(git show "$1^:DESCRIPTION" 2>/dev/null | sed -n 's/^Version: //p' || true)
+  after=$(git show "$1:DESCRIPTION" 2>/dev/null | sed -n 's/^Version: //p' || true)
+  [ -n "$after" ] && [ "$before" != "$after" ] || return 1
+  while IFS= read -r f; do
+    [[ "$f" =~ $bump_paths_re ]] || return 1
+  done < <(git diff-tree --no-commit-id --name-only -r "$1")
+  return 0
+}
+
+classify() { # <sha> -> TOOLING | MIXED | OTHER | VENDOR | VERSION
   local f t= o=
   if [[ "$(git log -1 --format=%s "$1")" =~ $vendor_subject_re ]]; then echo VENDOR; return; fi
+  if version_bump "$1"; then echo VERSION; return; fi
   while IFS= read -r f; do
     if [[ "$f" =~ $paths_re ]]; then t=1; else o=1; fi
   done < <(git diff-tree --no-commit-id --name-only -r "$1")
@@ -180,9 +224,10 @@ fi
 
 [ -n "$apply" ] || exit 0
 
-# OTHER picks routinely touch DESCRIPTION's `Version:` (fledge bumps,
-# forward-ports); the ours-version merge driver keeps that line off the
-# conflict list. Idempotent; .git/config is shared with the worktree.
+# A pick can still meet DESCRIPTION's `Version:` -- a named VERSION commit, a
+# forward-port that carries one -- and the ours-version merge driver is what
+# keeps that line off the conflict list. Idempotent; .git/config is shared with
+# the worktree.
 if [ -x "$(dirname "$0")/setup-git.sh" ]; then
   "$(dirname "$0")/setup-git.sh" >/dev/null
 fi
@@ -193,7 +238,8 @@ fi
 picks=("$@")
 if [ ${#picks[@]} -eq 0 ] && [ -z "$frozen" ]; then
   for sha in "${candidates[@]}"; do
-    [ "${klass[$sha]}" = VENDOR ] || picks+=("$sha")
+    case "${klass[$sha]}" in VENDOR | VERSION) continue ;; esac
+    picks+=("$sha")
   done
 fi
 
