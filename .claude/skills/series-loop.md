@@ -151,6 +151,12 @@ and none of them is applied early —
 the series gets a tooling change when it merges and stage 4 ports it,
 never before.
 
+**The handbook owns the code; this skill owns ref motion.**
+Any change to code, tests or patches is bound by
+[`handbook/`](/handbook/README.md)'s page for that area,
+which this skill neither repeats nor overrides.
+Read the page before changing anything it owns.
+
 ### 1. Vendor onto `<S>-build`
 
 Run **`main`'s copy of the script**, against the buffer worktree:
@@ -469,6 +475,21 @@ write it anyway, on the next `-dev` commit the stage produces:
 a finding with no repair is still the thing
 that stops the next firing diagnosing it from scratch.
 
+**What a fix may be is the handbook's rule, not this skill's.**
+A compiler-warning fix is bound by
+[`architecture/glue/`](/handbook/architecture/glue/README.md),
+which owns the tree's position on suppression;
+read it before writing one.
+The shapes listed below are shapes, never permission.
+
+**A `patch/` entry is a prototype of an upstream change**,
+filed as a pull request and retired when upstream takes it
+([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
+So write it as the diff you would send to `duckdb/duckdb`,
+and keep the vendored code free of commentary about us:
+the reasoning goes in the commit message,
+which the patch header carries upstream with it.
+
 **A fix must cost Linux nothing.**
 The only gate that will judge it is Linux on one R version,
 so a change that helps Windows or macOS is unverifiable where it runs,
@@ -477,7 +498,7 @@ late, after a replay of everything above it.
 Prefer changes that are inert where the gate can see them:
 a `patch/` entry whose whole diff sits inside `#if defined(_WIN32)`,
 a test skip keyed on a runtime value the engine itself reports,
-a pragma scoped to the compiler that warns.
+a cast or an initialization that states an intent the code already has.
 Anything broader waits for evidence,
 and a local reproduction is evidence:
 the compiler a warning names is usually installed here.
@@ -488,6 +509,13 @@ which is what costs-Linux-nothing means as a check
 rather than as a claim.
 A fix carrying both halves does not wait for r-universe;
 the next universe build confirms it in passing.
+
+**Say which flags a reproduction needed.**
+The gate compiles with `R CMD config CXXFLAGS`, which is `-g -O2`,
+so a `-Wall` diagnostic is invisible to it
+and to any local build that does not add the flag by hand.
+Adding it is how another platform's warning is reproduced;
+recording it is what stops the result reading as the gate's view.
 
 **A fix belongs where its code lives, which is not always `main`.**
 A fix that is not series-specific belongs on `main`,
