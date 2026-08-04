@@ -56,6 +56,84 @@ vendored_sha() {
   echo "$sha"
 }
 
+# Does this commit vendor? The subject decides, never the path -- the same rule
+# the rest of this loop reads state by, and the same predicate series-port.sh
+# classifies with. Matched without a pipe, so `pipefail` cannot turn a match
+# into a miss when the reader closes first.
+vendors() { # <repo> <commit>
+  case "$(git -C "$1" log -1 --format=%s "$2")" in
+    vendor:* | *duckdb/duckdb@[0-9a-f]*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Is $1 a strictly greater version than $2? Component-wise and numeric, so a
+# rise the invariant allows is not mistaken for a freeze: a bump in any
+# component counts, and the components are compared as numbers rather than as
+# text (`10` is above `9`). A non-numeric component makes the answer unknown,
+# which is a refusal, not a pass.
+version_gt() { # <a> <b>
+  local -a x y
+  case "$1" in '' | *[!0-9.]*) return 2 ;; esac
+  case "$2" in '' | *[!0-9.]*) return 2 ;; esac
+  IFS=. read -r -a x <<<"$1"
+  IFS=. read -r -a y <<<"$2"
+  local i
+  for i in 0 1 2 3 4; do
+    (( ${x[i]:-0} > ${y[i]:-0} )) && return 0
+    (( ${x[i]:-0} < ${y[i]:-0} )) && return 1
+  done
+  return 1
+}
+
+# Raise DESCRIPTION's fifth component to one above the parent's, on a commit
+# that vendors. Every vendor commit must be strictly above its parent
+# (.claude/skills/series-loop.md): gaps are fine, repeats are not, because
+# r-universe installs by version and cannot tell a run of commits sharing one
+# apart.
+#
+# The ours-version merge driver hands the pick our side of `Version:` whenever
+# the two strands' `major.minor.patch` prefixes differ, which is what this
+# repairs; where they agree, -build's own bump comes through and there is
+# nothing to do.
+restamp() { # <worktree> <buffer commit>
+  local wt=$1 c=$2 parent cur new
+  vendors . "$c" || return 0
+  parent=$(git -C "$wt" show 'HEAD~1:DESCRIPTION' | sed -n 's/^Version: //p')
+  cur=$(git -C "$wt" show 'HEAD:DESCRIPTION' | sed -n 's/^Version: //p')
+  version_gt "$cur" "$parent" && return 0
+  # The counter is the fifth component, and only a dev branch carries one; a
+  # four-component version is a strand with no counter to raise, and inventing
+  # one here would mint a version the series never chose.
+  case "$parent" in
+    *.*.*.*.*) ;;
+    *) return 0 ;;
+  esac
+  new="${parent%.*}.$((${parent##*.} + 1))"
+  # `-i.bak`, so the one edit works under both GNU and BSD sed.
+  sed -i.bak "s/^Version: .*/Version: $new/" "$wt/DESCRIPTION"
+  rm -f "$wt/DESCRIPTION.bak"
+  git -C "$wt" add DESCRIPTION
+  git -C "$wt" commit -q --amend --no-edit
+}
+
+# Check the counter rather than assume it: a replay that silently froze it
+# looks exactly like one that did not. Returns non-zero and leaves the caller
+# to clean up, so the worktree is removed on this path like every other.
+verify_counter() { # <worktree> <ref the replay started from>
+  local wt=$1 from=$2 sha parent cur rc=0
+  while IFS= read -r sha; do
+    vendors "$wt" "$sha" || continue
+    parent=$(git -C "$wt" show "$sha~1:DESCRIPTION" | sed -n 's/^Version: //p')
+    cur=$(git -C "$wt" show "$sha:DESCRIPTION" | sed -n 's/^Version: //p')
+    version_gt "$cur" "$parent" && continue
+    echo "Error: $(git -C "$wt" rev-parse --short "$sha") vendors at $cur," \
+      "its parent is $parent — the version counter did not advance"
+    rc=1
+  done < <(git -C "$wt" rev-list --reverse "$from..HEAD")
+  return "$rc"
+}
+
 # --- stage 3: the all-green prefix -------------------------------------------
 new_green=$(git rev-parse "$green")
 while IFS= read -r sha; do
@@ -160,13 +238,25 @@ else
   # carries one onto -dev, and the same fix is committed onto -build so the next
   # regenerated tree still has it -- so the redundancy is designed, not a mistake,
   # and it must not abort the extend.
-  if ! git -C "$wt" cherry-pick --empty=drop $(git rev-list --reverse "$anchor..$build" | head -n "$n"); then
-    git -C "$wt" cherry-pick --abort || true
+  #
+  # One commit at a time, because restamp runs between the picks and reads the
+  # parent it is bumping from.
+  for c in $(git rev-list --reverse "$anchor..$build" | head -n "$n"); do
+    before=$(git -C "$wt" rev-parse HEAD)
+    if ! git -C "$wt" cherry-pick --empty=drop "$c"; then
+      git -C "$wt" cherry-pick --abort || true
+      git worktree remove --force "$wt"
+      echo "Error: replay conflicted — extend by hand"
+      exit 1
+    fi
+    [ "$(git -C "$wt" rev-parse HEAD)" = "$before" ] && continue
+    restamp "$wt" "$c"
+  done
+  next=$(git -C "$wt" rev-parse HEAD)
+  if ! verify_counter "$wt" "$dev"; then
     git worktree remove --force "$wt"
-    echo "Error: replay conflicted — extend by hand"
     exit 1
   fi
-  next=$(git -C "$wt" rev-parse HEAD)
   git worktree remove --force "$wt"
   git push "$remote" "$next:refs/heads/$S-dev"
 fi

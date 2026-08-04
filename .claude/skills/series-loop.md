@@ -1002,14 +1002,14 @@ is what carries the automatic path into a forward series.
   the merge driver's gate then keeps our side verbatim
   and the counter freezes for the whole chain
   ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
-  `main` is in that state, and every firing pays it —
-  40 commits at `1.5.99.9003.1039` on 2026-08-02,
-  five at `…1076` on 2026-08-04.
+  `main` is in that state.
   So after any replay, **restamp before pushing `-dev`**:
   walk the new commits oldest first
   and bump once per vendor commit from the parent's value.
-  Check it, do not assume it —
-  a replay that silently froze the counter
+  [`scripts/series-advance.sh`](/scripts/series-advance.sh) does that
+  and then asserts it;
+  a replay done by hand is checked the same way,
+  because one that silently froze the counter
   looks exactly like one that did not.
 - Git alone is sufficient in principle:
   even a rerun is one pushed ref —

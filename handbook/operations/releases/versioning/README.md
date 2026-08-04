@@ -46,7 +46,8 @@ but only while both strands share a `major.minor.patch` prefix.
 Where they do not, the gate keeps our side verbatim,
 so a replayed vendor commit arrives with its parent's counter
 and the series stops being orderable —
-the loop restamps by hand
+[`scripts/series-advance.sh`](/scripts/series-advance.sh) restamps it,
+and refuses to push a replay whose counter did not rise
 ([`.claude/skills/series-loop.md`](/.claude/skills/series-loop.md)).
 `main-dev` carries the preview prefix `1.5.99`
 and its buffer `main-build` carries `1.5.5`,
