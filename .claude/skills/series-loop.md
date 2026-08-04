@@ -162,9 +162,21 @@ Read the page before changing anything it owns.
 Run **`main`'s copy of the script**, against the buffer worktree:
 
 ```sh
+git -C <upstream-clone> checkout --detach origin/<upstream branch of S>
 VENDOR_REPO=<S>-build-worktree \
   <main-checkout>/scripts/vendor-one.sh --commits 100 <upstream-clone>
 ```
+
+**The clone's HEAD is what picks the line to vendor**, so check it out first.
+The script reads it as the walk's right-hand side and nothing else names one;
+a clone left wherever the last session parked it
+vendors that branch onto this series' buffer.
+`main`, `v1.5-variegata` and `v1.4-andium` each track
+the `duckdb/duckdb` branch of the same name (`BRANCHES.md`).
+The script refuses when the buffer's last vendored commit
+is off the clone HEAD's first-parent line,
+which is the shape a wrong ref takes;
+treat that refusal as the answer and check out the right branch.
 
 This stage is the one place the port stage cannot reach.
 Stage 4 brings `.github/`, `scripts/` and `.claude/` on `<S>-dev`
