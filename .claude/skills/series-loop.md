@@ -579,6 +579,43 @@ as a finding for `main`:
 make it conditional there;
 a series never keeps its own fork of the tooling.
 
+**A frozen series takes no ports by default.**
+A series seeded from a release branch keeps the R code it was seeded with —
+glue, tests, docs and version alike —
+so `main`'s development line,
+which belongs to another engine's R side,
+is not a backlog it is behind on.
+`scripts/series-port.sh` reads that off the lineage under the seed
+and skips the walk for such a series,
+so the sync commit is their whole default port
+and their tooling still follows `main`:
+a frozen R side is not a frozen CI,
+and the identity goal above holds for every series either way.
+Run the script for a frozen series like any other;
+the default needs no judgement.
+
+**Frozen is not untouchable.**
+A change the r-universe build genuinely needs still lands —
+a `configure` fix, whatever keeps the flavor green —
+and stage 2 reaches for it the same way it mines a base series:
+if the red has already been fixed on `main`,
+port that commit rather than rederive it.
+Name it, one commit at a time:
+
+```sh
+scripts/series-port.sh <S> --list            # walk a frozen series anyway
+scripts/series-port.sh <S> --apply <sha>…    # take the ones the build needs
+```
+
+Explicit SHAs are never second-guessed,
+on a frozen series or any other.
+What the freeze buys is that nobody has to read
+the whole development line every firing
+to find the two commits that matter.
+The bar is what the build needs, not what `main` happens to have:
+a fix that only tidies R code the series is content with
+is not a reason to move the series off its seed.
+
 What stays judgement:
 
 - a conflict stops the sequence in place —

@@ -35,6 +35,11 @@ to do, and they run in this order:
   next forward reads it.
 * **Forward-port** — bring `main`'s R-side work onto the series
   ([`scripts/series-port.sh`](/scripts/series-port.sh)).
+  A series seeded from a release branch rather than from `main` takes
+  no wholesale port: its R side belongs to that line, so only the
+  tooling sync and fixes named by hand apply.
+  That is read from the lineage under the seed rather than configured,
+  so opening or retiring a release line changes no script.
 * **Extend `<S>-dev`** — consume the buffer in bounded chunks,
   at most 100 commits per firing
   ([`scripts/series-advance.sh`](/scripts/series-advance.sh)).

@@ -35,6 +35,15 @@
 # reading it is part of the port. In steady state the residue is empty and
 # no sync commit is created.
 #
+# A frozen series takes no ports by default: a line seeded from a release
+# branch keeps the R code it was seeded with, so `main`'s development line is
+# not a backlog it is behind on. The walk is skipped for those and the sync
+# commit is the whole default port, so their tooling still follows `main` — a
+# frozen R side is not a frozen CI. The freeze is not a refusal, though: a fix
+# the build genuinely needs is picked by name, and --list shows the walk when
+# you are looking for one. Frozen is detected from the lineage under the seed,
+# not configured; see the seed check below.
+#
 # A conflict stops the sequence in place and keeps the worktree: resolving it
 # is the routine's judgement. Continue the sequence there, push, and rerun
 # this script to finish — the patch-id filter makes reruns cheap and exact.
@@ -44,12 +53,19 @@
 # they are transient — a forward's seed already carries their content, and a
 # rebase drops patch-id equivalents and empty leftovers.
 #
-# Usage: series-port.sh <series> [--apply [sha...]]
+# Usage: series-port.sh <series> [--list] [--apply [sha...]]
 
 set -euo pipefail
 
-S=${1:?usage: series-port.sh <series> [--apply [sha...]]}
+S=${1:?usage: series-port.sh <series> [--list] [--apply [sha...]]}
 shift
+# --list walks a frozen series anyway, for when the question is which commit of
+# `main` to name. No effect on any other series: the walk is their default.
+list=
+if [ "${1:-}" = "--list" ]; then
+  list=1
+  shift
+fi
 apply=
 if [ "${1:-}" = "--apply" ]; then
   apply=1
@@ -70,9 +86,43 @@ paths_re='^(\.github/|scripts/|\.claude/)'
 # the strand — see the header on why the path is not the rule.
 vendor_subject_re='^vendor:|duckdb/duckdb@[0-9a-f]+'
 
+# scripts/flavor.sh's first commit, and so the foot of every seed
+# (series-open.md step 2, series-forward.md step 1).
+seed_re='^chore: Update flavor patch to '
+
 git fetch -q "$remote"
 dev="$remote/$S-dev" main="$remote/main"
 git rev-parse -q --verify "$dev" >/dev/null || { echo "Error: no $S-dev on $remote"; exit 1; }
+
+mb=$(git merge-base "$dev" "$main" 2>/dev/null || true)
+if [ -z "$mb" ]; then
+  # A series seeded from an orphan mirror shares no history with `main`, so
+  # there is no base to bound the walk at and `git cherry` has nothing to
+  # compare against. Say so instead of dying on the empty expansion.
+  echo "$S: no merge base with main — the series is an unrelated lineage," >&2
+  echo "  so stage 4 cannot port onto it; sync its tooling by hand" >&2
+  exit 2
+fi
+
+# Frozen is read off the series, not listed here. A series is seeded from the R
+# package's `main` (series-open.md step 2), and a forward regenerates that seed
+# on current `main` (series-forward.md step 1), so a well-seeded series has its
+# flavor commit sitting directly on the merge base and `git cherry` offers what
+# `main` gained since the last port. Seeded from a release line instead, the
+# seed sits on that line's own commits, and the walk reaches back to where that
+# lineage left `main` — the whole R development line of another engine.
+#
+# The lineage under the seed is what separates them, and it is the one quantity
+# that does not move: the candidate list and the distance to the join both grow
+# as `main` does, while a well-seeded series stays at zero however long it runs.
+# Naming the series here instead would age — every LTS line opened or retired
+# would be an edit to this script, and a firing would trust the list over the
+# branch in front of it.
+seed=$(git rev-list "$mb..$dev" --grep="$seed_re" | tail -n 1)
+under=0
+[ -n "$seed" ] && under=$(git rev-list --count "$mb..$seed^")
+frozen=
+[ "$under" != 0 ] && frozen=1
 
 classify() { # <sha> -> TOOLING | MIXED | OTHER | VENDOR
   local f t= o=
@@ -89,35 +139,38 @@ classify() { # <sha> -> TOOLING | MIXED | OTHER | VENDOR
   fi
 }
 
+candidates=()
+declare -A klass=()
+
 # Every commit of `main` the series does not carry, oldest first. Two dedupe
 # layers make reruns exact: `git cherry` bounds the walk at the merge base and
 # drops patch-id equivalents (clean picks), and the `-x` trailer written into
 # every ported commit excludes picks whose resolution diverged from the
 # original patch — those would otherwise be re-offered and re-conflict on
 # every rerun.
-mb=$(git merge-base "$dev" "$main" 2>/dev/null || true)
-if [ -z "$mb" ]; then
-  # A series seeded from an orphan mirror shares no history with `main`, so
-  # there is no base to bound the walk at and `git cherry` has nothing to
-  # compare against. Say so instead of dying on the empty expansion.
-  echo "$S: no merge base with main — the series is an unrelated lineage," >&2
-  echo "  so stage 4 cannot port onto it; sync its tooling by hand" >&2
-  exit 2
+#
+# A frozen series skips the walk rather than listing what it will not take by
+# default: the list is long — an LTS line joins `main` far back, so `git cherry`
+# offers the whole development line since the fork — and reading it every firing
+# is the cost the freeze exists to remove. --list asks for it anyway, which is
+# what to do when the series needs a fix `main` already has.
+if [ -n "$frozen" ] && [ -z "$list" ]; then
+  echo "$S: frozen — nothing is ported by default; tooling follows main." \
+    "Name a fix the build needs with --apply <sha>, or --list to see candidates"
+else
+  declare -A ported=()
+  while IFS= read -r x; do ported[$x]=1; done < <(
+    git log --format=%B "$mb..$dev" |
+      sed -n 's/^(cherry picked from commit \([0-9a-f]\{40\}\))$/\1/p')
+  mapfile -t all < <(git cherry "$dev" "$main" | sed -n 's/^+ //p')
+  for sha in "${all[@]}"; do
+    [ -n "${ported[$sha]:-}" ] && continue
+    candidates+=("$sha")
+    klass[$sha]=$(classify "$sha")
+    printf '%-7s %s %s\n' "${klass[$sha]}" \
+      "$(git rev-parse --short "$sha")" "$(git log -1 --format=%s "$sha")"
+  done
 fi
-declare -A ported=()
-while IFS= read -r x; do ported[$x]=1; done < <(
-  git log --format=%B "$mb..$dev" |
-    sed -n 's/^(cherry picked from commit \([0-9a-f]\{40\}\))$/\1/p')
-mapfile -t all < <(git cherry "$dev" "$main" | sed -n 's/^+ //p')
-candidates=()
-declare -A klass=()
-for sha in "${all[@]}"; do
-  [ -n "${ported[$sha]:-}" ] && continue
-  candidates+=("$sha")
-  klass[$sha]=$(classify "$sha")
-  printf '%-7s %s %s\n' "${klass[$sha]}" \
-    "$(git rev-parse --short "$sha")" "$(git log -1 --format=%s "$sha")"
-done
 
 if git diff --quiet "$dev" "$main" -- "${tooling[@]}"; then
   echo "tooling: identical to main"
@@ -134,8 +187,11 @@ if [ -x "$(dirname "$0")/setup-git.sh" ]; then
   "$(dirname "$0")/setup-git.sh" >/dev/null
 fi
 
+# The default fill is what a frozen series does not get: `--list --apply` shows
+# the walk and still ports nothing, because seeing the candidates is not the
+# same as choosing them. Explicit SHAs are the choosing, and they always apply.
 picks=("$@")
-if [ ${#picks[@]} -eq 0 ]; then
+if [ ${#picks[@]} -eq 0 ] && [ -z "$frozen" ]; then
   for sha in "${candidates[@]}"; do
     [ "${klass[$sha]}" = VENDOR ] || picks+=("$sha")
   done
