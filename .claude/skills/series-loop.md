@@ -80,7 +80,7 @@ every walk below is bounded by `<S>-green`, from the first firing on.
 
 Set up first, then work through the stages in order;
 each stage is skippable when it has nothing to do, the setup is not.
-Three scripts carry the mechanical parts:
+Five scripts carry the mechanical parts:
 `scripts/series-check.sh`
 (read-only — walks every series, classifies from the harvest,
 prints one verdict each:
@@ -92,9 +92,14 @@ a suggestion for a human, stage 6),
 moves `-build-base` by vendored-SHA match,
 extends `-dev` by ≤ 100;
 refuses on any failure or non-fast-forward),
-and `scripts/series-port.sh <S>`
+`scripts/series-port.sh <S>`
 (stage 4 — brings `<S>-dev` level with `main`:
-cherry-picks plus a tooling sync).
+cherry-picks plus a tooling sync),
+`scripts/r-universe-check.sh`
+(read-only — what r-universe made of every published green, stage 3),
+and `scripts/series-glue.sh <S>`
+(read-only — every R-side glue adaptation a series carries, in one read;
+what stage 2 mines and what a forward replays).
 Judgement — repairs, review, vendoring — stays here.
 
 ### 0. Setup
@@ -312,6 +317,20 @@ the delta between that `-dev` commit and its `-build` equivalent —
 are proven fixes.
 Carrying them over beats rederiving them,
 and their commit-message trailers say what they were for.
+
+**Read the whole set before carrying any one of it across.**
+`scripts/series-glue.sh <S>` prints every glue adaptation the series holds,
+oldest first, with the upstream SHA each answered
+and the `R-side fix` prose each left behind,
+and closes with the files ranked by how often they were adapted.
+One lookup answers a narrower question than the situation asks:
+upstream moves the same call site repeatedly,
+each move is a separate commit here,
+and only the last version of that glue survives the range.
+Match on the failure in front of you alone
+and the fix carried over is an intermediate one —
+already superseded, further down the very range it was read from.
+The ranked file list is the cheapest read of where that is about to happen.
 Mining is what *forwarding* costs, and only forwarding:
 a forward series rebased onto a newer mainline
 (`series-rebase.md`) leaves nothing to mine,
@@ -343,7 +362,7 @@ the review is what earns it.
 The branches are per-run;
 read the one for the sha being repaired.
 
-### 3. Advance `<S>-green` and `<S>-build-base`
+### 3. Advance the frontier, and read what r-universe made of the last one
 
 Fast-forward `<S>-green` to the newest `<S>-dev` commit
 such that every commit in `<S>-green..<that commit>` has a `success` run.
@@ -358,6 +377,122 @@ with the same vendored upstream SHA
 Fast-forward only —
 if `-green` cannot fast-forward, something rewrote verified history;
 stop and say so.
+
+#### What r-universe made of it
+
+`<S>-green` is a ref with a consumer,
+and that consumer builds it on platforms this loop never sees.
+The `rcc` gate is Linux on one R version;
+r-universe builds Windows on x86_64 and arm64,
+macOS on x86_64 and arm64, and wasm,
+against R-devel, release and oldrel,
+and runs `R CMD check` on each.
+So a series can be green at every commit
+and still publish a package that does not compile —
+and nothing on branch `rcc` would ever say so.
+This is the read that closes that gap:
+
+```sh
+scripts/r-universe-check.sh            # every package, per target, reds only
+scripts/r-universe-check.sh --log <id> # the log behind one of them
+```
+
+It prints, per package, the version and the commit built —
+naming the local ref when this clone knows it,
+which is how a red is attributed to a series —
+then one line per target that is not OK, with the log URL.
+Three access facts it exists to encapsulate, each paid for once:
+the `/builds` dashboard answers 403 to some fetchers
+while `https://<universe>.r-universe.dev` answers a plain curl;
+the build logs live in the GitHub repository `r-universe/<universe>`,
+which this project cannot be granted,
+but `/api/actions/logs/<job-id>` serves them complete and anonymously;
+and `/api/packages` alone **cannot** answer the question,
+because its `_binaries` array is one row per artifact —
+a target whose build failed outright leaves no row,
+and the row from the last version that did build stays,
+wearing that older version.
+Read as current state it reports success
+for a target that has been failing for a fortnight.
+The script reads the version-scoped check table for verdicts
+and `_binaries` only to say how stale the published binary has become.
+
+Results always describe the **previous** green:
+a universe build takes about an hour and starts when the ref moves,
+so a firing reads the consequence of an earlier firing's push.
+That is why this is a read and never a gate —
+nothing here holds stage 3's fast-forward.
+The mainline `duckdb` package is built from `duckdb/duckdb-r`, not a series:
+a red there is upstream's, and reaches this repository as a PR to `main`.
+
+**A platform DuckDB publishes no extensions for is not a finding.**
+The extension install test downloads,
+so wherever the repository has no build for this platform
+it fails with an HTTP 404 —
+about DuckDB's release coverage, not about the commit green points at,
+and not something this repository can move.
+Which platforms are covered is DuckDB's list and it changes,
+so check the current one before spending a diagnosis:
+`handbook/usage/extensions/README.md` links it,
+and holds whatever the standing gap is.
+As of 2026-08 that is `windows-devel-arm64` and `windows-release-arm64`
+on every package (duckdb/duckdb-r#2425) —
+read past those two and judge the rest of the table.
+Only what the list explains:
+every other red is a finding until shown otherwise.
+
+**Never undo a push to green.**
+A red here is a red on a commit the gate called green,
+and the reflex — rewind `-green` to before it — is wrong twice over:
+`-green` moves forward only (the invariant below),
+and the ref serves a package,
+so rewinding publishes an older one
+and throws away every verified commit above it
+to escape a failure on a platform the gate never covered.
+Green stays. The finding travels forward.
+
+**State the finding in the commit message on `-dev`.**
+An r-universe failure has no record on branch `rcc`
+and no commit of its own;
+it lives in a job log that ages out,
+in a universe that rebuilds over it.
+So write it where the series keeps its memory:
+the message of the `-dev` commit that carries the fix,
+in an `R-side fix` section like any other adaptation,
+naming the target, the verdict and what the log said.
+`scripts/series-glue.sh` and the mining step of stage 2 read those messages,
+so a forward picks the finding up
+instead of rediscovering it from a build that has long since scrolled off.
+When there is no fix to carry — an hour budget r-universe overran,
+an extension repository with nothing published for a platform —
+write it anyway, on the next `-dev` commit the stage produces:
+a finding with no repair is still the thing
+that stops the next firing diagnosing it from scratch.
+
+**A fix must cost Linux nothing.**
+The only gate that will judge it is Linux on one R version,
+so a change that helps Windows or macOS is unverifiable where it runs,
+and a change that *hurts* Linux is the one outcome that gate does catch —
+late, after a replay of everything above it.
+Prefer changes that are inert where the gate can see them:
+a `patch/` entry whose whole diff sits inside `#if defined(_WIN32)`,
+a test skip keyed on a runtime value the engine itself reports,
+a pragma scoped to the compiler that warns.
+Anything broader waits for evidence,
+and the evidence is another universe build — an hour, not a guess.
+A fix that is not series-specific belongs on `main`,
+where stage 4 spreads it to every series by itself.
+
+**A `patch/` entry has to reach the buffer too.**
+Stage 4 ports `main` onto `<S>-dev` and stops there;
+`<S>-build` carries no ports by design (stage 1).
+But `vendor-one.sh` applies the **buffer's** `patch/*.patch`
+to each tree it regenerates,
+so a patch that only ever landed on `-dev`
+is absent the next time the buffer vendors,
+and the commit that reaches `-dev` from it
+arrives broken again on exactly the platform the patch was for.
+Commit it onto `<S>-build` as well, in the same firing.
 
 ### 4. Port from `main`
 

@@ -38,6 +38,13 @@ the `ours-version` driver keeps `DESCRIPTION` off the conflict list
 and `rerere` replays a resolution onto the second series
 once it has been made for the first.
 
+Then `scripts/series-glue.sh <S>-fwd`, before starting the replay.
+A rebase conflicts where the glue does,
+and `rerere` only replays a resolution that has already been made once —
+so the pass that decides them is the first one,
+and it decides better having seen all of them
+(`series-forward.md`, "Read the whole glue set before the first pick").
+
 ```sh
 # `<old-seed>` is the branch's `chore: Add fifth version component` commit.
 git checkout -B seed <old-dev-seed>

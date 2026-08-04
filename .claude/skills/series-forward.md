@@ -45,6 +45,34 @@ the replay then populates `<S>-fwd-build`.
    every failure was the list failing to see
    something `main` had removed.
 
+   **Read the whole glue set before the first pick.**
+
+   ```sh
+   scripts/series-glue.sh <old-base>..<old-build>
+   ```
+
+   Every R-side adaptation the buffer carries, oldest first,
+   with the upstream SHA each answered,
+   the `R-side fix` prose each left behind,
+   and the files ranked by how often they were adapted.
+   That ranking is the conflict forecast:
+   a file adapted five times in the range
+   is a file upstream keeps moving,
+   and the pick that stops will be one of those five.
+   Read them together and the shape is visible —
+   the same call site migrated to an accessor,
+   then to a different type, then renamed —
+   so a conflict is resolved toward
+   where the range is going, in one move.
+   Read one at a time and each is resolved on its own evidence,
+   toward a state a later commit in the same range overwrites:
+   the work is done twice, and the intermediate resolution
+   is the one that has to be undone.
+   Findings recorded by stage 3 of the loop
+   — what r-universe made of the base series' green,
+   on the platforms the gate never covered —
+   travel in those same messages, and are read in the same pass.
+
    Only `vendor:` subjects are replayed —
    a `-dev` branch's non-vendor commits belong to `main`
    and are already in the seed.

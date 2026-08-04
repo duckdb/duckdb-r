@@ -25,8 +25,14 @@ to do, and they run in this order:
   offending commit and the tail replayed;
   the infrastructure's fault is retried once via a `retry-` ref
   that also serves as the ledger.
-* **Advance the frontier** — fast-forward `-green` over commits with
-  recorded *successful* runs, and move `-build-base` to match.
+* **Advance the frontier, and read what r-universe made of the last one**
+  — fast-forward `-green` over commits with recorded *successful* runs,
+  move `-build-base` to match, and read back what the previous green
+  became on the platforms the per-commit gate never covers
+  ([`scripts/r-universe-check.sh`](/scripts/r-universe-check.sh)).
+  A red there never rewinds green; it is recorded in the commit
+  message of the `-dev` commit that answers it, which is where the
+  next forward reads it.
 * **Forward-port** — bring `main`'s R-side work onto the series
   ([`scripts/series-port.sh`](/scripts/series-port.sh)).
 * **Extend `<S>-dev`** — consume the buffer in bounded chunks,

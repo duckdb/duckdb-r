@@ -120,7 +120,7 @@ groups <- list(
   ),
   list(
     owner = "handbook/operations/vendoring/series-loop",
-    globs = c("series-*.sh")
+    globs = c("series-*.sh", "r-universe-*.sh")
   ),
   list(
     owner = "handbook/operations/ci/per-commit/selection",

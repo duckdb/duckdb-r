@@ -34,6 +34,17 @@ and how to get more.
   which DuckDB has distributed since 1.4.1;
   gaps for out-of-tree extensions are tracked as the toolchain epic
   ([#2234](https://github.com/duckdb/duckdb-r/issues/2234)).
+* **Some platforms are not covered**, and which ones is DuckDB's to say
+  and does change:
+  [Extension Distribution](https://duckdb.org/docs/stable/extensions/extension_distribution)
+  is the current list,
+  and `PRAGMA platform` is the name to look this build up under.
+  Off the list, `INSTALL` is an HTTP 404 —
+  a gap to wait out, not a fault to fix here.
+  As of 2026-08 that is R's Windows/arm64 build:
+  DuckDB publishes `windows_arm64`, built with MSVC,
+  but no `windows_arm64_mingw`, which is what R's toolchain produces
+  ([#2425](https://github.com/duckdb/duckdb-r/issues/2425)).
 
 Verify any claim about the shipped set on a **vendored build** —
 the fast path answers for a different artifact
