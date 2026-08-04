@@ -479,9 +479,31 @@ a `patch/` entry whose whole diff sits inside `#if defined(_WIN32)`,
 a test skip keyed on a runtime value the engine itself reports,
 a pragma scoped to the compiler that warns.
 Anything broader waits for evidence,
-and the evidence is another universe build — an hour, not a guess.
+and a local reproduction is evidence:
+the compiler a warning names is usually installed here.
+Reproduce it, fix it, confirm the diagnostic is gone,
+then compile the same translation unit under `g++ -Wall`
+and confirm the output is unchanged —
+which is what costs-Linux-nothing means as a check
+rather than as a claim.
+A fix carrying both halves does not wait for r-universe;
+the next universe build confirms it in passing.
+
+**A fix belongs where its code lives, which is not always `main`.**
 A fix that is not series-specific belongs on `main`,
-where stage 4 spreads it to every series by itself.
+where stage 4 spreads it to every series by itself —
+but a `patch/` entry is only portable when the tree it patches is.
+`main` carries the engine `main` has vendored,
+and a series buffer runs ahead of it,
+so a patch written against the newer engine
+applies in neither direction on `main`'s tree —
+`vendor-one.sh`'s `PATCH BROKEN` exit.
+Landing it there breaks the next vendor run
+instead of helping any series.
+Check that the code exists on `main` before routing a fix through it;
+where it does not, the fix is series-specific by engine version,
+belongs on `<S>-dev` and `<S>-build`,
+and reaches `main` when `main`'s engine reaches the code.
 
 **A `patch/` entry has to reach the buffer too.**
 Stage 4 ports `main` onto `<S>-dev` and stops there;
