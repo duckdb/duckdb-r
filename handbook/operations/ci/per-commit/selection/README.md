@@ -10,9 +10,13 @@ so a run recomputes rather than remembers.
 
 On a `<S>-dev` branch with a sibling `<S>-green`, only `<S>-green..HEAD` is
 scanned — everything at or before green is trusted and never rebuilt.
-If green exists but is not an ancestor of HEAD, *nothing* is planned:
+If green exists but is not an ancestor of HEAD, *nothing* is planned
+and the plan job fails:
 the branch is mid-surgery or on another lineage,
-and an unbounded scan would flood the queue.
+an unbounded scan would flood the queue,
+and a run that quietly built nothing is indistinguishable from one that had
+nothing left to build — so a ref move half-finished stays visible instead of
+passing for a green run while every commit pushed after it goes unjudged.
 Branches without a green sibling fall back to first-parent history since `SINCE`.
 
 The per-commit logs stay readable to `series-check.sh`,

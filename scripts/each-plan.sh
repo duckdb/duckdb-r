@@ -95,7 +95,8 @@ echo "Considering commits on or after ${SINCE}"
 # everything at or before `<S>-green` is trusted
 # and never rebuilt, and if green exists but is not an ancestor of HEAD the
 # branch is mid-surgery or on another lineage, so nothing is planned rather than
-# flooding the queue with an unbounded scan.
+# flooding the queue with an unbounded scan -- and the job fails, because that
+# state is somebody's half-finished ref move, not a branch the loop produced.
 
 # Reached from more than one early exit: a branch whose range cannot be bounded
 # plans nothing at all rather than a little of everything.
@@ -137,15 +138,40 @@ case "${branch}" in
         RANGE=("refs/remotes/origin/${series}-green..HEAD")
         echo "Series branch: scanning origin/${series}-green..HEAD"
       else
-        echo "origin/${series}-green is not an ancestor of HEAD -- planning nothing"
+        # Loud, unlike the other early exit below: green existing but off this
+        # lineage is never a state the branch reaches on its own. Somebody moved
+        # a ref -- a rewind that did not take green back with it, a force-push
+        # onto another lineage -- and every commit pushed until they notice goes
+        # unbuilt. Silence here reads as a green run that built nothing.
+        green_sha="$(git rev-parse --short "refs/remotes/origin/${series}-green")"
+        head_sha="$(git rev-parse --short HEAD)"
+        echo "::error title=${series}-green is not an ancestor of ${branch}::" \
+          "origin/${series}-green (${green_sha}) is not an ancestor of ${branch}" \
+          "(${head_sha}), so no commit can be selected. Move ${series}-green to a" \
+          "commit ${branch} descends from, then push ${branch} again."
+        {
+          echo "## Nothing planned"
+          echo
+          echo "\`origin/${series}-green\` (\`${green_sha}\`) is not an ancestor of"
+          echo "\`${branch}\` (\`${head_sha}\`)."
+          echo
+          echo "Everything at or before green is trusted and never rebuilt, so the"
+          echo "scan is bounded by it; off this lineage there is no range to scan."
+          echo "Move \`${series}-green\` to a commit \`${branch}\` descends from,"
+          echo "then push \`${branch}\` again."
+        } >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
         plan_nothing
-        exit 0
+        exit 1
       fi
     elif [ -n "${retry}" ]; then
       # Without the anchor the scan would fall back to first-parent history
       # since SINCE, reach past the series' seed into `main`, and queue a build
       # for every commit there that has no verdict. A retry branch
       # naming a series that has no green is not a request anyone can serve.
+      #
+      # Quiet, unlike the exit above: a series with no green yet is a state a
+      # new series is legitimately in, and failing here would redden a push that
+      # is not wrong, only early.
       echo "Retry branch names series ${series}, which has no green -- planning nothing"
       plan_nothing
       exit 0
