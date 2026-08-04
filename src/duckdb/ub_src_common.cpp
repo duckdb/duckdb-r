@@ -64,6 +64,8 @@
 
 #include "src/common/memory_mapped_file.cpp"
 
+#include "src/common/memory_safety.cpp"
+
 #include "src/common/opener_file_system.cpp"
 
 #include "src/common/optional_idx.cpp"
