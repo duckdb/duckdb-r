@@ -26,11 +26,15 @@ and how to keep results from materializing in R.
   beside the file (`src/duckdb/src/main/config.cpp`);
   the options that override either are
   [`storage/`](/handbook/usage/storage/README.md)'s.
+  Spill covers query state, not a transaction's own uncommitted
+  writes — those blocks stay pinned, so a very large single append
+  can still fail at `COMMIT` under a tight limit
+  (engine-side; reported once on 1.3.2 and not reproduced since,
+  [#1604](https://github.com/duckdb/duckdb-r/issues/1604)).
 * Larger-than-memory data is best left in DuckDB —
-  query it lazily via dbplyr and `collect()` only the reduction.
+  query it lazily via dbplyr and `collect()` only the reduction;
+  [#72](https://github.com/duckdb/duckdb-r/issues/72) is the long
+  history behind that advice.
 
 *To deepen: verify and state the engine's default `memory_limit`
-as shipped, on a vendored build;
-drain what survives of
-[#72](https://github.com/duckdb/duckdb-r/issues/72),
-[#1604](https://github.com/duckdb/duckdb-r/issues/1604).*
+as shipped, on a vendored build.*

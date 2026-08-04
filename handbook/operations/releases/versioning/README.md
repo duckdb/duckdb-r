@@ -38,7 +38,10 @@ Taking the maximum is what keeps that true through a replay:
 each replayed vendor commit carries its own higher counter,
 and the driver keeps it.
 
-The prefix gate has a consequence worth knowing:
+The prefix gate has a consequence worth knowing
+(it is the answer to
+[#2488](https://github.com/duckdb/duckdb-r/issues/2488) —
+no, nothing should inherit across prefixes):
 because the driver keeps *ours* verbatim when the prefixes differ,
 it does **not** renumber a `-dev` branch when the base moves to a new
 patch release.
