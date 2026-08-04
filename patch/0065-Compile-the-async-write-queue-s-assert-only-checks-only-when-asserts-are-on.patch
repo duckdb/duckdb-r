@@ -17,10 +17,10 @@ Carried here until the engine brings the same change.
  1 file changed, 10 insertions(+)
 
 diff --git a/src/duckdb/src/common/serializer/async_write_queue.cpp b/src/duckdb/src/common/serializer/async_write_queue.cpp
-index fb64a22f19..602f843331 100644
+index b97204e384..2efa2923b2 100644
 --- a/src/duckdb/src/common/serializer/async_write_queue.cpp
 +++ b/src/duckdb/src/common/serializer/async_write_queue.cpp
-@@ -103,10 +103,12 @@ AsyncWriteQueue::AsyncWriteQueue(ClientContext &client_context_p, AsyncWriteTarg
+@@ -102,10 +102,12 @@ AsyncWriteQueue::AsyncWriteQueue(ClientContext &client_context_p, AsyncWriteTarg
  
  AsyncWriteQueue::~AsyncWriteQueue() {
  	lock_guard<mutex> guard(lock);
@@ -33,7 +33,7 @@ index fb64a22f19..602f843331 100644
  }
  
  bool AsyncWriteQueue::IsAsync() const {
-@@ -386,8 +388,12 @@ void AsyncWriteQueue::WorkOnPendingTask() {
+@@ -391,8 +393,12 @@ void AsyncWriteQueue::WorkOnPendingTask() {
  		TaskScheduler::YieldThread();
  		return;
  	}
@@ -46,7 +46,7 @@ index fb64a22f19..602f843331 100644
  	task.reset();
  }
  
-@@ -515,10 +521,12 @@ ManagedAsyncWriteQueue::ManagedAsyncWriteQueue(ClientContext &client_context_p,
+@@ -512,10 +518,12 @@ ManagedAsyncWriteQueue::ManagedAsyncWriteQueue(ClientContext &client_context_p,
  
  ManagedAsyncWriteQueue::~ManagedAsyncWriteQueue() {
  	lock_guard<mutex> guard(lock);
@@ -62,7 +62,7 @@ index fb64a22f19..602f843331 100644
 @@ -992,10 +1000,12 @@ ManagedAsyncWriteStreamQueue::ManagedAsyncWriteStreamQueue(ClientContext &client
  
  ManagedAsyncWriteStreamQueue::~ManagedAsyncWriteStreamQueue() {
- 	lock_guard<mutex> guard(lock);
+ 	annotated_lock_guard<annotated_mutex> guard(lock);
 +#ifdef D_ASSERT_IS_ENABLED
  	auto drained = batch_depth == 0 && pending_writes.empty() && pending_bytes == 0 && submitted_bytes == 0 &&
  	               submitted_requests == 0;
