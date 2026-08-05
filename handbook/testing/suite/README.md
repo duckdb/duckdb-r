@@ -50,6 +50,17 @@ are callable unqualified.
 Always ask for the package name rather than writing it
 ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
 
+**Extensions over the network.**
+`test-duckdb-extensions.R` installs a real extension,
+so it first asks what DuckDB publishes for the platform it is running on.
+`PRAGMA platform` is the name to look that up under,
+and `helper-extensions.R` carries the platforms with no binaries at all
+([`usage/extensions/`](/handbook/usage/extensions/README.md)).
+On those the install test skips —
+and a canary asserts the HTTP 404 in its place,
+so the skip fails the day the gap closes
+rather than quietly outliving it.
+
 *To deepen: drain
 [#2425](https://github.com/duckdb/duckdb-r/issues/2425)
-(windows/aarch64 extension skip).*
+(an extension the Windows/arm64 build can actually install).*
