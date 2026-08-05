@@ -53,6 +53,13 @@ and refuses to push a replay whose counter did not rise
 and its buffer `main-build` carries `1.5.5`,
 which is that state.
 Aligning a series' two strands is the fix.
+Exempting the fifth component from the gate — taking the maximum counter
+across differing prefixes too — is declined
+([#2488](https://github.com/duckdb/duckdb-r/issues/2488)):
+`main` has itself carried five-component versions,
+so the gate is what keeps a foreign counter off a `-dev`,
+and a forward rebuild reads its counter back from the merged
+`DESCRIPTION`, where a maximum would restore the old chain's numbering.
 
 The prefix gate has a consequence worth knowing:
 because the driver keeps *ours* verbatim when the prefixes differ,
