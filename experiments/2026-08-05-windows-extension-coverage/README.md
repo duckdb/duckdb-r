@@ -1,4 +1,4 @@
-# Windows extension coverage, and the arm64 escape that isn't
+# Windows extension coverage, and which class crosses the toolchain
 
 *What it measures:* which prebuilt-extension artifacts DuckDB's
 repositories serve the platforms R's Windows toolchains ask for,
@@ -21,8 +21,9 @@ Method and logs:
 [krlmlr/duckdb-r#114](https://github.com/krlmlr/duckdb-r/pull/114)
 (`INSTALL icu`; runs 30927023956 and 30930493513) and
 [krlmlr/duckdb-r#116](https://github.com/krlmlr/duckdb-r/pull/116)
-(`INSTALL odbc_scanner FROM community`, run 30931665169,
-and the manual fetch-and-load, run 30967881866).
+(`INSTALL odbc_scanner FROM community`, run 30931665169;
+the manual fetch-and-load of `icu`, run 30967881866;
+the same for `odbc_scanner`, run 30987274175).
 
 *What it supports:* the Windows and platform-coverage bullets in
 [`usage/extensions/`](/handbook/usage/extensions/README.md).
@@ -73,7 +74,7 @@ the one whose version check is "equal or higher"
 and which resolves no host symbols —
 cannot rescue the platform for lack of artifacts.
 
-## Whether the MSVC artifact loads by hand
+## Whether the MSVC artifact loads by hand: the C++-ABI class
 
 The obstacle course, in order:
 
@@ -116,13 +117,46 @@ This is the failure that took the whole job as an access violation
 (#114, run 30930493513); the subprocess turns it into a printed
 status.
 
+## Whether the MSVC artifact loads by hand: the C-API class
+
+`odbc_scanner` is built against the C API
+(`ExtensionABIType::C_STRUCT`,
+`src/duckdb/src/include/duckdb/main/extension.hpp`):
+the host passes the API in as a function-pointer struct,
+the extension imports nothing from the host's export table,
+and its version check is "equal or higher" rather than exact.
+The core repository begins serving it at v1.5.5,
+MSVC platforms only
+(probed 2026-08-05: `windows_arm64` 200, `windows_amd64` 200,
+both `*_mingw` names 404, and 404 across the board at v1.4.3).
+
+Run 30987274175 repeats the fetch-and-load with
+`windows_arm64/odbc_scanner.duckdb_extension.gz`
+(242,866 bytes, 579,606 unpacked), same hatches, same subprocess:
+
+On both builds the load succeeds and the extension registers —
+`LOAD` returns, `duckdb_extensions()` reports `loaded = TRUE`
+(extension_version 274a330734),
+and `duckdb_functions()` counts 11 `odbc` functions,
+so registration ran through the C API into the catalog.
+Subprocess exit status 0, both legs.
+Both hatches are needed on the as-built leg even though the file is
+signed: the metadata error throws from the signed branch,
+so only `allow_unsigned_extensions` opens the path to the mismatch
+setting.
+An actual ODBC round-trip is beyond the runner (no DSN);
+what is proven is load, catalog entry, and function registration.
+
 **What it shows.**
 Coverage gaps are toolchain-flavor gaps, not architecture gaps,
-on x86_64 and arm64 alike;
-the community repository does not fill them;
-and the MSVC artifacts cannot be carried across the toolchain
-boundary by hand —
-the hatches move every refusal out of the way,
-and the binary then kills the process.
-[#2425](https://github.com/duckdb/duckdb-r/issues/2425) is a gap to
-wait out, with nothing to hand users in the meantime.
+on x86_64 and arm64 alike,
+and the community repository does not fill them.
+Across the toolchain boundary the extension class decides:
+a C++-ABI artifact binds host symbols and kills the process,
+a C-API artifact takes the API as a struct and loads.
+So [#2425](https://github.com/duckdb/duckdb-r/issues/2425) has a
+narrow, documentable escape —
+hand-load an MSVC C-API extension by path, hatches open —
+that widens exactly as fast as upstream moves extensions to the
+C API, while `INSTALL` stays a 404 until the repository grows the
+platform directory.

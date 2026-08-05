@@ -67,24 +67,32 @@ and how to get more.
   DuckDB publishes `windows_arm64`, built with MSVC,
   but no `windows_arm64_mingw`, which is what R's toolchain produces
   ([#2425](https://github.com/duckdb/duckdb-r/issues/2425)).
-  Neither repository fills that gap —
-  the community one serves no arm64 Windows name at all —
-  and the MSVC artifact is not a back door:
-  hand-loaded with every hatch open, it kills the R process at `LOAD`,
-  platform metadata matching or not
+  `INSTALL` stays closed there —
+  the community repository serves no arm64 Windows name at all —
+  but hand-loading the MSVC `windows_arm64` artifact by path
+  splits by extension class:
+  a C++-ABI extension (`icu`) kills the R process at `LOAD`,
+  platform metadata matching or not,
+  while a C-API extension (`odbc_scanner`) loads and registers its
+  functions, hatches open,
+  on the strength of importing nothing from the host
   ([experiment](/experiments/2026-08-05-windows-extension-coverage/README.md)).
+  The escape widens exactly as fast as upstream moves extensions
+  to the C API.
 * **Loading an extension file by path** —
   `LOAD '/path/to/name.duckdb_extension'` —
   is how a locally built extension comes in,
-  and an unsigned file needs the driver created with
-  `duckdb(config = list(allow_unsigned_extensions = "true"))`,
-  plus `allow_extensions_metadata_mismatch = "true"`
-  when the file's platform tag differs from the build's.
+  and takes two driver settings when the file is unsigned
+  or carries a foreign platform tag:
+  `duckdb(config = list(allow_unsigned_extensions = "true",
+  allow_extensions_metadata_mismatch = "true"))`.
   Driver config is the only door:
   the engine refuses to enable `allow_unsigned_extensions` once it is
-  running, so `SET` is always too late,
-  and the mismatch setting alone changes nothing —
-  it is consulted only on the unsigned path
+  running, so `SET` is always too late.
+  And the mismatch setting alone changes nothing,
+  even for a signed file —
+  the metadata error throws from the signed branch,
+  so it is consulted only when unsigned loading is already allowed
   (`LoadExtensionInternal`,
   [`src/duckdb/src/main/extension/extension_load.cpp`](/src/duckdb/src/main/extension/extension_load.cpp)).
 
