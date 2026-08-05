@@ -1,105 +1,105 @@
 # The verdict store
 
-The orphan `rcc` branch: how a verdict is published seconds after it exists,
-why the records live in two layouts,
+The orphan `rcc2` branch: how a verdict is published seconds after it exists,
+why every record is its own file,
 and what keeps a dozen writers from colliding.
 Who reads it, and to decide what, is
 [`selection/`](/handbook/operations/ci/per-commit/selection/README.md)'s.
 
-A verdict reaches the `rcc` branch seconds after it exists,
+A verdict reaches the branch seconds after it exists,
 not at the end of the run.
 That latency is the series loop's cycle time, because
 [`series-check.sh`](/scripts/series-check.sh) gates on the *records*,
 not the statuses.
 
-Records land one per file, and the aggregate is fed from them:
+The store is one file per commit and nothing else:
 
 ```
-runs2.d/<xx>/<sha>.ndjson     one record, one line -- where a record lands first
-runs2.ndjson                  every record, in arrival order -- extended, never rewritten
-logs2/<sha>.log               unchanged; already one file per commit
+runs2.d/<xx>/<sha>.ndjson     the verdict, one line of JSON, ~2 KB
+logs2.d/<xx>/<sha>.log        the harvested output of a failure, ~1 MB
 ```
 
 Two writers recording different commits touch different paths,
 so there is nothing to conflict on,
-and a loser of the ref race re-reads the tip and re-commits its one file.
-The alternative — regenerating `runs2.ndjson` from the parts on every write —
-would rewrite the branch's principal file for byte-determinism nothing needs.
-[`rcc-merge.sh`](/scripts/rcc-merge.sh) instead **appends the records the
-aggregate does not yet have**, and touches nothing else:
+and a loser of the ref race re-reads the tip and re-commits its own files.
+Both directories carry the same 256-way fan-out
+on the SHA's first two hex digits, for the same reason:
+adding one file rewrites one small tree
+rather than a tree with every entry in it.
 
-* the records that predate `runs2.d/` stay exactly where they are,
-  in the order they were collected, byte for byte;
-* every future commit's diff is the records it added,
-  so `git log -p` on the branch stays readable;
-* a record that exists only in the aggregate is left alone.
+## Why no aggregate
 
-`BACKFILL=1 scripts/rcc-merge.sh` splits the historical records out on request;
-it is a capability, not a step on the path.
+There used to be one — `runs2.ndjson`, every record concatenated in arrival
+order, with the per-commit files feeding it through a merge step.
+It bought "read the whole range in one `git show`",
+and it cost that merge step, a rule for replacing a line a retry had made stale,
+a two-layout fallback in every reader, and half of the consolidation.
 
-The merge needs nothing but the branch — it is a set difference (commits with a
-part, minus commits already in the aggregate) followed by an append.
-So it is idempotent, and losing a push race is cheap:
-reset onto the winner, recompute the difference,
-which is now *smaller* because the winner appended some of it, append, retry.
-No producer runs again.
+Nothing needed what it bought.
+The loop reads records one at a time,
+through `git show origin/rcc2:runs2.d/…`,
+because a per-commit lookup is what a per-commit verdict deserves.
+So the aggregate is gone, with no replacement
+(D2 of [`plan/PLAN-vendoring-simplification.md`](/plan/PLAN-vendoring-simplification.md)),
+and with it `rcc-merge.sh`, `rcc-push.sh` and `rcc-part-push.sh`.
+What is left is one writer,
+[`rcc-publish.sh`](/scripts/rcc-publish.sh),
+which stages a directory shaped like the branch and pushes it;
+the mechanics those three shared — the store's paths, the checkout-less clone,
+the retention window, the squash — live in
+[`rcc-lib.sh`](/scripts/rcc-lib.sh).
 
-## Why both layouts
+One file that every writer extends is also the one file two writers can
+genuinely disagree about.
+Removing it is what let the recovery go too:
+a rejected push used to mean resetting onto the winner and re-running the
+producer, because a textual conflict at EOF has no better resolution.
+Now it means re-reading the tip and re-staging the same files.
 
-They are not redundant so much as differently shaped:
+## Who writes what
 
-* `runs2.d/<xx>/<sha>.ndjson` is the **write** surface.
-  One file per commit is what lets twenty legs publish at once without a lock.
-* `runs2.ndjson` is the **read** surface.
-  One file is what makes "what happened to every commit in this range"
-  a single fetch rather than N.
-
-In normal operation they drift slightly, in two directions that are both
-harmless: records that predate the split live only in the aggregate,
-and a record published seconds ago may not be merged into it yet.
-Readers cope by trying the per-commit file and falling back
-([`series-check.sh`](/scripts/series-check.sh)),
-so the pair is the whole truth and neither has to be complete alone.
-
-Ownership is deliberately lopsided,
-because that is what makes the concurrency work:
-
-| Writer | Adds | Rewrites |
+| Writer | Frequency | Touches |
 |---|---|---|
-| an `each-rcc` leg | its own record and log | nothing¹ |
-| the run's fan-in | records a leg could not publish | nothing¹ |
-| `rcc-logs.yaml` | records for commits it finds undecided | nothing¹ |
-| `rcc-merge.sh`, from the last two | the aggregate's missing lines | a line a retry made stale |
-| [`rcc-consolidate.sh`](/scripts/rcc-consolidate.sh) | — | **all of it**, by hand |
+| an `each-rcc` leg | once per commit built (~2/min at `max-parallel: 20`) | its own record, its own log |
+| the run's fan-in | once per run | records and logs the legs could not publish |
+| `rcc-logs.yaml` | every 30 min | records for commits it finds undecided |
+| [`rcc-consolidate.sh`](/scripts/rcc-consolidate.sh) | by hand | **all of it** |
 
-¹ except a verdict it is overturning — see below.
+Nobody rewrites anything that is not their own commit's —
+except a verdict they are overturning, below —
+and that is what makes the concurrency work without a lock.
 
-Everything routine is additive. The three destructive operations — making the
-layouts agree, deleting logs, discarding history — belong to one manually
-dispatched workflow
-([`rcc-consolidate.yaml`](/.github/workflows/rcc-consolidate.yaml)),
-where they happen once and under supervision.
+## Retention is one window
+
+The store keeps `RCC_RETENTION_DAYS` (30) of history,
+**records and logs alike**,
+and [`rcc-consolidate.sh`](/scripts/rcc-consolidate.sh) enforces it.
+Logs are still the bulk of what goes — about a megabyte each against ~2 KB for
+a record — but keeping a verdict for a commit decided months ago and long since
+repaired only postpones the same deletion,
+and one number is easier to reason about than two.
+
+That the window is *one* number makes it load-bearing in both directions:
+
+* a producer must not look further back than the window,
+  or it re-derives every tick exactly what the next consolidation drops.
+  [`rcc-logs.sh`](/scripts/rcc-logs.sh) therefore derives its `SINCE`
+  from `RCC_RETENTION_DAYS` rather than from a fixed date;
+* a consumer must not ask about a commit older than the window.
+  Selection is bounded by `<S>-green`, which is far newer,
+  and the cost of being wrong is a rebuild rather than a wrong verdict.
 
 ## Consolidation
 
-`rcc-consolidate.sh` is `workflow_dispatch`-only and defaults to a dry run.
-Three things happen:
+`rcc-consolidate.sh` is `workflow_dispatch`-only
+([`rcc-consolidate.yaml`](/.github/workflows/rcc-consolidate.yaml))
+and defaults to a dry run.
+Two things happen:
 
-1. **The layouts are made to agree.** Every aggregate-only record is split into
-   a part, and the aggregate is then rebuilt as exactly the parts'
-   concatenation, ordered by when each verdict was written.
-   This is the one place where migrating is right:
-   the branch is being rewritten anyway, so there is no flag-day commit to avoid.
-2. **Logs past `LOG_RETENTION_DAYS` are dropped** (30, in
-   [`rcc-consolidate.sh`](/scripts/rcc-consolidate.sh)),
-   along with any log whose commit has no record at all.
-   Logs are about a megabyte each and most of the branch; records are ~2 KB.
-   A log earns its keep by letting `series-check.sh` classify a failure —
-   which matters for a commit the loop is still working on,
-   not for one decided months ago and long since repaired.
-   **Records are never dropped**, so the verdict outlives the evidence,
-   and `.timing.failed_stages` still names the gate that broke.
-3. **The history is squashed to two commits**: an empty `Initial`,
+1. **Records and logs past the window are dropped**,
+   along with any log whose commit has no record at all —
+   nothing reads those and nothing can date them.
+2. **The history is squashed to two commits**: an empty `Initial`,
    and the whole current state.
    The root is *inherited* when one is already there —
    two consolidations must not mint two roots,
@@ -111,7 +111,54 @@ is mid-flight. A schedule cannot know that.
 The push carries `--force-with-lease` as the backstop,
 so a writer that *did* land in between refuses the push instead of losing its
 record — verified in
-[`rcc-parts-test.sh`](/scripts/rcc-parts-test.sh).
+[`rcc-store-test.sh`](/scripts/rcc-store-test.sh).
+
+## Where `rcc2` came from
+
+The store used to live on `rcc`, which accumulated four layouts —
+one per generation of the harvest — and 181 commits holding every log ever
+harvested, at ~220 MB.
+Reconciling that in place was possible, and had been done;
+what it could not do was shed the history,
+or free the readers from carrying a fallback for the layout underneath.
+
+[`rcc-cutover.sh`](/scripts/rcc-cutover.sh) reads `rcc` once and writes `rcc2`
+as two commits — an empty root and everything that survives the window.
+Records come from both old layouts, the part winning where they differ;
+flat `logs2/<sha>.log` files move under the fan-out;
+a legacy `logs/<run-id>.log` is recovered as its commit's log
+when that run decided exactly one commit,
+and dropped rather than guessed at when it did not.
+`rcc` is never written to, and is left whole:
+deleting it is a separate step for whenever nothing reads it.
+
+### Runbook: the cutover
+
+Run once, from a terminal, against the repository that holds `rcc`.
+It moves ~220 MB over the wire and rewrites the worktree in place,
+so give it a worktree of its own:
+
+```sh
+git fetch origin '+refs/heads/rcc:refs/heads/rcc'
+git worktree add ../rcc-cutover rcc
+
+OUT_DIR=../rcc-cutover scripts/rcc-cutover.sh            # dry run: reports only
+OUT_DIR=../rcc-cutover APPLY=1 scripts/rcc-cutover.sh    # writes and pushes rcc2
+
+git worktree remove --force ../rcc-cutover
+```
+
+The dry run prints what it would distribute and what ages out;
+read it before applying.
+`APPLY=1` pushes `rcc2` and nothing else,
+and the script refuses outright if `rcc2` already exists
+(`FORCE=1` overrides, and discards whatever has been published there).
+
+**Do this before the producers start writing.**
+Until `rcc2` exists, the first leg to publish creates it as an empty orphan,
+which is correct but starts the store with no history —
+and then the cutover's refusal is the only thing standing between you and
+discarding it.
 
 ## A newer verdict wins
 
@@ -120,14 +167,11 @@ The exception is a **retry**: `retry-<S>-dev` asks for a commit that already has
 a verdict to be judged again on its own SHA, and the point is to overturn it.
 So the newer verdict replaces the older one everywhere —
 
-* [`rcc-part-push.sh`](/scripts/rcc-part-push.sh) compares blob ids in the index,
+* [`rcc-publish.sh`](/scripts/rcc-publish.sh) compares blob ids in the index,
   so re-publishing an identical record costs nothing
-  and a changed one replaces both the record and its now-stale log;
+  and a changed one replaces it;
 * [`each-harvest.sh`](/scripts/each-harvest.sh) compares the artifact's verdict
-  against whichever layout holds the commit, and replaces on a difference;
-* [`rcc-merge.sh`](/scripts/rcc-merge.sh) replaces the aggregate's *line* rather
-  than appending a second one — readers take the first match for a SHA
-  (`series-check.sh` greps with `-m 1`), so an appended line would be invisible.
+  against what the branch holds, and replaces on a difference.
 
 Two writers can only collide here if they are deciding the same commit at the
 same moment, which the planner does not produce; if it somehow happened, the
@@ -149,8 +193,11 @@ and leaves alone any record written by a *higher* run id than its own.
 A verdict that stops being a failure also takes its log with it.
 That case cannot be caught by comparing what a writer was handed,
 because a success has no log to hand over;
-both the leg and the fan-in remove the log explicitly
-when the state is no longer a failure.
+both the leg and the fan-in list the log path for *removal* instead,
+which is what the staging directory's `.remove` file carries.
+A failure that could not capture a log of its own removes nothing:
+whatever the branch holds is that commit's, from an earlier attempt,
+and a log we failed to capture is no reason to delete one we have.
 
 The planner names the commits it replanned *despite* a verdict in the plan's
 `replanned_despite_verdict`, and the leg reads it from there.
@@ -162,16 +209,23 @@ since the planner decides on the branch name.
 ## What publishing from a leg costs
 
 Publishing has to be cheap, or the latency is not worth buying.
-Almost all of the `rcc` branch is harvested logs,
+Almost all of the store is harvested logs,
 and a leg needs none of those bytes to add one file. So
-[`rcc-part-push.sh`](/scripts/rcc-part-push.sh) keeps a blobless, shallow,
+[`rcc-publish.sh`](/scripts/rcc-publish.sh) keeps a blobless, shallow,
 checkout-less clone (`--filter=blob:none --depth 1`), which fetches trees only,
 and builds the commit with plumbing: `read-tree`, `hash-object -w`,
 `update-index`, `write-tree --missing-ok`, `commit-tree`, push.
 Measured against a copy of the real branch,
 the clone is under 1% of the branch and a publish takes ~130 ms once warm.
 
-One trap is worth recording because it is completely invisible.
+The fan-in wants one thing more — what the branch currently says about each
+commit in its artifacts — and gets it from the same helper with a different
+filter: `--filter=blob:limit=16k` brings every record and no log,
+because a record is ~2 KB and a log is ~1 MB.
+One fetch, and every comparison it needs is then local.
+
+Two traps are worth recording because both are completely invisible.
+
 Plain `git write-tree` verifies that every index entry's object is present,
 which in a blobless clone means lazily fetching every harvested log —
 the whole branch, per leg.
@@ -181,15 +235,30 @@ or from the blob written moments earlier),
 and `GIT_NO_LAZY_FETCH=1` is exported so that any *other* route to the same
 mistake fails loudly instead of quietly downloading the branch.
 
+The second one only fires on a **replacement**, which is why it stayed hidden.
+`git push` sends a *thin* pack by default:
+the sender may delta against objects the receiver already has,
+and to do that it has to read them.
+Publishing a record at a path the branch has never held has no such base and
+pushes fine; publishing one that *replaces* an existing record makes git want
+the old blob — a promised object — and the push dies with
+"could not fetch … from promisor remote".
+Since replacement is exactly what a retry does,
+and what the fan-in does when a leg's verdict has changed,
+the failure would have been retry-only and rare.
+`--no-thin` on the push is the fix,
+and [`rcc-store-test.sh`](/scripts/rcc-store-test.sh) covers it:
+a verdict is replaced there from a clone that never wrote the first one.
+
 ## How bad is the race
 
-Measured by [`rcc-parts-test.sh`](/scripts/rcc-parts-test.sh) —
-20 concurrent writers against a copy of the real branch,
+Measured by [`rcc-store-test.sh`](/scripts/rcc-store-test.sh) —
+20 concurrent writers against a local remote,
 each publishing back to back with no build in between,
 so roughly 100× the real rate.
 Of 100 records published, **none were lost and none gave up**;
-51% succeeded on the first attempt, 87% landed within four,
-and the deepest retry was 9.
+58% succeeded on the first attempt, 90% landed within four,
+and the deepest retry was 7.
 Nothing lost and nothing given up are the invariants —
 the distribution moves from run to run with machine load.
 That tail is what saturation looks like, not what the branch looks like:
@@ -206,7 +275,7 @@ so the chance that a given push overlaps another is around
 2 s × 2/60 s ≈ 7%, and losing costs a second.
 
 What is genuinely spent is commits: the branch grows by one per record rather
-than one per run, so a 1000-commit backfill adds ~1000 commits to `rcc`.
+than one per run, so a 1000-commit backfill adds ~1000 commits to the store.
 Each is one small blob and two small trees —
 which is what the 256-way fan-out is for.
 A single flat directory of ten thousand records would rewrite the whole tree on
@@ -218,8 +287,8 @@ and `rcc-logs.yaml` still ticks every 30 minutes.
 A failed publish is logged and ignored — it never fails the leg —
 and the record is collected the old way, one job later.
 
-*To deepen: state what the first live consolidation and the first live publish
-against the real remote changed, and fold the vendoring-simplification plan's
-remaining per-commit items
+*To deepen: state what the first live cutover, the first live consolidation and
+the first live publish against the real remote changed, and fold the
+vendoring-simplification plan's remaining per-commit items
 ([`plan/PLAN-vendoring-simplification.md`](/plan/PLAN-vendoring-simplification.md))
 in as they land.*

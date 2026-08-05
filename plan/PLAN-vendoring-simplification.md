@@ -58,6 +58,12 @@ An inventory of the moving parts, as of today
 | Verdict stores | **2**: commit statuses (what selection reads) and the `rcc` branch records (what the loop reads) |
 | Layouts on `rcc` | 2 current (`runs2.d/<xx>/<sha>.ndjson` parts, the `runs2.ndjson` aggregate) + `logs2/`, plus the legacy `runs.json` / `runs.ndjson` / `logs/` already marked "scheduled for removal" |
 | Writers to `rcc` | 4 automated (leg publish, run fan-in, 30-min backstop, aggregate merge) + 1 manual (consolidate) |
+
+*Since:* D1 and D2 have landed. Selection reads the record store, and the store is
+one layout on a new branch — `runs2.d/<xx>/<sha>.ndjson` and
+`logs2.d/<xx>/<sha>.log` on `rcc2`, written by three producers through one
+publisher, with `rcc` left behind whole. See
+[`operations/ci/per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md).
 | Scripts | 26 shell/python executables + 3 data/jq files serve the loop |
 | Skills | 4 (`series-loop`, `series-forward`, `series-rebase`, `series-open`) |
 | Workflows | `each.yaml`, `rcc-logs.yaml`, `rcc-consolidate.yaml` — the legacy dispatch path, which also spanned `cancel-rcc-dispatch.yaml`, is retired (D4). `R-CMD-check.yaml` (whose workflow *name* is `rcc`) and `R-CMD-check-status.yaml` stay: the ordinary push/PR check and the commit status branch protection reads, both core-set from `cynkra/cynkratemplate` |
@@ -83,8 +89,10 @@ with a status line each as the work lands:
   `runs2.ndjson` buys "read everything in one `git show`" and costs
   `rcc-merge.sh`, the stale-line replacement rule, half of
   `rcc-consolidate.sh`, and the two-layout fallback in every reader.
-  *Status:* open — D2: drop it outright, no replacement,
-  after a one-time sweep splits the pre-split records into parts.
+  *Status:* landed — the aggregate is gone, and so are `rcc-merge.sh`,
+  `rcc-push.sh` and `rcc-part-push.sh`; one publisher
+  (`rcc-publish.sh`) writes the store, and `rcc-cutover.sh` builds the
+  new branch rather than sweeping the old one in place.
   On the many-small-files worry that motivated the aggregate:
   the branch is built to be used **without a checkout**.
   The loop reads records via `git show`
@@ -201,7 +209,7 @@ it is a display ref, §3.4 — though today's scripts require and
 maintain it, per F6.)
 
 **One verdict store**: one small file per commit
-(`runs2.d/<xx>/<sha>.ndjson` + `logs2/<sha>.log` on branch `rcc`),
+(`runs2.d/<xx>/<sha>.ndjson` + `logs2.d/<xx>/<sha>.log` on branch `rcc2`),
 written by the leg that decided the commit — with the run fan-in and the
 scheduled backstop recovering what a dead leg could not publish —
 and replaced only by an explicit retry.
@@ -251,14 +259,14 @@ as one checklist; this plan is analysis, not a routing node:
   without rewriting anything, and remembers that it did. Keep.
   (A stray `retry-*-green` half from the pre-ledger design survives on
   the remote as litter — §6 retires it.)
-- **Leg-direct publishing** (`rcc-part-push.sh`). Verdict latency in
-  seconds instead of end-of-run; measured cheap. Keep.
+- **Leg-direct publishing** (`rcc-publish.sh`, from the leg). Verdict
+  latency in seconds instead of end-of-run; measured cheap. Keep.
 - **The run fan-in** (`each-harvest.sh`). Not deletable, contrary to an
   earlier revision of this plan: it holds the only path to a
   **per-commit log** for a leg that died before publishing —
   the backstop can reconstruct records, but only a *run*-level log,
   which `series-check.sh`'s classifier can misread
-  (`each.yaml`, `rcc-part-push.sh`, and `each-harvest.sh` all record
+  (`each.yaml` and `each-harvest.sh` both record
   this). Keep; D2 only removes its aggregate work.
 
 ### 3.3 What goes
@@ -266,7 +274,7 @@ as one checklist; this plan is analysis, not a routing node:
 | # | Cut | Replaces / removes |
 |---|---|---|
 | D1 | Selection reads the **record store**, not statuses — in `each-plan.sh`, `each-shard.sh`'s resume check, and the backstop. A commit without a record is undecided and gets replanned; nothing reconstructs records *from* statuses any more | GraphQL status scan, REST resume reads, `PENDING_TTL_HOURS`, the wedged-`pending` state, and the backstop's status-derived record repair (rebuild, don't reconstruct) |
-| D2 | Drop `runs2.ndjson` outright — no replacement. One sweep first (`BACKFILL=1 rcc-merge.sh` is exactly it) splits the pre-split records into parts; then the file goes, readers go parts-only, and `rcc-merge.sh` retires with the file | the aggregate, `rcc-merge.sh`, the stale-line rule, the two-layout fallback in every reader, and half of `rcc-consolidate.sh` (what remains: log GC and the squash) |
+| D2 | Drop `runs2.ndjson` outright — no replacement. Readers go parts-only, and `rcc-merge.sh` retires with the file | the aggregate, `rcc-merge.sh`, the stale-line rule, the two-layout fallback in every reader, and half of `rcc-consolidate.sh` (what remains: the retention GC and the squash) |
 | D3 | State `-build-base`'s contract: maintained and self-guarded by the loop, an input to no decision, consumed by humans (compare URLs and badges, §3.4) | the recurring temptation to treat it as coordination state — or to drop it and lose the only clean "buffered" range |
 | D4 | Retire the legacy dispatch path whole: `vendor-gate.sh`, `each-rcc.sh` + `each.yaml`'s dispatch mode, `cancel-rcc-dispatch.yaml`, ~~and `R-CMD-check-status.yaml`'s rcc role~~ (that last one was wrong — see the status note below). `R-CMD-check.yaml` itself stays — it is also the ordinary push/PR check — it only stops being dispatched per commit | four legacy surfaces that still have to be reasoned about on every change |
 | D5 | State the concurrency design in one place: per-series group + durable idempotent verdicts; **no pending markers, by design** | the recurring "did we lose the running marker" doubt (F3). The pieces exist in `each.yaml` and `EACH.md`; the one-place statement is what is missing |

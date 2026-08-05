@@ -223,10 +223,9 @@ do not edit `src/duckdb/` by hand in this stage.
 
 ### 2. Repair the oldest `<S>-dev` failure
 
-Read the harvest on branch `rcc`
+Read the verdict store on branch `rcc2`
 for every commit in `<S>-green..<S>-dev` —
-`runs2.d/<xx>/<sha>.ndjson` per commit,
-or `runs2.ndjson`, which holds the same records concatenated.
+one record per commit at `runs2.d/<xx>/<sha>.ndjson`.
 That range is the loop's whole world:
 nothing at or before `<S>-green` is ever re-examined.
 A commit **missing** from the harvest has not completed —
@@ -238,7 +237,7 @@ so missing now means undecided, not merely uncollected.
 If a commit is still missing after **12 hours**, presume its run lost —
 but only after trying hard to rule that out from what git can see:
 the harvest may be stale
-(check the age of the `rcc` branch tip against its 30-minute schedule),
+(check the age of the `rcc2` branch tip against its 30-minute schedule),
 and the run may simply be queued
 (runner throughput is roughly 35–40 commits per hour,
 so a long tail behind a large push is normal).
@@ -259,7 +258,7 @@ check the open PRs read during setup:
 a failure an earlier firing already wrote up
 is one to work around, not to re-derive.
 
-Classify each `failure` by what its log (`logs2/<sha>.log`) **contains**:
+Classify each `failure` by what its log (`logs2.d/<xx>/<sha>.log`) **contains**:
 
 | evidence | meaning | action |
 |---|---|---|
@@ -759,7 +758,7 @@ Exception: a series with a **live** forward counterpart
 is being replaced —
 verify and promote it, but do not extend it.
 `each.yaml` triggers one `rcc` run per new commit;
-`rcc-logs.yaml` harvests results to branch `rcc` every 30 minutes,
+`rcc-logs.yaml` harvests results to branch `rcc2` every 30 minutes,
 which is below build time (~35 min).
 
 ### 6. Suggest a cutover — never perform one
@@ -913,21 +912,15 @@ One ref per series, so it records the retry in flight,
 not the history of them.
 
 The verdict reaches the loop the ordinary way.
-A commit's record lives twice on `rcc` —
-`runs2.d/<xx>/<sha>.ndjson`, which the leg publishes within seconds,
-and a line in `runs2.ndjson`, which `rcc-merge.sh` keeps level with it.
-Readers take the per-commit record first,
+A commit's record lives once on `rcc2`,
+at `runs2.d/<xx>/<sha>.ndjson`, published by the leg within seconds,
 so `each-harvest.sh` and the leg both *replace* it rather than appending;
 that is the one case where a decided commit legitimately changes state.
 
-**Deleting a record by hand means deleting both.**
-Dropping only the line from `runs2.ndjson` does nothing:
-readers still find the record, and the next `rcc-merge.sh`
-re-appends the line from the part that is still there.
-To drop a commit's result, remove
-`runs2.d/<xx>/<sha>.ndjson`, its line in `runs2.ndjson`,
-and `logs2/<sha>.log`;
-then the scheduled backstop re-derives all of it from the fresh status.
+**To drop a commit's result by hand**, remove
+`runs2.d/<xx>/<sha>.ndjson` and `logs2.d/<xx>/<sha>.log`;
+then the scheduled backstop re-derives both from the fresh status,
+provided the commit is still inside the store's 30-day window.
 
 **Both mechanisms live in the tree at the commit under retry.**
 `each.yaml` and its scripts are read from the retried ref, not from `main`,

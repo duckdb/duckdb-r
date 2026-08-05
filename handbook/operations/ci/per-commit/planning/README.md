@@ -56,7 +56,7 @@ Whole legs land within a few percent:
 one leg's 12 commits were predicted at 243 min and took 252,
 and the other's first 12 at 304 against 302.
 Every leg records `duration_seconds` per commit and
-[`each-harvest.sh`](/scripts/each-harvest.sh) carries it onto the `rcc` branch
+[`each-harvest.sh`](/scripts/each-harvest.sh) carries it onto the `rcc2` branch
 as `.timing`, so the fit can be redone against any range at any time.
 
 ## Pass 1: the fewest legs

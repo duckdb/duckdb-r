@@ -49,5 +49,5 @@ one line, so the register stays greppable and diffs per term.
 * **triage verdicts** — the dispositions issue intake assigns, exactly one per open item ([`operations/triage/`](/handbook/operations/triage/README.md)).
 * **vendor commit** — one commit advancing `src/duckdb/` by exactly one upstream commit ([`operations/vendoring/model/`](/handbook/operations/vendoring/model/README.md)).
 * **vendoring** — keeping a dependency's sources inside the depending repository ([`operations/vendoring/model/`](/handbook/operations/vendoring/model/README.md)).
-* **verdict store** / **`rcc` branch** — the orphan branch holding each commit's build verdict and log ([`operations/ci/per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md)).
+* **verdict store** / **`rcc2` branch** — the orphan branch holding each commit's build verdict and log, one file per commit ([`operations/ci/per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md)). Its predecessor `rcc` is retired but not deleted.
 * **WKB** — well-known binary, the geometry interchange across the R boundary ([`usage/types/`](/handbook/usage/types/README.md)).

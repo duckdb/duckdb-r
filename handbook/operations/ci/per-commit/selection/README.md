@@ -2,7 +2,7 @@
 
 Which commits a run plans, and which it skips.
 Everything here is a pure function of durable state —
-the range the branch declares and the verdicts already on the `rcc` branch
+the range the branch declares and the verdicts already on the `rcc2` branch
 ([`store/`](/handbook/operations/ci/per-commit/store/README.md)) —
 so a run recomputes rather than remembers.
 
@@ -18,6 +18,14 @@ and a run that quietly built nothing is indistinguishable from one that had
 nothing left to build — so a ref move half-finished stays visible instead of
 passing for a green run while every commit pushed after it goes unjudged.
 Branches without a green sibling fall back to first-parent history since `SINCE`.
+
+That fallback is the one path that can reach past the store's retention window
+([`store/`](/handbook/operations/ci/per-commit/store/README.md#retention-is-one-window)):
+`SINCE` defaults to a fixed date months back, while records are dropped after 30
+days, so a commit older than the window reads as undecided and is replanned.
+A series branch never sees it — `<S>-green` is far newer than the window — and
+the cost where it does bite is a rebuild, never a wrong verdict.
+Narrow `SINCE` on a branch with no green sibling if the rebuild is not wanted.
 
 The per-commit logs stay readable to `series-check.sh`,
 which classifies a failure by what its harvested log contains.
@@ -36,7 +44,7 @@ the same call `rcc-smoke` makes inline in its own "Update status for rcc" steps.
 ## What selection actually reads
 
 A commit is planned or skipped according to the **verdict store** —
-the record the `rcc` branch holds at `runs2.d/<xx>/<sha>.ndjson`,
+the record the `rcc2` branch holds at `runs2.d/<xx>/<sha>.ndjson`,
 which the deciding leg publishes within seconds.
 [`scripts/rcc-decided.sh`](/scripts/rcc-decided.sh) is that read,
 for the planner and for a resuming leg alike,
@@ -76,7 +84,7 @@ Two mechanisms keep a commit from being built twice, and neither is a marker:
    So two runs never plan the same branch concurrently.
 2. **Work selection is a pure function of durable verdicts.**
    The planner asks one question per commit — is there a verdict for it? —
-   and the answer lives on the `rcc` branch, which outlives every runner.
+   and the answer lives on the `rcc2` branch, which outlives every runner.
    A leg that dies takes no state with it: its decided commits are already
    published, and the rest are simply undecided again.
 

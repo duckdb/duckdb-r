@@ -20,8 +20,8 @@ which is the part of this a reader can check from the tree.
 | [`R-CMD-check-dev.yaml`](/.github/workflows/R-CMD-check-dev.yaml) | daily cron; push to `cran-*`, tags | the check against r-universe dev builds of each dependency, one job per dependency |
 | [`R-CMD-check-status.yaml`](/.github/workflows/R-CMD-check-status.yaml) | `rcc` runs starting/finishing | mirrors run state onto commit statuses |
 | [`each.yaml`](/.github/workflows/each.yaml) | push to `*-dev` and `each-*`; dispatch | per-commit sharded builds ([`per-commit/`](/handbook/operations/ci/per-commit/README.md)); fork only |
-| [`rcc-logs.yaml`](/.github/workflows/rcc-logs.yaml) | half-hourly cron | harvests run records onto the `rcc` branch |
-| [`rcc-consolidate.yaml`](/.github/workflows/rcc-consolidate.yaml) | dispatch | rewrites the `rcc` branch (dry run by default) |
+| [`rcc-logs.yaml`](/.github/workflows/rcc-logs.yaml) | half-hourly cron | harvests run records onto the `rcc2` branch |
+| [`rcc-consolidate.yaml`](/.github/workflows/rcc-consolidate.yaml) | dispatch | rewrites the `rcc2` branch (dry run by default) |
 | [`fledge.yaml`](/.github/workflows/fledge.yaml) | daily cron; dispatch; push only when this file changes | version bump and `NEWS.md` via fledge ([`releases/versioning/`](/handbook/operations/releases/versioning/README.md)) |
 | [`sync.yaml`](/.github/workflows/sync.yaml) | hourly cron | fast-forwards the fork's `main` from canonical |
 | [`format-suggest.yaml`](/.github/workflows/format-suggest.yaml) | `pull_request_target` | posts formatting suggestions; treats fork code strictly as data |

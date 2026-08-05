@@ -51,7 +51,7 @@ which is enough to tell a compile error from a failing test.
 Setting the variable to `0` turns the excerpts off.
 
 The excerpt is not the record.
-The whole per-commit log still goes to `logs2/<sha>.log` on the `rcc` branch,
+The whole per-commit log still goes to `logs2.d/<xx>/<sha>.log` on `rcc2`,
 which is what [`series-check.sh`](/scripts/series-check.sh) classifies against;
 the summary is the fast path for a human.
 Two details make it work in practice:
@@ -76,10 +76,10 @@ Two details make it work in practice:
   the next run replans them.
 * **A leg dies hard mid-commit** — that commit has no record,
   so the next run replans it;
-  every commit the leg had already decided is on the `rcc` branch.
+  every commit the leg had already decided is on the `rcc2` branch.
 * **A leg is re-run after dying** — commits it already decided are skipped,
   not rebuilt.
-* **A leg cannot reach the `rcc` branch** — logged, never fatal;
+* **A leg cannot reach the `rcc2` branch** — logged, never fatal;
   the fan-in collects the record from the artifact.
 * **The whole run is cancelled** — no fan-in,
   but the legs' own records are already on the branch;
@@ -89,14 +89,11 @@ Two details make it work in practice:
   and are skipped; new SHAs are picked up next run.
 * **More than `MAX_SHARDS` shards planned** — oldest shards deferred,
   reported in the job summary.
-* **Two writers publish records at once** — different files, no conflict;
-  the loser of the ref race re-reads the tip and re-commits
-  ([`rcc-part-push.sh`](/scripts/rcc-part-push.sh)).
-* **Two writers extend the aggregate at once** — the push is rejected, and
-  [`rcc-push.sh`](/scripts/rcc-push.sh) resets onto the new tip, re-derives,
-  and appends what is still missing before retrying.
+* **Two writers publish at once** — different files, no conflict;
+  the loser of the ref race re-reads the tip and re-stages its own files
+  ([`rcc-publish.sh`](/scripts/rcc-publish.sh)).
 * **A retry overturns a verdict** — the newer record and log replace the older
-  ones, in the part and in the aggregate's line.
+  ones.
 * **An earlier run's fan-in lands after a retry** — it sees a higher run id on
   the branch and keeps that record; the stale verdict is not replayed.
 * **A retry turns a failure green** — the record is replaced and the log it
@@ -111,15 +108,13 @@ Progress is durable per commit,
 and every run recomputes its own to-do list from ground truth.
 
 **No writer takes a lock, and that is deliberate.**
-Records live one per file, so two writers adding different commits cannot
-conflict at all, and `runs2.ndjson` is appended to rather than merged.
+Every file in the store belongs to exactly one commit,
+so two writers adding different commits cannot conflict at all.
 A shared concurrency group would be worse than the race:
 only one run may be *pending* per group,
 so a third writer queued behind the second cancels it outright,
 and a cancelled fan-in takes the only copy of its per-commit logs with it.
-The reset-and-re-derive recovery covers the two writers that touch the
-aggregate: both producers dedupe against what is on the branch,
-so a retry only re-adds what the winner did not already record.
-Rebasing would be the wrong recovery — the aggregate is a single file every
-writer extends, so a genuine collision means both sides changed it with no
-separating context.
+Losing the ref race costs a tree fetch and a re-commit —
+no rebase, no re-derivation, no producer running twice.
+The reset-and-re-derive recovery an aggregate needed went with the aggregate
+([`store/`](/handbook/operations/ci/per-commit/store/README.md#why-no-aggregate)).

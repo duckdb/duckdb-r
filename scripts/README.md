@@ -83,14 +83,14 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 
 | File | Purpose |
 |---|---|
-| [`each-harvest.sh`](each-harvest.sh) | Fan-in for `each-rcc`: make sure every commit the legs decided has a record on the orphan `rcc` branch. |
-| [`rcc-consolidate.sh`](rcc-consolidate.sh) | Consolidate the orphan `rcc` branch: reconcile its two record layouts, drop logs older than a month, and squash the whole history to two commits. |
-| [`rcc-logs.sh`](rcc-logs.sh) | Collect rcc results and failure logs, indexed by commit SHA. |
-| [`rcc-merge.sh`](rcc-merge.sh) | Reconcile `runs2.ndjson` on the orphan `rcc` branch with the per-commit records in `runs2.d/`: append the ones it lacks, replace the ones it has stale. |
-| [`rcc-part-push.sh`](rcc-part-push.sh) | Publish one commit's `rcc` record -- and its log, if it failed -- to the orphan `rcc` branch, straight from the matrix leg that decided it. |
-| [`rcc-parts-test.sh`](rcc-parts-test.sh) | Check the invariants the per-commit record layout rests on, offline, against a local bare repository -- optionally seeded from the real `rcc` branch. |
-| [`rcc-push.sh`](rcc-push.sh) | Commit the orphan `rcc` worktree and push it, re-deriving on conflict. |
-| [`rcc-run-fields.jq`](rcc-run-fields.jq) | The subset of a GitHub workflow-run object that a record on the `rcc` branch carries, applied to `gh api repos/{owner}/{repo}/actions/runs/<id>`. |
+| [`each-harvest.sh`](each-harvest.sh) | Fan-in for `each-rcc`: make sure every commit the legs decided has a record on the orphan `rcc2` branch. |
+| [`rcc-consolidate.sh`](rcc-consolidate.sh) | Consolidate the orphan `rcc2` branch: drop everything past the retention window, and squash the whole history to two commits. |
+| [`rcc-cutover.sh`](rcc-cutover.sh) | One-shot: build the `rcc2` verdict store from what the old `rcc` branch holds. |
+| [`rcc-lib.sh`](rcc-lib.sh) | Shared helpers for the verdict store on the orphan `rcc2` branch. |
+| [`rcc-logs.sh`](rcc-logs.sh) | Collect rcc results and failure logs for commits the verdict store has no record for, and stage them for publication to the orphan `rcc2` branch. |
+| [`rcc-publish.sh`](rcc-publish.sh) | Publish a staging directory to the verdict store on the orphan `rcc2` branch. |
+| [`rcc-run-fields.jq`](rcc-run-fields.jq) | The subset of a GitHub workflow-run object that a record on the `rcc2` branch carries, applied to `gh api repos/{owner}/{repo}/actions/runs/<id>`. |
+| [`rcc-store-test.sh`](rcc-store-test.sh) | Check the invariants the verdict store rests on, offline, against a local bare repository -- optionally seeded from the real `rcc` branch. |
 
 ## [`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)
 

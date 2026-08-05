@@ -2,8 +2,8 @@
 # Read-only diagnosis for the series loop: what should a firing do?
 #
 # For every series (or the ones named), walks `<S>-green..<S>-dev`, looks each
-# commit up in the harvest on branch `rcc` (read via `git show`, no checkout of
-# that 1.7 GB tree), classifies failures by what their log CONTAINS, and prints
+# commit up in the verdict store on branch `rcc2` (read via `git show`, no
+# checkout of it), classifies failures by what their log CONTAINS, and prints
 # one verdict per series:
 #
 #   ADVANCE            every in-flight commit has a success run
@@ -42,9 +42,10 @@
 set -euo pipefail
 
 remote=origin
+rcc=${RCC_BRANCH:-rcc2}
 git fetch -q "$remote"
 
-rcc_tip() { git rev-parse -q --verify "refs/remotes/$remote/rcc" 2>/dev/null; }
+rcc_tip() { git rev-parse -q --verify "refs/remotes/$remote/$rcc" 2>/dev/null; }
 
 # See scripts/series-advance.sh: the pathspec narrows the walk, the subject
 # decides, and an empty answer explains itself on stderr.
@@ -64,33 +65,34 @@ vendored_sha() {
   echo "$sha"
 }
 
+# The store's record for a commit: one small blob, published by the matrix leg
+# seconds after it decided the commit. One read for every question below, so they
+# cannot disagree about which verdict they are describing — which they could
+# while the same record lived both in a per-commit part and in an aggregate line
+# that caught up later.
+record_of() { # <sha> -> the record, empty if the store has none
+  git show "$remote/$rcc:runs2.d/${1:0:2}/$1.ndjson" 2>/dev/null || true
+}
+
+record_field() { # <sha> <sed expression> -> the first match, empty if none
+  local rec
+  rec=$(record_of "$1")
+  [ -z "$rec" ] && return
+  sed -nr "$2" <<<"$rec" | head -n 1
+}
+
 state_of() { # <sha> -> success|failure|pending|missing
   local rec
-  # The per-commit record first: it is one small blob, it is what the matrix legs
-  # publish seconds after they decide a commit, and it does not require reading a
-  # 10 MB file per lookup. The aggregate is the fallback for records that predate
-  # the per-commit layout, and are deliberately left there (scripts/rcc-merge.sh).
-  rec=$(git show "$remote/rcc:runs2.d/${1:0:2}/$1.ndjson" 2>/dev/null || true)
-  [ -z "$rec" ] &&
-    rec=$(git show "$remote/rcc:runs2.ndjson" 2>/dev/null | grep -m 1 "\"commit\": *\"$1\"" || true)
+  rec=$(record_of "$1")
   [ -z "$rec" ] && { echo missing; return; }
-  echo "$rec" | sed -nr 's/.*"status":[^}]*"state": *"([a-z]+)".*/\1/p' | head -n 1
+  sed -nr 's/.*"status":[^}]*"state": *"([a-z]+)".*/\1/p' <<<"$rec" | head -n 1
 }
 
 # The branch the harvested record's run was triggered on. This is what tells a
 # spent rerun from one still in flight: the retry pair rewrites nothing, so the
 # pre-retry record survives on the same SHA until the rerun's replaces it.
-# Reads the per-commit record first, exactly as state_of does — the leg
-# publishes it within seconds, while runs2.ndjson catches up on the next merge,
-# and a state read from one source with a branch read from the other would
-# disagree for as long as that gap lasts.
 run_branch_of() { # <sha> -> head_branch of the harvested run, empty if none
-  local rec
-  rec=$(git show "$remote/rcc:runs2.d/${1:0:2}/$1.ndjson" 2>/dev/null || true)
-  [ -z "$rec" ] &&
-    rec=$(git show "$remote/rcc:runs2.ndjson" 2>/dev/null | grep -m 1 "\"commit\": *\"$1\"" || true)
-  [ -z "$rec" ] && return
-  echo "$rec" | sed -nr 's/.*"head_branch": *"([^"]*)".*/\1/p' | head -n 1
+  record_field "$1" 's/.*"head_branch": *"([^"]*)".*/\1/p'
 }
 
 # The shard's own verdict on how the commit ended. `timeout` in
@@ -101,21 +103,11 @@ run_branch_of() { # <sha> -> head_branch of the harvested run, empty if none
 # of budget `transient` and the loop reruns it, which costs another full budget
 # to learn the same thing.
 exit_code_of() { # <sha> -> exit code the shard recorded, empty if none
-  local rec
-  rec=$(git show "$remote/rcc:runs2.d/${1:0:2}/$1.ndjson" 2>/dev/null || true)
-  [ -z "$rec" ] &&
-    rec=$(git show "$remote/rcc:runs2.ndjson" 2>/dev/null | grep -m 1 "\"commit\": *\"$1\"" || true)
-  [ -z "$rec" ] && return
-  echo "$rec" | sed -nr 's/.*"exit_code": *([0-9]+).*/\1/p' | head -n 1
+  record_field "$1" 's/.*"exit_code": *([0-9]+).*/\1/p'
 }
 
 duration_of() { # <sha> -> seconds the shard spent on it, empty if none
-  local rec
-  rec=$(git show "$remote/rcc:runs2.d/${1:0:2}/$1.ndjson" 2>/dev/null || true)
-  [ -z "$rec" ] &&
-    rec=$(git show "$remote/rcc:runs2.ndjson" 2>/dev/null | grep -m 1 "\"commit\": *\"$1\"" || true)
-  [ -z "$rec" ] && return
-  echo "$rec" | sed -nr 's/.*"duration_seconds": *([0-9]+).*/\1/p' | head -n 1
+  record_field "$1" 's/.*"duration_seconds": *([0-9]+).*/\1/p'
 }
 
 # Positive evidence that a gate reached out over the network and was refused.
@@ -135,7 +127,7 @@ last_gate() { # <log> -> the gate rcc-one.sh opened last, i.e. where it stopped
 
 classify() { # <sha> -> "<kind>|<one line>"; kind `transient` means rerun, do not repair
   local log gate rc
-  log=$(git show "$remote/rcc:logs2/$1.log" 2>/dev/null || true)
+  log=$(git show "$remote/$rcc:logs2.d/${1:0:2}/$1.log" 2>/dev/null || true)
   [ -z "$log" ] && { echo "unknown|failure, no log harvested yet"; return; }
   # Budget first, and ahead of every log rule: a commit the shard killed never
   # reached a verdict on its own content, so whatever the log shows is what it
@@ -168,7 +160,7 @@ classify() { # <sha> -> "<kind>|<one line>"; kind `transient` means rerun, do no
   elif ! grep -q "test_local\|testthat" <<<"$log"; then
     echo "transient|cancelled or infra (no test phase in log)"
   else
-    echo "unknown|unclassified: review logs2/$1.log on branch rcc by hand"
+    echo "unknown|unclassified: review logs2.d/${1:0:2}/$1.log on branch $rcc by hand"
   fi
 }
 
@@ -181,7 +173,7 @@ if [ ${#series[@]} -eq 0 ]; then
   done < <(git ls-remote --heads "$remote" '*-build' | cut -f2)
 fi
 
-tip=$(rcc_tip) || { echo "no rcc branch on $remote"; exit 1; }
+tip=$(rcc_tip) || { echo "no $rcc branch on $remote"; exit 1; }
 echo "harvest: $(git log -1 --format='%ci (%ar)' "$tip")"
 echo
 

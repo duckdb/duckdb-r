@@ -137,9 +137,9 @@ groups <- list(
   list(
     owner = "handbook/operations/ci/per-commit/store",
     globs = c(
-      "each-harvest.sh", "rcc-consolidate.sh", "rcc-logs.sh",
-      "rcc-merge.sh", "rcc-part-push.sh", "rcc-parts-test.sh",
-      "rcc-push.sh", "rcc-run-fields.jq"
+      "each-harvest.sh", "rcc-consolidate.sh", "rcc-cutover.sh",
+      "rcc-lib.sh", "rcc-logs.sh", "rcc-publish.sh",
+      "rcc-run-fields.jq", "rcc-store-test.sh"
     )
   ),
   list(

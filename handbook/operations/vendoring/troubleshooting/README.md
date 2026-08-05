@@ -9,7 +9,7 @@ Start read-only:
 [`scripts/series-check.sh`](/scripts/series-check.sh) prints one
 verdict per series — the script's own list, and a `CUTOVER` line
 where a forward counterpart has caught up —
-from the harvest on the orphan `rcc` branch,
+from the harvest on the orphan `rcc2` branch,
 which stores one record per commit and failing commits'
 logs ([`ci/per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md)).
 What is vendored where:

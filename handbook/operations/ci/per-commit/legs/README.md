@@ -27,12 +27,11 @@ build (one job per shard, throttled by max-parallel)
        → scripts/rcc-one.sh → rcc status success/failure
        → capture the log, whole and per stage
        → on failure, quote each failed stage's tail into the job summary
-       → publish record + log to the `rcc` branch    ← seconds after the verdict
+       → publish record + log to the `rcc2` branch   ← seconds after the verdict
      ... stops at its own deadline and defers the rest
 
 harvest (1 job, if: always())
-  ├─ fill in records for commits whose leg never got to publish
-  └─ append the new records to runs2.ndjson
+  └─ fill in records and logs for commits whose leg never got to publish
 ```
 
 The files:
@@ -49,20 +48,22 @@ The files:
   one leg: many commits, one workspace.
 * [`scripts/rcc-one.sh`](/scripts/rcc-one.sh) —
   the per-commit gate, extracted from `rcc-smoke`.
-* [`scripts/rcc-part-push.sh`](/scripts/rcc-part-push.sh) —
-  publish one commit's record from the leg that decided it.
+* [`scripts/rcc-lib.sh`](/scripts/rcc-lib.sh) —
+  the store: its paths, its clone helpers, its retention and its squash.
+* [`scripts/rcc-publish.sh`](/scripts/rcc-publish.sh) —
+  the one writer: stage files, push them, retry on the ref race.
 * [`scripts/rcc-decided.sh`](/scripts/rcc-decided.sh) —
   the other direction: which commits the store has decided.
-* [`scripts/rcc-merge.sh`](/scripts/rcc-merge.sh) —
-  bring `runs2.ndjson` level with the per-commit records.
 * [`scripts/rcc-consolidate.sh`](/scripts/rcc-consolidate.sh) —
-  manual: make the layouts agree, GC old logs, squash the branch.
+  manual: drop what has aged out, squash the branch.
+* [`scripts/rcc-cutover.sh`](/scripts/rcc-cutover.sh) —
+  one-shot: build `rcc2` from what the old `rcc` branch held.
 * [`scripts/each-harvest.sh`](/scripts/each-harvest.sh) —
   fan-in: reconcile what the legs could not publish.
 * [`scripts/rcc-run-fields.jq`](/scripts/rcc-run-fields.jq) —
   the run-object projection all three writers share.
-* [`scripts/rcc-parts-test.sh`](/scripts/rcc-parts-test.sh) —
-  offline checks for the layout's invariants,
+* [`scripts/rcc-store-test.sh`](/scripts/rcc-store-test.sh) —
+  offline checks for the store's invariants,
   and the source of the concurrency measurements below.
 
 ## Why reuse works even though every commit starts from a clean tree
@@ -135,7 +136,7 @@ and redoing it is what the re-run is for.
 The planner's artifact carries `overwrite: true` and the leg's is
 named per attempt, so "Re-run all jobs" collides on neither.
 The fan-in is guarded on the planner having succeeded,
-so it does not check out the `rcc` branch to reconcile a run that never built.
+so it does not reconcile a run that never built.
 
 Two edges are worth stating plainly.
 

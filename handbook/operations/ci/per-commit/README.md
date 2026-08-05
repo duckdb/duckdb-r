@@ -16,5 +16,5 @@ and a re-run cost only what was lost.
 * [`selection/`](selection/) — which commits a run plans
 * [`planning/`](planning/) — the cost model and the shard partition
 * [`legs/`](legs/) — the jobs, the scripts, one leg's workspace
-* [`store/`](store/) — the `rcc` branch and its writers
+* [`store/`](store/) — the `rcc2` branch and its writers
 * [`operating/`](operating/) — knobs, failures, what to do

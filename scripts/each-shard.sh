@@ -4,7 +4,7 @@
 # Walks its slice of `plan.json` oldest-first, and for every commit resets the
 # workspace to it, runs `scripts/rcc-one.sh`, and writes the `rcc` commit-status
 # -- which is a display surface: `scripts/rcc-logs.sh` and the repair skills read
-# the record on the `rcc` branch, and nothing decides from the status.
+# the record on the `rcc2` branch, and nothing decides from the status.
 #
 # Why the reuse works even though every commit starts from a clean tree:
 # `R CMD build` copies the package and `R CMD check` compiles from the copy, so
@@ -35,8 +35,8 @@
 #     verdict, and skipping those would make the retry a no-op. The planner
 #     names them in `replanned_despite_verdict`, so the leg reads the intent
 #     from the plan rather than trying to re-derive it.
-#   * The leg *publishes as it goes*. Every verdict is pushed to the `rcc` branch
-#     the moment it exists (scripts/rcc-part-push.sh), so a leg that dies takes
+#   * The leg *publishes as it goes*. Every verdict is pushed to the `rcc2` branch
+#     the moment it exists (scripts/rcc-publish.sh), so a leg that dies takes
 #     nothing with it but the commit it was in the middle of. The artifact and
 #     the fan-in stay as the backstop for the push itself failing -- which is why
 #     each.yaml names the artifact per run *attempt*: a resumed leg's index covers
@@ -66,7 +66,7 @@
 #   FORCE             - if non-empty, rebuild every commit in the shard, decided
 #                       or not; the plan's own `replanned_despite_verdict` list
 #                       already covers the forced and retried ones
-#   NO_PUBLISH        - if non-empty, do not push records to the `rcc` branch;
+#   NO_PUBLISH        - if non-empty, do not push records to the `rcc2` branch;
 #                       the fan-in collects them from the artifact instead
 #   DRY_RUN           - if non-empty, list the commits and exit
 
@@ -181,7 +181,7 @@ set_status() {
 
 # What the verdict store already holds, read once. The same source the planner
 # selects from (scripts/rcc-decided.sh), so "decided" means the same thing in
-# both places -- a record on the `rcc` branch, not a commit status, which is a
+# both places -- a record on the `rcc2` branch, not a commit status, which is a
 # display surface and in particular carries the `pending` a killed leg leaves
 # behind.
 #
@@ -219,10 +219,10 @@ if [ -n "${GITHUB_RUN_ID:-}" ]; then
   fi
 fi
 
-# The record, in the shape `runs2.ndjson` holds and `runs2.d/<xx>/<sha>.ndjson`
-# now is. Written into LOG_DIR so it travels in the artifact too: the fan-in
-# copies these verbatim rather than rebuilding them, which is what keeps the two
-# paths from drifting apart.
+# The record, in the shape `runs2.d/<xx>/<sha>.ndjson` holds. Written into
+# LOG_DIR so it travels in the artifact too: the fan-in copies these verbatim
+# rather than rebuilding them, which is what keeps the two paths from drifting
+# apart.
 write_record() { # <sha> <state> <duration> <exit-code> <failed-stages-json>
   local sha="$1" state="$2" duration="$3" rc="$4" stages="$5" now
   now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -246,14 +246,38 @@ write_record() { # <sha> <state> <duration> <exit-code> <failed-stages-json>
     > "${LOG_DIR}/parts/${sha}.ndjson"
 }
 
+# One commit's verdict, staged in the shape of the branch and handed to the one
+# writer every producer goes through (scripts/rcc-publish.sh).
+#
+# A verdict that is *not* a failure lists the log for removal rather than staging
+# one: there is nothing to compare against, so any log the branch still holds
+# belongs to a verdict this record overturns -- which is what a retry
+# (.claude/skills/series-loop.md) leaves behind.
+#
 # Never fatal: the artifact plus the fan-in remain the backstop, so the worst a
 # failed publish costs is that this record lands one job later instead of now.
 publish_record() { # <sha> <state>
-  local sha="$1" state="$2" log=""
+  local sha="$1" state="$2" stage="${workdir}/publish"
   [ -n "${NO_PUBLISH}" ] && return 0
-  [ "${state}" = "failure" ] && log="${LOG_DIR}/${sha}.log"
-  if ! "${here}/rcc-part-push.sh" "${sha}" "${LOG_DIR}/parts/${sha}.ndjson" ${log:+"${log}"}; then
-    echo "${sha}: could not publish to the rcc branch; deferring to the fan-in"
+
+  rm -rf "${stage}"
+  mkdir -p "${stage}/runs2.d/${sha:0:2}"
+  cp -f "${LOG_DIR}/parts/${sha}.ndjson" "${stage}/runs2.d/${sha:0:2}/${sha}.ndjson"
+  if [ "${state}" = "failure" ]; then
+    # A failure with no log of its own leaves the branch's alone: it is either
+    # this commit's from an earlier attempt, or nothing, and neither is something
+    # to delete on the strength of a log we could not capture.
+    if [ -f "${LOG_DIR}/${sha}.log" ]; then
+      mkdir -p "${stage}/logs2.d/${sha:0:2}"
+      cp -f "${LOG_DIR}/${sha}.log" "${stage}/logs2.d/${sha:0:2}/${sha}.log"
+    fi
+  else
+    printf 'logs2.d/%s/%s.log\n' "${sha:0:2}" "${sha}" > "${stage}/.remove"
+  fi
+
+  if ! "${here}/rcc-publish.sh" \
+       "each-rcc: ${sha:0:9} (run ${GITHUB_RUN_ID:-local})" "${stage}"; then
+    echo "${sha}: could not publish to the rcc2 branch; deferring to the fan-in"
   fi
 }
 
@@ -261,7 +285,7 @@ publish_record() { # <sha> <state>
 # What a red commit owes the reader of the run summary: which stage broke, and
 # enough of its tail to tell a compile error from a failing test -- without
 # opening a 40-minute job log and scrolling to the end of it. The full log is
-# still harvested onto the `rcc` branch; this is an excerpt, not the record.
+# still harvested onto the `rcc2` branch; this is an excerpt, not the record.
 #
 # Fenced with four backticks, because R, roxygen and pkgdown output can contain
 # a triple fence of its own, and stripped of SGR escapes, which Markdown renders

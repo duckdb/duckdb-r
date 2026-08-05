@@ -2,7 +2,7 @@
 # Plan the sharded per-commit `rcc` build for the checked-out branch.
 #
 # Selects the undecided commits -- on a series branch those in
-# `<S>-green..HEAD` with no verdict on the `rcc` branch, elsewhere the
+# `<S>-green..HEAD` with no verdict on the `rcc2` branch, elsewhere the
 # first-parent history on or after $SINCE without one -- and
 # partitions them into contiguous, cost-balanced shards (see
 # `scripts/each-partition.py`, which also decides how many shards are worth
@@ -21,7 +21,7 @@
 #   * the whole batch is one workflow run: one thing to cancel, one set of logs.
 #
 # "Undecided" is read from the **verdict store**, not from commit statuses: a
-# commit has been decided when the `rcc` branch carries a record for it, and the
+# commit has been decided when the `rcc2` branch carries a record for it, and the
 # whole scan is one tree-only fetch (`scripts/rcc-decided.sh`). Statuses are a
 # display surface on the commit list and decide nothing here -- which is what
 # removes the reconciliation between two stores that used to answer this same
@@ -65,7 +65,7 @@
 # (v1.5-variegata-fwd-dev, 5 commits, one leg), RMSE 1.3 min over the 26 warm
 # builds; see handbook/operations/ci/per-commit/planning/README.md. Every leg still records
 # duration_seconds per commit, and scripts/each-harvest.sh carries it onto the
-# `rcc` branch, so the fit can be redone from a wider range at any time.
+# `rcc2` branch, so the fit can be redone from a wider range at any time.
 
 set -euo pipefail
 
@@ -194,7 +194,7 @@ total="$(wc -l < "${workdir}/all" | tr -d ' ')"
 echo "Commits in range: ${total}"
 
 # ------------------------------------------------------------ read verdicts --
-# Every commit the `rcc` branch holds a record for, in one tree-only fetch. A
+# Every commit the `rcc2` branch holds a record for, in one tree-only fetch. A
 # reachable store that says nothing about a commit is the answer "undecided";
 # a store that cannot be reached is not an answer at all, and
 # scripts/rcc-decided.sh exits non-zero for it rather than reporting an empty
@@ -208,7 +208,7 @@ elif [ "${total}" -eq 0 ]; then
 else
   "${here}/rcc-decided.sh" > "${workdir}/decided"
 fi
-echo "Verdicts on the rcc branch: $(wc -l < "${workdir}/decided" | tr -d ' ')"
+echo "Verdicts on the rcc2 branch: $(wc -l < "${workdir}/decided" | tr -d ' ')"
 
 # ---------------------------------------------------------------- select ----
 # Keep a commit when the store has no record for it. A record is a decision and
