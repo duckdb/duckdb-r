@@ -1,5 +1,58 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.5.9008
+
+## Bug fixes
+
+### series-advance
+
+- Restamp the vendor counter across a replay (#2525).
+
+### series-port
+
+- Hold `main`'s version bumps back from a series (#2496, #2526).
+
+### windows
+
+- Export only the registration entry point from the DLL.
+
+### vendor-one
+
+- Refuse a clone HEAD off the buffer's upstream line.
+
+### series-advance
+
+- Drop an empty replay pick instead of aborting the extend.
+
+## Chore
+
+- Drop the CMake scaffolding, and the formatter branch that served it (#2511, #2520).
+
+- Auto-update from GitHub Actions (#2524).
+
+## Documentation
+
+### versioning
+
+- Record the declined max-across-prefixes merge rule (#2488, #2527).
+
+### versioning
+
+- Say when the version counter freezes, and why `build-base` lags.
+
+### series-loop
+
+- Send a fix to the handbook before it is written.
+
+### series-loop
+
+- Say where a stage-3 fix goes, and what counts as evidence.
+
+## Uncategorized
+
+- Feat(series-port): Detect a frozen series, and let it skip the port (#98).
+
+
 # duckdb 1.5.5.9007
 
 ## Bug fixes
