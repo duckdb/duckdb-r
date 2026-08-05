@@ -77,6 +77,14 @@ Out: `dbGetQueryArrow()` returns a `nanoarrow_array_stream`,
 and `dbSendQueryArrow()` / `dbFetchArrowChunk()` stream a result
 batch by batch — true streaming since 1.5.4
 ([#162](https://github.com/duckdb/duckdb-r/issues/162)).
+The stream is the interchange:
+any Arrow-C-stream consumer takes a result onward
+without an R data frame in between —
+`polars::as_polars_df()`, `arrow::as_arrow_table()`,
+`nanoarrow::convert_array_stream()` —
+so a dedicated writer per frame library
+(Polars was the one asked for) is this route, not new C++
+([#642](https://github.com/duckdb/duckdb-r/issues/642)).
 `arrow::to_duckdb()` and `to_arrow()`
 bridge dplyr pipelines both ways.
 The DBI Arrow API plan is
