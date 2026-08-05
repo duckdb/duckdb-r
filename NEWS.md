@@ -1,5 +1,38 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.5.9009
+
+## Bug fixes
+
+### flavor
+
+- Name the flavor in the README blurb, and find GNU sed (#2510).
+
+## Continuous integration
+
+- Remove unused pr-commands workflow.
+
+## Documentation
+
+### plan
+
+- Record what the closed handbook wave verified, and file what it should not have written down (#2507).
+
+### handbook
+
+- Weigh documenting a limitation against removing it (#2509).
+
+### handbook
+
+- Complete the leaves the triage closes will link (#2523).
+
+## Uncategorized
+
+- Ci: Pass workflow context through the environment, not into script text (#102).
+
+- Ci: Add a Windows arm64 (`windows-11-arm`) check on R-release (#99).
+
+
 # duckdb 1.5.5.9008
 
 ## Bug fixes
