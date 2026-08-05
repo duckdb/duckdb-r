@@ -24,6 +24,13 @@ Little of this is codified; what is settled:
 * Never edit generated or vendored files
   ([`architecture/`](/handbook/architecture/README.md),
   [`operations/vendoring/`](/handbook/operations/vendoring/README.md)).
+* A script only ever run on a CI runner may assume GNU tools;
+  one a contributor may run on their own machine will meet macOS,
+  where `sed` is BSD.
+  Where such a script wants GNU behaviour it locates GNU sed —
+  `gsed` first, then `sed` — and refuses to run when neither is GNU,
+  rather than writing every expression to what the two agree on
+  ([`scripts/flavor.sh`](/scripts/flavor.sh)).
 
 The review side — what gets checked, who drives CI — is
 [`operations/review/`](/handbook/operations/review/README.md).

@@ -258,9 +258,10 @@ this list is the sources-and-glue side it drives):
    the rename touches the shared-object name and every `.Call()` entry point,
    so applying it later invalidates every build below it.
 
-   `flavor.sh` has three prerequisites it does not check:
-   GNU sed under the name `gsed` (present on macOS via Homebrew, absent on a plain Linux box),
-   and the `cpp11` and `decor` R packages, needed for the `cpp11::cpp_register()` step.
+   `flavor.sh` has two prerequisites it does not check:
+   the `cpp11` and `decor` R packages, needed for the `cpp11::cpp_register()` step.
+   (GNU sed it does check, and refuses to run without —
+   on macOS that means `gsed`, from Homebrew.)
    It commits the first of its two commits *before* reaching that step,
    so a missing prerequisite leaves the branch with a half-applied flavor;
    finish by hand with `cpp11::cpp_register()` and a second commit,
