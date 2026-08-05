@@ -15,9 +15,12 @@ jobs:
 
     name: "Fast-forward main from duckdb/duckdb-r"
 
+    # `workflows` is not a `permissions` scope, and naming it makes the whole
+    # file unparseable, so the workflow never runs at all.
+    # Pushing a change under `.github/workflows/` is refused for `GITHUB_TOKEN`
+    # whatever this block says; that needs a PAT or an app (#2494).
     permissions:
       contents: write
-      workflows: write
 
     steps:
       - uses: actions/checkout@v6
