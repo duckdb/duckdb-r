@@ -102,15 +102,11 @@ with a version badge instead of the lag badges.
 Two things to check before pushing:
 
 * **Every ref a badge names must live in `krlmlr/duckdb-r`.**
-  shields.io compares within a single repository,
-  and the fork is disconnected from `duckdb/duckdb-r`,
-  so a base branch that exists only in the canonical repo
+  A base that exists only in the canonical repo
   renders as an error, not a count.
-  Mirror the release branch into the fork —
-  and keep the mirror fresh:
-  `sync.yaml` fast-forwards only `main`,
-  so a mirror left behind makes *ahead*
-  count commits that have already shipped.
+  Push the release branch into the fork,
+  and keep the mirror fresh
+  ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
 * **The table must stay clear of `scripts/flavor.patch`.**
   `README.md` is a flavored file;
   the patch rewrites the installation hunks near the top.

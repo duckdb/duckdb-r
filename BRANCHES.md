@@ -78,9 +78,9 @@ duckdb-r/
 ├── patch/                          # R-specific patches applied to src/duckdb/     [1]
 ├── scripts/                        # Build and maintenance; index in its README   [5]
 ├── .github/
+│   ├── pull.yml                    # Pull app config — the fork's mirrors          [5]
 │   └── workflows/
 │       ├── each.yaml               # Per-commit rcc, as a sharded matrix           [5]
-│       ├── sync.yaml               # Fast-forward krlmlr/main from duckdb/main     [5]
 │       ├── fledge.yaml             # Automated version-bump PRs                    [5]
 │       └── R-CMD-check*.yaml       # Package check workflows                       [5]
 ├── DESCRIPTION                     # Package metadata — name + version = flavor    [2]
@@ -154,7 +154,7 @@ v1.4-andium     ──►  v1.4-andium-dev    ──►  v1.4-andium        ─�
    │  + patches   │        │       │     only       │
    │  from patch/ │        │       └────────────────┘
    └──────────────┘        │
-                    sync.yaml (hourly FF of krlmlr/main from duckdb/main)
+                    the Pull app (mirrors krlmlr/main from duckdb/main)
 ```
 
 The arrow from upstream to the CI/CD fork represents automated vendoring; the arrow from the fork to the canonical repo represents the release merge. Patches from `patch/` are applied to the vendored C++ code during every vendor run (see [Patch Stack](#patch-stack) below).
@@ -264,7 +264,8 @@ Never port in reverse.
 Keeping it consistent is the series loop's forward-port stage
 ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)),
 which runs `scripts/series-port.sh` on every firing;
-`sync.yaml` handles the fork's `main` separately.
+the fork's `main` is a mirror and moves on its own
+([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
 
 ## Series Invariants
 

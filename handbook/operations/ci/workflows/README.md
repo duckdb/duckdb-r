@@ -23,7 +23,6 @@ which is the part of this a reader can check from the tree.
 | [`rcc-logs.yaml`](/.github/workflows/rcc-logs.yaml) | half-hourly cron | harvests run records onto the `rcc2` branch |
 | [`rcc-consolidate.yaml`](/.github/workflows/rcc-consolidate.yaml) | dispatch | rewrites the `rcc2` branch (dry run by default) |
 | [`fledge.yaml`](/.github/workflows/fledge.yaml) | daily cron; dispatch; push only when this file changes | version bump and `NEWS.md` via fledge ([`releases/versioning/`](/handbook/operations/releases/versioning/README.md)) |
-| [`sync.yaml`](/.github/workflows/sync.yaml) | hourly cron | fast-forwards the fork's `main` from canonical |
 | [`format-suggest.yaml`](/.github/workflows/format-suggest.yaml) | `pull_request_target` | posts formatting suggestions; treats fork code strictly as data |
 | [`commit-suggest.yaml`](/.github/workflows/commit-suggest.yaml) | after an `rcc` run on a PR | turns the run's changes patch into review suggestions |
 | [`pkgdown.yaml`](/.github/workflows/pkgdown.yaml) | push to `docs*`, `cran-*`; dispatch | builds the site (main is covered by `rcc`) |
@@ -32,7 +31,6 @@ which is the part of this a reader can check from the tree.
 | [`lock.yaml`](/.github/workflows/lock.yaml) | daily cron | locks a thread after a year without activity |
 | [`HighPriorityIssues.yml`](/.github/workflows/HighPriorityIssues.yml) | issue labeled | mirrors High-Priority issues internally |
 | [`copilot-setup-steps.yaml`](/.github/workflows/copilot-setup-steps.yaml) | changes to itself | environment bootstrap for coding agents |
-| [`pr-commands.yaml`](/.github/workflows/pr-commands.yaml) | issue comments | `/document` and `/style` commands on PRs |
 
 *To deepen: cover the composite actions beside these files —
 `check/`, `commit/`, `install/`, `update-snapshots/`, `versions-matrix/`
