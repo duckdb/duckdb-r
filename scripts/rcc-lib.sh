@@ -44,7 +44,7 @@
 #   RCC_REMOTE              - remote URL, overriding the three above; how the
 #                             test harness points a caller at a local bare repo
 
-RCC_RETENTION_DAYS="${RCC_RETENTION_DAYS:-30}"
+RCC_RETENTION_DAYS="${RCC_RETENTION_DAYS:-180}"
 
 # --------------------------------------------------------------- store paths --
 

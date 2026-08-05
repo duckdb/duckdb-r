@@ -21,7 +21,7 @@ on:
       retention-days:
         description: "Keep records and logs at most this old (0 = keep all)"
         type: string
-        default: "30"
+        default: "180"
 
 name: rcc-consolidate
 
