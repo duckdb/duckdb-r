@@ -35,6 +35,9 @@ and how to get more.
   `?duckdb`, section "DuckDB extensions on Linux",
   owns that decision tree
   ([#1107](https://github.com/duckdb/duckdb-r/issues/1107)).
+* **What an extension's values become in R** —
+  spatial's geometry, ICU's timestamps —
+  is [`types/`](/handbook/usage/types/README.md)'s.
 * **Community extensions come from a second repository:**
   `INSTALL <name> FROM community` fetches from
   `community-extensions.duckdb.org`,
@@ -55,7 +58,9 @@ and how to get more.
   The standing gaps are the toolchain epic
   ([#2234](https://github.com/duckdb/duckdb-r/issues/2234),
   upstream
-  [duckdb/duckdb#24431](https://github.com/duckdb/duckdb/issues/24431)).
+  [duckdb/duckdb#24431](https://github.com/duckdb/duckdb/issues/24431)),
+  and the fix for a missing flavor is an upstream pull request per extension
+  ([#2425, maintainer's offer](https://github.com/duckdb/duckdb-r/issues/2425#issuecomment-5182746870)).
 * **Some platforms are not covered**, and which ones is DuckDB's to say
   and does change:
   [Extension Distribution](https://duckdb.org/docs/stable/extensions/extension_distribution)
@@ -81,7 +86,8 @@ and how to get more.
   to the C API.
 * **Loading an extension file by path** —
   `LOAD '/path/to/name.duckdb_extension'` —
-  is how a locally built extension comes in,
+  is how an extension comes in that was built locally
+  or for another toolchain — MSVC, where this package is mingw —
   and takes two driver settings when the file is unsigned
   or carries a foreign platform tag:
   `duckdb(config = list(allow_unsigned_extensions = "true",
@@ -99,6 +105,15 @@ and how to get more.
   so it is consulted only when unsigned loading is already allowed
   (`LoadExtensionInternal`,
   [`src/duckdb/src/main/extension/extension_load.cpp`](/src/duckdb/src/main/extension/extension_load.cpp)).
+* **`INSTALL` can be pointed at another repository:**
+  `SET custom_extension_repository = '<repo>'`
+  redirects the download to a mirror or a local directory
+  in the repository's layout —
+  `<repo>/<duckdb-version>/<platform>/<name>.duckdb_extension.gz` —
+  and `FORCE INSTALL <name>` re-fetches from it.
+  This is the self-hosting path upstream prefers,
+  and the escape when the network, not the platform,
+  blocks the default repository.
 
 Verify any claim about the shipped set on a **vendored build** —
 the fast path answers for a different artifact
