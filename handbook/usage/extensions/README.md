@@ -10,6 +10,11 @@ and how to get more.
   [`src/Makevars`](/src/Makevars);
   changing it is a vendoring-time decision
   ([`build/configuration/`](/handbook/build/configuration/README.md)).
+  Everything else downloads at `INSTALL` time;
+  there is no companion R package carrying extensions,
+  and none is coming —
+  upstream declined a second distribution channel
+  ([#1582](https://github.com/duckdb/duckdb-r/issues/1582)).
 * **Autoload is on, autoinstall is off.**
   The build flips `autoload_known_extensions`
   (`-DDUCKDB_EXTENSION_AUTOLOAD_DEFAULT`)
@@ -30,10 +35,27 @@ and how to get more.
   `?duckdb`, section "DuckDB extensions on Linux",
   owns that decision tree
   ([#1107](https://github.com/duckdb/duckdb-r/issues/1107)).
+* **Community extensions come from a second repository:**
+  `INSTALL <name> FROM community` fetches from
+  `community-extensions.duckdb.org`,
+  whose build matrix and platform coverage are its own —
+  what one repository carries says nothing about the other.
 * **Windows** fetches extensions for the `windows_amd64_mingw` platform,
-  which DuckDB has distributed since 1.4.1;
-  gaps for out-of-tree extensions are tracked as the toolchain epic
-  ([#2234](https://github.com/duckdb/duckdb-r/issues/2234)).
+  which DuckDB has distributed since 1.4.1 —
+  as a per-extension subset:
+  a core extension can opt out of the mingw flavor upstream,
+  and the `NOT MINGW` guards in duckdb/duckdb's
+  [`.github/config/extensions`](https://github.com/duckdb/duckdb/tree/main/.github/config/extensions)
+  are the list.
+  As of 2026-08, `INSTALL postgres` is a 404
+  where `INSTALL spatial` works
+  ([#1581](https://github.com/duckdb/duckdb-r/issues/1581));
+  the troubleshooting link in the download error
+  looks up the failing extension, version, and platform.
+  The standing gaps are the toolchain epic
+  ([#2234](https://github.com/duckdb/duckdb-r/issues/2234),
+  upstream
+  [duckdb/duckdb#24431](https://github.com/duckdb/duckdb/issues/24431)).
 * **Some platforms are not covered**, and which ones is DuckDB's to say
   and does change:
   [Extension Distribution](https://duckdb.org/docs/stable/extensions/extension_distribution)
@@ -45,6 +67,38 @@ and how to get more.
   DuckDB publishes `windows_arm64`, built with MSVC,
   but no `windows_arm64_mingw`, which is what R's toolchain produces
   ([#2425](https://github.com/duckdb/duckdb-r/issues/2425)).
+  `INSTALL` stays closed there —
+  the community repository serves no arm64 Windows name at all —
+  but hand-loading the MSVC `windows_arm64` artifact by path
+  splits by extension class:
+  a C++-ABI extension (`icu`) kills the R process at `LOAD`,
+  platform metadata matching or not,
+  while a C-API extension (`odbc_scanner`) loads and registers its
+  functions, hatches open,
+  on the strength of importing nothing from the host
+  ([experiment](/experiments/2026-08-05-windows-extension-coverage/README.md)).
+  The escape widens exactly as fast as upstream moves extensions
+  to the C API.
+* **Loading an extension file by path** —
+  `LOAD '/path/to/name.duckdb_extension'` —
+  is how a locally built extension comes in,
+  and takes two driver settings when the file is unsigned
+  or carries a foreign platform tag:
+  `duckdb(config = list(allow_unsigned_extensions = "true",
+  allow_extensions_metadata_mismatch = "true"))`.
+  `INSTALL '/path/to/file.duckdb_extension.gz'` accepts the same
+  file as downloaded — compression included —
+  and keeps it in the store, so later sessions `LOAD` it by name;
+  a foreign platform tag keeps needing the settings at every load.
+  Driver config is the only door:
+  the engine refuses to enable `allow_unsigned_extensions` once it is
+  running, so `SET` is always too late.
+  And the mismatch setting alone changes nothing,
+  even for a signed file —
+  the metadata error throws from the signed branch,
+  so it is consulted only when unsigned loading is already allowed
+  (`LoadExtensionInternal`,
+  [`src/duckdb/src/main/extension/extension_load.cpp`](/src/duckdb/src/main/extension/extension_load.cpp)).
 
 Verify any claim about the shipped set on a **vendored build** —
 the fast path answers for a different artifact
