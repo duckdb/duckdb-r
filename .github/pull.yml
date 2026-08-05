@@ -1,0 +1,60 @@
+# Configuration for the Pull app (https://github.com/wei/pull),
+# which keeps the fork's mirrors of this repository's branches current.
+#
+# Handbook: /handbook/branches/mirrors/README.md
+#
+# Pull reads this file from the *fork's* default branch, never from here.
+# It is authored in the canonical repository because `main` is the source of
+# truth for CI/CD infrastructure and the fork's `main` is a mirror of it;
+# in this repository the file does nothing, because Pull acts on forks.
+#
+# Not in force yet: `krlmlr/duckdb-r` is a standalone copy rather than a fork
+# object, and Pull requires the upstream to be in the same fork network, so
+# every rule below is skipped until the fork move (duckdb/duckdb-r#2494).
+# Until then the mirrors stand where they were last pushed, and one an *ahead*
+# badge reads from is refreshed by hand.
+#
+# Every rule hard-resets, which is what makes the branch a mirror rather than a
+# branch of the fork's own: a commit pushed onto one is discarded on the next
+# run, not merged. The fork's series refs carry a suffix and match no rule here,
+# so the app can never reach one.
+#
+# `mergeUnstable` lets a mirror advance while the pull request Pull opens for it
+# still has checks pending or red. What a mirror carries was already checked on
+# the branch it mirrors, and a mirror that waits is a mirror that has drifted.
+#
+# A rule whose base branch does not exist in the fork is skipped, silently and
+# forever: a new mirror is created by pushing the branch once, and this file
+# then keeps it fresh. Adding a rule is not what creates it.
+#
+# Pull runs every six hours per repository, at a fixed random offset it picks
+# itself, so a mirror is at most that far behind between manual triggers.
+#
+# Validate this file:  https://pull.git.ci/check/krlmlr/duckdb-r
+# Trigger a sync now:  https://pull.git.ci/process/krlmlr/duckdb-r
+
+version: "1"
+
+rules:
+  # A line that is still current releases from `main` and is measured against
+  # it, so it gets no rule of its own; a line gets one when it parks on a
+  # `vX-codename` baseline that something in the fork then reads.
+  #
+  # `main` is what every series seeds from, and what the CRAN flavor and the two
+  # newest `.dev` flavors are measured ahead of.
+  - base: main
+    upstream: duckdb:main
+    mergeMethod: hardreset
+    mergeUnstable: true
+
+  # The LTS line: its baseline is the base of the `duckdb.1.4.dev` badge, and
+  # the `-lts` branch beside it is the baseline plus the flavor rename.
+  - base: v1.4-andium
+    upstream: duckdb:v1.4-andium
+    mergeMethod: hardreset
+    mergeUnstable: true
+
+  - base: v1.4-andium-lts
+    upstream: duckdb:v1.4-andium-lts
+    mergeMethod: hardreset
+    mergeUnstable: true

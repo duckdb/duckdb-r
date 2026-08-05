@@ -21,7 +21,7 @@ and the tree holds every fact once.
   the embedded engine, the `rfuns` extension
 * [`build/`](build/) — source build, fast paths, build knobs
 * [`testing/`](testing/) — suite, snapshots, guards, revdep
-* [`branches/`](branches/) — series, flavors, invariants
+* [`branches/`](branches/) — series, mirrors, flavors, invariants
 * [`operations/`](operations/) — vendoring, triage, review,
   CI, releases, the site
 * [`contributors/`](contributors/) — setup, workflow, where to help

@@ -494,35 +494,32 @@ Fork-specific switches to flip at creation:
 
 - **Workflows in a fresh fork are disabled until enabled once** in the
   fork's Actions tab, and **scheduled workflows are disabled by default
-  in forks of public repositories** — re-enable all six explicitly:
-  `sync.yaml` (hourly), `rcc-logs.yaml` (half-hourly),
+  in forks of public repositories** — re-enable all five explicitly:
+  `rcc-logs.yaml` (half-hourly),
   `fledge.yaml`, `R-CMD-check.yaml`, `R-CMD-check-dev.yaml`,
   `lock.yaml` (daily).
+  The Pull app is not a workflow and is unaffected by either switch;
+  it needs the app installed on the fork instead.
   The unrelated 60-day inactivity auto-disable for schedules in public
   repositories is moot here: the loop pushes daily.
 - Recreate what a fork does not carry: repository variables
   (`EACH_RCC_*`), any secrets, and the non-default refs —
   the series refs, the `rcc` branch, and the snapshot branches are
   pushed fresh or migrated (see the open question on migration depth).
-- **Mirroring comes from the fork itself, not from `sync.yaml`.**
+- **Mirroring comes from the fork itself.**
   The Flavors badges compare within `krlmlr/duckdb-r`
   (their *ahead* base names the release branches),
-  and `sync.yaml` fast-forwards only `main`,
-  so today's `duckdb.1.4.dev` *ahead* badge compares against a
-  `v1.4-andium` mirror nothing refreshes —
-  a **live defect**, counting commits that have already shipped.
-  An earlier revision of this plan proposed extending `sync.yaml`
-  to every release line and carrying the extension into the fork;
-  that was written, reviewed and **not merged**
-  (the branch is in the history if the argument is ever needed again).
-  The decision instead: a *genuine* fork keeps its branches current
-  through the **Pull app**, which is what a fork is for.
-  `sync.yaml` exists because the standalone copy is not a fork
-  and has no upstream to be pulled from;
-  replacing the copy with a fork replaces the need,
+  so every such base has to be a ref there and has to stay level with
+  the canonical branch it names.
+  A *genuine* fork keeps its branches current through the **Pull app**,
+  which is what a fork is for,
   and one hand-written mirroring job is exactly the kind of machinery
   §3 says has to justify itself against a mechanism that already exists.
-  Until the move, the mirrors are refreshed by hand —
+  The configuration is in place ahead of the move
+  ([`.github/pull.yml`](/.github/pull.yml),
+  [`branches/mirrors/`](/handbook/branches/mirrors/README.md));
+  its rules stay inert while the upstream is outside the fork network,
+  so until the move the mirrors are refreshed by hand —
   which is what `series-open.md` says today,
   and what it goes on saying rather than promising automation
   that is not there yet.

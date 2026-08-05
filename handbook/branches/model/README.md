@@ -22,10 +22,9 @@ CRAN and the numbered r-universe packages publish from here.
 so the per-commit builds do not consume
 the `duckdb` organization's Actions quota;
 every series' working refs live there,
-and [`sync.yaml`](/.github/workflows/sync.yaml)
-fast-forwards the fork's `main` hourly —
-to be replaced by wei/pull once the fork is a true fork
-([#2494](https://github.com/duckdb/duckdb-r/issues/2494)).
+beside mirrors of the canonical branches
+they are seeded from and measured against
+([`mirrors/`](/handbook/branches/mirrors/README.md)).
 
 **The four refs** of a series `<S>`, all in the fork:
 
