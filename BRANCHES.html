@@ -70,9 +70,9 @@
 ├── patch/                          # R-specific patches applied to src/duckdb/     [1]
 ├── scripts/                        # Build and maintenance; index in its README   [5]
 ├── .github/
+│   ├── pull.yml                    # Pull app config — the fork's mirrors          [5]
 │   └── workflows/
 │       ├── each.yaml               # Per-commit rcc, as a sharded matrix           [5]
-│       ├── sync.yaml               # Fast-forward krlmlr/main from duckdb/main     [5]
 │       ├── fledge.yaml             # Automated version-bump PRs                    [5]
 │       └── R-CMD-check*.yaml       # Package check workflows                       [5]
 ├── DESCRIPTION                     # Package metadata — name + version = flavor    [2]
@@ -137,7 +137,7 @@
 <span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a>   │  + patches   │        │       │     only       │</span>
 <span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a>   │  from patch/ │        │       └────────────────┘</span>
 <span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a>   └──────────────┘        │</span>
-<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a>                    sync.yaml (hourly FF of krlmlr/main from duckdb/main)</span></code></pre></div>
+<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a>                    the Pull app (mirrors krlmlr/main from duckdb/main)</span></code></pre></div>
 <p>The arrow from upstream to the CI/CD fork represents automated vendoring; the arrow from the fork to the canonical repo represents the release merge. Patches from <code>patch/</code> are applied to the vendored C++ code during every vendor run (see <a href="#patch-stack">Patch Stack</a> below).</p>
 </div>
 <div class="section level2">
@@ -267,7 +267,7 @@ krlmlr/duckdb-r@v1.5-variegata-dev
         │
         ▼
 krlmlr/duckdb-r@v1.4-andium-dev</code></pre>
-<p>Never port in reverse. Keeping it consistent is the series loop’s forward-port stage (<a href="/handbook/operations/vendoring/series-loop/README.html"><code>operations/vendoring/series-loop/</code></a>), which runs <code>scripts/series-port.sh</code> on every firing; <code>sync.yaml</code> handles the fork’s <code>main</code> separately.</p>
+<p>Never port in reverse. Keeping it consistent is the series loop’s forward-port stage (<a href="/handbook/operations/vendoring/series-loop/README.html"><code>operations/vendoring/series-loop/</code></a>), which runs <code>scripts/series-port.sh</code> on every firing; the fork’s <code>main</code> is a mirror and moves on its own (<a href="/handbook/branches/mirrors/README.html"><code>branches/mirrors/</code></a>).</p>
 </div>
 </div>
 <div class="section level2">
