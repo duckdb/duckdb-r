@@ -386,11 +386,31 @@ EOF
   return "${rc}"
 }
 
-# Mirrors .github/workflows/roxygenize/action.yml.
+# Mirrors .github/workflows/roxygenize/action.yml, less one field.
+#
+# roxygen2 stamps `Config/roxygen2/version` with the version that ran, and CI
+# installs roxygen2 from r-lib's r-universe -- a rolling dev build. Every time
+# that build moves, the stamp differs from the one every already-written commit
+# carries, gate_clean turns that one line into a failure, and every series in
+# flight goes red at once over metadata no commit could have pinned: the field
+# records which roxygen2 wrote the committed docs, and a per-commit replay runs
+# under whatever roxygen2 exists today. `main` keeps the field current through
+# its own auto-update commit, which is where that belongs; the replay only has
+# to not fail on time having passed.
+#
+# Restoring the committed value rather than exempting it in gate_clean keeps
+# the tree clean for the `check` gate too, and leaves gate_clean judging real
+# drift only.
 gate_roxygen() {
-  rscript <<'EOF'
+  local pinned rc=0
+  pinned=$(sed -n 's|^Config/roxygen2/version: ||p' DESCRIPTION)
+  rscript <<'EOF' || rc=1
 roxygen2::roxygenize()
 EOF
+  if [ -n "${pinned}" ]; then
+    sed -i "s|^Config/roxygen2/version: .*|Config/roxygen2/version: ${pinned}|" DESCRIPTION
+  fi
+  return "${rc}"
 }
 
 # Mirrors the "Write diff and fail for workflow_dispatch" step of
