@@ -86,6 +86,10 @@ and how to get more.
   or carries a foreign platform tag:
   `duckdb(config = list(allow_unsigned_extensions = "true",
   allow_extensions_metadata_mismatch = "true"))`.
+  `INSTALL '/path/to/file.duckdb_extension.gz'` accepts the same
+  file as downloaded — compression included —
+  and keeps it in the store, so later sessions `LOAD` it by name;
+  a foreign platform tag keeps needing the settings at every load.
   Driver config is the only door:
   the engine refuses to enable `allow_unsigned_extensions` once it is
   running, so `SET` is always too late.

@@ -23,7 +23,8 @@ Method and logs:
 [krlmlr/duckdb-r#116](https://github.com/krlmlr/duckdb-r/pull/116)
 (`INSTALL odbc_scanner FROM community`, run 30931665169;
 the manual fetch-and-load of `icu`, run 30967881866;
-the same for `odbc_scanner`, run 30987274175).
+the same for `odbc_scanner`, run 30987274175;
+download + `INSTALL` + `LOAD`, run 31024032489).
 
 *What it supports:* the Windows and platform-coverage bullets in
 [`usage/extensions/`](/handbook/usage/extensions/README.md).
@@ -155,6 +156,34 @@ setting.
 An actual ODBC round-trip is beyond the runner (no DSN);
 what is proven is load, catalog entry, and function registration.
 
+## Whether download + INSTALL + LOAD is enough
+
+Run 31024032489 runs the easiest recipe —
+download the `windows_arm64` flavor,
+`INSTALL` the downloaded file, `LOAD odbc` by name —
+twice per build, in fresh subprocesses with fresh stores:
+
+* On the build whose platform string matches the file
+  (`windows_arm64`), the plain recipe works with no configuration:
+  the file is signed and its metadata matches,
+  `INSTALL '<file.gz>'` returns 0 (`install_mode CUSTOM_PATH`),
+  `LOAD odbc` resolves the alias, and 11 functions register.
+* On the real build (`windows_arm64_mingw`), no configuration is a
+  clean refusal at `INSTALL` — the platform check, no crash —
+  and with both hatches in the driver config everything works:
+  `INSTALL '<file.gz>'` 0, `LOAD odbc` 0, `loaded = TRUE`,
+  11 functions, subprocess exit 0.
+
+Direct install handles the `.gz` as downloaded — no gunzip step.
+The store keeps the file,
+but the platform tags still differ at every later `LOAD`,
+so on the real build the two settings are a per-session companion
+of using the extension, not a one-time step;
+the mismatch hatch is what gates `INSTALL`
+(consulted directly,
+`src/duckdb/src/main/extension/extension_install.cpp`),
+and `LOAD` walks the signed branch and needs both.
+
 **What it shows.**
 Coverage gaps are toolchain-flavor gaps, not architecture gaps,
 on x86_64 and arm64 alike,
@@ -164,7 +193,8 @@ a C++-ABI artifact binds host symbols and kills the process,
 a C-API artifact takes the API as a struct and loads.
 So [#2425](https://github.com/duckdb/duckdb-r/issues/2425) has a
 narrow, documentable escape —
-hand-load an MSVC C-API extension by path, hatches open —
+download an MSVC C-API extension, `INSTALL` the file, `LOAD` by
+name, hatches open —
 that widens exactly as fast as upstream moves extensions to the
-C API, while `INSTALL` stays a 404 until the repository grows the
-platform directory.
+C API, while `INSTALL` by name stays a 404 until the repository
+grows the platform directory.
