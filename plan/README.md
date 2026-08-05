@@ -46,6 +46,17 @@ a plan may still come true, a superseded design never will.
 |---|---|
 | The agentic-loop design that preceded the series loop (its measurements now live in [`experiments/`](/experiments/README.md)) | [`superseded/vendoring-loop.md`](superseded/vendoring-loop.md) |
 
+## `history/` — what a piece of work left behind
+
+Not a plan and not a design: a record of something that happened,
+kept because closing it would otherwise lose a fact.
+Each says in its first lines what it is and which document owns its
+topic today.
+
+| To read about | Read |
+|---|---|
+| Findings verified against the code by the closed handbook wave, and the issues its defects became | [`history/2026-08-handbook-wave-salvage.md`](history/2026-08-handbook-wave-salvage.md) |
+
 ## Adding a document here
 
 A plan goes in `plan/` as `PLAN-<topic>.md`, and opens with a line saying
@@ -55,5 +66,7 @@ the one thing the tree's structure exists to prevent.
 Where a plan leaves depends on what happened to it:
 one that came true moves to `done/`, one overtaken by events to
 `superseded/`, and its row moves with it.
+A record of work that is over rather than a proposal for work goes in
+`history/`, named for when it happened, and never moves again.
 A measurement is not a plan at all — it belongs in
 [`experiments/`](/experiments/README.md), one directory per run.
