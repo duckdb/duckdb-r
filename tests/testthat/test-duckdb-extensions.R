@@ -8,7 +8,37 @@ test_that("Install DuckDB extension", {
   # the test below is what covers those.
   skip_if_no_extension_binaries()
 
-  expect_no_error(sql_exec("INSTALL icu"))
+  if (extensions_published()) {
+    expect_no_error(sql_exec("INSTALL icu"))
+  } else {
+    # A canary, not a skip (duckdb/duckdb-r#2425):
+    # the extension repository has no directory for this platform,
+    # so the download must come back an HTTP error.
+    # The day DuckDB starts publishing for this platform,
+    # this expectation is what fails,
+    # and the platform moves to the branch above
+    # by deleting its exception in extensions_published().
+    expect_error(sql_exec("INSTALL icu"), "Failed to download extension")
+  }
+})
+
+test_that("duckdb_platform() reports the repository's path segment", {
+  # `<os>_<arch>` with an optional toolchain suffix, exactly as the extension
+  # repository is addressed; asserted by shape, since the value differs per
+  # platform and the point is that it is the engine's own string.
+  expect_match(duckdb_platform(), "^[a-z0-9]+_[a-z0-9]+(_[a-z0-9]+)?$")
+})
+
+test_that("extensions_published() knows which platforms are covered", {
+  # The gap as of 2026-08: DuckDB builds arm64 Windows extensions, but only as
+  # `windows_arm64` (MSVC); the `_mingw` flavor R's toolchain needs exists for
+  # x86_64 alone. Expected to change -- when it does, the canary above and this
+  # assertion are what say so.
+  expect_false(extensions_published("windows_arm64_mingw"))
+
+  expect_true(extensions_published("windows_amd64_mingw"))
+  expect_true(extensions_published("linux_amd64"))
+  expect_true(extensions_published("osx_arm64"))
 })
 
 # The canary for what `skip_if_no_extension_binaries()` skips. Asserting the 404
