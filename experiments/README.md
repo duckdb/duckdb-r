@@ -36,6 +36,10 @@ the directory keeps the method so that is possible.
 * [`2026-08-02-lts-drift/`](2026-08-02-lts-drift/) —
   how far the v1.4 LTS flavor has drifted from its baseline; supports
   [`branches/invariants/`](/handbook/branches/invariants/README.md).
+* [`2026-08-05-windows-extension-coverage/`](2026-08-05-windows-extension-coverage/) —
+  which prebuilt extensions DuckDB's repositories serve R's Windows
+  builds, and whether the MSVC arm64 artifact can be hand-loaded;
+  supports [`usage/extensions/`](/handbook/usage/extensions/README.md).
 
 Adding one: create the directory, name it for the date and the topic,
 open its `README.md` with what and when and on what,
