@@ -50,17 +50,15 @@ are callable unqualified.
 Always ask for the package name rather than writing it
 ([`branches/flavors/`](/handbook/branches/flavors/README.md)).
 
-**Extensions over the network.**
+**A platform gap is a canary, not a skip.**
 `test-duckdb-extensions.R` installs a real extension,
-so it first asks what DuckDB publishes for the platform it is running on.
-`PRAGMA platform` is the name to look that up under,
-and `helper-extensions.R` carries the platforms with no binaries at all
-([`usage/extensions/`](/handbook/usage/extensions/README.md)).
-On those the install test skips —
-and a canary asserts the HTTP 404 in its place,
-so the skip fails the day the gap closes
-rather than quietly outliving it.
-
-*To deepen: drain
-[#2425](https://github.com/duckdb/duckdb-r/issues/2425)
-(an extension the Windows/arm64 build can actually install).*
+so it branches on whether DuckDB publishes one for the platform
+running it — `extensions_published()`, package code in `R/extensions.R`,
+over the engine's own `PRAGMA platform`
+([`usage/extensions/`](/handbook/usage/extensions/README.md)
+owns which platforms those are).
+Where the repository carries nothing,
+the test asserts the download error rather than skipping,
+so the day the gap closes it is the assertion that fails,
+on the platform itself.
+A skip would have gone on passing silently.
