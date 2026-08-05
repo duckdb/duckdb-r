@@ -68,11 +68,12 @@ exactly as on arm64.
 (run 30931665169): HTTP 404 under `windows_arm64_mingw`
 *and* under `windows_arm64`.
 The community repository publishes no arm64 Windows build of
-`odbc_scanner` under either name,
-so the C-API extension class —
-the one whose version check is "equal or higher"
-and which resolves no host symbols —
-cannot rescue the platform for lack of artifacts.
+`odbc_scanner` under either name.
+(A correction landed later:
+`odbc_scanner` is a *core* extension,
+and this run asked a repository it does not live in —
+the core repository's artifacts, next section, are the ones that
+exist.)
 
 ## Whether the MSVC artifact loads by hand: the C++-ABI class
 
@@ -119,7 +120,14 @@ status.
 
 ## Whether the MSVC artifact loads by hand: the C-API class
 
-`odbc_scanner` is built against the C API
+`odbc_scanner` is a core extension —
+`odbc` is its alias
+(`src/duckdb/src/main/extension/extension_alias.cpp`),
+[documented on duckdb.org](https://duckdb.org/docs/current/core_extensions/odbc/overview),
+not autoloadable (`AUTOLOADABLE_EXTENSIONS`,
+`src/duckdb/src/include/duckdb/main/extension_entries.hpp`),
+so `LOAD` stays explicit —
+and it is built against the C API
 (`ExtensionABIType::C_STRUCT`,
 `src/duckdb/src/include/duckdb/main/extension.hpp`):
 the host passes the API in as a function-pointer struct,
