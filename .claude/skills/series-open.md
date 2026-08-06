@@ -104,8 +104,10 @@ Two things to check before pushing:
 * **Every ref a badge names must live in `krlmlr/duckdb-r`.**
   A base that exists only in the canonical repo
   renders as an error, not a count.
-  Push the release branch into the fork,
-  and keep the mirror fresh
+  Push the release branch into the fork once —
+  the Pull app keeps a mirror fresh but never creates one —
+  and give it a rule in [`.github/pull.yml`](/.github/pull.yml)
+  if the badge measures against it
   ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
 * **The table must stay clear of `scripts/flavor.patch`.**
   `README.md` is a flavored file;

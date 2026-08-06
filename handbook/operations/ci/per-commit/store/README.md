@@ -129,8 +129,9 @@ flat `logs2/<sha>.log` files move under the fan-out;
 a legacy `logs/<run-id>.log` is recovered as its commit's log
 when that run decided exactly one commit,
 and dropped rather than guessed at when it did not.
-`rcc` is never written to, and is left whole:
-deleting it is a separate step for whenever nothing reads it.
+`rcc` is never written to, and is left whole,
+in the archive rather than in the fork
+([`branches/model/`](/handbook/branches/model/README.md)).
 
 ### Runbook: the cutover
 

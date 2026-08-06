@@ -7,7 +7,8 @@ and the documentation tree's own rules are
 this file is the proposal, and where the two disagree the leaf is right.
 
 Status: **in progress** (2026-07-30, branch `claude/vendoring-tooling-design-3swawc`;
-Phase 1 landed as #87, the README root as #88 — see §9;
+Phase 1 landed as #87, the README root as #88, Phase 3 as the fork
+move (#2534) — see §9;
 revised after a clean-context review of this document against `origin/main`).
 Inputs: `BRANCHES.md`, `scripts/VENDORING.md`, `scripts/EACH.md`,
 `scripts/VENDORING-LOOP.md` (historical), the four skills in `.claude/skills/`,
@@ -473,6 +474,15 @@ kept light by habit rather than process:
 
 ## 6. A fresh fork replaces the standalone repo
 
+*Status:* **landed.** `krlmlr/duckdb-r` is a fork object of
+`duckdb/duckdb-r`, carrying the series refs, the mirrors and the verdict
+store and nothing else, with the Pull app in force (#2534);
+the repository it replaced is the archive `krlmlr/duckdb-r-old`.
+What holds today is
+[`branches/model/`](/handbook/branches/model/README.md)'s and
+[`branches/mirrors/`](/handbook/branches/mirrors/README.md)'s;
+the rest of this section is the reasoning that got there.
+
 `krlmlr/duckdb-r` is a standalone copy, not a GitHub fork object
 (the docs call it "the fork" colloquially);
 the intent is to replace it with a fresh, genuine fork —
@@ -647,11 +657,11 @@ of the kernel.
 | **1 — landed (#87)** | the port stage: `scripts/series-port.sh` plus the amended `series-loop` / `series-forward` / `series-rebase` skills | first real `--apply` still runs supervised |
 | **1a (follow-up)** | resolve the subject-vs-path contradiction (§4), in order: harden `vendor-one.sh` and `vendor.sh`'s subject scans to bounded-and-loud; relax `classify()` to subject-decided; rewrite the landed rationale in `series-port.sh`'s header and `series-loop.md` stage 4; stage 1 invokes `main`'s `vendor-one.sh` against the buffer worktree | wider than first scoped — two scanners, one classifier, two rationale blocks, one skill rule; each independently shippable |
 | **2** | single verdict store (D1: selection and resume by record; backstop stops writing, its schedule dispatches idle undecided work); one sweep, then drop the aggregate outright (D2); the fan-in stays (per-commit logs, §3.2) | verdicts are already dual-written today; rollback = read statuses again |
-| **3** | replace the standalone repo with a fresh fork (§6), configured with the Pull app so the release-branch mirrors stay current without a job of our own; mirrors stay manual until then | one-time move; keep the standalone until the fork has served one full loop cycle |
+| **3 — landed (#2534)** | replace the standalone repo with a fresh fork (§6), configured with the Pull app so the release-branch mirrors stay current without a job of our own | one-time move; the replaced repository is kept as `krlmlr/duckdb-r-old` |
 | **4** | docs tree (§8): README root landed (#88); next the moves, then node rewrites (including `AGENTS.md`'s and `BRANCHES.md`'s stale rows); `docs-tree` skill | docs only |
 | **5** | kernel extraction + `rigraph` port (config file, generalized subject marker, igraph cost estimator or constant weight) | new repo consumed `@main`; rollback = vendored copy of the kernel |
 
-Phases 1a–3 are independently shippable; the deletions concentrate in
+Phases 1a and 2 are independently shippable; the deletions concentrate in
 Phase 2.
 
 ## 10. Open questions
@@ -664,11 +674,11 @@ Phase 2.
 2. **Record-store scale.** One commit per record keeps `rcc` growing
    (~1 commit/record; consolidation squashes). Is the current
    consolidation cadence enough once statuses stop being a second copy?
-3. **Fork migration depth (§6).** Carry the `rcc` records/logs and the
-   1175 snapshot branches into the fresh fork, or restart them and keep
-   the standalone repo read-only as the archive? Records at or below a
-   series' green are never re-read by the loop, so a restart may be
-   cheap.
+3. ~~**Fork migration depth (§6).**~~ *Settled by the move:* `rcc2`
+   came across whole, and everything else — the retired `rcc`, the
+   snapshot branches, the ref litter, the finished topic branches —
+   stayed in `krlmlr/duckdb-r-old`, which is read-only from here on.
+   The snapshot branches the gate needs it recreates as it goes.
 4. **Extraction home (Phase 5).** Shared repo (`krlmlr/vendor-loop`?)
    consumed `@main`, vs. copy-with-config in each consumer.
    Leaning shared repo; decide when the port starts.

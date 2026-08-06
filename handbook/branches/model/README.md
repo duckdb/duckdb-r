@@ -18,13 +18,17 @@ sibling `<S>-dev`, so opening one is creating refs
 `duckdb/duckdb-r` is canonical:
 `main`, the parked stable baselines, the LTS flavor branch;
 CRAN and the numbered r-universe packages publish from here.
-`krlmlr/duckdb-r` is a fork used for CI/CD
+`krlmlr/duckdb-r` is a fork of it — a fork object in the same fork
+network, not a copy that shares its name — used for CI/CD
 so the per-commit builds do not consume
 the `duckdb` organization's Actions quota;
 every series' working refs live there,
 beside mirrors of the canonical branches
 they are seeded from and measured against
 ([`mirrors/`](/handbook/branches/mirrors/README.md)).
+The fork carries only the refs the loop serves;
+what it does not carry stands in `krlmlr/duckdb-r-old`,
+an archive that nothing reads and nothing writes to.
 
 **The four refs** of a series `<S>`, all in the fork:
 
