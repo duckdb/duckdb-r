@@ -37,6 +37,41 @@ Entries carry extra environment through the generic `env` field —
 the mechanism by which one matrix row can flip any knob
 ([`build/configuration/`](/handbook/build/configuration/README.md)).
 
+## A dependency that will not build
+
+An entry is only as useful as the dependency set it can install,
+and the failure lands before the check begins:
+one dependency that will not compile
+takes the whole entry with it.
+`windows-11-arm` is where this bites —
+Posit Package Manager publishes no aarch64 Windows binaries,
+so that runner builds every dependency from source.
+
+The lever is `Config/gha/extra-packages` in `DESCRIPTION`,
+which [`install/`](/.github/workflows/install/action.yml)
+passes to pak as extra package references.
+A reference carries pak parameters,
+so `<package>=?ignore-build-errors` demotes a failed source build
+of that one package to a warning
+and drops it from the installation plan.
+This package says that about `adbcdrivermanager`,
+which does not compile against Rtools45;
+the field's `Config/comment/…` twin records why.
+
+The condition is the build, not the platform,
+which is what makes this the right lever:
+nothing is declared about *where* the package is expected to fail,
+so every runner that has a binary still checks against it,
+and the one that does not picks it back up
+the day it builds again — with no commit here.
+
+Dropping a `Suggests` package is safe because the check is written for it:
+tests guard with `skip_if_not_installed()`,
+examples with `requireNamespace()`,
+and `rcc` downgrades `RCMDCHECK_ERROR_ON` to `warning`
+when a declared dependency is missing,
+so the entry reports a NOTE where it would otherwise error.
+
 *To deepen: state how the base action derives its version window,
 and what `Config/gha/filter` would remove from it —
 this package sets no such field today.*
