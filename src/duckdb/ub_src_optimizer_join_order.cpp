@@ -22,5 +22,3 @@
 
 #include "src/optimizer/join_order/relation_manager.cpp"
 
-#include "src/optimizer/join_order/relation_statistics_helper.cpp"
-
