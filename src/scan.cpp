@@ -604,7 +604,8 @@ struct DataFrameLocalState : public LocalTableFunctionState {
 };
 
 static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context, TableFunctionBindInput &input,
-                                                          vector<LogicalType> &return_types, vector<string> &names) {
+                                                          vector<LogicalType> &return_types,
+                                                          vector<Identifier> &names) {
 	// The binder holds the client context lock across this, and touching an ALTREP column
 	// runs its class's code: a duckdb relation materializes, after evaluating
 	// `duckdb.materialize_callback` -- arbitrary R code, and with it pending finalizers.
@@ -622,7 +623,7 @@ static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context
 	vector<bool> named_list_map;
 
 	for (R_xlen_t col_idx = 0; col_idx < df.size(); col_idx++) {
-		names.push_back(df_names[col_idx]);
+		names.push_back(Identifier(string(df_names[col_idx])));
 
 		auto coldata = df[col_idx];
 		TouchColumn(coldata);
