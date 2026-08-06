@@ -1,0 +1,352 @@
+# The August 2026 forward of all three series
+
+*A record, not a leaf.*
+On 2026-08-06 all three live series were forwarded onto the current
+mainline at once — `v1.4-andium`, then `v1.5-variegata`, then `main` —
+and this file is the list of glue-code changes that took,
+where each one was placed, and what the run found out about the routine.
+The routine itself is owned by
+[`.claude/skills/series-forward.md`](/.claude/skills/series-forward.md)
+and [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md);
+what a glue adaptation may be is
+[`architecture/glue/`](/handbook/architecture/glue/README.md)'s.
+Where one of those and this record disagree, they are right —
+this describes one run, on the day it happened, and nothing keeps it
+current.
+
+The twelve `-fwd-*` refs were built locally and deliberately **not
+pushed**: the CI/CD side was not in a state to judge them,
+and a forward series that nothing is verifying is better as four local
+refs than as four refs consumers can see.
+Every SHA quoted below names a commit that already exists —
+on `main` here, or on the series refs in the fork —
+so the list can be re-derived without the local build.
+
+## What each forward took
+
+* **`v1.4-andium-fwd`** — base `v1.4-andium` @ `2b5afce5a`,
+  1 vendor commit replayed, no conflict, no glue change.
+  A frozen series seeds from its own release line rather than from
+  `main`, so the base moved only by the two commits that line gained
+  since the old seed
+  ([#2433](https://github.com/duckdb/duckdb-r/pull/2433) and the
+  `each-rcc` race fix beneath it).
+  The seed was **replayed**, not regenerated — see the second finding
+  below.
+* **`v1.5-variegata-fwd`** — base `main` @ `faa1610b5`,
+  14 vendor commits replayed, no conflict, no glue change.
+* **`main-fwd`** — base `main` @ `faa1610b5`,
+  1133 vendor commits replayed, no conflict,
+  plus three `patch/` commits re-inserted by hand (below).
+
+For all three, the whole glue delta between the old buffer tip and the
+new one is exactly what `main` gained in the window —
+`src/rfuns.cpp`'s handbook backreference, the flavored
+`src/duckdb.<flavor>-win.def`, the removal of `src/CMakeLists.txt`, and
+the R-side documentation work.
+Nothing upstream had moved under the glue since the buffers were built,
+which is why the replay was quiet.
+That is the expected shape of a forward run soon after the last one,
+not a claim about forwards in general.
+
+## The glue set `main-fwd-build` carries
+
+39 of the 1133 replayed vendor commits carry a hand-written glue
+adaptation.
+The replay is a cherry-pick of each commit's diff, so every one of them
+rides in the commit that made it, by construction —
+there was nothing to place and nothing to decide.
+The list is here because it is the only place the *shape* of the range is
+visible: upstream spent this window making the engine's C++ API
+narrower, and the same call sites were adapted repeatedly as it did.
+Read it before the next forward:
+resolving one conflict against one upstream change rederives work a later
+commit in the same range already did.
+[`scripts/series-glue.sh`](/scripts/series-glue.sh) prints it from the
+branch; what the script cannot say is which entries belong together.
+
+**Members become accessors.**
+The largest strand: upstream privatised member after member and migrated
+its own call sites in the same change, so the glue followed each time.
+
+* `duckdb#22351` (`b43ded70e`) — `(Base)Expression`:
+  `expr->alias` → `SetAlias()`, `expr->type` → `GetExpressionType()`,
+  `->return_type` → `GetReturnType()`.
+* `duckdb#22463` (`f514c965b`) — `ConstantExpression::value` →
+  `GetValue()`.
+* `duckdb#22942` (`8b29d243a`) — `FunctionExpression` and
+  `WindowExpression`: `order_bys`, `filter`, `start`, `end`,
+  `start_expr`, `end_expr`, `partitions`, `children` all become
+  `…Mutable()` accessors.
+* `duckdb#22985` (`960f2313b`) — the bound expressions:
+  `BoundConstantExpression::value` → `GetValue()`,
+  `conj.children` → `GetChildren()`.
+* `duckdb#24273` (`29de1cde1`) — `PreparedStatement`:
+  `named_param_map.size()` → `GetParameterCount()`,
+  `stmt->context` → `TryGetContext()`.
+* `duckdb#24351` (`4d43cb0cd`) — `PreparedStatement::error` →
+  `GetErrorObject()`, which keeps the type and extra info that
+  `rapi_error_with_context()` reports.
+* `duckdb#24357` (`d4729fda1`) — `BaseQueryResult`: `type`, `types`,
+  `names` → `GetResultType()`, `GetTypes()`, `GetNames()`.
+
+**Const and mutable split apart.**
+Reading a vector and writing one stopped being the same call.
+
+* `duckdb#21978` (`49c5ca9a0`) — `FlatVector::GetData<T>` returns
+  `const`; every write site takes `GetDataMutable<T>`.
+* `duckdb#22122` (`2c5e70ae4`) — the same for
+  `FlatVector::Validity` → `ValidityMutable`.
+* `duckdb#22157` (`6fd32a9fa`) — `ListVector::GetEntry` → `GetChild` /
+  `GetChildMutable`, and `ArrayVector` likewise.
+* `duckdb#21612` (`85cdd4637`) — `Vector` lost its implicit copy, so
+  `auto input = args.data[0]` became `auto &input`.
+* `duckdb#21534` (`91e259775`) — `StructVector::GetEntries()` hands back
+  references rather than `unique_ptr`s; one `*` dropped at each site.
+* `duckdb#21526` (`081843d28`) — vector helpers moved to their own
+  headers; four glue units gained includes.
+* `duckdb#22268` (`ddb56a47a`) — `Vector::Reference(Value &)` requires a
+  count.
+* `duckdb#22377` (`27ced7204`) — `DataChunk::SetCardinality` →
+  `SetChildCardinality`.
+* `duckdb#22493` (`0c812b11a`) — the `count` overloads of
+  `ToUnifiedFormat` and friends are deprecated.
+* `duckdb#21679` (`f1a8e3410`) — `ValidityMask::AllValid` →
+  `CannotHaveNull`.
+
+**`Identifier` replaces `string` for every name.**
+The single widest change in the range: names in the parser, the catalog
+and the result stopped being strings.
+
+* `duckdb#23161` (`bec92045d`) — the type arrives.
+  Seven glue units promote R names to `Identifier` explicitly and read
+  them back through `GetIdentifierName()`;
+  whole vectors go through upstream's own `StringsToIdentifiers()` and
+  `IdentifiersToStrings()`.
+  The explicitness is the point: the conversion discards the
+  case-insensitive semantics the type carries.
+* `duckdb#24269` (`4ece94def`) — COPY and scan options:
+  `ListToVectorOfValue()` returns `identifier_map_t<vector<Value>>`.
+  Option-name lookup stays case-insensitive, because `Identifier`
+  compares and hashes case-insensitively just as `case_insensitive_map_t`
+  did.
+* `duckdb#24278` (`419eca006`) — `table_function_bind_t` hands back
+  `vector<Identifier>`; `DataFrameScanBind()` is the one glue call site.
+
+**Table filters become expressions.**
+The Arrow pushdown translation in `src/register.cpp` was rewritten under
+us in five steps, and only the last spelling survives the range.
+
+* `duckdb#21229` (`58b9ba197`) — `TableFilterSet` members go private;
+  iterate the set, ask `HasFilters()`.
+* `duckdb#21497` (`646d546f2`) — `ColumnIndex()` → `GetIndex()`.
+* `duckdb#22005` (`bed8c8fde`) — `EXPRESSION_FILTER` arrives;
+  the glue gains `TransformExpression()` for bound comparisons and
+  conjunctions.
+* `duckdb#22514` (`5f41c3726`) — `BoundComparisonExpression` becomes a
+  `BoundFunctionExpression`; read sides via `Left()` / `Right()`.
+* `duckdb#22617` (`cad2a51c3`) — the remaining filter types are renamed
+  `LEGACY_*`, their classes `Legacy…Filter`, and
+  `TableFilter::ToString(column_name)` goes away —
+  replaced here by a local `FilterDescription()` over `EnumUtil`.
+
+**Function binding grew a parameter object.**
+
+* `duckdb#22034` (`8b15c103d`) — bind callbacks take
+  `BindAggregateFunctionInput &` / `BindScalarFunctionInput &` instead of
+  three loose parameters.
+* `duckdb#22428` (`099b43986`) — assigning the bound function is
+  replaced by `ReplaceImplementation()`.
+* `duckdb#22400` (`cd1e356f7`) — `ExecuteWithNulls` retires;
+  the executors take a lambda returning `optional<T>`, so `rfuns`'
+  overflow and NaN paths return `nullopt` instead of poking a
+  `ValidityMask`.
+* `duckdb#22941` and `duckdb#23059` (`c00bd841f`, `f3cdc78fd`) —
+  function children become `FunctionArgument`s, for window functions too.
+* `duckdb#21562` (`dc12f181d`) — the `WindowExpression` constructor
+  loses its window-type argument, and `LEAD`/`LAG` offsets move into the
+  children; the glue casts the offset to `BIGINT` there, which is the one
+  entry in this list that is a fix rather than a translation.
+
+**New types and renamed fields.**
+
+* `duckdb#22412` (`efadbcbb1`) — `TIMESTAMP_TZ_NS`, carried through
+  `duckdb_r_typeof()`, `duckdb_r_decorate()`, `duckdb_r_transform()` and
+  `DetectLogicalType()`.
+* `duckdb#23017` (`80916e01c`) — `SQLNULL` becomes a result type;
+  mapped to `INTSXP`.
+* `duckdb#23493` (`c7f37720c`) — `dtime_t::micros` → `.value`.
+* `duckdb#23222` and `duckdb#23470` (`4089414d1`, `db677d3ea`) —
+  `ExplainFormat` folds into `ProfilerPrintFormat`, then the renderer
+  registry keys on the lowercase name, so `rapi_rel_explain()` lowercases
+  what R passes.
+* `duckdb#23579` (`2beb9245d`) — an include the cleanup stopped
+  providing transitively.
+
+**Two entries that are not upstream's doing.**
+`a361d748f` and `1a2b23e10` are the rewind pair at the foot of the
+buffer: the range starts at the fork point of the mainline rewind, so
+`src/reltoaltrep.cpp`'s `max_expression_depth` handling is first rewound
+to the fork-point spelling and then re-adapted to the settings API by the
+merge commit that brings it back.
+They cancel out over the range and mean nothing on their own.
+
+## Where the modifications were placed
+
+**The 39 glue adaptations: nowhere new.**
+Each rides in the vendor commit that made it, because that is what
+replaying a diff does.
+No conflict arose in any of the three replays, so no resolution had to be
+routed anywhere.
+
+**Three `patch/` commits: backported into the chain, not stacked on the
+tip.**
+Above its seed, `main-build` carries five commits that vendor nothing,
+and [`series-forward-build.sh`](/scripts/series-forward-build.sh) replays
+only `vendor:` subjects, so all five were dropped.
+Two of them were harmless — their content had since reached `main`
+(`fix(rconfigure)` as
+[`8b5eb9c88`](https://github.com/duckdb/duckdb-r/commit/8b5eb9c88), the
+`patch/0034` carry as part of
+[`e54313d7f`](https://github.com/duckdb/duckdb-r/commit/e54313d7f)) and
+the regenerated seed brings it.
+The other three had not:
+
+* `3823fe48e` — `patch/0035`, silencing the deprecated
+  `Catalog::GetEntry()` self-delegation.
+* `4ade36dc1` — `patch/0036`, guarding the assert-only plan verifiers.
+* `918f28b5f` — `patch/0037`, casting to `void *` in the default
+  aggregate state initializer.
+
+They were re-inserted at the position they held in the buffer —
+two after the vendor commit for `duckdb/duckdb@d38be889c`, the third five
+vendor commits later — rather than replayed onto the tip.
+Three reasons, in the order they matter:
+
+* **Every vendor commit above them was generated with the patch
+  applied.** `vendor-one.sh` re-applies the buffer's whole `patch/` stack
+  to each tree it regenerates, so a vendor diff taken after the patch
+  landed is patch-neutral in the patched region.
+  Replayed onto a tree that lacks the patch it still applies —
+  cleanly, silently — and the region simply stays unpatched.
+  Placing the patch in the chain is what makes the commits above it mean
+  what they meant.
+* **The buffer's promise is per-commit, not per-tip.**
+  A buffer whose patch stack is only right at the tip is one whose
+  intermediate commits cannot be vendored from or bisected.
+* **Self-retirement keeps working.**
+  A `patch/` entry is deleted by the vendor run that finds upstream has
+  taken it; that only happens if the entry is in the tree when that run
+  replays.
+
+Moving them *earlier* than their buffer position was considered and
+rejected: `patch/0037` names the earliest commit it applies to
+(`duckdb/duckdb@2daa4fc9a4`, vendored as `c3ad3d55f`) and the others are
+no different, but nothing observable improves.
+None of the three changes behaviour on Linux, which is the only platform
+the per-commit gate judges, and r-universe only ever builds a green tip.
+An earlier position would buy a longer stretch of warning-free
+intermediate commits nobody compiles, at the cost of three more replays
+over a 1133-commit chain.
+
+**`main-fwd-dev`: nothing placed, but something to mine.**
+All four refs start equal at the seed tip, as the day-one rule requires.
+What the next firing must know is that `main-dev` holds glue its buffer
+never had, and the forward's `-dev` starts without it:
+
+* `duckdb/duckdb@b5e4f5bec` — `main-build` (`29de1cde1`) adapts
+  `src/statement.cpp` to `GetParameterCount()` and `TryGetContext()`;
+  `main-dev` (`3312fa9e9`) additionally introduces `RCallbackScope` in
+  `src/include/rapi.hpp` and arms it at the three sites where duckdb runs
+  R code under the client-context lock.
+  That is the crash-class fix
+  [`architecture/glue/`](/handbook/architecture/glue/README.md) states as
+  a rule, and it exists only on `-dev`.
+* `duckdb/duckdb@0f0cd4fb6` — `main-dev` (`ba9cb11cc`) only:
+  `LogicalType::TUPLE` travels with `STRUCT`, and
+  `RApiTypes::StructLikeChildTypes()` synthesises the positional member
+  names a data frame needs.
+* `duckdb/duckdb@24c543706` — `main-dev` (`e740a81ff`) only:
+  `rel_to_parquet()` rejects an empty `file_name` on the R side, because
+  upstream stopped erroring on it.
+
+The other 39 glue adaptations are identical on both branches.
+Neither `v1.5-variegata` nor `v1.4-andium` has any `-dev`-only glue: for
+those two the `-build`↔`-dev` delta is exactly the forward-ports from
+`main`, which the new seed already carries.
+
+## What the run found out
+
+**A forward silently loses a buffer's non-vendor commits, and `-build`
+has them.**
+`series-forward.md` justifies replaying `vendor:` subjects only by saying
+that a `-dev` branch's other commits belong to `main` and are already in
+the seed.
+That holds for `-dev`.
+It does not hold for `-build`, which by design takes no ports and
+therefore carries its own `patch/` commits — the ones stage 3 requires be
+committed onto the buffer as well as onto `-dev`.
+The failure is quiet: the first `main-fwd-build` came out with zero
+conflicts and a vendored tree differing from the buffer's by 20 lines
+across three files, plus three missing `patch/` entries.
+Only a tree comparison against the source buffer showed it.
+Worth fixing in the script rather than in the reader's habits:
+a commit in `<old-base>..<old-build>` that is neither a `vendor:` subject
+nor an ancestor of the new base is either replayed or reported, never
+dropped.
+`series-forward-build.sh`'s resume logic would have to change with it —
+it recovers its place from the counter by counting back `n` commits from
+`HEAD`, which stops being the number of commits it has written as soon as
+a non-vendor commit is interleaved.
+
+**Regenerating the seed with `flavor.sh` is only safe for a one-dot
+flavor.**
+`scripts/flavor.sh` runs `cpp11::cpp_register()`, and cpp11 0.5.5 — what
+`install.packages("cpp11")` gives you today — replaces only the first dot
+of the package name when it builds the symbols.
+Confirmed here: a fresh `flavor.sh 1.5.dev` on current `main` generated
+`_duckdb_1.5.dev_rapi_connect`, which is not a C identifier.
+`flavor.sh dev` came out byte-identical to the seed the `main` series was
+built on, because `duckdb.dev` has one dot.
+So the run took the two generated files (`R/cpp11.R`, `src/cpp11.cpp`)
+from the old seed for `1.5.dev`, having first checked that `main` had not
+touched their unflavored originals in the window, and replayed the
+`v1.4-andium` seed whole.
+`series-open.md` already carries the trap;
+`series-forward.md` step 1 says "regenerate the seed" without it,
+and the safe recipe is the one `series-rebase.md` states for a rebase —
+replay the seed, then verify against a scratch flavoring.
+
+**A frozen series' forward hands its tooling back.**
+`v1.4-andium-fwd`'s seed comes from the `v1.4-andium` release line, which
+is 93 files behind `main` on `.github/`, `scripts/` and `.claude/`.
+`v1.4-andium-dev` was level with `main` through stage 4's sync commits;
+`v1.4-andium-fwd-dev` starts at the seed, so it is 93 files behind again
+until the next firing's stage 4 re-ports them.
+Nothing is lost and no judgement is needed — the port is mechanical — but
+the forward is only free of that churn if the release line is brought
+level first, which is what
+[#2429](https://github.com/duckdb/duckdb-r/pull/2429),
+[#2430](https://github.com/duckdb/duckdb-r/pull/2430) and
+[#2433](https://github.com/duckdb/duckdb-r/pull/2433) did for the
+previous one.
+
+**One of the three carried patches belongs on `main`.**
+Stage 3's routing rule is that a fix is series-specific only when the
+code it touches is not on `main`.
+Tested against `main`'s tree: `patch/0036` and `patch/0037` do not apply
+— their code arrived after the engine `main` vendors — so they are
+correctly the series'.
+`patch/0035` **does** apply.
+Landing it on `main` would put it in every future seed and end its
+per-forward carry;
+until then every forward of every series has to place it by hand.
+
+**`patch/0034` is two files.**
+`main-build` carries both
+`patch/0034-Guard-explicit-producer-token-in-concurrent-queue.patch`
+(minted inside a vendor commit, `704336470`) and
+`patch/0034-Undef-ERROR-for-the-unity-build.patch` (from `main`).
+`vendor-one.sh` globs the directory, so both apply and nothing
+misbehaves; the collision is in the naming only, and it predates this
+run.
