@@ -604,7 +604,8 @@ struct DataFrameLocalState : public LocalTableFunctionState {
 };
 
 static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context, TableFunctionBindInput &input,
-                                                          vector<LogicalType> &return_types, vector<string> &names) {
+                                                          vector<LogicalType> &return_types,
+                                                          vector<Identifier> &names) {
 	data_frame df((SEXP)input.inputs[0].GetPointer());
 
 	auto integer64 = get_integer64_param(input.named_parameters);
@@ -617,7 +618,7 @@ static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context
 	vector<bool> named_list_map;
 
 	for (R_xlen_t col_idx = 0; col_idx < df.size(); col_idx++) {
-		names.push_back(df_names[col_idx]);
+		names.push_back(Identifier(string(df_names[col_idx])));
 
 		auto coldata = df[col_idx];
 		TouchColumn(coldata);
