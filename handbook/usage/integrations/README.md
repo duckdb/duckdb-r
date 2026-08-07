@@ -2,7 +2,7 @@
 
 The routes into DuckDB beside plain SQL:
 dplyr pipelines by two different mechanisms, Arrow interchange,
-and ADBC.
+ADBC, and the frame libraries that take none of them.
 What a value becomes across the boundary is
 [`types/`](/handbook/usage/types/README.md).
 
@@ -85,6 +85,15 @@ without an R data frame in between —
 so a dedicated writer per frame library
 (Polars was the one asked for) is this route, not new C++
 ([#642](https://github.com/duckdb/duckdb-r/issues/642)).
+The stream feeds one consumer, draining as it is read,
+so a second pass over the same object sees zero rows
+rather than the result again.
+Reach for the stream where the result should not be held twice.
+`nanoarrow::convert_array_stream(to = )` takes a prototype and builds
+that class directly instead of a data frame to convert afterwards,
+and `dbSendQueryArrow()` with `dbFetchArrowChunk()` converts a batch
+at a time.
+
 `arrow::to_duckdb()` and `to_arrow()`
 bridge dplyr pipelines both ways.
 The DBI Arrow API plan is
@@ -98,6 +107,17 @@ register at load time the same way —
 `adbc_database_init`, `adbc_connection_init`, `adbc_statement_init`,
 all on classes this package defines for the purpose.
 It is the one route here that does not go through DBI at all.
+
+## data.table and collapse
+
+The other frame libraries
+[#642](https://github.com/duckdb/duckdb-r/issues/642) asks for,
+data.table and collapse,
+operate on subclasses of data frames internally.
+Unless this changes fundamentally,
+handing these packages a data frame is good enough:
+any other reader in these packages would still have to build R vectors.
+
 
 *To deepen: absorb the translation inventory and refused arguments
 from `?backend-duckdb`'s source; drain

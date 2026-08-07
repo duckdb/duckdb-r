@@ -1,3 +1,10 @@
+<div align="center">
+  <a href="https://r.duckdb.org/"><picture>
+    <source media="(prefers-color-scheme: light)" srcset="../man/figures/DuckDB_Logo-horizontal.svg">
+    <source media="(prefers-color-scheme: dark)" srcset="../man/figures/DuckDB_Logo-horizontal-dark-mode.svg">
+    <img alt="DuckDB logo" src="../man/figures/DuckDB_Logo-horizontal.svg" height="100">
+  </picture></a>
+</div>
 
 # duckdb
 
@@ -6,7 +13,6 @@ It is designed to support analytical query workloads and is optimized for fast q
 This repository contains the R bindings for DuckDB.
 
 ## Installation from CRAN
-
 This is the recommended method for recent R versions on Windows or macOS which have binaries available on CRAN.
 
 ``` r
@@ -60,7 +66,7 @@ The `.dev` flavors are created by an automated vendoring process;
 the CRAN and LTS flavors always point at a stable upstream release.
 
 | Flavor | Series | Kind | Progress |
-|----|----|----|----|
+|---|---|---|---|
 | `duckdb` | [`v1.5-variegata`](https://github.com/duckdb/duckdb/tree/v1.5-variegata) | CRAN | [![CRAN version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fpackagemanager.posit.co%2F__api__%2Frepos%2Fcran%2Fpackages%2Fduckdb&query=%24.version&label=version&color=green)](https://cran.r-project.org/package=duckdb) |
 | `duckdb.1.4` | [`v1.4-andium`](https://github.com/duckdb/duckdb/tree/v1.4-andium) | LTS | [![r-universe version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fduckdb.r-universe.dev%2Fapi%2Fpackages%2Fduckdb.1.4&query=%24.Version&label=version&color=green)](https://duckdb.r-universe.dev/duckdb.1.4) |
 | `duckdb.dev` | [`main`](https://github.com/duckdb/duckdb/tree/main) | dev | [![ahead](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=main&head=main-green&label=ahead&color=green)](https://github.com/krlmlr/duckdb-r/compare/main...main-green) [![in flight](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=main-green&head=main-dev&label=in%20flight&color=yellow)](https://github.com/krlmlr/duckdb-r/compare/main-green...main-dev) [![buffered](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=main-build-base&head=main-build&label=buffered&color=blue)](https://github.com/krlmlr/duckdb-r/compare/main-build-base...main-build) |
