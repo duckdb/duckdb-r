@@ -92,3 +92,13 @@ The `pending` status is a **display** artifact:
 it tells a human looking at the commit list that something is happening.
 `each-shard.sh` treats it as undecided,
 because it is the state a killed leg leaves behind.
+
+The backstop is the one writer that reads statuses at all,
+and it honours the same rule:
+[`scripts/rcc-logs.sh`](/scripts/rcc-logs.sh) reconstructs a record
+only from a status that is a verdict — `success`, `failure` or `error` —
+and leaves a commit whose status is still `pending` undecided.
+Recording it would be durable,
+and a durable `pending` is the one state nothing can leave:
+selection reads presence, so the planner would skip the commit for good,
+while `series-check.sh` read the state and waited for it for good.
