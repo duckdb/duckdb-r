@@ -147,7 +147,11 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 		auto materialize_callback = Rf_GetOption1(RStrings::get().materialize_callback_sym);
 		if (Rf_isFunction(materialize_callback)) {
 			sexp call = Rf_lang2(materialize_callback, rel_eptr);
-			Rf_eval(call, R_BaseEnv);
+			// safe[], not a bare Rf_eval(): an error in the callback would
+			// otherwise long-jmp out of the ALTREP method that called us,
+			// skipping ~AltrepGuard() and leaving the guard stuck on for the
+			// rest of the session. Matches RProgressBarDisplay::Update().
+			cpp11::safe[Rf_eval](call, R_BaseEnv);
 		}
 
 		auto materialize_message = Rf_GetOption1(RStrings::get().materialize_message_sym);
