@@ -204,6 +204,10 @@ rapi_rel_to_altrep <- function(rel, n_rows, n_cells) {
   .Call(`_duckdb_rapi_rel_to_altrep`, rel, n_rows, n_cells)
 }
 
+rapi_df_has_query_result <- function(df) {
+  .Call(`_duckdb_rapi_df_has_query_result`, df)
+}
+
 rapi_rel_from_altrep_df <- function(df, strict, allow_materialized, wrap) {
   .Call(`_duckdb_rapi_rel_from_altrep_df`, df, strict, allow_materialized, wrap)
 }

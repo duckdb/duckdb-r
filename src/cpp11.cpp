@@ -376,6 +376,13 @@ extern "C" SEXP _duckdb_rapi_rel_to_altrep(SEXP rel, SEXP n_rows, SEXP n_cells) 
   END_CPP11
 }
 // reltoaltrep.cpp
+bool rapi_df_has_query_result(SEXP df);
+extern "C" SEXP _duckdb_rapi_df_has_query_result(SEXP df) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(rapi_df_has_query_result(cpp11::as_cpp<cpp11::decay_t<SEXP>>(df)));
+  END_CPP11
+}
+// reltoaltrep.cpp
 SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized, bool wrap);
 extern "C" SEXP _duckdb_rapi_rel_from_altrep_df(SEXP df, SEXP strict, SEXP allow_materialized, SEXP wrap) {
   BEGIN_CPP11
@@ -477,6 +484,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_duckdb_rapi_connect",                 (DL_FUNC) &_duckdb_rapi_connect,                  2},
     {"_duckdb_rapi_connection_valid",        (DL_FUNC) &_duckdb_rapi_connection_valid,         1},
     {"_duckdb_rapi_cxx_stdlib",              (DL_FUNC) &_duckdb_rapi_cxx_stdlib,               0},
+    {"_duckdb_rapi_df_has_query_result",     (DL_FUNC) &_duckdb_rapi_df_has_query_result,      1},
     {"_duckdb_rapi_disconnect",              (DL_FUNC) &_duckdb_rapi_disconnect,               1},
     {"_duckdb_rapi_execute",                 (DL_FUNC) &_duckdb_rapi_execute,                  2},
     {"_duckdb_rapi_execute_arrow",           (DL_FUNC) &_duckdb_rapi_execute_arrow,            2},

@@ -459,6 +459,15 @@ rethrow_rapi_rel_to_altrep <- function(rel, n_rows, n_cells, call = parent.frame
   )
 }
 
+rethrow_rapi_df_has_query_result <- function(df, call = parent.frame(2)) {
+  rlang::try_fetch(
+    rapi_df_has_query_result(df),
+    error = function(e) {
+      rethrow_error_from_rapi(e, call)
+    }
+  )
+}
+
 rethrow_rapi_rel_from_altrep_df <- function(df, strict, allow_materialized, wrap, call = parent.frame(2)) {
   rlang::try_fetch(
     rapi_rel_from_altrep_df(df, strict, allow_materialized, wrap),
@@ -628,6 +637,7 @@ rethrow_restore <- function() {
   rethrow_rapi_rel_to_view <<- rapi_rel_to_view
   rethrow_rapi_rel_insert <<- rapi_rel_insert
   rethrow_rapi_rel_to_altrep <<- rapi_rel_to_altrep
+  rethrow_rapi_df_has_query_result <<- rapi_df_has_query_result
   rethrow_rapi_rel_from_altrep_df <<- rapi_rel_from_altrep_df
   rethrow_rapi_release <<- rapi_release
   rethrow_rapi_prepare <<- rapi_prepare

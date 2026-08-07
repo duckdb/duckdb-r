@@ -47,6 +47,56 @@ test_that("we can recognize if a df is materialized", {
   expect_true(df_is_materialized(df))
 })
 
+test_that("the query result is released once all columns are transformed", {
+  df_in <- data.frame(a = as.double(1:10000), b = as.double(10000:1))
+  df <- rel_to_altrep(rel_from_df(con, df_in))
+  expect_false(df_is_materialized(df))
+  expect_false(rapi_df_has_query_result(df))
+
+  # Materialization via the row count retains the result
+  expect_equal(nrow(df), 10000)
+  expect_true(df_is_materialized(df))
+  expect_true(rapi_df_has_query_result(df))
+
+  # Transforming only some of the columns retains the result
+  expect_equal(sum(df$a), sum(df_in$a))
+  expect_true(rapi_df_has_query_result(df))
+
+  # Transforming the last column releases the result
+  expect_equal(sum(df$b), sum(df_in$b))
+  expect_false(rapi_df_has_query_result(df))
+
+  # The data frame remains fully functional after the release
+  expect_true(df_is_materialized(df))
+  expect_equal(nrow(df), 10000)
+  expect_equal(df, df_in)
+
+  # A relation wrapped around the released data frame scans the R vectors
+  rel2 <- rel_from_altrep_df(df, wrap = TRUE)
+  expect_equal(rapi_rel_to_df(rel2), df_in, ignore_attr = TRUE)
+})
+
+test_that("the query result is released with nested STRUCT columns", {
+  rel <- rel_from_sql(
+    con,
+    "SELECT {'x': range::int, 'y': range::double} AS s, range AS a FROM range(1000)"
+  )
+  df <- rel_to_altrep(rel)
+
+  # Transforming the plain column and one struct field retains the result
+  expect_equal(sum(df$a), sum(0:999))
+  expect_equal(sum(df$s$x), sum(0:999))
+  expect_true(rapi_df_has_query_result(df))
+
+  # Transforming the last struct field releases the result
+  expect_equal(sum(df$s$y), sum(0:999))
+  expect_false(rapi_df_has_query_result(df))
+
+  # The data frame remains fully functional after the release
+  expect_equal(nrow(df), 1000)
+  expect_equal(df$s$y, as.double(0:999))
+})
+
 
 test_that("we can create various expressions and don't crash", {
   expect_snapshot({

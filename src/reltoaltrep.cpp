@@ -772,6 +772,14 @@ shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool 
 	return wrapper->rel;
 }
 
+[[cpp11::register]] bool rapi_df_has_query_result(SEXP df) {
+	// Internal introspection for tests:
+	// TRUE while the materialized result is held,
+	// FALSE before materialization and after the result has been released
+	auto wrapper = rapi_rel_wrapper_from_altrep_df(df, true, true);
+	return (bool)wrapper->mat_result;
+}
+
 [[cpp11::register]] SEXP rapi_rel_from_altrep_df(SEXP df, bool strict, bool allow_materialized, bool wrap) {
 	auto wrapper = rapi_rel_wrapper_from_altrep_df(df, strict, allow_materialized);
 	if (!wrapper) {
