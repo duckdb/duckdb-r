@@ -5,23 +5,46 @@ runs:
   steps:
     # Must be done after installing R because rtools is installed only then
     - name: Compute cache key
+      if: env.DUCKDB_R_USE_SYSTEM_LIB != '1'
       run: |
         echo "DUCKDB_R_PREBUILT_ARCHIVE_GHA_CACHE_KEY=duckdb-tar-R$(Rscript --vanilla -e 'cat(format(getRversion()))')-${{ runner.os }}-$($(R CMD config CXX) --version | head -n 1 | sed -r 's/[, ]/-/g')-${{ hashFiles('src/duckdb/**') }}" | tee -a $GITHUB_ENV
         echo "DUCKDB_R_PREBUILT_ARCHIVE=${{ runner.temp }}/duckdb.tar" | tee -a $GITHUB_ENV
       shell: bash
 
     - name: Cache duckdb archive
+      if: env.DUCKDB_R_USE_SYSTEM_LIB != '1'
       uses: actions/cache@v4
       with:
         path: ${{ env.DUCKDB_R_PREBUILT_ARCHIVE }}
         key: ${{ env.DUCKDB_R_PREBUILT_ARCHIVE_GHA_CACHE_KEY }}
 
+    - name: Detect an unreleased R
+      run: |
+        ## -- Detect an unreleased R --
+        # The persistent ccache below is keyed on getRversion(), and that key is
+        # only honest for a released R, where the version number changes
+        # whenever the installation does. R-devel is rebuilt every day but keeps
+        # reporting the same number for months, so one cache entry ends up
+        # serving an arbitrary span of R-devel snapshots -- and restoring it in
+        # the rcc R-devel job has produced build failures. Skip the persistent
+        # cache there and build cold; ccache itself stays configured by the
+        # install action, so reuse within the job is unaffected.
+        #
+        # R.version$status is empty for a released R and non-empty for one that
+        # moves under a fixed version number ("Under development (unstable)" for
+        # R-devel, "Patched" for R-patched) -- exactly the builds the key cannot
+        # tell apart.
+        echo "DUCKDB_R_UNRELEASED=$(Rscript --vanilla -e 'cat(if (nzchar(R.version$status)) "1" else "0")')" | tee -a $GITHUB_ENV
+      shell: bash
+
     - name: Compute ccache key
+      if: env.DUCKDB_R_USE_SYSTEM_LIB != '1' && env.DUCKDB_R_UNRELEASED != '1'
       run: |
         echo "GHA_CCACHE_KEY=${{ runner.os }}-$($(R CMD config CXX) --version | head -n 1 | sed -r 's/[, ]/-/g')-R-$(Rscript --vanilla -e 'cat(format(getRversion()))')" | tee -a $GITHUB_ENV
       shell: bash
 
     - name: Install persistent ccache
+      if: env.DUCKDB_R_USE_SYSTEM_LIB != '1' && env.DUCKDB_R_UNRELEASED != '1'
       uses: hendrikmuhs/ccache-action@v1.2.14
       with:
         key: ${{ env.GHA_CCACHE_KEY }}
@@ -35,6 +58,33 @@ runs:
       shell: bash
 
     - name: Show ccache stats
+      if: env.DUCKDB_R_USE_SYSTEM_LIB != '1'
       run: |
         ccache -s
       shell: bash
+
+    # Guard for the flavor rename: fail when the package name is hard-coded
+    # somewhere scripts/flavor.patch does not rewrite it. The equivalent testthat
+    # test (tests/testthat/test-flavor-package-name.R) can only skip under R CMD
+    # check, which runs from a built tarball where neither the sources nor
+    # scripts/ (.Rbuildignore'd) exist -- so the scan runs here, against the
+    # checkout. Base R only, no package needed.
+    #
+    # This action runs in every matrix entry, but the scan reads the checkout
+    # and nothing else, so its result is the same everywhere. Run it in the
+    # smoke test only -- the gate that also styles, roxygenizes and updates
+    # snapshots -- rather than a dozen more times for the same answer.
+    - name: Check that the package name is hard-coded only where scripts/flavor.patch rewrites it
+      if: github.job == 'rcc-smoke'
+      run: |
+        source("scripts/flavor-package-name.R")
+        offenders <- flavor_package_name_offenders(".")
+        if (length(offenders) > 0) {
+          writeLines(offenders)
+          stop(
+            "The package name is hard-coded outside scripts/flavor.patch; ",
+            "see scripts/flavor-package-name.R for how to resolve this."
+          )
+        }
+        writeLines("No hard-coded package name outside scripts/flavor.patch.")
+      shell: Rscript {0}

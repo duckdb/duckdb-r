@@ -19,10 +19,13 @@ dbAppendTable__duckdb_connection <- function(conn, name, value, ..., row.names =
     on.exit(duckdb_unregister(conn, view_name))
     duckdb_register(conn, view_name, value)
 
+    target_types <- duckdb_target_column_types(conn, name)
+    select_exprs <- duckdb_select_exprs_for_target(conn, names(value), target_types)
+
     sql <- paste0(
       "INSERT INTO ", table_name, "\n",
       "(", paste(dbQuoteIdentifier(conn, names(value)), collapse = ", "), ")\n",
-      "SELECT * FROM ", view_name
+      "SELECT ", paste(select_exprs, collapse = ", "), " FROM ", view_name
     )
 
     dbExecute(conn, sql)
@@ -31,6 +34,38 @@ dbAppendTable__duckdb_connection <- function(conn, name, value, ..., row.names =
   }
 
   invisible(nrow(value))
+}
+
+# Build a named vector mapping target column names to DuckDB column type strings.
+duckdb_target_column_types <- function(conn, name) {
+  info <- dbGetQuery(
+    conn,
+    paste0("DESCRIBE ", dbQuoteIdentifier(conn, name))
+  )
+  structure(info$column_type, names = info$column_name)
+}
+
+# Build SELECT column expressions, converting source representations into the
+# target column types where DuckDB cannot implicitly cast (e.g. MAP).
+duckdb_select_exprs_for_target <- function(conn, col_names, target_types) {
+  vapply(col_names, function(col_name) {
+    quoted <- dbQuoteIdentifier(conn, col_name)
+    target_type <- target_types[[col_name]]
+    if (!is.null(target_type) && duckdb_is_map_type(target_type)) {
+      # `map_from_entries()` builds a MAP from a LIST(STRUCT(key, value))
+      # representation, which matches how MAPs are read back into R.
+      paste0("map_from_entries(", quoted, ") AS ", quoted)
+    } else {
+      as.character(quoted)
+    }
+  }, character(1), USE.NAMES = FALSE)
+}
+
+# Returns TRUE if `type` is a top-level DuckDB MAP type,
+# e.g. "MAP(VARCHAR, INTEGER)". Returns FALSE for nested types
+# such as "MAP(VARCHAR, INTEGER)[]" (array of MAP) or "STRUCT(m MAP(...))".
+duckdb_is_map_type <- function(type) {
+  grepl("^MAP\\(.*\\)$", type)
 }
 
 #' @rdname duckdb_connection-class

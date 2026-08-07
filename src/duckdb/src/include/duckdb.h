@@ -193,6 +193,9 @@ typedef enum duckdb_statement_type {
 	DUCKDB_STATEMENT_TYPE_ATTACH = 25,
 	DUCKDB_STATEMENT_TYPE_DETACH = 26,
 	DUCKDB_STATEMENT_TYPE_MULTI = 27,
+	DUCKDB_STATEMENT_TYPE_COPY_DATABASE = 28,
+	DUCKDB_STATEMENT_TYPE_UPDATE_EXTENSIONS = 29,
+	DUCKDB_STATEMENT_TYPE_MERGE_INTO = 30,
 } duckdb_statement_type;
 
 //! An enum over DuckDB's different error types.
@@ -502,7 +505,7 @@ typedef struct {
 } duckdb_bit;
 
 //! BIGNUMs are composed of a byte pointer, a size, and an `is_negative` bool.
-//! The absolute value of the number is stored in `data` in little endian format.
+//! The absolute value of the number is stored in `data` in big endian format.
 //! You must free `data` with `duckdb_free`.
 typedef struct {
 	uint8_t *data;
@@ -2516,8 +2519,11 @@ DUCKDB_C_API duckdb_value duckdb_create_bignum(duckdb_bignum input);
 /*!
 Creates a DECIMAL value from a duckdb_decimal
 
+The width must be between 1 and 38, and the scale must not exceed the width.
+
 * @param input The duckdb_decimal value
-* @return The value. This must be destroyed with `duckdb_destroy_value`.
+* @return The value, or `nullptr` if the width or scale are out of range. This must be destroyed with
+`duckdb_destroy_value`.
 */
 DUCKDB_C_API duckdb_value duckdb_create_decimal(duckdb_decimal input);
 
@@ -3138,9 +3144,9 @@ DUCKDB_C_API duckdb_logical_type duckdb_create_enum_type(const char **member_nam
 Creates a DECIMAL type with the specified width and scale.
 The resulting type should be destroyed with `duckdb_destroy_logical_type`.
 
-* @param width The width of the decimal type
-* @param scale The scale of the decimal type
-* @return The logical type.
+* @param width The width of the decimal type. Must be between 1 and 38.
+* @param scale The scale of the decimal type. Must not exceed the width.
+* @return The logical type, or `nullptr` if the width or scale are out of range.
 */
 DUCKDB_C_API duckdb_logical_type duckdb_create_decimal_type(uint8_t width, uint8_t scale);
 

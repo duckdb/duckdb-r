@@ -22,11 +22,52 @@ r_versions <- c("devel", as.character(r_release))
 
 macos <- data.frame(os = "macos-latest", r = r_versions[2:3])
 windows <- data.frame(os = "windows-latest", r = r_versions[1:3])
-linux_devel <- data.frame(os = "ubuntu-24.04", r = r_versions[1], `http-user-agent` = "release", check.names = FALSE)
-linux <- data.frame(os = "ubuntu-24.04", r = r_versions[-1])
-covr <- data.frame(os = "ubuntu-24.04", r = r_versions[2], covr = "true", desc = "with covr")
 
-include_list <- list(macos, windows, linux_devel, linux, covr)
+# Linux amd64 (ubuntu-26.04) carries the full historical sweep: R-devel plus
+# every supported release down to the oldest. amd64 has the most mature
+# toolchain and the broadest CRAN binary coverage on Posit Package Manager, so
+# it is where the deep back-compatibility testing lives.
+linux_devel <- data.frame(os = "ubuntu-26.04", r = r_versions[1], `http-user-agent` = "release", check.names = FALSE)
+linux <- data.frame(os = "ubuntu-26.04", r = r_versions[-1])
+covr <- data.frame(os = "ubuntu-26.04", r = r_versions[2], covr = "true", desc = "with covr")
+
+# Linux arm64 (ubuntu-26.04-arm) is intentionally ragged: only the two newest R
+# versions, R-devel and R-release. These are the versions actually deployed to
+# arm64 today (Apple Silicon, AWS Graviton, ...) and the ones with dependable
+# arm64 R builds; re-running the full historical range on a second architecture
+# would add cost without adding meaningful coverage. R-release (and R-devel)
+# overlap with amd64, so at least one R version is exercised on both arches.
+# PPM note: r-lib/actions/setup-r historically disabled Posit Package Manager on
+# aarch64 Linux (r-lib/actions NEWS v2.11.2, 2025-02-19) because PPM shipped no
+# arm64 binaries and would have served x86_64 ones. setup-r v2.12.0 (2026-04-29)
+# re-enabled it, and PPM has published resolute (26.04) aarch64 CRAN binaries
+# since PPM 2026.05.0, so arm64 jobs on @v2 now install binaries, not source.
+linux_arm64 <- data.frame(os = "ubuntu-26.04-arm", r = r_versions[1:2])
+
+# Windows arm64 (windows-11-arm) is ragged for the same reason as Linux arm64,
+# only more so: a single entry, R-release. Windows on Arm is the youngest of the
+# three arm64 targets, and R for Windows/aarch64 is a separate distribution from
+# the x86_64 one rather than a second build of it, so the point here is to catch
+# "does this package build and check at all on Windows/aarch64", not to sweep R
+# versions. R-release overlaps with the windows-latest (amd64) entries, which
+# keeps the two Windows architectures comparable on at least one R version.
+# Tooling note: r-lib/actions/setup-r resolves the aarch64 Windows installer
+# through the r-hub rversions API and installs the matching aarch64 Rtools45
+# (r-lib/actions NEWS v2.11.4, 2025-10-08). Posit Package Manager publishes no
+# aarch64 Windows binaries, and setup-r's `use-public-rspm: true` enables PPM on
+# x86_64 Windows only, so dependencies are compiled from source on this runner
+# and it is the slowest entry in the matrix.
+windows_arm64 <- data.frame(os = "windows-11-arm", r = r_versions[2])
+
+include_list <- list(
+  macos,
+  windows,
+  linux_devel,
+  linux,
+  covr,
+  linux_arm64,
+  windows_arm64
+)
 
 if (file.exists(".github/versions-matrix.R")) {
   custom <- source(".github/versions-matrix.R")$value
@@ -49,9 +90,18 @@ if (!is.na(filter)) {
 
 to_json <- function(x) {
   if (nrow(x) == 0) return(character())
+  # Minimal JSON string escaping: backslash, double quote, newline.
+  # Newlines matter for the "env" field,
+  # which carries one KEY=VALUE per line.
+  escape <- function(v) {
+    v <- gsub("\\", "\\\\", v, fixed = TRUE)
+    v <- gsub('"', '\\"', v, fixed = TRUE)
+    v <- gsub("\n", "\\n", v, fixed = TRUE)
+    v
+  }
   parallel <- vector("list", length(x))
   for (i in seq_along(x)) {
-    parallel[[i]] <- paste0('"', names(x)[[i]], '":"', x[[i]], '"')
+    parallel[[i]] <- paste0('"', escape(names(x)[[i]]), '":"', escape(x[[i]]), '"')
   }
   paste0("{", do.call(paste, c(parallel, sep = ",")), "}")
 }

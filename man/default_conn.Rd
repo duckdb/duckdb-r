@@ -29,6 +29,8 @@ There is no way for this or other packages to comprehensively track the state
 of this connection, so scripts and packages should manage their own connections.
 }
 \examples{
+\dontshow{if (simulate_duckdb()$env$examples_enabled()) withAutoprint(\{ # examplesIf}
 conn <- default_conn()
 sql_query("SELECT 42", conn = conn)
+\dontshow{\}) # examplesIf}
 }

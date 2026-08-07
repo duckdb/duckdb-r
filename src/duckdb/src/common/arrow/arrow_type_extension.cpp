@@ -281,7 +281,8 @@ struct ArrowJson {
 		root_holder.metadata_info.emplace_back(schema_metadata.SerializeMetadata());
 		schema.metadata = root_holder.metadata_info.back().get();
 		const auto options = context.GetClientProperties();
-		if (options.produce_arrow_string_view) {
+		// view layout only when string_view + >= 1.4; declare it to match.
+		if (options.produce_arrow_string_view && options.arrow_output_version >= ArrowFormatVersion::V1_4) {
 			schema.format = "vu";
 		} else {
 			if (options.arrow_offset_size == ArrowOffsetSize::LARGE) {
@@ -302,6 +303,8 @@ struct ArrowBit {
 		} else if (format == "Z") {
 			return make_uniq<ArrowType>(LogicalType::BIT,
 			                            make_uniq<ArrowStringInfo>(ArrowVariableSizeType::SUPER_SIZE));
+		} else if (format == "vz") {
+			return make_uniq<ArrowType>(LogicalType::BIT, make_uniq<ArrowStringInfo>(ArrowVariableSizeType::VIEW));
 		}
 		throw InvalidInputException("Arrow extension type \"%s\" not supported for BIT type", format.c_str());
 	}
@@ -313,7 +316,10 @@ struct ArrowBit {
 		root_holder.metadata_info.emplace_back(schema_metadata.SerializeMetadata());
 		schema.metadata = root_holder.metadata_info.back().get();
 		const auto options = context.GetClientProperties();
-		if (options.arrow_offset_size == ArrowOffsetSize::LARGE) {
+		if (options.arrow_output_version >= ArrowFormatVersion::V1_4) {
+			// >= 1.4 appends the binary view (4-buffer) layout; declare it to match.
+			schema.format = "vz";
+		} else if (options.arrow_offset_size == ArrowOffsetSize::LARGE) {
 			schema.format = "Z";
 		} else {
 			schema.format = "z";
@@ -330,6 +336,8 @@ struct ArrowBignum {
 		} else if (format == "Z") {
 			return make_uniq<ArrowType>(LogicalType::BIGNUM,
 			                            make_uniq<ArrowStringInfo>(ArrowVariableSizeType::SUPER_SIZE));
+		} else if (format == "vz") {
+			return make_uniq<ArrowType>(LogicalType::BIGNUM, make_uniq<ArrowStringInfo>(ArrowVariableSizeType::VIEW));
 		}
 		throw InvalidInputException("Arrow extension type \"%s\" not supported for Bignum", format.c_str());
 	}
@@ -341,7 +349,10 @@ struct ArrowBignum {
 		root_holder.metadata_info.emplace_back(schema_metadata.SerializeMetadata());
 		schema.metadata = root_holder.metadata_info.back().get();
 		const auto options = context.GetClientProperties();
-		if (options.arrow_offset_size == ArrowOffsetSize::LARGE) {
+		if (options.arrow_output_version >= ArrowFormatVersion::V1_4) {
+			// >= 1.4 appends the binary view (4-buffer) layout; declare it to match.
+			schema.format = "vz";
+		} else if (options.arrow_offset_size == ArrowOffsetSize::LARGE) {
 			schema.format = "Z";
 		} else {
 			schema.format = "z";
@@ -351,6 +362,9 @@ struct ArrowBignum {
 
 struct ArrowBool8 {
 	static void ArrowToDuck(ClientContext &context, Vector &source, Vector &result, idx_t count) {
+		// The caller (ColumnArrowToDuckDB) always builds a flat storage vector for the
+		// extension's internal type, so reading it flat is safe.
+		D_ASSERT(source.GetVectorType() == VectorType::FLAT_VECTOR);
 		auto source_ptr = reinterpret_cast<int8_t *>(FlatVector::GetData(source));
 		auto result_ptr = reinterpret_cast<bool *>(FlatVector::GetData(result));
 		for (idx_t i = 0; i < count; i++) {
@@ -358,14 +372,20 @@ struct ArrowBool8 {
 		}
 	}
 	static void DuckToArrow(ClientContext &context, Vector &source, Vector &result, idx_t count) {
+		// The source may be dictionary/constant/sliced (container appenders hand us such
+		// children), so resolve every row through the selection vector. The result is flat,
+		// so its validity is keyed by the logical row index.
 		UnifiedVectorFormat format;
 		source.ToUnifiedFormat(count, format);
-		FlatVector::SetValidity(result, format.validity);
-		auto source_ptr = reinterpret_cast<bool *>(format.data);
-		auto result_ptr = reinterpret_cast<int8_t *>(FlatVector::GetData(result));
+		auto source_ptr = UnifiedVectorFormat::GetData<bool>(format);
+		auto result_ptr = FlatVector::GetData<int8_t>(result);
+		auto &result_validity = FlatVector::Validity(result);
 		for (idx_t i = 0; i < count; i++) {
-			if (format.validity.RowIsValid(i)) {
-				result_ptr[i] = static_cast<int8_t>(source_ptr[i]);
+			auto source_idx = format.sel->get_index(i);
+			if (format.validity.RowIsValid(source_idx)) {
+				result_ptr[i] = static_cast<int8_t>(source_ptr[source_idx]);
+			} else {
+				result_validity.SetInvalid(i);
 			}
 		}
 	}
@@ -474,7 +494,6 @@ struct ArrowGeometry {
 
 				duckdb_yyjson::yyjson_doc_free(projjson_doc);
 			} else {
-				duckdb_yyjson::yyjson_mut_doc_free(doc);
 				throw SerializationException("Could not parse PROJJSON CRS for GeoArrow metadata");
 			}
 		} break;
@@ -523,6 +542,7 @@ struct ArrowGeometry {
 			duckdb_yyjson::yyjson_mut_doc_free(doc);
 			free(json_text);
 		} else {
+			duckdb_yyjson::yyjson_mut_doc_free(doc);
 			schema_metadata.AddOption(ArrowSchemaMetadata::ARROW_METADATA_KEY, "{}");
 		}
 
@@ -530,7 +550,10 @@ struct ArrowGeometry {
 		schema.metadata = root_holder.metadata_info.back().get();
 
 		const auto options = context.GetClientProperties();
-		if (options.arrow_offset_size == ArrowOffsetSize::LARGE) {
+		if (options.arrow_output_version >= ArrowFormatVersion::V1_4) {
+			// >= 1.4 appends the binary view (4-buffer) layout; declare it to match.
+			schema.format = "vz";
+		} else if (options.arrow_offset_size == ArrowOffsetSize::LARGE) {
 			schema.format = "Z";
 		} else {
 			schema.format = "z";

@@ -12,9 +12,13 @@ on:
 
 name: rcc dev
 
+# Read-only by default; the jobs that need more opt back in below.
+permissions:
+  contents: read
+
 jobs:
   matrix:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
 
@@ -33,7 +37,7 @@ jobs:
         uses: ./.github/workflows/dep-matrix
 
   check-matrix:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: matrix
 
     name: Check deps
@@ -44,19 +48,25 @@ jobs:
           sudo npm install -g json2yaml
 
       - name: Check matrix definition
+        # Passed through the environment rather than spliced into the script:
+        # the matrix is generated from DESCRIPTION in the checkout.
+        env:
+          MATRIX: ${{ needs.matrix.outputs.matrix }}
         run: |
-          matrix='${{ needs.matrix.outputs.matrix }}'
-          echo $matrix
-          echo $matrix | jq .
-          echo $matrix | json2yaml
+          printf '%s\n' "${MATRIX}"
+          printf '%s' "${MATRIX}" | jq .
+          printf '%s' "${MATRIX}" | json2yaml
 
   R-CMD-check-base:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     name: base
 
-    # Begin custom: services
-    # End custom: services
+    permissions:
+      # Both required by the update-snapshots action, which opens a pull
+      # request with refreshed snapshots.
+      contents: write
+      pull-requests: write
 
     strategy:
       fail-fast: false
@@ -97,12 +107,14 @@ jobs:
       - matrix
       - R-CMD-check-base
 
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     name: 'rcc-dev: ${{ matrix.package }}'
 
-    # Begin custom: services
-    # End custom: services
+    permissions:
+      # Both required by the update-snapshots action.
+      contents: write
+      pull-requests: write
 
     strategy:
       fail-fast: false
@@ -125,7 +137,10 @@ jobs:
         env:
           GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          remotes::install_runiverse("${{ matrix.package }}", linux_distro = "noble")
+          # r-universe builds Linux binaries for ubuntu:latest, which now tracks
+          # 26.04 "resolute" (it no longer publishes "noble"). This matches the
+          # ubuntu-26.04 runner above.
+          remotes::install_runiverse("${{ matrix.package }}", linux_distro = "resolute")
         shell: Rscript {0}
 
       - name: Session info

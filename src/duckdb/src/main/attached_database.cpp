@@ -12,6 +12,7 @@
 #include "duckdb/main/database_path_and_type.hpp"
 #include "duckdb/main/valid_checker.hpp"
 #include "duckdb/storage/block_allocator.hpp"
+#include "duckdb/main/settings.hpp"
 
 namespace duckdb {
 
@@ -68,8 +69,10 @@ AttachOptions::AttachOptions(const unordered_map<string, Value> &attach_options,
 		}
 
 		if (entry.first == "type") {
-			// Extract the database type.
-			db_type = StringValue::Get(entry.second.DefaultCastAs(LogicalType::VARCHAR));
+			// Extract the database type. Normalize case so that
+			// `TYPE sqlite` and `TYPE 'SQLite'` are equivalent.
+			// `TYPE sqlite` and `TYPE 'sqlite3'` are NOT equivalent, aliasing to be applied on comparison
+			db_type = StringUtil::Lower(StringValue::Get(entry.second.DefaultCastAs(LogicalType::VARCHAR)));
 			continue;
 		}
 
@@ -85,6 +88,18 @@ AttachOptions::AttachOptions(const unordered_map<string, Value> &attach_options,
 			}
 			continue;
 		}
+
+		if (entry.first == "vacuum_rebuild_indexes") {
+			const auto threshold = UBigIntValue::Get(entry.second.DefaultCastAs(LogicalType::UBIGINT));
+			try {
+				vacuum_rebuild_indexes_threshold = threshold;
+			} catch (InternalException &e) {
+				throw InvalidInputException("Invalid setting for vacuum_rebuild_indexes: %d (valid range is 0 - %d)",
+				                            threshold,
+				                            UBigIntValue::Get(Value::MaximumValue(LogicalType::UBIGINT)) - 1);
+			}
+			continue;
+		}
 		options.emplace(entry.first, entry.second);
 	}
 }
@@ -92,10 +107,14 @@ AttachOptions::AttachOptions(const unordered_map<string, Value> &attach_options,
 //===--------------------------------------------------------------------===//
 // Attached Database
 //===--------------------------------------------------------------------===//
+ValidChecker &ValidChecker::Get(AttachedDatabase &db) {
+	return db.GetValidChecker();
+}
+
 AttachedDatabase::AttachedDatabase(DatabaseInstance &db, AttachedDatabaseType type)
     : CatalogEntry(CatalogType::DATABASE_ENTRY,
                    type == AttachedDatabaseType::SYSTEM_DATABASE ? SYSTEM_CATALOG : TEMP_CATALOG, 0),
-      db(db), type(type), close_lock(make_shared_ptr<mutex>()) {
+      db(db), validity(db), type(type), close_lock(make_shared_ptr<mutex>()) {
 	// This database does not have storage, or uses temporary_objects for in-memory storage.
 	D_ASSERT(type == AttachedDatabaseType::TEMP_DATABASE || type == AttachedDatabaseType::SYSTEM_DATABASE);
 	if (type == AttachedDatabaseType::TEMP_DATABASE) {
@@ -112,8 +131,8 @@ AttachedDatabase::AttachedDatabase(DatabaseInstance &db, AttachedDatabaseType ty
 
 AttachedDatabase::AttachedDatabase(DatabaseInstance &db, Catalog &catalog_p, string name_p, string file_path_p,
                                    AttachOptions &options)
-    : CatalogEntry(CatalogType::DATABASE_ENTRY, catalog_p, std::move(name_p)), db(db), parent_catalog(&catalog_p),
-      close_lock(make_shared_ptr<mutex>()) {
+    : CatalogEntry(CatalogType::DATABASE_ENTRY, catalog_p, std::move(name_p)), db(db), validity(db),
+      parent_catalog(&catalog_p), close_lock(make_shared_ptr<mutex>()) {
 	if (options.access_mode == AccessMode::READ_ONLY) {
 		type = AttachedDatabaseType::READ_ONLY_DATABASE;
 	} else {
@@ -121,6 +140,7 @@ AttachedDatabase::AttachedDatabase(DatabaseInstance &db, Catalog &catalog_p, str
 	}
 	recovery_mode = options.recovery_mode;
 	visibility = options.visibility;
+	vacuum_rebuild_threshold = options.vacuum_rebuild_indexes_threshold;
 
 	// We create the storage after the catalog to guarantee we allow extensions to instantiate the DuckCatalog.
 	catalog = make_uniq<DuckCatalog>(*this);
@@ -133,8 +153,8 @@ AttachedDatabase::AttachedDatabase(DatabaseInstance &db, Catalog &catalog_p, str
 
 AttachedDatabase::AttachedDatabase(DatabaseInstance &db, Catalog &catalog_p, StorageExtension &storage_extension_p,
                                    ClientContext &context, string name_p, AttachInfo &info, AttachOptions &options)
-    : CatalogEntry(CatalogType::DATABASE_ENTRY, catalog_p, std::move(name_p)), db(db), parent_catalog(&catalog_p),
-      storage_extension(&storage_extension_p), close_lock(make_shared_ptr<mutex>()) {
+    : CatalogEntry(CatalogType::DATABASE_ENTRY, catalog_p, std::move(name_p)), db(db), validity(db),
+      parent_catalog(&catalog_p), storage_extension(&storage_extension_p), close_lock(make_shared_ptr<mutex>()) {
 	if (options.access_mode == AccessMode::READ_ONLY) {
 		type = AttachedDatabaseType::READ_ONLY_DATABASE;
 	} else {
@@ -142,6 +162,7 @@ AttachedDatabase::AttachedDatabase(DatabaseInstance &db, Catalog &catalog_p, Sto
 	}
 	recovery_mode = options.recovery_mode;
 	visibility = options.visibility;
+	vacuum_rebuild_threshold = options.vacuum_rebuild_indexes_threshold;
 
 	optional_ptr<StorageExtensionInfo> storage_info = storage_extension->storage_info.get();
 	catalog = storage_extension->attach(storage_info, context, *this, name, info, options);
@@ -183,6 +204,13 @@ bool AttachedDatabase::IsReadOnly() const {
 
 bool AttachedDatabase::NameIsReserved(const string &name) {
 	return name == DEFAULT_SCHEMA || name == TEMP_CATALOG || name == SYSTEM_CATALOG;
+}
+
+idx_t AttachedDatabase::GetVacuumRebuildIndexThreshold() const {
+	if (vacuum_rebuild_threshold.IsValid()) {
+		return vacuum_rebuild_threshold.GetIndex();
+	}
+	return Settings::Get<VacuumRebuildIndexesSetting>(db);
 }
 
 string AttachedDatabase::StoredPath() const {
@@ -271,6 +299,15 @@ bool AttachedDatabase::IsInitialDatabase() const {
 	return is_initial_database;
 }
 
+void AttachedDatabase::Invalidate(const string &reason) {
+	string recovery = HasStorageManager() && GetStorageManager().InMemory()
+	                      ? "It is an in-memory database, so its data cannot be recovered."
+	                      : "Detach and reattach it before using it again.";
+	ValidChecker::Invalidate(*this, StringUtil::Format("Database \"%s\" has been invalidated because checkpointing "
+	                                                   "failed. %s Original error: %s",
+	                                                   GetName(), recovery, reason));
+}
+
 void AttachedDatabase::SetInitialDatabase() {
 	is_initial_database = true;
 }
@@ -299,7 +336,8 @@ void AttachedDatabase::Close(const DatabaseCloseAction action) {
 		auto create_checkpoint = true;
 		if (action == DatabaseCloseAction::TRY_CHECKPOINT && Exception::UncaughtException()) {
 			create_checkpoint = false;
-		} else if (!storage || storage->InMemory() || ValidChecker::IsInvalidated(db)) {
+		} else if (!storage || storage->InMemory() || ValidChecker::IsInvalidated(db) ||
+		           ValidChecker::IsInvalidated(*this)) {
 			create_checkpoint = false;
 		}
 

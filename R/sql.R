@@ -19,7 +19,7 @@
 #' @param conn An optional connection, defaults to [default_conn()]
 #' @return A data frame with the query result
 #' @export
-#' @examples
+#' @examplesIf simulate_duckdb()$env$examples_enabled()
 #' # Queries
 #' sql_query("SELECT 42")
 #'
@@ -67,11 +67,11 @@ the <- new.env(parent = emptyenv())
 #'
 #' @return A DuckDB connection object
 #' @export
-#' @examples
+#' @examplesIf simulate_duckdb()$env$examples_enabled()
 #' conn <- default_conn()
 #' sql_query("SELECT 42", conn = conn)
 default_conn <- function() {
-  if(!exists("con", the)) {
+  if (!exists("con", the)) {
     con <- DBI::dbConnect(
       duckdb(environment_scan = TRUE),
       timezone_out = "",

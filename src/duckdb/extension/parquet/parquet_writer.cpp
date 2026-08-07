@@ -355,9 +355,13 @@ public:
 
 ParquetWriteTransformData::ParquetWriteTransformData(ClientContext &context, vector<LogicalType> types,
                                                      vector<unique_ptr<Expression>> expressions_p)
-    : buffer(context, types, ColumnDataAllocatorType::BUFFER_MANAGER_ALLOCATOR), expressions(std::move(expressions_p)),
-      executor(context, expressions) {
-	chunk.Initialize(buffer.GetAllocator(), types);
+    : buffer(context, types, ColumnDataAllocatorType::BUFFER_MANAGER_ALLOCATOR), types(std::move(types)),
+      expressions(std::move(expressions_p)), executor(context, expressions) {
+	chunk.Initialize(buffer.GetAllocator(), this->types);
+}
+
+bool ParquetWriteTransformData::MatchesTypes(const vector<LogicalType> &other_types) const {
+	return types == other_types;
 }
 
 //! TODO: this doesnt work.. the ParquetWriteTransformData is shared with all threads, the method is stateful, but has
@@ -488,22 +492,28 @@ void ParquetWriter::AnalyzeSchema(ColumnDataCollection &buffer, vector<unique_pt
 }
 
 void ParquetWriter::InitializePreprocessing(unique_ptr<ParquetWriteTransformData> &transform_data) {
-	if (transform_data) {
-		return;
-	}
-
 	vector<LogicalType> transformed_types;
-	vector<unique_ptr<Expression>> transform_expressions;
 	for (idx_t col_idx = 0; col_idx < column_writers.size(); col_idx++) {
 		auto &column_writer = *column_writers[col_idx];
 		auto &original_type = sql_types[col_idx];
-		auto expr = make_uniq<BoundReferenceExpression>(original_type, col_idx);
 		if (!column_writer.HasTransform()) {
 			transformed_types.push_back(original_type);
-			transform_expressions.push_back(std::move(expr));
 			continue;
 		}
 		transformed_types.push_back(column_writer.TransformedType());
+	}
+	if (transform_data && transform_data->MatchesTypes(transformed_types)) {
+		return;
+	}
+
+	vector<unique_ptr<Expression>> transform_expressions;
+	for (idx_t col_idx = 0; col_idx < column_writers.size(); col_idx++) {
+		auto &column_writer = *column_writers[col_idx];
+		auto expr = make_uniq<BoundReferenceExpression>(sql_types[col_idx], col_idx);
+		if (!column_writer.HasTransform()) {
+			transform_expressions.push_back(std::move(expr));
+			continue;
+		}
 		transform_expressions.push_back(column_writer.TransformExpression(std::move(expr)));
 	}
 	transform_data = make_uniq<ParquetWriteTransformData>(context, transformed_types, std::move(transform_expressions));
@@ -741,16 +751,43 @@ struct DecimalStatsUnifier : public NumericStatsUnifier<T> {
 		if (stats.empty()) {
 			return string();
 		}
-
 		auto stats_data = const_data_ptr_cast(stats.data());
-
 		if (sizeof(T) == sizeof(hugeint_t)) {
-			auto _schema = ParquetColumnSchema();
-			auto numeric_val = ParquetDecimalUtils::ReadDecimalValue<hugeint_t>(stats_data, stats.size(), _schema);
+			auto schema = ParquetColumnSchema(); // schema unused for FLBA/hugeint_t
+			auto numeric_val = ParquetDecimalUtils::ReadDecimalValue<hugeint_t>(stats_data, stats.size(), schema);
 			return Value::DECIMAL(numeric_val, width, scale).ToString();
 		} else {
-			auto numeric_val = Load<T>(stats_data);
-			return Value::DECIMAL(numeric_val, width, scale).ToString();
+			return Value::DECIMAL(Load<T>(stats_data), width, scale).ToString();
+		}
+	}
+
+	void UnifyMinMax(const string &new_min, const string &new_max) override {
+		if (sizeof(T) != sizeof(hugeint_t)) {
+			// INT32/INT64-backed decimals are little-endian; the base compare is correct.
+			BaseNumericStatsUnifier<T>::UnifyMinMax(new_min, new_max);
+		} else {
+			// FLBA decimal stats are big-endian two's complement (most significant byte
+			// first), so a native little-endian Load would compare the wrong value; decode
+			// the bytes into a hugeint_t before comparing.
+			auto decode = [](const string &stats) {
+				auto schema = ParquetColumnSchema(); // schema unused for FLBA/hugeint_t
+				return ParquetDecimalUtils::ReadDecimalValue<hugeint_t>(const_data_ptr_cast(stats.data()), stats.size(),
+				                                                        schema);
+			};
+
+			if (!this->min_is_set) {
+				this->global_min = new_min;
+				this->min_is_set = true;
+			} else if (LessThan::Operation(decode(new_min), decode(this->global_min))) {
+				this->global_min = new_min;
+			}
+
+			if (!this->max_is_set) {
+				this->global_max = new_max;
+				this->max_is_set = true;
+			} else if (GreaterThan::Operation(decode(new_max), decode(this->global_max))) {
+				this->global_max = new_max;
+			}
 		}
 	}
 };

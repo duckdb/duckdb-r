@@ -1,3 +1,5 @@
+# Explained in handbook/usage/integrations/README.md.
+
 #' DuckDB SQL backend for dbplyr
 #'
 #' @description
@@ -531,7 +533,11 @@ tbl_query <- function(src, query, ...) {
 #' @export
 #' @rdname backend-duckdb
 simulate_duckdb <- function(...) {
-  structure(list(), ..., class = c("duckdb_connection", "TestConnection", "DBIConnection"))
+  structure(
+    list(pkg = get_package_name(), env = get_package_env()),
+    ...,
+    class = c("duckdb_connection", "TestConnection", "DBIConnection")
+  )
 }
 
 
