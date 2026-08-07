@@ -88,6 +88,12 @@ so a dedicated writer per frame library
 The stream feeds one consumer, draining as it is read,
 so a second pass over the same object sees zero rows
 rather than the result again.
+Reach for the stream where the result should not be held twice.
+`nanoarrow::convert_array_stream(to = )` takes a prototype and builds
+that class directly instead of a data frame to convert afterwards,
+and `dbSendQueryArrow()` with `dbFetchArrowChunk()` converts a batch
+at a time.
+
 `arrow::to_duckdb()` and `to_arrow()`
 bridge dplyr pipelines both ways.
 The DBI Arrow API plan is
@@ -106,26 +112,12 @@ It is the one route here that does not go through DBI at all.
 
 The other frame libraries
 [#642](https://github.com/duckdb/duckdb-r/issues/642) asks for,
-and the case where a stream buys nothing.
-collapse has no container of its own —
-it computes on R data frames and hands them back,
-`qDF()`, `qDT()` and `qTBL()` naming the class it should return —
-and a data.table is those same column vectors under another class.
-So whatever produces either allocates R vectors,
-`dbGetQuery()` already does,
-and the relabel that follows is free:
-`setDT()` and `qDT()` leave the vectors where they are.
-That holds however the two packages grow —
-a reader of their own would still have R vectors to build.
+data.table and collapse,
+operate on subclasses of data frames internally.
+Unless this changes fundamentally,
+handing these packages a data frame is good enough:
+any other reader in these packages would still have to build R vectors.
 
-Reach for the stream where the result should not be held twice.
-`nanoarrow::convert_array_stream(to = )` takes a prototype and builds
-that class directly instead of a data frame to convert afterwards,
-and `dbSendQueryArrow()` with `dbFetchArrowChunk()` converts a batch
-at a time.
-A data.table arriving that way carries no spare column slots,
-so the first `:=` copies it and says so;
-`setDT()` on the result settles that, in place again.
 
 *To deepen: absorb the translation inventory and refused arguments
 from `?backend-duckdb`'s source; drain
