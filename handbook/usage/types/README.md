@@ -24,41 +24,13 @@ and [`src/transform.cpp`](/src/transform.cpp) (the way back).
   Native `sf` support is roadmapped in
   [#117](https://github.com/duckdb/duckdb-r/issues/117).
 * **An untyped `NULL` comes back as `NA_integer_`,**
-  not logical `NA` — verified on a v1.5.5 vendored build.
-  A logical `NA` crosses into DuckDB as one of two things.
-  Typed contexts — a scanned logical column, a bound `NA`
-  parameter — use a `BOOLEAN` NULL and round-trip as logical `NA`
-  (`RApiTypes::SexpToValue()` in [`src/utils.cpp`](/src/utils.cpp),
-  `typed_logical_null = true`).
-  `expr_constant(NA)` instead deliberately produces an *untyped*
-  NULL (`SQLNULL`,
-  [#143](https://github.com/duckdb/duckdb-r/pull/143)):
-  `SQLNULL` implicitly casts to anything,
-  so a nested `NA` adopts its siblings' type —
-  `greatest(NA, a)` with `a` `DOUBLE` binds `DOUBLE` —
-  where a `BOOLEAN` constant could not
-  (no implicit cast from `BOOLEAN` to numeric).
-  The glitch is at top level:
-  the engine exchanges an untyped `NULL` that survives to a result
-  column to `INTEGER` (`ExpressionBinder::ExchangeNullType()` in
-  [`src/duckdb/src/planner/expression_binder.cpp`](/src/duckdb/src/planner/expression_binder.cpp)),
-  so a projected `expr_constant(NA)` and SQL `SELECT NULL`
-  both return `NA_integer_`.
-  Flipping that to logical `NA` is decided and pending
-  ([#155](https://github.com/duckdb/duckdb-r/issues/155));
-  the candidate fix is the engine-side exchange to `BOOLEAN`
-  ([#156](https://github.com/duckdb/duckdb-r/pull/156)),
-  held because it changes SQL-level results for every user
-  and is therefore gated on the duckplyr revdep check
-  ([`testing/revdep/`](/handbook/testing/revdep/README.md)).
-  duckplyr does not wait for it:
-  its translation emits a `___null()` macro,
-  `CAST(NULL AS BOOLEAN)`, for a top-level bare `NA`,
-  and keeps `expr_constant(NA)` for nested ones.
-  A `SQLNULL` column itself never reaches the R conversion layer
-  today; if the engine ever lets one through,
-  `duckdb_r_typeof()` in [`src/transform.cpp`](/src/transform.cpp)
-  has no case for it and errors.
+  matching the engine's own `SELECT NULL`;
+  mapping it to logical `NA` instead was declined
+  ([#155](https://github.com/duckdb/duckdb-r/issues/155)).
+  A typed `NULL` — a scanned logical column, a bound `NA`
+  parameter — round-trips as logical `NA`,
+  and the `expr_constant(NA)` corner is
+  [`relational/`](/handbook/usage/relational/README.md)'s.
 * **MAP columns** round-trip since 1.5.4
   ([#200](https://github.com/duckdb/duckdb-r/issues/200)),
   but writing one back without `field.types` needs

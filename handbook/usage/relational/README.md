@@ -28,6 +28,19 @@ Expressions are built separately (`expr_reference()`, `expr_constant()`,
 so a caller assembles a tree rather than splicing text,
 and the engine never parses a string the caller built.
 
+**Untyped `NULL` constants.**
+`expr_constant(NA)` builds an untyped `NULL`
+([#143](https://github.com/duckdb/duckdb-r/pull/143)),
+so a nested `NA` adopts its siblings' type —
+`greatest(NA, a)` binds to `a`'s.
+One that survives to a result column materializes as `NA_integer_`,
+the engine's own `SELECT NULL` behavior.
+Mapping that to logical `NA` was declined, closing
+[#155](https://github.com/duckdb/duckdb-r/issues/155):
+the exchange is engine-side,
+flipping it would change SQL results package-wide,
+and duckplyr casts a typed `NULL` where it needs one.
+
 **How a result comes back.**
 `rel_to_altrep()` wraps an unexecuted relation as a data frame:
 nothing runs until R touches the values, materialization is budgeted by
