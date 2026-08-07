@@ -1,9 +1,12 @@
 """Regenerate the vendored build configuration from a DuckDB checkout:
-src/duckdb/, src/include/sources.mk, R/version.R and the Makevars files.
+src/duckdb/, src/include/sources.mk, R/version.R, the Makevars files and
+the README logos.
 
-Called by vendor.sh and vendor-one.sh with DUCKDB_PATH set.
+The logos land in man/figures/. Called by vendor.sh and vendor-one.sh
+with DUCKDB_PATH set.
 """
 import os
+import shutil
 import sys
 import platform
 
@@ -58,6 +61,32 @@ get_duckdb_version <- function() {{
         with open(os.path.join('R', 'version.R'), 'w', encoding='utf-8') as f:
             f.write(r_version_content)
 
+
+# The logos README.md renders, and the only files this script takes from
+# upstream that are not sources. They ride along with the vendored commit so
+# the front page cannot drift from the engine it documents: the previous
+# README hotlinked duckdb.org, those URLs went away, and GitHub -- which
+# proxies README images and serves nothing for a URL it cannot fetch -- showed
+# no logo at all until the files were vendored.
+logo_files = [
+    'DuckDB_Logo-horizontal.svg',
+    'DuckDB_Logo-horizontal-dark-mode.svg',
+]
+
+
+def copy_logos():
+    """Copy the README logos from the DuckDB checkout into man/figures/."""
+    source_dir = os.path.join(duckdb_path, 'logo')
+    target_dir = os.path.join('man', 'figures')
+
+    for name in logo_files:
+        source = os.path.join(source_dir, name)
+        if not os.path.isfile(source):
+            print("Could not find logo {}!".format(source))
+            print("  Update logo_files here and README.md together.")
+            exit(1)
+        shutil.copyfile(source, os.path.join(target_dir, name))
+
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', duckdb_path, 'scripts'))
 import package_build
 
@@ -88,6 +117,10 @@ for libname in libraries:
 if not os.path.isfile(os.path.join(duckdb_path, 'scripts', 'amalgamation.py')):
     print("Could not find amalgamation script!")
     exit(1)
+
+# Before the regeneration below, so a checkout that cannot supply them fails
+# in a second rather than after ~3550 files have been rewritten.
+copy_logos()
 
 target_dir = os.path.join(os.getcwd(), 'src', 'duckdb')
 

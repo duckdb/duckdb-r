@@ -35,9 +35,25 @@ instead, and a caller that passes one is free of the layout entirely.
 **`rconfigure.py`** does the regeneration:
 `src/duckdb/`, `src/include/sources.mk`, the Makevars files
 (`src/Makevars` and `src/Makevars.win`) from `Makevars.in`,
-and `R/version.R` — all committed, all corrected at the generator.
+`R/version.R`,
+and the two README logos in `man/figures/`
+copied from the upstream checkout's `logo/` —
+all committed, all corrected at the generator.
 That set is the mechanical path set a vendor commit may touch,
 and the generator is its list.
+
+The logos are the one thing in that set that is not a source,
+and they are there because `README.md` renders them:
+carrying them on the vendor commit is what keeps the front page
+from drifting away from the engine it documents.
+The previous README hotlinked `duckdb.org` instead,
+those URLs went away,
+and GitHub — which proxies README images
+and serves nothing for a URL it cannot fetch — showed no logo at all.
+A checkout that cannot supply them stops the run before the
+regeneration, rather than leaving the vendored copies stale:
+upstream renaming a logo is a decision for a human,
+since the new name has to reach `README.md` too.
 
 **The patch stack** under [`patch/`](/patch) applies R-specific
 modifications to the vendored tree in place,
