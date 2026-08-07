@@ -24,8 +24,15 @@ The load-bearing facts:
   a call that reuses a cached instance ignores them silently
   ([#83](https://github.com/duckdb/duckdb-r/issues/83),
   [#171](https://github.com/duckdb/duckdb-r/issues/171)).
+  `duckdb()` is therefore where they belong.
+  `dbConnect()` takes them too, merged over the driver's,
+  and they land exactly when that call is the one creating the
+  instance — which is why the same `config` argument takes effect
+  beside a `dbdir` naming another file, and is dropped without it.
   To apply new values to a file database,
   release the instance with `duckdb_shutdown()` first.
+  A setting the engine also accepts after startup, `memory_limit`
+  and `threads` among them, can be `SET` on the connection instead.
   Warning in exactly the surprise cases is planned
   ([#126](https://github.com/duckdb/duckdb-r/issues/126)).
 * `dbDisconnect()` closes one connection only;
