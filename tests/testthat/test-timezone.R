@@ -145,22 +145,36 @@ test_that("POSIXct with local time zone and existing but empty attribute", {
 })
 
 test_that("TIMESTAMPTZ values preserve UTC instants regardless of input offset (#184)", {
-  con <- local_con()
+  # No ICU needed: offset literals parse without it, and the dummy
+  # extension path keeps a cached icu from autoloading, so the session
+  # TimeZone deterministically reads as UTC
+  con <- local_con(extensions = FALSE)
 
-  # No ICU needed: offset literals parse without it
   dbExecute(con, "CREATE TABLE x (a TIMESTAMPTZ)")
   dbExecute(con, "INSERT INTO x VALUES (TIMESTAMPTZ '2024-01-10 13:03:12-08:00')")
   dbExecute(con, "INSERT INTO x VALUES (TIMESTAMPTZ '2024-01-10 13:03:12-05:00')")
 
   out <- dbReadTable(con, "x")$a
-  # -08:00 → 21:03:12 UTC, -05:00 → 18:03:12 UTC; the tzone attribute
-  # depends on whether icu is around, so compare instants only here
-  # (the attribute is pinned by the ICU tests below)
+  # -08:00 → 21:03:12 UTC, -05:00 → 18:03:12 UTC
   expect_equal(
     out,
-    as.POSIXct(c("2024-01-10 21:03:12", "2024-01-10 18:03:12"), tz = "UTC"),
-    ignore_attr = TRUE
+    as.POSIXct(c("2024-01-10 21:03:12", "2024-01-10 18:03:12"), tz = "UTC")
   )
+})
+
+test_that("TIMESTAMPTZ without icu falls back to tzone \"UTC\" (#184)", {
+  con <- local_con(extensions = FALSE)
+
+  dbExecute(con, "CREATE TABLE x (a TIMESTAMPTZ)")
+  dbExecute(con, "INSERT INTO x VALUES (TIMESTAMPTZ '2024-01-10 13:03:12-08:00')")
+
+  # The ALTREP path queries the live session and falls back the same way
+  out <- as.data.frame(rel_to_altrep(rel_from_table(con, "x")))$a
+  expect_equal(attr(out, "tzone"), "UTC")
+
+  # The TimeZone setting itself lives in icu: without the extension,
+  # setting any zone fails, 'UTC' included
+  expect_error(dbExecute(con, "SET TimeZone = 'UTC'"), "icu")
 })
 
 test_that("TIMESTAMPTZ tzone attribute follows session TimeZone setting (#184)", {

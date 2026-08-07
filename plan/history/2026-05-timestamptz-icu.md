@@ -92,7 +92,12 @@ it behind the scenes. With `icu` truly absent, any `SET TimeZone`
 Extension Autoloading Error; offset literals still parse (A1's
 instants are correct), and results fall back to `tzone = "UTC"`
 quietly, because `GetClientProperties()` does not trigger autoload.
-A3, A4, and A1's `Etc/UTC` attribute describe an ICU-loaded session.*
+A3, A4, and A1's `Etc/UTC` attribute describe an ICU-loaded session.
+The absence behaviour is pinned in
+[`tests/testthat/test-timezone.R`](/tests/testthat/test-timezone.R),
+which makes icu absent deterministically
+by pointing `local_con(extensions = FALSE)`
+at a dummy extension directory.*
 
 * **A1** — `Etc/UTC` session, four offset variants returned:
     | input | UTC instant returned |
