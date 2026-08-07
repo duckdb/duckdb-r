@@ -1198,6 +1198,27 @@ test_that("prudence", {
   })
 })
 
+test_that("an erroring materialize callback leaves the ALTREP guard off (#1796)", {
+  skip_if_not_installed("rlang")
+
+  rel1 <- rel_from_df(con, data.frame(a = 1:10))
+  ans <- rel_to_altrep(rel1)
+
+  rlang::local_options(
+    duckdb.materialize_callback = function(rel) stop("callback failed")
+  )
+  expect_error(nrow(ans), "callback failed")
+
+  # The guard is process-wide, so a long-jmp that skipped its destructor would
+  # degrade every later error, including ones raised with no ALTREP method on
+  # the stack: the structured `Context:` bullet would collapse into a flat
+  # "<context>: <message>" string.
+  expect_error(
+    rel_from_altrep_df(data.frame(a = 1)),
+    "Context: rapi_rel_from_altrep_df"
+  )
+})
+
 test_that("rel_to_view()", {
   df1 <- data.frame(a = 1:10, b = 1:10)
   rel1 <- rel_from_df(con, df1)
