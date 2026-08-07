@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kirill =?UTF-8?q?M=C3=BCller?= <kirill@cynkra.com>
+Date: Tue, 4 Aug 2026 02:00:00 +0200
+Subject: [PATCH] Compile the assert-only plan verifiers only where asserts run
+
+---
+ src/duckdb/src/planner/planner.cpp | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/duckdb/src/planner/planner.cpp b/src/duckdb/src/planner/planner.cpp
+index d9feced5b..9af1939c8 100644
+--- a/src/duckdb/src/planner/planner.cpp
++++ b/src/duckdb/src/planner/planner.cpp
+@@ -71,6 +71,7 @@ static void CheckTreeDepth(const LogicalOperator &op, idx_t max_depth, idx_t dep
+ 	}
+ }
+ 
++#ifdef D_ASSERT_IS_ENABLED
+ static bool ContainsDependentJoin(const LogicalOperator &op) {
+ 	if (op.type == LogicalOperatorType::LOGICAL_DEPENDENT_JOIN) {
+ 		return true;
+@@ -132,6 +133,7 @@ static bool VerifyPlannedExpressions(const LogicalOperator &plan) {
+ 	}
+ 	return true;
+ }
++#endif
+ 
+ static void RunPostBindExtensions(ClientContext &context, Binder &binder, BoundStatement &statement) {
+ 	for (auto &planner_extension : PlannerExtension::Iterate(context)) {
