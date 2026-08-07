@@ -246,9 +246,22 @@ the old blob — a promised object — and the push dies with
 Since replacement is exactly what a retry does,
 and what the fan-in does when a leg's verdict has changed,
 the failure would have been retry-only and rare.
-`--no-thin` on the push is the fix,
-and [`rcc-store-test.sh`](/scripts/rcc-store-test.sh) covers it:
+`--no-thin` on the push is half the fix,
+and [`rcc-store-test.sh`](/scripts/rcc-store-test.sh) covers that half:
 a verdict is replaced there from a clone that never wrote the first one.
+
+The other half is that `--no-thin` does not hold over https,
+which is the only transport a leg ever uses,
+and the local remote the test pushes to is why that stayed hidden.
+The same replacement — same blobless shallow clone,
+same `GIT_NO_LAZY_FETCH=1`, same `--no-thin` —
+lands against a `file://` remote and dies against GitHub,
+still asking for the old blob.
+So [`rcc-publish.sh`](/scripts/rcc-publish.sh) fetches the blob it is replacing
+while staging it: a record is ~2 KB,
+only a replacement pays, and nothing then depends on the flag holding.
+A test cannot catch this without a network remote,
+so the code no longer relies on the property the test can check.
 
 ## How bad is the race
 
