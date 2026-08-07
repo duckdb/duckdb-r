@@ -20,6 +20,8 @@
 
 #include "convert.hpp"
 
+#include <atomic>
+
 // Avoid clash with TRUE and FALSE macros in older rtools
 #undef TRUE
 #undef FALSE
@@ -50,6 +52,55 @@
 #else
 #define DUCKDB_R_POISON_GUARD() ((void)0)
 #endif
+
+// ALTREP re-entrancy guard.
+//
+// R calls ALTREP methods from arbitrary points inside the interpreter, and
+// evaluating R code from there is not supported: the evaluation allocates,
+// can garbage-collect, runs condition handlers, and can re-enter the very
+// ALTREP object whose method is on the stack. A method that reports its
+// failure by calling an R function therefore turns one error into unbounded
+// recursion (duckdb/duckdb-r#1796).
+//
+// rapi_error_with_context() normally reports errors by calling the
+// duckdb::rapi_error() R function. While an AltrepGuard is on the stack it
+// throws std::runtime_error instead; BEGIN_CPP11/END_CPP11 catches that,
+// unwinds the C++ frames, and only then raises the error with
+// Rf_errorcall() -- the interface R sanctions for C code.
+//
+// The guard nests. It relies on its destructor running, so every call into R
+// made below an active guard must go through cpp11::safe[] (which converts a
+// long-jmp into a C++ exception) rather than calling the R API directly; a raw
+// long-jmp past the guard would leave the counter stuck and silently degrade
+// every later error.
+//
+// The counter is shared across threads rather than thread_local. Only R's
+// evaluator enters an ALTREP method, so only the R thread ever writes it -- but
+// rapi_error_with_context() is also reached from DuckDB's data frame scan,
+// which runs in parallel (`DataFrameScanFunc`, src/scan.cpp). Relaxed atomics
+// make that read race-free at no cost. A thread_local counter would instead
+// read 0 on a worker thread and send it into R from a non-R thread, which is
+// worse than what the guard prevents; sharing sends it down the throwing branch
+// instead. That is a mitigation, not a cure -- a worker that reaches the helper
+// while no ALTREP method is active still calls into R.
+class AltrepGuard {
+public:
+	AltrepGuard() {
+		// Single writer, so load-add-store needs no read-modify-write atomic.
+		depth.store(depth.load(std::memory_order_relaxed) + 1, std::memory_order_relaxed);
+	}
+	~AltrepGuard() {
+		depth.store(depth.load(std::memory_order_relaxed) - 1, std::memory_order_relaxed);
+	}
+	AltrepGuard(const AltrepGuard &) = delete;
+	AltrepGuard &operator=(const AltrepGuard &) = delete;
+	static bool IsActive() {
+		return depth.load(std::memory_order_relaxed) > 0;
+	}
+
+private:
+	static std::atomic<int> depth;
+};
 
 // Helper functions to communicate errors via R's stop() function with context information
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message);

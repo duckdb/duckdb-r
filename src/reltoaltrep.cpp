@@ -147,7 +147,11 @@ MaterializedQueryResult *AltrepRelationWrapper::GetQueryResult() {
 		auto materialize_callback = Rf_GetOption1(RStrings::get().materialize_callback_sym);
 		if (Rf_isFunction(materialize_callback)) {
 			sexp call = Rf_lang2(materialize_callback, rel_eptr);
-			Rf_eval(call, R_BaseEnv);
+			// safe[], not a bare Rf_eval(): an error in the callback would
+			// otherwise long-jmp out of the ALTREP method that called us,
+			// skipping ~AltrepGuard() and leaving the guard stuck on for the
+			// rest of the session. Matches RProgressBarDisplay::Update().
+			cpp11::safe[Rf_eval](call, R_BaseEnv);
 		}
 
 		auto materialize_message = Rf_GetOption1(RStrings::get().materialize_message_sym);
@@ -380,6 +384,7 @@ struct AltrepVectorWrapper {
 Rboolean RelToAltrep::RownamesInspect(SEXP x, int pre, int deep, int pvec,
                                       void (*inspect_subtree)(SEXP, int, int, int)) {
 	BEGIN_CPP11
+	AltrepGuard guard;
 	AltrepRownamesWrapper::Get(x); // make sure this is alive
 	Rprintf("DUCKDB_ALTREP_REL_ROWNAMES\n");
 	return TRUE;
@@ -388,6 +393,7 @@ Rboolean RelToAltrep::RownamesInspect(SEXP x, int pre, int deep, int pvec,
 
 Rboolean RelToAltrep::RelInspect(SEXP x, int pre, int deep, int pvec, void (*inspect_subtree)(SEXP, int, int, int)) {
 	BEGIN_CPP11
+	AltrepGuard guard;
 	auto wrapper = AltrepVectorWrapper::Get(x); // make sure this is alive
 	auto &col = wrapper->rel->rel->Columns()[wrapper->column_index];
 	Rprintf("DUCKDB_ALTREP_REL_VECTOR %s (%s)\n", col.Name().c_str(), col.Type().ToString().c_str());
@@ -411,6 +417,7 @@ SEXP get_attrib(SEXP vec, SEXP name) {
 
 R_xlen_t RelToAltrep::RownamesLength(SEXP x) {
 	BEGIN_CPP11
+	AltrepGuard guard;
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
 	return rownames_wrapper->RowCount();
 	END_CPP11_EX(0)
@@ -418,12 +425,14 @@ R_xlen_t RelToAltrep::RownamesLength(SEXP x) {
 
 int RelToAltrep::RownamesElt(SEXP x, R_xlen_t i) {
 	BEGIN_CPP11
+	AltrepGuard guard;
 	return static_cast<int>(i + 1);
 	END_CPP11_EX(NA_INTEGER)
 }
 
 R_xlen_t RelToAltrep::RownamesGetRegion(SEXP x, R_xlen_t start, R_xlen_t size, int *out) {
 	BEGIN_CPP11
+	AltrepGuard guard;
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
 	auto row_count = static_cast<R_xlen_t>(rownames_wrapper->RowCount());
 	R_xlen_t n = row_count - start;
@@ -450,6 +459,7 @@ int RelToAltrep::RownamesNoNA(SEXP x) {
 
 SEXP RelToAltrep::RownamesSum(SEXP x, Rboolean na_rm) {
 	BEGIN_CPP11
+	AltrepGuard guard;
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
 	auto n = rownames_wrapper->RowCount();
 	double sum = (static_cast<double>(n) * (static_cast<double>(n) + 1.0)) / 2.0;
@@ -459,6 +469,7 @@ SEXP RelToAltrep::RownamesSum(SEXP x, Rboolean na_rm) {
 
 SEXP RelToAltrep::RownamesMin(SEXP x, Rboolean na_rm) {
 	BEGIN_CPP11
+	AltrepGuard guard;
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
 	auto n = rownames_wrapper->RowCount();
 	if (n == 0) {
@@ -471,6 +482,7 @@ SEXP RelToAltrep::RownamesMin(SEXP x, Rboolean na_rm) {
 
 SEXP RelToAltrep::RownamesMax(SEXP x, Rboolean na_rm) {
 	BEGIN_CPP11
+	AltrepGuard guard;
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
 	auto n = rownames_wrapper->RowCount();
 	if (n == 0) {
@@ -492,6 +504,7 @@ SEXP RelToAltrep::MakeRowNamesSexp(duckdb::shared_ptr<AltrepRelationWrapper> rel
 
 SEXP RelToAltrep::RownamesDuplicate(SEXP x, Rboolean deep) {
 	BEGIN_CPP11
+	AltrepGuard guard;
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
 	return MakeRowNamesSexp(rownames_wrapper->rel);
 	END_CPP11
@@ -499,12 +512,14 @@ SEXP RelToAltrep::RownamesDuplicate(SEXP x, Rboolean deep) {
 
 void *RelToAltrep::RownamesDataptr(SEXP x, Rboolean writeable) {
 	BEGIN_CPP11
+	AltrepGuard guard;
 	return DoRownamesDataptrGet(x);
 	END_CPP11
 }
 
 const void *RelToAltrep::RownamesDataptrOrNull(SEXP x) {
 	BEGIN_CPP11
+	AltrepGuard guard;
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
 	if (rownames_wrapper->rownames_data.empty()) {
 		return nullptr;
@@ -524,18 +539,21 @@ void *RelToAltrep::DoRownamesDataptrGet(SEXP x) {
 
 R_xlen_t RelToAltrep::VectorLength(SEXP x) {
 	BEGIN_CPP11
+	AltrepGuard guard;
 	return AltrepVectorWrapper::Get(x)->rel->GetQueryResult()->RowCount();
 	END_CPP11_EX(0)
 }
 
 void *RelToAltrep::VectorDataptr(SEXP x, Rboolean writeable) {
 	BEGIN_CPP11
+	AltrepGuard guard;
 	return AltrepVectorWrapper::Get(x)->Dataptr();
 	END_CPP11
 }
 
 SEXP RelToAltrep::VectorStringElt(SEXP x, R_xlen_t i) {
 	BEGIN_CPP11
+	AltrepGuard guard;
 	return STRING_ELT(AltrepVectorWrapper::Get(x)->RVector(), i);
 	END_CPP11
 }
@@ -543,6 +561,7 @@ SEXP RelToAltrep::VectorStringElt(SEXP x, R_xlen_t i) {
 #if defined(R_HAS_ALTLIST)
 R_xlen_t RelToAltrep::StructLength(SEXP x) {
 	BEGIN_CPP11
+	AltrepGuard guard;
 	auto const *wrapper = AltrepVectorWrapper::Get(x);
 	auto const column_index = wrapper->column_index;
 	auto const &res = wrapper->rel->GetQueryResult();
@@ -554,6 +573,7 @@ R_xlen_t RelToAltrep::StructLength(SEXP x) {
 
 SEXP RelToAltrep::VectorListElt(SEXP x, R_xlen_t i) {
 	BEGIN_CPP11
+	AltrepGuard guard;
 	return VECTOR_ELT(AltrepVectorWrapper::Get(x)->RVector(), i);
 	END_CPP11
 }

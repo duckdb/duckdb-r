@@ -1184,6 +1184,39 @@ test_that("prudence", {
   expect_snapshot(error = TRUE, {
     nrow(bad_cells)
   })
+
+  # Materialization errors triggered via column-data ALTREP methods
+  # (VectorLength / VectorDataptr) should also produce a clean error,
+  # matching the rownames path; verifies the AltrepGuard is active in
+  # those entrypoints too.
+  forbid_col <- rel_to_altrep(rel2, allow_materialization = FALSE)
+  expect_snapshot(error = TRUE, {
+    length(forbid_col$a)
+  })
+  expect_snapshot(error = TRUE, {
+    forbid_col$a[1]
+  })
+})
+
+test_that("an erroring materialize callback leaves the ALTREP guard off (#1796)", {
+  skip_if_not_installed("rlang")
+
+  rel1 <- rel_from_df(con, data.frame(a = 1:10))
+  ans <- rel_to_altrep(rel1)
+
+  rlang::local_options(
+    duckdb.materialize_callback = function(rel) stop("callback failed")
+  )
+  expect_error(nrow(ans), "callback failed")
+
+  # The guard is process-wide, so a long-jmp that skipped its destructor would
+  # degrade every later error, including ones raised with no ALTREP method on
+  # the stack: the structured `Context:` bullet would collapse into a flat
+  # "<context>: <message>" string.
+  expect_error(
+    rel_from_altrep_df(data.frame(a = 1)),
+    "Context: rapi_rel_from_altrep_df"
+  )
 })
 
 test_that("rel_to_view()", {
