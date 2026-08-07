@@ -39,7 +39,8 @@ duckdb_adbc()
   bigint = "numeric",
   array = "none",
   geometry = "blob",
-  map = "data.frame"
+  map = "data.frame",
+  stream = FALSE
 )
 
 \S4method{dbDisconnect}{duckdb_connection}(conn, ..., shutdown = TRUE)
@@ -156,6 +157,13 @@ If \code{"list_of"} is selected, \code{MAP} columns are returned as a \code{\lin
 \verb{data.frame(key = <K>, value = <V>)} that records the SQL key/value types. This enables MAP columns
 to round-trip through \code{\link[DBI:dbWriteTable]{dbWriteTable()}} / \code{\link[DBI:dbCreateTable]{dbCreateTable()}} without specifying \code{field.types},
 and lets scans accept named-list cells as MAP entries.}
+
+\item{stream}{Default for the \code{stream} argument of \code{\link[DBI:dbSendQuery]{dbSendQuery()}} on this
+connection: whether results are fetched in chunks instead of being
+materialized on the first \code{\link[DBI:dbFetch]{dbFetch()}} call.
+A per-query \code{stream} argument to \code{dbSendQuery()} overrides this default.
+See the \code{stream} argument of \code{dbSendQuery()} in
+\link[=duckdb_connection-class]{duckdb_connection} for semantics and caveats.}
 
 \item{conn}{A \code{duckdb_connection} object}
 
