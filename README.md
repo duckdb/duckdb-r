@@ -1,8 +1,8 @@
 <div align="center">
   <a href="https://r.duckdb.org/"><picture>
-    <source media="(prefers-color-scheme: light)" srcset="https://duckdb.org/images/logo-dl/DuckDB_Logo-horizontal.svg">
-    <source media="(prefers-color-scheme: dark)" srcset="https://duckdb.org/images/logo-dl/DuckDB_Logo-horizontal-dark-mode.svg">
-    <img alt="DuckDB logo" src="https://duckdb.org/images/logo-dl/DuckDB_Logo-horizontal.svg" height="100">
+    <source media="(prefers-color-scheme: light)" srcset="man/figures/DuckDB_Logo-horizontal.svg">
+    <source media="(prefers-color-scheme: dark)" srcset="man/figures/DuckDB_Logo-horizontal-dark-mode.svg">
+    <img alt="DuckDB logo" src="man/figures/DuckDB_Logo-horizontal.svg" height="100">
   </picture></a>
 </div>
 
