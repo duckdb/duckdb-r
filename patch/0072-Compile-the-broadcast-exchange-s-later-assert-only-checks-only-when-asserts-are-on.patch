@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 18 Oct 2026 23:11:13 +0000
+Subject: [PATCH] Compile the broadcast exchange's later assert-only checks only when asserts are on
+
+Two more sites in pipeline_broadcast_exchange.cpp bind the outcome of
+an insertion that only D_ASSERT() reads, so in a release build, where
+D_ASSERT() expands to nothing, the bindings are set and never used and
+-Wunused-but-set-variable says so. The assert-only lines are compiled
+only when assertions are enabled, with the insertions kept in both
+builds, which is the shape upstream gives the sites later; the first
+site has patch/0071 from the commit that introduced it.
+
+Carried here until the engine brings the same change.
+
+---
+ src/duckdb/src/parallel/pipeline_broadcast_exchange.cpp | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/src/duckdb/src/parallel/pipeline_broadcast_exchange.cpp b/src/duckdb/src/parallel/pipeline_broadcast_exchange.cpp
+index cdb0d817d8..7b7f945d3a 100644
+--- a/src/duckdb/src/parallel/pipeline_broadcast_exchange.cpp
++++ b/src/duckdb/src/parallel/pipeline_broadcast_exchange.cpp
+@@ -1527,8 +1527,12 @@ SourceResultType PipelineBroadcastExchange::ReserveBatchScanLocked(
+ 				scan_state.reported_batch_index = batch_range.batch_index;
+ 				if (spool_read.IsSet()) {
+ 					spool_read.batch_sequence = batch_sequence;
++#ifdef D_ASSERT_IS_ENABLED
+ 					auto inserted = consumer.in_flight_reads.insert(position);
+ 					D_ASSERT(inserted.second);
++#else
++					consumer.in_flight_reads.insert(position);
++#endif
+ 				} else {
+ 					position_entry->second++;
+ 					consumer.rows_read += next_chunk->size();
+@@ -1587,8 +1591,12 @@ SourceResultType PipelineBroadcastExchange::ReserveBatchScanLocked(
+ 		if (consumer.next_batch_sequence < buffer->NextBatchSequence()) {
+ 			auto batch_sequence = consumer.next_batch_sequence++;
+ 			auto &batch_range = buffer->GetBatchRange(batch_sequence);
++#ifdef D_ASSERT_IS_ENABLED
+ 			auto inserted = consumer.active_batch_positions.emplace(batch_sequence, batch_range.begin_position);
+ 			D_ASSERT(inserted.second);
++#else
++			consumer.active_batch_positions.emplace(batch_sequence, batch_range.begin_position);
++#endif
+ 			scan_state.batch_sequence = batch_sequence;
+ 			continue;
+ 		}
