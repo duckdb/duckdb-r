@@ -71,11 +71,14 @@ duckdb_execute_arrow <- function(res) {
   )
 }
 
-duckdb_result <- function(connection, stmt_lst, arrow) {
+duckdb_result <- function(connection, stmt_lst, arrow, stream = FALSE) {
   env <- new.env(parent = emptyenv())
   env$rows_fetched <- 0
   env$open <- TRUE
   env$rows_affected <- 0
+  env$stream <- isTRUE(stream) && !arrow && is_stream_query(stmt_lst)
+  env$stream_result <- NULL
+  env$stream_eof <- FALSE
 
   res <- new("duckdb_result", connection = connection, stmt_lst = stmt_lst, env = env, arrow = arrow)
 
@@ -109,6 +112,13 @@ is_data_query <- function(stmt_lst) {
     stmt_lst$return_type == "QUERY_RESULT"
 }
 
+is_stream_query <- function(stmt_lst) {
+  # EXPLAIN results are tiny and wrapped in a bespoke class: keep them
+  # materialized. Everything that is not SELECT-shaped executes eagerly and
+  # computes rows_affected from the materialized result.
+  stmt_lst$type %in% c("SELECT", "RELATION")
+}
+
 duckdb_execute <- function(res) {
   out <- rethrow_rapi_execute(
     res@stmt_lst$ref,
@@ -132,6 +142,58 @@ duckdb_execute_pending_bind <- function(res) {
   }
   duckdb_post_execute(res, out)
   res@env$pending_params <- NULL
+}
+
+# Execute a streaming result (dbSendQuery(stream = TRUE)) on first dbFetch():
+# the query result stays in C++ as an externalptr, and dbFetch() pulls chunks
+# from it via rapi_stream_fetch(). res@env$resultset is never populated.
+duckdb_stream_open <- function(res) {
+  convert_opts <- duckdb_convert_opts_impl(
+    res@connection@convert_opts,
+    arrow = FALSE,
+    streaming = TRUE
+  )
+  if (is.null(res@env$pending_params)) {
+    res@env$stream_result <- rethrow_rapi_execute(res@stmt_lst$ref, convert_opts)
+  } else {
+    out <- rethrow_rapi_bind(res@stmt_lst$ref, res@env$pending_params, convert_opts)
+    res@env$stream_result <- out[[1]]
+    res@env$pending_params <- NULL
+  }
+}
+
+duckdb_stream_fetch <- function(res, n) {
+  if (is.null(res@env$stream_result)) {
+    duckdb_stream_open(res)
+  }
+
+  out <- rethrow_rapi_stream_fetch(
+    res@env$stream_result,
+    n,
+    duckdb_convert_opts_impl(res@connection@convert_opts, arrow = FALSE, streaming = TRUE)
+  )
+
+  df <- out$df
+  if (out$eof) {
+    res@env$stream_eof <- TRUE
+  }
+
+  if (res@connection@convert_opts$tz_out_convert == "force") {
+    df <- tz_force(df, res@connection@convert_opts$timezone_out)
+  }
+
+  res@env$rows_fetched <- res@env$rows_fetched + nrow(df)
+  df
+}
+
+# Close a live stream (if any) so the connection is free for the next query.
+# Safe to call on results that never streamed.
+duckdb_stream_close <- function(res) {
+  if (!is.null(res@env$stream_result)) {
+    rethrow_rapi_stream_close(res@env$stream_result)
+    res@env$stream_result <- NULL
+  }
+  res@env$stream_eof <- FALSE
 }
 
 duckdb_post_execute <- function(res, out) {

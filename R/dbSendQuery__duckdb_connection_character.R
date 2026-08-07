@@ -2,10 +2,33 @@
 #' @inheritParams DBI::dbSendQuery
 #' @inheritParams DBI::dbBind
 #' @param arrow Whether the query should be returned as an Arrow Table
+#' @param stream Whether to fetch the result in chunks instead of
+#'   materializing it on the first [dbFetch()] call.
+#'   With `stream = TRUE`, `dbFetch(n = ...)` pulls only the requested rows
+#'   from a streaming query result, so larger-than-memory results can be
+#'   processed piece by piece.
+#'   A streaming result holds a live cursor on the connection:
+#'   running any other query on the same connection invalidates it,
+#'   and fetching from an invalidated stream throws an error.
+#'   `dbHasCompleted()` returns `TRUE` only after a `dbFetch()` call has
+#'   drained the stream.
+#'   The default `NULL` uses the connection-level default set via
+#'   `dbConnect(stream = ...)`, which in turn defaults to `FALSE`.
+#'   Applies to SELECT-shaped queries; other statements, including `EXPLAIN`,
+#'   are unaffected.
+#'   Not supported together with `arrow = TRUE`:
+#'   use [DBI::dbSendQueryArrow()] for streaming via Arrow.
 #' @usage NULL
-dbSendQuery__duckdb_connection_character <- function(conn, statement, params = NULL, ..., arrow = FALSE) {
+dbSendQuery__duckdb_connection_character <- function(conn, statement, params = NULL, ..., arrow = FALSE, stream = NULL) {
   if (conn@debug) {
     message("Q ", statement)
+  }
+
+  if (is.null(stream)) {
+    stream <- isTRUE(conn@stream)
+  }
+  if (isTRUE(stream) && isTRUE(arrow)) {
+    stop("`stream = TRUE` is not supported for `arrow = TRUE`, use `dbSendQueryArrow()` for streaming via Arrow")
   }
 
   env <- find_caller()
@@ -16,7 +39,8 @@ dbSendQuery__duckdb_connection_character <- function(conn, statement, params = N
   res <- duckdb_result(
     connection = conn,
     stmt_lst = stmt_lst,
-    arrow = arrow
+    arrow = arrow,
+    stream = stream
   )
   if (length(params) > 0) {
     dbBind(res, params)
