@@ -308,6 +308,64 @@ stay clean.
 8. T10 — connection default.
 9. T11 — docs.
 
+## Audit notes (T1)
+
+Findings from reading the execute/conversion pipeline,
+recorded here as the T1 deliverable.
+
+- **Call path.**
+  `dbSendQuery()` → `rapi_prepare()` returns the `stmt_lst`
+  (type, names, rtypes, n_param, return_type, `ref` externalptr).
+  `dbFetch()` (after the deferred-execution change) →
+  `rapi_execute(stmt, convert_opts)` →
+  `rapi_execute_impl()` →
+  `PreparedStatement::Execute(parameters, allow_stream_result)` →
+  `duckdb_execute_R_impl(MaterializedQueryResult*, convert_opts, class_)` →
+  data.frame.
+  Parameterized queries go through `rapi_bind()`,
+  which loops over bound rows and calls `rapi_execute_impl()` per row.
+- **Row-count decision.**
+  `duckdb_execute_R_impl()` calls `result->RowCount()` once and sizes all
+  R vectors up front (`duckdb_r_allocate`), then fills them chunk by chunk
+  (`duckdb_r_transform`) at a running `dest_offset`.
+  Per-chunk conversion needs the same allocate/transform calls,
+  just sized to the rows served by one fetch call.
+  `QueryResult::Fetch()` flattens each chunk,
+  so the transform code sees flat vectors on both paths.
+- **Connection lock model.**
+  `ClientContext` tracks a single `active_query` / `open_result`;
+  a live `StreamQueryResult` occupies it until drained or closed.
+  Starting any other query on the same connection invalidates the
+  open stream (`IsOpenInternal()` turns false);
+  a subsequent fetch on the invalidated stream throws
+  `Attempting to execute an unsuccessful or closed pending query result`.
+  So: exactly one live stream per connection, second query kills the first —
+  the documented caveat for `stream = TRUE`.
+  A drained stream closes itself
+  (`FetchInternal()` calls `Close()`, which resets `context`),
+  so post-EOF fetches must not reach `Fetch()` —
+  the wrapper tracks a `stream_drained` flag.
+- **Splitting chunks.**
+  `DataChunk::Split()` splits by *columns*, not rows.
+  Row splits use `DataChunk::Copy(other, offset)`
+  (copies rows `[offset, size)` into a fresh flat chunk)
+  plus `SetCardinality(keep)` to truncate the front in place.
+- **tz_force, factors, row names.**
+  `tz_force` is applied in R (`duckdb_post_execute()`) on the whole
+  resultset; the streaming path applies it per fetched batch in
+  `dbFetch()` instead — same columns, same result.
+  Factor levels (ENUM) are attached per column by `duckdb_r_decorate()`
+  at allocation time, so every per-fetch data.frame carries them.
+  Row names are plain compact `c(NA, -nrows)` integers set by
+  `duckdb_r_df_decorate()`; nothing ALTREP-specific interacts with
+  the conversion loop.
+- **Interrupts.**
+  `rapi_execute_impl()` wraps `Execute()` in `ScopedInterruptHandler`.
+  With streaming, execution continues inside `Fetch()`,
+  so the streaming fetch entrypoint installs the same handler
+  (stream results expose their `ClientContext`;
+  materialized results need none — their chunks are already in memory).
+
 ## Effort estimate
 
 - T1: half a day.
