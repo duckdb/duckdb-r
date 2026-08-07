@@ -27,10 +27,15 @@ and [`src/transform.cpp`](/src/transform.cpp) (the way back).
   [`R/dbConnect__duckdb_driver.R`](/R/dbConnect__duckdb_driver.R),
   returns raw vectors; `"wk"` returns `wk_wkb`, which
   `sf::st_as_sfc()` converts onward.
-  There is no automatic conversion on the *write* side —
-  write WKB blobs and use `ST_GeomFromWKB()` in DuckDB;
-  the duckspatial and duckdbfs packages wrap this
-  ([#1670](https://github.com/duckdb/duckdb-r/issues/1670)).
+  There is no automatic conversion on the *write* side,
+  and an `sf` object handed to `dbWriteTable()` fails rather than
+  finding one ([#1670](https://github.com/duckdb/duckdb-r/issues/1670)).
+  The route is WKB in a `BLOB` column —
+  `sf::st_as_binary()` produces the raw vectors, and a list of them
+  writes as `BLOB` — with `ST_GeomFromWKB()` reading it back,
+  either per query or once, through
+  `ALTER TABLE … ALTER COLUMN … SET DATA TYPE GEOMETRY USING`.
+  The duckspatial and duckdbfs packages wrap this.
   Native `sf` support is roadmapped in
   [#117](https://github.com/duckdb/duckdb-r/issues/117).
 * **`NULL` arrives as logical `NA`** in untyped contexts;
