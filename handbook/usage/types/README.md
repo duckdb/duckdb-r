@@ -11,7 +11,17 @@ and [`src/transform.cpp`](/src/transform.cpp) (the way back).
   DuckDB checks string validity and rejects invalid UTF-8;
   this is deliberate engine behavior, not a bug
   ([#12](https://github.com/duckdb/duckdb-r/issues/12)).
-  Convert first: `iconv(x, to = "UTF-8")` or `enc2utf8()`.
+  R is the lenient side: it carries the bytes and prints them,
+  so `validUTF8()`, not the console, is what agrees with the engine.
+  Repairing means naming the encoding the bytes are actually in —
+  `iconv(x, from = "latin1", to = "UTF-8")` —
+  and `iconv()` yields `NA` for what it cannot convert
+  unless `sub =` says otherwise,
+  so a repair that fails shows up as missing data.
+  `enc2utf8()` re-encodes only what R has marked, and a string read
+  from a file whose encoding the reader was not told is marked
+  `"unknown"`: it passes through untouched, still invalid.
+  Which is why the cheapest place to fix this is the reader.
 * **Geometry comes back as WKB by default.**
   `dbConnect(geometry = )` chooses: `"blob"`, the default set in
   [`R/dbConnect__duckdb_driver.R`](/R/dbConnect__duckdb_driver.R),
