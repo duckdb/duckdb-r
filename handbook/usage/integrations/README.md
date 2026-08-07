@@ -106,15 +106,17 @@ It is the one route here that does not go through DBI at all.
 
 The other frame libraries
 [#642](https://github.com/duckdb/duckdb-r/issues/642) asks for,
-and the case where a stream buys nothing:
-a data.table and a collapse frame *are* R vectors,
-so whatever produces one allocates them,
-and `dbGetQuery()` already does.
-Neither package exposes an Arrow entry point of its own,
-and neither has to —
-what remains after the allocation is free,
-because `data.table::setDT()` and `collapse::qDT()` relabel in place
-and leave the column vectors where they are.
+and the case where a stream buys nothing.
+collapse has no container of its own —
+it computes on R data frames and hands them back,
+`qDF()`, `qDT()` and `qTBL()` naming the class it should return —
+and a data.table is those same column vectors under another class.
+So whatever produces either allocates R vectors,
+`dbGetQuery()` already does,
+and the relabel that follows is free:
+`setDT()` and `qDT()` leave the vectors where they are.
+That holds however the two packages grow —
+a reader of their own would still have R vectors to build.
 
 Reach for the stream where the result should not be held twice.
 `nanoarrow::convert_array_stream(to = )` takes a prototype and builds
