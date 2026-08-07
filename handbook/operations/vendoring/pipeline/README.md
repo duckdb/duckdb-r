@@ -44,7 +44,7 @@ and the generator is its list.
 
 The logos are the one thing in that set that is not a source,
 and they are there because the package shows them:
-the horizontal pair is what `README.md` renders,
+the horizontal pair is the banner `.github/README.md` renders,
 the stacked pair is the package logo the site puts in its header,
 and carrying them on the vendor commit is what keeps either
 from drifting away from the engine it documents.

@@ -1,4 +1,4 @@
-.PHONY: all opt unit clean debug release test unittest allunit benchmark docs doxygen format sqlite
+.PHONY: all opt unit clean debug release test unittest allunit benchmark docs doxygen format sqlite readme
 
 all: format-check
 
@@ -20,3 +20,6 @@ format-changes:
 
 format-main:
 	python3 scripts/format.py main --fix --noconfirm
+
+readme:
+	R -q -e 'rmarkdown::render("README.Rmd", quiet = TRUE)'

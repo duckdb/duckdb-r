@@ -46,3 +46,4 @@ _files$
 ^inst/extensions$
 ^handbook$
 ^experiments$
+^README\.Rmd$

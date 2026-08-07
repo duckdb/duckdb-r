@@ -1,33 +1,16 @@
-/* The README's logo block, and the two things the site needs that
-   README.md cannot say for itself.
+/* The package logo, in the header and the sidebar.
 
-   `<picture>` picks its source from `prefers-color-scheme`, which follows the
-   visitor's browser and not the site. With the light switch on, those two come
-   apart the moment a reader chooses a theme -- a light-mode browser switched
-   to a dark page kept the light logo, a black wordmark on dark. pkgdown
-   resolves the switch to `data-bs-theme`, `auto` included, so keying off that
-   attribute makes the logo follow the page in every state the switch can
-   write. The bare rule is the light default, for the light page pkgdown
-   serves before its script runs.
+   pkgdown picks it up as man/figures/logo.svg and has no notion of a second
+   one, so the dark variant is swapped in by hand. Without this the wordmark
+   stays black, which on a dark page is very nearly invisible.
 
-   The site stylesheet also overrides the `height="100"` the README asks for
-   and sizes the logo by its column instead, so it lands at twice that height
-   and grows with the viewport. */
+   pkgdown resolves its light switch -- `auto` included -- to `data-bs-theme`,
+   so keying off that attribute makes the logo follow the page in every state
+   the switch can write.
 
-img[alt="DuckDB logo"] {
-  height: 100px;
-  width: auto;
-  content: url("reference/figures/DuckDB_Logo-horizontal.svg");
-}
-
-[data-bs-theme="dark"] img[alt="DuckDB logo"] {
-  content: url("reference/figures/DuckDB_Logo-horizontal-dark-mode.svg");
-}
-
-/* The package logo, in the header and the sidebar. pkgdown picks it up as
-   man/figures/logo.svg and has no notion of a second one, so the dark variant
-   is swapped the same way. Without this the wordmark stays black, which on a
-   dark page is very nearly invisible. */
+   The wordmark banner needs no rule here: it lives in .github/README.md,
+   which GitHub reads and pkgdown does not, precisely so that this page shows
+   one logo rather than two. */
 
 [data-bs-theme="dark"] img.logo {
   content: url("reference/figures/logo-dark-mode.svg");

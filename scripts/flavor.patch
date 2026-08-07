@@ -20,13 +20,13 @@ index 2ee2528d0..7982715b8 100644
  #' @keywords internal
  "_PACKAGE"
  NULL
-diff --git a/README.md b/README.md
-index d76fc3a..cd023fc 100644
---- a/README.md
-+++ b/README.md
-@@ -6,35 +6,15 @@
-   </picture></a>
+diff --git a/README.Rmd b/README.Rmd
+index df1f52e..19f0527 100644
+--- a/README.Rmd
++++ b/README.Rmd
+@@ -41,35 +41,15 @@ knitr::knit_hooks$set(document = function(x, options) {
  </div>
+ <!-- banner:end -->
  
 -# duckdb
 +# duckdb.1.3
@@ -64,7 +64,7 @@ index d76fc3a..cd023fc 100644
  
  ## Installation from r-universe
  
-@@ -43,20 +23,11 @@ Binaries are available for recent versions of R and for some platforms.
+@@ -78,20 +58,11 @@ Binaries are available for recent versions of R and for some platforms.
  Review <https://docs.r-universe.dev/install/binaries.html> for configuring installation of binary packages on Linux.
  
  ``` r
