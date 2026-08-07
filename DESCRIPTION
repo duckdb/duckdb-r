@@ -68,6 +68,11 @@ Config/build/compilation-database: false
 Config/build/never-clean: true
 Config/comment/compilation-database: Generate manually with
     pkgload:::generate_db() for faster pkgload::load_all()
+Config/gha/extra-packages: adbcdrivermanager=?ignore-build-errors
+Config/comment/gha/extra-packages: adbcdrivermanager does not compile
+    against Rtools45, and the aarch64 Windows runner has no binary to
+    install instead. Explained in
+    handbook/operations/ci/matrix/README.md.
 Config/testthat/edition: 3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
