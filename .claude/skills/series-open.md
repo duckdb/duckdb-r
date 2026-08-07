@@ -47,9 +47,10 @@ This skill is the release branch's birth certificate.
    whose symbol names come from the installed cpp11 rather than from the
    vendored headers
    ([`architecture/glue/`](/handbook/architecture/glue/README.md)).
-   The script refuses the result when it is wrong,
-   but only after committing the first half of the flavor,
-   so installing first is cheaper than being told.
+   The script refuses the result when it is wrong
+   and restores the tree, so a missing fork costs a rerun and nothing
+   else — but it costs the whole run, and `cpp_register()` is the last
+   step.
    That the two cpp11s differ at all is also why a forward series is
    rebased rather than reseeded (`series-rebase.md`).
 

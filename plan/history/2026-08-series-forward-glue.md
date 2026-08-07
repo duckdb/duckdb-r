@@ -325,11 +325,14 @@ Corrected in this change, mostly by a check rather than by prose:
 [`scripts/flavor.sh`](/scripts/flavor.sh) now refuses a generated binding
 whose entry points are not C identifiers, so the failure this run took
 for unavoidable cannot be reached quietly again.
-The pages keep only what the check cannot say —
+The script also prepares the whole rename before committing any of it,
+and restores the tree when it cannot finish,
+so the half-applied flavor a missing prerequisite used to leave —
+its first commit lands before `cpp_register()` runs — is not reachable
+either.
+The pages keep only what neither can say:
 [`architecture/glue/`](/handbook/architecture/glue/README.md) that the
-generator is a second, unvendored half of cpp11 and has to be the fork,
-and `VENDORING.md` and `series-open.md` that installing it first is
-cheaper than being refused after the first commit of the flavor lands.
+generator is a second, unvendored half of cpp11 and has to be the fork.
 The `v1.4-andium` seed is still replayed rather than regenerated, for an
 unrelated reason: a frozen series regenerates on its own release branch,
 and `v1.4-andium`'s `scripts/flavor.sh` predates the GNU-sed fix

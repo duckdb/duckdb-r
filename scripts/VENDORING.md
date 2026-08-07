@@ -258,15 +258,13 @@ this list is the sources-and-glue side it drives):
    the rename touches the shared-object name and every `.Call()` entry point,
    so applying it later invalidates every build below it.
 
-   `flavor.sh` needs the `cpp11` and `decor` R packages for its
-   `cpp11::cpp_register()` step, and the `cpp11` has to be `krlmlr/cpp11`
+   `flavor.sh` needs GNU sed, and the `cpp11` and `decor` R packages for its
+   `cpp11::cpp_register()` step — the `cpp11` being `krlmlr/cpp11`
    ([`handbook/architecture/glue/`](/handbook/architecture/glue/README.md)).
-   Neither is checked before the run starts, and the script commits the first
-   of its two commits *before* reaching that step, so a missing or wrong one
-   leaves the branch with a half-applied flavor; install what is missing,
-   finish by hand with `cpp11::cpp_register()`, and commit.
-   (GNU sed it does check, and refuses to run without —
-   on macOS that means `gsed`, from Homebrew.)
+   On macOS, GNU sed means `gsed`, from Homebrew.
+   A missing or wrong one costs a rerun and nothing else:
+   the script refuses a dirty tree, prepares the whole rename before it
+   commits anything, and restores the tree if it cannot finish.
 2. Seed it with **one** vendor commit at the fork point:
    check the upstream clone out at that commit and run `scripts/vendor.sh`.
 3. Rewind the R side as far as the fork-point engine requires,

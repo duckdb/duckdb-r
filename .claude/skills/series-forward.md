@@ -26,9 +26,8 @@ the replay then populates `<S>-fwd-build`.
    plus the separate fifth-component commit on a dev branch
    (`series-open.md`) —
    then replay each vendor commit onto it.
-   `flavor.sh` needs `krlmlr/cpp11` installed and refuses the run without
-   it, having already committed the first half of the flavor —
-   install it first (`series-open.md`, step 2).
+   `flavor.sh` needs `krlmlr/cpp11` installed, and refuses the whole run
+   without it (`series-open.md`, step 2).
    A series seeded from a release branch rather than from `main`
    regenerates on **that** branch,
    whose `scripts/` may be older than `main`'s —
