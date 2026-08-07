@@ -1,0 +1,28 @@
+/* The README's logo block, and the two things the site needs that
+   README.md cannot say for itself.
+
+   `<picture>` picks its source from `prefers-color-scheme`, which follows the
+   visitor's browser and not the site. This site has no light switch
+   (`_pkgdown.yml` sets no `template.light-switch`), so its pages are always
+   light -- and a visitor whose OS is dark would otherwise get the dark-mode
+   logo, a yellow wordmark on a white page. Painting the light logo by default
+   ties the choice back to the page it sits on.
+
+   The `[data-bs-theme="dark"]` rule is what a light switch would need, and
+   costs nothing until one is configured: pkgdown resolves the switch -- `auto`
+   included -- to that attribute, so the rule follows the site in every state
+   the switch can write.
+
+   The site stylesheet also overrides the `height="100"` the README asks for
+   and sizes the logo by its column instead, so it lands at twice that height
+   and grows with the viewport. */
+
+img[alt="DuckDB logo"] {
+  height: 100px;
+  width: auto;
+  content: url("reference/figures/DuckDB_Logo-horizontal.svg");
+}
+
+[data-bs-theme="dark"] img[alt="DuckDB logo"] {
+  content: url("reference/figures/DuckDB_Logo-horizontal-dark-mode.svg");
+}
