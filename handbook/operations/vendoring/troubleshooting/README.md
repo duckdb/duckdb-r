@@ -97,15 +97,34 @@ The loop's own statement of the rule is in its repair stage
 ## Where a patch goes in the chain
 
 A `patch/` entry belongs in the first commit whose tree carries the code
-it answers, which is the first commit whose tree it applies to.
+it answers.
 That is rarely the commit at which it was written:
 an entry answering a compiler diagnostic is written when someone reads
 the diagnostic, and the upstream change that raised it can be far below.
-Finding the right one is mechanical — the answer can only change where
-the patched file changes, so walk that file's commits and take the first
-whose tree `patch --dry-run` accepts.
 Fold the entry and its effect on the vendored tree into that commit
 together, with an `R-side fix` section, as a forward-ported fix is folded.
+
+**Where the entry applies is a lower bound, not the answer.**
+For one that edits the code it answers the two coincide, and walking the
+patched file's commits for the first tree `patch --dry-run` accepts
+finds it.
+One that merely wraps its subject does not move with it —
+a diagnostic scoped off around a translation unit applies to every
+version of that unit, including the versions with nothing to warn about,
+so the walk answers with the seed.
+Look for where the thing being answered arrives, which is often in
+another file than the one the entry edits, and use `patch --dry-run`
+only to confirm the entry can live there.
+
+**The same distinction decides which branch an entry lives on.**
+A fix is series-specific when the code it answers is not on `main`,
+and an entry that wraps rather than edits will apply to `main` either
+way, so applying there is no evidence it belongs there.
+Landing one whose subject `main`'s engine does not carry adds a
+suppression with nothing to suppress —
+against the rule that nothing is suppressed at all
+([`architecture/glue/`](/handbook/architecture/glue/README.md)) —
+and it is the series' until `main`'s engine reaches the code.
 
 The buffer is where the choice is load-bearing.
 No run covers it at all
