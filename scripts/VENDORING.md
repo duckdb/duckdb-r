@@ -258,19 +258,15 @@ this list is the sources-and-glue side it drives):
    the rename touches the shared-object name and every `.Call()` entry point,
    so applying it later invalidates every build below it.
 
-   `flavor.sh` has two prerequisites it does not check:
-   the `cpp11` and `decor` R packages, needed for the `cpp11::cpp_register()` step.
-   **The `cpp11` has to be `krlmlr/cpp11`**, from GitHub —
-   `remotes::install_github("krlmlr/cpp11")` —
-   and not CRAN's, which writes an invalid `.Call` prefix for a suffix
-   carrying two dots and none of the usual signs of having done so
+   `flavor.sh` needs the `cpp11` and `decor` R packages for its
+   `cpp11::cpp_register()` step, and the `cpp11` has to be `krlmlr/cpp11`
    ([`handbook/architecture/glue/`](/handbook/architecture/glue/README.md)).
+   Neither is checked before the run starts, and the script commits the first
+   of its two commits *before* reaching that step, so a missing or wrong one
+   leaves the branch with a half-applied flavor; install what is missing,
+   finish by hand with `cpp11::cpp_register()`, and commit.
    (GNU sed it does check, and refuses to run without —
    on macOS that means `gsed`, from Homebrew.)
-   It commits the first of its two commits *before* reaching that step,
-   so a missing prerequisite leaves the branch with a half-applied flavor;
-   finish by hand with `cpp11::cpp_register()` and a second commit,
-   and check that `src/cpp11.cpp` really carries the renamed `_duckdb_<flavor>_*` entry points.
 2. Seed it with **one** vendor commit at the fork point:
    check the upstream clone out at that commit and run `scripts/vendor.sh`.
 3. Rewind the R side as far as the fork-point engine requires,

@@ -321,10 +321,15 @@ flat.
 And `krlmlr.r-universe.dev` does not build cpp11, so
 `install.packages("cpp11", repos = c(krlmlr, CRAN))` falls through to
 CRAN and reports installing cpp11 0.5.5, which reads like success.
-Corrected in this change: `architecture/glue/` now separates the two
-halves of cpp11, `branches/flavors/` says what to check after a flavor
-run, and `VENDORING.md`, `series-open.md` and `series-forward.md` name
-the fork where they ask for the package.
+Corrected in this change, mostly by a check rather than by prose:
+[`scripts/flavor.sh`](/scripts/flavor.sh) now refuses a generated binding
+whose entry points are not C identifiers, so the failure this run took
+for unavoidable cannot be reached quietly again.
+The pages keep only what the check cannot say —
+[`architecture/glue/`](/handbook/architecture/glue/README.md) that the
+generator is a second, unvendored half of cpp11 and has to be the fork,
+and `VENDORING.md` and `series-open.md` that installing it first is
+cheaper than being refused after the first commit of the flavor lands.
 The `v1.4-andium` seed is still replayed rather than regenerated, for an
 unrelated reason: a frozen series regenerates on its own release branch,
 and `v1.4-andium`'s `scripts/flavor.sh` predates the GNU-sed fix

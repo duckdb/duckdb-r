@@ -44,19 +44,14 @@ This skill is the release branch's birth certificate.
    **Install `krlmlr/cpp11` before running `flavor.sh`**, from GitHub —
    `remotes::install_github("krlmlr/cpp11")`, beside `decor`.
    `flavor.sh` runs `cpp11::cpp_register()`,
-   and its symbol names come from the cpp11 that happens to be installed,
-   not from the vendored headers:
-   CRAN's replaces the *first* dot of the package name only,
-   so a `1.5.dev` flavor comes out as `_duckdb_1.5.dev_rapi_connect`,
-   which is not a valid C identifier
-   ([`architecture/glue/`](/handbook/architecture/glue/README.md)
-   owns why, and says what to check).
-   `krlmlr.r-universe.dev` does not build cpp11,
-   so asking for it there and falling back to CRAN installs CRAN's
-   and looks like it worked.
-   Compare `R/cpp11.R` against an existing series' seed either way;
-   this is also why a forward series is rebased rather than reseeded
-   (`series-rebase.md`).
+   whose symbol names come from the installed cpp11 rather than from the
+   vendored headers
+   ([`architecture/glue/`](/handbook/architecture/glue/README.md)).
+   The script refuses the result when it is wrong,
+   but only after committing the first half of the flavor,
+   so installing first is cheaper than being told.
+   That the two cpp11s differ at all is also why a forward series is
+   rebased rather than reseeded (`series-rebase.md`).
 
 3. **Create all four refs at the seed tip**
    (day-one rule, no exceptions):

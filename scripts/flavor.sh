@@ -45,6 +45,21 @@ git commit -m "chore: Update flavor patch to $package_name"
 # Updates to man/ and NAMESPACE are handled in the patch file for efficiency
 patch -p1 < scripts/flavor.patch
 R -q -e 'cpp11::cpp_register()'
+
+# cpp11 derives the .Call prefix from `Package:`, replacing dots with
+# underscores -- but only the fork replaces every one of them, so a flavor
+# carrying two comes out of CRAN's cpp11 as `_duckdb_1.5.dev_rapi_connect`.
+# Refuse it here: the next reader is the compiler, and the seed is committed
+# before then. handbook/architecture/glue/README.md says which cpp11 to install.
+if grep -qE '^extern "C" SEXP [A-Za-z_][A-Za-z0-9_]*\.' src/cpp11.cpp; then
+  echo "$0: cpp11::cpp_register() wrote entry points that are not C identifiers:" >&2
+  grep -E '^extern "C" SEXP [A-Za-z_][A-Za-z0-9_]*\.' src/cpp11.cpp | head -n 3 >&2
+  echo "  Install the fork -- R -q -e 'remotes::install_github(\"krlmlr/cpp11\")' --" >&2
+  echo "  then rerun cpp11::cpp_register(). The flavor patch is already committed;" >&2
+  echo "  the rename itself is applied but uncommitted." >&2
+  exit 1
+fi
+
 # Avoid storing .orig files
 git clean -f -- "*.orig"
 git add .

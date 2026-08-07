@@ -34,15 +34,9 @@ what the patch rewrites is the surface, by construction.
 [`scripts/flavor.sh`](/scripts/flavor.sh) takes the suffix
 (`1.4`, `1.5.dev`, `dev`) and applies it,
 regenerating `src/cpp11.cpp` and `R/cpp11.R` instead of patching them,
-because cpp11 derives the `.Call` symbol prefix from the name.
-That step is the one place the *installed* cpp11 has to be the fork
-rather than CRAN's
-([`architecture/glue/`](/handbook/architecture/glue/README.md)):
-with the wrong one a two-dot suffix regenerates entry points that no
-compiler will accept, and only a two-dot suffix does,
-so the script exits 0 either way.
-Check the prefix in `src/cpp11.cpp` before committing a fresh flavor —
-underscores all the way, `_duckdb_1_5_dev_`.
+because cpp11 derives the `.Call` symbol prefix from the name —
+which is also why the cpp11 that generates them has to be the fork
+([`architecture/glue/`](/handbook/architecture/glue/README.md)).
 Everywhere else the package asks for its name at run time
 ([`architecture/r-layer/`](/handbook/architecture/r-layer/README.md));
 the scan that keeps it that way is

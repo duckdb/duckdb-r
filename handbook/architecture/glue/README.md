@@ -34,23 +34,17 @@ which are generated and never edited.
 `cpp_register()` does not come from `inst/include/cpp11/` —
 it is an R function, resolved from whatever cpp11 the library holds,
 and so it is the one part of cpp11 this repository cannot pin.
-It has to be the fork as well:
-CRAN's cpp11 mangles the package name into the `.Call` prefix with
-`sub("[.]", "_", package)`, replacing the first dot only,
-so a flavor carrying two — `duckdb.1.5.dev` — is written as
-`_duckdb_1.5.dev_rapi_connect`, which is not a C identifier.
-The fork spells that `gsub` ([`R/register.R`](https://github.com/krlmlr/cpp11/blob/main/R/register.R)),
-and is otherwise indistinguishable, which is what makes the failure quiet:
-a one-dot flavor comes out correct from either.
+It has to be the fork as well,
+because the flavor names it derives the `.Call` prefix from
+carry more dots than CRAN's cpp11 replaces.
 Install it from GitHub —
 `remotes::install_github("krlmlr/cpp11")` —
-beside `decor`, which `cpp_register()` also needs.
-Not from CRAN, and not from `krlmlr.r-universe.dev`, which does not
-build cpp11 at all,
-so naming that repository first and CRAN second installs CRAN's
-and says nothing.
-What runs the generator, and what a wrong one costs there, is
-[`branches/flavors/`](/handbook/branches/flavors/README.md)'s.
+beside `decor`, which `cpp_register()` also needs;
+`krlmlr.r-universe.dev` does not build cpp11,
+so naming that repository ahead of CRAN installs CRAN's.
+[`scripts/flavor.sh`](/scripts/flavor.sh) refuses a generated binding
+whose entry points are not C identifiers, which is what a wrong cpp11
+produces.
 
 **`RStrings`.**
 R string constants and `Rf_install()` symbols used from C++
