@@ -33,8 +33,11 @@ The load-bearing facts:
   release the instance with `duckdb_shutdown()` first.
   A setting the engine also accepts after startup, `memory_limit`
   and `threads` among them, can be `SET` on the connection instead.
-  Warning in exactly the surprise cases is planned
-  ([#126](https://github.com/duckdb/duckdb-r/issues/126)).
+  The silence is provisional in two steps:
+  failing loudly where these arguments collide is
+  [#2560](https://github.com/duckdb/duckdb-r/issues/2560),
+  and taking them out of `dbConnect()` altogether is
+  [#126](https://github.com/duckdb/duckdb-r/issues/126).
 * `dbDisconnect()` closes one connection only;
   its `shutdown` argument is unused.
   Instances are shut down when the driver is garbage-collected
