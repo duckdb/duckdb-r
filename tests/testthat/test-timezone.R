@@ -147,23 +147,25 @@ test_that("POSIXct with local time zone and existing but empty attribute", {
 test_that("TIMESTAMPTZ values preserve UTC instants regardless of input offset (#184)", {
   con <- local_con()
 
-  dbExecute(con, "INSTALL icu")
-  dbExecute(con, "LOAD icu")
-  dbExecute(con, "SET TimeZone = 'UTC'")
-
+  # No ICU needed: offset literals parse without it
   dbExecute(con, "CREATE TABLE x (a TIMESTAMPTZ)")
   dbExecute(con, "INSERT INTO x VALUES (TIMESTAMPTZ '2024-01-10 13:03:12-08:00')")
   dbExecute(con, "INSERT INTO x VALUES (TIMESTAMPTZ '2024-01-10 13:03:12-05:00')")
 
   out <- dbReadTable(con, "x")$a
-  # -08:00 → 21:03:12 UTC, -05:00 → 18:03:12 UTC
+  # -08:00 → 21:03:12 UTC, -05:00 → 18:03:12 UTC; the tzone attribute
+  # depends on whether icu is around, so compare instants only here
+  # (the attribute is pinned by the ICU tests below)
   expect_equal(
     out,
-    as.POSIXct(c("2024-01-10 21:03:12", "2024-01-10 18:03:12"), tz = "UTC")
+    as.POSIXct(c("2024-01-10 21:03:12", "2024-01-10 18:03:12"), tz = "UTC"),
+    ignore_attr = TRUE
   )
 })
 
 test_that("TIMESTAMPTZ tzone attribute follows session TimeZone setting (#184)", {
+  skip_if_no_icu()
+
   con <- local_con()
 
   dbExecute(con, "INSTALL icu")
@@ -180,6 +182,8 @@ test_that("TIMESTAMPTZ tzone attribute follows session TimeZone setting (#184)",
 })
 
 test_that("TIMESTAMPTZ session TimeZone is also picked up by ALTREP relations (#184)", {
+  skip_if_no_icu()
+
   con <- local_con()
 
   dbExecute(con, "INSTALL icu")
@@ -198,6 +202,8 @@ test_that("TIMESTAMPTZ session TimeZone is also picked up by ALTREP relations (#
 })
 
 test_that("TIMESTAMP (no TZ) is unaffected by session TimeZone (#184)", {
+  skip_if_no_icu()
+
   con <- local_con()
 
   dbExecute(con, "INSTALL icu")

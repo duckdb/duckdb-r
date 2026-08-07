@@ -26,3 +26,16 @@ skip_on_cran_except_r_universe <- function() {
     skip_on_cran()
   }
 }
+
+# The icu extension is not statically linked into the package,
+# so tests that need it must download it first.
+# That requires a released DuckDB version, a platform with published
+# extension binaries, and a build that allows extensions at all --
+# and is out of the question on CRAN.
+# Same conditions as in tests/testthat/test-duckdb-extensions.R.
+skip_if_no_icu <- function() {
+  skip_on_dev_version()
+  skip_on_cran_except_r_universe()
+  skip_if_not(extensions_supported(), "DuckDB extensions disabled on this build (duckdb/duckdb-r#1107)")
+  skip_if_not(extensions_published(), "No extension binaries published for this platform")
+}
