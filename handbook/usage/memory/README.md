@@ -19,10 +19,14 @@ and how to keep results from materializing in R.
   a known boundary
   ([#1997](https://github.com/duckdb/duckdb-r/issues/1997)).
 * **Spill:** the engine offloads to `temp_directory` when a query
-  outgrows memory.
-  For an in-memory database the package points it at a session
-  temporary directory so spill works out of the box;
-  a file database is left to the engine's own default, `<dbdir>.tmp`
+  outgrows memory — on by default, as in the CLI.
+  For an in-memory database the package points it at a fresh
+  per-instance directory below the session temporary directory;
+  the engine creates it at first spill and removes it at shutdown,
+  and instances must not share one
+  (spill file names are deterministic,
+  and shutdown cleanup removes what it finds).
+  A file database is left to the engine's own default, `<dbdir>.tmp`
   beside the file (`src/duckdb/src/main/config.cpp`);
   the options that override either are
   [`storage/`](/handbook/usage/storage/README.md)'s.

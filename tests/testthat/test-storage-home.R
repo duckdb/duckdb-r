@@ -214,25 +214,85 @@ test_that("a forced-interactive session does not get ~/.duckdb created for it", 
 })
 
 test_that("resolve_temp_directory redirects in-memory only, honors override", {
-  local_mocked_bindings(session_temp_dir = function() "/tmp/sess")
-  expect_equal(
-    resolve_temp_directory(":memory:"),
-    list(directory = session_home_path("temp"), source = "session")
+  tmp <- withr::local_tempdir()
+  local_mocked_bindings(session_temp_dir = function() tmp)
+
+  resolved <- resolve_temp_directory(":memory:")
+  expect_equal(resolved$source, "session")
+
+  # The per-instance spill directory sits under the session spill root ...
+  spill_root <- file.path(tmp, get_package_name(), "temp")
+  expect_equal(dirname(resolved$directory), spill_root)
+  # ... which resolving created, so the engine's own single-level directory
+  # creation can create the leaf lazily at first spill.
+  expect_true(dir.exists(spill_root))
+  # The leaf itself is left to the engine: nothing exists until a query
+  # actually spills.
+  expect_false(dir.exists(resolved$directory))
+  # Every resolution yields a fresh leaf: concurrent in-memory instances must
+  # not share a spill directory (deterministic file names, shutdown cleanup).
+  expect_false(
+    identical(resolve_temp_directory(":memory:")$directory, resolved$directory)
   )
+
+  # An on-disk database keeps the engine's own `<dbdir>.tmp` default.
   expect_equal(
     resolve_temp_directory("/path/to/my.db"),
     list(directory = NULL, source = "default")
   )
 
-  withr::local_options(duckdb.temp_directory = "/opt/tmp")
+  # An override is passed through verbatim, and never created here.
+  withr::local_options(
+    duckdb.temp_directory = file.path(tmp, "no-such-dir", "spill")
+  )
   expect_equal(
     resolve_temp_directory(":memory:"),
-    list(directory = "/opt/tmp", source = "option")
+    list(directory = file.path(tmp, "no-such-dir", "spill"), source = "option")
   )
   expect_equal(
     resolve_temp_directory("/path/to/my.db"),
-    list(directory = "/opt/tmp", source = "option")
+    list(directory = file.path(tmp, "no-such-dir", "spill"), source = "option")
   )
+  expect_false(dir.exists(file.path(tmp, "no-such-dir", "spill")))
+})
+
+test_that("an in-memory database spills to temporary storage out of the box", {
+  drv <- duckdb()
+  con <- dbConnect(drv)
+  on.exit(
+    {
+      dbDisconnect(con)
+      duckdb_shutdown(drv)
+    },
+    add = TRUE
+  )
+
+  spill <- dbGetQuery(
+    con,
+    "SELECT current_setting('temp_directory') AS dir"
+  )$dir
+  expect_equal(dirname(spill), file.path(session_home(), "temp"))
+  expect_false(dir.exists(spill))
+
+  # A sort that outgrows the memory limit: it can only complete by offloading
+  # to the spill directory, which the engine creates on first use.
+  dbExecute(con, "SET memory_limit = '80MB'")
+  dbExecute(
+    con,
+    "CREATE TABLE spilled AS
+       SELECT hash(i) AS h, i FROM range(10000000) t(i) ORDER BY h"
+  )
+  expect_true(dir.exists(spill))
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) AS n FROM spilled")$n,
+    10000000
+  )
+
+  # The engine removes the per-instance directory at instance shutdown.
+  dbDisconnect(con)
+  duckdb_shutdown(drv)
+  on.exit()
+  expect_false(dir.exists(spill))
 })
 
 test_that("storage-location message: tempdir wording", {
