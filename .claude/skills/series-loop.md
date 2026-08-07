@@ -21,7 +21,7 @@ this loop repairs in place and was proven on the `main` rewind
 | `<S>-build` | the routine, unconditionally | Every upstream first-parent commit vendored one-to-one, glue compiling at every commit. **No CI runs here** (`each.yaml` never matches `*-build`). The buffer. |
 | `<S>-dev` | the routine, force-push | `<S>-build` commits, consumed up to 100 at a time, with test/R/patch adaptations folded in as CI demands. What CI builds, commit by commit. |
 | `<S>-green` | the routine, fast-forward only | The newest commit such that every commit in `<S>-green..it` has a `success` run. What r-universe should build from. |
-| `<S>-build-base` | the routine | The `<S>-build` commit equivalent to `<S>-green` (same vendored upstream SHA). Marks how much of the buffer has been consumed and verified. |
+| `<S>-build-base` | the routine, force-push | The `<S>-build` commit equivalent to `<S>-green` (same vendored upstream SHA). Marks how much of the buffer has been consumed and verified. A marker with no consumer, recomputed every stage 3. |
 
 Equivalence between `-build` and `-dev` commits is by the
 `duckdb/duckdb@<sha>` reference in the commit subject —
@@ -90,9 +90,9 @@ plus a CUTOVER line for a forward series that has caught up —
 a suggestion for a human, stage 6),
 `scripts/series-advance.sh <S>`
 (stages 3 and 5 — fast-forwards `-green`,
-moves `-build-base` by vendored-SHA match,
+sets `-build-base` to the vendored-SHA match,
 extends `-dev` by ≤ 100;
-refuses on any failure or non-fast-forward),
+refuses on any failure, and on a `-green` that would not fast-forward),
 `scripts/series-port.sh <S>`
 (stage 4 — brings `<S>-dev` level with `main`:
 cherry-picks plus a tooling sync),
@@ -487,12 +487,13 @@ everything at or before `<S>-green` is trusted —
 verified by this loop,
 or accepted as the series' seed on day one —
 and is never re-examined.
-Move `<S>-build-base` to the `<S>-build` commit
-with the same vendored upstream SHA
-(day one: the seed tip, before any vendor commit is consumed).
-Fast-forward only —
-if `-green` cannot fast-forward, something rewrote verified history;
+`-green` is fast-forward only —
+if it cannot fast-forward, something rewrote verified history;
 stop and say so.
+Set `<S>-build-base` to the `<S>-build` commit
+with the same vendored upstream SHA
+(day one: the seed tip, before any vendor commit is consumed),
+force-pushing where the match is not a fast-forward.
 
 **`-build-base` lands on vendor commits only, so it lags.**
 The match is by vendored SHA,
@@ -504,9 +505,31 @@ and the *buffered* badge (`-build-base..-build`) overstates by that much:
 9 rather than 6 on `main`, 2026-08-04.
 It is display-only and self-correcting —
 the next verified vendor commit moves the ref past the whole run —
-and the ref moves forward only either way,
 so nudging it onto the newest `-build` commit green demonstrably contains
 is a legitimate manual move, not a repair.
+
+**`-build-base` is the one ref of the four that is not fast-forward only.**
+It is a marker, not a promise:
+nothing consumes it, the match is recomputed from scratch every stage 3,
+and where the ref sits today tells the next firing nothing
+it does not re-derive.
+So the stage **sets** it rather than advancing it,
+force-pushing when the match is not a fast-forward,
+and the cost of being wrong is one display column
+until the next stage 3 recomputes it.
+The other three carry their guarantees unchanged:
+`-green` fast-forwards only,
+`-build` and `-dev` are rewritten only by this loop,
+by the rules above.
+
+A ref found off the buffer's line is therefore not a puzzle to solve.
+It happened once, on `v1.4-andium`, 2026-08-06:
+an auto-update commit landed on `-build` and on `-build-base`
+31 seconds apart and left the two siblings,
+which the stage then refused as a rewind of verified history.
+Set the ref and move on;
+diagnosing what wrote it is worth doing only if it recurs.
+
 Do not teach the match to guess:
 a patch-id scan finds only the commits
 whose content reached `-dev` unsplit,
@@ -1078,7 +1101,10 @@ is what carries the automatic path into a forward series.
 
 ## Invariants
 
-- `<S>-green` and `<S>-build-base` move forward only.
+- `<S>-green` moves forward only.
+  `<S>-build-base` does not: it is a marker with no consumer,
+  recomputed from the vendored-SHA match every stage 3,
+  and set — force-pushed where it has to be — rather than advanced.
 - Cutover is manual.
   The loop reports that a forward series has caught up
   and prints the command; it never runs it,
