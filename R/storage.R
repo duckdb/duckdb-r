@@ -55,11 +55,22 @@
 #'     setting: `secret_directory`. Placed at `<home>/stored_secrets`, the same
 #'     `<home>`.}
 #'   \item{Temporary / spill files}{Out-of-core intermediates for sorts, hash
-#'     joins, and similar operations. DuckDB settings: `temp_directory`,
-#'     `max_temp_directory_size`. For an in-memory (`:memory:`) database DuckDB's
-#'     own default spills to `.tmp` in the current working directory, so the
-#'     package overrides it with a [tempdir()] sub-directory by default. This is
-#'     a separate setting from the extension/secret home (see below).}
+#'     joins, and similar operations.
+#'     DuckDB settings: `temp_directory`, `max_temp_directory_size`.
+#'     Temporary storage is on by default, with the DuckDB CLI's semantics:
+#'     the directory is created only when a query actually spills,
+#'     and removed again when the database instance shuts down.
+#'     An on-disk database keeps the engine's own default,
+#'     `<dbdir>.tmp` next to the database file.
+#'     For an in-memory (`:memory:`) database the engine's own default
+#'     would spill to `.tmp` in the current working directory,
+#'     so the package points it at a fresh per-instance sub-directory
+#'     below [tempdir()] instead.
+#'     Every in-memory instance gets its own spill directory:
+#'     instances must not share one,
+#'     because the engine's spill file names are deterministic
+#'     and an instance cleans up its directory when it shuts down.
+#'     This is a separate setting from the extension/secret home (see below).}
 #'   \item{Logs and profiling output}{Written only when a path is explicitly
 #'     configured (DuckDB settings `log_query_path`, `http_logging_output`,
 #'     profiling output). They default to *off*, so nothing is written without
@@ -99,16 +110,20 @@
 #'
 #' # Per-location reference
 #'
-#' | Kind           | DuckDB setting        | How to set it                                                         | Default                          |
-#' |----------------|-----------------------|-----------------------------------------------------------------------|----------------------------------|
-#' | Home           | `home_directory`      | --                                                                    | left untouched (not set)         |
-#' | Extensions     | `extension_directory` | `home` arg / `duckdb.home` / `DUCKDB_R_HOME` (as `<home>/extensions`) | `tempdir()` sub-directory (set)  |
-#' | Stored secrets | `secret_directory`    | like extensions (`<home>/stored_secrets`)                             | `tempdir()` sub-directory (set)  |
-#' | Temp/spill     | `temp_directory`      | `duckdb.temp_directory` / `DUCKDB_R_TEMP_DIRECTORY`                   | `tempdir()` sub-directory (set)  |
-#' | Logs           | `log_query_path`      | DuckDB setting                                                        | disabled (off)                   |
+#' | Kind           | DuckDB setting        | How to set it                                                         | Default                                                 |
+#' |----------------|-----------------------|-----------------------------------------------------------------------|---------------------------------------------------------|
+#' | Home           | `home_directory`      | --                                                                    | left untouched (not set)                                |
+#' | Extensions     | `extension_directory` | `home` arg / `duckdb.home` / `DUCKDB_R_HOME` (as `<home>/extensions`) | `tempdir()` sub-directory (set)                         |
+#' | Stored secrets | `secret_directory`    | like extensions (`<home>/stored_secrets`)                             | `tempdir()` sub-directory (set)                         |
+#' | Temp/spill     | `temp_directory`      | `duckdb.temp_directory` / `DUCKDB_R_TEMP_DIRECTORY`                   | memory: `tempdir()` sub-directory (set); disk: `<dbdir>.tmp` |
+#' | Logs           | `log_query_path`      | DuckDB setting                                                        | disabled (off)                                          |
 #'
 #' "set" means `duckdb()` sets the value explicitly in the database config.
 #' The home directory is left untouched so that `~` in user SQL keeps its usual meaning.
+#' The temp/spill setting is left unset for an on-disk database:
+#' the engine's own `<dbdir>.tmp` default already matches the DuckDB CLI,
+#' no matter whether the database is opened through [duckdb()]
+#' or through the `dbdir` argument of [DBI::dbConnect()].
 #' An `extension_directory` / `secret_directory` / `temp_directory`
 #' passed directly in the `config` list is always honored
 #' and takes precedence over the resolution above.

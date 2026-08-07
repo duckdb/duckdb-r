@@ -48,11 +48,22 @@ as described below.}
 setting: \code{secret_directory}. Placed at \verb{<home>/stored_secrets}, the same
 \verb{<home>}.}
 \item{Temporary / spill files}{Out-of-core intermediates for sorts, hash
-joins, and similar operations. DuckDB settings: \code{temp_directory},
-\code{max_temp_directory_size}. For an in-memory (\verb{:memory:}) database DuckDB's
-own default spills to \code{.tmp} in the current working directory, so the
-package overrides it with a \code{\link[=tempdir]{tempdir()}} sub-directory by default. This is
-a separate setting from the extension/secret home (see below).}
+joins, and similar operations.
+DuckDB settings: \code{temp_directory}, \code{max_temp_directory_size}.
+Temporary storage is on by default, with the DuckDB CLI's semantics:
+the directory is created only when a query actually spills,
+and removed again when the database instance shuts down.
+An on-disk database keeps the engine's own default,
+\verb{<dbdir>.tmp} next to the database file.
+For an in-memory (\verb{:memory:}) database the engine's own default
+would spill to \code{.tmp} in the current working directory,
+so the package points it at a fresh per-instance sub-directory
+below \code{\link[=tempdir]{tempdir()}} instead.
+Every in-memory instance gets its own spill directory:
+instances must not share one,
+because the engine's spill file names are deterministic
+and an instance cleans up its directory when it shuts down.
+This is a separate setting from the extension/secret home (see below).}
 \item{Logs and profiling output}{Written only when a path is explicitly
 configured (DuckDB settings \code{log_query_path}, \code{http_logging_output},
 profiling output). They default to \emph{off}, so nothing is written without
@@ -98,13 +109,17 @@ forces a per-session \code{\link[=tempdir]{tempdir()}} even if \verb{~/.duckdb} 
    Home \tab \code{home_directory} \tab -- \tab left untouched (not set) \cr
    Extensions \tab \code{extension_directory} \tab \code{home} arg / \code{duckdb.home} / \code{DUCKDB_R_HOME} (as \verb{<home>/extensions}) \tab \code{tempdir()} sub-directory (set) \cr
    Stored secrets \tab \code{secret_directory} \tab like extensions (\verb{<home>/stored_secrets}) \tab \code{tempdir()} sub-directory (set) \cr
-   Temp/spill \tab \code{temp_directory} \tab \code{duckdb.temp_directory} / \code{DUCKDB_R_TEMP_DIRECTORY} \tab \code{tempdir()} sub-directory (set) \cr
+   Temp/spill \tab \code{temp_directory} \tab \code{duckdb.temp_directory} / \code{DUCKDB_R_TEMP_DIRECTORY} \tab memory: \code{tempdir()} sub-directory (set); disk: \verb{<dbdir>.tmp} \cr
    Logs \tab \code{log_query_path} \tab DuckDB setting \tab disabled (off) \cr
 }
 
 
 "set" means \code{duckdb()} sets the value explicitly in the database config.
 The home directory is left untouched so that \code{~} in user SQL keeps its usual meaning.
+The temp/spill setting is left unset for an on-disk database:
+the engine's own \verb{<dbdir>.tmp} default already matches the DuckDB CLI,
+no matter whether the database is opened through \code{\link[=duckdb]{duckdb()}}
+or through the \code{dbdir} argument of \code{\link[DBI:dbConnect]{DBI::dbConnect()}}.
 An \code{extension_directory} / \code{secret_directory} / \code{temp_directory}
 passed directly in the \code{config} list is always honored
 and takes precedence over the resolution above.

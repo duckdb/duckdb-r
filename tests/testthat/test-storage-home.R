@@ -256,6 +256,27 @@ test_that("resolve_temp_directory redirects in-memory only, honors override", {
   expect_false(dir.exists(file.path(tmp, "no-such-dir", "spill")))
 })
 
+test_that("an on-disk database keeps the engine's `<dbdir>.tmp` spill default", {
+  db <- file.path(withr::local_tempdir(), "spill.duckdb")
+
+  # The common idiom: the driver is created for :memory: and dbConnect() then
+  # re-targets it at the file. The in-memory spill redirect must not ride
+  # along -- the file instance re-resolves and keeps the engine's own default,
+  # as the CLI would (#1604).
+  con <- dbConnect(duckdb(), dbdir = db)
+  # The instance dbConnect() created, via the driver cache; released with a
+  # withr::defer() (LIFO), so it still runs before local_tempdir()'s cleanup.
+  drv_file <- duckdb(dbdir = db)
+  withr::defer({
+    dbDisconnect(con)
+    duckdb_shutdown(drv_file)
+  })
+  expect_equal(
+    dbGetQuery(con, "SELECT current_setting('temp_directory') AS dir")$dir,
+    paste0(normalizePath(db, mustWork = FALSE), ".tmp")
+  )
+})
+
 test_that("an in-memory database spills to temporary storage out of the box", {
   drv <- duckdb()
   con <- dbConnect(drv)

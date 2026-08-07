@@ -234,13 +234,6 @@ duckdb <- function(
       maybe_storage_location_message(resolved_home)
     }
   }
-  if (!("temp_directory" %in% names(config))) {
-    temp_directory <- resolve_temp_directory(dbdir)$directory
-    if (!is.null(temp_directory)) {
-      config[["temp_directory"]] <- temp_directory
-    }
-  }
-
   # When extensions are disallowed for this driver, also turn off automatic
   # extension install/load so a query cannot implicitly pull in a prebuilt
   # (libstdc++) extension and crash R (duckdb/duckdb-r#1107). Automatic loading
@@ -264,6 +257,26 @@ duckdb <- function(
     maybe_extensions_message()
   }
 
+  # Temporary storage stays on by default, with the CLI's semantics: an
+  # on-disk database keeps the engine's own `<dbdir>.tmp` default, and an
+  # in-memory database gets a per-instance directory under the session tempdir
+  # (the engine's own default, `.tmp` in the working directory, is not a place
+  # an R package should write). The resolved value goes into the startup
+  # config only, not into the driver's `config` slot: that slot seeds the
+  # instance re-created when `dbConnect()` is called with a different `dbdir`
+  # (see dbConnect__duckdb_driver), which must re-resolve for the new `dbdir`
+  # -- an on-disk database opened as `dbConnect(duckdb(), dbdir = ...)` would
+  # otherwise inherit the in-memory driver's spill path and never use
+  # `<dbdir>.tmp` (the duckdb/duckdb-r#1604 family). An explicit
+  # `temp_directory` in `config` is stored and honored as-is.
+  startup_config <- config
+  if (!("temp_directory" %in% names(config))) {
+    temp_directory <- resolve_temp_directory(dbdir)$directory
+    if (!is.null(temp_directory)) {
+      startup_config[["temp_directory"]] <- temp_directory
+    }
+  }
+
   # Always create new database for in-memory,
   # allows isolation and mixing different configs
   drv <- new(
@@ -272,7 +285,7 @@ duckdb <- function(
     database_ref = rethrow_rapi_startup(
       dbdir,
       read_only,
-      config,
+      startup_config,
       environment_scan,
       ax$allow
     ),
