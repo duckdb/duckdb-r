@@ -13,6 +13,13 @@ The load-bearing facts:
 * `duckdb()` returns a driver that owns a *database instance*;
   `dbConnect()` opens connections to it,
   and many connections share one instance.
+* **The path can be named in two places, and `dbConnect()`'s wins.**
+  `dbConnect(drv, dbdir = )` overrides the path the driver was built
+  with, silently, and opens the connection on a driver of its own;
+  the object passed in keeps its own database
+  ([#171](https://github.com/duckdb/duckdb-r/issues/171)).
+  Naming the path once, in `duckdb()`, is what keeps the driver a
+  reader holds and the database they are querying the same thing.
 * For a file-based `dbdir` the instance is **cached**,
   keyed by the normalized path —
   DuckDB allows only one read-write handle per database file,
