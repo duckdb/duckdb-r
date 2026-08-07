@@ -207,6 +207,15 @@ else
   anchor=$(git log --format='%H %s' "$build" | grep -m 1 "duckdb@$dev_up" | cut -d' ' -f1 || true)
   [ -n "$anchor" ] ||
     { echo "Error: no -build commit vendors duckdb@$dev_up — mirror the fold in -build first"; exit 1; }
+  # `vendored_sha` walks past commits that vendor nothing, and on a -dev that has
+  # none of its own it walks past the seed too — answering with what the branch
+  # the seed was cut from had vendored. That is every series on its first firing
+  # once stage 4 has ported: -dev is the seed plus tooling picks, so the fast
+  # path above no longer applies and this one reaches below the divergence.
+  # The buffer starts at the merge base whatever -dev's newest vendor commit is.
+  if git merge-base --is-ancestor "$anchor" "$mb"; then
+    anchor=$mb
+  fi
 fi
 ahead=$(git rev-list --count "$anchor..$build")
 if [ "$ahead" -eq 0 ]; then
