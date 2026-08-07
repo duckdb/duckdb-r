@@ -13,7 +13,8 @@
 # branch (deduped by SHA) and, for each commit with no record:
 #   1. Reads the `rcc` commit status from
 #      repos/{owner}/{repo}/commits/<sha>/statuses
-#      (skipping commits with no rcc status; they are retried next time).
+#      (skipping commits with no rcc status, and commits whose status is not yet
+#      a verdict; both are retried next time).
 #   2. Parses the workflow run id from the status `target_url`.
 #   3. Fetches the run object for the latest run_attempt and skips it if the
 #      run is not yet `completed` (also retried next time).
@@ -136,6 +137,23 @@ while IFS= read -r sha; do
     skipped_no_status=$((skipped_no_status + 1))
     continue
   fi
+
+  # A record is a decision, and scripts/rcc-decided.sh reads presence alone, so
+  # writing one whose `.status.state` is still `pending` marks the commit decided
+  # forever: the planner skips it and nothing ever replaces the record. That is
+  # what a cancelled leg leaves behind -- the run completes, the status it set on
+  # entry never does -- and it wedges the series until somebody pushes
+  # `retry-<S>-dev` by hand. Leave such a commit undecided instead; the ordinary
+  # rule replans it on the next push.
+  status_state="$(jq -r '.state // ""' <<<"${status_json}")"
+  case "${status_state}" in
+    success | failure | error) ;;
+    *)
+      echo "Commit ${sha}: rcc status is ${status_state:-empty}, not a verdict -- leaving it undecided"
+      skipped_pending=$((skipped_pending + 1))
+      continue
+      ;;
+  esac
 
   target_url="$(jq -r '.target_url // ""' <<<"${status_json}")"
   run_id="$(printf '%s' "${target_url}" \
