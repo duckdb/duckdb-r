@@ -15,11 +15,23 @@ so `R/` is the list
 A reader asking "does `dbAppendTable()` work here" answers it by
 finding the file, not by consulting an inventory that can go stale.
 
-What this leaf will own is where DuckDB departs from the DBI baseline —
-what a transaction does to an in-flight result, what `dbWriteTable()`
-does about types it cannot round-trip, and which identifiers need
-quoting the engine would otherwise fold.
+The departures from that baseline are what this leaf owns.
+The one already stated:
 
-*To deepen: state the departures from the DBI baseline for
-transactions, table writes, and quoting, each with the test that
-pins it.*
+* In a multi-statement string,
+  everything before the final statement executes at prepare time,
+  and `?` placeholders bind only in the last statement
+  ([#179](https://github.com/duckdb/duckdb-r/issues/179)).
+  DBI's `immediate = TRUE` is no way around this and no way to opt out:
+  the driver has no unprepared path — every route reaches
+  [`src/statement.cpp`](/src/statement.cpp)'s prepare, which is where the
+  earlier statements run — and the argument lands in `...` unread,
+  which it will stop doing
+  ([#2498](https://github.com/duckdb/duckdb-r/issues/2498)).
+  One statement per call is the way to keep execution where the
+  caller put it.
+
+*To deepen: state the remaining departures — what a transaction does to
+an in-flight result, what `dbWriteTable()` does about types it cannot
+round-trip, and which identifiers need quoting the engine would
+otherwise fold — each with the test that pins it.*
