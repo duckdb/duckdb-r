@@ -85,9 +85,10 @@ without an R data frame in between —
 so a dedicated writer per frame library
 (Polars was the one asked for) is this route, not new C++
 ([#642](https://github.com/duckdb/duckdb-r/issues/642)).
-A library that cannot read an Arrow stream gains nothing from a
-writer either: its input is an R data frame,
-and that is what converting the stream produces anyway.
+The other libraries it names are a different case:
+a data.table or a collapse frame *is* R vectors,
+which is what `dbGetQuery()` already returns,
+so a writer in this package would allocate the same thing.
 The stream feeds one consumer, draining as it is read,
 so a second pass over the same object sees zero rows
 rather than the result again.
