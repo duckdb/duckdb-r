@@ -32,8 +32,8 @@ When the runs happen — an early pass and a go/no-go gate before the
 tag — is
 [`operations/releases/process/`](/handbook/operations/releases/process/README.md)'s.
 duckplyr, the closest downstream, also gates individual changes
-(for instance the typed-`NA` flip,
-[#155](https://github.com/duckdb/duckdb-r/issues/155)).
+(for instance the untyped-`NULL` flip,
+declined in [#155](https://github.com/duckdb/duckdb-r/issues/155)).
 
 *To deepen: state what blocks a release versus what is noted and
 waved through, from the last release's record.*

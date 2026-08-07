@@ -38,9 +38,14 @@ and [`src/transform.cpp`](/src/transform.cpp) (the way back).
   The duckspatial and duckdbfs packages wrap this.
   Native `sf` support is roadmapped in
   [#117](https://github.com/duckdb/duckdb-r/issues/117).
-* **`NULL` arrives as logical `NA`** in untyped contexts;
-  making the relational API return typed `NA`s instead is decided
-  and pending ([#155](https://github.com/duckdb/duckdb-r/issues/155)).
+* **An untyped `NULL` comes back as `NA_integer_`,**
+  matching the engine's own `SELECT NULL`;
+  mapping it to logical `NA` instead was declined
+  ([#155](https://github.com/duckdb/duckdb-r/issues/155)).
+  A typed `NULL` — a scanned logical column, a bound `NA`
+  parameter — round-trips as logical `NA`,
+  and the `expr_constant(NA)` corner is
+  [`relational/`](/handbook/usage/relational/README.md)'s.
 * **MAP columns** round-trip since 1.5.4
   ([#200](https://github.com/duckdb/duckdb-r/issues/200)),
   but writing one back without `field.types` needs
