@@ -258,14 +258,13 @@ this list is the sources-and-glue side it drives):
    the rename touches the shared-object name and every `.Call()` entry point,
    so applying it later invalidates every build below it.
 
-   `flavor.sh` has two prerequisites it does not check:
-   the `cpp11` and `decor` R packages, needed for the `cpp11::cpp_register()` step.
-   (GNU sed it does check, and refuses to run without —
-   on macOS that means `gsed`, from Homebrew.)
-   It commits the first of its two commits *before* reaching that step,
-   so a missing prerequisite leaves the branch with a half-applied flavor;
-   finish by hand with `cpp11::cpp_register()` and a second commit,
-   and check that `src/cpp11.cpp` really carries the renamed `_duckdb_<flavor>_*` entry points.
+   `flavor.sh` needs GNU sed, and the `cpp11` and `decor` R packages for its
+   `cpp11::cpp_register()` step — the `cpp11` being `krlmlr/cpp11`
+   ([`handbook/architecture/glue/`](/handbook/architecture/glue/README.md)).
+   On macOS, GNU sed means `gsed`, from Homebrew.
+   A missing or wrong one costs a rerun and nothing else:
+   the script refuses a dirty tree, prepares the whole rename before it
+   commits anything, and restores the tree if it cannot finish.
 2. Seed it with **one** vendor commit at the fork point:
    check the upstream clone out at that commit and run `scripts/vendor.sh`.
 3. Rewind the R side as far as the fork-point engine requires,

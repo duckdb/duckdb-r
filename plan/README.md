@@ -56,6 +56,7 @@ topic today.
 | To read about | Read |
 |---|---|
 | Findings verified against the code by the closed handbook wave, and the issues its defects became | [`history/2026-08-handbook-wave-salvage.md`](history/2026-08-handbook-wave-salvage.md) |
+| The glue adaptations the August 2026 forward of all three series replayed, where each modification was placed, and what the run found out about the routine | [`history/2026-08-series-forward-glue.md`](history/2026-08-series-forward-glue.md) |
 
 ## Adding a document here
 

@@ -49,6 +49,19 @@ to do, and they run in this order:
   around a script opens a pull request against it,
   so the next firing does not have to.
 
+**A forward carries the vendor strand, and the rest is placed by hand.**
+`<S>-fwd-build` is replayed from the buffer's `vendor:` commits alone, so
+the buffer's own `patch/` entries do not travel with it, and a series
+seeded from a release branch regenerates its seed on that branch, with
+the tooling that branch carries rather than `main`'s.
+The replay refuses to start rather than leave a `patch/` entry behind,
+naming what it cannot place —
+it has to, because dropping one raises no conflict:
+a vendor diff taken after the entry landed is neutral in the region it
+touched, so it applies to a tree that lacks it.
+The tooling delta nothing reports, and nothing needs to:
+the port stage brings it back on the next firing.
+
 [`scripts/series-check.sh`](/scripts/series-check.sh) prints each
 series' verdict read-only and is always safe to run
 ([`troubleshooting/`](/handbook/operations/vendoring/troubleshooting/README.md)).

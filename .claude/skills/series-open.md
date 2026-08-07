@@ -41,15 +41,18 @@ This skill is the release branch's birth certificate.
    `flavor.sh` never stamps it,
    because regular LTS flavors keep their four-component version.
 
-   **Check the generated cpp11 files before trusting a fresh seed.**
+   **Install `krlmlr/cpp11` before running `flavor.sh`**, from GitHub —
+   `remotes::install_github("krlmlr/cpp11")`, beside `decor`.
    `flavor.sh` runs `cpp11::cpp_register()`,
-   whose symbol names depend on the cpp11 that happens to be installed:
-   0.5.5 replaces only the *first* dot of the package name,
-   so a `1.5.dev` flavor comes out as `_duckdb_1.5.dev_rapi_connect`,
-   which is not a valid C identifier.
-   Compare `R/cpp11.R` against an existing series' seed;
-   this is also why a forward series is rebased rather than reseeded
-   (`series-rebase.md`).
+   whose symbol names come from the installed cpp11 rather than from the
+   vendored headers
+   ([`architecture/glue/`](/handbook/architecture/glue/README.md)).
+   The script refuses the result when it is wrong
+   and restores the tree, so a missing fork costs a rerun and nothing
+   else — but it costs the whole run, and `cpp_register()` is the last
+   step.
+   That the two cpp11s differ at all is also why a forward series is
+   rebased rather than reseeded (`series-rebase.md`).
 
 3. **Create all four refs at the seed tip**
    (day-one rule, no exceptions):

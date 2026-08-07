@@ -24,13 +24,27 @@ and `DUCKDB_R_POISON_GUARD()` (the C++ half of the CRAN guard).
 taken from [`krlmlr/cpp11`](https://github.com/krlmlr/cpp11),
 a patch stack on top of
 [`r-lib/cpp11`](https://github.com/r-lib/cpp11):
-this package needs extensions upstream does not ship,
-support for package names carrying more than one dot
-(`duckdb.1.5.dev`) among them.
+this package needs extensions upstream does not ship.
 An entry point is a function marked `[[cpp11::register]]`;
 `cpp11::cpp_register()` writes both halves of the binding
 (`src/cpp11.cpp`, `R/cpp11.R`),
 which are generated and never edited.
+
+**The generator is the fork too, and it is not vendored.**
+`cpp_register()` does not come from `inst/include/cpp11/` —
+it is an R function, resolved from whatever cpp11 the library holds,
+and so it is the one part of cpp11 this repository cannot pin.
+It has to be the fork as well,
+because the flavor names it derives the `.Call` prefix from
+carry more dots than CRAN's cpp11 replaces.
+Install it from GitHub —
+`remotes::install_github("krlmlr/cpp11")` —
+beside `decor`, which `cpp_register()` also needs;
+`krlmlr.r-universe.dev` does not build cpp11,
+so naming that repository ahead of CRAN installs CRAN's.
+[`scripts/flavor.sh`](/scripts/flavor.sh) refuses a generated binding
+whose entry points are not C identifiers, which is what a wrong cpp11
+produces.
 
 **`RStrings`.**
 R string constants and `Rf_install()` symbols used from C++
