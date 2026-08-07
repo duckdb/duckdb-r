@@ -22,6 +22,11 @@ and reading many files at once.
   exposes them to dplyr —
   that, not the wrapper, is the supported way to a `filename`
   column or many-file reads today.
+  Since DuckDB 1.3 `filename` is a *virtual* column:
+  selecting it by name works with no option set at all,
+  and `filename = true` only promotes it into `SELECT *`.
+  A wrapper that forwards nothing therefore withholds less than it
+  looks like — what it withholds is the column in `SELECT *`.
 * **Out:** `COPY ... TO 'file.parquet'` in SQL;
   writing from dplyr pipelines is duckplyr's `compute_parquet()`.
 * **R data frames** need no import at all:
