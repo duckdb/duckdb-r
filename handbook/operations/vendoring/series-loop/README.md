@@ -20,8 +20,12 @@ to do, and they run in this order:
 * **Vendor onto `<S>-build`** — extend the buffer with `vendor-one.sh`,
   fixing glue where the gate stops;
   red never blocks the buffer.
-* **Repair the oldest `<S>-dev` failure** — classify by what a
-  log positively contains: the tree's fault is folded into the
+* **Repair the oldest `<S>-dev` failure** — read each commit's verdict
+  and log from the `each-rcc` run that decided it, falling back to the
+  `rcc2` store when a run cannot be reached
+  ([`ci/per-commit/contract/`](/handbook/operations/ci/per-commit/contract/README.md)),
+  and classify by what a log positively contains:
+  the tree's fault is folded into the
   offending commit and the tail replayed;
   the infrastructure's fault is retried once via a `retry-` ref
   that also serves as the ledger.

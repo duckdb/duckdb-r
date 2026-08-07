@@ -214,7 +214,10 @@ written by the leg that decided the commit — with the run fan-in and the
 scheduled backstop recovering what a dead leg could not publish —
 and replaced only by an explicit retry.
 Git-native, batch-readable in one blobless fetch, reachable from a
-Claude web session without API access.
+Claude web session without API access —
+which is the assumption §10.6 now puts under test:
+a session that can read the `each-rcc` run reads the record and the log
+at their source, and the store is what it falls back to.
 Commit statuses become a **write-only display surface**;
 today they are still selection's input, which is what D1 changes.
 
@@ -675,3 +678,12 @@ Phase 2.
 5. **Review artifacts.** Should routine-generated review digests
    (like `main-dev-review.md`) land under `plan/` by convention,
    or in PR comments only?
+6. **Does the store still earn its keep?** It exists because an agent
+   firing could not read CI logs; that is no longer true where the
+   firing has Actions access, so `series-loop.md` now reads the run
+   and falls back to `rcc2`. Every firing records which path served.
+   If the fallback goes unused across a full cycle, the question is
+   what the store is still *for* — CI-side selection reads it too
+   (D1), so retiring it means replacing that read as well, and the
+   answer may be "keep it, cheaply" rather than "delete it".
+   Decide on the evidence, not on this paragraph.

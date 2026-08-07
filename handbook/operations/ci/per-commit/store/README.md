@@ -19,6 +19,17 @@ runs2.d/<xx>/<sha>.ndjson     the verdict, one line of JSON, ~2 KB
 logs2.d/<xx>/<sha>.log        the harvested output of a failure, ~1 MB
 ```
 
+**It is a copy, and that is what it is for.**
+A leg writes both files into its own artifact and publishes the same bytes
+here ([`contract/`](/handbook/operations/ci/per-commit/contract/README.md)),
+so the branch buys one thing the run does not:
+a reader with git and nothing else.
+That reader was the series loop, from a session with no API access.
+A firing that *can* read the run now reads it there
+and keeps this branch as its fallback
+([`.claude/skills/series-loop.md`](/.claude/skills/series-loop.md), stage 2);
+CI-side selection reads the store and only the store, unchanged.
+
 Two writers recording different commits touch different paths,
 so there is nothing to conflict on,
 and a loser of the ref race re-reads the tip and re-commits its own files.
