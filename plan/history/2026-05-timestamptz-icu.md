@@ -83,6 +83,17 @@ zones don't).
 
 ### Part A — no ICU loaded
 
+*Correction (2026-08, verified on a build with the extension store
+empty): these runs had `icu` cached, and the package's build enables
+`autoload_known_extensions`, so "not running `LOAD icu`" did not keep
+ICU out — `SET TimeZone` and `current_setting('TimeZone')` autoloaded
+it behind the scenes. With `icu` truly absent, any `SET TimeZone`
+(`'UTC'` included) and any `current_setting('TimeZone')` fail with an
+Extension Autoloading Error; offset literals still parse (A1's
+instants are correct), and results fall back to `tzone = "UTC"`
+quietly, because `GetClientProperties()` does not trigger autoload.
+A3, A4, and A1's `Etc/UTC` attribute describe an ICU-loaded session.*
+
 * **A1** — `Etc/UTC` session, four offset variants returned:
     | input | UTC instant returned |
     | --- | --- |

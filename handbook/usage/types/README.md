@@ -46,10 +46,31 @@ and [`src/transform.cpp`](/src/transform.cpp) (the way back).
   `TIMESTAMPTZ` columns follow the session's `TimeZone` setting instead
   ([#184](https://github.com/duckdb/duckdb-r/issues/184)),
   pinned by [`tests/testthat/test-timezone.R`](/tests/testthat/test-timezone.R).
+  Setting a zone — any zone, `'UTC'` included — takes the icu extension
+  ([`extensions/`](/handbook/usage/extensions/README.md));
+  where icu never loaded, the session zone reads as `UTC`
+  and `TIMESTAMPTZ` results are labeled accordingly.
   The scenario-by-scenario verification and its edges —
   the ALTREP path freezes the zone at `rel_to_altrep()` time,
   `TIMETZ` drops per-row offsets — are recorded in
   [`plan/history/2026-05-timestamptz-icu.md`](/plan/history/2026-05-timestamptz-icu.md).
+* **duckplyr** reaches DuckDB through the relational API
+  ([`relational/`](/handbook/usage/relational/README.md)),
+  so results are ALTREP data frames —
+  the edges above that name the ALTREP path apply to duckplyr too —
+  and a data frame lifts in via `rel_from_df()`,
+  which refuses columns rather than converting them lossily:
+  matrix/array columns, S4 columns, `integer64` columns,
+  and any class beyond the built-in ones in the default strict mode
+  (the checks are [`src/relational.cpp`](/src/relational.cpp)'s,
+  pinned in
+  [`tests/testthat/test-relational.R`](/tests/testthat/test-relational.R)
+  and [`tests/testthat/test-timezone.R`](/tests/testthat/test-timezone.R)).
+  Factors lift and come back as factors.
+  duckplyr surfaces these refusals as errors on an explicit
+  `as_duckdb_tibble()`, not as silent fallbacks;
+  the wider duckplyr boundary is
+  [`integrations/`](/handbook/usage/integrations/README.md)'s.
 
 *To deepen: write the full mapping table from `src/types.cpp`,
 verified on a vendored build.
