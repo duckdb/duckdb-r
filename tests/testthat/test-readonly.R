@@ -2,16 +2,17 @@ test_that("read_only flag and shutdown works as expected", {
   skip_if_not(TEST_RE2)
 
   dbdir <- tempfile()
+  pkg <- get_package_name()
 
   # 1st: create a db and write some tables
 
-  callr::r(function(dbdir) {
-    con <- DBI::dbConnect(duckdb::duckdb(), dbdir, read_only = FALSE) # FALSE is the default
+  callr::r(function(dbdir, pkg) {
+    con <- DBI::dbConnect(asNamespace(pkg)$duckdb(), dbdir, read_only = FALSE) # FALSE is the default
     print(con)
     res <- DBI::dbWriteTable(con, "iris", iris)
     DBI::dbDisconnect(con)
-    duckdb::duckdb_shutdown(con@driver)
-  }, args = list(dbdir))
+    asNamespace(pkg)$duckdb_shutdown(con@driver)
+  }, args = list(dbdir, pkg))
 
 
   # 2nd: start two parallel read-only references
@@ -26,11 +27,11 @@ test_that("read_only flag and shutdown works as expected", {
   res <- dbReadTable(con2, "iris")
 
   # con is still alive
-  callr::r(function(dbdir) {
-    con <- DBI::dbConnect(duckdb::duckdb(), dbdir, read_only = TRUE)
+  callr::r(function(dbdir, pkg) {
+    con <- DBI::dbConnect(asNamespace(pkg)$duckdb(), dbdir, read_only = TRUE)
     res <- DBI::dbReadTable(con, "iris")
     DBI::dbDisconnect(con, shutdown = TRUE)
-  }, args = list(dbdir))
+  }, args = list(dbdir, pkg))
 
   # shut down one of them again
   res <- dbReadTable(con, "iris")
@@ -41,11 +42,11 @@ test_that("read_only flag and shutdown works as expected", {
 
   # now we can get write access again
   # TODO shutdown
-  callr::r(function(dbdir) {
-    con <- DBI::dbConnect(duckdb::duckdb(), dbdir, read_only = FALSE) # FALSE is the default
+  callr::r(function(dbdir, pkg) {
+    con <- DBI::dbConnect(asNamespace(pkg)$duckdb(), dbdir, read_only = FALSE) # FALSE is the default
     res <- DBI::dbWriteTable(con, "iris2", iris)
     DBI::dbDisconnect(con)
-  }, args = list(dbdir))
+  }, args = list(dbdir, pkg))
 
   expect_true(TRUE)
 })

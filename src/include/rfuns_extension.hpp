@@ -44,7 +44,7 @@ BinaryChunk BinaryTypeAssert(DataChunk &args) {
 	D_ASSERT(lefts.GetType() == LHS_LOGICAL_TYPE);
 
 	auto &rights = args.data[1];
-	D_ASSERT(rights.GetType() == LHS_LOGICAL_TYPE);
+	D_ASSERT(rights.GetType() == RHS_LOGICAL_TYPE);
 
 	return {lefts, rights};
 }

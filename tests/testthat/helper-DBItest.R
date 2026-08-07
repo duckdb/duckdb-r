@@ -12,7 +12,7 @@ if (rlang::is_installed("DBItest")) DBItest::make_context(
   # dblog::dblog(drv),
   list(debug = FALSE),
   tweaks = DBItest::tweaks(
-    dbitest_version = "1.8.1",
+    dbitest_version = "1.8.3",
     omit_blob_tests = FALSE,
     temporary_tables = FALSE,
     placeholder_pattern = "?",
@@ -21,5 +21,5 @@ if (rlang::is_installed("DBItest")) DBItest::make_context(
     time_cast = function(x) sprintf("CAST('%s' AS TIME)", x),
     blob_cast = function(x) sprintf("%s::BLOB", x)
   ),
-  name = "duckdb"
+  name = get_package_name()
 )

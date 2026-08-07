@@ -1,0 +1,17 @@
+; Windows export list. R's share/make/winshlib.mk links against
+; <dll base>-win.def when it exists, and otherwise generates one from `nm` over
+; every object -- which for this package means the whole vendored engine, past
+; the 65535 ordinals a PE export table can address.
+;
+; One entry is enough: NAMESPACE uses .registration = TRUE, and R_init_duckdb
+; calls R_useDynamicSymbols(dll, FALSE) and R_forceSymbols(dll, TRUE), so R
+; resolves every entry point through the routine table rather than by name.
+;
+; DuckDB's C API is exported regardless, by __declspec(dllexport) from
+; DUCKDB_C_API (duckdb.h) and DUCKDB_EXTENSION_API (winapi.hpp); an export list
+; cannot suppress those, and loaded extensions bind to them.
+;
+; The name of this file and the symbol below both carry the package name, so
+; scripts/flavor.patch renames and rewrites them for a flavor.
+EXPORTS
+R_init_duckdb

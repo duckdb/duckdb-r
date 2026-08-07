@@ -1,47 +1,66 @@
 #!/bin/bash
-# Collect rcc results and failure logs, indexed by commit SHA.
+# Collect rcc results and failure logs for commits the verdict store has no
+# record for, and stage them for publication to the orphan `rcc2` branch.
+#
+# The scheduled backstop, and only that: the `each-rcc` legs publish their own
+# verdicts within seconds of deciding them (scripts/each-shard.sh), and the run's
+# fan-in recovers what a dead leg could not (scripts/each-harvest.sh). This is
+# what covers the case where neither ran at all, because the whole workflow was
+# cancelled -- it can reconstruct a record from the commit status and the run
+# object, and a *run*-level log in place of the per-commit one.
 #
 # Iterates first-parent commits since $SINCE on every refs/remotes/*/*-dev
-# branch (deduped by SHA) and, for each commit:
+# branch (deduped by SHA) and, for each commit with no record:
 #   1. Reads the `rcc` commit status from
 #      repos/{owner}/{repo}/commits/<sha>/statuses
-#      (skipping commits with no rcc status; they are retried next time).
+#      (skipping commits with no rcc status, and commits whose status is not yet
+#      a verdict; both are retried next time).
 #   2. Parses the workflow run id from the status `target_url`.
 #   3. Fetches the run object for the latest run_attempt and skips it if the
 #      run is not yet `completed` (also retried next time).
-#   4. Appends a merged {commit, status, run} record to runs2.ndjson.
-#   5. For failed runs, ensures logs2/<sha>.log exists by either moving an
-#      existing logs/<run_id>.log into place (expected to shrink logs/), or
-#      downloading the run logs zip and keeping the trailing $LOG_TAIL lines.
+#   4. Writes a merged {commit, status, run} record to
+#      OUT_DIR/runs2.d/<xx>/<sha>.ndjson.
+#   5. For failed runs, downloads the run logs zip and keeps the trailing
+#      $LOG_TAIL lines as OUT_DIR/logs2.d/<xx>/<sha>.log.
 #
-# OUT_DIR/runs.json and OUT_DIR/runs.ndjson are intentionally not touched
-# (scheduled for removal); the new state lives in OUT_DIR/runs2.ndjson and
-# OUT_DIR/logs2/<sha>.log.
+# OUT_DIR is a *staging* directory, not a checkout: this script writes the files
+# a publication would add, and scripts/rcc-publish.sh puts them on the branch.
+# Nothing here checks the branch out -- which commits are already decided is one
+# tree-only fetch (scripts/rcc-decided.sh), and the store's bulk is harvested
+# logs this script has no use for.
 #
-# Designed to be run inside a worktree that holds both the source branches
-# (where *-dev refs live) and the accumulated data (OUT_DIR).
+# $SINCE defaults to the store's retention window rather than a fixed date, and
+# that is load-bearing: consolidation drops records past the window, so a
+# backstop looking further back would re-derive every tick exactly what the next
+# consolidation deletes.
+#
+# Designed to be run from a checkout that holds the source branches, i.e. where
+# the *-dev refs live.
 #
 # Environment variables:
 #   GH_TOKEN  - GitHub token with actions:read, statuses:read (required)
-#   OUT_DIR   - destination directory (default: runs)
+#   OUT_DIR   - staging directory to write into (default: runs)
 #   LOG_TAIL  - number of trailing log lines to keep per failed run
 #               (default: 10000)
 #   SINCE     - earliest commit date to consider, ISO 8601
-#               (default: 2026-04-11)
+#               (default: RCC_RETENTION_DAYS ago)
 #   MAX_NEW   - cap on commits inspected via the GitHub API per invocation;
-#               commits already recorded in runs2.ndjson don't count against
-#               this cap (default: 400)
+#               commits already recorded don't count against this cap
+#               (default: 400)
 #
 # Requires: gh, jq, unzip, git. Portable to bash on Linux and macOS.
 
 set -euo pipefail
 
+here="$(cd "$(dirname "$0")" && pwd)"
+. "${here}/rcc-lib.sh"
+
 OUT_DIR="${OUT_DIR:-runs}"
 LOG_TAIL="${LOG_TAIL:-10000}"
-SINCE="${SINCE:-2026-04-11}"
+SINCE="${SINCE:-$(rcc_cutoff "${RCC_RETENTION_DAYS}")}"
 MAX_NEW="${MAX_NEW:-400}"
 
-mkdir -p "${OUT_DIR}/logs2"
+mkdir -p "${OUT_DIR}"
 
 # Portable temp file/dir helpers: BSD mktemp (macOS) does not accept
 # --suffix or --tmpdir, but plain `mktemp` and `mktemp -d` are universal.
@@ -59,13 +78,21 @@ is_failure_conclusion() {
   esac
 }
 
-# SHAs already recorded in runs2.ndjson are skipped so re-running the script
-# only does work for new commits.
+stage() { # <path-on-branch> -> the staging path, parents created
+  local path="${OUT_DIR}/$1"
+  mkdir -p "$(dirname "${path}")"
+  printf '%s' "${path}"
+}
+
+# What the store already holds, in one tree-only fetch. Fatal when it cannot be
+# read: answering "nothing is decided" would re-derive several hundred records
+# that are already on the branch, at one API call each.
 seen_shas="$(mktmp)"
-: > "${seen_shas}"
-if [ -s "${OUT_DIR}/runs2.ndjson" ]; then
-  jq -r '.commit' "${OUT_DIR}/runs2.ndjson" | sort -u > "${seen_shas}"
+if ! "${here}/rcc-decided.sh" > "${seen_shas}"; then
+  echo "Could not read the verdict store; refusing to re-derive it." >&2
+  exit 1
 fi
+LC_ALL=C sort -u "${seen_shas}" -o "${seen_shas}"
 
 # Collect first-parent commits from every refs/remotes/*/*-dev ref since
 # SINCE, deduped by SHA, newest first (git's natural order).
@@ -81,14 +108,14 @@ shas_file="$(mktmp)"
 } | awk 'NF && !seen[$0]++' > "${shas_file}"
 
 total="$(wc -l < "${shas_file}" | tr -d ' ')"
-echo "Unique commits to inspect: ${total}"
+echo "Commits on or after ${SINCE} to inspect: ${total}"
+echo "Already decided: $(wc -l < "${seen_shas}" | tr -d ' ')"
 
 processed=0
 skipped_no_status=0
 skipped_pending=0
 skipped_known=0
 inspected=0
-moved=0
 fetched=0
 expired=0
 
@@ -111,6 +138,23 @@ while IFS= read -r sha; do
     continue
   fi
 
+  # A record is a decision, and scripts/rcc-decided.sh reads presence alone, so
+  # writing one whose `.status.state` is still `pending` marks the commit decided
+  # forever: the planner skips it and nothing ever replaces the record. That is
+  # what a cancelled leg leaves behind -- the run completes, the status it set on
+  # entry never does -- and it wedges the series until somebody pushes
+  # `retry-<S>-dev` by hand. Leave such a commit undecided instead; the ordinary
+  # rule replans it on the next push.
+  status_state="$(jq -r '.state // ""' <<<"${status_json}")"
+  case "${status_state}" in
+    success | failure | error) ;;
+    *)
+      echo "Commit ${sha}: rcc status is ${status_state:-empty}, not a verdict -- leaving it undecided"
+      skipped_pending=$((skipped_pending + 1))
+      continue
+      ;;
+  esac
+
   target_url="$(jq -r '.target_url // ""' <<<"${status_json}")"
   run_id="$(printf '%s' "${target_url}" \
               | sed -n 's#.*/actions/runs/\([0-9][0-9]*\).*#\1#p')"
@@ -120,25 +164,10 @@ while IFS= read -r sha; do
     continue
   fi
 
+  # Shared projection, so a record written here is shaped exactly like one written
+  # by an `each-rcc` leg or its fan-in; see scripts/rcc-run-fields.jq.
   run_json="$(gh api "repos/{owner}/{repo}/actions/runs/${run_id}" 2>/dev/null \
-    | jq -c '{
-        id,
-        name,
-        head_branch,
-        head_sha,
-        event,
-        status,
-        conclusion,
-        run_attempt,
-        run_number,
-        run_started_at,
-        created_at,
-        updated_at,
-        html_url,
-        display_title,
-        actor: (.actor.login // null),
-        triggering_actor: (.triggering_actor.login // null)
-      }')"
+    | jq -c -f "${here}/rcc-run-fields.jq")"
   if [ -z "${run_json}" ]; then
     echo "Commit ${sha}: failed to fetch run ${run_id}, skipping"
     skipped_no_status=$((skipped_no_status + 1))
@@ -157,7 +186,7 @@ while IFS= read -r sha; do
     --argjson status "${status_json}" \
     --argjson run "${run_json}" \
     '{commit: $commit, status: $status, run: $run}' \
-    >> "${OUT_DIR}/runs2.ndjson"
+    > "$(stage "$(rcc_part_path "${sha}")")"
   printf '%s\n' "${sha}" >> "${seen_shas}"
   processed=$((processed + 1))
 
@@ -167,16 +196,8 @@ while IFS= read -r sha; do
     continue
   fi
 
-  logfile="${OUT_DIR}/logs2/${sha}.log"
-  old_logfile="${OUT_DIR}/logs/${run_id}.log"
-  if [ -f "${old_logfile}" ]; then
-    mv -f "${old_logfile}" "${logfile}"
-    echo "Moved existing log file for run ${run_id} into place for commit ${sha}"
-    moved=$((moved + 1))
-    continue
-  fi
-
   echo "Fetching logs for commit ${sha} run ${run_id} (conclusion: ${conclusion})"
+  logfile="$(stage "$(rcc_log_path "${sha}")")"
   tmp_zip="$(mktmp)"
   ok=1
   gh api \
@@ -214,5 +235,5 @@ while IFS= read -r sha; do
 done < "${shas_file}"
 
 echo "Inspected: ${inspected}/${MAX_NEW}, recorded: ${processed}, already known: ${skipped_known}, no rcc status: ${skipped_no_status}, pending: ${skipped_pending}"
-echo "Logs moved: ${moved}, fetched: ${fetched}, unavailable: ${expired}"
+echo "Logs fetched: ${fetched}, unavailable: ${expired}"
 echo "Done."

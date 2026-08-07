@@ -1,3 +1,5 @@
+# Generate R/rethrow-gen.R from R/cpp11.R: wrap each rapi_* binding
+# to rethrow errors with call context; sourced by .Rprofile on repo load.
 rethrow_generate <- function() {
   if (Sys.getenv("CI") != "") {
     return()

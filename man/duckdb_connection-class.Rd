@@ -10,6 +10,7 @@
 %   R/dbQuoteLiteral__duckdb_connection.R,
 %   R/dbRemoveTable__duckdb_connection_character.R,
 %   R/dbRollback__duckdb_connection.R,
+%   R/dbSendQueryArrow__duckdb_connection_character.R,
 %   R/dbSendQuery__duckdb_connection_character.R,
 %   R/dbWriteTable__duckdb_connection_character_data.frame.R,
 %   R/show__duckdb_connection.R
@@ -45,6 +46,8 @@
 \alias{dbRemoveTable,duckdb_connection,character-method}
 \alias{dbRollback__duckdb_connection}
 \alias{dbRollback,duckdb_connection-method}
+\alias{dbSendQueryArrow__duckdb_connection_character}
+\alias{dbSendQueryArrow,duckdb_connection,character-method}
 \alias{dbSendQuery__duckdb_connection_character}
 \alias{dbSendQuery,duckdb_connection,character-method}
 \alias{dbWriteTable__duckdb_connection_character_data.frame}
@@ -78,6 +81,8 @@
 \S4method{dbRemoveTable}{duckdb_connection,character}(conn, name, ..., fail_if_missing = TRUE)
 
 \S4method{dbRollback}{duckdb_connection}(conn, ...)
+
+\S4method{dbSendQueryArrow}{duckdb_connection,character}(conn, statement, params = NULL, ...)
 
 \S4method{dbSendQuery}{duckdb_connection,character}(conn, statement, params = NULL, ..., arrow = FALSE)
 
@@ -140,4 +145,24 @@ with one column per query parameter.}
 \description{
 Implements \link[DBI:DBIConnection-class]{DBIConnection}.
 }
+\section{Slots}{
+
+\describe{
+\item{\code{conn_ref}}{external pointer to the underlying DuckDB connection.}
+
+\item{\code{driver}}{the \link[=duckdb_driver-class]{duckdb_driver} this connection was opened from.}
+
+\item{\code{debug}}{whether debug information (such as queries) is printed.}
+
+\item{\code{convert_opts}}{internal options controlling how result values are converted to R.}
+
+\item{\code{reserved_words}}{character vector of the engine's reserved SQL keywords, used to quote identifiers.}
+
+\item{\code{timezone_out}}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} time zone results are returned in; superseded by \code{convert_opts}, from which it is copied at construction, and no longer read internally.}
+
+\item{\code{tz_out_convert}}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} how timestamps are converted to \code{timezone_out} (\code{"with"} or \code{"force"}); superseded by \code{convert_opts}.}
+
+\item{\code{bigint}}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} how 64-bit integers are returned; superseded by \code{convert_opts}.}
+}}
+
 \keyword{internal}

@@ -1,8 +1,575 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
-# duckdb 1.5.3.9000
+# duckdb 1.5.5.9010
 
-- Switching to development version.
+## Bug fixes
+
+### tests
+
+- Expect the extension install to fail where DuckDB does not cover the platform (#2425, #2529).
+
+## Features
+
+- Mirror the fork's branches with the Pull app, and drop `sync.yaml` (#2534).
+
+### rcc
+
+- Move the verdict store to `rcc2`, one file per commit (#2505).
+
+## Chore
+
+- Increase retention to 180 days \[ci skip\].
+
+## Continuous integration
+
+- Add sharded `revdep2` workflow.
+
+## Documentation
+
+### extensions
+
+- Close the remaining gaps the extension issues map to (#2425, #2536).
+
+### handbook
+
+- Record the Windows extension-coverage boundaries the issues keep re-finding (#2530).
+
+## Testing
+
+### extensions
+
+- Drop the duplicate platform skip that made the canary unreachable (#2537).
+
+### extensions
+
+- Skip the install test where DuckDB publishes no binaries, and pin the gap (#2535).
+
+## Uncategorized
+
+- Ci: Harden `workflow_run` workflows against untrusted pull requests (#106).
+
+- Ci: Pin third-party actions to commits and let Renovate keep them pinned (#105).
+
+
+# duckdb 1.5.5.9009
+
+## Bug fixes
+
+### flavor
+
+- Name the flavor in the README blurb, and find GNU sed (#2510).
+
+## Continuous integration
+
+- Remove unused pr-commands workflow.
+
+## Documentation
+
+### plan
+
+- Record what the closed handbook wave verified, and file what it should not have written down (#2507).
+
+### handbook
+
+- Weigh documenting a limitation against removing it (#2509).
+
+### handbook
+
+- Complete the leaves the triage closes will link (#2523).
+
+## Uncategorized
+
+- Ci: Pass workflow context through the environment, not into script text (#102).
+
+- Ci: Add a Windows arm64 (`windows-11-arm`) check on R-release (#99).
+
+
+# duckdb 1.5.5.9008
+
+## Bug fixes
+
+### series-advance
+
+- Restamp the vendor counter across a replay (#2525).
+
+### series-port
+
+- Hold `main`'s version bumps back from a series (#2496, #2526).
+
+### windows
+
+- Export only the registration entry point from the DLL.
+
+### vendor-one
+
+- Refuse a clone HEAD off the buffer's upstream line.
+
+### series-advance
+
+- Drop an empty replay pick instead of aborting the extend.
+
+## Chore
+
+- Drop the CMake scaffolding, and the formatter branch that served it (#2511, #2520).
+
+- Auto-update from GitHub Actions (#2524).
+
+## Documentation
+
+### versioning
+
+- Record the declined max-across-prefixes merge rule (#2488, #2527).
+
+### versioning
+
+- Say when the version counter freezes, and why `build-base` lags.
+
+### series-loop
+
+- Send a fix to the handbook before it is written.
+
+### series-loop
+
+- Say where a stage-3 fix goes, and what counts as evidence.
+
+## Uncategorized
+
+- Feat(series-port): Detect a frozen series, and let it skip the port (#98).
+
+
+# duckdb 1.5.5.9007
+
+## Bug fixes
+
+### each
+
+- Fail the plan when green is off the branch's lineage.
+
+## Features
+
+### series-loop
+
+- Read r-universe builds, and fix the Windows unity-build break.
+
+## Documentation
+
+- Fix the clone layout, and the README links CRAN cannot follow (#2506).
+
+### handbook
+
+- Give the tree a way to grow into its blind spots (#2504).
+
+### handbook
+
+- Add `usage/relational/`, and give duckplyr its own section (#2495).
+
+### handbook
+
+- Land the MVP — every leaf written, at reference or core depth (#2493).
+
+## Testing
+
+### progress
+
+- Pin that a handle collected in a callback cannot re-enter.
+
+
+# duckdb 1.5.5.9006
+
+## Bug fixes
+
+### vendor
+
+- Drop the dead knobs, classify patch failures, restore the tree on a no-op run (#2491).
+
+## Documentation
+
+### vendoring
+
+- Fold by default, extend on pending, require a rising vendor counter.
+
+- Write every upward link from the repository root (#2458).
+
+
+# duckdb 1.5.5.9005
+
+## Bug fixes
+
+### rcc
+
+- Do not restore the persistent ccache under R-devel (#2455).
+
+### vendor
+
+- Bound the base scan and say when it comes up empty (#2434).
+
+### configure
+
+- Drop a stale `Makevars.system-lib` so a vendored build is one (#2446).
+
+### rconfigure
+
+- Drop bundled jemalloc from the generated source list.
+
+## Features
+
+### series-loop
+
+- Set the firing up, and make the tooling PR a stage (#2441).
+
+### each
+
+- Select work from the verdict store, not from statuses (#2440).
+
+### series
+
+- Make cutover a manual operation the loop only suggests (#2449).
+
+### series-loop
+
+- Vendor with `main`'s script, into the buffer worktree (#2436).
+
+## Documentation
+
+- Propose the handbook — a strict topic hierarchy with full cover, first two levels (#2454).
+
+### scripts
+
+- Give every script an extractable one-line header (#2453).
+
+### readme
+
+- Fix the `duckdb.1.4.dev` badge ranges (#2452).
+
+### plan
+
+- Mirror the release branches from the fork, not from `sync.yaml` (#2450).
+
+### readme
+
+- Point the `duckdb.dev` badges at the cut-over `main` series (#2451).
+
+- Quarantine the superseded loop design and the `main-dev` review (#2438).
+
+### each
+
+- State that there is no running marker, and why (#2439).
+
+## Refactoring
+
+### series-port
+
+- Let the subject decide what a vendor commit is (#2435).
+
+### ci
+
+- Retire the legacy per-commit dispatch path (#2442).
+
+## Uncategorized
+
+- Feat(rcc-one): Bound each stage with its own timeout (#97).
+
+
+# duckdb 1.5.5.9004
+
+## Continuous integration
+
+### each
+
+- Queue the shards oldest first (#2445).
+
+
+# duckdb 1.5.5.9003
+
+## Bug fixes
+
+### series-advance
+
+- Register the version merge driver before the replay.
+
+### series
+
+- Compute the buffer anchor safely, in both scripts.
+
+### series
+
+- Anchor the buffer replay on `-dev`'s newest vendor commit.
+
+## Features
+
+### series
+
+- Bring `-dev` level with `main` as a loop stage — identity over curation.
+
+## Documentation
+
+- Add the vendoring simplification plan, doc routing, and lag badges.
+
+- Document cutover.
+
+- Fix badge.
+
+### readme
+
+- Flesh out the `Flavors` table, document it in `series-open` (#2432).
+
+### readme
+
+- Add a `Flavors` section with lag badges and a `Documentation` root.
+
+## Refactoring
+
+### series
+
+- Read the vendored SHA one way, in one helper — and say what decides.
+
+## Uncategorized
+
+- Test(rcc): Stop `git gc` racing the harness's own clones, and say why a commit checks itself (#93).
+
+
+# duckdb 1.5.5.9002
+
+## Bug fixes
+
+### rcc
+
+- Make a verdict's newest writer win, not its slowest.
+
+- Let `series-cutover.sh` create a base series that does not exist yet (#2428).
+
+### rcc
+
+- Make writes to the `rcc` branch survive a lost race.
+
+### rcc-one
+
+- Restore the check action's CRAN-incoming default.
+
+### vendor-one
+
+- Make the glue gate work again.
+
+## Features
+
+### vendoring
+
+- Raise the vendoring limit from 25 to 100 commits.
+
+### rcc
+
+- Publish each commit's result as its own file, and consolidate the branch by hand.
+
+### each
+
+- Number shards along the history, and quote failing stages into the run summary (#2427).
+
+### each
+
+- Rerun one commit with a retry pair, not an amend.
+
+### each
+
+- Build every commit as a sharded matrix instead of one run per commit.
+
+## Continuous integration
+
+- Replace workflow vendoring with the routine-driven series loop.
+
+- Harvest rcc logs every 30 minutes.
+
+## Documentation
+
+- Space.
+
+### skills
+
+- Reset `-fwd-green` to the seed on every rebase.
+
+### skills
+
+- Split rebasing a forward series out of forwarding one.
+
+- A WIP forward series can always be rebased onto current mainline.
+
+- Agentic-loop plan refinements + main-dev review.
+
+- Describe the forbidden forms in `AGENTS.md` instead of spelling them.
+
+### vendoring
+
+- Dev-branch invariants, the fork-point rule, and a corrected `VENDORING.md`.
+
+## Refactoring
+
+### each
+
+- Anchor a retry on the series' green, not a ref of its own.
+
+### series-forward
+
+- Replay by cherry-pick instead of rebuilding trees.
+
+- Rename the flavor rename from "lts" to "flavor".
+
+## Performance
+
+### each
+
+- Rebalance shards across waves instead of capping at `max-parallel`.
+
+### each
+
+- Split large shards to trade compute for wall clock.
+
+## Testing
+
+- Derive the expected storage home from the package name.
+
+- Make storage and extension snapshots stable across flavors.
+
+- Skip the httpfs e2e test on development versions.
+
+
+# duckdb 1.5.5.9001
+
+## Features
+
+- New `tbl_file()` and `tbl_query()` to explicitly access tables and queries as dbplyr lazy tables (#96).
+
+## Continuous integration
+
+- Sync R-CMD-check workflow; drop matrix-env plumbing from custom action (#2422).
+
+## Testing
+
+- Guard the flavor rename against hard-coded package names (#2423).
+
+## Uncategorized
+
+- Ci: Run all smoke-test checks even when one fails (#97).
+
+
+# duckdb 1.5.5.9000
+
+## Continuous integration
+
+- Lock down `format-suggest` egress (audit → block).
+
+## fledge
+
+- CRAN release v1.5.5 (#2420).
+
+
+# duckdb 1.5.5
+
+## Features
+
+- Update to DuckDB v1.5.5, see <https://github.com/duckdb/duckdb/releases/tag/v1.5.5> for details.
+
+- Disable extensions on libc++ Linux builds, with startup message and load error (#1107, #2414).
+
+- Rework how extensions and secrets choose their on-disk location, replacing the
+  package-library extension cache attempted across 1.5.4.1 through 1.5.4.3.
+  Both now share a single "home" root, resolved fresh for every `duckdb()` driver.
+  An interactive prompt in `duckdb()` and messages in non-interactive sessions guide the process.
+  See `?duckdb_storage` for details. (#2396, #2398).
+
+## Bug fixes
+
+- Support `OR` and `IN` predicates pushed down to registered Arrow tables (#2410).
+
+- Error instead of crashing when calling `duckdb_fetch_arrow()` on an Arrow result that has been consumed with `duckdb_fetch_record_batch()` (#2406).
+
+- Fix edge case in computation of `r_base::min`/`r_base::max`/`r_base::sum` aggregates (#2404, #2405).
+
+- Honor the `na.rm` argument of `r_base` aggregates in SQL queries (#2407).
+
+## Documentation
+
+- Document database-instance caching and driver reuse (#2399).
+
+
+# duckdb 1.5.4.3
+
+## Bug fixes
+
+- Remove the package-library extension storage option. The `duckdb_extension_storage()` function no longer accepts `"library"` (#2390).
+
+
+# duckdb 1.5.4.2
+
+## Bug fixes
+
+- Fix shared on-disk storage path on Windows (#2385).
+
+
+# duckdb 1.5.4.1
+
+## Features
+
+- DuckDB's on-disk storage locations now follow a unified policy. By
+  default nothing is written outside the R session's temporary directory, with
+  one exception: the extension cache is placed in the package library when it
+  is writable and falls back to the temporary directory otherwise. Each location can be redirected through the `config` argument of
+  `duckdb()`, an R option, or an environment variable. Configure the location for extensions and
+  secrets with the new `duckdb_extension_storage()` and `duckdb_secret_storage()`,
+  inspect the resolved locations with `duckdb_storage_status()`, and see
+  `?duckdb_storage` for the full resolution policy (#2370, #2372, #2377).
+
+  These functions replace the experimental `duckdb_consolidate_secrets()`
+  introduced in 1.5.4.
+
+## Continuous integration
+
+- Create `~/.duckdb` so CI exercises the shared storage path (#2417).
+
+- Install `tzdata-legacy` for legacy time zones like `PST8PDT` (#2409).
+
+## Documentation
+
+- Document all S4 class slots; deprecate the legacy connection slots (#2416).
+
+- Document database-instance caching and driver reuse (#2399).
+
+## Testing
+
+- Cover extensions env-var semantics and lock message wording (#2418).
+
+- Skip DBItest timestamp roundtrip tests when `PST8PDT` is unresolvable (#2408).
+
+## Uncategorized
+
+- Ci: Harden `format-suggest` against `pull_request_target` pwn requests (#93).
+
+
+# duckdb 1.5.4
+
+## Features
+
+- Update to DuckDB v1.5.4, see <https://github.com/duckdb/duckdb/releases/tag/v1.5.4> for details.
+
+- Support writing `MAP` columns via `dbAppendTable()` and `dbWriteTable()` (#2354).
+
+- Add native `VARIANT` (@thohan88, #2313) and `TIME WITH TIME ZONE` (#1807, #2336) data type support.
+
+- Implement DBI Arrow API with `dbSendQueryArrow()` and streaming (#2347, #2355).
+
+- Store downloaded extensions inside the duckdb package install directory (#2327).
+
+- Add secret directory configuration, package startup message, and consolidation support via new experimental `duckdb_consolidate_secrets()` (#2305, #2340).
+
+## Compatibility
+
+- Add `is_distinct_from()` / `is_not_distinct_from()` dbplyr translations for compatibility with upcoming dbplyr 2.6.0 (#2326, #2332).
+
+- Bump minimum R version requirement to 4.2.0 (#2233, #2334).
+
+## Testing
+
+- Add CRAN guards to prevent heavy C++ engine tests on CRAN (#2353, #2358).
+
+- Add comprehensive test coverage for `MAP` type reading (#2342).
 
 
 # duckdb 1.5.3

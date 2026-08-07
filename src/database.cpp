@@ -20,7 +20,11 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 }
 
 [[cpp11::register]] duckdb::db_eptr_t rapi_startup(std::string dbdir, bool readonly, cpp11::list configsexp,
-                                                   bool environment_scan) {
+                                                   bool environment_scan, bool allow_extensions) {
+	// Hard stop when poisoned: every DuckDB session starts here, so this single
+	// guard ensures no test or example can reach the C++ engine on CRAN.
+	DUCKDB_R_POISON_GUARD();
+
 	const char *dbdirchar;
 
 	if (dbdir.length() == 0 || dbdir.compare(IN_MEMORY_PATH) == 0) {
@@ -50,6 +54,7 @@ static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, Ca
 	// FIXME: Rewrite properly with shared pointers
 	auto wrapper_ = make_uniq<DBWrapper>();
 	DBWrapper *wrapper = wrapper_.get();
+	wrapper->allow_extensions = allow_extensions;
 
 	try {
 		auto data1 = make_uniq<ReplacementDataDBWrapper>();

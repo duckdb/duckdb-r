@@ -867,10 +867,10 @@ FilterResult FilterCombiner::AddFilter(Expression &expr) {
 				result = AddConstantComparison(info_list, info);
 			} else {
 				D_ASSERT(upper_is_scalar);
-				const auto type = comparison.upper_inclusive ? ExpressionType::COMPARE_LESSTHANOREQUALTO
-				                                             : ExpressionType::COMPARE_LESSTHAN;
-				auto left = comparison.lower->Copy();
-				auto right = comparison.input->Copy();
+				const auto type = comparison.lower_inclusive ? ExpressionType::COMPARE_GREATERTHANOREQUALTO
+				                                             : ExpressionType::COMPARE_GREATERTHAN;
+				auto left = comparison.input->Copy();
+				auto right = comparison.lower->Copy();
 				auto lower_comp = make_uniq<BoundComparisonExpression>(type, std::move(left), std::move(right));
 				result = AddBoundComparisonFilter(*lower_comp);
 			}
@@ -1204,10 +1204,19 @@ ValueComparisonResult CompareValueInformation(ExpressionValueInformation &left, 
 		// (1) prune nothing or
 		// (2) return UNSATISFIABLE
 		// the SMALLER THAN constant has to be greater than the BIGGER THAN constant
-		if (left.constant >= right.constant) {
+		if (left.constant > right.constant) {
 			return ValueComparisonResult::PRUNE_NOTHING;
-		} else {
+		} else if (left.constant < right.constant) {
 			return ValueComparisonResult::UNSATISFIABLE_CONDITION;
+		} else {
+			// the constants are equal
+			// This is only satisfiable if both bounds are inclusive
+			if (left.comparison_type == ExpressionType::COMPARE_LESSTHANOREQUALTO &&
+			    right.comparison_type == ExpressionType::COMPARE_GREATERTHANOREQUALTO) {
+				return ValueComparisonResult::PRUNE_NOTHING;
+			} else {
+				return ValueComparisonResult::UNSATISFIABLE_CONDITION;
+			}
 		}
 	} else {
 		// left is [>] and right is [<] or [!=]

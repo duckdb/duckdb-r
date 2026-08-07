@@ -69,12 +69,16 @@ BoundStatement Binder::BindWithReplacementScan(ClientContext &context, BaseTable
 			auto &subquery = replacement_function->Cast<SubqueryRef>();
 			subquery.column_name_alias = ref.column_name_alias;
 		} else {
+			// carry the alias to the wrapping SubqueryRef so qualified references
+			// like `SELECT d.x FROM _ AS d` can resolve against the outer ref
+			auto inner_alias = replacement_function->alias;
 			auto select_node = make_uniq<SelectNode>();
 			select_node->select_list.push_back(make_uniq<StarExpression>());
 			select_node->from_table = std::move(replacement_function);
 			auto select_stmt = make_uniq<SelectStatement>();
 			select_stmt->node = std::move(select_node);
 			auto subquery = make_uniq<SubqueryRef>(std::move(select_stmt));
+			subquery->alias = std::move(inner_alias);
 			subquery->column_name_alias = ref.column_name_alias;
 			replacement_function = std::move(subquery);
 		}
@@ -96,7 +100,8 @@ unique_ptr<BoundAtClause> Binder::BindAtClause(optional_ptr<AtClause> at_clause)
 	return make_uniq<BoundAtClause>(at_clause->Unit(), std::move(val));
 }
 
-vector<CatalogSearchEntry> Binder::GetSearchPath(Catalog &catalog, const string &schema_name) {
+vector<CatalogSearchEntry> Binder::GetSearchPath(Catalog &catalog, const string &schema_name,
+                                                 bool default_schema_precedence) {
 	vector<CatalogSearchEntry> view_search_path;
 	auto &catalog_name = catalog.GetName();
 	if (!schema_name.empty()) {
@@ -107,7 +112,7 @@ vector<CatalogSearchEntry> Binder::GetSearchPath(Catalog &catalog, const string 
 		view_search_path.emplace_back(catalog_name, default_schema);
 	}
 	//! Signal that this catalog should be checked, regardless of the schema in the reference
-	view_search_path.emplace_back(catalog_name, INVALID_SCHEMA);
+	view_search_path.emplace_back(catalog_name, INVALID_SCHEMA, default_schema_precedence);
 	return view_search_path;
 }
 
@@ -302,7 +307,7 @@ BoundStatement Binder::Bind(BaseTableRef &ref) {
 
 		// when binding a view, we always look into the catalog/schema where the view is stored first
 		auto view_search_path =
-		    GetSearchPath(view_catalog_entry.ParentCatalog(), view_catalog_entry.ParentSchema().name);
+		    GetSearchPath(view_catalog_entry.ParentCatalog(), view_catalog_entry.ParentSchema().name, true);
 		view_binder->entry_retriever.SetSearchPath(std::move(view_search_path));
 		// propagate the AT clause through the view
 		view_binder->entry_retriever.SetAtClause(entry_at_clause);

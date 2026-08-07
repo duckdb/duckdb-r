@@ -1,304 +1,187 @@
-default_user_directory <- function() {
-  tools::R_user_dir("duckdb", "data")
+# `duckdb_shared_home()` below is a thin wrapper over the environment so the
+# storage-location logic stays testable without touching the real filesystem or
+# HOME. See `?duckdb_storage` and plan/done/PLAN-storage-locations.md.
+
+# The DuckDB default home (`<home>/.duckdb`), shared with the DuckDB CLI and
+# Python client. The `<home>` base must match the engine's own notion of the
+# home directory or markers/secrets written here would not be seen by the CLI.
+duckdb_shared_home <- function() {
+  file.path(duckdb_home_directory(), ".duckdb")
 }
 
-# Extension binaries are stored inside the duckdb package's installed
-# library directory:
+# Replicate the default home directory the bundled DuckDB engine derives in
+# FileSystem::GetHomeDirectory() (src/duckdb/src/common/file_system.cpp):
+# the USERPROFILE environment variable on Windows, HOME elsewhere.
 #
-#   <system.file(package = "duckdb")>/extensions/v<version>/<duckdb_platform>/<ext>.duckdb_extension
-#
-# Co-locating the cache with the package install guarantees that downloaded
-# extensions are paired with the exact toolchain that built duckdb itself,
-# regardless of C++ standard library, compiler version, or other ABI-relevant
-# settings. When the package is reinstalled (upgrade, downgrade, fresh
-# install on a new R), the install directory is replaced and the cache is
-# wiped together with the old binaries, so the next download picks up
-# extensions matching the new build.
-#
-# Example layouts for the spatial extension:
-#
-#   Linux,   user library :
-#     ~/R/x86_64-pc-linux-gnu-library/4.5/duckdb/extensions/v1.5.3/linux_amd64/spatial.duckdb_extension
-#   macOS,   user library :
-#     ~/Library/R/arm64/4.5/library/duckdb/extensions/v1.5.3/osx_arm64/spatial.duckdb_extension
-#   Windows, user library :
-#     %LOCALAPPDATA%\R\win-library\4.5\duckdb\extensions\v1.5.3\windows_amd64_mingw\spatial.duckdb_extension
-default_extension_directory <- function() {
-  system_file_path("extensions")
+# This deliberately avoids R's `path.expand("~")`, which on Windows resolves to
+# the user's Documents folder (e.g. `C:/Users/<user>/Documents`), not the
+# profile root (`C:/Users/<user>`) that DuckDB, its CLI, and the Python client
+# treat as `~`. Using `path.expand()` there would point the "shared" root at a
+# directory the rest of the DuckDB ecosystem never looks in.
+duckdb_home_directory <- function() {
+  var <- if (is_windows()) "USERPROFILE" else "HOME"
+  home <- Sys.getenv(var, unset = "")
+  if (!nzchar(home)) {
+    # The environment variable DuckDB consults is unset (rare); fall back to
+    # R's own idea of the home directory rather than producing a rootless path.
+    home <- path.expand("~")
+  }
+  home
 }
 
-default_secret_directory <- function() {
-  file.path(default_user_directory(), "stored_secrets")
+# Platform seam, mockable in tests. Mirrors DuckDB's compile-time
+# `DUCKDB_WINDOWS` switch.
+is_windows <- function() {
+  .Platform$OS.type == "windows"
 }
 
-# Location used by the DuckDB CLI and the Python client. Sharing this
-# directory across DuckDB clients is opt-in for R because CRAN policy
-# forbids writing outside `R_user_dir()` without user consent.
-common_secret_directory <- function() {
-  path.expand("~/.duckdb/stored_secrets")
+# Platform seam, mockable in tests. Distinguishes Linux from other unix (e.g.
+# macOS): the libc++ extension incompatibility below is Linux-specific.
+is_linux <- function() {
+  Sys.info()[["sysname"]] == "Linux"
 }
 
-# Resolution order for the configured secrets directory:
-#   1. `options(duckdb.secret_directory =)`
-#   2. `Sys.getenv("DUCKDB_SECRET_DIRECTORY")`
-#   3. `default_secret_directory()` (CRAN-safe fallback)
-resolve_secret_directory <- function() {
-  opt <- getOption("duckdb.secret_directory")
+# The C++ standard library this build of duckdb was compiled against ("libc++",
+# "libstdc++", or "<an unknown C++ library>"), read from a compile-time macro
+# (see `rapi_cxx_stdlib()` in src/utils.cpp). Wrapped for mockability.
+compiled_cxx_stdlib <- function() {
+  rapi_cxx_stdlib()
+}
+
+# TRUE when this build can safely load DuckDB's prebuilt extensions. Those are
+# libstdc++ builds on Linux; loading one into a package built with a different
+# C++ standard library (libc++, or one we cannot identify) is ABI-incompatible
+# and crashes R (duckdb/duckdb-r#1107). So a Linux build is supported only when
+# positively compiled against libstdc++; every non-Linux build is supported
+# (macOS is libc++, but its prebuilt extensions match). This is the detector
+# behind the auto path of resolve_allow_extensions(): on an unsupported build
+# extensions default to disabled -- the engine glue errors on INSTALL/LOAD, and
+# automatic extension install/load is turned off at connect. Conservative for
+# the (Linux-unreachable in practice) unidentified stdlib; duckdb(allow_extensions
+# = TRUE) lets a user force-enable to test.
+extensions_supported <- function() {
+  !is_linux() || identical(compiled_cxx_stdlib(), "libstdc++")
+}
+
+# The platform string the engine derives for itself
+# (Platform() in src/duckdb/src/include/duckdb/common/platform.hpp),
+# which is also the directory the extension repository is addressed by:
+# http://extensions.duckdb.org/<duckdb-version>/<platform>/<name>.duckdb_extension.gz
+# Wrapped for mockability,
+# and read from the engine rather than reconstructed from `.Platform`:
+# the suffixes are compile-time
+# (`_mingw` under Rtools and under R's clang-aarch64 toolchain,
+# `_musl`, `_android`) and R cannot see them.
+duckdb_platform <- function(conn = default_conn()) {
+  sql_query("PRAGMA platform", conn = conn)[[1L]]
+}
+
+# TRUE when DuckDB publishes prebuilt extensions for this platform.
+# Not a property of the build -- see extensions_supported() for that --
+# but of what the extension repository carries,
+# which is DuckDB's to decide and does change.
+# Explained in handbook/usage/extensions/README.md, which links the
+# current list; the exceptions below are what it does not carry today.
+#
+# As of 2026-08 that is `windows_arm64_mingw`,
+# which is what R's Windows/arm64 toolchain asks for:
+# DuckDB does publish for that architecture, as `windows_arm64`,
+# but that is the MSVC build,
+# and the `_mingw` artifact x86_64 gets has no arm64 counterpart
+# (https://github.com/duckdb/duckdb-r/issues/2425).
+#
+# Deliberately not wired into extensions_supported():
+# a driver that refuses INSTALL is the wrong answer to a missing
+# artifact. A locally built extension still loads,
+# and the day DuckDB publishes this platform
+# the 404 goes away by itself, with nothing here to unwind.
+# The callers are the tests:
+# where the platform is covered they expect INSTALL to succeed,
+# where it is not they expect the download error.
+extensions_published <- function(platform = duckdb_platform()) {
+  !identical(platform, "windows_arm64_mingw")
+}
+
+# Decide, for a single duckdb() call, whether this driver may load DuckDB
+# extensions. Returns list(allow, source, announce). First match wins:
+#
+#   1. the `allow_extensions` argument (if non-NULL)   -> source "argument"
+#   2. the `duckdb.allow_extensions` option            -> source "option"
+#   3. a `DUCKDB_R_ALLOW_EXTENSIONS` env var as.logical() reads as TRUE/FALSE
+#                                                        -> source "env"
+#   4. otherwise: auto -- allow when this is a supported build (see
+#      extensions_supported())                          -> source "auto"
+#
+# `announce` is TRUE only on the auto path when the build is affected (so
+# extensions came out disabled). An explicit argument or option, or an env var
+# as.logical() reads as TRUE (enable) or FALSE (disable), silences the advisory
+# message; an unset, empty, or unparseable env var is NA -- undecided -- and
+# falls through to the auto path. The option must be a scalar logical, else it
+# warns and resets to NULL, mirroring `duckdb.home`.
+resolve_allow_extensions <- function(allow_extensions) {
+  if (!is.null(allow_extensions)) {
+    check_flag(allow_extensions)
+    return(list(allow = allow_extensions, source = "argument", announce = FALSE))
+  }
+  opt <- getOption("duckdb.allow_extensions")
   if (!is.null(opt)) {
-    if (is.character(opt) && length(opt) == 1L && nzchar(opt)) {
-      return(path.expand(opt))
+    if (is.logical(opt) && length(opt) == 1L && !is.na(opt)) {
+      return(list(allow = opt, source = "option", announce = FALSE))
     }
-    message('`getOption("duckdb.secret_directory")` is not a non-empty string.')
-    options(duckdb.secret_directory = NULL)
+    warning("`duckdb.allow_extensions` option must be TRUE, FALSE, or NULL.", call. = FALSE)
+    options(duckdb.allow_extensions = NULL)
   }
-  env <- Sys.getenv("DUCKDB_SECRET_DIRECTORY", unset = "")
-  if (nzchar(env)) {
-    return(path.expand(env))
+  env_allow <- as.logical(Sys.getenv("DUCKDB_R_ALLOW_EXTENSIONS", unset = ""))
+  if (!is.na(env_allow)) {
+    return(list(allow = env_allow, source = "env", announce = FALSE))
   }
-  default_secret_directory()
+  allow <- extensions_supported()
+  list(allow = allow, source = "auto", announce = !allow)
 }
 
-#' Consolidate DuckDB secrets into the configured secret directory
-#'
-#' @description
-#' `r lifecycle::badge('experimental')`
-#'
-#' Consolidates DuckDB stored secrets from up to three source directories into
-#' the directory currently configured as the target for this R session.
-#'
-#' @details
-#' The target directory is the one DuckDB would write to on the next
-#' connection, determined by:
-#'
-#' \enumerate{
-#'   \item `getOption("duckdb.secret_directory")`,
-#'   \item the `DUCKDB_SECRET_DIRECTORY` environment variable,
-#'   \item the R-specific default returned by [tools::R_user_dir()].
-#' }
-#'
-#' Two source directories are considered automatically:
-#'
-#' \itemize{
-#'   \item the location shared with the DuckDB CLI and Python client
-#'     (`~/.duckdb/stored_secrets`), and
-#'   \item the R-specific default location under [tools::R_user_dir()].
-#' }
-#'
-#' Whichever of these equals the target is skipped. An additional source
-#' directory may be supplied via `from`. Source files are moved into the
-#' target (copied and then removed).
-#'
-#' To consistently share secrets with the DuckDB CLI and Python client,
-#' set the `duckdb.secret_directory` R option, typically in `~/.Rprofile`:
-#'
-#' \preformatted{options(duckdb.secret_directory = "~/.duckdb/stored_secrets")}
-#'
-#' Alternatively, set the `DUCKDB_SECRET_DIRECTORY` environment variable in
-#' `~/.Renviron` (e.g.\ via `usethis::edit_r_environ()`). Either way, then
-#' call `duckdb_consolidate_secrets()` to move existing secrets into the
-#' chosen location.
-#'
-#' The package emits a startup message when secret files exist in both
-#' the R-default and common locations and neither `duckdb.secret_directory`
-#' nor `DUCKDB_SECRET_DIRECTORY` is set. Pointing either at any location
-#' both configures the resolver and silences the message.
-#'
-#' @param from Optional path to an additional source directory to merge in,
-#'   or `NULL` (the default) for none.
-#' @param overwrite If `FALSE` (the default), the function aborts when any
-#'   source file would overwrite an existing secret of the same name at the
-#'   target. Set to `TRUE` to allow overwriting.
-#' @param ask If `TRUE` (the default in interactive sessions), confirm the
-#'   plan before executing it.
-#'
-#' @return The target directory, invisibly.
-#' @export
-duckdb_consolidate_secrets <- function(
-  from = NULL,
-  overwrite = FALSE,
-  ask = interactive()
-) {
-  stopifnot(
-    is.logical(overwrite),
-    length(overwrite) == 1L,
-    !is.na(overwrite)
+# The advisory lines shown when extensions are disabled automatically on an
+# affected build (Linux, not libstdc++). rlang-style character vector, names
+# "*"/"i" for bullets, like the storage-location message.
+extensions_disabled_message <- function() {
+  c(
+    paste0("duckdb was built with ", compiled_cxx_stdlib(), " (not libstdc++) on Linux, so DuckDB extensions are disabled:"),
+    "*" = "Loading a prebuilt (libstdc++) extension could crash R (https://github.com/duckdb/duckdb-r/issues/1107).",
+    "*" = "INSTALL/LOAD of an extension will error, and automatic extension loading is off.",
+    "i" = "Pass duckdb(allow_extensions = FALSE) to accept this and silence this message.",
+    "i" = "Pass duckdb(allow_extensions = TRUE) to attempt loading anyway (may crash R).",
+    "i" = "See ?duckdb for details."
   )
-  stopifnot(is.logical(ask), length(ask) == 1L, !is.na(ask))
-  if (!is.null(from)) {
-    stopifnot(is.character(from), length(from) == 1L, !is.na(from))
-  }
+}
 
-  target <- resolve_secret_directory()
-  target_canonical <- normalizePath(target, mustWork = FALSE)
-
-  candidate_sources <- c(
-    common_secret_directory(),
-    default_secret_directory(),
-    if (!is.null(from)) path.expand(from)
+# Message for the INSTALL/LOAD guard (CheckExtensionLoadAllowed() in
+# src/statement.cpp). The C++ guard throws with context "load_extension" and an
+# empty message; rapi_error()/rapi_error_rlang() fill it in from here, so the
+# guard's text lives only in R -- never duplicated in the C++ glue. Kept neutral
+# about the cause (unlike the duckdb() advisory, which names the stdlib): the
+# guard fires both on the auto-disable path (an affected non-libstdc++ Linux
+# build) and whenever the driver was created with duckdb(allow_extensions = FALSE),
+# which can happen on any platform.
+extensions_disabled_error <- function() {
+  c(
+    "DuckDB extension loading (INSTALL / LOAD) is disabled for this driver.",
+    "i" = paste0(
+      "Recreate the driver with duckdb(allow_extensions = TRUE) to enable it ",
+      "(this may crash R on a Linux build not compiled with libstdc++; ",
+      "see https://github.com/duckdb/duckdb-r/issues/1107)."
+    ),
+    "i" = "See ?duckdb for details."
   )
-  source_dirs <- vapply(
-    candidate_sources,
-    function(p) normalizePath(p, mustWork = FALSE),
-    character(1)
-  )
-  source_dirs <- unique(source_dirs)
-  source_dirs <- source_dirs[source_dirs != target_canonical]
-  source_dirs <- source_dirs[vapply(source_dirs, dir.exists, logical(1))]
-
-  if (length(source_dirs) == 0L) {
-    message("No source secrets to consolidate. Target: ", target)
-    return(invisible(target))
-  }
-
-  plan <- list()
-  seen_dst <- character(0)
-  for (src in source_dirs) {
-    files <- list.files(src, full.names = FALSE, all.files = FALSE)
-    for (f in files) {
-      src_path <- file.path(src, f)
-      if (!file.exists(src_path) || dir.exists(src_path)) {
-        next
-      }
-      dst_path <- file.path(target, f)
-      will_overwrite <- file.exists(dst_path) || dst_path %in% seen_dst
-      seen_dst <- c(seen_dst, dst_path)
-      plan[[length(plan) + 1L]] <- list(
-        src = src_path,
-        dst = dst_path,
-        overwrite = will_overwrite
-      )
-    }
-  }
-
-  if (length(plan) == 0L) {
-    message("No secret files to consolidate. Target: ", target)
-    return(invisible(target))
-  }
-
-  message("Consolidating secrets into: ", target)
-  for (entry in plan) {
-    if (isTRUE(entry$overwrite)) {
-      message("  ! overwrite ", entry$dst, " <- ", entry$src)
-    } else {
-      message("  + copy      ", entry$dst, " <- ", entry$src)
-    }
-  }
-
-  has_overwrites <- any(vapply(
-    plan,
-    function(e) isTRUE(e$overwrite),
-    logical(1)
-  ))
-  if (has_overwrites && !overwrite) {
-    stop(
-      "Some target secrets would be overwritten (see entries marked `!` above). ",
-      "Re-run with `overwrite = TRUE` to proceed.",
-      call. = FALSE
-    )
-  }
-
-  if (ask) {
-    answer <- prompt_proceed("Proceed? [y/N] ")
-    if (!nzchar(answer) || !tolower(substr(answer, 1L, 1L)) %in% "y") {
-      message("Aborted; no files were moved.")
-      return(invisible(target))
-    }
-  }
-
-  if (!dir.exists(target)) {
-    dir.create(target, recursive = TRUE)
-  }
-
-  for (entry in plan) {
-    ok <- file.copy(
-      entry$src,
-      entry$dst,
-      overwrite = TRUE,
-      copy.date = TRUE
-    )
-    if (!isTRUE(ok)) {
-      stop("Failed to copy: ", entry$src, call. = FALSE)
-    }
-    if (!file.remove(entry$src)) {
-      warning("Copied but could not remove: ", entry$src, call. = FALSE)
-    }
-  }
-
-  message("Consolidated ", length(plan), " secret file(s) into ", target, ".")
-  invisible(target)
 }
 
-# True if the user has explicitly pointed at a secret directory via the
-# R option or env var (regardless of which path they picked).
-secret_directory_is_configured <- function() {
-  opt <- getOption("duckdb.secret_directory")
-  if (!is.null(opt) && is.character(opt) && length(opt) == 1L && nzchar(opt)) {
-    return(TRUE)
-  }
-  nzchar(Sys.getenv("DUCKDB_SECRET_DIRECTORY", unset = ""))
-}
-
-# Show a package startup hint when both the R-default and the common
-# secret stores contain files and the user has not yet picked one.
-# Pointing `DUCKDB_SECRET_DIRECTORY` (or `options(duckdb.secret_directory)`)
-# at either location both configures the resolver and silences this
-# message.
-maybe_secret_directory_message <- function() {
-  if (secret_directory_is_configured()) {
-    return(invisible())
-  }
-  r_dir <- default_secret_directory()
-  common_dir <- common_secret_directory()
-  if (!has_secret_files(r_dir) || !has_secret_files(common_dir)) {
-    return(invisible())
-  }
-  packageStartupMessage(
-    "duckdb: stored secrets exist in two locations:\n",
-    "  - ",
-    r_dir,
-    " (R default)\n",
-    "  - ",
-    common_dir,
-    " (shared with DuckDB CLI / Python)\n",
-    "Pick one and set it via the `duckdb.secret_directory` option, e.g.:\n",
-    "  options(duckdb.secret_directory = \"~/.duckdb/stored_secrets\")   # shared with CLI/Python\n",
-    "  options(duckdb.secret_directory = \"",
-    r_dir,
-    "\")   # keep R-only\n",
-    "For a persistent setting, add the line to `~/.Rprofile`",
-    "(e.g., via `usethis::edit_r_profile()`), or set the\n",
-    "`DUCKDB_SECRET_DIRECTORY` env var in `~/.Renviron` (e.g. via\n",
-    "`usethis::edit_r_environ()`), and restart R. Then call\n",
-    "`duckdb_consolidate_secrets()` to move existing secrets\n",
-    "into the chosen location. Configuring the directory also\n",
-    "silences this message."
-  )
-  invisible()
-}
-
-has_secret_files <- function(path) {
-  dir.exists(path) &&
-    length(list.files(path, all.files = FALSE)) > 0L
-}
-
-# Indirection over `readline()` so tests can mock the prompt.
-prompt_proceed <- function(prompt) {
-  readline(prompt)
-}
-
-cleanup_user_directory <- function() {
-  user_directory <- default_user_directory()
-  if (!dir.exists(user_directory)) {
-    return()
-  }
-  # Extensions are no longer kept under R_user_dir; drop any leftovers from
-  # earlier versions while preserving stored_secrets which still lives here.
-  user_files <- setdiff(list.files(user_directory), "stored_secrets")
-  if (length(user_files) > 0) {
-    message(
-      "Deleting files in duckdb user directory: ",
-      paste(user_files, collapse = ", ")
-    )
-    unlink(file.path(user_directory, user_files), recursive = TRUE)
+# Emit the extensions-disabled advisory, throttled like the storage-location
+# message: interactively at most once every 8 hours, non-interactively a bounded
+# number of times before going silent. Called from duckdb() only on the auto
+# path when extensions came out disabled.
+maybe_extensions_message <- function() {
+  message <- extensions_disabled_message()
+  if (is_interactive()) {
+    inform_once_every("extensions", STORAGE_MESSAGE_INTERVAL, message)
+  } else {
+    inform_up_to("extensions", STORAGE_MESSAGE_MAX, message)
   }
 }

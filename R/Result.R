@@ -3,6 +3,13 @@
 #' Methods for accessing result sets for queries on DuckDB connections.
 #' Implements [DBIResult-class].
 #'
+#' @slot connection the [duckdb_connection-class] the query was executed on.
+#' @slot stmt_lst internal list describing the prepared statement (names,
+#'   types, ...).
+#' @slot env environment holding the result's mutable fetch state.
+#' @slot arrow whether the result is fetched via Arrow.
+#' @slot query_result external pointer to the underlying materialized query
+#'   result.
 #' @aliases duckdb_result
 #' @keywords internal
 #' @export
@@ -16,6 +23,53 @@ setClass("duckdb_result",
     query_result = "externalptr"
   )
 )
+
+#' DuckDB Arrow Result Set
+#'
+#' Streaming Arrow result for queries on DuckDB connections.
+#' Implements [DBIResultArrow-class][DBI::DBIResultArrow-class].
+#'
+#' @slot connection the [duckdb_connection-class] the query was executed on.
+#' @slot stmt_lst internal list describing the prepared statement.
+#' @slot env environment holding the result's mutable fetch state.
+#' @aliases duckdb_result_arrow
+#' @keywords internal
+#' @export
+setClass("duckdb_result_arrow",
+  contains = "DBIResultArrow",
+  slots = list(
+    connection = "duckdb_connection",
+    stmt_lst = "list",
+    env = "environment"
+  )
+)
+
+duckdb_result_arrow <- function(connection, stmt_lst) {
+  env <- new.env(parent = emptyenv())
+  env$open <- TRUE
+  env$completed <- FALSE
+  env$query_result <- NULL
+
+  res <- new(
+    "duckdb_result_arrow",
+    connection = connection,
+    stmt_lst = stmt_lst,
+    env = env
+  )
+
+  if (stmt_lst$n_param == 0) {
+    env$query_result <- duckdb_execute_arrow(res)
+  }
+
+  res
+}
+
+duckdb_execute_arrow <- function(res) {
+  rethrow_rapi_execute(
+    res@stmt_lst$ref,
+    duckdb_convert_opts_impl(res@connection@convert_opts, arrow = TRUE, streaming = TRUE)
+  )
+}
 
 duckdb_result <- function(connection, stmt_lst, arrow) {
   env <- new.env(parent = emptyenv())
@@ -93,8 +147,8 @@ duckdb_post_execute <- function(res, out) {
   }
   res@env$rows_affected <- rows_affected
 
-  if (res@connection@tz_out_convert == "force") {
-    out <- tz_force(out, res@connection@timezone_out)
+  if (res@connection@convert_opts$tz_out_convert == "force") {
+    out <- tz_force(out, res@connection@convert_opts$timezone_out)
   }
 
   res@env$resultset <- out

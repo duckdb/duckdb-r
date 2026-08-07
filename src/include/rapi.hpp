@@ -16,6 +16,7 @@
 #include "duckdb/parser/tableref/table_function_ref.hpp"
 #include "duckdb/common/mutex.hpp"
 #include "duckdb/common/error_data.hpp"
+#include "duckdb/common/arrow/result_arrow_wrapper.hpp"
 
 #include "convert.hpp"
 
@@ -28,6 +29,27 @@
 #endif
 
 #define DUCKDB_PACKAGE_NAME "duckdb"
+
+// CRAN guard / engine poisoning
+//
+// DuckDB ships its own large C++ engine. Exercising it (running the test suite
+// or the runnable examples) is too heavy for CRAN's check farm, and checks
+// were very fragile in the past. Everything that touches the C++ code is gated
+// behind the DUCKDB_R_RUN_TESTS environment variable on the R side (see
+// tests/testthat.R and R/cran-guard.R). That variable is unset on CRAN and set
+// in our own continuous integration.
+//
+// When duckdb is additionally built with -DDUCKDB_R_POISON_ENGINE, every C++
+// API entry point aborts immediately. Such a build is used in CI *without*
+// setting DUCKDB_R_RUN_TESTS to prove that the R-side guards are effective: if
+// any test or example reaches the C++ engine, the check fails loudly.
+#ifdef DUCKDB_R_POISON_ENGINE
+#define DUCKDB_R_POISON_GUARD()                                                                                        \
+	cpp11::stop("This duckdb build is poisoned (-DDUCKDB_R_POISON_ENGINE) to check that the DuckDB C++ engine"         \
+	            "is not exercised during R CMD check.")
+#else
+#define DUCKDB_R_POISON_GUARD() ((void)0)
+#endif
 
 // Helper functions to communicate errors via R's stop() function with context information
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message);
@@ -44,6 +66,7 @@ struct DBWrapper {
 	mutex lock;
 	cpp11::sexp env;
 	cpp11::sexp registered_dfs;
+	bool allow_extensions = true;
 };
 
 template <class T>
@@ -148,6 +171,7 @@ typedef cpp11::external_pointer<ParsedExpression> expr_extptr_t;
 
 struct RQueryResult {
 	duckdb::unique_ptr<QueryResult> result;
+	duckdb::unique_ptr<ResultArrowArrayStreamWrapper> stream_wrapper;
 };
 
 typedef cpp11::external_pointer<RQueryResult> rqry_eptr_t;
@@ -195,7 +219,12 @@ struct RStrings {
 	SEXP integer64_str;
 	SEXP tbl_df_tbl_dataframe_str;
 	SEXP wk_wkb_wk_vctr_str;
+	SEXP vctrs_list_of_str;
+	SEXP cxx_stdlib_libstdcxx_str;
+	SEXP cxx_stdlib_libcxx_str;
+	SEXP cxx_stdlib_unknown_str;
 	SEXP enc2utf8_sym; // Rf_install
+	SEXP ptype_sym;
 	SEXP tzone_sym;
 	SEXP units_sym;
 	SEXP dim_sym;
@@ -227,7 +256,7 @@ SEXP duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb::Conver
 
 // moved out of duckdb namespace for the time being (r-lib/cpp11#262)
 
-duckdb::db_eptr_t rapi_startup(std::string, bool, cpp11::list);
+duckdb::db_eptr_t rapi_startup(std::string, bool, cpp11::list, bool, bool);
 
 void rapi_shutdown(duckdb::db_eptr_t);
 

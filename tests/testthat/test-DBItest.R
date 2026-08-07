@@ -203,6 +203,16 @@ if (rlang::is_installed("DBItest")) DBItest::test_all(c(
   "arrow_write_table_arrow_roundtrip_timestamp_extended", # precision
   "arrow_append_table_arrow_roundtrip_timestamp_extended", # precision
 
+  # DBItest >= 1.8.3 uses lubridate::with_tz(tzone = "PST8PDT"), which warns
+  # with "Unrecognized time zone" on systems whose tz database lacks that zone
+  # (e.g. without tzdata-legacy). Skip only when the zone cannot be resolved.
+  if (!"PST8PDT" %in% OlsonNames()) c(
+    "append_roundtrip_timestamp",
+    "append_roundtrip_timestamp_extended",
+    "arrow_append_table_arrow_roundtrip_timestamp",
+    NULL
+  ),
+
   # https://github.com/duckdb/duckdb/pull/15125
   "data_date_current_typed",
   "data_time_current",
