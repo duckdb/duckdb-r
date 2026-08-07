@@ -23,5 +23,17 @@ serves `docs*` and `cran-*` branches and manual dispatch.
 ([`ci/per-commit/contract/`](/handbook/operations/ci/per-commit/contract/README.md)),
 so the site building is checked far more often than it is published.
 
-*To deepen: state where the deploy branch is served from, and what
-`pkgdown/` carries beyond the favicons.*
+**The site follows the reader's theme.**
+`template.light-switch` puts a light/dark/auto control in the navbar,
+and pkgdown resolves whichever the reader picks — `auto` included —
+to a `data-bs-theme` attribute on the page.
+[`pkgdown/extra.css`](/pkgdown/extra.css) keys the README logo off that
+attribute, which is the only way the logo can follow it:
+the `<picture>` block in [`README.md`](/README.md) selects on
+`prefers-color-scheme`, which answers for the browser rather than for
+the site, so on its own it contradicts the switch as soon as a reader
+uses one.
+That file also restores the `height` the README asks for, against a
+site stylesheet that would otherwise size the logo by its column.
+
+*To deepen: state where the deploy branch is served from.*
