@@ -107,6 +107,14 @@ stage_if_changed() { # <path-on-branch> <source-file>
   blob="$(git_rcc hash-object -w --stdin < "$2")"
   current="$(git_rcc ls-files --format='%(objectname)' -- "$1")"
   [ "${current}" = "${blob}" ] && return 1
+  # Staging a *replacement*: fetch the blob being replaced, which the push over
+  # https asks for and cannot get. See the push below -- `--no-thin` does not
+  # keep git from wanting it there, and a record is ~2 KB, so paying for it
+  # here is cheaper than the failure it avoids. Only a replacement pays.
+  if [ -n "${current}" ]; then
+    ( unset GIT_NO_LAZY_FETCH; git_rcc cat-file blob "${current}" > /dev/null ) \
+      || echo "could not fetch the blob at $1; the push may fail" >&2
+  fi
   git_rcc update-index --add --cacheinfo "100644,${blob},$1"
   return 0
 }
@@ -163,6 +171,12 @@ while :; do
   # has never held has no base to delta against and pushes fine. That is what
   # makes it worth a comment -- it would have been a retry-only failure, invisible
   # until the one path that needs it most.
+  #
+  # It is also not sufficient, and only over https: the same replacement that
+  # pushes cleanly to a file:// remote with `--no-thin` still asks for the old
+  # blob against GitHub and dies. That is why the flag alone read as a fix and
+  # why rcc-store-test.sh, which pushes to a local remote, agrees that it is
+  # one. stage_if_changed fetches the replaced blob for that reason; keep both.
   if git_rcc push -q --no-thin origin "${commit}:refs/heads/${BRANCH}"; then
     echo "Published ${staged} change(s) to ${BRANCH} on attempt ${attempt}."
     exit 0
