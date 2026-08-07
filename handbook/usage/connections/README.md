@@ -19,19 +19,23 @@ The load-bearing facts:
   so reuse is what lets repeated
   `dbConnect(duckdb(dbdir = "my.db"))` calls work at all.
   An in-memory database is never cached.
-* `config`, `read_only`, `home`, and `shared_home`
-  bind when the instance is *created*;
-  a call that reuses a cached instance ignores them silently
+* `dbdir`, `config`, `read_only`, `home`, and `shared_home`
+  all describe the *instance*, so they bind when it is created —
+  and `dbConnect()` accepts every one of them anyway,
+  in two ways, neither of them what a caller wants
   ([#83](https://github.com/duckdb/duckdb-r/issues/83),
   [#171](https://github.com/duckdb/duckdb-r/issues/171)).
-  `duckdb()` is therefore where they belong.
-  `dbConnect()` takes them too, merged over the driver's,
-  and they land exactly when that call is the one creating the
-  instance — which is why the same `config` argument takes effect
-  beside a `dbdir` naming another file, and is dropped without it.
+  `dbdir` wins: it overrides the path the driver was built with,
+  silently, and opens the connection on a driver of its own,
+  leaving the object passed in holding its own database.
+  The rest lose: merged over the driver's, they land only where that
+  call is the one creating the instance — which is why the same
+  `config` argument takes effect beside a `dbdir` naming another
+  file, and is dropped without it.
+  Naming all of them once, in `duckdb()`, is what avoids both.
   To apply new values to a file database,
-  release the instance with `duckdb_shutdown()` first.
-  A setting the engine also accepts after startup, `memory_limit`
+  release the instance with `duckdb_shutdown()` first;
+  a setting the engine also accepts after startup, `memory_limit`
   and `threads` among them, can be `SET` on the connection instead.
   The silence is provisional in two steps:
   failing loudly where these arguments collide is
