@@ -168,6 +168,51 @@ test_that("an explicit no proceeds with a tempdir, no error", {
   expect_false(dir.exists(shared))
 })
 
+# The two tests below drive the *un-mocked* prompt, so they need a process where
+# `readline()` cannot be answered -- which is every automated run, but not a
+# developer's `devtools::test()`. There the prompt would block on real input, so
+# they skip. That leaves the other half of `default = interactive()` -- a real
+# console, where the default is still "yes" -- outside the suite; verify it by
+# hand in an interactive R session, with the package attached and no ~/.duckdb:
+#
+#   dir.exists("~/.duckdb")            # FALSE to start
+#   con <- DBI::dbConnect(duckdb())
+#   #> duckdb: create /home/you/.duckdb? (Yes/no/cancel)
+#   # press Enter: the capitalized "Yes" is the default, ~/.duckdb is created
+
+test_that("consent_to_create_home declines when it cannot be answered", {
+  skip_if(interactive(), "the prompt would wait for real input")
+
+  # readline() returns "" at once here, so askYesNo() falls back to its default.
+  out <- capture.output(answer <- consent_to_create_home("/tmp/nope/.duckdb"))
+  expect_false(answer)
+  expect_match(out, "/tmp/nope/.duckdb", all = FALSE, fixed = TRUE)
+})
+
+test_that("a forced-interactive session does not get ~/.duckdb created for it", {
+  skip_if(interactive(), "the prompt would wait for real input")
+
+  # `rlang_interactive = TRUE` is a common idiom in reverse dependencies' test
+  # suites. It opens the prompt tier of resolve_storage_home() in a process that
+  # cannot answer, so the un-mocked seam must decline rather than consent --
+  # otherwise `R CMD check` writes to the user's home directory.
+  shared <- file.path(withr::local_tempdir(), ".duckdb")
+  withr::local_options(duckdb.home = NULL, rlang_interactive = TRUE)
+  withr::local_envvar(DUCKDB_R_HOME = NA)
+  storage_message_state[["home_prompt_declined"]] <- NULL
+  local_mocked_bindings(
+    duckdb_shared_home = function() shared,
+    session_temp_dir = function() "/tmp/sess"
+  )
+
+  # consent_to_create_home() is deliberately left un-mocked.
+  out <- capture.output(resolved <- resolve_storage_home())
+
+  expect_match(out, "create", all = FALSE)
+  expect_equal(resolved, list(root = session_home_path(), source = "session"))
+  expect_false(dir.exists(shared))
+})
+
 test_that("resolve_temp_directory redirects in-memory only, honors override", {
   local_mocked_bindings(session_temp_dir = function() "/tmp/sess")
   expect_equal(
