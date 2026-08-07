@@ -39,12 +39,17 @@ and [`src/transform.cpp`](/src/transform.cpp) (the way back).
   they stay in the stream, and what consumes them is
   [`integrations/`](/handbook/usage/integrations/README.md)'s
   ([#642](https://github.com/duckdb/duckdb-r/issues/642)).
-* **Timestamps** come back as `POSIXct` in the zone
+* **Timestamps** come back as `POSIXct`.
+  Plain `TIMESTAMP` columns arrive in the zone
   `dbConnect(timezone_out = )` names, `"UTC"` by default
   ([`R/dbConnect__duckdb_driver.R`](/R/dbConnect__duckdb_driver.R));
-  adopting the session `TimeZone` for `TIMESTAMPTZ` is in flight
-  ([#184](https://github.com/duckdb/duckdb-r/issues/184),
-  [#2401](https://github.com/duckdb/duckdb-r/pull/2401)).
+  `TIMESTAMPTZ` columns follow the session's `TimeZone` setting instead
+  ([#184](https://github.com/duckdb/duckdb-r/issues/184)),
+  pinned by [`tests/testthat/test-timezone.R`](/tests/testthat/test-timezone.R).
+  The scenario-by-scenario verification and its edges —
+  the ALTREP path freezes the zone at `rel_to_altrep()` time,
+  `TIMETZ` drops per-row offsets — are recorded in
+  [`plan/history/2026-05-timestamptz-icu.md`](/plan/history/2026-05-timestamptz-icu.md).
 
 *To deepen: write the full mapping table from `src/types.cpp`,
 verified on a vendored build.

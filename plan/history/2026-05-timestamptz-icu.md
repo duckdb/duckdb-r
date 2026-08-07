@@ -1,5 +1,11 @@
 # #184 — TIMESTAMPTZ + ICU follow-ups
 
+*A verification record from May 2026, kept for its reasoning;
+the behaviour it verified landed with
+[#2401](https://github.com/duckdb/duckdb-r/pull/2401),
+and [`handbook/usage/types/`](/handbook/usage/types/README.md)
+owns the topic today.*
+
 The fix in 50ba3fc makes `TIMESTAMP WITH TIME ZONE` columns pick up the
 DuckDB session's `TimeZone` setting. This document records (a) the things
 worth exercising from R in a session that allows installing `icu`, (b)

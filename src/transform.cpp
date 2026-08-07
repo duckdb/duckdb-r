@@ -284,9 +284,9 @@ void duckdb_r_decorate(const LogicalType &type, const SEXP dest, const duckdb::C
 		// TIMESTAMP WITH TIME ZONE stores microseconds since the UTC epoch.
 		// Prefer the session's TimeZone (settable via `SET TimeZone = ...` with
 		// the ICU extension) so the displayed clock matches DuckDB's own
-		// rendering, and only fall back to `timezone_out` when no session
-		// timezone is available (e.g. the ALTREP path that decorates before
-		// materialization).
+		// rendering, and only fall back to `timezone_out` on paths that
+		// decorate without a captured session timezone (e.g. value-at-a-time
+		// conversion through RApiTypes::ValueToSexp()).
 		SET_CLASS(dest, RStrings::get().POSIXct_POSIXt_str);
 		if (convert_opts.tz_out_convert == ConvertOpts::TzOutConvert::WITH) {
 			const string &tz =
