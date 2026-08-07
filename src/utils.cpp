@@ -339,21 +339,8 @@ SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 	db->db->LoadStaticExtension<RfunsExtension>();
 }
 
-// ALTREP guard implementation - thread-local depth counter.
-// Incremented when entering an ALTREP method, decremented when leaving.
-thread_local int AltrepGuard::depth = 0;
-
-AltrepGuard::AltrepGuard() {
-	++depth;
-}
-
-AltrepGuard::~AltrepGuard() {
-	--depth;
-}
-
-bool AltrepGuard::IsActive() {
-	return depth > 0;
-}
+// ALTREP guard depth counter; see the class comment in rapi.hpp.
+std::atomic<int> AltrepGuard::depth {0};
 
 // Helper functions to communicate errors via R's stop() function
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message) {
