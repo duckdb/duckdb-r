@@ -37,7 +37,8 @@ so the list can be re-derived without the local build.
   14 vendor commits replayed, no conflict, no glue change.
 * **`main-fwd`** — base `main` @ `faa1610b5`,
   1133 vendor commits replayed, no conflict,
-  plus three `patch/` commits re-inserted by hand (below).
+  plus three `patch/` entries folded into the commits that first need
+  them (below).
 
 For all three, the whole glue delta between the old buffer tip and the
 new one is exactly what `main` gained in the window —
@@ -199,8 +200,7 @@ replaying a diff does.
 No conflict arose in any of the three replays, so no resolution had to be
 routed anywhere.
 
-**Three `patch/` commits: backported into the chain, not stacked on the
-tip.**
+**Three `patch/` entries: folded into the commit that first needs each.**
 Above its seed, `main-build` carries five commits that vendor nothing,
 and [`series-forward-build.sh`](/scripts/series-forward-build.sh) replays
 only `vendor:` subjects, so all five were dropped.
@@ -210,44 +210,66 @@ Two of them were harmless — their content had since reached `main`
 `patch/0034` carry as part of
 [`e54313d7f`](https://github.com/duckdb/duckdb-r/commit/e54313d7f)) and
 the regenerated seed brings it.
-The other three had not:
+The other three had not, and each was folded into the vendor commit that
+brings in the code its patch answers:
 
-* `3823fe48e` — `patch/0035`, silencing the deprecated
-  `Catalog::GetEntry()` self-delegation.
-* `4ade36dc1` — `patch/0036`, guarding the assert-only plan verifiers.
-* `918f28b5f` — `patch/0037`, casting to `void *` in the default
-  aggregate state initializer.
+* `patch/0035`, silencing the deprecated `Catalog::GetEntry()`
+  self-delegation, into `duckdb/duckdb@6d4f53284` —
+  the commit that puts the 14 `[[deprecated]]` attributes into
+  `catalog.hpp`; its parent has none.
+* `patch/0037`, casting to `void *` in the default aggregate state
+  initializer, into `duckdb/duckdb@2daa4fc9a` —
+  the eager-aggregation change that introduces the `memset` over a
+  non-trivial state.
+* `patch/0036`, guarding the assert-only plan verifiers, into
+  `duckdb/duckdb@8956cec9b` —
+  the correlated-join change that adds them, growing `planner.cpp` from
+  268 lines to 339.
 
-They were re-inserted at the position they held in the buffer —
-two after the vendor commit for `duckdb/duckdb@d38be889c`, the third five
-vendor commits later — rather than replayed onto the tip.
-Three reasons, in the order they matter:
+Not the position each held in the buffer.
+A `patch/` entry gets written when someone notices the warning, which is
+whenever r-universe next builds a green tip, and the commit that *caused*
+it sits a few hundred below: replaying the patch where it was written
+leaves that whole stretch carrying a defect the same branch already knows
+how to fix —
+312 commits for `patch/0035`, 292 for `patch/0037`, 77 for `patch/0036`.
 
-* **Every vendor commit above them was generated with the patch
+**This is the case the buffer's per-commit promise exists for.**
+None of the three changes behaviour on Linux,
+so the per-commit gate never judges them,
+and r-universe only ever builds a green tip —
+which is precisely why their position in the chain is the only thing
+that can help.
+A warning or an error that shows up on macOS or Windows and nowhere else
+is found by bisecting the buffer by hand,
+and a bisect means something only if every commit in its range is clean
+of what is being bisected for.
+A range seeded with 312 commits' worth of a warning the branch can
+already silence answers a question nobody asked.
+The loop states the same rule for `-dev` —
+fold the fix into the commit that needs it, never stack it on top, so the
+chain stays bisectable —
+and it binds `-build` for the platforms `-dev` cannot speak for.
+
+Two mechanical properties follow from folding rather than stacking, and
+both were checked afterwards:
+
+* **Every vendor commit above the fold was generated with the patch
   applied.** `vendor-one.sh` re-applies the buffer's whole `patch/` stack
   to each tree it regenerates, so a vendor diff taken after the patch
   landed is patch-neutral in the patched region.
   Replayed onto a tree that lacks the patch it still applies —
-  cleanly, silently — and the region simply stays unpatched.
-  Placing the patch in the chain is what makes the commits above it mean
-  what they meant.
-* **The buffer's promise is per-commit, not per-tip.**
-  A buffer whose patch stack is only right at the tip is one whose
-  intermediate commits cannot be vendored from or bisected.
+  cleanly, silently — and the region simply stays unpatched,
+  which is how the first pass lost all three without a single conflict.
 * **Self-retirement keeps working.**
   A `patch/` entry is deleted by the vendor run that finds upstream has
   taken it; that only happens if the entry is in the tree when that run
   replays.
 
-Moving them *earlier* than their buffer position was considered and
-rejected: `patch/0037` names the earliest commit it applies to
-(`duckdb/duckdb@2daa4fc9a4`, vendored as `c3ad3d55f`) and the others are
-no different, but nothing observable improves.
-None of the three changes behaviour on Linux, which is the only platform
-the per-commit gate judges, and r-universe only ever builds a green tip.
-An earlier position would buy a longer stretch of warning-free
-intermediate commits nobody compiles, at the cost of three more replays
-over a 1133-commit chain.
+Both were verified per commit rather than at the tip:
+every commit from each fold point to the buffer tip carries the patched
+hunk and the `patch/` file, and the tip's `src/duckdb/` and `patch/`
+match `main-build`'s byte for byte.
 
 **`main-fwd-dev`: nothing placed, but something to mine.**
 All four refs start equal at the seed tip, as the day-one rule requires.
