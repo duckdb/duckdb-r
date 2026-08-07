@@ -179,6 +179,53 @@ guard (`Rf_errorcall()` signals from further down). Re-entrant
 recursion is bounded by R in every leg, and the guard neither helps
 nor hurts it.
 
+## 6. What the guard costs, and why the counter is shared
+
+R is single-threaded, so the obvious question about a `thread_local`
+counter is what it is for. Nothing, on the writing side: ALTREP methods
+are entered only from R's evaluator, so only the R thread ever
+constructs an `AltrepGuard`.
+
+The reading side is not single-threaded. `rapi_error_with_context()` is
+also called from `AppendAnyColumnSegment()` and
+`AppendMatrixColumnSegment()`, reached from `DataFrameScanFunc()`
+(`src/scan.cpp`), whose table function declares
+`MaxThreads = ceil(row_count / 1e6)`. That scan really does run in
+parallel — a 6M-row string column, `SELECT max(length(s))`:
+
+```
+threads=1  elapsed=0.114s
+threads=4  elapsed=0.040s
+```
+
+2.85×, so the helper is reachable off the R thread. Which makes
+`thread_local` the wrong sign: a worker thread reads its own zero,
+concludes no ALTREP method is active, and calls into R from a non-R
+thread — worse than anything the guard prevents. A shared counter sends
+it down the throwing branch instead. That is a mitigation and not a
+cure: a worker that reaches the helper while no ALTREP method is active
+still calls into R, which the guard cannot see. None of those error
+sites turned out to be reachable in practice — a raw matrix column is
+rejected at bind, and the enum and default cases read as defensive — so
+this is latent rather than live.
+
+`thread_local` also costs. In a shared object the counter lands in the
+general-dynamic TLS model, so each entry and exit is a
+`__tls_get_addr@plt` call, on `VectorLength` and `VectorDataptr` and
+the per-element `RownamesElt` and `VectorStringElt`. Three million
+`length()` calls on an ALTREP column, best of five:
+
+```
+main (no guard)                    227.0 ns/call
+guard, thread_local counter        250.7 ns/call
+guard, shared relaxed-atomic       229.3 ns/call
+```
+
+The shared counter is within noise of no guard at all: with the
+definition inlined in the header it compiles to `addl $1,(%rbx)` and
+`subl $1,(%rbx)`, and relaxed load/store needs no `lock` prefix because
+there is only ever one writer.
+
 **What it shows.**
 #1797's premise is correct and measurable: on `main`, duckdb and rlang
 closures execute inside ALTREP methods, and the guard removes them.
