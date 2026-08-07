@@ -168,10 +168,22 @@ check_home_arg <- function(home) {
 # askYesNo()'s TRUE / FALSE / NA (NA when the prompt is cancelled); the caller
 # treats anything but TRUE as a decline. Mockable seam: tests bind this directly
 # rather than driving the console.
+#
+# The default is anchored at `interactive()`, not the `is_interactive()` that
+# gates the prompt in resolve_storage_home(). The two can disagree: setting
+# `rlang_interactive = TRUE` (a common idiom in reverse dependencies' tests)
+# makes `is_interactive()` report an interactive session in a process where
+# `readline()` cannot reach a human -- it returns "" at once, and askYesNo()
+# takes that empty answer as its `default`. With a hardcoded TRUE the package
+# would then consent on the user's behalf and create `~/.duckdb` during
+# `R CMD check`, exactly what this policy exists to prevent. Anchoring the
+# default at `interactive()` makes the unanswerable prompt a "no", which falls
+# through to the per-session tempdir. A human at a console still gets the
+# convenient "yes" default.
 consent_to_create_home <- function(path) {
   utils::askYesNo(
     paste0("duckdb: create ", path, "?\n"),
-    default = TRUE
+    default = interactive()
   )
 }
 

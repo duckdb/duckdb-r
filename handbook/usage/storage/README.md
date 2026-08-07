@@ -16,4 +16,9 @@ genuinely shared with the DuckDB CLI and the other clients,
 not a private copy.
 The home root is resolved afresh for every new database instance.
 
+The offer to create `~/.duckdb` defaults to `interactive()`,
+not to the `is_interactive()` that opens it:
+a prompt nobody can answer is a "no",
+so forcing `rlang_interactive` never creates the directory.
+
 *To deepen: absorb the resolution order from `?duckdb_storage`.*
