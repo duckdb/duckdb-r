@@ -288,10 +288,15 @@ The failure is quiet: the first `main-fwd-build` came out with zero
 conflicts and a vendored tree differing from the buffer's by 20 lines
 across three files, plus three missing `patch/` entries.
 Only a tree comparison against the source buffer showed it.
-Filed as [#2545](https://github.com/duckdb/duckdb-r/issues/2545), which
-carries what a fix has to handle;
-[`series-loop/`](/handbook/operations/vendoring/series-loop/README.md)
-states the standing check until there is one.
+Fixed in this change
+([#2545](https://github.com/duckdb/duckdb-r/issues/2545)):
+the replay classifies every non-vendor commit above the buffer's first
+vendor commit, and refuses to start while one carries a change the new
+base does not have.
+Two tests decide it — the commit's diff reverse-applying to the new
+base, and patch-id equality against what that base gained — because each
+catches what the other misses on the five commits this run had to judge,
+and a false alarm costs one `--placed` where a miss costs the forward.
 
 **The seed needs `krlmlr/cpp11` installed, and the run did not have it.**
 `scripts/flavor.sh` runs `cpp11::cpp_register()`, whose symbol names come
