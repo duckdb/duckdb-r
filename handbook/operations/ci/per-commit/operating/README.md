@@ -51,7 +51,8 @@ which is enough to tell a compile error from a failing test.
 Setting the variable to `0` turns the excerpts off.
 
 The excerpt is not the record.
-The whole per-commit log still goes to `logs2.d/<xx>/<sha>.log` on `rcc2`,
+The whole per-commit log goes to `<sha>.log` in the leg's artifact —
+where the series loop reads it — and to `logs2.d/<xx>/<sha>.log` on `rcc2`,
 which is what [`series-check.sh`](/scripts/series-check.sh) classifies against;
 the summary is the fast path for a human.
 Two details make it work in practice:

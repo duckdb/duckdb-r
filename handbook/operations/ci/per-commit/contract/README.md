@@ -14,12 +14,24 @@ How the to-do list is computed is
   the record is keyed by SHA, so a rewritten commit has none.
   To re-judge one on the SHA it already has, push a `retry-<S>-dev`
   branch at it; to replan a whole range, dispatch with `force`.
-* **Results** — on the `rcc2` branch:
-  `runs2.d/<xx>/<sha>.ndjson` for the record,
-  `logs2.d/<xx>/<sha>.log` for the log.
-  One file per commit, and no aggregate;
-  what the store keeps and for how long is
-  [`store/`](/handbook/operations/ci/per-commit/store/README.md)'s.
+* **Results** — one record and, for a failure, one log per commit,
+  published in two places from the same bytes:
+  * in the **run** that decided the commit —
+    `parts/<sha>.ndjson` and `<sha>.log` in the leg's
+    `each-logs-<shard>-<attempt>` artifact (14 days),
+    and the same content inline in the leg's job log,
+    between that commit's `::group::<sha>` and its
+    `<sha>: <state> (<n>s, exit <rc>)` line;
+  * on the **`rcc2` branch** — `runs2.d/<xx>/<sha>.ndjson`
+    and `logs2.d/<xx>/<sha>.log`, one file per commit, no aggregate;
+    what the store keeps and for how long is
+    [`store/`](/handbook/operations/ci/per-commit/store/README.md)'s.
+
+  The store is a copy of the run's files, not a second computation,
+  so a consumer may read whichever it can reach.
+  A **run's conclusion is not a verdict**: a leg exits 0 whatever its commits
+  did, deliberately, so that a red commit reads as a result rather than as a
+  broken job.
 * **Gate applied per commit** — style, snapshots, roxygen, clean tree,
   `R CMD check`, pkgdown. The *order* is the contract;
   the list is `rcc-one.sh`'s `ALL_GATES`.
@@ -51,8 +63,18 @@ so the working tree keeps its diff and the `clean` gate still fails the commit.
 This is why the `build` job needs `contents: write`.
 
 The commit status is a display surface: nothing decides from it.
-Selection reads the verdict store on the `rcc2` branch instead.
+Selection reads the verdict store on the `rcc2` branch instead —
+CI-side, that is what "decided" means, in the planner
+([`each-plan.sh`](/scripts/each-plan.sh)), in a leg's resume check,
+and in the backstop, all of them through
+[`rcc-decided.sh`](/scripts/rcc-decided.sh).
 [`series-check.sh`](/scripts/series-check.sh) and
 [`series-advance.sh`](/scripts/series-advance.sh) read the per-commit record,
 so they see a verdict minutes after it happens rather than at the end of a run.
 [`rcc-logs.sh`](/scripts/rcc-logs.sh) writes records to the same place.
+
+The **series loop reads the runs first** and treats the store as its fallback
+([`.claude/skills/series-loop.md`](/.claude/skills/series-loop.md), stage 2):
+the store was built so that an agent with no API access could still read a
+verdict and a log, and one that can read the run reads the source instead.
+Nothing about the CI-side use above changes with it.

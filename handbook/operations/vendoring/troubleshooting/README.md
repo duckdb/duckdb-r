@@ -12,6 +12,11 @@ where a forward counterpart has caught up —
 from the harvest on the orphan `rcc2` branch,
 which stores one record per commit and failing commits'
 logs ([`ci/per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md)).
+Those records are copies of what the `each-rcc` run that decided each
+commit already holds, so a reader with Actions access can go to the run
+instead — and the series loop does
+([`series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
+The store is what answers when the run cannot be reached.
 What is vendored where:
 
 ```sh

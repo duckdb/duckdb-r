@@ -19,6 +19,16 @@
 # Classification is by positive evidence only (.claude/skills/series-loop.md);
 # "Job is waiting for a hosted runner" appears in every log and means nothing.
 #
+# The store is the *copy* of what an `each-rcc` leg wrote, not the source: the
+# leg writes the same record and log into its artifact and publishes them here
+# (scripts/each-shard.sh). A firing reads the run first and this branch only
+# when it cannot (.claude/skills/series-loop.md stage 2), so where a verdict
+# here and one read from a run disagree, the run is right. The ref geometry
+# below -- in flight, buffered, the retry ledger, a ready cutover -- does not
+# depend on the source at all, which is why this stays worth running either way.
+# Teaching it to read runs directly needs API access this script does not
+# assume; that is a change to make when a firing needs it, not before.
+#
 # The record decides before the log does, for the one thing the log cannot say:
 # a commit the shard's `timeout` killed at its budget (exit 124) stops mid-run
 # with its stage output still buffered, which reads exactly like a cancelled
