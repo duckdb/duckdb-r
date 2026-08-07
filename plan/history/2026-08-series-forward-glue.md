@@ -227,49 +227,25 @@ brings in the code its patch answers:
   268 lines to 339.
 
 Not the position each held in the buffer.
-A `patch/` entry gets written when someone notices the warning, which is
-whenever r-universe next builds a green tip, and the commit that *caused*
-it sits a few hundred below: replaying the patch where it was written
-leaves that whole stretch carrying a defect the same branch already knows
-how to fix —
-312 commits for `patch/0035`, 292 for `patch/0037`, 77 for `patch/0036`.
+The rule those three answer to is
+[`vendoring/troubleshooting/`](/handbook/operations/vendoring/troubleshooting/README.md)'s;
+what this run adds is the size of the span it governs.
+The entries were written when r-universe reported the diagnostics, and
+the upstream changes that raised them sit far below:
+312 commits below for `patch/0035`, 292 for `patch/0037`, 77 for
+`patch/0036`.
+Every one of those commits carried a warning the same branch already knew
+how to silence, on exactly the platforms no verdict covers.
 
-**This is the case the buffer's per-commit promise exists for.**
-None of the three changes behaviour on Linux,
-so the per-commit gate never judges them,
-and r-universe only ever builds a green tip —
-which is precisely why their position in the chain is the only thing
-that can help.
-A warning or an error that shows up on macOS or Windows and nowhere else
-is found by bisecting the buffer by hand,
-and a bisect means something only if every commit in its range is clean
-of what is being bisected for.
-A range seeded with 312 commits' worth of a warning the branch can
-already silence answers a question nobody asked.
-The loop states the same rule for `-dev` —
-fold the fix into the commit that needs it, never stack it on top, so the
-chain stays bisectable —
-and it binds `-build` for the platforms `-dev` cannot speak for.
-
-Two mechanical properties follow from folding rather than stacking, and
-both were checked afterwards:
-
-* **Every vendor commit above the fold was generated with the patch
-  applied.** `vendor-one.sh` re-applies the buffer's whole `patch/` stack
-  to each tree it regenerates, so a vendor diff taken after the patch
-  landed is patch-neutral in the patched region.
-  Replayed onto a tree that lacks the patch it still applies —
-  cleanly, silently — and the region simply stays unpatched,
-  which is how the first pass lost all three without a single conflict.
-* **Self-retirement keeps working.**
-  A `patch/` entry is deleted by the vendor run that finds upstream has
-  taken it; that only happens if the entry is in the tree when that run
-  replays.
-
-Both were verified per commit rather than at the tip:
+Verified per commit rather than at the tip:
 every commit from each fold point to the buffer tip carries the patched
-hunk and the `patch/` file, and the tip's `src/duckdb/` and `patch/`
-match `main-build`'s byte for byte.
+hunk and the `patch/` file, the fold commit's parent carries neither, and
+the tip's `src/duckdb/` and `patch/` match `main-build`'s byte for byte.
+The last of those is what the first pass failed silently —
+a vendor diff taken after a patch landed is patch-neutral in the patched
+region, so replaying it onto a tree that lacks the patch applies cleanly
+and leaves the region unpatched
+([#2545](https://github.com/duckdb/duckdb-r/issues/2545)).
 
 **`main-fwd-dev`: nothing placed, but something to mine.**
 All four refs start equal at the seed tip, as the day-one rule requires.
@@ -312,14 +288,10 @@ The failure is quiet: the first `main-fwd-build` came out with zero
 conflicts and a vendored tree differing from the buffer's by 20 lines
 across three files, plus three missing `patch/` entries.
 Only a tree comparison against the source buffer showed it.
-Worth fixing in the script rather than in the reader's habits:
-a commit in `<old-base>..<old-build>` that is neither a `vendor:` subject
-nor an ancestor of the new base is either replayed or reported, never
-dropped.
-`series-forward-build.sh`'s resume logic would have to change with it —
-it recovers its place from the counter by counting back `n` commits from
-`HEAD`, which stops being the number of commits it has written as soon as
-a non-vendor commit is interleaved.
+Filed as [#2545](https://github.com/duckdb/duckdb-r/issues/2545), which
+carries what a fix has to handle;
+[`series-loop/`](/handbook/operations/vendoring/series-loop/README.md)
+states the standing check until there is one.
 
 **The seed needs `krlmlr/cpp11` installed, and the run did not have it.**
 `scripts/flavor.sh` runs `cpp11::cpp_register()`, whose symbol names come

@@ -1,6 +1,6 @@
 # Troubleshooting
 
-When a vendoring run is red:
+When a vendoring run is red, or a build no run covers is:
 telling the failure modes apart and reaching the right repair.
 The repair procedures are the series loop's playbooks
 ([`series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
@@ -39,6 +39,12 @@ The failure classes, and what each needs:
   When the tree upstream shipped is itself the defect, see below.
 * **Stale snapshots** — engine output drifted;
   [`testing/snapshots/`](/handbook/testing/snapshots/README.md).
+* **A diagnostic no run raised** — the per-commit gate is Linux on one
+  R version, so a warning from another platform's compiler reaches this
+  repository through the published build or through a bisect, never
+  through a verdict.
+  The fix is a `patch/` entry, and which commit carries it is
+  *Where a patch goes in the chain*.
 
 ## A commit upstream broke
 
@@ -87,6 +93,29 @@ which is what a counter that orders rather than counts allows
 ([`versioning/`](/handbook/operations/releases/versioning/README.md)).
 The loop's own statement of the rule is in its repair stage
 ([`series-loop.md`](/.claude/skills/series-loop.md)).
+
+## Where a patch goes in the chain
+
+A `patch/` entry belongs in the first commit whose tree carries the code
+it answers, which is the first commit whose tree it applies to.
+That is rarely the commit at which it was written:
+an entry answering a compiler diagnostic is written when someone reads
+the diagnostic, and the upstream change that raised it can be far below.
+Finding the right one is mechanical — the answer can only change where
+the patched file changes, so walk that file's commits and take the first
+whose tree `patch --dry-run` accepts.
+Fold the entry and its effect on the vendored tree into that commit
+together, with an `R-side fix` section, as a forward-ported fix is folded.
+
+The buffer is where the choice is load-bearing.
+No run covers it at all
+([`branches/model/`](/handbook/branches/model/README.md)),
+and the gate that covers `-dev` is a single platform,
+so a diagnostic only the others raise is found by bisecting the buffer by
+hand — and a bisect answers what is asked of it only when every commit in
+its range is clean of what is being bisected for.
+An entry added at the top of the chain instead leaves the span below it
+carrying a defect the same branch already knows how to silence.
 
 *To deepen: absorb `scripts/VENDORING.md` § Troubleshooting —
 rebuilding the upstream clone, and the spurious `src/*.dd` churn.*
