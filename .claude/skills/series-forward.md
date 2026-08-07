@@ -26,6 +26,15 @@ the replay then populates `<S>-fwd-build`.
    plus the separate fifth-component commit on a dev branch
    (`series-open.md`) —
    then replay each vendor commit onto it.
+   `flavor.sh` has a prerequisite it does not check
+   and cannot fail loudly on:
+   the installed cpp11 has to be `krlmlr/cpp11`,
+   or a two-dot flavor is regenerated with entry points
+   no compiler accepts (`series-open.md`, step 2).
+   A series seeded from a release branch rather than from `main`
+   regenerates on **that** branch,
+   whose `scripts/` may be older than `main`'s —
+   replay the recorded seed commits instead when it is.
 
    **The forward series takes the whole of the new base.**
    The replay is a cherry-pick, not a tree reconstruction:

@@ -41,13 +41,20 @@ This skill is the release branch's birth certificate.
    `flavor.sh` never stamps it,
    because regular LTS flavors keep their four-component version.
 
-   **Check the generated cpp11 files before trusting a fresh seed.**
+   **Install `krlmlr/cpp11` before running `flavor.sh`**, from GitHub —
+   `remotes::install_github("krlmlr/cpp11")`, beside `decor`.
    `flavor.sh` runs `cpp11::cpp_register()`,
-   whose symbol names depend on the cpp11 that happens to be installed:
-   0.5.5 replaces only the *first* dot of the package name,
+   and its symbol names come from the cpp11 that happens to be installed,
+   not from the vendored headers:
+   CRAN's replaces the *first* dot of the package name only,
    so a `1.5.dev` flavor comes out as `_duckdb_1.5.dev_rapi_connect`,
-   which is not a valid C identifier.
-   Compare `R/cpp11.R` against an existing series' seed;
+   which is not a valid C identifier
+   ([`architecture/glue/`](/handbook/architecture/glue/README.md)
+   owns why, and says what to check).
+   `krlmlr.r-universe.dev` does not build cpp11,
+   so asking for it there and falling back to CRAN installs CRAN's
+   and looks like it worked.
+   Compare `R/cpp11.R` against an existing series' seed either way;
    this is also why a forward series is rebased rather than reseeded
    (`series-rebase.md`).
 

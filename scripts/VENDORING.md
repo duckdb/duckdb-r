@@ -260,6 +260,11 @@ this list is the sources-and-glue side it drives):
 
    `flavor.sh` has two prerequisites it does not check:
    the `cpp11` and `decor` R packages, needed for the `cpp11::cpp_register()` step.
+   **The `cpp11` has to be `krlmlr/cpp11`**, from GitHub —
+   `remotes::install_github("krlmlr/cpp11")` —
+   and not CRAN's, which writes an invalid `.Call` prefix for a suffix
+   carrying two dots and none of the usual signs of having done so
+   ([`handbook/architecture/glue/`](/handbook/architecture/glue/README.md)).
    (GNU sed it does check, and refuses to run without —
    on macOS that means `gsed`, from Homebrew.)
    It commits the first of its two commits *before* reaching that step,

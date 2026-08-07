@@ -299,23 +299,42 @@ it recovers its place from the counter by counting back `n` commits from
 `HEAD`, which stops being the number of commits it has written as soon as
 a non-vendor commit is interleaved.
 
-**Regenerating the seed with `flavor.sh` is only safe for a one-dot
-flavor.**
-`scripts/flavor.sh` runs `cpp11::cpp_register()`, and cpp11 0.5.5 — what
-`install.packages("cpp11")` gives you today — replaces only the first dot
-of the package name when it builds the symbols.
-Confirmed here: a fresh `flavor.sh 1.5.dev` on current `main` generated
-`_duckdb_1.5.dev_rapi_connect`, which is not a C identifier.
+**The seed needs `krlmlr/cpp11` installed, and the run did not have it.**
+`scripts/flavor.sh` runs `cpp11::cpp_register()`, whose symbol names come
+from the cpp11 in the library rather than from the vendored headers.
+CRAN's spells the `.Call` prefix with `sub("[.]", "_", package)`, first
+dot only, so `flavor.sh 1.5.dev` on current `main` generated
+`_duckdb_1.5.dev_rapi_connect`, which is not a C identifier;
 `flavor.sh dev` came out byte-identical to the seed the `main` series was
 built on, because `duckdb.dev` has one dot.
-So the run took the two generated files (`R/cpp11.R`, `src/cpp11.cpp`)
-from the old seed for `1.5.dev`, having first checked that `main` had not
-touched their unflavored originals in the window, and replayed the
-`v1.4-andium` seed whole.
-`series-open.md` already carries the trap;
-`series-forward.md` step 1 says "regenerate the seed" without it,
-and the safe recipe is the one `series-rebase.md` states for a rebase —
-replay the seed, then verify against a scratch flavoring.
+The first pass read that as an unavoidable trap and worked around it,
+taking `R/cpp11.R` and `src/cpp11.cpp` from the old seed for `1.5.dev`
+after checking that `main` had not touched their unflavored originals.
+It is not unavoidable.
+[`krlmlr/cpp11`](https://github.com/krlmlr/cpp11) spells that `gsub`,
+and installing it from GitHub makes `flavor.sh 1.5.dev` generate the
+correct `_duckdb_1_5_dev_` prefix directly —
+byte-identical to what the workaround produced, which is the check that
+the workaround had been right and is now unnecessary.
+Two things hid it.
+The fork was named in
+[`architecture/glue/`](/handbook/architecture/glue/README.md), but as the
+origin of the *vendored headers*, with multi-dot support listed among
+what they carry; the generator is neither vendored nor a declared
+dependency, and no page said which one to install —
+`scripts/VENDORING.md` asked for "the `cpp11` and `decor` R packages"
+flat.
+And `krlmlr.r-universe.dev` does not build cpp11, so
+`install.packages("cpp11", repos = c(krlmlr, CRAN))` falls through to
+CRAN and reports installing cpp11 0.5.5, which reads like success.
+Corrected in this change: `architecture/glue/` now separates the two
+halves of cpp11, `branches/flavors/` says what to check after a flavor
+run, and `VENDORING.md`, `series-open.md` and `series-forward.md` name
+the fork where they ask for the package.
+The `v1.4-andium` seed is still replayed rather than regenerated, for an
+unrelated reason: a frozen series regenerates on its own release branch,
+and `v1.4-andium`'s `scripts/flavor.sh` predates the GNU-sed fix
+[#2510](https://github.com/duckdb/duckdb-r/pull/2510) that `main` has.
 
 **A frozen series' forward hands its tooling back.**
 `v1.4-andium-fwd`'s seed comes from the `v1.4-andium` release line, which
