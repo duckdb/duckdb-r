@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 18 Oct 2026 23:08:27 +0000
+Subject: [PATCH] Compile the partial aggregate pushdown's assert-only check only when asserts are on
+
+Assert-only code in partial_aggregate_pushdown.cpp binds values that only D_ASSERT()
+reads, so in a release build, where D_ASSERT() expands to nothing, the
+bindings are unused and -Wunused-variable or -Wunused-but-set-variable
+say so. The assert-only lines are compiled only when assertions are
+enabled, with the side-effecting call kept in both builds, which is the
+shape upstream gives the file later.
+
+Carried here until the engine brings the same change.
+
+---
+ src/duckdb/src/optimizer/partial_aggregate_pushdown.cpp | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/duckdb/src/optimizer/partial_aggregate_pushdown.cpp b/src/duckdb/src/optimizer/partial_aggregate_pushdown.cpp
+index 0c767ee85d..d06e4bb5de 100644
+--- a/src/duckdb/src/optimizer/partial_aggregate_pushdown.cpp
++++ b/src/duckdb/src/optimizer/partial_aggregate_pushdown.cpp
+@@ -796,8 +796,12 @@ static unique_ptr<LogicalAggregate> DECreateUpperAggregate(Optimizer &optimizer,
+ 	for (auto &group : aggr.groups) {
+ 		auto &ref = group->Cast<BoundColumnRefExpression>();
+ 		idx_t gs;
++#ifdef D_ASSERT_IS_ENABLED
+ 		auto has_side = GetExpressionSide(*group, side_bindings, gs);
+ 		D_ASSERT(has_side);
++#else
++		GetExpressionSide(*group, side_bindings, gs);
++#endif
+ 		auto binding = sides[gs].group_map.at(ref.Binding());
+ 		upper_aggr->groups.push_back(make_uniq<BoundColumnRefExpression>(ref.GetReturnType(), binding));
+ 	}
