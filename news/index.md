@@ -1,5 +1,66 @@
 # Changelog
 
+## duckdb 1.5.5.9010
+
+### Bug fixes
+
+#### tests
+
+- Expect the extension install to fail where DuckDB does not cover the
+  platform ([\#2425](https://github.com/duckdb/duckdb-r/issues/2425),
+  [\#2529](https://github.com/duckdb/duckdb-r/issues/2529)).
+
+### Features
+
+- Mirror the fork’s branches with the Pull app, and drop `sync.yaml`
+  ([\#2534](https://github.com/duckdb/duckdb-r/issues/2534)).
+
+#### rcc
+
+- Move the verdict store to `rcc2`, one file per commit
+  ([\#2505](https://github.com/duckdb/duckdb-r/issues/2505)).
+
+### Chore
+
+- Increase retention to 180 days \[ci skip\].
+
+### Continuous integration
+
+- Add sharded `revdep2` workflow.
+
+### Documentation
+
+#### extensions
+
+- Close the remaining gaps the extension issues map to
+  ([\#2425](https://github.com/duckdb/duckdb-r/issues/2425),
+  [\#2536](https://github.com/duckdb/duckdb-r/issues/2536)).
+
+#### handbook
+
+- Record the Windows extension-coverage boundaries the issues keep
+  re-finding ([\#2530](https://github.com/duckdb/duckdb-r/issues/2530)).
+
+### Testing
+
+#### extensions
+
+- Drop the duplicate platform skip that made the canary unreachable
+  ([\#2537](https://github.com/duckdb/duckdb-r/issues/2537)).
+
+#### extensions
+
+- Skip the install test where DuckDB publishes no binaries, and pin the
+  gap ([\#2535](https://github.com/duckdb/duckdb-r/issues/2535)).
+
+### Uncategorized
+
+- Ci: Harden `workflow_run` workflows against untrusted pull requests
+  ([\#106](https://github.com/duckdb/duckdb-r/issues/106)).
+
+- Ci: Pin third-party actions to commits and let Renovate keep them
+  pinned ([\#105](https://github.com/duckdb/duckdb-r/issues/105)).
+
 ## duckdb 1.5.5.9009
 
 ### Bug fixes
