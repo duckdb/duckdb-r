@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 18 Oct 2026 23:08:46 +0000
+Subject: [PATCH] Compile the join order operator's assert-only check only when asserts are on
+
+Assert-only code in join_order_operator.cpp binds values that only D_ASSERT()
+reads, so in a release build, where D_ASSERT() expands to nothing, the
+bindings are unused and -Wunused-variable or -Wunused-but-set-variable
+say so. The assert-only lines are compiled only when assertions are
+enabled, with the side-effecting call kept in both builds, which is the
+shape upstream gives the file later.
+
+Carried here until the engine brings the same change.
+
+---
+ src/duckdb/src/optimizer/join_order/join_order_operator.cpp | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/duckdb/src/optimizer/join_order/join_order_operator.cpp b/src/duckdb/src/optimizer/join_order/join_order_operator.cpp
+index 889204a73a..bdcdb6b912 100644
+--- a/src/duckdb/src/optimizer/join_order/join_order_operator.cpp
++++ b/src/duckdb/src/optimizer/join_order/join_order_operator.cpp
+@@ -268,10 +268,12 @@ void JoinOrderConflictDetector::Build(vector<unique_ptr<JoinOrderOperator>> &ope
+ 		                             (op->type != JoinOrderOperatorType::INNER || !op->conflict_rules.empty());
+ 		SimplifyConflictRules(*op, set_manager);
+ 		D_ASSERT(ContainedInUnion(op->total_set, op->left_relations, op->right_relations));
++#ifdef D_ASSERT_IS_ENABLED
+ 		for (auto &rule : op->conflict_rules) {
+ 			D_ASSERT(ContainedInUnion(rule.trigger, op->left_relations, op->right_relations));
+ 			D_ASSERT(ContainedInUnion(rule.requirement, op->left_relations, op->right_relations));
+ 		}
++#endif
+ 		if (op->type != JoinOrderOperatorType::CROSS_PRODUCT) {
+ 			D_ASSERT(!op->left_total_set.get().Empty());
+ 			D_ASSERT(!op->right_total_set.get().Empty());
