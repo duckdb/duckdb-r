@@ -1494,3 +1494,21 @@ test_that("rel_from_sql() relations can be used in further relational ops", {
   out <- as.data.frame(rel2)
   expect_equal(out$a, c(3L, 4L), ignore_attr = TRUE)
 })
+
+test_that("rel_from_df() rejects matrix, S4, and integer64 columns", {
+  con <- local_con()
+
+  df <- data.frame(row = 1:2)
+  df$a <- matrix(1:4, 2)
+  expect_error(rel_from_df(con, df), "arrays or matrices")
+
+  methods::setClass("DuckdbTestS4", methods::representation(x = "numeric"))
+  df <- data.frame(row = 1)
+  df$a <- methods::new("DuckdbTestS4", x = 1)
+  expect_error(rel_from_df(con, df), "S4")
+
+  skip_if_not_installed("bit64")
+  df <- data.frame(row = 1)
+  df$a <- bit64::as.integer64(42)
+  expect_error(rel_from_df(con, df), "convert")
+})
