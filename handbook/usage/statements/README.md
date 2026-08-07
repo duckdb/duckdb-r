@@ -16,7 +16,7 @@ A reader asking "does `dbAppendTable()` work here" answers it by
 finding the file, not by consulting an inventory that can go stale.
 
 The departures from that baseline are what this leaf owns.
-The one already stated:
+One so far:
 
 * In a multi-statement string,
   everything before the final statement executes at prepare time,
