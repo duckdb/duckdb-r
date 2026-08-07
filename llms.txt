@@ -1,8 +1,5 @@
 # duckdb
 
-[![DuckDB
-logo](https://duckdb.org/images/logo-dl/DuckDB_Logo-horizontal.svg)](https://r.duckdb.org/)
-
 [DuckDB](https://duckdb.org/) is an in-process SQL OLAP database
 management system. It is designed to support analytical query workloads
 and is optimized for fast query execution. This repository contains the
