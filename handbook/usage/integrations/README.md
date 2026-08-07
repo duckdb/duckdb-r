@@ -84,7 +84,13 @@ without an R data frame in between —
 `nanoarrow::convert_array_stream()` —
 so a dedicated writer per frame library
 (Polars was the one asked for) is this route, not new C++
-([#642](https://github.com/duckdb/duckdb-r/issues/642)).
+([#642](https://github.com/duckdb/duckdb-r/issues/642)) —
+and a library that does not read the Arrow C stream gains nothing
+from one either, because its input is an R data frame,
+which is what the conversion produces anyway.
+The stream feeds one consumer:
+it drains as it is read, so a second pass over the same object
+sees zero rows rather than the result again.
 `arrow::to_duckdb()` and `to_arrow()`
 bridge dplyr pipelines both ways.
 The DBI Arrow API plan is
