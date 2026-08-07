@@ -1,3 +1,8 @@
+# The relational API: lazy relation trees and the ALTREP data frames they
+# produce.  Internal -- every function here is @noRd, and duckplyr is the one
+# supported consumer.
+# Explained in handbook/usage/relational/README.md.
+
 # expressions
 
 #' Create a column reference expression
@@ -8,14 +13,27 @@
 #' @examples
 #' col_ref_expr <- expr_reference("some_column_name")
 #' col_ref_expr2 <- expr_reference("some_column_name", "some_table_name")
-expr_reference <- function(names, table = NULL) {
+expr_reference <- function(
+  names,
+  table = NULL,
+  ...,
+  alias = NULL
+) {
+  if (...length() > 0) {
+    stop("... must be empty")
+  }
+
   if (inherits(table, "duckdb_relation")) {
     names <- c(rel_alias(table), names)
-  }
-  if (is.character(table) && !identical(table, "")) {
+  } else if (is.character(table) && !identical(table, "")) {
     names <- c(table, names)
   }
-   rethrow_rapi_expr_reference(names)
+
+  if (is.null(alias)) {
+    alias <- ""
+  }
+
+  rethrow_rapi_expr_reference(names, alias)
 }
 
 #' Create a constant expression
@@ -25,7 +43,55 @@ expr_reference <- function(names, table = NULL) {
 #' @examples
 #' const_int_expr <- expr_constant(42)
 #' const_str_expr <- expr_constant("Hello, World")
-expr_constant <- rapi_expr_constant
+expr_constant <- function(
+  val,
+  ...,
+  alias = NULL,
+  con = NULL,
+  convert_opts = NULL
+) {
+  if (...length() > 0) {
+    stop("... must be empty")
+  }
+
+  if (is.null(alias)) {
+    alias <- ""
+  }
+
+  if (is.null(convert_opts)) {
+    if (is.null(con)) {
+      convert_opts <- duckdb_convert_opts()
+    } else {
+      convert_opts <- con@convert_opts
+    }
+  }
+
+  rethrow_rapi_expr_constant(val, alias, convert_opts)
+}
+
+#' Create an operator expression
+#' @param op the operator
+#' @param exprs a list of expressions
+#' @return an operator expression
+#' @noRd
+#' @examples
+#' op_expr <- expr_operator("IN", list(expr_reference("some_column_name"), expr_constant(-42), expr_constant(42)))
+expr_operator <- function(
+  op,
+  exprs,
+  ...,
+  alias = NULL
+) {
+  if (...length() > 0) {
+    stop("... must be empty")
+  }
+
+  if (is.null(alias)) {
+    alias <- ""
+  }
+
+  rethrow_rapi_expr_operator(op, exprs, alias)
+}
 
 #' Create a comparison expression
 #' @param exprs a vector of size two, the expressions to compare
@@ -34,7 +100,22 @@ expr_constant <- rapi_expr_constant
 #' @noRd
 #' @examples
 #' comp_expr <- expr_comparison(">", list(expr_constant(-42), expr_constant(42)))
-expr_comparison <- rapi_expr_comparison
+expr_comparison <- function(
+  cmp_op,
+  exprs,
+  ...,
+  alias = NULL
+) {
+  if (...length() > 0) {
+    stop("... must be empty")
+  }
+
+  if (is.null(alias)) {
+    alias <- ""
+  }
+
+  rethrow_rapi_expr_comparison(cmp_op, exprs, alias)
+}
 
 #' Create a function call expression
 #' @param name the function name
@@ -43,8 +124,23 @@ expr_comparison <- rapi_expr_comparison
 #' @noRd
 #' @examples
 #' call_expr <- expr_function("ABS", list(expr_constant(-42)))
-expr_function <- function(name, args, order_bys = list(), filter_bys = list()) {
-  rethrow_rapi_expr_function(name, args, order_bys, filter_bys)
+expr_function <- function(
+  name,
+  args,
+  ...,
+  order_bys = list(),
+  filter_bys = list(),
+  alias = NULL
+) {
+  if (...length() > 0) {
+    stop("... must be empty")
+  }
+
+  if (is.null(alias)) {
+    alias <- ""
+  }
+
+  rethrow_rapi_expr_function(name, args, order_bys, filter_bys, alias)
 }
 
 #' Convert an expression to a string for debugging purposes
@@ -53,7 +149,9 @@ expr_function <- function(name, args, order_bys = list(), filter_bys = list()) {
 #' @noRd
 #' @examples
 #' expr_str <- expr_tostring(expr_constant(42))
-expr_tostring <- rapi_expr_tostring
+expr_tostring <- function(expr) {
+  rethrow_rapi_expr_tostring(expr)
+}
 
 #' Set the alias for an expression
 #' @param expr the expression
@@ -61,7 +159,9 @@ expr_tostring <- rapi_expr_tostring
 #' @noRd
 #' @examples
 #' expr_set_alias(expr_constant(42), "my_alias")
-expr_set_alias <- rapi_expr_set_alias
+expr_set_alias <- function(expr, alias) {
+  rethrow_rapi_expr_set_alias(expr, alias)
+}
 
 #' @export
 print.duckdb_expr <- function(x, ...) {
@@ -80,8 +180,30 @@ print.duckdb_expr <- function(x, ...) {
 #' @examples
 #' con <- DBI::dbConnect(duckdb())
 #' rel <- rel_from_df(con, mtcars)
-rel_from_df <- function(con, df, experimental=FALSE) {
-    rethrow_rapi_rel_from_df(con@conn_ref, as.data.frame(df), experimental)
+rel_from_df <- function(
+  con,
+  df,
+  ...,
+  experimental = NULL,
+  convert_opts = NULL,
+  strict = NULL
+) {
+  if (...length() > 0) {
+    stop("... must be empty")
+  }
+
+  # FIXME: Enable warning
+  if (is.null(convert_opts)) {
+    convert_opts <- con@convert_opts
+  }
+  if (!is.null(experimental)) {
+    convert_opts$experimental <- experimental
+  }
+  if (!is.null(strict)) {
+    convert_opts$strict_relational <- strict
+  }
+
+  rethrow_rapi_rel_from_df(con@conn_ref, as.data.frame(df), convert_opts)
 }
 
 #' @export
@@ -90,7 +212,8 @@ print.duckdb_relation <- function(x, ...) {
 }
 
 #' @export
-as.data.frame.duckdb_relation <- function(x, row.names = NULL, optional = NULL, ...) {
+
+as.data.frame.duckdb_relation <- function(x, row.names = NULL, optional = NULL, ...) { # nolint: object_name_linter
   if (!missing(row.names) || !missing(optional)) {
     stop("row.names and optional parameters not supported")
   }
@@ -172,7 +295,7 @@ rel_aggregate <- function(rel, groups, aggregates) {
 #' con <- DBI::dbConnect(duckdb())
 #' rel <- rel_from_df(con, mtcars)
 #' rel2 <- rel_order(rel, list(expr_reference("hp")))
-rel_order <- function(rel, orders, ascending = NULL) {
+rel_order <- function(rel, orders, ascending = NULL, nulls_first = NULL) {
   if (is.null(ascending)) {
     ascending <- rep(TRUE, length(orders))
   }
@@ -181,7 +304,15 @@ rel_order <- function(rel, orders, ascending = NULL) {
     stop("length of ascending must equal length of orders")
   }
 
-  return(rethrow_rapi_rel_order(rel, orders, ascending))
+  if (is.null(nulls_first)) {
+    nulls_first <- rep(FALSE, length(orders))
+  }
+
+  if (length(orders) != length(nulls_first)) {
+    stop("length of nulls_first must equal length of orders")
+  }
+
+  return(rethrow_rapi_rel_order(rel, orders, ascending, nulls_first))
 }
 
 #' Get an external pointer pointing to NULL
@@ -189,26 +320,66 @@ rel_order <- function(rel, orders, ascending = NULL) {
 #' @noRd
 #' @examples
 #' null_ptr <- sexp_null_ptr()
+# Not rethrowing, internal utility
 sexp_null_ptr <- rapi_get_null_SEXP_ptr
 
-expr_window <- function(window_function, partitions=list(), order_bys=list(),
-                        window_boundary_start="unbounded_preceding",
-                        window_boundary_end="current_row_range",
-                        start_expr = NULL, end_expr=NULL, offset_expr=NULL, default_expr=NULL) {
-    null_ptr <- sexp_null_ptr()
-    if (is.null(start_expr)) {
-      start_expr <- null_ptr
-    }
-    if (is.null(end_expr)) {
-      end_expr <- null_ptr
-    }
-    if (is.null(offset_expr)) {
-      offset_expr <- null_ptr
-    }
-    if (is.null(default_expr)) {
-      default_expr <- null_ptr
-    }
-    expr_window_(window_function, partitions, order_bys, tolower(window_boundary_start), tolower(window_boundary_end), start_expr, end_expr, offset_expr, default_expr)
+expr_window <- function(
+  window_function,
+  partitions = list(),
+  order_bys = list(),
+  window_boundary_start = "unbounded_preceding",
+  window_boundary_end = "current_row_range",
+  start_expr = NULL,
+  end_expr = NULL,
+  offset_expr = NULL,
+  default_expr = NULL,
+  alias = NULL,
+  ascending = NULL,
+  nulls_first = NULL
+) {
+  null_ptr <- sexp_null_ptr()
+  if (is.null(start_expr)) {
+    start_expr <- null_ptr
+  }
+  if (is.null(end_expr)) {
+    end_expr <- null_ptr
+  }
+  if (is.null(offset_expr)) {
+    offset_expr <- null_ptr
+  }
+  if (is.null(default_expr)) {
+    default_expr <- null_ptr
+  }
+  if (is.null(alias)) {
+    alias <- ""
+  }
+  if (is.null(ascending)) {
+    ascending <- rep(TRUE, length(order_bys))
+  }
+  if (length(order_bys) != length(ascending)) {
+    stop("length of ascending must equal length of order_bys")
+  }
+  if (is.null(nulls_first)) {
+    nulls_first <- rep(FALSE, length(order_bys))
+  }
+  if (length(order_bys) != length(nulls_first)) {
+    stop("length of nulls_first must equal length of order_bys")
+  }
+
+  expr_window_(
+    window_function,
+    partitions,
+    order_bys,
+    tolower(window_boundary_start),
+    tolower(window_boundary_end),
+    start_expr,
+    end_expr,
+    offset_expr,
+    default_expr,
+    alias,
+    ascending,
+    nulls_first
+  )
 }
 
 window_boundaries <- c("unbounded_preceding",
@@ -219,11 +390,36 @@ window_boundaries <- c("unbounded_preceding",
                        "expr_following_rows",
                        "expr_preceding_range")
 
-expr_window_ <- function (window_function, partitions=list(), order_bys=list(), window_boundary_start=window_boundaries,
-          window_boundary_end=window_boundaries, start_expr = list(), end_expr=list(), offset_expr=list(), default_expr=list()) {
-    window_boundary_start <- match.arg(window_boundary_start)
-    window_boundary_end <- match.arg(window_boundary_end)
-    rethrow_rapi_expr_window(window_function, partitions, order_bys, window_boundary_start, window_boundary_end, start_expr, end_expr, offset_expr, default_expr)
+expr_window_ <- function(
+  window_function,
+  partitions = list(),
+  order_bys = list(),
+  window_boundary_start = window_boundaries,
+  window_boundary_end = window_boundaries,
+  start_expr = list(),
+  end_expr = list(),
+  offset_expr = list(),
+  default_expr = list(),
+  alias = "",
+  ascending = logical(0),
+  nulls_first = logical(0)
+) {
+  window_boundary_start <- match.arg(window_boundary_start)
+  window_boundary_end <- match.arg(window_boundary_end)
+  rethrow_rapi_expr_window(
+    window_function,
+    partitions,
+    order_bys,
+    window_boundary_start,
+    window_boundary_end,
+    start_expr,
+    end_expr,
+    offset_expr,
+    default_expr,
+    alias,
+    ascending,
+    nulls_first
+  )
 }
 
 #' Lazily INNER join two DuckDB relation objects
@@ -412,8 +608,21 @@ rel_set_alias <- function(rel, alias) {
 #' con <- DBI::dbConnect(duckdb())
 #' rel <- rel_from_df(con, mtcars)
 #' print(rel_to_altrep(rel))
-rel_to_altrep <- function(rel, allow_materialization = TRUE, n_rows = Inf, n_cells = Inf) {
-  rethrow_rapi_rel_to_altrep(rel, allow_materialization, n_rows = n_rows, n_cells = n_cells)
+rel_to_altrep <- function(
+  rel,
+  allow_materialization = TRUE,
+  n_rows = Inf,
+  n_cells = Inf,
+  ...
+) {
+  # FIXME: Move dots after `rel` for duckplyr >= 1.1.0
+  if (...length() > 0) {
+    stop("... must be empty")
+  }
+  if (!isTRUE(allow_materialization)) {
+    n_cells <- 0
+  }
+  rethrow_rapi_rel_to_altrep(rel, n_rows = n_rows, n_cells = n_cells)
 }
 
 
@@ -429,8 +638,13 @@ rel_to_altrep <- function(rel, allow_materialization = TRUE, n_rows = Inf, n_cel
 #' rel <- rel_from_df(con, mtcars)
 #' df = rel_to_altrep(rel)
 #' print(rel_from_altrep_df(df))
-rel_from_altrep_df <- function(df, strict = TRUE, allow_materialized = TRUE) {
-  rethrow_rapi_rel_from_altrep_df(df, strict, allow_materialized)
+rel_from_altrep_df <- function(df, strict = TRUE, allow_materialized = TRUE, wrap = FALSE) {
+  rethrow_rapi_rel_from_altrep_df(
+    df,
+    strict,
+    allow_materialized,
+    wrap
+  )
 }
 
 
@@ -455,16 +669,41 @@ rel_to_sql <- function(rel) {
 
 
 
-#' Create a duckdb table relation from a table name
-#' @param sql An SQL query
+#' Create a duckdb relation from an SQL query
+#'
+#' Creates a relation that represents the result of an SQL query against the
+#' connection, without executing it.
+#'
+#' If the connection was opened with `duckdb(environment_scan = TRUE)`, table
+#' references in `sql` that do not resolve in the database catalog are looked
+#' up in `env` (and its enclosing environments). Any data frame found this way
+#' is captured by the resulting relation and stays accessible for the lifetime
+#' of the relation, even after `env` is no longer reachable from R.
+#'
+#' @param con A duckdb connection.
+#' @param sql An SQL query.
+#' @param env An environment in which to look up data frames referenced by
+#'   `sql`. Defaults to the caller's environment.
 #' @return a duckdb relation
 #' @noRd
 #' @examples
 #' con <- DBI::dbConnect(duckdb())
 #' DBI::dbWriteTable(con, "mtcars", mtcars)
 #' rel <- rel_from_sql(con, "SELECT * FROM mtcars")
-rel_from_sql <- function(con, sql) {
-    rethrow_rapi_rel_from_sql(con@conn_ref, sql)
+#'
+#' # With environment scanning, data frames in scope can be queried directly:
+#' con2 <- DBI::dbConnect(duckdb(environment_scan = TRUE))
+#' make_rel <- function() {
+#'   df <- data.frame(a = 1:3)
+#'   rel_from_sql(con2, "FROM df")
+#' }
+#' rel2 <- make_rel()
+#' as.data.frame(rel2)
+rel_from_sql <- function(con, sql, env = parent.frame()) {
+  if (!is.environment(env)) {
+    stop("`env` must be an environment.", call. = FALSE)
+  }
+  rethrow_rapi_rel_from_sql(con@conn_ref, sql, env)
 }
 
 #' Create a duckdb table relation from a table name
@@ -502,6 +741,10 @@ rel_to_csv <- function(rel, file_name, options = list()) {
 
 rel_to_table <- function(rel, schema_name, table_name, temporary) {
   rethrow_rapi_rel_to_table(rel, schema_name, table_name, temporary)
+}
+
+rel_to_view <- function(rel, schema_name, view_name, temporary) {
+  rethrow_rapi_rel_to_view(rel, schema_name, view_name, temporary)
 }
 
 rel_insert <- function(rel, schema_name, table_name) {

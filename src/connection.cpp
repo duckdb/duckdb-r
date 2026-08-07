@@ -1,7 +1,11 @@
 #include "cpp11/environment.hpp"
-#include "rapi.hpp"
-#include "r_progress_bar_display.hpp"
 #include "duckdb/main/client_context.hpp"
+#include "r_progress_bar_display.hpp"
+#include "rapi.hpp"
+
+// Avoid clash with TRUE and FALSE macros in older rtools
+#undef TRUE
+#undef FALSE
 
 using namespace duckdb;
 
@@ -54,18 +58,16 @@ static void SetDefaultConfigArguments(ClientContext &context) {
 	config.wait_time = 0;
 }
 
-[[cpp11::register]] duckdb::conn_eptr_t rapi_connect(duckdb::db_eptr_t dual) {
+[[cpp11::register]] duckdb::conn_eptr_t rapi_connect(duckdb::db_eptr_t dual, duckdb::ConvertOpts convert_opts) {
 	if (!dual || !dual.get()) {
-		cpp11::stop("rapi_connect: Invalid database reference");
+		rapi_error_with_context("rapi_connect", "Invalid database reference");
 	}
 	auto db = dual->get();
 	if (!db || !db->db) {
-		cpp11::stop("rapi_connect: Database already closed");
+		rapi_error_with_context("rapi_connect", "Database already closed");
 	}
 
-	auto conn_wrapper = new ConnWrapper();
-	conn_wrapper->conn = make_uniq<Connection>(*db->db);
-	conn_wrapper->db.swap(db);
+	auto conn_wrapper = make_uniq<ConnWrapper>(std::move(db), std::move(convert_opts));
 
 	// Set progress display config
 	auto &client_context = *conn_wrapper->conn->context;
@@ -77,7 +79,7 @@ static void SetDefaultConfigArguments(ClientContext &context) {
 	// as long as at least one connection to that database is open.
 	dual->unlock();
 
-	return conn_eptr_t(conn_wrapper);
+	return conn_eptr_t(conn_wrapper.release());
 }
 
 [[cpp11::register]] void rapi_disconnect(duckdb::conn_eptr_t conn) {
@@ -85,4 +87,32 @@ static void SetDefaultConfigArguments(ClientContext &context) {
 	if (conn_wrapper) {
 		delete conn_wrapper;
 	}
+}
+
+[[cpp11::register]] bool rapi_connection_valid(duckdb::conn_eptr_t conn) {
+	// Check connection validity without acquiring ClientContext locks
+	// This avoids the "ScopedInterruptHandler already active" issue when
+	// called from progress bar handlers or other contexts that already
+	// have interrupt protection
+	if (!conn || !conn.get()) {
+		return false;
+	}
+
+	auto conn_wrapper = conn.get();
+	if (!conn_wrapper) {
+		return false;
+	}
+
+	// Check if the connection object exists
+	if (!conn_wrapper->conn) {
+		return false;
+	}
+
+	// Check if the database wrapper is still valid
+	if (!conn_wrapper->db || !conn_wrapper->db->db) {
+		return false;
+	}
+
+	// All checks passed - connection appears valid
+	return true;
 }

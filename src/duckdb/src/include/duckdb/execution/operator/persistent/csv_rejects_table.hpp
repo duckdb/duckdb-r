@@ -1,3 +1,11 @@
+//===----------------------------------------------------------------------===//
+//                         DuckDB
+//
+// duckdb/execution/operator/persistent/csv_rejects_table.hpp
+//
+//
+//===----------------------------------------------------------------------===//
+
 #pragma once
 
 #include "duckdb/storage/object_cache.hpp"
@@ -38,6 +46,11 @@ public:
 
 	string GetObjectType() override {
 		return ObjectType();
+	}
+
+	// Rejects table records the overall error counts, which is relatively small and should not be evicted.
+	optional_idx GetEstimatedCacheMemory() const override {
+		return optional_idx {};
 	}
 
 private:

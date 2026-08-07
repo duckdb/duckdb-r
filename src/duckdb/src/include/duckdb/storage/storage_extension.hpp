@@ -8,9 +8,6 @@
 
 #pragma once
 
-#include "duckdb/common/common.hpp"
-#include "duckdb/common/enums/access_mode.hpp"
-#include "duckdb/parser/tableref/table_function_ref.hpp"
 #include "duckdb/storage/storage_manager.hpp"
 
 namespace duckdb {
@@ -25,10 +22,10 @@ struct StorageExtensionInfo {
 	}
 };
 
-typedef unique_ptr<Catalog> (*attach_function_t)(StorageExtensionInfo *storage_info, ClientContext &context,
-                                                 AttachedDatabase &db, const string &name, AttachInfo &info,
-                                                 AccessMode access_mode);
-typedef unique_ptr<TransactionManager> (*create_transaction_manager_t)(StorageExtensionInfo *storage_info,
+typedef unique_ptr<Catalog> (*attach_function_t)(optional_ptr<StorageExtensionInfo> storage_info,
+                                                 ClientContext &context, AttachedDatabase &db, const string &name,
+                                                 AttachInfo &info, AttachOptions &options);
+typedef unique_ptr<TransactionManager> (*create_transaction_manager_t)(optional_ptr<StorageExtensionInfo> storage_info,
                                                                        AttachedDatabase &db, Catalog &catalog);
 
 class StorageExtension {
@@ -47,6 +44,13 @@ public:
 
 	virtual void OnCheckpointEnd(AttachedDatabase &db, CheckpointOptions checkpoint_options) {
 	}
+
+	static optional_ptr<StorageExtension> Find(const DBConfig &config, const string &extension_name);
+	static void Register(DBConfig &config, const string &extension_name, shared_ptr<StorageExtension> extension);
+};
+
+struct OpenFileStorageExtension {
+	static shared_ptr<StorageExtension> Create();
 };
 
 } // namespace duckdb

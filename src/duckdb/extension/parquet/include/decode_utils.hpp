@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "duckdb/common/fast_mem.hpp"
 #include "duckdb/common/bitpacking.hpp"
 #include "resizable_buffer.hpp"
 
@@ -35,6 +36,11 @@ public:
 	static void BitUnpack(ByteBuffer &src, bitpacking_width_t &bitpack_pos, T *dst, idx_t count,
 	                      const bitpacking_width_t width) {
 		CheckWidth(width);
+		if (width > sizeof(T) * BITPACK_DLEN) {
+			throw IOException("The width (%d) of the bitpacked data exceeds the maximum width (%d) for "
+			                  "the target type, the file might be corrupted.",
+			                  width, sizeof(T) * BITPACK_DLEN);
+		}
 		const auto mask = BITPACK_MASKS[width];
 		src.available(count * width / BITPACK_DLEN); // check if buffer has enough space available once
 		if (bitpack_pos == 0 && count >= BitpackingPrimitives::BITPACKING_ALGORITHM_GROUP_SIZE) {
@@ -58,6 +64,25 @@ public:
 		}
 	}
 
+	static void Skip(ByteBuffer &src, bitpacking_width_t &bitpack_pos, idx_t count, const bitpacking_width_t width) {
+		CheckWidth(width);
+		src.available(count * width / BITPACK_DLEN); // check if buffer has enough space available once
+		if (bitpack_pos == 0 && count >= BitpackingPrimitives::BITPACKING_ALGORITHM_GROUP_SIZE) {
+			idx_t remainder = count % BitpackingPrimitives::BITPACKING_ALGORITHM_GROUP_SIZE;
+			idx_t aligned_count = count - remainder;
+			SkipAligned(src, aligned_count, width);
+			count = remainder;
+		}
+		// FIXME: we should be able to just do this in one go instead of having this loop
+		for (idx_t i = 0; i < count; i++) {
+			bitpack_pos += width;
+			while (bitpack_pos > BITPACK_DLEN) {
+				src.unsafe_inc(1);
+				bitpack_pos -= BITPACK_DLEN;
+			}
+		}
+	}
+
 	template <class T>
 	static void BitPackAligned(T *src, data_ptr_t dst, const idx_t count, const bitpacking_width_t width) {
 		D_ASSERT(width < BITPACK_MASKS_SIZE);
@@ -67,14 +92,28 @@ public:
 
 	template <class T>
 	static void BitUnpackAlignedInternal(ByteBuffer &src, T *dst, const idx_t count, const bitpacking_width_t width) {
+		D_ASSERT(count % BitpackingPrimitives::BITPACKING_ALGORITHM_GROUP_SIZE == 0);
+		if (width > sizeof(T) * BITPACK_DLEN) {
+			throw IOException("The width (%d) of the bitpacked data exceeds the maximum width (%d) for "
+			                  "the target type, the file might be corrupted.",
+			                  width, sizeof(T) * BITPACK_DLEN);
+		}
+
+		if (cast_pointer_to_uint64(src.ptr) % sizeof(T) == 0) {
+			// Fast path: aligned
+			BitpackingPrimitives::UnPackBuffer<T>(data_ptr_cast(dst), src.ptr, count, width);
+			src.unsafe_inc(count * width / BITPACK_DLEN);
+			return;
+		}
+
 		for (idx_t i = 0; i < count; i += BitpackingPrimitives::BITPACKING_ALGORITHM_GROUP_SIZE) {
-			const auto next_read = BitpackingPrimitives::BITPACKING_ALGORITHM_GROUP_SIZE * width / 8;
+			const auto next_read = BitpackingPrimitives::BITPACKING_ALGORITHM_GROUP_SIZE * width / BITPACK_DLEN;
 
 			// Buffer for alignment
 			T aligned_data[BitpackingPrimitives::BITPACKING_ALGORITHM_GROUP_SIZE];
 
 			// Copy over to aligned buffer
-			memcpy(aligned_data, src.ptr, next_read);
+			FastMemcpy(aligned_data, src.ptr, next_read);
 
 			// Unpack
 			BitpackingPrimitives::UnPackBlock<T>(data_ptr_cast(dst), data_ptr_cast(aligned_data), width, true);
@@ -94,6 +133,16 @@ public:
 		const auto read_size = count * width / BITPACK_DLEN;
 		src.available(read_size); // check if buffer has enough space available once
 		BitUnpackAlignedInternal(src, dst, count, width);
+	}
+
+	static void SkipAligned(ByteBuffer &src, const idx_t count, const bitpacking_width_t width) {
+		CheckWidth(width);
+		if (count % BitpackingPrimitives::BITPACKING_ALGORITHM_GROUP_SIZE != 0) {
+			throw InvalidInputException("Aligned bitpacking count must be a multiple of %llu",
+			                            BitpackingPrimitives::BITPACKING_ALGORITHM_GROUP_SIZE);
+		}
+		const auto read_size = count * width / BITPACK_DLEN;
+		src.inc(read_size);
 	}
 
 	//===--------------------------------------------------------------------===//
@@ -157,12 +206,17 @@ public:
 		} while (val != 0);
 	}
 
-	template <class T>
+	template <class T, bool CHECKED = true>
 	static T VarintDecode(ByteBuffer &buf) {
 		T result = 0;
 		uint8_t shift = 0;
 		while (true) {
-			auto byte = buf.read<uint8_t>();
+			uint8_t byte;
+			if (CHECKED) {
+				byte = buf.read<uint8_t>();
+			} else {
+				byte = buf.unsafe_read<uint8_t>();
+			}
 			result |= T(byte & 127) << shift;
 			if ((byte & 128) == 0) {
 				break;

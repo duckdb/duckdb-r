@@ -78,12 +78,28 @@ or \code{n = Inf}
 to retrieve all pending records.  Some implementations may recognize other
 special values.}
 
-\item{dbObj}{An object inheriting from class \linkS4class{duckdb_result}.}
+\item{dbObj}{An object inheriting from class \link[=duckdb_result-class]{duckdb_result}.}
 
 \item{object}{Any R object}
 }
 \description{
 Methods for accessing result sets for queries on DuckDB connections.
-Implements \link[DBI:DBIResult-class]{DBI::DBIResult}.
+Implements \link[DBI:DBIResult-class]{DBIResult}.
 }
+\section{Slots}{
+
+\describe{
+\item{\code{connection}}{the \link[=duckdb_connection-class]{duckdb_connection} the query was executed on.}
+
+\item{\code{stmt_lst}}{internal list describing the prepared statement (names,
+types, ...).}
+
+\item{\code{env}}{environment holding the result's mutable fetch state.}
+
+\item{\code{arrow}}{whether the result is fetched via Arrow.}
+
+\item{\code{query_result}}{external pointer to the underlying materialized query
+result.}
+}}
+
 \keyword{internal}

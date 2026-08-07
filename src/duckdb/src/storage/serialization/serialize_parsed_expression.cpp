@@ -75,6 +75,9 @@ unique_ptr<ParsedExpression> ParsedExpression::Deserialize(Deserializer &deseria
 	case ExpressionClass::SUBQUERY:
 		result = SubqueryExpression::Deserialize(deserializer);
 		break;
+	case ExpressionClass::TYPE:
+		result = TypeExpression::Deserialize(deserializer);
+		break;
 	case ExpressionClass::WINDOW:
 		result = WindowExpression::Deserialize(deserializer);
 		break;
@@ -230,12 +233,16 @@ void LambdaExpression::Serialize(Serializer &serializer) const {
 	ParsedExpression::Serialize(serializer);
 	serializer.WritePropertyWithDefault<unique_ptr<ParsedExpression>>(200, "lhs", lhs);
 	serializer.WritePropertyWithDefault<unique_ptr<ParsedExpression>>(201, "expr", expr);
+	if (serializer.ShouldSerialize(5)) {
+		serializer.WritePropertyWithDefault<LambdaSyntaxType>(202, "syntax_type", syntax_type, LambdaSyntaxType::SINGLE_ARROW_STORAGE);
+	}
 }
 
 unique_ptr<ParsedExpression> LambdaExpression::Deserialize(Deserializer &deserializer) {
 	auto result = duckdb::unique_ptr<LambdaExpression>(new LambdaExpression());
 	deserializer.ReadPropertyWithDefault<unique_ptr<ParsedExpression>>(200, "lhs", result->lhs);
 	deserializer.ReadPropertyWithDefault<unique_ptr<ParsedExpression>>(201, "expr", result->expr);
+	deserializer.ReadPropertyWithExplicitDefault<LambdaSyntaxType>(202, "syntax_type", result->syntax_type, LambdaSyntaxType::SINGLE_ARROW_STORAGE);
 	return std::move(result);
 }
 
@@ -292,7 +299,7 @@ void StarExpression::Serialize(Serializer &serializer) const {
 	serializer.WritePropertyWithDefault<case_insensitive_map_t<unique_ptr<ParsedExpression>>>(202, "replace_list", replace_list);
 	serializer.WritePropertyWithDefault<bool>(203, "columns", columns);
 	serializer.WritePropertyWithDefault<unique_ptr<ParsedExpression>>(204, "expr", expr);
-	serializer.WritePropertyWithDefault<bool>(205, "unpacked", unpacked, false);
+	/* [Deleted] (bool) "unpacked" */
 	serializer.WritePropertyWithDefault<qualified_column_set_t>(206, "qualified_exclude_list", SerializedQualifiedExcludeList(), qualified_column_set_t());
 	serializer.WritePropertyWithDefault<qualified_column_map_t<string>>(207, "rename_list", rename_list, qualified_column_map_t<string>());
 }
@@ -305,14 +312,9 @@ unique_ptr<ParsedExpression> StarExpression::Deserialize(Deserializer &deseriali
 	auto expr = deserializer.ReadPropertyWithDefault<unique_ptr<ParsedExpression>>(204, "expr");
 	auto unpacked = deserializer.ReadPropertyWithExplicitDefault<bool>(205, "unpacked", false);
 	auto qualified_exclude_list = deserializer.ReadPropertyWithExplicitDefault<qualified_column_set_t>(206, "qualified_exclude_list", qualified_column_set_t());
-	auto result = duckdb::unique_ptr<StarExpression>(new StarExpression(exclude_list, qualified_exclude_list));
-	result->relation_name = std::move(relation_name);
-	result->replace_list = std::move(replace_list);
-	result->columns = columns;
-	result->expr = std::move(expr);
-	result->unpacked = unpacked;
-	deserializer.ReadPropertyWithExplicitDefault<qualified_column_map_t<string>>(207, "rename_list", result->rename_list, qualified_column_map_t<string>());
-	return std::move(result);
+	auto rename_list = deserializer.ReadPropertyWithExplicitDefault<qualified_column_map_t<string>>(207, "rename_list", qualified_column_map_t<string>());
+	auto result = StarExpression::DeserializeStarExpression(std::move(relation_name), exclude_list, std::move(replace_list), columns, std::move(expr), unpacked, qualified_exclude_list, std::move(rename_list));
+	return result;
 }
 
 void SubqueryExpression::Serialize(Serializer &serializer) const {
@@ -329,6 +331,23 @@ unique_ptr<ParsedExpression> SubqueryExpression::Deserialize(Deserializer &deser
 	deserializer.ReadPropertyWithDefault<unique_ptr<SelectStatement>>(201, "subquery", result->subquery);
 	deserializer.ReadPropertyWithDefault<unique_ptr<ParsedExpression>>(202, "child", result->child);
 	deserializer.ReadProperty<ExpressionType>(203, "comparison_type", result->comparison_type);
+	return std::move(result);
+}
+
+void TypeExpression::Serialize(Serializer &serializer) const {
+	ParsedExpression::Serialize(serializer);
+	serializer.WritePropertyWithDefault<string>(200, "catalog", catalog);
+	serializer.WritePropertyWithDefault<string>(201, "schema", schema);
+	serializer.WritePropertyWithDefault<string>(202, "type_name", type_name);
+	serializer.WritePropertyWithDefault<vector<unique_ptr<ParsedExpression>>>(203, "children", children);
+}
+
+unique_ptr<ParsedExpression> TypeExpression::Deserialize(Deserializer &deserializer) {
+	auto result = duckdb::unique_ptr<TypeExpression>(new TypeExpression());
+	deserializer.ReadPropertyWithDefault<string>(200, "catalog", result->catalog);
+	deserializer.ReadPropertyWithDefault<string>(201, "schema", result->schema);
+	deserializer.ReadPropertyWithDefault<string>(202, "type_name", result->type_name);
+	deserializer.ReadPropertyWithDefault<vector<unique_ptr<ParsedExpression>>>(203, "children", result->children);
 	return std::move(result);
 }
 

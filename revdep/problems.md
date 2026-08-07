@@ -1,50 +1,40 @@
-# starwarsdb
+# GeoTox (1.0.0)
 
-<details>
+* GitHub: <https://github.com/NIEHS/GeoTox>
+* Email: <mailto:skylar.marvel@nih.gov>
+* GitHub mirror: <https://github.com/cran/GeoTox>
 
-* Version: 0.1.2
-* GitHub: https://github.com/gadenbuie/starwarsdb
-* Source code: https://github.com/cran/starwarsdb
-* Date/Publication: 2020-11-02 23:50:02 UTC
-* Number of recursive dependencies: 51
-
-Run `revdepcheck::cloud_details(, "starwarsdb")` for more info
-
-</details>
+Run `revdepcheck::cloud_details(, "GeoTox")` for more info
 
 ## Newly broken
 
 *   checking tests ... ERROR
-    ```
-      Running ‘testthat.R’
-    Running the tests in ‘tests/testthat.R’ failed.
-    Complete output:
-      > library(testthat)
-      > library(starwarsdb)
-      > 
-      > test_check("starwarsdb")
-      [ FAIL 1 | WARN 1 | SKIP 0 | PASS 32 ]
-      
-      ══ Failed tests ════════════════════════════════════════════════════════════════
-      ── Failure ('test-connect.R:3:3'): connects and disconnects to duckdb in memory ──
-      con@driver@dbdir not equal to ":memory:".
-      1/1 mismatches
-      x[1]: ""
-      y[1]: ":memory:"
-      
-      [ FAIL 1 | WARN 1 | SKIP 0 | PASS 32 ]
-      Error: Test failures
-      In addition: Warning messages:
-      1: Database is garbage-collected, use dbConnect(duckdb()) with dbDisconnect(), or duckdb::duckdb_shutdown(drv) to avoid this. 
-      2: Database is garbage-collected, use dbConnect(duckdb()) with dbDisconnect(), or duckdb::duckdb_shutdown(drv) to avoid this. 
-      3: Database is garbage-collected, use dbConnect(duckdb()) with dbDisconnect(), or duckdb::duckdb_shutdown(drv) to avoid this. 
-      Execution halted
-    ```
-
-## In both
-
-*   checking data for non-ASCII characters ... NOTE
-    ```
-      Note: found 14 marked UTF-8 strings
-    ```
+     ```
+     ...
+       i Run duckdb(shared_home = TRUE) (or create ~/.duckdb) to keep them (suitable for most users).
+       i Run duckdb(shared_home = FALSE) to accept the temporary directory (and silence this message).
+       i See ?duckdb_storage for details and alternatives.
+       Saving _problems/test-calc_sensitivity-84.R
+       The duckplyr package is configured to fall back to dplyr when it encounters an incompatibility. Fallback events can be collected and uploaded for analysis to guide future development. By default, data will be collected but no data will be uploaded.
+       i Automatic fallback uploading is not controlled and therefore disabled, see `?duckplyr::fallback()`.
+       v Number of reports ready for upload: 3.
+       > Review with `duckplyr::fallback_review()`, upload with `duckplyr::fallback_upload()`.
+       i Configure automatic uploading with `duckplyr::fallback_config()`.
+       [ FAIL 1 | WARN 0 | SKIP 6 | PASS 224 ]
+       
+       ══ Skipped tests (6) ═══════════════════════════════════════════════════════════
+       • On CRAN (6): 'test-calc_response.R:1:1', 'test-calc_response.R:61:1',
+         'test-calc_risk.R:125:1', 'test-calc_sensitivity.R:26:1',
+         'test-calc_sensitivity.R:102:1', 'test-sensitivity_analysis.R:1:1'
+       
+       ══ Failed tests ════════════════════════════════════════════════════════════════
+       ── Failure ('test-calc_sensitivity.R:82:3'): calc sensitivity ──────────────────
+       Expected `calc_sensitivity(GT)` to run silently.
+       Actual noise: messages.
+       
+       [ FAIL 1 | WARN 0 | SKIP 6 | PASS 224 ]
+       Error:
+       ! Test failures.
+       Execution halted
+     ```
 

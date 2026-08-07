@@ -4,6 +4,8 @@
 
 #include "src/execution/operator/csv_scanner/sniffer/header_detection.cpp"
 
+#include "src/execution/operator/csv_scanner/sniffer/set_columns.cpp"
+
 #include "src/execution/operator/csv_scanner/sniffer/type_detection.cpp"
 
 #include "src/execution/operator/csv_scanner/sniffer/type_refinement.cpp"

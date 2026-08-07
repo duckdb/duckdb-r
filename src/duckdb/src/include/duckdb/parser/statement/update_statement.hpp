@@ -22,6 +22,7 @@ public:
 
 public:
 	unique_ptr<UpdateSetInfo> Copy() const;
+	string ToString() const;
 
 public:
 	// The condition that needs to be met to perform the update
@@ -49,6 +50,8 @@ public:
 	unique_ptr<UpdateSetInfo> set_info;
 	//! CTEs
 	CommonTableExpressionMap cte_map;
+	//! bind the same way as `ALTER TABLE` expressions, (where the catalog the table is in is preferred)
+	bool prioritize_table_when_binding;
 
 protected:
 	UpdateStatement(const UpdateStatement &other);

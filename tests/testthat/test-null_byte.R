@@ -1,5 +1,4 @@
 test_that("test null bytes in strings", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
   expect_error(dbGetQuery(con, "SELECT chr(0)"))
 })

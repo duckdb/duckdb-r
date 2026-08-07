@@ -8,6 +8,9 @@
 #ifndef FMT_CORE_H_
 #define FMT_CORE_H_
 
+#include "duckdb/common/hugeint.hpp"
+#include "duckdb/common/uhugeint.hpp"
+
 #include <cstdio>  // std::FILE
 #include <cstring>
 #include <iterator>
@@ -223,7 +226,20 @@ template <typename... Ts> struct void_t_impl { using type = void; };
 #endif
 
 #if defined(FMT_USE_STRING_VIEW)
-template <typename Char> using std_string_view = std::basic_string_view<Char>;
+// Use a struct rather than a plain alias so that SFINAE with non-standard char
+// types (e.g. arg_formatter) does not instantiate
+// std::basic_string_view<T>, which triggers a deprecated char_traits<T>
+// warning in libc++ when T is not one of char/wchar_t/char16_t/char32_t.
+template <typename Char, bool = std::is_same<Char, char>::value ||
+                                std::is_same<Char, wchar_t>::value ||
+                                std::is_same<Char, char16_t>::value ||
+                                std::is_same<Char, char32_t>::value>
+struct std_string_view_base {};
+template <typename Char>
+struct std_string_view_base<Char, true> : std::basic_string_view<Char> {
+  using std::basic_string_view<Char>::basic_string_view;
+};
+template <typename Char> using std_string_view = std_string_view_base<Char>;
 #elif defined(FMT_USE_EXPERIMENTAL_STRING_VIEW)
 template <typename Char>
 using std_string_view = std::experimental::basic_string_view<Char>;
@@ -231,18 +247,15 @@ using std_string_view = std::experimental::basic_string_view<Char>;
 template <typename T> struct std_string_view {};
 #endif
 
+using int128_t = duckdb::hugeint_t;
+using uint128_t = duckdb::uhugeint_t;
+
 #ifdef FMT_USE_INT128
 // Do nothing.
 #elif defined(__SIZEOF_INT128__)
 #  define FMT_USE_INT128 1
-using int128_t = __int128_t;
-using uint128_t = __uint128_t;
 #else
 #  define FMT_USE_INT128 0
-#endif
-#if !FMT_USE_INT128
-struct int128_t {};
-struct uint128_t {};
 #endif
 
 // Casts a nonnegative integer to unsigned.
@@ -295,11 +308,26 @@ template <typename Char> class basic_string_view {
       : data_(s.data()),
         size_(s.size()) {}
 
-  template <
-      typename S,
-      FMT_ENABLE_IF(std::is_same<S, internal::std_string_view<Char>>::value)>
-  FMT_CONSTEXPR basic_string_view(S s) FMT_NOEXCEPT : data_(s.data()),
-                                                      size_(s.size()) {}
+  /** Constructs a string reference from a ``std::basic_string_view`` object. */
+  // Traits is deduced rather than defaulted, so that declaring this constructor
+  // never names std::char_traits<Char>. libc++ deprecates char_traits<T> for T
+  // other than the standard character types, and that warning is not suppressed
+  // by SFINAE -- it fires whenever basic_string_view<Char> is instantiated with
+  // a non-character Char during overload resolution. This mirrors the
+  // std::basic_string constructor above.
+  // See duckdb-internal/9978
+#if defined(FMT_USE_STRING_VIEW)
+  template <typename Traits>
+  FMT_CONSTEXPR basic_string_view(
+      std::basic_string_view<Char, Traits> s) FMT_NOEXCEPT : data_(s.data()),
+                                                             size_(s.size()) {}
+#elif defined(FMT_USE_EXPERIMENTAL_STRING_VIEW)
+  template <typename Traits>
+  FMT_CONSTEXPR basic_string_view(
+      std::experimental::basic_string_view<Char, Traits> s) FMT_NOEXCEPT
+      : data_(s.data()),
+        size_(s.size()) {}
+#endif
 
   /** Returns a pointer to the string data. */
   FMT_CONSTEXPR const Char* data() const { return data_; }
@@ -394,12 +422,25 @@ inline basic_string_view<Char> to_string_view(basic_string_view<Char> s) {
   return s;
 }
 
-template <typename Char,
-          FMT_ENABLE_IF(!std::is_empty<internal::std_string_view<Char>>::value)>
+// Traits is deduced rather than defaulted so that forming the parameter type
+// never names std::char_traits<Char>. Deducing it lets substitution fail on the
+// shape of the argument instead, before char_traits<Char> is instantiated --
+// libc++ deprecates char_traits<T> for T other than the standard character
+// types, and that deprecation warning is not suppressed by SFINAE.
+// See duckdb-internal/9978
+#if defined(FMT_USE_STRING_VIEW)
+template <typename Char, typename Traits>
 inline basic_string_view<Char> to_string_view(
-    internal::std_string_view<Char> s) {
+    std::basic_string_view<Char, Traits> s) {
   return s;
 }
+#elif defined(FMT_USE_EXPERIMENTAL_STRING_VIEW)
+template <typename Char, typename Traits>
+inline basic_string_view<Char> to_string_view(
+    std::experimental::basic_string_view<Char, Traits> s) {
+  return s;
+}
+#endif
 
 // A base class for compile-time strings. It is defined in the fmt namespace to
 // make formatting functions visible via ADL, e.g. format(fmt("{}"), 42).
@@ -1004,16 +1045,10 @@ FMT_CONSTEXPR auto visit_format_arg(Visitor&& vis,
     return vis(arg.value_.long_long_value);
   case internal::ulong_long_type:
     return vis(arg.value_.ulong_long_value);
-#if FMT_USE_INT128
   case internal::int128_type:
     return vis(arg.value_.int128_value);
   case internal::uint128_type:
     return vis(arg.value_.uint128_value);
-#else
-  case internal::int128_type:
-  case internal::uint128_type:
-    break;
-#endif
   case internal::bool_type:
     return vis(arg.value_.bool_value);
   case internal::char_type:

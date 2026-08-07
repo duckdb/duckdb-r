@@ -7,7 +7,7 @@
 \alias{simulate_duckdb}
 \title{DuckDB SQL backend for dbplyr}
 \usage{
-tbl_file(src, path, ..., cache = FALSE)
+tbl_file(src = NULL, path, ..., cache = FALSE)
 
 tbl_function(src, query, ..., cache = FALSE)
 
@@ -16,7 +16,7 @@ tbl_query(src, query, ...)
 simulate_duckdb(...)
 }
 \arguments{
-\item{src}{A duckdb connection object}
+\item{src}{A duckdb connection object, \code{\link[=default_conn]{default_conn()}} if omitted.}
 
 \item{path}{Path to existing Parquet, CSV or JSON file}
 
@@ -49,7 +49,7 @@ Use \code{simulate_duckdb()} with \code{lazy_frame()}
 to see simulated SQL without opening a DuckDB connection.
 }
 \examples{
-\dontshow{if (duckdb:::TEST_RE2 && rlang::is_installed("dbplyr")) withAutoprint(\{ # examplesIf}
+\dontshow{if (identical(Sys.getenv("IN_PKGDOWN"), "true") && rlang::is_installed("dbplyr")) withAutoprint(\{ # examplesIf}
 library(dplyr, warn.conflicts = FALSE)
 con <- DBI::dbConnect(duckdb(), path = ":memory:")
 

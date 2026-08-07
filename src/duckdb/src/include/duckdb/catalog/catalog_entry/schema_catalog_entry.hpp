@@ -10,7 +10,7 @@
 
 #include "duckdb/catalog/catalog_entry.hpp"
 #include "duckdb/catalog/catalog_set.hpp"
-#include "duckdb/parser/query_error_context.hpp"
+#include "duckdb/catalog/entry_lookup_info.hpp"
 
 namespace duckdb {
 class ClientContext;
@@ -26,6 +26,7 @@ struct AlterTableInfo;
 struct CreateIndexInfo;
 struct CreateFunctionInfo;
 struct CreateCollationInfo;
+struct CreateCoordinateSystemInfo;
 struct CreateViewInfo;
 struct BoundCreateTableInfo;
 struct CreatePragmaFunctionInfo;
@@ -80,15 +81,25 @@ public:
 	                                                        CreatePragmaFunctionInfo &info) = 0;
 	//! Create a collation within the given schema
 	virtual optional_ptr<CatalogEntry> CreateCollation(CatalogTransaction transaction, CreateCollationInfo &info) = 0;
+	//! Create a coordiante system within the given schema
+	virtual optional_ptr<CatalogEntry> CreateCoordinateSystem(CatalogTransaction transaction,
+	                                                          CreateCoordinateSystemInfo &info) {
+		throw NotImplementedException("Coordinate systems are not supported in schema '%s'", name);
+	}
+
 	//! Create a enum within the given schema
 	virtual optional_ptr<CatalogEntry> CreateType(CatalogTransaction transaction, CreateTypeInfo &info) = 0;
 
-	DUCKDB_API virtual optional_ptr<CatalogEntry> GetEntry(CatalogTransaction transaction, CatalogType type,
-	                                                       const string &name) = 0;
-	DUCKDB_API virtual CatalogSet::EntryLookup GetEntryDetailed(CatalogTransaction transaction, CatalogType type,
-	                                                            const string &name);
-	DUCKDB_API virtual SimilarCatalogEntry GetSimilarEntry(CatalogTransaction transaction, CatalogType type,
-	                                                       const string &name);
+	//! Lookup an entry in the schema
+	DUCKDB_API virtual optional_ptr<CatalogEntry> LookupEntry(CatalogTransaction transaction,
+	                                                          const EntryLookupInfo &lookup_info) = 0;
+	DUCKDB_API virtual CatalogSet::EntryLookup LookupEntryDetailed(CatalogTransaction transaction,
+	                                                               const EntryLookupInfo &lookup_info);
+	DUCKDB_API virtual SimilarCatalogEntry GetSimilarEntry(CatalogTransaction transaction,
+	                                                       const EntryLookupInfo &lookup_info);
+
+	DUCKDB_API optional_ptr<CatalogEntry> GetEntry(CatalogTransaction transaction, CatalogType type,
+	                                               const string &name);
 
 	//! Drops an entry from the schema
 	virtual void DropEntry(ClientContext &context, DropInfo &info) = 0;

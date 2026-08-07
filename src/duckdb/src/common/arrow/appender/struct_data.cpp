@@ -18,13 +18,13 @@ void ArrowStructData::Append(ArrowAppendData &append_data, Vector &input, idx_t 
 	UnifiedVectorFormat format;
 	input.ToUnifiedFormat(input_size, format);
 	idx_t size = to - from;
-	AppendValidity(append_data, format, from, to);
+	append_data.AppendValidity(format, from, to);
 	// append the children of the struct
 	auto &children = StructVector::GetEntries(input);
 	for (idx_t child_idx = 0; child_idx < children.size(); child_idx++) {
 		auto &child = children[child_idx];
 		auto &child_data = *append_data.child_data[child_idx];
-		child_data.append_vector(child_data, *child, from, to, size);
+		child_data.AppendChild(*child, from, to, input_size);
 	}
 	append_data.row_count += size;
 }

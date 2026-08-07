@@ -35,6 +35,11 @@ public:
 		return std::move(statistics_map);
 	}
 
+	//! Whether or not we can propagate a cast between two types
+	static bool CanPropagateCast(const LogicalType &source, const LogicalType &target);
+	static unique_ptr<BaseStatistics> TryPropagateCast(const BaseStatistics &stats, const LogicalType &source,
+	                                                   const LogicalType &target);
+
 private:
 	//! Propagate statistics through an operator
 	unique_ptr<NodeStatistics> PropagateStatistics(LogicalOperator &node, unique_ptr<LogicalOperator> &node_ptr);
@@ -70,11 +75,13 @@ private:
 	void UpdateFilterStatistics(Expression &condition);
 	//! Set the statistics of a specific column binding to not contain null values
 	void SetStatisticsNotNull(ColumnBinding binding);
+	//! Propagate a filter condition
+	FilterPropagateResult HandleFilter(unique_ptr<Expression> &condition);
 
 	//! Run a comparison between the statistics and the table filter; returns the prune result
-	FilterPropagateResult PropagateTableFilter(BaseStatistics &stats, TableFilter &filter);
+	FilterPropagateResult PropagateTableFilter(ColumnBinding stats_binding, BaseStatistics &stats, TableFilter &filter);
 	//! Update filter statistics from a TableFilter
-	void UpdateFilterStatistics(BaseStatistics &input, TableFilter &filter);
+	void UpdateFilterStatistics(BaseStatistics &input, const TableFilter &filter);
 
 	//! Add cardinalities together (i.e. new max is stats.max + new_stats.max): used for union
 	void AddCardinalities(unique_ptr<NodeStatistics> &stats, NodeStatistics &new_stats);
@@ -105,6 +112,8 @@ private:
 
 	bool ExpressionIsConstant(Expression &expr, const Value &val);
 	bool ExpressionIsConstantOrNull(Expression &expr, const Value &val);
+
+	unique_ptr<NodeStatistics> PropagateUnion(LogicalSetOperation &setop, unique_ptr<LogicalOperator> &node_ptr);
 
 private:
 	Optimizer &optimizer;

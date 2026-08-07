@@ -2,16 +2,10 @@
 #' @inheritParams DBI::dbIsValid
 #' @usage NULL
 dbIsValid__duckdb_connection <- function(dbObj, ...) {
-  valid <- FALSE
-  tryCatch(
-    {
-      dbGetQuery(dbObj, SQL("SELECT 1"))
-      valid <- TRUE
-    },
-    error = function(c) {
-    }
-  )
-  valid
+  # Use fast C++ connection validity check instead of executing SELECT 1
+  # This avoids deadlock issues when called from progress bar handlers
+  # that already have ScopedInterruptHandler protection
+  rethrow_rapi_connection_valid(dbObj@conn_ref)
 }
 
 #' @rdname duckdb_connection-class

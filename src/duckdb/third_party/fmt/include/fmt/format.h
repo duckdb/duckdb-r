@@ -34,6 +34,8 @@
 #define FMT_FORMAT_H_
 
 #include "duckdb/common/exception.hpp"
+#include "duckdb/common/limits.hpp"
+#include "duckdb/original/std/memory.hpp"
 #include "fmt/core.h"
 
 #include <algorithm>
@@ -43,6 +45,12 @@
 #include <limits>
 #include <memory>
 #include <stdexcept>
+
+#ifndef DUCKDB_BASE_STD
+namespace duckdb_base_std {
+	using ::std::unique_ptr;
+}
+#endif
 
 #ifdef __clang__
 #  define FMT_CLANG_VERSION (__clang_major__ * 100 + __clang_minor__)
@@ -247,8 +255,20 @@ inline fallback_uintptr to_uintptr(const void* p) {
 template <typename T> constexpr T max_value() {
   return (std::numeric_limits<T>::max)();
 }
+template <> constexpr int128_t max_value<int128_t>() {
+  return duckdb::NumericLimits<int128_t>::Maximum();
+}
+template <> constexpr uint128_t max_value<uint128_t>() {
+  return duckdb::NumericLimits<uint128_t>::Maximum();
+}
 template <typename T> constexpr int num_bits() {
   return std::numeric_limits<T>::digits;
+}
+template <> constexpr int num_bits<int128_t>() {
+  return 127;
+}
+template <> constexpr int num_bits<uint128_t>() {
+  return 128;
 }
 template <> constexpr int num_bits<fallback_uintptr>() {
   return static_cast<int>(sizeof(void*) *
@@ -301,24 +321,13 @@ inline typename Container::value_type* get_data(Container& c) {
   return c.data();
 }
 
-#ifdef _SECURE_SCL
-// Make a checked iterator to avoid MSVC warnings.
-template <typename T> using checked_ptr = stdext::checked_array_iterator<T*>;
-template <typename T> checked_ptr<T> make_checked(T* p, std::size_t size) {
-  return {p, size};
-}
-#else
-template <typename T> using checked_ptr = T*;
-template <typename T> inline T* make_checked(T* p, std::size_t) { return p; }
-#endif
-
 template <typename Container, FMT_ENABLE_IF(is_contiguous<Container>::value)>
-inline checked_ptr<typename Container::value_type> reserve(
+inline typename Container::value_type* reserve(
     std::back_insert_iterator<Container>& it, std::size_t n) {
   Container& c = get_container(it);
   std::size_t size = c.size();
   c.resize(size + n);
-  return make_checked(get_data(c) + size, n);
+  return get_data(c) + size;
 }
 
 template <typename Iterator>
@@ -520,7 +529,7 @@ template <typename U>
 void buffer<T>::append(const U* begin, const U* end) {
   std::size_t new_size = size_ + to_unsigned(end - begin);
   reserve(new_size);
-  std::uninitialized_copy(begin, end, make_checked(ptr_, capacity_) + size_);
+  std::uninitialized_copy(begin, end, ptr_ + size_);
   size_ = new_size;
 }
 }  // namespace internal
@@ -548,7 +557,7 @@ class u8string_view : public basic_string_view<fmt_char8_t> {
 
 #if FMT_USE_USER_DEFINED_LITERALS
 inline namespace literals {
-inline u8string_view operator"" _u(const char* s, std::size_t n) {
+inline u8string_view operator""_u(const char* s, std::size_t n) {
   return {s, n};
 }
 }  // namespace literals
@@ -622,7 +631,7 @@ class basic_memory_buffer : private Allocator, public internal::buffer<T> {
     if (data == other.store_) {
       this->set(store_, capacity);
       std::uninitialized_copy(other.store_, other.store_ + size,
-                              internal::make_checked(store_, capacity));
+                              store_);
     } else {
       this->set(data, capacity);
       // Set pointer to the inline array so that delete is not called
@@ -669,7 +678,7 @@ void basic_memory_buffer<T, SIZE, Allocator>::grow(std::size_t size) {
   T* new_data = std::allocator_traits<Allocator>::allocate(*this, new_capacity);
   // The following code doesn't throw, so the raw pointer above doesn't leak.
   std::uninitialized_copy(old_data, old_data + this->size(),
-                          internal::make_checked(new_data, new_capacity));
+                          new_data);
   this->set(new_data, new_capacity);
   // deallocate must not throw according to the standard, but even if it does,
   // the buffer already uses the new storage and will deallocate it in
@@ -684,11 +693,11 @@ namespace internal {
 
 // Returns true if value is negative, false otherwise.
 // Same as `value < 0` but doesn't produce warnings if T is an unsigned type.
-template <typename T, FMT_ENABLE_IF(std::numeric_limits<T>::is_signed)>
+template <typename T, FMT_ENABLE_IF(std::numeric_limits<T>::is_signed || std::is_same<T, int128_t>::value)>
 FMT_CONSTEXPR bool is_negative(T value) {
   return value < 0;
 }
-template <typename T, FMT_ENABLE_IF(!std::numeric_limits<T>::is_signed)>
+template <typename T, FMT_ENABLE_IF(!std::numeric_limits<T>::is_signed && !std::is_same<T, int128_t>::value)>
 FMT_CONSTEXPR bool is_negative(T) {
   return false;
 }
@@ -696,9 +705,10 @@ FMT_CONSTEXPR bool is_negative(T) {
 // Smallest of uint32_t, uint64_t, uint128_t that is large enough to
 // represent all values of T.
 template <typename T>
-using uint32_or_64_or_128_t = conditional_t<
-    std::numeric_limits<T>::digits <= 32, uint32_t,
-    conditional_t<std::numeric_limits<T>::digits <= 64, uint64_t, uint128_t>>;
+using uint32_or_64_or_128_t =
+    conditional_t<std::is_same<T, int128_t>::value || std::is_same<T, uint128_t>::value, uint128_t,
+                  conditional_t<std::numeric_limits<T>::digits <= 32, uint32_t,
+                                conditional_t<std::numeric_limits<T>::digits <= 64, uint64_t, uint128_t>>>;
 
 // Static data is placed in this class template for the header-only config.
 template <typename T = void> struct FMT_EXTERN_TEMPLATE_API basic_data {
@@ -748,7 +758,6 @@ inline int count_digits(uint64_t n) {
 }
 #endif
 
-#if FMT_USE_INT128
 inline int count_digits(uint128_t n) {
   int count = 1;
   for (;;) {
@@ -763,7 +772,6 @@ inline int count_digits(uint128_t n) {
     count += 4;
   }
 }
-#endif
 
 // Counts the number of digits in n. BITS = log2(radix).
 template <unsigned BITS, typename UInt> inline int count_digits(UInt n) {
@@ -835,7 +843,7 @@ inline Char* format_decimal(Char* buffer, UInt value, int num_digits,
     add_thousands_sep(buffer);
   }
   if (value < 10) {
-    *--buffer = static_cast<Char>('0' + value);
+    *--buffer = static_cast<Char>('0' + static_cast<uint8_t>(value));
     return end;
   }
   auto index = static_cast<unsigned>(value * 2);
@@ -874,7 +882,7 @@ inline Char* format_uint(Char* buffer, UInt value, int num_digits,
   Char* end = buffer;
   do {
     const char* digits = upper ? "0123456789ABCDEF" : data::hex_digits;
-    unsigned digit = (value & ((1 << BASE_BITS) - 1));
+    unsigned digit = (static_cast<unsigned>(value) & ((1 << BASE_BITS) - 1));
     *--buffer = static_cast<Char>(BASE_BITS < 4 ? static_cast<char>('0' + digit)
                                                 : digits[digit]);
   } while ((value >>= BASE_BITS) != 0);
@@ -1448,7 +1456,7 @@ template <typename Range> class basic_writer {
       if (is_negative(value)) {
         prefix[0] = '-';
         ++prefix_size;
-        abs_value = 0 - abs_value;
+        abs_value = -abs_value;
       } else if (specs.sign != sign::none && specs.sign != sign::minus) {
         prefix[0] = specs.sign == sign::plus ? '+' : ' ';
         ++prefix_size;
@@ -1546,7 +1554,7 @@ template <typename Range> class basic_writer {
               }
               buffer -= s.size();
               std::uninitialized_copy(s.data(), s.data() + s.size(),
-                                      make_checked(buffer, s.size()));
+                                      buffer);
             });
       }
     };
@@ -1644,10 +1652,8 @@ template <typename Range> class basic_writer {
   void write(unsigned long value) { write_decimal(value); }
   void write(unsigned long long value) { write_decimal(value); }
 
-#if FMT_USE_INT128
   void write(int128_t value) { write_decimal(value); }
   void write(uint128_t value) { write_decimal(value); }
-#endif
 
   template <typename T, typename Spec>
   void write_int(T value, const Spec& spec) {
@@ -1970,13 +1976,13 @@ template <typename ErrorHandler> class width_checker {
   explicit FMT_CONSTEXPR width_checker(ErrorHandler& eh) : handler_(eh) {}
 
   template <typename T, FMT_ENABLE_IF(is_integer<T>::value)>
-  FMT_CONSTEXPR unsigned long long operator()(T value) {
+  FMT_CONSTEXPR uint64_t operator()(T value) {
     if (is_negative(value)) handler_.on_error("negative width");
-    return static_cast<unsigned long long>(value);
+    return static_cast<uint64_t>(value);
   }
 
   template <typename T, FMT_ENABLE_IF(!is_integer<T>::value)>
-  FMT_CONSTEXPR unsigned long long operator()(T) {
+  FMT_CONSTEXPR uint64_t operator()(T) {
     handler_.on_error("width is not integer");
     return 0;
   }
@@ -1990,13 +1996,13 @@ template <typename ErrorHandler> class precision_checker {
   explicit FMT_CONSTEXPR precision_checker(ErrorHandler& eh) : handler_(eh) {}
 
   template <typename T, FMT_ENABLE_IF(is_integer<T>::value)>
-  FMT_CONSTEXPR unsigned long long operator()(T value) {
+  FMT_CONSTEXPR uint64_t operator()(T value) {
     if (is_negative(value)) handler_.on_error("negative precision");
-    return static_cast<unsigned long long>(value);
+    return static_cast<uint64_t>(value);
   }
 
   template <typename T, FMT_ENABLE_IF(!is_integer<T>::value)>
-  FMT_CONSTEXPR unsigned long long operator()(T) {
+  FMT_CONSTEXPR uint64_t operator()(T) {
     handler_.on_error("precision is not integer");
     return 0;
   }
@@ -2121,7 +2127,7 @@ template <typename Handler> class specs_checker : public Handler {
 template <template <typename> class Handler, typename FormatArg,
           typename ErrorHandler>
 FMT_CONSTEXPR int get_dynamic_spec(FormatArg arg, ErrorHandler eh) {
-  unsigned long long value = visit_format_arg(Handler<ErrorHandler>(eh), arg);
+  uint64_t value = visit_format_arg(Handler<ErrorHandler>(eh), arg);
   if (value > to_unsigned(max_value<int>())) eh.on_error("number is too big");
   return static_cast<int>(value);
 }
@@ -3052,7 +3058,7 @@ typename Context::iterator vformat_to(
 // Example:
 //   auto s = format("{}", ptr(p));
 template <typename T> inline const void* ptr(const T* p) { return p; }
-template <typename T> inline const void* ptr(const std::unique_ptr<T>& p) {
+template <typename T> inline const void* ptr(const duckdb_base_std::unique_ptr<T>& p) {
   return p.get();
 }
 template <typename T> inline const void* ptr(const std::shared_ptr<T>& p) {
@@ -3342,11 +3348,11 @@ FMT_CONSTEXPR internal::udl_formatter<Char, CHARS...> operator""_format() {
     std::string message = "The answer is {}"_format(42);
   \endrst
  */
-FMT_CONSTEXPR internal::udl_formatter<char> operator"" _format(const char* s,
+FMT_CONSTEXPR internal::udl_formatter<char> operator""_format(const char* s,
                                                                std::size_t n) {
   return {{s, n}};
 }
-FMT_CONSTEXPR internal::udl_formatter<wchar_t> operator"" _format(
+FMT_CONSTEXPR internal::udl_formatter<wchar_t> operator""_format(
     const wchar_t* s, std::size_t n) {
   return {{s, n}};
 }
@@ -3362,11 +3368,11 @@ FMT_CONSTEXPR internal::udl_formatter<wchar_t> operator"" _format(
     fmt::print("Elapsed time: {s:.2f} seconds", "s"_a=1.23);
   \endrst
  */
-FMT_CONSTEXPR internal::udl_arg<char> operator"" _a(const char* s,
+FMT_CONSTEXPR internal::udl_arg<char> operator""_a(const char* s,
                                                     std::size_t n) {
   return {{s, n}};
 }
-FMT_CONSTEXPR internal::udl_arg<wchar_t> operator"" _a(const wchar_t* s,
+FMT_CONSTEXPR internal::udl_arg<wchar_t> operator""_a(const wchar_t* s,
                                                        std::size_t n) {
   return {{s, n}};
 }

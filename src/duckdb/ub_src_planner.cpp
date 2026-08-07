@@ -24,9 +24,13 @@
 
 #include "src/planner/planner.cpp"
 
-#include "src/planner/pragma_handler.cpp"
+#include "src/planner/statement_preprocessor.cpp"
+
+#include "src/planner/logical_operator_deep_copy.cpp"
 
 #include "src/planner/logical_operator_visitor.cpp"
 
 #include "src/planner/table_filter.cpp"
+
+#include "src/planner/table_filter_state.cpp"
 

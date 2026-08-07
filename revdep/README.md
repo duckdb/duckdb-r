@@ -2,7 +2,7 @@
 
 ## New problems (1)
 
-|package    |version |error  |warning |note |
-|:----------|:-------|:------|:-------|:----|
-|[starwarsdb](problems.md#starwarsdb)|0.1.2   |__+1__ |        |1    |
+|package |version |error  |warning |note |
+|:-------|:-------|:------|:-------|:----|
+|[GeoTox](problems.md#geotox)|1.0.0   |__+1__ |        |     |
 

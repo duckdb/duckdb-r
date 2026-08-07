@@ -30,10 +30,15 @@ void Printer::RawPrint(OutputStream stream, const string &str) {
 #endif
 }
 
+void Printer::DefaultLinePrint(OutputStream stream, const string &str) {
+	Printer::RawPrint(stream, str + "\n");
+}
+
+line_printer_f Printer::line_printer = Printer::DefaultLinePrint;
+
 // LCOV_EXCL_START
 void Printer::Print(OutputStream stream, const string &str) {
-	Printer::RawPrint(stream, str);
-	Printer::RawPrint(stream, "\n");
+	Printer::line_printer(stream, str);
 }
 void Printer::Flush(OutputStream stream) {
 #ifndef DUCKDB_DISABLE_PRINT
@@ -68,8 +73,11 @@ idx_t Printer::TerminalWidth() {
 	rows = csbi.srWindow.Right - csbi.srWindow.Left + 1;
 	return rows;
 #else
-	struct winsize w;
+	struct winsize w = {};
 	ioctl(0, TIOCGWINSZ, &w);
+	if (w.ws_col == 0) {
+		return 120;
+	}
 	return w.ws_col;
 #endif
 #else

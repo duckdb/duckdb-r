@@ -9,11 +9,8 @@
 #pragma once
 
 #include "duckdb/main/secret/secret.hpp"
-#include "duckdb/common/enums/catalog_type.hpp"
-#include "duckdb/parser/column_definition.hpp"
 #include "duckdb/parser/parsed_data/parse_info.hpp"
 #include "duckdb/parser/parsed_data/create_info.hpp"
-#include "duckdb/common/enums/on_entry_not_found.hpp"
 #include "duckdb/common/named_parameter_map.hpp"
 
 namespace duckdb {
@@ -24,24 +21,23 @@ public:
 
 public:
 	explicit CreateSecretInfo(OnCreateConflict on_conflict, SecretPersistType persist_type);
-	//! How to handle conflict
-	OnCreateConflict on_conflict;
+	~CreateSecretInfo() override;
+
 	//! Whether the secret can be persisted
 	SecretPersistType persist_type;
 	//! The type of secret
-	string type;
+	unique_ptr<ParsedExpression> type;
 	//! Which storage to use (empty for default)
 	string storage_type;
 	//! (optionally) the provider of the secret credentials
-	string provider;
+	unique_ptr<ParsedExpression> provider;
 	//! (optionally) the name of the secret
 	string name;
 	//! (optionally) the scope of the secret
-	vector<string> scope;
+	unique_ptr<ParsedExpression> scope;
 	//! Named parameter list (if any)
-	case_insensitive_map_t<Value> options;
+	case_insensitive_map_t<unique_ptr<ParsedExpression>> options;
 
 	unique_ptr<CreateInfo> Copy() const override;
 };
-
 } // namespace duckdb

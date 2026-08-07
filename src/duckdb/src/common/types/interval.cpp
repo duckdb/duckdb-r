@@ -11,10 +11,25 @@
 #include "duckdb/common/operator/subtract.hpp"
 #include "duckdb/common/string_util.hpp"
 
-#include "duckdb/common/serializer/serializer.hpp"
-#include "duckdb/common/serializer/deserializer.hpp"
-
 namespace duckdb {
+
+namespace {
+void AssignInvalidInputErrorOrThrow(const string &message, string *error_message) {
+	if (error_message) {
+		HandleCastError::AssignError(message, error_message);
+		return;
+	}
+	throw InvalidInputException(message);
+}
+
+void AssignOutOfRangeErrorOrThrow(const string &message, string *error_message) {
+	if (error_message) {
+		HandleCastError::AssignError(message, error_message);
+		return;
+	}
+	throw OutOfRangeException(message);
+}
+} // namespace
 
 bool Interval::FromString(const string &str, interval_t &result) {
 	string error_message;
@@ -22,24 +37,35 @@ bool Interval::FromString(const string &str, interval_t &result) {
 }
 
 template <class T>
-void IntervalTryAddition(T &target, int64_t input, int64_t multiplier, int64_t fraction = 0) {
+bool IntervalTryAddition(T &target, int64_t input, int64_t multiplier, string *error_message, int64_t fraction = 0) {
 	int64_t addition;
 	if (!TryMultiplyOperator::Operation<int64_t, int64_t, int64_t>(input, multiplier, addition)) {
-		throw OutOfRangeException("interval value is out of range");
+		AssignOutOfRangeErrorOrThrow("interval value is out of range", error_message);
+		return false;
 	}
-	T addition_base = Cast::Operation<int64_t, T>(addition);
+	T addition_base;
+	if (!TryCast::Operation<int64_t, T>(addition, addition_base)) {
+		AssignInvalidInputErrorOrThrow(CastExceptionText<int64_t, T>(addition), error_message);
+		return false;
+	}
 	if (!TryAddOperator::Operation<T, T, T>(target, addition_base, target)) {
-		throw OutOfRangeException("interval value is out of range");
+		AssignOutOfRangeErrorOrThrow("interval value is out of range", error_message);
+		return false;
 	}
 	if (fraction) {
 		//	Add in (fraction * multiplier) / MICROS_PER_SEC
 		//	This is always in range
 		addition = (fraction * multiplier) / Interval::MICROS_PER_SEC;
-		addition_base = Cast::Operation<int64_t, T>(addition);
+		if (!TryCast::Operation<int64_t, T>(addition, addition_base)) {
+			AssignInvalidInputErrorOrThrow(CastExceptionText<int64_t, T>(addition), error_message);
+			return false;
+		}
 		if (!TryAddOperator::Operation<T, T, T>(target, addition_base, target)) {
-			throw OutOfRangeException("interval fraction is out of range");
+			AssignOutOfRangeErrorOrThrow("interval fraction is out of range", error_message);
+			return false;
 		}
 	}
+	return true;
 }
 
 bool Interval::FromCString(const char *str, idx_t len, interval_t &result, string *error_message, bool strict) {
@@ -107,30 +133,34 @@ interval_parse_number:
 			// colon: we are parsing a time
 			goto interval_parse_time;
 		} else {
-			if (pos == start_pos) {
-				return false;
-			}
-			// finished the number, parse it from the string
-			string_t nr_string(str + start_pos, UnsafeNumericCast<uint32_t>(pos - start_pos));
-			number = Cast::Operation<string_t, int64_t>(nr_string);
-			fraction = 0;
-			if (c == '.') {
-				// we expect some microseconds
-				int32_t mult = 100000;
-				for (++pos; pos < len && StringUtil::CharacterIsDigit(str[pos]); ++pos, mult /= 10) {
-					if (mult > 0) {
-						fraction += int64_t(str[pos] - '0') * mult;
-					}
-				}
-			}
-			if (negative) {
-				number = -number;
-				fraction = -fraction;
-			}
-			goto interval_parse_identifier;
+			break;
 		}
 	}
-	goto end_of_string;
+	{
+		if (pos == start_pos) {
+			return false;
+		}
+		string_t nr_string(str + start_pos, UnsafeNumericCast<uint32_t>(pos - start_pos));
+		if (!TryCast::Operation<string_t, int64_t>(nr_string, number)) {
+			AssignInvalidInputErrorOrThrow(CastExceptionText<string_t, int64_t>(nr_string), error_message);
+			return false;
+		}
+		fraction = 0;
+		if (pos < len && str[pos] == '.') {
+			// we expect some microseconds
+			int32_t mult = 100000;
+			for (++pos; pos < len && StringUtil::CharacterIsDigit(str[pos]); ++pos, mult /= 10) {
+				if (mult > 0) {
+					fraction += int64_t(str[pos] - '0') * mult;
+				}
+			}
+		}
+		if (negative) {
+			number = -number;
+			fraction = -fraction;
+		}
+		goto interval_parse_identifier;
+	}
 interval_parse_time : {
 	// parse the remainder of the time as a Time type
 	dtime_t time;
@@ -170,8 +200,12 @@ interval_parse_identifier:
 
 	// Special case SS[.FFFFFF] - implied SECONDS/MICROSECONDS
 	if (specifier_str.empty() && !found_any) {
-		IntervalTryAddition<int64_t>(result.micros, number, MICROS_PER_SEC);
-		IntervalTryAddition<int64_t>(result.micros, fraction, 1);
+		if (!IntervalTryAddition<int64_t>(result.micros, number, MICROS_PER_SEC, error_message)) {
+			return false;
+		}
+		if (!IntervalTryAddition<int64_t>(result.micros, fraction, 1, error_message)) {
+			return false;
+		}
 		found_any = true;
 		// parse any trailing whitespace
 		for (; pos < len; pos++) {
@@ -193,55 +227,89 @@ interval_parse_identifier:
 	// add the specifier to the interval
 	switch (specifier) {
 	case DatePartSpecifier::MILLENNIUM:
-		IntervalTryAddition<int32_t>(result.months, number, MONTHS_PER_MILLENIUM, fraction);
+		if (!IntervalTryAddition<int32_t>(result.months, number, MONTHS_PER_MILLENIUM, error_message, fraction)) {
+			return false;
+		}
 		break;
 	case DatePartSpecifier::CENTURY:
-		IntervalTryAddition<int32_t>(result.months, number, MONTHS_PER_CENTURY, fraction);
+		if (!IntervalTryAddition<int32_t>(result.months, number, MONTHS_PER_CENTURY, error_message, fraction)) {
+			return false;
+		}
 		break;
 	case DatePartSpecifier::DECADE:
-		IntervalTryAddition<int32_t>(result.months, number, MONTHS_PER_DECADE, fraction);
+		if (!IntervalTryAddition<int32_t>(result.months, number, MONTHS_PER_DECADE, error_message, fraction)) {
+			return false;
+		}
 		break;
 	case DatePartSpecifier::YEAR:
-		IntervalTryAddition<int32_t>(result.months, number, MONTHS_PER_YEAR, fraction);
+		if (!IntervalTryAddition<int32_t>(result.months, number, MONTHS_PER_YEAR, error_message, fraction)) {
+			return false;
+		}
 		break;
 	case DatePartSpecifier::QUARTER:
-		IntervalTryAddition<int32_t>(result.months, number, MONTHS_PER_QUARTER, fraction);
+		if (!IntervalTryAddition<int32_t>(result.months, number, MONTHS_PER_QUARTER, error_message, fraction)) {
+			return false;
+		}
 		// Reduce to fraction of a month
 		fraction *= MONTHS_PER_QUARTER;
 		fraction %= MICROS_PER_SEC;
-		IntervalTryAddition<int32_t>(result.days, 0, DAYS_PER_MONTH, fraction);
+		if (!IntervalTryAddition<int32_t>(result.days, 0, DAYS_PER_MONTH, error_message, fraction)) {
+			return false;
+		}
 		break;
 	case DatePartSpecifier::MONTH:
-		IntervalTryAddition<int32_t>(result.months, number, 1);
-		IntervalTryAddition<int32_t>(result.days, 0, DAYS_PER_MONTH, fraction);
+		if (!IntervalTryAddition<int32_t>(result.months, number, 1, error_message)) {
+			return false;
+		}
+		if (!IntervalTryAddition<int32_t>(result.days, 0, DAYS_PER_MONTH, error_message, fraction)) {
+			return false;
+		}
 		break;
 	case DatePartSpecifier::DAY:
-		IntervalTryAddition<int32_t>(result.days, number, 1);
-		IntervalTryAddition<int64_t>(result.micros, 0, MICROS_PER_DAY, fraction);
+		if (!IntervalTryAddition<int32_t>(result.days, number, 1, error_message)) {
+			return false;
+		}
+		if (!IntervalTryAddition<int64_t>(result.micros, 0, MICROS_PER_DAY, error_message, fraction)) {
+			return false;
+		}
 		break;
 	case DatePartSpecifier::WEEK:
-		IntervalTryAddition<int32_t>(result.days, number, DAYS_PER_WEEK, fraction);
+		if (!IntervalTryAddition<int32_t>(result.days, number, DAYS_PER_WEEK, error_message, fraction)) {
+			return false;
+		}
 		// Reduce to fraction of a day
 		fraction *= DAYS_PER_WEEK;
 		fraction %= MICROS_PER_SEC;
-		IntervalTryAddition<int64_t>(result.micros, 0, MICROS_PER_DAY, fraction);
+		if (!IntervalTryAddition<int64_t>(result.micros, 0, MICROS_PER_DAY, error_message, fraction)) {
+			return false;
+		}
 		break;
 	case DatePartSpecifier::MICROSECONDS:
 		// Round the fraction
 		number += (fraction * 2) / MICROS_PER_SEC;
-		IntervalTryAddition<int64_t>(result.micros, number, 1);
+		if (!IntervalTryAddition<int64_t>(result.micros, number, 1, error_message)) {
+			return false;
+		}
 		break;
 	case DatePartSpecifier::MILLISECONDS:
-		IntervalTryAddition<int64_t>(result.micros, number, MICROS_PER_MSEC, fraction);
+		if (!IntervalTryAddition<int64_t>(result.micros, number, MICROS_PER_MSEC, error_message, fraction)) {
+			return false;
+		}
 		break;
 	case DatePartSpecifier::SECOND:
-		IntervalTryAddition<int64_t>(result.micros, number, MICROS_PER_SEC, fraction);
+		if (!IntervalTryAddition<int64_t>(result.micros, number, MICROS_PER_SEC, error_message, fraction)) {
+			return false;
+		}
 		break;
 	case DatePartSpecifier::MINUTE:
-		IntervalTryAddition<int64_t>(result.micros, number, MICROS_PER_MINUTE, fraction);
+		if (!IntervalTryAddition<int64_t>(result.micros, number, MICROS_PER_MINUTE, error_message, fraction)) {
+			return false;
+		}
 		break;
 	case DatePartSpecifier::HOUR:
-		IntervalTryAddition<int64_t>(result.micros, number, MICROS_PER_HOUR, fraction);
+		if (!IntervalTryAddition<int64_t>(result.micros, number, MICROS_PER_HOUR, error_message, fraction)) {
+			return false;
+		}
 		break;
 	default:
 		HandleCastError::AssignError(
@@ -275,6 +343,10 @@ interval_parse_ago:
 		}
 	}
 	// invert all the values
+	if (result.months == NumericLimits<int32_t>::Minimum() || result.days == NumericLimits<int32_t>::Minimum()) {
+		throw OutOfRangeException("AGO interval value is out of range");
+	}
+
 	result.months = -result.months;
 	result.days = -result.days;
 	result.micros = -result.micros;
@@ -313,6 +385,25 @@ int64_t Interval::GetMilli(const interval_t &val) {
 	return milli;
 }
 
+bool Interval::TryGetMicro(const interval_t &val, int64_t &micro_total) {
+	int64_t micro_month, micro_day;
+	micro_total = val.micros;
+	if (!TryMultiplyOperator::Operation((int64_t)val.months, Interval::MICROS_PER_MONTH, micro_month)) {
+		return false;
+	}
+	if (!TryMultiplyOperator::Operation((int64_t)val.days, Interval::MICROS_PER_DAY, micro_day)) {
+		return false;
+	}
+	if (!TryAddOperator::Operation<int64_t, int64_t, int64_t>(micro_total, micro_month, micro_total)) {
+		return false;
+	}
+	if (!TryAddOperator::Operation<int64_t, int64_t, int64_t>(micro_total, micro_day, micro_total)) {
+		return false;
+	}
+
+	return true;
+}
+
 int64_t Interval::GetMicro(const interval_t &val) {
 	int64_t micro_month, micro_day, micro_total;
 	micro_total = val.micros;
@@ -342,38 +433,20 @@ int64_t Interval::GetNanoseconds(const interval_t &val) {
 	return nano;
 }
 
-interval_t Interval::GetAge(timestamp_t timestamp_1, timestamp_t timestamp_2) {
-	D_ASSERT(Timestamp::IsFinite(timestamp_1) && Timestamp::IsFinite(timestamp_2));
-	date_t date1, date2;
-	dtime_t time1, time2;
+interval_t Interval::GetAge(TimestampComponents ts1, TimestampComponents ts2, bool is_negative) {
+	// perform the differences
+	auto year_diff = ts1.year - ts2.year;
+	auto month_diff = ts1.month - ts2.month;
+	auto day_diff = ts1.day - ts2.day;
 
-	Timestamp::Convert(timestamp_1, date1, time1);
-	Timestamp::Convert(timestamp_2, date2, time2);
-
-	// and from date extract the years, months and days
-	int32_t year1, month1, day1;
-	int32_t year2, month2, day2;
-	Date::Convert(date1, year1, month1, day1);
-	Date::Convert(date2, year2, month2, day2);
-	// finally perform the differences
-	auto year_diff = year1 - year2;
-	auto month_diff = month1 - month2;
-	auto day_diff = day1 - day2;
-
-	// and from time extract hours, minutes, seconds and milliseconds
-	int32_t hour1, min1, sec1, micros1;
-	int32_t hour2, min2, sec2, micros2;
-	Time::Convert(time1, hour1, min1, sec1, micros1);
-	Time::Convert(time2, hour2, min2, sec2, micros2);
-	// finally perform the differences
-	auto hour_diff = hour1 - hour2;
-	auto min_diff = min1 - min2;
-	auto sec_diff = sec1 - sec2;
-	auto micros_diff = micros1 - micros2;
+	auto hour_diff = ts1.hour - ts2.hour;
+	auto min_diff = ts1.minute - ts2.minute;
+	auto sec_diff = ts1.second - ts2.second;
+	auto micros_diff = ts1.microsecond - ts2.microsecond;
 
 	// flip sign if necessary
 	bool sign_flipped = false;
-	if (timestamp_1 < timestamp_2) {
+	if (is_negative) {
 		year_diff = -year_diff;
 		month_diff = -month_diff;
 		day_diff = -day_diff;
@@ -401,11 +474,11 @@ interval_t Interval::GetAge(timestamp_t timestamp_1, timestamp_t timestamp_2) {
 		day_diff--;
 	}
 	while (day_diff < 0) {
-		if (timestamp_1 < timestamp_2) {
-			day_diff += Date::IsLeapYear(year1) ? Date::LEAP_DAYS[month1] : Date::NORMAL_DAYS[month1];
+		if (is_negative) {
+			day_diff += Date::IsLeapYear(ts1.year) ? Date::LEAP_DAYS[ts1.month] : Date::NORMAL_DAYS[ts1.month];
 			month_diff--;
 		} else {
-			day_diff += Date::IsLeapYear(year2) ? Date::LEAP_DAYS[month2] : Date::NORMAL_DAYS[month2];
+			day_diff += Date::IsLeapYear(ts2.year) ? Date::LEAP_DAYS[ts2.month] : Date::NORMAL_DAYS[ts2.month];
 			month_diff--;
 		}
 	}
@@ -430,6 +503,15 @@ interval_t Interval::GetAge(timestamp_t timestamp_1, timestamp_t timestamp_2) {
 	interval.micros = Time::FromTime(hour_diff, min_diff, sec_diff, micros_diff).micros;
 
 	return interval;
+}
+
+interval_t Interval::GetAge(timestamp_t timestamp_1, timestamp_t timestamp_2) {
+	D_ASSERT(Timestamp::IsFinite(timestamp_1) && Timestamp::IsFinite(timestamp_2));
+
+	auto ts_component1 = Timestamp::GetComponents(timestamp_1);
+	auto ts_component2 = Timestamp::GetComponents(timestamp_2);
+
+	return Interval::GetAge(ts_component1, ts_component2, timestamp_1 < timestamp_2);
 }
 
 interval_t Interval::GetDifference(timestamp_t timestamp_1, timestamp_t timestamp_2) {

@@ -5,21 +5,49 @@
 
 namespace duckdb {
 
-CompressionType RowGroupWriter::GetColumnCompressionType(idx_t i) {
-	return table.GetColumn(LogicalIndex(i)).CompressionType();
+RowGroupWriter::RowGroupWriter(TableDataWriter &writer, TableCatalogEntry &table,
+                               PartialBlockManager &partial_block_manager)
+    : writer(writer), table(table), partial_block_manager(partial_block_manager) {
+	for (auto &col : table.GetColumns().Physical()) {
+		compression_types.push_back(col.CompressionType());
+	}
+}
+
+DatabaseInstance &RowGroupWriter::GetDatabase() {
+	return table.ParentCatalog().GetDatabase();
+}
+
+AttachedDatabase &RowGroupWriter::GetAttachedDatabase() {
+	return table.ParentCatalog().GetAttached();
 }
 
 SingleFileRowGroupWriter::SingleFileRowGroupWriter(TableCatalogEntry &table, PartialBlockManager &partial_block_manager,
                                                    TableDataWriter &writer, MetadataWriter &table_data_writer)
-    : RowGroupWriter(table, partial_block_manager), writer(writer), table_data_writer(table_data_writer) {
+    : RowGroupWriter(writer, table, partial_block_manager), table_data_writer(table_data_writer) {
 }
 
-CheckpointType SingleFileRowGroupWriter::GetCheckpointType() const {
-	return writer.GetCheckpointType();
+CheckpointOptions SingleFileRowGroupWriter::GetCheckpointOptions() const {
+	return writer.GetCheckpointOptions();
 }
 
-MetadataWriter &SingleFileRowGroupWriter::GetPayloadWriter() {
+WriteStream &SingleFileRowGroupWriter::GetPayloadWriter() {
 	return table_data_writer;
+}
+
+MetaBlockPointer SingleFileRowGroupWriter::GetMetaBlockPointer() {
+	return table_data_writer.GetMetaBlockPointer();
+}
+
+optional_ptr<MetadataManager> SingleFileRowGroupWriter::GetMetadataManager() {
+	return table_data_writer.GetManager();
+}
+
+void SingleFileRowGroupWriter::StartWritingColumns(vector<MetaBlockPointer> &column_metadata) {
+	table_data_writer.SetWrittenPointers(column_metadata);
+}
+
+void SingleFileRowGroupWriter::FinishWritingColumns() {
+	table_data_writer.SetWrittenPointers(nullptr);
 }
 
 } // namespace duckdb

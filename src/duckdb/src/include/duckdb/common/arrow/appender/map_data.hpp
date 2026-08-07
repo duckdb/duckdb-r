@@ -1,3 +1,11 @@
+//===----------------------------------------------------------------------===//
+//                         DuckDB
+//
+// duckdb/common/arrow/appender/map_data.hpp
+//
+//
+//===----------------------------------------------------------------------===//
+
 #pragma once
 
 #include "duckdb/common/arrow/arrow_appender.hpp"
@@ -31,7 +39,7 @@ public:
 		UnifiedVectorFormat format;
 		input.ToUnifiedFormat(input_size, format);
 		idx_t size = to - from;
-		AppendValidity(append_data, format, from, to);
+		append_data.AppendValidity(format, from, to);
 		vector<sel_t> child_indices;
 		ArrowListData<BUFTYPE>::AppendOffsets(append_data, format, from, to, child_indices);
 
@@ -48,8 +56,8 @@ public:
 		key_vector_copy.Slice(key_vector, child_sel, list_size);
 		Vector value_vector_copy(value_vector.GetType());
 		value_vector_copy.Slice(value_vector, child_sel, list_size);
-		key_data.append_vector(key_data, key_vector_copy, 0, list_size, list_size);
-		value_data.append_vector(value_data, value_vector_copy, 0, list_size, list_size);
+		key_data.AppendChild(key_vector_copy, 0, list_size, list_size);
+		value_data.AppendChild(value_vector_copy, 0, list_size, list_size);
 
 		append_data.row_count += size;
 		struct_data.row_count += size;

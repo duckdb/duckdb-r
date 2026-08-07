@@ -1,37 +1,51 @@
-#include "rapi.hpp"
-#include "typesr.hpp"
-
 #include "duckdb/common/arrow/arrow_wrapper.hpp"
-#include "duckdb/planner/table_filter.hpp"
-#include "duckdb/planner/filter/constant_filter.hpp"
-#include "duckdb/planner/filter/conjunction_filter.hpp"
+#include "duckdb/function/table/arrow.hpp"
+#include "duckdb/main/external_dependencies.hpp"
 #include "duckdb/parser/expression/constant_expression.hpp"
 #include "duckdb/parser/expression/function_expression.hpp"
-#include "duckdb/function/table/arrow.hpp"
+#include "duckdb/planner/filter/conjunction_filter.hpp"
+#include "duckdb/planner/filter/constant_filter.hpp"
+#include "duckdb/planner/filter/in_filter.hpp"
+#include "duckdb/planner/filter/optional_filter.hpp"
+#include "duckdb/planner/table_filter.hpp"
+#include "rapi.hpp"
+#include "signal.hpp"
+#include "typesr.hpp"
+
+// Avoid clash with TRUE and FALSE macros in older rtools
+#undef TRUE
+#undef FALSE
 
 using namespace duckdb;
 
 [[cpp11::register]] void rapi_register_df(duckdb::conn_eptr_t conn, std::string name, cpp11::data_frame value,
-                                          bool integer64, bool overwrite, bool experimental) {
+                                          duckdb::ConvertOpts convert_opts, bool overwrite) {
 	if (!conn || !conn.get() || !conn->conn) {
-		cpp11::stop("rapi_register_df: Invalid connection");
+		rapi_error_with_context("rapi_register_df", "Invalid connection");
 	}
 	if (name.empty()) {
-		cpp11::stop("rapi_register_df: Name cannot be empty");
+		rapi_error_with_context("rapi_register_df", "Name cannot be empty");
 	}
 	if (value.ncol() < 1) {
-		cpp11::stop("rapi_register_df: Data frame with at least one column required");
+		rapi_error_with_context("rapi_register_df", "Data frame with at least one column required");
 	}
+
+	ScopedInterruptHandler signal_handler(conn->conn->context);
+
 	try {
 		named_parameter_map_t parameter_map;
-		parameter_map["integer64"] = Value::BOOLEAN(integer64);
-		parameter_map["experimental"] = Value::BOOLEAN(experimental);
+		parameter_map["integer64"] = convert_opts.bigint == ConvertOpts::BigIntType::INTEGER64;
+		parameter_map["experimental"] = convert_opts.experimental == ConvertOpts::ExperimentalFeatures::ENABLED;
+		parameter_map["map_list_of"] = convert_opts.map == ConvertOpts::MapShape::LIST_OF;
 
 		conn->conn->TableFunction("r_dataframe_scan", {Value::POINTER((uintptr_t)value.data())}, parameter_map)
 		    ->CreateView(name, overwrite, true);
+
+		signal_handler.HandleInterrupt();
+
 		static_cast<cpp11::sexp>(conn).attr("_registered_df_" + name) = value;
 	} catch (std::exception &e) {
-		cpp11::stop("rapi_register_df: Failed to register data frame: %s", e.what());
+		rapi_error_with_context("rapi_register_df", e);
 	}
 }
 
@@ -39,26 +53,36 @@ using namespace duckdb;
 	if (!conn || !conn.get() || !conn->conn) {
 		return;
 	}
+
+	ScopedInterruptHandler signal_handler(conn->conn->context);
+
 	static_cast<cpp11::sexp>(conn).attr("_registered_df_" + name) = R_NilValue;
 	auto res = conn->conn->Query("DROP VIEW IF EXISTS \"" + name + "\"");
+
+	signal_handler.HandleInterrupt();
+
 	if (res->HasError()) {
-		cpp11::stop("%s", res->GetError().c_str());
+		rapi_error_with_context("rapi_unregister_df", res->GetError());
 	}
 }
 
-
-
-unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, ReplacementScanInput &input, optional_ptr<ReplacementScanData> data_p) {
+unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, ReplacementScanInput &input,
+                                                        optional_ptr<ReplacementScanData> data_p) {
 	auto &data = (ReplacementDataDBWrapper &)*data_p;
 	auto db_wrapper = data.wrapper;
 
 	auto table_name_symbol = cpp11::safe[Rf_install](input.table_name.c_str());
-	SEXP df;
 	SEXP rho = db_wrapper->env;
+	if (TYPEOF(rho) != ENVSXP) {
+		return nullptr;
+	}
+
+	SEXP df = R_NilValue;
+
 #if defined(R_VERSION) && R_VERSION >= R_Version(4, 5, 0)
 	df = cpp11::safe[R_getVarEx](table_name_symbol, rho, Rboolean::TRUE, R_NilValue);
 #else
-	while(rho != R_EmptyEnv) {
+	while (rho != R_EmptyEnv) {
 		df = cpp11::safe[Rf_findVarInFrame3](rho, table_name_symbol, TRUE);
 		if (df != R_UnboundValue) {
 			break;
@@ -69,7 +93,10 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 		df = cpp11::safe[Rf_eval](df, rho);
 	}
 #endif
+
+	PROTECT(df);
 	if (!Rf_inherits(df, "data.frame")) {
+		UNPROTECT(1);
 		return nullptr;
 	}
 
@@ -77,14 +104,23 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	SEXP node = Rf_cons(df, CDR(db_wrapper->registered_dfs));
 	SETCDR(db_wrapper->registered_dfs, node);
 
+	UNPROTECT(1);
+
 	// TODO: do utf conversion
 	auto table_function = make_uniq<TableFunctionRef>();
 	vector<duckdb::unique_ptr<ParsedExpression>> children;
 	children.push_back(make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)df)));
 	table_function->function = make_uniq<FunctionExpression>("r_dataframe_scan", std::move(children));
+
+	// Signal that this table reference depends on external state (the R data
+	// frame found via environment scan). For relations created via
+	// rel_from_sql(), this causes QueryRelation::Bind() to wrap the original
+	// query in a CTE that materializes the data frame pointer, so subsequent
+	// binds (e.g. during rel_to_altrep()) do not need to look up the data
+	// frame from the environment again.
+	table_function->external_dependency = make_shared_ptr<ExternalDependency>();
 	return std::move(table_function);
 }
-
 
 class RArrowTabularStreamFactory {
 public:
@@ -108,8 +144,7 @@ public:
 			cpp11::sexp projection_sexp = StringsToSexp(column_list);
 			cpp11::sexp filters_sexp = Rf_ScalarLogical(true);
 			if (filters && !filters->filters.empty()) {
-				auto timezone_config = factory->config.time_zone;
-				filters_sexp = TransformFilter(*filters, projection_map, factory->export_fun, timezone_config);
+				filters_sexp = TransformFilter(*filters, projection_map, factory->export_fun);
 			}
 			export_fun(factory->arrow_scannable, stream_ptr_sexp, projection_sexp, filters_sexp);
 		}
@@ -133,16 +168,32 @@ public:
 	ClientProperties config;
 
 private:
-	static SEXP TransformFilterExpression(TableFilter &filter, const string &column_name, SEXP functions,
-	                                      string &timezone_config) {
+	// Upper bound on the number of IN values expanded into equality
+	// comparisons; larger lists are not pushed down.
+	static constexpr idx_t MAX_PUSHDOWN_IN_VALUES = 100;
+
+	// Combine expressions over [lo, hi) with a binary op as a balanced tree,
+	// so that long chains (e.g. from IN lists) do not produce deeply nested
+	// expressions.
+	static SEXP FoldBalanced(SEXP functions, const string &op, const vector<cpp11::sexp> &exprs, idx_t lo, idx_t hi) {
+		D_ASSERT(lo < hi);
+		if (hi - lo == 1) {
+			return exprs[lo];
+		}
+		auto mid = lo + (hi - lo) / 2;
+		cpp11::sexp lhs = FoldBalanced(functions, op, exprs, lo, mid);
+		cpp11::sexp rhs = FoldBalanced(functions, op, exprs, mid, hi);
+		return CreateExpression(functions, op, lhs, rhs);
+	}
+
+	static SEXP TransformFilterExpression(TableFilter &filter, const string &column_name, SEXP functions) {
 		cpp11::sexp column_name_sexp = Rf_mkString(column_name.c_str());
 		cpp11::sexp column_name_expr = CreateFieldRef(functions, column_name_sexp);
 
 		switch (filter.filter_type) {
 		case TableFilterType::CONSTANT_COMPARISON: {
-			auto constant_filter = (ConstantFilter &)filter;
-			cpp11::sexp constant_sexp = RApiTypes::ValueToSexp(constant_filter.constant, timezone_config);
-			cpp11::sexp constant_expr = CreateScalar(functions, constant_sexp);
+			auto &constant_filter = (ConstantFilter &)filter;
+			cpp11::sexp constant_expr = CreateConstantExpression(functions, constant_filter.constant);
 			switch (constant_filter.comparison_type) {
 			case ExpressionType::COMPARE_EQUAL: {
 				return CreateExpression(functions, "equal", column_name_expr, constant_expr);
@@ -163,8 +214,8 @@ private:
 				return CreateExpression(functions, "not_equal", column_name_expr, constant_expr);
 			}
 			default:
-				throw InternalException("%s can't be transformed to Arrow Scan Pushdown Filter",
-				                        filter.ToString(column_name));
+				throw NotImplementedException("%s can't be transformed to Arrow Scan Pushdown Filter",
+				                              filter.ToString(column_name));
 			}
 		}
 		case TableFilterType::IS_NULL: {
@@ -176,13 +227,46 @@ private:
 		}
 		case TableFilterType::CONJUNCTION_AND: {
 			auto &and_filter = (ConjunctionAndFilter &)filter;
-			return TransformChildFilters(functions, column_name, "and_kleene", and_filter.child_filters,
-			                             timezone_config);
+			return TransformChildFilters(functions, column_name, "and_kleene", and_filter.child_filters);
 		}
 		case TableFilterType::CONJUNCTION_OR: {
-			auto &and_filter = (ConjunctionAndFilter &)filter;
-			return TransformChildFilters(functions, column_name, "or_kleene", and_filter.child_filters,
-			                             timezone_config);
+			auto &or_filter = (ConjunctionOrFilter &)filter;
+			return TransformChildFilters(functions, column_name, "or_kleene", or_filter.child_filters);
+		}
+		case TableFilterType::IN_FILTER: {
+			auto &in_filter = (InFilter &)filter;
+			if (in_filter.values.empty()) {
+				// col IN () matches no rows
+				return CreateScalar(functions, cpp11::sexp(Rf_ScalarLogical(false)));
+			}
+			if (in_filter.values.size() > MAX_PUSHDOWN_IN_VALUES) {
+				// Give up rather than building a huge expression tree. Inside an
+				// optional filter this degrades to pushing TRUE.
+				static_assert(MAX_PUSHDOWN_IN_VALUES == 100, "update the message below");
+				throw NotImplementedException("IN filter with more than 100 values is not pushed down (%s)",
+				                              filter.ToString(column_name));
+			}
+			// col IN (v1, v2, ...) as a balanced tree of equality comparisons.
+			vector<cpp11::sexp> equal_exprs;
+			equal_exprs.reserve(in_filter.values.size());
+			for (auto &value : in_filter.values) {
+				equal_exprs.push_back(cpp11::sexp(CreateExpression(functions, "equal", column_name_expr,
+				                                                   CreateConstantExpression(functions, value))));
+			}
+			return FoldBalanced(functions, "or_kleene", equal_exprs, 0, equal_exprs.size());
+		}
+		case TableFilterType::OPTIONAL_FILTER: {
+			// Optional filters only prune; DuckDB still applies the actual
+			// predicate. Push the child filter if it is expressible, and a
+			// TRUE literal otherwise, instead of failing the whole query.
+			auto &optional_filter = (OptionalFilter &)filter;
+			if (optional_filter.child_filter) {
+				try {
+					return TransformFilterExpression(*optional_filter.child_filter, column_name, functions);
+				} catch (NotImplementedException &) {
+				}
+			}
+			return CreateScalar(functions, cpp11::sexp(Rf_ScalarLogical(true)));
 		}
 
 		default:
@@ -192,24 +276,22 @@ private:
 	}
 
 	static SEXP TransformChildFilters(SEXP functions, const string &column_name, const string op,
-	                                  vector<duckdb::unique_ptr<TableFilter>> &filters, string &timezone_config) {
-		auto fit = filters.begin();
-		cpp11::sexp conjunction_sexp = TransformFilterExpression(**fit, column_name, functions, timezone_config);
-		fit++;
-		for (; fit != filters.end(); ++fit) {
-			cpp11::sexp rhs = TransformFilterExpression(**fit, column_name, functions, timezone_config);
-			conjunction_sexp = CreateExpression(functions, op, conjunction_sexp, rhs);
+	                                  vector<duckdb::unique_ptr<TableFilter>> &filters) {
+		vector<cpp11::sexp> child_exprs;
+		child_exprs.reserve(filters.size());
+		for (auto &child_filter : filters) {
+			child_exprs.push_back(cpp11::sexp(TransformFilterExpression(*child_filter, column_name, functions)));
 		}
-		return conjunction_sexp;
+		return FoldBalanced(functions, op, child_exprs, 0, child_exprs.size());
 	}
 
 	static SEXP TransformFilter(TableFilterSet &filter_collection, unordered_map<idx_t, string> &columns,
-	                            SEXP functions, string &timezone_config) {
+	                            SEXP functions) {
 		auto fit = filter_collection.filters.begin();
-		cpp11::sexp res = TransformFilterExpression(*fit->second, columns[fit->first], functions, timezone_config);
+		cpp11::sexp res = TransformFilterExpression(*fit->second, columns[fit->first], functions);
 		fit++;
 		for (; fit != filter_collection.filters.end(); ++fit) {
-			cpp11::sexp rhs = TransformFilterExpression(*fit->second, columns[fit->first], functions, timezone_config);
+			cpp11::sexp rhs = TransformFilterExpression(*fit->second, columns[fit->first], functions);
 			res = CreateExpression(functions, "and_kleene", res, rhs);
 		}
 		return res;
@@ -238,11 +320,24 @@ private:
 	static SEXP CreateScalar(SEXP functions, SEXP op) {
 		return CallArrowFactory(functions, 3, op);
 	}
+
+	static SEXP CreateConstantExpression(SEXP functions, const Value &constant) {
+		ConvertOpts filter_opts;
+		cpp11::sexp constant_sexp = RApiTypes::ValueToSexp(constant, filter_opts);
+
+		// Scalar TIMESTAMP (no TZ) must have tzone="" for Arrow pushdown compatibility
+		if (constant.type().id() == LogicalTypeId::TIMESTAMP && TYPEOF(constant_sexp) == REALSXP) {
+			Rf_setAttrib(constant_sexp, RStrings::get().tzone_sym, StringsToSexp({""}));
+		}
+
+		return CreateScalar(functions, constant_sexp);
+	}
 };
 
-unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, ReplacementScanInput &input, optional_ptr<ReplacementScanData> data_p) {
-  auto table_name = input.table_name;
-  ReplacementDataDBWrapper& data = static_cast<ReplacementDataDBWrapper&>(*data_p);
+unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, ReplacementScanInput &input,
+                                                  optional_ptr<ReplacementScanData> data_p) {
+	auto table_name = input.table_name;
+	ReplacementDataDBWrapper &data = static_cast<ReplacementDataDBWrapper &>(*data_p);
 	auto db_wrapper = data.wrapper;
 	lock_guard<mutex> arrow_scans_lock(db_wrapper->lock);
 	const auto &arrow_scans = db_wrapper->arrow_scans;
@@ -263,10 +358,10 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, Replac
 [[cpp11::register]] void rapi_register_arrow(duckdb::conn_eptr_t conn, std::string name, cpp11::list export_funs,
                                              cpp11::sexp valuesexp) {
 	if (!conn || !conn.get() || !conn->conn) {
-		cpp11::stop("rapi_register_arrow: Invalid connection");
+		rapi_error_with_context("rapi_register_arrow", "Invalid connection");
 	}
 	if (name.empty()) {
-		cpp11::stop("rapi_register_arrow: Name cannot be empty");
+		rapi_error_with_context("rapi_register_arrow", "Name cannot be empty");
 	}
 
 	auto stream_factory =
@@ -281,7 +376,8 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, Replac
 		auto &arrow_scans = conn->db->arrow_scans;
 
 		for (auto e = arrow_scans.find(name); e != arrow_scans.end(); ++e) {
-			cpp11::stop("rapi_register_arrow: Arrow table '%s' already registered", name.c_str());
+			std::string error_msg = "Arrow table '" + name + "' already registered";
+			rapi_error_with_context("rapi_register_arrow", error_msg);
 		}
 
 		arrow_scans[name] = state_list;

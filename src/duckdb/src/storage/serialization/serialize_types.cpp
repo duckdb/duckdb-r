@@ -42,6 +42,9 @@ shared_ptr<ExtraTypeInfo> ExtraTypeInfo::Deserialize(Deserializer &deserializer)
 	case ExtraTypeInfoType::GENERIC_TYPE_INFO:
 		result = make_shared_ptr<ExtraTypeInfo>(type);
 		break;
+	case ExtraTypeInfoType::GEO_TYPE_INFO:
+		result = GeoTypeInfo::Deserialize(deserializer);
+		break;
 	case ExtraTypeInfoType::INTEGER_LITERAL_TYPE_INFO:
 		result = IntegerLiteralTypeInfo::Deserialize(deserializer);
 		break;
@@ -56,8 +59,11 @@ shared_ptr<ExtraTypeInfo> ExtraTypeInfo::Deserialize(Deserializer &deserializer)
 	case ExtraTypeInfoType::STRUCT_TYPE_INFO:
 		result = StructTypeInfo::Deserialize(deserializer);
 		break;
-	case ExtraTypeInfoType::USER_TYPE_INFO:
-		result = UserTypeInfo::Deserialize(deserializer);
+	case ExtraTypeInfoType::TEMPLATE_TYPE_INFO:
+		result = TemplateTypeInfo::Deserialize(deserializer);
+		break;
+	case ExtraTypeInfoType::UNBOUND_TYPE_INFO:
+		result = UnboundTypeInfo::Deserialize(deserializer);
 		break;
 	default:
 		throw SerializationException("Unsupported type for deserialization of ExtraTypeInfo!");
@@ -133,6 +139,17 @@ unique_ptr<ExtensionTypeInfo> ExtensionTypeInfo::Deserialize(Deserializer &deser
 	return result;
 }
 
+void GeoTypeInfo::Serialize(Serializer &serializer) const {
+	ExtraTypeInfo::Serialize(serializer);
+	serializer.WriteProperty<CoordinateReferenceSystem>(200, "crs", crs);
+}
+
+shared_ptr<ExtraTypeInfo> GeoTypeInfo::Deserialize(Deserializer &deserializer) {
+	auto result = duckdb::shared_ptr<GeoTypeInfo>(new GeoTypeInfo());
+	deserializer.ReadProperty<CoordinateReferenceSystem>(200, "crs", result->crs);
+	return std::move(result);
+}
+
 void IntegerLiteralTypeInfo::Serialize(Serializer &serializer) const {
 	ExtraTypeInfo::Serialize(serializer);
 	serializer.WriteProperty<Value>(200, "constant_value", constant_value);
@@ -189,20 +206,14 @@ shared_ptr<ExtraTypeInfo> StructTypeInfo::Deserialize(Deserializer &deserializer
 	return std::move(result);
 }
 
-void UserTypeInfo::Serialize(Serializer &serializer) const {
+void TemplateTypeInfo::Serialize(Serializer &serializer) const {
 	ExtraTypeInfo::Serialize(serializer);
-	serializer.WritePropertyWithDefault<string>(200, "user_type_name", user_type_name);
-	serializer.WritePropertyWithDefault<string>(201, "catalog", catalog, string());
-	serializer.WritePropertyWithDefault<string>(202, "schema", schema, string());
-	serializer.WritePropertyWithDefault<vector<Value>>(203, "user_type_modifiers", user_type_modifiers);
+	serializer.WritePropertyWithDefault<string>(200, "name", name);
 }
 
-shared_ptr<ExtraTypeInfo> UserTypeInfo::Deserialize(Deserializer &deserializer) {
-	auto result = duckdb::shared_ptr<UserTypeInfo>(new UserTypeInfo());
-	deserializer.ReadPropertyWithDefault<string>(200, "user_type_name", result->user_type_name);
-	deserializer.ReadPropertyWithExplicitDefault<string>(201, "catalog", result->catalog, string());
-	deserializer.ReadPropertyWithExplicitDefault<string>(202, "schema", result->schema, string());
-	deserializer.ReadPropertyWithDefault<vector<Value>>(203, "user_type_modifiers", result->user_type_modifiers);
+shared_ptr<ExtraTypeInfo> TemplateTypeInfo::Deserialize(Deserializer &deserializer) {
+	auto result = duckdb::shared_ptr<TemplateTypeInfo>(new TemplateTypeInfo());
+	deserializer.ReadPropertyWithDefault<string>(200, "name", result->name);
 	return std::move(result);
 }
 

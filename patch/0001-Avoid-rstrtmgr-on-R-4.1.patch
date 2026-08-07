@@ -1,0 +1,47 @@
+From bc39fb96b30b6da77770718981092fa41a0c118f Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Tue, 17 Jun 2025 02:35:04 +0200
+Subject: [PATCH] Avoid rstrtmgr on R 4.1
+
+---
+ src/duckdb/src/common/local_file_system.cpp | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/duckdb/src/common/local_file_system.cpp b/src/duckdb/src/common/local_file_system.cpp
+index 94f2e708f..8a0800cd5 100644
+--- a/src/duckdb/src/common/local_file_system.cpp
++++ b/src/duckdb/src/common/local_file_system.cpp
+@@ -28,10 +28,11 @@
+ #include <string>
+ 
+ #ifdef __MINGW32__
++#if DUCKDB_RSTRTMGR == 1
+ // need to manually define this for mingw
+-extern "C" WINBASEAPI BOOL WINAPI GetPhysicallyInstalledSystemMemory(PULONGLONG);
+ extern "C" WINBASEAPI BOOL QueryFullProcessImageNameW(HANDLE, DWORD, LPWSTR, PDWORD);
+ #endif
++#endif
+ 
+ #undef FILE_CREATE // woo mingw
+ #endif
+@@ -828,6 +829,7 @@ public:
+ };
+ 
+ static string AdditionalLockInfo(const std::wstring path) {
++#if DUCKDB_RSTRTMGR == 1
+ 	// try to find out if another process is holding the lock
+ 
+ 	// init of the somewhat obscure "Windows Restart Manager"
+@@ -889,6 +891,9 @@ static string AdditionalLockInfo(const std::wstring path) {
+ 		return string();
+ 	}
+ 	return "File is already open in " + conflict_string;
++#else
++	return "";
++#endif // DUCKDB_RSTRTMGR == 1
+ }
+ 
+ bool LocalFileSystem::IsPrivateFile(const string &path_p, FileOpener *opener) {
+-- 
+2.49.0
+

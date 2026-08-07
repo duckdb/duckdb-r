@@ -2,19 +2,18 @@
 #include "duckdb/execution/operator/aggregate/physical_window.hpp"
 #include "duckdb/execution/operator/projection/physical_projection.hpp"
 #include "duckdb/execution/physical_plan_generator.hpp"
-#include "duckdb/main/client_context.hpp"
+#include "duckdb/main/client_config.hpp"
 #include "duckdb/planner/expression/bound_reference_expression.hpp"
 #include "duckdb/planner/expression/bound_window_expression.hpp"
 #include "duckdb/planner/operator/logical_window.hpp"
 
-#include <numeric>
-
 namespace duckdb {
 
-unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalWindow &op) {
+PhysicalOperator &PhysicalPlanGenerator::CreatePlan(LogicalWindow &op) {
 	D_ASSERT(op.children.size() == 1);
 
-	auto plan = CreatePlan(*op.children[0]);
+	op.estimated_cardinality = op.EstimateCardinality(context);
+	reference<PhysicalOperator> plan = CreatePlan(*op.children[0]);
 #ifdef DEBUG
 	for (auto &expr : op.expressions) {
 		D_ASSERT(expr->IsWindow());
@@ -43,12 +42,12 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalWindow &op
 	// Process the window functions by sharing the partition/order definitions
 	unordered_map<idx_t, idx_t> projection_map;
 	vector<vector<idx_t>> window_expressions;
-	idx_t blocking_count = 0;
+	idx_t streaming_count = 0;
 	auto output_pos = input_width;
 	while (!blocking_windows.empty() || !streaming_windows.empty()) {
-		const bool process_streaming = blocking_windows.empty();
-		auto &remaining = process_streaming ? streaming_windows : blocking_windows;
-		blocking_count += process_streaming ? 0 : 1;
+		const bool process_blocking = streaming_windows.empty();
+		auto &remaining = process_blocking ? blocking_windows : streaming_windows;
+		streaming_count += process_blocking ? 0 : 1;
 
 		// Find all functions that share the partitioning of the first remaining expression
 		auto over_idx = remaining[0];
@@ -121,14 +120,15 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalWindow &op
 		}
 
 		// Chain the new window operator on top of the plan
-		unique_ptr<PhysicalOperator> window;
-		if (i < blocking_count) {
-			window = make_uniq<PhysicalWindow>(types, std::move(select_list), op.estimated_cardinality);
+		if (i >= streaming_count) {
+			auto &window = Make<PhysicalWindow>(types, std::move(select_list), op.estimated_cardinality);
+			window.children.push_back(plan);
+			plan = window;
 		} else {
-			window = make_uniq<PhysicalStreamingWindow>(types, std::move(select_list), op.estimated_cardinality);
+			auto &window = Make<PhysicalStreamingWindow>(types, std::move(select_list), op.estimated_cardinality);
+			window.children.push_back(plan);
+			plan = window;
 		}
-		window->children.push_back(std::move(plan));
-		plan = std::move(window);
 	}
 
 	// Put everything back into place if it moved
@@ -142,9 +142,9 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalWindow &op
 		for (const auto &p : projection_map) {
 			select_list[p.first] = make_uniq<BoundReferenceExpression>(op.types[p.first], p.second);
 		}
-		auto proj = make_uniq<PhysicalProjection>(op.types, std::move(select_list), op.estimated_cardinality);
-		proj->children.push_back(std::move(plan));
-		plan = std::move(proj);
+		auto &proj = Make<PhysicalProjection>(op.types, std::move(select_list), op.estimated_cardinality);
+		proj.children.push_back(plan);
+		plan = proj;
 	}
 
 	return plan;

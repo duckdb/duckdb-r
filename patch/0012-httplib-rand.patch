@@ -1,0 +1,33 @@
+From 069b7f47ee5ac847a7c0823e9ffed944daaa3c41 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
+Date: Sun, 1 Mar 2026 08:27:02 +0100
+Subject: [PATCH] httplib rand
+
+---
+ src/duckdb/third_party/httplib/httplib.hpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/duckdb/third_party/httplib/httplib.hpp b/src/duckdb/third_party/httplib/httplib.hpp
+index 4bb7de5ad..76046d78c 100644
+--- a/src/duckdb/third_party/httplib/httplib.hpp
++++ b/src/duckdb/third_party/httplib/httplib.hpp
+@@ -19,6 +19,7 @@
+ #include "duckdb/common/string.hpp"
+ #include <exception>
+ #include <stdexcept>
++#include <R_ext/Random.h>
+ 
+ /*
+  * Platform compatibility check
+@@ -5907,7 +5908,7 @@ inline std::string random_string(size_t length) {
+                            "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                            "abcdefghijklmnopqrstuvwxyz";
+     const size_t max_index = (sizeof(charset) - 1);
+-    return charset[static_cast<size_t>(std::rand()) % max_index];
++    return charset[static_cast<size_t>(unif_rand() * max_index)];
+   };
+   std::string str(length, 0);
+   std::generate_n(str.begin(), length, randchar);
+-- 
+2.52.0
+

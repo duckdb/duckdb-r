@@ -1,4 +1,5 @@
 #include "duckdb/execution/index/art/art_key.hpp"
+#include "duckdb/common/types/geometry.hpp"
 
 namespace duckdb {
 
@@ -29,22 +30,22 @@ ARTKey ARTKey::CreateARTKey(ArenaAllocator &allocator, string_t value) {
 		}
 	}
 
-	idx_t len = string_len + escape_count + 1;
-	auto data = allocator.Allocate(len);
+	idx_t key_len = string_len + escape_count + 1;
+	auto key_data = allocator.Allocate(key_len);
 
 	// Copy over the data and add escapes.
 	idx_t pos = 0;
 	for (idx_t i = 0; i < string_len; i++) {
 		if (string_data[i] <= 1) {
 			// Add escape.
-			data[pos++] = '\01';
+			key_data[pos++] = '\01';
 		}
-		data[pos++] = string_data[i];
+		key_data[pos++] = string_data[i];
 	}
 
 	// End with a null-terminator.
-	data[pos] = '\0';
-	return ARTKey(data, len);
+	key_data[pos] = '\0';
+	return ARTKey(key_data, key_len);
 }
 
 template <>
@@ -62,9 +63,18 @@ void ARTKey::CreateARTKey(ArenaAllocator &allocator, ARTKey &key, const char *va
 	ARTKey::CreateARTKey(allocator, key, string_t(value, UnsafeNumericCast<uint32_t>(strlen(value))));
 }
 
-ARTKey ARTKey::CreateKey(ArenaAllocator &allocator, PhysicalType type, Value &value) {
-	D_ASSERT(type == value.type().InternalType());
-	switch (type) {
+ARTKey ARTKey::CreateKey(ArenaAllocator &allocator, Value &value, optional_idx storage_version) {
+	const auto &type = value.type();
+	D_ASSERT(type.InternalType() == value.type().InternalType());
+
+	if (type.id() == LogicalTypeId::GEOMETRY && (!storage_version.IsValid() || (storage_version.GetIndex() < 7))) {
+		// Convert to old-style geometry for older storage versions.
+		string buffer;
+		Geometry::ToSpatialGeometry(value.GetValueUnsafe<string>(), buffer);
+		return ARTKey::CreateARTKey(allocator, string_t(buffer));
+	}
+
+	switch (type.InternalType()) {
 	case PhysicalType::BOOL:
 		return ARTKey::CreateARTKey<bool>(allocator, value);
 	case PhysicalType::INT8:
@@ -153,30 +163,7 @@ idx_t ARTKey::GetMismatchPos(const ARTKey &other, const idx_t start) const {
 			return i;
 		}
 	}
-	return DConstants::INVALID_INDEX;
-}
-
-//===--------------------------------------------------------------------===//
-// ARTKeySection
-//===--------------------------------------------------------------------===//
-
-ARTKeySection::ARTKeySection(idx_t start, idx_t end, idx_t depth, data_t byte)
-    : start(start), end(end), depth(depth), key_byte(byte) {
-}
-
-ARTKeySection::ARTKeySection(idx_t start, idx_t end, const unsafe_vector<ARTKey> &keys, const ARTKeySection &section)
-    : start(start), end(end), depth(section.depth + 1), key_byte(keys[end].data[section.depth]) {
-}
-
-void ARTKeySection::GetChildSections(unsafe_vector<ARTKeySection> &sections, const unsafe_vector<ARTKey> &keys) {
-	auto child_idx = start;
-	for (idx_t i = start + 1; i <= end; i++) {
-		if (keys[i - 1].data[depth] != keys[i].data[depth]) {
-			sections.emplace_back(child_idx, i - 1, keys, *this);
-			child_idx = i;
-		}
-	}
-	sections.emplace_back(child_idx, end, keys, *this);
+	throw FatalException("Corrupted ART index - likely the same row id was inserted twice into the same ART");
 }
 
 } // namespace duckdb

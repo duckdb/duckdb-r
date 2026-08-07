@@ -2,14 +2,15 @@
 % Please edit documentation in R/Connection.R,
 %   R/dbAppendTable__duckdb_connection.R, R/dbBegin__duckdb_connection.R,
 %   R/dbCommit__duckdb_connection.R, R/dbDataType__duckdb_connection.R,
-%   R/dbExistsTable__duckdb_connection_ANY.R,
-%   R/dbGetInfo__duckdb_connection.R, R/dbIsValid__duckdb_connection.R,
+%   R/dbExistsTable__duckdb_connection_ANY.R, R/dbGetInfo__duckdb_connection.R,
+%   R/dbIsValid__duckdb_connection.R,
 %   R/dbListFields__duckdb_connection_character.R,
 %   R/dbListTables__duckdb_connection.R,
 %   R/dbQuoteIdentifier__duckdb_connection.R,
 %   R/dbQuoteLiteral__duckdb_connection.R,
 %   R/dbRemoveTable__duckdb_connection_character.R,
 %   R/dbRollback__duckdb_connection.R,
+%   R/dbSendQueryArrow__duckdb_connection_character.R,
 %   R/dbSendQuery__duckdb_connection_character.R,
 %   R/dbWriteTable__duckdb_connection_character_data.frame.R,
 %   R/show__duckdb_connection.R
@@ -45,6 +46,8 @@
 \alias{dbRemoveTable,duckdb_connection,character-method}
 \alias{dbRollback__duckdb_connection}
 \alias{dbRollback,duckdb_connection-method}
+\alias{dbSendQueryArrow__duckdb_connection_character}
+\alias{dbSendQueryArrow,duckdb_connection,character-method}
 \alias{dbSendQuery__duckdb_connection_character}
 \alias{dbSendQuery,duckdb_connection,character-method}
 \alias{dbWriteTable__duckdb_connection_character_data.frame}
@@ -79,6 +82,8 @@
 
 \S4method{dbRollback}{duckdb_connection}(conn, ...)
 
+\S4method{dbSendQueryArrow}{duckdb_connection,character}(conn, statement, params = NULL, ...)
+
 \S4method{dbSendQuery}{duckdb_connection,character}(conn, statement, params = NULL, ..., arrow = FALSE)
 
 \S4method{dbWriteTable}{duckdb_connection,character,data.frame}(
@@ -96,7 +101,7 @@
 \S4method{show}{duckdb_connection}(object)
 }
 \arguments{
-\item{conn}{A \linkS4class{duckdb_connection} object as returned by \code{\link[DBI:dbConnect]{DBI::dbConnect()}}}
+\item{conn}{A \link[=duckdb_connection-class]{duckdb_connection} object as returned by \code{\link[DBI:dbConnect]{DBI::dbConnect()}}}
 
 \item{name}{The table name, passed on to \code{\link[DBI:dbQuoteIdentifier]{dbQuoteIdentifier()}}. Options are:
 \itemize{
@@ -114,7 +119,7 @@ given verbatim, e.g. \code{SQL('"my_schema"."table_name"')}
 
 \item{row.names}{Whether the row.names of the data.frame should be preserved}
 
-\item{dbObj}{An object inheriting from class \linkS4class{duckdb_connection}.}
+\item{dbObj}{An object inheriting from class \link[=duckdb_connection-class]{duckdb_connection}.}
 
 \item{obj}{An R object whose SQL type we want to determine.}
 
@@ -138,6 +143,26 @@ with one column per query parameter.}
 \item{object}{Any R object}
 }
 \description{
-Implements \link[DBI:DBIConnection-class]{DBI::DBIConnection}.
+Implements \link[DBI:DBIConnection-class]{DBIConnection}.
 }
+\section{Slots}{
+
+\describe{
+\item{\code{conn_ref}}{external pointer to the underlying DuckDB connection.}
+
+\item{\code{driver}}{the \link[=duckdb_driver-class]{duckdb_driver} this connection was opened from.}
+
+\item{\code{debug}}{whether debug information (such as queries) is printed.}
+
+\item{\code{convert_opts}}{internal options controlling how result values are converted to R.}
+
+\item{\code{reserved_words}}{character vector of the engine's reserved SQL keywords, used to quote identifiers.}
+
+\item{\code{timezone_out}}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} time zone results are returned in; superseded by \code{convert_opts}, from which it is copied at construction, and no longer read internally.}
+
+\item{\code{tz_out_convert}}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} how timestamps are converted to \code{timezone_out} (\code{"with"} or \code{"force"}); superseded by \code{convert_opts}.}
+
+\item{\code{bigint}}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} how 64-bit integers are returned; superseded by \code{convert_opts}.}
+}}
+
 \keyword{internal}

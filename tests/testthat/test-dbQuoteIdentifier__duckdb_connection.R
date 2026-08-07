@@ -1,6 +1,5 @@
 test_that("only quotes where needed", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   expect_equal(
     dbQuoteIdentifier(con, c("x y", "select", "SELECT", "x", "2nd")),
@@ -9,8 +8,7 @@ test_that("only quotes where needed", {
 })
 
 test_that("preserves expected DBI behaviour", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   expect_equal(dbQuoteIdentifier(con, SQL("SELECT")), SQL("SELECT"))
   expect_equal(dbQuoteIdentifier(con, character()), SQL(character()))

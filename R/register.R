@@ -31,7 +31,7 @@ encode_values <- function(value) {
 #' @param experimental Enable experimental optimizations
 #' @return These functions are called for their side effect.
 #' @export
-#' @examples
+#' @examplesIf simulate_duckdb()$env$examples_enabled()
 #' con <- dbConnect(duckdb())
 #'
 #' data <- data.frame(a = 1:3, b = letters[1:3])
@@ -45,7 +45,13 @@ encode_values <- function(value) {
 duckdb_register <- function(conn, name, df, overwrite = FALSE, experimental = FALSE) {
   stopifnot(dbIsValid(conn))
   df <- encode_values(as.data.frame(df))
-  rethrow_rapi_register_df(conn@conn_ref, enc2utf8(as.character(name)), df, conn@bigint == "integer64", overwrite, experimental)
+  rethrow_rapi_register_df(
+    conn@conn_ref,
+    enc2utf8(as.character(name)),
+    df,
+    duckdb_convert_opts_impl(conn@convert_opts, experimental = experimental),
+    overwrite
+  )
   invisible(TRUE)
 }
 
@@ -93,13 +99,25 @@ duckdb_register_arrow <- function(conn, name, arrow_scannable, use_async = NULL)
       collapse <- pkg_method("collapse", "dplyr")
       collapse(arrow_scannable)$.data$schema$export_to_c(stream_ptr)
     } else {
-      schema <- arrow_scannable$schema$export_to_c(stream_ptr)
+      arrow_scannable$schema$export_to_c(stream_ptr)
     }
   }
 
   # pass some functions to c land so we don't have to look them up there
-  function_list <- list(export_fun, arrow::Expression$create, arrow::Expression$field_ref, arrow::Expression$scalar, get_schema_fun)
-  rethrow_rapi_register_arrow(conn@conn_ref, enc2utf8(as.character(name)), function_list, arrow_scannable)
+  function_list <- list(
+    export_fun,
+    arrow::Expression$create,
+    arrow::Expression$field_ref,
+    arrow::Expression$scalar,
+    get_schema_fun
+  )
+
+  rethrow_rapi_register_arrow(
+    conn@conn_ref,
+    enc2utf8(as.character(name)),
+    function_list,
+    arrow_scannable
+  )
   invisible(TRUE)
 }
 

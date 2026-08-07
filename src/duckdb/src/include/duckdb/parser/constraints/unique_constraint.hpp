@@ -8,8 +8,6 @@
 
 #pragma once
 
-#include "duckdb/common/enum_util.hpp"
-#include "duckdb/common/enums/index_constraint_type.hpp"
 #include "duckdb/common/vector.hpp"
 #include "duckdb/parser/column_list.hpp"
 #include "duckdb/parser/constraint.hpp"
@@ -22,6 +20,7 @@ public:
 
 public:
 	DUCKDB_API UniqueConstraint(const LogicalIndex index, const bool is_primary_key);
+	DUCKDB_API UniqueConstraint(const LogicalIndex index, string column_name, const bool is_primary_key);
 	DUCKDB_API UniqueConstraint(vector<string> columns, const bool is_primary_key);
 
 public:
@@ -46,8 +45,6 @@ public:
 	vector<LogicalIndex> GetLogicalIndexes(const ColumnList &columns) const;
 	//! Get the name of the constraint.
 	string GetName(const string &table_name) const;
-	//! Sets a single column name. Does nothing, if the name is already set.
-	void SetColumnName(const string &name);
 
 private:
 	UniqueConstraint();

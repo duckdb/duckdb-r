@@ -3,13 +3,15 @@ test_that("long-running queries can be cancelled", {
   # Skip on Windows for R < 4.4, the signal doesn't seem to make it through
   # (but works for the toy repository)
   skip_if(getRversion() < "4.4.0" && .Platform$OS.type == "windows")
+  skip_on_cran()
 
   r_session <- callr::r_session$new()
+  pkg <- get_package_name()
 
-  r_session$run(function() {
-    .GlobalEnv$con <- DBI::dbConnect(duckdb::duckdb())
+  r_session$run(function(pkg) {
+    .GlobalEnv$con <- DBI::dbConnect(asNamespace(pkg)$duckdb())
     DBI::dbExecute(.GlobalEnv$con, "CREATE TABLE data AS SELECT unnest(generate_series(1, 100000)) AS a")
-  })
+  }, args = list(pkg))
 
   r_session$call(function() {
     .GlobalEnv$interrupted <- FALSE
@@ -36,8 +38,9 @@ test_that("long-running queries can be cancelled", {
   expect_true(r_session$run(function() .GlobalEnv$interrupted))
 
   end_time <- Sys.time()
-  expect_lt(end_time - start_time, 1)
 
   r_session$run(function() DBI::dbDisconnect(.GlobalEnv$con))
   r_session$close()
+
+  expect_lt(end_time - start_time, 1)
 })

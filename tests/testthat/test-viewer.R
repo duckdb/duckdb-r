@@ -1,8 +1,7 @@
 test_that("rs_list_object_types", {
   skip_if_not(TEST_RE2)
 
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   object_types <- rs_list_object_types(con)
   expect_true(length(object_types) == 1)
@@ -16,8 +15,7 @@ test_that("rs_list_object_types", {
 test_that("rs_list_objects", {
   skip_if_not(TEST_RE2)
 
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   objects <- rs_list_objects(con)
   expect_equal(nrow(objects), 0)
@@ -25,7 +23,8 @@ test_that("rs_list_objects", {
   dbExecute(con, "CREATE TABLE a (j integer)")
   dbExecute(con, "CREATE VIEW b as SELECT 42")
 
-  expect_equal(rs_list_objects(con), data.frame(name = c("a", "b"), type = c("table", "view"), stringsAsFactors = FALSE))
+  expect_equal(rs_list_objects(con), data.frame(name = c("main"), type = c("schema"), stringsAsFactors = FALSE))
+  expect_equal(rs_list_objects(con, schema = "main"), data.frame(name = c("a", "b"), type = c("table", "view"), stringsAsFactors = FALSE))
 
   dbExecute(con, "CREATE schema fuu ;")
   dbExecute(con, "CREATE TABLE fuu.x (j integer)")
@@ -36,31 +35,28 @@ test_that("rs_list_objects", {
 test_that("rs_list_columns", {
   skip_if_not(TEST_RE2)
 
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   objects <- rs_list_objects(con)
   expect_equal(nrow(objects), 0)
 
   dbExecute(con, "CREATE TABLE t (a integer, b string, c timestamp)")
 
-  cmp <- data.frame(name = c("a", "b", "c"), field.type = c("INTEGER", "VARCHAR", "TIMESTAMP"), stringsAsFactors = FALSE)
+  cmp <- data.frame(name = c("a", "b", "c"), type = c("INTEGER", "VARCHAR", "TIMESTAMP"), stringsAsFactors = FALSE)
 
-  expect_equal(rs_list_columns(con, "t"), cmp)
   expect_equal(rs_list_columns(con, "t", schema = "main"), cmp)
 
   dbExecute(con, "CREATE schema fuu ;")
   dbExecute(con, "CREATE TABLE fuu.t (x integer, y string, z timestamp)")
 
-  cmp <- data.frame(name = c("x", "y", "z"), field.type = c("INTEGER", "VARCHAR", "TIMESTAMP"), stringsAsFactors = FALSE)
+  cmp <- data.frame(name = c("x", "y", "z"), type = c("INTEGER", "VARCHAR", "TIMESTAMP"), stringsAsFactors = FALSE)
   expect_equal(rs_list_columns(con, "t", schema = "fuu"), cmp)
 })
 
 test_that("rs_viewer", {
   skip_if_not(TEST_RE2)
 
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   dbWriteTable(con, "mtcars", mtcars)
 
@@ -69,8 +65,7 @@ test_that("rs_viewer", {
 })
 
 test_that("rs_actions", {
-  con <- dbConnect(duckdb())
-  on.exit(dbDisconnect(con, shutdown = TRUE))
+  con <- local_con()
 
   rs_actions(con)
   expect_true(TRUE)
@@ -91,7 +86,7 @@ test_that("mock observer hooray", {
     called_connection_updated <<- TRUE
   })
   options(connectionObserver = mock, duckdb.force_rstudio_connection_pane = TRUE)
-  con <- dbConnect(duckdb())
+  con <- local_con()
   expect_true(called_connection_opened)
 
   dbWriteTable(con, "mtcars", mtcars)

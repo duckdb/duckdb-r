@@ -1,6 +1,7 @@
 # empty statement gives an error
 
-    rapi_prepare: No statements to execute
+    No statements to execute
+    i Context: rapi_prepare
 
 # multiple statements can be used in one call
 

@@ -1,3 +1,5 @@
+#include "src/parallel/async_result.cpp"
+
 #include "src/parallel/base_pipeline_event.cpp"
 
 #include "src/parallel/meta_pipeline.cpp"
@@ -25,6 +27,8 @@
 #include "src/parallel/pipeline_prepare_finish_event.cpp"
 
 #include "src/parallel/task_executor.cpp"
+
+#include "src/parallel/task_notifier.cpp"
 
 #include "src/parallel/task_scheduler.cpp"
 

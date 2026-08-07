@@ -1,3 +1,11 @@
+//===----------------------------------------------------------------------===//
+//                         DuckDB
+//
+// duckdb/common/arrow/appender/list_data.hpp
+//
+//
+//===----------------------------------------------------------------------===//
+
 #pragma once
 
 #include "duckdb/common/arrow/appender/append_data.hpp"
@@ -20,7 +28,7 @@ public:
 		input.ToUnifiedFormat(input_size, format);
 		idx_t size = to - from;
 		vector<sel_t> child_indices;
-		AppendValidity(append_data, format, from, to);
+		append_data.AppendValidity(format, from, to);
 		AppendOffsets(append_data, format, from, to, child_indices);
 
 		// append the child vector of the list
@@ -29,7 +37,7 @@ public:
 		auto child_size = child_indices.size();
 		Vector child_copy(child.GetType());
 		child_copy.Slice(child, child_sel, child_size);
-		append_data.child_data[0]->append_vector(*append_data.child_data[0], child_copy, 0, child_size, child_size);
+		append_data.child_data[0]->AppendChild(child_copy, 0, child_size, child_size);
 		append_data.row_count += size;
 	}
 

@@ -1,13 +1,16 @@
 #include "duckdb/common/case_insensitive_map.hpp"
+#include "duckdb/main/client_context.hpp"
 #include "rapi.hpp"
 #include "typesr.hpp"
 
-#include "duckdb/main/client_context.hpp"
+// Avoid clash with TRUE and FALSE macros in older rtools
+#undef TRUE
+#undef FALSE
 
 using namespace duckdb;
 using namespace cpp11;
 
-data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
+static data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 	switch (rtype.id()) {
 	case RType::LOGICAL:
 		return (data_ptr_t)LOGICAL_POINTER(coldata);
@@ -38,12 +41,12 @@ data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 		return (data_ptr_t)INTEGER_POINTER(coldata);
 	case RType::DATE:
 		if (!IS_NUMERIC(coldata)) {
-			cpp11::stop("DATE should be of numeric type");
+			rapi_error_with_context("GetColDataPtr", "DATE should be of numeric type");
 		}
 		return (data_ptr_t)NUMERIC_POINTER(coldata);
 	case RType::DATE_INTEGER:
 		if (!IS_INTEGER(coldata)) {
-			cpp11::stop("DATE_INTEGER should be of integer type");
+			rapi_error_with_context("GetColDataPtr", "DATE_INTEGER should be of integer type");
 		}
 		return (data_ptr_t)INTEGER_POINTER(coldata);
 	case RType::LIST_OF_NULLS:
@@ -51,11 +54,12 @@ data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 		return (data_ptr_t)DATAPTR_RO(coldata);
 	case RTypeId::LIST:
 		return (data_ptr_t)DATAPTR_RO(coldata);
+	case RTypeId::MATRIX:
 	case RTypeId::STRUCT:
 		// Will bind child columns dynamically. Could also optimize by descending early and recording.
 		return (data_ptr_t)coldata;
 	default:
-		cpp11::stop("rapi_execute: Unsupported column type for bind");
+		rapi_error_with_context("GetColDataPtr", "Unsupported column type for bind");
 	}
 }
 
@@ -64,7 +68,7 @@ struct DedupPointerEnumType {
 		return val == NA_STRING;
 	}
 	static uintptr_t Convert(SEXP val) {
-		return (uintptr_t)DATAPTR(val);
+		return (uintptr_t)DATAPTR_RO(val);
 	}
 };
 
@@ -83,7 +87,8 @@ static void AppendColumnSegment(SRC *source_data, idx_t sexp_offset, Vector &res
 	}
 }
 
-void AppendListColumnSegment(const RType &rtype, SEXP *source_data, idx_t sexp_offset, Vector &result, idx_t count) {
+static void AppendListColumnSegment(const RType &rtype, SEXP *source_data, idx_t sexp_offset, Vector &result,
+                                    idx_t count) {
 	source_data += sexp_offset;
 	auto &result_mask = FlatVector::Validity(result);
 	auto child_rtype = rtype.GetListChildType();
@@ -104,11 +109,130 @@ void AppendListColumnSegment(const RType &rtype, SEXP *source_data, idx_t sexp_o
 	}
 }
 
-void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_ptr_t coldata_ptr, idx_t sexp_offset, Vector &v,
-                            idx_t this_count);
+// Scan path for the `map = "list_of"` opt-in: each non-NULL cell is either a
+// `data.frame(key, value)` or a named list, and produces a `STRUCT(key, value)`
+// row per entry.
+static void AppendMapEntriesListColumnSegment(const RType &rtype, SEXP *source_data, idx_t sexp_offset, Vector &result,
+                                              idx_t count) {
+	source_data += sexp_offset;
+	auto &result_mask = FlatVector::Validity(result);
+	auto child_rtype = rtype.GetListChildType();
+	D_ASSERT(child_rtype.id() == RTypeId::STRUCT);
+	auto result_data = FlatVector::GetData<list_entry_t>(result);
 
-void AppendStructColumnSegment(const RType &rtype, bool experimental, SEXP source_data, idx_t sexp_offset,
-                               Vector &result, idx_t count) {
+	for (idx_t i = 0; i < count; i++) {
+		auto val = source_data[i];
+		if (RSexpType::IsNull(val)) {
+			result_mask.SetInvalid(i);
+			continue;
+		}
+		result_data[i].offset = ListVector::GetListSize(result);
+		R_len_t len = 0;
+
+		if (Rf_inherits(val, "data.frame")) {
+			SEXP key_col = VECTOR_ELT(val, 0);
+			SEXP value_col = VECTOR_ELT(val, 1);
+			len = (R_len_t)Rf_xlength(key_col);
+			for (R_len_t j = 0; j < len; ++j) {
+				child_list_t<Value> kv;
+				kv.push_back({"key", RApiTypes::SexpToValue(key_col, j)});
+				kv.push_back({"value", RApiTypes::SexpToValue(value_col, j)});
+				ListVector::PushBack(result, Value::STRUCT(std::move(kv)));
+			}
+		} else {
+			SEXP names_sexp = Rf_getAttrib(val, R_NamesSymbol);
+			len = (R_len_t)Rf_xlength(val);
+			for (R_len_t j = 0; j < len; ++j) {
+				SEXP nm = STRING_ELT(names_sexp, j);
+				SEXP value_sexp = VECTOR_ELT(val, j);
+				child_list_t<Value> kv;
+				kv.push_back({"key", Value(string(CHAR(nm)))});
+				if (value_sexp == R_NilValue) {
+					// Treat element NULL as a SQL NULL of the column's value type
+					kv.push_back({"value", Value()});
+				} else {
+					kv.push_back({"value", RApiTypes::SexpToValue(value_sexp, 0)});
+				}
+				ListVector::PushBack(result, Value::STRUCT(std::move(kv)));
+			}
+		}
+		result_data[i].length = len;
+	}
+}
+
+template <class SRC, class DST, class RTYPE>
+static inline void AppendMatrixSegmentAtomic(SRC *src_ptr, int nrows, int ncols, idx_t sexp_offset,
+                                             Vector &child_vector, idx_t count) {
+	auto child_data = FlatVector::GetData<DST>(child_vector);
+	auto &child_mask = FlatVector::Validity(child_vector);
+	idx_t vector_idx = 0;
+	for (idx_t i = 0; i < count; i++) {
+		auto matrix_elt_idx = sexp_offset + i;
+		for (idx_t k = 0; k < static_cast<idx_t>(ncols); k++) {
+			auto val = src_ptr[matrix_elt_idx];
+			if (RTYPE::IsNull(val)) {
+				child_mask.SetInvalid(vector_idx++);
+			} else {
+				child_data[vector_idx++] = RTYPE::Convert(val);
+			}
+			matrix_elt_idx += nrows;
+		}
+	}
+}
+
+static void AppendMatrixColumnSegment(const RType &rtype, bool experimental, SEXP source_data, idx_t sexp_offset,
+                                      Vector &result, idx_t count) {
+	auto element_rtype = rtype.GetMatrixElementType();
+	auto nrows = Rf_nrows(source_data);
+	auto ncols = Rf_ncols(source_data);
+	auto &child_vector = ArrayVector::GetEntry(result);
+
+	switch (element_rtype.id()) {
+	case RType::LOGICAL: // LGLSXP
+		AppendMatrixSegmentAtomic<int, bool, RBooleanType>(LOGICAL_POINTER(source_data), nrows, ncols, sexp_offset,
+		                                                   child_vector, count);
+		break;
+
+	case RType::INTEGER: // INTSXP
+		AppendMatrixSegmentAtomic<int, int, RIntegerType>(INTEGER_POINTER(source_data), nrows, ncols, sexp_offset,
+		                                                  child_vector, count);
+		break;
+
+	case RType::INTEGER64: // REALSXP
+		AppendMatrixSegmentAtomic<int64_t, int64_t, RInteger64Type>((int64_t *)NUMERIC_POINTER(source_data), nrows,
+		                                                            ncols, sexp_offset, child_vector, count);
+		break;
+
+	case RType::NUMERIC: // REALSXP
+		AppendMatrixSegmentAtomic<double, double, RDoubleType>(NUMERIC_POINTER(source_data), nrows, ncols, sexp_offset,
+		                                                       child_vector, count);
+		break;
+
+	case RTypeId::BYTE: // RAWSXP
+		rapi_error_with_context("AppendMatrixColumnSegment", "Matrix of type raw is not supported.");
+		break;
+
+	case RType::STRING: // STRSXP
+		if (experimental) {
+			D_ASSERT(result.GetType().id() == LogicalTypeId::POINTER);
+			AppendMatrixSegmentAtomic<SEXP, uintptr_t, DedupPointerEnumType>((SEXP *)DATAPTR_RO(source_data), nrows,
+			                                                                 ncols, sexp_offset, child_vector, count);
+		} else {
+			AppendMatrixSegmentAtomic<SEXP, string_t, RStringSexpType>((SEXP *)DATAPTR_RO(source_data), nrows, ncols,
+			                                                           sexp_offset, child_vector, count);
+		}
+		break;
+
+	default:
+		rapi_error_with_context("AppendMatrixColumnSegment", "Unsupported matrix type for scan");
+	}
+}
+
+static void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_ptr_t coldata_ptr, idx_t sexp_offset,
+                                   Vector &v, idx_t this_count);
+
+static void AppendStructColumnSegment(const RType &rtype, bool experimental, SEXP source_data, idx_t sexp_offset,
+                                      Vector &result, idx_t count) {
 	// No NULL values for STRUCTs.
 	auto &child_entries = StructVector::GetEntries(result);
 	auto child_rtypes = rtype.GetStructChildTypes();
@@ -120,8 +244,8 @@ void AppendStructColumnSegment(const RType &rtype, bool experimental, SEXP sourc
 	}
 }
 
-void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_ptr_t coldata_ptr, idx_t sexp_offset, Vector &v,
-                            idx_t this_count) {
+static void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_ptr_t coldata_ptr, idx_t sexp_offset,
+                                   Vector &v, idx_t this_count) {
 	switch (rtype.id()) {
 	case RType::LOGICAL: {
 		auto data_ptr = (int *)coldata_ptr;
@@ -172,8 +296,8 @@ void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_ptr_t co
 			break;
 
 		default:
-			cpp11::stop("rapi_execute: Unknown enum type for scan: %s",
-			            TypeIdToString(v.GetType().InternalType()).c_str());
+			std::string error_msg = "Unknown enum type for scan: " + TypeIdToString(v.GetType().InternalType());
+			rapi_error_with_context("AppendAnyColumnSegment", error_msg);
 		}
 		break;
 	}
@@ -253,13 +377,18 @@ void AppendAnyColumnSegment(const RType &rtype, bool experimental, data_ptr_t co
 		AppendListColumnSegment(rtype, data_ptr, sexp_offset, v, this_count);
 		break;
 	}
+	case RTypeId::MATRIX: {
+		auto data_ptr = (SEXP)coldata_ptr;
+		AppendMatrixColumnSegment(rtype, experimental, data_ptr, sexp_offset, v, this_count);
+		break;
+	}
 	case RTypeId::STRUCT: {
 		auto data_ptr = (SEXP)coldata_ptr;
 		AppendStructColumnSegment(rtype, experimental, data_ptr, sexp_offset, v, this_count);
 		break;
 	}
 	default:
-		cpp11::stop("rapi_execute: Unsupported column type for scan");
+		rapi_error_with_context("AppendAnyColumnSegment", "Unsupported column type for scan");
 	}
 }
 
@@ -281,7 +410,7 @@ case_insensitive_map_t<vector<Value>> ListToVectorOfValue(list input_sexps) {
 
 		vector<Value> vv;
 		vv.reserve(size);
-		for (idx_t i = 0; i < size; ++i) {
+		for (idx_t i = 0; i < static_cast<idx_t>(size); ++i) {
 			vv.push_back(v.GetValue(i));
 		}
 
@@ -289,30 +418,111 @@ case_insensitive_map_t<vector<Value>> ListToVectorOfValue(list input_sexps) {
 		input_idx++;
 	}
 
-	return std::move(output);
+	return output;
 }
 
-static bool get_bool_param(named_parameter_map_t &named_parameters, string name, bool dflt = false) {
-	bool res = dflt;
-	auto entry = named_parameters.find(name);
+static bool get_integer64_param(named_parameter_map_t &named_parameters) {
+	auto entry = named_parameters.find("integer64");
 	if (entry != named_parameters.end()) {
-		res = BooleanValue::Get(entry->second);
+		return BooleanValue::Get(entry->second);
 	}
-	return res;
+	return false;
+}
+
+static bool get_experimental_param(named_parameter_map_t &named_parameters) {
+	auto entry = named_parameters.find("experimental");
+	if (entry != named_parameters.end()) {
+		return BooleanValue::Get(entry->second);
+	}
+	return false;
+}
+
+static bool get_map_list_of_param(named_parameter_map_t &named_parameters) {
+	auto entry = named_parameters.find("map_list_of");
+	if (entry != named_parameters.end()) {
+		return BooleanValue::Get(entry->second);
+	}
+	return false;
+}
+
+// Returns true when `coldata` is a list column whose non-NULL cells are all
+// named lists (and not data frames or blobs) that the caller has opted into
+// scanning as MAP entries via `dbConnect(map = "list_of")`. The cells'
+// value types must agree; otherwise the column scans as before.
+//
+// On success, `value_rtype` is set to the common value RType and the column's
+// rtype should be overridden to `LIST(STRUCT(key = STRING, value = V))`.
+static bool DetectNamedListMapColumn(SEXP coldata, bool integer64, RType &value_rtype) {
+	if (TYPEOF(coldata) != VECSXP) {
+		return false;
+	}
+	R_xlen_t len = Rf_xlength(coldata);
+	bool any_seen = false;
+	bool common_set = false;
+
+	for (R_xlen_t i = 0; i < len; ++i) {
+		SEXP elt = VECTOR_ELT(coldata, i);
+		if (elt == R_NilValue) {
+			continue;
+		}
+		if (TYPEOF(elt) != VECSXP) {
+			return false;
+		}
+		if (Rf_inherits(elt, "data.frame") || Rf_inherits(elt, "blob")) {
+			return false;
+		}
+		SEXP names_sexp = Rf_getAttrib(elt, R_NamesSymbol);
+		R_xlen_t inner_len = Rf_xlength(elt);
+		if (names_sexp == R_NilValue || TYPEOF(names_sexp) != STRSXP || Rf_xlength(names_sexp) != inner_len) {
+			return false;
+		}
+		for (R_xlen_t j = 0; j < inner_len; ++j) {
+			SEXP nm = STRING_ELT(names_sexp, j);
+			if (nm == NA_STRING || Rf_xlength(nm) == 0) {
+				return false;
+			}
+		}
+		any_seen = true;
+		for (R_xlen_t j = 0; j < inner_len; ++j) {
+			SEXP v_j = VECTOR_ELT(elt, j);
+			if (v_j == R_NilValue) {
+				continue;
+			}
+			RType t = RApiTypes::DetectRType(v_j, integer64);
+			if (!common_set) {
+				value_rtype = t;
+				common_set = true;
+			} else if (t != value_rtype) {
+				return false;
+			}
+		}
+	}
+
+	if (!any_seen) {
+		return false;
+	}
+	if (!common_set) {
+		// All non-NULL cells were empty named lists. Default value type to STRING.
+		value_rtype = RTypeId::STRING;
+	}
+	return true;
 }
 
 struct DataFrameScanBindData : public TableFunctionData {
 	DataFrameScanBindData(SEXP df_p, idx_t row_count_p, vector<RType> &rtypes_p, vector<data_ptr_t> &dataptrs_p,
-	                      named_parameter_map_t &named_parameters)
-	    : df(df_p), row_count(row_count_p), rtypes(rtypes_p), data_ptrs(dataptrs_p) {
-		experimental = get_bool_param(named_parameters, "experimental", false);
+	                      vector<bool> &named_list_map_p, named_parameter_map_t &named_parameters)
+	    : df(df_p), row_count(row_count_p), rtypes(rtypes_p), data_ptrs(dataptrs_p), named_list_map(named_list_map_p) {
+		integer64 = get_integer64_param(named_parameters);
+		experimental = get_experimental_param(named_parameters);
 	}
 	data_frame df;
 	idx_t row_count;
 	vector<RType> rtypes;
 	vector<data_ptr_t> data_ptrs;
+	vector<bool> named_list_map;
 	idx_t rows_per_task = 1000000;
-	bool experimental;
+	bool integer64 = false;
+	bool experimental = false;
 };
 
 struct DataFrameGlobalState : public GlobalTableFunctionState {
@@ -339,25 +549,41 @@ static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context
                                                           vector<LogicalType> &return_types, vector<string> &names) {
 	data_frame df((SEXP)input.inputs[0].GetPointer());
 
-	auto integer64 = get_bool_param(input.named_parameters, "integer64", false);
-	auto experimental = get_bool_param(input.named_parameters, "experimental", false);
+	auto integer64 = get_integer64_param(input.named_parameters);
+	auto experimental = get_experimental_param(input.named_parameters);
+	auto map_list_of = get_map_list_of_param(input.named_parameters);
 
 	auto df_names = df.names();
 	vector<RType> rtypes;
 	vector<data_ptr_t> data_ptrs;
+	vector<bool> named_list_map;
 
 	for (R_xlen_t col_idx = 0; col_idx < df.size(); col_idx++) {
 		names.push_back(df_names[col_idx]);
 
 		auto coldata = df[col_idx];
 		auto rtype = RApiTypes::DetectRType(coldata, integer64);
+
+		bool is_named_list_map = false;
+		if (map_list_of && (rtype.id() == RTypeId::LIST || rtype.id() == RTypeId::LIST_OF_NULLS)) {
+			RType value_rtype;
+			if (DetectNamedListMapColumn(coldata, integer64, value_rtype)) {
+				child_list_t<RType> struct_children;
+				struct_children.push_back({"key", RType(RTypeId::STRING)});
+				struct_children.push_back({"value", value_rtype});
+				rtype = RType::LIST(RType::STRUCT(std::move(struct_children)));
+				is_named_list_map = true;
+			}
+		}
+
 		rtypes.push_back(rtype);
+		named_list_map.push_back(is_named_list_map);
 		return_types.push_back(RApiTypes::LogicalTypeFromRType(rtype, experimental));
 
 		data_ptrs.push_back(GetColDataPtr(rtype, coldata));
 	}
 	auto row_count = RApiTypes::GetVecSize(rtypes[0], VECTOR_ELT(df, 0));
-	return make_uniq<DataFrameScanBindData>(df, row_count, rtypes, data_ptrs, input.named_parameters);
+	return make_uniq<DataFrameScanBindData>(df, row_count, rtypes, data_ptrs, named_list_map, input.named_parameters);
 }
 
 static idx_t DataFrameScanMaxThreads(ClientContext &context, const FunctionData *bind_data_p) {
@@ -433,7 +659,11 @@ static void DataFrameScanFunc(ClientContext &context, TableFunctionInput &data, 
 
 		auto coldata_ptr = bind_data.data_ptrs[src_df_col_idx];
 		auto rtype = bind_data.rtypes[src_df_col_idx];
-		AppendAnyColumnSegment(rtype, bind_data.experimental, coldata_ptr, sexp_offset, v, this_count);
+		if (bind_data.named_list_map[src_df_col_idx]) {
+			AppendMapEntriesListColumnSegment(rtype, (SEXP *)coldata_ptr, sexp_offset, v, this_count);
+		} else {
+			AppendAnyColumnSegment(rtype, bind_data.experimental, coldata_ptr, sexp_offset, v, this_count);
+		}
 	}
 	operator_data.position += this_count;
 }
@@ -454,8 +684,9 @@ DataFrameScanFunction::DataFrameScanFunction()
                     DataFrameScanInitGlobal, DataFrameScanInitLocal) {
 	cardinality = DataFrameScanCardinality;
 	to_string = DataFrameScanToString;
-	named_parameters["experimental"] = LogicalType::BOOLEAN;
 	named_parameters["integer64"] = LogicalType::BOOLEAN;
+	named_parameters["experimental"] = LogicalType::BOOLEAN;
+	named_parameters["map_list_of"] = LogicalType::BOOLEAN;
 	projection_pushdown = true;
 	global_initialization = TableFunctionInitialization::INITIALIZE_ON_SCHEDULE;
 }

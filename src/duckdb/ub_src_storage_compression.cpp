@@ -24,5 +24,7 @@
 
 #include "src/storage/compression/fsst.cpp"
 
+#include "src/storage/compression/dict_fsst.cpp"
+
 #include "src/storage/compression/empty_validity.cpp"
 

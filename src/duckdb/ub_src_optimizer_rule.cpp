@@ -10,6 +10,8 @@
 
 #include "src/optimizer/rule/date_part_simplification.cpp"
 
+#include "src/optimizer/rule/date_trunc_simplification.cpp"
+
 #include "src/optimizer/rule/distinct_aggregate_optimizer.cpp"
 
 #include "src/optimizer/rule/distributivity.cpp"
@@ -30,7 +32,11 @@
 
 #include "src/optimizer/rule/ordered_aggregate_optimizer.cpp"
 
+#include "src/optimizer/rule/predicate_factoring.cpp"
+
 #include "src/optimizer/rule/regex_optimizations.cpp"
 
 #include "src/optimizer/rule/timestamp_comparison.cpp"
+
+#include "src/optimizer/rule/constant_order_normalization.cpp"
 

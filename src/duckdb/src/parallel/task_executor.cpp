@@ -1,5 +1,8 @@
 #include "duckdb/parallel/task_executor.hpp"
+#include "duckdb/parallel/task_notifier.hpp"
 #include "duckdb/parallel/task_scheduler.hpp"
+
+#include <thread>
 
 namespace duckdb {
 
@@ -7,7 +10,8 @@ TaskExecutor::TaskExecutor(TaskScheduler &scheduler)
     : scheduler(scheduler), token(scheduler.CreateProducer()), completed_tasks(0), total_tasks(0) {
 }
 
-TaskExecutor::TaskExecutor(ClientContext &context) : TaskExecutor(TaskScheduler::GetScheduler(context)) {
+TaskExecutor::TaskExecutor(ClientContext &context_p) : TaskExecutor(TaskScheduler::GetScheduler(context_p)) {
+	context = context_p;
 }
 
 TaskExecutor::~TaskExecutor() {
@@ -36,14 +40,16 @@ void TaskExecutor::FinishTask() {
 void TaskExecutor::WorkOnTasks() {
 	// repeatedly execute tasks until we are finished
 	shared_ptr<Task> task_from_producer;
-	while (scheduler.GetTaskFromProducer(*token, task_from_producer)) {
-		auto res = task_from_producer->Execute(TaskExecutionMode::PROCESS_ALL);
-		(void)res;
-		D_ASSERT(res != TaskExecutionResult::TASK_BLOCKED);
-		task_from_producer.reset();
-	}
 	// wait for all active tasks to finish
 	while (completed_tasks != total_tasks) {
+		if (scheduler.GetTaskFromProducer(*token, task_from_producer)) {
+			const auto res = task_from_producer->Execute(TaskExecutionMode::PROCESS_ALL);
+			std::ignore = res;
+			D_ASSERT(res != TaskExecutionResult::TASK_BLOCKED);
+			task_from_producer.reset();
+		} else {
+			std::this_thread::yield();
+		}
 	}
 
 	// check if we ran into any errors while checkpointing
@@ -61,15 +67,16 @@ BaseExecutorTask::BaseExecutorTask(TaskExecutor &executor) : executor(executor) 
 }
 
 TaskExecutionResult BaseExecutorTask::Execute(TaskExecutionMode mode) {
-	(void)mode;
-	D_ASSERT(mode == TaskExecutionMode::PROCESS_ALL);
 	if (executor.HasError()) {
 		// another task encountered an error - bailout
 		executor.FinishTask();
 		return TaskExecutionResult::TASK_FINISHED;
 	}
 	try {
-		ExecuteTask();
+		{
+			TaskNotifier task_notifier {executor.context};
+			ExecuteTask();
+		}
 		executor.FinishTask();
 		return TaskExecutionResult::TASK_FINISHED;
 	} catch (std::exception &ex) {

@@ -13,14 +13,16 @@
 #include "duckdb/common/mutex.hpp"
 
 namespace duckdb {
+class AttachedDatabase;
 class DatabaseInstance;
 class MetaTransaction;
 
 class ValidChecker {
 public:
-	ValidChecker();
+	explicit ValidChecker(DatabaseInstance &db);
 
 	DUCKDB_API static ValidChecker &Get(DatabaseInstance &db);
+	DUCKDB_API static ValidChecker &Get(AttachedDatabase &db);
 	DUCKDB_API static ValidChecker &Get(MetaTransaction &transaction);
 
 	DUCKDB_API void Invalidate(string error);
@@ -42,10 +44,13 @@ public:
 	}
 
 private:
-	//! Set to true if a fatal exception has occurred
 	mutex invalidate_lock;
+	//! Set to true when encountering a fatal exception.
 	atomic<bool> is_invalidated;
+	//! The message invalidating the database instance.
 	string invalidated_msg;
+	//! The database instance.
+	DatabaseInstance &db;
 };
 
 } // namespace duckdb

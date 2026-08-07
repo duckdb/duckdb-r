@@ -1,7 +1,16 @@
+//===----------------------------------------------------------------------===//
+//                         DuckDB
+//
+// duckdb/common/arrow/appender/enum_data.hpp
+//
+//
+//===----------------------------------------------------------------------===//
+
 #pragma once
 
 #include "duckdb/common/arrow/appender/append_data.hpp"
 #include "duckdb/common/arrow/appender/scalar_data.hpp"
+#include "duckdb/common/arrow/arrow_appender.hpp"
 
 namespace duckdb {
 
@@ -26,7 +35,7 @@ struct ArrowEnumData : public ArrowScalarBaseData<TGT> {
 		auto &main_buffer = append_data.GetMainBuffer();
 		auto &aux_buffer = append_data.GetAuxBuffer();
 		// resize the validity mask and set up the validity buffer for iteration
-		ResizeValidity(append_data.GetValidityBuffer(), append_data.row_count + size);
+		ArrowAppendData::ResizeValidity(append_data.GetValidityBuffer(), append_data.row_count + size);
 
 		// resize the offset buffer - the offset buffer holds the offsets into the child array
 		main_buffer.resize(main_buffer.size() + sizeof(int32_t) * (size + 1));
@@ -59,8 +68,15 @@ struct ArrowEnumData : public ArrowScalarBaseData<TGT> {
 
 	static void Initialize(ArrowAppendData &result, const LogicalType &type, idx_t capacity) {
 		result.GetMainBuffer().reserve(capacity * sizeof(TGT));
-		// construct the enum child data
-		auto enum_data = ArrowAppender::InitializeChild(LogicalType::VARCHAR, EnumType::GetSize(type), result.options);
+		// EnumAppendVector always writes the dictionary in the regular int32-offset string
+		// layout, so force a non-view, regular-offset child regardless of the connection's
+		// produce_arrow_string_view / arrow_large_buffer_size settings. Otherwise the child
+		// would be finalized as a view (4-buffer) or large (int64-offset) array over int32
+		// data, producing a malformed dictionary that consumers read as garbage.
+		ClientProperties dict_options = result.options;
+		dict_options.produce_arrow_string_view = false;
+		dict_options.arrow_offset_size = ArrowOffsetSize::REGULAR;
+		auto enum_data = ArrowAppender::InitializeChild(LogicalType::VARCHAR, EnumType::GetSize(type), dict_options);
 		EnumAppendVector(*enum_data, EnumType::GetValuesInsertOrder(type), EnumType::GetSize(type));
 		result.child_data.push_back(std::move(enum_data));
 	}

@@ -107,9 +107,9 @@ private:
 //! RadixPartitionedTupleData is a PartitionedTupleData that partitions input based on the radix of a hash
 class RadixPartitionedTupleData : public PartitionedTupleData {
 public:
-	RadixPartitionedTupleData(BufferManager &buffer_manager, const TupleDataLayout &layout, idx_t radix_bits_p,
-	                          idx_t hash_col_idx_p);
-	RadixPartitionedTupleData(const RadixPartitionedTupleData &other);
+	RadixPartitionedTupleData(BufferManager &buffer_manager, shared_ptr<TupleDataLayout> layout_ptr, MemoryTag tag,
+	                          idx_t radix_bits_p, idx_t hash_col_idx_p);
+	RadixPartitionedTupleData(RadixPartitionedTupleData &other);
 	~RadixPartitionedTupleData() override;
 
 	idx_t GetRadixBits() const {
@@ -127,7 +127,8 @@ protected:
 	                                   TupleDataPinProperties properties) const override;
 	void ComputePartitionIndices(PartitionedTupleDataAppendState &state, DataChunk &input,
 	                             const SelectionVector &append_sel, const idx_t append_count) override;
-	void ComputePartitionIndices(Vector &row_locations, idx_t count, Vector &partition_indices) const override;
+	void ComputePartitionIndices(Vector &row_locations, idx_t count, Vector &partition_indices,
+	                             unique_ptr<Vector> &utility_vector) const override;
 	idx_t MaxPartitionIndex() const override {
 		return RadixPartitioning::NumberOfPartitions(radix_bits) - 1;
 	}

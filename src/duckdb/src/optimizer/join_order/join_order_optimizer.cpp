@@ -7,21 +7,31 @@
 #include "duckdb/optimizer/join_order/plan_enumerator.hpp"
 #include "duckdb/planner/expression/list.hpp"
 #include "duckdb/planner/operator/list.hpp"
+#include "duckdb/main/settings.hpp"
 
 namespace duckdb {
 
-JoinOrderOptimizer::JoinOrderOptimizer(ClientContext &context) : context(context), query_graph_manager(context) {
+JoinOrderOptimizer::JoinOrderOptimizer(ClientContext &context)
+    : context(context), query_graph_manager(context), depth(1) {
 }
 
 JoinOrderOptimizer JoinOrderOptimizer::CreateChildOptimizer() {
 	JoinOrderOptimizer child_optimizer(context);
 	child_optimizer.materialized_cte_stats = materialized_cte_stats;
 	child_optimizer.delim_scan_stats = delim_scan_stats;
+	child_optimizer.depth = depth + 1;
+	child_optimizer.recursive_cte_indexes = recursive_cte_indexes;
 	return child_optimizer;
 }
 
 unique_ptr<LogicalOperator> JoinOrderOptimizer::Optimize(unique_ptr<LogicalOperator> plan,
                                                          optional_ptr<RelationStats> stats) {
+	auto max_expression_depth = Settings::Get<MaxExpressionDepthSetting>(query_graph_manager.context);
+	if (depth > max_expression_depth) {
+		// Very deep plans will eventually consume quite some stack space
+		// Returning the current plan is always a valid choice
+		return plan;
+	}
 
 	// make sure query graph manager has not extracted a relation graph already
 	LogicalOperator *op = plan.get();

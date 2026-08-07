@@ -43,6 +43,8 @@ struct UncompressedStringSegmentState : public CompressedSegmentState {
 	unordered_map<block_id_t, reference<StringBlock>> overflow_blocks;
 	//! Overflow string writer (if any), if not set overflow strings will be written to memory blocks
 	unique_ptr<OverflowStringWriter> overflow_writer;
+	//! The block manager with which to write
+	optional_ptr<BlockManager> block_manager;
 	//! The set of overflow blocks written to disk (if any)
 	vector<block_id_t> on_disk_blocks;
 
@@ -51,22 +53,16 @@ public:
 
 	void RegisterBlock(BlockManager &manager, block_id_t block_id);
 
-	string GetSegmentInfo() const override {
-		if (on_disk_blocks.empty()) {
-			return "";
-		}
-		string result = StringUtil::Join(on_disk_blocks, on_disk_blocks.size(), ", ",
-		                                 [&](block_id_t block) { return to_string(block); });
-		return "Overflow String Block Ids: " + result;
-	}
+	string GetSegmentInfo() const override;
 
-	vector<block_id_t> GetAdditionalBlocks() const override {
-		return on_disk_blocks;
-	}
+	void InsertOverflowBlock(block_id_t block_id, reference<StringBlock> block);
+	reference<StringBlock> FindOverflowBlock(block_id_t block_id);
 
 private:
 	mutex block_lock;
 	unordered_map<block_id_t, shared_ptr<BlockHandle>> handles;
+
+	StorageLock overflow_blocks_lock;
 };
 
 } // namespace duckdb

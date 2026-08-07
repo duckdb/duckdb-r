@@ -10,6 +10,7 @@
 
 #include "duckdb/common/numeric_utils.hpp"
 #include "duckdb/function/compression_function.hpp"
+#include "duckdb/storage/storage_manager.hpp"
 #include "duckdb/storage/compression/alp/alp_constants.hpp"
 #include "duckdb/storage/compression/alp/alp_utils.hpp"
 #include "duckdb/storage/compression/alprd/algorithm/alprd.hpp"
@@ -26,19 +27,29 @@ struct AlpRDAnalyzeState : public AnalyzeState {
 public:
 	using EXACT_TYPE = typename FloatingToExact<T>::TYPE;
 
-	explicit AlpRDAnalyzeState(const CompressionInfo &info) : AnalyzeState(info), state() {
+	explicit AlpRDAnalyzeState(const CompressionInfo &info) : AnalyzeState(info), compression_data() {
 	}
 
 	idx_t vectors_count = 0;
 	idx_t total_values_count = 0;
 	idx_t vectors_sampled_count = 0;
 	vector<EXACT_TYPE> rowgroup_sample;
-	alp::AlpRDCompressionState<T, true> state;
+	alp::AlpRDCompressionData<T, true> compression_data;
 };
 
 template <class T>
 unique_ptr<AnalyzeState> AlpRDInitAnalyze(ColumnData &col_data, PhysicalType type) {
-	CompressionInfo info(col_data.GetBlockManager().GetBlockSize());
+	auto &storage_manager = col_data.GetStorageManager();
+	auto &block_manager = storage_manager.GetBlockManager();
+
+	if (block_manager.GetBlockSize() + block_manager.GetBlockHeaderSize() < DEFAULT_BLOCK_ALLOC_SIZE) {
+		if (storage_manager.GetStorageVersion() < 7) {
+			// Before v1.5.0, blocks cannot use uncompressed-vector fallback
+			return nullptr;
+		}
+	}
+
+	CompressionInfo info(block_manager);
 	return make_uniq<AlpRDAnalyzeState<T>>(info);
 }
 
@@ -48,7 +59,7 @@ unique_ptr<AnalyzeState> AlpRDInitAnalyze(ColumnData &col_data, PhysicalType typ
 template <class T>
 bool AlpRDAnalyze(AnalyzeState &state, Vector &input, idx_t count) {
 	using EXACT_TYPE = typename FloatingToExact<T>::TYPE;
-	auto &analyze_state = (AlpRDAnalyzeState<T> &)state;
+	auto &analyze_state = state.Cast<AlpRDAnalyzeState<T>>();
 
 	bool must_skip_current_vector = alp::AlpUtils::MustSkipSamplingFromCurrentVector(
 	    analyze_state.vectors_count, analyze_state.vectors_sampled_count, count);
@@ -114,13 +125,15 @@ idx_t AlpRDFinalAnalyze(AnalyzeState &state) {
 	if (analyze_state.total_values_count == 0) {
 		return DConstants::INVALID_INDEX;
 	}
-	double factor_of_sampling = 1 / ((double)analyze_state.rowgroup_sample.size() / analyze_state.total_values_count);
+	double factor_of_sampling = 1 / (static_cast<double>(analyze_state.rowgroup_sample.size()) /
+	                                 static_cast<double>(analyze_state.total_values_count));
 
 	// Finding which is the best dictionary for the sample
-	double estimated_bits_per_value =
-	    alp::AlpRDCompression<T, true>::FindBestDictionary(analyze_state.rowgroup_sample, analyze_state.state);
-	double estimated_compressed_bits = estimated_bits_per_value * analyze_state.rowgroup_sample.size();
-	double estimed_compressed_bytes = estimated_compressed_bits / 8;
+	double estimated_bits_per_value = alp::AlpRDCompression<T, true>::FindBestDictionary(
+	    analyze_state.rowgroup_sample, analyze_state.compression_data);
+	double estimated_compressed_bits =
+	    estimated_bits_per_value * static_cast<double>(analyze_state.rowgroup_sample.size());
+	double estimated_compressed_bytes = estimated_compressed_bits / 8;
 
 	//! Overhead per segment: [Pointer to metadata + right bitwidth + left bitwidth + n dict elems] + Dictionary Size
 	double per_segment_overhead = AlpRDConstants::HEADER_SIZE + AlpRDConstants::MAX_DICTIONARY_SIZE_BYTES;
@@ -131,7 +144,7 @@ idx_t AlpRDFinalAnalyze(AnalyzeState &state) {
 	uint32_t n_vectors = LossyNumericCast<uint32_t>(
 	    std::ceil((double)analyze_state.total_values_count / AlpRDConstants::ALP_VECTOR_SIZE));
 
-	auto estimated_size = (estimed_compressed_bytes * factor_of_sampling) + (n_vectors * per_vector_overhead);
+	auto estimated_size = (estimated_compressed_bytes * factor_of_sampling) + (n_vectors * per_vector_overhead);
 	uint32_t estimated_n_blocks = LossyNumericCast<uint32_t>(
 	    std::ceil(estimated_size / (static_cast<double>(state.info.GetBlockSize()) - per_segment_overhead)));
 

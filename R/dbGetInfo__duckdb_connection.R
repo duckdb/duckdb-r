@@ -3,7 +3,8 @@
 #' @param dbObj An object inheriting from class [duckdb_connection-class].
 #' @usage NULL
 dbGetInfo__duckdb_connection <- function(dbObj, ...) {
-  version <- dbGetQuery(dbObj, "select library_version from pragma_version()")[[1]][[1]]
+  # Use hard-coded version instead of querying database to avoid establishing connection
+  version <- get_duckdb_version()
 
   list(
     dbname = dbObj@driver@dbdir,
