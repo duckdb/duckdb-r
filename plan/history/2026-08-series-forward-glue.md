@@ -215,7 +215,7 @@ brings in the code its patch answers:
 
 * `patch/0035`, silencing the deprecated `Catalog::GetEntry()`
   self-delegation, into `duckdb/duckdb@6d4f53284` —
-  the commit that puts the 14 `[[deprecated]]` attributes into
+  the commit that puts the `[[deprecated]]` declarations into
   `catalog.hpp`; its parent has none.
 * `patch/0037`, casting to `void *` in the default aggregate state
   initializer, into `duckdb/duckdb@2daa4fc9a` —
@@ -357,16 +357,29 @@ level first, which is what
 [#2433](https://github.com/duckdb/duckdb-r/pull/2433) did for the
 previous one.
 
-**One of the three carried patches belongs on `main`.**
-Stage 3's routing rule is that a fix is series-specific only when the
-code it touches is not on `main`.
-Tested against `main`'s tree: `patch/0036` and `patch/0037` do not apply
-— their code arrived after the engine `main` vendors — so they are
-correctly the series'.
-`patch/0035` **does** apply.
-Landing it on `main` would put it in every future seed and end its
-per-forward carry;
-until then every forward of every series has to place it by hand.
+**All three carried patches are the series', and reading that off
+applicability got it wrong once.**
+Stage 3's routing rule is that a fix is series-specific when the code it
+answers is not on `main`.
+`patch/0036` and `patch/0037` do not even apply to `main`'s tree —
+their code arrived after the engine `main` vendors — so they are plainly
+the series'.
+`patch/0035` does apply, and this record first read that as a verdict:
+land it on `main`, and every future seed carries it.
+That was wrong.
+The entry scopes a diagnostic off around a whole translation unit, so it
+applies to every version of that file, including versions with nothing
+to warn about — and `main`'s is one.
+`main` vendors DuckDB 1.5.5, whose `catalog.hpp` carries no
+`[[deprecated]]` declaration at all;
+the forward's tip carries them.
+Landing the entry there would add a suppression with nothing to
+suppress.
+The rule that separates the two is
+[`vendoring/troubleshooting/`](/handbook/operations/vendoring/troubleshooting/README.md)'s:
+where an entry applies bounds where it may go, and never locates it.
+`patch/0035` reaches `main` when `main`'s engine reaches the
+deprecation, and not before.
 
 **`patch/0034` is two files.**
 `main-build` carries both
