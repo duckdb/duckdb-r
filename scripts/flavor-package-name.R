@@ -16,8 +16,9 @@
 #   `paste0("duck", "db")`, so it reads as what it is;
 # * otherwise teach `scripts/flavor.patch` to rewrite it.
 #
-# The scan covers the R-level surface -- `R/`, `man/`, `tests/`, `vignettes/`, and
-# the Markdown files at the top level -- plus the C++ glue in `src/` and
+# The scan covers the R-level surface -- `R/`, `man/`, `tests/`, `vignettes/`, the
+# Markdown files at the top level, and `README.Rmd` in place of the `README.md`
+# generated from it -- plus the C++ glue in `src/` and
 # `inst/include/`. In the glue only the quoted form is checked: `duckdb::` there is
 # the engine's C++ namespace, which has nothing to do with the R package name.
 # Vendored sources under `src/duckdb/` and testthat snapshots are left alone.
@@ -56,12 +57,21 @@ flavor_dir <- function(root, subdir, pattern) {
 # The files to scan, as paths relative to `root`, each named by the pattern that
 # applies to it.
 flavor_scanned_files <- function(root) {
+  # `README.md` is generated from `README.Rmd`, and so is `.github/README.md`
+  # (which is not top-level, so it never reached this scan). The patch renames
+  # the source, keying its removed lines under `README.Rmd`; a hit found in a
+  # generated file would be looked up under a path the patch no longer names
+  # and would read as an offender however well the rename is handled. Scanning
+  # the source instead is also where a fix would have to be made.
+  top_level_md <- setdiff(dir(root, pattern = "[.]md$"), "README.md")
+
   r_level <- c(
     flavor_dir(root, "R", "[.]R$"),
     flavor_dir(root, "man", "[.]Rd$"),
     flavor_dir(root, "tests", "[.]R$"),
     flavor_dir(root, "vignettes", "[.](R|Rmd|qmd)$"),
-    dir(root, pattern = "[.]md$")
+    top_level_md,
+    "README.Rmd"
   )
 
   glue <- c(
