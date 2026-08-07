@@ -23,3 +23,12 @@ img[alt="DuckDB logo"] {
 [data-bs-theme="dark"] img[alt="DuckDB logo"] {
   content: url("reference/figures/DuckDB_Logo-horizontal-dark-mode.svg");
 }
+
+/* The package logo, in the header and the sidebar. pkgdown picks it up as
+   man/figures/logo.svg and has no notion of a second one, so the dark variant
+   is swapped the same way. Without this the wordmark stays black, which on a
+   dark page is very nearly invisible. */
+
+[data-bs-theme="dark"] img.logo {
+  content: url("reference/figures/logo-dark-mode.svg");
+}

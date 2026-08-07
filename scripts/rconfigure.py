@@ -1,6 +1,6 @@
 """Regenerate the vendored build configuration from a DuckDB checkout:
 src/duckdb/, src/include/sources.mk, R/version.R, the Makevars files and
-the README logos.
+the logos.
 
 The logos land in man/figures/. Called by vendor.sh and vendor-one.sh
 with DUCKDB_PATH set.
@@ -62,30 +62,36 @@ get_duckdb_version <- function() {{
             f.write(r_version_content)
 
 
-# The logos README.md renders, and the only files this script takes from
+# The logos the package shows, and the only files this script takes from
 # upstream that are not sources. They ride along with the vendored commit so
-# the front page cannot drift from the engine it documents: the previous
+# what a reader sees cannot drift from the engine it documents: the previous
 # README hotlinked duckdb.org, those URLs went away, and GitHub -- which
 # proxies README images and serves nothing for a URL it cannot fetch -- showed
 # no logo at all until the files were vendored.
+#
+# The horizontal pair keeps its upstream name; the stacked pair is the package
+# logo, and pkgdown finds that one by the name man/figures/logo.svg rather than
+# by configuration, so the rename is not ours to choose.
 logo_files = [
-    'DuckDB_Logo-horizontal.svg',
-    'DuckDB_Logo-horizontal-dark-mode.svg',
+    ('DuckDB_Logo-horizontal.svg', 'DuckDB_Logo-horizontal.svg'),
+    ('DuckDB_Logo-horizontal-dark-mode.svg', 'DuckDB_Logo-horizontal-dark-mode.svg'),
+    ('DuckDB_Logo-stacked.svg', 'logo.svg'),
+    ('DuckDB_Logo-stacked-dark-mode.svg', 'logo-dark-mode.svg'),
 ]
 
 
 def copy_logos():
-    """Copy the README logos from the DuckDB checkout into man/figures/."""
+    """Copy the logos from the DuckDB checkout into man/figures/."""
     source_dir = os.path.join(duckdb_path, 'logo')
     target_dir = os.path.join('man', 'figures')
 
-    for name in logo_files:
+    for name, target in logo_files:
         source = os.path.join(source_dir, name)
         if not os.path.isfile(source):
             print("Could not find logo {}!".format(source))
             print("  Update logo_files here and README.md together.")
             exit(1)
-        shutil.copyfile(source, os.path.join(target_dir, name))
+        shutil.copyfile(source, os.path.join(target_dir, target))
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', duckdb_path, 'scripts'))
 import package_build

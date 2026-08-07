@@ -36,16 +36,22 @@ instead, and a caller that passes one is free of the layout entirely.
 `src/duckdb/`, `src/include/sources.mk`, the Makevars files
 (`src/Makevars` and `src/Makevars.win`) from `Makevars.in`,
 `R/version.R`,
-and the two README logos in `man/figures/`
+and the logos in `man/figures/`
 copied from the upstream checkout's `logo/` —
 all committed, all corrected at the generator.
 That set is the mechanical path set a vendor commit may touch,
 and the generator is its list.
 
 The logos are the one thing in that set that is not a source,
-and they are there because `README.md` renders them:
-carrying them on the vendor commit is what keeps the front page
+and they are there because the package shows them:
+the horizontal pair is what `README.md` renders,
+the stacked pair is the package logo the site puts in its header,
+and carrying them on the vendor commit is what keeps either
 from drifting away from the engine it documents.
+The horizontal pair keeps its upstream name;
+the stacked pair is renamed on the way in,
+because pkgdown finds the package logo by the name
+`man/figures/logo.svg` rather than by configuration.
 The previous README hotlinked `duckdb.org` instead,
 those URLs went away,
 and GitHub — which proxies README images

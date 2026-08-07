@@ -27,12 +27,17 @@ so the site building is checked far more often than it is published.
 `template.light-switch` puts a light/dark/auto control in the navbar,
 and pkgdown resolves whichever the reader picks — `auto` included —
 to a `data-bs-theme` attribute on the page.
-[`pkgdown/extra.css`](/pkgdown/extra.css) keys the README logo off that
-attribute, which is the only way the logo can follow it:
-the `<picture>` block in [`README.md`](/README.md) selects on
+[`pkgdown/extra.css`](/pkgdown/extra.css) keys both logos off that
+attribute, which is the only way either can follow it.
+For the README logo it is the `<picture>` block in
+[`README.md`](/README.md) that has to be overridden: it selects on
 `prefers-color-scheme`, which answers for the browser rather than for
 the site, so on its own it contradicts the switch as soon as a reader
 uses one.
+For the package logo it is pkgdown, which knows one logo and no dark
+variant, so the dark file is swapped in by the same rule.
+Both dark files are vendored beside their light counterparts
+([`vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
 That file also restores the `height` the README asks for, against a
 site stylesheet that would otherwise size the logo by its column.
 
