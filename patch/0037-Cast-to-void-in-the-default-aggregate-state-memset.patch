@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kirill =?UTF-8?q?M=C3=BCller?= <kirill@cynkra.com>
+Date: Tue, 4 Aug 2026 16:00:00 +0200
+Subject: [PATCH] Cast to void * in the default aggregate state initializer
+
+GCC's -Wclass-memaccess fires on every non-trivial STATE_TYPE reaching the
+memset fallback of AggregateExecutor::InitializeState. Casting the destination
+to void * is the spelling GCC documents for a deliberate raw-byte write; it
+states the intent the code already has, and leaves code generation untouched.
+
+---
+ .../common/vector_operations/aggregate_executor.hpp     | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/duckdb/src/include/duckdb/common/vector_operations/aggregate_executor.hpp b/src/duckdb/src/include/duckdb/common/vector_operations/aggregate_executor.hpp
+index bc1d1318f..6b8b026a4 100644
+--- a/src/duckdb/src/include/duckdb/common/vector_operations/aggregate_executor.hpp
++++ b/src/duckdb/src/include/duckdb/common/vector_operations/aggregate_executor.hpp
+@@ -802,7 +802,7 @@ public:
+ 		if constexpr (HasInitialize<STATE_TYPE, OP>::value) {
+ 			OP::Initialize(state);
+ 		} else {
+-			memset(&state, 0, sizeof(STATE_TYPE));
++			memset(static_cast<void *>(&state), 0, sizeof(STATE_TYPE));
+ 		}
+ 	}
+
+--
+2.54.0
+
