@@ -7,6 +7,7 @@ added by the change that reaches for it —
 one line, so the register stays greppable and diffs per term.
 
 * **ALTREP** — R's alternative-representation mechanism: how an unexecuted relation masquerades as a data frame until touched ([`architecture/glue/`](/handbook/architecture/glue/README.md)).
+* **archive** — `krlmlr/duckdb-r-old`, holding the refs the fork does not carry; nothing reads it and nothing writes to it ([`branches/model/`](/handbook/branches/model/README.md)).
 * **autoload / autoinstall** — an *installed* extension loads on first use; nothing downloads without being asked ([`usage/extensions/`](/handbook/usage/extensions/README.md)).
 * **backreference** — the link a secondary document carries back to the handbook node it serves ([`meta/handbook/`](/handbook/meta/handbook/README.md)).
 * **buffer** — a series' `-build` ref: vendored ahead of CI, deliberately untested ([`branches/model/`](/handbook/branches/model/README.md)).
@@ -50,5 +51,5 @@ one line, so the register stays greppable and diffs per term.
 * **triage verdicts** — the dispositions issue intake assigns, exactly one per open item ([`operations/triage/`](/handbook/operations/triage/README.md)).
 * **vendor commit** — one commit advancing `src/duckdb/` by exactly one upstream commit ([`operations/vendoring/model/`](/handbook/operations/vendoring/model/README.md)).
 * **vendoring** — keeping a dependency's sources inside the depending repository ([`operations/vendoring/model/`](/handbook/operations/vendoring/model/README.md)).
-* **verdict store** / **`rcc2` branch** — the orphan branch holding each commit's build verdict and log, one file per commit ([`operations/ci/per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md)). Its predecessor `rcc` is retired but not deleted.
+* **verdict store** / **`rcc2` branch** — the orphan branch holding each commit's build verdict and log, one file per commit ([`operations/ci/per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md)). Its predecessor `rcc` is retired, and kept whole in the archive.
 * **WKB** — well-known binary, the geometry interchange across the R boundary ([`usage/types/`](/handbook/usage/types/README.md)).

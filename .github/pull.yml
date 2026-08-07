@@ -8,12 +8,6 @@
 # truth for CI/CD infrastructure and the fork's `main` is a mirror of it;
 # in this repository the file does nothing, because Pull acts on forks.
 #
-# Not in force yet: `krlmlr/duckdb-r` is a standalone copy rather than a fork
-# object, and Pull requires the upstream to be in the same fork network, so
-# every rule below is skipped until the fork move (duckdb/duckdb-r#2494).
-# Until then the mirrors stand where they were last pushed, and one an *ahead*
-# badge reads from is refreshed by hand.
-#
 # Every rule hard-resets, which is what makes the branch a mirror rather than a
 # branch of the fork's own: a commit pushed onto one is discarded on the next
 # run, not merged. The fork's series refs carry a suffix and match no rule here,

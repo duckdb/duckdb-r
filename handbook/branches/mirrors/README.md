@@ -26,22 +26,23 @@ shipped.
 
 **The mechanism is the fork's own, not a job of ours.**
 Keeping a fork level with what it forked from is what the Pull app does,
-and [`.github/pull.yml`](/.github/pull.yml) is where it is configured:
+and it reaches this fork at all because `krlmlr/duckdb-r` is a fork object
+of the canonical repository rather than a copy of it:
+Pull requires the upstream to be in the same fork network.
+[`.github/pull.yml`](/.github/pull.yml) is where it is configured:
 that file's rules are the list of mirrors,
 and the fork's series refs match none of them.
 It is authored here, in the canonical repository,
 because CI/CD infrastructure has its source of truth on `main`,
 and read from the fork's default branch, which is a mirror of that `main`.
 
-**No mirror moves until the fork is a fork object.**
-Pull requires the upstream to be in the same fork network,
-and `krlmlr/duckdb-r` is still a standalone copy,
-so every rule is skipped and every mirror stands where it was last pushed
-([#2494](https://github.com/duckdb/duckdb-r/issues/2494)).
-Until the move, a mirror an *ahead* badge reads from is refreshed by hand.
-Afterwards Pull syncs a repository every six hours on a schedule it picks
-itself, and a sync can be asked for at any moment
-from the URL that config names.
+**A mirror moves on the app's schedule, not on ours.**
+Pull syncs a repository every six hours,
+at a fixed offset it picks itself,
+so a mirror is at most that far behind what it copies;
+a sync can be asked for at any moment from the URL that config names —
+which is what someone who needs a mirror at the canonical tip asks for,
+rather than pushing the branch.
 
 **A mirror is created by pushing it, not by configuring it.**
 Pull skips a rule whose base branch the fork does not have,
@@ -49,6 +50,3 @@ and says so only in its own logs,
 so a branch that is about to be measured against is pushed once by hand
 ([`.claude/skills/series-open.md`](/.claude/skills/series-open.md));
 the config keeps it fresh afterwards and never creates it.
-
-*To deepen: drain [#2494](https://github.com/duckdb/duckdb-r/issues/2494),
-after which this page states a mirror's cadence rather than its absence.*
