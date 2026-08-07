@@ -18,10 +18,6 @@
 #include "util/logging.h"
 #include "re2/regexp.h"
 
-// For CRAN
-#pragma clang diagnostic ignored "-Wdtor-name"
-// For CRAN
-
 namespace duckdb_re2 {
 
 template<typename T> struct WalkState;
@@ -141,7 +137,9 @@ template<typename T> Regexp::Walker<T>::Walker() {
   stopped_early_ = false;
 }
 
-template<typename T> Regexp::Walker<T>::~Walker() {
+// For CRAN: the name after '::~' must be found in the same scope as the name
+// before it (clang: -Wdtor-name).
+template<typename T> Regexp::Walker<T>::Walker::~Walker() {
   Reset();
 }
 
