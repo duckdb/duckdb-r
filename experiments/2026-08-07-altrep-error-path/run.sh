@@ -34,8 +34,13 @@ done
 
 for leg in before after; do
   eval "ref=\$$leg"
-  echo
-  echo "################ $leg ($ref)"
-  Rscript --vanilla "$probe" "$tmp/lib-$leg" 2>&1 |
-    grep -Ev '^(ℹ|duckdb is storing|This persists)'
+  for variant in as-built base-rapi-error; do
+    # The rlang-free variant only says something about the "before" leg: it is
+    # there to split the error path's stack cost into "calling R" and "rlang".
+    [ "$leg" = after ] && [ "$variant" = base-rapi-error ] && continue
+    echo
+    echo "################ $leg ($ref), $variant"
+    Rscript --vanilla "$probe" "$tmp/lib-$leg" "$variant" 2>&1 |
+      grep -Ev '^(ℹ|duckdb is storing|This persists)'
+  done
 done

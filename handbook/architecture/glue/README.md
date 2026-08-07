@@ -82,10 +82,15 @@ is the known weak point:
 `rapi_error_with_context()` reports through an R function,
 so duckdb's and rlang's closures run
 with the method still on the C stack,
-where R allows neither allocation nor re-entry —
-measured in
-[`experiments/2026-08-07-altrep-error-path/`](/experiments/2026-08-07-altrep-error-path/README.md),
-guarded by
+where R allows neither allocation nor re-entry.
+The report is also the deepest point of the call,
+and it costs about 70 KB of C stack that way
+against about 9 KB through `Rf_errorcall()` —
+so in between, the failure that was already diagnosed
+is replaced by *C stack usage is too close to the limit*
+([`experiments/2026-08-07-altrep-error-path/`](/experiments/2026-08-07-altrep-error-path/README.md)
+measures both).
+Guarded by
 ([#1796](https://github.com/duckdb/duckdb-r/issues/1796),
 [#1797](https://github.com/duckdb/duckdb-r/pull/1797)),
 at the cost of the `duckdb_error` class on those paths.
