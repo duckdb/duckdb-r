@@ -228,8 +228,49 @@ runs:
           if [ "$RUNNER_OS" != "Windows" ]; then
             mkdir -p "$wrapper_dir"
           fi
-        done
-        rm -f "$empty_makevars"
+
+          empty_makevars="$(mktemp)"
+          for var in CC CXX CXX11 CXX14 CXX17 CXX20 CXX23; do
+            val="$(R_MAKEVARS_USER="$empty_makevars" R CMD config "$var" 2>/dev/null || true)"
+            if [ -z "$val" ]; then
+              continue
+            fi
+            if [ "$RUNNER_OS" = "Windows" ]; then
+              echo "$var = ccache $val" >> ~/.R/Makevars
+              continue
+            fi
+
+            # Split "gcc -std=gnu2x" into the compiler and its flags: only the
+            # compiler is wrapped, the flags are passed through unchanged.
+            # ccache and the compiler are both found on the PATH at run time,
+            # nothing is baked into the wrapper by path.
+            prog="${val%%[[:space:]]*}"
+            flags="${val#"$prog"}"
+            wrapper="ccache-$(basename "$prog")"
+
+            if [ ! -f "$wrapper_dir/$wrapper" ]; then
+              printf '#!/bin/sh\nexec ccache %s "$@"\n' "$prog" > "$wrapper_dir/$wrapper"
+              chmod +x "$wrapper_dir/$wrapper"
+              # Never hand R a wrapper that has not been shown to work.
+              if ! "$wrapper_dir/$wrapper" --version > /dev/null; then
+                rm -f "$wrapper_dir/$wrapper"
+                echo "::warning::No usable $wrapper, compiling $var without ccache."
+              fi
+            fi
+
+            if [ -f "$wrapper_dir/$wrapper" ]; then
+              echo "$var = $wrapper$flags" >> ~/.R/Makevars
+            fi
+          done
+          rm -f "$empty_makevars"
+
+          if [ "$RUNNER_OS" != "Windows" ]; then
+            echo "$wrapper_dir" >> "$GITHUB_PATH"
+            echo "===== ccache wrappers in $wrapper_dir ====="
+            ls -l "$wrapper_dir"
+            echo "==========================================="
+          fi
+        fi
         echo 'MAKEFLAGS = -j2' >> ~/.R/Makevars
         echo "===== generated ~/.R/Makevars ====="
         cat ~/.R/Makevars
