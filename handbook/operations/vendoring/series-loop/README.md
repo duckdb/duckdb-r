@@ -59,7 +59,7 @@ the rest is placed by hand.**
 matched to the `-dev` commit vendoring the same upstream SHA so the
 adaptations CI demanded there — snapshots, tests, R code, `patch/` entries —
 are folded back into it rather than rediscovered a red commit at a time
-([#2584](https://github.com/duckdb/duckdb-r/pull/2584)).
+([#2590](https://github.com/duckdb/duckdb-r/pull/2590)).
 Rare per commit and expensive where it happens: 29 of the 3346 vendor
 commits on `main-build` carry one, and each is a repair plus a replay of
 everything above it.

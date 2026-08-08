@@ -471,7 +471,7 @@ Carrying them over beats rederiving them,
 and their commit-message trailers say what they were for.
 
 **Most of that carry now happens at the replay**
-(`series-forward.md`, duckdb/duckdb-r#2584):
+(`series-forward.md`, duckdb/duckdb-r#2590):
 `series-forward-build.sh` matches each buffer commit
 to its `-dev` twin by vendored SHA
 and folds the twin's R-side delta into the same commit,

@@ -2,7 +2,7 @@
 # Check what scripts/series-forward-build.sh promises, offline, against a
 # synthetic repository built here -- no network, no fixtures on disk.
 #
-# The claims that matter are about the R-side carry (duckdb/duckdb-r#2584): the
+# The claims that matter are about the R-side carry (duckdb/duckdb-r#2590): the
 # buffer holds the vendored tree and its glue, every fix CI demanded afterwards
 # was folded into the equivalent commit on the old `-dev`, and a replay that
 # reads only the buffer drops all of it. Seven things are checked.
@@ -23,7 +23,7 @@
 #      twin's message. This is the restart path, and the half that stopped is
 #      remembered -- a resume that guessed would write a vendor message over a
 #      commit that carries a fix.
-#   6. `--no-dev` reproduces the pre-#2584 behaviour, and a `-dev` that cannot be
+#   6. `--no-dev` reproduces the pre-#2590 behaviour, and a `-dev` that cannot be
 #      derived or does not resolve refuses to start rather than replaying without
 #      it silently.
 #   7. The fifth version component still rises once per replayed commit, carry or

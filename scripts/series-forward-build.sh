@@ -27,7 +27,7 @@
 # folded into the equivalent commit on the old `-dev` and is invisible from
 # `-build`. Replaying the buffer alone therefore drops all of it, and the loop
 # rediscovers it one red commit at a time, at a CI cycle each
-# (duckdb/duckdb-r#2584). So each pick is matched to the `-dev` commit vendoring
+# (duckdb/duckdb-r#2590). So each pick is matched to the `-dev` commit vendoring
 # the same upstream SHA, and the paths that commit touched which its `-build`
 # twin did not are applied on top -- as one commit, because a fix belongs in the
 # commit that needs it and never stacked above it.
