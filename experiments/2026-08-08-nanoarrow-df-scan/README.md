@@ -42,9 +42,12 @@ What the run compresses to:
   ([`src/duckdb/src/function/table/arrow.cpp`](/src/duckdb/src/function/table/arrow.cpp)).
 * **Two workarounds exist at R level, and neither is good enough.**
   Raising an error from the expression factories fails every filtered
-  query rather than only the unrepresentable ones;
-  wrapping the scan in a materialized CTE restores correctness
-  by forcing the whole source through a buffer.
+  query rather than only the unrepresentable ones.
+  Wrapping the scan in a materialized CTE gets the right answer back,
+  but not by suppressing the pushdown:
+  the plan shows the filter still pushed into the scan and still
+  ignored there, with a second `FILTER` above the CTE scan doing the
+  work — the whole source crosses the boundary either way.
 * **A one-shot stream is not a table.**
   Registering a `nanoarrow_array_stream` rather than something that
   produces one fails on the first projection —

@@ -131,8 +131,10 @@ try(dbGetQuery(con, "SELECT * FROM na_strict WHERE a > 3"))
 #> ℹ Context: rapi_execute
 #> ℹ Error type: INVALID
 
-# A materialized CTE puts a barrier between the scan and the filter,
-# which restores correctness without touching the producer.
+# A materialized CTE gets the right answer back -- but not by
+# suppressing the pushdown. The filter is still pushed into the scan and
+# still ignored there; what fixes the answer is that DuckDB applies it a
+# second time above the materialization barrier.
 dbGetQuery(
   con,
   "WITH t AS MATERIALIZED (SELECT * FROM na_tbl) SELECT * FROM t WHERE a > 3"
@@ -140,6 +142,39 @@ dbGetQuery(
 #>   a b
 #> 1 4 d
 #> 2 5 e
+
+cat(dbGetQuery(
+  con,
+  "EXPLAIN WITH t AS MATERIALIZED (SELECT * FROM na_tbl) SELECT * FROM t WHERE a > 3"
+)[[2]])
+#> ┌───────────────────────────┐
+#> │            CTE            │
+#> │    ────────────────────   │
+#> │        CTE Name: t        │
+#> │       Table Index: 0      ├──────────────┐
+#> │                           │              │
+#> │           ~1 row          │              │
+#> └─────────────┬─────────────┘              │
+#> ┌─────────────┴─────────────┐┌─────────────┴─────────────┐
+#> │         ARROW_SCAN        ││           FILTER          │
+#> │    ────────────────────   ││    ────────────────────   │
+#> │    Function: ARROW_SCAN   ││          (a > 3)          │
+#> │                           ││                           │
+#> │        Projections:       ││                           │
+#> │             a             ││                           │
+#> │             b             ││                           │
+#> │                           ││                           │
+#> │        Filters: a>3       ││                           │
+#> │                           ││                           │
+#> │           ~1 row          ││           ~1 row          │
+#> └───────────────────────────┘└─────────────┬─────────────┘
+#>                              ┌─────────────┴─────────────┐
+#>                              │          CTE_SCAN         │
+#>                              │    ────────────────────   │
+#>                              │        CTE Index: 0       │
+#>                              │                           │
+#>                              │           ~1 row          │
+#>                              └───────────────────────────┘
 
 # --- 3. A one-shot stream is not a table -------------------------------
 
@@ -265,14 +300,14 @@ do.call(rbind, list(
   timing("nanoarrow full fetch", dbGetQuery(con2, "SELECT * FROM na"))
 ))
 #>                          what elapsed_per_run
-#> 1            native  count(*)           0.007
-#> 2          nanoarrow count(*)           0.045
-#> 3              native  sum(i)           0.008
-#> 4            nanoarrow sum(i)           0.017
-#> 5   native  one string column           0.088
-#> 6 nanoarrow one string column           0.209
-#> 7          native  full fetch           0.145
-#> 8        nanoarrow full fetch           0.115
+#> 1            native  count(*)           0.006
+#> 2          nanoarrow count(*)           0.010
+#> 3              native  sum(i)           0.006
+#> 4            nanoarrow sum(i)           0.010
+#> 5   native  one string column           0.047
+#> 6 nanoarrow one string column           0.077
+#> 7          native  full fetch           0.058
+#> 8        nanoarrow full fetch           0.083
 
 dbDisconnect(con2)
 dbDisconnect(con)
