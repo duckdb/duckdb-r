@@ -59,25 +59,12 @@ and [`src/transform.cpp`](/src/transform.cpp) (the way back).
   they stay in the stream, and what consumes them is
   [`integrations/`](/handbook/usage/integrations/README.md)'s
   ([#642](https://github.com/duckdb/duckdb-r/issues/642)).
-* **Timestamps** come back as `POSIXct`.
-  Plain `TIMESTAMP` columns arrive in the zone
+* **Timestamps** come back as `POSIXct` in the zone
   `dbConnect(timezone_out = )` names, `"UTC"` by default
   ([`R/dbConnect__duckdb_driver.R`](/R/dbConnect__duckdb_driver.R));
-  `TIMESTAMPTZ` columns follow the session's `TimeZone` setting instead
-  ([#184](https://github.com/duckdb/duckdb-r/issues/184)),
-  pinned by [`tests/testthat/test-timezone.R`](/tests/testthat/test-timezone.R).
-  Setting a zone — any zone, `'UTC'` included — takes the icu extension
-  ([`extensions/`](/handbook/usage/extensions/README.md));
-  where icu never loaded, the session zone reads as `UTC`
-  and `TIMESTAMPTZ` results are labeled accordingly.
-  The scenario-by-scenario verification and its edges —
-  the ALTREP path freezes the zone at `rel_to_altrep()` time,
-  `TIMETZ` drops per-row offsets — are recorded in
-  [`plan/history/2026-05-timestamptz-icu.md`](/plan/history/2026-05-timestamptz-icu.md).
-* **Not every column lifts into the relational path** (duckplyr's):
-  `rel_from_df()` refuses rather than converts —
-  which columns, and what duckplyr does about a refusal, is
-  [`relational/`](/handbook/usage/relational/README.md)'s.
+  adopting the session `TimeZone` for `TIMESTAMPTZ` is in flight
+  ([#184](https://github.com/duckdb/duckdb-r/issues/184),
+  [#2401](https://github.com/duckdb/duckdb-r/pull/2401)).
 
 *To deepen: write the full mapping table from `src/types.cpp`,
 verified on a vendored build.
