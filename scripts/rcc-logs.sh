@@ -4,11 +4,17 @@
 #
 # The emergency backstop, and only that -- dispatched, never scheduled
 # (.github/workflows/rcc-logs.yaml): the `each-rcc` legs publish their own
-# verdicts within seconds of deciding them (scripts/each-shard.sh), and the run's
-# fan-in recovers what a dead leg could not (scripts/each-harvest.sh). This is
-# what covers the case where neither ran at all, because the whole workflow was
-# cancelled -- it can reconstruct a record from the commit status and the run
-# object, and a *run*-level log in place of the per-commit one.
+# verdicts within seconds of deciding them (scripts/each-shard.sh), and that is
+# now the store's only automatic writer. This is what covers the case where the
+# leg never published, because the whole workflow was cancelled -- it can
+# reconstruct a record from the commit status and the run object, and a
+# *run*-level log in place of the per-commit one.
+#
+# A run-level log is the weaker artifact, and series-check.sh's classifier can
+# misread it. That is the accepted cost of the store being a fallback: the
+# per-commit log is in the leg's `each-logs-*` artifact and, past its 14 days,
+# inline in the leg's job log, which is what a firing reads first
+# (.claude/skills/series-loop.md stage 2).
 #
 # Iterates first-parent commits since $SINCE on every refs/remotes/*/*-dev
 # branch (deduped by SHA) and, for each commit with no record:
@@ -165,8 +171,8 @@ while IFS= read -r sha; do
     continue
   fi
 
-  # Shared projection, so a record written here is shaped exactly like one written
-  # by an `each-rcc` leg or its fan-in; see scripts/rcc-run-fields.jq.
+  # Shared projection, so a record written here is shaped exactly like one
+  # written by an `each-rcc` leg; see scripts/rcc-run-fields.jq.
   run_json="$(gh api "repos/{owner}/{repo}/actions/runs/${run_id}" 2>/dev/null \
     | jq -c -f "${here}/rcc-run-fields.jq")"
   if [ -z "${run_json}" ]; then

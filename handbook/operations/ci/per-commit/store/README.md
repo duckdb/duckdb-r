@@ -72,7 +72,6 @@ Now it means re-reading the tip and re-staging the same files.
 | Writer | Frequency | Touches |
 |---|---|---|
 | an `each-rcc` leg | once per commit built (~2/min at `max-parallel: 20`) | its own record, its own log |
-| the run's fan-in | once per run | records and logs the legs could not publish |
 | `rcc-logs.yaml` | on dispatch | records for commits it finds undecided |
 | [`rcc-consolidate.sh`](/scripts/rcc-consolidate.sh) | by hand | **all of it** |
 
@@ -179,33 +178,32 @@ The exception is a **retry**: `retry-<S>-dev` asks for a commit that already has
 a verdict to be judged again on its own SHA, and the point is to overturn it.
 So the newer verdict replaces the older one everywhere —
 
-* [`rcc-publish.sh`](/scripts/rcc-publish.sh) compares blob ids in the index,
-  so re-publishing an identical record costs nothing
-  and a changed one replaces it;
-* [`each-harvest.sh`](/scripts/each-harvest.sh) compares the artifact's verdict
-  against what the branch holds, and replaces on a difference.
+[`rcc-publish.sh`](/scripts/rcc-publish.sh) compares blob ids in the index,
+so re-publishing an identical record costs nothing
+and a changed one replaces it.
 
 Two writers can only collide here if they are deciding the same commit at the
 same moment, which the planner does not produce; if it somehow happened, the
 retry loop converges on whichever wrote last.
 
 **"Newer" is checked, not assumed.**
-A leg's verdict is on the branch within seconds,
-but its run's fan-in lands when the *whole run* is done — possibly hours later.
-So a retry can correctly overturn a commit while the run that first failed it is
-still building, and replaying that run's artifact afterwards would put the stale
-verdict back.
-Nothing would repair it: the commit status is already the retry's,
-so the planner never rebuilds,
-and the backstop skips commits that have a record.
-The fan-in therefore compares run ids — they increase per repository,
-and a re-run keeps the id of the run it re-runs —
-and leaves alone any record written by a *higher* run id than its own.
+The run fan-in used to make this sharp:
+a leg's verdict lands within seconds
+while the fan-in landed when the *whole run* was done, possibly hours later,
+so replaying its artifact could put back a verdict a retry had already
+overturned — with nothing to repair it, because the commit status was already
+the retry's, so the planner never rebuilt and the backstop skips commits that
+have a record. It compared run ids for that reason.
+The fan-in is gone, and with it that particular race:
+the leg writes as it decides, so its own verdict is the newest by construction.
+The rule survives in the dispatched backstop, which skips a commit that has a
+record at all, and in the loop, which takes the higher run id where a commit
+appears in more than one run.
 
 A verdict that stops being a failure also takes its log with it.
 That case cannot be caught by comparing what a writer was handed,
 because a success has no log to hand over;
-both the leg and the fan-in list the log path for *removal* instead,
+the leg lists the log path for *removal* instead,
 which is what the staging directory's `.remove` file carries.
 A failure that could not capture a log of its own removes nothing:
 whatever the branch holds is that commit's, from an earlier attempt,
@@ -230,16 +228,16 @@ and builds the commit with plumbing: `read-tree`, `hash-object -w`,
 Measured against a copy of the real branch,
 the clone is under 1% of the branch and a publish takes ~130 ms once warm.
 
-The fan-in wants one thing more — what the branch currently says about each
-commit in its artifacts — and gets it from the same helper with a different
-filter: `--filter=blob:limit=16k` brings every record and no log,
-because a record is ~2 KB and a log is ~1 MB.
+A reader that wants what the branch currently says about a set of commits —
+the dispatched backstop, deciding what it still has to collect — gets it from
+the same helper with a different filter: `--filter=blob:limit=16k` brings every
+record and no log, because a record is ~2 KB and a log is ~1 MB.
 One fetch, and every comparison it needs is then local.
 
 Two traps are worth recording because both are completely invisible.
 
 Plain `git write-tree` verifies that every index entry's object is present,
-which in a blobless clone means lazily fetching every harvested log —
+which in a blobless clone means lazily fetching every collected log —
 the whole branch, per leg.
 `--missing-ok` suppresses the check
 (every entry came either from the remote's own tree
@@ -256,7 +254,6 @@ pushes fine; publishing one that *replaces* an existing record makes git want
 the old blob — a promised object — and the push dies with
 "could not fetch … from promisor remote".
 Since replacement is exactly what a retry does,
-and what the fan-in does when a leg's verdict has changed,
 the failure would have been retry-only and rare.
 `--no-thin` on the push is half the fix,
 and [`rcc-store-test.sh`](/scripts/rcc-store-test.sh) covers that half:
@@ -307,16 +304,19 @@ A single flat directory of ten thousand records would rewrite the whole tree on
 every push.
 
 And none of it is load-bearing.
-Legs still upload their artifacts and the fan-in still runs `if: always()`.
+Legs still upload their artifacts, which is what a firing reads.
 A failed publish is logged and ignored — it never fails the leg —
-and the record is collected the old way, one job later.
+and the verdict is in the artifact and in the job log regardless.
 
-`rcc-logs.yaml` used to tick every 30 minutes and no longer does:
-the loop reads the runs that decided a commit,
-so the sweep was keeping a copy warm that a firing normally never opens.
-It is dispatched now, and only the gap it alone covers —
-a run cancelled whole, so that neither the leg nor the fan-in ever wrote —
-is a reason to dispatch it.
+Two writers have been retired since, in the same direction.
+The per-run fan-in reconciled onto the branch whatever a leg could not publish;
+it went once the loop began reading the artifact it was copying from.
+And `rcc-logs.yaml`, which used to tick every 30 minutes,
+was keeping a copy warm that a firing normally never opens;
+it is dispatched now, and the one gap it alone covers —
+a run cancelled whole, so that no leg ever published —
+is the reason to dispatch it.
+What is left is the leg's own publish, which is where a verdict comes from.
 
 *To deepen: state what the first live cutover, the first live consolidation and
 the first live publish against the real remote changed, and fold the

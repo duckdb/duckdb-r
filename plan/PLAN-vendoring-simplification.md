@@ -265,13 +265,20 @@ as one checklist; this plan is analysis, not a routing node:
   the remote as litter — §6 retires it.)
 - **Leg-direct publishing** (`rcc-publish.sh`, from the leg). Verdict
   latency in seconds instead of end-of-run; measured cheap. Keep.
-- **The run fan-in** (`each-harvest.sh`). Not deletable, contrary to an
-  earlier revision of this plan: it holds the only path to a
-  **per-commit log** for a leg that died before publishing —
-  the backstop can reconstruct records, but only a *run*-level log,
-  which `series-check.sh`'s classifier can misread
-  (`each.yaml` and `each-harvest.sh` both record
-  this). Keep; D2 only removes its aggregate work.
+- **The run fan-in** (`each-harvest.sh`). Deletable after all, and
+  deleted — the earlier revision that said so was right for a reason it
+  did not have. The objection was that the fan-in held the only path to
+  a **per-commit log** for a leg that died before publishing, the
+  backstop offering only a *run*-level log that `series-check.sh`'s
+  classifier can misread. That premise died when the loop began reading
+  the leg's `each-logs-*` artifact directly (§10.6): the per-commit log
+  is *there*, uploaded `if: always()`, and inline in the leg's job log
+  after the artifact's 14 days. The fan-in was copying, into a store
+  read only in emergencies, what the reader now opens at the source.
+  What remains of the objection is narrow and stated where it lands: a
+  firing with no Actions access, falling back to the store, for a commit
+  whose leg never published, still gets a run-level log
+  (`rcc-logs.sh` records this).
 
 ### 3.3 What goes
 

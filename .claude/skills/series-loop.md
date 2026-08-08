@@ -266,7 +266,7 @@ branch, so the two sources cannot disagree about a verdict —
 they differ in reach and in latency, never in content.
 Where a commit appears in more than one run —
 a retry, a re-run of a leg that died —
-the **higher run id wins**, the same rule the fan-in applies
+the **higher run id wins**, the same rule the store applies to its copy
 ([`store/`](/handbook/operations/ci/per-commit/store/README.md)).
 
 Fetch through whatever Actions access the firing has:
@@ -313,15 +313,15 @@ or the run is there and its results are not
 Nothing else in this stage changes; the bytes are the same either way.
 
 **The store is an emergency route, and it is not kept warm.**
-Two of its writers are still automatic and cover almost all of it:
-a leg publishes its own verdict seconds after deciding a commit,
-and the run's fan-in sweeps up after a leg that died.
-What is *not* automatic any more is the periodic sweep —
-`rcc-logs.yaml` used to tick every 30 minutes and is dispatch-only now,
-because the loop reads the runs
-and the schedule was keeping a copy warm nothing opened.
-So one gap is left for the dispatch:
-a run cancelled whole, where neither the leg nor the fan-in ever wrote.
+One writer is still automatic, and it covers almost all of it:
+a leg publishes its own verdict seconds after deciding a commit.
+Everything else has been retired in the loop's direction of travel —
+the per-run fan-in, which reconciled onto the branch
+whatever a leg could not publish,
+and the periodic sweep, `rcc-logs.yaml` ticking every 30 minutes.
+Both were copying what a firing now reads at the source.
+So the gap left for the dispatch is the leg that never published:
+a run cancelled whole, or a push that failed.
 
 Reaching that gap means asking for the sweep —
 through whatever Actions access the firing has,
@@ -919,9 +919,9 @@ The push triggers one `each-rcc` run for the commits it added,
 and every verdict that run reaches is readable from it
 as soon as the leg has written it —
 there is nothing to wait for a harvest for.
-The store's own writers (the leg's publish and the fan-in;
+The store's own writer (the leg's publish;
 `rcc-logs.yaml` only when dispatched)
-just fill the fallback copy behind it.
+just fills the fallback copy behind it.
 
 ### 6. Suggest a cutover — never perform one
 
@@ -1081,7 +1081,7 @@ The pre-retry `failure` does not disappear when the retry is pushed:
 it stays the newest result for that SHA until the rerun reports,
 and repairing on it amends a commit that is about to go green.
 The store applies the same newest-run-wins rule to its copy,
-so `each-harvest.sh` and the leg both *replace* a record rather than append —
+so the leg *replaces* a record rather than appending —
 the one case where a decided commit legitimately changes state.
 
 **Dropping a result by hand is a store-side operation**,

@@ -6,8 +6,9 @@
 # logs2.d/<xx>/<sha>.log -- and shares no history with the default branch.
 #
 # This is the backstop, not the main path: the `each-rcc` legs publish their own
-# verdicts seconds after deciding them, and the run's fan-in recovers what a dead
-# leg could not. What is left for this job is the run that was cancelled whole.
+# verdicts seconds after deciding them. What is left for this job is the leg that
+# never published -- because the run was cancelled whole, or because the push
+# itself failed.
 #
 # Dispatch-only, deliberately. It used to tick every 30 minutes, from when the
 # promotion loop gated on this data and harvest latency was its cycle time. The
@@ -16,10 +17,8 @@
 # day to keep a copy warm that a firing normally never opens -- and, worse,
 # making the copy look authoritative by being continuously fresh.
 #
-# The two automatic writers stay: a leg publishes its own verdict, and the
-# fan-in sweeps up after a leg that died. Only the periodic sweep for a run that
-# was cancelled whole is gone, and that gap is what dispatching this fills. A
-# run takes 2-13 minutes, so a firing that needs it dispatches it and reads the
+# The leg's own publish stays, and is the store's one automatic writer. A run
+# takes 2-13 minutes, so a firing that needs this dispatches it and reads the
 # result on its next pass rather than waiting.
 
 on:

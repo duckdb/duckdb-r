@@ -37,11 +37,12 @@
 #     from the plan rather than trying to re-derive it.
 #   * The leg *publishes as it goes*. Every verdict is pushed to the `rcc2` branch
 #     the moment it exists (scripts/rcc-publish.sh), so a leg that dies takes
-#     nothing with it but the commit it was in the middle of. The artifact and
-#     the fan-in stay as the backstop for the push itself failing -- which is why
-#     each.yaml names the artifact per run *attempt*: a resumed leg's index covers
-#     only what it rebuilt, so overwriting would delete the previous attempt's
-#     copy of anything that attempt decided but could not publish.
+#     nothing with it but the commit it was in the middle of. The artifact is
+#     the backstop for the push itself failing, and is what a firing reads
+#     anyway (.claude/skills/series-loop.md stage 2) -- which is why each.yaml
+#     names it per run *attempt*: a resumed leg's index covers only what it
+#     rebuilt, so overwriting would delete the previous attempt's copy of
+#     anything that attempt decided but could not publish.
 #
 # Usage:
 #   SHARD=1 PLAN=plan.json LOG_DIR=/tmp/each-logs GH_TOKEN=<token> \
@@ -67,7 +68,7 @@
 #                       or not; the plan's own `replanned_despite_verdict` list
 #                       already covers the forced and retried ones
 #   NO_PUBLISH        - if non-empty, do not push records to the `rcc2` branch;
-#                       the fan-in collects them from the artifact instead
+#                       the artifact still carries them
 #   DRY_RUN           - if non-empty, list the commits and exit
 
 set -uo pipefail
@@ -87,7 +88,7 @@ NO_PUBLISH="${NO_PUBLISH:-}"
 # is the intent, not a bug: we are vendoring, so a commit is either solid, or
 # broken and the next loop run fixes it, or broken-but-green and the mandatory
 # rebase before a release catches it either way. The run-level scripts use the tip
-# (each-plan.sh, and the fan-in's each-harvest.sh) -- a different question.
+# (each-plan.sh) -- a different question.
 here="$(cd "$(dirname "$0")" && pwd)"
 
 # This file is one of the ones that reset wipes, and bash reads a script
@@ -199,9 +200,9 @@ fi
 decided() { grep -qxF -- "$1" "${decided_file}"; }
 
 # --------------------------------------------------------------- publisher ----
-# The run object, once. Every record this leg writes carries it, so the fan-in and
-# the scheduled backstop do not have to reconstruct one; the projection is shared
-# (scripts/rcc-run-fields.jq) so all three writers agree byte for byte. A failure
+# The run object, once. Every record this leg writes carries it, so the
+# dispatched backstop does not have to reconstruct one; the projection is shared
+# (scripts/rcc-run-fields.jq) so both writers agree byte for byte. A failure
 # here is not worth aborting a five-hour leg over -- fall back to what the
 # environment already tells us, and let the reader see a thinner run object.
 run_json='{}'
@@ -220,9 +221,9 @@ if [ -n "${GITHUB_RUN_ID:-}" ]; then
 fi
 
 # The record, in the shape `runs2.d/<xx>/<sha>.ndjson` holds. Written into
-# LOG_DIR so it travels in the artifact too: the fan-in copies these verbatim
-# rather than rebuilding them, which is what keeps the two paths from drifting
-# apart.
+# LOG_DIR so it travels in the artifact too: that copy is what a firing reads,
+# and it is the same bytes as the record published here, which is what keeps the
+# two paths from drifting apart.
 write_record() { # <sha> <state> <duration> <exit-code> <failed-stages-json>
   local sha="$1" state="$2" duration="$3" rc="$4" stages="$5" now
   now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -254,8 +255,9 @@ write_record() { # <sha> <state> <duration> <exit-code> <failed-stages-json>
 # belongs to a verdict this record overturns -- which is what a retry
 # (.claude/skills/series-loop.md) leaves behind.
 #
-# Never fatal: the artifact plus the fan-in remain the backstop, so the worst a
-# failed publish costs is that this record lands one job later instead of now.
+# Never fatal: the artifact remains, and it is what a firing reads, so the worst
+# a failed publish costs is that the store does not learn this verdict until
+# `rcc-logs.yaml` is dispatched.
 publish_record() { # <sha> <state>
   local sha="$1" state="$2" stage="${workdir}/publish"
   [ -n "${NO_PUBLISH}" ] && return 0
@@ -277,7 +279,7 @@ publish_record() { # <sha> <state>
 
   if ! "${here}/rcc-publish.sh" \
        "each-rcc: ${sha:0:9} (run ${GITHUB_RUN_ID:-local})" "${stage}"; then
-    echo "${sha}: could not publish to the rcc2 branch; deferring to the fan-in"
+    echo "${sha}: could not publish to the rcc2 branch; it is in the artifact"
   fi
 }
 
@@ -429,8 +431,9 @@ for sha in "${commits[@]}"; do
   fi
   set_status "${sha}" "${state}"
 
-  # The full record first, then the index line: the index is what the summary and
-  # the fan-in walk, so it must never name a record that was not written.
+  # The full record first, then the index line: the index is what the summary
+  # and a reader of the artifact walk, so it must never name a record that was
+  # not written.
   write_record "${sha}" "${state}" "${last_duration}" "${rc}" "${failed_stages}"
   jq -c -n \
     --arg commit "${sha}" \

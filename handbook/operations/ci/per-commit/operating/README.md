@@ -81,11 +81,11 @@ Two details make it work in practice:
 * **A leg is re-run after dying** — commits it already decided are skipped,
   not rebuilt.
 * **A leg cannot reach the `rcc2` branch** — logged, never fatal;
-  the fan-in collects the record from the artifact.
-* **The whole run is cancelled** — no fan-in,
-  but the legs' own records are already on the branch;
-  `rcc-logs.yaml` covers whatever is left on its next tick.
-* **The `plan` job fails** — `build` and the fan-in are both skipped.
+  the record is in the leg's artifact, which is what a firing reads,
+  and reaches the store only if `rcc-logs.yaml` is dispatched.
+* **The whole run is cancelled** — the legs' own records are already on the
+  branch; dispatch `rcc-logs.yaml` for whatever is left.
+* **The `plan` job fails** — `build` is skipped.
 * **History is force-pushed mid-run** — unreachable SHAs fail checkout
   and are skipped; new SHAs are picked up next run.
 * **More than `MAX_SHARDS` shards planned** — oldest shards deferred,
@@ -95,8 +95,6 @@ Two details make it work in practice:
   ([`rcc-publish.sh`](/scripts/rcc-publish.sh)).
 * **A retry overturns a verdict** — the newer record and log replace the older
   ones.
-* **An earlier run's fan-in lands after a retry** — it sees a higher run id on
-  the branch and keeps that record; the stale verdict is not replayed.
 * **A retry turns a failure green** — the record is replaced and the log it
   overturned is dropped, on whichever path publishes first.
 * **A leg is re-run after publishing failed** — its artifact is named per
@@ -113,8 +111,8 @@ Every file in the store belongs to exactly one commit,
 so two writers adding different commits cannot conflict at all.
 A shared concurrency group would be worse than the race:
 only one run may be *pending* per group,
-so a third writer queued behind the second cancels it outright,
-and a cancelled fan-in takes the only copy of its per-commit logs with it.
+so a third writer queued behind the second cancels it outright —
+and a cancelled writer is a verdict that never reaches the store.
 Losing the ref race costs a tree fetch and a re-commit —
 no rebase, no re-derivation, no producer running twice.
 The reset-and-re-derive recovery an aggregate needed went with the aggregate
