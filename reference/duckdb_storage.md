@@ -60,12 +60,19 @@ never prompts and never creates a directory, so an as-yet-uncreated
 
   Out-of-core intermediates for sorts, hash joins, and similar
   operations. DuckDB settings: `temp_directory`,
-  `max_temp_directory_size`. For an in-memory (`:memory:`) database
-  DuckDB's own default spills to `.tmp` in the current working
-  directory, so the package overrides it with a
-  [`tempdir()`](https://rdrr.io/r/base/tempfile.html) sub-directory by
-  default. This is a separate setting from the extension/secret home
-  (see below).
+  `max_temp_directory_size`. Temporary storage is on by default, with
+  the DuckDB CLI's semantics: the directory is created only when a query
+  actually spills, and removed again when the database instance shuts
+  down. An on-disk database keeps the engine's own default,
+  `<dbdir>.tmp` next to the database file. For an in-memory (`:memory:`)
+  database the engine's own default would spill to `.tmp` in the current
+  working directory, so the package points it at a fresh per-instance
+  sub-directory below
+  [`tempdir()`](https://rdrr.io/r/base/tempfile.html) instead. Every
+  in-memory instance gets its own spill directory: instances must not
+  share one, because the engine's spill file names are deterministic and
+  an instance cleans up its directory when it shuts down. This is a
+  separate setting from the extension/secret home (see below).
 
 - Logs and profiling output:
 
@@ -128,12 +135,18 @@ already exists.
 | Home | `home_directory` | – | left untouched (not set) |
 | Extensions | `extension_directory` | `home` arg / `duckdb.home` / `DUCKDB_R_HOME` (as `<home>/extensions`) | [`tempdir()`](https://rdrr.io/r/base/tempfile.html) sub-directory (set) |
 | Stored secrets | `secret_directory` | like extensions (`<home>/stored_secrets`) | [`tempdir()`](https://rdrr.io/r/base/tempfile.html) sub-directory (set) |
-| Temp/spill | `temp_directory` | `duckdb.temp_directory` / `DUCKDB_R_TEMP_DIRECTORY` | [`tempdir()`](https://rdrr.io/r/base/tempfile.html) sub-directory (set) |
+| Temp/spill | `temp_directory` | `duckdb.temp_directory` / `DUCKDB_R_TEMP_DIRECTORY` | memory: [`tempdir()`](https://rdrr.io/r/base/tempfile.html) sub-directory (set); disk: `<dbdir>.tmp` |
 | Logs | `log_query_path` | DuckDB setting | disabled (off) |
 
 "set" means [`duckdb()`](https://r.duckdb.org/reference/duckdb.md) sets
 the value explicitly in the database config. The home directory is left
-untouched so that `~` in user SQL keeps its usual meaning. An
+untouched so that `~` in user SQL keeps its usual meaning. The
+temp/spill setting is left unset for an on-disk database: the engine's
+own `<dbdir>.tmp` default already matches the DuckDB CLI, no matter
+whether the database is opened through
+[`duckdb()`](https://r.duckdb.org/reference/duckdb.md) or through the
+`dbdir` argument of
+[`DBI::dbConnect()`](https://dbi.r-dbi.org/reference/dbConnect.html). An
 `extension_directory` / `secret_directory` / `temp_directory` passed
 directly in the `config` list is always honored and takes precedence
 over the resolution above.

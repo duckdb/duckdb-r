@@ -109,11 +109,22 @@ setting: <code>secret_directory</code>. Placed at <code>&lt;home&gt;/stored_secr
 
 <dt>Temporary / spill files</dt>
 <dd><p>Out-of-core intermediates for sorts, hash
-joins, and similar operations. DuckDB settings: <code>temp_directory</code>,
-<code>max_temp_directory_size</code>. For an in-memory (<code>:memory:</code>) database DuckDB's
-own default spills to <code>.tmp</code> in the current working directory, so the
-package overrides it with a <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> sub-directory by default. This is
-a separate setting from the extension/secret home (see below).</p></dd>
+joins, and similar operations.
+DuckDB settings: <code>temp_directory</code>, <code>max_temp_directory_size</code>.
+Temporary storage is on by default, with the DuckDB CLI's semantics:
+the directory is created only when a query actually spills,
+and removed again when the database instance shuts down.
+An on-disk database keeps the engine's own default,
+<code>&lt;dbdir&gt;.tmp</code> next to the database file.
+For an in-memory (<code>:memory:</code>) database the engine's own default
+would spill to <code>.tmp</code> in the current working directory,
+so the package points it at a fresh per-instance sub-directory
+below <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> instead.
+Every in-memory instance gets its own spill directory:
+instances must not share one,
+because the engine's spill file names are deterministic
+and an instance cleans up its directory when it shuts down.
+This is a separate setting from the extension/secret home (see below).</p></dd>
 
 <dt>Logs and profiling output</dt>
 <dd><p>Written only when a path is explicitly
@@ -154,8 +165,12 @@ forces a per-session <code><a href="https://rdrr.io/r/base/tempfile.html" class=
     <div class="section level2">
     <h2 id="per-location-reference">Per-location reference<a class="anchor" aria-label="anchor" href="#per-location-reference"></a></h2>
 
-<table class="table table"><tr><td>Kind</td><td>DuckDB setting</td><td>How to set it</td><td>Default</td></tr><tr><td>Home</td><td><code>home_directory</code></td><td>–</td><td>left untouched (not set)</td></tr><tr><td>Extensions</td><td><code>extension_directory</code></td><td><code>home</code> arg / <code>duckdb.home</code> / <code>DUCKDB_R_HOME</code> (as <code>&lt;home&gt;/extensions</code>)</td><td><code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> sub-directory (set)</td></tr><tr><td>Stored secrets</td><td><code>secret_directory</code></td><td>like extensions (<code>&lt;home&gt;/stored_secrets</code>)</td><td><code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> sub-directory (set)</td></tr><tr><td>Temp/spill</td><td><code>temp_directory</code></td><td><code>duckdb.temp_directory</code> / <code>DUCKDB_R_TEMP_DIRECTORY</code></td><td><code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> sub-directory (set)</td></tr><tr><td>Logs</td><td><code>log_query_path</code></td><td>DuckDB setting</td><td>disabled (off)</td></tr></table><p>"set" means <code><a href="duckdb.html">duckdb()</a></code> sets the value explicitly in the database config.
+<table class="table table"><tr><td>Kind</td><td>DuckDB setting</td><td>How to set it</td><td>Default</td></tr><tr><td>Home</td><td><code>home_directory</code></td><td>–</td><td>left untouched (not set)</td></tr><tr><td>Extensions</td><td><code>extension_directory</code></td><td><code>home</code> arg / <code>duckdb.home</code> / <code>DUCKDB_R_HOME</code> (as <code>&lt;home&gt;/extensions</code>)</td><td><code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> sub-directory (set)</td></tr><tr><td>Stored secrets</td><td><code>secret_directory</code></td><td>like extensions (<code>&lt;home&gt;/stored_secrets</code>)</td><td><code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> sub-directory (set)</td></tr><tr><td>Temp/spill</td><td><code>temp_directory</code></td><td><code>duckdb.temp_directory</code> / <code>DUCKDB_R_TEMP_DIRECTORY</code></td><td>memory: <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> sub-directory (set); disk: <code>&lt;dbdir&gt;.tmp</code></td></tr><tr><td>Logs</td><td><code>log_query_path</code></td><td>DuckDB setting</td><td>disabled (off)</td></tr></table><p>"set" means <code><a href="duckdb.html">duckdb()</a></code> sets the value explicitly in the database config.
 The home directory is left untouched so that <code>~</code> in user SQL keeps its usual meaning.
+The temp/spill setting is left unset for an on-disk database:
+the engine's own <code>&lt;dbdir&gt;.tmp</code> default already matches the DuckDB CLI,
+no matter whether the database is opened through <code><a href="duckdb.html">duckdb()</a></code>
+or through the <code>dbdir</code> argument of <code><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">DBI::dbConnect()</a></code>.
 An <code>extension_directory</code> / <code>secret_directory</code> / <code>temp_directory</code>
 passed directly in the <code>config</code> list is always honored
 and takes precedence over the resolution above.</p>
