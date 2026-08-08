@@ -65,12 +65,12 @@ What the run compresses to:
   The list-column refusal reaches the caller as
   `Invalid Error: std::exception`;
   the nanoarrow message that explains it is lost at the seam.
-* **The export costs roughly two times the scan.**
+* **The export costs between one and a half and two times the scan.**
   On a million rows and three columns,
   per-query elapsed time against `r_dataframe_scan`:
-  `count(*)` 0.021 s vs 0.008 s,
-  `sum(i)` 0.015 s vs 0.006 s,
-  `count(DISTINCT s)` 0.154 s vs 0.072 s,
-  full fetch 0.374 s vs 0.158 s.
+  `count(*)` 0.010 s vs 0.006 s,
+  `sum(i)` 0.010 s vs 0.006 s,
+  `count(DISTINCT s)` 0.077 s vs 0.047 s,
+  full fetch 0.083 s vs 0.058 s.
   The cost is paid on every scan, not once at registration,
   because the exporter runs per scan.

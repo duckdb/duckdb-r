@@ -52,8 +52,9 @@ without adding a dependency.
 * Type fidelity differs in both directions —
   better for `integer64`, `hms`, and `POSIXct`,
   worse for `factor`, and a bare list column is refused outright.
-* The Arrow export costs about twice the built-in scan per query,
-  and it is paid per scan rather than once at registration.
+* The Arrow export costs one and a half to two times the built-in
+  scan per query, and it is paid per scan rather than once at
+  registration.
 
 So nanoarrow is a *new source*, not a replacement for
 `r_dataframe_scan`, and the design must let a producer say what it
@@ -84,7 +85,7 @@ can do rather than assume it can filter.
   because the semantics differ:
   no pushdown, a per-scan export, and a different type mapping.
 * **`duckdb_register()` keeps `r_dataframe_scan`.**
-  The measurement says the nanoarrow route is about twice as slow,
+  The measurement says the nanoarrow route is up to twice as slow,
   drops `ENUM` for factors, and refuses list columns.
   Changing the default would be a regression for the common case;
   the generic in #98 is about reaching more sources, not fewer.
