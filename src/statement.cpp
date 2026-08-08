@@ -256,9 +256,8 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 
 // Convert an already-collected set of chunks into a data.frame.
 // The chunk-pull counterpart of duckdb_execute_R_impl(), used by rapi_stream_fetch().
-static SEXP duckdb_r_chunks_to_df(const vector<duckdb::unique_ptr<DataChunk>> &chunks,
-                                  const vector<LogicalType> &types, const vector<string> &names,
-                                  const duckdb::ConvertOpts &convert_opts) {
+static SEXP duckdb_r_chunks_to_df(const vector<duckdb::unique_ptr<DataChunk>> &chunks, const vector<LogicalType> &types,
+                                  const vector<string> &names, const duckdb::ConvertOpts &convert_opts) {
 	idx_t nrows = 0;
 	for (auto &chunk : chunks) {
 		nrows += chunk->size();

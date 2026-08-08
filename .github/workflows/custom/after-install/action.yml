@@ -87,4 +87,13 @@ runs:
           )
         }
         writeLines("No hard-coded package name outside scripts/flavor.patch.")
+        unflavored <- flavor_unflavored_paths(".")
+        if (length(unflavored) > 0) {
+          writeLines(unflavored)
+          stop(
+            "A file scripts/flavor.patch renames still carries the mainline ",
+            "name; see scripts/flavor-package-name.R for how to resolve this."
+          )
+        }
+        writeLines("No file left under the mainline name.")
       shell: Rscript {0}
