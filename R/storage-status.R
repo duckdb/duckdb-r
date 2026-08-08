@@ -1,6 +1,7 @@
 # Implementation of the user-facing function that reports where the duckdb R
 # package stores extensions and secrets. It is documented together with the
 # storage policy on the `?duckdb_storage` page (via `@rdname`).
+# Explained in handbook/usage/storage/README.md.
 
 #' @details
 #' `duckdb_storage_status()` reports the directory the package would currently
