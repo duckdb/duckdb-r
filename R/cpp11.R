@@ -240,6 +240,14 @@ rapi_execute <- function(stmt, convert_opts) {
   .Call(`_duckdb_rapi_execute`, stmt, convert_opts)
 }
 
+rapi_stream_fetch <- function(qry_res, n, convert_opts) {
+  .Call(`_duckdb_rapi_stream_fetch`, qry_res, n, convert_opts)
+}
+
+rapi_stream_close <- function(qry_res) {
+  invisible(.Call(`_duckdb_rapi_stream_close`, qry_res))
+}
+
 rapi_adbc_init_func <- function() {
   .Call(`_duckdb_rapi_adbc_init_func`)
 }
