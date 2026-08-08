@@ -173,10 +173,11 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 		rapi_error_with_context("rapi_bind", "Bind parameter values need to have length one for arrow queries");
 	}
 
-	// Streaming arrow results from the same prepared statement cannot coexist
+	// Streaming results from the same prepared statement cannot coexist
 	// (each Execute() invalidates the previous StreamQueryResult). Materialize
-	// per-row arrow results when binding multiple rows.
-	bool allow_stream_result = arrow && streaming && n_rows == 1;
+	// per-row results when binding multiple rows. This applies to the arrow
+	// path and the data-frame path (dbSendQuery(stream = TRUE)) alike.
+	bool allow_stream_result = streaming && n_rows == 1;
 
 	cpp11::writable::list out;
 	out.reserve(n_rows);
@@ -196,6 +197,25 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 	return out;
 }
 
+// Create the result data frame and allocate columns, without any values yet.
+// Note we cannot use cpp11's data frame here as it tries to calculate the number of rows itself,
+// but gives the wrong answer if the first column is another data frame. So we set the necessary
+// attributes manually.
+static cpp11::writable::list duckdb_r_allocate_df(const vector<LogicalType> &types, const vector<string> &names,
+                                                  idx_t nrows, const duckdb::ConvertOpts &convert_opts,
+                                                  const char *caller) {
+	cpp11::writable::list data_frame;
+	data_frame.reserve(types.size());
+
+	for (size_t col_idx = 0; col_idx < types.size(); col_idx++) {
+		cpp11::sexp varvalue = duckdb_r_allocate(types[col_idx], nrows, names[col_idx], convert_opts, caller);
+		duckdb_r_decorate(types[col_idx], varvalue, convert_opts);
+		data_frame.push_back(varvalue);
+	}
+
+	return data_frame;
+}
+
 SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb::ConvertOpts &convert_opts,
                                    SEXP class_) {
 	// step 2: create result data frame and allocate columns
@@ -211,18 +231,8 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 	ConvertOpts local_convert_opts = convert_opts;
 	local_convert_opts.session_time_zone = result->client_properties.time_zone;
 
-	// Note we cannot use cpp11's data frame here as it tries to calculate the number of rows itself,
-	// but gives the wrong answer if the first column is another data frame. So we set the necessary
-	// attributes manually.
-	cpp11::writable::list data_frame;
-	data_frame.reserve(ncols);
-
-	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
-		cpp11::sexp varvalue = duckdb_r_allocate(result->types[col_idx], nrows, result->names[col_idx],
-		                                         local_convert_opts, "duckdb_execute_R_impl");
-		duckdb_r_decorate(result->types[col_idx], varvalue, local_convert_opts);
-		data_frame.push_back(varvalue);
-	}
+	cpp11::writable::list data_frame =
+	    duckdb_r_allocate_df(result->types, result->names, nrows, local_convert_opts, "duckdb_execute_R_impl");
 
 	// step 3: set values from chunks
 	idx_t dest_offset = 0;
@@ -245,6 +255,38 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 	duckdb_r_df_decorate(data_frame, nrows, class_);
 
 	// at this point data_frame is fully allocated and the only protected SEXP
+
+	return data_frame;
+}
+
+// Convert an already-collected set of chunks into a data.frame.
+// The chunk-pull counterpart of duckdb_execute_R_impl(), used by rapi_stream_fetch().
+static SEXP duckdb_r_chunks_to_df(const vector<duckdb::unique_ptr<DataChunk>> &chunks, const vector<LogicalType> &types,
+                                  const vector<string> &names, const duckdb::ConvertOpts &convert_opts) {
+	idx_t nrows = 0;
+	for (auto &chunk : chunks) {
+		nrows += chunk->size();
+	}
+
+	cpp11::writable::list data_frame = duckdb_r_allocate_df(types, names, nrows, convert_opts, "rapi_stream_fetch");
+
+	idx_t dest_offset = 0;
+	for (auto &chunk : chunks) {
+		D_ASSERT(chunk->ColumnCount() == types.size());
+		for (size_t col_idx = 0; col_idx < chunk->ColumnCount(); col_idx++) {
+			duckdb_r_transform(chunk->data[col_idx], data_frame[col_idx], dest_offset, chunk->size(), convert_opts,
+			                   names[col_idx]);
+		}
+		dest_offset += chunk->size();
+	}
+
+	D_ASSERT(dest_offset == nrows);
+
+	// Convert to SEXP, finalize length
+	(void)(SEXP)data_frame;
+
+	SET_NAMES(data_frame, StringsToSexp(names));
+	duckdb_r_df_decorate(data_frame, nrows, RStrings::get().dataframe_str);
 
 	return data_frame;
 }
@@ -449,7 +491,12 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 		rapi_error_with_context("rapi_execute", error);
 	}
 
-	if (convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED) {
+	if (convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED || allow_stream_result) {
+		// Both the Arrow path and the data-frame streaming path
+		// (dbSendQuery(stream = TRUE)) hand the result to R as an externalptr.
+		// The result is a StreamQueryResult when the statement supports
+		// streaming, and a MaterializedQueryResult otherwise; rapi_stream_fetch()
+		// works chunk-wise on either.
 		auto query_result = make_uniq<RQueryResult>();
 		query_result->result = std::move(generic_result);
 		rqry_eptr_t query_resultsexp(query_result.release());
@@ -469,7 +516,118 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 		rapi_error_with_context("rapi_execute", "Invalid statement");
 	}
 
-	bool allow_stream_result = convert_opts.arrow == ConvertOpts::ArrowConversion::ENABLED &&
-	                           convert_opts.streaming == ConvertOpts::ResultStreaming::ENABLED;
+	bool allow_stream_result = convert_opts.streaming == ConvertOpts::ResultStreaming::ENABLED;
 	return rapi_execute_impl(stmt.get(), convert_opts, allow_stream_result);
+}
+
+// Split `chunk` after `keep` rows: the tail moves into a fresh flat chunk that
+// is returned, `chunk` itself is truncated to its first `keep` rows.
+static duckdb::unique_ptr<DataChunk> duckdb_r_split_chunk_tail(DataChunk &chunk, idx_t keep) {
+	D_ASSERT(keep < chunk.size());
+	auto tail = make_uniq<DataChunk>();
+	tail->Initialize(Allocator::DefaultAllocator(), chunk.GetTypes(), chunk.size() - keep);
+	chunk.Copy(*tail, keep);
+	chunk.SetCardinality(keep);
+	return tail;
+}
+
+// Pull up to `n` rows (all remaining rows for n = -1) from a result created
+// with streaming enabled, and convert them to a data.frame. Returns
+// list(df = <data.frame>, eof = <logical>); `eof` is TRUE once the result is
+// fully drained and no split-off tail remains buffered.
+[[cpp11::register]] cpp11::list rapi_stream_fetch(duckdb::rqry_eptr_t qry_res, double n,
+                                                  duckdb::ConvertOpts convert_opts) {
+	if (!qry_res || !qry_res.get()) {
+		rapi_error_with_context("rapi_stream_fetch", "Invalid query result");
+	}
+	auto &wrapper = *qry_res.get();
+	if (!wrapper.result) {
+		rapi_error_with_context("rapi_stream_fetch", "Result has already been consumed");
+	}
+	auto &result = *wrapper.result;
+
+	bool unlimited = n < 0;
+	idx_t target = unlimited ? 0 : (idx_t)n;
+
+	vector<duckdb::unique_ptr<DataChunk>> chunks;
+	idx_t total = 0;
+
+	// Serve the tail split off by the previous fetch first.
+	if (wrapper.pending_chunk && (unlimited || total < target)) {
+		auto pending = std::move(wrapper.pending_chunk);
+		if (!unlimited && pending->size() > target - total) {
+			wrapper.pending_chunk = duckdb_r_split_chunk_tail(*pending, target - total);
+		}
+		total += pending->size();
+		chunks.push_back(std::move(pending));
+	}
+
+	if (!wrapper.stream_drained && (unlimited || total < target)) {
+		// For a StreamQueryResult, Fetch() continues query execution, which can
+		// take arbitrarily long: install the same interrupt handler as
+		// rapi_execute_impl() so Ctrl-C aborts the query. Materialized results
+		// have their chunks in memory already and need none.
+		duckdb::unique_ptr<ScopedInterruptHandler> signal_handler;
+		if (result.type == QueryResultType::STREAM_RESULT) {
+			signal_handler = make_uniq<ScopedInterruptHandler>(result.Cast<StreamQueryResult>().context);
+		}
+
+		bool fetch_hit_end = false;
+		while (unlimited || total < target) {
+			auto chunk = result.Fetch();
+			if (!chunk || chunk->size() == 0) {
+				fetch_hit_end = true;
+				break;
+			}
+			if (!unlimited && chunk->size() > target - total) {
+				wrapper.pending_chunk = duckdb_r_split_chunk_tail(*chunk, target - total);
+			}
+			total += chunk->size();
+			chunks.push_back(std::move(chunk));
+		}
+
+		if (signal_handler) {
+			signal_handler->HandleInterrupt();
+			signal_handler->Disable();
+		}
+
+		if (fetch_hit_end) {
+			if (result.HasError()) {
+				ErrorData error(result.GetErrorObject());
+				rapi_error_with_context("rapi_stream_fetch", error);
+			}
+			wrapper.stream_drained = true;
+		}
+	}
+
+	// Propagate the session's TimeZone so TIMESTAMP WITH TIME ZONE columns
+	// are tagged the same way as on the materialized path
+	// (see duckdb_execute_R_impl()).
+	ConvertOpts local_convert_opts = convert_opts;
+	local_convert_opts.session_time_zone = result.client_properties.time_zone;
+
+	// Avoid rchk warning, it sees QueryResult::~QueryResult() as an allocating function
+	cpp11::sexp df = duckdb_r_chunks_to_df(chunks, result.types, result.names, local_convert_opts);
+
+	cpp11::writable::list out;
+	out.reserve(2);
+	out.push_back({"df"_nm = df});
+	out.push_back({"eof"_nm = cpp11::as_sexp(wrapper.stream_drained && !wrapper.pending_chunk)});
+	return out;
+}
+
+// Release a streaming result before its externalptr is garbage-collected:
+// closes the underlying stream (freeing the connection for the next query)
+// and drops any buffered tail. Safe to call more than once.
+[[cpp11::register]] void rapi_stream_close(duckdb::rqry_eptr_t qry_res) {
+	if (!qry_res || !qry_res.get()) {
+		return;
+	}
+	auto &wrapper = *qry_res.get();
+	wrapper.pending_chunk.reset();
+	if (wrapper.result && wrapper.result->type == QueryResultType::STREAM_RESULT) {
+		wrapper.result->Cast<StreamQueryResult>().Close();
+	}
+	wrapper.result.reset();
+	wrapper.stream_drained = true;
 }
