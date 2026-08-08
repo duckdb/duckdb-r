@@ -1,8 +1,21 @@
 # Snapshots
 
-What the recorded snapshot output asserts,
+When to record output rather than assert about it,
+what the recorded snapshot then asserts,
 and how a changed snapshot is accepted — deliberately,
 because accepting one asserts the new output is correct.
+
+**An error or a printed result is asserted by snapshot.**
+`expect_snapshot()` and `expect_snapshot_error()` over
+`expect_error(regexp = )`, `expect_output()`, and their relatives:
+a regexp pins the fragment someone happened to choose
+and stays silent when the rest of the message rots,
+while a snapshot records the whole of it,
+so a wording change has to be read and accepted rather than slipping past.
+The exception is an expectation whose text is a value rather than output —
+a condition class, an error a test raises itself —
+and a test that only needs to know that *something* failed
+says so with a bare `expect_error()`.
 
 `expect_snapshot()` output lives in
 `tests/testthat/_snaps/<file>.md`, one file per test file.

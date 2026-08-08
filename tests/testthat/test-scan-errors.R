@@ -9,17 +9,16 @@ test_that("Data frame scan reports a scan-time error with its message", {
 
   n <- 1100000L
   cells <- as.list(rep("a", n))
-  cells[[n - 10L]] <- iconv("für", "UTF-8", "latin1")
+  cells[[n - 10L]] <- iconv("f\u00fcr", "UTF-8", "latin1")
   df <- data.frame(id = seq_len(n))
   df$l <- cells
 
   duckdb_register(con, "with_list", df)
 
   # A million rows per task, so the bad cell is in a task of its own
-  expect_error(
-    dbGetQuery(con, "SELECT count(*) AS n FROM with_list WHERE len(l) > 0"),
-    "UTF-8"
-  )
+  expect_snapshot(error = TRUE, {
+    dbGetQuery(con, "SELECT count(*) AS n FROM with_list WHERE len(l) > 0")
+  })
 })
 
 test_that("Errors raised on R's thread keep their context", {
@@ -27,8 +26,7 @@ test_that("Errors raised on R's thread keep their context", {
   # leaves R's thread still reports through R, with its context attached.
   con <- local_con()
 
-  expect_error(
-    duckdb_register(con, "empty", data.frame()),
-    "at least one column"
-  )
+  expect_snapshot(error = TRUE, {
+    duckdb_register(con, "empty", data.frame())
+  })
 })
