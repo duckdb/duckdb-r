@@ -470,6 +470,25 @@ are proven fixes.
 Carrying them over beats rederiving them,
 and their commit-message trailers say what they were for.
 
+**Most of that carry now happens at the replay**
+(`series-forward.md`, duckdb/duckdb-r#2584):
+`series-forward-build.sh` matches each buffer commit
+to its `-dev` twin by vendored SHA
+and folds the twin's R-side delta into the same commit,
+so a forward built after that change
+starts with the fixes rather than rediscovering them one red at a time.
+A commit carrying one says so in its message,
+in the trailer naming where it came from.
+What is left for this stage is what the replay could not do:
+a carry that conflicted and was resolved by hand,
+a tooling path it deliberately dropped,
+and every forward built before the change —
+`main-fwd` among them.
+So the mining step is the exception rather than the rule,
+and the question to ask of a red on a forward series
+is first whether its commit already carries a trailer:
+where it does, the base's fix is in and the red is something else.
+
 **Read the whole set before carrying any one of it across.**
 `scripts/series-glue.sh <S>` prints every glue adaptation the series holds,
 oldest first, with the upstream SHA each answered

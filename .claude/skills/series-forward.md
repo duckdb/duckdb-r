@@ -40,6 +40,32 @@ the replay then populates `<S>-fwd-build`.
    and the glue that commit had to adapt —
    so replaying the diffs keeps `main`'s state for everything else
    by construction.
+
+   **The old `-dev`'s R-side fixes ride along with it.**
+   The buffer carries the vendored tree and the glue that compiles it;
+   everything CI demanded *afterwards* —
+   the snapshot folds, the test and R-code adaptations,
+   the `patch/` entries —
+   was folded into the equivalent commit on the old `-dev`
+   and cannot be seen from `-build` at all.
+   So each pick is matched to the `-dev` commit
+   vendoring the same upstream SHA,
+   and what that commit touched beyond its `-build` twin
+   is applied on top, into the same commit.
+   The script derives the `-dev` ref from the buffer's name
+   and refuses to start when it cannot —
+   replaying without it is silent, and costs a repair per dropped fix.
+   `--no-dev` is the escape hatch, and `--dev <ref>` names an unconventional one.
+
+   Two things it will not do for you.
+   A carry the new base has moved the code out from under
+   stops the run with the conflict in the tree,
+   named as a carry rather than as a pick;
+   resolve it toward the new base, `git add`, and rerun.
+   And tooling paths are never carried —
+   the seed is current `main`, which has the newer copy —
+   so a fold that touched `.github/`, `scripts/` or `.claude/`
+   is dropped with a line saying so.
    Files `main` deleted stay deleted,
    tooling `main` gained comes along,
    tests and snapshots are `main`'s,
@@ -92,10 +118,17 @@ the replay then populates `<S>-fwd-build`.
    one per replayed commit,
    so it counts this chain rather than carrying the old one's numbering.
    Keep every commit message;
-   the original author survives the replay, only the committer changes.
+   the original author survives the replay, only the committer changes —
+   except where an R-side fix was carried,
+   which takes the `-dev` twin's message,
+   because by the commit-message contract that is the same message
+   plus the sections describing what was adapted,
+   and a trailer naming the commit it came from.
    `scripts/series-forward-build.sh <old-build> <old-base>`
    does exactly this, run on the fresh seed —
    `<old-base>` only delimits the range.
+   `scripts/series-forward-build-test.sh` checks the whole of it offline,
+   which is where to start when changing any of it.
 
    **It refuses to start while the buffer carries a change
    the new base does not have.**

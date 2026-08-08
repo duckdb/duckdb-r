@@ -53,9 +53,17 @@ to do, and they run in this order:
   around a script opens a pull request against it,
   so the next firing does not have to.
 
-**A forward carries the vendor strand, and the rest is placed by hand.**
-`<S>-fwd-build` is replayed from the buffer's `vendor:` commits alone, so
-the buffer's own `patch/` entries do not travel with it, and a series
+**A forward carries the vendor strand and the R-side fixes folded onto it;
+the rest is placed by hand.**
+`<S>-fwd-build` is replayed from the buffer's `vendor:` commits, each one
+matched to the `-dev` commit vendoring the same upstream SHA so the
+adaptations CI demanded there — snapshots, tests, R code, `patch/` entries —
+are folded back into it rather than rediscovered a red commit at a time
+([#2584](https://github.com/duckdb/duckdb-r/pull/2584)).
+Rare per commit and expensive where it happens: 29 of the 3346 vendor
+commits on `main-build` carry one, and each is a repair plus a replay of
+everything above it.
+The buffer's own `patch/` entries still do not travel with it, and a series
 seeded from a release branch regenerates its seed on that branch, with
 the tooling that branch carries rather than `main`'s.
 The replay refuses to start rather than leave a `patch/` entry behind,
