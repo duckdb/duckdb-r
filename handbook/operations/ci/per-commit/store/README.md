@@ -73,7 +73,7 @@ Now it means re-reading the tip and re-staging the same files.
 |---|---|---|
 | an `each-rcc` leg | once per commit built (~2/min at `max-parallel: 20`) | its own record, its own log |
 | the run's fan-in | once per run | records and logs the legs could not publish |
-| `rcc-logs.yaml` | every 30 min | records for commits it finds undecided |
+| `rcc-logs.yaml` | on dispatch | records for commits it finds undecided |
 | [`rcc-consolidate.sh`](/scripts/rcc-consolidate.sh) | by hand | **all of it** |
 
 Nobody rewrites anything that is not their own commit's —
@@ -307,10 +307,16 @@ A single flat directory of ten thousand records would rewrite the whole tree on
 every push.
 
 And none of it is load-bearing.
-Legs still upload their artifacts, the fan-in still runs `if: always()`,
-and `rcc-logs.yaml` still ticks every 30 minutes.
+Legs still upload their artifacts and the fan-in still runs `if: always()`.
 A failed publish is logged and ignored — it never fails the leg —
 and the record is collected the old way, one job later.
+
+`rcc-logs.yaml` used to tick every 30 minutes and no longer does:
+the loop reads the runs that decided a commit,
+so the sweep was keeping a copy warm that a firing normally never opens.
+It is dispatched now, and only the gap it alone covers —
+a run cancelled whole, so that neither the leg nor the fan-in ever wrote —
+is a reason to dispatch it.
 
 *To deepen: state what the first live cutover, the first live consolidation and
 the first live publish against the real remote changed, and fold the

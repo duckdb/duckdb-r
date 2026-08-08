@@ -1,5 +1,5 @@
-# Periodically collect results and failure logs for completed runs of the
-# "rcc" workflow and store them on the orphan branch "rcc2".
+# Collect results and failure logs for completed runs of the "rcc" workflow and
+# store them on the orphan branch "rcc2". Run on request, not on a schedule.
 #
 # The orphan branch holds only the collected data -- one record per commit at
 # runs2.d/<xx>/<sha>.ndjson and one log per failed commit at
@@ -8,22 +8,30 @@
 # This is the backstop, not the main path: the `each-rcc` legs publish their own
 # verdicts seconds after deciding them, and the run's fan-in recovers what a dead
 # leg could not. What is left for this job is the run that was cancelled whole.
+#
+# Dispatch-only, deliberately. It used to tick every 30 minutes, from when the
+# promotion loop gated on this data and harvest latency was its cycle time. The
+# loop reads the runs that decided a commit now
+# (.claude/skills/series-loop.md stage 2), so the schedule was paying ~48 runs a
+# day to keep a copy warm that a firing normally never opens -- and, worse,
+# making the copy look authoritative by being continuously fresh.
+#
+# The two automatic writers stay: a leg publishes its own verdict, and the
+# fan-in sweeps up after a leg that died. Only the periodic sweep for a run that
+# was cancelled whole is gone, and that gap is what dispatching this fills. A
+# run takes 2-13 minutes, so a firing that needs it dispatches it and reads the
+# result on its next pass rather than waiting.
 
 on:
-  schedule:
-    # Every 30 minutes. The chunked promotion loop gates on this data: a chunk
-    # only advances once every commit in it has a completed run recorded here,
-    # so harvest latency is the loop's cycle time.
-    - cron: "13,43 * * * *"
+  workflow_dispatch:
   push:
     paths:
       - ".github/workflows/rcc-logs.yaml"
       - "scripts/rcc-logs.sh"
-  workflow_dispatch:
 
 name: rcc-logs
 
-# Keeps two ticks of *this* workflow from redoing the same API work. It is not
+# Keeps two runs of *this* workflow from redoing the same API work. It is not
 # shared with the other writers to the branch, and does not need to be: every
 # producer stages files at disjoint paths and publishes them with plumbing
 # (scripts/rcc-publish.sh), so a collision costs a tree fetch and a re-commit.

@@ -2,7 +2,8 @@
 # Collect rcc results and failure logs for commits the verdict store has no
 # record for, and stage them for publication to the orphan `rcc2` branch.
 #
-# The scheduled backstop, and only that: the `each-rcc` legs publish their own
+# The emergency backstop, and only that -- dispatched, never scheduled
+# (.github/workflows/rcc-logs.yaml): the `each-rcc` legs publish their own
 # verdicts within seconds of deciding them (scripts/each-shard.sh), and the run's
 # fan-in recovers what a dead leg could not (scripts/each-harvest.sh). This is
 # what covers the case where neither ran at all, because the whole workflow was
