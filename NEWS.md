@@ -1,5 +1,92 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.5.9011
+
+## Bug fixes
+
+### readme
+
+- Vendor the DuckDB logos, and write two READMEs from one source (#2517, #2518, #2558).
+
+### flavor
+
+- Catch a renamed file that reached a series under its mainline name (#2559).
+
+### storage
+
+- Anchor the `~/.duckdb` consent default at `interactive()` (#2550).
+
+### series-advance
+
+- Set `-build-base`, rather than advance it (#2540).
+
+### patch
+
+- Fix the re2 clang warnings instead of hiding them (#2492).
+
+### series-advance
+
+- Clamp the replay anchor to the merge base (#2548).
+
+### rcc
+
+- Fetch the record a publish replaces, so a retry's verdict can land (#2547).
+
+### rcc
+
+- Stop the backstop recording a `pending` status as a verdict (#2544).
+
+### ci
+
+- Let `adbcdrivermanager` fail to build on Windows arm64 (#2539).
+
+## Documentation
+
+### handbook
+
+- Record the untyped-`NULL` mapping as designed, declining the flip to logical `NA` (#155, #2561).
+
+### integrations
+
+- Answer the frame-library request, Arrow and non-Arrow (#642, #2557).
+
+### statements
+
+- Move the multi-statement prepare rule to the leaf that owns it (#179, #2555).
+
+### connections
+
+- State where the instance's settings bind, and both ways `dbConnect()` gets them wrong (#83, #171, #2553).
+
+### data-import
+
+- Say what a virtual `filename` column changes (#1733, #2556).
+
+### types
+
+- Give the geometry write side its route, not just its absence (#1670, #2552).
+
+### types
+
+- State the UTF-8 repair that works, not the one that looks like it (#12, #2551).
+
+- Review DuckDB API usage in the glue code and assess a C API migration (#2413).
+
+### branches
+
+- State the mirrors' cadence, now that `krlmlr/duckdb-r` is a fork (#2494, #2542).
+
+- An entry that wraps its subject applies everywhere, so applying proves nothing (#2546).
+
+- Record the August 2026 forward, and turn the cpp11 gap it walked into into a check (#2545, #2543).
+
+## Refactoring
+
+### series-loop
+
+- Read verdicts from the `each-rcc` runs, keep `rcc2` as the fallback (#2549).
+
+
 # duckdb 1.5.5.9010
 
 ## Bug fixes

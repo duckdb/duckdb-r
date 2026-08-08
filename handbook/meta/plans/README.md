@@ -29,3 +29,13 @@ an experiment records what was measured, when, and on what,
 and the leaf that leans on it links it —
 which is what lets a reader weigh a finding
 without repeating the work.
+
+Prefer durable storage for a result that is hard to reproduce —
+one that needs an old package version, a long build,
+a specific platform, or hours of compute:
+commit the script *and* the recorded output under `experiments/`
+while the result is fresh.
+The output should be a Markdown file created with `reprex::reprex(si = TRUE)`.
+Session scratch space, chat transcripts, and CI logs all expire,
+and a finding that lived only there
+is the same work waiting to be done again.
