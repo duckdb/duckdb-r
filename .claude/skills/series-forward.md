@@ -136,17 +136,17 @@ the replay then populates `<S>-fwd-build`.
    on a conflict the script stops with the tree in place,
    and rerunning it after `git add` continues where it stopped.
 
-   **The buffer stays compile-side, and that is the whole split.**
+   **The buffer stays at what compiles, and that is the whole split.**
    `-fwd-build` inherits what the base buffer had —
-   the vendored tree and the glue that makes it compile —
-   and nothing of what the base series learned afterwards
-   about making the tests pass.
+   the vendored tree and the glue that makes it compile,
+   that being what the vendor gate checks —
+   and nothing of what the base series learned afterwards.
    That second half is not replayed here and is not missing either:
    the loop's stage 5 folds it in from the base `<S>-dev`
-   as each buffer commit is consumed (`series-loop.md`).
+   as each buffer commit is consumed (`series-loop.md`),
+   glue included where a test rather than the compiler demanded it.
    So do not reach for it during the replay,
-   and do not put a snapshot or a test fix onto `-fwd-build` by hand —
-   the buffer is `compile`, `-dev` is `compile + test`.
+   and do not put a snapshot or a test fix onto `-fwd-build` by hand.
 
 2. **`<S>-fwd-dev` = `<S>-fwd-green` = `<S>-fwd-build-base`** =
    the seed tip:

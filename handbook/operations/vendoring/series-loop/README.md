@@ -47,14 +47,19 @@ to do, and they run in this order:
 * **Extend `<S>-dev`** — consume the buffer in bounded chunks,
   at most 100 commits per firing
   ([`scripts/series-advance.sh`](/scripts/series-advance.sh)).
-  On a forward series this is also where the base series' **test-side**
-  fixes are folded back in, matched by vendored SHA
+  On a forward series this is also where the base series' fixes are
+  folded back in, matched by vendored SHA
   ([#2594](https://github.com/duckdb/duckdb-r/pull/2594)):
-  `-build` holds what the code needs to *compile*, `-dev` what it needs
-  to *pass its tests*, and a forward inherits only the first from the
-  replay. Rare per commit and expensive where it happens — 8 of the 741
-  commits `main-fwd` still has buffered carry one, each otherwise a red
-  costing a repair plus a replay of everything above it.
+  `-build` holds what the code needs to *compile*, that being what the
+  vendor gate checks, and `-dev` holds everything CI demanded after
+  that — glue included, where a test rather than the compiler asked for
+  it. A forward inherits only the first from the replay. What carries is
+  the difference against the twin's own `-build` commit, less the
+  buffer's strand (`src/duckdb/`, `patch/`) and what vendoring
+  regenerates. Rare per commit and expensive where it happens — 10 of the
+  802 commits `main-fwd` still has buffered carry one, three of them
+  glue, each otherwise a red costing a repair plus a replay of
+  everything above it.
   This stage is **attended**: a carry the series has moved out from
   under stops the run with the conflict in a worktree it keeps, writes
   no ref, and resumes with `--continue` or is discarded with `--abort`.

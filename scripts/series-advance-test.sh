@@ -2,29 +2,37 @@
 # Check stage 5's carry of the base series' test-side fixes, offline, against a
 # synthetic remote and clone built here -- no network, no fixtures on disk.
 #
-# The split this rests on is what a fix is *for* (duckdb/duckdb-r#2594):
-# `-build` holds what the code needs to **compile**, `-dev` holds what it needs
-# to **pass its tests**, and a forward series inherits only the first when its
-# buffer is replayed. Eight things are checked.
+# The split this rests on is how far a fix was demanded (duckdb/duckdb-r#2594):
+# `-build` holds what the code needs to **compile**, because that is what the
+# vendor gate checks, and `-dev` holds everything CI asked for after that --
+# including glue, which is why the carry is a difference and not an allow-list.
+# A forward series inherits only the first when its buffer is replayed. Ten
+# things are checked.
 #
 #   1. A buffered commit whose base `-dev` twin folded a test-side fix is minted
 #      with that fix in the same commit -- not stacked above it -- carrying the
 #      twin's message and a trailer naming where it came from.
-#   2. Compile-side paths are never carried. `src/` and `patch/` are `-build`'s
-#      by definition, so a difference there is left alone rather than smuggled
-#      onto `-dev` by this stage.
-#   3. `R/version.R` is never carried. Vendoring regenerates it, so it differs
-#      between any two runs of the same upstream SHA and is noise, not a fix.
-#   4. A series with no base to mine -- not a forward, or a forward whose base
+#   2. Glue the twin has beyond its `-build` commit is carried, because the
+#      buffer already compiles and anything on top of it was demanded by
+#      something later than the compiler -- and it is reported, because glue
+#      missing from the base buffer is drift that wants mirroring there.
+#   3. Glue the buffer already carries is applied once, by the pick. That is
+#      what taking the difference buys over replaying the twin wholesale.
+#   4. The buffer's own strand is never carried: `src/duckdb/` and `patch/`,
+#      which a forward regenerates from its own patches.
+#   5. What vendoring regenerates is never carried -- `R/version.R`,
+#      `src/include/sources.mk` -- since it differs between any two runs of the
+#      same upstream SHA and is noise, not a fix.
+#   6. A series with no base to mine -- not a forward, or a forward whose base
 #      is gone after cutover -- behaves exactly as it did before this existed,
 #      and a chunk with no carry still moves the ref rather than replaying.
-#   5. A conflicting carry stops the run with the conflict in a worktree that is
+#   7. A conflicting carry stops the run with the conflict in a worktree that is
 #      kept, writes no ref, and names both commits.
-#   6. `--continue` finishes the resolved commit with the twin's message and
+#   8. `--continue` finishes the resolved commit with the twin's message and
 #      completes the rest of the chunk.
-#   7. Starting a second run while one is stopped refuses rather than replaying
+#   9. Starting a second run while one is stopped refuses rather than replaying
 #      over the resolution; `--abort` discards it and writes no ref.
-#   8. The fifth version component still rises once per vendor commit, carry or
+#  10. The fifth version component still rises once per vendor commit, carry or
 #      no carry.
 #
 # Usage:
@@ -86,6 +94,7 @@ echo 'snapshot types' > tests/testthat/_snaps/types.md
 echo 'foo <- function() 1' > R/foo.R
 mkdir -p src/duckdb
 echo 'vendored at the seed' > src/duckdb/seed.cpp
+echo 'generated sources list' > src/include/sources.mk
 git add -A
 git commit -qm 'vendor: Update vendored sources to duckdb/duckdb@0000000'
 git branch base-seed
@@ -101,6 +110,7 @@ bvendor() { # <sha> <version> <file> [<glue>]
   echo "vendored $1" > "src/duckdb/$3"
   [ -z "${4:-}" ] || echo "$4" > src/glue.cpp
   desc "$2"; verfile "build-$1"
+  echo "generated sources list for $1" > src/include/sources.mk
   git add -A
   git commit -qm "vendor: Update vendored sources to duckdb/duckdb@$1"
 }
@@ -121,13 +131,16 @@ bvendor aaaaaaa 1.0.0.9000.1 a.cpp
 echo 'snapshot one, corrected' > tests/testthat/_snaps/sql.md
 amend 'Snapshot corrected for the new engine output.'
 
-# bbbbbbb: compile-side only, plus the regenerated version file -- neither is
-# this stage's business (claims 2, 3).
-bvendor bbbbbbb 1.0.0.9000.2 b.cpp 'glue adapted for bbbbbbb, then repaired'
+# bbbbbbb: the buffer's own glue, unchanged (claim 3), plus a second glue file
+# the tests demanded (claim 2), the buffer's strand (claim 4) and the
+# regenerated bookkeeping (claim 5).
+bvendor bbbbbbb 1.0.0.9000.2 b.cpp 'glue adapted for bbbbbbb'
+echo 'rapi fix the tests demanded' > src/rapi.cpp
 echo 'patched' > patch/0001-fix.patch
 echo 'in-place patch effect' >> src/duckdb/b.cpp
+echo 'generated sources list, per dev' > src/include/sources.mk
 verfile 'dev-bbbbbbb'
-amend 'Compile fix, which belongs on the buffer.'
+amend 'Glue fix a test demanded, plus bookkeeping that is not a fix.'
 
 # ccccccc: nothing folded at all.
 bvendor ccccccc 1.0.0.9000.3 c.cpp
@@ -190,7 +203,7 @@ echo
 echo "== extending base-fwd from its buffer, mining base-dev"
 out=$(run base-fwd)
 
-has "reports how many carry a fix" "$out" 'carry a test-side fix from origin/base-dev'
+has "reports how many carry a fix" "$out" 'carry a fix from origin/base-dev'
 has "stops on the conflicting carry" "$out" 'conflicted'
 has "names the twin it came from"    "$out" 'carrying the test-side fix from'
 has "names the stage-5 resume"       "$out" 'series-advance.sh base-fwd --continue'
@@ -223,15 +236,29 @@ is "the carry is folded in, not stacked" \
 D=$(wat ddddddd)
 is "the R-code fix is carried too" "$(git -C "$WT" show "$D:R/foo.R")" 'foo <- function() 2'
 
-# 2, 3. the compile-side commit is this stage's business in no way at all.
+# 2. glue beyond the buffer's carries, and is reported as drift.
 B=$(wat bbbbbbb)
+is "glue the tests demanded is carried" \
+  "$(git -C "$WT" show "$B:src/rapi.cpp")" 'rapi fix the tests demanded'
+has "and the drift is reported"       "$out" 'carry glue the base buffer does not have'
+has "naming where to mirror it"       "$out" 'mirror it onto base-build'
+has "and the path"                    "$out" 'src/rapi.cpp'
+
+# 3. glue the buffer already has is the pick's, applied once.
+is "shared glue applied once" \
+  "$(git -C "$WT" show "$B:src/glue.cpp")" 'glue adapted for bbbbbbb'
+is "and is not in the carry set" \
+  "$(git -C "$WT" show --format= --name-only "$B" | grep -c '^src/glue.cpp$')" 1
+
+# 4, 5. the buffer's strand and the regenerated bookkeeping stay behind.
 is "no patch/ is carried" \
   "$(git -C "$WT" show --format= --name-only "$B" | grep -c '^patch/' || true)" 0
 is "the in-place src/duckdb repair is not carried" \
   "$(git -C "$WT" show "$B:src/duckdb/b.cpp")" 'vendored bbbbbbb'
 is "R/version.R stays the buffer's" \
   "$(git -C "$WT" show "$B:R/version.R")" 'duckdb_version <- "build-bbbbbbb"'
-hasnt "and the commit gets no trailer" "$(git -C "$WT" log -1 --format=%B "$B")" 'Carried from'
+is "src/include/sources.mk stays the buffer's" \
+  "$(git -C "$WT" show "$B:src/include/sources.mk")" 'generated sources list for bbbbbbb'
 
 # 8. the counter rises once per vendor commit.
 is "counter runs 1..5 over the commits made so far" \
@@ -293,7 +320,7 @@ EXIT=0"
 echo
 echo "== a series with no base series to mine"
 out=$(run solo)
-hasnt "says nothing about carrying" "$out" 'carry a test-side fix'
+hasnt "says nothing about carrying" "$out" 'carry a fix from'
 has   "and moves the ref"           "$out" 'dev ->'
 git fetch -q origin
 is "the dev tip is a buffer commit verbatim, not a replay" \

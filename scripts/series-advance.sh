@@ -7,25 +7,32 @@
 # review) stay with the skill. Refuses to do anything when a commit in the
 # in-flight range has a failure — run series-check.sh first and repair.
 #
-# **Stage 5 carries the base series' test-side fixes** onto a forward series as
-# it consumes its buffer. The two branches divide by what a fix is *for*:
-# `-build` holds what the code needs to **compile** -- the glue, the `patch/`
-# stack -- and `-dev` holds what it needs to **pass its tests** -- snapshots,
-# test files, R code. A forward's `-fwd-build` was replayed out of the base
-# buffer, so it has the first kind and none of the second, and every one of
-# those fixes would be rediscovered as a red commit, at a repair plus a replay
-# of everything above it. The base `<S>-dev` proved them already, against the
-# same upstream commit; this folds them into the commit that needs them as it is
+# **Stage 5 carries the base series' fixes** onto a forward series as it
+# consumes its buffer. The two branches divide by how far a fix was demanded:
+# `-build` holds what the code needs to **compile**, because that is what the
+# vendor gate checks at every commit, and `-dev` holds everything CI asked for
+# after that -- snapshots, test files, R code, and the glue a test or a check
+# turned out to need. A forward's `-fwd-build` was replayed out of the base
+# buffer, so it has the first and none of the second, and every one of those
+# fixes would be rediscovered as a red commit, at a repair plus a replay of
+# everything above it. The base `<S>-dev` proved them already, against the same
+# upstream commit; this folds them into the commit that needs them as it is
 # minted (duckdb/duckdb-r#2594).
 #
-# The split is the whole design, so the carry is an allow-list of what `-dev`
-# owns -- `tests/`, `man/`, `NAMESPACE`, and `R/` bar the regenerated
-# `R/version.R` -- and never a diff of the two commits. `src/` and `patch/`
-# belong to `-build` by definition: if a compile fix is missing there, the
-# answer is to mirror it onto the buffer, not to smuggle it in here. And a
-# path-set difference would drag along the bookkeeping that differs between any
-# two vendor runs of the same SHA (`R/version.R`, `pragma_version.cpp`), which
-# is noise wearing the shape of a fix.
+# What carries is the **difference** between the twin and its `-build` commit,
+# not an allow-list of directories. `src/` is not compile-only territory: the
+# buffer already compiles, so glue the `-dev` twin has on top of it was demanded
+# by something later than the compiler, and holding it back would strand exactly
+# the fixes this exists to move. Taking the difference is also what keeps the
+# glue the buffer already carries from being applied twice.
+#
+# Two kinds are excluded, and neither is a judgement about the fix: the buffer's
+# own strand (`src/duckdb/`, `patch/` -- a forward regenerates the tree from its
+# own patches) and what vendoring regenerates (`R/version.R`,
+# `src/include/sources.mk`, the Makevars, the logos), which differs between any
+# two vendor runs of the same SHA and is noise wearing the shape of a fix.
+# Carried glue is reported as it goes, because glue the base `-dev` has and the
+# base `-build` lacks is buffer drift and wants mirroring there.
 #
 # **This stage is attended.** A carry the series has moved out from under stops
 # the run with the conflict in a worktree that is kept, because resolving it is
@@ -212,15 +219,45 @@ twin_of() { # <buffer commit> -> the base -dev commit for the same upstream SHA
   echo "${TWIN[$sha]:-}"
 }
 
-# What the twin folded in that this series needs to *run its tests*. An
-# allow-list, not a difference -- see the header. `R/version.R` is regenerated
-# by vendoring, so it differs between any two runs of the same SHA and says
-# nothing about a fix.
-carry_paths() { # <base -dev commit>
-  git show --format= --name-only --no-renames "$1" |
-    grep -E '^(tests/|man/|R/|NAMESPACE$)' |
-    grep -vxF 'R/version.R' |
-    sort -u || true
+# What the twin folded in beyond vendoring: the paths its own diff touches that
+# its `-build` twin's does not, less the two kinds that are not a fix.
+#
+# The difference is the load-bearing part, and it is what lets `src/` through.
+# The gate compiles the glue at every buffer commit, so whatever the buffer
+# holds there is already enough to build; anything the `-dev` twin has *on top*
+# of it in `src/` was demanded by something later than the compiler -- a test,
+# a check, a platform r-universe reached and the gate did not. Those are
+# legitimate and they carry. Taking the difference is also what stops the glue
+# the buffer already has from being applied twice.
+#
+# Two kinds are excluded, and neither is a judgement about the fix:
+#
+#   * the buffer's own strand -- the vendored tree and the patch stack. A
+#     forward regenerates `src/duckdb/` from its own `patch/`, so a difference
+#     there is about which patches the two branches had, not about a fix
+#     travelling. Missing compile fixes belong on the buffer, mirrored there.
+#   * what vendoring regenerates -- `R/version.R`, `src/include/sources.mk`,
+#     the Makevars, the logos under `man/figures/`. Those differ between any
+#     two vendor runs of the same upstream SHA, which is noise wearing the
+#     shape of a fix.
+#
+# Tooling is stage 4's, ported from `main` rather than carried sideways.
+carry_paths() { # <buffer commit> <base -dev commit>
+  comm -13 \
+    <(git show --format= --name-only --no-renames "$1" | sort -u) \
+    <(git show --format= --name-only --no-renames "$2" | sort -u) |
+    grep -vE '^(src/duckdb/|patch/|\.github/|scripts/|\.claude/|man/figures/)' |
+    grep -vxE 'DESCRIPTION|R/version\.R|src/include/sources\.mk|src/Makevars(\.win|\.in)?' ||
+    true
+}
+
+# Glue among the carried paths. Carried like the rest -- the series needs it to
+# go green -- but said out loud, because a glue fix the base `-dev` has and the
+# base `-build` lacks is buffer drift: the fix was folded during a repair and
+# never mirrored onto the buffer, so the next tree regenerated there still
+# wants it (.claude/skills/series-loop.md, stage 2).
+glue_paths() { # <buffer commit> <base -dev commit>
+  carry_paths "$1" "$2" | grep -E '^src/' || true
 }
 
 # Check the counter rather than assume it: a replay that silently froze it
@@ -361,16 +398,26 @@ n=$((ahead < chunk ? ahead : chunk))
 index_twins
 declare -A CARRY=()
 carries=0
+glue_drift=()
 if [ -n "$base_dev" ]; then
   for c in $(git rev-list --reverse "$anchor..$build" | head -n "$n"); do
     d=$(twin_of "$c")
     [ -n "$d" ] || continue
-    [ -n "$(carry_paths "$d")" ] || continue
+    [ -n "$(carry_paths "$c" "$d")" ] || continue
     CARRY[$c]=$d
     carries=$((carries + 1))
+    g=$(glue_paths "$c" "$d" | tr '\n' ' ')
+    [ -z "$g" ] || glue_drift+=("$(git rev-parse --short "$d") $g")
   done
   [ "$carries" -eq 0 ] ||
-    echo "$carries of $n buffered commit(s) carry a test-side fix from $base_dev"
+    echo "$carries of $n buffered commit(s) carry a fix from $base_dev"
+  # Said rather than filtered: the glue travels, and the buffer it is missing
+  # from is a separate repair for whoever reads this.
+  if [ ${#glue_drift[@]} -gt 0 ]; then
+    echo "  ${#glue_drift[@]} of them carry glue the base buffer does not have;" \
+      "mirror it onto ${S%-fwd}-build:"
+    printf '    %s\n' "${glue_drift[@]}"
+  fi
 fi
 
 if [ "$anchor" = "$(git rev-parse "$dev")" ] && [ "$carries" -eq 0 ] && [ -z "$CONTINUE" ]; then
@@ -431,7 +478,7 @@ else
   # keeps the prose with the change it explains.
   apply_carry() { # <worktree> <buffer commit> <twin>
     local wt=$1 c=$2 d=$3 paths patch
-    mapfile -t paths < <(carry_paths "$d")
+    mapfile -t paths < <(carry_paths "$c" "$d")
     [ ${#paths[@]} -gt 0 ] || return 0
     patch=$wt/.series-advance-carry.patch
     git diff "$d^" "$d" -- "${paths[@]}" > "$patch"
