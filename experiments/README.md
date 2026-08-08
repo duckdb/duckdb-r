@@ -40,6 +40,11 @@ the directory keeps the method so that is possible.
   which prebuilt extensions DuckDB's repositories serve R's Windows
   builds, and whether the MSVC arm64 artifact can be hand-loaded;
   supports [`usage/extensions/`](/handbook/usage/extensions/README.md).
+* [`2026-08-08-nanoarrow-df-scan/`](2026-08-08-nanoarrow-df-scan/) —
+  what a data frame scan built only on nanoarrow answers correctly,
+  which R column types it keeps, and what the Arrow export costs;
+  supports
+  [`plan/PLAN-nanoarrow-df-scan.md`](/plan/PLAN-nanoarrow-df-scan.md).
 * [`2026-08-08-timezone-grid/`](2026-08-08-timezone-grid/) —
   which zone labels a `TIMESTAMP` and a `TIMESTAMPTZ` column,
   and when an instant changes, across every setting combination;

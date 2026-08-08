@@ -99,6 +99,19 @@ bridge dplyr pipelines both ways.
 The DBI Arrow API plan is
 [`plan/PLAN-dbSendQueryArrow.md`](/plan/PLAN-dbSendQueryArrow.md).
 
+The inbound direction is the asymmetric one:
+a result leaves as nanoarrow, but a source can only enter through the
+`arrow` package,
+because `duckdb_register_arrow()` hard-codes `arrow::Scanner$create()`
+and `arrow::Expression$…` in the closures it hands to C++.
+Registering through nanoarrow instead is
+[`plan/PLAN-nanoarrow-df-scan.md`](/plan/PLAN-nanoarrow-df-scan.md),
+and what stops it being a drop-in is filter pushdown:
+`arrow_scan` declares `filter_pushdown = true` and nothing above the
+scan re-applies the filter,
+so a producer with no compute layer needs `arrow_scan_dumb` instead
+([`experiments/2026-08-08-nanoarrow-df-scan/`](/experiments/2026-08-08-nanoarrow-df-scan/README.md)).
+
 ## ADBC
 
 `duckdb_adbc()` ([`R/Driver.R`](/R/Driver.R)) hands the engine to
