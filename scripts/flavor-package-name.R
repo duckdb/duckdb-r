@@ -65,13 +65,23 @@ flavor_scanned_files <- function(root) {
   # the source instead is also where a fix would have to be made.
   top_level_md <- setdiff(dir(root, pattern = "[.]md$"), "README.md")
 
+  # `README.Rmd` is the one entry named literally rather than found by `dir()`,
+  # so it is the only one that can be absent -- and on a frozen series it is:
+  # the commit that adds it is not ported there
+  # (.claude/skills/series-loop.md stage 4), while the tooling sync brings this
+  # scan and the `scripts/flavor.patch` that keys it. Reading it unconditionally
+  # turned that combination into an error rather than a verdict. Every other
+  # entry is discovered, so a missing one there would be a real problem and is
+  # left to fail.
+  readme_rmd <- if (file.exists(file.path(root, "README.Rmd"))) "README.Rmd"
+
   r_level <- c(
     flavor_dir(root, "R", "[.]R$"),
     flavor_dir(root, "man", "[.]Rd$"),
     flavor_dir(root, "tests", "[.]R$"),
     flavor_dir(root, "vignettes", "[.](R|Rmd|qmd)$"),
     top_level_md,
-    "README.Rmd"
+    readme_rmd
   )
 
   glue <- c(
