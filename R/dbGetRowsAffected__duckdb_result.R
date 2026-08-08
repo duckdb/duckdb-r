@@ -9,10 +9,10 @@ dbGetRowsAffected__duckdb_result <- function(res, ...) {
   # are bound but whose execution is still pending runs now, so its side
   # effects and row counts are not lost.
   if (!is.null(res@env$pending_params)) {
-    duckdb_execute_pending_bind(res)
+    duckdb_execute_pending(res)
   }
-  # Params required but not yet bound (and legacy arrow results)
-  if (is.null(res@env$resultset)) {
+  # Return NA only when params are required but not yet bound
+  if (is.null(res@env$resultset) && is.null(res@env$stream_result) && res@stmt_lst$n_param > 0) {
     return(NA_integer_)
   }
   return(res@env$rows_affected)

@@ -11,8 +11,7 @@ dbBind__duckdb_result <- function(res, params, ...) {
     stop("`params` must not be named")
   }
 
-  # Validate parameter count (mirrors rapi_bind C++ validation), so that
-  # structural errors still surface at bind time
+  # Validate parameter count (mirrors rapi_bind C++ validation)
   n_param <- res@stmt_lst$n_param
   if (n_param == 0) {
     stop("`dbBind()` called but query takes no parameters")
@@ -25,10 +24,14 @@ dbBind__duckdb_result <- function(res, params, ...) {
   res@env$resultset <- NULL
   res@env$pending_params <- NULL
 
+  # Re-binding drops the active stream (if any); the next dbFetch() opens a
+  # fresh stream with the new parameters. Also resets the stream EOF flag.
+  duckdb_stream_close(res)
+
   params <- encode_values(params)
 
   if (is_data_query(res@stmt_lst) && !res@arrow) {
-    # Defer execution to the first use of the result
+    # Defer execution to dbFetch() for data-returning queries
     res@env$pending_params <- params
   } else {
     out <- rethrow_rapi_bind(

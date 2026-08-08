@@ -43,6 +43,12 @@
 #'   `data.frame(key = <K>, value = <V>)` that records the SQL key/value types. This enables MAP columns
 #'   to round-trip through [dbWriteTable()] / [dbCreateTable()] without specifying `field.types`,
 #'   and lets scans accept named-list cells as MAP entries.
+#' @param stream Default for the `stream` argument of [dbSendQuery()] on this
+#'   connection: whether results are fetched in chunks instead of being
+#'   materialized on the first [dbFetch()] call.
+#'   A per-query `stream` argument to `dbSendQuery()` overrides this default.
+#'   See the `stream` argument of `dbSendQuery()` in
+#'   [duckdb_connection-class] for semantics and caveats.
 #'
 #' @return `dbConnect()` returns an object of class [duckdb_connection-class].
 #'
@@ -79,9 +85,11 @@ dbConnect__duckdb_driver <- function(
   bigint = "numeric",
   array = "none",
   geometry = "blob",
-  map = "data.frame"
+  map = "data.frame",
+  stream = FALSE
 ) {
   check_flag(debug)
+  check_flag(stream)
   timezone_out <- check_tz(timezone_out)
   tz_out_convert <- match.arg(tz_out_convert)
 
@@ -116,7 +124,7 @@ dbConnect__duckdb_driver <- function(
     drv <- duckdb(dbdir, read_only, bigint, config)
   }
 
-  conn <- duckdb_connection(drv, debug = debug, convert_opts = convert_opts)
+  conn <- duckdb_connection(drv, debug = debug, convert_opts = convert_opts, stream = stream)
   on.exit(dbDisconnect(conn))
 
   reg.finalizer(conn@conn_ref, onexit = TRUE, rapi_disconnect)
