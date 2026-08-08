@@ -9,13 +9,10 @@ src/Makevars.in
 ^\.Rproj\.user$
 ^_pkgdown\.yml$
 tests/regression
-RELEASE.md
 \.github
 ^\.gitattributes$
 ^src/\.editorconfig$
 ^\.vscode$
-^CMakeLists\.txt$
-^src/CMakeLists\.txt$
 ^build$
 ^src/.*\.o$
 ^duckdb$
@@ -29,8 +26,6 @@ RELEASE.md
 ^CRAN-SUBMISSION$
 ^docs$
 ^pkgdown$
-^docker$
-^docker-compose\.yml$
 _files$
 ^vscode-build$
 ^vscode-integrate-build$
@@ -45,3 +40,10 @@ _files$
 ^AGENTS\.md$
 ^BRANCHES\.md$
 ^\.claude$
+^extensions$
+^plan$
+^runs$
+^inst/extensions$
+^handbook$
+^experiments$
+^README\.Rmd$

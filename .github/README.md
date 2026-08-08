@@ -1,3 +1,10 @@
+<div align="center">
+  <a href="https://r.duckdb.org/"><picture>
+    <source media="(prefers-color-scheme: light)" srcset="../man/figures/DuckDB_Logo-horizontal.svg">
+    <source media="(prefers-color-scheme: dark)" srcset="../man/figures/DuckDB_Logo-horizontal-dark-mode.svg">
+    <img alt="DuckDB logo" src="../man/figures/DuckDB_Logo-horizontal.svg" height="100">
+  </picture></a>
+</div>
 
 # duckdb
 
@@ -6,7 +13,6 @@ It is designed to support analytical query workloads and is optimized for fast q
 This repository contains the R bindings for DuckDB.
 
 ## Installation from CRAN
-
 This is the recommended method for recent R versions on Windows or macOS which have binaries available on CRAN.
 
 ``` r
