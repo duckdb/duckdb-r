@@ -25,6 +25,7 @@ when the two disagree, the handbook leaf is right.
 |---|---|
 | Simplifying the vendoring pipeline: one verdict store, tooling from `main`, a docs tree | [`PLAN-vendoring-simplification.md`](PLAN-vendoring-simplification.md) |
 | Implementing `dbSendQueryArrow()` and the DBI Arrow API | [`PLAN-dbSendQueryArrow.md`](PLAN-dbSendQueryArrow.md) |
+| Adding `rel_from_arrow()`, a relational scan of an Arrow or nanoarrow source | [`PLAN-rel-from-arrow.md`](PLAN-rel-from-arrow.md) |
 
 ## `done/` — plans that came true
 

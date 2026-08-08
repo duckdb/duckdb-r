@@ -40,6 +40,10 @@ the directory keeps the method so that is possible.
   which prebuilt extensions DuckDB's repositories serve R's Windows
   builds, and whether the MSVC arm64 artifact can be hand-loaded;
   supports [`usage/extensions/`](/handbook/usage/extensions/README.md).
+* [`2026-08-08-rel-from-arrow/`](2026-08-08-rel-from-arrow/) —
+  what the relational API can already do with an Arrow or nanoarrow
+  source, and how the one route in binds, ages, and costs; supports
+  [`plan/PLAN-rel-from-arrow.md`](/plan/PLAN-rel-from-arrow.md).
 * [`2026-08-08-timezone-grid/`](2026-08-08-timezone-grid/) —
   which zone labels a `TIMESTAMP` and a `TIMESTAMPTZ` column,
   and when an instant changes, across every setting combination;
