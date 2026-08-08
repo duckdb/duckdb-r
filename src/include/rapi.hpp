@@ -172,6 +172,13 @@ typedef cpp11::external_pointer<ParsedExpression> expr_extptr_t;
 struct RQueryResult {
 	duckdb::unique_ptr<QueryResult> result;
 	duckdb::unique_ptr<ResultArrowArrayStreamWrapper> stream_wrapper;
+	// Data-frame streaming state (dbSendQuery(stream = TRUE)): the unconsumed
+	// tail of the last chunk served by rapi_stream_fetch(), and whether the
+	// underlying result has been drained. A drained StreamQueryResult closes
+	// itself, and fetching from a closed stream throws, so the flag must be
+	// checked before calling Fetch() again.
+	duckdb::unique_ptr<DataChunk> pending_chunk;
+	bool stream_drained = false;
 };
 
 typedef cpp11::external_pointer<RQueryResult> rqry_eptr_t;
