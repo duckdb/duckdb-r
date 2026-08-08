@@ -86,12 +86,19 @@ cat(dbGetQuery(con, "EXPLAIN SELECT * FROM na_tbl WHERE a > 3")[[2]])
 register_nanoarrow(con, "na_strict", df, on_filter = "error")
 try(dbGetQuery(con, "SELECT * FROM na_strict WHERE a > 3"))
 
-# A materialized CTE puts a barrier between the scan and the filter,
-# which restores correctness without touching the producer.
+# A materialized CTE gets the right answer back -- but not by
+# suppressing the pushdown. The filter is still pushed into the scan and
+# still ignored there; what fixes the answer is that DuckDB applies it a
+# second time above the materialization barrier.
 dbGetQuery(
   con,
   "WITH t AS MATERIALIZED (SELECT * FROM na_tbl) SELECT * FROM t WHERE a > 3"
 )
+
+cat(dbGetQuery(
+  con,
+  "EXPLAIN WITH t AS MATERIALIZED (SELECT * FROM na_tbl) SELECT * FROM t WHERE a > 3"
+)[[2]])
 
 # --- 3. A one-shot stream is not a table -------------------------------
 
