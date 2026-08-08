@@ -65,7 +65,8 @@ Measured evidence:
 * **Registration is not required.**
   `rel_from_arrow(con, x)` takes the source directly.
   A name in the catalog is a separate concern
-  ([`PLAN-nanoarrow-df-scan.md`](PLAN-nanoarrow-df-scan.md)),
+  (`PLAN-nanoarrow-df-scan.md`, proposed alongside this one under
+  [#98](https://github.com/duckdb/duckdb-r/issues/98)),
   and the two should not be entangled:
   duckplyr wants a relation, not a view.
 * **One constructor, two producers.**
@@ -150,9 +151,11 @@ section.
   depends on the current one.
   Worth its own issue.
 * **Filter pushdown into a source that has an engine.**
-  [`PLAN-polars-source.md`](PLAN-polars-source.md).
+  The Polars plan proposed alongside this one under
+  [#98](https://github.com/duckdb/duckdb-r/issues/98).
 * **A registration entry point for nanoarrow sources.**
-  [`PLAN-nanoarrow-df-scan.md`](PLAN-nanoarrow-df-scan.md).
+  `PLAN-nanoarrow-df-scan.md`, proposed alongside this one under
+  [#98](https://github.com/duckdb/duckdb-r/issues/98).
 
 ## Open questions
 
