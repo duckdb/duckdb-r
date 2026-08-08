@@ -63,6 +63,65 @@ static data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 	}
 }
 
+// Materialize `coldata` and everything the scan can reach through it.
+//
+// The scan function runs on DuckDB's task threads, where the R API is out of
+// bounds: reading an ALTREP vector runs the class's own method, which
+// allocates, can evaluate R code, and can collect garbage. Bind runs on the
+// thread that issued the query, which is R's, so this is where every pointer
+// the scan will dereference has to be forced.
+//
+// GetColDataPtr() forces the column itself, but hands back the packed types
+// unread: a STRUCT, which is a data frame of its own, and a MATRIX, whose
+// element pointer it never takes; a LIST or a BLOB yields only the vector of
+// cells. AppendStructColumnSegment(), AppendMatrixColumnSegment() and
+// AppendListColumnSegment() reach inside those while the scan is running, so
+// the walk into them happens here instead.
+//
+// The walk is by SEXP rather than by RType, and descends every cell rather
+// than only the packed columns that are known to carry ALTREP. A list cell
+// rarely does, so most of that is work for nothing -- but the shape that
+// decides is the one the scan itself walks, and a walk that covers more than
+// the scan reads cannot be wrong in the direction that costs a session.
+//
+// Touching is eager as well, and a wide data frame pays for the columns a
+// query never projects: bind does not know the projection, and the scan cannot
+// ask R for a materialization while it holds a task thread. A producer thread
+// keeps every R allocation on R's thread and so could be asked (#2583), which
+// is what would let this move back to the value that is read.
+static void TouchColumn(SEXP coldata) {
+	switch (TYPEOF(coldata)) {
+	case LGLSXP:
+		(void)LOGICAL_POINTER(coldata);
+		break;
+	case INTSXP:
+		(void)INTEGER_POINTER(coldata);
+		break;
+	case REALSXP:
+		(void)NUMERIC_POINTER(coldata);
+		break;
+	case CPLXSXP:
+	case RAWSXP:
+	case STRSXP:
+		(void)DATAPTR_RO(coldata);
+		break;
+	case VECSXP: {
+		(void)DATAPTR_RO(coldata);
+		auto cell_count = Rf_xlength(coldata);
+		for (R_xlen_t cell_idx = 0; cell_idx < cell_count; cell_idx++) {
+			TouchColumn(VECTOR_ELT(coldata, cell_idx));
+		}
+		break;
+	}
+	default:
+		// Not a vector the scan reads; it reports that where it meets it
+		return;
+	}
+
+	// The `map_list_of` shape reads the names of a cell with STRING_ELT()
+	TouchColumn(Rf_getAttrib(coldata, R_NamesSymbol));
+}
+
 struct DedupPointerEnumType {
 	static bool IsNull(SEXP val) {
 		return val == NA_STRING;
@@ -562,6 +621,7 @@ static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context
 		names.push_back(df_names[col_idx]);
 
 		auto coldata = df[col_idx];
+		TouchColumn(coldata);
 		auto rtype = RApiTypes::DetectRType(coldata, integer64);
 
 		bool is_named_list_map = false;
