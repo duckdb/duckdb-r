@@ -51,6 +51,11 @@
 #define DUCKDB_R_POISON_GUARD() ((void)0)
 #endif
 
+// Record the thread the package loads on, which is R's, and ask about it later.
+// Only that thread may call into R, so it is what decides how an error travels.
+void rapi_record_r_thread();
+bool rapi_on_r_thread();
+
 // Helper functions to communicate errors via R's stop() function with context information
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message);
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::exception &e);
