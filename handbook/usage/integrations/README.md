@@ -118,6 +118,23 @@ Unless this changes fundamentally,
 handing these packages a data frame is good enough:
 any other reader in these packages would still have to build R vectors.
 
+Polars is the one that is not a data frame underneath,
+and the one [#98](https://github.com/duckdb/duckdb-r/issues/98) names
+for the inbound direction.
+Nothing here registers it:
+`duckdb_register()` takes a data frame,
+and `duckdb_register_arrow()` takes what the `arrow` package owns.
+It is reachable all the same,
+because polars implements `as_nanoarrow_array_stream()` for its eager
+and lazy frames,
+and the closures the registration seam takes are ordinary R functions —
+which is also how a `LazyFrame` can be handed the filter DuckDB pushes
+down
+([`experiments/2026-08-08-polars-source/`](/experiments/2026-08-08-polars-source/README.md)).
+Making that an interface rather than a trick is
+[`plan/PLAN-polars-source.md`](/plan/PLAN-polars-source.md);
+polars not being on CRAN is what keeps it from being a method here.
+
 
 *To deepen: absorb the translation inventory and refused arguments
 from `?backend-duckdb`'s source; drain

@@ -25,6 +25,7 @@ when the two disagree, the handbook leaf is right.
 |---|---|
 | Simplifying the vendoring pipeline: one verdict store, tooling from `main`, a docs tree | [`PLAN-vendoring-simplification.md`](PLAN-vendoring-simplification.md) |
 | Implementing `dbSendQueryArrow()` and the DBI Arrow API | [`PLAN-dbSendQueryArrow.md`](PLAN-dbSendQueryArrow.md) |
+| Registering a Polars frame as a table, and the extension point that makes it possible | [`PLAN-polars-source.md`](PLAN-polars-source.md) |
 
 ## `done/` — plans that came true
 
