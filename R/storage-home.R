@@ -1,4 +1,6 @@
 # Implementation of the storage-location policy documented in `?duckdb_storage`.
+# Explained in handbook/usage/storage/README.md, and for the temp/spill
+# resolvers at the bottom, handbook/usage/memory/README.md.
 # Extensions and stored secrets live under a single "home" directory that is
 # resolved afresh on every `duckdb()` call; the resolvers and the user-facing
 # status function build on the helpers below.

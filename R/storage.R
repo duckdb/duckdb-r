@@ -1,6 +1,7 @@
 # Documentation for how the duckdb R package chooses the file-system locations
 # it (and the bundled DuckDB engine) writes to. See `?duckdb_storage`.
-# Explained in handbook/usage/storage/README.md.
+# Explained in handbook/usage/storage/README.md, and for the temp/spill
+# location, handbook/usage/memory/README.md.
 #
 # CRAN rationale (kept out of the user-facing docs deliberately):
 #

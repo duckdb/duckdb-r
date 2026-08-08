@@ -40,6 +40,11 @@ the directory keeps the method so that is possible.
   which prebuilt extensions DuckDB's repositories serve R's Windows
   builds, and whether the MSVC arm64 artifact can be hand-loaded;
   supports [`usage/extensions/`](/handbook/usage/extensions/README.md).
+* [`2026-08-temp-storage-spill/`](2026-08-temp-storage-spill/) —
+  whether larger-than-memory work actually spills, per connection
+  idiom, on duckdb 1.3.2, the current CRAN release, `main`, and the
+  fix in [#2562](https://github.com/duckdb/duckdb-r/pull/2562);
+  supports [`usage/memory/`](/handbook/usage/memory/README.md).
 
 Adding one: create the directory, name it for the date and the topic,
 open its `README.md` with what and when and on what,

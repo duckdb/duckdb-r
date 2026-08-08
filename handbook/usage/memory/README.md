@@ -34,7 +34,11 @@ and how to keep results from materializing in R.
   writes — those blocks stay pinned, so a very large single append
   can still fail at `COMMIT` under a tight limit
   (engine-side; reported once on 1.3.2 and not reproduced since,
-  [#1604](https://github.com/duckdb/duckdb-r/issues/1604)).
+  [#1604](https://github.com/duckdb/duckdb-r/issues/1604) —
+  not even on 1.3.2 itself, per
+  [`experiments/2026-08-temp-storage-spill/`](/experiments/2026-08-temp-storage-spill/README.md),
+  which measured the spill behavior of both connection idioms
+  across four builds).
 * Larger-than-memory data is best left in DuckDB —
   query it lazily via dbplyr and `collect()` only the reduction;
   [#72](https://github.com/duckdb/duckdb-r/issues/72) is the long
