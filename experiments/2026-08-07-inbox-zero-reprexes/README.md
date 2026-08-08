@@ -11,7 +11,9 @@ behaviour; these are the runs that back it.
 *When and on what:* 2026-08-07, Linux x86_64, R 4.5.3,
 **duckdb 1.5.5 from CRAN** — the version a reporter would install,
 not this repository's development build —
-with dbplyr 2.6.0, arrow 25.0.0, sf 1.1.2, reprex 2.1.1.
+with dbplyr 2.6.0, arrow 25.0.0, sf 1.1.2, reprex 2.1.1,
+and — for [#72](issue-0072-parquet-aggregation-memory.md)'s cross-check —
+the standalone `duckdb` CLI of the same version, v1.5.5.
 Extension-repository probes are HTTP HEAD against `extensions.duckdb.org`
 on the same day.
 [`render.R`](render.R) renders every `issue-*.R` next to it as `.md`;
@@ -79,10 +81,9 @@ close cites its evidence.
 
 ## Close as stale, inviting a fresh report
 
-* [#72](issue-0072-parquet-aggregation-memory.md) — the same aggregation
-  shape over 20M Parquet rows under a 256 MB memory limit spills to the
-  database's temp directory, peaks at 427 MB resident and finishes in a
-  second, four majors after the report.
+* [#72](issue-0072-parquet-aggregation-memory.md) — see below; at a size
+  and cardinality that make the aggregate real, the reported failure comes
+  back, and it comes back in the CLI too.
 * [#98](issue-0098-register-generic.md) — still exactly
   `duckdb_register()` and `duckdb_register_arrow()`.
   They are not two names for one operation: the first calls
@@ -103,8 +104,25 @@ close cites its evidence.
 
 ## What the run changed
 
-Three items came out different from the plan they were written for.
+Four items came out different from the plan they were written for.
 
+* **[#72](issue-0072-parquet-aggregation-memory.md) is not "the engine
+  four majors on".** The first version of this reprex used sequential
+  keys, which compress to 35 MB and leave an aggregate small enough to
+  succeed; that measured the data, not the engine.
+  With 200M rows whose keys are hashed — 1.1 GB on disk, 40M groups —
+  a 256 MB limit fails with the error the report quotes
+  (`Out of Memory Error: ... 244.1 MiB/244.1 MiB used`),
+  having spilled nothing at all,
+  and 1 GB succeeds after spilling 1057 MB.
+  The reporter's last word was that the same work
+  "works fine in the CLI client, crashes in R"
+  ([comment 1964392402](https://github.com/duckdb/duckdb-r/issues/72#issuecomment-1964392402),
+  duckdb 0.10); on 1.5.5 that split is gone —
+  the standalone client, same version, same statements, same limits,
+  fails at 256 MB and succeeds at 1 GB exactly as R does.
+  So what to invite a fresh report about is the *floor*, not the client;
+  the R-specific remainder stays [#97](https://github.com/duckdb/duckdb-r/issues/97).
 * **[#1147](issue-1147-start-ui-twice.md) is not stale — it reproduces**,
   on Linux, on 1.5.5, with the reporter's exact message:
   `terminate called ... {"exception_type":"Settings",`
@@ -151,5 +169,7 @@ Rscript render.R issue-0200-map-append.R   # or one
 
 Every transcript names its own duckdb version, so a re-run on a later
 release is a new record rather than an edit of this one.
-The three memory measurements are machine-specific in absolute terms
-(4 cores, 15 GB RAM here); the ordering between strategies is the finding.
+The memory measurements are machine-specific in absolute terms
+(4 cores, 15 GB RAM here); what the runs establish is the ordering
+between strategies, and, for #72, that R and the CLI land on the same
+side of the limit.
