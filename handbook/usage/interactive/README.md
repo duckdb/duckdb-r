@@ -47,9 +47,12 @@ R's own interrupt stops at the same place, C code that never calls
 and the handler here sets the same engine flag the DuckDB CLI's does,
 so a wait that ignores the flag ignores it in the shell too.
 Where the shell still differs is for `ATTACH 'md:'` in particular, and
-by what means is not yet established —
-the measurements, and the probe that would settle it, are
-[`experiments/2026-08-08-interrupt-reach/`](/experiments/2026-08-08-interrupt-reach/README.md).
+by what means is not yet established.
+The measurements live in
+[`experiments/2026-08-08-interrupt-reach/`](/experiments/2026-08-08-interrupt-reach/README.md),
+along with the probe that would settle it,
+which reads the handler from inside the process and so needs no
+debugger on either platform.
 
 Only one interrupt handler is installed at a time.
 A second DuckDB call entered while one is running — from a progress

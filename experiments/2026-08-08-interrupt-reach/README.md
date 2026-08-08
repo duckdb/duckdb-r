@@ -82,12 +82,18 @@ A build instrumented to report from inside the handler shows it running
 on every Ctrl+C of the blocked `ATTACH`, with
 `ClientContext::IsInterrupted()` reading true immediately after —
 so the package asks the engine to stop exactly as the shell does.
-[`sigint-disposition.sh`](sigint-disposition.sh) confirms it from
-outside: during the blocked `ATTACH`, the process's SIGINT handler is
-`duckdb::ScopedInterruptHandler::signal_handler` in `duckdb.so`,
-`SA_RESTART` set — and the shell reaches its handler through the same
-`signal@GLIBC_2.2.5` binding, so the two do not differ in restart
-semantics either.
+[`sigprobe.c`](sigprobe.c) confirms it from outside the handler, and
+says the same of the shell:
+
+```
+R, before loading the package   lib=…/lib/R/lib/libR.so
+R, during the blocked ATTACH    sym=duckdb::ScopedInterruptHandler::signal_handler
+                                lib=…/duckdb/libs/duckdb.so   SA_RESTART=1
+CLI, during the blocked ATTACH  lib=./duckdb                  SA_RESTART=1
+```
+
+Same restart semantics on both sides, which is not a coincidence:
+each reaches its handler through the same `signal@GLIBC_2.2.5` binding.
 
 **R's own interrupt has the same ceiling.**
 C code that never calls `R_CheckUserInterrupt()` is uninterruptible
@@ -144,8 +150,18 @@ It cannot be noticing it through the flag both handlers set, because
 R sets that flag identically and nothing happens there.
 What is left is the process-wide SIGINT disposition — what MotherDuck
 sees installed, and when it installed anything of its own.
-[`sigint-disposition.sh`](sigint-disposition.sh) is the measurement
-that settles it: run it against a hung `ATTACH 'md:'` in each host and
-compare which library owns the handler at that moment.
-That needs a MotherDuck account and a working route to it,
+
+[`sigprobe.c`](sigprobe.c) is the measurement that settles it, and it
+answers on a timeline rather than in one snapshot, which is the part
+that matters: the question is not only who owns the handler while the
+sign-in wait runs, but whether MotherDuck ever owned it and stopped.
+Build it with [`build-sigprobe.sh`](build-sigprobe.sh) and run
+[`md-probe.R`](md-probe.R) for the R side;
+the same library preloads into the CLI, where its constructor starts
+the same sampler.
+It reads the disposition through `sigaction(2)` and names the owning
+library through `dladdr(3)`, so it needs no debugger and no per-platform
+struct offsets — a debugger is awkward to attach on macOS, and
+`struct sigaction` is not laid out the same way there.
+What it still needs is a MotherDuck account and a route to it,
 which this run had neither of.
