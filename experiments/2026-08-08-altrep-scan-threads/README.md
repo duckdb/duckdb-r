@@ -30,8 +30,10 @@ and before `TouchColumn()` handed the packed one back unread,
 so that the scan was what reached inside `s` —
 allocating R vectors, and evaluating R,
 on whichever thread took the scan task.
-A list column is packed differently and is not measured here:
-the walk stops at its cells, as bind always did.
+A list column is packed differently and is not measured here.
+The walk covers its cells too — a cell can hold an ALTREP vector,
+even though one rarely does — but no shape that reaches one
+through a list was found to build cheaply.
 
 **`SET threads` is a ceiling, not the count.**
 What decides how many threads meet one column is the scan's own split,

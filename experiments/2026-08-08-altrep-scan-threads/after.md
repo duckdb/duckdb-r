@@ -22,3 +22,7 @@ field=str threads=4  match=10 mismatch=0 error=0 killed=0
 
 Sixty attempts, sixty right answers, and no `recursive gc invocation`
 line in any of them.
+
+The walk this was recorded against is the one that ships: every cell of
+a list column included, not only the packed columns the failures came
+from.

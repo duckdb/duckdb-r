@@ -63,7 +63,7 @@ static data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 	}
 }
 
-// Materialize `coldata` and the columns packed inside it.
+// Materialize `coldata` and everything the scan can reach through it.
 //
 // The scan function runs on DuckDB's task threads, where the R API is out of
 // bounds: reading an ALTREP vector runs the class's own method, which
@@ -71,22 +71,24 @@ static data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 // thread that issued the query, which is R's, so this is where every pointer
 // the scan will dereference has to be forced.
 //
-// GetColDataPtr() forces the column itself, but hands back the two packed
-// types unread: a STRUCT, which is a data frame of its own, and a MATRIX, whose
-// element pointer it never takes. AppendStructColumnSegment() and
-// AppendMatrixColumnSegment() reach into those while the scan is running, so
-// the walk into them happens here instead, and it walks by SEXP because a
-// packed column carries whatever a data frame column can.
+// GetColDataPtr() forces the column itself, but hands back the packed types
+// unread: a STRUCT, which is a data frame of its own, and a MATRIX, whose
+// element pointer it never takes; a LIST or a BLOB yields only the vector of
+// cells. AppendStructColumnSegment(), AppendMatrixColumnSegment() and
+// AppendListColumnSegment() reach inside those while the scan is running, so
+// the walk into them happens here instead.
 //
-// It stops where GetColDataPtr() stops on a list or a blob: at the vector of
-// cells. A cell is the scan's to read, and walking every one of a long list
-// column would cost bind more than the scan pays -- so an ALTREP cell there is
-// still read from a task thread, which the walk does not cover.
+// The walk is by SEXP rather than by RType, and descends every cell rather
+// than only the packed columns that are known to carry ALTREP. A list cell
+// rarely does, so most of that is work for nothing -- but the shape that
+// decides is the one the scan itself walks, and a walk that covers more than
+// the scan reads cannot be wrong in the direction that costs a session.
 //
-// Touching is eager, and a wide data frame pays for the columns a query never
-// projects: bind does not know the projection, and the scan cannot ask R for a
-// materialization while it holds a task thread. Once the two threads are
-// separated it can, and this moves back to where the value is read (#2583).
+// Touching is eager as well, and a wide data frame pays for the columns a
+// query never projects: bind does not know the projection, and the scan cannot
+// ask R for a materialization while it holds a task thread. A producer thread
+// keeps every R allocation on R's thread and so could be asked (#2583), which
+// is what would let this move back to the value that is read.
 static void TouchColumn(SEXP coldata) {
 	switch (TYPEOF(coldata)) {
 	case LGLSXP:
@@ -103,19 +105,21 @@ static void TouchColumn(SEXP coldata) {
 	case STRSXP:
 		(void)DATAPTR_RO(coldata);
 		break;
-	case VECSXP:
+	case VECSXP: {
 		(void)DATAPTR_RO(coldata);
-		if (Rf_inherits(coldata, "data.frame")) {
-			auto column_count = Rf_xlength(coldata);
-			for (R_xlen_t column_idx = 0; column_idx < column_count; column_idx++) {
-				TouchColumn(VECTOR_ELT(coldata, column_idx));
-			}
+		auto cell_count = Rf_xlength(coldata);
+		for (R_xlen_t cell_idx = 0; cell_idx < cell_count; cell_idx++) {
+			TouchColumn(VECTOR_ELT(coldata, cell_idx));
 		}
 		break;
+	}
 	default:
 		// Not a vector the scan reads; it reports that where it meets it
-		break;
+		return;
 	}
+
+	// The `map_list_of` shape reads the names of a cell with STRING_ELT()
+	TouchColumn(Rf_getAttrib(coldata, R_NamesSymbol));
 }
 
 struct DedupPointerEnumType {
