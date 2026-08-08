@@ -135,7 +135,6 @@ Making that an interface rather than a trick is
 [`plan/PLAN-polars-source.md`](/plan/PLAN-polars-source.md);
 polars not being on CRAN is what keeps it from being a method here.
 
-
 *To deepen: absorb the translation inventory and refused arguments
 from `?backend-duckdb`'s source; drain
 [#209](https://github.com/duckdb/duckdb-r/issues/209).*
