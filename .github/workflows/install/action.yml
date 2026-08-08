@@ -230,6 +230,10 @@ runs:
           fi
         done
         rm -f "$empty_makevars"
+        echo 'MAKEFLAGS = -j2' >> ~/.R/Makevars
+        echo "===== generated ~/.R/Makevars ====="
+        cat ~/.R/Makevars
+        echo "==================================="
 
         # Compile on every core the runner has, not the two this used to pin.
         # Standard GitHub-hosted Linux runners have been 4-vCPU since 2024, so
