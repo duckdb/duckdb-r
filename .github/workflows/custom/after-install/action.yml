@@ -96,4 +96,13 @@ runs:
           )
         }
         writeLines("No file left under the mainline name.")
+        readmes <- flavor_mainline_readme_offenders(".")
+        if (length(readmes) > 0) {
+          writeLines(readmes)
+          stop(
+            "A generated README still tells a reader to install the mainline ",
+            "package; see scripts/flavor-package-name.R for how to resolve this."
+          )
+        }
+        writeLines("No generated README pointing at the mainline package.")
       shell: Rscript {0}
