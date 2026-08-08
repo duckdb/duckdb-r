@@ -83,6 +83,35 @@ a crash-class bug with a guard under review
 ([#1796](https://github.com/duckdb/duckdb-r/issues/1796),
 [#1797](https://github.com/duckdb/duckdb-r/pull/1797)).
 
+**Only R's thread reads R.**
+The engine executes on a task scheduler,
+so a table function's scan runs on whichever thread takes the task,
+and reading an R vector there is not safe:
+an ALTREP method allocates,
+may evaluate R code,
+and may collect garbage.
+Bind is where that is avoided.
+It runs on the thread that issued the query, which is R's,
+and it reduces the whole data frame to plain memory
+before the engine can schedule anything.
+[`src/scan.cpp`](/src/scan.cpp)'s `TouchColumn()` walks a column to its leaves,
+reaching the vectors packed inside a struct column, a matrix, or a list cell,
+so that what the scan later dereferences is a pointer bind already took.
+The walk is eager,
+and a wide data frame pays for the columns a query never projects:
+bind does not know the projection,
+and a scan holding a task thread has no way to ask R for a value.
+Separating the two threads is what would let the work
+move back to the column that is read.
+The Arrow scan needs the same guarantee one phase later,
+and takes it from `INITIALIZE_ON_SCHEDULE`
+([`src/database.cpp`](/src/database.cpp)),
+which moves global initialization onto the scheduling thread.
+What breaking the rule costs —
+a wrong answer with no diagnostic, or a killed session —
+is measured in
+[`experiments/2026-08-08-altrep-scan-threads/`](/experiments/2026-08-08-altrep-scan-threads/README.md).
+
 **The engine runs R code while it holds the client context lock.**
 The replacement scans and the Arrow stream factory in
 [`src/register.cpp`](/src/register.cpp),
