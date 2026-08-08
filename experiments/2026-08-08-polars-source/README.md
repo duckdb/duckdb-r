@@ -67,8 +67,8 @@ What the run compresses to:
   and `integer64` (`BIGINT` rather than `DOUBLE`).
 * **The export is not the bottleneck.**
   Summing a column of a five-million-row frame:
-  0.015 s through `r_dataframe_scan`,
-  0.017 s through an eager Polars producer,
+  0.014 s through `r_dataframe_scan`,
+  0.015 s through an eager Polars producer,
   0.016 s through a lazy one.
 * **What the pushdown changes is the volume, not the clock.**
   Ten numeric columns, two million rows, on disk as an 89 MB Parquet
@@ -76,8 +76,9 @@ What the run compresses to:
   with the filter pushed, the producer exports 10 rows × 1 column;
   with one string column added — which is all it takes to disable
   pushdown — it exports 2,000,000 rows × 1 column for the same answer.
-  Elapsed time barely moves (0.021 s against 0.023 s, and 0.010 s for
-  DuckDB's own `read_parquet`), because Polars is fast enough that
-  200,000 times the data is still cheap at this size.
+  Elapsed time moves much less than the volume does
+  (0.018 s against 0.027 s, with DuckDB's own `read_parquet` at
+  0.006 s), because Polars is fast enough that 200,000 times the data
+  is still cheap at this size.
   The pushdown is a correctness requirement first and a volume
   argument second.
