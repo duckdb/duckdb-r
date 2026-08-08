@@ -164,14 +164,10 @@ test_that("TIMESTAMPTZ values preserve UTC instants regardless of input offset (
 })
 
 test_that("TIMESTAMPTZ without icu falls back to tzone \"UTC\" (#184)", {
-  # A dummy extension directory makes icu absent deterministically,
+  # allow_extensions = FALSE makes icu absent deterministically,
   # whatever a shared extension store contains -- unless the binary
-  # links icu statically, where absence cannot be produced at all.
-  # The directory must be set on the driver: the instance is created
-  # by duckdb(), and dbConnect(config = ) comes too late to apply it
-  con <- local_con(
-    drv = duckdb(config = list(extension_directory = tempfile("duckdb-dummy-extensions")))
-  )
+  # links icu statically, where absence cannot be produced at all
+  con <- local_con(drv = duckdb(allow_extensions = FALSE))
   skip_if_builtin_icu(con)
 
   dbExecute(con, "CREATE TABLE x (a TIMESTAMPTZ)")
@@ -240,6 +236,68 @@ test_that("TIMESTAMP (no TZ) is unaffected by session TimeZone (#184)", {
   # Plain TIMESTAMP keeps the connection-level `timezone_out`
   expect_equal(attr(res$a, "tzone"), "UTC")
   expect_equal(res$a, as.POSIXct("2024-01-10 13:03:12", tz = "UTC"))
+})
+
+test_that("TIMESTAMPTZ label without icu stays UTC under a non-UTC local time zone (#184)", {
+  withr::local_timezone("Pacific/Tahiti")
+
+  con <- local_con(drv = duckdb(allow_extensions = FALSE))
+  skip_if_builtin_icu(con)
+
+  res <- dbGetQuery(con, "SELECT TIMESTAMPTZ '2024-01-10 13:03:12-08:00' AS a")
+  expect_equal(attr(res$a, "tzone"), "UTC")
+  expect_equal(res$a, as.POSIXct("2024-01-10 21:03:12", tz = "UTC"))
+})
+
+test_that("TIMESTAMPTZ session TimeZone wins over the local time zone (#184)", {
+  skip_if_no_icu()
+  withr::local_timezone("Pacific/Tahiti")
+
+  con <- local_con()
+
+  dbExecute(con, "INSTALL icu")
+  dbExecute(con, "LOAD icu")
+  dbExecute(con, "SET TimeZone = 'America/Los_Angeles'")
+
+  res <- dbGetQuery(con, "SELECT TIMESTAMPTZ '2024-01-10 13:03:12-08:00' AS a")
+  expect_equal(attr(res$a, "tzone"), "America/Los_Angeles")
+  expect_equal(res$a, as.POSIXct("2024-01-10 13:03:12", tz = "America/Los_Angeles"))
+})
+
+test_that("TIMESTAMPTZ ignores timezone_out where plain TIMESTAMP follows it (#184)", {
+  skip_if_no_icu()
+
+  con <- local_con(timezone_out = "Pacific/Tahiti")
+
+  dbExecute(con, "INSTALL icu")
+  dbExecute(con, "LOAD icu")
+  dbExecute(con, "SET TimeZone = 'America/Los_Angeles'")
+
+  res <- dbGetQuery(con, "
+    SELECT
+      TIMESTAMPTZ '2024-01-10 13:03:12-08:00' AS tstz,
+      TIMESTAMP '2024-01-10 13:03:12' AS ts
+  ")
+  expect_equal(attr(res$tstz, "tzone"), "America/Los_Angeles")
+  expect_equal(res$tstz, as.POSIXct("2024-01-10 13:03:12", tz = "America/Los_Angeles"))
+  # 13:03:12 UTC wall clock rendered in timezone_out (Tahiti is UTC-10)
+  expect_equal(attr(res$ts, "tzone"), "Pacific/Tahiti")
+  expect_equal(res$ts, as.POSIXct("2024-01-10 03:03:12", tz = "Pacific/Tahiti"))
+})
+
+test_that("tz_out_convert = 'force' overrides the session TimeZone for TIMESTAMPTZ (#184)", {
+  skip_if_no_icu()
+
+  con <- local_con(timezone_out = "Pacific/Tahiti", tz_out_convert = "force")
+
+  dbExecute(con, "INSTALL icu")
+  dbExecute(con, "LOAD icu")
+  dbExecute(con, "SET TimeZone = 'America/Los_Angeles'")
+
+  res <- dbGetQuery(con, "SELECT TIMESTAMPTZ '2024-01-10 13:03:12-08:00' AS a")
+  # Force relabels the UTC rendering (21:03:12), not the session's (13:03:12)
+  expect_equal(attr(res$a, "tzone"), "Pacific/Tahiti")
+  expect_equal(res$a, as.POSIXct("2024-01-10 21:03:12", tz = "Pacific/Tahiti"))
 })
 
 test_that("tz_out_convert = force handles invalid timestamps during DST transitions", {
