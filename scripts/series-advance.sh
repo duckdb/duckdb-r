@@ -16,7 +16,7 @@
 # those fixes would be rediscovered as a red commit, at a repair plus a replay
 # of everything above it. The base `<S>-dev` proved them already, against the
 # same upstream commit; this folds them into the commit that needs them as it is
-# minted (duckdb/duckdb-r#2591).
+# minted (duckdb/duckdb-r#2594).
 #
 # The split is the whole design, so the carry is an allow-list of what `-dev`
 # owns -- `tests/`, `man/`, `NAMESPACE`, and `R/` bar the regenerated

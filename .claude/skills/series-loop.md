@@ -471,7 +471,7 @@ Carrying them over beats rederiving them,
 and their commit-message trailers say what they were for.
 
 **Stage 5 now carries the test-side half by itself**
-(duckdb/duckdb-r#2591),
+(duckdb/duckdb-r#2594),
 so what reaches this stage is what it could not:
 a carry that conflicted and was resolved by hand,
 and the compile-side half it deliberately leaves alone.

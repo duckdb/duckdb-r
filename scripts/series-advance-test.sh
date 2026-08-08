@@ -2,7 +2,7 @@
 # Check stage 5's carry of the base series' test-side fixes, offline, against a
 # synthetic remote and clone built here -- no network, no fixtures on disk.
 #
-# The split this rests on is what a fix is *for* (duckdb/duckdb-r#2591):
+# The split this rests on is what a fix is *for* (duckdb/duckdb-r#2594):
 # `-build` holds what the code needs to **compile**, `-dev` holds what it needs
 # to **pass its tests**, and a forward series inherits only the first when its
 # buffer is replayed. Eight things are checked.

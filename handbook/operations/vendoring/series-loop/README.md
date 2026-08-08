@@ -49,7 +49,7 @@ to do, and they run in this order:
   ([`scripts/series-advance.sh`](/scripts/series-advance.sh)).
   On a forward series this is also where the base series' **test-side**
   fixes are folded back in, matched by vendored SHA
-  ([#2591](https://github.com/duckdb/duckdb-r/pull/2591)):
+  ([#2594](https://github.com/duckdb/duckdb-r/pull/2594)):
   `-build` holds what the code needs to *compile*, `-dev` what it needs
   to *pass its tests*, and a forward inherits only the first from the
   replay. Rare per commit and expensive where it happens — 8 of the 741
