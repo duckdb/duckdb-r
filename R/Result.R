@@ -99,12 +99,36 @@ duckdb_result <- function(connection, stmt_lst, arrow) {
   return(res)
 }
 
+is_data_query <- function(stmt_lst) {
+  stmt_lst$type %in% c("SELECT", "EXPLAIN", "RELATION") ||
+    stmt_lst$return_type == "QUERY_RESULT"
+}
+
 duckdb_execute <- function(res) {
   out <- rethrow_rapi_execute(
     res@stmt_lst$ref,
     duckdb_convert_opts_impl(res@connection@convert_opts, arrow = res@arrow)
   )
   duckdb_post_execute(res, out)
+}
+
+# Execute a statement whose parameters were bound by dbBind() but whose
+# execution was deferred to the first use of the result.
+duckdb_execute_pending_bind <- function(res) {
+  out <- rethrow_rapi_bind(
+    res@stmt_lst$ref,
+    res@env$pending_params,
+    duckdb_convert_opts_impl(res@connection@convert_opts, arrow = res@arrow)
+  )
+  if (length(out) == 1) {
+    out <- out[[1]]
+  } else if (length(out) == 0) {
+    out <- data.frame()
+  } else {
+    out <- do.call(rbind, out)
+  }
+  duckdb_post_execute(res, out)
+  res@env$pending_params <- NULL
 }
 
 duckdb_post_execute <- function(res, out) {
