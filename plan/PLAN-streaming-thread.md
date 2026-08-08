@@ -302,9 +302,10 @@ The materialized side deserves the symmetric fix:
   up to 2× wall clock when the two are balanced
   (sorts, aggregating joins with wide output),
   but only the engine's share when conversion dominates:
-  the first harness numbers put that share at roughly a fifth for a
-  bare `SELECT *` scan and less for pure string columns,
-  so a pump alone buys ~1.15–1.3× there, not 2×.
+  the recorded runs put that share at a tenth to a fifth for bare
+  scans and string projections — a pump alone buys ~1.1–1.3× there —
+  and near half only where the engine genuinely works
+  (the CRAN build's sort), where ~2× is reachable.
   Costs one thread, one bounded queue
   (~2 × `streaming_buffer_size` extra in-flight memory),
   and real lifecycle code (stop paths, error transport);
