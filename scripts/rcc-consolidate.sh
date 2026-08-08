@@ -14,7 +14,6 @@
 # | Writer | Adds | Rewrites |
 # |---|---|---|
 # | an `each-rcc` leg | its own record and log | a verdict it is overturning |
-# | the run's fan-in | records a leg could not publish | the same |
 # | `rcc-logs.yaml` | records for commits it finds undecided | nothing |
 # | **this script** | — | **all of it** |
 #

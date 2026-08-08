@@ -77,7 +77,7 @@ with a status line each as the work lands:
   Selection reads commit statuses
   (`each-plan.sh` via GraphQL, `each-shard.sh`'s resume check via REST);
   the loop reads `rcc` records;
-  and the 30-minute backstop (`rcc-logs.sh`) *derives records from
+  and the dispatched backstop (`rcc-logs.sh`) *derives records from
   statuses*, so the record store's own repair path runs through the
   other store. They agree *eventually*, through five writers, a
   newest-verdict-wins rule with run-id comparisons, a
@@ -105,7 +105,7 @@ with a status line each as the work lands:
   the bulk is harvested logs at ~1 MB each, under 30-day retention,
   while a record part is ~2 KB under a 256-way fan-out
   that keeps every tree object small).
-  The full checkouts that remain are the 30-minute backstop
+  The full checkouts that remain are the dispatched backstop
   (`rcc-logs.yaml` adds a `runs/` worktree) and manual consolidation.
   File count is not the constraint;
   if the backstop's checkout ever grows heavy,
@@ -212,7 +212,7 @@ maintain it, per F6.)
 **One verdict store**: one small file per commit
 (`runs2.d/<xx>/<sha>.ndjson` + `logs2.d/<xx>/<sha>.log` on branch `rcc2`),
 written by the leg that decided the commit — with the run fan-in and the
-scheduled backstop recovering what a dead leg could not publish —
+dispatched backstop recovering what a dead leg could not publish —
 and replaced only by an explicit retry.
 Git-native, batch-readable in one blobless fetch, reachable from a
 Claude web session without API access —
@@ -265,13 +265,20 @@ as one checklist; this plan is analysis, not a routing node:
   the remote as litter — §6 retires it.)
 - **Leg-direct publishing** (`rcc-publish.sh`, from the leg). Verdict
   latency in seconds instead of end-of-run; measured cheap. Keep.
-- **The run fan-in** (`each-harvest.sh`). Not deletable, contrary to an
-  earlier revision of this plan: it holds the only path to a
-  **per-commit log** for a leg that died before publishing —
-  the backstop can reconstruct records, but only a *run*-level log,
-  which `series-check.sh`'s classifier can misread
-  (`each.yaml` and `each-harvest.sh` both record
-  this). Keep; D2 only removes its aggregate work.
+- **The run fan-in** (`each-harvest.sh`). Deletable after all, and
+  deleted — the earlier revision that said so was right for a reason it
+  did not have. The objection was that the fan-in held the only path to
+  a **per-commit log** for a leg that died before publishing, the
+  backstop offering only a *run*-level log that `series-check.sh`'s
+  classifier can misread. That premise died when the loop began reading
+  the leg's `each-logs-*` artifact directly (§10.6): the per-commit log
+  is *there*, uploaded `if: always()`, and inline in the leg's job log
+  after the artifact's 14 days. The fan-in was copying, into a store
+  read only in emergencies, what the reader now opens at the source.
+  What remains of the objection is narrow and stated where it lands: a
+  firing with no Actions access, falling back to the store, for a commit
+  whose leg never published, still gets a run-level log
+  (`rcc-logs.sh` records this).
 
 ### 3.3 What goes
 
