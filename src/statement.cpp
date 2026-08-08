@@ -196,6 +196,25 @@ static SEXP rapi_execute_impl(RStatement *stmt, const duckdb::ConvertOpts &conve
 	return out;
 }
 
+// Create the result data frame and allocate columns, without any values yet.
+// Note we cannot use cpp11's data frame here as it tries to calculate the number of rows itself,
+// but gives the wrong answer if the first column is another data frame. So we set the necessary
+// attributes manually.
+static cpp11::writable::list duckdb_r_allocate_df(const vector<LogicalType> &types, const vector<string> &names,
+                                                  idx_t nrows, const duckdb::ConvertOpts &convert_opts,
+                                                  const char *caller) {
+	cpp11::writable::list data_frame;
+	data_frame.reserve(types.size());
+
+	for (size_t col_idx = 0; col_idx < types.size(); col_idx++) {
+		cpp11::sexp varvalue = duckdb_r_allocate(types[col_idx], nrows, names[col_idx], convert_opts, caller);
+		duckdb_r_decorate(types[col_idx], varvalue, convert_opts);
+		data_frame.push_back(varvalue);
+	}
+
+	return data_frame;
+}
+
 SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb::ConvertOpts &convert_opts,
                                    SEXP class_) {
 	// step 2: create result data frame and allocate columns
@@ -211,18 +230,8 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 	ConvertOpts local_convert_opts = convert_opts;
 	local_convert_opts.session_time_zone = result->client_properties.time_zone;
 
-	// Note we cannot use cpp11's data frame here as it tries to calculate the number of rows itself,
-	// but gives the wrong answer if the first column is another data frame. So we set the necessary
-	// attributes manually.
-	cpp11::writable::list data_frame;
-	data_frame.reserve(ncols);
-
-	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
-		cpp11::sexp varvalue = duckdb_r_allocate(result->types[col_idx], nrows, result->names[col_idx],
-		                                         local_convert_opts, "duckdb_execute_R_impl");
-		duckdb_r_decorate(result->types[col_idx], varvalue, local_convert_opts);
-		data_frame.push_back(varvalue);
-	}
+	cpp11::writable::list data_frame =
+	    duckdb_r_allocate_df(result->types, result->names, nrows, local_convert_opts, "duckdb_execute_R_impl");
 
 	// step 3: set values from chunks
 	idx_t dest_offset = 0;
