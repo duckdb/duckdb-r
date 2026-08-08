@@ -40,6 +40,10 @@ the directory keeps the method so that is possible.
   which prebuilt extensions DuckDB's repositories serve R's Windows
   builds, and whether the MSVC arm64 artifact can be hand-loaded;
   supports [`usage/extensions/`](/handbook/usage/extensions/README.md).
+* [`2026-08-08-timezone-grid/`](2026-08-08-timezone-grid/) —
+  which zone labels a `TIMESTAMP` and a `TIMESTAMPTZ` column,
+  and when an instant changes, across every setting combination;
+  supports [`usage/timestamps/`](/handbook/usage/timestamps/README.md).
 
 Adding one: create the directory, name it for the date and the topic,
 open its `README.md` with what and when and on what,
