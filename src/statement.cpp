@@ -206,6 +206,11 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 
 	auto nrows = result->RowCount();
 
+	// Propagate the session's TimeZone so TIMESTAMP WITH TIME ZONE columns
+	// can be tagged with the timezone DuckDB used to format their value.
+	ConvertOpts local_convert_opts = convert_opts;
+	local_convert_opts.session_time_zone = result->client_properties.time_zone;
+
 	// Note we cannot use cpp11's data frame here as it tries to calculate the number of rows itself,
 	// but gives the wrong answer if the first column is another data frame. So we set the necessary
 	// attributes manually.
@@ -213,9 +218,9 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 	data_frame.reserve(ncols);
 
 	for (size_t col_idx = 0; col_idx < ncols; col_idx++) {
-		cpp11::sexp varvalue = duckdb_r_allocate(result->types[col_idx], nrows, result->names[col_idx], convert_opts,
-		                                         "duckdb_execute_R_impl");
-		duckdb_r_decorate(result->types[col_idx], varvalue, convert_opts);
+		cpp11::sexp varvalue = duckdb_r_allocate(result->types[col_idx], nrows, result->names[col_idx],
+		                                         local_convert_opts, "duckdb_execute_R_impl");
+		duckdb_r_decorate(result->types[col_idx], varvalue, local_convert_opts);
 		data_frame.push_back(varvalue);
 	}
 
@@ -225,7 +230,7 @@ SEXP duckdb::duckdb_execute_R_impl(MaterializedQueryResult *result, const duckdb
 		D_ASSERT(chunk.ColumnCount() == ncols);
 		D_ASSERT(chunk.ColumnCount() == (idx_t)Rf_length(data_frame));
 		for (size_t col_idx = 0; col_idx < chunk.ColumnCount(); col_idx++) {
-			duckdb_r_transform(chunk.data[col_idx], data_frame[col_idx], dest_offset, chunk.size(), convert_opts,
+			duckdb_r_transform(chunk.data[col_idx], data_frame[col_idx], dest_offset, chunk.size(), local_convert_opts,
 			                   result->names[col_idx]);
 		}
 		dest_offset += chunk.size();
