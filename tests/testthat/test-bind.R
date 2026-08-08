@@ -16,7 +16,9 @@ test_convert <- function(con, type, val) {
   dbExecute(con, sprintf("CREATE TEMPORARY TABLE bind_test(i INTEGER, a %s)", type))
   q <- dbSendStatement(con, "INSERT INTO bind_test VALUES ($1, $2)")
   dbBind(q, list(1, val))
+  expect_equal(dbGetRowsAffected(q), 1)
   dbBind(q, list(2, NA))
+  expect_equal(dbGetRowsAffected(q), 1)
   dbClearResult(q)
   res3 <- dbGetQuery(con, "SELECT a FROM bind_test ORDER BY i")
   dbExecute(con, "DROP TABLE bind_test")
@@ -96,12 +98,16 @@ test_that("various error cases for dbBind()", {
 
   expect_error(dbBind(q, list()))
   expect_error(dbBind(q, list(1, 2)))
-  expect_error(dbBind(q, list("asdf")))
+  # Type errors are detected at execution time (dbFetch), not bind time
+  dbBind(q, list("asdf"))
+  expect_error(dbFetch(q))
   expect_error(dbBind(q, list("asdf", "asdf")))
 
   expect_error(dbBind(q))
 
-  expect_error(dbBind(q, "asdf"))
+  # Type errors are detected at execution time (dbFetch), not bind time
+  dbBind(q, "asdf")
+  expect_error(dbFetch(q))
 
   dbClearResult(q)
 
