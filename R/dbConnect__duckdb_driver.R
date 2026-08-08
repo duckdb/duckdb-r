@@ -16,12 +16,7 @@
 #'   (without time zone) are returned to R, defaults to `"UTC"`.
 #'   If you want to display datetime values in the local timezone,
 #'   set to [Sys.timezone()] or `""`.
-#'   `TIMESTAMP WITH TIME ZONE` columns (`TIMESTAMPTZ`) ignore this argument:
-#'   their `tzone` attribute follows DuckDB's session `TimeZone` setting, so an
-#'   explicit `SET TimeZone = '...'` (e.g. with the ICU extension loaded)
-#'   automatically applies on the R side too.
-#'   Only `tz_out_convert = "force"` overrides this
-#'   and reformats `TIMESTAMPTZ` columns in `timezone_out` as well.
+#'   `TIMESTAMPTZ` columns follow the session's `TimeZone` setting instead.
 #' @param tz_out_convert How to convert timestamp columns to the timezone specified
 #'   in `timezone_out`. There are two options: `"with"`, and `"force"`. If `"with"`
 #'   is chosen, the timestamp will be returned as it would appear in the specified time zone.

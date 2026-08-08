@@ -133,12 +133,7 @@ The default of this setting may change in a future version.}
 (without time zone) are returned to R, defaults to \code{"UTC"}.
 If you want to display datetime values in the local timezone,
 set to \code{\link[=Sys.timezone]{Sys.timezone()}} or \code{""}.
-\verb{TIMESTAMP WITH TIME ZONE} columns (\code{TIMESTAMPTZ}) ignore this argument:
-their \code{tzone} attribute follows DuckDB's session \code{TimeZone} setting, so an
-explicit \verb{SET TimeZone = '...'} (e.g. with the ICU extension loaded)
-automatically applies on the R side too.
-Only \code{tz_out_convert = "force"} overrides this
-and reformats \code{TIMESTAMPTZ} columns in \code{timezone_out} as well.}
+\code{TIMESTAMPTZ} columns follow the session's \code{TimeZone} setting instead.}
 
 \item{tz_out_convert}{How to convert timestamp columns to the timezone specified
 in \code{timezone_out}. There are two options: \code{"with"}, and \code{"force"}. If \code{"with"}
