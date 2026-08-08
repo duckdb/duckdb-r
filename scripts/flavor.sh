@@ -25,6 +25,13 @@ git commit -m "chore: Update flavor patch to $package_name"
 # Updates to man/ and NAMESPACE are handled in the patch file for efficiency
 patch -p1 < scripts/flavor.patch
 R -q -e 'cpp11::cpp_register()'
+
+# README.md and .github/README.md are generated, so the patch renames their
+# source and they are rewritten from it -- the same reason cpp11.cpp is
+# regenerated rather than patched. Patching all three would mean three copies
+# of one rename, kept in step by hand.
+R -q -e 'rmarkdown::render("README.Rmd", quiet = TRUE)'
+
 # Avoid storing .orig files
 git clean -f -- "*.orig"
 git add .
