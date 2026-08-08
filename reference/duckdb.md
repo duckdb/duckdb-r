@@ -166,10 +166,11 @@ dbDisconnect(conn, ..., shutdown = TRUE)
 
 - timezone_out:
 
-  The time zone returned to R, defaults to `"UTC"`, which is currently
-  the only timezone supported by duckdb. If you want to display datetime
-  values in the local timezone, set to
+  The time zone in which plain `TIMESTAMP` columns (without time zone)
+  are returned to R, defaults to `"UTC"`. If you want to display
+  datetime values in the local timezone, set to
   [`Sys.timezone()`](https://rdrr.io/r/base/timezones.html) or `""`.
+  `TIMESTAMPTZ` columns follow the session's `TimeZone` setting instead.
 
 - tz_out_convert:
 

@@ -203,10 +203,11 @@ The default of this setting may change in a future version.</p></dd>
 
 
 <dt id="arg-timezone-out">timezone_out<a class="anchor" aria-label="anchor" href="#arg-timezone-out"></a></dt>
-<dd><p>The time zone returned to R, defaults to <code>"UTC"</code>, which
-is currently the only timezone supported by duckdb.
+<dd><p>The time zone in which plain <code>TIMESTAMP</code> columns
+(without time zone) are returned to R, defaults to <code>"UTC"</code>.
 If you want to display datetime values in the local timezone,
-set to <code><a href="https://rdrr.io/r/base/timezones.html" class="external-link">Sys.timezone()</a></code> or <code>""</code>.</p></dd>
+set to <code><a href="https://rdrr.io/r/base/timezones.html" class="external-link">Sys.timezone()</a></code> or <code>""</code>.
+<code>TIMESTAMPTZ</code> columns follow the session's <code>TimeZone</code> setting instead.</p></dd>
 
 
 <dt id="arg-tz-out-convert">tz_out_convert<a class="anchor" aria-label="anchor" href="#arg-tz-out-convert"></a></dt>
