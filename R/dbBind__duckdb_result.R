@@ -33,6 +33,10 @@ dbBind__duckdb_result <- function(res, params, ...) {
   res@env$resultset <- NULL
   res@env$pending_params <- NULL
 
+  # Re-binding drops the active stream (if any); the next dbFetch() opens a
+  # fresh stream with the new parameters. Also resets the stream EOF flag.
+  duckdb_stream_close(res)
+
   params <- encode_values(params)
 
   if (!res@arrow) {

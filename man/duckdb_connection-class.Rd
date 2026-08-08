@@ -84,7 +84,7 @@
 
 \S4method{dbSendQueryArrow}{duckdb_connection,character}(conn, statement, params = NULL, ...)
 
-\S4method{dbSendQuery}{duckdb_connection,character}(conn, statement, params = NULL, ..., arrow = FALSE)
+\S4method{dbSendQuery}{duckdb_connection,character}(conn, statement, params = NULL, ..., arrow = FALSE, stream = NULL)
 
 \S4method{dbWriteTable}{duckdb_connection,character,data.frame}(
   conn,
@@ -130,7 +130,35 @@ or a data frame, with one element/column per query parameter.
 For \code{dbBindArrow()}, values as a nanoarrow stream,
 with one column per query parameter.}
 
-\item{arrow}{Whether the query should be returned as an Arrow Table}
+\item{arrow}{Whether the query should be returned as an Arrow Table.
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#superseded}{\figure{lifecycle-superseded.svg}{options: alt='[Superseded]'}}}{\strong{[Superseded]}}: this path is slated for retirement;
+switch to the DBI generics, which stream via Arrow natively.
+The replacement is a drop-in change of the call:
+\code{dbSendQuery(con, sql, arrow = TRUE)} becomes
+\code{\link[DBI:dbSendQueryArrow]{DBI::dbSendQueryArrow()}}\verb{(con, sql)},
+fetch with \code{\link[DBI:dbFetchArrow]{DBI::dbFetchArrow()}} (everything, as a
+\pkg{nanoarrow} array stream) or \code{\link[DBI:dbFetchArrowChunk]{DBI::dbFetchArrowChunk()}}
+(one batch at a time), and convert via
+\code{\link[=as.data.frame]{as.data.frame()}} or \code{arrow::as_arrow_table()} as needed.
+For one-shot queries, \code{dbGetQuery(con, sql, arrow = TRUE)} becomes
+\code{\link[DBI:dbGetQueryArrow]{DBI::dbGetQueryArrow()}}\verb{(con, sql)}.}
+
+\item{stream}{Whether to fetch the result in chunks instead of
+materializing it on the first \code{\link[DBI:dbFetch]{dbFetch()}} call.
+With \code{stream = TRUE}, \code{dbFetch(n = ...)} pulls only the requested rows
+from a streaming query result, so larger-than-memory results can be
+processed piece by piece.
+A streaming result holds a live cursor on the connection:
+running any other query on the same connection invalidates it,
+and fetching from an invalidated stream throws an error.
+\code{dbHasCompleted()} returns \code{TRUE} only after a \code{dbFetch()} call has
+drained the stream.
+The default \code{NULL} uses the connection-level default set via
+\code{dbConnect(stream = ...)}, which in turn defaults to \code{FALSE}.
+Applies to SELECT-shaped queries; other statements, including \code{EXPLAIN},
+are unaffected.
+Not supported together with \code{arrow = TRUE}:
+use \code{\link[DBI:dbSendQueryArrow]{DBI::dbSendQueryArrow()}} for streaming via Arrow.}
 
 \item{overwrite}{If a table with the given name already exists, should it be overwritten?}
 
@@ -155,6 +183,10 @@ Implements \link[DBI:DBIConnection-class]{DBIConnection}.
 \item{\code{debug}}{whether debug information (such as queries) is printed.}
 
 \item{\code{convert_opts}}{internal options controlling how result values are converted to R.}
+
+\item{\code{stream}}{default for the \code{stream} argument of \code{\link[DBI:dbSendQuery]{dbSendQuery()}}
+on this connection: whether results are fetched in chunks instead of
+being materialized on the first \code{\link[DBI:dbFetch]{dbFetch()}} call.}
 
 \item{\code{reserved_words}}{character vector of the engine's reserved SQL keywords, used to quote identifiers.}
 
