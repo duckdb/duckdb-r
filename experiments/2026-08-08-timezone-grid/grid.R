@@ -2,9 +2,10 @@
 # x session TimeZone, for TIMESTAMP and TIMESTAMPTZ.
 # Values: TIMESTAMP '2024-01-10 13:03:12' (naive),
 #         TIMESTAMPTZ '2024-01-10 13:03:12-08:00' (= 21:03:12 UTC).
-# Writes output.txt next to this script.
+# The recorded run is grid.md, rendered with reprex::reprex(si = TRUE).
 library(duckdb)
 options(duckdb.storage_message = FALSE)
+options(width = 300)
 
 cell <- function(local_tz, tz_out, tz_conv, session) {
   withr::with_timezone(local_tz, {
@@ -48,10 +49,9 @@ grid <- expand.grid(
 out <- do.call(rbind, Map(cell, grid$local_tz, grid$tz_out, grid$tz_conv, grid$session))
 rownames(out) <- NULL
 
-sink(file.path(dirname(sub("--file=", "", grep("--file=", commandArgs(), value = TRUE))), "output.txt"))
-cat("duckdb", as.character(packageVersion("duckdb")),
-    "| DuckDB", duckdb:::get_duckdb_version(),
-    "| vendored build, icu from the extension store |",
-    format(Sys.Date()), "\n\n")
+cat(
+  "duckdb", as.character(packageVersion("duckdb")),
+  "| DuckDB", duckdb:::get_duckdb_version(),
+  "| vendored build, icu from the extension store\n"
+)
 print(out, right = FALSE)
-sink()

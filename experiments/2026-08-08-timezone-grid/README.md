@@ -15,7 +15,8 @@ and defaults to the machine's zone.
 *What it supports:*
 [`usage/timestamps/`](/handbook/usage/timestamps/README.md).
 
-Run [`grid.R`](grid.R); it writes [`output.txt`](output.txt).
+Run [`grid.R`](grid.R); the recorded run is [`grid.md`](grid.md),
+rendered with `reprex::reprex(si = TRUE)`.
 The values probed are `TIMESTAMP '2024-01-10 13:03:12'` and
 `TIMESTAMPTZ '2024-01-10 13:03:12-08:00'`;
 the epochs that appear are
