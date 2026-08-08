@@ -107,6 +107,7 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | File | Purpose |
 |---|---|
 | [`r-universe-check.sh`](r-universe-check.sh) | Read-only: what did r-universe make of the refs this repository publishes? |
+| [`series-advance-test.sh`](series-advance-test.sh) | Check stage 5's carry of the base series' test-side fixes, offline, against a synthetic remote and clone built here -- no network, no fixtures on disk. |
 | [`series-advance.sh`](series-advance.sh) | The ref motion of the series loop, stages 3 and 5, for one series: fast-forward `<S>-green` over the all-green prefix, set `<S>-build-base` to the equivalent... |
 | [`series-check.sh`](series-check.sh) | Read-only diagnosis for the series loop: what should a firing do? |
 | [`series-cutover.sh`](series-cutover.sh) | Atomically replace a series with its forward counterpart. |
