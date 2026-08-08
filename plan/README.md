@@ -25,6 +25,7 @@ when the two disagree, the handbook leaf is right.
 |---|---|
 | Simplifying the vendoring pipeline: one verdict store, tooling from `main`, a docs tree | [`PLAN-vendoring-simplification.md`](PLAN-vendoring-simplification.md) |
 | Implementing `dbSendQueryArrow()` and the DBI Arrow API | [`PLAN-dbSendQueryArrow.md`](PLAN-dbSendQueryArrow.md) |
+| A producer thread for streaming results: overlapping engine production with R-side conversion, and spillable materialized results | [`PLAN-streaming-thread.md`](PLAN-streaming-thread.md) |
 
 ## `done/` — plans that came true
 
