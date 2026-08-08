@@ -172,18 +172,21 @@ the `arrow_scan` / `arrow_scan_dumb` split.
 * **Making `duckdb_register()` generic.**
   That is #98's actual request and it should follow this,
   once there is more than one non-data-frame source to dispatch to
-  ([`PLAN-polars-source.md`](PLAN-polars-source.md) is the second).
+  (a Polars source, proposed alongside this plan under
+  [#98](https://github.com/duckdb/duckdb-r/issues/98), is the second).
   Dispatching to a single method is not a generic, it is a rename.
 * **Filter pushdown for nanoarrow sources.**
   nanoarrow has no compute layer, so there is nothing to push *to*.
   A source that carries its own query engine is a different case
-  and is [`PLAN-polars-source.md`](PLAN-polars-source.md)'s.
+  and belongs to the Polars plan proposed alongside this one under
+  [#98](https://github.com/duckdb/duckdb-r/issues/98).
 * **Replacing `r_dataframe_scan`.**
   Measured as slower and lossier for the default path.
   Worth revisiting only if the type mapping is fixed upstream and the
   export cost falls.
 * **The relational constructor.**
-  [`PLAN-rel-from-arrow.md`](PLAN-rel-from-arrow.md).
+  `PLAN-rel-from-arrow.md`, proposed alongside this one under
+  [#98](https://github.com/duckdb/duckdb-r/issues/98).
 
 ## Open questions
 
