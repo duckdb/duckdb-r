@@ -8,6 +8,8 @@ test_that("dbSendQuery(stream = TRUE) fetches in chunks without materializing", 
 
   rs <- dbSendQuery(con, "SELECT * FROM mt", stream = TRUE)
   expect_null(rs@env$resultset)
+  # The stream opens eagerly at dbSendQuery() time, without materializing
+  expect_false(is.null(rs@env$stream_result))
   expect_false(dbHasCompleted(rs))
 
   d1 <- dbFetch(rs, n = 10)
@@ -109,16 +111,34 @@ test_that("type errors on streaming results surface at dbFetch()", {
   dbClearResult(rs)
 })
 
-test_that("runtime errors on streaming results surface at dbFetch()", {
+test_that("execution errors on streaming queries are raised, not swallowed", {
   con <- local_con()
 
+  # A tiny pipeline completes during the eager open: the error surfaces at
+  # dbSendQuery() time and leaves the connection usable
+  expect_error(
+    dbSendQuery(
+      con,
+      "SELECT CAST(x AS INT) AS i FROM (VALUES ('1'),('abc')) t(x)",
+      stream = TRUE
+    ),
+    "Could not convert"
+  )
+  expect_equal(dbGetQuery(con, "SELECT 42 AS x")$x, 42)
+
+  # An error deep in a large scan is beyond what the open buffers:
+  # it surfaces on the dbFetch() call that reaches it
   rs <- dbSendQuery(
     con,
-    "SELECT CAST(x AS INT) AS i FROM (VALUES ('1'),('abc')) t(x)",
+    "SELECT CAST(CASE WHEN i < 5000000 THEN '1' ELSE 'abc' END AS INT) AS v
+     FROM range(6000000) t(i)",
     stream = TRUE
   )
-  expect_error(dbFetch(rs), "Could not convert")
+  expect_equal(nrow(dbFetch(rs, n = 5)), 5)
+  expect_error(dbFetch(rs, n = -1), "Could not convert")
   dbClearResult(rs)
+
+  expect_equal(dbGetQuery(con, "SELECT 43 AS x")$x, 43)
 })
 
 test_that("multi-row binds on a streaming result fall back to materializing", {
@@ -218,6 +238,8 @@ test_that("dbConnect(stream = TRUE) sets the connection default", {
 test_that("streaming results convert types identically to materialized results", {
   con <- local_con(array = "matrix")
   dbExecute(con, "CREATE TYPE color AS ENUM ('red', 'green', 'blue')")
+  # Core types only: TIMESTAMPTZ arithmetic needs the icu extension and is
+  # covered by a separate, skippable test below.
   dbExecute(
     con,
     "CREATE TABLE typed AS
@@ -229,7 +251,6 @@ test_that("streaming results convert types identically to materialized results",
        (i % 2 = 0) AS lgl_col,
        DATE '2024-01-01' + i::INT AS date_col,
        TIMESTAMP '2024-01-01 12:00:00' + INTERVAL (i) SECOND AS ts_col,
-       TIMESTAMPTZ '2024-01-01 12:00:00+00' + INTERVAL (i) SECOND AS tstz_col,
        ('mystery' || i)::BLOB AS blob_col,
        [i, i + 1, i + 2] AS list_col,
        {'a': i, 'b': 'row ' || i} AS struct_col,
@@ -248,21 +269,53 @@ test_that("streaming results convert types identically to materialized results",
   dbClearResult(rs)
 
   # The same sequence of partial fetches yields identical frames on both
-  # paths. The materialized result executes first, so its query does not
-  # invalidate the stream and the two results coexist on one connection.
+  # paths. The materialized result executes eagerly at dbSendQuery() time,
+  # so its query does not invalidate the stream and the two results coexist
+  # on one connection.
   # Struct and array columns are excluded: R-level slicing of the
   # materialized resultset renumbers their inner row names, so the frames
   # cannot be identical even though the values are (covered by the
   # full-fetch comparison above).
   sql_partial <- "SELECT * EXCLUDE (struct_col, array_col) FROM typed ORDER BY int_col"
   rs_m <- dbSendQuery(con, sql_partial)
-  invisible(dbFetch(rs_m, n = 0))
   rs_s <- dbSendQuery(con, sql_partial, stream = TRUE)
   for (n in c(1, 999, 2500, -1)) {
     expect_identical(dbFetch(rs_s, n = n), dbFetch(rs_m, n = n))
   }
   expect_true(dbHasCompleted(rs_s))
   expect_true(dbHasCompleted(rs_m))
+  dbClearResult(rs_s)
+  dbClearResult(rs_m)
+})
+
+test_that("streaming converts TIMESTAMPTZ identically to materialized results", {
+  con <- local_con()
+  # TIMESTAMPTZ arithmetic needs the icu extension, which is downloaded on
+  # demand: skip wherever it cannot be loaded (extensions disabled, no
+  # published binaries, offline). PR #2401 introduces shared skip helpers
+  # for the same conditions.
+  icu <- tryCatch(
+    {
+      dbExecute(con, "INSTALL icu; LOAD icu")
+      TRUE
+    },
+    error = function(e) FALSE
+  )
+  skip_if_not(icu, "icu extension not available")
+
+  sql <- "SELECT TIMESTAMPTZ '2024-01-01 12:00:00+00' + INTERVAL (i) SECOND AS tstz
+          FROM range(5000) t(i)"
+  ref <- dbGetQuery(con, sql)
+
+  rs <- dbSendQuery(con, sql, stream = TRUE)
+  expect_identical(dbFetch(rs), ref)
+  dbClearResult(rs)
+
+  rs_m <- dbSendQuery(con, sql)
+  rs_s <- dbSendQuery(con, sql, stream = TRUE)
+  for (n in c(3, 2500, -1)) {
+    expect_identical(dbFetch(rs_s, n = n), dbFetch(rs_m, n = n))
+  }
   dbClearResult(rs_s)
   dbClearResult(rs_m)
 })
