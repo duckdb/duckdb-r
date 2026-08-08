@@ -98,9 +98,15 @@ duckdb_result <- function(connection, stmt_lst, arrow, stream = FALSE) {
     ))
   }
 
-  # Data-returning queries are deferred to dbFetch(); other queries execute now
-  # so that side effects (INSERT/UPDATE/DELETE/DDL) happen at dbSendQuery() time.
-  if (!is_data_query(stmt_lst)) {
+  # Parameter-less statements execute eagerly, so side effects (INSERT ...
+  # RETURNING, SELECT nextval(), CALL ...) happen at dbSendQuery() time and
+  # dbExecute(), which never fetches, works. Only parameterized statements
+  # defer execution to dbBind()/first use. Under stream = TRUE, SELECT-shaped
+  # statements open a streaming result instead of materializing, so the
+  # deferred-allocation benefit is preserved where it matters.
+  if (env$stream) {
+    duckdb_stream_open(res)
+  } else {
     duckdb_execute(res)
   }
 
@@ -184,6 +190,17 @@ duckdb_stream_fetch <- function(res, n) {
 
   res@env$rows_fetched <- res@env$rows_fetched + nrow(df)
   df
+}
+
+# Execute a statement whose parameters are bound but whose execution is still
+# pending: streaming results open their stream, everything else materializes
+# through the regular bind path.
+duckdb_execute_pending <- function(res) {
+  if (isTRUE(res@env$stream) && length(res@env$pending_params[[1]]) == 1) {
+    duckdb_stream_open(res)
+  } else {
+    duckdb_execute_pending_bind(res)
+  }
 }
 
 # Close a live stream (if any) so the connection is free for the next query.

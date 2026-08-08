@@ -34,14 +34,11 @@ dbFetch__duckdb_result <- function(res, n = -1, ...) {
     return(duckdb_stream_fetch(res, check_fetch_n(n)))
   }
 
-  # Handle deferred execution
+  # Parameterized statements defer execution to the first use after dbBind();
+  # everything else has already executed at dbSendQuery() time.
   if (is.null(res@env$resultset)) {
     if (!is.null(res@env$pending_params)) {
-      # Deferred bind+execute (parameterized query)
       duckdb_execute_pending_bind(res)
-    } else if (res@stmt_lst$n_param == 0) {
-      # Deferred execute (no params)
-      duckdb_execute(res)
     } else {
       stop("Need to call `dbBind()` before `dbFetch()`")
     }
