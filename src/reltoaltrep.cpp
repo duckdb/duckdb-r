@@ -16,6 +16,8 @@
 #include "signal.hpp"
 #include "typesr.hpp"
 
+// Handbook: handbook/architecture/glue/altrep/README.md
+
 #include <cinttypes>
 #include <cmath>
 #include <cstddef>
@@ -754,9 +756,7 @@ shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool 
 [[cpp11::init]] void RelToAltrep_Initialize(DllInfo* dll) {
 	// clang-format on
 
-	// The package's only load hook, so it is also where the thread R loads on
-	// gets recorded -- rapi_error_with_context() asks, before deciding whether
-	// raising an R error is allowed from where it stands
+	// The package's only load hook, so also where R's thread gets recorded
 	rapi_record_r_thread();
 
 	RelToAltrep::Initialize(dll);

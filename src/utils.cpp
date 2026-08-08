@@ -7,6 +7,9 @@
 
 #include <thread>
 
+// Handbook: handbook/architecture/glue/conventions/README.md,
+// and handbook/architecture/glue/threading/README.md for the thread guard
+
 // Avoid clash with TRUE and FALSE macros in older rtools
 #undef TRUE
 #undef FALSE
@@ -182,12 +185,8 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 
 		auto ce = Rf_getCharCE(str_val);
 		if (ce != CE_UTF8 && ce != CE_NATIVE) {
-			// Thrown rather than raised in R: a list column is typed at bind
-			// from its first cell, so this is the one encoding check the scan
-			// reaches, and the scan is no place to raise an R error -- on a
-			// task thread it would call R off R's thread, and on R's own thread
-			// cpp11's unwind travels back through the engine, which flattens it
-			// to `std::exception` and loses the message either way.
+			// The scan reaches this check, and the scan is no place to raise an
+			// R error -- the message would not survive the trip back
 			throw InvalidInputException(
 			    "SexpToValue: Only UTF-8 encoded strings are supported for the data frame scan.");
 		}
@@ -349,7 +348,7 @@ SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 }
 
 // The thread the package was loaded on, which is R's: R_init_duckdb() runs
-// there, and nothing else sets this.
+// there, and nothing else sets this
 static std::thread::id r_thread_id;
 
 void rapi_record_r_thread() {
@@ -363,13 +362,8 @@ bool rapi_on_r_thread() {
 // Helper functions to communicate errors via R's stop() function
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message) {
 	if (!rapi_on_r_thread()) {
-		// Raising an R error means calling an R function, and this is one of
-		// DuckDB's task threads: the call would allocate where it must not, and
-		// cpp11 would unwind onto a stack R does not own. What reaches the user
-		// from here is `std::exception`, the message lost with the thread.
-		//
-		// Travel back as an exception instead. The engine carries it to the
-		// thread that issued the query, which is R's, and rethrows it there.
+		// Reporting an error means calling an R function, and this is not R's
+		// thread. Let the engine carry the message back to it instead.
 		throw InvalidInputException(context + ": " + message);
 	}
 

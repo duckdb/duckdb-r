@@ -51,8 +51,8 @@
 #define DUCKDB_R_POISON_GUARD() ((void)0)
 #endif
 
-// Record the thread the package loads on, which is R's, and ask about it later.
-// Only that thread may call into R, so it is what decides how an error travels.
+// Record the thread the package loads on, and ask about it later. Only R's
+// thread may call into R: handbook/architecture/glue/threading/README.md
 void rapi_record_r_thread();
 bool rapi_on_r_thread();
 

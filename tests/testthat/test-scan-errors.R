@@ -1,10 +1,8 @@
+# Handbook: handbook/architecture/glue/threading/README.md
+
 test_that("Data frame scan reports a scan-time error with its message", {
   # A list column is typed at bind from its first cell, so a differently
-  # encoded string further down is met only while the scan runs -- inside the
-  # engine, and on whichever thread took the task. Raising an R error there
-  # calls R off R's thread, and cpp11's unwind travels back through DuckDB,
-  # which flattens it to `std::exception`; the message has to travel as an
-  # exception instead.
+  # encoded string further down is met only while the scan runs
   con <- local_con()
 
   n <- 1100000L
@@ -22,8 +20,7 @@ test_that("Data frame scan reports a scan-time error with its message", {
 })
 
 test_that("Errors raised on R's thread keep their context", {
-  # The guard is on the thread, not on the error: an entry point that never
-  # leaves R's thread still reports through R, with its context attached.
+  # The guard is on the thread, not on the error
   con <- local_con()
 
   expect_snapshot(error = TRUE, {
