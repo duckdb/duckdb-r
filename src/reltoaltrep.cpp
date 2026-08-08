@@ -753,5 +753,11 @@ shared_ptr<AltrepRelationWrapper> rapi_rel_wrapper_from_altrep_df(SEXP df, bool 
 // clang-format off
 [[cpp11::init]] void RelToAltrep_Initialize(DllInfo* dll) {
 	// clang-format on
+
+	// The package's only load hook, so it is also where the thread R loads on
+	// gets recorded -- rapi_error_with_context() asks, before deciding whether
+	// raising an R error is allowed from where it stands
+	rapi_record_r_thread();
+
 	RelToAltrep::Initialize(dll);
 }

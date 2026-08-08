@@ -5,6 +5,8 @@
 #include "rapi.hpp"
 #include "typesr.hpp"
 
+#include <thread>
+
 // Avoid clash with TRUE and FALSE macros in older rtools
 #undef TRUE
 #undef FALSE
@@ -180,7 +182,14 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx, bool typed_logical_null)
 
 		auto ce = Rf_getCharCE(str_val);
 		if (ce != CE_UTF8 && ce != CE_NATIVE) {
-			rapi_error_with_context("SexpToValue", "Only UTF-8 encoded strings are supported for the data frame scan.");
+			// Thrown rather than raised in R: a list column is typed at bind
+			// from its first cell, so this is the one encoding check the scan
+			// reaches, and the scan is no place to raise an R error -- on a
+			// task thread it would call R off R's thread, and on R's own thread
+			// cpp11's unwind travels back through the engine, which flattens it
+			// to `std::exception` and loses the message either way.
+			throw InvalidInputException(
+			    "SexpToValue: Only UTF-8 encoded strings are supported for the data frame scan.");
 		}
 		return Value(CHAR(str_val));
 	}
@@ -339,8 +348,31 @@ SEXP RApiTypes::ValueToSexp(const Value &val, const ConvertOpts &convert_opts) {
 	db->db->LoadStaticExtension<RfunsExtension>();
 }
 
+// The thread the package was loaded on, which is R's: R_init_duckdb() runs
+// there, and nothing else sets this.
+static std::thread::id r_thread_id;
+
+void rapi_record_r_thread() {
+	r_thread_id = std::this_thread::get_id();
+}
+
+bool rapi_on_r_thread() {
+	return std::this_thread::get_id() == r_thread_id;
+}
+
 // Helper functions to communicate errors via R's stop() function
 [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message) {
+	if (!rapi_on_r_thread()) {
+		// Raising an R error means calling an R function, and this is one of
+		// DuckDB's task threads: the call would allocate where it must not, and
+		// cpp11 would unwind onto a stack R does not own. What reaches the user
+		// from here is `std::exception`, the message lost with the thread.
+		//
+		// Travel back as an exception instead. The engine carries it to the
+		// thread that issued the query, which is R's, and rethrows it there.
+		throw InvalidInputException(context + ": " + message);
+	}
+
 	// Look up R function in duckdb namespace
 	static cpp11::function rapi_error = cpp11::package(DUCKDB_PACKAGE_NAME)["rapi_error"];
 	rapi_error(context, message);
