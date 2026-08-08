@@ -3,19 +3,23 @@
 *What it measures:* which running DuckDB work a Ctrl+C stops in the R
 package and in the DuckDB CLI, what each host's handler actually does,
 and where the two stop differing —
-narrowing
+answering
 [#202](https://github.com/duckdb/duckdb-r/issues/202),
 which reports `ATTACH 'md:'` as uncancellable from R
 while the same key works in the shell.
 
-*When and on what:* 2026-08-08, Linux x86_64.
-The R package built from this tree against the prebuilt
-`libduckdb` v1.5.5 (upstream commit `d8cdaa33fda`) via the fast path
-([`build/fast-paths/`](/handbook/build/fast-paths/README.md));
-the CLI the official `duckdb_cli-linux-amd64` build of that same
-version and commit, so both hosts run one engine.
-`httpfs` v1.5.5 from `extensions.duckdb.org`.
+*When and on what:* 2026-08-08.
+The scripted cases on Linux x86_64, with the R package built from this
+tree against the prebuilt `libduckdb` v1.5.5 (upstream commit
+`d8cdaa33fda`) via the fast path
+([`build/fast-paths/`](/handbook/build/fast-paths/README.md)),
+the CLI the official `duckdb_cli-linux-amd64` build of that same version
+and commit, so both hosts run one engine, and `httpfs` v1.5.5 from
+`extensions.duckdb.org`.
 Method: [`run.sh`](run.sh), output in [`transcript.txt`](transcript.txt).
+The MotherDuck pair on macOS aarch64, R 4.5.3 against a Homebrew CLI of
+the same DuckDB version, recorded in
+[`transcript-motherduck.md`](transcript-motherduck.md).
 
 *What it supports:* the interrupt section of
 [`usage/interactive/`](/handbook/usage/interactive/README.md),
@@ -136,32 +140,50 @@ The extension is resolved here rather than earlier —
 `AttachDatabase` — so an extension `ATTACH` pulls in is loaded during
 this same window.
 
-## What is still open
+## What `ATTACH 'md:'` does differently
 
-MotherDuck's wait behaves differently from the `httpfs` one, and the
-difference is not yet pinned down.
-Reported by the maintainer, DuckDB CLI, 2026-08-08: a single Ctrl+C
-during the `ATTACH 'md:'` sign-in wait prints MotherDuck's own
-`Interrupted, aborting.` and the statement then fails with
-`no token provided` — neither string is core DuckDB's.
-So that wait does notice an interrupt, in the shell.
+MotherDuck's sign-in wait *is* cancellable in the shell, with one
+Ctrl+C, and the reason is not the flag.
+Sampled in both hosts on macOS —
+full record in [`transcript-motherduck.md`](transcript-motherduck.md),
+which is where MotherDuck itself was exercised, this machine having
+neither an account nor a route to it:
 
-It cannot be noticing it through the flag both handlers set, because
-R sets that flag identically and nothing happens there.
-What is left is the process-wide SIGINT disposition — what MotherDuck
-sees installed, and when it installed anything of its own.
+* **CLI.** The handler is the shell's `InterruptHandler` until the
+  sign-in prompt prints, then `md::login::detail::sighandler` in
+  MotherDuck's implementation extension for the whole wait, then the
+  shell's again once the statement ends.
+  MotherDuck installs a handler of its own around the wait, with
+  `SA_SIGINFO` and — the working part — without `SA_RESTART`, so a
+  blocking call in that wait returns `EINTR` instead of resuming.
+* **R.** The handler is `ScopedInterruptHandler::signal_handler` for the
+  entire wait, across three Ctrl+C. MotherDuck's never appears.
 
-[`sigprobe.c`](sigprobe.c) is the measurement that settles it, and it
-answers on a timeline rather than in one snapshot, which is the part
-that matters: the question is not only who owns the handler while the
-sign-in wait runs, but whether MotherDuck ever owned it and stopped.
-Build it with [`build-sigprobe.sh`](build-sigprobe.sh) and run
+So the difference is that MotherDuck makes its wait cancellable, and
+declines to do so under the R client.
+Nothing was displaced: there is no handler of MotherDuck's to displace
+in the R process, and the CLI run shows it installing over the shell's
+handler without difficulty, so an already-installed handler is no
+obstacle to it.
+Neither is the flag a route in: this package sets
+`ClientContext::interrupted` exactly as the shell does, and the sign-in
+wait does not read it in either host.
+
+What remains is which condition MotherDuck tests.
+The client's own name is the first suspect: this package announces
+`duckdb_api = r-dbi` ([`src/database.cpp`](/src/database.cpp)) where the
+shell announces `cli`, and user config is applied after that default, so
+`MD_PROBE_DUCKDB_API=cli` in [`md-probe.R`](md-probe.R) overrides it.
+If MotherDuck's handler appears under that run, the name is the gate.
+
+## Running the probe
+
+Build with [`build-sigprobe.sh`](build-sigprobe.sh), then
 [`md-probe.R`](md-probe.R) for the R side;
-the same library preloads into the CLI, where its constructor starts
-the same sampler.
+the same library preloads into the CLI, where its constructor starts the
+same sampler.
 It reads the disposition through `sigaction(2)` and names the owning
-library through `dladdr(3)`, so it needs no debugger and no per-platform
+library through `dladdr(3)` from a sampling thread, so it reports while
+the host is blocked, needs no debugger, and carries no per-platform
 struct offsets — a debugger is awkward to attach on macOS, and
 `struct sigaction` is not laid out the same way there.
-What it still needs is a MotherDuck account and a route to it,
-which this run had neither of.

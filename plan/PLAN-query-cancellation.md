@@ -21,18 +21,26 @@ This plan exists because the fix is larger than the limitation:
 two routes lead out, neither of them small, and one of them is not this
 repository's to take.
 
-## Step 0 — settle what MotherDuck watches
+## What #202 turns out to be, and whose
 
-A single Ctrl+C does abort the `ATTACH 'md:'` wait in the DuckDB CLI,
-with a message MotherDuck prints itself.
-It cannot be reading the engine flag, since R sets that flag identically
-and nothing happens.
-Until it is known what it does read, neither route below can be aimed at
-[#202](https://github.com/duckdb/duckdb-r/issues/202) specifically —
-Route 1 might already be someone else's to finish, or the difference
-might turn out to live in the process-wide SIGINT disposition, which is
-this package's doing and nobody else's.
-The experiment carries the probe and what to run it against.
+Measured rather than inferred: in the DuckDB CLI, MotherDuck installs a
+SIGINT handler of its own for the duration of the sign-in wait —
+without `SA_RESTART`, so a blocking call in that wait returns `EINTR` —
+and restores the shell's afterwards.
+Under the R client it installs none, and the wait reads no flag, so
+Ctrl+C has nothing to act on.
+
+That makes [#202](https://github.com/duckdb/duckdb-r/issues/202)
+MotherDuck's to close, either way it chooses: install the handler for
+every host, or have the wait observe `ClientContext::interrupted`, which
+this package already sets.
+Which condition it tests is the one thing still unmeasured; the
+experiment names the first suspect and the switch that tests it.
+
+Nothing below would have fixed that case, and none of it is dropped for
+that reason: the same wait shape arrives through any extension that
+blocks on the network, and `httpfs` is the case already in the suite's
+reach.
 
 ## Route 1 — the wait observes the flag
 

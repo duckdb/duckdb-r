@@ -46,13 +46,21 @@ R's own interrupt stops at the same place, C code that never calls
 `R_CheckUserInterrupt()` being uninterruptible whoever wrote it;
 and the handler here sets the same engine flag the DuckDB CLI's does,
 so a wait that ignores the flag ignores it in the shell too.
-Where the shell still differs is for `ATTACH 'md:'` in particular, and
-by what means is not yet established.
-The measurements live in
+
+**A wait is cancellable only if the code doing the waiting makes it so**,
+and that code is the extension's.
+MotherDuck's sign-in wait is the worked example: in the DuckDB CLI it
+installs a SIGINT handler of its own for the duration of the wait, which
+is why Ctrl+C ends it there, and under this package it installs none —
+so the key reaches the handler here, which sets a flag that wait does
+not read.
+Nothing in the package's own signal handling can substitute for that:
+it is not displacing anything, and it already sets the only flag it has
+to offer.
+The measurements are
 [`experiments/2026-08-08-interrupt-reach/`](/experiments/2026-08-08-interrupt-reach/README.md),
-along with the probe that would settle it,
-which reads the handler from inside the process and so needs no
-debugger on either platform.
+which carries the probe that reads the handler from inside a blocked
+process, and needs no debugger on either platform.
 
 Only one interrupt handler is installed at a time.
 A second DuckDB call entered while one is running — from a progress
@@ -67,8 +75,5 @@ It queries `information_schema` to decide which object types the
 database actually has, so a database with no views does not advertise
 them, and it tells the IDE when a connection closes.
 
-*To deepen: state what turns the progress display on and off, what the
-pane does with a connection the user closes from the IDE, and — once
-[#202](https://github.com/duckdb/duckdb-r/issues/202) has been measured
-in a session that reaches MotherDuck — what the shell does there that
-this package does not.*
+*To deepen: state what turns the progress display on and off, and what
+the pane does with a connection the user closes from the IDE.*

@@ -26,9 +26,20 @@ message("--- before loading duckdb")
 probe_now()
 
 library(duckdb)
-con <- DBI::dbConnect(duckdb::duckdb())
 
-message("--- connected, before ATTACH")
+# MD_PROBE_DUCKDB_API=cli tests whether the client's own name is what
+# decides: the package announces `r-dbi` (src/database.cpp) where the
+# shell announces `cli`, and user config is applied after that default,
+# so this overrides it. An experiment, not a workaround -- claiming to be
+# a client one is not has consequences beyond this question.
+api <- Sys.getenv("MD_PROBE_DUCKDB_API", "")
+con <- DBI::dbConnect(duckdb::duckdb(
+  config = if (nzchar(api)) list(duckdb_api = api) else list()
+))
+
+message("--- connected as duckdb_api = ",
+        DBI::dbGetQuery(con, "SELECT current_setting('duckdb_api') AS a")$a)
+message("--- before ATTACH")
 probe_now()
 
 # Sample once a second for three minutes, so the timeline covers the
