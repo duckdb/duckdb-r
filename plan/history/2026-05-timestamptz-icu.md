@@ -96,8 +96,10 @@ A3, A4, and A1's `Etc/UTC` attribute describe an ICU-loaded session.
 The absence behaviour is pinned in
 [`tests/testthat/test-timezone.R`](/tests/testthat/test-timezone.R),
 which makes icu absent deterministically
-by pointing `local_con(extensions = FALSE)`
-at a dummy extension directory.*
+by pointing `extension_directory` at a dummy path —
+and skips on binaries that link icu statically
+(the fast path against a release `libduckdb`, like the CLI),
+where absence cannot be produced at all.*
 
 * **A1** — `Etc/UTC` session, four offset variants returned:
     | input | UTC instant returned |

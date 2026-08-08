@@ -27,6 +27,20 @@ skip_on_cran_except_r_universe <- function() {
   }
 }
 
+# "icu absent" is a build property, not a config one: a build that links
+# icu statically (the fast path against a release libduckdb, like the CLI)
+# has the TimeZone setting no matter what the extension directory holds,
+# so absence-behavior tests cannot run there.
+skip_if_builtin_icu <- function(con) {
+  icu <- dbGetQuery(
+    con,
+    "SELECT loaded, install_mode FROM duckdb_extensions() WHERE extension_name = 'icu'"
+  )
+  if (nrow(icu) > 0 && (isTRUE(icu$loaded[[1]]) || identical(icu$install_mode[[1]], "STATICALLY_LINKED"))) {
+    skip("icu is built into this binary")
+  }
+}
+
 # The icu extension is not statically linked into the package,
 # so tests that need it must download it first.
 # That requires a released DuckDB version, a platform with published
