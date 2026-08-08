@@ -1,7 +1,18 @@
 #' @rdname duckdb_connection-class
 #' @inheritParams DBI::dbSendQuery
 #' @inheritParams DBI::dbBind
-#' @param arrow Whether the query should be returned as an Arrow Table
+#' @param arrow Whether the query should be returned as an Arrow Table.
+#'   `r lifecycle::badge("superseded")`: this path is slated for retirement;
+#'   switch to the DBI generics, which stream via Arrow natively.
+#'   The replacement is a drop-in change of the call:
+#'   `dbSendQuery(con, sql, arrow = TRUE)` becomes
+#'   [DBI::dbSendQueryArrow()]`(con, sql)`,
+#'   fetch with [DBI::dbFetchArrow()] (everything, as a
+#'   \pkg{nanoarrow} array stream) or [DBI::dbFetchArrowChunk()]
+#'   (one batch at a time), and convert via
+#'   [as.data.frame()] or `arrow::as_arrow_table()` as needed.
+#'   For one-shot queries, `dbGetQuery(con, sql, arrow = TRUE)` becomes
+#'   [DBI::dbGetQueryArrow()]`(con, sql)`.
 #' @param stream Whether to fetch the result in chunks instead of
 #'   materializing it on the first [dbFetch()] call.
 #'   With `stream = TRUE`, `dbFetch(n = ...)` pulls only the requested rows
@@ -28,7 +39,12 @@ dbSendQuery__duckdb_connection_character <- function(conn, statement, params = N
     stream <- isTRUE(conn@stream)
   }
   if (isTRUE(stream) && isTRUE(arrow)) {
-    stop("`stream = TRUE` is not supported for `arrow = TRUE`, use `dbSendQueryArrow()` for streaming via Arrow")
+    stop(
+      "`stream = TRUE` cannot be combined with `arrow = TRUE` ",
+      "(including a `dbConnect(stream = TRUE)` default). ",
+      "The legacy `arrow = TRUE` path is slated for retirement: ",
+      "use `dbSendQueryArrow()` with `dbFetchArrow()` to stream via Arrow."
+    )
   }
 
   env <- find_caller()

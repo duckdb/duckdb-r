@@ -130,7 +130,18 @@ or a data frame, with one element/column per query parameter.
 For \code{dbBindArrow()}, values as a nanoarrow stream,
 with one column per query parameter.}
 
-\item{arrow}{Whether the query should be returned as an Arrow Table}
+\item{arrow}{Whether the query should be returned as an Arrow Table.
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#superseded}{\figure{lifecycle-superseded.svg}{options: alt='[Superseded]'}}}{\strong{[Superseded]}}: this path is slated for retirement;
+switch to the DBI generics, which stream via Arrow natively.
+The replacement is a drop-in change of the call:
+\code{dbSendQuery(con, sql, arrow = TRUE)} becomes
+\code{\link[DBI:dbSendQueryArrow]{DBI::dbSendQueryArrow()}}\verb{(con, sql)},
+fetch with \code{\link[DBI:dbFetchArrow]{DBI::dbFetchArrow()}} (everything, as a
+\pkg{nanoarrow} array stream) or \code{\link[DBI:dbFetchArrowChunk]{DBI::dbFetchArrowChunk()}}
+(one batch at a time), and convert via
+\code{\link[=as.data.frame]{as.data.frame()}} or \code{arrow::as_arrow_table()} as needed.
+For one-shot queries, \code{dbGetQuery(con, sql, arrow = TRUE)} becomes
+\code{\link[DBI:dbGetQueryArrow]{DBI::dbGetQueryArrow()}}\verb{(con, sql)}.}
 
 \item{stream}{Whether to fetch the result in chunks instead of
 materializing it on the first \code{\link[DBI:dbFetch]{dbFetch()}} call.
