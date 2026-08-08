@@ -15,8 +15,11 @@ R 4.5.3, Linux.
 
 Run [`rel.R`](rel.R); the recorded run is [`rel.md`](rel.md),
 rendered with `reprex::reprex(si = TRUE)`.
-The nanoarrow shim it uses is the one from
-[`2026-08-08-nanoarrow-df-scan/`](/experiments/2026-08-08-nanoarrow-df-scan/README.md).
+It substitutes nanoarrow for arrow at the five-closure seam that
+`rapi_register_arrow()` takes,
+the same shim the nanoarrow scan experiment proposed alongside this one
+under [#98](https://github.com/duckdb/duckdb-r/issues/98) uses,
+so that a pushdown-free producer can be compared against arrow's.
 
 What the run compresses to:
 

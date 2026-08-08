@@ -29,7 +29,8 @@ packageVersion("arrow")
 packageVersion("nanoarrow")
 #> [1] '0.9.0'
 
-# The nanoarrow-only shim from experiments/2026-08-08-nanoarrow-df-scan/.
+# A nanoarrow-only producer at the same seam, to stand in for a source
+# that cannot apply a filter.
 register_nanoarrow <- function(con, name, x) {
   export_fun <- function(x, stream_ptr, projection = NULL, filter = TRUE) {
     if (!is.null(projection)) x <- x[projection]
