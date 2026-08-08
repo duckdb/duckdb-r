@@ -1,5 +1,66 @@
 # Changelog
 
+## duckdb 1.5.5.9012
+
+### Bug fixes
+
+#### flavor
+
+- Answer rather than error when a series has no `README.Rmd`
+  ([\#2576](https://github.com/duckdb/duckdb-r/issues/2576)).
+
+#### flavor
+
+- Catch a generated README that reached a series under the mainline name
+  ([\#2575](https://github.com/duckdb/duckdb-r/issues/2575)).
+
+- Respect the session `TimeZone` for `TIMESTAMPTZ` columns
+  ([\#2401](https://github.com/duckdb/duckdb-r/issues/2401)).
+
+#### storage
+
+- Make temporary storage usable by default, with the CLI’s semantics
+  ([\#1604](https://github.com/duckdb/duckdb-r/issues/1604),
+  [\#2562](https://github.com/duckdb/duckdb-r/issues/2562)).
+
+### Continuous integration
+
+- Wrap the commit status update into an action.
+
+- Route ccache through one-word compiler wrappers on Unix.
+
+- Add context for cherry-picking.
+
+- Route ccache through one-word compiler wrappers on Unix.
+
+- Name every step and restore the log entry `setup-pandoc` swallows.
+
+### Documentation
+
+#### handbook
+
+- Give timestamps and time zones their own leaf
+  ([\#2567](https://github.com/duckdb/duckdb-r/issues/2567)).
+
+#### handbook
+
+- Prefer durable storage for hard-to-reproduce experiment results
+  ([\#2564](https://github.com/duckdb/duckdb-r/issues/2564)).
+
+### Refactoring
+
+#### rcc
+
+- Cut the store’s automatic writers down to the leg’s own publish
+  ([\#2578](https://github.com/duckdb/duckdb-r/issues/2578)).
+
+### Testing
+
+#### explain
+
+- Skip Windows inside each `test_that()` so the snapshot survives
+  ([\#2577](https://github.com/duckdb/duckdb-r/issues/2577)).
+
 ## duckdb 1.5.5.9011
 
 ### Bug fixes

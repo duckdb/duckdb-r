@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9011</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9012</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,58 @@
       <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.5.5.9012" id="duckdb-1559012">duckdb 1.5.5.9012<a class="anchor" aria-label="anchor" href="#duckdb-1559012"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-1-5-5-9012">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5-5-9012"></a></h3>
+<div class="section level4">
+<h4 id="flavor-1-5-5-9012">flavor<a class="anchor" aria-label="anchor" href="#flavor-1-5-5-9012"></a></h4>
+<ul><li>Answer rather than error when a series has no <code>README.Rmd</code> (<a href="https://github.com/duckdb/duckdb-r/issues/2576" class="external-link">#2576</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="flavor-1-5-5-9012-1">flavor<a class="anchor" aria-label="anchor" href="#flavor-1-5-5-9012-1"></a></h4>
+<ul><li><p>Catch a generated README that reached a series under the mainline name (<a href="https://github.com/duckdb/duckdb-r/issues/2575" class="external-link">#2575</a>).</p></li>
+<li><p>Respect the session <code>TimeZone</code> for <code>TIMESTAMPTZ</code> columns (<a href="https://github.com/duckdb/duckdb-r/issues/2401" class="external-link">#2401</a>).</p></li>
+</ul></div>
+<div class="section level4">
+<h4 id="storage-1-5-5-9012">storage<a class="anchor" aria-label="anchor" href="#storage-1-5-5-9012"></a></h4>
+<ul><li>Make temporary storage usable by default, with the CLI’s semantics (<a href="https://github.com/duckdb/duckdb-r/issues/1604" class="external-link">#1604</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2562" class="external-link">#2562</a>).</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="continuous-integration-1-5-5-9012">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-1-5-5-9012"></a></h3>
+<ul><li><p>Wrap the commit status update into an action.</p></li>
+<li><p>Route ccache through one-word compiler wrappers on Unix.</p></li>
+<li><p>Add context for cherry-picking.</p></li>
+<li><p>Route ccache through one-word compiler wrappers on Unix.</p></li>
+<li><p>Name every step and restore the log entry <code>setup-pandoc</code> swallows.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-1-5-5-9012">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-5-5-9012"></a></h3>
+<div class="section level4">
+<h4 id="handbook-1-5-5-9012">handbook<a class="anchor" aria-label="anchor" href="#handbook-1-5-5-9012"></a></h4>
+<ul><li>Give timestamps and time zones their own leaf (<a href="https://github.com/duckdb/duckdb-r/issues/2567" class="external-link">#2567</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="handbook-1-5-5-9012-1">handbook<a class="anchor" aria-label="anchor" href="#handbook-1-5-5-9012-1"></a></h4>
+<ul><li>Prefer durable storage for hard-to-reproduce experiment results (<a href="https://github.com/duckdb/duckdb-r/issues/2564" class="external-link">#2564</a>).</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="refactoring-1-5-5-9012">Refactoring<a class="anchor" aria-label="anchor" href="#refactoring-1-5-5-9012"></a></h3>
+<div class="section level4">
+<h4 id="rcc-1-5-5-9012">rcc<a class="anchor" aria-label="anchor" href="#rcc-1-5-5-9012"></a></h4>
+<ul><li>Cut the store’s automatic writers down to the leg’s own publish (<a href="https://github.com/duckdb/duckdb-r/issues/2578" class="external-link">#2578</a>).</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="testing-1-5-5-9012">Testing<a class="anchor" aria-label="anchor" href="#testing-1-5-5-9012"></a></h3>
+<div class="section level4">
+<h4 id="explain-1-5-5-9012">explain<a class="anchor" aria-label="anchor" href="#explain-1-5-5-9012"></a></h4>
+<ul><li>Skip Windows inside each <code>test_that()</code> so the snapshot survives (<a href="https://github.com/duckdb/duckdb-r/issues/2577" class="external-link">#2577</a>).</li>
+</ul></div>
+</div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.5.5.9011" id="duckdb-1559011">duckdb 1.5.5.9011<a class="anchor" aria-label="anchor" href="#duckdb-1559011"></a></h2>
 <div class="section level3">
