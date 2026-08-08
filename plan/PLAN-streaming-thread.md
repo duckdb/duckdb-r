@@ -209,6 +209,64 @@ engine workers ──► streaming buffer ──► pump thread ──► chunk 
   Every stop path is bounded because `Interrupt()` reaches
   a parked or fetching pump promptly.
 
+The protocol between the two threads, enumerated.
+Five message kinds flow down (pump to R thread), two flow up:
+
+* **`CHUNK`** — one `unique_ptr<DataChunk>`, engine memory only,
+  ownership transferred; ordered, lossless, through the bounded
+  byte-budgeted FIFO; the only channel that exerts backpressure.
+* **`PROGRESS`** — the latest completion fraction
+  (and rows-processed counters).
+  Not queued: a coalescing latest-value channel, lossy by design,
+  never blocks either side. Mechanics below.
+* **`EOF`** — terminal, exactly once: the stream drained cleanly;
+  the queue closes behind the last `CHUNK`,
+  and the R side flips `stream_eof` once both are seen.
+* **`ERROR`** — terminal, exactly once, mutually exclusive with
+  `EOF`: any engine exception, transported as `ErrorData`
+  and rethrown on the R thread at the next pop.
+* **`INTERRUPTED`** — the distinguished `ERROR` subtype
+  (`InterruptException`, or cancellation because another statement
+  invalidated the stream); the R side re-raises it as the usual
+  interrupt condition rather than an error.
+* **`STOP`** (up) — close, re-bind, clear, finalizer, shutdown:
+  a flag plus `ClientContext::Interrupt()` plus a wake of both
+  condition variables, then a bounded join. Idempotent.
+* **Backpressure credit** (up) — implicit: each pop frees budget
+  and wakes the pump; no explicit message.
+
+No channel ever carries an R object,
+and no channel's pump side calls the R API —
+`PROGRESS` included, which is the point of its design:
+
+* The engine separates progress *tracking* from progress *printing*:
+  `BeginQueryInternal()` creates the `ProgressBar` whenever
+  `enable_progress_bar` is set, but hands it a display only when
+  `print_progress_bar` also is — no display, no callback, while
+  `ExecuteTaskInternal()` still refreshes the context's
+  `query_progress` on every task
+  (`src/duckdb/src/main/client_context.cpp`).
+  `QueryProgress` is a struct of atomics with copy semantics,
+  and `ClientContext::GetQueryProgress()` is public —
+  built to be read from another thread.
+* A pumped open therefore leaves `enable_progress_bar` alone and
+  clears `print_progress_bar` for the stream's lifetime:
+  the engine-side `RProgressBarDisplay` (whose `Update()` runs
+  `Rf_eval` on the executing thread, `src/connection.cpp`)
+  is never constructed, yet the numbers keep flowing.
+* The R thread renders: each pass of its wait-slice loop
+  (~100 ms, where it already checks for user interrupts)
+  and each chunk pop polls `GetQueryProgress()`,
+  and feeds the existing `duckdb.progress_display` machinery —
+  same option, same callback, same throttle as today;
+  a terminal message finishes the bar.
+* The one behavioral difference, worth stating in the docs:
+  the bar advances only while R is inside `dbFetch()`.
+  Between calls the pump keeps producing but nothing renders,
+  so the bar catches up in jumps.
+  The synchronous path never shows this because with it,
+  execution only happens inside `dbFetch()` in the first place.
+
 ### 2. Runtime switch, and why the synchronous path stays
 
 The pump is an accelerator with a guard list, not a replacement.
@@ -233,17 +291,16 @@ The pump is an accelerator with a guard list, not a replacement.
     stops holding once R runs concurrently.
     Until the audit (T1) shrinks it, the guard is per connection,
     which is coarse but cheap to reason about.
-  * the progress display cannot run on a pumped query:
-    `RProgressBarDisplay::Update()` evaluates R from whichever thread
-    drives execution (`src/connection.cpp`), which would be the pump —
-    and it is on by default in interactive sessions,
-    so guarding on it would switch prefetch off exactly where people
-    sit. Instead of a guard, the open (still on the R thread) turns
-    `enable_progress_bar` off for the stream's lifetime and restores
-    it on close: progress reporting and prefetch are mutually
-    exclusive per result, never per session.
   * the statement is not stream-eligible anyway
     (EXPLAIN, non-SELECT, multi-row bind — #2292 already routes these).
+
+  The progress display is deliberately *not* on this list:
+  the engine-side display would evaluate R from the pump,
+  but the `PROGRESS` channel (above) suppresses only the display
+  (`print_progress_bar`, per stream lifetime) and lets the R thread
+  render the polled numbers through the existing
+  `duckdb.progress_display` machinery —
+  progress and prefetch compose instead of excluding each other.
 * **Coexistence as architecture.**
   The C++ seam is one function: "give me the next chunk" —
   a synchronous implementation that calls `Fetch()` on the R thread
@@ -378,23 +435,31 @@ Each task lands separately and keeps the suite green.
   the progress display, relational-API materialization.
   Deliverable: the guard list for piece 1, recorded in this file,
   each entry marked safe / guarded / needs-fix.
+  Underway in [#2582](https://github.com/duckdb/duckdb-r/pull/2582),
+  which moves packed-column materialization to bind
+  (`TouchColumn()`), measures what breaking the rule costs,
+  and names the residue this plan's guard rests on —
+  non-allocating reads in the list/map scan paths, and
+  `rapi_error_with_context()`, which *calls* R on the scan's error
+  path from a task thread.
 * **T2 — extract the next-chunk seam.**
   Pure refactor of `rapi_stream_fetch()` so the accumulation loop asks
   a `NextChunk()` provider; synchronous provider only.
   No behavior change; existing #2292 tests must not notice.
 * **T3 — the pump.**
   `StreamPrefetcher` in a new glue unit:
-  thread, bounded queue, error slot, stop protocol
+  thread, bounded queue, error slot, progress slot, stop protocol
   (`Interrupt()` + join), byte budget.
   Internal-only entry points; tests via `:::` cover
   clean drain, early close, mid-stream engine error,
   interrupt while empty-waiting, interrupt while full-parked,
   and finalizer-driven teardown under `gc()`.
 * **T4 — the switch and the guards.**
-  `prefetch` argument + option, guard checks
-  (registered tables, progress display), silent fallback,
-  parity run of the #2292 stream tests under both modes,
-  slow-consumer stress test asserting bounded RSS.
+  `prefetch` argument + option, the registered-tables guard,
+  silent fallback, progress rendering from the polled slot,
+  parity run of the #2292 stream tests under both modes
+  (including one asserting the progress callback fires under the
+  pump), slow-consumer stress test asserting bounded RSS.
 * **T5 — measure and record.**
   Run the harness against the T4 build
   (CRAN build and PR build already recorded alongside),
@@ -421,12 +486,13 @@ T6 independent after T1; T7 last.
   per connection (a scan that materializes ALTREP lazily, say),
   the guard stays coarse and the pump simply engages less often —
   safe, just less useful. The design degrades, it does not break.
-* **Progress display interplay.**
-  The pumped path switches the bar off per result;
-  *supporting* progress on pumped queries would need callback
-  marshalling to the R thread — explicitly out of scope.
-  A user who wants the bar keeps it by leaving `prefetch` off,
-  which is one more reason the synchronous path is permanent.
+* **Progress rendering granularity.**
+  The pumped bar advances only while R sits in `dbFetch()` and
+  catches up in jumps between calls; the copy of `QueryProgress` is
+  member-wise atomic, not transactional across its three fields —
+  both fine for a display, both worth a sentence in the docs.
+  Restoring `print_progress_bar` must sit on every teardown path,
+  like every other piece of pump state.
 * **Pump-thread stacks on Windows.**
   `std::thread` under Rtools is fine, but stack sizes and DLL unload
   order at session end deserve a test on the CI matrix
@@ -460,7 +526,10 @@ For [`usage/statements/`](/handbook/usage/statements/README.md):
 > With `prefetch = TRUE` (or `options(duckdb.stream_prefetch = TRUE)`)
 > the engine keeps producing on its own threads while R converts;
 > results are identical, and the option is ignored where it cannot
-> apply (registered R tables, progress display, non-SELECT).
+> apply (registered R tables, non-SELECT).
+> The progress display still works on a prefetched result,
+> with one visible difference: it only advances while a `dbFetch()`
+> is running, and catches up in jumps between calls.
 
 For [`usage/memory/`](/handbook/usage/memory/README.md),
 extending the existing bullets:
@@ -494,12 +563,15 @@ For [`architecture/glue/`](/handbook/architecture/glue/README.md):
 > plus join on every teardown path.
 > Conversion — every `duckdb_r_allocate()` / `duckdb_r_transform()`
 > call, every string — runs on the R thread, pumped or not.
-> The pump never runs for connections with registered R tables, and a
-> pumped result runs with the progress bar disabled: both paths let
-> the engine reach back into R, and the reach-back contract (see "The
-> engine runs R code while it holds the client context lock") assumes
-> the R thread is parked inside the engine, which a pumped fetch no
-> longer guarantees.
+> The pump never runs for connections with registered R tables:
+> their scans still read R off-thread (the residue "Only R's thread
+> reads R" names), and that contract assumes the R thread is parked
+> inside the engine, which a pumped fetch no longer guarantees.
+> A pumped result keeps engine progress *tracking* on but never
+> constructs the engine-side display: the R thread polls
+> `ClientContext::GetQueryProgress()` — a struct of atomics, public
+> for exactly this — at its wait-and-convert points and drives the
+> usual `duckdb.progress_display` callback itself.
 
 For [`architecture/engine/`](/handbook/architecture/engine/README.md):
 
