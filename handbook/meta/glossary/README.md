@@ -43,6 +43,7 @@ one line, so the register stays greppable and diffs per term.
 * **series** — one upstream DuckDB branch with the package branches that carry it ([`branches/model/`](/handbook/branches/model/README.md)).
 * **series loop** — the scheduled agent routine that vendors every series ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
 * **series refs** — `-build`, `-dev`, `-green`, `-build-base`: each with one meaning and one allowed motion ([`branches/model/`](/handbook/branches/model/README.md)).
+* **session TimeZone** — the icu-owned setting DuckDB renders `TIMESTAMPTZ` in, and the zone that labels those columns in R ([`usage/timestamps/`](/handbook/usage/timestamps/README.md)).
 * **shard** — a contiguous, cost-balanced slice of commits one CI job builds and judges ([`operations/ci/per-commit/planning/`](/handbook/operations/ci/per-commit/planning/README.md)).
 * **snapshot** — recorded test output; accepting a change asserts the new output is correct ([`testing/snapshots/`](/handbook/testing/snapshots/README.md)).
 * **source id** — `DUCKDB_SOURCE_ID`, the upstream commit the vendored engine identifies as ([`architecture/engine/`](/handbook/architecture/engine/README.md)).

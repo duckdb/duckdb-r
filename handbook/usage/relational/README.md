@@ -28,6 +28,20 @@ Expressions are built separately (`expr_reference()`, `expr_constant()`,
 so a caller assembles a tree rather than splicing text,
 and the engine never parses a string the caller built.
 
+**What lifts, and what is refused.**
+`rel_from_df()` refuses a column rather than converting it lossily:
+matrix/array columns, S4 columns, `integer64` columns,
+and any class beyond the built-in ones in the default strict mode
+(the checks are [`src/relational.cpp`](/src/relational.cpp)'s,
+pinned in
+[`tests/testthat/test-relational.R`](/tests/testthat/test-relational.R)
+and [`tests/testthat/test-timezone.R`](/tests/testthat/test-timezone.R)).
+Factors lift and come back as factors.
+duckplyr surfaces these refusals as errors on an explicit
+`as_duckdb_tibble()`, not as silent fallbacks.
+What a value becomes once it has crossed is
+[`types/`](/handbook/usage/types/README.md)'s.
+
 **Untyped `NULL` constants.**
 `expr_constant(NA)` builds an untyped `NULL`
 ([#143](https://github.com/duckdb/duckdb-r/pull/143)),
@@ -46,6 +60,12 @@ and duckplyr casts a typed `NULL` where it needs one.
 nothing runs until R touches the values, materialization is budgeted by
 `n_rows` and `n_cells`, and an execution error is stored and re-raised at
 every later access.
+The session `TimeZone` that labels `TIMESTAMPTZ` columns is captured
+here, when the data frame is built, not at materialization:
+change the setting in between,
+and the label keeps the zone of `rel_to_altrep()` time
+([`timestamps/`](/handbook/usage/timestamps/README.md)
+owns the labeling rules).
 `rel_from_altrep_df()` is the way back.
 The C++ side of that, and its known weak point around raising an R error
 from inside an ALTREP method, is
