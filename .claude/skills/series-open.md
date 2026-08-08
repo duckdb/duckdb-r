@@ -1,5 +1,8 @@
 # Opening a new series
 
+*Handbook: [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md) —
+what this routine is, and when it runs.*
+
 When upstream cuts a release branch —
 v2.0 is released, upstream `main` becomes the 2.1 line —
 the release gets a series of its own.
@@ -38,15 +41,18 @@ This skill is the release branch's birth certificate.
    `flavor.sh` never stamps it,
    because regular LTS flavors keep their four-component version.
 
-   **Check the generated cpp11 files before trusting a fresh seed.**
+   **Install `krlmlr/cpp11` before running `flavor.sh`**, from GitHub —
+   `remotes::install_github("krlmlr/cpp11")`, beside `decor`.
    `flavor.sh` runs `cpp11::cpp_register()`,
-   whose symbol names depend on the cpp11 that happens to be installed:
-   0.5.5 replaces only the *first* dot of the package name,
-   so a `1.5.dev` flavor comes out as `_duckdb_1.5.dev_rapi_connect`,
-   which is not a valid C identifier.
-   Compare `R/cpp11.R` against an existing series' seed;
-   this is also why a forward series is rebased rather than reseeded
-   (`series-rebase.md`).
+   whose symbol names come from the installed cpp11 rather than from the
+   vendored headers
+   ([`architecture/glue/`](/handbook/architecture/glue/README.md)).
+   The script refuses the result when it is wrong
+   and restores the tree, so a missing fork costs a rerun and nothing
+   else — but it costs the whole run, and `cpp_register()` is the last
+   step.
+   That the two cpp11s differ at all is also why a forward series is
+   rebased rather than reseeded (`series-rebase.md`).
 
 3. **Create all four refs at the seed tip**
    (day-one rule, no exceptions):
@@ -99,15 +105,13 @@ with a version badge instead of the lag badges.
 Two things to check before pushing:
 
 * **Every ref a badge names must live in `krlmlr/duckdb-r`.**
-  shields.io compares within a single repository,
-  and the fork is disconnected from `duckdb/duckdb-r`,
-  so a base branch that exists only in the canonical repo
+  A base that exists only in the canonical repo
   renders as an error, not a count.
-  Mirror the release branch into the fork —
-  and keep the mirror fresh:
-  `sync.yaml` fast-forwards only `main`,
-  so a mirror left behind makes *ahead*
-  count commits that have already shipped.
+  Push the release branch into the fork once —
+  the Pull app keeps a mirror fresh but never creates one —
+  and give it a rule in [`.github/pull.yml`](/.github/pull.yml)
+  if the badge measures against it
+  ([`branches/mirrors/`](/handbook/branches/mirrors/README.md)).
 * **The table must stay clear of `scripts/flavor.patch`.**
   `README.md` is a flavored file;
   the patch rewrites the installation hunks near the top.

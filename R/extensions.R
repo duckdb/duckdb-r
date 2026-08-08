@@ -1,6 +1,6 @@
 # `duckdb_shared_home()` below is a thin wrapper over the environment so the
 # storage-location logic stays testable without touching the real filesystem or
-# HOME. See `?duckdb_storage` and plan/PLAN-storage-locations.md.
+# HOME. See `?duckdb_storage` and plan/done/PLAN-storage-locations.md.
 
 # The DuckDB default home (`<home>/.duckdb`), shared with the DuckDB CLI and
 # Python client. The `<home>` base must match the engine's own notion of the
@@ -61,6 +61,45 @@ compiled_cxx_stdlib <- function() {
 # = TRUE) lets a user force-enable to test.
 extensions_supported <- function() {
   !is_linux() || identical(compiled_cxx_stdlib(), "libstdc++")
+}
+
+# The platform string the engine derives for itself
+# (Platform() in src/duckdb/src/include/duckdb/common/platform.hpp),
+# which is also the directory the extension repository is addressed by:
+# http://extensions.duckdb.org/<duckdb-version>/<platform>/<name>.duckdb_extension.gz
+# Wrapped for mockability,
+# and read from the engine rather than reconstructed from `.Platform`:
+# the suffixes are compile-time
+# (`_mingw` under Rtools and under R's clang-aarch64 toolchain,
+# `_musl`, `_android`) and R cannot see them.
+duckdb_platform <- function(conn = default_conn()) {
+  sql_query("PRAGMA platform", conn = conn)[[1L]]
+}
+
+# TRUE when DuckDB publishes prebuilt extensions for this platform.
+# Not a property of the build -- see extensions_supported() for that --
+# but of what the extension repository carries,
+# which is DuckDB's to decide and does change.
+# Explained in handbook/usage/extensions/README.md, which links the
+# current list; the exceptions below are what it does not carry today.
+#
+# As of 2026-08 that is `windows_arm64_mingw`,
+# which is what R's Windows/arm64 toolchain asks for:
+# DuckDB does publish for that architecture, as `windows_arm64`,
+# but that is the MSVC build,
+# and the `_mingw` artifact x86_64 gets has no arm64 counterpart
+# (https://github.com/duckdb/duckdb-r/issues/2425).
+#
+# Deliberately not wired into extensions_supported():
+# a driver that refuses INSTALL is the wrong answer to a missing
+# artifact. A locally built extension still loads,
+# and the day DuckDB publishes this platform
+# the 404 goes away by itself, with nothing here to unwind.
+# The callers are the tests:
+# where the platform is covered they expect INSTALL to succeed,
+# where it is not they expect the download error.
+extensions_published <- function(platform = duckdb_platform()) {
+  !identical(platform, "windows_arm64_mingw")
 }
 
 # Decide, for a single duckdb() call, whether this driver may load DuckDB

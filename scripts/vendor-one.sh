@@ -168,6 +168,35 @@ while [ $commits_vendored -lt $num_commits ]; do
     exit 0
   fi
 
+  # `start` is the clone's HEAD, so it is the caller who decides which upstream
+  # line this buffer continues -- and nothing so far has checked that it is the
+  # same line the buffer is already on. The range above excludes what `base`
+  # reaches but walks first parents from `start`, so a `start` on a sibling line
+  # yields commits that are not descendants of `base` at all. Ancestry is not
+  # the test: a fork branch that merged upstream has `base` behind it and passes
+  # it while its first-parent line is somewhere else entirely.
+  #
+  # A contiguous first-parent walk out of `base` starts at a child of `base`, so
+  # compare that directly. Off the line, the oldest commit yielded belongs to the
+  # other branch, and vendoring it rewrites the tree to whatever that branch
+  # carries -- backwards, for a fork whose own line predates the buffer.
+  oldest=$(head -n 1 <<<"$original")
+  oldest_parent=$(git -C "$upstream_dir" rev-parse --verify "${oldest}^" 2>/dev/null || true)
+  if [ "$oldest_parent" != "$(git -C "$upstream_dir" rev-parse --verify "${base}")" ]; then
+    echo ""
+    echo "=== WRONG UPSTREAM LINE ==="
+    echo "The buffer last vendored ${base},"
+    echo "which is not on the first-parent line of the clone's HEAD ${start}"
+    echo "($(git -C "$upstream_dir" log -1 --format=%s "$start"))."
+    echo "The walk would vendor ${oldest} next, whose first parent is"
+    echo "${oldest_parent:-none} -- a different branch, and its tree replaces the"
+    echo "buffer's wholesale."
+    echo "Check out the upstream branch this series tracks in the clone"
+    echo "($upstream_basedir) and rerun."
+    rm -rf "$upstream_dir"
+    exit 5
+  fi
+
   message=
   is_tag=
 

@@ -20,14 +20,21 @@ index 2ee2528d0..7982715b8 100644
  #' @keywords internal
  "_PACKAGE"
  NULL
-diff --git a/README.md b/README.md
-index 9087bd425..11c8677ac 100644
---- a/README.md
-+++ b/README.md
-@@ -12,29 +12,7 @@
+diff --git a/README.Rmd b/README.Rmd
+index df1f52e..19f0527 100644
+--- a/README.Rmd
++++ b/README.Rmd
+@@ -41,35 +41,15 @@ knitr::knit_hooks$set(document = function(x, options) {
+ </div>
+ <!-- banner:end -->
+ 
+-# duckdb
++# duckdb.1.3
+ 
+ [DuckDB](https://duckdb.org/) is an in-process SQL OLAP database management system.
  It is designed to support analytical query workloads and is optimized for fast query execution.
  This repository contains the R bindings for DuckDB.
-
+ 
 -## Installation from CRAN
 -This is the recommended method for recent R versions on Windows or macOS which have binaries available on CRAN.
 -
@@ -51,23 +58,50 @@ index 9087bd425..11c8677ac 100644
 -```
 -
 -To check the availability of binaries for your platform, navigate to the [duckdb search page](https://p3m.dev/client/#/repos/cran/packages/overview?search=duckdb).
-+This package contains the LTS version 1.3 of DuckDB, and is only available from GitHub and r-universe.
-
++This package is the `duckdb.1.3` flavor of those bindings,
++and is only available from r-universe.
++The `Flavors` section below says which upstream series it tracks.
+ 
  ## Installation from r-universe
-
-@@ -43,7 +21,7 @@
+ 
+@@ -78,20 +58,11 @@ Binaries are available for recent versions of R and for some platforms.
  Review <https://docs.r-universe.dev/install/binaries.html> for configuring installation of binary packages on Linux.
-
+ 
  ``` r
 -install.packages("duckdb", repos = c("https://duckdb.r-universe.dev", "https://cloud.r-project.org"))
 +install.packages("duckdb.1.3", repos = c("https://duckdb.r-universe.dev", "https://cloud.r-project.org"))
  ```
-
+ 
  Installing the package from source may take up to an hour.
+ 
+-## Installation from GitHub
+-
+-``` r
+-# install.packages("pak", repos = sprintf("https://r-lib.github.io/p/pak/stable/%s/%s/%s", .Platform$pkgType, R.Version()$os, R.Version()$arch))
+-pak::pak("duckdb/duckdb-r")
+-```
+-
+-Installing the package from GitHub may take up to an hour.
+-
+ ## Flavors
+ 
+ The sources in this repository are published under several names —
 diff --git a/inst/include/duckdb_types.hpp b/inst/include/duckdb_1_3_types.hpp
 similarity index 100%
 rename from inst/include/duckdb_types.hpp
 rename to inst/include/duckdb_1_3_types.hpp
+diff --git a/src/duckdb-win.def b/src/duckdb.1.3-win.def
+similarity index 94%
+rename from src/duckdb-win.def
+rename to src/duckdb.1.3-win.def
+--- a/src/duckdb-win.def
++++ b/src/duckdb.1.3-win.def
+@@ -15,4 +15,4 @@
+ ; The name of this file and the symbol below both carry the package name, so
+ ; scripts/flavor.patch renames and rewrites them for a flavor.
+ EXPORTS
+-R_init_duckdb
++R_init_duckdb_1_3
 diff --git a/src/include/rapi.hpp b/src/include/rapi.hpp
 index 4acc10425..572dd36e6 100644
 --- a/src/include/rapi.hpp
@@ -75,10 +109,10 @@ index 4acc10425..572dd36e6 100644
 @@ -27,7 +27,7 @@
  #define R_HAS_ALTLIST
  #endif
-
+ 
 -#define DUCKDB_PACKAGE_NAME "duckdb"
 +#define DUCKDB_PACKAGE_NAME "duckdb.1.3"
-
+ 
  // Helper functions to communicate errors via R's stop() function with context information
  [[noreturn]] void rapi_error_with_context(const std::string &context, const std::string &message);
 diff --git a/tests/testthat.R b/tests/testthat.R
@@ -87,11 +121,11 @@ index 1097d5cd5..7c6fea199 100644
 +++ b/tests/testthat.R
 @@ -7,6 +7,6 @@
  # * https://testthat.r-lib.org/articles/special-files.html
-
+ 
  library(testthat)
 -library(duckdb)
 +library(duckdb.1.3)
-
+ 
  test_check(simulate_duckdb()$pkg)
 
 commit 40f40e28d7566dff2e930c26af52358222cf6f26
@@ -125,4 +159,4 @@ index 1ca9656e4..b1b162348 100644
 +\alias{duckdb.1.3-package}
 +\title{duckdb.1.3: DBI Package for the DuckDB Database Management System}
  \description{
-
+ 

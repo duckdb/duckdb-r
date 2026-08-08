@@ -1,7 +1,14 @@
 # PLAN — Vendoring: a smaller kernel, tooling from `main`, and a docs tree
 
+**Open.** How vendoring works today is
+[`operations/vendoring/`](/handbook/operations/vendoring/README.md)'s,
+and the documentation tree's own rules are
+[`meta/handbook/`](/handbook/meta/handbook/README.md)'s;
+this file is the proposal, and where the two disagree the leaf is right.
+
 Status: **in progress** (2026-07-30, branch `claude/vendoring-tooling-design-3swawc`;
-Phase 1 landed as #87, the README root as #88 — see §9;
+Phase 1 landed as #87, the README root as #88, Phase 3 as the fork
+move (#2534) — see §9;
 revised after a clean-context review of this document against `origin/main`).
 Inputs: `BRANCHES.md`, `scripts/VENDORING.md`, `scripts/EACH.md`,
 `scripts/VENDORING-LOOP.md` (historical), the four skills in `.claude/skills/`,
@@ -52,6 +59,12 @@ An inventory of the moving parts, as of today
 | Verdict stores | **2**: commit statuses (what selection reads) and the `rcc` branch records (what the loop reads) |
 | Layouts on `rcc` | 2 current (`runs2.d/<xx>/<sha>.ndjson` parts, the `runs2.ndjson` aggregate) + `logs2/`, plus the legacy `runs.json` / `runs.ndjson` / `logs/` already marked "scheduled for removal" |
 | Writers to `rcc` | 4 automated (leg publish, run fan-in, 30-min backstop, aggregate merge) + 1 manual (consolidate) |
+
+*Since:* D1 and D2 have landed. Selection reads the record store, and the store is
+one layout on a new branch — `runs2.d/<xx>/<sha>.ndjson` and
+`logs2.d/<xx>/<sha>.log` on `rcc2`, written by three producers through one
+publisher, with `rcc` left behind whole. See
+[`operations/ci/per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md).
 | Scripts | 26 shell/python executables + 3 data/jq files serve the loop |
 | Skills | 4 (`series-loop`, `series-forward`, `series-rebase`, `series-open`) |
 | Workflows | `each.yaml`, `rcc-logs.yaml`, `rcc-consolidate.yaml` — the legacy dispatch path, which also spanned `cancel-rcc-dispatch.yaml`, is retired (D4). `R-CMD-check.yaml` (whose workflow *name* is `rcc`) and `R-CMD-check-status.yaml` stay: the ordinary push/PR check and the commit status branch protection reads, both core-set from `cynkra/cynkratemplate` |
@@ -77,8 +90,10 @@ with a status line each as the work lands:
   `runs2.ndjson` buys "read everything in one `git show`" and costs
   `rcc-merge.sh`, the stale-line replacement rule, half of
   `rcc-consolidate.sh`, and the two-layout fallback in every reader.
-  *Status:* open — D2: drop it outright, no replacement,
-  after a one-time sweep splits the pre-split records into parts.
+  *Status:* landed — the aggregate is gone, and so are `rcc-merge.sh`,
+  `rcc-push.sh` and `rcc-part-push.sh`; one publisher
+  (`rcc-publish.sh`) writes the store, and `rcc-cutover.sh` builds the
+  new branch rather than sweeping the old one in place.
   On the many-small-files worry that motivated the aggregate:
   the branch is built to be used **without a checkout**.
   The loop reads records via `git show`
@@ -195,12 +210,15 @@ it is a display ref, §3.4 — though today's scripts require and
 maintain it, per F6.)
 
 **One verdict store**: one small file per commit
-(`runs2.d/<xx>/<sha>.ndjson` + `logs2/<sha>.log` on branch `rcc`),
+(`runs2.d/<xx>/<sha>.ndjson` + `logs2.d/<xx>/<sha>.log` on branch `rcc2`),
 written by the leg that decided the commit — with the run fan-in and the
 scheduled backstop recovering what a dead leg could not publish —
 and replaced only by an explicit retry.
 Git-native, batch-readable in one blobless fetch, reachable from a
-Claude web session without API access.
+Claude web session without API access —
+which is the assumption §10.6 now puts under test:
+a session that can read the `each-rcc` run reads the record and the log
+at their source, and the store is what it falls back to.
 Commit statuses become a **write-only display surface**;
 today they are still selection's input, which is what D1 changes.
 
@@ -245,14 +263,14 @@ as one checklist; this plan is analysis, not a routing node:
   without rewriting anything, and remembers that it did. Keep.
   (A stray `retry-*-green` half from the pre-ledger design survives on
   the remote as litter — §6 retires it.)
-- **Leg-direct publishing** (`rcc-part-push.sh`). Verdict latency in
-  seconds instead of end-of-run; measured cheap. Keep.
+- **Leg-direct publishing** (`rcc-publish.sh`, from the leg). Verdict
+  latency in seconds instead of end-of-run; measured cheap. Keep.
 - **The run fan-in** (`each-harvest.sh`). Not deletable, contrary to an
   earlier revision of this plan: it holds the only path to a
   **per-commit log** for a leg that died before publishing —
   the backstop can reconstruct records, but only a *run*-level log,
   which `series-check.sh`'s classifier can misread
-  (`each.yaml`, `rcc-part-push.sh`, and `each-harvest.sh` all record
+  (`each.yaml` and `each-harvest.sh` both record
   this). Keep; D2 only removes its aggregate work.
 
 ### 3.3 What goes
@@ -260,7 +278,7 @@ as one checklist; this plan is analysis, not a routing node:
 | # | Cut | Replaces / removes |
 |---|---|---|
 | D1 | Selection reads the **record store**, not statuses — in `each-plan.sh`, `each-shard.sh`'s resume check, and the backstop. A commit without a record is undecided and gets replanned; nothing reconstructs records *from* statuses any more | GraphQL status scan, REST resume reads, `PENDING_TTL_HOURS`, the wedged-`pending` state, and the backstop's status-derived record repair (rebuild, don't reconstruct) |
-| D2 | Drop `runs2.ndjson` outright — no replacement. One sweep first (`BACKFILL=1 rcc-merge.sh` is exactly it) splits the pre-split records into parts; then the file goes, readers go parts-only, and `rcc-merge.sh` retires with the file | the aggregate, `rcc-merge.sh`, the stale-line rule, the two-layout fallback in every reader, and half of `rcc-consolidate.sh` (what remains: log GC and the squash) |
+| D2 | Drop `runs2.ndjson` outright — no replacement. Readers go parts-only, and `rcc-merge.sh` retires with the file | the aggregate, `rcc-merge.sh`, the stale-line rule, the two-layout fallback in every reader, and half of `rcc-consolidate.sh` (what remains: the retention GC and the squash) |
 | D3 | State `-build-base`'s contract: maintained and self-guarded by the loop, an input to no decision, consumed by humans (compare URLs and badges, §3.4) | the recurring temptation to treat it as coordination state — or to drop it and lose the only clean "buffered" range |
 | D4 | Retire the legacy dispatch path whole: `vendor-gate.sh`, `each-rcc.sh` + `each.yaml`'s dispatch mode, `cancel-rcc-dispatch.yaml`, ~~and `R-CMD-check-status.yaml`'s rcc role~~ (that last one was wrong — see the status note below). `R-CMD-check.yaml` itself stays — it is also the ordinary push/PR check — it only stops being dispatched per commit | four legacy surfaces that still have to be reasoned about on every change |
 | D5 | State the concurrency design in one place: per-series group + durable idempotent verdicts; **no pending markers, by design** | the recurring "did we lose the running marker" doubt (F3). The pieces exist in `each.yaml` and `EACH.md`; the one-place statement is what is missing |
@@ -459,6 +477,15 @@ kept light by habit rather than process:
 
 ## 6. A fresh fork replaces the standalone repo
 
+*Status:* **landed.** `krlmlr/duckdb-r` is a fork object of
+`duckdb/duckdb-r`, carrying the series refs, the mirrors and the verdict
+store and nothing else, with the Pull app in force (#2534);
+the repository it replaced is the archive `krlmlr/duckdb-r-old`.
+What holds today is
+[`branches/model/`](/handbook/branches/model/README.md)'s and
+[`branches/mirrors/`](/handbook/branches/mirrors/README.md)'s;
+the rest of this section is the reasoning that got there.
+
 `krlmlr/duckdb-r` is a standalone copy, not a GitHub fork object
 (the docs call it "the fork" colloquially);
 the intent is to replace it with a fresh, genuine fork —
@@ -480,35 +507,32 @@ Fork-specific switches to flip at creation:
 
 - **Workflows in a fresh fork are disabled until enabled once** in the
   fork's Actions tab, and **scheduled workflows are disabled by default
-  in forks of public repositories** — re-enable all six explicitly:
-  `sync.yaml` (hourly), `rcc-logs.yaml` (half-hourly),
+  in forks of public repositories** — re-enable all five explicitly:
+  `rcc-logs.yaml` (half-hourly),
   `fledge.yaml`, `R-CMD-check.yaml`, `R-CMD-check-dev.yaml`,
   `lock.yaml` (daily).
+  The Pull app is not a workflow and is unaffected by either switch;
+  it needs the app installed on the fork instead.
   The unrelated 60-day inactivity auto-disable for schedules in public
   repositories is moot here: the loop pushes daily.
 - Recreate what a fork does not carry: repository variables
   (`EACH_RCC_*`), any secrets, and the non-default refs —
   the series refs, the `rcc` branch, and the snapshot branches are
   pushed fresh or migrated (see the open question on migration depth).
-- **Mirroring comes from the fork itself, not from `sync.yaml`.**
+- **Mirroring comes from the fork itself.**
   The Flavors badges compare within `krlmlr/duckdb-r`
   (their *ahead* base names the release branches),
-  and `sync.yaml` fast-forwards only `main`,
-  so today's `duckdb.1.4.dev` *ahead* badge compares against a
-  `v1.4-andium` mirror nothing refreshes —
-  a **live defect**, counting commits that have already shipped.
-  An earlier revision of this plan proposed extending `sync.yaml`
-  to every release line and carrying the extension into the fork;
-  that was written, reviewed and **not merged**
-  (the branch is in the history if the argument is ever needed again).
-  The decision instead: a *genuine* fork keeps its branches current
-  through the **Pull app**, which is what a fork is for.
-  `sync.yaml` exists because the standalone copy is not a fork
-  and has no upstream to be pulled from;
-  replacing the copy with a fork replaces the need,
+  so every such base has to be a ref there and has to stay level with
+  the canonical branch it names.
+  A *genuine* fork keeps its branches current through the **Pull app**,
+  which is what a fork is for,
   and one hand-written mirroring job is exactly the kind of machinery
   §3 says has to justify itself against a mechanism that already exists.
-  Until the move, the mirrors are refreshed by hand —
+  The configuration is in place ahead of the move
+  ([`.github/pull.yml`](/.github/pull.yml),
+  [`branches/mirrors/`](/handbook/branches/mirrors/README.md));
+  its rules stay inert while the upstream is outside the fork network,
+  so until the move the mirrors are refreshed by hand —
   which is what `series-open.md` says today,
   and what it goes on saying rather than promising automation
   that is not there yet.
@@ -579,7 +603,7 @@ AGENTS.md ──┤                  maintainers & agents: quickstart + router
             │    series-rebase.md · series-open.md
             └─ plan/README.md           designs and decisions
                  PLAN-*.md
-                 └─ plan/history/            superseded designs, one-off artifacts
+                 └─ plan/superseded/         designs overtaken by events
                       vendoring-loop.md (← scripts/VENDORING-LOOP.md)
                       main-dev-review-2026-07.md (← scripts/main-dev-review.md)
 ```
@@ -605,8 +629,8 @@ Per-node target state:
 | `scripts/VENDORING.md` | mechanics + another re-telling | mechanics + troubleshooting only; owns the script inventory |
 | `scripts/EACH.md` | design + Q&A, current | keep; it is already the single owner of its topic |
 | skills | current | procedure only; mechanics by pointer |
-| `scripts/VENDORING-LOOP.md` | 865-line superseded design | move to `plan/history/vendoring-loop.md`; fix the 11 inbound references across 6 files |
-| `scripts/main-dev-review.md` | one-off review artifact in `scripts/`, currently orphaned (zero inbound references) | move to `plan/history/main-dev-review-2026-07.md` |
+| `scripts/VENDORING-LOOP.md` | 865-line superseded design | move to `plan/superseded/vendoring-loop.md`; fix the 11 inbound references across 6 files |
+| `scripts/main-dev-review.md` | one-off review artifact in `scripts/`, currently orphaned (zero inbound references) | move to `experiments/2026-07-main-dev-review/` |
 | `plan/` | named as a node by both roots; nothing named its children | `plan/README.md` routes: scope, then one row per document, by path — and the rule that a file the table does not name is an orphan |
 
 Migration: mechanical moves first (one PR), then one node per PR,
@@ -636,11 +660,11 @@ of the kernel.
 | **1 — landed (#87)** | the port stage: `scripts/series-port.sh` plus the amended `series-loop` / `series-forward` / `series-rebase` skills | first real `--apply` still runs supervised |
 | **1a (follow-up)** | resolve the subject-vs-path contradiction (§4), in order: harden `vendor-one.sh` and `vendor.sh`'s subject scans to bounded-and-loud; relax `classify()` to subject-decided; rewrite the landed rationale in `series-port.sh`'s header and `series-loop.md` stage 4; stage 1 invokes `main`'s `vendor-one.sh` against the buffer worktree | wider than first scoped — two scanners, one classifier, two rationale blocks, one skill rule; each independently shippable |
 | **2** | single verdict store (D1: selection and resume by record; backstop stops writing, its schedule dispatches idle undecided work); one sweep, then drop the aggregate outright (D2); the fan-in stays (per-commit logs, §3.2) | verdicts are already dual-written today; rollback = read statuses again |
-| **3** | replace the standalone repo with a fresh fork (§6), configured with the Pull app so the release-branch mirrors stay current without a job of our own; mirrors stay manual until then | one-time move; keep the standalone until the fork has served one full loop cycle |
+| **3 — landed (#2534)** | replace the standalone repo with a fresh fork (§6), configured with the Pull app so the release-branch mirrors stay current without a job of our own | one-time move; the replaced repository is kept as `krlmlr/duckdb-r-old` |
 | **4** | docs tree (§8): README root landed (#88); next the moves, then node rewrites (including `AGENTS.md`'s and `BRANCHES.md`'s stale rows); `docs-tree` skill | docs only |
 | **5** | kernel extraction + `rigraph` port (config file, generalized subject marker, igraph cost estimator or constant weight) | new repo consumed `@main`; rollback = vendored copy of the kernel |
 
-Phases 1a–3 are independently shippable; the deletions concentrate in
+Phases 1a and 2 are independently shippable; the deletions concentrate in
 Phase 2.
 
 ## 10. Open questions
@@ -653,14 +677,23 @@ Phase 2.
 2. **Record-store scale.** One commit per record keeps `rcc` growing
    (~1 commit/record; consolidation squashes). Is the current
    consolidation cadence enough once statuses stop being a second copy?
-3. **Fork migration depth (§6).** Carry the `rcc` records/logs and the
-   1175 snapshot branches into the fresh fork, or restart them and keep
-   the standalone repo read-only as the archive? Records at or below a
-   series' green are never re-read by the loop, so a restart may be
-   cheap.
+3. ~~**Fork migration depth (§6).**~~ *Settled by the move:* `rcc2`
+   came across whole, and everything else — the retired `rcc`, the
+   snapshot branches, the ref litter, the finished topic branches —
+   stayed in `krlmlr/duckdb-r-old`, which is read-only from here on.
+   The snapshot branches the gate needs it recreates as it goes.
 4. **Extraction home (Phase 5).** Shared repo (`krlmlr/vendor-loop`?)
    consumed `@main`, vs. copy-with-config in each consumer.
    Leaning shared repo; decide when the port starts.
 5. **Review artifacts.** Should routine-generated review digests
    (like `main-dev-review.md`) land under `plan/` by convention,
    or in PR comments only?
+6. **Does the store still earn its keep?** It exists because an agent
+   firing could not read CI logs; that is no longer true where the
+   firing has Actions access, so `series-loop.md` now reads the run
+   and falls back to `rcc2`. Every firing records which path served.
+   If the fallback goes unused across a full cycle, the question is
+   what the store is still *for* — CI-side selection reads it too
+   (D1), so retiring it means replacing that read as well, and the
+   answer may be "keep it, cheaply" rather than "delete it".
+   Decide on the evidence, not on this paragraph.

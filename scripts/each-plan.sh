@@ -2,7 +2,7 @@
 # Plan the sharded per-commit `rcc` build for the checked-out branch.
 #
 # Selects the undecided commits -- on a series branch those in
-# `<S>-green..HEAD` with no verdict on the `rcc` branch, elsewhere the
+# `<S>-green..HEAD` with no verdict on the `rcc2` branch, elsewhere the
 # first-parent history on or after $SINCE without one -- and
 # partitions them into contiguous, cost-balanced shards (see
 # `scripts/each-partition.py`, which also decides how many shards are worth
@@ -17,11 +17,11 @@
 #   * a leg pays the ~4 min R/dependency setup once for ~20 commits, not once
 #     per commit;
 #   * consecutive commits in a leg share the runner's local ccache, where a
-#     typical adjacent vendor commit is ~98% cached (plan/history/vendoring-loop.md, A.2);
+#     typical adjacent vendor commit is ~98% cached (plan/superseded/vendoring-loop.md, A.2);
 #   * the whole batch is one workflow run: one thing to cancel, one set of logs.
 #
 # "Undecided" is read from the **verdict store**, not from commit statuses: a
-# commit has been decided when the `rcc` branch carries a record for it, and the
+# commit has been decided when the `rcc2` branch carries a record for it, and the
 # whole scan is one tree-only fetch (`scripts/rcc-decided.sh`). Statuses are a
 # display surface on the commit list and decide nothing here -- which is what
 # removes the reconciliation between two stores that used to answer this same
@@ -63,9 +63,9 @@
 # The four constants are fitted to the 29 commits of runs 30406932093
 # (main-fwd-dev, 24 commits over two legs) and 30422580063
 # (v1.5-variegata-fwd-dev, 5 commits, one leg), RMSE 1.3 min over the 26 warm
-# builds; see scripts/EACH.md section 3. Every leg still records
+# builds; see handbook/operations/ci/per-commit/planning/README.md. Every leg still records
 # duration_seconds per commit, and scripts/each-harvest.sh carries it onto the
-# `rcc` branch, so the fit can be redone from a wider range at any time.
+# `rcc2` branch, so the fit can be redone from a wider range at any time.
 
 set -euo pipefail
 
@@ -95,7 +95,8 @@ echo "Considering commits on or after ${SINCE}"
 # everything at or before `<S>-green` is trusted
 # and never rebuilt, and if green exists but is not an ancestor of HEAD the
 # branch is mid-surgery or on another lineage, so nothing is planned rather than
-# flooding the queue with an unbounded scan.
+# flooding the queue with an unbounded scan -- and the job fails, because that
+# state is somebody's half-finished ref move, not a branch the loop produced.
 
 # Reached from more than one early exit: a branch whose range cannot be bounded
 # plans nothing at all rather than a little of everything.
@@ -137,15 +138,40 @@ case "${branch}" in
         RANGE=("refs/remotes/origin/${series}-green..HEAD")
         echo "Series branch: scanning origin/${series}-green..HEAD"
       else
-        echo "origin/${series}-green is not an ancestor of HEAD -- planning nothing"
+        # Loud, unlike the other early exit below: green existing but off this
+        # lineage is never a state the branch reaches on its own. Somebody moved
+        # a ref -- a rewind that did not take green back with it, a force-push
+        # onto another lineage -- and every commit pushed until they notice goes
+        # unbuilt. Silence here reads as a green run that built nothing.
+        green_sha="$(git rev-parse --short "refs/remotes/origin/${series}-green")"
+        head_sha="$(git rev-parse --short HEAD)"
+        echo "::error title=${series}-green is not an ancestor of ${branch}::" \
+          "origin/${series}-green (${green_sha}) is not an ancestor of ${branch}" \
+          "(${head_sha}), so no commit can be selected. Move ${series}-green to a" \
+          "commit ${branch} descends from, then push ${branch} again."
+        {
+          echo "## Nothing planned"
+          echo
+          echo "\`origin/${series}-green\` (\`${green_sha}\`) is not an ancestor of"
+          echo "\`${branch}\` (\`${head_sha}\`)."
+          echo
+          echo "Everything at or before green is trusted and never rebuilt, so the"
+          echo "scan is bounded by it; off this lineage there is no range to scan."
+          echo "Move \`${series}-green\` to a commit \`${branch}\` descends from,"
+          echo "then push \`${branch}\` again."
+        } >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
         plan_nothing
-        exit 0
+        exit 1
       fi
     elif [ -n "${retry}" ]; then
       # Without the anchor the scan would fall back to first-parent history
       # since SINCE, reach past the series' seed into `main`, and queue a build
       # for every commit there that has no verdict. A retry branch
       # naming a series that has no green is not a request anyone can serve.
+      #
+      # Quiet, unlike the exit above: a series with no green yet is a state a
+      # new series is legitimately in, and failing here would redden a push that
+      # is not wrong, only early.
       echo "Retry branch names series ${series}, which has no green -- planning nothing"
       plan_nothing
       exit 0
@@ -168,7 +194,7 @@ total="$(wc -l < "${workdir}/all" | tr -d ' ')"
 echo "Commits in range: ${total}"
 
 # ------------------------------------------------------------ read verdicts --
-# Every commit the `rcc` branch holds a record for, in one tree-only fetch. A
+# Every commit the `rcc2` branch holds a record for, in one tree-only fetch. A
 # reachable store that says nothing about a commit is the answer "undecided";
 # a store that cannot be reached is not an answer at all, and
 # scripts/rcc-decided.sh exits non-zero for it rather than reporting an empty
@@ -182,7 +208,7 @@ elif [ "${total}" -eq 0 ]; then
 else
   "${here}/rcc-decided.sh" > "${workdir}/decided"
 fi
-echo "Verdicts on the rcc branch: $(wc -l < "${workdir}/decided" | tr -d ' ')"
+echo "Verdicts on the rcc2 branch: $(wc -l < "${workdir}/decided" | tr -d ' ')"
 
 # ---------------------------------------------------------------- select ----
 # Keep a commit when the store has no record for it. A record is a decision and

@@ -1,8 +1,8 @@
-# Consolidate the orphan `rcc` branch: make its two record layouts agree, drop
-# logs past their retention, and squash the history to two commits.
+# Consolidate the orphan `rcc2` branch: drop everything past the retention
+# window, and squash the history to two commits.
 #
 # `workflow_dispatch` only, and deliberately so. Every other writer to that
-# branch is additive and races safely (see scripts/rcc-merge.sh); this one
+# branch is additive and races safely (see scripts/rcc-publish.sh); this one
 # rewrites the branch, and the one thing that makes a rewrite safe is knowing
 # nothing else is mid-flight. A schedule cannot know that. The push carries a
 # lease as a backstop, so a writer that did land in between refuses the push
@@ -18,10 +18,10 @@ on:
         description: "Rewrite and force-push. Leave off for a dry run."
         type: boolean
         default: false
-      log-retention-days:
-        description: "Keep logs for records at most this old (0 = keep all)"
+      retention-days:
+        description: "Keep records and logs at most this old (0 = keep all)"
         type: string
-        default: "30"
+        default: "180"
 
 name: rcc-consolidate
 
@@ -37,7 +37,7 @@ jobs:
     if: github.repository == 'krlmlr/duckdb-r'
     runs-on: ubuntu-26.04
 
-    name: "Consolidate the rcc branch"
+    name: "Consolidate the rcc2 branch"
 
     permissions:
       contents: write
@@ -49,18 +49,20 @@ jobs:
 
       - uses: ./.github/workflows/git-identity
 
-      - name: Add rcc worktree at runs/
+      # The one job that does want a full checkout of the store: it decides what
+      # to drop by reading every record, and rewrites the branch as a whole.
+      - name: Add rcc2 worktree at runs/
         run: |
-          ## -- Add rcc worktree at runs/ --
+          ## -- Add rcc2 worktree at runs/ --
           set -euo pipefail
-          if ! git ls-remote --exit-code --heads origin rcc > /dev/null 2>&1; then
-            echo "No rcc branch to consolidate."
+          if ! git ls-remote --exit-code --heads origin rcc2 > /dev/null 2>&1; then
+            echo "No rcc2 branch to consolidate."
             exit 1
           fi
           # `+` because a previous consolidation force-pushed this branch, and a
           # non-fast-forward fetch is the normal case here rather than an error.
-          git fetch origin '+refs/heads/rcc:refs/heads/rcc'
-          git worktree add runs rcc
+          git fetch origin '+refs/heads/rcc2:refs/heads/rcc2'
+          git worktree add runs rcc2
         shell: bash
 
       - name: Consolidate
@@ -68,7 +70,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           OUT_DIR: runs
           APPLY: ${{ inputs.apply && '1' || '' }}
-          LOG_RETENTION_DAYS: ${{ inputs.log-retention-days }}
+          RCC_RETENTION_DAYS: ${{ inputs.retention-days }}
         run: scripts/rcc-consolidate.sh | tee "${RUNNER_TEMP}/consolidate.log"
         shell: bash
 

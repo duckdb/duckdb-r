@@ -1,4 +1,6 @@
 # Implementation of the storage-location policy documented in `?duckdb_storage`.
+# Explained in handbook/usage/storage/README.md, and for the temp/spill
+# resolvers at the bottom, handbook/usage/memory/README.md.
 # Extensions and stored secrets live under a single "home" directory that is
 # resolved afresh on every `duckdb()` call; the resolvers and the user-facing
 # status function build on the helpers below.
@@ -168,10 +170,22 @@ check_home_arg <- function(home) {
 # askYesNo()'s TRUE / FALSE / NA (NA when the prompt is cancelled); the caller
 # treats anything but TRUE as a decline. Mockable seam: tests bind this directly
 # rather than driving the console.
+#
+# The default is anchored at `interactive()`, not the `is_interactive()` that
+# gates the prompt in resolve_storage_home(). The two can disagree: setting
+# `rlang_interactive = TRUE` (a common idiom in reverse dependencies' tests)
+# makes `is_interactive()` report an interactive session in a process where
+# `readline()` cannot reach a human -- it returns "" at once, and askYesNo()
+# takes that empty answer as its `default`. With a hardcoded TRUE the package
+# would then consent on the user's behalf and create `~/.duckdb` during
+# `R CMD check`, exactly what this policy exists to prevent. Anchoring the
+# default at `interactive()` makes the unanswerable prompt a "no", which falls
+# through to the per-session tempdir. A human at a console still gets the
+# convenient "yes" default.
 consent_to_create_home <- function(path) {
   utils::askYesNo(
     paste0("duckdb: create ", path, "?\n"),
-    default = TRUE
+    default = interactive()
   )
 }
 
@@ -214,22 +228,40 @@ temp_directory_override <- function() {
   NULL
 }
 
-# Resolve the temp/spill directory. For in-memory databases DuckDB would spill
-# to a `.tmp` directory in the working directory, so point it at a per-session
-# tempdir instead; for on-disk databases keep DuckDB's `<db>.tmp` default
-# (`directory` is NULL so the setting is left unset). Overridable.
+# Resolve the temp/spill directory. Temporary storage stays on by default, as
+# in the DuckDB CLI. For on-disk databases keep DuckDB's `<db>.tmp` default
+# (`directory` is NULL so the setting is left unset); for in-memory databases
+# DuckDB would spill to a `.tmp` directory in the working directory, so point
+# each instance at its own directory under the session tempdir instead.
+# Overridable; an override is passed through verbatim and never created here,
+# like an explicit `temp_directory` in the CLI.
 resolve_temp_directory <- function(dbdir) {
   override <- temp_directory_override()
   if (!is.null(override)) {
     return(override)
   }
   if (is_memory_dbdir(dbdir)) {
-    return(list(
-      directory = file.path(session_home(), "temp"),
-      source = "session"
-    ))
+    return(list(directory = instance_spill_directory(), source = "session"))
   }
   list(directory = NULL, source = "default")
+}
+
+# The spill directory for one in-memory database instance:
+# `<session_home>/temp/spill-<unique>`. The leaf is not created here -- that is
+# left to the engine, which creates it when a query first spills and removes it
+# again when the instance shuts down, exactly as the CLI's `.tmp` behaves. Only
+# the parent chain is created, because the engine's directory creation is a
+# single-level `mkdir` that cannot make two missing levels: without it, the
+# first spill fails with an IO Error instead (the in-memory corner of the
+# duckdb/duckdb-r#1604 symptom family). The leaf is unique per instance because
+# concurrent instances must not share a spill directory: the engine's spill
+# file names are deterministic (`duckdb_temp_storage_<size>-<index>.tmp`,
+# `duckdb_temp_block-<id>.block`), and a shutting-down instance removes the
+# `duckdb_temp_*` files -- or the whole directory -- it finds in its own.
+instance_spill_directory <- function() {
+  root <- file.path(session_home(), "temp")
+  dir.create(root, recursive = TRUE, showWarnings = FALSE)
+  tempfile("spill-", tmpdir = root)
 }
 
 is_memory_dbdir <- function(dbdir) {

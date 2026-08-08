@@ -1,5 +1,8 @@
 # The series loop: vendor, promote, repair
 
+*Handbook: [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md) —
+what this routine is, and when it runs.*
+
 One routine drives **all** series:
 each firing enumerates every series and every existing forward (`-fwd`)
 counterpart and serves each in turn.
@@ -18,7 +21,7 @@ this loop repairs in place and was proven on the `main` rewind
 | `<S>-build` | the routine, unconditionally | Every upstream first-parent commit vendored one-to-one, glue compiling at every commit. **No CI runs here** (`each.yaml` never matches `*-build`). The buffer. |
 | `<S>-dev` | the routine, force-push | `<S>-build` commits, consumed up to 100 at a time, with test/R/patch adaptations folded in as CI demands. What CI builds, commit by commit. |
 | `<S>-green` | the routine, fast-forward only | The newest commit such that every commit in `<S>-green..it` has a `success` run. What r-universe should build from. |
-| `<S>-build-base` | the routine | The `<S>-build` commit equivalent to `<S>-green` (same vendored upstream SHA). Marks how much of the buffer has been consumed and verified. |
+| `<S>-build-base` | the routine, force-push | The `<S>-build` commit equivalent to `<S>-green` (same vendored upstream SHA). Marks how much of the buffer has been consumed and verified. A marker with no consumer, recomputed every stage 3. |
 
 Equivalence between `-build` and `-dev` commits is by the
 `duckdb/duckdb@<sha>` reference in the commit subject —
@@ -77,21 +80,27 @@ every walk below is bounded by `<S>-green`, from the first firing on.
 
 Set up first, then work through the stages in order;
 each stage is skippable when it has nothing to do, the setup is not.
-Three scripts carry the mechanical parts:
+Five scripts carry the mechanical parts:
 `scripts/series-check.sh`
-(read-only — walks every series, classifies from the harvest,
+(read-only — walks every series, classifies from the `rcc2` store,
+which is stage 2's fallback source, not its first one;
 prints one verdict each:
 ADVANCE / WAIT / RETRY `<sha>` / REPAIR `<sha>` / IDLE,
 plus a CUTOVER line for a forward series that has caught up —
 a suggestion for a human, stage 6),
 `scripts/series-advance.sh <S>`
 (stages 3 and 5 — fast-forwards `-green`,
-moves `-build-base` by vendored-SHA match,
+sets `-build-base` to the vendored-SHA match,
 extends `-dev` by ≤ 100;
-refuses on any failure or non-fast-forward),
-and `scripts/series-port.sh <S>`
+refuses on any failure, and on a `-green` that would not fast-forward),
+`scripts/series-port.sh <S>`
 (stage 4 — brings `<S>-dev` level with `main`:
-cherry-picks plus a tooling sync).
+cherry-picks plus a tooling sync),
+`scripts/r-universe-check.sh`
+(read-only — what r-universe made of every published green, stage 3),
+and `scripts/series-glue.sh <S>`
+(read-only — every R-side glue adaptation a series carries, in one read;
+what stage 2 mines and what a forward replays).
 Judgement — repairs, review, vendoring — stays here.
 
 ### 0. Setup
@@ -122,6 +131,19 @@ and answers wrong or refuses.
 Tags are not optional either:
 `vendor-one.sh` reads `git describe --tags` for the version it stamps.
 
+**Establish how this firing reads results, once.**
+Verdicts and logs come from the `each-rcc` runs that produced them (stage 2),
+which needs Actions read access to the repository those runs live in.
+Probe it here rather than per commit:
+list the most recent `each-rcc` runs.
+If that answers, the firing is on the run path for every stage below.
+If it does not — no such access from this session at all —
+the firing falls back to the `rcc2` store,
+which still works, at the store's latency and inside its 30-day window.
+Record which one served: the store exists to work around a log access
+problem that may have passed, and retiring it waits on firings
+that report they never had to open it.
+
 **Read the open PRs, and use judgement about them.**
 List the ones touching `.github/`, `scripts/` or `.claude/` —
 the paths stage 4 ports —
@@ -143,14 +165,32 @@ and none of them is applied early —
 the series gets a tooling change when it merges and stage 4 ports it,
 never before.
 
+**The handbook owns the code; this skill owns ref motion.**
+Any change to code, tests or patches is bound by
+[`handbook/`](/handbook/README.md)'s page for that area,
+which this skill neither repeats nor overrides.
+Read the page before changing anything it owns.
+
 ### 1. Vendor onto `<S>-build`
 
 Run **`main`'s copy of the script**, against the buffer worktree:
 
 ```sh
+git -C <upstream-clone> checkout --detach origin/<upstream branch of S>
 VENDOR_REPO=<S>-build-worktree \
   <main-checkout>/scripts/vendor-one.sh --commits 100 <upstream-clone>
 ```
+
+**The clone's HEAD is what picks the line to vendor**, so check it out first.
+The script reads it as the walk's right-hand side and nothing else names one;
+a clone left wherever the last session parked it
+vendors that branch onto this series' buffer.
+`main`, `v1.5-variegata` and `v1.4-andium` each track
+the `duckdb/duckdb` branch of the same name (`BRANCHES.md`).
+The script refuses when the buffer's last vendored commit
+is off the clone HEAD's first-parent line,
+which is the shape a wrong ref takes;
+treat that refusal as the answer and check out the right branch.
 
 This stage is the one place the port stage cannot reach.
 Stage 4 brings `.github/`, `scripts/` and `.claude/` on `<S>-dev`
@@ -197,27 +237,108 @@ do not edit `src/duckdb/` by hand in this stage.
 
 ### 2. Repair the oldest `<S>-dev` failure
 
-Read the harvest on branch `rcc`
-for every commit in `<S>-green..<S>-dev` —
-`runs2.d/<xx>/<sha>.ndjson` per commit,
-or `runs2.ndjson`, which holds the same records concatenated.
+Every commit in `<S>-green..<S>-dev` was decided by an `each-rcc` leg,
+and **the leg's own run is where its result is read**.
 That range is the loop's whole world:
 nothing at or before `<S>-green` is ever re-examined.
-A commit **missing** from the harvest has not completed —
-wait, do not guess.
-`each.yaml`'s legs publish a record within seconds of deciding a commit
-(see [`EACH.md`](/scripts/EACH.md) §3),
-so missing now means undecided, not merely uncollected.
 
-If a commit is still missing after **12 hours**, presume its run lost —
-but only after trying hard to rule that out from what git can see:
-the harvest may be stale
-(check the age of the `rcc` branch tip against its 30-minute schedule),
-and the run may simply be queued
-(runner throughput is roughly 35–40 commits per hour,
-so a long tail behind a large push is normal).
-Review whatever CI state is reachable before concluding loss.
-Only then self-heal:
+#### Read the results from the runs that produced them
+
+List the `each-rcc` runs on `<S>-dev` and on `retry-<S>-dev`,
+newest first, back to when `<S>-green` last moved,
+and take each run's `each-logs-<shard>-<attempt>` artifacts —
+one per leg, holding, for the commits that leg decided,
+exactly what the `rcc2` store holds for them, in the same bytes.
+Unzipped:
+
+```
+index.ndjson         one line per commit that leg decided
+parts/<sha>.ndjson   the record, published as runs2.d/<xx>/<sha>.ndjson
+<sha>.log            the log, published as logs2.d/<xx>/<sha>.log
+```
+
+`each-shard.sh` writes those files and then *copies* the last two onto the
+branch, so the two sources cannot disagree about a verdict —
+they differ in reach and in latency, never in content.
+Where a commit appears in more than one run —
+a retry, a re-run of a leg that died —
+the **higher run id wins**, the same rule the fan-in applies
+([`store/`](/handbook/operations/ci/per-commit/store/README.md)).
+
+Fetch through whatever Actions access the firing has:
+the GitHub tools (list the workflow's runs, list a run's artifacts,
+ask for an artifact's download URL, then `curl` and `unzip` it),
+or `gh run download` where a `gh` exists.
+Unzip to disk and grep there.
+A leg's artifact is tens of megabytes of build output,
+and nothing below needs any of it in context:
+what a firing reads is one state per commit,
+and the tail of the one log it is about to classify.
+
+Artifacts keep for **14 days**, far longer than a commit normally waits
+between being pushed and being repaired.
+Past that the leg's **job log** carries the same content
+inline — `::group::<sha>` opens the commit's section,
+its log is printed inside, and `<sha>: <state> (<n>s, exit <rc>)` closes it —
+and GitHub keeps job logs far longer than either the artifact
+or the store's 30-day window.
+Which shard holds which commit is the run's `each-plan` artifact (7 days),
+or the group markers themselves.
+
+Two deliberate behaviours mislead a reader who skips them.
+A leg **exits 0 even when commits failed** —
+a red commit is a result, not a broken leg —
+so a run's `conclusion` says nothing about any commit in it,
+and asking that run only for its *failed* jobs answers with the jobs that
+broke, which are the ones a red commit is not in.
+Take the shard jobs, all of them.
+And a leg that resumed skips what a previous attempt decided
+(`already decided, skipping`), so its artifact covers only what it rebuilt;
+the older attempt's artifact is still there, named per attempt, and still counts.
+
+#### When a run cannot be read, consult the store
+
+That is what it is for:
+`scripts/series-check.sh`, or `git show origin/rcc2:runs2.d/<xx>/<sha>.ndjson`
+with `logs2.d/<xx>/<sha>.log` beside it.
+Three cases reach for it —
+the firing has no Actions access to the repository the runs live in,
+the deciding run has aged out,
+or the run is there and its results are not
+(a leg that died before it uploaded anything).
+Nothing else in this stage changes; the bytes are the same either way.
+
+`series-check.sh` reads the store and only the store.
+Its ref geometry — in flight, buffered, the retry ledger, a ready cutover —
+does not depend on where verdicts come from, so run it every firing;
+but where its verdict and a run disagree, the run is right,
+because the store is the copy.
+A store that stopped being written would make the script confidently wrong,
+which is a stage 7 PR — teach it the run route — never a repair on the series.
+
+#### A commit with no verdict
+
+It has not been judged: wait, do not guess.
+The run list says which kind of waiting it is:
+
+* a run on the branch is queued or in progress — it is coming;
+  throughput is roughly 35–40 commits per hour,
+  so a long tail behind a large push is normal;
+* a completed run planned it but its leg deferred it at the leg deadline,
+  or could not check it out — the ordinary rule replans it on the next push;
+* no run covers it at all — nothing was ever triggered;
+  push, or dispatch `each-rcc` on the branch.
+
+The store answers this one badly, which is worth the run list even on a firing
+whose verdicts came from the store:
+an absent record can equally mean a stale harvest
+(its tip against the 30-minute schedule), a queued run, or a lost one.
+
+Only when none of those explains it,
+and the run that should have decided it finished hours ago saying nothing
+about it, presume that run lost.
+**12 hours** is the outer bound on being patient, not a licence to skip the
+question. Only then self-heal:
 push `retry-<S>-dev` at the first commit with missing state
 (*Rerun one commit*, below).
 A missing status needs nothing forced —
@@ -233,7 +354,10 @@ check the open PRs read during setup:
 a failure an earlier firing already wrote up
 is one to work around, not to re-derive.
 
-Classify each `failure` by what its log (`logs2/<sha>.log`) **contains**:
+Classify each `failure` by what the commit's log **contains** —
+`<sha>.log` in the leg's artifact, that commit's `::group::` section in the
+leg's job log, or `logs2.d/<xx>/<sha>.log` on the store, whichever the firing
+is reading; they are the same bytes:
 
 | evidence | meaning | action |
 |---|---|---|
@@ -291,7 +415,7 @@ or the stages the repair touches when it does not;
 `git clean -fdx -- src/` first either way.
 (Until #59 is available:
 `R CMD INSTALL` plus `testthat::test_local()`.)
-A CI round trip costs ~35 minutes plus queue and harvest;
+A CI round trip costs ~35 minutes plus queue;
 a local pass costs ~10.
 One local pass that catches a bad repair saves a full cycle,
 and a repair that was not run locally is a guess.
@@ -309,6 +433,20 @@ the delta between that `-dev` commit and its `-build` equivalent —
 are proven fixes.
 Carrying them over beats rederiving them,
 and their commit-message trailers say what they were for.
+
+**Read the whole set before carrying any one of it across.**
+`scripts/series-glue.sh <S>` prints every glue adaptation the series holds,
+oldest first, with the upstream SHA each answered
+and the `R-side fix` prose each left behind,
+and closes with the files ranked by how often they were adapted.
+One lookup answers a narrower question than the situation asks:
+upstream moves the same call site repeatedly,
+each move is a separate commit here,
+and only the last version of that glue survives the range.
+Match on the failure in front of you alone
+and the fix carried over is an intermediate one —
+already superseded, further down the very range it was read from.
+The ranked file list is the cheapest read of where that is about to happen.
 Mining is what *forwarding* costs, and only forwarding:
 a forward series rebased onto a newer mainline
 (`series-rebase.md`) leaves nothing to mine,
@@ -340,7 +478,7 @@ the review is what earns it.
 The branches are per-run;
 read the one for the sha being repaired.
 
-### 3. Advance `<S>-green` and `<S>-build-base`
+### 3. Advance the frontier, and read what r-universe made of the last one
 
 Fast-forward `<S>-green` to the newest `<S>-dev` commit
 such that every commit in `<S>-green..<that commit>` has a `success` run.
@@ -349,12 +487,213 @@ everything at or before `<S>-green` is trusted —
 verified by this loop,
 or accepted as the series' seed on day one —
 and is never re-examined.
-Move `<S>-build-base` to the `<S>-build` commit
-with the same vendored upstream SHA
-(day one: the seed tip, before any vendor commit is consumed).
-Fast-forward only —
-if `-green` cannot fast-forward, something rewrote verified history;
+`-green` is fast-forward only —
+if it cannot fast-forward, something rewrote verified history;
 stop and say so.
+Set `<S>-build-base` to the `<S>-build` commit
+with the same vendored upstream SHA
+(day one: the seed tip, before any vendor commit is consumed),
+force-pushing where the match is not a fast-forward.
+
+**`-build-base` lands on vendor commits only, so it lags.**
+The match is by vendored SHA,
+and a `-build` commit that vendors nothing carries none —
+the `patch/` entries stage 3 commits onto the buffer, in particular.
+So a buffer ending in such commits leaves `-build-base` below them
+even when green already has their content,
+and the *buffered* badge (`-build-base..-build`) overstates by that much:
+9 rather than 6 on `main`, 2026-08-04.
+It is display-only and self-correcting —
+the next verified vendor commit moves the ref past the whole run —
+so nudging it onto the newest `-build` commit green demonstrably contains
+is a legitimate manual move, not a repair.
+
+**`-build-base` is the one ref of the four that is not fast-forward only.**
+It is a marker, not a promise:
+nothing consumes it, the match is recomputed from scratch every stage 3,
+and where the ref sits today tells the next firing nothing
+it does not re-derive.
+So the stage **sets** it rather than advancing it,
+force-pushing when the match is not a fast-forward,
+and the cost of being wrong is one display column
+until the next stage 3 recomputes it.
+The other three carry their guarantees unchanged:
+`-green` fast-forwards only,
+`-build` and `-dev` are rewritten only by this loop,
+by the rules above.
+
+A ref found off the buffer's line is therefore not a puzzle to solve.
+It happened once, on `v1.4-andium`, 2026-08-06:
+an auto-update commit landed on `-build` and on `-build-base`
+31 seconds apart and left the two siblings,
+which the stage then refused as a rewind of verified history.
+Set the ref and move on;
+diagnosing what wrote it is worth doing only if it recurs.
+
+Do not teach the match to guess:
+a patch-id scan finds only the commits
+whose content reached `-dev` unsplit,
+which on `main` that day was one of three.
+
+#### What r-universe made of it
+
+`<S>-green` is a ref with a consumer,
+and that consumer builds it on platforms this loop never sees.
+The `rcc` gate is Linux on one R version;
+r-universe builds Windows on x86_64 and arm64,
+macOS on x86_64 and arm64, and wasm,
+against R-devel, release and oldrel,
+and runs `R CMD check` on each.
+So a series can be green at every commit
+and still publish a package that does not compile —
+and no `each-rcc` run, on any platform it covers, would ever say so.
+This is the read that closes that gap:
+
+```sh
+scripts/r-universe-check.sh            # every package, per target, reds only
+scripts/r-universe-check.sh --log <id> # the log behind one of them
+```
+
+It prints, per package, the version and the commit built —
+naming the local ref when this clone knows it,
+which is how a red is attributed to a series —
+then one line per target that is not OK, with the log URL.
+Three access facts it exists to encapsulate, each paid for once:
+the `/builds` dashboard answers 403 to some fetchers
+while `https://<universe>.r-universe.dev` answers a plain curl;
+the build logs live in the GitHub repository `r-universe/<universe>`,
+which this project cannot be granted,
+but `/api/actions/logs/<job-id>` serves them complete and anonymously;
+and `/api/packages` alone **cannot** answer the question,
+because its `_binaries` array is one row per artifact —
+a target whose build failed outright leaves no row,
+and the row from the last version that did build stays,
+wearing that older version.
+Read as current state it reports success
+for a target that has been failing for a fortnight.
+The script reads the version-scoped check table for verdicts
+and `_binaries` only to say how stale the published binary has become.
+
+Results always describe the **previous** green:
+a universe build takes about an hour and starts when the ref moves,
+so a firing reads the consequence of an earlier firing's push.
+That is why this is a read and never a gate —
+nothing here holds stage 3's fast-forward.
+The mainline `duckdb` package is built from `duckdb/duckdb-r`, not a series:
+a red there is upstream's, and reaches this repository as a PR to `main`.
+
+**A platform DuckDB publishes no extensions for is not a finding.**
+The extension install test downloads,
+so wherever the repository has no build for this platform
+it fails with an HTTP 404 —
+about DuckDB's release coverage, not about the commit green points at,
+and not something this repository can move.
+Which platforms are covered is DuckDB's list and it changes,
+so check the current one before spending a diagnosis:
+`handbook/usage/extensions/README.md` links it,
+and holds whatever the standing gap is.
+As of 2026-08 that is `windows-devel-arm64` and `windows-release-arm64`
+on every package (duckdb/duckdb-r#2425) —
+read past those two and judge the rest of the table.
+Only what the list explains:
+every other red is a finding until shown otherwise.
+
+**Never undo a push to green.**
+A red here is a red on a commit the gate called green,
+and the reflex — rewind `-green` to before it — is wrong twice over:
+`-green` moves forward only (the invariant below),
+and the ref serves a package,
+so rewinding publishes an older one
+and throws away every verified commit above it
+to escape a failure on a platform the gate never covered.
+Green stays. The finding travels forward.
+
+**State the finding in the commit message on `-dev`.**
+An r-universe failure has no per-commit record anywhere —
+not in an `each-rcc` run, not in the store — and no commit of its own;
+it lives in a job log that ages out,
+in a universe that rebuilds over it.
+So write it where the series keeps its memory:
+the message of the `-dev` commit that carries the fix,
+in an `R-side fix` section like any other adaptation,
+naming the target, the verdict and what the log said.
+`scripts/series-glue.sh` and the mining step of stage 2 read those messages,
+so a forward picks the finding up
+instead of rediscovering it from a build that has long since scrolled off.
+When there is no fix to carry — an hour budget r-universe overran,
+an extension repository with nothing published for a platform —
+write it anyway, on the next `-dev` commit the stage produces:
+a finding with no repair is still the thing
+that stops the next firing diagnosing it from scratch.
+
+**What a fix may be is the handbook's rule, not this skill's.**
+A compiler-warning fix is bound by
+[`architecture/glue/`](/handbook/architecture/glue/README.md),
+which owns the tree's position on suppression;
+read it before writing one.
+The shapes listed below are shapes, never permission.
+
+**A `patch/` entry is a prototype of an upstream change**,
+filed as a pull request and retired when upstream takes it
+([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
+So write it as the diff you would send to `duckdb/duckdb`,
+and keep the vendored code free of commentary about us:
+the reasoning goes in the commit message,
+which the patch header carries upstream with it.
+
+**A fix must cost Linux nothing.**
+The only gate that will judge it is Linux on one R version,
+so a change that helps Windows or macOS is unverifiable where it runs,
+and a change that *hurts* Linux is the one outcome that gate does catch —
+late, after a replay of everything above it.
+Prefer changes that are inert where the gate can see them:
+a `patch/` entry whose whole diff sits inside `#if defined(_WIN32)`,
+a test skip keyed on a runtime value the engine itself reports,
+a cast or an initialization that states an intent the code already has.
+Anything broader waits for evidence,
+and a local reproduction is evidence:
+the compiler a warning names is usually installed here.
+Reproduce it, fix it, confirm the diagnostic is gone,
+then compile the same translation unit under `g++ -Wall`
+and confirm the output is unchanged —
+which is what costs-Linux-nothing means as a check
+rather than as a claim.
+A fix carrying both halves does not wait for r-universe;
+the next universe build confirms it in passing.
+
+**Say which flags a reproduction needed.**
+The gate compiles with `R CMD config CXXFLAGS`, which is `-g -O2`,
+so a `-Wall` diagnostic is invisible to it
+and to any local build that does not add the flag by hand.
+Adding it is how another platform's warning is reproduced;
+recording it is what stops the result reading as the gate's view.
+
+**A fix belongs where its code lives, which is not always `main`.**
+A fix that is not series-specific belongs on `main`,
+where stage 4 spreads it to every series by itself —
+but a `patch/` entry is only portable when the tree it patches is.
+`main` carries the engine `main` has vendored,
+and a series buffer runs ahead of it,
+so a patch written against the newer engine
+applies in neither direction on `main`'s tree —
+`vendor-one.sh`'s `PATCH BROKEN` exit.
+Landing it there breaks the next vendor run
+instead of helping any series.
+Check that the code exists on `main` before routing a fix through it;
+where it does not, the fix is series-specific by engine version,
+belongs on `<S>-dev` and `<S>-build`,
+and reaches `main` when `main`'s engine reaches the code.
+
+**A `patch/` entry has to reach the buffer too.**
+Stage 4 ports `main` onto `<S>-dev` and stops there;
+`<S>-build` carries no ports by design (stage 1).
+But `vendor-one.sh` applies the **buffer's** `patch/*.patch`
+to each tree it regenerates,
+so a patch that only ever landed on `-dev`
+is absent the next time the buffer vendors,
+and the commit that reaches `-dev` from it
+arrives broken again on exactly the platform the patch was for.
+Commit it onto `<S>-build` as well, in the same firing.
 
 ### 4. Port from `main`
 
@@ -374,8 +713,8 @@ scripts/series-port.sh <S> --apply <sha>…   # a chosen subset instead
 
 The script lists **every** commit `main` has that the series lacks,
 oldest first,
-classified TOOLING / MIXED / OTHER / VENDOR by what it touches,
-and applies all but VENDOR by default.
+classified TOOLING / MIXED / OTHER / VENDOR / VERSION by what it touches,
+and applies all but VENDOR and VERSION by default.
 A MIXED or OTHER commit is a *forward-port*
 in `BRANCHES.md`'s sense (invariant S4):
 `-dev` has always been vendor commits
@@ -401,6 +740,21 @@ carrying no upstream SHA;
 excluding them by path made exactly those fixes wait for a forward,
 which is the one thing the port exists to end.
 They are ordinary commits, ported like any other.
+
+VERSION commits are listed and never auto-picked either:
+`main`'s R-client counter is not this series'.
+A `-dev` version says which release line the series was seeded from
+and how far its own vendoring has run,
+and what `main` is at today is read from `main`
+([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
+Here the **content** decides, not the subject:
+the commit moves `Version:` and carries nothing but release paperwork,
+so a bump under a subject other than `fledge:` is held back too,
+and a bump riding on real content is not —
+that one is a forward-port that happens to bump,
+ported whole like any other,
+because a pick is never half a commit.
+
 Port volume threatens nothing either:
 the readers of the strand — `vendored_sha()` in stage 5,
 the base scan in `vendor-one.sh` — look *past* such commits by subject,
@@ -418,6 +772,43 @@ and treat anything it reverts that the series genuinely needs
 as a finding for `main`:
 make it conditional there;
 a series never keeps its own fork of the tooling.
+
+**A frozen series takes no ports by default.**
+A series seeded from a release branch keeps the R code it was seeded with —
+glue, tests, docs and version alike —
+so `main`'s development line,
+which belongs to another engine's R side,
+is not a backlog it is behind on.
+`scripts/series-port.sh` reads that off the lineage under the seed
+and skips the walk for such a series,
+so the sync commit is their whole default port
+and their tooling still follows `main`:
+a frozen R side is not a frozen CI,
+and the identity goal above holds for every series either way.
+Run the script for a frozen series like any other;
+the default needs no judgement.
+
+**Frozen is not untouchable.**
+A change the r-universe build genuinely needs still lands —
+a `configure` fix, whatever keeps the flavor green —
+and stage 2 reaches for it the same way it mines a base series:
+if the red has already been fixed on `main`,
+port that commit rather than rederive it.
+Name it, one commit at a time:
+
+```sh
+scripts/series-port.sh <S> --list            # walk a frozen series anyway
+scripts/series-port.sh <S> --apply <sha>…    # take the ones the build needs
+```
+
+Explicit SHAs are never second-guessed,
+on a frozen series or any other.
+What the freeze buys is that nobody has to read
+the whole development line every firing
+to find the two commits that matter.
+The bar is what the build needs, not what `main` happens to have:
+a fix that only tidies R code the series is content with
+is not a reason to move the series off its seed.
 
 What stays judgement:
 
@@ -488,9 +879,12 @@ Exception: a series with a **live** forward counterpart
 (`<S>-fwd-build` exists and is not cutover litter)
 is being replaced —
 verify and promote it, but do not extend it.
-`each.yaml` triggers one `rcc` run per new commit;
-`rcc-logs.yaml` harvests results to branch `rcc` every 30 minutes,
-which is below build time (~35 min).
+The push triggers one `each-rcc` run for the commits it added,
+and every verdict that run reaches is readable from it
+as soon as the leg has written it —
+there is nothing to wait for a harvest for.
+The store's own writers (the leg's publish, the fan-in,
+`rcc-logs.yaml` every 30 minutes) only fill the fallback copy behind it.
 
 ### 6. Suggest a cutover — never perform one
 
@@ -642,29 +1036,31 @@ the failure a retry branch sits on is REPAIR, never RETRY.
 One ref per series, so it records the retry in flight,
 not the history of them.
 
-The verdict reaches the loop the ordinary way.
-A commit's record lives twice on `rcc` —
-`runs2.d/<xx>/<sha>.ndjson`, which the leg publishes within seconds,
-and a line in `runs2.ndjson`, which `rcc-merge.sh` keeps level with it.
-Readers take the per-commit record first,
-so `each-harvest.sh` and the leg both *replace* it rather than appending;
-that is the one case where a decided commit legitimately changes state.
+The verdict reaches the loop the ordinary way — from the rerun's own run.
+That run is on `retry-<S>-dev`, so its results name that branch
+and carry a higher run id than the run that first judged the commit,
+which is what tells the two apart while both exist.
+The pre-retry `failure` does not disappear when the retry is pushed:
+it stays the newest result for that SHA until the rerun reports,
+and repairing on it amends a commit that is about to go green.
+The store applies the same newest-run-wins rule to its copy,
+so `each-harvest.sh` and the leg both *replace* a record rather than append —
+the one case where a decided commit legitimately changes state.
 
-**Deleting a record by hand means deleting both.**
-Dropping only the line from `runs2.ndjson` does nothing:
-readers still find the record, and the next `rcc-merge.sh`
-re-appends the line from the part that is still there.
-To drop a commit's result, remove
-`runs2.d/<xx>/<sha>.ndjson`, its line in `runs2.ndjson`,
-and `logs2/<sha>.log`;
-then the scheduled backstop re-derives all of it from the fresh status.
+**Dropping a result by hand is a store-side operation**,
+and only concerns a firing that is reading the store:
+remove `runs2.d/<xx>/<sha>.ndjson` and `logs2.d/<xx>/<sha>.log`,
+and the scheduled backstop re-derives both from the fresh status,
+provided the commit is still inside the store's 30-day window.
+A run's own results are immutable;
+there a newer run is the only thing that supersedes an older one.
 
 **Both mechanisms live in the tree at the commit under retry.**
 `each.yaml` and its scripts are read from the retried ref, not from `main`,
 so a series whose commits predate them retries by hand:
 push the branch, dispatch `each-rcc` on `retry-<S>-dev`
 with `force=true` and `max-commits=1`,
-and drop the stale record from `rcc` once the rerun is green —
+and — on the store path only — drop the stale record once the rerun is green,
 both copies of it, per above.
 A rebase onto a newer mainline (`series-rebase.md`)
 is what carries the automatic path into a forward series.
@@ -705,7 +1101,10 @@ is what carries the automatic path into a forward series.
 
 ## Invariants
 
-- `<S>-green` and `<S>-build-base` move forward only.
+- `<S>-green` moves forward only.
+  `<S>-build-base` does not: it is a marker with no consumer,
+  recomputed from the vendored-SHA match every stage 3,
+  and set — force-pushed where it has to be — rather than advanced.
 - Cutover is manual.
   The loop reports that a forward series has caught up
   and prints the command; it never runs it,
@@ -727,29 +1126,30 @@ is what carries the automatic path into a forward series.
   is a run r-universe cannot tell apart.
   Gaps are fine; repeats are not.
 
-  The merge driver does not currently deliver this.
-  `ours-version` exists so a replay does not conflict
-  on the `Version:` line at every single commit,
-  and it keeps *our* side — which on a replay onto `<S>-green`
-  is green's version, for the whole chain.
-  A 40-commit `main-dev` came out of the 2026-08-02 firing
-  reading `1.5.99.9003.1039` from end to end.
-  Until the driver is fixed,
-  **restamp the counter after any replay**
-  and before pushing `-dev`:
+  A replay does not deliver it while `-dev` and `-build`
+  carry different `major.minor.patch` prefixes:
+  the merge driver's gate then keeps our side verbatim
+  and the counter freezes for the whole chain
+  ([`operations/releases/versioning/`](/handbook/operations/releases/versioning/README.md)).
+  `main` is in that state.
+  So after any replay, **restamp before pushing `-dev`**:
   walk the new commits oldest first
-  and reapply one bump per vendor commit
-  from the parent's value.
-  Check it, do not assume it —
-  a replay that silently froze the counter
+  and bump once per vendor commit from the parent's value.
+  [`scripts/series-advance.sh`](/scripts/series-advance.sh) does that
+  and then asserts it;
+  a replay done by hand is checked the same way,
+  because one that silently froze the counter
   looks exactly like one that did not.
-- Git alone is sufficient in principle:
-  even a rerun is one pushed ref —
+- **Every ref move is git alone.**
+  Even a rerun is one pushed ref —
   `retry-<S>-dev`, which asks for one commit to be judged again
   without rewriting anything —
-  and `each.yaml` schedules runs
-  for any commit in `<S>-green..tip` without a status.
-  When richer tools are available
-  (CI log retrieval, the Actions API),
-  use them — they shorten diagnosis —
-  but never depend on them.
+  and `each.yaml` plans runs
+  for any commit in `<S>-green..tip` that has no verdict.
+  Nothing a firing *writes* needs an API.
+- **What a firing reads comes from the runs, and falls back to git.**
+  The `each-rcc` run that decided a commit is the source of its verdict
+  and its log; the `rcc2` store is a copy, reachable with git alone,
+  for a firing that cannot read the runs.
+  Neither source may be *required*: a firing that has only one of them
+  still finishes, and says in its report which one it had.

@@ -21,12 +21,13 @@ Helpers are not entry points of their own.
    The root's per-area sketch names each area's actual
    next level; a renamed, added, or removed child
    updates the sketch in the same change.
-   Internal nodes are navigation-only:
-   a scope sentence and the list, nothing else.
-   A leaf is either written content
-   or a well-formed stub — stub notice first,
-   a `Scope:` line, a `Today:` list,
-   and a `To write this leaf` section last.
+   Internal nodes navigate and may govern:
+   a scope sentence, optionally the area's principles,
+   and the list — nothing else,
+   and a principle passes the three tests in the rules' forms.
+   A leaf is written content at some depth;
+   a leaf below comprehensive depth ends with one italic
+   deepen line naming what remains.
 
 2. **Link integrity** (mechanical).
    Every link under `handbook/` resolves,
@@ -69,7 +70,7 @@ Helpers are not entry points of their own.
    leaf. `scripts/` is machine-mapped in the helper's `groups`;
    for the rest, walk the top-level directories
    (`R/`, `src/`, `tests/`, `.github/`, `patch/`, `inst/`, …)
-   against the leaves' scope lines and work orders.
+   against the leaves' scope and deepen lines.
    Unclaimed surface is a finding:
    report it with a proposed leaf address —
    an unaddressable path is a defect of the tree,

@@ -1,5 +1,283 @@
 <!-- NEWS.md is maintained by https://fledge.cynkra.com, contributors should not edit this file -->
 
+# duckdb 1.5.5.9011
+
+## Bug fixes
+
+### readme
+
+- Vendor the DuckDB logos, and write two READMEs from one source (#2517, #2518, #2558).
+
+### flavor
+
+- Catch a renamed file that reached a series under its mainline name (#2559).
+
+### storage
+
+- Anchor the `~/.duckdb` consent default at `interactive()` (#2550).
+
+### series-advance
+
+- Set `-build-base`, rather than advance it (#2540).
+
+### patch
+
+- Fix the re2 clang warnings instead of hiding them (#2492).
+
+### series-advance
+
+- Clamp the replay anchor to the merge base (#2548).
+
+### rcc
+
+- Fetch the record a publish replaces, so a retry's verdict can land (#2547).
+
+### rcc
+
+- Stop the backstop recording a `pending` status as a verdict (#2544).
+
+### ci
+
+- Let `adbcdrivermanager` fail to build on Windows arm64 (#2539).
+
+## Documentation
+
+### handbook
+
+- Record the untyped-`NULL` mapping as designed, declining the flip to logical `NA` (#155, #2561).
+
+### integrations
+
+- Answer the frame-library request, Arrow and non-Arrow (#642, #2557).
+
+### statements
+
+- Move the multi-statement prepare rule to the leaf that owns it (#179, #2555).
+
+### connections
+
+- State where the instance's settings bind, and both ways `dbConnect()` gets them wrong (#83, #171, #2553).
+
+### data-import
+
+- Say what a virtual `filename` column changes (#1733, #2556).
+
+### types
+
+- Give the geometry write side its route, not just its absence (#1670, #2552).
+
+### types
+
+- State the UTF-8 repair that works, not the one that looks like it (#12, #2551).
+
+- Review DuckDB API usage in the glue code and assess a C API migration (#2413).
+
+### branches
+
+- State the mirrors' cadence, now that `krlmlr/duckdb-r` is a fork (#2494, #2542).
+
+- An entry that wraps its subject applies everywhere, so applying proves nothing (#2546).
+
+- Record the August 2026 forward, and turn the cpp11 gap it walked into into a check (#2545, #2543).
+
+## Refactoring
+
+### series-loop
+
+- Read verdicts from the `each-rcc` runs, keep `rcc2` as the fallback (#2549).
+
+
+# duckdb 1.5.5.9010
+
+## Bug fixes
+
+### tests
+
+- Expect the extension install to fail where DuckDB does not cover the platform (#2425, #2529).
+
+## Features
+
+- Mirror the fork's branches with the Pull app, and drop `sync.yaml` (#2534).
+
+### rcc
+
+- Move the verdict store to `rcc2`, one file per commit (#2505).
+
+## Chore
+
+- Increase retention to 180 days \[ci skip\].
+
+## Continuous integration
+
+- Add sharded `revdep2` workflow.
+
+## Documentation
+
+### extensions
+
+- Close the remaining gaps the extension issues map to (#2425, #2536).
+
+### handbook
+
+- Record the Windows extension-coverage boundaries the issues keep re-finding (#2530).
+
+## Testing
+
+### extensions
+
+- Drop the duplicate platform skip that made the canary unreachable (#2537).
+
+### extensions
+
+- Skip the install test where DuckDB publishes no binaries, and pin the gap (#2535).
+
+## Uncategorized
+
+- Ci: Harden `workflow_run` workflows against untrusted pull requests (#106).
+
+- Ci: Pin third-party actions to commits and let Renovate keep them pinned (#105).
+
+
+# duckdb 1.5.5.9009
+
+## Bug fixes
+
+### flavor
+
+- Name the flavor in the README blurb, and find GNU sed (#2510).
+
+## Continuous integration
+
+- Remove unused pr-commands workflow.
+
+## Documentation
+
+### plan
+
+- Record what the closed handbook wave verified, and file what it should not have written down (#2507).
+
+### handbook
+
+- Weigh documenting a limitation against removing it (#2509).
+
+### handbook
+
+- Complete the leaves the triage closes will link (#2523).
+
+## Uncategorized
+
+- Ci: Pass workflow context through the environment, not into script text (#102).
+
+- Ci: Add a Windows arm64 (`windows-11-arm`) check on R-release (#99).
+
+
+# duckdb 1.5.5.9008
+
+## Bug fixes
+
+### series-advance
+
+- Restamp the vendor counter across a replay (#2525).
+
+### series-port
+
+- Hold `main`'s version bumps back from a series (#2496, #2526).
+
+### windows
+
+- Export only the registration entry point from the DLL.
+
+### vendor-one
+
+- Refuse a clone HEAD off the buffer's upstream line.
+
+### series-advance
+
+- Drop an empty replay pick instead of aborting the extend.
+
+## Chore
+
+- Drop the CMake scaffolding, and the formatter branch that served it (#2511, #2520).
+
+- Auto-update from GitHub Actions (#2524).
+
+## Documentation
+
+### versioning
+
+- Record the declined max-across-prefixes merge rule (#2488, #2527).
+
+### versioning
+
+- Say when the version counter freezes, and why `build-base` lags.
+
+### series-loop
+
+- Send a fix to the handbook before it is written.
+
+### series-loop
+
+- Say where a stage-3 fix goes, and what counts as evidence.
+
+## Uncategorized
+
+- Feat(series-port): Detect a frozen series, and let it skip the port (#98).
+
+
+# duckdb 1.5.5.9007
+
+## Bug fixes
+
+### each
+
+- Fail the plan when green is off the branch's lineage.
+
+## Features
+
+### series-loop
+
+- Read r-universe builds, and fix the Windows unity-build break.
+
+## Documentation
+
+- Fix the clone layout, and the README links CRAN cannot follow (#2506).
+
+### handbook
+
+- Give the tree a way to grow into its blind spots (#2504).
+
+### handbook
+
+- Add `usage/relational/`, and give duckplyr its own section (#2495).
+
+### handbook
+
+- Land the MVP — every leaf written, at reference or core depth (#2493).
+
+## Testing
+
+### progress
+
+- Pin that a handle collected in a callback cannot re-enter.
+
+
+# duckdb 1.5.5.9006
+
+## Bug fixes
+
+### vendor
+
+- Drop the dead knobs, classify patch failures, restore the tree on a no-op run (#2491).
+
+## Documentation
+
+### vendoring
+
+- Fold by default, extend on pending, require a rising vendor counter.
+
+- Write every upward link from the repository root (#2458).
+
+
 # duckdb 1.5.5.9005
 
 ## Bug fixes

@@ -38,6 +38,12 @@ on:
         description: "Run rcc-suggests job"
         type: boolean
         default: false
+  # SECURITY: a merge-queue run executes the queued pull request's code with
+  # the base repository's token and secrets, unlike `pull_request`, where a
+  # fork only ever gets a read-only token and no secrets. Adding a fork's pull
+  # request to the queue is therefore as much of a trust decision as merging
+  # it; keep "Require merge queue" paired with a branch rule that only lets
+  # maintainers enqueue.
   merge_group:
     types:
       - checks_requested
@@ -49,6 +55,12 @@ concurrency:
   cancel-in-progress: true
 
 name: rcc
+
+# Read-only by default; every job opts back into what it actually needs.
+# Note that for a pull request from a fork GitHub caps the token at read-only
+# regardless of what is requested here.
+permissions:
+  contents: read
 
 jobs:
   rcc-smoke:
@@ -74,9 +86,6 @@ jobs:
       pull-requests: write
       actions: write
 
-    # Begin custom: services
-    # End custom: services
-
     steps:
       - uses: actions/checkout@v6
         with:
@@ -85,32 +94,37 @@ jobs:
       - name: Update status for rcc
         if: github.actor != 'Copilot' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         # FIXME: Wrap into action
+        # `inputs.ref` is free-form text supplied by whoever dispatched the run
+        # and `github.workflow` comes from the workflow file of the ref under
+        # test, so both are passed through the environment rather than spliced
+        # into the script with `${{ }}`.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          INPUT_REF: ${{ inputs.ref }}
+          EVENT_SHA: ${{ github.sha }}
+          DESCRIPTION: ${{ github.workflow }} / ${{ github.job }}
         run: |
+          set -euo pipefail
           echo "Actor: ${{ github.actor }}"
 
           # Check status of this workflow
           state="pending"
-          sha=${{ inputs.ref }}
-          if [ -z "${sha}" ]; then
-            sha=${{ github.sha }}
-          fi
-          sha=$(git rev-parse ${sha})
+          sha="${INPUT_REF:-${EVENT_SHA}}"
+          sha=$(git rev-parse "${sha}")
 
           html_url=$(gh api \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            repos/${{ github.repository }}/actions/runs/${{ github.run_id }} | jq -r .html_url)
-
-          description="${{ github.workflow }} / ${{ github.job }}"
+            "repos/${REPO}/actions/runs/${RUN_ID}" | jq -r .html_url)
 
           gh api \
             --method POST \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            repos/${{ github.repository }}/statuses/${sha} \
-            -f "state=${state}" -f "target_url=${html_url}" -f "description=${description}" -f "context=rcc"
+            "repos/${REPO}/statuses/${sha}" \
+            -f "state=${state}" -f "target_url=${html_url}" -f "description=${DESCRIPTION}" -f "context=rcc"
         shell: bash
 
       - uses: ./.github/workflows/rate-limit
@@ -271,36 +285,36 @@ jobs:
         if: always() && (github.actor != 'Copilot') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          JOB_STATUS: ${{ job.status }}
+          COMMIT_SHA: ${{ steps.commit.outputs.sha }}
+          INPUT_REF: ${{ inputs.ref }}
+          EVENT_SHA: ${{ github.sha }}
+          DESCRIPTION: ${{ github.workflow }} / ${{ github.job }}
         run: |
+          set -euo pipefail
           # Check status of this workflow
-          if [ "${{ job.status }}" == "success" ]; then
+          if [ "${JOB_STATUS}" = "success" ]; then
             state="success"
           else
             state="failure"
           fi
 
-          sha=${{ steps.commit.outputs.sha }}
-          if [ -z "${sha}" ]; then
-            sha=${{ inputs.ref }}
-          fi
-          if [ -z "${sha}" ]; then
-            sha=${{ github.sha }}
-          fi
-            sha=$(git rev-parse ${sha})
+          sha="${COMMIT_SHA:-${INPUT_REF:-${EVENT_SHA}}}"
+          sha=$(git rev-parse "${sha}")
 
           html_url=$(gh api \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            repos/${{ github.repository }}/actions/runs/${{ github.run_id }} | jq -r .html_url)
-
-          description="${{ github.workflow }} / ${{ github.job }}"
+            "repos/${REPO}/actions/runs/${RUN_ID}" | jq -r .html_url)
 
           gh api \
             --method POST \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            repos/${{ github.repository }}/statuses/${sha} \
-            -f "state=${state}" -f "target_url=${html_url}" -f "description=${description}" -f "context=rcc"
+            "repos/${REPO}/statuses/${sha}" \
+            -f "state=${state}" -f "target_url=${html_url}" -f "description=${DESCRIPTION}" -f "context=rcc"
         shell: bash
 
       - name: Update status for rcc (Copilot)
@@ -308,32 +322,35 @@ jobs:
         if: always() && (github.actor == 'Copilot')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          JOB_STATUS: ${{ job.status }}
+          INPUT_REF: ${{ inputs.ref }}
+          EVENT_SHA: ${{ github.sha }}
+          DESCRIPTION: ${{ github.workflow }} / ${{ github.job }}
         run: |
+          set -euo pipefail
           # Set status to success if job succeeded, failure otherwise
-          if [ "${{ job.status }}" == "success" ]; then
+          if [ "${JOB_STATUS}" = "success" ]; then
             state="success"
           else
             state="failure"
           fi
-          sha=${{ inputs.ref }}
-          if [ -z "${sha}" ]; then
-            sha=${{ github.sha }}
-          fi
-          sha=$(git rev-parse ${sha})
+
+          sha="${INPUT_REF:-${EVENT_SHA}}"
+          sha=$(git rev-parse "${sha}")
 
           html_url=$(gh api \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            repos/${{ github.repository }}/actions/runs/${{ github.run_id }} | jq -r .html_url)
-
-          description="${{ github.workflow }} / ${{ github.job }}"
+            "repos/${REPO}/actions/runs/${RUN_ID}" | jq -r .html_url)
 
           gh api \
             --method POST \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            repos/${{ github.repository }}/statuses/${sha} \
-            -f "state=${state}" -f "target_url=${html_url}" -f "description=${description}" -f "context=rcc"
+            "repos/${REPO}/statuses/${sha}" \
+            -f "state=${state}" -f "target_url=${html_url}" -f "description=${DESCRIPTION}" -f "context=rcc"
         shell: bash
 
   rcc-smoke-check-matrix:
@@ -343,6 +360,9 @@ jobs:
 
     needs:
       - rcc-smoke
+
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@v6
@@ -367,8 +387,12 @@ jobs:
 
     name: 'rcc: ${{ matrix.os }} (${{ matrix.r }}) ${{ matrix.desc }}'
 
-    # Begin custom: services
-    # End custom: services
+    permissions:
+      # Both required by the update-snapshots action, which opens a pull
+      # request with refreshed snapshots. It is skipped for forks, where the
+      # token is read-only anyway.
+      contents: write
+      pull-requests: write
 
     strategy:
       fail-fast: false
@@ -431,7 +455,11 @@ jobs:
       - uses: ./.github/workflows/check
         if: ${{ ! matrix.covr }}
         with:
-          results: ${{ runner.os }}-r${{ matrix.r }}
+          # Include the architecture: the matrix pairs each arm64 runner with an
+          # amd64 one on the same OS and the same R version (ubuntu-26.04-arm /
+          # ubuntu-26.04, windows-11-arm / windows-latest), so `runner.os` alone
+          # yields duplicate artifact names, which upload-artifact rejects.
+          results: ${{ runner.os }}-${{ runner.arch }}-r${{ matrix.r }}
 
       - uses: ./.github/workflows/covr
         if: ${{ matrix.covr }}
@@ -450,8 +478,8 @@ jobs:
 
     name: Without ${{ matrix.package }}
 
-    # Begin custom: services
-    # End custom: services
+    permissions:
+      contents: read
 
     strategy:
       fail-fast: false

@@ -1,3 +1,7 @@
+# Extra rcc matrix entries, appended to the base matrix derived by
+# .github/workflows/versions-matrix/action.R.
+# Explained in handbook/operations/ci/matrix/README.md.
+
 list(
   # Add even earlier Windows versions
   data.frame(os = "windows-latest", r = r_versions[4:6]),

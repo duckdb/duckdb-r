@@ -1,10 +1,3 @@
-<div align="center">
-  <a href="https://r.duckdb.org/"><picture>
-    <source media="(prefers-color-scheme: light)" srcset="https://duckdb.org/images/logo-dl/DuckDB_Logo-horizontal.svg">
-    <source media="(prefers-color-scheme: dark)" srcset="https://duckdb.org/images/logo-dl/DuckDB_Logo-horizontal-dark-mode.svg">
-    <img alt="DuckDB logo" src="https://duckdb.org/images/logo-dl/DuckDB_Logo-horizontal.svg" height="100">
-  </picture></a>
-</div>
 
 # duckdb
 
@@ -13,6 +6,7 @@ It is designed to support analytical query workloads and is optimized for fast q
 This repository contains the R bindings for DuckDB.
 
 ## Installation from CRAN
+
 This is the recommended method for recent R versions on Windows or macOS which have binaries available on CRAN.
 
 ``` r
@@ -66,7 +60,7 @@ The `.dev` flavors are created by an automated vendoring process;
 the CRAN and LTS flavors always point at a stable upstream release.
 
 | Flavor | Series | Kind | Progress |
-|---|---|---|---|
+|----|----|----|----|
 | `duckdb` | [`v1.5-variegata`](https://github.com/duckdb/duckdb/tree/v1.5-variegata) | CRAN | [![CRAN version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fpackagemanager.posit.co%2F__api__%2Frepos%2Fcran%2Fpackages%2Fduckdb&query=%24.version&label=version&color=green)](https://cran.r-project.org/package=duckdb) |
 | `duckdb.1.4` | [`v1.4-andium`](https://github.com/duckdb/duckdb/tree/v1.4-andium) | LTS | [![r-universe version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fduckdb.r-universe.dev%2Fapi%2Fpackages%2Fduckdb.1.4&query=%24.Version&label=version&color=green)](https://duckdb.r-universe.dev/duckdb.1.4) |
 | `duckdb.dev` | [`main`](https://github.com/duckdb/duckdb/tree/main) | dev | [![ahead](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=main&head=main-green&label=ahead&color=green)](https://github.com/krlmlr/duckdb-r/compare/main...main-green) [![in flight](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=main-green&head=main-dev&label=in%20flight&color=yellow)](https://github.com/krlmlr/duckdb-r/compare/main-green...main-dev) [![buffered](https://img.shields.io/github/commits-difference/krlmlr/duckdb-r?base=main-build-base&head=main-build&label=buffered&color=blue)](https://github.com/krlmlr/duckdb-r/compare/main-build-base...main-build) |
@@ -77,7 +71,9 @@ The badges track each `.dev` series:
 *ahead* counts commits ahead of the branch the series releases from,
 *in flight* counts commits in CI but not yet trusted,
 *buffered* counts commits vendored but not yet verified.
-See [`BRANCHES.md`](BRANCHES.md) for the full model.
+See the handbook's
+[`branches/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/branches/README.md)
+for the full model.
 
 ## User Guide
 
@@ -85,19 +81,16 @@ See the [R API in the DuckDB documentation](https://duckdb.org/docs/api/r).
 
 ## Documentation
 
-Documentation is organized as a tree;
-this section is its root for users,
-and [`AGENTS.md`](AGENTS.md) is the root for maintainers
-and coding agents.
-
-* [`AGENTS.md`](AGENTS.md) — working on the package:
-  build, test, and where to look for everything else
-* [`BRANCHES.md`](BRANCHES.md) — branch model, package flavors,
-  series invariants
-* [`RELEASE.md`](RELEASE.md) — the release process
-* [`scripts/VENDORING.md`](scripts/VENDORING.md) — vendoring mechanics
-* [`plan/README.md`](plan/README.md) — designs, plans, and historical
-  documents, each named there by path
+Everything this repository documents is reachable from the
+[handbook](https://github.com/duckdb/duckdb-r/blob/main/handbook/README.md),
+a strict topic hierarchy;
+[`AGENTS.md`](https://github.com/duckdb/duckdb-r/blob/main/AGENTS.md)
+is the door for maintainers and coding agents, and
+[`plan/README.md`](https://github.com/duckdb/duckdb-r/blob/main/plan/README.md)
+names the designs, plans, and historical documents.
+[`BRANCHES.md`](https://github.com/duckdb/duckdb-r/blob/main/BRANCHES.md) and
+[`scripts/VENDORING.md`](https://github.com/duckdb/duckdb-r/blob/main/scripts/VENDORING.md)
+hold detail the handbook is still absorbing.
 
 ## Building
 
@@ -116,21 +109,13 @@ Then, install:
 
 Set the `MAKEFLAGS` environment variable to `-j8` or similar for parallel builds.
 Configure `ccache` for faster repeated builds.
-
-If you wish to test new DuckDB functionality with duckdb-r, make sure your clone of `duckdb-r` is one level deeper than your clone of `duckdb` (e.g. `R/duckdb-r` and `duckdb`).
-Then run the following commands:
-
-``` sh
-~ (cd duckdb && git checkout {{desired_branch}})
-~ (cd R/duckdb-r && scripts/vendor.sh)
-~ (cd R/duckdb-r && R CMD INSTALL .)
-```
-
-It helps if both the duckdb directory and duckdb-r directory are clean.
+A build that links a prebuilt engine and finishes in seconds,
+and other details, are described in the handbook under
+[`build/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/build/README.md).
 
 ## Vendoring
 
-This package includes a vendored copy of the DuckDB C++ library. The vendoring process is automated — a scheduled routine synchronizes each release series with the upstream DuckDB repository, commit by commit. For detailed information about how vendoring works and manual vendoring procedures, see [`scripts/VENDORING.md`](scripts/VENDORING.md).
+This package includes a vendored copy of the DuckDB C++ library. The vendoring process is automated — a scheduled routine synchronizes each release series with the upstream DuckDB repository, commit by commit. How it works, and how to vendor by hand, is in the handbook under [`operations/vendoring/`](https://github.com/duckdb/duckdb-r/blob/main/handbook/operations/vendoring/README.md).
 
 ## Contributors
 
