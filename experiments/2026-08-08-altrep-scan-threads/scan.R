@@ -1,5 +1,5 @@
 # One attempt: register an ALTREP data frame that still has an untouched
-# nested column, and let DuckDB scan it back. Prints one result line and
+# packed column, and let DuckDB scan it back. Prints one result line and
 # exits 0 -- run.sh is what turns a killed process into a tally.
 # Parameters come from the environment: N_ROWS, THREADS, FIELD (int or str).
 
@@ -36,7 +36,7 @@ df <- duckdb:::rel_to_altrep(rel)
 # nrow() runs the relation and caches its result, and leaves the per-column
 # transforms undone. `s` is a data frame of ALTREP vectors, so whether
 # anything reads it before the scan reaches it is what this asks: bind takes
-# the pointer of every flat column, and a nested one is the open question.
+# the pointer of every flat column, and a packed one is the open question.
 stopifnot(nrow(df) == n_rows)
 
 con_scan <- DBI::dbConnect(duckdb(shared_home = FALSE))

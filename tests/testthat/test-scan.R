@@ -61,7 +61,7 @@ test_that("Database tables take precedence", {
 })
 
 test_that("Data frame scan reads a packed ALTREP column that bind materialized", {
-  # A registered ALTREP data frame's nested columns reach bind unread, so
+  # A registered ALTREP data frame's packed columns reach bind unread, so
   # before duckdb/duckdb-r#2582 the scan materialized them itself, on a DuckDB
   # task thread: wrong sums for a numeric field, a killed session for a
   # character one. The scan starts a second task at a million rows, which is

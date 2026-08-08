@@ -42,7 +42,7 @@ the directory keeps the method so that is possible.
   supports [`usage/extensions/`](/handbook/usage/extensions/README.md).
 * [`2026-08-08-altrep-scan-threads/`](2026-08-08-altrep-scan-threads/) —
   what a scan returned when it reached a registered ALTREP data frame's
-  nested column itself, per thread count and field type, before and
+  packed column itself, per thread count and field type, before and
   after bind started walking into one; supports
   [`architecture/glue/`](/handbook/architecture/glue/README.md).
 * [`2026-08-08-timezone-grid/`](2026-08-08-timezone-grid/) —

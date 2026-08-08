@@ -95,14 +95,21 @@ It runs on the thread that issued the query, which is R's,
 and it reduces the whole data frame to plain memory
 before the engine can schedule anything.
 [`src/scan.cpp`](/src/scan.cpp)'s `TouchColumn()` walks a column to its leaves,
-reaching the vectors packed inside a struct column, a matrix, or a list cell,
+reaching the vectors packed inside a struct column and a matrix,
 so that what the scan later dereferences is a pointer bind already took.
-The walk is eager,
+A list column stops at its cells,
+which the scan reads one at a time:
+walking every cell of a long one would cost bind more than the scan pays,
+so an ALTREP cell is still read from a task thread.
+The walk is eager as well,
 and a wide data frame pays for the columns a query never projects:
 bind does not know the projection,
 and a scan holding a task thread has no way to ask R for a value.
-Separating the two threads is what would let the work
-move back to the column that is read.
+Both are what a producer thread would settle
+([#2583](https://github.com/duckdb/duckdb-r/pull/2583)),
+which keeps every R allocation on R's thread
+and so could be asked for one:
+the work would move back to the cell that is read.
 The Arrow scan needs the same guarantee one phase later,
 and takes it from `INITIALIZE_ON_SCHEDULE`
 ([`src/database.cpp`](/src/database.cpp)),

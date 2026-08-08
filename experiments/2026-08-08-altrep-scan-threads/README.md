@@ -1,7 +1,7 @@
-# Scanning a registered ALTREP data frame with a nested column
+# Scanning a registered ALTREP data frame with a packed column
 
 *What it measures:* what a scan returns when it reaches a registered
-ALTREP data frame's nested column itself, on a DuckDB task thread,
+ALTREP data frame's packed column itself, on a DuckDB task thread,
 rather than being handed one bind already read —
 right answer, silently wrong answer, or no session left —
 across thread count and struct field type,
@@ -20,16 +20,18 @@ and the recorded runs are [`before.md`](before.md) and
 [`after.md`](after.md).
 
 **The shape being measured.**
-`rel_to_altrep()` returns a data frame whose `s` column is a nested data
-frame of ALTREP vectors.
+`rel_to_altrep()` returns a data frame whose `s` column is itself a data
+frame, of ALTREP vectors.
 `nrow()` runs the relation and caches its result,
 which leaves the per-column transforms undone.
 `duckdb_register()` then binds that data frame on a second connection:
 bind reads the pointer of every flat column,
-and before `TouchColumn()` handed the nested one back unread,
+and before `TouchColumn()` handed the packed one back unread,
 so that the scan was what reached inside `s` —
 allocating R vectors, and evaluating R,
 on whichever thread took the scan task.
+A list column is packed differently and is not measured here:
+the walk stops at its cells, as bind always did.
 
 **`SET threads` is a ceiling, not the count.**
 What decides how many threads meet one column is the scan's own split,
