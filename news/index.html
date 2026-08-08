@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">duckdb</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9010</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.5.5.9011</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,93 @@
       <small>Source: <a href="https://github.com/duckdb/duckdb-r/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.5.5.9011" id="duckdb-1559011">duckdb 1.5.5.9011<a class="anchor" aria-label="anchor" href="#duckdb-1559011"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-1-5-5-9011">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5-5-9011"></a></h3>
+<div class="section level4">
+<h4 id="readme-1-5-5-9011">readme<a class="anchor" aria-label="anchor" href="#readme-1-5-5-9011"></a></h4>
+<ul><li>Vendor the DuckDB logos, and write two READMEs from one source (<a href="https://github.com/duckdb/duckdb-r/issues/2517" class="external-link">#2517</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2518" class="external-link">#2518</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2558" class="external-link">#2558</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="flavor-1-5-5-9011">flavor<a class="anchor" aria-label="anchor" href="#flavor-1-5-5-9011"></a></h4>
+<ul><li>Catch a renamed file that reached a series under its mainline name (<a href="https://github.com/duckdb/duckdb-r/issues/2559" class="external-link">#2559</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="storage-1-5-5-9011">storage<a class="anchor" aria-label="anchor" href="#storage-1-5-5-9011"></a></h4>
+<ul><li>Anchor the <code>~/.duckdb</code> consent default at <code><a href="https://rdrr.io/r/base/interactive.html" class="external-link">interactive()</a></code> (<a href="https://github.com/duckdb/duckdb-r/issues/2550" class="external-link">#2550</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="series-advance-1-5-5-9011">series-advance<a class="anchor" aria-label="anchor" href="#series-advance-1-5-5-9011"></a></h4>
+<ul><li>Set <code>-build-base</code>, rather than advance it (<a href="https://github.com/duckdb/duckdb-r/issues/2540" class="external-link">#2540</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="patch-1-5-5-9011">patch<a class="anchor" aria-label="anchor" href="#patch-1-5-5-9011"></a></h4>
+<ul><li>Fix the re2 clang warnings instead of hiding them (<a href="https://github.com/duckdb/duckdb-r/issues/2492" class="external-link">#2492</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="series-advance-1-5-5-9011-1">series-advance<a class="anchor" aria-label="anchor" href="#series-advance-1-5-5-9011-1"></a></h4>
+<ul><li>Clamp the replay anchor to the merge base (<a href="https://github.com/duckdb/duckdb-r/issues/2548" class="external-link">#2548</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="rcc-1-5-5-9011">rcc<a class="anchor" aria-label="anchor" href="#rcc-1-5-5-9011"></a></h4>
+<ul><li>Fetch the record a publish replaces, so a retry’s verdict can land (<a href="https://github.com/duckdb/duckdb-r/issues/2547" class="external-link">#2547</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="rcc-1-5-5-9011-1">rcc<a class="anchor" aria-label="anchor" href="#rcc-1-5-5-9011-1"></a></h4>
+<ul><li>Stop the backstop recording a <code>pending</code> status as a verdict (<a href="https://github.com/duckdb/duckdb-r/issues/2544" class="external-link">#2544</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="ci-1-5-5-9011">ci<a class="anchor" aria-label="anchor" href="#ci-1-5-5-9011"></a></h4>
+<ul><li>Let <code>adbcdrivermanager</code> fail to build on Windows arm64 (<a href="https://github.com/duckdb/duckdb-r/issues/2539" class="external-link">#2539</a>).</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="documentation-1-5-5-9011">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-5-5-9011"></a></h3>
+<div class="section level4">
+<h4 id="handbook-1-5-5-9011">handbook<a class="anchor" aria-label="anchor" href="#handbook-1-5-5-9011"></a></h4>
+<ul><li>Record the untyped-<code>NULL</code> mapping as designed, declining the flip to logical <code>NA</code> (<a href="https://github.com/duckdb/duckdb-r/issues/155" class="external-link">#155</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2561" class="external-link">#2561</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="integrations-1-5-5-9011">integrations<a class="anchor" aria-label="anchor" href="#integrations-1-5-5-9011"></a></h4>
+<ul><li>Answer the frame-library request, Arrow and non-Arrow (<a href="https://github.com/duckdb/duckdb-r/issues/642" class="external-link">#642</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2557" class="external-link">#2557</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="statements-1-5-5-9011">statements<a class="anchor" aria-label="anchor" href="#statements-1-5-5-9011"></a></h4>
+<ul><li>Move the multi-statement prepare rule to the leaf that owns it (<a href="https://github.com/duckdb/duckdb-r/issues/179" class="external-link">#179</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2555" class="external-link">#2555</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="connections-1-5-5-9011">connections<a class="anchor" aria-label="anchor" href="#connections-1-5-5-9011"></a></h4>
+<ul><li>State where the instance’s settings bind, and both ways <code>dbConnect()</code> gets them wrong (<a href="https://github.com/duckdb/duckdb-r/issues/83" class="external-link">#83</a>, <a href="https://github.com/duckdb/duckdb-r/issues/171" class="external-link">#171</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2553" class="external-link">#2553</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="data-import-1-5-5-9011">data-import<a class="anchor" aria-label="anchor" href="#data-import-1-5-5-9011"></a></h4>
+<ul><li>Say what a virtual <code>filename</code> column changes (<a href="https://github.com/duckdb/duckdb-r/issues/1733" class="external-link">#1733</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2556" class="external-link">#2556</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="types-1-5-5-9011">types<a class="anchor" aria-label="anchor" href="#types-1-5-5-9011"></a></h4>
+<ul><li>Give the geometry write side its route, not just its absence (<a href="https://github.com/duckdb/duckdb-r/issues/1670" class="external-link">#1670</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2552" class="external-link">#2552</a>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="types-1-5-5-9011-1">types<a class="anchor" aria-label="anchor" href="#types-1-5-5-9011-1"></a></h4>
+<ul><li><p>State the UTF-8 repair that works, not the one that looks like it (<a href="https://github.com/duckdb/duckdb-r/issues/12" class="external-link">#12</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2551" class="external-link">#2551</a>).</p></li>
+<li><p>Review DuckDB API usage in the glue code and assess a C API migration (<a href="https://github.com/duckdb/duckdb-r/issues/2413" class="external-link">#2413</a>).</p></li>
+</ul></div>
+<div class="section level4">
+<h4 id="branches-1-5-5-9011">branches<a class="anchor" aria-label="anchor" href="#branches-1-5-5-9011"></a></h4>
+<ul><li><p>State the mirrors’ cadence, now that <code>krlmlr/duckdb-r</code> is a fork (<a href="https://github.com/duckdb/duckdb-r/issues/2494" class="external-link">#2494</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2542" class="external-link">#2542</a>).</p></li>
+<li><p>An entry that wraps its subject applies everywhere, so applying proves nothing (<a href="https://github.com/duckdb/duckdb-r/issues/2546" class="external-link">#2546</a>).</p></li>
+<li><p>Record the August 2026 forward, and turn the cpp11 gap it walked into into a check (<a href="https://github.com/duckdb/duckdb-r/issues/2545" class="external-link">#2545</a>, <a href="https://github.com/duckdb/duckdb-r/issues/2543" class="external-link">#2543</a>).</p></li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="refactoring-1-5-5-9011">Refactoring<a class="anchor" aria-label="anchor" href="#refactoring-1-5-5-9011"></a></h3>
+<div class="section level4">
+<h4 id="series-loop-1-5-5-9011">series-loop<a class="anchor" aria-label="anchor" href="#series-loop-1-5-5-9011"></a></h4>
+<ul><li>Read verdicts from the <code>each-rcc</code> runs, keep <code>rcc2</code> as the fallback (<a href="https://github.com/duckdb/duckdb-r/issues/2549" class="external-link">#2549</a>).</li>
+</ul></div>
+</div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.5.5.9010" id="duckdb-1559010">duckdb 1.5.5.9010<a class="anchor" aria-label="anchor" href="#duckdb-1559010"></a></h2>
 <div class="section level3">
