@@ -98,7 +98,8 @@ close cites its evidence.
   a streaming fetch bounds memory does not survive measurement.
 * [#1147](issue-1147-start-ui-twice.md) — see below; it reproduces.
 * [#1604](issue-1604-append-under-memory-limit.md) — see below; the
-  "temporary directory does not used" half has a named cause.
+  "temporary directory does not used" half is the spill regression that
+  [#2562](https://github.com/duckdb/duckdb-r/pull/2562) has since fixed.
 
 ## What the run changed
 
@@ -125,6 +126,13 @@ Three items came out different from the plan they were written for.
   The same work through `dbConnect(duckdb(dbdir = path))` gets DuckDB's
   own `<db>.tmp` and goes through.
   The inserts themselves are fine at 3 GB and at 500 MB.
+  This run reached that on its own; the fact is owned by
+  [`2026-08-temp-storage-spill/`](/experiments/2026-08-temp-storage-spill/README.md),
+  which measures both idioms across four builds, and the regression is
+  fixed on `main` by
+  [#2562](https://github.com/duckdb/duckdb-r/pull/2562).
+  What stays here is the transcript of the reporter's own steps on the
+  released version.
 * **[#1065](issue-1065-arrow-fetch-memory.md) has no streaming escape to
   point at.** Peak resident set for the same 20M-row result:
   879 MB fetched as one Arrow table, 814 MB through the DBI chunk loop,
@@ -132,15 +140,6 @@ Three items came out different from the plan they were written for.
   291 MB as ten bounded queries, and 101 MB when the count is left to the
   engine. Fetching costs memory proportional to the result whichever
   fetch API is used; only not fetching the whole thing helps.
-
-[`finding-temp-directory-spill.R`](finding-temp-directory-spill.R) isolates
-the defect behind #1604 on its own, in four connections and no data:
-the package points `temp_directory` at a path whose parent nothing creates,
-DuckDB's directory creation is not recursive, and `dbdir` given to
-`dbConnect()` rather than to `duckdb()` never reaches
-`resolve_storage_home()`'s temp branch, because `duckdb()` has already put
-the in-memory answer into the driver config that `dbConnect()` carries over.
-Both hold in this repository's development source as well as in 1.5.5.
 
 ## Re-running
 

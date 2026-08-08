@@ -83,7 +83,6 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 
 | File | Purpose |
 |---|---|
-| [`each-harvest.sh`](each-harvest.sh) | Fan-in for `each-rcc`: make sure every commit the legs decided has a record on the orphan `rcc2` branch. |
 | [`rcc-consolidate.sh`](rcc-consolidate.sh) | Consolidate the orphan `rcc2` branch: drop everything past the retention window, and squash the whole history to two commits. |
 | [`rcc-cutover.sh`](rcc-cutover.sh) | One-shot: build the `rcc2` verdict store from what the old `rcc` branch holds. |
 | [`rcc-lib.sh`](rcc-lib.sh) | Shared helpers for the verdict store on the orphan `rcc2` branch. |
@@ -98,7 +97,7 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 |---|---|
 | [`VENDORING.md`](VENDORING.md) | DuckDB R Package Vendoring |
 | [`merge-version.sh`](merge-version.sh) | Git merge driver for DESCRIPTION. |
-| [`rconfigure.py`](rconfigure.py) | Regenerate the vendored build configuration from a DuckDB checkout: src/duckdb/, src/include/sources.mk, R/version.R and the Makevars files. |
+| [`rconfigure.py`](rconfigure.py) | Regenerate the vendored build configuration from a DuckDB checkout: src/duckdb/, src/include/sources.mk, R/version.R, the Makevars files and the logos. |
 | [`setup-git.sh`](setup-git.sh) | Register repository-local git configuration that cannot live in versioned files. |
 | [`vendor-one.sh`](vendor-one.sh) | Vendors DuckDB sources commit-by-commit from the upstream repository. |
 | [`vendor.sh`](vendor.sh) | Vendors DuckDB sources from the upstream repository (manual vendoring). |

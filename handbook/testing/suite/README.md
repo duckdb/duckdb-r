@@ -38,10 +38,15 @@ Every `helper-*.R` is sourced before the first test,
 and that set is the list.
 Each should open with a header saying why it exists;
 `helper-DBItest.R` and `helper-skip.R` do not yet.
-Two constraints are not obvious from reading one:
+Three constraints are not obvious from reading one:
 `helper-DBItest.R`'s `make_context()` call must stay in the helper,
-and any expectation whose output can carry the package name goes
-through `transform_package_name` from `helper-snapshot.R`.
+any expectation whose output can carry the package name goes
+through `transform_package_name` from `helper-snapshot.R`,
+and two paths that should name the same directory are compared
+with `expect_same_path` from `helper-storage.R` —
+on Windows `dirname()` returns `/` separators while `file.path()`
+and `tempdir()` keep the `\` they were handed,
+so `expect_equal()` reports a difference that is not there.
 `local_con()`, the self-disconnecting connection fixture,
 is package code (`R/test-fixtures.R`);
 the suite runs with the namespace loaded,

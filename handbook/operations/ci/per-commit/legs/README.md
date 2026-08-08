@@ -58,10 +58,8 @@ The files:
   manual: drop what has aged out, squash the branch.
 * [`scripts/rcc-cutover.sh`](/scripts/rcc-cutover.sh) —
   one-shot: build `rcc2` from what the old `rcc` branch held.
-* [`scripts/each-harvest.sh`](/scripts/each-harvest.sh) —
-  fan-in: reconcile what the legs could not publish.
 * [`scripts/rcc-run-fields.jq`](/scripts/rcc-run-fields.jq) —
-  the run-object projection all three writers share.
+  the run-object projection both writers share.
 * [`scripts/rcc-store-test.sh`](/scripts/rcc-store-test.sh) —
   offline checks for the store's invariants,
   and the source of the concurrency measurements below.
@@ -124,8 +122,9 @@ What survives a runner that stops executing steps:
 * **The plan** — the `each-plan` artifact from the `plan` job. Survives.
 * **A commit in flight** — no record, so the next run replans it.
 * **Records a leg never got to publish** — only in the leg's artifact,
-  uploaded in its last step, so a lost runner never gets there;
-  the fan-in reconstructs them.
+  uploaded in its last step, so a lost runner never gets there.
+  A firing reads the artifact directly, which is where they are;
+  the store learns of them only if `rcc-logs.yaml` is dispatched.
 
 A re-run resumes rather than restarts:
 the leg skips a commit that already carries a decided record,
@@ -135,8 +134,6 @@ that is precisely the state a killed leg leaves behind,
 and redoing it is what the re-run is for.
 The planner's artifact carries `overwrite: true` and the leg's is
 named per attempt, so "Re-run all jobs" collides on neither.
-The fan-in is guarded on the planner having succeeded,
-so it does not reconcile a run that never built.
 
 Two edges are worth stating plainly.
 

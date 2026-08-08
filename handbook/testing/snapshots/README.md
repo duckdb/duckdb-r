@@ -19,6 +19,18 @@ Pass `transform = transform_package_name`
 (`tests/testthat/helper-snapshot.R`) to any expectation whose
 output can carry the name.
 
+**A skip in a snapshot file goes inside `test_that()`.**
+testthat rewrites `_snaps/<file>.md` from the snapshots the run actually
+took, and restores a skipped one only when the skip is recorded against a
+named test.
+A skip at the top of the file aborts before any test starts,
+so nothing is recorded, every snapshot in the file counts as unused,
+and the whole `.md` is deleted —
+which the `update-snapshots` action then publishes as a deletion
+proposed by whichever platform skipped.
+Put `skip_on_os()` and friends in each `test_that()` body instead;
+a file-level skip is safe only in a file that takes no snapshots.
+
 **Accepting a changed snapshot.**
 Every route ends in `testthat::snapshot_accept()`:
 

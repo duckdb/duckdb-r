@@ -227,6 +227,14 @@ Where no index covers a document, it carries its own:
   `.Rbuildignore` has removed `handbook/` from,
   so its pointer lives in a Documentation section
   rather than above the first sentence about the package.
+  It is also generated, so the pointer is edited in
+  [`README.Rmd`](/README.Rmd) — which writes both it and
+  `.github/README.md`, differing by the wordmark banner alone.
+  GitHub reads `.github/README.md` in preference to the root one and
+  pkgdown reads the root one, which is how the site's home page ends up
+  with the package logo in its header and no second logo below it
+  ([`operations/site/`](/handbook/operations/site/README.md)).
+  `make readme` rewrites both.
 * *Source files* — a plain source comment,
   above the roxygen block or below the script's one-line header.
   Never a roxygen `#'` line:

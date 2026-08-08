@@ -44,6 +44,16 @@ the directory keeps the method so that is possible.
   what 1.5.5 does when the issues closed with evidence, upstream, or as
   stale are run again, one reprex each; supports
   [`operations/triage/`](/handbook/operations/triage/README.md).
+* [`2026-08-08-timezone-grid/`](2026-08-08-timezone-grid/) —
+  which zone labels a `TIMESTAMP` and a `TIMESTAMPTZ` column,
+  and when an instant changes, across every setting combination;
+  supports [`usage/timestamps/`](/handbook/usage/timestamps/README.md).
+* [`2026-08-temp-storage-spill/`](2026-08-temp-storage-spill/) —
+  whether larger-than-memory work actually spills, per connection
+  idiom, on duckdb 1.3.2, the current CRAN release, `main`, and the
+  fix in [#2562](https://github.com/duckdb/duckdb-r/pull/2562);
+  supports [`usage/memory/`](/handbook/usage/memory/README.md).
+>>>>>>> origin/main
 
 Adding one: create the directory, name it for the date and the topic,
 open its `README.md` with what and when and on what,

@@ -88,11 +88,18 @@ remote=origin
 
 # The identity set: what CI and the routine execute. patch/ stays out
 # (vendor-coupled: applied by vendor runs, refreshed by repairs), as do the
-# root docs (README.md is flavored per branch, NEWS.md belongs to the release
-# strand) — commits touching them are still listed and picked like any other,
+# docs that are flavored per branch or belong to the release strand —
+# commits touching them are still listed and picked like any other,
 # but the sync commit never rewrites them.
-tooling=(.github scripts .claude)
+#
+# `.github/README.md` is one of those, and it is the reason `.github` cannot be
+# taken whole: it is the README GitHub renders, it is generated from the
+# flavored `README.Rmd`, and taking main's copy would put the mainline name at
+# the top of every flavored series' front page — the defect #2517 and #2518
+# were about, in the file most likely to be read.
+tooling=(.github scripts .claude ':(exclude).github/README.md')
 paths_re='^(\.github/|scripts/|\.claude/)'
+flavored_docs_re='^\.github/README\.md$'
 # A vendor commit is one whose subject says it vendored: the `vendor:` prefix
 # vendor-one.sh writes, or the `<owner>/<repo>@<sha>` reference that carries the
 # upstream commit as machine-readable state. Same rule as every other reader of
@@ -172,7 +179,7 @@ classify() { # <sha> -> TOOLING | MIXED | OTHER | VENDOR | VERSION
   if [[ "$(git log -1 --format=%s "$1")" =~ $vendor_subject_re ]]; then echo VENDOR; return; fi
   if version_bump "$1"; then echo VERSION; return; fi
   while IFS= read -r f; do
-    if [[ "$f" =~ $paths_re ]]; then t=1; else o=1; fi
+    if [[ "$f" =~ $paths_re && ! "$f" =~ $flavored_docs_re ]]; then t=1; else o=1; fi
   done < <(git diff-tree --no-commit-id --name-only -r "$1")
   if [ -n "$t" ] && [ -n "$o" ]; then
     echo MIXED
