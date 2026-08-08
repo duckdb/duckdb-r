@@ -128,7 +128,7 @@ way, so applying there is no evidence it belongs there.
 Landing one whose subject `main`'s engine does not carry adds a
 suppression with nothing to suppress —
 against the rule that nothing is suppressed at all
-([`architecture/glue/`](/handbook/architecture/glue/README.md)) —
+([`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md)) —
 and it is the series' until `main`'s engine reaches the code.
 
 The buffer is where the choice is load-bearing.

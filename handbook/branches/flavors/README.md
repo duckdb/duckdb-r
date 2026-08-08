@@ -36,7 +36,7 @@ what the patch rewrites is the surface, by construction.
 regenerating `src/cpp11.cpp` and `R/cpp11.R` instead of patching them,
 because cpp11 derives the `.Call` symbol prefix from the name —
 which is also why the cpp11 that generates them has to be the fork
-([`architecture/glue/`](/handbook/architecture/glue/README.md)).
+([`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md)).
 The two READMEs are regenerated for the same reason:
 the patch renames [`README.Rmd`](/README.Rmd),
 and `README.md` and `.github/README.md` are written from it

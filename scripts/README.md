@@ -12,7 +12,7 @@ ownership by topic, navigation by place
 ([the rules](/handbook/meta/handbook/README.md)).
 Root of the documentation tree: [`handbook/`](/handbook/README.md).
 
-## [`architecture/glue/`](/handbook/architecture/glue/README.md)
+## [`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md)
 
 | File | Purpose |
 |---|---|

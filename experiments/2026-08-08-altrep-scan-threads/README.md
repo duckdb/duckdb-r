@@ -12,7 +12,7 @@ before and after bind started walking into such a column.
 R 4.5.3, Linux, 4 cores, 3,000,000 rows.
 
 *What it supports:*
-[`architecture/glue/`](/handbook/architecture/glue/README.md).
+[`architecture/glue/threading/`](/handbook/architecture/glue/threading/README.md).
 
 Run [`run.sh`](run.sh) under `ulimit -c 0`;
 one attempt is [`scan.R`](scan.R),

@@ -44,7 +44,7 @@ the directory keeps the method so that is possible.
   what a scan returned when it reached a registered ALTREP data frame's
   packed column itself, per thread count and field type, before and
   after bind started walking into one; supports
-  [`architecture/glue/`](/handbook/architecture/glue/README.md).
+  [`architecture/glue/threading/`](/handbook/architecture/glue/threading/README.md).
 * [`2026-08-08-timezone-grid/`](2026-08-08-timezone-grid/) —
   which zone labels a `TIMESTAMP` and a `TIMESTAMPTZ` column,
   and when an instant changes, across every setting combination;
