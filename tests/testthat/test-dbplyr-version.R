@@ -36,6 +36,19 @@ test_that("an old dbplyr warns, a current one is silent", {
   expect_silent(expect_false(warn_if_dbplyr_too_old()))
 })
 
+# --- message wording (snapshot) ----------------------------------------------
+
+test_that("the warning wording is stable", {
+  # The wording carries the package name, so it goes through the flavor
+  # normalisation every snapshot that can name the package uses.
+  local_mocked_bindings(loaded_dbplyr_version = function() package_version("2.5.0"))
+
+  expect_snapshot(
+    warn_if_dbplyr_too_old(),
+    transform = transform_package_name
+  )
+})
+
 test_that("the warning names this package through the flavor seam", {
   local_mocked_bindings(
     loaded_dbplyr_version = function() package_version("2.5.0"),
