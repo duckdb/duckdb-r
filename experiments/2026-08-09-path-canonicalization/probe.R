@@ -13,7 +13,11 @@ library(duckdb)
 windows <- .Platform$OS.type == "windows"
 sep <- if (windows) "\\" else "/"
 
-con <- dbConnect(duckdb())
+# The storage advisory is not what this measures, and it repeats once per
+# instance -- enough to bury the results in section 9.
+connect <- function() suppressMessages(dbConnect(duckdb()))
+
+con <- connect()
 
 root <- file.path(tempdir(), "probe")
 dir.create(root, showWarnings = FALSE, recursive = TRUE)
@@ -320,7 +324,7 @@ dir.create(d9, showWarnings = FALSE)
 
 n <- 10L
 t_engine <- system.time(for (i in seq_len(n)) {
-  cc <- dbConnect(duckdb())
+  cc <- connect()
   dbExecute(cc, sprintf("ATTACH '%s' AS probe", sql_string(file.path(d9, sprintf("e%d.duckdb", i)))))
   dbExecute(cc, "DETACH probe")
   dbDisconnect(cc, shutdown = TRUE)
