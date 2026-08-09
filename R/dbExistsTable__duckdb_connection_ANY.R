@@ -21,12 +21,15 @@ dbExistsTable__duckdb_connection_ANY <- function(conn, name, ...) {
       )
       exists <- TRUE
     },
-    error = function(c) {
-    }
+    error = function(c) {}
   )
   exists
 }
 
 #' @rdname duckdb_connection-class
 #' @export
-setMethod("dbExistsTable", c("duckdb_connection", "ANY"), dbExistsTable__duckdb_connection_ANY)
+setMethod(
+  "dbExistsTable",
+  c("duckdb_connection", "ANY"),
+  dbExistsTable__duckdb_connection_ANY
+)

@@ -51,7 +51,10 @@ flavor_patched_lines <- function(patch_file) {
 
 # Paths under `subdir` matching `pattern`, relative to the package root.
 flavor_dir <- function(root, subdir, pattern) {
-  file.path(subdir, dir(file.path(root, subdir), pattern = pattern, recursive = TRUE))
+  file.path(
+    subdir,
+    dir(file.path(root, subdir), pattern = pattern, recursive = TRUE)
+  )
 }
 
 # The files to scan, as paths relative to `root`, each named by the pattern that
@@ -112,7 +115,9 @@ flavor_package_name_offenders <- function(root = ".") {
 
     for (hit in grep(scanned[[i]], lines)) {
       line <- trimws(lines[[hit]])
-      if (line %in% patched[[path]]) next
+      if (line %in% patched[[path]]) {
+        next
+      }
       offenders <- c(offenders, paste0(path, ":", hit, ": ", line))
     }
   }
@@ -140,10 +145,15 @@ flavor_renamed_paths <- function(patch_file) {
 #
 # Empty on the mainline flavor, where the mainline name is the right one.
 flavor_unflavored_paths <- function(root = ".") {
-  package <- sub("^Package: +", "", grep(
-    "^Package: ", readLines(file.path(root, "DESCRIPTION"), warn = FALSE),
-    value = TRUE
-  )[[1]])
+  package <- sub(
+    "^Package: +",
+    "",
+    grep(
+      "^Package: ",
+      readLines(file.path(root, "DESCRIPTION"), warn = FALSE),
+      value = TRUE
+    )[[1]]
+  )
   if (package == "duckdb") {
     return(character())
   }
@@ -181,10 +191,15 @@ flavor_generated_readmes <- c("README.md", file.path(".github", "README.md"))
 #
 # Empty on the mainline flavor, where the mainline name is the right one.
 flavor_mainline_readme_offenders <- function(root = ".") {
-  package <- sub("^Package: +", "", grep(
-    "^Package: ", readLines(file.path(root, "DESCRIPTION"), warn = FALSE),
-    value = TRUE
-  )[[1]])
+  package <- sub(
+    "^Package: +",
+    "",
+    grep(
+      "^Package: ",
+      readLines(file.path(root, "DESCRIPTION"), warn = FALSE),
+      value = TRUE
+    )[[1]]
+  )
   if (package == "duckdb") {
     return(character())
   }
@@ -193,11 +208,16 @@ flavor_mainline_readme_offenders <- function(root = ".") {
 
   for (path in flavor_generated_readmes) {
     file <- file.path(root, path)
-    if (!file.exists(file)) next
+    if (!file.exists(file)) {
+      next
+    }
     lines <- readLines(file, warn = FALSE)
 
     for (hit in grep('install\\.packages\\("duckdb"', lines)) {
-      offenders <- c(offenders, paste0(path, ":", hit, ": ", trimws(lines[[hit]])))
+      offenders <- c(
+        offenders,
+        paste0(path, ":", hit, ": ", trimws(lines[[hit]]))
+      )
     }
   }
 

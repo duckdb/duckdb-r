@@ -30,7 +30,9 @@ test_that("dbFetchArrowChunk() iterates lazily until empty", {
   chunks <- 0L
   repeat {
     chunk <- dbFetchArrowChunk(res, chunk_size = 1024)
-    if (chunk$length == 0L) break
+    if (chunk$length == 0L) {
+      break
+    }
     total <- total + chunk$length
     chunks <- chunks + 1L
   }

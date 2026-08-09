@@ -13,7 +13,8 @@ if (makeflags == "") {
 
   # CRAN policy: don't use more than 2 cores during checks
   # Use NOT_CRAN environment variable to allow more cores locally
-  not_cran <- tolower(Sys.getenv("NOT_CRAN", "false")) %in% c("true", "1", "yes")
+  not_cran <- tolower(Sys.getenv("NOT_CRAN", "false")) %in%
+    c("true", "1", "yes")
 
   if (!not_cran) {
     ncores <- min(ncores, 2)
