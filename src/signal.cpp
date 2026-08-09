@@ -74,7 +74,7 @@ void ScopedInterruptHandler::Disable() {
 
 void ScopedInterruptHandler::signal_handler(int signum) {
 	if (instance) {
-		instance->interrupted = true;
+		instance->interrupted = 1;
 		instance->context->Interrupt();
 	}
 }
