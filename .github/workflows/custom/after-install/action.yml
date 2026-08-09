@@ -53,8 +53,26 @@ runs:
 
     - name: Install to avoid R CMD INSTALL --pre-clean run otherwise
       run: |
+        set -o pipefail
         mkdir ../lib
-        R CMD INSTALL --library=$(dirname $(pwd))/lib -d --no-byte-compile .
+        R CMD INSTALL --library=$(dirname $(pwd))/lib -d --no-byte-compile . 2>&1 |
+          tee "${RUNNER_TEMP}/install.log"
+      shell: bash
+
+    # The vendored half of the compiler-warning gate
+    # (handbook/build/warnings/README.md): judge the log of the build that just
+    # ran, which before-install put the vendored warning flags on. Nothing is
+    # compiled twice.
+    #
+    # It reads what this entry actually compiled. Objects restored from
+    # DUCKDB_R_PREBUILT_ARCHIVE are not recompiled and so raise nothing -- but
+    # that cache is keyed on hashFiles('src/duckdb/**'), so a vendored tree that
+    # changed is always built afresh, which is the tree this gate is for.
+    # ccache, by contrast, replays a cached compile's diagnostics, so it hides
+    # nothing.
+    - name: Check that the vendored sources compiled without warnings
+      if: env.DUCKDB_R_USE_SYSTEM_LIB != '1'
+      run: scripts/warnings.sh scan vendored "${RUNNER_TEMP}/install.log"
       shell: bash
 
     - name: Show ccache stats
@@ -74,6 +92,24 @@ runs:
     # and nothing else, so its result is the same everywhere. Run it in the
     # smoke test only -- the gate that also styles, roxygenizes and updates
     # snapshots -- rather than a dozen more times for the same answer.
+    # The glue half of the compiler-warning gate
+    # (handbook/build/warnings/README.md). It compiles the ~15 translation units
+    # in src/ with the glue warning set and fails on anything the glue owns;
+    # warnings raised inside the vendored engine headers are counted, not
+    # enforced, because a glue file is not answerable for what an engine header
+    # says. Roughly a minute, and it needs only the checkout -- the vendored
+    # headers are committed -- so it is independent of which build mode this
+    # entry ran in.
+    #
+    # Like the flavor scan below, the answer is the same in every matrix entry,
+    # so it runs in the smoke test only. The vendored half is not here: it rides
+    # the source build in the vendored-build entry instead, via the flags step
+    # in before-install and the scan step above.
+    - name: Check that the glue compiles without warnings
+      if: github.job == 'rcc-smoke'
+      run: scripts/warnings.sh glue
+      shell: bash
+
     - name: Check that the package name is hard-coded only where scripts/flavor.patch rewrites it
       if: github.job == 'rcc-smoke'
       run: |

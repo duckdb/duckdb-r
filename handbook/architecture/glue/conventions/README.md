@@ -55,9 +55,10 @@ runs per row, on exactly the paths that move data.
 
 **No warning is suppressed.**
 CRAN rejects `-Wno-*` flags and `#pragma` silencing;
-fix the root cause instead,
-and for vendored code fix it as a patch under `patch/` or upstream
-([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
+fix the root cause instead.
+Which warnings the glue is held to, who answers for a warning raised
+in vendored code, and where either is checked, is
+[`build/warnings/`](/handbook/build/warnings/README.md)'s.
 Where a fix is truly not possible —
 mbedtls's own `-Wvla` suppression is the standing example —
 the pragma is respelled with widened spacing
