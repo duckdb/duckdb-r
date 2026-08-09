@@ -45,6 +45,10 @@ the directory keeps the method so that is possible.
   packed column itself, per thread count and field type, before and
   after bind started walking into one; supports
   [`architecture/glue/threading/`](/handbook/architecture/glue/threading/README.md).
+* [`2026-08-08-interrupt-reach/`](2026-08-08-interrupt-reach/) —
+  which running DuckDB work a Ctrl+C stops in R and in the DuckDB CLI,
+  and what each host does when it stops nothing; supports
+  [`usage/interactive/`](/handbook/usage/interactive/README.md).
 * [`2026-08-08-timezone-grid/`](2026-08-08-timezone-grid/) —
   which zone labels a `TIMESTAMP` and a `TIMESTAMPTZ` column,
   and when an instant changes, across every setting combination;
