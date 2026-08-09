@@ -22,9 +22,11 @@ private:
 	bool interrupted = false;
 
 	// oldhandler stores the old signal handler
-	// so that it can be restored when the object is destroyed
+	// so that it can be restored when the object is destroyed.
+	// An instance constructed without a context installs nothing, so the
+	// initializer is what keeps the unused slot from holding a stale handler.
 	typedef void (*sig_t)(int);
-	sig_t oldhandler;
+	sig_t oldhandler = SIG_DFL;
 
 	static ScopedInterruptHandler *instance;
 

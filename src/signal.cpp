@@ -37,7 +37,12 @@ ScopedInterruptHandler::ScopedInterruptHandler(shared_ptr<ClientContext> context
 
 ScopedInterruptHandler::~ScopedInterruptHandler() {
 	Disable();
-	instance = nullptr;
+	// Only the instance that installed itself clears the slot: an instance
+	// constructed without a context never took it, and must not release
+	// another one's claim on the way out.
+	if (instance == this) {
+		instance = nullptr;
+	}
 }
 
 void ScopedInterruptHandler::HandleInterrupt() const {
