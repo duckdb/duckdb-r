@@ -106,7 +106,9 @@ drv_to_string <- function(drv, call = parent.frame()) {
 #'
 #' Because the instance is created once per database file,
 #' `config`, `read_only`, `home`, and `shared_home` take effect only at creation.
-#' A call that reuses an existing instance ignores them.
+#' A call that reuses an existing instance cannot apply them, and fails rather than dropping them.
+#' Passing `dbdir` to `dbConnect()` fails too when the driver owns a database file of its own,
+#' because the connection would go to `dbdir` while the driver kept its own database open.
 #' To apply different values to a file-based database --
 #' for example to reopen it read-only, or to send extensions and secrets elsewhere --
 #' first release the instance with [duckdb_shutdown()], which also drops it from the cache,

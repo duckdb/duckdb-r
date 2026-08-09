@@ -618,6 +618,8 @@ rel_set_alias <- function(rel, alias) {
 
 #' Transforms a relation object to a lazy data frame using altrep
 #' @param rel the DuckDB relation object
+#' @param ... reserved for future extensions, must be empty
+#' @param n_rows,n_cells the materialization budget, in rows and in cells
 #' @return a data frame
 #' @noRd
 #' @examples
@@ -626,17 +628,12 @@ rel_set_alias <- function(rel, alias) {
 #' print(rel_to_altrep(rel))
 rel_to_altrep <- function(
   rel,
-  allow_materialization = TRUE,
+  ...,
   n_rows = Inf,
-  n_cells = Inf,
-  ...
+  n_cells = Inf
 ) {
-  # FIXME: Move dots after `rel` for duckplyr >= 1.1.0
   if (...length() > 0) {
     abort("... must be empty")
-  }
-  if (!isTRUE(allow_materialization)) {
-    n_cells <- 0
   }
   rethrow_rapi_rel_to_altrep(rel, n_rows = n_rows, n_cells = n_cells)
 }
