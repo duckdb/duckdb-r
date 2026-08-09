@@ -8,23 +8,43 @@ rs_list_object_types <- function(connection) {
   obj_types <- list(table = list(contains = "data"))
 
   # see if we have views too
-  if (dbGetQuery(connection, "SELECT 'VIEW' IN (SELECT DISTINCT table_type FROM information_schema.tables) s")[[1]]) {
+  if (
+    dbGetQuery(
+      connection,
+      "SELECT 'VIEW' IN (SELECT DISTINCT table_type FROM information_schema.tables) s"
+    )[[1]]
+  ) {
     obj_types <- c(obj_types, list(view = list(contains = "data")))
   }
 
   # check for multiple schema or a named schema
-  if (dbGetQuery(connection, "SELECT COUNT(DISTINCT table_schema) > 0 FROM information_schema.tables")[[1]]) {
+  if (
+    dbGetQuery(
+      connection,
+      "SELECT COUNT(DISTINCT table_schema) > 0 FROM information_schema.tables"
+    )[[1]]
+  ) {
     obj_types <- list(schema = list(contains = obj_types))
   }
 
   obj_types
 }
 
-rs_list_objects <- function(connection, catalog = NULL, schema = NULL, name = NULL, type = NULL, ...) {
+rs_list_objects <- function(
+  connection,
+  catalog = NULL,
+  schema = NULL,
+  name = NULL,
+  type = NULL,
+  ...
+) {
   # if no schema was supplied but this database has schema, return a list of
   # schema
   if (is.null(schema)) {
-    return(dbGetQuery(connection, "SELECT DISTINCT table_schema \"name\", 'schema' \"type\" FROM information_schema.tables ORDER BY table_schema"))
+    return(dbGetQuery(
+      connection,
+      "SELECT DISTINCT table_schema \"name\", 'schema' \"type\" FROM information_schema.tables ORDER BY table_schema"
+    ))
   }
 
   if (is.null(schema)) {
@@ -42,7 +62,8 @@ rs_list_objects <- function(connection, catalog = NULL, schema = NULL, name = NU
   }
   # behold
   dbGetQuery(
-    connection, '
+    connection,
+    '
     SELECT table_name "name",
       CASE WHEN table_type LIKE \'%TABLE\' THEN \'table\' ELSE LOWER(table_type) END "type"
     FROM information_schema.tables
@@ -54,12 +75,19 @@ rs_list_objects <- function(connection, catalog = NULL, schema = NULL, name = NU
   )
 }
 
-rs_list_columns <- function(connection, table, catalog = NULL, schema = NULL, ...) {
+rs_list_columns <- function(
+  connection,
+  table,
+  catalog = NULL,
+  schema = NULL,
+  ...
+) {
   if (is.null(schema)) {
     schema <- NA
   }
   dbGetQuery(
-    connection, "
+    connection,
+    "
     SELECT column_name \"name\", data_type \"type\"
     FROM information_schema.columns
     WHERE (?::STRING IS NULL OR table_schema = ?) AND
@@ -69,7 +97,14 @@ rs_list_columns <- function(connection, table, catalog = NULL, schema = NULL, ..
   )
 }
 
-rs_preview <- function(connection, rowLimit, table = NULL, view = NULL, schema = NULL, ...) {
+rs_preview <- function(
+  connection,
+  rowLimit,
+  table = NULL,
+  view = NULL,
+  schema = NULL,
+  ...
+) {
   # Error if both table and view are passed
   if (!is.null(table) && !is.null(view)) {
     stop("`table` and `view` can not both be used", call. = FALSE)
@@ -88,10 +123,18 @@ rs_preview <- function(connection, rowLimit, table = NULL, view = NULL, schema =
 
   # append schema if specified
   if (!is.null(schema)) {
-    name <- paste(dbQuoteIdentifier(connection, schema), dbQuoteIdentifier(connection, name), sep = ".")
+    name <- paste(
+      dbQuoteIdentifier(connection, schema),
+      dbQuoteIdentifier(connection, name),
+      sep = "."
+    )
   }
 
-  dbGetQuery(connection, paste("SELECT * FROM ", name, " LIMIT ?"), list(rowLimit))
+  dbGetQuery(
+    connection,
+    paste("SELECT * FROM ", name, " LIMIT ?"),
+    list(rowLimit)
+  )
 }
 
 rs_actions <- function(connection) {
@@ -111,7 +154,9 @@ rs_check_disabled <- function(observer) {
   if (getOption("duckdb.force_rstudio_connection_pane", FALSE)) {
     return(FALSE)
   }
-  is.null(observer) || !interactive() || !getOption("duckdb.enable_rstudio_connection_pane", FALSE)
+  is.null(observer) ||
+    !interactive() ||
+    !getOption("duckdb.enable_rstudio_connection_pane", FALSE)
 }
 
 rs_on_connection_closed <- function(connection) {
@@ -151,8 +196,11 @@ rs_on_connection_opened <- function(connection, code = "") {
 
   # append the server name if we know it, and it isn't the same as the database name
   # (this can happen for serverless, nameless databases such as SQLite)
-  if (!is.null(server_name) && nzchar(server_name) &&
-    !identical(server_name, display_name)) {
+  if (
+    !is.null(server_name) &&
+      nzchar(server_name) &&
+      !identical(server_name, display_name)
+  ) {
     display_name <- paste(display_name, "-", server_name)
   }
 

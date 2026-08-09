@@ -162,7 +162,9 @@ duckdb <- function(
   }
   if (
     !is.null(shared_home) &&
-      !(is.logical(shared_home) && length(shared_home) == 1L && !is.na(shared_home))
+      !(is.logical(shared_home) &&
+        length(shared_home) == 1L &&
+        !is.na(shared_home))
   ) {
     stop("`shared_home` must be TRUE, FALSE, or NULL.", call. = FALSE)
   }

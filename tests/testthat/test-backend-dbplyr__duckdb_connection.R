@@ -10,13 +10,25 @@ test_that("dbplyr generic scalars translated correctly", {
   expect_equal(translate(as.double(1.2)), sql(r"{TRY_CAST(1.2 AS DOUBLE)}"))
   expect_equal(translate(as.integer(1.2)), sql(r"{TRY_CAST(1.2 AS INTEGER)}"))
   expect_equal(translate(as.integer64(1.2)), sql(r"{TRY_CAST(1.2 AS BIGINT)}"))
-  expect_equal(translate(as.logical("TRUE")), sql(r"{TRY_CAST('TRUE' AS BOOLEAN)}"))
+  expect_equal(
+    translate(as.logical("TRUE")),
+    sql(r"{TRY_CAST('TRUE' AS BOOLEAN)}")
+  )
   expect_equal(translate(tolower("HELLO")), sql(r"{LOWER('HELLO')}"))
   expect_equal(translate(toupper("hello")), sql(r"{UPPER('hello')}"))
-  expect_equal(translate(pmax(1, 2, na.rm = TRUE)), sql(r"{GREATEST(1.0, 2.0)}"))
+  expect_equal(
+    translate(pmax(1, 2, na.rm = TRUE)),
+    sql(r"{GREATEST(1.0, 2.0)}")
+  )
   expect_equal(translate(pmin(1, 2, na.rm = TRUE)), sql(r"{LEAST(1.0, 2.0)}"))
-  expect_equal(translate(as.character("2020-01-01")), sql(r"{TRY_CAST('2020-01-01' AS TEXT)}"))
-  expect_equal(translate(c("2020-01-01", "2020-13-02")), sql(r"{('2020-01-01', '2020-13-02')}"))
+  expect_equal(
+    translate(as.character("2020-01-01")),
+    sql(r"{TRY_CAST('2020-01-01' AS TEXT)}")
+  )
+  expect_equal(
+    translate(c("2020-01-01", "2020-13-02")),
+    sql(r"{('2020-01-01', '2020-13-02')}")
+  )
   expect_equal(translate(iris[["sepal_length"]]), sql(r"{iris.sepal_length}"))
   expect_equal(translate(iris[[1]]), sql(r"{iris[1]}"))
   expect_equal(translate(cot(x)), sql(r"{COT(x)}"))
@@ -34,28 +46,74 @@ test_that("duckdb custom scalars translated correctly", {
   expect_equal(translate(13 %% 5), sql(r"{FMOD(13.0, 5.0)}"))
   expect_equal(translate(35.8 %/% 4), sql(r"{FDIV(35.8, 4.0)}"))
   expect_equal(translate(35.8^2.51), sql(r"{POW(35.8, 2.51)}"))
-  expect_equal(translate(bitwOr(x, 128L)), sql(r"{(CAST(x AS INTEGER)) | (CAST(128 AS INTEGER))}"))
-  expect_equal(translate(bitwAnd(x, 128)), sql(r"{(CAST(x AS INTEGER)) & (CAST(128.0 AS INTEGER))}"))
-  expect_equal(translate(bitwXor(x, 128L)), sql(r"{XOR((CAST(x AS INTEGER)), (CAST(128 AS INTEGER)))}"))
+  expect_equal(
+    translate(bitwOr(x, 128L)),
+    sql(r"{(CAST(x AS INTEGER)) | (CAST(128 AS INTEGER))}")
+  )
+  expect_equal(
+    translate(bitwAnd(x, 128)),
+    sql(r"{(CAST(x AS INTEGER)) & (CAST(128.0 AS INTEGER))}")
+  )
+  expect_equal(
+    translate(bitwXor(x, 128L)),
+    sql(r"{XOR((CAST(x AS INTEGER)), (CAST(128 AS INTEGER)))}")
+  )
   expect_equal(translate(bitwNot(x)), sql(r"{~(CAST(x AS INTEGER))}"))
-  expect_equal(translate(bitwShiftL(x, 5L)), sql(r"{(CAST(x AS INTEGER)) << (CAST(5 AS INTEGER))}"))
-  expect_equal(translate(bitwShiftR(x, 4L)), sql(r"{(CAST(x AS INTEGER)) >> (CAST(4 AS INTEGER))}"))
+  expect_equal(
+    translate(bitwShiftL(x, 5L)),
+    sql(r"{(CAST(x AS INTEGER)) << (CAST(5 AS INTEGER))}")
+  )
+  expect_equal(
+    translate(bitwShiftR(x, 4L)),
+    sql(r"{(CAST(x AS INTEGER)) >> (CAST(4 AS INTEGER))}")
+  )
   expect_equal(translate(log(x)), sql(r"{LN(x)}"))
   expect_equal(translate(log(x, base = 5)), sql(r"{LOG(x) / LOG(5.0)}"))
   expect_equal(translate(log(x, base = 10)), sql(r"{LOG10(x)}"))
   expect_equal(translate(log(x, base = 2)), sql(r"{LOG2(x)}"))
   expect_equal(translate(log10(x)), sql(r"{LOG10(x)}"))
   expect_equal(translate(log2(x)), sql(r"{LOG2(x)}"))
-  expect_equal(translate(is.nan(var1)), sql(r"{(var1 IS NOT NULL AND PRINTF('%f', var1) = 'nan')}"))
-  expect_equal(translate(is.infinite(var1)), sql(r"{(var1 IS NOT NULL AND REGEXP_MATCHES(PRINTF('%f', var1), 'inf'))}"))
-  expect_equal(translate(is.finite(var1)), sql(r"{(NOT (var1 IS NULL OR REGEXP_MATCHES(PRINTF('%f', var1), 'inf|nan')))}"))
-  expect_equal(translate(grepl("pattern", text)), sql(r"{REGEXP_MATCHES("text", 'pattern')}"))
-  expect_equal(translate(grepl("pattern", text, ignore.case = TRUE)), sql(r"{REGEXP_MATCHES("text", '(?i)pattern')}"))
+  expect_equal(
+    translate(is.nan(var1)),
+    sql(r"{(var1 IS NOT NULL AND PRINTF('%f', var1) = 'nan')}")
+  )
+  expect_equal(
+    translate(is.infinite(var1)),
+    sql(r"{(var1 IS NOT NULL AND REGEXP_MATCHES(PRINTF('%f', var1), 'inf'))}")
+  )
+  expect_equal(
+    translate(is.finite(var1)),
+    sql(
+      r"{(NOT (var1 IS NULL OR REGEXP_MATCHES(PRINTF('%f', var1), 'inf|nan')))}"
+    )
+  )
+  expect_equal(
+    translate(grepl("pattern", text)),
+    sql(r"{REGEXP_MATCHES("text", 'pattern')}")
+  )
+  expect_equal(
+    translate(grepl("pattern", text, ignore.case = TRUE)),
+    sql(r"{REGEXP_MATCHES("text", '(?i)pattern')}")
+  )
   expect_error(translate(grepl("dummy", txt, perl = TRUE)))
-  expect_equal(translate(regexpr("pattern", text)), sql(r"{(CASE WHEN REGEXP_MATCHES("text", 'pattern') THEN (LENGTH(LIST_EXTRACT(STRING_SPLIT_REGEX("text", 'pattern'), 0))+1) ELSE -1 END)}"))
-  expect_equal(translate(round(x, digits = 1.1)), sql(r"{ROUND_EVEN(x, CAST(ROUND(1.1, 0) AS INTEGER))}"))
-  expect_equal(translate(as.Date("2019-01-01")), sql(r"{TRY_CAST('2019-01-01' AS DATE)}"))
-  expect_equal(translate(as.POSIXct("2019-01-01 01:01:01")), sql(r"{TRY_CAST('2019-01-01 01:01:01' AS TIMESTAMP)}"))
+  expect_equal(
+    translate(regexpr("pattern", text)),
+    sql(
+      r"{(CASE WHEN REGEXP_MATCHES("text", 'pattern') THEN (LENGTH(LIST_EXTRACT(STRING_SPLIT_REGEX("text", 'pattern'), 0))+1) ELSE -1 END)}"
+    )
+  )
+  expect_equal(
+    translate(round(x, digits = 1.1)),
+    sql(r"{ROUND_EVEN(x, CAST(ROUND(1.1, 0) AS INTEGER))}")
+  )
+  expect_equal(
+    translate(as.Date("2019-01-01")),
+    sql(r"{TRY_CAST('2019-01-01' AS DATE)}")
+  )
+  expect_equal(
+    translate(as.POSIXct("2019-01-01 01:01:01")),
+    sql(r"{TRY_CAST('2019-01-01 01:01:01' AS TIMESTAMP)}")
+  )
 })
 
 test_that("pasting translated correctly", {
@@ -64,12 +122,27 @@ test_that("pasting translated correctly", {
   translate <- function(...) dbplyr::translate_sql(..., con = con)
   sql <- function(...) dbplyr::sql(...)
 
-  expect_equal(translate(paste("hi", "bye")), sql(r"{CONCAT_WS(' ', 'hi', 'bye')}"))
-  expect_equal(translate(paste("hi", "bye", sep = "-")), sql(r"{CONCAT_WS('-', 'hi', 'bye')}"))
-  expect_equal(translate(paste0("hi", "bye")), sql(r"{CONCAT_WS('', 'hi', 'bye')}"))
+  expect_equal(
+    translate(paste("hi", "bye")),
+    sql(r"{CONCAT_WS(' ', 'hi', 'bye')}")
+  )
+  expect_equal(
+    translate(paste("hi", "bye", sep = "-")),
+    sql(r"{CONCAT_WS('-', 'hi', 'bye')}")
+  )
+  expect_equal(
+    translate(paste0("hi", "bye")),
+    sql(r"{CONCAT_WS('', 'hi', 'bye')}")
+  )
 
-  expect_equal(translate(paste(x, y), window = FALSE), sql(r"{CONCAT_WS(' ', x, y)}"))
-  expect_equal(translate(paste0(x, y), window = FALSE), sql(r"{CONCAT_WS('', x, y)}"))
+  expect_equal(
+    translate(paste(x, y), window = FALSE),
+    sql(r"{CONCAT_WS(' ', x, y)}")
+  )
+  expect_equal(
+    translate(paste0(x, y), window = FALSE),
+    sql(r"{CONCAT_WS('', x, y)}")
+  )
 
   #   expect_error(translate(paste0(x, collapse = ""), window = FALSE), "`collapse` not supported")
 })
@@ -85,23 +158,66 @@ test_that("custom lubridate functions translated correctly", {
 
   expect_equal(translate(yday(x)), sql(r"{EXTRACT(DOY FROM x)}"))
   expect_equal(translate(quarter(x)), sql(r"{EXTRACT(QUARTER FROM x)}"))
-  expect_equal(translate(quarter(x, with_year = TRUE)), sql(r"{(EXTRACT(YEAR FROM x) || '.' || EXTRACT(QUARTER FROM x))}"))
-  expect_equal(translate(quarter(x, type = "year.quarter")), sql(r"{(EXTRACT(YEAR FROM x) || '.' || EXTRACT(QUARTER FROM x))}"))
-  expect_equal(translate(quarter(x, type = "quarter")), sql(r"{EXTRACT(QUARTER FROM x)}"))
-  expect_equal(translate(quarter(x, type = TRUE)), sql(r"{(EXTRACT(YEAR FROM x) || '.' || EXTRACT(QUARTER FROM x))}"))
-  expect_equal(translate(quarter(x, type = FALSE)), sql(r"{EXTRACT(QUARTER FROM x)}"))
-  expect_equal(translate(quarter(x, type = "date_first")), sql(r"{(CAST(DATE_TRUNC('QUARTER', x) AS DATE))}"))
-  expect_equal(translate(quarter(x, type = "date_last")), sql(r"{(CAST((DATE_TRUNC('QUARTER', x) + INTERVAL '1 QUARTER' - INTERVAL '1 DAY') AS DATE))}"))
+  expect_equal(
+    translate(quarter(x, with_year = TRUE)),
+    sql(r"{(EXTRACT(YEAR FROM x) || '.' || EXTRACT(QUARTER FROM x))}")
+  )
+  expect_equal(
+    translate(quarter(x, type = "year.quarter")),
+    sql(r"{(EXTRACT(YEAR FROM x) || '.' || EXTRACT(QUARTER FROM x))}")
+  )
+  expect_equal(
+    translate(quarter(x, type = "quarter")),
+    sql(r"{EXTRACT(QUARTER FROM x)}")
+  )
+  expect_equal(
+    translate(quarter(x, type = TRUE)),
+    sql(r"{(EXTRACT(YEAR FROM x) || '.' || EXTRACT(QUARTER FROM x))}")
+  )
+  expect_equal(
+    translate(quarter(x, type = FALSE)),
+    sql(r"{EXTRACT(QUARTER FROM x)}")
+  )
+  expect_equal(
+    translate(quarter(x, type = "date_first")),
+    sql(r"{(CAST(DATE_TRUNC('QUARTER', x) AS DATE))}")
+  )
+  expect_equal(
+    translate(quarter(x, type = "date_last")),
+    sql(
+      r"{(CAST((DATE_TRUNC('QUARTER', x) + INTERVAL '1 QUARTER' - INTERVAL '1 DAY') AS DATE))}"
+    )
+  )
   expect_error(translate(quarter(x, type = "other")))
   expect_error(translate(quarter(x, fiscal_start = 2)))
-  expect_equal(translate(month(x, label = FALSE)), sql(r"{EXTRACT(MONTH FROM x)}"))
+  expect_equal(
+    translate(month(x, label = FALSE)),
+    sql(r"{EXTRACT(MONTH FROM x)}")
+  )
   expect_equal(translate(month(x, label = TRUE)), sql(r"{STRFTIME(x, '%b')}"))
-  expect_equal(translate(month(x, label = TRUE, abbr = FALSE)), sql(r"{STRFTIME(x, '%B')}"))
-  expect_equal(translate(qday(x)), sql(r"{DATE_DIFF('DAYS', DATE_TRUNC('QUARTER', CAST((x) AS DATE)), (CAST((x) AS DATE) + INTERVAL '1 DAY'))}"))
-  expect_equal(translate(wday(x)), sql(r"{EXTRACT('dow' FROM CAST(x AS DATE) + 0) + 1}"))
-  expect_equal(translate(wday(x, week_start = 4)), sql(r"{EXTRACT('dow' FROM CAST(x AS DATE) + 3) + 1}"))
+  expect_equal(
+    translate(month(x, label = TRUE, abbr = FALSE)),
+    sql(r"{STRFTIME(x, '%B')}")
+  )
+  expect_equal(
+    translate(qday(x)),
+    sql(
+      r"{DATE_DIFF('DAYS', DATE_TRUNC('QUARTER', CAST((x) AS DATE)), (CAST((x) AS DATE) + INTERVAL '1 DAY'))}"
+    )
+  )
+  expect_equal(
+    translate(wday(x)),
+    sql(r"{EXTRACT('dow' FROM CAST(x AS DATE) + 0) + 1}")
+  )
+  expect_equal(
+    translate(wday(x, week_start = 4)),
+    sql(r"{EXTRACT('dow' FROM CAST(x AS DATE) + 3) + 1}")
+  )
   expect_equal(translate(wday(x, label = TRUE)), sql(r"{STRFTIME(x, '%a')}"))
-  expect_equal(translate(wday(x, label = TRUE, abbr = FALSE)), sql(r"{STRFTIME(x, '%A')}"))
+  expect_equal(
+    translate(wday(x, label = TRUE, abbr = FALSE)),
+    sql(r"{STRFTIME(x, '%A')}")
+  )
   expect_equal(translate(seconds(x)), sql(r"{TO_SECONDS(CAST(x AS BIGINT))}"))
   expect_equal(translate(minutes(x)), sql(r"{TO_MINUTES(CAST(x AS BIGINT))}"))
   expect_equal(translate(hours(x)), sql(r"{TO_HOURS(CAST(x AS BIGINT))}"))
@@ -109,10 +225,26 @@ test_that("custom lubridate functions translated correctly", {
   expect_equal(translate(weeks(x)), sql(r"{TO_DAYS(7 * CAST(x AS INTEGER))}"))
   expect_equal(translate(months(x)), sql(r"{TO_MONTHS(CAST(x AS INTEGER))}"))
   expect_equal(translate(years(x)), sql(r"{TO_YEARS(CAST(x AS INTEGER))}"))
-  expect_equal(translate(floor_date(x, "month")), sql(r"{DATE_TRUNC('month', x)}"))
-  expect_equal(translate(floor_date(x, "week")), sql(r"{CAST(x AS DATE) - CAST(EXTRACT('dow' FROM CAST(x AS DATE) + 0) AS INTEGER)}"))
-  expect_equal(translate(floor_date(x, "week", week_start = 1)), sql(r"{DATE_TRUNC('week', x)}"))
-  expect_equal(translate(floor_date(x, "week", week_start = 4)), sql(r"{CAST(x AS DATE) - CAST(EXTRACT('dow' FROM CAST(x AS DATE) + 3) AS INTEGER)}"))
+  expect_equal(
+    translate(floor_date(x, "month")),
+    sql(r"{DATE_TRUNC('month', x)}")
+  )
+  expect_equal(
+    translate(floor_date(x, "week")),
+    sql(
+      r"{CAST(x AS DATE) - CAST(EXTRACT('dow' FROM CAST(x AS DATE) + 0) AS INTEGER)}"
+    )
+  )
+  expect_equal(
+    translate(floor_date(x, "week", week_start = 1)),
+    sql(r"{DATE_TRUNC('week', x)}")
+  )
+  expect_equal(
+    translate(floor_date(x, "week", week_start = 4)),
+    sql(
+      r"{CAST(x AS DATE) - CAST(EXTRACT('dow' FROM CAST(x AS DATE) + 3) AS INTEGER)}"
+    )
+  )
 })
 
 # clock functions
@@ -126,26 +258,48 @@ test_that("custom clock functions translated correctly", {
   sql <- function(...) dbplyr::sql(...)
 
   m <- 1
-  expect_equal(translate(add_days(x, m)), sql(r"{DATE_ADD(x, INTERVAL (m) day)}"))
-  expect_equal(translate(add_days(x, 2L)), sql(r"{DATE_ADD(x, INTERVAL (2) day)}"))
+  expect_equal(
+    translate(add_days(x, m)),
+    sql(r"{DATE_ADD(x, INTERVAL (m) day)}")
+  )
+  expect_equal(
+    translate(add_days(x, 2L)),
+    sql(r"{DATE_ADD(x, INTERVAL (2) day)}")
+  )
 
-  expect_equal(translate(add_years(x, m)), sql(r"{DATE_ADD(x, INTERVAL (m) year)}"))
-  expect_equal(translate(add_years(x, 2L)), sql(r"{DATE_ADD(x, INTERVAL (2) year)}"))
+  expect_equal(
+    translate(add_years(x, m)),
+    sql(r"{DATE_ADD(x, INTERVAL (m) year)}")
+  )
+  expect_equal(
+    translate(add_years(x, 2L)),
+    sql(r"{DATE_ADD(x, INTERVAL (2) year)}")
+  )
 
   expect_equal(translate(get_day(x)), sql(r"{DATE_PART('day', x)}"))
   expect_equal(translate(get_month(x)), sql(r"{DATE_PART('month', x)}"))
   expect_equal(translate(get_year(x)), sql(r"{DATE_PART('year', x)}"))
 
-  expect_equal(translate(date_count_between(start = "start",
-                                            end = "end",
-                                            precision = "day")),
-               sql(r"{DATEDIFF('day', start, end)}"))
+  expect_equal(
+    translate(date_count_between(
+      start = "start",
+      end = "end",
+      precision = "day"
+    )),
+    sql(r"{DATEDIFF('day', start, end)}")
+  )
 
   expect_equal(translate(date_build(y, m, d)), sql(r"{MAKE_DATE(y, m, d)}"))
-  expect_equal(translate(date_build(2000L, 8L, 8L)), sql(r"{MAKE_DATE(2000, 8, 8)}"))
+  expect_equal(
+    translate(date_build(2000L, 8L, 8L)),
+    sql(r"{MAKE_DATE(2000, 8, 8)}")
+  )
   # A bare number is a double, and `MAKE_DATE(2000.0, ...)` does not bind.
   expect_equal(translate(date_build(2000)), sql(r"{MAKE_DATE(2000, 1, 1)}"))
-  expect_equal(translate(date_build(2000, 8, 8)), sql(r"{MAKE_DATE(2000, 8, 8)}"))
+  expect_equal(
+    translate(date_build(2000, 8, 8)),
+    sql(r"{MAKE_DATE(2000, 8, 8)}")
+  )
 
   test_data <- data.frame(
     person = 1L,
@@ -158,46 +312,52 @@ test_that("custom clock functions translated correctly", {
   db_test_data <- dbplyr::copy_inline(con, test_data)
 
   test_data <- test_data %>%
-    dplyr::mutate(date_plus_two_days  = clock::add_days(date_1, 2),
-           date_plus_two_years = clock::add_years(date_1, 2),
-           date_minus_two_days  = clock::add_days(date_1, -2),
-           date_minus_two_years = clock::add_years(date_1, -2),
-           day = clock::get_day(date_1),
-           month = clock::get_month(date_1),
-           year = clock::get_year(date_1),
-           diff = clock::date_count_between(date_1, date_2, "day"),
-           diff2 = clock::date_count_between(date_2, date_1, "day"),
-           built = clock::date_build(y, m, d),
-           built_year_only = clock::date_build(y)
-           )
+    dplyr::mutate(
+      date_plus_two_days = clock::add_days(date_1, 2),
+      date_plus_two_years = clock::add_years(date_1, 2),
+      date_minus_two_days = clock::add_days(date_1, -2),
+      date_minus_two_years = clock::add_years(date_1, -2),
+      day = clock::get_day(date_1),
+      month = clock::get_month(date_1),
+      year = clock::get_year(date_1),
+      diff = clock::date_count_between(date_1, date_2, "day"),
+      diff2 = clock::date_count_between(date_2, date_1, "day"),
+      built = clock::date_build(y, m, d),
+      built_year_only = clock::date_build(y)
+    )
   db_test_data <- db_test_data %>%
-    dplyr::mutate(date_plus_two_days  = as.Date(clock::add_days(date_1, 2)),
-           date_plus_two_years = as.Date(clock::add_years(date_1, 2)),
-           date_minus_two_days  = as.Date(clock::add_days(date_1, -2)),
-           date_minus_two_years = as.Date(clock::add_years(date_1, -2)),
-           day = clock::get_day(date_1),
-           month = clock::get_month(date_1),
-           year = clock::get_year(date_1),
-           diff = clock::date_count_between(date_1, date_2, "day"),
-           diff2 = clock::date_count_between(date_2, date_1, "day"),
-           built = clock::date_build(y, m, d),
-           built_year_only = clock::date_build(y)) %>%
+    dplyr::mutate(
+      date_plus_two_days = as.Date(clock::add_days(date_1, 2)),
+      date_plus_two_years = as.Date(clock::add_years(date_1, 2)),
+      date_minus_two_days = as.Date(clock::add_days(date_1, -2)),
+      date_minus_two_years = as.Date(clock::add_years(date_1, -2)),
+      day = clock::get_day(date_1),
+      month = clock::get_month(date_1),
+      year = clock::get_year(date_1),
+      diff = clock::date_count_between(date_1, date_2, "day"),
+      diff2 = clock::date_count_between(date_2, date_1, "day"),
+      built = clock::date_build(y, m, d),
+      built_year_only = clock::date_build(y)
+    ) %>%
     dplyr::collect()
 
   expect_equal(unclass(test_data), unclass(db_test_data))
 
   # errors for unsupported arguments
-  expect_error(translate(date_count_between(start = "start",
-                                            end = "end",
-                                            precision = "year")))
-  expect_error(translate(date_count_between(start = "start",
-                                            end = "end",
-                                            precision = "day",
-                                            n = 5)))
+  expect_error(translate(date_count_between(
+    start = "start",
+    end = "end",
+    precision = "year"
+  )))
+  expect_error(translate(date_count_between(
+    start = "start",
+    end = "end",
+    precision = "day",
+    n = 5
+  )))
   expect_error(translate(date_build(2000L, invalid = "previous")))
   expect_error(translate(date_build(2000L, 8L, 8L, "overflow")))
   expect_error(translate(date_build(2000.5)))
-
 })
 
 # base date functions
@@ -211,7 +371,10 @@ test_that("difftime() translated correctly", {
   # `difftime()` subtracts its second argument from its first, DATEDIFF() the
   # other way round, so the arguments swap.
   expect_equal(translate(difftime(x, y)), sql(r"{DATEDIFF('day', y, x)}"))
-  expect_equal(translate(difftime(x, y, units = "days")), sql(r"{DATEDIFF('day', y, x)}"))
+  expect_equal(
+    translate(difftime(x, y, units = "days")),
+    sql(r"{DATEDIFF('day', y, x)}")
+  )
 
   test_data <- data.frame(
     date_1 = as.Date("2000-01-01"),
@@ -243,18 +406,53 @@ test_that("custom stringr functions translated correctly", {
   expect_equal(translate(str_c(x, y)), sql(r"{CONCAT_WS('', x, y)}"))
   #   expect_error(translate(str_c(x, collapse = "")), "`collapse` not supported")
   expect_equal(translate(str_detect(x, y)), sql(r"{REGEXP_MATCHES(x, y)}"))
-  expect_equal(translate(str_detect(x, y, negate = TRUE)), sql(r"{(NOT(REGEXP_MATCHES(x, y)))}"))
-  expect_equal(translate(str_replace(x, y, z)), sql(r"{REGEXP_REPLACE(x, y, z)}"))
-  expect_equal(translate(str_replace_all(x, y, z)), sql(r"{REGEXP_REPLACE(x, y, z, 'g')}"))
-  expect_equal(translate(str_squish(x)), sql(r"{TRIM(REGEXP_REPLACE(x, '\s+', ' ', 'g'))}"))
+  expect_equal(
+    translate(str_detect(x, y, negate = TRUE)),
+    sql(r"{(NOT(REGEXP_MATCHES(x, y)))}")
+  )
+  expect_equal(
+    translate(str_replace(x, y, z)),
+    sql(r"{REGEXP_REPLACE(x, y, z)}")
+  )
+  expect_equal(
+    translate(str_replace_all(x, y, z)),
+    sql(r"{REGEXP_REPLACE(x, y, z, 'g')}")
+  )
+  expect_equal(
+    translate(str_squish(x)),
+    sql(r"{TRIM(REGEXP_REPLACE(x, '\s+', ' ', 'g'))}")
+  )
   expect_equal(translate(str_remove(x, y)), sql(r"{REGEXP_REPLACE(x, y, '')}"))
-  expect_equal(translate(str_remove_all(x, y)), sql(r"{REGEXP_REPLACE(x, y, '', 'g')}"))
-  expect_equal(translate(str_to_sentence(x)), sql(r"{(UPPER(x[0]) || x[1:NULL])}"))
-  expect_equal(translate(str_starts(x, y)), sql(r"{REGEXP_MATCHES(x, '^(?:' || y || ')')}"))
-  expect_equal(translate(str_ends(x, y)), sql(r"{REGEXP_MATCHES(x, '(?:' || y || ')$')}"))
-  expect_equal(translate(str_pad(x, width = 10)), sql(r"{LPAD(x, CAST(GREATEST(10, LENGTH(x)) AS INTEGER), ' ')}"))
-  expect_equal(translate(str_pad(x, width = 10, side = "right")), sql(r"{RPAD(x, CAST(GREATEST(10, LENGTH(x)) AS INTEGER), ' ')}"))
-  expect_equal(translate(str_pad(x, width = 10, side = "both", pad = "<")), sql(r"{RPAD(REPEAT('<', (10 - LENGTH(x)) / 2) || x, CAST(GREATEST(10, LENGTH(x)) AS INTEGER), '<')}"))
+  expect_equal(
+    translate(str_remove_all(x, y)),
+    sql(r"{REGEXP_REPLACE(x, y, '', 'g')}")
+  )
+  expect_equal(
+    translate(str_to_sentence(x)),
+    sql(r"{(UPPER(x[0]) || x[1:NULL])}")
+  )
+  expect_equal(
+    translate(str_starts(x, y)),
+    sql(r"{REGEXP_MATCHES(x, '^(?:' || y || ')')}")
+  )
+  expect_equal(
+    translate(str_ends(x, y)),
+    sql(r"{REGEXP_MATCHES(x, '(?:' || y || ')$')}")
+  )
+  expect_equal(
+    translate(str_pad(x, width = 10)),
+    sql(r"{LPAD(x, CAST(GREATEST(10, LENGTH(x)) AS INTEGER), ' ')}")
+  )
+  expect_equal(
+    translate(str_pad(x, width = 10, side = "right")),
+    sql(r"{RPAD(x, CAST(GREATEST(10, LENGTH(x)) AS INTEGER), ' ')}")
+  )
+  expect_equal(
+    translate(str_pad(x, width = 10, side = "both", pad = "<")),
+    sql(
+      r"{RPAD(REPEAT('<', (10 - LENGTH(x)) / 2) || x, CAST(GREATEST(10, LENGTH(x)) AS INTEGER), '<')}"
+    )
+  )
   expect_error(translate(str_pad(x, width = 10, side = "other")))
   expect_equal(translate(str_like(x, "a")), sql(r"{x LIKE 'a'}"))
   expect_equal(translate(str_ilike(x, "a")), sql(r"{x ILIKE 'a'}"))
@@ -329,12 +527,27 @@ test_that("datetime escaping working as in DBI", {
   expect_equal(escape("2020-01-01"), sql(r"{'2020-01-01'}"))
 
   test_datetime <- as.POSIXct("2020-01-01 01:23:45 UTC", tz = "UTC")
-  expect_equal(escape(test_datetime), sql(r"{'2020-01-01 01:23:45'::timestamp}"))
-  expect_equal(escape("2020-01-01 01:23:45 UTC"), sql(r"{'2020-01-01 01:23:45 UTC'}"))
+  expect_equal(
+    escape(test_datetime),
+    sql(r"{'2020-01-01 01:23:45'::timestamp}")
+  )
+  expect_equal(
+    escape("2020-01-01 01:23:45 UTC"),
+    sql(r"{'2020-01-01 01:23:45 UTC'}")
+  )
 
-  test_datetime_tz <- as.POSIXct("2020-01-01 18:23:45 UTC", tz = "America/Los_Angeles")
-  expect_equal(escape(test_datetime_tz), sql(r"{'2020-01-02 02:23:45'::timestamp}"))
-  expect_equal(escape("2020-01-01 18:23:45 PST"), sql(r"{'2020-01-01 18:23:45 PST'}"))
+  test_datetime_tz <- as.POSIXct(
+    "2020-01-01 18:23:45 UTC",
+    tz = "America/Los_Angeles"
+  )
+  expect_equal(
+    escape(test_datetime_tz),
+    sql(r"{'2020-01-02 02:23:45'::timestamp}")
+  )
+  expect_equal(
+    escape("2020-01-01 18:23:45 PST"),
+    sql(r"{'2020-01-01 18:23:45 PST'}")
+  )
 })
 
 test_that("aggregators translated correctly", {
@@ -343,38 +556,110 @@ test_that("aggregators translated correctly", {
   translate <- function(...) dbplyr::translate_sql(..., con = con)
   sql <- function(...) dbplyr::sql(...)
 
-  expect_equal(translate(sum(x, na.rm = TRUE), window = FALSE), sql(r"{SUM(x)}"))
-  expect_equal(translate(sum(x, na.rm = TRUE), window = TRUE), sql(r"{SUM(x) OVER ()}"))
+  expect_equal(
+    translate(sum(x, na.rm = TRUE), window = FALSE),
+    sql(r"{SUM(x)}")
+  )
+  expect_equal(
+    translate(sum(x, na.rm = TRUE), window = TRUE),
+    sql(r"{SUM(x) OVER ()}")
+  )
 
-  expect_equal(translate(prod(x, na.rm = TRUE), window = FALSE), sql(r"{PRODUCT(x)}"))
-  expect_equal(translate(prod(x, na.rm = TRUE), window = TRUE), sql(r"{PRODUCT(x) OVER ()}"))
+  expect_equal(
+    translate(prod(x, na.rm = TRUE), window = FALSE),
+    sql(r"{PRODUCT(x)}")
+  )
+  expect_equal(
+    translate(prod(x, na.rm = TRUE), window = TRUE),
+    sql(r"{PRODUCT(x) OVER ()}")
+  )
 
-  expect_equal(translate(median(x, na.rm = TRUE), window = FALSE), sql(r"{MEDIAN(x)}"))
-  expect_equal(translate(median(x, na.rm = TRUE), window = TRUE), sql(r"{MEDIAN(x) OVER ()}"))
-  expect_equal(translate(median(x, na.rm = TRUE), window = TRUE, vars_group="z"), sql(r"{MEDIAN(x) OVER (PARTITION BY z)}"))
+  expect_equal(
+    translate(median(x, na.rm = TRUE), window = FALSE),
+    sql(r"{MEDIAN(x)}")
+  )
+  expect_equal(
+    translate(median(x, na.rm = TRUE), window = TRUE),
+    sql(r"{MEDIAN(x) OVER ()}")
+  )
+  expect_equal(
+    translate(median(x, na.rm = TRUE), window = TRUE, vars_group = "z"),
+    sql(r"{MEDIAN(x) OVER (PARTITION BY z)}")
+  )
 
-  expect_equal(translate(sd(x, na.rm = TRUE), window = FALSE), sql(r"{STDDEV(x)}"))
-  expect_equal(translate(sd(x, na.rm = TRUE), window = TRUE), sql(r"{STDDEV(x) OVER ()}"))
+  expect_equal(
+    translate(sd(x, na.rm = TRUE), window = FALSE),
+    sql(r"{STDDEV(x)}")
+  )
+  expect_equal(
+    translate(sd(x, na.rm = TRUE), window = TRUE),
+    sql(r"{STDDEV(x) OVER ()}")
+  )
 
-  expect_equal(translate(var(x, na.rm = TRUE), window = FALSE), sql(r"{VARIANCE(x)}"))
-  expect_equal(translate(var(x, na.rm = TRUE), window = TRUE), sql(r"{VARIANCE(x) OVER ()}"))
+  expect_equal(
+    translate(var(x, na.rm = TRUE), window = FALSE),
+    sql(r"{VARIANCE(x)}")
+  )
+  expect_equal(
+    translate(var(x, na.rm = TRUE), window = TRUE),
+    sql(r"{VARIANCE(x) OVER ()}")
+  )
 
-  expect_equal(translate(all(x, na.rm = TRUE), window = FALSE), sql(r"{BOOL_AND(x)}"))
-  expect_equal(translate(all(x, na.rm = TRUE), window = TRUE), sql(r"{BOOL_AND(x) OVER ()}"))
+  expect_equal(
+    translate(all(x, na.rm = TRUE), window = FALSE),
+    sql(r"{BOOL_AND(x)}")
+  )
+  expect_equal(
+    translate(all(x, na.rm = TRUE), window = TRUE),
+    sql(r"{BOOL_AND(x) OVER ()}")
+  )
 
-  expect_equal(translate(any(x, na.rm = TRUE), window = FALSE), sql(r"{BOOL_OR(x)}"))
-  expect_equal(translate(any(x, na.rm = TRUE), window = TRUE), sql(r"{BOOL_OR(x) OVER ()}"))
+  expect_equal(
+    translate(any(x, na.rm = TRUE), window = FALSE),
+    sql(r"{BOOL_OR(x)}")
+  )
+  expect_equal(
+    translate(any(x, na.rm = TRUE), window = TRUE),
+    sql(r"{BOOL_OR(x) OVER ()}")
+  )
 
-  expect_equal(translate(str_flatten(x, ","), window = FALSE), sql(r"{STRING_AGG(x, ',')}"))
-  expect_equal(translate(str_flatten(x, ","), window = TRUE), sql(r"{STRING_AGG(x, ',') OVER ()}"))
-  expect_equal(translate(str_flatten(x, ","), window = TRUE, vars_group = "y"), sql(r"{STRING_AGG(x, ',') OVER (PARTITION BY y)}"))
+  expect_equal(
+    translate(str_flatten(x, ","), window = FALSE),
+    sql(r"{STRING_AGG(x, ',')}")
+  )
+  expect_equal(
+    translate(str_flatten(x, ","), window = TRUE),
+    sql(r"{STRING_AGG(x, ',') OVER ()}")
+  )
+  expect_equal(
+    translate(str_flatten(x, ","), window = TRUE, vars_group = "y"),
+    sql(r"{STRING_AGG(x, ',') OVER (PARTITION BY y)}")
+  )
 
-  expect_equal(translate(n_distinct(x), window = FALSE), sql(r"{COUNT(DISTINCT row(x))}"))
-  expect_equal(translate(n_distinct(x), window = TRUE), sql(r"{COUNT(DISTINCT row(x)) OVER ()}"))
-  expect_equal(translate(n_distinct(x), window = TRUE, vars_group = "y"), sql(r"{COUNT(DISTINCT row(x)) OVER (PARTITION BY y)}"))
-  expect_equal(translate(n_distinct(x, na.rm = TRUE), window = FALSE), sql(r"{COUNT(DISTINCT x)}"))
-  expect_equal(translate(n_distinct(x, na.rm = TRUE), window = TRUE), sql(r"{COUNT(DISTINCT x) OVER ()}"))
-  expect_equal(translate(n_distinct(x, na.rm = TRUE), window = TRUE, vars_group = "y"), sql(r"{COUNT(DISTINCT x) OVER (PARTITION BY y)}"))
+  expect_equal(
+    translate(n_distinct(x), window = FALSE),
+    sql(r"{COUNT(DISTINCT row(x))}")
+  )
+  expect_equal(
+    translate(n_distinct(x), window = TRUE),
+    sql(r"{COUNT(DISTINCT row(x)) OVER ()}")
+  )
+  expect_equal(
+    translate(n_distinct(x), window = TRUE, vars_group = "y"),
+    sql(r"{COUNT(DISTINCT row(x)) OVER (PARTITION BY y)}")
+  )
+  expect_equal(
+    translate(n_distinct(x, na.rm = TRUE), window = FALSE),
+    sql(r"{COUNT(DISTINCT x)}")
+  )
+  expect_equal(
+    translate(n_distinct(x, na.rm = TRUE), window = TRUE),
+    sql(r"{COUNT(DISTINCT x) OVER ()}")
+  )
+  expect_equal(
+    translate(n_distinct(x, na.rm = TRUE), window = TRUE, vars_group = "y"),
+    sql(r"{COUNT(DISTINCT x) OVER (PARTITION BY y)}")
+  )
 })
 
 test_that("quantile translated correctly", {
@@ -383,10 +668,22 @@ test_that("quantile translated correctly", {
   translate <- function(...) dbplyr::translate_sql(..., con = con)
   sql <- function(...) dbplyr::sql(...)
 
-  expect_equal(translate(quantile(x, 0.25, na.rm = TRUE), window = FALSE), sql(r"{QUANTILE_CONT(x, 0.25)}"))
-  expect_equal(translate(quantile(x, 0.5, na.rm = TRUE), window = FALSE), sql(r"{QUANTILE_CONT(x, 0.5)}"))
-  expect_equal(translate(quantile(x, 0.25, na.rm = TRUE), window = TRUE), sql(r"{QUANTILE_CONT(x, 0.25) OVER ()}"))
-  expect_equal(translate(quantile(x, 0.25, na.rm = TRUE), window = TRUE, vars_group = "y"), sql(r"{QUANTILE_CONT(x, 0.25) OVER (PARTITION BY y)}"))
+  expect_equal(
+    translate(quantile(x, 0.25, na.rm = TRUE), window = FALSE),
+    sql(r"{QUANTILE_CONT(x, 0.25)}")
+  )
+  expect_equal(
+    translate(quantile(x, 0.5, na.rm = TRUE), window = FALSE),
+    sql(r"{QUANTILE_CONT(x, 0.5)}")
+  )
+  expect_equal(
+    translate(quantile(x, 0.25, na.rm = TRUE), window = TRUE),
+    sql(r"{QUANTILE_CONT(x, 0.25) OVER ()}")
+  )
+  expect_equal(
+    translate(quantile(x, 0.25, na.rm = TRUE), window = TRUE, vars_group = "y"),
+    sql(r"{QUANTILE_CONT(x, 0.25) OVER (PARTITION BY y)}")
+  )
 })
 
 test_that("two variable aggregates are translated correctly", {
@@ -396,15 +693,40 @@ test_that("two variable aggregates are translated correctly", {
   sql <- function(...) dbplyr::sql(...)
 
   expect_equal(translate(cor(x, y), window = FALSE), sql(r"{CORR(x, y)}"))
-  expect_equal(translate(cor(x, y), window = TRUE), sql(r"{CORR(x, y) OVER ()}"))
+  expect_equal(
+    translate(cor(x, y), window = TRUE),
+    sql(r"{CORR(x, y) OVER ()}")
+  )
 
-  expect_equal(translate(n_distinct(x, y), window = FALSE), sql(r"{COUNT(DISTINCT row(x, y))}"))
-  expect_equal(translate(n_distinct(x, y), window = TRUE), sql(r"{COUNT(DISTINCT row(x, y)) OVER ()}"))
-  expect_equal(translate(n_distinct(x, y), window = TRUE, vars_group = "y"), sql(r"{COUNT(DISTINCT row(x, y)) OVER (PARTITION BY y)}"))
+  expect_equal(
+    translate(n_distinct(x, y), window = FALSE),
+    sql(r"{COUNT(DISTINCT row(x, y))}")
+  )
+  expect_equal(
+    translate(n_distinct(x, y), window = TRUE),
+    sql(r"{COUNT(DISTINCT row(x, y)) OVER ()}")
+  )
+  expect_equal(
+    translate(n_distinct(x, y), window = TRUE, vars_group = "y"),
+    sql(r"{COUNT(DISTINCT row(x, y)) OVER (PARTITION BY y)}")
+  )
 
-  expect_equal(translate(n_distinct(x, y, na.rm = TRUE), window = FALSE), sql(r"{COUNT(DISTINCT row(x, y)) FILTER (x IS NOT NULL AND y IS NOT NULL)}"))
-  expect_equal(translate(n_distinct(x, y, na.rm = TRUE), window = TRUE), sql(r"{COUNT(DISTINCT row(x, y)) FILTER (x IS NOT NULL AND y IS NOT NULL) OVER ()}"))
-  expect_equal(translate(n_distinct(x, y, na.rm = TRUE), window = TRUE, vars_group = "y"), sql(r"{COUNT(DISTINCT row(x, y)) FILTER (x IS NOT NULL AND y IS NOT NULL) OVER (PARTITION BY y)}"))
+  expect_equal(
+    translate(n_distinct(x, y, na.rm = TRUE), window = FALSE),
+    sql(r"{COUNT(DISTINCT row(x, y)) FILTER (x IS NOT NULL AND y IS NOT NULL)}")
+  )
+  expect_equal(
+    translate(n_distinct(x, y, na.rm = TRUE), window = TRUE),
+    sql(
+      r"{COUNT(DISTINCT row(x, y)) FILTER (x IS NOT NULL AND y IS NOT NULL) OVER ()}"
+    )
+  )
+  expect_equal(
+    translate(n_distinct(x, y, na.rm = TRUE), window = TRUE, vars_group = "y"),
+    sql(
+      r"{COUNT(DISTINCT row(x, y)) FILTER (x IS NOT NULL AND y IS NOT NULL) OVER (PARTITION BY y)}"
+    )
+  )
 })
 
 test_that("n_distinct() computations are correct", {
@@ -579,7 +901,6 @@ test_that("snapshots of duckdb custom scalars translations", {
 })
 
 
-
 test_that("snapshot tests for pasting translate", {
   skip_on_cran()
   skip_if_not_installed("dbplyr")
@@ -696,7 +1017,10 @@ test_that("snapshots datetime escaping working as in DBI", {
     escape(test_datetime)
     escape("2020-01-01 01:23:45 UTC")
 
-    test_datetime_tz <- as.POSIXct("2020-01-01 18:23:45 UTC", tz = "America/Los_Angeles")
+    test_datetime_tz <- as.POSIXct(
+      "2020-01-01 18:23:45 UTC",
+      tz = "America/Los_Angeles"
+    )
     escape(test_datetime_tz)
     escape("2020-01-01 18:23:45 PST")
   })
@@ -757,6 +1081,9 @@ test_that("an escaped POSIXct is sent as the instant it names", {
   }
 
   expect_equal(escape_at("UTC"), "'2025-03-01 18:00:00'::timestamp")
-  expect_equal(escape_at("America/Indiana/Indianapolis"), "'2025-03-01 23:00:00'::timestamp")
+  expect_equal(
+    escape_at("America/Indiana/Indianapolis"),
+    "'2025-03-01 23:00:00'::timestamp"
+  )
   expect_equal(escape_at("Europe/Zurich"), "'2025-03-01 17:00:00'::timestamp")
 })
