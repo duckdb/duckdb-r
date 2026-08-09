@@ -87,8 +87,6 @@ dbConnect__duckdb_driver <- function(
 
   if (missing(dbdir)) {
     dbdir <- drv@dbdir
-  } else {
-    dbdir <- path_normalize(dbdir)
   }
 
   if (missing(read_only)) {

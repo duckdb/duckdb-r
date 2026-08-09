@@ -30,8 +30,6 @@ drv_to_string <- function(drv, call = parent.frame()) {
   )
 }
 
-driver_registry <- new.env(parent = emptyenv())
-
 #' @description
 #' `duckdb()` creates or reuses a database instance.
 #'
@@ -170,19 +168,6 @@ duckdb <- function(
 
   convert_opts <- duckdb_convert_opts(bigint = bigint)
 
-  dbdir <- path_normalize(dbdir)
-  if (dbdir != DBDIR_MEMORY) {
-    drv <- driver_registry[[dbdir]]
-    # We reuse an existing driver object if the database is still alive.
-    # If not, we fall back to creating a new driver object with a new database.
-    if (!is.null(drv) && rethrow_rapi_lock(drv@database_ref)) {
-      # We don't care about different read_only or config settings here.
-      # The bigint setting can be actually picked up by dbConnect(), we update it here.
-      drv@convert_opts <- convert_opts
-      drv@bigint <- convert_opts$bigint
-      return(drv)
-    }
-  }
 
   # Decide once, past the driver-cache reuse above, whether this driver may load
   # DuckDB extensions (argument > `duckdb.allow_extensions` option >
@@ -284,26 +269,30 @@ duckdb <- function(
 
   # Always create new database for in-memory,
   # allows isolation and mixing different configs
+  database_ref <- rethrow_rapi_startup(
+    dbdir,
+    read_only,
+    startup_config,
+    environment_scan,
+    ax$allow
+  )
+
+  # The engine settles the identity, so the driver reports what it opened
+  # rather than what the caller spelled. An in-memory database has no path.
+  if (dbdir != DBDIR_MEMORY) {
+    dbdir <- rethrow_rapi_database_path(database_ref)
+  }
+
   drv <- new(
     "duckdb_driver",
     config = config,
-    database_ref = rethrow_rapi_startup(
-      dbdir,
-      read_only,
-      startup_config,
-      environment_scan,
-      ax$allow
-    ),
+    database_ref = database_ref,
     dbdir = dbdir,
     read_only = read_only,
     convert_opts = convert_opts,
     bigint = convert_opts$bigint,
     allow_extensions = ax$allow
   )
-
-  if (dbdir != DBDIR_MEMORY) {
-    driver_registry[[dbdir]] <- drv
-  }
 
   reg.finalizer(drv@database_ref, onexit = TRUE, rapi_shutdown)
 
@@ -326,10 +315,6 @@ duckdb_shutdown <- function(drv) {
     invisible(FALSE)
   }
   rethrow_rapi_shutdown(drv@database_ref)
-
-  if (drv@dbdir != DBDIR_MEMORY) {
-    rm(list = drv@dbdir, envir = driver_registry)
-  }
 
   invisible(TRUE)
 }
@@ -401,20 +386,4 @@ check_tz <- function(timezone) {
   }
 
   timezone
-}
-
-path_normalize <- function(path) {
-  if (path == "" || path == DBDIR_MEMORY) {
-    return(DBDIR_MEMORY)
-  }
-
-  out <- normalizePath(path, mustWork = FALSE)
-
-  # Stable results are only guaranteed if the file exists
-  if (!file.exists(out)) {
-    on.exit(unlink(out))
-    writeLines(character(), out)
-    out <- normalizePath(out, mustWork = TRUE)
-  }
-  out
 }

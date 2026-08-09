@@ -103,6 +103,30 @@ The R layer stops normalizing and stops registering: `duckdb()` hands
   How reachable it is from this package's lifecycle needs establishing
   before the swap, not after.
 
+## Open, found while implementing
+
+**Storage resolution now runs for calls that used to skip it.**
+`duckdb()` resolves the extension and secret home before it reaches the
+glue, and `driver_registry` used to return a cached driver *before* that
+happened.
+Without the registry every call resolves, so a second
+`duckdb(dbdir, shared_home = TRUE)` on a live instance records a
+session-wide choice — and `shared_home = TRUE` creates `~/.duckdb` — for
+a call that changes nothing about the database.
+`tests/testthat/test-storage-message-once.R` catches this: it was
+written to assert that an ignored argument records no choice, and it now
+fails.
+
+The fix is not a reordering: on a reuse the config must *match* the live
+instance's or the engine refuses it, so R cannot simply omit the storage
+entries it would otherwise resolve.
+Something has to tell R that an instance already exists before it
+resolves anything — `DBInstanceCache::GetInstance()` returns `nullptr`
+for an absent one and is the obvious probe, but it takes a config to
+compare, which is the thing R has not built yet.
+Settling this is the next step, and it decides whether the swap can be
+one change or needs the storage resolution moved behind the glue.
+
 ## Staging
 
 1. Settle the linkage question: build against a released `libduckdb` on
