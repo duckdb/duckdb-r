@@ -327,6 +327,17 @@ a run cancelled whole, so that no leg ever published —
 is the reason to dispatch it.
 What is left is the leg's own publish, which is where a verdict comes from.
 
+## Where this is going
+
+**The store is on its way out**, and D6 of
+[`plan/PLAN-vendoring-simplification.md`](/plan/PLAN-vendoring-simplification.md)
+is the cut: selection moves to a batched read of the `rcc` commit status,
+[`series-check.sh`](/scripts/series-check.sh) reads a failure's log from the run
+that decided it rather than from `logs2.d/`,
+and the branch goes with its writers.
+Nothing on this page is deprecated — it is what runs today —
+but a change to any of it is worth weighing against a plan to delete it.
+
 *To deepen: state what the first live cutover, the first live consolidation and
 the first live publish against the real remote changed, and fold the
 vendoring-simplification plan's remaining per-commit items
