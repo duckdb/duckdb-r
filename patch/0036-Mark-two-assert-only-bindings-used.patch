@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kirill =?UTF-8?q?M=C3=BCller?= <kirill@cynkra.com>
+Date: Sun, 9 Aug 2026 12:00:00 +0200
+Subject: [PATCH] Mark two assert-only bindings used
+
+With NDEBUG, D_ASSERT is assert(), which expands to ((void)0) -- the
+operand is discarded unparsed, so a binding that only ever appears
+inside one is unused in a release build and -Wunused-variable says so.
+Say it is used, the way the engine already does in ~37 other places:
+(void)binding;
+---
+  src/duckdb/src/storage/table/row_group.cpp                   | 1 +
+  src/duckdb/src/storage/table/variant/variant_unshredding.cpp | 1 +
+  2 files changed, 2 insertions(+)
+
+diff --git a/src/duckdb/src/storage/table/row_group.cpp b/src/duckdb/src/storage/table/row_group.cpp
+index f551263..3515c8c 100644
+--- a/src/duckdb/src/storage/table/row_group.cpp
++++ b/src/duckdb/src/storage/table/row_group.cpp
+@@ -1162,6 +1162,7 @@ vector<RowGroupWriteData> RowGroup::WriteToDisk(RowGroupWriteInfo &info,
+ 	idx_t column_count = row_groups[0].get().GetColumnCount();
+ 	for (auto &row_group : row_groups) {
+ 		D_ASSERT(column_count == row_group.get().GetColumnCount());
++		(void)row_group;
+ 		RowGroupWriteData write_data;
+ 		write_data.states.reserve(column_count);
+ 		write_data.statistics.reserve(column_count);
+diff --git a/src/duckdb/src/storage/table/variant/variant_unshredding.cpp b/src/duckdb/src/storage/table/variant/variant_unshredding.cpp
+index d991dd3..42f694c 100644
+--- a/src/duckdb/src/storage/table/variant/variant_unshredding.cpp
++++ b/src/duckdb/src/storage/table/variant/variant_unshredding.cpp
+@@ -186,6 +186,7 @@ static vector<VariantValue> Unshred(UnifiedVariantVectorData &variant, Vector &s
+ 		D_ASSERT(shredded.GetType().id() == LogicalTypeId::STRUCT);
+ 		auto &child_entries = StructVector::GetEntries(shredded);
+ 		D_ASSERT(child_entries.size() <= 2);
++		(void)child_entries;
+ 		typed_value_ref = *child_vectors[VariantColumnData::TYPED_VALUE_INDEX];
+ 		if (child_vectors.size() > 1) {
+ 			D_ASSERT(child_vectors.size() == 2);
+-- 
+2.43.0
