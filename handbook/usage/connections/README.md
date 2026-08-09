@@ -19,6 +19,15 @@ The load-bearing facts:
   so reuse is what lets repeated
   `dbConnect(duckdb(dbdir = "my.db"))` calls work at all.
   An in-memory database is never cached.
+* **Normalization resolves the path as far as it goes, and no further.**
+  A database file that does not exist yet is resolved through an empty
+  placeholder `duckdb()` creates and removes again,
+  so a `dbdir` in a directory that cannot be written to fails at
+  `duckdb()` rather than in the engine.
+  Creating that placeholder is the only step that has to succeed:
+  a path `normalizePath()` cannot resolve is kept as it stands.
+  Asking for more would refuse the network drive whose parent
+  directories the user may not read, for a path that opens fine.
 * `dbdir`, `config`, `read_only`, `home`, and `shared_home`
   all describe the *instance*, so they bind when it is created —
   and `dbConnect()` accepts every one of them anyway,
@@ -48,5 +57,4 @@ The load-bearing facts:
   or the session ends.
 
 *To deepen: absorb the instance and caching section of `?duckdb`;
-drain [#172](https://github.com/duckdb/duckdb-r/issues/172),
-[#455](https://github.com/duckdb/duckdb-r/issues/455).*
+drain [#172](https://github.com/duckdb/duckdb-r/issues/172).*
