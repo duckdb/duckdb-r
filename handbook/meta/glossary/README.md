@@ -28,7 +28,7 @@ one line, so the register stays greppable and diffs per term.
 * **forward-port** — bringing `main`'s R-side work onto a series as cherry-picks ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
 * **glue** — the C++ translation units in `src/` that bridge R and the engine ([`architecture/glue/`](/handbook/architecture/glue/README.md)).
 * **glue gate** — the syntax check of the glue against freshly vendored headers ([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
-* **harvest** — the fan-in that reconciles what the legs could not publish themselves onto the verdict store ([`operations/ci/per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md)).
+* **harvest** — the dispatched sweep that records commits no leg published a verdict for, onto the verdict store ([`operations/ci/per-commit/store/`](/handbook/operations/ci/per-commit/store/README.md)). Once also a per-run fan-in, now retired.
 * **in-memory database** — the default, file-less instance: never cached, fresh per `duckdb()` call ([`usage/connections/`](/handbook/usage/connections/README.md)).
 * **leaf** / **internal node** — leaves explain, once; internal nodes navigate and may govern ([`meta/handbook/`](/handbook/meta/handbook/README.md)).
 * **leg** — the one CI job that builds and judges a shard, commit by commit, in a single workspace ([`operations/ci/per-commit/legs/`](/handbook/operations/ci/per-commit/legs/README.md)).

@@ -40,6 +40,10 @@ the directory keeps the method so that is possible.
   which prebuilt extensions DuckDB's repositories serve R's Windows
   builds, and whether the MSVC arm64 artifact can be hand-loaded;
   supports [`usage/extensions/`](/handbook/usage/extensions/README.md).
+* [`2026-08-08-interrupt-reach/`](2026-08-08-interrupt-reach/) —
+  which running DuckDB work a Ctrl+C stops in R and in the DuckDB CLI,
+  and what each host does when it stops nothing; supports
+  [`usage/interactive/`](/handbook/usage/interactive/README.md).
 * [`2026-08-08-timezone-grid/`](2026-08-08-timezone-grid/) —
   which zone labels a `TIMESTAMP` and a `TIMESTAMPTZ` column,
   and when an instant changes, across every setting combination;

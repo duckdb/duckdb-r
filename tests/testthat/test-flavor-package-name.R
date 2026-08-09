@@ -31,3 +31,12 @@ test_that("no file still carries the mainline name that scripts/flavor.patch ren
 
   expect_equal(flavor_unflavored_paths(root), character())
 })
+
+test_that("no generated README tells a reader to install the mainline package", {
+  root <- lts_source_root()
+  skip_if(is.na(root), "Not running from the package source tree.")
+
+  source(file.path(root, "scripts", "flavor-package-name.R"), local = TRUE)
+
+  expect_equal(flavor_mainline_readme_offenders(root), character())
+})

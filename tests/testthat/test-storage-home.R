@@ -222,7 +222,7 @@ test_that("resolve_temp_directory redirects in-memory only, honors override", {
 
   # The per-instance spill directory sits under the session spill root ...
   spill_root <- file.path(tmp, get_package_name(), "temp")
-  expect_equal(dirname(resolved$directory), spill_root)
+  expect_same_path(dirname(resolved$directory), spill_root)
   # ... which resolving created, so the engine's own single-level directory
   # creation can create the leaf lazily at first spill.
   expect_true(dir.exists(spill_root))
@@ -292,7 +292,7 @@ test_that("an in-memory database spills to temporary storage out of the box", {
     con,
     "SELECT current_setting('temp_directory') AS dir"
   )$dir
-  expect_equal(dirname(spill), file.path(session_home(), "temp"))
+  expect_same_path(dirname(spill), file.path(session_home(), "temp"))
   expect_false(dir.exists(spill))
 
   # A sort that outgrows the memory limit: it can only complete by offloading
