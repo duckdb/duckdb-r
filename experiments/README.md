@@ -74,6 +74,11 @@ the directory keeps the method so that is possible.
   series' `-dev`, what kind, and how much of the raw difference is not a
   fix at all; supports
   [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md).
+* [`2026-08-09-spatial-interop/`](2026-08-09-spatial-interop/) —
+  which route carries a geometry across the R boundary, in each
+  direction, what arrives, and what each does to the CRS; supports
+  [`usage/types/`](/handbook/usage/types/README.md) and
+  [`plan/PLAN-spatial-interop.md`](/plan/PLAN-spatial-interop.md).
 * [`2026-08-09-windows-fast-path/`](2026-08-09-windows-fast-path/) —
   what the published Windows `libduckdb` exports, and how much of what
   the glue resolves from the engine is in there; supports
