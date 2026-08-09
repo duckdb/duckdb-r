@@ -108,6 +108,22 @@ register at load time the same way —
 all on classes this package defines for the purpose.
 It is the one route here that does not go through DBI at all.
 
+The driver manager also loads a DuckDB ADBC driver that is *not* this
+package's — a library built by whatever toolchain the platform's own
+DuckDB build uses — and that is the one way to reach an extension this
+package cannot install, because the extensions a driver can install
+follow the platform it was built for
+([`extensions/`](/handbook/usage/extensions/README.md),
+[reported working on Windows](https://github.com/duckdb/duckdb-r/issues/100#issuecomment-4095552832)).
+It costs everything this package adds:
+the DBI methods, the relational API, registration and the R type
+mapping are this package's rather than the driver's,
+and a second engine in the session shares nothing with this one.
+Both routes need `adbcdrivermanager`, which rules out Windows arm64:
+there it has no binary to install and does not build from source
+([`operations/ci/matrix/`](/handbook/operations/ci/matrix/README.md)
+carries what CI does about that).
+
 ## data.table and collapse
 
 The other frame libraries
