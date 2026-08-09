@@ -13,9 +13,14 @@ make_pkg <- function(version) {
   dir.create(file.path(src, "R"), recursive = TRUE)
   writeLines(
     c(
-      "Package: fakedep", paste0("Version: ", version), "Title: Fake",
-      "Description: Fake.", "Author: N", "Maintainer: N <n@e.com>",
-      "License: MIT + file LICENSE", "Encoding: UTF-8"
+      "Package: fakedep",
+      paste0("Version: ", version),
+      "Title: Fake",
+      "Description: Fake.",
+      "Author: N",
+      "Maintainer: N <n@e.com>",
+      "License: MIT + file LICENSE",
+      "Encoding: UTF-8"
     ),
     file.path(src, "DESCRIPTION")
   )
@@ -40,7 +45,7 @@ make_pkg("1.0.0")
 invisible(loadNamespace("fakedep", lib.loc = lib))
 report("loaded 1.0.0")
 
-make_pkg("2.0.0")  # reinstalled over the top, session still running
+make_pkg("2.0.0") # reinstalled over the top, session still running
 report("library now 2.0.0")
 
 cat("\nnamespace still loaded:", isNamespaceLoaded("fakedep"), "\n")
@@ -54,8 +59,13 @@ unlink(src2, recursive = TRUE)
 dir.create(file.path(src2, "R"), recursive = TRUE)
 writeLines(
   c(
-    "Package: fakedep2", "Version: 9.9.9", "Title: Fake", "Description: Fake.",
-    "Author: N", "Maintainer: N <n@e.com>", "License: MIT + file LICENSE",
+    "Package: fakedep2",
+    "Version: 9.9.9",
+    "Title: Fake",
+    "Description: Fake.",
+    "Author: N",
+    "Maintainer: N <n@e.com>",
+    "License: MIT + file LICENSE",
     "Encoding: UTF-8"
   ),
   file.path(src2, "DESCRIPTION")

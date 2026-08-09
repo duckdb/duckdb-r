@@ -23,16 +23,22 @@ test_that("the loaded version is read from the namespace, not the library", {
 })
 
 test_that("an old dbplyr warns, a current one is silent", {
-  local_mocked_bindings(loaded_dbplyr_version = function() package_version("2.5.0"))
+  local_mocked_bindings(loaded_dbplyr_version = function() {
+    package_version("2.5.0")
+  })
   expect_warning(
     expect_true(warn_if_dbplyr_too_old()),
     "needs dbplyr 2.6.0 or later, but dbplyr 2.5.0 is loaded"
   )
 
-  local_mocked_bindings(loaded_dbplyr_version = function() package_version("2.6.0"))
+  local_mocked_bindings(loaded_dbplyr_version = function() {
+    package_version("2.6.0")
+  })
   expect_silent(expect_false(warn_if_dbplyr_too_old()))
 
-  local_mocked_bindings(loaded_dbplyr_version = function() package_version("2.7.1"))
+  local_mocked_bindings(loaded_dbplyr_version = function() {
+    package_version("2.7.1")
+  })
   expect_silent(expect_false(warn_if_dbplyr_too_old()))
 })
 
@@ -41,7 +47,9 @@ test_that("an old dbplyr warns, a current one is silent", {
 test_that("the warning wording is stable", {
   # The wording carries the package name, so it goes through the flavor
   # normalisation every snapshot that can name the package uses.
-  local_mocked_bindings(loaded_dbplyr_version = function() package_version("2.5.0"))
+  local_mocked_bindings(loaded_dbplyr_version = function() {
+    package_version("2.5.0")
+  })
 
   expect_snapshot(
     warn_if_dbplyr_too_old(),
@@ -65,7 +73,9 @@ test_that("a dbplyr loading later is caught by a hook", {
   # `.onLoad()` armed one of these to run the check. Give it a version that must
   # warn, and confirm the arrangement as a whole reacts -- the other hooks
   # registered there only register S3 methods.
-  local_mocked_bindings(loaded_dbplyr_version = function() package_version("2.5.0"))
+  local_mocked_bindings(loaded_dbplyr_version = function() {
+    package_version("2.5.0")
+  })
   warned <- vapply(
     hooks,
     function(hook) {
@@ -74,7 +84,9 @@ test_that("a dbplyr loading later is caught by a hook", {
           hook("dbplyr", "")
           FALSE
         },
-        warning = function(w) grepl("needs dbplyr", conditionMessage(w), fixed = TRUE)
+        warning = function(w) {
+          grepl("needs dbplyr", conditionMessage(w), fixed = TRUE)
+        }
       )
     },
     logical(1)

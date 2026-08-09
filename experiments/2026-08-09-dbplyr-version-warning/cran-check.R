@@ -11,18 +11,28 @@ write_pkg <- function(body) {
   dir.create(file.path(pkg, "R"), recursive = TRUE)
   writeLines(
     c(
-      "Package: startuptest", "Version: 1.0.0", "Title: Startup Test",
+      "Package: startuptest",
+      "Version: 1.0.0",
+      "Title: Startup Test",
       "Description: Checks what R CMD check says about startup functions.",
-      "Author: N <n@e.com>", "Maintainer: N <n@e.com>",
-      "License: MIT + file LICENSE", "Encoding: UTF-8"
+      "Author: N <n@e.com>",
+      "Maintainer: N <n@e.com>",
+      "License: MIT + file LICENSE",
+      "Encoding: UTF-8"
     ),
     file.path(pkg, "DESCRIPTION")
   )
   writeLines("MIT", file.path(pkg, "LICENSE"))
   writeLines("export(f)", file.path(pkg, "NAMESPACE"))
   writeLines(
-    c("f <- function() 1", "", ".onAttach <- function(libname, pkgname) {",
-      paste0("  ", body), "  invisible()", "}"),
+    c(
+      "f <- function() 1",
+      "",
+      ".onAttach <- function(libname, pkgname) {",
+      paste0("  ", body),
+      "  invisible()",
+      "}"
+    ),
     file.path(pkg, "R", "f.R")
   )
 }
@@ -32,10 +42,19 @@ check <- function(label, body) {
   out <- suppressWarnings(system2(
     file.path(R.home("bin"), "R"),
     c("CMD", "check", "--no-manual", "--no-build-vignettes", pkg),
-    stdout = TRUE, stderr = TRUE
+    stdout = TRUE,
+    stderr = TRUE
   ))
   keep <- grep("can be installed|R code for possible problems", out)
-  keep <- sort(unique(c(keep, keep + 1, keep + 2, keep + 3, keep + 4, keep + 5, keep + 6)))
+  keep <- sort(unique(c(
+    keep,
+    keep + 1,
+    keep + 2,
+    keep + 3,
+    keep + 4,
+    keep + 5,
+    keep + 6
+  )))
   cat("--", label, "\n")
   cat(paste0("   ", out[keep[keep <= length(out)]]), sep = "\n")
   cat("\n")

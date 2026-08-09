@@ -10,4 +10,8 @@ dbGetStatement__duckdb_result_arrow <- function(res, ...) {
 
 #' @rdname duckdb_result_arrow-class
 #' @export
-setMethod("dbGetStatement", "duckdb_result_arrow", dbGetStatement__duckdb_result_arrow)
+setMethod(
+  "dbGetStatement",
+  "duckdb_result_arrow",
+  dbGetStatement__duckdb_result_arrow
+)

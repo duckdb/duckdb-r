@@ -11,7 +11,11 @@
 # The package source root, or NA when the sources are not around.
 lts_source_root <- function() {
   root <- normalizePath(test_path("..", ".."), mustWork = FALSE)
-  if (file.exists(file.path(root, "scripts", "flavor-package-name.R"))) root else NA_character_
+  if (file.exists(file.path(root, "scripts", "flavor-package-name.R"))) {
+    root
+  } else {
+    NA_character_
+  }
 }
 
 test_that("the package name is hard-coded only where scripts/flavor.patch rewrites it", {

@@ -47,7 +47,11 @@ dbQuoteLiteral__duckdb_connection <- function(conn, x, ...) {
     value <- round(as.numeric(x) * 1000000)
     value[!is.finite(x)] <- NA
 
-    out <- paste0("to_microseconds(", formatC(value, format = "f", digits = 0), ")")
+    out <- paste0(
+      "to_microseconds(",
+      formatC(value, format = "f", digits = 0),
+      ")"
+    )
     out[is.na(value)] <- "NULL"
     return(SQL(out))
   }
@@ -76,4 +80,8 @@ dbQuoteLiteral__duckdb_connection <- function(conn, x, ...) {
 
 #' @rdname duckdb_connection-class
 #' @export
-setMethod("dbQuoteLiteral", signature("duckdb_connection"), dbQuoteLiteral__duckdb_connection)
+setMethod(
+  "dbQuoteLiteral",
+  signature("duckdb_connection"),
+  dbQuoteLiteral__duckdb_connection
+)

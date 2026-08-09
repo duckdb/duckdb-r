@@ -43,7 +43,11 @@ test_that("non-utf things can be read", {
   Encoding(horrid_string) <- "latin1"
 
   # both column name and factor level and plain string are latin1
-  df <- data.frame(a = factor(horrid_string), b = horrid_string, stringsAsFactors = FALSE)
+  df <- data.frame(
+    a = factor(horrid_string),
+    b = horrid_string,
+    stringsAsFactors = FALSE
+  )
   names(df) <- c(horrid_string, "less_horrid")
 
   duckdb_register(con, "df", df)

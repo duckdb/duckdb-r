@@ -135,13 +135,21 @@ queries <- list(
 )
 
 all_scenarios <- c(
-  "materialize", "materialize_chunked", "stream_all", "stream_chunked",
-  "arrow_drain", "engine_only", "spill_then_stream"
+  "materialize",
+  "materialize_chunked",
+  "stream_all",
+  "stream_chunked",
+  "arrow_drain",
+  "engine_only",
+  "spill_then_stream"
 )
 
 has_stream_arg <- function() {
   fml <- tryCatch(
-    formals(getFromNamespace("dbSendQuery__duckdb_connection_character", "duckdb")),
+    formals(getFromNamespace(
+      "dbSendQuery__duckdb_connection_character",
+      "duckdb"
+    )),
     error = function(e) NULL
   )
   !is.null(fml) && "stream" %in% names(fml)
@@ -171,7 +179,9 @@ ps_rss_kb <- function(pid) {
 }
 
 vmhwm_kb <- function() {
-  status <- tryCatch(readLines("/proc/self/status"), error = function(e) character())
+  status <- tryCatch(readLines("/proc/self/status"), error = function(e) {
+    character()
+  })
   line <- grep("^VmHWM:", status, value = TRUE)
   if (length(line) == 0) {
     return(NA_real_)
@@ -208,12 +218,17 @@ rss_begin <- function(method) {
     stopfile <- paste0(samples, ".stop")
     loop <- sprintf(
       "while [ ! -e %s ] && kill -0 %d 2>/dev/null; do ps -o rss= -p %d; sleep 0.05; done > %s",
-      shQuote(stopfile), pid, pid, shQuote(samples)
+      shQuote(stopfile),
+      pid,
+      pid,
+      shQuote(samples)
     )
     system2("sh", c("-c", shQuote(loop)), wait = FALSE)
     return(list(
-      method = method, baseline_kb = baseline,
-      samples = samples, stopfile = stopfile
+      method = method,
+      baseline_kb = baseline,
+      samples = samples,
+      stopfile = stopfile
     ))
   }
   list(method = "none")
@@ -280,7 +295,8 @@ run_worker <- function() {
   rss_state <- rss_begin(method)
 
   elapsed <- system.time(tryCatch(
-    switch(scenario,
+    switch(
+      scenario,
       materialize = {
         df <- dbGetQuery(con, q)
         rows <- nrow(df)
@@ -315,9 +331,13 @@ run_worker <- function() {
         rs <- dbSendQueryArrow(con, q)
         rows <- 0
         while (!is.null(chunk_arr <- dbFetchArrowChunk(rs))) {
-          n <- tryCatch(as.numeric(chunk_arr$length), error = function(e) NA_real_)
+          n <- tryCatch(as.numeric(chunk_arr$length), error = function(e) {
+            NA_real_
+          })
           if (is.na(n) || n == 0) {
-            if (is.na(n)) rows <- NA_real_
+            if (is.na(n)) {
+              rows <- NA_real_
+            }
             break
           }
           rows <- rows + n
@@ -359,8 +379,15 @@ run_worker <- function() {
 
   cat(sprintf(
     "%s,%s,%.0f,%.3f,%.1f,%s,%.1f,%.1f,%s\n",
-    scenario, query_name, rows, elapsed,
-    peak_rss_mb, rss_state$method, r_alloc_mb, engine_mem_mb, note
+    scenario,
+    query_name,
+    rows,
+    elapsed,
+    peak_rss_mb,
+    rss_state$method,
+    r_alloc_mb,
+    engine_mem_mb,
+    note
   ))
 }
 
@@ -393,8 +420,11 @@ run_orchestrator <- function() {
         "tpch extension (dbgen)"
       },
       error = function(e) {
-        message("tpch extension unavailable (", conditionMessage(e),
-                "), generating synthetic lineitem")
+        message(
+          "tpch extension unavailable (",
+          conditionMessage(e),
+          "), generating synthetic lineitem"
+        )
         dbExecute(con, synthetic_lineitem_sql(lineitem_rows(sf)))
         "synthetic (deterministic, schema-faithful)"
       }
@@ -406,8 +436,14 @@ run_orchestrator <- function() {
     message("reusing ", db)
   }
 
-  scenarios <- strsplit(arg("scenarios", paste(all_scenarios, collapse = ",")), ",")[[1]]
-  query_names <- strsplit(arg("queries", paste(names(queries), collapse = ",")), ",")[[1]]
+  scenarios <- strsplit(
+    arg("scenarios", paste(all_scenarios, collapse = ",")),
+    ","
+  )[[1]]
+  query_names <- strsplit(
+    arg("queries", paste(names(queries), collapse = ",")),
+    ","
+  )[[1]]
 
   needs_stream <- c("stream_all", "stream_chunked", "spill_then_stream")
   results <- list()
@@ -415,11 +451,19 @@ run_orchestrator <- function() {
   for (query_name in query_names) {
     for (scenario in scenarios) {
       if (scenario %in% needs_stream && !stream_ok) {
-        message(sprintf("%-20s %-8s skipped: no stream support", scenario, query_name))
+        message(sprintf(
+          "%-20s %-8s skipped: no stream support",
+          scenario,
+          query_name
+        ))
         next
       }
       if (scenario == "arrow_drain" && !arrow_ok) {
-        message(sprintf("%-20s %-8s skipped: nanoarrow not installed", scenario, query_name))
+        message(sprintf(
+          "%-20s %-8s skipped: nanoarrow not installed",
+          scenario,
+          query_name
+        ))
         next
       }
       for (rep in seq_len(reps)) {
@@ -438,7 +482,14 @@ run_orchestrator <- function() {
         }
         line <- system2(
           file.path(R.home("bin"), "Rscript"),
-          c(shQuote(sub("--file=", "", grep("^--file=", commandArgs(), value = TRUE))), worker_args),
+          c(
+            shQuote(sub(
+              "--file=",
+              "",
+              grep("^--file=", commandArgs(), value = TRUE)
+            )),
+            worker_args
+          ),
           stdout = TRUE
         )
         line <- tail(line[nzchar(line)], 1)
@@ -463,9 +514,14 @@ run_orchestrator <- function() {
         )
         message(sprintf(
           "%-20s %-8s rep %d: %6.2fs  rss %7.1f MB (%s)  ralloc %7.1f MB  rows %s",
-          scenario, query_name, rep,
-          as.numeric(fields[[4]]), as.numeric(fields[[5]]), fields[[6]],
-          as.numeric(fields[[7]]), fields[[3]]
+          scenario,
+          query_name,
+          rep,
+          as.numeric(fields[[4]]),
+          as.numeric(fields[[5]]),
+          fields[[6]],
+          as.numeric(fields[[7]]),
+          fields[[3]]
         ))
       }
     }
