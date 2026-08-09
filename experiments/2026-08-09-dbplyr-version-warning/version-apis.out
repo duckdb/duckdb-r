@@ -1,0 +1,7 @@
+loaded 1.0.0               packageVersion()=1.0.0   packageDescription()=1.0.0   getNamespaceVersion()=1.0.0
+library now 2.0.0          packageVersion()=2.0.0   packageDescription()=2.0.0   getNamespaceVersion()=1.0.0
+
+namespace still loaded: TRUE 
+still running the 1.0.0 code: TRUE 
+
+under load_all(): packageVersion()=9.9.9 getNamespaceVersion()=9.9.9

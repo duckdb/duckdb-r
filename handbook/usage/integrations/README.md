@@ -19,6 +19,21 @@ the first release to export `sql_glue()` —
 having previously reached the unexported `glue_sql2()`
 that a dbplyr release was free to drop
 ([#1982](https://github.com/duckdb/duckdb-r/issues/1982)).
+
+**A `Suggests` floor is advisory, so the floor also warns.**
+Nothing stops an older dbplyr from being loaded beside this package,
+and what it produces then is a missing-function error
+from inside a translation, naming neither package nor remedy.
+So `warn_if_dbplyr_too_old()` ([`R/dbplyr-version.R`](/R/dbplyr-version.R))
+says it plainly instead, from `.onAttach()` when dbplyr is already loaded
+and from a `packageEvent("dbplyr", "onLoad")` hook when it arrives later.
+It reads the version of the *loaded* namespace, not the library copy:
+those differ for the rest of a session after `install.packages("dbplyr")`,
+and it is the loaded one whose code the backend will reach —
+which is why the warning says to restart R.
+The check never loads dbplyr to perform it, so a session that
+does not use the backend pays nothing and hears nothing
+([`2026-08-09-dbplyr-version-warning/`](/experiments/2026-08-09-dbplyr-version-warning/README.md)).
 Coercions translate to `TRY_CAST()`,
 so a value that will not convert yields `NULL` rather than failing
 the query
