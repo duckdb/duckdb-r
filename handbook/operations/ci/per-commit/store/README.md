@@ -81,9 +81,10 @@ and that is what makes the concurrency work without a lock.
 
 ## Retention is one window
 
-The store keeps `RCC_RETENTION_DAYS` (30) of history,
+The store keeps `RCC_RETENTION_DAYS` (180) of history,
 **records and logs alike**,
-and [`rcc-consolidate.sh`](/scripts/rcc-consolidate.sh) enforces it.
+and [`rcc-consolidate.sh`](/scripts/rcc-consolidate.sh) enforces it —
+by hand, so nothing is dropped until an operator dispatches it.
 Logs are still the bulk of what goes — about a megabyte each against ~2 KB for
 a record — but keeping a verdict for a commit decided months ago and long since
 repaired only postpones the same deletion,
@@ -303,10 +304,18 @@ which is what the 256-way fan-out is for.
 A single flat directory of ten thousand records would rewrite the whole tree on
 every push.
 
-And none of it is load-bearing.
+And none of it is load-bearing *for the leg that pays it*.
 Legs still upload their artifacts, which is what a firing reads.
 A failed publish is logged and ignored — it never fails the leg —
 and the verdict is in the artifact and in the job log regardless.
+Where it is felt is the next run:
+selection reads this branch and only this branch
+([`selection/`](/handbook/operations/ci/per-commit/selection/README.md)),
+so a commit whose record never landed reads as undecided
+and is built again.
+Cheap and survivable, then, but not optional —
+the publish is the one write that keeps CI
+from rebuilding what it has already decided.
 
 Two writers have been retired since, in the same direction.
 The per-run fan-in reconciled onto the branch whatever a leg could not publish;
