@@ -14,4 +14,8 @@ dbColumnInfo__duckdb_result_arrow <- function(res, ...) {
 
 #' @rdname duckdb_result_arrow-class
 #' @export
-setMethod("dbColumnInfo", "duckdb_result_arrow", dbColumnInfo__duckdb_result_arrow)
+setMethod(
+  "dbColumnInfo",
+  "duckdb_result_arrow",
+  dbColumnInfo__duckdb_result_arrow
+)

@@ -36,7 +36,6 @@ s3_register <- function(generic, class, method = NULL) {
     method_fn <- get_method(method)
     stopifnot(is.function(method_fn))
 
-
     # Only register if generic can be accessed
     if (exists(generic, envir)) {
       registerS3method(generic, class, method_fn, envir = envir)
@@ -66,7 +65,11 @@ s3_register <- function(generic, class, method = NULL) {
 # get parent pkg function and method
 pkg_method <- function(fun, pkg) {
   if (!requireNamespace(pkg, quietly = TRUE)) {
-    stop(fun, " requires the ", pkg, " package, please install it first and try again",
+    stop(
+      fun,
+      " requires the ",
+      pkg,
+      " package, please install it first and try again",
       call. = FALSE
     )
   }

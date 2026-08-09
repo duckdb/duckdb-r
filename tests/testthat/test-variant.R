@@ -10,7 +10,10 @@ test_that("DuckDB VARIANT type is correctly decoded into an R list", {
   dbExecute(con, "INSERT INTO test_v VALUES (4, 'hello'::VARIANT)")
 
   # Insert object and array via native duckdb cast to variant
-  dbExecute(con, "INSERT INTO test_v VALUES (5, {'a': 1, 'b': [2, 3]}::VARIANT)")
+  dbExecute(
+    con,
+    "INSERT INTO test_v VALUES (5, {'a': 1, 'b': [2, 3]}::VARIANT)"
+  )
   dbExecute(con, "INSERT INTO test_v VALUES (6, [4, 5, 6]::VARIANT)")
 
   # Fetch the data
@@ -95,11 +98,16 @@ test_that("VARIANT handles multiple rows with batched fetch", {
 
   # Generate enough rows to exercise chunked fetching
   n <- 5000
-  dbExecute(con, paste0(
-    "CREATE TABLE test_batch AS ",
-    "SELECT i AS id, {'val': i, 'label': concat('item_', i)}::VARIANT AS v ",
-    "FROM generate_series(1, ", n, ") t(i)"
-  ))
+  dbExecute(
+    con,
+    paste0(
+      "CREATE TABLE test_batch AS ",
+      "SELECT i AS id, {'val': i, 'label': concat('item_', i)}::VARIANT AS v ",
+      "FROM generate_series(1, ",
+      n,
+      ") t(i)"
+    )
+  )
 
   res <- dbGetQuery(con, "SELECT * FROM test_batch ORDER BY id")
 
@@ -122,7 +130,10 @@ test_that("VARIANT handles heterogeneous values in an object", {
   con <- local_con()
 
   # Use a struct with heterogeneous fields cast to variant
-  res <- dbGetQuery(con, "SELECT {'num': 1, 'str': 'two', 'flag': true}::VARIANT AS v")
+  res <- dbGetQuery(
+    con,
+    "SELECT {'num': 1, 'str': 'two', 'flag': true}::VARIANT AS v"
+  )
   v <- res$v[[1]]
 
   expect_s3_class(v, "data.frame")
@@ -135,7 +146,10 @@ test_that("VARIANT inside a LIST column", {
   con <- local_con()
 
   dbExecute(con, "CREATE TABLE test_list_v (id INTEGER, vs VARIANT[])")
-  dbExecute(con, "INSERT INTO test_list_v VALUES (1, [42::VARIANT, 'hello'::VARIANT])")
+  dbExecute(
+    con,
+    "INSERT INTO test_list_v VALUES (1, [42::VARIANT, 'hello'::VARIANT])"
+  )
 
   res <- dbGetQuery(con, "SELECT * FROM test_list_v")
 
@@ -186,4 +200,3 @@ test_that("VARIANT handles MAPs with data", {
   expect_equal(v$key, c("key1", "key2"))
   expect_equal(v$value, c(10, 20))
 })
-

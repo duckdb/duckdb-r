@@ -7,7 +7,10 @@ test_that("parquet reader works on the notorious userdata1 file", {
 test_that("parquet reader works with the binary as string flag", {
   con <- local_con()
 
-  res <- dbGetQuery(con, "SELECT typeof(#1) FROM parquet_scan('data/binary_string.parquet',binary_as_string=true) limit 1")
+  res <- dbGetQuery(
+    con,
+    "SELECT typeof(#1) FROM parquet_scan('data/binary_string.parquet',binary_as_string=true) limit 1"
+  )
   expect_true(res[1] == "VARCHAR")
 })
 
@@ -24,11 +27,18 @@ test_that("parquet reader works with the binary as string flag", {
 test_that("parquet reader handles TIME WITH TIME ZONE columns (#1807)", {
   con <- local_con()
 
-  res <- dbGetQuery(con, "SELECT typeof(t) AS type, t FROM read_parquet('data/time_tz.parquet')")
+  res <- dbGetQuery(
+    con,
+    "SELECT typeof(t) AS type, t FROM read_parquet('data/time_tz.parquet')"
+  )
   expect_equal(res$type, rep("TIME WITH TIME ZONE", 4))
   expect_equal(
     res$t,
-    structure(c(3723.45, 3723.45, 0, NA_real_), class = "difftime", units = "secs")
+    structure(
+      c(3723.45, 3723.45, 0, NA_real_),
+      class = "difftime",
+      units = "secs"
+    )
   )
 })
 
@@ -44,7 +54,6 @@ test_that("duckdb_write_parquet() works as expected", {
   res_rel <- rel_from_table_function(con, 'read_parquet', list(tf))
   res_df <- rel_to_altrep(res_rel)
   expect_true(identical(res_df, data.frame(a = 1:3)))
-
 
   # nulls
   df_na <- data.frame(a = c(1:3, NA, 5:6))
@@ -76,7 +85,11 @@ test_that("duckdb rel_to_parquet() allows multiple files (#1015)", {
   rel2 <- rel_from_df(con, data.frame(a = 2))
   rel_to_parquet(rel2, tf2)
 
-  res_rel <- rel_from_table_function(con, "read_parquet", list(list(c(tf1, tf2))))
+  res_rel <- rel_from_table_function(
+    con,
+    "read_parquet",
+    list(list(c(tf1, tf2)))
+  )
 
   res_df <- rel_to_altrep(res_rel)
   expect_identical(res_df, data.frame(a = c(1, 2)))

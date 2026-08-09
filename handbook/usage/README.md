@@ -27,4 +27,4 @@ and is what turns the announcement off.
 * [`storage/`](storage/) — where extensions and secrets live
 * [`integrations/`](integrations/) — dbplyr, duckplyr, and Arrow
 * [`relational/`](relational/) — the internal lazy-relation API
-* [`interactive/`](interactive/) — the progress display and the Connections pane
+* [`interactive/`](interactive/) — what a session does while you work

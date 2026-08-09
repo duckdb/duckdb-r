@@ -48,4 +48,4 @@ Compiler warnings from the vendored tree are noise the shipped
 build does not silence
 ([#1829](https://github.com/duckdb/duckdb-r/issues/1829));
 the no-suppression policy is
-[`glue/`](/handbook/architecture/glue/README.md)'s.
+[`glue/conventions/`](/handbook/architecture/glue/conventions/README.md)'s.

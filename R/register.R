@@ -42,7 +42,13 @@ encode_values <- function(value) {
 #' duckdb_unregister(con, "data")
 #'
 #' dbDisconnect(con)
-duckdb_register <- function(conn, name, df, overwrite = FALSE, experimental = FALSE) {
+duckdb_register <- function(
+  conn,
+  name,
+  df,
+  overwrite = FALSE,
+  experimental = FALSE
+) {
   stopifnot(dbIsValid(conn))
   df <- encode_values(as.data.frame(df))
   rethrow_rapi_register_df(
@@ -75,23 +81,39 @@ duckdb_unregister <- function(conn, name) {
 #' @param use_async Switched to the asynchronous scanner. (deprecated)
 #' @return These functions are called for their side effect.
 #' @export
-duckdb_register_arrow <- function(conn, name, arrow_scannable, use_async = NULL) {
+duckdb_register_arrow <- function(
+  conn,
+  name,
+  arrow_scannable,
+  use_async = NULL
+) {
   stopifnot(dbIsValid(conn))
 
   if (!is.null(use_async)) {
-    .Deprecated(msg = paste(
-      "The parameter 'use_async' is deprecated",
-      "and will be removed in a future release."
-    ))
+    .Deprecated(
+      msg = paste(
+        "The parameter 'use_async' is deprecated",
+        "and will be removed in a future release."
+      )
+    )
   }
 
   # create some R functions to pass to c-land
-  export_fun <- function(arrow_scannable, stream_ptr, projection = NULL, filter = TRUE) {
+  export_fun <- function(
+    arrow_scannable,
+    stream_ptr,
+    projection = NULL,
+    filter = TRUE
+  ) {
     # If we get a scanner we must transform it to a record batch reader first
     if (class(arrow_scannable)[1] == "Scanner") {
       arrow_scannable <- arrow_scannable$ToRecordBatchReader()
     }
-    arrow::Scanner$create(arrow_scannable, projection, filter)$ToRecordBatchReader()$export_to_c(stream_ptr)
+    arrow::Scanner$create(
+      arrow_scannable,
+      projection,
+      filter
+    )$ToRecordBatchReader()$export_to_c(stream_ptr)
   }
 
   get_schema_fun <- function(arrow_scannable, stream_ptr) {

@@ -1,12 +1,19 @@
 #!/bin/sh
 # Install the libduckdb prebuilt binary matching the vendored DuckDB
 # sources under src/duckdb/. Linux and macOS only.
+# Handbook: handbook/build/fast-paths/README.md
 #
 # Used by .github/workflows/custom/before-install (CI) and by developers
 # who want to opt into DUCKDB_R_USE_SYSTEM_LIB locally.
 #
+# The default prefix is under the user's home directory, so no privileges
+# are needed and nothing is written outside it; configure searches that
+# directory, so the install needs no follow-up variable. A --prefix the
+# caller cannot write to (/usr/local, say) is escalated for with sudo,
+# because asking for it is asking for that.
+#
 # Usage:
-#   scripts/install-libduckdb.sh                 # install to /usr/local
+#   scripts/install-libduckdb.sh                 # install to ~/.local
 #   scripts/install-libduckdb.sh --prefix DIR    # install to DIR (DIR/lib, DIR/include)
 #   scripts/install-libduckdb.sh --version vX.Y.Z  # override the version
 #
@@ -20,10 +27,11 @@
 #   DUCKDB_R_LIB_VERSION  override the version (same as --version)
 #   DUCKDB_R_LIB_URL      explicit URL of the libduckdb-<platform>.zip to use
 #                         (overrides version-based URL construction)
+#   DUCKDB_R_LIB_PREFIX   default prefix, when --prefix is not given
 
 set -eu
 
-prefix=/usr/local
+prefix="${DUCKDB_R_LIB_PREFIX:-${HOME:?HOME is not set; pass --prefix DIR}/.local}"
 version=""
 url=""
 
@@ -73,6 +81,18 @@ case "${uname_s}-${uname_m}" in
   Linux-aarch64) platform=linux-arm64 ;;
   Linux-arm64)   platform=linux-arm64 ;;
   Darwin-*)      platform=osx-universal ;;
+  MINGW*|MSYS*|CYGWIN*)
+    # DuckDB does publish libduckdb-windows-amd64.zip, but it cannot serve
+    # this package: it is built with MSVC, and R's Windows toolchain is the
+    # Rtools MinGW-w64 GCC. The glue calls DuckDB C++ internals, and the two
+    # compilers do not even mangle those names the same way, so the linker
+    # resolves none of them -- only the C API would link, which the glue does
+    # not use. Measured in experiments/2026-08-09-windows-fast-path/.
+    echo "There is no fast path on Windows: the published libduckdb is built" >&2
+    echo "with MSVC and cannot be linked by R's MinGW toolchain." >&2
+    echo "Build the vendored sources instead (handbook/build/source-build/)." >&2
+    exit 1
+    ;;
   *)
     echo "Unsupported platform: ${uname_s}-${uname_m}" >&2
     exit 1
@@ -119,10 +139,10 @@ fi
 
 unzip -q -o "${zip}" -d "${tmpdir}/extracted"
 
-# Use sudo only when we're not root and the prefix isn't writable. This
-# keeps callers from having to special-case Linux (/usr/local typically
-# needs root) vs. macOS (writable by the runner user on GitHub Actions)
-# vs. local dev (`--prefix=$HOME/.local`).
+# Use sudo only when we're not root and the prefix isn't writable, which
+# the default prefix never is -- it is under $HOME. Only a --prefix the
+# caller asked for and cannot write to gets here, and asking for one is
+# asking for the escalation.
 SUDO=
 if [ "$(id -u)" != "0" ]; then
   probe="${prefix}"
@@ -157,8 +177,22 @@ if [ -f "${tmpdir}/extracted/duckdb.hpp" ]; then
   ${SUDO} install -m 0644 "${tmpdir}/extracted/duckdb.hpp" "${prefix}/include/duckdb.hpp"
 fi
 
-if [ "${uname_s}" = "Linux" ] && command -v ldconfig >/dev/null 2>&1; then
+# Only meaningful for a system prefix, and only permitted with the
+# privileges we already established we have. The package itself never needs
+# it: configure writes the library directory into the link line as an rpath.
+if [ "${uname_s}" = "Linux" ] && command -v ldconfig >/dev/null 2>&1 &&
+   { [ -n "${SUDO}" ] || [ "$(id -u)" = "0" ]; }; then
   ${SUDO} ldconfig
 fi
 
 echo "Installed libduckdb ${version} to ${prefix}"
+echo
+echo "To build against it:"
+echo "  export DUCKDB_R_USE_SYSTEM_LIB=1"
+# configure searches ~/.local/lib and the system directories on its own;
+# anywhere else has to be named.
+case "${prefix}" in
+  "${HOME:-}/.local"|/usr/local|/usr) ;;
+  *) echo "  export DUCKDB_R_LIB_DIR=${prefix}/lib" ;;
+esac
+echo "  R CMD INSTALL . --no-byte-compile"
