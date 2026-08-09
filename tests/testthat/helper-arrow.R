@@ -3,5 +3,5 @@
 # running relational R tests.
 # something to do with how arrow releases its resources.
 if (Sys.getenv("NOT_CRAN") == "true") {
-    requireNamespace("arrow", quietly = TRUE)
+  requireNamespace("arrow", quietly = TRUE)
 }

@@ -16,8 +16,7 @@ dbIsValid__duckdb_driver <- function(dbObj, ...) {
       dbDisconnect(con)
       valid <- TRUE
     },
-    error = function(c) {
-    }
+    error = function(c) {}
   )
   valid
 }

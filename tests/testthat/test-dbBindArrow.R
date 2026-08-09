@@ -4,7 +4,11 @@ test_that("dbSendQueryArrow() accepts params= and binds them", {
   con <- local_con()
   dbWriteTable(con, "mt", mtcars)
 
-  res <- dbSendQueryArrow(con, "SELECT * FROM mt WHERE cyl = ?", params = list(6L))
+  res <- dbSendQueryArrow(
+    con,
+    "SELECT * FROM mt WHERE cyl = ?",
+    params = list(6L)
+  )
   on.exit(dbClearResult(res), add = TRUE)
 
   stream <- dbFetchArrow(res)

@@ -13,6 +13,13 @@
     "duckdb_connection_adbc"
   )
 
+  # Catches a dbplyr that loads after this package. Armed here rather than in
+  # `.onAttach()` because `.onLoad()` runs exactly once per namespace load,
+  # whereas a detach/reattach cycle would stack a second copy of the hook.
+  setHook(packageEvent("dbplyr", "onLoad"), function(...) {
+    warn_if_dbplyr_too_old()
+  })
+
   if (requireNamespace("rlang", quietly = TRUE)) {
     is_interactive <<- rlang::is_interactive
     rapi_error <<- rapi_error_rlang
@@ -23,6 +30,14 @@
     rethrow_restore()
     # Overwrite rapi_error with base version when rlang is not available
   }
+
+  invisible()
+}
+
+.onAttach <- function(...) {
+  # The other order: dbplyr was already loaded when this package was attached,
+  # so the `onLoad` hook armed above will never fire for it.
+  warn_if_dbplyr_too_old()
 
   invisible()
 }
