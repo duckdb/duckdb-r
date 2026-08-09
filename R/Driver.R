@@ -105,7 +105,10 @@ driver_registry <- new.env(parent = emptyenv())
 #'
 #' Because the instance is created once per database file,
 #' `config`, `read_only`, `home`, and `shared_home` take effect only at creation.
-#' A call that reuses an existing instance ignores them.
+#' A call that reuses an existing instance cannot apply them,
+#' and warns about each setting it is ignoring.
+#' Passing `dbdir` to `dbConnect()` warns too when the driver owns a database file of its own:
+#' the connection is opened on `dbdir` while the driver keeps its own database open.
 #' To apply different values to a file-based database --
 #' for example to reopen it read-only, or to send extensions and secrets elsewhere --
 #' first release the instance with [duckdb_shutdown()], which also drops it from the cache,
@@ -173,8 +176,20 @@ duckdb <- function(
     # We reuse an existing driver object if the database is still alive.
     # If not, we fall back to creating a new driver object with a new database.
     if (!is.null(drv) && rethrow_rapi_lock(drv@database_ref)) {
-      # We don't care about different read_only or config settings here.
-      # The bigint setting can be actually picked up by dbConnect(), we update it here.
+      # Settings that bind at creation are dropped here. Saying so is
+      # duckdb/duckdb-r#2560; the bigint setting is not one of them, because
+      # dbConnect() picks it up, so we update it.
+      warn_instance_settings_ignored(
+        drv,
+        read_only = read_only,
+        config = config,
+        supplied = c(
+          if (!missing(home)) "home",
+          if (!missing(shared_home)) "shared_home",
+          if (!missing(allow_extensions)) "allow_extensions",
+          if (!missing(environment_scan)) "environment_scan"
+        )
+      )
       drv@convert_opts <- convert_opts
       drv@bigint <- convert_opts$bigint
       return(drv)
@@ -400,9 +415,62 @@ check_tz <- function(timezone) {
   timezone
 }
 
+# `config`, `read_only` and the storage arguments describe the database
+# *instance*, so a call that finds one in the registry cannot apply them. They
+# are compared rather than merely counted as supplied: `dbConnect()` forwards
+# the driver's own values, and repeating a setting the instance already has is
+# not a collision. Explained in handbook/usage/connections/README.md;
+# duckdb/duckdb-r#2560 asks for the noise, duckdb/duckdb-r#126 for the removal.
+warn_instance_settings_ignored <- function(drv, read_only, config, supplied) {
+  ignored <- supplied
+
+  if (!identical(read_only, drv@read_only)) {
+    ignored <- c(ignored, "read_only")
+  }
+
+  differs <- !vapply(
+    names(config),
+    function(name) identical(config[[name]], drv@config[[name]]),
+    logical(1)
+  )
+  if (any(differs)) {
+    ignored <- c(ignored, paste0("config$", names(config)[differs]))
+  }
+
+  if (length(ignored) == 0) {
+    return(invisible())
+  }
+
+  warning(
+    "Ignoring ",
+    paste0("`", ignored, "`", collapse = ", "),
+    ": the database instance for this `dbdir` already exists, ",
+    "and these settings take effect only when it is created.\n",
+    "Release it with `duckdb_shutdown()` first, ",
+    "or pass them to the `duckdb()` call that creates it.",
+    call. = FALSE
+  )
+}
+
+# A `dbdir` an extension answers rather than the filesystem -- `md:` for
+# MotherDuck, `ducklake:` for DuckLake -- is not a path. Normalizing one turns
+# it into a local file name that no extension will ever be asked about.
+#
+# The rule is the engine's, from `ExtensionHelper::ExtractExtensionPrefixFromPath()`:
+# at least two alphanumeric-or-underscore characters before the first colon,
+# which keeps `C:\db` a Windows path, and `://` after them means a URL scheme
+# rather than a prefix, which keeps `s3://` out.
+has_extension_prefix <- function(path) {
+  grepl("^[[:alnum:]_]{2,}:(?!//)", path, perl = TRUE)
+}
+
 path_normalize <- function(path) {
   if (path == "" || path == DBDIR_MEMORY) {
     return(DBDIR_MEMORY)
+  }
+
+  if (has_extension_prefix(path)) {
+    return(path)
   }
 
   out <- normalizePath(path, mustWork = FALSE)
