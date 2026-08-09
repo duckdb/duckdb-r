@@ -1,9 +1,8 @@
 # Interactive use
 
-What a session does while a query runs, rather than what the call
-returns once it is over:
-the progress display, how far Ctrl+C reaches, and the RStudio
-Connections pane.
+What a session does while you work, rather than what a call returns
+once it is over — and whether this package does it,
+or hands it to something that does.
 
 ## The progress display
 
@@ -55,5 +54,22 @@ It queries `information_schema` to decide which object types the
 database actually has, so a database with no views does not advertise
 them, and it tells the IDE when a connection closes.
 
-*To deepen: state what turns the progress display on and off, and what
-the pane does with a connection the user closes from the IDE.*
+## The DuckDB UI
+
+The DuckDB UI is a browser interface the engine serves,
+and it arrives as the `ui` extension rather than as part of this
+package: `INSTALL ui` once, then `CALL start_ui()` on a connection
+starts the server and opens a browser at it
+([#1083](https://github.com/duckdb/duckdb-r/issues/1083)).
+Nothing about it is R-side — no function to call, nothing to configure —
+so what the UI can do, and whether it installs on a platform at all,
+are the extension's and its repository's
+([`extensions/`](/handbook/usage/extensions/README.md)).
+The DuckDB CLI's `-ui` flag is that program's own installation
+and says nothing about this one's;
+a page that comes up empty is the extension's to answer, in
+[duckdb/duckdb-ui](https://github.com/duckdb/duckdb-ui).
+
+*To deepen: state what turns the progress display on and off, what
+the pane does with a connection the user closes from the IDE, and how
+much of a connection's own state the UI sees.*

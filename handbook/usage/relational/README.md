@@ -69,7 +69,7 @@ owns the labeling rules).
 `rel_from_altrep_df()` is the way back.
 The C++ side of that, and its known weak point around raising an R error
 from inside an ALTREP method, is
-[`architecture/glue/`](/handbook/architecture/glue/README.md)'s.
+[`architecture/glue/altrep/`](/handbook/architecture/glue/altrep/README.md)'s.
 `rel_to_parquet()`, `rel_to_csv()`, `rel_to_table()` and `rel_to_view()`
 execute to a destination instead.
 

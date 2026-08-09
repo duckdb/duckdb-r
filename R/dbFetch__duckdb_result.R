@@ -35,8 +35,15 @@ dbFetch__duckdb_result <- function(res, n = -1, ...) {
   if (!is_wholenumber(n)) {
     stop("n needs to be not a whole number")
   }
-  if (res@stmt_lst$type != "SELECT" && res@stmt_lst$type != "RELATION" && res@stmt_lst$return_type != "QUERY_RESULT") {
-    warning("Should not call dbFetch() on results that do not come from SELECT, got ", res@stmt_lst$type)
+  if (
+    res@stmt_lst$type != "SELECT" &&
+      res@stmt_lst$type != "RELATION" &&
+      res@stmt_lst$return_type != "QUERY_RESULT"
+  ) {
+    warning(
+      "Should not call dbFetch() on results that do not come from SELECT, got ",
+      res@stmt_lst$type
+    )
     return(data.frame())
   }
 
@@ -56,7 +63,11 @@ dbFetch__duckdb_result <- function(res, n = -1, ...) {
     # Shortcut for performance
     df <- res@env$resultset
   } else if (n > 0) {
-    df <- res@env$resultset[seq.int(res@env$rows_fetched + 1, res@env$rows_fetched + n), , drop = FALSE]
+    df <- res@env$resultset[
+      seq.int(res@env$rows_fetched + 1, res@env$rows_fetched + n),
+      ,
+      drop = FALSE
+    ]
     attr(df, "row.names") <- c(NA_integer_, as.integer(-n))
   } else {
     df <- res@env$resultset[integer(), , drop = FALSE]
