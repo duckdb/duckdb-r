@@ -115,7 +115,7 @@ data is kept in RAM.</p></dd>
 <dd><p>Set to <code>TRUE</code> for read-only operation.
 For file-based databases, this is only applied when the database file is opened for the first time.
 Subsequent connections (via the same <code>drv</code> object or a <code>drv</code> object pointing to the same path)
-will silently ignore this flag.</p></dd>
+cannot apply it, and fail rather than ignoring it.</p></dd>
 
 
 <dt id="arg-bigint">bigint<a class="anchor" aria-label="anchor" href="#arg-bigint"></a></dt>
@@ -128,7 +128,7 @@ If <code>"integer64"</code> is selected, bigint integers will be set to bit64 en
 <dd><p>Named list with DuckDB configuration flags, see
 <a href="https://duckdb.org/docs/configuration/overview#configuration-reference" class="external-link">https://duckdb.org/docs/configuration/overview#configuration-reference</a> for the possible options.
 These flags are only applied when the database object is instantiated.
-Subsequent connections will silently ignore these flags.</p></dd>
+Subsequent connections cannot apply them, and fail rather than ignoring them.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
@@ -283,7 +283,9 @@ An in-memory database (<code>:memory:</code>, the default) has no file to lock a
 every <code>duckdb()</code> call creates a fresh, isolated instance.</p>
 <p>Because the instance is created once per database file,
 <code>config</code>, <code>read_only</code>, <code>home</code>, and <code>shared_home</code> take effect only at creation.
-A call that reuses an existing instance ignores them.
+A call that reuses an existing instance cannot apply them, and fails rather than dropping them.
+Passing <code>dbdir</code> to <code>dbConnect()</code> fails too when the driver owns a database file of its own,
+because the connection would go to <code>dbdir</code> while the driver kept its own database open.
 To apply different values to a file-based database –
 for example to reopen it read-only, or to send extensions and secrets elsewhere –
 first release the instance with <code>duckdb_shutdown()</code>, which also drops it from the cache,

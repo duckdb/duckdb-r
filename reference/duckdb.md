@@ -67,7 +67,8 @@ dbDisconnect(conn, ..., shutdown = TRUE)
   Set to `TRUE` for read-only operation. For file-based databases, this
   is only applied when the database file is opened for the first time.
   Subsequent connections (via the same `drv` object or a `drv` object
-  pointing to the same path) will silently ignore this flag.
+  pointing to the same path) cannot apply it, and fail rather than
+  ignoring it.
 
 - bigint:
 
@@ -81,8 +82,8 @@ dbDisconnect(conn, ..., shutdown = TRUE)
   Named list with DuckDB configuration flags, see
   <https://duckdb.org/docs/configuration/overview#configuration-reference>
   for the possible options. These flags are only applied when the
-  database object is instantiated. Subsequent connections will silently
-  ignore these flags.
+  database object is instantiated. Subsequent connections cannot apply
+  them, and fail rather than ignoring them.
 
 - ...:
 
@@ -262,11 +263,14 @@ cached: every `duckdb()` call creates a fresh, isolated instance.
 
 Because the instance is created once per database file, `config`,
 `read_only`, `home`, and `shared_home` take effect only at creation. A
-call that reuses an existing instance ignores them. To apply different
-values to a file-based database – for example to reopen it read-only, or
-to send extensions and secrets elsewhere – first release the instance
-with `duckdb_shutdown()`, which also drops it from the cache, then
-create it again.
+call that reuses an existing instance cannot apply them, and fails
+rather than dropping them. Passing `dbdir` to `dbConnect()` fails too
+when the driver owns a database file of its own, because the connection
+would go to `dbdir` while the driver kept its own database open. To
+apply different values to a file-based database – for example to reopen
+it read-only, or to send extensions and secrets elsewhere – first
+release the instance with `duckdb_shutdown()`, which also drops it from
+the cache, then create it again.
 [`dbDisconnect()`](https://dbi.r-dbi.org/reference/dbDisconnect.html)
 only closes a connection, it does not release the instance, and its
 `shutdown` argument is unused. Instances are shut down automatically
