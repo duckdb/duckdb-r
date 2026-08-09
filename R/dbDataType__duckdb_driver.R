@@ -3,7 +3,7 @@
 dbDataType__duckdb_driver <- function(dbObj, obj, ...) {
   # FIXME: Use RApiTypes::DetectRType()
   if (is.null(obj)) {
-    stop("NULL parameter")
+    abort("NULL parameter")
   }
   if (is.data.frame(obj)) {
     return(vapply(

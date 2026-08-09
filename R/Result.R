@@ -152,7 +152,7 @@ is_wholenumber <- function(x, tol = .Machine$double.eps^0.5) {
 #' @export
 duckdb_fetch_arrow <- function(res, chunk_size = 1000000) {
   if (chunk_size <= 0) {
-    stop("Chunk Size must be higher than 0")
+    abort("Chunk Size must be higher than 0")
   }
   rethrow_rapi_execute_arrow(res@query_result, chunk_size)
 }
@@ -163,7 +163,7 @@ duckdb_fetch_arrow <- function(res, chunk_size = 1000000) {
 #' @export
 duckdb_fetch_record_batch <- function(res, chunk_size = 1000000) {
   if (chunk_size <= 0) {
-    stop("Chunk Size must be higher than 0")
+    abort("Chunk Size must be higher than 0")
   }
   rethrow_rapi_record_batch(res@query_result, chunk_size)
 }

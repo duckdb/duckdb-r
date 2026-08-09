@@ -85,25 +85,3 @@ test_that("two spellings of one database share an instance", {
   # A second instance would not see a write made through the first.
   expect_equal(dbReadTable(con2, "x"), data.frame(a = 1L))
 })
-
-test_that("a read-only request reuses the read-write instance it finds", {
-  # Documented in `?duckdb`: `read_only` binds when the instance is created.
-  # Pinned because dropping the registry in favour of the engine's cache would
-  # change it -- the engine raises on a configuration mismatch instead
-  # (duckdb/duckdb-r#2560).
-  path <- file.path(withr::local_tempdir(), "db.duckdb")
-
-  drv <- duckdb(path)
-  withr::defer(duckdb_shutdown(drv))
-  con <- dbConnect(drv)
-  withr::defer(dbDisconnect(con))
-
-  ro <- duckdb(path, read_only = TRUE)
-  expect_identical(ro@database_ref, drv@database_ref)
-
-  con_ro <- dbConnect(ro)
-  withr::defer(dbDisconnect(con_ro))
-  dbWriteTable(con, "x", data.frame(a = 1L))
-  # Same instance, so a write through `con` is visible here.
-  expect_equal(dbReadTable(con_ro, "x"), data.frame(a = 1L))
-})

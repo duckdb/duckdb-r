@@ -52,4 +52,4 @@ private:
 	static void signal_handler(int signum);
 };
 
-}; // namespace duckdb
+} // namespace duckdb

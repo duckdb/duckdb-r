@@ -4,9 +4,12 @@
 
 DBDIR_MEMORY <- ":memory:"
 
-check_flag <- function(x) {
+# `call` names the frame the flag was passed in, not this check: rlang's
+# `abort()` would otherwise report `check_flag()` to someone who called
+# `dbConnect()`. The base fallback ignores it and suppresses the call entirely.
+check_flag <- function(x, call = parent.frame()) {
   if (is.null(x) || length(x) != 1 || is.na(x) || !is.logical(x)) {
-    stop("flags need to be scalar logicals")
+    abort("flags need to be scalar logicals", call = call)
   }
 }
 
@@ -15,9 +18,9 @@ extptr_str <- function(e, n = 5) {
   substr(x, nchar(x) - n + 1, nchar(x))
 }
 
-drv_to_string <- function(drv) {
+drv_to_string <- function(drv, call = parent.frame()) {
   if (!is(drv, "duckdb_driver")) {
-    stop("pass a duckdb_driver object")
+    abort("pass a duckdb_driver object", call = call)
   }
   sprintf(
     "<duckdb_driver dbdir='%s' read_only=%s bigint=%s>",
@@ -112,7 +115,9 @@ driver_registry <- new.env(parent = emptyenv())
 #'
 #' Because the instance is created once per database file,
 #' `config`, `read_only`, `home`, and `shared_home` take effect only at creation.
-#' A call that reuses an existing instance ignores them.
+#' A call that reuses an existing instance cannot apply them, and fails rather than dropping them.
+#' Passing `dbdir` to `dbConnect()` fails too when the driver owns a database file of its own,
+#' because the connection would go to `dbdir` while the driver kept its own database open.
 #' To apply different values to a file-based database --
 #' for example to reopen it read-only, or to send extensions and secrets elsewhere --
 #' first release the instance with [duckdb_shutdown()], which also drops it from the cache,
@@ -126,7 +131,7 @@ driver_registry <- new.env(parent = emptyenv())
 #' DuckDB's prebuilt extensions for Linux are compiled with the GNU C++ standard library (`libstdc++`).
 #' Loading one into a `duckdb` package that was itself built with a *different* C++ standard library --
 #' most commonly `libc++` (clang's `-stdlib=libc++`) --
-#' is an ABI mismatch that crashes R (\url{https://github.com/duckdb/duckdb-r/issues/1107}).
+#' is an ABI mismatch that crashes R (<https://github.com/duckdb/duckdb-r/issues/1107>).
 #' Almost all Linux builds (CRAN binaries and most source installs) use `libstdc++` and are unaffected;
 #' macOS and Windows are unaffected.
 #'
@@ -158,7 +163,7 @@ duckdb <- function(
 ) {
   check_flag(read_only)
   if (...length() > 0) {
-    stop("... must be empty")
+    abort("... must be empty")
   }
   if (
     !is.null(shared_home) &&
@@ -166,10 +171,10 @@ duckdb <- function(
         length(shared_home) == 1L &&
         !is.na(shared_home))
   ) {
-    stop("`shared_home` must be TRUE, FALSE, or NULL.", call. = FALSE)
+    abort("`shared_home` must be TRUE, FALSE, or NULL.")
   }
   if (!is.null(home) && !is.null(shared_home)) {
-    stop("Pass either `home` or `shared_home`, not both.", call. = FALSE)
+    abort("Pass either `home` or `shared_home`, not both.")
   }
 
   convert_opts <- duckdb_convert_opts(bigint = bigint)
@@ -180,8 +185,20 @@ duckdb <- function(
     # We reuse an existing driver object if the database is still alive.
     # If not, we fall back to creating a new driver object with a new database.
     if (!is.null(drv) && rethrow_rapi_lock(drv@database_ref)) {
-      # We don't care about different read_only or config settings here.
-      # The bigint setting can be actually picked up by dbConnect(), we update it here.
+      # Settings that bind at creation are dropped here. Saying so is
+      # duckdb/duckdb-r#2560; the bigint setting is not one of them, because
+      # dbConnect() picks it up, so we update it.
+      warn_instance_settings_ignored(
+        drv,
+        read_only = read_only,
+        config = config,
+        supplied = c(
+          if (!missing(home)) "home",
+          if (!missing(shared_home)) "shared_home",
+          if (!missing(allow_extensions)) "allow_extensions",
+          if (!missing(environment_scan)) "environment_scan"
+        )
+      )
       drv@convert_opts <- convert_opts
       drv@bigint <- convert_opts$bigint
       return(drv)
@@ -323,7 +340,7 @@ duckdb <- function(
 #' @export
 duckdb_shutdown <- function(drv) {
   if (!is(drv, "duckdb_driver")) {
-    stop("pass a duckdb_driver object")
+    abort("pass a duckdb_driver object")
   }
   if (!dbIsValid(drv)) {
     warning("invalid driver object, already closed?")
@@ -407,9 +424,74 @@ check_tz <- function(timezone) {
   timezone
 }
 
+# `config`, `read_only` and the storage arguments describe the database
+# *instance*, so a call that finds one in the registry cannot apply them. They
+# are compared rather than merely counted as supplied: `dbConnect()` forwards
+# the driver's own values, and repeating a setting the instance already has is
+# not a collision. Explained in handbook/usage/connections/README.md;
+# duckdb/duckdb-r#2560 asks for the noise, duckdb/duckdb-r#126 for the removal.
+warn_instance_settings_ignored <- function(
+  drv,
+  read_only,
+  config,
+  supplied,
+  call = parent.frame()
+) {
+  ignored <- supplied
+
+  if (!identical(read_only, drv@read_only)) {
+    ignored <- c(ignored, "read_only")
+  }
+
+  differs <- !vapply(
+    names(config),
+    function(name) identical(config[[name]], drv@config[[name]]),
+    logical(1)
+  )
+  if (any(differs)) {
+    ignored <- c(ignored, paste0("config$", names(config)[differs]))
+  }
+
+  if (length(ignored) == 0) {
+    return(invisible())
+  }
+
+  abort(
+    c(
+      paste0(
+        paste0("`", ignored, "`", collapse = ", "),
+        " can't be applied to the database instance for `",
+        drv@dbdir,
+        "`, which already exists."
+      ),
+      "These settings take effect only when the instance is created.",
+      "Release it with `duckdb_shutdown()` first, or pass them to the `duckdb()` call that creates it."
+    ),
+    call = call
+  )
+}
+
+# A `dbdir` an extension answers rather than the filesystem -- `md:` for
+# MotherDuck, `ducklake:` for DuckLake -- is not a path. Normalizing one turns
+# it into a local file name that no extension will ever be asked about.
+#
+# The rule is the engine's, from `ExtensionHelper::ExtractExtensionPrefixFromPath()`:
+# at least two alphanumeric-or-underscore characters before the first colon,
+# which keeps `C:\db` a Windows path, and `://` after them means a URL scheme
+# rather than a prefix, which keeps `s3://` out.
+has_extension_prefix <- function(path) {
+  grepl("^[[:alnum:]_]{2,}:(?!//)", path, perl = TRUE)
+}
+
 path_normalize <- function(path) {
   if (path == "" || path == DBDIR_MEMORY) {
     return(DBDIR_MEMORY)
+  }
+
+  # The prefix guard stays on this side: `CanonicalizePath()` does not make it,
+  # the engine's cache-key function does, and that is not what is called here.
+  if (has_extension_prefix(path)) {
+    return(path)
   }
 
   # The engine resolves this the same way whether or not the database exists
