@@ -17,7 +17,9 @@ install.packages("duckdb")
 
 For Linux or older R versions, installing the package from source may
 take up to an hour. Consider the [Posit Public Package
-Manager](https://p3m.dev/) for binary installs (see the next section).
+Manager](https://p3m.dev/) or
+[r-universe](https://duckdb.r-universe.dev) for binary installs (see the
+next sections).
 
 ## Installation from the Posit Public Package Manager
 
