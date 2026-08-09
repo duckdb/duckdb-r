@@ -12,7 +12,7 @@
 
 using namespace duckdb;
 
-static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, CastParameters &parameters) {
+static bool CastRstringToVarchar(Vector &source, Vector &result, idx_t count, CastParameters & /* parameters */) {
 	GenericExecutor::ExecuteUnary<PrimitiveType<uintptr_t>, PrimitiveType<string_t>>(
 	    source, result, count,
 	    [&](PrimitiveType<uintptr_t> input) { return StringVector::AddString(result, (const char *)input.val); });

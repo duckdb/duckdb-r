@@ -377,8 +377,8 @@ struct AltrepVectorWrapper {
 	cpp11::sexp transformed_vector;
 };
 
-Rboolean RelToAltrep::RownamesInspect(SEXP x, int pre, int deep, int pvec,
-                                      void (*inspect_subtree)(SEXP, int, int, int)) {
+Rboolean RelToAltrep::RownamesInspect(SEXP x, int /* pre */, int /* deep */, int /* pvec */,
+                                      void (* /* inspect_subtree */)(SEXP, int, int, int)) {
 	BEGIN_CPP11
 	AltrepRownamesWrapper::Get(x); // make sure this is alive
 	Rprintf("DUCKDB_ALTREP_REL_ROWNAMES\n");
@@ -386,7 +386,8 @@ Rboolean RelToAltrep::RownamesInspect(SEXP x, int pre, int deep, int pvec,
 	END_CPP11_EX(Rboolean::FALSE)
 }
 
-Rboolean RelToAltrep::RelInspect(SEXP x, int pre, int deep, int pvec, void (*inspect_subtree)(SEXP, int, int, int)) {
+Rboolean RelToAltrep::RelInspect(SEXP x, int /* pre */, int /* deep */, int /* pvec */,
+                                 void (* /* inspect_subtree */)(SEXP, int, int, int)) {
 	BEGIN_CPP11
 	auto wrapper = AltrepVectorWrapper::Get(x); // make sure this is alive
 	auto &col = wrapper->rel->rel->Columns()[wrapper->column_index];
@@ -416,7 +417,7 @@ R_xlen_t RelToAltrep::RownamesLength(SEXP x) {
 	END_CPP11_EX(0)
 }
 
-int RelToAltrep::RownamesElt(SEXP x, R_xlen_t i) {
+int RelToAltrep::RownamesElt(SEXP /* x */, R_xlen_t i) {
 	BEGIN_CPP11
 	return static_cast<int>(i + 1);
 	END_CPP11_EX(NA_INTEGER)
@@ -440,15 +441,15 @@ R_xlen_t RelToAltrep::RownamesGetRegion(SEXP x, R_xlen_t start, R_xlen_t size, i
 	END_CPP11_EX(0)
 }
 
-int RelToAltrep::RownamesIsSorted(SEXP x) {
+int RelToAltrep::RownamesIsSorted(SEXP /* x */) {
 	return SORTED_INCR;
 }
 
-int RelToAltrep::RownamesNoNA(SEXP x) {
+int RelToAltrep::RownamesNoNA(SEXP /* x */) {
 	return TRUE;
 }
 
-SEXP RelToAltrep::RownamesSum(SEXP x, Rboolean na_rm) {
+SEXP RelToAltrep::RownamesSum(SEXP x, Rboolean /* na_rm */) {
 	BEGIN_CPP11
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
 	auto n = rownames_wrapper->RowCount();
@@ -457,7 +458,7 @@ SEXP RelToAltrep::RownamesSum(SEXP x, Rboolean na_rm) {
 	END_CPP11
 }
 
-SEXP RelToAltrep::RownamesMin(SEXP x, Rboolean na_rm) {
+SEXP RelToAltrep::RownamesMin(SEXP x, Rboolean /* na_rm */) {
 	BEGIN_CPP11
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
 	auto n = rownames_wrapper->RowCount();
@@ -469,7 +470,7 @@ SEXP RelToAltrep::RownamesMin(SEXP x, Rboolean na_rm) {
 	END_CPP11
 }
 
-SEXP RelToAltrep::RownamesMax(SEXP x, Rboolean na_rm) {
+SEXP RelToAltrep::RownamesMax(SEXP x, Rboolean /* na_rm */) {
 	BEGIN_CPP11
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
 	auto n = rownames_wrapper->RowCount();
@@ -490,14 +491,14 @@ SEXP RelToAltrep::MakeRowNamesSexp(duckdb::shared_ptr<AltrepRelationWrapper> rel
 	return R_new_altrep(RelToAltrep::rownames_class, ptr, R_NilValue);
 }
 
-SEXP RelToAltrep::RownamesDuplicate(SEXP x, Rboolean deep) {
+SEXP RelToAltrep::RownamesDuplicate(SEXP x, Rboolean /* deep */) {
 	BEGIN_CPP11
 	auto rownames_wrapper = AltrepRownamesWrapper::Get(x);
 	return MakeRowNamesSexp(rownames_wrapper->rel);
 	END_CPP11
 }
 
-void *RelToAltrep::RownamesDataptr(SEXP x, Rboolean writeable) {
+void *RelToAltrep::RownamesDataptr(SEXP x, Rboolean /* writeable */) {
 	BEGIN_CPP11
 	return DoRownamesDataptrGet(x);
 	END_CPP11
@@ -528,7 +529,7 @@ R_xlen_t RelToAltrep::VectorLength(SEXP x) {
 	END_CPP11_EX(0)
 }
 
-void *RelToAltrep::VectorDataptr(SEXP x, Rboolean writeable) {
+void *RelToAltrep::VectorDataptr(SEXP x, Rboolean /* writeable */) {
 	BEGIN_CPP11
 	return AltrepVectorWrapper::Get(x)->Dataptr();
 	END_CPP11

@@ -66,7 +66,7 @@ using namespace duckdb;
 	}
 }
 
-unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, ReplacementScanInput &input,
+unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext & /* context */, ReplacementScanInput &input,
                                                         optional_ptr<ReplacementScanData> data_p) {
 	auto &data = (ReplacementDataDBWrapper &)*data_p;
 	auto db_wrapper = data.wrapper;
@@ -334,7 +334,7 @@ private:
 	}
 };
 
-unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, ReplacementScanInput &input,
+unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext & /* context */, ReplacementScanInput &input,
                                                   optional_ptr<ReplacementScanData> data_p) {
 	auto table_name = input.table_name;
 	ReplacementDataDBWrapper &data = static_cast<ReplacementDataDBWrapper &>(*data_p);

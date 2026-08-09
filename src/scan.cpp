@@ -585,7 +585,7 @@ struct DataFrameLocalState : public LocalTableFunctionState {
 	idx_t count;
 };
 
-static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context, TableFunctionBindInput &input,
+static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext & /* context */, TableFunctionBindInput &input,
                                                           vector<LogicalType> &return_types, vector<string> &names) {
 	data_frame df((SEXP)input.inputs[0].GetPointer());
 
@@ -627,7 +627,7 @@ static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context
 	return make_uniq<DataFrameScanBindData>(df, row_count, rtypes, data_ptrs, named_list_map, input.named_parameters);
 }
 
-static idx_t DataFrameScanMaxThreads(ClientContext &context, const FunctionData *bind_data_p) {
+static idx_t DataFrameScanMaxThreads(ClientContext & /* context */, const FunctionData *bind_data_p) {
 	D_ASSERT(bind_data_p);
 	auto bind_data = (const DataFrameScanBindData *)bind_data_p;
 	return ceil((double)bind_data->row_count / bind_data->rows_per_task);
@@ -640,7 +640,7 @@ static duckdb::unique_ptr<GlobalTableFunctionState> DataFrameScanInitGlobal(Clie
 	return std::move(result);
 }
 
-static bool DataFrameScanParallelStateNext(ClientContext &context, const FunctionData *bind_data_p,
+static bool DataFrameScanParallelStateNext(ClientContext & /* context */, const FunctionData *bind_data_p,
                                            DataFrameLocalState &local_state, DataFrameGlobalState &global_state) {
 	auto &bind_data = bind_data_p->Cast<DataFrameScanBindData>();
 
@@ -709,12 +709,13 @@ static void DataFrameScanFunc(ClientContext &context, TableFunctionInput &data, 
 	operator_data.position += this_count;
 }
 
-static unique_ptr<NodeStatistics> DataFrameScanCardinality(ClientContext &context, const FunctionData *bind_data_p) {
+static unique_ptr<NodeStatistics> DataFrameScanCardinality(ClientContext & /* context */,
+                                                           const FunctionData *bind_data_p) {
 	auto &bind_data = bind_data_p->Cast<DataFrameScanBindData>();
 	return make_uniq<NodeStatistics>(bind_data.row_count, bind_data.row_count);
 }
 
-static InsertionOrderPreservingMap<string> DataFrameScanToString(TableFunctionToStringInput &input) {
+static InsertionOrderPreservingMap<string> DataFrameScanToString(TableFunctionToStringInput & /* input */) {
 	InsertionOrderPreservingMap<string> result;
 	result["Text"] = "data.frame";
 	return result;
