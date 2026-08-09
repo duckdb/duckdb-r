@@ -33,13 +33,12 @@ What it branches on is the name the client announces: connect with
 That makes [#202](https://github.com/duckdb/duckdb-r/issues/202)
 MotherDuck's to close, either way it chooses — install the handler for
 every client, or have the wait observe `ClientContext::interrupted`,
-which this package already sets — and the answer, with the switch that
-demonstrates it, belongs in
-[`usage/interactive/`](/handbook/usage/interactive/README.md) rather
-than here.
-Renaming this package's client would not be a fix but a disguise, and
-would misreport every client that asks for a reason unrelated to
-interrupts.
+which this package already sets.
+Renaming this package's client is not a route here, and is why the
+switch stays in the experiment as a diagnosis rather than travelling as
+a remedy: the name is not a private channel to MotherDuck, so a
+connection that claims to be the shell is answered as the shell by
+everything else that asks.
 
 None of the routes below is dropped for that.
 The same wait shape arrives through any extension that blocks on the

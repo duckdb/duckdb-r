@@ -177,6 +177,29 @@ This package announces `duckdb_api = r-dbi`
 Run that way, Ctrl+C cancels the sign-in wait from R.
 One switch, one behaviour: nothing else about the connection changed,
 so the client's name is what MotherDuck branches on.
+The reported case, and the line that changes its outcome:
+
+```r
+library(duckdb)
+
+# Ctrl+C does not reach the sign-in wait
+con <- dbConnect(duckdb())
+dbExecute(con, "ATTACH 'md:'")
+
+# ... and does, when the connection answers to the shell's name
+con <- dbConnect(duckdb(config = list(duckdb_api = "cli")))
+dbExecute(con, "ATTACH 'md:'")
+```
+
+Which is a diagnosis, not a remedy to pass on.
+The name is not a private channel to MotherDuck, so a connection
+claiming to be the shell is answered as the shell by everything else
+that asks;
+and what ends the wait is then MotherDuck's handler rather than the
+package's, so the statement fails with MotherDuck's own error and raises
+no R interrupt condition —
+`HandleInterrupt()` ([`src/signal.cpp`](/src/signal.cpp)) raises only
+for a signal the package's own handler took.
 
 ## Running the probe
 
