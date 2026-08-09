@@ -209,6 +209,19 @@ The file lock does not fire within one process, so a create would
 data-integrity bug the cache exists to prevent.
 A clear error is the only safe answer.
 
+Confirmed against a source build: the repro that wedged the session now
+raises `Database "..." is still in use: an earlier instance has been
+released but something is still holding it open` and returns control.
+
+Verifying it took one detour worth recording. The engine is a unity
+build -- `db_instance_cache.cpp` is `#include`d into `ub_src_main.cpp`,
+and make's prerequisite is the unity file, not its members -- and
+`Config/build/never-clean` keeps objects across installs. So editing a
+vendored source marks nothing out of date: the first build linked an
+object older than the edit and succeeded, and the repro still hung
+against code that had never been compiled. Deleting the containing
+`ub_*.o` by hand is what makes a vendored edit take effect.
+
 The patch fixes the source build, which is what CRAN ships.
 It does **not** fix the fast path
 ([`build/fast-paths/`](/handbook/build/fast-paths/README.md)), which
