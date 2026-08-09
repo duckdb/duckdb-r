@@ -347,7 +347,7 @@ if git rev-parse -q --verify "$remote/$S-fwd-build" >/dev/null &&
   exit 0
 fi
 # Pending work does not hold the buffer (.claude/skills/series-loop.md stage 5):
-# each.yaml plans every commit in green..tip that has no status, so a longer tip
+# each.yaml plans every commit in green..tip that has no record, so a longer tip
 # is more work planned in the same pass, not work deferred. A known failure does
 # hold it: stage 2 will fold a fix into that commit and replay everything above,
 # so anything appended now is minted only to be re-minted. The stage-3 walk above
