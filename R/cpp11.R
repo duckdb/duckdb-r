@@ -248,6 +248,10 @@ rapi_cxx_stdlib <- function() {
   .Call(`_duckdb_rapi_cxx_stdlib`)
 }
 
+rapi_canonicalize_path <- function(path) {
+  .Call(`_duckdb_rapi_canonicalize_path`, path)
+}
+
 rapi_ptr_to_str <- function(extptr) {
   .Call(`_duckdb_rapi_ptr_to_str`, extptr)
 }

@@ -103,6 +103,13 @@ driver_registry <- new.env(parent = emptyenv())
 #' An in-memory database (`:memory:`, the default) has no file to lock and is never cached:
 #' every `duckdb()` call creates a fresh, isolated instance.
 #'
+#' The key is the path as the *engine* resolves it, not as [normalizePath()] does.
+#' DuckDB canonicalizes the longest part of the path that exists and appends the rest,
+#' so a database that does not exist yet gets the key it will keep once created,
+#' and two spellings of one database -- a relative path, a symlink, a different
+#' separator -- share an instance instead of colliding on its lock.
+#' A path that resolves no further is used as it stands rather than refused.
+#'
 #' Because the instance is created once per database file,
 #' `config`, `read_only`, `home`, and `shared_home` take effect only at creation.
 #' A call that reuses an existing instance ignores them.
@@ -403,13 +410,9 @@ path_normalize <- function(path) {
     return(DBDIR_MEMORY)
   }
 
-  out <- normalizePath(path, mustWork = FALSE)
-
-  # Stable results are only guaranteed if the file exists
-  if (!file.exists(out)) {
-    on.exit(unlink(out))
-    writeLines(character(), out)
-    out <- normalizePath(out, mustWork = TRUE)
-  }
-  out
+  # The engine resolves this the same way whether or not the database exists
+  # yet, so nothing has to be created to get a stable key. `~` stays R's to
+  # expand: DuckDB has its own idea of the home directory, and on Windows it is
+  # not R's.
+  rethrow_rapi_canonicalize_path(path.expand(path))
 }
