@@ -14,11 +14,32 @@ The load-bearing facts:
   `dbConnect()` opens connections to it,
   and many connections share one instance.
 * For a file-based `dbdir` the instance is **cached**,
-  keyed by the normalized path —
-  DuckDB allows only one read-write handle per database file,
-  so reuse is what lets repeated
-  `dbConnect(duckdb(dbdir = "my.db"))` calls work at all.
+  keyed by the canonical path, in `driver_registry`.
   An in-memory database is never cached.
+* **That cache is a correctness guard, not an optimization.**
+  The engine does not refuse a second read-write instance on a file
+  another instance in the same process already holds — its lock is
+  per-process, and `rapi_startup()` builds a `DuckDB` directly.
+  Two such instances open happily and then diverge: each sees what was
+  committed before it opened and nothing the other writes afterwards.
+  So `driver_registry` is what keeps one R session to one writer per
+  database, and a key that fails to unify two spellings of one file is
+  a data-integrity bug rather than a missed reuse
+  ([`2026-08-09-path-canonicalization/`](/experiments/2026-08-09-path-canonicalization/README.md)).
+* **The engine has its own instance cache, and this package does not
+  use it.**
+  `DBInstanceCache::GetOrCreateInstance()` keys on the same
+  canonicalization this package now asks for, refuses the second
+  instance the registry exists to prevent, and is reachable from the
+  stable C API as `duckdb_get_or_create_from_cache()` —
+  which is what `duckdb_open()` itself goes through.
+  `rapi_startup()` bypasses it.
+  Adopting it would retire both `path_normalize()` and
+  `driver_registry`, and would change one documented behaviour: the
+  engine raises `Can't open a connection to same database file with a
+  different configuration` where this package silently reuses the
+  first instance's settings — the loud failure
+  [#2560](https://github.com/duckdb/duckdb-r/issues/2560) asks for.
 * **The key is the engine's path, not R's.**
   `path_normalize()` asks DuckDB, through `rapi_canonicalize_path()`,
   rather than calling `normalizePath()`:

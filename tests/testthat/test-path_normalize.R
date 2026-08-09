@@ -60,3 +60,50 @@ test_that("a path that cannot be resolved is returned rather than refused (#455)
   expect_true(nzchar(out))
   expect_false(file.exists(path))
 })
+
+test_that("two spellings of one database share an instance", {
+  # Not a reuse optimization: the engine does not refuse a second read-write
+  # instance on a file this process already holds, and two of them diverge
+  # silently. The registry is what prevents that, and it can only do so if the
+  # key unifies the spellings. See handbook/usage/connections/README.md.
+  dir <- withr::local_tempdir()
+  path <- file.path(dir, "db.duckdb")
+
+  drv1 <- duckdb(path)
+  # `defer()` unwinds last-in-first-out, so every connection is closed before
+  # the instance they belong to is shut down.
+  withr::defer(duckdb_shutdown(drv1))
+  con1 <- dbConnect(drv1)
+  withr::defer(dbDisconnect(con1))
+  dbWriteTable(con1, "x", data.frame(a = 1L))
+
+  drv2 <- duckdb(file.path(dir, "..", basename(dir), "db.duckdb"))
+  expect_identical(drv2@database_ref, drv1@database_ref)
+
+  con2 <- dbConnect(drv2)
+  withr::defer(dbDisconnect(con2))
+  # A second instance would not see a write made through the first.
+  expect_equal(dbReadTable(con2, "x"), data.frame(a = 1L))
+})
+
+test_that("a read-only request reuses the read-write instance it finds", {
+  # Documented in `?duckdb`: `read_only` binds when the instance is created.
+  # Pinned because dropping the registry in favour of the engine's cache would
+  # change it -- the engine raises on a configuration mismatch instead
+  # (duckdb/duckdb-r#2560).
+  path <- file.path(withr::local_tempdir(), "db.duckdb")
+
+  drv <- duckdb(path)
+  withr::defer(duckdb_shutdown(drv))
+  con <- dbConnect(drv)
+  withr::defer(dbDisconnect(con))
+
+  ro <- duckdb(path, read_only = TRUE)
+  expect_identical(ro@database_ref, drv@database_ref)
+
+  con_ro <- dbConnect(ro)
+  withr::defer(dbDisconnect(con_ro))
+  dbWriteTable(con, "x", data.frame(a = 1L))
+  # Same instance, so a write through `con` is visible here.
+  expect_equal(dbReadTable(con_ro, "x"), data.frame(a = 1L))
+})
