@@ -1,5 +1,6 @@
 ## Whether a caller can have DISTINCT ON today without waiting for dbplyr,
-## how far into dbplyr that reaches, and what it costs when switched on.
+## how far into dbplyr that reaches, and what dbplyr can already state
+## without it.
 library(duckdb)
 library(dplyr, warn.conflicts = FALSE)
 library(dbplyr, warn.conflicts = FALSE)
@@ -7,7 +8,41 @@ packageVersion("duckdb")
 packageVersion("dbplyr")
 
 con <- dbConnect(duckdb())
-duckdb_register(con, "iris", iris)
+dbExecute(
+  con,
+  "CREATE TABLE g AS SELECT * FROM (VALUES
+     ('a', 1), ('a', 2), ('a', 3),
+     ('b', 4), ('b', 5), ('b', 6),
+     ('c', 7), ('c', 8), ('c', 9)) v(grp, x)"
+)
+
+## What dbplyr already states -----------------------------------------------
+## Which row `.keep_all` keeps is sayable today. `arrange()` above
+## `distinct()` warns -- and reaches the window's ORDER BY regardless;
+## `window_order()` is the spelling that says the same thing without the
+## warning, and renders the same SQL.
+
+tbl(con, "g") |>
+  arrange(desc(x)) |>
+  distinct(grp, .keep_all = TRUE) |>
+  show_query()
+
+tbl(con, "g") |>
+  window_order(desc(x)) |>
+  distinct(grp, .keep_all = TRUE) |>
+  show_query()
+
+tbl(con, "g") |>
+  window_order(desc(x)) |>
+  distinct(grp, .keep_all = TRUE) |>
+  collect() |>
+  arrange(grp)
+
+tbl(con, "g") |>
+  window_order(x) |>
+  distinct(grp, .keep_all = TRUE) |>
+  collect() |>
+  arrange(grp)
 
 ## The override -------------------------------------------------------------
 ## Exported dbplyr only: remote_con(), sql_render(), translate_sql_(),
@@ -35,89 +70,68 @@ distinct_on_tbl <- function(.data, ..., .order_by = NULL) {
   )
 }
 
-# Gated on an option, so registering it changes nothing until asked.
+# The opt-in is the argument, not a setting: without `.order_by` the method
+# hands straight back to dbplyr, so registering it changes nothing until a
+# call asks for it -- and a call that asks has said which row it means.
 registerS3method(
   "distinct",
   "tbl_duckdb_connection",
-  function(.data, ..., .keep_all = FALSE) {
-    if (!.keep_all || !isTRUE(getOption("duckdb.distinct_on", FALSE))) {
+  function(.data, ..., .keep_all = FALSE, .order_by = NULL) {
+    order <- rlang::enquo(.order_by)
+    if (!.keep_all || rlang::quo_is_null(order)) {
       return(NextMethod())
     }
-    distinct_on_tbl(.data, ...)
+    distinct_on_tbl(.data, ..., .order_by = !!order)
   }
 )
 
-## Off by default -----------------------------------------------------------
+## Not asked for: dbplyr's plan, unchanged ----------------------------------
 
-getOption("duckdb.distinct_on", FALSE)
-tbl(con, "iris") |>
-  distinct(Petal.Width, Species, .keep_all = TRUE) |>
+tbl(con, "g") |>
+  distinct(grp, .keep_all = TRUE) |>
   show_query()
 
-## Switched on --------------------------------------------------------------
-
-options(duckdb.distinct_on = TRUE)
-tbl(con, "iris") |>
-  distinct(Petal.Width, Species, .keep_all = TRUE) |>
+# `.keep_all = FALSE` is never this method's business
+tbl(con, "g") |>
+  distinct(grp) |>
   show_query()
 
-# `.keep_all = FALSE` is not this method's business either way
-tbl(con, "iris") |>
-  distinct(Petal.Width, Species) |>
+# and an explicit NULL is the same as saying nothing
+tbl(con, "g") |>
+  distinct(grp, .keep_all = TRUE, .order_by = NULL) |>
   show_query()
+
+## Asked for ----------------------------------------------------------------
+
+tbl(con, "g") |>
+  distinct(grp, .keep_all = TRUE, .order_by = desc(x)) |>
+  show_query()
+
+tbl(con, "g") |>
+  distinct(grp, .keep_all = TRUE, .order_by = desc(x)) |>
+  collect() |>
+  arrange(grp)
+
+tbl(con, "g") |>
+  distinct(grp, .keep_all = TRUE, .order_by = x) |>
+  collect() |>
+  arrange(grp)
 
 # The result is a lazy tbl like any other, and composes
-tbl(con, "iris") |>
-  distinct(Petal.Width, Species, .keep_all = TRUE) |>
-  filter(Species == "setosa") |>
+tbl(con, "g") |>
+  distinct(grp, .keep_all = TRUE, .order_by = desc(x)) |>
+  filter(x > 3) |>
   count() |>
   collect()
 
-## What it costs: the pipeline's ordering ------------------------------------
-## Three groups of three rows, so which row `.keep_all` keeps is visible.
+## What it still costs ------------------------------------------------------
+## The wrapper renders the pipeline and starts a new tbl() over the SQL, so
+## it reads nothing dbplyr was tracking -- including a window_order() the
+## caller already wrote. The ordering has to be stated in its own argument.
 
-dbExecute(
-  con,
-  "CREATE TABLE g AS SELECT * FROM (VALUES
-     ('a', 1), ('a', 2), ('a', 3),
-     ('b', 4), ('b', 5), ('b', 6),
-     ('c', 7), ('c', 8), ('c', 9)) v(grp, x)"
-)
-
-# dbplyr, asked for the largest x per group and then for the smallest.
-# It warns both times that the arrange() is ignored -- and the two answers
-# differ anyway, so on this engine it is not ignored. Which row survives is
-# left to how the subquery happens to feed the window: implementation
-# defined either way, and not something the pipeline stated.
-options(duckdb.distinct_on = FALSE)
-largest <- tbl(con, "g") |>
-  arrange(desc(x)) |>
-  distinct(grp, .keep_all = TRUE) |>
-  collect()
-smallest <- tbl(con, "g") |>
-  arrange(x) |>
-  distinct(grp, .keep_all = TRUE) |>
-  collect()
-largest
-identical(largest, smallest)
-
-# The override does what it is told, and the two orderings differ as they
-# should -- first row per group by x, then by desc(x).
-options(duckdb.distinct_on = TRUE)
-tbl(con, "g") |> distinct_on_tbl(grp, .order_by = x) |> collect()
-tbl(con, "g") |> distinct_on_tbl(grp, .order_by = desc(x)) |> collect()
-
-# But it has to be told at the call. The wrapper starts a new tbl() over
-# rendered SQL and sees no pipeline, so an upstream arrange() reaches it no
-# further than it reaches dbplyr's own plan:
 tbl(con, "g") |>
-  arrange(desc(x)) |>
-  distinct(grp, .keep_all = TRUE) |>
+  window_order(desc(x)) |>
+  distinct(grp, .keep_all = TRUE, .order_by = desc(x)) |>
   show_query()
 
-# Which is the argument for the clause landing in dbplyr rather than here.
-# dbplyr builds the query and is the only layer that knows what the pipeline
-# asked for; a wrapper can only be handed the answer a second time.
-
-options(duckdb.distinct_on = FALSE)
 dbDisconnect(con, shutdown = TRUE)

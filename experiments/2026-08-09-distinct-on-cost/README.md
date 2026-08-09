@@ -65,7 +65,10 @@ dbplyr's ROW_NUMBER  2.81 s | DISTINCT ON, unordered  2.96 s
 — and return the same number of rows. Within noise.
 
 **What it shows.** There is no regime here where `DISTINCT ON` is
-faster for the question being asked. Where the pick is arbitrary the
+faster for the question being asked.
+(A pipeline that wants a determined row says so with `window_order()`,
+which the companion experiment covers; that is the plan measured in
+every row above but the last.) Where the pick is arbitrary the
 two plans are equivalent; where it is determined the window plan is
 1.4× to 2.7× ahead. So the clause is worth having for what it says, not
 for what it costs, and no pipeline is waiting on it for speed.

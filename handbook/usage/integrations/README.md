@@ -35,20 +35,23 @@ the boundaries users keep hitting:
   pick is arbitrary — which is what dbplyr's own plan does, since with
   no `arrange()` it orders by the first column
   ([`experiments/2026-08-09-distinct-on-cost/`](/experiments/2026-08-09-distinct-on-cost/README.md)).
-  A caller who wants the clause can render the pipeline and wrap it —
-  `remote_con()`, `sql_render()`, `translate_sql_()`, `ident()`,
+  What is *not* missing is the ability to determine which row survives:
+  `window_order(desc(x))` above `distinct()` renders the window's
+  `ORDER BY` and picks accordingly, and an `arrange()` in the same
+  position renders the same SQL — it warns that the ordering is ignored,
+  which here it is not.
+  A pipeline that says neither gets `ORDER BY` on the first column.
+  A caller who wants the clause anyway can render the pipeline and wrap
+  it — `remote_con()`, `sql_render()`, `translate_sql_()`, `ident()`,
   `escape()`, `sql()` are all exported, so this reaches no dbplyr
-  internals — and register that as their own `distinct()` method behind
-  an option
+  internals — and register that as their own `distinct()` method taking
+  an `.order_by`
   ([`experiments/2026-08-09-distinct-on-override/`](/experiments/2026-08-09-distinct-on-override/README.md)).
-  Off by default is the right default for it:
-  the wrapper starts a new `tbl()` over rendered SQL and cannot see the
-  pipeline, so the ordering that decides which row survives has to be
-  repeated at the call.
-  Neither route states that ordering by itself — dbplyr warns an
-  `arrange()` above `distinct()` is ignored, and DuckDB honours it
-  anyway — so the pick is only a contract where it is written into the
-  operator.
+  An argument rather than an option is what keeps that safe:
+  the method hands back to dbplyr whenever `.order_by` is absent, so it
+  fires only on calls that stated which row they meant —
+  which it has to, since a wrapper over rendered SQL cannot read the
+  `window_order()` the pipeline already carries.
 * `pivot_longer()` expands SQL generically instead of `UNPIVOT`
   ([#2029](https://github.com/duckdb/duckdb-r/issues/2029)).
 * An inline `as.POSIXct("…")` is translated, not escaped,
