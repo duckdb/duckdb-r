@@ -65,10 +65,12 @@ warnings_of() {
 # engine's other two roots. `cpp11` names the vendored cpp11 under
 # inst/include/, which has an upstream of its own and is nobody's here.
 #
-# `generated` is checked first, and is nobody's either: an editable fix does not
-# exist for a file its generator rewrites, and this repository vendors none of
-# the generators. The list is a list because there is no marker to match on --
-# extend it when a generated file starts warning:
+# `generated` is checked first, and is dropped outright rather than counted:
+# an editable fix does not exist for a file its generator rewrites, this
+# repository vendors none of the generators, and there is no upstream to send
+# the warning to either -- the generator's input is not what warned. The list is
+# a list because there is no marker to match on -- extend it when a generated
+# file starts warning:
 #   src_backend_parser_gram.cpp, src_backend_parser_scan.cpp  bison and flex
 #   yyjson.cpp                                                the amalgamation
 #   cpp11.cpp                                                 cpp11::cpp_register()
@@ -87,7 +89,8 @@ classify='
 # Judge a log: fail on any warning the scope owns, count the rest.
 scan() {
   local scope=$1 log=$2 all mine theirs
-  all=$(grep -E '^[^ ].*:[0-9]+:[0-9]+: warning:' "$log" | sed 's/^ *//' | sort -u || true)
+  all=$(grep -E '^[^ ].*:[0-9]+:[0-9]+: warning:' "$log" | sed 's/^ *//' | sort -u |
+    awk -F: "$classify"'scope_of($1) != "generated"' || true)
   mine=$(echo "$all" | grep . | awk -F: -v want="$scope" "$classify"'
     scope_of($1) == want' || true)
   theirs=$(echo "$all" | grep . | awk -F: -v want="$scope" "$classify"'

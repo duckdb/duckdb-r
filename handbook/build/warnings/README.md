@@ -28,14 +28,15 @@ and what another scope owns is counted rather than listed.
   [`krlmlr/cpp11`](https://github.com/krlmlr/cpp11) fork
   ([`architecture/glue/conventions/`](/handbook/architecture/glue/conventions/README.md)),
   so its warnings are reported and never enforced.
-* **`generated`** — nobody's either, and for a stronger reason:
-  an editable fix does not exist for a file its generator rewrites,
-  and this repository vendors the outputs, not the generators.
+* **`generated`** — dropped outright rather than counted,
+  because there is nothing anyone can do with the report.
+  An editable fix does not exist for a file its generator rewrites,
+  this repository vendors the outputs and none of the generators,
+  and the warning cannot be forwarded either:
+  it is about generated text, not about the input that produced it.
   `src/cpp11.cpp` (from `cpp11::cpp_register()`),
   `yyjson.cpp` (upstream's amalgamation),
   and libpg_query's bison and flex output.
-  A warning there is a defect in the grammar or the generator,
-  and it is reported so it can be sent where it belongs.
   This is a list, not a rule — the files carry no marker to match on —
   so it grows when a generated file starts warning.
 
@@ -145,10 +146,11 @@ The scope says who fixes it, and the fix is always at the cause:
   Only the second one lasts.
 * **`cpp11`** — nothing to do here; it is not enforced.
   A fix belongs to the fork.
-* **`generated`** — nothing to do here either.
-  Fix the generator's input, upstream, or leave it:
-  editing the output is undone by the next regeneration,
-  and in the vendored tree by the next vendor run as well.
+* **`generated`** — it will not appear;
+  the gate drops these before it reports anything.
+  Editing the output is undone by the next regeneration,
+  and in the vendored tree by the next vendor run as well,
+  so there is no version of this worth acting on.
 
 The one answer that is never available is turning the warning off
 for a single site.
