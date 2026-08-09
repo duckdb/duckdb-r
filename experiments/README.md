@@ -53,6 +53,16 @@ the directory keeps the method so that is possible.
   which zone labels a `TIMESTAMP` and a `TIMESTAMPTZ` column,
   and when an instant changes, across every setting combination;
   supports [`usage/timestamps/`](/handbook/usage/timestamps/README.md).
+* [`2026-08-09-distinct-on-cost/`](2026-08-09-distinct-on-cost/) —
+  what `DISTINCT ON` would cost against the `ROW_NUMBER()` plan dbplyr
+  emits for `distinct(.keep_all = TRUE)`, across cardinality, width,
+  `LIMIT` and thread count; supports
+  [`usage/integrations/`](/handbook/usage/integrations/README.md).
+* [`2026-08-09-distinct-on-override/`](2026-08-09-distinct-on-override/) —
+  whether a caller can register `DISTINCT ON` as their own `distinct()`
+  method, how far into dbplyr that reaches, and what switching it on
+  changes about which row survives; supports
+  [`usage/integrations/`](/handbook/usage/integrations/README.md).
 * [`2026-08-09-series-carry-scope/`](2026-08-09-series-carry-scope/) —
   how many of a buffer's vendor commits have a fix waiting on the base
   series' `-dev`, what kind, and how much of the raw difference is not a

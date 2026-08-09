@@ -28,7 +28,27 @@ the boundaries users keep hitting:
 * `distinct(.keep_all = TRUE)` is a `ROW_NUMBER()` subquery,
   not `DISTINCT ON` — needs dbplyr support
   ([#384](https://github.com/duckdb/duckdb-r/issues/384),
-  [tidyverse/dbplyr#1620](https://github.com/tidyverse/dbplyr/pull/1620)).
+  [tidyverse/dbplyr#1620](https://github.com/tidyverse/dbplyr/pull/1620)),
+  and the difference is what the query says rather than what it costs:
+  over 20M rows the window plan is 1.4× to 2.7× ahead of `DISTINCT ON`
+  wherever the surviving row is determined, and level with it where the
+  pick is arbitrary — which is what dbplyr's own plan does, since with
+  no `arrange()` it orders by the first column
+  ([`experiments/2026-08-09-distinct-on-cost/`](/experiments/2026-08-09-distinct-on-cost/README.md)).
+  A caller who wants the clause can render the pipeline and wrap it —
+  `remote_con()`, `sql_render()`, `translate_sql_()`, `ident()`,
+  `escape()`, `sql()` are all exported, so this reaches no dbplyr
+  internals — and register that as their own `distinct()` method behind
+  an option
+  ([`experiments/2026-08-09-distinct-on-override/`](/experiments/2026-08-09-distinct-on-override/README.md)).
+  Off by default is the right default for it:
+  the wrapper starts a new `tbl()` over rendered SQL and cannot see the
+  pipeline, so the ordering that decides which row survives has to be
+  repeated at the call.
+  Neither route states that ordering by itself — dbplyr warns an
+  `arrange()` above `distinct()` is ignored, and DuckDB honours it
+  anyway — so the pick is only a contract where it is written into the
+  operator.
 * `pivot_longer()` expands SQL generically instead of `UNPIVOT`
   ([#2029](https://github.com/duckdb/duckdb-r/issues/2029)).
 * An inline `as.POSIXct("…")` is translated, not escaped,
