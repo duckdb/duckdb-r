@@ -84,6 +84,13 @@ for r in "$green" "$dev" "$build" "$base"; do
   git rev-parse -q --verify "$r" >/dev/null || { echo "Error: missing ${r#"$remote"/}"; exit 1; }
 done
 
+# The first N lines, without closing the pipe on the writer. `head -n N` exits
+# as soon as it has them, and the `git rev-list` feeding it dies of SIGPIPE --
+# 141 through `pipefail`, which `set -e` turns into a silent abort of the whole
+# stage. Only a buffer longer than the chunk ever reaches that, which is why it
+# surfaced on main-fwd and on no other series.
+first_n() { sed -n "1,${1}p"; }
+
 state_of() {
   local rec
   # One record per commit, and only that; see scripts/rcc-lib.sh and the
@@ -400,7 +407,7 @@ declare -A CARRY=()
 carries=0
 glue_drift=()
 if [ -n "$base_dev" ]; then
-  for c in $(git rev-list --reverse "$anchor..$build" | head -n "$n"); do
+  for c in $(git rev-list --reverse "$anchor..$build" | first_n "$n"); do
     d=$(twin_of "$c")
     [ -n "$d" ] || continue
     [ -n "$(carry_paths "$c" "$d")" ] || continue
@@ -526,12 +533,12 @@ else
     # The rest of the same chunk, not a fresh one: nothing was pushed, so the
     # anchor is where it was, and the resumed commit is somewhere inside the
     # list this run already computed. Take what follows it.
-    remaining=$(git rev-list --reverse "$anchor..$build" | head -n "$n" |
+    remaining=$(git rev-list --reverse "$anchor..$build" | first_n "$n" |
                   awk -v c="$rc" 'seen { print } $0 == c { seen = 1 }')
   else
     wt=$(mktemp -d)
     git worktree add --detach -q "$wt" "$dev"
-    remaining=$(git rev-list --reverse "$anchor..$build" | head -n "$n")
+    remaining=$(git rev-list --reverse "$anchor..$build" | first_n "$n")
   fi
 
   # `--empty=drop`, as series-port.sh already does: a buffer commit whose content
