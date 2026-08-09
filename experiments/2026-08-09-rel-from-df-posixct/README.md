@@ -22,6 +22,9 @@ tree; one policy's run is [`grid.R`](grid.R), the default-zone probe is
 [`default-zone.R`](default-zone.R), the policies other than the shipped
 one are the patches under [`patches/`](patches/),
 and the recorded run is [`grid.md`](grid.md).
+[`run-defaults.sh`](run-defaults.sh) asks the second question below over
+[`defaults-grid.R`](defaults-grid.R), recorded in
+[`defaults.md`](defaults.md).
 
 **Why the check is in question.**
 `rel_from_df()` refuses a `POSIXct` column whose `tzone` is not
@@ -103,6 +106,49 @@ cannot reach the measurement. It decides only which row a user lands in
 by default, and that is what the default-zone probe records: five
 machine zones, five session zones, echoed verbatim. `Etc/UTC` in the
 run above is this container's `TZ`, not a DuckDB default.
+
+## What the defaults do
+
+The grid above sets the session zone in every cell. Setting nothing is
+the commoner case, and it asks a different question: is the answer the
+same on every machine? [`defaults.md`](defaults.md) runs column label ×
+`timezone_out` against three machine zones, for the shipped tree and
+for `pin-session` — a patch that issues `SET TimeZone = timezone_out`
+at connect when icu is already loaded.
+
+**The shipped default DBI round trip follows the machine.**
+`dbWriteTable()` then `dbReadTable()` of a column labeled `"UTC"`
+returns `"UTC"` where `TZ=UTC`, `"Etc/UTC"` where `TZ=Etc/UTC`, and
+`"Europe/Zurich"` where `TZ=Europe/Zurich`. The instant is right in all
+three; the label is the machine's. Under `TZ=UTC` three of the twelve
+cells round-trip unchanged, under either other zone none of them do.
+This is the writing direction inheriting what
+[#2401](https://github.com/duckdb/duckdb-r/pull/2401) established for
+reading, and it is why a package whose tests compare timestamps can
+pass in a `TZ=UTC` runner and fail on a contributor's laptop.
+
+**Pinning the session zone removes the machine from the answer.**
+Under `pin-session`, `dbi_back` is `timezone_out` in all nine
+non-empty-`timezone_out` cells of every machine zone, and the
+`"UTC"`/`"UTC"` cell round-trips unchanged everywhere. Only
+`timezone_out = ""` still varies, which is what it asks for. The same
+pin makes the relational check correct again — the round-trip label
+becomes `timezone_out`, which is the zone the check already compares
+against — so `rel_from_df()` could follow the default with no new
+relabeling, rather than pinning `TIMESTAMP`.
+
+Two cells get worse under the patch as written: `timezone_out = ""`
+with an unlabeled column comes back labeled with the machine's zone
+where the shipped tree leaves it unlabeled. Matching what plain
+`TIMESTAMP` already does — no label at all when `timezone_out` is
+empty — would settle those.
+
+**What neither run covers.**
+Whether the connect-time `SET` can be issued safely on a build without
+icu. The guard is to ask `duckdb_extensions()` first and skip when icu
+is not loaded, since `SET TimeZone` is an icu setting and asking for it
+otherwise attempts an autoload; on the fast path icu is linked in, so
+the skip branch is never exercised here.
 
 **What this run does not cover.**
 A build without icu, where `SET TimeZone` fails for every value and the
