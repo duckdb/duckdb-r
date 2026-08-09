@@ -163,6 +163,10 @@ groups <- list(
     globs = c("format.py", "python_helpers.py")
   ),
   list(
+    owner = "handbook/build/warnings",
+    globs = c("warnings.sh")
+  ),
+  list(
     owner = "handbook/architecture/r-layer/conventions",
     globs = c("rethrow.R")
   ),
