@@ -71,6 +71,16 @@ around the wait and restores the shell's afterwards.
 without it a blocking call returns `EINTR` rather than resuming, which
 is how a handler ends a wait it is sitting in.
 
+## R again, announcing the shell's name
+
+```
+MD_PROBE_DUCKDB_API=cli R -e 'source("md-probe.R")'
+```
+
+Ctrl+C cancels the sign-in wait, as it does in the shell.
+Nothing else about the connection differs, so `duckdb_api` is what
+MotherDuck branches on when it decides whether to install its handler.
+
 ## What the pair shows
 
 MotherDuck's sign-in wait is cancellable because MotherDuck makes it
@@ -82,3 +92,4 @@ wait does not read.
 It is not a handler the package displaced: there is none to displace,
 and the CLI run shows MotherDuck installing over the shell's handler
 without difficulty, so an installed handler is no obstacle to it.
+What it declines is the client, not the circumstances.

@@ -9,8 +9,6 @@ Ctrl+C stops DuckDB work the engine executes, and stops nothing else.
 A call that blocks inside an operation — a network request above all —
 never returns to the point where the engine reads its interrupt flag,
 so the interrupt sits recorded until the wait ends on its own.
-[#202](https://github.com/duckdb/duckdb-r/issues/202) is the case users
-meet: `ATTACH 'md:'` waits there for a browser sign-in.
 The measurements are
 [`experiments/2026-08-08-interrupt-reach/`](/experiments/2026-08-08-interrupt-reach/README.md);
 what they establish, and matters here, is that the package's handler is
@@ -21,7 +19,7 @@ This plan exists because the fix is larger than the limitation:
 two routes lead out, neither of them small, and one of them is not this
 repository's to take.
 
-## What #202 turns out to be, and whose
+## What #202 turned out to be, and why it is not on this list
 
 Measured rather than inferred: in the DuckDB CLI, MotherDuck installs a
 SIGINT handler of its own for the duration of the sign-in wait —
@@ -29,18 +27,24 @@ without `SA_RESTART`, so a blocking call in that wait returns `EINTR` —
 and restores the shell's afterwards.
 Under the R client it installs none, and the wait reads no flag, so
 Ctrl+C has nothing to act on.
+What it branches on is the name the client announces: connect with
+`duckdb_api = "cli"` and the same Ctrl+C cancels the same wait from R.
 
 That makes [#202](https://github.com/duckdb/duckdb-r/issues/202)
-MotherDuck's to close, either way it chooses: install the handler for
-every host, or have the wait observe `ClientContext::interrupted`, which
-this package already sets.
-Which condition it tests is the one thing still unmeasured; the
-experiment names the first suspect and the switch that tests it.
+MotherDuck's to close, either way it chooses — install the handler for
+every client, or have the wait observe `ClientContext::interrupted`,
+which this package already sets — and the answer, with the switch that
+demonstrates it, belongs in
+[`usage/interactive/`](/handbook/usage/interactive/README.md) rather
+than here.
+Renaming this package's client would not be a fix but a disguise, and
+would misreport every client that asks for a reason unrelated to
+interrupts.
 
-Nothing below would have fixed that case, and none of it is dropped for
-that reason: the same wait shape arrives through any extension that
-blocks on the network, and `httpfs` is the case already in the suite's
-reach.
+None of the routes below is dropped for that.
+The same wait shape arrives through any extension that blocks on the
+network without arranging its own cancellation, and `httpfs` is that
+case already within the suite's reach.
 
 ## Route 1 — the wait observes the flag
 

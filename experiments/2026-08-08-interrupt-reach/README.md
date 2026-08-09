@@ -169,12 +169,14 @@ Neither is the flag a route in: this package sets
 `ClientContext::interrupted` exactly as the shell does, and the sign-in
 wait does not read it in either host.
 
-What remains is which condition MotherDuck tests.
-The client's own name is the first suspect: this package announces
-`duckdb_api = r-dbi` ([`src/database.cpp`](/src/database.cpp)) where the
-shell announces `cli`, and user config is applied after that default, so
+The condition MotherDuck tests is the name the client announces.
+This package announces `duckdb_api = r-dbi`
+([`src/database.cpp`](/src/database.cpp)) where the shell announces
+`cli`, and user config is applied after that default, so
 `MD_PROBE_DUCKDB_API=cli` in [`md-probe.R`](md-probe.R) overrides it.
-If MotherDuck's handler appears under that run, the name is the gate.
+Run that way, Ctrl+C cancels the sign-in wait from R.
+One switch, one behaviour: nothing else about the connection changed,
+so the client's name is what MotherDuck branches on.
 
 ## Running the probe
 
