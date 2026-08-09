@@ -78,11 +78,14 @@ is snake_case whatever the generic above it is called.
 
 **Reference pages are markdown roxygen.**
 `Roxygen: list(markdown = TRUE)` is set in
-[`DESCRIPTION`](/DESCRIPTION), so a cross-reference is `[dbConnect()]`
-and code is backticked;
-a few pages still carry the older `\code{\link{}}` spelling
-([#2616](https://github.com/duckdb/duckdb-r/issues/2616)),
-and converting one is an ordinary edit.
+[`DESCRIPTION`](/DESCRIPTION), so a cross-reference is `[dbConnect()]`,
+code is backticked, a bare URL goes in angle brackets,
+and a phrase linked to one is an ordinary markdown link.
+What markdown does not express stays Rd, and that is not a leftover:
+`\describe{}` / `\item{}` for a definition list — roxygen renders a
+markdown one literally, so there is nothing to convert to —
+and `\sQuote{}`, `\pkg{}`, `\dontrun{}`, which markdown has no spelling
+for at all.
 Each `@param` is a sentence — capitalised, ending in a full stop.
 
 ## Where this package deviates
@@ -111,11 +114,9 @@ Each `@param` is a sentence — capitalised, ending in a full stop.
   functions the package uses, swapped for the real ones at load
   when rlang is installed.
 
-*To deepen: state the rules once the three sweeps that make the code
+*To deepen: state the rules once the two sweeps that make the code
 match them have run — `air.toml`
-([#2614](https://github.com/duckdb/duckdb-r/issues/2614)),
-the error-raising spelling
-([#2615](https://github.com/duckdb/duckdb-r/issues/2615)),
-and the roxygen conversion
-([#2616](https://github.com/duckdb/duckdb-r/issues/2616)) —
+([#2614](https://github.com/duckdb/duckdb-r/issues/2614))
+and the error-raising spelling
+([#2615](https://github.com/duckdb/duckdb-r/issues/2615)) —
 and add the rules a review has enforced twice since.*

@@ -119,7 +119,7 @@ driver_registry <- new.env(parent = emptyenv())
 #' DuckDB's prebuilt extensions for Linux are compiled with the GNU C++ standard library (`libstdc++`).
 #' Loading one into a `duckdb` package that was itself built with a *different* C++ standard library --
 #' most commonly `libc++` (clang's `-stdlib=libc++`) --
-#' is an ABI mismatch that crashes R (\url{https://github.com/duckdb/duckdb-r/issues/1107}).
+#' is an ABI mismatch that crashes R (<https://github.com/duckdb/duckdb-r/issues/1107>).
 #' Almost all Linux builds (CRAN binaries and most source installs) use `libstdc++` and are unaffected;
 #' macOS and Windows are unaffected.
 #'
