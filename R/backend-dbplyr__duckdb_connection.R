@@ -72,11 +72,10 @@ duckdb_grepl <- function(pattern, x, ignore.case = FALSE, perl = FALSE, fixed = 
 
 duckdb_n_distinct <- function(..., na.rm = FALSE) {
   sql <- pkg_method("sql", "dbplyr")
-  glue_sql2 <- pkg_method("glue_sql2", "dbplyr")
-  sql_current_con <- pkg_method("sql_current_con", "dbplyr")
+  # `sql_glue()` reads the active connection itself, and `{...}` renders the
+  # dots comma-separated, the way `{.col {list(...)}*}` did before dbplyr 2.6.0.
+  sql_glue <- pkg_method("sql_glue", "dbplyr")
   check_dots_unnamed <- pkg_method("check_dots_unnamed", "rlang")
-
-  con <- sql_current_con()
 
   if (missing(...)) {
     stop("`...` is absent, but must be supplied.")
@@ -87,19 +86,18 @@ duckdb_n_distinct <- function(..., na.rm = FALSE) {
   if (!identical(na.rm, FALSE)) {
     if (length(list(...)) == 1L) {
       # in case of only one column fall back to the "simple" version
-      return(glue_sql2(con, "COUNT(DISTINCT {.col {list(...)}*})"))
+      return(sql_glue("COUNT(DISTINCT {...})"))
     } else {
       str_null_check <-
         sql(paste0(paste0(list(...), " IS NOT NULL"), collapse = " AND "))
 
-      return(glue_sql2(
-        con,
-        "COUNT(DISTINCT row({.col {list(...)}*})) FILTER (",
+      return(sql_glue(paste0(
+        "COUNT(DISTINCT row({...})) FILTER (",
         str_null_check, ")"
-      ))
+      )))
     }
   } else {
-    return(glue_sql2(con, "COUNT(DISTINCT row({.col {list(...)}*}))"))
+    return(sql_glue("COUNT(DISTINCT row({...}))"))
   }
 }
 

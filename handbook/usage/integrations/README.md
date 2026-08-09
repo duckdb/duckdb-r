@@ -13,6 +13,12 @@ What a value becomes across the boundary is
 is the backend reference.
 dbplyr and dplyr are `Suggests`;
 the methods register at load time, edition 2.
+dbplyr is floored at 2.6.0,
+the first release to export `sql_glue()` —
+`n_distinct()` renders through it,
+having previously reached the unexported `glue_sql2()`
+that a dbplyr release was free to drop
+([#1982](https://github.com/duckdb/duckdb-r/issues/1982)).
 Coercions translate to `TRY_CAST()`,
 so a value that will not convert yields `NULL` rather than failing
 the query
@@ -46,13 +52,6 @@ the boundaries users keep hitting:
   ([#1585](https://github.com/duckdb/duckdb-r/issues/1585),
   blocked on
   [tidyverse/dbplyr#1838](https://github.com/tidyverse/dbplyr/issues/1838)).
-* `n_distinct()` reaches dbplyr's unexported `glue_sql2()` through
-  `getFromNamespace()` — a private-API dependency any dbplyr release
-  can break.
-  The public replacement `sql_glue()` has shipped, so the migration is
-  unblocked; what it still needs is a `dbplyr (>= 2.6.0)` floor, which
-  `DESCRIPTION`'s `Suggests` does not carry
-  ([#1982](https://github.com/duckdb/duckdb-r/issues/1982)).
 
 ## duckplyr
 
