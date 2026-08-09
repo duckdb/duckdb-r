@@ -1,5 +1,6 @@
 ``` r
-## duckdb-r#384 -- DISTINCT ON for the dbplyr backend: where would it go?
+## duckdb-r#384 -- DISTINCT ON for the dbplyr backend: is it faster, and
+## can a user have it today?
 library(duckdb)
 #> Loading required package: DBI
 library(dplyr, warn.conflicts = FALSE)
@@ -9,10 +10,10 @@ packageVersion("duckdb")
 packageVersion("dbplyr")
 #> [1] '2.6.0'
 
-con <- dbConnect(duckdb())
-duckdb_register(con, "iris", iris)
+con <- dbConnect(duckdb(dbdir = tempfile(fileext = ".duckdb")))
 
 # Today's translation, as reported: a ROW_NUMBER() subquery
+duckdb_register(con, "iris", iris)
 tbl(con, "iris") |>
   distinct(Petal.Width, Species, .keep_all = TRUE) |>
   show_query()
@@ -38,47 +39,140 @@ lazy_frame(a = 1, b = 2, con = simulate_postgres()) |>
 #>   FROM "df"
 #> ) AS "q01"
 #> WHERE ("col01" = 1)
-lazy_frame(a = 1, b = 2, con = simulate_mssql()) |>
-  distinct(a, .keep_all = TRUE) |>
-  show_query()
-#> <SQL>
-#> SELECT [a], [b]
-#> FROM (
-#>   SELECT *, ROW_NUMBER() OVER (PARTITION BY [a] ORDER BY [a]) AS [col01]
-#>   FROM [df]
-#> ) AS [q01]
-#> WHERE ([col01] = 1)
-
-# ... and duckdb-r defines no distinct method of its own to intercept it
 grep(
   "distinct",
   as.character(methods(class = "duckdb_connection")),
   value = TRUE
 )
 #> character(0)
-grep("^distinct", as.character(methods(class = "tbl_lazy")), value = TRUE)
-#> [1] "distinct.tbl_lazy"
 
-# The engine has supported DISTINCT ON all along; the two queries agree
-by_hand <- dbGetQuery(
+## Is DISTINCT ON faster? 20M rows, 8.6M groups, one thread ------------------
+
+dbExecute(
   con,
-  'SELECT DISTINCT ON ("Petal.Width", "Species") * FROM iris ORDER BY "Petal.Width", "Species", "Sepal.Length"'
+  "CREATE TABLE obs AS
+     SELECT (hash(i) % 500000)::DOUBLE      AS petal_width,
+            ('sp_' || (hash(i + 3) % 20))   AS species,
+            (i % 977)::DOUBLE               AS sepal_length,
+            (i % 13)::DOUBLE                AS sepal_width,
+            (i % 7)::DOUBLE                 AS petal_length
+     FROM range(20000000) t(i)"
 )
+#> [1] 2e+07
+dbGetQuery(
+  con,
+  "SELECT count(DISTINCT (petal_width, species)) AS groups FROM obs"
+)
+#>    groups
+#> 1 8645447
+
+timing <- function(sql, reps = 3) {
+  median(replicate(reps, {
+    t0 <- Sys.time()
+    dbGetQuery(con, sprintf("SELECT count(*) AS n FROM (%s)", sql))
+    as.numeric(difftime(Sys.time(), t0, units = "secs"))
+  }))
+}
+
+# dbplyr's plan, with the tie-break made explicit so the three mean the same
+row_number <- "SELECT * FROM (
+   SELECT *, ROW_NUMBER() OVER (
+     PARTITION BY petal_width, species ORDER BY sepal_length) AS col01
+   FROM obs) q
+ WHERE col01 = 1"
+# the same result, asked for as DISTINCT ON
+distinct_on <- "SELECT DISTINCT ON (petal_width, species) *
+ FROM obs ORDER BY petal_width, species, sepal_length"
+# and DISTINCT ON when any row per group will do
+distinct_on_bare <- "SELECT DISTINCT ON (petal_width, species) * FROM obs"
+
+for (threads in c(1, 4)) {
+  dbExecute(con, sprintf("SET threads = %d", threads))
+  cat(sprintf(
+    "threads=%d | ROW_NUMBER %5.2fs | DISTINCT ON %5.2fs | DISTINCT ON, unordered %5.2fs\n",
+    threads,
+    timing(row_number),
+    timing(distinct_on),
+    timing(distinct_on_bare)
+  ))
+}
+#> threads=1 | ROW_NUMBER  3.48s | DISTINCT ON  6.21s | DISTINCT ON, unordered  2.59s
+#> threads=4 | ROW_NUMBER  0.91s | DISTINCT ON  1.83s | DISTINCT ON, unordered  0.51s
+
+## Can a user have DISTINCT ON today, and how deep does it reach? ------------
+
+# Only exported functions: remote_con(), sql_render(), ident(), escape(),
+# sql(), dplyr::tbl(), tidyselect::eval_select(). No dbplyr internals.
+distinct_on_tbl <- function(.data, ..., .order_by = NULL) {
+  con <- dbplyr::remote_con(.data)
+  on <- names(tidyselect::eval_select(rlang::expr(c(...)), .data))
+  order <- names(tidyselect::eval_select(rlang::enquo(.order_by), .data))
+  quote_cols <- function(x) {
+    paste(dbplyr::escape(dbplyr::ident(x), con = con), collapse = ", ")
+  }
+  dplyr::tbl(
+    con,
+    dbplyr::sql(paste0(
+      "SELECT DISTINCT ON (",
+      quote_cols(on),
+      ") * FROM (",
+      dbplyr::sql_render(.data),
+      ") AS q ",
+      "ORDER BY ",
+      quote_cols(c(on, order))
+    ))
+  )
+}
+
+by_hatch <- tbl(con, "iris") |>
+  distinct_on_tbl(Petal.Width, Species, .order_by = Sepal.Length)
+by_hatch |> show_query()
+#> <SQL>
+#> SELECT DISTINCT ON ("Petal.Width", Species) * FROM (SELECT *
+#> FROM iris) AS q ORDER BY "Petal.Width", Species, "Sepal.Length"
+
+# It agrees with the verb, and the result stays lazy and composable
 by_dbplyr <- tbl(con, "iris") |>
-  distinct(Petal.Width, Species, .keep_all = TRUE) |>
-  collect()
-
-nrow(by_hand)
-#> [1] 27
-nrow(by_dbplyr)
-#> [1] 27
+  arrange(Sepal.Length) |>
+  distinct(Petal.Width, Species, .keep_all = TRUE)
 identical(
-  dplyr::arrange(by_hand, Petal.Width, Species),
-  as.data.frame(dplyr::arrange(by_dbplyr, Petal.Width, Species))
+  as.data.frame(arrange(collect(by_hatch), Petal.Width, Species)),
+  as.data.frame(arrange(collect(by_dbplyr), Petal.Width, Species))
 )
+#> Warning: ORDER BY is ignored in subqueries without LIMIT
+#> ℹ Do you need to move arrange() later in the pipeline or use window_order() instead?
 #> [1] TRUE
+by_hatch |> filter(Species == "setosa") |> count() |> collect()
+#> # A tibble: 1 × 1
+#>       n
+#>   <dbl>
+#> 1     6
 
-dbDisconnect(con)
+# ... and it can be the verb, for the user's own session
+registerS3method(
+  "distinct",
+  "tbl_duckdb_connection",
+  function(.data, ..., .keep_all = FALSE) {
+    if (!.keep_all) {
+      return(NextMethod())
+    }
+    distinct_on_tbl(.data, ...)
+  }
+)
+tbl(con, "iris") |>
+  distinct(Petal.Width, Species, .keep_all = TRUE) |>
+  show_query()
+#> <SQL>
+#> SELECT DISTINCT ON ("Petal.Width", Species) * FROM (SELECT *
+#> FROM iris) AS q ORDER BY "Petal.Width", Species
+tbl(con, "iris") |>
+  distinct(Petal.Width, Species) |>
+  show_query()
+#> <SQL>
+#> SELECT DISTINCT "Petal.Width", Species
+#> FROM iris
+
+dbDisconnect(con, shutdown = TRUE)
 ```
 
-<sup>Created on 2026-08-07 with [reprex v2.1.1](https://reprex.tidyverse.org)</sup>
+<sup>Created on 2026-08-09 with [reprex v2.1.1](https://reprex.tidyverse.org)</sup>

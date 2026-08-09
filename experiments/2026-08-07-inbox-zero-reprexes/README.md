@@ -57,9 +57,16 @@ close cites its evidence.
   The gap is a toolchain flavour, and it is [#2234](https://github.com/duckdb/duckdb-r/issues/2234)'s.
 * [#384](issue-0384-distinct-on.md) — the `ROW_NUMBER()` subquery is
   dbplyr's: the same `distinct(.keep_all = TRUE)` produces it against
-  Postgres and MSSQL too, and duckdb-r defines no method that could
-  intercept it. The engine has supported `DISTINCT ON` all along, and by
-  hand it returns the same rows.
+  Postgres too, and duckdb-r defines no method that could intercept it.
+  The premise does not survive measurement, though: over 20M rows and
+  8.6M groups, single-threaded, the `ROW_NUMBER()` plan takes 3.5 s and
+  `DISTINCT ON` 6.2 s for the same deterministic answer;
+  only `DISTINCT ON` with no ordering at all — any row per group, which
+  is not what the verb promises — is faster, at 2.6 s.
+  And a user who wants the clause today can have it with exported dbplyr
+  API alone (`remote_con()`, `sql_render()`, `ident()`, `escape()`,
+  `sql()`), registered as their own `distinct()` method if they like;
+  no internals are reached.
 * [#1064](issue-1064-as-posixct-timezone.md) — `as.POSIXct()` in a
   translation casts the string as written and does not take a `tz`
   argument at all, while the same value escaped with `!!` is converted to
