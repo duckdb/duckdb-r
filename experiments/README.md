@@ -53,6 +53,11 @@ the directory keeps the method so that is possible.
   which zone labels a `TIMESTAMP` and a `TIMESTAMPTZ` column,
   and when an instant changes, across every setting combination;
   supports [`usage/timestamps/`](/handbook/usage/timestamps/README.md).
+* [`2026-08-09-series-carry-scope/`](2026-08-09-series-carry-scope/) —
+  how many of a buffer's vendor commits have a fix waiting on the base
+  series' `-dev`, what kind, and how much of the raw difference is not a
+  fix at all; supports
+  [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md).
 * [`2026-08-temp-storage-spill/`](2026-08-temp-storage-spill/) —
   whether larger-than-memory work actually spills, per connection
   idiom, on duckdb 1.3.2, the current CRAN release, `main`, and the

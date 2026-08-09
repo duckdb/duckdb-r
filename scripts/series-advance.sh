@@ -7,14 +7,76 @@
 # review) stay with the skill. Refuses to do anything when a commit in the
 # in-flight range has a failure — run series-check.sh first and repair.
 #
+# **Stage 5 carries the base series' fixes** onto a forward series as it
+# consumes its buffer. The two branches divide by how far a fix was demanded:
+# `-build` holds what the code needs to **compile**, because that is what the
+# vendor gate checks at every commit, and `-dev` holds everything CI asked for
+# after that -- snapshots, test files, R code, and the glue a test or a check
+# turned out to need. A forward's `-fwd-build` was replayed out of the base
+# buffer, so it has the first and none of the second, and every one of those
+# fixes would be rediscovered as a red commit, at a repair plus a replay of
+# everything above it. The base `<S>-dev` proved them already, against the same
+# upstream commit; this folds them into the commit that needs them as it is
+# minted (duckdb/duckdb-r#2594).
+#
+# What carries is the **difference** between the twin and its `-build` commit,
+# not an allow-list of directories. `src/` is not compile-only territory: the
+# buffer already compiles, so glue the `-dev` twin has on top of it was demanded
+# by something later than the compiler, and holding it back would strand exactly
+# the fixes this exists to move. Taking the difference is also what keeps the
+# glue the buffer already carries from being applied twice.
+#
+# Two kinds are excluded, and neither is a judgement about the fix: the buffer's
+# own strand (`src/duckdb/`, `patch/` -- a forward regenerates the tree from its
+# own patches) and what vendoring regenerates (`R/version.R`,
+# `src/include/sources.mk`, the Makevars, the logos), which differs between any
+# two vendor runs of the same SHA and is noise wearing the shape of a fix.
+# Carried glue is reported as it goes, because glue the base `-dev` has and the
+# base `-build` lacks is buffer drift and wants mirroring there.
+#
+# **This stage is attended.** A carry the series has moved out from under stops
+# the run with the conflict in a worktree that is kept, because resolving it is
+# judgement and guessing costs a wrong commit on a chain CI is about to judge.
+# `--continue` picks the run up where it stopped; `--abort` throws the worktree
+# away and leaves the refs untouched.
+#
 # Usage: series-advance.sh <series> [chunk-size]     # chunk default 100
+#        series-advance.sh <series> --continue       # after resolving a stop
+#        series-advance.sh <series> --abort          # discard a stopped replay
 
 set -euo pipefail
 
-S=${1:?usage: series-advance.sh <series> [chunk-size]}
-chunk=${2:-100}
+usage='usage: series-advance.sh <series> [chunk-size | --continue | --abort]'
+S=${1:?$usage}
+CONTINUE=
+ABORT=
+chunk=100
+case "${2:-}" in
+  '') ;;
+  --continue) CONTINUE=1 ;;
+  --abort) ABORT=1 ;;
+  -*) echo "$usage" >&2; exit 1 ;;
+  *) chunk=$2 ;;
+esac
 remote=origin
 rcc=${RCC_BRANCH:-rcc2}
+
+# A stopped stage 5 lives here: the worktree it kept, the buffer commit whose
+# replay stopped, its base twin, and which half stopped -- `pick` or `carry`.
+# Per series, so one stopped series never blocks the firing's other ones.
+STATE="$(git rev-parse --git-dir)/series-advance-${S//\//-}"
+
+if [ -n "$ABORT" ]; then
+  if [ -f "$STATE" ]; then
+    read -r awt _ _ _ < "$STATE"
+    [ -d "$awt" ] && git worktree remove --force "$awt"
+    rm -f "$STATE"
+    echo "$S: stopped replay discarded; no ref was written"
+  else
+    echo "$S: nothing to abort"
+  fi
+  exit 0
+fi
 
 git fetch -q "$remote"
 green="$remote/$S-green"; dev="$remote/$S-dev"; build="$remote/$S-build"; base="$remote/$S-build-base"
@@ -116,6 +178,88 @@ restamp() { # <worktree> <buffer commit>
   git -C "$wt" commit -q --amend --no-edit
 }
 
+# --- the base series' test-side fixes ----------------------------------------
+#
+# Only a forward series has a base to mine: `<S>-fwd` reads `<S>-dev`. A base
+# series' own `-dev` is the thing being built, and after a cutover the ref is
+# gone -- both answer empty here, and the stage then behaves exactly as it did
+# before this existed.
+base_dev=
+case "$S" in
+  *-fwd)
+    if git rev-parse -q --verify "$remote/${S%-fwd}-dev" >/dev/null; then
+      base_dev="$remote/${S%-fwd}-dev"
+    fi
+    ;;
+esac
+
+# Equivalence is by vendored upstream SHA, the key the rest of the loop reads
+# state by. One walk, because the alternative is a walk per buffer commit.
+declare -A TWIN=()
+index_twins() {
+  [ -n "$base_dev" ] || return 0
+  local c subj sha
+  while IFS=$'\t' read -r c subj; do
+    case "$subj" in
+      vendor:* | *duckdb/duckdb@[0-9a-f]*) ;;
+      *) continue ;;
+    esac
+    sha=$(sed -rn 's|^.*duckdb/duckdb@([0-9a-f]+).*$|\1|p' <<<"$subj")
+    [ -n "$sha" ] || continue
+    # Oldest wins: a SHA appears once on a healthy series, and where a repair
+    # left two, the first is the one the chain was verified on.
+    [ -n "${TWIN[$sha]:-}" ] || TWIN[$sha]=$c
+  done < <(git log --reverse --format='%H%x09%s' "$base_dev")
+}
+
+twin_of() { # <buffer commit> -> the base -dev commit for the same upstream SHA
+  local sha
+  sha=$(git log -1 --format=%s "$1" | sed -rn 's|^.*duckdb/duckdb@([0-9a-f]+).*$|\1|p')
+  [ -n "$sha" ] || return 0
+  echo "${TWIN[$sha]:-}"
+}
+
+# What the twin folded in beyond vendoring: the paths its own diff touches that
+# its `-build` twin's does not, less the two kinds that are not a fix.
+#
+# The difference is the load-bearing part, and it is what lets `src/` through.
+# The gate compiles the glue at every buffer commit, so whatever the buffer
+# holds there is already enough to build; anything the `-dev` twin has *on top*
+# of it in `src/` was demanded by something later than the compiler -- a test,
+# a check, a platform r-universe reached and the gate did not. Those are
+# legitimate and they carry. Taking the difference is also what stops the glue
+# the buffer already has from being applied twice.
+#
+# Two kinds are excluded, and neither is a judgement about the fix:
+#
+#   * the buffer's own strand -- the vendored tree and the patch stack. A
+#     forward regenerates `src/duckdb/` from its own `patch/`, so a difference
+#     there is about which patches the two branches had, not about a fix
+#     travelling. Missing compile fixes belong on the buffer, mirrored there.
+#   * what vendoring regenerates -- `R/version.R`, `src/include/sources.mk`,
+#     the Makevars, the logos under `man/figures/`. Those differ between any
+#     two vendor runs of the same upstream SHA, which is noise wearing the
+#     shape of a fix.
+#
+# Tooling is stage 4's, ported from `main` rather than carried sideways.
+carry_paths() { # <buffer commit> <base -dev commit>
+  comm -13 \
+    <(git show --format= --name-only --no-renames "$1" | sort -u) \
+    <(git show --format= --name-only --no-renames "$2" | sort -u) |
+    grep -vE '^(src/duckdb/|patch/|\.github/|scripts/|\.claude/|man/figures/)' |
+    grep -vxE 'DESCRIPTION|R/version\.R|src/include/sources\.mk|src/Makevars(\.win|\.in)?' ||
+    true
+}
+
+# Glue among the carried paths. Carried like the rest -- the series needs it to
+# go green -- but said out loud, because a glue fix the base `-dev` has and the
+# base `-build` lacks is buffer drift: the fix was folded during a repair and
+# never mirrored onto the buffer, so the next tree regenerated there still
+# wants it (.claude/skills/series-loop.md, stage 2).
+glue_paths() { # <buffer commit> <base -dev commit>
+  carry_paths "$1" "$2" | grep -E '^src/' || true
+}
+
 # Check the counter rather than assume it: a replay that silently froze it
 # looks exactly like one that did not. Returns non-zero and leaves the caller
 # to clean up, so the worktree is removed on this path like every other.
@@ -172,6 +316,22 @@ else
 fi
 
 # --- stage 5: extend -dev from the buffer ------------------------------------
+
+# Finish a stopped replay before anything else, and refuse to start a second one
+# beside it: the kept worktree holds a resolution someone made, and a fresh run
+# would replay the same commits over the top of it and lose that work.
+if [ -f "$STATE" ] && [ -z "$CONTINUE" ]; then
+  read -r swt scommit _ _ < "$STATE"
+  echo "Error: $S has a stopped replay at $(git rev-parse --short "$scommit")" >&2
+  echo "  worktree: $swt" >&2
+  echo "  Resolve it and rerun with --continue, or discard it with --abort." >&2
+  exit 1
+fi
+if [ -n "$CONTINUE" ] && [ ! -f "$STATE" ]; then
+  echo "Error: $S has no stopped replay to continue" >&2
+  exit 1
+fi
+
 # A live forward counterpart replaces this series; leftover -fwd refs whose
 # green is an ancestor of ours are cutover litter and do not block.
 if git rev-parse -q --verify "$remote/$S-fwd-build" >/dev/null &&
@@ -230,7 +390,37 @@ if [ "$ahead" -eq 0 ]; then
   exit 0
 fi
 n=$((ahead < chunk ? ahead : chunk))
-if [ "$anchor" = "$(git rev-parse "$dev")" ]; then
+
+# Which commits in this chunk have a test-side fix waiting on the base series.
+# Computed before anything is written, because it decides the route: a plain ref
+# move cannot carry content, so one carry in the chunk makes the whole chunk a
+# replay.
+index_twins
+declare -A CARRY=()
+carries=0
+glue_drift=()
+if [ -n "$base_dev" ]; then
+  for c in $(git rev-list --reverse "$anchor..$build" | head -n "$n"); do
+    d=$(twin_of "$c")
+    [ -n "$d" ] || continue
+    [ -n "$(carry_paths "$c" "$d")" ] || continue
+    CARRY[$c]=$d
+    carries=$((carries + 1))
+    g=$(glue_paths "$c" "$d" | tr '\n' ' ')
+    [ -z "$g" ] || glue_drift+=("$(git rev-parse --short "$d") $g")
+  done
+  [ "$carries" -eq 0 ] ||
+    echo "$carries of $n buffered commit(s) carry a fix from $base_dev"
+  # Said rather than filtered: the glue travels, and the buffer it is missing
+  # from is a separate repair for whoever reads this.
+  if [ ${#glue_drift[@]} -gt 0 ]; then
+    echo "  ${#glue_drift[@]} of them carry glue the base buffer does not have;" \
+      "mirror it onto ${S%-fwd}-build:"
+    printf '    %s\n' "${glue_drift[@]}"
+  fi
+fi
+
+if [ "$anchor" = "$(git rev-parse "$dev")" ] && [ "$carries" -eq 0 ] && [ -z "$CONTINUE" ]; then
   next=$(git rev-list --reverse "$anchor..$build" | sed -n "${n}p")
   git push "$remote" "$next:refs/heads/$S-dev"
 else
@@ -245,8 +435,105 @@ else
   if [ -x "$(dirname "$0")/setup-git.sh" ]; then
     "$(dirname "$0")/setup-git.sh" >/dev/null
   fi
-  wt=$(mktemp -d)
-  git worktree add --detach -q "$wt" "$dev"
+
+  # Where the run stops, and how it says so. The worktree is kept: it holds the
+  # conflict, and whoever resolves it needs somewhere to do that. Nothing has
+  # been pushed at this point, so a stop costs a rerun and no ref motion.
+  stop() { # <worktree> <buffer commit> <twin or -> <pick|carry>
+    printf '%s %s %s %s\n' "$1" "$2" "$3" "$4" > "$STATE"
+    echo >&2
+    if [ "$4" = carry ]; then
+      echo "Error: $S — carrying the test-side fix from $(git rev-parse --short "$3") into" >&2
+      echo "  $(git rev-parse --short "$2") conflicted: $(git log -1 --format=%s "$2")" >&2
+      echo >&2
+      echo "The buffer commit is picked and staged; what stopped is the fix the base" >&2
+      echo "series folded in for this same upstream commit. Resolve toward this" >&2
+      echo "series' own R side -- and read the whole set before deciding, because" >&2
+      echo "upstream moves the same file repeatedly and only the last version of it" >&2
+      echo "survives the range:" >&2
+      echo >&2
+      echo "  scripts/series-glue.sh $base_dev" >&2
+    else
+      echo "Error: $S — replaying $(git rev-parse --short "$2") conflicted:" >&2
+      echo "  $(git log -1 --format=%s "$2")" >&2
+    fi
+    echo >&2
+    git -C "$1" diff --name-only --diff-filter=U | sed 's/^/  /' >&2
+    echo >&2
+    echo "  cd $1" >&2
+    echo "  # resolve, then: git add <paths>" >&2
+    echo "  scripts/series-advance.sh $S --continue      # or --abort to discard" >&2
+    echo >&2
+    echo "No ref was written." >&2
+    exit 1
+  }
+
+  # Fold the base series' test-side fix into the commit that needs it -- never
+  # stacked above it, so every commit of -dev stays independently green and the
+  # chain stays bisectable. Three-way, so the failure mode is a conflict in the
+  # tree rather than a silent miss.
+  #
+  # The message comes from the twin: by the commit-message contract that is this
+  # commit's own vendor message extended with what was adapted, so taking it
+  # keeps the prose with the change it explains.
+  apply_carry() { # <worktree> <buffer commit> <twin>
+    local wt=$1 c=$2 d=$3 paths patch
+    mapfile -t paths < <(carry_paths "$c" "$d")
+    [ ${#paths[@]} -gt 0 ] || return 0
+    patch=$wt/.series-advance-carry.patch
+    git diff "$d^" "$d" -- "${paths[@]}" > "$patch"
+    if [ ! -s "$patch" ]; then rm -f "$patch"; return 0; fi
+    if ! git -C "$wt" apply --3way --index "$patch"; then
+      rm -f "$patch"
+      stop "$wt" "$c" "$d" carry
+    fi
+    rm -f "$patch"
+    {
+      git log -1 --format=%B "$d"
+      echo "Carried from \`$base_dev\` at $(git rev-parse --short "$d"):"
+      echo "the test-side fix folded there for this same upstream commit,"
+      echo "so the forward starts from what the base series proved."
+    } > "$wt/.series-advance-msg"
+    git -C "$wt" commit -q --amend --no-verify \
+      --author="$(git log -1 --format='%an <%ae>' "$d")" -F "$wt/.series-advance-msg"
+    rm -f "$wt/.series-advance-msg"
+  }
+
+  if [ -n "$CONTINUE" ]; then
+    read -r wt rc rd rstage < "$STATE"
+    [ -d "$wt" ] || { echo "Error: the kept worktree $wt is gone — rerun with --abort" >&2; exit 1; }
+    [ -z "$(git -C "$wt" diff --name-only --diff-filter=U)" ] ||
+      stop "$wt" "$rc" "$rd" "$rstage"
+    echo "$S: resuming at $(git rev-parse --short "$rc")"
+    if [ "$rstage" = carry ]; then
+      # The resolved tree holds the carry; finish it as one commit with the
+      # twin's message, exactly as an unconflicted carry ends.
+      {
+        git log -1 --format=%B "$rd"
+        echo "Carried from \`$base_dev\` at $(git rev-parse --short "$rd"):"
+        echo "the test-side fix folded there for this same upstream commit,"
+        echo "so the forward starts from what the base series proved."
+      } > "$wt/.series-advance-msg"
+      git -C "$wt" commit -q --amend --no-verify \
+        --author="$(git log -1 --format='%an <%ae>' "$rd")" -F "$wt/.series-advance-msg"
+      rm -f "$wt/.series-advance-msg"
+    else
+      git -C "$wt" -c core.editor=true cherry-pick --continue
+      restamp "$wt" "$rc"
+      [ -n "${CARRY[$rc]:-}" ] && apply_carry "$wt" "$rc" "${CARRY[$rc]}"
+    fi
+    rm -f "$STATE"
+    # The rest of the same chunk, not a fresh one: nothing was pushed, so the
+    # anchor is where it was, and the resumed commit is somewhere inside the
+    # list this run already computed. Take what follows it.
+    remaining=$(git rev-list --reverse "$anchor..$build" | head -n "$n" |
+                  awk -v c="$rc" 'seen { print } $0 == c { seen = 1 }')
+  else
+    wt=$(mktemp -d)
+    git worktree add --detach -q "$wt" "$dev"
+    remaining=$(git rev-list --reverse "$anchor..$build" | head -n "$n")
+  fi
+
   # `--empty=drop`, as series-port.sh already does: a buffer commit whose content
   # reached -dev by another route replays to nothing, and an empty pick stops the
   # sequencer. Stage 3 sends patch/ entries down both paths on purpose -- the port
@@ -255,17 +542,15 @@ else
   # and it must not abort the extend.
   #
   # One commit at a time, because restamp runs between the picks and reads the
-  # parent it is bumping from.
-  for c in $(git rev-list --reverse "$anchor..$build" | head -n "$n"); do
+  # parent it is bumping from, and because a carry amends the commit just made.
+  for c in $remaining; do
     before=$(git -C "$wt" rev-parse HEAD)
     if ! git -C "$wt" cherry-pick --empty=drop "$c"; then
-      git -C "$wt" cherry-pick --abort || true
-      git worktree remove --force "$wt"
-      echo "Error: replay conflicted — extend by hand"
-      exit 1
+      stop "$wt" "$c" "${CARRY[$c]:--}" pick
     fi
     [ "$(git -C "$wt" rev-parse HEAD)" = "$before" ] && continue
     restamp "$wt" "$c"
+    [ -n "${CARRY[$c]:-}" ] && apply_carry "$wt" "$c" "${CARRY[$c]}"
   done
   next=$(git -C "$wt" rev-parse HEAD)
   if ! verify_counter "$wt" "$dev"; then
@@ -273,6 +558,7 @@ else
     exit 1
   fi
   git worktree remove --force "$wt"
+  rm -f "$STATE"
   git push "$remote" "$next:refs/heads/$S-dev"
 fi
 echo "dev -> $(git rev-parse --short "$next") (+$n)"
