@@ -122,22 +122,30 @@ scan() {
 
 prepare_compile() {
   # src/Makevars includes Makevars.rstrtmgr, which only ./configure writes and
-  # .gitignore keeps out of the tree; without it `make -n` stops before it ever
-  # prints a compile line. Same reason as vendor-one.sh's glue gate.
+  # .gitignore keeps out of the tree; without it the include below has nothing
+  # to read for DUCKDB_RSTRTMGR.
   [ -f src/Makevars.rstrtmgr ] || ./configure >/dev/null 2>&1
 
-  # R owns the compiler, the standard and the include paths; asking it beats
-  # reconstructing them, and keeps this honest when Makeconf changes.
-  base_flags=$(
-    (cd src && R CMD SHLIB -n cpp11.cpp 2>/dev/null) |
-      grep -m 1 -E -- '-c cpp11\.cpp' |
-      sed -E 's/^ *(ccache )?[^ ]*g\+\+ //; s/ -c cpp11\.cpp -o cpp11\.o *$//'
-  )
-  if [ -z "$base_flags" ]; then
-    echo "Error: could not derive the compile flags (R CMD SHLIB -n)" >&2
+  # The compile line, composed from what R reports and what src/Makevars adds.
+  #
+  # `R CMD SHLIB -n` looks like the better source -- it is what vendor-one.sh's
+  # glue gate uses -- and it is a trap here. src/Makevars sets OBJECTS, so SHLIB
+  # plans the package's own objects whatever file it is handed, and make prints
+  # nothing at all once those objects are up to date. That is exactly the state
+  # this gate runs in under CI, one step after `R CMD INSTALL`.
+  cxx=$(R CMD config CXX17)
+  base_flags="$(R CMD config CXX17STD) $(R CMD config --cppflags) -DNDEBUG"
+  base_flags="$base_flags $(R CMD config CPPFLAGS)"
+  base_flags="$base_flags $(sed -n 's/^PKG_CPPFLAGS *= *//p' src/Makevars |
+    sed 's/\$(DUCKDB_RSTRTMGR)/1/')"
+  base_flags="$base_flags $(R CMD config CXX17PICFLAGS) $(R CMD config CXX17FLAGS)"
+
+  if [ -z "$cxx" ] || ! printf '%s' "$base_flags" | grep -q -- '-Iduckdb/src/include'; then
+    echo "Error: could not compose the compile flags." >&2
+    echo "       R CMD config CXX17 said: ${cxx:-(nothing)}" >&2
+    echo "       src/Makevars' PKG_CPPFLAGS is what carries the engine includes." >&2
     exit 2
   fi
-  cxx=$(R CMD config CXX17)
   jobs=$(nproc 2>/dev/null || echo 2)
 }
 
