@@ -25,7 +25,7 @@ dbWriteTable__duckdb_connection_character_data.frame <- function(
   # TODO: start a transaction if one is not already running
 
   if (overwrite && append) {
-    stop("Setting both overwrite and append makes no sense")
+    abort("Setting both overwrite and append makes no sense")
   }
 
   if (!is.null(field.types)) {
@@ -34,18 +34,18 @@ dbWriteTable__duckdb_connection_character_data.frame <- function(
         !is.null(names(field.types)) &&
         !anyDuplicated(names(field.types)))
     ) {
-      stop(
+      abort(
         "`field.types` must be a named character vector with unique names, or NULL"
       )
     }
   }
   if (append && !is.null(field.types)) {
-    stop("Cannot specify `field.types` with `append = TRUE`")
+    abort("Cannot specify `field.types` with `append = TRUE`")
   }
 
   value <- as.data.frame(value)
   if (!is.data.frame(value)) {
-    stop("need a data frame as parameter")
+    abort("need a data frame as parameter")
   }
 
   # use Kirill's magic, convert rownames to additional column
@@ -56,12 +56,12 @@ dbWriteTable__duckdb_connection_character_data.frame <- function(
       dbRemoveTable(conn, name)
     }
     if (!overwrite && !append) {
-      stop(
+      abort(paste0(
         "Table ",
         name,
         " already exists. Set `overwrite = TRUE` if you want to remove the existing table. ",
         "Set `append = TRUE` if you would like to add the new data to the existing table."
-      )
+      ))
     }
   }
   table_name <- dbQuoteIdentifier(conn, name)

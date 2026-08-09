@@ -9,17 +9,17 @@ dbAppendTable__duckdb_connection <- function(
   row.names = NULL
 ) {
   if (!is.null(row.names)) {
-    stop("Can't pass `row.names` to `dbAppendTable()`")
+    abort("Can't pass `row.names` to `dbAppendTable()`")
   }
 
   target_names <- dbListFields(conn, name)
 
   if (!all(names(value) %in% target_names)) {
-    stop(
+    abort(paste0(
       "Column `",
       setdiff(names(value), target_names)[[1]],
       "` does not exist in target table."
-    )
+    ))
   }
 
   if (nrow(value)) {

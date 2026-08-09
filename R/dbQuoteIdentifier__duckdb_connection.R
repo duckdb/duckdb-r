@@ -7,7 +7,7 @@ dbQuoteIdentifier__duckdb_connection <- function(conn, x, ...) {
   }
 
   if (any(is.na(x))) {
-    stop("Cannot pass NA to dbQuoteIdentifier()")
+    abort("Cannot pass NA to dbQuoteIdentifier()")
   }
 
   x <- enc2utf8(x)
