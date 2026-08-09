@@ -29,7 +29,11 @@ test_that("test_all_types() output", {
 
     as.list(dbGetQuery(
       con,
-      paste0("SELECT * EXCLUDE (", paste(bad, collapse = ", "), ") REPLACE(replace(varchar, chr(0), '') AS varchar) FROM test_all_types(use_large_enum=true)")
+      paste0(
+        "SELECT * EXCLUDE (",
+        paste(bad, collapse = ", "),
+        ") REPLACE(replace(varchar, chr(0), '') AS varchar) FROM test_all_types(use_large_enum=true)"
+      )
     ))
   })
 })
@@ -45,11 +49,21 @@ test_that("the value of a classed numeric column survives every route in", {
   df$area <- structure(c(1.5, 2.5, 3.5), class = "area_unit")
 
   dbWriteTable(con, "written", df)
-  expect_equal(dbGetQuery(con, "SELECT area FROM written")$area, c(1.5, 2.5, 3.5))
+  expect_equal(
+    dbGetQuery(con, "SELECT area FROM written")$area,
+    c(1.5, 2.5, 3.5)
+  )
 
   duckdb_register(con, "registered", df)
-  expect_equal(dbGetQuery(con, "SELECT area FROM registered")$area, c(1.5, 2.5, 3.5))
+  expect_equal(
+    dbGetQuery(con, "SELECT area FROM registered")$area,
+    c(1.5, 2.5, 3.5)
+  )
 
-  bound <- dbGetQuery(con, "SELECT ? AS area", params = list(structure(2.5, class = "area_unit")))
+  bound <- dbGetQuery(
+    con,
+    "SELECT ? AS area",
+    params = list(structure(2.5, class = "area_unit"))
+  )
   expect_equal(bound$area, 2.5)
 })

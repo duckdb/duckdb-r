@@ -16,12 +16,19 @@ test_that("a non-interactive connect announces the storage location, unless chos
   storage_message_state[["storage_location"]] <- NULL
   storage_message_state[["choice_made"]] <- NULL
   drv <- NULL
-  expect_message({ drv <- duckdb() }, "temporary directory")
+  expect_message(
+    {
+      drv <- duckdb()
+    },
+    "temporary directory"
+  )
   duckdb_shutdown(drv)
 
   # Explicit opt-out with shared_home = FALSE -> suppressed.
   storage_message_state[["storage_location"]] <- NULL
-  expect_no_message({ drv <- duckdb(shared_home = FALSE) })
+  expect_no_message({
+    drv <- duckdb(shared_home = FALSE)
+  })
   duckdb_shutdown(drv)
 })
 
@@ -38,7 +45,12 @@ test_that("an interactive yes announces creation; a no announces the tempdir", {
     duckdb_shared_home = function() shared,
     consent_to_create_home = function(path) TRUE
   )
-  expect_message({ drv <- duckdb() }, "created")
+  expect_message(
+    {
+      drv <- duckdb()
+    },
+    "created"
+  )
   duckdb_shutdown(drv)
   expect_true(dir.exists(shared))
 
@@ -50,7 +62,12 @@ test_that("an interactive yes announces creation; a no announces the tempdir", {
     duckdb_shared_home = function() file.path(tempdir(), "no-such-home-int"),
     consent_to_create_home = function(path) FALSE
   )
-  expect_message({ drv <- duckdb() }, "temporary directory")
+  expect_message(
+    {
+      drv <- duckdb()
+    },
+    "temporary directory"
+  )
   duckdb_shutdown(drv)
 })
 
@@ -81,7 +98,10 @@ test_that("the httpfs extension installs and loads under the configured home", {
   skip_on_cran()
   # Disabled on a libc++ Linux build (loading a prebuilt extension crashes R --
   # duckdb/duckdb-r#1107).
-  skip_if_not(extensions_supported(), "DuckDB extensions disabled on this build (duckdb/duckdb-r#1107)")
+  skip_if_not(
+    extensions_supported(),
+    "DuckDB extensions disabled on this build (duckdb/duckdb-r#1107)"
+  )
   # Only released versions have signed extensions on extensions.duckdb.org.
   skip_on_dev_version()
   home <- withr::local_tempdir("e2e-home-ext-")

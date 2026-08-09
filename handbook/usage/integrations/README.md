@@ -13,6 +13,30 @@ What a value becomes across the boundary is
 is the backend reference.
 dbplyr and dplyr are `Suggests`;
 the methods register at load time, edition 2.
+dbplyr is floored at 2.6.0,
+the first release to export `sql_glue()` —
+`n_distinct()` renders through it,
+having previously reached the unexported `glue_sql2()`
+that a dbplyr release was free to drop
+([#1982](https://github.com/duckdb/duckdb-r/issues/1982)).
+
+**A `Suggests` floor is advisory, so the floor also warns.**
+Nothing stops an older dbplyr from being loaded beside this package,
+and what it produces then is a missing-function error
+from inside a translation, naming neither package nor remedy.
+So `warn_if_dbplyr_too_old()` ([`R/dbplyr-version.R`](/R/dbplyr-version.R))
+says it plainly instead, from `.onAttach()` when dbplyr is already loaded
+and from a `packageEvent("dbplyr", "onLoad")` hook when it arrives later.
+It reads the version of the *loaded* namespace, not the library copy:
+those differ for the rest of a session after `install.packages("dbplyr")`,
+and it is the loaded one whose code the backend will reach —
+which is why the warning says to restart R.
+The check never loads dbplyr to perform it, so a session that
+does not use the backend pays nothing and hears nothing —
+which is also what keeps `R CMD check` quiet,
+since it reads `R CMD INSTALL`'s output for warnings
+and a `Suggests` package is never loaded there
+([`2026-08-09-dbplyr-version-warning/`](/experiments/2026-08-09-dbplyr-version-warning/README.md)).
 Coercions translate to `TRY_CAST()`,
 so a value that will not convert yields `NULL` rather than failing
 the query
@@ -46,13 +70,6 @@ the boundaries users keep hitting:
   ([#1585](https://github.com/duckdb/duckdb-r/issues/1585),
   blocked on
   [tidyverse/dbplyr#1838](https://github.com/tidyverse/dbplyr/issues/1838)).
-* `n_distinct()` reaches dbplyr's unexported `glue_sql2()` through
-  `getFromNamespace()` — a private-API dependency any dbplyr release
-  can break.
-  The public replacement `sql_glue()` has shipped, so the migration is
-  unblocked; what it still needs is a `dbplyr (>= 2.6.0)` floor, which
-  `DESCRIPTION`'s `Suggests` does not carry
-  ([#1982](https://github.com/duckdb/duckdb-r/issues/1982)).
 
 ## duckplyr
 

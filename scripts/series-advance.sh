@@ -100,6 +100,12 @@ state_of() {
   echo "$rec" | sed -nr 's/.*"status":[^}]*"state": *"([a-z]+)".*/\1/p' | head -n 1
 }
 
+# How deep the base scan looks, and the one knob that raises it. The same
+# default, and the same variable, as scripts/vendor.sh and scripts/vendor-one.sh
+# read: a branch deep enough to need the bound raised needs it raised for every
+# script that scans, so one export unblocks the run rather than half of it.
+base_scan_depth="${BASE_SCAN_DEPTH:-20}"
+
 # The upstream SHA a ref has vendored. The pathspec narrows the walk, the
 # subject decides: commits that touch src/duckdb without vendoring are ordinary
 # (the patch stack is applied to the vendored tree in place), so look past them
@@ -110,13 +116,13 @@ state_of() {
 # and the reason is on stderr for a human to act on.
 vendored_sha() {
   local subjects sha n
-  subjects=$(git log -n 20 --format=%s "$1" -- src/duckdb || true)
+  subjects=$(git log -n "$base_scan_depth" --format=%s "$1" -- src/duckdb || true)
   sha=$(sed -nr 's/^.*duckdb.duckdb@([0-9a-f]+)( .*)?$/\1/p' <<<"$subjects" | head -n 1)
   if [ -z "$sha" ]; then
     n=$(grep -c . <<<"$subjects" || true)
-    if [ "$n" -ge 20 ]; then
-      echo "vendored_sha: 20 src/duckdb commits on $1, none of them vendoring;" >&2
-      echo "  if that is genuine, raise the bound in this helper" >&2
+    if [ "$n" -ge "$base_scan_depth" ]; then
+      echo "vendored_sha: $base_scan_depth src/duckdb commits on $1, none of them vendoring;" >&2
+      echo "  if that is genuine, raise BASE_SCAN_DEPTH" >&2
     else
       echo "vendored_sha: no vendor commit among $n src/duckdb commits on $1" >&2
     fi

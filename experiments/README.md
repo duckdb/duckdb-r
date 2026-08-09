@@ -63,11 +63,21 @@ the directory keeps the method so that is possible.
   method, how far into dbplyr that reaches, and what `window_order()`
   already states without it; supports
   [`usage/integrations/`](/handbook/usage/integrations/README.md).
+* [`2026-08-09-dbplyr-version-warning/`](2026-08-09-dbplyr-version-warning/) —
+  which API reports the version of the dbplyr a session has loaded
+  rather than the one in the library, when a `packageEvent()` hook
+  fires, and what a warning raised from one can do to the load it
+  interrupts; supports
+  [`usage/integrations/`](/handbook/usage/integrations/README.md).
 * [`2026-08-09-series-carry-scope/`](2026-08-09-series-carry-scope/) —
   how many of a buffer's vendor commits have a fix waiting on the base
   series' `-dev`, what kind, and how much of the raw difference is not a
   fix at all; supports
   [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md).
+* [`2026-08-09-windows-fast-path/`](2026-08-09-windows-fast-path/) —
+  what the published Windows `libduckdb` exports, and how much of what
+  the glue resolves from the engine is in there; supports
+  [`build/fast-paths/`](/handbook/build/fast-paths/README.md).
 * [`2026-08-temp-storage-spill/`](2026-08-temp-storage-spill/) —
   whether larger-than-memory work actually spills, per connection
   idiom, on duckdb 1.3.2, the current CRAN release, `main`, and the

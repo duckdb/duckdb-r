@@ -1,0 +1,44 @@
+old dbplyr: 2.5.0 | exports sql_glue(): FALSE 
+current dbplyr: 2.6.0 
+
+-- old dbplyr loaded first, then the package attached 
+   [dbplyr 2.5.0 loaded]
+   Warning message:
+   duckdb's dbplyr backend needs dbplyr 2.6.0 or later, but dbplyr 2.5.0 is loaded.
+   Translations such as `n_distinct()` will fail.
+   Install a newer dbplyr and restart R. 
+   << end >>
+
+-- the package attached first, then old dbplyr loaded 
+   Warning message:
+   duckdb's dbplyr backend needs dbplyr 2.6.0 or later, but dbplyr 2.5.0 is loaded.
+   Translations such as `n_distinct()` will fail.
+   Install a newer dbplyr and restart R. 
+   [dbplyr 2.5.0 loaded]
+   << end >>
+
+-- the package loaded but never attached, then old dbplyr 
+   Warning message:
+   duckdb's dbplyr backend needs dbplyr 2.6.0 or later, but dbplyr 2.5.0 is loaded.
+   Translations such as `n_distinct()` will fail.
+   Install a newer dbplyr and restart R. 
+   [dbplyr 2.5.0 loaded]
+   << end >>
+
+-- current dbplyr loaded first, then the package attached 
+   [dbplyr 2.6.0 loaded]
+   << end >>
+
+-- the package attached, dbplyr never loaded 
+   << dbplyr loaded: FALSE >>
+
+-- dbplyr upgraded mid-session: library moves, the session does not 
+      after loading  : packageVersion() 2.5.0 | getNamespaceVersion() 2.5.0 
+      after upgrading: packageVersion() 2.6.0 | getNamespaceVersion() 2.5.0 
+      sql_glue() reachable in this session: FALSE 
+   Warning message:
+   duckdb's dbplyr backend needs dbplyr 2.6.0 or later, but dbplyr 2.5.0 is loaded.
+   Translations such as `n_distinct()` will fail.
+   Install a newer dbplyr and restart R. 
+   << end >>
+

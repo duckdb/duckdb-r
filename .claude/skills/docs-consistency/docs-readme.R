@@ -163,7 +163,7 @@ groups <- list(
     globs = c("format.py", "python_helpers.py")
   ),
   list(
-    owner = "handbook/architecture/r-layer",
+    owner = "handbook/architecture/r-layer/conventions",
     globs = c("rethrow.R")
   ),
   list(

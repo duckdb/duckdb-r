@@ -64,17 +64,21 @@ git fetch -q "$remote"
 
 rcc_tip() { git rev-parse -q --verify "refs/remotes/$remote/$rcc" 2>/dev/null; }
 
+# How deep the base scan looks; see scripts/series-advance.sh for why the four
+# scanning scripts share the variable and the default.
+base_scan_depth="${BASE_SCAN_DEPTH:-20}"
+
 # See scripts/series-advance.sh: the pathspec narrows the walk, the subject
 # decides, and an empty answer explains itself on stderr.
 vendored_sha() {
   local subjects sha n
-  subjects=$(git log -n 20 --format=%s "$1" -- src/duckdb || true)
+  subjects=$(git log -n "$base_scan_depth" --format=%s "$1" -- src/duckdb || true)
   sha=$(sed -nr 's/^.*duckdb.duckdb@([0-9a-f]+)( .*)?$/\1/p' <<<"$subjects" | head -n 1)
   if [ -z "$sha" ]; then
     n=$(grep -c . <<<"$subjects" || true)
-    if [ "$n" -ge 20 ]; then
-      echo "vendored_sha: 20 src/duckdb commits on $1, none of them vendoring;" >&2
-      echo "  if that is genuine, raise the bound in this helper" >&2
+    if [ "$n" -ge "$base_scan_depth" ]; then
+      echo "vendored_sha: $base_scan_depth src/duckdb commits on $1, none of them vendoring;" >&2
+      echo "  if that is genuine, raise BASE_SCAN_DEPTH" >&2
     else
       echo "vendored_sha: no vendor commit among $n src/duckdb commits on $1" >&2
     fi
