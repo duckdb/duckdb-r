@@ -56,10 +56,13 @@ to do, and they run in this order:
   it. A forward inherits only the first from the replay. What carries is
   the difference against the twin's own `-build` commit, less the
   buffer's strand (`src/duckdb/`, `patch/`) and what vendoring
-  regenerates. Rare per commit and expensive where it happens — 10 of the
+  regenerates — more commits fall to those exclusions than are carried,
+  which is why it is a filtered difference and not the twin's diff
+  replayed. Rare per commit and expensive where it happens: 10 of the
   802 commits `main-fwd` still has buffered carry one, three of them
   glue, each otherwise a red costing a repair plus a replay of
-  everything above it.
+  everything above it
+  ([`experiments/2026-08-09-series-carry-scope/`](/experiments/2026-08-09-series-carry-scope/README.md)).
   This stage is **attended**: a carry the series has moved out from
   under stops the run with the conflict in a worktree it keeps, writes
   no ref, and resumes with `--continue` or is discarded with `--abort`.
