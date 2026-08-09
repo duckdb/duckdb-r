@@ -6,7 +6,7 @@
 #
 # This is a base-only variant. The wording follows dbplyr's, so a message from
 # this backend reads like the one the same argument produces on any other, but
-# it is raised with `stop()` rather than `cli::cli_abort()` -- the cli
+# it is raised with `abort()` rather than `cli::cli_abort()` -- the cli
 # formatting is all this package would gain from the dependency.
 
 # `x` is accepted when it is missing, when it is `NULL` and `allow_null` is
@@ -18,7 +18,8 @@ check_unsupported_arg <- function(
   x,
   allowed = NULL,
   allow_null = FALSE,
-  arg = deparse(substitute(x))
+  arg = deparse(substitute(x)),
+  call = parent.frame()
 ) {
   if (missing(x)) {
     return(invisible())
@@ -49,7 +50,7 @@ check_unsupported_arg <- function(
     )
   }
 
-  stop(msg, call. = FALSE)
+  abort(msg, call = call)
 }
 
 # Renders a value the way it would be written in R -- strings quoted, numbers

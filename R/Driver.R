@@ -4,9 +4,12 @@
 
 DBDIR_MEMORY <- ":memory:"
 
-check_flag <- function(x) {
+# `call` names the frame the flag was passed in, not this check: rlang's
+# `abort()` would otherwise report `check_flag()` to someone who called
+# `dbConnect()`. The base fallback ignores it and suppresses the call entirely.
+check_flag <- function(x, call = parent.frame()) {
   if (is.null(x) || length(x) != 1 || is.na(x) || !is.logical(x)) {
-    stop("flags need to be scalar logicals")
+    abort("flags need to be scalar logicals", call = call)
   }
 }
 
@@ -15,9 +18,9 @@ extptr_str <- function(e, n = 5) {
   substr(x, nchar(x) - n + 1, nchar(x))
 }
 
-drv_to_string <- function(drv) {
+drv_to_string <- function(drv, call = parent.frame()) {
   if (!is(drv, "duckdb_driver")) {
-    stop("pass a duckdb_driver object")
+    abort("pass a duckdb_driver object", call = call)
   }
   sprintf(
     "<duckdb_driver dbdir='%s' read_only=%s bigint=%s>",
@@ -154,7 +157,7 @@ duckdb <- function(
 ) {
   check_flag(read_only)
   if (...length() > 0) {
-    stop("... must be empty")
+    abort("... must be empty")
   }
   if (
     !is.null(shared_home) &&
@@ -162,10 +165,10 @@ duckdb <- function(
         length(shared_home) == 1L &&
         !is.na(shared_home))
   ) {
-    stop("`shared_home` must be TRUE, FALSE, or NULL.", call. = FALSE)
+    abort("`shared_home` must be TRUE, FALSE, or NULL.")
   }
   if (!is.null(home) && !is.null(shared_home)) {
-    stop("Pass either `home` or `shared_home`, not both.", call. = FALSE)
+    abort("Pass either `home` or `shared_home`, not both.")
   }
 
   convert_opts <- duckdb_convert_opts(bigint = bigint)
@@ -331,7 +334,7 @@ duckdb <- function(
 #' @export
 duckdb_shutdown <- function(drv) {
   if (!is(drv, "duckdb_driver")) {
-    stop("pass a duckdb_driver object")
+    abort("pass a duckdb_driver object")
   }
   if (!dbIsValid(drv)) {
     warning("invalid driver object, already closed?")
