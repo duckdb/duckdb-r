@@ -2,6 +2,19 @@
 
 Recorded by `run.sh`; what each column means is in `README.md`.
 
+## default session zone
+
+Which grid row a user lands in without `SET TimeZone`, per machine
+zone. One process each: icu reads the zone once, when it loads.
+
+```
+TZ=UTC                session UTC                ts label UTC      tstz label UTC
+TZ=Etc/UTC            session Etc/UTC            ts label UTC      tstz label Etc/UTC
+TZ=Europe/Zurich      session Europe/Zurich      ts label UTC      tstz label Europe/Zurich
+TZ=America/New_York   session America/New_York   ts label UTC      tstz label America/New_York
+TZ=Asia/Tokyo         session Asia/Tokyo         ts label UTC      tstz label Asia/Tokyo
+```
+
 ## baseline
 
 ```

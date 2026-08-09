@@ -34,6 +34,14 @@ build_and_run() {
 {
   printf '# `rel_from_df()` POSIXct grid\n\n'
   printf 'Recorded by `run.sh`; what each column means is in `README.md`.\n'
+  printf '\n## default session zone\n\n'
+  printf 'Which grid row a user lands in without `SET TimeZone`, per machine\n'
+  printf 'zone. One process each: icu reads the zone once, when it loads.\n\n'
+  printf '```\n'
+  for tz in UTC Etc/UTC Europe/Zurich America/New_York Asia/Tokyo; do
+    TZ=$tz Rscript "$here/default-zone.R" 2>&1
+  done
+  printf '```\n'
 } >"$out"
 
 # The baseline is the tree without `posixct` at all: the row every other

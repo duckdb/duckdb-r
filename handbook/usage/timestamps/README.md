@@ -38,6 +38,12 @@ the wider type mapping is
   a binary that does (the DuckDB CLI, a fast-path build against a
   release `libduckdb`) has the setting from startup,
   defaulting to the machine's zone.
+  It takes that zone as the machine spells it,
+  so a `TIMESTAMPTZ` label is `TZ` verbatim —
+  `"UTC"` and `"Etc/UTC"` are one zone under two labels,
+  and no value of `timezone_out` aligns with the session zone
+  on every machine, because the session zone is not a constant
+  ([`experiments/2026-08-09-rel-from-df-posixct/`](/experiments/2026-08-09-rel-from-df-posixct/README.md)).
 * **`tz_out_convert = "force"` is the one instant-changing path.**
   It relabels every datetime column in `timezone_out`,
   preserving the UTC-rendered wall clock;

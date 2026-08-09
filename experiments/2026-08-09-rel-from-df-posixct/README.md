@@ -5,7 +5,8 @@
 which columns the strict check accepts, and whether what it accepts
 comes back with the same `tzone` — for the shipped policy and the three
 alternatives to it, across column label × `timezone_out` ×
-session `TimeZone`, 36 cells each.
+session `TimeZone`, 36 cells each;
+and, separately, which session zone a user gets without setting one.
 
 *When and on what:* 2026-08-09, duckdb 1.5.5.9013
 (DuckDB 1.5.5, fast-path build against the release `libduckdb`,
@@ -17,8 +18,9 @@ R 4.5.3, Linux, machine zone `Etc/UTC`.
 and [`usage/timestamps/`](/handbook/usage/timestamps/README.md).
 
 Run [`run.sh`](run.sh) with `DUCKDB_R_USE_SYSTEM_LIB=1` on a clean
-tree; one policy's run is [`grid.R`](grid.R), the policies other than
-the shipped one are the patches under [`patches/`](patches/),
+tree; one policy's run is [`grid.R`](grid.R), the default-zone probe is
+[`default-zone.R`](default-zone.R), the policies other than the shipped
+one are the patches under [`patches/`](patches/),
 and the recorded run is [`grid.md`](grid.md).
 
 **Why the check is in question.**
@@ -72,13 +74,17 @@ quietly.
 
 `session-tz` is the principled fix and the surprising loser. It never
 relabels — by construction, since it accepts exactly the columns whose
-label already matches the session's — but that accept-set depends on
-how the binary was built. This build's session zone is `Etc/UTC`, so a
-column labeled `"UTC"`, which is what `timezone_out`'s own default
-produces, is refused: the two strings name one zone and the check
-compares strings. A build with no icu reports `"UTC"` and accepts it.
-Making duckplyr's fast path appear and disappear with the presence of
-an extension costs more than the 6 refusals it buys back.
+label already matches the session's — but which columns those are is
+decided by the machine the code runs on. An icu-linked build echoes the
+machine's `TZ` as the session zone verbatim, so a column labeled
+`"UTC"`, which is what `timezone_out`'s own default produces, is
+accepted where `TZ=UTC` and refused where `TZ=Etc/UTC` or
+`TZ=Europe/Zurich`: the check compares strings, and two of those name
+the same zone. A build with no icu reports `"UTC"` whatever the machine
+says. So duckplyr's fast path would work in a `TZ=UTC` container and
+fall back on the laptop that pushed to it, which is worse than the 6
+refusals it buys back — and worse than a difference a build flag would
+at least make visible.
 
 `relaxed` is worst: 30 of 36 cells silently relabeled.
 
@@ -90,6 +96,13 @@ result — the label is per session in DuckDB's model
 ([`plan/history/2026-05-timestamptz-icu.md`](/plan/history/2026-05-timestamptz-icu.md)) —
 or duckplyr deciding a session-zone label is one it can live with
 ([#2574](https://github.com/duckdb/duckdb-r/issues/2574)).
+
+**Why the machine zone is not a grid dimension.**
+Every cell sets the session zone explicitly, so the machine's `TZ`
+cannot reach the measurement. It decides only which row a user lands in
+by default, and that is what the default-zone probe records: five
+machine zones, five session zones, echoed verbatim. `Etc/UTC` in the
+run above is this container's `TZ`, not a DuckDB default.
 
 **What this run does not cover.**
 A build without icu, where `SET TimeZone` fails for every value and the
