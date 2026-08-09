@@ -69,4 +69,24 @@ So the published DLL is not a build of the same thing with a different
 name scheme; it deliberately exposes a smaller surface than the glue
 reaches for.
 Closing this would take an upstream change to what the Windows build
-exports, on top of a mingw build of the library existing at all.
+exports, whichever compiler built it.
+
+## A mingw build exists, and still does not help
+
+The toolchain half is not hypothetical forever: MSYS2 packages
+[`mingw-w64-x86_64-duckdb`](https://packages.msys2.org/packages/mingw-w64-x86_64-duckdb),
+built by the same compiler family R's Windows packages are, from the
+release tarball with `BUILD_SHARED_LIBS=ON`
+([its `PKGBUILD`](https://github.com/msys2/MINGW-packages/blob/master/mingw-w64-duckdb/PKGBUILD)).
+
+It does not close the gap, for a reason no amount of packaging effort
+reaches: it carried DuckDB 1.4.4 on 2026-08-09, against the v1.5.5 this
+tree vendored that day, and the commit-match guard takes only the exact
+commit the vendored sources carry
+([`build/fast-paths/`](/handbook/build/fast-paths/README.md)).
+A downstream repackaging tracks releases at its own pace, so a match
+would be a coincidence — and a series vendoring a `-dev` snapshot
+between releases has no published release for it to match at all.
+Whether its exports reach further than the MSVC DLL's is therefore
+untested here; that question only becomes worth asking if the version
+gap closes.

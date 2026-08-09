@@ -60,14 +60,25 @@ Windows packages are built by the Rtools MinGW-w64 GCC toolchain:
 the glue calls DuckDB C++ internals, and the two compilers do not spell
 those names the same way, so the linker resolves none of them —
 the C API is the only shared surface, and the glue does not use it.
-The DLL also exports about a tenth of the `duckdb::` symbols an ELF
-`libduckdb.so` does, missing some the glue needs,
-so a mingw build of the library would not by itself be enough
+That DLL also exports about a tenth of the `duckdb::` symbols an ELF
+`libduckdb.so` does, missing some the glue needs — a second shortfall,
+independent of the toolchain
 ([`experiments/2026-08-09-windows-fast-path/`](/experiments/2026-08-09-windows-fast-path/README.md),
 measured against v1.5.5).
 `scripts/install-libduckdb.sh` refuses there and says so,
 and `configure.win` says the opt-in had no effect rather than
 quietly building from source.
+
+A mingw-built `libduckdb` for Windows does exist outside DuckDB's own
+distribution — MSYS2 packages one as
+[`mingw-w64-x86_64-duckdb`](https://packages.msys2.org/packages/mingw-w64-x86_64-duckdb) —
+so the toolchain half of that is not permanent.
+It changes nothing today: a repackaging tracks DuckDB releases at its own
+pace and trails the vendored engine, where the commit-match guard wants
+the exact commit the vendored tree carries — and a series sitting on a
+`-dev` snapshot has no published release to match at all.
+Whether such a build exports the internals the glue reaches for
+is unmeasured.
 
 **The fast path proves nothing about the engine.**
 A release `libduckdb` links more extensions and defaults differently,
