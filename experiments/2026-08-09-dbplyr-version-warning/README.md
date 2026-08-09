@@ -2,16 +2,18 @@
 
 *What it measures:* which R API reports the version of the dbplyr a
 session has actually *loaded* rather than the one now sitting in the
-library, when a `packageEvent()` hook fires, and what a condition raised
-from inside one can and cannot do to the load it interrupts.
+library, when a `packageEvent()` hook fires, what a condition raised
+from inside one can and cannot do to the load it interrupts, and which
+of those conditions `R CMD check` objects to.
 
 *When and on what:* 2026-08-09, Linux x86_64, R 4.5.3,
 dbplyr 2.6.0 from the ordinary library and dbplyr 2.5.0 from the
 Posit Package Manager snapshot `2025-06-02`.
-Three scripts, each with its recorded output:
+Four scripts, each with its recorded output:
 [`version-apis.R`](version-apis.R) / [`.out`](version-apis.out),
 [`hook-mechanics.R`](hook-mechanics.R) / [`.out`](hook-mechanics.out),
-[`orders.R`](orders.R) / [`.out`](orders.out).
+[`orders.R`](orders.R) / [`.out`](orders.out),
+[`cran-check.R`](cran-check.R) / [`.out`](cran-check.out).
 
 *What it supports:* the dbplyr floor and its warning in
 [`usage/integrations/`](/handbook/usage/integrations/README.md).
@@ -83,6 +85,39 @@ out of habit is the property worth having.
 One detail: without `call. = FALSE`, R attributes the warning to its own
 hook caller — `In fun(pkgname, pkgpath) : …` — which tells a reader
 nothing.
+
+## What CRAN actually objects to
+
+Two separate mechanisms bear on `warning()` versus
+`packageStartupMessage()` in `.onAttach()`, and conflating them gives
+the wrong answer.
+
+The R-code check flags *message-generating* calls, and its list is
+exactly `cat`, `message`, `print`, `writeLines` (plus `library`,
+`require`, `installed.packages`, `library.dynam` in `.onAttach`, and
+`packageStartupMessage` in `.onLoad`) — `tools:::.bad_call_names_in_startup_functions`.
+`message()` earns *"Package startup functions should use
+`packageStartupMessage` to generate messages"*, which is the "Good
+practice" section of `?.onAttach`. `warning()` is not on that list and
+draws nothing; `tools:::.check_package_code_startup_functions()` reports
+0 offending calls for this package.
+
+The install check is the one with teeth here. `R CMD INSTALL` attaches
+the package to test it, so anything `.onAttach()` warns about lands in
+`00install.out`, and `R CMD check` greps it:
+
+```
+* checking whether package 'startuptest' can be installed ... WARNING
+Found the following significant warnings:
+  Warning: too old
+```
+
+That fires for an *unconditional* warning. This package's warning is
+conditional on an old dbplyr being loaded, and nothing loads a `Suggests`
+package during install — installing with dbplyr 2.5.0 first on the
+library path is silent, and `packageStartupMessage()` would buy nothing.
+The rule to take from this is not "startup output must be a message" but
+"`.onAttach()` must be silent on a healthy install".
 
 ## As shipped
 

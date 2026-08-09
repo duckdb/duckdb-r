@@ -3,7 +3,7 @@
 # The dbplyr release the backend needs. `test-dbplyr-version.R` pins this to the
 # `Suggests` floor in DESCRIPTION, so the two cannot drift apart.
 dbplyr_min_version <- function() {
-  "2.6.0"
+  package_version("2.6.0")
 }
 
 # The version of the dbplyr that is *loaded*, which is not always the one on

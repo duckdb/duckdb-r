@@ -32,7 +32,10 @@ those differ for the rest of a session after `install.packages("dbplyr")`,
 and it is the loaded one whose code the backend will reach —
 which is why the warning says to restart R.
 The check never loads dbplyr to perform it, so a session that
-does not use the backend pays nothing and hears nothing
+does not use the backend pays nothing and hears nothing —
+which is also what keeps `R CMD check` quiet,
+since it reads `R CMD INSTALL`'s output for warnings
+and a `Suggests` package is never loaded there
 ([`2026-08-09-dbplyr-version-warning/`](/experiments/2026-08-09-dbplyr-version-warning/README.md)).
 Coercions translate to `TRY_CAST()`,
 so a value that will not convert yields `NULL` rather than failing
