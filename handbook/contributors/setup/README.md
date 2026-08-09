@@ -25,10 +25,11 @@ and the re-install every vendoring bump requires — is
 It assumes Linux or macOS and a working toolchain,
 and the default prefix (`/usr/local`, set in
 [`scripts/install-libduckdb.sh`](/scripts/install-libduckdb.sh))
-needs privileges the script escalates for —
-constraints to be relaxed
+needs privileges the script escalates for,
+which a prefix under the home directory avoids.
+Windows has no fast path yet
 ([#22](https://github.com/duckdb/duckdb-r/issues/22#issuecomment-5158085048));
-on Windows, and when no prebuilt matches, the full build applies
+there, and when no prebuilt matches, the full build applies
 ([`build/source-build/`](/handbook/build/source-build/README.md)).
 The suite's layout and running one file:
 [`testing/suite/`](/handbook/testing/suite/README.md).
