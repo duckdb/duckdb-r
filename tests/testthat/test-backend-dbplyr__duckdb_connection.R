@@ -687,3 +687,24 @@ test_that("these should give errors", {
     translate(str_pad(x, width = 10, side = "other")) # Error
   })
 })
+
+# Injecting an R value with `!!` is what applies a time zone to a literal:
+# dbplyr escapes the instant, so the same expression sends a different
+# timestamp from a different session.
+# handbook/usage/integrations/README.md, reported as #1064.
+test_that("an escaped POSIXct is sent as the instant it names", {
+  skip_if_not_installed("dbplyr")
+  skip_if_not_installed("withr")
+  con <- local_con()
+
+  escape_at <- function(zone) {
+    withr::with_timezone(zone, {
+      value <- as.POSIXct("2025-03-01 18:00:00")
+      as.character(dbplyr::translate_sql(!!value, con = con))
+    })
+  }
+
+  expect_equal(escape_at("UTC"), "'2025-03-01 18:00:00'::timestamp")
+  expect_equal(escape_at("America/Indiana/Indianapolis"), "'2025-03-01 23:00:00'::timestamp")
+  expect_equal(escape_at("Europe/Zurich"), "'2025-03-01 17:00:00'::timestamp")
+})
