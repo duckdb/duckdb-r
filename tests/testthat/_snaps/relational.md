@@ -361,8 +361,7 @@
       nrow(forbid)
     Condition
       Error:
-      ! Materialization is disabled, use `collect()` or `as_tibble()` to materialize.
-      i Context: GetQueryResult
+      ! GetQueryResult: Materialization is disabled, use `collect()` or `as_tibble()` to materialize.
 
 ---
 
@@ -370,8 +369,7 @@
       nrow(forbid)
     Condition
       Error:
-      ! Materialization is disabled, use `collect()` or `as_tibble()` to materialize.
-      i Context: GetQueryResult
+      ! GetQueryResult: Materialization is disabled, use `collect()` or `as_tibble()` to materialize.
 
 ---
 
@@ -379,8 +377,7 @@
       nrow(four_rows)
     Condition
       Error:
-      ! Materialization would result in more than 4 rows. Use `collect()` or `as_tibble()` to materialize.
-      i Context: GetQueryResult
+      ! GetQueryResult: Materialization would result in more than 4 rows. Use `collect()` or `as_tibble()` to materialize.
 
 ---
 
@@ -388,8 +385,7 @@
       nrow(nine_cells)
     Condition
       Error:
-      ! Materialization would result in more than 4 rows. Use `collect()` or `as_tibble()` to materialize.
-      i Context: GetQueryResult
+      ! GetQueryResult: Materialization would result in more than 4 rows. Use `collect()` or `as_tibble()` to materialize.
 
 ---
 
@@ -397,8 +393,7 @@
       nrow(bad_rows)
     Condition
       Error:
-      ! Materialization would result in more than 4 rows. Use `collect()` or `as_tibble()` to materialize.
-      i Context: GetQueryResult
+      ! GetQueryResult: Materialization would result in more than 4 rows. Use `collect()` or `as_tibble()` to materialize.
 
 ---
 
@@ -406,6 +401,21 @@
       nrow(bad_cells)
     Condition
       Error:
-      ! Materialization would result in more than 4 rows. Use `collect()` or `as_tibble()` to materialize.
-      i Context: GetQueryResult
+      ! GetQueryResult: Materialization would result in more than 4 rows. Use `collect()` or `as_tibble()` to materialize.
+
+---
+
+    Code
+      length(forbid_col$a)
+    Condition
+      Error:
+      ! GetQueryResult: Materialization is disabled, use `collect()` or `as_tibble()` to materialize.
+
+---
+
+    Code
+      forbid_col$a[1]
+    Condition
+      Error:
+      ! GetQueryResult: Materialization is disabled, use `collect()` or `as_tibble()` to materialize.
 
