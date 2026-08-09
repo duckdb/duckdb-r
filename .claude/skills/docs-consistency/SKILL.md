@@ -98,7 +98,11 @@ Helpers are not entry points of their own.
    header punctuation.
    Report the structural findings instead of acting on them:
    unclaimed surface, a grouping that looks wrong,
-   an internal node accreting prose, a leaf outgrowing its scope.
+   an internal node accreting prose, a leaf outgrowing its scope,
+   an entry restating what the experiment, issue, or plan it links
+   already holds
+   ([`handbook/meta/authoring/`](/handbook/meta/authoring/README.md),
+   "How long an entry is").
    One summary at the end; no per-file chatter.
 
 The rules define, this skill enforces:

@@ -11,7 +11,7 @@ DBI's own reference pages define what each generic promises,
 and this package implements them one file per method,
 named for the generic and the signature —
 so `R/` is the list
-([`architecture/r-layer/`](/handbook/architecture/r-layer/README.md)).
+([`architecture/r-layer/conventions/`](/handbook/architecture/r-layer/conventions/README.md)).
 A reader asking "does `dbAppendTable()` work here" answers it by
 finding the file, not by consulting an inventory that can go stale.
 

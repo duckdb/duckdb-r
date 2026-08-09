@@ -213,7 +213,13 @@ print.duckdb_relation <- function(x, ...) {
 
 #' @export
 
-as.data.frame.duckdb_relation <- function(x, row.names = NULL, optional = NULL, ...) { # nolint: object_name_linter
+as.data.frame.duckdb_relation <- function(
+  x,
+  row.names = NULL,
+  optional = NULL,
+  ...
+) {
+  # nolint: object_name_linter
   if (!missing(row.names) || !missing(optional)) {
     stop("row.names and optional parameters not supported")
   }
@@ -382,13 +388,15 @@ expr_window <- function(
   )
 }
 
-window_boundaries <- c("unbounded_preceding",
-                       "unbounded_following",
-                       "current_row_range",
-                       "current_row_rows",
-                       "expr_preceding_rows",
-                       "expr_following_rows",
-                       "expr_preceding_range")
+window_boundaries <- c(
+  "unbounded_preceding",
+  "unbounded_following",
+  "current_row_range",
+  "current_row_rows",
+  "expr_preceding_rows",
+  "expr_following_rows",
+  "expr_preceding_range"
+)
 
 expr_window_ <- function(
   window_function,
@@ -444,9 +452,13 @@ rel_inner_join <- function(left, right, conds) {
   rel_join(left, right, conds, "inner", "regular")
 }
 
-rel_join <- function(left, right, conds,
-                     join = c("inner", "left", "right", "outer", "cross", "semi", "anti"),
-                     join_ref_type = c("regular", "natural", "cross", "positional", "asof")) {
+rel_join <- function(
+  left,
+  right,
+  conds,
+  join = c("inner", "left", "right", "outer", "cross", "semi", "anti"),
+  join_ref_type = c("regular", "natural", "cross", "positional", "asof")
+) {
   join <- match.arg(join)
   join_ref_type <- match.arg(join_ref_type)
   # the ref type is naturally regular. Users won't write rel_join(left, right, conds, "cross", "cross")
@@ -562,7 +574,11 @@ rel_explain_df <- function(
 ) {
   type <- match.arg(type)
   format <- match.arg(format)
-  rethrow_rapi_rel_explain(rel, paste0("EXPLAIN_", toupper(type)), toupper(format))
+  rethrow_rapi_rel_explain(
+    rel,
+    paste0("EXPLAIN_", toupper(type)),
+    toupper(format)
+  )
 }
 
 #' Format a DuckDB relation object as a string
@@ -638,7 +654,12 @@ rel_to_altrep <- function(
 #' rel <- rel_from_df(con, mtcars)
 #' df = rel_to_altrep(rel)
 #' print(rel_from_altrep_df(df))
-rel_from_altrep_df <- function(df, strict = TRUE, allow_materialized = TRUE, wrap = FALSE) {
+rel_from_altrep_df <- function(
+  df,
+  strict = TRUE,
+  allow_materialized = TRUE,
+  wrap = FALSE
+) {
   rethrow_rapi_rel_from_altrep_df(
     df,
     strict,
@@ -648,11 +669,9 @@ rel_from_altrep_df <- function(df, strict = TRUE, allow_materialized = TRUE, wra
 }
 
 
-
 df_is_materialized <- function(df) {
   is.null(rel_from_altrep_df(df, allow_materialized = FALSE))
 }
-
 
 
 #' Convert a relation to a SQL string
@@ -666,7 +685,6 @@ df_is_materialized <- function(df) {
 rel_to_sql <- function(rel) {
   rethrow_rapi_rel_to_sql(rel)
 }
-
 
 
 #' Create a duckdb relation from an SQL query
@@ -727,8 +745,18 @@ rel_from_table <- function(con, table_name, schema_name = "MAIN") {
 #' @examples
 #' con <- DBI::dbConnect(duckdb())
 #' rel <- rel_from_table_function(con, 'generate_series', list(10L))
-rel_from_table_function <- function(con, function_name, positional_parameters = list(), named_parameters = list()) {
-  rethrow_rapi_rel_from_table_function(con@conn_ref, function_name, positional_parameters, named_parameters)
+rel_from_table_function <- function(
+  con,
+  function_name,
+  positional_parameters = list(),
+  named_parameters = list()
+) {
+  rethrow_rapi_rel_from_table_function(
+    con@conn_ref,
+    function_name,
+    positional_parameters,
+    named_parameters
+  )
 }
 
 rel_to_parquet <- function(rel, file_name, options = list()) {

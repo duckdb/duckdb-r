@@ -13,6 +13,30 @@ What a value becomes across the boundary is
 is the backend reference.
 dbplyr and dplyr are `Suggests`;
 the methods register at load time, edition 2.
+dbplyr is floored at 2.6.0,
+the first release to export `sql_glue()` —
+`n_distinct()` renders through it,
+having previously reached the unexported `glue_sql2()`
+that a dbplyr release was free to drop
+([#1982](https://github.com/duckdb/duckdb-r/issues/1982)).
+
+**A `Suggests` floor is advisory, so the floor also warns.**
+Nothing stops an older dbplyr from being loaded beside this package,
+and what it produces then is a missing-function error
+from inside a translation, naming neither package nor remedy.
+So `warn_if_dbplyr_too_old()` ([`R/dbplyr-version.R`](/R/dbplyr-version.R))
+says it plainly instead, from `.onAttach()` when dbplyr is already loaded
+and from a `packageEvent("dbplyr", "onLoad")` hook when it arrives later.
+It reads the version of the *loaded* namespace, not the library copy:
+those differ for the rest of a session after `install.packages("dbplyr")`,
+and it is the loaded one whose code the backend will reach —
+which is why the warning says to restart R.
+The check never loads dbplyr to perform it, so a session that
+does not use the backend pays nothing and hears nothing —
+which is also what keeps `R CMD check` quiet,
+since it reads `R CMD INSTALL`'s output for warnings
+and a `Suggests` package is never loaded there
+([`2026-08-09-dbplyr-version-warning/`](/experiments/2026-08-09-dbplyr-version-warning/README.md)).
 Coercions translate to `TRY_CAST()`,
 so a value that will not convert yields `NULL` rather than failing
 the query
@@ -29,23 +53,23 @@ the boundaries users keep hitting:
   not `DISTINCT ON` — needs dbplyr support
   ([#384](https://github.com/duckdb/duckdb-r/issues/384),
   [tidyverse/dbplyr#1620](https://github.com/tidyverse/dbplyr/pull/1620)).
+  An experiment with v1.5.5 measured that `DISTINCT ON` is actually slower
+  in many cases, and never faster
+  ([`experiments/2026-08-09-distinct-on-cost/`](/experiments/2026-08-09-distinct-on-cost/README.md)).
+  A caller who wants the clause anyway can render the pipeline and wrap it,
+  and register that as their own `distinct()` method
+  ([`experiments/2026-08-09-distinct-on-override/`](/experiments/2026-08-09-distinct-on-override/README.md)).
 * `pivot_longer()` expands SQL generically instead of `UNPIVOT`
   ([#2029](https://github.com/duckdb/duckdb-r/issues/2029)).
 * An inline `as.POSIXct("…")` is translated, not escaped,
   so the session time zone is not applied; `!!as.POSIXct(…)`
   is escaped R-side and is
   ([#1064](https://github.com/duckdb/duckdb-r/issues/1064), dbplyr-wide).
+  Build the value in R with the zone meant and inject it with `!!`.
 * A bare `Inf` literal escapes as the string `'Infinity'`
   ([#1585](https://github.com/duckdb/duckdb-r/issues/1585),
   blocked on
   [tidyverse/dbplyr#1838](https://github.com/tidyverse/dbplyr/issues/1838)).
-* `n_distinct()` reaches dbplyr's unexported `glue_sql2()` through
-  `getFromNamespace()` — a private-API dependency any dbplyr release
-  can break.
-  The public replacement `sql_glue()` has shipped, so the migration is
-  unblocked; what it still needs is a `dbplyr (>= 2.6.0)` floor, which
-  `DESCRIPTION`'s `Suggests` does not carry
-  ([#1982](https://github.com/duckdb/duckdb-r/issues/1982)).
 
 ## duckplyr
 
@@ -107,6 +131,22 @@ register at load time the same way —
 `adbc_database_init`, `adbc_connection_init`, `adbc_statement_init`,
 all on classes this package defines for the purpose.
 It is the one route here that does not go through DBI at all.
+
+The driver manager also loads a DuckDB ADBC driver that is *not* this
+package's — a library built by whatever toolchain the platform's own
+DuckDB build uses — and that is the one way to reach an extension this
+package cannot install, because the extensions a driver can install
+follow the platform it was built for
+([`extensions/`](/handbook/usage/extensions/README.md),
+[reported working on Windows](https://github.com/duckdb/duckdb-r/issues/100#issuecomment-4095552832)).
+It costs everything this package adds:
+the DBI methods, the relational API, registration and the R type
+mapping are this package's rather than the driver's,
+and a second engine in the session shares nothing with this one.
+Both routes need `adbcdrivermanager`, which rules out Windows arm64:
+there it has no binary to install and does not build from source
+([`operations/ci/matrix/`](/handbook/operations/ci/matrix/README.md)
+carries what CI does about that).
 
 ## data.table and collapse
 
