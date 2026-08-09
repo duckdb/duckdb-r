@@ -139,7 +139,7 @@ list the most recent `each-rcc` runs.
 If that answers, the firing is on the run path for every stage below.
 If it does not — no such access from this session at all —
 the firing falls back to the `rcc2` store,
-which still works, inside its 30-day window,
+which still works, inside its 180-day window,
 but is now an **emergency route** rather than a warm copy:
 `rcc-logs.yaml` is dispatch-only,
 so a firing that needs the store complete has to ask for it

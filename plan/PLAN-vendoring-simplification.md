@@ -383,9 +383,42 @@ in D6; everything after it is deletion.
 a reader with git and nothing else.
 After D6 a firing with no API access has nothing to fall back to,
 where today it has a stale-but-readable copy.
-That is a trade to make on evidence rather than on this paragraph,
-and #2549 already instruments it —
-every firing records which path served — so the evidence is a report away.
+That is a trade to make on evidence rather than on this paragraph.
+#2549 does instrument it — every firing records which path served —
+but into its **report**, and a report has no durable home
+(question 5, still open).
+Checked on 2026-08-09: no firing's read path is recorded anywhere in
+this repository — not in `plan/`, `plan/history/`, `experiments/`, or
+the handbook; the only occurrences of the phrase are the instruction in
+`series-loop.md` and the request in this document.
+So D6's first step is not "read the evidence", because there is none to
+read. It is the three measurements below, which are better evidence
+anyway: they ask whether the *replacement* works, not whether the
+fallback happened to be used.
+
+*The evidence step, concretely.*
+All three read durable state, all three are re-runnable,
+and all three need access to `krlmlr/duckdb-r` — the fork is where the
+`each-rcc` runs, the series refs and the store itself live, so none of
+them can be taken from this repository:
+
+1. **Has the store's gap ever been felt?** Count `workflow_dispatch`
+   runs of `rcc-logs.yaml` in the fork since #2578 (2026-08-08).
+   A dispatch is a firing saying it needed the store and found it
+   incomplete; zero across a full cycle is the answer question 6
+   wanted. In `duckdb/duckdb-r` the count is structurally zero —
+   both store workflows carry `if: github.repository ==
+   'krlmlr/duckdb-r'`, so every run here is skipped.
+2. **Would the replacement agree?** For each live series, compare
+   `scripts/rcc-decided.sh` against the `rcc` commit statuses over
+   `<S>-green..tip`. Any commit decided in one and not the other is
+   what would break D6's status read — and finding none is the go
+   signal, since it says the two stores have stayed in step with only
+   one of them being written for.
+3. **What is keeping it costing?** Commits on `rcc2`, its size, and
+   the age of the oldest surviving record — consolidation is manual
+   and the window is 180 days, so this is the standing bill for
+   deferring D6.
 
 **One wrinkle to settle before the cut.**
 The `rcc` context is not the leg's alone:
@@ -744,7 +777,7 @@ of the kernel.
 | **3 — landed (#2534)** | replace the standalone repo with a fresh fork (§6), configured with the Pull app so the release-branch mirrors stay current without a job of our own | one-time move; the replaced repository is kept as `krlmlr/duckdb-r-old` |
 | **4** | docs tree (§8): README root landed (#88); next the moves, then node rewrites (including `AGENTS.md`'s and `BRANCHES.md`'s stale rows); `docs-tree` skill | docs only |
 | **5** | kernel extraction + `rigraph` port (config file, generalized subject marker, igraph cost estimator or constant weight) | new repo consumed `@main`; rollback = vendored copy of the kernel |
-| **6** | retire the verdict store (D6), in four steps: read the "which path served" evidence; port `series-check.sh` to read the deciding run; move selection to a batched status query; delete the branch and its scripts | each step reverts on its own, and the branch is deleted last — once nothing reads it, deleting it is the cheapest step rather than the risky one |
+| **6** | retire the verdict store (D6), in four steps: take the three measurements (§3.3 — all need the fork); port `series-check.sh` to read the deciding run; move the three state readers to a batched status query; delete the branch and its scripts | each step reverts on its own, and the branch is deleted last — once nothing reads it, deleting it is the cheapest step rather than the risky one |
 
 Phase 1a is independently shippable.
 The deletions concentrated in Phase 2, and the larger set is Phase 6's.
