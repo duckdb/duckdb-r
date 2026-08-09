@@ -107,12 +107,12 @@ rs_preview <- function(
 ) {
   # Error if both table and view are passed
   if (!is.null(table) && !is.null(view)) {
-    stop("`table` and `view` can not both be used", call. = FALSE)
+    abort("`table` and `view` can not both be used")
   }
 
   # Error if neither table and view are passed
   if (is.null(table) && is.null(view)) {
-    stop("`table` and `view` can not both be `NULL`", call. = FALSE)
+    abort("`table` and `view` can not both be `NULL`")
   }
 
   name <- if (!is.null(table)) {

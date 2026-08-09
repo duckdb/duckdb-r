@@ -55,9 +55,10 @@ runs per row, on exactly the paths that move data.
 
 **No warning is suppressed.**
 CRAN rejects `-Wno-*` flags and `#pragma` silencing;
-fix the root cause instead,
-and for vendored code fix it as a patch under `patch/` or upstream
-([`operations/vendoring/pipeline/`](/handbook/operations/vendoring/pipeline/README.md)).
+fix the root cause instead.
+Which warnings the glue is held to, who answers for a warning raised
+in vendored code, and where either is checked, is
+[`build/warnings/`](/handbook/build/warnings/README.md)'s.
 Where a fix is truly not possible —
 mbedtls's own `-Wvla` suppression is the standing example —
 the pragma is respelled with widened spacing
@@ -65,8 +66,23 @@ the pragma is respelled with widened spacing
 which the compiler honours unchanged
 while `R CMD check`'s single-space scan does not report it
 ([`patch/0016-Avoid-mbedtls-diagnostic-pragmas.patch`](/patch/0016-Avoid-mbedtls-diagnostic-pragmas.patch)).
+
+**Layout is the formatter's, include order is not.**
 Formatting runs through the Makefile `format-*` targets,
-driving [`scripts/format.py`](/scripts/format.py).
+driving [`scripts/format.py`](/scripts/format.py),
+and [`.clang-format`](/.clang-format) alone decides the result —
+a bare `clang-format -style=file`, which is what an editor and the
+pull-request formatter
+([`.github/workflows/style/action.yml`](/.github/workflows/style/action.yml))
+run, prints the same tree.
+The one thing it will not rewrite is the order of the `#include`s:
+`SortIncludes: Never` and `IncludeBlocks: Preserve` pin them,
+because in this glue the order compiles or does not.
+`rapi.hpp` has to see `cpp11.hpp` before the R headers,
+and its `#undef TRUE` / `#undef FALSE` guards only work
+where they are written relative to the header that defines them.
+So the includes of a translation unit are the author's to order,
+and a review argues them the way it argues code.
 
 **One header is public.**
 [`inst/include/duckdb_types.hpp`](/inst/include/duckdb_types.hpp)

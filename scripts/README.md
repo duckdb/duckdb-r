@@ -52,6 +52,12 @@ Root of the documentation tree: [`handbook/`](/handbook/README.md).
 | [`install-duckdb-cli.sh`](install-duckdb-cli.sh) | Download the standalone DuckDB CLI matching the vendored DuckDB sources under src/duckdb/. |
 | [`install-libduckdb.sh`](install-libduckdb.sh) | Install the libduckdb prebuilt binary matching the vendored DuckDB sources under src/duckdb/. |
 
+## [`build/warnings/`](/handbook/build/warnings/README.md)
+
+| File | Purpose |
+|---|---|
+| [`warnings.sh`](warnings.sh) | The compiler-warning gate: what each scope is held to, and the check itself. |
+
 ## [`meta/handbook/`](/handbook/meta/handbook/README.md)
 
 | File | Purpose |

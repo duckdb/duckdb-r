@@ -20,7 +20,7 @@ expr_reference <- function(
   alias = NULL
 ) {
   if (...length() > 0) {
-    stop("... must be empty")
+    abort("... must be empty")
   }
 
   if (inherits(table, "duckdb_relation")) {
@@ -51,7 +51,7 @@ expr_constant <- function(
   convert_opts = NULL
 ) {
   if (...length() > 0) {
-    stop("... must be empty")
+    abort("... must be empty")
   }
 
   if (is.null(alias)) {
@@ -83,7 +83,7 @@ expr_operator <- function(
   alias = NULL
 ) {
   if (...length() > 0) {
-    stop("... must be empty")
+    abort("... must be empty")
   }
 
   if (is.null(alias)) {
@@ -107,7 +107,7 @@ expr_comparison <- function(
   alias = NULL
 ) {
   if (...length() > 0) {
-    stop("... must be empty")
+    abort("... must be empty")
   }
 
   if (is.null(alias)) {
@@ -133,7 +133,7 @@ expr_function <- function(
   alias = NULL
 ) {
   if (...length() > 0) {
-    stop("... must be empty")
+    abort("... must be empty")
   }
 
   if (is.null(alias)) {
@@ -189,7 +189,7 @@ rel_from_df <- function(
   strict = NULL
 ) {
   if (...length() > 0) {
-    stop("... must be empty")
+    abort("... must be empty")
   }
 
   # FIXME: Enable warning
@@ -221,7 +221,7 @@ as.data.frame.duckdb_relation <- function(
 ) {
   # nolint: object_name_linter
   if (!missing(row.names) || !missing(optional)) {
-    stop("row.names and optional parameters not supported")
+    abort("row.names and optional parameters not supported")
   }
   rethrow_rapi_rel_to_df(x)
 }
@@ -307,7 +307,7 @@ rel_order <- function(rel, orders, ascending = NULL, nulls_first = NULL) {
   }
 
   if (length(orders) != length(ascending)) {
-    stop("length of ascending must equal length of orders")
+    abort("length of ascending must equal length of orders")
   }
 
   if (is.null(nulls_first)) {
@@ -315,7 +315,7 @@ rel_order <- function(rel, orders, ascending = NULL, nulls_first = NULL) {
   }
 
   if (length(orders) != length(nulls_first)) {
-    stop("length of nulls_first must equal length of orders")
+    abort("length of nulls_first must equal length of orders")
   }
 
   return(rethrow_rapi_rel_order(rel, orders, ascending, nulls_first))
@@ -363,13 +363,13 @@ expr_window <- function(
     ascending <- rep(TRUE, length(order_bys))
   }
   if (length(order_bys) != length(ascending)) {
-    stop("length of ascending must equal length of order_bys")
+    abort("length of ascending must equal length of order_bys")
   }
   if (is.null(nulls_first)) {
     nulls_first <- rep(FALSE, length(order_bys))
   }
   if (length(order_bys) != length(nulls_first)) {
-    stop("length of nulls_first must equal length of order_bys")
+    abort("length of nulls_first must equal length of order_bys")
   }
 
   expr_window_(
@@ -618,6 +618,8 @@ rel_set_alias <- function(rel, alias) {
 
 #' Transforms a relation object to a lazy data frame using altrep
 #' @param rel the DuckDB relation object
+#' @param ... reserved for future extensions, must be empty
+#' @param n_rows,n_cells the materialization budget, in rows and in cells
 #' @return a data frame
 #' @noRd
 #' @examples
@@ -626,17 +628,12 @@ rel_set_alias <- function(rel, alias) {
 #' print(rel_to_altrep(rel))
 rel_to_altrep <- function(
   rel,
-  allow_materialization = TRUE,
+  ...,
   n_rows = Inf,
-  n_cells = Inf,
-  ...
+  n_cells = Inf
 ) {
-  # FIXME: Move dots after `rel` for duckplyr >= 1.1.0
   if (...length() > 0) {
-    stop("... must be empty")
-  }
-  if (!isTRUE(allow_materialization)) {
-    n_cells <- 0
+    abort("... must be empty")
   }
   rethrow_rapi_rel_to_altrep(rel, n_rows = n_rows, n_cells = n_cells)
 }
@@ -719,7 +716,7 @@ rel_to_sql <- function(rel) {
 #' as.data.frame(rel2)
 rel_from_sql <- function(con, sql, env = parent.frame()) {
   if (!is.environment(env)) {
-    stop("`env` must be an environment.", call. = FALSE)
+    abort("`env` must be an environment.")
   }
   rethrow_rapi_rel_from_sql(con@conn_ref, sql, env)
 }

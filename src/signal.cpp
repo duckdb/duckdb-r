@@ -85,4 +85,4 @@ void ScopedInterruptHandler::signal_handler(int signum) {
 	}
 }
 
-}; // namespace duckdb
+} // namespace duckdb
