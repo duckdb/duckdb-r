@@ -231,8 +231,12 @@ while [ $commits_vendored -lt $num_commits ]; do
       exit 1
     }
 
-    rm -rf ${vendor_dir}
-
+    # The tree is not deleted here: rconfigure.py moves it aside itself and puts
+    # back the inode of every regenerated file that did not change, so a file
+    # whose content is the same keeps its stat cache entry and every later git
+    # command over ~3550 files stays cheap -- which this loop pays twice per
+    # candidate, kept or skipped. Files upstream dropped still go: they are in
+    # the tree that was moved aside, and never come back from it.
     echo "R: configure"
     DUCKDB_PATH="$upstream_dir" python3 scripts/rconfigure.py || {
       echo "Error: Failed to configure"
