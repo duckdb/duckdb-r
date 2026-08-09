@@ -12,6 +12,9 @@
 #undef TRUE
 #undef FALSE
 
+// Handbook: handbook/usage/interactive/README.md, which states how far an
+// interrupt reaches, and why a wait blocked inside an extension outlives it.
+
 // Toy repo: https://github.com/krlmlr/cancel.test
 
 namespace duckdb {
