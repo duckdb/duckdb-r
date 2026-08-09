@@ -28,20 +28,28 @@ packageVersion("nanoarrow")
 # that cannot apply a filter.
 register_nanoarrow <- function(con, name, x) {
   export_fun <- function(x, stream_ptr, projection = NULL, filter = TRUE) {
-    if (!is.null(projection)) x <- x[projection]
+    if (!is.null(projection)) {
+      x <- x[projection]
+    }
     nanoarrow::nanoarrow_pointer_export(
-      nanoarrow::as_nanoarrow_array_stream(x), stream_ptr
+      nanoarrow::as_nanoarrow_array_stream(x),
+      stream_ptr
     )
   }
   get_schema_fun <- function(x, schema_ptr) {
     nanoarrow::nanoarrow_pointer_export(
-      nanoarrow::infer_nanoarrow_schema(x), schema_ptr
+      nanoarrow::infer_nanoarrow_schema(x),
+      schema_ptr
     )
   }
-  expr_factory <- function(...) structure(list(...), class = "unused_expression")
+  expr_factory <- function(...) {
+    structure(list(...), class = "unused_expression")
+  }
   duckdb:::rapi_register_arrow(
-    con@conn_ref, name,
-    list(export_fun, expr_factory, expr_factory, expr_factory, get_schema_fun), x
+    con@conn_ref,
+    name,
+    list(export_fun, expr_factory, expr_factory, expr_factory, get_schema_fun),
+    x
   )
   invisible(TRUE)
 }
@@ -70,17 +78,26 @@ duckdb:::rel_tostring(rel)
 
 # The verbs compose over it like any other relation.
 proj <- duckdb:::rel_project(rel, list(duckdb:::expr_reference("a")))
-filt <- duckdb:::rel_filter(rel, list(duckdb:::expr_comparison(
-  ">", list(duckdb:::expr_reference("a"), duckdb:::expr_constant(3L))
-)))
+filt <- duckdb:::rel_filter(
+  rel,
+  list(duckdb:::expr_comparison(
+    ">",
+    list(duckdb:::expr_reference("a"), duckdb:::expr_constant(3L))
+  ))
+)
 materialize(proj)
 materialize(filt)
 
 # Joining an Arrow-backed relation with a data-frame-backed one works.
 rel_b <- duckdb:::rel_from_df(con, data.frame(a = 3:6, z = 1:4))
-joined <- duckdb:::rel_inner_join(rel, rel_b, list(duckdb:::expr_comparison(
-  "==", list(duckdb:::expr_reference("a", rel), duckdb:::expr_reference("a", rel_b))
-)))
+joined <- duckdb:::rel_inner_join(
+  rel,
+  rel_b,
+  list(duckdb:::expr_comparison(
+    "==",
+    list(duckdb:::expr_reference("a", rel), duckdb:::expr_reference("a", rel_b))
+  ))
+)
 materialize(joined)
 
 # --- 3. The filter reaches the producer, for better and worse ----------
@@ -93,9 +110,13 @@ cat(duckdb:::rel_explain(filt)[[2]])
 # because the producer ignores the filter and nothing above re-applies it.
 register_nanoarrow(con, "na_tbl", df)
 rel_na <- duckdb:::rel_from_sql(con, "FROM na_tbl")
-filt_na <- duckdb:::rel_filter(rel_na, list(duckdb:::expr_comparison(
-  ">", list(duckdb:::expr_reference("a"), duckdb:::expr_constant(3L))
-)))
+filt_na <- duckdb:::rel_filter(
+  rel_na,
+  list(duckdb:::expr_comparison(
+    ">",
+    list(duckdb:::expr_reference("a"), duckdb:::expr_constant(3L))
+  ))
+)
 materialize(filt_na)
 
 # --- 4. A relation over a name is bound late ---------------------------
@@ -120,46 +141,64 @@ local({
   duckdb_register_arrow(con, "swap", arrow::as_arrow_table(data.frame(a = 1:3)))
   rel <- duckdb:::rel_from_sql(con, "FROM swap")
   duckdb_unregister_arrow(con, "swap")
-  duckdb_register_arrow(con, "swap", arrow::as_arrow_table(data.frame(a = 101:103)))
+  duckdb_register_arrow(
+    con,
+    "swap",
+    arrow::as_arrow_table(data.frame(a = 101:103))
+  )
   materialize(rel)
 })
 
 # And unregistering without re-registering leaves the relation pointing
 # at a name that no longer resolves. Run out of process: an unbound
 # arrow scan is the kind of thing that can take the session with it.
-callr::r(function(materialize) {
-  library(duckdb)
-  con <- dbConnect(duckdb(shared_home = FALSE))
-  duckdb_register_arrow(con, "gone", arrow::as_arrow_table(data.frame(a = 1:3)))
-  rel <- duckdb:::rel_from_sql(con, "FROM gone")
-  duckdb_unregister_arrow(con, "gone")
-  tryCatch(
-    materialize(rel),
-    error = function(e) paste("error:", conditionMessage(e))
-  )
-}, args = list(materialize = materialize))
+callr::r(
+  function(materialize) {
+    library(duckdb)
+    con <- dbConnect(duckdb(shared_home = FALSE))
+    duckdb_register_arrow(
+      con,
+      "gone",
+      arrow::as_arrow_table(data.frame(a = 1:3))
+    )
+    rel <- duckdb:::rel_from_sql(con, "FROM gone")
+    duckdb_unregister_arrow(con, "gone")
+    tryCatch(
+      materialize(rel),
+      error = function(e) paste("error:", conditionMessage(e))
+    )
+  },
+  args = list(materialize = materialize)
+)
 
 # A data frame registered by name behaves the same way, so the freezing
 # above is the environment scan's doing and not the data frame's: what
 # survives an unregistration is a relation built from a pointer, not one
 # built from a name.
-callr::r(function(materialize) {
-  library(duckdb)
-  con <- dbConnect(duckdb(shared_home = FALSE))
-  duckdb_register(con, "gone", data.frame(a = 1:3))
-  rel <- duckdb:::rel_from_sql(con, "FROM gone")
-  duckdb_unregister(con, "gone")
-  tryCatch(
-    materialize(rel),
-    error = function(e) paste("error:", conditionMessage(e))
-  )
-}, args = list(materialize = materialize))
+callr::r(
+  function(materialize) {
+    library(duckdb)
+    con <- dbConnect(duckdb(shared_home = FALSE))
+    duckdb_register(con, "gone", data.frame(a = 1:3))
+    rel <- duckdb:::rel_from_sql(con, "FROM gone")
+    duckdb_unregister(con, "gone")
+    tryCatch(
+      materialize(rel),
+      error = function(e) paste("error:", conditionMessage(e))
+    )
+  },
+  args = list(materialize = materialize)
+)
 
 # --- 5. What the data frame detour costs -------------------------------
 
 n <- 1e6
-big <- data.frame(i = seq_len(n), d = as.numeric(seq_len(n)),
-                  s = rep(letters, length.out = n), stringsAsFactors = FALSE)
+big <- data.frame(
+  i = seq_len(n),
+  d = as.numeric(seq_len(n)),
+  s = rep(letters, length.out = n),
+  stringsAsFactors = FALSE
+)
 big_tbl <- arrow::as_arrow_table(big)
 
 con2 <- new_con()
@@ -168,8 +207,15 @@ register_nanoarrow(con2, "na_big", big)
 
 timing <- function(label, expr) {
   expr <- substitute(expr)
-  t <- system.time(for (i in 1:3) eval(expr, parent.frame()))
-  data.frame(what = label, elapsed_per_run = round(unname(t[["elapsed"]]) / 3, 3))
+  t <- system.time(
+    for (i in 1:3) {
+      eval(expr, parent.frame())
+    }
+  )
+  data.frame(
+    what = label,
+    elapsed_per_run = round(unname(t[["elapsed"]]) / 3, 3)
+  )
 }
 
 sum_of <- function(name) {
@@ -177,12 +223,15 @@ sum_of <- function(name) {
   materialize(rel)
 }
 
-do.call(rbind, list(
-  timing("rel_from_df(arrow table)", duckdb:::rel_from_df(con2, big_tbl)),
-  timing("rel_from_df(data frame)", duckdb:::rel_from_df(con2, big)),
-  timing("rel over arrow_scan", sum_of("arrow_big")),
-  timing("rel over nanoarrow shim", sum_of("na_big"))
-))
+do.call(
+  rbind,
+  list(
+    timing("rel_from_df(arrow table)", duckdb:::rel_from_df(con2, big_tbl)),
+    timing("rel_from_df(data frame)", duckdb:::rel_from_df(con2, big)),
+    timing("rel over arrow_scan", sum_of("arrow_big")),
+    timing("rel over nanoarrow shim", sum_of("na_big"))
+  )
+)
 
 dbDisconnect(con2)
 dbDisconnect(con)
