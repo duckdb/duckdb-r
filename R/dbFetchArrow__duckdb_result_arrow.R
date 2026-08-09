@@ -20,7 +20,11 @@ dbFetchArrow__duckdb_result_arrow <- function(res, ..., chunk_size = 1000000) {
   if (is.null(pending) || length(pending) == 0L) {
     # Single execution: hand the streaming wrapper over to nanoarrow directly.
     stream <- nanoarrow::nanoarrow_allocate_array_stream()
-    rethrow_rapi_fetch_arrow_stream_into(res@env$query_result, stream, chunk_size)
+    rethrow_rapi_fetch_arrow_stream_into(
+      res@env$query_result,
+      stream,
+      chunk_size
+    )
     res@env$query_result <- NULL
     res@env$completed <- TRUE
     return(stream)
@@ -31,7 +35,9 @@ dbFetchArrow__duckdb_result_arrow <- function(res, ..., chunk_size = 1000000) {
   arrays <- list()
   repeat {
     chunk <- dbFetchArrowChunk(res, chunk_size = chunk_size)
-    if (chunk$length == 0L) break
+    if (chunk$length == 0L) {
+      break
+    }
     arrays[[length(arrays) + 1L]] <- chunk
   }
   if (length(arrays) == 0L) {
@@ -46,12 +52,20 @@ dbFetchArrow__duckdb_result_arrow <- function(res, ..., chunk_size = 1000000) {
 
 #' @rdname duckdb_result_arrow-class
 #' @export
-setMethod("dbFetchArrow", "duckdb_result_arrow", dbFetchArrow__duckdb_result_arrow)
+setMethod(
+  "dbFetchArrow",
+  "duckdb_result_arrow",
+  dbFetchArrow__duckdb_result_arrow
+)
 
 #' @rdname duckdb_result_arrow-class
 #' @inheritParams DBI::dbFetchArrowChunk
 #' @usage NULL
-dbFetchArrowChunk__duckdb_result_arrow <- function(res, ..., chunk_size = 1000000) {
+dbFetchArrowChunk__duckdb_result_arrow <- function(
+  res,
+  ...,
+  chunk_size = 1000000
+) {
   if (!res@env$open) {
     stop("result has already been cleared")
   }
@@ -70,7 +84,12 @@ dbFetchArrowChunk__duckdb_result_arrow <- function(res, ..., chunk_size = 100000
       schema <- nanoarrow::nanoarrow_allocate_schema()
     }
     array <- nanoarrow::nanoarrow_allocate_array()
-    has_chunk <- rethrow_rapi_fetch_arrow_array(res@env$query_result, array, schema, chunk_size)
+    has_chunk <- rethrow_rapi_fetch_arrow_array(
+      res@env$query_result,
+      array,
+      schema,
+      chunk_size
+    )
     res@env$arrow_schema <- schema
 
     if (has_chunk) {
@@ -93,7 +112,11 @@ dbFetchArrowChunk__duckdb_result_arrow <- function(res, ..., chunk_size = 100000
 
 #' @rdname duckdb_result_arrow-class
 #' @export
-setMethod("dbFetchArrowChunk", "duckdb_result_arrow", dbFetchArrowChunk__duckdb_result_arrow)
+setMethod(
+  "dbFetchArrowChunk",
+  "duckdb_result_arrow",
+  dbFetchArrowChunk__duckdb_result_arrow
+)
 
 require_nanoarrow <- function(what) {
   if (!requireNamespace("nanoarrow", quietly = TRUE)) {

@@ -18,7 +18,7 @@ static void VectorToR(const Vector &src_vec, size_t count, void *dest, uint64_t 
 	auto &mask = FlatVector::Validity(src_vec);
 	auto dest_ptr = ((DEST *)dest) + dest_offset;
 	for (size_t row_idx = 0; row_idx < count; row_idx++) {
-		dest_ptr[row_idx] = !mask.RowIsValid(row_idx) ? na_val : src_ptr[row_idx];
+		dest_ptr[row_idx] = !mask.RowIsValid(row_idx) ? na_val : static_cast<DEST>(src_ptr[row_idx]);
 	}
 }
 
@@ -426,7 +426,7 @@ static void TransformArrayVector(const Vector &src_vec, const SEXP dest, idx_t d
 void duckdb_r_transform(const Vector &src_vec, const SEXP dest, idx_t dest_offset, idx_t n,
                         const duckdb::ConvertOpts &convert_opts, const string &name) {
 	if (src_vec.GetType().GetAlias() == R_STRING_TYPE_NAME) {
-		ptrdiff_t sexp_header_size = (data_ptr_t)DATAPTR_RO(R_BlankString) - (data_ptr_t)R_BlankString;
+		ptrdiff_t sexp_header_size = (const_data_ptr_t)DATAPTR_RO(R_BlankString) - (const_data_ptr_t)R_BlankString;
 
 		auto child_ptr = FlatVector::GetData<uintptr_t>(src_vec);
 		auto &mask = FlatVector::Validity(src_vec);

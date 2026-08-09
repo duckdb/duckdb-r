@@ -14,7 +14,7 @@ so the first thing a leaf says about a file is which of those it is —
 and a correction goes to the producer,
 never to the file in front of you.
 
-* [`r-layer/`](r-layer/) — R conventions and the flavor seam
+* [`r-layer/`](r-layer/) — the R this package writes: where it lives, how it reads
 * [`glue/`](glue/) — the R ↔ DuckDB bridge in `src/`
 * [`engine/`](engine/) — the embedded DuckDB engine
 * [`rfuns/`](rfuns/) — the extension that gives the engine R's semantics

@@ -9,8 +9,7 @@ cd duckdb-r
 R -q -e 'pak::pak()'                    # R-level dependencies
 
 scripts/install-libduckdb.sh            # prebuilt engine, matching
-export DUCKDB_R_USE_SYSTEM_LIB=1        # the vendored commit;
-                                        # the script sudos if it must
+export DUCKDB_R_USE_SYSTEM_LIB=1        # the vendored commit
 
 R -q -e 'pkgload::load_all()'           # seconds
 R -q -e 'testthat::test_local()'        # the suite
@@ -23,12 +22,12 @@ what it costs and guards —
 and the re-install every vendoring bump requires — is
 [`build/fast-paths/`](/handbook/build/fast-paths/README.md).
 It assumes Linux or macOS and a working toolchain,
-and the default prefix (`/usr/local`, set in
-[`scripts/install-libduckdb.sh`](/scripts/install-libduckdb.sh))
-needs privileges the script escalates for —
-constraints to be relaxed
-([#22](https://github.com/duckdb/duckdb-r/issues/22#issuecomment-5158085048));
-on Windows, and when no prebuilt matches, the full build applies
+asks for no privileges — the default prefix is under the home directory,
+set in
+[`scripts/install-libduckdb.sh`](/scripts/install-libduckdb.sh) —
+and needs nothing exported beyond the opt-in.
+Windows has no fast path and will not be getting one;
+there, and when no prebuilt matches, the full build applies
 ([`build/source-build/`](/handbook/build/source-build/README.md)).
 The suite's layout and running one file:
 [`testing/suite/`](/handbook/testing/suite/README.md).

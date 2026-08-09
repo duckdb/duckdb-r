@@ -12,6 +12,9 @@
 #undef TRUE
 #undef FALSE
 
+// Handbook: handbook/usage/interactive/README.md, which states how far an
+// interrupt reaches, and why a wait blocked inside an extension outlives it.
+
 // Toy repo: https://github.com/krlmlr/cancel.test
 
 namespace duckdb {
@@ -34,7 +37,12 @@ ScopedInterruptHandler::ScopedInterruptHandler(shared_ptr<ClientContext> context
 
 ScopedInterruptHandler::~ScopedInterruptHandler() {
 	Disable();
-	instance = nullptr;
+	// Only the instance that installed itself clears the slot: an instance
+	// constructed without a context never took it, and must not release
+	// another one's claim on the way out.
+	if (instance == this) {
+		instance = nullptr;
+	}
 }
 
 void ScopedInterruptHandler::HandleInterrupt() const {
@@ -58,6 +66,12 @@ void ScopedInterruptHandler::HandleInterrupt() const {
 }
 
 void ScopedInterruptHandler::Disable() {
+	// Restores unconditionally, and so discards a handler an extension
+	// installed during the call and did not remove itself. That is the
+	// deliberate half of the trade: declining to restore would leave R with
+	// someone else's handler for the rest of the session, which is the worse
+	// of the two. An extension that removes its own -- MotherDuck's sign-in
+	// wait does -- nests correctly here and loses nothing.
 	if (context) {
 		std::signal(SIGINT, oldhandler);
 		context.reset();
@@ -66,7 +80,7 @@ void ScopedInterruptHandler::Disable() {
 
 void ScopedInterruptHandler::signal_handler(int signum) {
 	if (instance) {
-		instance->interrupted = true;
+		instance->interrupted = 1;
 		instance->context->Interrupt();
 	}
 }
