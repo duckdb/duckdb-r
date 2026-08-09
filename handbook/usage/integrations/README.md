@@ -29,6 +29,12 @@ the boundaries users keep hitting:
   not `DISTINCT ON` — needs dbplyr support
   ([#384](https://github.com/duckdb/duckdb-r/issues/384),
   [tidyverse/dbplyr#1620](https://github.com/tidyverse/dbplyr/pull/1620)).
+  An experiment with v1.5.5 measured that `DISTINCT ON` is actually slower
+  in many cases, and never faster
+  ([`experiments/2026-08-09-distinct-on-cost/`](/experiments/2026-08-09-distinct-on-cost/README.md)).
+  A caller who wants the clause anyway can render the pipeline and wrap it,
+  and register that as their own `distinct()` method
+  ([`experiments/2026-08-09-distinct-on-override/`](/experiments/2026-08-09-distinct-on-override/README.md)).
 * `pivot_longer()` expands SQL generically instead of `UNPIVOT`
   ([#2029](https://github.com/duckdb/duckdb-r/issues/2029)).
 * An inline `as.POSIXct("…")` is translated, not escaped,
