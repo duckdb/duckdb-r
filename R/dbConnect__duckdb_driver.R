@@ -95,12 +95,12 @@ dbConnect__duckdb_driver <- function(
     # behind `dbConnect(duckdb(), "my.db")` is the documented idiom.
     if (drv@dbdir != DBDIR_MEMORY && dbdir != drv@dbdir) {
       warning(
+        "`dbdir` overrides the database file the driver was built with.\n",
         "Connecting to `",
         dbdir,
-        "`, not to the driver's `",
+        "`, while the driver keeps `",
         drv@dbdir,
-        "`.\n",
-        "The driver keeps its own database open. ",
+        "` open. ",
         "Pass `dbdir` to `duckdb()` instead, one driver per database.",
         call. = FALSE
       )

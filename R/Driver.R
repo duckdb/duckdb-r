@@ -445,10 +445,11 @@ warn_instance_settings_ignored <- function(drv, read_only, config, supplied) {
   }
 
   warning(
-    "Ignoring ",
     paste0("`", ignored, "`", collapse = ", "),
-    ": the database instance for this `dbdir` already exists, ",
-    "and these settings take effect only when it is created.\n",
+    " can't be applied to the database instance for `",
+    drv@dbdir,
+    "`, which already exists.\n",
+    "These settings take effect only when the instance is created. ",
     "Release it with `duckdb_shutdown()` first, ",
     "or pass them to the `duckdb()` call that creates it.",
     call. = FALSE

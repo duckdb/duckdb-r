@@ -64,7 +64,7 @@ test_that("a `dbdir` that overrides a file driver's own is reported", {
   drv <- duckdb(own)
   withr::defer(duckdb_shutdown(drv))
 
-  expect_warning(con <- dbConnect(drv, other), "not to the driver's")
+  expect_warning(con <- dbConnect(drv, other), "overrides the database file")
   withr::defer(dbDisconnect(con))
 
   # The warning is about a real substitution: the connection is on `other`.
