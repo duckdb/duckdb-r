@@ -12,6 +12,16 @@
 using namespace duckdb;
 using namespace cpp11;
 
+// R hands out a read-only view of a vector's payload (DATAPTR_RO()), and the
+// scan only ever reads through it -- but the pointer travels on as a
+// data_ptr_t, because that is what AppendAnyColumnSegment() takes and what
+// DataFrameScanBindData stores. Drop the qualifier once, here, rather than
+// with a C-style cast at every call site: -Wcast-qual then still catches an
+// unintended const removal anywhere else in the glue.
+static data_ptr_t ReadOnlyDataPtr(const void *ptr) {
+	return const_cast<data_ptr_t>(static_cast<const_data_ptr_t>(ptr));
+}
+
 static data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 	switch (rtype.id()) {
 	case RType::LOGICAL:
@@ -26,7 +36,7 @@ static data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 		// TODO What about factors that use numeric?
 		return (data_ptr_t)INTEGER_POINTER(coldata);
 	case RType::STRING:
-		return (data_ptr_t)DATAPTR_RO(coldata);
+		return ReadOnlyDataPtr(DATAPTR_RO(coldata));
 	case RType::TIMESTAMP:
 		return (data_ptr_t)NUMERIC_POINTER(coldata);
 	case RType::INTERVAL_SECONDS:
@@ -53,9 +63,9 @@ static data_ptr_t GetColDataPtr(const RType &rtype, SEXP coldata) {
 		return (data_ptr_t)INTEGER_POINTER(coldata);
 	case RType::LIST_OF_NULLS:
 	case RType::BLOB:
-		return (data_ptr_t)DATAPTR_RO(coldata);
+		return ReadOnlyDataPtr(DATAPTR_RO(coldata));
 	case RTypeId::LIST:
-		return (data_ptr_t)DATAPTR_RO(coldata);
+		return ReadOnlyDataPtr(DATAPTR_RO(coldata));
 	case RTypeId::MATRIX:
 	case RTypeId::STRUCT:
 		// Will bind child columns dynamically. Could also optimize by descending early and recording.
@@ -201,7 +211,7 @@ static void AppendMapEntriesListColumnSegment(const RType &rtype, SEXP *source_d
 }
 
 template <class SRC, class DST, class RTYPE>
-static inline void AppendMatrixSegmentAtomic(SRC *src_ptr, int nrows, int ncols, idx_t sexp_offset,
+static inline void AppendMatrixSegmentAtomic(const SRC *src_ptr, int nrows, int ncols, idx_t sexp_offset,
                                              Vector &child_vector, idx_t count) {
 	auto child_data = FlatVector::GetData<DST>(child_vector);
 	auto &child_mask = FlatVector::Validity(child_vector);
@@ -255,11 +265,11 @@ static void AppendMatrixColumnSegment(const RType &rtype, bool experimental, SEX
 	case RType::STRING: // STRSXP
 		if (experimental) {
 			D_ASSERT(result.GetType().id() == LogicalTypeId::POINTER);
-			AppendMatrixSegmentAtomic<SEXP, uintptr_t, DedupPointerEnumType>((SEXP *)DATAPTR_RO(source_data), nrows,
-			                                                                 ncols, sexp_offset, child_vector, count);
+			AppendMatrixSegmentAtomic<SEXP, uintptr_t, DedupPointerEnumType>(
+			    (const SEXP *)DATAPTR_RO(source_data), nrows, ncols, sexp_offset, child_vector, count);
 		} else {
-			AppendMatrixSegmentAtomic<SEXP, string_t, RStringSexpType>((SEXP *)DATAPTR_RO(source_data), nrows, ncols,
-			                                                           sexp_offset, child_vector, count);
+			AppendMatrixSegmentAtomic<SEXP, string_t, RStringSexpType>((const SEXP *)DATAPTR_RO(source_data), nrows,
+			                                                           ncols, sexp_offset, child_vector, count);
 		}
 		break;
 
