@@ -67,7 +67,7 @@ duckdb_result_arrow <- function(connection, stmt_lst) {
 duckdb_execute_arrow <- function(res) {
   rethrow_rapi_execute(
     res@stmt_lst$ref,
-    duckdb_convert_opts_impl(res@connection@convert_opts, arrow = TRUE, streaming = TRUE)
+    duckdb_convert_opts_impl(res@connection@convert_opts, arrow = TRUE, allow_stream_result = TRUE)
   )
 }
 
