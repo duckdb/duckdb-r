@@ -53,6 +53,12 @@ the directory keeps the method so that is possible.
   idiom, on duckdb 1.3.2, the current CRAN release, `main`, and the
   fix in [#2562](https://github.com/duckdb/duckdb-r/pull/2562);
   supports [`usage/memory/`](/handbook/usage/memory/README.md).
+* [`2026-08-streaming-tpch-bench/`](2026-08-streaming-tpch-bench/) —
+  wall time and memory of moving a TPC-H result into R, per fetch
+  strategy, on the CRAN build and
+  [#2292](https://github.com/duckdb/duckdb-r/pull/2292)'s streaming
+  build; gathered for
+  [`plan/PLAN-streaming-thread.md`](/plan/PLAN-streaming-thread.md).
 
 Adding one: create the directory, name it for the date and the topic,
 open its `README.md` with what and when and on what,
