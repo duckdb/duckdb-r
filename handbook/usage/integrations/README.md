@@ -41,22 +41,7 @@ the boundaries users keep hitting:
   so the session time zone is not applied; `!!as.POSIXct(…)`
   is escaped R-side and is
   ([#1064](https://github.com/duckdb/duckdb-r/issues/1064), dbplyr-wide).
-  The translation takes no zone to apply either — `tz =` is not part of
-  it, and `as.POSIXct(x, tz = "UTC")` fails as an unused argument —
-  and no other constructor fills the gap: `ISOdatetime()` is not
-  translated at all and reaches the engine as a call it does not have.
-  The escaped path converts the instant to UTC and writes a naive
-  `::timestamp` literal, so what is sent depends on the zone the R
-  value was built in: one unchanged line yields
-  `'2025-03-01 23:00:00'` from an Indiana session,
-  `'2025-03-01 18:00:00'` from UTC and `'2025-03-01 17:00:00'` from
-  Zurich.
-  So an inline comparison reads right and is off by the offset, while
-  an escaped one is right against a UTC-naive column and off against
-  anything else.
-  Build the value in R with the zone meant and inject it with `!!`;
-  what the column's own zone then is, is
-  [`timestamps/`](/handbook/usage/timestamps/README.md)'s.
+  Build the value in R with the zone meant and inject it with `!!`.
 * A bare `Inf` literal escapes as the string `'Infinity'`
   ([#1585](https://github.com/duckdb/duckdb-r/issues/1585),
   blocked on

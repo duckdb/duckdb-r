@@ -49,8 +49,7 @@ the wider type mapping is
 * **Going the other way, in a dbplyr pipeline, the zone is dbplyr's
   to apply — and it applies one only when the value is escaped.**
   `!!` sends the instant as a UTC-naive literal;
-  an inline `as.POSIXct("…")` is translated and casts the string as
-  written, with no argument that would say otherwise.
+  an inline `as.POSIXct("…")` is translated and casts the string as written.
   The mechanics and the workaround are
   [`integrations/`](/handbook/usage/integrations/README.md)'s
   ([#1064](https://github.com/duckdb/duckdb-r/issues/1064)).

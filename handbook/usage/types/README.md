@@ -62,12 +62,6 @@ and [`src/transform.cpp`](/src/transform.cpp) (the way back).
   The same holds for a column that reaches the engine through Arrow:
   `arrow` carries `[m^2]` in its schema as an extension type,
   and DuckDB reads the storage underneath it.
-  This used to be a hard stop rather than a quiet loss —
-  before DuckDB 1.2.1 the same column raised
-  `rapi_prepare: Unknown column type for prepare: INVALID`
-  ([duckdb/duckdb#16321](https://github.com/duckdb/duckdb/pull/16321)) —
-  so code written against that era may still be avoiding a route that
-  now works.
 * **Arrow results are not R vectors at all** —
   they stay in the stream, and what consumes them is
   [`integrations/`](/handbook/usage/integrations/README.md)'s
