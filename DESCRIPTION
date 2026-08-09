@@ -53,7 +53,7 @@ Suggests:
     callr,
     clock,
     DBItest,
-    dbplyr,
+    dbplyr (>= 2.6.0),
     dplyr,
     nanoarrow,
     rlang,

@@ -18,7 +18,8 @@ This page only routes there.
 | build from source, the way CRAN does | [`build/source-build/`](/handbook/build/source-build/README.md) |
 | find the build knobs and what they cost | [`build/configuration/`](/handbook/build/configuration/README.md) |
 | run the suite, or one test file | [`testing/suite/`](/handbook/testing/suite/README.md) |
-| write R the way this package does, flavor seam included | [`architecture/r-layer/`](/handbook/architecture/r-layer/README.md) |
+| write R the way this package does, flavor seam included | [`architecture/r-layer/conventions/`](/handbook/architecture/r-layer/conventions/README.md) |
+| know which tidyverse rules are enforced here, and where we deviate | [`architecture/r-layer/style/`](/handbook/architecture/r-layer/style/README.md) |
 | write C++ glue the way this package does | [`architecture/glue/`](/handbook/architecture/glue/README.md) |
 | operate the vendoring loop | [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md) and `.claude/skills/` |
 

@@ -13,7 +13,8 @@
 #' @aliases duckdb_result
 #' @keywords internal
 #' @export
-setClass("duckdb_result",
+setClass(
+  "duckdb_result",
   contains = "DBIResult",
   slots = list(
     connection = "duckdb_connection",
@@ -35,7 +36,8 @@ setClass("duckdb_result",
 #' @aliases duckdb_result_arrow
 #' @keywords internal
 #' @export
-setClass("duckdb_result_arrow",
+setClass(
+  "duckdb_result_arrow",
   contains = "DBIResultArrow",
   slots = list(
     connection = "duckdb_connection",
@@ -67,7 +69,11 @@ duckdb_result_arrow <- function(connection, stmt_lst) {
 duckdb_execute_arrow <- function(res) {
   rethrow_rapi_execute(
     res@stmt_lst$ref,
-    duckdb_convert_opts_impl(res@connection@convert_opts, arrow = TRUE, streaming = TRUE)
+    duckdb_convert_opts_impl(
+      res@connection@convert_opts,
+      arrow = TRUE,
+      streaming = TRUE
+    )
   )
 }
 
@@ -80,7 +86,13 @@ duckdb_result <- function(connection, stmt_lst, arrow, stream = FALSE) {
   env$stream_result <- NULL
   env$stream_eof <- FALSE
 
-  res <- new("duckdb_result", connection = connection, stmt_lst = stmt_lst, env = env, arrow = arrow)
+  res <- new(
+    "duckdb_result",
+    connection = connection,
+    stmt_lst = stmt_lst,
+    env = env,
+    arrow = arrow
+  )
 
   if (stmt_lst$n_param > 0) {
     return(res)
@@ -232,7 +244,9 @@ duckdb_post_execute <- function(res, out) {
 }
 
 # as per is.integer documentation
-is_wholenumber <- function(x, tol = .Machine$double.eps^0.5) abs(x - round(x)) < tol
+is_wholenumber <- function(x, tol = .Machine$double.eps^0.5) {
+  abs(x - round(x)) < tol
+}
 
 #' @rdname duckdb_result-class
 #' @param res Query result to be converted to an Arrow Table

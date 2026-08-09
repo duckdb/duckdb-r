@@ -30,7 +30,14 @@
 #'   Not supported together with `arrow = TRUE`:
 #'   use [DBI::dbSendQueryArrow()] for streaming via Arrow.
 #' @usage NULL
-dbSendQuery__duckdb_connection_character <- function(conn, statement, params = NULL, ..., arrow = FALSE, stream = NULL) {
+dbSendQuery__duckdb_connection_character <- function(
+  conn,
+  statement,
+  params = NULL,
+  ...,
+  arrow = FALSE,
+  stream = NULL
+) {
   if (conn@debug) {
     message("Q ", statement)
   }
@@ -67,7 +74,11 @@ dbSendQuery__duckdb_connection_character <- function(conn, statement, params = N
 
 #' @rdname duckdb_connection-class
 #' @export
-setMethod("dbSendQuery", c("duckdb_connection", "character"), dbSendQuery__duckdb_connection_character)
+setMethod(
+  "dbSendQuery",
+  c("duckdb_connection", "character"),
+  dbSendQuery__duckdb_connection_character
+)
 
 find_caller <- function() {
   i <- 3L

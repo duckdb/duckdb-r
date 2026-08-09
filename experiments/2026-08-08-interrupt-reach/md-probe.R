@@ -37,8 +37,10 @@ con <- DBI::dbConnect(duckdb::duckdb(
   config = if (nzchar(api)) list(duckdb_api = api) else list()
 ))
 
-message("--- connected as duckdb_api = ",
-        DBI::dbGetQuery(con, "SELECT current_setting('duckdb_api') AS a")$a)
+message(
+  "--- connected as duckdb_api = ",
+  DBI::dbGetQuery(con, "SELECT current_setting('duckdb_api') AS a")$a
+)
 message("--- before ATTACH")
 probe_now()
 

@@ -2,7 +2,10 @@ skip_on_cran()
 skip_on_os("windows")
 skip_if_not_installed("arrow", "5.0.0")
 # Skip if parquet is not a capability as an indicator that Arrow is fully installed.
-skip_if_not(arrow::arrow_with_parquet(), message = "The installed Arrow is not fully featured, skipping Arrow integration tests")
+skip_if_not(
+  arrow::arrow_with_parquet(),
+  message = "The installed Arrow is not fully featured, skipping Arrow integration tests"
+)
 
 test_that("duckdb_register_arrow() works", {
   skip_if_not(TEST_RE2)
@@ -12,14 +15,20 @@ test_that("duckdb_register_arrow() works", {
   res <- arrow::read_parquet("data/userdata1.parquet", as_data_frame = FALSE)
   duckdb_register_arrow(con, "myreader", res)
   res1 <- dbGetQuery(con, "SELECT first_name, last_name FROM myreader LIMIT 10")
-  res2 <- dbGetQuery(con, "SELECT first_name, last_name FROM parquet_scan('data/userdata1.parquet') LIMIT 10")
+  res2 <- dbGetQuery(
+    con,
+    "SELECT first_name, last_name FROM parquet_scan('data/userdata1.parquet') LIMIT 10"
+  )
   expect_true(identical(res1, res2))
   # we can re-read
   res3 <- dbGetQuery(con, "SELECT first_name, last_name FROM myreader LIMIT 10")
   expect_true(identical(res2, res3))
   duckdb_unregister_arrow(con, "myreader")
   # cant read after unregister
-  expect_error(dbGetQuery(con, "SELECT first_name, last_name FROM myreader LIMIT 100"))
+  expect_error(dbGetQuery(
+    con,
+    "SELECT first_name, last_name FROM myreader LIMIT 100"
+  ))
 
   #   # cant register something non-arrow
   #   expect_error(duckdb_register_arrow(con, "asdf", data.frame()))
@@ -34,14 +43,20 @@ test_that("duckdb_register_arrow() works with record_batch_readers", {
   res <- arrow::record_batch(res)
   duckdb_register_arrow(con, "myreader", res)
   res1 <- dbGetQuery(con, "SELECT first_name, last_name FROM myreader LIMIT 10")
-  res2 <- dbGetQuery(con, "SELECT first_name, last_name FROM parquet_scan('data/userdata1.parquet') LIMIT 10")
+  res2 <- dbGetQuery(
+    con,
+    "SELECT first_name, last_name FROM parquet_scan('data/userdata1.parquet') LIMIT 10"
+  )
   expect_true(identical(res1, res2))
   # we can re-read
   res3 <- dbGetQuery(con, "SELECT first_name, last_name FROM myreader LIMIT 10")
   expect_true(identical(res2, res3))
   duckdb_unregister_arrow(con, "myreader")
   # cant read after unregister
-  expect_error(dbGetQuery(con, "SELECT first_name, last_name FROM myreader LIMIT 100"))
+  expect_error(dbGetQuery(
+    con,
+    "SELECT first_name, last_name FROM myreader LIMIT 100"
+  ))
 })
 
 test_that("duckdb_register_arrow() works with scanner", {
@@ -53,14 +68,20 @@ test_that("duckdb_register_arrow() works with scanner", {
   res <- arrow::Scanner$create(res)
   duckdb_register_arrow(con, "myreader", res)
   res1 <- dbGetQuery(con, "SELECT first_name, last_name FROM myreader LIMIT 10")
-  res2 <- dbGetQuery(con, "SELECT first_name, last_name FROM parquet_scan('data/userdata1.parquet') LIMIT 10")
+  res2 <- dbGetQuery(
+    con,
+    "SELECT first_name, last_name FROM parquet_scan('data/userdata1.parquet') LIMIT 10"
+  )
   expect_true(identical(res1, res2))
   # we can re-read
   res3 <- dbGetQuery(con, "SELECT first_name, last_name FROM myreader LIMIT 10")
   expect_true(identical(res2, res3))
   duckdb_unregister_arrow(con, "myreader")
   # cant read after unregister
-  expect_error(dbGetQuery(con, "SELECT first_name, last_name FROM myreader LIMIT 100"))
+  expect_error(dbGetQuery(
+    con,
+    "SELECT first_name, last_name FROM myreader LIMIT 100"
+  ))
 })
 
 
@@ -71,7 +92,10 @@ test_that("duckdb_register_arrow() works with datasets", {
   ds <- arrow::open_dataset("data/userdata1.parquet")
   duckdb_register_arrow(con, "mydatasetreader", ds)
   res1 <- dbGetQuery(con, "SELECT count(*) FROM mydatasetreader")
-  res2 <- dbGetQuery(con, "SELECT count(*) FROM parquet_scan('data/userdata1.parquet')")
+  res2 <- dbGetQuery(
+    con,
+    "SELECT count(*) FROM parquet_scan('data/userdata1.parquet')"
+  )
   expect_true(identical(res1, res2))
   # we can read with > 3 cores
   dbExecute(con, "PRAGMA threads=4")
@@ -88,7 +112,10 @@ test_that("duckdb_register_arrow() works with datasets and async arrow scanner",
   ds <- arrow::open_dataset("data/userdata1.parquet")
   duckdb_register_arrow(con, "mydatasetreader", ds)
   res1 <- dbGetQuery(con, "SELECT count(*) FROM mydatasetreader")
-  res2 <- dbGetQuery(con, "SELECT count(*) FROM parquet_scan('data/userdata1.parquet')")
+  res2 <- dbGetQuery(
+    con,
+    "SELECT count(*) FROM parquet_scan('data/userdata1.parquet')"
+  )
   expect_true(identical(res1, res2))
   # we can read with > 3 cores
   dbExecute(con, "PRAGMA threads=4")
@@ -105,12 +132,21 @@ test_that("duckdb_register_arrow() performs projection pushdown", {
   ds <- arrow::open_dataset("data/userdata1.parquet")
   duckdb_register_arrow(con, "mydatasetreader", ds)
 
-  res1 <- dbGetQuery(con, "SELECT last_name, salary, first_name FROM mydatasetreader")
-  res2 <- dbGetQuery(con, "SELECT last_name, salary, first_name FROM parquet_scan('data/userdata1.parquet')")
+  res1 <- dbGetQuery(
+    con,
+    "SELECT last_name, salary, first_name FROM mydatasetreader"
+  )
+  res2 <- dbGetQuery(
+    con,
+    "SELECT last_name, salary, first_name FROM parquet_scan('data/userdata1.parquet')"
+  )
   expect_true(identical(res1, res2))
   # we can read with > 3 cores
   dbExecute(con, "PRAGMA threads=4")
-  res3 <- dbGetQuery(con, "SELECT last_name, salary, first_name FROM mydatasetreader")
+  res3 <- dbGetQuery(
+    con,
+    "SELECT last_name, salary, first_name FROM mydatasetreader"
+  )
   expect_true(identical(res2, res3))
   duckdb_unregister_arrow(con, "mydatasetreader")
 })
@@ -122,12 +158,21 @@ test_that("duckdb_register_arrow() performs selection pushdown", {
   ds <- arrow::open_dataset("data/userdata1.parquet")
   duckdb_register_arrow(con, "mydatasetreader", ds)
 
-  res1 <- dbGetQuery(con, "SELECT last_name, first_name FROM mydatasetreader where salary > 130000")
-  res2 <- dbGetQuery(con, "SELECT last_name, first_name FROM parquet_scan('data/userdata1.parquet')  where salary > 130000")
+  res1 <- dbGetQuery(
+    con,
+    "SELECT last_name, first_name FROM mydatasetreader where salary > 130000"
+  )
+  res2 <- dbGetQuery(
+    con,
+    "SELECT last_name, first_name FROM parquet_scan('data/userdata1.parquet')  where salary > 130000"
+  )
   expect_true(identical(res1, res2))
   # we can read with > 3 cores
   dbExecute(con, "PRAGMA threads=4")
-  res3 <- dbGetQuery(con, "SELECT last_name, first_name FROM mydatasetreader where salary > 130000")
+  res3 <- dbGetQuery(
+    con,
+    "SELECT last_name, first_name FROM mydatasetreader where salary > 130000"
+  )
   expect_true(identical(res2, res3))
   duckdb_unregister_arrow(con, "mydatasetreader")
 })
@@ -136,42 +181,103 @@ test_that("duckdb_register_arrow() performs selection pushdown", {
 numeric_operators <- function(data_type) {
   con <- local_con()
 
-  dbExecute(con, paste0("CREATE TABLE test (a ", data_type, ", b ", data_type, ", c ", data_type, ")"))
-  dbExecute(con, "INSERT INTO  test VALUES (1,1,1),(10,10,10),(100,10,100),(NULL,NULL,NULL)")
-  arrow_table <- duckdb_fetch_arrow(dbSendQuery(con, "SELECT * FROM test", arrow = TRUE))
+  dbExecute(
+    con,
+    paste0(
+      "CREATE TABLE test (a ",
+      data_type,
+      ", b ",
+      data_type,
+      ", c ",
+      data_type,
+      ")"
+    )
+  )
+  dbExecute(
+    con,
+    "INSERT INTO  test VALUES (1,1,1),(10,10,10),(100,10,100),(NULL,NULL,NULL)"
+  )
+  arrow_table <- duckdb_fetch_arrow(dbSendQuery(
+    con,
+    "SELECT * FROM test",
+    arrow = TRUE
+  ))
   duckdb_register_arrow(con, "testarrow", arrow_table)
 
   # Try ==
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a =1")[[1]], 1)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a =1")[[1]],
+    1
+  )
   # Try >
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a >1")[[1]], 2)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a >1")[[1]],
+    2
+  )
   # Try >=
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a >=10")[[1]], 2)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a >=10")[[1]],
+    2
+  )
   # Try <
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a <10")[[1]], 1)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a <10")[[1]],
+    1
+  )
   # Try <=
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a <=10")[[1]], 2)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a <=10")[[1]],
+    2
+  )
 
   # Try Is Null
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a IS NULL")[[1]], 1)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a IS NULL")[[1]],
+    1
+  )
   # Try Is Not Null
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a IS NOT NULL")[[1]], 3)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a IS NOT NULL")[[1]],
+    3
+  )
 
   # Try And
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a=10 and b =1")[[1]], 0)
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a =100 and b = 10 and c = 100")[[1]], 1)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a=10 and b =1")[[1]],
+    0
+  )
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a =100 and b = 10 and c = 100"
+    )[[1]],
+    1
+  )
   # Try Or
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a = 100 or b =1")[[1]], 2)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a = 100 or b =1")[[
+      1
+    ]],
+    2
+  )
 
   duckdb_unregister_arrow(con, "testarrow")
 }
 
 
-
 test_that("duckdb_register_arrow() performs selection pushdown numeric types", {
   numeric_types <- c(
-    "TINYINT", "SMALLINT", "INTEGER", "BIGINT", "UTINYINT", "USMALLINT", "UINTEGER", "UBIGINT",
-    "FLOAT", "DOUBLE", "HUGEINT"
+    "TINYINT",
+    "SMALLINT",
+    "INTEGER",
+    "BIGINT",
+    "UTINYINT",
+    "USMALLINT",
+    "UINTEGER",
+    "UBIGINT",
+    "FLOAT",
+    "DOUBLE",
+    "HUGEINT"
   )
 
   for (data_type in numeric_types) {
@@ -180,7 +286,12 @@ test_that("duckdb_register_arrow() performs selection pushdown numeric types", {
 })
 
 test_that("duckdb_register_arrow() performs selection pushdown decimal types", {
-  numeric_types <- c("DECIMAL(4,1)", "DECIMAL(9,1)", "DECIMAL(18,4)", "DECIMAL(30,12)")
+  numeric_types <- c(
+    "DECIMAL(4,1)",
+    "DECIMAL(9,1)",
+    "DECIMAL(18,4)",
+    "DECIMAL(30,12)"
+  )
   for (data_type in numeric_types) {
     numeric_operators(data_type)
   }
@@ -190,31 +301,76 @@ test_that("duckdb_register_arrow() performs selection pushdown varchar type", {
   con <- local_con()
 
   dbExecute(con, paste0("CREATE TABLE test (a  VARCHAR, b VARCHAR, c VARCHAR)"))
-  dbExecute(con, "INSERT INTO  test VALUES ('1','1','1'),('10','10','10'),('100','10','100'),(NULL,NULL,NULL)")
-  arrow_table <- duckdb_fetch_arrow(dbSendQuery(con, "SELECT * FROM test", arrow = TRUE))
+  dbExecute(
+    con,
+    "INSERT INTO  test VALUES ('1','1','1'),('10','10','10'),('100','10','100'),(NULL,NULL,NULL)"
+  )
+  arrow_table <- duckdb_fetch_arrow(dbSendQuery(
+    con,
+    "SELECT * FROM test",
+    arrow = TRUE
+  ))
   duckdb_register_arrow(con, "testarrow", arrow_table)
 
   # Try ==
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a ='1'")[[1]], 1)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a ='1'")[[1]],
+    1
+  )
   # Try >
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a >'1'")[[1]], 2)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a >'1'")[[1]],
+    2
+  )
   # Try >=
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a >='10'")[[1]], 2)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a >='10'")[[1]],
+    2
+  )
   # Try <
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a <'10'")[[1]], 1)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a <'10'")[[1]],
+    1
+  )
   # Try <=
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a <='10'")[[1]], 2)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a <='10'")[[1]],
+    2
+  )
 
   # Try Is Null
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a IS NULL")[[1]], 1)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a IS NULL")[[1]],
+    1
+  )
   # Try Is Not Null
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a IS NOT NULL")[[1]], 3)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a IS NOT NULL")[[1]],
+    3
+  )
 
   # Try And
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a='10' and b ='1'")[[1]], 0)
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a ='100' and b = '10' and c = '100'")[[1]], 1)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a='10' and b ='1'")[[
+      1
+    ]],
+    0
+  )
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a ='100' and b = '10' and c = '100'"
+    )[[1]],
+    1
+  )
   # Try Or
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a = '100' or b ='1'")[[1]], 2)
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a = '100' or b ='1'"
+    )[[1]],
+    2
+  )
 
   duckdb_unregister_arrow(con, "testarrow")
 })
@@ -223,22 +379,49 @@ test_that("duckdb_register_arrow() performs selection pushdown bool type", {
   con <- local_con()
 
   dbExecute(con, paste0("CREATE TABLE test (a  BOOL, b BOOL)"))
-  dbExecute(con, "INSERT INTO  test VALUES (TRUE,TRUE),(TRUE,FALSE),(FALSE,TRUE),(NULL,NULL)")
-  arrow_table <- duckdb_fetch_arrow(dbSendQuery(con, "SELECT * FROM test", arrow = TRUE))
+  dbExecute(
+    con,
+    "INSERT INTO  test VALUES (TRUE,TRUE),(TRUE,FALSE),(FALSE,TRUE),(NULL,NULL)"
+  )
+  arrow_table <- duckdb_fetch_arrow(dbSendQuery(
+    con,
+    "SELECT * FROM test",
+    arrow = TRUE
+  ))
   duckdb_register_arrow(con, "testarrow", arrow_table)
 
   # Try ==
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a =True")[[1]], 2)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a =True")[[1]],
+    2
+  )
 
   # Try Is Null
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a IS NULL")[[1]], 1)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a IS NULL")[[1]],
+    1
+  )
   # Try Is Not Null
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a IS NOT NULL")[[1]], 3)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a IS NOT NULL")[[1]],
+    3
+  )
 
   # Try And
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a=True and b =True")[[1]], 1)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a=True and b =True")[[
+      1
+    ]],
+    1
+  )
   # Try Or
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a = True or b =True")[[1]], 3)
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a = True or b =True"
+    )[[1]],
+    3
+  )
 
   duckdb_unregister_arrow(con, "testarrow")
 })
@@ -253,27 +436,72 @@ test_that("duckdb_register_arrow() performs selection pushdown time type", {
   duckdb_register_arrow(con, "testarrow", arrow_table)
 
   # Try ==
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a ='00:01:00'")[[1]], 1)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a ='00:01:00'")[[1]],
+    1
+  )
   # # Try >
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a >'00:01:00'")[[1]], 2)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a >'00:01:00'")[[1]],
+    2
+  )
   # # Try >=
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a >='00:10:00'")[[1]], 2)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a >='00:10:00'")[[1]],
+    2
+  )
   # # Try <
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a <'00:10:00'")[[1]], 1)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a <'00:10:00'")[[1]],
+    1
+  )
   # # Try <=
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a <='00:10:00'")[[1]], 2)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a <='00:10:00'")[[1]],
+    2
+  )
 
   # # Try Is Null
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a IS NULL")[[1]], 1)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a IS NULL")[[1]],
+    1
+  )
   # # Try Is Not Null
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a IS NOT NULL")[[1]], 3)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a IS NOT NULL")[[1]],
+    3
+  )
 
   # # Try And
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a='00:10:00' and b ='00:01:00'")[[1]], 0)
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a ='01:00:00' and b = '01:00:00' and c = '01:00:00'")[[1]], 1)
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a ='01:00:00' and b = '00:10:00' and c = '01:00:00'")[[1]], 0)
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a='00:10:00' and b ='00:01:00'"
+    )[[1]],
+    0
+  )
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a ='01:00:00' and b = '01:00:00' and c = '01:00:00'"
+    )[[1]],
+    1
+  )
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a ='01:00:00' and b = '00:10:00' and c = '01:00:00'"
+    )[[1]],
+    0
+  )
   # # Try Or
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a = '01:00:00' or b ='00:01:00'")[[1]], 2)
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a = '01:00:00' or b ='00:01:00'"
+    )[[1]],
+    2
+  )
 
   duckdb_unregister_arrow(con, "testarrow")
 })
@@ -281,32 +509,96 @@ test_that("duckdb_register_arrow() performs selection pushdown time type", {
 test_that("duckdb_register_arrow() performs selection pushdown timestamp type", {
   con <- local_con()
 
-  dbExecute(con, paste0("CREATE TABLE test (a  TIMESTAMP, b TIMESTAMP, c TIMESTAMP)"))
-  dbExecute(con, "INSERT INTO  test VALUES ('2008-01-01 00:00:01','2008-01-01 00:00:01','2008-01-01 00:00:01'),('2010-01-01 10:00:01','2010-01-01 10:00:01','2010-01-01 10:00:01'),('2020-03-01 10:00:01','2010-01-01 10:00:01','2020-03-01 10:00:01'),(NULL,NULL,NULL)")
-  arrow_table <- duckdb_fetch_arrow(dbSendQuery(con, "SELECT * FROM test", arrow = TRUE))
+  dbExecute(
+    con,
+    paste0("CREATE TABLE test (a  TIMESTAMP, b TIMESTAMP, c TIMESTAMP)")
+  )
+  dbExecute(
+    con,
+    "INSERT INTO  test VALUES ('2008-01-01 00:00:01','2008-01-01 00:00:01','2008-01-01 00:00:01'),('2010-01-01 10:00:01','2010-01-01 10:00:01','2010-01-01 10:00:01'),('2020-03-01 10:00:01','2010-01-01 10:00:01','2020-03-01 10:00:01'),(NULL,NULL,NULL)"
+  )
+  arrow_table <- duckdb_fetch_arrow(dbSendQuery(
+    con,
+    "SELECT * FROM test",
+    arrow = TRUE
+  ))
   duckdb_register_arrow(con, "testarrow", arrow_table)
 
   # Try ==
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a ='2008-01-01 00:00:01'")[[1]], 1)
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a ='2008-01-01 00:00:01'"
+    )[[1]],
+    1
+  )
   # Try >
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a >'2008-01-01 00:00:01'")[[1]], 2)
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a >'2008-01-01 00:00:01'"
+    )[[1]],
+    2
+  )
   # Try >=
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a >='2010-01-01 10:00:01'")[[1]], 2)
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a >='2010-01-01 10:00:01'"
+    )[[1]],
+    2
+  )
   # Try <
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a <'2010-01-01 10:00:01'")[[1]], 1)
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a <'2010-01-01 10:00:01'"
+    )[[1]],
+    1
+  )
   # Try <=
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a <='2010-01-01 10:00:01'")[[1]], 2)
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a <='2010-01-01 10:00:01'"
+    )[[1]],
+    2
+  )
 
   # Try Is Null
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a IS NULL")[[1]], 1)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a IS NULL")[[1]],
+    1
+  )
   # Try Is Not Null
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a IS NOT NULL")[[1]], 3)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a IS NOT NULL")[[1]],
+    3
+  )
 
   # Try And
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a='2010-01-01 10:00:01' and b ='2008-01-01 00:00:01'")[[1]], 0)
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a ='2020-03-01 10:00:01' and b = '2010-01-01 10:00:01' and c = '2020-03-01 10:00:01'")[[1]], 1)
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a='2010-01-01 10:00:01' and b ='2008-01-01 00:00:01'"
+    )[[1]],
+    0
+  )
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a ='2020-03-01 10:00:01' and b = '2010-01-01 10:00:01' and c = '2020-03-01 10:00:01'"
+    )[[1]],
+    1
+  )
   # Try Or
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a = '2020-03-01 10:00:01' or b ='2008-01-01 00:00:01'")[[1]], 2)
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a = '2020-03-01 10:00:01' or b ='2008-01-01 00:00:01'"
+    )[[1]],
+    2
+  )
 
   duckdb_unregister_arrow(con, "testarrow")
 })
@@ -314,32 +606,96 @@ test_that("duckdb_register_arrow() performs selection pushdown timestamp type", 
 test_that("duckdb_register_arrow() performs selection pushdown timestamptz type", {
   con <- local_con()
 
-  dbExecute(con, paste0("CREATE TABLE test (a  TIMESTAMPTZ, b TIMESTAMPTZ, c TIMESTAMPTZ)"))
-  dbExecute(con, "INSERT INTO  test VALUES ('2008-01-01 00:00:01','2008-01-01 00:00:01','2008-01-01 00:00:01'),('2010-01-01 10:00:01','2010-01-01 10:00:01','2010-01-01 10:00:01'),('2020-03-01 10:00:01','2010-01-01 10:00:01','2020-03-01 10:00:01'),(NULL,NULL,NULL)")
-  arrow_table <- duckdb_fetch_arrow(dbSendQuery(con, "SELECT * FROM test", arrow = TRUE))
+  dbExecute(
+    con,
+    paste0("CREATE TABLE test (a  TIMESTAMPTZ, b TIMESTAMPTZ, c TIMESTAMPTZ)")
+  )
+  dbExecute(
+    con,
+    "INSERT INTO  test VALUES ('2008-01-01 00:00:01','2008-01-01 00:00:01','2008-01-01 00:00:01'),('2010-01-01 10:00:01','2010-01-01 10:00:01','2010-01-01 10:00:01'),('2020-03-01 10:00:01','2010-01-01 10:00:01','2020-03-01 10:00:01'),(NULL,NULL,NULL)"
+  )
+  arrow_table <- duckdb_fetch_arrow(dbSendQuery(
+    con,
+    "SELECT * FROM test",
+    arrow = TRUE
+  ))
   duckdb_register_arrow(con, "testarrow", arrow_table)
 
   # Try ==
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a ='2008-01-01 00:00:01'")[[1]], 1)
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a ='2008-01-01 00:00:01'"
+    )[[1]],
+    1
+  )
   # Try >
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a >'2008-01-01 00:00:01'")[[1]], 2)
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a >'2008-01-01 00:00:01'"
+    )[[1]],
+    2
+  )
   # Try >=
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a >='2010-01-01 10:00:01'")[[1]], 2)
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a >='2010-01-01 10:00:01'"
+    )[[1]],
+    2
+  )
   # Try <
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a <'2010-01-01 10:00:01'")[[1]], 1)
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a <'2010-01-01 10:00:01'"
+    )[[1]],
+    1
+  )
   # Try <=
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a <='2010-01-01 10:00:01'")[[1]], 2)
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a <='2010-01-01 10:00:01'"
+    )[[1]],
+    2
+  )
 
   # Try Is Null
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a IS NULL")[[1]], 1)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a IS NULL")[[1]],
+    1
+  )
   # Try Is Not Null
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a IS NOT NULL")[[1]], 3)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a IS NOT NULL")[[1]],
+    3
+  )
 
   # Try And
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a='2010-01-01 10:00:01' and b ='2008-01-01 00:00:01'")[[1]], 0)
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a ='2020-03-01 10:00:01' and b = '2010-01-01 10:00:01' and c = '2020-03-01 10:00:01'")[[1]], 1)
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a='2010-01-01 10:00:01' and b ='2008-01-01 00:00:01'"
+    )[[1]],
+    0
+  )
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a ='2020-03-01 10:00:01' and b = '2010-01-01 10:00:01' and c = '2020-03-01 10:00:01'"
+    )[[1]],
+    1
+  )
   # Try Or
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a = '2020-03-01 10:00:01' or b ='2008-01-01 00:00:01'")[[1]], 2)
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a = '2020-03-01 10:00:01' or b ='2008-01-01 00:00:01'"
+    )[[1]],
+    2
+  )
 
   duckdb_unregister_arrow(con, "testarrow")
 })
@@ -348,31 +704,87 @@ test_that("duckdb_register_arrow() performs selection pushdown date type", {
   con <- local_con()
 
   dbExecute(con, paste0("CREATE TABLE test (a  DATE, b DATE, c DATE)"))
-  dbExecute(con, "INSERT INTO  test VALUES ('2000-01-01','2000-01-01','2000-01-01'),('2000-10-01','2000-10-01','2000-10-01'),('2010-01-01','2000-10-01','2010-01-01'),(NULL,NULL,NULL)")
-  arrow_table <- duckdb_fetch_arrow(dbSendQuery(con, "SELECT * FROM test", arrow = TRUE))
+  dbExecute(
+    con,
+    "INSERT INTO  test VALUES ('2000-01-01','2000-01-01','2000-01-01'),('2000-10-01','2000-10-01','2000-10-01'),('2010-01-01','2000-10-01','2010-01-01'),(NULL,NULL,NULL)"
+  )
+  arrow_table <- duckdb_fetch_arrow(dbSendQuery(
+    con,
+    "SELECT * FROM test",
+    arrow = TRUE
+  ))
   duckdb_register_arrow(con, "testarrow", arrow_table)
 
   # Try ==
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a ='2000-01-01'")[[1]], 1)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a ='2000-01-01'")[[
+      1
+    ]],
+    1
+  )
   # Try >
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a >'2000-01-01'")[[1]], 2)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a >'2000-01-01'")[[
+      1
+    ]],
+    2
+  )
   # Try >=
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a >='2000-10-01'")[[1]], 2)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a >='2000-10-01'")[[
+      1
+    ]],
+    2
+  )
   # Try <
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a <'2000-10-01'")[[1]], 1)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a <'2000-10-01'")[[
+      1
+    ]],
+    1
+  )
   # Try <=
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a <='2000-10-01'")[[1]], 2)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a <='2000-10-01'")[[
+      1
+    ]],
+    2
+  )
 
   # Try Is Null
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a IS NULL")[[1]], 1)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a IS NULL")[[1]],
+    1
+  )
   # Try Is Not Null
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a IS NOT NULL")[[1]], 3)
+  expect_equal(
+    dbGetQuery(con, "SELECT count(*) from testarrow where a IS NOT NULL")[[1]],
+    3
+  )
 
   # Try And
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a='2000-10-01' and b ='2000-01-01'")[[1]], 0)
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a ='2010-01-01' and b = '2000-10-01' and c = '2010-01-01'")[[1]], 1)
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a='2000-10-01' and b ='2000-01-01'"
+    )[[1]],
+    0
+  )
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a ='2010-01-01' and b = '2000-10-01' and c = '2010-01-01'"
+    )[[1]],
+    1
+  )
   # Try Or
-  expect_equal(dbGetQuery(con, "SELECT count(*) from testarrow where a = '2010-01-01' or b ='2000-01-01'")[[1]], 2)
+  expect_equal(
+    dbGetQuery(
+      con,
+      "SELECT count(*) from testarrow where a = '2010-01-01' or b ='2000-01-01'"
+    )[[1]],
+    2
+  )
 
   duckdb_unregister_arrow(con, "testarrow")
 })
@@ -384,9 +796,18 @@ test_that("duckdb_register_arrow() under many threads", {
   duckdb_register_arrow(con, "mtcars_arrow", ds)
   dbExecute(con, "PRAGMA threads=32")
   dbExecute(con, "PRAGMA verify_parallelism")
-  expect_error(dbGetQuery(con, "SELECT cyl, COUNT(mpg) FROM mtcars_arrow GROUP BY cyl"), NA)
-  expect_error(dbGetQuery(con, "SELECT cyl, SUM(mpg) FROM mtcars_arrow GROUP BY cyl"), NA)
-  expect_error(dbGetQuery(con, "SELECT cyl, AVG(mpg) FROM mtcars_arrow GROUP BY cyl"), NA)
+  expect_error(
+    dbGetQuery(con, "SELECT cyl, COUNT(mpg) FROM mtcars_arrow GROUP BY cyl"),
+    NA
+  )
+  expect_error(
+    dbGetQuery(con, "SELECT cyl, SUM(mpg) FROM mtcars_arrow GROUP BY cyl"),
+    NA
+  )
+  expect_error(
+    dbGetQuery(con, "SELECT cyl, AVG(mpg) FROM mtcars_arrow GROUP BY cyl"),
+    NA
+  )
 })
 
 test_that("we can unregister in finalizers yay", {
@@ -453,7 +874,9 @@ test_that("duckdb can read arrow timestamps", {
   timestamp <- as.POSIXct("2022-01-30 11:59:29", tz = "UTC")
 
   for (unit in c("s", "ms", "us", "ns")) {
-    tbl <- arrow::arrow_table(t = arrow::Array$create(timestamp, type = arrow::timestamp(unit)))
+    tbl <- arrow::arrow_table(
+      t = arrow::Array$create(timestamp, type = arrow::timestamp(unit))
+    )
     duckdb_register_arrow(con, "timestamps", tbl)
 
     if (unit == "ns") {
@@ -471,7 +894,10 @@ test_that("duckdb can read arrow timestamps", {
     }
     expect_equal(res[[1]], as.POSIXct(as.character(timestamp), tz = "UTC"))
 
-    res <- dbGetQuery(con, "SELECT year(t), month(t), day(t), hour(t), minute(t), second(t) FROM timestamps")
+    res <- dbGetQuery(
+      con,
+      "SELECT year(t), month(t), day(t), hour(t), minute(t), second(t) FROM timestamps"
+    )
 
     expect_equal(res[[1]], 2022)
     expect_equal(res[[2]], 1)
@@ -491,7 +917,9 @@ test_that("duckdb can read arrow timestamptz", {
   timestamp <- as.POSIXct("2022-01-30 11:59:29")
 
   for (unit in c("s", "ms", "us", "ns")) {
-    tbl <- arrow::arrow_table(t = arrow::Array$create(timestamp, type = arrow::timestamp(unit, "UTC")))
+    tbl <- arrow::arrow_table(
+      t = arrow::Array$create(timestamp, type = arrow::timestamp(unit, "UTC"))
+    )
     duckdb_register_arrow(con, "timestamps", tbl)
 
     if (unit == "ns") {
@@ -509,7 +937,10 @@ test_that("duckdb can read arrow timestamptz", {
     }
     expect_equal(res[[1]], as.POSIXct(as.character(timestamp), tz = "UTC"))
 
-    res <- dbGetQuery(con, "SELECT year(t), month(t), day(t), hour(t), minute(t), second(t) FROM timestamps")
+    res <- dbGetQuery(
+      con,
+      "SELECT year(t), month(t), day(t), hour(t), minute(t), second(t) FROM timestamps"
+    )
 
     expect_equal(res[[1]], 2022)
     expect_equal(res[[2]], 1)
@@ -530,19 +961,31 @@ test_that("OR and IN predicates are pushed down to registered Arrow tables", {
   on.exit(duckdb_unregister_arrow(con, "test_arrow_or"))
 
   expect_identical(
-    dbGetQuery(con, "SELECT a FROM test_arrow_or WHERE a = 3 OR a = 7 ORDER BY a")$a,
+    dbGetQuery(
+      con,
+      "SELECT a FROM test_arrow_or WHERE a = 3 OR a = 7 ORDER BY a"
+    )$a,
     c(3L, 7L)
   )
   expect_identical(
-    dbGetQuery(con, "SELECT a FROM test_arrow_or WHERE a IN (2, 5, 11) ORDER BY a")$a,
+    dbGetQuery(
+      con,
+      "SELECT a FROM test_arrow_or WHERE a IN (2, 5, 11) ORDER BY a"
+    )$a,
     c(2L, 5L, 11L)
   )
   expect_identical(
-    dbGetQuery(con, "SELECT a FROM test_arrow_or WHERE b IN ('c', 'f') ORDER BY a")$a,
+    dbGetQuery(
+      con,
+      "SELECT a FROM test_arrow_or WHERE b IN ('c', 'f') ORDER BY a"
+    )$a,
     c(3L, 6L)
   )
   expect_identical(
-    dbGetQuery(con, "SELECT a FROM test_arrow_or WHERE (a > 15 AND a < 18) OR a = 1 ORDER BY a")$a,
+    dbGetQuery(
+      con,
+      "SELECT a FROM test_arrow_or WHERE (a > 15 AND a < 18) OR a = 1 ORDER BY a"
+    )$a,
     c(1L, 16L, 17L)
   )
 })

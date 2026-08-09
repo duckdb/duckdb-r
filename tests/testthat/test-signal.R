@@ -8,15 +8,24 @@ test_that("long-running queries can be cancelled", {
   r_session <- callr::r_session$new()
   pkg <- get_package_name()
 
-  r_session$run(function(pkg) {
-    .GlobalEnv$con <- DBI::dbConnect(asNamespace(pkg)$duckdb())
-    DBI::dbExecute(.GlobalEnv$con, "CREATE TABLE data AS SELECT unnest(generate_series(1, 100000)) AS a")
-  }, args = list(pkg))
+  r_session$run(
+    function(pkg) {
+      .GlobalEnv$con <- DBI::dbConnect(asNamespace(pkg)$duckdb())
+      DBI::dbExecute(
+        .GlobalEnv$con,
+        "CREATE TABLE data AS SELECT unnest(generate_series(1, 100000)) AS a"
+      )
+    },
+    args = list(pkg)
+  )
 
   r_session$call(function() {
     .GlobalEnv$interrupted <- FALSE
     tryCatch(
-      DBI::dbGetQuery(.GlobalEnv$con, "SELECT COUNT(*) FROM data JOIN data AS data2 ON data.a != data2.a"),
+      DBI::dbGetQuery(
+        .GlobalEnv$con,
+        "SELECT COUNT(*) FROM data JOIN data AS data2 ON data.a != data2.a"
+      ),
       interrupt = function(e) {
         .GlobalEnv$interrupted <- TRUE
       }

@@ -12,6 +12,14 @@ so snapshots drift whenever a vendored DuckDB changes its output,
 and snapshot repair is a routine part of vendoring
 ([`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md)).
 
+**Record the output where the output is the assertion.**
+Generated text a reader has to approve — a translated query,
+a printed relational expression, the wording of a message,
+warning or error — belongs in `_snaps/`,
+because a recorded file puts the whole of it in the diff,
+where a regex goes on matching wording nobody would ship.
+An expectation that names one value stays one.
+
 A snapshot must never record the package's own name:
 [`scripts/flavor.patch`](/scripts/flavor.patch) does not rewrite
 `_snaps/`, so one recorded file has to serve every flavor.

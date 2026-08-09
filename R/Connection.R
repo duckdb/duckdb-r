@@ -16,15 +16,19 @@
 #' @aliases duckdb_driver
 #' @keywords internal
 #' @export
-setClass("duckdb_driver", contains = "DBIDriver", slots = list(
-  database_ref = "externalptr",
-  config = "list",
-  dbdir = "character",
-  read_only = "logical",
-  convert_opts = "list",
-  bigint = "character",
-  allow_extensions = "logical"
-))
+setClass(
+  "duckdb_driver",
+  contains = "DBIDriver",
+  slots = list(
+    database_ref = "externalptr",
+    config = "list",
+    dbdir = "character",
+    read_only = "logical",
+    convert_opts = "list",
+    bigint = "character",
+    allow_extensions = "logical"
+  )
+)
 
 #' DuckDB connection class
 #'
@@ -64,7 +68,12 @@ setClass(
   prototype = list(stream = FALSE)
 )
 
-duckdb_connection <- function(duckdb_driver, debug, convert_opts, stream = FALSE) {
+duckdb_connection <- function(
+  duckdb_driver,
+  debug,
+  convert_opts,
+  stream = FALSE
+) {
   out <- new(
     "duckdb_connection",
     conn_ref = rethrow_rapi_connect(duckdb_driver@database_ref, convert_opts),
