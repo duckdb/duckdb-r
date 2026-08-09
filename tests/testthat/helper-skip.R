@@ -17,10 +17,21 @@
 # extension binaries and no released libduckdb to match.
 # https://github.com/r-lib/testthat/issues/2236
 skip_on_dev_version <- function() {
-  version <- get_duckdb_version()
-  if (!grepl("^[0-9]+[.][0-9]+[.][0-9]$", version)) {
+  if (!is_release_version(get_duckdb_version())) {
     skip("Skip on development versions.")
   }
+}
+
+# Is this version string a release, rather than a snapshot between releases?
+#
+# Three numbers and nothing else. Every component is `[0-9]+` rather than a
+# single digit: DuckDB has already shipped a two-digit component (`0.10.0`), and
+# a patch release reaches two digits the same way -- which a single-digit
+# pattern reads as a snapshot, skipping tests that should have run on a release.
+# Covered by `test-helper-skip.R`, because nothing else here can be: the
+# condition this feeds is a property of the build.
+is_release_version <- function(version) {
+  grepl("^[0-9]+[.][0-9]+[.][0-9]+$", version)
 }
 
 # Skip on every flavor but the mainline one.
