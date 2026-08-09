@@ -27,17 +27,44 @@ and [`src/transform.cpp`](/src/transform.cpp) (the way back).
   [`R/dbConnect__duckdb_driver.R`](/R/dbConnect__duckdb_driver.R),
   returns raw vectors; `"wk"` returns `wk_wkb`, which
   `sf::st_as_sfc()` converts onward.
-  There is no automatic conversion on the *write* side,
-  and an `sf` object handed to `dbWriteTable()` fails rather than
-  finding one ([#1670](https://github.com/duckdb/duckdb-r/issues/1670)).
-  The route is WKB in a `BLOB` column —
-  `sf::st_as_binary()` produces the raw vectors, and a list of them
-  writes as `BLOB` — with `ST_GeomFromWKB()` reading it back,
-  either per query or once, through
-  `ALTER TABLE … ALTER COLUMN … SET DATA TYPE GEOMETRY USING`.
+  `GEOMETRY` is a core DuckDB type since 1.5,
+  so reading one needs no extension —
+  but the geometry *functions* are still `spatial`'s, and so is the CRS
+  provider that resolves a name like `EPSG:4326`
+  ([`extensions/`](/handbook/usage/extensions/README.md)).
+  The column's CRS reaches R either way:
+  as an attribute on `wk_wkb`, and as PROJJSON in the metadata of the
+  `geoarrow.wkb` field an Arrow result carries — the engine registers
+  that Arrow extension type in both directions.
+* **Writing a geometry means writing WKT, not WKB.**
+  A `character` column of `sf::st_as_text()` output with
+  `field.types = c(geom = "GEOMETRY")` lands a `GEOMETRY` column in one
+  statement, because the `VARCHAR` cast parses WKT;
+  spell the CRS into the type — `"GEOMETRY('EPSG:4267')"` — to keep it,
+  which needs `spatial` loaded.
+  WKB has no such cast:
+  `BLOB` → `GEOMETRY` is unimplemented, so the same call over
+  `sf::st_as_binary()` output fails, and `ST_GeomFromWKB()` has to do
+  the conversion — per query, bound to `?`, or once through
+  `ALTER TABLE … ALTER COLUMN … SET DATA TYPE GEOMETRY USING`,
+  which drops the CRS because it names the bare type.
+* **An `sf` or `sfc` column is not written, and may not say so.**
+  A whole `sf` object handed to `dbWriteTable()` fails inside sf's own
+  `dbDataType()` method, which writes EWKB hex into a column DuckDB
+  parses as WKT
+  ([#1670](https://github.com/duckdb/duckdb-r/issues/1670));
+  a bare `sfc` column is worse — a `POINT` column writes *silently* as
+  `DOUBLE[]`, and other geometry types abort with a message naming
+  neither column nor type.
+  Convert to text or to WKB first, and take one of the routes above;
+  a `wk_wkb` column is no shortcut — it writes as `BLOB` like any
+  other list of raw vectors, dropping its class and its CRS.
   The duckspatial and duckdbfs packages wrap this.
-  Native `sf` support is roadmapped in
-  [#117](https://github.com/duckdb/duckdb-r/issues/117).
+  What the whole surface does, route by route, is
+  [`experiments/2026-08-09-spatial-interop/`](/experiments/2026-08-09-spatial-interop/README.md);
+  what to do about the write side is
+  [`plan/PLAN-spatial-interop.md`](/plan/PLAN-spatial-interop.md)
+  ([#117](https://github.com/duckdb/duckdb-r/issues/117)).
 * **An untyped `NULL` comes back as `NA_integer_`,**
   matching the engine's own `SELECT NULL`;
   mapping it to logical `NA` instead was declined
