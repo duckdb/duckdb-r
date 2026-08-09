@@ -127,10 +127,79 @@ compare, which is the thing R has not built yet.
 Settling this is the next step, and it decides whether the swap can be
 one change or needs the storage resolution moved behind the glue.
 
+## What the review found
+
+A correctness pass over the implementation on this branch, with the
+suite passing everything except the storage defect above.
+The ranked findings, and what they do to the design.
+
+**Blocking: the busy-spin hangs R, and nothing on this side can avoid
+it.**
+`GetInstanceInternal()` spins on `while (!weak_cache_entry.expired())`
+waiting for another thread to finish a shutdown.
+`~DatabaseInstance` releases the cache entry on its *last* line, so any
+`DatabaseInstance` outliving its `DuckDB` handle leaves the entry alive
+with a null `database` — the exact state the spin waits for.
+In a single-threaded R process nothing ever releases it, and the loop
+has no `R_CheckUserInterrupt()`, so the session wedges at 100% CPU and
+Ctrl-C does not break out.
+Reaching it takes no mistake: a `dbSendQuery()` result that has not been
+cleared holds a `ClientContext`, which holds the `DatabaseInstance`, so
+shutting the driver down and reopening the same file is enough.
+This is the risk this document said to settle first, and it settles
+against the swap: the package cannot keep a `DuckDB` handle alive for
+every `ClientContext` it does not own.
+An upstream fix — a bounded wait, or releasing the entry earlier in
+`~DatabaseInstance` — is the precondition for any of the rest.
+
+**The R side has to say what the engine cannot.**
+The engine refuses a config mismatch with a message naming neither the
+setting nor the way out, and it now fires where this package used to
+reuse silently: `read_only`, `config`, and any two calls whose storage
+home resolves differently.
+The refusals [#2641](https://github.com/duckdb/duckdb-r/pull/2641) adds
+have to land first, in front of the engine's.
+
+**`allow_extensions` and `environment_scan` are worse than dropped.**
+They live on the discarded wrapper, so a cache hit takes the first
+instance's values while the *driver object* reports the second call's —
+a driver that says the
+[#1107](https://github.com/duckdb/duckdb-r/issues/1107) crash guard is
+on against an engine that has it off.
+Refusing them, as this document assumed, is not optional.
+
+**`:memory:name` is cached.**
+Only `""` and exactly `":memory:"` take `NEVER_CACHE`, so a named
+in-memory database is shared against both `?duckdb` and the comment
+above the branch — and then fails its own second call, because
+`resolve_temp_directory()` hands each one a fresh `temp_directory` that
+the config comparison rejects.
+
+**Smaller, all real:** `dbConnect(drv, dbdir = <what the user spelled>)`
+no longer matches `drv@dbdir`, which now holds the engine-canonical
+path, so it silently invalidates the driver;
+`RInstanceCache::wrappers` is never pruned and keeps a control block per
+database opened, for the life of the process;
+`duckdb_shutdown()` no longer releases the file to another process while
+any instance reference survives, which `?duckdb` still promises it does;
+and the `catch (std::exception &)` now spans code that can raise
+`cpp11::unwind_exception`, which it would swallow.
+
+*Not* found, and worth recording: no path spelling produces two
+instances — `GetDBAbsolutePath()` is at least as strong as the deleted
+`path_normalize()`, verified across relative, `..`, symlinked and
+not-yet-existing paths — there is no reference cycle, `on_create` holds
+exactly what belongs there, and the discarded `replacement_scans` are
+never retained.
+The approach is sound; the engine is not ready to carry it.
+
 ## Staging
 
-1. Settle the linkage question: build against a released `libduckdb` on
-   Linux and macOS and see whether the symbol resolves.
+0. Get the busy-spin bounded upstream. Nothing below is safe until it
+   is: `DBInstanceCache` is unusable from a single-threaded host.
+1. Settle the linkage question. Done for Linux — the symbol resolves
+   from the released `libduckdb` v1.5.5 and a probe links and runs
+   against it — macOS unverified.
 2. The glue swap, with the wrapper moved into `on_create`.
 3. The R side: delete `path_normalize()` and `driver_registry`, keep
    #2641's refusals in front of the engine's.
