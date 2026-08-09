@@ -78,6 +78,10 @@ the directory keeps the method so that is possible.
   what the published Windows `libduckdb` exports, and how much of what
   the glue resolves from the engine is in there; supports
   [`build/fast-paths/`](/handbook/build/fast-paths/README.md).
+* [`2026-08-09-path-canonicalization/`](2026-08-09-path-canonicalization/) —
+  what DuckDB reports as a database's path once it has opened it,
+  where that differs from `normalizePath()`, and what each costs;
+  supports [`usage/connections/`](/handbook/usage/connections/README.md).
 * [`2026-08-temp-storage-spill/`](2026-08-temp-storage-spill/) —
   whether larger-than-memory work actually spills, per connection
   idiom, on duckdb 1.3.2, the current CRAN release, `main`, and the
