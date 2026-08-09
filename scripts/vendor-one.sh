@@ -88,6 +88,19 @@ elif [ "$upstream_basedir" != "$upstream_dir" ]; then
     "$(git -C "$upstream_basedir" rev-parse --verify HEAD)"
 fi
 
+# Make the vendored tree depend on the upstream commit and nothing else.
+# `DUCKDB_SOURCE_ID` in pragma_version.cpp comes from upstream's
+# `git describe --tags --long`, run inside this clone, and git auto-sizes that
+# abbreviation from the number of objects the repository holds -- so the same
+# commit vendored twice, from clones that have grown apart, writes two different
+# strings and two different trees, and re-vendoring a commit to reproduce a
+# failure does not reproduce the tree. Set on every run, not only on the clone,
+# because the clone may be one someone else made (CI checks upstream out here).
+# Ten is DuckDB's own length: its CMake truncates the id to ten characters in
+# the built library, which is what ./configure's commit-match guard compares
+# against.
+git -C "$upstream_dir" config core.abbrev 10
+
 if [ -n "$(git status --porcelain)" ]; then
   echo "Error: working directory not clean"
   exit 1

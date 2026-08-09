@@ -3,16 +3,34 @@ From: =?UTF-8?q?Kirill=20M=C3=BCller?= <kirill@cynkra.com>
 Date: Fri, 20 Dec 2024 20:40:37 +0100
 Subject: [PATCH] Remove stderr for zstd
 
+Emptying DISPLAYUPDATE leaves the progress clock it read with no reader:
+ZDICT_clockSpan() and the two locals it timed are dead once this patch
+applies, and -Wunused-function / -Wunused-variable say so. Remove them
+here, with the change that orphaned them, rather than in a patch of
+their own -- upstream has nothing to fix.
 ---
- src/duckdb/third_party/zstd/dict/zdict.cpp | 8 +-------
- 1 file changed, 1 insertion(+), 7 deletions(-)
+ src/duckdb/third_party/zstd/dict/zdict.cpp | 12 +-----------
+ 1 file changed, 1 insertion(+), 11 deletions(-)
 
 diff --git a/src/duckdb/third_party/zstd/dict/zdict.cpp b/src/duckdb/third_party/zstd/dict/zdict.cpp
-index 069691d19..8529e9442 100644
+index 7381e505d..069691d19 100644
 --- a/src/duckdb/third_party/zstd/dict/zdict.cpp
 +++ b/src/duckdb/third_party/zstd/dict/zdict.cpp
-@@ -479,15 +479,9 @@ static size_t ZDICT_trainBuffer_legacy(dictItem* dictList, U32 dictListSize,
-     clock_t const refreshRate = CLOCKS_PER_SEC * 3 / 10;
+@@ -80,8 +80,6 @@
+ #undef  DISPLAYLEVEL
+ #define DISPLAYLEVEL(l, ...) do { if (notificationLevel>=l) { DISPLAY(__VA_ARGS__); } } while (0)    /* 0 : no display;   1: errors;   2: default;  3: details;  4: debug */
+ 
+-static clock_t ZDICT_clockSpan(clock_t nPrevious) { return clock() - nPrevious; }
+-
+ static void ZDICT_printHex(const void* ptr, size_t length)
+ {
+     const BYTE* const b = (const BYTE*)ptr;
+@@ -475,19 +473,11 @@
+     BYTE* doneMarks = (BYTE*)malloc((bufferSize+16)*sizeof(*doneMarks));   /* +16 for overflow security */
+     U32* filePos = (U32*)malloc(nbFiles * sizeof(*filePos));
+     size_t result = 0;
+-    clock_t displayClock = 0;
+-    clock_t const refreshRate = CLOCKS_PER_SEC * 3 / 10;
  
  #   undef  DISPLAYUPDATE
 +// CRAN does not allow stderr references
@@ -30,4 +48,3 @@ index 069691d19..8529e9442 100644
      /* init */
 -- 
 2.43.0
-
