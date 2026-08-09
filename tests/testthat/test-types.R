@@ -33,3 +33,23 @@ test_that("test_all_types() output", {
     ))
   })
 })
+
+# A column carrying a class attribute -- `units`, and anything else built the
+# same way -- crosses as the numeric underneath it, so the value is what a
+# caller gets back and can re-apply the class to:
+# handbook/usage/types/README.md, reported as #590.
+test_that("the value of a classed numeric column survives every route in", {
+  con <- local_con()
+
+  df <- data.frame(id = 1:3)
+  df$area <- structure(c(1.5, 2.5, 3.5), class = "area_unit")
+
+  dbWriteTable(con, "written", df)
+  expect_equal(dbGetQuery(con, "SELECT area FROM written")$area, c(1.5, 2.5, 3.5))
+
+  duckdb_register(con, "registered", df)
+  expect_equal(dbGetQuery(con, "SELECT area FROM registered")$area, c(1.5, 2.5, 3.5))
+
+  bound <- dbGetQuery(con, "SELECT ? AS area", params = list(structure(2.5, class = "area_unit")))
+  expect_equal(bound$area, 2.5)
+})

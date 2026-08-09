@@ -41,6 +41,7 @@ the boundaries users keep hitting:
   so the session time zone is not applied; `!!as.POSIXct(…)`
   is escaped R-side and is
   ([#1064](https://github.com/duckdb/duckdb-r/issues/1064), dbplyr-wide).
+  Build the value in R with the zone meant and inject it with `!!`.
 * A bare `Inf` literal escapes as the string `'Infinity'`
   ([#1585](https://github.com/duckdb/duckdb-r/issues/1585),
   blocked on
