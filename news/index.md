@@ -1,5 +1,18 @@
 # Changelog
 
+## duckdb 1.5.5.9013
+
+### Continuous integration
+
+- Skip arrow if uninstallable.
+
+### Testing
+
+#### storage
+
+- Compare spill paths on one separator spelling
+  ([\#2579](https://github.com/duckdb/duckdb-r/issues/2579)).
+
 ## duckdb 1.5.5.9012
 
 ### Bug fixes
