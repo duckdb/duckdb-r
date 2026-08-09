@@ -119,7 +119,7 @@ unique_ptr<TableRef> duckdb::EnvironmentScanReplacement(ClientContext &context, 
 	// binds (e.g. during rel_to_altrep()) do not need to look up the data
 	// frame from the environment again.
 	table_function->external_dependency = make_shared_ptr<ExternalDependency>();
-	return std::move(table_function);
+	return table_function;
 }
 
 class RArrowTabularStreamFactory {
@@ -350,7 +350,7 @@ unique_ptr<TableRef> duckdb::ArrowScanReplacement(ClientContext &context, Replac
 		children.push_back(
 		    make_uniq<ConstantExpression>(Value::POINTER((uintptr_t)RArrowTabularStreamFactory::GetSchema)));
 		table_function->function = make_uniq<FunctionExpression>("arrow_scan", std::move(children));
-		return std::move(table_function);
+		return table_function;
 	}
 	return nullptr;
 }

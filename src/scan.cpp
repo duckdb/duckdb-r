@@ -637,7 +637,7 @@ static duckdb::unique_ptr<GlobalTableFunctionState> DataFrameScanInitGlobal(Clie
                                                                             TableFunctionInitInput &input) {
 	auto result = make_uniq<DataFrameGlobalState>(DataFrameScanMaxThreads(context, input.bind_data.get()));
 	result->position = 0;
-	return std::move(result);
+	return result;
 }
 
 static bool DataFrameScanParallelStateNext(ClientContext &context, const FunctionData *bind_data_p,
@@ -669,7 +669,7 @@ static unique_ptr<LocalTableFunctionState> DataFrameScanInitLocal(ExecutionConte
 
 	result->column_ids = input.column_ids;
 	DataFrameScanParallelStateNext(context.client, input.bind_data.get(), *result, gstate);
-	return std::move(result);
+	return result;
 }
 
 static void DataFrameScanFunc(ClientContext &context, TableFunctionInput &data, DataChunk &output) {
