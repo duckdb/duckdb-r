@@ -77,14 +77,17 @@ execute to a destination instead.
 The API grew to serve duckplyr — `NEWS.md` records rounds of "internal
 changes to support the duckplyr package" — and being internal does not
 make it free to change:
-`rel_to_altrep()` still carries
-`# FIXME: Move dots after `rel` for duckplyr >= 1.1.0`,
-a signature held in place by a downstream version.
+`rel_to_altrep()` kept an `allow_materialization` argument that duckplyr
+had stopped passing in 1.1.0,
+and only once no duckplyr in the field still named it was it removed and
+`...` moved directly after `rel`,
+so that a budget is spelled out in full or refused
+rather than matched positionally
+([#1052](https://github.com/duckdb/duckdb-r/issues/1052)).
 So a change here is negotiated with duckplyr rather than merely reviewed,
 and duckplyr is the reverse dependency a behaviour change is checked
 against first
 ([`testing/revdep/`](/handbook/testing/revdep/README.md)).
 
 *To deepen: state which verbs duckplyr actually calls, so a change can be
-scoped against real use rather than the whole surface;
-drain the `rel_to_altrep()` signature FIXME when duckplyr's floor allows.*
+scoped against real use rather than the whole surface.*
