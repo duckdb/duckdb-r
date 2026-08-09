@@ -124,7 +124,12 @@ dbConnect__duckdb_driver <- function(
     drv <- duckdb(dbdir, read_only, bigint, config)
   }
 
-  conn <- duckdb_connection(drv, debug = debug, convert_opts = convert_opts, stream = stream)
+  conn <- duckdb_connection(
+    drv,
+    debug = debug,
+    convert_opts = convert_opts,
+    stream = stream
+  )
   on.exit(dbDisconnect(conn))
 
   reg.finalizer(conn@conn_ref, onexit = TRUE, rapi_disconnect)

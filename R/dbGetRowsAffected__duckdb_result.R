@@ -12,7 +12,11 @@ dbGetRowsAffected__duckdb_result <- function(res, ...) {
     duckdb_execute_pending(res)
   }
   # Return NA only when params are required but not yet bound
-  if (is.null(res@env$resultset) && is.null(res@env$stream_result) && res@stmt_lst$n_param > 0) {
+  if (
+    is.null(res@env$resultset) &&
+      is.null(res@env$stream_result) &&
+      res@stmt_lst$n_param > 0
+  ) {
     return(NA_integer_)
   }
   return(res@env$rows_affected)

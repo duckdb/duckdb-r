@@ -168,9 +168,16 @@ duckdb_stream_open <- function(res) {
     streaming = TRUE
   )
   if (is.null(res@env$pending_params)) {
-    res@env$stream_result <- rethrow_rapi_execute(res@stmt_lst$ref, convert_opts)
+    res@env$stream_result <- rethrow_rapi_execute(
+      res@stmt_lst$ref,
+      convert_opts
+    )
   } else {
-    out <- rethrow_rapi_bind(res@stmt_lst$ref, res@env$pending_params, convert_opts)
+    out <- rethrow_rapi_bind(
+      res@stmt_lst$ref,
+      res@env$pending_params,
+      convert_opts
+    )
     res@env$stream_result <- out[[1]]
     res@env$pending_params <- NULL
   }
@@ -184,7 +191,11 @@ duckdb_stream_fetch <- function(res, n) {
   out <- rethrow_rapi_stream_fetch(
     res@env$stream_result,
     n,
-    duckdb_convert_opts_impl(res@connection@convert_opts, arrow = FALSE, streaming = TRUE)
+    duckdb_convert_opts_impl(
+      res@connection@convert_opts,
+      arrow = FALSE,
+      streaming = TRUE
+    )
   )
 
   df <- out$df
