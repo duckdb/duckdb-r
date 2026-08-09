@@ -130,6 +130,64 @@ copy_logos()
 
 target_dir = os.path.join(os.getcwd(), 'src', 'duckdb')
 
+# Where the tree this run replaces is kept while the new one is generated.
+#
+# The regeneration itself is unavoidable, but rewriting a file is not free after
+# the write: it invalidates git's stat cache entry for it, so every later git
+# command over the tree re-hashes all ~3550 files. `git status` measured 1.06 s
+# right after every file was touched against 0.017 s with the index still valid,
+# and a vendor run pays that twice per candidate -- once for the "more than one
+# changed file" test that decides whether the candidate is worth a commit, and
+# once for `git add` -- whether or not the candidate is kept.
+#
+# So the old tree is moved aside rather than deleted, and every regenerated file
+# that turns out to be byte-identical to its predecessor is replaced by that
+# predecessor: `os.replace` puts the original inode back, with the size, mtime
+# and ctime the index recorded, and the stat cache entry is valid again. The
+# tree left behind is byte-for-byte what a regeneration from scratch produces,
+# because that is what it was compared against; only the inodes below the
+# unchanged majority are older than the run.
+previous_dir = os.path.join(os.getcwd(), 'src', '.duckdb-previous')
+
+
+def files_equal(a, b):
+    """Do these two paths hold the same bytes? A missing `b` is not equal."""
+    if not os.path.isfile(b):
+        return False
+    if os.path.getsize(a) != os.path.getsize(b):
+        return False
+    with open(a, 'rb') as fa, open(b, 'rb') as fb:
+        return fa.read() == fb.read()
+
+
+def restore_unchanged(previous, target):
+    """Put back the inode of every regenerated file that did not change.
+
+    Returns (restored, rewritten).
+    """
+    restored = rewritten = 0
+    for root, dirs, files in os.walk(target):
+        rel = os.path.relpath(root, target)
+        previous_root = previous if rel == os.curdir else os.path.join(previous, rel)
+        for name in files:
+            current = os.path.join(root, name)
+            before = os.path.join(previous_root, name)
+            if files_equal(current, before):
+                os.replace(before, current)
+                restored += 1
+            else:
+                rewritten += 1
+    return restored, rewritten
+
+
+# A run that died between the move and the regeneration leaves the tree here and
+# nothing at target_dir; put it back rather than dropping it on the floor.
+if os.path.isdir(previous_dir) and not os.path.isdir(target_dir):
+    os.rename(previous_dir, target_dir)
+shutil.rmtree(previous_dir, ignore_errors=True)
+if os.path.isdir(target_dir):
+    os.rename(target_dir, previous_dir)
+
 linenr = bool(os.getenv("DUCKDB_R_LINENR", ""))
 
 (source_list, include_list, original_sources) = package_build.build_package(target_dir, extensions, linenr)
@@ -144,7 +202,8 @@ linenr = bool(os.getenv("DUCKDB_R_LINENR", ""))
 source_list = [x for x in source_list if 'third_party/jemalloc' not in x.replace('\\', '/')]
 
 # Walk target_dir, find all source and include files, and terminate with newline,
-# if not already present
+# if not already present. Before the restore below, so what it compares against
+# is the final content of each file.
 for root, dirs, files in os.walk(target_dir):
     for file in files:
         if file.endswith('.cpp') or file.endswith('.hpp') or file.endswith('.c') or file.endswith('.h') or file.endswith('.cc'):
@@ -154,6 +213,10 @@ for root, dirs, files in os.walk(target_dir):
                 if len(lines) > 0 and lines[-1][-1] != '\n':
                     with open (filename, "a") as fw:
                         fw.write("\n")
+
+restored, rewritten = restore_unchanged(previous_dir, target_dir)
+shutil.rmtree(previous_dir, ignore_errors=True)
+print("Vendored tree: {} files changed, {} unchanged".format(rewritten, restored))
 
 script_path = os.path.dirname(os.path.abspath(__file__)).replace('\\', '/')
 

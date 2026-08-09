@@ -6,37 +6,41 @@ duckdb_convert_opts <- function(
   array = "none",
   geometry = "blob",
   map = "data.frame",
-  posixct = "timestamptz"
+  posixct = "timestamptz",
+  call = parent.frame()
 ) {
   tz_out_convert <- match.arg(tz_out_convert)
   timezone_out <- check_tz(timezone_out)
 
   if (bigint == "integer64") {
     if (!is_installed("bit64")) {
-      stop("bit64 package is required for integer64 support")
+      abort("bit64 package is required for integer64 support", call = call)
     }
   } else if (bigint != "numeric") {
-    stop(paste0("Unsupported bigint configuration: ", bigint))
+    abort(paste0("Unsupported bigint configuration: ", bigint), call = call)
   }
 
   if (geometry == "wk") {
     if (!is_installed("wk")) {
-      stop("wk package is required for geometry = \"wk\" support")
+      abort("wk package is required for geometry = \"wk\" support", call = call)
     }
   } else if (geometry != "blob") {
-    stop(paste0("Unsupported geometry configuration: ", geometry))
+    abort(paste0("Unsupported geometry configuration: ", geometry), call = call)
   }
 
   if (map == "list_of") {
     if (!is_installed("vctrs")) {
-      stop("vctrs package is required for map = \"list_of\" support")
+      abort(
+        "vctrs package is required for map = \"list_of\" support",
+        call = call
+      )
     }
   } else if (map != "data.frame") {
-    stop(paste0("Unsupported map configuration: ", map))
+    abort(paste0("Unsupported map configuration: ", map), call = call)
   }
 
   if (!posixct %in% c("timestamp", "timestamptz")) {
-    stop(paste0("Unsupported posixct configuration: ", posixct))
+    abort(paste0("Unsupported posixct configuration: ", posixct), call = call)
   }
 
   duckdb_convert_opts_impl(

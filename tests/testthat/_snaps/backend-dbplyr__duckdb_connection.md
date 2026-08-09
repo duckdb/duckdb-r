@@ -415,42 +415,42 @@
     Code
       translate(grepl("dummy", txt, perl = TRUE))
     Condition
-      Error:
+      Error in `grepl()`:
       ! Parameters `perl`, `fixed` and `useBytes` in grepl are not currently supported in DuckDB backend
     Code
       translate(quarter(x, type = "other"))
     Condition
-      Error:
+      Error in `quarter()`:
       ! Unsupported type other
     Code
       translate(quarter(x, fiscal_start = 2))
     Condition
-      Error:
+      Error in `quarter()`:
       ! `fiscal_start` is not yet supported in DuckDB translation. Must be 1.
     Code
       translate(str_pad(x, width = 10, side = "other"))
     Condition
-      Error:
+      Error in `str_pad()`:
       ! Argument 'side' should be "left", "right" or "both"
     Code
       translate(date_build(2000L, invalid = "previous"))
     Condition
-      Error:
+      Error in `date_build()`:
       ! Argument `invalid` isn't supported on database backends.
     Code
       translate(date_build(2000.5))
     Condition
-      Error:
+      Error in `date_build()`:
       ! `year` must be a whole number.
     Code
       translate(difftime(x, y, units = "secs"))
     Condition
-      Error:
+      Error in `difftime()`:
       ! `units = "secs"` isn't supported on database backends.
       It must be "days" instead.
     Code
       translate(difftime(x, y, tz = "UTC"))
     Condition
-      Error:
+      Error in `difftime()`:
       ! Argument `tz` isn't supported on database backends.
 
