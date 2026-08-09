@@ -63,6 +63,10 @@ test_that("a path that cannot be created fails, naming the path", {
   path <- file.path(withr::local_tempdir(), "no-such-directory", "db.duckdb")
 
   err <- expect_error(path_normalize(path))
-  expect_match(conditionMessage(err), "Cannot create database file", fixed = TRUE)
+  expect_match(
+    conditionMessage(err),
+    "Cannot create database file",
+    fixed = TRUE
+  )
   expect_match(conditionMessage(err), path, fixed = TRUE)
 })
