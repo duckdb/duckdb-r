@@ -31,6 +31,8 @@ and this one carries only `.clang-format`,
 so that job formats the C++ and leaves the R alone.
 `R/` and `tests/` have drifted from what air prints as a result,
 which makes reformatting-in-passing expensive:
+until the config lands
+([#2614](https://github.com/duckdb/duckdb-r/issues/2614)),
 a change matches the file it is editing
 and leaves the lines it did not come for alone.
 
@@ -46,6 +48,11 @@ A problem statement first, in sentence case, ending in a full stop;
 and **can't** where it cannot;
 the offending argument in backticks,
 and what the caller actually passed rather than only what was wanted.
+It is raised with `call. = FALSE`, and through rlang where that is
+installed, as the `rethrow_` wrappers do — so the message points at the
+user's call and not at the internal check that noticed
+([#2615](https://github.com/duckdb/duckdb-r/issues/2615),
+which both spellings in the tree are still being converted to).
 
 **`...` goes after the required arguments**
 ([design guide](https://design.tidyverse.org/dots-after-required.html)),
@@ -73,7 +80,8 @@ is snake_case whatever the generic above it is called.
 `Roxygen: list(markdown = TRUE)` is set in
 [`DESCRIPTION`](/DESCRIPTION), so a cross-reference is `[dbConnect()]`
 and code is backticked;
-some pages still carry the older `\code{\link{}}` spelling,
+a few pages still carry the older `\code{\link{}}` spelling
+([#2616](https://github.com/duckdb/duckdb-r/issues/2616)),
 and converting one is an ordinary edit.
 Each `@param` is a sentence — capitalised, ending in a full stop.
 
@@ -102,11 +110,12 @@ Each `@param` is a sentence — capitalised, ending in a full stop.
   [`R/rlang.R`](/R/rlang.R) holds base fallbacks for the few rlang
   functions the package uses, swapped for the real ones at load
   when rlang is installed.
-* **The package never writes its own name**, in code or in roxygen —
-  stricter than either guide asks,
-  and the only rule on this page with a guard behind it.
 
-*To deepen: settle whether an R-level `stop()` passes `call. = FALSE`
-or leans on the rethrow wrappers — both spellings are in the tree —
-and land the `air.toml` that turns the formatting rule above
-from a paragraph into a check.*
+*To deepen: state the rules once the three sweeps that make the code
+match them have run — `air.toml`
+([#2614](https://github.com/duckdb/duckdb-r/issues/2614)),
+the error-raising spelling
+([#2615](https://github.com/duckdb/duckdb-r/issues/2615)),
+and the roxygen conversion
+([#2616](https://github.com/duckdb/duckdb-r/issues/2616)) —
+and add the rules a review has enforced twice since.*
