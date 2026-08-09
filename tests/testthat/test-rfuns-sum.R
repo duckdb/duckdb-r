@@ -63,12 +63,15 @@ test_that("r_base::sum merges partial states in window frames", {
   # can serve from a single worker.
   dbExecute(con, "PRAGMA threads=1")
 
-  res <- dbGetQuery(con, '
+  res <- dbGetQuery(
+    con,
+    '
     WITH t AS (SELECT range::INTEGER AS i FROM range(5000)),
     w AS (SELECT
       "r_base::sum"(i) OVER (ORDER BY i ROWS BETWEEN 999 PRECEDING AND CURRENT ROW) AS rs,
       sum(i)           OVER (ORDER BY i ROWS BETWEEN 999 PRECEDING AND CURRENT ROW) AS ns
     FROM t)
-    SELECT count(*) FILTER (WHERE rs IS DISTINCT FROM ns::DOUBLE) AS mismatches FROM w')
+    SELECT count(*) FILTER (WHERE rs IS DISTINCT FROM ns::DOUBLE) AS mismatches FROM w'
+  )
   expect_identical(res$mismatches, 0)
 })

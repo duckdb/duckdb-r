@@ -10,4 +10,8 @@ dbGetRowsAffected__duckdb_result_arrow <- function(res, ...) {
 
 #' @rdname duckdb_result_arrow-class
 #' @export
-setMethod("dbGetRowsAffected", "duckdb_result_arrow", dbGetRowsAffected__duckdb_result_arrow)
+setMethod(
+  "dbGetRowsAffected",
+  "duckdb_result_arrow",
+  dbGetRowsAffected__duckdb_result_arrow
+)

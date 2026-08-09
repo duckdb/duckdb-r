@@ -10,4 +10,8 @@ dbHasCompleted__duckdb_result_arrow <- function(res, ...) {
 
 #' @rdname duckdb_result_arrow-class
 #' @export
-setMethod("dbHasCompleted", "duckdb_result_arrow", dbHasCompleted__duckdb_result_arrow)
+setMethod(
+  "dbHasCompleted",
+  "duckdb_result_arrow",
+  dbHasCompleted__duckdb_result_arrow
+)
