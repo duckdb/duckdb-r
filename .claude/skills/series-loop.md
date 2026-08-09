@@ -312,9 +312,15 @@ or the run is there and its results are not
 (a leg that died before it uploaded anything).
 Nothing else in this stage changes; the bytes are the same either way.
 
-**The store is an emergency route, and it is not kept warm.**
+**The store is an emergency route *for a firing*, and it is not kept warm.**
 One writer is still automatic, and it covers almost all of it:
 a leg publishes its own verdict seconds after deciding a commit.
+That publish is not a copy kept for this stage's benefit:
+CI plans and resumes from the store and from nothing else
+(`scripts/rcc-decided.sh`),
+so the branch is load-bearing even in a cycle where no firing opens it,
+and a steady trickle of pushes to `rcc2` is the system working
+rather than a retired branch still ticking.
 Everything else has been retired in the loop's direction of travel —
 the per-run fan-in, which reconciled onto the branch
 whatever a leg could not publish,
@@ -1263,7 +1269,10 @@ is what carries the automatic path into a forward series.
   for a firing that cannot read the runs.
   Neither source may be *required*: a firing that has only one of them
   still finishes, and says in its report which one it had.
-  The fallback is an emergency route and is not kept warm:
+  The fallback is an emergency route *for the firing*, and is not kept warm:
   `rcc-logs.yaml` is dispatched, never scheduled,
   so a firing that needs the copy complete asks for it
   and reads the answer on a later pass — it never blocks on one.
+  On the CI side the store is nobody's fallback:
+  selection reads it and only it,
+  which is why the leg's per-commit publish stays automatic.
