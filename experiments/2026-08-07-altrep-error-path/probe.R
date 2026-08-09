@@ -31,10 +31,19 @@ options(expressions = 500000L) # let the C stack, not the eval depth, bind
 if (variant == "base-rapi-error") {
   ns <- asNamespace("duckdb")
   unlockBinding("rapi_error", ns)
-  assign("rapi_error", function(context, message, error_type = NULL,
-                                raw_message = NULL, extra_info = NULL) {
-    stop(paste0(context, ": ", message), call. = FALSE)
-  }, envir = ns)
+  assign(
+    "rapi_error",
+    function(
+      context,
+      message,
+      error_type = NULL,
+      raw_message = NULL,
+      extra_info = NULL
+    ) {
+      stop(paste0(context, ": ", message), call. = FALSE)
+    },
+    envir = ns
+  )
 }
 
 con <- dbConnect(duckdb())
@@ -42,10 +51,18 @@ rel <- duckdb:::rel_from_df(con, data.frame(a = 1:10, b = 1:10))
 forbid <- duckdb:::rel_to_altrep(rel, allow_materialization = FALSE)
 ok <- duckdb:::rel_to_altrep(rel)
 
-cat("duckdb ", as.character(packageVersion("duckdb")),
-    ", R ", as.character(getRversion()),
-    ", rlang ", as.character(packageVersion("rlang")),
-    ", variant ", variant, "\n\n", sep = "")
+cat(
+  "duckdb ",
+  as.character(packageVersion("duckdb")),
+  ", R ",
+  as.character(getRversion()),
+  ", rlang ",
+  as.character(packageVersion("rlang")),
+  ", variant ",
+  variant,
+  "\n\n",
+  sep = ""
+)
 
 invisible(tryCatch(nrow(forbid), error = function(e) NULL)) # warm every path
 
@@ -62,7 +79,11 @@ probe <- function() {
     nrow(forbid),
     condition = function(cnd) {
       if (is.null(seen)) {
-        seen <<- vapply(sys.calls(), function(x) paste(deparse(x[[1]])[[1]], collapse = ""), "")
+        seen <<- vapply(
+          sys.calls(),
+          function(x) paste(deparse(x[[1]])[[1]], collapse = ""),
+          ""
+        )
       }
     }
   )
@@ -71,9 +92,16 @@ invisible(tryCatch(probe(), error = function(e) NULL))
 
 cut <- match(".row_names_info", seen)
 cat("== 1. R frames below the ALTREP method\n")
-cat(paste0("   ", format(seq_along(seen)), ". ", seen,
-           ifelse(seq_along(seen) > cut, "   <- inside RownamesLength()", "")),
-    sep = "\n")
+cat(
+  paste0(
+    "   ",
+    format(seq_along(seen)),
+    ". ",
+    seen,
+    ifelse(seq_along(seen) > cut, "   <- inside RownamesLength()", "")
+  ),
+  sep = "\n"
+)
 cat("\n")
 
 
@@ -96,7 +124,11 @@ marker <- function() {
     duckdb:::rel_from_altrep_df(data.frame(a = 1)),
     error = identity
   ))
-  if (grepl("Context:", msg)) "bullet form (guard off)" else "FLAT FORM (guard stuck on)"
+  if (grepl("Context:", msg)) {
+    "bullet form (guard off)"
+  } else {
+    "FLAT FORM (guard stuck on)"
+  }
 }
 
 # Only meaningful as built: the marker reads the rlang bullet, which the plain
@@ -110,8 +142,17 @@ if (variant != "as-built") {
   # GetQueryResult() evaluates the materialize callback from inside the ALTREP
   # method; an error there unwinds all the way out to this tryCatch().
   options(duckdb.materialize_callback = function(rel) stop("callback failed"))
-  cat("   the long-jmp       :",
-      tryCatch({ nrow(ok); "no error" }, error = conditionMessage), "\n")
+  cat(
+    "   the long-jmp       :",
+    tryCatch(
+      {
+        nrow(ok)
+        "no error"
+      },
+      error = conditionMessage
+    ),
+    "\n"
+  )
   options(duckdb.materialize_callback = NULL)
 
   cat("   after the long-jmp :", marker(), "\n\n")
@@ -156,7 +197,11 @@ while (step >= 1L) {
 
 cat("== 4. C stack the error path needs\n")
 cat(sprintf("   stack size                  : %8.0f bytes\n", size))
-cat(sprintf("   real error still reported at: %8.0f bytes free (depth %d)\n", through, d))
+cat(sprintf(
+  "   real error still reported at: %8.0f bytes free (depth %d)\n",
+  through,
+  d
+))
 cat(sprintf("   C-stack error from          : %8.0f bytes free\n\n", overflow))
 
 
