@@ -66,6 +66,12 @@ void ScopedInterruptHandler::HandleInterrupt() const {
 }
 
 void ScopedInterruptHandler::Disable() {
+	// Restores unconditionally, and so discards a handler an extension
+	// installed during the call and did not remove itself. That is the
+	// deliberate half of the trade: declining to restore would leave R with
+	// someone else's handler for the rest of the session, which is the worse
+	// of the two. An extension that removes its own -- MotherDuck's sign-in
+	// wait does -- nests correctly here and loses nothing.
 	if (context) {
 		std::signal(SIGINT, oldhandler);
 		context.reset();
