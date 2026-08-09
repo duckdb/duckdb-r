@@ -195,6 +195,52 @@ engine workers ──► streaming buffer ──► pump thread ──► chunk 
   then joins and rethrows as the usual interrupt condition.
   This replaces `ScopedInterruptHandler` for the pumped path —
   no signal handler swapping, same observable behavior.
+* The SIGINT handler stops being a hot potato.
+  Today every engine-blocking entry point wraps itself in
+  `ScopedInterruptHandler` — a dozen-plus sites across
+  `src/statement.cpp`, `src/register.cpp`, `src/relational.cpp`,
+  `src/reltoaltrep.cpp`, and with #2292 every stream fetch —
+  each swapping the process-wide SIGINT disposition in and out
+  (`std::signal`, `src/signal.cpp`),
+  and none able to tell when foreign native code has taken it.
+  A pumped *fetch* touches none of that:
+  R's own SIGINT handling stays installed,
+  the wait slices poll R's pending-interrupt flag,
+  and cancellation crosses threads as `ClientContext::Interrupt()` —
+  which also confines the `Rf_onintr` empty-message workaround for
+  RStudio on Windows (`src/signal.cpp`) to the synchronous machinery.
+  (The *open* still runs synchronously on the R thread
+  and keeps its swap.)
+  The swaps that remain become the ownership policy's checkpoints:
+  * **Detect.** `std::signal()` returns the handler it displaces,
+    so install and restore can both notice a handler that is neither
+    R's nor ours — an extension claimed SIGINT, mid-call or before.
+    On POSIX, `sigaction(SIGINT, NULL, &old)` reads the disposition
+    without touching it, so the pump's open/close can check too;
+    Windows has no read-only query
+    (and console control handlers are invisible to this entirely),
+    so detection there stays best-effort at the swap points.
+    Diagnostic only — once per session, named in the message —
+    never a correctness mechanism.
+  * **Do not fight.** On detection the package does *not* reassert
+    mid-call: a foreign handler usually guards a foreign flow
+    (an auth roundtrip, a subprocess), and stomping it breaks that
+    flow at its most fragile moment. The next engine call installs
+    ours as always; the diagnostic tells the user who won between
+    calls. A long-lived always-installed handler with chaining was
+    considered and rejected: chaining signal handlers portably is
+    folklore, and owning SIGINT at the prompt is exactly the
+    behavior we fault extensions for.
+  * **Opt out.** `options(duckdb.interrupt_handler = FALSE)`:
+    never install ours, leave SIGINT to whoever owns it —
+    for sessions where the foreign handler is the wanted one
+    ([#202](https://github.com/duckdb/duckdb-r/issues/202)'s
+    MotherDuck auth is the live case).
+    The pump is what makes this offerable at all:
+    with the handler opted out, a synchronous query cannot be
+    cancelled until it returns, but a pumped fetch still cancels
+    promptly — its cancellation never depended on SIGINT ownership
+    in the first place.
 * The pump never touches the R API. Not for allocation, not for errors,
   not for interrupt checks. Any exception is caught,
   stored as `ErrorData`, the queue is closed,
@@ -497,11 +543,19 @@ T6 independent after T1; T7 last.
   `std::thread` under Rtools is fine, but stack sizes and DLL unload
   order at session end deserve a test on the CI matrix
   (`operations/ci/matrix/`).
-* **Async open.**
+* **Async open, async execute.**
   `dbSendQuery(stream = TRUE)` still plans, binds, and fills the first
   buffer on the R thread — binding may evaluate R
   (replacement scans), so moving the *open* off-thread needs a
   bind-complete barrier. Deliberately not in this plan.
+  The same shape is the eventual answer to
+  [#202](https://github.com/duckdb/duckdb-r/issues/202)-class hangs:
+  a blocking `ATTACH` whose extension never checks `Interrupt()`
+  holds the R thread captive today, and no signal-handler policy can
+  fix that — run on a pump-like thread instead, the R thread keeps
+  its prompt even when the engine call cannot be cancelled.
+  Named here so the pump's machinery
+  (queue, stop protocol, wait slices) is built reusable for it.
 * **Where `n`-row fairness lives.**
   The pump transfers whole chunks; a tiny `dbFetch(n = 10)` against a
   huge buffered queue still converts only what it needs —
@@ -572,6 +626,12 @@ For [`architecture/glue/`](/handbook/architecture/glue/README.md):
 > `ClientContext::GetQueryProgress()` — a struct of atomics, public
 > for exactly this — at its wait-and-convert points and drives the
 > usual `duckdb.progress_display` callback itself.
+> Only the synchronous machinery swaps the process SIGINT handler
+> (`ScopedInterruptHandler`); a pumped fetch cancels through R's own
+> pending-interrupt check plus `Interrupt()`, needing no handler —
+> which is why `options(duckdb.interrupt_handler = FALSE)` can cede
+> SIGINT to an extension that insists on owning it (#202)
+> without giving up prompt cancellation on pumped results.
 
 For [`architecture/engine/`](/handbook/architecture/engine/README.md):
 
