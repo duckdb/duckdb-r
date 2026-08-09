@@ -566,7 +566,7 @@ struct DataFrameScanBindData : public TableFunctionData {
 };
 
 struct DataFrameGlobalState : public GlobalTableFunctionState {
-	DataFrameGlobalState(idx_t max_threads) : max_threads(max_threads) {
+	DataFrameGlobalState(idx_t max_threads_) : max_threads(max_threads_) {
 	}
 
 	mutex lock;
