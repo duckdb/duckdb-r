@@ -81,15 +81,14 @@ resolve_storage_home <- function(home = NULL, shared_home = NULL) {
       # location, abort -- reusing the storage-location message as the error
       # text so the user sees exactly how to choose. Only an explicit "no"
       # proceeds with a temporary directory.
-      stop(
+      abort(
         paste(
           storage_location_message(
             list(root = session_home(), source = "session"),
             interactive = TRUE
           ),
           collapse = "\n"
-        ),
-        call. = FALSE
+        )
       )
     }
     if (isTRUE(answer)) {
@@ -157,9 +156,8 @@ describe_storage_home <- function() {
 
 check_home_arg <- function(home) {
   if (!is_nonempty_string(home)) {
-    stop(
-      "`home` must be a single non-empty string (a directory path), or NULL.",
-      call. = FALSE
+    abort(
+      "`home` must be a single non-empty string (a directory path), or NULL."
     )
   }
 }

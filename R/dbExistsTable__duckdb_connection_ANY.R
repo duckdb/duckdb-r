@@ -3,10 +3,10 @@
 #' @usage NULL
 dbExistsTable__duckdb_connection_ANY <- function(conn, name, ...) {
   if (!dbIsValid(conn)) {
-    stop("Invalid connection")
+    abort("Invalid connection")
   }
   if (length(name) != 1) {
-    stop("Can only have a single name argument")
+    abort("Can only have a single name argument")
   }
   exists <- FALSE
   tryCatch(

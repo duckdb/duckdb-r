@@ -1,3 +1,20 @@
+# The skip conditions this suite shares, each named for what it skips on.
+#
+# A test that cannot run everywhere is skipped on a property of what it is
+# running against -- a development snapshot of the engine, a renamed flavor,
+# CRAN, a build with icu linked in -- and the same property is asked about from
+# several test files. The reasoning for each lives here, so a call site is one
+# line that says which condition it is subject to and nothing more.
+#
+# A condition that a test could assert on instead is not one of these: where
+# DuckDB publishes no extension binaries the suite asserts the download error
+# rather than skipping, so the day the gap closes it is the assertion that
+# fails (handbook/testing/suite/README.md).
+
+# Skip where the vendored engine is a development snapshot rather than a
+# release. `get_duckdb_version()` reports a bare three-component version only at
+# a tag; anything else is a snapshot between releases, which has no published
+# extension binaries and no released libduckdb to match.
 # https://github.com/r-lib/testthat/issues/2236
 skip_on_dev_version <- function() {
   version <- get_duckdb_version()

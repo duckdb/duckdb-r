@@ -74,8 +74,11 @@ is_tag=
 for commit in $original; do
   echo "Importing commit $commit"
 
-  rm -rf ${vendor_dir}
-
+  # The tree is not deleted here: rconfigure.py moves it aside itself and puts
+  # back the inode of every regenerated file that did not change, so a file
+  # whose content is the same keeps its stat cache entry and every later git
+  # command over ~3550 files stays cheap. Files upstream dropped still go -- they
+  # are in the tree that was moved aside, and never come back from it.
   echo "R: configure"
   DUCKDB_PATH="$upstream_dir" python3 scripts/rconfigure.py
 

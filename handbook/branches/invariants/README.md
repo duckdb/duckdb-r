@@ -40,14 +40,30 @@ Read every statement as a claim about **trees, not ancestry**:
 the parked baselines, so "X equals Y plus a rename" compares working trees.
 
 **Most invariants are enforced by nothing** —
-they are conventions, kept by the loop's routine and by review;
-a few hold mechanically
-(the vendor counter, the advance script's ancestor check on `-green`).
+they are conventions, kept by the loop's routine and by review.
+Exactly two checks run on every firing, both in
+[`scripts/series-advance.sh`](/scripts/series-advance.sh):
+`-green` moves only where `git merge-base --is-ancestor` says the move
+is a fast-forward, and a replay is kept only once every vendor commit in
+it is confirmed to carry a version strictly above its parent's.
+`-build-base` is not a third: it is set rather than advanced,
+recomputed from the match each time and force-pushed,
+which is why nothing gates it.
+The structural and flavor families hold **by construction** —
+the rename is one patch applied by
+[`scripts/flavor.sh`](/scripts/flavor.sh), which prepares and checks the
+whole thing before it commits anything, so the patch is the surface.
+Linearity and the dev baseline are checked by nothing at all;
+no script reads `dev-base`, and none counts parents.
+
 How well an unenforced one holds is measurable rather than assumed:
 [`experiments/2026-07-main-dev-review/`](/experiments/2026-07-main-dev-review/README.md)
 counted the R-side commits in one series' active range, and
 [`experiments/2026-08-02-lts-drift/`](/experiments/2026-08-02-lts-drift/README.md)
 measured how far the LTS flavor has drifted from its baseline.
 
-*To deepen: absorb the statements
-with their enforcement notes from `BRANCHES.md`.*
+*To deepen: say what would catch the two that nothing catches.
+Linearity and the dev baseline are the invariants a violation of
+reaches a release, and what a check for either would cost —
+where it would run, and what it would refuse —
+is written down nowhere.*

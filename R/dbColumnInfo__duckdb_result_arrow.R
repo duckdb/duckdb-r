@@ -3,7 +3,7 @@
 #' @usage NULL
 dbColumnInfo__duckdb_result_arrow <- function(res, ...) {
   if (!res@env$open) {
-    stop("result has already been cleared")
+    abort("result has already been cleared")
   }
   data.frame(
     name = res@stmt_lst$names,

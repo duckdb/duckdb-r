@@ -5,7 +5,7 @@
 #' @usage NULL
 dbFetchArrow__duckdb_result_arrow <- function(res, ..., chunk_size = 1000000) {
   if (!res@env$open) {
-    stop("result has already been cleared")
+    abort("result has already been cleared")
   }
   require_nanoarrow("dbFetchArrow()")
 
@@ -13,7 +13,7 @@ dbFetchArrow__duckdb_result_arrow <- function(res, ..., chunk_size = 1000000) {
     if (isTRUE(res@env$completed)) {
       return(empty_arrow_stream(res))
     }
-    stop("Need to call `dbBind()` before `dbFetchArrow()`")
+    abort("Need to call `dbBind()` before `dbFetchArrow()`")
   }
 
   pending <- res@env$pending_query_results
@@ -67,7 +67,7 @@ dbFetchArrowChunk__duckdb_result_arrow <- function(
   chunk_size = 1000000
 ) {
   if (!res@env$open) {
-    stop("result has already been cleared")
+    abort("result has already been cleared")
   }
   require_nanoarrow("dbFetchArrowChunk()")
 
@@ -75,7 +75,7 @@ dbFetchArrowChunk__duckdb_result_arrow <- function(
     if (isTRUE(res@env$completed)) {
       return(empty_arrow_chunk(res))
     }
-    stop("Need to call `dbBind()` before `dbFetchArrowChunk()`")
+    abort("Need to call `dbBind()` before `dbFetchArrowChunk()`")
   }
 
   repeat {
@@ -120,12 +120,11 @@ setMethod(
 
 require_nanoarrow <- function(what) {
   if (!requireNamespace("nanoarrow", quietly = TRUE)) {
-    stop(
+    abort(
       sprintf(
         "%s requires the `nanoarrow` package. Install it with `install.packages(\"nanoarrow\")`.",
         what
-      ),
-      call. = FALSE
+      )
     )
   }
 }
