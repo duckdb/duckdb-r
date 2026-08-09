@@ -68,6 +68,10 @@ the directory keeps the method so that is possible.
   series' `-dev`, what kind, and how much of the raw difference is not a
   fix at all; supports
   [`operations/vendoring/series-loop/`](/handbook/operations/vendoring/series-loop/README.md).
+* [`2026-08-09-windows-fast-path/`](2026-08-09-windows-fast-path/) —
+  what the published Windows `libduckdb` exports, and how much of what
+  the glue resolves from the engine is in there; supports
+  [`build/fast-paths/`](/handbook/build/fast-paths/README.md).
 * [`2026-08-temp-storage-spill/`](2026-08-temp-storage-spill/) —
   whether larger-than-memory work actually spills, per connection
   idiom, on duckdb 1.3.2, the current CRAN release, `main`, and the

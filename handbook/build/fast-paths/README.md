@@ -42,15 +42,32 @@ after every vendoring bump.
 If no prebuilt matches (a `-dev` snapshot), drop the variable and
 build from source.
 
-**No prefix needs root.**
-The script escalates only for a prefix it cannot write to,
-which the default `/usr/local` usually is;
-`--prefix ~/.local` puts the library and headers somewhere the caller
-can already write, and `DUCKDB_R_LIB_DIR` then points `configure` at it
+**Nothing here needs privileges.**
+The script installs under `~/.local` and `configure` searches there
+first, so the setup is the one variable above and no more;
+`--prefix` puts the library somewhere else, and `DUCKDB_R_LIB_DIR` is
+how `configure` is told about a directory it would not search
 ([`configuration/`](/handbook/build/configuration/README.md)).
-That directory is written into the link line as an `-Wl,-rpath` entry,
-so the installed package resolves the library
-with nothing set in the environment.
+Whichever directory is resolved is written into the link line as an
+`-Wl,-rpath` entry, so the installed package finds the library
+without anything set at run time.
+Only a `--prefix` the caller cannot write to is escalated for with sudo,
+on the grounds that asking for one is asking for the other.
+
+**Windows has no fast path, and is not waiting for one.**
+DuckDB publishes a Windows `libduckdb`, but builds it with MSVC, while R's
+Windows packages are built by the Rtools MinGW-w64 GCC toolchain:
+the glue calls DuckDB C++ internals, and the two compilers do not spell
+those names the same way, so the linker resolves none of them —
+the C API is the only shared surface, and the glue does not use it.
+The DLL also exports about a tenth of the `duckdb::` symbols an ELF
+`libduckdb.so` does, missing some the glue needs,
+so a mingw build of the library would not by itself be enough
+([`experiments/2026-08-09-windows-fast-path/`](/experiments/2026-08-09-windows-fast-path/README.md),
+measured against v1.5.5).
+`scripts/install-libduckdb.sh` refuses there and says so,
+and `configure.win` says the opt-in had no effect rather than
+quietly building from source.
 
 **The fast path proves nothing about the engine.**
 A release `libduckdb` links more extensions and defaults differently,
