@@ -28,30 +28,13 @@ the boundaries users keep hitting:
 * `distinct(.keep_all = TRUE)` is a `ROW_NUMBER()` subquery,
   not `DISTINCT ON` — needs dbplyr support
   ([#384](https://github.com/duckdb/duckdb-r/issues/384),
-  [tidyverse/dbplyr#1620](https://github.com/tidyverse/dbplyr/pull/1620)),
-  and the difference is what the query says rather than what it costs:
-  over 20M rows the window plan is 1.4× to 2.7× ahead of `DISTINCT ON`
-  wherever the surviving row is determined, and level with it where the
-  pick is arbitrary — which is what dbplyr's own plan does, since with
-  no `arrange()` it orders by the first column
+  [tidyverse/dbplyr#1620](https://github.com/tidyverse/dbplyr/pull/1620)).
+  An experiment with v1.5.5 measured that `DISTINCT ON` is actually slower
+  in many cases, and never faster
   ([`experiments/2026-08-09-distinct-on-cost/`](/experiments/2026-08-09-distinct-on-cost/README.md)).
-  What is *not* missing is the ability to determine which row survives:
-  `window_order(desc(x))` above `distinct()` renders the window's
-  `ORDER BY` and picks accordingly, and an `arrange()` in the same
-  position renders the same SQL — it warns that the ordering is ignored,
-  which here it is not.
-  A pipeline that says neither gets `ORDER BY` on the first column.
-  A caller who wants the clause anyway can render the pipeline and wrap
-  it — `remote_con()`, `sql_render()`, `translate_sql_()`, `ident()`,
-  `escape()`, `sql()` are all exported, so this reaches no dbplyr
-  internals — and register that as their own `distinct()` method taking
-  an `.order_by`
+  A caller who wants the clause anyway can render the pipeline and wrap it,
+  and register that as their own `distinct()` method
   ([`experiments/2026-08-09-distinct-on-override/`](/experiments/2026-08-09-distinct-on-override/README.md)).
-  An argument rather than an option is what keeps that safe:
-  the method hands back to dbplyr whenever `.order_by` is absent, so it
-  fires only on calls that stated which row they meant —
-  which it has to, since a wrapper over rendered SQL cannot read the
-  `window_order()` the pipeline already carries.
 * `pivot_longer()` expands SQL generically instead of `UNPIVOT`
   ([#2029](https://github.com/duckdb/duckdb-r/issues/2029)).
 * An inline `as.POSIXct("…")` is translated, not escaped,
