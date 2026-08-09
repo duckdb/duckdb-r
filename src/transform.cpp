@@ -18,7 +18,7 @@ static void VectorToR(const Vector &src_vec, size_t count, void *dest, uint64_t 
 	auto &mask = FlatVector::Validity(src_vec);
 	auto dest_ptr = ((DEST *)dest) + dest_offset;
 	for (size_t row_idx = 0; row_idx < count; row_idx++) {
-		dest_ptr[row_idx] = !mask.RowIsValid(row_idx) ? na_val : src_ptr[row_idx];
+		dest_ptr[row_idx] = !mask.RowIsValid(row_idx) ? na_val : static_cast<DEST>(src_ptr[row_idx]);
 	}
 }
 
